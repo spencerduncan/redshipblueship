@@ -2,10 +2,16 @@ cmake_minimum_required(VERSION 3.14)
 
 add_library(combo STATIC
     src/placeholder.cpp
+    src/GameArchives.cpp
 )
 
 target_include_directories(combo PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+# Link against libultraship for Archive/File types
+target_link_libraries(combo PUBLIC
+    libultraship
 )
 
 set_target_properties(combo PROPERTIES
