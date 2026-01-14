@@ -11,6 +11,7 @@ FetchContent_MakeAvailable(googletest)
 add_executable(combo_tests
     sanity_test.cpp
     game_archives_test.cpp
+    dynamic_library_test.cpp
 )
 
 target_link_libraries(combo_tests
