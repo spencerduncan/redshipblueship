@@ -65,11 +65,11 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # Sub-projects
 ################################################################################
 if (NOT TARGET libultraship)
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../libultraship ${CMAKE_BINARY_DIR}/libultraship)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../libultraship ${CMAKE_BINARY_DIR}/libultraship)
 endif()
 
 if (NOT TARGET ZAPDLib)
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../ZAPDTR/ZAPD ${CMAKE_BINARY_DIR}/ZAPD)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../ZAPDTR/ZAPD ${CMAKE_BINARY_DIR}/ZAPD)
 endif()
 
 set(PROJECT_NAME 2ship)
@@ -232,8 +232,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE assets
 	${CMAKE_CURRENT_SOURCE_DIR}/include/
 	${CMAKE_CURRENT_SOURCE_DIR}/include/PR
 	${CMAKE_CURRENT_SOURCE_DIR}/src/
-    ${CMAKE_CURRENT_SOURCE_DIR}/../libultraship/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../ZAPDTR/ZAPD/resource/type
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../libultraship/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../ZAPDTR/ZAPD/resource/type
 	${CMAKE_CURRENT_SOURCE_DIR}
 	${CMAKE_CURRENT_SOURCE_DIR}/2s2h/
 	${SDL2-INCLUDE}
@@ -502,8 +502,8 @@ if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
         TARGET ${PROJECT_NAME}
         POST_BUILD
         COMMENT "Copying asset xmls..."
-        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/mm/assets/extractor $<TARGET_FILE_DIR:2ship>/assets
-        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/mm/assets/xml $<TARGET_FILE_DIR:2ship>/assets/xml
+        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/mm/assets/extractor $<TARGET_FILE_DIR:2ship>/assets
+        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/mm/assets/xml $<TARGET_FILE_DIR:2ship>/assets/xml
         COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:2ship>/assets/symbols
         COMMAND ${VS_COPY_ASSETS_CMD}
     )

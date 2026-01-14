@@ -417,7 +417,7 @@ void RunFrame() {
 
             Graph_StartFrame();
 
-            PadMgr_ThreadEntry(&gPadMgr);
+            PadMgr_ThreadEntry();
 
             Graph_Update(&runFrameContext.gfxCtx, runFrameContext.gameState);
             // ticksB = GetPerfCounter();
