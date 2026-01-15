@@ -73,15 +73,17 @@ void CrossGameEntranceTable::RegisterBidirectionalLink(
 }
 
 void CrossGameEntranceTable::RegisterDefaultLinks() {
-    // OoT Happy Mask Shop ↔ MM Clock Tower Interior
-    //
-    // Forward: Entering Happy Mask Shop (OoT) → Clock Tower Interior (MM)
-    // Return:  Exiting Clock Tower (MM) to South Clock Town → Back to Market (OoT)
-
+    // PRODUCTION: OoT Happy Mask Shop ↔ MM Clock Tower Interior
     RegisterBidirectionalLink(
-        // OoT side: Happy Mask Shop entrance, return to Market outside shop
         Game::OoT, COMBO_OOT_ENTR_HAPPY_MASK_SHOP, COMBO_OOT_ENTR_MARKET_FROM_MASK_SHOP,
-        // MM side: Clock Tower spawn 1, exit to South Clock Town
+        Game::MM, COMBO_MM_ENTR_CLOCK_TOWER_INTERIOR_1, COMBO_MM_ENTR_SOUTH_CLOCK_TOWN_0
+    );
+}
+
+void CrossGameEntranceTable::RegisterTestLinks() {
+    // TEST MODE: Mido's House ↔ Clock Tower (closer to spawn for quick testing)
+    RegisterBidirectionalLink(
+        Game::OoT, COMBO_OOT_ENTR_MIDOS_HOUSE, COMBO_OOT_ENTR_KOKIRI_FROM_MIDOS,
         Game::MM, COMBO_MM_ENTR_CLOCK_TOWER_INTERIOR_1, COMBO_MM_ENTR_SOUTH_CLOCK_TOWN_0
     );
 }

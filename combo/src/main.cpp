@@ -95,12 +95,25 @@ void PrintUsage(const char* progName) {
     std::cout << "Options:" << std::endl;
     std::cout << "  --game oot      Run Ocarina of Time" << std::endl;
     std::cout << "  --game mm       Run Majora's Mask" << std::endl;
+    std::cout << "  --test-entrance Use Mido's House instead of Happy Mask Shop" << std::endl;
     std::cout << "  --help          Show this help message" << std::endl;
     std::cout << "\n";
     std::cout << "If no game is specified, a menu will be displayed." << std::endl;
     std::cout << "\n";
     std::cout << "Hotkeys:" << std::endl;
     std::cout << "  F10             Switch between OoT and MM" << std::endl;
+}
+
+/**
+ * Check if --test-entrance flag is present
+ */
+bool HasTestEntranceFlag(int argc, char** argv) {
+    for (int i = 1; i < argc; i++) {
+        if (std::strcmp(argv[i], "--test-entrance") == 0) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
@@ -134,7 +147,14 @@ int main(int argc, char** argv) {
 
     // Initialize combo infrastructure
     Combo_InitFrozenStates();
-    Combo::gCrossGameEntrances.RegisterDefaultLinks();
+
+    // Register entrance links (test or production)
+    if (HasTestEntranceFlag(argc, argv)) {
+        std::cout << "Using TEST entrance: Mido's House ↔ Clock Tower" << std::endl;
+        Combo::gCrossGameEntrances.RegisterTestLinks();
+    } else {
+        Combo::gCrossGameEntrances.RegisterDefaultLinks();
+    }
 
     // Try to load both games
     bool ootLoaded = bridge.LoadGame(Combo::Game::OoT, ootLibPath);

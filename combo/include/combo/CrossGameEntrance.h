@@ -86,6 +86,12 @@ public:
     void RegisterDefaultLinks();
 
     /**
+     * Register test links (for easier testing):
+     * - OoT Mido's House ↔ MM Clock Tower Interior
+     */
+    void RegisterTestLinks();
+
+    /**
      * Clear all registered links
      */
     void Clear();
@@ -201,9 +207,13 @@ const char* Combo_GameToId(Combo::Game game);
 // Default entrance constants (for reference)
 // ============================================================================
 
-// OoT entrances
+// OoT entrances - Happy Mask Shop (production)
 #define COMBO_OOT_ENTR_HAPPY_MASK_SHOP           0x0530  // Into Happy Mask Shop
 #define COMBO_OOT_ENTR_MARKET_FROM_MASK_SHOP     0x01D1  // Out of Happy Mask Shop
+
+// OoT entrances - Mido's House (testing - closer to spawn)
+#define COMBO_OOT_ENTR_MIDOS_HOUSE               0x0433  // Into Mido's House
+#define COMBO_OOT_ENTR_KOKIRI_FROM_MIDOS         0x0443  // Out of Mido's House
 
 // MM entrances (using ENTRANCE macro: ((scene & 0x7F) << 9) | ((spawn & 0x1F) << 4))
 // CLOCK_TOWER_INTERIOR scene = 0x60
