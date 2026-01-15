@@ -7,11 +7,13 @@
 
 #include "combo/GameExports.h"
 #include "combo/ComboContextBridge.h"
+#include "combo/FrozenState.h"
 #include "BenPort.h"
 #include <libultraship/bridge/crashhandlerbridge.h>
 #include <ship/Context.h>
 #include <ship/window/Window.h>
 #include <ship/controller/controldevice/controller/mapping/keyboard/KeyboardScancodes.h>
+#include <cstring>
 
 // From main.c - need these includes for initialization
 extern "C" {
@@ -25,6 +27,7 @@ extern "C" {
 #include "system_heap.h"
 #include "z64thread.h"
 #include "global.h"
+#include "z64save.h"
 }
 
 // External declarations from main.c
@@ -55,6 +58,9 @@ extern "C" {
     extern AudioMgr sAudioMgr;
     extern PadMgr gPadMgr;
     extern IrqMgr gIrqMgr;
+
+    // Save context for state preservation
+    extern SaveContext gSaveContext;
 }
 
 // Game state for pause/resume
@@ -119,17 +125,29 @@ GAME_EXPORT void Game_Resume(void) {
 }
 
 GAME_EXPORT void* Game_SaveState(size_t* outSize) {
-    // TODO: Implement state serialization for hot-switching
-    // This is complex and will be implemented in Phase 2
-    *outSize = 0;
+    // Freeze state to the combo layer's FrozenStateManager
+    // The returnEntrance will be set separately by the entrance hook
+    Combo_FreezeState("mm", 0, &gSaveContext, sizeof(SaveContext));
+
+    // The FrozenStateManager owns the buffer, so we don't return one
+    // Callers should use Combo_GetMMSaveContext() for read access
+    *outSize = sizeof(SaveContext);
     return nullptr;
 }
 
 GAME_EXPORT int Game_LoadState(void* data, size_t size) {
-    // TODO: Implement state deserialization
-    (void)data;
-    (void)size;
-    return -1;  // Not implemented
+    // If data is provided, use it directly (external state)
+    if (data != nullptr && size == sizeof(SaveContext)) {
+        memcpy(&gSaveContext, data, sizeof(SaveContext));
+        return 0;
+    }
+
+    // Otherwise, try to restore from FrozenStateManager
+    if (Combo_RestoreState("mm", &gSaveContext, sizeof(SaveContext))) {
+        return 0;
+    }
+
+    return -1;  // No state to restore
 }
 
 GAME_EXPORT const char* Game_GetName(void) {

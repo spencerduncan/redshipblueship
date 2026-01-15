@@ -14,36 +14,25 @@
 #include <optional>
 #include "combo/DynamicLibrary.h"
 #include "combo/GameExports.h"
+#include "combo/CrossGameEntrance.h"  // For Game enum
 
 namespace Combo {
 
-/**
- * Identifies the supported games
- */
-enum class Game {
-    None,
-    OoT,    // Ocarina of Time (Ship of Harkinian)
-    MM      // Majora's Mask (2Ship2Harkinian)
-};
+// Game enum is defined in CrossGameEntrance.h
+// Helper functions to convert between Game enum and string identifiers
 
 /**
  * Converts Game enum to string identifier
  */
 inline const char* GameToId(Game game) {
-    switch (game) {
-        case Game::OoT: return "oot";
-        case Game::MM: return "mm";
-        default: return "none";
-    }
+    return Combo_GameToId(game);  // Use the C API from CrossGameEntrance.h
 }
 
 /**
  * Converts string identifier to Game enum
  */
 inline Game IdToGame(const std::string& id) {
-    if (id == "oot") return Game::OoT;
-    if (id == "mm") return Game::MM;
-    return Game::None;
+    return Combo_GameFromId(id.c_str());  // Use the C API from CrossGameEntrance.h
 }
 
 /**
