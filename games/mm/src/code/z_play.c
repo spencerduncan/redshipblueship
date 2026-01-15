@@ -48,6 +48,10 @@ u8 sMotionBlurStatus;
 #include "2s2h/framebuffer_effects.h"
 #include <string.h>
 
+// Cross-game combo support - defined in GameExports.cpp
+extern uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex);
+extern bool Combo_IsCrossGameSwitch(void);
+
 s32 gDbgCamEnabled = false;
 u8 D_801D0D54 = false;
 
@@ -618,6 +622,14 @@ void Play_UpdateTransition(PlayState* this) {
 
     switch (this->transitionMode) {
         case TRANS_MODE_SETUP:
+            // Check for cross-game entrance switch (combo launcher support)
+            // This catches all entrance transitions regardless of source
+            if (this->transitionTrigger != TRANS_TRIGGER_END) {
+                Combo_CheckEntranceSwitch((uint16_t)this->nextEntrance);
+                // If a cross-game switch was triggered, state has been frozen.
+                // The game loop will detect the switch request and exit cleanly.
+            }
+
             if (this->transitionTrigger != TRANS_TRIGGER_END) {
                 s16 sceneLayer = 0;
 

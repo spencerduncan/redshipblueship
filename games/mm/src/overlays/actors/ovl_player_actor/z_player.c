@@ -6487,6 +6487,10 @@ u8 sReturnEntranceGroupIndices[] = {
     0, // 0xFE00
 };
 
+// Cross-game combo support - defined in GameExports.cpp
+extern uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex);
+extern bool Combo_IsCrossGameSwitch(void);
+
 // subfunction of OoT's func_80839034
 void func_808354A4(PlayState* play, s32 exitIndex, s32 arg2) {
     play->nextEntrance = play->setupExitList[exitIndex];
@@ -6511,6 +6515,11 @@ void func_808354A4(PlayState* play, s32 exitIndex, s32 arg2) {
         gSaveContext.retainWeatherMode = true;
         Scene_SetExitFade(play);
     }
+
+    // Check for cross-game entrance switch (combo launcher support)
+    Combo_CheckEntranceSwitch((uint16_t)play->nextEntrance);
+    // Note: If this is a cross-game switch, state has been frozen by the check function.
+    // The game loop will detect the switch request and exit cleanly.
 
     play->transitionTrigger = TRANS_TRIGGER_START;
 }

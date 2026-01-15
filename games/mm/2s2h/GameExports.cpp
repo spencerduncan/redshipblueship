@@ -7,6 +7,7 @@
 
 #include "combo/GameExports.h"
 #include "combo/ComboContextBridge.h"
+#include "combo/CrossGameEntrance.h"
 #include "combo/FrozenState.h"
 #include "BenPort.h"
 #include <libultraship/bridge/crashhandlerbridge.h>
@@ -167,10 +168,16 @@ static bool sLastF10State = false;
 
 /**
  * Check if F10 was pressed and request game switch if so.
+ * Also checks for pending cross-game entrance switches.
  * Called from the game loop (Graph_ThreadEntry) each frame.
  * Returns true if a switch was requested (game should exit its loop).
  */
 extern "C" bool Combo_CheckHotSwap(void) {
+    // Check for pending cross-game entrance switch first
+    if (Combo_IsCrossGameSwitch()) {
+        return true;
+    }
+
     auto context = Ship::Context::GetInstance();
     if (!context) {
         return Combo_IsGameSwitchRequested();
@@ -191,4 +198,34 @@ extern "C" bool Combo_CheckHotSwap(void) {
     sLastF10State = f10Pressed;
 
     return Combo_IsGameSwitchRequested();
+}
+
+// ============================================================================
+// Cross-game entrance hook - called from MM's entrance handling
+// ============================================================================
+
+/**
+ * Check if an entrance is a cross-game entrance and handle the switch.
+ * Called from the entrance system when transitioning.
+ *
+ * @param entranceIndex The entrance being taken
+ * @return The entrance to use (original if not cross-game)
+ */
+extern "C" uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex) {
+    // Check if this entrance triggers a cross-game switch
+    uint16_t result = Combo_CheckCrossGameEntrance("mm", entranceIndex);
+
+    // If a cross-game switch was triggered, freeze our state
+    if (Combo_IsCrossGameSwitch()) {
+        // Get the return entrance from the pending switch
+        uint16_t returnEntrance = Combo_GetSwitchReturnEntrance();
+
+        // Freeze MM state with the return entrance
+        Combo_FreezeState("mm", returnEntrance, &gSaveContext, sizeof(SaveContext));
+
+        // Signal that we're ready to switch
+        Combo_SignalReadyToSwitch();
+    }
+
+    return result;
 }
