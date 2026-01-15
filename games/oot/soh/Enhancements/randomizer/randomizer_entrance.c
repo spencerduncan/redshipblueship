@@ -20,6 +20,10 @@
 
 extern PlayState* gPlayState;
 
+// Cross-game combo support - defined in GameExports.cpp
+extern uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex);
+extern bool Combo_IsCrossGameSwitch(void);
+
 // Overwrite the dynamic exit for the OGC Fairy Fountain to be 0x3E8 instead
 // of 0x340 (0x340 will stay as the exit for the HC Fairy Fountain -> Castle Grounds)
 s16 dynamicExitList[] = {
@@ -281,6 +285,15 @@ s16 Entrance_PeekNextIndexOverride(int16_t nextEntranceIndex) {
 }
 
 s16 Entrance_OverrideNextIndex(s16 nextEntranceIndex) {
+    // Check for cross-game entrance switch first (combo launcher support)
+    // This must be checked before any randomizer overrides
+    Combo_CheckEntranceSwitch((uint16_t)nextEntranceIndex);
+    if (Combo_IsCrossGameSwitch()) {
+        // A cross-game switch was triggered - state has been frozen
+        // Return the original entrance; the game loop will exit before loading it
+        return nextEntranceIndex;
+    }
+
     // Exiting through the crawl space from Hyrule Castle courtyard is the same exit as leaving Ganon's castle
     // Don't override the entrance if we came from the Castle courtyard (day and night scenes)
     if (gPlayState != NULL &&
