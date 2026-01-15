@@ -5,6 +5,7 @@ add_library(combo STATIC
     src/GameArchives.cpp
     src/DynamicLibrary.cpp
     src/ComboContextBridge.cpp
+    src/CrossGameEntrance.cpp
 )
 
 target_include_directories(combo PUBLIC
@@ -44,7 +45,14 @@ if(REDSHIP_BUILD_SHARED)
     set_target_properties(redship PROPERTIES
         CXX_STANDARD 20
         CXX_STANDARD_REQUIRED ON
+        # Export symbols so loaded games can call Combo_* functions
+        ENABLE_EXPORTS TRUE
     )
+
+    # On Unix, also add -rdynamic to ensure symbols are exported
+    if(UNIX)
+        target_link_options(redship PRIVATE -rdynamic)
+    endif()
 
     # Install the launcher
     install(TARGETS redship RUNTIME DESTINATION bin)

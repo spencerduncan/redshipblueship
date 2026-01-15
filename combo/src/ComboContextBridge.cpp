@@ -219,3 +219,33 @@ const GameExports* ComboContextBridge::GetGameExports(Game game) const {
 }
 
 } // namespace Combo
+
+// ============================================================================
+// Global hotswap mechanism implementation
+// ============================================================================
+
+// Global state for hotswap - shared between launcher and games
+static bool gGameSwitchRequested = false;
+static const char* gSwitchTargetId = nullptr;
+
+void Combo_RequestGameSwitch() {
+    gGameSwitchRequested = true;
+}
+
+bool Combo_IsGameSwitchRequested() {
+    return gGameSwitchRequested;
+}
+
+void Combo_ClearGameSwitchRequest() {
+    gGameSwitchRequested = false;
+    gSwitchTargetId = nullptr;
+}
+
+const char* Combo_GetSwitchTargetId() {
+    return gSwitchTargetId;
+}
+
+// Internal function to set the switch target (called by launcher)
+void Combo_SetSwitchTarget(const char* targetId) {
+    gSwitchTargetId = targetId;
+}

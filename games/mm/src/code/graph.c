@@ -439,8 +439,15 @@ void RunFrame() {
     Graph_Destroy(&runFrameContext.gfxCtx);
 }
 
+// Hot-swap support - defined in GameExports.cpp
+extern bool Combo_CheckHotSwap(void);
+
 void Graph_ThreadEntry(void* arg0) {
     while (WindowIsRunning()) {
+        // Check for F10 hot-swap request
+        if (Combo_CheckHotSwap()) {
+            break;  // Exit game loop to allow switch
+        }
         RunFrame();
     }
 }

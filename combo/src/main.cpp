@@ -96,6 +96,20 @@ void PrintUsage(const char* progName) {
     std::cout << "  --help          Show this help message" << std::endl;
     std::cout << "\n";
     std::cout << "If no game is specified, a menu will be displayed." << std::endl;
+    std::cout << "\n";
+    std::cout << "Hotkeys:" << std::endl;
+    std::cout << "  F10             Switch between OoT and MM" << std::endl;
+}
+
+/**
+ * Get the other game (for switching)
+ */
+Combo::Game GetOtherGame(Combo::Game current) {
+    switch (current) {
+        case Combo::Game::OoT: return Combo::Game::MM;
+        case Combo::Game::MM: return Combo::Game::OoT;
+        default: return Combo::Game::None;
+    }
 }
 
 } // namespace
@@ -183,10 +197,53 @@ int main(int argc, char** argv) {
         return initResult;
     }
 
-    // Run the game
-    std::cout << "Starting " << bridge.GetGameName(selected).value_or("game")
-              << "..." << std::endl;
-    bridge.Run();
+    // Game loop with hot-swap support
+    bool keepRunning = true;
+
+    while (keepRunning) {
+        // Clear any previous switch request
+        Combo_ClearGameSwitchRequest();
+
+        // Run the game
+        std::cout << "Starting " << bridge.GetGameName(selected).value_or("game")
+                  << "... (Press F10 to switch games)" << std::endl;
+        bridge.Run();
+
+        // Check if a game switch was requested
+        if (Combo_IsGameSwitchRequested()) {
+            Combo::Game nextGame = GetOtherGame(selected);
+
+            if (nextGame != Combo::Game::None && bridge.IsGameLoaded(nextGame)) {
+                std::cout << "\n=== Switching to "
+                          << bridge.GetGameName(nextGame).value_or("other game")
+                          << " ===" << std::endl;
+
+                // Shutdown current game
+                bridge.Shutdown();
+
+                // Switch to the other game
+                selected = nextGame;
+                bridge.SwitchGame(selected);
+
+                // Initialize the new game
+                int switchInitResult = bridge.Init(
+                    static_cast<int>(gameArgv.size()), gameArgv.data());
+                if (switchInitResult != 0) {
+                    std::cerr << "Error: Failed to initialize "
+                              << Combo::GameToId(selected)
+                              << " (code " << switchInitResult << ")" << std::endl;
+                    keepRunning = false;
+                }
+                // Loop continues, will run the new game
+            } else {
+                std::cerr << "Cannot switch: other game not loaded" << std::endl;
+                keepRunning = false;
+            }
+        } else {
+            // Normal exit (no switch requested)
+            keepRunning = false;
+        }
+    }
 
     // Cleanup
     bridge.Shutdown();

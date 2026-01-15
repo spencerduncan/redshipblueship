@@ -6,8 +6,12 @@
  */
 
 #include "combo/GameExports.h"
+#include "combo/ComboContextBridge.h"
 #include "BenPort.h"
 #include <libultraship/bridge/crashhandlerbridge.h>
+#include <ship/Context.h>
+#include <ship/window/Window.h>
+#include <ship/controller/controldevice/controller/mapping/keyboard/KeyboardScancodes.h>
 
 // From main.c - need these includes for initialization
 extern "C" {
@@ -134,4 +138,39 @@ GAME_EXPORT const char* Game_GetName(void) {
 
 GAME_EXPORT const char* Game_GetId(void) {
     return "mm";
+}
+
+// ============================================================================
+// Hot-swap support - F10 detection
+// ============================================================================
+
+// Track last F10 state to detect edge (press, not hold)
+static bool sLastF10State = false;
+
+/**
+ * Check if F10 was pressed and request game switch if so.
+ * Called from the game loop (Graph_ThreadEntry) each frame.
+ * Returns true if a switch was requested (game should exit its loop).
+ */
+extern "C" bool Combo_CheckHotSwap(void) {
+    auto context = Ship::Context::GetInstance();
+    if (!context) {
+        return Combo_IsGameSwitchRequested();
+    }
+
+    auto window = context->GetWindow();
+    if (!window) {
+        return Combo_IsGameSwitchRequested();
+    }
+
+    int32_t scancode = window->GetLastScancode();
+    bool f10Pressed = (scancode == Ship::LUS_KB_F10);
+
+    // Detect rising edge (just pressed, not held)
+    if (f10Pressed && !sLastF10State) {
+        Combo_RequestGameSwitch();
+    }
+    sLastF10State = f10Pressed;
+
+    return Combo_IsGameSwitchRequested();
 }
