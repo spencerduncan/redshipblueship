@@ -8,6 +8,9 @@ namespace Combo {
 CrossGameEntranceTable gCrossGameEntrances;
 PendingGameSwitch gPendingSwitch;
 
+// Startup entrance for cross-game switch (0 = not set)
+static uint16_t sStartupEntrance = 0;
+
 // ============================================================================
 // CrossGameEntranceTable implementation
 // ============================================================================
@@ -165,6 +168,18 @@ void Combo_SignalReadyToSwitch(void) {
 
 void Combo_ClearPendingSwitch(void) {
     Combo::gPendingSwitch = Combo::PendingGameSwitch{};
+}
+
+void Combo_SetStartupEntrance(uint16_t entrance) {
+    Combo::sStartupEntrance = entrance;
+}
+
+uint16_t Combo_GetStartupEntrance(void) {
+    return Combo::sStartupEntrance;
+}
+
+void Combo_ClearStartupEntrance(void) {
+    Combo::sStartupEntrance = 0;
 }
 
 } // extern "C"

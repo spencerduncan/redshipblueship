@@ -17,6 +17,8 @@
 #include <cstring>
 
 #include "combo/ComboContextBridge.h"
+#include "combo/CrossGameEntrance.h"
+#include "combo/FrozenState.h"
 
 #ifdef _WIN32
 #define LIB_SUFFIX ".dll"
@@ -130,6 +132,10 @@ int main(int argc, char** argv) {
     std::string ootLibPath = "games/oot/soh" LIB_SUFFIX;
     std::string mmLibPath = "games/mm/2ship" LIB_SUFFIX;
 
+    // Initialize combo infrastructure
+    Combo_InitFrozenStates();
+    Combo::gCrossGameEntrances.RegisterDefaultLinks();
+
     // Try to load both games
     bool ootLoaded = bridge.LoadGame(Combo::Game::OoT, ootLibPath);
     bool mmLoaded = bridge.LoadGame(Combo::Game::MM, mmLibPath);
@@ -197,48 +203,75 @@ int main(int argc, char** argv) {
         return initResult;
     }
 
-    // Game loop with hot-swap support
+    // Game loop with hot-swap and entrance-based switch support
     bool keepRunning = true;
 
     while (keepRunning) {
-        // Clear any previous switch request
+        // Clear any previous switch requests
         Combo_ClearGameSwitchRequest();
+        Combo_ClearPendingSwitch();
 
         // Run the game
         std::cout << "Starting " << bridge.GetGameName(selected).value_or("game")
                   << "... (Press F10 to switch games)" << std::endl;
         bridge.Run();
 
-        // Check if a game switch was requested
-        if (Combo_IsGameSwitchRequested()) {
-            Combo::Game nextGame = GetOtherGame(selected);
+        // Determine next game: entrance-based switch takes priority
+        Combo::Game nextGame = Combo::Game::None;
+        uint16_t targetEntrance = 0;
+        bool isEntranceSwitch = false;
 
-            if (nextGame != Combo::Game::None && bridge.IsGameLoaded(nextGame)) {
-                std::cout << "\n=== Switching to "
-                          << bridge.GetGameName(nextGame).value_or("other game")
-                          << " ===" << std::endl;
+        if (Combo_IsCrossGameSwitch()) {
+            // Entrance-based cross-game switch
+            const char* targetId = Combo_GetSwitchTargetGameId();
+            if (targetId) {
+                nextGame = Combo::IdToGame(targetId);
+                targetEntrance = Combo_GetSwitchTargetEntrance();
+                isEntranceSwitch = true;
+                std::cout << "\n=== Cross-game entrance detected ===" << std::endl;
+                std::cout << "Target: " << (nextGame == Combo::Game::OoT ? "OoT" : "MM")
+                          << " entrance 0x" << std::hex << targetEntrance
+                          << std::dec << std::endl;
+            }
+        } else if (Combo_IsGameSwitchRequested()) {
+            // F10 hotkey switch (just toggle games)
+            nextGame = GetOtherGame(selected);
+        }
 
-                // Shutdown current game
-                bridge.Shutdown();
+        // Handle the switch if requested
+        if (nextGame != Combo::Game::None && bridge.IsGameLoaded(nextGame)) {
+            std::cout << "\n=== Switching to "
+                      << bridge.GetGameName(nextGame).value_or("other game")
+                      << " ===" << std::endl;
 
-                // Switch to the other game
-                selected = nextGame;
-                bridge.SwitchGame(selected);
+            // Shutdown current game
+            bridge.Shutdown();
 
-                // Initialize the new game
-                int switchInitResult = bridge.Init(
-                    static_cast<int>(gameArgv.size()), gameArgv.data());
-                if (switchInitResult != 0) {
-                    std::cerr << "Error: Failed to initialize "
-                              << Combo::GameToId(selected)
-                              << " (code " << switchInitResult << ")" << std::endl;
-                    keepRunning = false;
-                }
-                // Loop continues, will run the new game
-            } else {
-                std::cerr << "Cannot switch: other game not loaded" << std::endl;
+            // For entrance-based switches, set up the target entrance
+            if (isEntranceSwitch && targetEntrance != 0) {
+                // Set the startup entrance for the new game to use
+                Combo_SetStartupEntrance(targetEntrance);
+            }
+
+            // Switch to the other game
+            selected = nextGame;
+            bridge.SwitchGame(selected);
+
+            // Initialize the new game
+            // The game will check Combo_GetStartupEntrance() and restore frozen
+            // state if available, or start at the specified entrance
+            int switchInitResult = bridge.Init(
+                static_cast<int>(gameArgv.size()), gameArgv.data());
+            if (switchInitResult != 0) {
+                std::cerr << "Error: Failed to initialize "
+                          << Combo::GameToId(selected)
+                          << " (code " << switchInitResult << ")" << std::endl;
                 keepRunning = false;
             }
+            // Loop continues, will run the new game
+        } else if (nextGame != Combo::Game::None) {
+            std::cerr << "Cannot switch: target game not loaded" << std::endl;
+            keepRunning = false;
         } else {
             // Normal exit (no switch requested)
             keepRunning = false;

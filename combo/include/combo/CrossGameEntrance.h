@@ -169,6 +169,23 @@ void Combo_SignalReadyToSwitch(void);
 void Combo_ClearPendingSwitch(void);
 
 /**
+ * Set the startup entrance for a game (used on first cross-game switch)
+ * Games should check this on init if doing a cross-game switch
+ */
+void Combo_SetStartupEntrance(uint16_t entrance);
+
+/**
+ * Get the startup entrance (0 if not set)
+ * Games call this on init to check if they should override the default entrance
+ */
+uint16_t Combo_GetStartupEntrance(void);
+
+/**
+ * Clear the startup entrance (called after game reads it)
+ */
+void Combo_ClearStartupEntrance(void);
+
+/**
  * Convert game ID string to enum
  */
 Combo::Game Combo_GameFromId(const char* gameId);
