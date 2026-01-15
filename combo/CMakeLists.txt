@@ -4,6 +4,7 @@ add_library(combo STATIC
     src/placeholder.cpp
     src/GameArchives.cpp
     src/DynamicLibrary.cpp
+    src/ComboContextBridge.cpp
 )
 
 target_include_directories(combo PUBLIC
@@ -28,4 +29,23 @@ set_target_properties(combo PROPERTIES
 # Tests
 if(BUILD_TESTING)
     add_subdirectory(tests)
+endif()
+
+# Launcher executable (only when building shared libraries)
+if(REDSHIP_BUILD_SHARED)
+    add_executable(redship
+        src/main.cpp
+    )
+
+    target_link_libraries(redship PRIVATE
+        combo
+    )
+
+    set_target_properties(redship PROPERTIES
+        CXX_STANDARD 20
+        CXX_STANDARD_REQUIRED ON
+    )
+
+    # Install the launcher
+    install(TARGETS redship RUNTIME DESTINATION bin)
 endif()

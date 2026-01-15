@@ -5,6 +5,9 @@ set(CMAKE_SYSTEM_VERSION 10.0 CACHE STRING "" FORCE)
 project(2ship LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20 CACHE STRING "The C++ standard to use")
 
+# Option to build as shared library for combo launcher integration
+option(REDSHIP_BUILD_SHARED "Build as shared library for combo launcher" OFF)
+
 if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     enable_language(OBJCXX)
     set(CMAKE_OBJC_FLAGS "${CMAKE_OBJC_FLAGS} -fobjc-arc")
@@ -173,10 +176,46 @@ set(ALL_FILES
     ${src__}
 )
 
+# When building as shared library, add GameExports.cpp
+# We keep main.c but rename SDL_main via compile definition
+if(REDSHIP_BUILD_SHARED)
+    list(APPEND ALL_FILES "${CMAKE_CURRENT_SOURCE_DIR}/2s2h/GameExports.cpp")
+endif()
+
 ################################################################################
 # Target
 ################################################################################
-add_executable(${PROJECT_NAME} ${ALL_FILES})
+if(REDSHIP_BUILD_SHARED)
+    add_library(${PROJECT_NAME} SHARED ${ALL_FILES})
+    target_compile_definitions(${PROJECT_NAME} PRIVATE GAME_BUILDING_DLL)
+
+    # Symbol visibility
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        C_VISIBILITY_PRESET hidden
+        CXX_VISIBILITY_PRESET hidden
+        VISIBILITY_INLINES_HIDDEN ON
+    )
+
+    # Platform-specific naming for shared library
+    if(WIN32)
+        set_target_properties(${PROJECT_NAME} PROPERTIES
+            PREFIX ""
+            SUFFIX ".dll"
+        )
+    elseif(APPLE)
+        set_target_properties(${PROJECT_NAME} PROPERTIES
+            PREFIX ""
+            SUFFIX ".dylib"
+        )
+    else()
+        set_target_properties(${PROJECT_NAME} PROPERTIES
+            PREFIX ""
+            SUFFIX ".so"
+        )
+    endif()
+else()
+    add_executable(${PROJECT_NAME} ${ALL_FILES})
+endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 use_props(${PROJECT_NAME} "${CMAKE_CONFIGURATION_TYPES}" "${DEFAULT_CXX_PROPS}")
@@ -194,12 +233,20 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set_target_properties(${PROJECT_NAME} PROPERTIES
         XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES
-        OUTPUT_NAME "2s2h-macos"
     )
+    # Only set OUTPUT_NAME for executable builds, shared lib has its own naming
+    if(NOT REDSHIP_BUILD_SHARED)
+        set_target_properties(${PROJECT_NAME} PROPERTIES
+            OUTPUT_NAME "2s2h-macos"
+        )
+    endif()
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-	set_target_properties(${PROJECT_NAME} PROPERTIES
-	OUTPUT_NAME "2s2h.elf"
-	)
+    # Only set OUTPUT_NAME for executable builds, shared lib has its own naming
+    if(NOT REDSHIP_BUILD_SHARED)
+        set_target_properties(${PROJECT_NAME} PROPERTIES
+            OUTPUT_NAME "2s2h.elf"
+        )
+    endif()
 endif()
 ################################################################################
 # MSVC runtime library
@@ -242,6 +289,13 @@ target_include_directories(${PROJECT_NAME} PRIVATE assets
 	${dr_libs_SOURCE_DIR}
 	.
 )
+
+# Add combo include directory for GameExports.h when building as shared library
+if(REDSHIP_BUILD_SHARED)
+    target_include_directories(${PROJECT_NAME} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../combo/include
+    )
+endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	target_compile_definitions(${PROJECT_NAME} PRIVATE

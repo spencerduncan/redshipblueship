@@ -1,6 +1,5 @@
 #include <libultraship/libultra.h>
 
-// 2S2H [Port] Version information
 const char gBuildVersion[] = "Copper Bravo (9.1.1)";
 const u16 gBuildVersionMajor = 9;
 const u16 gBuildVersionMinor = 1;

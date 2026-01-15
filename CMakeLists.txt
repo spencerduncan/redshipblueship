@@ -14,6 +14,14 @@ set(SPDLOG_LEVEL_OFF 6)
 set(SPDLOG_MIN_CUTOFF SPDLOG_LEVEL_TRACE CACHE STRING "cutoff at trace")
 
 option(SUPPRESS_WARNINGS "Suppress warnings in LUS and src (decomp)" ON)
+option(REDSHIP_BUILD_SHARED "Build games as shared libraries for combo launcher" OFF)
+
+# Enable position-independent code for all targets when building shared libraries
+# This is required for static libraries that will be linked into shared libraries
+if(REDSHIP_BUILD_SHARED)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
+
 if(SUPPRESS_WARNINGS)
     MESSAGE("Suppressing warnings in LUS and src")
     if(MSVC)
