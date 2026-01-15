@@ -6,6 +6,7 @@ add_library(combo STATIC
     src/DynamicLibrary.cpp
     src/ComboContextBridge.cpp
     src/CrossGameEntrance.cpp
+    src/FrozenState.cpp
 )
 
 target_include_directories(combo PUBLIC

@@ -13,6 +13,7 @@ add_executable(combo_tests
     game_archives_test.cpp
     dynamic_library_test.cpp
     cross_game_entrance_test.cpp
+    frozen_state_test.cpp
 )
 
 target_link_libraries(combo_tests
