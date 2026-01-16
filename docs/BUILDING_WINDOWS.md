@@ -57,7 +57,7 @@ git submodule update --init --recursive
 
 ### Command Line
 
-Open **Developer Command Prompt for VS 2022**:
+Open **x64 Native Tools Command Prompt for VS 2022** (not the regular Developer Prompt - that defaults to x86):
 
 ```cmd
 cd path\to\redshipblueship
