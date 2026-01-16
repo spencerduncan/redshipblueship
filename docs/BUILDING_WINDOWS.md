@@ -102,10 +102,19 @@ Options:
 
 ## Troubleshooting
 
-### "vcpkg bootstrap failed"
-- Make sure you have internet access
-- Try running as Administrator
-- Check that Visual Studio C++ tools are installed
+### "Could not bootstrap vcpkg" / "The system cannot find the path specified"
+If you see:
+```
+Bootstrapping vcpkg in vcpkg
+The system cannot find the path specified.
+CMake Error: ***** FATAL ERROR: Could not bootstrap vcpkg *****
+```
+
+Run the bootstrap manually, then re-run cmake:
+```cmd
+vcpkg\bootstrap-vcpkg.bat
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DREDSHIP_BUILD_SHARED=ON
+```
 
 ### "Python not found"
 - Reinstall Python with "Add to PATH" checked
