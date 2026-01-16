@@ -81,18 +81,17 @@ The first build takes a while as vcpkg is cloned and dependencies are built.
 
 ## Asset Extraction
 
-Place your legally obtained ROM files:
-- OoT ROM → `games/oot/`
-- MM ROM → `games/mm/`
+Before using the combo launcher, run each game standalone once to extract assets:
 
-**OoT extraction** (CMake target):
 ```cmd
-cmake --build build --target ExtractAssets
+:: Run OoT - will prompt for ROM and extract
+build\games\oot\soh.exe
+
+:: Run MM - will prompt for ROM and extract
+build\games\mm\2s2h.exe
 ```
 
-**MM extraction**: 2Ship2Harkinian extracts assets on first run - just launch it and point to your ROM when prompted.
-
-This creates the `.o2r` asset files needed to run.
+Each game prompts for its ROM on first run and creates the `.o2r` files the combo launcher needs.
 
 ## Running
 
