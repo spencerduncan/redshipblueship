@@ -189,14 +189,47 @@ add_subdirectory(libultraship ${CMAKE_BINARY_DIR}/libultraship)
 target_compile_options(libultraship PRIVATE "${WARNING_OVERRIDE}")
 target_compile_definitions(libultraship PUBLIC INCLUDE_MPQ_SUPPORT)
 
-# ZAPD game selection - default to OoT, can override with -DGAME_STR=MM
-if(NOT DEFINED GAME_STR)
-    set(GAME_STR "OoT")
-endif()
-message(STATUS "Building ZAPD/OTRExporter for: ${GAME_STR}")
-
-add_subdirectory(ZAPDTR/ZAPD ${CMAKE_BINARY_DIR}/ZAPD)
+# OTRExporter builds both OoT and MM variants
 add_subdirectory(OTRExporter)
+
+# ZAPDTR builds ZAPD linked with OTRExporter (alias to OTRExporter_OoT)
+add_subdirectory(ZAPDTR/ZAPD ${CMAKE_BINARY_DIR}/ZAPD)
+
+# Create ZAPD_MM - same as ZAPD but linked with OTRExporter_MM
+add_executable(ZAPD_MM ${CMAKE_SOURCE_DIR}/ZAPDTR/ZAPD/ExecutableMain.cpp)
+target_link_libraries(ZAPD_MM ZAPDLib)
+
+# Link ZAPD_MM with OTRExporter_MM using whole-archive
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    target_link_libraries(ZAPD_MM PRIVATE
+        "-WHOLEARCHIVE:$<TARGET_LINKER_FILE_DIR:OTRExporter_MM>/$<TARGET_LINKER_FILE_NAME:OTRExporter_MM>"
+        libultraship
+        storm
+        PNG::PNG
+    )
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_link_libraries(ZAPD_MM PRIVATE
+        -Wl,-force_load $<TARGET_LINKER_FILE_DIR:OTRExporter_MM>/$<TARGET_LINKER_FILE_NAME:OTRExporter_MM>
+        libultraship
+        PNG::PNG
+        ${CMAKE_DL_LIBS}
+        Threads::Threads
+    )
+else()
+    target_link_libraries(ZAPD_MM PRIVATE
+        -Wl,--whole-archive $<TARGET_LINKER_FILE_DIR:OTRExporter_MM>/$<TARGET_LINKER_FILE_NAME:OTRExporter_MM> -Wl,--no-whole-archive
+        libultraship
+        PNG::PNG
+        ${CMAKE_DL_LIBS}
+        Threads::Threads
+    )
+endif()
+add_dependencies(ZAPD_MM OTRExporter_MM)
+
+if (CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")
+    set_target_properties(ZAPD_MM PROPERTIES OUTPUT_NAME "ZAPD_MM.out")
+endif()
+
 add_subdirectory(combo)
 add_subdirectory(games/oot)
 add_subdirectory(games/mm)
@@ -261,32 +294,32 @@ add_custom_target(
     DEPENDS ZAPD
 )
 
-# MM extraction targets
+# MM extraction targets - use ZAPD_MM (linked with OTRExporter_MM)
 add_custom_target(
     ExtractMMAssets
     COMMAND ${CMAKE_COMMAND} -E rm -f mm.o2r 2ship.o2r
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/extract_assets.py -z "$<TARGET_FILE:ZAPD>" --non-interactive --xml-root assets/xml --custom-otr-file 2ship.o2r "--custom-assets-path" ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/assets/custom --port-ver "${CMAKE_PROJECT_VERSION}" "${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/mm.z64"
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/extract_assets.py -z "$<TARGET_FILE:ZAPD_MM>" --non-interactive --xml-root assets/xml --custom-otr-file 2ship.o2r "--custom-assets-path" ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/assets/custom --port-ver "${CMAKE_PROJECT_VERSION}" "${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/mm.z64"
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/games/mm
     COMMENT "Running MM asset extraction..."
-    DEPENDS ZAPD
+    DEPENDS ZAPD_MM
     BYPRODUCTS mm.o2r ${CMAKE_SOURCE_DIR}/mm.o2r 2ship.o2r ${CMAKE_SOURCE_DIR}/2ship.o2r
 )
 
 add_custom_target(
     ExtractMMAssetHeaders
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/extract_assets.py -z "$<TARGET_FILE:ZAPD>" --non-interactive --xml-root assets/xml --gen-headers "${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/mm.z64"
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/extract_assets.py -z "$<TARGET_FILE:ZAPD_MM>" --non-interactive --xml-root assets/xml --gen-headers "${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/mm.z64"
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/games/mm
     COMMENT "Generating MM asset headers..."
-    DEPENDS ZAPD
+    DEPENDS ZAPD_MM
 )
 
 add_custom_target(
     Generate2ShipOtr
     COMMAND ${CMAKE_COMMAND} -E rm -f 2ship.o2r
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/extract_assets.py -z "$<TARGET_FILE:ZAPD>" --norom --custom-otr-file 2ship.o2r "--custom-assets-path" ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/assets/custom --port-ver "${CMAKE_PROJECT_VERSION}"
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/extract_assets.py -z "$<TARGET_FILE:ZAPD_MM>" --norom --custom-otr-file 2ship.o2r "--custom-assets-path" ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/assets/custom --port-ver "${CMAKE_PROJECT_VERSION}"
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/games/mm
     COMMENT "Generating 2ship.o2r..."
-    DEPENDS ZAPD
+    DEPENDS ZAPD_MM
 )
 
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")

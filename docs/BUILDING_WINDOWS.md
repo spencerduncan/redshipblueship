@@ -47,19 +47,16 @@ cd path\to\redshipblueship
 :: Clear VCPKG_ROOT (the prompt sets this to a broken path)
 set VCPKG_ROOT=
 
-:: Configure and build for OoT (extracts OoT assets)
-cmake -B build-oot -G Ninja -DCMAKE_BUILD_TYPE=Release -DREDSHIP_BUILD_SHARED=ON -DGAME_STR=OoT
-cmake --build build-oot --target ExtractAssets
+:: Configure
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DREDSHIP_BUILD_SHARED=ON
 
-:: Configure and build for MM (extracts MM assets)
-cmake -B build-mm -G Ninja -DCMAKE_BUILD_TYPE=Release -DREDSHIP_BUILD_SHARED=ON -DGAME_STR=MM
-cmake --build build-mm --target ExtractMMAssets
+:: Extract assets (both use their respective ZAPD variants automatically)
+cmake --build build --target ExtractAssets      :: OoT (uses ZAPD)
+cmake --build build --target ExtractMMAssets    :: MM (uses ZAPD_MM)
 
-:: Build everything (use either build dir)
-cmake --build build-oot -j%NUMBER_OF_PROCESSORS%
+:: Build everything
+cmake --build build -j%NUMBER_OF_PROCESSORS%
 ```
-
-**Note:** ZAPD/OTRExporter must be compiled separately for OoT vs MM due to game-specific resource types. That's why we use two build directories for asset extraction.
 
 The first build takes a while as vcpkg downloads dependencies.
 
