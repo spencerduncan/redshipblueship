@@ -254,6 +254,34 @@ add_custom_target(
     DEPENDS ZAPD
 )
 
+# MM extraction targets
+add_custom_target(
+    ExtractMMAssets
+    COMMAND ${CMAKE_COMMAND} -E rm -f mm.o2r 2ship.o2r
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/extract_assets.py -z "$<TARGET_FILE:ZAPD>" --non-interactive --xml-root assets/xml --custom-otr-file 2ship.o2r "--custom-assets-path" ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/assets/custom --port-ver "${CMAKE_PROJECT_VERSION}"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/games/mm
+    COMMENT "Running MM asset extraction..."
+    DEPENDS ZAPD
+    BYPRODUCTS mm.o2r ${CMAKE_SOURCE_DIR}/mm.o2r 2ship.o2r ${CMAKE_SOURCE_DIR}/2ship.o2r
+)
+
+add_custom_target(
+    ExtractMMAssetHeaders
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/extract_assets.py -z "$<TARGET_FILE:ZAPD>" --non-interactive --xml-root assets/xml --gen-headers
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/games/mm
+    COMMENT "Generating MM asset headers..."
+    DEPENDS ZAPD
+)
+
+add_custom_target(
+    Generate2ShipOtr
+    COMMAND ${CMAKE_COMMAND} -E rm -f 2ship.o2r
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/extract_assets.py -z "$<TARGET_FILE:ZAPD>" --norom --custom-otr-file 2ship.o2r "--custom-assets-path" ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/assets/custom --port-ver "${CMAKE_PROJECT_VERSION}"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/games/mm
+    COMMENT "Generating 2ship.o2r..."
+    DEPENDS ZAPD
+)
+
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
     find_package(ImageMagick COMPONENTS convert)
     if (ImageMagick_FOUND)

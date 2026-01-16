@@ -1,41 +1,25 @@
 # Building RedShipBlueShip on Windows
 
-This guide walks through building the combo launcher that runs both OoT and MM.
-
 ## Prerequisites
 
-### 1. Visual Studio 2022 (or Build Tools)
+### Visual Studio 2022 (or Build Tools)
 
 **Option A: Full IDE** - [Visual Studio 2022 Community](https://visualstudio.microsoft.com/downloads/) (free)
 
 **Option B: Command-line only** - [Build Tools for Visual Studio 2022](https://visualstudio.microsoft.com/downloads/) (scroll to "Tools for Visual Studio")
 
-During installation, select these workloads:
+During installation, select:
 - **Desktop development with C++**
+- **C++ CMake tools for Windows** (Individual Components tab)
+- **Windows 10/11 SDK** (Individual Components tab)
 
-And these individual components (in the "Individual components" tab):
-- **C++ CMake tools for Windows**
-- **Windows 10/11 SDK** (latest version)
+### Other Requirements
 
-Both options provide the MSVC compiler and required tools. Build Tools is smaller if you don't need the IDE.
+- [Git for Windows](https://git-scm.com/download/win)
+- [Python 3.10+](https://www.python.org/downloads/) - **Check "Add Python to PATH"**
+- Legally obtained OoT and MM ROMs
 
-### 2. Git
-
-Download and install [Git for Windows](https://git-scm.com/download/win).
-
-### 3. Python 3
-
-Download and install [Python 3](https://www.python.org/downloads/) (3.10+ recommended).
-
-**IMPORTANT:** Check "Add Python to PATH" during installation.
-
-### 4. CMake (for command-line builds)
-
-If using Build Tools instead of VS IDE, install [CMake](https://cmake.org/download/) (3.26+).
-
-Check "Add CMake to PATH" during installation.
-
-## Clone the Repository
+## Clone
 
 ```cmd
 git clone https://github.com/spencerduncan/redshipblueship.git
@@ -43,94 +27,75 @@ cd redshipblueship
 git submodule update --init --recursive
 ```
 
-## Building
+## Place ROMs
 
-### Visual Studio IDE
+Copy your ROM files to the `OTRExporter/` directory:
+```
+redshipblueship/
+└── OTRExporter/
+    ├── oot.z64    (or other OoT ROM name)
+    └── mm.z64     (or other MM ROM name)
+```
 
-1. Open Visual Studio 2022
-2. Click "Open a local folder"
-3. Select the `redshipblueship` folder
-4. Open CMakeSettings.json and add `-DREDSHIP_BUILD_SHARED=ON` to CMake arguments
-5. Wait for CMake to configure (watch the Output window)
-6. Set startup item to `redship.exe`
-7. Build > Build All (Ctrl+Shift+B)
+## Build
 
-### Command Line
-
-Open **x64 Native Tools Command Prompt for VS 2022** (not the regular Developer Prompt - that defaults to x86):
+Open **x64 Native Tools Command Prompt for VS 2022** (not the regular Developer Prompt):
 
 ```cmd
 cd path\to\redshipblueship
 
-:: Clear VCPKG_ROOT - the Developer Prompt sets this to a non-git directory
+:: Clear VCPKG_ROOT (the prompt sets this to a broken path)
 set VCPKG_ROOT=
 
+:: Configure
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DREDSHIP_BUILD_SHARED=ON
+
+:: Extract assets (generates headers + .o2r files)
+cmake --build build --target ExtractAssets      :: OoT assets
+cmake --build build --target ExtractMMAssets    :: MM assets
+
+:: Build everything
 cmake --build build -j%NUMBER_OF_PROCESSORS%
 ```
 
-Or with the Visual Studio generator (slower but doesn't require Ninja):
+The first build takes a while as vcpkg downloads dependencies.
+
+## Run
 
 ```cmd
-set VCPKG_ROOT=
-cmake -B build -G "Visual Studio 17 2022" -A x64 -DREDSHIP_BUILD_SHARED=ON
-cmake --build build --config Release -j%NUMBER_OF_PROCESSORS%
-```
-
-The first build takes a while as vcpkg is cloned and dependencies are built.
-
-## Asset Extraction
-
-Before using the combo launcher, run each game standalone once to extract assets:
-
-```cmd
-:: Run OoT - will prompt for ROM and extract
-build\games\oot\soh.exe
-
-:: Run MM - will prompt for ROM and extract
-build\games\mm\2s2h.exe
-```
-
-Each game prompts for its ROM on first run and creates the `.o2r` files the combo launcher needs.
-
-## Running
-
-```cmd
-build\combo\Release\redship.exe --game oot
+build\combo\redship.exe --game oot
 ```
 
 Options:
 - `--game oot` - Start with Ocarina of Time
 - `--game mm` - Start with Majora's Mask
-- `--test-entrance` - Use Mido's House for cross-game testing (closer to spawn)
+- `--test-entrance` - Use Mido's House for cross-game testing
 
 ## Troubleshooting
 
 ### "add_subdirectory given source ... which is not an existing directory"
-A submodule didn't initialize properly. Reinitialize it:
-```cmd
-git submodule deinit -f <submodule-path>
-git submodule update --init --recursive <submodule-path>
-```
 
-For example, if `ZAPDTR` is missing:
+A submodule didn't initialize. Fix:
 ```cmd
-git submodule deinit -f ZAPDTR
-git submodule update --init --recursive ZAPDTR
+git submodule deinit -f <path>
+git submodule update --init --recursive <path>
 ```
 
 ### "Python not found"
-- Reinstall Python with "Add to PATH" checked
-- Or set `-DPython3_EXECUTABLE=C:\Python311\python.exe`
 
-### "CMake version too old"
-- Install CMake 3.26+ from cmake.org
-- Or update Visual Studio
+Reinstall Python with "Add to PATH" checked, or:
+```cmd
+cmake -B build ... -DPython3_EXECUTABLE=C:\Python311\python.exe
+```
+
+### Build fails with architecture mismatch
+
+Make sure you're using **x64 Native Tools Command Prompt**, not the regular Developer Prompt (which defaults to x86).
 
 ### Link errors about missing symbols
-- Clean build: delete the `build` folder and reconfigure
-- Make sure submodules are initialized: `git submodule update --init --recursive`
 
-### Build is slow
-- Use Ninja generator instead of Visual Studio generator
-- Enable parallel builds: `-j%NUMBER_OF_PROCESSORS%`
+```cmd
+rmdir /s /q build
+git submodule update --init --recursive
+cmake -B build ...
+```
