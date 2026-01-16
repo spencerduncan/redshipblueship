@@ -62,18 +62,22 @@ Open **Developer Command Prompt for VS 2022**:
 ```cmd
 cd path\to\redshipblueship
 
-cmake -B build -G "Visual Studio 17 2022" -A x64 -DREDSHIP_BUILD_SHARED=ON
-cmake --build build --config Release -j%NUMBER_OF_PROCESSORS%
-```
+:: Clear VCPKG_ROOT - the Developer Prompt sets this to a non-git directory
+set VCPKG_ROOT=
 
-Or with Ninja (faster incremental builds):
-
-```cmd
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DREDSHIP_BUILD_SHARED=ON
 cmake --build build -j%NUMBER_OF_PROCESSORS%
 ```
 
-The first build takes a while as vcpkg downloads dependencies.
+Or with the Visual Studio generator (slower but doesn't require Ninja):
+
+```cmd
+set VCPKG_ROOT=
+cmake -B build -G "Visual Studio 17 2022" -A x64 -DREDSHIP_BUILD_SHARED=ON
+cmake --build build --config Release -j%NUMBER_OF_PROCESSORS%
+```
+
+The first build takes a while as vcpkg is cloned and dependencies are built.
 
 ## Asset Extraction
 
