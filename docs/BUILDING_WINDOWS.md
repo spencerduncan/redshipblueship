@@ -29,12 +29,12 @@ git submodule update --init --recursive
 
 ## Place ROMs
 
-Copy your ROM files to the `OTRExporter/` directory:
+Copy your ROM files to the `OTRExporter/` directory with these exact names:
 ```
 redshipblueship/
 └── OTRExporter/
-    ├── oot.z64    (or other OoT ROM name)
-    └── mm.z64     (or other MM ROM name)
+    ├── oot.z64    (OoT ROM - must be named exactly oot.z64)
+    └── mm.z64     (MM ROM - must be named exactly mm.z64)
 ```
 
 ## Build
@@ -99,3 +99,22 @@ rmdir /s /q build
 git submodule update --init --recursive
 cmake -B build ...
 ```
+
+### ZAPD "Unsupported argument" errors
+
+If you see errors like `Unsupported argument: --customAssetsPath`, you have an old ZAPD build that doesn't have OTRExporter linked. Fix:
+
+```cmd
+:: Delete old Visual Studio build artifacts
+rmdir /s /q x64
+rmdir /s /q build
+
+:: Reconfigure and rebuild
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DREDSHIP_BUILD_SHARED=ON
+cmake --build build --target ZAPD
+cmake --build build --target ExtractAssets
+```
+
+### Asset extraction picks wrong ROM
+
+If OoT extraction runs MM assets (or vice versa), make sure your ROMs are named exactly `oot.z64` and `mm.z64`.

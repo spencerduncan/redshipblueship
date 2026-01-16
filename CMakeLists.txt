@@ -221,10 +221,10 @@ add_custom_target(
     COMMAND ${CMAKE_COMMAND} -E rm -r -f ${CMAKE_CURRENT_SOURCE_DIR}/games/oot/assets/custom/shaders/
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/src/fast/shaders/ ${CMAKE_CURRENT_SOURCE_DIR}/games/oot/assets/custom/shaders/
 
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/extract_assets.py -z "$<TARGET_FILE:ZAPD>" --non-interactive --xml-root assets/xml --custom-otr-file soh.o2r "--custom-assets-path" ${CMAKE_CURRENT_SOURCE_DIR}/games/oot/assets/custom --port-ver "${CMAKE_PROJECT_VERSION}"
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/extract_assets.py -z "$<TARGET_FILE:ZAPD>" --non-interactive --xml-root assets/xml --custom-otr-file soh.o2r "--custom-assets-path" ${CMAKE_CURRENT_SOURCE_DIR}/games/oot/assets/custom --port-ver "${CMAKE_PROJECT_VERSION}" "${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/oot.z64"
     COMMAND ${CMAKE_COMMAND} -DSYSTEM_NAME=${CMAKE_SYSTEM_NAME} -DTARGET_DIR="$<TARGET_FILE_DIR:ZAPD>" -DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR} -DBINARY_DIR=${CMAKE_BINARY_DIR} -P ${CMAKE_CURRENT_SOURCE_DIR}/copy-existing-otrs.cmake
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/games/oot
-    COMMENT "Running asset extraction..."
+    COMMENT "Running OoT asset extraction..."
     DEPENDS ZAPD
     BYPRODUCTS oot.o2r ${CMAKE_SOURCE_DIR}/oot.o2r oot-mq.o2r ${CMAKE_SOURCE_DIR}/oot-mq.o2r ${CMAKE_SOURCE_DIR}/soh.o2r
 )
@@ -232,9 +232,9 @@ add_custom_target(
 # Target to generate headers
 add_custom_target(
     ExtractAssetHeaders
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/extract_assets.py -z "$<TARGET_FILE:ZAPD>" --non-interactive --xml-root assets/xml --gen-headers
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/extract_assets.py -z "$<TARGET_FILE:ZAPD>" --non-interactive --xml-root assets/xml --gen-headers "${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/oot.z64"
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/games/oot
-    COMMENT "Generating asset headers..."
+    COMMENT "Generating OoT asset headers..."
     DEPENDS ZAPD
 )
 
@@ -258,7 +258,7 @@ add_custom_target(
 add_custom_target(
     ExtractMMAssets
     COMMAND ${CMAKE_COMMAND} -E rm -f mm.o2r 2ship.o2r
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/extract_assets.py -z "$<TARGET_FILE:ZAPD>" --non-interactive --xml-root assets/xml --custom-otr-file 2ship.o2r "--custom-assets-path" ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/assets/custom --port-ver "${CMAKE_PROJECT_VERSION}"
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/extract_assets.py -z "$<TARGET_FILE:ZAPD>" --non-interactive --xml-root assets/xml --custom-otr-file 2ship.o2r "--custom-assets-path" ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/assets/custom --port-ver "${CMAKE_PROJECT_VERSION}" "${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/mm.z64"
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/games/mm
     COMMENT "Running MM asset extraction..."
     DEPENDS ZAPD
@@ -267,7 +267,7 @@ add_custom_target(
 
 add_custom_target(
     ExtractMMAssetHeaders
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/extract_assets.py -z "$<TARGET_FILE:ZAPD>" --non-interactive --xml-root assets/xml --gen-headers
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/extract_assets.py -z "$<TARGET_FILE:ZAPD>" --non-interactive --xml-root assets/xml --gen-headers "${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/mm.z64"
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/games/mm
     COMMENT "Generating MM asset headers..."
     DEPENDS ZAPD
