@@ -188,6 +188,13 @@ endif()
 add_subdirectory(libultraship ${CMAKE_BINARY_DIR}/libultraship)
 target_compile_options(libultraship PRIVATE "${WARNING_OVERRIDE}")
 target_compile_definitions(libultraship PUBLIC INCLUDE_MPQ_SUPPORT)
+
+# ZAPD game selection - default to OoT, can override with -DGAME_STR=MM
+if(NOT DEFINED GAME_STR)
+    set(GAME_STR "OoT")
+endif()
+message(STATUS "Building ZAPD/OTRExporter for: ${GAME_STR}")
+
 add_subdirectory(ZAPDTR/ZAPD ${CMAKE_BINARY_DIR}/ZAPD)
 add_subdirectory(OTRExporter)
 add_subdirectory(combo)
