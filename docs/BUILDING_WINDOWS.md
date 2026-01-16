@@ -81,11 +81,16 @@ The first build takes a while as vcpkg is cloned and dependencies are built.
 
 ## Asset Extraction
 
-Place your legally obtained ROM files in `games/oot/` then:
+Place your legally obtained ROM files:
+- OoT ROM → `games/oot/`
+- MM ROM → `games/mm/`
 
+**OoT extraction** (CMake target):
 ```cmd
 cmake --build build --target ExtractAssets
 ```
+
+**MM extraction**: 2Ship2Harkinian extracts assets on first run - just launch it and point to your ROM when prompted.
 
 This creates the `.o2r` asset files needed to run.
 
