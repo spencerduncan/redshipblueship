@@ -102,18 +102,17 @@ Options:
 
 ## Troubleshooting
 
-### "Could not bootstrap vcpkg" / "The system cannot find the path specified"
-If you see:
-```
-Bootstrapping vcpkg in vcpkg
-The system cannot find the path specified.
-CMake Error: ***** FATAL ERROR: Could not bootstrap vcpkg *****
+### "add_subdirectory given source ... which is not an existing directory"
+A submodule didn't initialize properly. Reinitialize it:
+```cmd
+git submodule deinit -f <submodule-path>
+git submodule update --init --recursive <submodule-path>
 ```
 
-Run the bootstrap manually, then re-run cmake:
+For example, if `ZAPDTR` is missing:
 ```cmd
-vcpkg\bootstrap-vcpkg.bat
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DREDSHIP_BUILD_SHARED=ON
+git submodule deinit -f ZAPDTR
+git submodule update --init --recursive ZAPDTR
 ```
 
 ### "Python not found"
