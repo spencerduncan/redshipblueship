@@ -15,10 +15,143 @@
 #include <string>
 #include <vector>
 #include <cstring>
+#include <csignal>
 
 #include "combo/ComboContextBridge.h"
 #include "combo/CrossGameEntrance.h"
 #include "combo/FrozenState.h"
+
+#ifdef _WIN32
+#include <windows.h>
+#include <dbghelp.h>
+#pragma comment(lib, "dbghelp.lib")
+
+// Windows crash handler to get stack trace
+LONG WINAPI CrashHandler(EXCEPTION_POINTERS* exceptionInfo) {
+    std::cerr << "\n[CRASH HANDLER] ========================================" << std::endl;
+    std::cerr << "[CRASH HANDLER] EXCEPTION CAUGHT!" << std::endl;
+
+    DWORD exceptionCode = exceptionInfo->ExceptionRecord->ExceptionCode;
+    std::cerr << "[CRASH HANDLER] Exception Code: 0x" << std::hex << exceptionCode << std::dec << std::endl;
+
+    switch (exceptionCode) {
+        case EXCEPTION_ACCESS_VIOLATION:
+            std::cerr << "[CRASH HANDLER] Type: ACCESS VIOLATION" << std::endl;
+            if (exceptionInfo->ExceptionRecord->NumberParameters >= 2) {
+                ULONG_PTR accessType = exceptionInfo->ExceptionRecord->ExceptionInformation[0];
+                ULONG_PTR address = exceptionInfo->ExceptionRecord->ExceptionInformation[1];
+                std::cerr << "[CRASH HANDLER] " << (accessType == 0 ? "Read" : "Write")
+                          << " access violation at address: 0x" << std::hex << address << std::dec << std::endl;
+            }
+            break;
+        case EXCEPTION_STACK_OVERFLOW:
+            std::cerr << "[CRASH HANDLER] Type: STACK OVERFLOW" << std::endl;
+            break;
+        case EXCEPTION_INT_DIVIDE_BY_ZERO:
+            std::cerr << "[CRASH HANDLER] Type: INTEGER DIVIDE BY ZERO" << std::endl;
+            break;
+        case EXCEPTION_ILLEGAL_INSTRUCTION:
+            std::cerr << "[CRASH HANDLER] Type: ILLEGAL INSTRUCTION" << std::endl;
+            break;
+        default:
+            std::cerr << "[CRASH HANDLER] Type: OTHER (code 0x" << std::hex << exceptionCode << std::dec << ")" << std::endl;
+            break;
+    }
+
+    std::cerr << "[CRASH HANDLER] Exception Address: 0x" << std::hex
+              << (ULONG_PTR)exceptionInfo->ExceptionRecord->ExceptionAddress << std::dec << std::endl;
+
+    // Try to get stack trace
+    std::cerr << "[CRASH HANDLER] Stack trace:" << std::endl;
+
+    HANDLE process = GetCurrentProcess();
+    HANDLE thread = GetCurrentThread();
+
+    SymInitialize(process, NULL, TRUE);
+
+    CONTEXT* context = exceptionInfo->ContextRecord;
+    STACKFRAME64 stackFrame = {};
+#ifdef _M_X64
+    DWORD machineType = IMAGE_FILE_MACHINE_AMD64;
+    stackFrame.AddrPC.Offset = context->Rip;
+    stackFrame.AddrPC.Mode = AddrModeFlat;
+    stackFrame.AddrFrame.Offset = context->Rbp;
+    stackFrame.AddrFrame.Mode = AddrModeFlat;
+    stackFrame.AddrStack.Offset = context->Rsp;
+    stackFrame.AddrStack.Mode = AddrModeFlat;
+#else
+    DWORD machineType = IMAGE_FILE_MACHINE_I386;
+    stackFrame.AddrPC.Offset = context->Eip;
+    stackFrame.AddrPC.Mode = AddrModeFlat;
+    stackFrame.AddrFrame.Offset = context->Ebp;
+    stackFrame.AddrFrame.Mode = AddrModeFlat;
+    stackFrame.AddrStack.Offset = context->Esp;
+    stackFrame.AddrStack.Mode = AddrModeFlat;
+#endif
+
+    char symbolBuffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
+    SYMBOL_INFO* symbol = (SYMBOL_INFO*)symbolBuffer;
+    symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+    symbol->MaxNameLen = MAX_SYM_NAME;
+
+    IMAGEHLP_LINE64 line = {};
+    line.SizeOfStruct = sizeof(IMAGEHLP_LINE64);
+
+    for (int frame = 0; frame < 30; frame++) {
+        if (!StackWalk64(machineType, process, thread, &stackFrame, context,
+                         NULL, SymFunctionTableAccess64, SymGetModuleBase64, NULL)) {
+            break;
+        }
+
+        DWORD64 address = stackFrame.AddrPC.Offset;
+        if (address == 0) break;
+
+        std::cerr << "  [" << frame << "] 0x" << std::hex << address << std::dec;
+
+        DWORD64 displacement = 0;
+        if (SymFromAddr(process, address, &displacement, symbol)) {
+            std::cerr << " " << symbol->Name << " + 0x" << std::hex << displacement << std::dec;
+        }
+
+        DWORD lineDisplacement = 0;
+        if (SymGetLineFromAddr64(process, address, &lineDisplacement, &line)) {
+            std::cerr << " (" << line.FileName << ":" << line.LineNumber << ")";
+        }
+
+        std::cerr << std::endl;
+    }
+
+    SymCleanup(process);
+    std::cerr << "[CRASH HANDLER] ========================================" << std::endl;
+    std::cerr.flush();
+
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+
+void InstallCrashHandler() {
+    SetUnhandledExceptionFilter(CrashHandler);
+}
+#else
+// Unix signal handler
+void SignalHandler(int signal) {
+    std::cerr << "\n[CRASH HANDLER] Signal received: " << signal << std::endl;
+    switch (signal) {
+        case SIGSEGV: std::cerr << "[CRASH HANDLER] SIGSEGV (Segmentation fault)" << std::endl; break;
+        case SIGABRT: std::cerr << "[CRASH HANDLER] SIGABRT (Abort)" << std::endl; break;
+        case SIGFPE:  std::cerr << "[CRASH HANDLER] SIGFPE (Floating point exception)" << std::endl; break;
+        case SIGILL:  std::cerr << "[CRASH HANDLER] SIGILL (Illegal instruction)" << std::endl; break;
+    }
+    std::cerr.flush();
+    std::_Exit(1);
+}
+
+void InstallCrashHandler() {
+    std::signal(SIGSEGV, SignalHandler);
+    std::signal(SIGABRT, SignalHandler);
+    std::signal(SIGFPE, SignalHandler);
+    std::signal(SIGILL, SignalHandler);
+}
+#endif
 
 #ifdef _WIN32
 #define LIB_SUFFIX ".dll"
@@ -130,6 +263,9 @@ Combo::Game GetOtherGame(Combo::Game current) {
 } // namespace
 
 int main(int argc, char** argv) {
+    // Install crash handler for stack traces
+    InstallCrashHandler();
+
     // Check for help
     for (int i = 1; i < argc; i++) {
         if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0) {
@@ -299,11 +435,22 @@ int main(int argc, char** argv) {
             std::cerr << "[SWITCH DEBUG] About to initialize new game with "
                       << gameArgv.size() << " args..." << std::endl;
             std::cerr.flush();
-            int switchInitResult = bridge.Init(
-                static_cast<int>(gameArgv.size()), gameArgv.data());
-            std::cerr << "[SWITCH DEBUG] Init returned " << switchInitResult << std::endl;
-            std::cerr.flush();
-            if (switchInitResult != 0) {
+            int switchInitResult = -999;
+            try {
+                switchInitResult = bridge.Init(
+                    static_cast<int>(gameArgv.size()), gameArgv.data());
+                std::cerr << "[SWITCH DEBUG] Init returned " << switchInitResult << std::endl;
+                std::cerr.flush();
+            } catch (const std::exception& e) {
+                std::cerr << "[SWITCH DEBUG] C++ EXCEPTION during Init: " << e.what() << std::endl;
+                std::cerr.flush();
+                keepRunning = false;
+            } catch (...) {
+                std::cerr << "[SWITCH DEBUG] UNKNOWN C++ EXCEPTION during Init" << std::endl;
+                std::cerr.flush();
+                keepRunning = false;
+            }
+            if (switchInitResult != 0 && switchInitResult != -999) {
                 std::cerr << "Error: Failed to initialize "
                           << Combo::GameToId(selected)
                           << " (code " << switchInitResult << ")" << std::endl;
