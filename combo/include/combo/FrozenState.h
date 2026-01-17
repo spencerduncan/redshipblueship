@@ -31,7 +31,7 @@ constexpr size_t MM_SAVE_CONTEXT_SIZE = 0x48C8;   // 18632 bytes
 /**
  * State for a single game, preserved at room transition
  */
-struct FrozenGameState {
+struct COMBO_API FrozenGameState {
     Game game = Game::None;
     uint16_t returnEntrance = 0;     // Where to spawn when returning
     std::vector<uint8_t> saveContext; // Serialized SaveContext
@@ -46,7 +46,7 @@ struct FrozenGameState {
  *
  * Thread safety: Not thread-safe. Designed for main game thread.
  */
-class FrozenStateManager {
+class COMBO_API FrozenStateManager {
 public:
     FrozenStateManager();
 
@@ -140,7 +140,7 @@ private:
 };
 
 // Global instance
-extern FrozenStateManager gFrozenStates;
+extern COMBO_API FrozenStateManager gFrozenStates;
 
 } // namespace Combo
 

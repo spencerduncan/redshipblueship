@@ -1,5 +1,6 @@
 #pragma once
 
+#include "combo/Export.h"
 #include <cstddef>
 
 /**
@@ -88,7 +89,7 @@ typedef const char* (*GameGetIdFn)(void);
  * Container for all game function pointers.
  * Populated by loading symbols from a game library.
  */
-struct GameExports {
+struct COMBO_API GameExports {
     GameInitFn Init = nullptr;
     GameRunFn Run = nullptr;
     GameShutdownFn Shutdown = nullptr;

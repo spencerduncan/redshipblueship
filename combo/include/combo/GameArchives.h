@@ -1,5 +1,6 @@
 #pragma once
 
+#include "combo/Export.h"
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -27,7 +28,7 @@ enum class Game {
  * This class tracks which archives belong to which game and provides
  * game-specific loading APIs.
  */
-class GameArchiveManager {
+class COMBO_API GameArchiveManager {
 public:
     static GameArchiveManager& Instance();
 

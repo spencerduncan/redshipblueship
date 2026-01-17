@@ -33,7 +33,7 @@ enum class Game : uint8_t {
 /**
  * Represents a link between entrances in different games
  */
-struct CrossGameEntranceLink {
+struct COMBO_API CrossGameEntranceLink {
     Game sourceGame;
     uint16_t sourceEntrance;     // Entrance ID in source game
     Game targetGame;
@@ -117,7 +117,7 @@ extern COMBO_API CrossGameEntranceTable gCrossGameEntrances;
 /**
  * State for a pending cross-game switch
  */
-struct PendingGameSwitch {
+struct COMBO_API PendingGameSwitch {
     bool requested = false;
     Game targetGame = Game::None;
     uint16_t targetEntrance = 0;

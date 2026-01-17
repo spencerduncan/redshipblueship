@@ -39,7 +39,7 @@ inline Game IdToGame(const std::string& id) {
 /**
  * State of a loaded game
  */
-struct GameState {
+struct COMBO_API GameState {
     ScopedLibrary library;
     GameExports exports;
     bool initialized = false;
