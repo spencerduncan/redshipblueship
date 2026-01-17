@@ -50,6 +50,10 @@ if(REDSHIP_BUILD_SHARED)
         combo
     )
 
+    # Define COMBO_BUILDING_EXE so Combo_* functions are exported
+    target_compile_definitions(redship PRIVATE COMBO_BUILDING_EXE)
+    target_compile_definitions(combo PRIVATE COMBO_BUILDING_EXE)
+
     set_target_properties(redship PROPERTIES
         CXX_STANDARD 20
         CXX_STANDARD_REQUIRED ON

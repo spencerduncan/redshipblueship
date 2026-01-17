@@ -1,5 +1,7 @@
 #pragma once
 
+#include "combo/Export.h"
+
 /**
  * Frozen State Manager
  *
@@ -152,7 +154,7 @@ extern "C" {
  * Initialize the frozen state manager
  * Should be called once at combo startup
  */
-void Combo_InitFrozenStates(void);
+COMBO_API void Combo_InitFrozenStates(void);
 
 /**
  * Freeze current game state before switching
@@ -161,8 +163,8 @@ void Combo_InitFrozenStates(void);
  * @param saveContext Pointer to the game's SaveContext
  * @param size Size of the SaveContext
  */
-void Combo_FreezeState(const char* gameId, uint16_t returnEntrance,
-                       const void* saveContext, size_t size);
+COMBO_API void Combo_FreezeState(const char* gameId, uint16_t returnEntrance,
+                                  const void* saveContext, size_t size);
 
 /**
  * Restore frozen state when returning to a game
@@ -171,37 +173,37 @@ void Combo_FreezeState(const char* gameId, uint16_t returnEntrance,
  * @param size Size of the SaveContext buffer
  * @return 1 if state was restored, 0 if no frozen state (first switch)
  */
-int Combo_RestoreState(const char* gameId, void* saveContext, size_t size);
+COMBO_API int Combo_RestoreState(const char* gameId, void* saveContext, size_t size);
 
 /**
  * Check if a game has been frozen at least once
  * @return 1 if frozen state exists, 0 if first switch
  */
-int Combo_HasFrozenState(const char* gameId);
+COMBO_API int Combo_HasFrozenState(const char* gameId);
 
 /**
  * Get return entrance for a frozen game
  */
-uint16_t Combo_GetFrozenReturnEntrance(const char* gameId);
+COMBO_API uint16_t Combo_GetFrozenReturnEntrance(const char* gameId);
 
 /**
  * Clear frozen state for a game
  */
-void Combo_ClearFrozenState(const char* gameId);
+COMBO_API void Combo_ClearFrozenState(const char* gameId);
 
 /**
  * Get read-only pointer to OoT SaveContext (for trackers)
  */
-const void* Combo_GetOoTSaveContext(void);
+COMBO_API const void* Combo_GetOoTSaveContext(void);
 
 /**
  * Get read-only pointer to MM SaveContext (for trackers)
  */
-const void* Combo_GetMMSaveContext(void);
+COMBO_API const void* Combo_GetMMSaveContext(void);
 
 /**
  * Update shadow copy of active game's SaveContext (for trackers)
  */
-void Combo_UpdateShadowCopy(const char* gameId, const void* saveContext, size_t size);
+COMBO_API void Combo_UpdateShadowCopy(const char* gameId, const void* saveContext, size_t size);
 
 } // extern "C"

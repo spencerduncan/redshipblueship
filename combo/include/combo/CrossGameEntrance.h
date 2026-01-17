@@ -1,5 +1,7 @@
 #pragma once
 
+#include "combo/Export.h"
+
 /**
  * Cross-Game Entrance Infrastructure
  *
@@ -141,65 +143,65 @@ extern "C" {
  * @param entrance The entrance being taken
  * @return The entrance to use (original if no cross-game, or a "stay" entrance if switching)
  */
-uint16_t Combo_CheckCrossGameEntrance(const char* gameId, uint16_t entrance);
+COMBO_API uint16_t Combo_CheckCrossGameEntrance(const char* gameId, uint16_t entrance);
 
 /**
  * Check if a cross-game switch is pending
  */
-bool Combo_IsCrossGameSwitch(void);
+COMBO_API bool Combo_IsCrossGameSwitch(void);
 
 /**
  * Get the target game ID for the pending switch
  * @return "oot", "mm", or nullptr if no switch pending
  */
-const char* Combo_GetSwitchTargetGameId(void);
+COMBO_API const char* Combo_GetSwitchTargetGameId(void);
 
 /**
  * Get the target entrance for the pending switch
  */
-uint16_t Combo_GetSwitchTargetEntrance(void);
+COMBO_API uint16_t Combo_GetSwitchTargetEntrance(void);
 
 /**
  * Get the return entrance (where to spawn when coming back to current game)
  */
-uint16_t Combo_GetSwitchReturnEntrance(void);
+COMBO_API uint16_t Combo_GetSwitchReturnEntrance(void);
 
 /**
  * Signal that the game has saved its state and is ready to switch
  */
-void Combo_SignalReadyToSwitch(void);
+COMBO_API void Combo_SignalReadyToSwitch(void);
 
 /**
  * Clear the pending switch state (called by launcher after switch completes)
  */
-void Combo_ClearPendingSwitch(void);
+COMBO_API void Combo_ClearPendingSwitch(void);
 
 /**
  * Set the startup entrance for a game (used on first cross-game switch)
  * Games should check this on init if doing a cross-game switch
  */
-void Combo_SetStartupEntrance(uint16_t entrance);
+COMBO_API void Combo_SetStartupEntrance(uint16_t entrance);
 
 /**
  * Get the startup entrance (0 if not set)
  * Games call this on init to check if they should override the default entrance
  */
-uint16_t Combo_GetStartupEntrance(void);
+COMBO_API uint16_t Combo_GetStartupEntrance(void);
 
 /**
  * Clear the startup entrance (called after game reads it)
  */
-void Combo_ClearStartupEntrance(void);
+COMBO_API void Combo_ClearStartupEntrance(void);
 
 /**
  * Convert game ID string to enum
  */
-Combo::Game Combo_GameFromId(const char* gameId);
+COMBO_API Combo::Game Combo_GameFromId(const char* gameId);
 
 /**
  * Convert game enum to ID string
  */
-const char* Combo_GameToId(Combo::Game game);
+COMBO_API const char* Combo_GameToId(Combo::Game game);
 
 } // extern "C"
 
