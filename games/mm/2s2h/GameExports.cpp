@@ -70,37 +70,77 @@ static int sArgc = 0;
 static char** sArgv = nullptr;
 
 GAME_EXPORT int Game_Init(int argc, char** argv) {
+    fprintf(stderr, "[MM INIT DEBUG] Game_Init called, argc=%d\n", argc);
+    fflush(stderr);
+
     // Store args for potential restart
     sArgc = argc;
     sArgv = argv;
 
     // Initialize MM subsystems (matching what SDL_main() does)
+    fprintf(stderr, "[MM INIT DEBUG] About to call InitOTR()...\n");
+    fflush(stderr);
     InitOTR();
+    fprintf(stderr, "[MM INIT DEBUG] InitOTR() complete\n");
+    fflush(stderr);
+
+    fprintf(stderr, "[MM INIT DEBUG] Registering crash handler...\n");
+    fflush(stderr);
     CrashHandlerRegisterCallback(CrashHandler_PrintExt);
+
+    fprintf(stderr, "[MM INIT DEBUG] Allocating heaps...\n");
+    fflush(stderr);
     Heaps_Alloc();
+    fprintf(stderr, "[MM INIT DEBUG] Heaps allocated\n");
+    fflush(stderr);
 
     // Additional initialization from main.c that happens before Graph_ThreadEntry
     gScreenWidth = SCREEN_WIDTH;
     gScreenHeight = SCREEN_HEIGHT;
 
+    fprintf(stderr, "[MM INIT DEBUG] Calling Nmi_Init()...\n");
+    fflush(stderr);
     Nmi_Init();
+
+    fprintf(stderr, "[MM INIT DEBUG] Calling Fault_Init()...\n");
+    fflush(stderr);
     Fault_Init();
+
+    fprintf(stderr, "[MM INIT DEBUG] Calling Check_RegionIsSupported()...\n");
+    fflush(stderr);
     Check_RegionIsSupported();
+
+    fprintf(stderr, "[MM INIT DEBUG] Calling Check_ExpansionPak()...\n");
+    fflush(stderr);
     Check_ExpansionPak();
 
+    fprintf(stderr, "[MM INIT DEBUG] Calling SystemHeap_Init()...\n");
+    fflush(stderr);
     SystemHeap_Init((void*)gSystemHeap, SYSTEM_HEAP_SIZE);
+
+    fprintf(stderr, "[MM INIT DEBUG] Calling Regs_Init()...\n");
+    fflush(stderr);
     Regs_Init();
 
     // Set up message queues
+    fprintf(stderr, "[MM INIT DEBUG] Setting up message queues...\n");
+    fflush(stderr);
     osCreateMesgQueue(&sSerialEventQueue, sSerialMsgBuf, ARRAY_COUNT(sSerialMsgBuf));
     osSetEventMesg(OS_EVENT_SI, &sSerialEventQueue, OS_MESG_PTR(NULL));
     osCreateMesgQueue(&sIrqMgrMsgQueue, sIrqMgrMsgBuf, ARRAY_COUNT(sIrqMgrMsgBuf));
 
     // Initialize PadMgr and AudioMgr - these are required for Graph_ThreadEntry
     // Note: Stack addresses are handled differently in shared library context
+    fprintf(stderr, "[MM INIT DEBUG] Calling PadMgr_Init()...\n");
+    fflush(stderr);
     PadMgr_Init(&sSerialEventQueue, &gIrqMgr, Z_THREAD_ID_PADMGR, Z_PRIORITY_PADMGR, NULL);
+
+    fprintf(stderr, "[MM INIT DEBUG] Calling AudioMgr_Init()...\n");
+    fflush(stderr);
     AudioMgr_Init(&sAudioMgr, NULL, Z_PRIORITY_AUDIOMGR, Z_THREAD_ID_AUDIOMGR, &gSchedContext, &gIrqMgr);
 
+    fprintf(stderr, "[MM INIT DEBUG] Game_Init complete, returning 0\n");
+    fflush(stderr);
     return 0;
 }
 

@@ -212,6 +212,10 @@ int main(int argc, char** argv) {
         if (std::strncmp(argv[i], "--game=", 7) == 0) {
             continue;
         }
+        // Filter out combo-specific flags that games don't understand
+        if (std::strcmp(argv[i], "--test-entrance") == 0) {
+            continue;
+        }
         gameArgv.push_back(argv[i]);
     }
 
@@ -262,25 +266,43 @@ int main(int argc, char** argv) {
             std::cout << "\n=== Switching to "
                       << bridge.GetGameName(nextGame).value_or("other game")
                       << " ===" << std::endl;
+            std::cout.flush();
 
             // Shutdown current game
+            std::cerr << "[SWITCH DEBUG] About to shutdown current game..." << std::endl;
+            std::cerr.flush();
             bridge.Shutdown();
+            std::cerr << "[SWITCH DEBUG] Current game shutdown complete." << std::endl;
+            std::cerr.flush();
 
             // For entrance-based switches, set up the target entrance
             if (isEntranceSwitch && targetEntrance != 0) {
                 // Set the startup entrance for the new game to use
+                std::cerr << "[SWITCH DEBUG] Setting startup entrance to 0x"
+                          << std::hex << targetEntrance << std::dec << std::endl;
+                std::cerr.flush();
                 Combo_SetStartupEntrance(targetEntrance);
             }
 
             // Switch to the other game
+            std::cerr << "[SWITCH DEBUG] Switching internal state to "
+                      << Combo::GameToId(nextGame) << "..." << std::endl;
+            std::cerr.flush();
             selected = nextGame;
             bridge.SwitchGame(selected);
+            std::cerr << "[SWITCH DEBUG] Internal state switched." << std::endl;
+            std::cerr.flush();
 
             // Initialize the new game
             // The game will check Combo_GetStartupEntrance() and restore frozen
             // state if available, or start at the specified entrance
+            std::cerr << "[SWITCH DEBUG] About to initialize new game with "
+                      << gameArgv.size() << " args..." << std::endl;
+            std::cerr.flush();
             int switchInitResult = bridge.Init(
                 static_cast<int>(gameArgv.size()), gameArgv.data());
+            std::cerr << "[SWITCH DEBUG] Init returned " << switchInitResult << std::endl;
+            std::cerr.flush();
             if (switchInitResult != 0) {
                 std::cerr << "Error: Failed to initialize "
                           << Combo::GameToId(selected)

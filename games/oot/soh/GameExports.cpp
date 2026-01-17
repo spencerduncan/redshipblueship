@@ -58,8 +58,18 @@ GAME_EXPORT void Game_Run(void) {
 }
 
 GAME_EXPORT void Game_Shutdown(void) {
+    fprintf(stderr, "[OOT SHUTDOWN DEBUG] Game_Shutdown called\n");
+    fflush(stderr);
+    fprintf(stderr, "[OOT SHUTDOWN DEBUG] Calling DeinitOTR()...\n");
+    fflush(stderr);
     DeinitOTR();
+    fprintf(stderr, "[OOT SHUTDOWN DEBUG] DeinitOTR() complete\n");
+    fflush(stderr);
+    fprintf(stderr, "[OOT SHUTDOWN DEBUG] Calling Heaps_Free()...\n");
+    fflush(stderr);
     Heaps_Free();
+    fprintf(stderr, "[OOT SHUTDOWN DEBUG] Game_Shutdown complete\n");
+    fflush(stderr);
 }
 
 GAME_EXPORT void Game_Pause(void) {
@@ -160,19 +170,36 @@ extern "C" bool Combo_CheckHotSwap(void) {
  * @return The entrance to use (original if not cross-game)
  */
 extern "C" uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex) {
+    fprintf(stderr, "[COMBO DEBUG] CheckEntranceSwitch called with entrance 0x%04X\n", entranceIndex);
+    fflush(stderr);
+
     // Check if this entrance triggers a cross-game switch
     uint16_t result = Combo_CheckCrossGameEntrance("oot", entranceIndex);
+    fprintf(stderr, "[COMBO DEBUG] CheckCrossGameEntrance returned 0x%04X\n", result);
+    fflush(stderr);
 
     // If a cross-game switch was triggered, freeze our state
     if (Combo_IsCrossGameSwitch()) {
+        fprintf(stderr, "[COMBO DEBUG] Cross-game switch detected!\n");
+        fflush(stderr);
+
         // Get the return entrance from the pending switch
         uint16_t returnEntrance = Combo_GetSwitchReturnEntrance();
+        fprintf(stderr, "[COMBO DEBUG] Return entrance: 0x%04X\n", returnEntrance);
+        fflush(stderr);
 
         // Freeze OoT state with the return entrance
+        fprintf(stderr, "[COMBO DEBUG] About to freeze state, gSaveContext=%p, size=%zu\n",
+                (void*)&gSaveContext, sizeof(SaveContext));
+        fflush(stderr);
         Combo_FreezeState("oot", returnEntrance, &gSaveContext, sizeof(SaveContext));
+        fprintf(stderr, "[COMBO DEBUG] State frozen successfully\n");
+        fflush(stderr);
 
         // Signal that we're ready to switch
         Combo_SignalReadyToSwitch();
+        fprintf(stderr, "[COMBO DEBUG] Ready to switch signaled\n");
+        fflush(stderr);
     }
 
     return result;
