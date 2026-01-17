@@ -140,10 +140,9 @@ int main(int argc, char** argv) {
 
     Combo::ComboContextBridge bridge;
 
-    // Determine library paths
-    // TODO: Make these configurable or auto-detect
-    std::string ootLibPath = "games/oot/soh" LIB_SUFFIX;
-    std::string mmLibPath = "games/mm/2ship" LIB_SUFFIX;
+    // Determine library paths - try current directory first, then games subdirectory
+    std::string ootLibPath = "soh" LIB_SUFFIX;
+    std::string mmLibPath = "2ship" LIB_SUFFIX;
 
     // Initialize combo infrastructure
     Combo_InitFrozenStates();
