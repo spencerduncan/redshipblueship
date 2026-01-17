@@ -124,6 +124,9 @@ Color_RGB8 goronColor = { 0x64, 0x14, 0x00 };
 Color_RGB8 zoraColor = { 0x00, 0xEC, 0x64 };
 
 OTRGlobals::OTRGlobals() {
+    fprintf(stderr, "[MM OTRGlobals DEBUG] Constructor entered\n");
+    fflush(stderr);
+
     std::vector<std::string> archiveFiles;
     std::vector<std::string> patchFiles;
     std::string mmPathO2R = Ship::Context::LocateFileAcrossAppDirs("mm.o2r", appShortName);
@@ -138,11 +141,19 @@ OTRGlobals::OTRGlobals() {
             archiveFiles.push_back(mmPath);
         }
     }
+    fprintf(stderr, "[MM OTRGlobals DEBUG] Found %zu archive files\n", archiveFiles.size());
+    fflush(stderr);
 
     std::string shipOtrPath = Ship::Context::GetPathRelativeToAppBundle("2ship.o2r");
+    fprintf(stderr, "[MM OTRGlobals DEBUG] 2ship.o2r path: %s\n", shipOtrPath.c_str());
+    fflush(stderr);
     if (std::filesystem::exists(shipOtrPath)) {
         archiveFiles.push_back(shipOtrPath);
+        fprintf(stderr, "[MM OTRGlobals DEBUG] 2ship.o2r exists, added\n");
+    } else {
+        fprintf(stderr, "[MM OTRGlobals DEBUG] 2ship.o2r does NOT exist\n");
     }
+    fflush(stderr);
 
     std::string patchesPath = Ship::Context::LocateFileAcrossAppDirs("mods", appShortName);
     if (patchesPath.length() > 0 && std::filesystem::exists(patchesPath)) {
@@ -169,43 +180,104 @@ OTRGlobals::OTRGlobals() {
     });
 
     archiveFiles.insert(archiveFiles.end(), patchFiles.begin(), patchFiles.end());
+    fprintf(stderr, "[MM OTRGlobals DEBUG] Total archive files: %zu\n", archiveFiles.size());
+    for (size_t i = 0; i < archiveFiles.size(); i++) {
+        fprintf(stderr, "[MM OTRGlobals DEBUG]   Archive %zu: %s\n", i, archiveFiles[i].c_str());
+    }
+    fflush(stderr);
 
     std::unordered_set<uint32_t> validHashes = { MM_NTSC_US_10, MM_NTSC_US_GC };
 
+    fprintf(stderr, "[MM OTRGlobals DEBUG] Calling CreateUninitializedInstance...\n");
+    fflush(stderr);
     context = Ship::Context::CreateUninitializedInstance("2 Ship 2 Harkinian", appShortName, "2ship2harkinian.json");
+    fprintf(stderr, "[MM OTRGlobals DEBUG] CreateUninitializedInstance done, context=%p\n", (void*)context.get());
+    fflush(stderr);
+
+    fprintf(stderr, "[MM OTRGlobals DEBUG] Calling InitFileDropMgr...\n");
+    fflush(stderr);
     context->InitFileDropMgr();
+    fprintf(stderr, "[MM OTRGlobals DEBUG] InitFileDropMgr done\n");
+    fflush(stderr);
+
+    fprintf(stderr, "[MM OTRGlobals DEBUG] Calling InitGfxDebugger...\n");
+    fflush(stderr);
     context->InitGfxDebugger();
+    fprintf(stderr, "[MM OTRGlobals DEBUG] InitGfxDebugger done\n");
+    fflush(stderr);
+
+    fprintf(stderr, "[MM OTRGlobals DEBUG] Calling InitConfiguration...\n");
+    fflush(stderr);
     context->InitConfiguration();
+    fprintf(stderr, "[MM OTRGlobals DEBUG] InitConfiguration done\n");
+    fflush(stderr);
+
+    fprintf(stderr, "[MM OTRGlobals DEBUG] Calling InitConsoleVariables...\n");
+    fflush(stderr);
     context->InitConsoleVariables();
+    fprintf(stderr, "[MM OTRGlobals DEBUG] InitConsoleVariables done\n");
+    fflush(stderr);
+
 #if (_DEBUG)
     auto defaultLogLevel = spdlog::level::trace;
 #else
     auto defaultLogLevel = spdlog::level::info;
 #endif
     auto logLevel = (spdlog::level::level_enum)CVarGetInteger("gDeveloperTools.LogLevel", defaultLogLevel);
+    fprintf(stderr, "[MM OTRGlobals DEBUG] Calling InitLogging...\n");
+    fflush(stderr);
     context->InitLogging(logLevel, logLevel);
+    fprintf(stderr, "[MM OTRGlobals DEBUG] InitLogging done\n");
+    fflush(stderr);
     Ship::Context::GetInstance()->GetLogger()->set_pattern("[%H:%M:%S.%e] [%s:%#] [%l] %v");
 
     // tell LUS to reserve 3 SoH specific threads (Game, Audio, Save)
+    fprintf(stderr, "[MM OTRGlobals DEBUG] Calling InitResourceManager with %zu archives...\n", archiveFiles.size());
+    fflush(stderr);
     context->InitResourceManager(archiveFiles, {}, 3);
+    fprintf(stderr, "[MM OTRGlobals DEBUG] InitResourceManager done\n");
+    fflush(stderr);
     prevAltAssets = CVarGetInteger("gEnhancements.Mods.AlternateAssets", 0);
     context->GetResourceManager()->SetAltAssetsEnabled(prevAltAssets);
 
+    fprintf(stderr, "[MM OTRGlobals DEBUG] Creating ControlDeck...\n");
+    fflush(stderr);
     auto controlDeck = std::make_shared<LUS::ControlDeck>(std::vector<CONTROLLERBUTTONS_T>({
         BTN_CUSTOM_MODIFIER1,
         BTN_CUSTOM_MODIFIER2,
     }));
+    fprintf(stderr, "[MM OTRGlobals DEBUG] Calling InitControlDeck...\n");
+    fflush(stderr);
     context->InitControlDeck(controlDeck);
+    fprintf(stderr, "[MM OTRGlobals DEBUG] InitControlDeck done\n");
+    fflush(stderr);
 
+    fprintf(stderr, "[MM OTRGlobals DEBUG] Calling InitCrashHandler...\n");
+    fflush(stderr);
     context->InitCrashHandler();
-    context->InitConsole();
+    fprintf(stderr, "[MM OTRGlobals DEBUG] InitCrashHandler done\n");
+    fflush(stderr);
 
+    fprintf(stderr, "[MM OTRGlobals DEBUG] Calling InitConsole...\n");
+    fflush(stderr);
+    context->InitConsole();
+    fprintf(stderr, "[MM OTRGlobals DEBUG] InitConsole done\n");
+    fflush(stderr);
+
+    fprintf(stderr, "[MM OTRGlobals DEBUG] Creating window objects...\n");
+    fflush(stderr);
     auto benInputEditorWindow = std::make_shared<BenInputEditorWindow>("gWindows.BenInputEditor", "2S2H Input Editor");
     auto benFast3dWindow =
         std::make_shared<Fast::Fast3dWindow>(std::vector<std::shared_ptr<Ship::GuiWindow>>({ benInputEditorWindow }));
+    fprintf(stderr, "[MM OTRGlobals DEBUG] Calling InitWindow...\n");
+    fflush(stderr);
     context->InitWindow(benFast3dWindow);
+    fprintf(stderr, "[MM OTRGlobals DEBUG] InitWindow done\n");
+    fflush(stderr);
 
     // Override LUS defaults
+    fprintf(stderr, "[MM OTRGlobals DEBUG] Getting GameOverlay...\n");
+    fflush(stderr);
     auto overlay = context->GetInstance()->GetWindow()->GetGui()->GetGameOverlay();
     overlay->LoadFont("Press Start 2P", 12.0f, "fonts/PressStart2P-Regular.ttf");
     overlay->LoadFont("Fipps", 32.0f, "fonts/Fipps-Regular.otf");
