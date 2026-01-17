@@ -22,8 +22,7 @@ if(REDSHIP_BUILD_SHARED)
     set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
 
-# Find packages needed for ZAPD_MM linking at top level
-# (also found in subdirectories, but we need them visible here)
+# Find packages at top level for visibility across subdirectories
 find_package(PNG REQUIRED)
 find_package(Threads REQUIRED)
 
@@ -197,45 +196,10 @@ target_compile_definitions(libultraship PUBLIC INCLUDE_MPQ_SUPPORT)
 # OTRExporter builds both OoT and MM variants
 add_subdirectory(OTRExporter)
 
-# ZAPDTR builds ZAPD linked with OTRExporter (alias to OTRExporter_OoT)
-# OTRExporter may have already added this, so guard against double-add
-if (NOT TARGET ZAPD)
+# ZAPDTR builds ZAPD_OoT and ZAPD_MM (with proper GAME_MM defines)
+# Both link with their respective OTRExporter variants
+if (NOT TARGET ZAPD_OoT)
     add_subdirectory(ZAPDTR/ZAPD ${CMAKE_BINARY_DIR}/ZAPD)
-endif()
-
-# Create ZAPD_MM - same as ZAPD but linked with OTRExporter_MM
-add_executable(ZAPD_MM ${CMAKE_SOURCE_DIR}/ZAPDTR/ZAPD/ExecutableMain.cpp)
-target_link_libraries(ZAPD_MM PRIVATE ZAPDLib)
-
-# Link ZAPD_MM with OTRExporter_MM using whole-archive
-if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    target_link_libraries(ZAPD_MM PRIVATE
-        "-WHOLEARCHIVE:$<TARGET_LINKER_FILE_DIR:OTRExporter_MM>/$<TARGET_LINKER_FILE_NAME:OTRExporter_MM>"
-        libultraship
-        storm
-        PNG::PNG
-    )
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    target_link_libraries(ZAPD_MM PRIVATE
-        -Wl,-force_load $<TARGET_LINKER_FILE_DIR:OTRExporter_MM>/$<TARGET_LINKER_FILE_NAME:OTRExporter_MM>
-        libultraship
-        PNG::PNG
-        ${CMAKE_DL_LIBS}
-        Threads::Threads
-    )
-else()
-    target_link_libraries(ZAPD_MM PRIVATE
-        -Wl,--whole-archive $<TARGET_LINKER_FILE_DIR:OTRExporter_MM>/$<TARGET_LINKER_FILE_NAME:OTRExporter_MM> -Wl,--no-whole-archive
-        libultraship
-        PNG::PNG
-        ${CMAKE_DL_LIBS}
-        Threads::Threads
-    )
-endif()
-add_dependencies(ZAPD_MM OTRExporter_MM)
-
-if (CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")
-    set_target_properties(ZAPD_MM PROPERTIES OUTPUT_NAME "ZAPD_MM.out")
 endif()
 
 add_subdirectory(combo)
@@ -248,7 +212,7 @@ set_property(TARGET soh PROPERTY APPIMAGE_ICON_FILE "${CMAKE_BINARY_DIR}/sohIcon
 
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
 install(FILES "${CMAKE_BINARY_DIR}/soh/soh.o2r" DESTINATION . COMPONENT ship)
-install(TARGETS ZAPD DESTINATION ./assets/extractor COMPONENT extractor)
+install(TARGETS ZAPD_OoT DESTINATION ./assets/extractor COMPONENT extractor)
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/oot/assets/extractor/" DESTINATION ./assets COMPONENT extractor)
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/oot/assets/xml/" DESTINATION ./assets/xml COMPONENT extractor)
 endif()
@@ -359,7 +323,7 @@ add_custom_target(CreateOSXIcons
     )
 add_dependencies(soh CreateOSXIcons)
 
-install(TARGETS ZAPD DESTINATION ${CMAKE_BINARY_DIR}/assets)
+install(TARGETS ZAPD_OoT DESTINATION ${CMAKE_BINARY_DIR}/assets)
 
 set(PROGRAM_PERMISSIONS_EXECUTE OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ)
 
