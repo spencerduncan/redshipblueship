@@ -286,6 +286,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE assets
 	${SDL2-INCLUDE}
     ${SDL2-NET-INCLUDE}
 	${CMAKE_CURRENT_SOURCE_DIR}/assets/
+	# N64_US is the version-specific directory where headers are generated
+	${CMAKE_CURRENT_SOURCE_DIR}/assets/N64_US/
 	${dr_libs_SOURCE_DIR}
 	.
 )
