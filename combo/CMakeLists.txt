@@ -51,8 +51,9 @@ if(MSVC)
     )
 endif()
 
-# Tests
-if(BUILD_TESTING)
+# Tests - only for static builds since tests use internal C++ classes
+# When combo is a DLL, internal classes aren't exported
+if(BUILD_TESTING AND NOT (WIN32 AND REDSHIP_BUILD_SHARED))
     add_subdirectory(tests)
 endif()
 
