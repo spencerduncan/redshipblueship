@@ -22,6 +22,18 @@ if(REDSHIP_BUILD_SHARED)
     set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
 
+# vcpkg must be set up BEFORE find_package calls on Windows
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    include(CMake/automate-vcpkg.cmake)
+    set(VCPKG_TRIPLET x64-windows-static)
+    set(VCPKG_TARGET_TRIPLET x64-windows-static)
+    vcpkg_bootstrap()
+    vcpkg_install_packages(zlib bzip2 libzip libpng sdl2 sdl2-net glew glfw3 nlohmann-json tinyxml2 spdlog libogg libvorbis opus opusfile)
+    if (CMAKE_C_COMPILER_LAUNCHER MATCHES "ccache|sccache")
+        set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT Embedded)
+    endif()
+endif()
+
 # Find packages at top level for visibility across subdirectories
 find_package(PNG REQUIRED)
 find_package(Threads REQUIRED)
@@ -90,19 +102,6 @@ set(CMAKE_PROJECT_GIT_COMMIT_TAG "${GIT_COMMIT_TAG}" CACHE STRING "Git commit ta
 set_property(DIRECTORY ${CMAKE_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT soh)
 add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/MP>)
 add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
-
-if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    include(CMake/automate-vcpkg.cmake)
-
-    set(VCPKG_TRIPLET x64-windows-static)
-    set(VCPKG_TARGET_TRIPLET x64-windows-static)
-
-    vcpkg_bootstrap()
-    vcpkg_install_packages(zlib bzip2 libzip libpng sdl2 sdl2-net glew glfw3 nlohmann-json tinyxml2 spdlog libogg libvorbis opus opusfile)
-    if (CMAKE_C_COMPILER_LAUNCHER MATCHES "ccache|sccache")
-        set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT Embedded)
-    endif()
-endif()
 
 ################################################################################
 # Set target arch type if empty. Visual studio solution generator provides it.
