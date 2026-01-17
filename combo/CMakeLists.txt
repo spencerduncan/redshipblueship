@@ -11,6 +11,7 @@ if(WIN32 AND REDSHIP_BUILD_SHARED)
         src/ComboContextBridge.cpp
         src/CrossGameEntrance.cpp
         src/FrozenState.cpp
+        src/SharedGraphics.cpp
     )
     # Export symbols from this DLL
     target_compile_definitions(combo PRIVATE COMBO_BUILDING_DLL)
@@ -22,6 +23,7 @@ else()
         src/ComboContextBridge.cpp
         src/CrossGameEntrance.cpp
         src/FrozenState.cpp
+        src/SharedGraphics.cpp
     )
 endif()
 
