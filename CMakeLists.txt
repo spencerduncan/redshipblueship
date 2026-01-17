@@ -22,6 +22,11 @@ if(REDSHIP_BUILD_SHARED)
     set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
 
+# Find packages needed for ZAPD_MM linking at top level
+# (also found in subdirectories, but we need them visible here)
+find_package(PNG REQUIRED)
+find_package(Threads REQUIRED)
+
 if(SUPPRESS_WARNINGS)
     MESSAGE("Suppressing warnings in LUS and src")
     if(MSVC)
