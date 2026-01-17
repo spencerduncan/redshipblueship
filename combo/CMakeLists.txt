@@ -28,6 +28,13 @@ set_target_properties(combo PROPERTIES
     CXX_STANDARD_REQUIRED ON
 )
 
+# Match MSVC runtime library with games (static runtime)
+if(MSVC)
+    set_target_properties(combo PROPERTIES
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    )
+endif()
+
 # Tests
 if(BUILD_TESTING)
     add_subdirectory(tests)
@@ -49,6 +56,13 @@ if(REDSHIP_BUILD_SHARED)
         # Export symbols so loaded games can call Combo_* functions
         ENABLE_EXPORTS TRUE
     )
+
+    # Match MSVC runtime library with games (static runtime)
+    if(MSVC)
+        set_target_properties(redship PROPERTIES
+            MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+        )
+    endif()
 
     # On Unix, also add -rdynamic to ensure symbols are exported
     if(UNIX)
