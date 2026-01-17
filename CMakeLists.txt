@@ -193,11 +193,14 @@ target_compile_definitions(libultraship PUBLIC INCLUDE_MPQ_SUPPORT)
 add_subdirectory(OTRExporter)
 
 # ZAPDTR builds ZAPD linked with OTRExporter (alias to OTRExporter_OoT)
-add_subdirectory(ZAPDTR/ZAPD ${CMAKE_BINARY_DIR}/ZAPD)
+# OTRExporter may have already added this, so guard against double-add
+if (NOT TARGET ZAPD)
+    add_subdirectory(ZAPDTR/ZAPD ${CMAKE_BINARY_DIR}/ZAPD)
+endif()
 
 # Create ZAPD_MM - same as ZAPD but linked with OTRExporter_MM
 add_executable(ZAPD_MM ${CMAKE_SOURCE_DIR}/ZAPDTR/ZAPD/ExecutableMain.cpp)
-target_link_libraries(ZAPD_MM ZAPDLib)
+target_link_libraries(ZAPD_MM PRIVATE ZAPDLib)
 
 # Link ZAPD_MM with OTRExporter_MM using whole-archive
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
