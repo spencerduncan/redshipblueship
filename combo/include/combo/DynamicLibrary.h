@@ -1,5 +1,6 @@
 #pragma once
 
+#include "combo/Export.h"
 #include <string>
 
 #ifdef _WIN32
@@ -19,7 +20,7 @@ namespace Combo {
  * Abstracts dlopen/LoadLibrary differences between Linux and Windows.
  * Used to load game shared libraries (soh.so/dll, 2ship.so/dll) at runtime.
  */
-class DynamicLibrary {
+class COMBO_API DynamicLibrary {
 public:
     /**
      * Load a shared library from the given path.
@@ -60,7 +61,7 @@ public:
  * RAII wrapper for LibraryHandle.
  * Automatically unloads the library when destroyed.
  */
-class ScopedLibrary {
+class COMBO_API ScopedLibrary {
 public:
     ScopedLibrary() : mHandle(LIBRARY_HANDLE_NULL) {}
     explicit ScopedLibrary(const std::string& path) : mHandle(DynamicLibrary::Load(path)) {}

@@ -53,7 +53,7 @@ struct CrossGameEntranceLink {
  *
  * Thread safety: Not thread-safe. Designed to be used from main game thread.
  */
-class CrossGameEntranceTable {
+class COMBO_API CrossGameEntranceTable {
 public:
     /**
      * Check if an entrance leads to another game
@@ -108,7 +108,7 @@ private:
 };
 
 // Global entrance table instance
-extern CrossGameEntranceTable gCrossGameEntrances;
+extern COMBO_API CrossGameEntranceTable gCrossGameEntrances;
 
 // ============================================================================
 // Pending switch state
@@ -125,7 +125,7 @@ struct PendingGameSwitch {
     bool readyToSwitch = false;     // Set by game after saving state
 };
 
-extern PendingGameSwitch gPendingSwitch;
+extern COMBO_API PendingGameSwitch gPendingSwitch;
 
 } // namespace Combo
 

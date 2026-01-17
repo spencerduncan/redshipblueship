@@ -49,7 +49,7 @@ struct GameState {
 /**
  * Bridge that coordinates multiple game contexts
  */
-class ComboContextBridge {
+class COMBO_API ComboContextBridge {
 public:
     ComboContextBridge() = default;
     ~ComboContextBridge();
