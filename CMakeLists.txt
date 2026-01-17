@@ -279,18 +279,8 @@ add_custom_target(
 add_custom_target(
     ExtractMMAssetHeaders
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/extract_assets.py -z "$<TARGET_FILE:ZAPD_MM>" --non-interactive --xml-root assets/xml --gen-headers "${CMAKE_CURRENT_SOURCE_DIR}/OTRExporter/mm.z64"
-    # Create symlinks from assets/* to assets/N64_US/* for header includes
-    # MM headers are generated in version-specific subdirectory (N64_US) but code expects them in assets/
-    COMMAND ${CMAKE_COMMAND} -E create_symlink N64_US/archives ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/assets/archives
-    COMMAND ${CMAKE_COMMAND} -E create_symlink N64_US/code ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/assets/code
-    COMMAND ${CMAKE_COMMAND} -E create_symlink N64_US/interface ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/assets/interface
-    COMMAND ${CMAKE_COMMAND} -E create_symlink N64_US/misc ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/assets/misc
-    COMMAND ${CMAKE_COMMAND} -E create_symlink N64_US/objects ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/assets/objects
-    COMMAND ${CMAKE_COMMAND} -E create_symlink N64_US/overlays ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/assets/overlays
-    COMMAND ${CMAKE_COMMAND} -E create_symlink N64_US/scenes ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/assets/scenes
-    COMMAND ${CMAKE_COMMAND} -E create_symlink N64_US/text ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/assets/text
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/games/mm
-    COMMENT "Generating MM asset headers and creating symlinks..."
+    COMMENT "Generating MM asset headers..."
     DEPENDS ZAPD_MM
 )
 
