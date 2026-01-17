@@ -675,23 +675,54 @@ extern "C" void InitOTR() {
     std::string mmPathZIP = Ship::Context::LocateFileAcrossAppDirs("mm.zip", appShortName);
     std::string mmPathOtr = Ship::Context::LocateFileAcrossAppDirs("mm.otr", appShortName);
     fprintf(stderr, "[MM InitOTR DEBUG] Archive paths located\n");
+    fprintf(stderr, "[MM InitOTR DEBUG]   O2R: %s\n", mmPathO2R.c_str());
+    fprintf(stderr, "[MM InitOTR DEBUG]   ZIP: %s\n", mmPathZIP.c_str());
+    fprintf(stderr, "[MM InitOTR DEBUG]   OTR: %s\n", mmPathOtr.c_str());
     fflush(stderr);
 
     // Check game archives in preferred order
+    fprintf(stderr, "[MM InitOTR DEBUG] Checking archive existence...\n");
+    fflush(stderr);
     if (std::filesystem::exists(mmPathO2R)) {
+        fprintf(stderr, "[MM InitOTR DEBUG] Found O2R, calling DetectArchiveVersion...\n");
+        fflush(stderr);
         DetectArchiveVersion("mm.o2r", true);
+        fprintf(stderr, "[MM InitOTR DEBUG] DetectArchiveVersion done\n");
+        fflush(stderr);
     } else if (std::filesystem::exists(mmPathZIP)) {
+        fprintf(stderr, "[MM InitOTR DEBUG] Found ZIP, calling DetectArchiveVersion...\n");
+        fflush(stderr);
         DetectArchiveVersion("mm.zip", true);
+        fprintf(stderr, "[MM InitOTR DEBUG] DetectArchiveVersion done\n");
+        fflush(stderr);
     } else if (std::filesystem::exists(mmPathOtr)) {
+        fprintf(stderr, "[MM InitOTR DEBUG] Found OTR, calling DetectArchiveVersion...\n");
+        fflush(stderr);
         DetectArchiveVersion("mm.otr", false);
+        fprintf(stderr, "[MM InitOTR DEBUG] DetectArchiveVersion done\n");
+        fflush(stderr);
+    } else {
+        fprintf(stderr, "[MM InitOTR DEBUG] No archive found!\n");
+        fflush(stderr);
     }
 
 #if not defined(__SWITCH__) && not defined(__WIIU__)
+    fprintf(stderr, "[MM InitOTR DEBUG] Calling CheckAndCreateModFolder...\n");
+    fflush(stderr);
     CheckAndCreateModFolder();
+    fprintf(stderr, "[MM InitOTR DEBUG] CheckAndCreateModFolder done\n");
+    fflush(stderr);
+
     if (!std::filesystem::exists(mmPathO2R) && !std::filesystem::exists(mmPathZIP) &&
         !std::filesystem::exists(mmPathOtr)) {
+        fprintf(stderr, "[MM InitOTR DEBUG] No archives exist, checking for extractor...\n");
+        fflush(stderr);
         std::string installPath = Ship::Context::GetAppBundlePath();
+        fprintf(stderr, "[MM InitOTR DEBUG] Install path: %s\n", installPath.c_str());
+        fflush(stderr);
         if (!std::filesystem::exists(installPath + "/assets")) {
+            fprintf(stderr, "[MM InitOTR DEBUG] No assets folder, showing error and exiting\n");
+            fflush(stderr);
             Extractor::ShowErrorBox(
                 "Extractor assets not found",
                 "No game O2R file found. Missing assets folder needed to generate O2R file. Exiting...");
@@ -706,10 +737,14 @@ extern "C" void InitOTR() {
             }
             extract.CallZapd(installPath, Ship::Context::GetAppDirectoryPath(appShortName));
         } else {
+            fprintf(stderr, "[MM InitOTR DEBUG] User declined extraction, exiting\n");
+            fflush(stderr);
             exit(1);
         }
     }
 #endif
+    fprintf(stderr, "[MM InitOTR DEBUG] Archive check complete\n");
+    fflush(stderr);
 
     fprintf(stderr, "[MM InitOTR DEBUG] Creating OTRGlobals...\n");
     fflush(stderr);

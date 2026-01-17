@@ -16,6 +16,7 @@
 #include <vector>
 #include <cstring>
 #include <csignal>
+#include <cstdlib>
 
 #include "combo/ComboContextBridge.h"
 #include "combo/CrossGameEntrance.h"
@@ -128,8 +129,14 @@ LONG WINAPI CrashHandler(EXCEPTION_POINTERS* exceptionInfo) {
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
+void AtExitHandler() {
+    std::cerr << "\n[ATEXIT] Process is exiting via exit() or return from main" << std::endl;
+    std::cerr.flush();
+}
+
 void InstallCrashHandler() {
     SetUnhandledExceptionFilter(CrashHandler);
+    std::atexit(AtExitHandler);
 }
 #else
 // Unix signal handler
