@@ -290,11 +290,13 @@ target_include_directories(${PROJECT_NAME} PRIVATE assets
 	.
 )
 
-# Add combo include directory for GameExports.h when building as shared library
+# Add combo include directory and link library when building as shared library
 if(REDSHIP_BUILD_SHARED)
     target_include_directories(${PROJECT_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../../combo/include
     )
+    # Link against combo DLL for Combo_* functions
+    target_link_libraries(${PROJECT_NAME} PRIVATE combo)
 endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
