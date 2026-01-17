@@ -654,6 +654,8 @@ void CheckAndCreateModFolder() {
 }
 
 extern "C" void InitOTR() {
+    fprintf(stderr, "[MM InitOTR DEBUG] Entered InitOTR()\n");
+    fflush(stderr);
 
 #ifdef __SWITCH__
     Ship::Switch::Init(Ship::PreInitPhase);
@@ -661,12 +663,19 @@ extern "C" void InitOTR() {
     Ship::WiiU::Init(appShortName);
 #endif
 
+    fprintf(stderr, "[MM InitOTR DEBUG] Platform-specific init done\n");
+    fflush(stderr);
+
     // BENTODO: OTRExporter is filling the version file with garbage. Uncomment once fixed.
     // Check2ShipArchiveVersion(Ship::Context::GetPathRelativeToAppBundle("2ship.o2r"));
 
+    fprintf(stderr, "[MM InitOTR DEBUG] Locating archive files...\n");
+    fflush(stderr);
     std::string mmPathO2R = Ship::Context::LocateFileAcrossAppDirs("mm.o2r", appShortName);
     std::string mmPathZIP = Ship::Context::LocateFileAcrossAppDirs("mm.zip", appShortName);
     std::string mmPathOtr = Ship::Context::LocateFileAcrossAppDirs("mm.otr", appShortName);
+    fprintf(stderr, "[MM InitOTR DEBUG] Archive paths located\n");
+    fflush(stderr);
 
     // Check game archives in preferred order
     if (std::filesystem::exists(mmPathO2R)) {
@@ -702,10 +711,30 @@ extern "C" void InitOTR() {
     }
 #endif
 
+    fprintf(stderr, "[MM InitOTR DEBUG] Creating OTRGlobals...\n");
+    fflush(stderr);
     OTRGlobals::Instance = new OTRGlobals();
+    fprintf(stderr, "[MM InitOTR DEBUG] OTRGlobals created\n");
+    fflush(stderr);
+
+    fprintf(stderr, "[MM InitOTR DEBUG] Creating GameInteractor...\n");
+    fflush(stderr);
     GameInteractor::Instance = new GameInteractor();
+    fprintf(stderr, "[MM InitOTR DEBUG] GameInteractor created\n");
+    fflush(stderr);
+
+    fprintf(stderr, "[MM InitOTR DEBUG] Creating AudioCollection...\n");
+    fflush(stderr);
     AudioCollection::Instance = new AudioCollection();
+    fprintf(stderr, "[MM InitOTR DEBUG] AudioCollection created\n");
+    fflush(stderr);
+
+    fprintf(stderr, "[MM InitOTR DEBUG] Loading GUI textures...\n");
+    fflush(stderr);
     LoadGuiTextures();
+    fprintf(stderr, "[MM InitOTR DEBUG] GUI textures loaded\n");
+    fflush(stderr);
+
     BenGui::SetupGuiElements();
     ShipInit::InitAll();
     InitEnhancements();
