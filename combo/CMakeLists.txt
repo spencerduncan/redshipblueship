@@ -12,6 +12,7 @@ if(WIN32 AND REDSHIP_BUILD_SHARED)
         src/CrossGameEntrance.cpp
         src/FrozenState.cpp
         src/SharedGraphics.cpp
+        src/test/TestRunner.cpp
     )
     # Export symbols from this DLL
     target_compile_definitions(combo PRIVATE COMBO_BUILDING_DLL)
@@ -24,6 +25,7 @@ else()
         src/CrossGameEntrance.cpp
         src/FrozenState.cpp
         src/SharedGraphics.cpp
+        src/test/TestRunner.cpp
     )
 endif()
 
@@ -111,4 +113,34 @@ if(REDSHIP_BUILD_SHARED)
 
     # Install the launcher
     install(TARGETS redship RUNTIME DESTINATION bin)
+endif()
+
+# =============================================================================
+# CTest Integration Tests
+# =============================================================================
+# These tests use the --test flag to run automated game tests.
+# They require game assets (OTR files) to be present, so they're marked
+# as WILL_FAIL until the full infrastructure is in place.
+
+if(BUILD_TESTING AND REDSHIP_BUILD_SHARED)
+    enable_testing()
+
+    # Boot tests - verify each game can initialize
+    add_test(NAME BootOoT COMMAND redship --test boot-oot)
+    add_test(NAME BootMM COMMAND redship --test boot-mm)
+
+    # Switch tests - verify cross-game transitions
+    add_test(NAME SwitchOoTMM COMMAND redship --test switch-oot-mm)
+    add_test(NAME SwitchMMOoT COMMAND redship --test switch-mm-oot)
+
+    # Full round-trip test
+    add_test(NAME RoundTrip COMMAND redship --test roundtrip)
+
+    # Mark all tests as expected to fail until infrastructure is complete
+    set_tests_properties(
+        BootOoT BootMM SwitchOoTMM SwitchMMOoT RoundTrip
+        PROPERTIES
+        WILL_FAIL TRUE
+        TIMEOUT 60
+    )
 endif()
