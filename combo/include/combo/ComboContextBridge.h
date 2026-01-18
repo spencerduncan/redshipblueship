@@ -82,6 +82,11 @@ public:
     bool IsGameLoaded(Game game) const;
 
     /**
+     * Check if a game is initialized (ready to Run without Init)
+     */
+    bool IsGameInitialized(Game game) const;
+
+    /**
      * Get the currently active game
      */
     Game GetActiveGame() const { return mActiveGame; }
