@@ -309,6 +309,52 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    // Build gameArgv early - needed for pre-init
+    // Remove --game argument from argv before passing to game
+    std::vector<char*> gameArgv;
+    gameArgv.push_back(argv[0]);
+    for (int i = 1; i < argc; i++) {
+        if (std::strcmp(argv[i], "--game") == 0) {
+            i++; // Skip the value too
+            continue;
+        }
+        if (std::strncmp(argv[i], "--game=", 7) == 0) {
+            continue;
+        }
+        // Filter out combo-specific flags that games don't understand
+        if (std::strcmp(argv[i], "--test-entrance") == 0) {
+            continue;
+        }
+        gameArgv.push_back(argv[i]);
+    }
+
+    // =========================================================================
+    // Pre-initialize both games so they share the SDL window
+    // First game creates window, second game reuses it via SharedGraphics
+    // This enables instant hot-switching without window recreation
+    // =========================================================================
+    if (ootLoaded) {
+        std::cout << "Pre-initializing OoT..." << std::endl;
+        bridge.SwitchGame(Combo::Game::OoT);
+        int ootInit = bridge.Init(static_cast<int>(gameArgv.size()), gameArgv.data());
+        if (ootInit != 0) {
+            std::cerr << "Warning: OoT pre-init failed with code " << ootInit << std::endl;
+            ootLoaded = false;
+        }
+    }
+
+    if (mmLoaded) {
+        std::cout << "Pre-initializing MM..." << std::endl;
+        bridge.SwitchGame(Combo::Game::MM);
+        int mmInit = bridge.Init(static_cast<int>(gameArgv.size()), gameArgv.data());
+        if (mmInit != 0) {
+            std::cerr << "Warning: MM pre-init failed with code " << mmInit << std::endl;
+            mmLoaded = false;
+        }
+    }
+
+    std::cout << "Pre-initialization complete." << std::endl;
+
     // Parse --game argument or show menu
     Combo::Game selected = ParseGameArg(argc, argv);
 
@@ -337,36 +383,17 @@ int main(int argc, char** argv) {
         }
     }
 
-    // Switch to selected game
+    // Switch to selected game (already pre-initialized above)
     if (!bridge.SwitchGame(selected)) {
         std::cerr << "Error: Failed to switch to selected game." << std::endl;
         return 1;
     }
 
-    // Initialize the game
-    // Remove --game argument from argv before passing to game
-    std::vector<char*> gameArgv;
-    gameArgv.push_back(argv[0]);
-    for (int i = 1; i < argc; i++) {
-        if (std::strcmp(argv[i], "--game") == 0) {
-            i++; // Skip the value too
-            continue;
-        }
-        if (std::strncmp(argv[i], "--game=", 7) == 0) {
-            continue;
-        }
-        // Filter out combo-specific flags that games don't understand
-        if (std::strcmp(argv[i], "--test-entrance") == 0) {
-            continue;
-        }
-        gameArgv.push_back(argv[i]);
-    }
-
-    int initResult = bridge.Init(static_cast<int>(gameArgv.size()), gameArgv.data());
-    if (initResult != 0) {
-        std::cerr << "Error: Game initialization failed with code "
-                  << initResult << std::endl;
-        return initResult;
+    // Games are already initialized from pre-init above
+    // Init() will return 0 immediately if already initialized
+    if (!bridge.IsGameInitialized(selected)) {
+        std::cerr << "Error: Selected game was not pre-initialized." << std::endl;
+        return 1;
     }
 
     // Game loop with hot-swap and entrance-based switch support
@@ -411,59 +438,55 @@ int main(int argc, char** argv) {
                       << " ===" << std::endl;
             std::cout.flush();
 
-            // Shutdown current game
-            std::cerr << "[SWITCH DEBUG] About to shutdown current game..." << std::endl;
-            std::cerr.flush();
-            bridge.Shutdown();
-            std::cerr << "[SWITCH DEBUG] Current game shutdown complete." << std::endl;
-            std::cerr.flush();
+            // Check if target game is pre-initialized (instant hot-switch)
+            bool targetPreInitialized = bridge.IsGameInitialized(nextGame);
 
-            // For entrance-based switches, set up the target entrance
-            if (isEntranceSwitch && targetEntrance != 0) {
-                // Set the startup entrance for the new game to use
-                std::cerr << "[SWITCH DEBUG] Setting startup entrance to 0x"
-                          << std::hex << targetEntrance << std::dec << std::endl;
-                std::cerr.flush();
-                Combo_SetStartupEntrance(targetEntrance);
-            }
+            if (targetPreInitialized) {
+                // INSTANT HOT-SWITCH: Target game is pre-initialized
+                // Skip Shutdown/Init - just switch the active game pointer
+                std::cout << "[HOT-SWITCH] Target game is pre-initialized, performing instant switch" << std::endl;
 
-            // Switch to the other game
-            std::cerr << "[SWITCH DEBUG] Switching internal state to "
-                      << Combo::GameToId(nextGame) << "..." << std::endl;
-            std::cerr.flush();
-            selected = nextGame;
-            bridge.SwitchGame(selected);
-            std::cerr << "[SWITCH DEBUG] Internal state switched." << std::endl;
-            std::cerr.flush();
+                // For entrance-based switches, set up the target entrance
+                if (isEntranceSwitch && targetEntrance != 0) {
+                    std::cout << "[HOT-SWITCH] Setting startup entrance to 0x"
+                              << std::hex << targetEntrance << std::dec << std::endl;
+                    Combo_SetStartupEntrance(targetEntrance);
+                }
 
-            // Initialize the new game
-            // The game will check Combo_GetStartupEntrance() and restore frozen
-            // state if available, or start at the specified entrance
-            std::cerr << "[SWITCH DEBUG] About to initialize new game with "
-                      << gameArgv.size() << " args..." << std::endl;
-            std::cerr.flush();
-            int switchInitResult = -999;
-            try {
-                switchInitResult = bridge.Init(
+                // Just switch - no shutdown, no init needed
+                selected = nextGame;
+                bridge.SwitchGame(selected);
+                std::cout << "[HOT-SWITCH] Switch complete, starting "
+                          << bridge.GetGameName(selected).value_or("game") << std::endl;
+                // Loop continues, will run the new game
+            } else {
+                // FALLBACK: Target game not pre-initialized (shouldn't happen normally)
+                // Use the old shutdown/init path
+                std::cerr << "[SWITCH DEBUG] Target not pre-initialized, using shutdown/init path" << std::endl;
+
+                // Shutdown current game
+                bridge.Shutdown();
+
+                // For entrance-based switches, set up the target entrance
+                if (isEntranceSwitch && targetEntrance != 0) {
+                    Combo_SetStartupEntrance(targetEntrance);
+                }
+
+                // Switch to the other game
+                selected = nextGame;
+                bridge.SwitchGame(selected);
+
+                // Initialize the new game
+                int switchInitResult = bridge.Init(
                     static_cast<int>(gameArgv.size()), gameArgv.data());
-                std::cerr << "[SWITCH DEBUG] Init returned " << switchInitResult << std::endl;
-                std::cerr.flush();
-            } catch (const std::exception& e) {
-                std::cerr << "[SWITCH DEBUG] C++ EXCEPTION during Init: " << e.what() << std::endl;
-                std::cerr.flush();
-                keepRunning = false;
-            } catch (...) {
-                std::cerr << "[SWITCH DEBUG] UNKNOWN C++ EXCEPTION during Init" << std::endl;
-                std::cerr.flush();
-                keepRunning = false;
+                if (switchInitResult != 0) {
+                    std::cerr << "Error: Failed to initialize "
+                              << Combo::GameToId(selected)
+                              << " (code " << switchInitResult << ")" << std::endl;
+                    keepRunning = false;
+                }
+                // Loop continues, will run the new game
             }
-            if (switchInitResult != 0 && switchInitResult != -999) {
-                std::cerr << "Error: Failed to initialize "
-                          << Combo::GameToId(selected)
-                          << " (code " << switchInitResult << ")" << std::endl;
-                keepRunning = false;
-            }
-            // Loop continues, will run the new game
         } else if (nextGame != Combo::Game::None) {
             std::cerr << "Cannot switch: target game not loaded" << std::endl;
             keepRunning = false;

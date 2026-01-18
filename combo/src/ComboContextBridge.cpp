@@ -102,6 +102,11 @@ bool ComboContextBridge::IsGameLoaded(Game game) const {
     return it != mGames.end() && it->second.library.IsValid();
 }
 
+bool ComboContextBridge::IsGameInitialized(Game game) const {
+    auto it = mGames.find(game);
+    return it != mGames.end() && it->second.initialized;
+}
+
 bool ComboContextBridge::SwitchGame(Game game) {
     if (!IsGameLoaded(game)) {
         std::cerr << "ComboContextBridge: Cannot switch to unloaded game: "
