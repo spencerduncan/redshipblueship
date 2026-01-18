@@ -1,23 +1,23 @@
 #include "global.h"
 #include "vt.h"
 
-StackEntry* sStackInfoListStart = NULL;
-StackEntry* sStackInfoListEnd = NULL;
+StackEntry* OoT_sStackInfoListStart = NULL;
+StackEntry* OoT_sStackInfoListEnd = NULL;
 
-void StackCheck_Init(StackEntry* entry, void* stackTop, void* stackBottom, u32 initValue, s32 minSpace,
+void OoT_StackCheck_Init(StackEntry* entry, void* stackTop, void* stackBottom, u32 initValue, s32 minSpace,
                      const char* name) {
     StackEntry* iter;
     u32* addr;
 
     if (entry == NULL) {
-        sStackInfoListStart = NULL;
+        OoT_sStackInfoListStart = NULL;
     } else {
         entry->head = (uintptr_t)stackTop;
         entry->tail = (uintptr_t)stackBottom;
         entry->initValue = initValue;
         entry->minSpace = minSpace;
         entry->name = name;
-        iter = sStackInfoListStart;
+        iter = OoT_sStackInfoListStart;
         while (iter) {
             if (iter == entry) {
                 osSyncPrintf(VT_COL(RED, WHITE) "stackcheck_init: %08x は既にリスト中にある\n" VT_RST, entry);
@@ -26,16 +26,16 @@ void StackCheck_Init(StackEntry* entry, void* stackTop, void* stackBottom, u32 i
             iter = iter->next;
         }
 
-        entry->prev = sStackInfoListEnd;
+        entry->prev = OoT_sStackInfoListEnd;
         entry->next = NULL;
 
-        if (sStackInfoListEnd) {
-            sStackInfoListEnd->next = entry;
+        if (OoT_sStackInfoListEnd) {
+            OoT_sStackInfoListEnd->next = entry;
         }
 
-        sStackInfoListEnd = entry;
-        if (!sStackInfoListStart) {
-            sStackInfoListStart = entry;
+        OoT_sStackInfoListEnd = entry;
+        if (!OoT_sStackInfoListStart) {
+            OoT_sStackInfoListStart = entry;
         }
 
         if (entry->minSpace != -1) {
@@ -47,12 +47,12 @@ void StackCheck_Init(StackEntry* entry, void* stackTop, void* stackBottom, u32 i
     }
 }
 
-void StackCheck_Cleanup(StackEntry* entry) {
+void OoT_StackCheck_Cleanup(StackEntry* entry) {
     u32 inconsistency = false;
 
     if (!entry->prev) {
-        if (entry == sStackInfoListStart) {
-            sStackInfoListStart = entry->next;
+        if (entry == OoT_sStackInfoListStart) {
+            OoT_sStackInfoListStart = entry->next;
         } else {
             inconsistency = true;
         }
@@ -61,8 +61,8 @@ void StackCheck_Cleanup(StackEntry* entry) {
     }
 
     if (!entry->next) {
-        if (entry == sStackInfoListEnd) {
-            sStackInfoListEnd = entry->prev;
+        if (entry == OoT_sStackInfoListEnd) {
+            OoT_sStackInfoListEnd = entry->prev;
         } else {
             inconsistency = true;
         }
@@ -72,7 +72,7 @@ void StackCheck_Cleanup(StackEntry* entry) {
     }
 }
 
-s32 StackCheck_GetState(StackEntry* entry) {
+s32 OoT_StackCheck_GetState(StackEntry* entry) {
     u32* last;
     size_t used;
     size_t free;
@@ -109,12 +109,12 @@ s32 StackCheck_GetState(StackEntry* entry) {
     return ret;
 }
 
-u32 StackCheck_CheckAll(void) {
+u32 OoT_StackCheck_CheckAll(void) {
     u32 ret = 0;
-    StackEntry* iter = sStackInfoListStart;
+    StackEntry* iter = OoT_sStackInfoListStart;
 
     while (iter) {
-        u32 state = StackCheck_GetState(iter);
+        u32 state = OoT_StackCheck_GetState(iter);
 
         if (state != STACK_STATUS_OK) {
             ret = 1;
@@ -125,10 +125,10 @@ u32 StackCheck_CheckAll(void) {
     return ret;
 }
 
-u32 StackCheck_Check(StackEntry* entry) {
+u32 OoT_StackCheck_Check(StackEntry* entry) {
     if (entry == NULL) {
-        return StackCheck_CheckAll();
+        return OoT_StackCheck_CheckAll();
     } else {
-        return StackCheck_GetState(entry);
+        return OoT_StackCheck_GetState(entry);
     }
 }

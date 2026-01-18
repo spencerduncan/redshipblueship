@@ -27,7 +27,7 @@ const ActorInit Bg_Spot11_Oasis_InitVars = {
     OBJECT_SPOT11_OBJ,
     sizeof(BgSpot11Oasis),
     (ActorFunc)BgSpot11Oasis_Init,
-    (ActorFunc)Actor_Noop,
+    (ActorFunc)OoT_Actor_Noop,
     (ActorFunc)BgSpot11Oasis_Update,
     NULL,
     NULL,
@@ -37,7 +37,7 @@ static s16 D_808B2E10[][2] = {
     { 1260, 2040 }, { 1259, 1947 }, { 1135, 1860 }, { 1087, 1912 }, { 1173, 2044 },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F(scale, 1, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 3000, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 1200, ICHAIN_CONTINUE),
@@ -74,7 +74,7 @@ s32 func_808B280C(PlayState* play) {
         sp4C.z = D_808B2E10[i][1];
         sp40.x = D_808B2E10[i + 1][0];
         sp40.z = D_808B2E10[i + 1][1];
-        if (Math3D_TriChkPointParaYSlopedY(&sp58, &sp4C, &sp40, player->actor.world.pos.z, player->actor.world.pos.x)) {
+        if (OoT_Math3D_TriChkPointParaYSlopedY(&sp58, &sp4C, &sp40, player->actor.world.pos.z, player->actor.world.pos.x)) {
             return 1;
         }
     }
@@ -84,7 +84,7 @@ s32 func_808B280C(PlayState* play) {
 void BgSpot11Oasis_Init(Actor* thisx, PlayState* play) {
     BgSpot11Oasis* this = (BgSpot11Oasis*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
     func_808B2970(this);
     this->actor.world.pos.y = -100.0f;
     func_808B27F0(play, -100);
@@ -106,9 +106,9 @@ void func_808B29E0(BgSpot11Oasis* this) {
 }
 
 void func_808B29F0(BgSpot11Oasis* this, PlayState* play) {
-    if (Math_StepToF(&this->actor.world.pos.y, 0.0f, 0.7f)) {
+    if (OoT_Math_StepToF(&this->actor.world.pos.y, 0.0f, 0.7f)) {
         func_808B2AA8(this);
-        Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ELF, this->actor.world.pos.x, this->actor.world.pos.y + 40.0f,
+        OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ELF, this->actor.world.pos.x, this->actor.world.pos.y + 40.0f,
                     this->actor.world.pos.z, 0, 0, 0, FAIRY_SPAWNER, true);
         Sfx_PlaySfxCentered(NA_SE_SY_CORRECT_CHIME);
     }
@@ -137,10 +137,10 @@ void BgSpot11Oasis_Update(Actor* thisx, PlayState* play) {
     if (this->unk_150 && (this->actor.projectedPos.z < 400.0f) && (this->actor.projectedPos.z > -40.0f)) {
         gameplayFrames = play->gameplayFrames;
         if (gameplayFrames & 4) {
-            Math_Vec3f_Sum(&this->actor.world.pos, &D_808B2E34[this->unk_151], &sp30);
-            EffectSsBubble_Spawn(play, &sp30, 0.0f, 15.0f, 50.0f, (Rand_ZeroOne() * 0.12f) + 0.02f);
-            if (Rand_ZeroOne() < 0.3f) {
-                this->unk_151 = Rand_ZeroOne() * 4.9f;
+            OoT_Math_Vec3f_Sum(&this->actor.world.pos, &D_808B2E34[this->unk_151], &sp30);
+            OoT_EffectSsBubble_Spawn(play, &sp30, 0.0f, 15.0f, 50.0f, (OoT_Rand_ZeroOne() * 0.12f) + 0.02f);
+            if (OoT_Rand_ZeroOne() < 0.3f) {
+                this->unk_151 = OoT_Rand_ZeroOne() * 4.9f;
             }
         }
     } else {
@@ -155,7 +155,7 @@ void BgSpot11Oasis_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 127 - (gameplayFrames % 128), (gameplayFrames * 1) % 128, 32, 32,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 127 - (gameplayFrames % 128), (gameplayFrames * 1) % 128, 32, 32,
                                 1, gameplayFrames % 128, (gameplayFrames * 1) % 128, 32, 32));
     gSPDisplayList(POLY_XLU_DISP++, gDesertColossusOasisDL);
     CLOSE_DISPS(play->state.gfxCtx);

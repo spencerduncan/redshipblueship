@@ -5,7 +5,7 @@ __OSEventState __osEventStateTab[OS_NUM_EVENTS + 1];
 
 u32 __osPreNMI = false;
 
-void osSetEventMesg(OSEvent e, OSMesgQueue* mq, OSMesg msg) {
+void OoT_osSetEventMesg(OSEvent e, OSMesgQueue* mq, OSMesg msg) {
     register u32 prevInt = __osDisableInt();
     __OSEventState* msgs = &__osEventStateTab[e];
 
@@ -14,7 +14,7 @@ void osSetEventMesg(OSEvent e, OSMesgQueue* mq, OSMesg msg) {
 
     if (e == OS_EVENT_PRENMI) {
         if (__osShutdown && !__osPreNMI) {
-            osSendMesg(mq, msg, OS_MESG_NOBLOCK);
+            OoT_osSendMesg(mq, msg, OS_MESG_NOBLOCK);
         }
         __osPreNMI = true;
     }

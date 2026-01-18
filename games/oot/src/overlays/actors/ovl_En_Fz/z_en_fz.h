@@ -11,7 +11,7 @@ typedef void (*EnFzSpawnIceSmokeFunc)(struct EnFz*);
 
 typedef struct {
     /* 0x0000 */ u8 type; // 0,1,2: State of freezard (1 not freezing, 2 freezing)
-    /* 0x0001 */ u8 timer; // increments primAlphaState after reaching 7 (freezing), used in Gfx_TwoTexScroll
+    /* 0x0001 */ u8 timer; // increments primAlphaState after reaching 7 (freezing), used in OoT_Gfx_TwoTexScroll
     /* 0x0004 */ Vec3f pos; // Random position within 20.0f of actor
     /* 0x0010 */ Vec3f velocity; 
     /* 0x001C */ Vec3f accel;
@@ -20,7 +20,7 @@ typedef struct {
     /* 0x002E */ s16 primAlphaState; // 0: increasing (more opaque) 1: decreasing (more transparent) 2: collision
     /* 0x0030 */ f32 xyScale; // 
     /* 0x0034 */ f32 xyScaleTarget; 
-    /* 0x0038 */ u8 isTimerMod8; // conditional, used to run CollisionCheck_SetAT 
+    /* 0x0038 */ u8 isTimerMod8; // conditional, used to run OoT_CollisionCheck_SetAT 
                  u32 epoch;
 } EnFzEffectSsIceSmoke; // size = 0x3C
 

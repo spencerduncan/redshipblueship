@@ -27,7 +27,7 @@
  *
  * Joybus communication is handled on another thread as polling and receiving controller data is a slow process; the
  * N64 programming manual section 26.2.4.1 quotes 2 milliseconds as the expected delay from calling
- * `osContStartReadData` to receiving the data. By running this on a separate thread to the game state, work can be
+ * `MM_osContStartReadData` to receiving the data. By running this on a separate thread to the game state, work can be
  * done while waiting for this operation to complete.
  */
 
@@ -52,7 +52,7 @@ typedef enum {
     /* 2 */ VOICE_INIT_SUCCESS // voice initialized
 } VoiceInitStatus;
 
-PadMgr* sPadMgrInstance = &gPadMgr;
+PadMgr* sPadMgrInstance = &MM_gPadMgr;
 
 s32 sPadMgrRetraceCount = 0;
 
@@ -69,12 +69,12 @@ u8 PadMgr_GetValidControllersMask(void) {
 
 /**
  * Sets the callback function intended to be used to modify the rumble pak state on each VI with
- * calls to `PadMgr_RumbleSetSingle`. The callback may be passed a single user-provided argument.
+ * calls to `MM_PadMgr_RumbleSetSingle`. The callback may be passed a single user-provided argument.
  *
  * @param callback callback to run before rumble state is updated for the current VI
  * @param arg the argument to pass to the callback
  *
- * @see PadMgr_RumbleSetSingle
+ * @see MM_PadMgr_RumbleSetSingle
  * @see PadMgr_UnsetRumbleRetraceCallback
  */
 void PadMgr_SetRumbleRetraceCallback(void (*callback)(void*), void* arg) {
@@ -150,7 +150,7 @@ void PadMgr_UnsetInputRetraceCallback(void (*callback)(void*), void* arg) {
 OSMesgQueue* PadMgr_AcquireSerialEventQueue(void) {
     OSMesgQueue* serialEventQueue;
 
-    osRecvMesg(&sPadMgrInstance->serialLockQueue, (OSMesg*)&serialEventQueue, OS_MESG_BLOCK);
+    MM_osRecvMesg(&sPadMgrInstance->serialLockQueue, (OSMesg*)&serialEventQueue, OS_MESG_BLOCK);
     return serialEventQueue;
 }
 
@@ -163,7 +163,7 @@ OSMesgQueue* PadMgr_AcquireSerialEventQueue(void) {
 OSMesgQueue* PadMgr_VoiceAcquireSerialEventQueue(void) {
     OSMesgQueue* serialEventQueue;
 
-    osRecvMesg(&sPadMgrInstance->serialLockQueue, (OSMesg*)&serialEventQueue, OS_MESG_BLOCK);
+    MM_osRecvMesg(&sPadMgrInstance->serialLockQueue, (OSMesg*)&serialEventQueue, OS_MESG_BLOCK);
     return serialEventQueue;
 }
 
@@ -175,7 +175,7 @@ OSMesgQueue* PadMgr_VoiceAcquireSerialEventQueue(void) {
  * @see PadMgr_AcquireSerialEventQueue
  */
 void PadMgr_ReleaseSerialEventQueue(OSMesgQueue* serialEventQueue) {
-    // osSendMesg(&sPadMgrInstance->serialLockQueue, (OSMesg)serialEventQueue, OS_MESG_BLOCK);
+    // MM_osSendMesg(&sPadMgrInstance->serialLockQueue, (OSMesg)serialEventQueue, OS_MESG_BLOCK);
 }
 
 /**
@@ -184,27 +184,27 @@ void PadMgr_ReleaseSerialEventQueue(OSMesgQueue* serialEventQueue) {
  * @see PadMgr_VoiceAcquireSerialEventQueue
  */
 void PadMgr_VoiceReleaseSerialEventQueue(OSMesgQueue* serialEventQueue) {
-    // osSendMesg(&sPadMgrInstance->serialLockQueue, (OSMesg)serialEventQueue, OS_MESG_BLOCK);
+    // MM_osSendMesg(&sPadMgrInstance->serialLockQueue, (OSMesg)serialEventQueue, OS_MESG_BLOCK);
 }
 
 /**
  * Locks controller input data while padmgr is reading new inputs or another thread is using the current inputs.
  * This prevents new inputs overwriting the current inputs while they are in use.
  *
- * @see PadMgr_UnlockPadData
+ * @see MM_PadMgr_UnlockPadData
  */
-void PadMgr_LockPadData(void) {
-    // osRecvMesg(&sPadMgrInstance->lockQueue, NULL, OS_MESG_BLOCK);
+void MM_PadMgr_LockPadData(void) {
+    // MM_osRecvMesg(&sPadMgrInstance->lockQueue, NULL, OS_MESG_BLOCK);
 }
 
 /**
  * Unlocks controller input data, allowing padmgr to read new inputs or another thread to access the most recently
  * polled inputs.
  *
- * @see PadMgr_LockPadData
+ * @see MM_PadMgr_LockPadData
  */
-void PadMgr_UnlockPadData(void) {
-    // osSendMesg(&sPadMgrInstance->lockQueue, NULL, OS_MESG_BLOCK);
+void MM_PadMgr_UnlockPadData(void) {
+    // MM_osSendMesg(&sPadMgrInstance->lockQueue, NULL, OS_MESG_BLOCK);
 }
 
 /**
@@ -261,7 +261,7 @@ void PadMgr_UpdateRumble(void) {
 
         if ((sPadMgrInstance->ctrlrType[i] == PADMGR_CONT_NORMAL) &&
             (sPadMgrInstance->padStatus[i].status & CONT_CARD_ON) && (sPadMgrInstance->pakType[i] != CONT_PAK_RUMBLE)) {
-            ret = osMotorInit(serialEventQueue, &sPadMgrInstance->rumblePfs[i], i);
+            ret = MM_osMotorInit(serialEventQueue, &sPadMgrInstance->rumblePfs[i], i);
 
             if (ret == 0) {
                 // Got rumble pak
@@ -278,7 +278,7 @@ void PadMgr_UpdateRumble(void) {
                 // No controller pak
             } else {
                 // Unrecognized return code
-                // Fault_AddHungupAndCrash("../padmgr.c", 594);
+                // MM_Fault_AddHungupAndCrash("../padmgr.c", 594);
             }
         }
     }
@@ -289,13 +289,13 @@ void PadMgr_UpdateRumble(void) {
 /**
  * Immediately stops rumble on all controllers
  */
-void PadMgr_RumbleStop(void) {
+void MM_PadMgr_RumbleStop(void) {
     OSMesgQueue* serialEventQueue = PadMgr_AcquireSerialEventQueue();
     s32 i;
 
     for (i = 0; i < MAXCONTROLLERS; i++) {
         if ((sPadMgrInstance->ctrlrType[i] == PADMGR_CONT_NORMAL) &&
-            (osMotorInit(serialEventQueue, &sPadMgrInstance->rumblePfs[i], i) == 0)) {
+            (MM_osMotorInit(serialEventQueue, &sPadMgrInstance->rumblePfs[i], i) == 0)) {
             // If there is a rumble pak attached to this controller, stop it
             osMotorStop(&sPadMgrInstance->rumblePfs[i]);
         }
@@ -314,7 +314,7 @@ void PadMgr_RumblePause(void) {
  * Enables or disables rumble on controller port `port` for 24 VI,
  * ~0.4 seconds at 60 VI/sec and ~0.48 seconds at 50 VI/sec
  */
-void PadMgr_RumbleSetSingle(s32 port, s32 enable) {
+void MM_PadMgr_RumbleSetSingle(s32 port, s32 enable) {
     sPadMgrInstance->rumbleEnable[port] = enable;
     sPadMgrInstance->rumbleOnTimer = 24;
 }
@@ -326,7 +326,7 @@ void PadMgr_RumbleSetSingle(s32 port, s32 enable) {
  * @param enable Array of u8 of length MAXCONTROLLERS containing either true or false to enable or disable rumble
  *               for that controller
  */
-void PadMgr_RumbleSet(u8 enable[MAXCONTROLLERS]) {
+void MM_PadMgr_RumbleSet(u8 enable[MAXCONTROLLERS]) {
     s32 i;
 
     for (i = 0; i < MAXCONTROLLERS; i++) {
@@ -426,7 +426,7 @@ void PadMgr_AdjustInput(Input* input) {
     if (1) {
         s32 pad;
 
-        magnitude = sqrtf(SQ(newX) + SQ(newY));
+        magnitude = MM_sqrtf(SQ(newX) + SQ(newY));
         if (magnitude > 1.0f) {
             magnitude = 1.0f;
         }
@@ -480,7 +480,7 @@ void PadMgr_UpdateInputs(void) {
 
                 default:
                     // Unknown error response
-                    // Fault_AddHungupAndCrash("../padmgr.c", 1098);
+                    // MM_Fault_AddHungupAndCrash("../padmgr.c", 1098);
                     break;
             }
         } else {
@@ -586,7 +586,7 @@ void PadMgr_UpdateConnections(void) {
                     if (sPadMgrInstance->ctrlrType[i] == PADMGR_CONT_NONE) {
                         sPadMgrInstance->ctrlrType[i] = PADMGR_CONT_UNK;
                         // "Recognized an unknown type of controller (%04x)"
-                        sprintf(msg, "知らない種類のコントローラ(%04x)を認識しました",
+                        MM_sprintf(msg, "知らない種類のコントローラ(%04x)を認識しました",
                                 sPadMgrInstance->padStatus[i].type);
                     }
                     // Missing break required for matching
@@ -605,7 +605,7 @@ void PadMgr_HandleRetrace(void) {
     OSMesgQueue* serialEventQueue = PadMgr_AcquireSerialEventQueue();
 
     // Begin reading controller data
-    osContStartReadData(serialEventQueue);
+    MM_osContStartReadData(serialEventQueue);
 
     // Execute rumble callback
     if (sPadMgrInstance->rumbleRetraceCallback != NULL) {
@@ -613,8 +613,8 @@ void PadMgr_HandleRetrace(void) {
     }
 
     // Wait for controller data
-    // osRecvMesg(serialEventQueue, NULL, OS_MESG_BLOCK);
-    osContGetReadData(sPadMgrInstance->pads);
+    // MM_osRecvMesg(serialEventQueue, NULL, OS_MESG_BLOCK);
+    MM_osContGetReadData(sPadMgrInstance->pads);
 
     // Clear all but controller 1
     memset(&sPadMgrInstance->pads[1], 0, sizeof(*sPadMgrInstance->pads) * (MAXCONTROLLERS - 1));
@@ -625,9 +625,9 @@ void PadMgr_HandleRetrace(void) {
     }
 
     // Query controller statuses
-    osContStartQuery(serialEventQueue);
-    // osRecvMesg(serialEventQueue, NULL, OS_MESG_BLOCK);
-    osContGetQuery(sPadMgrInstance->padStatus);
+    MM_osContStartQuery(serialEventQueue);
+    // MM_osRecvMesg(serialEventQueue, NULL, OS_MESG_BLOCK);
+    MM_osContGetQuery(sPadMgrInstance->padStatus);
 
     // Lock serial message queue
     PadMgr_ReleaseSerialEventQueue(serialEventQueue);
@@ -636,7 +636,7 @@ void PadMgr_HandleRetrace(void) {
     PadMgr_UpdateConnections();
 
     // Lock input data
-    PadMgr_LockPadData();
+    MM_PadMgr_LockPadData();
 
     // Update input data
     PadMgr_UpdateInputs();
@@ -647,7 +647,7 @@ void PadMgr_HandleRetrace(void) {
     }
 
     // Unlock input data
-    PadMgr_UnlockPadData();
+    MM_PadMgr_UnlockPadData();
 
     // Try and initialize a Voice Recognition Unit if not already attempted
     if (sVoiceInitStatus != VOICE_INIT_FAILED) {
@@ -657,14 +657,14 @@ void PadMgr_HandleRetrace(void) {
     // Rumble Pak
     if (/*gFaultMgr.msgId != 0*/ 0) {
         // If fault is active, no rumble
-        PadMgr_RumbleStop();
+        MM_PadMgr_RumbleStop();
     } else if (sPadMgrInstance->rumbleOffTimer > 0) {
         // If the rumble off timer is active, no rumble
         --sPadMgrInstance->rumbleOffTimer;
-        PadMgr_RumbleStop();
+        MM_PadMgr_RumbleStop();
     } else if (sPadMgrInstance->rumbleOnTimer == 0) {
         // If the rumble on timer is inactive, no rumble
-        PadMgr_RumbleStop();
+        MM_PadMgr_RumbleStop();
     } else if (!sPadMgrInstance->isResetting) {
         // If not resetting, update rumble
         PadMgr_UpdateRumble();
@@ -674,7 +674,7 @@ void PadMgr_HandleRetrace(void) {
     sPadMgrRetraceCount++;
 }
 
-void PadMgr_HandlePreNMI(void) {
+void MM_PadMgr_HandlePreNMI(void) {
     sPadMgrInstance->isResetting = true;
     PadMgr_RumblePause();
 }
@@ -712,7 +712,7 @@ void PadMgr_GetInputNoLock(Input* inputs, s32 gameRequest) {
             buttonDiff = inputOut->prev.button ^ inputOut->cur.button;
             inputOut->press.button = inputOut->cur.button & buttonDiff;
             inputOut->rel.button = inputOut->prev.button & buttonDiff;
-            PadUtils_UpdateRelXY(inputOut);
+            MM_PadUtils_UpdateRelXY(inputOut);
         }
         input++;
         inputOut++;
@@ -726,9 +726,9 @@ void PadMgr_GetInputNoLock(Input* inputs, s32 gameRequest) {
  * @param gameRequest True if polling inputs for updating the game state
  */
 void PadMgr_GetInput(Input* inputs, s32 gameRequest) {
-    PadMgr_LockPadData();
+    MM_PadMgr_LockPadData();
     PadMgr_GetInputNoLock(inputs, gameRequest);
-    PadMgr_UnlockPadData();
+    MM_PadMgr_UnlockPadData();
 }
 
 /**
@@ -737,20 +737,20 @@ void PadMgr_GetInput(Input* inputs, s32 gameRequest) {
  * @see PadMgr_GetInput
  */
 void PadMgr_GetInput2(Input* inputs, s32 gameRequest) {
-    PadMgr_LockPadData();
+    MM_PadMgr_LockPadData();
     PadMgr_GetInputNoLock(inputs, gameRequest);
-    PadMgr_UnlockPadData();
+    MM_PadMgr_UnlockPadData();
 }
 
-void PadMgr_ThreadEntry() {
+void MM_PadMgr_ThreadEntry() {
 #if 1
     s16* interruptMsg = NULL;
     s32 actionBits;
     s32 exit;
 
-    osCreateMesgQueue(&sPadMgrInstance->interruptQueue, sPadMgrInstance->interruptMsgBuf,
+    MM_osCreateMesgQueue(&sPadMgrInstance->interruptQueue, sPadMgrInstance->interruptMsgBuf,
                       ARRAY_COUNT(sPadMgrInstance->interruptMsgBuf));
-    IrqMgr_AddClient(sPadMgrInstance->irqMgr, &sPadMgrInstance->irqClient, &sPadMgrInstance->interruptQueue);
+    MM_IrqMgr_AddClient(sPadMgrInstance->irqMgr, &sPadMgrInstance->irqClient, &sPadMgrInstance->interruptQueue);
 
     actionBits = 0;
     exit = false;
@@ -760,7 +760,7 @@ void PadMgr_ThreadEntry() {
         // Process all messages currently in the queue, instead of only a single mssage.
         // Deduplicates the same message.
         do {
-            osRecvMesg(&sPadMgrInstance->interruptQueue, (OSMesg*)&interruptMsg, OS_MESG_BLOCK);
+            MM_osRecvMesg(&sPadMgrInstance->interruptQueue, (OSMesg*)&interruptMsg, OS_MESG_BLOCK);
             switch (*interruptMsg) {
                 case OS_SC_RETRACE_MSG:
                     actionBits |= PADMGR_RETRACE_MSG;
@@ -786,7 +786,7 @@ void PadMgr_ThreadEntry() {
             exit = true;
         } else if (actionBits & PADMGR_PRE_NMI_MSG) {
             actionBits &= ~PADMGR_PRE_NMI_MSG;
-            PadMgr_HandlePreNMI();
+            MM_PadMgr_HandlePreNMI();
         } else if (actionBits & PADMGR_RETRACE_MSG) {
             actionBits &= ~PADMGR_RETRACE_MSG;
             PadMgr_HandleRetrace();
@@ -794,24 +794,24 @@ void PadMgr_ThreadEntry() {
     }
 //}
 
-// IrqMgr_RemoveClient(sPadMgrInstance->irqMgr, &sPadMgrInstance->irqClient);
+// MM_IrqMgr_RemoveClient(sPadMgrInstance->irqMgr, &sPadMgrInstance->irqClient);
 #endif
 }
 
-void PadMgr_Init(OSMesgQueue* siEvtQ, IrqMgr* irqMgr, OSId threadId, OSPri pri, void* stack) {
+void MM_PadMgr_Init(OSMesgQueue* siEvtQ, IrqMgr* irqMgr, OSId threadId, OSPri pri, void* stack) {
     memset(sPadMgrInstance, 0, sizeof(PadMgr));
     sPadMgrInstance->irqMgr = irqMgr;
 
     // These are unique access tokens, there should only ever be room for one OSMesg in these queues
-    osCreateMesgQueue(&sPadMgrInstance->serialLockQueue, &sPadMgrInstance->serialMsg, 1);
-    osCreateMesgQueue(&sPadMgrInstance->lockQueue, &sPadMgrInstance->lockMsg, 1);
+    MM_osCreateMesgQueue(&sPadMgrInstance->serialLockQueue, &sPadMgrInstance->serialMsg, 1);
+    MM_osCreateMesgQueue(&sPadMgrInstance->lockQueue, &sPadMgrInstance->lockMsg, 1);
 
-    PadMgr_UnlockPadData();
-    PadSetup_Init(siEvtQ, &sPadMgrInstance->validCtrlrsMask, sPadMgrInstance->padStatus);
+    MM_PadMgr_UnlockPadData();
+    MM_PadSetup_Init(siEvtQ, &sPadMgrInstance->validCtrlrsMask, sPadMgrInstance->padStatus);
     sPadMgrInstance->nControllers = MAXCONTROLLERS;
-    osContSetCh(sPadMgrInstance->nControllers);
+    MM_osContSetCh(sPadMgrInstance->nControllers);
     PadMgr_ReleaseSerialEventQueue(siEvtQ);
 
-    // osCreateThread(&sPadMgrInstance->thread, threadId, PadMgr_ThreadEntry, sPadMgrInstance, stack, pri);
-    // osStartThread(&sPadMgrInstance->thread);
+    // osCreateThread(&sPadMgrInstance->thread, threadId, MM_PadMgr_ThreadEntry, sPadMgrInstance, stack, pri);
+    // MM_osStartThread(&sPadMgrInstance->thread);
 }

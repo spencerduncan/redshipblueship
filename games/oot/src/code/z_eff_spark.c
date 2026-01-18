@@ -4,7 +4,7 @@
 #include "soh/frame_interpolation.h"
 
 // original name: "spark"
-void EffectSpark_Init(void* thisx, void* initParamsx) {
+void OoT_EffectSpark_Init(void* thisx, void* initParamsx) {
     EffectSpark* this = (EffectSpark*)thisx;
     EffectSparkInit* initParams = (EffectSparkInit*)initParamsx;
     EffectSparkElement* elem;
@@ -68,11 +68,11 @@ void EffectSpark_Init(void* thisx, void* initParamsx) {
             elem->position.x = this->position.x;
             elem->position.y = this->position.y;
             elem->position.z = this->position.z;
-            elem->velocity.x = Rand_ZeroOne() - 0.5f;
-            elem->velocity.y = Rand_ZeroOne() - 0.5f;
-            elem->velocity.z = Rand_ZeroOne() - 0.5f;
+            elem->velocity.x = OoT_Rand_ZeroOne() - 0.5f;
+            elem->velocity.y = OoT_Rand_ZeroOne() - 0.5f;
+            elem->velocity.z = OoT_Rand_ZeroOne() - 0.5f;
 
-            velocityNorm = sqrtf(SQ(elem->velocity.x) + SQ(elem->velocity.y) + SQ(elem->velocity.z));
+            velocityNorm = OoT_sqrtf(SQ(elem->velocity.x) + SQ(elem->velocity.y) + SQ(elem->velocity.z));
 
             if (!(fabsf(velocityNorm) < 0.008f)) {
                 elem->velocity.x *= this->speed * (1.0f / velocityNorm);
@@ -83,12 +83,12 @@ void EffectSpark_Init(void* thisx, void* initParamsx) {
                 elem->velocity.y = this->speed;
             }
 
-            elem->unkVelocity.x = 30000.0f - Rand_ZeroOne() * 15000.0f;
-            elem->unkVelocity.y = 30000.0f - Rand_ZeroOne() * 15000.0f;
-            elem->unkVelocity.z = 30000.0f - Rand_ZeroOne() * 15000.0f;
-            elem->unkPosition.x = Rand_ZeroOne() * 65534.0f;
-            elem->unkPosition.y = Rand_ZeroOne() * 65534.0f;
-            elem->unkPosition.z = Rand_ZeroOne() * 65534.0f;
+            elem->unkVelocity.x = 30000.0f - OoT_Rand_ZeroOne() * 15000.0f;
+            elem->unkVelocity.y = 30000.0f - OoT_Rand_ZeroOne() * 15000.0f;
+            elem->unkVelocity.z = 30000.0f - OoT_Rand_ZeroOne() * 15000.0f;
+            elem->unkPosition.x = OoT_Rand_ZeroOne() * 65534.0f;
+            elem->unkPosition.y = OoT_Rand_ZeroOne() * 65534.0f;
+            elem->unkPosition.z = OoT_Rand_ZeroOne() * 65534.0f;
             elem->epoch++;
         }
 
@@ -96,11 +96,11 @@ void EffectSpark_Init(void* thisx, void* initParamsx) {
     }
 }
 
-void EffectSpark_Destroy(void* thisx) {
+void OoT_EffectSpark_Destroy(void* thisx) {
 }
 
 // original name: "EffectSparkInfo_proc"
-s32 EffectSpark_Update(void* thisx) {
+s32 OoT_EffectSpark_Update(void* thisx) {
     EffectSpark* this = (EffectSpark*)thisx;
     EffectSparkElement* elem;
     s32 i;
@@ -131,10 +131,10 @@ s32 EffectSpark_Update(void* thisx) {
 }
 
 // original name: "EffectSparkInfo_disp"
-void EffectSpark_Draw(void* thisx, GraphicsContext* gfxCtx) {
+void OoT_EffectSpark_Draw(void* thisx, GraphicsContext* gfxCtx) {
     Vtx* vertices;
     EffectSpark* this = (EffectSpark*)thisx;
-    PlayState* play = Effect_GetPlayState();
+    PlayState* play = OoT_Effect_GetPlayState();
     s32 i;
     s32 j;
     u8 sp1D3;
@@ -161,7 +161,7 @@ void EffectSpark_Draw(void* thisx, GraphicsContext* gfxCtx) {
     if (this != NULL) {
         gSPMatrix(POLY_XLU_DISP++, &gMtxClear, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
-        POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, 0x26);
+        POLY_XLU_DISP = OoT_Gfx_SetupDL(POLY_XLU_DISP, 0x26);
         gDPSetCycleType(POLY_XLU_DISP++, G_CYC_2CYCLE);
         gDPPipeSync(POLY_XLU_DISP++);
 
@@ -213,11 +213,11 @@ void EffectSpark_Draw(void* thisx, GraphicsContext* gfxCtx) {
 
             FrameInterpolation_RecordOpenChild(elem, elem->epoch);
 
-            SkinMatrix_SetTranslate(&spEC, elem->position.x, elem->position.y, elem->position.z);
-            temp = ((Rand_ZeroOne() * 2.5f) + 1.5f) / 64.0f;
-            SkinMatrix_SetScale(&spAC, temp, temp, 1.0f);
-            SkinMatrix_MtxFMtxFMult(&spEC, &play->billboardMtxF, &sp6C);
-            SkinMatrix_MtxFMtxFMult(&sp6C, &spAC, &sp12C);
+            OoT_SkinMatrix_SetTranslate(&spEC, elem->position.x, elem->position.y, elem->position.z);
+            temp = ((OoT_Rand_ZeroOne() * 2.5f) + 1.5f) / 64.0f;
+            OoT_SkinMatrix_SetScale(&spAC, temp, temp, 1.0f);
+            OoT_SkinMatrix_MtxFMtxFMult(&spEC, &play->billboardMtxF, &sp6C);
+            OoT_SkinMatrix_MtxFMtxFMult(&sp6C, &spAC, &sp12C);
 
             vertices[j].v.ob[0] = -32;
             vertices[j].v.ob[1] = -32;
@@ -265,7 +265,7 @@ void EffectSpark_Draw(void* thisx, GraphicsContext* gfxCtx) {
 
             j += 4;
 
-            mtx = SkinMatrix_MtxFToNewMtx(gfxCtx, &sp12C);
+            mtx = OoT_SkinMatrix_MtxFToNewMtx(gfxCtx, &sp12C);
             if (mtx == NULL) {
                 FrameInterpolation_RecordCloseChild();
                 goto end;

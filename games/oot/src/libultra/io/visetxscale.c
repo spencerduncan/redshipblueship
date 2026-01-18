@@ -1,6 +1,6 @@
 #include "global.h"
 
-void osViSetXScale(f32 value) {
+void OoT_osViSetXScale(f32 value) {
     register u32 nomValue;
     register u32 prevInt = __osDisableInt();
 

@@ -1,6 +1,6 @@
 #include "global.h"
 
-static ColliderJntSphElementInit sJntSphElementsInit[9] = {
+static ColliderJntSphElementInit OoT_sJntSphElementsInit[9] = {
     {
         {
             ELEMTYPE_UNK3,
@@ -102,7 +102,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[9] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit OoT_sJntSphInit = {
     {
         COLTYPE_METAL,
         AT_ON | AT_TYPE_ENEMY,
@@ -112,5 +112,5 @@ static ColliderJntSphInit sJntSphInit = {
         COLSHAPE_JNTSPH,
     },
     9,
-    sJntSphElementsInit,
+    OoT_sJntSphElementsInit,
 };

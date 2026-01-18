@@ -97,7 +97,7 @@ f32 Audio_GetPortamentoFreqScale(Portamento* p) {
         p->mode = 0;
     }
 
-    result = 1.0f + p->extent * (gBendPitchOneOctaveFrequencies[loResCur + 128] - 1.0f);
+    result = 1.0f + p->extent * (OoT_gBendPitchOneOctaveFrequencies[loResCur + 128] - 1.0f);
     return result;
 }
 
@@ -192,7 +192,7 @@ void Audio_NoteVibratoInit(Note* note) {
     vib->active = 1;
     vib->time = 0;
 
-    vib->curve = gWaveSamples[2];
+    vib->curve = OoT_gWaveSamples[2];
     vib->channel = note->playbackState.parentLayer->channel;
     channel = vib->channel;
     if ((vib->extentChangeTimer = channel->vibratoExtentChangeDelay) == 0) {

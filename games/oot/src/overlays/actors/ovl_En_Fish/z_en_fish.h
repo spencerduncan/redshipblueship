@@ -20,7 +20,7 @@ typedef struct EnFish {
     /* 0x024A */ s16 respawnTimer;
     /* 0x024C */ s16 slowPhase;
     /* 0x024E */ s16 fastPhase;
-    /* 0x0250 */ s32 unk_250; // Set to 0 or 5, arg5 of Actor_UpdateBgCheckInfo
+    /* 0x0250 */ s32 unk_250; // Set to 0 or 5, arg5 of OoT_Actor_UpdateBgCheckInfo
 } EnFish; // size = 0x0254
 
 typedef enum {

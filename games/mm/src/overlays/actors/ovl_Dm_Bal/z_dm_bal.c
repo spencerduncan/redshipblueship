@@ -50,7 +50,7 @@ typedef enum {
     /* 0xE */ TINGLE_CS_ANIM_MAX
 } TingleCsAnimation;
 
-static AnimationInfo sAnimationInfo[TINGLE_CS_ANIM_MAX] = {
+static AnimationInfo MM_sAnimationInfo[TINGLE_CS_ANIM_MAX] = {
     { &gTingleFloatIdleAnim, 1.0f, 0.0f, 0.0f, ANIMMODE_LOOP, -8.0f },          // TINGLE_CS_ANIM_FLOAT_IDLE
     { &gTingleFallAnim, 1.5f, 0.0f, 0.0f, ANIMMODE_LOOP, -8.0f },               // TINGLE_CS_ANIM_FALL_LOOP
     { &gTingleFallAnim, 1.5f, 0.0f, 0.0f, ANIMMODE_ONCE, -4.0f },               // TINGLE_CS_ANIM_FALL_ONCE
@@ -72,11 +72,11 @@ void DmBal_Init(Actor* thisx, PlayState* play) {
 
     this->actor.attentionRangeType = ATTENTION_RANGE_1;
     this->actor.cullingVolumeDistance = 3000.0f;
-    Actor_SetScale(&this->actor, 0.02f);
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 36.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gTingleSkel, &gTingleFloatIdleAnim, this->jointTable, this->morphTable,
+    MM_Actor_SetScale(&this->actor, 0.02f);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 36.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gTingleSkel, &gTingleFloatIdleAnim, this->jointTable, this->morphTable,
                        TINGLE_LIMB_MAX);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
     this->timer = 60;
     this->eyeIndex = 0;
     this->keepEyesShut = false;
@@ -106,25 +106,25 @@ void DmBal_HandleCutscene(DmBal* this, PlayState* play) {
                 case 1:
                     this->keepEyesShut = false;
                     this->eyeIndex = 0;
-                    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, TINGLE_CS_ANIM_FLOAT_IDLE);
+                    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, TINGLE_CS_ANIM_FLOAT_IDLE);
                     break;
 
                 case 2:
                     this->keepEyesShut = true;
-                    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, TINGLE_CS_ANIM_HIDE_FACE);
+                    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, TINGLE_CS_ANIM_HIDE_FACE);
                     break;
 
                 case 3:
-                    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, TINGLE_CS_ANIM_CONFETTI);
+                    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, TINGLE_CS_ANIM_CONFETTI);
                     break;
 
                 default:
                     break;
             }
         } else if (sCueId == 3) {
-            if (Animation_OnFrame(&this->skelAnime, 0.0f)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, 0.0f)) {
                 this->keepEyesShut = true;
-            } else if (Animation_OnFrame(&this->skelAnime, 29.0f)) {
+            } else if (MM_Animation_OnFrame(&this->skelAnime, 29.0f)) {
                 this->keepEyesShut = false;
                 this->eyeIndex = 0;
             }
@@ -143,10 +143,10 @@ void func_80C1EC60(DmBal* this, PlayState* play) {
 
     this->unk_338 += 0x320;
     this->unk_33A += 0x3E8;
-    this->scale.y = this->scale.z = Math_CosS(this->unk_338) * 0.1f + 1.0f;
-    scaleX = (Math_SinS(this->unk_338) * 0.1f) + 1.0f;
+    this->scale.y = this->scale.z = MM_Math_CosS(this->unk_338) * 0.1f + 1.0f;
+    scaleX = (MM_Math_SinS(this->unk_338) * 0.1f) + 1.0f;
     this->scale.x = SQ(scaleX);
-    this->actor.world.pos.y = this->actor.home.pos.y + (Math_SinS(this->unk_338) * 25.0f);
+    this->actor.world.pos.y = this->actor.home.pos.y + (MM_Math_SinS(this->unk_338) * 25.0f);
 }
 
 void DmBal_UpdateEyes(DmBal* this) {
@@ -164,7 +164,7 @@ void DmBal_UpdateEyes(DmBal* this) {
 }
 
 void DmBal_SpawnPaper(DmBal* this, PlayState* play, Vec3f* pos, Vec3f* velocity, f32 gravity) {
-    Actor* paper = Actor_Spawn(&play->actorCtx, play, ACTOR_EN_PAPER, pos->x, pos->y, pos->z, 0, 0, 0, 0);
+    Actor* paper = MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_PAPER, pos->x, pos->y, pos->z, 0, 0, 0, 0);
 
     if (paper != NULL) {
         paper->velocity = *velocity;
@@ -177,15 +177,15 @@ void DmBal_Update(Actor* thisx, PlayState* play) {
     DmBal* this = (DmBal*)thisx;
 
     // Throw confetti
-    if (Animation_OnFrame(&this->skelAnime, 29.0f) && (this->skelAnime.animation == &gTingleFloatThrowConfettiAnim)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, 29.0f) && (this->skelAnime.animation == &gTingleFloatThrowConfettiAnim)) {
         Vec3f pos = this->actor.world.pos;
         Vec3f velocity = { 0.0f, 9.0f, 0.0f };
 
-        pos.x += 7.0f * Math_SinS(this->actor.shape.rot.y);
+        pos.x += 7.0f * MM_Math_SinS(this->actor.shape.rot.y);
         pos.y += 2.5f;
-        pos.z += 7.0f * Math_CosS(this->actor.shape.rot.y);
-        velocity.x = Math_SinS(this->actor.shape.rot.y) * 5.0f;
-        velocity.z = Math_CosS(this->actor.shape.rot.y) * 5.0f;
+        pos.z += 7.0f * MM_Math_CosS(this->actor.shape.rot.y);
+        velocity.x = MM_Math_SinS(this->actor.shape.rot.y) * 5.0f;
+        velocity.z = MM_Math_CosS(this->actor.shape.rot.y) * 5.0f;
         DmBal_SpawnPaper(this, play, &pos, &velocity, -0.4f);
         DmBal_SpawnPaper(this, play, &pos, &velocity, -0.5f);
     }
@@ -193,7 +193,7 @@ void DmBal_Update(Actor* thisx, PlayState* play) {
     DmBal_HandleCutscene(this, play);
     func_80C1EC60(this, play);
     DmBal_UpdateEyes(this);
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 }
 
 s32 DmBal_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx) {
@@ -201,10 +201,10 @@ s32 DmBal_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* p
     Vec3s rots;
 
     if (limbIndex == TINGLE_LIMB_BALLOON) {
-        rots.x = Math_SinS(this->unk_33A) * (0x10000 / 18);
-        rots.z = Math_CosS(this->unk_33A) * (0x10000 / 18);
-        Matrix_RotateZYX(rots.x, 0, rots.z, MTXMODE_APPLY);
-        Matrix_Scale(this->scale.x, this->scale.y, this->scale.z, MTXMODE_APPLY);
+        rots.x = MM_Math_SinS(this->unk_33A) * (0x10000 / 18);
+        rots.z = MM_Math_CosS(this->unk_33A) * (0x10000 / 18);
+        MM_Matrix_RotateZYX(rots.x, 0, rots.z, MTXMODE_APPLY);
+        MM_Matrix_Scale(this->scale.x, this->scale.y, this->scale.z, MTXMODE_APPLY);
         Matrix_RotateZS(-rots.z, MTXMODE_APPLY);
         Matrix_RotateXS(-rots.x, MTXMODE_APPLY);
     }
@@ -214,7 +214,7 @@ s32 DmBal_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* p
 void DmBal_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* thisx) {
 }
 
-static TexturePtr sEyeTextures[] = { gTingleEyeOpenTex, gTingleEyeClosedTex };
+static TexturePtr MM_sEyeTextures[] = { gTingleEyeOpenTex, gTingleEyeClosedTex };
 
 void DmBal_Draw(Actor* thisx, PlayState* play) {
     DmBal* this = (DmBal*)thisx;
@@ -222,8 +222,8 @@ void DmBal_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_K0(sEyeTextures[this->eyeIndex]));
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_K0(MM_sEyeTextures[this->eyeIndex]));
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           DmBal_OverrideLimbDraw, DmBal_PostLimbDraw, &this->actor);
 
     CLOSE_DISPS(play->state.gfxCtx);

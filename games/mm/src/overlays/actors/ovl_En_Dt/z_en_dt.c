@@ -109,7 +109,7 @@ ActorProfile En_Dt_Profile = {
     /**/ EnDt_Draw,
 };
 
-static u16 sTextIds[] = {
+static u16 MM_sTextIds[] = {
     0x2ABD, 0x2ABE, 0x2ABF, 0x2AC0, 0x2ABE, 0x2AC1, 0x2AC2, 0x2AC3, 0x2AC4, 0x2ABB, 0x2ABC, 0x2AC6, 0x2AC7, 0x2AC8,
     0x2AC9, 0x2ACA, 0x2ACB, 0x2ACC, 0x2ACD, 0x2ACE, 0x2ACF, 0x2AD0, 0x2AD1, 0x2AC5, 0x2AD3, 0x2AD4, 0x2AD2,
 };
@@ -167,9 +167,9 @@ static s16 sStringIdCsIndexTable[] = {
     0x2AD0, 10, //
 };
 
-static s16 sUnused[] = { 777, 777 };
+static s16 MM_sUnused[] = { 777, 777 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -189,7 +189,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 25, 70, 0, { 0, 0, 0 } },
 };
 
-static AnimationHeader* sAnimations[EN_DT_ANIMATION_MAX] = {
+static AnimationHeader* MM_sAnimations[EN_DT_ANIMATION_MAX] = {
     &gDotourWaitAnim,     // EN_DT_ANIMATION_WAIT
     &gDotourDistressAnim, // EN_DT_ANIMATION_DISTRESS
     &gDotourShockAnim,    // EN_DT_ANIMATION_SHOCK
@@ -198,7 +198,7 @@ static AnimationHeader* sAnimations[EN_DT_ANIMATION_MAX] = {
     &gDotourSitUpAnim,    // EN_DT_ANIMATION_SIT_UP
 };
 
-static u8 sAnimationModes[EN_DT_ANIMATION_MAX] = {
+static u8 MM_sAnimationModes[EN_DT_ANIMATION_MAX] = {
     ANIMMODE_LOOP, // EN_DT_ANIMATION_WAIT
     ANIMMODE_LOOP, // EN_DT_ANIMATION_DISTRESS
     ANIMMODE_ONCE, // EN_DT_ANIMATION_SHOCK
@@ -220,7 +220,7 @@ static s32 sAppearancePropertiesTable[] = {
     0, EN_DT_ANIMATION_UPRIGHT,  EN_DT_EYE_TEXTURE_SHOCK,     false  // EN_DT_APPEARANCE_RESOLVED_MEETING
 };
 
-static TexturePtr sEyeTextures[] = {
+static TexturePtr MM_sEyeTextures[] = {
     gDotourEyeShockTex,    // EN_DT_EYE_TEXTURE_SHOCK
     gDotourEyeOpenTex,     // EN_DT_EYE_TEXTURE_OPEN
     gDotourEyeClosedTex,   // EN_DT_EYE_TEXTURE_CLOSED
@@ -238,14 +238,14 @@ void EnDt_Init(Actor* thisx, PlayState* play) {
     EnDt* this = (EnDt*)thisx;
 
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 19.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &object_dt_Skel_00B0CC, &gDotourWaitAnim, this->jointTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 19.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &object_dt_Skel_00B0CC, &gDotourWaitAnim, this->jointTable,
                        this->morphTable, OBJECT_DT_LIMB_MAX);
 
     this->actor.attentionRangeType = ATTENTION_RANGE_6;
     this->npcEnMuto = NULL;
     this->npcEnBaisen = NULL;
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
 
     if ((gSaveContext.save.day == 3) && gSaveContext.save.isNight) {
         EnDt_SetupFinalNightState(this, play);
@@ -263,7 +263,7 @@ void EnDt_Init(Actor* thisx, PlayState* play) {
 void EnDt_Destroy(Actor* thisx, PlayState* play) {
     EnDt* this = (EnDt*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnDt_UpdateHeadRotate(EnDt* this) {
@@ -291,9 +291,9 @@ void EnDt_ChangeAnim(EnDt* this, s32 animIndex) {
         morphFrames = 0.0f;
     }
 
-    this->animEndFrame = Animation_GetLastFrame(sAnimations[this->animIndex]);
-    Animation_Change(&this->skelAnime, sAnimations[this->animIndex], 1.0f, 0.0f, this->animEndFrame,
-                     sAnimationModes[this->animIndex], morphFrames);
+    this->animEndFrame = MM_Animation_GetLastFrame(MM_sAnimations[this->animIndex]);
+    MM_Animation_Change(&this->skelAnime, MM_sAnimations[this->animIndex], 1.0f, 0.0f, this->animEndFrame,
+                     MM_sAnimationModes[this->animIndex], morphFrames);
 }
 
 void EnDt_UpdateAppearance(EnDt* this) {
@@ -363,9 +363,9 @@ void EnDt_SetupRegularState(EnDt* this, PlayState* play) {
             this->appearancePhase = EN_DT_APPEARANCE_RESOLVED_MEETING;
             EnDt_UpdateAppearance(this);
 
-            this->actor.textId = sTextIds[this->textIdIndex];
-            Message_StartTextbox(play, this->actor.textId, &this->actor);
-            Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
+            this->actor.textId = MM_sTextIds[this->textIdIndex];
+            MM_Message_StartTextbox(play, this->actor.textId, &this->actor);
+            MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
 
             this->state = EN_DT_NPC_STATE_IDLE;
             this->actionFunc = EnDt_UpdateMeetingCutscene;
@@ -391,7 +391,7 @@ void EnDt_SetupRegularState(EnDt* this, PlayState* play) {
         }
     }
 
-    this->actor.textId = sTextIds[this->textIdIndex];
+    this->actor.textId = MM_sTextIds[this->textIdIndex];
     if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_RESOLVED_MAYOR_MEETING)) {
         EnDt_UpdateCutsceneFocusTarget(this);
     }
@@ -418,7 +418,7 @@ void EnDt_OfferRegularTalk(EnDt* this, PlayState* play) {
         this->showedCouplesMask = false;
         this->textIdIndex = 0;
 
-        if (Player_GetMask(play) == PLAYER_MASK_COUPLE) {
+        if (MM_Player_GetMask(play) == PLAYER_MASK_COUPLE) {
             this->textIdIndex = 11;
             this->showedCouplesMask = true;
 
@@ -431,14 +431,14 @@ void EnDt_OfferRegularTalk(EnDt* this, PlayState* play) {
         }
     }
 
-    this->actor.textId = sTextIds[this->textIdIndex];
+    this->actor.textId = MM_sTextIds[this->textIdIndex];
     if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_RESOLVED_MAYOR_MEETING) && (this->npcEnMuto != NULL) &&
         (this->npcEnBaisen != NULL) && (npcMuto->cutsceneState == 1 || npcBaisen->cutsceneState == 1)) {
         EnDt_SetupMeetingCutscene(this, play);
     }
 
     // After completing Couple's Mask event and wearing Kafeis Mask
-    if (CHECK_WEEKEVENTREG(WEEKEVENTREG_RESOLVED_MAYOR_MEETING) && (Player_GetMask(play) == PLAYER_MASK_KAFEIS_MASK)) {
+    if (CHECK_WEEKEVENTREG(WEEKEVENTREG_RESOLVED_MAYOR_MEETING) && (MM_Player_GetMask(play) == PLAYER_MASK_KAFEIS_MASK)) {
         this->actor.textId = 0x2368; // "My wife hired you? Go ask the Curiosity Shop"
     }
 
@@ -460,7 +460,7 @@ void EnDt_SetupMeetingCutscene(EnDt* this, PlayState* play) {
             npcMuto->cutsceneState = 1;
             npcBaisen->cutsceneState = 1;
 
-            if (Player_GetMask(play) == PLAYER_MASK_COUPLE) {
+            if (MM_Player_GetMask(play) == PLAYER_MASK_COUPLE) {
                 npcMuto->textIdIndex = 4;
                 npcBaisen->textIdIndex = 6;
                 this->appearancePhase = EN_DT_APPEARANCE_RESOLVED_MEETING;
@@ -515,9 +515,9 @@ void EnDt_UpdateMeetingCutscene(EnDt* this, PlayState* play) {
         baisen = (EnBaisen*)this->npcEnBaisen;
     }
 
-    if ((this->timer == 0) && (Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((this->timer == 0) && (MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         if (this->textIdIndex == 21) {
-            Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
+            MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
             if (this->cutsceneState == EN_DT_CS_STATE_PLAYING) {
                 CutsceneManager_Stop(this->csIds[index]);
                 this->cutsceneState = EN_DT_CS_STATE_NONE;
@@ -529,7 +529,7 @@ void EnDt_UpdateMeetingCutscene(EnDt* this, PlayState* play) {
         // After Muto and Baisen react to the Couple's Mask,
         // they leave the office and trigger a transition.
         if (this->textIdIndex == 20) { // Muto reacts to Mayor's final comments
-            Message_CloseTextbox(play);
+            MM_Message_CloseTextbox(play);
             play->nextEntrance = ENTRANCE(MAYORS_RESIDENCE, 1);
             Scene_SetExitFade(play);
             play->transitionTrigger = TRANS_TRIGGER_START;
@@ -546,7 +546,7 @@ void EnDt_UpdateMeetingCutscene(EnDt* this, PlayState* play) {
             if ((this->textIdIndex == 8) || (this->textIdIndex == 10) || (this->textIdIndex == 22) ||
                 (this->textIdIndex == 23)) {
                 SET_WEEKEVENTREG(WEEKEVENTREG_ATTENDED_MAYOR_MEETING);
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
 
                 // If the meeting is ongoing, reset all of the npc targets
                 if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_RESOLVED_MAYOR_MEETING)) {
@@ -574,7 +574,7 @@ void EnDt_UpdateMeetingCutscene(EnDt* this, PlayState* play) {
                 play->msgCtx.msgLength = 0;
                 EnDt_UpdateCutsceneFocusTarget(this);
                 Actor_ChangeFocus(&this->actor, play, this->targetActor);
-                Camera_SetTargetActor(Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(this->csIds[index])),
+                Camera_SetTargetActor(MM_Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(this->csIds[index])),
                                       this->targetActor);
 
                 this->timer = 2;
@@ -588,23 +588,23 @@ void EnDt_UpdateMeetingCutscene(EnDt* this, PlayState* play) {
                     this->timer = 25;
                 } else {
                     EnDt_ChangeAnim(this, EN_DT_ANIMATION_UPRIGHT);
-                    SkelAnime_Update(&this->skelAnime);
+                    MM_SkelAnime_Update(&this->skelAnime);
                 }
             }
 
             if (this->textIdIndex == 13) { // Muto reacts to Couple's mask
                 EnDt_ChangeAnim(this, EN_DT_ANIMATION_UPRIGHT);
-                SkelAnime_Update(&this->skelAnime);
+                MM_SkelAnime_Update(&this->skelAnime);
             }
 
             EnDt_UpdateCutsceneFocusTarget(this);
             Actor_ChangeFocus(&this->actor, play, this->targetActor);
-            Camera_SetTargetActor(Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(this->csIds[index])),
+            Camera_SetTargetActor(MM_Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(this->csIds[index])),
                                   this->targetActor);
 
-            this->actor.textId = sTextIds[this->textIdIndex];
-            Message_CloseTextbox(play);
-            Message_StartTextbox(play, this->actor.textId, &this->actor);
+            this->actor.textId = MM_sTextIds[this->textIdIndex];
+            MM_Message_CloseTextbox(play);
+            MM_Message_StartTextbox(play, this->actor.textId, &this->actor);
 
             // Sets the cutscene ID index based off the current textId
             for (index = 0; index < ARRAY_COUNT(sStringIdCsIndexTable); index += 2) {
@@ -651,9 +651,9 @@ void EnDt_FinishMeetingCutscene(EnDt* this, PlayState* play) {
 
         EnDt_UpdateAppearance(this);
 
-        Message_CloseTextbox(play);
-        this->actor.textId = sTextIds[this->textIdIndex];
-        Message_StartTextbox(play, this->actor.textId, &this->actor);
+        MM_Message_CloseTextbox(play);
+        this->actor.textId = MM_sTextIds[this->textIdIndex];
+        MM_Message_StartTextbox(play, this->actor.textId, &this->actor);
 
         if (this->textIdIndex == 8) { // End of initial meeting cutscene
             Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_PERSON_MAYOR_DOTOUR);
@@ -678,7 +678,7 @@ void EnDt_FinishMeetingCutscene(EnDt* this, PlayState* play) {
         EnDt_UpdateCutsceneFocusTarget(this);
         Actor_ChangeFocus(&this->actor, play, this->targetActor);
 
-        subCam = Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(this->csIds[index]));
+        subCam = MM_Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(this->csIds[index]));
         Camera_SetTargetActor(subCam, this->targetActor);
 
         this->actionFunc = EnDt_UpdateMeetingCutscene;
@@ -686,28 +686,28 @@ void EnDt_FinishMeetingCutscene(EnDt* this, PlayState* play) {
 }
 
 void EnDt_OfferMeetingReward(EnDt* this, PlayState* play) {
-    Actor_OfferGetItem(&this->actor, play, GI_HEART_PIECE, 300.0f, 300.0f);
+    MM_Actor_OfferGetItem(&this->actor, play, GI_HEART_PIECE, 300.0f, 300.0f);
     this->state = EN_DT_NPC_STATE_OFFERED_MEETING_REWARD;
     this->actionFunc = EnDt_TriggerMeetingRewardEvent;
 }
 
 void EnDt_TriggerMeetingRewardEvent(EnDt* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play)) {
+    if (MM_Actor_HasParent(&this->actor, play)) {
         this->textIdIndex = 22;
         this->actor.parent = NULL;
-        this->actor.textId = sTextIds[this->textIdIndex];
+        this->actor.textId = MM_sTextIds[this->textIdIndex];
 
         Actor_OfferTalkExchange(&this->actor, play, 400.0f, 400.0f, PLAYER_IA_MINUS1);
 
         SET_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_MAYOR_HEART_PIECE);
         this->actionFunc = EnDt_TriggerMeetingNotebookEvent;
     } else {
-        Actor_OfferGetItem(&this->actor, play, GI_HEART_PIECE, 300.0f, 300.0f);
+        MM_Actor_OfferGetItem(&this->actor, play, GI_HEART_PIECE, 300.0f, 300.0f);
     }
 }
 
 void EnDt_TriggerMeetingNotebookEvent(EnDt* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_RECEIVED_MAYOR_HP);
@@ -729,7 +729,7 @@ void EnDt_SetupFinalNightState(EnDt* this, PlayState* play) {
         this->textIdIndex = 26;
     }
 
-    this->actor.textId = sTextIds[this->textIdIndex];
+    this->actor.textId = MM_sTextIds[this->textIdIndex];
     this->eyeTexIndex = EN_DT_EYE_TEXTURE_LOOK_DOWN;
     this->disableBlinking = true;
     this->state = EN_DT_NPC_STATE_WAIT_FINAL_NIGHT_TALK;
@@ -745,7 +745,7 @@ void EnDt_OfferFinalNightTalk(EnDt* this, PlayState* play) {
     }
 
     // After completing Couple's Mask event and wearing Kafeis Mask
-    if (CHECK_WEEKEVENTREG(WEEKEVENTREG_RESOLVED_MAYOR_MEETING) && (Player_GetMask(play) == PLAYER_MASK_KAFEIS_MASK)) {
+    if (CHECK_WEEKEVENTREG(WEEKEVENTREG_RESOLVED_MAYOR_MEETING) && (MM_Player_GetMask(play) == PLAYER_MASK_KAFEIS_MASK)) {
         this->actor.textId = 0x2368; // "My wife hired you? Go ask the Curiosity Shop"
     }
 
@@ -760,11 +760,11 @@ void EnDt_StartFinalNightTalk(EnDt* this) {
 void EnDt_TriggerFinalNightTalkEvent(EnDt* this, PlayState* play) {
     EnDt_UpdateHeadRotate(this);
 
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
-        Message_CloseTextbox(play);
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
+        MM_Message_CloseTextbox(play);
         if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_TALKED_MAYOR_NIGHT_3)) {
             this->textIdIndex = 25;
-            Message_ContinueTextbox(play, sTextIds[this->textIdIndex]);
+            MM_Message_ContinueTextbox(play, MM_sTextIds[this->textIdIndex]);
             SET_WEEKEVENTREG(WEEKEVENTREG_TALKED_MAYOR_NIGHT_3);
         } else {
             EnDt_SetupFinalNightState(this, play);
@@ -776,8 +776,8 @@ void EnDt_Update(Actor* thisx, PlayState* play) {
     s32 pad;
     EnDt* this = (EnDt*)thisx;
 
-    SkelAnime_Update(&this->skelAnime);
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Actor_SetScale(&this->actor, 0.01f);
 
     if ((this->state != 4) && (this->state != 5) && (gSaveContext.save.day == 3) && gSaveContext.save.isNight) {
         EnDt_SetupFinalNightState(this, play);
@@ -785,7 +785,7 @@ void EnDt_Update(Actor* thisx, PlayState* play) {
 
     if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_RESOLVED_MAYOR_MEETING) &&
         ((gSaveContext.save.day != 3) || ((gSaveContext.save.day == 3) && !gSaveContext.save.isNight))) {
-        Audio_PlaySequenceAtPos(SEQ_PLAYER_BGM_SUB, &gSfxDefaultPos, NA_BGM_MAYORS_OFFICE, 1000.0f);
+        Audio_PlaySequenceAtPos(SEQ_PLAYER_BGM_SUB, &MM_gSfxDefaultPos, NA_BGM_MAYORS_OFFICE, 1000.0f);
         Actor_PlaySfx(&this->actor, NA_SE_EV_CROWD - SFX_FLAG);
     }
 
@@ -801,20 +801,20 @@ void EnDt_Update(Actor* thisx, PlayState* play) {
         this->eyeTexIndex++;
         if (this->eyeTexIndex >= EN_DT_EYE_TEXTURE_LOOK_DOWN) {
             this->eyeTexIndex = EN_DT_EYE_TEXTURE_SHOCK;
-            this->blinkTimer = (s32)Rand_ZeroFloat(60.0f) + 20;
+            this->blinkTimer = (s32)MM_Rand_ZeroFloat(60.0f) + 20;
         }
     }
 
     this->actionFunc(this, play);
 
     this->actor.shape.rot.y = this->actor.world.rot.y;
-    Math_SmoothStepToS(&this->headRotValue.y, this->headRotTarget.y, 1, 3000, 0);
+    MM_Math_SmoothStepToS(&this->headRotValue.y, this->headRotTarget.y, 1, 3000, 0);
 
-    Actor_SetFocus(&this->actor, 60.0f);
+    MM_Actor_SetFocus(&this->actor, 60.0f);
     Actor_MoveWithGravity(&this->actor);
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 s32 EnDt_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx) {
@@ -836,7 +836,7 @@ void EnDt_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sEyeTextures[this->eyeTexIndex]));
+    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
 
     if (this->eyeTexIndex < EN_DT_BROW_TEXTURE_MAX) {
         eyebrowIndex = this->eyeTexIndex;
@@ -844,7 +844,7 @@ void EnDt_Draw(Actor* thisx, PlayState* play) {
 
     gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(sEyebrowTextures[eyebrowIndex]));
 
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnDt_OverrideLimbDraw, NULL, &this->actor);
 
     CLOSE_DISPS(play->state.gfxCtx);

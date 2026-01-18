@@ -39,7 +39,7 @@ static TexturePtr sSlidingTextures[] = {
     gEffPoppedDekuBubbleSliding10Tex, gEffPoppedDekuBubbleSliding11Tex, gEffPoppedDekuBubbleSliding12Tex,
 };
 
-static TexturePtr sTextures[] = {
+static TexturePtr MM_sTextures[] = {
     gEffPoppedDekuBubble1Tex, gEffPoppedDekuBubble2Tex, gEffPoppedDekuBubble3Tex,
     gEffPoppedDekuBubble4Tex, gEffPoppedDekuBubble5Tex,
 };
@@ -54,9 +54,9 @@ u32 EffectSsSbn_Init(PlayState* play, u32 index, EffectSs* this, void* initParam
     f32 angle;
     f32 opposite;
 
-    Math_Vec3f_Copy(&this->pos, &initParams->pos);
-    Math_Vec3f_Copy(&this->velocity, &gZeroVec3f);
-    Math_Vec3f_Copy(&this->accel, &gZeroVec3f);
+    MM_Math_Vec3f_Copy(&this->pos, &initParams->pos);
+    MM_Math_Vec3f_Copy(&this->velocity, &gZeroVec3f);
+    MM_Math_Vec3f_Copy(&this->accel, &gZeroVec3f);
     this->flags = 0;
 
     this->gfx = initParams->colPoly;
@@ -68,7 +68,7 @@ u32 EffectSsSbn_Init(PlayState* play, u32 index, EffectSs* this, void* initParam
     this->rReg4 = 250;
     this->rReg4Step = 30;
 
-    this->rScale = Rand_CenteredFloat(100.0f) + (initParams->scale * 120.0f);
+    this->rScale = MM_Rand_CenteredFloat(100.0f) + (initParams->scale * 120.0f);
     if (this->rScale < 600) {
         this->rScale = 600;
     } else if (this->rScale > 1500) {
@@ -107,9 +107,9 @@ u32 EffectSsSbn_Init(PlayState* play, u32 index, EffectSs* this, void* initParam
         bubbleVec.x = -mtx.mf[2][0] * 10.0f;
         bubbleVec.y = -mtx.mf[2][1] * 10.0f;
         bubbleVec.z = -mtx.mf[2][2] * 10.0f;
-        Math3D_CosOut(&colPolyVec, &bubbleVec, &angle);
+        MM_Math3D_CosOut(&colPolyVec, &bubbleVec, &angle);
 
-        opposite = (SQ(angle) >= 1.0f) ? 0.0f : sqrtf(1.0f - SQ(angle));
+        opposite = (SQ(angle) >= 1.0f) ? 0.0f : MM_sqrtf(1.0f - SQ(angle));
         if (((mtx.mf[0][0] * colPolyVec.x) + (mtx.mf[0][1] * colPolyVec.y) + (mtx.mf[0][2] * colPolyVec.z)) < 0.0f) {
             this->rRotAngle = Math_Atan2S_XY(angle, opposite);
         } else {
@@ -128,9 +128,9 @@ void EffectSsSbn_DrawSliding(PlayState* play, u32 index, EffectSs* this) {
 
     func_800C0094(this->gfx, this->pos.x, this->pos.y, this->pos.z, &mtx);
     SkinMatrix_MulYRotation(&mtx, this->rRotAngle);
-    Matrix_Mult(&mtx, MTXMODE_NEW);
-    Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
-    Matrix_Scale(0.05f, 0.05f, 0.05f, MTXMODE_APPLY);
+    MM_Matrix_Mult(&mtx, MTXMODE_NEW);
+    MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+    MM_Matrix_Scale(0.05f, 0.05f, 0.05f, MTXMODE_APPLY);
 
     OPEN_DISPS(gfxCtx);
 
@@ -155,7 +155,7 @@ void EffectSsSbn_DrawSliding(PlayState* play, u32 index, EffectSs* this) {
         this->rScroll += this->rScrollStep;
     }
     gSPSegment(POLY_XLU_DISP++, 0x09,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, this->rScroll, 0x20, 0x20));
+               MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, this->rScroll, 0x20, 0x20));
     gSPDisplayList(POLY_XLU_DISP++, gEffPoppedDekuBubbleSlidingDL);
 
     CLOSE_DISPS(gfxCtx);
@@ -168,9 +168,9 @@ void EffectSsSbn_Draw(PlayState* play, u32 index, EffectSs* this) {
 
     func_800C0094(this->gfx, this->pos.x, this->pos.y, this->pos.z, &mtx);
     SkinMatrix_MulYRotation(&mtx, this->rRotAngle);
-    Matrix_Mult(&mtx, MTXMODE_NEW);
-    Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
-    Matrix_Scale(0.05f, 0.05f, 0.05f, MTXMODE_APPLY);
+    MM_Matrix_Mult(&mtx, MTXMODE_NEW);
+    MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+    MM_Matrix_Scale(0.05f, 0.05f, 0.05f, MTXMODE_APPLY);
 
     OPEN_DISPS(gfxCtx);
 
@@ -179,9 +179,9 @@ void EffectSsSbn_Draw(PlayState* play, u32 index, EffectSs* this) {
     gDPSetRenderMode(POLY_XLU_DISP++, G_RM_FOG_SHADE_A, G_RM_ZB_XLU_DECAL2);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, 255, 255, 255, this->rAlpha);
 
-    if (this->rTexIndex < ARRAY_COUNT(sTextures)) {
+    if (this->rTexIndex < ARRAY_COUNT(MM_sTextures)) {
         {
-            TexturePtr tex = sTextures[this->rTexIndex];
+            TexturePtr tex = MM_sTextures[this->rTexIndex];
 
             gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(tex));
         }

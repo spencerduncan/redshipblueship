@@ -24,12 +24,12 @@ typedef struct EnSkj {
     /* 0x02D0 */ u8 animIndex;
     /* 0x02D1 */ u8 action;
     /* 0x02D2 */ u8 backflipFlag;
-    /* 0x02D3 */ u8 unk_2D3; // Is set to zero when walking to trade for skull mask and set to 1 when dying
+    /* 0x02D3 */ u8 unk_2D3; // Is set to OoT_zero when walking to trade for skull mask and set to 1 when dying
     /* 0x02D4 */ u8 needlesToShoot;
-    /* 0x02D5 */ u8 hitsUntilDodge; // Upon reaching zero will always backflip to avoid stun lock
+    /* 0x02D5 */ u8 hitsUntilDodge; // Upon reaching OoT_zero will always backflip to avoid stun lock
     /* 0x02D6 */ u8 unk_2D6;
     /* 0x02D7 */ u8 playerInRange;
-    /* 0x02D8 */ u8 minigameState; // Upon reaching zero stops and does another action
+    /* 0x02D8 */ u8 minigameState; // Upon reaching OoT_zero stops and does another action
     /* 0x02DC */ u32 alpha;
     /* 0x02E0 */ Vec3f center;
     /* 0x02EC */ f32 unk_2EC;

@@ -62,7 +62,7 @@ void func_80B40100(BgGoronOyu* this, PlayState* play) {
 void func_80B40160(BgGoronOyu* this, PlayState* play) {
     static Vec3f D_80B40780 = { 0, 0, 0 };
 
-    Math_StepToF(&this->unk_164, 0.0f, 0.2f);
+    MM_Math_StepToF(&this->unk_164, 0.0f, 0.2f);
     this->dyna.actor.world.pos.y = this->dyna.actor.home.pos.y - this->unk_164;
     BgGoronOyu_UpdateWaterBoxInfo(this, play);
 
@@ -79,17 +79,17 @@ void func_80B401F8(BgGoronOyu* this, PlayState* play) {
     Player* player;
     Vec3f dist;
 
-    if (Actor_HasParent(&this->dyna.actor, play)) {
+    if (MM_Actor_HasParent(&this->dyna.actor, play)) {
         this->dyna.actor.parent = NULL;
         return;
     }
 
     player = GET_PLAYER(play);
-    Math_Vec3f_DistXYZAndStoreDiff(&this->waterBoxPos, &player->actor.world.pos, &dist);
+    MM_Math_Vec3f_DistXYZAndStoreDiff(&this->waterBoxPos, &player->actor.world.pos, &dist);
 
     if ((dist.x >= 0.0f) && (dist.x <= this->waterBoxXLength) && (dist.z >= 0.0f) &&
         (dist.z <= this->waterBoxZLength) && (fabsf(dist.y) < 100.0f) && (player->actor.depthInWater > 12.0f)) {
-        Actor_OfferGetItem(&this->dyna.actor, play, GI_MAX, this->dyna.actor.xzDistToPlayer,
+        MM_Actor_OfferGetItem(&this->dyna.actor, play, GI_MAX, this->dyna.actor.xzDistToPlayer,
                            fabsf(this->dyna.actor.playerHeightRel));
     }
 }
@@ -98,9 +98,9 @@ void BgGoronOyu_UpdateWaterBoxInfo(BgGoronOyu* this, PlayState* play) {
     WaterBox* waterBox;
     f32 ySurface;
 
-    if (WaterBox_GetSurface1(play, &play->colCtx, this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.z, &ySurface,
+    if (MM_WaterBox_GetSurface1(play, &play->colCtx, this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.z, &ySurface,
                              &waterBox)) {
-        Math_Vec3s_ToVec3f(&this->waterBoxPos, &waterBox->minPos);
+        MM_Math_Vec3s_ToVec3f(&this->waterBoxPos, &waterBox->minPos);
         this->waterBoxXLength = waterBox->xLength;
         this->waterBoxZLength = waterBox->zLength;
     }
@@ -123,23 +123,23 @@ void BgGoronOyu_SpawnEffects(BgGoronOyu* this, PlayState* play) {
         vel1.x = 0.0f;
         vel1.y = 2.5f;
         vel1.z = 0.0f;
-        scale = -200 - (s32)(Rand_ZeroOne() * 50.0f);
+        scale = -200 - (s32)(MM_Rand_ZeroOne() * 50.0f);
 
-        if (BgCheck_EntityRaycastFloor2(play, &play->colCtx, &poly, &pos1) < this->waterBoxPos.y) {
+        if (MM_BgCheck_EntityRaycastFloor2(play, &play->colCtx, &poly, &pos1) < this->waterBoxPos.y) {
             pos1.y = this->waterBoxPos.y + 10.0f;
-            EffectSsIceSmoke_Spawn(play, &pos1, &vel1, &gZeroVec3f, scale);
+            MM_EffectSsIceSmoke_Spawn(play, &pos1, &vel1, &gZeroVec3f, scale);
         }
-        pos2.x = (Rand_ZeroOne() * this->waterBoxXLength) + this->waterBoxPos.x;
+        pos2.x = (MM_Rand_ZeroOne() * this->waterBoxXLength) + this->waterBoxPos.x;
         pos2.y = this->waterBoxPos.y + 100.0f;
-        pos2.z = (Rand_ZeroOne() * this->waterBoxZLength) + this->waterBoxPos.z;
+        pos2.z = (MM_Rand_ZeroOne() * this->waterBoxZLength) + this->waterBoxPos.z;
         vel2.x = 0.0f;
         vel2.y = 0.5f;
         vel2.z = 0.0f;
-        scale = -200 - (s32)(Rand_ZeroOne() * 50.0f);
+        scale = -200 - (s32)(MM_Rand_ZeroOne() * 50.0f);
 
-        if (BgCheck_EntityRaycastFloor2(play, &play->colCtx, &poly, &pos2) < this->waterBoxPos.y) {
+        if (MM_BgCheck_EntityRaycastFloor2(play, &play->colCtx, &poly, &pos2) < this->waterBoxPos.y) {
             pos2.y = this->waterBoxPos.y + 10.0f;
-            EffectSsIceSmoke_Spawn(play, &pos2, &vel2, &gZeroVec3f, scale);
+            MM_EffectSsIceSmoke_Spawn(play, &pos2, &vel2, &gZeroVec3f, scale);
         }
     }
 }
@@ -149,11 +149,11 @@ void BgGoronOyu_Init(Actor* thisx, PlayState* play) {
     BgGoronOyu* this = (BgGoronOyu*)thisx;
     CollisionHeader* colHeader = NULL;
 
-    Actor_SetScale(&this->dyna.actor, 0.1f);
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
-    CollisionHeader_GetVirtual(&gGoronGraveyardHotSpringWaterCol, &colHeader);
+    MM_Actor_SetScale(&this->dyna.actor, 0.1f);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_CollisionHeader_GetVirtual(&gGoronGraveyardHotSpringWaterCol, &colHeader);
 
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    this->dyna.bgId = MM_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
 
     BgGoronOyu_UpdateWaterBoxInfo(this, play);
 
@@ -169,7 +169,7 @@ void BgGoronOyu_Init(Actor* thisx, PlayState* play) {
 void BgGoronOyu_Destroy(Actor* thisx, PlayState* play) {
     BgGoronOyu* this = (BgGoronOyu*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void BgGoronOyu_Update(Actor* thisx, PlayState* play) {

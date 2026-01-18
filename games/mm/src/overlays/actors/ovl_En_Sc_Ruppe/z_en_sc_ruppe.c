@@ -42,7 +42,7 @@ RuppeInfo sRupeeInfo[] = {
     { gRupeeSilverTex, 10 },  // (unused)
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -63,9 +63,9 @@ static ColliderCylinderInit sCylinderInit = {
 };
 
 void EnScRuppe_UpdateCollision(EnScRuppe* this, PlayState* play) {
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 32.0f, 30.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 32.0f, 30.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
 }
 
 s32 func_80BD697C(s16 ruppeIndex) {
@@ -115,7 +115,7 @@ void func_80BD6A8C(EnScRuppe* this, PlayState* play) {
         this->ruppeDisplayTime = 0;
         this->actor.gravity = 0.0f;
         Actor_PlaySfx(&this->actor, NA_SE_SY_GET_RUPY);
-        Rupees_ChangeBy(sRupeeInfo[this->ruppeIndex].amount);
+        MM_Rupees_ChangeBy(sRupeeInfo[this->ruppeIndex].amount);
         this->actionFunc = func_80BD6B18;
     }
     this->actor.shape.rot.y += 0x1F4;
@@ -127,7 +127,7 @@ void func_80BD6B18(EnScRuppe* this, PlayState* play) {
 
     if (this->ruppeDisplayTime > 30) {
         if (func_80BD697C(this->ruppeIndex)) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
     } else {
         f32 scale;
@@ -136,7 +136,7 @@ void func_80BD6B18(EnScRuppe* this, PlayState* play) {
         this->actor.world.pos = player->actor.world.pos;
         this->actor.world.pos.y += 40.0f;
         scale = (30.0f - this->ruppeDisplayTime) * 0.001f;
-        Actor_SetScale(&this->actor, scale);
+        MM_Actor_SetScale(&this->actor, scale);
     }
     this->actor.shape.rot.y += 0x3E8;
     Actor_MoveWithGravity(&this->actor);
@@ -146,10 +146,10 @@ void EnScRuppe_Init(Actor* thisx, PlayState* play) {
     EnScRuppe* this = (EnScRuppe*)thisx;
     ColliderCylinder* collider = &this->collider;
 
-    Collider_InitCylinder(play, collider);
-    Collider_InitAndSetCylinder(play, collider, &this->actor, &sCylinderInit);
-    Actor_SetScale(&this->actor, 0.03f);
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 10.0f);
+    MM_Collider_InitCylinder(play, collider);
+    Collider_InitAndSetCylinder(play, collider, &this->actor, &MM_sCylinderInit);
+    MM_Actor_SetScale(&this->actor, 0.03f);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 10.0f);
     this->ruppeIndex = SCRUPPE_GET_TYPE(thisx);
     if ((this->ruppeIndex < RUPEE_GREEN) || (this->ruppeIndex >= RUPEE_UNUSED)) {
         this->ruppeIndex = RUPEE_GREEN;
@@ -163,7 +163,7 @@ void EnScRuppe_Init(Actor* thisx, PlayState* play) {
 void EnScRuppe_Destroy(Actor* thisx, PlayState* play) {
     EnScRuppe* this = (EnScRuppe*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnScRuppe_Update(Actor* thisx, PlayState* play) {

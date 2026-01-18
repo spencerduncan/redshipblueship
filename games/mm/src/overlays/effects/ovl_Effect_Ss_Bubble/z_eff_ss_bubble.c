@@ -13,13 +13,13 @@
 
 #define PARAMS ((EffectSsBubbleInitParams*)initParamsx)
 
-u32 EffectSsBubble_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsBubble_Update(PlayState* play2, u32 index, EffectSs* this);
-void EffectSsBubble_Draw(PlayState* play, u32 index, EffectSs* this);
+u32 MM_EffectSsBubble_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void MM_EffectSsBubble_Update(PlayState* play2, u32 index, EffectSs* this);
+void MM_EffectSsBubble_Draw(PlayState* play, u32 index, EffectSs* this);
 
 EffectSsProfile Effect_Ss_Bubble_Profile = {
     EFFECT_SS_BUBBLE,
-    EffectSsBubble_Init,
+    MM_EffectSsBubble_Init,
 };
 
 static f32 sVecAdjMaximums[] = {
@@ -28,35 +28,35 @@ static f32 sVecAdjMaximums[] = {
     1600.0f, // CONVEYOR_SPEED_FAST
 };
 
-u32 EffectSsBubble_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 MM_EffectSsBubble_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsBubbleInitParams* initParams = (EffectSsBubbleInitParams*)initParamsx;
 
     {
-        TexturePtr tex = (Rand_ZeroOne() < 0.5f) ? gEffBubble1Tex : gEffBubble2Tex;
+        TexturePtr tex = (MM_Rand_ZeroOne() < 0.5f) ? gEffBubble1Tex : gEffBubble2Tex;
 
         this->gfx = (void*)OS_K0_TO_PHYSICAL(SEGMENTED_TO_K0(tex));
     }
 
-    this->pos.x = ((Rand_ZeroOne() - 0.5f) * initParams->xzPosRandScale) + initParams->pos.x;
-    this->pos.y = (((Rand_ZeroOne() - 0.5f) * initParams->yPosRandScale) + initParams->yPosOffset) + initParams->pos.y;
-    this->pos.z = ((Rand_ZeroOne() - 0.5f) * initParams->xzPosRandScale) + initParams->pos.z;
-    Math_Vec3f_Copy(&this->vec, &this->pos);
+    this->pos.x = ((MM_Rand_ZeroOne() - 0.5f) * initParams->xzPosRandScale) + initParams->pos.x;
+    this->pos.y = (((MM_Rand_ZeroOne() - 0.5f) * initParams->yPosRandScale) + initParams->yPosOffset) + initParams->pos.y;
+    this->pos.z = ((MM_Rand_ZeroOne() - 0.5f) * initParams->xzPosRandScale) + initParams->pos.z;
+    MM_Math_Vec3f_Copy(&this->vec, &this->pos);
     this->life = 1;
-    this->rScale = (((Rand_ZeroOne() * 0.5f) + 1.0f) * initParams->scale) * 100.0f;
-    this->draw = EffectSsBubble_Draw;
-    this->update = EffectSsBubble_Update;
+    this->rScale = (((MM_Rand_ZeroOne() * 0.5f) + 1.0f) * initParams->scale) * 100.0f;
+    this->draw = MM_EffectSsBubble_Draw;
+    this->update = MM_EffectSsBubble_Update;
 
     return 1;
 }
 
-void EffectSsBubble_Draw(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsBubble_Draw(PlayState* play, u32 index, EffectSs* this) {
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     f32 scale = this->rScale / 100.0f;
 
     OPEN_DISPS(gfxCtx);
 
-    Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
-    Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+    MM_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
+    MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, gfxCtx);
     Gfx_SetupDL25_Opa(gfxCtx);
@@ -68,13 +68,13 @@ void EffectSsBubble_Draw(PlayState* play, u32 index, EffectSs* this) {
     CLOSE_DISPS(gfxCtx);
 }
 
-void EffectSsBubble_Update(PlayState* play2, u32 index, EffectSs* this) {
+void MM_EffectSsBubble_Update(PlayState* play2, u32 index, EffectSs* this) {
     WaterBox* waterBox;
     f32 waterSurfaceY = this->pos.y;
     Vec3f ripplePos;
     PlayState* play = play2;
 
-    if (!WaterBox_GetSurface1(play, &play->colCtx, this->pos.x, this->pos.z, &waterSurfaceY, &waterBox)) {
+    if (!MM_WaterBox_GetSurface1(play, &play->colCtx, this->pos.x, this->pos.z, &waterSurfaceY, &waterBox)) {
         this->life = -1;
         return;
     }
@@ -82,7 +82,7 @@ void EffectSsBubble_Update(PlayState* play2, u32 index, EffectSs* this) {
         ripplePos.x = this->pos.x;
         ripplePos.y = waterSurfaceY;
         ripplePos.z = this->pos.z;
-        EffectSsGRipple_Spawn(play, &ripplePos, 0, 80, 0);
+        MM_EffectSsGRipple_Spawn(play, &ripplePos, 0, 80, 0);
         this->life = -1;
         return;
     }
@@ -93,19 +93,19 @@ void EffectSsBubble_Update(PlayState* play2, u32 index, EffectSs* this) {
         f32 rVecAdjMax;
 
         BgCheck_EntityRaycastFloor2_1(play, &play->colCtx, &colPoly, &this->pos);
-        conveyorSpeed = SurfaceType_GetConveyorSpeed(&play->colCtx, colPoly, BGCHECK_SCENE);
+        conveyorSpeed = MM_SurfaceType_GetConveyorSpeed(&play->colCtx, colPoly, BGCHECK_SCENE);
         if ((conveyorSpeed != CONVEYOR_SPEED_DISABLED) &&
             !SurfaceType_IsFloorConveyor(&play->colCtx, colPoly, BGCHECK_SCENE)) {
-            conveyorDir = SurfaceType_GetConveyorDirection(&play->colCtx, colPoly, BGCHECK_SCENE) << 10;
+            conveyorDir = MM_SurfaceType_GetConveyorDirection(&play->colCtx, colPoly, BGCHECK_SCENE) << 10;
             rVecAdjMax = sVecAdjMaximums[conveyorSpeed - 1];
-            this->rVecAdjX = Math_SinS(conveyorDir) * rVecAdjMax;
-            this->rVecAdjZ = Math_CosS(conveyorDir) * rVecAdjMax;
+            this->rVecAdjX = MM_Math_SinS(conveyorDir) * rVecAdjMax;
+            this->rVecAdjZ = MM_Math_CosS(conveyorDir) * rVecAdjMax;
         }
     }
     this->vec.x += this->rVecAdjX / 100.0f;
     this->vec.z += this->rVecAdjZ / 100.0f;
-    this->pos.x = ((Rand_ZeroOne() * 0.5f) - 0.25f) + this->vec.x;
-    this->accel.y = (Rand_ZeroOne() - 0.3f) * 0.2f;
-    this->pos.z = (Rand_ZeroOne() * 0.5f - 0.25f) + this->vec.z;
+    this->pos.x = ((MM_Rand_ZeroOne() * 0.5f) - 0.25f) + this->vec.x;
+    this->accel.y = (MM_Rand_ZeroOne() - 0.3f) * 0.2f;
+    this->pos.z = (MM_Rand_ZeroOne() * 0.5f - 0.25f) + this->vec.z;
     this->life++;
 }

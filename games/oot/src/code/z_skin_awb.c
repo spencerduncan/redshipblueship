@@ -6,7 +6,7 @@
 /**
  * Initialises the Vtx buffers used for limb at index `limbIndex`
  */
-void Skin_InitAnimatedLimb(PlayState* play, Skin* skin, s32 limbIndex) {
+void OoT_Skin_InitAnimatedLimb(PlayState* play, Skin* skin, s32 limbIndex) {
     s32 i;
     SkinLimb** skeleton = SEGMENTED_TO_VIRTUAL(skin->skeletonHeader->segment);
     SkinAnimatedLimbData* animatedLimbData =
@@ -38,7 +38,7 @@ void Skin_InitAnimatedLimb(PlayState* play, Skin* skin, s32 limbIndex) {
  * Initializes a skin skeleton to looping animation, dynamically allocating the frame tables,
  * and dynamically allocating and initializing the Vtx and SkinLimbVtx buffers for its animated limbs
  */
-void Skin_Init(PlayState* play, Skin* skin, SkeletonHeader* skeletonHeader, AnimationHeader* animationHeader) {
+void OoT_Skin_Init(PlayState* play, Skin* skin, SkeletonHeader* skeletonHeader, AnimationHeader* animationHeader) {
     if (ResourceMgr_OTRSigCheck(skeletonHeader))
         skeletonHeader = ResourceMgr_LoadSkeletonByName(skeletonHeader, NULL);
 
@@ -77,17 +77,17 @@ void Skin_Init(PlayState* play, Skin* skin, SkeletonHeader* skeletonHeader, Anim
             vtxEntry->buf[1] = ZELDA_ARENA_MALLOC_DEBUG(animatedLimbData->totalVtxCount * sizeof(Vtx));
             assert(vtxEntry->buf[1] != NULL);
 
-            Skin_InitAnimatedLimb(play, skin, i);
+            OoT_Skin_InitAnimatedLimb(play, skin, i);
         }
     }
 
-    SkelAnime_InitSkin(play, &skin->skelAnime, skeletonHeader, animationHeader);
+    OoT_SkelAnime_InitSkin(play, &skin->skelAnime, skeletonHeader, animationHeader);
 }
 
 /**
  * Frees the dynamically allocated Vtx and SkinLimbVtx buffers and tables
  */
-void Skin_Free(PlayState* play, Skin* skin) {
+void OoT_Skin_Free(PlayState* play, Skin* skin) {
     if (skin->vtxTable != NULL) {
         s32 i;
 
@@ -106,7 +106,7 @@ void Skin_Free(PlayState* play, Skin* skin) {
             ZELDA_ARENA_FREE_DEBUG(skin->vtxTable);
         }
 
-        SkelAnime_Free(&skin->skelAnime, play);
+        OoT_SkelAnime_Free(&skin->skelAnime, play);
     }
 }
 
@@ -118,13 +118,13 @@ s32 func_800A698C(Skin* skin, SkinLimb** skeleton, MtxF* limbMatrices, u8 parent
     MtxF sp28;
 
     if (parentIndex == LIMB_DONE) {
-        SkinMatrix_GetClear(&mtx);
+        OoT_SkinMatrix_GetClear(&mtx);
     } else {
         mtx = &limbMatrices[(s32)parentIndex];
     }
 
-    SkinMatrix_MtxFMtxFMult(mtx, &limbMatrices[limbIndex], &sp28);
-    SkinMatrix_MtxFCopy(&sp28, &limbMatrices[limbIndex]);
+    OoT_SkinMatrix_MtxFMtxFMult(mtx, &limbMatrices[limbIndex], &sp28);
+    OoT_SkinMatrix_MtxFCopy(&sp28, &limbMatrices[limbIndex]);
 
     if (limb->child != LIMB_DONE) {
         ret = func_800A698C(skin, skeleton, limbMatrices, limbIndex, limb->child);
@@ -146,7 +146,7 @@ s32 func_800A698C(Skin* skin, SkinLimb** skeleton, MtxF* limbMatrices, u8 parent
 /**
  * Recursively applies matrix tranformations to each limb
  */
-s32 Skin_ApplyAnimTransformations(Skin* skin, MtxF* limbMatrices, Actor* actor, s32 setTranslation) {
+s32 OoT_Skin_ApplyAnimTransformations(Skin* skin, MtxF* limbMatrices, Actor* actor, s32 setTranslation) {
     s32 i;
     s32 pad;
     f32 yRot;

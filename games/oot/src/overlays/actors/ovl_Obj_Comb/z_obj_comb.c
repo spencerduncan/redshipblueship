@@ -11,10 +11,10 @@
 
 #define FLAGS 0
 
-void ObjComb_Init(Actor* thisx, PlayState* play);
-void ObjComb_Destroy(Actor* thisx, PlayState* play);
-void ObjComb_Update(Actor* thisx, PlayState* play);
-void ObjComb_Draw(Actor* thisx, PlayState* play);
+void OoT_ObjComb_Init(Actor* thisx, PlayState* play);
+void OoT_ObjComb_Destroy(Actor* thisx, PlayState* play);
+void OoT_ObjComb_Update(Actor* thisx, PlayState* play);
+void OoT_ObjComb_Draw(Actor* thisx, PlayState* play);
 
 void ObjComb_Break(ObjComb* this, PlayState* play);
 void ObjComb_ChooseItemDrop(ObjComb* this, PlayState* play);
@@ -27,14 +27,14 @@ const ActorInit Obj_Comb_InitVars = {
     FLAGS,
     OBJECT_GAMEPLAY_FIELD_KEEP,
     sizeof(ObjComb),
-    (ActorFunc)ObjComb_Init,
-    (ActorFunc)ObjComb_Destroy,
-    (ActorFunc)ObjComb_Update,
-    (ActorFunc)ObjComb_Draw,
+    (ActorFunc)OoT_ObjComb_Init,
+    (ActorFunc)OoT_ObjComb_Destroy,
+    (ActorFunc)OoT_ObjComb_Update,
+    (ActorFunc)OoT_ObjComb_Draw,
     NULL,
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[1] = {
+static ColliderJntSphElementInit OoT_sJntSphElementsInit[1] = {
     {
         {
             ELEMTYPE_UNK0,
@@ -48,7 +48,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[1] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit OoT_sJntSphInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -58,10 +58,10 @@ static ColliderJntSphInit sJntSphInit = {
         COLSHAPE_JNTSPH,
     },
     1,
-    sJntSphElementsInit,
+    OoT_sJntSphElementsInit,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 1100, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 100, ICHAIN_CONTINUE),
@@ -84,19 +84,19 @@ void ObjComb_Break(ObjComb* this, PlayState* play) {
 
     for (i = 0; i < 31; i++) {
         angle += 0x4E20;
-        rand1 = Rand_ZeroOne() * 10.0f;
+        rand1 = OoT_Rand_ZeroOne() * 10.0f;
 
-        pos1.x = Math_SinS(angle) * rand1;
+        pos1.x = OoT_Math_SinS(angle) * rand1;
         pos1.y = (i - 15) * 0.7f;
-        pos1.z = Math_CosS(angle) * rand1;
+        pos1.z = OoT_Math_CosS(angle) * rand1;
 
-        Math_Vec3f_Sum(&pos1, &this->actor.world.pos, &pos);
+        OoT_Math_Vec3f_Sum(&pos1, &this->actor.world.pos, &pos);
 
-        velocity.x = (Rand_ZeroOne() - 0.5f) + pos1.x * 0.5f;
-        velocity.y = (Rand_ZeroOne() - 0.5f) + pos1.y * 0.6f;
-        velocity.z = (Rand_ZeroOne() - 0.5f) + pos1.z * 0.5f;
+        velocity.x = (OoT_Rand_ZeroOne() - 0.5f) + pos1.x * 0.5f;
+        velocity.y = (OoT_Rand_ZeroOne() - 0.5f) + pos1.y * 0.6f;
+        velocity.z = (OoT_Rand_ZeroOne() - 0.5f) + pos1.z * 0.5f;
 
-        scale = Rand_ZeroOne() * 72.0f + 25.0f;
+        scale = OoT_Rand_ZeroOne() * 72.0f + 25.0f;
 
         if (scale < 40) {
             gravity = -200;
@@ -109,7 +109,7 @@ void ObjComb_Break(ObjComb* this, PlayState* play) {
             arg6 = 20;
         }
 
-        rand2 = Rand_ZeroOne();
+        rand2 = OoT_Rand_ZeroOne();
 
         if (rand2 < 0.1f) {
             arg5 = 96;
@@ -119,7 +119,7 @@ void ObjComb_Break(ObjComb* this, PlayState* play) {
             arg5 = 32;
         }
 
-        EffectSsKakera_Spawn(play, &pos, &velocity, &pos, gravity, arg5, arg6, 4, 0, scale, 0, 0, 80, KAKERA_COLOR_NONE,
+        OoT_EffectSsKakera_Spawn(play, &pos, &velocity, &pos, gravity, arg5, arg6, 4, 0, scale, 0, 0, 80, KAKERA_COLOR_NONE,
                              OBJECT_GAMEPLAY_FIELD_KEEP, dlist);
     }
 
@@ -134,34 +134,34 @@ void ObjComb_ChooseItemDrop(ObjComb* this, PlayState* play) {
 
     if ((params > 0) || (params < 0x1A)) {
         if (params == 6) {
-            if (Flags_GetCollectible(play, (this->actor.params >> 8) & 0x3F)) {
+            if (OoT_Flags_GetCollectible(play, (this->actor.params >> 8) & 0x3F)) {
                 params = -1;
             } else {
                 params = (params | (((this->actor.params >> 8) & 0x3F) << 8));
             }
-        } else if (Rand_ZeroOne() < 0.5f) {
+        } else if (OoT_Rand_ZeroOne() < 0.5f) {
             params = -1;
         }
         if (params >= 0 && !CVarGetInteger(CVAR_ENHANCEMENT("NoRandomDrops"), 0)) {
-            Item_DropCollectible(play, &this->actor.world.pos, params);
+            OoT_Item_DropCollectible(play, &this->actor.world.pos, params);
         }
     }
 }
 
-void ObjComb_Init(Actor* thisx, PlayState* play) {
+void OoT_ObjComb_Init(Actor* thisx, PlayState* play) {
     ObjComb* this = (ObjComb*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    Collider_InitJntSph(play, &this->collider);
-    Collider_SetJntSph(play, &this->collider, &this->actor, &sJntSphInit, this->colliderItems);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
+    OoT_Collider_InitJntSph(play, &this->collider);
+    OoT_Collider_SetJntSph(play, &this->collider, &this->actor, &OoT_sJntSphInit, this->colliderItems);
     ObjComb_SetupWait(this);
 }
 
-void ObjComb_Destroy(Actor* thisx, PlayState* play2) {
+void OoT_ObjComb_Destroy(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     ObjComb* this = (ObjComb*)thisx;
 
-    Collider_DestroyJntSph(play, &this->collider);
+    OoT_Collider_DestroyJntSph(play, &this->collider);
 }
 
 void ObjComb_SetupWait(ObjComb* this) {
@@ -184,45 +184,45 @@ void ObjComb_Wait(ObjComb* this, PlayState* play) {
         } else {
             ObjComb_Break(this, play);
             ObjComb_ChooseItemDrop(this, play);
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
         }
     } else {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 
     if (this->actor.update != NULL) {
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
-void ObjComb_Update(Actor* thisx, PlayState* play) {
+void OoT_ObjComb_Update(Actor* thisx, PlayState* play) {
     ObjComb* this = (ObjComb*)thisx;
 
     this->unk_1B2 += 0x2EE0;
     this->actionFunc(this, play);
-    this->actor.shape.rot.x = Math_SinS(this->unk_1B2) * this->unk_1B0 + this->actor.home.rot.x;
+    this->actor.shape.rot.x = OoT_Math_SinS(this->unk_1B2) * this->unk_1B0 + this->actor.home.rot.x;
 }
 
-void ObjComb_Draw(Actor* thisx, PlayState* play) {
+void OoT_ObjComb_Draw(Actor* thisx, PlayState* play) {
     ObjComb* this = (ObjComb*)thisx;
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
 
-    Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y + (118.0f * this->actor.scale.y),
+    OoT_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y + (118.0f * this->actor.scale.y),
                      this->actor.world.pos.z, MTXMODE_NEW);
     Matrix_RotateY(this->actor.shape.rot.y * (M_PI / 0x8000), MTXMODE_APPLY);
     Matrix_RotateX(this->actor.shape.rot.x * (M_PI / 0x8000), MTXMODE_APPLY);
     Matrix_RotateZ(this->actor.shape.rot.z * (M_PI / 0x8000), MTXMODE_APPLY);
-    Matrix_Translate(0, -(this->actor.scale.y * 118.0f), 0, MTXMODE_APPLY);
-    Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+    OoT_Matrix_Translate(0, -(this->actor.scale.y * 118.0f), 0, MTXMODE_APPLY);
+    OoT_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
 
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
     gSPDisplayList(POLY_OPA_DISP++, gFieldBeehiveDL);
 
-    Collider_UpdateSpheres(0, &this->collider);
+    OoT_Collider_UpdateSpheres(0, &this->collider);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

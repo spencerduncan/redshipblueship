@@ -64,7 +64,7 @@ void MapMark_Init(PlayState* play) {
     // overlay->loadedRamAddr = GAMESTATE_ALLOC_MC(&play->state, overlaySize);
     // LOG_CHECK_NULL_POINTER("dlftbl->allocp", overlay->loadedRamAddr);
 
-    // Overlay_Load(overlay->vromStart, overlay->vromEnd, overlay->vramStart, overlay->vramEnd, overlay->loadedRamAddr);
+    // OoT_Overlay_Load(overlay->vromStart, overlay->vromEnd, overlay->vramStart, overlay->vramEnd, overlay->loadedRamAddr);
 
     if (ResourceMgr_IsGameMasterQuest()) {
         sLoadedMarkDataTable = gMapMarkDataTableMq;
@@ -136,7 +136,7 @@ void MapMark_DrawForDungeon(PlayState* play) {
         markPoint = &mapMarkIconData->points[0];
         // Place each chest / boss room icon
         for (i = 0; i < mapMarkIconData->count; i++) {
-            if ((mapMarkIconData->markType != MAP_MARK_CHEST) || !Flags_GetTreasure(play, markPoint->chestFlag)) {
+            if ((mapMarkIconData->markType != MAP_MARK_CHEST) || !OoT_Flags_GetTreasure(play, markPoint->chestFlag)) {
                 markInfo = &sMapMarkInfoTable[mapMarkIconData->markType];
                 int height = markInfo->textureHeight * 1.0f; // Adjust Height with scale
                 int width = markInfo->textureWidth * 1.0f;   // Adjust Width with scale

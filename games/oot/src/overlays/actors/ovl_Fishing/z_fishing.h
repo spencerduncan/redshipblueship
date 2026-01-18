@@ -66,7 +66,7 @@ typedef struct Fishing {
 struct VBFishingData {
     Fishing* actor;
     u8* sFishOnHandIsLoach;
-    u8* sSinkingLureLocation;
+    u8* OoT_sSinkingLureLocation;
     f32* sFishOnHandLength;
     f32 fishWeight;
     f32 sFishingRecordLength;

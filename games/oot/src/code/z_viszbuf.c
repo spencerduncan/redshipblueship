@@ -39,7 +39,7 @@
 #define VISZBUF_ZBUFFRAG_HEIGHT (TMEM_SIZE / (SCREEN_WIDTH * G_IM_SIZ_16b_BYTES))
 
 // z-buffer
-extern u16 D_0E000000[];
+extern u16 OoT_D_0E000000[];
 
 /**
  * Initialise to IA type with white and black as default colors.
@@ -67,7 +67,7 @@ void VisZBuf_Destroy(VisZBuf* this) {
 void VisZBuf_Draw(VisZBuf* this, Gfx** gfxP) {
     Gfx* gfx = *gfxP;
     s32 pad;
-    u16* zbufFrag = D_0E000000;
+    u16* zbufFrag = OoT_D_0E000000;
     s32 fmt;
     s32 y;
     s32 height;

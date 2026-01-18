@@ -51,7 +51,7 @@ typedef struct EnAttackNiw {
     /* 0x2D0 */ UNK_TYPE1 pad2D0[4];
     /* 0x2D4 */ f32 rotStep;
     /* 0x2D8 */ f32 targetXZSpeed;
-    /* 0x2DC */ f32 targetHeight; // never set, but sent to Actor_SetFocus 
+    /* 0x2DC */ f32 targetHeight; // never set, but sent to MM_Actor_SetFocus 
 } EnAttackNiw; // size = 0x2E0
 
 

@@ -162,7 +162,7 @@ ActorProfile Dm_Stk_Profile = {
     /**/ DmStk_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HIT1,
         AT_NONE,
@@ -182,9 +182,9 @@ static ColliderCylinderInit sCylinderInit = {
     { 14, 38, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 1, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 MM_sColChkInfoInit = { 1, 0, 0, 0, MASS_IMMOVABLE };
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(1, 0xF),
     /* Deku Stick     */ DMG_ENTRY(1, 0xF),
     /* Horse trample  */ DMG_ENTRY(1, 0xF),
@@ -219,7 +219,7 @@ static DamageTable sDamageTable = {
     /* Powder Keg     */ DMG_ENTRY(1, 0xF),
 };
 
-static AnimationInfo sAnimationInfo[SK_ANIM_LAUGH_AFTER_MAX] = {
+static AnimationInfo MM_sAnimationInfo[SK_ANIM_LAUGH_AFTER_MAX] = {
     { &gSkullKidShakeHeadAnim, 1.0f, 0.0f, -1.0f, ANIMMODE_LOOP, 0.0f },             // SK_ANIM_SHAKE_HEAD
     { &gSkullKidWalkAnim, 1.0f, 0.0f, -1.0f, ANIMMODE_LOOP, 0.0f },                  // SK_ANIM_WALK
     { &gSkullKidLookAroundAnim, 1.0f, 0.0f, -1.0f, ANIMMODE_ONCE, 0.0f },            // SK_ANIM_LOOK_AROUND
@@ -319,7 +319,7 @@ void DmStk_LoadObjectForAnimation(DmStk* this, PlayState* play) {
     }
 
     if (objectSlot > OBJECT_SLOT_NONE) {
-        gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[objectSlot].segment);
+        MM_gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[objectSlot].segment);
     }
 }
 
@@ -331,12 +331,12 @@ void DmStk_ChangeAnim(DmStk* this, PlayState* play, SkelAnime* skelAnime, Animat
     animInfo += animIndex;
 
     if (animInfo->frameCount < 0.0f) {
-        endFrame = Animation_GetLastFrame(animInfo->animation);
+        endFrame = MM_Animation_GetLastFrame(animInfo->animation);
     } else {
         endFrame = animInfo->frameCount;
     }
 
-    Animation_Change(skelAnime, animInfo->animation, animInfo->playSpeed, animInfo->startFrame, endFrame,
+    MM_Animation_Change(skelAnime, animInfo->animation, animInfo->playSpeed, animInfo->startFrame, endFrame,
                      animInfo->mode, animInfo->morphFrames);
 }
 
@@ -621,9 +621,9 @@ void DmStk_PlaySfxForClockTowerIntroCutsceneVersion1(DmStk* this, PlayState* pla
     }
 
     if ((this->animIndex == SK_ANIM_OCARINA_JUGGLE) && (play->csCtx.curFrame < 700)) {
-        if (Animation_OnFrame(&this->skelAnime, 5.0f) || Animation_OnFrame(&this->skelAnime, 25.0f)) {
+        if (MM_Animation_OnFrame(&this->skelAnime, 5.0f) || MM_Animation_OnFrame(&this->skelAnime, 25.0f)) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_STALKIDS_OTEDAMA1);
-        } else if (Animation_OnFrame(&this->skelAnime, 17.0f) || Animation_OnFrame(&this->skelAnime, 40.0f)) {
+        } else if (MM_Animation_OnFrame(&this->skelAnime, 17.0f) || MM_Animation_OnFrame(&this->skelAnime, 40.0f)) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_STALKIDS_OTEDAMA2);
         }
     }
@@ -752,7 +752,7 @@ void DmStk_PlaySfxForEndingCutsceneSecondPart(DmStk* this, PlayState* play) {
             break;
 
         case 1395:
-            Player_PlaySfx(player, NA_SE_VO_DUMMY_34);
+            MM_Player_PlaySfx(player, NA_SE_VO_DUMMY_34);
             break;
 
         case 1850:
@@ -769,20 +769,20 @@ void DmStk_PlaySfxForEndingCutsceneSecondPart(DmStk* this, PlayState* play) {
     }
 
     if (this->animIndex == SK_ANIM_SHAKE_HEAD) {
-        if (Animation_OnFrame(&this->skelAnime, 8.0f) || Animation_OnFrame(&this->skelAnime, 17.0f)) {
+        if (MM_Animation_OnFrame(&this->skelAnime, 8.0f) || MM_Animation_OnFrame(&this->skelAnime, 17.0f)) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_STALKIDS_MASK_OFF);
         }
 
-        if (Animation_OnFrame(&this->skelAnime, 28.0f)) {
+        if (MM_Animation_OnFrame(&this->skelAnime, 28.0f)) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_STALKIDS_RIDE);
         }
     } else if (this->animIndex == SK_ANIM_LAUGH_AFTER_SNIFF) {
-        if (Animation_OnFrame(&this->skelAnime, 2.0f) || Animation_OnFrame(&this->skelAnime, 6.0f) ||
-            Animation_OnFrame(&this->skelAnime, 12.0f) || Animation_OnFrame(&this->skelAnime, 18.0f)) {
+        if (MM_Animation_OnFrame(&this->skelAnime, 2.0f) || MM_Animation_OnFrame(&this->skelAnime, 6.0f) ||
+            MM_Animation_OnFrame(&this->skelAnime, 12.0f) || MM_Animation_OnFrame(&this->skelAnime, 18.0f)) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_STALKIDS_MASK_OFF);
         }
     } else if ((this->animIndex == SK_ANIM_SNIFF) &&
-               (Animation_OnFrame(&this->skelAnime, 16.0f) || Animation_OnFrame(&this->skelAnime, 23.0f))) {
+               (MM_Animation_OnFrame(&this->skelAnime, 16.0f) || MM_Animation_OnFrame(&this->skelAnime, 23.0f))) {
         Actor_PlaySfx(&this->actor, NA_SE_EN_STALKIDS_NOSE);
     }
 }
@@ -887,7 +887,7 @@ void DmStk_PlaySfxForCutsceneAfterPlayingOathToOrder(DmStk* this, PlayState* pla
     }
 
     if ((play->csCtx.curFrame >= 62) && (play->csCtx.curFrame < 273)) {
-        if ((Rand_ZeroOne() < 0.75f) && ((play->state.frames % 2) != 0)) {
+        if ((MM_Rand_ZeroOne() < 0.75f) && ((play->state.frames % 2) != 0)) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_STALKIDS_EARTHQUAKE);
         }
     }
@@ -1031,24 +1031,24 @@ void DmStk_PlaySfxForCutscenes(DmStk* this, PlayState* play) {
     }
 
     if (this->animIndex == SK_ANIM_WALK) {
-        if (Animation_OnFrame(&this->skelAnime, 2.0f) || Animation_OnFrame(&this->skelAnime, 6.0f)) {
+        if (MM_Animation_OnFrame(&this->skelAnime, 2.0f) || MM_Animation_OnFrame(&this->skelAnime, 6.0f)) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_STALKIDS_WALK);
         }
     } else if (this->animIndex == SK_ANIM_SEARCH_LINK) {
-        if (Animation_OnFrame(&this->skelAnime, 0.0f) || Animation_OnFrame(&this->skelAnime, 13.0f) ||
-            Animation_OnFrame(&this->skelAnime, 20.0f) || Animation_OnFrame(&this->skelAnime, 27.0f)) {
+        if (MM_Animation_OnFrame(&this->skelAnime, 0.0f) || MM_Animation_OnFrame(&this->skelAnime, 13.0f) ||
+            MM_Animation_OnFrame(&this->skelAnime, 20.0f) || MM_Animation_OnFrame(&this->skelAnime, 27.0f)) {
             Actor_PlaySfx(&this->actor, NA_SE_PL_CALM_HIT);
         }
     } else if (this->animIndex == SK_ANIM_PICK_UP_OCARINA_AND_START_PLAYING) {
-        if (Animation_OnFrame(&this->skelAnime, 3.0f)) {
+        if (MM_Animation_OnFrame(&this->skelAnime, 3.0f)) {
             Actor_PlaySfx(&this->actor, NA_SE_PL_PUT_OUT_ITEM);
         }
     } else if (this->animIndex == SK_ANIM_PLAY_OCARINA_AND_LAUGH) {
-        if (Animation_OnFrame(&this->skelAnime, 14.0f)) {
+        if (MM_Animation_OnFrame(&this->skelAnime, 14.0f)) {
             Actor_PlaySfx(&this->actor, NA_SE_EV_UNSKILLFUL_OCARINA);
         }
 
-        if (Animation_OnFrame(&this->skelAnime, 45.0f)) {
+        if (MM_Animation_OnFrame(&this->skelAnime, 45.0f)) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_STAL01_LAUGH);
         }
     }
@@ -1065,7 +1065,7 @@ void DmStk_Init(Actor* thisx, PlayState* play) {
         this->objectStk2ObjectSlot = Object_GetSlot(&play->objectCtx, OBJECT_STK2);
         this->objectStk3ObjectSlot = Object_GetSlot(&play->objectCtx, OBJECT_STK3);
         if (this->objectStkObjectSlot <= OBJECT_SLOT_NONE) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
 
         this->tatlMessageTimer = 0;
@@ -1089,7 +1089,7 @@ void DmStk_Init(Actor* thisx, PlayState* play) {
             this->fogScale = 0.7f;
             this->hasBeenHit = false;
 
-            Collider_InitCylinder(play, &this->collider);
+            MM_Collider_InitCylinder(play, &this->collider);
 
             if (gSaveContext.save.entrance == ENTRANCE(CLOCK_TOWER_ROOFTOP, 0)) {
                 if (gSaveContext.sceneLayer == 0) {
@@ -1102,10 +1102,10 @@ void DmStk_Init(Actor* thisx, PlayState* play) {
 
                     if (GameInteractor_Should(VB_STK_HAVE_OCARINA,
                                               gSaveContext.save.saveInfo.inventory.items[SLOT_OCARINA] == ITEM_NONE)) {
-                        sCylinderInit.base.colMaterial = COL_MATERIAL_WOOD;
+                        MM_sCylinderInit.base.colMaterial = COL_MATERIAL_WOOD;
                         this->actionFunc = DmStk_ClockTower_StartIntroCutsceneVersion1;
                     } else {
-                        sCylinderInit.base.colMaterial = COL_MATERIAL_WOOD;
+                        MM_sCylinderInit.base.colMaterial = COL_MATERIAL_WOOD;
                         this->actionFunc = DmStk_ClockTower_StartIntroCutsceneVersion2;
                     }
 
@@ -1120,7 +1120,7 @@ void DmStk_Init(Actor* thisx, PlayState* play) {
                     }
 
                     this->actor.world.pos.y = 120.0f;
-                    sCylinderInit.base.colMaterial = COL_MATERIAL_WOOD;
+                    MM_sCylinderInit.base.colMaterial = COL_MATERIAL_WOOD;
                     this->actionFunc = DmStk_ClockTower_Idle;
                 } else {
                     this->animIndex = SK_ANIM_FLOATING_ARMS_CROSSED;
@@ -1130,16 +1130,16 @@ void DmStk_Init(Actor* thisx, PlayState* play) {
                 this->dekuPipesCutsceneState = SK_DEKU_PIPES_CS_STATE_READY;
                 this->animIndex = SK_ANIM_FLOATING_ARMS_CROSSED;
                 this->actor.world.pos.y = 120.0f;
-                sCylinderInit.base.colMaterial = COL_MATERIAL_WOOD;
+                MM_sCylinderInit.base.colMaterial = COL_MATERIAL_WOOD;
                 this->actionFunc = DmStk_ClockTower_Idle;
             }
 
-            Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-            CollisionCheck_SetInfo2(&this->actor.colChkInfo, &sDamageTable, &sColChkInfoInit);
+            MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+            MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, &MM_sDamageTable, &MM_sColChkInfoInit);
 
         } else if ((play->sceneId == SCENE_00KEIKOKU) && (gSaveContext.sceneLayer == 0)) {
             if (!(play->actorCtx.flags & ACTORCTX_FLAG_TELESCOPE_ON)) {
-                Actor_Kill(&this->actor);
+                MM_Actor_Kill(&this->actor);
             }
 
             this->maskType = SK_MASK_TYPE_GLOWING_EYES;
@@ -1151,7 +1151,7 @@ void DmStk_Init(Actor* thisx, PlayState* play) {
             this->actionFunc = DmStk_WaitForTelescope;
         } else {
             if ((play->sceneId == SCENE_LOST_WOODS) && !Cutscene_IsPlaying(play)) {
-                Actor_Kill(&this->actor);
+                MM_Actor_Kill(&this->actor);
             }
 
             this->maskType = SK_MASK_TYPE_GLOWING_EYES;
@@ -1169,12 +1169,12 @@ void DmStk_Init(Actor* thisx, PlayState* play) {
         this->alpha = this->alpha; // Set to itself
         this->actor.lockOnArrowOffset = 1100.0f;
         this->cueId = 99;
-        ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 24.0f);
-        SkelAnime_InitFlex(play, &this->skelAnime, &gSkullKidSkel, NULL, NULL, NULL, 0);
-        DmStk_ChangeAnim(this, play, &this->skelAnime, &sAnimationInfo[this->animIndex], 0);
+        MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 24.0f);
+        MM_SkelAnime_InitFlex(play, &this->skelAnime, &gSkullKidSkel, NULL, NULL, NULL, 0);
+        DmStk_ChangeAnim(this, play, &this->skelAnime, &MM_sAnimationInfo[this->animIndex], 0);
     }
 
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
 
     if ((play->sceneId == SCENE_00KEIKOKU) && (gSaveContext.sceneLayer == 3) && (play->csCtx.scriptIndex > 0)) {
         play->envCtx.skyboxConfig = SKYBOX_CONFIG_15;
@@ -1250,7 +1250,7 @@ void DmStk_ClockTower_WaitForIntroCutsceneVersion1ToEnd(DmStk* this, PlayState* 
     if (play->csCtx.state == CS_STATE_IDLE) {
         this->animIndex = SK_ANIM_CALL_DOWN_MOON_LOOP;
         this->handType = SK_HAND_TYPE_HOLDING_OCARINA;
-        DmStk_ChangeAnim(this, play, &this->skelAnime, &sAnimationInfo[this->animIndex], 0);
+        DmStk_ChangeAnim(this, play, &this->skelAnime, &MM_sAnimationInfo[this->animIndex], 0);
         this->actionFunc = DmStk_ClockTower_IdleWithOcarina;
     }
 }
@@ -1267,7 +1267,7 @@ void DmStk_ClockTower_StartIntroCutsceneVersion2(DmStk* this, PlayState* play) {
 void DmStk_ClockTower_WaitForIntroCutsceneVersion2ToEnd(DmStk* this, PlayState* play) {
     if (play->csCtx.state == CS_STATE_IDLE) {
         this->animIndex = SK_ANIM_FLOATING_ARMS_CROSSED;
-        DmStk_ChangeAnim(this, play, &this->skelAnime, &sAnimationInfo[this->animIndex], 0);
+        DmStk_ChangeAnim(this, play, &this->skelAnime, &MM_sAnimationInfo[this->animIndex], 0);
         this->actionFunc = DmStk_ClockTower_Idle;
     }
 }
@@ -1300,10 +1300,10 @@ void DmStk_ClockTower_AdjustHeightAndRotation(DmStk* this, PlayState* play) {
     f32 sin;
 
     this->bobPhase += 0x4B0;
-    sin = Math_SinS(this->bobPhase) * 10.0f;
-    Math_SmoothStepToF(&this->actor.world.pos.y, 160.0f + sin, 0.2f, 1.0f, 0.0001f);
+    sin = MM_Math_SinS(this->bobPhase) * 10.0f;
+    MM_Math_SmoothStepToF(&this->actor.world.pos.y, 160.0f + sin, 0.2f, 1.0f, 0.0001f);
 
-    this->actor.world.rot.y = Actor_WorldYawTowardActor(&this->actor, &player->actor);
+    this->actor.world.rot.y = MM_Actor_WorldYawTowardActor(&this->actor, &player->actor);
     this->actor.shape.rot.y = this->actor.world.rot.y;
 
     this->actor.world.rot.x = 0x1B58;
@@ -1323,12 +1323,12 @@ void DmStk_ClockTower_DeflectHit(DmStk* this, PlayState* play) {
         this->deflectCount = 0;
         if (!(player->stateFlags2 & PLAYER_STATE2_USING_OCARINA)) {
             // That won't do you any good
-            Message_StartTextbox(play, 0x2013, &this->actor);
+            MM_Message_StartTextbox(play, 0x2013, &this->actor);
         }
     }
 
     this->animIndex = SK_ANIM_DEFLECT_ATTACK;
-    DmStk_ChangeAnim(this, play, &this->skelAnime, &sAnimationInfo[this->animIndex], 0);
+    DmStk_ChangeAnim(this, play, &this->skelAnime, &MM_sAnimationInfo[this->animIndex], 0);
     Actor_PlaySfx(&this->actor, NA_SE_EN_STALKIDS_DOWN_K);
     this->actionFunc = DmStk_ClockTower_WaitForDeflectionToEnd;
 }
@@ -1339,9 +1339,9 @@ void DmStk_ClockTower_DeflectHit(DmStk* this, PlayState* play) {
  */
 void DmStk_ClockTower_WaitForDeflectionToEnd(DmStk* this, PlayState* play) {
     DmStk_ClockTower_AdjustHeightAndRotation(this, play);
-    if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         this->animIndex = SK_ANIM_FLOATING_ARMS_CROSSED;
-        DmStk_ChangeAnim(this, play, &this->skelAnime, &sAnimationInfo[this->animIndex], 0);
+        DmStk_ChangeAnim(this, play, &this->skelAnime, &MM_sAnimationInfo[this->animIndex], 0);
         this->actionFunc = DmStk_ClockTower_Idle;
     }
 
@@ -1469,7 +1469,7 @@ void DmStk_HandleCutscene(DmStk* this, PlayState* play) {
                         break;
 
                     case 25:
-                        Actor_Kill(&this->actor);
+                        MM_Actor_Kill(&this->actor);
                         break;
 
                     case 26:
@@ -1626,7 +1626,7 @@ void DmStk_HandleCutscene(DmStk* this, PlayState* play) {
                         break;
                 }
 
-                DmStk_ChangeAnim(this, play, &this->skelAnime, &sAnimationInfo[this->animIndex], 0);
+                DmStk_ChangeAnim(this, play, &this->skelAnime, &MM_sAnimationInfo[this->animIndex], 0);
             }
         }
 
@@ -1636,7 +1636,7 @@ void DmStk_HandleCutscene(DmStk* this, PlayState* play) {
     }
 
     if (this->fadeInState == SK_FADE_IN_STATE_START) {
-        Math_SmoothStepToF(&this->fogScale, 0.7f, 0.1f, 0.007f, 0.005f);
+        MM_Math_SmoothStepToF(&this->fogScale, 0.7f, 0.1f, 0.007f, 0.005f);
         if (this->fogScale < 0.71f) {
             this->fogScale = 0.7f;
             this->fogN = 800;
@@ -1681,7 +1681,7 @@ void DmStk_HandleCutscene(DmStk* this, PlayState* play) {
                 this->fadeOutState = SK_FADE_OUT_STATE_NONE;
                 SET_WEEKEVENTREG(WEEKEVENTREG_12_04);
                 if (!(play->actorCtx.flags & ACTORCTX_FLAG_TELESCOPE_ON)) {
-                    Actor_Kill(&this->actor);
+                    MM_Actor_Kill(&this->actor);
                 } else {
                     this->shouldDraw = false;
                 }
@@ -1689,7 +1689,7 @@ void DmStk_HandleCutscene(DmStk* this, PlayState* play) {
         }
     }
 
-    if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         switch (this->animIndex) {
             case SK_ANIM_LOOK_AROUND:
             case SK_ANIM_CURSE_START:
@@ -1715,14 +1715,14 @@ void DmStk_HandleCutscene(DmStk* this, PlayState* play) {
             case SK_ANIM_LOOK_LEFT_START:
             case SK_ANIM_SNIFF:
                 this->animIndex++;
-                DmStk_ChangeAnim(this, play, &this->skelAnime, &sAnimationInfo[this->animIndex], 0);
+                DmStk_ChangeAnim(this, play, &this->skelAnime, &MM_sAnimationInfo[this->animIndex], 0);
                 break;
 
             case SK_ANIM_LOWER_MASK:
                 this->animIndex = SK_ANIM_IDLE;
                 this->maskType = SK_MASK_TYPE_NORMAL;
                 this->handType = SK_HAND_TYPE_DEFAULT;
-                DmStk_ChangeAnim(this, play, &this->skelAnime, &sAnimationInfo[this->animIndex], 0);
+                DmStk_ChangeAnim(this, play, &this->skelAnime, &MM_sAnimationInfo[this->animIndex], 0);
                 break;
 
             default:
@@ -1751,9 +1751,9 @@ void DmStk_HandleCutscene(DmStk* this, PlayState* play) {
 void DmStk_UpdateCollision(DmStk* this, PlayState* play) {
     s32 pad;
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 /**
@@ -1774,7 +1774,7 @@ void DmStk_ClockTower_IdleWithOcarina(DmStk* this, PlayState* play) {
             this->tatlMessageTimer = 0;
             if (!(player->stateFlags2 & PLAYER_STATE2_USING_OCARINA)) {
                 // Why are you just standing around?
-                Message_StartTextbox(play, 0x2014, &this->actor);
+                MM_Message_StartTextbox(play, 0x2014, &this->actor);
             }
         }
 
@@ -1813,15 +1813,15 @@ void DmStk_Update(Actor* thisx, PlayState* play) {
 
     if (DM_STK_GET_TYPE(&this->actor) != DM_STK_TYPE_MAJORAS_MASK) {
         if (this->animIndex == SK_ANIM_CALL_DOWN_MOON_LOOP) {
-            Actor_SetFocus(&this->actor, 40.0f);
+            MM_Actor_SetFocus(&this->actor, 40.0f);
         } else {
-            Actor_SetFocus(&this->actor, 6.0f);
+            MM_Actor_SetFocus(&this->actor, 6.0f);
         }
 
         DmStk_LoadObjectForAnimation(this, play);
 
         if (this->animIndex != SK_ANIM_LIE_FLAT) {
-            SkelAnime_Update(&this->skelAnime);
+            MM_SkelAnime_Update(&this->skelAnime);
         }
 
         this->alpha = this->alpha; // Set to itself
@@ -1869,7 +1869,7 @@ void DmStk_Update(Actor* thisx, PlayState* play) {
         // This code is responsible for making in-game time pass while using the telescope in the Astral Observatory.
         // Skull Kid is always loaded in the scene, even if he isn't visible, hence why time always passes.
         if ((play->actorCtx.flags & ACTORCTX_FLAG_TELESCOPE_ON) && (play->msgCtx.msgMode != MSGMODE_NONE) &&
-            (play->msgCtx.currentTextId == 0x5E6) && !FrameAdvance_IsEnabled(play) &&
+            (play->msgCtx.currentTextId == 0x5E6) && !MM_FrameAdvance_IsEnabled(play) &&
             (play->transitionTrigger == TRANS_TRIGGER_OFF) && (CutsceneManager_GetCurrentCsId() == CS_ID_NONE) &&
             (play->csCtx.state == CS_STATE_IDLE)) {
             gSaveContext.save.time = CURRENT_TIME + (u16)R_TIME_SPEED;
@@ -1950,10 +1950,10 @@ void DmStk_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot,
                     if (this->fogN == this->fogF) {
                         this->fogF = this->fogN;
                     }
-                    POLY_OPA_DISP = Gfx_SetFog(POLY_OPA_DISP, this->fogR, this->fogG, this->fogB, this->fogA,
+                    POLY_OPA_DISP = MM_Gfx_SetFog(POLY_OPA_DISP, this->fogR, this->fogG, this->fogB, this->fogA,
                                                this->fogN, this->fogF);
                     gSPDisplayList(POLY_OPA_DISP++, gSkullKidMajorasMask1DL);
-                    POLY_OPA_DISP = Play_SetFog(play, POLY_OPA_DISP);
+                    POLY_OPA_DISP = MM_Play_SetFog(play, POLY_OPA_DISP);
                 } else {
                     gSPDisplayList(POLY_OPA_DISP++, gSkullKidMajorasMask1DL);
                 }
@@ -1966,19 +1966,19 @@ void DmStk_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot,
                 if (Cutscene_IsCueInChannel(play, CS_CMD_ACTOR_CUE_513) &&
                     (play->csCtx.actorCues[Cutscene_GetCueChannel(play, CS_CMD_ACTOR_CUE_513)]->id == 2) &&
                     (this->objectStk2ObjectSlot > OBJECT_SLOT_NONE)) {
-                    Matrix_Push();
-                    Matrix_Scale(2.0f, 2.0f, 2.0f, MTXMODE_APPLY);
-                    gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->objectStk2ObjectSlot].segment);
+                    MM_Matrix_Push();
+                    MM_Matrix_Scale(2.0f, 2.0f, 2.0f, MTXMODE_APPLY);
+                    MM_gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->objectStk2ObjectSlot].segment);
 
                     gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[this->objectStk2ObjectSlot].segment);
 
                     AnimatedMat_Draw(play, Lib_SegmentedToVirtual(gSkullKidMajorasMaskCurseOverlayTexAnim));
-                    Gfx_DrawDListOpa(play, gSkullKidMajorasMaskCurseOverlayDL);
-                    gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->objectStkObjectSlot].segment);
+                    MM_Gfx_DrawDListOpa(play, gSkullKidMajorasMaskCurseOverlayDL);
+                    MM_gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->objectStkObjectSlot].segment);
 
                     gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[this->objectStkObjectSlot].segment);
 
-                    Matrix_Pop();
+                    MM_Matrix_Pop();
                 }
                 break;
 
@@ -2016,7 +2016,7 @@ void DmStk_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot,
                 break;
 
             case SK_HAND_TYPE_HOLDING_MAJORAS_MASK_AND_FLUTE:
-                Matrix_Translate(-20.0f, -660.0f, 860.0f, MTXMODE_APPLY);
+                MM_Matrix_Translate(-20.0f, -660.0f, 860.0f, MTXMODE_APPLY);
                 Matrix_RotateYS(0x6142, MTXMODE_APPLY);
                 Matrix_RotateXS(-0x1988, MTXMODE_APPLY);
 
@@ -2092,11 +2092,11 @@ void DmStk_Draw(Actor* thisx, PlayState* play) {
 
     if (this->shouldDraw) {
         if (DM_STK_GET_TYPE(&this->actor) == DM_STK_TYPE_MAJORAS_MASK) {
-            Gfx_DrawDListOpa(play, gSkullKidMajorasMask1DL);
+            MM_Gfx_DrawDListOpa(play, gSkullKidMajorasMask1DL);
             return;
         }
 
-        gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->objectStkObjectSlot].segment);
+        MM_gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->objectStkObjectSlot].segment);
 
         OPEN_DISPS(play->state.gfxCtx);
 
@@ -2110,7 +2110,7 @@ void DmStk_Draw(Actor* thisx, PlayState* play) {
             gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 0, this->alpha);
 
             POLY_XLU_DISP =
-                SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
+                MM_SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                    this->skelAnime.dListCount, NULL, DmStk_PostLimbDraw, &this->actor, POLY_XLU_DISP);
         } else {
             Scene_SetRenderModeXlu(play, 0, 1);
@@ -2118,7 +2118,7 @@ void DmStk_Draw(Actor* thisx, PlayState* play) {
             gDPPipeSync(POLY_OPA_DISP++);
             gDPSetEnvColor(POLY_OPA_DISP++, 255, 255, 255, 255);
 
-            SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
+            MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                   this->skelAnime.dListCount, DmStk_OverrideLimbDrawOpa, DmStk_PostLimbDrawOpa,
                                   &this->actor);
         }

@@ -12,10 +12,10 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void EnMk_Init(Actor* thisx, PlayState* play);
-void EnMk_Destroy(Actor* thisx, PlayState* play);
-void EnMk_Update(Actor* thisx, PlayState* play);
-void EnMk_Draw(Actor* thisx, PlayState* play);
+void OoT_EnMk_Init(Actor* thisx, PlayState* play);
+void OoT_EnMk_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnMk_Update(Actor* thisx, PlayState* play);
+void OoT_EnMk_Draw(Actor* thisx, PlayState* play);
 
 void EnMk_Wait(EnMk* this, PlayState* play);
 
@@ -25,14 +25,14 @@ const ActorInit En_Mk_InitVars = {
     FLAGS,
     OBJECT_MK,
     sizeof(EnMk),
-    (ActorFunc)EnMk_Init,
-    (ActorFunc)EnMk_Destroy,
-    (ActorFunc)EnMk_Update,
-    (ActorFunc)EnMk_Draw,
+    (ActorFunc)OoT_EnMk_Init,
+    (ActorFunc)OoT_EnMk_Destroy,
+    (ActorFunc)OoT_EnMk_Update,
+    (ActorFunc)OoT_EnMk_Draw,
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -52,20 +52,20 @@ static ColliderCylinderInit sCylinderInit = {
     { 30, 40, 0, { 0, 0, 0 } },
 };
 
-void EnMk_Init(Actor* thisx, PlayState* play) {
+void OoT_EnMk_Init(Actor* thisx, PlayState* play) {
     EnMk* this = (EnMk*)thisx;
     s32 swimFlag;
 
     this->actor.minVelocityY = -4.0f;
     this->actor.gravity = -1.0f;
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 36.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &object_mk_Skel_005DF0, &object_mk_Anim_000D88, this->jointTable,
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 36.0f);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &object_mk_Skel_005DF0, &object_mk_Anim_000D88, this->jointTable,
                        this->morphTable, 13);
-    Animation_PlayLoop(&this->skelAnime, &object_mk_Anim_000D88);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    OoT_Animation_PlayLoop(&this->skelAnime, &object_mk_Anim_000D88);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
     this->actor.colChkInfo.mass = 0xFF;
-    Actor_SetScale(&this->actor, 0.01f);
+    OoT_Actor_SetScale(&this->actor, 0.01f);
 
     this->actionFunc = EnMk_Wait;
     this->flags = 0;
@@ -77,16 +77,16 @@ void EnMk_Init(Actor* thisx, PlayState* play) {
     }
 }
 
-void EnMk_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnMk_Destroy(Actor* thisx, PlayState* play) {
     EnMk* this = (EnMk*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
 
 void func_80AACA40(EnMk* this, PlayState* play) {
-    if (Actor_TextboxIsClosing(&this->actor, play)) {
+    if (OoT_Actor_TextboxIsClosing(&this->actor, play)) {
         this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
         this->actionFunc = EnMk_Wait;
     }
@@ -95,7 +95,7 @@ void func_80AACA40(EnMk* this, PlayState* play) {
 }
 
 void func_80AACA94(EnMk* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play) != 0 || !GameInteractor_Should(VB_TRADE_FROG, true, this)) {
+    if (OoT_Actor_HasParent(&this->actor, play) != 0 || !GameInteractor_Should(VB_TRADE_FROG, true, this)) {
         this->actor.parent = NULL;
         if (GameInteractor_Should(VB_TRADE_TIMER_EYEDROPS, true, this)) {
             this->actionFunc = func_80AACA40;
@@ -103,15 +103,15 @@ void func_80AACA94(EnMk* this, PlayState* play) {
             gSaveContext.eventInf[1] &= ~1;
         }
     } else {
-        Actor_OfferGetItem(&this->actor, play, GI_EYEDROPS, 10000.0f, 50.0f);
+        OoT_Actor_OfferGetItem(&this->actor, play, GI_EYEDROPS, 10000.0f, 50.0f);
     }
 }
 
 void func_80AACB14(EnMk* this, PlayState* play) {
-    if (Actor_TextboxIsClosing(&this->actor, play)) {
+    if (OoT_Actor_TextboxIsClosing(&this->actor, play)) {
         this->actionFunc = func_80AACA94;
         if (GameInteractor_Should(VB_TRADE_FROG, true, this)) {
-            Actor_OfferGetItem(&this->actor, play, GI_EYEDROPS, 10000.0f, 50.0f);
+            OoT_Actor_OfferGetItem(&this->actor, play, GI_EYEDROPS, 10000.0f, 50.0f);
         }
     }
 }
@@ -130,7 +130,7 @@ void func_80AACBAC(EnMk* this, PlayState* play) {
         this->actor.shape.rot.y -= 0x800;
     } else {
         this->actionFunc = func_80AACB6C;
-        Message_ContinueTextbox(play, 0x4030);
+        OoT_Message_ContinueTextbox(play, 0x4030);
     }
 }
 
@@ -140,8 +140,8 @@ void func_80AACC04(EnMk* this, PlayState* play) {
     } else {
         this->timer = GameInteractor_Should(VB_PLAY_EYEDROP_CREATION_ANIM, true, this) ? 16 : 0;
         this->actionFunc = func_80AACBAC;
-        Animation_Change(&this->skelAnime, &object_mk_Anim_000D88, 1.0f, 0.0f,
-                         Animation_GetLastFrame(&object_mk_Anim_000D88), ANIMMODE_LOOP, -4.0f);
+        OoT_Animation_Change(&this->skelAnime, &object_mk_Anim_000D88, 1.0f, 0.0f,
+                         OoT_Animation_GetLastFrame(&object_mk_Anim_000D88), ANIMMODE_LOOP, -4.0f);
         this->flags &= ~2;
     }
 }
@@ -153,8 +153,8 @@ void func_80AACCA0(EnMk* this, PlayState* play) {
     } else {
         this->timer = GameInteractor_Should(VB_PLAY_EYEDROP_CREATION_ANIM, true, this) ? 120 : 0;
         this->actionFunc = func_80AACC04;
-        Animation_Change(&this->skelAnime, &object_mk_Anim_000724, 1.0f, 0.0f,
-                         Animation_GetLastFrame(&object_mk_Anim_000724), ANIMMODE_LOOP, -4.0f);
+        OoT_Animation_Change(&this->skelAnime, &object_mk_Anim_000724, 1.0f, 0.0f,
+                         OoT_Animation_GetLastFrame(&object_mk_Anim_000724), ANIMMODE_LOOP, -4.0f);
         this->flags &= ~2;
     }
 }
@@ -162,14 +162,14 @@ void func_80AACCA0(EnMk* this, PlayState* play) {
 void func_80AACD48(EnMk* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
-        Message_CloseTextbox(play);
+    if ((OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && OoT_Message_ShouldAdvance(play)) {
+        OoT_Message_CloseTextbox(play);
         this->actionFunc = func_80AACCA0;
         play->msgCtx.msgMode = MSGMODE_PAUSED;
         player->exchangeItemId = EXCH_ITEM_NONE;
         this->timer = GameInteractor_Should(VB_PLAY_EYEDROP_CREATION_ANIM, true, this) ? 16 : 0;
-        Animation_Change(&this->skelAnime, &object_mk_Anim_000D88, 1.0f, 0.0f,
-                         Animation_GetLastFrame(&object_mk_Anim_000D88), ANIMMODE_LOOP, -4.0f);
+        OoT_Animation_Change(&this->skelAnime, &object_mk_Anim_000D88, 1.0f, 0.0f,
+                         OoT_Animation_GetLastFrame(&object_mk_Anim_000D88), ANIMMODE_LOOP, -4.0f);
         this->flags &= ~2;
     }
 
@@ -177,10 +177,10 @@ void func_80AACD48(EnMk* this, PlayState* play) {
 }
 
 void func_80AACE2C(EnMk* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
-        Message_ContinueTextbox(play, 0x4001);
-        Animation_Change(&this->skelAnime, &object_mk_Anim_000AC0, 1.0f, 0.0f,
-                         Animation_GetLastFrame(&object_mk_Anim_000AC0), ANIMMODE_ONCE, -4.0f);
+    if ((OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && OoT_Message_ShouldAdvance(play)) {
+        OoT_Message_ContinueTextbox(play, 0x4001);
+        OoT_Animation_Change(&this->skelAnime, &object_mk_Anim_000AC0, 1.0f, 0.0f,
+                         OoT_Animation_GetLastFrame(&object_mk_Anim_000AC0), ANIMMODE_ONCE, -4.0f);
         this->flags &= ~2;
         this->actionFunc = func_80AACD48;
     }
@@ -189,10 +189,10 @@ void func_80AACE2C(EnMk* this, PlayState* play) {
 }
 
 void func_80AACEE8(EnMk* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
-        Message_ContinueTextbox(play, 0x4000);
-        Animation_Change(&this->skelAnime, &object_mk_Anim_000AC0, 1.0f, 0.0f,
-                         Animation_GetLastFrame(&object_mk_Anim_000AC0), ANIMMODE_LOOP, -4.0f);
+    if ((OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && OoT_Message_ShouldAdvance(play)) {
+        OoT_Message_ContinueTextbox(play, 0x4000);
+        OoT_Animation_Change(&this->skelAnime, &object_mk_Anim_000AC0, 1.0f, 0.0f,
+                         OoT_Animation_GetLastFrame(&object_mk_Anim_000AC0), ANIMMODE_LOOP, -4.0f);
         this->flags &= ~2;
         this->actionFunc = func_80AACE2C;
     }
@@ -201,20 +201,20 @@ void func_80AACEE8(EnMk* this, PlayState* play) {
 }
 
 void func_80AACFA0(EnMk* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play) || !GameInteractor_Should(VB_GIVE_ITEM_FROM_LAB_DIVE, true, this)) {
+    if (OoT_Actor_HasParent(&this->actor, play) || !GameInteractor_Should(VB_GIVE_ITEM_FROM_LAB_DIVE, true, this)) {
         this->actor.parent = NULL;
         this->actionFunc = func_80AACA40;
         Flags_SetItemGetInf(ITEMGETINF_10);
     } else {
-        Actor_OfferGetItem(&this->actor, play, GI_HEART_PIECE, 10000.0f, 50.0f);
+        OoT_Actor_OfferGetItem(&this->actor, play, GI_HEART_PIECE, 10000.0f, 50.0f);
     }
 }
 
 void func_80AAD014(EnMk* this, PlayState* play) {
-    if (Actor_TextboxIsClosing(&this->actor, play)) {
+    if (OoT_Actor_TextboxIsClosing(&this->actor, play)) {
         this->actionFunc = func_80AACFA0;
         if (GameInteractor_Should(VB_GIVE_ITEM_FROM_LAB_DIVE, true, this)) {
-            Actor_OfferGetItem(&this->actor, play, GI_HEART_PIECE, 10000.0f, 50.0f);
+            OoT_Actor_OfferGetItem(&this->actor, play, GI_HEART_PIECE, 10000.0f, 50.0f);
         }
     }
 
@@ -263,8 +263,8 @@ void EnMk_Wait(EnMk* this, PlayState* play) {
                     case EXCH_ITEM_FROG:
                         player->actor.textId = 0x4019;
                         this->actionFunc = func_80AACEE8;
-                        Animation_Change(&this->skelAnime, &object_mk_Anim_000368, 1.0f, 0.0f,
-                                         Animation_GetLastFrame(&object_mk_Anim_000368), ANIMMODE_ONCE, -4.0f);
+                        OoT_Animation_Change(&this->skelAnime, &object_mk_Anim_000368, 1.0f, 0.0f,
+                                         OoT_Animation_GetLastFrame(&object_mk_Anim_000368), ANIMMODE_ONCE, -4.0f);
                         this->flags &= ~2;
                         gSaveContext.subTimerState = SUBTIMER_STATE_OFF;
                         Sfx_PlaySfxCentered(NA_SE_SY_TRE_BOX_APPEAR);
@@ -277,7 +277,7 @@ void EnMk_Wait(EnMk* this, PlayState* play) {
             }
         }
     } else {
-        this->actor.textId = Text_GetFaceReaction(play, 0x1A);
+        this->actor.textId = OoT_Text_GetFaceReaction(play, 0x1A);
 
         if (this->actor.textId == 0) {
             this->actor.textId = 0x4018;
@@ -292,19 +292,19 @@ void EnMk_Wait(EnMk* this, PlayState* play) {
     }
 }
 
-void EnMk_Update(Actor* thisx, PlayState* play) {
+void OoT_EnMk_Update(Actor* thisx, PlayState* play) {
     EnMk* this = (EnMk*)thisx;
     s32 pad;
     Vec3s vec;
     Player* player;
     s16 swimFlag;
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     Actor_MoveXZGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
 
-    if ((!(this->flags & 2)) && (SkelAnime_Update(&this->skelAnime))) {
+    if ((!(this->flags & 2)) && (OoT_SkelAnime_Update(&this->skelAnime))) {
         this->flags |= 2;
     }
 
@@ -313,8 +313,8 @@ void EnMk_Update(Actor* thisx, PlayState* play) {
     if (this->flags & 1) {
         func_80038290(play, &this->actor, &this->headRotation, &vec, this->actor.focus.pos);
     } else {
-        Math_SmoothStepToS(&this->headRotation.x, 0, 6, 6200, 100);
-        Math_SmoothStepToS(&this->headRotation.y, 0, 6, 6200, 100);
+        OoT_Math_SmoothStepToS(&this->headRotation.x, 0, 6, 6200, 100);
+        OoT_Math_SmoothStepToS(&this->headRotation.y, 0, 6, 6200, 100);
     }
 
     player = GET_PLAYER(play);
@@ -355,7 +355,7 @@ void EnMk_Update(Actor* thisx, PlayState* play) {
     }
 }
 
-s32 EnMk_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
+s32 OoT_EnMk_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
     EnMk* this = (EnMk*)thisx;
 
     if (limbIndex == 11) {
@@ -366,18 +366,18 @@ s32 EnMk_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* po
     return false;
 }
 
-void EnMk_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
+void OoT_EnMk_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
     static Vec3f D_80AAD64C = { 1000.0f, -100.0f, 0.0f };
     EnMk* this = (EnMk*)thisx;
 
     if (limbIndex == 11) {
-        Matrix_MultVec3f(&D_80AAD64C, &this->actor.focus.pos);
+        OoT_Matrix_MultVec3f(&D_80AAD64C, &this->actor.focus.pos);
     }
 }
 
-void EnMk_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnMk_Draw(Actor* thisx, PlayState* play) {
     EnMk* this = (EnMk*)thisx;
 
     Gfx_SetupDL_37Opa(play->state.gfxCtx);
-    SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, EnMk_OverrideLimbDraw, EnMk_PostLimbDraw, &this->actor);
+    SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, OoT_EnMk_OverrideLimbDraw, OoT_EnMk_PostLimbDraw, &this->actor);
 }

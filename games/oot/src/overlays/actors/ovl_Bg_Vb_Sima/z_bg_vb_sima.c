@@ -28,7 +28,7 @@ const ActorInit Bg_Vb_Sima_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
 
@@ -37,17 +37,17 @@ void BgVbSima_Init(Actor* thisx, PlayState* play) {
     BgVbSima* this = (BgVbSima*)thisx;
     CollisionHeader* colHeader = NULL;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
-    CollisionHeader_GetVirtual(&gVolvagiaPlatformCol, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
+    OoT_CollisionHeader_GetVirtual(&gVolvagiaPlatformCol, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
 }
 
 void BgVbSima_Destroy(Actor* thisx, PlayState* play) {
     s32 pad;
     BgVbSima* this = (BgVbSima*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void BgVbSima_SpawnEmber(BossFdEffect* effect, Vec3f* position, Vec3f* velocity, Vec3f* acceleration, f32 scale) {
@@ -61,7 +61,7 @@ void BgVbSima_SpawnEmber(BossFdEffect* effect, Vec3f* position, Vec3f* velocity,
             effect->accel = *acceleration;
             effect->scale = scale / 1000.0f;
             effect->alpha = 255;
-            effect->timer1 = (s16)Rand_ZeroFloat(10.0f);
+            effect->timer1 = (s16)OoT_Rand_ZeroFloat(10.0f);
             break;
         }
     }
@@ -76,18 +76,18 @@ void BgVbSima_Update(Actor* thisx, PlayState* play) {
     f32 minus1 = -1.0f;
 
     this->shakeTimer++;
-    if (!Flags_GetClear(play, play->roomCtx.curRoom.num)) {
+    if (!OoT_Flags_GetClear(play, play->roomCtx.curRoom.num)) {
         s32 signal = bossFd->platformSignal;
 
         if (signal == VBSIMA_COLLAPSE) {
-            Math_SmoothStepToF(&this->dyna.actor.world.pos.y, -1000.0f, 1.0f, 1.5f, 0.0f);
-            this->dyna.actor.world.pos.z += 2.0f * Math_CosS(this->shakeTimer * 0x8000);
-            this->dyna.actor.shape.rot.x = (s16)Math_SinS(this->shakeTimer * 0x7000) * 0x37;
-            this->dyna.actor.shape.rot.z = (s16)Math_SinS(this->shakeTimer * 0x5000) * 0x37;
+            OoT_Math_SmoothStepToF(&this->dyna.actor.world.pos.y, -1000.0f, 1.0f, 1.5f, 0.0f);
+            this->dyna.actor.world.pos.z += 2.0f * OoT_Math_CosS(this->shakeTimer * 0x8000);
+            this->dyna.actor.shape.rot.x = (s16)OoT_Math_SinS(this->shakeTimer * 0x7000) * 0x37;
+            this->dyna.actor.shape.rot.z = (s16)OoT_Math_SinS(this->shakeTimer * 0x5000) * 0x37;
             Audio_PlaySoundGeneral(NA_SE_EV_BLOCKSINK - SFX_FLAG, &this->dyna.actor.projectedPos, 4,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         } else if (signal == VBSIMA_KILL) {
-            Actor_Kill(&this->dyna.actor);
+            OoT_Actor_Kill(&this->dyna.actor);
         }
         if (bossFd->platformSignal != VBSIMA_STAND) {
             s16 i2;
@@ -102,19 +102,19 @@ void BgVbSima_Update(Actor* thisx, PlayState* play) {
             f32 edgeZ;
 
             for (i1 = 0; i1 < 10; i1++) {
-                if (Rand_ZeroOne() < 0.33f) {
+                if (OoT_Rand_ZeroOne() < 0.33f) {
                     edgeX = -80.0f;
-                    edgeZ = Rand_CenteredFloat(160.0f);
+                    edgeZ = OoT_Rand_CenteredFloat(160.0f);
                 } else {
                     edgeZ = 80.0f;
-                    if (Rand_ZeroOne() < 0.5f) {
+                    if (OoT_Rand_ZeroOne() < 0.5f) {
                         edgeZ = 80.0f * minus1;
                     }
-                    edgeX = Rand_CenteredFloat(160.0f);
+                    edgeX = OoT_Rand_CenteredFloat(160.0f);
                 }
 
                 splashVel.x = edgeX * 0.05f;
-                splashVel.y = Rand_ZeroFloat(3.0f) + 3.0f;
+                splashVel.y = OoT_Rand_ZeroFloat(3.0f) + 3.0f;
                 splashVel.z = edgeZ * 0.05f;
 
                 splashAcc.y = -0.3f;
@@ -126,23 +126,23 @@ void BgVbSima_Update(Actor* thisx, PlayState* play) {
                 splashPos.z = this->dyna.actor.world.pos.z + edgeZ;
 
                 func_8002836C(play, &splashPos, &splashVel, &splashAcc, &colorYellow, &colorRed,
-                              (s16)Rand_ZeroFloat(100.0f) + 500, 10, 20);
+                              (s16)OoT_Rand_ZeroFloat(100.0f) + 500, 10, 20);
 
                 for (i2 = 0; i2 < 3; i2++) {
                     emberVel.x = splashVel.x;
-                    emberVel.y = Rand_ZeroFloat(5.0f);
+                    emberVel.y = OoT_Rand_ZeroFloat(5.0f);
                     emberVel.z = splashVel.z;
 
                     emberAcc.y = 0.4f;
-                    emberAcc.x = Rand_CenteredFloat(0.5f);
-                    emberAcc.z = Rand_CenteredFloat(0.5f);
+                    emberAcc.x = OoT_Rand_CenteredFloat(0.5f);
+                    emberAcc.z = OoT_Rand_CenteredFloat(0.5f);
 
-                    emberPos.x = Rand_CenteredFloat(60.0f) + splashPos.x;
-                    emberPos.y = Rand_ZeroFloat(40.0f) + splashPos.y;
-                    emberPos.z = Rand_CenteredFloat(60.0f) + splashPos.z;
+                    emberPos.x = OoT_Rand_CenteredFloat(60.0f) + splashPos.x;
+                    emberPos.y = OoT_Rand_ZeroFloat(40.0f) + splashPos.y;
+                    emberPos.z = OoT_Rand_CenteredFloat(60.0f) + splashPos.z;
 
                     BgVbSima_SpawnEmber(bossFd->effects, &emberPos, &emberVel, &emberAcc,
-                                        (s16)Rand_ZeroFloat(2.0f) + 8);
+                                        (s16)OoT_Rand_ZeroFloat(2.0f) + 8);
                 }
             }
         }

@@ -1,7 +1,7 @@
 #include "global.h"
 #include "soh/ResourceManagerHelpers.h"
 
-void Gfx_DrawDListOpa(PlayState* play, Gfx* dlist) {
+void OoT_Gfx_DrawDListOpa(PlayState* play, Gfx* dlist) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
@@ -15,7 +15,7 @@ void Gfx_DrawDListOpa(PlayState* play, Gfx* dlist) {
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void Gfx_DrawDListXlu(PlayState* play, Gfx* dlist) {
+void OoT_Gfx_DrawDListXlu(PlayState* play, Gfx* dlist) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);

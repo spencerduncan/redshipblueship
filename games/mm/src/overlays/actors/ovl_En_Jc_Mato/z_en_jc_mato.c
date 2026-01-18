@@ -50,7 +50,7 @@ static ColliderSphereInit sSphereInit = {
     { 0, { { 0, 0, 0 }, 15 }, 100 },
 };
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(1, 0x0),
     /* Deku Stick     */ DMG_ENTRY(1, 0x0),
     /* Horse trample  */ DMG_ENTRY(1, 0x0),
@@ -96,8 +96,8 @@ s32 EnJcMato_CheckForHit(EnJcMato* this, PlayState* play) {
         this->hitFlag = true;
         return 1;
     } else {
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
         return 0;
     }
 }
@@ -109,7 +109,7 @@ void EnJcMato_SetupIdle(EnJcMato* this) {
 void EnJcMato_Idle(EnJcMato* this, PlayState* play) {
     if (this->hitFlag) {
         if (DECR(this->despawnTimer) == 0) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
     }
 }
@@ -117,12 +117,12 @@ void EnJcMato_Idle(EnJcMato* this, PlayState* play) {
 void EnJcMato_Init(Actor* thisx, PlayState* play) {
     EnJcMato* this = (EnJcMato*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 24.0f);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 24.0f);
     Collider_InitSphere(play, &this->collider);
     Collider_SetSphere(play, &this->collider, &this->actor, &sSphereInit);
     this->collider.dim.worldSphere.radius = 15;
-    this->actor.colChkInfo.damageTable = &sDamageTable;
-    Actor_SetScale(&this->actor, 0.008f);
+    this->actor.colChkInfo.damageTable = &MM_sDamageTable;
+    MM_Actor_SetScale(&this->actor, 0.008f);
     this->hitFlag = false;
     this->despawnTimer = 25;
     EnJcMato_SetupIdle(this);
@@ -152,7 +152,7 @@ void EnJcMato_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     gSPDisplayList(POLY_OPA_DISP++, gKoumeTargetDL);
-    Matrix_MultVec3f(&sOffset, &this->pos);
+    MM_Matrix_MultVec3f(&sOffset, &this->pos);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

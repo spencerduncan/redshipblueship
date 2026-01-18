@@ -9,10 +9,10 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void EnMk_Init(Actor* thisx, PlayState* play);
-void EnMk_Destroy(Actor* thisx, PlayState* play);
-void EnMk_Update(Actor* thisx, PlayState* play);
-void EnMk_Draw(Actor* thisx, PlayState* play);
+void MM_EnMk_Init(Actor* thisx, PlayState* play);
+void MM_EnMk_Destroy(Actor* thisx, PlayState* play);
+void MM_EnMk_Update(Actor* thisx, PlayState* play);
+void MM_EnMk_Draw(Actor* thisx, PlayState* play);
 
 s32 func_80959524(PlayState* play);
 void func_809596A0(EnMk* this, PlayState* play);
@@ -28,13 +28,13 @@ ActorProfile En_Mk_Profile = {
     /**/ FLAGS,
     /**/ OBJECT_MK,
     /**/ sizeof(EnMk),
-    /**/ EnMk_Init,
-    /**/ EnMk_Destroy,
-    /**/ EnMk_Update,
-    /**/ EnMk_Draw,
+    /**/ MM_EnMk_Init,
+    /**/ MM_EnMk_Destroy,
+    /**/ MM_EnMk_Update,
+    /**/ MM_EnMk_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -65,7 +65,7 @@ typedef enum MarineResearcherAnimation {
 } MarineResearcherAnimation;
 
 s32 EnMk_ChangeAnim(EnMk* this, s16 animIndex) {
-    AnimationHeader* sAnimations[MARINE_RESEARCHER_ANIM_MAX] = {
+    AnimationHeader* MM_sAnimations[MARINE_RESEARCHER_ANIM_MAX] = {
         &gMarineResearcherIdleAnim,        // MARINE_RESEARCHER_ANIM_IDLE
         &gMarineResearcherHeadWaggleAnim,  // MARINE_RESEARCHER_ANIM_HEAD_WAGGLE
         &gMarineResearcherYellAnim,        // MARINE_RESEARCHER_ANIM_YELL
@@ -81,29 +81,29 @@ s32 EnMk_ChangeAnim(EnMk* this, s16 animIndex) {
         return false;
     }
 
-    Animation_PlayLoop(&this->skelAnime, sAnimations[animIndex]);
+    MM_Animation_PlayLoop(&this->skelAnime, MM_sAnimations[animIndex]);
     this->animIndex = animIndex;
     return true;
 }
 
-void EnMk_Init(Actor* thisx, PlayState* play) {
+void MM_EnMk_Init(Actor* thisx, PlayState* play) {
     EnMk* this = (EnMk*)thisx;
     s16 csId;
     s32 i;
 
     this->actor.terminalVelocity = -4.0f;
     this->actor.gravity = -1.0f;
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 36.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gMarineResearcherSkel, &gMarineResearcherIdleAnim, this->jointTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 36.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gMarineResearcherSkel, &gMarineResearcherIdleAnim, this->jointTable,
                        this->morphTable, MARINE_RESEARCHER_LIMB_MAX);
 
     this->animIndex = MARINE_RESEARCHER_ANIM_NONE;
     EnMk_ChangeAnim(this, MARINE_RESEARCHER_ANIM_IDLE);
 
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
 
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
 
     this->actionFunc = func_80959E18;
     this->unk_27A = 0;
@@ -125,10 +125,10 @@ void EnMk_Init(Actor* thisx, PlayState* play) {
     this->actor.csId = this->csIdList[0];
 }
 
-void EnMk_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnMk_Destroy(Actor* thisx, PlayState* play) {
     EnMk* this = (EnMk*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 s32 func_80959524(PlayState* play) {
@@ -171,22 +171,22 @@ void func_80959624(EnMk* this, PlayState* play) {
     } else {
         textId = 0xFBA;
     }
-    Message_StartTextbox(play, textId, &this->actor);
+    MM_Message_StartTextbox(play, textId, &this->actor);
 }
 
 void func_809596A0(EnMk* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     if ((play->msgCtx.currentTextId == 0xFB9) || (play->msgCtx.currentTextId == 0xFBB) ||
         (play->msgCtx.currentTextId == 0xFBC)) {
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 3, 0x400, 0x80);
+        MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 3, 0x400, 0x80);
         this->actor.world.rot.y = this->actor.shape.rot.y;
     }
 
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_EVENT:
-            if (Message_ShouldAdvance(play)) {
-                Message_CloseTextbox(play);
+            if (MM_Message_ShouldAdvance(play)) {
+                MM_Message_CloseTextbox(play);
                 this->actionFunc = func_80959774;
             }
             break;
@@ -198,15 +198,15 @@ void func_809596A0(EnMk* this, PlayState* play) {
 }
 
 void func_80959774(EnMk* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 3, 0x400, 0x80);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 3, 0x400, 0x80);
     this->actor.world.rot.y = this->actor.shape.rot.y;
 
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         func_80959624(this, play);
         this->actionFunc = func_809596A0;
-    } else if ((this->actor.xzDistToPlayer < 120.0f) && Player_IsFacingActor(&this->actor, 0x3000, play)) {
+    } else if ((this->actor.xzDistToPlayer < 120.0f) && MM_Player_IsFacingActor(&this->actor, 0x3000, play)) {
         Actor_OfferTalk(&this->actor, play, 130.0f);
     }
 
@@ -276,34 +276,34 @@ void func_80959844(EnMk* this, PlayState* play) {
                 break;
         }
     }
-    Message_StartTextbox(play, textId, &this->actor);
+    MM_Message_StartTextbox(play, textId, &this->actor);
 }
 
 void func_80959A24(EnMk* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     this->unk_27A |= 1;
 
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_CLOSING:
             break;
 
         case TEXT_STATE_EVENT:
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 switch (play->msgCtx.currentTextId) {
                     case 0xFA1:
                     case 0xFA3:
                     case 0xFA4:
                     case 0xFAA:
                     case 0xFAE:
-                        Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                        MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                         break;
 
                     case 0xFA2:
                         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_CLEARED_GREAT_BAY_TEMPLE)) {
-                            Message_CloseTextbox(play);
+                            MM_Message_CloseTextbox(play);
                             this->actionFunc = func_80959E18;
                         } else {
-                            Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                            MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                         }
                         break;
 
@@ -319,53 +319,53 @@ void func_80959A24(EnMk* this, PlayState* play) {
                     case 0xFBD:
                     case 0xFBE:
                     case 0xFBF:
-                        Message_CloseTextbox(play);
+                        MM_Message_CloseTextbox(play);
                         this->actionFunc = func_80959E18;
                         break;
 
                     case 0xFA0:
                         SET_WEEKEVENTREG(WEEKEVENTREG_19_04);
-                        Message_ContinueTextbox(play, 0xFA1);
+                        MM_Message_ContinueTextbox(play, 0xFA1);
                         break;
 
                     case 0xFA8:
                         SET_WEEKEVENTREG(WEEKEVENTREG_19_08);
                         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_CLEARED_GREAT_BAY_TEMPLE)) {
-                            Message_ContinueTextbox(play, 0xFBD);
+                            MM_Message_ContinueTextbox(play, 0xFBD);
                         } else {
-                            Message_ContinueTextbox(play, 0xFA9);
+                            MM_Message_ContinueTextbox(play, 0xFA9);
                         }
                         break;
 
                     case 0xFAC:
                         SET_WEEKEVENTREG(WEEKEVENTREG_19_10);
                         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_CLEARED_GREAT_BAY_TEMPLE)) {
-                            Message_ContinueTextbox(play, 0xFBE);
+                            MM_Message_ContinueTextbox(play, 0xFBE);
                         } else {
-                            Message_ContinueTextbox(play, 0xFAD);
+                            MM_Message_ContinueTextbox(play, 0xFAD);
                         }
                         break;
 
                     case 0xFB1:
                         SET_WEEKEVENTREG(WEEKEVENTREG_19_20);
-                        Message_CloseTextbox(play);
+                        MM_Message_CloseTextbox(play);
                         this->actionFunc = func_80959E18;
                         break;
 
                     case 0xFB3:
                     case 0xFB4:
-                        Message_CloseTextbox(play);
+                        MM_Message_CloseTextbox(play);
                         this->actionFunc = func_80959E18;
                         this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
                         break;
 
                     case 0xFB5:
-                        Message_CloseTextbox(play);
+                        MM_Message_CloseTextbox(play);
                         this->actionFunc = func_80959E18;
                         break;
 
                     default:
-                        Message_CloseTextbox(play);
+                        MM_Message_CloseTextbox(play);
                         this->actionFunc = func_80959E18;
                         break;
                 }
@@ -378,7 +378,7 @@ void func_80959C94(EnMk* this, PlayState* play) {
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         this->actionFunc = func_80959A24;
         this->unk_27A &= ~2;
-        Message_StartTextbox(play, 0xFB3, &this->actor);
+        MM_Message_StartTextbox(play, 0xFB3, &this->actor);
     } else {
         this->actor.flags |= ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
         Actor_OfferTalkExchange(&this->actor, play, 350.0f, 1000.0f, PLAYER_IA_MINUS1);
@@ -386,7 +386,7 @@ void func_80959C94(EnMk* this, PlayState* play) {
 }
 
 void func_80959D28(EnMk* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     if ((play->csCtx.state == CS_STATE_IDLE) && (this->actor.csId == CS_ID_NONE)) {
         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_20_40)) {
@@ -415,7 +415,7 @@ void func_80959E18(EnMk* this, PlayState* play) {
     s32 pad;
     s16 sp22 = this->actor.yawTowardsPlayer - this->actor.shape.rot.y;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     if (CHECK_WEEKEVENTREG(WEEKEVENTREG_20_40)) {
         this->unk_27A &= ~1;
@@ -431,7 +431,7 @@ void func_80959E18(EnMk* this, PlayState* play) {
             this->actor.csId = this->csIdList[0];
             SET_WEEKEVENTREG(WEEKEVENTREG_20_40);
             if (GameInteractor_Should(VB_GIVE_NEW_WAVE_BOSSA_NOVA, true, this)) {
-                Item_Give(play, ITEM_SONG_NOVA);
+                MM_Item_Give(play, ITEM_SONG_NOVA);
             }
         } else {
             this->actor.csId = this->csIdList[1];
@@ -455,27 +455,27 @@ void func_80959E18(EnMk* this, PlayState* play) {
     func_8095954C(this, play);
 }
 
-void EnMk_Update(Actor* thisx, PlayState* play) {
+void MM_EnMk_Update(Actor* thisx, PlayState* play) {
     s32 pad;
     EnMk* this = (EnMk*)thisx;
     Vec3s torsoRot;
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     Actor_MoveWithGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
 
     this->actionFunc(this, play);
 
     if ((this->unk_27A & 1) && !Cutscene_IsCueInChannel(play, CS_CMD_ACTOR_CUE_127)) {
         Actor_TrackPlayer(play, &this->actor, &this->headRot, &torsoRot, this->actor.focus.pos);
     } else {
-        Math_SmoothStepToS(&this->headRot.x, 0, 6, 0x1838, 0x64);
-        Math_SmoothStepToS(&this->headRot.y, 0, 6, 0x1838, 0x64);
+        MM_Math_SmoothStepToS(&this->headRot.x, 0, 6, 0x1838, 0x64);
+        MM_Math_SmoothStepToS(&this->headRot.y, 0, 6, 0x1838, 0x64);
     }
 }
 
-s32 EnMk_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx) {
+s32 MM_EnMk_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx) {
     EnMk* this = (EnMk*)thisx;
 
     if (limbIndex == MARINE_RESEARCHER_LIMB_HEAD) {
@@ -487,18 +487,18 @@ s32 EnMk_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* po
 
 Vec3f D_8095A2A0 = { 1000.0f, -100.0f, 0.0f };
 
-void EnMk_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* thisx) {
+void MM_EnMk_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* thisx) {
     EnMk* this = (EnMk*)thisx;
 
     if (limbIndex == MARINE_RESEARCHER_LIMB_HEAD) {
-        Matrix_MultVec3f(&D_8095A2A0, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&D_8095A2A0, &this->actor.focus.pos);
     }
 }
 
-void EnMk_Draw(Actor* thisx, PlayState* play) {
+void MM_EnMk_Draw(Actor* thisx, PlayState* play) {
     EnMk* this = (EnMk*)thisx;
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
-                          EnMk_OverrideLimbDraw, EnMk_PostLimbDraw, &this->actor);
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+                          MM_EnMk_OverrideLimbDraw, MM_EnMk_PostLimbDraw, &this->actor);
 }

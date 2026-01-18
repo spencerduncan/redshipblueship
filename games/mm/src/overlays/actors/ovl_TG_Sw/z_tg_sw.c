@@ -85,7 +85,7 @@ void TGSw_Die(TGSw* this, PlayState* play) {
         actorIter = actorIter->next;
     } while (actorIter != NULL);
 
-    Actor_Kill(&this->actor);
+    MM_Actor_Kill(&this->actor);
 }
 
 void TGSw_Init(Actor* thisx, PlayState* play) {
@@ -114,11 +114,11 @@ void TGSw_Draw(Actor* thisx, PlayState* play) {
         scale = absRot * 0.2f;
         absRot = ABS_ALT(thisx->world.rot.y);
 
-        DebugDisplay_AddObject(thisx->world.pos.x, thisx->world.pos.y, thisx->world.pos.z, 0, thisx->shape.rot.y, 0,
+        MM_DebugDisplay_AddObject(thisx->world.pos.x, thisx->world.pos.y, thisx->world.pos.z, 0, thisx->shape.rot.y, 0,
                                0.1f, 0.1f, scale, 160, 160, 160, 255, 6, play->state.gfxCtx);
 
         scale = absRot * 0.2f;
-        DebugDisplay_AddObject(thisx->world.pos.x, thisx->world.pos.y, thisx->world.pos.z, 0, 0, 0, 0.1f, scale, 0.1f,
+        MM_DebugDisplay_AddObject(thisx->world.pos.x, thisx->world.pos.y, thisx->world.pos.z, 0, 0, 0, 0.1f, scale, 0.1f,
                                160, 160, 160, 255, 6, play->state.gfxCtx);
         thisx->shape.rot.y += 0x1000;
     }

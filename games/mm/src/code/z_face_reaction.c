@@ -23,7 +23,7 @@
  * - index 0x12: PLAYER_MASK_SCENTS
  */
 // clang-format off
-static u16 sReactionTextIds[][PLAYER_MASK_GIANT - 1] = {
+static u16 MM_sReactionTextIds[][PLAYER_MASK_GIANT - 1] = {
     /* 0x00 */ { 0 },
     /* 0x01 */ { 0 },
     /* 0x02 */ { 0 },
@@ -178,9 +178,9 @@ static u16 sReactionTextIds[][PLAYER_MASK_GIANT - 1] = {
 };
 // clang-format on
 
-u16 Text_GetFaceReaction(PlayState* play, FaceReactionSet reactionSet) {
-    if ((Player_GetMask(play) > PLAYER_MASK_NONE) && (Player_GetMask(play) < PLAYER_MASK_GIANT)) {
-        return sReactionTextIds[reactionSet][Player_GetMask(play) - 1];
+u16 MM_Text_GetFaceReaction(PlayState* play, FaceReactionSet reactionSet) {
+    if ((MM_Player_GetMask(play) > PLAYER_MASK_NONE) && (MM_Player_GetMask(play) < PLAYER_MASK_GIANT)) {
+        return MM_sReactionTextIds[reactionSet][MM_Player_GetMask(play) - 1];
     }
     return 0;
 }

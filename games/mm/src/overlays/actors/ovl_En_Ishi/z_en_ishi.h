@@ -33,7 +33,7 @@ typedef enum IshiSize {
   /* 1 */ ISHI_SIZE_SILVER_BOULDER
 } IshiSize;
 
-// if yRot is zero, y rotation gets randomized
+// if yRot is MM_zero, y rotation gets randomized
 #define ISHI_RANDOM_ROTATION_FLAG 0
 
 typedef struct EnIshi {

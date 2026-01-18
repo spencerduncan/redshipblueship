@@ -10,10 +10,10 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void ObjIcePoly_Init(Actor* thisx, PlayState* play);
-void ObjIcePoly_Destroy(Actor* thisx, PlayState* play);
-void ObjIcePoly_Update(Actor* thisx, PlayState* play);
-void ObjIcePoly_Draw(Actor* thisx, PlayState* play);
+void MM_ObjIcePoly_Init(Actor* thisx, PlayState* play);
+void MM_ObjIcePoly_Destroy(Actor* thisx, PlayState* play);
+void MM_ObjIcePoly_Update(Actor* thisx, PlayState* play);
+void MM_ObjIcePoly_Draw(Actor* thisx, PlayState* play);
 
 void func_80931828(ObjIcePoly* this, PlayState* play);
 void func_80931A38(ObjIcePoly* this, PlayState* play);
@@ -26,13 +26,13 @@ ActorProfile Obj_Ice_Poly_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(ObjIcePoly),
-    /**/ ObjIcePoly_Init,
-    /**/ ObjIcePoly_Destroy,
-    /**/ ObjIcePoly_Update,
-    /**/ ObjIcePoly_Draw,
+    /**/ MM_ObjIcePoly_Init,
+    /**/ MM_ObjIcePoly_Destroy,
+    /**/ MM_ObjIcePoly_Update,
+    /**/ MM_ObjIcePoly_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit1 = {
+static ColliderCylinderInit MM_sCylinderInit1 = {
     {
         COL_MATERIAL_HARD,
         AT_ON | AT_TYPE_ENEMY,
@@ -52,7 +52,7 @@ static ColliderCylinderInit sCylinderInit1 = {
     { 50, 105, 0, { 0, 0, 0 } },
 };
 
-static ColliderCylinderInit sCylinderInit2 = {
+static ColliderCylinderInit MM_sCylinderInit2 = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -75,7 +75,7 @@ static ColliderCylinderInit sCylinderInit2 = {
 static Color_RGBA8 D_80932378 = { 250, 250, 250, 255 };
 static Color_RGBA8 D_8093237C = { 180, 180, 180, 255 };
 
-void ObjIcePoly_Init(Actor* thisx, PlayState* play) {
+void MM_ObjIcePoly_Init(Actor* thisx, PlayState* play) {
     ObjIcePoly* this = (ObjIcePoly*)thisx;
     s32 i;
 
@@ -83,13 +83,13 @@ void ObjIcePoly_Init(Actor* thisx, PlayState* play) {
     thisx->params = OBJICEPOLY_GET_SCALE(thisx);
     thisx->cullingVolumeDistance = 5600.0f;
 
-    Actor_SetScale(thisx, thisx->params * 0.01f);
+    MM_Actor_SetScale(thisx, thisx->params * 0.01f);
 
     for (i = 0; i < ARRAY_COUNT(this->colliders1); i++) {
-        Collider_InitAndSetCylinder(play, &this->colliders1[i], thisx, &sCylinderInit1);
-        Collider_InitAndSetCylinder(play, &this->colliders2[i], thisx, &sCylinderInit2);
-        Collider_UpdateCylinder(thisx, &this->colliders1[i]);
-        Collider_UpdateCylinder(thisx, &this->colliders2[i]);
+        Collider_InitAndSetCylinder(play, &this->colliders1[i], thisx, &MM_sCylinderInit1);
+        Collider_InitAndSetCylinder(play, &this->colliders2[i], thisx, &MM_sCylinderInit2);
+        MM_Collider_UpdateCylinder(thisx, &this->colliders1[i]);
+        MM_Collider_UpdateCylinder(thisx, &this->colliders2[i]);
     }
 
     this->colliders1[0].dim.radius = thisx->scale.x * 48.0f;
@@ -108,27 +108,27 @@ void ObjIcePoly_Init(Actor* thisx, PlayState* play) {
     thisx->colChkInfo.mass = MASS_IMMOVABLE;
     this->unk_148 = 255;
 
-    Actor_SetFocus(thisx, thisx->scale.y * 30.0f);
+    MM_Actor_SetFocus(thisx, thisx->scale.y * 30.0f);
 
     thisx->shape.rot.x = 0x500;
     thisx->shape.rot.z = -0x500;
 
-    if (((this->switchFlag != OBJICEPOLY_SWITCH_FLAG_NONE) && Flags_GetSwitch(play, this->switchFlag)) ||
+    if (((this->switchFlag != OBJICEPOLY_SWITCH_FLAG_NONE) && MM_Flags_GetSwitch(play, this->switchFlag)) ||
         ((play->sceneId == SCENE_KAJIYA) && CHECK_WEEKEVENTREG(WEEKEVENTREG_CLEARED_SNOWHEAD_TEMPLE))) {
-        Actor_Kill(thisx);
+        MM_Actor_Kill(thisx);
         return;
     }
 
     this->actionFunc = func_80931A38;
 }
 
-void ObjIcePoly_Destroy(Actor* thisx, PlayState* play) {
+void MM_ObjIcePoly_Destroy(Actor* thisx, PlayState* play) {
     ObjIcePoly* this = (ObjIcePoly*)thisx;
     s32 i;
 
     for (i = 0; i < ARRAY_COUNT(this->colliders1); i++) {
-        Collider_DestroyCylinder(play, &this->colliders1[i]);
-        Collider_DestroyCylinder(play, &this->colliders2[i]);
+        MM_Collider_DestroyCylinder(play, &this->colliders1[i]);
+        MM_Collider_DestroyCylinder(play, &this->colliders2[i]);
     }
 }
 
@@ -147,21 +147,21 @@ void func_80931828(ObjIcePoly* this, PlayState* play) {
     spA0.y = (this->colliders1[0].dim.height * 2) + this->actor.world.pos.y;
     spA0.z = this->actor.world.pos.z;
 
-    sp90 = BgCheck_EntityRaycastFloor1(&play->colCtx, &sp88, &spA0);
+    sp90 = MM_BgCheck_EntityRaycastFloor1(&play->colCtx, &sp88, &spA0);
     if (sp90 < this->actor.world.pos.y) {
         sp90 = this->actor.world.pos.y;
     }
     temp = spA0.y - sp90;
 
     for (i = 0; i < 30; i++) {
-        sp94.x = Rand_CenteredFloat(12.0f);
-        sp94.y = Rand_ZeroFloat(15.0f);
-        sp94.z = Rand_CenteredFloat(12.0f);
+        sp94.x = MM_Rand_CenteredFloat(12.0f);
+        sp94.y = MM_Rand_ZeroFloat(15.0f);
+        sp94.z = MM_Rand_CenteredFloat(12.0f);
 
         spA0.x = (this->colliders1[0].dim.radius * (sp94.x * (1.0f / 12))) + this->actor.world.pos.x;
         spA0.z = (this->colliders1[0].dim.radius * (sp94.z * (1.0f / 12))) + this->actor.world.pos.z;
-        spA0.y = Rand_ZeroFloat(temp) + sp90;
-        EffectSsEnIce_Spawn(play, &spA0, (Rand_ZeroFloat(0.4f) + 0.3f) * this->actor.scale.x, &sp94, &D_80932388,
+        spA0.y = MM_Rand_ZeroFloat(temp) + sp90;
+        MM_EffectSsEnIce_Spawn(play, &spA0, (MM_Rand_ZeroFloat(0.4f) + 0.3f) * this->actor.scale.x, &sp94, &D_80932388,
                             &D_80932380, &D_80932384, 40);
     }
 }
@@ -217,7 +217,7 @@ void func_80931A38(ObjIcePoly* this, PlayState* play) {
                 }
             } while (actor != NULL);
         }
-    } else if ((this->switchFlag != OBJICEPOLY_SWITCH_FLAG_NONE) && Flags_GetSwitch(play, this->switchFlag)) {
+    } else if ((this->switchFlag != OBJICEPOLY_SWITCH_FLAG_NONE) && MM_Flags_GetSwitch(play, this->switchFlag)) {
         CutsceneManager_Queue(this->actor.csId);
         this->unk_14A = 1;
         this->actionFunc = func_80931E58;
@@ -229,29 +229,29 @@ void func_80931A38(ObjIcePoly* this, PlayState* play) {
         }
 
         if (this->unk_14A == 0) {
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliders1[0].base);
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliders1[1].base);
+            MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliders1[0].base);
+            MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliders1[1].base);
         }
 
         for (i = 0; i < ARRAY_COUNT(this->colliders1); i++) {
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliders1[i].base);
-            CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliders1[i].base);
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliders2[i].base);
+            MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliders1[i].base);
+            MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliders1[i].base);
+            MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliders2[i].base);
         }
     }
 
-    if (Rand_ZeroOne() < 0.05f) {
-        sp58 = Rand_ZeroOne();
-        if (Rand_ZeroOne() < 0.5f) {
+    if (MM_Rand_ZeroOne() < 0.05f) {
+        sp58 = MM_Rand_ZeroOne();
+        if (MM_Rand_ZeroOne() < 0.5f) {
             phi_v0 = -1;
         } else {
             phi_v0 = 1;
         }
         sp6C.x = (phi_v0 * (15.0f + (sp58 * 15.0f)) * this->actor.scale.x) + this->actor.world.pos.x;
-        sp6C.y = (((Rand_ZeroOne() * 90.0f) + 10.0f) * this->actor.scale.y) + this->actor.world.pos.y;
+        sp6C.y = (((MM_Rand_ZeroOne() * 90.0f) + 10.0f) * this->actor.scale.y) + this->actor.world.pos.y;
 
-        sp58 = Rand_ZeroOne();
-        if (Rand_ZeroOne() < 0.5f) {
+        sp58 = MM_Rand_ZeroOne();
+        if (MM_Rand_ZeroOne() < 0.5f) {
             phi_v0 = -1;
         } else {
             phi_v0 = 1;
@@ -267,7 +267,7 @@ void func_80931E58(ObjIcePoly* this, PlayState* play) {
         CutsceneManager_StartWithPlayerCs(this->actor.csId, &this->actor);
         if (this->unk_14A == 1) {
             func_80931828(this, play);
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
             return;
         }
 
@@ -296,17 +296,17 @@ void func_80931EEC(ObjIcePoly* this, PlayState* play) {
     spA0.z = 0.0f;
 
     for (i = 0; i < 2; i++) {
-        temp_f20 = Rand_ZeroOne();
-        if (Rand_ZeroOne() < 0.5f) {
+        temp_f20 = MM_Rand_ZeroOne();
+        if (MM_Rand_ZeroOne() < 0.5f) {
             phi_v0 = -1;
         } else {
             phi_v0 = 1;
         }
         sp94.x = (phi_v0 * (20.0f + (20.0f * temp_f20)) * this->actor.scale.x) + this->actor.world.pos.x;
-        sp94.y = (Rand_ZeroOne() * this->actor.scale.y * 50.0f) + this->actor.world.pos.y;
+        sp94.y = (MM_Rand_ZeroOne() * this->actor.scale.y * 50.0f) + this->actor.world.pos.y;
 
-        temp_f20 = Rand_ZeroOne();
-        if (Rand_ZeroOne() < 0.5f) {
+        temp_f20 = MM_Rand_ZeroOne();
+        if (MM_Rand_ZeroOne() < 0.5f) {
             phi_v0 = -1;
         } else {
             phi_v0 = 1;
@@ -314,7 +314,7 @@ void func_80931EEC(ObjIcePoly* this, PlayState* play) {
         sp94.z = (phi_v0 * (20.0f + (20.0f * temp_f20)) * this->actor.scale.x) + this->actor.world.pos.z;
 
         func_800B0DE0(play, &sp94, &spA0, &spAC, &D_80932378, &D_8093237C,
-                      ((Rand_ZeroOne() * 100.0f) + 350.0f) * this->actor.scale.x, this->actor.scale.x * 20.0f);
+                      ((MM_Rand_ZeroOne() * 100.0f) + 350.0f) * this->actor.scale.x, this->actor.scale.x * 20.0f);
     }
 
     if (this->unk_14A != 0) {
@@ -327,19 +327,19 @@ void func_80931EEC(ObjIcePoly* this, PlayState* play) {
     if (this->unk_14A == 0) {
         CutsceneManager_Stop(this->actor.csId);
         if (this->switchFlag != OBJICEPOLY_SWITCH_FLAG_NONE) {
-            Flags_SetSwitch(play, this->switchFlag);
+            MM_Flags_SetSwitch(play, this->switchFlag);
         }
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
-void ObjIcePoly_Update(Actor* thisx, PlayState* play) {
+void MM_ObjIcePoly_Update(Actor* thisx, PlayState* play) {
     ObjIcePoly* this = (ObjIcePoly*)thisx;
 
     this->actionFunc(this, play);
 }
 
-void ObjIcePoly_Draw(Actor* thisx, PlayState* play) {
+void MM_ObjIcePoly_Draw(Actor* thisx, PlayState* play) {
     s32 pad;
     ObjIcePoly* this = (ObjIcePoly*)thisx;
 
@@ -350,7 +350,7 @@ void ObjIcePoly_Draw(Actor* thisx, PlayState* play) {
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, play->gameplayFrames % 256, 0x20, 0x10, 1, 0,
+               MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, play->gameplayFrames % 256, 0x20, 0x10, 1, 0,
                                 (play->gameplayFrames * 2) % 256, 0x40, 0x20));
     gDPSetEnvColor(POLY_XLU_DISP++, 0, 50, 100, this->unk_148);
     gSPDisplayList(POLY_XLU_DISP++, gEffIceFragment3DL);

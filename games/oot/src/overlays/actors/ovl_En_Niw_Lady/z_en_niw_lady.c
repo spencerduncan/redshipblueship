@@ -49,7 +49,7 @@ static s16 D_80ABB3B4[] = {
     0x0200, 0x0400, 0x0800, 0x1000, 0x2000, 0x4000, 0x8000,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -76,7 +76,7 @@ void EnNiwLady_Init(Actor* thisx, PlayState* play) {
     this->objectAneIndex = Object_GetIndex(&play->objectCtx, OBJECT_ANE);
     this->objectOsAnimeIndex = Object_GetIndex(&play->objectCtx, OBJECT_OS_ANIME);
     if ((this->objectOsAnimeIndex < 0) || (this->objectAneIndex < 0)) {
-        Actor_Kill(thisx);
+        OoT_Actor_Kill(thisx);
         return;
     }
     this->unk_278 = 0;
@@ -84,7 +84,7 @@ void EnNiwLady_Init(Actor* thisx, PlayState* play) {
         this->unk_278 = 1;
     }
     if ((this->unk_278 != 0) && IS_DAY) {
-        Actor_Kill(thisx);
+        OoT_Actor_Kill(thisx);
         return;
     }
     osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ ねぇちゃんうっふん ☆☆☆☆☆ %d\n" VT_RST, this->unk_278);
@@ -97,7 +97,7 @@ void EnNiwLady_Init(Actor* thisx, PlayState* play) {
 void EnNiwLady_Destroy(Actor* thisx, PlayState* play) {
     EnNiwLady* this = (EnNiwLady*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
@@ -105,7 +105,7 @@ void EnNiwLady_Destroy(Actor* thisx, PlayState* play) {
 void EnNiwLady_ChoseAnimation(EnNiwLady* this, PlayState* play, s32 arg2) {
     f32 frames;
 
-    if (Text_GetFaceReaction(play, 8) != 0) {
+    if (OoT_Text_GetFaceReaction(play, 8) != 0) {
         arg2 = 8;
     }
     if (arg2 != this->unk_270) {
@@ -116,8 +116,8 @@ void EnNiwLady_ChoseAnimation(EnNiwLady* this, PlayState* play, s32 arg2) {
             case 10:
                 this->unk_275 = 1;
             case 9:
-                frames = Animation_GetLastFrame(&gObjOsAnim_07D0);
-                Animation_Change(&this->skelAnime, &gObjOsAnim_07D0, 1.0f, 0.0f, frames, ANIMMODE_LOOP, -10.0f);
+                frames = OoT_Animation_GetLastFrame(&gObjOsAnim_07D0);
+                OoT_Animation_Change(&this->skelAnime, &gObjOsAnim_07D0, 1.0f, 0.0f, frames, ANIMMODE_LOOP, -10.0f);
                 break;
             case 0:
             case 1:
@@ -131,8 +131,8 @@ void EnNiwLady_ChoseAnimation(EnNiwLady* this, PlayState* play, s32 arg2) {
             case 22:
             case 24:
             case 29:
-                frames = Animation_GetLastFrame(&gObjOsAnim_9F94);
-                Animation_Change(&this->skelAnime, &gObjOsAnim_9F94, 1.0f, 0.0f, frames, ANIMMODE_LOOP, -10.0f);
+                frames = OoT_Animation_GetLastFrame(&gObjOsAnim_9F94);
+                OoT_Animation_Change(&this->skelAnime, &gObjOsAnim_9F94, 1.0f, 0.0f, frames, ANIMMODE_LOOP, -10.0f);
                 break;
             case 7:
             case 20:
@@ -141,12 +141,12 @@ void EnNiwLady_ChoseAnimation(EnNiwLady* this, PlayState* play, s32 arg2) {
             case 26:
             case 27:
             case 28:
-                frames = Animation_GetLastFrame(&gObjOsAnim_0718);
-                Animation_Change(&this->skelAnime, &gObjOsAnim_0718, 1.0f, 0.0f, frames, ANIMMODE_LOOP, -10.0f);
+                frames = OoT_Animation_GetLastFrame(&gObjOsAnim_0718);
+                OoT_Animation_Change(&this->skelAnime, &gObjOsAnim_0718, 1.0f, 0.0f, frames, ANIMMODE_LOOP, -10.0f);
                 break;
             case 100:
-                frames = Animation_GetLastFrame(&gObjOsAnim_A630);
-                Animation_Change(&this->skelAnime, &gObjOsAnim_A630, 1.0f, 0.0f, frames, ANIMMODE_LOOP, -10.0f);
+                frames = OoT_Animation_GetLastFrame(&gObjOsAnim_A630);
+                OoT_Animation_Change(&this->skelAnime, &gObjOsAnim_A630, 1.0f, 0.0f, frames, ANIMMODE_LOOP, -10.0f);
                 this->unk_276 = 0;
                 break;
         }
@@ -158,28 +158,28 @@ void func_80AB9F24(EnNiwLady* this, PlayState* play) {
     f32 frames;
     s32 pad;
 
-    if (Object_IsLoaded(&play->objectCtx, this->objectAneIndex) &&
-        Object_IsLoaded(&play->objectCtx, this->objectOsAnimeIndex)) {
-        gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->objectAneIndex].segment);
-        SkelAnime_InitFlex(play, &this->skelAnime, &gCuccoLadySkel, NULL, this->jointTable, this->morphTable, 16);
-        gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->objectOsAnimeIndex].segment);
+    if (OoT_Object_IsLoaded(&play->objectCtx, this->objectAneIndex) &&
+        OoT_Object_IsLoaded(&play->objectCtx, this->objectOsAnimeIndex)) {
+        OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->objectAneIndex].segment);
+        OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gCuccoLadySkel, NULL, this->jointTable, this->morphTable, 16);
+        OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->objectOsAnimeIndex].segment);
         this->unk_27E = 1;
         this->actor.gravity = -3.0f;
-        Actor_SetScale(&this->actor, 0.01f);
-        ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 20.0f);
-        Collider_InitCylinder(play, &this->collider);
-        Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+        OoT_Actor_SetScale(&this->actor, 0.01f);
+        OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 20.0f);
+        OoT_Collider_InitCylinder(play, &this->collider);
+        OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
         this->unk_272 = 0;
         this->actor.targetMode = 6;
         this->actor.draw = EnNiwLady_Draw;
         switch (this->unk_278) {
             case 0:
                 if (!Flags_GetItemGetInf(ITEMGETINF_0C) && !LINK_IS_ADULT) {
-                    frames = Animation_GetLastFrame(&gObjOsAnim_A630);
-                    Animation_Change(&this->skelAnime, &gObjOsAnim_A630, 1.0f, 0.0f, (s16)frames, ANIMMODE_LOOP, 0.0f);
+                    frames = OoT_Animation_GetLastFrame(&gObjOsAnim_A630);
+                    OoT_Animation_Change(&this->skelAnime, &gObjOsAnim_A630, 1.0f, 0.0f, (s16)frames, ANIMMODE_LOOP, 0.0f);
                 } else {
-                    frames = Animation_GetLastFrame(&gObjOsAnim_07D0);
-                    Animation_Change(&this->skelAnime, &gObjOsAnim_07D0, 1.0f, 0.0f, (s16)frames, ANIMMODE_LOOP, 0.0f);
+                    frames = OoT_Animation_GetLastFrame(&gObjOsAnim_07D0);
+                    OoT_Animation_Change(&this->skelAnime, &gObjOsAnim_07D0, 1.0f, 0.0f, (s16)frames, ANIMMODE_LOOP, 0.0f);
                 }
                 if (LINK_IS_ADULT) {
                     this->actionFunc = func_80ABA778;
@@ -188,8 +188,8 @@ void func_80AB9F24(EnNiwLady* this, PlayState* play) {
                 }
                 return;
             case 1:
-                frames = Animation_GetLastFrame(&gObjOsAnim_07D0);
-                Animation_Change(&this->skelAnime, &gObjOsAnim_07D0, 1.0f, 0.0f, (s16)frames, ANIMMODE_LOOP, 0.0f);
+                frames = OoT_Animation_GetLastFrame(&gObjOsAnim_07D0);
+                OoT_Animation_Change(&this->skelAnime, &gObjOsAnim_07D0, 1.0f, 0.0f, (s16)frames, ANIMMODE_LOOP, 0.0f);
                 this->actionFunc = func_80ABAD38;
                 return;
         }
@@ -233,7 +233,7 @@ void func_80ABA244(EnNiwLady* this, PlayState* play) {
         this->cuccosInPen = BREG(7) - 1;
     }
     phi_s1 = this->cuccosInPen;
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_NONE) || (Message_GetState(&play->msgCtx) == TEXT_STATE_DONE)) {
+    if ((OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_NONE) || (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_DONE)) {
         this->unk_26E = 101;
     }
     if (this->cuccosInPen >= 7) {
@@ -248,8 +248,8 @@ void func_80ABA244(EnNiwLady* this, PlayState* play) {
     }
 
     this->actor.textId = sMissingCuccoTextIds[phi_s1];
-    if (Text_GetFaceReaction(play, 8) != 0) {
-        this->actor.textId = Text_GetFaceReaction(play, 8);
+    if (OoT_Text_GetFaceReaction(play, 8) != 0) {
+        this->actor.textId = OoT_Text_GetFaceReaction(play, 8);
         this->unk_262 = TEXT_STATE_DONE;
     }
     if ((this->unk_26C != 0) && (phi_s1 != 9)) {
@@ -265,7 +265,7 @@ void func_80ABA244(EnNiwLady* this, PlayState* play) {
         osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ this->actor.talk_message ☆☆ %x\n" VT_RST, this->actor.textId);
         osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ this->message_end_code   ☆☆ %d\n" VT_RST, this->unk_262);
         osSyncPrintf("\n\n");
-        if (Text_GetFaceReaction(play, 8) == 0) {
+        if (OoT_Text_GetFaceReaction(play, 8) == 0) {
             if (this->actor.textId == 0x503C) {
                 Sfx_PlaySfxCentered(NA_SE_SY_ERROR);
                 this->unk_26C = 2;
@@ -304,8 +304,8 @@ void func_80ABA244(EnNiwLady* this, PlayState* play) {
 }
 
 void func_80ABA654(EnNiwLady* this, PlayState* play) {
-    if (this->unk_262 == Message_GetState(&play->msgCtx) && Message_ShouldAdvance(play)) {
-        Message_CloseTextbox(play);
+    if (this->unk_262 == OoT_Message_GetState(&play->msgCtx) && OoT_Message_ShouldAdvance(play)) {
+        OoT_Message_CloseTextbox(play);
         osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ ハート ☆☆☆☆☆ %d\n" VT_RST, this->unk_26C);
         osSyncPrintf(VT_FGCOL(YELLOW) "☆☆☆☆☆ 爆弾   ☆☆☆☆☆ %d\n" VT_RST, this->unk_272);
         osSyncPrintf("\n\n");
@@ -315,7 +315,7 @@ void func_80ABA654(EnNiwLady* this, PlayState* play) {
 
             if (GameInteractor_Should(VB_GIVE_ITEM_FROM_ANJU_AS_CHILD, true, this)) {
                 this->getItemId = GI_BOTTLE;
-                Actor_OfferGetItem(&this->actor, play, GI_BOTTLE, 100.0f, 50.0f);
+                OoT_Actor_OfferGetItem(&this->actor, play, GI_BOTTLE, 100.0f, 50.0f);
             } else {
                 // Circumvent the item offer action
                 this->actionFunc = func_80ABAC84;
@@ -327,7 +327,7 @@ void func_80ABA654(EnNiwLady* this, PlayState* play) {
         }
         if (this->unk_26C == 1) {
             this->getItemId = GI_RUPEE_PURPLE;
-            Actor_OfferGetItem(&this->actor, play, GI_RUPEE_PURPLE, 100.0f, 50.0f);
+            OoT_Actor_OfferGetItem(&this->actor, play, GI_RUPEE_PURPLE, 100.0f, 50.0f);
             this->actionFunc = func_80ABAC00;
         }
         this->actionFunc = func_80ABA244;
@@ -354,7 +354,7 @@ void func_80ABA778(EnNiwLady* this, PlayState* play) {
         this->unk_27A = 2;
         if (!Flags_GetItemGetInf(ITEMGETINF_2E)) {
             this->unk_27A = 3;
-            if (Flags_GetEventChkInf(EVENTCHKINF_TALON_WOKEN_IN_KAKARIKO)) {
+            if (OoT_Flags_GetEventChkInf(EVENTCHKINF_TALON_WOKEN_IN_KAKARIKO)) {
                 this->unk_27A = 9;
                 if (this->unk_277 != 0) {
                     this->unk_27A = 10;
@@ -372,12 +372,12 @@ void func_80ABA878(EnNiwLady* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
     s8 playerExchangeItemId;
 
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_NONE) || (Message_GetState(&play->msgCtx) == TEXT_STATE_DONE)) {
+    if ((OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_NONE) || (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_DONE)) {
         this->unk_26E = 11;
     }
     if (Actor_ProcessTalkRequest(&this->actor, play)) {
         playerExchangeItemId = func_8002F368(play);
-        if ((playerExchangeItemId == 6) && (Flags_GetEventChkInf(EVENTCHKINF_TALON_WOKEN_IN_KAKARIKO))) {
+        if ((playerExchangeItemId == 6) && (OoT_Flags_GetEventChkInf(EVENTCHKINF_TALON_WOKEN_IN_KAKARIKO))) {
             Sfx_PlaySfxCentered(NA_SE_SY_TRE_BOX_APPEAR);
             player->actor.textId = sTradeItemTextIds[5];
             this->unk_26E = this->unk_27A + 21;
@@ -397,14 +397,14 @@ void func_80ABA878(EnNiwLady* this, PlayState* play) {
 }
 
 void func_80ABA9B8(EnNiwLady* this, PlayState* play) {
-    if ((this->unk_262 == Message_GetState(&play->msgCtx)) && Message_ShouldAdvance(play)) {
+    if ((this->unk_262 == OoT_Message_GetState(&play->msgCtx)) && OoT_Message_ShouldAdvance(play)) {
         switch (play->msgCtx.choiceIndex) {
             case 0:
-                Message_CloseTextbox(play);
+                OoT_Message_CloseTextbox(play);
                 this->actor.parent = NULL;
 
                 if (GameInteractor_Should(VB_GIVE_ITEM_FROM_ANJU_AS_ADULT, true, this)) {
-                    Actor_OfferGetItem(&this->actor, play, GI_POCKET_EGG, 200.0f, 100.0f);
+                    OoT_Actor_OfferGetItem(&this->actor, play, GI_POCKET_EGG, 200.0f, 100.0f);
                     this->actionFunc = func_80ABAC00;
                 }
 
@@ -412,7 +412,7 @@ void func_80ABA9B8(EnNiwLady* this, PlayState* play) {
             case 1:
                 this->actor.textId = sTradeItemTextIds[3];
                 this->unk_26E = this->unk_27A + 21;
-                Message_ContinueTextbox(play, this->actor.textId);
+                OoT_Message_ContinueTextbox(play, this->actor.textId);
                 this->unk_262 = TEXT_STATE_EVENT;
                 this->actionFunc = func_80ABAA9C;
                 break;
@@ -422,29 +422,29 @@ void func_80ABA9B8(EnNiwLady* this, PlayState* play) {
 
 void func_80ABAA9C(EnNiwLady* this, PlayState* play) {
     this->unk_26E = 11;
-    if ((this->unk_262 == Message_GetState(&play->msgCtx)) && Message_ShouldAdvance(play)) {
-        Message_CloseTextbox(play);
+    if ((this->unk_262 == OoT_Message_GetState(&play->msgCtx)) && OoT_Message_ShouldAdvance(play)) {
+        OoT_Message_CloseTextbox(play);
         this->actionFunc = func_80ABA778;
     }
 }
 
 void func_80ABAB08(EnNiwLady* this, PlayState* play) {
-    if ((this->unk_262 == Message_GetState(&play->msgCtx)) && Message_ShouldAdvance(play)) {
+    if ((this->unk_262 == OoT_Message_GetState(&play->msgCtx)) && OoT_Message_ShouldAdvance(play)) {
         switch (play->msgCtx.choiceIndex) {
             case 0:
-                Message_CloseTextbox(play);
+                OoT_Message_CloseTextbox(play);
                 this->actor.parent = NULL;
                 if (GameInteractor_Should(VB_TRADE_POCKET_CUCCO, true, this)) {
-                    Actor_OfferGetItem(&this->actor, play, GI_COJIRO, 200.0f, 100.0f);
+                    OoT_Actor_OfferGetItem(&this->actor, play, GI_COJIRO, 200.0f, 100.0f);
                     this->actionFunc = func_80ABAC00;
                 }
                 break;
             case 1:
-                Message_CloseTextbox(play);
+                OoT_Message_CloseTextbox(play);
                 this->unk_277 = 1;
                 this->actor.textId = sTradeItemTextIds[8];
                 this->unk_26E = this->unk_27A + 21;
-                Message_ContinueTextbox(play, this->actor.textId);
+                OoT_Message_ContinueTextbox(play, this->actor.textId);
                 this->unk_262 = TEXT_STATE_EVENT;
                 this->actionFunc = func_80ABAA9C;
                 break;
@@ -455,19 +455,19 @@ void func_80ABAB08(EnNiwLady* this, PlayState* play) {
 void func_80ABAC00(EnNiwLady* this, PlayState* play) {
     s32 getItemId;
 
-    if (Actor_HasParent(&this->actor, play)) {
+    if (OoT_Actor_HasParent(&this->actor, play)) {
         this->actionFunc = func_80ABAC84;
     } else {
         getItemId = this->getItemId;
         if (LINK_IS_ADULT) {
             getItemId = !Flags_GetItemGetInf(ITEMGETINF_2C) ? GI_POCKET_EGG : GI_COJIRO;
         }
-        Actor_OfferGetItem(&this->actor, play, getItemId, 200.0f, 100.0f);
+        OoT_Actor_OfferGetItem(&this->actor, play, getItemId, 200.0f, 100.0f);
     }
 }
 
 void func_80ABAC84(EnNiwLady* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) != TEXT_STATE_DONE) || !Message_ShouldAdvance(play)) {
+    if ((OoT_Message_GetState(&play->msgCtx) != TEXT_STATE_DONE) || !OoT_Message_ShouldAdvance(play)) {
         return;
     }
     osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ 正常終了 ☆☆☆☆☆ \n" VT_RST);
@@ -493,10 +493,10 @@ void func_80ABAD38(EnNiwLady* this, PlayState* play) {
 
 void func_80ABAD7C(EnNiwLady* this, PlayState* play) {
     this->actor.textId = 0x503D;
-    if (Text_GetFaceReaction(play, 8) != 0) {
-        this->actor.textId = Text_GetFaceReaction(play, 8);
+    if (OoT_Text_GetFaceReaction(play, 8) != 0) {
+        this->actor.textId = OoT_Text_GetFaceReaction(play, 8);
     }
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_NONE) || (Message_GetState(&play->msgCtx) == TEXT_STATE_DONE)) {
+    if ((OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_NONE) || (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_DONE)) {
         this->unk_26E = 8;
     }
     if (Actor_ProcessTalkRequest(&this->actor, play)) {
@@ -513,18 +513,18 @@ void EnNiwLady_Update(Actor* thisx, PlayState* play) {
     EnNiwLady* this = (EnNiwLady*)thisx;
     Player* player = GET_PLAYER(play);
 
-    Actor_SetFocus(thisx, 60.0f);
+    OoT_Actor_SetFocus(thisx, 60.0f);
     this->interactInfo.trackPos = player->actor.world.pos;
     if (!LINK_IS_ADULT) {
         this->interactInfo.trackPos.y = player->actor.world.pos.y - 10.0f;
     }
-    Npc_TrackPoint(thisx, &this->interactInfo, 2, NPC_TRACKING_FULL_BODY);
+    OoT_Npc_TrackPoint(thisx, &this->interactInfo, 2, NPC_TRACKING_FULL_BODY);
     this->unk_254 = this->interactInfo.headRot;
     this->unk_25A = this->interactInfo.torsoRot;
     if (this->unk_276 == 0) {
-        Math_SmoothStepToS(&this->unk_254.y, 0, 5, 3000, 0);
+        OoT_Math_SmoothStepToS(&this->unk_254.y, 0, 5, 3000, 0);
     }
-    gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->objectOsAnimeIndex].segment);
+    OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->objectOsAnimeIndex].segment);
     if (this->objectOsAnimeIndex >= 0) {
         if (this->unk_27E != 0) {
             if (this->unk_26E != 0) {
@@ -532,7 +532,7 @@ void EnNiwLady_Update(Actor* thisx, PlayState* play) {
                 EnNiwLady_ChoseAnimation(this, play, this->unk_26E);
                 this->unk_26E = 0;
             }
-            SkelAnime_Update(&this->skelAnime);
+            OoT_SkelAnime_Update(&this->skelAnime);
         }
         this->objectAneIndex = Object_GetIndex(&play->objectCtx, OBJECT_ANE);
         if (this->objectAneIndex >= 0) {
@@ -548,12 +548,12 @@ void EnNiwLady_Update(Actor* thisx, PlayState* play) {
                 this->faceState++;
                 if (this->faceState >= 3) {
                     this->faceState = 0;
-                    this->unusedRandomTimer = ((s16)Rand_ZeroFloat(60.0f) + 0x14);
+                    this->unusedRandomTimer = ((s16)OoT_Rand_ZeroFloat(60.0f) + 0x14);
                 }
             }
-            Actor_UpdateBgCheckInfo(play, thisx, 20.0f, 20.0f, 60.0f, 0x1D);
-            Collider_UpdateCylinder(thisx, &this->collider);
-            CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+            OoT_Actor_UpdateBgCheckInfo(play, thisx, 20.0f, 20.0f, 60.0f, 0x1D);
+            OoT_Collider_UpdateCylinder(thisx, &this->collider);
+            OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
         }
     }
 }
@@ -579,15 +579,15 @@ s32 EnNiwLady_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3
     }
     if (this->unk_275 != 0) {
         if ((limbIndex == 8) || (limbIndex == 10) || (limbIndex == 13)) {
-            rot->y += (Math_SinS((play->state.frames * ((limbIndex * 0x32) + 0x814))) * 200.0f);
-            rot->z += (Math_CosS((play->state.frames * ((limbIndex * 0x32) + 0x940))) * 200.0f);
+            rot->y += (OoT_Math_SinS((play->state.frames * ((limbIndex * 0x32) + 0x814))) * 200.0f);
+            rot->z += (OoT_Math_CosS((play->state.frames * ((limbIndex * 0x32) + 0x940))) * 200.0f);
         }
     }
     return false;
 }
 
 void EnNiwLady_Draw(Actor* thisx, PlayState* play) {
-    static void* sEyeTextures[] = { gCuccoLadyEyeOpenTex, gCuccoLadyEyeHalfTex, gCuccoLadyEyeClosedTex };
+    static void* OoT_sEyeTextures[] = { gCuccoLadyEyeOpenTex, gCuccoLadyEyeHalfTex, gCuccoLadyEyeClosedTex };
     EnNiwLady* this = (EnNiwLady*)thisx;
     s32 pad;
 
@@ -595,7 +595,7 @@ void EnNiwLady_Draw(Actor* thisx, PlayState* play) {
     if (this->unk_27E != 0) {
         Gfx_SetupDL_25Opa(play->state.gfxCtx);
         gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 255);
-        gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(sEyeTextures[this->faceState]));
+        gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(OoT_sEyeTextures[this->faceState]));
         gSPSegment(POLY_OPA_DISP++, 0x0C, func_80ABB0A0(play->state.gfxCtx));
         SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, EnNiwLady_OverrideLimbDraw, NULL, this);
     }

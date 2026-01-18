@@ -26,7 +26,7 @@ void func_80AFE4AC(Actor* thisx, PlayState* play);
 void func_80AFE584(Actor* thisx, PlayState* play);
 void func_80AFE650(Actor* thisx, PlayState* play);
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -61,7 +61,7 @@ ActorProfile En_Col_Man_Profile = {
 void EnColMan_Init(Actor* thisx, PlayState* play) {
     EnColMan* this = (EnColMan*)thisx;
 
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
     this->actor.attentionRangeType = ATTENTION_RANGE_1;
     this->scale = (BREG(55) / 1000.0f) + 0.01f;
 
@@ -69,12 +69,12 @@ void EnColMan_Init(Actor* thisx, PlayState* play) {
         case EN_COL_MAN_HEART_PIECE:
         case EN_COL_MAN_RECOVERY_HEART:
         default:
-            ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 10.0f);
+            MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 10.0f);
             func_80AFDD60(this);
             break;
 
         case EN_COL_MAN_FALLING_ROCK:
-            ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 10.0f);
+            MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 10.0f);
             func_80AFDF60(this);
             break;
 
@@ -88,7 +88,7 @@ void EnColMan_Init(Actor* thisx, PlayState* play) {
 void EnColMan_Destroy(Actor* thisx, PlayState* play) {
     EnColMan* this = (EnColMan*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void func_80AFDD60(EnColMan* this) {
@@ -124,21 +124,21 @@ void func_80AFDE00(EnColMan* this, PlayState* play) {
     if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_MARINE_RESEARCH_LAB_FISH_HEART_PIECE)) {
         this->actor.shape.rot.y += 0x3E8;
     }
-    if (Actor_HasParent(&this->actor, play)) {
+    if (MM_Actor_HasParent(&this->actor, play)) {
         this->actor.parent = NULL;
         this->actor.draw = NULL;
         this->actionFunc = EnColMan_SetHeartPieceCollectedAndKill;
     } else if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_MARINE_RESEARCH_LAB_FISH_HEART_PIECE)) {
-        Actor_OfferGetItem(&this->actor, play, GI_HEART_PIECE, 40.0f, 40.0f);
+        MM_Actor_OfferGetItem(&this->actor, play, GI_HEART_PIECE, 40.0f, 40.0f);
     } else {
-        Actor_OfferGetItem(&this->actor, play, GI_RECOVERY_HEART, 40.0f, 40.0f);
+        MM_Actor_OfferGetItem(&this->actor, play, GI_RECOVERY_HEART, 40.0f, 40.0f);
     }
 }
 
 void EnColMan_SetHeartPieceCollectedAndKill(EnColMan* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && MM_Message_ShouldAdvance(play)) {
         SET_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_MARINE_RESEARCH_LAB_FISH_HEART_PIECE);
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -163,27 +163,27 @@ void func_80AFDFB4(EnColMan* this, PlayState* play) {
 
     if ((this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) && (this->actor.velocity.y < 0.0f)) {
         if (!this->hasSetRandomValues) {
-            this->actor.world.rot.y = Rand_CenteredFloat(30000.0f);
-            this->actor.speed = 2.0f + BREG(56) + Rand_ZeroFloat(2.0f);
-            this->actor.velocity.y = 12.0f + BREG(57) + Rand_ZeroFloat(5.0f);
+            this->actor.world.rot.y = MM_Rand_CenteredFloat(30000.0f);
+            this->actor.speed = 2.0f + BREG(56) + MM_Rand_ZeroFloat(2.0f);
+            this->actor.velocity.y = 12.0f + BREG(57) + MM_Rand_ZeroFloat(5.0f);
             this->hasSetRandomValues = true;
             Actor_PlaySfx(&this->actor, NA_SE_EN_ANSATSUSYA_ROCK);
             return;
         }
 
         for (i = 0; i < 2; i++) {
-            velocity.x = Rand_CenteredFloat(2.0f);
-            velocity.y = Rand_ZeroFloat(2.0f) + 1.0f;
-            velocity.z = Rand_CenteredFloat(2.0f);
+            velocity.x = MM_Rand_CenteredFloat(2.0f);
+            velocity.y = MM_Rand_ZeroFloat(2.0f) + 1.0f;
+            velocity.z = MM_Rand_CenteredFloat(2.0f);
             accel.y = -0.1f;
             accel.z = 0.0f;
             accel.x = 0.0f;
 
             func_800B0EB0(play, &this->actor.world.pos, &velocity, &accel, &sPrimColor, &sEnvColor,
-                          Rand_ZeroFloat(50.0f) + 60.0f, 30, Rand_ZeroFloat(5.0f) + 20.0f);
+                          MM_Rand_ZeroFloat(50.0f) + 60.0f, 30, MM_Rand_ZeroFloat(5.0f) + 20.0f);
         }
 
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -198,11 +198,11 @@ void func_80AFE25C(EnColMan* this, PlayState* play) {
 
     if (BREG(60) || (this->actor.world.rot.z != 0)) {
         if (this->actor.params == EN_COL_MAN_CUTSCENE_BOMB) {
-            Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->actor.parent->world.pos.x,
+            MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->actor.parent->world.pos.x,
                         this->actor.parent->world.pos.y, this->actor.parent->world.pos.z, 0, 0, 0,
                         CLEAR_TAG_PARAMS(CLEAR_TAG_SMALL_EXPLOSION));
         } else {
-            EnBom* bomb = (EnBom*)Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BOM, this->actor.world.pos.x,
+            EnBom* bomb = (EnBom*)MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BOM, this->actor.world.pos.x,
                                               this->actor.world.pos.y, this->actor.world.pos.z,
                                               BOMB_EXPLOSIVE_TYPE_BOMB, 0, 0, BOMB_TYPE_BODY);
 
@@ -212,7 +212,7 @@ void func_80AFE25C(EnColMan* this, PlayState* play) {
         }
 
         Actor_PlaySfx(&this->actor, NA_SE_IT_BOMB_EXPLOSION);
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -220,14 +220,14 @@ void EnColMan_Update(Actor* thisx, PlayState* play) {
     s32 pad;
     EnColMan* this = (EnColMan*)thisx;
 
-    Actor_SetScale(&this->actor, this->scale);
+    MM_Actor_SetScale(&this->actor, this->scale);
     this->actionFunc(this, play);
     Actor_MoveWithGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 30.0f, 30.0f,
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 30.0f, 30.0f,
                             UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_2 | UPDBGCHECKINFO_FLAG_4 |
                                 UPDBGCHECKINFO_FLAG_8 | UPDBGCHECKINFO_FLAG_10);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void func_80AFE414(Actor* thisx, PlayState* play) {
@@ -251,7 +251,7 @@ void func_80AFE4AC(Actor* thisx, PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    POLY_OPA_DISP = Play_SetFog(play, POLY_OPA_DISP);
+    POLY_OPA_DISP = MM_Play_SetFog(play, POLY_OPA_DISP);
     POLY_OPA_DISP = Gfx_SetupDL66(POLY_OPA_DISP);
     gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(gDropRecoveryHeartTex));
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
@@ -279,7 +279,7 @@ void func_80AFE650(Actor* thisx, PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    POLY_OPA_DISP = Play_SetFog(play, POLY_OPA_DISP);
+    POLY_OPA_DISP = MM_Play_SetFog(play, POLY_OPA_DISP);
     POLY_OPA_DISP = Gfx_SetupDL66(POLY_OPA_DISP);
     gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(gDropBombTex));
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);

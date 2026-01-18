@@ -32,7 +32,7 @@ typedef struct {
 #define VINTR(v) v
 #define HSTART START
 s32 osTvType = OS_TV_NTSC;
-void ViMode_LogPrint(OSViMode* osViMode) {
+void MM_ViMode_LogPrint(OSViMode* osViMode) {
 }
 
 /**
@@ -44,7 +44,7 @@ void ViMode_LogPrint(OSViMode* osViMode) {
  * @param loRes         Boolean: true = low resolution, false = high resolution.
  *                      Corresponds to "L" or "H" in libultra VI mode names
  * @param antialiasOff  Boolean: true = point-sampling, false = anti-aliasing.
- *                      Corresponds to "P" or "A" in libultra VI mode names
+ *                      Corresponds to "MM_P" or "A" in libultra VI mode names
  * @param modeN         Boolean: controls interlacing mode, different based on resolution.
  *                      Corresponds to "N" or "F" in libultra VI mode names
  * @param fb16Bit       Bolean: true = 16-bit framebuffer, false = 32-bit framebuffer.
@@ -56,7 +56,7 @@ void ViMode_LogPrint(OSViMode* osViMode) {
  * @param upperAdjust   Upper edge adjustment
  * @param lowerAdjust   Lower edge adjustment
  */
-void ViMode_Configure(OSViMode* viMode, s32 type, s32 tvType, s32 loRes, s32 antialiasOff, s32 modeN, s32 fb16Bit,
+void MM_ViMode_Configure(OSViMode* viMode, s32 type, s32 tvType, s32 loRes, s32 antialiasOff, s32 modeN, s32 fb16Bit,
                       s32 width, s32 height, s32 leftAdjust, s32 rightAdjust, s32 upperAdjust, s32 lowerAdjust) {
     s32 hiRes;
     s32 antialiasOn;
@@ -67,8 +67,8 @@ void ViMode_Configure(OSViMode* viMode, s32 type, s32 tvType, s32 loRes, s32 ant
     s32 loResDeinterlaced;
     s32 loResInterlaced;
     s32 modeLAN1; // L=(lo res) A=(antialias)     N=(deinterlace)        1=(16-bit)
-    s32 modeLPN2; // L=(lo res) P=(point-sampled) N=(deinterlace)        2=(32-bit)
-    s32 modeHPN2; // H=(hi res) P=(point-sampled) N=(normal interlacing) 2=(32-bit)
+    s32 modeLPN2; // L=(lo res) MM_P=(point-sampled) N=(deinterlace)        2=(32-bit)
+    s32 modeHPN2; // H=(hi res) MM_P=(point-sampled) N=(normal interlacing) 2=(32-bit)
     s32 yScaleLo;
     s32 yScaleHiEvenField;
     s32 yScaleHiOddField;
@@ -199,13 +199,13 @@ void ViMode_Configure(OSViMode* viMode, s32 type, s32 tvType, s32 loRes, s32 ant
 }
 
 extern OSViMode osViModeNtscHpf1;
-extern OSViMode osViModePalLan1;
+extern OSViMode MM_osViModePalLan1;
 extern OSViMode osViModeNtscHpn1;
-extern OSViMode osViModeNtscLan1;
-extern OSViMode osViModeMpalLan1;
-extern OSViMode osViModeFpalLan1;
+extern OSViMode MM_osViModeNtscLan1;
+extern OSViMode MM_osViModeMpalLan1;
+extern OSViMode MM_osViModeFpalLan1;
 
-void ViMode_Save(ViMode* viMode) {
+void MM_ViMode_Save(ViMode* viMode) {
 #if 0
     R_VI_MODE_EDIT_STATE = viMode->editState;
     R_VI_MODE_EDIT_WIDTH = viMode->viWidth;
@@ -219,22 +219,22 @@ void ViMode_Save(ViMode* viMode) {
         SREG(58) = 0;
         switch (SREG(59)) {
             case 1:
-                ViMode_LogPrint(&osViModePalLan1);
+                MM_ViMode_LogPrint(&MM_osViModePalLan1);
                 break;
 
             case 2:
-                ViMode_LogPrint(&osViModeFpalLan1);
+                MM_ViMode_LogPrint(&MM_osViModeFpalLan1);
                 break;
 
             default:
-                ViMode_LogPrint(&viMode->customViMode);
+                MM_ViMode_LogPrint(&viMode->customViMode);
                 break;
         }
     }
 #endif
 }
 
-void ViMode_Load(ViMode* viMode) {
+void MM_ViMode_Load(ViMode* viMode) {
     //! @bug This condition always fails as the lowest bit is masked out to 0
     if ((R_VI_MODE_EDIT_WIDTH & ~3) == 1) {
         R_VI_MODE_EDIT_WIDTH += 4;
@@ -249,7 +249,7 @@ void ViMode_Load(ViMode* viMode) {
     viMode->rightAdjust = R_VI_MODE_EDIT_LRX_ADJ;
 }
 
-void ViMode_Init(ViMode* viMode) {
+void MM_ViMode_Init(ViMode* viMode) {
     viMode->editState = VI_MODE_EDIT_STATE_INACTIVE;
     viMode->viWidth = SCREEN_WIDTH;
     viMode->viHeight = SCREEN_HEIGHT;
@@ -264,13 +264,13 @@ void ViMode_Init(ViMode* viMode) {
     viMode->antialiasOff = false;
     viMode->loRes = true;
 
-    ViMode_Save(viMode);
+    MM_ViMode_Save(viMode);
 }
 
-void ViMode_Destroy(ViMode* viMode) {
+void MM_ViMode_Destroy(ViMode* viMode) {
 }
 
-void ViMode_ConfigureFeatures(ViMode* viMode, s32 viFeatures) {
+void MM_ViMode_ConfigureFeatures(ViMode* viMode, s32 viFeatures) {
 #if 0
     u32 ctrl = viMode->customViMode.comRegs.ctrl;
 
@@ -300,18 +300,18 @@ void ViMode_ConfigureFeatures(ViMode* viMode, s32 viFeatures) {
  * Updates the custom VI mode with controller input and any edits made with the REG editor
  * (through R_VI_MODE_EDIT_* entries)
  */
-void ViMode_Update(ViMode* viMode, Input* input) {
+void MM_ViMode_Update(ViMode* viMode, Input* input) {
 #if 0
-    ViMode_Load(viMode);
+    MM_ViMode_Load(viMode);
 
     if ((viMode->editState == VI_MODE_EDIT_STATE_ACTIVE) || (viMode->editState == VI_MODE_EDIT_STATE_2) ||
         (viMode->editState == VI_MODE_EDIT_STATE_3)) {
-        gScreenWidth = viMode->viWidth;
-        gScreenHeight = viMode->viHeight;
+        MM_gScreenWidth = viMode->viWidth;
+        MM_gScreenHeight = viMode->viHeight;
 
         // Controls to reset the ViMode to defaults
         if (CHECK_BTN_ALL(input->cur.button, BTN_START | BTN_CUP | BTN_CRIGHT)) {
-            ViMode_Init(viMode);
+            MM_ViMode_Init(viMode);
         }
 
         // Controls to adjust the screen dimensions (upper-left)
@@ -393,19 +393,19 @@ void ViMode_Update(ViMode* viMode, Input* input) {
             }
         }
 
-        ViMode_Configure(&viMode->customViMode, OS_VI_UNK28, osTvType, viMode->loRes, viMode->antialiasOff,
+        MM_ViMode_Configure(&viMode->customViMode, OS_VI_UNK28, osTvType, viMode->loRes, viMode->antialiasOff,
                          viMode->modeN, viMode->fb16Bit, viMode->viWidth, viMode->viHeight, viMode->leftAdjust,
                          viMode->rightAdjust, viMode->upperAdjust, viMode->lowerAdjust);
-        ViMode_ConfigureFeatures(viMode, viMode->viFeatures);
+        MM_ViMode_ConfigureFeatures(viMode, viMode->viFeatures);
 
         if (viMode->editState == VI_MODE_EDIT_STATE_3) {
             // Log comparison between the NTSC LAN1 mode and the custom mode
-            ViMode_LogPrint(&osViModeNtscLan1);
-            ViMode_LogPrint(&viMode->customViMode);
+            MM_ViMode_LogPrint(&MM_osViModeNtscLan1);
+            MM_ViMode_LogPrint(&viMode->customViMode);
             viMode->editState = VI_MODE_EDIT_STATE_2;
         }
     }
 
-    ViMode_Save(viMode);
+    MM_ViMode_Save(viMode);
 #endif
 }

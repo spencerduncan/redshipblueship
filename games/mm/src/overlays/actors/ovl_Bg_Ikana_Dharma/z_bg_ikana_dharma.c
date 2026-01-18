@@ -36,7 +36,7 @@ ActorProfile Bg_Ikana_Dharma_Profile = {
     /**/ BgIkanaDharma_Reset,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -56,7 +56,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 98, 10, 25, { 0, 0, 0 } },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 320, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 320, ICHAIN_CONTINUE),
@@ -75,16 +75,16 @@ void BgIkanaDharma_SpawnEffects(BgIkanaDharma* this, PlayState* play) {
     f32 initialY = this->dyna.actor.scale.y * 50.0f;
 
     for (i = 0; i < 4; i++) {
-        f32 speed = (Rand_ZeroOne() * 5.0f) + 5.0f;
-        s16 angle = (Rand_Next() >> 0x12) + this->dyna.actor.world.rot.y + 0x6000;
-        f32 dirX = Math_SinS(angle);
-        f32 dirZ = Math_CosS(angle);
+        f32 speed = (MM_Rand_ZeroOne() * 5.0f) + 5.0f;
+        s16 angle = (MM_Rand_Next() >> 0x12) + this->dyna.actor.world.rot.y + 0x6000;
+        f32 dirX = MM_Math_SinS(angle);
+        f32 dirZ = MM_Math_CosS(angle);
 
         pos.x = (dirX * initialRadius) + this->dyna.actor.world.pos.x;
         pos.y = this->dyna.actor.world.pos.y + initialY;
         pos.z = (dirZ * initialRadius) + this->dyna.actor.world.pos.z;
         velocity.x = speed * dirX;
-        velocity.y = Rand_ZeroOne() + 0.5f;
+        velocity.y = MM_Rand_ZeroOne() + 0.5f;
         velocity.z = speed * dirZ;
         accel.x = velocity.x * -0.05f;
         accel.y = -0.15f;
@@ -97,14 +97,14 @@ void BgIkanaDharma_Init(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     BgIkanaDharma* this = (BgIkanaDharma*)thisx;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
     this->dyna.actor.scale.x = 0.3f;
     this->dyna.actor.scale.y = 0.1f;
     this->dyna.actor.scale.z = 0.3f;
-    DynaPolyActor_Init(&this->dyna, 0);
+    MM_DynaPolyActor_Init(&this->dyna, 0);
     DynaPolyActor_LoadMesh(play, &this->dyna, &gStoneTowerTemplePunchablePillarCol);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->dyna.actor, &sCylinderInit);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->dyna.actor, &MM_sCylinderInit);
     if (!BGIKANADHARMA_IS_CHILD(&this->dyna.actor)) {
         f32 segmentY = this->dyna.actor.world.pos.y;
         s32 numSegments = BGIKANADHARMA_NUM_SEGMENTS(&this->dyna.actor);
@@ -128,8 +128,8 @@ void BgIkanaDharma_Init(Actor* thisx, PlayState* play2) {
 void BgIkanaDharma_Destroy(Actor* thisx, PlayState* play) {
     BgIkanaDharma* this = (BgIkanaDharma*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_Collider_DestroyCylinder(play, &this->collider);
     if (sFirstHitBgIkanaDharma == this) {
         sFirstHitBgIkanaDharma = NULL;
     }
@@ -153,7 +153,7 @@ void BgIkanaDharma_WaitForHit(BgIkanaDharma* this, PlayState* play) {
 
     if (wasHit && (sFirstHitBgIkanaDharma == NULL)) {
         sFirstHitBgIkanaDharma = this2;
-        Flags_SetSwitch(play, BGIKANADHARMA_GET_SWITCH_FLAG(&this->dyna.actor));
+        MM_Flags_SetSwitch(play, BGIKANADHARMA_GET_SWITCH_FLAG(&this->dyna.actor));
         tempAngle1 = BINANG_ADD(this->dyna.actor.yawTowardsPlayer, 0x8000);
         tempAngle2 = (BINANG_SUB(player->actor.shape.rot.y, tempAngle1) >> 1);
         this->dyna.actor.world.rot.y = tempAngle1 + tempAngle2 + 0xF000;
@@ -166,8 +166,8 @@ void BgIkanaDharma_WaitForHit(BgIkanaDharma* this, PlayState* play) {
         tempAngle1 = ABS_ALT(tempAngle1);
 
         if (tempAngle1 > 0x4000) {
-            Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+            MM_Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
+            MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
         }
     }
 }
@@ -204,8 +204,8 @@ void BgIkanaDharma_WaitForCutsceneToEnd(BgIkanaDharma* this, PlayState* play) {
         }
     }
 
-    if (Math_StepToF(&this->dyna.actor.scale.y, 0.0f, 1.0f / 300.0f)) {
-        Actor_Kill(&this->dyna.actor);
+    if (MM_Math_StepToF(&this->dyna.actor.scale.y, 0.0f, 1.0f / 300.0f)) {
+        MM_Actor_Kill(&this->dyna.actor);
         return;
     }
 
@@ -223,14 +223,14 @@ void BgIkanaDharma_Update(Actor* thisx, PlayState* play) {
         s32 pad[2];
 
         func_800B4AEC(play, &this->dyna.actor, 30.0f);
-        actorBelow = DynaPoly_GetActor(&play->colCtx, this->dyna.actor.floorBgId);
+        actorBelow = MM_DynaPoly_GetActor(&play->colCtx, this->dyna.actor.floorBgId);
         if (actorBelow == NULL) {
             Actor_MoveWithGravity(&this->dyna.actor);
-            Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+            MM_Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
             if (this->dyna.actor.bgCheckFlags & BGCHECKFLAG_GROUND_TOUCH) {
                 s16 quakeIndex = Quake_Request(GET_ACTIVE_CAM(play), QUAKE_TYPE_3);
 
-                Quake_SetSpeed(quakeIndex, 21536);
+                MM_Quake_SetSpeed(quakeIndex, 21536);
                 Quake_SetPerturbations(quakeIndex, 4, 0, 0, 0);
                 Quake_SetDuration(quakeIndex, 12);
 
@@ -250,17 +250,17 @@ void BgIkanaDharma_Update(Actor* thisx, PlayState* play) {
         wallCheckRadius = CLAMP_MIN(wallCheckRadius, 2.0f);
 
         Actor_MoveWithGravity(&this->dyna.actor);
-        Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 20.0f, wallCheckRadius, 0.0f,
+        MM_Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 20.0f, wallCheckRadius, 0.0f,
                                 UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
     }
 
-    Actor_SetFocus(&this->dyna.actor, 40.0f);
+    MM_Actor_SetFocus(&this->dyna.actor, 40.0f);
 }
 
 void BgIkanaDharma_Draw(Actor* thisx, PlayState* play) {
     BgIkanaDharma* this = (BgIkanaDharma*)thisx;
 
-    Gfx_DrawDListOpa(play, gStoneTowerTemplePunchablePillarDL);
+    MM_Gfx_DrawDListOpa(play, gStoneTowerTemplePunchablePillarDL);
 }
 
 void BgIkanaDharma_Reset(void) {

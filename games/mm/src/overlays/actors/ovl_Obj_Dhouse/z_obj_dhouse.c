@@ -113,7 +113,7 @@ ObjDhouseStruct3 D_80B13E90[] = {
 
 Vec3f D_80B13FA8 = { 0.0f, 0.3f, 0.0f };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 8000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 1000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 800, ICHAIN_CONTINUE),
@@ -125,11 +125,11 @@ Vec3f D_80B13FC4 = { 160.0f, 0.0f, 240.0f };
 void ObjDhouse_Init(Actor* thisx, PlayState* play) {
     ObjDhouse* this = (ObjDhouse*)thisx;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
 
-    DynaPolyActor_Init(&this->dyna, 0);
+    MM_DynaPolyActor_Init(&this->dyna, 0);
 
-    if (Flags_GetSwitch(play, OBJDHOUSE_GET_SWITCH_FLAG(&this->dyna.actor))) {
+    if (MM_Flags_GetSwitch(play, OBJDHOUSE_GET_SWITCH_FLAG(&this->dyna.actor))) {
         this->dyna.actor.draw = func_80B13E40;
         func_80B13908(this);
     } else {
@@ -142,7 +142,7 @@ void ObjDhouse_Init(Actor* thisx, PlayState* play) {
 void ObjDhouse_Destroy(Actor* thisx, PlayState* play) {
     ObjDhouse* this = (ObjDhouse*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_80B12A50(ObjDhouseStruct1* this, ObjDhouseStruct3* ptr3, Vec3f* arg2) {
@@ -158,8 +158,8 @@ void func_80B12A88(Actor* thisx) {
     ObjDhouseStruct3* ptr3;
 
     for (i = 0, ptr = &this->unk_160[0], ptr3 = &D_80B13E90[0]; i < ARRAY_COUNT(this->unk_160); i++, ptr3++, ptr++) {
-        Math_Vec3f_Copy(&ptr->unk_00, &this->dyna.actor.world.pos);
-        Math_Vec3f_Copy(&ptr->unk_0C, &ptr3->unk_14);
+        MM_Math_Vec3f_Copy(&ptr->unk_00, &this->dyna.actor.world.pos);
+        MM_Math_Vec3f_Copy(&ptr->unk_0C, &ptr3->unk_14);
         ptr->unk_18 = this->dyna.actor.shape.rot;
         ptr->unk_1E = 0;
     }
@@ -181,7 +181,7 @@ void func_80B12B38(ObjDhouse* this, PlayState* play) {
             if (ptr->unk_1E >= ptr3->unk_26) {
                 ptr->unk_0C.y -= 2.5f;
 
-                Math_Vec3f_Scale(&ptr->unk_0C, 0.96f);
+                MM_Math_Vec3f_Scale(&ptr->unk_0C, 0.96f);
 
                 ptr->unk_00.x += ptr->unk_0C.x;
                 ptr->unk_00.y += ptr->unk_0C.y;
@@ -199,7 +199,7 @@ void func_80B12B38(ObjDhouse* this, PlayState* play) {
             phi_s3 = false;
             if (ptr->unk_0C.y < 0.0f) {
                 func_80B12A50(ptr, ptr3, &sp80);
-                temp_f0 = BgCheck_EntityRaycastFloor5(&play->colCtx, &sp90, &bgId, thisx, &sp80);
+                temp_f0 = MM_BgCheck_EntityRaycastFloor5(&play->colCtx, &sp90, &bgId, thisx, &sp80);
                 if (((sp80.y - 35.0f) < temp_f0) && (temp_f0 > (BGCHECK_Y_MIN + 1.0f))) {
                     phi_s3 = true;
                 }
@@ -248,9 +248,9 @@ void func_80B12E7C(ObjDhouse* this, PlayState* play, ObjDhouseStruct1* ptr, ObjD
     for (i = 0; i < 15; i++) {
         ptr2 = &this->unk_240[func_80B12D78(this)];
 
-        ptr2->unk_00.x = Rand_ZeroOne() - 0.5f;
-        ptr2->unk_00.y = Rand_ZeroOne();
-        ptr2->unk_00.z = Rand_ZeroOne() - 0.5f;
+        ptr2->unk_00.x = MM_Rand_ZeroOne() - 0.5f;
+        ptr2->unk_00.y = MM_Rand_ZeroOne();
+        ptr2->unk_00.z = MM_Rand_ZeroOne() - 0.5f;
 
         ptr2->unk_0C.x = ptr2->unk_00.x * 24.0f;
         ptr2->unk_0C.y = ptr2->unk_00.y * 34.0f;
@@ -260,25 +260,25 @@ void func_80B12E7C(ObjDhouse* this, PlayState* play, ObjDhouseStruct1* ptr, ObjD
         ptr2->unk_00.y = ((ptr2->unk_00.y - 0.2f) * 50.0f) + spA0.y;
         ptr2->unk_00.z = (ptr2->unk_00.z * 140.0f) + spA0.z;
 
-        ptr2->unk_18 = (Rand_ZeroOne() * 0.057f) + 0.003f;
+        ptr2->unk_18 = (MM_Rand_ZeroOne() * 0.057f) + 0.003f;
 
-        ptr2->unk_1C.x = Rand_Next() >> 0x10;
-        ptr2->unk_1C.y = Rand_Next() >> 0x10;
-        ptr2->unk_1C.z = Rand_Next() >> 0x10;
+        ptr2->unk_1C.x = MM_Rand_Next() >> 0x10;
+        ptr2->unk_1C.y = MM_Rand_Next() >> 0x10;
+        ptr2->unk_1C.z = MM_Rand_Next() >> 0x10;
 
-        ptr2->unk_22 = (Rand_Next() >> 0x11) - 0x3FFF;
-        ptr2->unk_24 = (Rand_Next() >> 0x13) - 0xFFF;
-        ptr2->unk_26 = (Rand_Next() >> 0x12) - 0x1FFF;
+        ptr2->unk_22 = (MM_Rand_Next() >> 0x11) - 0x3FFF;
+        ptr2->unk_24 = (MM_Rand_Next() >> 0x13) - 0xFFF;
+        ptr2->unk_26 = (MM_Rand_Next() >> 0x12) - 0x1FFF;
         ptr2->unk_29 = 0;
         ptr2->unk_28 = 40;
 
         if ((i % 2) != 0) {
-            sp88.x = ((Rand_ZeroOne() - 0.5f) * sp94.x) + ptr2->unk_00.x;
-            sp88.y = ((Rand_ZeroOne() - 0.3f) * sp94.y) + ptr2->unk_00.y;
-            sp88.z = ((Rand_ZeroOne() - 0.5f) * sp94.z) + ptr2->unk_00.z;
+            sp88.x = ((MM_Rand_ZeroOne() - 0.5f) * sp94.x) + ptr2->unk_00.x;
+            sp88.y = ((MM_Rand_ZeroOne() - 0.3f) * sp94.y) + ptr2->unk_00.y;
+            sp88.z = ((MM_Rand_ZeroOne() - 0.5f) * sp94.z) + ptr2->unk_00.z;
 
-            func_800B1210(play, &sp88, &gZeroVec3f, &D_80B13FA8, (s32)(Rand_ZeroOne() * 130.0f) + 20,
-                          (s32)(Rand_ZeroOne() * 140.0f) + 60);
+            func_800B1210(play, &sp88, &gZeroVec3f, &D_80B13FA8, (s32)(MM_Rand_ZeroOne() * 130.0f) + 20,
+                          (s32)(MM_Rand_ZeroOne() * 140.0f) + 60);
         }
     }
 }
@@ -294,9 +294,9 @@ void func_80B13170(ObjDhouse* this, PlayState* play, ObjDhouseStruct1* ptr, ObjD
     for (i = 0; i < 11; i++) {
         ptr2 = &this->unk_240[func_80B12D78(this)];
 
-        ptr2->unk_00.x = Rand_ZeroOne() - 0.5f;
-        ptr2->unk_00.y = Rand_ZeroOne();
-        ptr2->unk_00.z = Rand_ZeroOne() - 0.5f;
+        ptr2->unk_00.x = MM_Rand_ZeroOne() - 0.5f;
+        ptr2->unk_00.y = MM_Rand_ZeroOne();
+        ptr2->unk_00.z = MM_Rand_ZeroOne() - 0.5f;
 
         ptr2->unk_0C.x = ptr2->unk_00.x * 23.0f;
         ptr2->unk_0C.y = (ptr2->unk_00.y * 19.0f) + 5.0f;
@@ -306,31 +306,31 @@ void func_80B13170(ObjDhouse* this, PlayState* play, ObjDhouseStruct1* ptr, ObjD
         ptr2->unk_00.y = (ptr2->unk_00.y * 23.0f) + sp98.y + 15.0f;
         ptr2->unk_00.z = (ptr2->unk_00.z * 80.0f) + sp98.z;
 
-        ptr2->unk_1C.x = Rand_Next() >> 0x10;
-        ptr2->unk_1C.y = Rand_Next() >> 0x10;
-        ptr2->unk_1C.z = Rand_Next() >> 0x10;
+        ptr2->unk_1C.x = MM_Rand_Next() >> 0x10;
+        ptr2->unk_1C.y = MM_Rand_Next() >> 0x10;
+        ptr2->unk_1C.z = MM_Rand_Next() >> 0x10;
 
-        ptr2->unk_22 = (Rand_Next() >> 0x12) - 0x1FFF;
-        ptr2->unk_24 = (Rand_Next() >> 0x13) - 0xFFF;
-        ptr2->unk_26 = (Rand_Next() >> 0x12) - 0x1FFF;
+        ptr2->unk_22 = (MM_Rand_Next() >> 0x12) - 0x1FFF;
+        ptr2->unk_24 = (MM_Rand_Next() >> 0x13) - 0xFFF;
+        ptr2->unk_26 = (MM_Rand_Next() >> 0x12) - 0x1FFF;
 
         ptr2->unk_28 = 40;
 
         if (i < 3) {
-            ptr2->unk_18 = (Rand_ZeroOne() * 0.06f) + 0.12f;
+            ptr2->unk_18 = (MM_Rand_ZeroOne() * 0.06f) + 0.12f;
             ptr2->unk_29 = 1;
         } else {
-            ptr2->unk_18 = (Rand_ZeroOne() * 0.05f) + 0.003f;
+            ptr2->unk_18 = (MM_Rand_ZeroOne() * 0.05f) + 0.003f;
             ptr2->unk_29 = 0;
         }
 
         if ((i % 2) != 0) {
-            sp8C.x = ((Rand_ZeroOne() - 0.5f) * 160.0f) + ptr2->unk_00.x;
-            sp8C.y = (Rand_ZeroOne() * 120.0f) + ptr2->unk_00.y;
-            sp8C.z = ((Rand_ZeroOne() - 0.5f) * 160.0f) + ptr2->unk_00.z;
+            sp8C.x = ((MM_Rand_ZeroOne() - 0.5f) * 160.0f) + ptr2->unk_00.x;
+            sp8C.y = (MM_Rand_ZeroOne() * 120.0f) + ptr2->unk_00.y;
+            sp8C.z = ((MM_Rand_ZeroOne() - 0.5f) * 160.0f) + ptr2->unk_00.z;
 
-            func_800B1210(play, &sp8C, &gZeroVec3f, &D_80B13FA8, (s32)(Rand_ZeroOne() * 140.0f) + 20,
-                          (s32)(Rand_ZeroOne() * 140.0f) + 40);
+            func_800B1210(play, &sp8C, &gZeroVec3f, &D_80B13FA8, (s32)(MM_Rand_ZeroOne() * 140.0f) + 20,
+                          (s32)(MM_Rand_ZeroOne() * 140.0f) + 40);
         }
     }
 }
@@ -343,9 +343,9 @@ void func_80B13474(ObjDhouse* this, PlayState* play, Vec3f* arg2) {
     for (i = 0; i < 5; i++) {
         ptr2 = &this->unk_240[func_80B12D78(this)];
 
-        ptr2->unk_00.x = Rand_ZeroOne() - 0.5f;
-        ptr2->unk_00.y = Rand_ZeroOne();
-        ptr2->unk_00.z = Rand_ZeroOne() - 0.5f;
+        ptr2->unk_00.x = MM_Rand_ZeroOne() - 0.5f;
+        ptr2->unk_00.y = MM_Rand_ZeroOne();
+        ptr2->unk_00.z = MM_Rand_ZeroOne() - 0.5f;
 
         ptr2->unk_0C.x = ptr2->unk_00.x * 18.0f;
         ptr2->unk_0C.y = ptr2->unk_00.y * 23.0f;
@@ -355,24 +355,24 @@ void func_80B13474(ObjDhouse* this, PlayState* play, Vec3f* arg2) {
         ptr2->unk_00.y = ((ptr2->unk_00.y - 0.4f) * 20.0f) + arg2->y;
         ptr2->unk_00.z = (ptr2->unk_00.z * 40.0f) + arg2->z;
 
-        ptr2->unk_1C.x = Rand_Next() >> 0x10;
-        ptr2->unk_1C.y = Rand_Next() >> 0x10;
-        ptr2->unk_1C.z = Rand_Next() >> 0x10;
+        ptr2->unk_1C.x = MM_Rand_Next() >> 0x10;
+        ptr2->unk_1C.y = MM_Rand_Next() >> 0x10;
+        ptr2->unk_1C.z = MM_Rand_Next() >> 0x10;
 
-        ptr2->unk_22 = (Rand_Next() >> 0x12) - 0x1FFF;
-        ptr2->unk_24 = (Rand_Next() >> 0x13) - 0xFFF;
-        ptr2->unk_26 = (Rand_Next() >> 0x12) - 0x1FFF;
+        ptr2->unk_22 = (MM_Rand_Next() >> 0x12) - 0x1FFF;
+        ptr2->unk_24 = (MM_Rand_Next() >> 0x13) - 0xFFF;
+        ptr2->unk_26 = (MM_Rand_Next() >> 0x12) - 0x1FFF;
 
         ptr2->unk_28 = 40;
-        ptr2->unk_18 = (Rand_ZeroOne() * 0.07f) + 0.003f;
+        ptr2->unk_18 = (MM_Rand_ZeroOne() * 0.07f) + 0.003f;
         ptr2->unk_29 = 0;
 
-        sp88.x = ((Rand_ZeroOne() * 70.0f) - 35.0f) + ptr2->unk_00.x;
-        sp88.y = (Rand_ZeroOne() * 60.0f) + ptr2->unk_00.y;
-        sp88.z = ((Rand_ZeroOne() * 70.0f) - 35.0f) + ptr2->unk_00.z;
+        sp88.x = ((MM_Rand_ZeroOne() * 70.0f) - 35.0f) + ptr2->unk_00.x;
+        sp88.y = (MM_Rand_ZeroOne() * 60.0f) + ptr2->unk_00.y;
+        sp88.z = ((MM_Rand_ZeroOne() * 70.0f) - 35.0f) + ptr2->unk_00.z;
 
-        func_800B1210(play, &sp88, &gZeroVec3f, &D_80B13FA8, (s32)(Rand_ZeroOne() * 80.0f) + 20,
-                      (s32)(Rand_ZeroOne() * 90.0f) + 40);
+        func_800B1210(play, &sp88, &gZeroVec3f, &D_80B13FA8, (s32)(MM_Rand_ZeroOne() * 80.0f) + 20,
+                      (s32)(MM_Rand_ZeroOne() * 90.0f) + 40);
     }
 }
 
@@ -389,7 +389,7 @@ void func_80B13724(ObjDhouse* this, PlayState* play) {
         if (ptr2->unk_28 > 0) {
             ptr2->unk_0C.y -= 2.2f;
 
-            Math_Vec3f_Scale(&ptr2->unk_0C, 0.95f);
+            MM_Math_Vec3f_Scale(&ptr2->unk_0C, 0.95f);
 
             ptr2->unk_00.x += ptr2->unk_0C.x;
             ptr2->unk_00.y += ptr2->unk_0C.y;
@@ -405,9 +405,9 @@ void func_80B13724(ObjDhouse* this, PlayState* play) {
 
                 if (ptr2->unk_29 & 1) {
                     temp_f0 =
-                        BgCheck_EntityRaycastFloor5(&play->colCtx, &sp80, &bgId, &this->dyna.actor, &ptr2->unk_00);
+                        MM_BgCheck_EntityRaycastFloor5(&play->colCtx, &sp80, &bgId, &this->dyna.actor, &ptr2->unk_00);
                     if (((ptr2->unk_00.y - 20.0f) < temp_f0) && (temp_f0 > BGCHECK_Y_MIN + 1.0f)) {
-                        Math_Vec3f_Copy(&sp70, &ptr2->unk_00);
+                        MM_Math_Vec3f_Copy(&sp70, &ptr2->unk_00);
                         ptr2->unk_28 = 0;
                         func_80B13474(this, play, &sp70);
                     }
@@ -432,7 +432,7 @@ void func_80B13940(ObjDhouse* this, PlayState* play2) {
     PlayState* play = play2;
     s32 sp20 = false;
 
-    if (Flags_GetSwitch(play, OBJDHOUSE_GET_SWITCH_FLAG(&this->dyna.actor))) {
+    if (MM_Flags_GetSwitch(play, OBJDHOUSE_GET_SWITCH_FLAG(&this->dyna.actor))) {
         sp20 = true;
         Actor_PlaySfx(&this->dyna.actor, NA_SE_EV_EXPLSION_LONG);
     }
@@ -457,17 +457,17 @@ void func_80B139F4(ObjDhouse* this, PlayState* play) {
 
     if (this->unk_1370 == 117) {
         quakeIndex = Quake_Request(camera, QUAKE_TYPE_3);
-        Quake_SetSpeed(quakeIndex, 20000);
+        MM_Quake_SetSpeed(quakeIndex, 20000);
         Quake_SetPerturbations(quakeIndex, 8, 0, 0, 0);
         Quake_SetDuration(quakeIndex, 17);
     } else if (this->unk_1370 == 105) {
         quakeIndex = Quake_Request(camera, QUAKE_TYPE_3);
-        Quake_SetSpeed(quakeIndex, 20000);
+        MM_Quake_SetSpeed(quakeIndex, 20000);
         Quake_SetPerturbations(quakeIndex, 7, 0, 0, 0);
         Quake_SetDuration(quakeIndex, 20);
     } else if (this->unk_1370 == 90) {
         quakeIndex = Quake_Request(camera, QUAKE_TYPE_3);
-        Quake_SetSpeed(quakeIndex, 20000);
+        MM_Quake_SetSpeed(quakeIndex, 20000);
         Quake_SetPerturbations(quakeIndex, 5, 0, 0, 0);
         Quake_SetDuration(quakeIndex, 62);
     }
@@ -491,7 +491,7 @@ void ObjDhouse_Update(Actor* thisx, PlayState* play) {
 }
 
 void ObjDhouse_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, object_dhouse_DL_005A78);
+    MM_Gfx_DrawDListOpa(play, object_dhouse_DL_005A78);
 }
 
 void func_80B13C08(Actor* thisx, PlayState* play) {
@@ -510,10 +510,10 @@ void func_80B13C08(Actor* thisx, PlayState* play) {
 
     for (i = 0, ptr = &this->unk_160[0], ptr3 = &D_80B13E90[0]; i < ARRAY_COUNT(this->unk_160); i++, ptr3++, ptr++) {
         if (ptr->unk_1E >= 0) {
-            Matrix_SetTranslateRotateYXZ(ptr->unk_00.x + ptr3->unk_08.x, ptr->unk_00.y + ptr3->unk_08.y,
+            MM_Matrix_SetTranslateRotateYXZ(ptr->unk_00.x + ptr3->unk_08.x, ptr->unk_00.y + ptr3->unk_08.y,
                                          ptr->unk_00.z + ptr3->unk_08.z, &ptr->unk_18);
-            Matrix_Translate(-ptr3->unk_08.x, -ptr3->unk_08.y, -ptr3->unk_08.z, MTXMODE_APPLY);
-            Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
+            MM_Matrix_Translate(-ptr3->unk_08.x, -ptr3->unk_08.y, -ptr3->unk_08.z, MTXMODE_APPLY);
+            MM_Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
             gSPDisplayList(POLY_OPA_DISP++, ptr3->unk_00);
@@ -523,8 +523,8 @@ void func_80B13C08(Actor* thisx, PlayState* play) {
 
     for (i = 0, ptr2 = &this->unk_240[0]; i < ARRAY_COUNT(this->unk_240); i++, ptr2++) {
         if (ptr2->unk_28 > 0) {
-            Matrix_SetTranslateRotateYXZ(ptr2->unk_00.x, ptr2->unk_00.y, ptr2->unk_00.z, &ptr2->unk_1C);
-            Matrix_Scale(ptr2->unk_18, ptr2->unk_18, ptr2->unk_18, MTXMODE_APPLY);
+            MM_Matrix_SetTranslateRotateYXZ(ptr2->unk_00.x, ptr2->unk_00.y, ptr2->unk_00.z, &ptr2->unk_1C);
+            MM_Matrix_Scale(ptr2->unk_18, ptr2->unk_18, ptr2->unk_18, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
             gSPDisplayList(POLY_OPA_DISP++, object_dhouse_DL_0081D8);
@@ -535,5 +535,5 @@ void func_80B13C08(Actor* thisx, PlayState* play) {
 }
 
 void func_80B13E40(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, object_dhouse_DL_004928);
+    MM_Gfx_DrawDListOpa(play, object_dhouse_DL_004928);
 }

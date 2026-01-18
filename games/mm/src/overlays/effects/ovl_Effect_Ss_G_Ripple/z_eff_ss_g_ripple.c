@@ -23,29 +23,29 @@
 
 #define PARAMS ((EffectSsGRippleInitParams*)initParamsx)
 
-u32 EffectSsGRipple_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsGRipple_Update(PlayState* play, u32 index, EffectSs* this);
-void EffectSsGRipple_Draw(PlayState* play, u32 index, EffectSs* this);
+u32 MM_EffectSsGRipple_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void MM_EffectSsGRipple_Update(PlayState* play, u32 index, EffectSs* this);
+void MM_EffectSsGRipple_Draw(PlayState* play, u32 index, EffectSs* this);
 
 EffectSsProfile Effect_Ss_G_Ripple_Profile = {
     EFFECT_SS_G_RIPPLE,
-    EffectSsGRipple_Init,
+    MM_EffectSsGRipple_Init,
 };
 
-u32 EffectSsGRipple_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 MM_EffectSsGRipple_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsGRippleInitParams* initParams = PARAMS;
     WaterBox* waterBox = NULL;
     s32 pad;
     s32 bgId;
 
-    Math_Vec3f_Copy(&this->velocity, &gZeroVec3f);
-    Math_Vec3f_Copy(&this->accel, &gZeroVec3f);
-    Math_Vec3f_Copy(&this->pos, &initParams->pos);
+    MM_Math_Vec3f_Copy(&this->velocity, &gZeroVec3f);
+    MM_Math_Vec3f_Copy(&this->accel, &gZeroVec3f);
+    MM_Math_Vec3f_Copy(&this->pos, &initParams->pos);
     this->gfx = gEffWaterRippleDL;
     this->life = initParams->life + 20;
     this->flags = 0;
-    this->draw = EffectSsGRipple_Draw;
-    this->update = EffectSsGRipple_Update;
+    this->draw = MM_EffectSsGRipple_Draw;
+    this->update = MM_EffectSsGRipple_Update;
     this->rRadius = initParams->radius;
     this->rRadiusMax = initParams->radiusMax;
     this->rLifespan = initParams->life;
@@ -57,13 +57,13 @@ u32 EffectSsGRipple_Init(PlayState* play, u32 index, EffectSs* this, void* initP
     this->rEnvColorG = 255;
     this->rEnvColorB = 255;
     this->rEnvColorA = 255;
-    this->rWaterBoxNum = WaterBox_GetSurface2(play, &play->colCtx, &initParams->pos, 3.0f, &waterBox, &bgId);
+    this->rWaterBoxNum = MM_WaterBox_GetSurface2(play, &play->colCtx, &initParams->pos, 3.0f, &waterBox, &bgId);
     this->rBgId = bgId;
 
     return 1;
 }
 
-void EffectSsGRipple_DrawRipple(PlayState* play2, EffectSs* this, TexturePtr tex) {
+void MM_EffectSsGRipple_DrawRipple(PlayState* play2, EffectSs* this, TexturePtr tex) {
     PlayState* play = play2;
     f32 radius;
     GraphicsContext* gfxCtx = play->state.gfxCtx;
@@ -77,7 +77,7 @@ void EffectSsGRipple_DrawRipple(PlayState* play2, EffectSs* this, TexturePtr tex
     OPEN_DISPS(gfxCtx);
 
     radius = this->rRadius * 0.0025f;
-    colHeader = BgCheck_GetCollisionHeader(&play->colCtx, this->rBgId);
+    colHeader = MM_BgCheck_GetCollisionHeader(&play->colCtx, this->rBgId);
 
     if ((this->rWaterBoxNum != -1) && (colHeader != NULL) && (this->rWaterBoxNum < colHeader->numWaterBoxes)) {
         yPos = func_800CA568(&play->colCtx, this->rWaterBoxNum, this->rBgId);
@@ -85,11 +85,11 @@ void EffectSsGRipple_DrawRipple(PlayState* play2, EffectSs* this, TexturePtr tex
         yPos = this->pos.y;
     }
 
-    SkinMatrix_SetTranslate(&mfTrans, this->pos.x, yPos, this->pos.z);
-    SkinMatrix_SetScale(&mfScale, radius, radius, radius);
-    SkinMatrix_MtxFMtxFMult(&mfTrans, &mfScale, &mfResult);
+    MM_SkinMatrix_SetTranslate(&mfTrans, this->pos.x, yPos, this->pos.z);
+    MM_SkinMatrix_SetScale(&mfScale, radius, radius, radius);
+    MM_SkinMatrix_MtxFMtxFMult(&mfTrans, &mfScale, &mfResult);
 
-    mtx = SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
+    mtx = MM_SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
 
     if (mtx != NULL) {
         gSPMatrix(POLY_XLU_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -105,32 +105,32 @@ void EffectSsGRipple_DrawRipple(PlayState* play2, EffectSs* this, TexturePtr tex
     CLOSE_DISPS(gfxCtx);
 }
 
-void EffectSsGRipple_Draw(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsGRipple_Draw(PlayState* play, u32 index, EffectSs* this) {
     if (this->rLifespan == 0) {
-        EffectSsGRipple_DrawRipple(play, this, gEffWaterRippleTex);
+        MM_EffectSsGRipple_DrawRipple(play, this, gEffWaterRippleTex);
     }
 }
 
-void EffectSsGRipple_Update(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsGRipple_Update(PlayState* play, u32 index, EffectSs* this) {
     f32 radius;
     f32 primAlpha;
     f32 envAlpha;
     WaterBox* waterBox;
     s32 bgId;
 
-    this->rWaterBoxNum = WaterBox_GetSurface2(play, &play->colCtx, &this->pos, 3.0f, &waterBox, &bgId);
+    this->rWaterBoxNum = MM_WaterBox_GetSurface2(play, &play->colCtx, &this->pos, 3.0f, &waterBox, &bgId);
     this->rBgId = bgId;
 
     if (DECR(this->rLifespan) == 0) {
         radius = this->rRadius;
-        Math_SmoothStepToF(&radius, this->rRadiusMax, 0.2f, 30.0f, 1.0f);
+        MM_Math_SmoothStepToF(&radius, this->rRadiusMax, 0.2f, 30.0f, 1.0f);
         this->rRadius = radius;
 
         primAlpha = this->rPrimColorA;
         envAlpha = this->rEnvColorA;
 
-        Math_SmoothStepToF(&primAlpha, 0.0f, 0.2f, 15.0f, 7.0f);
-        Math_SmoothStepToF(&envAlpha, 0.0f, 0.2f, 15.0f, 7.0f);
+        MM_Math_SmoothStepToF(&primAlpha, 0.0f, 0.2f, 15.0f, 7.0f);
+        MM_Math_SmoothStepToF(&envAlpha, 0.0f, 0.2f, 15.0f, 7.0f);
 
         this->rPrimColorA = primAlpha;
         this->rEnvColorA = envAlpha;

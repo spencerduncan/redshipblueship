@@ -9,10 +9,10 @@
 
 #define FLAGS 0x00000000
 
-void ItemBHeart_Init(Actor* thisx, PlayState* play);
-void ItemBHeart_Destroy(Actor* thisx, PlayState* play);
-void ItemBHeart_Update(Actor* thisx, PlayState* play);
-void ItemBHeart_Draw(Actor* thisx, PlayState* play);
+void MM_ItemBHeart_Init(Actor* thisx, PlayState* play);
+void MM_ItemBHeart_Destroy(Actor* thisx, PlayState* play);
+void MM_ItemBHeart_Update(Actor* thisx, PlayState* play);
+void MM_ItemBHeart_Draw(Actor* thisx, PlayState* play);
 
 void ItemBHeart_UpdateModel(ItemBHeart* this, PlayState* play);
 
@@ -22,28 +22,28 @@ ActorProfile Item_B_Heart_Profile = {
     /**/ FLAGS,
     /**/ OBJECT_GI_HEARTS,
     /**/ sizeof(ItemBHeart),
-    /**/ ItemBHeart_Init,
-    /**/ ItemBHeart_Destroy,
-    /**/ ItemBHeart_Update,
-    /**/ ItemBHeart_Draw,
+    /**/ MM_ItemBHeart_Init,
+    /**/ MM_ItemBHeart_Destroy,
+    /**/ MM_ItemBHeart_Update,
+    /**/ MM_ItemBHeart_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 0, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 800, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 800, ICHAIN_STOP),
 };
 
-void ItemBHeart_Init(Actor* thisx, PlayState* play) {
+void MM_ItemBHeart_Init(Actor* thisx, PlayState* play) {
     ItemBHeart* this = (ItemBHeart*)thisx;
 
-    if (Flags_GetCollectible(play, 0x1F)) {
-        Actor_Kill(&this->actor);
+    if (MM_Flags_GetCollectible(play, 0x1F)) {
+        MM_Actor_Kill(&this->actor);
         return;
     }
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.8f);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.8f);
     if (this->actor.params == BHEART_PARAM_SMALL) {
         this->baseScale = BHEART_SCALE_SMALL;
     } else {
@@ -52,24 +52,24 @@ void ItemBHeart_Init(Actor* thisx, PlayState* play) {
     this->actor.world.pos.y += 20.0f * this->baseScale;
 }
 
-void ItemBHeart_Destroy(Actor* thisx, PlayState* play) {
+void MM_ItemBHeart_Destroy(Actor* thisx, PlayState* play) {
 }
 
 /**
  * Adjusts size and handles collection (if of proper baseScale)
  */
-void ItemBHeart_Update(Actor* thisx, PlayState* play) {
+void MM_ItemBHeart_Update(Actor* thisx, PlayState* play) {
     ItemBHeart* this = (ItemBHeart*)thisx;
 
     ItemBHeart_UpdateModel(this, play);
 
     if (!(this->baseScale < BHEART_SCALE_MIN_COLLECTIBLE)) {
-        if (Actor_HasParent(&this->actor, play)) {
-            Flags_SetCollectible(play, 0x1F);
-            Actor_Kill(&this->actor);
+        if (MM_Actor_HasParent(&this->actor, play)) {
+            MM_Flags_SetCollectible(play, 0x1F);
+            MM_Actor_Kill(&this->actor);
             return;
         }
-        Actor_OfferGetItem(&this->actor, play, GI_HEART_CONTAINER, 30.0f, 80.0f);
+        MM_Actor_OfferGetItem(&this->actor, play, GI_HEART_CONTAINER, 30.0f, 80.0f);
     }
 }
 
@@ -78,14 +78,14 @@ void ItemBHeart_Update(Actor* thisx, PlayState* play) {
  */
 void ItemBHeart_UpdateModel(ItemBHeart* this, PlayState* play) {
     this->actor.shape.rot.y += 0x400;
-    Math_ApproachF(&this->variableScale, 0.4f, 0.1f, 0.01f);
-    Actor_SetScale(&this->actor, this->variableScale * this->baseScale);
+    MM_Math_ApproachF(&this->variableScale, 0.4f, 0.1f, 0.01f);
+    MM_Actor_SetScale(&this->actor, this->variableScale * this->baseScale);
 }
 
 /**
  * Draw translucently when in front of a boss warp portal
  */
-void ItemBHeart_Draw(Actor* thisx, PlayState* play) {
+void MM_ItemBHeart_Draw(Actor* thisx, PlayState* play) {
     ItemBHeart* this = (ItemBHeart*)thisx;
     Actor* actorIt;
     u8 drawTranslucent = false;

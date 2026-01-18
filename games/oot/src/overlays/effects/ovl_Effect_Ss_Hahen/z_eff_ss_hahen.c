@@ -15,25 +15,25 @@
 #define rObjBankIdx regs[5]
 #define rMinLife regs[6]
 
-u32 EffectSsHahen_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+u32 OoT_EffectSsHahen_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
 void EffectSsHahen_DrawGray(PlayState* play, u32 index, EffectSs* this);
-void EffectSsHahen_Draw(PlayState* play, u32 index, EffectSs* this);
-void EffectSsHahen_Update(PlayState* play, u32 index, EffectSs* this);
+void OoT_EffectSsHahen_Draw(PlayState* play, u32 index, EffectSs* this);
+void OoT_EffectSsHahen_Update(PlayState* play, u32 index, EffectSs* this);
 
 EffectSsInit Effect_Ss_Hahen_InitVars = {
     EFFECT_SS_HAHEN,
-    EffectSsHahen_Init,
+    OoT_EffectSsHahen_Init,
 };
 
-void EffectSsHahen_CheckForObject(EffectSs* this, PlayState* play) {
+void OoT_EffectSsHahen_CheckForObject(EffectSs* this, PlayState* play) {
     if (((this->rObjBankIdx = Object_GetIndex(&play->objectCtx, this->rObjId)) < 0) ||
-        !Object_IsLoaded(&play->objectCtx, this->rObjBankIdx)) {
+        !OoT_Object_IsLoaded(&play->objectCtx, this->rObjBankIdx)) {
         this->life = -1;
         this->draw = NULL;
     }
 }
 
-u32 EffectSsHahen_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 OoT_EffectSsHahen_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsHahenInitParams* initParams = (EffectSsHahenInitParams*)initParamsx;
 
     this->pos = initParams->pos;
@@ -44,7 +44,7 @@ u32 EffectSsHahen_Init(PlayState* play, u32 index, EffectSs* this, void* initPar
     if (initParams->dList != NULL) {
         this->gfx = initParams->dList;
         this->rObjId = initParams->objId;
-        EffectSsHahen_CheckForObject(this, play);
+        OoT_EffectSsHahen_CheckForObject(this, play);
     } else {
         this->gfx = SEGMENTED_TO_VIRTUAL(gEffFragments1DL);
         this->rObjId = -1;
@@ -53,20 +53,20 @@ u32 EffectSsHahen_Init(PlayState* play, u32 index, EffectSs* this, void* initPar
     if ((this->rObjId == OBJECT_HAKA_OBJECTS) && (this->gfx == gEffFragments2DL)) {
         this->draw = EffectSsHahen_DrawGray;
     } else {
-        this->draw = EffectSsHahen_Draw;
+        this->draw = OoT_EffectSsHahen_Draw;
     }
 
-    this->update = EffectSsHahen_Update;
+    this->update = OoT_EffectSsHahen_Update;
     this->rUnused = initParams->unused;
     this->rScale = initParams->scale;
-    this->rPitch = Rand_ZeroOne() * 314.0f;
-    this->rYaw = Rand_ZeroOne() * 314.0f;
+    this->rPitch = OoT_Rand_ZeroOne() * 314.0f;
+    this->rYaw = OoT_Rand_ZeroOne() * 314.0f;
     this->rMinLife = 200 - initParams->life;
 
     return 1;
 }
 
-void EffectSsHahen_Draw(PlayState* play, u32 index, EffectSs* this) {
+void OoT_EffectSsHahen_Draw(PlayState* play, u32 index, EffectSs* this) {
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     s32 pad;
     f32 scale = this->rScale * 0.001f;
@@ -77,10 +77,10 @@ void EffectSsHahen_Draw(PlayState* play, u32 index, EffectSs* this) {
         gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.status[this->rObjBankIdx].segment);
     }
 
-    Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
+    OoT_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
     Matrix_RotateY(this->rYaw * 0.01f, MTXMODE_APPLY);
     Matrix_RotateX(this->rPitch * 0.01f, MTXMODE_APPLY);
-    Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+    OoT_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gSPDisplayList(POLY_OPA_DISP++, this->gfx);
@@ -100,10 +100,10 @@ void EffectSsHahen_DrawGray(PlayState* play, u32 index, EffectSs* this) {
         gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.status[this->rObjBankIdx].segment);
     }
 
-    Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
+    OoT_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
     Matrix_RotateY(this->rYaw * 0.01f, MTXMODE_APPLY);
     Matrix_RotateX(this->rPitch * 0.01f, MTXMODE_APPLY);
-    Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+    OoT_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gDPSetCombineLERP(POLY_OPA_DISP++, SHADE, 0, PRIMITIVE, 0, SHADE, 0, PRIMITIVE, 0, SHADE, 0, PRIMITIVE, 0, SHADE, 0,
@@ -114,7 +114,7 @@ void EffectSsHahen_DrawGray(PlayState* play, u32 index, EffectSs* this) {
     CLOSE_DISPS(gfxCtx);
 }
 
-void EffectSsHahen_Update(PlayState* play, u32 index, EffectSs* this) {
+void OoT_EffectSsHahen_Update(PlayState* play, u32 index, EffectSs* this) {
     Player* player = GET_PLAYER(play);
 
     this->rPitch += 55;
@@ -125,6 +125,6 @@ void EffectSsHahen_Update(PlayState* play, u32 index, EffectSs* this) {
     }
 
     if (this->rObjId != -1) {
-        EffectSsHahen_CheckForObject(this, play);
+        OoT_EffectSsHahen_CheckForObject(this, play);
     }
 }

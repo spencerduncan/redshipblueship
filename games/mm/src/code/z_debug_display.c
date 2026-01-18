@@ -1,7 +1,7 @@
 #include "z64debug_display.h"
 #include "global.h"
 
-DebugDispObject* sDebugObjectListHead;
+DebugDispObject* MM_sDebugObjectListHead;
 
 typedef struct {
     /* 0x0 */ s16 drawType;  // indicates which draw function to use when displaying the object
@@ -10,70 +10,70 @@ typedef struct {
 
 typedef void (*DebugDispObjectDrawFunc)(DebugDispObject*, void*, PlayState*);
 
-void DebugDisplay_DrawSpriteI8(DebugDispObject* dispObj, void* texture, PlayState* play);
-void DebugDisplay_DrawPolygon(DebugDispObject* dispObj, void* dList, PlayState* play);
+void MM_DebugDisplay_DrawSpriteI8(DebugDispObject* dispObj, void* texture, PlayState* play);
+void MM_DebugDisplay_DrawPolygon(DebugDispObject* dispObj, void* dList, PlayState* play);
 Gfx* DebugDisplay_PathDisplayList(GraphicsContext* gfxCtx, Path* path);
 
-DebugDispObject* DebugDisplay_Init(void) {
-    sDebugObjectListHead = NULL;
-    return sDebugObjectListHead;
+DebugDispObject* MM_DebugDisplay_Init(void) {
+    MM_sDebugObjectListHead = NULL;
+    return MM_sDebugObjectListHead;
 }
 
-DebugDispObject* DebugDisplay_AddObject(f32 posX, f32 posY, f32 posZ, s16 rotX, s16 rotY, s16 rotZ, f32 scaleX,
+DebugDispObject* MM_DebugDisplay_AddObject(f32 posX, f32 posY, f32 posZ, s16 rotX, s16 rotY, s16 rotZ, f32 scaleX,
                                         f32 scaleY, f32 scaleZ, u8 red, u8 green, u8 blue, u8 alpha, s16 type,
                                         GraphicsContext* gfxCtx) {
-    DebugDispObject* oldHead = sDebugObjectListHead;
+    DebugDispObject* oldHead = MM_sDebugObjectListHead;
 
-    sDebugObjectListHead = GRAPH_ALLOC(gfxCtx, sizeof(DebugDispObject));
-    sDebugObjectListHead->pos.x = posX;
-    sDebugObjectListHead->pos.y = posY;
-    sDebugObjectListHead->pos.z = posZ;
-    sDebugObjectListHead->rot.x = rotX;
-    sDebugObjectListHead->rot.y = rotY;
-    sDebugObjectListHead->rot.z = rotZ;
-    sDebugObjectListHead->scale.x = scaleX;
-    sDebugObjectListHead->scale.y = scaleY;
-    sDebugObjectListHead->scale.z = scaleZ;
-    sDebugObjectListHead->color.r = red;
-    sDebugObjectListHead->color.g = green;
-    sDebugObjectListHead->color.b = blue;
-    sDebugObjectListHead->color.a = alpha;
-    sDebugObjectListHead->type = type;
-    sDebugObjectListHead->next = oldHead;
-    return sDebugObjectListHead;
+    MM_sDebugObjectListHead = GRAPH_ALLOC(gfxCtx, sizeof(DebugDispObject));
+    MM_sDebugObjectListHead->pos.x = posX;
+    MM_sDebugObjectListHead->pos.y = posY;
+    MM_sDebugObjectListHead->pos.z = posZ;
+    MM_sDebugObjectListHead->rot.x = rotX;
+    MM_sDebugObjectListHead->rot.y = rotY;
+    MM_sDebugObjectListHead->rot.z = rotZ;
+    MM_sDebugObjectListHead->scale.x = scaleX;
+    MM_sDebugObjectListHead->scale.y = scaleY;
+    MM_sDebugObjectListHead->scale.z = scaleZ;
+    MM_sDebugObjectListHead->color.r = red;
+    MM_sDebugObjectListHead->color.g = green;
+    MM_sDebugObjectListHead->color.b = blue;
+    MM_sDebugObjectListHead->color.a = alpha;
+    MM_sDebugObjectListHead->type = type;
+    MM_sDebugObjectListHead->next = oldHead;
+    return MM_sDebugObjectListHead;
 }
 
 #include "code/debug_display/debug_display.h"
 
-DebugDispObjectDrawFunc sDebugObjectDrawFuncTable[] = { DebugDisplay_DrawSpriteI8, DebugDisplay_DrawPolygon };
+DebugDispObjectDrawFunc MM_sDebugObjectDrawFuncTable[] = { MM_DebugDisplay_DrawSpriteI8, MM_DebugDisplay_DrawPolygon };
 
-DebugDispObjectInfo sDebugObjectInfoTable[] = {
+DebugDispObjectInfo MM_sDebugObjectInfoTable[] = {
     { 0, sDebugDisplayCircleTex }, { 0, sDebugDisplayCrossTex }, { 0, sDebugDisplayBallTex },
     { 0, sDebugDisplayCursorTex }, { 1, sDebugDisplay1DL },      { 1, sDebugDisplay3DL },
     { 1, sDebugDisplay2DL },
 };
 
-void DebugDisplay_DrawObjects(PlayState* play) {
-    DebugDispObject* dispObj = sDebugObjectListHead;
+void MM_DebugDisplay_DrawObjects(PlayState* play) {
+    DebugDispObject* dispObj = MM_sDebugObjectListHead;
     DebugDispObjectInfo* objInfo;
 
     while (dispObj != NULL) {
-        objInfo = &sDebugObjectInfoTable[dispObj->type];
-        sDebugObjectDrawFuncTable[objInfo->drawType](dispObj, objInfo->drawArg, play);
+        objInfo = &MM_sDebugObjectInfoTable[dispObj->type];
+        MM_sDebugObjectDrawFuncTable[objInfo->drawType](dispObj, objInfo->drawArg, play);
         dispObj = dispObj->next;
     }
 }
 
-void DebugDisplay_DrawSpriteI8(DebugDispObject* dispObj, void* texture, PlayState* play) {
+void MM_DebugDisplay_DrawSpriteI8(DebugDispObject* dispObj, void* texture, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL47_Xlu(play->state.gfxCtx);
 
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, dispObj->color.r, dispObj->color.g, dispObj->color.b, dispObj->color.a);
-    Matrix_Translate(dispObj->pos.x, dispObj->pos.y, dispObj->pos.z, MTXMODE_NEW);
-    Matrix_Scale(dispObj->scale.x, dispObj->scale.y, dispObj->scale.z, MTXMODE_APPLY);
-    Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
-    Matrix_RotateZYX(dispObj->rot.x, dispObj->rot.y, dispObj->rot.z, MTXMODE_APPLY);
+    MM_Matrix_Translate(dispObj->pos.x, dispObj->pos.y, dispObj->pos.z, MTXMODE_NEW);
+    MM_Matrix_Scale(dispObj->scale.x, dispObj->scale.y, dispObj->scale.z, MTXMODE_APPLY);
+    MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
+    MM_Matrix_RotateZYX(dispObj->rot.x, dispObj->rot.y, dispObj->rot.z, MTXMODE_APPLY);
 
     gDPLoadTextureBlock(POLY_XLU_DISP++, texture, G_IM_FMT_I, G_IM_SIZ_8b, 16, 16, 0, G_TX_NOMIRROR | G_TX_WRAP,
                         G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
@@ -87,7 +87,7 @@ void DebugDisplay_DrawSpriteI8(DebugDispObject* dispObj, void* texture, PlayStat
 
 Lights1 sDebugDisplayLight1 = gdSPDefLights1(128, 128, 128, 255, 255, 255, 73, 73, 73);
 
-void DebugDisplay_DrawPolygon(DebugDispObject* dispObj, void* dList, PlayState* play) {
+void MM_DebugDisplay_DrawPolygon(DebugDispObject* dispObj, void* dList, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL4_Xlu(play->state.gfxCtx);
@@ -96,8 +96,8 @@ void DebugDisplay_DrawPolygon(DebugDispObject* dispObj, void* dList, PlayState* 
 
     gSPSetLights1(POLY_XLU_DISP++, sDebugDisplayLight1);
 
-    Matrix_SetTranslateRotateYXZ(dispObj->pos.x, dispObj->pos.y, dispObj->pos.z, &dispObj->rot);
-    Matrix_Scale(dispObj->scale.x, dispObj->scale.y, dispObj->scale.z, MTXMODE_APPLY);
+    MM_Matrix_SetTranslateRotateYXZ(dispObj->pos.x, dispObj->pos.y, dispObj->pos.z, &dispObj->rot);
+    MM_Matrix_Scale(dispObj->scale.x, dispObj->scale.y, dispObj->scale.z, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
     gSPDisplayList(POLY_XLU_DISP++, dList);

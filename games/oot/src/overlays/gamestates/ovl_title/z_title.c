@@ -86,9 +86,9 @@ void Title_Draw(TitleContext* this) {
     gSPSetLights1(POLY_OPA_DISP++, sTitleLights);
     Title_SetupView(this, 0, 150.0, 300.0);
     Gfx_SetupDL_25Opa(this->state.gfxCtx);
-    Matrix_Translate(-53.0, -5.0, 0, MTXMODE_NEW);
-    Matrix_Scale(1.0, 1.0, 1.0, MTXMODE_APPLY);
-    Matrix_RotateZYX(0, sTitleRotY, 0, MTXMODE_APPLY);
+    OoT_Matrix_Translate(-53.0, -5.0, 0, MTXMODE_NEW);
+    OoT_Matrix_Scale(1.0, 1.0, 1.0, MTXMODE_APPLY);
+    OoT_Matrix_RotateZYX(0, sTitleRotY, 0, MTXMODE_APPLY);
 
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(this->state.gfxCtx), G_MTX_LOAD);
     gSPDisplayList(POLY_OPA_DISP++, gNintendo64LogoDL);
@@ -115,7 +115,7 @@ void Title_Draw(TitleContext* this) {
         gSPTextureRectangle(POLY_OPA_DISP++, 388, y << 2, 1156, (y + 2) << 2, G_TX_RENDERTILE, 0, 0, 1 << 10, 1 << 10);
     }
 
-    Environment_FillScreen(this->state.gfxCtx, 0, 0, 0, (s16)this->coverAlpha, FILL_SCREEN_XLU);
+    OoT_Environment_FillScreen(this->state.gfxCtx, 0, 0, 0, (s16)this->coverAlpha, FILL_SCREEN_XLU);
 
     sTitleRotY += 300;
 
@@ -147,7 +147,7 @@ void Title_Main(GameState* thisx) {
 void Title_Destroy(GameState* thisx) {
     TitleContext* this = (TitleContext*)thisx;
 
-    Sram_InitSram(&this->state);
+    OoT_Sram_InitSram(&this->state);
 }
 
 void Title_Init(GameState* thisx) {
@@ -157,8 +157,8 @@ void Title_Init(GameState* thisx) {
     osSyncPrintf("z_title.c\n");
 
     R_UPDATE_RATE = 1;
-    Matrix_Init(&this->state);
-    View_Init(&this->view, this->state.gfxCtx);
+    OoT_Matrix_Init(&this->state);
+    OoT_View_Init(&this->view, this->state.gfxCtx);
     this->state.main = Title_Main;
     this->state.destroy = Title_Destroy;
     this->exit = false;

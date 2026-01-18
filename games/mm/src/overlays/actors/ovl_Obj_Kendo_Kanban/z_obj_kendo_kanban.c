@@ -67,7 +67,7 @@ static Vec3f sCenterPointBottomHalf = { 0.0f, 140.0f, 40.0f };
 static Vec3f sCenterPointTopHalf = { 0.0f, 565.0f, 40.0f };
 
 // Displaylists for the 4 pieces.
-static Gfx* sDisplayLists[] = {
+static Gfx* MM_sDisplayLists[] = {
     gKendoKanbanTopRightDL,
     gKendoKanbanTopLeftDL,
     gKendoKanbanBottomRightDL,
@@ -85,7 +85,7 @@ static Vec3f sPointBL = { -300.0f, 10.0f, 40.0f };
 static Vec3f sPointBC = { 0.0f, 10.0f, 40.0f };
 static Vec3f sPointBR = { 300.0f, 10.0f, 40.0f };
 
-static ColliderTrisElementInit sTrisElementsInit[] = {
+static ColliderTrisElementInit MM_sTrisElementsInit[] = {
     {
         {
             ELEM_MATERIAL_UNK5,
@@ -110,7 +110,7 @@ static ColliderTrisElementInit sTrisElementsInit[] = {
     },
 };
 
-static ColliderTrisInit sTrisInit = {
+static ColliderTrisInit MM_sTrisInit = {
     {
         COL_MATERIAL_TREE,
         AT_NONE,
@@ -119,11 +119,11 @@ static ColliderTrisInit sTrisInit = {
         OC2_TYPE_1,
         COLSHAPE_TRIS,
     },
-    ARRAY_COUNT(sTrisElementsInit),
-    sTrisElementsInit,
+    ARRAY_COUNT(MM_sTrisElementsInit),
+    MM_sTrisElementsInit,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_TREE,
         AT_NONE,
@@ -143,7 +143,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 33, 80, 0, { 0, 0, 0 } },
 };
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(0, 0x0),
     /* Deku Stick     */ DMG_ENTRY(0, 0xF),
     /* Horse trample  */ DMG_ENTRY(0, 0x0),
@@ -178,9 +178,9 @@ static DamageTable sDamageTable = {
     /* Powder Keg     */ DMG_ENTRY(0, 0x0),
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 8, 0, 0, 0, MASS_HEAVY };
+static CollisionCheckInfoInit2 MM_sColChkInfoInit = { 8, 0, 0, 0, MASS_HEAVY };
 
-static Vec3f sZeroVec = { 0.0f, 0.0f, 0.0f };
+static Vec3f MM_sZeroVec = { 0.0f, 0.0f, 0.0f };
 static Vec3f sUnitVecX = { 1.0f, 0.0f, 0.0f };
 
 void ObjKendoKanban_Init(Actor* thisx, PlayState* play) {
@@ -190,32 +190,32 @@ void ObjKendoKanban_Init(Actor* thisx, PlayState* play) {
     s32 i;
     s32 j;
 
-    Actor_SetScale(&this->actor, 0.1f);
+    MM_Actor_SetScale(&this->actor, 0.1f);
 
-    Collider_InitCylinder(play, &this->colliderCylinder);
-    Collider_SetCylinder(play, &this->colliderCylinder, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, &sDamageTable, &sColChkInfoInit);
-    Collider_InitTris(play, &this->colliderTris);
-    Collider_SetTris(play, &this->colliderTris, &this->actor, &sTrisInit, this->colliderTrisElements);
+    MM_Collider_InitCylinder(play, &this->colliderCylinder);
+    MM_Collider_SetCylinder(play, &this->colliderCylinder, &this->actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, &MM_sDamageTable, &MM_sColChkInfoInit);
+    MM_Collider_InitTris(play, &this->colliderTris);
+    MM_Collider_SetTris(play, &this->colliderTris, &this->actor, &MM_sTrisInit, this->colliderTrisElements);
 
-    Matrix_SetTranslateRotateYXZ(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
+    MM_Matrix_SetTranslateRotateYXZ(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
                                  &this->actor.shape.rot);
-    Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+    MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
 
     for (i = 0; i < ARRAY_COUNT(this->colliderTrisElements); i++) {
         for (j = 0; j < ARRAY_COUNT(vertices); j++) {
-            Matrix_MultVec3f(&sTrisElementsInit[i].dim.vtx[j], &vertices[j]);
+            MM_Matrix_MultVec3f(&MM_sTrisElementsInit[i].dim.vtx[j], &vertices[j]);
         }
-        Collider_SetTrisVertices(&this->colliderTris, i, &vertices[0], &vertices[1], &vertices[2]);
+        MM_Collider_SetTrisVertices(&this->colliderTris, i, &vertices[0], &vertices[1], &vertices[2]);
     }
 
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
 
     this->boardFragments = OBJKENDOKANBAN_GET_BOARD_FRAGMENTS(&this->actor);
     this->actor.gravity = -2.0f;
-    this->centerPoint = sZeroVec;
-    this->centerPos = sZeroVec;
-    this->rootCornerPos = sZeroVec;
+    this->centerPoint = MM_sZeroVec;
+    this->centerPos = MM_sZeroVec;
+    this->rootCornerPos = MM_sZeroVec;
     this->rotAxis = sUnitVecX;
     this->rotAngle = 0;
     this->angularVelocity = 0;
@@ -224,7 +224,7 @@ void ObjKendoKanban_Init(Actor* thisx, PlayState* play) {
     this->numBounces = 0;
 
     for (i = 0; i < ARRAY_COUNT(this->cornerPos); i++) {
-        this->cornerPos[i] = this->cornerPoints[i] = sZeroVec;
+        this->cornerPos[i] = this->cornerPoints[i] = MM_sZeroVec;
     }
 
     this->unk_30A = 0;
@@ -238,8 +238,8 @@ void ObjKendoKanban_Init(Actor* thisx, PlayState* play) {
 void ObjKendoKanban_Destroy(Actor* thisx, PlayState* play) {
     ObjKendoKanban* this = (ObjKendoKanban*)thisx;
 
-    Collider_DestroyCylinder(play, &this->colliderCylinder);
-    Collider_DestroyTris(play, &this->colliderTris);
+    MM_Collider_DestroyCylinder(play, &this->colliderCylinder);
+    MM_Collider_DestroyTris(play, &this->colliderTris);
 }
 
 void ObjKendoKanban_SetupDoNothing(ObjKendoKanban* this) {
@@ -263,7 +263,7 @@ void ObjKendoKanban_SetupTumble(ObjKendoKanban* this, PlayState* play) {
             this->actor.velocity = sVelocityRightHalf;
             this->centerPoint = sCenterPointRightHalf;
 
-            Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_OBJ_KENDO_KANBAN,
+            MM_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_OBJ_KENDO_KANBAN,
                                this->actor.home.pos.x - 5.0f, this->actor.home.pos.y, this->actor.home.pos.z, 0, 0, 0,
                                OBJKENDOKANBAN_LEFT_HALF);
 
@@ -278,7 +278,7 @@ void ObjKendoKanban_SetupTumble(ObjKendoKanban* this, PlayState* play) {
             this->actor.velocity = sVelocityBottomHalf;
             this->centerPoint = sCenterPointBottomHalf;
 
-            Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_OBJ_KENDO_KANBAN, this->actor.home.pos.x,
+            MM_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_OBJ_KENDO_KANBAN, this->actor.home.pos.x,
                                this->actor.home.pos.y + 5.0f, this->actor.home.pos.z, 0, 0, 0, OBJKENDOKANBAN_TOP_HALF);
 
             this->cornerPoints[0] = sPointCL;
@@ -314,7 +314,7 @@ void ObjKendoKanban_SetupTumble(ObjKendoKanban* this, PlayState* play) {
 
 void ObjKendoKanban_Tumble(ObjKendoKanban* this, PlayState* play) {
     this->actor.velocity.y += this->actor.gravity;
-    Actor_UpdatePos(&this->actor);
+    MM_Actor_UpdatePos(&this->actor);
     this->rotAngle += this->angularVelocity;
     ObjKendoKanban_HandlePhysics(this, play);
     if (this->actor.world.pos.y < -200.0f) {
@@ -368,17 +368,17 @@ void ObjKendoKanban_HandlePhysics(ObjKendoKanban* this, PlayState* play) {
         this->indexLastRootCornerPos = indexRootCornerPos;
         this->rootCornerPos = this->cornerPoints[indexRootCornerPos];
 
-        Matrix_Push();
-        Matrix_SetTranslateRotateYXZ(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
+        MM_Matrix_Push();
+        MM_Matrix_SetTranslateRotateYXZ(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
                                      &this->actor.shape.rot);
-        Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
-        Matrix_MultVec3f(&this->rootCornerPos, &this->actor.world.pos);
+        MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+        MM_Matrix_MultVec3f(&this->rootCornerPos, &this->actor.world.pos);
         this->actor.world.pos = rootCornerPos;
         this->actor.prevPos = this->actor.world.pos;
-        Matrix_Pop();
+        MM_Matrix_Pop();
     }
 
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
 
     if (this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) {
         // When on the ground, apply some friction.
@@ -473,14 +473,14 @@ void ObjKendoKanban_UpdateCollision(ObjKendoKanban* this, PlayState* play) {
             ObjKendoKanban_SetupTumble(this, play);
         }
 
-        Collider_UpdateCylinder(&this->actor, &this->colliderCylinder);
-        this->colliderCylinder.dim.pos.z -= TRUNCF_BINANG(20.0f * Math_CosS(this->actor.shape.rot.y));
-        this->colliderCylinder.dim.pos.x -= TRUNCF_BINANG(20.0f * Math_SinS(this->actor.shape.rot.y));
+        MM_Collider_UpdateCylinder(&this->actor, &this->colliderCylinder);
+        this->colliderCylinder.dim.pos.z -= TRUNCF_BINANG(20.0f * MM_Math_CosS(this->actor.shape.rot.y));
+        this->colliderCylinder.dim.pos.x -= TRUNCF_BINANG(20.0f * MM_Math_SinS(this->actor.shape.rot.y));
 
         if (this->actionFunc == ObjKendoKanban_DoNothing) {
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderTris.base);
+            MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderTris.base);
         }
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliderCylinder.base);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliderCylinder.base);
     }
 }
 
@@ -504,13 +504,13 @@ void ObjKendoKanban_Draw(Actor* thisx, PlayState* play) {
         gSPDisplayList(POLY_OPA_DISP++, gKendoKanbanDL);
     } else {
         Matrix_RotateAxisS(this->rotAngle, &this->rotAxis, MTXMODE_APPLY);
-        Matrix_Translate(-this->rootCornerPos.x, -this->rootCornerPos.y, -this->rootCornerPos.z, MTXMODE_APPLY);
+        MM_Matrix_Translate(-this->rootCornerPos.x, -this->rootCornerPos.y, -this->rootCornerPos.z, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
 
         // Display only the fragments of the board which are present
-        for (i = 0; i < ARRAY_COUNT(sDisplayLists); i++) {
+        for (i = 0; i < ARRAY_COUNT(MM_sDisplayLists); i++) {
             if ((1 << i) & this->boardFragments) {
-                gSPDisplayList(POLY_OPA_DISP++, sDisplayLists[i]);
+                gSPDisplayList(POLY_OPA_DISP++, MM_sDisplayLists[i]);
             }
         }
     }
@@ -519,7 +519,7 @@ void ObjKendoKanban_Draw(Actor* thisx, PlayState* play) {
 
     // Update the alternate position trackers (Corners and Center of the board)
     for (i = 0; i < ARRAY_COUNT(this->cornerPos); i++) {
-        Matrix_MultVec3f(&this->cornerPoints[i], &this->cornerPos[i]);
+        MM_Matrix_MultVec3f(&this->cornerPoints[i], &this->cornerPos[i]);
     }
-    Matrix_MultVec3f(&this->centerPoint, &this->centerPos);
+    MM_Matrix_MultVec3f(&this->centerPoint, &this->centerPos);
 }

@@ -28,7 +28,7 @@ ActorProfile En_Invisible_Ruppe_Profile = {
     /**/ NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -51,9 +51,9 @@ static ColliderCylinderInit sCylinderInit = {
 };
 
 void func_80C258A0(EnInvisibleRuppe* this, PlayState* play) {
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 32.0f, 30.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 32.0f, 30.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
 }
 
 void func_80C2590C(EnInvisibleRuppe* this, PlayState* play) {
@@ -61,17 +61,17 @@ void func_80C2590C(EnInvisibleRuppe* this, PlayState* play) {
         switch (INVISIBLERUPPE_GET_3(&this->actor)) {
             case 0:
                 Audio_PlaySfx(NA_SE_SY_GET_RUPY);
-                Item_DropCollectible(play, &this->actor.world.pos, 0x8000 | ITEM00_RUPEE_GREEN);
+                MM_Item_DropCollectible(play, &this->actor.world.pos, 0x8000 | ITEM00_RUPEE_GREEN);
                 break;
 
             case 1:
                 Audio_PlaySfx(NA_SE_SY_GET_RUPY);
-                Item_DropCollectible(play, &this->actor.world.pos, 0x8000 | ITEM00_RUPEE_BLUE);
+                MM_Item_DropCollectible(play, &this->actor.world.pos, 0x8000 | ITEM00_RUPEE_BLUE);
                 break;
 
             case 2:
                 Audio_PlaySfx(NA_SE_SY_GET_RUPY);
-                Item_DropCollectible(play, &this->actor.world.pos, 0x8000 | ITEM00_RUPEE_RED);
+                MM_Item_DropCollectible(play, &this->actor.world.pos, 0x8000 | ITEM00_RUPEE_RED);
                 break;
 
             default:
@@ -79,7 +79,7 @@ void func_80C2590C(EnInvisibleRuppe* this, PlayState* play) {
         }
 
         if (this->switchFlag > SWITCH_FLAG_NONE) {
-            Flags_SetSwitch(play, this->switchFlag);
+            MM_Flags_SetSwitch(play, this->switchFlag);
         }
 
         this->actionFunc = func_80C259E8;
@@ -87,7 +87,7 @@ void func_80C2590C(EnInvisibleRuppe* this, PlayState* play) {
 }
 
 void func_80C259E8(EnInvisibleRuppe* this, PlayState* play) {
-    Actor_Kill(&this->actor);
+    MM_Actor_Kill(&this->actor);
 }
 
 void EnInvisibleRuppe_Init(Actor* thisx, PlayState* play) {
@@ -100,13 +100,13 @@ void EnInvisibleRuppe_Init(Actor* thisx, PlayState* play) {
         this->switchFlag = SWITCH_FLAG_NONE;
     }
 
-    if ((this->switchFlag > SWITCH_FLAG_NONE) && Flags_GetSwitch(play, this->switchFlag)) {
-        Actor_Kill(&this->actor);
+    if ((this->switchFlag > SWITCH_FLAG_NONE) && MM_Flags_GetSwitch(play, this->switchFlag)) {
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    MM_Collider_InitCylinder(play, &this->collider);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
 
     this->actionFunc = func_80C2590C;
 }
@@ -114,7 +114,7 @@ void EnInvisibleRuppe_Init(Actor* thisx, PlayState* play) {
 void EnInvisibleRuppe_Destroy(Actor* thisx, PlayState* play) {
     EnInvisibleRuppe* this = (EnInvisibleRuppe*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnInvisibleRuppe_Update(Actor* thisx, PlayState* play) {

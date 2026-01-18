@@ -67,20 +67,20 @@ u8 sSfxBankSizes[ARRAY_COUNT(gSfxBanks)] = {
     ARRAY_COUNT(sSfxVoiceBank),
 };
 
-u8 gSfxChannelLayout = 0;
+u8 MM_gSfxChannelLayout = 0;
 u16 sSfxChannelLowVolumeFlag = 0;
 
 // The center of the screen in projected coordinates.
 // Gives the impression that the sfx has no specific location
-Vec3f gSfxDefaultPos = { 0.0f, 0.0f, 0.0f };
+Vec3f MM_gSfxDefaultPos = { 0.0f, 0.0f, 0.0f };
 
 // Reused as either frequency or volume multiplicative scaling factor
 // Does not alter or change frequency or volume
-f32 gSfxDefaultFreqAndVolScale = 1.0f;
+f32 MM_gSfxDefaultFreqAndVolScale = 1.0f;
 s32 D_801DB4B4 = 0; // unused
 
 // Adds no reverb to the existing reverb
-s8 gSfxDefaultReverb = 0;
+s8 MM_gSfxDefaultReverb = 0;
 
 void AudioSfx_MuteBanks(u16 muteMask) {
     u8 bankId;
@@ -255,7 +255,7 @@ void AudioSfx_ProcessRequest(void) {
             if (gSfxBanks[bankId][index].sfxId == req->sfxId) {
                 // The new sfx is the same as the existing sfx
                 // Set channelCount to max value to reprocess the sfx
-                channelCount = gUsedChannelsPerBank[gSfxChannelLayout][bankId];
+                channelCount = MM_gUsedChannelsPerBank[MM_gSfxChannelLayout][bankId];
             } else {
                 // Determine which sfx to evict based on importance if there are no more channels available
                 if (channelCount == 0) {
@@ -274,7 +274,7 @@ void AudioSfx_ProcessRequest(void) {
                 channelCount++;
 
                 // There are no channels available, evict the lowest importance
-                if (channelCount == gUsedChannelsPerBank[gSfxChannelLayout][bankId]) {
+                if (channelCount == MM_gUsedChannelsPerBank[MM_gSfxChannelLayout][bankId]) {
                     if (gSfxParams[SFX_BANK_SHIFT(req->sfxId)][SFX_INDEX(req->sfxId)].importance >= evictImportance) {
                         index = evictIndex;
                     } else {
@@ -284,7 +284,7 @@ void AudioSfx_ProcessRequest(void) {
             }
 
             // Process this sfx by refreshing or replacing and existing sfx
-            if (channelCount == gUsedChannelsPerBank[gSfxChannelLayout][bankId]) {
+            if (channelCount == MM_gUsedChannelsPerBank[MM_gSfxChannelLayout][bankId]) {
                 sfxParams = &gSfxParams[SFX_BANK_SHIFT(req->sfxId)][SFX_INDEX(req->sfxId)];
 
                 // Interrupt existing sfx and play the new sfx instead.
@@ -377,10 +377,10 @@ void AudioSfx_RemoveBankEntry(u8 bankId, u8 entryIndex) {
     sSfxBankFreeListStart[bankId] = entryIndex;
     entry->state = SFX_STATE_EMPTY;
 
-    for (i = 0; i < gChannelsPerBank[gSfxChannelLayout][bankId]; i++) {
+    for (i = 0; i < MM_gChannelsPerBank[MM_gSfxChannelLayout][bankId]; i++) {
         if (gActiveSfx[bankId][i].entryIndex == entryIndex) {
             gActiveSfx[bankId][i].entryIndex = 0xFF;
-            i = gChannelsPerBank[gSfxChannelLayout][bankId];
+            i = MM_gChannelsPerBank[MM_gSfxChannelLayout][bankId];
         }
     }
 }
@@ -436,7 +436,7 @@ void AudioSfx_ChooseActiveSfx(u8 bankId) {
 
             // Recompute distSq each frame since the sound's position may have changed
             // (later converted into dist)
-            if (&gSfxDefaultPos.x == entry[0].posX) {
+            if (&MM_gSfxDefaultPos.x == entry[0].posX) {
                 entry->dist = 0.0f;
             } else {
                 entryPosY = *entry->posY * 1;
@@ -482,13 +482,13 @@ void AudioSfx_ChooseActiveSfx(u8 bankId) {
                 // This includes all sfx requests and sfx already playing
                 // Sort all current sfx entries in gSfxBanks by priority
                 // This is where the "active" sfx are chosen
-                numChannels = gChannelsPerBank[gSfxChannelLayout][bankId];
+                numChannels = MM_gChannelsPerBank[MM_gSfxChannelLayout][bankId];
 
                 for (i = 0; i < numChannels; i++) {
                     // Sort all sfx entries by priority
                     if (chosenSfx[i].priority >= entry->priority) {
                         // Update the number of sfx to attampt to play
-                        if (numChosenSfx < gChannelsPerBank[gSfxChannelLayout][bankId]) {
+                        if (numChosenSfx < MM_gChannelsPerBank[MM_gSfxChannelLayout][bankId]) {
                             numChosenSfx++;
                         }
 
@@ -524,7 +524,7 @@ void AudioSfx_ChooseActiveSfx(u8 bankId) {
     }
 
     // Apply the chosenSfx to the activeSfx in each channel
-    numChannels = gChannelsPerBank[gSfxChannelLayout][bankId];
+    numChannels = MM_gChannelsPerBank[MM_gSfxChannelLayout][bankId];
     for (i = 0; i < numChannels; i++) {
         needNewSfx = false;
         activeSfx = &gActiveSfx[bankId][i];
@@ -604,7 +604,7 @@ void AudioSfx_PlayActiveSfx(u8 bankId) {
     u8 i;
     u8 ioPort5Data;
 
-    for (i = 0; i < gChannelsPerBank[gSfxChannelLayout][bankId]; i++) {
+    for (i = 0; i < MM_gChannelsPerBank[MM_gSfxChannelLayout][bankId]; i++) {
         entryIndex = gActiveSfx[bankId][i].entryIndex;
         // If entry is not empty
         if (entryIndex != 0xFF) {

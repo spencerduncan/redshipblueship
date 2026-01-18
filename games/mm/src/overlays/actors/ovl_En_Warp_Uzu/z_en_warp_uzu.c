@@ -31,7 +31,7 @@ ActorProfile En_Warp_Uzu_Profile = {
     /**/ EnWarpUzu_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HIT0,
         AT_NONE,
@@ -51,7 +51,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 25, 43, -20, { 0, 0, 0 } },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeScale, 1500, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 1100, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 1000, ICHAIN_CONTINUE),
@@ -61,8 +61,8 @@ static InitChainEntry sInitChain[] = {
 void EnWarpUzu_Init(Actor* thisx, PlayState* play) {
     EnWarpUzu* this = (EnWarpUzu*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    Collider_InitAndSetCylinder(play, &this->collider, thisx, &sCylinderInit);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
+    Collider_InitAndSetCylinder(play, &this->collider, thisx, &MM_sCylinderInit);
     thisx->attentionRangeType = ATTENTION_RANGE_0;
     func_80A66208(this, play);
 }
@@ -70,7 +70,7 @@ void EnWarpUzu_Init(Actor* thisx, PlayState* play) {
 void EnWarpUzu_Destroy(Actor* thisx, PlayState* play) {
     EnWarpUzu* this = (EnWarpUzu*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void func_80A66208(EnWarpUzu* this, PlayState* play) {
@@ -79,8 +79,8 @@ void func_80A66208(EnWarpUzu* this, PlayState* play) {
 
     this->actor.textId = 0;
     Matrix_RotateYS(this->actor.shape.rot.y, MTXMODE_NEW);
-    Matrix_MultVec3f(&D_80A664FC, &sp24);
-    Math_Vec3f_Sum(&this->actor.world.pos, &sp24, &this->actor.focus.pos);
+    MM_Matrix_MultVec3f(&D_80A664FC, &sp24);
+    MM_Math_Vec3f_Sum(&this->actor.world.pos, &sp24, &this->actor.focus.pos);
     Math_Vec3s_Copy(&this->actor.focus.rot, &this->actor.shape.rot);
     this->actionFunc = func_80A66278;
 }
@@ -91,7 +91,7 @@ void func_80A66278(EnWarpUzu* this, PlayState* play) {
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         func_80A66384(this, play);
     } else {
-        s16 phi_a0 = ABS((s16)(Actor_WorldYawTowardActor(&this->actor, &player->actor) - this->actor.shape.rot.y));
+        s16 phi_a0 = ABS((s16)(MM_Actor_WorldYawTowardActor(&this->actor, &player->actor) - this->actor.shape.rot.y));
         s16 temp_v0 = player->actor.shape.rot.y - this->actor.shape.rot.y;
         s16 phi_v1 = ABS(temp_v0);
 
@@ -118,10 +118,10 @@ void EnWarpUzu_Update(Actor* thisx, PlayState* play) {
 
     this->actor.cullingVolumeDistance = 1000.0f;
     this->actionFunc(this, play);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void EnWarpUzu_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, object_warp_uzu_DL_000EC0);
+    MM_Gfx_DrawDListOpa(play, object_warp_uzu_DL_000EC0);
 }

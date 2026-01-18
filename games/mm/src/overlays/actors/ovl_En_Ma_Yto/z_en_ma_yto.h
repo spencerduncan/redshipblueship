@@ -21,7 +21,7 @@ typedef struct EnMaYto {
     /* 0x310 */ s16 unk310; // state?
     /* 0x312 */ UNK_TYPE1 unk_312[0x2];
     /* 0x314 */ s16 animIndex; // Used only in DefaultWait
-    /* 0x316 */ s16 overrideEyeTexIndex; // If non-zero, then this index will be used instead of eyeTexIndex
+    /* 0x316 */ s16 overrideEyeTexIndex; // If non-MM_zero, then this index will be used instead of eyeTexIndex
     /* 0x318 */ s16 mouthTexIndex;
     /* 0x31A */ s16 eyeTexIndex;
     /* 0x31C */ s16 blinkTimer;

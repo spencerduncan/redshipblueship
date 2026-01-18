@@ -21,7 +21,7 @@ ActorProfile Bg_Inibs_Movebg_Profile = {
     /**/ sizeof(BgInibsMovebg),
     /**/ BgInibsMovebg_Init,
     /**/ BgInibsMovebg_Destroy,
-    /**/ Actor_Noop,
+    /**/ MM_Actor_Noop,
     /**/ BgInibsMovebg_Draw,
 };
 
@@ -29,15 +29,15 @@ Gfx* sOpaDLists[] = { gTwinmoldArenaNormalModeSandDL, gTwinmoldArenaGiantModeSan
 Gfx* sXluDLists[] = { gTwinmoldArenaNormalModeCenterPlatformDL, gTwinmoldArenaGiantModeCenterPlatformDL };
 AnimatedMaterial* sSandTexAnims[] = { gTwinmoldArenaNormalModeSandTexAnim, gTwinmoldArenaGiantModeSandTexAnim };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 1000, ICHAIN_STOP),
 };
 
 void BgInibsMovebg_Init(Actor* thisx, PlayState* play) {
     BgInibsMovebg* this = (BgInibsMovebg*)thisx;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
 
     this->opaDList = sOpaDLists[BG_INIBS_MOVEBG_GET_MODE(thisx)];
     this->xluDList = sXluDLists[BG_INIBS_MOVEBG_GET_MODE(thisx)];
@@ -47,7 +47,7 @@ void BgInibsMovebg_Init(Actor* thisx, PlayState* play) {
 void BgInibsMovebg_Destroy(Actor* thisx, PlayState* play) {
     BgInibsMovebg* this = (BgInibsMovebg*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void BgInibsMovebg_Draw(Actor* thisx, PlayState* play) {
@@ -63,11 +63,11 @@ void BgInibsMovebg_Draw(Actor* thisx, PlayState* play) {
 
     opaDList = this->opaDList;
     if (opaDList != NULL) {
-        Gfx_DrawDListOpa(play, this->opaDList);
+        MM_Gfx_DrawDListOpa(play, this->opaDList);
     }
 
     xluDList = this->xluDList;
     if (xluDList != NULL) {
-        Gfx_DrawDListXlu(play, this->xluDList);
+        MM_Gfx_DrawDListXlu(play, this->xluDList);
     }
 }

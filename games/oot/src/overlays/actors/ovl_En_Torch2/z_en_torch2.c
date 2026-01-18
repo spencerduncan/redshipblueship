@@ -50,10 +50,10 @@ typedef enum {
     /* 27 */ BIG_SPIN_2H
 } PlayerSwordAnimation;
 
-void EnTorch2_Init(Actor* thisx, PlayState* play);
-void EnTorch2_Destroy(Actor* thisx, PlayState* play);
-void EnTorch2_Update(Actor* thisx, PlayState* play);
-void EnTorch2_Draw(Actor* thisx, PlayState* play);
+void OoT_EnTorch2_Init(Actor* thisx, PlayState* play);
+void OoT_EnTorch2_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnTorch2_Update(Actor* thisx, PlayState* play);
+void OoT_EnTorch2_Draw(Actor* thisx, PlayState* play);
 
 const ActorInit En_Torch2_InitVars = {
     ACTOR_EN_TORCH2,
@@ -61,10 +61,10 @@ const ActorInit En_Torch2_InitVars = {
     FLAGS,
     OBJECT_TORCH2,
     sizeof(Player),
-    (ActorFunc)EnTorch2_Init,
-    (ActorFunc)EnTorch2_Destroy,
-    (ActorFunc)EnTorch2_Update,
-    (ActorFunc)EnTorch2_Draw,
+    (ActorFunc)OoT_EnTorch2_Init,
+    (ActorFunc)OoT_EnTorch2_Destroy,
+    (ActorFunc)OoT_EnTorch2_Update,
+    (ActorFunc)OoT_EnTorch2_Draw,
     NULL,
 };
 
@@ -89,7 +89,7 @@ static u8 sStaggerTimer;
 static s8 sLastSwordAnim;
 static u8 sAlpha;
 
-static DamageTable sDamageTable = {
+static DamageTable OoT_sDamageTable = {
     /* Deku nut      */ DMG_ENTRY(0, 0x1),
     /* Deku stick    */ DMG_ENTRY(2, 0x0),
     /* Slingshot     */ DMG_ENTRY(1, 0x0),
@@ -124,7 +124,7 @@ static DamageTable sDamageTable = {
     /* Unknown 2     */ DMG_ENTRY(0, 0x0),
 };
 
-void EnTorch2_Init(Actor* thisx, PlayState* play2) {
+void OoT_EnTorch2_Init(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     Player* this = (Player*)thisx;
 
@@ -132,14 +132,14 @@ void EnTorch2_Init(Actor* thisx, PlayState* play2) {
     // This way Dark Link will be considered for "clear enemy" rooms properly.
     if (CVarGetInteger(CVAR_ENHANCEMENT("RandomizedEnemies"), 0) ||
         (CVarGetInteger(CVAR_REMOTE_CROWD_CONTROL("Enabled"), 0))) {
-        Actor_ChangeCategory(play, &play->actorCtx, thisx, ACTORCAT_ENEMY);
+        OoT_Actor_ChangeCategory(play, &play->actorCtx, thisx, ACTORCAT_ENEMY);
     }
 
     sInput.cur.button = sInput.press.button = sInput.rel.button = 0;
     sInput.cur.stick_x = sInput.cur.stick_y = 0;
     this->currentShield = PLAYER_SHIELD_HYLIAN;
     this->heldItemAction = this->heldItemId = PLAYER_IA_SWORD_MASTER;
-    Player_SetModelGroup(this, PLAYER_MODELGROUP_SWORD_AND_SHIELD);
+    OoT_Player_SetModelGroup(this, PLAYER_MODELGROUP_SWORD_AND_SHIELD);
     play->playerInit(this, play, &gDarkLinkSkel);
     this->actor.naviEnemyId = 0x26;
     this->cylinder.base.acFlags = AC_ON | AC_TYPE_PLAYER;
@@ -150,7 +150,7 @@ void EnTorch2_Init(Actor* thisx, PlayState* play2) {
     this->meleeWeaponQuads[0].info.bumperFlags = this->meleeWeaponQuads[1].info.bumperFlags = BUMP_ON;
     this->shieldQuad.base.atFlags = AT_ON | AT_TYPE_ENEMY;
     this->shieldQuad.base.acFlags = AC_ON | AC_HARD | AC_TYPE_PLAYER;
-    this->actor.colChkInfo.damageTable = &sDamageTable;
+    this->actor.colChkInfo.damageTable = &OoT_sDamageTable;
     this->actor.colChkInfo.health = gSaveContext.healthCapacity >> 3;
     this->actor.colChkInfo.cylRadius = 60;
     this->actor.colChkInfo.cylHeight = 100;
@@ -168,16 +168,16 @@ void EnTorch2_Init(Actor* thisx, PlayState* play2) {
     sSpawnPoint = this->actor.home.pos;
 }
 
-void EnTorch2_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnTorch2_Destroy(Actor* thisx, PlayState* play) {
     s32 pad;
     Player* this = (Player*)thisx;
 
     Effect_Delete(play, this->meleeWeaponEffectIndex);
     func_800F5B58();
-    Collider_DestroyCylinder(play, &this->cylinder);
-    Collider_DestroyQuad(play, &this->meleeWeaponQuads[0]);
-    Collider_DestroyQuad(play, &this->meleeWeaponQuads[1]);
-    Collider_DestroyQuad(play, &this->shieldQuad);
+    OoT_Collider_DestroyCylinder(play, &this->cylinder);
+    OoT_Collider_DestroyQuad(play, &this->meleeWeaponQuads[0]);
+    OoT_Collider_DestroyQuad(play, &this->meleeWeaponQuads[1]);
+    OoT_Collider_DestroyQuad(play, &this->shieldQuad);
 }
 
 Actor* EnTorch2_GetAttackItem(PlayState* play, Player* this) {
@@ -205,9 +205,9 @@ s32 EnTorch2_SwingSword(PlayState* play, Input* input, Player* this) {
     if (sAlpha != 255) {
         noAttackChance += 2.0f;
     }
-    if ((((play->gameplayFrames & attackDelay) == 0) || (sSwordJumpState != 0)) && (noAttackChance <= Rand_ZeroOne())) {
+    if ((((play->gameplayFrames & attackDelay) == 0) || (sSwordJumpState != 0)) && (noAttackChance <= OoT_Rand_ZeroOne())) {
         if (sSwordJumpState == 0) {
-            switch ((s32)(Rand_ZeroOne() * 7.0f)) {
+            switch ((s32)(OoT_Rand_ZeroOne() * 7.0f)) {
                 case 1:
                 case 5:
                     sStickAngle += 0x4000;
@@ -236,7 +236,7 @@ void EnTorch2_Backflip(Player* this, Input* input, Actor* thisx) {
     sCounterState = 0;
 }
 
-void EnTorch2_Update(Actor* thisx, PlayState* play2) {
+void OoT_EnTorch2_Update(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     Player* player2 = GET_PLAYER(play2);
     Player* player = player2;
@@ -256,16 +256,16 @@ void EnTorch2_Update(Actor* thisx, PlayState* play2) {
 
     sp5A = player->actor.shape.rot.y - this->actor.shape.rot.y;
     input->cur.button = 0;
-    camera = Play_GetCamera(play, 0);
+    camera = OoT_Play_GetCamera(play, 0);
     attackItem = EnTorch2_GetAttackItem(play, this);
     switch (sActionState) {
         case ENTORCH2_WAIT:
             this->actor.shape.rot.y = this->actor.world.rot.y = this->actor.yawTowardsPlayer;
             this->skelAnime.curFrame = 0.0f;
             this->skelAnime.playSpeed = 0.0f;
-            this->actor.world.pos.x = (Math_SinS(this->actor.world.rot.y) * 25.0f) + sSpawnPoint.x;
-            this->actor.world.pos.z = (Math_CosS(this->actor.world.rot.y) * 25.0f) + sSpawnPoint.z;
-            if ((this->actor.xzDistToPlayer <= 120.0f) || Actor_IsTargeted(play, &this->actor) ||
+            this->actor.world.pos.x = (OoT_Math_SinS(this->actor.world.rot.y) * 25.0f) + sSpawnPoint.x;
+            this->actor.world.pos.z = (OoT_Math_CosS(this->actor.world.rot.y) * 25.0f) + sSpawnPoint.z;
+            if ((this->actor.xzDistToPlayer <= 120.0f) || OoT_Actor_IsTargeted(play, &this->actor) ||
                 (attackItem != NULL)) {
                 if (attackItem != NULL) {
                     sDodgeRollState = 1;
@@ -274,8 +274,8 @@ void EnTorch2_Update(Actor* thisx, PlayState* play2) {
                     input->cur.button = BTN_A;
                     sZTargetFlag = false;
                     sp66 = camera->camDir.y - sStickAngle;
-                    sInput.cur.stick_x = sStickTilt * Math_SinS(sp66);
-                    stickY = sStickTilt * Math_CosS(sp66);
+                    sInput.cur.stick_x = sStickTilt * OoT_Math_SinS(sp66);
+                    stickY = sStickTilt * OoT_Math_CosS(sp66);
                     if (stickY) {}
                     sInput.cur.stick_y = stickY;
                 }
@@ -318,8 +318,8 @@ void EnTorch2_Update(Actor* thisx, PlayState* play2) {
                 }
             }
             if ((sCounterState != 0) && (this->meleeWeaponState != 0)) {
-                CollisionCheck_SetAC(play, &play->colChkCtx, &this->meleeWeaponQuads[0].base);
-                CollisionCheck_SetAC(play, &play->colChkCtx, &this->meleeWeaponQuads[1].base);
+                OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->meleeWeaponQuads[0].base);
+                OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->meleeWeaponQuads[1].base);
             }
 
             // Ignores hits when jumping on Link's sword
@@ -360,12 +360,12 @@ void EnTorch2_Update(Actor* thisx, PlayState* play2) {
                 } else if (sSwordJumpState != 0) {
                     sStickTilt = 0.0f;
                     player->stateFlags3 |= PLAYER_STATE3_PAUSE_ACTION_FUNC;
-                    Math_SmoothStepToF(&this->actor.world.pos.x,
-                                       (Math_SinS(player->actor.shape.rot.y - 0x3E8) * 45.0f) +
+                    OoT_Math_SmoothStepToF(&this->actor.world.pos.x,
+                                       (OoT_Math_SinS(player->actor.shape.rot.y - 0x3E8) * 45.0f) +
                                            player->actor.world.pos.x,
                                        1.0f, 5.0f, 0.0f);
-                    Math_SmoothStepToF(&this->actor.world.pos.z,
-                                       (Math_CosS(player->actor.shape.rot.y - 0x3E8) * 45.0f) +
+                    OoT_Math_SmoothStepToF(&this->actor.world.pos.z,
+                                       (OoT_Math_CosS(player->actor.shape.rot.y - 0x3E8) * 45.0f) +
                                            player->actor.world.pos.z,
                                        1.0f, 5.0f, 0.0f);
                     sSwordJumpTimer--;
@@ -404,7 +404,7 @@ void EnTorch2_Update(Actor* thisx, PlayState* play2) {
 
                             if ((this->meleeWeaponState == 0) && (sCounterState == 0) &&
                                 (player->invincibilityTimer == 0) && (player->meleeWeaponAnimation == STAB_1H) &&
-                                (this->actor.xzDistToPlayer <= 85.0f) && Actor_IsTargeted(play, &this->actor)) {
+                                (this->actor.xzDistToPlayer <= 85.0f) && OoT_Actor_IsTargeted(play, &this->actor)) {
 
                                 sStickTilt = 0.0f;
                                 sSwordJumpState = 1;
@@ -471,7 +471,7 @@ void EnTorch2_Update(Actor* thisx, PlayState* play2) {
                             sStickTilt = 127.0f;
                             sStickAngle = this->actor.yawTowardsPlayer;
                             if (!this->actor.isTargeted) {
-                                Math_SmoothStepToS(&sStickAngle, player->actor.shape.rot.y + 0x7FFF, 1, 0x2328, 0);
+                                OoT_Math_SmoothStepToS(&sStickAngle, player->actor.shape.rot.y + 0x7FFF, 1, 0x2328, 0);
                             }
                         } else if (this->actor.xzDistToPlayer > 100.0f + sp50) {
                             if ((player->meleeWeaponState == 0) || (player->meleeWeaponAnimation < SPIN_ATTACK_1H) ||
@@ -480,7 +480,7 @@ void EnTorch2_Update(Actor* thisx, PlayState* play2) {
                                 sStickTilt = 127.0f;
                                 sStickAngle = this->actor.yawTowardsPlayer;
                                 if (!this->actor.isTargeted) {
-                                    Math_SmoothStepToS(&sStickAngle, player->actor.shape.rot.y + 0x7FFF, 1, 0x2328, 0);
+                                    OoT_Math_SmoothStepToS(&sStickAngle, player->actor.shape.rot.y + 0x7FFF, 1, 0x2328, 0);
                                 }
                             } else {
                                 EnTorch2_Backflip(this, input, &this->actor);
@@ -490,7 +490,7 @@ void EnTorch2_Update(Actor* thisx, PlayState* play2) {
                             sStickAngle = this->actor.yawTowardsPlayer;
                             sStickTilt = 127.0f;
                             if (!this->actor.isTargeted) {
-                                Math_SmoothStepToS(&sStickAngle, player->actor.shape.rot.y + 0x7FFF, 1, 0x2328, 0);
+                                OoT_Math_SmoothStepToS(&sStickAngle, player->actor.shape.rot.y + 0x7FFF, 1, 0x2328, 0);
                             }
                         }
                     }
@@ -516,8 +516,8 @@ void EnTorch2_Update(Actor* thisx, PlayState* play2) {
             // Rotates Dark Link's stick angle from Link-relative to camera-relative.
 
             sp66 = camera->camDir.y - sStickAngle;
-            sInput.cur.stick_x = sStickTilt * Math_SinS(sp66);
-            stickY = sStickTilt * Math_CosS(sp66);
+            sInput.cur.stick_x = sStickTilt * OoT_Math_SinS(sp66);
+            stickY = sStickTilt * OoT_Math_CosS(sp66);
             if (sAlpha) {}
             sInput.cur.stick_y = stickY;
 
@@ -535,22 +535,22 @@ void EnTorch2_Update(Actor* thisx, PlayState* play2) {
                 this->invincibilityTimer = 0;
                 this->actor.velocity.y = 0.0f;
                 this->actor.world.pos.y = sSpawnPoint.y + 40.0f;
-                this->actor.world.pos.x = (Math_SinS(player->actor.shape.rot.y) * -120.0f) + player->actor.world.pos.x;
-                this->actor.world.pos.z = (Math_CosS(player->actor.shape.rot.y) * -120.0f) + player->actor.world.pos.z;
-                if (Actor_WorldDistXYZToPoint(&this->actor, &sSpawnPoint) > 800.0f) {
-                    sp50 = Rand_ZeroOne() * 20.0f;
-                    sp4E = Rand_CenteredFloat(4000.0f);
+                this->actor.world.pos.x = (OoT_Math_SinS(player->actor.shape.rot.y) * -120.0f) + player->actor.world.pos.x;
+                this->actor.world.pos.z = (OoT_Math_CosS(player->actor.shape.rot.y) * -120.0f) + player->actor.world.pos.z;
+                if (OoT_Actor_WorldDistXYZToPoint(&this->actor, &sSpawnPoint) > 800.0f) {
+                    sp50 = OoT_Rand_ZeroOne() * 20.0f;
+                    sp4E = OoT_Rand_CenteredFloat(4000.0f);
                     this->actor.shape.rot.y = this->actor.world.rot.y =
-                        Math_Vec3f_Yaw(&sSpawnPoint, &player->actor.world.pos);
+                        OoT_Math_Vec3f_Yaw(&sSpawnPoint, &player->actor.world.pos);
                     this->actor.world.pos.x =
-                        (Math_SinS(this->actor.world.rot.y + sp4E) * (25.0f + sp50)) + sSpawnPoint.x;
+                        (OoT_Math_SinS(this->actor.world.rot.y + sp4E) * (25.0f + sp50)) + sSpawnPoint.x;
                     this->actor.world.pos.z =
-                        (Math_CosS(this->actor.world.rot.y + sp4E) * (25.0f + sp50)) + sSpawnPoint.z;
+                        (OoT_Math_CosS(this->actor.world.rot.y + sp4E) * (25.0f + sp50)) + sSpawnPoint.z;
                     this->actor.world.pos.y = sSpawnPoint.y;
                 } else {
                     this->actor.world.pos.y = this->actor.floorHeight;
                 }
-                Math_Vec3f_Copy(&this->actor.home.pos, &this->actor.world.pos);
+                OoT_Math_Vec3f_Copy(&this->actor.home.pos, &this->actor.world.pos);
                 play->func_11D54(this, play);
                 sActionState = ENTORCH2_ATTACK;
                 sStickTilt = 0.0f;
@@ -565,7 +565,7 @@ void EnTorch2_Update(Actor* thisx, PlayState* play2) {
             if (sAlpha - 13 <= 0) {
                 sAlpha = 0;
                 GameInteractor_ExecuteOnEnemyDefeat(&this->actor);
-                Actor_Kill(&this->actor);
+                OoT_Actor_Kill(&this->actor);
                 return;
             }
             sAlpha -= 13;
@@ -598,7 +598,7 @@ void EnTorch2_Update(Actor* thisx, PlayState* play2) {
     }
     input->rel.button = input->prev.button & pad54;
     input->prev.button = input->cur.button & (u16) ~(BTN_A | BTN_B);
-    PadUtils_UpdateRelXY(input);
+    OoT_PadUtils_UpdateRelXY(input);
 
     if (CVarGetInteger(CVAR_ENHANCEMENT("MirroredWorld"), 0)) {
         input->rel.stick_x *= -1;
@@ -619,7 +619,7 @@ void EnTorch2_Update(Actor* thisx, PlayState* play2) {
         (this->cylinder.base.acFlags & AC_HIT) && !(this->stateFlags1 & PLAYER_STATE1_DAMAGED) &&
         !(this->meleeWeaponQuads[0].base.atFlags & AT_HIT) && !(this->meleeWeaponQuads[1].base.atFlags & AT_HIT)) {
 
-        if (!Actor_ApplyDamage(&this->actor)) {
+        if (!OoT_Actor_ApplyDamage(&this->actor)) {
             func_800F5B58();
             this->actor.flags &= ~(ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE);
             this->knockbackType = 2;
@@ -629,16 +629,16 @@ void EnTorch2_Update(Actor* thisx, PlayState* play2) {
             this->knockbackRot = this->actor.yawTowardsPlayer + 0x8000;
             sDeathFlag++;
             sActionState = ENTORCH2_DEATH;
-            Enemy_StartFinishingBlow(play, &this->actor);
-            Item_DropCollectibleRandom(play, &this->actor, &thisx->world.pos, 0xC0);
+            OoT_Enemy_StartFinishingBlow(play, &this->actor);
+            OoT_Item_DropCollectibleRandom(play, &this->actor, &thisx->world.pos, 0xC0);
             this->stateFlags3 &= ~PLAYER_STATE3_PAUSE_ACTION_FUNC;
         } else {
             func_800F5ACC(NA_BGM_MINI_BOSS);
             if (this->actor.colChkInfo.damageEffect == 1) {
                 if (sAlpha == 255) {
-                    Actor_SetColorFilter(&this->actor, 0, 0xFF, 0, 0x50);
+                    OoT_Actor_SetColorFilter(&this->actor, 0, 0xFF, 0, 0x50);
                 } else {
-                    Actor_SetColorFilter(&this->actor, 0, 0xFF, 0x2000, 0x50);
+                    OoT_Actor_SetColorFilter(&this->actor, 0, 0xFF, 0x2000, 0x50);
                 }
             } else {
                 this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
@@ -647,14 +647,14 @@ void EnTorch2_Update(Actor* thisx, PlayState* play2) {
                 this->knockbackYVelocity = 6.0f;
                 this->knockbackSpeed = 8.0f;
                 this->knockbackRot = this->actor.yawTowardsPlayer + 0x8000;
-                Actor_SetDropFlag(&this->actor, &this->cylinder.info, 1);
+                OoT_Actor_SetDropFlag(&this->actor, &this->cylinder.info, 1);
                 this->stateFlags3 &= ~PLAYER_STATE3_PAUSE_ACTION_FUNC;
                 this->stateFlags3 |= PLAYER_STATE3_IGNORE_CEILING_FLOOR_WATER;
                 sActionState = ENTORCH2_DAMAGE;
                 if (sAlpha == 255) {
-                    Actor_SetColorFilter(&this->actor, 0x4000, 0xFF, 0, 0xC);
+                    OoT_Actor_SetColorFilter(&this->actor, 0x4000, 0xFF, 0, 0xC);
                 } else {
-                    Actor_SetColorFilter(&this->actor, 0x4000, 0xFF, 0x2000, 0xC);
+                    OoT_Actor_SetColorFilter(&this->actor, 0x4000, 0xFF, 0x2000, 0xC);
                 }
             }
         }
@@ -688,9 +688,9 @@ void EnTorch2_Update(Actor* thisx, PlayState* play2) {
      * if he's had to counter with enough different sword animations in a row.
      */
     if (this->linearVelocity == -18.0f) {
-        staggerThreshold = (u32)Rand_CenteredFloat(2.0f) + 6;
+        staggerThreshold = (u32)OoT_Rand_CenteredFloat(2.0f) + 6;
         if (gSaveContext.health < 0x50) {
-            staggerThreshold = (u32)Rand_CenteredFloat(2.0f) + 3;
+            staggerThreshold = (u32)OoT_Rand_CenteredFloat(2.0f) + 3;
         }
         if (this->actor.xzDistToPlayer > 80.0f) {
             this->linearVelocity = 1.2f;
@@ -727,8 +727,8 @@ void EnTorch2_Update(Actor* thisx, PlayState* play2) {
             this->skelAnime.curFrame = player->skelAnime.curFrame - player->skelAnime.playSpeed;
             this->skelAnime.playSpeed = player->skelAnime.playSpeed;
             LinkAnimation_Update(play, &this->skelAnime);
-            Collider_ResetQuadAT(play, &this->meleeWeaponQuads[0].base);
-            Collider_ResetQuadAT(play, &this->meleeWeaponQuads[1].base);
+            OoT_Collider_ResetQuadAT(play, &this->meleeWeaponQuads[0].base);
+            OoT_Collider_ResetQuadAT(play, &this->meleeWeaponQuads[1].base);
         }
     }
     if (sStaggerTimer != 0) {
@@ -757,7 +757,7 @@ void EnTorch2_Update(Actor* thisx, PlayState* play2) {
      * jump is finished, the offset is added to his position to fix the discrepancy.
      */
     if (sSwordJumpState != 0) {
-        Math_SmoothStepToF(&sSwordJumpHeight, 2630.0f, 1.0f, 2000.0f, 0.0f);
+        OoT_Math_SmoothStepToF(&sSwordJumpHeight, 2630.0f, 1.0f, 2000.0f, 0.0f);
         this->actor.velocity.y -= 0.6f;
     } else if (sSwordJumpHeight != 0) {
         this->actor.world.pos.y += sSwordJumpHeight * 0.01f;
@@ -780,16 +780,16 @@ s32 EnTorch2_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f
                               Gfx** gfx) {
     Player* this = (Player*)thisx;
 
-    return Player_OverrideLimbDrawGameplayCommon(play, limbIndex, dList, pos, rot, &this->actor);
+    return OoT_Player_OverrideLimbDrawGameplayCommon(play, limbIndex, dList, pos, rot, &this->actor);
 }
 
 void EnTorch2_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx, Gfx** gfx) {
     Player* this = (Player*)thisx;
 
-    Player_PostLimbDrawGameplay(play, limbIndex, dList, rot, &this->actor);
+    OoT_Player_PostLimbDrawGameplay(play, limbIndex, dList, rot, &this->actor);
 }
 
-void EnTorch2_Draw(Actor* thisx, PlayState* play2) {
+void OoT_EnTorch2_Draw(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     Player* this = (Player*)thisx;
     s32 pad;
@@ -803,7 +803,7 @@ void EnTorch2_Draw(Actor* thisx, PlayState* play2) {
         func_8002EBCC(&this->actor, play, 0);
         func_8002ED80(&this->actor, play, 0);
         POLY_OPA_DISP =
-            SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+            OoT_SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                                EnTorch2_OverrideLimbDraw, EnTorch2_PostLimbDraw, this, POLY_OPA_DISP);
     } else {
         gDPSetEnvColor(POLY_XLU_DISP++, 255, 0, 0, sAlpha);
@@ -811,7 +811,7 @@ void EnTorch2_Draw(Actor* thisx, PlayState* play2) {
         func_8002EBCC(&this->actor, play, 0);
         func_8002ED80(&this->actor, play, 0);
         POLY_XLU_DISP =
-            SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+            OoT_SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                                EnTorch2_OverrideLimbDraw, EnTorch2_PostLimbDraw, this, POLY_XLU_DISP);
     }
     CLOSE_DISPS(play->state.gfxCtx);

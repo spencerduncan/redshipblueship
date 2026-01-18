@@ -46,7 +46,7 @@ const ActorInit En_Vali_InitVars = {
     NULL,
 };
 
-static ColliderQuadInit sQuadInit = {
+static ColliderQuadInit OoT_sQuadInit = {
     {
         COLTYPE_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -66,7 +66,7 @@ static ColliderQuadInit sQuadInit = {
     { { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f } } },
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_HIT8,
         AT_ON | AT_TYPE_ENEMY,
@@ -86,7 +86,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 17, 35, -15, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit sColChkInfoInit = { 2, 18, 32, MASS_HEAVY };
+static CollisionCheckInfoInit OoT_sColChkInfoInit = { 2, 18, 32, MASS_HEAVY };
 
 typedef enum {
     /* 0x0 */ BARI_DMGEFF_NONE,
@@ -97,7 +97,7 @@ typedef enum {
     /* 0xF */ BARI_DMGEFF_SWORD
 } BariDamageEffect;
 
-static DamageTable sDamageTable = {
+static DamageTable OoT_sDamageTable = {
     /* Deku nut      */ DMG_ENTRY(0, BARI_DMGEFF_STUN),
     /* Deku stick    */ DMG_ENTRY(2, BARI_DMGEFF_NONE),
     /* Slingshot     */ DMG_ENTRY(0, BARI_DMGEFF_SLINGSHOT),
@@ -132,7 +132,7 @@ static DamageTable sDamageTable = {
     /* Unknown 2     */ DMG_ENTRY(0, BARI_DMGEFF_NONE),
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_S8(naviEnemyId, 0x18, ICHAIN_CONTINUE),
     ICHAIN_VEC3F_DIV1000(scale, 10, ICHAIN_CONTINUE),
     ICHAIN_F32(targetArrowOffset, 5000, ICHAIN_STOP),
@@ -143,19 +143,19 @@ void EnVali_Init(Actor* thisx, PlayState* play) {
     EnVali* this = (EnVali*)thisx;
     s32 bgId;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 27.0f);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 27.0f);
     this->actor.shape.shadowAlpha = 155;
-    SkelAnime_Init(play, &this->skelAnime, &gBariSkel, &gBariLurkingAnim, this->jointTable, this->morphTable,
+    OoT_SkelAnime_Init(play, &this->skelAnime, &gBariSkel, &gBariLurkingAnim, this->jointTable, this->morphTable,
                    EN_VALI_LIMB_MAX);
 
-    Collider_InitQuad(play, &this->leftArmCollider);
-    Collider_SetQuad(play, &this->leftArmCollider, &this->actor, &sQuadInit);
-    Collider_InitQuad(play, &this->rightArmCollider);
-    Collider_SetQuad(play, &this->rightArmCollider, &this->actor, &sQuadInit);
-    Collider_InitCylinder(play, &this->bodyCollider);
-    Collider_SetCylinder(play, &this->bodyCollider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo(&this->actor.colChkInfo, &sDamageTable, &sColChkInfoInit);
+    OoT_Collider_InitQuad(play, &this->leftArmCollider);
+    OoT_Collider_SetQuad(play, &this->leftArmCollider, &this->actor, &OoT_sQuadInit);
+    OoT_Collider_InitQuad(play, &this->rightArmCollider);
+    OoT_Collider_SetQuad(play, &this->rightArmCollider, &this->actor, &OoT_sQuadInit);
+    OoT_Collider_InitCylinder(play, &this->bodyCollider);
+    OoT_Collider_SetCylinder(play, &this->bodyCollider, &this->actor, &OoT_sCylinderInit);
+    OoT_CollisionCheck_SetInfo(&this->actor.colChkInfo, &OoT_sDamageTable, &OoT_sColChkInfoInit);
 
     EnVali_SetupLurk(this);
 
@@ -165,22 +165,22 @@ void EnVali_Init(Actor* thisx, PlayState* play) {
     this->actor.params = BARI_TYPE_NORMAL;
 
     if (this->actor.floorHeight == BGCHECK_Y_MIN) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
 void EnVali_Destroy(Actor* thisx, PlayState* play) {
     EnVali* this = (EnVali*)thisx;
 
-    Collider_DestroyQuad(play, &this->leftArmCollider);
-    Collider_DestroyQuad(play, &this->rightArmCollider);
-    Collider_DestroyCylinder(play, &this->bodyCollider);
+    OoT_Collider_DestroyQuad(play, &this->leftArmCollider);
+    OoT_Collider_DestroyQuad(play, &this->rightArmCollider);
+    OoT_Collider_DestroyCylinder(play, &this->bodyCollider);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
 
 void EnVali_SetupLurk(EnVali* this) {
-    Animation_PlayLoop(&this->skelAnime, &gBariLurkingAnim);
+    OoT_Animation_PlayLoop(&this->skelAnime, &gBariLurkingAnim);
     this->actor.draw = NULL;
     this->bodyCollider.base.acFlags &= ~AC_ON;
     this->actionFunc = EnVali_Lurk;
@@ -194,7 +194,7 @@ void EnVali_SetupDropAppear(EnVali* this) {
 }
 
 void EnVali_SetupFloatIdle(EnVali* this) {
-    Animation_MorphToLoop(&this->skelAnime, &gBariWaitingAnim, -3.0f);
+    OoT_Animation_MorphToLoop(&this->skelAnime, &gBariWaitingAnim, -3.0f);
     this->leftArmCollider.dim.quad[2] = this->leftArmCollider.dim.quad[3] = this->rightArmCollider.dim.quad[2] =
         this->rightArmCollider.dim.quad[3] = this->leftArmCollider.dim.quad[0] = this->leftArmCollider.dim.quad[1] =
             this->rightArmCollider.dim.quad[0] = this->rightArmCollider.dim.quad[1] = this->actor.world.pos;
@@ -222,22 +222,22 @@ void EnVali_SetupAttacked(EnVali* this) {
 }
 
 void EnVali_SetupRetaliate(EnVali* this) {
-    Animation_MorphToPlayOnce(&this->skelAnime, &gBariRetaliatingAnim, -5.0f);
-    Actor_SetColorFilter(&this->actor, 0x4000, 150, 0x2000, 30);
+    OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gBariRetaliatingAnim, -5.0f);
+    OoT_Actor_SetColorFilter(&this->actor, 0x4000, 150, 0x2000, 30);
     this->actor.params = BARI_TYPE_NORMAL;
     this->bodyCollider.base.acFlags &= ~AC_ON;
     this->actionFunc = EnVali_Retaliate;
 }
 
 void EnVali_SetupMoveArmsDown(EnVali* this) {
-    Animation_PlayOnce(&this->skelAnime, &gBariMovingArmsDownAnim);
+    OoT_Animation_PlayOnce(&this->skelAnime, &gBariMovingArmsDownAnim);
     this->actionFunc = EnVali_MoveArmsDown;
 }
 
 void EnVali_SetupBurnt(EnVali* this) {
     this->timer = 2;
     this->bodyCollider.base.acFlags &= ~AC_ON;
-    Actor_SetColorFilter(&this->actor, 0x4000, 150, 0x2000, 30);
+    OoT_Actor_SetColorFilter(&this->actor, 0x4000, 150, 0x2000, 30);
     this->actionFunc = EnVali_Burnt;
 }
 
@@ -252,16 +252,16 @@ void EnVali_SetupDivideAndDie(EnVali* this, PlayState* play) {
             this->actor.world.rot.y += rand() % 50;
         }
 
-        Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BILI, this->actor.world.pos.x, this->actor.world.pos.y,
+        OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BILI, this->actor.world.pos.x, this->actor.world.pos.y,
                     this->actor.world.pos.z, 0, this->actor.world.rot.y, 0, 0, true);
 
         this->actor.world.rot.y += 0x10000 / 3;
     }
 
-    Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos, 0x50);
-    this->timer = Rand_S16Offset(10, 10);
+    OoT_Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos, 0x50);
+    this->timer = OoT_Rand_S16Offset(10, 10);
     this->bodyCollider.base.acFlags &= ~AC_ON;
-    SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40, NA_SE_EN_BARI_SPLIT);
+    OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40, NA_SE_EN_BARI_SPLIT);
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
     this->actor.draw = NULL;
     this->actionFunc = EnVali_DivideAndDie;
@@ -269,10 +269,10 @@ void EnVali_SetupDivideAndDie(EnVali* this, PlayState* play) {
 }
 
 void EnVali_SetupStunned(EnVali* this) {
-    Animation_MorphToPlayOnce(&this->skelAnime, &gBariWaitingAnim, 10.0f);
+    OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gBariWaitingAnim, 10.0f);
     this->timer = 80;
     this->actor.velocity.y = 0.0f;
-    Actor_SetColorFilter(&this->actor, 0, 255, 0x2000, 80);
+    OoT_Actor_SetColorFilter(&this->actor, 0, 255, 0x2000, 80);
     this->bodyCollider.info.bumper.effect = 0;
     Audio_PlayActorSound2(&this->actor, NA_SE_EN_GOMA_JR_FREEZE);
     this->actor.velocity.y = 1.0f;
@@ -281,14 +281,14 @@ void EnVali_SetupStunned(EnVali* this) {
 
 void EnVali_SetupFrozen(EnVali* this) {
     this->actor.velocity.y = 0.0f;
-    Actor_SetColorFilter(&this->actor, 0, 255, 0x2000, 36);
+    OoT_Actor_SetColorFilter(&this->actor, 0, 255, 0x2000, 36);
     this->bodyCollider.base.acFlags &= ~AC_ON;
     this->timer = 36;
     this->actionFunc = EnVali_Frozen;
 }
 
 void EnVali_SetupReturnToLurk(EnVali* this) {
-    Animation_MorphToPlayOnce(&this->skelAnime, &gBariLurkingAnim, 10.0f);
+    OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gBariLurkingAnim, 10.0f);
     this->actor.flags |= ACTOR_FLAG_UPDATE_CULLING_DISABLED;
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
     this->actionFunc = EnVali_ReturnToLurk;
@@ -304,15 +304,15 @@ void EnVali_DischargeLightning(EnVali* this, PlayState* play) {
     s16 yaw;
 
     for (i = 0; i < 4; i++) {
-        cos = -Math_CosS(Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)));
-        sin = Math_SinS(Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)));
+        cos = -OoT_Math_CosS(OoT_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)));
+        sin = OoT_Math_SinS(OoT_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)));
         if (!((this->lightningTimer + (i << 1)) % 4)) {
-            yaw = (s16)Rand_CenteredFloat(12288.0f) + (i * 0x4000) + 0x2000;
-            pos.x = this->actor.world.pos.x + (Math_SinS(yaw) * 12.0f * cos);
-            pos.y = this->actor.world.pos.y - (Math_CosS(yaw) * 12.0f) + 10.0f;
-            pos.z = this->actor.world.pos.z + (Math_SinS(yaw) * 12.0f * sin);
+            yaw = (s16)OoT_Rand_CenteredFloat(12288.0f) + (i * 0x4000) + 0x2000;
+            pos.x = this->actor.world.pos.x + (OoT_Math_SinS(yaw) * 12.0f * cos);
+            pos.y = this->actor.world.pos.y - (OoT_Math_CosS(yaw) * 12.0f) + 10.0f;
+            pos.z = this->actor.world.pos.z + (OoT_Math_SinS(yaw) * 12.0f * sin);
 
-            EffectSsLightning_Spawn(play, &pos, &primColor, &envColor, 17, yaw, 6, 2);
+            OoT_EffectSsLightning_Spawn(play, &pos, &primColor, &envColor, 17, yaw, 6, 2);
         }
     }
 
@@ -326,11 +326,11 @@ void EnVali_Lurk(EnVali* this, PlayState* play) {
 }
 
 void EnVali_DropAppear(EnVali* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     this->actor.velocity.y *= 1.5f;
     this->actor.velocity.y = CLAMP_MAX(this->actor.velocity.y, 40.0f);
 
-    if (Math_StepToF(&this->actor.world.pos.y, this->actor.floorHeight, this->actor.velocity.y)) {
+    if (OoT_Math_StepToF(&this->actor.world.pos.y, this->actor.floorHeight, this->actor.velocity.y)) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_DODO_M_GND);
         EnVali_SetupFloatIdle(this);
     }
@@ -339,7 +339,7 @@ void EnVali_DropAppear(EnVali* this, PlayState* play) {
 void EnVali_FloatIdle(EnVali* this, PlayState* play) {
     s32 curFrame;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
     if (this->slingshotReactionTimer != 0) {
         this->slingshotReactionTimer--;
@@ -347,7 +347,7 @@ void EnVali_FloatIdle(EnVali* this, PlayState* play) {
 
     curFrame = this->skelAnime.curFrame;
 
-    Math_StepToF(&this->floatHomeHeight, this->actor.floorHeight + 40.0f, 1.2f);
+    OoT_Math_StepToF(&this->floatHomeHeight, this->actor.floorHeight + 40.0f, 1.2f);
     this->actor.world.pos.y = this->floatHomeHeight - (sinf(curFrame * M_PI * 0.0125f) * 8.0f);
 
     if (this->slingshotReactionTimer) {
@@ -391,7 +391,7 @@ void EnVali_Attacked(EnVali* this, PlayState* play) {
 }
 
 void EnVali_Retaliate(EnVali* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (OoT_SkelAnime_Update(&this->skelAnime)) {
         if (this->actor.colChkInfo.health != 0) {
             EnVali_SetupMoveArmsDown(this);
         } else {
@@ -401,7 +401,7 @@ void EnVali_Retaliate(EnVali* this, PlayState* play) {
 }
 
 void EnVali_MoveArmsDown(EnVali* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (OoT_SkelAnime_Update(&this->skelAnime)) {
         EnVali_SetupFloatIdle(this);
     }
 }
@@ -428,33 +428,33 @@ void EnVali_DivideAndDie(EnVali* this, PlayState* play) {
     }
 
     for (i = 0; i < 2; i++) {
-        pos.x = this->actor.world.pos.x + Rand_CenteredFloat(20.0f);
-        pos.y = this->actor.world.pos.y + Rand_CenteredFloat(8.0f);
-        pos.z = this->actor.world.pos.z + Rand_CenteredFloat(20.0f);
-        velocity.y = (Rand_ZeroOne() + 1.0f);
-        scale = Rand_S16Offset(40, 40);
+        pos.x = this->actor.world.pos.x + OoT_Rand_CenteredFloat(20.0f);
+        pos.y = this->actor.world.pos.y + OoT_Rand_CenteredFloat(8.0f);
+        pos.z = this->actor.world.pos.z + OoT_Rand_CenteredFloat(20.0f);
+        velocity.y = (OoT_Rand_ZeroOne() + 1.0f);
+        scale = OoT_Rand_S16Offset(40, 40);
 
-        if (Rand_ZeroOne() < 0.7f) {
-            EffectSsDtBubble_SpawnColorProfile(play, &pos, &velocity, &accel, scale, 25, 2, 1);
+        if (OoT_Rand_ZeroOne() < 0.7f) {
+            OoT_EffectSsDtBubble_SpawnColorProfile(play, &pos, &velocity, &accel, scale, 25, 2, 1);
         } else {
-            EffectSsDtBubble_SpawnColorProfile(play, &pos, &velocity, &accel, scale, 25, 0, 1);
+            OoT_EffectSsDtBubble_SpawnColorProfile(play, &pos, &velocity, &accel, scale, 25, 0, 1);
         }
     }
 
     if (this->timer == 0) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
 void EnVali_Stunned(EnVali* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
     if (this->timer != 0) {
         this->timer--;
     }
 
     if (this->actor.velocity.y != 0.0f) {
-        if (Math_StepToF(&this->actor.world.pos.y, this->actor.floorHeight, this->actor.velocity.y)) {
+        if (OoT_Math_StepToF(&this->actor.world.pos.y, this->actor.floorHeight, this->actor.velocity.y)) {
             this->actor.velocity.y = 0.0f;
             Audio_PlayActorSound2(&this->actor, NA_SE_EN_DODO_M_GND);
         } else {
@@ -489,11 +489,11 @@ void EnVali_Frozen(EnVali* this, PlayState* play) {
             pos.z = this->actor.world.pos.z + ((temp_v0 & 1) ? 12.0f : -12.0f);
 
             EffectSsEnIce_SpawnFlyingVec3f(play, &this->actor, &pos, 150, 150, 150, 250, 235, 245, 255,
-                                           (Rand_ZeroOne() * 0.2f) + 1.3f);
+                                           (OoT_Rand_ZeroOne() * 0.2f) + 1.3f);
         }
     } else if (this->timer == 0) {
         this->actor.velocity.y += 1.0f;
-        if (Math_StepToF(&this->actor.world.pos.y, this->actor.floorHeight, this->actor.velocity.y)) {
+        if (OoT_Math_StepToF(&this->actor.world.pos.y, this->actor.floorHeight, this->actor.velocity.y)) {
             EnVali_SetupDivideAndDie(this, play);
             this->actor.colorFilterTimer = 0;
         }
@@ -501,9 +501,9 @@ void EnVali_Frozen(EnVali* this, PlayState* play) {
 }
 
 void EnVali_ReturnToLurk(EnVali* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
-    if (Math_SmoothStepToF(&this->actor.world.pos.y, this->actor.home.pos.y, 0.5f, 15.0f, 0.1f) < 0.01f) {
+    if (OoT_Math_SmoothStepToF(&this->actor.world.pos.y, this->actor.home.pos.y, 0.5f, 15.0f, 0.1f) < 0.01f) {
         EnVali_SetupLurk(this);
     }
 }
@@ -511,12 +511,12 @@ void EnVali_ReturnToLurk(EnVali* this, PlayState* play) {
 void EnVali_UpdateDamage(EnVali* this, PlayState* play) {
     if (this->bodyCollider.base.acFlags & AC_HIT) {
         this->bodyCollider.base.acFlags &= ~AC_HIT;
-        Actor_SetDropFlag(&this->actor, &this->bodyCollider.info, 1);
+        OoT_Actor_SetDropFlag(&this->actor, &this->bodyCollider.info, 1);
 
         if ((this->actor.colChkInfo.damageEffect != BARI_DMGEFF_NONE) || (this->actor.colChkInfo.damage != 0)) {
-            if (Actor_ApplyDamage(&this->actor) == 0) {
+            if (OoT_Actor_ApplyDamage(&this->actor) == 0) {
                 Audio_PlayActorSound2(&this->actor, NA_SE_EN_BARI_DEAD);
-                Enemy_StartFinishingBlow(play, &this->actor);
+                OoT_Enemy_StartFinishingBlow(play, &this->actor);
                 this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
             } else if ((this->actor.colChkInfo.damageEffect != BARI_DMGEFF_STUN) &&
                        (this->actor.colChkInfo.damageEffect != BARI_DMGEFF_SLINGSHOT)) {
@@ -529,7 +529,7 @@ void EnVali_UpdateDamage(EnVali* this, PlayState* play) {
                 }
             } else if (this->actor.colChkInfo.damageEffect == BARI_DMGEFF_SWORD) {
                 if (this->actionFunc != EnVali_Stunned) {
-                    Actor_SetColorFilter(&this->actor, 0x4000, 150, 0x2000, 30);
+                    OoT_Actor_SetColorFilter(&this->actor, 0x4000, 150, 0x2000, 30);
                     this->actor.params = BARI_TYPE_SWORD_DAMAGE;
                     EnVali_SetupAttacked(this);
                 } else {
@@ -566,20 +566,20 @@ void EnVali_Update(Actor* thisx, PlayState* play) {
     this->actionFunc(this, play);
 
     if ((this->actionFunc != EnVali_DivideAndDie) && (this->actionFunc != EnVali_Lurk)) {
-        Collider_UpdateCylinder(&this->actor, &this->bodyCollider);
+        OoT_Collider_UpdateCylinder(&this->actor, &this->bodyCollider);
 
         if (this->actionFunc == EnVali_FloatIdle) {
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->leftArmCollider.base);
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->rightArmCollider.base);
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->bodyCollider.base);
+            OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->leftArmCollider.base);
+            OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->rightArmCollider.base);
+            OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->bodyCollider.base);
         }
 
         if (this->bodyCollider.base.acFlags & AC_ON) {
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->bodyCollider.base);
+            OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->bodyCollider.base);
         }
 
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->bodyCollider.base);
-        Actor_SetFocus(&this->actor, 0.0f);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->bodyCollider.base);
+        OoT_Actor_SetFocus(&this->actor, 0.0f);
     }
 }
 
@@ -676,7 +676,7 @@ s32 EnVali_SetArmLength(EnVali* this, f32 curFrame) {
         targetArmScale = 1.0f;
     }
 
-    Math_StepToF(&this->armScale, targetArmScale, 0.1f);
+    OoT_Math_StepToF(&this->armScale, targetArmScale, 0.1f);
 
     if (this->armScale == 1.0f) {
         return false;
@@ -699,7 +699,7 @@ s32 EnVali_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* 
 
         if ((limbIndex == EN_VALI_LIMB_LEFT_ARM_BASE) || (limbIndex == EN_VALI_LIMB_RIGHT_ARM_BASE)) {
             if (EnVali_SetArmLength(this, curFrame)) {
-                Matrix_Scale(this->armScale, 1.0f, 1.0f, MTXMODE_APPLY);
+                OoT_Matrix_Scale(this->armScale, 1.0f, 1.0f, MTXMODE_APPLY);
             }
         }
 
@@ -716,14 +716,14 @@ void EnVali_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot
 
     if (this->actionFunc == EnVali_FloatIdle) {
         if ((limbIndex == EN_VALI_LIMB_LEFT_FOREARM_BASE) || (limbIndex == EN_VALI_LIMB_RIGHT_FOREARM_BASE)) {
-            Matrix_MultVec3f(&D_80B28970, &sp3C);
-            Matrix_MultVec3f(&D_80B2897C, &sp30);
+            OoT_Matrix_MultVec3f(&D_80B28970, &sp3C);
+            OoT_Matrix_MultVec3f(&D_80B2897C, &sp30);
 
             if (limbIndex == EN_VALI_LIMB_LEFT_FOREARM_BASE) {
-                Collider_SetQuadVertices(&this->leftArmCollider, &sp30, &sp3C, &this->leftArmCollider.dim.quad[0],
+                OoT_Collider_SetQuadVertices(&this->leftArmCollider, &sp30, &sp3C, &this->leftArmCollider.dim.quad[0],
                                          &this->leftArmCollider.dim.quad[1]);
             } else {
-                Collider_SetQuadVertices(&this->rightArmCollider, &sp30, &sp3C, &this->rightArmCollider.dim.quad[0],
+                OoT_Collider_SetQuadVertices(&this->rightArmCollider, &sp30, &sp3C, &this->rightArmCollider.dim.quad[0],
                                          &this->rightArmCollider.dim.quad[1]);
             }
         }
@@ -739,44 +739,44 @@ void EnVali_DrawBody(EnVali* this, PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    Matrix_Get(&mtx);
+    OoT_Matrix_Get(&mtx);
     curFrame = this->skelAnime.curFrame;
     EnVali_PulseInsides(this, curFrame, &scale);
-    Matrix_Scale(scale.x, scale.y, scale.z, MTXMODE_APPLY);
+    OoT_Matrix_Scale(scale.x, scale.y, scale.z, MTXMODE_APPLY);
 
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_XLU_DISP++, gBariInnerHoodDL);
 
-    Matrix_Put(&mtx);
+    OoT_Matrix_Put(&mtx);
     Matrix_RotateY(-this->actor.shape.rot.y * (M_PI / 32768.0f), MTXMODE_APPLY);
 
-    cos = Math_CosS(this->actor.shape.rot.y);
-    sin = Math_SinS(this->actor.shape.rot.y);
+    cos = OoT_Math_CosS(this->actor.shape.rot.y);
+    sin = OoT_Math_SinS(this->actor.shape.rot.y);
 
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_XLU_DISP++, gBariNucleusDL);
 
-    Matrix_Translate((506.0f * cos) + (372.0f * sin), 1114.0f, (372.0f * cos) - (506.0f * sin), MTXMODE_APPLY);
+    OoT_Matrix_Translate((506.0f * cos) + (372.0f * sin), 1114.0f, (372.0f * cos) - (506.0f * sin), MTXMODE_APPLY);
 
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_XLU_DISP++, gBariNucleusDL);
 
-    Matrix_Translate((-964.0f * cos) - (804.0f * sin), -108.0f, (-804.0f * cos) + (964.0f * sin), MTXMODE_APPLY);
+    OoT_Matrix_Translate((-964.0f * cos) - (804.0f * sin), -108.0f, (-804.0f * cos) + (964.0f * sin), MTXMODE_APPLY);
 
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_XLU_DISP++, gBariNucleusDL);
 
-    Matrix_Put(&mtx);
+    OoT_Matrix_Put(&mtx);
 
     scale.x = scale.y = scale.z = 1.0f;
 
     EnVali_PulseOutside(this, curFrame, &scale);
-    Matrix_Scale(scale.x, scale.y, scale.z, MTXMODE_APPLY);
+    OoT_Matrix_Scale(scale.x, scale.y, scale.z, MTXMODE_APPLY);
 
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_XLU_DISP++, gBariOuterHoodDL);
 
-    Matrix_Put(&mtx);
+    OoT_Matrix_Put(&mtx);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -801,7 +801,7 @@ void EnVali_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
 
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TexScroll(play->state.gfxCtx, 0, (127 - (play->gameplayFrames * 12)) % 128, 32, 32));
+               OoT_Gfx_TexScroll(play->state.gfxCtx, 0, (127 - (play->gameplayFrames * 12)) % 128, 32, 32));
 
     if ((this->lightningTimer % 2) != 0) {
         gSPSegment(POLY_XLU_DISP++, 0x09, D_80B28998);

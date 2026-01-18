@@ -141,7 +141,7 @@ void UCodeDisas_Init(UCodeDisas* this) {
 
     memset(this,0, sizeof(UCodeDisas));
     for (i = 0; i < NUM_SEGMENTS; i++) {
-        this->segments[i] = gSegments[i];
+        this->segments[i] = OoT_gSegments[i];
     }
 }
 
@@ -938,7 +938,7 @@ void UCodeDisas_Disassemble(UCodeDisas* this, GfxMod* ptr) {
                                 DISAS_LOG("),", gmtx.addr); /*! @bug gmtx.addr shouldn't be here*/
 
                                 if (this->enableLog >= 2) {
-                                    MtxConv_L2F(&mtx, (Mtx*)addr);
+                                    OoT_MtxConv_L2F(&mtx, (Mtx*)addr);
                                     DISAS_LOG("\n");
 
                                     /*! @bug  %.04x.%04x is a typo, should be  %04x.%04x */

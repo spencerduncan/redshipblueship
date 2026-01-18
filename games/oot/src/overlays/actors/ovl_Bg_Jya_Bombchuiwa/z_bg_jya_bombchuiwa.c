@@ -27,7 +27,7 @@ const ActorInit Bg_Jya_Bombchuiwa_InitVars = {
     NULL,
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[1] = {
+static ColliderJntSphElementInit OoT_sJntSphElementsInit[1] = {
     {
         {
             ELEMTYPE_UNK0,
@@ -41,7 +41,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[1] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit OoT_sJntSphInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -51,10 +51,10 @@ static ColliderJntSphInit sJntSphInit = {
         COLSHAPE_JNTSPH,
     },
     1,
-    sJntSphElementsInit,
+    OoT_sJntSphElementsInit,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_U8(targetMode, 3, ICHAIN_CONTINUE),
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 1000, ICHAIN_CONTINUE),
@@ -65,8 +65,8 @@ static InitChainEntry sInitChain[] = {
 void BgJyaBombchuiwa_SetupCollider(BgJyaBombchuiwa* this, PlayState* play) {
     s32 pad;
 
-    Collider_InitJntSph(play, &this->collider);
-    Collider_SetJntSph(play, &this->collider, &this->actor, &sJntSphInit, &this->colliderItems);
+    OoT_Collider_InitJntSph(play, &this->collider);
+    OoT_Collider_SetJntSph(play, &this->collider, &this->actor, &OoT_sJntSphInit, &this->colliderItems);
 }
 
 void BgJyaBombchuiwa_SetDrawFlags(BgJyaBombchuiwa* this, u8 drawFlags) {
@@ -77,21 +77,21 @@ void BgJyaBombchuiwa_SetDrawFlags(BgJyaBombchuiwa* this, u8 drawFlags) {
 void BgJyaBombchuiwa_Init(Actor* thisx, PlayState* play) {
     BgJyaBombchuiwa* this = (BgJyaBombchuiwa*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
     BgJyaBombchuiwa_SetupCollider(this, play);
-    if (Flags_GetSwitch(play, this->actor.params & 0x3F)) {
+    if (OoT_Flags_GetSwitch(play, this->actor.params & 0x3F)) {
         BgJyaBombchuiwa_SpawnLightRay(this, play);
     } else {
         BgJyaBombchuiwa_SetupWaitForExplosion(this, play);
     }
-    Actor_SetFocus(&this->actor, 0.0f);
+    OoT_Actor_SetFocus(&this->actor, 0.0f);
 }
 
 void BgJyaBombchuiwa_Destroy(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     BgJyaBombchuiwa* this = (BgJyaBombchuiwa*)thisx;
 
-    Collider_DestroyJntSph(play, &this->collider);
+    OoT_Collider_DestroyJntSph(play, &this->collider);
 }
 
 void BgJyaBombchuiwa_Break(BgJyaBombchuiwa* this, PlayState* play) {
@@ -104,19 +104,19 @@ void BgJyaBombchuiwa_Break(BgJyaBombchuiwa* this, PlayState* play) {
     s32 i;
 
     for (i = 0; i < 20; i++) {
-        pos.x = Rand_ZeroOne() * 10.0f + this->actor.world.pos.x - 10.0f;
-        pos.y = Rand_ZeroOne() * 40.0f + this->actor.world.pos.y - 20.0f;
-        pos.z = Rand_ZeroOne() * 50.0f + this->actor.world.pos.z - 25.0f;
-        velocity.x = Rand_ZeroOne() * 3.0f - 0.3f;
-        velocity.y = Rand_ZeroOne() * 18.0f;
-        velocity.z = (Rand_ZeroOne() - 0.5f) * 15.0f;
-        scale = (s32)(Rand_ZeroOne() * 20.0f) + 1;
+        pos.x = OoT_Rand_ZeroOne() * 10.0f + this->actor.world.pos.x - 10.0f;
+        pos.y = OoT_Rand_ZeroOne() * 40.0f + this->actor.world.pos.y - 20.0f;
+        pos.z = OoT_Rand_ZeroOne() * 50.0f + this->actor.world.pos.z - 25.0f;
+        velocity.x = OoT_Rand_ZeroOne() * 3.0f - 0.3f;
+        velocity.y = OoT_Rand_ZeroOne() * 18.0f;
+        velocity.z = (OoT_Rand_ZeroOne() - 0.5f) * 15.0f;
+        scale = (s32)(OoT_Rand_ZeroOne() * 20.0f) + 1;
         if (scale > 10) {
             arg5 = 5;
         } else {
             arg5 = 1;
         }
-        if (Rand_ZeroOne() < 0.4f) {
+        if (OoT_Rand_ZeroOne() < 0.4f) {
             arg5 |= 0x40;
             arg6 = 0xC;
             arg7 = 8;
@@ -129,7 +129,7 @@ void BgJyaBombchuiwa_Break(BgJyaBombchuiwa* this, PlayState* play) {
                 arg7 = 0x28;
             }
         }
-        EffectSsKakera_Spawn(play, &pos, &velocity, &pos, -300, arg5, arg6, arg7, 0, scale, 1, 15, 80,
+        OoT_EffectSsKakera_Spawn(play, &pos, &velocity, &pos, -300, arg5, arg6, arg7, 0, scale, 1, 15, 80,
                              KAKERA_COLOR_NONE, OBJECT_JYA_OBJ, gBombiwaEffectDL);
     }
     func_80033480(play, &this->actor.world.pos, 100.0f, 8, 100, 160, 0);
@@ -150,11 +150,11 @@ void BgJyaBombchuiwa_WaitForExplosion(BgJyaBombchuiwa* this, PlayState* play) {
         if (this->timer > 10) {
             BgJyaBombchuiwa_Break(this, play);
             BgJyaBombchuiwa_CleanUpAfterExplosion(this, play);
-            SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40, NA_SE_EV_WALL_BROKEN);
+            OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40, NA_SE_EV_WALL_BROKEN);
         }
     } else {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -171,7 +171,7 @@ void func_808949B8(BgJyaBombchuiwa* this, PlayState* play) {
     if (this->timer & 4) {
         func_80033480(play, &this->actor.world.pos, 60.0f, 3, 100, 100, 0);
     }
-    if (Math_StepToF(&this->lightRayIntensity, 1.0f, 0.028)) {
+    if (OoT_Math_StepToF(&this->lightRayIntensity, 1.0f, 0.028)) {
         BgJyaBombchuiwa_SpawnLightRay(this, play);
     }
 }
@@ -180,7 +180,7 @@ void BgJyaBombchuiwa_SpawnLightRay(BgJyaBombchuiwa* this, PlayState* play) {
     this->actionFunc = NULL;
     this->lightRayIntensity = 153.0f;
     BgJyaBombchuiwa_SetDrawFlags(this, 4);
-    if (Actor_Spawn(&play->actorCtx, play, ACTOR_MIR_RAY, this->actor.world.pos.x, this->actor.world.pos.y,
+    if (OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_MIR_RAY, this->actor.world.pos.x, this->actor.world.pos.y,
                     this->actor.world.pos.z, 0, 0, 0, 0, true) == NULL) {
         // "Occurrence failure"
         osSyncPrintf("Ｅｒｒｏｒ : Mir_Ray 発生失敗(%s %d)(arg_data 0x%04x)\n", __FILE__, __LINE__, this->actor.params);
@@ -223,16 +223,16 @@ void BgJyaBombchuiwa_Draw(Actor* thisx, PlayState* play) {
     BgJyaBombchuiwa* this = (BgJyaBombchuiwa*)thisx;
 
     if (this->drawFlags & 1) {
-        Gfx_DrawDListOpa(play, gBombchuiwaDL);
-        Collider_UpdateSpheres(0, &this->collider);
+        OoT_Gfx_DrawDListOpa(play, gBombchuiwaDL);
+        OoT_Collider_UpdateSpheres(0, &this->collider);
     }
 
     if (this->drawFlags & 2) {
         BgJyaBombchuiwa_DrawRock(play);
     }
     if (this->drawFlags & 4) {
-        Matrix_SetTranslateRotateYXZ(D_80894F88.x, D_80894F88.y, D_80894F88.z, &D_80894F94);
-        Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+        OoT_Matrix_SetTranslateRotateYXZ(D_80894F88.x, D_80894F88.y, D_80894F88.z, &D_80894F94);
+        OoT_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
         if (this->drawFlags & 4) {
             BgJyaBombchuiwa_DrawLight(thisx, play);
         }

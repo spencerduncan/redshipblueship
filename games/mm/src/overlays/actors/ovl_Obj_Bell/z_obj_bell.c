@@ -30,7 +30,7 @@ ActorProfile Obj_Bell_Profile = {
 };
 
 // Bell Post?
-static ColliderSphereInit sCylinderInit1 = {
+static ColliderSphereInit MM_sCylinderInit1 = {
     {
         COL_MATERIAL_METAL,
         AT_ON | AT_TYPE_ENEMY,
@@ -51,7 +51,7 @@ static ColliderSphereInit sCylinderInit1 = {
 };
 
 // Bell
-static ColliderSphereInit sCylinderInit2 = {
+static ColliderSphereInit MM_sCylinderInit2 = {
     {
         COL_MATERIAL_METAL,
         AT_NONE,
@@ -71,11 +71,11 @@ static ColliderSphereInit sCylinderInit2 = {
     { 0, { { 0, 1100, 0 }, 74 }, 100 },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit2 = {
+static CollisionCheckInfoInit2 MM_sColChkInfoInit2 = {
     0, 0, 0, 0, MASS_IMMOVABLE,
 };
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(1, 0x0),
     /* Deku Stick     */ DMG_ENTRY(1, 0x0),
     /* Horse trample  */ DMG_ENTRY(1, 0x0),
@@ -133,9 +133,9 @@ s32 func_80A35510(ObjBell* this, s32 arg1) {
 
     this->unk_21C = CLAMP(this->unk_21C, 0.0f, 18000.0f);
     if (phi_a3 == true) {
-        Math_Vec3s_ToVec3f(&bumperPos, &this->collider2.elem.acDmgInfo.hitPos);
-        Math_Vec3f_Copy(&worldPos, &this->dyna.actor.world.pos);
-        this->dyna.actor.world.rot.y = Math_Vec3f_Yaw(&bumperPos, &worldPos);
+        MM_Math_Vec3s_ToVec3f(&bumperPos, &this->collider2.elem.acDmgInfo.hitPos);
+        MM_Math_Vec3f_Copy(&worldPos, &this->dyna.actor.world.pos);
+        this->dyna.actor.world.rot.y = MM_Math_Vec3f_Yaw(&bumperPos, &worldPos);
         if (this->unk_20C <= 0x4000 && this->unk_20C >= -0x4000) {
             this->unk_20C -= 0x4000;
         } else {
@@ -152,11 +152,11 @@ s32 func_80A356D8(ObjBell* this) {
     if (this->unk_20C >= 0x4000 || this->unk_20C <= -0x4000) {
         this->unk_212 -= 0x8000;
     }
-    scaleProjection = Math_SinS(this->unk_20C) * this->unk_21C;
+    scaleProjection = MM_Math_SinS(this->unk_20C) * this->unk_21C;
     this->dyna.actor.world.rot.x = this->dyna.actor.home.rot.x;
     this->unk_220 = scaleProjection;
     this->dyna.actor.world.rot.x += TRUNCF_BINANG(scaleProjection);
-    Math_ApproachF(&this->unk_21C, 0.0f, 0.03f, 70.0f);
+    MM_Math_ApproachF(&this->unk_21C, 0.0f, 0.03f, 70.0f);
     if (this->unk_21C > 0.0f) {
         this->unk_20C -= 0x800;
     }
@@ -205,19 +205,19 @@ void func_80A358FC(ObjBell* this, PlayState* play) {
     this->collider1.dim.worldSphere.radius = (this->collider1.dim.modelSphere.radius * this->collider1.dim.scale);
     this->collider2.dim.worldSphere.radius = (this->collider2.dim.modelSphere.radius * this->collider2.dim.scale);
     if (DECR(this->unk_20E) == 0) {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider2.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider2.base);
     }
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider1.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider1.base);
 }
 
 void func_80A359B4(Actor* thisx, PlayState* play) {
-    Matrix_Translate(thisx->world.pos.x, thisx->world.pos.y, thisx->world.pos.z, MTXMODE_NEW);
-    Matrix_Scale(thisx->scale.x, thisx->scale.y, thisx->scale.z, MTXMODE_APPLY);
-    Matrix_Translate(0.0f, 2600.0f, 0.0f, MTXMODE_APPLY);
+    MM_Matrix_Translate(thisx->world.pos.x, thisx->world.pos.y, thisx->world.pos.z, MTXMODE_NEW);
+    MM_Matrix_Scale(thisx->scale.x, thisx->scale.y, thisx->scale.z, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, 2600.0f, 0.0f, MTXMODE_APPLY);
     Matrix_RotateYS(thisx->world.rot.y, MTXMODE_APPLY);
     Matrix_RotateXS(thisx->world.rot.x, MTXMODE_APPLY);
     Matrix_RotateYS(-thisx->world.rot.y, MTXMODE_APPLY);
-    Matrix_Translate(0.0f, -2600.0f, 0.0f, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, -2600.0f, 0.0f, MTXMODE_APPLY);
 
     OPEN_DISPS(play->state.gfxCtx);
 
@@ -232,8 +232,8 @@ void func_80A359B4(Actor* thisx, PlayState* play) {
 }
 
 void func_80A35B18(Actor* thisx, PlayState* play) {
-    Matrix_Translate(thisx->world.pos.x, thisx->world.pos.y, thisx->world.pos.z, MTXMODE_NEW);
-    Matrix_Scale(thisx->scale.x, thisx->scale.y, thisx->scale.z, MTXMODE_APPLY);
+    MM_Matrix_Translate(thisx->world.pos.x, thisx->world.pos.y, thisx->world.pos.z, MTXMODE_NEW);
+    MM_Matrix_Scale(thisx->scale.x, thisx->scale.y, thisx->scale.z, MTXMODE_APPLY);
     Matrix_RotateYS(thisx->shape.rot.y, MTXMODE_APPLY);
 
     OPEN_DISPS(play->state.gfxCtx);
@@ -246,8 +246,8 @@ void func_80A35B18(Actor* thisx, PlayState* play) {
 }
 
 void func_80A35BD4(Actor* thisx, PlayState* play) {
-    Matrix_Translate(thisx->world.pos.x, thisx->world.pos.y - 4.0f, thisx->world.pos.z, MTXMODE_NEW);
-    Matrix_Scale(thisx->scale.x, thisx->scale.y, thisx->scale.z, MTXMODE_APPLY);
+    MM_Matrix_Translate(thisx->world.pos.x, thisx->world.pos.y - 4.0f, thisx->world.pos.z, MTXMODE_NEW);
+    MM_Matrix_Scale(thisx->scale.x, thisx->scale.y, thisx->scale.z, MTXMODE_APPLY);
 
     OPEN_DISPS(play->state.gfxCtx);
 
@@ -261,18 +261,18 @@ void func_80A35BD4(Actor* thisx, PlayState* play) {
 void ObjBell_Init(Actor* thisx, PlayState* play) {
     ObjBell* this = (ObjBell*)thisx;
 
-    DynaPolyActor_Init(&this->dyna, 0);
+    MM_DynaPolyActor_Init(&this->dyna, 0);
     DynaPolyActor_LoadMesh(play, &this->dyna, &object_f52_obj_Colheader_001BA8);
-    Actor_SetScale(&this->dyna.actor, 0.08f);
-    Collider_InitAndSetSphere(play, &this->collider1, &this->dyna.actor, &sCylinderInit1);
-    Collider_InitAndSetSphere(play, &this->collider2, &this->dyna.actor, &sCylinderInit2);
-    CollisionCheck_SetInfo2(&this->dyna.actor.colChkInfo, &sDamageTable, &sColChkInfoInit2);
+    MM_Actor_SetScale(&this->dyna.actor, 0.08f);
+    Collider_InitAndSetSphere(play, &this->collider1, &this->dyna.actor, &MM_sCylinderInit1);
+    Collider_InitAndSetSphere(play, &this->collider2, &this->dyna.actor, &MM_sCylinderInit2);
+    MM_CollisionCheck_SetInfo2(&this->dyna.actor.colChkInfo, &MM_sDamageTable, &MM_sColChkInfoInit2);
 }
 
 void ObjBell_Destroy(Actor* thisx, PlayState* play) {
     ObjBell* this = (ObjBell*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
     Collider_DestroySphere(play, &this->collider1);
     Collider_DestroySphere(play, &this->collider2);
 }
@@ -296,10 +296,10 @@ void ObjBell_Draw(Actor* thisx, PlayState* play) {
     func_80A35B18(thisx, play);
     func_80A35BD4(thisx, play);
     func_80A359B4(thisx, play);
-    Math_Vec3s_ToVec3f(&sp30, &this->collider1.dim.modelSphere.center);
-    Matrix_MultVec3f(&sp30, &sp24);
+    MM_Math_Vec3s_ToVec3f(&sp30, &this->collider1.dim.modelSphere.center);
+    MM_Matrix_MultVec3f(&sp30, &sp24);
     Math_Vec3f_ToVec3s(&this->collider1.dim.worldSphere.center, &sp24);
-    Math_Vec3s_ToVec3f(&sp30, &this->collider2.dim.modelSphere.center);
-    Matrix_MultVec3f(&sp30, &sp24);
+    MM_Math_Vec3s_ToVec3f(&sp30, &this->collider2.dim.modelSphere.center);
+    MM_Matrix_MultVec3f(&sp30, &sp24);
     Math_Vec3f_ToVec3s(&this->collider2.dim.worldSphere.center, &sp24);
 }

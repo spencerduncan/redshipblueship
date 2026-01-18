@@ -31,11 +31,11 @@ void DemoIk_Destroy(Actor* thisx, PlayState* play) {
 }
 
 void DemoIk_BgCheck(DemoIk* this, PlayState* play) {
-    Actor_UpdateBgCheckInfo(play, &this->actor, 75.0f, 30.0f, 30.0f, 5);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 75.0f, 30.0f, 30.0f, 5);
 }
 
 s32 DemoIk_UpdateSkelAnime(DemoIk* this) {
-    return SkelAnime_Update(&this->skelAnime);
+    return OoT_SkelAnime_Update(&this->skelAnime);
 }
 
 CsCmdActorCue* DemoIk_GetCue(PlayState* play, s32 index) {
@@ -93,21 +93,21 @@ s32 DemoIk_GetIndexFromParams(s32 params) {
 void DemoIk_Type1PlaySound(DemoIk* this) {
     switch (this->actor.params) {
         case 0:
-            if (Animation_OnFrame(&this->skelAnime, 5.0f)) {
+            if (OoT_Animation_OnFrame(&this->skelAnime, 5.0f)) {
                 Audio_PlaySoundGeneral(NA_SE_EN_IRONNACK_ARMOR_LAND1_DEMO, &this->actor.projectedPos, 4,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             }
             break;
         case 1:
-            if (Animation_OnFrame(&this->skelAnime, 10.0f)) {
+            if (OoT_Animation_OnFrame(&this->skelAnime, 10.0f)) {
                 Audio_PlaySoundGeneral(NA_SE_EN_IRONNACK_ARMOR_LAND3_DEMO, &this->actor.projectedPos, 4,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             }
             break;
         case 2:
-            if (Animation_OnFrame(&this->skelAnime, 9.0f)) {
+            if (OoT_Animation_OnFrame(&this->skelAnime, 9.0f)) {
                 Audio_PlaySoundGeneral(NA_SE_EN_IRONNACK_ARMOR_LAND2_DEMO, &this->actor.projectedPos, 4,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             }
             break;
     }
@@ -142,7 +142,7 @@ void DemoIk_SpawnDeadDb(DemoIk* this, PlayState* play) {
             pos.x = deadDbOffsets[i].x + this->actor.world.pos.x;
             pos.y = deadDbOffsets[i].y + this->actor.world.pos.y;
             pos.z = deadDbOffsets[i].z + this->actor.world.pos.z;
-            EffectSsDeadDb_Spawn(play, &pos, &zeroVec, &zeroVec, 10, 7, 255, 255, 255, 255, 0, 0, 255, 1, 9, true);
+            OoT_EffectSsDeadDb_Spawn(play, &pos, &zeroVec, &zeroVec, 10, 7, 255, 255, 255, 255, 0, 0, 255, 1, 9, true);
         }
     }
 }
@@ -181,9 +181,9 @@ void DemoIk_Type1Init(DemoIk* this, PlayState* play) {
             phi_f0 = 20.0f;
             // No break is required for matching
     }
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, phi_f0);
-    SkelAnime_Init(play, &this->skelAnime, skeleton, NULL, this->jointTable, this->morphTable, 2);
-    Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, Animation_GetLastFrame(animation), ANIMMODE_ONCE, 0.0f);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, phi_f0);
+    OoT_SkelAnime_Init(play, &this->skelAnime, skeleton, NULL, this->jointTable, this->morphTable, 2);
+    OoT_Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, OoT_Animation_GetLastFrame(animation), ANIMMODE_ONCE, 0.0f);
 }
 
 void func_8098393C(DemoIk* this) {
@@ -227,7 +227,7 @@ void func_809839D0(DemoIk* this, PlayState* play) {
                     func_809839AC(this);
                     break;
                 case 4:
-                    Actor_Kill(&this->actor);
+                    OoT_Actor_Kill(&this->actor);
                     break;
                 case 5:
                 case 6:
@@ -318,16 +318,16 @@ void DemoIk_Type2Init(DemoIk* this, PlayState* play) {
             animation = &object_ik_Anim_0008DC;
     }
 
-    SkelAnime_InitFlex(play, &this->skelAnime, skeleton, NULL, this->jointTable, this->morphTable, 2);
-    Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, Animation_GetLastFrame(animation), ANIMMODE_ONCE, 0.0f);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, skeleton, NULL, this->jointTable, this->morphTable, 2);
+    OoT_Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, OoT_Animation_GetLastFrame(animation), ANIMMODE_ONCE, 0.0f);
     this->actionMode = 3;
     this->drawMode = 0;
 }
 
 void DemoIk_Type2PlaySoundOnFrame(DemoIk* this, f32 frame) {
-    if (Animation_OnFrame(&this->skelAnime, frame)) {
+    if (OoT_Animation_OnFrame(&this->skelAnime, frame)) {
         Audio_PlaySoundGeneral(NA_SE_EN_IRONNACK_ARMOR_OFF_DEMO, &this->actor.projectedPos, 4,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     }
 }
 
@@ -379,7 +379,7 @@ void func_80984048(DemoIk* this, PlayState* play) {
                     func_8098402C(this);
                     break;
                 case 7:
-                    Actor_Kill(&this->actor);
+                    OoT_Actor_Kill(&this->actor);
                     break;
                 default:
                     // "there is no such action"
@@ -458,7 +458,7 @@ void DemoIk_Type2Draw(DemoIk* this, PlayState* play) {
     CLOSE_DISPS(gfxCtx);
 }
 
-static DemoIkActionFunc sActionFuncs[] = {
+static DemoIkActionFunc OoT_sActionFuncs[] = {
     DemoIk_Type1Action0, DemoIk_Type1Action1, DemoIk_Type1Action2,
     DemoIk_Type2Action0, DemoIk_Type2Action1, DemoIk_Type2Action2,
 };
@@ -467,19 +467,19 @@ void DemoIk_Update(Actor* thisx, PlayState* play) {
     s32 pad;
     DemoIk* this = (DemoIk*)thisx;
 
-    if (this->actionMode < 0 || this->actionMode >= ARRAY_COUNT(sActionFuncs) ||
-        sActionFuncs[this->actionMode] == NULL) {
+    if (this->actionMode < 0 || this->actionMode >= ARRAY_COUNT(OoT_sActionFuncs) ||
+        OoT_sActionFuncs[this->actionMode] == NULL) {
         // "The main mode is strange"
         osSyncPrintf(VT_FGCOL(RED) "メインモードがおかしい!!!!!!!!!!!!!!!!!!!!!!!!!\n" VT_RST);
         return;
     }
-    sActionFuncs[this->actionMode](this, play);
+    OoT_sActionFuncs[this->actionMode](this, play);
 }
 
 void DemoIk_DrawNothing(DemoIk* this, PlayState* play) {
 }
 
-static DemoIkDrawFunc sDrawFuncs[] = {
+static DemoIkDrawFunc OoT_sDrawFuncs[] = {
     DemoIk_DrawNothing,
     DemoIk_Type1Draw,
     DemoIk_Type2Draw,
@@ -489,12 +489,12 @@ void DemoIk_Draw(Actor* thisx, PlayState* play) {
     s32 pad;
     DemoIk* this = (DemoIk*)thisx;
 
-    if (this->drawMode < 0 || this->drawMode >= ARRAY_COUNT(sDrawFuncs) || sDrawFuncs[this->drawMode] == NULL) {
+    if (this->drawMode < 0 || this->drawMode >= ARRAY_COUNT(OoT_sDrawFuncs) || OoT_sDrawFuncs[this->drawMode] == NULL) {
         // "The draw mode is strange"
         osSyncPrintf(VT_FGCOL(RED) "描画モードがおかしい!!!!!!!!!!!!!!!!!!!!!!!!!\n" VT_RST);
         return;
     }
-    sDrawFuncs[this->drawMode](this, play);
+    OoT_sDrawFuncs[this->drawMode](this, play);
 }
 
 const ActorInit Demo_Ik_InitVars = {

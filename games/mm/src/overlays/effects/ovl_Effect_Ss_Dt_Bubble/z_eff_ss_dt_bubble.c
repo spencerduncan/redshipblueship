@@ -21,18 +21,18 @@
 
 #define PARAMS ((EffectSsDtBubbleInitParams*)initParamsx)
 
-u32 EffectSsDtBubble_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsDtBubble_Update(PlayState* play, u32 index, EffectSs* this);
-void EffectSsDtBubble_Draw(PlayState* play, u32 index, EffectSs* this);
+u32 MM_EffectSsDtBubble_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void MM_EffectSsDtBubble_Update(PlayState* play, u32 index, EffectSs* this);
+void MM_EffectSsDtBubble_Draw(PlayState* play, u32 index, EffectSs* this);
 
-static Color_RGBA8 sPrimColors[] = {
+static Color_RGBA8 MM_sPrimColors[] = {
     { 255, 255, 100, 255 },
     { 150, 255, 255, 255 },
     { 100, 255, 255, 255 },
     { 255, 255, 255, 255 },
 };
 
-static Color_RGBA8 sEnvColors[] = {
+static Color_RGBA8 MM_sEnvColors[] = {
     { 170, 0, 0, 255 },
     { 0, 100, 0, 255 },
     { 0, 0, 255, 255 },
@@ -41,32 +41,32 @@ static Color_RGBA8 sEnvColors[] = {
 
 EffectSsProfile Effect_Ss_Dt_Bubble_Profile = {
     EFFECT_SS_DT_BUBBLE,
-    EffectSsDtBubble_Init,
+    MM_EffectSsDtBubble_Init,
 };
 
-u32 EffectSsDtBubble_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 MM_EffectSsDtBubble_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsDtBubbleInitParams* initParams = PARAMS;
 
     {
-        TexturePtr tex = (Rand_ZeroOne() < 0.5f) ? gEffBubble1Tex : gEffBubble2Tex;
+        TexturePtr tex = (MM_Rand_ZeroOne() < 0.5f) ? gEffBubble1Tex : gEffBubble2Tex;
 
         this->gfx = (void*)OS_K0_TO_PHYSICAL(SEGMENTED_TO_K0(tex));
     }
 
-    Math_Vec3f_Copy(&this->pos, &initParams->pos);
-    Math_Vec3f_Copy(&this->velocity, &initParams->velocity);
-    Math_Vec3f_Copy(&this->accel, &initParams->accel);
+    MM_Math_Vec3f_Copy(&this->pos, &initParams->pos);
+    MM_Math_Vec3f_Copy(&this->velocity, &initParams->velocity);
+    MM_Math_Vec3f_Copy(&this->accel, &initParams->accel);
     this->life = initParams->life;
 
     if (!initParams->customColor) {
-        this->rPrimColorR = sPrimColors[initParams->colorProfile].r;
-        this->rPrimColorG = sPrimColors[initParams->colorProfile].g;
-        this->rPrimColorB = sPrimColors[initParams->colorProfile].b;
-        this->rPrimColorA = sPrimColors[initParams->colorProfile].a;
-        this->rEnvColorR = sEnvColors[initParams->colorProfile].r;
-        this->rEnvColorG = sEnvColors[initParams->colorProfile].g;
-        this->rEnvColorB = sEnvColors[initParams->colorProfile].b;
-        this->rEnvColorA = sEnvColors[initParams->colorProfile].a;
+        this->rPrimColorR = MM_sPrimColors[initParams->colorProfile].r;
+        this->rPrimColorG = MM_sPrimColors[initParams->colorProfile].g;
+        this->rPrimColorB = MM_sPrimColors[initParams->colorProfile].b;
+        this->rPrimColorA = MM_sPrimColors[initParams->colorProfile].a;
+        this->rEnvColorR = MM_sEnvColors[initParams->colorProfile].r;
+        this->rEnvColorG = MM_sEnvColors[initParams->colorProfile].g;
+        this->rEnvColorB = MM_sEnvColors[initParams->colorProfile].b;
+        this->rEnvColorA = MM_sEnvColors[initParams->colorProfile].a;
     } else {
         this->rPrimColorR = initParams->primColor.r;
         this->rPrimColorG = initParams->primColor.g;
@@ -81,21 +81,21 @@ u32 EffectSsDtBubble_Init(PlayState* play, u32 index, EffectSs* this, void* init
     this->rRandXZ = initParams->randXZ;
     this->rScale = initParams->scale;
     this->rLifespan = initParams->life;
-    this->draw = EffectSsDtBubble_Draw;
-    this->update = EffectSsDtBubble_Update;
+    this->draw = MM_EffectSsDtBubble_Draw;
+    this->update = MM_EffectSsDtBubble_Update;
 
     return 1;
 }
 
-void EffectSsDtBubble_Draw(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsDtBubble_Draw(PlayState* play, u32 index, EffectSs* this) {
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     f32 scale;
 
     OPEN_DISPS(gfxCtx);
 
     scale = this->rScale * 0.004f;
-    Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
-    Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+    MM_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
+    MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, gfxCtx);
     Gfx_SetupDL25_Opa(gfxCtx);
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, this->rPrimColorR, this->rPrimColorG, this->rPrimColorB,
@@ -108,9 +108,9 @@ void EffectSsDtBubble_Draw(PlayState* play, u32 index, EffectSs* this) {
     CLOSE_DISPS(gfxCtx);
 }
 
-void EffectSsDtBubble_Update(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsDtBubble_Update(PlayState* play, u32 index, EffectSs* this) {
     if (this->rRandXZ == true) {
-        this->pos.x += (Rand_ZeroOne() * 2.0f) - 1.0f;
-        this->pos.z += (Rand_ZeroOne() * 2.0f) - 1.0f;
+        this->pos.x += (MM_Rand_ZeroOne() * 2.0f) - 1.0f;
+        this->pos.z += (MM_Rand_ZeroOne() * 2.0f) - 1.0f;
     }
 }

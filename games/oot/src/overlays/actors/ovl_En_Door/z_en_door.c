@@ -20,19 +20,19 @@
 
 #define DOOR_CHECK_RANGE 40.0f
 
-void EnDoor_Init(Actor* thisx, PlayState* play);
-void EnDoor_Destroy(Actor* thisx, PlayState* play);
-void EnDoor_Update(Actor* thisx, PlayState* play);
-void EnDoor_Draw(Actor* thisx, PlayState* play);
+void OoT_EnDoor_Init(Actor* thisx, PlayState* play);
+void OoT_EnDoor_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnDoor_Update(Actor* thisx, PlayState* play);
+void OoT_EnDoor_Draw(Actor* thisx, PlayState* play);
 
 void EnDoor_SetupType(EnDoor* this, PlayState* play);
-void EnDoor_Idle(EnDoor* this, PlayState* play);
+void OoT_EnDoor_Idle(EnDoor* this, PlayState* play);
 void EnDoor_WaitForCheck(EnDoor* this, PlayState* play);
 void EnDoor_Check(EnDoor* this, PlayState* play);
-void EnDoor_AjarWait(EnDoor* this, PlayState* play);
-void EnDoor_AjarOpen(EnDoor* this, PlayState* play);
-void EnDoor_AjarClose(EnDoor* this, PlayState* play);
-void EnDoor_Open(EnDoor* this, PlayState* play);
+void OoT_EnDoor_AjarWait(EnDoor* this, PlayState* play);
+void OoT_EnDoor_AjarOpen(EnDoor* this, PlayState* play);
+void OoT_EnDoor_AjarClose(EnDoor* this, PlayState* play);
+void OoT_EnDoor_Open(EnDoor* this, PlayState* play);
 
 const ActorInit En_Door_InitVars = {
     ACTOR_EN_DOOR,
@@ -40,10 +40,10 @@ const ActorInit En_Door_InitVars = {
     FLAGS,
     OBJECT_GAMEPLAY_KEEP,
     sizeof(EnDoor),
-    (ActorFunc)EnDoor_Init,
-    (ActorFunc)EnDoor_Destroy,
-    (ActorFunc)EnDoor_Update,
-    (ActorFunc)EnDoor_Draw,
+    (ActorFunc)OoT_EnDoor_Init,
+    (ActorFunc)OoT_EnDoor_Destroy,
+    (ActorFunc)OoT_EnDoor_Update,
+    (ActorFunc)OoT_EnDoor_Draw,
     NULL,
 };
 
@@ -61,7 +61,7 @@ static EnDoorInfo sDoorInfo[] = {
     { -1, 4, OBJECT_GAMEPLAY_FIELD_KEEP },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_U8(targetMode, 0, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 4000, ICHAIN_STOP),
 };
@@ -81,7 +81,7 @@ static Gfx* D_809FCEE4[5][2] = {
     { gFieldDoorLeftDL, gFieldDoorRightDL },
 };
 
-void EnDoor_Init(Actor* thisx, PlayState* play2) {
+void OoT_EnDoor_Init(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     EnDoor* this = (EnDoor*)thisx;
     EnDoorInfo* objectInfo;
@@ -91,8 +91,8 @@ void EnDoor_Init(Actor* thisx, PlayState* play2) {
     f32 zOffset;
 
     objectInfo = &sDoorInfo[0];
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    SkelAnime_Init(play, &this->skelAnime, &gDoorSkel, &gDoorAdultOpeningLeftAnim, this->jointTable, this->morphTable,
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
+    OoT_SkelAnime_Init(play, &this->skelAnime, &gDoorSkel, &gDoorAdultOpeningLeftAnim, this->jointTable, this->morphTable,
                    5);
     for (i = 0; i < ARRAY_COUNT(sDoorInfo) - 2; i++, objectInfo++) {
         if (play->sceneNum == objectInfo->sceneNum) {
@@ -108,7 +108,7 @@ void EnDoor_Init(Actor* thisx, PlayState* play2) {
     this->dListIndex = objectInfo->dListIndex;
     objBankIndex = Object_GetIndex(&play->objectCtx, objectInfo->objectId);
     if (objBankIndex < 0) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
 
@@ -124,9 +124,9 @@ void EnDoor_Init(Actor* thisx, PlayState* play2) {
     if (this->actor.params & 0x40) {
         EnDoor* other;
 
-        xOffset = Math_CosS(this->actor.shape.rot.y) * 30.0f;
-        zOffset = Math_SinS(this->actor.shape.rot.y) * 30.0f;
-        other = (EnDoor*)Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_DOOR,
+        xOffset = OoT_Math_CosS(this->actor.shape.rot.y) * 30.0f;
+        zOffset = OoT_Math_SinS(this->actor.shape.rot.y) * 30.0f;
+        other = (EnDoor*)OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_DOOR,
                                             this->actor.world.pos.x + xOffset, this->actor.world.pos.y,
                                             this->actor.world.pos.z - zOffset, 0, this->actor.shape.rot.y + 0x8000, 0,
                                             this->actor.params & ~0x40);
@@ -136,10 +136,10 @@ void EnDoor_Init(Actor* thisx, PlayState* play2) {
         this->actor.world.pos.x -= xOffset;
         this->actor.world.pos.z += zOffset;
     }
-    Actor_SetFocus(&this->actor, 70.0f);
+    OoT_Actor_SetFocus(&this->actor, 70.0f);
 }
 
-void EnDoor_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnDoor_Destroy(Actor* thisx, PlayState* play) {
     TransitionActorEntry* transitionEntry;
     EnDoor* this = (EnDoor*)thisx;
 
@@ -154,28 +154,28 @@ void EnDoor_Destroy(Actor* thisx, PlayState* play) {
 void EnDoor_SetupType(EnDoor* this, PlayState* play) {
     s32 doorType;
 
-    if (Object_IsLoaded(&play->objectCtx, this->requiredObjBankIndex)) {
+    if (OoT_Object_IsLoaded(&play->objectCtx, this->requiredObjBankIndex)) {
         doorType = this->actor.params >> 7 & 7;
         this->actor.flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
         this->actor.objBankIndex = this->requiredObjBankIndex;
-        this->actionFunc = EnDoor_Idle;
+        this->actionFunc = OoT_EnDoor_Idle;
         if (doorType == DOOR_EVENING) {
             doorType =
                 (gSaveContext.dayTime > 0xC000 && gSaveContext.dayTime < 0xE000) ? DOOR_SCENEEXIT : DOOR_CHECKABLE;
         }
         this->actor.world.rot.y = 0x0000;
         if (doorType == DOOR_LOCKED) {
-            if (GameInteractor_Should(VB_DOOR_BE_LOCKED, !Flags_GetSwitch(play, this->actor.params & 0x3F), this)) {
+            if (GameInteractor_Should(VB_DOOR_BE_LOCKED, !OoT_Flags_GetSwitch(play, this->actor.params & 0x3F), this)) {
                 this->lockTimer = 10;
             }
         } else if (doorType == DOOR_AJAR) {
-            if (Actor_WorldDistXZToActor(&this->actor, &GET_PLAYER(play)->actor) > DOOR_AJAR_SLAM_RANGE) {
-                this->actionFunc = EnDoor_AjarWait;
+            if (OoT_Actor_WorldDistXZToActor(&this->actor, &GET_PLAYER(play)->actor) > DOOR_AJAR_SLAM_RANGE) {
+                this->actionFunc = OoT_EnDoor_AjarWait;
                 this->actor.world.rot.y = -0x1800;
             }
         } else if (doorType == DOOR_CHECKABLE) {
             this->actor.textId = (this->actor.params & 0x3F) + 0x0200;
-            if (this->actor.textId == 0x0229 && !Flags_GetEventChkInf(EVENTCHKINF_TALON_RETURNED_FROM_CASTLE)) {
+            if (this->actor.textId == 0x0229 && !OoT_Flags_GetEventChkInf(EVENTCHKINF_TALON_RETURNED_FROM_CASTLE)) {
                 // Talon's house door. If Talon has not been woken up at Hyrule Castle
                 // this door should be openable at any time of day. Note that there is no
                 // check for time of day as the scene setup for Lon Lon merely initializes
@@ -191,27 +191,27 @@ void EnDoor_SetupType(EnDoor* this, PlayState* play) {
     }
 }
 
-void EnDoor_Idle(EnDoor* this, PlayState* play) {
+void OoT_EnDoor_Idle(EnDoor* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
     s32 doorType;
     Vec3f playerPosRelToDoor;
     s16 phi_v0;
 
     doorType = this->actor.params >> 7 & 7;
-    Actor_WorldToActorCoords(&this->actor, &playerPosRelToDoor, &player->actor.world.pos);
+    OoT_Actor_WorldToActorCoords(&this->actor, &playerPosRelToDoor, &player->actor.world.pos);
     if (this->playerIsOpening != 0) {
-        this->actionFunc = EnDoor_Open;
-        Animation_PlayOnceSetSpeed(&this->skelAnime, D_809FCECC[this->animStyle],
+        this->actionFunc = OoT_EnDoor_Open;
+        OoT_Animation_PlayOnceSetSpeed(&this->skelAnime, D_809FCECC[this->animStyle],
                                    (player->stateFlags1 & PLAYER_STATE1_IN_WATER) ? 0.75f : 1.5f);
         if (this->lockTimer != 0) {
             if (GameInteractor_Should(VB_CONSUME_SMALL_KEY, true, this)) {
                 gSaveContext.inventory.dungeonKeys[gSaveContext.mapIndex]--;
-                Flags_SetSwitch(play, this->actor.params & 0x3F);
+                OoT_Flags_SetSwitch(play, this->actor.params & 0x3F);
             }
             Audio_PlayActorSound2(&this->actor, NA_SE_EV_CHAIN_KEY_UNLOCK);
             GameInteractor_ExecuteOnDungeonKeyUsedHooks(gSaveContext.mapIndex);
         }
-    } else if (!Player_InCsMode(play)) {
+    } else if (!OoT_Player_InCsMode(play)) {
         if (fabsf(playerPosRelToDoor.y) < 20.0f && fabsf(playerPosRelToDoor.x) < 20.0f &&
             fabsf(playerPosRelToDoor.z) < 50.0f) {
             phi_v0 = player->actor.shape.rot.y - this->actor.shape.rot.y;
@@ -235,7 +235,7 @@ void EnDoor_Idle(EnDoor* this, PlayState* play) {
                 player->doorActor = &this->actor;
             }
         } else if (doorType == DOOR_AJAR && this->actor.xzDistToPlayer > DOOR_AJAR_OPEN_RANGE) {
-            this->actionFunc = EnDoor_AjarOpen;
+            this->actionFunc = OoT_EnDoor_AjarOpen;
         }
     }
 }
@@ -249,52 +249,52 @@ void EnDoor_WaitForCheck(EnDoor* this, PlayState* play) {
 }
 
 void EnDoor_Check(EnDoor* this, PlayState* play) {
-    if (Actor_TextboxIsClosing(&this->actor, play)) {
+    if (OoT_Actor_TextboxIsClosing(&this->actor, play)) {
         this->actionFunc = EnDoor_WaitForCheck;
     }
 }
 
-void EnDoor_AjarWait(EnDoor* this, PlayState* play) {
+void OoT_EnDoor_AjarWait(EnDoor* this, PlayState* play) {
     if (this->actor.xzDistToPlayer < DOOR_AJAR_SLAM_RANGE) {
-        this->actionFunc = EnDoor_AjarClose;
+        this->actionFunc = OoT_EnDoor_AjarClose;
     }
 }
 
-void EnDoor_AjarOpen(EnDoor* this, PlayState* play) {
+void OoT_EnDoor_AjarOpen(EnDoor* this, PlayState* play) {
     if (this->actor.xzDistToPlayer < DOOR_AJAR_SLAM_RANGE) {
-        this->actionFunc = EnDoor_AjarClose;
-    } else if (Math_ScaledStepToS(&this->actor.world.rot.y, -0x1800, 0x100)) {
-        this->actionFunc = EnDoor_AjarWait;
+        this->actionFunc = OoT_EnDoor_AjarClose;
+    } else if (OoT_Math_ScaledStepToS(&this->actor.world.rot.y, -0x1800, 0x100)) {
+        this->actionFunc = OoT_EnDoor_AjarWait;
     }
 }
 
-void EnDoor_AjarClose(EnDoor* this, PlayState* play) {
-    if (Math_ScaledStepToS(&this->actor.world.rot.y, 0, 0x700)) {
-        this->actionFunc = EnDoor_Idle;
+void OoT_EnDoor_AjarClose(EnDoor* this, PlayState* play) {
+    if (OoT_Math_ScaledStepToS(&this->actor.world.rot.y, 0, 0x700)) {
+        this->actionFunc = OoT_EnDoor_Idle;
     }
 }
 
-void EnDoor_Open(EnDoor* this, PlayState* play) {
+void OoT_EnDoor_Open(EnDoor* this, PlayState* play) {
     s32 i;
     s32 numEffects;
 
     if (DECR(this->lockTimer) == 0) {
-        if (SkelAnime_Update(&this->skelAnime)) {
-            this->actionFunc = EnDoor_Idle;
+        if (OoT_SkelAnime_Update(&this->skelAnime)) {
+            this->actionFunc = OoT_EnDoor_Idle;
             this->playerIsOpening = 0;
-        } else if (Animation_OnFrame(&this->skelAnime, sDoorAnimOpenFrames[this->animStyle])) {
+        } else if (OoT_Animation_OnFrame(&this->skelAnime, sDoorAnimOpenFrames[this->animStyle])) {
             Audio_PlayActorSound2(&this->actor,
                                   (play->sceneNum == SCENE_SHADOW_TEMPLE ||
                                    play->sceneNum == SCENE_BOTTOM_OF_THE_WELL || play->sceneNum == SCENE_FIRE_TEMPLE)
                                       ? NA_SE_EV_IRON_DOOR_OPEN
                                       : NA_SE_OC_DOOR_OPEN);
             if (this->skelAnime.playSpeed < 1.5f) {
-                numEffects = (s32)(Rand_ZeroOne() * 30.0f) + 50;
+                numEffects = (s32)(OoT_Rand_ZeroOne() * 30.0f) + 50;
                 for (i = 0; i < numEffects; i++) {
-                    EffectSsBubble_Spawn(play, &this->actor.world.pos, 60.0f, 100.0f, 50.0f, 0.15f);
+                    OoT_EffectSsBubble_Spawn(play, &this->actor.world.pos, 60.0f, 100.0f, 50.0f, 0.15f);
                 }
             }
-        } else if (Animation_OnFrame(&this->skelAnime, sDoorAnimCloseFrames[this->animStyle])) {
+        } else if (OoT_Animation_OnFrame(&this->skelAnime, sDoorAnimCloseFrames[this->animStyle])) {
             Audio_PlayActorSound2(&this->actor,
                                   (play->sceneNum == SCENE_SHADOW_TEMPLE ||
                                    play->sceneNum == SCENE_BOTTOM_OF_THE_WELL || play->sceneNum == SCENE_FIRE_TEMPLE)
@@ -304,13 +304,13 @@ void EnDoor_Open(EnDoor* this, PlayState* play) {
     }
 }
 
-void EnDoor_Update(Actor* thisx, PlayState* play) {
+void OoT_EnDoor_Update(Actor* thisx, PlayState* play) {
     EnDoor* this = (EnDoor*)thisx;
 
     this->actionFunc(this, play);
 }
 
-s32 EnDoor_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
+s32 OoT_EnDoor_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
     s32 pad;
     TransitionActorEntry* transitionEntry;
     Gfx** temp_a2;
@@ -325,7 +325,7 @@ s32 EnDoor_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* 
         rot->z += this->actor.world.rot.y;
         if ((play->roomCtx.prevRoom.num >= 0) || (transitionEntry->sides[0].room == transitionEntry->sides[1].room)) {
             phi_v0_2 = ((this->actor.shape.rot.y + this->skelAnime.jointTable[3].z) + rot->z) -
-                       Math_Vec3f_Yaw(&play->view.eye, &this->actor.world.pos);
+                       OoT_Math_Vec3f_Yaw(&play->view.eye, &this->actor.world.pos);
             *dList = (ABS(phi_v0_2) < 0x4000) ? temp_a2[0] : temp_a2[1];
         } else {
             phi_v0 = this->unk_192;
@@ -338,14 +338,14 @@ s32 EnDoor_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* 
     return false;
 }
 
-void EnDoor_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnDoor_Draw(Actor* thisx, PlayState* play) {
     EnDoor* this = (EnDoor*)thisx;
 
     if (this->actor.objBankIndex == this->requiredObjBankIndex) {
         OPEN_DISPS(play->state.gfxCtx);
 
         Gfx_SetupDL_25Opa(play->state.gfxCtx);
-        SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, EnDoor_OverrideLimbDraw, NULL, &this->actor);
+        SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, OoT_EnDoor_OverrideLimbDraw, NULL, &this->actor);
         if (this->actor.world.rot.y != 0) {
             if (this->actor.world.rot.y > 0) {
                 gSPDisplayList(POLY_OPA_DISP++, gDoorRightDL);
@@ -355,13 +355,13 @@ void EnDoor_Draw(Actor* thisx, PlayState* play) {
         }
         if (this->lockTimer != 0) {
             if (CVarGetInteger(CVAR_ENHANCEMENT("ShowDoorLocksOnBothSides"), 0)) {
-                Matrix_Push();
+                OoT_Matrix_Push();
             }
-            Actor_DrawDoorLock(play, this->lockTimer, DOORLOCK_NORMAL);
+            OoT_Actor_DrawDoorLock(play, this->lockTimer, DOORLOCK_NORMAL);
             if (CVarGetInteger(CVAR_ENHANCEMENT("ShowDoorLocksOnBothSides"), 0)) {
-                Matrix_Pop();
-                Matrix_RotateZYX(0, 0x8000, 0, MTXMODE_APPLY);
-                Actor_DrawDoorLock(play, this->lockTimer, DOORLOCK_NORMAL);
+                OoT_Matrix_Pop();
+                OoT_Matrix_RotateZYX(0, 0x8000, 0, MTXMODE_APPLY);
+                OoT_Actor_DrawDoorLock(play, this->lockTimer, DOORLOCK_NORMAL);
             }
         }
 

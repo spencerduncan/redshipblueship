@@ -59,9 +59,9 @@ void EndTitle_DrawFull(Actor* thisx, PlayState* play) {
 
     // Draw the Triforce on Link's left hand
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
-    Matrix_Mult(mf, MTXMODE_NEW);
-    Matrix_Translate(0.0f, 150.0f, 170.0f, MTXMODE_APPLY);
-    Matrix_Scale(0.13f, 0.13f, 0.13f, MTXMODE_APPLY);
+    OoT_Matrix_Mult(mf, MTXMODE_NEW);
+    OoT_Matrix_Translate(0.0f, 150.0f, 170.0f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(0.13f, 0.13f, 0.13f, MTXMODE_APPLY);
     Matrix_RotateX(0xBB8 * M_PI / 0x8000, MTXMODE_APPLY);
     Matrix_RotateY(0.0f, MTXMODE_APPLY);
     Matrix_RotateZ(0.0f, MTXMODE_APPLY);

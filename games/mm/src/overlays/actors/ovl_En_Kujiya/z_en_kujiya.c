@@ -56,7 +56,7 @@ ActorProfile En_Kujiya_Profile = {
 void EnKujiya_Init(Actor* thisx, PlayState* play) {
     EnKujiya* this = (EnKujiya*)thisx;
 
-    Actor_SetScale(&this->actor, 0.1f);
+    MM_Actor_SetScale(&this->actor, 0.1f);
 
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
     this->actor.attentionRangeType = ATTENTION_RANGE_6;
@@ -83,17 +83,17 @@ void EnKujiya_Wait(EnKujiya* this, PlayState* play) {
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         if ((CURRENT_TIME >= CLOCK_TIME(6, 0)) && (CURRENT_TIME < CLOCK_TIME(18, 0))) {
             if (EnKujiya_CheckBoughtTicket()) {
-                Message_StartTextbox(play, 0x2B61, &this->actor);
+                MM_Message_StartTextbox(play, 0x2B61, &this->actor);
                 this->textId = 0x2B61; // Come back tomorrow
             } else {
-                Message_StartTextbox(play, 0x2B5C, &this->actor);
+                MM_Message_StartTextbox(play, 0x2B5C, &this->actor);
                 this->textId = 0x2B5C; // Pick 3 numbers
             }
         } else if (EnKujiya_CheckBoughtTicket()) {
-            Message_StartTextbox(play, 0x2B64, &this->actor);
+            MM_Message_StartTextbox(play, 0x2B64, &this->actor);
             this->textId = 0x2B64; // Announce winning numbers
         } else {
-            Message_StartTextbox(play, 0x2B63, &this->actor);
+            MM_Message_StartTextbox(play, 0x2B63, &this->actor);
             this->textId = 0x2B63; // Exchanging winning tickets
         }
 
@@ -106,21 +106,21 @@ void EnKujiya_Wait(EnKujiya* this, PlayState* play) {
 }
 
 void EnKujiya_HandlePlayerChoice(EnKujiya* this, PlayState* play) {
-    if (Message_ShouldAdvance(play)) {
+    if (MM_Message_ShouldAdvance(play)) {
         if (play->msgCtx.choiceIndex == 0) { // Buy
             if (gSaveContext.save.saveInfo.playerData.rupees < 10) {
                 Audio_PlaySfx(NA_SE_SY_ERROR);
-                Message_StartTextbox(play, 0x2B62, &this->actor);
+                MM_Message_StartTextbox(play, 0x2B62, &this->actor);
                 this->textId = 0x2B62; // Not enough Rupees
             } else {
                 Audio_PlaySfx_MessageDecide();
-                Rupees_ChangeBy(-10);
-                Message_StartTextbox(play, 0x2B5F, &this->actor);
+                MM_Rupees_ChangeBy(-10);
+                MM_Message_StartTextbox(play, 0x2B5F, &this->actor);
                 this->textId = 0x2B5F; // Enter number
             }
         } else { // Don't buy
             Audio_PlaySfx_MessageCancel();
-            Message_StartTextbox(play, 0x2B5E, &this->actor);
+            MM_Message_StartTextbox(play, 0x2B5E, &this->actor);
             this->textId = 0x2B5E; // Too bad
         }
     }
@@ -135,38 +135,38 @@ void EnKujiya_ChooseNextDialogue(EnKujiya* this, PlayState* play) {
         }
     }
 
-    if (Message_ShouldAdvance(play)) {
+    if (MM_Message_ShouldAdvance(play)) {
         switch (this->textId) {
             case 0x2B5C:
-                Message_StartTextbox(play, 0x2B5D, &this->actor);
+                MM_Message_StartTextbox(play, 0x2B5D, &this->actor);
                 this->textId = 0x2B5D; // Buy or not
                 break;
 
             case 0x2B60:
                 EnKujiya_SetBoughtTicket();
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 EnKujiya_SetupTurnToClosed(this);
                 break;
 
             case 0x2B64:
                 EnKujiya_UnsetBoughtTicket();
                 this->timer = 20;
-                Message_StartTextbox(play, 0x2B65, &this->actor);
+                MM_Message_StartTextbox(play, 0x2B65, &this->actor);
                 this->textId = 0x2B65; // Your numbers vs winning numbers
                 break;
 
             case 0x2B65:
                 if (CHECK_LOTTERY_NUMBERS()) {
-                    Message_StartTextbox(play, 0x2B66, &this->actor);
+                    MM_Message_StartTextbox(play, 0x2B66, &this->actor);
                     this->textId = 0x2B66; // Won 50 Rupees
                 } else {
-                    Message_StartTextbox(play, 0x2B67, &this->actor);
+                    MM_Message_StartTextbox(play, 0x2B67, &this->actor);
                     this->textId = 0x2B67; // Lost, come back tomorrow
                 }
                 break;
 
             case 0x2B66:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 if (GameInteractor_Should(VB_GIVE_LOTTERY_WINNINGS, true, this)) {
                     EnKujiya_SetupGivePrize(this);
                     EnKujiya_GivePrize(this, play);
@@ -184,7 +184,7 @@ void EnKujiya_SetupTalk(EnKujiya* this) {
 }
 
 void EnKujiya_Talk(EnKujiya* this, PlayState* play) {
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_NONE:
             break;
 
@@ -197,15 +197,15 @@ void EnKujiya_Talk(EnKujiya* this, PlayState* play) {
             break;
 
         case TEXT_STATE_DONE:
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 EnKujiya_SetupWait(this);
             }
             break;
 
         case TEXT_STATE_INPUT_LOTTERY_CODE:
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 Inventory_SaveLotteryCodeGuess(play);
-                Message_StartTextbox(play, 0x2B60, &this->actor);
+                MM_Message_StartTextbox(play, 0x2B60, &this->actor);
                 this->textId = 0x2B60; // Will announce winning numbers after 6
             }
             break;
@@ -220,10 +220,10 @@ void EnKujiya_SetupGivePrize(EnKujiya* this) {
 }
 
 void EnKujiya_GivePrize(EnKujiya* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play)) {
+    if (MM_Actor_HasParent(&this->actor, play)) {
         EnKujiya_SetupFinishGivePrize(this);
     } else {
-        Actor_OfferGetItem(&this->actor, play, GI_RUPEE_PURPLE, 500.0f, 100.0f);
+        MM_Actor_OfferGetItem(&this->actor, play, GI_RUPEE_PURPLE, 500.0f, 100.0f);
     }
 }
 
@@ -232,7 +232,7 @@ void EnKujiya_SetupFinishGivePrize(EnKujiya* this) {
 }
 
 void EnKujiya_FinishGivePrize(EnKujiya* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && MM_Message_ShouldAdvance(play)) {
         EnKujiya_SetupWait(this);
     }
 }
@@ -318,7 +318,7 @@ void EnKujiya_TurnToOpen(EnKujiya* this, PlayState* play) {
         }
     }
 
-    if (!Math_SmoothStepToS(&this->actor.shape.rot.y, 0x7555, 0xA, 0x16C, 0x16C)) {
+    if (!MM_Math_SmoothStepToS(&this->actor.shape.rot.y, 0x7555, 0xA, 0x16C, 0x16C)) {
         if (this->timer > 20) {
             if (CutsceneManager_GetCurrentCsId() == this->actor.csId) {
                 CutsceneManager_Stop(this->actor.csId);
@@ -346,7 +346,7 @@ void EnKujiya_TurnToClosed(EnKujiya* this, PlayState* play) {
         }
     }
 
-    if (!Math_SmoothStepToS(&this->actor.shape.rot.y, 0, 0xA, 0x16C, 0x16C)) {
+    if (!MM_Math_SmoothStepToS(&this->actor.shape.rot.y, 0, 0xA, 0x16C, 0x16C)) {
         if (this->timer > 20) {
             if (CutsceneManager_GetCurrentCsId() == this->actor.csId) {
                 CutsceneManager_Stop(this->actor.csId);

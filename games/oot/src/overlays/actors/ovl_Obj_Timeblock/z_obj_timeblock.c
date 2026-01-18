@@ -53,14 +53,14 @@ static ObjTimeblockSizeOptions sSizeOptions[] = {
 
 static f32 sRanges[] = { 60.0, 100.0, 140.0, 180.0, 220.0, 260.0, 300.0, 300.0 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_U8(targetMode, 2, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 1800, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 300, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneDownward, 1500, ICHAIN_STOP),
 };
 
-static Color_RGB8 sPrimColors[] = {
+static Color_RGB8 OoT_sPrimColors[] = {
     { 100, 120, 140 }, { 80, 140, 200 }, { 100, 150, 200 }, { 100, 200, 240 },
     { 80, 110, 140 },  { 70, 160, 225 }, { 80, 100, 130 },  { 100, 110, 190 },
 };
@@ -86,16 +86,16 @@ u32 ObjTimeblock_CalculateIsVisible(ObjTimeblock* this) {
 }
 
 void ObjTimeblock_SpawnDemoEffect(ObjTimeblock* this, PlayState* play) {
-    Actor_Spawn(&play->actorCtx, play, ACTOR_DEMO_EFFECT, this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
+    OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_DEMO_EFFECT, this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
                 this->dyna.actor.world.pos.z, 0, 0, 0,
                 sSizeOptions[(this->dyna.actor.params >> 8) & 1].demoEffectParams, true);
 }
 
 void ObjTimeblock_ToggleSwitchFlag(PlayState* play, s32 flag) {
-    if (Flags_GetSwitch(play, flag)) {
-        Flags_UnsetSwitch(play, flag);
+    if (OoT_Flags_GetSwitch(play, flag)) {
+        OoT_Flags_UnsetSwitch(play, flag);
     } else {
-        Flags_SetSwitch(play, flag);
+        OoT_Flags_SetSwitch(play, flag);
     }
 }
 
@@ -104,15 +104,15 @@ void ObjTimeblock_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     CollisionHeader* colHeader = NULL;
 
-    DynaPolyActor_Init(&this->dyna, DPM_UNK);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
     this->dyna.actor.world.rot.z = this->dyna.actor.shape.rot.z = 0;
 
-    CollisionHeader_GetVirtual(&gSongOfTimeBlockCol, &colHeader);
+    OoT_CollisionHeader_GetVirtual(&gSongOfTimeBlockCol, &colHeader);
 
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    Actor_SetScale(&this->dyna.actor, sSizeOptions[(this->dyna.actor.params >> 8) & 1].scale);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+    OoT_Actor_SetScale(&this->dyna.actor, sSizeOptions[(this->dyna.actor.params >> 8) & 1].scale);
 
     if ((this->dyna.actor.params >> 6) & 1) {
         this->unk_177 = 0;
@@ -122,9 +122,9 @@ void ObjTimeblock_Init(Actor* thisx, PlayState* play) {
 
     this->songObserverFunc = ObjTimeblock_WaitForOcarina;
 
-    Actor_SetFocus(&this->dyna.actor, sSizeOptions[(this->dyna.actor.params >> 8) & 1].height);
+    OoT_Actor_SetFocus(&this->dyna.actor, sSizeOptions[(this->dyna.actor.params >> 8) & 1].height);
 
-    this->unk_174 = (Flags_GetSwitch(play, this->dyna.actor.params & 0x3F)) ? true : false;
+    this->unk_174 = (OoT_Flags_GetSwitch(play, this->dyna.actor.params & 0x3F)) ? true : false;
     this->unk_175 = ((this->dyna.actor.params >> 15) & 1) ? true : false;
     this->isVisible = ObjTimeblock_CalculateIsVisible(this);
 
@@ -146,11 +146,11 @@ void ObjTimeblock_Destroy(Actor* thisx, PlayState* play) {
     s32 pad;
     ObjTimeblock* this = (ObjTimeblock*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 u8 ObjTimeblock_PlayerIsInRange(ObjTimeblock* this, PlayState* play) {
-    if (this->isVisible && DynaPolyActor_IsPlayerAbove(&this->dyna)) {
+    if (this->isVisible && OoT_DynaPolyActor_IsPlayerAbove(&this->dyna)) {
         return false;
     }
 
@@ -158,7 +158,7 @@ u8 ObjTimeblock_PlayerIsInRange(ObjTimeblock* this, PlayState* play) {
         Vec3f distance;
         f32 blockSize;
 
-        Actor_WorldToActorCoords(&this->dyna.actor, &distance, &GET_PLAYER(play)->actor.world.pos);
+        OoT_Actor_WorldToActorCoords(&this->dyna.actor, &distance, &GET_PLAYER(play)->actor.world.pos);
         blockSize = this->dyna.actor.scale.x * 50.0f + 6.0f;
         // Return true if player's xz position is not inside the block
         if (blockSize < fabsf(distance.x) || blockSize < fabsf(distance.z)) {
@@ -239,7 +239,7 @@ void ObjTimeblock_Normal(ObjTimeblock* this, PlayState* play) {
             if (this->unk_177 == 0) {
                 this->unk_175 = ((this->dyna.actor.params >> 15) & 1) ? true : false;
             } else {
-                this->unk_174 = (Flags_GetSwitch(play, this->dyna.actor.params & 0x3F)) ? true : false;
+                this->unk_174 = (OoT_Flags_GetSwitch(play, this->dyna.actor.params & 0x3F)) ? true : false;
             }
         }
     }
@@ -261,11 +261,11 @@ void func_80BA06AC(ObjTimeblock* this, PlayState* play) {
     this->unk_172 = play->msgCtx.lastPlayedSong;
 
     if (this->demoEffectFirstPartTimer > 0 && --this->demoEffectFirstPartTimer == 0) {
-        this->unk_174 = (Flags_GetSwitch(play, switchFlag)) ? true : false;
+        this->unk_174 = (OoT_Flags_GetSwitch(play, switchFlag)) ? true : false;
     }
 
     this->isVisible = ObjTimeblock_CalculateIsVisible(this);
-    this->unk_176 = (Flags_GetSwitch(play, switchFlag)) ? true : false;
+    this->unk_176 = (OoT_Flags_GetSwitch(play, switchFlag)) ? true : false;
 }
 
 void ObjTimeblock_SetupAltBehaviorVisible(ObjTimeblock* this) {
@@ -300,7 +300,7 @@ void ObjTimeblock_SetupAltBehaviourNotVisible(ObjTimeblock* this) {
 
 void ObjTimeblock_AltBehaviourNotVisible(ObjTimeblock* this, PlayState* play) {
     s32 switchFlag = this->dyna.actor.params & 0x3F;
-    s8 switchFlagIsSet = (Flags_GetSwitch(play, switchFlag)) ? true : false;
+    s8 switchFlagIsSet = (OoT_Flags_GetSwitch(play, switchFlag)) ? true : false;
 
     if (this->unk_176 ^ switchFlagIsSet && switchFlagIsSet ^ (((this->dyna.actor.params >> 15) & 1) ? true : false)) {
         if (this->demoEffectTimer <= 0) {
@@ -335,7 +335,7 @@ void ObjTimeblock_Update(Actor* thisx, PlayState* play) {
 
 void ObjTimeblock_Draw(Actor* thisx, PlayState* play) {
     if (((ObjTimeblock*)thisx)->isVisible) {
-        Color_RGB8* primColor = &sPrimColors[thisx->home.rot.z & 7];
+        Color_RGB8* primColor = &OoT_sPrimColors[thisx->home.rot.z & 7];
 
         OPEN_DISPS(play->state.gfxCtx);
 

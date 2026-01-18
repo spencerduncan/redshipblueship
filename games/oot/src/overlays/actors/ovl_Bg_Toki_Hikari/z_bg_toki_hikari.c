@@ -34,7 +34,7 @@ const ActorInit Bg_Toki_Hikari_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 1000, ICHAIN_STOP),
 };
 
@@ -43,15 +43,15 @@ void BgTokiHikari_Init(Actor* thisx, PlayState* play) {
 
     switch (this->actor.params) {
         case 0:
-            Actor_ProcessInitChain(&this->actor, sInitChain);
+            OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
             this->actionFunc = BgTokiHikari_DoNothing;
             break;
         case 1:
-            if (!Flags_GetEventChkInf(EVENTCHKINF_OPENED_THE_DOOR_OF_TIME)) {
+            if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_OPENED_THE_DOOR_OF_TIME)) {
                 this->actionFunc = func_808BA204;
                 this->unk_14C = 0.0f;
             } else {
-                Actor_Kill(&this->actor);
+                OoT_Actor_Kill(&this->actor);
             }
             break;
     }
@@ -94,9 +94,9 @@ void func_808BA018(BgTokiHikari* this, PlayState* play) {
     } else {
         gSPDisplayList(POLY_OPA_DISP++, object_toki_objects_DL_007E20);
         Gfx_SetupDL_25Xlu(play->state.gfxCtx);
-        gSPSegment(POLY_XLU_DISP++, 8, Gfx_TexScroll(play->state.gfxCtx, 0, play->gameplayFrames % 128, 64, 32));
+        gSPSegment(POLY_XLU_DISP++, 8, OoT_Gfx_TexScroll(play->state.gfxCtx, 0, play->gameplayFrames % 128, 64, 32));
 
-        gSPSegment(POLY_XLU_DISP++, 9, Gfx_TexScroll(play->state.gfxCtx, 0, play->gameplayFrames % 128, 64, 32));
+        gSPSegment(POLY_XLU_DISP++, 9, OoT_Gfx_TexScroll(play->state.gfxCtx, 0, play->gameplayFrames % 128, 64, 32));
 
         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
@@ -125,7 +125,7 @@ void func_808BA274(BgTokiHikari* this, PlayState* play) {
         this->unk_14C -= 0.025f;
     } else {
         this->unk_14C = 0.0f;
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
@@ -133,11 +133,11 @@ void func_808BA2CC(BgTokiHikari* this, PlayState* play) {
     s32 pad[2];
 
     OPEN_DISPS(play->state.gfxCtx);
-    Matrix_Translate(0.0f, 276.0f, 1122.0f, MTXMODE_NEW);
-    Matrix_Scale(0.32f, 0.32f, this->unk_14C * 7.0f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(0.0f, 276.0f, 1122.0f, MTXMODE_NEW);
+    OoT_Matrix_Scale(0.32f, 0.32f, this->unk_14C * 7.0f, MTXMODE_APPLY);
     Matrix_RotateZ(M_PI, MTXMODE_APPLY);
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
-    Matrix_Push();
+    OoT_Matrix_Push();
     gDPPipeSync(POLY_XLU_DISP++);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, this->unk_14C * 255.0f, (u8)(155.0f * this->unk_14C) + 100,
                     this->unk_14C * 255.0f, this->unk_14C * 255.0f);
@@ -147,12 +147,12 @@ void func_808BA2CC(BgTokiHikari* this, PlayState* play) {
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, -2 * (play->gameplayFrames & 0x7F), 0, 0x20, 0x40, 1,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, -2 * (play->gameplayFrames & 0x7F), 0, 0x20, 0x40, 1,
                                 (play->gameplayFrames & 0x7F) * 4, 0, 0x20, 0x40));
 
     gSPDisplayList(POLY_XLU_DISP++, object_toki_objects_DL_000880);
-    Matrix_Pop();
-    Matrix_Push();
+    OoT_Matrix_Pop();
+    OoT_Matrix_Push();
     gDPPipeSync(POLY_XLU_DISP++);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, (u8)(this->unk_14C * 200.0f));
 
@@ -162,8 +162,8 @@ void func_808BA2CC(BgTokiHikari* this, PlayState* play) {
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
     gSPDisplayList(POLY_XLU_DISP++, object_toki_objects_DL_0009C0);
-    Matrix_Pop();
-    Matrix_Push();
+    OoT_Matrix_Pop();
+    OoT_Matrix_Push();
     gDPPipeSync(POLY_XLU_DISP++);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, (u8)(this->unk_14C * 200.0f));
 
@@ -174,6 +174,6 @@ void func_808BA2CC(BgTokiHikari* this, PlayState* play) {
 
     // SOH [Port] Index adjust 11 -> 14 (for LUS marker and gsSPVertex) to account for our extraction size changes
     gSPDisplayListOffset(POLY_XLU_DISP++, object_toki_objects_DL_0009C0, 10 + 2 + 1);
-    Matrix_Pop();
+    OoT_Matrix_Pop();
     CLOSE_DISPS(play->state.gfxCtx);
 }

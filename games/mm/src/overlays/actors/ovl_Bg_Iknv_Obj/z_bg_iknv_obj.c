@@ -31,7 +31,7 @@ ActorProfile Bg_Iknv_Obj_Profile = {
     /**/ BgIknvObj_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -56,7 +56,7 @@ void BgIknvObj_Init(Actor* thisx, PlayState* play) {
     BgIknvObj* this = (BgIknvObj*)thisx;
     CollisionHeader* colHeader = NULL;
 
-    Actor_SetScale(&this->dyna.actor, 0.1f);
+    MM_Actor_SetScale(&this->dyna.actor, 0.1f);
     this->actionFunc = BgIknvObj_DoNothing;
     switch (IKNV_OBJ_TYPE(this)) {
         case IKNV_OBJ_WATERWHEEL:
@@ -67,26 +67,26 @@ void BgIknvObj_Init(Actor* thisx, PlayState* play) {
             break;
         case IKNV_OBJ_RAISED_DOOR:
             this->displayListPtr = object_iknv_obj_DL_011880;
-            DynaPolyActor_Init(&this->dyna, 0);
-            CollisionHeader_GetVirtual(&object_iknv_obj_Colheader_0119D4, &colHeader);
-            this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+            MM_DynaPolyActor_Init(&this->dyna, 0);
+            MM_CollisionHeader_GetVirtual(&object_iknv_obj_Colheader_0119D4, &colHeader);
+            this->dyna.bgId = MM_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
             this->actionFunc = BgIknvObj_UpdateRaisedDoor;
             this->dyna.actor.world.pos.y = this->dyna.actor.home.pos.y + 120.0f;
             break;
         case IKNV_OBJ_SAKON_DOOR:
             this->displayListPtr = object_iknv_obj_DL_0129C8;
             this->actionFunc = BgIknvObj_UpdateSakonDoor;
-            DynaPolyActor_Init(&this->dyna, 0);
-            CollisionHeader_GetVirtual(&object_iknv_obj_Colheader_012CA4, &colHeader);
-            this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
-            Collider_InitAndSetCylinder(play, &this->collider, &this->dyna.actor, &sCylinderInit);
-            Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
+            MM_DynaPolyActor_Init(&this->dyna, 0);
+            MM_CollisionHeader_GetVirtual(&object_iknv_obj_Colheader_012CA4, &colHeader);
+            this->dyna.bgId = MM_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+            Collider_InitAndSetCylinder(play, &this->collider, &this->dyna.actor, &MM_sCylinderInit);
+            MM_Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
             this->dyna.actor.colChkInfo.mass = MASS_IMMOVABLE;
             CLEAR_WEEKEVENTREG(WEEKEVENTREG_51_10);
-            Actor_SetFocus(&this->dyna.actor, IREG(88));
+            MM_Actor_SetFocus(&this->dyna.actor, IREG(88));
             break;
         default:
-            Actor_Kill(&this->dyna.actor);
+            MM_Actor_Kill(&this->dyna.actor);
     }
 }
 
@@ -95,13 +95,13 @@ void BgIknvObj_Destroy(Actor* thisx, PlayState* play) {
 
     if (IKNV_OBJ_TYPE(this) != IKNV_OBJ_RAISED_DOOR) {
         if (IKNV_OBJ_TYPE(this) == IKNV_OBJ_SAKON_DOOR) {
-            Collider_DestroyCylinder(play, &this->collider);
+            MM_Collider_DestroyCylinder(play, &this->collider);
             CLEAR_WEEKEVENTREG(WEEKEVENTREG_51_10);
         } else {
             return;
         }
     }
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 s32 func_80BD7CEC(BgIknvObj* this) {
@@ -137,9 +137,9 @@ void BgIknvObj_UpdateWaterwheel(BgIknvObj* this, PlayState* play) {
 
 s32 func_80BD7E0C(BgIknvObj* this, s16 targetRotation, PlayState* play) {
     this->dyna.actor.shape.yOffset = 0.0f;
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     if (targetRotation != this->dyna.actor.shape.rot.y) {
-        Math_SmoothStepToS(&this->dyna.actor.shape.rot.y, targetRotation, 2, 0x64, 0x64);
+        MM_Math_SmoothStepToS(&this->dyna.actor.shape.rot.y, targetRotation, 2, 0x64, 0x64);
         this->dyna.actor.world.rot.y = this->dyna.actor.shape.rot.y;
         if ((play->gameplayFrames % 2) != 0) {
             this->dyna.actor.shape.yOffset = 5.0f;
@@ -156,7 +156,7 @@ void func_80BD7ED8(BgIknvObj* this, PlayState* play) {
         this->actionFunc = BgIknvObj_UpdateSakonDoor;
         CLEAR_WEEKEVENTREG(WEEKEVENTREG_51_10);
     }
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void func_80BD7F4C(BgIknvObj* this, PlayState* play) {
@@ -167,7 +167,7 @@ void func_80BD7F4C(BgIknvObj* this, PlayState* play) {
         CutsceneManager_Stop(this->dyna.actor.csId);
         this->dyna.actor.home.rot.x = 0;
     }
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void func_80BD7FDC(BgIknvObj* this, PlayState* play) {
@@ -182,7 +182,7 @@ void func_80BD8040(BgIknvObj* this, PlayState* play) {
     if (func_80BD7CEC(this)) {
         this->actionFunc = func_80BD7FDC;
     }
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void BgIknvObj_UpdateSakonDoor(BgIknvObj* this, PlayState* play) {
@@ -190,7 +190,7 @@ void BgIknvObj_UpdateSakonDoor(BgIknvObj* this, PlayState* play) {
         this->actionFunc = func_80BD8040;
         SET_WEEKEVENTREG(WEEKEVENTREG_89_80);
     }
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void BgIknvObj_UpdateRaisedDoor(BgIknvObj* this, PlayState* play) {

@@ -78,7 +78,7 @@ s16 sBgDodoagoFirstExplosiveFlag = false;
 
 u8 sBgDodoagoDisableBombCatcher;
 
-// static u8 sUnused[90]; // unknown length
+// static u8 OoT_sUnused[90]; // unknown length
 
 s32 sBgDodoagoTimer;
 
@@ -95,14 +95,14 @@ void BgDodoago_SpawnSparkles(Vec3f* meanPos, PlayState* play) {
     s32 i;
 
     for (i = 4; i > 0; i--) {
-        pos.x = Rand_CenteredFloat(20.0f) + meanPos->x;
-        pos.y = Rand_CenteredFloat(10.0f) + meanPos->y;
-        pos.z = Rand_CenteredFloat(20.0f) + meanPos->z;
+        pos.x = OoT_Rand_CenteredFloat(20.0f) + meanPos->x;
+        pos.y = OoT_Rand_CenteredFloat(10.0f) + meanPos->y;
+        pos.z = OoT_Rand_CenteredFloat(20.0f) + meanPos->z;
         EffectSsKiraKira_SpawnSmall(play, &pos, &velocity, &acceleration, &primColor, &envColor);
     }
 }
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 5000, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 1000, ICHAIN_CONTINUE),
@@ -114,25 +114,25 @@ void BgDodoago_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     CollisionHeader* colHeader = NULL;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DPM_UNK);
-    CollisionHeader_GetVirtual(&gDodongoLowerJawCol, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
-    ActorShape_Init(&this->dyna.actor.shape, 0.0f, NULL, 0.0f);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
+    OoT_CollisionHeader_GetVirtual(&gDodongoLowerJawCol, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_ActorShape_Init(&this->dyna.actor.shape, 0.0f, NULL, 0.0f);
 
-    if (Flags_GetSwitch(play, this->dyna.actor.params & 0x3F)) {
+    if (OoT_Flags_GetSwitch(play, this->dyna.actor.params & 0x3F)) {
         BgDodoago_SetupAction(this, BgDodoago_DoNothing);
         this->dyna.actor.shape.rot.x = 0x1333;
         play->roomCtx.unk_74[BGDODOAGO_EYE_LEFT] = play->roomCtx.unk_74[BGDODOAGO_EYE_RIGHT] = 255;
         return;
     }
 
-    Collider_InitCylinder(play, &this->colliderMain);
-    Collider_InitCylinder(play, &this->colliderLeft);
-    Collider_InitCylinder(play, &this->colliderRight);
-    Collider_SetCylinder(play, &this->colliderMain, &this->dyna.actor, &sColCylinderInitMain);
-    Collider_SetCylinder(play, &this->colliderLeft, &this->dyna.actor, &sColCylinderInitLeftRight);
-    Collider_SetCylinder(play, &this->colliderRight, &this->dyna.actor, &sColCylinderInitLeftRight);
+    OoT_Collider_InitCylinder(play, &this->colliderMain);
+    OoT_Collider_InitCylinder(play, &this->colliderLeft);
+    OoT_Collider_InitCylinder(play, &this->colliderRight);
+    OoT_Collider_SetCylinder(play, &this->colliderMain, &this->dyna.actor, &sColCylinderInitMain);
+    OoT_Collider_SetCylinder(play, &this->colliderLeft, &this->dyna.actor, &sColCylinderInitLeftRight);
+    OoT_Collider_SetCylinder(play, &this->colliderRight, &this->dyna.actor, &sColCylinderInitLeftRight);
 
     BgDodoago_SetupAction(this, BgDodoago_WaitExplosives);
     sBgDodoagoDisableBombCatcher = false;
@@ -141,10 +141,10 @@ void BgDodoago_Init(Actor* thisx, PlayState* play) {
 void BgDodoago_Destroy(Actor* thisx, PlayState* play) {
     BgDodoago* this = (BgDodoago*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
-    Collider_DestroyCylinder(play, &this->colliderMain);
-    Collider_DestroyCylinder(play, &this->colliderLeft);
-    Collider_DestroyCylinder(play, &this->colliderRight);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_Collider_DestroyCylinder(play, &this->colliderMain);
+    OoT_Collider_DestroyCylinder(play, &this->colliderLeft);
+    OoT_Collider_DestroyCylinder(play, &this->colliderRight);
 }
 
 void BgDodoago_WaitExplosives(BgDodoago* this, PlayState* play) {
@@ -152,27 +152,27 @@ void BgDodoago_WaitExplosives(BgDodoago* this, PlayState* play) {
 
     if (explosive != NULL) {
         this->state =
-            (Math_Vec3f_Yaw(&this->dyna.actor.world.pos, &explosive->world.pos) >= this->dyna.actor.shape.rot.y)
+            (OoT_Math_Vec3f_Yaw(&this->dyna.actor.world.pos, &explosive->world.pos) >= this->dyna.actor.shape.rot.y)
                 ? BGDODOAGO_EYE_RIGHT
                 : BGDODOAGO_EYE_LEFT;
 
         if (((play->roomCtx.unk_74[BGDODOAGO_EYE_LEFT] == 255) && (this->state == BGDODOAGO_EYE_RIGHT)) ||
             ((play->roomCtx.unk_74[BGDODOAGO_EYE_RIGHT] == 255) && (this->state == BGDODOAGO_EYE_LEFT))) {
-            Flags_SetSwitch(play, this->dyna.actor.params & 0x3F);
+            OoT_Flags_SetSwitch(play, this->dyna.actor.params & 0x3F);
             this->state = 0;
-            Audio_PlaySoundGeneral(NA_SE_SY_CORRECT_CHIME, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_CORRECT_CHIME, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             BgDodoago_SetupAction(this, BgDodoago_OpenJaw);
             OnePointCutscene_Init(play, 3380, 160, &this->dyna.actor, MAIN_CAM);
         } else if (play->roomCtx.unk_74[this->state] == 0) {
             OnePointCutscene_Init(play, 3065, 40, &this->dyna.actor, MAIN_CAM);
             BgDodoago_SetupAction(this, BgDodoago_LightOneEye);
-            Audio_PlaySoundGeneral(NA_SE_SY_CORRECT_CHIME, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_CORRECT_CHIME, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         } else {
             OnePointCutscene_Init(play, 3065, 20, &this->dyna.actor, MAIN_CAM);
-            Audio_PlaySoundGeneral(NA_SE_SY_ERROR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_ERROR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             sBgDodoagoTimer += 30;
             return;
         }
@@ -184,10 +184,10 @@ void BgDodoago_WaitExplosives(BgDodoago* this, PlayState* play) {
             sBgDodoagoFirstExplosiveFlag = true;
             sBgDodoagoTimer = 50;
         }
-    } else if (Flags_GetEventChkInf(EVENTCHKINF_ENTERED_DODONGOS_CAVERN)) {
-        Collider_UpdateCylinder(&this->dyna.actor, &this->colliderMain);
-        Collider_UpdateCylinder(&this->dyna.actor, &this->colliderLeft);
-        Collider_UpdateCylinder(&this->dyna.actor, &this->colliderRight);
+    } else if (OoT_Flags_GetEventChkInf(EVENTCHKINF_ENTERED_DODONGOS_CAVERN)) {
+        OoT_Collider_UpdateCylinder(&this->dyna.actor, &this->colliderMain);
+        OoT_Collider_UpdateCylinder(&this->dyna.actor, &this->colliderLeft);
+        OoT_Collider_UpdateCylinder(&this->dyna.actor, &this->colliderRight);
 
         this->colliderMain.dim.pos.z += 200;
 
@@ -197,9 +197,9 @@ void BgDodoago_WaitExplosives(BgDodoago* this, PlayState* play) {
         this->colliderRight.dim.pos.z += 215;
         this->colliderRight.dim.pos.x -= 90;
 
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderMain.base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliderLeft.base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliderRight.base);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderMain.base);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliderLeft.base);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliderRight.base);
     }
 }
 
@@ -245,16 +245,16 @@ void BgDodoago_OpenJaw(BgDodoago* this, PlayState* play) {
     pos.z = this->dyna.actor.world.pos.z + 100.0f;
     BgDodoago_SpawnSparkles(&pos, play);
 
-    Math_StepToS(&this->state, 100, 3);
+    OoT_Math_StepToS(&this->state, 100, 3);
     func_800AA000(500.0f, 0x78, 0x14, 0xA);
 
-    if (Math_SmoothStepToS(&this->dyna.actor.shape.rot.x, 0x1333, 110 - this->state, 0x3E8, 0x32) == 0) {
+    if (OoT_Math_SmoothStepToS(&this->dyna.actor.shape.rot.x, 0x1333, 110 - this->state, 0x3E8, 0x32) == 0) {
         BgDodoago_SetupAction(this, BgDodoago_DoNothing);
-        Audio_PlaySoundGeneral(NA_SE_EV_STONE_BOUND, &this->dyna.actor.projectedPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_EV_STONE_BOUND, &this->dyna.actor.projectedPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     } else {
         Audio_PlaySoundGeneral(NA_SE_EV_STONE_STATUE_OPEN - SFX_FLAG, &this->dyna.actor.projectedPos, 4,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     }
 }
 
@@ -298,9 +298,9 @@ void BgDodoago_Update(Actor* thisx, PlayState* play) {
         }
     } else {
         sBgDodoagoTimer++;
-        Flags_GetSwitch(play, this->dyna.actor.params & 0x3F);
+        OoT_Flags_GetSwitch(play, this->dyna.actor.params & 0x3F);
         if (!sBgDodoagoDisableBombCatcher && sBgDodoagoTimer > 140) {
-            if (Flags_GetSwitch(play, this->dyna.actor.params & 0x3F)) {
+            if (OoT_Flags_GetSwitch(play, this->dyna.actor.params & 0x3F)) {
                 // this prevents clearing the actor's parent pointer, effectively disabling the bomb catcher
                 sBgDodoagoDisableBombCatcher++;
             } else {
@@ -314,7 +314,7 @@ void BgDodoago_Update(Actor* thisx, PlayState* play) {
 void BgDodoago_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
-    if (Flags_GetEventChkInf(EVENTCHKINF_ENTERED_DODONGOS_CAVERN)) {
+    if (OoT_Flags_GetEventChkInf(EVENTCHKINF_ENTERED_DODONGOS_CAVERN)) {
         Gfx_SetupDL_25Opa(play->state.gfxCtx);
         gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPDisplayList(POLY_OPA_DISP++, gDodongoLowerJawDL);

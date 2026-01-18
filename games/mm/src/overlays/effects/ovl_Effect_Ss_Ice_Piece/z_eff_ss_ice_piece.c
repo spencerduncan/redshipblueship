@@ -15,16 +15,16 @@
 
 #define PARAMS ((EffectSsIcePieceInitParams*)initParamsx)
 
-u32 EffectSsIcePiece_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsIcePiece_Update(PlayState* play, u32 index, EffectSs* this);
-void EffectSsIcePiece_Draw(PlayState* play, u32 index, EffectSs* this);
+u32 MM_EffectSsIcePiece_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void MM_EffectSsIcePiece_Update(PlayState* play, u32 index, EffectSs* this);
+void MM_EffectSsIcePiece_Draw(PlayState* play, u32 index, EffectSs* this);
 
 EffectSsProfile Effect_Ss_Ice_Piece_Profile = {
     EFFECT_SS_ICE_PIECE,
-    EffectSsIcePiece_Init,
+    MM_EffectSsIcePiece_Init,
 };
 
-u32 EffectSsIcePiece_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 MM_EffectSsIcePiece_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsIcePieceInitParams* initParams = PARAMS;
 
     this->pos = initParams->pos;
@@ -32,19 +32,19 @@ u32 EffectSsIcePiece_Init(PlayState* play, u32 index, EffectSs* this, void* init
     this->velocity = initParams->velocity;
     this->accel = initParams->accel;
     this->life = initParams->life;
-    this->draw = EffectSsIcePiece_Draw;
-    this->update = EffectSsIcePiece_Update;
+    this->draw = MM_EffectSsIcePiece_Draw;
+    this->update = MM_EffectSsIcePiece_Update;
     this->rLifespan = initParams->life;
     this->rScale = initParams->scale * 100.0f;
     this->rYaw = Math_Atan2S_XY(initParams->velocity.z, initParams->velocity.x);
     this->rPitch = 0;
     this->rRotSpeed =
-        ((fabsf(initParams->velocity.x) + fabsf(initParams->velocity.y)) * 100.0f) * (Rand_ZeroFloat(1.0f) + 0.5f);
+        ((fabsf(initParams->velocity.x) + fabsf(initParams->velocity.y)) * 100.0f) * (MM_Rand_ZeroFloat(1.0f) + 0.5f);
 
     return 1;
 }
 
-void EffectSsIcePiece_Draw(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsIcePiece_Draw(PlayState* play, u32 index, EffectSs* this) {
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     s32 pad;
     f32 scale = this->rScale * 0.01f;
@@ -60,8 +60,8 @@ void EffectSsIcePiece_Draw(PlayState* play, u32 index, EffectSs* this) {
         alpha = 255.0f;
     }
 
-    Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
-    Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+    MM_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
+    MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
     Matrix_RotateYS(this->rYaw, MTXMODE_APPLY);
     Matrix_RotateXS(this->rPitch, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
@@ -70,13 +70,13 @@ void EffectSsIcePiece_Draw(PlayState* play, u32 index, EffectSs* this) {
     func_800BCC68(&this->pos, play);
     gSPSegment(
         POLY_XLU_DISP++, 0x08,
-        Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, frames % 256, 0x20, 0x10, 1, 0, (2 * frames) % 256, 0x40, 0x20));
+        MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, frames % 256, 0x20, 0x10, 1, 0, (2 * frames) % 256, 0x40, 0x20));
     gSPDisplayList(POLY_XLU_DISP++, gEffIceFragment1DL);
 
     CLOSE_DISPS(gfxCtx);
 }
 
-void EffectSsIcePiece_Update(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsIcePiece_Update(PlayState* play, u32 index, EffectSs* this) {
     this->rPitch += this->rRotSpeed;
     this->velocity.x *= 0.85f;
     this->velocity.y *= 0.85f;

@@ -52,7 +52,7 @@ const ActorInit En_Diving_Game_InitVars = {
 // used to ensure there's only one instance of this actor.
 static u8 sHasSpawned = false;
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -72,7 +72,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 10, 10, 0, { 0, 0, 0 } },
 };
 
-static void* sEyeTextures[] = {
+static void* OoT_sEyeTextures[] = {
     gZoraEyeOpenTex,
     gZoraEyeHalfTex,
     gZoraEyeClosedTex,
@@ -82,10 +82,10 @@ void EnDivingGame_Init(Actor* thisx, PlayState* play) {
     EnDivingGame* this = (EnDivingGame*)thisx;
 
     this->actor.gravity = -3.0f;
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 30.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gZoraSkel, &gZoraIdleAnim, this->jointTable, this->morphTable, 20);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 30.0f);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gZoraSkel, &gZoraIdleAnim, this->jointTable, this->morphTable, 20);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
     osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ 素もぐりＧＯ ☆☆☆☆☆ \n" VT_RST);
     this->actor.room = -1;
     this->actor.scale.x = 0.01f;
@@ -94,7 +94,7 @@ void EnDivingGame_Init(Actor* thisx, PlayState* play) {
     if (sHasSpawned) {
         osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ もういてる原 ☆☆☆☆☆ \n" VT_RST);
         this->unk_31F = 1;
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     } else {
         sHasSpawned = true;
         this->actor.targetMode = 0;
@@ -110,7 +110,7 @@ void EnDivingGame_Destroy(Actor* thisx, PlayState* play) {
         sHasSpawned = false;
         gSaveContext.timerState = TIMER_STATE_OFF;
     }
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
@@ -119,11 +119,11 @@ void EnDivingGame_SpawnRuppy(EnDivingGame* this, PlayState* play) {
     EnExRuppy* rupee;
     Vec3f rupeePos;
 
-    rupeePos.x = (Rand_ZeroOne() - 0.5f) * 30.0f + this->actor.world.pos.x;
-    rupeePos.y = (Rand_ZeroOne() - 0.5f) * 20.0f + (this->actor.world.pos.y + 30.0f);
-    rupeePos.z = (Rand_ZeroOne() - 0.5f) * 20.0f + this->actor.world.pos.z;
-    rupee = (EnExRuppy*)Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_EX_RUPPY, rupeePos.x,
-                                           rupeePos.y, rupeePos.z, 0, (s16)Rand_CenteredFloat(3500.0f) - 1000,
+    rupeePos.x = (OoT_Rand_ZeroOne() - 0.5f) * 30.0f + this->actor.world.pos.x;
+    rupeePos.y = (OoT_Rand_ZeroOne() - 0.5f) * 20.0f + (this->actor.world.pos.y + 30.0f);
+    rupeePos.z = (OoT_Rand_ZeroOne() - 0.5f) * 20.0f + this->actor.world.pos.z;
+    rupee = (EnExRuppy*)OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_EX_RUPPY, rupeePos.x,
+                                           rupeePos.y, rupeePos.z, 0, (s16)OoT_Rand_CenteredFloat(3500.0f) - 1000,
                                            this->rupeesLeftToThrow, 0);
     if (rupee != NULL) {
         rupee->actor.speedXZ = 12.0f;
@@ -132,29 +132,29 @@ void EnDivingGame_SpawnRuppy(EnDivingGame* this, PlayState* play) {
 }
 
 s32 EnDivingGame_HasMinigameFinished(EnDivingGame* this, PlayState* play) {
-    if (gSaveContext.timerState == TIMER_STATE_STOP && !Play_InCsMode(play)) {
+    if (gSaveContext.timerState == TIMER_STATE_STOP && !OoT_Play_InCsMode(play)) {
         // Failed.
         gSaveContext.timerState = TIMER_STATE_OFF;
         func_800F5B58();
         Sfx_PlaySfxCentered(NA_SE_SY_FOUND);
         this->actor.textId = 0x71AD;
-        Message_StartTextbox(play, this->actor.textId, NULL);
+        OoT_Message_StartTextbox(play, this->actor.textId, NULL);
         this->unk_292 = TEXT_STATE_EVENT;
         this->allRupeesThrown = this->state = this->phase = this->unk_2A2 = this->grabbedRupeesCounter = 0;
-        Player_SetCsActionWithHaltedActors(play, NULL, 8);
+        OoT_Player_SetCsActionWithHaltedActors(play, NULL, 8);
         this->actionFunc = func_809EE048;
         return true;
     } else {
         s32 rupeesNeeded = 5;
 
-        if (Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_SILVER_SCALE)) {
+        if (OoT_Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_SILVER_SCALE)) {
             rupeesNeeded = 10;
         }
         if (this->grabbedRupeesCounter >= rupeesNeeded) {
             // Won.
             gSaveContext.timerState = TIMER_STATE_OFF;
             this->allRupeesThrown = this->state = this->phase = this->unk_2A2 = this->grabbedRupeesCounter = 0;
-            if (!Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_SILVER_SCALE)) {
+            if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_SILVER_SCALE)) {
                 this->actor.textId = 0x4055;
             } else {
                 this->actor.textId = 0x405D;
@@ -162,12 +162,12 @@ s32 EnDivingGame_HasMinigameFinished(EnDivingGame* this, PlayState* play) {
                     this->extraWinCount++;
                 }
             }
-            Message_StartTextbox(play, this->actor.textId, NULL);
+            OoT_Message_StartTextbox(play, this->actor.textId, NULL);
             this->unk_292 = TEXT_STATE_EVENT;
             func_800F5B58();
-            Audio_PlayFanfare(NA_BGM_SMALL_ITEM_GET);
-            Player_SetCsActionWithHaltedActors(play, NULL, 8);
-            if (!Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_SILVER_SCALE)) {
+            OoT_Audio_PlayFanfare(NA_BGM_SMALL_ITEM_GET);
+            OoT_Player_SetCsActionWithHaltedActors(play, NULL, 8);
+            if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_SILVER_SCALE)) {
                 this->actionFunc = func_809EE96C;
             } else {
                 this->actionFunc = func_809EE048;
@@ -180,21 +180,21 @@ s32 EnDivingGame_HasMinigameFinished(EnDivingGame* this, PlayState* play) {
 
 // EnDivingGame_FinishMinigame ? // Reset probably
 void func_809EDCB0(EnDivingGame* this, PlayState* play) {
-    f32 frameCount = Animation_GetLastFrame(&gZoraIdleAnim);
+    f32 frameCount = OoT_Animation_GetLastFrame(&gZoraIdleAnim);
 
-    Animation_Change(&this->skelAnime, &gZoraIdleAnim, 1.0f, 0.0f, (s16)frameCount, ANIMMODE_LOOP, -10.0f);
+    OoT_Animation_Change(&this->skelAnime, &gZoraIdleAnim, 1.0f, 0.0f, (s16)frameCount, ANIMMODE_LOOP, -10.0f);
     this->notPlayingMinigame = true;
     this->actionFunc = EnDivingGame_Talk;
 }
 
 void EnDivingGame_Talk(EnDivingGame* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if (this->state != ENDIVINGGAME_STATE_PLAYING || !EnDivingGame_HasMinigameFinished(this, play)) {
         if (Actor_ProcessTalkRequest(&this->actor, play)) {
             if (this->unk_292 != TEXT_STATE_DONE) {
                 switch (this->state) {
                     case ENDIVINGGAME_STATE_NOTPLAYING:
-                        Player_SetCsActionWithHaltedActors(play, NULL, 8);
+                        OoT_Player_SetCsActionWithHaltedActors(play, NULL, 8);
                         this->actionFunc = EnDivingGame_HandlePlayChoice;
                         break;
                     case ENDIVINGGAME_STATE_AWARDPRIZE:
@@ -206,14 +206,14 @@ void EnDivingGame_Talk(EnDivingGame* this, PlayState* play) {
                 }
             }
         } else {
-            if (Text_GetFaceReaction(play, 0x1D) != 0) {
-                this->actor.textId = Text_GetFaceReaction(play, 0x1D);
+            if (OoT_Text_GetFaceReaction(play, 0x1D) != 0) {
+                this->actor.textId = OoT_Text_GetFaceReaction(play, 0x1D);
                 this->unk_292 = TEXT_STATE_DONE;
             } else {
                 switch (this->state) {
                     case ENDIVINGGAME_STATE_NOTPLAYING:
                         this->unk_292 = TEXT_STATE_CHOICE;
-                        if (!Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_SILVER_SCALE)) {
+                        if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_SILVER_SCALE)) {
                             this->actor.textId = 0x4053;
                             this->phase = ENDIVINGGAME_PHASE_1;
                         } else {
@@ -237,13 +237,13 @@ void EnDivingGame_Talk(EnDivingGame* this, PlayState* play) {
 }
 
 void EnDivingGame_HandlePlayChoice(EnDivingGame* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    if (this->unk_292 == Message_GetState(&play->msgCtx) &&
-        Message_ShouldAdvance(play)) { // Did player selected an answer?
+    OoT_SkelAnime_Update(&this->skelAnime);
+    if (this->unk_292 == OoT_Message_GetState(&play->msgCtx) &&
+        OoT_Message_ShouldAdvance(play)) { // Did player selected an answer?
         switch (play->msgCtx.choiceIndex) {
             case 0: // Yes
                 if (gSaveContext.rupees >= 20) {
-                    Rupees_ChangeBy(-20);
+                    OoT_Rupees_ChangeBy(-20);
                     this->actor.textId = 0x4054;
                 } else {
                     this->actor.textId = 0x85;
@@ -255,14 +255,14 @@ void EnDivingGame_HandlePlayChoice(EnDivingGame* this, PlayState* play) {
                 this->allRupeesThrown = this->state = this->phase = this->unk_2A2 = this->grabbedRupeesCounter = 0;
                 break;
         }
-        if (!Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_SILVER_SCALE) || this->actor.textId == 0x85 ||
+        if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_SILVER_SCALE) || this->actor.textId == 0x85 ||
             this->actor.textId == 0x2D) {
-            Message_ContinueTextbox(play, this->actor.textId);
+            OoT_Message_ContinueTextbox(play, this->actor.textId);
             this->unk_292 = TEXT_STATE_EVENT;
             this->actionFunc = func_809EE048;
         } else {
             play->msgCtx.msgMode = MSGMODE_PAUSED;
-            Player_SetCsActionWithHaltedActors(play, NULL, 8);
+            OoT_Player_SetCsActionWithHaltedActors(play, NULL, 8);
             this->actionFunc = func_809EE0FC;
         }
     }
@@ -270,15 +270,15 @@ void EnDivingGame_HandlePlayChoice(EnDivingGame* this, PlayState* play) {
 
 // Waits for the message to close
 void func_809EE048(EnDivingGame* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    if (this->unk_292 == Message_GetState(&play->msgCtx) && Message_ShouldAdvance(play)) {
+    OoT_SkelAnime_Update(&this->skelAnime);
+    if (this->unk_292 == OoT_Message_GetState(&play->msgCtx) && OoT_Message_ShouldAdvance(play)) {
         if (this->phase == ENDIVINGGAME_PHASE_ENDED) {
-            Message_CloseTextbox(play);
-            Player_SetCsActionWithHaltedActors(play, NULL, 7);
+            OoT_Message_CloseTextbox(play);
+            OoT_Player_SetCsActionWithHaltedActors(play, NULL, 7);
             this->actionFunc = func_809EDCB0;
         } else {
             play->msgCtx.msgMode = MSGMODE_PAUSED;
-            Player_SetCsActionWithHaltedActors(play, NULL, 8);
+            OoT_Player_SetCsActionWithHaltedActors(play, NULL, 8);
             this->actionFunc = func_809EE0FC;
         }
     }
@@ -286,9 +286,9 @@ void func_809EE048(EnDivingGame* this, PlayState* play) {
 
 // another "start minigame" step
 void func_809EE0FC(EnDivingGame* this, PlayState* play) {
-    f32 frameCount = Animation_GetLastFrame(&gZoraThrowRupeesAnim);
+    f32 frameCount = OoT_Animation_GetLastFrame(&gZoraThrowRupeesAnim);
 
-    Animation_Change(&this->skelAnime, &gZoraThrowRupeesAnim, 1.0f, 0.0f, (s16)frameCount, ANIMMODE_ONCE, -10.0f);
+    OoT_Animation_Change(&this->skelAnime, &gZoraThrowRupeesAnim, 1.0f, 0.0f, (s16)frameCount, ANIMMODE_ONCE, -10.0f);
     this->notPlayingMinigame = false;
     this->actionFunc = func_809EE194;
 }
@@ -297,17 +297,17 @@ void func_809EE0FC(EnDivingGame* this, PlayState* play) {
 void func_809EE194(EnDivingGame* this, PlayState* play) {
     f32 currentFrame = this->skelAnime.curFrame;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if (currentFrame >= 15.0f) {
         this->actionFunc = EnDivingGame_SetupRupeeThrow;
     }
 }
 
 void EnDivingGame_SetupRupeeThrow(EnDivingGame* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    this->subCamId = Play_CreateSubCamera(play);
-    Play_ChangeCameraStatus(play, 0, CAM_STAT_WAIT);
-    Play_ChangeCameraStatus(play, this->subCamId, CAM_STAT_ACTIVE);
+    OoT_SkelAnime_Update(&this->skelAnime);
+    this->subCamId = OoT_Play_CreateSubCamera(play);
+    OoT_Play_ChangeCameraStatus(play, 0, CAM_STAT_WAIT);
+    OoT_Play_ChangeCameraStatus(play, this->subCamId, CAM_STAT_ACTIVE);
     this->spawnRuppyTimer = 10;
     this->unk_2F4.x = -210.0f;
     this->unk_2F4.y = -80.0f;
@@ -315,7 +315,7 @@ void EnDivingGame_SetupRupeeThrow(EnDivingGame* this, PlayState* play) {
     this->unk_2D0.x = -280.0f;
     this->unk_2D0.y = -20.0f;
     this->unk_2D0.z = -240.0f;
-    if (!Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_SILVER_SCALE)) {
+    if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_SILVER_SCALE)) {
         this->rupeesLeftToThrow = 5;
     } else {
         this->rupeesLeftToThrow = 10;
@@ -342,24 +342,24 @@ void EnDivingGame_SetupRupeeThrow(EnDivingGame* this, PlayState* play) {
 
 // Throws rupee when this->spawnRuppyTimer == 0
 void EnDivingGame_RupeeThrow(EnDivingGame* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if (func_800C0DB4(play, &this->actor.projectedPos)) {
-        Audio_SetExtraFilter(0);
+        OoT_Audio_SetExtraFilter(0);
     }
     if (this->subCamId != 0) {
-        Math_ApproachF(&this->camEye.x, this->unk_2D0.x, this->unk_2DC.x, this->unk_2E8.x * this->unk_318);
-        Math_ApproachF(&this->camEye.z, this->unk_2D0.z, this->unk_2DC.z, this->unk_2E8.z * this->unk_318);
-        Math_ApproachF(&this->camLookAt.x, this->unk_2F4.x, this->unk_300.x, this->unk_30C.x * this->unk_318);
-        Math_ApproachF(&this->camLookAt.y, this->unk_2F4.y, this->unk_300.y, this->unk_30C.y * this->unk_318);
-        Math_ApproachF(&this->camLookAt.z, this->unk_2F4.z, this->unk_300.z, this->unk_30C.z * this->unk_318);
-        Math_ApproachF(&this->unk_318, 1.0f, 1.0f, 0.02f);
+        OoT_Math_ApproachF(&this->camEye.x, this->unk_2D0.x, this->unk_2DC.x, this->unk_2E8.x * this->unk_318);
+        OoT_Math_ApproachF(&this->camEye.z, this->unk_2D0.z, this->unk_2DC.z, this->unk_2E8.z * this->unk_318);
+        OoT_Math_ApproachF(&this->camLookAt.x, this->unk_2F4.x, this->unk_300.x, this->unk_30C.x * this->unk_318);
+        OoT_Math_ApproachF(&this->camLookAt.y, this->unk_2F4.y, this->unk_300.y, this->unk_30C.y * this->unk_318);
+        OoT_Math_ApproachF(&this->camLookAt.z, this->unk_2F4.z, this->unk_300.z, this->unk_30C.z * this->unk_318);
+        OoT_Math_ApproachF(&this->unk_318, 1.0f, 1.0f, 0.02f);
     }
     Play_CameraSetAtEye(play, this->subCamId, &this->camLookAt, &this->camEye);
     if (!this->allRupeesThrown && this->spawnRuppyTimer == 0) {
         this->spawnRuppyTimer = 5;
         EnDivingGame_SpawnRuppy(this, play);
         this->rupeesLeftToThrow--;
-        if (!Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_SILVER_SCALE)) {
+        if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_SILVER_SCALE)) {
             this->unk_296 = 30;
         } else {
             this->unk_296 = 5;
@@ -385,7 +385,7 @@ void EnDivingGame_RupeeThrow(EnDivingGame* this, PlayState* play) {
 
 // Called just before changing the camera to focus the underwater rupees.
 void EnDivingGame_SetupUnderwaterViewCs(EnDivingGame* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if (this->unk_296 == 0) {
         this->unk_2A2 = 1;
         this->csCameraTimer = 100;
@@ -401,12 +401,12 @@ void EnDivingGame_SetupUnderwaterViewCs(EnDivingGame* this, PlayState* play) {
 
 // EnDivingGame_SayStartAndWait ?
 void func_809EE780(EnDivingGame* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if (this->csCameraTimer == 0) {
-        Play_ClearCamera(play, this->subCamId);
-        Play_ChangeCameraStatus(play, 0, CAM_STAT_ACTIVE);
+        OoT_Play_ClearCamera(play, this->subCamId);
+        OoT_Play_ChangeCameraStatus(play, 0, CAM_STAT_ACTIVE);
         this->actor.textId = 0x405A;
-        Message_ContinueTextbox(play, this->actor.textId);
+        OoT_Message_ContinueTextbox(play, this->actor.textId);
         this->unk_292 = TEXT_STATE_EVENT;
         this->actionFunc = func_809EE800;
     }
@@ -414,16 +414,16 @@ void func_809EE780(EnDivingGame* this, PlayState* play) {
 
 // EnDivingGame_TalkDuringMinigame
 void func_809EE800(EnDivingGame* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    if (this->unk_292 == Message_GetState(&play->msgCtx) && Message_ShouldAdvance(play)) {
-        Message_CloseTextbox(play);
-        if (!Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_SILVER_SCALE)) {
+    OoT_SkelAnime_Update(&this->skelAnime);
+    if (this->unk_292 == OoT_Message_GetState(&play->msgCtx) && OoT_Message_ShouldAdvance(play)) {
+        OoT_Message_CloseTextbox(play);
+        if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_SILVER_SCALE)) {
             Interface_SetTimer(BREG(2) + 50);
         } else {
             Interface_SetTimer(BREG(2) + 50);
         }
         func_800F5ACC(NA_BGM_TIMED_MINI_GAME);
-        Player_SetCsActionWithHaltedActors(play, NULL, 7);
+        OoT_Player_SetCsActionWithHaltedActors(play, NULL, 7);
         this->actor.textId = 0x405B;
         this->unk_292 = TEXT_STATE_EVENT;
         this->state = ENDIVINGGAME_STATE_PLAYING;
@@ -432,9 +432,9 @@ void func_809EE800(EnDivingGame* this, PlayState* play) {
 }
 
 void func_809EE8F0(EnDivingGame* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    if ((this->unk_292 == Message_GetState(&play->msgCtx) && Message_ShouldAdvance(play))) {
-        Message_CloseTextbox(play);
+    OoT_SkelAnime_Update(&this->skelAnime);
+    if ((this->unk_292 == OoT_Message_GetState(&play->msgCtx) && OoT_Message_ShouldAdvance(play))) {
+        OoT_Message_CloseTextbox(play);
         this->actionFunc = EnDivingGame_Talk;
     } else {
         EnDivingGame_HasMinigameFinished(this, play);
@@ -443,10 +443,10 @@ void func_809EE8F0(EnDivingGame* this, PlayState* play) {
 
 // EnDivingGame_SayCongratsAndWait ? // EnDivingGame_PlayerWonPhase1
 void func_809EE96C(EnDivingGame* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    if ((this->unk_292 == Message_GetState(&play->msgCtx) && Message_ShouldAdvance(play))) {
-        Message_CloseTextbox(play);
-        Player_SetCsActionWithHaltedActors(play, NULL, 7);
+    OoT_SkelAnime_Update(&this->skelAnime);
+    if ((this->unk_292 == OoT_Message_GetState(&play->msgCtx) && OoT_Message_ShouldAdvance(play))) {
+        OoT_Message_CloseTextbox(play);
+        OoT_Player_SetCsActionWithHaltedActors(play, NULL, 7);
         this->actor.textId = 0x4056;
         this->unk_292 = TEXT_STATE_EVENT;
         this->state = ENDIVINGGAME_STATE_AWARDPRIZE;
@@ -455,38 +455,38 @@ void func_809EE96C(EnDivingGame* this, PlayState* play) {
 }
 
 void func_809EEA00(EnDivingGame* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    if ((this->unk_292 == Message_GetState(&play->msgCtx) && Message_ShouldAdvance(play))) {
-        Message_CloseTextbox(play);
+    OoT_SkelAnime_Update(&this->skelAnime);
+    if ((this->unk_292 == OoT_Message_GetState(&play->msgCtx) && OoT_Message_ShouldAdvance(play))) {
+        OoT_Message_CloseTextbox(play);
         this->actor.parent = NULL;
         if (GameInteractor_Should(VB_GIVE_ITEM_FROM_DIVING_MINIGAME, true, &this->actor)) {
-            Actor_OfferGetItem(&this->actor, play, GI_SCALE_SILVER, 90.0f, 10.0f);
+            OoT_Actor_OfferGetItem(&this->actor, play, GI_SCALE_SILVER, 90.0f, 10.0f);
         }
         this->actionFunc = func_809EEA90;
     }
 }
 
 void func_809EEA90(EnDivingGame* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    if (Actor_HasParent(&this->actor, play) ||
+    OoT_SkelAnime_Update(&this->skelAnime);
+    if (OoT_Actor_HasParent(&this->actor, play) ||
         !GameInteractor_Should(VB_GIVE_ITEM_FROM_DIVING_MINIGAME, true, &this->actor)) {
         this->actionFunc = func_809EEAF8;
     } else {
         if (GameInteractor_Should(VB_GIVE_ITEM_FROM_DIVING_MINIGAME, true, &this->actor)) {
-            Actor_OfferGetItem(&this->actor, play, GI_SCALE_SILVER, 90.0f, 10.0f);
+            OoT_Actor_OfferGetItem(&this->actor, play, GI_SCALE_SILVER, 90.0f, 10.0f);
         }
     }
 }
 
 // Award the scale?
 void func_809EEAF8(EnDivingGame* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_DONE && Message_ShouldAdvance(play)) ||
+    OoT_SkelAnime_Update(&this->skelAnime);
+    if ((OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_DONE && OoT_Message_ShouldAdvance(play)) ||
         !GameInteractor_Should(VB_GIVE_ITEM_FROM_DIVING_MINIGAME, true, &this->actor)) {
         // "Successful completion"
         osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ 正常終了 ☆☆☆☆☆ \n" VT_RST);
         this->allRupeesThrown = this->state = this->phase = this->unk_2A2 = this->grabbedRupeesCounter = 0;
-        Flags_SetEventChkInf(EVENTCHKINF_OBTAINED_SILVER_SCALE);
+        OoT_Flags_SetEventChkInf(EVENTCHKINF_OBTAINED_SILVER_SCALE);
         this->actionFunc = func_809EDCB0;
     }
 }
@@ -518,25 +518,25 @@ void EnDivingGame_Update(Actor* thisx, PlayState* play2) {
         this->eyeTexIndex++;
         if (this->eyeTexIndex >= 3) {
             this->eyeTexIndex = 0;
-            this->eyeTimer = (s16)Rand_ZeroFloat(60.0f) + 20;
+            this->eyeTimer = (s16)OoT_Rand_ZeroFloat(60.0f) + 20;
         }
     }
     this->actionFunc(this, play);
-    Actor_SetFocus(&this->actor, 80.0f);
+    OoT_Actor_SetFocus(&this->actor, 80.0f);
     this->interactInfo.trackPos = player->actor.world.pos;
     this->interactInfo.trackPos.y = player->actor.world.pos.y;
-    Npc_TrackPoint(&this->actor, &this->interactInfo, 2, NPC_TRACKING_FULL_BODY);
+    OoT_Npc_TrackPoint(&this->actor, &this->interactInfo, 2, NPC_TRACKING_FULL_BODY);
     this->vec_284 = this->interactInfo.headRot;
     this->vec_28A = this->interactInfo.torsoRot;
     if ((play->gameplayFrames % 16) == 0) {
         pos = this->actor.world.pos;
         pos.y += 20.0f;
-        EffectSsGRipple_Spawn(play, &pos, 100, 500, 30);
+        OoT_EffectSsGRipple_Spawn(play, &pos, 100, 500, 30);
     }
     this->unk_290++;
-    Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 60.0f, 29);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 60.0f, 29);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 Gfx* EnDivingGame_EmptyDList(GraphicsContext* gfxCtx) {
@@ -560,8 +560,8 @@ s32 EnDivingGame_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, V
     }
 
     if (this->notPlayingMinigame && (limbIndex == 8 || limbIndex == 9 || limbIndex == 12)) {
-        rot->y += Math_SinS((play->state.frames * (limbIndex * 50 + 0x814))) * 200.0f;
-        rot->z += Math_CosS((play->state.frames * (limbIndex * 50 + 0x940))) * 200.0f;
+        rot->y += OoT_Math_SinS((play->state.frames * (limbIndex * 50 + 0x814))) * 200.0f;
+        rot->z += OoT_Math_CosS((play->state.frames * (limbIndex * 50 + 0x940))) * 200.0f;
     }
 
     return 0;
@@ -575,7 +575,7 @@ void EnDivingGame_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 255);
     gSPSegment(POLY_OPA_DISP++, 0x0C, EnDivingGame_EmptyDList(play->state.gfxCtx));
-    gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(sEyeTextures[this->eyeTexIndex]));
+    gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(OoT_sEyeTextures[this->eyeTexIndex]));
 
     SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, EnDivingGame_OverrideLimbDraw, NULL, this);
     CLOSE_DISPS(play->state.gfxCtx);

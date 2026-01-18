@@ -32,12 +32,12 @@ ActorProfile En_Test2_Profile = {
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(EnTest2),
     /**/ EnTest2_Init,
-    /**/ Actor_Noop,
+    /**/ MM_Actor_Noop,
     /**/ EnTest2_Update,
     /**/ NULL,
 };
 
-static EnTest2ModelInfo sModelInfo[EN_TEST2_TYPE_MAX] = {
+static EnTest2ModelInfo MM_sModelInfo[EN_TEST2_TYPE_MAX] = {
     { object_dekucity_ana_obj_DL_000040, NULL, NULL },                               // EN_TEST2_TYPE_0
     { object_sichitai_obj_DL_001820, NULL, NULL },                                   // EN_TEST2_TYPE_1
     { object_yukimura_obj_DL_0008C0, NULL, NULL },                                   // EN_TEST2_TYPE_2
@@ -53,14 +53,14 @@ static EnTest2ModelInfo sModelInfo[EN_TEST2_TYPE_MAX] = {
     { object_hakugin_obj_DL_0035A8, NULL, object_hakugin_obj_Matanimheader_003888 }, // EN_TEST2_TYPE_12
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F(scale, 1, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 8000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 800, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 2500, ICHAIN_STOP),
 };
 
-static s16 sObjectIds[EN_TEST2_TYPE_MAX] = {
+static s16 MM_sObjectIds[EN_TEST2_TYPE_MAX] = {
     OBJECT_DEKUCITY_ANA_OBJ, // EN_TEST2_TYPE_0
     OBJECT_SICHITAI_OBJ,     // EN_TEST2_TYPE_1
     OBJECT_YUKIMURA_OBJ,     // EN_TEST2_TYPE_2
@@ -79,7 +79,7 @@ static s16 sObjectIds[EN_TEST2_TYPE_MAX] = {
 void EnTest2_Init(Actor* thisx, PlayState* play) {
     EnTest2* this = (EnTest2*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
     if ((ENTEST2_GET_TYPE(&this->actor) == EN_TEST2_TYPE_11) || (ENTEST2_GET_TYPE(&this->actor) == EN_TEST2_TYPE_12)) {
         this->actor.flags |= ACTOR_FLAG_DRAW_CULLING_DISABLED;
     }
@@ -91,26 +91,26 @@ void EnTest2_Update(Actor* thisx, PlayState* play) {
     EnTest2ModelInfo* modelInfo;
     EnTest2* this = (EnTest2*)thisx;
 
-    objectSlot = Object_GetSlot(&play->objectCtx, sObjectIds[ENTEST2_GET_TYPE(&this->actor)]);
+    objectSlot = Object_GetSlot(&play->objectCtx, MM_sObjectIds[ENTEST2_GET_TYPE(&this->actor)]);
     if (objectSlot <= OBJECT_SLOT_NONE) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
-    if (Object_IsLoaded(&play->objectCtx, objectSlot)) {
-        modelInfo = &sModelInfo[ENTEST2_GET_TYPE(&this->actor)];
+    if (MM_Object_IsLoaded(&play->objectCtx, objectSlot)) {
+        modelInfo = &MM_sModelInfo[ENTEST2_GET_TYPE(&this->actor)];
         this->actor.objectSlot = objectSlot;
         this->actor.draw = EnTest2_Draw;
 
         if (modelInfo->animMat != NULL) {
-            Actor_SetObjectDependency(play, &this->actor);
+            MM_Actor_SetObjectDependency(play, &this->actor);
             this->animMat = Lib_SegmentedToVirtual(modelInfo->animMat);
         }
 
         if (play->roomCtx.curRoom.lensMode != LENS_MODE_SHOW_ACTORS) {
             this->actor.update = EnTest2_UpdateForLens;
         } else {
-            this->actor.update = Actor_Noop;
+            this->actor.update = MM_Actor_Noop;
         }
     }
 }
@@ -128,7 +128,7 @@ void EnTest2_UpdateForLens(Actor* thisx, PlayState* play) {
 void EnTest2_Draw(Actor* thisx, PlayState* play) {
     s32 pad;
     EnTest2* this = (EnTest2*)thisx;
-    Gfx* dList = sModelInfo[ENTEST2_GET_TYPE(&this->actor)].dList2;
+    Gfx* dList = MM_sModelInfo[ENTEST2_GET_TYPE(&this->actor)].dList2;
 
     if (this->animMat != NULL) {
         AnimatedMat_Draw(play, this->animMat);
@@ -143,13 +143,13 @@ void EnTest2_Draw(Actor* thisx, PlayState* play) {
         if (dList != NULL) {
             gSPDisplayList(POLY_XLU_DISP++, dList);
         }
-        gSPDisplayList(POLY_XLU_DISP++, sModelInfo[ENTEST2_GET_TYPE(&this->actor)].dList1);
+        gSPDisplayList(POLY_XLU_DISP++, MM_sModelInfo[ENTEST2_GET_TYPE(&this->actor)].dList1);
 
         CLOSE_DISPS(play->state.gfxCtx);
     } else {
         if (dList != NULL) {
-            Gfx_DrawDListXlu(play, dList);
+            MM_Gfx_DrawDListXlu(play, dList);
         }
-        Gfx_DrawDListOpa(play, sModelInfo[ENTEST2_GET_TYPE(&this->actor)].dList1);
+        MM_Gfx_DrawDListOpa(play, MM_sModelInfo[ENTEST2_GET_TYPE(&this->actor)].dList1);
     }
 }

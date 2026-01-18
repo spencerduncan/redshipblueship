@@ -833,7 +833,7 @@ Gfx gSetupDLs[SETUPDL_MAX][6] = {
     },
 };
 
-Gfx sFillSetupDL[] = {
+Gfx MM_sFillSetupDL[] = {
     gsDPPipeSync(),
     gsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_OFF),
     gsDPSetCombineMode(G_CC_SHADE, G_CC_SHADE),
@@ -847,11 +847,11 @@ Gfx sFillSetupDL[] = {
     gsSPEndDisplayList(),
 };
 
-Gfx gEmptyDL[] = {
+Gfx MM_gEmptyDL[] = {
     gsSPEndDisplayList(),
 };
 
-Gfx* Gfx_SetFog(Gfx* gfx, s32 r, s32 g, s32 b, s32 a, s32 n, s32 f) {
+Gfx* MM_Gfx_SetFog(Gfx* gfx, s32 r, s32 g, s32 b, s32 a, s32 n, s32 f) {
     gDPSetFogColor(gfx, r, g, b, a);
 
     if (n >= 997) {
@@ -871,7 +871,7 @@ Gfx* Gfx_SetFog(Gfx* gfx, s32 r, s32 g, s32 b, s32 a, s32 n, s32 f) {
     return &gfx[2];
 }
 
-Gfx* Gfx_SetFogWithSync(Gfx* gfx, s32 r, s32 g, s32 b, s32 a, s32 n, s32 f) {
+Gfx* MM_Gfx_SetFogWithSync(Gfx* gfx, s32 r, s32 g, s32 b, s32 a, s32 n, s32 f) {
     gDPPipeSync(gfx++);
     gDPSetFogColor(gfx++, r, g, b, a);
 
@@ -888,11 +888,11 @@ Gfx* Gfx_SetFogWithSync(Gfx* gfx, s32 r, s32 g, s32 b, s32 a, s32 n, s32 f) {
     return gfx;
 }
 
-Gfx* Gfx_SetFog2(Gfx* gfx, s32 r, s32 g, s32 b, s32 a, s32 n, s32 f) {
-    return Gfx_SetFog(gfx, r, g, b, a, n, f);
+Gfx* MM_Gfx_SetFog2(Gfx* gfx, s32 r, s32 g, s32 b, s32 a, s32 n, s32 f) {
+    return MM_Gfx_SetFog(gfx, r, g, b, a, n, f);
 }
 
-Gfx* Gfx_SetupDLImpl(Gfx* gfx, u32 i) {
+Gfx* MM_Gfx_SetupDLImpl(Gfx* gfx, u32 i) {
     s32 dListIndex = i * ARRAY_COUNT(gSetupDLs[i]);
 
     // Equivalent to gSPDisplayList(gfx++, gSetupDLs[i])
@@ -900,12 +900,12 @@ Gfx* Gfx_SetupDLImpl(Gfx* gfx, u32 i) {
     return gfx;
 }
 
-Gfx* Gfx_SetupDL(Gfx* gfx, u32 i) {
-    return Gfx_SetupDLImpl(gfx, i);
+Gfx* MM_Gfx_SetupDL(Gfx* gfx, u32 i) {
+    return MM_Gfx_SetupDLImpl(gfx, i);
 }
 
-void Gfx_SetupDLAtPtr(Gfx** gfxP, u32 i) {
-    *gfxP = Gfx_SetupDL(*gfxP, i);
+void MM_Gfx_SetupDLAtPtr(Gfx** gfxP, u32 i) {
+    *gfxP = MM_Gfx_SetupDL(*gfxP, i);
 }
 
 Gfx* Gfx_SetupDL57(Gfx* gfx) {
@@ -1358,8 +1358,8 @@ void Gfx_SetupDL59_Opa(GraphicsContext* gfxCtx) {
     CLOSE_DISPS(gfxCtx);
 }
 
-Gfx* Gfx_BranchTexScroll(Gfx** gfxP, u32 x, u32 y, s32 width, s32 height) {
-    Gfx* gfx = Graph_DlistAlloc(gfxP, 3 * sizeof(Gfx));
+Gfx* MM_Gfx_BranchTexScroll(Gfx** gfxP, u32 x, u32 y, s32 width, s32 height) {
+    Gfx* gfx = MM_Graph_DlistAlloc(gfxP, 3 * sizeof(Gfx));
 
     gDPTileSync(&gfx[0]);
     gDPSetTileSize(&gfx[1], 0, x, y, (x + ((width - 1) << 2)), (y + ((height - 1) << 2)));
@@ -1369,14 +1369,14 @@ Gfx* Gfx_BranchTexScroll(Gfx** gfxP, u32 x, u32 y, s32 width, s32 height) {
 }
 
 void func_8012CB04(Gfx** gfxP, u32 x, u32 y) {
-    Gfx_BranchTexScroll(gfxP, x, y, 0, 0);
+    MM_Gfx_BranchTexScroll(gfxP, x, y, 0, 0);
 }
 
 Gfx* func_8012CB28(GraphicsContext* gfxCtx, u32 x, u32 y) {
-    return Gfx_TexScroll(gfxCtx, x, y, 0, 0);
+    return MM_Gfx_TexScroll(gfxCtx, x, y, 0, 0);
 }
 
-Gfx* Gfx_TexScroll(GraphicsContext* gfxCtx, u32 x, u32 y, s32 width, s32 height) {
+Gfx* MM_Gfx_TexScroll(GraphicsContext* gfxCtx, u32 x, u32 y, s32 width, s32 height) {
     Gfx* gfx = GRAPH_ALLOC(gfxCtx, 3 * sizeof(Gfx));
 
     x %= 2048;
@@ -1389,7 +1389,7 @@ Gfx* Gfx_TexScroll(GraphicsContext* gfxCtx, u32 x, u32 y, s32 width, s32 height)
     return gfx;
 }
 
-Gfx* Gfx_TwoTexScroll(GraphicsContext* gfxCtx, s32 tile1, u32 x1, u32 y1, s32 width1, s32 height1, s32 tile2, u32 x2,
+Gfx* MM_Gfx_TwoTexScroll(GraphicsContext* gfxCtx, s32 tile1, u32 x1, u32 y1, s32 width1, s32 height1, s32 tile2, u32 x2,
                       u32 y2, s32 width2, s32 height2) {
     Gfx* gfx = GRAPH_ALLOC(gfxCtx, 5 * sizeof(Gfx));
 
@@ -1407,7 +1407,7 @@ Gfx* Gfx_TwoTexScroll(GraphicsContext* gfxCtx, s32 tile1, u32 x1, u32 y1, s32 wi
     return gfx;
 }
 
-Gfx* Gfx_TwoTexScrollEnvColor(GraphicsContext* gfxCtx, s32 tile1, u32 x1, u32 y1, s32 width1, s32 height1, s32 tile2,
+Gfx* MM_Gfx_TwoTexScrollEnvColor(GraphicsContext* gfxCtx, s32 tile1, u32 x1, u32 y1, s32 width1, s32 height1, s32 tile2,
                               u32 x2, u32 y2, s32 width2, s32 height2, s32 r, s32 g, s32 b, s32 a) {
     Gfx* gfx = GRAPH_ALLOC(gfxCtx, 6 * sizeof(Gfx));
 
@@ -1426,7 +1426,7 @@ Gfx* Gfx_TwoTexScrollEnvColor(GraphicsContext* gfxCtx, s32 tile1, u32 x1, u32 y1
     return gfx;
 }
 
-Gfx* Gfx_EnvColor(GraphicsContext* gfxCtx, s32 r, s32 g, s32 b, s32 a) {
+Gfx* MM_Gfx_EnvColor(GraphicsContext* gfxCtx, s32 r, s32 g, s32 b, s32 a) {
     Gfx* gfx = GRAPH_ALLOC(gfxCtx, 2 * sizeof(Gfx));
 
     gDPSetEnvColor(&gfx[0], r, g, b, a);
@@ -1449,9 +1449,9 @@ void func_8012CF0C(GraphicsContext* gfxCtx, s32 clearFb, s32 clearZb, u8 r, u8 g
     void* zbuffer;
     s32 i;
 
-    gSegments[0x00] = 0;
-    gSegments[0x0F] = (uintptr_t)gfxCtx->curFrameBuffer;
-    gSegments[0x0E] = (uintptr_t)gGfxMasterDL;
+    MM_gSegments[0x00] = 0;
+    MM_gSegments[0x0F] = (uintptr_t)gfxCtx->curFrameBuffer;
+    MM_gSegments[0x0E] = (uintptr_t)gGfxMasterDL;
 
     zbuffer = gfxCtx->zbuffer;
 
@@ -1461,7 +1461,7 @@ void func_8012CF0C(GraphicsContext* gfxCtx, s32 clearFb, s32 clearZb, u8 r, u8 g
 
     gSPDisplayList(&masterGfx[0], D_0E000000_TO_SEGMENTED(syncSegments));
 
-    gSPDisplayList(&masterGfx[1], sFillSetupDL);
+    gSPDisplayList(&masterGfx[1], MM_sFillSetupDL);
 
     gDPSetColorImage(&masterGfx[2], G_IM_FMT_RGBA, G_IM_SIZ_16b, gCfbWidth, D_0F000000_TO_SEGMENTED);
     if (zbuffer != NULL) {
@@ -1539,11 +1539,11 @@ void func_8012CF0C(GraphicsContext* gfxCtx, s32 clearFb, s32 clearZb, u8 r, u8 g
 
     masterGfx = gGfxMasterDL->syncSegments;
 
-    for (i = 0; i < ARRAY_COUNT(gSegments); i++) {
+    for (i = 0; i < ARRAY_COUNT(MM_gSegments); i++) {
         if (i == 0x0E) {
             gSPNoOp(&masterGfx[i]);
         } else {
-            gSPSegment(&masterGfx[i], i, gSegments[i]);
+            gSPSegment(&masterGfx[i], i, MM_gSegments[i]);
         }
     }
     gSPEndDisplayList(&masterGfx[i]);
@@ -1579,8 +1579,8 @@ void func_8012D40C(f32* param_1, f32* param_2, s16* param_3) {
     param_1[2] = param_3[4] * 0.25f;
     param_1[3] = param_3[5] * 0.25f;
 
-    param_2[0] = param_1[0] / (gScreenWidth / 2);
+    param_2[0] = param_1[0] / (MM_gScreenWidth / 2);
     param_2[2] = param_1[2] - param_1[0];
-    param_2[1] = param_1[1] / (gScreenHeight / 2);
+    param_2[1] = param_1[1] / (MM_gScreenHeight / 2);
     param_2[3] = param_1[3] - param_1[1];
 }

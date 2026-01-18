@@ -30,12 +30,12 @@ static Gfx sTransFadeSetupDL[] = {
 };
 
 TransitionProfile TransitionFade_Profile = {
-    TransitionFade_Init,   TransitionFade_Destroy, TransitionFade_Update,   TransitionFade_Draw,
-    TransitionFade_Start,  TransitionFade_SetType, TransitionFade_SetColor, NULL,
-    TransitionFade_IsDone,
+    MM_TransitionFade_Init,   MM_TransitionFade_Destroy, MM_TransitionFade_Update,   MM_TransitionFade_Draw,
+    MM_TransitionFade_Start,  MM_TransitionFade_SetType, MM_TransitionFade_SetColor, NULL,
+    MM_TransitionFade_IsDone,
 };
 
-void TransitionFade_Start(void* thisx) {
+void MM_TransitionFade_Start(void* thisx) {
     TransitionFade* this = (TransitionFade*)thisx;
 
     switch (this->type) {
@@ -57,17 +57,17 @@ void TransitionFade_Start(void* thisx) {
     this->isDone = false;
 }
 
-void* TransitionFade_Init(void* thisx) {
+void* MM_TransitionFade_Init(void* thisx) {
     TransitionFade* this = (TransitionFade*)thisx;
 
     memset(this, 0, sizeof(TransitionFade));
     return this;
 }
 
-void TransitionFade_Destroy(void* thisx) {
+void MM_TransitionFade_Destroy(void* thisx) {
 }
 
-void TransitionFade_Update(void* thisx, s32 updateRate) {
+void MM_TransitionFade_Update(void* thisx, s32 updateRate) {
     s32 alpha;
     s16 newAlpha;
     TransitionFade* this = (TransitionFade*)thisx;
@@ -93,12 +93,12 @@ void TransitionFade_Update(void* thisx, s32 updateRate) {
             newAlpha = this->color.a;
             if (R_TRANS_FADE_FLASH_ALPHA_STEP != 0) {
                 if (R_TRANS_FADE_FLASH_ALPHA_STEP < 0) {
-                    if (Math_StepToS(&newAlpha, 255, 255)) {
+                    if (MM_Math_StepToS(&newAlpha, 255, 255)) {
                         R_TRANS_FADE_FLASH_ALPHA_STEP = 150;
                     }
                 } else {
-                    Math_StepToS(&R_TRANS_FADE_FLASH_ALPHA_STEP, 20, 60);
-                    if (Math_StepToS(&newAlpha, 0, R_TRANS_FADE_FLASH_ALPHA_STEP)) {
+                    MM_Math_StepToS(&R_TRANS_FADE_FLASH_ALPHA_STEP, 20, 60);
+                    if (MM_Math_StepToS(&newAlpha, 0, R_TRANS_FADE_FLASH_ALPHA_STEP)) {
                         R_TRANS_FADE_FLASH_ALPHA_STEP = 0;
                         this->isDone = true;
                     }
@@ -112,7 +112,7 @@ void TransitionFade_Update(void* thisx, s32 updateRate) {
     }
 }
 
-void TransitionFade_Draw(void* thisx, Gfx** gfxP) {
+void MM_TransitionFade_Draw(void* thisx, Gfx** gfxP) {
     TransitionFade* this = (TransitionFade*)thisx;
     Gfx* gfx;
     Color_RGBA8_u32* color = &this->color;
@@ -126,19 +126,19 @@ void TransitionFade_Draw(void* thisx, Gfx** gfxP) {
     }
 }
 
-s32 TransitionFade_IsDone(void* thisx) {
+s32 MM_TransitionFade_IsDone(void* thisx) {
     TransitionFade* this = (TransitionFade*)thisx;
 
     return this->isDone;
 }
 
-void TransitionFade_SetColor(void* thisx, u32 color) {
+void MM_TransitionFade_SetColor(void* thisx, u32 color) {
     TransitionFade* this = (TransitionFade*)thisx;
 
     this->color.rgba = color;
 }
 
-void TransitionFade_SetType(void* thisx, s32 type) {
+void MM_TransitionFade_SetType(void* thisx, s32 type) {
     TransitionFade* this = (TransitionFade*)thisx;
 
     if (type == TRANS_INSTANCE_TYPE_FILL_OUT) {

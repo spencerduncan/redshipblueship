@@ -30,7 +30,7 @@ const ActorInit Bg_Ddan_Jd_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
 
@@ -56,17 +56,17 @@ void BgDdanJd_Init(Actor* thisx, PlayState* play) {
     BgDdanJd* this = (BgDdanJd*)thisx;
     CollisionHeader* colHeader = NULL;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
-    CollisionHeader_GetVirtual(&gDodongoRisingPlatformCol, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
+    OoT_CollisionHeader_GetVirtual(&gDodongoRisingPlatformCol, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
     this->idleTimer = IDLE_FRAMES;
     this->state = STATE_GO_BOTTOM;
 
     // Missing check for actor.params < 0x40. This will cause inconsistent behavior if params >= 0x40 and the bound
     // switch state is turned on while in the same room, as the shortcut behavior won't become enabled until the actor
     // is reloaded.
-    if (Flags_GetSwitch(play, this->dyna.actor.params)) {
+    if (OoT_Flags_GetSwitch(play, this->dyna.actor.params)) {
         this->ySpeed = SHORTCUT_Y_SPEED;
     } else {
         this->ySpeed = DEFAULT_Y_SPEED;
@@ -77,7 +77,7 @@ void BgDdanJd_Init(Actor* thisx, PlayState* play) {
 void BgDdanJd_Destroy(Actor* thisx, PlayState* play) {
     BgDdanJd* this = (BgDdanJd*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void BgDdanJd_Idle(BgDdanJd* this, PlayState* play) {
@@ -87,7 +87,7 @@ void BgDdanJd_Idle(BgDdanJd* this, PlayState* play) {
 
     // if this is the platform that rises all the way to the top, and the switch state has just changed to on
     if (this->ySpeed == DEFAULT_Y_SPEED && this->dyna.actor.params < 0x40 &&
-        Flags_GetSwitch(play, this->dyna.actor.params)) {
+        OoT_Flags_GetSwitch(play, this->dyna.actor.params)) {
         this->ySpeed = SHORTCUT_Y_SPEED;
         this->state = STATE_GO_MIDDLE_FROM_BOTTOM;
         this->idleTimer = 0;
@@ -133,16 +133,16 @@ void BgDdanJd_MoveEffects(BgDdanJd* this, PlayState* play) {
     dustPos.y = this->dyna.actor.home.pos.y;
     if (play->gameplayFrames & 1) {
         dustPos.x = this->dyna.actor.world.pos.x + 65.0f;
-        dustPos.z = Rand_CenteredFloat(110.0f) + this->dyna.actor.world.pos.z;
+        dustPos.z = OoT_Rand_CenteredFloat(110.0f) + this->dyna.actor.world.pos.z;
         func_80033480(play, &dustPos, 5.0f, 1, 20, 60, 1);
         dustPos.x = this->dyna.actor.world.pos.x - 65.0f;
-        dustPos.z = Rand_CenteredFloat(110.0f) + this->dyna.actor.world.pos.z;
+        dustPos.z = OoT_Rand_CenteredFloat(110.0f) + this->dyna.actor.world.pos.z;
         func_80033480(play, &dustPos, 5.0f, 1, 20, 60, 1);
     } else {
-        dustPos.x = Rand_CenteredFloat(110.0f) + this->dyna.actor.world.pos.x;
+        dustPos.x = OoT_Rand_CenteredFloat(110.0f) + this->dyna.actor.world.pos.x;
         dustPos.z = this->dyna.actor.world.pos.z + 65.0f;
         func_80033480(play, &dustPos, 5.0f, 1, 20, 60, 1);
-        dustPos.x = Rand_CenteredFloat(110.0f) + this->dyna.actor.world.pos.x;
+        dustPos.x = OoT_Rand_CenteredFloat(110.0f) + this->dyna.actor.world.pos.x;
         dustPos.z = this->dyna.actor.world.pos.z - 65.0f;
         func_80033480(play, &dustPos, 5.0f, 1, 20, 60, 1);
     }
@@ -155,14 +155,14 @@ void BgDdanJd_MoveEffects(BgDdanJd* this, PlayState* play) {
 void BgDdanJd_Move(BgDdanJd* this, PlayState* play) {
     // if this is the platform that rises all the way to the top, and the switch state has just changed to on
     if (this->ySpeed == DEFAULT_Y_SPEED && this->dyna.actor.params < 0x40 &&
-        Flags_GetSwitch(play, this->dyna.actor.params)) {
+        OoT_Flags_GetSwitch(play, this->dyna.actor.params)) {
         this->ySpeed = SHORTCUT_Y_SPEED;
         this->state = STATE_GO_MIDDLE_FROM_BOTTOM;
         this->dyna.actor.world.pos.y = this->dyna.actor.home.pos.y + MOVE_HEIGHT_MIDDLE;
         this->idleTimer = 0;
         this->actionFunc = BgDdanJd_Idle;
         OnePointCutscene_Init(play, 3060, -99, &this->dyna.actor, MAIN_CAM);
-    } else if (Math_StepToF(&this->dyna.actor.world.pos.y, this->targetY, this->ySpeed)) {
+    } else if (OoT_Math_StepToF(&this->dyna.actor.world.pos.y, this->targetY, this->ySpeed)) {
         Audio_PlayActorSound2(&this->dyna.actor, NA_SE_EV_PILLAR_MOVE_STOP);
         this->actionFunc = BgDdanJd_Idle;
     }
@@ -176,5 +176,5 @@ void BgDdanJd_Update(Actor* thisx, PlayState* play) {
 }
 
 void BgDdanJd_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, gDodongoRisingPlatformDL);
+    OoT_Gfx_DrawDListOpa(play, gDodongoRisingPlatformDL);
 }

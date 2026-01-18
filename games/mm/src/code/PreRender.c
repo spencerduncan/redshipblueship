@@ -23,7 +23,7 @@
 /**
  * Assigns the "save" values in PreRender
  */
-void PreRender_SetValuesSave(PreRender* this, u32 width, u32 height, void* fbuf, void* zbuf, void* cvg) {
+void MM_PreRender_SetValuesSave(PreRender* this, u32 width, u32 height, void* fbuf, void* zbuf, void* cvg) {
     this->widthSave = width;
     this->heightSave = height;
     this->fbufSave = fbuf;
@@ -35,15 +35,15 @@ void PreRender_SetValuesSave(PreRender* this, u32 width, u32 height, void* fbuf,
     this->lrySave = height - 1;
 }
 
-void PreRender_Init(PreRender* this) {
+void MM_PreRender_Init(PreRender* this) {
     memset(this, 0, sizeof(PreRender));
-    ListAlloc_Init(&this->alloc);
+    MM_ListAlloc_Init(&this->alloc);
 }
 
 /**
  * Assigns the current values in PreRender
  */
-void PreRender_SetValues(PreRender* this, u32 width, u32 height, void* fbuf, void* zbuf) {
+void MM_PreRender_SetValues(PreRender* this, u32 width, u32 height, void* fbuf, void* zbuf) {
     this->width = width;
     this->height = height;
     this->fbuf = fbuf;
@@ -54,8 +54,8 @@ void PreRender_SetValues(PreRender* this, u32 width, u32 height, void* fbuf, voi
     this->lry = height - 1;
 }
 
-void PreRender_Destroy(PreRender* this) {
-    ListAlloc_FreeAll(&this->alloc);
+void MM_PreRender_Destroy(PreRender* this) {
+    MM_ListAlloc_FreeAll(&this->alloc);
 }
 
 void PreRender_CopyImage(PreRender* this, Gfx** gfxP, void* img, void* imgDst, u32 useThresholdAlphaCompare) {
@@ -388,7 +388,7 @@ void PreRender_RestoreFramebuffer(PreRender* this, Gfx** gfxP) {
  *
  * Patent describing the algorithm:
  *
- * Gossett, C. P., & van Hook, T. J. (Filed 1995, Published 1998)
+ * Gossett, C. MM_P., & van Hook, T. J. (Filed 1995, Published 1998)
  * Antialiasing of silhouette edges (USOO5742277A)
  * U.S. Patent and Trademark Office
  * Expired 2015-10-06
@@ -716,12 +716,12 @@ STACK(sSlowlyStack, 0x1000);
 void PreRender_ApplyFiltersSlowlyInit(PreRender* this) {
     if ((this->cvgSave != NULL) && (this->fbufSave != NULL)) {
         if (sSlowlyRunning) {
-            StackCheck_Cleanup(&sSlowlyStackInfo);
+            MM_StackCheck_Cleanup(&sSlowlyStackInfo);
             Slowly_Destroy(&sSlowlyMgr);
         }
 
         this->filterState = PRERENDER_FILTER_STATE_PROCESS;
-        StackCheck_Init(&sSlowlyStackInfo, sSlowlyStack, STACK_TOP(sSlowlyStack), 0, 0x100, "slowly");
+        MM_StackCheck_Init(&sSlowlyStackInfo, sSlowlyStack, STACK_TOP(sSlowlyStack), 0, 0x100, "slowly");
         Slowly_Init(&sSlowlyMgr, STACK_TOP(sSlowlyStack), (void*)PreRender_ApplyFilters, this, NULL);
         sSlowlyRunning = true;
     }
@@ -732,7 +732,7 @@ void PreRender_ApplyFiltersSlowlyInit(PreRender* this) {
  */
 void PreRender_ApplyFiltersSlowlyDestroy(PreRender* this) {
     if (sSlowlyRunning) {
-        StackCheck_Cleanup(&sSlowlyStackInfo);
+        MM_StackCheck_Cleanup(&sSlowlyStackInfo);
         Slowly_Destroy(&sSlowlyMgr);
         sSlowlyRunning = false;
     }
@@ -772,7 +772,7 @@ void Prerender_DrawBackground2DImpl(PreRenderBackground2DParams* bg2D, Gfx** gfx
     alphaCompare = (bg2D->flags & BG2D_FLAGS_AC_THRESHOLD) ? G_AC_THRESHOLD : G_AC_NONE;
 
     gfxTemp = *gfxP;
-    bg = Graph_DlistAlloc(&gfxTemp, sizeof(uObjBg));
+    bg = MM_Graph_DlistAlloc(&gfxTemp, sizeof(uObjBg));
     gfx = gfxTemp;
 
     bg->b.imageX = 0;
@@ -804,7 +804,7 @@ void Prerender_DrawBackground2DImpl(PreRenderBackground2DParams* bg2D, Gfx** gfx
         bg->b.frameW = bg2D->width * (1 << 2);
         bg->b.frameH = bg2D->height * (1 << 2);
 
-        guS2DInitBg(bg);
+        MM_guS2DInitBg(bg);
 
         if (!(bg2D->flags & BG2D_FLAGS_1)) {
             gDPSetOtherMode(gfx++, bg2D->tt | G_CYC_COPY, alphaCompare);
@@ -836,7 +836,7 @@ void Prerender_DrawBackground2DImpl(PreRenderBackground2DParams* bg2D, Gfx** gfx
     gDPPipeSync(gfx++);
 
     if (loadS2DEX2) {
-        gSPLoadUcode(gfx++, SysUcode_GetUCode());
+        gSPLoadUcode(gfx++, MM_SysUcode_GetUCode());
     }
 
     *gfxP = gfx;

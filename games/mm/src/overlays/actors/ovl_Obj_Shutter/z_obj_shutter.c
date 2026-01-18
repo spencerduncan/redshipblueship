@@ -76,9 +76,9 @@ void ObjShutter_Update(Actor* thisx, PlayState* play2) {
 void ObjShutter_Draw(Actor* thisx, PlayState* play) {
     ObjShutter* this = (ObjShutter*)thisx;
 
-    Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y + this->verticalOffset, this->actor.world.pos.z,
+    MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y + this->verticalOffset, this->actor.world.pos.z,
                      MTXMODE_NEW);
-    Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
+    MM_Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
     Matrix_RotateYS(this->actor.world.rot.y, MTXMODE_APPLY);
 
     OPEN_DISPS(play->state.gfxCtx);

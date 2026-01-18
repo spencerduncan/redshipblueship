@@ -89,7 +89,7 @@ void Moji_DrawChar(GraphicsContext* gfxCtx, char c) {
 /**
  * Does not work as is in most cases.
  * Can work if the render mode, combiner and possibly other settings are set correctly.
- * For example this works with the render mode used in `GfxPrint_Setup`,
+ * For example this works with the render mode used in `OoT_GfxPrint_Setup`,
  * and `G_CC_MODULATEI_PRIM` for both combiner cycles.
  */
 void Moji_DrawString(GraphicsContext* gfxCtx, const char* str) {

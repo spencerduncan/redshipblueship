@@ -10,10 +10,10 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_UPDATE_DURING_OCARINA)
 
-void OceffWipe_Init(Actor* thisx, PlayState* play);
-void OceffWipe_Destroy(Actor* thisx, PlayState* play);
-void OceffWipe_Update(Actor* thisx, PlayState* play);
-void OceffWipe_Draw(Actor* thisx, PlayState* play);
+void OoT_OceffWipe_Init(Actor* thisx, PlayState* play);
+void OoT_OceffWipe_Destroy(Actor* thisx, PlayState* play);
+void OoT_OceffWipe_Update(Actor* thisx, PlayState* play);
+void OoT_OceffWipe_Draw(Actor* thisx, PlayState* play);
 
 const ActorInit Oceff_Wipe_InitVars = {
     ACTOR_OCEFF_WIPE,
@@ -21,51 +21,51 @@ const ActorInit Oceff_Wipe_InitVars = {
     FLAGS,
     OBJECT_GAMEPLAY_KEEP,
     sizeof(OceffWipe),
-    (ActorFunc)OceffWipe_Init,
-    (ActorFunc)OceffWipe_Destroy,
-    (ActorFunc)OceffWipe_Update,
-    (ActorFunc)OceffWipe_Draw,
+    (ActorFunc)OoT_OceffWipe_Init,
+    (ActorFunc)OoT_OceffWipe_Destroy,
+    (ActorFunc)OoT_OceffWipe_Update,
+    (ActorFunc)OoT_OceffWipe_Draw,
     NULL,
 };
 
-void OceffWipe_Init(Actor* thisx, PlayState* play) {
+void OoT_OceffWipe_Init(Actor* thisx, PlayState* play) {
     OceffWipe* this = (OceffWipe*)thisx;
 
-    Actor_SetScale(&this->actor, 0.1f);
+    OoT_Actor_SetScale(&this->actor, 0.1f);
     this->timer = 0;
     this->actor.world.pos = GET_ACTIVE_CAM(play)->eye;
     osSyncPrintf(VT_FGCOL(CYAN) " WIPE arg_data = %d\n" VT_RST, this->actor.params);
 }
 
-void OceffWipe_Destroy(Actor* thisx, PlayState* play) {
+void OoT_OceffWipe_Destroy(Actor* thisx, PlayState* play) {
     OceffWipe* this = (OceffWipe*)thisx;
     Player* player = GET_PLAYER(play);
 
-    Magic_Reset(play);
+    OoT_Magic_Reset(play);
     if (gSaveContext.nayrusLoveTimer != 0) {
         player->stateFlags3 |= PLAYER_STATE3_RESTORE_NAYRUS_LOVE;
     }
 }
 
-void OceffWipe_Update(Actor* thisx, PlayState* play) {
+void OoT_OceffWipe_Update(Actor* thisx, PlayState* play) {
     OceffWipe* this = (OceffWipe*)thisx;
 
     this->actor.world.pos = GET_ACTIVE_CAM(play)->eye;
     if (this->timer < 100) {
         this->timer++;
     } else {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
 #include "overlays/ovl_Oceff_Wipe/ovl_Oceff_Wipe.h"
 
-static u8 sAlphaIndices[] = {
+static u8 OoT_sAlphaIndices[] = {
     0x01, 0x10, 0x22, 0x01, 0x20, 0x12, 0x01, 0x20, 0x12, 0x01,
     0x10, 0x22, 0x01, 0x20, 0x12, 0x01, 0x12, 0x21, 0x01, 0x02,
 };
 
-void OceffWipe_Draw(Actor* thisx, PlayState* play) {
+void OoT_OceffWipe_Draw(Actor* thisx, PlayState* play) {
     u32 scroll = play->state.frames & 0xFF;
     OceffWipe* this = (OceffWipe*)thisx;
     f32 z;
@@ -83,7 +83,7 @@ void OceffWipe_Draw(Actor* thisx, PlayState* play) {
 
     int fastOcarinaPlayback = (CVarGetInteger(CVAR_ENHANCEMENT("FastOcarinaPlayback"), 0) != 0);
     if (this->timer < 32) {
-        z = Math_SinS(this->timer << 9) * (fastOcarinaPlayback ? 1200.0f : 1400.0f);
+        z = OoT_Math_SinS(this->timer << 9) * (fastOcarinaPlayback ? 1200.0f : 1400.0f);
     } else {
         z = fastOcarinaPlayback ? 1200.0f : 1400.0f;
     }
@@ -100,16 +100,16 @@ void OceffWipe_Draw(Actor* thisx, PlayState* play) {
 
     for (i = 0; i < 20; i++) {
         vtxPtr = ResourceMgr_LoadVtxByName(sFrustumVtx);
-        vtxPtr[i * 2 + 0].v.cn[3] = alphaTable[(sAlphaIndices[i] & 0xF0) >> 4];
-        vtxPtr[i * 2 + 1].v.cn[3] = alphaTable[sAlphaIndices[i] & 0xF];
+        vtxPtr[i * 2 + 0].v.cn[3] = alphaTable[(OoT_sAlphaIndices[i] & 0xF0) >> 4];
+        vtxPtr[i * 2 + 1].v.cn[3] = alphaTable[OoT_sAlphaIndices[i] & 0xF];
     }
 
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
 
-    Matrix_Translate(eye.x + vec.x, eye.y + vec.y, eye.z + vec.z, MTXMODE_NEW);
-    Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
-    Matrix_ReplaceRotation(&play->billboardMtxF);
-    Matrix_Translate(0.0f, 0.0f, -z, MTXMODE_APPLY);
+    OoT_Matrix_Translate(eye.x + vec.x, eye.y + vec.y, eye.z + vec.z, MTXMODE_NEW);
+    OoT_Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
+    OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
+    OoT_Matrix_Translate(0.0f, 0.0f, -z, MTXMODE_APPLY);
 
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
@@ -122,7 +122,7 @@ void OceffWipe_Draw(Actor* thisx, PlayState* play) {
     }
 
     gSPDisplayList(POLY_XLU_DISP++, sMaterialDL);
-    gSPDisplayList(POLY_XLU_DISP++, Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0 - scroll, scroll * (-2), 32, 32, 1,
+    gSPDisplayList(POLY_XLU_DISP++, OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0 - scroll, scroll * (-2), 32, 32, 1,
                                                      0 - scroll, scroll * (-2), 32, 32));
     gSPDisplayList(POLY_XLU_DISP++, sFrustumDL);
 

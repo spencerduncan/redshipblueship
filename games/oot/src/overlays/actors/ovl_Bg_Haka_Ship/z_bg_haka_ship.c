@@ -36,7 +36,7 @@ const ActorInit Bg_Haka_Ship_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
 
@@ -45,34 +45,34 @@ void BgHakaShip_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     CollisionHeader* colHeader = NULL;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, 1);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, 1);
     this->switchFlag = (thisx->params >> 8) & 0xFF;
     this->dyna.actor.params &= 0xFF;
 
     if (this->dyna.actor.params == 0) {
-        CollisionHeader_GetVirtual(&object_haka_objects_Col_00E408, &colHeader);
+        OoT_CollisionHeader_GetVirtual(&object_haka_objects_Col_00E408, &colHeader);
         this->counter = 8;
         this->actionFunc = BgHakaShip_WaitForSong;
     } else {
-        CollisionHeader_GetVirtual(&object_haka_objects_Col_00ED7C, &colHeader);
+        OoT_CollisionHeader_GetVirtual(&object_haka_objects_Col_00ED7C, &colHeader);
         this->actionFunc = BgHakaShip_ChildUpdatePosition;
     }
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
     this->dyna.actor.world.rot.y = this->dyna.actor.shape.rot.y - 0x4000;
     this->yOffset = 0;
     if (this->dyna.actor.params == 0 &&
-        Actor_SpawnAsChild(&play->actorCtx, &this->dyna.actor, play, ACTOR_BG_HAKA_SHIP,
+        OoT_Actor_SpawnAsChild(&play->actorCtx, &this->dyna.actor, play, ACTOR_BG_HAKA_SHIP,
                            this->dyna.actor.world.pos.x + -10.0f, this->dyna.actor.world.pos.y + 82.0f,
                            this->dyna.actor.world.pos.z, 0, 0, 0, 1) == NULL) {
-        Actor_Kill(&this->dyna.actor);
+        OoT_Actor_Kill(&this->dyna.actor);
     }
 }
 
 void BgHakaShip_Destroy(Actor* thisx, PlayState* play) {
     BgHakaShip* this = (BgHakaShip*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
     Audio_StopSfxByPos(&this->bellSoundPos);
 }
 
@@ -89,7 +89,7 @@ void BgHakaShip_ChildUpdatePosition(BgHakaShip* this, PlayState* play) {
 }
 
 void BgHakaShip_WaitForSong(BgHakaShip* this, PlayState* play) {
-    if (Flags_GetSwitch(play, this->switchFlag)) {
+    if (OoT_Flags_GetSwitch(play, this->switchFlag)) {
         if (this->counter) {
             this->counter--;
         }
@@ -130,13 +130,13 @@ void BgHakaShip_Move(BgHakaShip* this, PlayState* play) {
         this->dyna.actor.world.pos.x = this->dyna.actor.home.pos.x - 7650.0f;
         this->dyna.actor.speedXZ = 0.0f;
     }
-    if (distanceFromHome > 7600.0f && !Play_InCsMode(play)) {
+    if (distanceFromHome > 7600.0f && !OoT_Play_InCsMode(play)) {
         this->counter = 40;
         this->dyna.actor.speedXZ = 0.0f;
-        Message_StartTextbox(play, 0x5071, NULL);
+        OoT_Message_StartTextbox(play, 0x5071, NULL);
         this->actionFunc = BgHakaShip_SetupCrash;
     } else if (GameInteractor_Should(VB_SHADOW_SHIP_SET_SPEED, true, this, play)) {
-        Math_StepToF(&this->dyna.actor.speedXZ, 4.0f, 0.2f);
+        OoT_Math_StepToF(&this->dyna.actor.speedXZ, 4.0f, 0.2f);
     }
     child = this->dyna.actor.child;
     if (child != NULL && child->update != NULL) {
@@ -155,7 +155,7 @@ void BgHakaShip_SetupCrash(BgHakaShip* this, PlayState* play) {
         this->counter = 40;
         this->actionFunc = BgHakaShip_CrashShake;
     }
-    Math_ScaledStepToS(&this->yOffset, 0, 128);
+    OoT_Math_ScaledStepToS(&this->yOffset, 0, 128);
 }
 
 void BgHakaShip_CrashShake(BgHakaShip* this, PlayState* play) {
@@ -174,15 +174,15 @@ void BgHakaShip_CrashFall(BgHakaShip* this, PlayState* play) {
     Actor* child;
 
     if (this->dyna.actor.home.pos.y - this->dyna.actor.world.pos.y > 2000.0f) {
-        Actor_Kill(&this->dyna.actor);
+        OoT_Actor_Kill(&this->dyna.actor);
         child = this->dyna.actor.child;
         if (child != NULL && child->update != NULL) {
-            Actor_Kill(child);
+            OoT_Actor_Kill(child);
         }
     } else {
         Audio_PlayActorSound2(&this->dyna.actor, NA_SE_EV_BLOCKSINK - SFX_FLAG);
         if ((this->dyna.actor.home.pos.y - this->dyna.actor.world.pos.y > 500.0f) &&
-            DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
+            OoT_DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
             Play_TriggerVoidOut(play);
         }
     }
@@ -207,11 +207,11 @@ void BgHakaShip_Draw(Actor* thisx, PlayState* play) {
         gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPDisplayList(POLY_OPA_DISP++, object_haka_objects_DL_00D330);
         angleTemp = this->yOffset * (M_PI / 0x8000);
-        Matrix_Translate(-3670.0f, 620.0f, 1150.0f, MTXMODE_APPLY);
+        OoT_Matrix_Translate(-3670.0f, 620.0f, 1150.0f, MTXMODE_APPLY);
         Matrix_RotateZ(angleTemp, MTXMODE_APPLY);
         gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPDisplayList(POLY_OPA_DISP++, object_haka_objects_DL_005A70);
-        Matrix_Translate(0.0f, 0.0f, -2300.0f, MTXMODE_APPLY);
+        OoT_Matrix_Translate(0.0f, 0.0f, -2300.0f, MTXMODE_APPLY);
         Matrix_RotateZ(-(2.0f * angleTemp), MTXMODE_APPLY);
         gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPDisplayList(POLY_OPA_DISP++, object_haka_objects_DL_005A70);
@@ -228,7 +228,7 @@ void BgHakaShip_Draw(Actor* thisx, PlayState* play) {
         sp2C.y = this->dyna.actor.world.pos.y + 62.0f;
         sp2C.z = this->dyna.actor.world.pos.z;
 
-        SkinMatrix_Vec3fMtxFMultXYZ(&play->viewProjectionMtxF, &sp2C, &this->bellSoundPos);
+        OoT_SkinMatrix_Vec3fMtxFMultXYZ(&play->viewProjectionMtxF, &sp2C, &this->bellSoundPos);
         Sfx_PlaySfxAtPos(&this->bellSoundPos, NA_SE_EV_SHIP_BELL - SFX_FLAG);
     }
 }

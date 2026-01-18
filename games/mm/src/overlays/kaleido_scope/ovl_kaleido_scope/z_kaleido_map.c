@@ -117,7 +117,7 @@ TexturePtr sDungeonTitleTextures[] = {
 
 s16 sDungeonMapFloorIconPosY[] = { 67, 81, 95, 109, 123 };
 
-void KaleidoScope_DrawDungeonMap(PlayState* play) {
+void MM_KaleidoScope_DrawDungeonMap(PlayState* play) {
     static s16 sStrayFairyIconTimer = 30;
     static s16 sStrayFairyIconIndex = 0;
     static s16 sStrayFairyIconAlphaScaleTimer = 15;
@@ -202,7 +202,7 @@ void KaleidoScope_DrawDungeonMap(PlayState* play) {
                 // always return true
                 if ((pauseCtx->state == PAUSE_STATE_MAIN) && (pauseCtx->state != PAUSE_STATE_SAVEPROMPT) &&
                     !IS_PAUSE_STATE_GAMEOVER(pauseCtx)) {
-                    KaleidoScope_SetView(pauseCtx, 0.0f, 0.0f, 64.0f);
+                    MM_KaleidoScope_SetView(pauseCtx, 0.0f, 0.0f, 64.0f);
 
                     if (!sStrayFairyIconAlphaScaleState) {
                         sStrayFairyIconAlpha -= 6;
@@ -236,8 +236,8 @@ void KaleidoScope_DrawDungeonMap(PlayState* play) {
 
                     scale = sStrayFairyIconScale / 100.0f;
 
-                    Matrix_Translate(-83.0f, -29.0f, -128.0f, MTXMODE_NEW);
-                    Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+                    MM_Matrix_Translate(-83.0f, -29.0f, -128.0f, MTXMODE_NEW);
+                    MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
 
                     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
 
@@ -257,7 +257,7 @@ void KaleidoScope_DrawDungeonMap(PlayState* play) {
 
                     POLY_OPA_DISP =
                         Gfx_DrawTexQuad4b(POLY_OPA_DISP, gStrayFairyGlowingCircleIconTex, G_IM_FMT_I, 32, 24, 0);
-                    KaleidoScope_SetView(pauseCtx, pauseCtx->eye.x, pauseCtx->eye.y, pauseCtx->eye.z);
+                    MM_KaleidoScope_SetView(pauseCtx, pauseCtx->eye.x, pauseCtx->eye.y, pauseCtx->eye.z);
                     Gfx_SetupDL39_Opa(play->state.gfxCtx);
 
                     gDPPipeSync(POLY_OPA_DISP++);
@@ -364,7 +364,7 @@ void KaleidoScope_UpdateDungeonCursor(PlayState* play) {
                         while (true) {
                             pauseCtx->cursorPoint[PAUSE_MAP]++;
                             if (pauseCtx->cursorPoint[PAUSE_MAP] == DUNGEON_STRAY_FAIRIES) {
-                                KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_RIGHT);
+                                MM_KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_RIGHT);
                                 break;
                             }
                             if (CHECK_DUNGEON_ITEM(pauseCtx->cursorPoint[PAUSE_MAP],
@@ -394,7 +394,7 @@ void KaleidoScope_UpdateDungeonCursor(PlayState* play) {
                     }
                 } else if (pauseCtx->cursorSpecialPos == 0) {
                     if (pauseCtx->cursorXIndex[PAUSE_MAP] == 0) {
-                        KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_LEFT);
+                        MM_KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_LEFT);
                     } else if (pauseCtx->cursorPoint[PAUSE_MAP] == DUNGEON_STRAY_FAIRIES) {
                         pauseCtx->cursorXIndex[PAUSE_MAP] = 0;
                         pauseCtx->cursorSlot[PAUSE_MAP] = pauseCtx->cursorMapDungeonItem;
@@ -456,7 +456,7 @@ void KaleidoScope_UpdateDungeonCursor(PlayState* play) {
                     while (true) {
                         pauseCtx->cursorPoint[PAUSE_MAP]++;
                         if (pauseCtx->cursorPoint[PAUSE_MAP] == DUNGEON_FLOOR_INDEX_4) {
-                            KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_RIGHT);
+                            MM_KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_RIGHT);
                             break;
                         }
                         if (CHECK_DUNGEON_ITEM(pauseCtx->cursorPoint[PAUSE_MAP],
@@ -562,7 +562,7 @@ s16 sGreatFairySpawnRegions[] = {
     REGION_CLOCK_TOWN, REGION_WOODFALL, REGION_SNOWHEAD, REGION_GREAT_BAY, REGION_IKANA_CANYON,
 };
 
-void KaleidoScope_DrawWorldMap(PlayState* play) {
+void MM_KaleidoScope_DrawWorldMap(PlayState* play) {
     s16 sceneId;
     s16 t;
     s16 n;
@@ -579,12 +579,12 @@ void KaleidoScope_DrawWorldMap(PlayState* play) {
     if (CVarGetInteger("gModes.MirroredWorld.State", 0)) {
         // Invert culling to counter act the matrix flip
         gSPSetExtraGeometryMode(POLY_OPA_DISP++, G_EX_INVERT_CULLING);
-        Matrix_Push();
+        MM_Matrix_Push();
         // We need to shift the matrix a little to the left before flipping it so that it aligns in the same spot
-        Matrix_Translate(-2.0f, 0.0f, 0.0f, MTXMODE_APPLY);
-        Matrix_Scale(-1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
+        MM_Matrix_Translate(-2.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+        MM_Matrix_Scale(-1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        Matrix_Pop();
+        MM_Matrix_Pop();
     }
 
     KaleidoScope_SetCursorVtxPos(pauseCtx, pauseCtx->cursorSlot[PAUSE_MAP] * 4, pauseCtx->mapPageVtx);
@@ -729,7 +729,7 @@ void KaleidoScope_DrawWorldMap(PlayState* play) {
     // Draw clouds over the world map
     // Iterate over cloud bits (n)
     for (n = 0; n < WORLD_MAP_NUM_CLOUDS; n++) {
-        if (!(((void)0, gSaveContext.save.saveInfo.worldMapCloudVisibility) & gBitFlags[n])) {
+        if (!(((void)0, gSaveContext.save.saveInfo.worldMapCloudVisibility) & MM_gBitFlags[n])) {
 
             gSPVertex(POLY_OPA_DISP++, &pauseCtx->mapPageVtx[(QUAD_MAP_PAGE_WORLD_CLOUDS_FIRST + n) * 4], 4, 0);
 
@@ -884,7 +884,7 @@ void KaleidoScope_DrawWorldMap(PlayState* play) {
 
         // Draw Player's face at the current region
         if (n != REGION_MAX) {
-            KaleidoScope_SetView(pauseCtx, pauseCtx->eye.x, pauseCtx->eye.y, pauseCtx->eye.z);
+            MM_KaleidoScope_SetView(pauseCtx, pauseCtx->eye.x, pauseCtx->eye.y, pauseCtx->eye.z);
             Gfx_SetupDL39_Opa(play->state.gfxCtx);
 
             gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, pauseCtx->alpha);
@@ -963,7 +963,7 @@ void Ship_UpdateWorldMapCursorMirrorWorld(PlayState* play) {
             do {
                 pauseCtx->cursorPoint[PAUSE_WORLD_MAP]++;
                 if (pauseCtx->cursorPoint[PAUSE_WORLD_MAP] >= REGION_MAX) {
-                    KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_LEFT);
+                    MM_KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_LEFT);
                     pauseCtx->cursorItem[PAUSE_MAP] = PAUSE_ITEM_NONE;
                     break;
                 }
@@ -972,7 +972,7 @@ void Ship_UpdateWorldMapCursorMirrorWorld(PlayState* play) {
             do {
                 pauseCtx->cursorPoint[PAUSE_WORLD_MAP]--;
                 if (pauseCtx->cursorPoint[PAUSE_WORLD_MAP] <= REGION_NONE) {
-                    KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_RIGHT);
+                    MM_KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_RIGHT);
                     pauseCtx->cursorItem[PAUSE_MAP] = PAUSE_ITEM_NONE;
                     break;
                 }
@@ -1060,7 +1060,7 @@ void KaleidoScope_UpdateWorldMapCursor(PlayState* play) {
                 while (true) {
                     pauseCtx->cursorPoint[PAUSE_WORLD_MAP]++;
                     if (pauseCtx->cursorPoint[PAUSE_WORLD_MAP] >= REGION_MAX) {
-                        KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_RIGHT);
+                        MM_KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_RIGHT);
                         pauseCtx->cursorItem[PAUSE_MAP] = PAUSE_ITEM_NONE;
                         break;
                     }
@@ -1075,7 +1075,7 @@ void KaleidoScope_UpdateWorldMapCursor(PlayState* play) {
                 while (true) {
                     pauseCtx->cursorPoint[PAUSE_WORLD_MAP]--;
                     if (pauseCtx->cursorPoint[PAUSE_WORLD_MAP] <= REGION_NONE) {
-                        KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_LEFT);
+                        MM_KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_LEFT);
                         pauseCtx->cursorItem[PAUSE_MAP] = PAUSE_ITEM_NONE;
                         break;
                     }
@@ -1103,7 +1103,7 @@ void KaleidoScope_UpdateWorldMapCursor(PlayState* play) {
                     while (true) {
                         pauseCtx->cursorPoint[PAUSE_WORLD_MAP]++;
                         if (pauseCtx->cursorPoint[PAUSE_WORLD_MAP] >= REGION_MAX) {
-                            KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_RIGHT);
+                            MM_KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_RIGHT);
                             pauseCtx->cursorItem[PAUSE_MAP] = PAUSE_ITEM_NONE;
                             break;
                         }
@@ -1128,7 +1128,7 @@ void KaleidoScope_UpdateWorldMapCursor(PlayState* play) {
                 while (true) {
                     pauseCtx->cursorPoint[PAUSE_WORLD_MAP]--;
                     if (pauseCtx->cursorPoint[PAUSE_WORLD_MAP] <= REGION_NONE) {
-                        KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_LEFT);
+                        MM_KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_LEFT);
                         pauseCtx->cursorItem[PAUSE_MAP] = PAUSE_ITEM_NONE;
                         break;
                     }

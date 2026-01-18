@@ -16,16 +16,16 @@
 
 #define PARAMS ((EffectSsKFireInitParams*)initParamsx)
 
-u32 EffectSsKFire_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsKFire_Update(PlayState* play, u32 index, EffectSs* this);
-void EffectSsKFire_Draw(PlayState* play, u32 index, EffectSs* this);
+u32 MM_EffectSsKFire_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void MM_EffectSsKFire_Update(PlayState* play, u32 index, EffectSs* this);
+void MM_EffectSsKFire_Draw(PlayState* play, u32 index, EffectSs* this);
 
 EffectSsProfile Effect_Ss_K_Fire_Profile = {
     EFFECT_SS_K_FIRE,
-    EffectSsKFire_Init,
+    MM_EffectSsKFire_Init,
 };
 
-u32 EffectSsKFire_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 MM_EffectSsKFire_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsKFireInitParams* initParams = PARAMS;
 
     this->pos = initParams->pos;
@@ -34,15 +34,15 @@ u32 EffectSsKFire_Init(PlayState* play, u32 index, EffectSs* this, void* initPar
     this->life = 100;
     this->rScaleMax = initParams->scaleMax;
     this->rAlpha = 255;
-    this->rScroll = Rand_ZeroFloat(5.0f) - 25;
+    this->rScroll = MM_Rand_ZeroFloat(5.0f) - 25;
     this->rType = initParams->type;
-    this->draw = EffectSsKFire_Draw;
-    this->update = EffectSsKFire_Update;
+    this->draw = MM_EffectSsKFire_Draw;
+    this->update = MM_EffectSsKFire_Update;
 
     return 1;
 }
 
-void EffectSsKFire_Draw(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsKFire_Draw(PlayState* play, u32 index, EffectSs* this) {
     s32 pad;
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     f32 xzScale;
@@ -53,11 +53,11 @@ void EffectSsKFire_Draw(PlayState* play, u32 index, EffectSs* this) {
 
     OPEN_DISPS(gfxCtx);
 
-    Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
-    Matrix_Scale(xzScale, yScale, xzScale, MTXMODE_APPLY);
+    MM_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
+    MM_Matrix_Scale(xzScale, yScale, xzScale, MTXMODE_APPLY);
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, play->state.frames * this->rScroll, 0x20,
+               MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, play->state.frames * this->rScroll, 0x20,
                                 0x80));
 
     if (this->rType >= 100) {
@@ -69,7 +69,7 @@ void EffectSsKFire_Draw(PlayState* play, u32 index, EffectSs* this) {
     }
 
     gDPPipeSync(POLY_XLU_DISP++);
-    Matrix_ReplaceRotation(&play->billboardMtxF);
+    MM_Matrix_ReplaceRotation(&play->billboardMtxF);
 
     if ((index % 2) != 0) {
         Matrix_RotateYF(M_PIf, MTXMODE_APPLY);
@@ -81,7 +81,7 @@ void EffectSsKFire_Draw(PlayState* play, u32 index, EffectSs* this) {
     CLOSE_DISPS(gfxCtx);
 }
 
-void EffectSsKFire_Update(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsKFire_Update(PlayState* play, u32 index, EffectSs* this) {
     if (this->rXZScale < this->rScaleMax) {
         this->rXZScale += 4;
         this->rYScale += 4;

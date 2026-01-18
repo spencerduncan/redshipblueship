@@ -27,7 +27,7 @@ const ActorInit Bg_Spot18_Futa_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 1000, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 500, ICHAIN_CONTINUE),
@@ -39,16 +39,16 @@ void BgSpot18Futa_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     CollisionHeader* colHeader = NULL;
 
-    DynaPolyActor_Init(&this->dyna, DPM_UNK);
-    CollisionHeader_GetVirtual(&gGoronCityVaseLidCol, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
+    OoT_CollisionHeader_GetVirtual(&gGoronCityVaseLidCol, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
 }
 
 void BgSpot18Futa_Destroy(Actor* thisx, PlayState* play) {
     BgSpot18Futa* this = (BgSpot18Futa*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void BgSpot18Futa_Update(Actor* thisx, PlayState* play) {
@@ -56,10 +56,10 @@ void BgSpot18Futa_Update(Actor* thisx, PlayState* play) {
     s32 iVar1;
 
     if (this->dyna.actor.parent == NULL) {
-        iVar1 = Math_StepToF(&this->dyna.actor.scale.x, 0, 0.005);
+        iVar1 = OoT_Math_StepToF(&this->dyna.actor.scale.x, 0, 0.005);
 
         if (iVar1 != 0) {
-            Actor_Kill(&this->dyna.actor);
+            OoT_Actor_Kill(&this->dyna.actor);
         } else {
             this->dyna.actor.scale.z = this->dyna.actor.scale.x;
             this->dyna.actor.scale.y = this->dyna.actor.scale.x;
@@ -68,5 +68,5 @@ void BgSpot18Futa_Update(Actor* thisx, PlayState* play) {
 }
 
 void BgSpot18Futa_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, gGoronCityVaseLidDL);
+    OoT_Gfx_DrawDListOpa(play, gGoronCityVaseLidDL);
 }

@@ -83,7 +83,7 @@ ActorProfile En_Wiz_Profile = {
     /**/ EnWiz_Draw,
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[10] = {
+static ColliderJntSphElementInit MM_sJntSphElementsInit[10] = {
     {
         {
             ELEM_MATERIAL_UNK0,
@@ -196,7 +196,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[10] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit MM_sJntSphInit = {
     {
         COL_MATERIAL_HIT2,
         AT_NONE,
@@ -205,11 +205,11 @@ static ColliderJntSphInit sJntSphInit = {
         OC2_TYPE_1,
         COLSHAPE_JNTSPH,
     },
-    ARRAY_COUNT(sJntSphElementsInit),
-    sJntSphElementsInit,
+    ARRAY_COUNT(MM_sJntSphElementsInit),
+    MM_sJntSphElementsInit,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -312,20 +312,20 @@ void EnWiz_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     EnWiz* this = (EnWiz*)thisx;
 
-    SkelAnime_InitFlex(play, &this->skelAnime, &gWizrobeSkel, &gWizrobeIdleAnim, this->jointTable, this->morphTable,
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gWizrobeSkel, &gWizrobeIdleAnim, this->jointTable, this->morphTable,
                        WIZROBE_LIMB_MAX);
-    SkelAnime_InitFlex(play, &this->ghostSkelAnime, &gWizrobeSkel, &gWizrobeIdleAnim, this->ghostBaseJointTable,
+    MM_SkelAnime_InitFlex(play, &this->ghostSkelAnime, &gWizrobeSkel, &gWizrobeIdleAnim, this->ghostBaseJointTable,
                        this->ghostMorphTable, WIZROBE_LIMB_MAX);
-    Actor_SetScale(&this->actor, 0.0f);
+    MM_Actor_SetScale(&this->actor, 0.0f);
     this->platformLightAlpha = 0;
     this->alpha = 255;
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
     this->actor.attentionRangeType = ATTENTION_RANGE_3;
     this->unk_450 = 1.0f;
     this->actor.shape.yOffset = 700.0f;
-    Collider_InitAndSetJntSph(play, &this->ghostColliders, &this->actor, &sJntSphInit, this->ghostColliderElements);
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    this->staffFlameScroll = Rand_S16Offset(0, 7);
+    Collider_InitAndSetJntSph(play, &this->ghostColliders, &this->actor, &MM_sJntSphInit, this->ghostColliderElements);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    this->staffFlameScroll = MM_Rand_S16Offset(0, 7);
     this->switchFlag = EN_WIZ_GET_SWITCH_FLAG(&this->actor);
     this->type = EN_WIZ_GET_TYPE(&this->actor);
 
@@ -342,15 +342,15 @@ void EnWiz_Init(Actor* thisx, PlayState* play) {
         this->actor.colChkInfo.health = 6;
     }
 
-    if ((this->switchFlag > SWITCH_FLAG_NONE) && Flags_GetSwitch(play, this->switchFlag)) {
-        Actor_Kill(&this->actor);
+    if ((this->switchFlag > SWITCH_FLAG_NONE) && MM_Flags_GetSwitch(play, this->switchFlag)) {
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
     this->actor.hintId = TATL_HINT_ID_WIZROBE;
     this->curPlatformIndex = INITIAL_PLATFORM_INDEX;
 
-    // Setting the radius and scale to zero here effectively disables all of the ghost colliders.
+    // Setting the radius and scale to MM_zero here effectively disables all of the ghost colliders.
     this->ghostColliders.elements[0].dim.modelSphere.radius = 0;
     this->ghostColliders.elements[0].dim.scale = 0.0f;
     this->ghostColliders.elements[0].dim.modelSphere.center.x = 0;
@@ -364,8 +364,8 @@ void EnWiz_Destroy(Actor* thisx, PlayState* play) {
     s32 pad;
     EnWiz* this = (EnWiz*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
-    Collider_DestroyJntSph(play, &this->ghostColliders);
+    MM_Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyJntSph(play, &this->ghostColliders);
     if (this->type != EN_WIZ_TYPE_FIRE_NO_BGM) {
         Audio_RestorePrevBgm();
     }
@@ -381,7 +381,7 @@ typedef enum EnWizAnimation {
     /* 6 */ EN_WIZ_ANIM_MAX
 } EnWizAnimation;
 
-static AnimationHeader* sAnimations[EN_WIZ_ANIM_MAX] = {
+static AnimationHeader* MM_sAnimations[EN_WIZ_ANIM_MAX] = {
     &gWizrobeIdleAnim,   // EN_WIZ_ANIM_IDLE
     &gWizrobeRunAnim,    // EN_WIZ_ANIM_RUN
     &gWizrobeDanceAnim,  // EN_WIZ_ANIM_DANCE
@@ -390,7 +390,7 @@ static AnimationHeader* sAnimations[EN_WIZ_ANIM_MAX] = {
     &gWizrobeDamageAnim, // EN_WIZ_ANIM_DAMAGE
 };
 
-static u8 sAnimationModes[EN_WIZ_ANIM_MAX] = {
+static u8 MM_sAnimationModes[EN_WIZ_ANIM_MAX] = {
     ANIMMODE_LOOP, // EN_WIZ_ANIM_IDLE
     ANIMMODE_LOOP, // EN_WIZ_ANIM_RUN
     ANIMMODE_LOOP, // EN_WIZ_ANIM_DANCE
@@ -400,12 +400,12 @@ static u8 sAnimationModes[EN_WIZ_ANIM_MAX] = {
 };
 
 void EnWiz_ChangeAnim(EnWiz* this, s32 animIndex, s32 updateGhostAnim) {
-    this->animEndFrame = Animation_GetLastFrame(sAnimations[animIndex]);
-    Animation_Change(&this->skelAnime, sAnimations[animIndex], 1.0f, 0.0f, this->animEndFrame,
-                     sAnimationModes[animIndex], -2.0f);
+    this->animEndFrame = MM_Animation_GetLastFrame(MM_sAnimations[animIndex]);
+    MM_Animation_Change(&this->skelAnime, MM_sAnimations[animIndex], 1.0f, 0.0f, this->animEndFrame,
+                     MM_sAnimationModes[animIndex], -2.0f);
     if (updateGhostAnim) {
-        Animation_Change(&this->ghostSkelAnime, sAnimations[animIndex], 1.0f, 0.0f, this->animEndFrame,
-                         sAnimationModes[animIndex], -2.0f);
+        MM_Animation_Change(&this->ghostSkelAnime, MM_sAnimations[animIndex], 1.0f, 0.0f, this->animEndFrame,
+                         MM_sAnimationModes[animIndex], -2.0f);
     }
 }
 
@@ -418,7 +418,7 @@ void EnWiz_HandleIntroCutscene(EnWiz* this, PlayState* play) {
     Vec3f atNext;
 
     if (this->introCutsceneState < EN_WIZ_INTRO_CS_DISAPPEAR) {
-        subCam = Play_GetCamera(play, this->subCamId);
+        subCam = MM_Play_GetCamera(play, this->subCamId);
         switch (this->introCutsceneState) {
             case EN_WIZ_INTRO_CS_NOT_STARTED:
                 this->introCutsceneTimer = 100;
@@ -427,16 +427,16 @@ void EnWiz_HandleIntroCutscene(EnWiz* this, PlayState* play) {
                 break;
 
             case EN_WIZ_INTRO_CS_CAMERA_MOVE_TO_PLATFORM:
-                Math_Vec3f_Copy(&eyeNext, &this->actor.world.pos);
-                Math_Vec3f_Copy(&atNext, &this->actor.world.pos);
-                eyeNext.x += Math_SinS(this->introCutsceneCameraAngle) * 200.0f;
+                MM_Math_Vec3f_Copy(&eyeNext, &this->actor.world.pos);
+                MM_Math_Vec3f_Copy(&atNext, &this->actor.world.pos);
+                eyeNext.x += MM_Math_SinS(this->introCutsceneCameraAngle) * 200.0f;
                 eyeNext.y += 100.0f;
-                eyeNext.z += Math_CosS(this->introCutsceneCameraAngle) * 200.0f;
+                eyeNext.z += MM_Math_CosS(this->introCutsceneCameraAngle) * 200.0f;
                 atNext.y += 80.0f;
-                Math_ApproachF(&subCam->eye.x, eyeNext.x, 0.3f, 30.0f);
-                Math_ApproachF(&subCam->eye.z, eyeNext.z, 0.3f, 30.0f);
-                Math_ApproachF(&subCam->at.x, atNext.x, 0.3f, 30.0f);
-                Math_ApproachF(&subCam->at.z, atNext.z, 0.3f, 30.0f);
+                MM_Math_ApproachF(&subCam->eye.x, eyeNext.x, 0.3f, 30.0f);
+                MM_Math_ApproachF(&subCam->eye.z, eyeNext.z, 0.3f, 30.0f);
+                MM_Math_ApproachF(&subCam->at.x, atNext.x, 0.3f, 30.0f);
+                MM_Math_ApproachF(&subCam->at.z, atNext.z, 0.3f, 30.0f);
                 subCam->eye.y = eyeNext.y;
                 subCam->at.y = atNext.y;
                 if ((fabsf(subCam->eye.x - eyeNext.x) < 2.0f) && (fabsf(subCam->eye.y - eyeNext.y) < 2.0f) &&
@@ -446,16 +446,16 @@ void EnWiz_HandleIntroCutscene(EnWiz* this, PlayState* play) {
                     s32 i;
 
                     this->actor.world.rot.y = this->actor.shape.rot.y =
-                        Math_Vec3f_Yaw(&this->actor.world.pos, &player->actor.world.pos);
+                        MM_Math_Vec3f_Yaw(&this->actor.world.pos, &player->actor.world.pos);
 
                     for (i = 0; i < this->platformCount; i++) {
-                        this->ghostRot[i].y = Math_Vec3f_Yaw(&this->ghostPos[i], &player->actor.world.pos);
+                        this->ghostRot[i].y = MM_Math_Vec3f_Yaw(&this->ghostPos[i], &player->actor.world.pos);
                     }
 
                     EnWiz_ChangeAnim(this, EN_WIZ_ANIM_IDLE, true);
                     this->shouldStartTimer = false;
                     this->targetPlatformLightAlpha = 255;
-                    Math_Vec3f_Copy(&this->platformLightPos, &this->actor.world.pos);
+                    MM_Math_Vec3f_Copy(&this->platformLightPos, &this->actor.world.pos);
                     if (this->fightState == EN_WIZ_FIGHT_STATE_FIRST_PHASE) {
                         Actor_PlaySfx(&this->actor, NA_SE_EN_WIZ_UNARI);
                     } else {
@@ -475,17 +475,17 @@ void EnWiz_HandleIntroCutscene(EnWiz* this, PlayState* play) {
                 break;
 
             case EN_WIZ_INTRO_CS_CAMERA_SPIN_TO_FACE_WIZROBE:
-                Math_Vec3f_Copy(&eyeNext, &this->actor.world.pos);
-                Math_Vec3f_Copy(&atNext, &this->actor.world.pos);
-                eyeNext.x += Math_SinS(this->actor.world.rot.y) * 160.0f;
+                MM_Math_Vec3f_Copy(&eyeNext, &this->actor.world.pos);
+                MM_Math_Vec3f_Copy(&atNext, &this->actor.world.pos);
+                eyeNext.x += MM_Math_SinS(this->actor.world.rot.y) * 160.0f;
                 eyeNext.y += 70.0f;
-                eyeNext.z += Math_CosS(this->actor.world.rot.y) * 140.0f;
+                eyeNext.z += MM_Math_CosS(this->actor.world.rot.y) * 140.0f;
                 atNext.x += -10.0f;
                 atNext.y += 100.0f;
-                Math_ApproachF(&subCam->eye.x, eyeNext.x, 0.3f, 30.0f);
-                Math_ApproachF(&subCam->eye.z, eyeNext.z, 0.3f, 30.0f);
-                Math_ApproachF(&subCam->at.x, atNext.x, 0.3f, 30.0f);
-                Math_ApproachF(&subCam->at.z, atNext.z, 0.3f, 30.0f);
+                MM_Math_ApproachF(&subCam->eye.x, eyeNext.x, 0.3f, 30.0f);
+                MM_Math_ApproachF(&subCam->eye.z, eyeNext.z, 0.3f, 30.0f);
+                MM_Math_ApproachF(&subCam->at.x, atNext.x, 0.3f, 30.0f);
+                MM_Math_ApproachF(&subCam->at.z, atNext.z, 0.3f, 30.0f);
                 subCam->eye.y = eyeNext.y;
                 subCam->at.y = atNext.y;
                 if (this->introCutsceneTimer == 0) {
@@ -510,20 +510,20 @@ void EnWiz_HandleIntroCutscene(EnWiz* this, PlayState* play) {
                     this->animLoopCounter = this->introCutsceneCameraAngle = 0;
                     this->introCutsceneState = EN_WIZ_INTRO_CS_DISAPPEAR;
                 } else {
-                    Math_SmoothStepToS(&this->angularVelocity, 0x1388, 0x64, 0x3E8, 0x3E8);
+                    MM_Math_SmoothStepToS(&this->angularVelocity, 0x1388, 0x64, 0x3E8, 0x3E8);
                     this->actor.world.rot.y += this->angularVelocity;
                 }
 
-                Math_Vec3f_Copy(&eyeNext, &this->actor.world.pos);
-                Math_Vec3f_Copy(&atNext, &this->actor.world.pos);
-                eyeNext.x += Math_SinS(this->introCutsceneCameraAngle) * 200.0f;
+                MM_Math_Vec3f_Copy(&eyeNext, &this->actor.world.pos);
+                MM_Math_Vec3f_Copy(&atNext, &this->actor.world.pos);
+                eyeNext.x += MM_Math_SinS(this->introCutsceneCameraAngle) * 200.0f;
                 eyeNext.y += 100.0f;
-                eyeNext.z += Math_CosS(this->introCutsceneCameraAngle) * 200.0f;
+                eyeNext.z += MM_Math_CosS(this->introCutsceneCameraAngle) * 200.0f;
                 atNext.y += 80.0f;
-                Math_ApproachF(&subCam->eye.x, eyeNext.x, 0.3f, 30.0f);
-                Math_ApproachF(&subCam->eye.z, eyeNext.z, 0.3f, 30.0f);
-                Math_ApproachF(&subCam->at.x, atNext.x, 0.3f, 30.0f);
-                Math_ApproachF(&subCam->at.z, atNext.z, 0.3f, 30.0f);
+                MM_Math_ApproachF(&subCam->eye.x, eyeNext.x, 0.3f, 30.0f);
+                MM_Math_ApproachF(&subCam->eye.z, eyeNext.z, 0.3f, 30.0f);
+                MM_Math_ApproachF(&subCam->at.x, atNext.x, 0.3f, 30.0f);
+                MM_Math_ApproachF(&subCam->at.z, atNext.z, 0.3f, 30.0f);
                 subCam->eye.y = eyeNext.y;
                 subCam->at.y = atNext.y;
                 break;
@@ -589,9 +589,9 @@ void EnWiz_SelectPlatform(EnWiz* this, PlayState* play) {
             this->platformCount = 10;
         }
 
-        curPlatformIndex = Rand_ZeroFloat(i);
+        curPlatformIndex = MM_Rand_ZeroFloat(i);
         while ((this->curPlatformIndex == curPlatformIndex) || ((s16)i == curPlatformIndex)) {
-            curPlatformIndex = Rand_ZeroFloat(i);
+            curPlatformIndex = MM_Rand_ZeroFloat(i);
             // FAKE:
             if (1) {}
         }
@@ -599,25 +599,25 @@ void EnWiz_SelectPlatform(EnWiz* this, PlayState* play) {
         this->curPlatformIndex = curPlatformIndex;
         switch (this->fightState) {
             case EN_WIZ_FIGHT_STATE_FIRST_PHASE:
-                Math_Vec3f_Copy(&this->actor.world.pos, &this->platforms[curPlatformIndex]->world.pos);
+                MM_Math_Vec3f_Copy(&this->actor.world.pos, &this->platforms[curPlatformIndex]->world.pos);
                 break;
 
             case EN_WIZ_FIGHT_STATE_SECOND_PHASE_CUTSCENE:
                 //! @bug: Setting the Wizrobe's position to the first platform *without* updating
                 //! this->curPlatformIndex can cause a bug later in EnWiz_Damaged. One way to fix
                 //! this is to set this->curPlatformIndex to 0 here.
-                Math_Vec3f_Copy(&this->actor.world.pos, &this->platforms[0]->world.pos);
+                MM_Math_Vec3f_Copy(&this->actor.world.pos, &this->platforms[0]->world.pos);
                 for (i = 0, ghostAlpha = 128; i < this->platformCount; i++, ghostAlpha -= 10) {
-                    Math_Vec3f_Copy(&this->ghostPos[i], &this->actor.world.pos);
+                    MM_Math_Vec3f_Copy(&this->ghostPos[i], &this->actor.world.pos);
                     this->ghostAlpha[i] = ghostAlpha;
                 }
                 break;
 
             default:
-                Math_Vec3f_Copy(&this->actor.world.pos, &this->platforms[curPlatformIndex]->world.pos);
+                MM_Math_Vec3f_Copy(&this->actor.world.pos, &this->platforms[curPlatformIndex]->world.pos);
                 for (i--; i >= 0; i--) {
                     if (curPlatformIndex != i) {
-                        Math_Vec3f_Copy(&this->ghostPos[i], &this->platforms[i]->world.pos);
+                        MM_Math_Vec3f_Copy(&this->ghostPos[i], &this->platforms[i]->world.pos);
                         this->ghostRot[i] = this->actor.world.rot;
                         this->ghostAlpha[i] = 100;
                         this->ghostNextPlatformIndex[i] = i;
@@ -625,7 +625,7 @@ void EnWiz_SelectPlatform(EnWiz* this, PlayState* play) {
                             this->ghostJointTables[i][j] = this->jointTable[j];
                         }
                     } else {
-                        Math_Vec3f_Copy(&this->ghostPos[i], &gZeroVec3f);
+                        MM_Math_Vec3f_Copy(&this->ghostPos[i], &gZeroVec3f);
                     }
                 }
                 break;
@@ -651,7 +651,7 @@ void EnWiz_MoveGhosts(EnWiz* this) {
             diffZ = this->platforms[ghostNextPlatformIndex]->world.pos.z - this->ghostPos[i].z;
             playSfx++;
 
-            if (sqrtf(SQ(diffX) + SQ(diffZ)) < 30.0f) {
+            if (MM_sqrtf(SQ(diffX) + SQ(diffZ)) < 30.0f) {
                 this->ghostNextPlatformIndex[i]--;
                 if (this->ghostNextPlatformIndex[i] < 0) {
                     this->ghostNextPlatformIndex[i] = this->platformCount - 1;
@@ -659,11 +659,11 @@ void EnWiz_MoveGhosts(EnWiz* this) {
             }
 
             ghostNextPlatformIndex = this->ghostNextPlatformIndex[i];
-            Math_ApproachF(&this->ghostPos[i].x, this->platforms[ghostNextPlatformIndex]->world.pos.x, 0.3f, 30.0f);
-            Math_ApproachF(&this->ghostPos[i].y, this->platforms[ghostNextPlatformIndex]->world.pos.y, 0.3f, 30.0f);
-            Math_ApproachF(&this->ghostPos[i].z, this->platforms[ghostNextPlatformIndex]->world.pos.z, 0.3f, 30.0f);
+            MM_Math_ApproachF(&this->ghostPos[i].x, this->platforms[ghostNextPlatformIndex]->world.pos.x, 0.3f, 30.0f);
+            MM_Math_ApproachF(&this->ghostPos[i].y, this->platforms[ghostNextPlatformIndex]->world.pos.y, 0.3f, 30.0f);
+            MM_Math_ApproachF(&this->ghostPos[i].z, this->platforms[ghostNextPlatformIndex]->world.pos.z, 0.3f, 30.0f);
             this->ghostRot[i].y =
-                Math_Vec3f_Yaw(&this->ghostPos[i], &this->platforms[ghostNextPlatformIndex]->world.pos);
+                MM_Math_Vec3f_Yaw(&this->ghostPos[i], &this->platforms[ghostNextPlatformIndex]->world.pos);
         }
     }
 
@@ -694,17 +694,17 @@ void EnWiz_SetupAppear(EnWiz* this, PlayState* play) {
         EnWiz_SelectPlatform(this, play);
 
         if (this->introCutsceneState != EN_WIZ_INTRO_CS_NOT_STARTED) {
-            angle = Math_Vec3f_Yaw(&this->actor.world.pos, &player->actor.world.pos);
+            angle = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &player->actor.world.pos);
             this->actor.shape.rot.y = angle;
             this->actor.world.rot.y = angle;
             for (i = 0; i < this->platformCount; i++) {
-                this->ghostRot[i].y = Math_Vec3f_Yaw(&this->ghostPos[i], &player->actor.world.pos);
+                this->ghostRot[i].y = MM_Math_Vec3f_Yaw(&this->ghostPos[i], &player->actor.world.pos);
             }
 
             EnWiz_ChangeAnim(this, EN_WIZ_ANIM_IDLE, true);
             this->shouldStartTimer = false;
             this->targetPlatformLightAlpha = 255;
-            Math_Vec3f_Copy(&this->platformLightPos, &this->actor.world.pos);
+            MM_Math_Vec3f_Copy(&this->platformLightPos, &this->actor.world.pos);
 
             if (this->fightState == EN_WIZ_FIGHT_STATE_FIRST_PHASE) {
                 Actor_PlaySfx(&this->actor, NA_SE_EN_WIZ_UNARI);
@@ -729,7 +729,7 @@ void EnWiz_Appear(EnWiz* this, PlayState* play) {
     EnWiz_HandleIntroCutscene(this, play);
 
     if (this->introCutsceneState >= EN_WIZ_INTRO_CS_APPEAR) {
-        SkelAnime_Update(&this->skelAnime);
+        MM_SkelAnime_Update(&this->skelAnime);
 
         if ((this->fightState == EN_WIZ_FIGHT_STATE_FIRST_PHASE) &&
             (this->introCutsceneState >= EN_WIZ_INTRO_CS_DISAPPEAR) &&
@@ -740,10 +740,10 @@ void EnWiz_Appear(EnWiz* this, PlayState* play) {
                0x7D0)))) {
             EnWiz_SetupDisappear(this);
         } else {
-            Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 0xA, 0xBB8, 0);
+            MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 0xA, 0xBB8, 0);
 
             if (this->fightState == EN_WIZ_FIGHT_STATE_FIRST_PHASE) {
-                Math_SmoothStepToS(&this->platformLightAlpha, this->targetPlatformLightAlpha, 10, 10, 10);
+                MM_Math_SmoothStepToS(&this->platformLightAlpha, this->targetPlatformLightAlpha, 10, 10, 10);
                 if (!this->shouldStartTimer) {
                     this->timer = 20;
                     this->shouldStartTimer = true;
@@ -753,8 +753,8 @@ void EnWiz_Appear(EnWiz* this, PlayState* play) {
             }
 
             if (this->timer == 0) {
-                Math_ApproachF(&this->scale, 0.015f, 0.05f, 0.01f);
-                Math_SmoothStepToS(&this->alpha, 255, 1, 5, 0);
+                MM_Math_ApproachF(&this->scale, 0.015f, 0.05f, 0.01f);
+                MM_Math_SmoothStepToS(&this->alpha, 255, 1, 5, 0);
             }
 
             if (this->scale < 0.0138f) {
@@ -763,7 +763,7 @@ void EnWiz_Appear(EnWiz* this, PlayState* play) {
                 this->action = EN_WIZ_ACTION_RUN_IN_CIRCLES;
                 this->actor.flags &= ~ACTOR_FLAG_LOCK_ON_DISABLED;
                 this->ghostColliders.elements[0].base.acDmgInfo.dmgFlags = 0x1013A22;
-                Math_Vec3f_Copy(&this->staffTargetFlameScale, &staffTargetFlameScale);
+                MM_Math_Vec3f_Copy(&this->staffTargetFlameScale, &staffTargetFlameScale);
                 this->targetPlatformLightAlpha = 0;
 
                 if (this->introCutsceneState == EN_WIZ_INTRO_CS_DISAPPEAR) {
@@ -784,17 +784,17 @@ void EnWiz_Appear(EnWiz* this, PlayState* play) {
 
 void EnWiz_SetupDance(EnWiz* this) {
     EnWiz_ChangeAnim(this, EN_WIZ_ANIM_DANCE, false);
-    Math_ApproachF(&this->scale, 0.015f, 0.05f, 0.001f);
+    MM_Math_ApproachF(&this->scale, 0.015f, 0.05f, 0.001f);
     this->angularVelocity = 0;
     this->animLoopCounter = 0;
     this->action = EN_WIZ_ACTION_DANCE;
     if (this->fightState >= EN_WIZ_FIGHT_STATE_SECOND_PHASE_GHOSTS_COPY_WIZROBE) {
-        Animation_Change(&this->ghostSkelAnime, &gWizrobeRunAnim, 1.0f, 0.0f, Animation_GetLastFrame(&gWizrobeRunAnim),
+        MM_Animation_Change(&this->ghostSkelAnime, &gWizrobeRunAnim, 1.0f, 0.0f, MM_Animation_GetLastFrame(&gWizrobeRunAnim),
                          ANIMMODE_LOOP, 0.0f);
         this->fightState = EN_WIZ_FIGHT_STATE_SECOND_PHASE_GHOSTS_RUN_AROUND;
     }
 
-    Math_SmoothStepToS(&this->alpha, 255, 1, 5, 0);
+    MM_Math_SmoothStepToS(&this->alpha, 255, 1, 5, 0);
     this->actionFunc = EnWiz_Dance;
 }
 
@@ -806,8 +806,8 @@ void EnWiz_Dance(EnWiz* this, PlayState* play) {
     f32 curFrame = this->skelAnime.curFrame;
     s32 i;
 
-    Math_SmoothStepToS(&this->alpha, 255, 1, 5, 0);
-    Math_ApproachF(&this->scale, 0.015f, 0.05f, 0.001f);
+    MM_Math_SmoothStepToS(&this->alpha, 255, 1, 5, 0);
+    MM_Math_ApproachF(&this->scale, 0.015f, 0.05f, 0.001f);
     Actor_PlaySfx(&this->actor, NA_SE_EN_WIZ_RUN - SFX_FLAG);
     this->actor.world.rot.y += this->angularVelocity;
     if (this->fightState >= EN_WIZ_FIGHT_STATE_SECOND_PHASE_GHOSTS_RUN_AROUND) {
@@ -818,8 +818,8 @@ void EnWiz_Dance(EnWiz* this, PlayState* play) {
         }
     }
 
-    Math_SmoothStepToS(&this->angularVelocity, 0x1388, 0x64, 0x3E8, 0x3E8);
-    Math_SmoothStepToS(&this->platformLightAlpha, this->targetPlatformLightAlpha, 20, 50, 10);
+    MM_Math_SmoothStepToS(&this->angularVelocity, 0x1388, 0x64, 0x3E8, 0x3E8);
+    MM_Math_SmoothStepToS(&this->platformLightAlpha, this->targetPlatformLightAlpha, 20, 50, 10);
     if (curFrame >= this->animEndFrame) {
         if (this->animLoopCounter < 10) {
             this->animLoopCounter++;
@@ -845,7 +845,7 @@ void EnWiz_SetupSecondPhaseCutscene(EnWiz* this, PlayState* play) {
         this->action = EN_WIZ_ACTION_RUN_BETWEEN_PLATFORMS;
         this->nextPlatformIndex = 1;
         this->hasRunToEveryPlatform = false;
-        Math_SmoothStepToS(&this->alpha, 255, 1, 5, 0);
+        MM_Math_SmoothStepToS(&this->alpha, 255, 1, 5, 0);
         this->actionFunc = EnWiz_SecondPhaseCutscene;
     }
 }
@@ -858,16 +858,16 @@ void EnWiz_SecondPhaseCutscene(EnWiz* this, PlayState* play) {
     Camera* subCam;
     s32 i;
 
-    Math_SmoothStepToS(&this->alpha, 255, 1, 5, 0);
-    subCam = Play_GetCamera(play, this->subCamId);
-    Math_Vec3f_Copy(&subCam->at, &this->actor.focus.pos);
+    MM_Math_SmoothStepToS(&this->alpha, 255, 1, 5, 0);
+    subCam = MM_Play_GetCamera(play, this->subCamId);
+    MM_Math_Vec3f_Copy(&subCam->at, &this->actor.focus.pos);
     Actor_PlaySfx(&this->actor, NA_SE_EN_WIZ_RUN - SFX_FLAG);
     if (this->platforms[this->nextPlatformIndex] != NULL) {
         f32 diffX = this->actor.world.pos.x - this->platforms[this->nextPlatformIndex]->world.pos.x;
         f32 diffZ = this->actor.world.pos.z - this->platforms[this->nextPlatformIndex]->world.pos.z;
         s32 pad;
 
-        if (sqrtf(SQ(diffX) + SQ(diffZ)) < 30.0f) {
+        if (MM_sqrtf(SQ(diffX) + SQ(diffZ)) < 30.0f) {
             if (!this->hasRunToEveryPlatform) {
                 this->nextPlatformIndex++;
                 if (this->nextPlatformIndex >= this->platformCount) {
@@ -881,9 +881,9 @@ void EnWiz_SecondPhaseCutscene(EnWiz* this, PlayState* play) {
                 s32 i;
 
                 this->actor.flags |= ACTOR_FLAG_LOCK_ON_DISABLED;
-                if (sqrtf(SQ(diffX) + SQ(diffZ)) < 20.0f) {
+                if (MM_sqrtf(SQ(diffX) + SQ(diffZ)) < 20.0f) {
                     for (i = 0; i < this->platformCount; i++) {
-                        Math_Vec3f_Copy(&this->ghostPos[i], &gZeroVec3f);
+                        MM_Math_Vec3f_Copy(&this->ghostPos[i], &gZeroVec3f);
                     }
 
                     this->nextPlatformIndex = 0;
@@ -899,18 +899,18 @@ void EnWiz_SecondPhaseCutscene(EnWiz* this, PlayState* play) {
         }
     }
 
-    Math_Vec3f_Copy(this->ghostPos, &this->actor.world.pos);
+    MM_Math_Vec3f_Copy(this->ghostPos, &this->actor.world.pos);
     this->ghostRot[0].y = this->actor.world.rot.y;
-    Math_ApproachF(&this->actor.world.pos.x, this->platforms[this->nextPlatformIndex]->world.pos.x, 0.3f, 30.0f);
-    Math_ApproachF(&this->actor.world.pos.y, this->platforms[this->nextPlatformIndex]->world.pos.y, 0.3f, 30.0f);
-    Math_ApproachF(&this->actor.world.pos.z, this->platforms[this->nextPlatformIndex]->world.pos.z, 0.3f, 30.0f);
+    MM_Math_ApproachF(&this->actor.world.pos.x, this->platforms[this->nextPlatformIndex]->world.pos.x, 0.3f, 30.0f);
+    MM_Math_ApproachF(&this->actor.world.pos.y, this->platforms[this->nextPlatformIndex]->world.pos.y, 0.3f, 30.0f);
+    MM_Math_ApproachF(&this->actor.world.pos.z, this->platforms[this->nextPlatformIndex]->world.pos.z, 0.3f, 30.0f);
     for (i = this->platformCount; i > 0; i--) {
-        Math_Vec3f_Copy(&this->ghostPos[i], &this->ghostPos[i - 1]);
+        MM_Math_Vec3f_Copy(&this->ghostPos[i], &this->ghostPos[i - 1]);
         this->ghostRot[i].y = this->ghostRot[i - 1].y;
     }
 
     this->actor.world.rot.y =
-        Math_Vec3f_Yaw(&this->actor.world.pos, &this->platforms[this->nextPlatformIndex]->world.pos);
+        MM_Math_Vec3f_Yaw(&this->actor.world.pos, &this->platforms[this->nextPlatformIndex]->world.pos);
 }
 
 void EnWiz_SetupWindUp(EnWiz* this) {
@@ -926,12 +926,12 @@ void EnWiz_WindUp(EnWiz* this, PlayState* play) {
     f32 curFrame = this->skelAnime.curFrame;
     s32 i;
 
-    Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 0xC8, 0x1F40, 0x1388);
+    MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 0xC8, 0x1F40, 0x1388);
     if (this->fightState >= EN_WIZ_FIGHT_STATE_SECOND_PHASE_GHOSTS_RUN_AROUND) {
         EnWiz_MoveGhosts(this);
     } else {
         for (i = 0; i < this->platformCount; i++) {
-            Math_SmoothStepToS(&this->ghostRot[i].y, this->actor.yawTowardsPlayer, 0xC8, 0x1F40, 0x1388);
+            MM_Math_SmoothStepToS(&this->ghostRot[i].y, this->actor.yawTowardsPlayer, 0xC8, 0x1F40, 0x1388);
         }
     }
 
@@ -942,7 +942,7 @@ void EnWiz_WindUp(EnWiz* this, PlayState* play) {
         }
     }
 
-    Math_SmoothStepToS(&this->platformLightAlpha, this->targetPlatformLightAlpha, 10, 10, 10);
+    MM_Math_SmoothStepToS(&this->platformLightAlpha, this->targetPlatformLightAlpha, 10, 10, 10);
 }
 
 void EnWiz_SetupAttack(EnWiz* this) {
@@ -964,22 +964,22 @@ void EnWiz_Attack(EnWiz* this, PlayState* play) {
     }
 
     if (this->timer == 0) {
-        if (Animation_OnFrame(&this->skelAnime, 6.0f) && !this->hasActiveProjectile) {
+        if (MM_Animation_OnFrame(&this->skelAnime, 6.0f) && !this->hasActiveProjectile) {
             Player* player = GET_PLAYER(play);
             Vec3f pos;
             s32 type = this->type;
 
-            Math_Vec3f_Copy(&pos, &this->actor.world.pos);
-            pos.x += Math_SinS(this->actor.world.rot.y) * 40.0f;
+            MM_Math_Vec3f_Copy(&pos, &this->actor.world.pos);
+            pos.x += MM_Math_SinS(this->actor.world.rot.y) * 40.0f;
             pos.y += 60.0f;
-            pos.z += Math_CosS(this->actor.world.rot.y) * 40.0f;
+            pos.z += MM_Math_CosS(this->actor.world.rot.y) * 40.0f;
             if (type == EN_WIZ_TYPE_FIRE_NO_BGM) {
                 type = EN_WIZ_TYPE_FIRE;
             }
 
-            Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_WIZ_FIRE, pos.x, pos.y, pos.z,
-                               Math_Vec3f_Pitch(&pos, &player->actor.world.pos),
-                               Math_Vec3f_Yaw(&pos, &player->actor.world.pos), 0, type * 4);
+            MM_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_WIZ_FIRE, pos.x, pos.y, pos.z,
+                               MM_Math_Vec3f_Pitch(&pos, &player->actor.world.pos),
+                               MM_Math_Vec3f_Yaw(&pos, &player->actor.world.pos), 0, type * 4);
             this->hasActiveProjectile = true;
             Actor_PlaySfx(&this->actor, NA_SE_EN_WIZ_ATTACK);
             Actor_PlaySfx(&this->actor, NA_SE_PL_MAGIC_FIRE);
@@ -1010,7 +1010,7 @@ void EnWiz_SetupDisappear(EnWiz* this) {
     this->targetPlatformLightAlpha = 0;
     this->actor.flags |= ACTOR_FLAG_LOCK_ON_DISABLED;
     Actor_PlaySfx(&this->actor, NA_SE_EN_WIZ_DISAPPEAR);
-    Math_SmoothStepToS(&this->angularVelocity, 0x1388, 0x64, 0x3E8, 0x3E8);
+    MM_Math_SmoothStepToS(&this->angularVelocity, 0x1388, 0x64, 0x3E8, 0x3E8);
     this->actor.world.rot.y += this->angularVelocity;
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
     this->actionFunc = EnWiz_Disappear;
@@ -1023,20 +1023,20 @@ void EnWiz_SetupDisappear(EnWiz* this) {
 void EnWiz_Disappear(EnWiz* this, PlayState* play) {
     s32 i;
 
-    Math_SmoothStepToS(&this->angularVelocity, 0, 0xA, 0xBB8, 0x14);
+    MM_Math_SmoothStepToS(&this->angularVelocity, 0, 0xA, 0xBB8, 0x14);
     this->actor.world.rot.y += this->angularVelocity;
     if ((this->fightState == EN_WIZ_FIGHT_STATE_FIRST_PHASE) || (this->action == EN_WIZ_ACTION_DAMAGED)) {
-        Math_ApproachZeroF(&this->scale, 0.3f, 0.01f);
-        Math_SmoothStepToS(&this->platformLightAlpha, this->targetPlatformLightAlpha, 5, 50, 0);
+        MM_Math_ApproachZeroF(&this->scale, 0.3f, 0.01f);
+        MM_Math_SmoothStepToS(&this->platformLightAlpha, this->targetPlatformLightAlpha, 5, 50, 0);
     } else {
-        Math_ApproachZeroF(&this->scale, 0.3f, 0.001f);
-        Math_SmoothStepToS(&this->platformLightAlpha, this->targetPlatformLightAlpha, 10, 50, 0);
+        MM_Math_ApproachZeroF(&this->scale, 0.3f, 0.001f);
+        MM_Math_SmoothStepToS(&this->platformLightAlpha, this->targetPlatformLightAlpha, 10, 50, 0);
         for (i = 0; i < this->platformCount; i++) {
             this->ghostRot[i].y += this->angularVelocity;
         }
     }
 
-    Math_Vec3f_Copy(&this->staffTargetFlameScale, &gZeroVec3f);
+    MM_Math_Vec3f_Copy(&this->staffTargetFlameScale, &gZeroVec3f);
     if (this->scale < 0.001f) {
         this->scale = 0.0f;
 
@@ -1060,11 +1060,11 @@ void EnWiz_Disappear(EnWiz* this, PlayState* play) {
 
 void EnWiz_SetupDamaged(EnWiz* this, PlayState* play) {
     EnWiz_ChangeAnim(this, EN_WIZ_ANIM_DAMAGE, false);
-    Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 8);
+    MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 8);
     this->timer = 20;
 
     if ((this->fightState != EN_WIZ_FIGHT_STATE_FIRST_PHASE) && (this->actor.colChkInfo.health <= 0)) {
-        Enemy_StartFinishingBlow(play, &this->actor);
+        MM_Enemy_StartFinishingBlow(play, &this->actor);
         Actor_PlaySfx(&this->actor, NA_SE_EN_WIZ_DEAD);
         this->timer = 0;
         this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
@@ -1120,7 +1120,7 @@ void EnWiz_Damaged(EnWiz* this, PlayState* play) {
     }
 
     this->actor.world.rot.y += this->angularVelocity;
-    Math_SmoothStepToS(&this->angularVelocity, 0, 0xA, 0xBB8, 0x14);
+    MM_Math_SmoothStepToS(&this->angularVelocity, 0, 0xA, 0xBB8, 0x14);
     for (i = 0; i < this->platformCount; i++) {
         this->ghostRot[i].y += this->angularVelocity;
     }
@@ -1165,9 +1165,9 @@ void EnWiz_Damaged(EnWiz* this, PlayState* play) {
         this->actor.flags |= ACTOR_FLAG_LOCK_ON_DISABLED;
     }
 
-    Math_SmoothStepToS(&this->platformLightAlpha, this->targetPlatformLightAlpha, 20, 50, 10);
+    MM_Math_SmoothStepToS(&this->platformLightAlpha, this->targetPlatformLightAlpha, 20, 50, 10);
     Actor_MoveWithGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 35.0f, 40.0f, 40.0f,
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 35.0f, 40.0f, 40.0f,
                             UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_2 | UPDBGCHECKINFO_FLAG_4 |
                                 UPDBGCHECKINFO_FLAG_8 | UPDBGCHECKINFO_FLAG_10);
 }
@@ -1188,11 +1188,11 @@ void EnWiz_Dead(EnWiz* this, PlayState* play) {
     s32 i;
 
     this->actor.world.rot.y += this->angularVelocity;
-    Math_SmoothStepToS(&this->angularVelocity, 0, 0xA, 0xBB8, 0x14);
+    MM_Math_SmoothStepToS(&this->angularVelocity, 0, 0xA, 0xBB8, 0x14);
     if (this->angularVelocity < 0x1E) {
-        Math_SmoothStepToS(&this->alpha, 0, 10, 30, 20);
+        MM_Math_SmoothStepToS(&this->alpha, 0, 10, 30, 20);
         for (i = 0; i < this->platformCount; i++) {
-            Math_SmoothStepToS(&this->ghostAlpha[i], 0, 10, 30, 20);
+            MM_Math_SmoothStepToS(&this->ghostAlpha[i], 0, 10, 30, 20);
         }
 
         this->action = EN_WIZ_ACTION_BURST_INTO_FLAMES;
@@ -1200,15 +1200,15 @@ void EnWiz_Dead(EnWiz* this, PlayState* play) {
 
     if (this->alpha < 30) {
         EnWiz_SelectPlatform(this, play);
-        SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 50, NA_SE_EN_EXTINCT);
-        Actor_Kill(&this->actor);
+        MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 50, NA_SE_EN_EXTINCT);
+        MM_Actor_Kill(&this->actor);
         if (this->switchFlag > SWITCH_FLAG_NONE) {
-            Flags_SetSwitch(play, this->switchFlag);
+            MM_Flags_SetSwitch(play, this->switchFlag);
         }
     }
 }
 
-static Color_RGBA8 sDustPrimColor = { 250, 250, 250, 255 };
+static Color_RGBA8 MM_sDustPrimColor = { 250, 250, 250, 255 };
 static Color_RGBA8 sDustEnvTimer = { 180, 180, 180, 255 };
 
 void EnWiz_UpdateDamage(EnWiz* this, PlayState* play) {
@@ -1243,7 +1243,7 @@ void EnWiz_UpdateDamage(EnWiz* this, PlayState* play) {
                     this->drawDmgEffFrozenSteamScale = 1.5f;
                 }
 
-                Actor_ApplyDamage(&this->actor);
+                MM_Actor_ApplyDamage(&this->actor);
                 EnWiz_SetupDamaged(this, play);
                 break;
 
@@ -1251,7 +1251,7 @@ void EnWiz_UpdateDamage(EnWiz* this, PlayState* play) {
                 if (((this->drawDmgEffType != ACTOR_DRAW_DMGEFF_FROZEN_SFX) &&
                      (this->drawDmgEffType != ACTOR_DRAW_DMGEFF_FROZEN_NO_SFX)) ||
                     (this->drawDmgEffTimer == 0)) {
-                    Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->actor.focus.pos.x,
+                    MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->actor.focus.pos.x,
                                 this->actor.focus.pos.y, this->actor.focus.pos.z, 0, 0, 0,
                                 CLEAR_TAG_PARAMS(CLEAR_TAG_LARGE_LIGHT_RAYS));
                     this->drawDmgEffTimer = 40;
@@ -1263,7 +1263,7 @@ void EnWiz_UpdateDamage(EnWiz* this, PlayState* play) {
 
         this->alpha = 255;
         if (attackDealsDamage) {
-            Actor_ApplyDamage(&this->actor);
+            MM_Actor_ApplyDamage(&this->actor);
             EnWiz_SetupDamaged(this, play);
             return;
         }
@@ -1297,17 +1297,17 @@ void EnWiz_UpdateDamage(EnWiz* this, PlayState* play) {
                         velocity.x = 0.0f;
                         velocity.y = 1.0f;
                         velocity.z = 0.0f;
-                        scaleStep = Rand_S16Offset(20, 10);
-                        Math_Vec3f_Copy(&pos, &this->ghostPos[i]);
-                        pos.x += (f32)Rand_S16Offset(20, 20) * ((Rand_ZeroOne() < 0.5f) ? -1 : 1);
-                        pos.y += 70.0f + Rand_CenteredFloat(30.0f);
-                        pos.z += (f32)Rand_S16Offset(20, 20) * ((Rand_ZeroOne() < 0.5f) ? -1 : 1);
-                        func_800B0DE0(play, &pos, &velocity, &accel, &sDustPrimColor, &sDustEnvTimer,
-                                      Rand_S16Offset(350, 100), scaleStep);
+                        scaleStep = MM_Rand_S16Offset(20, 10);
+                        MM_Math_Vec3f_Copy(&pos, &this->ghostPos[i]);
+                        pos.x += (f32)MM_Rand_S16Offset(20, 20) * ((MM_Rand_ZeroOne() < 0.5f) ? -1 : 1);
+                        pos.y += 70.0f + MM_Rand_CenteredFloat(30.0f);
+                        pos.z += (f32)MM_Rand_S16Offset(20, 20) * ((MM_Rand_ZeroOne() < 0.5f) ? -1 : 1);
+                        func_800B0DE0(play, &pos, &velocity, &accel, &MM_sDustPrimColor, &sDustEnvTimer,
+                                      MM_Rand_S16Offset(350, 100), scaleStep);
                     }
 
-                    SoundSource_PlaySfxAtFixedWorldPos(play, &this->ghostPos[i], 50, NA_SE_EN_WIZ_LAUGH);
-                    Math_Vec3f_Copy(&this->ghostPos[i], &gZeroVec3f);
+                    MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->ghostPos[i], 50, NA_SE_EN_WIZ_LAUGH);
+                    MM_Math_Vec3f_Copy(&this->ghostPos[i], &gZeroVec3f);
                 }
             }
         }
@@ -1321,12 +1321,12 @@ void EnWiz_Update(Actor* thisx, PlayState* play) {
     s32 j;
 
     if (this->action != EN_WIZ_ACTION_APPEAR) {
-        SkelAnime_Update(&this->skelAnime);
-        SkelAnime_Update(&this->ghostSkelAnime);
+        MM_SkelAnime_Update(&this->skelAnime);
+        MM_SkelAnime_Update(&this->ghostSkelAnime);
     }
 
-    Actor_SetFocus(&this->actor, 60.0f);
-    Actor_SetScale(&this->actor, this->scale);
+    MM_Actor_SetFocus(&this->actor, 60.0f);
+    MM_Actor_SetScale(&this->actor, this->scale);
     EnWiz_UpdateDamage(this, play);
     this->actionFunc(this, play);
 
@@ -1340,15 +1340,15 @@ void EnWiz_Update(Actor* thisx, PlayState* play) {
     this->collider.dim.height = 130;
     this->collider.dim.yShift = 0;
     if (this->action >= EN_WIZ_ACTION_RUN_IN_CIRCLES) {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->ghostColliders.base);
-        Collider_UpdateCylinder(&this->actor, &this->collider);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->ghostColliders.base);
+        MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
 
-    Math_ApproachF(&this->staffFlameScale.x, this->staffTargetFlameScale.x, 0.3f, 0.002f);
-    Math_ApproachF(&this->staffFlameScale.y, this->staffTargetFlameScale.y, 0.3f, 0.002f);
-    Math_ApproachF(&this->staffFlameScale.z, this->staffTargetFlameScale.z, 0.3f, 0.002f);
+    MM_Math_ApproachF(&this->staffFlameScale.x, this->staffTargetFlameScale.x, 0.3f, 0.002f);
+    MM_Math_ApproachF(&this->staffFlameScale.y, this->staffTargetFlameScale.y, 0.3f, 0.002f);
+    MM_Math_ApproachF(&this->staffFlameScale.z, this->staffTargetFlameScale.z, 0.3f, 0.002f);
 
     if (this->fightState == EN_WIZ_FIGHT_STATE_FIRST_PHASE) {
         this->platformCount = 0;
@@ -1379,11 +1379,11 @@ void EnWiz_PostLimbDrawOpa(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* r
             staffFlamePos.x = 5300.0f;
         }
 
-        Matrix_Translate(0.0f, 0.0f, 0.0f, MTXMODE_APPLY);
-        Matrix_MultVec3f(&staffFlamePos, &this->staffFlamePos);
+        MM_Matrix_Translate(0.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+        MM_Matrix_MultVec3f(&staffFlamePos, &this->staffFlamePos);
     }
 
-    Collider_UpdateSpheres(limbIndex, &this->ghostColliders);
+    MM_Collider_UpdateSpheres(limbIndex, &this->ghostColliders);
 
     if ((limbIndex == WIZROBE_LIMB_PELVIS) || (limbIndex == WIZROBE_LIMB_TORSO) ||
         (limbIndex == WIZROBE_LIMB_LEFT_UPPER_ARM) || (limbIndex == WIZROBE_LIMB_LEFT_FOREARM) ||
@@ -1413,20 +1413,20 @@ void EnWiz_PostLimbDrawXlu(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* r
                 staffFlamePos.x = 5300.0f;
             }
 
-            Matrix_Translate(0.0f, 0.0f, 0.0f, MTXMODE_APPLY);
-            Matrix_MultVec3f(&staffFlamePos, &this->staffFlamePos);
+            MM_Matrix_Translate(0.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+            MM_Matrix_MultVec3f(&staffFlamePos, &this->staffFlamePos);
         }
     } else {
         if (this->timer == 0) {
             Vec3f flamePos;
 
-            Matrix_Translate(0.0f, 0.0f, 0.0f, MTXMODE_APPLY);
-            Matrix_MultVec3f(&staffFlamePos, &flamePos);
-            flamePos.x += Rand_CenteredFloat(4.0f);
-            flamePos.y += Rand_CenteredFloat(7.0f);
-            flamePos.z += Rand_CenteredFloat(5.0f);
-            func_800B3030(play, &flamePos, &gZeroVec3f, &gZeroVec3f, ((Rand_ZeroFloat(1.0f) * 50.0f) + 70.0f), 10, 1);
-            SoundSource_PlaySfxAtFixedWorldPos(play, &flamePos, 10, NA_SE_EN_EXTINCT);
+            MM_Matrix_Translate(0.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+            MM_Matrix_MultVec3f(&staffFlamePos, &flamePos);
+            flamePos.x += MM_Rand_CenteredFloat(4.0f);
+            flamePos.y += MM_Rand_CenteredFloat(7.0f);
+            flamePos.z += MM_Rand_CenteredFloat(5.0f);
+            func_800B3030(play, &flamePos, &gZeroVec3f, &gZeroVec3f, ((MM_Rand_ZeroFloat(1.0f) * 50.0f) + 70.0f), 10, 1);
+            MM_SoundSource_PlaySfxAtFixedWorldPos(play, &flamePos, 10, NA_SE_EN_EXTINCT);
         }
 
         if ((limbIndex >= WIZROBE_LIMB_RIGHT_FOOT) && (this->timer == 0)) {
@@ -1462,13 +1462,13 @@ void EnWiz_Draw(Actor* thisx, PlayState* play) {
         gDPPipeSync(POLY_XLU_DISP++);
         gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 0, this->alpha);
         POLY_XLU_DISP =
-            SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+            MM_SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                                NULL, EnWiz_PostLimbDrawXlu, &this->actor, POLY_XLU_DISP);
     } else {
         Scene_SetRenderModeXlu(play, 0, 1);
         gDPPipeSync(POLY_OPA_DISP++);
         gDPSetEnvColor(POLY_OPA_DISP++, 255, 255, 255, this->alpha);
-        SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+        MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                               NULL, EnWiz_PostLimbDrawOpa, &this->actor);
     }
 
@@ -1482,7 +1482,7 @@ void EnWiz_Draw(Actor* thisx, PlayState* play) {
                 this->drawDmgEffScale = 0.5f;
             }
 
-            Math_ApproachF(&this->drawDmgEffFrozenSteamScale, this->drawDmgEffScale, 0.1f, 0.04f);
+            MM_Math_ApproachF(&this->drawDmgEffFrozenSteamScale, this->drawDmgEffScale, 0.1f, 0.04f);
         } else {
             this->drawDmgEffScale = 0.8f;
             this->drawDmgEffFrozenSteamScale = 0.8f;
@@ -1496,7 +1496,7 @@ void EnWiz_Draw(Actor* thisx, PlayState* play) {
         s32 i;
         s16 platformCount;
 
-        Matrix_Push();
+        MM_Matrix_Push();
 
         platformCount = this->platformCount;
         if (this->fightState == EN_WIZ_FIGHT_STATE_SECOND_PHASE_CUTSCENE) {
@@ -1508,8 +1508,8 @@ void EnWiz_Draw(Actor* thisx, PlayState* play) {
             Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
             if ((this->ghostPos[i].x != 0.0f) && (this->ghostPos[i].z != 0.0f)) {
-                Matrix_Translate(this->ghostPos[i].x, this->ghostPos[i].y + 10.0f, this->ghostPos[i].z, MTXMODE_NEW);
-                Matrix_Scale(this->scale, this->scale, this->scale, MTXMODE_APPLY);
+                MM_Matrix_Translate(this->ghostPos[i].x, this->ghostPos[i].y + 10.0f, this->ghostPos[i].z, MTXMODE_NEW);
+                MM_Matrix_Scale(this->scale, this->scale, this->scale, MTXMODE_APPLY);
                 Matrix_RotateYS(this->ghostRot[i].y, MTXMODE_APPLY);
                 Matrix_RotateXS(this->ghostRot[i].x, MTXMODE_APPLY);
                 Matrix_RotateZS(this->ghostRot[i].z, MTXMODE_APPLY);
@@ -1517,7 +1517,7 @@ void EnWiz_Draw(Actor* thisx, PlayState* play) {
                 gDPPipeSync(POLY_XLU_DISP++);
                 gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 0, this->ghostAlpha[i]);
                 POLY_XLU_DISP =
-                    SkelAnime_DrawFlex(play, this->ghostSkelAnime.skeleton, this->ghostJointTables[i],
+                    MM_SkelAnime_DrawFlex(play, this->ghostSkelAnime.skeleton, this->ghostJointTables[i],
                                        this->ghostSkelAnime.dListCount, NULL, NULL, &this->actor, POLY_XLU_DISP);
                 this->ghostColliders.elements[i + 1].dim.worldSphere.center.x = this->ghostPos[i].x;
                 this->ghostColliders.elements[i + 1].dim.worldSphere.center.y = this->ghostPos[i].y + 50.0f;
@@ -1528,7 +1528,7 @@ void EnWiz_Draw(Actor* thisx, PlayState* play) {
             }
         }
 
-        Matrix_Pop();
+        MM_Matrix_Pop();
     }
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
@@ -1536,11 +1536,11 @@ void EnWiz_Draw(Actor* thisx, PlayState* play) {
 
     // Draw the light emanating from the Wizrobe's platform
     if (this->fightState == EN_WIZ_FIGHT_STATE_FIRST_PHASE) {
-        Matrix_Push();
+        MM_Matrix_Push();
 
         AnimatedMat_Draw(play, Lib_SegmentedToVirtual(gWizrobePlatformLightTexAnim));
-        Matrix_Translate(this->platformLightPos.x, this->platformLightPos.y, this->platformLightPos.z, MTXMODE_NEW);
-        Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
+        MM_Matrix_Translate(this->platformLightPos.x, this->platformLightPos.y, this->platformLightPos.z, MTXMODE_NEW);
+        MM_Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
         gDPPipeSync(POLY_XLU_DISP++);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, 255, 255, 255, this->platformLightAlpha);
 
@@ -1553,14 +1553,14 @@ void EnWiz_Draw(Actor* thisx, PlayState* play) {
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_XLU_DISP++, gWizrobePlatformLightDL);
 
-        Matrix_Pop();
+        MM_Matrix_Pop();
     }
 
     // Draw the flame at the tip of the Wizrobe's staff
-    Matrix_Translate(this->staffFlamePos.x, this->staffFlamePos.y, this->staffFlamePos.z, MTXMODE_NEW);
-    Matrix_Scale(this->staffFlameScale.x, this->staffFlameScale.y, this->staffFlameScale.z, MTXMODE_APPLY);
+    MM_Matrix_Translate(this->staffFlamePos.x, this->staffFlamePos.y, this->staffFlamePos.z, MTXMODE_NEW);
+    MM_Matrix_Scale(this->staffFlameScale.x, this->staffFlameScale.y, this->staffFlameScale.z, MTXMODE_APPLY);
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0,
+               MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0,
                                 ((this->staffFlameScroll * 10) - (play->state.frames * 20)) % 512, 32, 128));
     gDPPipeSync(POLY_XLU_DISP++);
 
@@ -1572,7 +1572,7 @@ void EnWiz_Draw(Actor* thisx, PlayState* play) {
         gDPSetEnvColor(POLY_XLU_DISP++, 0, 50, 255, 255);
     }
 
-    Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
+    MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
     gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
 

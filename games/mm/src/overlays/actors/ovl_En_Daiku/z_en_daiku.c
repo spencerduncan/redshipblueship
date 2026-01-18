@@ -8,10 +8,10 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY)
 
-void EnDaiku_Init(Actor* thisx, PlayState* play);
-void EnDaiku_Destroy(Actor* thisx, PlayState* play);
-void EnDaiku_Update(Actor* thisx, PlayState* play);
-void EnDaiku_Draw(Actor* thisx, PlayState* play);
+void MM_EnDaiku_Init(Actor* thisx, PlayState* play);
+void MM_EnDaiku_Destroy(Actor* thisx, PlayState* play);
+void MM_EnDaiku_Update(Actor* thisx, PlayState* play);
+void MM_EnDaiku_Draw(Actor* thisx, PlayState* play);
 
 void func_80943820(EnDaiku* this);
 void func_80943BC0(EnDaiku* this);
@@ -24,17 +24,17 @@ ActorProfile En_Daiku_Profile = {
     /**/ FLAGS,
     /**/ OBJECT_DAIKU,
     /**/ sizeof(EnDaiku),
-    /**/ EnDaiku_Init,
-    /**/ EnDaiku_Destroy,
-    /**/ EnDaiku_Update,
-    /**/ EnDaiku_Draw,
+    /**/ MM_EnDaiku_Init,
+    /**/ MM_EnDaiku_Destroy,
+    /**/ MM_EnDaiku_Update,
+    /**/ MM_EnDaiku_Draw,
 };
 
-static u16 sTextIds[] = {
+static u16 MM_sTextIds[] = {
     0x061C, 0x061A, 0x061B, 0x061C, 0x061C, 0x061D, 0x061E, 0x061F, 0x061C, 0x0620, 0x0621, 0x0622,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -68,7 +68,7 @@ typedef enum {
     /*  9 */ ENDAIKU_ANIM_MAX
 } EnDaiAnimation;
 
-static AnimationHeader* sAnimations[ENDAIKU_ANIM_MAX] = {
+static AnimationHeader* MM_sAnimations[ENDAIKU_ANIM_MAX] = {
     &object_daiku_Anim_002FA0, // ENDAIKU_ANIM_0
     &object_daiku_Anim_00ACD0, // ENDAIKU_ANIM_1
     &object_daiku_Anim_00C92C, // ENDAIKU_ANIM_2
@@ -80,7 +80,7 @@ static AnimationHeader* sAnimations[ENDAIKU_ANIM_MAX] = {
     &object_daiku_Anim_00BEAC, // ENDAIKU_ANIM_8
 };
 
-static u8 sAnimationModes[ENDAIKU_ANIM_MAX] = {
+static u8 MM_sAnimationModes[ENDAIKU_ANIM_MAX] = {
     ANIMMODE_LOOP, // ENDAIKU_ANIM_0
     ANIMMODE_LOOP, // ENDAIKU_ANIM_1
     ANIMMODE_LOOP, // ENDAIKU_ANIM_2
@@ -92,13 +92,13 @@ static u8 sAnimationModes[ENDAIKU_ANIM_MAX] = {
     ANIMMODE_ONCE, // ENDAIKU_ANIM_8
 };
 
-void EnDaiku_Init(Actor* thisx, PlayState* play) {
+void MM_EnDaiku_Init(Actor* thisx, PlayState* play) {
     EnDaiku* this = (EnDaiku*)thisx;
 
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 40.0f);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 40.0f);
     this->actor.attentionRangeType = ATTENTION_RANGE_0;
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
     this->unk_278 = ENDAIKU_GET_FF(&this->actor);
     if (this->unk_278 == ENDAIKU_PARAM_FF_3) {
         this->pathIndex = ENDAIKU_GET_PATH_INDEX(&this->actor);
@@ -114,13 +114,13 @@ void EnDaiku_Init(Actor* thisx, PlayState* play) {
         this->actor.flags |= ACTOR_FLAG_LOCK_ON_DISABLED;
         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_RESOLVED_MAYOR_MEETING) ||
             ((gSaveContext.save.day == 3) && gSaveContext.save.isNight)) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
     } else if ((gSaveContext.save.day == 3) && gSaveContext.save.isNight) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 
-    Math_Vec3f_Copy(&this->unk_26C, &this->actor.world.pos);
+    MM_Math_Vec3f_Copy(&this->unk_26C, &this->actor.world.pos);
     this->unk_280 = this->actor.world.rot.y;
     this->actor.gravity = -3.0f;
 
@@ -129,17 +129,17 @@ void EnDaiku_Init(Actor* thisx, PlayState* play) {
             this->unk_27E = this->unk_278 * 4 + 4;
 
         case ENDAIKU_PARAM_FF_1:
-            SkelAnime_InitFlex(play, &this->skelAnime, &object_daiku_Skel_00A850, &object_daiku_Anim_002FA0,
+            MM_SkelAnime_InitFlex(play, &this->skelAnime, &object_daiku_Skel_00A850, &object_daiku_Anim_002FA0,
                                this->jointTable, this->morphTable, OBJECT_DAIKU_LIMB_MAX);
             break;
 
         case ENDAIKU_PARAM_FF_2:
-            SkelAnime_InitFlex(play, &this->skelAnime, &object_daiku_Skel_00A850, &object_daiku_Anim_00B690,
+            MM_SkelAnime_InitFlex(play, &this->skelAnime, &object_daiku_Skel_00A850, &object_daiku_Anim_00B690,
                                this->jointTable, this->morphTable, OBJECT_DAIKU_LIMB_MAX);
             break;
 
         case ENDAIKU_PARAM_FF_3:
-            SkelAnime_InitFlex(play, &this->skelAnime, &object_daiku_Skel_00A850, &object_daiku_Anim_001114,
+            MM_SkelAnime_InitFlex(play, &this->skelAnime, &object_daiku_Skel_00A850, &object_daiku_Anim_001114,
                                this->jointTable, this->morphTable, OBJECT_DAIKU_LIMB_MAX);
             break;
 
@@ -150,22 +150,22 @@ void EnDaiku_Init(Actor* thisx, PlayState* play) {
     func_80943820(this);
 }
 
-void EnDaiku_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnDaiku_Destroy(Actor* thisx, PlayState* play) {
     EnDaiku* this = (EnDaiku*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
-void EnDaiku_ChangeAnim(EnDaiku* this, s32 animIndex) {
-    this->animEndFrame = Animation_GetLastFrame(sAnimations[animIndex]);
-    Animation_Change(&this->skelAnime, sAnimations[animIndex], 1.0f, 0.0f, this->animEndFrame,
-                     sAnimationModes[animIndex], -4.0f);
+void MM_EnDaiku_ChangeAnim(EnDaiku* this, s32 animIndex) {
+    this->animEndFrame = MM_Animation_GetLastFrame(MM_sAnimations[animIndex]);
+    MM_Animation_Change(&this->skelAnime, MM_sAnimations[animIndex], 1.0f, 0.0f, this->animEndFrame,
+                     MM_sAnimationModes[animIndex], -4.0f);
 }
 
 void func_809437C8(EnDaiku* this) {
     if ((this->pathIndex != PATH_INDEX_NONE) && (this->path != NULL)) {
         if (!SubS_CopyPointFromPath(this->path, this->unk_25C, &this->unk_26C)) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
     }
 }
@@ -176,15 +176,15 @@ void func_80943820(EnDaiku* this) {
     switch (this->unk_278) {
         case 0:
         case 1:
-            EnDaiku_ChangeAnim(this, ENDAIKU_ANIM_0);
+            MM_EnDaiku_ChangeAnim(this, ENDAIKU_ANIM_0);
             break;
 
         case 2:
-            EnDaiku_ChangeAnim(this, ENDAIKU_ANIM_7);
+            MM_EnDaiku_ChangeAnim(this, ENDAIKU_ANIM_7);
             break;
 
         case 3:
-            EnDaiku_ChangeAnim(this, ENDAIKU_ANIM_6);
+            MM_EnDaiku_ChangeAnim(this, ENDAIKU_ANIM_6);
             break;
 
         default:
@@ -192,7 +192,7 @@ void func_80943820(EnDaiku* this) {
     }
 
     this->unk_28C = (day * 4) + this->unk_278;
-    this->actor.textId = sTextIds[this->unk_28C];
+    this->actor.textId = MM_sTextIds[this->unk_28C];
     this->unk_280 = this->actor.shape.rot.y;
     this->unk_28A = 0;
     this->actionFunc = func_809438F8;
@@ -204,7 +204,7 @@ void func_809438F8(EnDaiku* this, PlayState* play) {
     s32 day = gSaveContext.save.day - 1;
     s32 pad2;
 
-    if (Player_GetMask(play) == PLAYER_MASK_KAFEIS_MASK) {
+    if (MM_Player_GetMask(play) == PLAYER_MASK_KAFEIS_MASK) {
         if (this->unk_278 == ENDAIKU_PARAM_FF_1) {
             this->actor.textId = 0x2365;
         } else {
@@ -212,7 +212,7 @@ void func_809438F8(EnDaiku* this, PlayState* play) {
         }
     } else {
         this->unk_28C = (day * 4) + this->unk_278;
-        this->actor.textId = sTextIds[this->unk_28C];
+        this->actor.textId = MM_sTextIds[this->unk_28C];
     }
 
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
@@ -221,10 +221,10 @@ void func_809438F8(EnDaiku* this, PlayState* play) {
     }
 
     if ((this->unk_278 == ENDAIKU_PARAM_FF_2) && (curFrame >= this->animEndFrame)) {
-        if (Rand_ZeroOne() < 0.5f) {
-            EnDaiku_ChangeAnim(this, ENDAIKU_ANIM_7);
+        if (MM_Rand_ZeroOne() < 0.5f) {
+            MM_EnDaiku_ChangeAnim(this, ENDAIKU_ANIM_7);
         } else {
-            EnDaiku_ChangeAnim(this, ENDAIKU_ANIM_8);
+            MM_EnDaiku_ChangeAnim(this, ENDAIKU_ANIM_8);
         }
     }
 
@@ -232,13 +232,13 @@ void func_809438F8(EnDaiku* this, PlayState* play) {
         f32 xzDist;
         f32 yawDiff;
 
-        Math_ApproachF(&this->actor.world.pos.x, this->unk_26C.x, 0.5f,
-                       fabsf(2.0f * Math_SinS(this->actor.world.rot.y)));
-        Math_ApproachF(&this->actor.world.pos.z, this->unk_26C.z, 0.5f,
-                       fabsf(2.0f * Math_CosS(this->actor.world.rot.y)));
-        Math_SmoothStepToS(&this->actor.world.rot.y, this->unk_282, 1, 0x7D0, 0xA);
+        MM_Math_ApproachF(&this->actor.world.pos.x, this->unk_26C.x, 0.5f,
+                       fabsf(2.0f * MM_Math_SinS(this->actor.world.rot.y)));
+        MM_Math_ApproachF(&this->actor.world.pos.z, this->unk_26C.z, 0.5f,
+                       fabsf(2.0f * MM_Math_CosS(this->actor.world.rot.y)));
+        MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->unk_282, 1, 0x7D0, 0xA);
 
-        xzDist = sqrtf(SQ(this->actor.world.pos.x - this->unk_26C.x) + SQ(this->actor.world.pos.z - this->unk_26C.z));
+        xzDist = MM_sqrtf(SQ(this->actor.world.pos.x - this->unk_26C.x) + SQ(this->actor.world.pos.z - this->unk_26C.z));
         yawDiff = fabsf(this->actor.world.rot.y - this->unk_282);
         if ((xzDist < 4.0f) && (this->path != NULL) && (yawDiff < 10.0f)) {
             this->unk_25C++;
@@ -247,7 +247,7 @@ void func_809438F8(EnDaiku* this, PlayState* play) {
             }
 
             func_809437C8(this);
-            this->unk_282 = Math_Vec3f_Yaw(&this->actor.world.pos, &this->unk_26C);
+            this->unk_282 = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &this->unk_26C);
         }
     }
 
@@ -270,29 +270,29 @@ void func_80943BDC(EnDaiku* this, PlayState* play) {
     f32 curFrame = this->skelAnime.curFrame;
 
     if ((this->unk_278 == ENDAIKU_PARAM_FF_2) && (curFrame >= this->animEndFrame)) {
-        if (Rand_ZeroOne() < 0.5f) {
-            EnDaiku_ChangeAnim(this, ENDAIKU_ANIM_7);
+        if (MM_Rand_ZeroOne() < 0.5f) {
+            MM_EnDaiku_ChangeAnim(this, ENDAIKU_ANIM_7);
         } else {
-            EnDaiku_ChangeAnim(this, ENDAIKU_ANIM_8);
+            MM_EnDaiku_ChangeAnim(this, ENDAIKU_ANIM_8);
         }
     }
 
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
-        Message_CloseTextbox(play);
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
+        MM_Message_CloseTextbox(play);
         func_80943820(this);
     }
 }
 
-void EnDaiku_Update(Actor* thisx, PlayState* play) {
+void MM_EnDaiku_Update(Actor* thisx, PlayState* play) {
     EnDaiku* this = (EnDaiku*)thisx;
     s32 pad;
 
     if (this->unk_27E == 0) {
-        SkelAnime_Update(&this->skelAnime);
+        MM_SkelAnime_Update(&this->skelAnime);
     }
 
     if ((this->unk_278 == ENDAIKU_PARAM_FF_0) && (gSaveContext.save.day == 3) && (gSaveContext.save.isNight)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -306,21 +306,21 @@ void EnDaiku_Update(Actor* thisx, PlayState* play) {
         this->unk_27E--;
     }
 
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->actor.shape.rot.y = this->actor.world.rot.y;
-    Actor_SetFocus(&this->actor, 65.0f);
+    MM_Actor_SetFocus(&this->actor, 65.0f);
     Actor_MoveWithGravity(&this->actor);
-    Math_SmoothStepToS(&this->unk_260, this->unk_266, 1, 0xBB8, 0);
-    Math_SmoothStepToS(&this->unk_25E, this->unk_264, 1, 0xBB8, 0);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 50.0f,
+    MM_Math_SmoothStepToS(&this->unk_260, this->unk_266, 1, 0xBB8, 0);
+    MM_Math_SmoothStepToS(&this->unk_25E, this->unk_264, 1, 0xBB8, 0);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 50.0f,
                             UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4 | UPDBGCHECKINFO_FLAG_8 |
                                 UPDBGCHECKINFO_FLAG_10);
     this->actor.cullingVolumeDistance = 650.0f;
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
-s32 EnDaiku_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx) {
+s32 MM_EnDaiku_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx) {
     EnDaiku* this = (EnDaiku*)thisx;
 
     if (limbIndex == OBJECT_DAIKU_LIMB_0F) {
@@ -331,7 +331,7 @@ s32 EnDaiku_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f*
     return false;
 }
 
-void EnDaiku_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* thisx) {
+void MM_EnDaiku_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* thisx) {
     static Gfx* D_809440D4[] = {
         object_daiku_DL_0070C0,
         object_daiku_DL_006FB0,
@@ -353,7 +353,7 @@ void EnDaiku_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* ro
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void EnDaiku_Draw(Actor* thisx, PlayState* play) {
+void MM_EnDaiku_Draw(Actor* thisx, PlayState* play) {
     EnDaiku* this = (EnDaiku*)thisx;
 
     OPEN_DISPS(play->state.gfxCtx);
@@ -382,8 +382,8 @@ void EnDaiku_Draw(Actor* thisx, PlayState* play) {
             break;
     }
 
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
-                          EnDaiku_OverrideLimbDraw, EnDaiku_PostLimbDraw, &this->actor);
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+                          MM_EnDaiku_OverrideLimbDraw, MM_EnDaiku_PostLimbDraw, &this->actor);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

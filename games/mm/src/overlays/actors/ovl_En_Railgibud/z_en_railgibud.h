@@ -55,14 +55,14 @@ typedef struct EnRailgibud {
                     s16 csAnimIndex;
                 };
     /* 0x3F2 */ union {
-                    s16 playerStunWaitTimer; // Cannot stun the player if this is non-zero
+                    s16 playerStunWaitTimer; // Cannot stun the player if this is non-MM_zero
                     s16 grabDamageTimer;
                     s16 headShakeTimer;
                     s16 stunTimer;
                     s16 deathTimer;
                     s16 sinkTimer;
                 };
-    /* 0x3F4 */ s16 grabWaitTimer; // Cannot grab the player if this is non-zero
+    /* 0x3F4 */ s16 grabWaitTimer; // Cannot grab the player if this is non-MM_zero
     /* 0x3F6 */ s16 drawDmgEffTimer;
     /* 0x3F8 */ s16 type;
     /* 0x3FA */ s16 isInvincible;

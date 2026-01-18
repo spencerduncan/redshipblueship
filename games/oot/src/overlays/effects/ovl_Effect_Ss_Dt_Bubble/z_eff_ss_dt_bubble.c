@@ -19,39 +19,39 @@
 #define rScale regs[9]
 #define rLifespan regs[10]
 
-u32 EffectSsDtBubble_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsDtBubble_Draw(PlayState* play, u32 index, EffectSs* this);
-void EffectSsDtBubble_Update(PlayState* play, u32 index, EffectSs* this);
+u32 OoT_EffectSsDtBubble_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void OoT_EffectSsDtBubble_Draw(PlayState* play, u32 index, EffectSs* this);
+void OoT_EffectSsDtBubble_Update(PlayState* play, u32 index, EffectSs* this);
 
-static Color_RGBA8 sPrimColors[] = { { 255, 255, 100, 255 }, { 150, 255, 255, 255 }, { 100, 255, 255, 255 } };
-static Color_RGBA8 sEnvColors[] = { { 170, 0, 0, 255 }, { 0, 100, 0, 255 }, { 0, 0, 255, 255 } };
+static Color_RGBA8 OoT_sPrimColors[] = { { 255, 255, 100, 255 }, { 150, 255, 255, 255 }, { 100, 255, 255, 255 } };
+static Color_RGBA8 OoT_sEnvColors[] = { { 170, 0, 0, 255 }, { 0, 100, 0, 255 }, { 0, 0, 255, 255 } };
 
 EffectSsInit Effect_Ss_Dt_Bubble_InitVars = {
     EFFECT_SS_DT_BUBBLE,
-    EffectSsDtBubble_Init,
+    OoT_EffectSsDtBubble_Init,
 };
 
-u32 EffectSsDtBubble_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 OoT_EffectSsDtBubble_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsDtBubbleInitParams* initParams = (EffectSsDtBubbleInitParams*)initParamsx;
 
-    //! @bug Rand_ZeroOne in the macro means a random number is generated for both parts of the macro.
+    //! @bug OoT_Rand_ZeroOne in the macro means a random number is generated for both parts of the macro.
     // In the base game this works out because both addresses are segment 4, but it may break if
     // the addresses were changed to refer to different segments
-    this->gfx = SEGMENTED_TO_VIRTUAL(Rand_ZeroOne() < 0.5f ? gEffBubble1Tex : gEffBubble2Tex);
+    this->gfx = SEGMENTED_TO_VIRTUAL(OoT_Rand_ZeroOne() < 0.5f ? gEffBubble1Tex : gEffBubble2Tex);
     this->pos = initParams->pos;
     this->velocity = initParams->velocity;
     this->accel = initParams->accel;
     this->life = initParams->life;
 
     if (!initParams->customColor) {
-        this->rPrimColorR = sPrimColors[initParams->colorProfile].r;
-        this->rPrimColorG = sPrimColors[initParams->colorProfile].g;
-        this->rPrimColorB = sPrimColors[initParams->colorProfile].b;
-        this->rPrimColorA = sPrimColors[initParams->colorProfile].a;
-        this->rEnvColorR = sEnvColors[initParams->colorProfile].r;
-        this->rEnvColorG = sEnvColors[initParams->colorProfile].g;
-        this->rEnvColorB = sEnvColors[initParams->colorProfile].b;
-        this->rEnvColorA = sEnvColors[initParams->colorProfile].a;
+        this->rPrimColorR = OoT_sPrimColors[initParams->colorProfile].r;
+        this->rPrimColorG = OoT_sPrimColors[initParams->colorProfile].g;
+        this->rPrimColorB = OoT_sPrimColors[initParams->colorProfile].b;
+        this->rPrimColorA = OoT_sPrimColors[initParams->colorProfile].a;
+        this->rEnvColorR = OoT_sEnvColors[initParams->colorProfile].r;
+        this->rEnvColorG = OoT_sEnvColors[initParams->colorProfile].g;
+        this->rEnvColorB = OoT_sEnvColors[initParams->colorProfile].b;
+        this->rEnvColorA = OoT_sEnvColors[initParams->colorProfile].a;
     } else {
         this->rPrimColorR = initParams->primColor.r;
         this->rPrimColorG = initParams->primColor.g;
@@ -66,21 +66,21 @@ u32 EffectSsDtBubble_Init(PlayState* play, u32 index, EffectSs* this, void* init
     this->rRandXZ = initParams->randXZ;
     this->rScale = initParams->scale;
     this->rLifespan = initParams->life;
-    this->draw = EffectSsDtBubble_Draw;
-    this->update = EffectSsDtBubble_Update;
+    this->draw = OoT_EffectSsDtBubble_Draw;
+    this->update = OoT_EffectSsDtBubble_Update;
 
     return 1;
 }
 
-void EffectSsDtBubble_Draw(PlayState* play, u32 index, EffectSs* this) {
+void OoT_EffectSsDtBubble_Draw(PlayState* play, u32 index, EffectSs* this) {
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     f32 scale;
 
     OPEN_DISPS(gfxCtx);
 
     scale = this->rScale * 0.004f;
-    Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
-    Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+    OoT_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
+    OoT_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     Gfx_SetupDL_25Xlu2(gfxCtx);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, this->rPrimColorR, this->rPrimColorG, this->rPrimColorB,
@@ -93,14 +93,14 @@ void EffectSsDtBubble_Draw(PlayState* play, u32 index, EffectSs* this) {
     CLOSE_DISPS(gfxCtx);
 }
 
-void EffectSsDtBubble_Update(PlayState* play, u32 index, EffectSs* this) {
+void OoT_EffectSsDtBubble_Update(PlayState* play, u32 index, EffectSs* this) {
     f32 rand;
 
     if (this->rRandXZ == 1) {
-        rand = Rand_ZeroOne();
+        rand = OoT_Rand_ZeroOne();
         this->pos.x += (rand * 2.0f) - 1.0f;
 
-        rand = Rand_ZeroOne();
+        rand = OoT_Rand_ZeroOne();
         this->pos.z += (rand * 2.0f) - 1.0f;
     }
 }

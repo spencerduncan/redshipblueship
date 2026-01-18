@@ -31,7 +31,7 @@ FileSelectState* gFileSelectState = NULL;
 #undef FILE_NUM_MAX
 #define FILE_NUM_MAX (CVarGetInteger("gEnhancements.Saving.FileSlot3", true) ? 3 : 2)
 
-static Gfx sScreenFillSetupDL[] = {
+static Gfx MM_sScreenFillSetupDL[] = {
     gsDPPipeSync(),
     gsSPClearGeometryMode(G_ZBUFFER | G_SHADE | G_CULL_BOTH | G_FOG | G_LIGHTING | G_TEXTURE_GEN |
                           G_TEXTURE_GEN_LINEAR | G_LOD | G_SHADING_SMOOTH),
@@ -42,11 +42,11 @@ static Gfx sScreenFillSetupDL[] = {
     gsSPEndDisplayList(),
 };
 
-s16 sFileInfoBoxPartWidths[] = {
+s16 MM_sFileInfoBoxPartWidths[] = {
     36, 36, 36, 36, 24, 28, 28,
 };
 
-s16 sWindowContentColors[] = { 100, 150, 255 };
+s16 MM_sWindowContentColors[] = { 100, 150, 255 };
 
 s16 sFileSelectSkyboxRotation = 0;
 
@@ -328,7 +328,7 @@ void FileSelect_UpdateMainMenu(GameState* thisx) {
     } else if (CHECK_BTN_ALL(input->press.button, BTN_B)) {
         gSaveContext.gameMode = GAMEMODE_TITLE_SCREEN;
         STOP_GAMESTATE(&this->state);
-        SET_NEXT_GAMESTATE(&this->state, TitleSetup_Init, sizeof(TitleSetupState));
+        SET_NEXT_GAMESTATE(&this->state, MM_TitleSetup_Init, sizeof(TitleSetupState));
     } else {
         if (ABS_ALT(this->stickAdjY) > 30) {
             Audio_PlaySfx(NA_SE_SY_FSEL_CURSOR);
@@ -755,7 +755,7 @@ void FileSelect_SetWindowContentVtx(GameState* thisx) {
             this->windowContentVtx[vtxId + 0].v.ob[0] = this->windowContentVtx[vtxId + 2].v.ob[0] = posX;
             // x-coord (right)
             this->windowContentVtx[vtxId + 1].v.ob[0] = this->windowContentVtx[vtxId + 3].v.ob[0] =
-                this->windowContentVtx[vtxId + 0].v.ob[0] + sFileInfoBoxPartWidths[j];
+                this->windowContentVtx[vtxId + 0].v.ob[0] + MM_sFileInfoBoxPartWidths[j];
 
             // y-coord(top)
             this->windowContentVtx[vtxId + 0].v.ob[1] = this->windowContentVtx[vtxId + 1].v.ob[1] =
@@ -766,11 +766,11 @@ void FileSelect_SetWindowContentVtx(GameState* thisx) {
 
             // texture coordinates
             this->windowContentVtx[vtxId + 1].v.tc[0] = this->windowContentVtx[vtxId + 3].v.tc[0] =
-                sFileInfoBoxPartWidths[j] << 5;
+                MM_sFileInfoBoxPartWidths[j] << 5;
             this->windowContentVtx[vtxId + 2].v.tc[1] = this->windowContentVtx[vtxId + 3].v.tc[1] = 0x700;
 
             // Update X position
-            posX += sFileInfoBoxPartWidths[j];
+            posX += MM_sFileInfoBoxPartWidths[j];
         }
     }
 
@@ -1349,7 +1349,7 @@ TexturePtr sFileSelHeartPieceTextures[] = {
     gFileSel2QuarterHeartENGTex,
     gFileSel3QuarterHeartENGTex,
 };
-static TexturePtr sHeartTextures[2][5] = {
+static TexturePtr MM_sHeartTextures[2][5] = {
     {
         gHeartEmptyTex,
         gHeartQuarterTex,
@@ -1461,7 +1461,7 @@ void FileSelect_DrawFileInfo(GameState* thisx, s16 fileIndex) {
             FileSelect_DrawTexQuadI4(this->state.gfxCtx, font->fontBuf + digits[i] * FONT_CHAR_TEX_SIZE, vtxOffset);
         }
 
-        if (this->rupees[sp20C] == gUpgradeCapacities[4][this->walletUpgrades[sp20C]]) {
+        if (this->rupees[sp20C] == MM_gUpgradeCapacities[4][this->walletUpgrades[sp20C]]) {
             gDPSetPrimColor(POLY_OPA_DISP++, 0x00, 0x00, 120, 255, 0, this->fileInfoAlpha[fileIndex]);
         } else if (this->rupees[sp20C] != 0) {
             gDPSetPrimColor(POLY_OPA_DISP++, 0x00, 0x00, 255, 255, 255, this->fileInfoAlpha[fileIndex]);
@@ -1520,7 +1520,7 @@ void FileSelect_DrawFileInfo(GameState* thisx, s16 fileIndex) {
 
             gSPVertex(POLY_OPA_DISP++, &this->windowContentVtx[D_80814654[fileIndex] + 0x68 + vtxOffset], 4, 0);
             POLY_OPA_DISP =
-                FileSelect_DrawTexQuadIA8(POLY_OPA_DISP, sHeartTextures[heartType][quarterHeartCount], 0x10, 0x10, 0);
+                FileSelect_DrawTexQuadIA8(POLY_OPA_DISP, MM_sHeartTextures[heartType][quarterHeartCount], 0x10, 0x10, 0);
         }
 
         gDPPipeSync(POLY_OPA_DISP++);
@@ -1529,7 +1529,7 @@ void FileSelect_DrawFileInfo(GameState* thisx, s16 fileIndex) {
         gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 255);
 
         for (vtxOffset = 0, j = 0; j < 4; j++, vtxOffset += 4) {
-            if (this->questItems[sp20C] & gBitFlags[j]) {
+            if (this->questItems[sp20C] & MM_gBitFlags[j]) {
                 gSPVertex(POLY_OPA_DISP++, &this->windowContentVtx[D_80814654[fileIndex] + 0xB8 + vtxOffset], 4, 0);
                 gDPLoadTextureBlock(POLY_OPA_DISP++, sFileSelRemainsTextures[j], G_IM_FMT_RGBA, G_IM_SIZ_32b, 32, 32, 0,
                                     G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK,
@@ -1647,29 +1647,29 @@ void FileSelect_DrawFileInfo(GameState* thisx, s16 fileIndex) {
     CLOSE_DISPS(this->state.gfxCtx);
 }
 
-TexturePtr sFileInfoBoxTextures[] = {
+TexturePtr MM_sFileInfoBoxTextures[] = {
     gFileSelFileInfoBox0Tex, gFileSelFileInfoBox1Tex,      gFileSelFileInfoBox2Tex,      gFileSelFileInfoBox3Tex,
     gFileSelFileInfoBox4Tex, gFileSelFileExtraInfoBox0Tex, gFileSelFileExtraInfoBox1Tex,
 };
 
-TexturePtr sTitleLabels[] = {
+TexturePtr MM_sTitleLabels[] = {
     gFileSelPleaseSelectAFileENGTex, gFileSelOpenThisFileENGTex,    gFileSelCopyWhichFileENGTex,
     gFileSelCopyToWhichFileENGTex,   gFileSelAreYouSureCopyENGTex,  gFileSelFileCopiedENGTex,
     gFileSelEraseWhichFileENGTex,    gFileSelAreYouSureEraseENGTex, gFileSelFileErasedENGTex,
 };
 
-TexturePtr sWarningLabels[] = {
+TexturePtr MM_sWarningLabels[] = {
     gFileSelNoFileToCopyENGTex, gFileSelNoFileToEraseENGTex, gFileSelNoEmptyFileENGTex,
     gFileSelFileEmptyENGTex,    gFileSelFileInUseENGTex,
 };
 
-TexturePtr sFileButtonTextures[] = {
+TexturePtr MM_sFileButtonTextures[] = {
     gFileSelFile1ButtonENGTex,
     gFileSelFile2ButtonENGTex,
     gFileSelFile3ButtonENGTex,
 };
 
-TexturePtr sActionButtonTextures[] = {
+TexturePtr MM_sActionButtonTextures[] = {
     gFileSelCopyButtonENGTex,
     gFileSelEraseButtonENGTex,
     gFileSelYesButtonENGTex,
@@ -1697,7 +1697,7 @@ void FileSelect_DrawWindowContents(GameState* thisx) {
     gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 0);
 
     gSPVertex(POLY_OPA_DISP++, &this->windowContentVtx[0], 4, 0);
-    gDPLoadTextureBlock(POLY_OPA_DISP++, sTitleLabels[this->titleLabel], G_IM_FMT_IA, G_IM_SIZ_8b, 128, 16, 0,
+    gDPLoadTextureBlock(POLY_OPA_DISP++, MM_sTitleLabels[this->titleLabel], G_IM_FMT_IA, G_IM_SIZ_8b, 128, 16, 0,
                         G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD,
                         G_TX_NOLOD);
     gSP1Quadrangle(POLY_OPA_DISP++, 0, 2, 3, 1, 0);
@@ -1705,7 +1705,7 @@ void FileSelect_DrawWindowContents(GameState* thisx) {
     // draw next title label
     gDPPipeSync(POLY_OPA_DISP++);
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, this->titleAlpha[FS_TITLE_NEXT]);
-    gDPLoadTextureBlock(POLY_OPA_DISP++, sTitleLabels[this->nextTitleLabel], G_IM_FMT_IA, G_IM_SIZ_8b, 128, 16, 0,
+    gDPLoadTextureBlock(POLY_OPA_DISP++, MM_sTitleLabels[this->nextTitleLabel], G_IM_FMT_IA, G_IM_SIZ_8b, 128, 16, 0,
                         G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD,
                         G_TX_NOLOD);
     gSP1Quadrangle(POLY_OPA_DISP++, 0, 2, 3, 1, 0);
@@ -1725,8 +1725,8 @@ void FileSelect_DrawWindowContents(GameState* thisx) {
 
             for (quadVtxIndex = 0, i = 0; i < 7; i++, quadVtxIndex += 4) {
                 if ((i < 5) || (this->isOwlSave[fileIndex + FILE_NUM_OWL_SAVE_OFFSET] && (i >= 5))) {
-                    gDPLoadTextureBlock(POLY_OPA_DISP++, sFileInfoBoxTextures[i], G_IM_FMT_IA, G_IM_SIZ_16b,
-                                        sFileInfoBoxPartWidths[i], 56, 0, G_TX_NOMIRROR | G_TX_WRAP,
+                    gDPLoadTextureBlock(POLY_OPA_DISP++, MM_sFileInfoBoxTextures[i], G_IM_FMT_IA, G_IM_SIZ_16b,
+                                        MM_sFileInfoBoxPartWidths[i], 56, 0, G_TX_NOMIRROR | G_TX_WRAP,
                                         G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
                     gSP1Quadrangle(POLY_OPA_DISP++, quadVtxIndex, quadVtxIndex + 2, quadVtxIndex + 3, quadVtxIndex + 1,
                                    0);
@@ -1741,24 +1741,24 @@ void FileSelect_DrawWindowContents(GameState* thisx) {
         if (i < FILE_NUM_MAX) {
             // draw file button
             gSPVertex(POLY_OPA_DISP++, &this->windowContentVtx[temp], 16, 0);
-            gDPSetPrimColorOverride(POLY_OPA_DISP++, 0, 0, sWindowContentColors[0], sWindowContentColors[1],
-                                    sWindowContentColors[2], this->fileButtonAlpha[i],
+            gDPSetPrimColorOverride(POLY_OPA_DISP++, 0, 0, MM_sWindowContentColors[0], MM_sWindowContentColors[1],
+                                    MM_sWindowContentColors[2], this->fileButtonAlpha[i],
                                     COSMETIC_ELEMENT_FILE_SELECT_PLATES);
-            gDPLoadTextureBlock(POLY_OPA_DISP++, sFileButtonTextures[i], G_IM_FMT_IA, G_IM_SIZ_16b, 64, 16, 0,
+            gDPLoadTextureBlock(POLY_OPA_DISP++, MM_sFileButtonTextures[i], G_IM_FMT_IA, G_IM_SIZ_16b, 64, 16, 0,
                                 G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK,
                                 G_TX_NOLOD, G_TX_NOLOD);
             gSP1Quadrangle(POLY_OPA_DISP++, 0, 2, 3, 1, 0);
 
             // draw file name box
-            gDPSetPrimColorOverride(POLY_OPA_DISP++, 0, 0, sWindowContentColors[0], sWindowContentColors[1],
-                                    sWindowContentColors[2], this->nameBoxAlpha[i],
+            gDPSetPrimColorOverride(POLY_OPA_DISP++, 0, 0, MM_sWindowContentColors[0], MM_sWindowContentColors[1],
+                                    MM_sWindowContentColors[2], this->nameBoxAlpha[i],
                                     COSMETIC_ELEMENT_FILE_SELECT_PLATES);
             gDPLoadTextureBlock(POLY_OPA_DISP++, gFileSelFileNameBoxTex, G_IM_FMT_IA, G_IM_SIZ_16b, 108, 16, 0,
                                 G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK,
                                 G_TX_NOLOD, G_TX_NOLOD);
             gSP1Quadrangle(POLY_OPA_DISP++, 4, 6, 7, 5, 0);
-            gDPSetPrimColorOverride(POLY_OPA_DISP++, 0, 0, sWindowContentColors[0], sWindowContentColors[1],
-                                    sWindowContentColors[2], this->nameBoxAlpha[i],
+            gDPSetPrimColorOverride(POLY_OPA_DISP++, 0, 0, MM_sWindowContentColors[0], MM_sWindowContentColors[1],
+                                    MM_sWindowContentColors[2], this->nameBoxAlpha[i],
                                     COSMETIC_ELEMENT_FILE_SELECT_PLATES);
             gDPLoadTextureBlock(POLY_OPA_DISP++, gFileSelConnectorTex, G_IM_FMT_IA, G_IM_SIZ_8b, 24, 16, 0,
                                 G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK,
@@ -1767,8 +1767,8 @@ void FileSelect_DrawWindowContents(GameState* thisx) {
 
             if (GameInteractor_Should(VB_DRAW_FILE_SELECT_SMALL_EXTRA_INFO_BOX,
                                       this->isOwlSave[i + FILE_NUM_OWL_SAVE_OFFSET], i)) {
-                gDPSetPrimColorOverride(POLY_OPA_DISP++, 0, 0, sWindowContentColors[0], sWindowContentColors[1],
-                                        sWindowContentColors[2], this->nameBoxAlpha[i],
+                gDPSetPrimColorOverride(POLY_OPA_DISP++, 0, 0, MM_sWindowContentColors[0], MM_sWindowContentColors[1],
+                                        MM_sWindowContentColors[2], this->nameBoxAlpha[i],
                                         COSMETIC_ELEMENT_FILE_SELECT_PLATES);
                 gDPLoadTextureBlock(POLY_OPA_DISP++, gFileSelBlankButtonTex, G_IM_FMT_IA, G_IM_SIZ_16b, 52, 16, 0,
                                     G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK,
@@ -1794,7 +1794,7 @@ void FileSelect_DrawWindowContents(GameState* thisx) {
         gDPPipeSync(POLY_OPA_DISP++);
         gDPSetPrimColorOverride(POLY_OPA_DISP++, 0, 0, this->windowColor[0], this->windowColor[1], this->windowColor[2],
                                 this->actionButtonAlpha[i], COSMETIC_ELEMENT_FILE_SELECT_PLATES);
-        gDPLoadTextureBlock(POLY_OPA_DISP++, sActionButtonTextures[i], G_IM_FMT_IA, G_IM_SIZ_16b, 64, 16, 0,
+        gDPLoadTextureBlock(POLY_OPA_DISP++, MM_sActionButtonTextures[i], G_IM_FMT_IA, G_IM_SIZ_16b, 64, 16, 0,
                             G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD,
                             G_TX_NOLOD);
         gSP1Quadrangle(POLY_OPA_DISP++, quadVtxIndex, quadVtxIndex + 2, quadVtxIndex + 3, quadVtxIndex + 1, 0);
@@ -1807,7 +1807,7 @@ void FileSelect_DrawWindowContents(GameState* thisx) {
         temp = this->confirmButtonTexIndices[i];
         gDPSetPrimColorOverride(POLY_OPA_DISP++, 0, 0, this->windowColor[0], this->windowColor[1], this->windowColor[2],
                                 this->confirmButtonAlpha[i], COSMETIC_ELEMENT_FILE_SELECT_PLATES);
-        gDPLoadTextureBlock(POLY_OPA_DISP++, sActionButtonTextures[temp], G_IM_FMT_IA, G_IM_SIZ_16b, 64, 16, 0,
+        gDPLoadTextureBlock(POLY_OPA_DISP++, MM_sActionButtonTextures[temp], G_IM_FMT_IA, G_IM_SIZ_16b, 64, 16, 0,
                             G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD,
                             G_TX_NOLOD);
         gSP1Quadrangle(POLY_OPA_DISP++, quadVtxIndex, quadVtxIndex + 2, quadVtxIndex + 3, quadVtxIndex + 1, 0);
@@ -1849,11 +1849,11 @@ void FileSelect_DrawWindowContents(GameState* thisx) {
         gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, this->emptyFileTextAlpha);
         gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 0);
         if (ResourceMgr_GetGameVersion(0) == MM_NTSC_US_GC) {
-            gDPLoadTextureBlock_4b(POLY_OPA_DISP++, sWarningLabels[this->warningLabel], G_IM_FMT_IA, 128, 16, 0,
+            gDPLoadTextureBlock_4b(POLY_OPA_DISP++, MM_sWarningLabels[this->warningLabel], G_IM_FMT_IA, 128, 16, 0,
                                    G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK,
                                    G_TX_NOLOD, G_TX_NOLOD);
         } else { // MM_NTSC_US_10
-            gDPLoadTextureBlock(POLY_OPA_DISP++, sWarningLabels[this->warningLabel], G_IM_FMT_IA, G_IM_SIZ_8b, 128, 16,
+            gDPLoadTextureBlock(POLY_OPA_DISP++, MM_sWarningLabels[this->warningLabel], G_IM_FMT_IA, G_IM_SIZ_8b, 128, 16,
                                 0, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK,
                                 G_TX_NOLOD, G_TX_NOLOD);
         }
@@ -1889,8 +1889,8 @@ void FileSelect_ConfigModeDraw(GameState* thisx) {
                                 this->windowAlpha, COSMETIC_ELEMENT_FILE_SELECT_MENU);
         gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 0);
 
-        Matrix_Translate(0.0f, 0.0f, -93.6f, MTXMODE_NEW);
-        Matrix_Scale(0.78f, 0.78f, 0.78f, MTXMODE_APPLY);
+        MM_Matrix_Translate(0.0f, 0.0f, -93.6f, MTXMODE_NEW);
+        MM_Matrix_Scale(0.78f, 0.78f, 0.78f, MTXMODE_APPLY);
 
         if (this->windowRot != 0) {
             Matrix_RotateXFApply(this->windowRot / 100.0f);
@@ -1920,8 +1920,8 @@ void FileSelect_ConfigModeDraw(GameState* thisx) {
                                 this->windowAlpha, COSMETIC_ELEMENT_FILE_SELECT_MENU);
         gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 0);
 
-        Matrix_Translate(0.0f, 0.0f, -93.6f, MTXMODE_NEW);
-        Matrix_Scale(0.78f, 0.78f, 0.78f, MTXMODE_APPLY);
+        MM_Matrix_Translate(0.0f, 0.0f, -93.6f, MTXMODE_NEW);
+        MM_Matrix_Scale(0.78f, 0.78f, 0.78f, MTXMODE_APPLY);
         Matrix_RotateXFApply((this->windowRot - 314.0f) / 100.0f);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, this->state.gfxCtx);
@@ -1948,8 +1948,8 @@ void FileSelect_ConfigModeDraw(GameState* thisx) {
                                 this->windowAlpha, COSMETIC_ELEMENT_FILE_SELECT_MENU);
         gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 0);
 
-        Matrix_Translate(0.0f, 0.0f, -93.6f, MTXMODE_NEW);
-        Matrix_Scale(0.78f, 0.78f, 0.78f, MTXMODE_APPLY);
+        MM_Matrix_Translate(0.0f, 0.0f, -93.6f, MTXMODE_NEW);
+        MM_Matrix_Scale(0.78f, 0.78f, 0.78f, MTXMODE_APPLY);
         Matrix_RotateXFApply((this->windowRot - 314.0f) / 100.0f);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, this->state.gfxCtx);
@@ -2198,12 +2198,12 @@ void FileSelect_LoadGame(GameState* thisx) {
     u16 i;
 
     gSaveContext.fileNum = this->buttonIndex;
-    Sram_OpenSave(this, &this->sramCtx);
+    MM_Sram_OpenSave(this, &this->sramCtx);
 
     gSaveContext.gameMode = GAMEMODE_NORMAL;
 
     STOP_GAMESTATE(&this->state);
-    SET_NEXT_GAMESTATE(&this->state, Play_Init, sizeof(PlayState));
+    SET_NEXT_GAMESTATE(&this->state, MM_Play_Init, sizeof(PlayState));
 
     gSaveContext.respawnFlag = 0;
     gSaveContext.respawn[RESPAWN_MODE_DOWN].entrance = ENTR_LOAD_OPENING;
@@ -2284,8 +2284,8 @@ void FileSelect_SelectModeDraw(GameState* thisx) {
                             this->windowAlpha, COSMETIC_ELEMENT_FILE_SELECT_MENU);
     gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 0);
 
-    Matrix_Translate(0.0f, 0.0f, -93.6f, MTXMODE_NEW);
-    Matrix_Scale(0.78f, 0.78f, 0.78f, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, 0.0f, -93.6f, MTXMODE_NEW);
+    MM_Matrix_Scale(0.78f, 0.78f, 0.78f, MTXMODE_APPLY);
     Matrix_RotateXFApply(this->windowRot / 100.0f);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, this->state.gfxCtx);
 
@@ -2315,9 +2315,9 @@ void FileSelect_UpdateAndDrawSkybox(FileSelectState* this) {
 
     gDPPipeSync(POLY_OPA_DISP++);
 
-    eyeX = 1000.0f * Math_CosS(sFileSelectSkyboxRotation) - 1000.0f * Math_SinS(sFileSelectSkyboxRotation);
+    eyeX = 1000.0f * MM_Math_CosS(sFileSelectSkyboxRotation) - 1000.0f * MM_Math_SinS(sFileSelectSkyboxRotation);
     eyeY = -700.0f;
-    eyeZ = 1000.0f * Math_SinS(sFileSelectSkyboxRotation) + 1000.0f * Math_CosS(sFileSelectSkyboxRotation);
+    eyeZ = 1000.0f * MM_Math_SinS(sFileSelectSkyboxRotation) + 1000.0f * MM_Math_CosS(sFileSelectSkyboxRotation);
 
     FileSelect_SetView(this, eyeX, eyeY, eyeZ);
     Skybox_Draw(&this->skyboxCtx, this->state.gfxCtx, SKYBOX_NORMAL_SKY, this->envCtx.skyboxBlend, eyeX, eyeY, eyeZ);
@@ -2451,7 +2451,7 @@ void FileSelect_Main(GameState* thisx) {
                         1 << 10, 1 << 10);
 
     gDPPipeSync(POLY_OPA_DISP++);
-    gSPDisplayList(POLY_OPA_DISP++, sScreenFillSetupDL);
+    gSPDisplayList(POLY_OPA_DISP++, MM_sScreenFillSetupDL);
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 0, 0, 0, this->screenFillAlpha);
     gSPDisplayList(POLY_OPA_DISP++, D_0E000000_TO_SEGMENTED(fillRect));
 
@@ -2525,7 +2525,7 @@ void FileSelect_InitContext(GameState* thisx) {
     gSaveContext.skyboxTime = 0;
     gSaveContext.save.time = CLOCK_TIME(0, 0);
 
-    Skybox_Init(&this->state, &this->skyboxCtx, 1);
+    MM_Skybox_Init(&this->state, &this->skyboxCtx, 1);
     R_TIME_SPEED = 10;
 
     envCtx->changeSkyboxState = CHANGE_SKYBOX_INACTIVE;
@@ -2558,7 +2558,7 @@ void FileSelect_InitContext(GameState* thisx) {
 }
 
 void FileSelect_Destroy(GameState* this) {
-    ShrinkWindow_Destroy();
+    MM_ShrinkWindow_Destroy();
     gFileSelectState = NULL;
 }
 
@@ -2569,25 +2569,25 @@ void FileSelect_Init(GameState* thisx) {
     size_t size;
 
     GameState_SetFramerateDivisor(&this->state, 1);
-    Matrix_Init(&this->state);
-    ShrinkWindow_Init();
-    View_Init(&this->view, this->state.gfxCtx);
+    MM_Matrix_Init(&this->state);
+    MM_ShrinkWindow_Init();
+    MM_View_Init(&this->view, this->state.gfxCtx);
     this->state.main = FileSelect_Main;
     this->state.destroy = FileSelect_Destroy;
     FileSelect_InitContext(&this->state);
-    Font_LoadOrderedFont(&this->font);
+    MM_Font_LoadOrderedFont(&this->font);
 
     size = SEGMENT_ROM_SIZE(title_static);
     this->staticSegment = THA_AllocTailAlign16(&this->state.tha, size);
-    DmaMgr_SendRequest0(this->staticSegment, SEGMENT_ROM_START(title_static), size);
+    MM_DmaMgr_SendRequest0(this->staticSegment, SEGMENT_ROM_START(title_static), size);
 
     size = SEGMENT_ROM_SIZE(parameter_static);
     this->parameterSegment = THA_AllocTailAlign16(&this->state.tha, size);
-    DmaMgr_SendRequest0(this->parameterSegment, SEGMENT_ROM_START(parameter_static), size);
+    MM_DmaMgr_SendRequest0(this->parameterSegment, SEGMENT_ROM_START(parameter_static), size);
 
-    size = gObjectTable[OBJECT_MAG].vromEnd - gObjectTable[OBJECT_MAG].vromStart;
+    size = MM_gObjectTable[OBJECT_MAG].vromEnd - MM_gObjectTable[OBJECT_MAG].vromStart;
     this->titleSegment = THA_AllocTailAlign16(&this->state.tha, size);
-    DmaMgr_SendRequest0(this->titleSegment, gObjectTable[OBJECT_MAG].vromStart, size);
+    MM_DmaMgr_SendRequest0(this->titleSegment, MM_gObjectTable[OBJECT_MAG].vromStart, size);
 
     Audio_SetSpec(0xA);
     // Setting ioData to 1 and writing it to ioPort 7 will skip the harp intro

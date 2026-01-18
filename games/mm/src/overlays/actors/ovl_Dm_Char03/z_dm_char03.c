@@ -35,7 +35,7 @@ typedef enum {
     /* 1 */ DMCHAR03_ANIM_MAX
 } DmChar03Animation;
 
-static AnimationInfo sAnimationInfo[DMCHAR03_ANIM_MAX] = {
+static AnimationInfo MM_sAnimationInfo[DMCHAR03_ANIM_MAX] = {
     { &gDekuMaskFallOverAnim, 1.0f, 0.0f, -1.0f, ANIMMODE_ONCE, 0.0f }, // DMCHAR03_ANIM_FALL_OVER
 };
 
@@ -45,11 +45,11 @@ void DmChar03_ChangeAnim(SkelAnime* skelAnime, AnimationInfo* animInfo, u16 anim
     animInfo += animIndex;
 
     if (animInfo->frameCount < 0.0f) {
-        endFrame = Animation_GetLastFrame(animInfo->animation);
+        endFrame = MM_Animation_GetLastFrame(animInfo->animation);
     } else {
         endFrame = animInfo->frameCount;
     }
-    Animation_Change(skelAnime, animInfo->animation, animInfo->playSpeed, animInfo->startFrame, endFrame,
+    MM_Animation_Change(skelAnime, animInfo->animation, animInfo->playSpeed, animInfo->startFrame, endFrame,
                      animInfo->mode, animInfo->morphFrames);
 }
 
@@ -59,10 +59,10 @@ void DmChar03_Init(Actor* thisx, PlayState* play) {
     this->animIndex = DMCHAR03_ANIM_FALL_OVER;
     this->actor.lockOnArrowOffset = 3000.0f;
     this->unk_18E = false;
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 24.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gDekuMaskSkel, NULL, NULL, NULL, 0);
-    DmChar03_ChangeAnim(&this->skelAnime, &sAnimationInfo[DMCHAR03_ANIM_FALL_OVER], 0);
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 24.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gDekuMaskSkel, NULL, NULL, NULL, 0);
+    DmChar03_ChangeAnim(&this->skelAnime, &MM_sAnimationInfo[DMCHAR03_ANIM_FALL_OVER], 0);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->actionFunc = DmChar03_DoNothing;
 }
 
@@ -113,11 +113,11 @@ void func_80AAB710(DmChar03* this, PlayState* play) {
                 case 3:
                     this->unk_18E = false;
                     changeAnim = false;
-                    Actor_Kill(&this->actor);
+                    MM_Actor_Kill(&this->actor);
                     break;
 
                 case 4:
-                    Item_Give(play, ITEM_MASK_DEKU);
+                    MM_Item_Give(play, ITEM_MASK_DEKU);
                     changeAnim = false;
                     this->actionFunc = func_80AAB5F8;
                     break;
@@ -128,7 +128,7 @@ void func_80AAB710(DmChar03* this, PlayState* play) {
             }
 
             if (changeAnim) {
-                DmChar03_ChangeAnim(&this->skelAnime, &sAnimationInfo[this->animIndex], 0);
+                DmChar03_ChangeAnim(&this->skelAnime, &MM_sAnimationInfo[this->animIndex], 0);
             }
         }
         Cutscene_ActorTranslateAndYaw(&this->actor, play, cueChannel);
@@ -136,10 +136,10 @@ void func_80AAB710(DmChar03* this, PlayState* play) {
 }
 
 void func_80AAB838(DmChar03* this, PlayState* play) {
-    if (Animation_OnFrame(&this->skelAnime, 5.0f)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, 5.0f)) {
         Actor_PlaySfx(&this->actor, NA_SE_IT_MASK_BOUND_0);
-    } else if (Animation_OnFrame(&this->skelAnime, 10.0f) || Animation_OnFrame(&this->skelAnime, 18.0f) ||
-               Animation_OnFrame(&this->skelAnime, 30.0f) || Animation_OnFrame(&this->skelAnime, 38.0f)) {
+    } else if (MM_Animation_OnFrame(&this->skelAnime, 10.0f) || MM_Animation_OnFrame(&this->skelAnime, 18.0f) ||
+               MM_Animation_OnFrame(&this->skelAnime, 30.0f) || MM_Animation_OnFrame(&this->skelAnime, 38.0f)) {
         Actor_PlaySfx(&this->actor, NA_SE_IT_MASK_BOUND_1);
     }
 }
@@ -149,7 +149,7 @@ void DmChar03_Update(Actor* thisx, PlayState* play) {
 
     if (Cutscene_IsCueInChannel(play, CS_CMD_ACTOR_CUE_136) &&
         (play->csCtx.actorCues[Cutscene_GetCueChannel(play, CS_CMD_ACTOR_CUE_136)]->id == 2)) {
-        SkelAnime_Update(&this->skelAnime);
+        MM_SkelAnime_Update(&this->skelAnime);
     }
     this->actionFunc(this, play);
     func_80AAB710(this, play);
@@ -186,12 +186,12 @@ void func_80AABA84(PlayState* play, DmChar03* this) {
     s32 pad;
 
     if (this->actor.objectSlot == this->objectSlot) {
-        Matrix_Translate(this->offset.x, this->offset.y, this->offset.z, MTXMODE_NEW);
-        Matrix_RotateZYX(0, (play->gameplayFrames * 0x3E8), 0, MTXMODE_APPLY);
-        Matrix_Scale(0.2f, 0.2f, 0.2f, MTXMODE_APPLY);
-        GetItem_Draw(play, GID_MASK_DEKU);
+        MM_Matrix_Translate(this->offset.x, this->offset.y, this->offset.z, MTXMODE_NEW);
+        MM_Matrix_RotateZYX(0, (play->gameplayFrames * 0x3E8), 0, MTXMODE_APPLY);
+        MM_Matrix_Scale(0.2f, 0.2f, 0.2f, MTXMODE_APPLY);
+        MM_GetItem_Draw(play, GID_MASK_DEKU);
     }
-    if (Object_IsLoaded(&play->objectCtx, this->objectSlot)) {
+    if (MM_Object_IsLoaded(&play->objectCtx, this->objectSlot)) {
         this->actor.objectSlot = this->objectSlot;
     }
 }

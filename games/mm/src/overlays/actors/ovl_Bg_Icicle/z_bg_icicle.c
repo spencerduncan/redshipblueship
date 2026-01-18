@@ -20,7 +20,7 @@ void BgIcicle_Shiver(BgIcicle* this, PlayState* play);
 void BgIcicle_Fall(BgIcicle* this, PlayState* play);
 void BgIcicle_Regrow(BgIcicle* this, PlayState* play);
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -52,7 +52,7 @@ ActorProfile Bg_Icicle_Profile = {
     /**/ BgIcicle_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeScale, 1500, ICHAIN_CONTINUE),
     ICHAIN_F32(gravity, -3, ICHAIN_CONTINUE),
     ICHAIN_F32(terminalVelocity, -30, ICHAIN_CONTINUE),
@@ -65,12 +65,12 @@ void BgIcicle_Init(Actor* thisx, PlayState* play) {
     s32 paramsHigh;
     s32 paramsMid;
 
-    Actor_ProcessInitChain(thisx, sInitChain);
-    DynaPolyActor_Init(&this->dyna, 0);
+    MM_Actor_ProcessInitChain(thisx, MM_sInitChain);
+    MM_DynaPolyActor_Init(&this->dyna, 0);
     DynaPolyActor_LoadMesh(play, &this->dyna, &gIcicleCol);
 
-    Collider_InitAndSetCylinder(play, &this->collider, thisx, &sCylinderInit);
-    Collider_UpdateCylinder(thisx, &this->collider);
+    Collider_InitAndSetCylinder(play, &this->collider, thisx, &MM_sCylinderInit);
+    MM_Collider_UpdateCylinder(thisx, &this->collider);
 
     paramsHigh = (thisx->params >> 8) & 0xFF;
     paramsMid = (thisx->params >> 2) & 0x3F;
@@ -90,12 +90,12 @@ void BgIcicle_Init(Actor* thisx, PlayState* play) {
 void BgIcicle_Destroy(Actor* thisx, PlayState* play) {
     BgIcicle* this = (BgIcicle*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void BgIcicle_Break(BgIcicle* this, PlayState* play, f32 arg2) {
-    static Vec3f sAccel = { 0.0f, -1.0f, 0.0f };
+    static Vec3f MM_sAccel = { 0.0f, -1.0f, 0.0f };
     static Color_RGBA8 sPrimColor = { 170, 255, 255, 255 };
     static Color_RGBA8 sEnvColor = { 0, 50, 100, 255 };
     Vec3f velocity;
@@ -103,19 +103,19 @@ void BgIcicle_Break(BgIcicle* this, PlayState* play, f32 arg2) {
     s32 j;
     s32 i;
 
-    SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 30, NA_SE_EV_ICE_BROKEN);
+    MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 30, NA_SE_EV_ICE_BROKEN);
 
     for (i = 0; i < 2; i++) {
         for (j = 0; j < 10; j++) {
-            pos.x = this->dyna.actor.world.pos.x + Rand_CenteredFloat(8.0f);
-            pos.y = this->dyna.actor.world.pos.y + (Rand_ZeroOne() * arg2) + (i * arg2);
-            pos.z = this->dyna.actor.world.pos.z + Rand_CenteredFloat(8.0f);
+            pos.x = this->dyna.actor.world.pos.x + MM_Rand_CenteredFloat(8.0f);
+            pos.y = this->dyna.actor.world.pos.y + (MM_Rand_ZeroOne() * arg2) + (i * arg2);
+            pos.z = this->dyna.actor.world.pos.z + MM_Rand_CenteredFloat(8.0f);
 
-            velocity.x = Rand_CenteredFloat(7.0f);
-            velocity.z = Rand_CenteredFloat(7.0f);
-            velocity.y = (Rand_ZeroOne() * 4.0f) + 8.0f;
+            velocity.x = MM_Rand_CenteredFloat(7.0f);
+            velocity.z = MM_Rand_CenteredFloat(7.0f);
+            velocity.y = (MM_Rand_ZeroOne() * 4.0f) + 8.0f;
 
-            EffectSsEnIce_Spawn(play, &pos, (Rand_ZeroOne() * 0.2f) + 0.1f, &velocity, &sAccel, &sPrimColor, &sEnvColor,
+            MM_EffectSsEnIce_Spawn(play, &pos, (MM_Rand_ZeroOne() * 0.2f) + 0.1f, &velocity, &MM_sAccel, &sPrimColor, &sEnvColor,
                                 30);
         }
     }
@@ -147,15 +147,15 @@ void BgIcicle_Shiver(BgIcicle* this, PlayState* play) {
         this->dyna.actor.world.pos.x = this->dyna.actor.home.pos.x;
         this->dyna.actor.world.pos.z = this->dyna.actor.home.pos.z;
 
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
         DynaPoly_DisableCollision(play, &play->colCtx.dyna, this->dyna.bgId);
         this->actionFunc = BgIcicle_Fall;
     } else {
-        rand = Rand_ZeroOne();
-        randSign = (Rand_ZeroOne() < 0.5f ? -1 : 1);
+        rand = MM_Rand_ZeroOne();
+        randSign = (MM_Rand_ZeroOne() < 0.5f ? -1 : 1);
         this->dyna.actor.world.pos.x = (randSign * ((0.5f * rand) + 0.5f)) + this->dyna.actor.home.pos.x;
-        rand = Rand_ZeroOne();
-        randSign = (Rand_ZeroOne() < 0.5f ? -1 : 1);
+        rand = MM_Rand_ZeroOne();
+        randSign = (MM_Rand_ZeroOne() < 0.5f ? -1 : 1);
         this->dyna.actor.world.pos.z = (randSign * ((0.5f * rand) + 0.5f)) + this->dyna.actor.home.pos.z;
     }
 }
@@ -176,19 +176,19 @@ void BgIcicle_Fall(BgIcicle* this, PlayState* play) {
             DynaPoly_EnableCollision(play, &play->colCtx.dyna, this->dyna.bgId);
             this->actionFunc = BgIcicle_Regrow;
         } else {
-            Actor_Kill(&this->dyna.actor);
+            MM_Actor_Kill(&this->dyna.actor);
         }
     } else {
         Actor_MoveWithGravity(&this->dyna.actor);
         this->dyna.actor.world.pos.y += 40.0f;
-        Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+        MM_Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
         this->dyna.actor.world.pos.y -= 40.0f;
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
 void BgIcicle_Regrow(BgIcicle* this, PlayState* play) {
-    if (Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y, 1.0f)) {
+    if (MM_Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y, 1.0f)) {
         this->actionFunc = BgIcicle_Wait;
         this->dyna.actor.velocity.y = 0.0f;
     }
@@ -204,12 +204,12 @@ void BgIcicle_UpdateAttacked(BgIcicle* this, PlayState* play) {
             BgIcicle_Break(this, play, 50.0f);
 
             if (this->unk_160 != 0xFF) {
-                Item_DropCollectibleRandom(play, NULL, &this->dyna.actor.world.pos, this->unk_160 << 4);
+                MM_Item_DropCollectibleRandom(play, NULL, &this->dyna.actor.world.pos, this->unk_160 << 4);
             }
         } else if (this->dyna.actor.params == ICICLE_STALAGMITE_FIXED_DROP) {
             dropItem00Id = func_800A8150(this->unk_160);
             BgIcicle_Break(this, play, 50.0f);
-            Item_DropCollectible(play, &this->dyna.actor.world.pos, (this->unk_161 << 8) | dropItem00Id);
+            MM_Item_DropCollectible(play, &this->dyna.actor.world.pos, (this->unk_161 << 8) | dropItem00Id);
         } else {
             if (this->dyna.actor.params == ICICLE_STALACTITE_REGROW) {
                 BgIcicle_Break(this, play, 40.0f);
@@ -222,7 +222,7 @@ void BgIcicle_UpdateAttacked(BgIcicle* this, PlayState* play) {
             BgIcicle_Break(this, play, 40.0f);
         }
 
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
     }
 }
 
@@ -234,11 +234,11 @@ void BgIcicle_Update(Actor* thisx, PlayState* play) {
     this->actionFunc(this, play);
 
     if (this->actionFunc != BgIcicle_Regrow) {
-        Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
 void BgIcicle_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, gIcicleDL);
+    MM_Gfx_DrawDListOpa(play, gIcicleDL);
 }

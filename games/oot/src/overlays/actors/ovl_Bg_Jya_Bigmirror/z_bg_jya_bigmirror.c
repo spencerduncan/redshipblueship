@@ -80,7 +80,7 @@ void BgJyaBigmirror_HandleCobra(Actor* thisx, PlayState* play) {
                     osSyncPrintf("Error : コブラ削除された (%s %d)\n", __FILE__, __LINE__);
                 }
             } else {
-                curCobraInfo->cobra = (BgJyaCobra*)Actor_SpawnAsChild(
+                curCobraInfo->cobra = (BgJyaCobra*)OoT_Actor_SpawnAsChild(
                     &play->actorCtx, &this->actor, play, ACTOR_BG_JYA_COBRA, curSpawnData->pos.x, curSpawnData->pos.y,
                     curSpawnData->pos.z, 0, curCobraInfo->rotY, 0, curSpawnData->params);
                 this->actor.child = NULL;
@@ -97,10 +97,10 @@ void BgJyaBigmirror_HandleCobra(Actor* thisx, PlayState* play) {
             curCobraInfo = &this->cobraInfo[i];
             if (curCobraInfo->cobra != NULL) {
                 if (curCobraInfo->cobra->dyna.actor.child != NULL) {
-                    Actor_Kill(curCobraInfo->cobra->dyna.actor.child);
+                    OoT_Actor_Kill(curCobraInfo->cobra->dyna.actor.child);
                     curCobraInfo->cobra->dyna.actor.child = NULL;
                 }
-                Actor_Kill(&curCobraInfo->cobra->dyna.actor);
+                OoT_Actor_Kill(&curCobraInfo->cobra->dyna.actor);
                 curCobraInfo->cobra = NULL;
             }
         }
@@ -110,7 +110,7 @@ void BgJyaBigmirror_HandleCobra(Actor* thisx, PlayState* play) {
 void BgJyaBigmirror_SetBombiwaFlag(Actor* thisx, PlayState* play) {
     BgJyaBigmirror* this = (BgJyaBigmirror*)thisx;
 
-    if (Flags_GetSwitch(play, 0x29)) {
+    if (OoT_Flags_GetSwitch(play, 0x29)) {
         this->puzzleFlags |= BIGMIR_PUZZLE_BOMBIWA_DESTROYED;
     } else {
         this->puzzleFlags &= ~(BIGMIR_PUZZLE_BOMBIWA_DESTROYED);
@@ -152,9 +152,9 @@ void BgJyaBigmirror_HandleMirRay(Actor* thisx, PlayState* play) {
 
         for (i = 0; i < 3; i++) {
             if (lightBeamToggles[i]) {
-                if ((this->lightBeams[i] == NULL) && Object_IsLoaded(&play->objectCtx, objBankIndex)) {
+                if ((this->lightBeams[i] == NULL) && OoT_Object_IsLoaded(&play->objectCtx, objBankIndex)) {
                     this->lightBeams[i] =
-                        Actor_Spawn(&play->actorCtx, play, ACTOR_MIR_RAY, sMirRayPoss[i].x, sMirRayPoss[i].y,
+                        OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_MIR_RAY, sMirRayPoss[i].x, sMirRayPoss[i].y,
                                     sMirRayPoss[i].z, 0, 0, 0, sMirRayParamss[i], true);
 
                     if (this->lightBeams[i] == NULL) {
@@ -164,7 +164,7 @@ void BgJyaBigmirror_HandleMirRay(Actor* thisx, PlayState* play) {
                 }
             } else {
                 if (this->lightBeams[i] != NULL) {
-                    Actor_Kill(this->lightBeams[i]);
+                    OoT_Actor_Kill(this->lightBeams[i]);
                     this->lightBeams[i] = NULL;
                 }
             }
@@ -177,11 +177,11 @@ void BgJyaBigmirror_Init(Actor* thisx, PlayState* play) {
     BgJyaBigmirror* this = (BgJyaBigmirror*)thisx;
 
     if (sKankyoIsSpawned) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
 
-    Actor_SetScale(&this->actor, 0.1f);
+    OoT_Actor_SetScale(&this->actor, 0.1f);
     this->cobraInfo[0].rotY = sCobraSpawnData[0].initRotY;
     this->cobraInfo[1].rotY = sCobraSpawnData[1].initRotY;
     this->actor.room = -1;
@@ -219,15 +219,15 @@ void BgJyaBigmirror_DrawLightBeam(Actor* thisx, PlayState* play) {
     if (lift != NULL) {
         this->liftHeight = lift->world.pos.y;
     }
-    Matrix_SetTranslateRotateYXZ(this->actor.world.pos.x, this->actor.world.pos.y + 40.0f, this->actor.world.pos.z,
+    OoT_Matrix_SetTranslateRotateYXZ(this->actor.world.pos.x, this->actor.world.pos.y + 40.0f, this->actor.world.pos.z,
                                  &this->actor.shape.rot);
-    Matrix_Scale(0.1f, (this->liftHeight * -(1.0f / 1280.0f)) + (1779.4f / 1280.0f), 0.1f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(0.1f, (this->liftHeight * -(1.0f / 1280.0f)) + (1779.4f / 1280.0f), 0.1f, MTXMODE_APPLY);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_XLU_DISP++, gBigMirror1DL);
 
     if (lift != NULL) {
-        Matrix_SetTranslateRotateYXZ(lift->world.pos.x, lift->world.pos.y, lift->world.pos.z, &D_80893F4C);
-        Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
+        OoT_Matrix_SetTranslateRotateYXZ(lift->world.pos.x, lift->world.pos.y, lift->world.pos.z, &D_80893F4C);
+        OoT_Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPDisplayList(POLY_XLU_DISP++, gBigMirror2DL);
     }
@@ -239,8 +239,8 @@ void BgJyaBigmirror_Draw(Actor* thisx, PlayState* play) {
     BgJyaBigmirror* this = (BgJyaBigmirror*)thisx;
 
     if (this->puzzleFlags & BIGMIR_PUZZLE_IN_1ST_TOP_ROOM) {
-        Gfx_DrawDListOpa(play, gBigMirror3DL);
-        Gfx_DrawDListXlu(play, gBigMirror4DL);
+        OoT_Gfx_DrawDListOpa(play, gBigMirror3DL);
+        OoT_Gfx_DrawDListXlu(play, gBigMirror4DL);
     }
 
     if ((this->puzzleFlags &

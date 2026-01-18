@@ -9,14 +9,14 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY)
 
-void EnTg_Init(Actor* thisx, PlayState* play);
-void EnTg_Destroy(Actor* thisx, PlayState* play);
-void EnTg_Update(Actor* thisx, PlayState* play);
-void EnTg_Draw(Actor* thisx, PlayState* play);
+void OoT_EnTg_Init(Actor* thisx, PlayState* play);
+void OoT_EnTg_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnTg_Update(Actor* thisx, PlayState* play);
+void OoT_EnTg_Draw(Actor* thisx, PlayState* play);
 
 void EnTg_SpinIfNotTalking(EnTg* this, PlayState* play);
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -36,7 +36,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 20, 64, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 OoT_sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
 
 const ActorInit En_Tg_InitVars = {
     ACTOR_EN_TG,
@@ -44,10 +44,10 @@ const ActorInit En_Tg_InitVars = {
     FLAGS,
     OBJECT_MU,
     sizeof(EnTg),
-    (ActorFunc)EnTg_Init,
-    (ActorFunc)EnTg_Destroy,
-    (ActorFunc)EnTg_Update,
-    (ActorFunc)EnTg_Draw,
+    (ActorFunc)OoT_EnTg_Init,
+    (ActorFunc)OoT_EnTg_Destroy,
+    (ActorFunc)OoT_EnTg_Update,
+    (ActorFunc)OoT_EnTg_Draw,
     NULL,
 };
 
@@ -57,7 +57,7 @@ u16 EnTg_GetTextId(PlayState* play, Actor* thisx) {
     u32 phi;
 
     // If the player is wearing a mask, return a special reaction text
-    temp = Text_GetFaceReaction(play, 0x24);
+    temp = OoT_Text_GetFaceReaction(play, 0x24);
     if (temp != 0) {
         return temp;
     }
@@ -82,7 +82,7 @@ u16 EnTg_GetTextId(PlayState* play, Actor* thisx) {
 s16 EnTg_UpdateTalkState(PlayState* play, Actor* thisx) {
     EnTg* this = (EnTg*)thisx;
 
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (OoT_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_NONE:
         case TEXT_STATE_DONE_HAS_NEXT:
         case TEXT_STATE_DONE_FADING:
@@ -111,25 +111,25 @@ s16 EnTg_UpdateTalkState(PlayState* play, Actor* thisx) {
     }
 }
 
-void EnTg_Init(Actor* thisx, PlayState* play) {
+void OoT_EnTg_Init(Actor* thisx, PlayState* play) {
     EnTg* this = (EnTg*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 28.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gDancingCoupleSkel, &gDancingCoupleAnim, NULL, NULL, 0);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, NULL, &sColChkInfoInit);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 28.0f);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gDancingCoupleSkel, &gDancingCoupleAnim, NULL, NULL, 0);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
+    OoT_CollisionCheck_SetInfo2(&this->actor.colChkInfo, NULL, &OoT_sColChkInfoInit);
     this->actor.targetMode = 6;
-    Actor_SetScale(&this->actor, 0.01f);
+    OoT_Actor_SetScale(&this->actor, 0.01f);
     this->nextDialogue = play->state.frames % 2;
     this->actionFunc = EnTg_SpinIfNotTalking;
 }
 
-void EnTg_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnTg_Destroy(Actor* thisx, PlayState* play) {
     EnTg* this = (EnTg*)thisx;
 
-    SkelAnime_Free(&this->skelAnime, play);
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_SkelAnime_Free(&this->skelAnime, play);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnTg_SpinIfNotTalking(EnTg* this, PlayState* play) {
@@ -138,7 +138,7 @@ void EnTg_SpinIfNotTalking(EnTg* this, PlayState* play) {
     }
 }
 
-void EnTg_Update(Actor* thisx, PlayState* play) {
+void OoT_EnTg_Update(Actor* thisx, PlayState* play) {
     EnTg* this = (EnTg*)thisx;
     s32 pad;
     f32 temp;
@@ -148,25 +148,25 @@ void EnTg_Update(Actor* thisx, PlayState* play) {
     sp2C.y = this->actor.world.pos.y;
     sp2C.z = (s16)this->actor.world.pos.z + 3;
     this->collider.dim.pos = sp2C;
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-    SkelAnime_Update(&this->skelAnime);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_SkelAnime_Update(&this->skelAnime);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
     this->actionFunc(this, play);
     temp = this->collider.dim.radius + 30.0f;
-    Npc_UpdateTalking(play, &this->actor, &this->interactInfo.talkState, temp, EnTg_GetTextId, EnTg_UpdateTalkState);
+    OoT_Npc_UpdateTalking(play, &this->actor, &this->interactInfo.talkState, temp, EnTg_GetTextId, EnTg_UpdateTalkState);
 }
 
-s32 EnTg_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
+s32 OoT_EnTg_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
     return false;
 }
 
-void EnTg_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
+void OoT_EnTg_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
     EnTg* this = (EnTg*)thisx;
     Vec3f targetOffset = { 0.0f, 800.0f, 0.0f };
 
     if (limbIndex == 9) {
         // Place the target point at the guy's head instead of the center of the actor
-        Matrix_MultVec3f(&targetOffset, &this->actor.focus.pos);
+        OoT_Matrix_MultVec3f(&targetOffset, &this->actor.focus.pos);
     }
 }
 
@@ -178,11 +178,11 @@ Gfx* EnTg_SetColor(GraphicsContext* gfxCtx, u8 r, u8 g, u8 b, u8 a) {
     return displayList;
 }
 
-void EnTg_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnTg_Draw(Actor* thisx, PlayState* play) {
     EnTg* this = (EnTg*)thisx;
 
     OPEN_DISPS(play->state.gfxCtx);
-    Matrix_Translate(0.0f, 0.0f, -560.0f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(0.0f, 0.0f, -560.0f, MTXMODE_APPLY);
 
     // Set the guy's shoes and shirt to royal blue
     gSPSegment(POLY_OPA_DISP++, 0x08, EnTg_SetColor(play->state.gfxCtx, 0, 50, 160, 0));
@@ -190,6 +190,6 @@ void EnTg_Draw(Actor* thisx, PlayState* play) {
     // Set the girl's shirt to white
     gSPSegment(POLY_OPA_DISP++, 0x09, EnTg_SetColor(play->state.gfxCtx, 255, 255, 255, 0));
 
-    SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, EnTg_OverrideLimbDraw, EnTg_PostLimbDraw, this);
+    SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, OoT_EnTg_OverrideLimbDraw, OoT_EnTg_PostLimbDraw, this);
     CLOSE_DISPS(play->state.gfxCtx);
 }

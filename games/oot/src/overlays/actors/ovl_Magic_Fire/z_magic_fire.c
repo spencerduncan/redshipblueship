@@ -46,7 +46,7 @@ const ActorInit Magic_Fire_InitVars = {
 
 #include "overlays/ovl_Magic_Fire/ovl_Magic_Fire.h"
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_ON | AT_TYPE_PLAYER,
@@ -66,7 +66,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 9, 9, 0, { 0, 0, 0 } },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F(scale, 0, ICHAIN_STOP),
 };
 
@@ -79,22 +79,22 @@ static u8 sVertexIndices[] = {
 void MagicFire_Init(Actor* thisx, PlayState* play) {
     MagicFire* this = (MagicFire*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
     this->action = 0;
     this->screenTintBehaviour = 0;
     this->actionTimer = 0;
     this->alphaMultiplier = -3.0f;
-    Actor_SetScale(&this->actor, 0.0f);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_Actor_SetScale(&this->actor, 0.0f);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
     this->actor.update = MagicFire_UpdateBeforeCast;
     this->actionTimer = 20;
     this->actor.room = -1;
 }
 
 void MagicFire_Destroy(Actor* thisx, PlayState* play) {
-    Magic_Reset(play);
+    OoT_Magic_Reset(play);
 }
 
 void MagicFire_UpdateBeforeCast(Actor* thisx, PlayState* play) {
@@ -102,14 +102,14 @@ void MagicFire_UpdateBeforeCast(Actor* thisx, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
     if ((play->msgCtx.msgMode == MSGMODE_OCARINA_CORRECT_PLAYBACK) || (play->msgCtx.msgMode == MSGMODE_SONG_PLAYED)) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
     if (this->actionTimer > 0) {
         this->actionTimer--;
     } else {
         this->actor.update = MagicFire_Update;
-        Player_PlaySfx(&player->actor, NA_SE_PL_MAGIC_FIRE);
+        OoT_Player_PlaySfx(&player->actor, NA_SE_PL_MAGIC_FIRE);
     }
     this->actor.world.pos = player->actor.world.pos;
 }
@@ -121,7 +121,7 @@ void MagicFire_Update(Actor* thisx, PlayState* play) {
 
     this->actor.world.pos = player->actor.world.pos;
     if ((play->msgCtx.msgMode == MSGMODE_OCARINA_CORRECT_PLAYBACK) || (play->msgCtx.msgMode == MSGMODE_SONG_PLAYED)) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
     if (this->action == DF_ACTION_EXPAND_SLOWLY) {
@@ -129,11 +129,11 @@ void MagicFire_Update(Actor* thisx, PlayState* play) {
     } else if (this->action == DF_ACTION_STOP_EXPANDING) {
         this->collider.info.toucher.damage = this->actionTimer;
     }
-    Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
     this->collider.dim.radius = (this->actor.scale.x * 325.0f);
     this->collider.dim.height = (this->actor.scale.y * 450.0f);
     this->collider.dim.yShift = (this->actor.scale.y * -225.0f);
-    CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+    OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
 
     switch (this->action) {
         case DF_ACTION_INITIALIZE:
@@ -146,9 +146,9 @@ void MagicFire_Update(Actor* thisx, PlayState* play) {
             this->action++;
             break;
         case DF_ACTION_EXPAND_SLOWLY: // Fire sphere slowly expands out of player for 30 frames
-            Math_StepToF(&this->alphaMultiplier, 1.0f, 1.0f / 30.0f);
+            OoT_Math_StepToF(&this->alphaMultiplier, 1.0f, 1.0f / 30.0f);
             if (this->actionTimer > 0) {
-                Math_SmoothStepToF(&this->actor.scale.x, 0.4f, this->scalingSpeed, 0.1f, 0.001f);
+                OoT_Math_SmoothStepToF(&this->actor.scale.x, 0.4f, this->scalingSpeed, 0.1f, 0.001f);
                 this->actor.scale.y = this->actor.scale.z = this->actor.scale.x;
             } else {
                 this->actionTimer = 25;
@@ -169,7 +169,7 @@ void MagicFire_Update(Actor* thisx, PlayState* play) {
             this->actor.scale.z += this->scalingSpeed;
             if (this->alphaMultiplier <= 0.0f) {
                 this->action = 0;
-                Actor_Kill(&this->actor);
+                OoT_Actor_Kill(&this->actor);
             }
             break;
     }
@@ -237,7 +237,7 @@ void MagicFire_Draw(Actor* thisx, PlayState* play) {
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, Spell_col.r, Spell_col.g, Spell_col.b,
                         (u8)(this->alphaMultiplier * 255));
         gDPSetEnvColor(POLY_XLU_DISP++, Spell_env.r, Spell_env.g, Spell_env.b, (u8)(this->alphaMultiplier * 255));
-        Matrix_Scale(0.15f, 0.15f, 0.15f, MTXMODE_APPLY);
+        OoT_Matrix_Scale(0.15f, 0.15f, 0.15f, MTXMODE_APPLY);
         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gDPPipeSync(POLY_XLU_DISP++);
         gSPTexture(POLY_XLU_DISP++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
@@ -249,7 +249,7 @@ void MagicFire_Draw(Actor* thisx, PlayState* play) {
         gDPSetTileSize(POLY_XLU_DISP++, 1, 0, 0, 252, 252);
         gSPDisplayList(POLY_XLU_DISP++, sMaterialDL);
         gSPDisplayList(POLY_XLU_DISP++,
-                       Gfx_TwoTexScroll(play->state.gfxCtx, 0, (gameplayFrames * 2) % 512,
+                       OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, (gameplayFrames * 2) % 512,
                                         511 - ((gameplayFrames * 5) % 512), 64, 64, 1, (gameplayFrames * 2) % 256,
                                         255 - ((gameplayFrames * 20) % 256), 32, 32));
         gSPDisplayList(POLY_XLU_DISP++, sModelDL);

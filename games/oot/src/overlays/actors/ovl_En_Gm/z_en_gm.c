@@ -15,10 +15,10 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void EnGm_Init(Actor* thisx, PlayState* play);
-void EnGm_Destroy(Actor* thisx, PlayState* play);
-void EnGm_Update(Actor* thisx, PlayState* play);
-void EnGm_Draw(Actor* thisx, PlayState* play);
+void OoT_EnGm_Init(Actor* thisx, PlayState* play);
+void OoT_EnGm_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnGm_Update(Actor* thisx, PlayState* play);
+void OoT_EnGm_Draw(Actor* thisx, PlayState* play);
 
 void func_80A3D838(EnGm* this, PlayState* play);
 void func_80A3DFBC(EnGm* this, PlayState* play);
@@ -36,14 +36,14 @@ const ActorInit En_Gm_InitVars = {
     FLAGS,
     OBJECT_OF1D_MAP,
     sizeof(EnGm),
-    (ActorFunc)EnGm_Init,
-    (ActorFunc)EnGm_Destroy,
-    (ActorFunc)EnGm_Update,
+    (ActorFunc)OoT_EnGm_Init,
+    (ActorFunc)OoT_EnGm_Destroy,
+    (ActorFunc)OoT_EnGm_Update,
     NULL,
     NULL,
 };
 
-static ColliderCylinderInitType1 sCylinderInit = {
+static ColliderCylinderInitType1 OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -62,15 +62,15 @@ static ColliderCylinderInitType1 sCylinderInit = {
     { 100, 120, 0, { 0, 0, 0 } },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_U8(targetMode, 5, ICHAIN_CONTINUE),
     ICHAIN_F32(targetArrowOffset, 30, ICHAIN_STOP),
 };
 
-void EnGm_Init(Actor* thisx, PlayState* play) {
+void OoT_EnGm_Init(Actor* thisx, PlayState* play) {
     EnGm* this = (EnGm*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
 
     // "Medi Goron"
     osSyncPrintf(VT_FGCOL(GREEN) "%s[%d] : 中ゴロン[%d]" VT_RST "\n", __FILE__, __LINE__, this->actor.params);
@@ -88,10 +88,10 @@ void EnGm_Init(Actor* thisx, PlayState* play) {
     this->updateFunc = func_80A3D838;
 }
 
-void EnGm_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnGm_Destroy(Actor* thisx, PlayState* play) {
     EnGm* this = (EnGm*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
@@ -112,17 +112,17 @@ s32 func_80A3D7C8(void) {
 }
 
 void func_80A3D838(EnGm* this, PlayState* play) {
-    if (Object_IsLoaded(&play->objectCtx, this->objGmBankIndex)) {
+    if (OoT_Object_IsLoaded(&play->objectCtx, this->objGmBankIndex)) {
         this->actor.flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
-        SkelAnime_InitFlex(play, &this->skelAnime, &gGoronSkel, NULL, this->jointTable, this->morphTable, 18);
-        gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->objGmBankIndex].segment);
-        Animation_Change(&this->skelAnime, &object_gm_Anim_0002B8, 1.0f, 0.0f,
-                         Animation_GetLastFrame(&object_gm_Anim_0002B8), ANIMMODE_LOOP, 0.0f);
-        this->actor.draw = EnGm_Draw;
-        Collider_InitCylinder(play, &this->collider);
-        Collider_SetCylinderType1(play, &this->collider, &this->actor, &sCylinderInit);
-        ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 35.0f);
-        Actor_SetScale(&this->actor, 0.05f);
+        OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gGoronSkel, NULL, this->jointTable, this->morphTable, 18);
+        OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->objGmBankIndex].segment);
+        OoT_Animation_Change(&this->skelAnime, &object_gm_Anim_0002B8, 1.0f, 0.0f,
+                         OoT_Animation_GetLastFrame(&object_gm_Anim_0002B8), ANIMMODE_LOOP, 0.0f);
+        this->actor.draw = OoT_EnGm_Draw;
+        OoT_Collider_InitCylinder(play, &this->collider);
+        OoT_Collider_SetCylinderType1(play, &this->collider, &this->actor, &OoT_sCylinderInit);
+        OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 35.0f);
+        OoT_Actor_SetScale(&this->actor, 0.05f);
         this->actor.colChkInfo.mass = MASS_IMMOVABLE;
         this->eyeTexIndex = 0;
         this->blinkTimer = 20;
@@ -143,7 +143,7 @@ void EnGm_UpdateEye(EnGm* this) {
 
         if (this->eyeTexIndex >= 3) {
             this->eyeTexIndex = 0;
-            this->blinkTimer = Rand_ZeroFloat(60.0f) + 20.0f;
+            this->blinkTimer = OoT_Rand_ZeroFloat(60.0f) + 20.0f;
         }
     }
 }
@@ -151,14 +151,14 @@ void EnGm_UpdateEye(EnGm* this) {
 void EnGm_SetTextID(EnGm* this) {
     switch (func_80A3D7C8()) {
         case 0:
-            if (Flags_GetInfTable(INFTABLE_B0)) {
+            if (OoT_Flags_GetInfTable(INFTABLE_B0)) {
                 this->actor.textId = 0x304B;
             } else {
                 this->actor.textId = 0x304A;
             }
             break;
         case 1:
-            if (Flags_GetInfTable(INFTABLE_B1)) {
+            if (OoT_Flags_GetInfTable(INFTABLE_B1)) {
                 this->actor.textId = 0x304F;
             } else {
                 this->actor.textId = 0x304C;
@@ -181,7 +181,7 @@ void func_80A3DB04(EnGm* this, PlayState* play) {
     dx = this->talkPos.x - player->actor.world.pos.x;
     dz = this->talkPos.z - player->actor.world.pos.z;
 
-    if (Flags_GetSwitch(play, this->actor.params)) {
+    if (OoT_Flags_GetSwitch(play, this->actor.params)) {
         EnGm_SetTextID(this);
         this->actionFunc = func_80A3DC44;
     } else if (Actor_ProcessTalkRequest(&this->actor, play)) {
@@ -193,7 +193,7 @@ void func_80A3DB04(EnGm* this, PlayState* play) {
 }
 
 void func_80A3DBF4(EnGm* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && Message_ShouldAdvance(play)) {
+    if ((OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && OoT_Message_ShouldAdvance(play)) {
         this->actionFunc = func_80A3DB04;
     }
 }
@@ -212,12 +212,12 @@ void func_80A3DC44(EnGm* this, PlayState* play) {
     if (Actor_ProcessTalkRequest(&this->actor, play)) {
         switch (func_80A3D7C8()) {
             case 0:
-                Flags_SetInfTable(INFTABLE_B0);
+                OoT_Flags_SetInfTable(INFTABLE_B0);
             case 3:
                 this->actionFunc = func_80A3DD7C;
                 return;
             case 1:
-                Flags_SetInfTable(INFTABLE_B1);
+                OoT_Flags_SetInfTable(INFTABLE_B1);
             case 2:
                 this->actionFunc = EnGm_ProcessChoiceIndex;
             default:
@@ -233,9 +233,9 @@ void func_80A3DC44(EnGm* this, PlayState* play) {
 }
 
 void func_80A3DD7C(EnGm* this, PlayState* play) {
-    u8 dialogState = Message_GetState(&play->msgCtx);
+    u8 dialogState = OoT_Message_GetState(&play->msgCtx);
 
-    if ((dialogState == TEXT_STATE_DONE || dialogState == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((dialogState == TEXT_STATE_DONE || dialogState == TEXT_STATE_EVENT) && OoT_Message_ShouldAdvance(play)) {
         this->actionFunc = func_80A3DC44;
         if (dialogState == TEXT_STATE_EVENT) {
             play->msgCtx.msgMode = MSGMODE_TEXT_CLOSING;
@@ -245,21 +245,21 @@ void func_80A3DD7C(EnGm* this, PlayState* play) {
 }
 
 void EnGm_ProcessChoiceIndex(EnGm* this, PlayState* play) {
-    if (Message_GetState(&play->msgCtx) == TEXT_STATE_CHOICE && Message_ShouldAdvance(play)) {
+    if (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_CHOICE && OoT_Message_ShouldAdvance(play)) {
         switch (play->msgCtx.choiceIndex) {
             case 0: // yes
                 if (GameInteractor_Should(VB_CHECK_RANDO_PRICE_OF_MEDIGORON, gSaveContext.rupees < 200, this)) {
-                    Message_ContinueTextbox(play, 0xC8);
+                    OoT_Message_ContinueTextbox(play, 0xC8);
                     this->actionFunc = func_80A3DD7C;
                 } else {
                     if (GameInteractor_Should(VB_GIVE_ITEM_FROM_MEDIGORON, true, this)) {
-                        Actor_OfferGetItem(&this->actor, play, GI_SWORD_KNIFE, 415.0f, 10.0f);
+                        OoT_Actor_OfferGetItem(&this->actor, play, GI_SWORD_KNIFE, 415.0f, 10.0f);
                         this->actionFunc = func_80A3DF00;
                     }
                 }
                 break;
             case 1: // no
-                Message_ContinueTextbox(play, 0x3050);
+                OoT_Message_ContinueTextbox(play, 0x3050);
                 this->actionFunc = func_80A3DD7C;
                 break;
         }
@@ -267,34 +267,34 @@ void EnGm_ProcessChoiceIndex(EnGm* this, PlayState* play) {
 }
 
 void func_80A3DF00(EnGm* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play)) {
+    if (OoT_Actor_HasParent(&this->actor, play)) {
         this->actor.parent = NULL;
         this->actionFunc = func_80A3DF60;
     } else {
-        Actor_OfferGetItem(&this->actor, play, GI_SWORD_KNIFE, 415.0f, 10.0f);
+        OoT_Actor_OfferGetItem(&this->actor, play, GI_SWORD_KNIFE, 415.0f, 10.0f);
     }
 }
 
 void func_80A3DF60(EnGm* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && Message_ShouldAdvance(play)) {
-        Rupees_ChangeBy(-200);
+    if ((OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && OoT_Message_ShouldAdvance(play)) {
+        OoT_Rupees_ChangeBy(-200);
         this->actionFunc = func_80A3DC44;
     }
 }
 
 void func_80A3DFBC(EnGm* this, PlayState* play) {
-    gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->objGmBankIndex].segment);
+    OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->objGmBankIndex].segment);
     this->timer++;
     this->actionFunc(this, play);
     this->actor.focus.rot.x = this->actor.world.rot.x;
     this->actor.focus.rot.y = this->actor.world.rot.y;
     this->actor.focus.rot.z = this->actor.world.rot.z;
     EnGm_UpdateEye(this);
-    SkelAnime_Update(&this->skelAnime);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_SkelAnime_Update(&this->skelAnime);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
-void EnGm_Update(Actor* thisx, PlayState* play) {
+void OoT_EnGm_Update(Actor* thisx, PlayState* play) {
     EnGm* this = (EnGm*)thisx;
 
     this->updateFunc(this, play);
@@ -304,29 +304,29 @@ void func_80A3E090(EnGm* this) {
     Vec3f vec1;
     Vec3f vec2;
 
-    Matrix_Push();
-    Matrix_Translate(0.0f, 0.0f, 2600.0f, MTXMODE_APPLY);
-    Matrix_RotateZYX(this->actor.world.rot.x, this->actor.world.rot.y, this->actor.world.rot.z, MTXMODE_APPLY);
+    OoT_Matrix_Push();
+    OoT_Matrix_Translate(0.0f, 0.0f, 2600.0f, MTXMODE_APPLY);
+    OoT_Matrix_RotateZYX(this->actor.world.rot.x, this->actor.world.rot.y, this->actor.world.rot.z, MTXMODE_APPLY);
     vec1.x = vec1.y = vec1.z = 0.0f;
-    Matrix_MultVec3f(&vec1, &vec2);
+    OoT_Matrix_MultVec3f(&vec1, &vec2);
     this->collider.dim.pos.x = vec2.x;
     this->collider.dim.pos.y = vec2.y;
     this->collider.dim.pos.z = vec2.z;
-    Matrix_Pop();
-    Matrix_Push();
-    Matrix_Translate(0.0f, 0.0f, 4300.0f, MTXMODE_APPLY);
-    Matrix_RotateZYX(this->actor.world.rot.x, this->actor.world.rot.y, this->actor.world.rot.z, MTXMODE_APPLY);
+    OoT_Matrix_Pop();
+    OoT_Matrix_Push();
+    OoT_Matrix_Translate(0.0f, 0.0f, 4300.0f, MTXMODE_APPLY);
+    OoT_Matrix_RotateZYX(this->actor.world.rot.x, this->actor.world.rot.y, this->actor.world.rot.z, MTXMODE_APPLY);
     vec1.x = vec1.y = vec1.z = 0.0f;
-    Matrix_MultVec3f(&vec1, &this->talkPos);
-    Matrix_Pop();
-    Matrix_Translate(0.0f, 0.0f, 3800.0f, MTXMODE_APPLY);
-    Matrix_RotateZYX(this->actor.world.rot.x, this->actor.world.rot.y, this->actor.world.rot.z, MTXMODE_APPLY);
+    OoT_Matrix_MultVec3f(&vec1, &this->talkPos);
+    OoT_Matrix_Pop();
+    OoT_Matrix_Translate(0.0f, 0.0f, 3800.0f, MTXMODE_APPLY);
+    OoT_Matrix_RotateZYX(this->actor.world.rot.x, this->actor.world.rot.y, this->actor.world.rot.z, MTXMODE_APPLY);
     vec1.x = vec1.y = vec1.z = 0.0f;
-    Matrix_MultVec3f(&vec1, &this->actor.focus.pos);
+    OoT_Matrix_MultVec3f(&vec1, &this->actor.focus.pos);
     this->actor.focus.pos.y += 100.0f;
 }
 
-void EnGm_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnGm_Draw(Actor* thisx, PlayState* play) {
     static void* eyeTextures[] = { gGoronCsEyeOpenTex, gGoronCsEyeHalfTex, gGoronCsEyeClosedTex };
     EnGm* this = (EnGm*)thisx;
     s32 pad;

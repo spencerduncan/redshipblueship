@@ -183,7 +183,7 @@ void EnElfgrp_Init(Actor* thisx, PlayState* play) {
                 this->actionFunc = func_80A3A520;
 
                 if ((ENELFGRP_GET_SWITCHFLAG_ROT(&this->actor) != 0) &&
-                    Flags_GetSwitch(play, ENELFGRP_GET_SWITCHFLAG_ROT(&this->actor))) {
+                    MM_Flags_GetSwitch(play, ENELFGRP_GET_SWITCHFLAG_ROT(&this->actor))) {
                     this->actionFunc = EnElfgrp_DoNothing;
                 } else if (INV_CONTENT(ITEM_MASK_GREAT_FAIRY) == ITEM_MASK_GREAT_FAIRY) {
                     EnElfgrp_SetCutscene(this, 4);
@@ -305,8 +305,8 @@ void EnElfgrp_SpawnStrayFairies(EnElfgrp* this, PlayState* play, s32 count, s32 
 
     for (i = 0; i < count; i++) {
         strayFairy =
-            Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ELFORG, Rand_CenteredFloat(20.0f) + spawnCenterPos.x,
-                        spawnCenterPos.y, Rand_CenteredFloat(20.0f) + spawnCenterPos.z, 0, 0, 0, strayFairyParams);
+            MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ELFORG, MM_Rand_CenteredFloat(20.0f) + spawnCenterPos.x,
+                        spawnCenterPos.y, MM_Rand_CenteredFloat(20.0f) + spawnCenterPos.z, 0, 0, 0, strayFairyParams);
 
         if (strayFairy == NULL) {
             continue;
@@ -412,11 +412,11 @@ void func_80A3A0F4(EnElfgrp* this, PlayState* play) {
     if (this->timer == 10) {
         Audio_PlaySfx(NA_SE_SY_WHITE_OUT_T);
         if (ENELFGRP_GET_TYPE(&this->actor) < ENELFGRP_TYPE_KINDNESS) {
-            Actor_Spawn(&play->actorCtx, play, ACTOR_DEMO_EFFECT, this->actor.world.pos.x,
+            MM_Actor_Spawn(&play->actorCtx, play, ACTOR_DEMO_EFFECT, this->actor.world.pos.x,
                         this->actor.world.pos.y + 30.0f, this->actor.world.pos.z, 0, 0, 0,
                         ENELFGRP_GET_TYPE(&this->actor) + DEMO_EFFECT_TYPE_LIGHT_BASE);
         } else { // ENELFGRP_TYPE_KINDNESS
-            Actor_Spawn(&play->actorCtx, play, ACTOR_DEMO_EFFECT, this->actor.world.pos.x,
+            MM_Actor_Spawn(&play->actorCtx, play, ACTOR_DEMO_EFFECT, this->actor.world.pos.x,
                         this->actor.world.pos.y + 30.0f, this->actor.world.pos.z, 0, 0, 0,
                         DEMO_EFFECT_TYPE_LIGHT_DARK_YELLOW);
         }
@@ -479,14 +479,14 @@ void func_80A3A398(EnElfgrp* this, PlayState* play) {
     if (CutsceneManager_IsNext(this->actor.csId)) {
         CutsceneManager_StartWithPlayerCs(this->actor.csId, &this->actor);
         this->actionFunc = func_80A3A274;
-        Flags_UnsetSwitch(play, ENELFGRP_GET_SWITCH_FLAG_PARAMS(&this->actor));
+        MM_Flags_UnsetSwitch(play, ENELFGRP_GET_SWITCH_FLAG_PARAMS(&this->actor));
 
         if (!GameInteractor_Should(VB_GIVE_ITEM_FROM_STRAY_FAIRY_MANAGER, true, this)) {
             goto skipGiveItem;
         }
 
         if (this->stateFlags & ELFGRP_STATE_1) {
-            Item_Give(play, ITEM_MASK_GREAT_FAIRY);
+            MM_Item_Give(play, ITEM_MASK_GREAT_FAIRY);
         }
 
         if (this->stateFlags & ELFGRP_STATE_2) {
@@ -494,7 +494,7 @@ void func_80A3A398(EnElfgrp* this, PlayState* play) {
         }
 
         if (this->stateFlags & ELFGRP_STATE_4) {
-            Item_Give(play, ITEM_SWORD_GREAT_FAIRY);
+            MM_Item_Give(play, ITEM_SWORD_GREAT_FAIRY);
         }
 
     skipGiveItem: // #2S2H
@@ -528,16 +528,16 @@ void func_80A3A520(EnElfgrp* this, PlayState* play) {
     } else if (CutsceneManager_IsNext(this->actor.csId)) {
         CutsceneManager_StartWithPlayerCs(this->actor.csId, &this->actor);
         this->actionFunc = func_80A3A4AC;
-        Flags_SetSwitch(play, ENELFGRP_GET_SWITCH_FLAG_PARAMS(&this->actor));
+        MM_Flags_SetSwitch(play, ENELFGRP_GET_SWITCH_FLAG_PARAMS(&this->actor));
 
         if (GameInteractor_Should(VB_GIVE_ITEM_FROM_STRAY_FAIRY_MANAGER, true, this)) {
             if (this->stateFlags & ELFGRP_STATE_1) {
-                Item_Give(play, ITEM_MASK_GREAT_FAIRY);
+                MM_Item_Give(play, ITEM_MASK_GREAT_FAIRY);
             }
         }
 
         if (ENELFGRP_GET_SWITCHFLAG_ROT(&this->actor) != 0) {
-            Flags_SetSwitch(play, ENELFGRP_GET_SWITCHFLAG_ROT(&this->actor));
+            MM_Flags_SetSwitch(play, ENELFGRP_GET_SWITCHFLAG_ROT(&this->actor));
         }
     } else if (GameInteractor_Should(VB_START_GREAT_FAIRY_CUTSCENE, this->actor.xzDistToPlayer < 350.0f, this)) {
         CutsceneManager_Queue(this->actor.csId);
@@ -571,7 +571,7 @@ void func_80A3A6F4(EnElfgrp* this, PlayState* play) {
     s32 pad;
     Player* player = GET_PLAYER(play);
 
-    if (Actor_TextboxIsClosing(&this->actor, play)) {
+    if (MM_Actor_TextboxIsClosing(&this->actor, play)) {
         player->actor.freezeTimer = 100;
         player->stateFlags1 |= PLAYER_STATE1_20000000;
         this->timer = EnElfgrp_SpinStrayFairies(play);
@@ -585,7 +585,7 @@ void func_80A3A77C(EnElfgrp* this, PlayState* play) {
 
     player->actor.freezeTimer = 100;
     player->stateFlags1 |= PLAYER_STATE1_20000000;
-    if (Actor_TextboxIsClosing(&this->actor, play)) {
+    if (MM_Actor_TextboxIsClosing(&this->actor, play)) {
         this->timer = EnElfgrp_SpinStrayFairies(play);
         this->actionFunc = EnElfgrp_HealPlayer;
         this->stateFlags &= ~ELFGRP_STATE_3;
@@ -635,7 +635,7 @@ void func_80A3A8F8(EnElfgrp* this, PlayState* play) {
             this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
             player->actor.freezeTimer = 100;
             player->stateFlags1 |= PLAYER_STATE1_20000000;
-            Message_StartTextbox(play, this->actor.textId, &this->actor);
+            MM_Message_StartTextbox(play, this->actor.textId, &this->actor);
             this->actionFunc = func_80A3A77C;
             gSaveContext.save.saveInfo.weekEventReg[9] |= this->talkedOnceFlag;
         } else {

@@ -5,10 +5,10 @@
 
 #define FLAGS ACTOR_FLAG_UPDATE_CULLING_DISABLED
 
-void EnAObj_Init(Actor* thisx, PlayState* play);
-void EnAObj_Destroy(Actor* thisx, PlayState* play);
-void EnAObj_Update(Actor* thisx, PlayState* play);
-void EnAObj_Draw(Actor* thisx, PlayState* play);
+void OoT_EnAObj_Init(Actor* thisx, PlayState* play);
+void OoT_EnAObj_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnAObj_Update(Actor* thisx, PlayState* play);
+void OoT_EnAObj_Draw(Actor* thisx, PlayState* play);
 
 void EnAObj_WaitFinishedTalking(EnAObj* this, PlayState* play);
 void EnAObj_WaitTalk(EnAObj* this, PlayState* play);
@@ -27,14 +27,14 @@ const ActorInit En_A_Obj_InitVars = {
     FLAGS,
     OBJECT_GAMEPLAY_KEEP,
     sizeof(EnAObj),
-    (ActorFunc)EnAObj_Init,
-    (ActorFunc)EnAObj_Destroy,
-    (ActorFunc)EnAObj_Update,
-    (ActorFunc)EnAObj_Draw,
+    (ActorFunc)OoT_EnAObj_Init,
+    (ActorFunc)OoT_EnAObj_Destroy,
+    (ActorFunc)OoT_EnAObj_Update,
+    (ActorFunc)OoT_EnAObj_Draw,
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -56,7 +56,7 @@ static ColliderCylinderInit sCylinderInit = {
 
 // extern CollisionHeader D_06000730; // gHookshotTargetCol ?
 
-static CollisionHeader* sColHeaders[] = {
+static CollisionHeader* OoT_sColHeaders[] = {
     &gLargerCubeCol,       // A_OBJ_GRASS_CLUMP, A_OBJ_TREE_STUMP
     &gLargerCubeCol,       // A_OBJ_BLOCK_LARGE, A_OBJ_BLOCK_HUGE
     &gSmallerFlatBlockCol, // unused
@@ -65,7 +65,7 @@ static CollisionHeader* sColHeaders[] = {
     //&D_06000730,           // A_OBJ_UNKNOWN_6 // OTRTODO
 };
 
-static Gfx* sDLists[] = {
+static Gfx* OoT_sDLists[] = {
     gFlatBlockDL,
     gFlatBlockDL,
     gFlatBlockDL,
@@ -85,7 +85,7 @@ void EnAObj_SetupAction(EnAObj* this, EnAObjActionFunc actionFunc) {
     this->actionFunc = actionFunc;
 }
 
-void EnAObj_Init(Actor* thisx, PlayState* play) {
+void OoT_EnAObj_Init(Actor* thisx, PlayState* play) {
     CollisionHeader* colHeader = NULL;
     s32 pad;
     EnAObj* this = (EnAObj*)thisx;
@@ -96,22 +96,22 @@ void EnAObj_Init(Actor* thisx, PlayState* play) {
 
     switch (thisx->params) {
         case A_OBJ_BLOCK_SMALL:
-            Actor_SetScale(thisx, 0.025f);
+            OoT_Actor_SetScale(thisx, 0.025f);
             break;
         case A_OBJ_BLOCK_LARGE:
-            Actor_SetScale(thisx, 0.05f);
+            OoT_Actor_SetScale(thisx, 0.05f);
             break;
         case A_OBJ_BLOCK_HUGE:
         case A_OBJ_CUBE_SMALL:
         case A_OBJ_UNKNOWN_6:
-            Actor_SetScale(thisx, 0.1f);
+            OoT_Actor_SetScale(thisx, 0.1f);
             break;
         case A_OBJ_BLOCK_SMALL_ROT:
-            Actor_SetScale(thisx, 0.005f);
+            OoT_Actor_SetScale(thisx, 0.005f);
             break;
         case A_OBJ_BLOCK_LARGE_ROT:
         default:
-            Actor_SetScale(thisx, 0.01f);
+            OoT_Actor_SetScale(thisx, 0.01f);
             break;
     }
 
@@ -119,7 +119,7 @@ void EnAObj_Init(Actor* thisx, PlayState* play) {
         shadowScale = 12.0f;
     }
 
-    ActorShape_Init(&thisx->shape, 0.0f, ActorShadow_DrawCircle, shadowScale);
+    OoT_ActorShape_Init(&thisx->shape, 0.0f, OoT_ActorShadow_DrawCircle, shadowScale);
 
     thisx->focus.pos = thisx->world.pos;
     this->dyna.bgId = BGACTOR_NEG_ONE;
@@ -132,13 +132,13 @@ void EnAObj_Init(Actor* thisx, PlayState* play) {
         case A_OBJ_BLOCK_LARGE:
         case A_OBJ_BLOCK_HUGE:
             this->dyna.bgId = 1;
-            Actor_ChangeCategory(play, &play->actorCtx, thisx, ACTORCAT_BG);
+            OoT_Actor_ChangeCategory(play, &play->actorCtx, thisx, ACTORCAT_BG);
             EnAObj_SetupBlock(this, thisx->params);
             break;
         case A_OBJ_BLOCK_SMALL_ROT:
         case A_OBJ_BLOCK_LARGE_ROT:
             this->dyna.bgId = 3;
-            Actor_ChangeCategory(play, &play->actorCtx, thisx, ACTORCAT_BG);
+            OoT_Actor_ChangeCategory(play, &play->actorCtx, thisx, ACTORCAT_BG);
             EnAObj_SetupBlockRot(this, thisx->params);
             break;
         case A_OBJ_UNKNOWN_6:
@@ -161,8 +161,8 @@ void EnAObj_Init(Actor* thisx, PlayState* play) {
             // clang-format on
             this->focusYoffset = 45.0f;
             EnAObj_SetupWaitTalk(this, thisx->params);
-            Collider_InitCylinder(play, &this->collider);
-            Collider_SetCylinder(play, &this->collider, thisx, &sCylinderInit);
+            OoT_Collider_InitCylinder(play, &this->collider);
+            OoT_Collider_SetCylinder(play, &this->collider, thisx, &OoT_sCylinderInit);
             thisx->colChkInfo.mass = MASS_IMMOVABLE;
             thisx->targetMode = 0;
             break;
@@ -181,26 +181,26 @@ void EnAObj_Init(Actor* thisx, PlayState* play) {
     }
 
     if (this->dyna.bgId != BGACTOR_NEG_ONE) {
-        CollisionHeader_GetVirtual(sColHeaders[this->dyna.bgId], &colHeader);
-        this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
+        OoT_CollisionHeader_GetVirtual(OoT_sColHeaders[this->dyna.bgId], &colHeader);
+        this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
     }
 }
 
-void EnAObj_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnAObj_Destroy(Actor* thisx, PlayState* play) {
     EnAObj* this = (EnAObj*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 
     switch (this->dyna.actor.params) {
         case A_OBJ_SIGNPOST_OBLONG:
         case A_OBJ_SIGNPOST_ARROW:
-            Collider_DestroyCylinder(play, &this->collider);
+            OoT_Collider_DestroyCylinder(play, &this->collider);
             break;
     }
 }
 
 void EnAObj_WaitFinishedTalking(EnAObj* this, PlayState* play) {
-    if (Actor_TextboxIsClosing(&this->dyna.actor, play)) {
+    if (OoT_Actor_TextboxIsClosing(&this->dyna.actor, play)) {
         EnAObj_SetupWaitTalk(this, this->dyna.actor.params);
     }
 }
@@ -240,23 +240,23 @@ void EnAObj_BlockRot(EnAObj* this, PlayState* play) {
             this->rotateForTimer = 20;
 
             if ((s16)(this->dyna.actor.yawTowardsPlayer + 0x4000) < 0) {
-                this->rotSpeedX = -0x3E8;
+                this->OoT_rotSpeedX = -0x3E8;
             } else {
-                this->rotSpeedX = 0x3E8;
+                this->OoT_rotSpeedX = 0x3E8;
             }
 
             if (this->dyna.actor.yawTowardsPlayer < 0) {
-                this->rotSpeedY = -this->rotSpeedX;
+                this->OoT_rotSpeedY = -this->OoT_rotSpeedX;
             } else {
-                this->rotSpeedY = this->rotSpeedX;
+                this->OoT_rotSpeedY = this->OoT_rotSpeedX;
             }
         }
     } else {
         if (this->rotateWaitTimer != 0) {
             this->rotateWaitTimer--;
         } else {
-            this->dyna.actor.shape.rot.y += this->rotSpeedY;
-            this->dyna.actor.shape.rot.x += this->rotSpeedX;
+            this->dyna.actor.shape.rot.y += this->OoT_rotSpeedY;
+            this->dyna.actor.shape.rot.x += this->OoT_rotSpeedX;
             this->rotateForTimer--;
             this->dyna.actor.gravity = -1.0f;
 
@@ -277,7 +277,7 @@ void EnAObj_SetupBoulderFragment(EnAObj* this, s16 type) {
 }
 
 void EnAObj_BoulderFragment(EnAObj* this, PlayState* play) {
-    Math_SmoothStepToF(&this->dyna.actor.speedXZ, 1.0f, 1.0f, 0.5f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->dyna.actor.speedXZ, 1.0f, 1.0f, 0.5f, 0.0f);
     this->dyna.actor.shape.rot.x += this->dyna.actor.world.rot.x >> 1;
     this->dyna.actor.shape.rot.z += this->dyna.actor.world.rot.z >> 1;
 
@@ -293,7 +293,7 @@ void EnAObj_BoulderFragment(EnAObj* this, PlayState* play) {
             this->dyna.actor.speedXZ *= 0.6f;
             this->dyna.actor.bgCheckFlags &= ~0x3;
         } else {
-            Actor_Kill(&this->dyna.actor);
+            OoT_Actor_Kill(&this->dyna.actor);
         }
     }
 }
@@ -309,7 +309,7 @@ void EnAObj_Block(EnAObj* this, PlayState* play) {
     this->dyna.actor.world.rot.y = this->dyna.unk_158;
     this->dyna.actor.speedXZ = CLAMP(this->dyna.actor.speedXZ, -2.5f, 2.5f);
 
-    Math_SmoothStepToF(&this->dyna.actor.speedXZ, 0.0f, 1.0f, 1.0f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->dyna.actor.speedXZ, 0.0f, 1.0f, 1.0f, 0.0f);
 
     if (this->dyna.actor.speedXZ != 0.0f) {
         Audio_PlayActorSound2(&this->dyna.actor, NA_SE_EV_ROCK_SLIDE - SFX_FLAG);
@@ -319,7 +319,7 @@ void EnAObj_Block(EnAObj* this, PlayState* play) {
     this->dyna.unk_150 = 0.0f;
 }
 
-void EnAObj_Update(Actor* thisx, PlayState* play) {
+void OoT_EnAObj_Update(Actor* thisx, PlayState* play) {
     EnAObj* this = (EnAObj*)thisx;
 
     this->actionFunc(this, play);
@@ -327,9 +327,9 @@ void EnAObj_Update(Actor* thisx, PlayState* play) {
 
     if (this->dyna.actor.gravity != 0.0f) {
         if (this->dyna.actor.params != A_OBJ_BOULDER_FRAGMENT) {
-            Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 5.0f, 40.0f, 0.0f, 0x1D);
+            OoT_Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 5.0f, 40.0f, 0.0f, 0x1D);
         } else {
-            Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 5.0f, 20.0f, 0.0f, 0x1D);
+            OoT_Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 5.0f, 20.0f, 0.0f, 0x1D);
         }
     }
 
@@ -339,13 +339,13 @@ void EnAObj_Update(Actor* thisx, PlayState* play) {
     switch (this->dyna.actor.params) {
         case A_OBJ_SIGNPOST_OBLONG:
         case A_OBJ_SIGNPOST_ARROW:
-            Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
-            CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+            OoT_Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
+            OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
             break;
     }
 }
 
-void EnAObj_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnAObj_Draw(Actor* thisx, PlayState* play) {
     s32 type = thisx->params;
 
     OPEN_DISPS(play->state.gfxCtx);
@@ -361,7 +361,7 @@ void EnAObj_Draw(Actor* thisx, PlayState* play) {
     }
 
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_OPA_DISP++, sDLists[type]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDLists[type]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

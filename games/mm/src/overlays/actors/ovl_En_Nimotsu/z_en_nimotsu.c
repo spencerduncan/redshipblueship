@@ -26,7 +26,7 @@ ActorProfile En_Nimotsu_Profile = {
     /**/ EnNimotsu_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -47,27 +47,27 @@ static ColliderCylinderInit sCylinderInit = {
 };
 
 void EnNimotsu_UpdateCollision(EnNimotsu* this, PlayState* play) {
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 32.0f, 30.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 32.0f, 30.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
 }
 
 void EnNimotsu_Init(Actor* thisx, PlayState* play) {
     EnNimotsu* this = (EnNimotsu*)thisx;
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    MM_Collider_InitCylinder(play, &this->collider);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
 
     this->timer = 10;
     this->actor.gravity = -0.5f;
 
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
 }
 
 void EnNimotsu_Destroy(Actor* thisx, PlayState* play) {
     EnNimotsu* this = (EnNimotsu*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnNimotsu_Update(Actor* thisx, PlayState* play) {
@@ -83,10 +83,10 @@ void EnNimotsu_Update(Actor* thisx, PlayState* play) {
         }
 
         if ((play->state.frames % 3) == 0) {
-            dustPosition.x = this->actor.world.pos.x + Rand_CenteredFloat(15.0f);
+            dustPosition.x = this->actor.world.pos.x + MM_Rand_CenteredFloat(15.0f);
             dustPosition.y = this->actor.world.pos.y;
-            dustPosition.z = this->actor.world.pos.z + Rand_CenteredFloat(15.0f);
-            Actor_SpawnFloorDustRing(play, &this->actor, &dustPosition, 20.0f, 0, 2.0f, 0, 0, false);
+            dustPosition.z = this->actor.world.pos.z + MM_Rand_CenteredFloat(15.0f);
+            MM_Actor_SpawnFloorDustRing(play, &this->actor, &dustPosition, 20.0f, 0, 2.0f, 0, 0, false);
         }
     }
 

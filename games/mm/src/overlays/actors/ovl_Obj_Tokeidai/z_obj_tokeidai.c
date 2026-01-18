@@ -72,7 +72,7 @@ ActorProfile Obj_Tokeidai_Profile = {
     /**/ ObjTokeidai_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 3300, ICHAIN_CONTINUE),
@@ -141,8 +141,8 @@ void ObjTokeidai_TowerClock_Init(ObjTokeidai* this, PlayState* play) {
         ObjTokeidai_SetupTowerOpening(this);
     } else if (((CURRENT_DAY == 3) && (CURRENT_TIME < CLOCK_TIME(6, 0))) || (CURRENT_DAY >= 4)) {
         this->actor.world.pos.y += (this->actor.scale.y * 5191.0f) - 50.0f;
-        this->actor.world.pos.x += Math_SinS(this->actor.world.rot.y) * this->actor.scale.z * 1791.0f;
-        this->actor.world.pos.z += -Math_CosS(this->actor.world.rot.y) * this->actor.scale.z * 1791.0f;
+        this->actor.world.pos.x += MM_Math_SinS(this->actor.world.rot.y) * this->actor.scale.z * 1791.0f;
+        this->actor.world.pos.z += -MM_Math_CosS(this->actor.world.rot.y) * this->actor.scale.z * 1791.0f;
 
         this->clockFaceZTranslation = -0x140;
         this->actor.shape.rot.x = -0x4000;
@@ -178,7 +178,7 @@ void ObjTokeidai_Counterweight_Init(ObjTokeidai* this, PlayState* play) {
             type = OBJ_TOKEIDAI_TYPE(&this->actor);
             if ((type == OBJ_TOKEIDAI_TYPE_COUNTERWEIGHT_CLOCK_TOWN) ||
                 (type == OBJ_TOKEIDAI_TYPE_COUNTERWEIGHT_TERMINA_FIELD)) {
-                this->actor.child = Actor_Spawn(&play->actorCtx, play, ACTOR_EN_HANABI, this->actor.world.pos.x,
+                this->actor.child = MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_HANABI, this->actor.world.pos.x,
                                                 this->actor.world.pos.y, this->actor.world.pos.z, 0, 0, 0, 0);
             }
         }
@@ -193,8 +193,8 @@ void ObjTokeidai_Counterweight_Init(ObjTokeidai* this, PlayState* play) {
     } else if (((CURRENT_DAY == 3) && (CURRENT_TIME < CLOCK_TIME(6, 0))) || (CURRENT_DAY >= 4)) {
         this->spotlightIntensity = 0;
         this->actor.world.pos.y += this->actor.scale.y * -2160.0f;
-        this->actor.world.pos.x += Math_SinS(this->actor.world.rot.y) * this->actor.scale.z * 5400.0f;
-        this->actor.world.pos.z += -Math_CosS(this->actor.world.rot.y) * this->actor.scale.z * 5400.0f;
+        this->actor.world.pos.x += MM_Math_SinS(this->actor.world.rot.y) * this->actor.scale.z * 5400.0f;
+        this->actor.world.pos.z += -MM_Math_CosS(this->actor.world.rot.y) * this->actor.scale.z * 5400.0f;
         this->actor.shape.rot.x = -0x4000;
         this->actionFunc = ObjTokeidai_Counterweight_OpenedIdle;
     } else {
@@ -205,7 +205,7 @@ void ObjTokeidai_Counterweight_Init(ObjTokeidai* this, PlayState* play) {
 void ObjTokeidai_Init(Actor* thisx, PlayState* play) {
     ObjTokeidai* this = (ObjTokeidai*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
     this->actionFunc = ObjTokeidai_DoNothing;
     this->opaDList = NULL;
     this->xluDList = NULL;
@@ -217,7 +217,7 @@ void ObjTokeidai_Init(Actor* thisx, PlayState* play) {
 
     switch (OBJ_TOKEIDAI_TYPE(&this->actor)) {
         case OBJ_TOKEIDAI_TYPE_EXTERIOR_GEAR_TERMINA_FIELD:
-            Actor_SetScale(&this->actor, 0.15f);
+            MM_Actor_SetScale(&this->actor, 0.15f);
             ObjTokeidai_ExteriorGear_Init(this, play);
             break;
 
@@ -230,13 +230,13 @@ void ObjTokeidai_Init(Actor* thisx, PlayState* play) {
             break;
 
         case OBJ_TOKEIDAI_TYPE_TOWER_WALLS_TERMINA_FIELD:
-            Actor_SetScale(&this->actor, 1.0f);
+            MM_Actor_SetScale(&this->actor, 1.0f);
             this->opaDList = gClockTowerTerminaFieldWallsDL;
             this->actionFunc = ObjTokeidai_TerminaFieldWalls_Idle;
             break;
 
         case OBJ_TOKEIDAI_TYPE_TOWER_CLOCK_TERMINA_FIELD:
-            Actor_SetScale(&this->actor, 0.15f);
+            MM_Actor_SetScale(&this->actor, 0.15f);
             ObjTokeidai_TowerClock_Init(this, play);
             break;
 
@@ -245,21 +245,21 @@ void ObjTokeidai_Init(Actor* thisx, PlayState* play) {
             break;
 
         case OBJ_TOKEIDAI_TYPE_WALL_CLOCK:
-            Actor_SetScale(&this->actor, 0.02f);
+            MM_Actor_SetScale(&this->actor, 0.02f);
             this->actor.draw = ObjTokeidai_Clock_Draw;
             ObjTokeidai_Clock_Init(this);
             this->actionFunc = ObjTokeidai_WallClock_Idle;
             break;
 
         case OBJ_TOKEIDAI_TYPE_SMALL_WALL_CLOCK:
-            Actor_SetScale(&this->actor, 0.01f);
+            MM_Actor_SetScale(&this->actor, 0.01f);
             this->actor.draw = ObjTokeidai_Clock_Draw;
             ObjTokeidai_Clock_Init(this);
             this->actionFunc = ObjTokeidai_WallClock_Idle;
             break;
 
         case OBJ_TOKEIDAI_TYPE_COUNTERWEIGHT_TERMINA_FIELD:
-            Actor_SetScale(&this->actor, 0.15f);
+            MM_Actor_SetScale(&this->actor, 0.15f);
             ObjTokeidai_Counterweight_Init(this, play);
             break;
 
@@ -325,7 +325,7 @@ void ObjTokeidai_ExteriorGear_Collapse(ObjTokeidai* this, PlayState* play) {
         this->actor.shape.rot.x += 0x50;
         this->actor.shape.rot.z += 0x50;
         Actor_MoveWithGravity(&this->actor);
-        Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+        MM_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
     }
 }
 
@@ -391,8 +391,8 @@ void ObjTokeidai_TowerClock_SlideOff(ObjTokeidai* this, PlayState* play) {
         }
     }
 
-    sin = Math_SinS(this->slidingClockFaceAngle);
-    cos = Math_CosS(this->slidingClockFaceAngle);
+    sin = MM_Math_SinS(this->slidingClockFaceAngle);
+    cos = MM_Math_CosS(this->slidingClockFaceAngle);
     thisx->world.pos.y = (1178.0f * cos) - (this->aerialClockFaceSpeed * sin) + thisx->home.pos.y;
     thisx->world.pos.z = (1178.0f * sin) + (this->aerialClockFaceSpeed * cos) + thisx->home.pos.z;
 }
@@ -445,7 +445,7 @@ void ObjTokeidai_TowerOpening_EndCutscene(ObjTokeidai* this, PlayState* play) {
         SET_WEEKEVENTREG(WEEKEVENTREG_CLOCK_TOWER_OPENED);
         if (((play->sceneId == SCENE_CLOCKTOWER) && (gSaveContext.sceneLayer == 2) && (play->csCtx.scriptIndex == 0)) ||
             ((play->sceneId == SCENE_00KEIKOKU) && (gSaveContext.sceneLayer == 2) && (play->csCtx.scriptIndex == 0))) {
-            Audio_SetCutsceneFlag(false);
+            MM_Audio_SetCutsceneFlag(false);
             gSaveContext.save.cutsceneIndex = 0;
             gSaveContext.nextCutsceneIndex = 0;
             gSaveContext.respawnFlag = 2;
@@ -756,7 +756,7 @@ void ObjTokeidai_Counterweight_Idle(ObjTokeidai* this, PlayState* play) {
             type = OBJ_TOKEIDAI_TYPE(&this->actor);
             if ((type == OBJ_TOKEIDAI_TYPE_COUNTERWEIGHT_CLOCK_TOWN) ||
                 (type == OBJ_TOKEIDAI_TYPE_COUNTERWEIGHT_TERMINA_FIELD)) {
-                this->actor.child = Actor_Spawn(&play->actorCtx, play, ACTOR_EN_HANABI, this->actor.world.pos.x,
+                this->actor.child = MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_HANABI, this->actor.world.pos.x,
                                                 this->actor.world.pos.y, this->actor.world.pos.z, 0, 0, 0, 0);
             }
         }
@@ -814,18 +814,18 @@ void ObjTokeidai_Clock_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    Matrix_Translate(0.0f, this->yTranslation, 0.0f, MTXMODE_APPLY);
-    Matrix_Translate(0.0f, 0.0f, -1791.0f, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, this->yTranslation, 0.0f, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, 0.0f, -1791.0f, MTXMODE_APPLY);
     Matrix_RotateXS(-this->xRotation, MTXMODE_APPLY);
-    Matrix_Translate(0.0f, 0.0f, 1791.0f, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, 0.0f, 1791.0f, MTXMODE_APPLY);
 
-    Matrix_Push();
+    MM_Matrix_Push();
     Matrix_RotateZS(-this->minuteRingOrExteriorGearRotation, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     gSPDisplayList(POLY_OPA_DISP++, gClockTowerMinuteRingDL);
-    Matrix_Pop();
+    MM_Matrix_Pop();
 
-    Matrix_Translate(0.0f, 0.0f, this->clockFaceZTranslation, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, 0.0f, this->clockFaceZTranslation, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     gSPDisplayList(POLY_OPA_DISP++, gClockTowerClockCenterAndHandDL);
 
@@ -838,7 +838,7 @@ void ObjTokeidai_Clock_Draw(Actor* thisx, PlayState* play) {
         gSPDisplayList(POLY_OPA_DISP++, gClockTowerClockFaceDL);
     }
 
-    Matrix_Translate(0.0f, -1112.0f, -19.6f, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, -1112.0f, -19.6f, MTXMODE_APPLY);
     Matrix_RotateYS(this->sunMoonPanelRotation, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     gSPDisplayList(POLY_OPA_DISP++, gClockTowerSunAndMoonPanelDL);
@@ -852,17 +852,17 @@ void ObjTokeidai_Counterweight_Draw(Actor* thisx, PlayState* play) {
     ObjTokeidai* this = (ObjTokeidai*)thisx;
 
     Matrix_RotateYS(-this->actor.shape.rot.y, MTXMODE_APPLY);
-    Matrix_Translate(0.0f, this->yTranslation, 0.0f, MTXMODE_APPLY);
-    Matrix_Translate(0.0f, -5480.0f, 80.0f, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, this->yTranslation, 0.0f, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, -5480.0f, 80.0f, MTXMODE_APPLY);
     Matrix_RotateXS(-this->xRotation, MTXMODE_APPLY);
-    Matrix_Translate(0.0f, 5480.0f, -80.0f, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, 5480.0f, -80.0f, MTXMODE_APPLY);
     Matrix_RotateYS(this->actor.shape.rot.y, MTXMODE_APPLY);
 
     OPEN_DISPS(play->state.gfxCtx);
 
     // For scrolling the spotlight's mask texture down the length of the light beam.
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, -gameplayFrames, 0, 0x20, 0x20));
+               MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, -gameplayFrames, 0, 0x20, 0x20));
 
     // Draws the counterweight
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
@@ -883,12 +883,12 @@ void ObjTokeidai_ExteriorGear_Draw(Actor* thisx, PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    Matrix_Translate(0.0f, this->yTranslation, 0.0f, MTXMODE_APPLY);
-    Matrix_Translate(0.0f, 0.0f, -1791.0f, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, this->yTranslation, 0.0f, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, 0.0f, -1791.0f, MTXMODE_APPLY);
     Matrix_RotateYS(-this->actor.shape.rot.y, MTXMODE_APPLY);
     Matrix_RotateXS(-this->xRotation, MTXMODE_APPLY);
     Matrix_RotateYS(thisx->shape.rot.y, MTXMODE_APPLY);
-    Matrix_Translate(0.0f, 0.0f, 1791.0f, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, 0.0f, 1791.0f, MTXMODE_APPLY);
     Matrix_RotateZS(this->minuteRingOrExteriorGearRotation, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     Gfx_SetupDL25_Opa(play->state.gfxCtx);

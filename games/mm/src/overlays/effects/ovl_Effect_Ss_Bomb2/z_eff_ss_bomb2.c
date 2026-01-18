@@ -21,22 +21,22 @@
 
 #define PARAMS ((EffectSsBomb2InitParams*)initParamsx)
 
-u32 EffectSsBomb2_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsBomb2_DrawFade(PlayState* play, u32 index, EffectSs* this);
-void EffectSsBomb2_DrawLayered(PlayState* play, u32 index, EffectSs* this);
-void EffectSsBomb2_Update(PlayState* play, u32 index, EffectSs* this);
+u32 MM_EffectSsBomb2_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void MM_EffectSsBomb2_DrawFade(PlayState* play, u32 index, EffectSs* this);
+void MM_EffectSsBomb2_DrawLayered(PlayState* play, u32 index, EffectSs* this);
+void MM_EffectSsBomb2_Update(PlayState* play, u32 index, EffectSs* this);
 
 EffectSsProfile Effect_Ss_Bomb2_Profile = {
     EFFECT_SS_BOMB2,
-    EffectSsBomb2_Init,
+    MM_EffectSsBomb2_Init,
 };
 
-static EffectSsDrawFunc sDrawFuncs[] = {
-    EffectSsBomb2_DrawFade,
-    EffectSsBomb2_DrawLayered,
+static EffectSsDrawFunc MM_sDrawFuncs[] = {
+    MM_EffectSsBomb2_DrawFade,
+    MM_EffectSsBomb2_DrawLayered,
 };
 
-static TexturePtr sTextures[] = {
+static TexturePtr MM_sTextures[] = {
     gEffBombExplosion1Tex, gEffBombExplosion2Tex, gEffBombExplosion3Tex, gEffBombExplosion4Tex,
     gEffBombExplosion5Tex, gEffBombExplosion6Tex, gEffBombExplosion7Tex, gEffBombExplosion8Tex,
 };
@@ -46,16 +46,16 @@ static TexturePtr sLayeredTextures[] = {
     gEffBombExplosion5Tex, gEffBombExplosion6Tex, gEffBombExplosion7Tex, gEffBombExplosion8Tex,
 };
 
-u32 EffectSsBomb2_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 MM_EffectSsBomb2_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsBomb2InitParams* initParams = PARAMS;
 
-    Math_Vec3f_Copy(&this->pos, &initParams->pos);
-    Math_Vec3f_Copy(&this->velocity, &initParams->velocity);
-    Math_Vec3f_Copy(&this->accel, &initParams->accel);
+    MM_Math_Vec3f_Copy(&this->pos, &initParams->pos);
+    MM_Math_Vec3f_Copy(&this->velocity, &initParams->velocity);
+    MM_Math_Vec3f_Copy(&this->accel, &initParams->accel);
     this->gfx = gEffBombExplosion1DL;
     this->life = 24;
-    this->update = EffectSsBomb2_Update;
-    this->draw = sDrawFuncs[initParams->drawMode];
+    this->update = MM_EffectSsBomb2_Update;
+    this->draw = MM_sDrawFuncs[initParams->drawMode];
     this->rScale = initParams->scale;
     this->rScaleStep = initParams->scaleStep;
     this->rPrimColorR = 255;
@@ -70,7 +70,7 @@ u32 EffectSsBomb2_Init(PlayState* play, u32 index, EffectSs* this, void* initPar
 }
 
 // unused in the original game. looks like EffectSsBomb but with color
-void EffectSsBomb2_DrawFade(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsBomb2_DrawFade(PlayState* play, u32 index, EffectSs* this) {
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     MtxF mfTrans;
     MtxF mfScale;
@@ -83,12 +83,12 @@ void EffectSsBomb2_DrawFade(PlayState* play, u32 index, EffectSs* this) {
     OPEN_DISPS(gfxCtx);
 
     scale = this->rScale * 0.01f;
-    SkinMatrix_SetTranslate(&mfTrans, this->pos.x, this->pos.y, this->pos.z);
-    SkinMatrix_SetScale(&mfScale, scale, scale, 1.0f);
-    SkinMatrix_MtxFMtxFMult(&mfTrans, &play->billboardMtxF, &mfTransBillboard);
-    SkinMatrix_MtxFMtxFMult(&mfTransBillboard, &mfScale, &mfResult);
+    MM_SkinMatrix_SetTranslate(&mfTrans, this->pos.x, this->pos.y, this->pos.z);
+    MM_SkinMatrix_SetScale(&mfScale, scale, scale, 1.0f);
+    MM_SkinMatrix_MtxFMtxFMult(&mfTrans, &play->billboardMtxF, &mfTransBillboard);
+    MM_SkinMatrix_MtxFMtxFMult(&mfTransBillboard, &mfScale, &mfResult);
 
-    mtx = SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
+    mtx = MM_SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
 
     if (mtx != NULL) {
         gSPMatrix(POLY_XLU_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -96,14 +96,14 @@ void EffectSsBomb2_DrawFade(PlayState* play, u32 index, EffectSs* this) {
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, this->rPrimColorR, this->rPrimColorG, this->rPrimColorB,
                         this->rPrimColorA);
         gDPSetEnvColor(POLY_XLU_DISP++, this->rEnvColorR, this->rEnvColorG, this->rEnvColorB, 0);
-        gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(sTextures[this->rTexIndex]));
+        gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sTextures[this->rTexIndex]));
         gSPDisplayList(POLY_XLU_DISP++, this->gfx);
     }
 
     CLOSE_DISPS(gfxCtx);
 }
 
-void EffectSsBomb2_DrawLayered(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsBomb2_DrawLayered(PlayState* play, u32 index, EffectSs* this) {
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     MtxF mfTrans;
     MtxF mfScale;
@@ -122,17 +122,17 @@ void EffectSsBomb2_DrawLayered(PlayState* play, u32 index, EffectSs* this) {
 
     depth = this->rDepth;
     scale = this->rScale * 0.01f;
-    SkinMatrix_SetTranslate(&mfTrans, this->pos.x, this->pos.y, this->pos.z);
-    SkinMatrix_SetScale(&mfScale, scale, scale, 1.0f);
-    SkinMatrix_MtxFMtxFMult(&mfTrans, &play->billboardMtxF, &mfTransBillboard);
-    SkinMatrix_MtxFMtxFMult(&mfTransBillboard, &mfScale, &mfResult);
+    MM_SkinMatrix_SetTranslate(&mfTrans, this->pos.x, this->pos.y, this->pos.z);
+    MM_SkinMatrix_SetScale(&mfScale, scale, scale, 1.0f);
+    MM_SkinMatrix_MtxFMtxFMult(&mfTrans, &play->billboardMtxF, &mfTransBillboard);
+    MM_SkinMatrix_MtxFMtxFMult(&mfTransBillboard, &mfScale, &mfResult);
 
-    mtx = SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
+    mtx = MM_SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
 
     if (mtx != NULL) {
         gSPMatrix(POLY_XLU_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
-        mtx2 = SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
+        mtx2 = MM_SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
 
         if (mtx2 != NULL) {
             Gfx_SetupDL60_XluNoCD(gfxCtx);
@@ -143,13 +143,13 @@ void EffectSsBomb2_DrawLayered(PlayState* play, u32 index, EffectSs* this) {
             gSPDisplayList(POLY_XLU_DISP++, gEffBombExplosion2DL);
             gSPDisplayList(POLY_XLU_DISP++, gEffBombExplosion3DL);
 
-            Matrix_MtxToMtxF(mtx2, &mtx2F);
-            Matrix_Put(&mtx2F);
+            MM_Matrix_MtxToMtxF(mtx2, &mtx2F);
+            MM_Matrix_Put(&mtx2F);
 
             for (i = 1; i >= 0; i--) {
-                Matrix_Translate(0.0f, 0.0f, depth, MTXMODE_APPLY);
+                MM_Matrix_Translate(0.0f, 0.0f, depth, MTXMODE_APPLY);
                 Matrix_RotateZF((this->life * 0.02f) + 180.0f, MTXMODE_APPLY);
-                Matrix_Scale(layer2Scale, layer2Scale, layer2Scale, MTXMODE_APPLY);
+                MM_Matrix_Scale(layer2Scale, layer2Scale, layer2Scale, MTXMODE_APPLY);
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
                 gSPDisplayList(POLY_XLU_DISP++, gEffBombExplosion3DL);
                 layer2Scale -= 0.15f;
@@ -160,7 +160,7 @@ void EffectSsBomb2_DrawLayered(PlayState* play, u32 index, EffectSs* this) {
     CLOSE_DISPS(gfxCtx);
 }
 
-void EffectSsBomb2_Update(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsBomb2_Update(PlayState* play, u32 index, EffectSs* this) {
     s32 divisor;
 
     this->rTexIndex = (23 - this->life) / 3;

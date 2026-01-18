@@ -37,7 +37,7 @@ ActorProfile Bg_Kin2_Picture_Profile = {
     /**/ BgKin2Picture_Draw,
 };
 
-static ColliderTrisElementInit sTrisElementsInit[] = {
+static ColliderTrisElementInit MM_sTrisElementsInit[] = {
     {
         {
             ELEM_MATERIAL_UNK4,
@@ -62,7 +62,7 @@ static ColliderTrisElementInit sTrisElementsInit[] = {
     },
 };
 
-static ColliderTrisInit sTrisInit = {
+static ColliderTrisInit MM_sTrisInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -71,13 +71,13 @@ static ColliderTrisInit sTrisInit = {
         OC2_NONE,
         COLSHAPE_TRIS,
     },
-    ARRAY_COUNT(sTrisElementsInit),
-    sTrisElementsInit,
+    ARRAY_COUNT(MM_sTrisElementsInit),
+    MM_sTrisElementsInit,
 };
 
 static Vec3f sDustBasePos = { 0.0f, 23.0f, 0.0f };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32_DIV1000(gravity, -2000, ICHAIN_CONTINUE),
     ICHAIN_F32_DIV1000(terminalVelocity, -20000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
@@ -93,7 +93,7 @@ bool BgKin2Picture_IsSkulltulaCollected(PlayState* play, s32 skulltulaParams) {
         flag = BG_KIN2_PICTURE_GET_3FC(skulltulaParams);
     }
 
-    return (flag >= 0) && Flags_GetTreasure(play, flag);
+    return (flag >= 0) && MM_Flags_GetTreasure(play, flag);
 }
 
 void BgKin2Picture_SpawnSkulltula(BgKin2Picture* this, PlayState* play2) {
@@ -103,7 +103,7 @@ void BgKin2Picture_SpawnSkulltula(BgKin2Picture* this, PlayState* play2) {
     if (!BG_KIN2_PICTURE_SKULLTULA_COLLECTED(&this->dyna.actor)) { // Gold Skulltula is still here.
         skulltulaSpawnParams = BG_KIN2_PICTURE_SKULLTULA_SPAWN_PARAM(&this->dyna.actor);
         if (!BgKin2Picture_IsSkulltulaCollected(play, skulltulaSpawnParams) &&
-            Actor_Spawn(&play->actorCtx, play, ACTOR_EN_SW, this->dyna.actor.home.pos.x,
+            MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_SW, this->dyna.actor.home.pos.x,
                         this->dyna.actor.home.pos.y + 23.0f, this->dyna.actor.home.pos.z, 0,
                         this->dyna.actor.home.rot.y, 0, skulltulaSpawnParams)) {
             Audio_PlaySfx(NA_SE_SY_TRE_BOX_APPEAR);
@@ -125,28 +125,28 @@ void BgKin2Picture_SpawnDust(BgKin2Picture* this, PlayState* play) {
     s32 baseAngle;
     s32 i;
 
-    Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x,
+    MM_Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x,
                                  this->dyna.actor.world.pos.y +
                                      (this->dyna.actor.shape.yOffset * this->dyna.actor.scale.y),
                                  this->dyna.actor.world.pos.z, &this->dyna.actor.shape.rot);
-    Matrix_MultVec3f(&sDustBasePos, &basePos);
+    MM_Matrix_MultVec3f(&sDustBasePos, &basePos);
     pos.y = basePos.y - 7.0f;
     velocity.y = 0.0f;
     accel.y = 0.2f;
 
     for (i = 0, baseAngle = 0; i < DUST_COUNT; i++, baseAngle += (0x10000 / DUST_COUNT)) {
-        angle = (s32)(Rand_ZeroOne() * (0x10000 / DUST_COUNT)) + baseAngle;
-        offset = (Rand_ZeroOne() * 14.0f) + 4.0f;
-        pos.x = Math_SinS(angle) * offset;
-        pos.z = Math_CosS(angle) * offset;
-        velocity.x = (Rand_ZeroOne() - 0.5f) + (pos.x * (1.0f / 6.0f));
-        velocity.z = (Rand_ZeroOne() - 0.5f) + (pos.z * (1.0f / 6.0f));
+        angle = (s32)(MM_Rand_ZeroOne() * (0x10000 / DUST_COUNT)) + baseAngle;
+        offset = (MM_Rand_ZeroOne() * 14.0f) + 4.0f;
+        pos.x = MM_Math_SinS(angle) * offset;
+        pos.z = MM_Math_CosS(angle) * offset;
+        velocity.x = (MM_Rand_ZeroOne() - 0.5f) + (pos.x * (1.0f / 6.0f));
+        velocity.z = (MM_Rand_ZeroOne() - 0.5f) + (pos.z * (1.0f / 6.0f));
         pos.x += basePos.x;
         pos.z += basePos.z;
         accel.x = velocity.x * -0.09f;
         accel.z = velocity.z * -0.09f;
-        scale = (s32)(Rand_ZeroOne() * 10.0f) + 10;
-        scaleStep = (s32)(Rand_ZeroOne() * 10.0f) + 15;
+        scale = (s32)(MM_Rand_ZeroOne() * 10.0f) + 10;
+        scaleStep = (s32)(MM_Rand_ZeroOne() * 10.0f) + 15;
         func_800B1210(play, &pos, &velocity, &accel, scale, scaleStep);
     }
 }
@@ -160,24 +160,24 @@ void BgKin2Picture_Init(Actor* thisx, PlayState* play) {
     s32 j;
     ColliderTrisElementInit* element;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, 0);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
+    MM_DynaPolyActor_Init(&this->dyna, 0);
     DynaPolyActor_LoadMesh(play, &this->dyna, &gOceanSpiderHouseSkullkidPaintingCol);
     DynaPoly_DisableCollision(play, &play->colCtx.dyna, this->dyna.bgId);
-    Collider_InitTris(play, &this->colliderTris);
-    Collider_SetTris(play, &this->colliderTris, &this->dyna.actor, &sTrisInit, this->colliderElement);
-    Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
+    MM_Collider_InitTris(play, &this->colliderTris);
+    MM_Collider_SetTris(play, &this->colliderTris, &this->dyna.actor, &MM_sTrisInit, this->colliderElement);
+    MM_Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
                                  this->dyna.actor.world.pos.z, &this->dyna.actor.shape.rot);
 
-    for (i = 0; i < ARRAY_COUNT(sTrisElementsInit); i++) {
+    for (i = 0; i < ARRAY_COUNT(MM_sTrisElementsInit); i++) {
         for (j = 0; j < ARRAY_COUNT(vertices); j++) {
-            element = &sTrisInit.elements[i];
-            Matrix_MultVec3f(&element->dim.vtx[j], &vertices[j]);
+            element = &MM_sTrisInit.elements[i];
+            MM_Matrix_MultVec3f(&element->dim.vtx[j], &vertices[j]);
         }
-        Collider_SetTrisVertices(&this->colliderTris, i, &vertices[0], &vertices[1], &vertices[2]);
+        MM_Collider_SetTrisVertices(&this->colliderTris, i, &vertices[0], &vertices[1], &vertices[2]);
     }
 
-    Actor_SetFocus(&this->dyna.actor, 23.0f);
+    MM_Actor_SetFocus(&this->dyna.actor, 23.0f);
     skulltulaParams = BG_KIN2_PICTURE_SKULLTULA_SPAWN_PARAM(&this->dyna.actor);
 
     if (BG_KIN2_PICTURE_SKULLTULA_COLLECTED(&this->dyna.actor) ||
@@ -191,8 +191,8 @@ void BgKin2Picture_Init(Actor* thisx, PlayState* play) {
 void BgKin2Picture_Destroy(Actor* thisx, PlayState* play) {
     BgKin2Picture* this = (BgKin2Picture*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
-    Collider_DestroyTris(play, &this->colliderTris);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_Collider_DestroyTris(play, &this->colliderTris);
 }
 
 void BgKin2Picture_SetupWait(BgKin2Picture* this) {
@@ -210,8 +210,8 @@ void BgKin2Picture_Wait(BgKin2Picture* this, PlayState* play) {
             if (this->skulltulaNoiseTimer == 0) {
                 Actor_PlaySfx(&this->dyna.actor, NA_SE_EN_STALGOLD_ROLL);
 
-                if (Rand_ZeroOne() < 0.1f) {
-                    this->skulltulaNoiseTimer = Rand_S16Offset(40, 80);
+                if (MM_Rand_ZeroOne() < 0.1f) {
+                    this->skulltulaNoiseTimer = MM_Rand_S16Offset(40, 80);
                 } else {
                     this->skulltulaNoiseTimer = 8;
                 }
@@ -219,7 +219,7 @@ void BgKin2Picture_Wait(BgKin2Picture* this, PlayState* play) {
                 this->skulltulaNoiseTimer--;
             }
         }
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderTris.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderTris.base);
     }
 }
 
@@ -251,17 +251,17 @@ void BgKin2Picture_Shiver(BgKin2Picture* this, PlayState* play) {
 
     this->paintingTimer--;
     if (this->paintingTimer <= 0) {
-        Math_Vec3f_Copy(&this->dyna.actor.world.pos, &this->dyna.actor.home.pos);
+        MM_Math_Vec3f_Copy(&this->dyna.actor.world.pos, &this->dyna.actor.home.pos);
         BgKin2Picture_SetupFall(this);
     } else {
         this->xOffsetAngle += 0x7BAC;
         this->yOffsetAngle += 0x4E20;
-        basePosOffset.x = Math_CosS(this->xOffsetAngle);
-        basePosOffset.y = Math_CosS(this->yOffsetAngle) * 0.2f;
+        basePosOffset.x = MM_Math_CosS(this->xOffsetAngle);
+        basePosOffset.y = MM_Math_CosS(this->yOffsetAngle) * 0.2f;
         basePosOffset.z = 0.0f;
         Matrix_RotateYS(this->dyna.actor.shape.rot.y, MTXMODE_NEW);
-        Matrix_MultVec3f(&basePosOffset, &posOffset);
-        Math_Vec3f_Sum(&this->dyna.actor.home.pos, &posOffset, &this->dyna.actor.world.pos);
+        MM_Matrix_MultVec3f(&basePosOffset, &posOffset);
+        MM_Math_Vec3f_Sum(&this->dyna.actor.home.pos, &posOffset, &this->dyna.actor.world.pos);
     }
 }
 
@@ -282,10 +282,10 @@ void BgKin2Picture_Fall(BgKin2Picture* this, PlayState* play) {
     }
 
     Actor_MoveWithGravity(&this->dyna.actor);
-    Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
 
     if (this->dyna.actor.bgCheckFlags & BGCHECKFLAG_GROUND) {
-        Math_StepToS(&this->step, 0x7D0, 0x78);
+        MM_Math_StepToS(&this->step, 0x7D0, 0x78);
 
         if (this->landTimer < 3) {
             this->landTimer++;
@@ -304,14 +304,14 @@ void BgKin2Picture_Fall(BgKin2Picture* this, PlayState* play) {
         }
     }
 
-    Actor_SetFocus(&this->dyna.actor, 23.0f);
+    MM_Actor_SetFocus(&this->dyna.actor, 23.0f);
 
     if (!this->hasSpawnedDust && (this->dyna.actor.shape.rot.x > 0x3300)) {
         BgKin2Picture_SpawnDust(this, play);
         this->hasSpawnedDust = true;
     }
 
-    if (Math_ScaledStepToS(&this->dyna.actor.shape.rot.x, 0x4000, this->step)) { // facing the floor
+    if (MM_Math_ScaledStepToS(&this->dyna.actor.shape.rot.x, 0x4000, this->step)) { // facing the floor
         this->dyna.actor.shape.yOffset = 40.0f;
 
         if (this->cutsceneStarted) {
@@ -322,7 +322,7 @@ void BgKin2Picture_Fall(BgKin2Picture* this, PlayState* play) {
         Actor_PlaySfx(&this->dyna.actor, NA_SE_EV_WOODPLATE_BROKEN);
         BgKin2Picture_SetupDoNothing(this);
     } else {
-        this->dyna.actor.shape.yOffset = Math_SinS(this->dyna.actor.shape.rot.x) * 40.0f;
+        this->dyna.actor.shape.yOffset = MM_Math_SinS(this->dyna.actor.shape.rot.x) * 40.0f;
     }
 }
 
@@ -342,5 +342,5 @@ void BgKin2Picture_Update(Actor* thisx, PlayState* play) {
 void BgKin2Picture_Draw(Actor* thisx, PlayState* play) {
     BgKin2Picture* this = (BgKin2Picture*)thisx;
 
-    Gfx_DrawDListOpa(play, gOceanSpiderHouseSkullkidPaintingDL);
+    MM_Gfx_DrawDListOpa(play, gOceanSpiderHouseSkullkidPaintingDL);
 }

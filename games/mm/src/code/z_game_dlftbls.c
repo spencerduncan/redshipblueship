@@ -34,7 +34,7 @@
 //      0,                                                   \
 //      sizeof(typeName##State) },
 
-GameStateOverlay gGameStateOverlayTable[GAMESTATE_ID_MAX] = {
+GameStateOverlay MM_gGameStateOverlayTable[GAMESTATE_ID_MAX] = {
 #include "tables/gamestate_table.h"
 };
 

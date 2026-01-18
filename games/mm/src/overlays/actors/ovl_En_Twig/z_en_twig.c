@@ -40,7 +40,7 @@ s32 sCurrentRing;
 s16 sRingCount;
 s16 sRingNotCollected[25];
 
-static CollisionHeader* sColHeaders[] = {
+static CollisionHeader* MM_sColHeaders[] = {
     NULL,
     &object_twig_Colheader_0020A0,
     &object_twig_Colheader_0016C0,
@@ -48,7 +48,7 @@ static CollisionHeader* sColHeaders[] = {
 
 static s16 sRingsHaveSpawned = false;
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeScale, 40, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 40, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 1000, ICHAIN_CONTINUE),
@@ -60,16 +60,16 @@ void EnTwig_Init(Actor* thisx, PlayState* play2) {
     EnTwig* this = (EnTwig*)thisx;
     s32 i;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
     this->unk_160 = RACERING_GET_PARAM_F(&this->dyna.actor);
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
-    if (sColHeaders[this->unk_160] != NULL) {
-        DynaPolyActor_LoadMesh(play, &this->dyna, sColHeaders[this->unk_160]);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    if (MM_sColHeaders[this->unk_160] != NULL) {
+        DynaPolyActor_LoadMesh(play, &this->dyna, MM_sColHeaders[this->unk_160]);
     }
     this->dyna.actor.bgCheckFlags |= BGCHECKFLAG_PLAYER_400;
     switch (this->unk_160) {
         case 0:
-            Actor_Kill(&this->dyna.actor);
+            MM_Actor_Kill(&this->dyna.actor);
             break;
 
         case 1:
@@ -82,14 +82,14 @@ void EnTwig_Init(Actor* thisx, PlayState* play2) {
             }
             if (RACERING_GET_PARAM_1F0(&this->dyna.actor) != 0) {
                 if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_24_04)) {
-                    Actor_Kill(&this->dyna.actor);
+                    MM_Actor_Kill(&this->dyna.actor);
                     return;
                 }
             } else if (CHECK_WEEKEVENTREG(WEEKEVENTREG_24_04)) {
-                Actor_Kill(&this->dyna.actor);
+                MM_Actor_Kill(&this->dyna.actor);
                 return;
             }
-            Actor_SetScale(&this->dyna.actor, 4.2f);
+            MM_Actor_SetScale(&this->dyna.actor, 4.2f);
             this->dyna.actor.cullingVolumeScale = this->dyna.actor.cullingVolumeDownward =
                 this->dyna.actor.scale.x * 60.0f;
             DynaPoly_DisableCollision(play, &play->colCtx.dyna, this->dyna.bgId);
@@ -97,7 +97,7 @@ void EnTwig_Init(Actor* thisx, PlayState* play2) {
             break;
 
         case 2:
-            Actor_SetScale(&this->dyna.actor, 1.0f);
+            MM_Actor_SetScale(&this->dyna.actor, 1.0f);
             this->dyna.actor.cullingVolumeScale = this->dyna.actor.cullingVolumeDownward =
                 this->dyna.actor.scale.x * 880.0f;
             func_80AC0A54(this, play);
@@ -112,7 +112,7 @@ void EnTwig_Destroy(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     EnTwig* this = (EnTwig*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_80AC0A54(EnTwig* this, PlayState* play) {
@@ -125,7 +125,7 @@ void func_80AC0A6C(EnTwig* this, PlayState* play) {
 void func_80AC0A7C(EnTwig* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    Math_Vec3f_Copy(&this->unk_180, &player->bodyPartsPos[PLAYER_BODYPART_WAIST]);
+    MM_Math_Vec3f_Copy(&this->unk_180, &player->bodyPartsPos[PLAYER_BODYPART_WAIST]);
     this->unk_178 = 0;
     this->unk_17A = 0;
     this->actionFunc = func_80AC0AC8;
@@ -147,9 +147,9 @@ void func_80AC0AC8(EnTwig* this, PlayState* play) {
     }
     SubS_ConstructPlane(&this->dyna.actor.world.pos, &D_80AC10D0, &this->dyna.actor.shape.rot, &sp4C);
     if ((sCurrentRing == RACERING_GET_PARAM_FE0(&this->dyna.actor)) &&
-        Math3D_LineSegVsPlane(sp4C.normal.x, sp4C.normal.y, sp4C.normal.z, sp4C.originDist, &this->unk_180,
+        MM_Math3D_LineSegVsPlane(sp4C.normal.x, sp4C.normal.y, sp4C.normal.z, sp4C.originDist, &this->unk_180,
                               &player->bodyPartsPos[PLAYER_BODYPART_WAIST], &sp40, 0)) {
-        if (Math3D_Vec3fDistSq(&this->dyna.actor.world.pos, &sp40) <= SQ(this->dyna.actor.scale.x * 0.345f * 40.0f)) {
+        if (MM_Math3D_Vec3fDistSq(&this->dyna.actor.world.pos, &sp40) <= SQ(this->dyna.actor.scale.x * 0.345f * 40.0f)) {
             func_80AC0CC4(this, play);
             return;
         }
@@ -164,7 +164,7 @@ void func_80AC0AC8(EnTwig* this, PlayState* play) {
             this->dyna.actor.world.rot.y = this->dyna.actor.yawTowardsPlayer;
         }
     }
-    Math_Vec3f_Copy(&this->unk_180, &player->bodyPartsPos[PLAYER_BODYPART_WAIST]);
+    MM_Math_Vec3f_Copy(&this->unk_180, &player->bodyPartsPos[PLAYER_BODYPART_WAIST]);
 }
 
 void func_80AC0CC4(EnTwig* this, PlayState* play) {
@@ -182,29 +182,29 @@ void func_80AC0D2C(EnTwig* this, PlayState* play) {
     static Color_RGBA8 sColorYellow = { 255, 255, 0, 0 };
     Player* player = GET_PLAYER(play);
 
-    Math_SmoothStepToF(&this->dyna.actor.world.pos.x, player->bodyPartsPos[PLAYER_BODYPART_WAIST].x, 0.5f, 100.0f,
+    MM_Math_SmoothStepToF(&this->dyna.actor.world.pos.x, player->bodyPartsPos[PLAYER_BODYPART_WAIST].x, 0.5f, 100.0f,
                        0.01f);
-    Math_SmoothStepToF(&this->dyna.actor.world.pos.y, player->bodyPartsPos[PLAYER_BODYPART_WAIST].y, 0.5f, 100.0f,
+    MM_Math_SmoothStepToF(&this->dyna.actor.world.pos.y, player->bodyPartsPos[PLAYER_BODYPART_WAIST].y, 0.5f, 100.0f,
                        0.01f);
-    Math_SmoothStepToF(&this->dyna.actor.world.pos.z, player->bodyPartsPos[PLAYER_BODYPART_WAIST].z, 0.5f, 100.0f,
+    MM_Math_SmoothStepToF(&this->dyna.actor.world.pos.z, player->bodyPartsPos[PLAYER_BODYPART_WAIST].z, 0.5f, 100.0f,
                        0.01f);
     this->dyna.actor.shape.rot.z += TRUNCF_BINANG(this->unk_170);
     this->dyna.actor.scale.x -= this->unk_174;
     if (this->dyna.actor.scale.x < 0.0f) {
-        Actor_SetScale(&this->dyna.actor, 0.0f);
+        MM_Actor_SetScale(&this->dyna.actor, 0.0f);
     } else {
-        Actor_SetScale(&this->dyna.actor, this->dyna.actor.scale.x);
+        MM_Actor_SetScale(&this->dyna.actor, this->dyna.actor.scale.x);
     }
     if (this->dyna.actor.scale.x <= 0.0f) {
         s32 j;
         Vec3f sp6C;
 
         for (j = 0; j < 7; j++) {
-            sp6C.x = (Rand_Centered() * 10.0f) + this->dyna.actor.world.pos.x;
-            sp6C.y = (Rand_Centered() * 10.0f) + this->dyna.actor.world.pos.y;
-            sp6C.z = (Rand_Centered() * 10.0f) + this->dyna.actor.world.pos.z;
+            sp6C.x = (MM_Rand_Centered() * 10.0f) + this->dyna.actor.world.pos.x;
+            sp6C.y = (MM_Rand_Centered() * 10.0f) + this->dyna.actor.world.pos.y;
+            sp6C.z = (MM_Rand_Centered() * 10.0f) + this->dyna.actor.world.pos.z;
             EffectSsKirakira_SpawnDispersed(play, &sp6C, &sKiraVel, &sKiraAccel, &sColorWhite, &sColorYellow, 1000,
-                                            (s32)(Rand_ZeroOne() * 10.0f) + 20);
+                                            (s32)(MM_Rand_ZeroOne() * 10.0f) + 20);
         }
         Audio_PlaySfx(NA_SE_SY_GET_ITEM);
         play->interfaceCtx.minigamePoints--;
@@ -222,7 +222,7 @@ void func_80AC0D2C(EnTwig* this, PlayState* play) {
                 sCurrentRing = -1;
             }
         }
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
         return;
     }
     this->unk_170 += 180.0f / 0x10000;
@@ -241,10 +241,10 @@ void EnTwig_Draw(Actor* thisx, PlayState* play) {
 
     switch (this->unk_160) {
         case 1:
-            Gfx_DrawDListOpa(play, object_twig_DL_001C38);
+            MM_Gfx_DrawDListOpa(play, object_twig_DL_001C38);
             break;
         case 2:
-            Gfx_DrawDListOpa(play, object_twig_DL_0014C8);
+            MM_Gfx_DrawDListOpa(play, object_twig_DL_0014C8);
             break;
     }
 }

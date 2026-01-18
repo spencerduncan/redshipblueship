@@ -50,7 +50,7 @@ ObjPzlblockStruct D_809A4060[] = {
     { OBJECT_SECOM_OBJ, &object_secom_obj_Colheader_002CB8, object_secom_obj_DL_001A58 },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3S(world.rot, 0, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 100, ICHAIN_CONTINUE),
@@ -197,20 +197,20 @@ void ObjPzlblock_Init(Actor* thisx, PlayState* play) {
     s32 sp28 = this->dyna.actor.home.rot.x & 0xF;
     ObjPzlblockStruct* sp24 = &D_809A4060[OBJPZLBLOCK_GET_1000(&this->dyna.actor)];
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    Actor_SetScale(&this->dyna.actor, 0.1f);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
+    MM_Actor_SetScale(&this->dyna.actor, 0.1f);
 
     this->dyna.actor.home.rot.y = 0;
     this->dyna.actor.shape.rot.x = 0;
     this->dyna.actor.shape.rot.z = 0;
 
-    DynaPolyActor_Init(&this->dyna, 0);
+    MM_DynaPolyActor_Init(&this->dyna, 0);
 
     this->objectSlot = Object_GetSlot(&play->objectCtx, sp24->objectId);
 
     if (sp28 == 0) {
         func_809A3D1C(this);
-    } else if (Flags_GetSwitch(play, OBJPZLBLOCK_GET_SWITCH_FLAG(&this->dyna.actor))) {
+    } else if (MM_Flags_GetSwitch(play, OBJPZLBLOCK_GET_SWITCH_FLAG(&this->dyna.actor))) {
         if (sp2C == 0) {
             this->dyna.actor.world.pos.x = this->dyna.actor.home.pos.x + (sp28 * 60);
             func_809A3D1C(this);
@@ -234,7 +234,7 @@ void ObjPzlblock_Init(Actor* thisx, PlayState* play) {
 void ObjPzlblock_Destroy(Actor* thisx, PlayState* play) {
     ObjPzlblock* this = (ObjPzlblock*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_809A3A48(ObjPzlblock* this) {
@@ -279,7 +279,7 @@ void func_809A3BA4(ObjPzlblock* this) {
 }
 
 void func_809A3BC0(ObjPzlblock* this, PlayState* play) {
-    if (GameInteractor_Should(VB_BLOCK_BE_FINISHED_PULLING, Math_StepToF(this->unk_164, this->unk_168, 2.3f),
+    if (GameInteractor_Should(VB_BLOCK_BE_FINISHED_PULLING, MM_Math_StepToF(this->unk_164, this->unk_168, 2.3f),
                               this->unk_164, this->unk_168, 2.3f, 2.3f)) {
         Player* player = GET_PLAYER(play);
         s32 params = OBJPZLBLOCK_GET_ROTZ(&this->dyna.actor);
@@ -296,7 +296,7 @@ void func_809A3BC0(ObjPzlblock* this, PlayState* play) {
             }
         } else {
             Actor_PlaySfx(&this->dyna.actor, NA_SE_EV_BLOCK_BOUND);
-            Flags_SetSwitch(play, OBJPZLBLOCK_GET_SWITCH_FLAG(&this->dyna.actor));
+            MM_Flags_SetSwitch(play, OBJPZLBLOCK_GET_SWITCH_FLAG(&this->dyna.actor));
             sp20 = 1;
         }
 
@@ -329,13 +329,13 @@ void ObjPzlblock_Update(Actor* thisx, PlayState* play) {
     ObjPzlblock* this = (ObjPzlblock*)thisx;
 
     this->dyna.actor.world.pos.y = this->dyna.actor.home.pos.y;
-    Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 15.0f, 30.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 15.0f, 30.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
 
-    if (Object_IsLoaded(&play->objectCtx, this->objectSlot)) {
+    if (MM_Object_IsLoaded(&play->objectCtx, this->objectSlot)) {
         ObjPzlblockStruct* sp2C = &D_809A4060[OBJPZLBLOCK_GET_1000(&this->dyna.actor)];
 
         this->dyna.actor.objectSlot = this->objectSlot;
-        Actor_SetObjectDependency(play, &this->dyna.actor);
+        MM_Actor_SetObjectDependency(play, &this->dyna.actor);
         DynaPolyActor_LoadMesh(play, &this->dyna, sp2C->unk_04);
         this->dyna.actor.update = func_809A3E58;
         this->dyna.actor.draw = func_809A3F0C;
@@ -350,10 +350,10 @@ void func_809A3E58(Actor* thisx, PlayState* play) {
     this->dyna.actor.world.pos.y = this->dyna.actor.home.pos.y;
 
     if (this->updBgCheckInfoFlags != 0) {
-        Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 15.0f, 30.0f, 0.0f, this->updBgCheckInfoFlags);
+        MM_Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 15.0f, 30.0f, 0.0f, this->updBgCheckInfoFlags);
         if (((this->actionFunc == func_809A3A74) || (this->actionFunc == func_809A3D38)) &&
             (this->dyna.actor.bgCheckFlags & BGCHECKFLAG_GROUND) &&
-            !DynaPoly_GetActor(&play->colCtx, this->dyna.actor.floorBgId)) {
+            !MM_DynaPoly_GetActor(&play->colCtx, this->dyna.actor.floorBgId)) {
             this->updBgCheckInfoFlags = 0;
         }
     }

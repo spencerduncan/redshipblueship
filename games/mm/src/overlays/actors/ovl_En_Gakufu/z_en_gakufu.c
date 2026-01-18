@@ -133,7 +133,7 @@ void EnGakufu_Init(Actor* thisx, PlayState* play) {
 
     this->songIndex = OCARINA_SONG_TERMINA_WALL;
     EnGakufu_ProcessNotes(this);
-    Actor_SetScale(&this->actor, 1.0f);
+    MM_Actor_SetScale(&this->actor, 1.0f);
 
     if (GAKUFU_GET_TYPE(&this->actor) == GAKUFU_MILK_BAR) {
         this->actor.draw = NULL;
@@ -211,7 +211,7 @@ void EnGakufu_GiveReward(EnGakufu* this, PlayState* play) {
 
     hour = TIME_TO_HOURS_F(CURRENT_TIME);
     for (i = 0; i < 3; i++) {
-        Item_DropCollectible(play, &sRewardDropsSpawnTerminaFieldPos, sRewardDrops[i + sRewardDropsIndex[hour]]);
+        MM_Item_DropCollectible(play, &sRewardDropsSpawnTerminaFieldPos, sRewardDrops[i + sRewardDropsIndex[hour]]);
     }
 
     this->actionFunc = EnGakufu_DoNothing;
@@ -268,13 +268,13 @@ void EnGakufu_Draw(Actor* thisx, PlayState* play) {
 
     // Invert the whole music staff, so the notes appear correctly in mirrored world
     if (CVarGetInteger("gModes.MirroredWorld.State", 0)) {
-        Matrix_Scale(-1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
+        MM_Matrix_Scale(-1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
     }
 
     for (i = 0; (i < ARRAY_COUNT(this->buttonIndex)) && (this->buttonIndex[i] != OCARINA_BTN_INVALID); i++) {
-        Matrix_Push();
-        Matrix_Translate(30 * i - 105, sOcarinaBtnWallYOffsets[this->buttonIndex[i]] * 7.5f, 1.0f, MTXMODE_APPLY);
-        Matrix_Scale(0.6f, 0.6f, 0.6f, MTXMODE_APPLY);
+        MM_Matrix_Push();
+        MM_Matrix_Translate(30 * i - 105, sOcarinaBtnWallYOffsets[this->buttonIndex[i]] * 7.5f, 1.0f, MTXMODE_APPLY);
+        MM_Matrix_Scale(0.6f, 0.6f, 0.6f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gDPSetTextureLUT(POLY_XLU_DISP++, G_TT_NONE);
@@ -290,7 +290,7 @@ void EnGakufu_Draw(Actor* thisx, PlayState* play) {
 
         gSPDisplayList(POLY_XLU_DISP++, gGakufuButtonIndexDL);
 
-        Matrix_Pop();
+        MM_Matrix_Pop();
     }
 
     gSPSegment(POLY_XLU_DISP++, 0x02, play->sceneSegment);

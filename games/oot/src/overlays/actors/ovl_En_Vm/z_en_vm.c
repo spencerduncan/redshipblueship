@@ -13,10 +13,10 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void EnVm_Init(Actor* thisx, PlayState* play);
-void EnVm_Destroy(Actor* thisx, PlayState* play);
-void EnVm_Update(Actor* thisx, PlayState* play);
-void EnVm_Draw(Actor* thisx, PlayState* play);
+void OoT_EnVm_Init(Actor* thisx, PlayState* play);
+void OoT_EnVm_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnVm_Update(Actor* thisx, PlayState* play);
+void OoT_EnVm_Draw(Actor* thisx, PlayState* play);
 
 void EnVm_SetupWait(EnVm* this);
 void EnVm_Wait(EnVm* this, PlayState* play);
@@ -31,14 +31,14 @@ const ActorInit En_Vm_InitVars = {
     FLAGS,
     OBJECT_VM,
     sizeof(EnVm),
-    (ActorFunc)EnVm_Init,
-    (ActorFunc)EnVm_Destroy,
-    (ActorFunc)EnVm_Update,
-    (ActorFunc)EnVm_Draw,
+    (ActorFunc)OoT_EnVm_Init,
+    (ActorFunc)OoT_EnVm_Destroy,
+    (ActorFunc)OoT_EnVm_Update,
+    (ActorFunc)OoT_EnVm_Draw,
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_METAL,
         AT_NONE,
@@ -134,44 +134,44 @@ void EnVm_SetupAction(EnVm* this, EnVmActionFunc actionFunc) {
     this->actionFunc = actionFunc;
 }
 
-void EnVm_Init(Actor* thisx, PlayState* play) {
+void OoT_EnVm_Init(Actor* thisx, PlayState* play) {
     EnVm* this = (EnVm*)thisx;
 
-    SkelAnime_Init(play, &this->skelAnime, &gBeamosSkel, &gBeamosAnim, this->jointTable, this->morphTable, 11);
-    ActorShape_Init(&thisx->shape, 0.0f, NULL, 0.0f);
-    Collider_InitCylinder(play, &this->colliderCylinder);
-    Collider_SetCylinder(play, &this->colliderCylinder, thisx, &sCylinderInit);
-    Collider_InitQuad(play, &this->colliderQuad1);
-    Collider_SetQuad(play, &this->colliderQuad1, thisx, &sQuadInit1);
-    Collider_InitQuad(play, &this->colliderQuad2);
-    Collider_SetQuad(play, &this->colliderQuad2, thisx, &sQuadInit2);
+    OoT_SkelAnime_Init(play, &this->skelAnime, &gBeamosSkel, &gBeamosAnim, this->jointTable, this->morphTable, 11);
+    OoT_ActorShape_Init(&thisx->shape, 0.0f, NULL, 0.0f);
+    OoT_Collider_InitCylinder(play, &this->colliderCylinder);
+    OoT_Collider_SetCylinder(play, &this->colliderCylinder, thisx, &OoT_sCylinderInit);
+    OoT_Collider_InitQuad(play, &this->colliderQuad1);
+    OoT_Collider_SetQuad(play, &this->colliderQuad1, thisx, &sQuadInit1);
+    OoT_Collider_InitQuad(play, &this->colliderQuad2);
+    OoT_Collider_SetQuad(play, &this->colliderQuad2, thisx, &sQuadInit2);
     this->beamSightRange = (thisx->params >> 8) * 40.0f;
     thisx->params &= 0xFF;
     thisx->naviEnemyId = 0x39;
 
     if (thisx->params == BEAMOS_LARGE) {
         thisx->colChkInfo.health = 2;
-        Actor_SetScale(thisx, 0.014f);
+        OoT_Actor_SetScale(thisx, 0.014f);
     } else {
         thisx->colChkInfo.health = 1;
-        Actor_SetScale(thisx, 0.01f);
+        OoT_Actor_SetScale(thisx, 0.01f);
     }
 
     EnVm_SetupWait(this);
 }
 
-void EnVm_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnVm_Destroy(Actor* thisx, PlayState* play) {
     EnVm* this = (EnVm*)thisx;
 
-    Collider_DestroyCylinder(play, &this->colliderCylinder);
+    OoT_Collider_DestroyCylinder(play, &this->colliderCylinder);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
 
 void EnVm_SetupWait(EnVm* this) {
-    f32 frameCount = Animation_GetLastFrame(&gBeamosAnim);
+    f32 frameCount = OoT_Animation_GetLastFrame(&gBeamosAnim);
 
-    Animation_Change(&this->skelAnime, &gBeamosAnim, 1.0f, frameCount, frameCount, ANIMMODE_ONCE, 0.0f);
+    OoT_Animation_Change(&this->skelAnime, &gBeamosAnim, 1.0f, frameCount, frameCount, ANIMMODE_ONCE, 0.0f);
     this->unk_25E = this->unk_260 = 0;
     this->unk_21C = 0;
     this->timer = 10;
@@ -187,9 +187,9 @@ void EnVm_Wait(EnVm* this, PlayState* play) {
 
     switch (this->unk_25E) {
         case 0:
-            Math_SmoothStepToS(&this->beamRot.x, 0, 10, 1500, 0);
+            OoT_Math_SmoothStepToS(&this->beamRot.x, 0, 10, 1500, 0);
             headRot = this->actor.yawTowardsPlayer - this->headRotY - this->actor.shape.rot.y;
-            pitch = Math_Vec3f_Pitch(&this->beamPos1, &player->actor.world.pos);
+            pitch = OoT_Math_Vec3f_Pitch(&this->beamPos1, &player->actor.world.pos);
 
             if (pitch > 0x1B91) {
                 pitch = 0x1B91;
@@ -199,8 +199,8 @@ void EnVm_Wait(EnVm* this, PlayState* play) {
 
             if (this->actor.xzDistToPlayer <= this->beamSightRange && ABS(headRot) <= 0x2710 && pitch >= 0xE38 &&
                 this->actor.yDistToPlayer <= 80.0f && this->actor.yDistToPlayer >= -160.0f) {
-                Math_SmoothStepToS(&this->beamRot.x, pitch, 10, 0xFA0, 0);
-                if (Math_SmoothStepToS(&this->headRotY, this->actor.yawTowardsPlayer - this->actor.shape.rot.y, 1,
+                OoT_Math_SmoothStepToS(&this->beamRot.x, pitch, 10, 0xFA0, 0);
+                if (OoT_Math_SmoothStepToS(&this->headRotY, this->actor.yawTowardsPlayer - this->actor.shape.rot.y, 1,
                                        (ABS((s16)(dist * 180.0f)) / 3) + 0xFA0, 0) <= 5460) {
                     this->timer--;
                     if (this->timer == 0) {
@@ -215,7 +215,7 @@ void EnVm_Wait(EnVm* this, PlayState* play) {
                 this->headRotY -= 0x1F4;
             }
 
-            SkelAnime_Update(&this->skelAnime);
+            OoT_SkelAnime_Update(&this->skelAnime);
             return;
         case 1:
             break;
@@ -223,16 +223,16 @@ void EnVm_Wait(EnVm* this, PlayState* play) {
             return;
     }
 
-    Math_SmoothStepToS(&this->headRotY, this->actor.yawTowardsPlayer - this->actor.shape.rot.y, 1, 0x1F40, 0);
+    OoT_Math_SmoothStepToS(&this->headRotY, this->actor.yawTowardsPlayer - this->actor.shape.rot.y, 1, 0x1F40, 0);
 
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (OoT_SkelAnime_Update(&this->skelAnime)) {
         this->unk_260++;
         this->skelAnime.curFrame = 0.0f;
     }
 
     if (this->unk_260 == 2) {
         this->beamRot.y = this->actor.yawTowardsPlayer;
-        this->beamRot.x = Math_Vec3f_Pitch(&this->beamPos1, &player->actor.world.pos);
+        this->beamRot.x = OoT_Math_Vec3f_Pitch(&this->beamPos1, &player->actor.world.pos);
 
         if (this->beamRot.x > 0x1B91) {
             this->beamRot.x = 0x1B91;
@@ -245,7 +245,7 @@ void EnVm_Wait(EnVm* this, PlayState* play) {
             this->skelAnime.playSpeed = 1.0f;
         } else {
             this->skelAnime.curFrame = 6.0f;
-            EffectSsDeadDd_Spawn(play, &this->beamPos2, &D_80B2EAEC, &D_80B2EAEC, 150, -25, 0, 0, 255, 0, 255, 255, 255,
+            OoT_EffectSsDeadDd_Spawn(play, &this->beamPos2, &D_80B2EAEC, &D_80B2EAEC, 150, -25, 0, 0, 255, 0, 255, 255, 255,
                                  16, 20);
             EnVm_SetupAttack(this);
         }
@@ -253,7 +253,7 @@ void EnVm_Wait(EnVm* this, PlayState* play) {
 }
 
 void EnVm_SetupAttack(EnVm* this) {
-    Animation_Change(&this->skelAnime, &gBeamosAnim, 3.0f, 3.0f, 7.0f, ANIMMODE_ONCE, 0.0f);
+    OoT_Animation_Change(&this->skelAnime, &gBeamosAnim, 3.0f, 3.0f, 7.0f, ANIMMODE_ONCE, 0.0f);
     this->timer = 305;
     this->beamScale.x = 0.6f;
     this->beamSpeed = 40.0f;
@@ -264,7 +264,7 @@ void EnVm_SetupAttack(EnVm* this) {
 
 void EnVm_Attack(EnVm* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
-    s16 pitch = Math_Vec3f_Pitch(&this->beamPos1, &player->actor.world.pos);
+    s16 pitch = OoT_Math_Vec3f_Pitch(&this->beamPos1, &player->actor.world.pos);
     f32 dist;
     Vec3f playerPos;
 
@@ -282,7 +282,7 @@ void EnVm_Attack(EnVm* this, PlayState* play) {
     }
 
     if (this->beamRot.x < 0xAAA || this->timer == 0) {
-        Math_SmoothStepToF(&this->beamScale.x, 0.0f, 1.0f, 0.03f, 0.0f);
+        OoT_Math_SmoothStepToF(&this->beamScale.x, 0.0f, 1.0f, 0.03f, 0.0f);
         this->unk_260 = 0;
 
         if (this->beamScale.x == 0.0f) {
@@ -294,34 +294,34 @@ void EnVm_Attack(EnVm* this, PlayState* play) {
             return;
         }
 
-        Math_SmoothStepToS(&this->headRotY, -this->actor.shape.rot.y + this->actor.yawTowardsPlayer, 10, 0xDAC, 0);
-        Math_SmoothStepToS(&this->beamRot.y, this->actor.yawTowardsPlayer, 10, 0xDAC, 0);
-        Math_SmoothStepToS(&this->beamRot.x, pitch, 10, 0xDAC, 0);
+        OoT_Math_SmoothStepToS(&this->headRotY, -this->actor.shape.rot.y + this->actor.yawTowardsPlayer, 10, 0xDAC, 0);
+        OoT_Math_SmoothStepToS(&this->beamRot.y, this->actor.yawTowardsPlayer, 10, 0xDAC, 0);
+        OoT_Math_SmoothStepToS(&this->beamRot.x, pitch, 10, 0xDAC, 0);
         playerPos = player->actor.world.pos;
 
         if (player->actor.floorHeight > BGCHECK_Y_MIN) {
             playerPos.y = player->actor.floorHeight;
         }
 
-        dist = Math_Vec3f_DistXYZ(&this->beamPos1, &playerPos);
-        Math_SmoothStepToF(&this->beamScale.z, dist, 1.0f, this->beamSpeed, 0.0f);
-        Math_SmoothStepToF(&this->beamScale.x, 0.1f, 1.0f, 0.12f, 0.0f);
+        dist = OoT_Math_Vec3f_DistXYZ(&this->beamPos1, &playerPos);
+        OoT_Math_SmoothStepToF(&this->beamScale.z, dist, 1.0f, this->beamSpeed, 0.0f);
+        OoT_Math_SmoothStepToF(&this->beamScale.x, 0.1f, 1.0f, 0.12f, 0.0f);
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_BIMOS_LAZER - SFX_FLAG);
 
         if (this->unk_260 > 2) {
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderQuad1.base);
+            OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderQuad1.base);
         }
 
         this->unk_260 = 3;
     }
 
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (OoT_SkelAnime_Update(&this->skelAnime)) {
         this->skelAnime.curFrame = this->skelAnime.startFrame;
     }
 }
 
 void EnVm_SetupStun(EnVm* this) {
-    Animation_Change(&this->skelAnime, &gBeamosAnim, -1.0f, Animation_GetLastFrame(&gBeamosAnim), 0.0f, ANIMMODE_ONCE,
+    OoT_Animation_Change(&this->skelAnime, &gBeamosAnim, -1.0f, OoT_Animation_GetLastFrame(&gBeamosAnim), 0.0f, ANIMMODE_ONCE,
                      0.0f);
     this->unk_260 = 0;
     this->timer = 180;
@@ -335,12 +335,12 @@ void EnVm_SetupStun(EnVm* this) {
 
 void EnVm_Stun(EnVm* this, PlayState* play) {
     if (this->timer == 0) {
-        if (SkelAnime_Update(&this->skelAnime)) {
+        if (OoT_SkelAnime_Update(&this->skelAnime)) {
             this->unk_25E++;
             if (this->unk_25E == 3) {
                 EnVm_SetupWait(this);
             } else if (this->unk_25E == 1) {
-                Animation_Change(&this->skelAnime, &gBeamosAnim, 1.0f, 0.0f, Animation_GetLastFrame(&gBeamosAnim),
+                OoT_Animation_Change(&this->skelAnime, &gBeamosAnim, 1.0f, 0.0f, OoT_Animation_GetLastFrame(&gBeamosAnim),
                                  ANIMMODE_ONCE, 0.0f);
             } else {
                 this->timer = 10;
@@ -349,14 +349,14 @@ void EnVm_Stun(EnVm* this, PlayState* play) {
             }
         }
     } else {
-        Math_SmoothStepToS(&this->beamRot.x, 0, 10, 0x5DC, 0);
+        OoT_Math_SmoothStepToS(&this->beamRot.x, 0, 10, 0x5DC, 0);
         this->timer--;
-        SkelAnime_Update(&this->skelAnime);
+        OoT_SkelAnime_Update(&this->skelAnime);
     }
 }
 
 void EnVm_SetupDie(EnVm* this) {
-    Animation_Change(&this->skelAnime, &gBeamosAnim, -1.0f, Animation_GetLastFrame(&gBeamosAnim), 0.0f, ANIMMODE_ONCE,
+    OoT_Animation_Change(&this->skelAnime, &gBeamosAnim, -1.0f, OoT_Animation_GetLastFrame(&gBeamosAnim), 0.0f, ANIMMODE_ONCE,
                      0.0f);
     this->timer = 33;
     this->unk_25E = this->unk_260 = 0;
@@ -367,8 +367,8 @@ void EnVm_SetupDie(EnVm* this) {
     this->actor.world.pos.y += 5000.0f * this->actor.scale.y;
     this->actor.velocity.y = 8.0f;
     this->actor.gravity = -0.5f;
-    this->actor.speedXZ = Rand_ZeroOne() + 1.0f;
-    this->actor.world.rot.y = Rand_CenteredFloat(65535.0f);
+    this->actor.speedXZ = OoT_Rand_ZeroOne() + 1.0f;
+    this->actor.world.rot.y = OoT_Rand_CenteredFloat(65535.0f);
     EnVm_SetupAction(this, EnVm_Die);
     GameInteractor_ExecuteOnEnemyDefeat(&this->actor);
 }
@@ -381,15 +381,15 @@ void EnVm_Die(EnVm* this, PlayState* play) {
     Actor_MoveXZGravity(&this->actor);
 
     if (--this->timer == 0) {
-        bomb = (EnBom*)Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BOM, this->actor.world.pos.x,
+        bomb = (EnBom*)OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BOM, this->actor.world.pos.x,
                                    this->actor.world.pos.y, this->actor.world.pos.z, 0, 0, 0x6FF, BOMB_BODY, true);
 
         if (bomb != NULL) {
             bomb->timer = 0;
         }
 
-        Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos, 0xA0);
-        Actor_Kill(&this->actor);
+        OoT_Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos, 0xA0);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
@@ -407,11 +407,11 @@ void EnVm_CheckHealth(EnVm* this, PlayState* play) {
     }
 
     if (this->actor.colChkInfo.health != 0) {
-        Actor_SetColorFilter(&this->actor, 0x4000, 0xFF, 0, 8);
+        OoT_Actor_SetColorFilter(&this->actor, 0x4000, 0xFF, 0, 8);
         EnVm_SetupStun(this);
     } else {
         bomb =
-            (EnBom*)Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BOM, this->actor.world.pos.x,
+            (EnBom*)OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BOM, this->actor.world.pos.x,
                                 this->actor.world.pos.y + 20.0f, this->actor.world.pos.z, 0, 0, 0x601, BOMB_BODY, true);
 
         if (bomb != NULL) {
@@ -422,7 +422,7 @@ void EnVm_CheckHealth(EnVm* this, PlayState* play) {
     }
 }
 
-void EnVm_Update(Actor* thisx, PlayState* play) {
+void OoT_EnVm_Update(Actor* thisx, PlayState* play) {
     EnVm* this = (EnVm*)thisx;
     CollisionCheckContext* colChkCtx = &play->colChkCtx;
 
@@ -443,19 +443,19 @@ void EnVm_Update(Actor* thisx, PlayState* play) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_BIMOS_ROLL_HEAD - SFX_FLAG);
     }
 
-    Collider_UpdateCylinder(&this->actor, &this->colliderCylinder);
-    CollisionCheck_SetOC(play, colChkCtx, &this->colliderCylinder.base);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->colliderCylinder);
+    OoT_CollisionCheck_SetOC(play, colChkCtx, &this->colliderCylinder.base);
 
     if (this->actor.colorFilterTimer == 0 && this->actor.colChkInfo.health != 0) {
-        CollisionCheck_SetAC(play, colChkCtx, &this->colliderCylinder.base);
+        OoT_CollisionCheck_SetAC(play, colChkCtx, &this->colliderCylinder.base);
     }
 
-    CollisionCheck_SetAC(play, colChkCtx, &this->colliderQuad2.base);
+    OoT_CollisionCheck_SetAC(play, colChkCtx, &this->colliderQuad2.base);
     this->actor.focus.pos = this->actor.world.pos;
     this->actor.focus.pos.y += (6500.0f + this->actor.shape.yOffset) * this->actor.scale.y;
 }
 
-s32 EnVm_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
+s32 OoT_EnVm_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
     EnVm* this = (EnVm*)thisx;
 
     if (limbIndex == 2) {
@@ -470,7 +470,7 @@ s32 EnVm_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* po
     return false;
 }
 
-void EnVm_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
+void OoT_EnVm_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
     EnVm* this = (EnVm*)thisx;
     Vec3f sp80 = D_80B2EAF8;
     Vec3f sp74 = D_80B2EB04;
@@ -482,17 +482,17 @@ void EnVm_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
     f32 dist;
 
     if (limbIndex == 2) {
-        Matrix_MultVec3f(&D_80B2EB1C, &this->beamPos1);
-        Matrix_MultVec3f(&D_80B2EB28, &this->beamPos2);
+        OoT_Matrix_MultVec3f(&D_80B2EB1C, &this->beamPos1);
+        OoT_Matrix_MultVec3f(&D_80B2EB28, &this->beamPos2);
 
         if (this->unk_260 >= 3) {
             poly = NULL;
             sp80.z = (this->beamScale.z + 500.0f) * (this->actor.scale.y * 10000.0f);
-            Matrix_MultVec3f(&sp80, &this->beamPos3);
+            OoT_Matrix_MultVec3f(&sp80, &this->beamPos3);
 
-            if (BgCheck_EntityLineTest1(&play->colCtx, &this->beamPos1, &this->beamPos3, &posResult, &poly, true, true,
+            if (OoT_BgCheck_EntityLineTest1(&play->colCtx, &this->beamPos1, &this->beamPos3, &posResult, &poly, true, true,
                                         false, true, &bgId) == true) {
-                this->beamScale.z = Math_Vec3f_DistXYZ(&this->beamPos1, &posResult) - 5.0f;
+                this->beamScale.z = OoT_Math_Vec3f_DistXYZ(&this->beamPos1, &posResult) - 5.0f;
                 this->unk_260 = 4;
                 this->beamPos3 = posResult;
             }
@@ -501,27 +501,27 @@ void EnVm_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
                 if (this->actor.scale.y > 0.01f) {
                     dist = 70.0f;
                 }
-                sp74.z = sp68.z = Math_Vec3f_DistXYZ(&this->beamPos1, &this->beamPos3) * dist;
-                Matrix_MultVec3f(&D_80B2EB64, &this->colliderQuad1.dim.quad[3]);
-                Matrix_MultVec3f(&D_80B2EB70, &this->colliderQuad1.dim.quad[2]);
-                Matrix_MultVec3f(&sp74, &this->colliderQuad1.dim.quad[1]);
-                Matrix_MultVec3f(&sp68, &this->colliderQuad1.dim.quad[0]);
-                Collider_SetQuadVertices(&this->colliderQuad1, &this->colliderQuad1.dim.quad[0],
+                sp74.z = sp68.z = OoT_Math_Vec3f_DistXYZ(&this->beamPos1, &this->beamPos3) * dist;
+                OoT_Matrix_MultVec3f(&D_80B2EB64, &this->colliderQuad1.dim.quad[3]);
+                OoT_Matrix_MultVec3f(&D_80B2EB70, &this->colliderQuad1.dim.quad[2]);
+                OoT_Matrix_MultVec3f(&sp74, &this->colliderQuad1.dim.quad[1]);
+                OoT_Matrix_MultVec3f(&sp68, &this->colliderQuad1.dim.quad[0]);
+                OoT_Collider_SetQuadVertices(&this->colliderQuad1, &this->colliderQuad1.dim.quad[0],
                                          &this->colliderQuad1.dim.quad[1], &this->colliderQuad1.dim.quad[2],
                                          &this->colliderQuad1.dim.quad[3]);
             }
         }
-        Matrix_MultVec3f(&D_80B2EB34, &this->colliderQuad2.dim.quad[1]);
-        Matrix_MultVec3f(&D_80B2EB40, &this->colliderQuad2.dim.quad[0]);
-        Matrix_MultVec3f(&D_80B2EB4C, &this->colliderQuad2.dim.quad[3]);
-        Matrix_MultVec3f(&D_80B2EB58, &this->colliderQuad2.dim.quad[2]);
-        Collider_SetQuadVertices(&this->colliderQuad2, &this->colliderQuad2.dim.quad[0],
+        OoT_Matrix_MultVec3f(&D_80B2EB34, &this->colliderQuad2.dim.quad[1]);
+        OoT_Matrix_MultVec3f(&D_80B2EB40, &this->colliderQuad2.dim.quad[0]);
+        OoT_Matrix_MultVec3f(&D_80B2EB4C, &this->colliderQuad2.dim.quad[3]);
+        OoT_Matrix_MultVec3f(&D_80B2EB58, &this->colliderQuad2.dim.quad[2]);
+        OoT_Collider_SetQuadVertices(&this->colliderQuad2, &this->colliderQuad2.dim.quad[0],
                                  &this->colliderQuad2.dim.quad[1], &this->colliderQuad2.dim.quad[2],
                                  &this->colliderQuad2.dim.quad[3]);
     }
 }
 
-void EnVm_Draw(Actor* thisx, PlayState* play2) {
+void OoT_EnVm_Draw(Actor* thisx, PlayState* play2) {
     EnVm* this = (EnVm*)thisx;
     PlayState* play = play2;
     Vec3f actorPos;
@@ -530,13 +530,13 @@ void EnVm_Draw(Actor* thisx, PlayState* play2) {
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
-    SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, EnVm_OverrideLimbDraw, EnVm_PostLimbDraw, this);
+    SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, OoT_EnVm_OverrideLimbDraw, OoT_EnVm_PostLimbDraw, this);
     actorPos = this->actor.world.pos;
     func_80033C30(&actorPos, &D_80B2EB7C, 255, play);
 
     if (this->unk_260 >= 3) {
-        Matrix_Translate(this->beamPos3.x, this->beamPos3.y + 10.0f, this->beamPos3.z, MTXMODE_NEW);
-        Matrix_Scale(0.8f, 0.8f, 0.8f, MTXMODE_APPLY);
+        OoT_Matrix_Translate(this->beamPos3.x, this->beamPos3.y + 10.0f, this->beamPos3.z, MTXMODE_NEW);
+        OoT_Matrix_Scale(0.8f, 0.8f, 0.8f, MTXMODE_APPLY);
         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, 168);
         Gfx_SetupDL_60NoCDXlu(play->state.gfxCtx);
@@ -549,9 +549,9 @@ void EnVm_Draw(Actor* thisx, PlayState* play2) {
         gSPDisplayList(POLY_XLU_DISP++, gEffEnemyDeathFlameDL);
     }
     gSPSegment(POLY_OPA_DISP++, 0x08, func_80094E78(play->state.gfxCtx, 0, this->beamTexScroll));
-    Matrix_Translate(this->beamPos1.x, this->beamPos1.y, this->beamPos1.z, MTXMODE_NEW);
-    Matrix_RotateZYX(this->beamRot.x, this->beamRot.y, this->beamRot.z, MTXMODE_APPLY);
-    Matrix_Scale(this->beamScale.x * 0.1f, this->beamScale.x * 0.1f, this->beamScale.z * 0.0015f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(this->beamPos1.x, this->beamPos1.y, this->beamPos1.z, MTXMODE_NEW);
+    OoT_Matrix_RotateZYX(this->beamRot.x, this->beamRot.y, this->beamRot.z, MTXMODE_APPLY);
+    OoT_Matrix_Scale(this->beamScale.x * 0.1f, this->beamScale.x * 0.1f, this->beamScale.z * 0.0015f, MTXMODE_APPLY);
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_OPA_DISP++, gBeamosLaserDL);
 

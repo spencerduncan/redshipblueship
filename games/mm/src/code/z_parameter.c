@@ -717,11 +717,11 @@ Input sPostmanTimerInput[MAXCONTROLLERS];
 
 #define DEFINE_SCENE_UNSET(enumValue) { enumValue, RESTRICTIONS_NONE },
 
-RestrictionFlags sRestrictionFlags[] = {
+RestrictionFlags MM_sRestrictionFlags[] = {
 #include "tables/scene_table.h"
     // { RESTRICTIONS_TABLE_END, RESTRICTIONS_NONE }, // See note below
 };
-//! @note: in `Interface_SetSceneRestrictions`, `RESTRICTIONS_TABLE_END` act as a terminating value to
+//! @note: in `MM_Interface_SetSceneRestrictions`, `RESTRICTIONS_TABLE_END` act as a terminating value to
 // stop looping through the array. If a scene is missing, then this will cause issues.
 
 #undef DEFINE_SCENE
@@ -730,12 +730,12 @@ RestrictionFlags sRestrictionFlags[] = {
 s16 sPictoState = PICTO_BOX_STATE_OFF;
 s16 sPictoPhotoBeingTaken = false;
 
-s16 sHBAScoreTier = 0; // Remnant of OoT, non-functional
+s16 MM_sHBAScoreTier = 0; // Remnant of OoT, non-functional
 
 u16 sMinigameScoreDigits[] = { 0, 0, 0, 0 };
 
-u16 sCUpInvisible = 0;
-u16 sCUpTimer = 0;
+u16 MM_sCUpInvisible = 0;
+u16 MM_sCUpTimer = 0;
 
 s16 sMagicMeterOutlinePrimRed = 255;
 s16 sMagicMeterOutlinePrimGreen = 255;
@@ -743,7 +743,7 @@ s16 sMagicMeterOutlinePrimBlue = 255;
 s16 sMagicBorderRatio = 2;
 s16 sMagicBorderStep = 1;
 
-s16 sExtraItemBases[] = {
+s16 MM_sExtraItemBases[] = {
     ITEM_DEKU_STICK, // ITEM_DEKU_STICKS_5
     ITEM_DEKU_STICK, // ITEM_DEKU_STICKS_10
     ITEM_DEKU_NUT,   // ITEM_DEKU_NUTS_5
@@ -765,7 +765,7 @@ s16 sExtraItemBases[] = {
     ITEM_DEKU_NUT,   // ITEM_DEKU_NUT_UPGRADE_30
 };
 
-s16 sEnvHazard = PLAYER_ENV_HAZARD_NONE;
+s16 MM_sEnvHazard = PLAYER_ENV_HAZARD_NONE;
 s16 sEnvTimerActive = false;
 s16 sPostmanBunnyHoodState = POSTMAN_MINIGAME_BUNNY_HOOD_OFF;
 OSTime sTimerPausedOsTime = 0;
@@ -785,7 +785,7 @@ s16 sThreeDayClockStarMinuteGlowTimer = 10;
 s16 sThreeDayClockStarMinuteGlowAlpha = 255;
 f32 sThreeDayClockStarMinuteScale = 1.0f;
 
-static Gfx sScreenFillSetupDL[] = {
+static Gfx MM_sScreenFillSetupDL[] = {
     gsDPPipeSync(),
     gsSPClearGeometryMode(G_ZBUFFER | G_SHADE | G_CULL_BOTH | G_FOG | G_LIGHTING | G_TEXTURE_GEN |
                           G_TEXTURE_GEN_LINEAR | G_LOD | G_SHADING_SMOOTH),
@@ -1354,7 +1354,7 @@ s16 sActionVtxHeights[ACTION_QUAD_BASE_COUNT] = {
 // Used for PERFECT_LETTERS_TYPE_1 and only part of PERFECT_LETTERS_TYPE_3
 // Both PERFECT_LETTERS_TYPE_2 and PERFECT_LETTERS_TYPE_2 have (0, 0) as the center for all letters
 s16 sPerfectLettersCenterX[PERFECT_LETTERS_NUM_LETTERS] = {
-    -61,  // P
+    -61,  // MM_P
     -45,  // E
     29,   // R
     104,  // F
@@ -1365,7 +1365,7 @@ s16 sPerfectLettersCenterX[PERFECT_LETTERS_NUM_LETTERS] = {
 };
 
 s16 sPerfectLettersCenterY[PERFECT_LETTERS_NUM_LETTERS] = {
-    1,   // P
+    1,   // MM_P
     -70, // E
     -99, // R
     -70, // F
@@ -1385,7 +1385,7 @@ s16 sPerfectLettersCenterY[PERFECT_LETTERS_NUM_LETTERS] = {
  * interfaceCtx->actionVtx[24]  -> Three-Day Clock's Hour Digit Above the Sun (uses 8 vertices)
  * interfaceCtx->actionVtx[32]  -> Three-Day Clock's Hour Digit Above the Moon (uses 8 vertices)
  * interfaceCtx->actionVtx[40]  -> Minigame Countdown Textures
- * interfaceCtx->actionVtx[44]  -> Minigame Perfect Letter P Shadow
+ * interfaceCtx->actionVtx[44]  -> Minigame Perfect Letter MM_P Shadow
  * interfaceCtx->actionVtx[48]  -> Minigame Perfect Letter E Shadow
  * interfaceCtx->actionVtx[52]  -> Minigame Perfect Letter R Shadow
  * interfaceCtx->actionVtx[56]  -> Minigame Perfect Letter F Shadow
@@ -1393,7 +1393,7 @@ s16 sPerfectLettersCenterY[PERFECT_LETTERS_NUM_LETTERS] = {
  * interfaceCtx->actionVtx[64]  -> Minigame Perfect Letter C Shadow
  * interfaceCtx->actionVtx[68]  -> Minigame Perfect Letter T Shadow
  * interfaceCtx->actionVtx[72]  -> Minigame Perfect Letter ! Shadow
- * interfaceCtx->actionVtx[76]  -> Minigame Perfect Letter P Colored
+ * interfaceCtx->actionVtx[76]  -> Minigame Perfect Letter MM_P Colored
  * interfaceCtx->actionVtx[80]  -> Minigame Perfect Letter E Colored
  * interfaceCtx->actionVtx[84]  -> Minigame Perfect Letter R Colored
  * interfaceCtx->actionVtx[88]  -> Minigame Perfect Letter F Colored
@@ -1616,7 +1616,7 @@ void Interface_PostmanTimerCallback(void* arg) {
     PadMgr_GetInputNoLock(sPostmanTimerInput, false);
     btnAPressed = CHECK_BTN_ALL(sPostmanTimerInput[0].cur.button, BTN_A);
     if ((btnAPressed != sPostmanTimerInputBtnAPressed) && btnAPressed) {
-        gSaveContext.postmanTimerStopOsTime = osGetTime();
+        gSaveContext.postmanTimerStopOsTime = MM_osGetTime();
         gSaveContext.timerStates[TIMER_ID_POSTMAN] = TIMER_STATE_POSTMAN_STOP;
     }
 
@@ -1677,7 +1677,7 @@ void Interface_StartBottleTimer(s16 seconds, s16 timerId) {
     gSaveContext.bottleTimerStates[timerId] = BOTTLE_TIMER_STATE_COUNTING;
     gSaveContext.bottleTimerCurTimes[timerId] = SECONDS_TO_TIMER(seconds);
     gSaveContext.bottleTimerTimeLimits[timerId] = gSaveContext.bottleTimerCurTimes[timerId];
-    gSaveContext.bottleTimerStartOsTimes[timerId] = osGetTime();
+    gSaveContext.bottleTimerStartOsTimes[timerId] = MM_osGetTime();
     gSaveContext.bottleTimerPausedOsTimes[timerId] = 0;
     sBottleTimerPausedOsTime = 0;
 }
@@ -3125,8 +3125,8 @@ void Interface_UpdateButtonsPart2(PlayState* play) {
         // Nuts on B (as Deku Link)
         BUTTON_ITEM_EQUIP(CUR_FORM, EQUIP_SLOT_B) = ITEM_FD;
         gSaveContext.buttonStatus[EQUIP_SLOT_B] = BTN_DISABLED;
-    } else if ((Player_GetEnvironmentalHazard(play) >= PLAYER_ENV_HAZARD_UNDERWATER_FLOOR) &&
-               (Player_GetEnvironmentalHazard(play) <= PLAYER_ENV_HAZARD_UNDERWATER_FREE)) {
+    } else if ((MM_Player_GetEnvironmentalHazard(play) >= PLAYER_ENV_HAZARD_UNDERWATER_FLOOR) &&
+               (MM_Player_GetEnvironmentalHazard(play) <= PLAYER_ENV_HAZARD_UNDERWATER_FREE)) {
         // Swimming underwater
         if (CUR_FORM != PLAYER_FORM_ZORA) {
             if ((player->currentMask == PLAYER_MASK_BLAST) && (player->blastMaskTimer == 0)) {
@@ -3156,7 +3156,7 @@ void Interface_UpdateButtonsPart2(PlayState* play) {
         for (i = EQUIP_SLOT_C_LEFT; i <= EQUIP_SLOT_C_RIGHT; i++) {
             if (GameInteractor_Should(VB_DISABLE_ITEM_UNDERWATER, GET_CUR_FORM_BTN_ITEM(i) != ITEM_MASK_ZORA,
                                       (s32)GET_CUR_FORM_BTN_ITEM(i))) {
-                if (Player_GetEnvironmentalHazard(play) == PLAYER_ENV_HAZARD_UNDERWATER_FLOOR) {
+                if (MM_Player_GetEnvironmentalHazard(play) == PLAYER_ENV_HAZARD_UNDERWATER_FLOOR) {
                     if (!((GET_CUR_FORM_BTN_ITEM(i) >= ITEM_BOTTLE) &&
                           (GET_CUR_FORM_BTN_ITEM(i) <= ITEM_OBABA_DRINK))) {
                         if (gSaveContext.buttonStatus[i] == BTN_ENABLED) {
@@ -3184,7 +3184,7 @@ void Interface_UpdateButtonsPart2(PlayState* play) {
         for (s16 j = EQUIP_SLOT_D_RIGHT; j <= EQUIP_SLOT_D_UP; j++) {
             if (GameInteractor_Should(VB_DISABLE_ITEM_UNDERWATER, DPAD_GET_CUR_FORM_BTN_ITEM(j) != ITEM_MASK_ZORA,
                                       (s32)DPAD_GET_CUR_FORM_BTN_ITEM(j))) {
-                if (Player_GetEnvironmentalHazard(play) == PLAYER_ENV_HAZARD_UNDERWATER_FLOOR) {
+                if (MM_Player_GetEnvironmentalHazard(play) == PLAYER_ENV_HAZARD_UNDERWATER_FLOOR) {
                     if (!((DPAD_GET_CUR_FORM_BTN_ITEM(j) >= ITEM_BOTTLE) &&
                           (DPAD_GET_CUR_FORM_BTN_ITEM(j) <= ITEM_OBABA_DRINK))) {
                         if (gSaveContext.shipSaveContext.dpad.status[j] == BTN_ENABLED) {
@@ -3901,11 +3901,11 @@ void Interface_UpdateButtonsPart1(PlayState* play) {
                         sPictoPhotoBeingTaken = true;
                     }
                 }
-            } else if ((sPictoState >= PICTO_BOX_STATE_SETUP_PHOTO) && (Message_GetState(&play->msgCtx) == 4) &&
-                       Message_ShouldAdvance(play)) {
+            } else if ((sPictoState >= PICTO_BOX_STATE_SETUP_PHOTO) && (MM_Message_GetState(&play->msgCtx) == 4) &&
+                       MM_Message_ShouldAdvance(play)) {
                 play->haltAllActors = false;
                 player->stateFlags1 &= ~PLAYER_STATE1_200;
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 if (play->msgCtx.choiceIndex != 0) {
                     Audio_PlaySfx_MessageCancel();
                     Interface_SetBButtonInterfaceDoAction(play, DO_ACTION_STOP);
@@ -3983,30 +3983,30 @@ void Interface_UpdateButtonsPart1(PlayState* play) {
     }
 }
 
-void Interface_SetSceneRestrictions(PlayState* play) {
+void MM_Interface_SetSceneRestrictions(PlayState* play) {
     InterfaceContext* interfaceCtx = &play->interfaceCtx;
     s16 i = 0;
     u8 currentScene;
 
     do {
         currentScene = (u8)play->sceneId;
-        if (currentScene == sRestrictionFlags[i].scene) {
-            interfaceCtx->restrictions.hGauge = RESTRICTIONS_GET_HGAUGE(&sRestrictionFlags[i]);
-            interfaceCtx->restrictions.bButton = RESTRICTIONS_GET_B_BUTTON(&sRestrictionFlags[i]);
-            interfaceCtx->restrictions.aButton = RESTRICTIONS_GET_A_BUTTON(&sRestrictionFlags[i]);
-            interfaceCtx->restrictions.tradeItems = RESTRICTIONS_GET_TRADE_ITEMS(&sRestrictionFlags[i]);
-            interfaceCtx->restrictions.songOfTime = RESTRICTIONS_GET_SONG_OF_TIME(&sRestrictionFlags[i]);
-            interfaceCtx->restrictions.songOfDoubleTime = RESTRICTIONS_GET_SONG_OF_DOUBLE_TIME(&sRestrictionFlags[i]);
-            interfaceCtx->restrictions.invSongOfTime = RESTRICTIONS_GET_INV_SONG_OF_TIME(&sRestrictionFlags[i]);
-            interfaceCtx->restrictions.songOfSoaring = RESTRICTIONS_GET_SONG_OF_SOARING(&sRestrictionFlags[i]);
-            interfaceCtx->restrictions.songOfStorms = RESTRICTIONS_GET_SONG_OF_STORMS(&sRestrictionFlags[i]);
-            interfaceCtx->restrictions.masks = RESTRICTIONS_GET_MASKS(&sRestrictionFlags[i]);
-            interfaceCtx->restrictions.pictoBox = RESTRICTIONS_GET_PICTO_BOX(&sRestrictionFlags[i]);
-            interfaceCtx->restrictions.all = RESTRICTIONS_GET_ALL(&sRestrictionFlags[i]);
+        if (currentScene == MM_sRestrictionFlags[i].scene) {
+            interfaceCtx->restrictions.hGauge = RESTRICTIONS_GET_HGAUGE(&MM_sRestrictionFlags[i]);
+            interfaceCtx->restrictions.bButton = RESTRICTIONS_GET_B_BUTTON(&MM_sRestrictionFlags[i]);
+            interfaceCtx->restrictions.aButton = RESTRICTIONS_GET_A_BUTTON(&MM_sRestrictionFlags[i]);
+            interfaceCtx->restrictions.tradeItems = RESTRICTIONS_GET_TRADE_ITEMS(&MM_sRestrictionFlags[i]);
+            interfaceCtx->restrictions.songOfTime = RESTRICTIONS_GET_SONG_OF_TIME(&MM_sRestrictionFlags[i]);
+            interfaceCtx->restrictions.songOfDoubleTime = RESTRICTIONS_GET_SONG_OF_DOUBLE_TIME(&MM_sRestrictionFlags[i]);
+            interfaceCtx->restrictions.invSongOfTime = RESTRICTIONS_GET_INV_SONG_OF_TIME(&MM_sRestrictionFlags[i]);
+            interfaceCtx->restrictions.songOfSoaring = RESTRICTIONS_GET_SONG_OF_SOARING(&MM_sRestrictionFlags[i]);
+            interfaceCtx->restrictions.songOfStorms = RESTRICTIONS_GET_SONG_OF_STORMS(&MM_sRestrictionFlags[i]);
+            interfaceCtx->restrictions.masks = RESTRICTIONS_GET_MASKS(&MM_sRestrictionFlags[i]);
+            interfaceCtx->restrictions.pictoBox = RESTRICTIONS_GET_PICTO_BOX(&MM_sRestrictionFlags[i]);
+            interfaceCtx->restrictions.all = RESTRICTIONS_GET_ALL(&MM_sRestrictionFlags[i]);
             break;
         }
         i++;
-    } while (sRestrictionFlags[i].scene != RESTRICTIONS_TABLE_END);
+    } while (MM_sRestrictionFlags[i].scene != RESTRICTIONS_TABLE_END);
 }
 
 void Interface_Noop(void) {
@@ -4019,7 +4019,7 @@ void Interface_InitMinigame(PlayState* play) {
     gSaveContext.minigameScore = 0;
     gSaveContext.minigameHiddenScore = 0;
 
-    sHBAScoreTier = 0;
+    MM_sHBAScoreTier = 0;
     interfaceCtx->minigamePoints = interfaceCtx->minigameHiddenPoints = interfaceCtx->minigameUnusedPoints = 0;
 
     interfaceCtx->minigameAmmo = 20;
@@ -4028,8 +4028,8 @@ void Interface_InitMinigame(PlayState* play) {
 void Interface_Dpad_LoadItemIconImpl(PlayState* play, u8 btn) {
     InterfaceContext* interfaceCtx = &play->interfaceCtx;
 
-    if (DPAD_GET_CUR_FORM_BTN_ITEM(btn) < ARRAY_COUNT(gItemIcons)) {
-        interfaceCtx->iconItemSegment[DPAD_BUTTON(btn) + EQUIP_SLOT_MAX] = gItemIcons[DPAD_GET_CUR_FORM_BTN_ITEM(btn)];
+    if (DPAD_GET_CUR_FORM_BTN_ITEM(btn) < ARRAY_COUNT(MM_gItemIcons)) {
+        interfaceCtx->iconItemSegment[DPAD_BUTTON(btn) + EQUIP_SLOT_MAX] = MM_gItemIcons[DPAD_GET_CUR_FORM_BTN_ITEM(btn)];
     } else {
         interfaceCtx->iconItemSegment[btn] = gEmptyTexture;
     }
@@ -4043,7 +4043,7 @@ void Interface_DrawAutosaveIcon(PlayState* play, uint16_t opacity) {
     s16 dsdx = 512;
     s16 dtdy = 512;
 
-    OPEN_DISPS(gPlayState->state.gfxCtx);
+    OPEN_DISPS(MM_gPlayState->state.gfxCtx);
 
     gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 255, opacity);
     rectLeft = OTRGetRectDimensionFromRightEdge(rectLeft);
@@ -4059,7 +4059,7 @@ void Interface_DrawAutosaveIcon(PlayState* play, uint16_t opacity) {
 
     gDPPipeSync(OVERLAY_DISP++);
 
-    CLOSE_DISPS(gPlayState->state.gfxCtx);
+    CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
 
 void Interface_LoadItemIconImpl(PlayState* play, u8 btn) {
@@ -4068,8 +4068,8 @@ void Interface_LoadItemIconImpl(PlayState* play, u8 btn) {
     // #region 2S2H [Port]
     // CmpDma_LoadFile(SEGMENT_ROM_START(icon_item_static_yar), GET_CUR_FORM_BTN_ITEM(btn),
     //             &interfaceCtx->iconItemSegment[(u32)btn * ICON_ITEM_TEX_SIZE], ICON_ITEM_TEX_SIZE);
-    if (GET_CUR_FORM_BTN_ITEM(btn) < ARRAY_COUNT(gItemIcons)) {
-        interfaceCtx->iconItemSegment[btn] = gItemIcons[GET_CUR_FORM_BTN_ITEM(btn)];
+    if (GET_CUR_FORM_BTN_ITEM(btn) < ARRAY_COUNT(MM_gItemIcons)) {
+        interfaceCtx->iconItemSegment[btn] = MM_gItemIcons[GET_CUR_FORM_BTN_ITEM(btn)];
     } else {
         interfaceCtx->iconItemSegment[btn] = gEmptyTexture;
     }
@@ -4132,7 +4132,7 @@ s16 sArrowRefillCounts[] = { 10, 30, 40, 50 };
 s16 sBombchuRefillCounts[] = { 20, 10, 1, 5 };
 s16 sRupeeRefillCounts[] = { 1, 5, 10, 20, 50, 100, 200 };
 
-// 2S2H [Enhancements] This was originally Item_Give, we wrapped it for hooking purposes
+// 2S2H [Enhancements] This was originally MM_Item_Give, we wrapped it for hooking purposes
 u8 Item_GiveImpl(PlayState* play, u8 item) {
     u8 i;
     u8 temp;
@@ -4140,7 +4140,7 @@ u8 Item_GiveImpl(PlayState* play, u8 item) {
 
     slot = SLOT(item);
     if (item >= ITEM_DEKU_STICKS_5) {
-        slot = SLOT(sExtraItemBases[item - ITEM_DEKU_STICKS_5]);
+        slot = SLOT(MM_sExtraItemBases[item - ITEM_DEKU_STICKS_5]);
     }
 
     if (item == ITEM_SKULL_TOKEN) {
@@ -4181,7 +4181,7 @@ u8 Item_GiveImpl(PlayState* play, u8 item) {
             CUR_FORM_EQUIP(EQUIP_SLOT_B) = item;
         }
         // 2S2H [Randomizer] Added a nullptr check so that we can call this function outside of gameplay for logic
-        if (gPlayState != NULL) {
+        if (MM_gPlayState != NULL) {
             Interface_LoadItemIconImpl(play, EQUIP_SLOT_B);
         }
         if (item == ITEM_SWORD_RAZOR) {
@@ -4193,9 +4193,9 @@ u8 Item_GiveImpl(PlayState* play, u8 item) {
         if (GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD) != (u16)(item - ITEM_SHIELD_HERO + EQUIP_VALUE_SHIELD_HERO)) {
             SET_EQUIP_VALUE(EQUIP_TYPE_SHIELD, item - ITEM_SHIELD_HERO + EQUIP_VALUE_SHIELD_HERO);
             // 2S2H [Randomizer] Added a nullptr check so that we can call this function outside of gameplay for logic
-            if (gPlayState != NULL) {
+            if (MM_gPlayState != NULL) {
                 Player* player = GET_PLAYER(play);
-                Player_SetEquipmentData(play, player);
+                MM_Player_SetEquipmentData(play, player);
             }
             return ITEM_NONE;
         }
@@ -4216,7 +4216,7 @@ u8 Item_GiveImpl(PlayState* play, u8 item) {
 
     } else if ((item == ITEM_QUIVER_30) || (item == ITEM_BOW)) {
         if (CUR_UPG_VALUE(UPG_QUIVER) == 0) {
-            Inventory_ChangeUpgrade(UPG_QUIVER, 1);
+            MM_Inventory_ChangeUpgrade(UPG_QUIVER, 1);
             INV_CONTENT(ITEM_BOW) = ITEM_BOW;
             AMMO(ITEM_BOW) = CAPACITY(UPG_QUIVER, 1);
             return ITEM_NONE;
@@ -4228,20 +4228,20 @@ u8 Item_GiveImpl(PlayState* play, u8 item) {
         }
 
     } else if (item == ITEM_QUIVER_40) {
-        Inventory_ChangeUpgrade(UPG_QUIVER, 2);
+        MM_Inventory_ChangeUpgrade(UPG_QUIVER, 2);
         INV_CONTENT(ITEM_BOW) = ITEM_BOW;
         AMMO(ITEM_BOW) = CAPACITY(UPG_QUIVER, 2);
         return ITEM_NONE;
 
     } else if (item == ITEM_QUIVER_50) {
-        Inventory_ChangeUpgrade(UPG_QUIVER, 3);
+        MM_Inventory_ChangeUpgrade(UPG_QUIVER, 3);
         INV_CONTENT(ITEM_BOW) = ITEM_BOW;
         AMMO(ITEM_BOW) = CAPACITY(UPG_QUIVER, 3);
         return ITEM_NONE;
 
     } else if (item == ITEM_BOMB_BAG_20) {
         if (CUR_UPG_VALUE(UPG_BOMB_BAG) == 0) {
-            Inventory_ChangeUpgrade(UPG_BOMB_BAG, 1);
+            MM_Inventory_ChangeUpgrade(UPG_BOMB_BAG, 1);
             INV_CONTENT(ITEM_BOMB) = ITEM_BOMB;
             AMMO(ITEM_BOMB) = CAPACITY(UPG_BOMB_BAG, 1);
             return ITEM_NONE;
@@ -4254,30 +4254,30 @@ u8 Item_GiveImpl(PlayState* play, u8 item) {
         }
 
     } else if (item == ITEM_BOMB_BAG_30) {
-        Inventory_ChangeUpgrade(UPG_BOMB_BAG, 2);
+        MM_Inventory_ChangeUpgrade(UPG_BOMB_BAG, 2);
         INV_CONTENT(ITEM_BOMB) = ITEM_BOMB;
         AMMO(ITEM_BOMB) = CAPACITY(UPG_BOMB_BAG, 2);
         return ITEM_NONE;
 
     } else if (item == ITEM_BOMB_BAG_40) {
-        Inventory_ChangeUpgrade(UPG_BOMB_BAG, 3);
+        MM_Inventory_ChangeUpgrade(UPG_BOMB_BAG, 3);
         INV_CONTENT(ITEM_BOMB) = ITEM_BOMB;
         AMMO(ITEM_BOMB) = CAPACITY(UPG_BOMB_BAG, 3);
         return ITEM_NONE;
 
     } else if (item == ITEM_WALLET_ADULT) {
-        Inventory_ChangeUpgrade(UPG_WALLET, 1);
+        MM_Inventory_ChangeUpgrade(UPG_WALLET, 1);
         return ITEM_NONE;
 
     } else if (item == ITEM_WALLET_GIANT) {
-        Inventory_ChangeUpgrade(UPG_WALLET, 2);
+        MM_Inventory_ChangeUpgrade(UPG_WALLET, 2);
         return ITEM_NONE;
 
     } else if (item == ITEM_DEKU_STICK_UPGRADE_20) {
         if (INV_CONTENT(ITEM_DEKU_STICK) != ITEM_DEKU_STICK) {
             INV_CONTENT(ITEM_DEKU_STICK) = ITEM_DEKU_STICK;
         }
-        Inventory_ChangeUpgrade(UPG_DEKU_STICKS, 2);
+        MM_Inventory_ChangeUpgrade(UPG_DEKU_STICKS, 2);
         AMMO(ITEM_DEKU_STICK) = CAPACITY(UPG_DEKU_STICKS, 2);
         return ITEM_NONE;
 
@@ -4285,7 +4285,7 @@ u8 Item_GiveImpl(PlayState* play, u8 item) {
         if (INV_CONTENT(ITEM_DEKU_STICK) != ITEM_DEKU_STICK) {
             INV_CONTENT(ITEM_DEKU_STICK) = ITEM_DEKU_STICK;
         }
-        Inventory_ChangeUpgrade(UPG_DEKU_STICKS, 3);
+        MM_Inventory_ChangeUpgrade(UPG_DEKU_STICKS, 3);
         AMMO(ITEM_DEKU_STICK) = CAPACITY(UPG_DEKU_STICKS, 3);
         return ITEM_NONE;
 
@@ -4293,7 +4293,7 @@ u8 Item_GiveImpl(PlayState* play, u8 item) {
         if (INV_CONTENT(ITEM_DEKU_NUT) != ITEM_DEKU_NUT) {
             INV_CONTENT(ITEM_DEKU_NUT) = ITEM_DEKU_NUT;
         }
-        Inventory_ChangeUpgrade(UPG_DEKU_NUTS, 2);
+        MM_Inventory_ChangeUpgrade(UPG_DEKU_NUTS, 2);
         AMMO(ITEM_DEKU_NUT) = CAPACITY(UPG_DEKU_NUTS, 2);
         return ITEM_NONE;
 
@@ -4301,13 +4301,13 @@ u8 Item_GiveImpl(PlayState* play, u8 item) {
         if (INV_CONTENT(ITEM_DEKU_NUT) != ITEM_DEKU_NUT) {
             INV_CONTENT(ITEM_DEKU_NUT) = ITEM_DEKU_NUT;
         }
-        Inventory_ChangeUpgrade(UPG_DEKU_NUTS, 3);
+        MM_Inventory_ChangeUpgrade(UPG_DEKU_NUTS, 3);
         AMMO(ITEM_DEKU_NUT) = CAPACITY(UPG_DEKU_NUTS, 3);
         return ITEM_NONE;
 
     } else if (item == ITEM_DEKU_STICK) {
         if (INV_CONTENT(ITEM_DEKU_STICK) != ITEM_DEKU_STICK) {
-            Inventory_ChangeUpgrade(UPG_DEKU_STICKS, 1);
+            MM_Inventory_ChangeUpgrade(UPG_DEKU_STICKS, 1);
             AMMO(ITEM_DEKU_STICK) = 1;
         } else {
             AMMO(ITEM_DEKU_STICK)++;
@@ -4318,7 +4318,7 @@ u8 Item_GiveImpl(PlayState* play, u8 item) {
 
     } else if ((item == ITEM_DEKU_STICKS_5) || (item == ITEM_DEKU_STICKS_10)) {
         if (INV_CONTENT(ITEM_DEKU_STICK) != ITEM_DEKU_STICK) {
-            Inventory_ChangeUpgrade(UPG_DEKU_STICKS, 1);
+            MM_Inventory_ChangeUpgrade(UPG_DEKU_STICKS, 1);
             AMMO(ITEM_DEKU_STICK) = sAmmoRefillCounts[item - ITEM_DEKU_STICKS_5];
         } else {
             AMMO(ITEM_DEKU_STICK) += sAmmoRefillCounts[item - ITEM_DEKU_STICKS_5];
@@ -4331,7 +4331,7 @@ u8 Item_GiveImpl(PlayState* play, u8 item) {
 
     } else if (item == ITEM_DEKU_NUT) {
         if (INV_CONTENT(ITEM_DEKU_NUT) != ITEM_DEKU_NUT) {
-            Inventory_ChangeUpgrade(UPG_DEKU_NUTS, 1);
+            MM_Inventory_ChangeUpgrade(UPG_DEKU_NUTS, 1);
             AMMO(ITEM_DEKU_NUT) = 1;
         } else {
             AMMO(ITEM_DEKU_NUT)++;
@@ -4342,7 +4342,7 @@ u8 Item_GiveImpl(PlayState* play, u8 item) {
 
     } else if ((item == ITEM_DEKU_NUTS_5) || (item == ITEM_DEKU_NUTS_10)) {
         if (INV_CONTENT(ITEM_DEKU_NUT) != ITEM_DEKU_NUT) {
-            Inventory_ChangeUpgrade(UPG_DEKU_NUTS, 1);
+            MM_Inventory_ChangeUpgrade(UPG_DEKU_NUTS, 1);
             AMMO(ITEM_DEKU_NUT) += sAmmoRefillCounts[item - ITEM_DEKU_NUTS_5];
         } else {
             AMMO(ITEM_DEKU_NUT) += sAmmoRefillCounts[item - ITEM_DEKU_NUTS_5];
@@ -4433,7 +4433,7 @@ u8 Item_GiveImpl(PlayState* play, u8 item) {
         return ITEM_NONE;
 
     } else if (item == ITEM_RECOVERY_HEART) {
-        Health_ChangeBy(play, 0x10);
+        MM_Health_ChangeBy(play, 0x10);
         return item;
 
     } else if (item == ITEM_MAGIC_JAR_SMALL) {
@@ -4453,7 +4453,7 @@ u8 Item_GiveImpl(PlayState* play, u8 item) {
         return item;
 
     } else if ((item >= ITEM_RUPEE_GREEN) && (item <= ITEM_RUPEE_HUGE)) {
-        Rupees_ChangeBy(sRupeeRefillCounts[item - ITEM_RUPEE_GREEN]);
+        MM_Rupees_ChangeBy(sRupeeRefillCounts[item - ITEM_RUPEE_GREEN]);
         return ITEM_NONE;
 
     } else if (item == ITEM_LONGSHOT) {
@@ -4594,8 +4594,8 @@ u8 Item_GiveImpl(PlayState* play, u8 item) {
     return temp;
 }
 
-// #region 2S2H [Enhancements] This is our wrapper around the original Item_Give function for hooking purposes
-u8 Item_Give(PlayState* play, u8 item) {
+// #region 2S2H [Enhancements] This is our wrapper around the original MM_Item_Give function for hooking purposes
+u8 MM_Item_Give(PlayState* play, u8 item) {
     if (!GameInteractor_ShouldItemGive(item) || item == ITEM_SHIP) {
         return ITEM_NONE;
     }
@@ -4618,7 +4618,7 @@ u8 Item_CheckObtainabilityImpl(u8 item) {
 
     slot = SLOT(item);
     if (item >= ITEM_DEKU_STICKS_5) {
-        slot = SLOT(sExtraItemBases[item - ITEM_DEKU_STICKS_5]);
+        slot = SLOT(MM_sExtraItemBases[item - ITEM_DEKU_STICKS_5]);
     }
 
     if (item == ITEM_SKULL_TOKEN) {
@@ -4765,11 +4765,11 @@ u8 Item_CheckObtainabilityImpl(u8 item) {
     return gSaveContext.save.saveInfo.inventory.items[slot];
 }
 
-u8 Item_CheckObtainability(u8 item) {
+u8 MM_Item_CheckObtainability(u8 item) {
     return Item_CheckObtainabilityImpl(item);
 }
 
-void Inventory_DeleteItem(s16 item, s16 slot) {
+void MM_Inventory_DeleteItem(s16 item, s16 slot) {
     s16 btn;
 
     gSaveContext.save.saveInfo.inventory.items[slot] = ITEM_NONE;
@@ -4809,7 +4809,7 @@ void Inventory_UnequipItem(s16 item) {
     // #endregion
 }
 
-s32 Inventory_ReplaceItem(PlayState* play, u8 oldItem, u8 newItem) {
+s32 MM_Inventory_ReplaceItem(PlayState* play, u8 oldItem, u8 newItem) {
     u8 i;
 
     for (i = 0; i < ITEM_NUM_SLOTS; i++) {
@@ -4866,7 +4866,7 @@ void Inventory_UpdateDeitySwordEquip(PlayState* play) {
     }
 }
 
-s32 Inventory_HasEmptyBottle(void) {
+s32 MM_Inventory_HasEmptyBottle(void) {
     s32 slot;
 
     for (slot = SLOT_BOTTLE_1; slot <= SLOT_BOTTLE_6; slot++) {
@@ -4906,7 +4906,7 @@ void Inventory_Dpad_UpdateBottleItem(PlayState* play, u8 item, u8 btn) {
 }
 // #endregion
 
-void Inventory_UpdateBottleItem(PlayState* play, u8 item, u8 btn) {
+void MM_Inventory_UpdateBottleItem(PlayState* play, u8 item, u8 btn) {
     gSaveContext.save.saveInfo.inventory.items[GET_CUR_FORM_BTN_SLOT(btn)] = item;
     SET_CUR_FORM_BTN_ITEM(btn, item);
 
@@ -4922,7 +4922,7 @@ void Inventory_UpdateBottleItem(PlayState* play, u8 item, u8 btn) {
     GameInteractor_ExecuteOnBottleContentsUpdate(item);
 }
 
-s32 Inventory_ConsumeFairy(PlayState* play) {
+s32 MM_Inventory_ConsumeFairy(PlayState* play) {
     u8 bottleSlot = SLOT(ITEM_FAIRY);
     u8 btn;
     u8 i;
@@ -5008,19 +5008,19 @@ void Interface_LoadAButtonDoActionLabel(InterfaceContext* interfaceCtx, u16 doAc
 
     if (doAction != DO_ACTION_NONE) {
         // #region 2S2H [Port]
-        // osCreateMesgQueue(&interfaceCtx->loadQueue, &interfaceCtx->loadMsg, 1);
+        // MM_osCreateMesgQueue(&interfaceCtx->loadQueue, &interfaceCtx->loadMsg, 1);
         // DmaMgr_RequestAsync(&interfaceCtx->dmaRequest,
         //                     interfaceCtx->doActionSegment + DO_ACTION_OFFSET_A_ACTIVE + slot * DO_ACTION_TEX_SIZE,
         //                     SEGMENT_ROM_START(do_action_static) + doAction * DO_ACTION_TEX_SIZE, DO_ACTION_TEX_SIZE,
         //                     0, &interfaceCtx->loadQueue, NULL);
-        // osRecvMesg(&interfaceCtx->loadQueue, NULL, OS_MESG_BLOCK);
+        // MM_osRecvMesg(&interfaceCtx->loadQueue, NULL, OS_MESG_BLOCK);
         if (slot) {
             interfaceCtx->doActionSegment[DO_ACTION_SEG_A].subTex = doActionTbl[doAction];
         } else {
             interfaceCtx->doActionSegment[DO_ACTION_SEG_A].mainTex = doActionTbl[doAction];
         }
     } else {
-        // gSegments[0x09] = OS_K0_TO_PHYSICAL(interfaceCtx->doActionSegment);
+        // MM_gSegments[0x09] = OS_K0_TO_PHYSICAL(interfaceCtx->doActionSegment);
         // Interface_ClearBuffer(Lib_SegmentedToVirtual(sDoActionTextures[slot]), DO_ACTION_TEX_SIZE / sizeof(u32));
         if (slot) {
             interfaceCtx->doActionSegment[DO_ACTION_SEG_A].subTex = gEmptyTexture;
@@ -5068,12 +5068,12 @@ void Interface_SetBButtonPlayerDoAction(PlayState* play, s16 bButtonDoAction) {
             interfaceCtx->bButtonPlayerDoAction = bButtonDoAction;
             if (interfaceCtx->bButtonPlayerDoAction != DO_ACTION_NONE) {
                 // #region 2S2H [Port]
-                // osCreateMesgQueue(&interfaceCtx->loadQueue, &interfaceCtx->loadMsg, 1);
+                // MM_osCreateMesgQueue(&interfaceCtx->loadQueue, &interfaceCtx->loadMsg, 1);
                 // DmaMgr_RequestAsync(&interfaceCtx->dmaRequest,
                 //                     interfaceCtx->doActionSegment + DO_ACTION_OFFSET_B_INTERFACE,
                 //                     SEGMENT_ROM_START(do_action_static) + bButtonDoAction * DO_ACTION_TEX_SIZE,
                 //                     DO_ACTION_TEX_SIZE, 0, &interfaceCtx->loadQueue, NULL);
-                // osRecvMesg(&interfaceCtx->loadQueue, NULL, OS_MESG_BLOCK);
+                // MM_osRecvMesg(&interfaceCtx->loadQueue, NULL, OS_MESG_BLOCK);
                 interfaceCtx->doActionSegment[DO_ACTION_SEG_B].subTex = doActionTbl[bButtonDoAction];
                 // #endregion
             }
@@ -5096,13 +5096,13 @@ void Interface_SetTatlCall(PlayState* play, u16 tatlCallState) {
                 Audio_PlaySfx(NA_SE_VO_NAVY_CALL);
             }
             if (tatlCallState == TATL_STATE_2A) {
-                Audio_PlaySfx_AtPosWithReverb(&gSfxDefaultPos, NA_SE_VO_NA_HELLO_2, 0x20);
+                Audio_PlaySfx_AtPosWithReverb(&MM_gSfxDefaultPos, NA_SE_VO_NA_HELLO_2, 0x20);
             }
         }
 
         interfaceCtx->tatlCalling = true;
-        sCUpInvisible = 0;
-        sCUpTimer = 10;
+        MM_sCUpInvisible = 0;
+        MM_sCUpTimer = 10;
     } else if (tatlCallState == TATL_STATE_2C) {
         if (interfaceCtx->tatlCalling) {
             interfaceCtx->tatlCalling = false;
@@ -5119,11 +5119,11 @@ void Interface_SetBButtonInterfaceDoAction(PlayState* play, s16 bButtonDoAction)
     interfaceCtx->bButtonInterfaceDoAction = bButtonDoAction;
 
     // #region 2S2H [Port]
-    // osCreateMesgQueue(&play->interfaceCtx.loadQueue, &play->interfaceCtx.loadMsg, 1);
+    // MM_osCreateMesgQueue(&play->interfaceCtx.loadQueue, &play->interfaceCtx.loadMsg, 1);
     // DmaMgr_RequestAsync(&interfaceCtx->dmaRequest, interfaceCtx->doActionSegment + DO_ACTION_OFFSET_B_PLAYER,
     //                     SEGMENT_ROM_START(do_action_static) + bButtonDoAction * DO_ACTION_TEX_SIZE,
     //                     DO_ACTION_TEX_SIZE, 0, &interfaceCtx->loadQueue, NULL);
-    // osRecvMesg(&interfaceCtx->loadQueue, NULL, OS_MESG_BLOCK);
+    // MM_osRecvMesg(&interfaceCtx->loadQueue, NULL, OS_MESG_BLOCK);
     interfaceCtx->doActionSegment[DO_ACTION_SEG_B].mainTex = doActionTbl[bButtonDoAction];
     // #endregion
 
@@ -5133,7 +5133,7 @@ void Interface_SetBButtonInterfaceDoAction(PlayState* play, s16 bButtonDoAction)
 /**
  * @return false if player is out of health
  */
-s32 Health_ChangeBy(PlayState* play, s16 healthChange) {
+s32 MM_Health_ChangeBy(PlayState* play, s16 healthChange) {
     if (healthChange > 0) {
         Audio_PlaySfx(NA_SE_SY_HP_RECOVER);
     } else if (gSaveContext.save.saveInfo.playerData.doubleDefense && (healthChange < 0)) {
@@ -5159,11 +5159,11 @@ void Health_GiveHearts(s16 hearts) {
     gSaveContext.save.saveInfo.playerData.healthCapacity += hearts * 0x10;
 }
 
-void Rupees_ChangeBy(s16 rupeeChange) {
+void MM_Rupees_ChangeBy(s16 rupeeChange) {
     gSaveContext.rupeeAccumulator += rupeeChange;
 }
 
-void Inventory_ChangeAmmo(s16 item, s16 ammoChange) {
+void MM_Inventory_ChangeAmmo(s16 item, s16 ammoChange) {
     if (item == ITEM_DEKU_STICK) {
         AMMO(ITEM_DEKU_STICK) += ammoChange;
 
@@ -5229,7 +5229,7 @@ void Magic_Add(PlayState* play, s16 magicToAdd) {
     }
 }
 
-void Magic_Reset(PlayState* play) {
+void MM_Magic_Reset(PlayState* play) {
     if ((gSaveContext.magicState != MAGIC_STATE_STEP_CAPACITY) && (gSaveContext.magicState != MAGIC_STATE_FILL)) {
         sMagicMeterOutlinePrimRed = sMagicMeterOutlinePrimGreen = sMagicMeterOutlinePrimBlue = 255;
         gSaveContext.magicState = MAGIC_STATE_IDLE;
@@ -5528,11 +5528,11 @@ void Magic_Update(PlayState* play) {
             // Slowly consume magic while Lens of Truth is active
             if (!IS_PAUSED(&play->pauseCtx) && (msgCtx->msgMode == MSGMODE_NONE) &&
                 (play->gameOverCtx.state == GAMEOVER_INACTIVE) && (play->transitionTrigger == TRANS_TRIGGER_OFF) &&
-                (play->transitionMode == TRANS_MODE_OFF) && !Play_InCsMode(play)) {
+                (play->transitionMode == TRANS_MODE_OFF) && !MM_Play_InCsMode(play)) {
 
                 if ((gSaveContext.save.saveInfo.playerData.magic == 0) ||
-                    ((Player_GetEnvironmentalHazard(play) >= PLAYER_ENV_HAZARD_UNDERWATER_FLOOR) &&
-                     (Player_GetEnvironmentalHazard(play) <= PLAYER_ENV_HAZARD_UNDERWATER_FREE)) ||
+                    ((MM_Player_GetEnvironmentalHazard(play) >= PLAYER_ENV_HAZARD_UNDERWATER_FLOOR) &&
+                     (MM_Player_GetEnvironmentalHazard(play) <= PLAYER_ENV_HAZARD_UNDERWATER_FREE)) ||
                     ((BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_C_LEFT) != ITEM_LENS_OF_TRUTH) &&
                      (BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_C_DOWN) != ITEM_LENS_OF_TRUTH) &&
                      (BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_C_RIGHT) != ITEM_LENS_OF_TRUTH) &&
@@ -5578,7 +5578,7 @@ void Magic_Update(PlayState* play) {
             if ((play->pauseCtx.state == PAUSE_STATE_OFF) && (play->pauseCtx.debugEditor == DEBUG_EDITOR_NONE) &&
                 (msgCtx->msgMode == MSGMODE_NONE) && (play->gameOverCtx.state == GAMEOVER_INACTIVE) &&
                 (play->transitionTrigger == TRANS_TRIGGER_OFF) && (play->transitionMode == TRANS_MODE_OFF)) {
-                if (!Play_InCsMode(play)) {
+                if (!MM_Play_InCsMode(play)) {
                     interfaceCtx->magicConsumptionTimer--;
                     if (interfaceCtx->magicConsumptionTimer == 0) {
                         if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_DRANK_CHATEAU_ROMANI)) {
@@ -5600,7 +5600,7 @@ void Magic_Update(PlayState* play) {
             if (!IS_PAUSED(&play->pauseCtx) && (msgCtx->msgMode == MSGMODE_NONE) &&
                 (play->gameOverCtx.state == GAMEOVER_INACTIVE) && (play->transitionTrigger == TRANS_TRIGGER_OFF) &&
                 (play->transitionMode == TRANS_MODE_OFF)) {
-                if (!Play_InCsMode(play)) {
+                if (!MM_Play_InCsMode(play)) {
                     interfaceCtx->magicConsumptionTimer--;
                     if (interfaceCtx->magicConsumptionTimer == 0) {
                         if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_DRANK_CHATEAU_ROMANI)) {
@@ -5851,7 +5851,7 @@ void Interface_SetPerspectiveView(PlayState* play, s32 topY, s32 bottomY, s32 le
     }
     // #endregion
 
-    View_SetViewport(&interfaceCtx->view, &interfaceCtx->viewport);
+    MM_View_SetViewport(&interfaceCtx->view, &interfaceCtx->viewport);
 
     View_SetPerspective(&interfaceCtx->view, 60.0f, 10.0f, 60.0f);
     View_ApplyPerspectiveToOverlay(&interfaceCtx->view);
@@ -5862,7 +5862,7 @@ void Interface_SetOrthoView(InterfaceContext* interfaceCtx) {
     View_ApplyOrthoToOverlay(&interfaceCtx->view);
 }
 
-void Interface_DrawItemButtons(PlayState* play) {
+void MM_Interface_DrawItemButtons(PlayState* play) {
     static TexturePtr sCUpLabelTextures[LANGUAGE_MAX] = {
         gTatlCUpENGTex, // LANGUAGE_JPN
         gTatlCUpENGTex, // LANGUAGE_ENG
@@ -5987,7 +5987,7 @@ void Interface_DrawItemButtons(PlayState* play) {
 
     if (interfaceCtx->tatlCalling && !IS_PAUSED(&play->pauseCtx) && (play->csCtx.state == CS_STATE_IDLE) &&
         (sPictoState == PICTO_BOX_STATE_OFF)) {
-        if (sCUpInvisible == 0) {
+        if (MM_sCUpInvisible == 0) {
             // C-Up Button Texture, Color & Label (Tatl Text)
             gDPPipeSync(OVERLAY_DISP++);
 
@@ -6043,10 +6043,10 @@ void Interface_DrawItemButtons(PlayState* play) {
             }
         }
 
-        sCUpTimer--;
-        if (sCUpTimer == 0) {
-            sCUpInvisible ^= 1;
-            sCUpTimer = 10;
+        MM_sCUpTimer--;
+        if (MM_sCUpTimer == 0) {
+            MM_sCUpInvisible ^= 1;
+            MM_sCUpTimer = 10;
         }
     }
 
@@ -6207,7 +6207,7 @@ void Interface_Dpad_DrawAmmoCount(PlayState* play, s16 button, s16 alpha) {
 }
 // #endregion
 
-void Interface_DrawItemIconTexture(PlayState* play, TexturePtr texture, s16 button) {
+void MM_Interface_DrawItemIconTexture(PlayState* play, TexturePtr texture, s16 button) {
     static s16 sItemIconTextureDimensions[] = {
         30, // EQUIP_SLOT_B
         24, // EQUIP_SLOT_C_LEFT
@@ -6254,7 +6254,7 @@ void Interface_DrawItemIconTexture(PlayState* play, TexturePtr texture, s16 butt
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void Interface_DrawAmmoCount(PlayState* play, s16 button, s16 alpha) {
+void MM_Interface_DrawAmmoCount(PlayState* play, s16 button, s16 alpha) {
     static s16 sAmmoDigitsXPositions[] = { 162, 228, 250, 272 };
     static s16 sAmmoDigitsYPositions[] = { 35, 35, 51, 35 };
     u8 i;
@@ -6344,12 +6344,12 @@ void Interface_DrawBButtonIcons(PlayState* play) {
 
     if (!interfaceCtx->bButtonInterfaceDoActionActive && (player->stateFlags3 & PLAYER_STATE3_1000000)) {
         if (gSaveContext.buttonStatus[EQUIP_SLOT_B] != BTN_DISABLED) {
-            Interface_DrawItemIconTexture(play, interfaceCtx->iconItemSegment[EQUIP_SLOT_B], EQUIP_SLOT_B);
+            MM_Interface_DrawItemIconTexture(play, interfaceCtx->iconItemSegment[EQUIP_SLOT_B], EQUIP_SLOT_B);
             gDPPipeSync(OVERLAY_DISP++);
             gDPSetCombineLERP(OVERLAY_DISP++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0,
                               PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
 
-            Interface_DrawAmmoCount(play, EQUIP_SLOT_B, interfaceCtx->bAlpha);
+            MM_Interface_DrawAmmoCount(play, EQUIP_SLOT_B, interfaceCtx->bAlpha);
         }
     } else if ((!interfaceCtx->bButtonPlayerDoActionActive && !interfaceCtx->bButtonInterfaceDoActionActive) ||
                ((interfaceCtx->bButtonPlayerDoActionActive &&
@@ -6359,7 +6359,7 @@ void Interface_DrawBButtonIcons(PlayState* play) {
                 (BUTTON_ITEM_EQUIP(CUR_FORM, EQUIP_SLOT_B) != ITEM_DEKU_NUT))) {
         if ((player->transformation == PLAYER_FORM_FIERCE_DEITY) || (player->transformation == PLAYER_FORM_HUMAN)) {
             if (BUTTON_ITEM_EQUIP(CUR_FORM, EQUIP_SLOT_B) != ITEM_NONE) {
-                Interface_DrawItemIconTexture(play, interfaceCtx->iconItemSegment[EQUIP_SLOT_B], EQUIP_SLOT_B);
+                MM_Interface_DrawItemIconTexture(play, interfaceCtx->iconItemSegment[EQUIP_SLOT_B], EQUIP_SLOT_B);
                 if ((player->stateFlags1 & PLAYER_STATE1_800000) || CHECK_WEEKEVENTREG(WEEKEVENTREG_08_01) ||
                     (play->bButtonAmmoPlusOne >= 2)) {
                     gDPPipeSync(OVERLAY_DISP++);
@@ -6372,7 +6372,7 @@ void Interface_DrawBButtonIcons(PlayState* play) {
                          (gSaveContext.save.entrance != ENTRANCE(ROMANI_RANCH, 0))) &&
                         ((gSaveContext.minigameStatus != MINIGAME_STATUS_ACTIVE) || !CHECK_EVENTINF(EVENTINF_35)) &&
                         (!CHECK_WEEKEVENTREG(WEEKEVENTREG_31_80) || (play->bButtonAmmoPlusOne != 100))) {
-                        Interface_DrawAmmoCount(play, EQUIP_SLOT_B, interfaceCtx->bAlpha);
+                        MM_Interface_DrawAmmoCount(play, EQUIP_SLOT_B, interfaceCtx->bAlpha);
                     }
                 }
             }
@@ -6481,11 +6481,11 @@ void Interface_DrawCButtonIcons(PlayState* play) {
     if (BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_C_LEFT) < ITEM_F0) {
         gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 255, interfaceCtx->cLeftAlpha);
         gDPSetCombineMode(OVERLAY_DISP++, G_CC_MODULATEIA_PRIM, G_CC_MODULATEIA_PRIM);
-        Interface_DrawItemIconTexture(play, interfaceCtx->iconItemSegment[EQUIP_SLOT_C_LEFT], EQUIP_SLOT_C_LEFT);
+        MM_Interface_DrawItemIconTexture(play, interfaceCtx->iconItemSegment[EQUIP_SLOT_C_LEFT], EQUIP_SLOT_C_LEFT);
         gDPPipeSync(OVERLAY_DISP++);
         gDPSetCombineLERP(OVERLAY_DISP++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0,
                           PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
-        Interface_DrawAmmoCount(play, EQUIP_SLOT_C_LEFT, interfaceCtx->cLeftAlpha);
+        MM_Interface_DrawAmmoCount(play, EQUIP_SLOT_C_LEFT, interfaceCtx->cLeftAlpha);
     }
 
     gDPPipeSync(OVERLAY_DISP++);
@@ -6494,11 +6494,11 @@ void Interface_DrawCButtonIcons(PlayState* play) {
     if (BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_C_DOWN) < ITEM_F0) {
         gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 255, interfaceCtx->cDownAlpha);
         gDPSetCombineMode(OVERLAY_DISP++, G_CC_MODULATEIA_PRIM, G_CC_MODULATEIA_PRIM);
-        Interface_DrawItemIconTexture(play, interfaceCtx->iconItemSegment[EQUIP_SLOT_C_DOWN], EQUIP_SLOT_C_DOWN);
+        MM_Interface_DrawItemIconTexture(play, interfaceCtx->iconItemSegment[EQUIP_SLOT_C_DOWN], EQUIP_SLOT_C_DOWN);
         gDPPipeSync(OVERLAY_DISP++);
         gDPSetCombineLERP(OVERLAY_DISP++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0,
                           PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
-        Interface_DrawAmmoCount(play, EQUIP_SLOT_C_DOWN, interfaceCtx->cDownAlpha);
+        MM_Interface_DrawAmmoCount(play, EQUIP_SLOT_C_DOWN, interfaceCtx->cDownAlpha);
     }
 
     gDPPipeSync(OVERLAY_DISP++);
@@ -6507,11 +6507,11 @@ void Interface_DrawCButtonIcons(PlayState* play) {
     if (BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_C_RIGHT) < ITEM_F0) {
         gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 255, interfaceCtx->cRightAlpha);
         gDPSetCombineMode(OVERLAY_DISP++, G_CC_MODULATEIA_PRIM, G_CC_MODULATEIA_PRIM);
-        Interface_DrawItemIconTexture(play, interfaceCtx->iconItemSegment[EQUIP_SLOT_C_RIGHT], EQUIP_SLOT_C_RIGHT);
+        MM_Interface_DrawItemIconTexture(play, interfaceCtx->iconItemSegment[EQUIP_SLOT_C_RIGHT], EQUIP_SLOT_C_RIGHT);
         gDPPipeSync(OVERLAY_DISP++);
         gDPSetCombineLERP(OVERLAY_DISP++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0,
                           PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
-        Interface_DrawAmmoCount(play, EQUIP_SLOT_C_RIGHT, interfaceCtx->cRightAlpha);
+        MM_Interface_DrawAmmoCount(play, EQUIP_SLOT_C_RIGHT, interfaceCtx->cRightAlpha);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -6602,8 +6602,8 @@ void Interface_DrawAButton(PlayState* play) {
     gDPSetCombineMode(OVERLAY_DISP++, G_CC_MODULATEIA_PRIM, G_CC_MODULATEIA_PRIM);
     gDPSetAlphaCompare(OVERLAY_DISP++, G_AC_THRESHOLD);
 
-    Matrix_Translate(0.0f, 0.0f, -38.0f, MTXMODE_NEW);
-    Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, 0.0f, -38.0f, MTXMODE_NEW);
+    MM_Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
     Matrix_RotateXFApply(interfaceCtx->aButtonRoll / 10000.0f);
 
     // Draw A button Shadow
@@ -6631,8 +6631,8 @@ void Interface_DrawAButton(PlayState* play) {
     gDPSetEnvColor(OVERLAY_DISP++, 0, 0, 0, 0);
 
     // In screen space with a perspective view, the z axis acts as a scale
-    Matrix_Translate(0.0f, 0.0f, sAButtonDoActionTexScales[gSaveContext.options.language] / 10.0f, MTXMODE_NEW);
-    Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, 0.0f, sAButtonDoActionTexScales[gSaveContext.options.language] / 10.0f, MTXMODE_NEW);
+    MM_Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
     Matrix_RotateXFApply(interfaceCtx->aButtonRoll / 10000.0f);
     MATRIX_FINALIZE_AND_LOAD(OVERLAY_DISP++, play->state.gfxCtx);
     gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[8], 4, 0);
@@ -6686,7 +6686,7 @@ void Interface_DrawPauseMenuEquippingIcons(PlayState* play) {
             // Normal Equip (icon goes from the inventory slot to the C button when equipping it)
             gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 255, pauseCtx->equipAnimAlpha);
             gSPVertex(OVERLAY_DISP++, &pauseCtx->cursorVtx[16], 4, 0);
-            gDPLoadTextureBlock(OVERLAY_DISP++, gItemIcons[pauseCtx->equipTargetItem], G_IM_FMT_RGBA, G_IM_SIZ_32b,
+            gDPLoadTextureBlock(OVERLAY_DISP++, MM_gItemIcons[pauseCtx->equipTargetItem], G_IM_FMT_RGBA, G_IM_SIZ_32b,
                                 ICON_ITEM_TEX_WIDTH, ICON_ITEM_TEX_HEIGHT, 0, G_TX_NOMIRROR | G_TX_WRAP,
                                 G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
         } else {
@@ -6813,10 +6813,10 @@ void Interface_DrawClock(PlayState* play) {
 
     if ((R_TIME_SPEED != 0) &&
         ((msgCtx->msgMode == MSGMODE_NONE) ||
-         ((play->actorCtx.flags & ACTORCTX_FLAG_TELESCOPE_ON) && !Play_InCsMode(play)) ||
+         ((play->actorCtx.flags & ACTORCTX_FLAG_TELESCOPE_ON) && !MM_Play_InCsMode(play)) ||
          (msgCtx->msgMode == MSGMODE_NONE) || ((msgCtx->currentTextId >= 0x100) && (msgCtx->currentTextId <= 0x200)) ||
          (gSaveContext.gameMode == GAMEMODE_END_CREDITS)) &&
-        !FrameAdvance_IsEnabled(play) && !Environment_IsTimeStopped() && (gSaveContext.save.day <= 3)) {
+        !MM_FrameAdvance_IsEnabled(play) && !Environment_IsTimeStopped() && (gSaveContext.save.day <= 3)) {
         /**
          * Section: Changes Clock's transparancy depending if Player is moving or not and possibly other things
          */
@@ -7041,12 +7041,12 @@ void Interface_DrawClock(PlayState* play) {
                     f32 elemScale = !HudEditor_IsActiveElementHidden() ? HudEditor_GetActiveElementScale() : 0.0f;
                     HudEditor_ModifyMatrixValues(&posX, &posY);
 
-                    Matrix_Translate(posX, posY, 0.0f, MTXMODE_NEW);
-                    Matrix_Scale(elemScale, elemScale, sThreeDayClockStarMinuteScale, MTXMODE_APPLY);
+                    MM_Matrix_Translate(posX, posY, 0.0f, MTXMODE_NEW);
+                    MM_Matrix_Scale(elemScale, elemScale, sThreeDayClockStarMinuteScale, MTXMODE_APPLY);
                 } else {
                     // #endregion
-                    Matrix_Translate(0.0f, -86.0f, 0.0f, MTXMODE_NEW);
-                    Matrix_Scale(1.0f, 1.0f, sThreeDayClockStarMinuteScale, MTXMODE_APPLY);
+                    MM_Matrix_Translate(0.0f, -86.0f, 0.0f, MTXMODE_NEW);
+                    MM_Matrix_Scale(1.0f, 1.0f, sThreeDayClockStarMinuteScale, MTXMODE_APPLY);
                 }
 
                 Matrix_RotateZF(-(timeInSeconds * 0.0175f) / 10.0f, MTXMODE_APPLY);
@@ -7114,8 +7114,8 @@ void Interface_DrawClock(PlayState* play) {
              * Section: Draw Three-Day Clock's Sun (for the Day-Time Hours Tracker)
              */
             time = CURRENT_TIME;
-            sp1D8 = Math_SinS(time) * -40.0f;
-            temp_f14 = Math_CosS(time) * -34.0f;
+            sp1D8 = MM_Math_SinS(time) * -40.0f;
+            temp_f14 = MM_Math_CosS(time) * -34.0f;
 
             gDPPipeSync(OVERLAY_DISP++);
             gDPSetCombineMode(OVERLAY_DISP++, G_CC_MODULATEIA_PRIM, G_CC_MODULATEIA_PRIM);
@@ -7126,12 +7126,12 @@ void Interface_DrawClock(PlayState* play) {
             if (HudEditor_ShouldOverrideDraw()) {
                 f32 elemScale = !HudEditor_IsActiveElementHidden() ? HudEditor_GetActiveElementScale() : 0.0f;
                 HudEditor_ModifyMatrixValues(&sp1D8, &temp_f14);
-                Matrix_Translate(sp1D8, temp_f14, 0.0f, MTXMODE_NEW);
-                Matrix_Scale(elemScale, elemScale, 1.0f, MTXMODE_APPLY);
+                MM_Matrix_Translate(sp1D8, temp_f14, 0.0f, MTXMODE_NEW);
+                MM_Matrix_Scale(elemScale, elemScale, 1.0f, MTXMODE_APPLY);
             } else {
                 // #endregion
-                Matrix_Translate(sp1D8, temp_f14, 0.0f, MTXMODE_NEW);
-                Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
+                MM_Matrix_Translate(sp1D8, temp_f14, 0.0f, MTXMODE_NEW);
+                MM_Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
             }
 
             MATRIX_FINALIZE_AND_LOAD(OVERLAY_DISP++, play->state.gfxCtx);
@@ -7142,8 +7142,8 @@ void Interface_DrawClock(PlayState* play) {
             /**
              * Section: Draw Three-Day Clock's Moon (for the Night-Time Hours Tracker)
              */
-            sp1D8 = Math_SinS(time) * 40.0f;
-            temp_f14 = Math_CosS(time) * 34.0f;
+            sp1D8 = MM_Math_SinS(time) * 40.0f;
+            temp_f14 = MM_Math_CosS(time) * 34.0f;
 
             gDPPipeSync(OVERLAY_DISP++);
             gDPSetCombineMode(OVERLAY_DISP++, G_CC_MODULATEIA_PRIM, G_CC_MODULATEIA_PRIM);
@@ -7154,11 +7154,11 @@ void Interface_DrawClock(PlayState* play) {
             if (HudEditor_ShouldOverrideDraw()) {
                 f32 elemScale = !HudEditor_IsActiveElementHidden() ? HudEditor_GetActiveElementScale() : 0.0f;
                 HudEditor_ModifyMatrixValues(&sp1D8, &temp_f14);
-                Matrix_Translate(sp1D8, temp_f14, 0.0f, MTXMODE_NEW);
-                Matrix_Scale(elemScale, elemScale, 1.0f, MTXMODE_APPLY);
+                MM_Matrix_Translate(sp1D8, temp_f14, 0.0f, MTXMODE_NEW);
+                MM_Matrix_Scale(elemScale, elemScale, 1.0f, MTXMODE_APPLY);
             } else {
-                Matrix_Translate(sp1D8, temp_f14, 0.0f, MTXMODE_NEW);
-                Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
+                MM_Matrix_Translate(sp1D8, temp_f14, 0.0f, MTXMODE_NEW);
+                MM_Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
             }
 
             MATRIX_FINALIZE_AND_LOAD(OVERLAY_DISP++, play->state.gfxCtx);
@@ -7219,12 +7219,12 @@ void Interface_DrawClock(PlayState* play) {
                 f32 elemScale = !HudEditor_IsActiveElementHidden() ? HudEditor_GetActiveElementScale() : 0.0f;
                 HudEditor_ModifyMatrixValues(&posX, &posY);
 
-                Matrix_Translate(posX, posY, 0.0f, MTXMODE_NEW);
-                Matrix_Scale(elemScale, elemScale, 1.0f, MTXMODE_APPLY);
+                MM_Matrix_Translate(posX, posY, 0.0f, MTXMODE_NEW);
+                MM_Matrix_Scale(elemScale, elemScale, 1.0f, MTXMODE_APPLY);
             } else {
                 // #endregion
-                Matrix_Translate(0.0f, R_THREE_DAY_CLOCK_Y_POS / 10.0f, 0.0f, MTXMODE_NEW);
-                Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
+                MM_Matrix_Translate(0.0f, R_THREE_DAY_CLOCK_Y_POS / 10.0f, 0.0f, MTXMODE_NEW);
+                MM_Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
             }
 
             Matrix_RotateZF(-(sp1CC - 3.15f), MTXMODE_APPLY);
@@ -7262,12 +7262,12 @@ void Interface_DrawClock(PlayState* play) {
                 f32 elemScale = !HudEditor_IsActiveElementHidden() ? HudEditor_GetActiveElementScale() : 0.0f;
                 HudEditor_ModifyMatrixValues(&posX, &posY);
 
-                Matrix_Translate(posX, posY, 0.0f, MTXMODE_NEW);
-                Matrix_Scale(elemScale, elemScale, 1.0f, MTXMODE_APPLY);
+                MM_Matrix_Translate(posX, posY, 0.0f, MTXMODE_NEW);
+                MM_Matrix_Scale(elemScale, elemScale, 1.0f, MTXMODE_APPLY);
             } else {
                 // #endregion
-                Matrix_Translate(0.0f, R_THREE_DAY_CLOCK_Y_POS / 10.0f, 0.0f, MTXMODE_NEW);
-                Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
+                MM_Matrix_Translate(0.0f, R_THREE_DAY_CLOCK_Y_POS / 10.0f, 0.0f, MTXMODE_NEW);
+                MM_Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
             }
 
             Matrix_RotateZF(-sp1CC, MTXMODE_APPLY);
@@ -7472,7 +7472,7 @@ void Interface_SetPerfectLetters(PlayState* play, s16 perfectLettersType) {
 }
 
 u16 sPerfectLettersType1OffScreenAngles[PERFECT_LETTERS_NUM_LETTERS] = {
-    6 * PERFECT_LETTERS_ANGLE_PER_LETTER, // P
+    6 * PERFECT_LETTERS_ANGLE_PER_LETTER, // MM_P
     7 * PERFECT_LETTERS_ANGLE_PER_LETTER, // E
     0 * PERFECT_LETTERS_ANGLE_PER_LETTER, // R
     1 * PERFECT_LETTERS_ANGLE_PER_LETTER, // F
@@ -7594,7 +7594,7 @@ void Interface_UpdatePerfectLettersType1(PlayState* play) {
 
 // Targets to offset each letter to properly spell "PERFECT!"
 s16 sPerfectLettersType2SpellingOffsetsX[PERFECT_LETTERS_NUM_LETTERS] = {
-    78,  // P
+    78,  // MM_P
     54,  // E
     29,  // R
     5,   // F
@@ -7606,7 +7606,7 @@ s16 sPerfectLettersType2SpellingOffsetsX[PERFECT_LETTERS_NUM_LETTERS] = {
 
 // Targets to offset each letter to sweep horizontally offscreen
 s16 sPerfectLettersType2OffScreenOffsetsX[PERFECT_LETTERS_NUM_LETTERS] = {
-    180,  // P (offscreen left)
+    180,  // MM_P (offscreen left)
     180,  // E (offscreen left)
     180,  // R (offscreen left)
     180,  // F (offscreen left)
@@ -7767,7 +7767,7 @@ void Interface_UpdatePerfectLettersType2(PlayState* play) {
 
 // Targets to offset each letter to properly spell "PERFECT!"
 s16 sPerfectLettersType3SpellingOffsetsX[PERFECT_LETTERS_NUM_LETTERS] = {
-    78,  // P
+    78,  // MM_P
     54,  // E
     29,  // R
     5,   // F
@@ -7779,7 +7779,7 @@ s16 sPerfectLettersType3SpellingOffsetsX[PERFECT_LETTERS_NUM_LETTERS] = {
 
 // Targets to sweep each letter's angle along an elliptical spiral offscreen
 u16 sPerfectLettersType3OffScreenAngles[PERFECT_LETTERS_NUM_LETTERS] = {
-    6 * PERFECT_LETTERS_ANGLE_PER_LETTER, // P
+    6 * PERFECT_LETTERS_ANGLE_PER_LETTER, // MM_P
     7 * PERFECT_LETTERS_ANGLE_PER_LETTER, // E
     0 * PERFECT_LETTERS_ANGLE_PER_LETTER, // R
     1 * PERFECT_LETTERS_ANGLE_PER_LETTER, // F
@@ -7957,15 +7957,15 @@ void Interface_DrawPerfectLetters(PlayState* play) {
         if (interfaceCtx->perfectLettersState[i] != PERFECT_LETTERS_STATE_OFF) {
 
             // The positions follow the path of an elliptical spiral
-            letterX = Math_SinS(interfaceCtx->perfectLettersAngles[i]) * interfaceCtx->perfectLettersSemiAxisX[i];
-            letterY = Math_CosS(interfaceCtx->perfectLettersAngles[i]) * interfaceCtx->perfectLettersSemiAxisY[i];
+            letterX = MM_Math_SinS(interfaceCtx->perfectLettersAngles[i]) * interfaceCtx->perfectLettersSemiAxisX[i];
+            letterY = MM_Math_CosS(interfaceCtx->perfectLettersAngles[i]) * interfaceCtx->perfectLettersSemiAxisY[i];
 
             // Draw Minigame Perfect Shadows
             gDPPipeSync(OVERLAY_DISP++);
             gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 0, 0, 0, interfaceCtx->perfectLettersPrimColor[3]);
 
-            Matrix_Translate(letterX, letterY, 0.0f, MTXMODE_NEW);
-            Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
+            MM_Matrix_Translate(letterX, letterY, 0.0f, MTXMODE_NEW);
+            MM_Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(OVERLAY_DISP++, play->state.gfxCtx);
             gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[44 + vtxOffset], 4, 0);
@@ -7978,8 +7978,8 @@ void Interface_DrawPerfectLetters(PlayState* play) {
                             interfaceCtx->perfectLettersPrimColor[1], interfaceCtx->perfectLettersPrimColor[2],
                             interfaceCtx->perfectLettersPrimColor[3]);
 
-            Matrix_Translate(letterX, letterY, 0.0f, MTXMODE_NEW);
-            Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
+            MM_Matrix_Translate(letterX, letterY, 0.0f, MTXMODE_NEW);
+            MM_Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(OVERLAY_DISP++, play->state.gfxCtx);
             gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[76 + vtxOffset], 4, 0);
@@ -8072,11 +8072,11 @@ void Interface_DrawTimers(PlayState* play) {
         ((msgCtx->msgMode == MSGMODE_NONE) || ((msgCtx->msgMode != MSGMODE_NONE) && (msgCtx->currentTextId >= 0x1BB2) &&
                                                (msgCtx->currentTextId <= 0x1BB6))) &&
         !(player->stateFlags1 & PLAYER_STATE1_200) && (play->transitionTrigger == TRANS_TRIGGER_OFF) &&
-        (play->transitionMode == TRANS_MODE_OFF) && !Play_InCsMode(play)) {
+        (play->transitionMode == TRANS_MODE_OFF) && !MM_Play_InCsMode(play)) {
 
         // Account for osTime when the timer is paused
         if (sIsTimerPaused) {
-            osTime = osGetTime();
+            osTime = MM_osGetTime();
 
             for (j = 0; j < TIMER_ID_MAX; j++) {
                 if (gSaveContext.timerStates[j] == TIMER_STATE_COUNTING) {
@@ -8134,7 +8134,7 @@ void Interface_DrawTimers(PlayState* play) {
                 switch (gSaveContext.timerStates[TIMER_ID_POSTMAN]) {
                     case TIMER_STATE_POSTMAN_START:
                         if (gSaveContext.timerDirections[TIMER_ID_POSTMAN] != TIMER_COUNT_DOWN) {
-                            gSaveContext.timerStartOsTimes[TIMER_ID_POSTMAN] = osGetTime();
+                            gSaveContext.timerStartOsTimes[TIMER_ID_POSTMAN] = MM_osGetTime();
                         }
                         gSaveContext.timerStates[TIMER_ID_POSTMAN] = TIMER_STATE_POSTMAN_COUNTING;
                         sPostmanTimerInputBtnAPressed = true;
@@ -8192,11 +8192,11 @@ void Interface_DrawTimers(PlayState* play) {
                                 gSaveContext.timerStates[sTimerId] = TIMER_STATE_COUNTING;
                             } else {
                                 gSaveContext.timerStates[sTimerId] = TIMER_STATE_ALT_COUNTING;
-                                D_801BF8F8[sTimerId] = osGetTime();
+                                D_801BF8F8[sTimerId] = MM_osGetTime();
                                 D_801BF930[sTimerId] = 0;
                             }
 
-                            gSaveContext.timerStartOsTimes[sTimerId] = osGetTime();
+                            gSaveContext.timerStartOsTimes[sTimerId] = MM_osGetTime();
                             gSaveContext.timerStopTimes[sTimerId] = SECONDS_TO_TIMER(0);
                             gSaveContext.timerPausedOsTimes[sTimerId] = 0;
                         }
@@ -8266,7 +8266,7 @@ void Interface_DrawTimers(PlayState* play) {
                         }
 
                         gSaveContext.timerStates[sTimerId] = TIMER_STATE_COUNTING;
-                        gSaveContext.timerStartOsTimes[sTimerId] = osGetTime();
+                        gSaveContext.timerStartOsTimes[sTimerId] = MM_osGetTime();
                         gSaveContext.timerStopTimes[sTimerId] = SECONDS_TO_TIMER(0);
                         gSaveContext.timerPausedOsTimes[sTimerId] = 0;
                     }
@@ -8295,16 +8295,16 @@ void Interface_DrawTimers(PlayState* play) {
                     break;
 
                 case TIMER_STATE_10:
-                    D_801BF8F8[sTimerId] = osGetTime();
+                    D_801BF8F8[sTimerId] = MM_osGetTime();
                     D_801BF930[sTimerId] = 0;
                     gSaveContext.timerStates[sTimerId] = TIMER_STATE_ALT_COUNTING;
                     // fallthrough
                 case TIMER_STATE_ALT_COUNTING:
-                    D_801BF930[sTimerId] = osGetTime() - D_801BF8F8[sTimerId];
+                    D_801BF930[sTimerId] = MM_osGetTime() - D_801BF8F8[sTimerId];
                     break;
 
                 case TIMER_STATE_12:
-                    osTime = osGetTime();
+                    osTime = MM_osGetTime();
 
                     gSaveContext.timerPausedOsTimes[sTimerId] =
                         gSaveContext.timerPausedOsTimes[sTimerId] + osTime - D_801BF8F8[sTimerId];
@@ -8322,7 +8322,7 @@ void Interface_DrawTimers(PlayState* play) {
                     break;
 
                 case TIMER_STATE_STOP:
-                    osTime = osGetTime();
+                    osTime = MM_osGetTime();
 
                     gSaveContext.timerStopTimes[sTimerId] =
                         OSTIME_TO_TIMER(osTime - ((void)0, gSaveContext.timerStartOsTimes[sTimerId]) -
@@ -8349,7 +8349,7 @@ void Interface_DrawTimers(PlayState* play) {
                     break;
 
                 case TIMER_STATE_6:
-                    osTime = osGetTime();
+                    osTime = MM_osGetTime();
 
                     gSaveContext.timerStopTimes[sTimerId] =
                         OSTIME_TO_TIMER(osTime - ((void)0, gSaveContext.timerStartOsTimes[sTimerId]) -
@@ -8393,7 +8393,7 @@ void Interface_DrawTimers(PlayState* play) {
                     (gSaveContext.timerStates[sTimerId] == TIMER_STATE_10) ||
                     (gSaveContext.timerStates[sTimerId] == TIMER_STATE_ALT_COUNTING) ||
                     (gSaveContext.timerStates[sTimerId] == TIMER_STATE_POSTMAN_COUNTING)) {
-                    osTime = osGetTime();
+                    osTime = MM_osGetTime();
 
                     osTime =
                         OSTIME_TO_TIMER(osTime - ((void)0, gSaveContext.timerPausedOsTimes[sTimerId]) -
@@ -8454,7 +8454,7 @@ void Interface_DrawTimers(PlayState* play) {
                 // Get the total amount of unpaused time since the start of the timer, centiseconds (1/100th sec).
                 if ((gSaveContext.timerStates[sTimerId] == TIMER_STATE_COUNTING) ||
                     (gSaveContext.timerStates[sTimerId] == TIMER_STATE_POSTMAN_COUNTING)) {
-                    osTime = osGetTime();
+                    osTime = MM_osGetTime();
                     osTime =
                         OSTIME_TO_TIMER(osTime - ((void)0, gSaveContext.timerStartOsTimes[sTimerId]) -
                                         ((void)0, gSaveContext.timerPausedOsTimes[sTimerId]) - D_801BF930[sTimerId]);
@@ -8585,7 +8585,7 @@ void Interface_DrawTimers(PlayState* play) {
         }
 
     } else if (!sIsTimerPaused) {
-        sTimerPausedOsTime = osGetTime();
+        sTimerPausedOsTime = MM_osGetTime();
         sIsTimerPaused = true;
     }
 
@@ -8604,11 +8604,11 @@ void Interface_UpdateBottleTimers(PlayState* play) {
         ((msgCtx->msgMode == MSGMODE_NONE) || ((msgCtx->currentTextId >= 0x100) && (msgCtx->currentTextId <= 0x200)) ||
          ((msgCtx->currentTextId >= 0x1BB2) && (msgCtx->currentTextId <= 0x1BB6))) &&
         (play->transitionTrigger == TRANS_TRIGGER_OFF) && (play->transitionMode == TRANS_MODE_OFF) &&
-        !Play_InCsMode(play)) {
+        !MM_Play_InCsMode(play)) {
 
         // Account for osTime when the timer is paused
         if (sIsBottleTimerPaused) {
-            osTime = osGetTime();
+            osTime = MM_osGetTime();
 
             for (j = BOTTLE_FIRST; j < BOTTLE_MAX; j++) {
                 if (gSaveContext.bottleTimerStates[j] == BOTTLE_TIMER_STATE_COUNTING) {
@@ -8623,7 +8623,7 @@ void Interface_UpdateBottleTimers(PlayState* play) {
 
         for (i = BOTTLE_FIRST; i < BOTTLE_MAX; i++) {
             if (gSaveContext.bottleTimerStates[i] == BOTTLE_TIMER_STATE_COUNTING) {
-                osTime = osGetTime();
+                osTime = MM_osGetTime();
 
                 // Get the total amount of unpaused time since the start of the timer, centiseconds (1/100th sec).
                 osTime = OSTIME_TO_TIMER_ALT(osTime - ((void)0, gSaveContext.bottleTimerPausedOsTimes[i]) -
@@ -8647,14 +8647,14 @@ void Interface_UpdateBottleTimers(PlayState* play) {
 
                     if (gSaveContext.save.saveInfo.inventory.items[i + SLOT_BOTTLE_1] == ITEM_HOT_SPRING_WATER) {
                         Inventory_UpdateItem(play, i + SLOT_BOTTLE_1, ITEM_SPRING_WATER);
-                        Message_StartTextbox(play, 0xFA, NULL);
+                        MM_Message_StartTextbox(play, 0xFA, NULL);
                     }
                     gSaveContext.bottleTimerStates[i] = BOTTLE_TIMER_STATE_OFF;
                 }
             }
         }
     } else if (!sIsBottleTimerPaused) {
-        sBottleTimerPausedOsTime = osGetTime();
+        sBottleTimerPausedOsTime = MM_osGetTime();
         sIsBottleTimerPaused = true;
     }
 }
@@ -8870,7 +8870,7 @@ TexturePtr sStoryTLUTs[] = {
     gStoryGiantsLeavingTLUT,
 };
 
-void Interface_Draw(PlayState* play) {
+void MM_Interface_Draw(PlayState* play) {
     s32 pad;
     InterfaceContext* interfaceCtx = &play->interfaceCtx;
     Player* player = GET_PLAYER(play);
@@ -8926,7 +8926,7 @@ void Interface_Draw(PlayState* play) {
                                        sStoryTLUTs[interfaceCtx->storyType], SCREEN_WIDTH, SCREEN_HEIGHT, G_IM_FMT_CI,
                                        G_IM_SIZ_8b, 0x8000, 0x100, 0.0f, 0.0f, 1.0f, 1.0f, 0);
             OVERLAY_DISP = gfx;
-            gSPLoadUcode(OVERLAY_DISP++, SysUcode_GetUCode());
+            gSPLoadUcode(OVERLAY_DISP++, MM_SysUcode_GetUCode());
 
             gDPPipeSync(OVERLAY_DISP++);
 
@@ -9281,7 +9281,7 @@ void Interface_Draw(PlayState* play) {
 
         Gfx_SetupDL39_Overlay(play->state.gfxCtx);
 
-        Interface_DrawItemButtons(play);
+        MM_Interface_DrawItemButtons(play);
 
         if (player->transformation == GET_PLAYER_FORM) {
             Interface_DrawBButtonIcons(play);
@@ -9325,8 +9325,8 @@ void Interface_Draw(PlayState* play) {
                                     sMinigameCountdownPrimColors[sp2CE].g, sMinigameCountdownPrimColors[sp2CE].b,
                                     interfaceCtx->minigameCountdownAlpha);
 
-                    Matrix_Translate(0.0f, -40.0f, 0.0f, MTXMODE_NEW);
-                    Matrix_Scale(minigameCountdownScale, minigameCountdownScale, 0.0f, MTXMODE_APPLY);
+                    MM_Matrix_Translate(0.0f, -40.0f, 0.0f, MTXMODE_NEW);
+                    MM_Matrix_Scale(minigameCountdownScale, minigameCountdownScale, 0.0f, MTXMODE_APPLY);
 
                     MATRIX_FINALIZE_AND_LOAD(OVERLAY_DISP++, play->state.gfxCtx);
                     gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[40], 4, 0);
@@ -9407,7 +9407,7 @@ void Interface_Draw(PlayState* play) {
 
             if (sPictoState == PICTO_BOX_STATE_SETUP_PHOTO) {
                 sPictoState = PICTO_BOX_STATE_PHOTO;
-                Message_StartTextbox(play, 0xF8, NULL);
+                MM_Message_StartTextbox(play, 0xF8, NULL);
                 Interface_SetHudVisibility(HUD_VISIBILITY_NONE);
                 player->stateFlags1 |= PLAYER_STATE1_200;
             }
@@ -9448,7 +9448,7 @@ void Interface_Draw(PlayState* play) {
     // Draw over the entire screen (used in gameover)
     if (interfaceCtx->screenFillAlpha != 0) {
         gDPPipeSync(OVERLAY_DISP++);
-        gSPDisplayList(OVERLAY_DISP++, sScreenFillSetupDL);
+        gSPDisplayList(OVERLAY_DISP++, MM_sScreenFillSetupDL);
         gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 0, 0, 0, interfaceCtx->screenFillAlpha);
         gSPDisplayList(OVERLAY_DISP++, D_0E000000_TO_SEGMENTED(fillRect));
     }
@@ -9465,13 +9465,13 @@ void Interface_LoadStory(PlayState* play, s32 osMesgFlag) {
                 break;
             }
             // #region 2S2H [Port] Consider the story already loaded
-            // osCreateMesgQueue(&interfaceCtx->storyMsgQueue, &interfaceCtx->storyMsgBuf, 1);
-            // DmaMgr_SendRequestImpl(&interfaceCtx->dmaRequest, interfaceCtx->storySegment, interfaceCtx->storyAddr,
+            // MM_osCreateMesgQueue(&interfaceCtx->storyMsgQueue, &interfaceCtx->storyMsgBuf, 1);
+            // MM_DmaMgr_SendRequestImpl(&interfaceCtx->dmaRequest, interfaceCtx->storySegment, interfaceCtx->storyAddr,
             //                        interfaceCtx->storySize, 0, &interfaceCtx->storyMsgQueue, OS_MESG_PTR(NULL));
             interfaceCtx->storyDmaStatus = STORY_DMA_LOADING;
             // fallthrough
         case STORY_DMA_LOADING:
-            // if (osRecvMesg(&interfaceCtx->storyMsgQueue, NULL, osMesgFlag) == 0) {
+            // if (MM_osRecvMesg(&interfaceCtx->storyMsgQueue, NULL, osMesgFlag) == 0) {
             if (true) {
                 // #endregion
                 interfaceCtx->storyDmaStatus = STORY_DMA_DONE;
@@ -9490,12 +9490,12 @@ void Interface_AllocStory(PlayState* play) {
     interfaceCtx->storySize = SEGMENT_ROM_SIZE(story_static);
 
     if (interfaceCtx->storySegment == NULL) {
-        interfaceCtx->storySegment = ZeldaArena_Malloc(interfaceCtx->storySize);
+        interfaceCtx->storySegment = MM_ZeldaArena_Malloc(interfaceCtx->storySize);
     }
     Interface_LoadStory(play, OS_MESG_NOBLOCK);
 }
 
-void Interface_Update(PlayState* play) {
+void MM_Interface_Update(PlayState* play) {
     static u8 sIsSunsPlayedAtDay = false;
     static s16 sPrevTimeSpeed = 0;
     InterfaceContext* interfaceCtx = &play->interfaceCtx;
@@ -9619,7 +9619,7 @@ void Interface_Update(PlayState* play) {
             break;
     }
 
-    Map_Update(play);
+    MM_Map_Update(play);
 
     // Update health
     if (gSaveContext.healthAccumulator != 0) {
@@ -9640,15 +9640,15 @@ void Interface_Update(PlayState* play) {
     LifeMeter_UpdateSizeAndBeep(play);
 
     // Update environmental hazard (remnant of OoT)
-    sEnvHazard = Player_GetEnvironmentalHazard(play);
-    if (sEnvHazard == PLAYER_ENV_HAZARD_HOTROOM) {
+    MM_sEnvHazard = MM_Player_GetEnvironmentalHazard(play);
+    if (MM_sEnvHazard == PLAYER_ENV_HAZARD_HOTROOM) {
         if (GET_CUR_EQUIP_VALUE(EQUIP_TYPE_TUNIC) == EQUIP_VALUE_TUNIC_GORON) {
-            sEnvHazard = PLAYER_ENV_HAZARD_NONE;
+            MM_sEnvHazard = PLAYER_ENV_HAZARD_NONE;
         }
-    } else if ((Player_GetEnvironmentalHazard(play) >= PLAYER_ENV_HAZARD_UNDERWATER_FLOOR) &&
-               (Player_GetEnvironmentalHazard(play) <= PLAYER_ENV_HAZARD_UNDERWATER_FREE)) {
+    } else if ((MM_Player_GetEnvironmentalHazard(play) >= PLAYER_ENV_HAZARD_UNDERWATER_FLOOR) &&
+               (MM_Player_GetEnvironmentalHazard(play) <= PLAYER_ENV_HAZARD_UNDERWATER_FREE)) {
         if (GET_CUR_EQUIP_VALUE(EQUIP_TYPE_TUNIC) == EQUIP_VALUE_TUNIC_ZORA) {
-            sEnvHazard = PLAYER_ENV_HAZARD_NONE;
+            MM_sEnvHazard = PLAYER_ENV_HAZARD_NONE;
         }
     }
 
@@ -9855,7 +9855,7 @@ void Interface_Update(PlayState* play) {
 
     // Update environmental hazard timer
     if (gSaveContext.timerStates[TIMER_ID_ENV_HAZARD] == TIMER_STATE_OFF) {
-        if ((sEnvHazard == PLAYER_ENV_HAZARD_HOTROOM) || (sEnvHazard == PLAYER_ENV_HAZARD_UNDERWATER_FREE)) {
+        if ((MM_sEnvHazard == PLAYER_ENV_HAZARD_HOTROOM) || (MM_sEnvHazard == PLAYER_ENV_HAZARD_UNDERWATER_FREE)) {
             if (CUR_FORM != PLAYER_FORM_ZORA) {
                 if (play->gameOverCtx.state == GAMEOVER_INACTIVE) {
                     if ((gSaveContext.save.saveInfo.playerData.health >> 1) != 0) {
@@ -9868,7 +9868,7 @@ void Interface_Update(PlayState* play) {
                 }
             }
         }
-    } else if (((sEnvHazard == PLAYER_ENV_HAZARD_NONE) || (sEnvHazard == PLAYER_ENV_HAZARD_SWIMMING)) &&
+    } else if (((MM_sEnvHazard == PLAYER_ENV_HAZARD_NONE) || (MM_sEnvHazard == PLAYER_ENV_HAZARD_SWIMMING)) &&
                (gSaveContext.timerStates[TIMER_ID_ENV_HAZARD] <= TIMER_STATE_COUNTING)) {
         gSaveContext.timerStates[TIMER_ID_ENV_HAZARD] = TIMER_STATE_OFF;
     }
@@ -9881,13 +9881,13 @@ void Interface_Update(PlayState* play) {
         interfaceCtx->minigameHiddenPoints = 0;
 
         // Update horseback archery tier, unused remnant of OoT.
-        if (sHBAScoreTier == 0) {
+        if (MM_sHBAScoreTier == 0) {
             if (gSaveContext.minigameScore >= 1000) {
-                sHBAScoreTier++;
+                MM_sHBAScoreTier++;
             }
-        } else if (sHBAScoreTier == 1) {
+        } else if (MM_sHBAScoreTier == 1) {
             if (gSaveContext.minigameScore >= 1500) {
-                sHBAScoreTier++;
+                MM_sHBAScoreTier++;
             }
         }
 
@@ -9969,7 +9969,7 @@ void Interface_Update(PlayState* play) {
             interfaceCtx->storyState = STORY_STATE_OFF;
             interfaceCtx->storyDmaStatus = STORY_DMA_IDLE;
             if (interfaceCtx->storySegment != NULL) {
-                ZeldaArena_Free(interfaceCtx->storySegment);
+                MM_ZeldaArena_Free(interfaceCtx->storySegment);
                 interfaceCtx->storySegment = NULL;
             }
         } else if (interfaceCtx->storyState == STORY_STATE_SETUP_IDLE) {
@@ -9991,7 +9991,7 @@ void Interface_Update(PlayState* play) {
 }
 
 void Interface_Destroy(PlayState* play) {
-    Map_Destroy(play);
+    MM_Map_Destroy(play);
     PadMgr_UnsetInputRetraceCallback(Interface_PostmanTimerCallback, NULL);
 }
 
@@ -10007,7 +10007,7 @@ void Interface_Init(PlayState* play) {
     gSaveContext.nextHudVisibility = HUD_VISIBILITY_IDLE;
     gSaveContext.hudVisibility = HUD_VISIBILITY_IDLE;
 
-    View_Init(&interfaceCtx->view, play->state.gfxCtx);
+    MM_View_Init(&interfaceCtx->view, play->state.gfxCtx);
 
     interfaceCtx->magicConsumptionTimer = 16;
     interfaceCtx->healthTimer = 200;
@@ -10015,7 +10015,7 @@ void Interface_Init(PlayState* play) {
     parameterStaticSize = SEGMENT_ROM_SIZE(parameter_static);
     // #region 2S2H [Port]
     interfaceCtx->parameterSegment = THA_AllocTailAlign16(&play->state.tha, parameterStaticSize);
-    // DmaMgr_SendRequest0(interfaceCtx->parameterSegment, SEGMENT_ROM_START(parameter_static), parameterStaticSize); //
+    // MM_DmaMgr_SendRequest0(interfaceCtx->parameterSegment, SEGMENT_ROM_START(parameter_static), parameterStaticSize); //
     // 2S2H [Port] TODO
 
     interfaceCtx->doActionSegment = THA_AllocTailAlign16(&play->state.tha, sizeof(ActionLabel) * DO_ACTION_SEG_MAX);
@@ -10092,7 +10092,7 @@ void Interface_Init(PlayState* play) {
     }
 
     LifeMeter_Init(play);
-    Map_Init(play);
+    MM_Map_Init(play);
 
     gSaveContext.minigameStatus = MINIGAME_STATUS_END;
     interfaceCtx->perfectLettersPrimColor[0] = 255;

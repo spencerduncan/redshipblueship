@@ -73,10 +73,10 @@ void EnFuMato_Init(Actor* thisx, PlayState* play) {
     Actor* actor = play->actorCtx.actorLists[ACTORCAT_NPC].first;
     EnFu* fu;
 
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS | DYNA_TRANSFORM_ROT_Y);
-    CollisionHeader_GetVirtual(&object_fu_mato_Colheader_0023D4, &sp2C);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, sp2C);
-    Actor_SetScale(&this->dyna.actor, 0.1f);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS | DYNA_TRANSFORM_ROT_Y);
+    MM_CollisionHeader_GetVirtual(&object_fu_mato_Colheader_0023D4, &sp2C);
+    this->dyna.bgId = MM_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, sp2C);
+    MM_Actor_SetScale(&this->dyna.actor, 0.1f);
     Collider_InitSphere(play, &this->collider);
     Collider_SetSphere(play, &this->collider, &this->dyna.actor, &sSphereInit);
     this->collider.dim.worldSphere.radius = 20;
@@ -90,7 +90,7 @@ void EnFuMato_Init(Actor* thisx, PlayState* play) {
     }
 
     if (actor == NULL) {
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
         return;
     }
 
@@ -113,7 +113,7 @@ void EnFuMato_Init(Actor* thisx, PlayState* play) {
 void EnFuMato_Destroy(Actor* thisx, PlayState* play) {
     EnFuMato* this = (EnFuMato*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
     Collider_DestroySphere(play, &this->collider);
 }
 
@@ -142,9 +142,9 @@ void func_80ACE51C(EnFuMato* this, PlayState* play) {
     sp30.y = this->unk_2F8[this->unk_2F0].y;
     sp30.z = this->unk_2F8[this->unk_2F0].z;
 
-    sp2C = Math_Vec3f_DistXZ(&this->dyna.actor.world.pos, &sp30);
-    this->dyna.actor.world.rot.y = Math_Vec3f_Yaw(&this->dyna.actor.world.pos, &sp30);
-    this->dyna.actor.world.rot.x = Math_Vec3f_Pitch(&this->dyna.actor.world.pos, &sp30);
+    sp2C = MM_Math_Vec3f_DistXZ(&this->dyna.actor.world.pos, &sp30);
+    this->dyna.actor.world.rot.y = MM_Math_Vec3f_Yaw(&this->dyna.actor.world.pos, &sp30);
+    this->dyna.actor.world.rot.x = MM_Math_Vec3f_Pitch(&this->dyna.actor.world.pos, &sp30);
 
     if (sp2C < 10.0f) {
         if (this->unk_2F0 < (this->unk_2F4 - 1)) {
@@ -155,7 +155,7 @@ void func_80ACE51C(EnFuMato* this, PlayState* play) {
     }
 
     this->dyna.actor.speed = 2.0f;
-    this->dyna.actor.shape.rot.y = Math_Vec3f_Yaw(&this->dyna.actor.world.pos, &this->dyna.actor.parent->world.pos);
+    this->dyna.actor.shape.rot.y = MM_Math_Vec3f_Yaw(&this->dyna.actor.world.pos, &this->dyna.actor.parent->world.pos);
     Actor_MoveWithGravity(&this->dyna.actor);
 
     if (fu->unk_54A != 0) {
@@ -166,11 +166,11 @@ void func_80ACE51C(EnFuMato* this, PlayState* play) {
 void func_80ACE680(EnFuMato* this) {
     this->dyna.actor.gravity = -0.5f;
     this->dyna.actor.velocity.y = 1.0f;
-    this->dyna.actor.velocity.x = 2.0f * Rand_Centered();
-    this->dyna.actor.velocity.z = 2.0f * Rand_Centered();
-    this->unk_2FC.x = Rand_Next() & 0xFFF;
-    this->unk_2FC.y = Rand_Next() & 0xFFF;
-    this->unk_2FC.z = Rand_Next() & 0xFFF;
+    this->dyna.actor.velocity.x = 2.0f * MM_Rand_Centered();
+    this->dyna.actor.velocity.z = 2.0f * MM_Rand_Centered();
+    this->unk_2FC.x = MM_Rand_Next() & 0xFFF;
+    this->unk_2FC.y = MM_Rand_Next() & 0xFFF;
+    this->unk_2FC.z = MM_Rand_Next() & 0xFFF;
     this->unk_302 = 3;
     Actor_PlaySfx(&this->dyna.actor, NA_SE_EV_WOODPLATE_BOUND);
     this->actionFunc = func_80ACE718;
@@ -182,8 +182,8 @@ void func_80ACE718(EnFuMato* this, PlayState* play) {
     this->dyna.actor.shape.rot.z += this->unk_2FC.z;
     this->dyna.actor.velocity.y += this->dyna.actor.gravity;
 
-    Actor_UpdatePos(&this->dyna.actor);
-    Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 15.0f, 30.0f, 60.0f,
+    MM_Actor_UpdatePos(&this->dyna.actor);
+    MM_Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 15.0f, 30.0f, 60.0f,
                             UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
 
     if ((this->dyna.actor.bgCheckFlags & BGCHECKFLAG_GROUND) || (this->dyna.actor.world.pos.y < -500.0f)) {
@@ -191,7 +191,7 @@ void func_80ACE718(EnFuMato* this, PlayState* play) {
         Vec3f sp30 = { 0.0f, 2.0f, 0.0f };
 
         func_800B3030(play, &this->dyna.actor.world.pos, &sp3C, &sp30, 20, 40, 2);
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
     }
 }
 
@@ -201,23 +201,23 @@ void func_80ACE850(EnFuMato* this, PlayState* play) {
     s32 phi_s2;
     s32 i;
 
-    this->unk_308 = Rand_Next() % ARRAY_COUNT(this->unk_1B8);
+    this->unk_308 = MM_Rand_Next() % ARRAY_COUNT(this->unk_1B8);
     this->unk_302 = 1;
     this->dyna.actor.gravity = -1.0f;
-    this->dyna.actor.velocity.y = Rand_ZeroOne();
+    this->dyna.actor.velocity.y = MM_Rand_ZeroOne();
 
     phi_s2 = this->unk_308;
 
     for (i = 0; i < 2; i++) {
         ptr->unk_00 = this->dyna.actor.world.pos;
 
-        ptr->unk_0C.x = Math_CosS(temp_s4) * D_80ACF654[phi_s2].x;
+        ptr->unk_0C.x = MM_Math_CosS(temp_s4) * D_80ACF654[phi_s2].x;
         ptr->unk_0C.y = D_80ACF654[phi_s2].z;
-        ptr->unk_0C.z = -Math_SinS(temp_s4) * D_80ACF654[phi_s2].x;
+        ptr->unk_0C.z = -MM_Math_SinS(temp_s4) * D_80ACF654[phi_s2].x;
 
-        ptr->unk_0C.x += Rand_Centered();
-        ptr->unk_0C.y += Rand_ZeroOne() * 0.5f;
-        ptr->unk_0C.z += Rand_Centered();
+        ptr->unk_0C.x += MM_Rand_Centered();
+        ptr->unk_0C.y += MM_Rand_ZeroOne() * 0.5f;
+        ptr->unk_0C.z += MM_Rand_Centered();
 
         ptr->unk_18.x = 0.0f;
         ptr->unk_18.y = -1.0f;
@@ -229,9 +229,9 @@ void func_80ACE850(EnFuMato* this, PlayState* play) {
 
         ptr->unk_24 = this->dyna.actor.shape.rot;
 
-        ptr->unk_2A.x = (s16)Rand_Next() >> 6;
-        ptr->unk_2A.y = (s16)Rand_Next() >> 6;
-        ptr->unk_2A.z = (s16)Rand_Next() >> 6;
+        ptr->unk_2A.x = (s16)MM_Rand_Next() >> 6;
+        ptr->unk_2A.y = (s16)MM_Rand_Next() >> 6;
+        ptr->unk_2A.z = (s16)MM_Rand_Next() >> 6;
         ptr->unk_30 = 1;
 
         phi_s2 = (phi_s2 + 3) % ARRAY_COUNT(this->unk_1B8);
@@ -239,7 +239,7 @@ void func_80ACE850(EnFuMato* this, PlayState* play) {
     }
 
     this->dyna.actor.freezeTimer = 2;
-    EffectSsHahen_SpawnBurst(play, &this->dyna.actor.world.pos, 13.0f, 0, 7, 8, 20, HAHEN_OBJECT_DEFAULT, 10, NULL);
+    MM_EffectSsHahen_SpawnBurst(play, &this->dyna.actor.world.pos, 13.0f, 0, 7, 8, 20, HAHEN_OBJECT_DEFAULT, 10, NULL);
     Actor_PlaySfx(&this->dyna.actor, NA_SE_EV_WOODPLATE_BROKEN);
     this->actionFunc = func_80ACECFC;
 }
@@ -284,7 +284,7 @@ void func_80ACECFC(EnFuMato* this, PlayState* play) {
     s32 i;
 
     this->dyna.actor.velocity.y += this->dyna.actor.gravity;
-    Actor_UpdatePos(&this->dyna.actor);
+    MM_Actor_UpdatePos(&this->dyna.actor);
 
     if (this->dyna.actor.world.pos.y < -500.0f) {
         this->dyna.actor.world.pos.y = -500.0f;
@@ -312,19 +312,19 @@ void func_80ACECFC(EnFuMato* this, PlayState* play) {
         if ((this->unk_302 == 2) && (ptr->unk_30 == 1) && (ptr->unk_00.y < (this->dyna.actor.floorHeight + 10.0f))) {
             ptr->unk_0C.y = ABS_ALT(ptr->unk_0C.y);
             ptr->unk_0C.y *= 0.5f;
-            ptr->unk_0C.x *= (Rand_Centered() * 1.5f) + 2.0f;
-            ptr->unk_0C.z *= (Rand_Centered() * 1.5f) + 2.0f;
+            ptr->unk_0C.x *= (MM_Rand_Centered() * 1.5f) + 2.0f;
+            ptr->unk_0C.z *= (MM_Rand_Centered() * 1.5f) + 2.0f;
 
-            ptr->unk_2A.x = (s16)Rand_Next() >> 5;
-            ptr->unk_2A.y = (s16)Rand_Next() >> 5;
-            ptr->unk_2A.z = (s16)Rand_Next() >> 5;
+            ptr->unk_2A.x = (s16)MM_Rand_Next() >> 5;
+            ptr->unk_2A.y = (s16)MM_Rand_Next() >> 5;
+            ptr->unk_2A.z = (s16)MM_Rand_Next() >> 5;
 
             ptr->unk_30 = 0;
         }
     }
 
     if (this->unk_302 == 1) {
-        Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 15.0f, 30.0f, 60.0f,
+        MM_Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 15.0f, 30.0f, 60.0f,
                                 UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
         if (this->dyna.actor.bgCheckFlags & BGCHECKFLAG_GROUND) {
             func_80ACEB2C(this);
@@ -345,10 +345,10 @@ void func_80ACEFC4(EnFuMato* this) {
 void func_80ACEFD8(EnFuMato* this, PlayState* play) {
     Vec3f* scale = &this->dyna.actor.scale;
 
-    Math_SmoothStepToF(&scale->x, 0.0f, 0.1f, 0.005f, 0.005f);
+    MM_Math_SmoothStepToF(&scale->x, 0.0f, 0.1f, 0.005f, 0.005f);
     scale->y = scale->z = scale->x;
     if (scale->x == 0.0f) {
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
     }
 }
 
@@ -376,8 +376,8 @@ s32 func_80ACF04C(EnFuMato* this, PlayState* play) {
         return true;
     }
 
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     return false;
 }
 
@@ -403,9 +403,9 @@ void func_80ACF1F4(EnFuMato* this, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     for (i = 0; i < 2; i++) {
-        Matrix_Push();
-        Matrix_SetTranslateRotateYXZ(ptr->unk_00.x, ptr->unk_00.y, ptr->unk_00.z, &ptr->unk_24);
-        Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
+        MM_Matrix_Push();
+        MM_Matrix_SetTranslateRotateYXZ(ptr->unk_00.x, ptr->unk_00.y, ptr->unk_00.z, &ptr->unk_24);
+        MM_Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_OPA_DISP++, D_80ACF63C[temp_s4]);
@@ -427,7 +427,7 @@ void func_80ACF1F4(EnFuMato* this, PlayState* play) {
                 break;
         }
 
-        Matrix_Pop();
+        MM_Matrix_Pop();
 
         temp_s4 = (temp_s4 + 3) % ARRAY_COUNT(this->unk_1B8);
         ptr++;
@@ -446,14 +446,14 @@ void func_80ACF3F4(EnFuMato* this, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     for (i = 0; i < ARRAY_COUNT(D_80ACF63C); i++, ptr++) {
-        Matrix_Push();
-        Matrix_SetTranslateRotateYXZ(ptr->unk_00.x, ptr->unk_00.y, ptr->unk_00.z, &ptr->unk_24);
-        Matrix_Scale(scale->x, scale->y, scale->z, MTXMODE_APPLY);
+        MM_Matrix_Push();
+        MM_Matrix_SetTranslateRotateYXZ(ptr->unk_00.x, ptr->unk_00.y, ptr->unk_00.z, &ptr->unk_24);
+        MM_Matrix_Scale(scale->x, scale->y, scale->z, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_OPA_DISP++, D_80ACF63C[i]);
 
-        Matrix_Pop();
+        MM_Matrix_Pop();
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

@@ -38,7 +38,7 @@ ActorProfile En_Look_Nuts_Profile = {
     /**/ EnLookNuts_Reset,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -60,7 +60,7 @@ static ColliderCylinderInit sCylinderInit = {
 
 s32 D_80A6862C = false;
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(1, 0xF),
     /* Deku Stick     */ DMG_ENTRY(1, 0xF),
     /* Horse trample  */ DMG_ENTRY(1, 0xF),
@@ -105,14 +105,14 @@ typedef enum {
 void EnLookNuts_Init(Actor* thisx, PlayState* play) {
     EnLookNuts* this = (EnLookNuts*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 20.0f);
-    SkelAnime_Init(play, &this->skelAnime, &gDekuPalaceGuardSkel, &gDekuPalaceGuardDigAnim, this->jointTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 20.0f);
+    MM_SkelAnime_Init(play, &this->skelAnime, &gDekuPalaceGuardSkel, &gDekuPalaceGuardDigAnim, this->jointTable,
                    this->morphTable, DEKU_PALACE_GUARD_LIMB_MAX);
-    Actor_SetScale(&this->actor, 0.01f);
-    this->actor.colChkInfo.damageTable = &sDamageTable;
+    MM_Actor_SetScale(&this->actor, 0.01f);
+    this->actor.colChkInfo.damageTable = &MM_sDamageTable;
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
     this->actor.attentionRangeType = ATTENTION_RANGE_1;
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
     this->actor.flags |= ACTOR_FLAG_LOCK_ON_DISABLED;
     this->pathIndex = LOOKNUTS_GET_PATH_INDEX(&this->actor);
     this->switchFlag = LOOKNUTS_GET_SWITCH_FLAG(&this->actor);
@@ -121,12 +121,12 @@ void EnLookNuts_Init(Actor* thisx, PlayState* play) {
     if (this->switchFlag == LOOKNUTS_SWITCH_FLAG_NONE) {
         this->switchFlag = SWITCH_FLAG_NONE;
     }
-    if ((this->switchFlag > SWITCH_FLAG_NONE) && Flags_GetSwitch(play, this->switchFlag)) {
-        Actor_Kill(&this->actor);
+    if ((this->switchFlag > SWITCH_FLAG_NONE) && MM_Flags_GetSwitch(play, this->switchFlag)) {
+        MM_Actor_Kill(&this->actor);
         return;
     }
     if (this->pathIndex == LOOKNUTS_PATH_INDEX_NONE) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -137,12 +137,12 @@ void EnLookNuts_Init(Actor* thisx, PlayState* play) {
 void EnLookNuts_Destroy(Actor* thisx, PlayState* play) {
     EnLookNuts* this = (EnLookNuts*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnLookNuts_SetupPatrol(EnLookNuts* this) {
-    Animation_Change(&this->skelAnime, &gDekuPalaceGuardWalkAnim, 1.0f, 0.0f,
-                     Animation_GetLastFrame(&gDekuPalaceGuardWalkAnim), ANIMMODE_LOOP, -10.0f);
+    MM_Animation_Change(&this->skelAnime, &gDekuPalaceGuardWalkAnim, 1.0f, 0.0f,
+                     MM_Animation_GetLastFrame(&gDekuPalaceGuardWalkAnim), ANIMMODE_LOOP, -10.0f);
     this->state = PALACE_GUARD_PATROLLING;
     this->actionFunc = EnLookNuts_Patrol;
 }
@@ -151,19 +151,19 @@ void EnLookNuts_Patrol(EnLookNuts* this, PlayState* play) {
     f32 sp34 = 0.0f;
     f32 sp30;
 
-    SkelAnime_Update(&this->skelAnime);
-    if (Play_InCsMode(play)) {
+    MM_SkelAnime_Update(&this->skelAnime);
+    if (MM_Play_InCsMode(play)) {
         this->actor.speed = 0.0f;
         return;
     }
 
     this->actor.speed = 2.0f;
-    if (Animation_OnFrame(&this->skelAnime, 1.0f) || Animation_OnFrame(&this->skelAnime, 5.0f)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, 1.0f) || MM_Animation_OnFrame(&this->skelAnime, 5.0f)) {
         Actor_PlaySfx(&this->actor, NA_SE_EN_NUTS_WALK);
     }
 
     if (D_80A6862C) {
-        Math_ApproachZeroF(&this->actor.speed, 0.3f, 1.0f);
+        MM_Math_ApproachZeroF(&this->actor.speed, 0.3f, 1.0f);
         return;
     }
 
@@ -179,24 +179,24 @@ void EnLookNuts_Patrol(EnLookNuts* this, PlayState* play) {
             if (this->waypointIndex >= this->path->count) {
                 this->waypointIndex = 0;
             }
-            if (Rand_ZeroOne() < 0.6f) {
+            if (MM_Rand_ZeroOne() < 0.6f) {
                 EnLookNuts_SetupStandAndWait(this);
                 return;
             }
         }
     }
 
-    Math_SmoothStepToS(&this->actor.shape.rot.y, sp34, 1, 0x1388, 0);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, sp34, 1, 0x1388, 0);
     this->actor.world.rot.y = this->actor.shape.rot.y;
 }
 
 void EnLookNuts_SetupStandAndWait(EnLookNuts* this) {
-    Animation_Change(&this->skelAnime, &gDekuPalaceGuardWalkAnim, 1.0f, 0.0f,
-                     Animation_GetLastFrame(&gDekuPalaceGuardWalkAnim), ANIMMODE_ONCE, -10.0f);
-    this->waitTimer = Rand_S16Offset(1, 3);
+    MM_Animation_Change(&this->skelAnime, &gDekuPalaceGuardWalkAnim, 1.0f, 0.0f,
+                     MM_Animation_GetLastFrame(&gDekuPalaceGuardWalkAnim), ANIMMODE_ONCE, -10.0f);
+    this->waitTimer = MM_Rand_S16Offset(1, 3);
     this->headRotTarget.y = 10000.0f;
 
-    if (Rand_ZeroOne() < 0.5f) {
+    if (MM_Rand_ZeroOne() < 0.5f) {
         this->headRotTarget.y = -10000.0f;
     }
     this->eventTimer = 10;
@@ -208,9 +208,9 @@ void EnLookNuts_SetupStandAndWait(EnLookNuts* this) {
 void EnLookNuts_StandAndWait(EnLookNuts* this, PlayState* play) {
     s16 randOffset;
 
-    SkelAnime_Update(&this->skelAnime);
-    Math_ApproachZeroF(&this->actor.speed, 0.3f, 1.0f);
-    if (!Play_InCsMode(play) && !D_80A6862C && (this->eventTimer == 0)) {
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Math_ApproachZeroF(&this->actor.speed, 0.3f, 1.0f);
+    if (!MM_Play_InCsMode(play) && !D_80A6862C && (this->eventTimer == 0)) {
         this->eventTimer = 10;
         switch (this->waitTimer) {
             case 0:
@@ -224,7 +224,7 @@ void EnLookNuts_StandAndWait(EnLookNuts* this, PlayState* play) {
 
             case 5:
                 this->headRotTarget.y = 0.0f;
-                randOffset = Rand_S16Offset(1, 2);
+                randOffset = MM_Rand_S16Offset(1, 2);
                 this->eventTimer = 0;
                 this->waitTimer += randOffset;
                 break;
@@ -251,7 +251,7 @@ void EnLookNuts_StandAndWait(EnLookNuts* this, PlayState* play) {
                 break;
 
             case 10:
-                Math_Vec3f_Copy(&this->headRotTarget, &gZeroVec3f);
+                MM_Math_Vec3f_Copy(&this->headRotTarget, &gZeroVec3f);
                 this->waitTimer = 11;
                 break;
 
@@ -273,22 +273,22 @@ void EnLookNuts_StandAndWait(EnLookNuts* this, PlayState* play) {
 }
 
 void EnLookNuts_DetectedPlayer(EnLookNuts* this, PlayState* play) {
-    Animation_Change(&this->skelAnime, &gDekuPalaceGuardWalkAnim, 2.0f, 0.0f,
-                     Animation_GetLastFrame(&gDekuPalaceGuardWalkAnim), ANIMMODE_LOOP, -10.0f);
+    MM_Animation_Change(&this->skelAnime, &gDekuPalaceGuardWalkAnim, 2.0f, 0.0f,
+                     MM_Animation_GetLastFrame(&gDekuPalaceGuardWalkAnim), ANIMMODE_LOOP, -10.0f);
     this->state = PALACE_GUARD_RUNNING_TO_PLAYER;
     this->eventTimer = 300;
-    Message_StartTextbox(play, 0x833, &this->actor);
+    MM_Message_StartTextbox(play, 0x833, &this->actor);
     this->actionFunc = EnLookNuts_RunToPlayer;
 }
 
 void EnLookNuts_RunToPlayer(EnLookNuts* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    if (Animation_OnFrame(&this->skelAnime, 1.0f) || Animation_OnFrame(&this->skelAnime, 5.0f)) {
+    MM_SkelAnime_Update(&this->skelAnime);
+    if (MM_Animation_OnFrame(&this->skelAnime, 1.0f) || MM_Animation_OnFrame(&this->skelAnime, 5.0f)) {
         Actor_PlaySfx(&this->actor, NA_SE_EN_NUTS_WALK);
     }
 
     this->actor.speed = 4.0f;
-    Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 1, 0xBB8, 0);
+    MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 1, 0xBB8, 0);
     if ((this->actor.xzDistToPlayer < 70.0f) || (this->eventTimer == 0)) {
         this->actor.speed = 0.0f;
         EnLookNuts_SetupSendPlayerToSpawn(this);
@@ -296,17 +296,17 @@ void EnLookNuts_RunToPlayer(EnLookNuts* this, PlayState* play) {
 }
 
 void EnLookNuts_SetupSendPlayerToSpawn(EnLookNuts* this) {
-    Animation_Change(&this->skelAnime, &gDekuPalaceGuardWalkAnim, 1.0f, 0.0f,
-                     Animation_GetLastFrame(&gDekuPalaceGuardWalkAnim), ANIMMODE_ONCE, -10.0f);
+    MM_Animation_Change(&this->skelAnime, &gDekuPalaceGuardWalkAnim, 1.0f, 0.0f,
+                     MM_Animation_GetLastFrame(&gDekuPalaceGuardWalkAnim), ANIMMODE_ONCE, -10.0f);
     this->state = PALACE_GUARD_CAUGHT_PLAYER;
     this->actionFunc = EnLookNuts_SendPlayerToSpawn;
 }
 
 void EnLookNuts_SendPlayerToSpawn(EnLookNuts* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 1, 0xBB8, 0);
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
-        Message_CloseTextbox(play);
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 1, 0xBB8, 0);
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
+        MM_Message_CloseTextbox(play);
         play->nextEntrance = Entrance_CreateFromSpawn(this->spawnIndex);
         gSaveContext.nextCutsceneIndex = 0;
         Scene_SetExitFade(play);
@@ -323,7 +323,7 @@ void EnLookNuts_Update(Actor* thisx, PlayState* play) {
         this->eyeState++;
         if (this->eyeState >= 3) {
             this->eyeState = 0;
-            this->blinkTimer = TRUNCF_BINANG(Rand_ZeroFloat(60.0f)) + 20;
+            this->blinkTimer = TRUNCF_BINANG(MM_Rand_ZeroFloat(60.0f)) + 20;
         }
     }
     this->actionFunc(this, play);
@@ -340,15 +340,15 @@ void EnLookNuts_Update(Actor* thisx, PlayState* play) {
             Vec3f effectPos;
             Vec3f effectVelocity;
 
-            Math_Vec3f_Copy(&effectPos, &this->actor.world.pos);
-            effectPos.x += Math_SinS(this->actor.world.rot.y + TRUNCF_BINANG(this->headRot.y)) * 10.0f;
+            MM_Math_Vec3f_Copy(&effectPos, &this->actor.world.pos);
+            effectPos.x += MM_Math_SinS(this->actor.world.rot.y + TRUNCF_BINANG(this->headRot.y)) * 10.0f;
             effectPos.y += 30.0f;
-            effectPos.z += Math_CosS(this->actor.world.rot.y + TRUNCF_BINANG(this->headRot.y)) * 10.0f;
-            Matrix_Push();
+            effectPos.z += MM_Math_CosS(this->actor.world.rot.y + TRUNCF_BINANG(this->headRot.y)) * 10.0f;
+            MM_Matrix_Push();
             Matrix_RotateYS(this->actor.shape.rot.y, MTXMODE_NEW);
             effectVelocityOffset.z = 20.0f;
-            Matrix_MultVec3f(&effectVelocityOffset, &effectVelocity);
-            Matrix_Pop();
+            MM_Matrix_MultVec3f(&effectVelocityOffset, &effectVelocity);
+            MM_Matrix_Pop();
             if (!this->isPlayerDetected) {
                 s16 effectFlags = SOLDERSRCHBALL_INVISIBLE;
 
@@ -356,8 +356,8 @@ void EnLookNuts_Update(Actor* thisx, PlayState* play) {
                     effectFlags = 0;
                 }
 
-                if (Player_GetMask(play) != PLAYER_MASK_STONE) {
-                    EffectSsSolderSrchBall_Spawn(play, &effectPos, &effectVelocity, &gZeroVec3f, 50,
+                if (MM_Player_GetMask(play) != PLAYER_MASK_STONE) {
+                    MM_EffectSsSolderSrchBall_Spawn(play, &effectPos, &effectVelocity, &gZeroVec3f, 50,
                                                  &this->isPlayerDetected, effectFlags);
                 }
             }
@@ -365,11 +365,11 @@ void EnLookNuts_Update(Actor* thisx, PlayState* play) {
             if ((this->isPlayerDetected == true) || (this->actor.xzDistToPlayer < 20.0f)) {
                 Player* player = GET_PLAYER(play);
 
-                if (!(player->stateFlags3 & PLAYER_STATE3_100) && !Play_InCsMode(play)) {
-                    Math_Vec3f_Copy(&this->headRotTarget, &gZeroVec3f);
+                if (!(player->stateFlags3 & PLAYER_STATE3_100) && !MM_Play_InCsMode(play)) {
+                    MM_Math_Vec3f_Copy(&this->headRotTarget, &gZeroVec3f);
                     this->state = PALACE_GUARD_RUNNING_TO_PLAYER;
                     Audio_PlaySfx(NA_SE_SY_FOUND);
-                    Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_26);
+                    MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_26);
                     D_80A6862C = true;
                     this->actor.flags |= (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_UPDATE_CULLING_DISABLED);
                     this->actor.gravity = 0.0f;
@@ -379,16 +379,16 @@ void EnLookNuts_Update(Actor* thisx, PlayState* play) {
                 }
             }
         }
-        Math_ApproachF(&this->headRot.x, this->headRotTarget.x, 1.0f, 3000.0f);
-        Math_ApproachF(&this->headRot.y, this->headRotTarget.y, 1.0f, 6000.0f);
-        Math_ApproachF(&this->headRot.z, this->headRotTarget.z, 1.0f, 2000.0f);
+        MM_Math_ApproachF(&this->headRot.x, this->headRotTarget.x, 1.0f, 3000.0f);
+        MM_Math_ApproachF(&this->headRot.y, this->headRotTarget.y, 1.0f, 6000.0f);
+        MM_Math_ApproachF(&this->headRot.z, this->headRotTarget.z, 1.0f, 2000.0f);
         this->actor.shape.rot.y = this->actor.world.rot.y;
-        Collider_UpdateCylinder(&this->actor, &this->collider);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
-static TexturePtr sEyeTextures[] = {
+static TexturePtr MM_sEyeTextures[] = {
     gDekuPalaceGuardEyeOpenTex,
     gDekuPalaceGuardEyeHalfTex,
     gDekuPalaceGuardEyeClosedTex,
@@ -400,8 +400,8 @@ void EnLookNuts_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sEyeTextures[this->eyeState]));
-    SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, NULL, NULL, &this->actor);
+    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeState]));
+    MM_SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, NULL, NULL, &this->actor);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

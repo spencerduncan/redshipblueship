@@ -9,14 +9,14 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED | ACTOR_FLAG_UPDATE_DURING_OCARINA)
 
-void OceffStorm_Init(Actor* thisx, PlayState* play);
-void OceffStorm_Destroy(Actor* thisx, PlayState* play);
-void OceffStorm_Update(Actor* thisx, PlayState* play);
-void OceffStorm_Draw(Actor* thisx, PlayState* play);
+void MM_OceffStorm_Init(Actor* thisx, PlayState* play);
+void MM_OceffStorm_Destroy(Actor* thisx, PlayState* play);
+void MM_OceffStorm_Update(Actor* thisx, PlayState* play);
+void MM_OceffStorm_Draw(Actor* thisx, PlayState* play);
 
-void OceffStorm_DefaultAction(OceffStorm* this, PlayState* play);
+void MM_OceffStorm_DefaultAction(OceffStorm* this, PlayState* play);
 void func_80981B48(OceffStorm* this, PlayState* play);
-void OceffStorm_Draw2(Actor* thisx, PlayState* play);
+void MM_OceffStorm_Draw2(Actor* thisx, PlayState* play);
 
 ActorProfile Oceff_Storm_Profile = {
     /**/ ACTOR_OCEFF_STORM,
@@ -24,13 +24,13 @@ ActorProfile Oceff_Storm_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(OceffStorm),
-    /**/ OceffStorm_Init,
-    /**/ OceffStorm_Destroy,
-    /**/ OceffStorm_Update,
-    /**/ OceffStorm_Draw,
+    /**/ MM_OceffStorm_Init,
+    /**/ MM_OceffStorm_Destroy,
+    /**/ MM_OceffStorm_Update,
+    /**/ MM_OceffStorm_Draw,
 };
 
-void OceffStorm_SetupAction(OceffStorm* this, OceffStormActionFunc actionFunc) {
+void MM_OceffStorm_SetupAction(OceffStorm* this, OceffStormActionFunc actionFunc) {
     this->actionFunc = actionFunc;
 }
 
@@ -59,12 +59,12 @@ s32 func_8098176C(PlayState* play) {
     return ret;
 }
 
-void OceffStorm_Init(Actor* thisx, PlayState* play) {
+void MM_OceffStorm_Init(Actor* thisx, PlayState* play) {
     s32 pad[2];
     Player* player = GET_PLAYER(play);
     OceffStorm* this = (OceffStorm*)thisx;
 
-    OceffStorm_SetupAction(this, OceffStorm_DefaultAction);
+    MM_OceffStorm_SetupAction(this, MM_OceffStorm_DefaultAction);
 
     this->posYOffAdd = 0;
     this->counter = 0;
@@ -76,27 +76,27 @@ void OceffStorm_Init(Actor* thisx, PlayState* play) {
     this->posYOff = this->posYOffAdd;
 
     if (this->actor.params == OCEFF_STORM_ACTION_PARAM_1) {
-        OceffStorm_SetupAction(this, func_80981B48);
-        this->actor.draw = OceffStorm_Draw2;
+        MM_OceffStorm_SetupAction(this, func_80981B48);
+        this->actor.draw = MM_OceffStorm_Draw2;
     } else {
         this->actor.world.pos.y = player->actor.world.pos.y;
         this->actor.world.pos.x = player->bodyPartsPos[PLAYER_BODYPART_WAIST].x;
         this->actor.world.pos.z = player->bodyPartsPos[PLAYER_BODYPART_WAIST].z;
         gSaveContext.jinxTimer = 0;
         if ((play->interfaceCtx.restrictions.songOfStorms == 0) && !func_8098176C(play)) {
-            Actor_Spawn(&play->actorCtx, play, ACTOR_EN_OKARINA_EFFECT, this->actor.world.pos.x,
+            MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_OKARINA_EFFECT, this->actor.world.pos.x,
                         this->actor.world.pos.y - 30.0f, this->actor.world.pos.z, 0, 0, 0, 1);
         }
     }
 }
 
-void OceffStorm_Destroy(Actor* thisx, PlayState* play) {
+void MM_OceffStorm_Destroy(Actor* thisx, PlayState* play) {
     OceffStorm* this = (OceffStorm*)thisx;
 
-    Magic_Reset(play);
+    MM_Magic_Reset(play);
 }
 
-void OceffStorm_DefaultAction(OceffStorm* this, PlayState* play) {
+void MM_OceffStorm_DefaultAction(OceffStorm* this, PlayState* play) {
     f32 cylinderScale;
 
     switch (GET_PLAYER_FORM) {
@@ -149,7 +149,7 @@ void OceffStorm_DefaultAction(OceffStorm* this, PlayState* play) {
     if (this->counter < 70) {
         this->counter++;
     } else {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -157,19 +157,19 @@ void func_80981B48(OceffStorm* this, PlayState* play) {
     if (this->primColorAlpha < 100) {
         this->primColorAlpha += 5;
     }
-    //! @bug Actor_Kill is never called so the actor will stay alive forever
+    //! @bug MM_Actor_Kill is never called so the actor will stay alive forever
 }
 
-void OceffStorm_Update(Actor* thisx, PlayState* play) {
+void MM_OceffStorm_Update(Actor* thisx, PlayState* play) {
     OceffStorm* this = (OceffStorm*)thisx;
 
-    this->actor.shape.rot.y = Camera_GetCamDirYaw(GET_ACTIVE_CAM(play));
+    this->actor.shape.rot.y = MM_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play));
     this->actionFunc(this, play);
 }
 
 #include "assets/overlays/ovl_Oceff_Storm/ovl_Oceff_Storm.h"
 
-void OceffStorm_Draw2(Actor* thisx, PlayState* play) {
+void MM_OceffStorm_Draw2(Actor* thisx, PlayState* play) {
     s32 scroll = play->state.frames & 0xFFF;
     OceffStorm* this = (OceffStorm*)thisx;
 
@@ -185,7 +185,7 @@ void OceffStorm_Draw2(Actor* thisx, PlayState* play) {
     gDPSetPrimColor(POLY_XLU_DISP++, 0x80, 0x80, 200, 200, 150, this->primColorAlpha);
 
     gSPDisplayList(POLY_XLU_DISP++, &sSongOfStormsMaterialDL);
-    gSPDisplayList(POLY_XLU_DISP++, Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, scroll * 8, scroll * 4, 64,
+    gSPDisplayList(POLY_XLU_DISP++, MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, scroll * 8, scroll * 4, 64,
                                                      64, 1, scroll * 4, scroll * 4, 64, 64));
     // 2S2H [Cosmetic] Changed to Wide variant to support widescreen
     gSPWideTextureRectangle(POLY_XLU_DISP++, OTRGetRectDimensionFromLeftEdge(0) << 2, 0,
@@ -195,7 +195,7 @@ void OceffStorm_Draw2(Actor* thisx, PlayState* play) {
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void OceffStorm_Draw(Actor* thisx, PlayState* play) {
+void MM_OceffStorm_Draw(Actor* thisx, PlayState* play) {
     u32 scroll = play->state.frames & 0xFFF;
     OceffStorm* this = (OceffStorm*)thisx;
     // #region 2S2H [Port] Originally this was just a pointer to the vertices, now it's the OTR path so we need to grab
@@ -218,11 +218,11 @@ void OceffStorm_Draw(Actor* thisx, PlayState* play) {
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
     gSPDisplayList(POLY_XLU_DISP++, &sSongOfStormsCylinderMaterialDL);
-    gSPDisplayList(POLY_XLU_DISP++, Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, scroll * 4, (0 - scroll) * 8,
+    gSPDisplayList(POLY_XLU_DISP++, MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, scroll * 4, (0 - scroll) * 8,
                                                      32, 32, 1, scroll * 8, (0 - scroll) * 12, 32, 32));
     gSPDisplayList(POLY_XLU_DISP++, &sSongOfStormsCylinderModelDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 
-    OceffStorm_Draw2(&this->actor, play);
+    MM_OceffStorm_Draw2(&this->actor, play);
 }

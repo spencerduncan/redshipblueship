@@ -36,7 +36,7 @@ const ActorInit Bg_Haka_MeganeBG_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(uncullZoneScale, 1000, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneDownward, 1000, ICHAIN_CONTINUE),
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
@@ -59,28 +59,28 @@ void BgHakaMeganeBG_Init(Actor* thisx, PlayState* play) {
     BgHakaMeganeBG* this = (BgHakaMeganeBG*)thisx;
     CollisionHeader* colHeader = NULL;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
     this->unk_168 = (thisx->params >> 8) & 0xFF;
     thisx->params &= 0xFF;
 
     if (thisx->params == 2) {
-        DynaPolyActor_Init(&this->dyna, DPM_UNK3);
+        OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK3);
         thisx->flags |= ACTOR_FLAG_UPDATE_CULLING_DISABLED;
-        CollisionHeader_GetVirtual(&object_haka_objects_Col_005334, &colHeader);
+        OoT_CollisionHeader_GetVirtual(&object_haka_objects_Col_005334, &colHeader);
         this->actionFunc = func_8087E258;
     } else {
-        DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
+        OoT_DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
 
         if (thisx->params == 0) {
-            CollisionHeader_GetVirtual(&object_haka_objects_Col_009168, &colHeader);
+            OoT_CollisionHeader_GetVirtual(&object_haka_objects_Col_009168, &colHeader);
             thisx->flags |= ACTOR_FLAG_REACT_TO_LENS;
             this->unk_16A = 20;
             this->actionFunc = func_8087DFF8;
         } else if (thisx->params == 3) {
-            CollisionHeader_GetVirtual(&object_haka_objects_Col_000118, &colHeader);
+            OoT_CollisionHeader_GetVirtual(&object_haka_objects_Col_000118, &colHeader);
             thisx->home.pos.y += 100.0f;
 
-            if (Flags_GetSwitch(play, this->unk_168)) {
+            if (OoT_Flags_GetSwitch(play, this->unk_168)) {
                 this->actionFunc = func_8087E34C;
                 thisx->world.pos.y = thisx->home.pos.y;
             } else {
@@ -88,7 +88,7 @@ void BgHakaMeganeBG_Init(Actor* thisx, PlayState* play) {
                 this->actionFunc = func_8087E288;
             }
         } else {
-            CollisionHeader_GetVirtual(&object_haka_objects_Col_00A7F4, &colHeader);
+            OoT_CollisionHeader_GetVirtual(&object_haka_objects_Col_00A7F4, &colHeader);
             this->unk_16A = 80;
             this->actionFunc = func_8087E10C;
             thisx->uncullZoneScale = 3000.0f;
@@ -96,13 +96,13 @@ void BgHakaMeganeBG_Init(Actor* thisx, PlayState* play) {
         }
     }
 
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
 }
 
 void BgHakaMeganeBG_Destroy(Actor* thisx, PlayState* play) {
     BgHakaMeganeBG* this = (BgHakaMeganeBG*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_8087DFF8(BgHakaMeganeBG* this, PlayState* play) {
@@ -151,7 +151,7 @@ void func_8087E10C(BgHakaMeganeBG* this, PlayState* play) {
         this->unk_16A--;
     }
 
-    if (!Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y - 640.0f,
+    if (!OoT_Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y - 640.0f,
                       this->dyna.actor.velocity.y)) {
         func_8002F974(&this->dyna.actor, NA_SE_EV_CHINETRAP_DOWN - SFX_FLAG);
     }
@@ -164,7 +164,7 @@ void func_8087E10C(BgHakaMeganeBG* this, PlayState* play) {
 }
 
 void func_8087E1E0(BgHakaMeganeBG* this, PlayState* play) {
-    Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y, 16.0f / 3.0f);
+    OoT_Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y, 16.0f / 3.0f);
     func_8002F974(&this->dyna.actor, NA_SE_EV_BRIDGE_CLOSE - SFX_FLAG);
 
     if (this->unk_16A != 0) {
@@ -183,17 +183,17 @@ void func_8087E258(BgHakaMeganeBG* this, PlayState* play) {
 }
 
 void func_8087E288(BgHakaMeganeBG* this, PlayState* play) {
-    if (Flags_GetSwitch(play, this->unk_168)) {
+    if (OoT_Flags_GetSwitch(play, this->unk_168)) {
         OnePointCutscene_Attention(play, &this->dyna.actor);
         this->actionFunc = func_8087E2D8;
     }
 }
 
 void func_8087E2D8(BgHakaMeganeBG* this, PlayState* play) {
-    Math_StepToF(&this->dyna.actor.speedXZ, 30.0f, 2.0f);
+    OoT_Math_StepToF(&this->dyna.actor.speedXZ, 30.0f, 2.0f);
 
-    if (Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y, this->dyna.actor.speedXZ)) {
-        Actor_SetFocus(&this->dyna.actor, 50.0f);
+    if (OoT_Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y, this->dyna.actor.speedXZ)) {
+        OoT_Actor_SetFocus(&this->dyna.actor, 50.0f);
         this->actionFunc = func_8087E34C;
     } else {
         func_8002F974(&this->dyna.actor, NA_SE_EV_METALDOOR_OPEN);
@@ -214,8 +214,8 @@ void BgHakaMeganeBG_Draw(Actor* thisx, PlayState* play) {
     s16 params = this->dyna.actor.params;
 
     if (params == 0) {
-        Gfx_DrawDListXlu(play, object_haka_objects_DL_008EB0);
+        OoT_Gfx_DrawDListXlu(play, object_haka_objects_DL_008EB0);
     } else {
-        Gfx_DrawDListOpa(play, D_8087E410[params]);
+        OoT_Gfx_DrawDListOpa(play, D_8087E410[params]);
     }
 }

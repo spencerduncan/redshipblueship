@@ -61,11 +61,11 @@ typedef enum {
     /* 4 */ SARIA_MOUTH_FROWNING
 } SariaMouthState;
 
-static void* sEyeTextures[] = {
+static void* OoT_sEyeTextures[] = {
     gSariaEyeOpenTex, gSariaEyeHalfTex, gSariaEyeClosedTex, gSariaEyeSuprisedTex, gSariaEyeSadTex,
 };
 
-static void* sMouthTextures[] = {
+static void* OoT_sMouthTextures[] = {
     gSariaMouthClosed2Tex,     gSariaMouthSuprisedTex, gSariaMouthClosedTex,
     gSariaMouthSmilingOpenTex, gSariaMouthFrowningTex,
 };
@@ -74,13 +74,13 @@ static u32 D_80990108 = 0;
 
 #include "z_demo_sa_cutscene_data.c" EARLY
 
-static DemoSaActionFunc sActionFuncs[] = {
+static DemoSaActionFunc OoT_sActionFuncs[] = {
     func_8098EBB8, func_8098EBD8, func_8098EBF8, func_8098EC28, func_8098EC60, func_8098EC94, func_8098ECCC,
     func_8098F0E8, func_8098F118, func_8098F16C, func_8098F3F0, func_8098F714, func_8098F734, func_8098F77C,
     func_8098F7BC, func_8098F7FC, func_8098FC44, func_8098FC64, func_8098FC9C, func_8098FCD4, func_8098FD0C,
 };
 
-static DemoSaDrawFunc sDrawFuncs[] = {
+static DemoSaDrawFunc OoT_sDrawFuncs[] = {
     DemoSa_DrawNothing,
     DemoSa_DrawOpa,
     DemoSa_DrawXlu,
@@ -102,7 +102,7 @@ const ActorInit Demo_Sa_InitVars = {
 void DemoSa_Destroy(Actor* thisx, PlayState* play) {
     DemoSa* this = (DemoSa*)thisx;
 
-    SkelAnime_Free(&this->skelAnime, play);
+    OoT_SkelAnime_Free(&this->skelAnime, play);
 }
 
 void func_8098E480(DemoSa* this) {
@@ -111,7 +111,7 @@ void func_8098E480(DemoSa* this) {
     s16* blinkTimer = &this->blinkTimer;
 
     if (DECR(*blinkTimer) == 0) {
-        *blinkTimer = Rand_S16Offset(0x3C, 0x3C);
+        *blinkTimer = OoT_Rand_S16Offset(0x3C, 0x3C);
     }
 
     *eyeIndex = *blinkTimer;
@@ -153,11 +153,11 @@ void func_8098E554(DemoSa* this, PlayState* play) {
 }
 
 void func_8098E5C8(DemoSa* this, PlayState* play) {
-    Actor_UpdateBgCheckInfo(play, &this->actor, 75.0f, 30.0f, 30.0f, 5);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 75.0f, 30.0f, 30.0f, 5);
 }
 
 s32 DemoSa_UpdateSkelAnime(DemoSa* this) {
-    return SkelAnime_Update(&this->skelAnime);
+    return OoT_SkelAnime_Update(&this->skelAnime);
 }
 
 CsCmdActorCue* DemoSa_GetNpcAction(PlayState* play, s32 idx) {
@@ -198,7 +198,7 @@ void func_8098E6EC(DemoSa* this, PlayState* play, s32 actionIdx) {
 
 void func_8098E76C(DemoSa* this, AnimationHeader* animHeaderSeg, u8 arg2, f32 transitionRate, s32 arg4) {
     s32 pad[2];
-    f32 frameCount = Animation_GetLastFrame(animHeaderSeg);
+    f32 frameCount = OoT_Animation_GetLastFrame(animHeaderSeg);
     f32 playbackSpeed;
     f32 unk0;
     f32 fc;
@@ -213,11 +213,11 @@ void func_8098E76C(DemoSa* this, AnimationHeader* animHeaderSeg, u8 arg2, f32 tr
         playbackSpeed = -1.0f;
     }
 
-    Animation_Change(&this->skelAnime, animHeaderSeg, playbackSpeed, unk0, fc, arg2, transitionRate);
+    OoT_Animation_Change(&this->skelAnime, animHeaderSeg, playbackSpeed, unk0, fc, arg2, transitionRate);
 }
 
 void func_8098E7FC(DemoSa* this, PlayState* play) {
-    SkelAnime_InitFlex(play, &this->skelAnime, &gSariaSkel, &gSariaWaitArmsToSideAnim, NULL, NULL, 0);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gSariaSkel, &gSariaWaitArmsToSideAnim, NULL, NULL, 0);
     this->actor.shape.yOffset = -10000.0f;
     DemoSa_SetEyeIndex(this, SARIA_EYE_HALF);
     DemoSa_SetMouthIndex(this, SARIA_MOUTH_CLOSED2);
@@ -229,7 +229,7 @@ void func_8098E86C(DemoSa* this, PlayState* play) {
     f32 posY = world->y;
     f32 posZ = world->z;
 
-    Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DOOR_WARP1, posX, posY, posZ, 0, 0, 0, WARP_SAGES);
+    OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DOOR_WARP1, posX, posY, posZ, 0, 0, 0, WARP_SAGES);
 }
 
 void func_8098E8C8(DemoSa* this, PlayState* play) {
@@ -238,9 +238,9 @@ void func_8098E8C8(DemoSa* this, PlayState* play) {
     f32 posY = player->actor.world.pos.y + 80.0f;
     f32 posZ = player->actor.world.pos.z;
 
-    Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DEMO_EFFECT, posX, posY, posZ, 0, 0, 0, 0xB);
+    OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DEMO_EFFECT, posX, posY, posZ, 0, 0, 0, 0xB);
     if (GameInteractor_Should(VB_GIVE_ITEM_FOREST_MEDALLION, true)) {
-        Item_Give(play, ITEM_MEDALLION_FOREST);
+        OoT_Item_Give(play, ITEM_MEDALLION_FOREST);
     }
 }
 
@@ -258,7 +258,7 @@ void func_8098E960(DemoSa* this, PlayState* play) {
         play->csCtx.segment = D_8099010C;
         gSaveContext.cutsceneTrigger = 2;
         if (GameInteractor_Should(VB_GIVE_ITEM_FOREST_MEDALLION, true)) {
-            Item_Give(play, ITEM_MEDALLION_FOREST);
+            OoT_Item_Give(play, ITEM_MEDALLION_FOREST);
         }
         player->actor.world.rot.y = player->actor.shape.rot.y = this->actor.world.rot.y + 0x8000;
     }
@@ -290,8 +290,8 @@ void func_8098EA68(DemoSa* this, PlayState* play) {
     if (play->csCtx.state != CS_STATE_IDLE) {
         npcAction = play->csCtx.npcActions[4];
         if ((npcAction != NULL) && (npcAction->action == 3)) {
-            Animation_Change(&this->skelAnime, &gSariaGiveForestMedallionAnim, 1.0f, 0.0f,
-                             Animation_GetLastFrame(&gSariaGiveForestMedallionAnim), ANIMMODE_ONCE, -4.0f);
+            OoT_Animation_Change(&this->skelAnime, &gSariaGiveForestMedallionAnim, 1.0f, 0.0f,
+                             OoT_Animation_GetLastFrame(&gSariaGiveForestMedallionAnim), ANIMMODE_ONCE, -4.0f);
             this->action = 4;
         }
     }
@@ -299,8 +299,8 @@ void func_8098EA68(DemoSa* this, PlayState* play) {
 
 void func_8098EB00(DemoSa* this, s32 arg1) {
     if (arg1 != 0) {
-        Animation_Change(&this->skelAnime, &gSariaGiveForestMedallionStandAnim, 1.0f, 0.0f,
-                         Animation_GetLastFrame(&gSariaGiveForestMedallionStandAnim), ANIMMODE_LOOP, 0.0f);
+        OoT_Animation_Change(&this->skelAnime, &gSariaGiveForestMedallionStandAnim, 1.0f, 0.0f,
+                         OoT_Animation_GetLastFrame(&gSariaGiveForestMedallionStandAnim), ANIMMODE_LOOP, 0.0f);
         this->action = 5;
     }
 }
@@ -356,10 +356,10 @@ void func_8098ECCC(DemoSa* this, PlayState* play) {
 void func_8098ECF4(DemoSa* this, PlayState* play) {
     s32 pad[2];
     SkelAnime* skelAnime = &this->skelAnime;
-    f32 frameCount = Animation_GetLastFrame(&gSariaSealGanonAnim);
+    f32 frameCount = OoT_Animation_GetLastFrame(&gSariaSealGanonAnim);
 
-    SkelAnime_InitFlex(play, skelAnime, &gSariaSkel, NULL, NULL, NULL, 0);
-    Animation_Change(skelAnime, &gSariaSealGanonAnim, 1.0f, 0.0f, frameCount, ANIMMODE_ONCE, 0.0f);
+    OoT_SkelAnime_InitFlex(play, skelAnime, &gSariaSkel, NULL, NULL, NULL, 0);
+    OoT_Animation_Change(skelAnime, &gSariaSealGanonAnim, 1.0f, 0.0f, frameCount, ANIMMODE_ONCE, 0.0f);
     this->action = 7;
     this->actor.shape.shadowAlpha = 0;
     DemoSa_SetEyeIndex(this, SARIA_EYE_CLOSED);
@@ -380,7 +380,7 @@ void func_8098EE08(void) {
 }
 
 void func_8098EE28(DemoSa* this, PlayState* play) {
-    Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DEMO_6K, this->actor.world.pos.x,
+    OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DEMO_6K, this->actor.world.pos.x,
                        (kREG(23) + 25.0f) + this->actor.world.pos.y, this->actor.world.pos.z, 0, 0, 0, 4);
 }
 
@@ -461,10 +461,10 @@ void func_8098F16C(DemoSa* this, PlayState* play) {
 void DemoSa_DrawXlu(DemoSa* this, PlayState* play) {
     s32 pad[2];
     s16 eyeIndex = this->eyeIndex;
-    void* sp78 = sEyeTextures[eyeIndex];
+    void* sp78 = OoT_sEyeTextures[eyeIndex];
     s16 mouthIndex = this->mouthIndex;
     s32 pad2;
-    void* sp6C = sMouthTextures[mouthIndex];
+    void* sp6C = OoT_sMouthTextures[mouthIndex];
     SkelAnime* skelAnime = &this->skelAnime;
 
     OPEN_DISPS(play->state.gfxCtx);
@@ -477,14 +477,14 @@ void DemoSa_DrawXlu(DemoSa* this, PlayState* play) {
     gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 0, this->alpha);
     gSPSegment(POLY_XLU_DISP++, 0x0C, D_80116280);
 
-    POLY_XLU_DISP = SkelAnime_DrawFlex(play, skelAnime->skeleton, skelAnime->jointTable, skelAnime->dListCount, NULL,
+    POLY_XLU_DISP = OoT_SkelAnime_DrawFlex(play, skelAnime->skeleton, skelAnime->jointTable, skelAnime->dListCount, NULL,
                                        NULL, NULL, POLY_XLU_DISP);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
 void func_8098F390(DemoSa* this, PlayState* play) {
-    SkelAnime_InitFlex(play, &this->skelAnime, &gSariaSkel, &gSariaWaitArmsToSideAnim, NULL, NULL, 0);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gSariaSkel, &gSariaWaitArmsToSideAnim, NULL, NULL, 0);
     this->action = 10;
     this->drawConfig = 1;
 }
@@ -496,7 +496,7 @@ void func_8098F3F0(DemoSa* this, PlayState* play) {
 }
 
 void func_8098F420(DemoSa* this, PlayState* play) {
-    SkelAnime_InitFlex(play, &this->skelAnime, &gSariaSkel, &gSariaSitting3Anim, NULL, NULL, 0);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gSariaSkel, &gSariaSitting3Anim, NULL, NULL, 0);
     this->action = 11;
     this->drawConfig = 0;
     this->actor.shape.shadowAlpha = 0;
@@ -535,7 +535,7 @@ void func_8098F590(DemoSa* this) {
     this->action = 14;
 }
 
-void func_8098F5D0(DemoSa* this) {
+void OoT_func_8098F5D0(DemoSa* this) {
     func_8098E76C(this, &gSariaSitting2Anim, 2, 0.0f, 0);
     this->action = 15;
 }
@@ -564,7 +564,7 @@ void func_8098F654(DemoSa* this, PlayState* play) {
                     func_8098F590(this);
                     break;
                 case 9:
-                    func_8098F5D0(this);
+                    OoT_func_8098F5D0(this);
                     break;
                 default:
                     osSyncPrintf("Demo_Sa_inEnding_Check_DemoMode:そんな動作は無い!!!!!!!!\n");
@@ -612,8 +612,8 @@ void func_8098F7FC(DemoSa* this, PlayState* play) {
 void func_8098F83C(DemoSa* this, PlayState* play) {
     Vec3f* thisPos = &this->actor.world.pos;
 
-    SkelAnime_InitFlex(play, &this->skelAnime, &gSariaSkel, &gSariaWaitOnBridgeAnim, NULL, NULL, 0);
-    Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_ELF, thisPos->x, thisPos->y, thisPos->z, 0, 0, 0,
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gSariaSkel, &gSariaWaitOnBridgeAnim, NULL, NULL, 0);
+    OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_ELF, thisPos->x, thisPos->y, thisPos->z, 0, 0, 0,
                        FAIRY_KOKIRI);
     this->action = 16;
     this->drawConfig = 0;
@@ -754,17 +754,17 @@ void func_8098FD0C(DemoSa* this, PlayState* play) {
 void DemoSa_Update(Actor* thisx, PlayState* play) {
     DemoSa* this = (DemoSa*)thisx;
 
-    if (this->action < 0 || this->action >= 21 || sActionFuncs[this->action] == NULL) {
+    if (this->action < 0 || this->action >= 21 || OoT_sActionFuncs[this->action] == NULL) {
         osSyncPrintf(VT_FGCOL(RED) "メインモードがおかしい!!!!!!!!!!!!!!!!!!!!!!!!!\n" VT_RST);
         return;
     }
-    sActionFuncs[this->action](this, play);
+    OoT_sActionFuncs[this->action](this, play);
 }
 
 void DemoSa_Init(Actor* thisx, PlayState* play) {
     DemoSa* this = (DemoSa*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 30.0f);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 30.0f);
 
     switch (this->actor.params) {
         case 2:
@@ -799,10 +799,10 @@ void DemoSa_DrawNothing(DemoSa* this, PlayState* play) {
 void DemoSa_DrawOpa(DemoSa* this, PlayState* play) {
     s32 pad[2];
     s16 eyeIndex = this->eyeIndex;
-    void* eyeTex = sEyeTextures[eyeIndex];
+    void* eyeTex = OoT_sEyeTextures[eyeIndex];
     s32 pad2;
     s16 mouthIndex = this->mouthIndex;
-    void* mouthTex = sMouthTextures[mouthIndex];
+    void* mouthTex = OoT_sMouthTextures[mouthIndex];
     SkelAnime* skelAnime = &this->skelAnime;
 
     OPEN_DISPS(play->state.gfxCtx);
@@ -823,9 +823,9 @@ void DemoSa_DrawOpa(DemoSa* this, PlayState* play) {
 void DemoSa_Draw(Actor* thisx, PlayState* play) {
     DemoSa* this = (DemoSa*)thisx;
 
-    if (this->drawConfig < 0 || this->drawConfig >= 3 || sDrawFuncs[this->drawConfig] == NULL) {
+    if (this->drawConfig < 0 || this->drawConfig >= 3 || OoT_sDrawFuncs[this->drawConfig] == NULL) {
         osSyncPrintf(VT_FGCOL(RED) "描画モードがおかしい!!!!!!!!!!!!!!!!!!!!!!!!!\n" VT_RST);
         return;
     }
-    sDrawFuncs[this->drawConfig](this, play);
+    OoT_sDrawFuncs[this->drawConfig](this, play);
 }

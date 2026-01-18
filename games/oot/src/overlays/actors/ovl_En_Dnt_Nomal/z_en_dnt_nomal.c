@@ -71,7 +71,7 @@ const ActorInit En_Dnt_Nomal_InitVars = {
     NULL,
 };
 
-static ColliderCylinderInit sBodyCylinderInit = {
+static ColliderCylinderInit OoT_sBodyCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -132,22 +132,22 @@ void EnDntNomal_Init(Actor* thisx, PlayState* play) {
         osSyncPrintf("\n\n");
         // "Deku Scrub target"
         osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ デグナッツ的当て ☆☆☆☆☆ \n" VT_RST);
-        Collider_InitQuad(play, &this->targetQuad);
-        Collider_SetQuad(play, &this->targetQuad, &this->actor, &sTargetQuadInit);
+        OoT_Collider_InitQuad(play, &this->targetQuad);
+        OoT_Collider_SetQuad(play, &this->targetQuad, &this->actor, &sTargetQuadInit);
         this->actor.world.rot.y = this->actor.shape.rot.y = this->actor.yawTowardsPlayer;
         this->objId = OBJECT_HINTNUTS;
     } else {
         osSyncPrintf("\n\n");
         // "Deku Scrub mask show audience"
         osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ デグナッツお面品評会一般人 ☆☆☆☆☆ \n" VT_RST);
-        Collider_InitCylinder(play, &this->bodyCyl);
-        Collider_SetCylinder(play, &this->bodyCyl, &this->actor, &sBodyCylinderInit);
+        OoT_Collider_InitCylinder(play, &this->bodyCyl);
+        OoT_Collider_SetCylinder(play, &this->bodyCyl, &this->actor, &OoT_sBodyCylinderInit);
         this->objId = OBJECT_DNK;
     }
     if (this->objId >= 0) {
         this->objIndex = Object_GetIndex(&play->objectCtx, this->objId);
         if (this->objIndex < 0) {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
             // "What?"
             osSyncPrintf(VT_FGCOL(PURPLE) " なにみの？ %d\n" VT_RST "\n", this->objIndex);
             // "Bank is funny"
@@ -155,7 +155,7 @@ void EnDntNomal_Init(Actor* thisx, PlayState* play) {
             return;
         }
     } else {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
     this->actionFunc = EnDntNomal_WaitForObject;
 }
@@ -165,27 +165,27 @@ void EnDntNomal_Destroy(Actor* thisx, PlayState* play) {
     EnDntNomal* this = (EnDntNomal*)thisx;
 
     if (this->type == ENDNTNOMAL_TARGET) {
-        Collider_DestroyQuad(play, &this->targetQuad);
+        OoT_Collider_DestroyQuad(play, &this->targetQuad);
     } else {
-        Collider_DestroyCylinder(play, &this->bodyCyl);
+        OoT_Collider_DestroyCylinder(play, &this->bodyCyl);
     }
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
 
 void EnDntNomal_WaitForObject(EnDntNomal* this, PlayState* play) {
-    if (Object_IsLoaded(&play->objectCtx, this->objIndex)) {
-        gSegments[6] = PHYSICAL_TO_VIRTUAL(play->objectCtx.status[this->objIndex].segment);
+    if (OoT_Object_IsLoaded(&play->objectCtx, this->objIndex)) {
+        OoT_gSegments[6] = PHYSICAL_TO_VIRTUAL(play->objectCtx.status[this->objIndex].segment);
         this->actor.objBankIndex = this->objIndex;
-        ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 0.0f);
+        OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 0.0f);
         this->actor.gravity = -2.0f;
-        Actor_SetScale(&this->actor, 0.01f);
+        OoT_Actor_SetScale(&this->actor, 0.01f);
         if (this->type == ENDNTNOMAL_TARGET) {
-            SkelAnime_Init(play, &this->skelAnime, &gHintNutsSkel, &gHintNutsBurrowAnim, this->jointTable,
+            OoT_SkelAnime_Init(play, &this->skelAnime, &gHintNutsSkel, &gHintNutsBurrowAnim, this->jointTable,
                            this->morphTable, 10);
             this->actor.draw = EnDntNomal_DrawTargetScrub;
         } else {
-            SkelAnime_Init(play, &this->skelAnime, &gDntStageSkel, &gDntStageHideAnim, this->jointTable,
+            OoT_SkelAnime_Init(play, &this->skelAnime, &gDntStageSkel, &gDntStageHideAnim, this->jointTable,
                            this->morphTable, 11);
             this->actor.draw = EnDntNomal_DrawStageScrub;
         }
@@ -205,8 +205,8 @@ void EnDntNomal_SetFlower(EnDntNomal* this, PlayState* play) {
 }
 
 void EnDntNomal_SetupTargetWait(EnDntNomal* this, PlayState* play) {
-    this->endFrame = (f32)Animation_GetLastFrame(&gHintNutsBurrowAnim);
-    Animation_Change(&this->skelAnime, &gHintNutsBurrowAnim, 0.0f, 0.0f, this->endFrame, ANIMMODE_ONCE, -10.0f);
+    this->endFrame = (f32)OoT_Animation_GetLastFrame(&gHintNutsBurrowAnim);
+    OoT_Animation_Change(&this->skelAnime, &gHintNutsBurrowAnim, 0.0f, 0.0f, this->endFrame, ANIMMODE_ONCE, -10.0f);
     this->skelAnime.curFrame = 8.0f;
     this->actionFunc = EnDntNomal_TargetWait;
 }
@@ -232,7 +232,7 @@ void EnDntNomal_TargetWait(EnDntNomal* this, PlayState* play) {
 
     this->targetVtx[3].y = this->targetVtx[2].y = targetY + 24.0f;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if ((this->targetQuad.base.acFlags & AC_HIT) || BREG(0)) {
         this->targetQuad.base.acFlags &= ~AC_HIT;
 
@@ -242,11 +242,11 @@ void EnDntNomal_TargetWait(EnDntNomal* this, PlayState* play) {
 
         scoreVel.y = 5.0f;
 
-        if (sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 8.0f) {
+        if (OoT_sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 8.0f) {
             scorePos.x = this->actor.world.pos.x - 20.0f;
             scorePos.y = this->actor.world.pos.y + 20.0f;
             scorePos.z = this->actor.world.pos.z;
-            EffectSsExtra_Spawn(play, &scorePos, &scoreVel, &scoreAccel, 4, 2);
+            OoT_EffectSsExtra_Spawn(play, &scorePos, &scoreVel, &scoreAccel, 4, 2);
             Audio_StopSfxById(NA_SE_SY_TRE_BOX_APPEAR);
             Sfx_PlaySfxCentered(NA_SE_SY_TRE_BOX_APPEAR);
             // "Big hit"
@@ -258,17 +258,17 @@ void EnDntNomal_TargetWait(EnDntNomal* this, PlayState* play) {
                         this->actionFunc = EnDntNomal_TargetGivePrize;
                     } else {
                         OnePointCutscene_Init(play, 4140, -99, &this->actor, MAIN_CAM);
-                        Player_SetCsActionWithHaltedActors(play, &this->actor, 1);
+                        OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 1);
                         this->timer4 = 50;
                         this->actionFunc = EnDntNomal_SetupTargetUnburrow;
                     }
                 }
             }
-        } else if (sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 24.0f) {
+        } else if (OoT_sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 24.0f) {
             scorePos.x = this->actor.world.pos.x;
             scorePos.y = this->actor.world.pos.y + 20.0f;
             scorePos.z = this->actor.world.pos.z;
-            EffectSsExtra_Spawn(play, &scorePos, &scoreVel, &scoreAccel, 4, 0);
+            OoT_EffectSsExtra_Spawn(play, &scorePos, &scoreVel, &scoreAccel, 4, 0);
             this->hitCounter = 0;
         }
     }
@@ -278,11 +278,11 @@ void EnDntNomal_SetupTargetUnburrow(EnDntNomal* this, PlayState* play) {
     Vec3f spawnPos;
 
     if (this->timer4 == 0) {
-        this->endFrame = (f32)Animation_GetLastFrame(&gHintNutsUnburrowAnim);
-        Animation_Change(&this->skelAnime, &gHintNutsUnburrowAnim, 1.0f, 0.0f, this->endFrame, ANIMMODE_ONCE, -10.0f);
+        this->endFrame = (f32)OoT_Animation_GetLastFrame(&gHintNutsUnburrowAnim);
+        OoT_Animation_Change(&this->skelAnime, &gHintNutsUnburrowAnim, 1.0f, 0.0f, this->endFrame, ANIMMODE_ONCE, -10.0f);
         spawnPos = this->actor.world.pos;
         spawnPos.y = this->actor.world.pos.y + 50.0f;
-        EffectSsHahen_SpawnBurst(play, &spawnPos, 4.0f, 0, 10, 3, 15, HAHEN_OBJECT_DEFAULT, 10, NULL);
+        OoT_EffectSsHahen_SpawnBurst(play, &spawnPos, 4.0f, 0, 10, 3, 15, HAHEN_OBJECT_DEFAULT, 10, NULL);
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_NUTS_UP);
         this->actionFunc = EnDntNomal_TargetUnburrow;
     }
@@ -291,15 +291,15 @@ void EnDntNomal_SetupTargetUnburrow(EnDntNomal* this, PlayState* play) {
 void EnDntNomal_TargetUnburrow(EnDntNomal* this, PlayState* play) {
     f32 frame = this->skelAnime.curFrame;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if (frame >= this->endFrame) {
         this->actionFunc = EnDntNomal_SetupTargetWalk;
     }
 }
 
 void EnDntNomal_SetupTargetWalk(EnDntNomal* this, PlayState* play) {
-    this->endFrame = (f32)Animation_GetLastFrame(&gHintNutsRunAnim);
-    Animation_Change(&this->skelAnime, &gHintNutsRunAnim, 1.0f, 0.0f, this->endFrame, ANIMMODE_LOOP, -10.0f);
+    this->endFrame = (f32)OoT_Animation_GetLastFrame(&gHintNutsRunAnim);
+    OoT_Animation_Change(&this->skelAnime, &gHintNutsRunAnim, 1.0f, 0.0f, this->endFrame, ANIMMODE_LOOP, -10.0f);
     this->actor.speedXZ = 1.0f;
     this->actor.colChkInfo.mass = 0;
     this->actionFunc = EnDntNomal_TargetWalk;
@@ -309,12 +309,12 @@ void EnDntNomal_TargetWalk(EnDntNomal* this, PlayState* play) {
     f32 dx;
     f32 dz;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     dx = 1340.0f + 3.0f - this->actor.world.pos.x;
     dz = 0.0f - this->actor.world.pos.z;
-    Math_SmoothStepToS(&this->actor.shape.rot.y, Math_FAtan2F(dx, dz) * (0x8000 / M_PI), 0x32, 0xBB8, 0);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, OoT_Math_FAtan2F(dx, dz) * (0x8000 / M_PI), 0x32, 0xBB8, 0);
     this->actor.world.rot.y = this->actor.shape.rot.y;
-    if (Animation_OnFrame(&this->skelAnime, 0.0f) || Animation_OnFrame(&this->skelAnime, 6.0f)) {
+    if (OoT_Animation_OnFrame(&this->skelAnime, 0.0f) || OoT_Animation_OnFrame(&this->skelAnime, 6.0f)) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_NUTS_WALK);
     }
     if (this->actor.world.pos.z > -30.0f) {
@@ -324,9 +324,9 @@ void EnDntNomal_TargetWalk(EnDntNomal* this, PlayState* play) {
 }
 
 void EnDntNomal_TargetFacePlayer(EnDntNomal* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 3, 0x1388, 0);
-    if (Animation_OnFrame(&this->skelAnime, 0.0f) || Animation_OnFrame(&this->skelAnime, 6.0f)) {
+    OoT_SkelAnime_Update(&this->skelAnime);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 3, 0x1388, 0);
+    if (OoT_Animation_OnFrame(&this->skelAnime, 0.0f) || OoT_Animation_OnFrame(&this->skelAnime, 6.0f)) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_NUTS_WALK);
     }
     if (fabsf(this->actor.shape.rot.y - this->actor.yawTowardsPlayer) < 30.0f) {
@@ -335,50 +335,50 @@ void EnDntNomal_TargetFacePlayer(EnDntNomal* this, PlayState* play) {
 }
 
 void EnDntNomal_SetupTargetTalk(EnDntNomal* this, PlayState* play) {
-    this->endFrame = (f32)Animation_GetLastFrame(&gHintNutsTalkAnim);
-    Animation_Change(&this->skelAnime, &gHintNutsTalkAnim, 1.0f, 0.0f, this->endFrame, ANIMMODE_LOOP, -10.0f);
+    this->endFrame = (f32)OoT_Animation_GetLastFrame(&gHintNutsTalkAnim);
+    OoT_Animation_Change(&this->skelAnime, &gHintNutsTalkAnim, 1.0f, 0.0f, this->endFrame, ANIMMODE_LOOP, -10.0f);
     this->actor.textId = 0x10AF;
-    Message_StartTextbox(play, this->actor.textId, NULL);
+    OoT_Message_StartTextbox(play, this->actor.textId, NULL);
     this->actionFunc = EnDntNomal_TargetTalk;
 }
 
 void EnDntNomal_TargetTalk(EnDntNomal* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
-        Message_CloseTextbox(play);
+    OoT_SkelAnime_Update(&this->skelAnime);
+    if ((OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && OoT_Message_ShouldAdvance(play)) {
+        OoT_Message_CloseTextbox(play);
         func_8005B1A4(GET_ACTIVE_CAM(play));
         GET_ACTIVE_CAM(play)->csId = 0;
-        Player_SetCsActionWithHaltedActors(play, NULL, 8);
+        OoT_Player_SetCsActionWithHaltedActors(play, NULL, 8);
         this->actionFunc = EnDntNomal_SetupTargetGivePrize;
     }
 }
 
 void EnDntNomal_SetupTargetGivePrize(EnDntNomal* this, PlayState* play) {
-    this->endFrame = (f32)Animation_GetLastFrame(&gHintNutsSpitAnim);
-    Animation_Change(&this->skelAnime, &gHintNutsSpitAnim, 1.0f, 0.0f, this->endFrame, ANIMMODE_ONCE, -10.0f);
+    this->endFrame = (f32)OoT_Animation_GetLastFrame(&gHintNutsSpitAnim);
+    OoT_Animation_Change(&this->skelAnime, &gHintNutsSpitAnim, 1.0f, 0.0f, this->endFrame, ANIMMODE_ONCE, -10.0f);
     this->actionFunc = EnDntNomal_TargetGivePrize;
 }
 
 void EnDntNomal_TargetGivePrize(EnDntNomal* this, PlayState* play) {
     f32 frame = this->skelAnime.curFrame;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if ((frame >= 8.0f) && !this->spawnedItem) {
         f32 itemX = this->mouthPos.x - 10.0f;
         f32 itemY = this->mouthPos.y;
         f32 itemZ = this->mouthPos.z;
 
-        if (Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_EX_ITEM, itemX, itemY, itemZ, 0, 0, 0,
+        if (OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_EX_ITEM, itemX, itemY, itemZ, 0, 0, 0,
                                EXITEM_BULLET_BAG) == NULL) {
-            Player_SetCsActionWithHaltedActors(play, NULL, 7);
-            Actor_Kill(&this->actor);
+            OoT_Player_SetCsActionWithHaltedActors(play, NULL, 7);
+            OoT_Actor_Kill(&this->actor);
         }
         this->spawnedItem = true;
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_NUTS_THROW);
     }
     if (frame >= this->endFrame) {
-        this->endFrame = (f32)Animation_GetLastFrame(&gHintNutsRunAnim);
-        Animation_Change(&this->skelAnime, &gHintNutsRunAnim, 1.0f, 0.0f, this->endFrame, ANIMMODE_LOOP, -10.0f);
+        this->endFrame = (f32)OoT_Animation_GetLastFrame(&gHintNutsRunAnim);
+        OoT_Animation_Change(&this->skelAnime, &gHintNutsRunAnim, 1.0f, 0.0f, this->endFrame, ANIMMODE_LOOP, -10.0f);
         this->actionFunc = EnDntNomal_TargetReturn;
     }
 }
@@ -387,21 +387,21 @@ void EnDntNomal_TargetReturn(EnDntNomal* this, PlayState* play) {
     f32 dx;
     f32 dz;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     dx = this->flowerPos.x - this->actor.world.pos.x;
     dz = -180.0f - this->actor.world.pos.z;
 
-    Math_SmoothStepToS(&this->actor.shape.rot.y, Math_FAtan2F(dx, dz) * (0x8000 / M_PI), 3, 0x1388, 0);
-    if (fabsf(this->actor.shape.rot.y - (s16)(Math_FAtan2F(dx, dz) * (0x8000 / M_PI))) < 20.0f) {
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, OoT_Math_FAtan2F(dx, dz) * (0x8000 / M_PI), 3, 0x1388, 0);
+    if (fabsf(this->actor.shape.rot.y - (s16)(OoT_Math_FAtan2F(dx, dz) * (0x8000 / M_PI))) < 20.0f) {
         this->actor.speedXZ = 1.0f;
     }
-    if (Animation_OnFrame(&this->skelAnime, 0.0f) || Animation_OnFrame(&this->skelAnime, 6.0f)) {
+    if (OoT_Animation_OnFrame(&this->skelAnime, 0.0f) || OoT_Animation_OnFrame(&this->skelAnime, 6.0f)) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_NUTS_WALK);
     }
     this->actor.world.rot.y = this->actor.shape.rot.y;
     if (this->actor.world.pos.z < -172.0f) {
-        this->endFrame = (f32)Animation_GetLastFrame(&gHintNutsBurrowAnim);
-        Animation_Change(&this->skelAnime, &gHintNutsBurrowAnim, 1.0f, 0.0f, this->endFrame, ANIMMODE_ONCE, -10.0f);
+        this->endFrame = (f32)OoT_Animation_GetLastFrame(&gHintNutsBurrowAnim);
+        OoT_Animation_Change(&this->skelAnime, &gHintNutsBurrowAnim, 1.0f, 0.0f, this->endFrame, ANIMMODE_ONCE, -10.0f);
         this->actor.world.pos.z = -173.0f;
         this->actor.speedXZ = 0.0f;
         this->actionFunc = EnDntNomal_TargetBurrow;
@@ -411,7 +411,7 @@ void EnDntNomal_TargetReturn(EnDntNomal* this, PlayState* play) {
 void EnDntNomal_TargetBurrow(EnDntNomal* this, PlayState* play) {
     f32 frame = this->skelAnime.curFrame;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if (frame >= this->endFrame) {
         this->actionFunc = EnDntNomal_SetupTargetWait;
     }
@@ -419,8 +419,8 @@ void EnDntNomal_TargetBurrow(EnDntNomal* this, PlayState* play) {
 
 void EnDntNomal_SetupStageWait(EnDntNomal* this, PlayState* play) {
     if (this->timer3 == 0) {
-        this->endFrame = (f32)Animation_GetLastFrame(&gDntStageHideAnim);
-        Animation_Change(&this->skelAnime, &gDntStageHideAnim, 0.0f, 0.0f, this->endFrame, ANIMMODE_ONCE, -10.0f);
+        this->endFrame = (f32)OoT_Animation_GetLastFrame(&gDntStageHideAnim);
+        OoT_Animation_Change(&this->skelAnime, &gDntStageHideAnim, 0.0f, 0.0f, this->endFrame, ANIMMODE_ONCE, -10.0f);
         this->skelAnime.curFrame = 8.0f;
         this->isSolid = false;
         this->actionFunc = EnDntNomal_StageWait;
@@ -428,17 +428,17 @@ void EnDntNomal_SetupStageWait(EnDntNomal* this, PlayState* play) {
 }
 
 void EnDntNomal_StageWait(EnDntNomal* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 }
 
 void EnDntNomal_SetupStageUp(EnDntNomal* this, PlayState* play) {
     if (this->timer3 == 0) {
-        this->endFrame = (f32)Animation_GetLastFrame(&gDntStageUpAnim);
-        Animation_Change(&this->skelAnime, &gDntStageUpAnim, 1.0f, 0.0f, this->endFrame, ANIMMODE_ONCE, -10.0f);
+        this->endFrame = (f32)OoT_Animation_GetLastFrame(&gDntStageUpAnim);
+        OoT_Animation_Change(&this->skelAnime, &gDntStageUpAnim, 1.0f, 0.0f, this->endFrame, ANIMMODE_ONCE, -10.0f);
         if (this->action != DNT_ACTION_ATTACK) {
             this->rotDirection = -1;
         }
-        EffectSsHahen_SpawnBurst(play, &this->actor.world.pos, 4.0f, 0, 10, 3, 15, HAHEN_OBJECT_DEFAULT, 10, NULL);
+        OoT_EffectSsHahen_SpawnBurst(play, &this->actor.world.pos, 4.0f, 0, 10, 3, 15, HAHEN_OBJECT_DEFAULT, 10, NULL);
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_NUTS_UP);
         this->isSolid = true;
         this->actionFunc = EnDntNomal_StageUp;
@@ -450,23 +450,23 @@ void EnDntNomal_StageUp(EnDntNomal* this, PlayState* play) {
     f32 frame = this->skelAnime.curFrame;
     f32 turnMod;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if ((frame >= this->endFrame) && (this->action == DNT_ACTION_ATTACK)) {
         this->actionFunc = EnDntNomal_SetupStageAttack;
     } else {
         if (this->timer4 == 0) {
             turnMod = 0.0f;
             if (this->stagePrize == DNT_PRIZE_NONE) {
-                Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 3, 0x1388, 0);
+                OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 3, 0x1388, 0);
             } else {
                 f32 dx = this->targetPos.x - this->actor.world.pos.x;
                 f32 dz = this->targetPos.z - this->actor.world.pos.z;
 
-                Math_SmoothStepToS(&this->actor.shape.rot.y, Math_FAtan2F(dx, dz) * (0x8000 / M_PI), 1, 0xBB8, 0);
+                OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, OoT_Math_FAtan2F(dx, dz) * (0x8000 / M_PI), 1, 0xBB8, 0);
                 turnMod = 90.0f;
             }
-            if ((Rand_ZeroFloat(10.0f + turnMod) < 1.0f) && (this->action != DNT_ACTION_ATTACK)) {
-                this->timer4 = (s16)Rand_ZeroFloat(30.0f) + 30;
+            if ((OoT_Rand_ZeroFloat(10.0f + turnMod) < 1.0f) && (this->action != DNT_ACTION_ATTACK)) {
+                this->timer4 = (s16)OoT_Rand_ZeroFloat(30.0f) + 30;
             }
         } else {
             if (this->timer2 == 0) {
@@ -474,13 +474,13 @@ void EnDntNomal_StageUp(EnDntNomal* this, PlayState* play) {
                 if (this->rotDirection > 1) {
                     this->rotDirection = -1;
                 }
-                this->timer2 = (s16)Rand_ZeroFloat(10.0f) + 10;
+                this->timer2 = (s16)OoT_Rand_ZeroFloat(10.0f) + 10;
             }
             rotTarget = this->actor.yawTowardsPlayer;
             if (this->rotDirection != 0) {
                 rotTarget += this->rotDirection * 0x1388;
             }
-            Math_SmoothStepToS(&this->actor.shape.rot.y, rotTarget, 3, 0x1388, 0);
+            OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, rotTarget, 3, 0x1388, 0);
         }
         if (this->actor.xzDistToPlayer < 70.0f) {
             this->actionFunc = EnDntNomal_SetupStageHide;
@@ -490,10 +490,10 @@ void EnDntNomal_StageUp(EnDntNomal* this, PlayState* play) {
 
 void EnDntNomal_SetupStageUnburrow(EnDntNomal* this, PlayState* play) {
     if (this->timer3 == 0) {
-        this->endFrame = (f32)Animation_GetLastFrame(&gDntStageUnburrowAnim);
-        Animation_Change(&this->skelAnime, &gDntStageUnburrowAnim, 1.0f, 0.0f, this->endFrame, ANIMMODE_ONCE, -10.0f);
+        this->endFrame = (f32)OoT_Animation_GetLastFrame(&gDntStageUnburrowAnim);
+        OoT_Animation_Change(&this->skelAnime, &gDntStageUnburrowAnim, 1.0f, 0.0f, this->endFrame, ANIMMODE_ONCE, -10.0f);
         this->isSolid = false;
-        EffectSsHahen_SpawnBurst(play, &this->actor.world.pos, 4.0f, 0, 10, 3, 15, HAHEN_OBJECT_DEFAULT, 10, NULL);
+        OoT_EffectSsHahen_SpawnBurst(play, &this->actor.world.pos, 4.0f, 0, 10, 3, 15, HAHEN_OBJECT_DEFAULT, 10, NULL);
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_NUTS_UP);
         this->actionFunc = EnDntNomal_StageUnburrow;
     }
@@ -502,10 +502,10 @@ void EnDntNomal_SetupStageUnburrow(EnDntNomal* this, PlayState* play) {
 void EnDntNomal_StageUnburrow(EnDntNomal* this, PlayState* play) {
     f32 frame = this->skelAnime.curFrame;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if (frame >= this->endFrame) {
         if (this->action != DNT_ACTION_DANCE) {
-            this->timer3 = (s16)Rand_ZeroFloat(2.0f) + (s16)(this->type * 0.5f);
+            this->timer3 = (s16)OoT_Rand_ZeroFloat(2.0f) + (s16)(this->type * 0.5f);
             this->actionFunc = EnDntNomal_SetupStageCelebrate;
         } else {
             this->timer2 = 300;
@@ -515,33 +515,33 @@ void EnDntNomal_StageUnburrow(EnDntNomal* this, PlayState* play) {
 }
 
 void EnDntNomal_SetupStageCelebrate(EnDntNomal* this, PlayState* play) {
-    this->endFrame = (f32)Animation_GetLastFrame(&gDntStageWalkAnim);
-    Animation_Change(&this->skelAnime, &gDntStageWalkAnim, 1.0f, 0.0f, this->endFrame, ANIMMODE_LOOP, -10.0f);
+    this->endFrame = (f32)OoT_Animation_GetLastFrame(&gDntStageWalkAnim);
+    OoT_Animation_Change(&this->skelAnime, &gDntStageWalkAnim, 1.0f, 0.0f, this->endFrame, ANIMMODE_LOOP, -10.0f);
     this->actor.speedXZ = 3.0f;
     this->isSolid = true;
     this->actionFunc = EnDntNomal_StageCelebrate;
 }
 
 void EnDntNomal_StageCelebrate(EnDntNomal* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if ((this->timer1 == 0) && (this->timer3 == 0)) {
         f32 dx = this->targetPos.x - this->actor.world.pos.x;
         f32 dz = this->targetPos.z - this->actor.world.pos.z;
 
-        if ((fabsf(dx) < 10.0f) && (fabsf(dz) < 10.0f) && (Message_GetState(&play->msgCtx) != TEXT_STATE_NONE)) {
+        if ((fabsf(dx) < 10.0f) && (fabsf(dz) < 10.0f) && (OoT_Message_GetState(&play->msgCtx) != TEXT_STATE_NONE)) {
             this->action = DNT_ACTION_PRIZE;
             this->actionFunc = EnDntNomal_SetupStageDance;
             this->actor.speedXZ = 0.0f;
             return;
         }
-        Math_SmoothStepToS(&this->actor.shape.rot.y, Math_FAtan2F(dx, dz) * (0x8000 / M_PI), 1, 0xBB8, 0);
+        OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, OoT_Math_FAtan2F(dx, dz) * (0x8000 / M_PI), 1, 0xBB8, 0);
         this->actor.world.rot.y = this->actor.shape.rot.y;
     } else {
         if (this->timer1 == 1) {
-            this->timer3 = (s16)Rand_ZeroFloat(20.0f) + 20.0f;
+            this->timer3 = (s16)OoT_Rand_ZeroFloat(20.0f) + 20.0f;
         }
-        Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 0x14, 0x1388, 0);
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 3, 0x1388, 0);
+        OoT_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 0x14, 0x1388, 0);
+        OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 3, 0x1388, 0);
     }
     if (this->timer5 == 0) {
         this->timer5 = 20;
@@ -557,19 +557,19 @@ void EnDntNomal_StageCelebrate(EnDntNomal* this, PlayState* play) {
 }
 
 void EnDntNomal_SetupStageDance(EnDntNomal* this, PlayState* play) {
-    this->endFrame = (f32)Animation_GetLastFrame(&gDntStageDanceAnim);
-    Animation_Change(&this->skelAnime, &gDntStageDanceAnim, 1.0f, 0.0f, this->endFrame, ANIMMODE_LOOP, -10.0f);
+    this->endFrame = (f32)OoT_Animation_GetLastFrame(&gDntStageDanceAnim);
+    OoT_Animation_Change(&this->skelAnime, &gDntStageDanceAnim, 1.0f, 0.0f, this->endFrame, ANIMMODE_LOOP, -10.0f);
     this->isSolid = true;
-    this->timer3 = (s16)Rand_ZeroFloat(20.0f) + 20.0f;
+    this->timer3 = (s16)OoT_Rand_ZeroFloat(20.0f) + 20.0f;
     this->rotDirection = -1;
-    if (Rand_ZeroFloat(1.99f) < 1.0f) {
+    if (OoT_Rand_ZeroFloat(1.99f) < 1.0f) {
         this->rotDirection = 1;
     }
     this->actionFunc = EnDntNomal_StageDance;
 }
 
 void EnDntNomal_StageDance(EnDntNomal* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if (this->timer2 == 0) {
         if (this->action == DNT_ACTION_DANCE) {
             this->action = DNT_ACTION_HIGH_RUPEES;
@@ -579,15 +579,15 @@ void EnDntNomal_StageDance(EnDntNomal* this, PlayState* play) {
             this->actionFunc = EnDntNomal_StageSetupReturn;
         }
     } else if (this->timer3 != 0) {
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 3, 0x1388, 0);
+        OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 3, 0x1388, 0);
         if (this->timer3 == 1) {
-            this->timer4 = (s16)Rand_ZeroFloat(20.0f) + 20.0f;
+            this->timer4 = (s16)OoT_Rand_ZeroFloat(20.0f) + 20.0f;
             this->rotDirection = -this->rotDirection;
         }
     } else if (this->timer4 != 0) {
         this->actor.shape.rot.y += this->rotDirection * 0x800;
         if (this->timer4 == 1) {
-            this->timer3 = (s16)Rand_ZeroFloat(20.0f) + 20.0f;
+            this->timer3 = (s16)OoT_Rand_ZeroFloat(20.0f) + 20.0f;
         }
     }
 }
@@ -598,8 +598,8 @@ void EnDntNomal_SetupStageHide(EnDntNomal* this, PlayState* play) {
             Sfx_PlaySfxCentered(NA_SE_SY_ERROR);
         }
     } else {
-        this->endFrame = (f32)Animation_GetLastFrame(&gDntStageHideAnim);
-        Animation_Change(&this->skelAnime, &gDntStageHideAnim, 1.0f, 0.0f, this->endFrame, ANIMMODE_ONCE, -10.0f);
+        this->endFrame = (f32)OoT_Animation_GetLastFrame(&gDntStageHideAnim);
+        OoT_Animation_Change(&this->skelAnime, &gDntStageHideAnim, 1.0f, 0.0f, this->endFrame, ANIMMODE_ONCE, -10.0f);
         this->isSolid = false;
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_NUTS_DOWN);
         this->actionFunc = EnDntNomal_StageHide;
@@ -611,9 +611,9 @@ void EnDntNomal_StageHide(EnDntNomal* this, PlayState* play) {
     f32 frame = this->skelAnime.curFrame;
     s16 rupeeColor;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if (frame >= this->endFrame) {
-        EffectSsHahen_SpawnBurst(play, &this->actor.world.pos, 4.0f, 0, 10, 3, 15, HAHEN_OBJECT_DEFAULT, 10, NULL);
+        OoT_EffectSsHahen_SpawnBurst(play, &this->actor.world.pos, 4.0f, 0, 10, 3, 15, HAHEN_OBJECT_DEFAULT, 10, NULL);
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_NUTS_UP);
         switch (this->action) {
             case DNT_ACTION_NONE:
@@ -625,12 +625,12 @@ void EnDntNomal_StageHide(EnDntNomal* this, PlayState* play) {
             case DNT_ACTION_LOW_RUPEES:
             case DNT_ACTION_HIGH_RUPEES:
                 rupee =
-                    (EnExRuppy*)Actor_Spawn(&play->actorCtx, play, ACTOR_EN_EX_RUPPY, this->actor.world.pos.x,
+                    (EnExRuppy*)OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_EX_RUPPY, this->actor.world.pos.x,
                                             this->actor.world.pos.y + 20.0f, this->actor.world.pos.z, 0, 0, 0, 3, true);
                 if (rupee != NULL) {
                     rupeeColor = this->action - DNT_ACTION_LOW_RUPEES;
                     rupee->colorIdx = rupeeColor;
-                    if (Rand_ZeroFloat(3.99f) < 1.0f) {
+                    if (OoT_Rand_ZeroFloat(3.99f) < 1.0f) {
                         rupee->colorIdx = rupeeColor + 1;
                     }
                     rupee->actor.velocity.y = 5.0f;
@@ -654,12 +654,12 @@ void EnDntNomal_StageAttackHide(EnDntNomal* this, PlayState* play) {
 
 void EnDntNomal_SetupStageAttack(EnDntNomal* this, PlayState* play) {
     if (this->timer3 == 0) {
-        this->endFrame = (f32)Animation_GetLastFrame(&gDntStageSpitAnim);
-        Animation_Change(&this->skelAnime, &gDntStageSpitAnim, 1.0f, 0.0f, this->endFrame, ANIMMODE_ONCE, -10.0f);
+        this->endFrame = (f32)OoT_Animation_GetLastFrame(&gDntStageSpitAnim);
+        OoT_Animation_Change(&this->skelAnime, &gDntStageSpitAnim, 1.0f, 0.0f, this->endFrame, ANIMMODE_ONCE, -10.0f);
         this->actor.colChkInfo.mass = 0xFF;
         this->isSolid = true;
         this->timer2 = 0;
-        Actor_ChangeCategory(play, &play->actorCtx, &this->actor, ACTORCAT_ENEMY);
+        OoT_Actor_ChangeCategory(play, &play->actorCtx, &this->actor, ACTORCAT_ENEMY);
         this->actionFunc = EnDntNomal_StageAttack;
     }
 }
@@ -672,15 +672,15 @@ void EnDntNomal_StageAttack(EnDntNomal* this, PlayState* play) {
     f32 dx;
     f32 dy;
 
-    SkelAnime_Update(&this->skelAnime);
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 3, 0x1388, 0);
+    OoT_SkelAnime_Update(&this->skelAnime);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 3, 0x1388, 0);
     dx = player->actor.world.pos.x - this->mouthPos.x;
     dy = player->actor.world.pos.y + 30.0f - this->mouthPos.y;
     dz = player->actor.world.pos.z - this->mouthPos.z;
-    Math_SmoothStepToS(&this->actor.shape.rot.x, -(s16)(Math_FAtan2F(dy, sqrtf(SQ(dx) + SQ(dz))) * (0x8000 / M_PI)), 3,
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.x, -(s16)(OoT_Math_FAtan2F(dy, OoT_sqrtf(SQ(dx) + SQ(dz))) * (0x8000 / M_PI)), 3,
                        0x1388, 0);
     if ((frame >= this->endFrame) && (this->timer2 == 0)) {
-        this->timer2 = (s16)Rand_ZeroFloat(10.0f) + 10;
+        this->timer2 = (s16)OoT_Rand_ZeroFloat(10.0f) + 10;
     }
     if (this->timer2 == 1) {
         this->spawnedItem = false;
@@ -700,12 +700,12 @@ void EnDntNomal_StageAttack(EnDntNomal* this, PlayState* play) {
         baseOffset.x = 0.0f;
         baseOffset.y = 0.0f;
         baseOffset.z = 5.0f;
-        Matrix_MultVec3f(&baseOffset, &spawnOffset);
+        OoT_Matrix_MultVec3f(&baseOffset, &spawnOffset);
         spawnX = this->mouthPos.x + spawnOffset.x;
         spawnY = this->mouthPos.y + spawnOffset.y;
         spawnZ = this->mouthPos.z + spawnOffset.z;
 
-        nut = Actor_Spawn(&play->actorCtx, play, ACTOR_EN_NUTSBALL, spawnX, spawnY, spawnZ, this->actor.shape.rot.x,
+        nut = OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_NUTSBALL, spawnX, spawnY, spawnZ, this->actor.shape.rot.x,
                           this->actor.shape.rot.y, this->actor.shape.rot.z, 4, true);
         if (nut != NULL) {
             nut->velocity.y = spawnOffset.y * 0.5f;
@@ -716,8 +716,8 @@ void EnDntNomal_StageAttack(EnDntNomal* this, PlayState* play) {
 }
 
 void EnDntNomal_StageSetupReturn(EnDntNomal* this, PlayState* play) {
-    this->endFrame = (f32)Animation_GetLastFrame(&gDntStageWalkAnim);
-    Animation_Change(&this->skelAnime, &gDntStageWalkAnim, 1.5f, 0.0f, this->endFrame, ANIMMODE_LOOP, -10.0f);
+    this->endFrame = (f32)OoT_Animation_GetLastFrame(&gDntStageWalkAnim);
+    OoT_Animation_Change(&this->skelAnime, &gDntStageWalkAnim, 1.5f, 0.0f, this->endFrame, ANIMMODE_LOOP, -10.0f);
     this->actor.speedXZ = 4.0f;
     this->isSolid = false;
     this->actionFunc = EnDntNomal_StageReturn;
@@ -727,10 +727,10 @@ void EnDntNomal_StageReturn(EnDntNomal* this, PlayState* play) {
     f32 sp2C;
     f32 sp28;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     sp2C = this->flowerPos.x - this->actor.world.pos.x;
     sp28 = this->flowerPos.z - this->actor.world.pos.z;
-    Math_SmoothStepToS(&this->actor.shape.rot.y, Math_FAtan2F(sp2C, sp28) * (0x8000 / M_PI), 1, 0xBB8, 0);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, OoT_Math_FAtan2F(sp2C, sp28) * (0x8000 / M_PI), 1, 0xBB8, 0);
     if (this->timer5 == 0) {
         this->timer5 = 10;
     } else if (!(this->timer5 & 1)) {
@@ -783,7 +783,7 @@ void EnDntNomal_Update(Actor* thisx, PlayState* play) {
             case DNT_SIGNAL_CELEBRATE:
                 this->action = DNT_ACTION_NONE;
                 this->actor.colChkInfo.mass = 0;
-                this->timer3 = (s16)Rand_ZeroFloat(3.0f) + (s16)(this->type * 0.5f);
+                this->timer3 = (s16)OoT_Rand_ZeroFloat(3.0f) + (s16)(this->type * 0.5f);
                 this->actionFunc = EnDntNomal_SetupStageUnburrow;
                 break;
             case DNT_SIGNAL_DANCE:
@@ -810,20 +810,20 @@ void EnDntNomal_Update(Actor* thisx, PlayState* play) {
         this->eyeState++;
         if (this->eyeState >= 3) {
             this->eyeState = 0;
-            this->blinkTimer = (s16)Rand_ZeroFloat(60.0f) + 20;
+            this->blinkTimer = (s16)OoT_Rand_ZeroFloat(60.0f) + 20;
         }
     }
     this->actionFunc(this, play);
     Actor_MoveXZGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 60.0f, 0x1D);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 60.0f, 0x1D);
     if (this->type == ENDNTNOMAL_TARGET) {
-        Collider_SetQuadVertices(&this->targetQuad, &this->targetVtx[0], &this->targetVtx[1], &this->targetVtx[2],
+        OoT_Collider_SetQuadVertices(&this->targetQuad, &this->targetVtx[0], &this->targetVtx[1], &this->targetVtx[2],
                                  &this->targetVtx[3]);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->targetQuad.base);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->targetQuad.base);
     } else {
-        Collider_UpdateCylinder(&this->actor, &this->bodyCyl);
+        OoT_Collider_UpdateCylinder(&this->actor, &this->bodyCyl);
         if (this->isSolid) {
-            CollisionCheck_SetOC(play, &play->colChkCtx, &this->bodyCyl.base);
+            OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->bodyCyl.base);
         }
     }
 }
@@ -847,10 +847,10 @@ void EnDntNomal_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s*
 
     if (this->type == ENDNTNOMAL_TARGET) {
         if (limbIndex == 5) {
-            Matrix_MultVec3f(&zeroVec, &this->mouthPos);
+            OoT_Matrix_MultVec3f(&zeroVec, &this->mouthPos);
         }
     } else if (limbIndex == 7) {
-        Matrix_MultVec3f(&zeroVec, &this->mouthPos);
+        OoT_Matrix_MultVec3f(&zeroVec, &this->mouthPos);
     }
 }
 
@@ -864,8 +864,8 @@ void EnDntNomal_DrawStageScrub(Actor* thisx, PlayState* play) {
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(blinkTex[this->eyeState]));
     SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, EnDntNomal_OverrideLimbDraw, EnDntNomal_PostLimbDraw, this);
-    Matrix_Translate(this->flowerPos.x, this->flowerPos.y, this->flowerPos.z, MTXMODE_NEW);
-    Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(this->flowerPos.x, this->flowerPos.y, this->flowerPos.z, MTXMODE_NEW);
+    OoT_Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
     gDPPipeSync(POLY_OPA_DISP++);
     gDPSetEnvColor(POLY_OPA_DISP++, sLeafColors[this->type - ENDNTNOMAL_STAGE].r,
                    sLeafColors[this->type - ENDNTNOMAL_STAGE].g, sLeafColors[this->type - ENDNTNOMAL_STAGE].b, 255);
@@ -883,8 +883,8 @@ void EnDntNomal_DrawTargetScrub(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, NULL, EnDntNomal_PostLimbDraw, this);
-    Matrix_Translate(this->flowerPos.x, this->flowerPos.y, this->flowerPos.z, MTXMODE_NEW);
-    Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(this->flowerPos.x, this->flowerPos.y, this->flowerPos.z, MTXMODE_NEW);
+    OoT_Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_OPA_DISP++, gHintNutsFlowerDL);
     CLOSE_DISPS(play->state.gfxCtx);

@@ -40,7 +40,7 @@ const ActorInit Bg_Ganon_Otyuka_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 1000, ICHAIN_STOP),
 };
 
@@ -53,9 +53,9 @@ static Vec3f D_80876A68[] = {
     { 0.0f, 0.0f, -120.0f },
 };
 
-static Color_RGBA8 sDustPrimColor = { 60, 60, 0, 0 };
+static Color_RGBA8 OoT_sDustPrimColor = { 60, 60, 0, 0 };
 
-static Color_RGBA8 sDustEnvColor = { 50, 20, 0, 0 };
+static Color_RGBA8 OoT_sDustEnvColor = { 50, 20, 0, 0 };
 
 static Vec3f sSideCenters[] = {
     { 60.0f, 0.0f, 0.0f },
@@ -73,10 +73,10 @@ void BgGanonOtyuka_Init(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     CollisionHeader* colHeader = NULL;
 
-    Actor_ProcessInitChain(thisx, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DPM_UNK);
-    CollisionHeader_GetVirtual(&sCol, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
+    OoT_Actor_ProcessInitChain(thisx, OoT_sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
+    OoT_CollisionHeader_GetVirtual(&sCol, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
 
     if (thisx->params != 0x23) {
         thisx->draw = NULL;
@@ -90,7 +90,7 @@ void BgGanonOtyuka_Destroy(Actor* thisx, PlayState* play2) {
     BgGanonOtyuka* this = (BgGanonOtyuka*)thisx;
     PlayState* play = play2;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 
     osSyncPrintf(VT_FGCOL(GREEN));
     osSyncPrintf("WHY !!!!!!!!!!!!!!!!\n");
@@ -139,7 +139,7 @@ void BgGanonOtyuka_WaitToFall(BgGanonOtyuka* this, PlayState* play) {
             center.x = this->dyna.actor.world.pos.x + D_80876A68[i].x;
             center.y = this->dyna.actor.world.pos.y;
             center.z = this->dyna.actor.world.pos.z + D_80876A68[i].z;
-            if (BgCheck_SphVsFirstPoly(&play->colCtx, &center, 50.0f)) {
+            if (OoT_BgCheck_SphVsFirstPoly(&play->colCtx, &center, 50.0f)) {
                 this->unwalledSides |= sSides[i];
             }
         }
@@ -169,25 +169,25 @@ void BgGanonOtyuka_Fall(BgGanonOtyuka* this, PlayState* play) {
 
     osSyncPrintf("MODE DOWN\n");
     if (this->flashState == FLASH_GROW) {
-        Math_ApproachF(&this->flashPrimColorB, 170.0f, 1.0f, 8.5f);
-        Math_ApproachF(&this->flashEnvColorR, 120.0f, 1.0f, 13.5f);
-        Math_ApproachF(&this->flashYScale, 2.5f, 1.0f, 0.25f);
+        OoT_Math_ApproachF(&this->flashPrimColorB, 170.0f, 1.0f, 8.5f);
+        OoT_Math_ApproachF(&this->flashEnvColorR, 120.0f, 1.0f, 13.5f);
+        OoT_Math_ApproachF(&this->flashYScale, 2.5f, 1.0f, 0.25f);
         if (this->flashYScale == 2.5f) {
             this->flashState = FLASH_SHRINK;
         }
     } else if (this->flashState == FLASH_SHRINK) {
-        Math_ApproachF(&this->flashPrimColorG, 0.0f, 1.0f, 25.5f);
-        Math_ApproachF(&this->flashEnvColorR, 0.0f, 1.0f, 12.0f);
-        Math_ApproachF(&this->flashEnvColorG, 0.0f, 1.0f, 25.5f);
-        Math_ApproachZeroF(&this->flashYScale, 1.0f, 0.25f);
+        OoT_Math_ApproachF(&this->flashPrimColorG, 0.0f, 1.0f, 25.5f);
+        OoT_Math_ApproachF(&this->flashEnvColorR, 0.0f, 1.0f, 12.0f);
+        OoT_Math_ApproachF(&this->flashEnvColorG, 0.0f, 1.0f, 25.5f);
+        OoT_Math_ApproachZeroF(&this->flashYScale, 1.0f, 0.25f);
         if (this->flashYScale == 0.0f) {
             this->flashState = FLASH_NONE;
         }
     }
     if (this->dropTimer == 0) {
         this->flashYScale = 0.0f;
-        Math_ApproachF(&this->dyna.actor.world.pos.y, -1000.0f, 1.0f, this->dyna.actor.speedXZ);
-        Math_ApproachF(&this->dyna.actor.speedXZ, 100.0f, 1.0f, 2.0f);
+        OoT_Math_ApproachF(&this->dyna.actor.world.pos.y, -1000.0f, 1.0f, this->dyna.actor.speedXZ);
+        OoT_Math_ApproachF(&this->dyna.actor.speedXZ, 100.0f, 1.0f, 2.0f);
         if (!(this->unwalledSides & OTYUKA_SIDE_EAST)) {
             this->dyna.actor.shape.rot.z -= (s16)(this->dyna.actor.speedXZ * 30.0f);
         }
@@ -207,28 +207,28 @@ void BgGanonOtyuka_Fall(BgGanonOtyuka* this, PlayState* play) {
                 velocity.x = velocity.y = velocity.z = 0.0f;
 
                 for (i = 0; i < 30; i++) {
-                    pos.x = Rand_CenteredFloat(150.0f) + this->dyna.actor.world.pos.x;
-                    pos.y = Rand_ZeroFloat(60.0f) + -750.0f;
-                    pos.z = Rand_CenteredFloat(150.0f) + this->dyna.actor.world.pos.z;
-                    func_8002836C(play, &pos, &velocity, &accel, &sDustPrimColor, &sDustEnvColor,
-                                  (s16)Rand_ZeroFloat(100.0f) + 250, 5, (s16)Rand_ZeroFloat(5.0f) + 15);
+                    pos.x = OoT_Rand_CenteredFloat(150.0f) + this->dyna.actor.world.pos.x;
+                    pos.y = OoT_Rand_ZeroFloat(60.0f) + -750.0f;
+                    pos.z = OoT_Rand_CenteredFloat(150.0f) + this->dyna.actor.world.pos.z;
+                    func_8002836C(play, &pos, &velocity, &accel, &OoT_sDustPrimColor, &OoT_sDustEnvColor,
+                                  (s16)OoT_Rand_ZeroFloat(100.0f) + 250, 5, (s16)OoT_Rand_ZeroFloat(5.0f) + 15);
                 }
 
                 func_80033DB8(play, 10, 15);
-                SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 40, NA_SE_EV_BOX_BREAK);
+                OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 40, NA_SE_EV_BOX_BREAK);
             }
-            Actor_Kill(&this->dyna.actor);
+            OoT_Actor_Kill(&this->dyna.actor);
         }
     } else {
         if (this->dropTimer == 1) {
             Audio_PlaySoundGeneral(NA_SE_EV_STONEDOOR_STOP, &this->dyna.actor.projectedPos, 4,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         } else {
             Audio_PlaySoundGeneral(NA_SE_EV_BLOCKSINK - SFX_FLAG, &this->dyna.actor.projectedPos, 4,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         }
-        Math_ApproachF(&this->dyna.actor.world.pos.y, -1000.0f, 1.0f, this->dyna.actor.speedXZ);
-        Math_ApproachF(&this->dyna.actor.speedXZ, 100.0f, 1.0f, 0.1f);
+        OoT_Math_ApproachF(&this->dyna.actor.world.pos.y, -1000.0f, 1.0f, this->dyna.actor.speedXZ);
+        OoT_Math_ApproachF(&this->dyna.actor.speedXZ, 100.0f, 1.0f, 0.1f);
     }
     osSyncPrintf("MODE DOWN END\n");
 }
@@ -251,7 +251,7 @@ void BgGanonOtyuka_Draw(Actor* thisx, PlayState* play) {
     s16 i;
     Gfx* phi_s2;
     Gfx* phi_s1;
-    Camera* camera = Play_GetCamera(play, 0);
+    Camera* camera = OoT_Play_GetCamera(play, 0);
     Actor* actor;
     BgGanonOtyuka* platform;
     BossGanon* ganondorf;
@@ -291,7 +291,7 @@ void BgGanonOtyuka_Draw(Actor* thisx, PlayState* play) {
                 } else {
                     phi_s2 = sPlatformBottomDL;
                 }
-                Matrix_Translate(platform->dyna.actor.world.pos.x, platform->dyna.actor.world.pos.y,
+                OoT_Matrix_Translate(platform->dyna.actor.world.pos.x, platform->dyna.actor.world.pos.y,
                                  platform->dyna.actor.world.pos.z, MTXMODE_NEW);
                 phi_s1 = NULL;
                 if (platform->isFalling) {
@@ -313,13 +313,13 @@ void BgGanonOtyuka_Draw(Actor* thisx, PlayState* play) {
 
                 for (i = 0; i < ARRAY_COUNT(sSides); i++) {
                     if ((platform->visibleSides & sSides[i]) || 1) { // || 1 for frame interpolation
-                        Matrix_Push();
-                        Matrix_Translate(sSideCenters[i].x, 0.0f, sSideCenters[i].z, MTXMODE_APPLY);
+                        OoT_Matrix_Push();
+                        OoT_Matrix_Translate(sSideCenters[i].x, 0.0f, sSideCenters[i].z, MTXMODE_APPLY);
                         Matrix_RotateY(sSideAngles[i], MTXMODE_APPLY);
                         gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx),
                                   G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
                         gSPDisplayList(POLY_OPA_DISP++, sPlatformSideDL);
-                        Matrix_Pop();
+                        OoT_Matrix_Pop();
                     }
                 }
                 FrameInterpolation_RecordCloseChild();
@@ -338,25 +338,25 @@ void BgGanonOtyuka_Draw(Actor* thisx, PlayState* play) {
             if ((platform->dyna.actor.projectedPos.z > -30.0f) && (platform->flashState != FLASH_NONE)) {
                 FrameInterpolation_RecordOpenChild(platform, 0);
                 gSPSegment(POLY_XLU_DISP++, 0x08,
-                           Gfx_TwoTexScroll(play->state.gfxCtx, 0, platform->flashTimer * 4, 0, 32, 64, 1,
+                           OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, platform->flashTimer * 4, 0, 32, 64, 1,
                                             platform->flashTimer * 4, 0, 32, 64));
                 gDPPipeSync(POLY_XLU_DISP++);
                 gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, platform->flashPrimColorR, platform->flashPrimColorG,
                                 platform->flashPrimColorB, 0);
                 gDPSetEnvColor(POLY_XLU_DISP++, platform->flashEnvColorR, platform->flashEnvColorG,
                                platform->flashEnvColorB, 128);
-                Matrix_Translate(platform->dyna.actor.world.pos.x, 0.0f, platform->dyna.actor.world.pos.z, MTXMODE_NEW);
+                OoT_Matrix_Translate(platform->dyna.actor.world.pos.x, 0.0f, platform->dyna.actor.world.pos.z, MTXMODE_NEW);
 
                 for (i = 0; i < ARRAY_COUNT(sSides); i++) {
                     if ((platform->unwalledSides & sSides[i]) || 1) { // || 1 for frame interpolation
-                        Matrix_Push();
-                        Matrix_Translate(sSideCenters[i].x, 0.0f, sSideCenters[i].z, MTXMODE_APPLY);
+                        OoT_Matrix_Push();
+                        OoT_Matrix_Translate(sSideCenters[i].x, 0.0f, sSideCenters[i].z, MTXMODE_APPLY);
                         Matrix_RotateY(sSideAngles[i], MTXMODE_APPLY);
-                        Matrix_Scale(0.3f, platform->flashYScale * 0.3f, 0.3f, MTXMODE_APPLY);
+                        OoT_Matrix_Scale(0.3f, platform->flashYScale * 0.3f, 0.3f, MTXMODE_APPLY);
                         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx),
                                   G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
                         gSPDisplayList(POLY_XLU_DISP++, sFlashDL);
-                        Matrix_Pop();
+                        OoT_Matrix_Pop();
                     }
                 }
                 FrameInterpolation_RecordCloseChild();

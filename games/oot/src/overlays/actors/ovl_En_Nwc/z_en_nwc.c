@@ -10,10 +10,10 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED)
 
-void EnNwc_Init(Actor* thisx, PlayState* play);
-void EnNwc_Destroy(Actor* thisx, PlayState* play);
-void EnNwc_Update(Actor* thisx, PlayState* play);
-void EnNwc_Draw(Actor* thisx, PlayState* play);
+void OoT_EnNwc_Init(Actor* thisx, PlayState* play);
+void OoT_EnNwc_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnNwc_Update(Actor* thisx, PlayState* play);
+void OoT_EnNwc_Draw(Actor* thisx, PlayState* play);
 
 void EnNwc_SetUpdate(EnNwc* this, EnNwcUpdateFunc updateFunc);
 void EnNwc_ChickNoop(EnNwcChick* chick, EnNwc* this, PlayState* play);
@@ -37,10 +37,10 @@ const ActorInit En_Nwc_InitVars = {
     FLAGS,
     OBJECT_NWC,
     sizeof(EnNwc),
-    (ActorFunc)EnNwc_Init,
-    (ActorFunc)EnNwc_Destroy,
-    (ActorFunc)EnNwc_Update,
-    (ActorFunc)EnNwc_Draw,
+    (ActorFunc)OoT_EnNwc_Init,
+    (ActorFunc)OoT_EnNwc_Destroy,
+    (ActorFunc)OoT_EnNwc_Update,
+    (ActorFunc)OoT_EnNwc_Draw,
     NULL,
 };
 
@@ -56,7 +56,7 @@ static ColliderJntSphElementInit sJntSphElementInit = {
     { 0, { { 0, 0, 0 }, 10 }, 100 },
 };
 
-static ColliderJntSphInitType1 sJntSphInit = {
+static ColliderJntSphInitType1 OoT_sJntSphInit = {
     {
         COLTYPE_HIT3,
         AT_NONE,
@@ -85,14 +85,14 @@ void EnNwc_ChickBgCheck(EnNwcChick* chick, PlayState* play) {
     outPos.x = chick->pos.x;
     outPos.y = chick->pos.y;
     outPos.z = chick->pos.z;
-    if (BgCheck_EntitySphVsWall1(&play->colCtx, &outPos, &chick->pos, &chick->lastPos, 10.0f, &chick->floorPoly,
+    if (OoT_BgCheck_EntitySphVsWall1(&play->colCtx, &outPos, &chick->pos, &chick->lastPos, 10.0f, &chick->floorPoly,
                                  20.0f)) {
         chick->bgFlags |= CHICK_BG_WALL;
     }
     //! @bug The use of outPos here is totally wrong. Even if it didn't get overwritten
     //       by the wall check, it should add an offset to the y-value so the raycast
     //       doesn't go through the floor and cause the chicks to ignore all floors.
-    chick->floorY = BgCheck_EntityRaycastFloor3(&play->colCtx, &outPoly, &bgId, &outPos);
+    chick->floorY = OoT_BgCheck_EntityRaycastFloor3(&play->colCtx, &outPoly, &bgId, &outPos);
     dy = chick->floorY - chick->pos.y;
     if ((0.0f <= dy) && (dy < 40.0f)) {
         chick->pos.y = chick->floorY;
@@ -120,7 +120,7 @@ void EnNwc_UpdateChicks(EnNwc* this, PlayState* play) {
 
     prevChickPos.y = 99999.9f;
     for (i = 0; i < this->count; i++, prevChickPos = chick->pos, chick++, element++) {
-        Math_Vec3f_Copy(&chick->lastPos, &chick->pos);
+        OoT_Math_Vec3f_Copy(&chick->lastPos, &chick->pos);
 
         chickActionFuncs[chick->type](chick, this, play);
 
@@ -136,8 +136,8 @@ void EnNwc_UpdateChicks(EnNwc* this, PlayState* play) {
             test = SQ(dx) + SQ(dz);
             if (test < SQ(10.0f)) {
                 if (test != 0.0f) {
-                    chick->pos.x += dx / sqrtf(test);
-                    chick->pos.z += dz / sqrtf(test);
+                    chick->pos.x += dx / OoT_sqrtf(test);
+                    chick->pos.z += dz / OoT_sqrtf(test);
                 } else {
                     chick->pos.x += 1.0f;
                     chick->pos.z += 1.0f;
@@ -172,8 +172,8 @@ void EnNwc_DrawChicks(EnNwc* this, PlayState* play) {
             Mtx* mtx;
 
             FrameInterpolation_RecordOpenChild(chick, chick->epoch);
-            Matrix_SetTranslateRotateYXZ(chick->pos.x, chick->pos.y + chick->height, chick->pos.z, &chick->rot);
-            Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
+            OoT_Matrix_SetTranslateRotateYXZ(chick->pos.x, chick->pos.y + chick->height, chick->pos.z, &chick->rot);
+            OoT_Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
             mtx = MATRIX_NEWMTX(play->state.gfxCtx);
             gDPSetEnvColor(dList1++, 0, 100, 255, 255);
             gSPMatrix(dList1++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -195,9 +195,9 @@ void EnNwc_DrawChicks(EnNwc* this, PlayState* play) {
         if ((chick->type != CHICK_NONE) && (chick->floorPoly != NULL)) {
             FrameInterpolation_RecordOpenChild(chick, chick->epoch * 25);
             func_80038A28(chick->floorPoly, chick->pos.x, chick->floorY, chick->pos.z, &floorMat);
-            Matrix_Put(&floorMat);
+            OoT_Matrix_Put(&floorMat);
             Matrix_RotateY(chick->rot.y * (M_PI / 0x8000), MTXMODE_APPLY);
-            Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
+            OoT_Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(POLY_XLU_DISP++, gCuccoChickShadowDL);
             FrameInterpolation_RecordCloseChild();
@@ -206,7 +206,7 @@ void EnNwc_DrawChicks(EnNwc* this, PlayState* play) {
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void EnNwc_Init(Actor* thisx, PlayState* play) {
+void OoT_EnNwc_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     EnNwc* this = (EnNwc*)thisx;
     ColliderJntSphElementInit elementInits[16];
@@ -214,46 +214,46 @@ void EnNwc_Init(Actor* thisx, PlayState* play) {
     EnNwcChick* chick;
     s32 i;
 
-    element = sJntSphInit.elements = elementInits;
+    element = OoT_sJntSphInit.elements = elementInits;
     for (i = 0; i < 16; i++, element++) {
         *element = sJntSphElementInit;
     }
 
-    Collider_InitJntSph(play, &this->collider);
-    Collider_SetJntSphAllocType1(play, &this->collider, &this->actor, &sJntSphInit);
+    OoT_Collider_InitJntSph(play, &this->collider);
+    OoT_Collider_SetJntSphAllocType1(play, &this->collider, &this->actor, &OoT_sJntSphInit);
     this->count = 16;
     chick = this->chicks;
     for (i = 0; i < this->count; i++, chick++) {
         chick->epoch++;
         chick->type = CHICK_NORMAL;
-        chick->pos.x = thisx->world.pos.x + ((Rand_ZeroOne() * 100.0f) - 50.0f);
+        chick->pos.x = thisx->world.pos.x + ((OoT_Rand_ZeroOne() * 100.0f) - 50.0f);
         chick->pos.y = thisx->world.pos.y + 20.0f;
-        chick->pos.z = thisx->world.pos.z + ((Rand_ZeroOne() * 100.0f) - 50.0f);
+        chick->pos.z = thisx->world.pos.z + ((OoT_Rand_ZeroOne() * 100.0f) - 50.0f);
         chick->height = 5;
     }
     EnNwc_SetUpdate(this, EnNwc_Idle);
 }
 
-void EnNwc_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnNwc_Destroy(Actor* thisx, PlayState* play) {
     s32 pad;
     EnNwc* this = (EnNwc*)thisx;
 
-    Collider_FreeJntSph(play, &this->collider);
+    OoT_Collider_FreeJntSph(play, &this->collider);
 }
 
 void EnNwc_Idle(EnNwc* this, PlayState* play) {
     EnNwc_UpdateChicks(this, play);
 }
 
-void EnNwc_Update(Actor* thisx, PlayState* play) {
+void OoT_EnNwc_Update(Actor* thisx, PlayState* play) {
     s32 pad;
     EnNwc* this = (EnNwc*)thisx;
 
     this->updateFunc(this, play);
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
 }
 
-void EnNwc_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnNwc_Draw(Actor* thisx, PlayState* play) {
     s32 pad;
     EnNwc* this = (EnNwc*)thisx;
 

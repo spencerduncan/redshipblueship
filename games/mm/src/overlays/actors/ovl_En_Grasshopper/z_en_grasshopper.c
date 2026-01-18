@@ -173,7 +173,7 @@ typedef enum {
     /* 0xF */ DRAGONFLY_DMGEFF_NONE        // Deals regular damage with no extra effect
 } EnDragonflyDamageEffect;
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(1, DRAGONFLY_DMGEFF_NONE),
     /* Deku Stick     */ DMG_ENTRY(1, DRAGONFLY_DMGEFF_NONE),
     /* Horse trample  */ DMG_ENTRY(0, DRAGONFLY_DMGEFF_IMMUNE),
@@ -220,7 +220,7 @@ ActorProfile En_Grasshopper_Profile = {
     /**/ EnGrasshopper_Draw,
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[2] = {
+static ColliderJntSphElementInit MM_sJntSphElementsInit[2] = {
     {
         {
             ELEM_MATERIAL_UNK3,
@@ -245,7 +245,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[2] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit MM_sJntSphInit = {
     {
         COL_MATERIAL_HIT2,
         AT_ON | AT_TYPE_ENEMY,
@@ -254,8 +254,8 @@ static ColliderJntSphInit sJntSphInit = {
         OC2_TYPE_1,
         COLSHAPE_JNTSPH,
     },
-    ARRAY_COUNT(sJntSphElementsInit),
-    sJntSphElementsInit,
+    ARRAY_COUNT(MM_sJntSphElementsInit),
+    MM_sJntSphElementsInit,
 };
 
 void EnGrasshopper_Init(Actor* thisx, PlayState* play) {
@@ -267,7 +267,7 @@ void EnGrasshopper_Init(Actor* thisx, PlayState* play) {
     this->actor.colChkInfo.mass = 60;
     this->actor.colChkInfo.health = 2;
 
-    Collider_InitAndSetJntSph(play, &this->collider, &this->actor, &sJntSphInit, this->colliderElements);
+    Collider_InitAndSetJntSph(play, &this->collider, &this->actor, &MM_sJntSphInit, this->colliderElements);
     this->collider.elements[0].dim.modelSphere.radius = 1;
     this->collider.elements[0].dim.scale = 22.0f;
     this->collider.elements[1].dim.modelSphere.radius = 1;
@@ -278,9 +278,9 @@ void EnGrasshopper_Init(Actor* thisx, PlayState* play) {
             this->collider.elements[1].dim.modelSphere.center.z = 0;
 
     this->actor.flags |= ACTOR_FLAG_HOOKSHOT_PULLS_ACTOR;
-    ActorShape_Init(&this->actor.shape, 0.0f, NULL, 1.0f);
-    this->actor.colChkInfo.damageTable = &sDamageTable;
-    Math_Vec3f_Copy(&this->flyingHomePos, &this->actor.home.pos);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, NULL, 1.0f);
+    this->actor.colChkInfo.damageTable = &MM_sDamageTable;
+    MM_Math_Vec3f_Copy(&this->flyingHomePos, &this->actor.home.pos);
     this->action = DRAGONFLY_ACTION_FLY;
     this->index = -1;
 
@@ -294,10 +294,10 @@ void EnGrasshopper_Init(Actor* thisx, PlayState* play) {
 
     // Deciding a random index like this if all indices are occupied causes a bug in EnGrasshopper_Destroy.
     if (this->index < 0) {
-        this->index = Rand_ZeroFloat(4.99f);
+        this->index = MM_Rand_ZeroFloat(4.99f);
     }
 
-    SkelAnime_Init(play, &this->skelAnime, &gDragonflySkel, &gDragonflyFlyAnim, this->jointTable, this->morphTable,
+    MM_SkelAnime_Init(play, &this->skelAnime, &gDragonflySkel, &gDragonflyFlyAnim, this->jointTable, this->morphTable,
                    DRAGONFLY_LIMB_MAX);
     this->type = DRAGONFLY_GET_TYPE(&this->actor);
     if (this->type < DRAGONFLY_TYPE_UNUSED_NORMAL) {
@@ -308,23 +308,23 @@ void EnGrasshopper_Init(Actor* thisx, PlayState* play) {
         this->dragonflyScale = 0.01f;
     } else {
         this->dragonflyScale = 0.0f;
-        Actor_SetScale(&this->actor, 0.0f);
+        MM_Actor_SetScale(&this->actor, 0.0f);
         this->actor.world.rot.y = this->actor.yawTowardsPlayer;
         this->actor.shape.rot.y = this->actor.yawTowardsPlayer;
-        Math_Vec3f_Copy(&this->flyingHomePos, &this->actor.world.pos);
+        MM_Math_Vec3f_Copy(&this->flyingHomePos, &this->actor.world.pos);
         this->flyingHomePos.y += 90.0f;
         this->collider.elements[0].dim.modelSphere.radius = this->collider.elements[1].dim.modelSphere.radius =
             this->type;
     }
 
-    this->baseFlyHeight = Rand_CenteredFloat(50.0f) + this->flyingHomePos.y;
+    this->baseFlyHeight = MM_Rand_CenteredFloat(50.0f) + this->flyingHomePos.y;
     EnGrasshopper_SetupFly(this);
 }
 
 void EnGrasshopper_Destroy(Actor* thisx, PlayState* play) {
     EnGrasshopper* this = (EnGrasshopper*)thisx;
 
-    Collider_DestroyJntSph(play, &this->collider);
+    MM_Collider_DestroyJntSph(play, &this->collider);
 
     //! @bug If the dragonfly selected a random index in EnGrasshopper_Init (because all indices were occupied),
     //! then two dragonflies will have the same index. When one of those dragonflies sharing an index is destroyed,
@@ -332,7 +332,7 @@ void EnGrasshopper_Destroy(Actor* thisx, PlayState* play) {
     sOccupiedIndices[this->index] = false;
 }
 
-static AnimationHeader* sAnimations[DRAGONFLY_ANIM_MAX] = {
+static AnimationHeader* MM_sAnimations[DRAGONFLY_ANIM_MAX] = {
     &gDragonflyRaiseTailAnim, // DRAGONFLY_ANIM_RAISE_TAIL
     &gDragonflyLowerTailAnim, // DRAGONFLY_ANIM_LOWER_TAIL
     &gDragonflyFlyAnim,       // DRAGONFLY_ANIM_FLY
@@ -343,7 +343,7 @@ static AnimationHeader* sAnimations[DRAGONFLY_ANIM_MAX] = {
     &gDragonflyFallAnim,      // DRAGONFLY_ANIM_FALL
 };
 
-static u8 sAnimationModes[DRAGONFLY_ANIM_MAX] = {
+static u8 MM_sAnimationModes[DRAGONFLY_ANIM_MAX] = {
     ANIMMODE_ONCE, // DRAGONFLY_ANIM_RAISE_TAIL
     ANIMMODE_ONCE, // DRAGONFLY_ANIM_LOWER_TAIL
     ANIMMODE_LOOP, // DRAGONFLY_ANIM_FLY
@@ -357,15 +357,15 @@ static u8 sAnimationModes[DRAGONFLY_ANIM_MAX] = {
 void EnGrasshopper_ChangeAnim(EnGrasshopper* this, s32 animIndex) {
     f32 morphFrames;
 
-    this->animEndFrame = Animation_GetLastFrame(sAnimations[animIndex]);
+    this->animEndFrame = MM_Animation_GetLastFrame(MM_sAnimations[animIndex]);
     morphFrames = 0.0f;
     if ((animIndex == DRAGONFLY_ANIM_ATTACK) || (animIndex == DRAGONFLY_ANIM_HOVER) ||
         (animIndex == DRAGONFLY_ANIM_DAMAGE)) {
         morphFrames = -3.0f;
     }
 
-    Animation_Change(&this->skelAnime, sAnimations[animIndex], 1.0f, 0.0f, this->animEndFrame,
-                     sAnimationModes[animIndex], morphFrames);
+    MM_Animation_Change(&this->skelAnime, MM_sAnimations[animIndex], 1.0f, 0.0f, this->animEndFrame,
+                     MM_sAnimationModes[animIndex], morphFrames);
 }
 
 void EnGrasshopper_RaiseTail(EnGrasshopper* this) {
@@ -392,11 +392,11 @@ void EnGrasshopper_DecideAction(EnGrasshopper* this, PlayState* play) {
         if (this->decision == DRAGONFLY_DECISION_ATTACK) {
             EnGrasshopper_SetupAttack(this);
         } else {
-            Math_Vec3f_Copy(&this->flyingHomePos, &this->actor.world.pos);
+            MM_Math_Vec3f_Copy(&this->flyingHomePos, &this->actor.world.pos);
             this->flyingHomePos.y = this->actor.floorHeight + 90.0f;
             EnGrasshopper_ChangeAnim(this, DRAGONFLY_ANIM_FLY);
             if (this->decision != DRAGONFLY_DECISION_ROAM_IN_CIRCLES) {
-                if (Player_GetMask(play) == PLAYER_MASK_STONE) {
+                if (MM_Player_GetMask(play) == PLAYER_MASK_STONE) {
                     EnGrasshopper_SetupFly(this);
                 } else {
                     EnGrasshopper_SetupApproachPlayer(this, play);
@@ -414,7 +414,7 @@ void EnGrasshopper_DecideAction(EnGrasshopper* this, PlayState* play) {
 
 void EnGrasshopper_SetupFly(EnGrasshopper* this) {
     EnGrasshopper_ChangeAnim(this, DRAGONFLY_ANIM_FLY);
-    this->baseFlyHeight = Rand_CenteredFloat(50.0f) + this->flyingHomePos.y;
+    this->baseFlyHeight = MM_Rand_CenteredFloat(50.0f) + this->flyingHomePos.y;
     this->action = DRAGONFLY_ACTION_FLY;
     this->actionFunc = EnGrasshopper_Fly;
 }
@@ -430,17 +430,17 @@ void EnGrasshopper_Fly(EnGrasshopper* this, PlayState* play) {
     diffZ = this->flyingHomePos.z - this->actor.world.pos.z;
     if ((this->type != DRAGONFLY_TYPE_WOODFALL_TEMPLE_FINAL_ROOM) && (this->type != DRAGONFLY_TYPE_WOODFALL)) {
         this->bobPhase += 0xAF0;
-        this->targetPosY = (Math_SinS(this->bobPhase) * 10.0f) + this->baseFlyHeight;
-        Math_ApproachF(&this->actor.world.pos.y, this->targetPosY, 0.1f, 10.0f);
-        collisionCheckPos.x = (Math_SinS(this->actor.shape.rot.y) * 100.0f) + this->actor.world.pos.x;
+        this->targetPosY = (MM_Math_SinS(this->bobPhase) * 10.0f) + this->baseFlyHeight;
+        MM_Math_ApproachF(&this->actor.world.pos.y, this->targetPosY, 0.1f, 10.0f);
+        collisionCheckPos.x = (MM_Math_SinS(this->actor.shape.rot.y) * 100.0f) + this->actor.world.pos.x;
         collisionCheckPos.y = this->actor.world.pos.y;
-        collisionCheckPos.z = (Math_CosS(this->actor.shape.rot.y) * 100.0f) + this->actor.world.pos.z;
+        collisionCheckPos.z = (MM_Math_CosS(this->actor.shape.rot.y) * 100.0f) + this->actor.world.pos.z;
 
         if (this->collider.elements[0].base.ocElemFlags & OCELEM_HIT) {
             this->shouldTurn = true;
         }
 
-        if (BgCheck_SphVsFirstPoly(&play->colCtx, &collisionCheckPos, 10.0f)) {
+        if (MM_BgCheck_SphVsFirstPoly(&play->colCtx, &collisionCheckPos, 10.0f)) {
             this->shouldTurn = true;
         } else {
             this->shouldTurn = false;
@@ -448,41 +448,41 @@ void EnGrasshopper_Fly(EnGrasshopper* this, PlayState* play) {
 
         //! @bug Unreachable code. To get here, the type must NOT be DRAGONFLY_TYPE_WOODFALL
         if (this->type == DRAGONFLY_TYPE_WOODFALL) {
-            if (sqrtf(SQ(this->actor.world.pos.x) + SQ(this->actor.world.pos.z)) < 600.0f) {
+            if (MM_sqrtf(SQ(this->actor.world.pos.x) + SQ(this->actor.world.pos.z)) < 600.0f) {
                 this->shouldTurn = true;
             }
         }
 
         if (this->shouldTurn) {
-            this->baseFlyHeight = Rand_CenteredFloat(50.0f) + this->flyingHomePos.y;
-            this->targetRot.y = Math_Atan2S(diffX, diffZ);
-            this->timer = Rand_S16Offset(30, 30);
+            this->baseFlyHeight = MM_Rand_CenteredFloat(50.0f) + this->flyingHomePos.y;
+            this->targetRot.y = MM_Math_Atan2S(diffX, diffZ);
+            this->timer = MM_Rand_S16Offset(30, 30);
         }
     }
 
-    if ((Player_GetMask(play) != PLAYER_MASK_STONE) && !CHECK_EVENTINF(EVENTINF_41) && !this->shouldTurn &&
+    if ((MM_Player_GetMask(play) != PLAYER_MASK_STONE) && !CHECK_EVENTINF(EVENTINF_41) && !this->shouldTurn &&
         (this->actor.xzDistToPlayer < 200.0f)) {
         EnGrasshopper_SetupApproachPlayer(this, play);
     } else {
-        Math_SmoothStepToS(&this->actor.world.rot.z, this->targetRot.z, 5, 0x3E8, 5);
+        MM_Math_SmoothStepToS(&this->actor.world.rot.z, this->targetRot.z, 5, 0x3E8, 5);
         this->targetRot.z *= 0.8f;
         if (this->waitTimer != 0) {
-            Math_ApproachZeroF(&this->actor.speed, 0.2f, 0.5f);
+            MM_Math_ApproachZeroF(&this->actor.speed, 0.2f, 0.5f);
         } else {
             this->targetRot.z = (this->actor.world.rot.y - this->targetRot.y) * 0.2f;
             targetSpeed = (this->index * 0.1f) + 4.0f;
-            Math_ApproachF(&this->actor.speed, targetSpeed, 0.4f, 0.7f);
-            Math_ApproachF(&this->angularVelocity, 2000.0f, 1.0f, 50.0f);
-            Math_SmoothStepToS(&this->actor.world.rot.y, this->targetRot.y, 5, this->angularVelocity, 5);
+            MM_Math_ApproachF(&this->actor.speed, targetSpeed, 0.4f, 0.7f);
+            MM_Math_ApproachF(&this->angularVelocity, 2000.0f, 1.0f, 50.0f);
+            MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->targetRot.y, 5, this->angularVelocity, 5);
             if (this->timer == 0) {
-                if (Rand_ZeroFloat(1.0f) < 0.3f) {
-                    this->waitTimer = Rand_S16Offset(10, 10);
+                if (MM_Rand_ZeroFloat(1.0f) < 0.3f) {
+                    this->waitTimer = MM_Rand_S16Offset(10, 10);
                     this->angularVelocity = 0.0f;
                 }
 
-                this->targetRot.y = Math_Atan2S(diffX, diffZ);
-                this->timer = Rand_S16Offset(30, 70);
-                this->baseFlyHeight = Rand_CenteredFloat(50.0f) + this->flyingHomePos.y;
+                this->targetRot.y = MM_Math_Atan2S(diffX, diffZ);
+                this->timer = MM_Rand_S16Offset(30, 70);
+                this->baseFlyHeight = MM_Rand_CenteredFloat(50.0f) + this->flyingHomePos.y;
             }
         }
     }
@@ -501,27 +501,27 @@ void EnGrasshopper_RoamInCircles(EnGrasshopper* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
     Actor_PlaySfx(&this->actor, NA_SE_EN_BATTA_FLY - SFX_FLAG);
-    if (Player_GetMask(play) == PLAYER_MASK_STONE) {
+    if (MM_Player_GetMask(play) == PLAYER_MASK_STONE) {
         EnGrasshopper_SetupFly(this);
     } else {
         diffX = player->actor.world.pos.x - this->actor.world.pos.x;
         diffZ = player->actor.world.pos.z - this->actor.world.pos.z;
         this->bobPhase += 0xAF0;
         this->targetPosY = player->actor.world.pos.y + 60.0f;
-        this->baseFlyHeight = Math_SinS(this->bobPhase) * 10.0f;
+        this->baseFlyHeight = MM_Math_SinS(this->bobPhase) * 10.0f;
 
         if (this->timer == 0) {
-            this->baseFlyHeight = Rand_CenteredFloat(10.0f);
-            this->timer = Rand_S16Offset(30, 30);
+            this->baseFlyHeight = MM_Rand_CenteredFloat(10.0f);
+            this->timer = MM_Rand_S16Offset(30, 30);
         }
 
-        Math_ApproachF(&this->actor.world.pos.y, this->targetPosY, 0.1f, 10.0f);
-        collisionCheckPos.x = (Math_SinS(this->actor.shape.rot.y) * 100.0f) + this->actor.world.pos.x;
+        MM_Math_ApproachF(&this->actor.world.pos.y, this->targetPosY, 0.1f, 10.0f);
+        collisionCheckPos.x = (MM_Math_SinS(this->actor.shape.rot.y) * 100.0f) + this->actor.world.pos.x;
         collisionCheckPos.y = this->actor.world.pos.y;
-        collisionCheckPos.z = (Math_CosS(this->actor.shape.rot.y) * 100.0f) + this->actor.world.pos.z;
+        collisionCheckPos.z = (MM_Math_CosS(this->actor.shape.rot.y) * 100.0f) + this->actor.world.pos.z;
 
         if ((this->actor.bgCheckFlags & BGCHECKFLAG_WALL) ||
-            BgCheck_SphVsFirstPoly(&play->colCtx, &collisionCheckPos, 10.0f)) {
+            MM_BgCheck_SphVsFirstPoly(&play->colCtx, &collisionCheckPos, 10.0f)) {
             EnGrasshopper_SetupBank(this);
         } else if (player->stateFlags1 & PLAYER_STATE1_8000000) {
             this->collider.elements[0].base.atElemFlags |= (ATELEM_ON | ATELEM_SFX_WOOD);
@@ -531,12 +531,12 @@ void EnGrasshopper_RoamInCircles(EnGrasshopper* this, PlayState* play) {
             EnGrasshopper_SetupBounced(this);
         } else {
             this->targetRot.z = (this->actor.world.rot.y - this->targetRot.y) * 0.2f;
-            Math_SmoothStepToS(&this->actor.world.rot.z, this->targetRot.z, 5, 0x3E8, 5);
+            MM_Math_SmoothStepToS(&this->actor.world.rot.z, this->targetRot.z, 5, 0x3E8, 5);
             rotationSpeed = this->index + 70;
             targetSpeed = (this->index * 0.05f) + 4.0f;
-            this->targetRot.y = Math_Atan2S(diffX, diffZ);
-            Math_ApproachF(&this->actor.speed, targetSpeed, 0.4f, 0.8f);
-            Math_SmoothStepToS(&this->actor.world.rot.y, this->targetRot.y, rotationSpeed, 0xFA0, 0xA);
+            this->targetRot.y = MM_Math_Atan2S(diffX, diffZ);
+            MM_Math_ApproachF(&this->actor.speed, targetSpeed, 0.4f, 0.8f);
+            MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->targetRot.y, rotationSpeed, 0xFA0, 0xA);
         }
     }
 }
@@ -561,8 +561,8 @@ void EnGrasshopper_Bank(EnGrasshopper* this, PlayState* play) {
     Actor_PlaySfx(&this->actor, NA_SE_EN_BATTA_FLY - SFX_FLAG);
     switch (this->bankState) {
         case DRAGONFLY_BANK_STATE_BANKING:
-            Math_SmoothStepToS(&this->actor.world.rot.y, this->targetBankRot.y, 0x64, 0x3E8, 0x3E8);
-            Math_SmoothStepToS(&this->actor.world.rot.z, 0x4000, 0x64, 0x1F40, 0xBB8);
+            MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->targetBankRot.y, 0x64, 0x3E8, 0x3E8);
+            MM_Math_SmoothStepToS(&this->actor.world.rot.z, 0x4000, 0x64, 0x1F40, 0xBB8);
             if (fabsf(this->actor.world.rot.y - (f32)this->targetBankRot.y) < 10.0f) {
                 this->postBankTimer = 100;
                 this->bankState = DRAGONFLY_BANK_STATE_DONE;
@@ -570,7 +570,7 @@ void EnGrasshopper_Bank(EnGrasshopper* this, PlayState* play) {
             break;
 
         case DRAGONFLY_BANK_STATE_DONE:
-            Math_SmoothStepToS(&this->actor.world.rot.z, 0, 0x64, 0x1F40, 0xBB8);
+            MM_Math_SmoothStepToS(&this->actor.world.rot.z, 0, 0x64, 0x1F40, 0xBB8);
             if (this->postBankTimer == 0) {
                 this->timer = 0;
                 this->action = DRAGONFLY_ACTION_ROAM_IN_CIRCLES;
@@ -590,7 +590,7 @@ void EnGrasshopper_Bank(EnGrasshopper* this, PlayState* play) {
  */
 void EnGrasshopper_SetupBounced(EnGrasshopper* this) {
     this->targetRot.y = -this->actor.yawTowardsPlayer;
-    this->timer = Rand_S16Offset(30, 30);
+    this->timer = MM_Rand_S16Offset(30, 30);
     this->targetRot.z = (this->actor.world.rot.y - this->targetRot.y) * 0.2f;
     this->action = DRAGONFLY_ACTION_BOUNCED;
     this->actionFunc = EnGrasshopper_Bounced;
@@ -605,10 +605,10 @@ void EnGrasshopper_Bounced(EnGrasshopper* this, PlayState* play) {
 
     Actor_PlaySfx(&this->actor, NA_SE_EN_BATTA_FLY - SFX_FLAG);
     targetSpeed = (this->index * 0.05f) + 7.0f;
-    Math_ApproachF(&this->actor.speed, targetSpeed, 0.4f, 0.8f);
-    Math_SmoothStepToS(&this->actor.world.rot.z, this->targetRot.z, 5, 0x3E8, 5);
+    MM_Math_ApproachF(&this->actor.speed, targetSpeed, 0.4f, 0.8f);
+    MM_Math_SmoothStepToS(&this->actor.world.rot.z, this->targetRot.z, 5, 0x3E8, 5);
     this->targetRot.z *= 0.8f;
-    Math_SmoothStepToS(&this->actor.world.rot.y, this->targetRot.y, 5, this->angularVelocity, 5);
+    MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->targetRot.y, 5, this->angularVelocity, 5);
     if (this->timer == 0) {
         this->collider.elements[0].base.atElemFlags |= (ATELEM_ON | ATELEM_SFX_WOOD);
         this->timer = 0;
@@ -625,8 +625,8 @@ void EnGrasshopper_SetupApproachPlayer(EnGrasshopper* this, PlayState* play) {
     this->timer = 50;
     this->action = DRAGONFLY_ACTION_APPROACH_PLAYER;
     this->approachSpeed = 0.0f;
-    this->targetApproachPos.x = (Math_SinS(player->actor.shape.rot.y) * 130.0f) + player->actor.world.pos.x;
-    this->targetApproachPos.z = (Math_CosS(player->actor.shape.rot.y) * 130.0f) + player->actor.world.pos.z;
+    this->targetApproachPos.x = (MM_Math_SinS(player->actor.shape.rot.y) * 130.0f) + player->actor.world.pos.x;
+    this->targetApproachPos.z = (MM_Math_CosS(player->actor.shape.rot.y) * 130.0f) + player->actor.world.pos.z;
     this->actionFunc = EnGrasshopper_ApproachPlayer;
 }
 
@@ -640,26 +640,26 @@ void EnGrasshopper_ApproachPlayer(EnGrasshopper* this, PlayState* play) {
 
     Actor_PlaySfx(&this->actor, NA_SE_EN_BATTA_FLY - SFX_FLAG);
     this->bobPhase += 0xAF0;
-    this->targetApproachPos.y = (Math_SinS(this->bobPhase) * 10.0f) + (player->actor.world.pos.y + 120.0f);
+    this->targetApproachPos.y = (MM_Math_SinS(this->bobPhase) * 10.0f) + (player->actor.world.pos.y + 120.0f);
 
-    Math_SmoothStepToS(&this->actor.world.rot.z, 0, 5, 0x3E8, 5);
-    Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.shape.rot.y, 0xA, 0xFA0, 0xA);
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 0xA, 0xFA0, 0xA);
-    Math_ApproachF(&this->actor.world.pos.x, this->targetApproachPos.x, 0.3f, this->approachSpeed);
-    Math_ApproachF(&this->actor.world.pos.y, this->targetApproachPos.y, 0.1f, this->approachSpeed);
-    Math_ApproachF(&this->actor.world.pos.z, this->targetApproachPos.z, 0.3f, this->approachSpeed);
-    Math_ApproachF(&this->approachSpeed, 7.0f, 0.3f, 1.0f);
+    MM_Math_SmoothStepToS(&this->actor.world.rot.z, 0, 5, 0x3E8, 5);
+    MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.shape.rot.y, 0xA, 0xFA0, 0xA);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 0xA, 0xFA0, 0xA);
+    MM_Math_ApproachF(&this->actor.world.pos.x, this->targetApproachPos.x, 0.3f, this->approachSpeed);
+    MM_Math_ApproachF(&this->actor.world.pos.y, this->targetApproachPos.y, 0.1f, this->approachSpeed);
+    MM_Math_ApproachF(&this->actor.world.pos.z, this->targetApproachPos.z, 0.3f, this->approachSpeed);
+    MM_Math_ApproachF(&this->approachSpeed, 7.0f, 0.3f, 1.0f);
 
-    if (WaterBox_GetSurface1(play, &play->colCtx, this->tailTipPos.x, this->tailTipPos.z, &this->waterSurface,
+    if (MM_WaterBox_GetSurface1(play, &play->colCtx, this->tailTipPos.x, this->tailTipPos.z, &this->waterSurface,
                              &waterBox)) {
         if (this->tailTipPos.y < this->waterSurface) {
             if ((this->splashCount < 3) || !(play->gameplayFrames % 8)) {
                 this->splashCount++;
-                Math_Vec3f_Copy(&splashPos, &this->tailTipPos);
-                splashPos.x += Rand_CenteredFloat(20.0f);
-                splashPos.z += Rand_CenteredFloat(20.0f);
-                EffectSsGSplash_Spawn(play, &splashPos, NULL, NULL, 0, (((s32)Rand_ZeroOne() * 100) + 400));
-                SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 50, NA_SE_EV_BOMB_DROP_WATER);
+                MM_Math_Vec3f_Copy(&splashPos, &this->tailTipPos);
+                splashPos.x += MM_Rand_CenteredFloat(20.0f);
+                splashPos.z += MM_Rand_CenteredFloat(20.0f);
+                MM_EffectSsGSplash_Spawn(play, &splashPos, NULL, NULL, 0, (((s32)MM_Rand_ZeroOne() * 100) + 400));
+                MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 50, NA_SE_EV_BOMB_DROP_WATER);
             }
         } else {
             this->splashCount = 0;
@@ -676,7 +676,7 @@ void EnGrasshopper_ApproachPlayer(EnGrasshopper* this, PlayState* play) {
 void EnGrasshopper_SetupAttack(EnGrasshopper* this) {
     EnGrasshopper_ChangeAnim(this, DRAGONFLY_ANIM_ATTACK);
     this->approachSpeed = 0.0f;
-    Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 0xA, 0xFA0, 0xA);
+    MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 0xA, 0xFA0, 0xA);
     this->actor.speed = 3.0f;
     this->baseFlyHeight = this->actor.world.pos.y;
     this->collider.elements[0].base.atElemFlags &= ~(ATELEM_ON | ATELEM_SFX_WOOD);
@@ -700,16 +700,16 @@ void EnGrasshopper_Attack(EnGrasshopper* this, PlayState* play) {
         EnGrasshopper_InitializeEffect(this, &this->tailTipPos);
     }
 
-    if (WaterBox_GetSurface1(play, &play->colCtx, this->tailTipPos.x, this->tailTipPos.z, &this->waterSurface,
+    if (MM_WaterBox_GetSurface1(play, &play->colCtx, this->tailTipPos.x, this->tailTipPos.z, &this->waterSurface,
                              &waterBox)) {
         if (this->tailTipPos.y < this->waterSurface) {
             if ((this->splashCount < 3) || !(play->gameplayFrames % 8)) {
                 this->splashCount++;
-                Math_Vec3f_Copy(&splashPos, &this->tailTipPos);
-                splashPos.x += Rand_CenteredFloat(20.0f);
-                splashPos.z += Rand_CenteredFloat(20.0f);
-                EffectSsGSplash_Spawn(play, &splashPos, NULL, NULL, 0, ((s32)Rand_ZeroOne() * 100) + 400);
-                SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 50, NA_SE_EV_BOMB_DROP_WATER);
+                MM_Math_Vec3f_Copy(&splashPos, &this->tailTipPos);
+                splashPos.x += MM_Rand_CenteredFloat(20.0f);
+                splashPos.z += MM_Rand_CenteredFloat(20.0f);
+                MM_EffectSsGSplash_Spawn(play, &splashPos, NULL, NULL, 0, ((s32)MM_Rand_ZeroOne() * 100) + 400);
+                MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 50, NA_SE_EV_BOMB_DROP_WATER);
             }
         } else {
             this->splashCount = 0;
@@ -717,7 +717,7 @@ void EnGrasshopper_Attack(EnGrasshopper* this, PlayState* play) {
     }
 
     this->bobPhase += 0xAF0;
-    this->targetApproachPos.y = (Math_SinS(this->bobPhase) * 10.0f) + (player->actor.world.pos.y + 60.0f);
+    this->targetApproachPos.y = (MM_Math_SinS(this->bobPhase) * 10.0f) + (player->actor.world.pos.y + 60.0f);
 
     hitPos.x = this->collider.elements[1].base.acDmgInfo.hitPos.x;
     hitPos.y = this->collider.elements[1].base.acDmgInfo.hitPos.y;
@@ -725,7 +725,7 @@ void EnGrasshopper_Attack(EnGrasshopper* this, PlayState* play) {
     diff.x = hitPos.x - player->actor.world.pos.x;
     diff.y = hitPos.y - player->actor.world.pos.y;
     diff.z = hitPos.z - player->actor.world.pos.z;
-    playerToHitPosDist = sqrtf(SQXYZ(diff));
+    playerToHitPosDist = MM_sqrtf(SQXYZ(diff));
 
     if ((this->collider.base.atFlags & AT_BOUNCED) ||
         ((player->stateFlags1 & PLAYER_STATE1_400000) && (playerToHitPosDist <= 60.0f) &&
@@ -734,9 +734,9 @@ void EnGrasshopper_Attack(EnGrasshopper* this, PlayState* play) {
         this->collider.elements[1].base.atElemFlags &= ~(ATELEM_ON | ATELEM_SFX_WOOD);
     }
 
-    Math_ApproachF(&this->actor.world.pos.y, this->targetApproachPos.y, 0.1f, this->approachSpeed);
-    Math_ApproachF(&this->approachSpeed, 10.0f, 0.1f, 1.0f);
-    Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 0xA, 0xFA0, 0xA);
+    MM_Math_ApproachF(&this->actor.world.pos.y, this->targetApproachPos.y, 0.1f, this->approachSpeed);
+    MM_Math_ApproachF(&this->approachSpeed, 10.0f, 0.1f, 1.0f);
+    MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 0xA, 0xFA0, 0xA);
     if (curFrame >= this->animEndFrame) {
         EnGrasshopper_SetupWaitAfterAttack(this);
     }
@@ -745,8 +745,8 @@ void EnGrasshopper_Attack(EnGrasshopper* this, PlayState* play) {
 void EnGrasshopper_SetupWaitAfterAttack(EnGrasshopper* this) {
     EnGrasshopper_ChangeAnim(this, DRAGONFLY_ANIM_HOVER);
     this->bobPhase += 0xAF0;
-    this->targetPosY = (Math_SinS(this->bobPhase) * 10.0f) + this->baseFlyHeight;
-    Math_ApproachF(&this->actor.world.pos.y, this->targetPosY, 0.1f, 10.0f);
+    this->targetPosY = (MM_Math_SinS(this->bobPhase) * 10.0f) + this->baseFlyHeight;
+    MM_Math_ApproachF(&this->actor.world.pos.y, this->targetPosY, 0.1f, 10.0f);
     this->action = DRAGONFLY_ACTION_WAIT_AFTER_ATTACK;
     this->waitTimer = 20;
     this->actor.speed = 0.0f;
@@ -759,8 +759,8 @@ void EnGrasshopper_SetupWaitAfterAttack(EnGrasshopper* this) {
  */
 void EnGrasshopper_WaitAfterAttack(EnGrasshopper* this, PlayState* play) {
     this->bobPhase += 0xAF0;
-    this->targetPosY = (Math_SinS(this->bobPhase) * 10.0f) + this->baseFlyHeight;
-    Math_ApproachF(&this->actor.world.pos.y, this->targetPosY, 0.1f, 10.0f);
+    this->targetPosY = (MM_Math_SinS(this->bobPhase) * 10.0f) + this->baseFlyHeight;
+    MM_Math_ApproachF(&this->actor.world.pos.y, this->targetPosY, 0.1f, 10.0f);
     if (this->waitTimer == 0) {
         this->collider.elements[0].base.atElemFlags |= (ATELEM_ON | ATELEM_SFX_WOOD);
         EnGrasshopper_RaiseTail(this);
@@ -777,7 +777,7 @@ void EnGrasshopper_SetupDamaged(EnGrasshopper* this, PlayState* play) {
     this->collider.elements[1].base.atElemFlags &= ~(ATELEM_ON | ATELEM_SFX_WOOD);
     Matrix_RotateYS(this->actor.yawTowardsPlayer, MTXMODE_NEW);
     Matrix_MultVecZ(-20.0f, &damagedVelocity);
-    Math_Vec3f_Copy(&this->damagedVelocity, &damagedVelocity);
+    MM_Math_Vec3f_Copy(&this->damagedVelocity, &damagedVelocity);
     if (((this->drawDmgEffType == ACTOR_DRAW_DMGEFF_FROZEN_SFX) ||
          (this->drawDmgEffType == ACTOR_DRAW_DMGEFF_FROZEN_NO_SFX)) &&
         (this->drawDmgEffTimer != 0)) {
@@ -786,13 +786,13 @@ void EnGrasshopper_SetupDamaged(EnGrasshopper* this, PlayState* play) {
         this->drawDmgEffType = ACTOR_DRAW_DMGEFF_FIRE;
     }
 
-    Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 8);
+    MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 8);
     this->action = DRAGONFLY_ACTION_DAMAGED;
     this->actionFunc = EnGrasshopper_Damaged;
 }
 
 void EnGrasshopper_Damaged(EnGrasshopper* this, PlayState* play) {
-    Math_SmoothStepToS(&this->actor.world.rot.z, 0, 5, 0x3E8, 5);
+    MM_Math_SmoothStepToS(&this->actor.world.rot.z, 0, 5, 0x3E8, 5);
     if (this->actor.colorFilterTimer == 0) {
         EnGrasshopper_RaiseTail(this);
     }
@@ -811,8 +811,8 @@ void EnGrasshopper_SetupDead(EnGrasshopper* this, PlayState* play) {
         this->drawDmgEffType = ACTOR_DRAW_DMGEFF_FIRE;
     }
 
-    Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 25);
-    Enemy_StartFinishingBlow(play, &this->actor);
+    MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 25);
+    MM_Enemy_StartFinishingBlow(play, &this->actor);
     Actor_PlaySfx(&this->actor, NA_SE_EN_BATTA_DEAD);
     this->action = DRAGONFLY_ACTION_DEAD;
     this->actionFunc = EnGrasshopper_Dead;
@@ -824,7 +824,7 @@ void EnGrasshopper_SetupDead(EnGrasshopper* this, PlayState* play) {
 void EnGrasshopper_Dead(EnGrasshopper* this, PlayState* play) {
     f32 curFrame = this->skelAnime.curFrame;
 
-    Math_SmoothStepToS(&this->actor.world.rot.z, 0, 5, 0x3E8, 5);
+    MM_Math_SmoothStepToS(&this->actor.world.rot.z, 0, 5, 0x3E8, 5);
     if (((this->drawDmgEffType == ACTOR_DRAW_DMGEFF_FROZEN_SFX) ||
          (this->drawDmgEffType == ACTOR_DRAW_DMGEFF_FROZEN_NO_SFX)) &&
         (this->drawDmgEffTimer < 2)) {
@@ -857,29 +857,29 @@ void EnGrasshopper_Fall(EnGrasshopper* this, PlayState* play) {
 
     this->actor.shape.rot.y += 0x1388;
     if ((this->actor.floorHeight <= BGCHECK_Y_MIN) || (this->actor.floorHeight >= BGCHECK_Y_MAX)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
-    if (WaterBox_GetSurface1(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &waterSurface,
+    if (MM_WaterBox_GetSurface1(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &waterSurface,
                              &waterBox)) {
         if (this->actor.world.pos.y < waterSurface) {
             Vec3f splashPos;
             s32 i;
 
             for (i = 0; i < 3; i++) {
-                Math_Vec3f_Copy(&splashPos, &this->actor.world.pos);
-                splashPos.x += Rand_CenteredFloat((i * 5.0f) + 20.0f);
-                splashPos.z += Rand_CenteredFloat((i * 5.0f) + 20.0f);
-                EffectSsGSplash_Spawn(play, &splashPos, NULL, NULL, 0, (((s32)Rand_ZeroOne() * 100) + 400));
+                MM_Math_Vec3f_Copy(&splashPos, &this->actor.world.pos);
+                splashPos.x += MM_Rand_CenteredFloat((i * 5.0f) + 20.0f);
+                splashPos.z += MM_Rand_CenteredFloat((i * 5.0f) + 20.0f);
+                MM_EffectSsGSplash_Spawn(play, &splashPos, NULL, NULL, 0, (((s32)MM_Rand_ZeroOne() * 100) + 400));
             }
 
-            SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 50, NA_SE_EV_BOMB_DROP_WATER);
+            MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 50, NA_SE_EV_BOMB_DROP_WATER);
             isUnderWater = true;
         }
     }
 
-    if ((BgCheck_SphVsFirstPoly(&play->colCtx, &this->tailTipPos, 40.0f)) &&
+    if ((MM_BgCheck_SphVsFirstPoly(&play->colCtx, &this->tailTipPos, 40.0f)) &&
         (((this->drawDmgEffType == ACTOR_DRAW_DMGEFF_FROZEN_SFX)) ||
          (this->drawDmgEffType == ACTOR_DRAW_DMGEFF_FROZEN_NO_SFX)) &&
         (this->drawDmgEffTimer != 0)) {
@@ -888,7 +888,7 @@ void EnGrasshopper_Fall(EnGrasshopper* this, PlayState* play) {
         this->drawDmgEffType = ACTOR_DRAW_DMGEFF_FIRE;
     }
 
-    if (isUnderWater || (BgCheck_SphVsFirstPoly(&play->colCtx, &this->tailTipPos, 10.0f))) {
+    if (isUnderWater || (MM_BgCheck_SphVsFirstPoly(&play->colCtx, &this->tailTipPos, 10.0f))) {
         Vec3f firePos;
         Vec3f sFireVelocityAndAccel[] = {
             { 1.0f, 0.0f, 0.5f },   { 1.0f, 0.0f, -0.5f },  { -1.0f, 0.0f, 0.5f },
@@ -898,23 +898,23 @@ void EnGrasshopper_Fall(EnGrasshopper* this, PlayState* play) {
         s32 i;
 
         for (i = 0; i < ARRAY_COUNT(sFireVelocityAndAccel); i++) {
-            Math_Vec3f_Copy(&firePos, &this->actor.world.pos);
-            firePos.x += Rand_CenteredFloat(30.0f);
+            MM_Math_Vec3f_Copy(&firePos, &this->actor.world.pos);
+            firePos.x += MM_Rand_CenteredFloat(30.0f);
             if (!isUnderWater) {
                 firePos.y = this->actor.floorHeight;
-            } else if (WaterBox_GetSurface1(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z,
+            } else if (MM_WaterBox_GetSurface1(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z,
                                             &waterSurface, &waterBox)) {
                 firePos.y = waterSurface;
             }
 
-            firePos.z += Rand_CenteredFloat(30.0f);
+            firePos.z += MM_Rand_CenteredFloat(30.0f);
             func_800B3030(play, &firePos, &sFireVelocityAndAccel[i], &sFireVelocityAndAccel[i], 100, 0, 2);
         }
 
         SoundSource_PlaySfxEachFrameAtFixedWorldPos(play, &this->actor.world.pos, 10,
                                                     NA_SE_EN_COMMON_EXTINCT_LEV - SFX_FLAG);
-        Item_DropCollectibleRandom(play, NULL, &this->actor.world.pos, 0x60);
-        Actor_Kill(&this->actor);
+        MM_Item_DropCollectibleRandom(play, NULL, &this->actor.world.pos, 0x60);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -935,7 +935,7 @@ void EnGrasshopper_UpdateDamage(EnGrasshopper* this, PlayState* play) {
                 attackDealsDamage = true;
             } else if (this->actor.colChkInfo.damageEffect == DRAGONFLY_DMGEFF_FREEZE) {
                 if ((this->drawDmgEffType != ACTOR_DRAW_DMGEFF_BLUE_FIRE) || (this->drawDmgEffTimer == 0)) {
-                    Actor_ApplyDamage(&this->actor);
+                    MM_Actor_ApplyDamage(&this->actor);
                     attackDealsDamage = false;
                     this->drawDmgEffTimer = 80;
                     this->drawDmgEffType = ACTOR_DRAW_DMGEFF_FROZEN_NO_SFX;
@@ -948,10 +948,10 @@ void EnGrasshopper_UpdateDamage(EnGrasshopper* this, PlayState* play) {
                     return;
                 }
             } else if (this->actor.colChkInfo.damageEffect == DRAGONFLY_DMGEFF_LIGHT_ORB) {
-                Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_GRAY, 255, COLORFILTER_BUFFLAG_OPA, 25);
+                MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_GRAY, 255, COLORFILTER_BUFFLAG_OPA, 25);
                 this->drawDmgEffTimer = 20;
                 this->drawDmgEffType = ACTOR_DRAW_DMGEFF_LIGHT_ORBS;
-                Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->actor.focus.pos.x, this->actor.focus.pos.y,
+                MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->actor.focus.pos.x, this->actor.focus.pos.y,
                             this->actor.focus.pos.z, 0, 0, 0, CLEAR_TAG_PARAMS(CLEAR_TAG_LARGE_LIGHT_RAYS));
                 attackDealsDamage = true;
             }
@@ -959,7 +959,7 @@ void EnGrasshopper_UpdateDamage(EnGrasshopper* this, PlayState* play) {
     }
 
     if (attackDealsDamage) {
-        Actor_ApplyDamage(&this->actor);
+        MM_Actor_ApplyDamage(&this->actor);
         if (this->actor.colChkInfo.health > 0) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_BATTA_DAMAGE);
             EnGrasshopper_SetupDamaged(this, play);
@@ -973,12 +973,12 @@ void EnGrasshopper_Update(Actor* thisx, PlayState* play) {
     s32 pad;
     EnGrasshopper* this = (EnGrasshopper*)thisx;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     EnGrasshopper_UpdateDamage(this, play);
     this->actionFunc(this, play);
 
-    Actor_SetFocus(&this->actor, 0.0f);
-    Actor_SetScale(&this->actor, this->dragonflyScale);
+    MM_Actor_SetFocus(&this->actor, 0.0f);
+    MM_Actor_SetScale(&this->actor, this->dragonflyScale);
 
     DECR(this->timer);
     DECR(this->waitTimer);
@@ -989,11 +989,11 @@ void EnGrasshopper_Update(Actor* thisx, PlayState* play) {
     this->actor.world.pos.x += this->damagedVelocity.x;
     this->actor.world.pos.y += this->damagedVelocity.y;
     this->actor.world.pos.z += this->damagedVelocity.z;
-    Math_ApproachZeroF(&this->damagedVelocity.x, 1.0f, 2.0f);
-    Math_ApproachZeroF(&this->damagedVelocity.y, 1.0f, 2.0f);
-    Math_ApproachZeroF(&this->damagedVelocity.z, 1.0f, 2.0f);
+    MM_Math_ApproachZeroF(&this->damagedVelocity.x, 1.0f, 2.0f);
+    MM_Math_ApproachZeroF(&this->damagedVelocity.y, 1.0f, 2.0f);
+    MM_Math_ApproachZeroF(&this->damagedVelocity.z, 1.0f, 2.0f);
     if ((this->action != DRAGONFLY_ACTION_FALL) && (this->type != DRAGONFLY_TYPE_WOODFALL)) {
-        Actor_UpdateBgCheckInfo(play, &this->actor, 35.0f, 60.0f, 60.0f,
+        MM_Actor_UpdateBgCheckInfo(play, &this->actor, 35.0f, 60.0f, 60.0f,
                                 UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4 | UPDBGCHECKINFO_FLAG_8 |
                                     UPDBGCHECKINFO_FLAG_10);
     }
@@ -1006,19 +1006,19 @@ void EnGrasshopper_Update(Actor* thisx, PlayState* play) {
             targetScale = 0.018f;
         }
 
-        Math_ApproachF(&this->dragonflyScale, targetScale, 0.1f, 0.01f);
+        MM_Math_ApproachF(&this->dragonflyScale, targetScale, 0.1f, 0.01f);
     }
 
     if ((this->action != DRAGONFLY_ACTION_FALL) && (this->action != DRAGONFLY_ACTION_APPROACH_PLAYER)) {
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.world.rot.y, 5, 0x3E8, 5);
+        MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.world.rot.y, 5, 0x3E8, 5);
     }
 
     EnGrasshopper_UpdateEffects(this, play);
     if ((this->action != DRAGONFLY_ACTION_DEAD) && (this->action != DRAGONFLY_ACTION_FALL)) {
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
         if ((this->action == DRAGONFLY_ACTION_APPROACH_PLAYER) || (this->action == DRAGONFLY_ACTION_ATTACK)) {
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+            MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
         }
     }
 }
@@ -1028,21 +1028,21 @@ void EnGrasshopper_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec
     Vec3f sEffectOffsetFromTailTop = { 500.0f, 0.0f, 0.0f };
     Vec3f sZeroVec3f = { 0.0f, 0.0f, 0.0f };
 
-    Matrix_Push();
+    MM_Matrix_Push();
 
     if ((this->type != DRAGONFLY_TYPE_WOODFALL_TEMPLE_FINAL_ROOM) && (this->type != DRAGONFLY_TYPE_WOODFALL)) {
         if ((s8)(sLimbToShadowBodyParts[limbIndex] > BODYPART_NONE)) {
-            Matrix_MultVec3f(&sZeroVec3f, &this->shadowBodyPartsPos[sLimbToShadowBodyParts[limbIndex]]);
+            MM_Matrix_MultVec3f(&sZeroVec3f, &this->shadowBodyPartsPos[sLimbToShadowBodyParts[limbIndex]]);
         }
     }
 
     if (limbIndex == DRAGONFLY_LIMB_TAIL_TIP) {
-        Matrix_Translate(0.0f, 0.0f, 0.0f, MTXMODE_APPLY);
-        Matrix_MultVec3f(&gZeroVec3f, &this->tailTipPos);
-        Matrix_MultVec3f(&sEffectOffsetFromTailTop, &this->effectBasePos);
+        MM_Matrix_Translate(0.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+        MM_Matrix_MultVec3f(&gZeroVec3f, &this->tailTipPos);
+        MM_Matrix_MultVec3f(&sEffectOffsetFromTailTop, &this->effectBasePos);
     }
 
-    Collider_UpdateSpheres(limbIndex, &this->collider);
+    MM_Collider_UpdateSpheres(limbIndex, &this->collider);
 
     if ((limbIndex == DRAGONFLY_LIMB_ROOT) || (limbIndex == DRAGONFLY_LIMB_TAIL_SEGMENT_2) ||
         (limbIndex == DRAGONFLY_LIMB_TAIL_TIP) || (limbIndex == DRAGONFLY_LIMB_BACK_LEFT_UPPER_LEG) ||
@@ -1055,7 +1055,7 @@ void EnGrasshopper_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec
         // While checking for DRAGONFLY_LIMB_ROOT twice is not a bug by itself, it causes another bug below.
         (limbIndex == DRAGONFLY_LIMB_ROOT)) {
         //! @bug: This code only works properly if all 12 elements of bodyPartsPos are updated every frame, since
-        //! otherwise bodyPartIndex will be non-zero at the end of a frame. Despite the fact that there are 12
+        //! otherwise bodyPartIndex will be non-MM_zero at the end of a frame. Despite the fact that there are 12
         //! checks in the above if-statement, only 9 of them are valid and non-duplicate, so only 9 elements of
         //! bodyPartsPos are updated on each frame. As a result, three elements in bodyPartsPos will either be (0, 0, 0)
         //! or be a value carried over from the previous frame.
@@ -1066,7 +1066,7 @@ void EnGrasshopper_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec
         }
     }
 
-    Matrix_Pop();
+    MM_Matrix_Pop();
 }
 
 void EnGrasshopper_Draw(Actor* thisx, PlayState* play) {
@@ -1076,7 +1076,7 @@ void EnGrasshopper_Draw(Actor* thisx, PlayState* play) {
     u8* shadowTexIter;
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-    SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, NULL, EnGrasshopper_PostLimbDraw,
+    MM_SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, NULL, EnGrasshopper_PostLimbDraw,
                       &this->actor);
     if ((this->type != DRAGONFLY_TYPE_WOODFALL_TEMPLE_FINAL_ROOM) && (this->type != DRAGONFLY_TYPE_WOODFALL)) {
         Matrix_RotateXS(0, MTXMODE_NEW);
@@ -1107,7 +1107,7 @@ void EnGrasshopper_Draw(Actor* thisx, PlayState* play) {
                 this->drawDmgEffScale = 0.5f;
             }
 
-            Math_ApproachF(&this->drawDmgEffFrozenSteamScale, this->drawDmgEffScale, 0.1f, 0.04f);
+            MM_Math_ApproachF(&this->drawDmgEffFrozenSteamScale, this->drawDmgEffScale, 0.1f, 0.04f);
         } else {
             this->drawDmgEffScale = 0.8f;
             this->drawDmgEffFrozenSteamScale = 0.8f;
@@ -1129,10 +1129,10 @@ void EnGrasshopper_InitializeEffect(EnGrasshopper* this, Vec3f* pos) {
             effect->isEnabled = true;
             effect->pos = *pos;
             effect->timer = 10;
-            effect->velocity.x = Rand_CenteredFloat(20.0f);
-            effect->velocity.y = Rand_CenteredFloat(20.0f);
-            effect->velocity.z = Rand_CenteredFloat(20.0f);
-            effect->yaw = Rand_CenteredFloat(30000.0f);
+            effect->velocity.x = MM_Rand_CenteredFloat(20.0f);
+            effect->velocity.y = MM_Rand_CenteredFloat(20.0f);
+            effect->velocity.z = MM_Rand_CenteredFloat(20.0f);
+            effect->yaw = MM_Rand_CenteredFloat(30000.0f);
             return;
         }
     }
@@ -1150,12 +1150,12 @@ void EnGrasshopper_UpdateEffects(EnGrasshopper* this, PlayState* play) {
             if (effect->timer != 0) {
                 effect->timer--;
                 effect->lightningIndex++;
-                Math_ApproachF(&effect->scale.x, 0.1f, 0.1f, 0.05f);
+                MM_Math_ApproachF(&effect->scale.x, 0.1f, 0.1f, 0.05f);
                 if (effect->lightningIndex >= 8) {
                     effect->lightningIndex = 0;
                 }
             } else {
-                Math_ApproachZeroF(&effect->scale.x, 0.1f, 0.1f);
+                MM_Math_ApproachZeroF(&effect->scale.x, 0.1f, 0.1f);
                 if (effect->scale.x < 0.2f) {
                     effect->isEnabled = 0;
                 }
@@ -1166,7 +1166,7 @@ void EnGrasshopper_UpdateEffects(EnGrasshopper* this, PlayState* play) {
     }
 }
 
-static TexturePtr sLightningTextures[] = {
+static TexturePtr MM_sLightningTextures[] = {
     gEffLightning1Tex, gEffLightning2Tex, gEffLightning3Tex, gEffLightning4Tex,
     gEffLightning5Tex, gEffLightning6Tex, gEffLightning7Tex, gEffLightning8Tex,
 };
@@ -1188,21 +1188,21 @@ void EnGrasshopper_DrawEffects(EnGrasshopper* this, PlayState* play) {
     effect = this->effects;
     for (i = 0; i < ARRAY_COUNT(this->effects); i++, effect++) {
         if (effect->isEnabled) {
-            SkinMatrix_SetTranslate(&mfTrans, effect->pos.x, effect->pos.y, effect->pos.z);
-            SkinMatrix_SetScale(&mfScale, effect->scale.x, effect->scale.y, effect->scale.z);
+            MM_SkinMatrix_SetTranslate(&mfTrans, effect->pos.x, effect->pos.y, effect->pos.z);
+            MM_SkinMatrix_SetScale(&mfScale, effect->scale.x, effect->scale.y, effect->scale.z);
             SkinMatrix_SetRotateRPY(&mfRot, 0, 0, effect->yaw);
-            SkinMatrix_MtxFMtxFMult(&mfTrans, &play->billboardMtxF, &mfTransBillboard);
-            SkinMatrix_MtxFMtxFMult(&mfTransBillboard, &mfRot, &mfTransBillboardRot);
-            SkinMatrix_MtxFMtxFMult(&mfTransBillboardRot, &mfScale, &mfResult);
+            MM_SkinMatrix_MtxFMtxFMult(&mfTrans, &play->billboardMtxF, &mfTransBillboard);
+            MM_SkinMatrix_MtxFMtxFMult(&mfTransBillboard, &mfRot, &mfTransBillboardRot);
+            MM_SkinMatrix_MtxFMtxFMult(&mfTransBillboardRot, &mfScale, &mfResult);
 
             gSPMatrix(POLY_XLU_DISP++, &gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
-            mtx = SkinMatrix_MtxFToNewMtx(play->state.gfxCtx, &mfResult);
+            mtx = MM_SkinMatrix_MtxFToNewMtx(play->state.gfxCtx, &mfResult);
 
             if (mtx != NULL) {
                 gSPMatrix(POLY_XLU_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
                 Gfx_SetupDL61_Xlu(play->state.gfxCtx);
-                gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(sLightningTextures[effect->lightningIndex]));
+                gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sLightningTextures[effect->lightningIndex]));
                 gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, 255);
                 gDPSetEnvColor(POLY_XLU_DISP++, 200, 255, 255, 255);
                 gSPDisplayList(POLY_XLU_DISP++, Lib_SegmentedToVirtual(gEffLightningDL));

@@ -9,9 +9,9 @@
 
 #define FLAGS ACTOR_FLAG_UPDATE_CULLING_DISABLED
 
-void ElfMsg2_Init(Actor* thisx, PlayState* play);
-void ElfMsg2_Destroy(Actor* thisx, PlayState* play);
-void ElfMsg2_Update(Actor* thisx, PlayState* play);
+void OoT_ElfMsg2_Init(Actor* thisx, PlayState* play);
+void OoT_ElfMsg2_Destroy(Actor* thisx, PlayState* play);
+void OoT_ElfMsg2_Update(Actor* thisx, PlayState* play);
 void ElfMsg2_Draw(Actor* thisx, PlayState* play);
 
 s32 ElfMsg2_GetMessageId(ElfMsg2* this);
@@ -24,19 +24,19 @@ const ActorInit Elf_Msg2_InitVars = {
     FLAGS,
     OBJECT_GAMEPLAY_KEEP,
     sizeof(ElfMsg2),
-    (ActorFunc)ElfMsg2_Init,
-    (ActorFunc)ElfMsg2_Destroy,
-    (ActorFunc)ElfMsg2_Update,
+    (ActorFunc)OoT_ElfMsg2_Init,
+    (ActorFunc)OoT_ElfMsg2_Destroy,
+    (ActorFunc)OoT_ElfMsg2_Update,
     (ActorFunc)ElfMsg2_Draw,
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 200, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 1000, ICHAIN_STOP),
 };
 
-void ElfMsg2_SetupAction(ElfMsg2* this, ElfMsg2ActionFunc actionFunc) {
+void OoT_ElfMsg2_SetupAction(ElfMsg2* this, ElfMsg2ActionFunc actionFunc) {
     this->actionFunc = actionFunc;
 }
 
@@ -46,31 +46,31 @@ void ElfMsg2_SetupAction(ElfMsg2* this, ElfMsg2ActionFunc actionFunc) {
  */
 s32 ElfMsg2_KillCheck(ElfMsg2* this, PlayState* play) {
     if ((this->actor.world.rot.y > 0) && (this->actor.world.rot.y < 0x41) &&
-        Flags_GetSwitch(play, this->actor.world.rot.y - 1)) {
+        OoT_Flags_GetSwitch(play, this->actor.world.rot.y - 1)) {
         LOG_STRING("共倒れ"); // "Mutual destruction"
         if (((this->actor.params >> 8) & 0x3F) != 0x3F) {
-            Flags_SetSwitch(play, ((this->actor.params >> 8) & 0x3F));
+            OoT_Flags_SetSwitch(play, ((this->actor.params >> 8) & 0x3F));
         }
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return 1;
-    } else if ((this->actor.world.rot.y == -1) && Flags_GetClear(play, this->actor.room)) {
+    } else if ((this->actor.world.rot.y == -1) && OoT_Flags_GetClear(play, this->actor.room)) {
         LOG_STRING("共倒れ２"); // "Mutual destruction 2"
         if (((this->actor.params >> 8) & 0x3F) != 0x3F) {
-            Flags_SetSwitch(play, ((this->actor.params >> 8) & 0x3F));
+            OoT_Flags_SetSwitch(play, ((this->actor.params >> 8) & 0x3F));
         }
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return 1;
     } else if (((this->actor.params >> 8) & 0x3F) == 0x3F) {
         return 0;
-    } else if (Flags_GetSwitch(play, ((this->actor.params >> 8) & 0x3F))) {
+    } else if (OoT_Flags_GetSwitch(play, ((this->actor.params >> 8) & 0x3F))) {
         LOG_STRING("共倒れ"); // "Mutual destruction"
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return 1;
     }
     return 0;
 }
 
-void ElfMsg2_Init(Actor* thisx, PlayState* play) {
+void OoT_ElfMsg2_Init(Actor* thisx, PlayState* play) {
     ElfMsg2* this = (ElfMsg2*)thisx;
 
     osSyncPrintf(VT_FGCOL(CYAN) " Elf_Msg2_Actor_ct %04x\n\n" VT_RST, this->actor.params);
@@ -78,11 +78,11 @@ void ElfMsg2_Init(Actor* thisx, PlayState* play) {
         if ((this->actor.world.rot.x > 0) && (this->actor.world.rot.x < 8)) {
             this->actor.targetMode = this->actor.world.rot.x - 1;
         }
-        Actor_ProcessInitChain(thisx, sInitChain);
+        OoT_Actor_ProcessInitChain(thisx, OoT_sInitChain);
         if (this->actor.world.rot.y >= 0x41) {
-            ElfMsg2_SetupAction(this, ElfMsg2_WaitUntilActivated);
+            OoT_ElfMsg2_SetupAction(this, ElfMsg2_WaitUntilActivated);
         } else {
-            ElfMsg2_SetupAction(this, ElfMsg2_WaitForTextRead);
+            OoT_ElfMsg2_SetupAction(this, ElfMsg2_WaitForTextRead);
             this->actor.flags |=
                 ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_TALK_WITH_C_UP; // Make actor targetable and Navi-checkable
             this->actor.textId = ElfMsg2_GetMessageId(this);
@@ -91,7 +91,7 @@ void ElfMsg2_Init(Actor* thisx, PlayState* play) {
     }
 }
 
-void ElfMsg2_Destroy(Actor* thisx, PlayState* play) {
+void OoT_ElfMsg2_Destroy(Actor* thisx, PlayState* play) {
 }
 
 s32 ElfMsg2_GetMessageId(ElfMsg2* this) {
@@ -105,15 +105,15 @@ s32 ElfMsg2_GetMessageId(ElfMsg2* this) {
 void ElfMsg2_WaitForTextClose(ElfMsg2* this, PlayState* play) {
     s32 switchFlag;
 
-    if (Actor_TextboxIsClosing(&this->actor, play)) {
+    if (OoT_Actor_TextboxIsClosing(&this->actor, play)) {
         if (this->actor.world.rot.z != 1) {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
             switchFlag = (this->actor.params >> 8) & 0x3F;
             if (switchFlag != 0x3F) {
-                Flags_SetSwitch(play, switchFlag);
+                OoT_Flags_SetSwitch(play, switchFlag);
             }
         } else {
-            ElfMsg2_SetupAction(this, ElfMsg2_WaitForTextRead);
+            OoT_ElfMsg2_SetupAction(this, ElfMsg2_WaitForTextRead);
         }
     }
 }
@@ -123,7 +123,7 @@ void ElfMsg2_WaitForTextClose(ElfMsg2* this, PlayState* play) {
  */
 void ElfMsg2_WaitForTextRead(ElfMsg2* this, PlayState* play) {
     if (Actor_ProcessTalkRequest(&this->actor, play)) {
-        ElfMsg2_SetupAction(this, ElfMsg2_WaitForTextClose);
+        OoT_ElfMsg2_SetupAction(this, ElfMsg2_WaitForTextClose);
     }
 }
 
@@ -134,15 +134,15 @@ void ElfMsg2_WaitUntilActivated(ElfMsg2* this, PlayState* play) {
     // If (y >= 0x41) && (y <= 0x80), Idles until switch flag (actor.world.rot.y - 0x41) is set
     // If (y > 0x80), Idles forever (Bug?)
     if ((this->actor.world.rot.y >= 0x41) && (this->actor.world.rot.y <= 0x80) &&
-        (Flags_GetSwitch(play, (this->actor.world.rot.y - 0x41)))) {
-        ElfMsg2_SetupAction(this, ElfMsg2_WaitForTextRead);
+        (OoT_Flags_GetSwitch(play, (this->actor.world.rot.y - 0x41)))) {
+        OoT_ElfMsg2_SetupAction(this, ElfMsg2_WaitForTextRead);
         this->actor.flags |=
             ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_TALK_WITH_C_UP; // Make actor targetable and Navi-checkable
         this->actor.textId = ElfMsg2_GetMessageId(this);
     }
 }
 
-void ElfMsg2_Update(Actor* thisx, PlayState* play) {
+void OoT_ElfMsg2_Update(Actor* thisx, PlayState* play) {
     ElfMsg2* this = (ElfMsg2*)thisx;
 
     if (!ElfMsg2_KillCheck(this, play)) {

@@ -10,10 +10,10 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE | ACTOR_FLAG_HOOKSHOT_PULLS_PLAYER)
 
-void EnVm_Init(Actor* thisx, PlayState* play);
-void EnVm_Destroy(Actor* thisx, PlayState* play);
-void EnVm_Update(Actor* thisx, PlayState* play);
-void EnVm_Draw(Actor* thisx, PlayState* play);
+void MM_EnVm_Init(Actor* thisx, PlayState* play);
+void MM_EnVm_Destroy(Actor* thisx, PlayState* play);
+void MM_EnVm_Update(Actor* thisx, PlayState* play);
+void MM_EnVm_Draw(Actor* thisx, PlayState* play);
 
 void func_808CC420(EnVm* this);
 void func_808CC490(EnVm* this, PlayState* play);
@@ -32,13 +32,13 @@ ActorProfile En_Vm_Profile = {
     /**/ FLAGS,
     /**/ OBJECT_VM,
     /**/ sizeof(EnVm),
-    /**/ EnVm_Init,
-    /**/ EnVm_Destroy,
-    /**/ EnVm_Update,
-    /**/ EnVm_Draw,
+    /**/ MM_EnVm_Init,
+    /**/ MM_EnVm_Destroy,
+    /**/ MM_EnVm_Update,
+    /**/ MM_EnVm_Draw,
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[] = {
+static ColliderJntSphElementInit MM_sJntSphElementsInit[] = {
     {
         {
             ELEM_MATERIAL_UNK0,
@@ -63,7 +63,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit MM_sJntSphInit = {
     {
         COL_MATERIAL_METAL,
         AT_NONE,
@@ -72,11 +72,11 @@ static ColliderJntSphInit sJntSphInit = {
         OC2_TYPE_1,
         COLSHAPE_JNTSPH,
     },
-    ARRAY_COUNT(sJntSphElementsInit),
-    sJntSphElementsInit,
+    ARRAY_COUNT(MM_sJntSphElementsInit),
+    MM_sJntSphElementsInit,
 };
 
-static ColliderTrisElementInit sTrisElementsInit[] = {
+static ColliderTrisElementInit MM_sTrisElementsInit[] = {
     {
         {
             ELEM_MATERIAL_UNK0,
@@ -90,7 +90,7 @@ static ColliderTrisElementInit sTrisElementsInit[] = {
     },
 };
 
-static ColliderTrisInit sTrisInit = {
+static ColliderTrisInit MM_sTrisInit = {
     {
         COL_MATERIAL_METAL,
         AT_ON | AT_TYPE_ENEMY,
@@ -99,11 +99,11 @@ static ColliderTrisInit sTrisInit = {
         OC2_NONE,
         COLSHAPE_TRIS,
     },
-    ARRAY_COUNT(sTrisElementsInit),
-    sTrisElementsInit,
+    ARRAY_COUNT(MM_sTrisElementsInit),
+    MM_sTrisElementsInit,
 };
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(0, 0xF),
     /* Deku Stick     */ DMG_ENTRY(0, 0xF),
     /* Horse trample  */ DMG_ENTRY(0, 0xF),
@@ -138,32 +138,32 @@ static DamageTable sDamageTable = {
     /* Powder Keg     */ DMG_ENTRY(1, 0x0),
 };
 
-static CollisionCheckInfoInit sColChkInfoInit = { 2, 25, 100, MASS_IMMOVABLE };
+static CollisionCheckInfoInit MM_sColChkInfoInit = { 2, 25, 100, MASS_IMMOVABLE };
 
 TexturePtr D_808CD58C[] = {
     gEffEnemyDeathFlame1Tex, gEffEnemyDeathFlame2Tex, gEffEnemyDeathFlame3Tex, gEffEnemyDeathFlame4Tex,
     gEffEnemyDeathFlame5Tex, gEffEnemyDeathFlame6Tex, gEffEnemyDeathFlame7Tex, gEffEnemyDeathFlame8Tex,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 14, ICHAIN_CONTINUE),
     ICHAIN_F32(lockOnArrowOffset, 1000, ICHAIN_CONTINUE),
     ICHAIN_S8(hintId, TATL_HINT_ID_BEAMOS, ICHAIN_STOP),
 };
 
-void EnVm_Init(Actor* thisx, PlayState* play) {
+void MM_EnVm_Init(Actor* thisx, PlayState* play) {
     static s32 sTexturesDesegmented = false;
     EnVm* this = (EnVm*)thisx;
     s32 i;
     s32 params;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 35.0f);
-    SkelAnime_Init(play, &this->skelAnime, &gBeamosSkel, &gBeamosAnim, this->jointTable, this->morphTable,
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 35.0f);
+    MM_SkelAnime_Init(play, &this->skelAnime, &gBeamosSkel, &gBeamosAnim, this->jointTable, this->morphTable,
                    BEAMOS_LIMB_MAX);
-    Collider_InitAndSetTris(play, &this->colliderTris, &this->actor, &sTrisInit, this->colliderTrisElements);
-    Collider_InitAndSetJntSph(play, &this->colliderJntSph, &this->actor, &sJntSphInit, this->colliderJntSphElements);
-    CollisionCheck_SetInfo(&this->actor.colChkInfo, &sDamageTable, &sColChkInfoInit);
+    Collider_InitAndSetTris(play, &this->colliderTris, &this->actor, &MM_sTrisInit, this->colliderTrisElements);
+    Collider_InitAndSetJntSph(play, &this->colliderJntSph, &this->actor, &MM_sJntSphInit, this->colliderJntSphElements);
+    MM_CollisionCheck_SetInfo(&this->actor.colChkInfo, &MM_sDamageTable, &MM_sColChkInfoInit);
 
     params = ENVM_GET_FF00(thisx);
     if ((params == ENVM_FF00_FF) || (params == ENVM_FF00_0)) {
@@ -183,17 +183,17 @@ void EnVm_Init(Actor* thisx, PlayState* play) {
     func_808CC420(this);
 }
 
-void EnVm_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnVm_Destroy(Actor* thisx, PlayState* play) {
     EnVm* this = (EnVm*)thisx;
 
-    Collider_DestroyTris(play, &this->colliderTris);
-    Collider_DestroyJntSph(play, &this->colliderJntSph);
+    MM_Collider_DestroyTris(play, &this->colliderTris);
+    MM_Collider_DestroyJntSph(play, &this->colliderJntSph);
 }
 
 void func_808CC420(EnVm* this) {
-    f32 endFrame = Animation_GetLastFrame(&gBeamosAnim);
+    f32 endFrame = MM_Animation_GetLastFrame(&gBeamosAnim);
 
-    Animation_Change(&this->skelAnime, &gBeamosAnim, 1.0f, endFrame, endFrame, ANIMMODE_ONCE, 0.0f);
+    MM_Animation_Change(&this->skelAnime, &gBeamosAnim, 1.0f, endFrame, endFrame, ANIMMODE_ONCE, 0.0f);
     this->actionFunc = func_808CC490;
 }
 
@@ -202,7 +202,7 @@ void func_808CC490(EnVm* this, PlayState* play) {
     s16 sp22;
     s16 temp_v0;
 
-    Math_ApproachS(&this->unk_216, 0, 0xA, 0x5DC);
+    MM_Math_ApproachS(&this->unk_216, 0, 0xA, 0x5DC);
     this->unk_218 -= 0x1F4;
     Actor_PlaySfx_Flagged(&this->actor, NA_SE_EN_BIMOS_ROLL_HEAD - SFX_FLAG);
 
@@ -210,12 +210,12 @@ void func_808CC490(EnVm* this, PlayState* play) {
         if ((this->actor.playerHeightRel <= 80.0f) && (this->actor.playerHeightRel >= -160.0f)) {
             sp22 = BINANG_SUB(this->actor.yawTowardsPlayer - this->unk_218, this->actor.shape.rot.y);
 
-            temp_v0 = Math_Vec3f_Pitch(&this->actor.focus.pos, &player->actor.world.pos);
+            temp_v0 = MM_Math_Vec3f_Pitch(&this->actor.focus.pos, &player->actor.world.pos);
             if (temp_v0 > 0x1B91) {
                 temp_v0 = 0x1B91;
             }
 
-            if ((ABS_ALT(sp22) <= 0x2710) && (temp_v0 >= 0xE38) && (Player_GetMask(play) != PLAYER_MASK_STONE)) {
+            if ((ABS_ALT(sp22) <= 0x2710) && (temp_v0 >= 0xE38) && (MM_Player_GetMask(play) != PLAYER_MASK_STONE)) {
                 func_808CC5C4(this);
             }
         }
@@ -223,7 +223,7 @@ void func_808CC490(EnVm* this, PlayState* play) {
 }
 
 void func_808CC5C4(EnVm* this) {
-    Animation_PlayLoopSetSpeed(&this->skelAnime, &gBeamosAnim, 2.0f);
+    MM_Animation_PlayLoopSetSpeed(&this->skelAnime, &gBeamosAnim, 2.0f);
     this->unk_214 = 10;
     this->actionFunc = func_808CC610;
 }
@@ -235,23 +235,23 @@ void func_808CC610(EnVm* this, PlayState* play) {
     s16 sp3A;
     s16 sp38;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
-    sp38 = Math_Vec3f_Pitch(&this->actor.focus.pos, &player->actor.world.pos);
+    sp38 = MM_Math_Vec3f_Pitch(&this->actor.focus.pos, &player->actor.world.pos);
     sp38 = CLAMP_MAX(sp38, 0x1B91);
 
     sp3A = BINANG_ADD((s32)((this->unk_21C - this->actor.xzDistToPlayer) * 60.0f), 0xFA0);
     sp3A = CLAMP_MAX(sp3A, 0x1000);
 
-    Math_SmoothStepToS(&this->unk_216, sp38, 10, 0xFA0, 0);
+    MM_Math_SmoothStepToS(&this->unk_216, sp38, 10, 0xFA0, 0);
 
     if ((sp38 < 0xAAA) || (sp3A <= 0)) {
         func_808CC420(this);
-    } else if (Math_ScaledStepToS(&this->unk_218, BINANG_SUB(this->actor.yawTowardsPlayer, this->actor.shape.rot.y),
+    } else if (MM_Math_ScaledStepToS(&this->unk_218, BINANG_SUB(this->actor.yawTowardsPlayer, this->actor.shape.rot.y),
                                   sp3A)) {
         this->unk_214--;
         if (this->unk_214 == 0) {
-            EffectSsDeadDd_Spawn(play, &this->unk_228, &gZeroVec3f, &gZeroVec3f, &sPrimColor, &sEnvColor, 150, -25, 16,
+            MM_EffectSsDeadDd_Spawn(play, &this->unk_228, &gZeroVec3f, &gZeroVec3f, &sPrimColor, &sEnvColor, 150, -25, 16,
                                  20);
             func_808CC788(this);
         }
@@ -260,7 +260,7 @@ void func_808CC610(EnVm* this, PlayState* play) {
 
 void func_808CC788(EnVm* this) {
     Actor_PlaySfx(&this->actor, NA_SE_EN_BIMOS_AIM);
-    Animation_Change(&this->skelAnime, &gBeamosAnim, 3.0f, 3.0f, 7.0f, ANIMMODE_ONCE, 0.0f);
+    MM_Animation_Change(&this->skelAnime, &gBeamosAnim, 3.0f, 3.0f, 7.0f, ANIMMODE_ONCE, 0.0f);
     this->unk_214 = 305;
     this->unk_220 = 0.06f;
     this->colliderTris.base.atFlags &= ~AT_HIT;
@@ -272,11 +272,11 @@ void func_808CC820(EnVm* this, PlayState* play) {
     s16 sp32;
     f32 temp_f2;
 
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (MM_SkelAnime_Update(&this->skelAnime)) {
         this->skelAnime.curFrame = this->skelAnime.startFrame;
     }
 
-    sp32 = Math_Vec3f_Pitch(&this->actor.focus.pos, &player->actor.world.pos);
+    sp32 = MM_Math_Vec3f_Pitch(&this->actor.focus.pos, &player->actor.world.pos);
     sp32 = CLAMP_MAX(sp32, 0x1B91);
 
     if (this->colliderTris.base.atFlags & AT_HIT) {
@@ -287,9 +287,9 @@ void func_808CC820(EnVm* this, PlayState* play) {
         }
     }
 
-    if ((this->unk_216 < 0xAAA) || (Player_GetMask(play) == PLAYER_MASK_STONE) || (this->unk_214 == 0)) {
+    if ((this->unk_216 < 0xAAA) || (MM_Player_GetMask(play) == PLAYER_MASK_STONE) || (this->unk_214 == 0)) {
         this->unk_214 = 0;
-        if (Math_StepToF(&this->unk_220, 0.0f, 0.003f)) {
+        if (MM_Math_StepToF(&this->unk_220, 0.0f, 0.003f)) {
             this->unk_210 = 0;
             this->unk_224 = 0.0f;
             func_808CC420(this);
@@ -297,16 +297,16 @@ void func_808CC820(EnVm* this, PlayState* play) {
     } else {
         this->unk_214--;
         if (this->unk_214 <= 300) {
-            Math_ApproachS(&this->unk_218, this->actor.yawTowardsPlayer - this->actor.shape.rot.y, 0xA, 0xDAC);
-            Math_ApproachS(&this->unk_216, sp32, 0xA, 0xDAC);
+            MM_Math_ApproachS(&this->unk_218, this->actor.yawTowardsPlayer - this->actor.shape.rot.y, 0xA, 0xDAC);
+            MM_Math_ApproachS(&this->unk_216, sp32, 0xA, 0xDAC);
 
-            temp_f2 = Math_Vec3f_DistXYZ(&this->actor.focus.pos, &player->actor.world.pos) + 40.0f;
+            temp_f2 = MM_Math_Vec3f_DistXYZ(&this->actor.focus.pos, &player->actor.world.pos) + 40.0f;
             if (this->unk_224 < temp_f2) {
-                Math_StepToF(&this->unk_224, temp_f2, 40.0f);
+                MM_Math_StepToF(&this->unk_224, temp_f2, 40.0f);
             }
 
-            Math_StepToF(&this->unk_220, 0.01f, 0.012f);
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderTris.base);
+            MM_Math_StepToF(&this->unk_220, 0.01f, 0.012f);
+            MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderTris.base);
 
             if (this->unk_210 == 0) {
                 this->unk_210 = 1;
@@ -316,7 +316,7 @@ void func_808CC820(EnVm* this, PlayState* play) {
 }
 
 void func_808CCA10(EnVm* this) {
-    Animation_Change(&this->skelAnime, &gBeamosAnim, -1.0f, Animation_GetLastFrame(&gBeamosAnim), 0.0f, ANIMMODE_ONCE,
+    MM_Animation_Change(&this->skelAnime, &gBeamosAnim, -1.0f, MM_Animation_GetLastFrame(&gBeamosAnim), 0.0f, ANIMMODE_ONCE,
                      0.0f);
     this->unk_214 = 100;
     this->unk_210 = 0;
@@ -327,8 +327,8 @@ void func_808CCA10(EnVm* this) {
 }
 
 void func_808CCAA4(EnVm* this, PlayState* play) {
-    Math_ApproachS(&this->unk_216, 0, 0xA, 0x5DC);
-    SkelAnime_Update(&this->skelAnime);
+    MM_Math_ApproachS(&this->unk_216, 0, 0xA, 0x5DC);
+    MM_SkelAnime_Update(&this->skelAnime);
     if (this->unk_214 == 0) {
         func_808CCB08(this);
     } else {
@@ -337,17 +337,17 @@ void func_808CCAA4(EnVm* this, PlayState* play) {
 }
 
 void func_808CCB08(EnVm* this) {
-    Animation_PlayOnce(&this->skelAnime, &gBeamosAnim);
+    MM_Animation_PlayOnce(&this->skelAnime, &gBeamosAnim);
     this->unk_214 = -1;
     this->actionFunc = func_808CCB50;
 }
 
 void func_808CCB50(EnVm* this, PlayState* play) {
-    Math_ApproachS(&this->unk_216, 0, 0xA, 0x5DC);
+    MM_Math_ApproachS(&this->unk_216, 0, 0xA, 0x5DC);
 
     if (this->unk_214 > 0) {
         this->unk_214--;
-    } else if (SkelAnime_Update(&this->skelAnime)) {
+    } else if (MM_SkelAnime_Update(&this->skelAnime)) {
         if (this->unk_214 == -1) {
             this->unk_214 = 10;
             this->skelAnime.curFrame = 0.0f;
@@ -359,10 +359,10 @@ void func_808CCB50(EnVm* this, PlayState* play) {
 }
 
 void func_808CCBE4(EnVm* this, PlayState* play) {
-    Animation_Change(&this->skelAnime, &gBeamosAnim, -1.0f, Animation_GetLastFrame(&gBeamosAnim), 0.0f, ANIMMODE_ONCE,
+    MM_Animation_Change(&this->skelAnime, &gBeamosAnim, -1.0f, MM_Animation_GetLastFrame(&gBeamosAnim), 0.0f, ANIMMODE_ONCE,
                      0.0f);
-    Enemy_StartFinishingBlow(play, &this->actor);
-    Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 33);
+    MM_Enemy_StartFinishingBlow(play, &this->actor);
+    MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 33);
     this->unk_214 = 33;
     this->unk_220 = 0.0f;
     this->unk_224 = 0.0f;
@@ -370,7 +370,7 @@ void func_808CCBE4(EnVm* this, PlayState* play) {
     this->actor.world.pos.y = this->actor.focus.pos.y;
     this->actor.velocity.y = 8.0f;
     this->actor.gravity = -0.5f;
-    this->actor.speed = Rand_ZeroOne() + 1.0f;
+    this->actor.speed = MM_Rand_ZeroOne() + 1.0f;
     this->unk_210 = 0;
     this->actor.flags |= ACTOR_FLAG_UPDATE_CULLING_DISABLED;
     this->actionFunc = func_808CCCF0;
@@ -380,21 +380,21 @@ void func_808CCCF0(EnVm* this, PlayState* play) {
     this->unk_216 += 0x5DC;
     this->unk_218 += 0x9C4;
     Actor_MoveWithGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 20.0f, 40.0f,
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 20.0f, 40.0f,
                             UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_2 | UPDBGCHECKINFO_FLAG_4);
 
     this->unk_214--;
     if (this->unk_214 == 1) {
         EnBom* bomb =
-            (EnBom*)Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BOM, this->actor.world.pos.x, this->actor.world.pos.y,
+            (EnBom*)MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BOM, this->actor.world.pos.x, this->actor.world.pos.y,
                                 this->actor.world.pos.z, BOMB_EXPLOSIVE_TYPE_BOMB, 0, 0x6FF, BOMB_TYPE_BODY);
 
         if (bomb != NULL) {
             bomb->timer = 0;
         }
     } else if (this->unk_214 == 0) {
-        Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos, 0xB0);
-        Actor_Kill(&this->actor);
+        MM_Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos, 0xB0);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -425,7 +425,7 @@ void func_808CCDE4(EnVm* this, PlayState* play) {
     }
 }
 
-void EnVm_Update(Actor* thisx, PlayState* play) {
+void MM_EnVm_Update(Actor* thisx, PlayState* play) {
     s32 pad;
     EnVm* this = (EnVm*)thisx;
 
@@ -447,13 +447,13 @@ void EnVm_Update(Actor* thisx, PlayState* play) {
 
     this->unk_212 += 12;
 
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliderJntSph.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliderJntSph.base);
     if (this->actionFunc != func_808CCCF0) {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderJntSph.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderJntSph.base);
     }
 }
 
-s32 EnVm_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx) {
+s32 MM_EnVm_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx) {
     EnVm* this = (EnVm*)thisx;
 
     if (limbIndex == BEAMOS_LIMB_HEAD_ROOT) {
@@ -465,7 +465,7 @@ s32 EnVm_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* po
     return false;
 }
 
-void EnVm_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* thisx) {
+void MM_EnVm_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* thisx) {
     s32 pad;
     EnVm* this = (EnVm*)thisx;
     Vec3f sp5C;
@@ -473,7 +473,7 @@ void EnVm_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
     CollisionPoly* poly;
     s32 bgId;
 
-    Collider_UpdateSpheres(limbIndex, &this->colliderJntSph);
+    MM_Collider_UpdateSpheres(limbIndex, &this->colliderJntSph);
 
     if (limbIndex == BEAMOS_LIMB_HEAD_ROOT) {
         poly = NULL;
@@ -482,24 +482,24 @@ void EnVm_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
         Matrix_MultVecZ(1600.0f, &this->unk_228);
         Matrix_MultVecZ(this->unk_224 * 71.428566f, &this->unk_234);
 
-        if (BgCheck_EntityLineTest1(&play->colCtx, &this->actor.focus.pos, &this->unk_234, &sp5C, &poly, true, true,
+        if (MM_BgCheck_EntityLineTest1(&play->colCtx, &this->actor.focus.pos, &this->unk_234, &sp5C, &poly, true, true,
                                     false, true, &bgId)) {
-            this->unk_224 = Math_Vec3f_DistXYZ(&this->actor.focus.pos, &sp5C) - 5.0f;
+            this->unk_224 = MM_Math_Vec3f_DistXYZ(&this->actor.focus.pos, &sp5C) - 5.0f;
             this->unk_210 = 2;
-            Math_Vec3f_Copy(&this->unk_234, &sp5C);
+            MM_Math_Vec3f_Copy(&this->unk_234, &sp5C);
         } else if (this->unk_210 != 0) {
             this->unk_210 = 1;
         }
 
-        sp50.x = this->unk_234.x + (Math_CosS(this->actor.shape.rot.y + this->unk_218) * 5.0f);
+        sp50.x = this->unk_234.x + (MM_Math_CosS(this->actor.shape.rot.y + this->unk_218) * 5.0f);
         sp50.y = this->unk_234.y;
-        sp50.z = this->unk_234.z - (Math_SinS(this->actor.shape.rot.y + this->unk_218) * 5.0f);
+        sp50.z = this->unk_234.z - (MM_Math_SinS(this->actor.shape.rot.y + this->unk_218) * 5.0f);
 
-        Collider_SetTrisVertices(&this->colliderTris, 0, &this->actor.focus.pos, &this->unk_234, &sp50);
+        MM_Collider_SetTrisVertices(&this->colliderTris, 0, &this->actor.focus.pos, &this->unk_234, &sp50);
     }
 }
 
-void EnVm_Draw(Actor* thisx, PlayState* play) {
+void MM_EnVm_Draw(Actor* thisx, PlayState* play) {
     s32 pad;
     EnVm* this = (EnVm*)thisx;
     Gfx* gfx;
@@ -512,8 +512,8 @@ void EnVm_Draw(Actor* thisx, PlayState* play) {
 
     POLY_OPA_DISP = &gfx[1];
 
-    SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, EnVm_OverrideLimbDraw,
-                      EnVm_PostLimbDraw, &this->actor);
+    MM_SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, MM_EnVm_OverrideLimbDraw,
+                      MM_EnVm_PostLimbDraw, &this->actor);
 
     if (this->unk_210 == 2) {
         gfx = POLY_XLU_DISP;
@@ -521,8 +521,8 @@ void EnVm_Draw(Actor* thisx, PlayState* play) {
         gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_60]);
         gDPSetColorDither(&gfx[1], G_CD_DISABLE);
 
-        Matrix_Translate(this->unk_234.x, this->unk_234.y + 10.0f, this->unk_234.z, MTXMODE_NEW);
-        Matrix_Scale(0.8f, 0.8f, 0.8f, MTXMODE_APPLY);
+        MM_Matrix_Translate(this->unk_234.x, this->unk_234.y + 10.0f, this->unk_234.z, MTXMODE_NEW);
+        MM_Matrix_Scale(0.8f, 0.8f, 0.8f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(&gfx[2], play->state.gfxCtx);
         gDPSetPrimColor(&gfx[3], 0, 0, 255, 255, 255, 168);
@@ -538,9 +538,9 @@ void EnVm_Draw(Actor* thisx, PlayState* play) {
 
         gSPSegment(&gfx[0], 0x08, func_8012CB28(play->state.gfxCtx, 0, this->unk_212));
 
-        Matrix_Translate(this->actor.focus.pos.x, this->actor.focus.pos.y, this->actor.focus.pos.z, MTXMODE_NEW);
-        Matrix_RotateZYX(this->unk_216, this->unk_218 + this->actor.shape.rot.y, 0, MTXMODE_APPLY);
-        Matrix_Scale(this->unk_220, this->unk_220, this->unk_224 * 0.0015f, MTXMODE_APPLY);
+        MM_Matrix_Translate(this->actor.focus.pos.x, this->actor.focus.pos.y, this->actor.focus.pos.z, MTXMODE_NEW);
+        MM_Matrix_RotateZYX(this->unk_216, this->unk_218 + this->actor.shape.rot.y, 0, MTXMODE_APPLY);
+        MM_Matrix_Scale(this->unk_220, this->unk_220, this->unk_224 * 0.0015f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(&gfx[1], play->state.gfxCtx);
         gSPDisplayList(&gfx[2], gBeamosLaserDL);

@@ -34,10 +34,10 @@ ActorProfile Eff_Kamejima_Wave_Profile = {
     /**/ NULL,
 };
 
-static Color_RGBA8 sPrimColors[] = {
+static Color_RGBA8 MM_sPrimColors[] = {
     { 255, 240, 255, 255 }, { 255, 255, 255, 255 }, { 255, 240, 230, 255 }, { 140, 170, 220, 255 }
 };
-static Color_RGBA8 sEnvColors[] = {
+static Color_RGBA8 MM_sEnvColors[] = {
     { 130, 80, 90, 255 }, { 90, 120, 130, 255 }, { 130, 80, 70, 255 }, { 40, 60, 110, 255 }
 };
 
@@ -47,7 +47,7 @@ AnimatedMaterial* D_80BCF1C4;
 void EffKamejimaWave_Init(Actor* thisx, PlayState* play) {
     EffKamejimaWave* this = (EffKamejimaWave*)thisx;
 
-    Actor_SetScale(&this->actor, 0.2f);
+    MM_Actor_SetScale(&this->actor, 0.2f);
     this->actor.scale.y = 0.0f;
     if (EFFKAMEJIMAWAVE_GET_F(thisx) == EFFKAMEJIMAWAVE_PARAM_1) {
         this->actionFunc = func_80BCEDE0;
@@ -153,14 +153,14 @@ void EffKamejimaWave_Draw(Actor* thisx, PlayState* play) {
     Color_RGBA8 primColor;
     Color_RGBA8 envColor;
 
-    Environment_LerpSandstormColors(sPrimColors, &primColor);
-    Environment_LerpSandstormColors(sEnvColors, &envColor);
+    Environment_LerpSandstormColors(MM_sPrimColors, &primColor);
+    Environment_LerpSandstormColors(MM_sEnvColors, &envColor);
     EffKamejimaWave_SetVtxAlpha(sVtxAlpha);
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-    Matrix_Scale(6.0f, 5.0f, 5.0f, MTXMODE_APPLY);
+    MM_Matrix_Scale(6.0f, 5.0f, 5.0f, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
     AnimatedMat_Draw(play, D_80BCF1C4);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, primColor.r, primColor.g, primColor.b, 255);

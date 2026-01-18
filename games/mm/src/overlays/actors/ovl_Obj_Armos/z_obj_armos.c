@@ -36,7 +36,7 @@ ActorProfile Obj_Armos_Profile = {
 s16 D_809A5BB0[] = { 1, -1, 0, 0 };
 s16 D_809A5BB8[] = { 0, 0, 1, -1 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 120, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 250, ICHAIN_CONTINUE),
@@ -181,24 +181,24 @@ void ObjArmos_Init(Actor* thisx, PlayState* play) {
     ObjArmos* this = (ObjArmos*)thisx;
     s32 sp44 = OBJARMOS_GET_ROTZ_7(&this->dyna.actor);
     s32 sp40 = OBJARMOS_GET_ROTX_F(&this->dyna.actor);
-    f32 endFrame = Animation_GetLastFrame(&gArmosPushedBackAnim);
+    f32 endFrame = MM_Animation_GetLastFrame(&gArmosPushedBackAnim);
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
 
     this->dyna.actor.home.rot.y = this->dyna.actor.world.rot.x = this->dyna.actor.world.rot.y =
         this->dyna.actor.world.rot.z = this->dyna.actor.shape.rot.x = this->dyna.actor.shape.rot.z = 0;
 
-    DynaPolyActor_Init(&this->dyna, 0);
+    MM_DynaPolyActor_Init(&this->dyna, 0);
     DynaPolyActor_LoadMesh(play, &this->dyna, &object_am_Colheader_005CF8);
 
-    SkelAnime_Init(play, &this->skelAnime, &object_am_Skel_005948, &gArmosPushedBackAnim, this->jointTable,
+    MM_SkelAnime_Init(play, &this->skelAnime, &object_am_Skel_005948, &gArmosPushedBackAnim, this->jointTable,
                    this->morphTable, OBJECT_AM_LIMB_MAX);
 
-    Animation_Change(&this->skelAnime, &gArmosPushedBackAnim, 0.0f, endFrame, endFrame, ANIMMODE_ONCE, 0.0f);
+    MM_Animation_Change(&this->skelAnime, &gArmosPushedBackAnim, 0.0f, endFrame, endFrame, ANIMMODE_ONCE, 0.0f);
 
     if (sp40 == 0) {
         func_809A57D8(this);
-    } else if (Flags_GetSwitch(play, OBJARMOS_GET_SWITCH_FLAG(&this->dyna.actor))) {
+    } else if (MM_Flags_GetSwitch(play, OBJARMOS_GET_SWITCH_FLAG(&this->dyna.actor))) {
         if (sp44 == OBJARMOS_ROT_7_0) {
             this->dyna.actor.world.pos.x = this->dyna.actor.home.pos.x + (sp40 * 60);
             func_809A57D8(this);
@@ -222,7 +222,7 @@ void ObjArmos_Init(Actor* thisx, PlayState* play) {
 void ObjArmos_Destroy(Actor* thisx, PlayState* play) {
     ObjArmos* this = (ObjArmos*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_809A54B4(ObjArmos* this) {
@@ -270,7 +270,7 @@ void func_809A562C(ObjArmos* this, PlayState* play) {
     s32 temp;
     s32 sp20;
 
-    if (Math_StepToF(this->unk_25C, this->unk_260, (Math_SinS(fabsf(temp2) * 546.13336f) * 1.6f) + 1.0f)) {
+    if (MM_Math_StepToF(this->unk_25C, this->unk_260, (MM_Math_SinS(fabsf(temp2) * 546.13336f) * 1.6f) + 1.0f)) {
         player = GET_PLAYER(play);
         temp = OBJARMOS_GET_ROTZ_7(&this->dyna.actor);
         sp20 = false;
@@ -285,7 +285,7 @@ void func_809A562C(ObjArmos* this, PlayState* play) {
             }
         } else {
             Actor_PlaySfx(&this->dyna.actor, NA_SE_EV_BLOCK_BOUND);
-            Flags_SetSwitch(play, OBJARMOS_GET_SWITCH_FLAG(&this->dyna.actor));
+            MM_Flags_SetSwitch(play, OBJARMOS_GET_SWITCH_FLAG(&this->dyna.actor));
             sp20 = true;
         }
 
@@ -323,18 +323,18 @@ void ObjArmos_Update(Actor* thisx, PlayState* play2) {
     this->dyna.actor.world.pos.y = this->dyna.actor.home.pos.y;
 
     if (this->updBgCheckInfoFlags != 0) {
-        Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 20.0f, 30.0f, 0.0f, this->updBgCheckInfoFlags);
+        MM_Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 20.0f, 30.0f, 0.0f, this->updBgCheckInfoFlags);
 
         if ((this->actionFunc == func_809A54E0) && (this->dyna.actor.bgCheckFlags & BGCHECKFLAG_GROUND) &&
-            (DynaPoly_GetActor(&play->colCtx, this->dyna.actor.floorBgId) == NULL)) {
+            (MM_DynaPoly_GetActor(&play->colCtx, this->dyna.actor.floorBgId) == NULL)) {
             this->updBgCheckInfoFlags = 0;
         }
 
-        this->unk_250.x = (Math_SinS(this->dyna.actor.shape.rot.y) * -9.0f) + this->dyna.actor.world.pos.x;
+        this->unk_250.x = (MM_Math_SinS(this->dyna.actor.shape.rot.y) * -9.0f) + this->dyna.actor.world.pos.x;
         this->unk_250.y = this->dyna.actor.world.pos.y + 20.0f;
-        this->unk_250.z = (Math_CosS(this->dyna.actor.shape.rot.y) * -9.0f) + this->dyna.actor.world.pos.z;
+        this->unk_250.z = (MM_Math_CosS(this->dyna.actor.shape.rot.y) * -9.0f) + this->dyna.actor.world.pos.z;
 
-        this->dyna.actor.floorHeight = BgCheck_EntityRaycastFloor5(&play->colCtx, &this->dyna.actor.floorPoly, &bgId,
+        this->dyna.actor.floorHeight = MM_BgCheck_EntityRaycastFloor5(&play->colCtx, &this->dyna.actor.floorPoly, &bgId,
                                                                    &this->dyna.actor, &this->unk_250);
     }
 }
@@ -345,16 +345,16 @@ void func_809A5960(ObjArmos* this, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
     Vec3f sp28;
 
-    sp28.x = Math_SinS(this->dyna.actor.shape.rot.y);
-    Matrix_SetTranslateRotateYXZ((sp28.x * -9.0f) + this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
-                                 (Math_CosS(this->dyna.actor.shape.rot.y) * -9.0f) + this->dyna.actor.world.pos.z,
+    sp28.x = MM_Math_SinS(this->dyna.actor.shape.rot.y);
+    MM_Matrix_SetTranslateRotateYXZ((sp28.x * -9.0f) + this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
+                                 (MM_Math_CosS(this->dyna.actor.shape.rot.y) * -9.0f) + this->dyna.actor.world.pos.z,
                                  &this->dyna.actor.shape.rot);
-    Matrix_Scale(0.014f, 0.014f, 0.014f, MTXMODE_APPLY);
+    MM_Matrix_Scale(0.014f, 0.014f, 0.014f, MTXMODE_APPLY);
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 0);
 
-    SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, NULL, NULL, &this->dyna.actor);
+    MM_SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, NULL, NULL, &this->dyna.actor);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -374,8 +374,8 @@ void func_809A5A3C(ObjArmos* this, PlayState* play) {
 
         func_800C0094(this->dyna.actor.floorPoly, this->unk_250.x, this->dyna.actor.floorHeight, this->unk_250.z,
                       &sp48);
-        Matrix_Put(&sp48);
-        Matrix_Scale(0.6f, 1.0f, 0.6f, MTXMODE_APPLY);
+        MM_Matrix_Put(&sp48);
+        MM_Matrix_Scale(0.6f, 1.0f, 0.6f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_XLU_DISP++, gCircleShadowDL);

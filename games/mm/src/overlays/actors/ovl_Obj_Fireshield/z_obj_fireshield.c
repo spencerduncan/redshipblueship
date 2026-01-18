@@ -32,7 +32,7 @@ ActorProfile Obj_Fireshield_Profile = {
     /**/ ObjFireshield_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -68,7 +68,7 @@ s32 D_80A4D874[] = { 0, 0, 0, 0 };
 s32 D_80A4D884[] = { 0, 0, 0, 0 };
 s32 D_80A4D894[] = { 0, 0, 0, 0 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 400, ICHAIN_CONTINUE),
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
@@ -139,7 +139,7 @@ void func_80A4CD28(ObjFireshield* this) {
 void func_80A4CD34(Actor* thisx, PlayState* play) {
     s32 pad;
     ObjFireshield* this = (ObjFireshield*)thisx;
-    s32 isSwitchFlagSet = Flags_GetSwitch(play, OBJFIRESHIELD_GET_FLAGS(&this->actor));
+    s32 isSwitchFlagSet = MM_Flags_GetSwitch(play, OBJFIRESHIELD_GET_FLAGS(&this->actor));
     s32 phi_v1;
     s32 phi_a0;
 
@@ -148,11 +148,11 @@ void func_80A4CD34(Actor* thisx, PlayState* play) {
             phi_v1 = false;
             phi_a0 = false;
         } else {
-            phi_v1 = Flags_GetTreasure(play, OBJFIRESHIELD_GET_1F00(&this->actor));
+            phi_v1 = MM_Flags_GetTreasure(play, OBJFIRESHIELD_GET_1F00(&this->actor));
             phi_a0 = false;
         }
     } else {
-        phi_a0 = Flags_GetSwitch(play, OBJFIRESHIELD_GET_SWITCH_FLAG(&this->actor));
+        phi_a0 = MM_Flags_GetSwitch(play, OBJFIRESHIELD_GET_SWITCH_FLAG(&this->actor));
         phi_v1 = false;
     }
 
@@ -183,28 +183,28 @@ void func_80A4CE28(ObjFireshield* this, PlayState* play) {
             sp24 = false;
             sp20 = false;
         } else {
-            sp24 = Flags_GetTreasure(play, OBJFIRESHIELD_GET_1F00(&this->actor));
+            sp24 = MM_Flags_GetTreasure(play, OBJFIRESHIELD_GET_1F00(&this->actor));
             sp20 = false;
         }
     } else {
-        sp20 = Flags_GetSwitch(play, OBJFIRESHIELD_GET_SWITCH_FLAG(&this->actor));
+        sp20 = MM_Flags_GetSwitch(play, OBJFIRESHIELD_GET_SWITCH_FLAG(&this->actor));
         sp24 = false;
     }
 
     if (!sp24 || !sp20 || (this->unk_19C != 0)) {
-        s32 sp1C = Flags_GetSwitch(play, sp30);
+        s32 sp1C = MM_Flags_GetSwitch(play, sp30);
         s32 temp_v0 = (sp30 & ~0x1F) >> 5;
 
         if (this->unk_19C == 2) {
-            if (Math_StepToF(&this->unk_198, 1.0f, 0.03f)) {
+            if (MM_Math_StepToF(&this->unk_198, 1.0f, 0.03f)) {
                 this->unk_19C = 1;
                 if (((this->actor.home.rot.z * 10) > 0) && (this->unk_1A7 != 0)) {
-                    Flags_UnsetSwitch(play, sp30);
+                    MM_Flags_UnsetSwitch(play, sp30);
                     sp1C = false;
                 }
             }
         } else if (this->unk_19C == 3) {
-            if (Math_StepToF(&this->unk_198, 0.0f, 0.03f)) {
+            if (MM_Math_StepToF(&this->unk_198, 0.0f, 0.03f)) {
                 this->unk_19C = 0;
             }
         }
@@ -271,7 +271,7 @@ void ObjFireshield_Init(Actor* thisx, PlayState* play) {
     ObjFireshieldStruct* sp2C = &D_80A4D84C[OBJFIRESHIELD_GET_C000(&this->actor)];
     s32 sp28 = OBJFIRESHIELD_GET_ROTX(&this->actor);
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
 
     if (sp28) {
         this->actor.shape.rot.z = temp;
@@ -288,16 +288,16 @@ void ObjFireshield_Init(Actor* thisx, PlayState* play) {
     this->actor.scale.y = 0.05f;
 
     this->actor.cullingVolumeScale = sp2C->unk_04;
-    this->unk_1A4 = Rand_ZeroOne() * 128.0f;
+    this->unk_1A4 = MM_Rand_ZeroOne() * 128.0f;
 
     if ((this->actor.home.rot.z * 10) < 0) {
         this->unk_1A8 = 1;
         this->actor.home.rot.z = -thisx->home.rot.z;
     }
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
 
     this->collider.dim.radius *= sp2C->unk_00;
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
@@ -309,7 +309,7 @@ void ObjFireshield_Init(Actor* thisx, PlayState* play) {
 void ObjFireshield_Destroy(Actor* thisx, PlayState* play) {
     ObjFireshield* this = (ObjFireshield*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void ObjFireshield_Update(Actor* thisx, PlayState* play) {
@@ -370,9 +370,9 @@ void ObjFireshield_Update(Actor* thisx, PlayState* play) {
             this->collider.elem.atDmgInfo.effect = 1;
         }
 
-        Collider_UpdateCylinder(thisx, &this->collider);
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_Collider_UpdateCylinder(thisx, &this->collider);
+        MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -386,7 +386,7 @@ void ObjFireshield_Draw(Actor* thisx, PlayState* play) {
     gDPSetPrimColor(POLY_XLU_DISP++, 0x80, 0x80, 255, 220, 0, this->unk_1A6);
     gDPSetEnvColor(POLY_XLU_DISP++, 255, 0, 0, 0);
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, this->unk_1A4 & 0x7F, 0, 0x20, 0x40, 1, 0,
+               MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, this->unk_1A4 & 0x7F, 0, 0x20, 0x40, 1, 0,
                                 (this->unk_1A4 * -15) & 0xFF, 0x20, 0x40));
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
     gSPDisplayList(POLY_XLU_DISP++, gameplay_keep_DL_02E510);

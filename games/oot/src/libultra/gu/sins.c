@@ -1,15 +1,15 @@
 #include <libultraship/libultra.h>
-#include "sintable.c"
+#include "OoT_sintable.c"
 
-s16 sins(u16 x) {
+s16 OoT_sins(u16 x) {
     s16 value;
 
     x >>= 4;
 
     if (x & 0x400) {
-        value = sintable[0x3FF - (x & 0x3FF)];
+        value = OoT_sintable[0x3FF - (x & 0x3FF)];
     } else {
-        value = sintable[x & 0x3FF];
+        value = OoT_sintable[x & 0x3FF];
     }
 
     if (x & 0x800) {

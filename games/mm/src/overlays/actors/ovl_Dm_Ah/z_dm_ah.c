@@ -32,7 +32,7 @@ typedef enum {
     /*  2 */ DMAH_ANIM_MAX
 } DmAhAnimation;
 
-static AnimationInfoS sAnimationInfo[DMAH_ANIM_MAX] = {
+static AnimationInfoS MM_sAnimationInfo[DMAH_ANIM_MAX] = {
     { &object_ah_Anim_001860, 1.0f, 0, -1, ANIMMODE_LOOP, 0 }, // DMAH_ANIM_0
     { &object_ah_Anim_000DDC, 1.0f, 0, -1, ANIMMODE_LOOP, 0 }, // DMAH_ANIM_1
 };
@@ -42,7 +42,7 @@ s32 DmAh_ChangeAnim(DmAh* this, s32 animIndex) {
 
     if (this->animIndex != animIndex) {
         this->animIndex = animIndex;
-        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, animIndex);
+        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, animIndex);
     }
     return didAnimChange;
 }
@@ -51,7 +51,7 @@ void func_80C1D458(DmAh* this) {
     if (DECR(this->unk_286) == 0) {
         this->unk_284++;
         if (this->unk_284 >= 4) {
-            this->unk_286 = Rand_S16Offset(30, 30);
+            this->unk_286 = MM_Rand_S16Offset(30, 30);
             this->unk_284 = 0;
         }
     }
@@ -63,27 +63,27 @@ s32 func_80C1D4D0(DmAh* this, PlayState* play) {
     Vec3f sp34;
     s16 temp_v0;
 
-    Math_Vec3f_Copy(&sp40, &this->unk_280->world.pos);
-    Math_Vec3f_Copy(&sp34, &this->actor.world.pos);
-    temp_v0 = Math_Vec3f_Yaw(&sp34, &sp40);
+    MM_Math_Vec3f_Copy(&sp40, &this->unk_280->world.pos);
+    MM_Math_Vec3f_Copy(&sp34, &this->actor.world.pos);
+    temp_v0 = MM_Math_Vec3f_Yaw(&sp34, &sp40);
 
-    Math_ApproachS(&this->unk_28C, (temp_v0 - this->unk_290) - this->actor.shape.rot.y, 4, 0x2AA8);
+    MM_Math_ApproachS(&this->unk_28C, (temp_v0 - this->unk_290) - this->actor.shape.rot.y, 4, 0x2AA8);
     this->unk_28C = CLAMP(this->unk_28C, -0x1FFE, 0x1FFE);
 
-    Math_ApproachS(&this->unk_290, (temp_v0 - this->unk_28C) - this->actor.shape.rot.y, 4, 0x2AA8);
+    MM_Math_ApproachS(&this->unk_290, (temp_v0 - this->unk_28C) - this->actor.shape.rot.y, 4, 0x2AA8);
     this->unk_290 = CLAMP(this->unk_290, -0x1C70, 0x1C70);
 
     if (this->unk_280->id == ACTOR_PLAYER) {
         sp40.y = ((Player*)this->unk_280)->bodyPartsPos[PLAYER_BODYPART_HEAD].y + 3.0f;
     } else {
-        Math_Vec3f_Copy(&sp40, &this->unk_280->focus.pos);
+        MM_Math_Vec3f_Copy(&sp40, &this->unk_280->focus.pos);
     }
 
-    Math_Vec3f_Copy(&sp34, &this->actor.focus.pos);
-    Math_ApproachS(&this->unk_28A, Math_Vec3f_Pitch(&sp34, &sp40) - this->unk_28E, 4, 0x2AA8);
+    MM_Math_Vec3f_Copy(&sp34, &this->actor.focus.pos);
+    MM_Math_ApproachS(&this->unk_28A, MM_Math_Vec3f_Pitch(&sp34, &sp40) - this->unk_28E, 4, 0x2AA8);
     this->unk_28A = CLAMP(this->unk_28A, -0x1C70, 0x1C70);
 
-    Math_ApproachS(&this->unk_28E, Math_Vec3f_Pitch(&sp34, &sp40) - this->unk_28A, 4, 0x2AA8);
+    MM_Math_ApproachS(&this->unk_28E, MM_Math_Vec3f_Pitch(&sp34, &sp40) - this->unk_28A, 4, 0x2AA8);
     this->unk_28E = CLAMP(this->unk_28E, -0x1C70, 0x1C70);
     return true;
 }
@@ -163,13 +163,13 @@ void DmAh_DoNothing(DmAh* this, PlayState* play) {
 void DmAh_Init(Actor* thisx, PlayState* play) {
     DmAh* this = (DmAh*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 20.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &object_ah_Skel_009E70, NULL, this->jointTable, this->morphTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 20.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &object_ah_Skel_009E70, NULL, this->jointTable, this->morphTable,
                        OBJECT_AH_LIMB_MAX);
     this->animIndex = DMAH_ANIM_NONE;
     DmAh_ChangeAnim(this, DMAH_ANIM_0);
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->unk_27C |= 1;
     if ((play->sceneId == SCENE_YADOYA) && (play->curSpawn == 4)) {
         this->unk_280 = DmAh_FindAnjuActor(play);
@@ -188,16 +188,16 @@ void DmAh_Update(Actor* thisx, PlayState* play) {
 
     this->actionFunc(this, play);
     func_80C1D6E0(this, play);
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     func_80C1D458(this);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 12.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 12.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
 }
 
 static Vec3f D_80C1DE14 = { 1000.0f, 0.0f, 0.0f };
 
 void DmAh_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* thisx) {
     if (limbIndex == OBJECT_AH_LIMB_07) {
-        Matrix_MultVec3f(&D_80C1DE14, &thisx->focus.pos);
+        MM_Matrix_MultVec3f(&D_80C1DE14, &thisx->focus.pos);
         Math_Vec3s_Copy(&thisx->focus.rot, &thisx->world.rot);
     }
 }
@@ -223,23 +223,23 @@ void DmAh_TransformLimbDraw(PlayState* play, s32 limbIndex, Actor* thisx) {
         SubS_UpdateLimb(BINANG_ADD(this->unk_28A + this->unk_28E, 0x4000),
                         BINANG_ADD(this->unk_28C + this->unk_290 + this->actor.shape.rot.y, 0x4000), &this->unk_18C,
                         &this->unk_1A4, stepRot, overrideRot);
-        Matrix_Pop();
-        Matrix_Translate(this->unk_18C.x, this->unk_18C.y, this->unk_18C.z, MTXMODE_NEW);
-        Matrix_Scale(thisx->scale.x, thisx->scale.y, thisx->scale.z, MTXMODE_APPLY);
+        MM_Matrix_Pop();
+        MM_Matrix_Translate(this->unk_18C.x, this->unk_18C.y, this->unk_18C.z, MTXMODE_NEW);
+        MM_Matrix_Scale(thisx->scale.x, thisx->scale.y, thisx->scale.z, MTXMODE_APPLY);
         Matrix_RotateYS(this->unk_1A4.y, MTXMODE_APPLY);
         Matrix_RotateXS(this->unk_1A4.x, MTXMODE_APPLY);
         Matrix_RotateZS(this->unk_1A4.z, MTXMODE_APPLY);
-        Matrix_Push();
+        MM_Matrix_Push();
     } else if (limbIndex == OBJECT_AH_LIMB_02) {
         SubS_UpdateLimb(BINANG_ADD(this->unk_28E, 0x4000), BINANG_ADD(this->unk_290 + this->actor.shape.rot.y, 0x4000),
                         &this->unk_198, &this->unk_1AA, stepRot, overrideRot);
-        Matrix_Pop();
-        Matrix_Translate(this->unk_198.x, this->unk_198.y, this->unk_198.z, MTXMODE_NEW);
-        Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+        MM_Matrix_Pop();
+        MM_Matrix_Translate(this->unk_198.x, this->unk_198.y, this->unk_198.z, MTXMODE_NEW);
+        MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
         Matrix_RotateYS(this->unk_1AA.y, MTXMODE_APPLY);
         Matrix_RotateXS(this->unk_1AA.x, MTXMODE_APPLY);
         Matrix_RotateZS(this->unk_1AA.z, MTXMODE_APPLY);
-        Matrix_Push();
+        MM_Matrix_Push();
     }
 }
 

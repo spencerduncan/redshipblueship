@@ -1,7 +1,7 @@
 #include "global.h"
 #include "z_boss_mo.h"
 
-static ColliderJntSphElementInit sJntSphElementsInit[19] = {
+static ColliderJntSphElementInit OoT_sJntSphElementsInit[19] = {
     {
         {
             ELEMTYPE_UNK4,
@@ -213,7 +213,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[19] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit OoT_sJntSphInit = {
     {
         COLTYPE_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -223,10 +223,10 @@ static ColliderJntSphInit sJntSphInit = {
         COLSHAPE_JNTSPH,
     },
     19,
-    sJntSphElementsInit,
+    OoT_sJntSphElementsInit,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_HIT3,
         AT_ON | AT_TYPE_ENEMY,

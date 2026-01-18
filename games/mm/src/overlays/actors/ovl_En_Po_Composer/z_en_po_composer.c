@@ -44,7 +44,7 @@ ActorProfile En_Po_Composer_Profile = {
     /**/ EnPoComposer_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HIT3,
         AT_NONE,
@@ -64,7 +64,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 20, 40, 20, { 0, 0, 0 } },
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[1] = {
+static ColliderJntSphElementInit MM_sJntSphElementsInit[1] = {
     {
         {
             ELEM_MATERIAL_UNK0,
@@ -78,7 +78,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[1] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit MM_sJntSphInit = {
     {
         COL_MATERIAL_HIT3,
         AT_ON | AT_TYPE_ENEMY,
@@ -87,13 +87,13 @@ static ColliderJntSphInit sJntSphInit = {
         OC2_TYPE_1,
         COLSHAPE_JNTSPH,
     },
-    ARRAY_COUNT(sJntSphElementsInit),
-    sJntSphElementsInit,
+    ARRAY_COUNT(MM_sJntSphElementsInit),
+    MM_sJntSphElementsInit,
 };
 
-static CollisionCheckInfoInit sColChkInfoInit = { 4, 25, 50, 40 };
+static CollisionCheckInfoInit MM_sColChkInfoInit = { 4, 25, 50, 40 };
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(0, 0x0),
     /* Deku Stick     */ DMG_ENTRY(2, 0x0),
     /* Horse trample  */ DMG_ENTRY(1, 0x0),
@@ -145,7 +145,7 @@ typedef enum {
     /* 13 */ POE_COMPOSER_ANIM_MAX
 } EnPoComposerAnim;
 
-static AnimationInfo sAnimationInfo[POE_COMPOSER_ANIM_MAX] = {
+static AnimationInfo MM_sAnimationInfo[POE_COMPOSER_ANIM_MAX] = {
     /*  0 */ { &gPoeComposerStillAnim, 1.0f, 0.0f, 0.0f, ANIMMODE_LOOP, -4.0f },
     /*  1 */ { &gPoeComposerAppearDisappearAnim, 1.0f, 0.0f, 0.0f, ANIMMODE_ONCE, 0.0f },
     /*  2 */ { &gPoeComposerIdleAnim, 1.0f, 0.0f, 0.0f, ANIMMODE_LOOP, -4.0f },
@@ -173,7 +173,7 @@ static Color_RGBA8 sSharpClothingColor2 = { 90, 85, 50, 255 };
 
 static Color_RGBA8 sFlatClothingColor2 = { 100, 90, 100, 255 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(lockOnArrowOffset, 3200, ICHAIN_STOP),
 };
 
@@ -182,17 +182,17 @@ static s32 sPlayerIsPlayingOcarina = false;
 void EnPoComposer_Init(Actor* thisx, PlayState* play) {
     EnPoComposer* this = (EnPoComposer*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 30.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gPoeComposerSkel, &gPoeComposerIdleAnim, this->jointTable,
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 30.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gPoeComposerSkel, &gPoeComposerIdleAnim, this->jointTable,
                        this->morphTable, POE_COMPOSER_LIMB_MAX);
-    Collider_InitJntSph(play, &this->lanternCollider);
-    Collider_SetJntSph(play, &this->lanternCollider, &this->actor, &sJntSphInit, this->lanternColliderElements);
-    Collider_InitCylinder(play, &this->bodyCollider);
-    Collider_SetCylinder(play, &this->bodyCollider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo(&this->actor.colChkInfo, &sDamageTable, &sColChkInfoInit);
-    this->lightNode = LightContext_InsertLight(play, &play->lightCtx, &this->lightInfo);
-    Lights_PointGlowSetInfo(&this->lightInfo, this->actor.home.pos.x, this->actor.home.pos.y, this->actor.home.pos.z,
+    MM_Collider_InitJntSph(play, &this->lanternCollider);
+    MM_Collider_SetJntSph(play, &this->lanternCollider, &this->actor, &MM_sJntSphInit, this->lanternColliderElements);
+    MM_Collider_InitCylinder(play, &this->bodyCollider);
+    MM_Collider_SetCylinder(play, &this->bodyCollider, &this->actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo(&this->actor.colChkInfo, &MM_sDamageTable, &MM_sColChkInfoInit);
+    this->lightNode = MM_LightContext_InsertLight(play, &play->lightCtx, &this->lightInfo);
+    MM_Lights_PointGlowSetInfo(&this->lightInfo, this->actor.home.pos.x, this->actor.home.pos.y, this->actor.home.pos.z,
                             255, 255, 255, 0);
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
     this->lightColor = sLightColorInit;
@@ -205,7 +205,7 @@ void EnPoComposer_Init(Actor* thisx, PlayState* play) {
         EnPoComposer_SetupStartedCutscene(this);
     } else if (POE_COMPOSER_4000(&this->actor)) {
         if (gSaveContext.save.entrance != ENTRANCE(IKANA_CANYON, 10)) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
             return;
         }
         this->sharpCsNum = SHARP_CS_ENCOUNTER_FIRST;
@@ -216,7 +216,7 @@ void EnPoComposer_Init(Actor* thisx, PlayState* play) {
         s16 csId = this->actor.csId;
 
         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_14_04)) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
             return;
         }
 
@@ -241,13 +241,13 @@ void EnPoComposer_Init(Actor* thisx, PlayState* play) {
 void EnPoComposer_Destroy(Actor* thisx, PlayState* play) {
     EnPoComposer* this = (EnPoComposer*)thisx;
 
-    LightContext_RemoveLight(play, &play->lightCtx, this->lightNode);
-    Collider_DestroyJntSph(play, &this->lanternCollider);
-    Collider_DestroyCylinder(play, &this->bodyCollider);
+    MM_LightContext_RemoveLight(play, &play->lightCtx, this->lightNode);
+    MM_Collider_DestroyJntSph(play, &this->lanternCollider);
+    MM_Collider_DestroyCylinder(play, &this->bodyCollider);
 }
 
 void EnPoComposer_SetupAwaitPlayer(EnPoComposer* this) {
-    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, POE_COMPOSER_ANIM_STILL);
+    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, POE_COMPOSER_ANIM_STILL);
     this->actionFunc = EnPoComposer_AwaitPlayer;
 }
 
@@ -288,7 +288,7 @@ void EnPoComposer_StartedCutscene(EnPoComposer* this, PlayState* play) {
 void EnPoComposer_SetupPlayCurse(EnPoComposer* this) {
     this->actionTimer = 0;
     this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
-    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, POE_COMPOSER_ANIM_PLAYING_CURSE);
+    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, POE_COMPOSER_ANIM_PLAYING_CURSE);
     this->actionFunc = EnPoComposer_PlayCurse;
 }
 
@@ -337,7 +337,7 @@ void EnPoComposer_PlayCurse(EnPoComposer* this, PlayState* play) {
 }
 
 void EnPoComposer_SetupIdleStill(EnPoComposer* this) {
-    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, POE_COMPOSER_ANIM_STILL);
+    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, POE_COMPOSER_ANIM_STILL);
     this->actionFunc = EnPoComposer_IdleStill;
 }
 
@@ -348,7 +348,7 @@ void EnPoComposer_SetupAppear(EnPoComposer* this) {
     this->actionTimer = 0;
     Actor_PlaySfx(&this->actor, NA_SE_EN_STALKIDS_APPEAR);
     Actor_PlaySfx(&this->actor, NA_SE_EN_PO_LAUGH);
-    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, POE_COMPOSER_ANIM_APPEAR_DISAPPEAR);
+    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, POE_COMPOSER_ANIM_APPEAR_DISAPPEAR);
     this->actionFunc = EnPoComposer_Appear;
 }
 
@@ -361,7 +361,7 @@ void EnPoComposer_Appear(EnPoComposer* this, PlayState* play) {
 }
 
 void EnPoComposer_SetupIdle(EnPoComposer* this) {
-    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, POE_COMPOSER_ANIM_IDLE);
+    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, POE_COMPOSER_ANIM_IDLE);
     this->actionFunc = EnPoComposer_Idle;
 }
 
@@ -371,57 +371,57 @@ void EnPoComposer_Idle(EnPoComposer* this, PlayState* play) {
 void EnPoComposer_SetupRaiseArms(EnPoComposer* this) {
     this->csCueTimer = 0;
     Actor_PlaySfx(&this->actor, NA_SE_EN_SHARP_REACTION);
-    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, POE_COMPOSER_ANIM_RAISE_ARMS);
+    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, POE_COMPOSER_ANIM_RAISE_ARMS);
     this->actionFunc = EnPoComposer_RaiseArms;
 }
 
 void EnPoComposer_RaiseArms(EnPoComposer* this, PlayState* play) {
-    if ((this->csCueTimer == 0) && Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    if ((this->csCueTimer == 0) && MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         this->csCueTimer++;
-        Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, POE_COMPOSER_ANIM_ARMS_RAISED);
+        Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, POE_COMPOSER_ANIM_ARMS_RAISED);
     }
 }
 
 void EnPoComposer_SetupLowerArms(EnPoComposer* this) {
     this->csCueTimer = 0;
-    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, POE_COMPOSER_ANIM_LOWER_ARMS);
+    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, POE_COMPOSER_ANIM_LOWER_ARMS);
     this->actionFunc = EnPoComposer_LowerArms;
 }
 
 void EnPoComposer_LowerArms(EnPoComposer* this, PlayState* play) {
-    if ((this->csCueTimer == 0) && Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    if ((this->csCueTimer == 0) && MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         this->csCueTimer++;
-        Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, POE_COMPOSER_ANIM_LOOKING_DOWN);
+        Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, POE_COMPOSER_ANIM_LOOKING_DOWN);
     }
 }
 
 void EnPoComposer_SetupCutscenePlayCurse(EnPoComposer* this) {
     this->csCueTimer = 0;
-    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, POE_COMPOSER_ANIM_BEGIN_PLAYING_CURSE);
+    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, POE_COMPOSER_ANIM_BEGIN_PLAYING_CURSE);
     this->actionFunc = EnPoComposer_CutscenePlayCurse;
 }
 
 void EnPoComposer_CutscenePlayCurse(EnPoComposer* this, PlayState* play) {
-    if ((this->csCueTimer == 0) && Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    if ((this->csCueTimer == 0) && MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         this->csCueTimer++;
-        Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, POE_COMPOSER_ANIM_PLAYING_CURSE);
+        Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, POE_COMPOSER_ANIM_PLAYING_CURSE);
     }
 }
 
 void EnPoComposer_SetupRoll(EnPoComposer* this) {
     this->csCueTimer = 0;
-    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, POE_COMPOSER_ANIM_BEGIN_ROLLING);
+    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, POE_COMPOSER_ANIM_BEGIN_ROLLING);
     this->actionFunc = EnPoComposer_Roll;
 }
 
 void EnPoComposer_Roll(EnPoComposer* this, PlayState* play) {
     if (this->csCueTimer == 0) {
-        if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+        if (MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
             this->csCueTimer++;
             Actor_PlaySfx(&this->actor, NA_SE_EN_SHARP_REACTION);
-            Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, POE_COMPOSER_ANIM_ROLLING);
+            Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, POE_COMPOSER_ANIM_ROLLING);
         }
-    } else if (Animation_OnFrame(&this->skelAnime, 1.0f) && (this->lightColor.a > 32)) {
+    } else if (MM_Animation_OnFrame(&this->skelAnime, 1.0f) && (this->lightColor.a > 32)) {
         if (this->csCueTimer == 1) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_LAST3_DEAD_WIND2_OLD);
             this->csCueTimer = 2;
@@ -434,7 +434,7 @@ void EnPoComposer_Roll(EnPoComposer* this, PlayState* play) {
 
 void EnPoComposer_SharpCutsceneDone(EnPoComposer* this) {
     SET_WEEKEVENTREG(WEEKEVENTREG_14_04);
-    Actor_Kill(&this->actor);
+    MM_Actor_Kill(&this->actor);
 }
 
 s32 EnPoComposer_UpdateAction(EnPoComposer* this, PlayState* play) {
@@ -493,7 +493,7 @@ s32 EnPoComposer_UpdateAction(EnPoComposer* this, PlayState* play) {
                     if (cueType == CS_CMD_ACTOR_CUE_481) {
                         EnPoComposer_SharpCutsceneDone(this);
                     } else {
-                        Actor_Kill(&this->actor);
+                        MM_Actor_Kill(&this->actor);
                     }
                     break;
 
@@ -585,7 +585,7 @@ void EnPoComposer_UpdateEnvColor(EnPoComposer* this) {
         this->envColor.r = this->envColor.g = this->envColor.b = 55.0f + this->skelAnime.curFrame * 16.66f;
         this->envColor.a = this->skelAnime.curFrame * (200.0f / 12.0f);
     } else {
-        f32 rand = Rand_ZeroOne();
+        f32 rand = MM_Rand_ZeroOne();
 
         this->envColor.r = 225 + (s32)(rand * 30.0f);
         this->envColor.g = 155 + (s32)(rand * 100.0f);
@@ -598,17 +598,17 @@ void EnPoComposer_UpdateEnvColor(EnPoComposer* this) {
 }
 
 void EnPoComposer_UpdateCollision(EnPoComposer* this, PlayState* play) {
-    Collider_UpdateCylinder(&this->actor, &this->bodyCollider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->bodyCollider.base);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->lanternCollider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->bodyCollider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->bodyCollider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->lanternCollider.base);
 }
 
 void EnPoComposer_Update(Actor* thisx, PlayState* play) {
     EnPoComposer* this = (EnPoComposer*)thisx;
 
     EnPoComposer_UpdateEnvColor(this);
-    SkelAnime_Update(&this->skelAnime);
-    Actor_SetFocus(&this->actor, 42.0f);
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Actor_SetFocus(&this->actor, 42.0f);
 
     this->actionFunc(this, play);
 
@@ -639,9 +639,9 @@ s32 EnPoComposer_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, V
 void EnPoComposer_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* thisx, Gfx** gfx) {
     EnPoComposer* this = (EnPoComposer*)thisx;
 
-    Collider_UpdateSpheres(limbIndex, &this->lanternCollider);
+    MM_Collider_UpdateSpheres(limbIndex, &this->lanternCollider);
     if (limbIndex == POE_COMPOSER_LIMB_LANTERN) {
-        Matrix_Get(&this->lanternMtxF);
+        MM_Matrix_Get(&this->lanternMtxF);
     }
 }
 
@@ -674,34 +674,34 @@ void EnPoComposer_Draw(Actor* thisx, PlayState* play) {
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
         gSPSegment(POLY_OPA_DISP++, 0x08,
-                   Gfx_EnvColor(play->state.gfxCtx, this->lightColor.r, this->lightColor.g, this->lightColor.b,
+                   MM_Gfx_EnvColor(play->state.gfxCtx, this->lightColor.r, this->lightColor.g, this->lightColor.b,
                                 this->lightColor.a));
         gSPSegment(
             POLY_OPA_DISP++, 0x0A,
-            Gfx_EnvColor(play->state.gfxCtx, clothingColor->r, clothingColor->g, clothingColor->b, this->lightColor.a));
+            MM_Gfx_EnvColor(play->state.gfxCtx, clothingColor->r, clothingColor->g, clothingColor->b, this->lightColor.a));
         gSPSegment(POLY_OPA_DISP++, 0x0B,
-                   Gfx_EnvColor(play->state.gfxCtx, var_t0->r, var_t0->g, var_t0->b, this->lightColor.a));
+                   MM_Gfx_EnvColor(play->state.gfxCtx, var_t0->r, var_t0->g, var_t0->b, this->lightColor.a));
         gSPSegment(POLY_OPA_DISP++, 0x0C, D_801AEFA0);
 
         POLY_OPA_DISP =
-            SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+            MM_SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                                EnPoComposer_OverrideLimbDraw, EnPoComposer_PostLimbDraw, &this->actor, POLY_OPA_DISP);
     } else {
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
         gSPSegment(POLY_XLU_DISP++, 0x08,
-                   Gfx_EnvColor(play->state.gfxCtx, this->lightColor.r, this->lightColor.g, this->lightColor.b,
+                   MM_Gfx_EnvColor(play->state.gfxCtx, this->lightColor.r, this->lightColor.g, this->lightColor.b,
                                 this->lightColor.a));
         gSPSegment(
             POLY_XLU_DISP++, 0x0A,
-            Gfx_EnvColor(play->state.gfxCtx, clothingColor->r, clothingColor->g, clothingColor->b, this->lightColor.a));
+            MM_Gfx_EnvColor(play->state.gfxCtx, clothingColor->r, clothingColor->g, clothingColor->b, this->lightColor.a));
         gSPSegment(POLY_XLU_DISP++, 0x0B,
-                   Gfx_EnvColor(play->state.gfxCtx, var_t0->r, var_t0->g, var_t0->b, this->lightColor.a));
+                   MM_Gfx_EnvColor(play->state.gfxCtx, var_t0->r, var_t0->g, var_t0->b, this->lightColor.a));
         gSPSegment(POLY_XLU_DISP++, 0x0C, D_801AEF88);
 
         POLY_XLU_DISP =
-            SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+            MM_SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                                EnPoComposer_OverrideLimbDraw, EnPoComposer_PostLimbDraw, &this->actor, POLY_XLU_DISP);
     }
 
@@ -719,7 +719,7 @@ void EnPoComposer_Draw(Actor* thisx, PlayState* play) {
         gDPPipeSync(&dl[0]);
         gDPSetEnvColor(&dl[1], this->envColor.r, this->envColor.g, this->envColor.b, this->lightColor.a);
 
-        Matrix_Put(&this->lanternMtxF);
+        MM_Matrix_Put(&this->lanternMtxF);
         MATRIX_FINALIZE_AND_LOAD(&dl[2], play->state.gfxCtx);
 
         gSPDisplayList(&dl[3], gPoeComposerLanternBaseDL);
@@ -736,14 +736,14 @@ void EnPoComposer_Draw(Actor* thisx, PlayState* play) {
         }
     }
 
-    Matrix_Put(&play->billboardMtxF);
+    MM_Matrix_Put(&play->billboardMtxF);
     Matrix_MultVecZ(15.0f, &lightOffset);
     lightPos = this->lanternCollider.elements[0].dim.worldSphere.center;
     lightPos.x += TRUNCF_BINANG(lightOffset.x);
     lightPos.y += TRUNCF_BINANG(lightOffset.y);
     lightPos.z += TRUNCF_BINANG(lightOffset.z);
 
-    Lights_PointGlowSetInfo(&this->lightInfo, lightPos.x, lightPos.y, lightPos.z, this->envColor.r, this->envColor.g,
+    MM_Lights_PointGlowSetInfo(&this->lightInfo, lightPos.x, lightPos.y, lightPos.z, this->envColor.r, this->envColor.g,
                             this->envColor.b, this->envColor.a * (200.0f / 255.0f));
 
     CLOSE_DISPS(play->state.gfxCtx);

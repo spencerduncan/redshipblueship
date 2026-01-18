@@ -3,8 +3,8 @@
 #include "archives/icon_item_static/icon_item_static_yar.h"
 #include "archives/icon_item_24_static/icon_item_24_static_yar.h"
 
-// Bit Flag array in which gBitFlags[n] is (1 << n)
-u32 gBitFlags[] = {
+// Bit Flag array in which MM_gBitFlags[n] is (1 << n)
+u32 MM_gBitFlags[] = {
     (1 << 0),  (1 << 1),  (1 << 2),  (1 << 3),  (1 << 4),  (1 << 5),  (1 << 6),  (1 << 7),
     (1 << 8),  (1 << 9),  (1 << 10), (1 << 11), (1 << 12), (1 << 13), (1 << 14), (1 << 15),
     (1 << 16), (1 << 17), (1 << 18), (1 << 19), (1 << 20), (1 << 21), (1 << 22), (1 << 23),
@@ -12,7 +12,7 @@ u32 gBitFlags[] = {
 };
 
 // four-bit masks
-u16 gEquipMasks[] = {
+u16 MM_gEquipMasks[] = {
     0xF << 0,  // Sword
     0xF << 4,  // Shield
     0xF << 8,  // Unused (Tunic)
@@ -20,7 +20,7 @@ u16 gEquipMasks[] = {
 };
 
 // four-bit masks
-u16 gEquipNegMasks[] = {
+u16 MM_gEquipNegMasks[] = {
     ~(0xF << 0),        // Sword
     ~(0xF << 4),        // Shield
     ~(0xF << 8),        // Unused (Tunic)
@@ -29,7 +29,7 @@ u16 gEquipNegMasks[] = {
 
 // 3 = two bit masks
 // 7 = three bit masks
-u32 gUpgradeMasks[] = {
+u32 MM_gUpgradeMasks[] = {
     7 << 0,  // Quivers
     7 << 3,  // Bomb Bags
     7 << 6,  // Unused (Strength)
@@ -42,7 +42,7 @@ u32 gUpgradeMasks[] = {
 
 // 3 = two-bit masks
 // 7 = three-bit masks
-u32 gUpgradeNegMasks[] = {
+u32 MM_gUpgradeNegMasks[] = {
     ~(7 << 0),  // UPG_QUIVER
     ~(7 << 3),  // UPG_BOMB_BAG
     ~(7 << 6),  // UPG_STRENGTH
@@ -53,14 +53,14 @@ u32 gUpgradeNegMasks[] = {
     ~(7 << 20), // UPG_DEKU_NUTS
 };
 
-u8 gEquipShifts[] = {
+u8 MM_gEquipShifts[] = {
     0,  // Sword
     4,  // Shield
     8,  // Unused (Tunic)
     12, // Unused (Boots)
 };
 
-u8 gUpgradeShifts[] = {
+u8 MM_gUpgradeShifts[] = {
     0,  // UPG_QUIVER
     3,  // UPG_BOMB_BAG
     6,  // UPG_STRENGTH
@@ -71,7 +71,7 @@ u8 gUpgradeShifts[] = {
     20, // UPG_DEKU_NUTS
 };
 
-u16 gUpgradeCapacities[][4] = {
+u16 MM_gUpgradeCapacities[][4] = {
     { 0, 30, 40, 50 },     // UPG_QUIVER
     { 0, 20, 30, 40 },     // UPG_BOMB_BAG
     { 0, 0, 0, 0 },        // UPG_STRENGTH
@@ -97,7 +97,7 @@ u32 gGsFlagsShift[] = {
     24,
 };
 
-TexturePtr gItemIcons[] = {
+TexturePtr MM_gItemIcons[] = {
     gItemIconOcarinaOfTimeTex,       // ITEM_OCARINA_OF_TIME
     gItemIconBowTex,                 // ITEM_BOW
     gItemIconFireArrowTex,           // ITEM_ARROW_FIRE
@@ -232,7 +232,7 @@ TexturePtr gItemIcons[] = {
 };
 
 // Used to map item IDs to inventory slots
-u8 gItemSlots[77] = {
+u8 MM_gItemSlots[77] = {
     SLOT_OCARINA,            // ITEM_OCARINA_OF_TIME
     SLOT_BOW,                // ITEM_BOW
     SLOT_ARROW_FIRE,         // ITEM_ARROW_FIRE
@@ -493,30 +493,30 @@ s32 Inventory_GetBtnBItem(PlayState* play) {
 /**
  * Only changes shield
  */
-void Inventory_ChangeEquipment(s16 value) {
+void MM_Inventory_ChangeEquipment(s16 value) {
     SET_EQUIP_VALUE(EQUIP_TYPE_SHIELD, value);
 }
 
 /**
  * Only deletes shield, equipment argument unused and is a remnant of OoT
  */
-u8 Inventory_DeleteEquipment(PlayState* play, s16 equipment) {
+u8 MM_Inventory_DeleteEquipment(PlayState* play, s16 equipment) {
     Player* player = GET_PLAYER(play);
 
     if (GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD) != EQUIP_VALUE_SHIELD_NONE) {
         SET_EQUIP_VALUE(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_NONE);
-        Player_SetEquipmentData(play, player);
+        MM_Player_SetEquipmentData(play, player);
         return true;
     }
 
     return false;
 }
 
-void Inventory_ChangeUpgrade(s16 upgrade, u32 value) {
+void MM_Inventory_ChangeUpgrade(s16 upgrade, u32 value) {
     u32 upgrades = GET_SAVE_INVENTORY_UPGRADES;
 
-    upgrades &= gUpgradeNegMasks[upgrade];
-    upgrades |= value << gUpgradeShifts[upgrade];
+    upgrades &= MM_gUpgradeNegMasks[upgrade];
+    upgrades |= value << MM_gUpgradeShifts[upgrade];
 
     gSaveContext.save.saveInfo.inventory.upgrades = upgrades;
 }
@@ -545,7 +545,7 @@ s32 Inventory_IsMapVisible(s16 sceneId) {
         }
     }
 
-    if (gSaveContext.save.saveInfo.scenesVisible[index] & gBitFlags[sceneId - (index << 5)]) {
+    if (gSaveContext.save.saveInfo.scenesVisible[index] & MM_gBitFlags[sceneId - (index << 5)]) {
         return true;
     }
 
@@ -659,7 +659,7 @@ void Inventory_SetWorldMapCloudVisibility(s16 tingleIndex) {
             }
 
             gSaveContext.save.saveInfo.scenesVisible[index] = gSaveContext.save.saveInfo.scenesVisible[index] |
-                                                              gBitFlags[(s16)(*tingleMapSceneIds)[i] - (index << 5)];
+                                                              MM_gBitFlags[(s16)(*tingleMapSceneIds)[i] - (index << 5)];
             i++;
         }
 

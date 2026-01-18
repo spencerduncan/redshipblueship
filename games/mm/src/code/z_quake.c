@@ -38,13 +38,13 @@ QuakeRequest sQuakeRequests[4];
 DistortionRequest sDistortionRequest;
 
 static s16 sQuakeUnused = 1;
-static s16 sQuakeRequestCount = 0;
+static s16 MM_sQuakeRequestCount = 0;
 
 f32 Quake_Random(void) {
-    return 2.0f * (Rand_ZeroOne() - 0.5f);
+    return 2.0f * (MM_Rand_ZeroOne() - 0.5f);
 }
 
-void Quake_UpdateShakeInfo(QuakeRequest* req, ShakeInfo* shake, f32 yOffset, f32 xOffset) {
+void MM_Quake_UpdateShakeInfo(QuakeRequest* req, ShakeInfo* shake, f32 yOffset, f32 xOffset) {
     Vec3f* at = &req->camera->at;
     Vec3f* eye = &req->camera->eye;
     Vec3f atEyeOffset;
@@ -91,9 +91,9 @@ void Quake_UpdateShakeInfo(QuakeRequest* req, ShakeInfo* shake, f32 yOffset, f32
 
 s16 Quake_CallbackType1(QuakeRequest* req, ShakeInfo* shake) {
     if (req->timer > 0) {
-        f32 xyOffset = Math_SinS(req->speed * req->timer);
+        f32 xyOffset = MM_Math_SinS(req->speed * req->timer);
 
-        Quake_UpdateShakeInfo(req, shake, xyOffset, Rand_ZeroOne() * xyOffset);
+        MM_Quake_UpdateShakeInfo(req, shake, xyOffset, MM_Rand_ZeroOne() * xyOffset);
         req->timer--;
     }
     return req->timer;
@@ -101,9 +101,9 @@ s16 Quake_CallbackType1(QuakeRequest* req, ShakeInfo* shake) {
 
 s16 Quake_CallbackType5(QuakeRequest* req, ShakeInfo* shake) {
     if (req->timer > 0) {
-        f32 xyOffset = Math_SinS(req->speed * req->timer);
+        f32 xyOffset = MM_Math_SinS(req->speed * req->timer);
 
-        Quake_UpdateShakeInfo(req, shake, xyOffset, xyOffset);
+        MM_Quake_UpdateShakeInfo(req, shake, xyOffset, xyOffset);
         req->timer--;
     }
     return req->timer;
@@ -113,8 +113,8 @@ s16 Quake_CallbackType6(QuakeRequest* req, ShakeInfo* shake) {
     f32 xyOffset;
 
     req->timer--;
-    xyOffset = Math_SinS(req->speed * ((req->timer & 0xF) + 500));
-    Quake_UpdateShakeInfo(req, shake, xyOffset, Rand_ZeroOne() * xyOffset);
+    xyOffset = MM_Math_SinS(req->speed * ((req->timer & 0xF) + 500));
+    MM_Quake_UpdateShakeInfo(req, shake, xyOffset, MM_Rand_ZeroOne() * xyOffset);
 
     // Not returning the timer ensures quake type 6 continues indefinitely until manually removed
     return 1;
@@ -122,9 +122,9 @@ s16 Quake_CallbackType6(QuakeRequest* req, ShakeInfo* shake) {
 
 s16 Quake_CallbackType3(QuakeRequest* req, ShakeInfo* shake) {
     if (req->timer > 0) {
-        f32 xyOffset = Math_SinS(req->speed * req->timer) * ((f32)req->timer / req->duration);
+        f32 xyOffset = MM_Math_SinS(req->speed * req->timer) * ((f32)req->timer / req->duration);
 
-        Quake_UpdateShakeInfo(req, shake, xyOffset, xyOffset);
+        MM_Quake_UpdateShakeInfo(req, shake, xyOffset, xyOffset);
         req->timer--;
     }
     return req->timer;
@@ -134,7 +134,7 @@ s16 Quake_CallbackType2(QuakeRequest* req, ShakeInfo* shake) {
     if (req->timer > 0) {
         f32 xyOffset = Quake_Random();
 
-        Quake_UpdateShakeInfo(req, shake, xyOffset, Rand_ZeroOne() * xyOffset);
+        MM_Quake_UpdateShakeInfo(req, shake, xyOffset, MM_Rand_ZeroOne() * xyOffset);
         req->timer--;
     }
     return req->timer;
@@ -144,13 +144,13 @@ s16 Quake_CallbackType4(QuakeRequest* req, ShakeInfo* shake) {
     if (req->timer > 0) {
         f32 xyOffset = Quake_Random() * ((f32)req->timer / req->duration);
 
-        Quake_UpdateShakeInfo(req, shake, xyOffset, Rand_ZeroOne() * xyOffset);
+        MM_Quake_UpdateShakeInfo(req, shake, xyOffset, MM_Rand_ZeroOne() * xyOffset);
         req->timer--;
     }
     return req->timer;
 }
 
-s16 Quake_GetFreeIndex(void) {
+s16 MM_Quake_GetFreeIndex(void) {
     s32 i;
     s32 index = 0;
     s32 timerMin = UINT16_MAX + 1; // timer is a short, so start with a value beyond its range
@@ -171,7 +171,7 @@ s16 Quake_GetFreeIndex(void) {
 }
 
 QuakeRequest* Quake_RequestImpl(Camera* camera, u32 type) {
-    s16 index = Quake_GetFreeIndex();
+    s16 index = MM_Quake_GetFreeIndex();
     QuakeRequest* req = &sQuakeRequests[index];
 
     __osMemset(req, 0, sizeof(QuakeRequest));
@@ -183,20 +183,20 @@ QuakeRequest* Quake_RequestImpl(Camera* camera, u32 type) {
 
     // Add a unique random identifier to the upper bits of the index
     // The `~3` assumes there are only 4 requests
-    req->index = index + (TRUNCF_BINANG(Rand_ZeroOne() * 0x10000) & ~3);
+    req->index = index + (TRUNCF_BINANG(MM_Rand_ZeroOne() * 0x10000) & ~3);
 
-    sQuakeRequestCount++;
+    MM_sQuakeRequestCount++;
 
     return req;
 }
 
-void Quake_Remove(QuakeRequest* req) {
+void MM_Quake_Remove(QuakeRequest* req) {
     req->type = QUAKE_TYPE_NONE;
     req->timer = -1;
-    sQuakeRequestCount--;
+    MM_sQuakeRequestCount--;
 }
 
-QuakeRequest* Quake_GetRequest(s16 index) {
+QuakeRequest* MM_Quake_GetRequest(s16 index) {
     QuakeRequest* req = &sQuakeRequests[index & 3];
 
     if (req->type == QUAKE_TYPE_NONE) {
@@ -210,7 +210,7 @@ QuakeRequest* Quake_GetRequest(s16 index) {
     return req;
 }
 
-// valueType for Quake_SetValue()
+// valueType for MM_Quake_SetValue()
 #define QUAKE_SPEED (1 << 0)
 #define QUAKE_Y_OFFSET (1 << 1)
 #define QUAKE_X_OFFSET (1 << 2)
@@ -222,8 +222,8 @@ QuakeRequest* Quake_GetRequest(s16 index) {
 #define QUAKE_DURATION (1 << 8)
 #define QUAKE_IS_RELATIVE_TO_SCREEN (1 << 9)
 
-u32 Quake_SetValue(s16 index, s16 valueType, s16 value) {
-    QuakeRequest* req = Quake_GetRequest(index);
+u32 MM_Quake_SetValue(s16 index, s16 valueType, s16 value) {
+    QuakeRequest* req = MM_Quake_GetRequest(index);
 
     if (req == NULL) {
         return false;
@@ -283,8 +283,8 @@ u32 Quake_SetValue(s16 index, s16 valueType, s16 value) {
  * @param speed for periodic types only, the angular frequency of the sine wave (binang / frame)
  * @return true if successfully applied, false if the request does not exist
  */
-u32 Quake_SetSpeed(s16 index, s16 speed) {
-    QuakeRequest* req = Quake_GetRequest(index);
+u32 MM_Quake_SetSpeed(s16 index, s16 speed) {
+    QuakeRequest* req = MM_Quake_GetRequest(index);
 
     if (req != NULL) {
         req->speed = speed;
@@ -299,7 +299,7 @@ u32 Quake_SetSpeed(s16 index, s16 speed) {
  * @return true if successfully applied, false if the request does not exist
  */
 u32 Quake_SetDuration(s16 index, s16 duration) {
-    QuakeRequest* req = Quake_GetRequest(index);
+    QuakeRequest* req = MM_Quake_GetRequest(index);
 
     if (req != NULL) {
         req->duration = req->timer = duration;
@@ -313,7 +313,7 @@ u32 Quake_SetDuration(s16 index, s16 duration) {
  * @return number of frames until the quake is finished
  */
 s16 Quake_GetTimeLeft(s16 index) {
-    QuakeRequest* req = Quake_GetRequest(index);
+    QuakeRequest* req = MM_Quake_GetRequest(index);
 
     if (req != NULL) {
         return req->timer;
@@ -330,7 +330,7 @@ s16 Quake_GetTimeLeft(s16 index) {
  * @return true if successfully applied, false if the request does not exist
  */
 u32 Quake_SetPerturbations(s16 index, s16 y, s16 x, s16 fov, s16 roll) {
-    QuakeRequest* req = Quake_GetRequest(index);
+    QuakeRequest* req = MM_Quake_GetRequest(index);
 
     if (req != NULL) {
         req->y = y;
@@ -349,7 +349,7 @@ u32 Quake_SetPerturbations(s16 index, s16 y, s16 x, s16 fov, s16 roll) {
  * @return true if successfully applied, false if the request does not exist
  */
 u32 Quake_SetOrientation(s16 index, s16 isRelativeToScreen, Vec3s orientation) {
-    QuakeRequest* req = Quake_GetRequest(index);
+    QuakeRequest* req = MM_Quake_GetRequest(index);
 
     if (req != NULL) {
         req->isRelativeToScreen = isRelativeToScreen;
@@ -359,7 +359,7 @@ u32 Quake_SetOrientation(s16 index, s16 isRelativeToScreen, Vec3s orientation) {
     return false;
 }
 
-void Quake_Init(void) {
+void MM_Quake_Init(void) {
     s16 i;
 
     for (i = 0; i < ARRAY_COUNT(sQuakeRequests); i++) {
@@ -367,7 +367,7 @@ void Quake_Init(void) {
         sQuakeRequests[i].timer = 0;
     }
     sQuakeUnused = 1;
-    sQuakeRequestCount = 0;
+    MM_sQuakeRequestCount = 0;
 }
 
 s16 Quake_Request(Camera* camera, u32 type) {
@@ -375,10 +375,10 @@ s16 Quake_Request(Camera* camera, u32 type) {
 }
 
 u32 Quake_RemoveRequest(s16 index) {
-    QuakeRequest* req = Quake_GetRequest(index);
+    QuakeRequest* req = MM_Quake_GetRequest(index);
 
     if (req != NULL) {
-        Quake_Remove(req);
+        MM_Quake_Remove(req);
         return true;
     }
     return false;
@@ -422,7 +422,7 @@ s16 Quake_Update(Camera* camera, ShakeInfo* camShake) {
     camShake->fovOffset = 0;
     camShake->maxOffset = 0.0f;
 
-    if (sQuakeRequestCount == 0) {
+    if (MM_sQuakeRequestCount == 0) {
         return 0;
     }
 
@@ -434,7 +434,7 @@ s16 Quake_Update(Camera* camera, ShakeInfo* camShake) {
         }
 
         if (play->cameraPtrs[req->camId] == NULL) {
-            Quake_Remove(req);
+            MM_Quake_Remove(req);
             continue;
         }
 
@@ -442,7 +442,7 @@ s16 Quake_Update(Camera* camera, ShakeInfo* camShake) {
         absSpeedDiv = (f32)ABS(req->speed) / 0x8000;
         if (sQuakeCallbacks[req->type](req, &shake) == 0) {
             // Quake has reached the end of its timer.
-            Quake_Remove(req);
+            MM_Quake_Remove(req);
             continue;
         }
 
@@ -476,8 +476,8 @@ s16 Quake_Update(Camera* camera, ShakeInfo* camShake) {
             camShake->fovOffset = shake.fovOffset;
         }
 
-        maxCurr = OLib_Vec3fDist(&shake.atOffset, &zeroVec) * absSpeedDiv;
-        maxNext = OLib_Vec3fDist(&shake.eyeOffset, &zeroVec) * absSpeedDiv;
+        maxCurr = MM_OLib_Vec3fDist(&shake.atOffset, &zeroVec) * absSpeedDiv;
+        maxNext = MM_OLib_Vec3fDist(&shake.eyeOffset, &zeroVec) * absSpeedDiv;
         maxCurr = CLAMP_MIN(maxCurr, maxNext);
 
         maxNext = (camShake->upRollOffset * (7.0f / 2500.0f)) * absSpeedDiv;
@@ -497,7 +497,7 @@ s16 Quake_Update(Camera* camera, ShakeInfo* camShake) {
 
 void Distortion_Init(PlayState* play) {
     sDistortionRequest.play = play;
-    View_ClearDistortion(&play->view);
+    MM_View_ClearDistortion(&play->view);
     sDistortionRequest.type = 0;
     sDistortionRequest.timer = 0;
     sDistortionRequest.state = DISTORTION_INACTIVE;
@@ -534,7 +534,7 @@ void Distortion_RemoveRequest(s32 type) {
 ConveyorSpeed Distortion_GetUnderwaterCurrentSpeed(Player* player) {
     if (!SurfaceType_IsFloorConveyor(&sDistortionRequest.play->colCtx, player->actor.floorPoly,
                                      player->actor.floorBgId)) {
-        return SurfaceType_GetConveyorSpeed(&sDistortionRequest.play->colCtx, player->actor.floorPoly,
+        return MM_SurfaceType_GetConveyorSpeed(&sDistortionRequest.play->colCtx, player->actor.floorPoly,
                                             player->actor.floorBgId);
     }
     return CONVEYOR_SPEED_DISABLED;
@@ -752,7 +752,7 @@ void Distortion_Update(void) {
             player = GET_PLAYER(play);
 
             if (player != NULL) {
-                playerPosRot = Actor_GetWorldPosShapeRot(&player->actor);
+                playerPosRot = MM_Actor_GetWorldPosShapeRot(&player->actor);
             }
 
             depthPhaseStep = 359.2f;
@@ -878,20 +878,20 @@ void Distortion_Update(void) {
         depthPhase += CAM_DEG_TO_BINANG(depthPhaseStep);
         screenPlanePhase += CAM_DEG_TO_BINANG(screenPlanePhaseStep);
 
-        View_SetDistortionOrientation(&sDistortionRequest.play->view,
-                                      Math_CosS(depthPhase) * (DEG_TO_RAD(rotX) * xyScaleFactor),
-                                      Math_SinS(depthPhase) * (DEG_TO_RAD(rotY) * xyScaleFactor),
-                                      Math_SinS(screenPlanePhase) * (DEG_TO_RAD(rotZ) * zScaleFactor));
-        View_SetDistortionScale(&sDistortionRequest.play->view,
-                                (Math_SinS(screenPlanePhase) * (xScale * xyScaleFactor)) + 1.0f,
-                                (Math_CosS(screenPlanePhase) * (yScale * xyScaleFactor)) + 1.0f,
-                                (Math_CosS(depthPhase) * (zScale * zScaleFactor)) + 1.0f);
-        View_SetDistortionSpeed(&sDistortionRequest.play->view, speed * speedScaleFactor);
+        MM_View_SetDistortionOrientation(&sDistortionRequest.play->view,
+                                      MM_Math_CosS(depthPhase) * (DEG_TO_RAD(rotX) * xyScaleFactor),
+                                      MM_Math_SinS(depthPhase) * (DEG_TO_RAD(rotY) * xyScaleFactor),
+                                      MM_Math_SinS(screenPlanePhase) * (DEG_TO_RAD(rotZ) * zScaleFactor));
+        MM_View_SetDistortionScale(&sDistortionRequest.play->view,
+                                (MM_Math_SinS(screenPlanePhase) * (xScale * xyScaleFactor)) + 1.0f,
+                                (MM_Math_CosS(screenPlanePhase) * (yScale * xyScaleFactor)) + 1.0f,
+                                (MM_Math_CosS(depthPhase) * (zScale * zScaleFactor)) + 1.0f);
+        MM_View_SetDistortionSpeed(&sDistortionRequest.play->view, speed * speedScaleFactor);
 
         sDistortionRequest.state = DISTORTION_ACTIVE;
 
     } else if (sDistortionRequest.state != DISTORTION_INACTIVE) {
-        View_ClearDistortion(&play->view);
+        MM_View_ClearDistortion(&play->view);
 
         sDistortionRequest.state = DISTORTION_INACTIVE;
         sDistortionRequest.timer = 0;

@@ -44,7 +44,7 @@ const ActorInit Bg_Treemouth_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_U8(targetMode, 5, ICHAIN_CONTINUE),
     ICHAIN_VEC3F(scale, 1, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 8000, ICHAIN_CONTINUE),
@@ -66,12 +66,12 @@ void BgTreemouth_Init(Actor* thisx, PlayState* play) {
     BgTreemouth* this = (BgTreemouth*)thisx;
     CollisionHeader* colHeader = NULL;
 
-    Actor_ProcessInitChain(thisx, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DPM_UNK);
-    CollisionHeader_GetVirtual(&gDekuTreeMouthCol, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
-    ActorShape_Init(&thisx->shape, 0.0f, NULL, 0.0f);
-    Actor_SetFocus(thisx, 50.0f);
+    OoT_Actor_ProcessInitChain(thisx, OoT_sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
+    OoT_CollisionHeader_GetVirtual(&gDekuTreeMouthCol, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
+    OoT_ActorShape_Init(&thisx->shape, 0.0f, NULL, 0.0f);
+    OoT_Actor_SetFocus(thisx, 50.0f);
 
     if ((gSaveContext.sceneSetupIndex < 4) && !LINK_IS_ADULT) {
         BgTreemouth_SetupAction(this, func_808BC8B8);
@@ -89,7 +89,7 @@ void BgTreemouth_Init(Actor* thisx, PlayState* play) {
 void BgTreemouth_Destroy(Actor* thisx, PlayState* play) {
     BgTreemouth* this = (BgTreemouth*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_808BC65C(BgTreemouth* this, PlayState* play) {
@@ -101,8 +101,8 @@ void func_808BC65C(BgTreemouth* this, PlayState* play) {
             if (npcAction->action == 2) {
                 BgTreemouth_SetupAction(this, func_808BC80C);
             } else if (npcAction->action == 3) {
-                Audio_PlaySoundGeneral(NA_SE_EV_WOODDOOR_OPEN, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_EV_WOODDOOR_OPEN, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                 BgTreemouth_SetupAction(this, func_808BC6F8);
             }
         }
@@ -119,10 +119,10 @@ void func_808BC6F8(BgTreemouth* this, PlayState* play) {
     }
 
     if ((gSaveContext.sceneSetupIndex == 6) && (play->csCtx.frames >= 0x2BD) && (play->state.frames % 8 == 0)) {
-        sp34.x = (Rand_ZeroOne() * 1158.0f) + 3407.0f;
+        sp34.x = (OoT_Rand_ZeroOne() * 1158.0f) + 3407.0f;
         sp34.y = 970.0f;
-        sp34.z = (Rand_ZeroOne() * 2026.0f) + -2163.0f;
-        EffectSsHahen_SpawnBurst(play, &sp34, 0.8f, 0, 50, 30, 1, HAHEN_OBJECT_DEFAULT, 10, NULL);
+        sp34.z = (OoT_Rand_ZeroOne() * 2026.0f) + -2163.0f;
+        OoT_EffectSsHahen_SpawnBurst(play, &sp34, 0.8f, 0, 50, 30, 1, HAHEN_OBJECT_DEFAULT, 10, NULL);
     }
 }
 
@@ -141,10 +141,10 @@ void func_808BC864(BgTreemouth* this, PlayState* play) {
 }
 
 void func_808BC8B8(BgTreemouth* this, PlayState* play) {
-    if ((!Flags_GetEventChkInf(EVENTCHKINF_DEKU_TREE_OPENED_MOUTH)) || LINK_IS_ADULT) {
+    if ((!OoT_Flags_GetEventChkInf(EVENTCHKINF_DEKU_TREE_OPENED_MOUTH)) || LINK_IS_ADULT) {
         if (!LINK_IS_ADULT) {
-            if (Flags_GetEventChkInf(EVENTCHKINF_MET_DEKU_TREE)) {
-                if (Actor_IsFacingAndNearPlayer(&this->dyna.actor, 1658.0f, 0x7530)) {
+            if (OoT_Flags_GetEventChkInf(EVENTCHKINF_MET_DEKU_TREE)) {
+                if (OoT_Actor_IsFacingAndNearPlayer(&this->dyna.actor, 1658.0f, 0x7530)) {
                     this->dyna.actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
                     if (this->dyna.actor.isTargeted) {
                         this->dyna.actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
@@ -153,8 +153,8 @@ void func_808BC8B8(BgTreemouth* this, PlayState* play) {
                         BgTreemouth_SetupAction(this, func_808BC9EC);
                     }
                 }
-            } else if (Actor_IsFacingAndNearPlayer(&this->dyna.actor, 1658.0f, 0x4E20)) {
-                Flags_SetEventChkInf(EVENTCHKINF_MET_DEKU_TREE);
+            } else if (OoT_Actor_IsFacingAndNearPlayer(&this->dyna.actor, 1658.0f, 0x4E20)) {
+                OoT_Flags_SetEventChkInf(EVENTCHKINF_MET_DEKU_TREE);
                 if (GameInteractor_Should(VB_PLAY_DEKU_TREE_INTRO_CS, true, this)) {
                     play->csCtx.segment = D_808BCE20;
                     gSaveContext.cutsceneTrigger = 1;
@@ -171,7 +171,7 @@ void func_808BC9EC(BgTreemouth* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
     if (play->csCtx.state == CS_STATE_UNSKIPPABLE_INIT) {
-        if (Actor_IsFacingAndNearPlayer(&this->dyna.actor, 350.0f, 0x7530)) {
+        if (OoT_Actor_IsFacingAndNearPlayer(&this->dyna.actor, 350.0f, 0x7530)) {
             player->actor.world.pos.x = 3827.0f;
             player->actor.world.pos.y = -161.0f;
             player->actor.world.pos.z = -1142.0f;
@@ -188,7 +188,7 @@ void func_808BC9EC(BgTreemouth* this, PlayState* play) {
 
         if (play->msgCtx.choiceIndex == 0) {
             play->csCtx.segment = D_808BD520;
-            Flags_SetEventChkInf(EVENTCHKINF_DEKU_TREE_OPENED_MOUTH);
+            OoT_Flags_SetEventChkInf(EVENTCHKINF_DEKU_TREE_OPENED_MOUTH);
             BgTreemouth_SetupAction(this, func_808BCAF0);
         } else {
             play->csCtx.segment = D_808BD790;
@@ -207,8 +207,8 @@ void func_808BCAF0(BgTreemouth* this, PlayState* play) {
             if (npcAction->action == 2) {
                 BgTreemouth_SetupAction(this, func_808BC80C);
             } else if (npcAction->action == 3) {
-                Audio_PlaySoundGeneral(NA_SE_EV_WOODDOOR_OPEN, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_EV_WOODDOOR_OPEN, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                 BgTreemouth_SetupAction(this, func_808BC6F8);
             }
         }
@@ -238,7 +238,7 @@ void BgTreemouth_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
 
     if ((gSaveContext.sceneSetupIndex < 4) || LINK_IS_ADULT) {
-        if (Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_KOKIRI_EMERALD_DEKU_TREE_DEAD)) {
+        if (OoT_Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_KOKIRI_EMERALD_DEKU_TREE_DEAD)) {
             alpha = 2150;
         }
     } else { // neeeded to match

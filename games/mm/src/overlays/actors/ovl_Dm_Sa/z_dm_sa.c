@@ -34,7 +34,7 @@ typedef enum DmSaAnimation {
     /*  1 */ DMSA_ANIM_MAX
 } DmSaAnimation;
 
-static AnimationInfo sAnimationInfo[DMSA_ANIM_MAX] = {
+static AnimationInfo MM_sAnimationInfo[DMSA_ANIM_MAX] = {
     { &gSkullKidTPoseAnim, 1.0f, 0, -1.0f, ANIMMODE_LOOP, 0 }, // DMSA_ANIM_T_POSE
 };
 
@@ -44,12 +44,12 @@ void DmSa_ChangeAnim(SkelAnime* skelAnime, AnimationInfo* animInfo, u16 animInde
     animInfo += animIndex;
 
     if (animInfo->frameCount < 0.0f) {
-        endFrame = Animation_GetLastFrame(animInfo->animation);
+        endFrame = MM_Animation_GetLastFrame(animInfo->animation);
     } else {
         endFrame = animInfo->frameCount;
     }
 
-    Animation_Change(skelAnime, animInfo->animation, animInfo->playSpeed, animInfo->startFrame, endFrame,
+    MM_Animation_Change(skelAnime, animInfo->animation, animInfo->playSpeed, animInfo->startFrame, endFrame,
                      animInfo->mode, animInfo->morphFrames);
 }
 
@@ -59,10 +59,10 @@ void DmSa_Init(Actor* thisx, PlayState* play) {
     this->unk_2E0 = 0;
     this->alpha = 255;
     this->actor.lockOnArrowOffset = 3000.0f;
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 24.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gSkullKidSkel, NULL, NULL, NULL, 0);
-    DmSa_ChangeAnim(&this->skelAnime, &sAnimationInfo[DMSA_ANIM_T_POSE], 0);
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 24.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gSkullKidSkel, NULL, NULL, NULL, 0);
+    DmSa_ChangeAnim(&this->skelAnime, &MM_sAnimationInfo[DMSA_ANIM_T_POSE], 0);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->actionFunc = DmSa_DoNothing;
 }
 
@@ -75,7 +75,7 @@ void DmSa_DoNothing(DmSa* this, PlayState* play) {
 void DmSa_Update(Actor* thisx, PlayState* play) {
     DmSa* this = (DmSa*)thisx;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     this->alpha += 0;
     this->actionFunc(this, play);
 }

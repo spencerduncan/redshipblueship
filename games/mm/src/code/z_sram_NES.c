@@ -280,7 +280,7 @@ u32 gSramSlotOffsets[] = {
     OOT_SLOT_OFFSET(5),
 };
 
-u8 gAmmoItems[ITEM_NUM_SLOTS] = {
+u8 MM_gAmmoItems[ITEM_NUM_SLOTS] = {
     ITEM_NONE,           // SLOT_OCARINA
     ITEM_BOW,            // SLOT_BOW
     ITEM_NONE,           // SLOT_ARROW_FIRE
@@ -511,7 +511,7 @@ void Sram_SaveEndOfCycle(PlayState* play) {
     }
 
     if (CHECK_WEEKEVENTREG(WEEKEVENTREG_84_20)) {
-        Inventory_DeleteItem(ITEM_MASK_FIERCE_DEITY, SLOT(ITEM_MASK_FIERCE_DEITY));
+        MM_Inventory_DeleteItem(ITEM_MASK_FIERCE_DEITY, SLOT(ITEM_MASK_FIERCE_DEITY));
     }
 
     for (i = 0; i < ARRAY_COUNT(sPersistentCycleWeekEventRegs); i++) {
@@ -566,7 +566,7 @@ void Sram_SaveEndOfCycle(PlayState* play) {
     }
 
     for (i = 0; i < ITEM_NUM_SLOTS; i++) {
-        if (gAmmoItems[i] != ITEM_NONE) {
+        if (MM_gAmmoItems[i] != ITEM_NONE) {
             if ((gSaveContext.save.saveInfo.inventory.items[i] != ITEM_NONE) && (i != SLOT_PICTOGRAPH_BOX)) {
                 item = gSaveContext.save.saveInfo.inventory.items[i];
                 AMMO(item) = 0;
@@ -650,9 +650,9 @@ void Sram_SaveEndOfCycle(PlayState* play) {
     SET_STOLEN_ITEM_1(STOLEN_ITEM_NONE);
     SET_STOLEN_ITEM_2(STOLEN_ITEM_NONE);
 
-    Inventory_DeleteItem(ITEM_OCARINA_FAIRY, SLOT_TRADE_DEED);
-    Inventory_DeleteItem(ITEM_SLINGSHOT, SLOT_TRADE_KEY_MAMA);
-    Inventory_DeleteItem(ITEM_LONGSHOT, SLOT_TRADE_COUPLE);
+    MM_Inventory_DeleteItem(ITEM_OCARINA_FAIRY, SLOT_TRADE_DEED);
+    MM_Inventory_DeleteItem(ITEM_SLINGSHOT, SLOT_TRADE_KEY_MAMA);
+    MM_Inventory_DeleteItem(ITEM_LONGSHOT, SLOT_TRADE_COUPLE);
 
     for (j = EQUIP_SLOT_C_LEFT; j <= EQUIP_SLOT_C_RIGHT; j++) {
         if ((GET_CUR_FORM_BTN_ITEM(j) >= ITEM_MOONS_TEAR) && (GET_CUR_FORM_BTN_ITEM(j) <= ITEM_PENDANT_OF_MEMORIES)) {
@@ -764,15 +764,15 @@ void Sram_GenerateRandomSaveFields(void) {
 
     Sram_ClearHighscores();
 
-    gSaveContext.save.saveInfo.lotteryCodes[0][0] = Rand_S16Offset(0, 10);
-    gSaveContext.save.saveInfo.lotteryCodes[0][1] = Rand_S16Offset(0, 10);
-    gSaveContext.save.saveInfo.lotteryCodes[0][2] = Rand_S16Offset(0, 10);
-    gSaveContext.save.saveInfo.lotteryCodes[1][0] = Rand_S16Offset(0, 10);
-    gSaveContext.save.saveInfo.lotteryCodes[1][1] = Rand_S16Offset(0, 10);
-    gSaveContext.save.saveInfo.lotteryCodes[1][2] = Rand_S16Offset(0, 10);
-    gSaveContext.save.saveInfo.lotteryCodes[2][0] = Rand_S16Offset(0, 10);
-    gSaveContext.save.saveInfo.lotteryCodes[2][1] = Rand_S16Offset(0, 10);
-    gSaveContext.save.saveInfo.lotteryCodes[2][2] = Rand_S16Offset(0, 10);
+    gSaveContext.save.saveInfo.lotteryCodes[0][0] = MM_Rand_S16Offset(0, 10);
+    gSaveContext.save.saveInfo.lotteryCodes[0][1] = MM_Rand_S16Offset(0, 10);
+    gSaveContext.save.saveInfo.lotteryCodes[0][2] = MM_Rand_S16Offset(0, 10);
+    gSaveContext.save.saveInfo.lotteryCodes[1][0] = MM_Rand_S16Offset(0, 10);
+    gSaveContext.save.saveInfo.lotteryCodes[1][1] = MM_Rand_S16Offset(0, 10);
+    gSaveContext.save.saveInfo.lotteryCodes[1][2] = MM_Rand_S16Offset(0, 10);
+    gSaveContext.save.saveInfo.lotteryCodes[2][0] = MM_Rand_S16Offset(0, 10);
+    gSaveContext.save.saveInfo.lotteryCodes[2][1] = MM_Rand_S16Offset(0, 10);
+    gSaveContext.save.saveInfo.lotteryCodes[2][2] = MM_Rand_S16Offset(0, 10);
 
     // Needed to match...
     for (i = 0; i < 3; i++) {
@@ -780,10 +780,10 @@ void Sram_GenerateRandomSaveFields(void) {
     }
 
     i = 0;
-    sp2A = Rand_S16Offset(0, 16) & 3;
+    sp2A = MM_Rand_S16Offset(0, 16) & 3;
     k = 6;
     while (i != k) {
-        randSpiderHouse = Rand_S16Offset(0, 16) & 3;
+        randSpiderHouse = MM_Rand_S16Offset(0, 16) & 3;
         if (sp2A != randSpiderHouse) {
             gSaveContext.save.saveInfo.spiderHouseMaskOrder[i] = randSpiderHouse;
             i++;
@@ -792,7 +792,7 @@ void Sram_GenerateRandomSaveFields(void) {
     }
 
     do {
-        randBombers = Rand_S16Offset(0, 6);
+        randBombers = MM_Rand_S16Offset(0, 6);
     } while ((randBombers <= 0) || (randBombers >= 6));
 
     gSaveContext.save.saveInfo.bomberCode[0] = randBombers;
@@ -802,7 +802,7 @@ void Sram_GenerateRandomSaveFields(void) {
         k = false;
 
         do {
-            randBombers = Rand_S16Offset(0, 6);
+            randBombers = MM_Rand_S16Offset(0, 6);
         } while ((randBombers <= 0) || (randBombers >= 6));
 
         sp2A = 0;
@@ -989,7 +989,7 @@ u16 sSaveDefaultChecksum = 0;
  *  Initialize new save.
  *  This save has an empty inventory with 3 hearts, sword and shield.
  */
-void Sram_InitNewSave(void) {
+void MM_Sram_InitNewSave(void) {
     gSaveContext.save.playerForm = PLAYER_FORM_HUMAN;
     gSaveContext.save.eventDayCount = 0;
     gSaveContext.save.day = 0;
@@ -1012,7 +1012,7 @@ void Sram_InitNewSave(void) {
 
     // #region 2S2H
     memcpy(&gSaveContext.save.shipSaveInfo.dpadEquips, &sSaveDefaultDpadItemEquips, sizeof(DpadSaveInfo));
-    memcpy(&gSaveContext.save.shipSaveInfo.commitHash, &gGitCommitHash,
+    memcpy(&gSaveContext.save.shipSaveInfo.commitHash, &MM_gGitCommitHash,
            sizeof(gSaveContext.save.shipSaveInfo.commitHash));
     gSaveContext.save.shipSaveInfo.pauseSaveEntrance = -1;
     gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_VANILLA;
@@ -1210,7 +1210,7 @@ u8 D_801C6A50[PLAYER_FORM_MAX] = {
  *  Some noteable flags that are set:
  *  TODO: Investigate the flags
  */
-void Sram_InitDebugSave(void) {
+void MM_Sram_InitDebugSave(void) {
     Sram_ResetSave();
 
     memcpy(&gSaveContext.save.saveInfo.playerData, &sSaveDebugPlayerData, sizeof(SavePlayerData));
@@ -1244,7 +1244,7 @@ void Sram_InitDebugSave(void) {
 
     // #region 2S2H
     memcpy(&gSaveContext.save.shipSaveInfo.dpadEquips, &sSaveDefaultDpadItemEquips, sizeof(DpadSaveInfo));
-    memcpy(&gSaveContext.save.shipSaveInfo.commitHash, &gGitCommitHash,
+    memcpy(&gSaveContext.save.shipSaveInfo.commitHash, &MM_gGitCommitHash,
            sizeof(gSaveContext.save.shipSaveInfo.commitHash));
     gSaveContext.save.shipSaveInfo.pauseSaveEntrance = -1;
     gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_VANILLA;
@@ -1322,7 +1322,7 @@ static u16 sOwlWarpEntrances[OWL_WARP_MAX - 1] = {
     ENTRANCE(STONE_TOWER, 3),              // OWL_WARP_STONE_TOWER
 };
 
-void Sram_OpenSave(FileSelectState* fileSelect, SramContext* sramCtx) {
+void MM_Sram_OpenSave(FileSelectState* fileSelect, SramContext* sramCtx) {
     s32 i;
     s32 pad;
     s32 phi_t1;
@@ -1420,7 +1420,7 @@ void Sram_OpenSave(FileSelectState* fileSelect, SramContext* sramCtx) {
         }
 
         if (gSaveContext.save.saveInfo.scarecrowSpawnSongSet) {
-            memcpy(gScarecrowSpawnSongPtr, gSaveContext.save.saveInfo.scarecrowSpawnSong,
+            memcpy(MM_gScarecrowSpawnSongPtr, gSaveContext.save.saveInfo.scarecrowSpawnSong,
                    sizeof(gSaveContext.save.saveInfo.scarecrowSpawnSong));
 
             for (i = 0; i < ARRAY_COUNT(gSaveContext.save.saveInfo.scarecrowSpawnSong); i++) {}
@@ -1915,14 +1915,14 @@ void Sram_CopySave(FileSelectState* fileSelect2, SramContext* sramCtx) {
     gSaveContext.flashSaveAvailable = D_801F6AF2;
 }
 
-void Sram_InitSave(FileSelectState* fileSelect2, SramContext* sramCtx) {
+void MM_Sram_InitSave(FileSelectState* fileSelect2, SramContext* sramCtx) {
     s32 phi_v0;
     u16 i;
     FileSelectState* fileSelect = fileSelect2;
     s16 maskCount;
 
     if (gSaveContext.flashSaveAvailable) {
-        Sram_InitNewSave();
+        MM_Sram_InitNewSave();
         if (fileSelect->buttonIndex == 0) {
             gSaveContext.save.cutsceneIndex = 0xFFF0;
         }
@@ -1993,7 +1993,7 @@ void Sram_WriteSaveOptionsToBuffer(SramContext* sramCtx) {
     }
 }
 
-void Sram_InitSram(GameState* gameState, SramContext* sramCtx) {
+void MM_Sram_InitSram(GameState* gameState, SramContext* sramCtx) {
     if (gSaveContext.save.entrance) {} // Required to match
 
     Audio_SetFileSelectSettings(gSaveContext.options.audioSetting);
@@ -2064,7 +2064,7 @@ void Sram_StartWriteToFlashDefault(SramContext* sramCtx) {
     // async flash write
     SysFlashrom_WriteDataAsync(sramCtx->saveBuf, sramCtx->curPage, sramCtx->numPages);
 
-    sramCtx->startWriteOsTime = osGetTime();
+    sramCtx->startWriteOsTime = MM_osGetTime();
     sramCtx->status = 2;
 }
 
@@ -2079,9 +2079,9 @@ void Sram_UpdateWriteToFlashDefault(SramContext* sramCtx) {
                 sramCtx->status = 4;
             }
         }
-    } else if (OSTIME_TO_TIMER(osGetTime() - sramCtx->startWriteOsTime) >=
+    } else if (OSTIME_TO_TIMER(MM_osGetTime() - sramCtx->startWriteOsTime) >=
                SECONDS_TO_TIMER(CVarGetInteger("gEnhancements.Saving.DisableSaveDelay", 0) ? 0 : 2)) {
-        // 2S2H [Port] Some tricks require a save delay so we can't just force it to zero
+        // 2S2H [Port] Some tricks require a save delay so we can't just force it to MM_zero
         // Finished status is hardcoded to 2 seconds instead of when the task finishes
         sramCtx->status = 0;
     }
@@ -2096,7 +2096,7 @@ void Sram_SetFlashPagesOwlSave(SramContext* sramCtx, s32 curPage, s32 numPages) 
 void Sram_StartWriteToFlashOwlSave(SramContext* sramCtx) {
     SysFlashrom_WriteDataAsync(sramCtx->saveBuf, sramCtx->curPage, sramCtx->numPages);
 
-    sramCtx->startWriteOsTime = osGetTime();
+    sramCtx->startWriteOsTime = MM_osGetTime();
     sramCtx->status = 7;
 }
 
@@ -2119,9 +2119,9 @@ void Sram_UpdateWriteToFlashOwlSave(SramContext* sramCtx) {
                 sramCtx->status = 4;
             }
         }
-    } else if (OSTIME_TO_TIMER(osGetTime() - sramCtx->startWriteOsTime) >=
+    } else if (OSTIME_TO_TIMER(MM_osGetTime() - sramCtx->startWriteOsTime) >=
                SECONDS_TO_TIMER(CVarGetInteger("gEnhancements.Saving.DisableSaveDelay", 0) ? 0 : 2)) {
-        // 2S2H [Port] Some tricks require a save delay so we can't just force it to zero
+        // 2S2H [Port] Some tricks require a save delay so we can't just force it to MM_zero
         // Finished status is hardcoded to 2 seconds instead of when the task finishes
         sramCtx->status = 0;
         memset(sramCtx->saveBuf, 0, SAVE_BUFFER_SIZE);

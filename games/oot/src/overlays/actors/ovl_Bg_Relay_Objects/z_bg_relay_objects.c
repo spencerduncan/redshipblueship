@@ -41,7 +41,7 @@ const ActorInit Bg_Relay_Objects_InitVars = {
     BgRelayObjects_Reset,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(gravity, 5, ICHAIN_CONTINUE),
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
@@ -52,13 +52,13 @@ void BgRelayObjects_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     CollisionHeader* colHeader = NULL;
 
-    Actor_ProcessInitChain(thisx, sInitChain);
+    OoT_Actor_ProcessInitChain(thisx, OoT_sInitChain);
     this->switchFlag = thisx->params & 0x3F;
     thisx->params = (thisx->params >> 8) & 0xFF;
-    DynaPolyActor_Init(&this->dyna, 3);
+    OoT_DynaPolyActor_Init(&this->dyna, 3);
     if (thisx->params == WINDMILL_ROTATING_GEAR) {
-        CollisionHeader_GetVirtual(&gWindmillRotatingPlatformCol, &colHeader);
-        if (Flags_GetEventChkInf(EVENTCHKINF_PLAYED_SONG_OF_STORMS_IN_WINDMILL)) {
+        OoT_CollisionHeader_GetVirtual(&gWindmillRotatingPlatformCol, &colHeader);
+        if (OoT_Flags_GetEventChkInf(EVENTCHKINF_PLAYED_SONG_OF_STORMS_IN_WINDMILL)) {
             thisx->world.rot.y = 0x400;
         } else {
             thisx->world.rot.y = 0x80;
@@ -68,13 +68,13 @@ void BgRelayObjects_Init(Actor* thisx, PlayState* play) {
         thisx->flags |= ACTOR_FLAG_DRAW_CULLING_DISABLED;
         if (D_808A9508 & 2) {
             thisx->params = 0xFF;
-            Actor_Kill(thisx);
+            OoT_Actor_Kill(thisx);
         } else {
             D_808A9508 |= 2;
             this->actionFunc = func_808A939C;
         }
     } else {
-        CollisionHeader_GetVirtual(&gDampeRaceDoorCol, &colHeader);
+        OoT_CollisionHeader_GetVirtual(&gDampeRaceDoorCol, &colHeader);
         if (thisx->room == 0) {
             this->unk_169 = this->switchFlag - 0x33;
         } else {
@@ -84,40 +84,40 @@ void BgRelayObjects_Init(Actor* thisx, PlayState* play) {
         this->timer = 1;
         if (this->unk_169 >= 6) {
             if (D_808A9508 & 1) {
-                Actor_Kill(thisx);
+                OoT_Actor_Kill(thisx);
             } else {
                 D_808A9508 |= 1;
                 this->actionFunc = BgRelayObjects_DoNothing;
             }
         } else if (this->unk_169 != 5) {
-            Flags_UnsetSwitch(play, this->switchFlag);
+            OoT_Flags_UnsetSwitch(play, this->switchFlag);
             if (D_808A9508 & (1 << this->unk_169)) {
-                Actor_Kill(thisx);
+                OoT_Actor_Kill(thisx);
             } else {
                 D_808A9508 |= (1 << this->unk_169);
                 this->actionFunc = func_808A90F4;
             }
         } else {
-            Flags_SetSwitch(play, this->switchFlag);
+            OoT_Flags_SetSwitch(play, this->switchFlag);
             this->actionFunc = func_808A91AC;
             thisx->world.pos.y += 120.0f;
             D_808A9508 |= 1;
         }
     }
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
 }
 
 void BgRelayObjects_Destroy(Actor* thisx, PlayState* play) {
     BgRelayObjects* this = (BgRelayObjects*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
     if ((this->dyna.actor.params == WINDMILL_ROTATING_GEAR) && (gSaveContext.cutsceneIndex < 0xFFF0)) {
         Flags_UnsetEventChkInf(EVENTCHKINF_PLAYED_SONG_OF_STORMS_IN_WINDMILL);
     }
 }
 
 void func_808A90F4(BgRelayObjects* this, PlayState* play) {
-    if (Flags_GetSwitch(play, this->switchFlag)) {
+    if (OoT_Flags_GetSwitch(play, this->switchFlag)) {
         if (this->timer != 0) {
             Audio_PlayActorSound2(&this->dyna.actor, NA_SE_EV_SLIDE_DOOR_OPEN);
             if (INV_CONTENT(ITEM_HOOKSHOT) != ITEM_NONE) {
@@ -126,7 +126,7 @@ void func_808A90F4(BgRelayObjects* this, PlayState* play) {
                 this->timer = 160;
             }
         }
-        if (Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y + 120.0f, 12.0f)) {
+        if (OoT_Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y + 120.0f, 12.0f)) {
             this->actionFunc = func_808A91AC;
         }
     }
@@ -147,7 +147,7 @@ void func_808A91AC(BgRelayObjects* this, PlayState* play) {
 
 void func_808A9234(BgRelayObjects* this, PlayState* play) {
     this->dyna.actor.velocity.y += this->dyna.actor.gravity;
-    if (Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y, this->dyna.actor.velocity.y)) {
+    if (OoT_Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y, this->dyna.actor.velocity.y)) {
         func_800AA000(this->dyna.actor.xyzDistToPlayerSq, 180, 20, 100);
         Audio_PlayActorSound2(&this->dyna.actor, NA_SE_EV_STONE_BOUND);
         if (this->unk_169 != play->roomCtx.curRoom.num) {
@@ -156,7 +156,7 @@ void func_808A9234(BgRelayObjects* this, PlayState* play) {
             this->actionFunc = func_808A932C;
             return;
         }
-        Flags_UnsetSwitch(play, this->switchFlag);
+        OoT_Flags_UnsetSwitch(play, this->switchFlag);
         this->dyna.actor.flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
         if (play->roomCtx.curRoom.num == 4) {
             gSaveContext.timerState = TIMER_STATE_UP_FREEZE;
@@ -173,7 +173,7 @@ void func_808A932C(BgRelayObjects* this, PlayState* play) {
         this->timer--;
     }
     if (this->timer == 0) {
-        if (!Player_InCsMode(play)) {
+        if (!OoT_Player_InCsMode(play)) {
             Sfx_PlaySfxCentered(NA_SE_OC_ABYSS);
             Play_TriggerRespawn(play);
             this->actionFunc = BgRelayObjects_DoNothing;
@@ -183,12 +183,12 @@ void func_808A932C(BgRelayObjects* this, PlayState* play) {
 
 void func_808A939C(BgRelayObjects* this, PlayState* play) {
     if (Flags_GetEnv(play, 5)) {
-        Flags_SetEventChkInf(EVENTCHKINF_PLAYED_SONG_OF_STORMS_IN_WINDMILL);
+        OoT_Flags_SetEventChkInf(EVENTCHKINF_PLAYED_SONG_OF_STORMS_IN_WINDMILL);
     }
-    if (Flags_GetEventChkInf(EVENTCHKINF_PLAYED_SONG_OF_STORMS_IN_WINDMILL)) {
-        Math_ScaledStepToS(&this->dyna.actor.world.rot.y, 0x400, 8);
+    if (OoT_Flags_GetEventChkInf(EVENTCHKINF_PLAYED_SONG_OF_STORMS_IN_WINDMILL)) {
+        OoT_Math_ScaledStepToS(&this->dyna.actor.world.rot.y, 0x400, 8);
     } else {
-        Math_ScaledStepToS(&this->dyna.actor.world.rot.y, 0x80, 8);
+        OoT_Math_ScaledStepToS(&this->dyna.actor.world.rot.y, 0x80, 8);
     }
     this->dyna.actor.shape.rot.y += this->dyna.actor.world.rot.y;
     func_800F436C(&this->dyna.actor.projectedPos, NA_SE_EV_WOOD_GEAR - SFX_FLAG,
@@ -205,9 +205,9 @@ void BgRelayObjects_Draw(Actor* thisx, PlayState* play) {
     BgRelayObjects* this = (BgRelayObjects*)thisx;
 
     if (this->dyna.actor.params == WINDMILL_ROTATING_GEAR) {
-        Gfx_DrawDListOpa(play, gWindmillRotatingPlatformDL);
+        OoT_Gfx_DrawDListOpa(play, gWindmillRotatingPlatformDL);
     } else {
-        Gfx_DrawDListOpa(play, gDampeRaceDoorDL);
+        OoT_Gfx_DrawDListOpa(play, gDampeRaceDoorDL);
     }
 }
 

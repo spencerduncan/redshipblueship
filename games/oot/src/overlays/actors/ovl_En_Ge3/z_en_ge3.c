@@ -12,10 +12,10 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void EnGe3_Init(Actor* thisx, PlayState* play);
-void EnGe3_Destroy(Actor* thisx, PlayState* play);
-void EnGe3_Update(Actor* thisx, PlayState* play);
-void EnGe3_Draw(Actor* thisx, PlayState* play);
+void OoT_EnGe3_Init(Actor* thisx, PlayState* play);
+void OoT_EnGe3_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnGe3_Update(Actor* thisx, PlayState* play);
+void OoT_EnGe3_Draw(Actor* thisx, PlayState* play);
 
 void EnGe3_WaitLookAtPlayer(EnGe3* this, PlayState* play);
 void EnGe3_ForceTalk(EnGe3* this, PlayState* play);
@@ -27,14 +27,14 @@ const ActorInit En_Ge3_InitVars = {
     FLAGS,
     OBJECT_GELDB,
     sizeof(EnGe3),
-    (ActorFunc)EnGe3_Init,
-    (ActorFunc)EnGe3_Destroy,
-    (ActorFunc)EnGe3_Update,
-    (ActorFunc)EnGe3_Draw,
+    (ActorFunc)OoT_EnGe3_Init,
+    (ActorFunc)OoT_EnGe3_Destroy,
+    (ActorFunc)OoT_EnGe3_Update,
+    (ActorFunc)OoT_EnGe3_Draw,
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -54,31 +54,31 @@ static ColliderCylinderInit sCylinderInit = {
     { 20, 50, 0, { 0, 0, 0 } },
 };
 
-static EnGe3ActionFunc sActionFuncs[] = { EnGe3_WaitLookAtPlayer };
-static AnimationHeader* sAnimations[] = { &gGerudoRedStandAnim }; // Idle with right hand on hip and left over mouth
-static u8 sAnimationModes[] = { ANIMMODE_LOOP };
+static EnGe3ActionFunc OoT_sActionFuncs[] = { EnGe3_WaitLookAtPlayer };
+static AnimationHeader* OoT_sAnimations[] = { &gGerudoRedStandAnim }; // Idle with right hand on hip and left over mouth
+static u8 OoT_sAnimationModes[] = { ANIMMODE_LOOP };
 
 void EnGe3_ChangeAction(EnGe3* this, s32 i) {
-    this->actionFunc = sActionFuncs[i];
+    this->actionFunc = OoT_sActionFuncs[i];
 
-    Animation_Change(&this->skelAnime, sAnimations[i], 1.0f, 0.0f, (f32)Animation_GetLastFrame(sAnimations[i]),
-                     sAnimationModes[i], -8.0f);
+    OoT_Animation_Change(&this->skelAnime, OoT_sAnimations[i], 1.0f, 0.0f, (f32)OoT_Animation_GetLastFrame(OoT_sAnimations[i]),
+                     OoT_sAnimationModes[i], -8.0f);
 
     this->unk_30C &= ~2;
 }
 
-void EnGe3_Init(Actor* thisx, PlayState* play2) {
+void OoT_EnGe3_Init(Actor* thisx, PlayState* play2) {
     EnGe3* this = (EnGe3*)thisx;
     PlayState* play = play2;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 36.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gGerudoRedSkel, NULL, this->jointTable, this->morphTable,
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 36.0f);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gGerudoRedSkel, NULL, this->jointTable, this->morphTable,
                        GELDB_LIMB_MAX);
-    Animation_PlayLoop(&this->skelAnime, &gGerudoRedStandAnim);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    OoT_Animation_PlayLoop(&this->skelAnime, &gGerudoRedStandAnim);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
-    Actor_SetScale(&this->actor, 0.01f);
+    OoT_Actor_SetScale(&this->actor, 0.01f);
     this->actor.world.rot.z = 0;
     this->actor.shape.rot.z = 0;
     EnGe3_ChangeAction(this, 0);
@@ -89,10 +89,10 @@ void EnGe3_Init(Actor* thisx, PlayState* play2) {
     this->actor.gravity = -1.0f;
 }
 
-void EnGe3_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnGe3_Destroy(Actor* thisx, PlayState* play) {
     EnGe3* this = (EnGe3*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
@@ -102,35 +102,35 @@ void EnGe3_TurnToFacePlayer(EnGe3* this, PlayState* play) {
     s16 angleDiff = this->actor.yawTowardsPlayer - this->actor.shape.rot.y;
 
     if (ABS(angleDiff) <= 0x4000) {
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 6, 4000, 100);
+        OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 6, 4000, 100);
         this->actor.world.rot.y = this->actor.shape.rot.y;
         func_80038290(play, &this->actor, &this->headRot, &this->unk_306, this->actor.focus.pos);
     } else {
         if (angleDiff < 0) {
-            Math_SmoothStepToS(&this->headRot.y, -0x2000, 6, 6200, 0x100);
+            OoT_Math_SmoothStepToS(&this->headRot.y, -0x2000, 6, 6200, 0x100);
         } else {
-            Math_SmoothStepToS(&this->headRot.y, 0x2000, 6, 6200, 0x100);
+            OoT_Math_SmoothStepToS(&this->headRot.y, 0x2000, 6, 6200, 0x100);
         }
 
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 12, 1000, 100);
+        OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 12, 1000, 100);
         this->actor.world.rot.y = this->actor.shape.rot.y;
     }
 }
 
-void EnGe3_LookAtPlayer(EnGe3* this, PlayState* play) {
+void OoT_EnGe3_LookAtPlayer(EnGe3* this, PlayState* play) {
     if ((ABS((s16)(this->actor.yawTowardsPlayer - this->actor.shape.rot.y)) <= 0x2300) &&
         (this->actor.xzDistToPlayer < 100.0f)) {
         func_80038290(play, &this->actor, &this->headRot, &this->unk_306, this->actor.focus.pos);
     } else {
-        Math_SmoothStepToS(&this->headRot.x, 0, 6, 6200, 100);
-        Math_SmoothStepToS(&this->headRot.y, 0, 6, 6200, 100);
-        Math_SmoothStepToS(&this->unk_306.x, 0, 6, 6200, 100);
-        Math_SmoothStepToS(&this->unk_306.y, 0, 6, 6200, 100);
+        OoT_Math_SmoothStepToS(&this->headRot.x, 0, 6, 6200, 100);
+        OoT_Math_SmoothStepToS(&this->headRot.y, 0, 6, 6200, 100);
+        OoT_Math_SmoothStepToS(&this->unk_306.x, 0, 6, 6200, 100);
+        OoT_Math_SmoothStepToS(&this->unk_306.y, 0, 6, 6200, 100);
     }
 }
 
 void EnGe3_Wait(EnGe3* this, PlayState* play) {
-    if (Actor_TextboxIsClosing(&this->actor, play)) {
+    if (OoT_Actor_TextboxIsClosing(&this->actor, play)) {
         this->actionFunc = EnGe3_WaitLookAtPlayer;
         this->actor.update = EnGe3_UpdateWhenNotTalking;
         this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
@@ -139,26 +139,26 @@ void EnGe3_Wait(EnGe3* this, PlayState* play) {
 }
 
 void EnGe3_WaitLookAtPlayer(EnGe3* this, PlayState* play) {
-    EnGe3_LookAtPlayer(this, play);
+    OoT_EnGe3_LookAtPlayer(this, play);
 }
 
 void EnGe3_WaitTillCardGiven(EnGe3* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play) || !GameInteractor_Should(VB_GIVE_ITEM_GERUDO_MEMBERSHIP_CARD, true)) {
+    if (OoT_Actor_HasParent(&this->actor, play) || !GameInteractor_Should(VB_GIVE_ITEM_GERUDO_MEMBERSHIP_CARD, true)) {
         this->actor.parent = NULL;
         this->actionFunc = EnGe3_Wait;
     } else {
-        Actor_OfferGetItem(&this->actor, play, GI_GERUDO_CARD, 10000.0f, 50.0f);
+        OoT_Actor_OfferGetItem(&this->actor, play, GI_GERUDO_CARD, 10000.0f, 50.0f);
     }
 }
 
 void EnGe3_GiveCard(EnGe3* this, PlayState* play) {
     if (GameInteractor_Should(VB_END_GERUDO_MEMBERSHIP_TALK,
-                              (Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play))) {
-        Message_CloseTextbox(play);
+                              (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && OoT_Message_ShouldAdvance(play))) {
+        OoT_Message_CloseTextbox(play);
         this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
         this->actionFunc = EnGe3_WaitTillCardGiven;
         if (GameInteractor_Should(VB_GIVE_ITEM_GERUDO_MEMBERSHIP_CARD, true)) {
-            Actor_OfferGetItem(&this->actor, play, GI_GERUDO_CARD, 10000.0f, 50.0f);
+            OoT_Actor_OfferGetItem(&this->actor, play, GI_GERUDO_CARD, 10000.0f, 50.0f);
         }
     }
 }
@@ -168,25 +168,25 @@ void EnGe3_ForceTalk(EnGe3* this, PlayState* play) {
         this->actionFunc = EnGe3_GiveCard;
     } else {
         if (!(this->unk_30C & 4)) {
-            Player_SetCsActionWithHaltedActors(play, &this->actor, 7);
+            OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 7);
             this->unk_30C |= 4;
         }
         this->actor.textId = 0x6004;
         this->actor.flags |= ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
         func_8002F1C4(&this->actor, play, 300.0f, 300.0f, 0);
     }
-    EnGe3_LookAtPlayer(this, play);
+    OoT_EnGe3_LookAtPlayer(this, play);
 }
 
 void EnGe3_UpdateCollision(EnGe3* this, PlayState* play) {
     s32 pad;
     s32 pad2;
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 40.0f, 25.0f, 40.0f, 5);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 40.0f, 25.0f, 40.0f, 5);
 
-    if (!(this->unk_30C & 2) && SkelAnime_Update(&this->skelAnime)) {
+    if (!(this->unk_30C & 2) && OoT_SkelAnime_Update(&this->skelAnime)) {
         this->unk_30C |= 2;
     }
 }
@@ -196,7 +196,7 @@ void EnGe3_MoveAndBlink(EnGe3* this, PlayState* play) {
     Actor_MoveXZGravity(&this->actor);
 
     if (DECR(this->blinkTimer) == 0) {
-        this->blinkTimer = Rand_S16Offset(60, 60);
+        this->blinkTimer = OoT_Rand_S16Offset(60, 60);
     }
 
     this->eyeIndex = this->blinkTimer;
@@ -214,7 +214,7 @@ void EnGe3_UpdateWhenNotTalking(Actor* thisx, PlayState* play) {
 
     if (Actor_ProcessTalkRequest(&this->actor, play)) {
         this->actionFunc = EnGe3_Wait;
-        this->actor.update = EnGe3_Update;
+        this->actor.update = OoT_EnGe3_Update;
     } else {
         this->actor.textId = 0x6005;
         if (this->actor.xzDistToPlayer < 100.0f) {
@@ -225,7 +225,7 @@ void EnGe3_UpdateWhenNotTalking(Actor* thisx, PlayState* play) {
     EnGe3_MoveAndBlink(this, play);
 }
 
-void EnGe3_Update(Actor* thisx, PlayState* play) {
+void OoT_EnGe3_Update(Actor* thisx, PlayState* play) {
     EnGe3* this = (EnGe3*)thisx;
 
     EnGe3_UpdateCollision(this, play);
@@ -233,7 +233,7 @@ void EnGe3_Update(Actor* thisx, PlayState* play) {
     EnGe3_MoveAndBlink(this, play);
 }
 
-s32 EnGe3_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
+s32 OoT_EnGe3_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
     EnGe3* this = (EnGe3*)thisx;
 
     switch (limbIndex) {
@@ -276,16 +276,16 @@ s32 EnGe3_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* p
     return false;
 }
 
-void EnGe3_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
+void OoT_EnGe3_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
     EnGe3* this = (EnGe3*)thisx;
     Vec3f D_80A351C8 = { 600.0f, 700.0f, 0.0f };
 
     if (limbIndex == GELDB_LIMB_HEAD) {
-        Matrix_MultVec3f(&D_80A351C8, &this->actor.focus.pos);
+        OoT_Matrix_MultVec3f(&D_80A351C8, &this->actor.focus.pos);
     }
 }
 
-void EnGe3_Draw(Actor* thisx, PlayState* play2) {
+void OoT_EnGe3_Draw(Actor* thisx, PlayState* play2) {
     static void* eyeTextures[] = {
         gGerudoRedEyeOpenTex,
         gGerudoRedEyeHalfTex,
@@ -299,7 +299,7 @@ void EnGe3_Draw(Actor* thisx, PlayState* play2) {
     Gfx_SetupDL_37Opa(play->state.gfxCtx);
     gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(eyeTextures[this->eyeIndex]));
     func_8002EBCC(&this->actor, play, 0);
-    SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, EnGe3_OverrideLimbDraw, EnGe3_PostLimbDraw, this);
+    SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, OoT_EnGe3_OverrideLimbDraw, OoT_EnGe3_PostLimbDraw, this);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

@@ -50,7 +50,7 @@
  * we binary-subtract (i.e. XOR) the return value with the generator polynomial's number.
  * - This is repeated until we reach the end of the message.
  * - Finally, to take into account the final multiplication by \f$ X^n \f$, we run another loop, which acts like we
- * passed \f$ n \f$ more digits in the message that are all zero. Remember this gives us the extra space at the end for
+ * passed \f$ n \f$ more digits in the message that are all MM_zero. Remember this gives us the extra space at the end for
  * the check digits to be added.
  *
  *

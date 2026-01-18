@@ -31,7 +31,7 @@ ActorProfile Bg_Ikana_Ray_Profile = {
     /**/ BgIkanaRay_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_ON | AT_TYPE_OTHER,
@@ -51,7 +51,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 90, 420, -420, { 0, 0, 0 } },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 1000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 1000, ICHAIN_CONTINUE),
@@ -62,14 +62,14 @@ void BgIkanaRay_Init(Actor* thisx, PlayState* play) {
     BgIkanaRay* this = (BgIkanaRay*)thisx;
     ColliderCylinder* collision = &this->collision;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    Collider_InitCylinder(play, collision);
-    Collider_SetCylinder(play, collision, &this->actor, &sCylinderInit);
-    Collider_UpdateCylinder(&this->actor, &this->collision);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
+    MM_Collider_InitCylinder(play, collision);
+    MM_Collider_SetCylinder(play, collision, &this->actor, &MM_sCylinderInit);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collision);
 
     this->animatedTextures = Lib_SegmentedToVirtual(object_ikana_obj_Matanimheader_001228);
 
-    if (Flags_GetSwitch(play, BGIKANARAY_GET_SWITCH_FLAG(&this->actor))) {
+    if (MM_Flags_GetSwitch(play, BGIKANARAY_GET_SWITCH_FLAG(&this->actor))) {
         BgIkanaRay_SetActivated(this);
     } else {
         BgIkanaRay_SetDeactivated(this);
@@ -80,7 +80,7 @@ void BgIkanaRay_Destroy(Actor* thisx, PlayState* play) {
     BgIkanaRay* this = (BgIkanaRay*)thisx;
 
     ColliderCylinder* collision = &this->collision;
-    Collider_DestroyCylinder(play, collision);
+    MM_Collider_DestroyCylinder(play, collision);
 }
 
 void BgIkanaRay_SetDeactivated(BgIkanaRay* this) {
@@ -90,7 +90,7 @@ void BgIkanaRay_SetDeactivated(BgIkanaRay* this) {
 }
 
 void BgIkanaRay_UpdateCheckForActivation(BgIkanaRay* this, PlayState* play) {
-    if (Flags_GetSwitch(play, BGIKANARAY_GET_SWITCH_FLAG(&this->actor))) {
+    if (MM_Flags_GetSwitch(play, BGIKANARAY_GET_SWITCH_FLAG(&this->actor))) {
         BgIkanaRay_SetActivated(this);
     }
 }
@@ -102,7 +102,7 @@ void BgIkanaRay_SetActivated(BgIkanaRay* this) {
 }
 
 void BgIkanaRay_UpdateActivated(BgIkanaRay* this, PlayState* play) {
-    CollisionCheck_SetAT(play, &play->colChkCtx, &this->collision.base);
+    MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collision.base);
 }
 
 void BgIkanaRay_Update(Actor* thisx, PlayState* play) {
@@ -115,5 +115,5 @@ void BgIkanaRay_Draw(Actor* thisx, PlayState* play) {
     BgIkanaRay* this = (BgIkanaRay*)thisx;
 
     AnimatedMat_Draw(play, this->animatedTextures);
-    Gfx_DrawDListXlu(play, object_ikana_obj_DL_001100);
+    MM_Gfx_DrawDListXlu(play, object_ikana_obj_DL_001100);
 }

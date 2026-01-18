@@ -29,7 +29,7 @@ const ActorInit En_Skjneedle_InitVars = {
     NULL,
 };
 
-static ColliderCylinderInitType1 sCylinderInit = {
+static ColliderCylinderInitType1 OoT_sCylinderInit = {
     {
         COLTYPE_HIT1,
         AT_ON | AT_TYPE_ENEMY,
@@ -48,7 +48,7 @@ static ColliderCylinderInitType1 sCylinderInit = {
     { 10, 4, -2, { 0, 0, 0 } },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_U8(targetMode, 2, ICHAIN_CONTINUE),
     ICHAIN_F32(targetArrowOffset, 30, ICHAIN_STOP),
 };
@@ -56,18 +56,18 @@ static InitChainEntry sInitChain[] = {
 void EnSkjneedle_Init(Actor* thisx, PlayState* play) {
     EnSkjneedle* this = (EnSkjneedle*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinderType1(play, &this->collider, &this->actor, &sCylinderInit);
-    ActorShape_Init(&this->actor.shape, 0, ActorShadow_DrawCircle, 20.0f);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinderType1(play, &this->collider, &this->actor, &OoT_sCylinderInit);
+    OoT_ActorShape_Init(&this->actor.shape, 0, OoT_ActorShadow_DrawCircle, 20.0f);
     thisx->flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
-    Actor_SetScale(&this->actor, 0.01f);
+    OoT_Actor_SetScale(&this->actor, 0.01f);
 }
 
 void EnSkjneedle_Destroy(Actor* thisx, PlayState* play) {
     EnSkjneedle* this = (EnSkjneedle*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 }
 
 s32 EnSkjNeedle_CollisionCheck(EnSkjneedle* this) {
@@ -87,14 +87,14 @@ void EnSkjneedle_Update(Actor* thisx, PlayState* play2) {
         this->killTimer--;
     }
     if (EnSkjNeedle_CollisionCheck(this) || this->killTimer == 0) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     } else {
-        Actor_SetScale(&this->actor, 0.01f);
-        Collider_UpdateCylinder(&this->actor, &this->collider);
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        OoT_Actor_SetScale(&this->actor, 0.01f);
+        OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+        OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
         Actor_MoveXZGravity(&this->actor);
-        Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 20.0f, 7);
+        OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 20.0f, 7);
     }
 }
 

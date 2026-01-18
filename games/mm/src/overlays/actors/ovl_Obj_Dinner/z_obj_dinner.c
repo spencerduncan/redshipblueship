@@ -31,9 +31,9 @@ void ObjDinner_Init(Actor* thisx, PlayState* play) {
 
     if ((gSaveContext.save.isNight != true) ||
         ((CURRENT_DAY == 3) && CHECK_WEEKEVENTREG(WEEKEVENTREG_DEFENDED_AGAINST_ALIENS))) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
-    Actor_SetScale(&this->actor, 0.1f);
+    MM_Actor_SetScale(&this->actor, 0.1f);
 }
 
 void ObjDinner_Destroy(Actor* thisx, PlayState* play) {

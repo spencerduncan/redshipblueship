@@ -26,7 +26,7 @@ ActorProfile Bg_Keikoku_Spr_Profile = {
     /**/ BgKeikokuSpr_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 3000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 200, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 400, ICHAIN_CONTINUE),
@@ -36,7 +36,7 @@ static InitChainEntry sInitChain[] = {
 void BgKeikokuSpr_Init(Actor* thisx, PlayState* play) {
     BgKeikokuSpr* this = (BgKeikokuSpr*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
 }
 
 void BgKeikokuSpr_Destroy(Actor* thisx, PlayState* play) {

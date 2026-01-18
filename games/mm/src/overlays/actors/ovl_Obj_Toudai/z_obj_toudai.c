@@ -34,8 +34,8 @@ ActorProfile Obj_Toudai_Profile = {
 static Vtx* ovl_Obj_Toudai_Vtx_D_80A34590data;
 
 void func_80A33B00(ObjToudai* this, PlayState* play) {
-    Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
-    Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
+    MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
+    MM_Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
 
     OPEN_DISPS(play->state.gfxCtx);
 
@@ -64,16 +64,16 @@ void func_80A33BB4(ObjToudai* this, PlayState* play) {
     }
 
     if (this->unk_228 > 0.0f) {
-        Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
+        MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
         Matrix_RotateYS(this->actor.shape.rot.y, MTXMODE_APPLY);
-        Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
+        MM_Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
 
         OPEN_DISPS(play->state.gfxCtx);
 
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
         gSPSegment(POLY_XLU_DISP++, 0x08,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, sp57, 0x20, 0x80, 1, 0, sp56, 0x20, 0x20));
+                   MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, sp57, 0x20, 0x80, 1, 0, sp56, 0x20, 0x20));
         gSPSegment(POLY_XLU_DISP++, 0x09, Lib_SegmentedToVirtual(this->unk_148));
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_XLU_DISP++, object_f53_obj_DL_0023B0);
@@ -118,12 +118,12 @@ void ObjToudai_Update(Actor* thisx, PlayState* play) {
 
     if (temp_v0 != this->unk_236) {
         this->unk_236 = temp_v0;
-        this->unk_238 = Rand_S16Offset(0, 50);
+        this->unk_238 = MM_Rand_S16Offset(0, 50);
     }
 
-    Math_ApproachF(&this->unk_228, (this->unk_236 == 0) ? 0.0f : 1.0f, 0.01f, 1000.0f);
+    MM_Math_ApproachF(&this->unk_228, (this->unk_236 == 0) ? 0.0f : 1.0f, 0.01f, 1000.0f);
     this->unk_234 += 100;
-    thisx->shape.rot.y = TRUNCF_BINANG(Math_SinS(this->unk_234) * 16000.0f) + thisx->world.rot.y;
+    thisx->shape.rot.y = TRUNCF_BINANG(MM_Math_SinS(this->unk_234) * 16000.0f) + thisx->world.rot.y;
 }
 
 void ObjToudai_Draw(Actor* thisx, PlayState* play) {

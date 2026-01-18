@@ -50,7 +50,7 @@ void EnTakaraMan_Init(Actor* thisx, PlayState* play) {
     EnTakaraMan* this = (EnTakaraMan*)thisx;
 
     if (sTakaraIsInitialized) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ もういてる原 ☆☆☆☆☆ \n" VT_RST); // "Already initialized"
         return;
     }
@@ -61,14 +61,14 @@ void EnTakaraMan_Init(Actor* thisx, PlayState* play) {
     osSyncPrintf(VT_FGCOL(PURPLE) "☆☆☆☆☆ ばぅん！ ☆☆☆☆☆ %x\n" VT_RST, play->actorCtx.flags.chest);
     play->actorCtx.flags.chest = 0;
     gSaveContext.inventory.dungeonKeys[gSaveContext.mapIndex] = -1;
-    SkelAnime_InitFlex(play, &this->skelAnime, &object_ts_Skel_004FE0, &object_ts_Anim_000498, this->jointTable,
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &object_ts_Skel_004FE0, &object_ts_Anim_000498, this->jointTable,
                        this->morphTable, 10);
     thisx->focus.pos = thisx->world.pos;
     this->pos = thisx->world.pos;
     thisx->world.pos.x = 133.0f;
     thisx->world.pos.y = -12.0f;
     thisx->world.pos.z = 102.0f;
-    Actor_SetScale(&this->actor, 0.013f);
+    OoT_Actor_SetScale(&this->actor, 0.013f);
     this->height = 90.0f;
     this->originalRoomNum = thisx->room;
     thisx->room = -1;
@@ -84,9 +84,9 @@ void EnTakaraMan_Destroy(Actor* thisx, PlayState* play) {
 }
 
 void func_80B176E0(EnTakaraMan* this, PlayState* play) {
-    f32 frameCount = Animation_GetLastFrame(&object_ts_Anim_000498);
+    f32 frameCount = OoT_Animation_GetLastFrame(&object_ts_Anim_000498);
 
-    Animation_Change(&this->skelAnime, &object_ts_Anim_000498, 1.0f, 0.0f, (s16)frameCount, ANIMMODE_LOOP, -10.0f);
+    OoT_Animation_Change(&this->skelAnime, &object_ts_Anim_000498, 1.0f, 0.0f, (s16)frameCount, ANIMMODE_LOOP, -10.0f);
     if (!this->unk_214) {
         this->actor.textId = 0x6D;
         this->dialogState = TEXT_STATE_CHOICE;
@@ -98,7 +98,7 @@ void func_80B1778C(EnTakaraMan* this, PlayState* play) {
     s16 absYawDiff;
     s16 yawDiff;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if (Actor_ProcessTalkRequest(&this->actor, play) && this->dialogState != TEXT_STATE_DONE) {
         if (!this->unk_214) {
             this->actionFunc = func_80B17934;
@@ -114,7 +114,7 @@ void func_80B1778C(EnTakaraMan* this, PlayState* play) {
         }
 
         if (!this->unk_21A && this->unk_214) {
-            if (Flags_GetSwitch(play, 0x32)) {
+            if (OoT_Flags_GetSwitch(play, 0x32)) {
                 this->actor.textId = 0x84; // Thanks a lot! (Lost)
                 // with text state event, it is only possible to talk to the person running the game
                 // once. we want the player to be able to ask again if they accidentally blast through
@@ -143,28 +143,28 @@ void func_80B1778C(EnTakaraMan* this, PlayState* play) {
 }
 
 void func_80B17934(EnTakaraMan* this, PlayState* play) {
-    if (this->dialogState == Message_GetState(&play->msgCtx) && Message_ShouldAdvance(play)) {
+    if (this->dialogState == OoT_Message_GetState(&play->msgCtx) && OoT_Message_ShouldAdvance(play)) {
         switch (play->msgCtx.choiceIndex) {
             case 0: // Yes
                 if (gSaveContext.rupees >= 10) {
-                    Message_CloseTextbox(play);
-                    Rupees_ChangeBy(-10);
+                    OoT_Message_CloseTextbox(play);
+                    OoT_Rupees_ChangeBy(-10);
                     this->unk_214 = 1;
                     this->actor.parent = NULL;
-                    Actor_OfferGetItem(&this->actor, play, GI_DOOR_KEY, 2000.0f, 1000.0f);
+                    OoT_Actor_OfferGetItem(&this->actor, play, GI_DOOR_KEY, 2000.0f, 1000.0f);
                     this->actionFunc = func_80B17A6C;
                 } else {
-                    Message_CloseTextbox(play);
+                    OoT_Message_CloseTextbox(play);
                     this->actor.textId = 0x85;
-                    Message_ContinueTextbox(play, this->actor.textId);
+                    OoT_Message_ContinueTextbox(play, this->actor.textId);
                     this->dialogState = TEXT_STATE_EVENT;
                     this->actionFunc = func_80B17B14;
                 }
                 break;
             case 1: // No
-                Message_CloseTextbox(play);
+                OoT_Message_CloseTextbox(play);
                 this->actor.textId = 0x2D;
-                Message_ContinueTextbox(play, this->actor.textId);
+                OoT_Message_ContinueTextbox(play, this->actor.textId);
                 this->dialogState = TEXT_STATE_EVENT;
                 this->actionFunc = func_80B17B14;
                 break;
@@ -173,22 +173,22 @@ void func_80B17934(EnTakaraMan* this, PlayState* play) {
 }
 
 void func_80B17A6C(EnTakaraMan* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play)) {
+    if (OoT_Actor_HasParent(&this->actor, play)) {
         this->actionFunc = func_80B17AC4;
     } else {
-        Actor_OfferGetItem(&this->actor, play, GI_DOOR_KEY, 2000.0f, 1000.0f);
+        OoT_Actor_OfferGetItem(&this->actor, play, GI_DOOR_KEY, 2000.0f, 1000.0f);
     }
 }
 
 void func_80B17AC4(EnTakaraMan* this, PlayState* play) {
-    if (Message_GetState(&play->msgCtx) == TEXT_STATE_DONE && Message_ShouldAdvance(play)) {
+    if (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_DONE && OoT_Message_ShouldAdvance(play)) {
         this->actionFunc = func_80B176E0;
     }
 }
 
 void func_80B17B14(EnTakaraMan* this, PlayState* play) {
-    if (this->dialogState == Message_GetState(&play->msgCtx) && Message_ShouldAdvance(play)) {
-        Message_CloseTextbox(play);
+    if (this->dialogState == OoT_Message_GetState(&play->msgCtx) && OoT_Message_ShouldAdvance(play)) {
+        OoT_Message_CloseTextbox(play);
         this->actionFunc = func_80B176E0;
     }
 }
@@ -200,13 +200,13 @@ void EnTakaraMan_Update(Actor* thisx, PlayState* play) {
         this->eyeTimer--;
     }
 
-    Actor_SetFocus(&this->actor, this->height);
+    OoT_Actor_SetFocus(&this->actor, this->height);
     func_80038290(play, &this->actor, &this->unk_22C, &this->unk_232, this->actor.focus.pos);
     if (this->eyeTimer == 0) {
         this->eyeTextureIdx++;
         if (this->eyeTextureIdx >= 2) {
             this->eyeTextureIdx = 0;
-            this->eyeTimer = (s16)Rand_ZeroFloat(60.0f) + 20;
+            this->eyeTimer = (s16)OoT_Rand_ZeroFloat(60.0f) + 20;
         }
     }
     this->unk_212++;

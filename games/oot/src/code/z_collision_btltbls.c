@@ -1,6 +1,6 @@
 #include "global.h"
 
-static DamageTable sDamageTablePresets[] = {
+static DamageTable OoT_sDamageTablePresets[] = {
     { {
         // 0
         /* Deku nut      */ DMG_ENTRY(0, 0x1),
@@ -809,16 +809,16 @@ static DamageTable sDamageTablePresets[] = {
 };
 
 // Gets the pointer to one of the 23 preset damage tables. Returns NULL if index is out of range.
-DamageTable* DamageTable_Get(s32 index) {
-    if (!(0 <= index && index < ARRAY_COUNT(sDamageTablePresets))) {
+DamageTable* OoT_DamageTable_Get(s32 index) {
+    if (!(0 <= index && index < ARRAY_COUNT(OoT_sDamageTablePresets))) {
         osSyncPrintf("CollisionBtlTbl_get():インデックスオーバー\n"); // "Index over"
         return NULL;
     }
-    return &sDamageTablePresets[index];
+    return &OoT_sDamageTablePresets[index];
 }
 
 // Sets all entries in the damage table to 0x00
-void DamageTable_Clear(DamageTable* table) {
+void OoT_DamageTable_Clear(DamageTable* table) {
     s32 i;
     for (i = 0; i < 32; i++) {
         table->table[i] = 0;

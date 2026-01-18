@@ -31,13 +31,13 @@ const ActorInit Bg_Spot16_Doughnut_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(uncullZoneForward, 5500, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 5000, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneDownward, 5000, ICHAIN_STOP),
 };
 
-static s16 sScales[] = {
+static s16 OoT_sScales[] = {
     0, 0, 70, 210, 300,
 };
 
@@ -45,13 +45,13 @@ void BgSpot16Doughnut_Init(Actor* thisx, PlayState* play) {
     BgSpot16Doughnut* this = (BgSpot16Doughnut*)thisx;
     s32 params;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    Actor_SetScale(&this->actor, 0.1f);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
+    OoT_Actor_SetScale(&this->actor, 0.1f);
     this->fireFlag = 0;
     this->envColorAlpha = 255;
     params = this->actor.params;
     if (params == 1 || params == 2 || params == 3 || params == 4) {
-        Actor_SetScale(&this->actor, sScales[this->actor.params] * 1.0e-4f);
+        OoT_Actor_SetScale(&this->actor, OoT_sScales[this->actor.params] * 1.0e-4f);
         this->actor.draw = BgSpot16Doughnut_DrawExpanding;
         this->actor.update = BgSpot16Doughnut_UpdateExpanding;
     } else {
@@ -59,19 +59,19 @@ void BgSpot16Doughnut_Init(Actor* thisx, PlayState* play) {
         // Death Mountain itself falls into the default case.
         switch (play->sceneNum) {
             case SCENE_KAKARIKO_VILLAGE:
-                Actor_SetScale(&this->actor, 0.04f);
+                OoT_Actor_SetScale(&this->actor, 0.04f);
                 break;
             case SCENE_TEMPLE_OF_TIME_EXTERIOR_DAY:
             case SCENE_TEMPLE_OF_TIME_EXTERIOR_NIGHT:
             case SCENE_TEMPLE_OF_TIME_EXTERIOR_RUINS:
-                Actor_SetScale(&this->actor, 0.018f);
+                OoT_Actor_SetScale(&this->actor, 0.018f);
                 break;
             default:
-                Actor_SetScale(&this->actor, 0.1f);
+                OoT_Actor_SetScale(&this->actor, 0.1f);
                 break;
         }
         osSyncPrintf(VT_FGCOL(CYAN) "%f" VT_RST "\n", this->actor.scale.x);
-        if (!LINK_IS_ADULT || Flags_GetEventChkInf(EVENTCHKINF_DEATH_MOUNTAIN_ERUPTED)) {
+        if (!LINK_IS_ADULT || OoT_Flags_GetEventChkInf(EVENTCHKINF_DEATH_MOUNTAIN_ERUPTED)) {
             this->fireFlag &= ~1;
         } else {
             this->fireFlag |= 1;
@@ -111,10 +111,10 @@ void BgSpot16Doughnut_UpdateExpanding(Actor* thisx, PlayState* play) {
     if (this->envColorAlpha >= 6) {
         this->envColorAlpha -= 5;
     } else {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
     this->actor.shape.rot.y -= 0x20;
-    Actor_SetScale(&this->actor, this->actor.scale.x + 0.0019999998f);
+    OoT_Actor_SetScale(&this->actor, this->actor.scale.x + 0.0019999998f);
 }
 
 void BgSpot16Doughnut_Draw(Actor* thisx, PlayState* play) {
@@ -129,7 +129,7 @@ void BgSpot16Doughnut_Draw(Actor* thisx, PlayState* play) {
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     if (this->fireFlag & 1) {
         gSPSegment(POLY_XLU_DISP++, 0x08,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, scroll * (-1), 0, 16, 32, 1, scroll, scroll * (-2), 16, 32));
+                   OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, scroll * (-1), 0, 16, 32, 1, scroll, scroll * (-2), 16, 32));
         gDPSetEnvColor(POLY_XLU_DISP++, 255, 0, 0, this->envColorAlpha);
         gSPDisplayList(POLY_XLU_DISP++, gDeathMountainCloudCircleFieryDL);
     } else {

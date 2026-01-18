@@ -37,16 +37,16 @@ void BgSpot15Saku_Init(Actor* thisx, PlayState* play) {
     s32 pad2;
     CollisionHeader* colHeader = NULL;
 
-    DynaPolyActor_Init(&this->dyna, DPM_UNK);
-    CollisionHeader_GetVirtual(&gLonLonCorralFenceCol, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
+    OoT_CollisionHeader_GetVirtual(&gLonLonCorralFenceCol, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
     this->dyna.actor.scale.x = 0.1f;
     this->dyna.actor.scale.y = 0.1f;
     this->dyna.actor.scale.z = 0.1f;
     this->unk_170.x = this->dyna.actor.world.pos.x;
     this->unk_170.y = this->dyna.actor.world.pos.y;
     this->unk_170.z = this->dyna.actor.world.pos.z;
-    if (Flags_GetInfTable(INFTABLE_71)) {
+    if (OoT_Flags_GetInfTable(INFTABLE_71)) {
         this->dyna.actor.world.pos.z = 2659.0f;
     }
     this->actionFunc = func_808B4930;
@@ -55,11 +55,11 @@ void BgSpot15Saku_Init(Actor* thisx, PlayState* play) {
 void BgSpot15Saku_Destroy(Actor* thisx, PlayState* play) {
     BgSpot15Saku* this = (BgSpot15Saku*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_808B4930(BgSpot15Saku* this, PlayState* play) {
-    if (this->unk_168 && !Flags_GetInfTable(INFTABLE_71)) {
+    if (this->unk_168 && !OoT_Flags_GetInfTable(INFTABLE_71)) {
         this->timer = 2;
         this->actionFunc = func_808B4978;
     }

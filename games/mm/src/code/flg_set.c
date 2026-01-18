@@ -137,9 +137,9 @@ static FlagSetEntry sFlagEntries[] = {
 
 static s32 sEntryIndex = 0;
 static u32 sCurrentBit = 0;
-static s32 sTimer = 0;
+static s32 MM_sTimer = 0;
 
-void FlagSet_Update(GameState* gameState) {
+void MM_FlagSet_Update(GameState* gameState) {
     PlayState* play = (PlayState*)gameState;
     Input* input = CONTROLLER1(&play->state);
 
@@ -147,22 +147,22 @@ void FlagSet_Update(GameState* gameState) {
 
     if (CHECK_BTN_ALL(input->press.button, BTN_DLEFT)) {
         sCurrentBit++;
-        sTimer = 10;
+        MM_sTimer = 10;
     }
 
     if (CHECK_BTN_ALL(input->press.button, BTN_DRIGHT)) {
         sCurrentBit--;
-        sTimer = 10;
+        MM_sTimer = 10;
     }
 
-    if (sTimer == 0) {
+    if (MM_sTimer == 0) {
         if (CHECK_BTN_ALL(input->cur.button, BTN_DLEFT)) {
             sCurrentBit++;
-            sTimer = 2;
+            MM_sTimer = 2;
         }
         if (CHECK_BTN_ALL(input->cur.button, BTN_DRIGHT)) {
             sCurrentBit--;
-            sTimer = 2;
+            MM_sTimer = 2;
         }
     }
 
@@ -177,7 +177,7 @@ void FlagSet_Update(GameState* gameState) {
         if (sEntryIndex < 0) {
             sEntryIndex = 0;
         }
-        sTimer = 10;
+        MM_sTimer = 10;
     }
 
     if (CHECK_BTN_ALL(input->press.button, BTN_DDOWN)) {
@@ -185,7 +185,7 @@ void FlagSet_Update(GameState* gameState) {
         if (sFlagEntries[sEntryIndex].value == NULL) { // End of array
             sEntryIndex--;
         }
-        sTimer = 10;
+        MM_sTimer = 10;
     }
 
     // C Up/Down scroll 10 at a time
@@ -194,7 +194,7 @@ void FlagSet_Update(GameState* gameState) {
         if (sEntryIndex < 0) {
             sEntryIndex = 0;
         }
-        sTimer = 10;
+        MM_sTimer = 10;
     }
 
     if (CHECK_BTN_ALL(input->press.button, BTN_CDOWN)) {
@@ -202,37 +202,37 @@ void FlagSet_Update(GameState* gameState) {
         if (sEntryIndex > 100) {
             sEntryIndex = 100;
         }
-        sTimer = 10;
+        MM_sTimer = 10;
     }
 
-    if (sTimer == 0) {
+    if (MM_sTimer == 0) {
         if (CHECK_BTN_ALL(input->cur.button, BTN_DUP)) {
             sEntryIndex--;
             if (sEntryIndex < 0) {
                 sEntryIndex = 0;
             }
-            sTimer = 2;
+            MM_sTimer = 2;
 
         } else if (CHECK_BTN_ALL(input->cur.button, BTN_DDOWN)) {
             sEntryIndex++;
             if (sFlagEntries[sEntryIndex].value == NULL) { // End of array
                 sEntryIndex--;
             }
-            sTimer = 2;
+            MM_sTimer = 2;
 
         } else if (CHECK_BTN_ALL(input->cur.button, BTN_CUP)) {
             sEntryIndex -= 10;
             if (sEntryIndex < 0) {
                 sEntryIndex = 0;
             }
-            sTimer = 2;
+            MM_sTimer = 2;
 
         } else if (CHECK_BTN_ALL(input->cur.button, BTN_CDOWN)) {
             sEntryIndex += 10;
             if (sEntryIndex > 100) {
                 sEntryIndex = 100;
             }
-            sTimer = 2;
+            MM_sTimer = 2;
         }
     }
 
@@ -243,8 +243,8 @@ void FlagSet_Update(GameState* gameState) {
         *sFlagEntries[sEntryIndex].value ^= (1 << sCurrentBit);
     }
 
-    if (sTimer != 0) {
-        sTimer--;
+    if (MM_sTimer != 0) {
+        MM_sTimer--;
     }
 
     // Hold Start and press B will reset the first two flag arrays
@@ -277,43 +277,43 @@ void FlagSet_Draw(GameState* gameState) {
     s32 pad;
 
     polyOpa = POLY_OPA_DISP;
-    gfx = Graph_GfxPlusOne(polyOpa);
+    gfx = MM_Graph_GfxPlusOne(polyOpa);
     gSPDisplayList(OVERLAY_DISP++, gfx);
 
-    GfxPrint_Init(&printer);
-    GfxPrint_Open(&printer, gfx);
-    GfxPrint_SetColor(&printer, 250, 50, 50, 255);
-    GfxPrint_SetPos(&printer, 8, 13);
-    GfxPrint_Printf(&printer, sFlagEntries[sEntryIndex].name);
-    GfxPrint_SetPos(&printer, 12, 15);
+    MM_GfxPrint_Init(&printer);
+    MM_GfxPrint_Open(&printer, gfx);
+    MM_GfxPrint_SetColor(&printer, 250, 50, 50, 255);
+    MM_GfxPrint_SetPos(&printer, 8, 13);
+    MM_GfxPrint_Printf(&printer, sFlagEntries[sEntryIndex].name);
+    MM_GfxPrint_SetPos(&printer, 12, 15);
 
     // Print the flag bits in the current byte, largest to smallest
     for (sFlagBitIndex = 7; sFlagBitIndex >= 0; sFlagBitIndex--) {
         // Highlight current flag bit in white, rest in grey
         if (sFlagBitIndex == sCurrentBit) {
-            GfxPrint_SetColor(&printer, 200, 200, 200, 255);
+            MM_GfxPrint_SetColor(&printer, 200, 200, 200, 255);
         } else {
-            GfxPrint_SetColor(&printer, 100, 100, 100, 255);
+            MM_GfxPrint_SetColor(&printer, 100, 100, 100, 255);
         }
 
         // Display 1 if flag set and 0 if not
         if (*sFlagEntries[sEntryIndex].value & (1 << sFlagBitIndex)) {
-            GfxPrint_Printf(&printer, "1");
+            MM_GfxPrint_Printf(&printer, "1");
         } else {
-            GfxPrint_Printf(&printer, "0");
+            MM_GfxPrint_Printf(&printer, "0");
         }
 
         // Add a space after each group of 4
         if ((sFlagBitIndex % 4) == 0) {
-            GfxPrint_Printf(&printer, " ");
+            MM_GfxPrint_Printf(&printer, " ");
         }
     }
 
-    gfx = GfxPrint_Close(&printer);
-    GfxPrint_Destroy(&printer);
+    gfx = MM_GfxPrint_Close(&printer);
+    MM_GfxPrint_Destroy(&printer);
 
     gSPEndDisplayList(gfx++);
-    Graph_BranchDlist(polyOpa, gfx);
+    MM_Graph_BranchDlist(polyOpa, gfx);
     POLY_OPA_DISP = gfx;
 
     CLOSE_DISPS(gfxCtx);

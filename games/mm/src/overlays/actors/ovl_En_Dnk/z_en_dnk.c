@@ -33,7 +33,7 @@ ActorProfile En_Dnk_Profile = {
     /**/ EnDnk_Reset,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HIT0,
         AT_NONE,
@@ -53,9 +53,9 @@ static ColliderCylinderInit sCylinderInit = {
     { 18, 46, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 1, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 MM_sColChkInfoInit = { 1, 0, 0, 0, MASS_IMMOVABLE };
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(1, 0x0),
     /* Deku Stick     */ DMG_ENTRY(1, 0x0),
     /* Horse trample  */ DMG_ENTRY(1, 0x0),
@@ -131,7 +131,7 @@ typedef enum {
     /* 36 */ ENDNK_ANIM_MAX
 } EnDnkAnimation;
 
-static AnimationInfoS sAnimationInfo[ENDNK_ANIM_MAX] = {
+static AnimationInfoS MM_sAnimationInfo[ENDNK_ANIM_MAX] = {
     { &gDekuPalaceGuardStartAnim, 1.0f, 0, -1, ANIMMODE_ONCE, 0 },    // ENDNK_ANIM_0
     { &gDekuPalaceGuardStartAnim, 1.0f, 0, -1, ANIMMODE_ONCE, -4 },   // ENDNK_ANIM_1
     { &gDekuPalaceGuardWaitAnim, 1.0f, 0, -1, ANIMMODE_LOOP, -4 },    // ENDNK_ANIM_2
@@ -178,17 +178,17 @@ s32 EnDnk_ChangeAnim(SkelAnime* skelAnime, s16 animIndex) {
     if (animIndex > ENDNK_ANIM_NONE) {
         if (animIndex < ENDNK_ANIM_MAX) {
             didAnimChange = true;
-            endFrame = sAnimationInfo[animIndex].frameCount;
+            endFrame = MM_sAnimationInfo[animIndex].frameCount;
             if (endFrame < 0) {
-                endFrame = Animation_GetLastFrame(sAnimationInfo[animIndex].animation);
+                endFrame = MM_Animation_GetLastFrame(MM_sAnimationInfo[animIndex].animation);
             }
-            startFrame = sAnimationInfo[animIndex].startFrame;
+            startFrame = MM_sAnimationInfo[animIndex].startFrame;
             if (startFrame < 0) {
                 startFrame = endFrame;
             }
-            Animation_Change(skelAnime, sAnimationInfo[animIndex].animation, sAnimationInfo[animIndex].playSpeed,
-                             startFrame, endFrame, sAnimationInfo[animIndex].mode,
-                             sAnimationInfo[animIndex].morphFrames);
+            MM_Animation_Change(skelAnime, MM_sAnimationInfo[animIndex].animation, MM_sAnimationInfo[animIndex].playSpeed,
+                             startFrame, endFrame, MM_sAnimationInfo[animIndex].mode,
+                             MM_sAnimationInfo[animIndex].morphFrames);
         }
     }
     return didAnimChange;
@@ -200,7 +200,7 @@ s32 func_80A515C4(EnDnk* this) {
     if (DECR(this->unk_29E) == 0) {
         this->unk_2A0++;
         if (this->unk_2A0 >= 3) {
-            this->unk_29E = Rand_S16Offset(20, 20);
+            this->unk_29E = MM_Rand_S16Offset(20, 20);
             this->unk_2A0 = 0;
         }
         ret = true;
@@ -210,43 +210,43 @@ s32 func_80A515C4(EnDnk* this) {
 
 void func_80A51648(EnDnk* this, PlayState* play) {
     if (SubS_IsObjectLoaded(this->objectSlot, play) == true) {
-        gSegments[0x06] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->objectSlot].segment);
+        MM_gSegments[0x06] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->objectSlot].segment);
         this->actor.draw = func_80A52018;
         this->actor.objectSlot = this->objectSlot;
-        ActorShape_Init(&this->actor.shape, 0.0f, NULL, 18.0f);
+        MM_ActorShape_Init(&this->actor.shape, 0.0f, NULL, 18.0f);
 
         switch (ENDNK_GET_3(&this->actor)) {
             case ENDNK_GET_3_0:
-                SkelAnime_Init(play, &this->skelAnime, &gDekuPalaceGuardSkel, NULL, this->jointTable, this->morphTable,
+                MM_SkelAnime_Init(play, &this->skelAnime, &gDekuPalaceGuardSkel, NULL, this->jointTable, this->morphTable,
                                DEKU_PALACE_GUARD_LIMB_MAX);
                 EnDnk_ChangeAnim(&this->skelAnime, ENDNK_ANIM_7);
                 break;
 
             case ENDNK_GET_3_1:
-                SkelAnime_Init(play, &this->skelAnime, &object_hintnuts_Skel_0023B8, NULL, this->jointTable,
+                MM_SkelAnime_Init(play, &this->skelAnime, &object_hintnuts_Skel_0023B8, NULL, this->jointTable,
                                this->morphTable, OBJECT_HINTNUTS_LIMB_MAX);
                 EnDnk_ChangeAnim(&this->skelAnime, ENDNK_ANIM_18);
                 break;
 
             case ENDNK_GET_3_2:
-                SkelAnime_Init(play, &this->skelAnime, &gDekuScrubSkel, NULL, this->jointTable, this->morphTable,
+                MM_SkelAnime_Init(play, &this->skelAnime, &gDekuScrubSkel, NULL, this->jointTable, this->morphTable,
                                DEKU_SCRUB_LIMB_MAX);
                 EnDnk_ChangeAnim(&this->skelAnime, ENDNK_ANIM_35);
                 break;
         }
 
-        Collider_InitCylinder(play, &this->collider);
-        Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-        CollisionCheck_SetInfo2(&this->actor.colChkInfo, &sDamageTable, &sColChkInfoInit);
+        MM_Collider_InitCylinder(play, &this->collider);
+        MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+        MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, &MM_sDamageTable, &MM_sColChkInfoInit);
         if (ENDNK_GET_3C(&this->actor) == 4) {
             this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
             this->actor.flags |= (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED);
             this->actionFunc = EnDnk_HandleCutscene;
-            Actor_SetScale(&this->actor, 0.1f);
+            MM_Actor_SetScale(&this->actor, 0.1f);
         } else {
             this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
             this->actionFunc = EnDnk_DoNothing;
-            Actor_SetScale(&this->actor, 0.01f);
+            MM_Actor_SetScale(&this->actor, 0.01f);
         }
     }
 }
@@ -282,7 +282,7 @@ void EnDnk_Init(Actor* thisx, PlayState* play) {
     if (this->objectSlot > OBJECT_SLOT_NONE) {
         this->actionFunc = func_80A51648;
     } else {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 
     this->unk_2A2 = D_80A521A0;
@@ -292,7 +292,7 @@ void EnDnk_Init(Actor* thisx, PlayState* play) {
 void EnDnk_Destroy(Actor* thisx, PlayState* play) {
     EnDnk* this = (EnDnk*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnDnk_Update(Actor* thisx, PlayState* play) {
@@ -300,12 +300,12 @@ void EnDnk_Update(Actor* thisx, PlayState* play) {
     s32 pad;
 
     this->actionFunc(this, play);
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     func_80A515C4(this);
-    Actor_SetFocus(&this->actor, 34.0f);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Actor_SetFocus(&this->actor, 34.0f);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     func_80A52134(this, play);
 }
 
@@ -325,20 +325,20 @@ void EnDnk_PostLimbDraw2(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot
     Vec3s sp3C;
 
     if (limbIndex == DEKU_PALACE_GUARD_LIMB_HEAD) {
-        Matrix_MultVec3f(&sp50, &sp44);
-        Matrix_Get(&sp5C);
+        MM_Matrix_MultVec3f(&sp50, &sp44);
+        MM_Matrix_Get(&sp5C);
         Matrix_MtxFToYXZRot(&sp5C, &sp3C, false);
-        Matrix_Translate(sp44.x, sp44.y, sp44.z, MTXMODE_NEW);
-        Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+        MM_Matrix_Translate(sp44.x, sp44.y, sp44.z, MTXMODE_NEW);
+        MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
         if (this->unk_28C & 0x10) {
             if (this->unk_28C & 0x20) {
                 sp3C.x = this->unk_296;
                 sp3C.y = this->unk_298;
                 sp3C.y += this->actor.shape.rot.y;
                 sp3C.z = 0;
-                Math_SmoothStepToS(&this->unk_290, sp3C.x, 4, 0x1FFE, 1);
-                Math_SmoothStepToS(&this->unk_292, sp3C.y, 4, 0x1FFE, 1);
-                Math_SmoothStepToS(&this->unk_294, sp3C.z, 4, 0x1FFE, 1);
+                MM_Math_SmoothStepToS(&this->unk_290, sp3C.x, 4, 0x1FFE, 1);
+                MM_Math_SmoothStepToS(&this->unk_292, sp3C.y, 4, 0x1FFE, 1);
+                MM_Math_SmoothStepToS(&this->unk_294, sp3C.z, 4, 0x1FFE, 1);
             } else {
                 this->unk_290 = sp3C.x;
                 this->unk_292 = sp3C.y;
@@ -379,7 +379,7 @@ void func_80A51CB8(EnDnk* this, PlayState* play) {
     gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80A5245C[this->unk_2A0]));
     gDPPipeSync(POLY_OPA_DISP++);
 
-    SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, EnDnk_OverrideLimbDraw2,
+    MM_SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, EnDnk_OverrideLimbDraw2,
                       EnDnk_PostLimbDraw2, &this->actor);
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -403,11 +403,11 @@ void EnDnk_PostLimbDraw1(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot
     // Note: Also for `limbIndex == OBJECT_HINTNUTS_LIMB_02`
     // Assumes `OBJECT_HINTNUTS_LIMB_02` is the same value as `DEKU_SCRUB_LIMB_HEAD`
     if (limbIndex == DEKU_SCRUB_LIMB_HEAD) {
-        Matrix_MultVec3f(&sp50, &sp44);
-        Matrix_Get(&sp5C);
+        MM_Matrix_MultVec3f(&sp50, &sp44);
+        MM_Matrix_Get(&sp5C);
         Matrix_MtxFToYXZRot(&sp5C, &sp3C, false);
-        Matrix_Translate(sp44.x, sp44.y, sp44.z, MTXMODE_NEW);
-        Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+        MM_Matrix_Translate(sp44.x, sp44.y, sp44.z, MTXMODE_NEW);
+        MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
 
         if (this->unk_28C & 0x10) {
             if (this->unk_28C & 0x20) {
@@ -415,9 +415,9 @@ void EnDnk_PostLimbDraw1(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot
                 sp3C.y = this->unk_298 + 0x4000;
                 sp3C.y += this->actor.shape.rot.y;
                 sp3C.x = 0;
-                Math_SmoothStepToS(&this->unk_290, sp3C.x, 4, 0x1FFE, 1);
-                Math_SmoothStepToS(&this->unk_292, sp3C.y, 4, 0x1FFE, 1);
-                Math_SmoothStepToS(&this->unk_294, sp3C.z, 4, 0x1FFE, 1);
+                MM_Math_SmoothStepToS(&this->unk_290, sp3C.x, 4, 0x1FFE, 1);
+                MM_Math_SmoothStepToS(&this->unk_292, sp3C.y, 4, 0x1FFE, 1);
+                MM_Math_SmoothStepToS(&this->unk_294, sp3C.z, 4, 0x1FFE, 1);
             } else {
                 this->unk_290 = sp3C.x;
                 this->unk_292 = sp3C.y;
@@ -445,7 +445,7 @@ void EnDnk_PostLimbDraw1(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot
 
 void func_80A51FC0(EnDnk* this, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, EnDnk_OverrideLimbDraw1,
+    MM_SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, EnDnk_OverrideLimbDraw1,
                       EnDnk_PostLimbDraw1, &this->actor);
 }
 

@@ -31,10 +31,10 @@ void BgFuKaiten_Init(Actor* thisx, PlayState* play) {
     BgFuKaiten* this = (BgFuKaiten*)thisx;
     CollisionHeader* header = NULL;
 
-    Actor_SetScale(thisx, 1.0f);
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS | DYNA_TRANSFORM_ROT_Y);
-    CollisionHeader_GetVirtual(&object_fu_kaiten_Colheader_002D30, &header);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, header);
+    MM_Actor_SetScale(thisx, 1.0f);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS | DYNA_TRANSFORM_ROT_Y);
+    MM_CollisionHeader_GetVirtual(&object_fu_kaiten_Colheader_002D30, &header);
+    this->dyna.bgId = MM_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, header);
 
     this->bounceHeight = 0.0f;
     this->rotationSpeed = 0;
@@ -45,7 +45,7 @@ void BgFuKaiten_Init(Actor* thisx, PlayState* play) {
 void BgFuKaiten_Destroy(Actor* thisx, PlayState* play) {
     BgFuKaiten* this = (BgFuKaiten*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void BgFuKaiten_UpdateRotation(BgFuKaiten* this) {
@@ -62,7 +62,7 @@ void BgFuKaiten_UpdateHeight(BgFuKaiten* this) {
     this->bounce += this->bounceSpeed;
     this->dyna.actor.world.pos.y = this->dyna.actor.home.pos.y + this->elevation + this->bounceHeight;
 
-    this->dyna.actor.world.pos.y -= this->bounceHeight * Math_CosS(this->bounce);
+    this->dyna.actor.world.pos.y -= this->bounceHeight * MM_Math_CosS(this->bounce);
 }
 
 void BgFuKaiten_Update(Actor* thisx, PlayState* play) {

@@ -9,10 +9,10 @@
 
 #define FLAGS 0
 
-void ObjHana_Init(Actor* thisx, PlayState* play);
-void ObjHana_Destroy(Actor* thisx, PlayState* play);
-void ObjHana_Update(Actor* thisx, PlayState* play);
-void ObjHana_Draw(Actor* thisx, PlayState* play);
+void OoT_ObjHana_Init(Actor* thisx, PlayState* play);
+void OoT_ObjHana_Destroy(Actor* thisx, PlayState* play);
+void OoT_ObjHana_Update(Actor* thisx, PlayState* play);
+void OoT_ObjHana_Draw(Actor* thisx, PlayState* play);
 
 const ActorInit Obj_Hana_InitVars = {
     ACTOR_OBJ_HANA,
@@ -20,14 +20,14 @@ const ActorInit Obj_Hana_InitVars = {
     FLAGS,
     OBJECT_GAMEPLAY_FIELD_KEEP,
     sizeof(ObjHana),
-    (ActorFunc)ObjHana_Init,
-    (ActorFunc)ObjHana_Destroy,
-    (ActorFunc)ObjHana_Update,
-    (ActorFunc)ObjHana_Draw,
+    (ActorFunc)OoT_ObjHana_Init,
+    (ActorFunc)OoT_ObjHana_Destroy,
+    (ActorFunc)OoT_ObjHana_Update,
+    (ActorFunc)OoT_ObjHana_Draw,
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -47,7 +47,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 8, 10, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit sColChkInfoInit = { 0, 12, 60, MASS_IMMOVABLE };
+static CollisionCheckInfoInit OoT_sColChkInfoInit = { 0, 12, 60, MASS_IMMOVABLE };
 
 typedef struct {
     /* 0x00 */ Gfx* dList;
@@ -63,51 +63,51 @@ static HanaParams sHanaParams[] = {
     { gFieldBushDL, 0.4f, 0.0f, 12, 44 },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 10, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 900, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 60, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneDownward, 800, ICHAIN_STOP),
 };
 
-void ObjHana_Init(Actor* thisx, PlayState* play) {
+void OoT_ObjHana_Init(Actor* thisx, PlayState* play) {
     ObjHana* this = (ObjHana*)thisx;
     s16 type = this->actor.params & 3;
     HanaParams* params = &sHanaParams[type];
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    Actor_SetScale(&this->actor, params->scale);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
+    OoT_Actor_SetScale(&this->actor, params->scale);
     this->actor.shape.yOffset = params->yOffset;
     if (params->radius >= 0) {
-        Collider_InitCylinder(play, &this->collider);
-        Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-        Collider_UpdateCylinder(&this->actor, &this->collider);
+        OoT_Collider_InitCylinder(play, &this->collider);
+        OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
+        OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
         this->collider.dim.radius = params->radius;
         this->collider.dim.height = params->height;
-        CollisionCheck_SetInfo(&this->actor.colChkInfo, NULL, &sColChkInfoInit);
+        OoT_CollisionCheck_SetInfo(&this->actor.colChkInfo, NULL, &OoT_sColChkInfoInit);
     }
 
-    if (type == 2 && (Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_ZELDAS_LETTER))) {
-        Actor_Kill(&this->actor);
+    if (type == 2 && (OoT_Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_ZELDAS_LETTER))) {
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
-void ObjHana_Destroy(Actor* thisx, PlayState* play) {
+void OoT_ObjHana_Destroy(Actor* thisx, PlayState* play) {
     ObjHana* this = (ObjHana*)thisx;
 
     if (sHanaParams[this->actor.params & 3].radius >= 0) {
-        Collider_DestroyCylinder(play, &this->collider);
+        OoT_Collider_DestroyCylinder(play, &this->collider);
     }
 }
 
-void ObjHana_Update(Actor* thisx, PlayState* play) {
+void OoT_ObjHana_Update(Actor* thisx, PlayState* play) {
     ObjHana* this = (ObjHana*)thisx;
 
     if (sHanaParams[this->actor.params & 3].radius >= 0 && this->actor.xzDistToPlayer < 400.0f) {
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
-void ObjHana_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, sHanaParams[thisx->params & 3].dList);
+void OoT_ObjHana_Draw(Actor* thisx, PlayState* play) {
+    OoT_Gfx_DrawDListOpa(play, sHanaParams[thisx->params & 3].dList);
 }

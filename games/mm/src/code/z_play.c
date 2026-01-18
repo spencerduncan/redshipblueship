@@ -6,12 +6,12 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 
 // Variables are put before most headers as a hacky way to bypass bss reordering
-s16 sTransitionFillTimer;
+s16 MM_sTransitionFillTimer;
 Input D_801F6C18;
 TransitionTile sTransitionTile;
 s32 gTransitionTileState;
 VisMono sPlayVisMono;
-Color_RGBA8_u32 gVisMonoColor;
+Color_RGBA8_u32 MM_gVisMonoColor;
 VisFbuf sPlayVisFbuf;
 VisFbuf* sPlayVisFbufInstance;
 BombersNotebook sBombersNotebook;
@@ -55,8 +55,8 @@ extern bool Combo_IsCrossGameSwitch(void);
 s32 gDbgCamEnabled = false;
 u8 D_801D0D54 = false;
 
-// #region 2S2H [General] Making gPlayState available
-PlayState* gPlayState;
+// #region 2S2H [General] Making MM_gPlayState available
+PlayState* MM_gPlayState;
 // #endregion
 
 // Track when the notebook is closed so we can refresh our framebuffer captures
@@ -103,7 +103,7 @@ void Play_DrawMotionBlur(PlayState* this) {
         OPEN_DISPS(gfxCtx);
 
         gfxHead = POLY_OPA_DISP;
-        gfx = Graph_GfxPlusOne(gfxHead);
+        gfx = MM_Graph_GfxPlusOne(gfxHead);
 
         gSPDisplayList(OVERLAY_DISP++, gfx);
 
@@ -134,7 +134,7 @@ void Play_DrawMotionBlur(PlayState* this) {
 
         gSPEndDisplayList(gfx++);
 
-        Graph_BranchDlist(gfxHead, gfx);
+        MM_Graph_BranchDlist(gfxHead, gfx);
 
         POLY_OPA_DISP = gfx;
 
@@ -404,26 +404,26 @@ void Play_ClearTransition(PlayState* this) {
     this->transitionCtx.transitionType = -1;
 }
 
-Gfx* Play_SetFog(PlayState* this, Gfx* gfx) {
+Gfx* MM_Play_SetFog(PlayState* this, Gfx* gfx) {
     s32 fogFar = this->lightCtx.zFar * (5.0f / 64.0f);
 
-    return Gfx_SetFogWithSync(gfx, this->lightCtx.fogColor[0], this->lightCtx.fogColor[1], this->lightCtx.fogColor[2],
+    return MM_Gfx_SetFogWithSync(gfx, this->lightCtx.fogColor[0], this->lightCtx.fogColor[1], this->lightCtx.fogColor[2],
                               0, this->lightCtx.fogNear, ((fogFar <= 1000) ? 1000 : fogFar));
 }
 
-void Play_Destroy(GameState* thisx) {
+void MM_Play_Destroy(GameState* thisx) {
     PlayState* this = (PlayState*)thisx;
     GraphicsContext* gfxCtx = this->state.gfxCtx;
 
     if (sBombersNotebookOpen) {
-        MsgEvent_SendNullTask();
+        MM_MsgEvent_SendNullTask();
         SysCfb_SetLoResMode();
         gfxCtx->curFrameBuffer = SysCfb_GetFramebuffer(gfxCtx->framebufferIndex % 2);
         gfxCtx->zbuffer = SysCfb_GetZBuffer();
         gfxCtx->viMode = gActiveViMode;
-        gfxCtx->viConfigFeatures = gViConfigFeatures;
-        gfxCtx->xScale = gViConfigXScale;
-        gfxCtx->yScale = gViConfigYScale;
+        gfxCtx->viConfigFeatures = MM_gViConfigFeatures;
+        gfxCtx->xScale = MM_gViConfigXScale;
+        gfxCtx->yScale = MM_gViConfigYScale;
         gfxCtx->updateViMode = true;
         sBombersNotebookOpen = false;
 
@@ -441,15 +441,15 @@ void Play_Destroy(GameState* thisx) {
     }
 
     R_PICTO_PHOTO_STATE = PICTO_PHOTO_STATE_OFF;
-    PreRender_Destroy(&this->pauseBgPreRender);
+    MM_PreRender_Destroy(&this->pauseBgPreRender);
     this->unk_18E58 = NULL;
     this->pictoPhotoI8 = NULL;
     this->unk_18E60 = NULL;
     this->unk_18E64 = NULL;
     this->unk_18E68 = NULL;
     Effect_DestroyAll(this);
-    EffectSs_ClearAll(this);
-    CollisionCheck_DestroyContext(this, &this->colChkCtx);
+    MM_EffectSs_ClearAll(this);
+    MM_CollisionCheck_DestroyContext(this, &this->colChkCtx);
 
     if (gTransitionTileState == TRANS_TILE_READY) {
         TransitionTile_Destroy(&sTransitionTile);
@@ -462,9 +462,9 @@ void Play_Destroy(GameState* thisx) {
         this->transitionMode = TRANS_MODE_OFF;
     }
 
-    ShrinkWindow_Destroy();
-    TransitionFade_Destroy(&this->unk_18E48);
-    VisMono_Destroy(&sPlayVisMono);
+    MM_ShrinkWindow_Destroy();
+    MM_TransitionFade_Destroy(&this->unk_18E48);
+    MM_VisMono_Destroy(&sPlayVisMono);
     VisFbuf_Destroy(sPlayVisFbufInstance);
     sPlayVisFbufInstance = NULL;
 
@@ -474,14 +474,14 @@ void Play_Destroy(GameState* thisx) {
     CLEAR_WEEKEVENTREG(WEEKEVENTREG_92_80);
 
     Interface_Destroy(this);
-    KaleidoScopeCall_Destroy(this);
-    KaleidoManager_Destroy();
-    ZeldaArena_Cleanup();
+    MM_KaleidoScopeCall_Destroy(this);
+    MM_KaleidoManager_Destroy();
+    MM_ZeldaArena_Cleanup();
 
     GameInteractor_ExecuteOnPlayDestroy();
 
-    // #region 2S2H [General] Making gPlayState available
-    gPlayState = NULL;
+    // #region 2S2H [General] Making MM_gPlayState available
+    MM_gPlayState = NULL;
     // #endregion
 }
 
@@ -550,7 +550,7 @@ f32 Play_GetWaterSurface(PlayState* this, Vec3f* pos, s32* lightIndex) {
     WaterBox* waterBox;
     s32 bgId;
 
-    if (!WaterBox_GetSurfaceImpl(this, &this->colCtx, pos->x, pos->z, &waterSurfaceY, &waterBox, &bgId)) {
+    if (!MM_WaterBox_GetSurfaceImpl(this, &this->colCtx, pos->x, pos->z, &waterSurfaceY, &waterBox, &bgId)) {
         return BGCHECK_Y_MIN;
     }
 
@@ -558,7 +558,7 @@ f32 Play_GetWaterSurface(PlayState* this, Vec3f* pos, s32* lightIndex) {
         return BGCHECK_Y_MIN;
     }
 
-    *lightIndex = WaterBox_GetLightSettingIndex(&this->colCtx, waterBox);
+    *lightIndex = MM_WaterBox_GetLightSettingIndex(&this->colCtx, waterBox);
     return waterSurfaceY;
 }
 
@@ -578,15 +578,15 @@ void Play_UpdateWaterCamera(PlayState* this, Camera* camera) {
             Distortion_SetDuration(80);
         }
 
-        Audio_SetExtraFilter(0x20);
-        Environment_EnableUnderwaterLights(this, lightIndex);
+        MM_Audio_SetExtraFilter(0x20);
+        MM_Environment_EnableUnderwaterLights(this, lightIndex);
 
         if ((sQuakeIndex == -1) || (Quake_GetTimeLeft(sQuakeIndex) == 10)) {
             s16 quakeIndex = Quake_Request(camera, QUAKE_TYPE_5);
 
             sQuakeIndex = quakeIndex;
             if (quakeIndex != 0) {
-                Quake_SetSpeed(sQuakeIndex, 550);
+                MM_Quake_SetSpeed(sQuakeIndex, 550);
                 Quake_SetPerturbations(sQuakeIndex, 1, 1, 180, 0);
                 Quake_SetDuration(sQuakeIndex, 1000);
             }
@@ -608,8 +608,8 @@ void Play_UpdateWaterCamera(PlayState* this, Camera* camera) {
         if (sQuakeIndex != 0) {
             Quake_RemoveRequest(sQuakeIndex);
         }
-        Environment_DisableUnderwaterLights(this);
-        Audio_SetExtraFilter(0);
+        MM_Environment_DisableUnderwaterLights(this);
+        MM_Audio_SetExtraFilter(0);
     }
 }
 
@@ -655,7 +655,7 @@ void Play_UpdateTransition(PlayState* this) {
                     gSaveContext.ambienceId = AMBIENCE_ID_DISABLED;
                 }
 
-                if (Environment_IsForcedSequenceDisabled()) {
+                if (MM_Environment_IsForcedSequenceDisabled()) {
                     Audio_MuteAllSeqExceptSystemAndOcarina(20);
                     gSaveContext.seqId = NA_BGM_DISABLED;
                     gSaveContext.ambienceId = AMBIENCE_ID_DISABLED;
@@ -768,10 +768,10 @@ void Play_UpdateTransition(PlayState* this) {
 
                     if (gSaveContext.gameMode == GAMEMODE_OWL_SAVE) {
                         STOP_GAMESTATE(&this->state);
-                        SET_NEXT_GAMESTATE(&this->state, TitleSetup_Init, sizeof(TitleSetupState));
+                        SET_NEXT_GAMESTATE(&this->state, MM_TitleSetup_Init, sizeof(TitleSetupState));
                     } else if (gSaveContext.gameMode != GAMEMODE_FILE_SELECT) {
                         STOP_GAMESTATE(&this->state);
-                        SET_NEXT_GAMESTATE(&this->state, Play_Init, sizeof(PlayState));
+                        SET_NEXT_GAMESTATE(&this->state, MM_Play_Init, sizeof(PlayState));
                         gSaveContext.save.entrance = this->nextEntrance;
 
                         if (gSaveContext.minigameStatus == MINIGAME_STATUS_ACTIVE) {
@@ -805,7 +805,7 @@ void Play_UpdateTransition(PlayState* this) {
     // update non-instance transitions
     switch (this->transitionMode) {
         case TRANS_MODE_FILL_WHITE_INIT:
-            sTransitionFillTimer = 0;
+            MM_sTransitionFillTimer = 0;
             this->envCtx.fillScreen = true;
             this->envCtx.screenFillColor[0] = 160;
             this->envCtx.screenFillColor[1] = 160;
@@ -821,35 +821,35 @@ void Play_UpdateTransition(PlayState* this) {
             break;
 
         case TRANS_MODE_FILL_IN:
-            this->envCtx.screenFillColor[3] = (sTransitionFillTimer / 20.0f) * 255.0f;
+            this->envCtx.screenFillColor[3] = (MM_sTransitionFillTimer / 20.0f) * 255.0f;
 
-            if (sTransitionFillTimer >= 20) {
+            if (MM_sTransitionFillTimer >= 20) {
                 STOP_GAMESTATE(&this->state);
-                SET_NEXT_GAMESTATE(&this->state, Play_Init, sizeof(PlayState));
+                SET_NEXT_GAMESTATE(&this->state, MM_Play_Init, sizeof(PlayState));
                 gSaveContext.save.entrance = this->nextEntrance;
                 this->transitionTrigger = TRANS_TRIGGER_OFF;
                 this->transitionMode = TRANS_MODE_OFF;
             } else {
-                sTransitionFillTimer++;
+                MM_sTransitionFillTimer++;
             }
             break;
 
         case TRANS_MODE_FILL_OUT:
-            this->envCtx.screenFillColor[3] = (1.0f - (sTransitionFillTimer / 20.0f)) * 255.0f;
+            this->envCtx.screenFillColor[3] = (1.0f - (MM_sTransitionFillTimer / 20.0f)) * 255.0f;
 
-            if (sTransitionFillTimer >= 20) {
+            if (MM_sTransitionFillTimer >= 20) {
                 gTransitionTileState = TRANS_TILE_OFF;
                 GameState_SetFramerateDivisor(&this->state, 3);
                 this->transitionTrigger = TRANS_TRIGGER_OFF;
                 this->transitionMode = TRANS_MODE_OFF;
                 this->envCtx.fillScreen = false;
             } else {
-                sTransitionFillTimer++;
+                MM_sTransitionFillTimer++;
             }
             break;
 
         case TRANS_MODE_FILL_BROWN_INIT:
-            sTransitionFillTimer = 0;
+            MM_sTransitionFillTimer = 0;
             this->envCtx.fillScreen = true;
             this->envCtx.screenFillColor[0] = 170;
             this->envCtx.screenFillColor[1] = 160;
@@ -867,7 +867,7 @@ void Play_UpdateTransition(PlayState* this) {
         case TRANS_MODE_INSTANT:
             if (this->transitionTrigger != TRANS_TRIGGER_END) {
                 STOP_GAMESTATE(&this->state);
-                SET_NEXT_GAMESTATE(&this->state, Play_Init, sizeof(PlayState));
+                SET_NEXT_GAMESTATE(&this->state, MM_Play_Init, sizeof(PlayState));
                 gSaveContext.save.entrance = this->nextEntrance;
                 this->transitionTrigger = TRANS_TRIGGER_OFF;
                 this->transitionMode = TRANS_MODE_OFF;
@@ -909,7 +909,7 @@ void Play_UpdateTransition(PlayState* this) {
             } else {
                 if (this->envCtx.sandstormEnvA == 255) {
                     STOP_GAMESTATE(&this->state);
-                    SET_NEXT_GAMESTATE(&this->state, Play_Init, sizeof(PlayState));
+                    SET_NEXT_GAMESTATE(&this->state, MM_Play_Init, sizeof(PlayState));
                     gSaveContext.save.entrance = this->nextEntrance;
                     this->transitionTrigger = TRANS_TRIGGER_OFF;
                     this->transitionMode = TRANS_MODE_OFF;
@@ -946,7 +946,7 @@ void Play_UpdateTransition(PlayState* this) {
             break;
 
         case TRANS_MODE_CS_BLACK_FILL_INIT:
-            sTransitionFillTimer = 0;
+            MM_sTransitionFillTimer = 0;
             this->envCtx.fillScreen = true;
             this->envCtx.screenFillColor[0] = 0;
             this->envCtx.screenFillColor[1] = 0;
@@ -983,20 +983,20 @@ void Play_UpdateMain(PlayState* this) {
     s32 sp5C = false;
     u8 freezeFlashTimer;
 
-    gSegments[4] = OS_K0_TO_PHYSICAL(this->objectCtx.slots[this->objectCtx.mainKeepSlot].segment);
-    gSegments[5] = OS_K0_TO_PHYSICAL(this->objectCtx.slots[this->objectCtx.subKeepSlot].segment);
-    gSegments[2] = OS_K0_TO_PHYSICAL(this->sceneSegment);
+    MM_gSegments[4] = OS_K0_TO_PHYSICAL(this->objectCtx.slots[this->objectCtx.mainKeepSlot].segment);
+    MM_gSegments[5] = OS_K0_TO_PHYSICAL(this->objectCtx.slots[this->objectCtx.subKeepSlot].segment);
+    MM_gSegments[2] = OS_K0_TO_PHYSICAL(this->sceneSegment);
 
     if (R_PICTO_PHOTO_STATE == PICTO_PHOTO_STATE_PROCESS) {
         R_PICTO_PHOTO_STATE = PICTO_PHOTO_STATE_READY;
-        MsgEvent_SendNullTask();
+        MM_MsgEvent_SendNullTask();
         Play_TakePictoPhoto(&this->pauseBgPreRender);
         R_PICTO_PHOTO_STATE = PICTO_PHOTO_STATE_OFF;
     }
 
     Actor_SetMovementScale(this->state.framerateDivisor);
 
-    if (FrameAdvance_Update(&this->frameAdvCtx, &input[1])) {
+    if (MM_FrameAdvance_Update(&this->frameAdvCtx, &input[1])) {
         if ((this->transitionMode == TRANS_MODE_OFF) && (this->transitionTrigger != TRANS_TRIGGER_OFF)) {
             this->transitionMode = TRANS_MODE_SETUP;
         }
@@ -1031,7 +1031,7 @@ void Play_UpdateMain(PlayState* this) {
                     (this->msgCtx.textboxEndType == TEXTBOX_ENDTYPE_PAUSE_MENU))) ||
                   ((this->msgCtx.currentTextId >= 0x100) && (this->msgCtx.currentTextId <= 0x200)))) &&
                 (this->gameOverCtx.state == GAMEOVER_INACTIVE)) {
-                KaleidoSetup_Update(this);
+                MM_KaleidoSetup_Update(this);
             }
 
             sp5C = IS_PAUSED(&this->pauseCtx);
@@ -1056,17 +1056,17 @@ void Play_UpdateMain(PlayState* this) {
                     }
                 } else {
                     Room_ProcessRoomRequest(this, &this->roomCtx);
-                    CollisionCheck_AT(this, &this->colChkCtx);
-                    CollisionCheck_OC(this, &this->colChkCtx);
-                    CollisionCheck_Damage(this, &this->colChkCtx);
-                    CollisionCheck_ClearContext(this, &this->colChkCtx);
+                    MM_CollisionCheck_AT(this, &this->colChkCtx);
+                    MM_CollisionCheck_OC(this, &this->colChkCtx);
+                    MM_CollisionCheck_Damage(this, &this->colChkCtx);
+                    MM_CollisionCheck_ClearContext(this, &this->colChkCtx);
                     if (!this->haltAllActors) {
-                        Actor_UpdateAll(this, &this->actorCtx);
+                        MM_Actor_UpdateAll(this, &this->actorCtx);
                     }
                     Cutscene_UpdateManual(this, &this->csCtx);
                     Cutscene_UpdateScripted(this, &this->csCtx);
-                    Effect_UpdateAll(this);
-                    EffectSs_UpdateAll(this);
+                    MM_Effect_UpdateAll(this);
+                    MM_EffectSs_UpdateAll(this);
                     EffFootmark_Update(this);
                 }
             } else {
@@ -1075,20 +1075,20 @@ void Play_UpdateMain(PlayState* this) {
 
             Room_Noop(this, &this->roomCtx.curRoom, &input[1], 0);
             Room_Noop(this, &this->roomCtx.prevRoom, &input[1], 1);
-            Skybox_Update(&this->skyboxCtx);
+            MM_Skybox_Update(&this->skyboxCtx);
 
             if (IS_PAUSED(&this->pauseCtx)) {
-                KaleidoScopeCall_Update(this);
+                MM_KaleidoScopeCall_Update(this);
             } else if (this->gameOverCtx.state != GAMEOVER_INACTIVE) {
-                GameOver_Update(this);
+                MM_GameOver_Update(this);
             }
 
-            Message_Update(this);
-            Interface_Update(this);
+            MM_Message_Update(this);
+            MM_Interface_Update(this);
             AnimTaskQueue_Update(this, &this->animTaskQueue);
-            SoundSource_UpdateAll(this);
-            ShrinkWindow_Update(this->state.framerateDivisor);
-            TransitionFade_Update(&this->unk_18E48, this->state.framerateDivisor);
+            MM_SoundSource_UpdateAll(this);
+            MM_ShrinkWindow_Update(this->state.framerateDivisor);
+            MM_TransitionFade_Update(&this->unk_18E48, this->state.framerateDivisor);
         }
     }
 
@@ -1098,10 +1098,10 @@ void Play_UpdateMain(PlayState* this) {
         this->nextCamera = this->activeCamId;
         for (i = 0; i < NUM_CAMS; i++) {
             if ((i != this->nextCamera) && (this->cameraPtrs[i] != NULL)) {
-                Camera_Update(this->cameraPtrs[i]);
+                MM_Camera_Update(this->cameraPtrs[i]);
             }
         }
-        Camera_Update(this->cameraPtrs[this->nextCamera]);
+        MM_Camera_Update(this->cameraPtrs[this->nextCamera]);
     }
 
     if (!sp5C) {
@@ -1109,7 +1109,7 @@ void Play_UpdateMain(PlayState* this) {
         Distortion_Update();
     }
 
-    Environment_Update(this, &this->envCtx, &this->lightCtx, &this->pauseCtx, &this->msgCtx, &this->gameOverCtx,
+    MM_Environment_Update(this, &this->envCtx, &this->lightCtx, &this->pauseCtx, &this->msgCtx, &this->gameOverCtx,
                        this->state.gfxCtx);
 
     if (this->sramCtx.status != 0) {
@@ -1121,7 +1121,7 @@ void Play_UpdateMain(PlayState* this) {
     }
 }
 
-void Play_Update(PlayState* this) {
+void MM_Play_Update(PlayState* this) {
     if (!sBombersNotebookOpen) {
         if (this->pauseCtx.bombersNotebookOpen) {
             sBombersNotebookOpen = true;
@@ -1131,7 +1131,7 @@ void Play_Update(PlayState* this) {
         sJustClosedBomberNotebook = false;
     } else if (CHECK_BTN_ALL(CONTROLLER1(&this->state)->press.button, BTN_L) ||
                CHECK_BTN_ALL(CONTROLLER1(&this->state)->press.button, BTN_B) ||
-               CHECK_BTN_ALL(CONTROLLER1(&this->state)->press.button, BTN_START) || (gIrqMgrResetStatus != 0)) {
+               CHECK_BTN_ALL(CONTROLLER1(&this->state)->press.button, BTN_START) || (MM_gIrqMgrResetStatus != 0)) {
         sBombersNotebookOpen = false;
         this->pauseCtx.bombersNotebookOpen = false;
         sBombersNotebook.loadState = BOMBERS_NOTEBOOK_LOAD_STATE_NONE;
@@ -1145,7 +1145,7 @@ void Play_Update(PlayState* this) {
     }
     if (sBombersNotebookOpen) {
         BombersNotebook_Update(this, &sBombersNotebook, this->state.input);
-        Message_Update(this);
+        MM_Message_Update(this);
     } else {
         Play_UpdateMain(this);
     }
@@ -1153,15 +1153,15 @@ void Play_Update(PlayState* this) {
 
 void Play_PostWorldDraw(PlayState* this) {
     if (IS_PAUSED(&this->pauseCtx)) {
-        KaleidoScopeCall_Draw(this);
+        MM_KaleidoScopeCall_Draw(this);
     }
 
     if (gSaveContext.gameMode == GAMEMODE_NORMAL) {
-        Interface_Draw(this);
+        MM_Interface_Draw(this);
     }
 
     if (!IS_PAUSED(&this->pauseCtx) || (this->msgCtx.currentTextId != 0xFF)) {
-        Message_Draw(this);
+        MM_Message_Draw(this);
     }
 
     if (this->gameOverCtx.state != GAMEOVER_INACTIVE) {
@@ -1179,13 +1179,13 @@ void Play_PostWorldDraw(PlayState* this) {
         OPEN_DISPS(gfxCtx);
 
         opa = POLY_OPA_DISP;
-        nextOpa = Graph_GfxPlusOne(opa);
+        nextOpa = MM_Graph_GfxPlusOne(opa);
         gSPDisplayList(OVERLAY_DISP++, nextOpa);
 
         VisFbuf_Draw(sPlayVisFbufInstance, &nextOpa, this->unk_18E60);
 
         gSPEndDisplayList(nextOpa++);
-        Graph_BranchDlist(opa, nextOpa);
+        MM_Graph_BranchDlist(opa, nextOpa);
         POLY_OPA_DISP = nextOpa;
 
         CLOSE_DISPS(gfxCtx);
@@ -1237,9 +1237,9 @@ void Play_DrawMain(PlayState* this) {
 
     OPEN_DISPS(gfxCtx);
 
-    gSegments[4] = OS_K0_TO_PHYSICAL(this->objectCtx.slots[this->objectCtx.mainKeepSlot].segment);
-    gSegments[5] = OS_K0_TO_PHYSICAL(this->objectCtx.slots[this->objectCtx.subKeepSlot].segment);
-    gSegments[2] = OS_K0_TO_PHYSICAL(this->sceneSegment);
+    MM_gSegments[4] = OS_K0_TO_PHYSICAL(this->objectCtx.slots[this->objectCtx.mainKeepSlot].segment);
+    MM_gSegments[5] = OS_K0_TO_PHYSICAL(this->objectCtx.slots[this->objectCtx.subKeepSlot].segment);
+    MM_gSegments[2] = OS_K0_TO_PHYSICAL(this->sceneSegment);
 
     gSPSegment(POLY_OPA_DISP++, 0x04, this->objectCtx.slots[this->objectCtx.mainKeepSlot].segment);
     gSPSegment(POLY_XLU_DISP++, 0x04, this->objectCtx.slots[this->objectCtx.mainKeepSlot].segment);
@@ -1256,8 +1256,8 @@ void Play_DrawMain(PlayState* this) {
     if (1) {
         ShrinkWindow_Draw(gfxCtx);
 
-        POLY_OPA_DISP = Play_SetFog(this, POLY_OPA_DISP);
-        POLY_XLU_DISP = Play_SetFog(this, POLY_XLU_DISP);
+        POLY_OPA_DISP = MM_Play_SetFog(this, POLY_OPA_DISP);
+        POLY_XLU_DISP = MM_Play_SetFog(this, POLY_XLU_DISP);
 
         zFar = this->lightCtx.zFar;
         if (zFar > 12800.0f) {
@@ -1281,25 +1281,25 @@ void Play_DrawMain(PlayState* this) {
         }
 
         // The billboard matrix temporarily stores the viewing matrix
-        Matrix_MtxToMtxF(&this->view.viewing, &this->billboardMtxF);
-        Matrix_MtxToMtxF(&this->view.projection, &this->viewProjectionMtxF);
+        MM_Matrix_MtxToMtxF(&this->view.viewing, &this->billboardMtxF);
+        MM_Matrix_MtxToMtxF(&this->view.projection, &this->viewProjectionMtxF);
 
         this->projectionMtxFDiagonal.x = this->viewProjectionMtxF.xx;
         this->projectionMtxFDiagonal.y = this->viewProjectionMtxF.yy;
         this->projectionMtxFDiagonal.z = -this->viewProjectionMtxF.zz;
 
-        SkinMatrix_MtxFMtxFMult(&this->viewProjectionMtxF, &this->billboardMtxF, &this->viewProjectionMtxF);
+        MM_SkinMatrix_MtxFMtxFMult(&this->viewProjectionMtxF, &this->billboardMtxF, &this->viewProjectionMtxF);
 
         this->billboardMtxF.mf[3][2] = this->billboardMtxF.mf[3][1] = this->billboardMtxF.mf[3][0] =
             this->billboardMtxF.mf[2][3] = this->billboardMtxF.mf[1][3] = this->billboardMtxF.mf[0][3] = 0.0f;
 
-        Matrix_Transpose(&this->billboardMtxF);
+        MM_Matrix_Transpose(&this->billboardMtxF);
 
         this->billboardMtx = GRAPH_ALLOC(this->state.gfxCtx, 2 * sizeof(Mtx));
 
-        Matrix_MtxFToMtx(&this->billboardMtxF, this->billboardMtx);
-        Matrix_RotateYF(BINANG_TO_RAD((s16)(Camera_GetCamDirYaw(GET_ACTIVE_CAM(this)) + 0x8000)), MTXMODE_NEW);
-        Matrix_ToMtx(this->billboardMtx + 1);
+        MM_Matrix_MtxFToMtx(&this->billboardMtxF, this->billboardMtx);
+        Matrix_RotateYF(BINANG_TO_RAD((s16)(MM_Camera_GetCamDirYaw(GET_ACTIVE_CAM(this)) + 0x8000)), MTXMODE_NEW);
+        MM_Matrix_ToMtx(this->billboardMtx + 1);
 
         gSPSegment(POLY_OPA_DISP++, 0x01, this->billboardMtx);
         gSPSegment(POLY_XLU_DISP++, 0x01, this->billboardMtx);
@@ -1309,7 +1309,7 @@ void Play_DrawMain(PlayState* this) {
             Gfx* sp218;
             Gfx* sp214 = POLY_OPA_DISP;
 
-            sp218 = Graph_GfxPlusOne(sp214);
+            sp218 = MM_Graph_GfxPlusOne(sp214);
             gSPDisplayList(OVERLAY_DISP++, sp218);
 
             if (((this->transitionMode == TRANS_MODE_INSTANCE_RUNNING) ||
@@ -1317,7 +1317,7 @@ void Play_DrawMain(PlayState* this) {
                 D_801D0D54) {
                 View spA8;
 
-                View_Init(&spA8, gfxCtx);
+                MM_View_Init(&spA8, gfxCtx);
                 spA8.flags = 0xA;
 
                 SET_FULLSCREEN_VIEWPORT(&spA8);
@@ -1326,19 +1326,19 @@ void Play_DrawMain(PlayState* this) {
                 this->transitionCtx.draw(&this->transitionCtx.instanceData, &sp218);
             }
 
-            TransitionFade_Draw(&this->unk_18E48, &sp218);
-            if (gVisMonoColor.a != 0) {
+            MM_TransitionFade_Draw(&this->unk_18E48, &sp218);
+            if (MM_gVisMonoColor.a != 0) {
                 // 2S2H [Port] Implement VisMono by performing a framebuffer copy and redraw with an active
                 // grayscale command to set the mono color
                 FB_CopyToFramebuffer(&sp218, 0, gReusableFrameBuffer, false, NULL);
-                gDPSetGrayscaleColor(sp218++, gVisMonoColor.r, gVisMonoColor.g, gVisMonoColor.b, gVisMonoColor.a);
+                gDPSetGrayscaleColor(sp218++, MM_gVisMonoColor.r, MM_gVisMonoColor.g, MM_gVisMonoColor.b, MM_gVisMonoColor.a);
                 gSPGrayscale(sp218++, true);
                 FB_DrawFromFramebuffer(&sp218, gReusableFrameBuffer, 255);
                 gSPGrayscale(sp218++, false);
             }
 
             gSPEndDisplayList(sp218++);
-            Graph_BranchDlist(sp214, sp218);
+            MM_Graph_BranchDlist(sp214, sp218);
             POLY_OPA_DISP = sp218;
         }
 
@@ -1351,10 +1351,10 @@ void Play_DrawMain(PlayState* this) {
             goto PostWorldDraw;
         }
 
-        PreRender_SetValues(&this->pauseBgPreRender, gCfbWidth, gCfbHeight, gfxCtx->curFrameBuffer, gfxCtx->zbuffer);
+        MM_PreRender_SetValues(&this->pauseBgPreRender, gCfbWidth, gCfbHeight, gfxCtx->curFrameBuffer, gfxCtx->zbuffer);
 
         if (R_PAUSE_BG_PRERENDER_STATE == PAUSE_BG_PRERENDER_PROCESS) {
-            MsgEvent_SendNullTask();
+            MM_MsgEvent_SendNullTask();
             if (!gSaveContext.screenScaleFlag) {
                 PreRender_ApplyFiltersSlowlyInit(&this->pauseBgPreRender);
             }
@@ -1381,7 +1381,7 @@ void Play_DrawMain(PlayState* this) {
                 if (1) {
                     if (((u32)this->skyboxId != SKYBOX_NONE) && !this->envCtx.skyboxDisabled) {
                         if ((this->skyboxId == SKYBOX_NORMAL_SKY) || (this->skyboxId == SKYBOX_3)) {
-                            Environment_UpdateSkybox(this->skyboxId, &this->envCtx, &this->skyboxCtx);
+                            MM_Environment_UpdateSkybox(this->skyboxId, &this->envCtx, &this->skyboxCtx);
                             Skybox_Draw(&this->skyboxCtx, gfxCtx, this->skyboxId, this->envCtx.skyboxBlend,
                                         this->view.eye.x, this->view.eye.y, this->view.eye.z);
                         } else if (!this->skyboxCtx.shouldDraw) {
@@ -1393,14 +1393,14 @@ void Play_DrawMain(PlayState* this) {
                     Environment_Draw(this);
                 }
 
-                lights = LightContext_NewLights(&this->lightCtx, gfxCtx);
+                lights = MM_LightContext_NewLights(&this->lightCtx, gfxCtx);
 
                 if (this->roomCtx.curRoom.enablePosLights || (MREG(93) != 0)) {
                     lights->enablePosLights = true;
                 }
 
-                Lights_BindAll(lights, this->lightCtx.listHead, NULL, this);
-                Lights_Draw(lights, gfxCtx);
+                MM_Lights_BindAll(lights, this->lightCtx.listHead, NULL, this);
+                MM_Lights_Draw(lights, gfxCtx);
 
                 if (1) {
                     //! FAKE:
@@ -1411,10 +1411,10 @@ void Play_DrawMain(PlayState* this) {
                         gSPSetExtraGeometryMode(POLY_XLU_DISP++, G_EX_ALWAYS_EXECUTE_BRANCH);
                     }
 
-                    Scene_Draw(this);
+                    MM_Scene_Draw(this);
                     if (this->roomCtx.unk78) {
-                        Room_Draw(this, &this->roomCtx.curRoom, roomDrawFlags & 3);
-                        Room_Draw(this, &this->roomCtx.prevRoom, roomDrawFlags & 3);
+                        MM_Room_Draw(this, &this->roomCtx.curRoom, roomDrawFlags & 3);
+                        MM_Room_Draw(this, &this->roomCtx.prevRoom, roomDrawFlags & 3);
                     }
 
                     if (CVarGetInteger("gEnhancements.Graphics.DisableSceneGeometryDistanceCheck", 0)) {
@@ -1434,12 +1434,12 @@ void Play_DrawMain(PlayState* this) {
                 }
 
                 if (this->envCtx.precipitation[PRECIP_RAIN_CUR] != 0) {
-                    Environment_DrawRain(this, &this->view, gfxCtx);
+                    MM_Environment_DrawRain(this, &this->view, gfxCtx);
                 }
             }
 
             if (1) {
-                Environment_FillScreen(gfxCtx, 0, 0, 0, this->bgCoverAlpha, FILL_SCREEN_OPA);
+                MM_Environment_FillScreen(gfxCtx, 0, 0, 0, this->bgCoverAlpha, FILL_SCREEN_OPA);
             }
 
             if (1) {
@@ -1451,21 +1451,21 @@ void Play_DrawMain(PlayState* this) {
                     temp.x = this->view.eye.x + this->envCtx.sunPos.x;
                     temp.y = this->view.eye.y + this->envCtx.sunPos.y;
                     temp.z = this->view.eye.z + this->envCtx.sunPos.z;
-                    Environment_DrawSunLensFlare(this, &this->envCtx, &this->view, gfxCtx, temp);
+                    MM_Environment_DrawSunLensFlare(this, &this->envCtx, &this->view, gfxCtx, temp);
                 }
 
-                Environment_DrawCustomLensFlare(this);
+                MM_Environment_DrawCustomLensFlare(this);
             }
 
             if (1) {
                 if (R_PLAY_FILL_SCREEN_ON) {
-                    Environment_FillScreen(gfxCtx, R_PLAY_FILL_SCREEN_R, R_PLAY_FILL_SCREEN_G, R_PLAY_FILL_SCREEN_B,
+                    MM_Environment_FillScreen(gfxCtx, R_PLAY_FILL_SCREEN_R, R_PLAY_FILL_SCREEN_G, R_PLAY_FILL_SCREEN_B,
                                            R_PLAY_FILL_SCREEN_ALPHA, FILL_SCREEN_OPA | FILL_SCREEN_XLU);
                 }
 
                 switch (this->envCtx.fillScreen) {
                     case 1:
-                        Environment_FillScreen(gfxCtx, this->envCtx.screenFillColor[0], this->envCtx.screenFillColor[1],
+                        MM_Environment_FillScreen(gfxCtx, this->envCtx.screenFillColor[0], this->envCtx.screenFillColor[1],
                                                this->envCtx.screenFillColor[2], this->envCtx.screenFillColor[3],
                                                FILL_SCREEN_OPA | FILL_SCREEN_XLU);
                         break;
@@ -1477,16 +1477,16 @@ void Play_DrawMain(PlayState* this) {
 
             if (1) {
                 if (this->envCtx.sandstormState != SANDSTORM_OFF) {
-                    Environment_DrawSandstorm(this, this->envCtx.sandstormState);
+                    MM_Environment_DrawSandstorm(this, this->envCtx.sandstormState);
                 }
             }
 
             if (this->worldCoverAlpha != 0) {
-                Environment_FillScreen(gfxCtx, 0, 0, 0, this->worldCoverAlpha, FILL_SCREEN_OPA | FILL_SCREEN_XLU);
+                MM_Environment_FillScreen(gfxCtx, 0, 0, 0, this->worldCoverAlpha, FILL_SCREEN_OPA | FILL_SCREEN_XLU);
             }
 
             if (1) {
-                DebugDisplay_DrawObjects(this);
+                MM_DebugDisplay_DrawObjects(this);
             }
 
             Play_DrawMotionBlur(this);
@@ -1496,7 +1496,7 @@ void Play_DrawMain(PlayState* this) {
                 Gfx* sp74;
                 Gfx* sp70 = POLY_OPA_DISP;
 
-                sp74 = Graph_GfxPlusOne(sp70);
+                sp74 = MM_Graph_GfxPlusOne(sp70);
                 gSPDisplayList(OVERLAY_DISP++, sp74);
                 this->pauseBgPreRender.fbuf = gfxCtx->curFrameBuffer;
 
@@ -1537,7 +1537,7 @@ void Play_DrawMain(PlayState* this) {
                 }
 
                 gSPEndDisplayList(sp74++);
-                Graph_BranchDlist(sp70, sp74);
+                MM_Graph_BranchDlist(sp70, sp74);
                 POLY_OPA_DISP = sp74;
                 this->unk_18B49 = 2;
                 SREG(33) |= 1;
@@ -1567,7 +1567,7 @@ void Play_DrawMain(PlayState* this) {
 SkipPostWorldDraw:
 
     if ((this->view.unk164 != 0) && !gDbgCamEnabled) {
-        Camera_Update(GET_ACTIVE_CAM(this));
+        MM_Camera_Update(GET_ACTIVE_CAM(this));
         View_UpdateViewingMatrix(&this->view);
         this->view.unk164 = 0;
         if ((this->skyboxId != SKYBOX_NONE) && !this->envCtx.skyboxDisabled) {
@@ -1582,7 +1582,7 @@ SkipPostWorldDraw:
     CLOSE_DISPS(gfxCtx);
 }
 
-void Play_Draw(PlayState* this) {
+void MM_Play_Draw(PlayState* this) {
     GraphicsContext* gfxCtx = this->state.gfxCtx;
 
     {
@@ -1590,26 +1590,26 @@ void Play_Draw(PlayState* this) {
 
         if (sBombersNotebookOpen) {
             if (gSysCfbHiResEnabled != 1) {
-                MsgEvent_SendNullTask();
+                MM_MsgEvent_SendNullTask();
                 SysCfb_SetHiResMode();
                 gfxCtx2->curFrameBuffer = SysCfb_GetFramebuffer(gfxCtx2->framebufferIndex % 2);
                 gfxCtx2->zbuffer = SysCfb_GetZBuffer();
                 gfxCtx2->viMode = gActiveViMode;
-                gfxCtx2->viConfigFeatures = gViConfigFeatures;
-                gfxCtx2->xScale = gViConfigXScale;
-                gfxCtx2->yScale = gViConfigYScale;
+                gfxCtx2->viConfigFeatures = MM_gViConfigFeatures;
+                gfxCtx2->xScale = MM_gViConfigXScale;
+                gfxCtx2->yScale = MM_gViConfigYScale;
                 gfxCtx2->updateViMode = true;
             }
         } else {
             if (gSysCfbHiResEnabled != 0) {
-                MsgEvent_SendNullTask();
+                MM_MsgEvent_SendNullTask();
                 SysCfb_SetLoResMode();
                 gfxCtx2->curFrameBuffer = SysCfb_GetFramebuffer(gfxCtx2->framebufferIndex % 2);
                 gfxCtx2->zbuffer = SysCfb_GetZBuffer();
                 gfxCtx2->viMode = gActiveViMode;
-                gfxCtx2->viConfigFeatures = gViConfigFeatures;
-                gfxCtx2->xScale = gViConfigXScale;
-                gfxCtx2->yScale = gViConfigYScale;
+                gfxCtx2->viConfigFeatures = MM_gViConfigFeatures;
+                gfxCtx2->xScale = MM_gViConfigXScale;
+                gfxCtx2->yScale = MM_gViConfigYScale;
                 gfxCtx2->updateViMode = true;
             }
         }
@@ -1617,18 +1617,18 @@ void Play_Draw(PlayState* this) {
 
     if (sBombersNotebookOpen && ((SREG(2) != 2) || (gZBufferPtr == NULL))) {
         BombersNotebook_Draw(&sBombersNotebook, gfxCtx);
-        Message_Draw(this);
+        MM_Message_Draw(this);
     } else {
         Play_DrawMain(this);
     }
 }
 
-void Play_Main(GameState* thisx) {
+void MM_Play_Main(GameState* thisx) {
     static Input* prevInput = NULL;
     PlayState* this = (PlayState*)thisx;
 
     prevInput = CONTROLLER1(&this->state);
-    DebugDisplay_Init();
+    MM_DebugDisplay_Init();
 
     {
         GraphicsContext* gfxCtx = this->state.gfxCtx;
@@ -1636,7 +1636,7 @@ void Play_Main(GameState* thisx) {
         if (1) {
             this->state.gfxCtx = NULL;
         }
-        Play_Update(this);
+        MM_Play_Update(this);
         this->state.gfxCtx = gfxCtx;
     }
 
@@ -1647,7 +1647,7 @@ void Play_Main(GameState* thisx) {
             *CONTROLLER1(&this->state) = D_801F6C18;
         }
         FrameInterpolation_StartRecord();
-        Play_Draw(this);
+        MM_Play_Draw(this);
         FrameInterpolation_StopRecord();
         *CONTROLLER1(&this->state) = input;
     }
@@ -1656,12 +1656,12 @@ void Play_Main(GameState* thisx) {
     CutsceneManager_ClearWaiting();
 }
 
-bool Play_InCsMode(PlayState* this) {
-    return (this->csCtx.state != CS_STATE_IDLE) || Player_InCsMode(this);
+bool MM_Play_InCsMode(PlayState* this) {
+    return (this->csCtx.state != CS_STATE_IDLE) || MM_Player_InCsMode(this);
 }
 
 f32 Play_GetFloorSurfaceImpl(PlayState* this, MtxF* mtx, CollisionPoly** poly, s32* bgId, Vec3f* pos) {
-    f32 floorHeight = BgCheck_EntityRaycastFloor3(&this->colCtx, poly, bgId, pos);
+    f32 floorHeight = MM_BgCheck_EntityRaycastFloor3(&this->colCtx, poly, bgId, pos);
 
     if (floorHeight > BGCHECK_Y_MIN) {
         func_800C0094(*poly, pos->x, floorHeight, pos->z, mtx);
@@ -1694,23 +1694,23 @@ void Play_GetFloorSurface(PlayState* this, MtxF* mtx, Vec3f* pos) {
     Play_GetFloorSurfaceImpl(this, mtx, &poly, &bgId, pos);
 }
 
-void* Play_LoadFile(PlayState* this, RomFile* entry) {
+void* MM_Play_LoadFile(PlayState* this, RomFile* entry) {
     size_t size = entry->vromEnd - entry->vromStart;
     void* allocp = THA_AllocTailAlign16(&this->state.tha, size);
 
-    DmaMgr_SendRequest0(allocp, entry->vromStart, size);
+    MM_DmaMgr_SendRequest0(allocp, entry->vromStart, size);
 
     return allocp;
 }
 
-void Play_InitEnvironment(PlayState* this, s16 skyboxId) {
-    Skybox_Init(&this->state, &this->skyboxCtx, skyboxId);
-    Environment_Init(this, &this->envCtx, 0);
+void MM_Play_InitEnvironment(PlayState* this, s16 skyboxId) {
+    MM_Skybox_Init(&this->state, &this->skyboxCtx, skyboxId);
+    MM_Environment_Init(this, &this->envCtx, 0);
 }
 
 void OTRPlay_InitScene(PlayState* play, s32 spawn);
 
-void Play_InitScene(PlayState* this, s32 spawn) {
+void MM_Play_InitScene(PlayState* this, s32 spawn) {
     OTRPlay_InitScene(this, spawn);
 #if 0
     this->curSpawn = spawn;
@@ -1724,31 +1724,31 @@ void Play_InitScene(PlayState* this, s32 spawn) {
     this->roomCtx.unk74 = NULL;
     this->numSetupActors = 0;
     Object_InitContext(&this->state, &this->objectCtx);
-    LightContext_Init(this, &this->lightCtx);
+    MM_LightContext_Init(this, &this->lightCtx);
     Scene_ResetTransitionActorList(&this->state, &this->transitionActors);
     Room_Init(this, &this->roomCtx);
     gSaveContext.worldMapArea = 0;
-    Scene_ExecuteCommands(this, this->sceneSegment);
-    Play_InitEnvironment(this, this->skyboxId);
+    MM_Scene_ExecuteCommands(this, this->sceneSegment);
+    MM_Play_InitEnvironment(this, this->skyboxId);
 #endif
 }
 
 void OTRPlay_SpawnScene(PlayState* play, s32 sceneId, s32 spawn);
 
-void Play_SpawnScene(PlayState* this, s32 sceneId, s32 spawn) {
+void MM_Play_SpawnScene(PlayState* this, s32 sceneId, s32 spawn) {
     OTRPlay_SpawnScene(this, sceneId, spawn);
 #if 0
     s32 pad;
-    SceneTableEntry* scene = &gSceneTable[sceneId];
+    SceneTableEntry* scene = &MM_gSceneTable[sceneId];
 
     scene->unk_D = 0;
     this->loadedScene = scene;
     this->sceneId = sceneId;
     this->sceneConfig = scene->drawConfig;
-    this->sceneSegment = Play_LoadFile(this, &scene->segment);
+    this->sceneSegment = MM_Play_LoadFile(this, &scene->segment);
     scene->unk_D = 0;
-    gSegments[2] = VIRTUAL_TO_PHYSICAL(this->sceneSegment);
-    Play_InitScene(this, spawn);
+    MM_gSegments[2] = VIRTUAL_TO_PHYSICAL(this->sceneSegment);
+    MM_Play_InitScene(this, spawn);
     Room_SetupFirstRoom(this, &this->roomCtx);
 #endif
 }
@@ -1763,7 +1763,7 @@ void Play_GetScreenPos(PlayState* this, Vec3f* worldPos, Vec3f* screenPos) {
     screenPos->y = (SCREEN_HEIGHT / 2) - (screenPos->y * invW * (SCREEN_HEIGHT / 2));
 }
 
-s16 Play_CreateSubCamera(PlayState* this) {
+s16 MM_Play_CreateSubCamera(PlayState* this) {
     s16 subCamId;
 
     for (subCamId = CAM_ID_SUB_FIRST; subCamId < NUM_CAMS; subCamId++) {
@@ -1778,48 +1778,48 @@ s16 Play_CreateSubCamera(PlayState* this) {
     }
 
     this->cameraPtrs[subCamId] = &this->subCameras[subCamId - CAM_ID_SUB_FIRST];
-    Camera_Init(this->cameraPtrs[subCamId], &this->view, &this->colCtx, this);
+    MM_Camera_Init(this->cameraPtrs[subCamId], &this->view, &this->colCtx, this);
     this->cameraPtrs[subCamId]->camId = subCamId;
 
     return subCamId;
 }
 
-s16 Play_GetActiveCamId(PlayState* this) {
+s16 MM_Play_GetActiveCamId(PlayState* this) {
     return this->activeCamId;
 }
 
-s32 Play_ChangeCameraStatus(PlayState* this, s16 camId, s16 status) {
+s32 MM_Play_ChangeCameraStatus(PlayState* this, s16 camId, s16 status) {
     s16 camIdx = (camId == CAM_ID_NONE) ? this->activeCamId : camId;
 
     if (status == CAM_STATUS_ACTIVE) {
         this->activeCamId = camIdx;
     }
 
-    return Camera_ChangeStatus(this->cameraPtrs[camIdx], status);
+    return MM_Camera_ChangeStatus(this->cameraPtrs[camIdx], status);
 }
 
-void Play_ClearCamera(PlayState* this, s16 camId) {
+void MM_Play_ClearCamera(PlayState* this, s16 camId) {
     s16 camIdx = (camId == CAM_ID_NONE) ? this->activeCamId : camId;
 
     if (this->cameraPtrs[camIdx] != NULL) {
-        Camera_ChangeStatus(this->cameraPtrs[camIdx], CAM_STATUS_INACTIVE);
+        MM_Camera_ChangeStatus(this->cameraPtrs[camIdx], CAM_STATUS_INACTIVE);
         this->cameraPtrs[camIdx] = NULL;
     }
 }
 
-void Play_ClearAllSubCameras(PlayState* this) {
+void MM_Play_ClearAllSubCameras(PlayState* this) {
     s16 subCamId;
 
     for (subCamId = CAM_ID_SUB_FIRST; subCamId < NUM_CAMS; subCamId++) {
         if (this->cameraPtrs[subCamId] != NULL) {
-            Play_ClearCamera(this, subCamId);
+            MM_Play_ClearCamera(this, subCamId);
         }
     }
 
     this->activeCamId = CAM_ID_MAIN;
 }
 
-Camera* Play_GetCamera(PlayState* this, s16 camId) {
+Camera* MM_Play_GetCamera(PlayState* this, s16 camId) {
     s16 camIdx = (camId == CAM_ID_NONE) ? this->activeCamId : camId;
 
     return this->cameraPtrs[camIdx];
@@ -1840,7 +1840,7 @@ s32 Play_SetCameraAtEye(PlayState* this, s16 camId, Vec3f* at, Vec3f* eye) {
     successfullySet <<= 1;
     successfullySet |= Camera_SetViewParam(camera, CAM_VIEW_EYE, eye);
 
-    camera->dist = Math3D_Vec3f_DistXYZ(at, eye);
+    camera->dist = MM_Math3D_Vec3f_DistXYZ(at, eye);
 
     if (camera->focalActor != NULL) {
         camera->focalActorAtOffset.x = at->x - camera->focalActor->world.pos.x;
@@ -1869,7 +1869,7 @@ s32 Play_SetCameraAtEyeUp(PlayState* this, s16 camId, Vec3f* at, Vec3f* eye, Vec
     successfullySet <<= 1;
     successfullySet |= Camera_SetViewParam(camera, CAM_VIEW_UP, up);
 
-    camera->dist = Math3D_Vec3f_DistXYZ(at, eye);
+    camera->dist = MM_Math3D_Vec3f_DistXYZ(at, eye);
 
     if (camera->focalActor != NULL) {
         camera->focalActorAtOffset.x = at->x - camera->focalActor->world.pos.x;
@@ -1897,7 +1897,7 @@ s32 Play_SetCameraFov(PlayState* this, s16 camId, f32 fov) {
     return successfullySet;
 }
 
-s32 Play_SetCameraRoll(PlayState* this, s16 camId, s16 roll) {
+s32 MM_Play_SetCameraRoll(PlayState* this, s16 camId, s16 roll) {
     s16 camIdx = (camId == CAM_ID_NONE) ? this->activeCamId : camId;
     Camera* camera = this->cameraPtrs[camIdx];
 
@@ -1906,11 +1906,11 @@ s32 Play_SetCameraRoll(PlayState* this, s16 camId, s16 roll) {
     return 1;
 }
 
-void Play_CopyCamera(PlayState* this, s16 destCamId, s16 srcCamId) {
+void MM_Play_CopyCamera(PlayState* this, s16 destCamId, s16 srcCamId) {
     s16 srcCamId2 = (srcCamId == CAM_ID_NONE) ? this->activeCamId : srcCamId;
     s16 destCamId1 = (destCamId == CAM_ID_NONE) ? this->activeCamId : destCamId;
 
-    Camera_Copy(this->cameraPtrs[destCamId1], this->cameraPtrs[srcCamId2]);
+    MM_Camera_Copy(this->cameraPtrs[destCamId1], this->cameraPtrs[srcCamId2]);
 }
 
 // Same as Play_ChangeCameraSetting but also calls Camera_InitFocalActorSettings
@@ -1920,11 +1920,11 @@ s32 func_80169A50(PlayState* this, s16 camId, Player* player, s16 setting) {
 
     camera = this->cameraPtrs[camIdx];
     Camera_InitFocalActorSettings(camera, &player->actor);
-    return Camera_ChangeSetting(camera, setting);
+    return MM_Camera_ChangeSetting(camera, setting);
 }
 
 s32 Play_ChangeCameraSetting(PlayState* this, s16 camId, s16 setting) {
-    return Camera_ChangeSetting(Play_GetCamera(this, camId), setting);
+    return MM_Camera_ChangeSetting(MM_Play_GetCamera(this, camId), setting);
 }
 
 // Related to bosses and fishing
@@ -1932,16 +1932,16 @@ void func_80169AFC(PlayState* this, s16 camId, s16 timer) {
     s16 camIdx = (camId == CAM_ID_NONE) ? this->activeCamId : camId;
     s16 i;
 
-    Play_ClearCamera(this, camIdx);
+    MM_Play_ClearCamera(this, camIdx);
 
     for (i = CAM_ID_SUB_FIRST; i < NUM_CAMS; i++) {
         if (this->cameraPtrs[i] != NULL) {
-            Play_ClearCamera(this, i);
+            MM_Play_ClearCamera(this, i);
         }
     }
 
     if (timer <= 0) {
-        Play_ChangeCameraStatus(this, CAM_ID_MAIN, CAM_STATUS_ACTIVE);
+        MM_Play_ChangeCameraStatus(this, CAM_ID_MAIN, CAM_STATUS_ACTIVE);
         this->cameraPtrs[CAM_ID_MAIN]->childCamId = this->cameraPtrs[CAM_ID_MAIN]->doorTimer2 = 0;
     }
 }
@@ -2041,7 +2041,7 @@ void Play_SaveCycleSceneFlags(PlayState* this) {
     cycleSceneFlags->clearedRoom = this->actorCtx.sceneFlags.clearedRoom;
 }
 
-void Play_SetRespawnData(PlayState* this, s32 respawnMode, u16 entrance, s32 roomIndex, s32 playerParams, Vec3f* pos,
+void MM_Play_SetRespawnData(PlayState* this, s32 respawnMode, u16 entrance, s32 roomIndex, s32 playerParams, Vec3f* pos,
                          s16 yaw) {
 
     gSaveContext.respawn[respawnMode].entrance = Entrance_Create(entrance >> 9, 0, entrance & 0xF);
@@ -2054,11 +2054,11 @@ void Play_SetRespawnData(PlayState* this, s32 respawnMode, u16 entrance, s32 roo
     gSaveContext.respawn[respawnMode].tempCollectFlags = this->actorCtx.sceneFlags.collectible[2];
 }
 
-void Play_SetupRespawnPoint(PlayState* this, s32 respawnMode, s32 playerParams) {
+void MM_Play_SetupRespawnPoint(PlayState* this, s32 respawnMode, s32 playerParams) {
     Player* player = GET_PLAYER(this);
 
     if (this->sceneId != SCENE_KAKUSIANA) { // Grottos
-        Play_SetRespawnData(this, respawnMode, ((void)0, gSaveContext.save.entrance), this->roomCtx.curRoom.num,
+        MM_Play_SetRespawnData(this, respawnMode, ((void)0, gSaveContext.save.entrance), this->roomCtx.curRoom.num,
                             playerParams, &player->actor.world.pos, player->actor.shape.rot.y);
     }
 }
@@ -2104,7 +2104,7 @@ s32 Play_CamIsNotFixed(PlayState* this) {
     return this->roomCtx.curRoom.roomShape->base.type != ROOM_SHAPE_TYPE_IMAGE;
 }
 
-s32 FrameAdvance_IsEnabled(PlayState* this) {
+s32 MM_FrameAdvance_IsEnabled(PlayState* this) {
     return this->frameAdvCtx.enabled != false;
 }
 
@@ -2156,10 +2156,10 @@ s32 Play_IsUnderwater(PlayState* this, Vec3f* pos) {
 
     waterSurfacePos = *pos;
 
-    if ((WaterBox_GetSurface1(this, &this->colCtx, waterSurfacePos.x, waterSurfacePos.z, &waterSurfacePos.y,
+    if ((MM_WaterBox_GetSurface1(this, &this->colCtx, waterSurfacePos.x, waterSurfacePos.z, &waterSurfacePos.y,
                               &waterBox) == true) &&
         (pos->y < waterSurfacePos.y) &&
-        (BgCheck_EntityRaycastFloor3(&this->colCtx, &poly, &bgId, &waterSurfacePos) != BGCHECK_Y_MIN)) {
+        (MM_BgCheck_EntityRaycastFloor3(&this->colCtx, &poly, &bgId, &waterSurfacePos) != BGCHECK_Y_MIN)) {
         return true;
     } else {
         return false;
@@ -2225,7 +2225,7 @@ void Play_FillScreen(PlayState* this, s16 fillScreenOn, u8 red, u8 green, u8 blu
     R_PLAY_FILL_SCREEN_ALPHA = alpha;
 }
 
-void Play_Init(GameState* thisx) {
+void MM_Play_Init(GameState* thisx) {
     PlayState* this = (PlayState*)thisx;
     GraphicsContext* gfxCtx = this->state.gfxCtx;
     s32 pad;
@@ -2256,13 +2256,13 @@ void Play_Init(GameState* thisx) {
     if (gSaveContext.save.entrance == -1) {
         gSaveContext.save.entrance = 0;
         STOP_GAMESTATE(&this->state);
-        SET_NEXT_GAMESTATE(&this->state, TitleSetup_Init, sizeof(TitleSetupState));
+        SET_NEXT_GAMESTATE(&this->state, MM_TitleSetup_Init, sizeof(TitleSetupState));
         return;
     }
 
-    // #region 2S2H [General] Making gPlayState available
-    // Setting after the early returns, so that Play_Destroy is registered to unset the ptr later
-    gPlayState = this;
+    // #region 2S2H [General] Making MM_gPlayState available
+    // Setting after the early returns, so that MM_Play_Destroy is registered to unset the ptr later
+    MM_gPlayState = this;
     // #endregion
 
     if ((gSaveContext.nextCutsceneIndex == 0xFFEF) || (gSaveContext.nextCutsceneIndex == 0xFFF0)) {
@@ -2311,24 +2311,24 @@ void Play_Init(GameState* thisx) {
                                                      ((void)0, gSaveContext.save.entrance) & 0xF);
     }
 
-    GameState_Realloc(&this->state, 0);
-    KaleidoManager_Init(this);
-    ShrinkWindow_Init();
-    View_Init(&this->view, gfxCtx);
-    Audio_SetExtraFilter(0);
-    Quake_Init();
+    MM_GameState_Realloc(&this->state, 0);
+    MM_KaleidoManager_Init(this);
+    MM_ShrinkWindow_Init();
+    MM_View_Init(&this->view, gfxCtx);
+    MM_Audio_SetExtraFilter(0);
+    MM_Quake_Init();
     Distortion_Init(this);
 
     for (i = 0; i < ARRAY_COUNT(this->cameraPtrs); i++) {
         this->cameraPtrs[i] = NULL;
     }
 
-    Camera_Init(&this->mainCamera, &this->view, &this->colCtx, this);
-    Camera_ChangeStatus(&this->mainCamera, CAM_STATUS_ACTIVE);
+    MM_Camera_Init(&this->mainCamera, &this->view, &this->colCtx, this);
+    MM_Camera_ChangeStatus(&this->mainCamera, CAM_STATUS_ACTIVE);
 
     for (i = 0; i < ARRAY_COUNT(this->subCameras); i++) {
-        Camera_Init(&this->subCameras[i], &this->view, &this->colCtx, this);
-        Camera_ChangeStatus(&this->subCameras[i], CAM_STATUS_INACTIVE);
+        MM_Camera_Init(&this->subCameras[i], &this->view, &this->colCtx, this);
+        MM_Camera_ChangeStatus(&this->subCameras[i], CAM_STATUS_INACTIVE);
     }
 
     this->cameraPtrs[CAM_ID_MAIN] = &this->mainCamera;
@@ -2338,14 +2338,14 @@ void Play_Init(GameState* thisx) {
     Camera_OverwriteStateFlags(&this->mainCamera, CAM_STATE_0 | CAM_STATE_CHECK_WATER | CAM_STATE_2 | CAM_STATE_3 |
                                                       CAM_STATE_4 | CAM_STATE_DISABLE_MODE_CHANGE | CAM_STATE_6);
     Sram_Alloc(&this->state, &this->sramCtx);
-    Regs_InitData(this);
-    Message_Init(this);
-    GameOver_Init(this);
-    SoundSource_InitAll(this);
+    MM_Regs_InitData(this);
+    MM_Message_Init(this);
+    MM_GameOver_Init(this);
+    MM_SoundSource_InitAll(this);
     EffFootmark_Init(this);
     Effect_Init(this);
-    EffectSs_InitInfo(this, 100);
-    CollisionCheck_InitContext(this, &this->colChkCtx);
+    MM_EffectSs_InitInfo(this, 100);
+    MM_CollisionCheck_InitContext(this, &this->colChkCtx);
     AnimTaskQueue_Reset(&this->animTaskQueue);
     Cutscene_InitContext(this, &this->csCtx);
 
@@ -2374,7 +2374,7 @@ void Play_Init(GameState* thisx) {
     if (((gSaveContext.gameMode != GAMEMODE_NORMAL) && (gSaveContext.gameMode != GAMEMODE_TITLE_SCREEN)) ||
         (gSaveContext.save.cutsceneIndex >= 0xFFF0)) {
         gSaveContext.nayrusLoveTimer = 0;
-        Magic_Reset(this);
+        MM_Magic_Reset(this);
         gSaveContext.sceneLayer = (gSaveContext.save.cutsceneIndex & 0xF) + 1;
 
         // Set saved cutscene to 0 so it doesn't immediately play, but instead let the `CutsceneManager` handle it.
@@ -2388,9 +2388,9 @@ void Play_Init(GameState* thisx) {
     s32 sceneIdAbsolute =
         Entrance_GetSceneIdAbsolute(((void)0, gSaveContext.save.entrance) + ((void)0, gSaveContext.sceneLayer));
     s32 spawnNum = Entrance_GetSpawnNum(((void)0, gSaveContext.save.entrance) + ((void)0, gSaveContext.sceneLayer));
-    Play_SpawnScene(this, sceneIdAbsolute, spawnNum);
+    MM_Play_SpawnScene(this, sceneIdAbsolute, spawnNum);
 
-    KaleidoScopeCall_Init(this);
+    MM_KaleidoScopeCall_Init(this);
     Interface_Init(this);
 
     if (gSaveContext.nextDayTime != NEXT_TIME_NONE) {
@@ -2409,9 +2409,9 @@ void Play_Init(GameState* thisx) {
     R_PAUSE_BG_PRERENDER_STATE = PAUSE_BG_PRERENDER_OFF;
     R_PICTO_PHOTO_STATE = PICTO_PHOTO_STATE_OFF;
 
-    PreRender_Init(&this->pauseBgPreRender);
-    PreRender_SetValuesSave(&this->pauseBgPreRender, gCfbWidth, gCfbHeight, NULL, NULL, NULL);
-    PreRender_SetValues(&this->pauseBgPreRender, gCfbWidth, gCfbHeight, NULL, NULL);
+    MM_PreRender_Init(&this->pauseBgPreRender);
+    MM_PreRender_SetValuesSave(&this->pauseBgPreRender, gCfbWidth, gCfbHeight, NULL, NULL, NULL);
+    MM_PreRender_SetValues(&this->pauseBgPreRender, gCfbWidth, gCfbHeight, NULL, NULL);
 
     this->unk_18E64 = gWorkBuffer;
     this->pictoPhotoI8 = gHiBuffer.pictoPhotoI8;
@@ -2422,12 +2422,12 @@ void Play_Init(GameState* thisx) {
     this->transitionMode = TRANS_MODE_OFF;
     D_801D0D54 = false;
 
-    FrameAdvance_Init(&this->frameAdvCtx);
-    Rand_Seed(osGetTime());
-    Matrix_Init(&this->state);
+    MM_FrameAdvance_Init(&this->frameAdvCtx);
+    MM_Rand_Seed(MM_osGetTime());
+    MM_Matrix_Init(&this->state);
 
-    this->state.main = Play_Main;
-    this->state.destroy = Play_Destroy;
+    this->state.main = MM_Play_Main;
+    this->state.destroy = MM_Play_Destroy;
 
     this->transitionTrigger = TRANS_TRIGGER_END;
     this->worldCoverAlpha = 0;
@@ -2447,13 +2447,13 @@ void Play_Init(GameState* thisx) {
         this->transitionType = TRANS_TYPE_FADE_BLACK;
     }
 
-    TransitionFade_Init(&this->unk_18E48);
-    TransitionFade_SetType(&this->unk_18E48, 3);
-    TransitionFade_SetColor(&this->unk_18E48, RGBA8(160, 160, 160, 255));
-    TransitionFade_Start(&this->unk_18E48);
-    VisMono_Init(&sPlayVisMono);
+    MM_TransitionFade_Init(&this->unk_18E48);
+    MM_TransitionFade_SetType(&this->unk_18E48, 3);
+    MM_TransitionFade_SetColor(&this->unk_18E48, RGBA8(160, 160, 160, 255));
+    MM_TransitionFade_Start(&this->unk_18E48);
+    MM_VisMono_Init(&sPlayVisMono);
 
-    gVisMonoColor.a = 0;
+    MM_gVisMonoColor.a = 0;
     sPlayVisFbufInstance = &sPlayVisFbuf;
     VisFbuf_Init(sPlayVisFbufInstance);
     sPlayVisFbufInstance->lodProportion = 0.0f;
@@ -2472,7 +2472,7 @@ void Play_Init(GameState* thisx) {
     zAlloc = (uintptr_t)THA_AllocTailAlign16(&this->state.tha, zAllocSize);
 
     //! @bug: Incorrect ALIGN16s
-    ZeldaArena_Init((void*)((zAlloc + 8) & ~0xF), (zAllocSize - ((zAlloc + 8) & ~0xF)) + zAlloc);
+    MM_ZeldaArena_Init((void*)((zAlloc + 8) & ~0xF), (zAllocSize - ((zAlloc + 8) & ~0xF)) + zAlloc);
 
     Actor_InitContext(this, &this->actorCtx, this->linkActorEntry);
 
@@ -2481,7 +2481,7 @@ void Play_Init(GameState* thisx) {
 
     if ((CURRENT_DAY != 0) &&
         ((this->roomCtx.curRoom.type == ROOM_TYPE_DUNGEON) || (this->roomCtx.curRoom.type == ROOM_TYPE_BOSS))) {
-        Actor_Spawn(&this->actorCtx, this, ACTOR_EN_TEST4, 0.0f, 0.0f, 0.0f, 0, 0, 0, 0);
+        MM_Actor_Spawn(&this->actorCtx, this, ACTOR_EN_TEST4, 0.0f, 0.0f, 0.0f, 0, 0, 0, 0);
     }
 
     player = GET_PLAYER(this);
@@ -2494,13 +2494,13 @@ void Play_Init(GameState* thisx) {
     }
 
     CutsceneManager_StoreCamera(&this->mainCamera);
-    Interface_SetSceneRestrictions(this);
-    Environment_PlaySceneSequence(this);
+    MM_Interface_SetSceneRestrictions(this);
+    MM_Environment_PlaySceneSequence(this);
     gSaveContext.seqId = this->sceneSequences.seqId;
     gSaveContext.ambienceId = this->sceneSequences.ambienceId;
     AnimTaskQueue_Update(this, &this->animTaskQueue);
-    // BENTODO: crash in Message_FindMessage
-    Cutscene_HandleEntranceTriggers(this);
+    // BENTODO: crash in MM_Message_FindMessage
+    MM_Cutscene_HandleEntranceTriggers(this);
     gSaveContext.respawnFlag = 0;
     sBombersNotebookOpen = false;
     BombersNotebook_Init(&sBombersNotebook);

@@ -35,7 +35,7 @@ u32 ShrinkWindow_GetCurrentVal(void) {
     return sShrinkWindowCurrentVal;
 }
 
-void ShrinkWindow_Init(void) {
+void OoT_ShrinkWindow_Init(void) {
     if (HREG(80) == 0x13 && HREG(81) == 1) {
         osSyncPrintf("shrink_window_init()\n");
     }
@@ -44,14 +44,14 @@ void ShrinkWindow_Init(void) {
     sShrinkWindowCurrentVal = 0;
 }
 
-void ShrinkWindow_Destroy(void) {
+void OoT_ShrinkWindow_Destroy(void) {
     if (HREG(80) == 0x13 && HREG(81) == 1) {
         osSyncPrintf("shrink_window_cleanup()\n");
     }
     sShrinkWindowCurrentVal = 0;
 }
 
-void ShrinkWindow_Update(s32 updateRate) {
+void OoT_ShrinkWindow_Update(s32 updateRate) {
     s32 off;
 
     if (updateRate == 3) {

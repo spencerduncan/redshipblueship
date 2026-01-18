@@ -21,18 +21,18 @@ void func_808AB530(BgSpot01Idohashira* this, PlayState* play);
 void func_808AB570(BgSpot01Idohashira* this, PlayState* play);
 void func_808AB700(BgSpot01Idohashira* this, PlayState* play);
 
-static BgSpot01IdohashiraActionFunc sActionFuncs[] = {
+static BgSpot01IdohashiraActionFunc OoT_sActionFuncs[] = {
     func_808AB504,
     func_808AB510,
     func_808AB530,
     func_808AB570,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
 
-static BgSpot01IdohashiraDrawFunc sDrawFuncs[] = {
+static BgSpot01IdohashiraDrawFunc OoT_sDrawFuncs[] = {
     func_808AB700,
 };
 
@@ -54,7 +54,7 @@ void BgSpot01Idohashira_PlayBreakSfx1(BgSpot01Idohashira* this) {
 }
 
 void BgSpot01Idohashira_PlayBreakSfx2(BgSpot01Idohashira* this, PlayState* play) {
-    SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 60, NA_SE_EV_WOODBOX_BREAK);
+    OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 60, NA_SE_EV_WOODBOX_BREAK);
 }
 
 void func_808AAD3C(PlayState* play, Vec3f* vec, u32 arg2) {
@@ -103,7 +103,7 @@ void func_808AAD3C(PlayState* play, Vec3f* vec, u32 arg2) {
     effect.timer = 0;
     effect.duration = 32;
 
-    Effect_Add(play, &sp24, EFFECT_SPARK, 0, 1, &effect);
+    OoT_Effect_Add(play, &sp24, EFFECT_SPARK, 0, 1, &effect);
 }
 
 void func_808AAE6C(BgSpot01Idohashira* this, PlayState* play) {
@@ -125,13 +125,13 @@ void func_808AAF34(BgSpot01Idohashira* this, PlayState* play) {
         src.x = kREG(20) + 1300.0f;
         src.y = kREG(21) + 200.0f;
         src.z = 0.0f;
-        Matrix_MultVec3f(&src, &dest);
+        OoT_Matrix_MultVec3f(&src, &dest);
         func_80033480(play, &dest, kREG(16) + 80.0f, kREG(17) + 10, kREG(18) + 1000, kREG(19), 0);
         func_808AAD3C(play, &dest, 3);
         src.x = -(kREG(20) + 1300.0f);
         src.y = kREG(21) + 200.0f;
         src.z = 0.0f;
-        Matrix_MultVec3f(&src, &dest);
+        OoT_Matrix_MultVec3f(&src, &dest);
         func_80033480(play, &dest, kREG(16) + 80.0f, kREG(17) + 10, kREG(18) + 1000, kREG(19), 0);
         func_808AAD3C(play, &dest, 3);
         this->unk_170 = 0;
@@ -142,7 +142,7 @@ void func_808AAF34(BgSpot01Idohashira* this, PlayState* play) {
 void BgSpot01Idohashira_Destroy(Actor* thisx, PlayState* play) {
     BgSpot01Idohashira* this = (BgSpot01Idohashira*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 s32 BgSpot01Idohashira_NotInCsMode(PlayState* play) {
@@ -198,7 +198,7 @@ s32 func_808AB29C(BgSpot01Idohashira* this, PlayState* play) {
 
     npcAction = BgSpot01Idohashira_GetNpcAction(play, 2);
     if (npcAction != NULL) {
-        temp_f0 = Environment_LerpWeight(npcAction->endFrame, npcAction->startFrame, play->csCtx.frames);
+        temp_f0 = OoT_Environment_LerpWeight(npcAction->endFrame, npcAction->startFrame, play->csCtx.frames);
         initPos = this->dyna.actor.home.pos;
         endX = npcAction->endPos.x;
         tempY = ((kREG(10) + 1100.0f) / 10.0f) + npcAction->endPos.y;
@@ -252,7 +252,7 @@ void func_808AB444(BgSpot01Idohashira* this, PlayState* play) {
                     func_808AB3F8(this, play);
                     break;
                 case 3:
-                    Actor_Kill(&this->dyna.actor);
+                    OoT_Actor_Kill(&this->dyna.actor);
                     break;
                 default:
                     osSyncPrintf("Bg_Spot01_Idohashira_Check_DemoMode:そんな動作は無い!!!!!!!!\n");
@@ -283,11 +283,11 @@ void func_808AB570(BgSpot01Idohashira* this, PlayState* play) {
 void BgSpot01Idohashira_Update(Actor* thisx, PlayState* play) {
     BgSpot01Idohashira* this = (BgSpot01Idohashira*)thisx;
 
-    if (this->action < 0 || this->action >= 4 || sActionFuncs[this->action] == NULL) {
+    if (this->action < 0 || this->action >= 4 || OoT_sActionFuncs[this->action] == NULL) {
         osSyncPrintf(VT_FGCOL(RED) "メインモードがおかしい!!!!!!!!!!!!!!!!!!!!!!!!!\n" VT_RST);
         return;
     }
-    sActionFuncs[this->action](this, play);
+    OoT_sActionFuncs[this->action](this, play);
 }
 
 void BgSpot01Idohashira_Init(Actor* thisx, PlayState* play) {
@@ -295,15 +295,15 @@ void BgSpot01Idohashira_Init(Actor* thisx, PlayState* play) {
     BgSpot01Idohashira* this = (BgSpot01Idohashira*)thisx;
     CollisionHeader* colHeader;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DPM_UNK);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
     colHeader = NULL;
-    CollisionHeader_GetVirtual(&gKakarikoWellArchCol, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_CollisionHeader_GetVirtual(&gKakarikoWellArchCol, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
 
     if (gSaveContext.sceneSetupIndex < 4) {
-        if ((Flags_GetEventChkInf(EVENTCHKINF_LEARNED_NOCTURNE_OF_SHADOW)) && LINK_IS_ADULT) {
-            Actor_Kill(&this->dyna.actor);
+        if ((OoT_Flags_GetEventChkInf(EVENTCHKINF_LEARNED_NOCTURNE_OF_SHADOW)) && LINK_IS_ADULT) {
+            OoT_Actor_Kill(&this->dyna.actor);
         } else {
             this->action = 0;
         }
@@ -313,7 +313,7 @@ void BgSpot01Idohashira_Init(Actor* thisx, PlayState* play) {
     } else if (gSaveContext.sceneSetupIndex == 6) {
         this->action = 0;
     } else {
-        Actor_Kill(&this->dyna.actor);
+        OoT_Actor_Kill(&this->dyna.actor);
     }
 }
 
@@ -334,9 +334,9 @@ void func_808AB700(BgSpot01Idohashira* this, PlayState* play) {
 void BgSpot01Idohashira_Draw(Actor* thisx, PlayState* play) {
     BgSpot01Idohashira* this = (BgSpot01Idohashira*)thisx;
 
-    if (this->drawConfig < 0 || this->drawConfig > 0 || sDrawFuncs[this->drawConfig] == NULL) {
+    if (this->drawConfig < 0 || this->drawConfig > 0 || OoT_sDrawFuncs[this->drawConfig] == NULL) {
         osSyncPrintf(VT_FGCOL(RED) "描画モードがおかしい!!!!!!!!!!!!!!!!!!!!!!!!!\n" VT_RST);
         return;
     }
-    sDrawFuncs[this->drawConfig](this, play);
+    OoT_sDrawFuncs[this->drawConfig](this, play);
 }

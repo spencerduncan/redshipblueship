@@ -72,9 +72,9 @@ typedef struct EnMkkDlists {
     /* 0x0C */ Gfx* unkC;
 } EnMkkDlists; // size = 0x10
 
-static CollisionCheckInfoInit sColChkInfoInit = { 1, 15, 30, 10 };
+static CollisionCheckInfoInit MM_sColChkInfoInit = { 1, 15, 30, 10 };
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(1, 0x0),
     /* Deku Stick     */ DMG_ENTRY(1, 0x0),
     /* Horse trample  */ DMG_ENTRY(1, 0x0),
@@ -109,7 +109,7 @@ static DamageTable sDamageTable = {
     /* Powder Keg     */ DMG_ENTRY(1, 0x0),
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32_DIV1000(gravity, -500, ICHAIN_CONTINUE),
     ICHAIN_F32(terminalVelocity, -5, ICHAIN_CONTINUE),
     ICHAIN_F32(lockOnArrowOffset, 3000, ICHAIN_STOP),
@@ -140,11 +140,11 @@ void EnMkk_Init(Actor* thisx, PlayState* play) {
     s32 paramsFF00;
     s32 params2;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
     Collider_InitAndSetSphere(play, &this->collider, &this->actor, &sSphereInit);
     this->collider.dim.worldSphere.radius = sSphereInit.dim.modelSphere.radius;
-    CollisionCheck_SetInfo(&this->actor.colChkInfo, &sDamageTable, &sColChkInfoInit);
-    ActorShape_Init(&this->actor.shape, 1000.0f, NULL, 0.0f);
+    MM_CollisionCheck_SetInfo(&this->actor.colChkInfo, &MM_sDamageTable, &MM_sColChkInfoInit);
+    MM_ActorShape_Init(&this->actor.shape, 1000.0f, NULL, 0.0f);
 
     this->primColorSelect = 0;
     this->unk_149 = 0;
@@ -157,8 +157,8 @@ void EnMkk_Init(Actor* thisx, PlayState* play) {
     this->actor.shape.rot.x = 0;
     this->actor.world.rot.x = 0;
 
-    Math_Vec3f_Copy(&this->unk_154, &this->actor.world.pos);
-    Math_Vec3f_Copy(&this->unk_160, &this->actor.world.pos);
+    MM_Math_Vec3f_Copy(&this->unk_154, &this->actor.world.pos);
+    MM_Math_Vec3f_Copy(&this->unk_160, &this->actor.world.pos);
     this->unk_14B = ENMKK_GET_4(thisx) ? 8 : 0;
 
     paramsFF00 = ENMKK_GET_FF00(&this->actor);
@@ -219,7 +219,7 @@ void func_80A4E100(EnMkk* this, PlayState* play) {
 }
 
 void func_80A4E190(EnMkk* this) {
-    this->unk_14E = (s32)(Rand_ZeroOne() * 20.0f) + 10;
+    this->unk_14E = (s32)(MM_Rand_ZeroOne() * 20.0f) + 10;
     if (this->unk_149 != 0) {
         this->unk_149--;
     }
@@ -259,27 +259,27 @@ void func_80A4E2E8(EnMkk* this, PlayState* play) {
         func_80A4E22C(this, play);
     }
     if (this->unk_14E > 0) {
-        Math_StepToF(&this->actor.speed, 5.0f, 0.7f);
+        MM_Math_StepToF(&this->actor.speed, 5.0f, 0.7f);
         sp20 = false;
     } else {
-        sp20 = Math_StepToF(&this->actor.speed, 0.0f, 0.7f);
+        sp20 = MM_Math_StepToF(&this->actor.speed, 0.0f, 0.7f);
     }
-    if ((player->stateFlags3 & PLAYER_STATE3_100) || (Player_GetMask(play) == PLAYER_MASK_STONE)) {
-        Math_ScaledStepToS(&this->unk_150, Actor_WorldYawTowardPoint(&this->actor, &this->actor.home.pos), 0x400);
+    if ((player->stateFlags3 & PLAYER_STATE3_100) || (MM_Player_GetMask(play) == PLAYER_MASK_STONE)) {
+        MM_Math_ScaledStepToS(&this->unk_150, MM_Actor_WorldYawTowardPoint(&this->actor, &this->actor.home.pos), 0x400);
     } else if ((player->stateFlags2 & PLAYER_STATE2_80) || (player->actor.freezeTimer > 0)) {
-        Math_ScaledStepToS(&this->unk_150, this->actor.yawTowardsPlayer + 0x8000, 0x400);
+        MM_Math_ScaledStepToS(&this->unk_150, this->actor.yawTowardsPlayer + 0x8000, 0x400);
     } else {
-        Math_ScaledStepToS(&this->unk_150, this->actor.yawTowardsPlayer, 0x400);
+        MM_Math_ScaledStepToS(&this->unk_150, this->actor.yawTowardsPlayer, 0x400);
     }
     this->actor.shape.rot.y =
-        (s32)(Math_SinF(this->unk_14E * ((2 * M_PIf) / 15)) * (614.4f * this->actor.speed)) + this->unk_150;
+        (s32)(MM_Math_SinF(this->unk_14E * ((2 * M_PIf) / 15)) * (614.4f * this->actor.speed)) + this->unk_150;
     Actor_PlaySfx_Flagged(&this->actor, NA_SE_EN_KUROSUKE_MOVE - SFX_FLAG);
     if (sp20) {
         this->unk_14B &= ~2;
         func_80A4E190(this);
     } else if ((this->unk_149 == 0) && !(player->stateFlags3 & PLAYER_STATE3_100) &&
-               (Player_GetMask(play) != PLAYER_MASK_STONE) && (this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) &&
-               Actor_IsFacingPlayer(&this->actor, 0x1800) && (this->actor.xzDistToPlayer < 120.0f) &&
+               (MM_Player_GetMask(play) != PLAYER_MASK_STONE) && (this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) &&
+               MM_Actor_IsFacingPlayer(&this->actor, 0x1800) && (this->actor.xzDistToPlayer < 120.0f) &&
                (fabsf(this->actor.playerHeightRel) < 100.0f)) {
         func_80A4E58C(this);
     }
@@ -291,7 +291,7 @@ void func_80A4E58C(EnMkk* this) {
     this->actor.velocity.y = 5.0f;
     Actor_PlaySfx(&this->actor, NA_SE_EN_KUROSUKE_ATTACK);
     this->collider.base.atFlags |= AT_ON;
-    Math_ScaledStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 0x800);
+    MM_Math_ScaledStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 0x800);
     this->actionFunc = func_80A4E60C;
 }
 
@@ -330,11 +330,11 @@ void func_80A4E72C(EnMkk* this, PlayState* play) {
             temp.x = this->actor.world.pos.x;
             temp.y = this->actor.world.pos.y + 15.0f;
             temp.z = this->actor.world.pos.z;
-            EffectSsDeadDb_Spawn(play, &temp, &gZeroVec3f, &gZeroVec3f, &sEffPrimColors[this->actor.params],
+            MM_EffectSsDeadDb_Spawn(play, &temp, &gZeroVec3f, &gZeroVec3f, &sEffPrimColors[this->actor.params],
                                  &sEffEnvColors[this->actor.params], 0x46, 4, 0xC);
             Actor_PlaySfx(&this->actor, NA_SE_EN_EXTINCT);
             if (this->unk_14C != 0) {
-                Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos, this->unk_14C * 0x10);
+                MM_Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos, this->unk_14C * 0x10);
             }
             func_80A4EEF4(this);
         } else {
@@ -347,11 +347,11 @@ void func_80A4E72C(EnMkk* this, PlayState* play) {
 void func_80A4E84C(EnMkk* this) {
     if (this->unk_14B & 3) {
         Vec3f sp34;
-        f32 temp_fv0 = Math_Vec3f_DistXYZ(&this->actor.world.pos, &this->actor.prevPos);
+        f32 temp_fv0 = MM_Math_Vec3f_DistXYZ(&this->actor.world.pos, &this->actor.prevPos);
 
-        Math_Vec3f_Copy(&sp34, &this->unk_154);
+        MM_Math_Vec3f_Copy(&sp34, &this->unk_154);
         if (temp_fv0 < 0.001f) {
-            Math_Vec3f_Copy(&this->unk_154, &this->actor.prevPos);
+            MM_Math_Vec3f_Copy(&this->unk_154, &this->actor.prevPos);
         } else {
             temp_fv0 = 1.0f / temp_fv0;
 
@@ -362,9 +362,9 @@ void func_80A4E84C(EnMkk* this) {
             this->unk_154.z =
                 ((this->actor.prevPos.z - this->actor.world.pos.z) * temp_fv0 * 10.0f) + this->actor.world.pos.z;
         }
-        temp_fv0 = Math_Vec3f_DistXYZ(&this->unk_154, &sp34);
+        temp_fv0 = MM_Math_Vec3f_DistXYZ(&this->unk_154, &sp34);
         if (temp_fv0 < 0.001f) {
-            Math_Vec3f_Copy(&this->unk_160, &sp34);
+            MM_Math_Vec3f_Copy(&this->unk_160, &sp34);
         } else {
             temp_fv0 = 1.0f / temp_fv0;
 
@@ -376,25 +376,25 @@ void func_80A4E84C(EnMkk* this) {
         this->unk_160.y = this->unk_154.y;
         this->unk_154.y = this->actor.world.pos.y;
         this->unk_154.x = this->actor.world.pos.x -
-                          10.0f * Math_SinS(this->actor.shape.rot.y + (s32)(1228.8f * this->actor.speed *
-                                                                            Math_SinF(this->unk_14E * (M_PIf / 5))));
+                          10.0f * MM_Math_SinS(this->actor.shape.rot.y + (s32)(1228.8f * this->actor.speed *
+                                                                            MM_Math_SinF(this->unk_14E * (M_PIf / 5))));
         this->unk_154.z = this->actor.world.pos.z -
-                          10.0f * Math_CosS(this->actor.shape.rot.y + (s32)(1228.8f * this->actor.speed *
-                                                                            Math_SinF(this->unk_14E * (M_PIf / 5))));
+                          10.0f * MM_Math_CosS(this->actor.shape.rot.y + (s32)(1228.8f * this->actor.speed *
+                                                                            MM_Math_SinF(this->unk_14E * (M_PIf / 5))));
         this->unk_160.x = this->unk_154.x -
-                          12.0f * Math_SinS(this->actor.shape.rot.y - (s32)(1228.8f * this->actor.speed *
-                                                                            Math_SinF(this->unk_14E * (M_PIf / 5))));
+                          12.0f * MM_Math_SinS(this->actor.shape.rot.y - (s32)(1228.8f * this->actor.speed *
+                                                                            MM_Math_SinF(this->unk_14E * (M_PIf / 5))));
         this->unk_160.z = this->unk_154.z -
-                          12.0f * Math_CosS(this->actor.shape.rot.y - (s32)(1228.8f * this->actor.speed *
-                                                                            Math_SinF(this->unk_14E * (M_PIf / 5))));
+                          12.0f * MM_Math_CosS(this->actor.shape.rot.y - (s32)(1228.8f * this->actor.speed *
+                                                                            MM_Math_SinF(this->unk_14E * (M_PIf / 5))));
     }
 }
 
 void func_80A4EBBC(EnMkk* this, PlayState* play) {
     if (this->collider.base.acFlags & AC_HIT) {
         this->collider.base.acFlags &= ~AC_HIT;
-        Actor_SetDropFlag(&this->actor, &this->collider.elem);
-        Enemy_StartFinishingBlow(play, &this->actor);
+        MM_Actor_SetDropFlag(&this->actor, &this->collider.elem);
+        MM_Enemy_StartFinishingBlow(play, &this->actor);
         func_80A4E67C(this);
     }
 }
@@ -406,35 +406,35 @@ void EnMkk_Update(Actor* thisx, PlayState* play) {
 
     if (this->primColorSelect > 0) {
         this->primColorSelect--;
-    } else if ((Rand_ZeroOne() < 0.075f) && (this->actor.params != 1)) {
+    } else if ((MM_Rand_ZeroOne() < 0.075f) && (this->actor.params != 1)) {
         this->primColorSelect = 6;
     }
     func_80A4EBBC(this, play);
     this->actionFunc(this, play);
     this->actor.world.rot.y = this->actor.shape.rot.y;
     Actor_MoveWithGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 20.0f,
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 20.0f,
                             UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4 | UPDBGCHECKINFO_FLAG_8 |
                                 UPDBGCHECKINFO_FLAG_10);
     if (this->actor.params == 0) {
         func_80A4E84C(this);
     }
-    if (Actor_IsFacingPlayer(&this->actor, 0x3000)) {
+    if (MM_Actor_IsFacingPlayer(&this->actor, 0x3000)) {
         player = GET_PLAYER(play);
-        this->actor.shape.rot.x = Actor_WorldPitchTowardPoint(&this->actor, &player->actor.focus.pos);
+        this->actor.shape.rot.x = MM_Actor_WorldPitchTowardPoint(&this->actor, &player->actor.focus.pos);
         this->actor.shape.rot.x = CLAMP(this->actor.shape.rot.x, -0x1800, 0x1800);
     }
-    Actor_SetFocus(&this->actor, 10.0f);
+    MM_Actor_SetFocus(&this->actor, 10.0f);
     this->collider.dim.worldSphere.center.x = this->actor.focus.pos.x;
     this->collider.dim.worldSphere.center.y = this->actor.focus.pos.y;
     this->collider.dim.worldSphere.center.z = this->actor.focus.pos.z;
     if (this->collider.base.atFlags & AT_ON) {
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
     }
     if (this->collider.base.acFlags & AC_ON) {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void func_80A4EDF0(EnMkk* this) {
@@ -454,7 +454,7 @@ void func_80A4EE48(EnMkk* this, PlayState* play) {
         if (this->unk_14E == 0) {
             this->actor.flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
         }
-    } else if ((this->actor.xzDistToPlayer < this->unk_178) && (Player_GetMask(play) != PLAYER_MASK_STONE)) {
+    } else if ((this->actor.xzDistToPlayer < this->unk_178) && (MM_Player_GetMask(play) != PLAYER_MASK_STONE)) {
         this->actor.update = EnMkk_Update;
         this->actor.draw = EnMkk_Draw;
         this->actor.flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
@@ -463,10 +463,10 @@ void func_80A4EE48(EnMkk* this, PlayState* play) {
 }
 
 void func_80A4EEF4(EnMkk* this) {
-    Math_Vec3f_Copy(&this->unk_16C, &this->actor.world.pos);
-    Math_Vec3f_Copy(&this->unk_154, &this->actor.world.pos);
-    Math_Vec3f_Copy(&this->unk_160, &this->actor.world.pos);
-    Actor_SetScale(&this->actor, 0.005f);
+    MM_Math_Vec3f_Copy(&this->unk_16C, &this->actor.world.pos);
+    MM_Math_Vec3f_Copy(&this->unk_154, &this->actor.world.pos);
+    MM_Math_Vec3f_Copy(&this->unk_160, &this->actor.world.pos);
+    MM_Actor_SetScale(&this->actor, 0.005f);
     this->actor.update = func_80A4F16C;
     this->actor.draw = func_80A4F4C8;
     this->actionFunc = func_80A4EF74;
@@ -477,28 +477,28 @@ void func_80A4EF74(EnMkk* this, PlayState* play) {
 
     if (newAlpha <= 0) {
         if (this->unk_14B & 8) {
-            Actor_SetScale(&this->actor, 0.01f);
+            MM_Actor_SetScale(&this->actor, 0.01f);
             this->primColorSelect = 0;
             this->unk_149 = 0;
-            Math_Vec3f_Copy(&this->actor.world.pos, &this->actor.home.pos);
-            Math_Vec3f_Copy(&this->unk_154, &this->actor.world.pos);
-            Math_Vec3f_Copy(&this->unk_160, &this->actor.world.pos);
+            MM_Math_Vec3f_Copy(&this->actor.world.pos, &this->actor.home.pos);
+            MM_Math_Vec3f_Copy(&this->unk_154, &this->actor.world.pos);
+            MM_Math_Vec3f_Copy(&this->unk_160, &this->actor.world.pos);
             this->actor.speed = 0.0f;
             this->actor.velocity.y = 0.0f;
             func_80A4EDF0(this);
         } else {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
     } else {
         this->alpha = newAlpha;
-        this->actor.world.pos.x += 0.3f + (3.0f * Rand_ZeroOne());
-        this->actor.world.pos.y += 0.5f + (3.5f * Rand_ZeroOne());
-        this->unk_16C.x -= 0.3f + (3.0f * Rand_ZeroOne());
-        this->unk_16C.y += 0.5f + (3.5f * Rand_ZeroOne());
-        this->unk_154.z += 0.3f + (3.0f * Rand_ZeroOne());
-        this->unk_154.y += 0.5f + (3.5f * Rand_ZeroOne());
-        this->unk_160.z -= 0.3f + (3.0f * Rand_ZeroOne());
-        this->unk_160.y += 0.5f + (3.5f * Rand_ZeroOne());
+        this->actor.world.pos.x += 0.3f + (3.0f * MM_Rand_ZeroOne());
+        this->actor.world.pos.y += 0.5f + (3.5f * MM_Rand_ZeroOne());
+        this->unk_16C.x -= 0.3f + (3.0f * MM_Rand_ZeroOne());
+        this->unk_16C.y += 0.5f + (3.5f * MM_Rand_ZeroOne());
+        this->unk_154.z += 0.3f + (3.0f * MM_Rand_ZeroOne());
+        this->unk_154.y += 0.5f + (3.5f * MM_Rand_ZeroOne());
+        this->unk_160.z -= 0.3f + (3.0f * MM_Rand_ZeroOne());
+        this->unk_160.y += 0.5f + (3.5f * MM_Rand_ZeroOne());
     }
 }
 
@@ -533,16 +533,16 @@ void EnMkk_Draw(Actor* thisx, PlayState* play) {
         gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
         gDPSetEnvColor(&gfx[1], 255, 255, 255, this->alpha);
         gSPDisplayList(&gfx[2], dLists->unk0);
-        Matrix_ReplaceRotation(&play->billboardMtxF);
+        MM_Matrix_ReplaceRotation(&play->billboardMtxF);
         MATRIX_FINALIZE_AND_LOAD(&gfx[3], play->state.gfxCtx);
         gSPDisplayList(&gfx[4], dLists->unk4);
         if (thisx->params == 0) {
-            matrix = Matrix_GetCurrent();
+            matrix = MM_Matrix_GetCurrent();
             matrix->mf[3][0] = this->unk_154.x;
             matrix->mf[3][1] = this->unk_154.y + 8.5f;
             matrix->mf[3][2] = this->unk_154.z;
 
-            Matrix_Scale(0.85f, 0.85f, 0.85f, MTXMODE_APPLY);
+            MM_Matrix_Scale(0.85f, 0.85f, 0.85f, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(&gfx[5], play->state.gfxCtx);
             gSPDisplayList(&gfx[6], dLists->unk4);
 
@@ -550,7 +550,7 @@ void EnMkk_Draw(Actor* thisx, PlayState* play) {
             matrix->mf[3][1] = this->unk_160.y + 7.2250004f;
             matrix->mf[3][2] = this->unk_160.z;
 
-            Matrix_Scale(0.85f, 0.85f, 0.85f, MTXMODE_APPLY);
+            MM_Matrix_Scale(0.85f, 0.85f, 0.85f, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(&gfx[7], play->state.gfxCtx);
             gSPDisplayList(&gfx[8], dLists->unk4);
             gSPDisplayList(&gfx[9], dLists->unk8);
@@ -578,11 +578,11 @@ void func_80A4F4C8(Actor* thisx, PlayState* play) {
     gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
     gDPSetEnvColor(&gfx[1], 255, 255, 255, this->alpha);
     gSPDisplayList(&gfx[2], dLists->unk0);
-    Matrix_ReplaceRotation(&play->billboardMtxF);
+    MM_Matrix_ReplaceRotation(&play->billboardMtxF);
     MATRIX_FINALIZE_AND_LOAD(&gfx[3], play->state.gfxCtx);
     gSPDisplayList(&gfx[4], dLists->unk4);
 
-    matrix = Matrix_GetCurrent();
+    matrix = MM_Matrix_GetCurrent();
     matrix->mf[3][0] = this->unk_154.x;
     matrix->mf[3][1] = this->unk_154.y + 5.0f;
     matrix->mf[3][2] = this->unk_154.z;

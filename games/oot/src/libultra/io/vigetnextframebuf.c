@@ -1,6 +1,6 @@
 #include "global.h"
 
-void* osViGetNextFramebuffer(void) {
+void* OoT_osViGetNextFramebuffer(void) {
     u32 prevInt = __osDisableInt();
     void* buff = __osViNext->buffer;
 

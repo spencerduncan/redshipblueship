@@ -28,7 +28,7 @@ const ActorInit En_Bx_InitVars = {
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_HIT6,
         AT_ON | AT_TYPE_ENEMY,
@@ -48,7 +48,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 60, 100, 100, { 0, 0, 0 } },
 };
 
-static ColliderQuadInit sQuadInit = {
+static ColliderQuadInit OoT_sQuadInit = {
     {
         COLTYPE_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -72,13 +72,13 @@ void EnBx_Init(Actor* thisx, PlayState* play) {
     EnBx* this = (EnBx*)thisx;
     Vec3f sp48 = { 0.015f, 0.015f, 0.015f };
     Vec3f sp3C = { 0.0f, 0.0f, 0.0f };
-    static InitChainEntry sInitChain[] = {
+    static InitChainEntry OoT_sInitChain[] = {
         ICHAIN_F32(targetArrowOffset, 5300, ICHAIN_STOP),
     };
     s32 i;
     s32 pad;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
     thisx->scale.x = thisx->scale.z = 0.01f;
     thisx->scale.y = 0.03f;
 
@@ -92,16 +92,16 @@ void EnBx_Init(Actor* thisx, PlayState* play) {
         this->unk_154[i].y = thisx->world.pos.y + ((i + 1) * 140.0f);
     }
 
-    ActorShape_Init(&thisx->shape, 0.0f, ActorShadow_DrawCircle, 48.0f);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    Collider_InitQuad(play, &this->colliderQuad);
-    Collider_SetQuad(play, &this->colliderQuad, &this->actor, &sQuadInit);
+    OoT_ActorShape_Init(&thisx->shape, 0.0f, OoT_ActorShadow_DrawCircle, 48.0f);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
+    OoT_Collider_InitQuad(play, &this->colliderQuad);
+    OoT_Collider_SetQuad(play, &this->colliderQuad, &this->actor, &OoT_sQuadInit);
     thisx->colChkInfo.mass = MASS_IMMOVABLE;
     this->unk_14C = 0;
     thisx->uncullZoneDownward = 2000.0f;
-    if (Flags_GetSwitch(play, (thisx->params >> 8) & 0xFF)) {
-        Actor_Kill(&this->actor);
+    if (OoT_Flags_GetSwitch(play, (thisx->params >> 8) & 0xFF)) {
+        OoT_Actor_Kill(&this->actor);
     }
     thisx->params &= 0xFF;
     this->epoch++;
@@ -110,7 +110,7 @@ void EnBx_Init(Actor* thisx, PlayState* play) {
 void EnBx_Destroy(Actor* thisx, PlayState* play) {
     EnBx* this = (EnBx*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void func_809D1D0C(Actor* thisx, PlayState* play) {
@@ -122,11 +122,11 @@ void func_809D1D0C(Actor* thisx, PlayState* play) {
     Vec3f sp38;
     EnBx* this = (EnBx*)thisx;
 
-    Matrix_MultVec3f(&D_809D2540, &sp44);
-    Matrix_MultVec3f(&D_809D254C, &sp38);
-    Matrix_MultVec3f(&sp5C, &this->colliderQuad.dim.quad[1]);
-    Matrix_MultVec3f(&sp50, &this->colliderQuad.dim.quad[0]);
-    Collider_SetQuadVertices(&this->colliderQuad, &sp38, &sp44, &this->colliderQuad.dim.quad[0],
+    OoT_Matrix_MultVec3f(&D_809D2540, &sp44);
+    OoT_Matrix_MultVec3f(&D_809D254C, &sp38);
+    OoT_Matrix_MultVec3f(&sp5C, &this->colliderQuad.dim.quad[1]);
+    OoT_Matrix_MultVec3f(&sp50, &this->colliderQuad.dim.quad[0]);
+    OoT_Collider_SetQuadVertices(&this->colliderQuad, &sp38, &sp44, &this->colliderQuad.dim.quad[0],
                              &this->colliderQuad.dim.quad[1]);
 }
 
@@ -177,23 +177,23 @@ void EnBx_Update(Actor* thisx, PlayState* play) {
                 Vec3f pos;
                 s16 yaw;
 
-                yaw = (s32)Rand_CenteredFloat(12288.0f);
+                yaw = (s32)OoT_Rand_CenteredFloat(12288.0f);
                 yaw = (yaw + (i * 0x4000)) + 0x2000;
-                pos.x = Rand_CenteredFloat(5.0f) + thisx->world.pos.x;
-                pos.y = Rand_CenteredFloat(30.0f) + thisx->world.pos.y + 170.0f;
-                pos.z = Rand_CenteredFloat(5.0f) + thisx->world.pos.z;
-                EffectSsLightning_Spawn(play, &pos, &primColor, &envColor, 230, yaw, 6, 0);
+                pos.x = OoT_Rand_CenteredFloat(5.0f) + thisx->world.pos.x;
+                pos.y = OoT_Rand_CenteredFloat(30.0f) + thisx->world.pos.y + 170.0f;
+                pos.z = OoT_Rand_CenteredFloat(5.0f) + thisx->world.pos.z;
+                OoT_EffectSsLightning_Spawn(play, &pos, &primColor, &envColor, 230, yaw, 6, 0);
             }
         }
 
         Audio_PlayActorSound2(thisx, NA_SE_EN_BIRI_SPARK - SFX_FLAG);
     }
     thisx->focus.pos = thisx->world.pos;
-    Collider_UpdateCylinder(thisx, &this->collider);
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-    CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+    OoT_Collider_UpdateCylinder(thisx, &this->collider);
+    OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
     if (thisx->params & 0x80) {
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderQuad.base);
+        OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderQuad.base);
     }
 }
 
@@ -215,7 +215,7 @@ void EnBx_Draw(Actor* thisx, PlayState* play) {
     gSPSegment(POLY_OPA_DISP++, 0x0C, mtx);
     gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(D_809D2560[this->actor.params & 0x7F]));
     gSPSegment(POLY_OPA_DISP++, 0x09,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 16, 16, 1, 0, (play->gameplayFrames * -10) % 128, 32, 32));
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 16, 16, 1, 0, (play->gameplayFrames * -10) % 128, 32, 32));
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
     if (this->actor.params & 0x80) {
@@ -223,12 +223,12 @@ void EnBx_Draw(Actor* thisx, PlayState* play) {
     }
 
     this->unk_14E -= 0xBB8;
-    thisx->scale.z = thisx->scale.x = (Math_CosS(this->unk_14E) * 0.0075f) + 0.015f;
+    thisx->scale.z = thisx->scale.x = (OoT_Math_CosS(this->unk_14E) * 0.0075f) + 0.015f;
 
     for (i = 3; i >= 0; i--) {
         s16 off = (0x2000 * i);
 
-        this->unk_184[i].z = this->unk_184[i].x = (Math_CosS(this->unk_14E + off) * 0.0075f) + 0.015f;
+        this->unk_184[i].z = this->unk_184[i].x = (OoT_Math_CosS(this->unk_14E + off) * 0.0075f) + 0.015f;
         this->unk_1B4[i].x = thisx->shape.rot.x;
         this->unk_1B4[i].y = thisx->shape.rot.y;
         this->unk_1B4[i].z = thisx->shape.rot.z;
@@ -237,9 +237,9 @@ void EnBx_Draw(Actor* thisx, PlayState* play) {
     for (i = 0; i < 4; i++, mtx++) {
         FrameInterpolation_RecordOpenChild(this, this->epoch + i * 25);
 
-        Matrix_Translate(this->unk_154[i].x, this->unk_154[i].y, this->unk_154[i].z, MTXMODE_NEW);
-        Matrix_RotateZYX(this->unk_1B4[i].x, this->unk_1B4[i].y, this->unk_1B4[i].z, MTXMODE_APPLY);
-        Matrix_Scale(this->unk_184[i].x, this->unk_184[i].y, this->unk_184[i].z, MTXMODE_APPLY);
+        OoT_Matrix_Translate(this->unk_154[i].x, this->unk_154[i].y, this->unk_154[i].z, MTXMODE_NEW);
+        OoT_Matrix_RotateZYX(this->unk_1B4[i].x, this->unk_1B4[i].y, this->unk_1B4[i].z, MTXMODE_APPLY);
+        OoT_Matrix_Scale(this->unk_184[i].x, this->unk_184[i].y, this->unk_184[i].z, MTXMODE_APPLY);
         MATRIX_TOMTX(mtx);
 
         FrameInterpolation_RecordCloseChild();

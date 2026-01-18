@@ -47,7 +47,7 @@ static f32 sUnused2 = 110.0f;
 
 static u32 sWaterBoxIndexes[] = { 2, 3, 5, 7, 12, 20, 21, 22 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F(scale, 1, ICHAIN_STOP),
 };
 
@@ -57,22 +57,22 @@ u32 BgMizuWater_GetWaterLevelActionIndex(s16 switchFlag, PlayState* play) {
     if (bREG(0) != 0) {
         switch (bREG(1)) {
             case 0:
-                Flags_SetSwitch(play, WATER_TEMPLE_WATER_F1_FLAG);
+                OoT_Flags_SetSwitch(play, WATER_TEMPLE_WATER_F1_FLAG);
                 break;
             case 1:
-                Flags_SetSwitch(play, WATER_TEMPLE_WATER_F2_FLAG);
+                OoT_Flags_SetSwitch(play, WATER_TEMPLE_WATER_F2_FLAG);
                 break;
             case 2:
-                Flags_SetSwitch(play, WATER_TEMPLE_WATER_F3_FLAG);
+                OoT_Flags_SetSwitch(play, WATER_TEMPLE_WATER_F3_FLAG);
                 break;
         }
         bREG(0) = 0;
     }
-    if (Flags_GetSwitch(play, WATER_TEMPLE_WATER_F1_FLAG) && (switchFlag != WATER_TEMPLE_WATER_F1_FLAG)) {
+    if (OoT_Flags_GetSwitch(play, WATER_TEMPLE_WATER_F1_FLAG) && (switchFlag != WATER_TEMPLE_WATER_F1_FLAG)) {
         ret = 3;
-    } else if (Flags_GetSwitch(play, WATER_TEMPLE_WATER_F2_FLAG) && (switchFlag != WATER_TEMPLE_WATER_F2_FLAG)) {
+    } else if (OoT_Flags_GetSwitch(play, WATER_TEMPLE_WATER_F2_FLAG) && (switchFlag != WATER_TEMPLE_WATER_F2_FLAG)) {
         ret = 2;
-    } else if (Flags_GetSwitch(play, WATER_TEMPLE_WATER_F3_FLAG) && (switchFlag != WATER_TEMPLE_WATER_F3_FLAG)) {
+    } else if (OoT_Flags_GetSwitch(play, WATER_TEMPLE_WATER_F3_FLAG) && (switchFlag != WATER_TEMPLE_WATER_F3_FLAG)) {
         ret = 1;
     } else {
         ret = 0;
@@ -98,7 +98,7 @@ void BgMizuWater_Init(Actor* thisx, PlayState* play) {
     waterBoxes = play->colCtx.colHeader->waterBoxes;
     this->type = this->actor.params & 0xFF;
     this->switchFlag = (this->actor.params >> 8) & 0xFF;
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
     initialActorY = this->actor.world.pos.y;
     this->baseY = initialActorY;
     this->targetY = initialActorY;
@@ -106,28 +106,28 @@ void BgMizuWater_Init(Actor* thisx, PlayState* play) {
     switch (this->type) {
         case 0:
             if (bREG(15) == 0) {
-                osSyncPrintf("<コンストラクト>%x %x %x\n", Flags_GetSwitch(play, WATER_TEMPLE_WATER_F1_FLAG),
-                             Flags_GetSwitch(play, WATER_TEMPLE_WATER_F2_FLAG),
-                             Flags_GetSwitch(play, WATER_TEMPLE_WATER_F3_FLAG));
+                osSyncPrintf("<コンストラクト>%x %x %x\n", OoT_Flags_GetSwitch(play, WATER_TEMPLE_WATER_F1_FLAG),
+                             OoT_Flags_GetSwitch(play, WATER_TEMPLE_WATER_F2_FLAG),
+                             OoT_Flags_GetSwitch(play, WATER_TEMPLE_WATER_F3_FLAG));
             }
             waterLevelActionIndex = BgMizuWater_GetWaterLevelActionIndex(-1, play);
             this->actor.world.pos.y = sWaterLevels[waterLevelActionIndex].yDiff + this->baseY;
             BgMizuWater_SetWaterBoxesHeight(waterBoxes, this->actor.world.pos.y);
             this->actor.params = sWaterLevels[waterLevelActionIndex].switchFlag;
-            Flags_UnsetSwitch(play, WATER_TEMPLE_WATER_F1_FLAG);
-            Flags_UnsetSwitch(play, WATER_TEMPLE_WATER_F2_FLAG);
-            Flags_UnsetSwitch(play, WATER_TEMPLE_WATER_F3_FLAG);
+            OoT_Flags_UnsetSwitch(play, WATER_TEMPLE_WATER_F1_FLAG);
+            OoT_Flags_UnsetSwitch(play, WATER_TEMPLE_WATER_F2_FLAG);
+            OoT_Flags_UnsetSwitch(play, WATER_TEMPLE_WATER_F3_FLAG);
 
             switch (this->actor.params) {
                 case 0x1E:
-                    Flags_SetSwitch(play, WATER_TEMPLE_WATER_F3_FLAG);
+                    OoT_Flags_SetSwitch(play, WATER_TEMPLE_WATER_F3_FLAG);
                     break;
                 case 0x1D:
-                    Flags_SetSwitch(play, WATER_TEMPLE_WATER_F2_FLAG);
+                    OoT_Flags_SetSwitch(play, WATER_TEMPLE_WATER_F2_FLAG);
                     break;
                 case 0x1C:
                 default:
-                    Flags_SetSwitch(play, WATER_TEMPLE_WATER_F1_FLAG);
+                    OoT_Flags_SetSwitch(play, WATER_TEMPLE_WATER_F1_FLAG);
                     break;
             }
             this->targetY = this->actor.world.pos.y;
@@ -135,20 +135,20 @@ void BgMizuWater_Init(Actor* thisx, PlayState* play) {
         case 1:
             break;
         case 2:
-            if (Flags_GetSwitch(play, this->switchFlag)) {
+            if (OoT_Flags_GetSwitch(play, this->switchFlag)) {
                 this->actor.world.pos.y = this->baseY + 85.0f;
             }
             waterBoxes[6].ySurface = this->actor.world.pos.y;
             break;
         case 3:
-            if (Flags_GetSwitch(play, this->switchFlag)) {
+            if (OoT_Flags_GetSwitch(play, this->switchFlag)) {
                 this->actor.world.pos.y = this->baseY + 110.0f;
                 this->targetY = this->actor.world.pos.y;
             }
             waterBoxes[8].ySurface = this->actor.world.pos.y;
             break;
         case 4:
-            if (Flags_GetSwitch(play, this->switchFlag)) {
+            if (OoT_Flags_GetSwitch(play, this->switchFlag)) {
                 this->actor.world.pos.y = this->baseY + 160.0f;
                 this->targetY = this->actor.world.pos.y;
             }
@@ -179,27 +179,27 @@ void BgMizuWater_WaitForAction(BgMizuWater* this, PlayState* play) {
                 }
             }
             if ((prevSwitchFlag != this->actor.params) && (prevSwitchFlag != 0)) {
-                Flags_UnsetSwitch(play, prevSwitchFlag);
+                OoT_Flags_UnsetSwitch(play, prevSwitchFlag);
             }
             break;
         case 1:
             break;
         case 2:
-            if (Flags_GetSwitch(play, this->switchFlag)) {
+            if (OoT_Flags_GetSwitch(play, this->switchFlag)) {
                 this->targetY = this->baseY + 85.0f;
             } else {
                 this->targetY = this->baseY;
             }
             break;
         case 3:
-            if (Flags_GetSwitch(play, this->switchFlag)) {
+            if (OoT_Flags_GetSwitch(play, this->switchFlag)) {
                 this->targetY = this->baseY + 110.0f;
             } else {
                 this->targetY = this->baseY;
             }
             break;
         case 4:
-            if (Flags_GetSwitch(play, this->switchFlag)) {
+            if (OoT_Flags_GetSwitch(play, this->switchFlag)) {
                 this->targetY = this->baseY + 160.0f;
             } else {
                 this->targetY = this->baseY;
@@ -230,49 +230,49 @@ void BgMizuWater_ChangeWaterLevel(BgMizuWater* this, PlayState* play) {
             }
 
             if ((prevSwitchFlag != this->actor.params) && (prevSwitchFlag != 0)) {
-                Flags_UnsetSwitch(play, prevSwitchFlag);
+                OoT_Flags_UnsetSwitch(play, prevSwitchFlag);
             }
 
-            if (Math_StepToF(&this->actor.world.pos.y, this->targetY, 5.0f)) {
+            if (OoT_Math_StepToF(&this->actor.world.pos.y, this->targetY, 5.0f)) {
                 play->roomCtx.unk_74[0] = 0;
                 this->actionFunc = BgMizuWater_WaitForAction;
-                Message_CloseTextbox(play);
+                OoT_Message_CloseTextbox(play);
             }
             BgMizuWater_SetWaterBoxesHeight(play->colCtx.colHeader->waterBoxes, this->actor.world.pos.y);
             break;
         case 1:
             break;
         case 2:
-            if (Flags_GetSwitch(play, this->switchFlag)) {
+            if (OoT_Flags_GetSwitch(play, this->switchFlag)) {
                 this->targetY = this->baseY + 85.0f;
             } else {
                 this->targetY = this->baseY;
             }
-            if (Math_StepToF(&this->actor.world.pos.y, this->targetY, 1.0f)) {
+            if (OoT_Math_StepToF(&this->actor.world.pos.y, this->targetY, 1.0f)) {
                 play->roomCtx.unk_74[0] = 0;
                 this->actionFunc = BgMizuWater_WaitForAction;
             }
             waterBoxes[6].ySurface = this->actor.world.pos.y;
             break;
         case 3:
-            if (Flags_GetSwitch(play, this->switchFlag)) {
+            if (OoT_Flags_GetSwitch(play, this->switchFlag)) {
                 this->targetY = this->baseY + 110.0f;
             } else {
                 this->targetY = this->baseY;
             }
-            if (Math_StepToF(&this->actor.world.pos.y, this->targetY, 1.0f)) {
+            if (OoT_Math_StepToF(&this->actor.world.pos.y, this->targetY, 1.0f)) {
                 play->roomCtx.unk_74[0] = 0;
                 this->actionFunc = BgMizuWater_WaitForAction;
             }
             waterBoxes[8].ySurface = this->actor.world.pos.y;
             break;
         case 4:
-            if (Flags_GetSwitch(play, this->switchFlag)) {
+            if (OoT_Flags_GetSwitch(play, this->switchFlag)) {
                 this->targetY = this->baseY + 160.0f;
             } else {
                 this->targetY = this->baseY;
             }
-            if (Math_StepToF(&this->actor.world.pos.y, this->targetY, 1.0f)) {
+            if (OoT_Math_StepToF(&this->actor.world.pos.y, this->targetY, 1.0f)) {
                 play->roomCtx.unk_74[0] = 0;
                 this->actionFunc = BgMizuWater_WaitForAction;
             }
@@ -297,9 +297,9 @@ void BgMizuWater_Update(Actor* thisx, PlayState* play) {
     s32 pad;
 
     if (bREG(15) == 0) {
-        osSyncPrintf("%x %x %x\n", Flags_GetSwitch(play, WATER_TEMPLE_WATER_F1_FLAG),
-                     Flags_GetSwitch(play, WATER_TEMPLE_WATER_F2_FLAG),
-                     Flags_GetSwitch(play, WATER_TEMPLE_WATER_F3_FLAG));
+        osSyncPrintf("%x %x %x\n", OoT_Flags_GetSwitch(play, WATER_TEMPLE_WATER_F1_FLAG),
+                     OoT_Flags_GetSwitch(play, WATER_TEMPLE_WATER_F2_FLAG),
+                     OoT_Flags_GetSwitch(play, WATER_TEMPLE_WATER_F3_FLAG));
     }
     if (this->type == 0) {
         posY = this->actor.world.pos.y;
@@ -332,7 +332,7 @@ void BgMizuWater_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
 
     gSPSegment(POLY_XLU_DISP++, 0x0C,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, -gameplayFrames * 1, gameplayFrames * 1, 32, 32, 1, 0,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, -gameplayFrames * 1, gameplayFrames * 1, 32, 32, 1, 0,
                                 -gameplayFrames * 1, 32, 32));
 
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);

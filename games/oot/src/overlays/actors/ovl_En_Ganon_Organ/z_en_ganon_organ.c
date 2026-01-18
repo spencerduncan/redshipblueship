@@ -45,7 +45,7 @@ void EnGanonOrgan_Update(Actor* thisx, PlayState* play) {
     if (thisx->params == 1) {
         dorf = (BossGanon*)thisx->parent;
         if (dorf->organAlpha == 0) {
-            Actor_Kill(thisx);
+            OoT_Actor_Kill(thisx);
         }
     }
     osSyncPrintf("ORGAN MOVE 2\n");
@@ -100,7 +100,7 @@ void EnGanonOrgan_Draw(Actor* thisx, PlayState* play) {
         gSPSegment(POLY_OPA_DISP++, 0x08, EnGanonOrgan_EmptyDList(play->state.gfxCtx));
         gSPSegment(POLY_OPA_DISP++, 0x09, EnGanonOrgan_EmptyDList(play->state.gfxCtx));
     }
-    Matrix_Translate(0.0f, 0.0f, 0.0f, MTXMODE_NEW);
+    OoT_Matrix_Translate(0.0f, 0.0f, 0.0f, MTXMODE_NEW);
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
     gSPDisplayList(POLY_OPA_DISP++, sRoomOrganAndFloorDL);

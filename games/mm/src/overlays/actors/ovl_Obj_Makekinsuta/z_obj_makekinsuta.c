@@ -8,9 +8,9 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void ObjMakekinsuta_Init(Actor* thisx, PlayState* play);
+void MM_ObjMakekinsuta_Init(Actor* thisx, PlayState* play);
 void ObjMakekinsuta_Destroy(Actor* thisx, PlayState* play);
-void ObjMakekinsuta_Update(Actor* thisx, PlayState* play);
+void MM_ObjMakekinsuta_Update(Actor* thisx, PlayState* play);
 
 void func_8099FB64(Actor* thisx, PlayState* play);
 void func_8099FD7C(Actor* thisx, PlayState* play);
@@ -21,13 +21,13 @@ ActorProfile Obj_Makekinsuta_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(ObjMakekinsuta),
-    /**/ ObjMakekinsuta_Init,
+    /**/ MM_ObjMakekinsuta_Init,
     /**/ ObjMakekinsuta_Destroy,
-    /**/ ObjMakekinsuta_Update,
+    /**/ MM_ObjMakekinsuta_Update,
     /**/ NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 1, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 1, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 1, ICHAIN_STOP),
@@ -40,18 +40,18 @@ bool func_8099FA40(ObjMakekinsuta* this, PlayState* play) {
     if (OBJMAKEKINSUTA_GETS_3(skulltulaParams)) {
         chestFlag = OBJMAKEKINSUTA_GETS_3FC(skulltulaParams);
     }
-    return (chestFlag < 0) == true || !Flags_GetTreasure(play, chestFlag);
+    return (chestFlag < 0) == true || !MM_Flags_GetTreasure(play, chestFlag);
 }
 
-void ObjMakekinsuta_Init(Actor* thisx, PlayState* play) {
+void MM_ObjMakekinsuta_Init(Actor* thisx, PlayState* play) {
     ObjMakekinsuta* this = (ObjMakekinsuta*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
     if (!func_8099FA40(this, play)) {
         this->unk144 = -1;
     }
-    if (Flags_GetSwitch(play, OBJMAKEKINSUTA_GET_SWITCH_FLAG(thisx))) {
-        Actor_Kill(&this->actor);
+    if (MM_Flags_GetSwitch(play, OBJMAKEKINSUTA_GET_SWITCH_FLAG(thisx))) {
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -59,7 +59,7 @@ void ObjMakekinsuta_Destroy(Actor* thisx, PlayState* play) {
     ObjMakekinsuta* this = (ObjMakekinsuta*)thisx;
 
     if (func_8099FA40(this, play)) {
-        Flags_UnsetSwitch(play, OBJMAKEKINSUTA_GET_SWITCH_FLAG(thisx));
+        MM_Flags_UnsetSwitch(play, OBJMAKEKINSUTA_GET_SWITCH_FLAG(thisx));
     }
 }
 
@@ -83,10 +83,10 @@ void func_8099FB64(Actor* thisx, PlayState* play) {
         Matrix_RotateYS(thisx->shape.rot.y, MTXMODE_NEW);
         Matrix_RotateXS(thisx->shape.rot.x, MTXMODE_APPLY);
         Matrix_RotateZS(thisx->shape.rot.z, MTXMODE_APPLY);
-        Matrix_MultVec3f(&D_8099FE3C, &destVec);
+        MM_Matrix_MultVec3f(&D_8099FE3C, &destVec);
         rotY = Math_Atan2S_XY(destVec.z, destVec.x);
     }
-    actor = Actor_Spawn(&play->actorCtx, play, ACTOR_EN_SW, thisx->world.pos.x, thisx->world.pos.y, thisx->world.pos.z,
+    actor = MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_SW, thisx->world.pos.x, thisx->world.pos.y, thisx->world.pos.z,
                         0, rotY, 0, (OBJMAKEKINSUTA_GET_1F(thisx) << 2) | 0xFF01);
     if (actor != NULL) {
         actor->parent = thisx;
@@ -94,25 +94,25 @@ void func_8099FB64(Actor* thisx, PlayState* play) {
             actor->velocity.y = 10.0f;
             actor->speed = 3.0f;
         } else {
-            speedXZ = sqrtf((destVec.x * destVec.x) + (destVec.z * destVec.z));
+            speedXZ = MM_sqrtf((destVec.x * destVec.x) + (destVec.z * destVec.z));
             actor->velocity.y = (4 * destVec.y) + 4.0f;
             actor->speed = (2 * speedXZ) + 2.0f;
         }
     }
 }
 
-void ObjMakekinsuta_Update(Actor* thisx, PlayState* play) {
+void MM_ObjMakekinsuta_Update(Actor* thisx, PlayState* play) {
     ObjMakekinsuta* this = (ObjMakekinsuta*)thisx;
 
-    if (Flags_GetSwitch(play, OBJMAKEKINSUTA_GET_SWITCH_FLAG(thisx))) {
+    if (MM_Flags_GetSwitch(play, OBJMAKEKINSUTA_GET_SWITCH_FLAG(thisx))) {
         this->actor.update = func_8099FD7C;
         CutsceneManager_Queue(this->actor.csId);
     } else {
         if (this->unk144 >= 0) {
             if (this->unk144 == 0) {
                 Actor_PlaySfx(&this->actor, NA_SE_EN_STALGOLD_ROLL);
-                if (Rand_ZeroOne() < 0.1f) {
-                    this->unk144 = Rand_S16Offset(0x28, 0x50);
+                if (MM_Rand_ZeroOne() < 0.1f) {
+                    this->unk144 = MM_Rand_S16Offset(0x28, 0x50);
                 } else {
                     this->unk144 = 8;
                 }
@@ -127,10 +127,10 @@ void func_8099FD7C(Actor* thisx, PlayState* play) {
     if (CutsceneManager_IsNext(thisx->csId)) {
         CutsceneManager_StartWithPlayerCs(thisx->csId, thisx);
         if (thisx->csId > CS_ID_NONE) {
-            Player_SetCsActionWithHaltedActors(play, thisx, PLAYER_CSACTION_4);
+            MM_Player_SetCsActionWithHaltedActors(play, thisx, PLAYER_CSACTION_4);
         }
         func_8099FB64(thisx, play);
-        thisx->update = Actor_Noop;
+        thisx->update = MM_Actor_Noop;
         thisx->flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
     } else {
         CutsceneManager_Queue(thisx->csId);

@@ -28,7 +28,7 @@ ActorProfile En_Tanron6_Profile = {
     /**/ EnTanron6_Draw,
 };
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(0, 0xF),
     /* Deku Stick     */ DMG_ENTRY(0, 0xF),
     /* Horse trample  */ DMG_ENTRY(0, 0x0),
@@ -67,9 +67,9 @@ void EnTanron6_Init(Actor* thisx, PlayState* play) {
     EnTanron6* this = (EnTanron6*)thisx;
 
     this->actor.colChkInfo.mass = 10;
-    ActorShape_Init(&this->actor.shape, 0, ActorShadow_DrawCircle, 19.0f);
+    MM_ActorShape_Init(&this->actor.shape, 0, MM_ActorShadow_DrawCircle, 19.0f);
     this->actor.colChkInfo.health = 1;
-    this->actor.colChkInfo.damageTable = &sDamageTable;
+    this->actor.colChkInfo.damageTable = &MM_sDamageTable;
     this->actor.attentionRangeType = ATTENTION_RANGE_6;
     EnTanron6_DoNothing(this);
 }
@@ -89,7 +89,7 @@ void EnTanron6_Update(Actor* thisx, PlayState* play) {
 
     this->actionFunc(this, play);
     Actor_MoveWithGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 40.0f, 40.0f,
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 40.0f, 40.0f,
                             UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4 | UPDBGCHECKINFO_FLAG_8 |
                                 UPDBGCHECKINFO_FLAG_10);
 }

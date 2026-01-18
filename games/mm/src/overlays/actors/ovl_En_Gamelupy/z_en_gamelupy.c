@@ -34,7 +34,7 @@ ActorProfile En_Gamelupy_Profile = {
     /**/ EnGamelupy_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -54,7 +54,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 10, 30, 0, { 0, 0, 0 } },
 };
 
-static TexturePtr sRupeeTextures[] = {
+static TexturePtr MM_sRupeeTextures[] = {
     gRupeeGreenTex, gRupeeBlueTex, gRupeeRedTex, gRupeeOrangeTex, gRupeePurpleTex,
 };
 
@@ -66,13 +66,13 @@ void EnGamelupy_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     EnGamelupy* this = (EnGamelupy*)thisx;
 
-    Actor_SetScale(&this->actor, 0.03f);
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 10.0f);
+    MM_Actor_SetScale(&this->actor, 0.03f);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 10.0f);
     this->actor.shape.yOffset = 700.0f;
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
     this->actor.gravity = -0.5f;
-    this->actor.shape.rot.y = Rand_Next();
+    this->actor.shape.rot.y = MM_Rand_Next();
     this->collectedTimer = 0;
     this->sparklesAngle = 0;
     this->sparklesAngleStep = 0x7D0;
@@ -87,7 +87,7 @@ void EnGamelupy_Init(Actor* thisx, PlayState* play) {
 void EnGamelupy_Destroy(Actor* thisx, PlayState* play) {
     EnGamelupy* this = (EnGamelupy*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnGamelupy_SpawnSparkles(EnGamelupy* this, PlayState* play) {
@@ -96,9 +96,9 @@ void EnGamelupy_SpawnSparkles(EnGamelupy* this, PlayState* play) {
     Vec3f velocity;
 
     pos = this->actor.world.pos;
-    velocity.x = Math_SinS(this->sparklesAngle) * 3.0f;
+    velocity.x = MM_Math_SinS(this->sparklesAngle) * 3.0f;
     velocity.y = 5.5f;
-    velocity.z = Math_CosS(this->sparklesAngle) * 3.0f;
+    velocity.z = MM_Math_CosS(this->sparklesAngle) * 3.0f;
     accel.x = -0.05f * velocity.x;
     accel.y = -0.4f;
     accel.z = -0.05f * velocity.z;
@@ -127,9 +127,9 @@ void EnGamelupy_Idle(EnGamelupy* this, PlayState* play) {
     if (GameInteractor_Should(VB_COLLECT_PLAYGROUND_RUPEE, this->collider.base.ocFlags1 & OC1_HIT, this)) {
         *this->minigameScore += ENGAMELUPY_POINTS;
         if (this->type == ENGAMELUPY_TYPE_BLUE) {
-            Rupees_ChangeBy(5);
+            MM_Rupees_ChangeBy(5);
         } else {
-            Rupees_ChangeBy(1);
+            MM_Rupees_ChangeBy(1);
         }
         EnGamelupy_SetupCollected(this);
     }
@@ -148,21 +148,21 @@ void EnGamelupy_Collected(EnGamelupy* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
     if (this->collectedTimer > 30) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     } else {
         this->collectedTimer++;
         this->actor.world.pos = player->actor.world.pos;
         this->actor.world.pos.y += 40.0f;
         scale = (30.0f - this->collectedTimer) * 0.001f;
-        Actor_SetScale(&this->actor, scale);
+        MM_Actor_SetScale(&this->actor, scale);
         EnGamelupy_SpawnSparkles(this, play);
     }
     this->actor.shape.rot.y += 0x3E8;
 }
 
 void EnGamelupy_UpdateCollision(EnGamelupy* this, PlayState* play) {
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void EnGamelupy_Update(Actor* thisx, PlayState* play) {
@@ -170,7 +170,7 @@ void EnGamelupy_Update(Actor* thisx, PlayState* play) {
 
     this->actionFunc(this, play);
     Actor_MoveWithGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 32.0f, 30.0f, 0.0f, UPDBGCHECKINFO_FLAG_4 | UPDBGCHECKINFO_FLAG_8);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 32.0f, 30.0f, 0.0f, UPDBGCHECKINFO_FLAG_4 | UPDBGCHECKINFO_FLAG_8);
     EnGamelupy_UpdateCollision(this, play);
 }
 
@@ -183,7 +183,7 @@ void EnGamelupy_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     func_800B8050(&this->actor, play, 0);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sRupeeTextures[this->type]));
+    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sRupeeTextures[this->type]));
     gSPDisplayList(POLY_OPA_DISP++, gRupeeDL);
 
     CLOSE_DISPS(play->state.gfxCtx);

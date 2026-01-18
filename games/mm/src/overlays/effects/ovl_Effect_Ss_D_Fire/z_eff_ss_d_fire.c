@@ -17,20 +17,20 @@
 
 #define PARAMS ((EffectSsDFireInitParams*)initParamsx)
 
-u32 EffectSsDFire_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsDFire_Update(PlayState* play, u32 index, EffectSs* this);
-void EffectSsDFire_Draw(PlayState* play, u32 index, EffectSs* this);
+u32 MM_EffectSsDFire_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void MM_EffectSsDFire_Update(PlayState* play, u32 index, EffectSs* this);
+void MM_EffectSsDFire_Draw(PlayState* play, u32 index, EffectSs* this);
 
 EffectSsProfile Effect_Ss_D_Fire_Profile = {
     EFFECT_SS_D_FIRE,
-    EffectSsDFire_Init,
+    MM_EffectSsDFire_Init,
 };
 
 static TexturePtr sFireTextures[] = { gDodongoFire0Tex, gDodongoFire1Tex, gDodongoFire2Tex, gDodongoFire3Tex };
 
 s32 EffectSsDFire_CheckForObject(EffectSs* this, PlayState* play) {
     if (((this->rObjectSlot = Object_GetSlot(&play->objectCtx, OBJECT_DODONGO)) <= OBJECT_SLOT_NONE) ||
-        !Object_IsLoaded(&play->objectCtx, this->rObjectSlot)) {
+        !MM_Object_IsLoaded(&play->objectCtx, this->rObjectSlot)) {
         this->life = -1;
         this->draw = NULL;
         return false;
@@ -38,19 +38,19 @@ s32 EffectSsDFire_CheckForObject(EffectSs* this, PlayState* play) {
     return true;
 }
 
-u32 EffectSsDFire_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 MM_EffectSsDFire_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsDFireInitParams* initParams = PARAMS;
 
     if (EffectSsDFire_CheckForObject(this, play)) {
-        Math_Vec3f_Copy(&this->pos, &initParams->pos);
-        Math_Vec3f_Copy(&this->velocity, &initParams->velocity);
-        Math_Vec3f_Copy(&this->accel, &initParams->accel);
+        MM_Math_Vec3f_Copy(&this->pos, &initParams->pos);
+        MM_Math_Vec3f_Copy(&this->velocity, &initParams->velocity);
+        MM_Math_Vec3f_Copy(&this->accel, &initParams->accel);
         this->gfx = gDodongoFireDL;
         this->life = initParams->life;
         this->rScale = initParams->scale;
         this->rScaleStep = initParams->scaleStep;
-        this->draw = EffectSsDFire_Draw;
-        this->update = EffectSsDFire_Update;
+        this->draw = MM_EffectSsDFire_Draw;
+        this->update = MM_EffectSsDFire_Update;
         this->rTexIndex = (play->state.frames & 3) ^ 3; // The xor reverses order, i.e 3 -> 2 -> 1 -> 0 -> 3
         this->rAlpha = initParams->alpha;
         this->rFadeDelay = this->life - initParams->fadeDelay;
@@ -62,7 +62,7 @@ u32 EffectSsDFire_Init(PlayState* play, u32 index, EffectSs* this, void* initPar
     return 0;
 }
 
-void EffectSsDFire_Draw(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsDFire_Draw(PlayState* play, u32 index, EffectSs* this) {
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     s32 pad;
     void* objectPtr;
@@ -73,14 +73,14 @@ void EffectSsDFire_Draw(PlayState* play, u32 index, EffectSs* this) {
 
         OPEN_DISPS(gfxCtx);
 
-        gSegments[6] = OS_K0_TO_PHYSICAL(objectPtr);
+        MM_gSegments[6] = OS_K0_TO_PHYSICAL(objectPtr);
         gSPSegment(POLY_XLU_DISP++, 0x06, objectPtr);
 
         scale = this->rScale / 100.0f;
 
-        Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
-        Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
-        Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
+        MM_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
+        MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+        MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
         Gfx_SetupDL60_XluNoCD(gfxCtx);
@@ -99,7 +99,7 @@ void EffectSsDFire_Draw(PlayState* play, u32 index, EffectSs* this) {
     }
 }
 
-void EffectSsDFire_Update(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsDFire_Update(PlayState* play, u32 index, EffectSs* this) {
     this->rTexIndex++;
     this->rTexIndex &= 3;
     this->rScale += this->rScaleStep;

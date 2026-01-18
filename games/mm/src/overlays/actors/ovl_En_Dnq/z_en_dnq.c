@@ -71,7 +71,7 @@ ActorProfile En_Dnq_Profile = {
     /**/ EnDnq_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HIT1,
         AT_NONE,
@@ -91,7 +91,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 34, 80, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 1, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 MM_sColChkInfoInit = { 1, 0, 0, 0, MASS_IMMOVABLE };
 
 typedef enum {
     /* -1 */ DEKU_KING_ANIM_NONE = -1,
@@ -118,7 +118,7 @@ typedef enum {
     /* 36 */ ENDNQ_ANIM_MAX
 } EnDnkAnimation;
 
-static AnimationInfoS sAnimationInfo[ENDNQ_ANIM_MAX] = {
+static AnimationInfoS MM_sAnimationInfo[ENDNQ_ANIM_MAX] = {
     { &gDekuKingIdleAnim, 1.0f, 0, -1, ANIMMODE_LOOP, 0 },             // DEKU_KING_ANIM_IDLE
     { &gDekuKingIdleAnim, 1.0f, 0, -1, ANIMMODE_LOOP, -4 },            // DEKU_KING_ANIM_IDLE_MORPH
     { &gDekuKingSurpriseAnim, 1.0f, 0, -1, ANIMMODE_ONCE, -4 },        // DEKU_KING_ANIM_SURPRISE
@@ -166,15 +166,15 @@ s32 EnDnq_ChangeAnim(EnDnq* this, s32 animIndex) {
 
     if (changeAnim) {
         this->animIndex = animIndex;
-        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, animIndex);
+        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, animIndex);
     }
 
     return didAnimChange;
 }
 
 void func_80A52604(EnDnq* this, PlayState* play) {
-    Collider_UpdateCylinder(&this->picto.actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->picto.actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 s32 func_80A52648(EnDnq* this, PlayState* play) {
@@ -203,10 +203,10 @@ s32 func_80A52648(EnDnq* this, PlayState* play) {
 s32 func_80A526F8(EnDnq* this) {
     if (this->unk_386 == 0) {
         EnDnq_ChangeAnim(this, DEKU_KING_ANIM_WAIL);
-        this->unk_38C = ((s32)(Rand_ZeroOne() * 100.0f) % 4) + 3;
+        this->unk_38C = ((s32)(MM_Rand_ZeroOne() * 100.0f) % 4) + 3;
         this->unk_388 = 0;
         this->unk_386 = 1;
-    } else if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    } else if (MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         switch (this->animIndex) {
             case DEKU_KING_ANIM_WAIL:
                 if (DECR(this->unk_38C) == 0) {
@@ -216,7 +216,7 @@ s32 func_80A526F8(EnDnq* this) {
 
             case DEKU_KING_ANIM_FOOT_STAMP_START:
                 EnDnq_ChangeAnim(this, DEKU_KING_ANIM_FOOT_STAMP_ONCE);
-                this->unk_38C = ((s32)(Rand_ZeroOne() * 100.0f) % 3) + 2;
+                this->unk_38C = ((s32)(MM_Rand_ZeroOne() * 100.0f) % 3) + 2;
                 break;
 
             case DEKU_KING_ANIM_FOOT_STAMP_ONCE:
@@ -233,7 +233,7 @@ s32 func_80A526F8(EnDnq* this) {
 
             case DEKU_KING_ANIM_WAIL_START:
                 EnDnq_ChangeAnim(this, DEKU_KING_ANIM_WAIL);
-                this->unk_38C = ((s32)(Rand_ZeroOne() * 100.0f) % 4) + 3;
+                this->unk_38C = ((s32)(MM_Rand_ZeroOne() * 100.0f) % 4) + 3;
                 break;
 
             case DEKU_KING_ANIM_LAUGH_ONCE:
@@ -265,7 +265,7 @@ s32 func_80A52944(EnDnq* this) {
         this->unk_386 = 1;
         phi_v1 = this->unk_38C * 0x2000;
         this->picto.actor.shape.rot.y += phi_v1;
-    } else if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    } else if (MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         this->unk_386++;
         if (this->unk_386 >= 6) {
             EnDnq_ChangeAnim(this, DEKU_KING_ANIM_MARCH);
@@ -304,9 +304,9 @@ s32 func_80A52A78(EnDnq* this, PlayState* play) {
         this->unk_38C--;
     }
 
-    if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         if (this->unk_38C == 0) {
-            this->unk_38C = Rand_S16Offset(20, 20);
+            this->unk_38C = MM_Rand_S16Offset(20, 20);
             this->unk_388 += 3;
             this->unk_388 %= 5;
         }
@@ -368,10 +368,10 @@ void func_80A52C6C(EnDnq* this, PlayState* play) {
     Vec3f sp28;
     Vec3f sp1C;
 
-    Math_Vec3f_Copy(&sp1C, &player->actor.world.pos);
+    MM_Math_Vec3f_Copy(&sp1C, &player->actor.world.pos);
     Lib_Vec3f_TranslateAndRotateY(&this->picto.actor.world.pos, this->picto.actor.world.rot.y, &sp34, &sp28);
-    Math_Vec3f_Copy(&this->unk_370, &sp28);
-    this->picto.actor.xzDistToPlayer = Math_Vec3f_DistXZ(&sp28, &sp1C);
+    MM_Math_Vec3f_Copy(&this->unk_370, &sp28);
+    this->picto.actor.xzDistToPlayer = MM_Math_Vec3f_DistXZ(&sp28, &sp1C);
 }
 
 MsgScript* EnDnq_GetMsgScript(EnDnq* this, PlayState* play) {
@@ -412,10 +412,10 @@ void func_80A52DC8(EnDnq* this, PlayState* play) {
 
     if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_23_20)) {
         this->unk_390 = 70.0f;
-        if (Inventory_HasItemInBottle(ITEM_DEKU_PRINCESS) && !Play_InCsMode(play) &&
-            (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE) && (CutsceneManager_GetCurrentCsId() == CS_ID_NONE)) {
+        if (Inventory_HasItemInBottle(ITEM_DEKU_PRINCESS) && !MM_Play_InCsMode(play) &&
+            (MM_Message_GetState(&play->msgCtx) == TEXT_STATE_NONE) && (CutsceneManager_GetCurrentCsId() == CS_ID_NONE)) {
             if ((DECR(this->unk_384) == 0) && CHECK_WEEKEVENTREG(WEEKEVENTREG_29_40)) {
-                Message_StartTextbox(play, 0x969, NULL);
+                MM_Message_StartTextbox(play, 0x969, NULL);
                 this->unk_384 = 200;
             }
         }
@@ -431,13 +431,13 @@ void func_80A52DC8(EnDnq* this, PlayState* play) {
         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_83_08)) {
             func_80A52A78(this, play);
         } else if (this->unk_3A4 == 0) {
-            Math_ApproachS(&this->picto.actor.shape.rot.y, this->picto.actor.world.rot.y, 3, 0x2AA8);
+            MM_Math_ApproachS(&this->picto.actor.shape.rot.y, this->picto.actor.world.rot.y, 3, 0x2AA8);
             func_80A526F8(this);
         } else {
             func_80A52944(this);
         }
     } else {
-        Math_ApproachS(&this->picto.actor.shape.rot.y, this->picto.actor.world.rot.y, 3, 0x2AA8);
+        MM_Math_ApproachS(&this->picto.actor.shape.rot.y, this->picto.actor.world.rot.y, 3, 0x2AA8);
         this->unk_390 = 70.0f;
     }
 }
@@ -450,7 +450,7 @@ void func_80A52FB8(EnDnq* this, PlayState* play) {
         this->unk_386 = 0;
         this->actionFunc = func_80A52DC8;
     } else {
-        Math_ApproachS(&this->picto.actor.shape.rot.y, sp2E, 3, 0x2AA8);
+        MM_Math_ApproachS(&this->picto.actor.shape.rot.y, sp2E, 3, 0x2AA8);
     }
 }
 
@@ -473,13 +473,13 @@ void EnDnq_HandleCutscene(EnDnq* this, PlayState* play) {
             this->cueId = cueId;
         }
 
-        if ((this->animIndex == DEKU_KING_ANIM_JUMPED_ON_LOOP) && Animation_OnFrame(&this->skelAnime, 2.0f)) {
+        if ((this->animIndex == DEKU_KING_ANIM_JUMPED_ON_LOOP) && MM_Animation_OnFrame(&this->skelAnime, 2.0f)) {
             Actor_PlaySfx(&this->picto.actor, NA_SE_EN_KINGNUTS_DAMAGE);
         }
 
         if (((this->animIndex == DEKU_KING_ANIM_JUMPED_ON_START) ||
              (this->animIndex == DEKU_KING_ANIM_JUMPED_ON_END_MORPH)) &&
-            Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+            MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
             EnDnq_ChangeAnim(this, this->animIndex + 1);
         }
 
@@ -490,14 +490,14 @@ void EnDnq_HandleCutscene(EnDnq* this, PlayState* play) {
 void EnDnq_Init(Actor* thisx, PlayState* play) {
     EnDnq* this = (EnDnq*)thisx;
 
-    ActorShape_Init(&this->picto.actor.shape, 0.0f, NULL, 14.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gDekuKingSkel, NULL, this->jointTable, this->morphTable,
+    MM_ActorShape_Init(&this->picto.actor.shape, 0.0f, NULL, 14.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gDekuKingSkel, NULL, this->jointTable, this->morphTable,
                        DEKU_KING_LIMB_MAX);
     this->animIndex = DEKU_KING_ANIM_NONE;
     EnDnq_ChangeAnim(this, DEKU_KING_ANIM_IDLE);
-    Collider_InitAndSetCylinder(play, &this->collider, &this->picto.actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->picto.actor.colChkInfo, DamageTable_Get(0x16), &sColChkInfoInit);
-    Actor_SetScale(&this->picto.actor, 0.02f);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->picto.actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo2(&this->picto.actor.colChkInfo, MM_DamageTable_Get(0x16), &MM_sColChkInfoInit);
+    MM_Actor_SetScale(&this->picto.actor, 0.02f);
     this->picto.actor.attentionRangeType = ATTENTION_RANGE_1;
     this->unk_386 = 0;
     this->unk_37C = 0;
@@ -514,7 +514,7 @@ void EnDnq_Init(Actor* thisx, PlayState* play) {
 void EnDnq_Destroy(Actor* thisx, PlayState* play) {
     EnDnq* this = (EnDnq*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnDnq_Update(Actor* thisx, PlayState* play) {
@@ -522,18 +522,18 @@ void EnDnq_Update(Actor* thisx, PlayState* play) {
 
     if (!func_80A52D44(this, play) && func_80A52648(this, play)) {
         EnDnq_HandleCutscene(this, play);
-        SkelAnime_Update(&this->skelAnime);
+        MM_SkelAnime_Update(&this->skelAnime);
     } else {
         this->actionFunc(this, play);
         func_80A52B68(this, play);
-        SkelAnime_Update(&this->skelAnime);
-        Actor_UpdateBgCheckInfo(play, &this->picto.actor, 30.0f, 12.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+        MM_SkelAnime_Update(&this->skelAnime);
+        MM_Actor_UpdateBgCheckInfo(play, &this->picto.actor, 30.0f, 12.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
         this->unk_394 = this->picto.actor.xzDistToPlayer;
         func_80A52C6C(this, play);
         SubS_Offer(&this->picto.actor, play, this->unk_390, fabsf(this->picto.actor.playerHeightRel) + 1.0f,
                    PLAYER_IA_NONE, this->unk_37C & SUBS_OFFER_MODE_MASK);
         this->picto.actor.xzDistToPlayer = this->unk_394;
-        Actor_SetFocus(&this->picto.actor, 46.0f);
+        MM_Actor_SetFocus(&this->picto.actor, 46.0f);
         func_80A52604(this, play);
     }
 }
@@ -542,6 +542,6 @@ void EnDnq_Draw(Actor* thisx, PlayState* play) {
     EnDnq* this = (EnDnq*)thisx;
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount, NULL,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount, NULL,
                           NULL, &this->picto.actor);
 }

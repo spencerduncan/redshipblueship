@@ -11,8 +11,8 @@
 
 #define FLAGS ACTOR_FLAG_UPDATE_CULLING_DISABLED
 
-void ObjMakekinsuta_Init(Actor* thisx, PlayState* play);
-void ObjMakekinsuta_Update(Actor* thisx, PlayState* play);
+void OoT_ObjMakekinsuta_Init(Actor* thisx, PlayState* play);
+void OoT_ObjMakekinsuta_Update(Actor* thisx, PlayState* play);
 
 void func_80B98320(ObjMakekinsuta* this, PlayState* play);
 void ObjMakekinsuta_DoNothing(ObjMakekinsuta* this, PlayState* play);
@@ -23,14 +23,14 @@ const ActorInit Obj_Makekinsuta_InitVars = {
     FLAGS,
     OBJECT_GAMEPLAY_KEEP,
     sizeof(ObjMakekinsuta),
-    (ActorFunc)ObjMakekinsuta_Init,
-    (ActorFunc)Actor_Noop,
-    (ActorFunc)ObjMakekinsuta_Update,
+    (ActorFunc)OoT_ObjMakekinsuta_Init,
+    (ActorFunc)OoT_Actor_Noop,
+    (ActorFunc)OoT_ObjMakekinsuta_Update,
     NULL,
     NULL,
 };
 
-void ObjMakekinsuta_Init(Actor* thisx, PlayState* play) {
+void OoT_ObjMakekinsuta_Init(Actor* thisx, PlayState* play) {
     ObjMakekinsuta* this = (ObjMakekinsuta*)thisx;
 
     if ((this->actor.params & 0x6000) == 0x4000) {
@@ -50,7 +50,7 @@ void ObjMakekinsuta_Init(Actor* thisx, PlayState* play) {
 void func_80B98320(ObjMakekinsuta* this, PlayState* play) {
     if (this->unk_152 != 0) {
         if (GameInteractor_Should(VB_SPAWN_BEAN_SKULLTULA, this->timer >= 60) && !func_8002DEEC(GET_PLAYER(play))) {
-            Actor_Spawn(&play->actorCtx, play, ACTOR_EN_SW, this->actor.world.pos.x, this->actor.world.pos.y,
+            OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_SW, this->actor.world.pos.x, this->actor.world.pos.y,
                         this->actor.world.pos.z, 0, this->actor.shape.rot.y, 0, (this->actor.params | 0x8000), true);
             this->actionFunc = ObjMakekinsuta_DoNothing;
         } else {
@@ -64,7 +64,7 @@ void func_80B98320(ObjMakekinsuta* this, PlayState* play) {
 void ObjMakekinsuta_DoNothing(ObjMakekinsuta* this, PlayState* play) {
 }
 
-void ObjMakekinsuta_Update(Actor* thisx, PlayState* play) {
+void OoT_ObjMakekinsuta_Update(Actor* thisx, PlayState* play) {
     ObjMakekinsuta* this = (ObjMakekinsuta*)thisx;
 
     this->actionFunc(this, play);

@@ -31,7 +31,7 @@ ActorProfile Eff_Stk_Profile = {
 void EffStk_Init(Actor* thisx, PlayState* play) {
     EffStk* this = (EffStk*)thisx;
 
-    Actor_SetScale(&this->actor, 0.2f);
+    MM_Actor_SetScale(&this->actor, 0.2f);
     this->actionFunc = func_80BF0DE0;
 }
 
@@ -45,7 +45,7 @@ void func_80BF0DE0(EffStk* this, PlayState* play) {
                 this->actor.draw = EffStk_Draw;
                 if (this->unk146 < 0x3C00) {
                     this->unk146 += 0x400;
-                    this->unk148 = Math_SinS(this->unk146) * -630.0f;
+                    this->unk148 = MM_Math_SinS(this->unk146) * -630.0f;
                 }
                 this->unk144++;
                 break;
@@ -54,7 +54,7 @@ void func_80BF0DE0(EffStk* this, PlayState* play) {
                 this->actor.draw = EffStk_Draw;
                 if (this->unk146 < 0x3C00) {
                     this->unk146 += 0x400;
-                    this->unk148 = Math_SinS(this->unk146) * -630.0f;
+                    this->unk148 = MM_Math_SinS(this->unk146) * -630.0f;
                 }
                 this->unk144--;
                 break;
@@ -86,10 +86,10 @@ void EffStk_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-    Matrix_Translate(eye.x + quakeOffset.x, eye.y + quakeOffset.y, eye.z + quakeOffset.z, MTXMODE_NEW);
-    Matrix_Scale(0.2f, 0.2f, 0.2f, MTXMODE_APPLY);
-    Matrix_ReplaceRotation(&play->billboardMtxF);
-    Matrix_Translate(0.0f, 0.0f, this->unk148, MTXMODE_APPLY);
+    MM_Matrix_Translate(eye.x + quakeOffset.x, eye.y + quakeOffset.y, eye.z + quakeOffset.z, MTXMODE_NEW);
+    MM_Matrix_Scale(0.2f, 0.2f, 0.2f, MTXMODE_APPLY);
+    MM_Matrix_ReplaceRotation(&play->billboardMtxF);
+    MM_Matrix_Translate(0.0f, 0.0f, this->unk148, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
     AnimatedMat_DrawAlphaStep(play, Lib_SegmentedToVirtual(object_stk2_Matanimheader_009F60), 1.0f, this->unk144);

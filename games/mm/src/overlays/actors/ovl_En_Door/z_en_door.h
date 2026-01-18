@@ -15,7 +15,7 @@
  * | 6                | 3     | 7
  * |
  *
- * Transition Index     1111110000000000    Set by the actor engine when the door is spawned (See Actor_SpawnTransitionActors and DOOR_GET_TRANSITION_ID)
+ * Transition Index     1111110000000000    Set by the actor engine when the door is spawned (See MM_Actor_SpawnTransitionActors and DOOR_GET_TRANSITION_ID)
  * Type                 0000001110000000    Values of the EnDoorType enum
  * Type var             0000000001111111    Generic extra parameter. It is used differently by each door Type (or not used at all)
  *

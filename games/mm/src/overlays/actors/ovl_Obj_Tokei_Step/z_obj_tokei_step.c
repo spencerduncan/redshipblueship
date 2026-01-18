@@ -44,7 +44,7 @@ static f32 sDustSpawnXOffsets[] = { -60.0f, -40.0f, -20.0f, 0.0f, 20.0f, 40.0f, 
 
 static Vec3f sDustEffectAccel = { 0.0f, 0.3f, 0.0f };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 300, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 300, ICHAIN_CONTINUE),
@@ -52,7 +52,7 @@ static InitChainEntry sInitChain[] = {
 };
 
 void ObjTokeiStep_SetMatrixTranslation(ObjTokeiStepPanel* panel) {
-    MtxF* mtx = Matrix_GetCurrent();
+    MtxF* mtx = MM_Matrix_GetCurrent();
 
     mtx->xw = panel->pos.x;
     mtx->yw = panel->pos.y;
@@ -63,7 +63,7 @@ void ObjTokeiStep_RequestQuakeAndRumble(ObjTokeiStep* this, PlayState* play) {
     s32 pad[2];
     s16 quakeIndex = Quake_Request(GET_ACTIVE_CAM(play), QUAKE_TYPE_3);
 
-    Quake_SetSpeed(quakeIndex, 20000);
+    MM_Quake_SetSpeed(quakeIndex, 20000);
     Quake_SetPerturbations(quakeIndex, 1, 0, 0, 0);
     Quake_SetDuration(quakeIndex, 7);
 
@@ -82,12 +82,12 @@ void ObjTokeiStep_SpawnDust(ObjTokeiStep* this, ObjTokeiStepPanel* panel, PlaySt
     dustSpawnOffset.z = -10.0f;
     for (i = 0; i < 7; i++) {
         dustSpawnOffset.x = sDustSpawnXOffsets[i];
-        Matrix_MultVec3f(&dustSpawnOffset, &dustSpawnPos);
+        MM_Matrix_MultVec3f(&dustSpawnOffset, &dustSpawnPos);
         dustSpawnPos.x += panel->pos.x;
         dustSpawnPos.y += panel->pos.y;
         dustSpawnPos.z += panel->pos.z;
-        func_800B1210(play, &dustSpawnPos, &gZeroVec3f, &sDustEffectAccel, (s32)((Rand_ZeroOne() * 40.0f) + 80.0f),
-                      (s32)((Rand_ZeroOne() * 20.0f) + 50.0f));
+        func_800B1210(play, &dustSpawnPos, &gZeroVec3f, &sDustEffectAccel, (s32)((MM_Rand_ZeroOne() * 40.0f) + 80.0f),
+                      (s32)((MM_Rand_ZeroOne() * 20.0f) + 50.0f));
     }
 }
 
@@ -97,7 +97,7 @@ void ObjTokeiStep_InitSteps(ObjTokeiStep* this) {
     Vec3f panelOffset;
     s32 pad;
 
-    Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
+    MM_Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
                                  this->dyna.actor.world.pos.z, &this->dyna.actor.shape.rot);
 
     panelOffset.x = 0.0f;
@@ -105,7 +105,7 @@ void ObjTokeiStep_InitSteps(ObjTokeiStep* this) {
     for (i = 0; i < ARRAY_COUNT(this->panels); i++) {
         panel = &this->panels[i];
         panelOffset.z = i * -20.0f;
-        Matrix_MultVec3f(&panelOffset, &panel->pos);
+        MM_Matrix_MultVec3f(&panelOffset, &panel->pos);
         panel->posChangeY = 0.0f;
         panel->numBounces = 0;
     }
@@ -116,7 +116,7 @@ void ObjTokeiStep_InitStepsOpen(ObjTokeiStep* this) {
     ObjTokeiStepPanel* panel;
     Vec3f panelOffset;
 
-    Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
+    MM_Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
                                  this->dyna.actor.world.pos.z, &this->dyna.actor.shape.rot);
 
     panelOffset.x = 0.0f;
@@ -124,7 +124,7 @@ void ObjTokeiStep_InitStepsOpen(ObjTokeiStep* this) {
         panel = &this->panels[i];
         panelOffset.y = sPanelXOffsets[i];
         panelOffset.z = i * -20.0f;
-        Matrix_MultVec3f(&panelOffset, &panel->pos);
+        MM_Matrix_MultVec3f(&panelOffset, &panel->pos);
     }
 }
 
@@ -191,8 +191,8 @@ s32 ObjTokeiStep_OpenProcess(ObjTokeiStep* this, PlayState* play) {
 void ObjTokeiStep_Init(Actor* thisx, PlayState* play) {
     ObjTokeiStep* this = (ObjTokeiStep*)thisx;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, 0);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
+    MM_DynaPolyActor_Init(&this->dyna, 0);
     if ((play->sceneId == SCENE_CLOCKTOWER) && (gSaveContext.sceneLayer == 2) && (play->csCtx.scriptIndex == 0)) {
         DynaPolyActor_LoadMesh(play, &this->dyna, &gClocktowerPanelCol);
         ObjTokeiStep_InitSteps(this);
@@ -211,7 +211,7 @@ void ObjTokeiStep_Init(Actor* thisx, PlayState* play) {
 void ObjTokeiStep_Destroy(Actor* thisx, PlayState* play) {
     ObjTokeiStep* this = (ObjTokeiStep*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void ObjTokeiStep_SetupBeginOpen(ObjTokeiStep* this) {
@@ -267,7 +267,7 @@ void ObjTokeiStep_Update(Actor* thisx, PlayState* play) {
 void ObjTokeiStep_Draw(Actor* thisx, PlayState* play) {
     ObjTokeiStep* this = (ObjTokeiStep*)thisx;
 
-    Gfx_DrawDListOpa(play, gClocktowerPanelDL);
+    MM_Gfx_DrawDListOpa(play, gClocktowerPanelDL);
 }
 
 void ObjTokeiStep_DrawOpen(Actor* thisx, PlayState* play) {

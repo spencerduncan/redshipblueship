@@ -21,34 +21,34 @@
 
 #define PARAMS ((EffectSsDeadDbInitParams*)initParamsx)
 
-u32 EffectSsDeadDb_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsDeadDb_Update(PlayState* play, u32 index, EffectSs* this);
-void EffectSsDeadDb_Draw(PlayState* play, u32 index, EffectSs* this);
+u32 MM_EffectSsDeadDb_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void MM_EffectSsDeadDb_Update(PlayState* play, u32 index, EffectSs* this);
+void MM_EffectSsDeadDb_Draw(PlayState* play, u32 index, EffectSs* this);
 
 EffectSsProfile Effect_Ss_Dead_Db_Profile = {
     EFFECT_SS_DEAD_DB,
-    EffectSsDeadDb_Init,
+    MM_EffectSsDeadDb_Init,
 };
 
-static TexturePtr sTextures[] = {
+static TexturePtr MM_sTextures[] = {
     gEffEnemyDeathFlame1Tex, gEffEnemyDeathFlame2Tex,  gEffEnemyDeathFlame3Tex, gEffEnemyDeathFlame4Tex,
     gEffEnemyDeathFlame5Tex, gEffEnemyDeathFlame6Tex,  gEffEnemyDeathFlame7Tex, gEffEnemyDeathFlame8Tex,
     gEffEnemyDeathFlame9Tex, gEffEnemyDeathFlame10Tex,
 };
 
-u32 EffectSsDeadDb_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 MM_EffectSsDeadDb_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsDeadDbInitParams* initParams = PARAMS;
 
-    Math_Vec3f_Copy(&this->pos, &initParams->pos);
-    Math_Vec3f_Copy(&this->velocity, &initParams->velocity);
-    Math_Vec3f_Copy(&this->accel, &initParams->accel);
+    MM_Math_Vec3f_Copy(&this->pos, &initParams->pos);
+    MM_Math_Vec3f_Copy(&this->velocity, &initParams->velocity);
+    MM_Math_Vec3f_Copy(&this->accel, &initParams->accel);
     this->gfx = gEffEnemyDeathFlameDL;
     this->life = initParams->life;
     this->flags = 4;
     this->rScaleStep = initParams->scaleStep;
     this->rTotalLife = initParams->life;
-    this->draw = EffectSsDeadDb_Draw;
-    this->update = EffectSsDeadDb_Update;
+    this->draw = MM_EffectSsDeadDb_Draw;
+    this->update = MM_EffectSsDeadDb_Update;
     this->rScale = initParams->scale;
     this->rTexIndex = 0;
     this->rPrimColorR = initParams->primColor.r;
@@ -62,7 +62,7 @@ u32 EffectSsDeadDb_Init(PlayState* play, u32 index, EffectSs* this, void* initPa
     return 1;
 }
 
-void EffectSsDeadDb_Draw(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsDeadDb_Draw(PlayState* play, u32 index, EffectSs* this) {
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     MtxF mfTrans;
     MtxF mfScale;
@@ -74,11 +74,11 @@ void EffectSsDeadDb_Draw(PlayState* play, u32 index, EffectSs* this) {
 
     scale = this->rScale * 0.01f;
 
-    SkinMatrix_SetTranslate(&mfTrans, this->pos.x, this->pos.y, this->pos.z);
-    SkinMatrix_SetScale(&mfScale, scale, scale, scale);
-    SkinMatrix_MtxFMtxFMult(&mfTrans, &mfScale, &mfResult);
+    MM_SkinMatrix_SetTranslate(&mfTrans, this->pos.x, this->pos.y, this->pos.z);
+    MM_SkinMatrix_SetScale(&mfScale, scale, scale, scale);
+    MM_SkinMatrix_MtxFMtxFMult(&mfTrans, &mfScale, &mfResult);
 
-    mtx = SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
+    mtx = MM_SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
 
     if (mtx != NULL) {
         gSPMatrix(POLY_XLU_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -86,14 +86,14 @@ void EffectSsDeadDb_Draw(PlayState* play, u32 index, EffectSs* this) {
         gDPSetEnvColor(POLY_XLU_DISP++, this->rEnvColorR, this->rEnvColorG, this->rEnvColorB, 0);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, this->rPrimColorR, this->rPrimColorG, this->rPrimColorB,
                         this->rPrimColorA);
-        gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(sTextures[this->rTexIndex]));
+        gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sTextures[this->rTexIndex]));
         gSPDisplayList(POLY_XLU_DISP++, this->gfx);
     }
 
     CLOSE_DISPS(gfxCtx);
 }
 
-void EffectSsDeadDb_Update(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsDeadDb_Update(PlayState* play, u32 index, EffectSs* this) {
     this->rTexIndex = (f32)((this->rTotalLife - this->life) * 9) / this->rTotalLife;
     this->rScale += this->rScaleStep;
 

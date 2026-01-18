@@ -12,18 +12,18 @@
 #define rScoreIdx regs[2]
 #define rScale regs[3]
 
-u32 EffectSsExtra_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsExtra_Draw(PlayState* play, u32 index, EffectSs* this);
-void EffectSsExtra_Update(PlayState* play, u32 index, EffectSs* this);
+u32 OoT_EffectSsExtra_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void OoT_EffectSsExtra_Draw(PlayState* play, u32 index, EffectSs* this);
+void OoT_EffectSsExtra_Update(PlayState* play, u32 index, EffectSs* this);
 
-static s16 sScores[] = { 30, 60, 100 };
+static s16 OoT_sScores[] = { 30, 60, 100 };
 
 EffectSsInit Effect_Ss_Extra_InitVars = {
     EFFECT_SS_EXTRA,
-    EffectSsExtra_Init,
+    OoT_EffectSsExtra_Init,
 };
 
-u32 EffectSsExtra_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 OoT_EffectSsExtra_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsExtraInitParams* initParams = (EffectSsExtraInitParams*)initParamsx;
     s32 pad;
     s32 objBankIndex;
@@ -31,20 +31,20 @@ u32 EffectSsExtra_Init(PlayState* play, u32 index, EffectSs* this, void* initPar
 
     objBankIndex = Object_GetIndex(&play->objectCtx, OBJECT_YABUSAME_POINT);
 
-    if ((objBankIndex >= 0) && Object_IsLoaded(&play->objectCtx, objBankIndex)) {
-        oldSeg6 = gSegments[6];
-        gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[objBankIndex].segment);
+    if ((objBankIndex >= 0) && OoT_Object_IsLoaded(&play->objectCtx, objBankIndex)) {
+        oldSeg6 = OoT_gSegments[6];
+        OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[objBankIndex].segment);
         this->pos = initParams->pos;
         this->velocity = initParams->velocity;
         this->accel = initParams->accel;
-        this->draw = EffectSsExtra_Draw;
-        this->update = EffectSsExtra_Update;
+        this->draw = OoT_EffectSsExtra_Draw;
+        this->update = OoT_EffectSsExtra_Update;
         this->life = 50;
         this->rScoreIdx = initParams->scoreIdx;
         this->rScale = initParams->scale;
         this->rTimer = 5;
         this->rObjBankIdx = objBankIndex;
-        gSegments[6] = oldSeg6;
+        OoT_gSegments[6] = oldSeg6;
 
         return 1;
     }
@@ -52,13 +52,13 @@ u32 EffectSsExtra_Init(PlayState* play, u32 index, EffectSs* this, void* initPar
     return 0;
 }
 
-static void* sTextures[] = {
+static void* OoT_sTextures[] = {
     object_yabusame_point_Tex_000000,
     object_yabusame_point_Tex_000480,
     object_yabusame_point_Tex_000900,
 };
 
-void EffectSsExtra_Draw(PlayState* play, u32 index, EffectSs* this) {
+void OoT_EffectSsExtra_Draw(PlayState* play, u32 index, EffectSs* this) {
     s32 pad;
     f32 scale = this->rScale / 100.0f;
     void* object = play->objectCtx.status[this->rObjBankIdx].segment;
@@ -66,21 +66,21 @@ void EffectSsExtra_Draw(PlayState* play, u32 index, EffectSs* this) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    gSegments[6] = VIRTUAL_TO_PHYSICAL(object);
+    OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(object);
     gSPSegment(POLY_XLU_DISP++, 0x06, object);
-    Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
-    Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+    OoT_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
+    OoT_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
-    Matrix_ReplaceRotation(&play->billboardMtxF);
+    OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
 
     // Flip the score texture matrix and un-invert the culling to display it normally
     if (mirroredWorld) {
         gSPClearExtraGeometryMode(POLY_XLU_DISP++, G_EX_INVERT_CULLING);
-        Matrix_Scale(-1, 1, 1, MTXMODE_APPLY);
+        OoT_Matrix_Scale(-1, 1, 1, MTXMODE_APPLY);
     }
 
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-    gSPSegment(POLY_XLU_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(sTextures[this->rScoreIdx]));
+    gSPSegment(POLY_XLU_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(OoT_sTextures[this->rScoreIdx]));
     gSPDisplayList(POLY_XLU_DISP++, SEGMENTED_TO_VIRTUAL(object_yabusame_point_DL_000DC0));
 
     // Set back inverted culling
@@ -91,7 +91,7 @@ void EffectSsExtra_Draw(PlayState* play, u32 index, EffectSs* this) {
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void EffectSsExtra_Update(PlayState* play, u32 index, EffectSs* this) {
+void OoT_EffectSsExtra_Update(PlayState* play, u32 index, EffectSs* this) {
     if (this->rTimer != 0) {
         this->rTimer -= 1;
     } else {
@@ -99,6 +99,6 @@ void EffectSsExtra_Update(PlayState* play, u32 index, EffectSs* this) {
     }
 
     if (this->rTimer == 1) {
-        play->interfaceCtx.unk_23C = sScores[this->rScoreIdx];
+        play->interfaceCtx.unk_23C = OoT_sScores[this->rScoreIdx];
     }
 }

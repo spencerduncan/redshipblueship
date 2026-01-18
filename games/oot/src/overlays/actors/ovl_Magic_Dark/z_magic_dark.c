@@ -47,7 +47,7 @@ void MagicDark_Init(Actor* thisx, PlayState* play) {
     }
 
     thisx->world.pos = player->actor.world.pos;
-    Actor_SetScale(&this->actor, 0.0f);
+    OoT_Actor_SetScale(&this->actor, 0.0f);
     thisx->room = -1;
 
     if (gSaveContext.nayrusLoveTimer != 0) {
@@ -65,7 +65,7 @@ void MagicDark_Init(Actor* thisx, PlayState* play) {
 
 void MagicDark_Destroy(Actor* thisx, PlayState* play) {
     if (gSaveContext.nayrusLoveTimer == 0) {
-        Magic_Reset(play);
+        OoT_Magic_Reset(play);
     }
 }
 
@@ -78,14 +78,14 @@ void MagicDark_DiamondUpdate(Actor* thisx, PlayState* play) {
     s32 msgMode = play->msgCtx.msgMode;
 
     if ((msgMode == MSGMODE_OCARINA_CORRECT_PLAYBACK) || (msgMode == MSGMODE_SONG_PLAYED)) {
-        Actor_Kill(thisx);
+        OoT_Actor_Kill(thisx);
         return;
     }
 
     if (nayrusLoveTimer >= 1200) {
         player->invincibilityTimer = 0;
         gSaveContext.nayrusLoveTimer = 0;
-        Actor_Kill(thisx);
+        OoT_Actor_Kill(thisx);
         return;
     }
 
@@ -121,7 +121,7 @@ void MagicDark_DiamondUpdate(Actor* thisx, PlayState* play) {
     }
 
     thisx->world.rot.y += 0x3E8;
-    thisx->shape.rot.y = thisx->world.rot.y + Camera_GetCamDirYaw(GET_ACTIVE_CAM(play));
+    thisx->shape.rot.y = thisx->world.rot.y + OoT_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play));
     this->timer++;
     gSaveContext.nayrusLoveTimer = nayrusLoveTimer + 1;
 
@@ -174,11 +174,11 @@ void MagicDark_OrbUpdate(Actor* thisx, PlayState* play) {
     func_8002F974(&this->actor, NA_SE_PL_MAGIC_SOUL_BALL - SFX_FLAG);
     if (this->timer < 35) {
         MagicDark_DimLighting(play, this->timer * (1 / 45.0f));
-        Math_SmoothStepToF(&thisx->scale.x, this->scale * (1 / 12.000001f), 0.05f, 0.01f, 0.0001f);
-        Actor_SetScale(&this->actor, thisx->scale.x);
+        OoT_Math_SmoothStepToF(&thisx->scale.x, this->scale * (1 / 12.000001f), 0.05f, 0.01f, 0.0001f);
+        OoT_Actor_SetScale(&this->actor, thisx->scale.x);
     } else if (this->timer < 55) {
-        Actor_SetScale(&this->actor, thisx->scale.x * 0.9f);
-        Math_SmoothStepToF(&this->orbOffset.y, player->bodyPartsPos[0].y, 0.5f, 3.0f, 1.0f);
+        OoT_Actor_SetScale(&this->actor, thisx->scale.x * 0.9f);
+        OoT_Math_SmoothStepToF(&this->orbOffset.y, player->bodyPartsPos[0].y, 0.5f, 3.0f, 1.0f);
         if (this->timer > 48) {
             MagicDark_DimLighting(play, (54 - this->timer) * 0.2f);
         }
@@ -223,15 +223,15 @@ void MagicDark_DiamondDraw(Actor* thisx, PlayState* play) {
         } else if (heightDiff > 2.0f) {
             this->actor.world.pos.y = player->bodyPartsPos[0].y - 2.0f;
         }
-        Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
-        Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+        OoT_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
+        OoT_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
         Matrix_RotateY(this->actor.shape.rot.y * (M_PI / 0x8000), MTXMODE_APPLY);
         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, Spell_col.r, Spell_col.g, Spell_col.b,
                         (s32)(this->primAlpha * 0.6f) & 0xFF);
         gDPSetEnvColor(POLY_XLU_DISP++, Spell_env.r, Spell_env.g, Spell_env.b, 128);
         gSPDisplayList(POLY_XLU_DISP++, sDiamondMaterialDL);
-        gSPDisplayList(POLY_XLU_DISP++, Gfx_TwoTexScroll(play->state.gfxCtx, 0, gameplayFrames * 2, gameplayFrames * -4,
+        gSPDisplayList(POLY_XLU_DISP++, OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, gameplayFrames * 2, gameplayFrames * -4,
                                                          32, 32, 1, 0, gameplayFrames * -16, 64, 32));
         gSPDisplayList(POLY_XLU_DISP++, sDiamondModelDL);
     }
@@ -260,11 +260,11 @@ void MagicDark_OrbDraw(Actor* thisx, PlayState* play) {
         return;
     }
 
-    pos.x -= (this->actor.scale.x * 300.0f * Math_SinS(Camera_GetCamDirYaw(GET_ACTIVE_CAM(play))) *
-              Math_CosS(Camera_GetCamDirPitch(GET_ACTIVE_CAM(play))));
-    pos.y -= (this->actor.scale.x * 300.0f * Math_SinS(Camera_GetCamDirPitch(GET_ACTIVE_CAM(play))));
-    pos.z -= (this->actor.scale.x * 300.0f * Math_CosS(Camera_GetCamDirYaw(GET_ACTIVE_CAM(play))) *
-              Math_CosS(Camera_GetCamDirPitch(GET_ACTIVE_CAM(play))));
+    pos.x -= (this->actor.scale.x * 300.0f * OoT_Math_SinS(OoT_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play))) *
+              OoT_Math_CosS(OoT_Camera_GetCamDirPitch(GET_ACTIVE_CAM(play))));
+    pos.y -= (this->actor.scale.x * 300.0f * OoT_Math_SinS(OoT_Camera_GetCamDirPitch(GET_ACTIVE_CAM(play))));
+    pos.z -= (this->actor.scale.x * 300.0f * OoT_Math_CosS(OoT_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play))) *
+              OoT_Math_CosS(OoT_Camera_GetCamDirPitch(GET_ACTIVE_CAM(play))));
 
     OPEN_DISPS(play->state.gfxCtx);
 
@@ -281,14 +281,14 @@ void MagicDark_OrbDraw(Actor* thisx, PlayState* play) {
 
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, Spell_col.r, Spell_col.g, Spell_col.b, 255);
     gDPSetEnvColor(POLY_XLU_DISP++, Spell_env.r, Spell_env.g, Spell_env.b, 255);
-    Matrix_Translate(pos.x, pos.y, pos.z, MTXMODE_NEW);
-    Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
-    Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
-    Matrix_Push();
+    OoT_Matrix_Translate(pos.x, pos.y, pos.z, MTXMODE_NEW);
+    OoT_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+    OoT_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
+    OoT_Matrix_Push();
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     Matrix_RotateZ(sp6C * (M_PI / 32), MTXMODE_APPLY);
     gSPDisplayList(POLY_XLU_DISP++, gEffFlash1DL);
-    Matrix_Pop();
+    OoT_Matrix_Pop();
     Matrix_RotateZ(-sp6C * (M_PI / 32), MTXMODE_APPLY);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_XLU_DISP++, gEffFlash1DL);

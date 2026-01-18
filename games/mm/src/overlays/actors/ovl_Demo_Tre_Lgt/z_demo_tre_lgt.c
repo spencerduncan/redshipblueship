@@ -10,10 +10,10 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void DemoTreLgt_Init(Actor* thisx, PlayState* play);
-void DemoTreLgt_Destroy(Actor* thisx, PlayState* play);
-void DemoTreLgt_Update(Actor* thisx, PlayState* play);
-void DemoTreLgt_Draw(Actor* thisx, PlayState* play);
+void MM_DemoTreLgt_Init(Actor* thisx, PlayState* play);
+void MM_DemoTreLgt_Destroy(Actor* thisx, PlayState* play);
+void MM_DemoTreLgt_Update(Actor* thisx, PlayState* play);
+void MM_DemoTreLgt_Draw(Actor* thisx, PlayState* play);
 
 void DemoTreLgt_SetupWait(DemoTreLgt* this);
 
@@ -39,10 +39,10 @@ ActorProfile Demo_Tre_Lgt_Profile = {
     /**/ FLAGS,
     /**/ OBJECT_BOX,
     /**/ sizeof(DemoTreLgt),
-    /**/ DemoTreLgt_Init,
-    /**/ DemoTreLgt_Destroy,
-    /**/ DemoTreLgt_Update,
-    /**/ DemoTreLgt_Draw,
+    /**/ MM_DemoTreLgt_Init,
+    /**/ MM_DemoTreLgt_Destroy,
+    /**/ MM_DemoTreLgt_Update,
+    /**/ MM_DemoTreLgt_Draw,
 };
 
 static CurveAnimationHeader* sBoxLightAnimations[] = {
@@ -55,15 +55,15 @@ typedef enum {
     /* 1 */ DEMO_TRE_LGT_ACTION_ANIMATE
 } DemoTreLgtAction;
 
-static DemoTreLgtActionFunc sActionFuncs[] = {
+static DemoTreLgtActionFunc MM_sActionFuncs[] = {
     DemoTreLgt_Wait,
     DemoTreLgt_Animate,
 };
 
-void DemoTreLgt_Init(Actor* thisx, PlayState* play) {
+void MM_DemoTreLgt_Init(Actor* thisx, PlayState* play) {
     DemoTreLgt* this = (DemoTreLgt*)thisx;
 
-    SkelCurve_Init(play, &this->skelCurve, &gBoxLightCurveSkel, sBoxLightAnimations[0]);
+    MM_SkelCurve_Init(play, &this->skelCurve, &gBoxLightCurveSkel, sBoxLightAnimations[0]);
     this->colorAlpha1 = 255;
     this->colorAlpha2 = 255;
     this->status = 0;
@@ -76,10 +76,10 @@ void DemoTreLgt_Init(Actor* thisx, PlayState* play) {
     DemoTreLgt_SetupWait(this);
 }
 
-void DemoTreLgt_Destroy(Actor* thisx, PlayState* play) {
+void MM_DemoTreLgt_Destroy(Actor* thisx, PlayState* play) {
     DemoTreLgt* this = (DemoTreLgt*)thisx;
 
-    SkelCurve_Destroy(play, &this->skelCurve);
+    MM_SkelCurve_Destroy(play, &this->skelCurve);
 }
 
 void DemoTreLgt_SetupWait(DemoTreLgt* this) {
@@ -90,7 +90,7 @@ void DemoTreLgt_Wait(DemoTreLgt* this, PlayState* play) {
     EnBox* chest = (EnBox*)this->actor.parent;
 
     if (chest != NULL) {
-        if (Animation_OnFrame(&chest->skelAnime, 10.0f)) {
+        if (MM_Animation_OnFrame(&chest->skelAnime, 10.0f)) {
             DemoTreLgt_SetupAnimate(this, play, chest->skelAnime.curFrame);
         }
     }
@@ -98,9 +98,9 @@ void DemoTreLgt_Wait(DemoTreLgt* this, PlayState* play) {
 
 void DemoTreLgt_SetupAnimate(DemoTreLgt* this, PlayState* play, f32 frame) {
     this->action = DEMO_TRE_LGT_ACTION_ANIMATE;
-    SkelCurve_SetAnim(&this->skelCurve, sBoxLightAnimations[this->animationType], 1.0f,
+    MM_SkelCurve_SetAnim(&this->skelCurve, sBoxLightAnimations[this->animationType], 1.0f,
                       D_808E1490[this->animationType].unk4 + D_808E1490[this->animationType].unk8, frame, 1.0f);
-    SkelCurve_Update(play, &this->skelCurve);
+    MM_SkelCurve_Update(play, &this->skelCurve);
 }
 
 void DemoTreLgt_Animate(DemoTreLgt* this, PlayState* play) {
@@ -128,15 +128,15 @@ void DemoTreLgt_Animate(DemoTreLgt* this, PlayState* play) {
             Audio_PlaySfx_AtPos(&this->actor.projectedPos, NA_SE_EV_TRE_BOX_FLASH);
         }
     }
-    if (SkelCurve_Update(play, &this->skelCurve)) {
-        Actor_Kill(&this->actor);
+    if (MM_SkelCurve_Update(play, &this->skelCurve)) {
+        MM_Actor_Kill(&this->actor);
     }
 }
 
-void DemoTreLgt_Update(Actor* thisx, PlayState* play) {
+void MM_DemoTreLgt_Update(Actor* thisx, PlayState* play) {
     DemoTreLgt* this = (DemoTreLgt*)thisx;
 
-    sActionFuncs[this->action](this, play);
+    MM_sActionFuncs[this->action](this, play);
 }
 
 s32 DemoTreLgt_OverrideLimbDraw(PlayState* play, SkelCurve* skelCuve, s32 limbIndex, Actor* thisx) {
@@ -146,7 +146,7 @@ s32 DemoTreLgt_OverrideLimbDraw(PlayState* play, SkelCurve* skelCuve, s32 limbIn
     OPEN_DISPS(play->state.gfxCtx);
 
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, (play->state.frames * 2) % 256, 0, 64, 32, 1,
+               MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, (play->state.frames * 2) % 256, 0, 64, 32, 1,
                                 (play->state.frames * -2) % 256, 0, 64, 32));
 
     if (limbIndex == OBJECT_BOX_LIGHT_LIMB_01) {
@@ -161,7 +161,7 @@ s32 DemoTreLgt_OverrideLimbDraw(PlayState* play, SkelCurve* skelCuve, s32 limbIn
     return true;
 }
 
-void DemoTreLgt_Draw(Actor* thisx, PlayState* play) {
+void MM_DemoTreLgt_Draw(Actor* thisx, PlayState* play) {
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     DemoTreLgt* this = (DemoTreLgt*)thisx;
 
@@ -170,7 +170,7 @@ void DemoTreLgt_Draw(Actor* thisx, PlayState* play) {
     if (this->action == DEMO_TRE_LGT_ACTION_ANIMATE) {
         Gfx_SetupDL25_Xlu(gfxCtx);
         gDPSetEnvColor(POLY_XLU_DISP++, 200, 255, 0, 0);
-        SkelCurve_Draw(&this->actor, play, &this->skelCurve, DemoTreLgt_OverrideLimbDraw, NULL, 1, &this->actor);
+        MM_SkelCurve_Draw(&this->actor, play, &this->skelCurve, DemoTreLgt_OverrideLimbDraw, NULL, 1, &this->actor);
     }
 
     CLOSE_DISPS(gfxCtx);

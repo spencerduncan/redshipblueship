@@ -51,8 +51,8 @@ void DmHina_Destroy(Actor* thisx, PlayState* play) {
 void func_80A1F470(DmHina* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    Math_SmoothStepToF(&this->unk148, 0.6f, 0.5f, 0.05f, 0.001f);
-    this->unk154 = Math_SinS(play->gameplayFrames * 0x708) * 8.0f;
+    MM_Math_SmoothStepToF(&this->unk148, 0.6f, 0.5f, 0.05f, 0.001f);
+    this->unk154 = MM_Math_SinS(play->gameplayFrames * 0x708) * 8.0f;
     if ((player->stateFlags1 & PLAYER_STATE1_400) && (this->actor.xzDistToPlayer < 80.0f)) {
         this->isDrawn = false;
         this->unk154 = 0.0f;
@@ -62,7 +62,7 @@ void func_80A1F470(DmHina* this, PlayState* play) {
 }
 
 void func_80A1F56C(DmHina* this, PlayState* play) {
-    if (Message_GetState(&play->msgCtx) == TEXT_STATE_CLOSING) {
+    if (MM_Message_GetState(&play->msgCtx) == TEXT_STATE_CLOSING) {
         this->unk17C = 2;
         this->actionFunc = func_80A1F5AC;
     }
@@ -73,9 +73,9 @@ void func_80A1F5AC(DmHina* this, PlayState* play) {
     if (this->unk17C == 0) {
         this->isDrawn = true;
         Cutscene_StartManual(play, &play->csCtx);
-        this->subCamId = Play_CreateSubCamera(play);
-        Play_ChangeCameraStatus(play, CAM_ID_MAIN, CAM_STATUS_WAIT);
-        Play_ChangeCameraStatus(play, this->subCamId, CAM_STATUS_ACTIVE);
+        this->subCamId = MM_Play_CreateSubCamera(play);
+        MM_Play_ChangeCameraStatus(play, CAM_ID_MAIN, CAM_STATUS_WAIT);
+        MM_Play_ChangeCameraStatus(play, this->subCamId, CAM_STATUS_ACTIVE);
         this->actionFunc = func_80A1F63C;
     }
 }
@@ -88,7 +88,7 @@ void func_80A1F63C(DmHina* this, PlayState* play) {
     this->subCamAt.y = this->actor.world.pos.y + this->unk154 * this->unk15C + 40.0f * this->unk15C;
     this->subCamAt.z = this->actor.world.pos.z;
     Play_SetCameraAtEye(play, this->subCamId, &this->subCamAt, &this->subCamEye);
-    Math_SmoothStepToF(&this->actor.world.pos.y, this->unk158 + 300.0f, 0.5f, 2.0f, 0.1f);
+    MM_Math_SmoothStepToF(&this->actor.world.pos.y, this->unk158 + 300.0f, 0.5f, 2.0f, 0.1f);
     if (((this->unk158 + 240.0f) < this->actor.world.pos.y) && (this->unk17E != 1)) {
         this->unk17E = 1;
         Actor_PlaySfx(&this->actor, NA_SE_OC_WHITE_OUT_INTO_KYOJIN);
@@ -106,9 +106,9 @@ void func_80A1F75C(DmHina* this, PlayState* play) {
             break;
 
         case 1:
-            Math_SmoothStepToF(&this->unk14C, 1.0f, 0.4f, 0.05f, 0.001f);
+            MM_Math_SmoothStepToF(&this->unk14C, 1.0f, 0.4f, 0.05f, 0.001f);
             this->unk17F = this->unk14C * 255.0f;
-            this->unk150 = Math_SinS(play->state.frames * 0x1F40);
+            this->unk150 = MM_Math_SinS(play->state.frames * 0x1F40);
             for (i = 0; i < ARRAY_COUNT(play->envCtx.adjLightSettings.light1Color); i++) {
                 play->envCtx.adjLightSettings.ambientColor[i] = play->envCtx.adjLightSettings.fogColor[i] =
                     play->envCtx.adjLightSettings.light1Color[i] = -255.0f * this->unk14C;
@@ -144,12 +144,12 @@ void func_80A1F9AC(DmHina* this, PlayState* play) {
         gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, (u8)(this->unk150 * 100.0f) + 50, 0);
         gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
 
-        Matrix_Translate(this->actor.world.pos.x,
+        MM_Matrix_Translate(this->actor.world.pos.x,
                          this->actor.world.pos.y + (this->unk154 * this->unk15C) + (40.0f * this->unk15C),
                          this->actor.world.pos.z, MTXMODE_NEW);
-        Matrix_ReplaceRotation(&play->billboardMtxF);
-        Matrix_Scale(this->unk14C * 20.0f, this->unk14C * 20.0f, this->unk14C * 20.0f, MTXMODE_APPLY);
-        Matrix_RotateZF(Rand_ZeroFloat(2 * M_PIf), MTXMODE_APPLY);
+        MM_Matrix_ReplaceRotation(&play->billboardMtxF);
+        MM_Matrix_Scale(this->unk14C * 20.0f, this->unk14C * 20.0f, this->unk14C * 20.0f, MTXMODE_APPLY);
+        Matrix_RotateZF(MM_Rand_ZeroFloat(2 * M_PIf), MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
         gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
@@ -163,28 +163,28 @@ void DmHina_Draw(Actor* thisx, PlayState* play) {
     f32 scale;
 
     if (this->isDrawn) {
-        Matrix_Translate(this->actor.world.pos.x,
+        MM_Matrix_Translate(this->actor.world.pos.x,
                          this->actor.world.pos.y + (this->unk154 * this->unk15C) + (40.0f * this->unk15C),
                          this->actor.world.pos.z, MTXMODE_NEW);
-        Matrix_RotateZYX(0, play->gameplayFrames * 0x3E8, 0, MTXMODE_APPLY);
+        MM_Matrix_RotateZYX(0, play->gameplayFrames * 0x3E8, 0, MTXMODE_APPLY);
         scale = this->unk148 * (1.0f - this->unk14C) * this->unk15C;
-        Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+        MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
         if (GameInteractor_Should(VB_DRAW_BOSS_REMAINS, true, this)) {
             switch (this->actor.params) {
                 case 0:
-                    GetItem_Draw(play, GID_REMAINS_ODOLWA);
+                    MM_GetItem_Draw(play, GID_REMAINS_ODOLWA);
                     break;
 
                 case 1:
-                    GetItem_Draw(play, GID_REMAINS_GOHT);
+                    MM_GetItem_Draw(play, GID_REMAINS_GOHT);
                     break;
 
                 case 2:
-                    GetItem_Draw(play, GID_REMAINS_GYORG);
+                    MM_GetItem_Draw(play, GID_REMAINS_GYORG);
                     break;
 
                 case 3:
-                    GetItem_Draw(play, GID_REMAINS_TWINMOLD);
+                    MM_GetItem_Draw(play, GID_REMAINS_TWINMOLD);
                     break;
 
                 default:

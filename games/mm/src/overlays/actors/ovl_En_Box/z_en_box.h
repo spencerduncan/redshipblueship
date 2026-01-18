@@ -40,7 +40,7 @@ typedef enum {
 #define ENBOX_GET_ITEM(thisx) (((thisx)->params >> 5) & 0x7F)
 #define ENBOX_GET_CHEST_FLAG(thisx) ((thisx)->params & 0x1F)
 #define ENBOX_GET_SWITCH_FLAG(thisx) ((thisx)->world.rot.z)
-// Codegen in EnTorch_Init() requires leaving out the & 0x7F for `item`
+// Codegen in MM_EnTorch_Init() requires leaving out the & 0x7F for `item`
 #define ENBOX_PARAMS(type, item, chestFlag) ((((type) & 0xF) << 12) | ((item) << 5) | ((chestFlag) & 0x1F))
 
 typedef struct EnBox {

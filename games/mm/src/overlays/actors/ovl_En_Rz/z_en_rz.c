@@ -59,11 +59,11 @@ ActorProfile En_Rz_Profile = {
     /**/ EnRz_Draw,
 };
 
-static TexturePtr sEyeTextures[] = {
+static TexturePtr MM_sEyeTextures[] = {
     object_rz_Tex_00BC50, object_rz_Tex_00C190, object_rz_Tex_00C590, object_rz_Tex_00C990, object_rz_Tex_00CD90,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -96,16 +96,16 @@ void EnRz_Init(Actor* thisx, PlayState* play) {
         }
     }
 
-    Actor_SetScale(&this->actor, 0.01f);
-    ActorShape_Init(&this->actor.shape, 0.0f, EnRz_ActorShadowFunc, 20.0f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, EnRz_ActorShadowFunc, 20.0f);
 
     //! @bug this alignment is because of player animations, but should be using ALIGN16
-    SkelAnime_InitFlex(play, &this->skelAnime, &object_rz_Skel_00D8D8, &gRosaSistersStandingAnim,
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &object_rz_Skel_00D8D8, &gRosaSistersStandingAnim,
                        (void*)((uintptr_t)this->jointTable & ~0xF), (void*)((uintptr_t)this->morphTable & ~0xF),
                        OBJECT_RZ_LIMB_MAX);
-    Animation_PlayLoop(&this->skelAnime, &gRosaSistersStandingAnim);
+    MM_Animation_PlayLoop(&this->skelAnime, &gRosaSistersStandingAnim);
 
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
 
     this->actionFunc = func_80BFC058;
@@ -118,7 +118,7 @@ void EnRz_Init(Actor* thisx, PlayState* play) {
     switch (EN_RZ_GET_TYPE(thisx)) {
         case EN_RZ_TYPE_1:
             if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_77_04)) {
-                Actor_Kill(&this->actor);
+                MM_Actor_Kill(&this->actor);
                 return;
             }
             EnRz_ChangeAnim(play, this, EN_RZ_ANIM_SITTING, ANIMMODE_LOOP, 0.0f);
@@ -141,7 +141,7 @@ void EnRz_Init(Actor* thisx, PlayState* play) {
         default: // EN_RZ_TYPE_0
             this->stateFlags |= EN_RZ_STATE_2;
             if (CHECK_WEEKEVENTREG(WEEKEVENTREG_77_04)) {
-                Actor_Kill(&this->actor);
+                MM_Actor_Kill(&this->actor);
                 return;
             }
             EnRz_ChangeAnim(play, this, EN_RZ_ANIM_WALKING, ANIMMODE_LOOP, 0.0f);
@@ -176,8 +176,8 @@ void EnRz_ActorShadowFunc(Actor* thisx, Lights* mapper, PlayState* play) {
         this->actor.scale.x = tempScale;
     }
 
-    Math_Vec3f_Copy(&oldPos, &this->actor.world.pos);
-    Math_Vec3f_Copy(&this->actor.world.pos, &this->shadowPos);
+    MM_Math_Vec3f_Copy(&oldPos, &this->actor.world.pos);
+    MM_Math_Vec3f_Copy(&this->actor.world.pos, &this->shadowPos);
     func_800B4AEC(play, &this->actor, 50.0f);
 
     if (oldPos.y < this->actor.floorHeight) {
@@ -186,8 +186,8 @@ void EnRz_ActorShadowFunc(Actor* thisx, Lights* mapper, PlayState* play) {
         this->actor.world.pos.y = oldPos.y;
     }
 
-    ActorShadow_DrawCircle(&this->actor, mapper, play);
-    Math_Vec3f_Copy(&this->actor.world.pos, &oldPos);
+    MM_ActorShadow_DrawCircle(&this->actor, mapper, play);
+    MM_Math_Vec3f_Copy(&this->actor.world.pos, &oldPos);
     this->actor.scale.x = 0.01f;
 }
 
@@ -227,7 +227,7 @@ void EnRz_ChangeAnim(PlayState* play, EnRz* this, s16 animIndex, u8 animMode, f3
     if ((animIndex >= EN_RZ_ANIM_THINKING) && (animIndex < EN_RZ_ANIM_MAX) &&
         ((animIndex != this->animIndex) || (animMode != ANIMMODE_LOOP))) {
         if (animIndex >= ARRAY_COUNT(sJudoAnimations)) {
-            endFrame = Animation_GetLastFrame(sPlayerAnimations[animIndex - ARRAY_COUNT(sJudoAnimations)]);
+            endFrame = MM_Animation_GetLastFrame(sPlayerAnimations[animIndex - ARRAY_COUNT(sJudoAnimations)]);
             if (animMode == ANIMMODE_LOOP) {
                 PlayerAnimation_Change(play, &this->skelAnime,
                                        sPlayerAnimations[animIndex - ARRAY_COUNT(sJudoAnimations)],
@@ -238,8 +238,8 @@ void EnRz_ChangeAnim(PlayState* play, EnRz* this, s16 animIndex, u8 animMode, f3
                                        PLAYER_ANIM_ADJUSTED_SPEED, 0.0f, endFrame, ANIMMODE_LOOP, morphFrames);
             }
         } else {
-            Animation_Change(&this->skelAnime, animationPtr[animIndex], 1.0f, 0.0f,
-                             Animation_GetLastFrame(animationPtr[animIndex]), animMode, morphFrames);
+            MM_Animation_Change(&this->skelAnime, animationPtr[animIndex], 1.0f, 0.0f,
+                             MM_Animation_GetLastFrame(animationPtr[animIndex]), animMode, morphFrames);
         }
 
         this->animIndex = animIndex;
@@ -292,8 +292,8 @@ EnRzPathStatus EnRz_GetPathStatus(EnRz* this) {
     curPoint = &((Vec3s*)Lib_SegmentedToVirtual(path->points))[this->curPointIndex];
     diffX = curPoint->x - this->actor.world.pos.x;
     diffZ = curPoint->z - this->actor.world.pos.z;
-    this->actor.world.rot.y = Math_Atan2S(diffX, diffZ);
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.world.rot.y, 2, 0x7D0, 0xC8);
+    this->actor.world.rot.y = MM_Math_Atan2S(diffX, diffZ);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.world.rot.y, 2, 0x7D0, 0xC8);
 
     if ((SQ(diffX) + SQ(diffZ)) < SQ(10.0f)) {
         if (this->stateFlags & EN_RZ_STATE_1) {
@@ -314,7 +314,7 @@ EnRzPathStatus EnRz_GetPathStatus(EnRz* this) {
 
 s32 EnRz_CanTalk(EnRz* this, PlayState* play) {
     if ((this->actor.xzDistToPlayer < 80.0f) && (fabsf(this->actor.playerHeightRel) < 20.0f) &&
-        Player_IsFacingActor(&this->actor, 0x3000, play)) {
+        MM_Player_IsFacingActor(&this->actor, 0x3000, play)) {
         return true;
     }
     return false;
@@ -324,7 +324,7 @@ s32 func_80BFBCEC(EnRz* this, PlayState* play) {
     s32 pad;
     Player* player = GET_PLAYER(play);
 
-    if ((this->actor.xzDistToPlayer < 100.0f) && Actor_IsFacingPlayer(&this->actor, 0x3000) &&
+    if ((this->actor.xzDistToPlayer < 100.0f) && MM_Actor_IsFacingPlayer(&this->actor, 0x3000) &&
         (player->stateFlags2 & PLAYER_STATE2_2000000)) {
         return true;
     }
@@ -333,7 +333,7 @@ s32 func_80BFBCEC(EnRz* this, PlayState* play) {
 
 s32 EnRz_UpdateSkelAnime(EnRz* this, PlayState* play) {
     if (this->animIndex < EN_RZ_ANIM_LINK_NORMAL_WAIT_FREE) {
-        return SkelAnime_Update(&this->skelAnime);
+        return MM_SkelAnime_Update(&this->skelAnime);
     } else {
         return PlayerAnimation_Update(play, &this->skelAnime);
     }
@@ -363,7 +363,7 @@ void func_80BFBDFC(PlayState* play) {
 void EnRz_Destroy(Actor* thisx, PlayState* play) {
     EnRz* this = (EnRz*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 s32 func_80BFBE70(EnRz* this, PlayState* play) {
@@ -407,7 +407,7 @@ s32 func_80BFBE70(EnRz* this, PlayState* play) {
 
 s32 func_80BFBFAC(EnRz* this, PlayState* play) {
     if (this->actor.csId == CS_ID_NONE) {
-        Message_StartTextbox(play, 0x2925, &this->actor);
+        MM_Message_StartTextbox(play, 0x2925, &this->actor);
         this->actionFunc = func_80BFC078;
     } else if (CutsceneManager_GetCurrentCsId() == CS_ID_GLOBAL_TALK) {
         CutsceneManager_Stop(CS_ID_GLOBAL_TALK);
@@ -432,16 +432,16 @@ void func_80BFC078(EnRz* this, PlayState* play) {
 
     EnRz_UpdateSkelAnime(this, play);
 
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         switch (play->msgCtx.currentTextId) {
             case 0x2927:
             case 0x2928:
-                Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                 SET_WEEKEVENTREG(WEEKEVENTREG_77_04);
                 break;
 
             default:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 this->actionFunc = func_80BFC3F8;
                 if (this->animIndex != EN_RZ_ANIM_LINK_DANCE) {
                     EnRz_ChangeAnimLoopMorph(play, this, EN_RZ_ANIM_DANCE);
@@ -481,20 +481,20 @@ void func_80BFC214(EnRz* this, PlayState* play) {
 
 void func_80BFC270(EnRz* this, PlayState* play) {
     EnRz_UpdateSkelAnime(this, play);
-    if (Actor_HasParent(&this->actor, play)) {
+    if (MM_Actor_HasParent(&this->actor, play)) {
         this->actor.parent = NULL;
         this->actionFunc = func_80BFC214;
         func_80BFBDFC(play);
     } else {
-        Actor_OfferGetItem(&this->actor, play, GI_HEART_PIECE, 2000.0f, 1000.0f);
+        MM_Actor_OfferGetItem(&this->actor, play, GI_HEART_PIECE, 2000.0f, 1000.0f);
     }
 }
 
 void func_80BFC2F4(EnRz* this, PlayState* play) {
     EnRz_UpdateSkelAnime(this, play);
     if (!func_80BFBE70(this, play)) {
-        Message_CloseTextbox(play);
-        Actor_OfferGetItem(&this->actor, play, GI_HEART_PIECE, 2000.0f, 1000.0f);
+        MM_Message_CloseTextbox(play);
+        MM_Actor_OfferGetItem(&this->actor, play, GI_HEART_PIECE, 2000.0f, 1000.0f);
         this->actionFunc = func_80BFC270;
     }
 }
@@ -531,16 +531,16 @@ void func_80BFC3F8(EnRz* this, PlayState* play) {
                 this->actionFunc = func_80BFC36C;
                 this->actor.csId = this->csIdList[0];
                 this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
-            } else if (Player_GetMask(play) == PLAYER_MASK_KAMARO) {
+            } else if (MM_Player_GetMask(play) == PLAYER_MASK_KAMARO) {
                 if (CHECK_WEEKEVENTREG(WEEKEVENTREG_77_04)) {
-                    Message_StartTextbox(play, 0x2925, &this->actor);
+                    MM_Message_StartTextbox(play, 0x2925, &this->actor);
                     func_80BFBDFC(play);
                 } else {
-                    Message_StartTextbox(play, 0x2926, &this->actor);
+                    MM_Message_StartTextbox(play, 0x2926, &this->actor);
                     func_80BFBDFC(play);
                 }
             } else {
-                Message_StartTextbox(play, 0x2926, &this->actor);
+                MM_Message_StartTextbox(play, 0x2926, &this->actor);
                 func_80BFBDFC(play);
             }
 
@@ -566,8 +566,8 @@ void func_80BFC3F8(EnRz* this, PlayState* play) {
 void func_80BFC608(EnRz* this, PlayState* play) {
     EnRz_UpdateSkelAnime(this, play);
 
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
-        Message_CloseTextbox(play);
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
+        MM_Message_CloseTextbox(play);
         this->actionFunc = func_80BFC674;
     }
 }
@@ -577,10 +577,10 @@ void func_80BFC674(EnRz* this, PlayState* play) {
 
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         this->actionFunc = func_80BFC608;
-        if (Player_GetMask(play) == PLAYER_MASK_KAMARO) {
-            Message_StartTextbox(play, 0x2925, &this->actor);
+        if (MM_Player_GetMask(play) == PLAYER_MASK_KAMARO) {
+            MM_Message_StartTextbox(play, 0x2925, &this->actor);
         } else {
-            Message_StartTextbox(play, 0x2924, &this->actor);
+            MM_Message_StartTextbox(play, 0x2924, &this->actor);
         }
     } else if (EnRz_CanTalk(this, play)) {
         Actor_OfferTalk(&this->actor, play, 120.0f);
@@ -590,8 +590,8 @@ void func_80BFC674(EnRz* this, PlayState* play) {
 void func_80BFC728(EnRz* this, PlayState* play) {
     EnRz_UpdateSkelAnime(this, play);
 
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
-        Message_CloseTextbox(play);
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
+        MM_Message_CloseTextbox(play);
         this->actionFunc = func_80BFC7E0;
         this->actor.textId++;
         if (EN_RZ_GET_SISTER(&this->actor) == EN_RZ_JUDO) {
@@ -663,15 +663,15 @@ void EnRz_Update(Actor* thisx, PlayState* play) {
     s32 pad;
     EnRz* this = (EnRz*)thisx;
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     Actor_MoveWithGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 40.0f, 25.0f, 40.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 40.0f, 25.0f, 40.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
 
     this->actionFunc(this, play);
 
     if (DECR(this->blinkTimer) == 0) {
-        this->blinkTimer = Rand_S16Offset(60, 60);
+        this->blinkTimer = MM_Rand_S16Offset(60, 60);
     }
 
     this->eyeIndex = this->blinkTimer;
@@ -685,10 +685,10 @@ void EnRz_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
     EnRz* this = (EnRz*)thisx;
 
     if (limbIndex == OBJECT_RZ_LIMB_0B) {
-        Matrix_MultVec3f(&sFocusOffsetPos, &thisx->focus.pos);
+        MM_Matrix_MultVec3f(&sFocusOffsetPos, &thisx->focus.pos);
     }
     if (limbIndex == OBJECT_RZ_LIMB_03) {
-        Matrix_MultVec3f(&gZeroVec3f, &this->shadowPos);
+        MM_Matrix_MultVec3f(&gZeroVec3f, &this->shadowPos);
     }
 }
 
@@ -706,14 +706,14 @@ void EnRz_Draw(Actor* thisx, PlayState* play) {
     }
 
     if (this->animIndex == EN_RZ_ANIM_APPLAUDING) {
-        gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(sEyeTextures[4]));
+        gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sEyeTextures[4]));
     } else if (this->stateFlags & EN_RZ_STATE_2) {
-        gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(sEyeTextures[3]));
+        gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sEyeTextures[3]));
     } else {
-        gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(sEyeTextures[this->eyeIndex]));
+        gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeIndex]));
     }
 
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount, NULL,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount, NULL,
                           EnRz_PostLimbDraw, &this->actor);
 
     CLOSE_DISPS(play->state.gfxCtx);

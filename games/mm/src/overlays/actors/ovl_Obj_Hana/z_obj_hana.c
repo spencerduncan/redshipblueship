@@ -9,10 +9,10 @@
 
 #define FLAGS 0x00000000
 
-void ObjHana_Init(Actor* thisx, PlayState* play);
-void ObjHana_Destroy(Actor* thisx, PlayState* play);
-void ObjHana_Update(Actor* thisx, PlayState* play);
-void ObjHana_Draw(Actor* thisx, PlayState* play);
+void MM_ObjHana_Init(Actor* thisx, PlayState* play);
+void MM_ObjHana_Destroy(Actor* thisx, PlayState* play);
+void MM_ObjHana_Update(Actor* thisx, PlayState* play);
+void MM_ObjHana_Draw(Actor* thisx, PlayState* play);
 
 ActorProfile Obj_Hana_Profile = {
     /**/ ACTOR_OBJ_HANA,
@@ -20,31 +20,31 @@ ActorProfile Obj_Hana_Profile = {
     /**/ FLAGS,
     /**/ OBJECT_HANA,
     /**/ sizeof(ObjHana),
-    /**/ ObjHana_Init,
-    /**/ ObjHana_Destroy,
-    /**/ ObjHana_Update,
-    /**/ ObjHana_Draw,
+    /**/ MM_ObjHana_Init,
+    /**/ MM_ObjHana_Destroy,
+    /**/ MM_ObjHana_Update,
+    /**/ MM_ObjHana_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 10, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 900, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 40, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 40, ICHAIN_STOP),
 };
 
-void ObjHana_Init(Actor* thisx, PlayState* play) {
+void MM_ObjHana_Init(Actor* thisx, PlayState* play) {
     ObjHana* this = (ObjHana*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
 }
 
-void ObjHana_Destroy(Actor* thisx, PlayState* play) {
+void MM_ObjHana_Destroy(Actor* thisx, PlayState* play) {
 }
 
-void ObjHana_Update(Actor* thisx, PlayState* play) {
+void MM_ObjHana_Update(Actor* thisx, PlayState* play) {
 }
 
-void ObjHana_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, gGraveyardFlowersDL);
+void MM_ObjHana_Draw(Actor* thisx, PlayState* play) {
+    MM_Gfx_DrawDListOpa(play, gGraveyardFlowersDL);
 }

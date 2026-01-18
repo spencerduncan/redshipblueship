@@ -96,15 +96,15 @@ void EffectSsKirakira_Draw(PlayState* play, u32 index, EffectSs* this) {
 
     OPEN_DISPS(gfxCtx);
 
-    SkinMatrix_SetTranslate(&mfTrans, this->pos.x, this->pos.y, this->pos.z);
+    MM_SkinMatrix_SetTranslate(&mfTrans, this->pos.x, this->pos.y, this->pos.z);
     SkinMatrix_SetRotateRPY(&mfRot, 0, 0, this->rYaw);
-    SkinMatrix_SetScale(&mfScale, scale, scale, 1.0f);
-    SkinMatrix_MtxFMtxFMult(&mfTrans, &play->billboardMtxF, &mfTransBillboard);
-    SkinMatrix_MtxFMtxFMult(&mfTransBillboard, &mfRot, &mfTransBillboardRot);
-    SkinMatrix_MtxFMtxFMult(&mfTransBillboardRot, &mfScale, &mfResult);
+    MM_SkinMatrix_SetScale(&mfScale, scale, scale, 1.0f);
+    MM_SkinMatrix_MtxFMtxFMult(&mfTrans, &play->billboardMtxF, &mfTransBillboard);
+    MM_SkinMatrix_MtxFMtxFMult(&mfTransBillboard, &mfRot, &mfTransBillboardRot);
+    MM_SkinMatrix_MtxFMtxFMult(&mfTransBillboardRot, &mfScale, &mfResult);
     gSPMatrix(POLY_XLU_DISP++, &gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
-    mtx = SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
+    mtx = MM_SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
 
     if (mtx != NULL) {
         gSPMatrix(POLY_XLU_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -121,8 +121,8 @@ void EffectSsKirakira_Draw(PlayState* play, u32 index, EffectSs* this) {
 }
 
 void func_80977DB4(PlayState* play, u32 index, EffectSs* this) {
-    this->accel.x = (Rand_ZeroOne() * 0.4f) - 0.2f;
-    this->accel.z = (Rand_ZeroOne() * 0.4f) - 0.2f;
+    this->accel.x = (MM_Rand_ZeroOne() * 0.4f) - 0.2f;
+    this->accel.z = (MM_Rand_ZeroOne() * 0.4f) - 0.2f;
     this->rEnvColorA += this->rAlphaStep;
 
     if (this->rEnvColorA < 0) {
@@ -139,8 +139,8 @@ void func_80977DB4(PlayState* play, u32 index, EffectSs* this) {
 void func_80977E6C(PlayState* play, u32 index, EffectSs* this) {
     this->velocity.x *= 0.95f;
     this->velocity.z *= 0.95f;
-    this->accel.x = Rand_CenteredFloat(0.2f);
-    this->accel.z = Rand_CenteredFloat(0.2f);
+    this->accel.x = MM_Rand_CenteredFloat(0.2f);
+    this->accel.z = MM_Rand_CenteredFloat(0.2f);
     this->rEnvColorA += this->rAlphaStep;
 
     if (this->rEnvColorA < 0) {
@@ -155,5 +155,5 @@ void func_80977E6C(PlayState* play, u32 index, EffectSs* this) {
 }
 
 void func_80977F28(PlayState* play, u32 index, EffectSs* this) {
-    this->rScale = this->rEnvColorA * Math_SinS((32768.0f / this->rLifespan) * this->life);
+    this->rScale = this->rEnvColorA * MM_Math_SinS((32768.0f / this->rLifespan) * this->life);
 }

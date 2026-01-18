@@ -56,22 +56,22 @@ static Warp2BlockSpawnData sSpawnData[] = {
 
 static f32 sDistances[] = { 60.0f, 100.0f, 140.0f, 180.0f, 220.0f, 260.0f, 300.0f, 300.0f };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(uncullZoneForward, 1800, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 300, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneDownward, 1500, ICHAIN_STOP),
 };
 
-static Color_RGB8 sColors[] = {
+static Color_RGB8 OoT_sColors[] = {
     { 100, 120, 140 }, { 80, 140, 200 }, { 100, 150, 200 }, { 100, 200, 240 },
     { 80, 110, 140 },  { 70, 160, 225 }, { 80, 100, 130 },  { 100, 110, 190 },
 };
 
 void ObjWarp2block_Spawn(ObjWarp2block* this, PlayState* play) {
-    Actor_Spawn(&play->actorCtx, play, ACTOR_DEMO_EFFECT, this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
+    OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_DEMO_EFFECT, this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
                 this->dyna.actor.world.pos.z, 0, 0, 0, sSpawnData[(this->dyna.actor.params >> 8) & 1].params, true);
 
-    Actor_Spawn(&play->actorCtx, play, ACTOR_DEMO_EFFECT, this->dyna.actor.child->world.pos.x,
+    OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_DEMO_EFFECT, this->dyna.actor.child->world.pos.x,
                 this->dyna.actor.child->world.pos.y, this->dyna.actor.child->world.pos.z, 0, 0, 0,
                 sSpawnData[(this->dyna.actor.child->params >> 8) & 1].params, true);
 }
@@ -83,7 +83,7 @@ s32 func_80BA1ECC(ObjWarp2block* this, PlayState* play) {
     Vec3f sp20;
     f32 temp_f2;
 
-    if (DynaPolyActor_IsPlayerAbove(&this->dyna)) {
+    if (OoT_DynaPolyActor_IsPlayerAbove(&this->dyna)) {
         return 0;
     }
 
@@ -92,14 +92,14 @@ s32 func_80BA1ECC(ObjWarp2block* this, PlayState* play) {
     if ((this->dyna.actor.xzDistToPlayer <= sDistances[(((this->dyna.actor.params >> 0xB) & 7))]) ||
         (temp_a3->xzDistToPlayer <= sDistances[(((temp_a3->params >> 0xB) & 7))])) {
 
-        Actor_WorldToActorCoords(&this->dyna.actor, &sp20, &player->actor.world.pos);
+        OoT_Actor_WorldToActorCoords(&this->dyna.actor, &sp20, &player->actor.world.pos);
         temp_f2 = (this->dyna.actor.scale.x * 50.0f) + 6.0f;
 
         if (!(temp_f2 < fabsf(sp20.x)) && !(temp_f2 < fabsf(sp20.z))) {
             return 0;
         }
 
-        Actor_WorldToActorCoords(temp_a3, &sp20, &player->actor.world.pos);
+        OoT_Actor_WorldToActorCoords(temp_a3, &sp20, &player->actor.world.pos);
         temp_f2 = (temp_a3->scale.x * 50.0f) + 6.0f;
 
         if (!(temp_f2 < fabsf(sp20.x)) && !(temp_f2 < fabsf(sp20.z))) {
@@ -117,9 +117,9 @@ void ObjWarp2block_SwapWithChild(ObjWarp2block* this, PlayState* play) {
     Vec3s tempRot;
     s32 temp;
 
-    Math_Vec3f_Copy(&tempVec, &this->dyna.actor.world.pos);
-    Math_Vec3f_Copy(&this->dyna.actor.world.pos, &this->dyna.actor.child->world.pos);
-    Math_Vec3f_Copy(&this->dyna.actor.child->world.pos, &tempVec);
+    OoT_Math_Vec3f_Copy(&tempVec, &this->dyna.actor.world.pos);
+    OoT_Math_Vec3f_Copy(&this->dyna.actor.world.pos, &this->dyna.actor.child->world.pos);
+    OoT_Math_Vec3f_Copy(&this->dyna.actor.child->world.pos, &tempVec);
 
     temp = this->dyna.actor.world.rot.y;
     this->dyna.actor.world.rot.y = this->dyna.actor.child->world.rot.y;
@@ -133,13 +133,13 @@ void ObjWarp2block_SwapWithChild(ObjWarp2block* this, PlayState* play) {
     this->dyna.actor.home.rot.z = this->dyna.actor.child->home.rot.z;
     this->dyna.actor.child->home.rot.z = temp;
 
-    Math_Vec3f_Copy(&tempVec, &this->dyna.actor.scale);
-    Math_Vec3f_Copy(&this->dyna.actor.scale, &this->dyna.actor.child->scale);
-    Math_Vec3f_Copy(&this->dyna.actor.child->scale, &tempVec);
+    OoT_Math_Vec3f_Copy(&tempVec, &this->dyna.actor.scale);
+    OoT_Math_Vec3f_Copy(&this->dyna.actor.scale, &this->dyna.actor.child->scale);
+    OoT_Math_Vec3f_Copy(&this->dyna.actor.child->scale, &tempVec);
 
-    Math_Vec3f_Copy(&tempVec, &this->dyna.actor.focus.pos);
-    Math_Vec3f_Copy(&this->dyna.actor.focus.pos, &this->dyna.actor.child->focus.pos);
-    Math_Vec3f_Copy(&this->dyna.actor.child->focus.pos, &tempVec);
+    OoT_Math_Vec3f_Copy(&tempVec, &this->dyna.actor.focus.pos);
+    OoT_Math_Vec3f_Copy(&this->dyna.actor.focus.pos, &this->dyna.actor.child->focus.pos);
+    OoT_Math_Vec3f_Copy(&this->dyna.actor.child->focus.pos, &tempVec);
 
     tempRot = this->dyna.actor.focus.rot;
     this->dyna.actor.focus.rot = this->dyna.actor.child->focus.rot;
@@ -149,10 +149,10 @@ void ObjWarp2block_SwapWithChild(ObjWarp2block* this, PlayState* play) {
     this->dyna.actor.params = (this->dyna.actor.params & 0x8000) | (this->dyna.actor.child->params & 0x7FFF);
     this->dyna.actor.child->params = (this->dyna.actor.child->params & 0x8000) | (temp & 0x7FFF);
 
-    if (Math3D_Vec3fDistSq(&this->dyna.actor.world.pos, &this->dyna.actor.home.pos) < 0.01f) {
-        Flags_UnsetSwitch(play, this->dyna.actor.params & 0x3F);
+    if (OoT_Math3D_Vec3fDistSq(&this->dyna.actor.world.pos, &this->dyna.actor.home.pos) < 0.01f) {
+        OoT_Flags_UnsetSwitch(play, this->dyna.actor.params & 0x3F);
     } else {
-        Flags_SetSwitch(play, this->dyna.actor.params & 0x3F);
+        OoT_Flags_SetSwitch(play, this->dyna.actor.params & 0x3F);
     }
 }
 
@@ -204,20 +204,20 @@ void ObjWarp2block_Init(Actor* thisx, PlayState* play2) {
 
     collisionHeader = NULL;
     this->dyna.actor.world.rot.z = this->dyna.actor.shape.rot.z = 0;
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
 
-    Actor_SetScale(&this->dyna.actor, sSpawnData[(this->dyna.actor.params >> 8) & 1].scale);
+    OoT_Actor_SetScale(&this->dyna.actor, sSpawnData[(this->dyna.actor.params >> 8) & 1].scale);
     this->func_168 = func_80BA2218;
-    Actor_SetFocus(&this->dyna.actor, sSpawnData[(this->dyna.actor.params >> 8) & 1].focus);
+    OoT_Actor_SetFocus(&this->dyna.actor, sSpawnData[(this->dyna.actor.params >> 8) & 1].focus);
 
     if ((this->dyna.actor.params >> 0xF) & 1) {
         func_80BA24E8(this);
-        if (Flags_GetSwitch(play, this->dyna.actor.params & 0x3F)) {
+        if (OoT_Flags_GetSwitch(play, this->dyna.actor.params & 0x3F)) {
             this->dyna.actor.draw = NULL;
         }
-        DynaPolyActor_Init(&this->dyna, 0);
-        CollisionHeader_GetVirtual(&gSongOfTimeBlockCol, &collisionHeader);
-        this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, collisionHeader);
+        OoT_DynaPolyActor_Init(&this->dyna, 0);
+        OoT_CollisionHeader_GetVirtual(&gSongOfTimeBlockCol, &collisionHeader);
+        this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, collisionHeader);
     } else {
         ObjWarp2block_SetInactive(this);
     }
@@ -229,7 +229,7 @@ void ObjWarp2block_Init(Actor* thisx, PlayState* play2) {
 void ObjWarp2block_Destroy(Actor* thisx, PlayState* play) {
     ObjWarp2block* this = (ObjWarp2block*)thisx;
     if ((this->dyna.actor.params >> 0xF) & 1) {
-        DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+        OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
     }
 }
 
@@ -252,7 +252,7 @@ void func_80BA24F8(ObjWarp2block* this, PlayState* play) {
         if (current->id == ACTOR_OBJ_WARP2BLOCK && !((current->params >> 0xF) & 1) &&
             ((this->dyna.actor.params & 0x3F) == (current->params & 0x3F))) {
             this->dyna.actor.child = current;
-            if (Flags_GetSwitch(play, this->dyna.actor.params & 0x3F)) {
+            if (OoT_Flags_GetSwitch(play, this->dyna.actor.params & 0x3F)) {
                 ObjWarp2block_SwapWithChild(this, play);
                 this->dyna.actor.draw = ObjWarp2block_Draw;
             }
@@ -268,7 +268,7 @@ void func_80BA24F8(ObjWarp2block* this, PlayState* play) {
         osSyncPrintf(VT_COL(RED, WHITE));
         osSyncPrintf("Error : 時のブロック(ワープ２)が対でセットされていません(%s %d)\n", __FILE__, __LINE__);
         osSyncPrintf(VT_RST);
-        Actor_Kill(&this->dyna.actor);
+        OoT_Actor_Kill(&this->dyna.actor);
     }
 }
 
@@ -307,7 +307,7 @@ void ObjWarp2block_Update(Actor* thisx, PlayState* play) {
 void ObjWarp2block_Draw(Actor* thisx, PlayState* play) {
     Color_RGB8* sp44;
 
-    sp44 = &sColors[thisx->home.rot.z & 7];
+    sp44 = &OoT_sColors[thisx->home.rot.z & 7];
 
     OPEN_DISPS(play->state.gfxCtx);
     Gfx_SetupDL_25Opa(play->state.gfxCtx);

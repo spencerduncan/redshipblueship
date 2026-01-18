@@ -44,7 +44,7 @@ ActorProfile Obj_Snowball_Profile = {
     /**/ ObjSnowball_Draw,
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[1] = {
+static ColliderJntSphElementInit MM_sJntSphElementsInit[1] = {
     {
         {
             ELEM_MATERIAL_UNK0,
@@ -58,7 +58,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[1] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit MM_sJntSphInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -67,8 +67,8 @@ static ColliderJntSphInit sJntSphInit = {
         OC2_TYPE_2,
         COLSHAPE_JNTSPH,
     },
-    ARRAY_COUNT(sJntSphElementsInit),
-    sJntSphElementsInit,
+    ARRAY_COUNT(MM_sJntSphElementsInit),
+    MM_sJntSphElementsInit,
 };
 
 typedef struct {
@@ -96,7 +96,7 @@ static Gfx* D_80B04FC8[] = {
     object_goroiwa_DL_007C60,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 2000, ICHAIN_STOP),
 };
 
@@ -116,7 +116,7 @@ void func_80B02D58(ObjSnowball* this, PlayState* play) {
     s32 temp_v0 = func_800A8150(OBJSNOWBALL_GET_SWITCH_FLAG(&this->actor));
 
     if (temp_v0 >= 0) {
-        Item_DropCollectible(play, &this->actor.home.pos, (OBJSNOWBALL_GET_7F00(&this->actor) << 8) | temp_v0);
+        MM_Item_DropCollectible(play, &this->actor.home.pos, (OBJSNOWBALL_GET_7F00(&this->actor) << 8) | temp_v0);
     }
 }
 
@@ -146,26 +146,26 @@ void func_80B02EE4(ObjSnowball* this, PlayState* play) {
     s32 i;
 
     for (i = 0; i < 4; i++) {
-        sp94.x = ((Rand_ZeroOne() * 14.0f) - 7.0f) + hitPos->x;
-        sp94.y = ((Rand_ZeroOne() * 14.0f) - 7.0f) + hitPos->y;
-        sp94.z = ((Rand_ZeroOne() * 14.0f) - 7.0f) + hitPos->z;
+        sp94.x = ((MM_Rand_ZeroOne() * 14.0f) - 7.0f) + hitPos->x;
+        sp94.y = ((MM_Rand_ZeroOne() * 14.0f) - 7.0f) + hitPos->y;
+        sp94.z = ((MM_Rand_ZeroOne() * 14.0f) - 7.0f) + hitPos->z;
 
-        spA0.x = (Rand_ZeroOne() - 0.5f) * 1.6f;
+        spA0.x = (MM_Rand_ZeroOne() - 0.5f) * 1.6f;
         spA0.y = -0.8f;
-        spA0.z = (Rand_ZeroOne() - 0.5f) * 1.6f;
+        spA0.z = (MM_Rand_ZeroOne() - 0.5f) * 1.6f;
 
         spAC.x = spA0.x * -0.06f;
         spAC.y = spA0.y * -0.06f;
         spAC.z = spA0.z * -0.06f;
 
-        func_800B0E48(play, &sp94, &spA0, &spAC, &D_80B04FB4, &D_80B04FB8, (s32)(Rand_ZeroOne() * 30.0f) + 15,
-                      (s32)(Rand_ZeroOne() * 40.0f) + 30);
+        func_800B0E48(play, &sp94, &spA0, &spAC, &D_80B04FB4, &D_80B04FB8, (s32)(MM_Rand_ZeroOne() * 30.0f) + 15,
+                      (s32)(MM_Rand_ZeroOne() * 40.0f) + 30);
     }
 }
 
 void func_80B030F8(ObjSnowball* this, PlayState* play) {
     s32 pad;
-    f32 temp_f28 = sqrtf(this->unk_20C);
+    f32 temp_f28 = MM_sqrtf(this->unk_20C);
     Vec3f spFC;
     Vec3f spF0;
     Vec3f spE4;
@@ -197,7 +197,7 @@ void func_80B030F8(ObjSnowball* this, PlayState* play) {
             gravity = -340;
             phi_s4 = 0;
             phi_f22 = 0.9f;
-            if (Rand_ZeroOne() < 0.4f) {
+            if (MM_Rand_ZeroOne() < 0.4f) {
                 phi_s0 = 0x20;
             } else {
                 phi_s0 = 0x40;
@@ -207,38 +207,38 @@ void func_80B030F8(ObjSnowball* this, PlayState* play) {
             gravity = -400;
             phi_s4 = 1;
             phi_f22 = 0.8f;
-            if ((s32)Rand_Next() > 0) {
+            if ((s32)MM_Rand_Next() > 0) {
                 phi_s0 = 0x21;
             } else {
                 phi_s0 = 0x41;
             }
         }
 
-        temp_f20 = (Rand_ZeroOne() * (40.0f * this->unk_20C)) + 20.0f;
+        temp_f20 = (MM_Rand_ZeroOne() * (40.0f * this->unk_20C)) + 20.0f;
 
-        spFC.x = Math_SinS((s32)(Rand_ZeroOne() * 2621.44f) + phi_s6) * temp_f20;
-        spFC.y = (Rand_ZeroOne() - 0.4f) * temp_f20 * 1.6666666f;
-        spFC.z = Math_CosS((s32)(Rand_ZeroOne() * 2621.44f) + phi_s6) * temp_f20;
+        spFC.x = MM_Math_SinS((s32)(MM_Rand_ZeroOne() * 2621.44f) + phi_s6) * temp_f20;
+        spFC.y = (MM_Rand_ZeroOne() - 0.4f) * temp_f20 * 1.6666666f;
+        spFC.z = MM_Math_CosS((s32)(MM_Rand_ZeroOne() * 2621.44f) + phi_s6) * temp_f20;
 
         spF0.x = spFC.x * 0.16f * phi_f22;
-        spF0.y = (Rand_ZeroOne() * 16.0f) + 3.0f;
+        spF0.y = (MM_Rand_ZeroOne() * 16.0f) + 3.0f;
         spF0.z = spFC.z * 0.16f * phi_f22;
 
         spFC.x += this->actor.world.pos.x;
         spFC.y += this->actor.world.pos.y;
         spFC.z += this->actor.world.pos.z;
 
-        scale = ((Rand_ZeroOne() * 15.0f) + 30.0f) * this->unk_20C;
+        scale = ((MM_Rand_ZeroOne() * 15.0f) + 30.0f) * this->unk_20C;
 
-        EffectSsKakera_Spawn(play, &spFC, &spF0, &spFC, gravity, phi_s0, 30, 0, 0, scale, phi_s4, 0, 50, -1,
+        MM_EffectSsKakera_Spawn(play, &spFC, &spF0, &spFC, gravity, phi_s0, 30, 0, 0, scale, phi_s4, 0, 50, -1,
                              OBJECT_GOROIWA, temp_s2);
         if ((this->unk_210 == 0) && (temp_s7 >= 3)) {
-            spFC.x += (Rand_ZeroOne() * 120.0f) - 60.0f;
-            spFC.y += Rand_ZeroOne() * 80.0f;
-            spFC.z += (Rand_ZeroOne() * 120.0f) - 60.0f;
+            spFC.x += (MM_Rand_ZeroOne() * 120.0f) - 60.0f;
+            spFC.y += MM_Rand_ZeroOne() * 80.0f;
+            spFC.z += (MM_Rand_ZeroOne() * 120.0f) - 60.0f;
 
-            temp_s0 = (s32)(Rand_ZeroOne() * 50.0f * temp_f28) + 40;
-            temp_s1 = (s32)(Rand_ZeroOne() * 60.0f * temp_f28) + 50;
+            temp_s0 = (s32)(MM_Rand_ZeroOne() * 50.0f * temp_f28) + 40;
+            temp_s1 = (s32)(MM_Rand_ZeroOne() * 60.0f * temp_f28) + 50;
             func_800B0E48(play, &spFC, &gZeroVec3f, &D_80B04FBC, &D_80B04FB4, &D_80B04FB8, temp_s0, temp_s1);
         }
     }
@@ -247,15 +247,15 @@ void func_80B030F8(ObjSnowball* this, PlayState* play) {
         temp_f26 = this->unk_20C * 60.0f;
 
         for (i = 0, phi_s6 = 0; i < 16; i++, phi_s6 += 0x1000) {
-            temp_s0 = Rand_Next() >> 0x10;
-            temp_f20 = Math_SinS(temp_s0);
-            temp_f22 = Math_CosS(temp_s0);
+            temp_s0 = MM_Rand_Next() >> 0x10;
+            temp_f20 = MM_Math_SinS(temp_s0);
+            temp_f22 = MM_Math_CosS(temp_s0);
 
-            spFC.x = Math_SinS(phi_s6);
-            spFC.z = Math_CosS(phi_s6);
+            spFC.x = MM_Math_SinS(phi_s6);
+            spFC.z = MM_Math_CosS(phi_s6);
 
             spF0.x = 2.0f * spFC.x;
-            spF0.y = (2.0f * Rand_ZeroOne()) + 1.0f;
+            spF0.y = (2.0f * MM_Rand_ZeroOne()) + 1.0f;
             spF0.z = 2.0f * spFC.z;
 
             spFC.x *= temp_f22 * temp_f26;
@@ -270,7 +270,7 @@ void func_80B030F8(ObjSnowball* this, PlayState* play) {
             spE4.y = spF0.y * -0.05f;
             spE4.z = spF0.z * -0.02f;
 
-            EffectSsIceSmoke_Spawn(play, &spFC, &spF0, &spE4, ((s32)(Rand_ZeroOne() * 170.0f) + 150) * temp_f28);
+            MM_EffectSsIceSmoke_Spawn(play, &spFC, &spF0, &spE4, ((s32)(MM_Rand_ZeroOne() * 170.0f) + 150) * temp_f28);
         }
     }
 }
@@ -282,17 +282,17 @@ void func_80B03688(ObjSnowball* this, PlayState* play) {
     Vec3f spA0;
     s32 pad[2];
     f32 temp_f20;
-    f32 temp_f22 = sqrtf(this->unk_20C);
+    f32 temp_f22 = MM_sqrtf(this->unk_20C);
     s16 temp_s3;
     s32 phi_s0;
 
     if (this->unk_210 == 0) {
         for (i = 0, phi_s0 = 0; i < 10; i++, phi_s0 += 0x1999) {
-            temp_f20 = (Rand_ZeroOne() * (45.0f * this->unk_20C)) + 50.0f;
+            temp_f20 = (MM_Rand_ZeroOne() * (45.0f * this->unk_20C)) + 50.0f;
 
-            spB8.x = Math_SinS((s32)(Rand_ZeroOne() * 6553.6f) + phi_s0) * temp_f20;
-            spB8.y = Rand_ZeroOne() * 20.0f;
-            spB8.z = Math_CosS((s32)(Rand_ZeroOne() * 6553.6f) + phi_s0) * temp_f20;
+            spB8.x = MM_Math_SinS((s32)(MM_Rand_ZeroOne() * 6553.6f) + phi_s0) * temp_f20;
+            spB8.y = MM_Rand_ZeroOne() * 20.0f;
+            spB8.z = MM_Math_CosS((s32)(MM_Rand_ZeroOne() * 6553.6f) + phi_s0) * temp_f20;
 
             spAC.x = spB8.x * 0.06f;
             spAC.y = 0.0f;
@@ -306,17 +306,17 @@ void func_80B03688(ObjSnowball* this, PlayState* play) {
             spB8.y += this->actor.home.pos.y;
             spB8.z += this->actor.home.pos.z;
 
-            temp_s3 = (s32)(Rand_ZeroOne() * 60.0f * temp_f22) + 70;
+            temp_s3 = (s32)(MM_Rand_ZeroOne() * 60.0f * temp_f22) + 70;
 
             func_800B0E48(play, &spB8, &spAC, &spA0, &D_80B04FB4, &D_80B04FB8, temp_s3,
-                          (s32)(Rand_ZeroOne() * 70.0f * temp_f22) + 70);
+                          (s32)(MM_Rand_ZeroOne() * 70.0f * temp_f22) + 70);
         }
     } else {
         for (i = 0, phi_s0 = 0; i < 18; i++, phi_s0 += 0xE38) {
-            temp_f20 = (Rand_ZeroOne() * (45.0f * this->unk_20C)) + 50.0f;
+            temp_f20 = (MM_Rand_ZeroOne() * (45.0f * this->unk_20C)) + 50.0f;
 
-            spB8.x = Math_SinS((s32)(Rand_ZeroOne() * 3640.889f) + phi_s0);
-            spB8.z = Math_CosS((s32)(Rand_ZeroOne() * 3640.889f) + phi_s0);
+            spB8.x = MM_Math_SinS((s32)(MM_Rand_ZeroOne() * 3640.889f) + phi_s0);
+            spB8.z = MM_Math_CosS((s32)(MM_Rand_ZeroOne() * 3640.889f) + phi_s0);
 
             spAC.x = spB8.x * 3.0f * temp_f22;
             spAC.y = 0.0f;
@@ -327,16 +327,16 @@ void func_80B03688(ObjSnowball* this, PlayState* play) {
             spA0.z = spAC.z * -0.02f;
 
             spB8.x = (spB8.x * temp_f20) + this->actor.home.pos.x;
-            spB8.y = (Rand_ZeroOne() * 20.0f) + this->actor.home.pos.y;
+            spB8.y = (MM_Rand_ZeroOne() * 20.0f) + this->actor.home.pos.y;
             spB8.z = (spB8.z * temp_f20) + this->actor.home.pos.z;
 
-            EffectSsIceSmoke_Spawn(play, &spB8, &spAC, &spA0, (s32)(Rand_ZeroOne() * 140.0f * temp_f22) + 100);
+            MM_EffectSsIceSmoke_Spawn(play, &spB8, &spAC, &spA0, (s32)(MM_Rand_ZeroOne() * 140.0f * temp_f22) + 100);
         }
     }
 }
 
 void func_80B03A80(PlayState* play, f32 arg1, Vec3f* arg2) {
-    f32 temp_f30 = sqrtf(arg1);
+    f32 temp_f30 = MM_sqrtf(arg1);
     Vec3f spD8;
     Vec3f spCC;
     s32 i;
@@ -352,14 +352,14 @@ void func_80B03A80(PlayState* play, f32 arg1, Vec3f* arg2) {
     for (i = 0, phi_s5 = 0; i < 13; i++, phi_s5 += 0x1999) {
         tmp = i & 3;
 
-        temp_f20 = (Rand_ZeroOne() * (40.0f * arg1)) + 20.0f;
+        temp_f20 = (MM_Rand_ZeroOne() * (40.0f * arg1)) + 20.0f;
 
-        spD8.x = Math_SinS((s32)(Rand_ZeroOne() * 6553.6f) + phi_s5) * temp_f20;
-        spD8.y = Rand_ZeroOne() * temp_f20;
-        spD8.z = Math_CosS((s32)(Rand_ZeroOne() * 6553.6f) + phi_s5) * temp_f20;
+        spD8.x = MM_Math_SinS((s32)(MM_Rand_ZeroOne() * 6553.6f) + phi_s5) * temp_f20;
+        spD8.y = MM_Rand_ZeroOne() * temp_f20;
+        spD8.z = MM_Math_CosS((s32)(MM_Rand_ZeroOne() * 6553.6f) + phi_s5) * temp_f20;
 
         spCC.x = spD8.x * 0.17f;
-        spCC.y = (Rand_ZeroOne() * 14.0f) + 3.0f;
+        spCC.y = (MM_Rand_ZeroOne() * 14.0f) + 3.0f;
         spCC.z = spD8.z * 0.17f;
 
         spD8.x += arg2->x;
@@ -370,7 +370,7 @@ void func_80B03A80(PlayState* play, f32 arg1, Vec3f* arg2) {
             temp_s1 = D_80B04FC8[0];
             phi_s2 = -400;
             phi_s3 = 1;
-            if ((s32)Rand_Next() > 0) {
+            if ((s32)MM_Rand_Next() > 0) {
                 phi_s0 = 0x21;
             } else {
                 phi_s0 = 0x41;
@@ -379,7 +379,7 @@ void func_80B03A80(PlayState* play, f32 arg1, Vec3f* arg2) {
             temp_s1 = D_80B04FC8[1];
             phi_s2 = -340;
             phi_s3 = 1;
-            if ((s32)Rand_Next() > 0) {
+            if ((s32)MM_Rand_Next() > 0) {
                 phi_s0 = 0x21;
             } else {
                 phi_s0 = 0x41;
@@ -391,17 +391,17 @@ void func_80B03A80(PlayState* play, f32 arg1, Vec3f* arg2) {
             phi_s0 = 0x40;
         }
 
-        EffectSsKakera_Spawn(play, &spD8, &spCC, &spD8, phi_s2, phi_s0, 30, 0, 0,
-                             ((Rand_ZeroOne() * 15.0f) + 25.0f) * arg1, phi_s3, 0, 0x36, -1, OBJECT_GOROIWA, temp_s1);
+        MM_EffectSsKakera_Spawn(play, &spD8, &spCC, &spD8, phi_s2, phi_s0, 30, 0, 0,
+                             ((MM_Rand_ZeroOne() * 15.0f) + 25.0f) * arg1, phi_s3, 0, 0x36, -1, OBJECT_GOROIWA, temp_s1);
 
-        spD8.x += (Rand_ZeroOne() * 80.0f) - 40.0f;
-        spD8.y += Rand_ZeroOne() * 55.0f;
-        spD8.z += (Rand_ZeroOne() * 80.0f) - 40.0f;
+        spD8.x += (MM_Rand_ZeroOne() * 80.0f) - 40.0f;
+        spD8.y += MM_Rand_ZeroOne() * 55.0f;
+        spD8.z += (MM_Rand_ZeroOne() * 80.0f) - 40.0f;
 
-        phi_s0 = (s32)(Rand_ZeroOne() * 60.0f * temp_f30) + 60;
+        phi_s0 = (s32)(MM_Rand_ZeroOne() * 60.0f * temp_f30) + 60;
 
         func_800B0E48(play, &spD8, &gZeroVec3f, &D_80B04FBC, &D_80B04FB4, &D_80B04FB8, phi_s0,
-                      (s32)(Rand_ZeroOne() * 30.0f * temp_f30) + 60);
+                      (s32)(MM_Rand_ZeroOne() * 30.0f * temp_f30) + 60);
     }
 }
 
@@ -410,9 +410,9 @@ void func_80B03E2C(ObjSnowball* this, PlayState* play) {
     s32 i;
 
     this->unk_1A8[0].unk_1C.y = this->actor.yawTowardsPlayer - 0x4000;
-    this->unk_1A8[0].unk_24 = Rand_ZeroOne() * -600.0f;
+    this->unk_1A8[0].unk_24 = MM_Rand_ZeroOne() * -600.0f;
     this->unk_1A8[1].unk_1C.y = this->actor.yawTowardsPlayer + 0x4000;
-    this->unk_1A8[1].unk_24 = Rand_ZeroOne() * 600.0f;
+    this->unk_1A8[1].unk_24 = MM_Rand_ZeroOne() * 600.0f;
 
     for (i = 0; i < ARRAY_COUNT(this->unk_1A8); i++) {
         ptr = &this->unk_1A8[i];
@@ -420,15 +420,15 @@ void func_80B03E2C(ObjSnowball* this, PlayState* play) {
         ptr->unk_00.y = this->actor.home.pos.y + (61.0f * this->unk_20C);
         ptr->unk_00.z = this->actor.home.pos.z;
 
-        ptr->unk_0C = Math_SinS(ptr->unk_1C.y) * (Rand_ZeroOne() + 5.0f);
-        ptr->unk_10 = (Rand_ZeroOne() * 11.0f) + 20.0f;
-        ptr->unk_14 = Math_CosS(ptr->unk_1C.y) * (Rand_ZeroOne() + 5.0f);
+        ptr->unk_0C = MM_Math_SinS(ptr->unk_1C.y) * (MM_Rand_ZeroOne() + 5.0f);
+        ptr->unk_10 = (MM_Rand_ZeroOne() * 11.0f) + 20.0f;
+        ptr->unk_14 = MM_Math_CosS(ptr->unk_1C.y) * (MM_Rand_ZeroOne() + 5.0f);
 
         ptr->unk_1C.x = 0;
         ptr->unk_1C.z = 0;
 
-        ptr->unk_22 = (s32)(Rand_ZeroOne() * 400.0f) + 1100;
-        ptr->unk_26 = Rand_ZeroOne() * -600.0f;
+        ptr->unk_22 = (s32)(MM_Rand_ZeroOne() * 400.0f) + 1100;
+        ptr->unk_26 = MM_Rand_ZeroOne() * -600.0f;
         ptr->unk_2D = 0;
         ptr->unk_2C = 0;
     }
@@ -446,7 +446,7 @@ void func_80B03FF8(ObjSnowball* this, PlayState* play) {
     Actor_PlaySfx(&this->actor, NA_SE_EV_SNOWBALL_BROKEN);
 
     if (GameInteractor_Should(VB_SNOWBALL_SET_FLAG, rotY == 5, this, sp18->unk_00, sp18->unk_04)) {
-        Flags_SetSwitch(play, OBJSNOWBALL_GET_SWITCH_FLAG(&this->actor));
+        MM_Flags_SetSwitch(play, OBJSNOWBALL_GET_SWITCH_FLAG(&this->actor));
     }
 }
 
@@ -460,7 +460,7 @@ void ObjSnowball_Init(Actor* thisx, PlayState* play) {
     f32 phi_f20;
     s32 sp34;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
 
     sp34 = sp40 == 1;
     if (sp34) {
@@ -469,26 +469,26 @@ void ObjSnowball_Init(Actor* thisx, PlayState* play) {
         phi_f20 = 1.0f;
     }
 
-    Actor_SetScale(&this->actor, 0.1f * phi_f20);
+    MM_Actor_SetScale(&this->actor, 0.1f * phi_f20);
 
     this->actor.shape.rot.x = 0;
     this->actor.shape.rot.z = 0;
     this->actor.world.pos.y += 20.0f * phi_f20;
     this->actor.cullingVolumeScale = 150.0f * phi_f20;
     this->actor.cullingVolumeDownward = 300.0f * phi_f20;
-    this->actor.shape.rot.y = Rand_Next() >> 0x10;
+    this->actor.shape.rot.y = MM_Rand_Next() >> 0x10;
     this->unk_20C = phi_f20;
 
     if (sp34) {
         this->actor.textId = 0x238;
         this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
         this->actor.lockOnArrowOffset = 1400.0f / 3.0f;
-        Actor_SetFocus(&this->actor, 24.0f);
+        MM_Actor_SetFocus(&this->actor, 24.0f);
         this->actor.attentionRangeType = ATTENTION_RANGE_3;
     }
 
-    Collider_InitJntSph(play, &this->collider);
-    Collider_SetJntSph(play, &this->collider, &this->actor, &sJntSphInit, this->colliderElements);
+    MM_Collider_InitJntSph(play, &this->collider);
+    MM_Collider_SetJntSph(play, &this->collider, &this->actor, &MM_sJntSphInit, this->colliderElements);
     this->actor.colChkInfo.mass = MASS_HEAVY;
 
     sphere = &this->collider.elements[0].dim.worldSphere;
@@ -503,24 +503,24 @@ void ObjSnowball_Init(Actor* thisx, PlayState* play) {
     sp48.z = this->actor.home.pos.z;
 
     this->actor.floorHeight =
-        BgCheck_EntityRaycastFloor5(&play->colCtx, &this->actor.floorPoly, &bgId, &this->actor, &sp48);
+        MM_BgCheck_EntityRaycastFloor5(&play->colCtx, &this->actor.floorPoly, &bgId, &this->actor, &sp48);
     if (this->actor.floorHeight < (this->actor.home.pos.y - 10.0f)) {
         this->actor.floorPoly = NULL;
     } else {
-        ActorShape_Init(&this->actor.shape, 0.0f, NULL, 13.0f);
+        MM_ActorShape_Init(&this->actor.shape, 0.0f, NULL, 13.0f);
     }
 
     func_80B04338(this, play);
 
-    if ((sp40 == 5) && Flags_GetSwitch(play, OBJSNOWBALL_GET_SWITCH_FLAG(&this->actor))) {
-        Actor_Kill(&this->actor);
+    if ((sp40 == 5) && MM_Flags_GetSwitch(play, OBJSNOWBALL_GET_SWITCH_FLAG(&this->actor))) {
+        MM_Actor_Kill(&this->actor);
     }
 }
 
 void ObjSnowball_Destroy(Actor* thisx, PlayState* play) {
     ObjSnowball* this = (ObjSnowball*)thisx;
 
-    Collider_DestroyJntSph(play, &this->collider);
+    MM_Collider_DestroyJntSph(play, &this->collider);
 }
 
 void func_80B04338(ObjSnowball* this, PlayState* play) {
@@ -582,8 +582,8 @@ void func_80B04350(ObjSnowball* this, PlayState* play) {
         this->unk_209--;
     }
 
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void func_80B04540(ObjSnowball* this, PlayState* play) {
@@ -624,7 +624,7 @@ void func_80B04648(ObjSnowball* this, PlayState* play) {
         if (this->actor.home.rot.y == 1) {
             func_80B04B48(this, play);
         } else {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
     } else if (this->unk_208 == 0x2D) {
         func_80B03688(this, play);
@@ -686,15 +686,15 @@ void func_80B047C0(ObjSnowball* this, PlayState* play) {
             sp9C.y = ptr->unk_00.y + 25.0f;
             sp9C.z = ptr->unk_00.z;
 
-            ptr->unk_18 = BgCheck_EntityRaycastFloor5(&play->colCtx, &ptr->unk_28, &bgId, &this->actor, &sp9C);
+            ptr->unk_18 = MM_BgCheck_EntityRaycastFloor5(&play->colCtx, &ptr->unk_28, &bgId, &this->actor, &sp9C);
 
             if (ptr->unk_10 <= 0.0f) {
-                Matrix_RotateZYX(ptr->unk_1C.x, ptr->unk_1C.y, ptr->unk_1C.z, MTXMODE_NEW);
-                Matrix_MultVec3f(&D_80B04FE4, &sp88);
+                MM_Matrix_RotateZYX(ptr->unk_1C.x, ptr->unk_1C.y, ptr->unk_1C.z, MTXMODE_NEW);
+                MM_Matrix_MultVec3f(&D_80B04FE4, &sp88);
 
                 sp84 = this->unk_20C * 60.0f * 0.9f;
                 if (sp88.y > 0.0f) {
-                    if (Math3D_CosOut(&D_80B04FD8, &sp88, &sp7C)) {
+                    if (MM_Math3D_CosOut(&D_80B04FD8, &sp88, &sp7C)) {
                         phi_f2 = 1.0f;
                     } else {
                         phi_f2 = 1.0f - SQ(sp7C);
@@ -703,7 +703,7 @@ void func_80B047C0(ObjSnowball* this, PlayState* play) {
                     if (phi_f2 <= 0.0f) {
                         sp84 = 0.0f;
                     } else {
-                        sp84 *= sqrtf(phi_f2);
+                        sp84 *= MM_sqrtf(phi_f2);
                     }
                 }
 
@@ -728,7 +728,7 @@ void func_80B047C0(ObjSnowball* this, PlayState* play) {
         if (this->actor.home.rot.y == 1) {
             func_80B04B48(this, play);
         } else {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
     } else {
         for (i = 0; i < ARRAY_COUNT(this->unk_1A8); i++) {
@@ -759,7 +759,7 @@ void ObjSnowball_Update(Actor* thisx, PlayState* play) {
 
     if (this->actor.home.rot.y == 1) {
         if (this->unk_211 != 0) {
-            if (Actor_TextboxIsClosing(&this->actor, play)) {
+            if (MM_Actor_TextboxIsClosing(&this->actor, play)) {
                 this->actor.flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
                 this->unk_211 = 0;
             }
@@ -780,10 +780,10 @@ void ObjSnowball_Update(Actor* thisx, PlayState* play) {
     if ((this->actor.floorPoly != NULL) && (this->actor.projectedPos.z < 920.0f)) {
         if (this->actor.projectedPos.z > 400.0f) {
             this->actor.shape.shadowAlpha = (920 - (s32)this->actor.projectedPos.z) >> 2;
-            this->actor.shape.shadowDraw = ActorShadow_DrawCircle;
+            this->actor.shape.shadowDraw = MM_ActorShadow_DrawCircle;
         } else if (this->actor.projectedPos.z > -30.0f) {
             this->actor.shape.shadowAlpha = 130;
-            this->actor.shape.shadowDraw = ActorShadow_DrawCircle;
+            this->actor.shape.shadowDraw = MM_ActorShadow_DrawCircle;
         } else {
             this->actor.shape.shadowDraw = NULL;
         }
@@ -795,7 +795,7 @@ void ObjSnowball_Update(Actor* thisx, PlayState* play) {
 void ObjSnowball_Draw(Actor* thisx, PlayState* play) {
     ObjSnowball* this = (ObjSnowball*)thisx;
 
-    Gfx_DrawDListOpa(play, object_goroiwa_DL_008B90);
+    MM_Gfx_DrawDListOpa(play, object_goroiwa_DL_008B90);
 }
 
 void func_80B04D34(Actor* thisx, PlayState* play) {
@@ -814,9 +814,9 @@ void func_80B04D34(Actor* thisx, PlayState* play) {
             sp80.y = ptr->unk_1C.y;
             sp80.z = ptr->unk_1C.z;
 
-            Matrix_SetTranslateRotateYXZ(ptr->unk_00.x, ptr->unk_00.y, ptr->unk_00.z, &sp80);
-            Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
-            Gfx_DrawDListOpa(play, object_goroiwa_DL_0082D0);
+            MM_Matrix_SetTranslateRotateYXZ(ptr->unk_00.x, ptr->unk_00.y, ptr->unk_00.z, &sp80);
+            MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+            MM_Gfx_DrawDListOpa(play, object_goroiwa_DL_0082D0);
 
             if ((ptr->unk_28 != NULL) && (ptr->unk_2C > 0)) {
                 OPEN_DISPS(play->state.gfxCtx);
@@ -828,8 +828,8 @@ void func_80B04D34(Actor* thisx, PlayState* play) {
                 gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 0, 0, 0, ptr->unk_2C);
 
                 func_800C0094(ptr->unk_28, ptr->unk_00.x, ptr->unk_18, ptr->unk_00.z, &sp88);
-                Matrix_Put(&sp88);
-                Matrix_Scale(this->actor.scale.x * 7.5f, 1.0f, this->actor.scale.z * 7.5f, MTXMODE_APPLY);
+                MM_Matrix_Put(&sp88);
+                MM_Matrix_Scale(this->actor.scale.x * 7.5f, 1.0f, this->actor.scale.z * 7.5f, MTXMODE_APPLY);
 
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
                 gSPDisplayList(POLY_XLU_DISP++, gCircleShadowDL);

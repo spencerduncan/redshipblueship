@@ -10,30 +10,30 @@
 
 #define rUnused regs[1]
 
-u32 EffectSsSolderSrchBall_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsSolderSrchBall_Update(PlayState* play, u32 index, EffectSs* this);
-void EffectSsSolderSrchBall_Draw(PlayState* play, u32 index, EffectSs* this);
+u32 OoT_EffectSsSolderSrchBall_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void OoT_EffectSsSolderSrchBall_Update(PlayState* play, u32 index, EffectSs* this);
+void OoT_EffectSsSolderSrchBall_Draw(PlayState* play, u32 index, EffectSs* this);
 
 EffectSsInit Effect_Ss_Solder_Srch_Ball_InitVars = {
     EFFECT_SS_SOLDER_SRCH_BALL,
-    EffectSsSolderSrchBall_Init,
+    OoT_EffectSsSolderSrchBall_Init,
 };
 
-u32 EffectSsSolderSrchBall_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 OoT_EffectSsSolderSrchBall_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsSolderSrchBallInitParams* initParams = (EffectSsSolderSrchBallInitParams*)initParamsx;
 
     this->pos = initParams->pos;
     this->velocity = initParams->velocity;
     this->accel = initParams->accel;
-    this->update = EffectSsSolderSrchBall_Update;
-    this->draw = EffectSsSolderSrchBall_Draw;
+    this->update = OoT_EffectSsSolderSrchBall_Update;
+    this->draw = OoT_EffectSsSolderSrchBall_Draw;
     this->life = 100;
     this->rUnused = initParams->unused;
     this->actor = initParams->linkDetected; // actor field was incorrectly used as a pointer to something else
     return 1;
 }
 
-void EffectSsSolderSrchBall_Update(PlayState* play, u32 index, EffectSs* this) {
+void OoT_EffectSsSolderSrchBall_Update(PlayState* play, u32 index, EffectSs* this) {
     s32 pad;
     f32 playerPosDiffX;
     f32 playerPosDiffY;
@@ -47,8 +47,8 @@ void EffectSsSolderSrchBall_Update(PlayState* play, u32 index, EffectSs* this) {
     playerPosDiffY = player->actor.world.pos.y - this->pos.y;
     playerPosDiffZ = player->actor.world.pos.z - this->pos.z;
 
-    if (!BgCheck_SphVsFirstPoly(&play->colCtx, &this->pos, 30.0f)) {
-        if (sqrtf(SQ(playerPosDiffX) + SQ(playerPosDiffY) + SQ(playerPosDiffZ)) < 70.0f) {
+    if (!OoT_BgCheck_SphVsFirstPoly(&play->colCtx, &this->pos, 30.0f)) {
+        if (OoT_sqrtf(SQ(playerPosDiffX) + SQ(playerPosDiffY) + SQ(playerPosDiffZ)) < 70.0f) {
             *linkDetected = true;
         }
     } else {
@@ -72,8 +72,8 @@ static void vtxn_f2l(Vtx* r, Vec3f* v) {
 }
 
 static void ico_sph_subdivide_edge(Vec3f* r, Vec3f* a, Vec3f* b) {
-    Math_Vec3f_Sum(a, b, r);
-    Math_Vec3f_Scale(r, (1.0f / Math3D_Vec3fMagnitude(r)));
+    OoT_Math_Vec3f_Sum(a, b, r);
+    OoT_Math_Vec3f_Scale(r, (1.0f / OoT_Math3D_Vec3fMagnitude(r)));
 }
 
 static void draw_ico_sphere(Gfx** p_gfx_p, f32 x, f32 y, f32 z, f32 radius, GraphicsContext* gfxCtx) {
@@ -212,16 +212,16 @@ static void draw_ico_sphere(Gfx** p_gfx_p, f32 x, f32 y, f32 z, f32 radius, Grap
         gSPClearGeometryMode(sph_gfx_p++, G_CULL_BACK | G_SHADING_SMOOTH);
         gSPEndDisplayList(sph_gfx_p++);
     }
-    Matrix_Push();
-    Matrix_Translate(x, y, z, MTXMODE_NEW);
-    Matrix_Scale(radius / 128.0f, radius / 128.0f, radius / 128.0f, MTXMODE_APPLY);
+    OoT_Matrix_Push();
+    OoT_Matrix_Translate(x, y, z, MTXMODE_NEW);
+    OoT_Matrix_Scale(radius / 128.0f, radius / 128.0f, radius / 128.0f, MTXMODE_APPLY);
     gSPMatrix((*p_gfx_p)++, MATRIX_NEWMTX(gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_PUSH);
     gSPDisplayList((*p_gfx_p)++, p_sph_gfx);
     gSPPopMatrix((*p_gfx_p)++, G_MTX_MODELVIEW);
-    Matrix_Pop();
+    OoT_Matrix_Pop();
 }
 
-void EffectSsSolderSrchBall_Draw(PlayState* play, u32 index, EffectSs* this) {
+void OoT_EffectSsSolderSrchBall_Draw(PlayState* play, u32 index, EffectSs* this) {
     if (CVarGetInteger(CVAR_ENHANCEMENT("GuardVision"), 0) == 0) {
         return;
     }

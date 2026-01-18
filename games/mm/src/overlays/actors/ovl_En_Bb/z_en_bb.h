@@ -29,7 +29,7 @@ typedef struct EnBb {
     /* 0x24D */ u8 drawDmgEffType;
     /* 0x24E */ UNK_TYPE1 unk_24E[0x2];
     /* 0x250 */ s16 timer;
-    /* 0x252 */ s16 attackWaitTimer; // Cannot start attacking the player if this is non-zero
+    /* 0x252 */ s16 attackWaitTimer; // Cannot start attacking the player if this is non-MM_zero
     /* 0x254 */ s16 targetYRotation;
     /* 0x256 */ s16 bobPhase;
     /* 0x258 */ f32 maxSpeed;

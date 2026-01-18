@@ -46,7 +46,7 @@ ActorProfile En_Zob_Profile = {
     /**/ EnZob_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -79,7 +79,7 @@ typedef enum EnZobAnimation {
     /* 9 */ ENZOB_ANIM_MAX
 } EnZobAnimation;
 
-static AnimationHeader* sAnimations[ENZOB_ANIM_MAX] = {
+static AnimationHeader* MM_sAnimations[ENZOB_ANIM_MAX] = {
     &object_zob_Anim_0027D0, // ENZOB_ANIM_0
     &object_zob_Anim_002B38, // ENZOB_ANIM_1
     &object_zob_Anim_0037A0, // ENZOB_ANIM_2
@@ -96,13 +96,13 @@ void EnZob_Init(Actor* thisx, PlayState* play) {
     s32 i;
     s16 csId;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 20.0f);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 20.0f);
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
-    Actor_SetScale(&this->actor, 0.0115f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &object_zob_Skel_010810, &object_zob_Anim_006998, this->jointTable,
+    MM_Actor_SetScale(&this->actor, 0.0115f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &object_zob_Skel_010810, &object_zob_Anim_006998, this->jointTable,
                        this->morphTable, OBJECT_ZOB_LIMB_MAX);
-    Animation_PlayLoop(&this->skelAnime, &object_zob_Anim_006998);
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    MM_Animation_PlayLoop(&this->skelAnime, &object_zob_Anim_006998);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
     this->unk_2F4 = 0;
     this->csIdIndex = -1;
     this->cueId = 0;
@@ -135,7 +135,7 @@ void EnZob_Init(Actor* thisx, PlayState* play) {
             }
 
             if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_CLEARED_GREAT_BAY_TEMPLE)) {
-                Actor_Kill(&this->actor);
+                MM_Actor_Kill(&this->actor);
                 return;
             }
             break;
@@ -150,7 +150,7 @@ void EnZob_Init(Actor* thisx, PlayState* play) {
 
         default:
             if (CHECK_WEEKEVENTREG(WEEKEVENTREG_CLEARED_GREAT_BAY_TEMPLE)) {
-                Actor_Kill(&this->actor);
+                MM_Actor_Kill(&this->actor);
             }
             this->actor.flags |= ACTOR_FLAG_UPDATE_CULLING_DISABLED;
             break;
@@ -160,20 +160,20 @@ void EnZob_Init(Actor* thisx, PlayState* play) {
 void EnZob_Destroy(Actor* thisx, PlayState* play) {
     EnZob* this = (EnZob*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnZob_ChangeAnim(EnZob* this, s16 animIndex, u8 animMode) {
-    Animation_Change(&this->skelAnime, sAnimations[animIndex], 1.0f, 0.0f,
-                     Animation_GetLastFrame(sAnimations[animIndex]), animMode, -5.0f);
+    MM_Animation_Change(&this->skelAnime, MM_sAnimations[animIndex], 1.0f, 0.0f,
+                     MM_Animation_GetLastFrame(MM_sAnimations[animIndex]), animMode, -5.0f);
     this->animIndex = animIndex;
 }
 
 void func_80B9F86C(EnZob* this) {
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (MM_SkelAnime_Update(&this->skelAnime)) {
         switch (this->unk_304) {
             case 0:
-                if (Rand_ZeroFloat(1.0f) > 0.7f) {
+                if (MM_Rand_ZeroFloat(1.0f) > 0.7f) {
                     if (this->animIndex == ENZOB_ANIM_6) {
                         EnZob_ChangeAnim(this, ENZOB_ANIM_7, ANIMMODE_ONCE);
                     } else {
@@ -205,7 +205,7 @@ void func_80B9F86C(EnZob* this) {
                 break;
 
             case 5:
-                if (Rand_ZeroFloat(1.0f) < 0.8f) {
+                if (MM_Rand_ZeroFloat(1.0f) < 0.8f) {
                     EnZob_ChangeAnim(this, this->animIndex, ANIMMODE_ONCE);
                 } else if (this->animIndex == ENZOB_ANIM_0) {
                     EnZob_ChangeAnim(this, ENZOB_ANIM_1, ANIMMODE_ONCE);
@@ -218,7 +218,7 @@ void func_80B9F86C(EnZob* this) {
                 break;
         }
 
-        SkelAnime_Update(&this->skelAnime);
+        MM_SkelAnime_Update(&this->skelAnime);
     }
 }
 
@@ -266,7 +266,7 @@ void func_80B9FA3C(EnZob* this, PlayState* play) {
         EnZob_ChangeAnim(this, ENZOB_ANIM_4, ANIMMODE_ONCE);
     }
 
-    Message_StartTextbox(play, textId, &this->actor);
+    MM_Message_StartTextbox(play, textId, &this->actor);
 }
 
 void func_80B9FC0C(EnZob* this) {
@@ -284,7 +284,7 @@ void func_80B9FC70(EnZob* this, s16 csIdIndex) {
 }
 
 void func_80B9FCA0(EnZob* this, PlayState* play) {
-    Message_CloseTextbox(play);
+    MM_Message_CloseTextbox(play);
     play->msgCtx.ocarinaMode = OCARINA_MODE_END;
     func_80B9FC0C(this);
     this->unk_2F4 &= ~1;
@@ -321,12 +321,12 @@ void func_80B9FD24(EnZob* this, PlayState* play) {
 }
 
 void func_80B9FDDC(EnZob* this, PlayState* play) {
-    Message_StartTextbox(play, 0x120C, &this->actor);
+    MM_Message_StartTextbox(play, 0x120C, &this->actor);
     this->actionFunc = func_80BA00BC;
 }
 
 void func_80B9FE1C(EnZob* this, PlayState* play) {
-    Message_StartTextbox(play, 0x1211, &this->actor);
+    MM_Message_StartTextbox(play, 0x1211, &this->actor);
     this->actionFunc = func_80BA00BC;
 }
 
@@ -336,7 +336,7 @@ void func_80B9FE5C(EnZob* this, PlayState* play) {
         play->msgCtx.msgLength = 0;
         this->actionFunc = func_80B9FDDC;
         func_80B9FC70(this, 0);
-    } else if (Message_GetState(&play->msgCtx) == TEXT_STATE_11) {
+    } else if (MM_Message_GetState(&play->msgCtx) == TEXT_STATE_11) {
         play->msgCtx.msgLength = 0;
         this->actionFunc = func_80B9FE1C;
         this->unk_304 = 3;
@@ -347,7 +347,7 @@ void func_80B9FE5C(EnZob* this, PlayState* play) {
 
 void func_80B9FF20(EnZob* this, PlayState* play) {
     func_80B9F86C(this);
-    if (Message_GetState(&play->msgCtx) == TEXT_STATE_SONG_DEMO_DONE) {
+    if (MM_Message_GetState(&play->msgCtx) == TEXT_STATE_SONG_DEMO_DONE) {
         Message_DisplayOcarinaStaff(play, OCARINA_ACTION_PROMPT_EVAN_PART2_SECOND_HALF);
         this->actionFunc = func_80B9FE5C;
         func_80B9FC70(this, 2);
@@ -362,7 +362,7 @@ void func_80B9FF80(EnZob* this, PlayState* play) {
         EnZob_ChangeAnim(this, ENZOB_ANIM_1, ANIMMODE_LOOP);
         Message_DisplayOcarinaStaff(play, OCARINA_ACTION_DEMONSTRATE_EVAN_PART2_FIRST_HALF);
         func_80B9FC70(this, 1);
-    } else if (Message_GetState(&play->msgCtx) == TEXT_STATE_11) {
+    } else if (MM_Message_GetState(&play->msgCtx) == TEXT_STATE_11) {
         play->msgCtx.msgLength = 0;
         this->actionFunc = func_80B9FE1C;
         this->unk_304 = 3;
@@ -373,7 +373,7 @@ void func_80B9FF80(EnZob* this, PlayState* play) {
 
 void func_80BA005C(EnZob* this, PlayState* play) {
     func_80B9F86C(this);
-    if (Message_GetState(&play->msgCtx) == TEXT_STATE_SONG_DEMO_DONE) {
+    if (MM_Message_GetState(&play->msgCtx) == TEXT_STATE_SONG_DEMO_DONE) {
         Message_DisplayOcarinaStaff(play, OCARINA_ACTION_PROMPT_EVAN_PART1_SECOND_HALF);
         this->actionFunc = func_80B9FF80;
         func_80B9FC70(this, 2);
@@ -383,32 +383,32 @@ void func_80BA005C(EnZob* this, PlayState* play) {
 void func_80BA00BC(EnZob* this, PlayState* play) {
     func_80B9F86C(this);
 
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_CHOICE:
-            if (Message_ShouldAdvance(play) && (play->msgCtx.currentTextId == 0x1212)) {
+            if (MM_Message_ShouldAdvance(play) && (play->msgCtx.currentTextId == 0x1212)) {
                 switch (play->msgCtx.choiceIndex) {
                     case 1:
                         Audio_PlaySfx_MessageDecide();
-                        Message_ContinueTextbox(play, 0x1209);
+                        MM_Message_ContinueTextbox(play, 0x1209);
                         this->unk_304 = 1;
                         EnZob_ChangeAnim(this, ENZOB_ANIM_2, ANIMMODE_ONCE);
                         break;
 
                     case 0:
                         Audio_PlaySfx_MessageCancel();
-                        Message_ContinueTextbox(play, 0x1213);
+                        MM_Message_ContinueTextbox(play, 0x1213);
                         break;
                 }
             }
             break;
 
         case TEXT_STATE_EVENT:
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 switch (play->msgCtx.currentTextId) {
                     case 0x1208:
                     case 0x120E:
                     case 0x1216:
-                        Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                        MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                         break;
 
                     case 0x120C:
@@ -422,7 +422,7 @@ void func_80BA00BC(EnZob* this, PlayState* play) {
                     case 0x1211:
                     case 0x1213:
                     case 0x1217:
-                        Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                        MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                         this->unk_304 = 3;
                         EnZob_ChangeAnim(this, ENZOB_ANIM_4, ANIMMODE_ONCE);
                         break;
@@ -468,34 +468,34 @@ void func_80BA0374(EnZob* this, PlayState* play) {
 
     func_80B9F86C(this);
 
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_CHOICE:
-            if (Message_ShouldAdvance(play) && (play->msgCtx.currentTextId == 0x1205)) {
+            if (MM_Message_ShouldAdvance(play) && (play->msgCtx.currentTextId == 0x1205)) {
                 switch (play->msgCtx.choiceIndex) {
                     case 0:
                         Audio_PlaySfx_MessageDecide();
-                        Message_ContinueTextbox(play, 0x1207);
+                        MM_Message_ContinueTextbox(play, 0x1207);
                         EnZob_ChangeAnim(this, ENZOB_ANIM_2, ANIMMODE_ONCE);
                         break;
 
                     case 1:
                         Audio_PlaySfx_MessageCancel();
-                        Message_ContinueTextbox(play, 0x1206);
+                        MM_Message_ContinueTextbox(play, 0x1206);
                         break;
                 }
             }
             break;
 
         case TEXT_STATE_EVENT:
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 switch (play->msgCtx.currentTextId) {
                     case 0x11F8:
                         SET_WEEKEVENTREG(WEEKEVENTREG_30_02);
-                        Message_ContinueTextbox(play, 0x11F9);
+                        MM_Message_ContinueTextbox(play, 0x11F9);
                         break;
 
                     case 0x11F9:
-                        Message_CloseTextbox(play);
+                        MM_Message_CloseTextbox(play);
                         this->actionFunc = func_80BA0728;
                         this->unk_304 = 0;
                         EnZob_ChangeAnim(this, ENZOB_ANIM_6, ANIMMODE_ONCE);
@@ -507,19 +507,19 @@ void func_80BA0374(EnZob* this, PlayState* play) {
                     case 0x11FF:
                     case 0x1201:
                     case 0x1203:
-                        Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                        MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                         break;
 
                     case 0x11FD:
                         this->unk_304 = 3;
                         EnZob_ChangeAnim(this, ENZOB_ANIM_4, ANIMMODE_ONCE);
-                        Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                        MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                         break;
 
                     case 0x11FE:
                         this->unk_304 = 1;
                         EnZob_ChangeAnim(this, ENZOB_ANIM_3, ANIMMODE_LOOP);
-                        Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                        MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                         break;
 
                     case 0x11FA:
@@ -530,7 +530,7 @@ void func_80BA0374(EnZob* this, PlayState* play) {
                     case 0x120F:
                     case 0x1210:
                     case 0x1215:
-                        Message_CloseTextbox(play);
+                        MM_Message_CloseTextbox(play);
                         this->actionFunc = func_80BA0728;
                         this->unk_304 = 0;
                         EnZob_ChangeAnim(this, ENZOB_ANIM_6, ANIMMODE_ONCE);
@@ -539,7 +539,7 @@ void func_80BA0374(EnZob* this, PlayState* play) {
                         break;
 
                     case 0x1207:
-                        Message_CloseTextbox(play);
+                        MM_Message_CloseTextbox(play);
                         this->actionFunc = func_80BA0318;
                         player->ocarinaInteractionActor = &this->actor;
                         player->stateFlags3 |= PLAYER_STATE3_20;
@@ -554,7 +554,7 @@ void func_80BA0610(EnZob* this, PlayState* play) {
     func_80B9F86C(this);
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
-        Message_StartTextbox(play, 0x120D, &this->actor);
+        MM_Message_StartTextbox(play, 0x120D, &this->actor);
         this->unk_304 = 3;
         EnZob_ChangeAnim(this, ENZOB_ANIM_5, ANIMMODE_ONCE);
         func_80B9FC70(this, 0);
@@ -581,10 +581,10 @@ void func_80BA0728(EnZob* this, PlayState* play) {
 
     if (Actor_OcarinaInteractionAccepted(&this->actor, &play->state)) {
         if (GET_PLAYER_FORM == PLAYER_FORM_ZORA) {
-            Message_StartTextbox(play, 0x1208, NULL);
+            MM_Message_StartTextbox(play, 0x1208, NULL);
             SET_WEEKEVENTREG(WEEKEVENTREG_30_08);
         } else {
-            Message_StartTextbox(play, 0x1216, NULL);
+            MM_Message_StartTextbox(play, 0x1216, NULL);
         }
         this->actionFunc = func_80BA00BC;
         this->unk_304 = 1;
@@ -597,7 +597,7 @@ void func_80BA0728(EnZob* this, PlayState* play) {
     } else if (Cutscene_IsCueInChannel(play, CS_CMD_ACTOR_CUE_500)) {
         this->actionFunc = func_80BA06BC;
     } else if ((this->actor.xzDistToPlayer < 180.0f) && (this->actor.xzDistToPlayer > 60.0f) &&
-               Player_IsFacingActor(&this->actor, 0x3000, play) && Actor_IsFacingPlayer(&this->actor, 0x3000)) {
+               MM_Player_IsFacingActor(&this->actor, 0x3000, play) && MM_Actor_IsFacingPlayer(&this->actor, 0x3000)) {
         Actor_OfferTalk(&this->actor, play, 150.0f);
         Actor_OfferOcarinaInteraction(&this->actor, play, 200.0f, 150.0f);
     }
@@ -632,7 +632,7 @@ void func_80BA08E8(EnZob* this, PlayState* play) {
         EnZob_ChangeAnim(this, ENZOB_ANIM_5, ANIMMODE_ONCE);
     }
 
-    Message_StartTextbox(play, textId, &this->actor);
+    MM_Message_StartTextbox(play, textId, &this->actor);
 }
 
 void func_80BA09E0(EnZob* this, PlayState* play) {
@@ -641,13 +641,13 @@ void func_80BA09E0(EnZob* this, PlayState* play) {
 
 void func_80BA0A04(EnZob* this, PlayState* play) {
     func_80B9F86C(this);
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 2, 0x1000, 0x200);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 2, 0x1000, 0x200);
     this->actor.world.rot.y = this->actor.shape.rot.y;
 
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_EVENT:
-            if (Message_ShouldAdvance(play)) {
-                Message_CloseTextbox(play);
+            if (MM_Message_ShouldAdvance(play)) {
+                MM_Message_CloseTextbox(play);
                 this->actionFunc = func_80BA0AD8;
                 this->unk_304 = 0;
                 EnZob_ChangeAnim(this, ENZOB_ANIM_6, ANIMMODE_ONCE);
@@ -666,15 +666,15 @@ void func_80BA0AD8(EnZob* this, PlayState* play) {
     func_80B9F86C(this);
 
     if (this->actor.home.rot.y != this->actor.shape.rot.y) {
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 2, 0x1000, 0x200);
+        MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 2, 0x1000, 0x200);
         this->actor.world.rot.y = this->actor.shape.rot.y;
     }
 
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         this->actionFunc = func_80BA0A04;
         func_80BA08E8(this, play);
-    } else if ((this->actor.xzDistToPlayer < 120.0f) && Player_IsFacingActor(&this->actor, 0x3000, play) &&
-               Actor_IsFacingPlayer(&this->actor, 0x3000)) {
+    } else if ((this->actor.xzDistToPlayer < 120.0f) && MM_Player_IsFacingActor(&this->actor, 0x3000, play) &&
+               MM_Actor_IsFacingPlayer(&this->actor, 0x3000)) {
         Actor_OfferTalk(&this->actor, play, 120.0f);
     }
 }
@@ -726,9 +726,9 @@ void EnZob_Update(Actor* thisx, PlayState* play) {
 
     Actor_MoveWithGravity(&this->actor);
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 10.0f, 10.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 10.0f, 10.0f, UPDBGCHECKINFO_FLAG_4);
 
     this->actionFunc(this, play);
 
@@ -746,10 +746,10 @@ void EnZob_Update(Actor* thisx, PlayState* play) {
     if (this->unk_2F4 & 1) {
         Actor_TrackPlayer(play, &this->actor, &this->headRot, &this->torsoRot, this->actor.focus.pos);
     } else {
-        Math_SmoothStepToS(&this->headRot.x, 0, 6, 0x1838, 0x64);
-        Math_SmoothStepToS(&this->headRot.y, 0, 6, 0x1838, 0x64);
-        Math_SmoothStepToS(&this->torsoRot.x, 0, 6, 0x1838, 0x64);
-        Math_SmoothStepToS(&this->torsoRot.y, 0, 6, 0x1838, 0x64);
+        MM_Math_SmoothStepToS(&this->headRot.x, 0, 6, 0x1838, 0x64);
+        MM_Math_SmoothStepToS(&this->headRot.y, 0, 6, 0x1838, 0x64);
+        MM_Math_SmoothStepToS(&this->torsoRot.x, 0, 6, 0x1838, 0x64);
+        MM_Math_SmoothStepToS(&this->torsoRot.y, 0, 6, 0x1838, 0x64);
     }
 }
 
@@ -768,7 +768,7 @@ void EnZob_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot,
     EnZob* this = (EnZob*)thisx;
 
     if (limbIndex == OBJECT_ZOB_LIMB_09) {
-        Matrix_MultVec3f(&D_80BA1120, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&D_80BA1120, &this->actor.focus.pos);
     }
 }
 
@@ -780,14 +780,14 @@ void EnZob_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     if (this->unk_2F4 & 0x20) {
-        POLY_OPA_DISP = Gfx_SetFog(POLY_OPA_DISP, 0, 0, 0, 0, this->unk_312, 1000);
+        POLY_OPA_DISP = MM_Gfx_SetFog(POLY_OPA_DISP, 0, 0, 0, 0, this->unk_312, 1000);
     }
 
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnZob_OverrideLimbDraw, EnZob_PostLimbDraw, &this->actor);
 
     if (this->unk_2F4 & 0x20) {
-        POLY_OPA_DISP = Play_SetFog(play, POLY_OPA_DISP);
+        POLY_OPA_DISP = MM_Play_SetFog(play, POLY_OPA_DISP);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

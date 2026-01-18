@@ -31,7 +31,7 @@ typedef enum {
     /*  1 */ MADAME_AROMA_ANIM_MAX
 } DmAlAnimation;
 
-static AnimationInfoS sAnimationInfo[MADAME_AROMA_ANIM_MAX] = {
+static AnimationInfoS MM_sAnimationInfo[MADAME_AROMA_ANIM_MAX] = {
     { &object_al_Anim_00DBE0, 1.0f, 0, -1, ANIMMODE_LOOP, 0 }, // MADAME_AROMA_ANIM_0
 };
 
@@ -40,7 +40,7 @@ s32 DmAl_ChangeAnim(DmAl* this, s32 animIndex) {
 
     if (this->animIndex != animIndex) {
         this->animIndex = animIndex;
-        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, animIndex);
+        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, animIndex);
     }
 
     return didAnimChange;
@@ -77,13 +77,13 @@ void DmAl_HandleCutscene(DmAl* this, PlayState* play) {
 void DmAl_Init(Actor* thisx, PlayState* play) {
     DmAl* this = (DmAl*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gMadameAromaSkel, NULL, this->jointTable, this->morphTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gMadameAromaSkel, NULL, this->jointTable, this->morphTable,
                        MADAME_AROMA_LIMB_MAX);
     this->animIndex = MADAME_AROMA_ANIM_NONE;
     DmAl_ChangeAnim(this, MADAME_AROMA_ANIM_0);
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->actionFunc = DmAl_HandleCutscene;
 }
 
@@ -94,8 +94,8 @@ void DmAl_Update(Actor* thisx, PlayState* play) {
     DmAl* this = (DmAl*)thisx;
 
     this->actionFunc(this, play);
-    SkelAnime_Update(&this->skelAnime);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 12.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 12.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
 }
 
 s32 DmAl_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* rot, Vec3s* pos, Actor* thisx) {
@@ -120,27 +120,27 @@ void DmAl_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
 
     switch (limbIndex) {
         case MADAME_AROMA_LIMB_SHAWL_MIDDLE:
-            Matrix_Get(&this->shawlMatrices[0]);
+            MM_Matrix_Get(&this->shawlMatrices[0]);
             break;
 
         case MADAME_AROMA_LIMB_SHAWL_UPPER:
-            Matrix_Get(&this->shawlMatrices[1]);
+            MM_Matrix_Get(&this->shawlMatrices[1]);
             break;
 
         case MADAME_AROMA_LIMB_SHAWL_LEFT_LOWER_MIDDLE:
-            Matrix_Get(&this->shawlMatrices[2]);
+            MM_Matrix_Get(&this->shawlMatrices[2]);
             break;
 
         case MADAME_AROMA_LIMB_SHAWL_LEFT_LOWER:
-            Matrix_Get(&this->shawlMatrices[3]);
+            MM_Matrix_Get(&this->shawlMatrices[3]);
             break;
 
         case MADAME_AROMA_LIMB_SHAWL_RIGHT_LOWER_MIDDLE:
-            Matrix_Get(&this->shawlMatrices[4]);
+            MM_Matrix_Get(&this->shawlMatrices[4]);
             break;
 
         case MADAME_AROMA_LIMB_SHAWL_RIGHT_LOWER:
-            Matrix_Get(&this->shawlMatrices[5]);
+            MM_Matrix_Get(&this->shawlMatrices[5]);
             break;
 
         default:
@@ -168,7 +168,7 @@ void DmAl_Draw(Actor* thisx, PlayState* play) {
                                    this->skelAnime.dListCount, DmAl_OverrideLimbDraw, DmAl_PostLimbDraw,
                                    DmAl_TransformLimbDraw, &this->actor);
     for (i = 0; i < ARRAY_COUNT(this->shawlMatrices); i++) {
-        Matrix_Put(&this->shawlMatrices[i]);
+        MM_Matrix_Put(&this->shawlMatrices[i]);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_OPA_DISP++, sDlists[i]);
     }

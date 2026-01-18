@@ -5,10 +5,10 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void EnIn_Init(Actor* thisx, PlayState* play);
-void EnIn_Destroy(Actor* thisx, PlayState* play);
-void EnIn_Update(Actor* thisx, PlayState* play);
-void EnIn_Draw(Actor* thisx, PlayState* play);
+void OoT_EnIn_Init(Actor* thisx, PlayState* play);
+void OoT_EnIn_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnIn_Update(Actor* thisx, PlayState* play);
+void OoT_EnIn_Draw(Actor* thisx, PlayState* play);
 void EnIn_Reset(void);
 
 void func_80A79FB0(EnIn* this, PlayState* play);
@@ -32,14 +32,14 @@ const ActorInit En_In_InitVars = {
     FLAGS,
     OBJECT_IN,
     sizeof(EnIn),
-    (ActorFunc)EnIn_Init,
-    (ActorFunc)EnIn_Destroy,
-    (ActorFunc)EnIn_Update,
-    (ActorFunc)EnIn_Draw,
+    (ActorFunc)OoT_EnIn_Init,
+    (ActorFunc)OoT_EnIn_Destroy,
+    (ActorFunc)OoT_EnIn_Update,
+    (ActorFunc)OoT_EnIn_Draw,
     (ActorResetFunc)EnIn_Reset,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -59,7 +59,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 18, 46, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = {
+static CollisionCheckInfoInit2 OoT_sColChkInfoInit = {
     0, 0, 0, 0, MASS_IMMOVABLE,
 };
 
@@ -76,7 +76,7 @@ typedef enum {
     /* 9 */ ENIN_ANIM_9
 } EnInAnimation;
 
-static AnimationFrameCountInfo sAnimationInfo[] = {
+static AnimationFrameCountInfo OoT_sAnimationInfo[] = {
     { &object_in_Anim_001CC0, 1.0f, ANIMMODE_LOOP, 0.0f }, { &object_in_Anim_001CC0, 1.0f, ANIMMODE_LOOP, -10.0f },
     { &object_in_Anim_013C6C, 1.0f, ANIMMODE_LOOP, 0.0f }, { &object_in_Anim_013C6C, 1.0f, ANIMMODE_LOOP, -10.0f },
     { &object_in_Anim_000CB0, 1.0f, ANIMMODE_LOOP, 0.0f }, { &object_in_Anim_0003B4, 1.0f, ANIMMODE_LOOP, -10.0f },
@@ -113,14 +113,14 @@ static Gfx* sAdultEraDLs[] = {
 };
 
 u16 func_80A78FB0(PlayState* play) {
-    if (Flags_GetEventChkInf(EVENTCHKINF_TALON_RETURNED_FROM_CASTLE)) {
-        if (Flags_GetInfTable(INFTABLE_97)) {
+    if (OoT_Flags_GetEventChkInf(EVENTCHKINF_TALON_RETURNED_FROM_CASTLE)) {
+        if (OoT_Flags_GetInfTable(INFTABLE_97)) {
             return 0x2046;
         } else {
             return 0x2045;
         }
     }
-    if (Flags_GetInfTable(INFTABLE_94)) {
+    if (OoT_Flags_GetInfTable(INFTABLE_94)) {
         return 0x2040;
     } else {
         return 0x203F;
@@ -129,12 +129,12 @@ u16 func_80A78FB0(PlayState* play) {
 
 u16 func_80A79010(PlayState* play) {
     Player* player = GET_PLAYER(play);
-    u16 temp_v0 = Text_GetFaceReaction(play, 25);
+    u16 temp_v0 = OoT_Text_GetFaceReaction(play, 25);
 
     if (temp_v0 != 0) {
         return temp_v0;
     }
-    if (Flags_GetEventChkInf(EVENTCHKINF_EPONA_OBTAINED)) {
+    if (OoT_Flags_GetEventChkInf(EVENTCHKINF_EPONA_OBTAINED)) {
         if (IS_DAY) {
             return 0x205F;
         } else {
@@ -148,8 +148,8 @@ u16 func_80A79010(PlayState* play) {
         case 1:
             if (!(player->stateFlags1 & PLAYER_STATE1_ON_HORSE)) {
                 return 0x2036;
-            } else if (Flags_GetEventChkInf(EVENTCHKINF_RENTED_HORSE_FROM_INGO)) {
-                if (Flags_GetInfTable(INFTABLE_A2)) {
+            } else if (OoT_Flags_GetEventChkInf(EVENTCHKINF_RENTED_HORSE_FROM_INGO)) {
+                if (OoT_Flags_GetInfTable(INFTABLE_A2)) {
                     return 0x2036;
                 } else {
                     return 0x2038;
@@ -172,7 +172,7 @@ u16 func_80A79010(PlayState* play) {
             return 0x205B;
         case 2:
         default:
-            if (Flags_GetInfTable(INFTABLE_SPOKE_TO_INGO_ONCE_AS_ADULT)) {
+            if (OoT_Flags_GetInfTable(INFTABLE_SPOKE_TO_INGO_ONCE_AS_ADULT)) {
                 return 0x2031;
             } else {
                 return 0x2030;
@@ -181,7 +181,7 @@ u16 func_80A79010(PlayState* play) {
 }
 
 u16 func_80A79168(PlayState* play, Actor* thisx) {
-    u16 temp_v0 = Text_GetFaceReaction(play, 25);
+    u16 temp_v0 = OoT_Text_GetFaceReaction(play, 25);
 
     if (temp_v0 != 0) {
         return temp_v0;
@@ -198,14 +198,14 @@ s16 func_80A791CC(PlayState* play, Actor* thisx) {
 
     switch (thisx->textId) {
         case 0x2045:
-            Flags_SetInfTable(INFTABLE_97);
+            OoT_Flags_SetInfTable(INFTABLE_97);
             break;
         case 0x203E:
             ret = NPC_TALK_STATE_ACTION;
             break;
         case 0x203F:
-            Flags_SetEventChkInf(EVENTCHKINF_SPOKE_TO_INGO_AT_RANCH_BEFORE_TALON_RETURNS);
-            Flags_SetInfTable(INFTABLE_94);
+            OoT_Flags_SetEventChkInf(EVENTCHKINF_SPOKE_TO_INGO_AT_RANCH_BEFORE_TALON_RETURNS);
+            OoT_Flags_SetInfTable(INFTABLE_94);
             break;
     }
     return ret;
@@ -225,17 +225,17 @@ s16 func_80A7924C(PlayState* play, Actor* thisx) {
             } else {
                 this->actor.textId = 0x2034;
             }
-            Message_ContinueTextbox(play, this->actor.textId);
-            Flags_SetInfTable(INFTABLE_SPOKE_TO_INGO_ONCE_AS_ADULT);
+            OoT_Message_ContinueTextbox(play, this->actor.textId);
+            OoT_Flags_SetInfTable(INFTABLE_SPOKE_TO_INGO_ONCE_AS_ADULT);
             break;
         case 0x2034:
             if (play->msgCtx.choiceIndex == 1) {
-                Rupees_ChangeBy(-10);
+                OoT_Rupees_ChangeBy(-10);
                 this->actor.textId = 0x205C;
             } else {
                 this->actor.textId = 0x2035;
             }
-            Message_ContinueTextbox(play, this->actor.textId);
+            OoT_Message_ContinueTextbox(play, this->actor.textId);
             break;
         case 0x2036:
         case 0x2037:
@@ -243,7 +243,7 @@ s16 func_80A7924C(PlayState* play, Actor* thisx) {
                 sp18 = NPC_TALK_STATE_ACTION;
             } else {
                 this->actor.textId = 0x201F;
-                Message_ContinueTextbox(play, this->actor.textId);
+                OoT_Message_ContinueTextbox(play, this->actor.textId);
             }
             break;
         case 0x2038:
@@ -251,15 +251,15 @@ s16 func_80A7924C(PlayState* play, Actor* thisx) {
                 sp18 = NPC_TALK_STATE_ACTION;
             } else {
                 this->actor.textId = 0x2039;
-                Message_ContinueTextbox(play, this->actor.textId);
-                Flags_SetInfTable(INFTABLE_A2);
+                OoT_Message_ContinueTextbox(play, this->actor.textId);
+                OoT_Flags_SetInfTable(INFTABLE_A2);
             }
             break;
         case 0x205B:
             if (play->msgCtx.choiceIndex == 0 && gSaveContext.rupees >= 50) {
                 sp18 = NPC_TALK_STATE_ACTION;
             } else {
-                Message_ContinueTextbox(play, this->actor.textId = 0x2039);
+                OoT_Message_ContinueTextbox(play, this->actor.textId = 0x2039);
                 gSaveContext.eventInf[0] &= ~0xF;
                 gSaveContext.eventInf[0] &= ~0x20;
                 gSaveContext.eventInf[0] &= ~0x40;
@@ -276,9 +276,9 @@ s16 func_80A7949C(PlayState* play, Actor* thisx) {
     s32 phi_v1 = NPC_TALK_STATE_TALKING;
 
     if (thisx->textId == 0x2035) {
-        Rupees_ChangeBy(-10);
+        OoT_Rupees_ChangeBy(-10);
         thisx->textId = 0x205C;
-        Message_ContinueTextbox(play, thisx->textId);
+        OoT_Message_ContinueTextbox(play, thisx->textId);
     } else {
         phi_v1 = NPC_TALK_STATE_ACTION;
     }
@@ -288,8 +288,8 @@ s16 func_80A7949C(PlayState* play, Actor* thisx) {
 s16 func_80A79500(PlayState* play, Actor* thisx) {
     s16 sp1E = NPC_TALK_STATE_TALKING;
 
-    osSyncPrintf("message_check->(%d[%x])\n", Message_GetState(&play->msgCtx), thisx->textId);
-    switch (Message_GetState(&play->msgCtx)) {
+    osSyncPrintf("message_check->(%d[%x])\n", OoT_Message_GetState(&play->msgCtx), thisx->textId);
+    switch (OoT_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_NONE:
         case TEXT_STATE_DONE_HAS_NEXT:
             break;
@@ -299,12 +299,12 @@ s16 func_80A79500(PlayState* play, Actor* thisx) {
         case TEXT_STATE_DONE_FADING:
             break;
         case TEXT_STATE_CHOICE:
-            if (Message_ShouldAdvance(play)) {
+            if (OoT_Message_ShouldAdvance(play)) {
                 sp1E = func_80A7924C(play, thisx);
             }
             break;
         case TEXT_STATE_EVENT:
-            if (Message_ShouldAdvance(play)) {
+            if (OoT_Message_ShouldAdvance(play)) {
                 sp1E = func_80A7949C(play, thisx);
             }
             break;
@@ -337,7 +337,7 @@ void func_80A795C8(EnIn* this, PlayState* play) {
         this->interactInfo.trackPos = player->actor.world.pos;
         this->interactInfo.yOffset = 16.0f;
     }
-    Npc_TrackPoint(&this->actor, &this->interactInfo, 1, npcTrackingMode);
+    OoT_Npc_TrackPoint(&this->actor, &this->interactInfo, 1, npcTrackingMode);
 }
 
 void func_80A79690(SkelAnime* skelAnime, EnIn* this, PlayState* play) {
@@ -347,10 +347,10 @@ void func_80A79690(SkelAnime* skelAnime, EnIn* this, PlayState* play) {
     }
 }
 
-void EnIn_ChangeAnim(EnIn* this, s32 index) {
-    Animation_Change(&this->skelAnime, sAnimationInfo[index].animation, 1.0f, 0.0f,
-                     Animation_GetLastFrame(sAnimationInfo[index].animation), sAnimationInfo[index].mode,
-                     sAnimationInfo[index].morphFrames);
+void OoT_EnIn_ChangeAnim(EnIn* this, s32 index) {
+    OoT_Animation_Change(&this->skelAnime, OoT_sAnimationInfo[index].animation, 1.0f, 0.0f,
+                     OoT_Animation_GetLastFrame(OoT_sAnimationInfo[index].animation), OoT_sAnimationInfo[index].mode,
+                     OoT_sAnimationInfo[index].morphFrames);
 }
 
 s32 func_80A7975C(EnIn* this, PlayState* play) {
@@ -359,42 +359,42 @@ s32 func_80A7975C(EnIn* this, PlayState* play) {
     }
     this->animationIdx = 1;
     this->collider.base.ocFlags1 &= ~OC1_ON;
-    Animation_Change(&this->skelAnime, D_80A7B918[this->animationIdx], 1.0f, 0.0f,
-                     Animation_GetLastFrame(D_80A7B918[this->animationIdx]), 2, 0.0f);
+    OoT_Animation_Change(&this->skelAnime, D_80A7B918[this->animationIdx], 1.0f, 0.0f,
+                     OoT_Animation_GetLastFrame(D_80A7B918[this->animationIdx]), 2, 0.0f);
     this->actionFunc = func_80A7A304;
     return 1;
 }
 
 s32 func_80A79830(EnIn* this, PlayState* play) {
     if (play->sceneNum == SCENE_LON_LON_RANCH && LINK_IS_CHILD && IS_DAY && this->actor.shape.rot.z == 1 &&
-        !Flags_GetEventChkInf(EVENTCHKINF_TALON_RETURNED_FROM_CASTLE)) {
+        !OoT_Flags_GetEventChkInf(EVENTCHKINF_TALON_RETURNED_FROM_CASTLE)) {
         return 1;
     }
     if (play->sceneNum == SCENE_STABLE && LINK_IS_CHILD && IS_DAY && this->actor.shape.rot.z == 3 &&
-        (Flags_GetEventChkInf(EVENTCHKINF_TALON_RETURNED_FROM_CASTLE))) {
+        (OoT_Flags_GetEventChkInf(EVENTCHKINF_TALON_RETURNED_FROM_CASTLE))) {
         return 1;
     }
     if (play->sceneNum == SCENE_STABLE && LINK_IS_CHILD && IS_NIGHT) {
-        if ((this->actor.shape.rot.z == 2) && !Flags_GetEventChkInf(EVENTCHKINF_TALON_RETURNED_FROM_CASTLE)) {
+        if ((this->actor.shape.rot.z == 2) && !OoT_Flags_GetEventChkInf(EVENTCHKINF_TALON_RETURNED_FROM_CASTLE)) {
             return 1;
         }
-        if ((this->actor.shape.rot.z == 4) && (Flags_GetEventChkInf(EVENTCHKINF_TALON_RETURNED_FROM_CASTLE))) {
+        if ((this->actor.shape.rot.z == 4) && (OoT_Flags_GetEventChkInf(EVENTCHKINF_TALON_RETURNED_FROM_CASTLE))) {
             return 1;
         }
     }
     if (play->sceneNum == SCENE_LON_LON_RANCH && LINK_IS_ADULT && IS_DAY) {
-        if ((this->actor.shape.rot.z == 5) && !Flags_GetEventChkInf(EVENTCHKINF_EPONA_OBTAINED)) {
+        if ((this->actor.shape.rot.z == 5) && !OoT_Flags_GetEventChkInf(EVENTCHKINF_EPONA_OBTAINED)) {
             return 2;
         }
-        if ((this->actor.shape.rot.z == 7) && (Flags_GetEventChkInf(EVENTCHKINF_EPONA_OBTAINED))) {
+        if ((this->actor.shape.rot.z == 7) && (OoT_Flags_GetEventChkInf(EVENTCHKINF_EPONA_OBTAINED))) {
             return 4;
         }
     }
     if (play->sceneNum == SCENE_LON_LON_BUILDINGS && LINK_IS_ADULT && IS_NIGHT) {
-        if (this->actor.shape.rot.z == 6 && !Flags_GetEventChkInf(EVENTCHKINF_EPONA_OBTAINED)) {
+        if (this->actor.shape.rot.z == 6 && !OoT_Flags_GetEventChkInf(EVENTCHKINF_EPONA_OBTAINED)) {
             return 3;
         }
-        if (this->actor.shape.rot.z == 8 && (Flags_GetEventChkInf(EVENTCHKINF_EPONA_OBTAINED))) {
+        if (this->actor.shape.rot.z == 8 && (OoT_Flags_GetEventChkInf(EVENTCHKINF_EPONA_OBTAINED))) {
             return 3;
         }
     }
@@ -406,7 +406,7 @@ void EnIn_UpdateEyes(EnIn* this) {
         if (DECR(this->blinkTimer) == 0) {
             this->eyeIndex++;
             if (this->eyeIndex >= 3) {
-                this->blinkTimer = Rand_S16Offset(30, 30);
+                this->blinkTimer = OoT_Rand_S16Offset(30, 30);
                 this->eyeIndex = 0;
             }
         }
@@ -435,7 +435,7 @@ void func_80A79BAC(EnIn* this, PlayState* play, s32 index, u32 transitionType) {
     }
     play->transitionType = transitionType;
     play->transitionTrigger = TRANS_TRIGGER_START;
-    Player_SetCsActionWithHaltedActors(play, &this->actor, 8);
+    OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 8);
     Interface_ChangeAlpha(1);
     if (index == 0) {
         AREG(6) = 0;
@@ -449,9 +449,9 @@ void func_80A79C78(EnIn* this, PlayState* play) {
     Vec3f sp3C;
     Vec3s zeroVec = { 0, 0, 0 };
 
-    this->camId = Play_CreateSubCamera(play);
-    Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_WAIT);
-    Play_ChangeCameraStatus(play, this->camId, CAM_STAT_ACTIVE);
+    this->camId = OoT_Play_CreateSubCamera(play);
+    OoT_Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_WAIT);
+    OoT_Play_ChangeCameraStatus(play, this->camId, CAM_STAT_ACTIVE);
     sp48.x = this->actor.world.pos.x;
     sp48.y = this->actor.world.pos.y + 60.0f;
     sp48.z = this->actor.world.pos.z;
@@ -459,14 +459,14 @@ void func_80A79C78(EnIn* this, PlayState* play) {
     sp3C.y = sp48.y - 22.0f;
     sp3C.z = sp48.z + 40.0f;
     Play_CameraSetAtEye(play, this->camId, &sp48, &sp3C);
-    this->actor.shape.rot.y = Math_Vec3f_Yaw(&this->actor.world.pos, &sp3C);
+    this->actor.shape.rot.y = OoT_Math_Vec3f_Yaw(&this->actor.world.pos, &sp3C);
     this->interactInfo.headRot = zeroVec;
     this->interactInfo.torsoRot = zeroVec;
-    Message_StartTextbox(play, 0x2025, NULL);
+    OoT_Message_StartTextbox(play, 0x2025, NULL);
     this->interactInfo.talkState = NPC_TALK_STATE_TALKING;
     player->actor.world.pos = this->actor.world.pos;
-    player->actor.world.pos.x += 100.0f * Math_SinS(this->actor.shape.rot.y);
-    player->actor.world.pos.z += 100.0f * Math_CosS(this->actor.shape.rot.y);
+    player->actor.world.pos.x += 100.0f * OoT_Math_SinS(this->actor.shape.rot.y);
+    player->actor.world.pos.z += 100.0f * OoT_Math_CosS(this->actor.shape.rot.y);
     if (player->rideActor != NULL) {
         player->rideActor->world.pos = player->actor.world.pos;
         player->rideActor->freezeTimer = 10;
@@ -479,7 +479,7 @@ void func_80A79C78(EnIn* this, PlayState* play) {
 
 static s32 D_80A7B998 = 0;
 
-void EnIn_Init(Actor* thisx, PlayState* play) {
+void OoT_EnIn_Init(Actor* thisx, PlayState* play) {
     EnIn* this = (EnIn*)thisx;
     RespawnData* respawn = &gSaveContext.respawn[RESPAWN_MODE_DOWN];
     Vec3f respawnPos;
@@ -487,7 +487,7 @@ void EnIn_Init(Actor* thisx, PlayState* play) {
     this->ingoObjBankIndex = Object_GetIndex(&play->objectCtx, OBJECT_IN);
     if (this->ingoObjBankIndex < 0 && this->actor.params > 0) {
         this->actionFunc = NULL;
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
     respawnPos = respawn->pos;
@@ -499,11 +499,11 @@ void EnIn_Init(Actor* thisx, PlayState* play) {
     this->actionFunc = func_80A79FB0;
 }
 
-void EnIn_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnIn_Destroy(Actor* thisx, PlayState* play) {
     EnIn* this = (EnIn*)thisx;
 
     if (this->actionFunc != NULL && this->actionFunc != func_80A79FB0) {
-        Collider_DestroyCylinder(play, &this->collider);
+        OoT_Collider_DestroyCylinder(play, &this->collider);
 
         ResourceMgr_UnregisterSkeleton(&this->skelAnime);
     }
@@ -512,40 +512,40 @@ void EnIn_Destroy(Actor* thisx, PlayState* play) {
 void func_80A79FB0(EnIn* this, PlayState* play) {
     s32 sp3C = 0;
 
-    if (Object_IsLoaded(&play->objectCtx, this->ingoObjBankIndex) || this->actor.params <= 0) {
-        ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 36.0f);
-        SkelAnime_InitFlex(play, &this->skelAnime, &gIngoSkel, NULL, this->jointTable, this->morphTable, 20);
-        Collider_InitCylinder(play, &this->collider);
-        Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-        CollisionCheck_SetInfo2(&this->actor.colChkInfo, NULL, &sColChkInfoInit);
+    if (OoT_Object_IsLoaded(&play->objectCtx, this->ingoObjBankIndex) || this->actor.params <= 0) {
+        OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 36.0f);
+        OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gIngoSkel, NULL, this->jointTable, this->morphTable, 20);
+        OoT_Collider_InitCylinder(play, &this->collider);
+        OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
+        OoT_CollisionCheck_SetInfo2(&this->actor.colChkInfo, NULL, &OoT_sColChkInfoInit);
         if (func_80A7975C(this, play)) {
             gSaveContext.eventInf[0] &= ~0x8000;
             return;
         }
-        Actor_SetScale(&this->actor, 0.01f);
+        OoT_Actor_SetScale(&this->actor, 0.01f);
         this->actor.targetMode = 6;
         this->interactInfo.talkState = NPC_TALK_STATE_IDLE;
         this->actionFunc = func_80A7A4BC;
 
         switch (func_80A79830(this, play)) {
             case 1:
-                EnIn_ChangeAnim(this, ENIN_ANIM_9);
+                OoT_EnIn_ChangeAnim(this, ENIN_ANIM_9);
                 this->actionFunc = func_80A7A4BC;
                 break;
             case 3:
-                EnIn_ChangeAnim(this, ENIN_ANIM_7);
+                OoT_EnIn_ChangeAnim(this, ENIN_ANIM_7);
                 this->actionFunc = func_80A7A4BC;
-                if (!Flags_GetEventChkInf(EVENTCHKINF_EPONA_OBTAINED)) {
+                if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_EPONA_OBTAINED)) {
                     this->actor.params = 5;
                 }
                 break;
             case 4:
-                EnIn_ChangeAnim(this, ENIN_ANIM_8);
+                OoT_EnIn_ChangeAnim(this, ENIN_ANIM_8);
                 this->eyeIndex = 3;
                 this->actionFunc = func_80A7A4BC;
                 break;
             case 0:
-                Actor_Kill(&this->actor);
+                OoT_Actor_Kill(&this->actor);
                 break;
             default:
                 switch (gSaveContext.eventInf[0] & 0xF) {
@@ -571,40 +571,40 @@ void func_80A79FB0(EnIn* this, PlayState* play) {
                         break;
                 }
                 if (sp3C != 1) {
-                    Actor_Kill(&this->actor);
+                    OoT_Actor_Kill(&this->actor);
                     return;
                 }
                 switch (gSaveContext.eventInf[0] & 0xF) {
                     case 0:
                     case 2:
-                        EnIn_ChangeAnim(this, ENIN_ANIM_2);
+                        OoT_EnIn_ChangeAnim(this, ENIN_ANIM_2);
                         this->actionFunc = func_80A7A4C8;
                         gSaveContext.eventInf[0] = 0;
                         break;
                     case 1:
                         this->actor.targetMode = 3;
-                        EnIn_ChangeAnim(this, ENIN_ANIM_2);
+                        OoT_EnIn_ChangeAnim(this, ENIN_ANIM_2);
                         this->actionFunc = func_80A7A568;
                         Interface_SetTimer(0x3C);
                         break;
                     case 3:
-                        EnIn_ChangeAnim(this, ENIN_ANIM_4);
+                        OoT_EnIn_ChangeAnim(this, ENIN_ANIM_4);
                         this->actionFunc = func_80A7A770;
                         break;
                     case 4:
-                        EnIn_ChangeAnim(this, ENIN_ANIM_6);
+                        OoT_EnIn_ChangeAnim(this, ENIN_ANIM_6);
                         this->unk_1EC = 8;
                         this->actionFunc = func_80A7A940;
                         break;
                     case 5:
                     case 6:
                         this->actor.targetMode = 3;
-                        EnIn_ChangeAnim(this, ENIN_ANIM_6);
+                        OoT_EnIn_ChangeAnim(this, ENIN_ANIM_6);
                         this->unk_1EC = 8;
                         this->actionFunc = func_80A7AA40;
                         break;
                     case 7:
-                        EnIn_ChangeAnim(this, ENIN_ANIM_2);
+                        OoT_EnIn_ChangeAnim(this, ENIN_ANIM_2);
                         this->actionFunc = func_80A7A848;
                         break;
                 }
@@ -622,19 +622,19 @@ void func_80A7A304(EnIn* this, PlayState* play) {
     if (this->skelAnime.animation == &object_in_Anim_018C38 && this->skelAnime.curFrame == 20.0f) {
         Audio_PlayActorSound2(&this->actor, NA_SE_VO_IN_CRY_0);
     }
-    if (SkelAnime_Update(&this->skelAnime) != 0) {
+    if (OoT_SkelAnime_Update(&this->skelAnime) != 0) {
         this->animationIdx %= 8;
         this->unk_1E8 = this->animationIdx;
         if (this->animationIdx == 3 || this->animationIdx == 4) {
-            Audio_PlaySoundGeneral(NA_SE_IT_LASH, &this->actor.projectedPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
-            if (Rand_ZeroOne() < 0.3f) {
+            Audio_PlaySoundGeneral(NA_SE_IT_LASH, &this->actor.projectedPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
+            if (OoT_Rand_ZeroOne() < 0.3f) {
                 Audio_PlaySoundGeneral(NA_SE_IT_INGO_HORSE_NEIGH, &this->actor.projectedPos, 4,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             }
         }
-        Animation_Change(&this->skelAnime, D_80A7B918[this->animationIdx], 1.0f, 0.0f,
-                         Animation_GetLastFrame(D_80A7B918[this->animationIdx]), 2, -10.0f);
+        OoT_Animation_Change(&this->skelAnime, D_80A7B918[this->animationIdx], 1.0f, 0.0f,
+                         OoT_Animation_GetLastFrame(D_80A7B918[this->animationIdx]), 2, -10.0f);
     }
 }
 
@@ -647,7 +647,7 @@ void func_80A7A4C8(EnIn* this, PlayState* play) {
         gSaveContext.eventInf[0] = (gSaveContext.eventInf[0] & ~0x000F) | 0x0001;
         gSaveContext.eventInf[0] = (gSaveContext.eventInf[0] & ~0x8000) | 0x8000;
         Flags_UnsetInfTable(INFTABLE_A2);
-        Environment_ForcePlaySequence(NA_BGM_HORSE);
+        OoT_Environment_ForcePlaySequence(NA_BGM_HORSE);
         play->msgCtx.stateTimer = 0;
         play->msgCtx.msgMode = MSGMODE_TEXT_CLOSING;
         this->interactInfo.talkState = NPC_TALK_STATE_IDLE;
@@ -659,12 +659,12 @@ void func_80A7A568(EnIn* this, PlayState* play) {
     s32 phi_a2;
     s32 transitionType;
 
-    if (!Flags_GetEventChkInf(EVENTCHKINF_RENTED_HORSE_FROM_INGO) && (player->stateFlags1 & PLAYER_STATE1_ON_HORSE)) {
-        Flags_SetInfTable(INFTABLE_AB);
+    if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_RENTED_HORSE_FROM_INGO) && (player->stateFlags1 & PLAYER_STATE1_ON_HORSE)) {
+        OoT_Flags_SetInfTable(INFTABLE_AB);
     }
     if (gSaveContext.timerState == TIMER_STATE_STOP) {
-        Audio_PlaySoundGeneral(NA_SE_SY_FOUND, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_SY_FOUND, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         func_80A79C78(this, play);
         this->actionFunc = func_80A7B024;
         gSaveContext.timerState = TIMER_STATE_OFF;
@@ -682,12 +682,12 @@ void func_80A7A568(EnIn* this, PlayState* play) {
             phi_a2 = 2;
             transitionType = TRANS_TYPE_FADE_BLACK;
         } else {
-            Audio_PlaySoundGeneral(NA_SE_SY_FOUND, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
-            if (!Flags_GetEventChkInf(EVENTCHKINF_RENTED_HORSE_FROM_INGO)) {
-                if (Flags_GetInfTable(INFTABLE_AB)) {
-                    Flags_SetEventChkInf(EVENTCHKINF_RENTED_HORSE_FROM_INGO);
-                    Flags_SetInfTable(INFTABLE_AB);
+            Audio_PlaySoundGeneral(NA_SE_SY_FOUND, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
+            if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_RENTED_HORSE_FROM_INGO)) {
+                if (OoT_Flags_GetInfTable(INFTABLE_AB)) {
+                    OoT_Flags_SetEventChkInf(EVENTCHKINF_RENTED_HORSE_FROM_INGO);
+                    OoT_Flags_SetInfTable(INFTABLE_AB);
                 }
             }
             gSaveContext.eventInf[0] &= ~0xF;
@@ -706,9 +706,9 @@ void func_80A7A770(EnIn* this, PlayState* play) {
     if (this->interactInfo.talkState == NPC_TALK_STATE_IDLE) {
         this->actor.flags |= ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
     } else if (this->interactInfo.talkState == NPC_TALK_STATE_ACTION) {
-        Rupees_ChangeBy(-50);
+        OoT_Rupees_ChangeBy(-50);
         this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
-        EnIn_ChangeAnim(this, ENIN_ANIM_3);
+        OoT_EnIn_ChangeAnim(this, ENIN_ANIM_3);
         this->actionFunc = func_80A7A848;
         gSaveContext.eventInf[0] = (gSaveContext.eventInf[0] & ~0x0F) | 7;
         this->interactInfo.talkState = NPC_TALK_STATE_IDLE;
@@ -766,10 +766,10 @@ void func_80A7AA40(EnIn* this, PlayState* play) {
     Vec3f sp30;
     Vec3f sp24;
 
-    this->camId = Play_CreateSubCamera(play);
+    this->camId = OoT_Play_CreateSubCamera(play);
     this->activeCamId = play->activeCamera;
-    Play_ChangeCameraStatus(play, this->activeCamId, CAM_STAT_WAIT);
-    Play_ChangeCameraStatus(play, this->camId, CAM_STAT_ACTIVE);
+    OoT_Play_ChangeCameraStatus(play, this->activeCamId, CAM_STAT_WAIT);
+    OoT_Play_ChangeCameraStatus(play, this->camId, CAM_STAT_ACTIVE);
 
     this->unk_2F0 = 0.0f;
     this->unk_2F4 = 50.0f;
@@ -791,7 +791,7 @@ void func_80A7AA40(EnIn* this, PlayState* play) {
 
     Play_CameraSetAtEye(play, this->camId, &sp30, &sp24);
     this->actor.textId = 0x203B;
-    Message_StartTextbox(play, this->actor.textId, NULL);
+    OoT_Message_StartTextbox(play, this->actor.textId, NULL);
     this->interactInfo.talkState = NPC_TALK_STATE_TALKING;
     this->unk_1FC = 0;
     play->csCtx.frames = 0;
@@ -821,9 +821,9 @@ void func_80A7ABD4(EnIn* this, PlayState* play) {
         if (this->interactInfo.talkState == NPC_TALK_STATE_ACTION) {
             if (this->actor.textId == 0x203B) {
                 this->actor.textId = 0x203C;
-                Message_StartTextbox(play, this->actor.textId, NULL);
+                OoT_Message_StartTextbox(play, this->actor.textId, NULL);
                 this->interactInfo.talkState = NPC_TALK_STATE_TALKING;
-                EnIn_ChangeAnim(this, ENIN_ANIM_3);
+                OoT_EnIn_ChangeAnim(this, ENIN_ANIM_3);
             } else {
                 play->msgCtx.msgMode = MSGMODE_TEXT_CLOSING;
                 this->interactInfo.talkState = NPC_TALK_STATE_IDLE;
@@ -837,12 +837,12 @@ void func_80A7ABD4(EnIn* this, PlayState* play) {
         if (play->csCtx.frames == 44) {
             Audio_PlayActorSound2(&this->actor, NA_SE_EV_RONRON_DOOR_CLOSE);
         }
-        Math_SmoothStepToF(&this->unk_2F0, 0.0f, 0.06f, 10000.0f, 0.0f);
-        Math_SmoothStepToF(&this->unk_2F4, 50.0f, 0.06f, 10000.0f, 0.0f);
-        Math_SmoothStepToF(&this->unk_2F8, 0.0f, 0.06f, 10000.0f, 0.0f);
-        Math_SmoothStepToF(&this->unk_2FC, 0.0f, 0.06f, 10000.0f, 0.0f);
-        Math_SmoothStepToF(&this->unk_300, 150.0f, 0.06f, 10000.0f, 0.0f);
-        Math_SmoothStepToF(&this->unk_304, 300.0f, 0.06f, 10000.0f, 0.0f);
+        OoT_Math_SmoothStepToF(&this->unk_2F0, 0.0f, 0.06f, 10000.0f, 0.0f);
+        OoT_Math_SmoothStepToF(&this->unk_2F4, 50.0f, 0.06f, 10000.0f, 0.0f);
+        OoT_Math_SmoothStepToF(&this->unk_2F8, 0.0f, 0.06f, 10000.0f, 0.0f);
+        OoT_Math_SmoothStepToF(&this->unk_2FC, 0.0f, 0.06f, 10000.0f, 0.0f);
+        OoT_Math_SmoothStepToF(&this->unk_300, 150.0f, 0.06f, 10000.0f, 0.0f);
+        OoT_Math_SmoothStepToF(&this->unk_304, 300.0f, 0.06f, 10000.0f, 0.0f);
 
         sp48 = this->actor.world.pos;
         sp3C = this->actor.world.pos;
@@ -858,9 +858,9 @@ void func_80A7ABD4(EnIn* this, PlayState* play) {
 }
 
 void func_80A7AE84(EnIn* this, PlayState* play) {
-    Play_ChangeCameraStatus(play, this->activeCamId, CAM_STAT_ACTIVE);
-    Play_ClearCamera(play, this->camId);
-    Player_SetCsActionWithHaltedActors(play, &this->actor, 7);
+    OoT_Play_ChangeCameraStatus(play, this->activeCamId, CAM_STAT_ACTIVE);
+    OoT_Play_ClearCamera(play, this->camId);
+    OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 7);
     Interface_ChangeAlpha(0x32);
     this->actionFunc = func_80A7AEF0;
 }
@@ -870,9 +870,9 @@ void func_80A7AEF0(EnIn* this, PlayState* play) {
     s32 yaw;
     Vec3f pos = this->actor.world.pos;
 
-    pos.x += 90.0f * Math_SinS(this->actor.shape.rot.y);
-    pos.z += 90.0f * Math_CosS(this->actor.shape.rot.y);
-    yaw = Math_Vec3f_Yaw(&pos, &player->actor.world.pos);
+    pos.x += 90.0f * OoT_Math_SinS(this->actor.shape.rot.y);
+    pos.z += 90.0f * OoT_Math_CosS(this->actor.shape.rot.y);
+    yaw = OoT_Math_Vec3f_Yaw(&pos, &player->actor.world.pos);
     if (ABS(yaw) > 0x4000) {
         play->nextEntranceIndex = ENTR_HYRULE_FIELD_15;
         play->transitionTrigger = TRANS_TRIGGER_START;
@@ -896,9 +896,9 @@ void func_80A7B024(EnIn* this, PlayState* play) {
     }
     player->actor.freezeTimer = 10;
     if (this->interactInfo.talkState == NPC_TALK_STATE_ACTION) {
-        if (!Flags_GetEventChkInf(EVENTCHKINF_RENTED_HORSE_FROM_INGO) && (Flags_GetInfTable(INFTABLE_AB))) {
-            Flags_SetEventChkInf(EVENTCHKINF_RENTED_HORSE_FROM_INGO);
-            Flags_SetInfTable(INFTABLE_AB);
+        if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_RENTED_HORSE_FROM_INGO) && (OoT_Flags_GetInfTable(INFTABLE_AB))) {
+            OoT_Flags_SetEventChkInf(EVENTCHKINF_RENTED_HORSE_FROM_INGO);
+            OoT_Flags_SetInfTable(INFTABLE_AB);
         }
         func_80A79BAC(this, play, 0, TRANS_TYPE_CIRCLE(TCA_STARBURST, TCC_BLACK, TCS_FAST));
         gSaveContext.eventInf[0] = gSaveContext.eventInf[0] & ~0xF;
@@ -909,7 +909,7 @@ void func_80A7B024(EnIn* this, PlayState* play) {
     }
 }
 
-void EnIn_Update(Actor* thisx, PlayState* play) {
+void OoT_EnIn_Update(Actor* thisx, PlayState* play) {
     ColliderCylinder* collider;
     EnIn* this = (EnIn*)thisx;
 
@@ -918,14 +918,14 @@ void EnIn_Update(Actor* thisx, PlayState* play) {
         return;
     }
     collider = &this->collider;
-    Collider_UpdateCylinder(&this->actor, collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &collider->base);
+    OoT_Collider_UpdateCylinder(&this->actor, collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &collider->base);
     if (this->actionFunc != func_80A7A304) {
-        SkelAnime_Update(&this->skelAnime);
+        OoT_SkelAnime_Update(&this->skelAnime);
         if (this->skelAnime.animation == &object_in_Anim_001BE0 && ((gSaveContext.eventInf[0] & 0xF) != 6)) {
             func_80A79690(&this->skelAnime, this, play);
         }
-        Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
+        OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
     }
     EnIn_UpdateEyes(this);
     this->actionFunc(this, play);
@@ -935,19 +935,19 @@ void EnIn_Update(Actor* thisx, PlayState* play) {
             this->interactInfo.talkState == NPC_TALK_STATE_IDLE) {
             if (Actor_ProcessTalkRequest(&this->actor, play)) {}
         } else {
-            Npc_UpdateTalking(play, &this->actor, &this->interactInfo.talkState,
+            OoT_Npc_UpdateTalking(play, &this->actor, &this->interactInfo.talkState,
                               ((this->actor.targetMode == 6) ? 80.0f : 320.0f) + this->collider.dim.radius,
                               func_80A79168, func_80A79500);
             if (this->interactInfo.talkState != NPC_TALK_STATE_IDLE) {
                 this->unk_1FA = this->unk_1F8;
-                this->unk_1F8 = Message_GetState(&play->msgCtx);
+                this->unk_1F8 = OoT_Message_GetState(&play->msgCtx);
             }
         }
         func_80A795C8(this, play);
     }
 }
 
-s32 EnIn_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
+s32 OoT_EnIn_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
     EnIn* this = (EnIn*)thisx;
     Vec3s sp2C;
 
@@ -957,11 +957,11 @@ s32 EnIn_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* po
         }
     }
     if (limbIndex == INGO_HEAD_LIMB) {
-        Matrix_Translate(1500.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+        OoT_Matrix_Translate(1500.0f, 0.0f, 0.0f, MTXMODE_APPLY);
         sp2C = this->interactInfo.headRot;
         Matrix_RotateZ(BINANG_TO_RAD(sp2C.x), MTXMODE_APPLY);
         Matrix_RotateX(BINANG_TO_RAD(sp2C.y), MTXMODE_APPLY);
-        Matrix_Translate(-1500.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+        OoT_Matrix_Translate(-1500.0f, 0.0f, 0.0f, MTXMODE_APPLY);
     }
     if (limbIndex == INGO_CHEST_LIMB) {
         sp2C = this->interactInfo.torsoRot;
@@ -969,20 +969,20 @@ s32 EnIn_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* po
         Matrix_RotateY(BINANG_TO_RAD(sp2C.y), MTXMODE_APPLY);
     }
     if (limbIndex == INGO_CHEST_LIMB || limbIndex == INGO_LEFT_SHOULDER_LIMB || limbIndex == INGO_RIGHT_SHOULDER_LIMB) {
-        rot->y += Math_SinS(this->unk_330[limbIndex].y) * 200.0f;
-        rot->z += Math_CosS(this->unk_330[limbIndex].z) * 200.0f;
+        rot->y += OoT_Math_SinS(this->unk_330[limbIndex].y) * 200.0f;
+        rot->z += OoT_Math_CosS(this->unk_330[limbIndex].z) * 200.0f;
     }
     return 0;
 }
 
-void EnIn_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
+void OoT_EnIn_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
     EnIn* this = (EnIn*)thisx;
     Vec3f D_80A7B9A8 = { 1600.0, 0.0f, 0.0f };
 
     OPEN_DISPS(play->state.gfxCtx);
 
     if (limbIndex == INGO_HEAD_LIMB) {
-        Matrix_MultVec3f(&D_80A7B9A8, &this->actor.focus.pos);
+        OoT_Matrix_MultVec3f(&D_80A7B9A8, &this->actor.focus.pos);
         this->actor.focus.rot = this->actor.world.rot;
     }
     if (limbIndex == INGO_LEFT_HAND_LIMB && this->skelAnime.animation == &object_in_Anim_014CA8) {
@@ -995,7 +995,7 @@ void EnIn_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void EnIn_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnIn_Draw(Actor* thisx, PlayState* play) {
     static void* eyeTextures[] = { gIngoEyeOpenTex, gIngoEyeHalfTex, gIngoEyeClosedTex, gIngoEyeClosed2Tex };
 
     EnIn* this = (EnIn*)thisx;
@@ -1005,7 +1005,7 @@ void EnIn_Draw(Actor* thisx, PlayState* play) {
         Gfx_SetupDL_25Opa(play->state.gfxCtx);
         gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(eyeTextures[this->eyeIndex]));
         gSPSegment(POLY_OPA_DISP++, 0x09, SEGMENTED_TO_VIRTUAL(gIngoHeadGradient2Tex));
-        SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, EnIn_OverrideLimbDraw, EnIn_PostLimbDraw, &this->actor);
+        SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, OoT_EnIn_OverrideLimbDraw, OoT_EnIn_PostLimbDraw, &this->actor);
     }
     CLOSE_DISPS(play->state.gfxCtx);
 }

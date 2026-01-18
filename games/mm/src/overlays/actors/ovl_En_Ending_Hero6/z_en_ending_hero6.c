@@ -41,7 +41,7 @@ typedef enum {
     /* 9 */ ENDING_HERO6_TYPE_MAX
 } EndingHero6Type;
 
-static FlexSkeletonHeader* sSkeletons[ENDING_HERO6_TYPE_MAX] = {
+static FlexSkeletonHeader* MM_sSkeletons[ENDING_HERO6_TYPE_MAX] = {
     &object_dt_Skel_00B0CC,    // ENDING_HERO6_TYPE_DT
     &object_bai_Skel_007908,   // ENDING_HERO6_TYPE_BAI
     &object_toryo_Skel_007150, // ENDING_HERO6_TYPE_TORYO
@@ -53,7 +53,7 @@ static FlexSkeletonHeader* sSkeletons[ENDING_HERO6_TYPE_MAX] = {
     &object_daiku_Skel_00A850, // ENDING_HERO6_TYPE_DAIKU_ORANGE
 };
 
-static AnimationHeader* sAnimations[ENDING_HERO6_TYPE_MAX] = {
+static AnimationHeader* MM_sAnimations[ENDING_HERO6_TYPE_MAX] = {
     &gDotourUprightAnim,         // ENDING_HERO6_TYPE_DT
     &object_bai_Anim_0011C0,     // ENDING_HERO6_TYPE_BAI
     &object_toryo_Anim_000E50,   // ENDING_HERO6_TYPE_TORYO
@@ -81,12 +81,12 @@ void EnEndingHero6_Init(Actor* thisx, PlayState* play) {
     EnEndingHero6* this = (EnEndingHero6*)thisx;
 
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->actor.attentionRangeType = ATTENTION_RANGE_6;
     this->actor.gravity = -3.0f;
-    SkelAnime_InitFlex(play, &this->skelAnime, sSkeletons[this->type], sAnimations[this->type], this->jointTable,
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, MM_sSkeletons[this->type], MM_sAnimations[this->type], this->jointTable,
                        this->morphTable, sLimbCounts[this->type]);
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 25.0f);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 25.0f);
     EnEndingHero6_SetupIdle(this);
 }
 
@@ -95,8 +95,8 @@ void EnEndingHero6_Destroy(Actor* thisx, PlayState* play) {
 
 void EnEndingHero6_ChangeAnim(EnEndingHero6* this, s32 type) {
     this->animIndex = type;
-    this->animEndFrame = Animation_GetLastFrame(sAnimations[type]);
-    Animation_Change(&this->skelAnime, sAnimations[this->animIndex], 1.0f, 0.f, this->animEndFrame, ANIMMODE_LOOP,
+    this->animEndFrame = MM_Animation_GetLastFrame(MM_sAnimations[type]);
+    MM_Animation_Change(&this->skelAnime, MM_sAnimations[this->animIndex], 1.0f, 0.f, this->animEndFrame, ANIMMODE_LOOP,
                      0.0f);
 }
 
@@ -107,7 +107,7 @@ void EnEndingHero6_SetupIdle(EnEndingHero6* this) {
 }
 
 void EnEndingHero6_Idle(EnEndingHero6* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 }
 
 void EnEndingHero6_Update(Actor* thisx, PlayState* play) {
@@ -123,13 +123,13 @@ void EnEndingHero6_Update(Actor* thisx, PlayState* play) {
         this->eyeState++;
         if (this->eyeState >= 3) {
             this->eyeState = 0;
-            this->blinkTimer = TRUNCF_BINANG(Rand_ZeroFloat(60.0f)) + 20;
+            this->blinkTimer = TRUNCF_BINANG(MM_Rand_ZeroFloat(60.0f)) + 20;
         }
     }
 
     this->actionFunc(this, play);
     Actor_MoveWithGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 50.0f,
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 50.0f,
                             UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4 | UPDBGCHECKINFO_FLAG_8 |
                                 UPDBGCHECKINFO_FLAG_10);
 }
@@ -156,7 +156,7 @@ void EnEndingHero6_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec
 }
 
 void EnEndingHero6_Draw(Actor* thisx, PlayState* play) {
-    static TexturePtr sEyeTextures[] = { gDotourEyeShockTex, gDotourEyeOpenTex, gDotourEyeClosedTex,
+    static TexturePtr MM_sEyeTextures[] = { gDotourEyeShockTex, gDotourEyeOpenTex, gDotourEyeClosedTex,
                                          gDotourEyeLookDownTex, gDotourEyeSquintTex };
     static TexturePtr sEyebrowTextures[] = { gDotourEyebrowHighTex, gDotourEyebrowMidTex, gDotourEyebrowLowTex };
     s32 pad;
@@ -169,7 +169,7 @@ void EnEndingHero6_Draw(Actor* thisx, PlayState* play) {
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-        if ((this->objectSlot > OBJECT_SLOT_NONE) && Object_IsLoaded(&play->objectCtx, this->objectSlot)) {
+        if ((this->objectSlot > OBJECT_SLOT_NONE) && MM_Object_IsLoaded(&play->objectCtx, this->objectSlot)) {
             gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[this->objectSlot].segment);
 
             switch (this->type) {
@@ -198,7 +198,7 @@ void EnEndingHero6_Draw(Actor* thisx, PlayState* play) {
             }
 
             if (this->type == ENDING_HERO6_TYPE_DT) {
-                gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sEyeTextures[this->eyeState]));
+                gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeState]));
 
                 if (this->eyeState < 3) {
                     index = this->eyeState;
@@ -207,7 +207,7 @@ void EnEndingHero6_Draw(Actor* thisx, PlayState* play) {
                 gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(sEyebrowTextures[index]));
             }
 
-            SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
+            MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                   this->skelAnime.dListCount, NULL, EnEndingHero6_PostLimbDraw, &this->actor);
         }
 

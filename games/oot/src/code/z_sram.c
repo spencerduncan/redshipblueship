@@ -20,7 +20,7 @@ void BossRush_InitSave(void);
  *  Initialize new save.
  *  This save has an empty inventory with 3 hearts and single magic.
  */
-void Sram_InitNewSave(void) {
+void OoT_Sram_InitNewSave(void) {
     Save_InitFile(false);
 }
 
@@ -33,7 +33,7 @@ void Sram_InitNewSave(void) {
  *  used blue warp in Gohmas room, Zelda fled castle, light arrow cutscene watched,
  *  and set water level in Water Temple to lowest level.
  */
-void Sram_InitDebugSave(void) {
+void OoT_Sram_InitDebugSave(void) {
     Save_InitFile(true);
 }
 
@@ -71,7 +71,7 @@ static s16 sDungeonEntrances[] = {
  *  - Give and equip master sword if player is adult and doesnt have kokiri sword (bug?)
  *  - Revert any trade items that spoil
  */
-void Sram_OpenSave() {
+void OoT_Sram_OpenSave() {
     u16 i;
     u16 j;
     u8* ptr;
@@ -174,9 +174,9 @@ void Sram_OpenSave() {
         osSyncPrintf(VT_FGCOL(GREEN));
         osSyncPrintf("\n====================================================================\n");
 
-        memcpy(gScarecrowSpawnSongPtr, gSaveContext.scarecrowSpawnSong, sizeof(gSaveContext.scarecrowSpawnSong));
+        memcpy(OoT_gScarecrowSpawnSongPtr, gSaveContext.scarecrowSpawnSong, sizeof(gSaveContext.scarecrowSpawnSong));
 
-        ptr = gScarecrowSpawnSongPtr;
+        ptr = OoT_gScarecrowSpawnSongPtr;
         for (i = 0; i < ARRAY_COUNT(gSaveContext.scarecrowSpawnSong); i++, ptr++) {
             osSyncPrintf("%d, ", *ptr);
         }
@@ -186,7 +186,7 @@ void Sram_OpenSave() {
     }
 
     // if zelda cutscene has been watched but lullaby was not obtained, restore cutscene and take away letter
-    if ((Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_ZELDAS_LETTER)) && !CHECK_QUEST_ITEM(QUEST_SONG_LULLABY) &&
+    if ((OoT_Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_ZELDAS_LETTER)) && !CHECK_QUEST_ITEM(QUEST_SONG_LULLABY) &&
         !IS_RANDO) {
         i = gSaveContext.eventChkInf[4] & ~1;
         gSaveContext.eventChkInf[4] = i;
@@ -226,16 +226,16 @@ void Sram_OpenSave() {
     gSaveContext.magicLevel = 0;
 }
 
-void Sram_InitSave(FileChooseContext* fileChooseCtx) {
+void OoT_Sram_InitSave(FileChooseContext* fileChooseCtx) {
     u16 offset;
     u16 j;
     u16* ptr;
     u16 checksum;
 
     if (fileChooseCtx->buttonIndex != 0 || !CVarGetInteger(CVAR_DEVELOPER_TOOLS("DebugEnabled"), 0)) {
-        Sram_InitNewSave();
+        OoT_Sram_InitNewSave();
     } else {
-        Sram_InitDebugSave();
+        OoT_Sram_InitDebugSave();
     }
 
     gSaveContext.entranceIndex = ENTR_LINKS_HOUSE_CHILD_SPAWN;
@@ -273,7 +273,7 @@ void Sram_InitSave(FileChooseContext* fileChooseCtx) {
     SaveManager_ThreadPoolWait();
 }
 
-void Sram_InitSram(GameState* gameState) {
+void OoT_Sram_InitSram(GameState* gameState) {
     Save_Init();
 
     func_800F6700(gSaveContext.audioSetting);

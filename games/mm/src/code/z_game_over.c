@@ -8,7 +8,7 @@
 #include "overlays/kaleido_scope/ovl_kaleido_scope/z_kaleido_scope.h"
 #include <libultraship/bridge/consolevariablebridge.h>
 
-void GameOver_Init(PlayState* play) {
+void MM_GameOver_Init(PlayState* play) {
     play->gameOverCtx.state = GAMEOVER_INACTIVE;
 }
 
@@ -17,19 +17,19 @@ void GameOver_FadeLights(PlayState* play) {
 
     if ((gameOverCtx->state >= GAMEOVER_DEATH_WAIT_GROUND && gameOverCtx->state < GAMEOVER_REVIVE_START) ||
         (gameOverCtx->state >= GAMEOVER_REVIVE_RUMBLE && gameOverCtx->state < GAMEOVER_REVIVE_FADE_OUT)) {
-        Environment_FadeInGameOverLights(play);
+        MM_Environment_FadeInGameOverLights(play);
     }
 }
 
 static s16 sGameOverTimer = 0;
 
-void GameOver_Update(PlayState* play) {
+void MM_GameOver_Update(PlayState* play) {
     GameOverContext* gameOverCtx = &play->gameOverCtx;
     s16 timerId;
 
     switch (gameOverCtx->state) {
         case GAMEOVER_DEATH_START:
-            Message_CloseTextbox(play);
+            MM_Message_CloseTextbox(play);
 
             for (timerId = 0; timerId < TIMER_ID_MAX; timerId++) {
                 gSaveContext.timerStates[timerId] = TIMER_STATE_OFF;
@@ -74,7 +74,7 @@ void GameOver_Update(PlayState* play) {
             gSaveContext.nextHudVisibility = HUD_VISIBILITY_IDLE;
             gSaveContext.hudVisibility = HUD_VISIBILITY_IDLE;
             gSaveContext.hudVisibilityTimer = 0;
-            Environment_InitGameOverLights(play);
+            MM_Environment_InitGameOverLights(play);
             sGameOverTimer = 20;
             Rumble_Request(0.0f, 126, 124, 63);
             gameOverCtx->state = GAMEOVER_DEATH_WAIT_GROUND;
@@ -110,7 +110,7 @@ void GameOver_Update(PlayState* play) {
         case GAMEOVER_REVIVE_START:
             gameOverCtx->state++; // GAMEOVER_REVIVE_RUMBLE
             sGameOverTimer = 0;
-            Environment_InitGameOverLights(play);
+            MM_Environment_InitGameOverLights(play);
             ShrinkWindow_Letterbox_SetSizeTarget(32);
             break;
 
@@ -137,7 +137,7 @@ void GameOver_Update(PlayState* play) {
             break;
 
         case GAMEOVER_REVIVE_FADE_OUT:
-            Environment_FadeOutGameOverLights(play);
+            MM_Environment_FadeOutGameOverLights(play);
             sGameOverTimer--;
             if (sGameOverTimer == 0) {
                 gameOverCtx->state = GAMEOVER_INACTIVE;

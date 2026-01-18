@@ -37,7 +37,7 @@ const ActorInit Demo_Kekkai_InitVars = {
     (ActorResetFunc)DemoKekkai_Reset,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -77,7 +77,7 @@ s32 DemoKekkai_CheckEventFlag(s32 params) {
     if ((params < KEKKAI_TOWER) || (params > KEKKAI_FOREST)) {
         return true;
     }
-    return Flags_GetEventChkInf(eventFlags[params]);
+    return OoT_Flags_GetEventChkInf(eventFlags[params]);
 }
 
 void DemoKekkai_Init(Actor* thisx, PlayState* play) {
@@ -86,14 +86,14 @@ void DemoKekkai_Init(Actor* thisx, PlayState* play) {
 
     this->sfxFlag = 0;
     this->energyAlpha = 1.0f;
-    Actor_SetScale(thisx, 0.1f);
+    OoT_Actor_SetScale(thisx, 0.1f);
     thisx->colChkInfo.mass = MASS_IMMOVABLE;
-    Collider_InitCylinder(play, &this->collider1);
-    Collider_SetCylinder(play, &this->collider1, thisx, &sCylinderInit);
-    Collider_InitCylinder(play, &this->collider2);
-    Collider_SetCylinder(play, &this->collider2, thisx, &sCylinderInit);
-    Collider_UpdateCylinder(thisx, &this->collider1);
-    Collider_UpdateCylinder(thisx, &this->collider2);
+    OoT_Collider_InitCylinder(play, &this->collider1);
+    OoT_Collider_SetCylinder(play, &this->collider1, thisx, &OoT_sCylinderInit);
+    OoT_Collider_InitCylinder(play, &this->collider2);
+    OoT_Collider_SetCylinder(play, &this->collider2, thisx, &OoT_sCylinderInit);
+    OoT_Collider_UpdateCylinder(thisx, &this->collider1);
+    OoT_Collider_UpdateCylinder(thisx, &this->collider2);
     this->timer = 0;
     this->barrierScrollRate = 1.0f;
     this->barrierScroll = 0.0f;
@@ -112,7 +112,7 @@ void DemoKekkai_Init(Actor* thisx, PlayState* play) {
         case KEKKAI_FOREST:
             this->energyAlpha = 1.0f;
             this->orbScale = 1.0f;
-            Actor_SetScale(thisx, 0.1f);
+            OoT_Actor_SetScale(thisx, 0.1f);
             thisx->update = DemoKekkai_TrialBarrierIdle;
             thisx->draw = DemoKekkai_DrawTrialBarrier;
             this->collider1.dim.radius = thisx->scale.x * 120.0f;
@@ -127,7 +127,7 @@ void DemoKekkai_Init(Actor* thisx, PlayState* play) {
         if (thisx->params == KEKKAI_TOWER) {
             play->envCtx.unk_BF = 1;
         }
-        Actor_Kill(thisx);
+        OoT_Actor_Kill(thisx);
     }
 }
 
@@ -135,8 +135,8 @@ void DemoKekkai_Destroy(Actor* thisx, PlayState* play) {
     s32 pad;
     DemoKekkai* this = (DemoKekkai*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider1);
-    Collider_DestroyCylinder(play, &this->collider2);
+    OoT_Collider_DestroyCylinder(play, &this->collider1);
+    OoT_Collider_DestroyCylinder(play, &this->collider2);
 }
 
 Vec3f demoKekkaiVel = { 0.0f, 0.0f, 0.0f };
@@ -148,19 +148,19 @@ void DemoKekkai_SpawnParticles(DemoKekkai* this, PlayState* play) {
     s32 i;
 
     for (i = 0; i < 85; i++) {
-        s16 roll = Rand_ZeroFloat(65535.0f);
-        s16 yaw = Rand_ZeroFloat(65535.0f);
+        s16 roll = OoT_Rand_ZeroFloat(65535.0f);
+        s16 yaw = OoT_Rand_ZeroFloat(65535.0f);
 
-        demoKekkaiVel.x = Math_SinS(yaw) * Math_CosS(roll) * Rand_ZeroFloat(8.0f);
-        demoKekkaiVel.z = Math_CosS(yaw) * Math_CosS(roll) * Rand_ZeroFloat(8.0f);
-        demoKekkaiVel.y = Math_SinS(roll) * Rand_ZeroFloat(3.0f);
+        demoKekkaiVel.x = OoT_Math_SinS(yaw) * OoT_Math_CosS(roll) * OoT_Rand_ZeroFloat(8.0f);
+        demoKekkaiVel.z = OoT_Math_CosS(yaw) * OoT_Math_CosS(roll) * OoT_Rand_ZeroFloat(8.0f);
+        demoKekkaiVel.y = OoT_Math_SinS(roll) * OoT_Rand_ZeroFloat(3.0f);
 
         pos.x = (demoKekkaiVel.x * 7.0f) + this->actor.world.pos.x;
         pos.y = (demoKekkaiVel.y * 20.0f) + this->actor.world.pos.y + 120.0f;
         pos.z = (demoKekkaiVel.z * 7.0f) + this->actor.world.pos.z;
 
         EffectSsKiraKira_SpawnFocused(play, &pos, &demoKekkaiVel, &accel, &lightYellow, &darkRed, 3000,
-                                      (s32)Rand_ZeroFloat(40.0f) + 45);
+                                      (s32)OoT_Rand_ZeroFloat(40.0f) + 45);
     }
 }
 
@@ -176,8 +176,8 @@ void DemoKekkai_TowerBarrier(DemoKekkai* this, PlayState* play) {
         } else {
             this->timer++;
             if (this->timer > 100) {
-                Flags_SetEventChkInf(EVENTCHKINF_DISPELLED_GANONS_TOWER_BARRIER);
-                Actor_Kill(&this->actor);
+                OoT_Flags_SetEventChkInf(EVENTCHKINF_DISPELLED_GANONS_TOWER_BARRIER);
+                OoT_Actor_Kill(&this->actor);
                 return;
             } else if (this->timer > 40) {
                 this->actor.scale.z = this->actor.scale.x += 0.003f;
@@ -197,10 +197,10 @@ void DemoKekkai_Update(Actor* thisx, PlayState* play2) {
         if ((this->collider1.base.atFlags & AT_HIT) || (this->collider2.base.atFlags & AT_HIT)) {
             func_8002F71C(play, &this->actor, 6.0f, this->actor.yawTowardsPlayer, 6.0f);
         }
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider1.base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider1.base);
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider2.base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider2.base);
+        OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider1.base);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider1.base);
+        OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider2.base);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider2.base);
     }
     this->updateFunc(this, play);
     this->barrierScroll += this->barrierScrollRate;
@@ -255,8 +255,8 @@ void DemoKekkai_TrialBarrierIdle(Actor* thisx, PlayState* play) {
     if (this->collider1.base.atFlags & AT_HIT) {
         func_8002F71C(play, &this->actor, 5.0f, this->actor.yawTowardsPlayer, 5.0f);
     }
-    CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider1.base);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider1.base);
+    OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider1.base);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider1.base);
     if (this->collider2.base.acFlags & AC_HIT) {
         if (GameInteractor_Should(VB_PLAY_DISPEL_BARRIER_CS, true, this)) {
             Sfx_PlaySfxCentered(NA_SE_SY_CORRECT_CHIME);
@@ -268,7 +268,7 @@ void DemoKekkai_TrialBarrierIdle(Actor* thisx, PlayState* play) {
             gSaveContext.cutsceneTrigger = 1;
         }
     }
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider2.base);
+    OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider2.base);
     func_8002F974(&this->actor, NA_SE_EV_TOWER_ENERGY - SFX_FLAG);
 }
 
@@ -296,21 +296,21 @@ void DemoKekkai_DrawTrialBarrier(Actor* thisx, PlayState* play2) {
         colorIndex = (this->actor.params - 1) * 6;
         OPEN_DISPS(play->state.gfxCtx);
         Gfx_SetupDL_25Xlu(play->state.gfxCtx);
-        Matrix_Push();
-        Matrix_Translate(0.0f, 1200.0f, 0.0f, MTXMODE_APPLY);
-        Matrix_Scale(this->orbScale, this->orbScale, this->orbScale, MTXMODE_APPLY);
-        Matrix_Translate(0.0f, -1200.0f, 0.0f, MTXMODE_APPLY);
+        OoT_Matrix_Push();
+        OoT_Matrix_Translate(0.0f, 1200.0f, 0.0f, MTXMODE_APPLY);
+        OoT_Matrix_Scale(this->orbScale, this->orbScale, this->orbScale, MTXMODE_APPLY);
+        OoT_Matrix_Translate(0.0f, -1200.0f, 0.0f, MTXMODE_APPLY);
         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPSegment(POLY_XLU_DISP++, 0x09,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, frames * 5, frames * -10, 0x20, 0x20, 1, frames * 5,
+                   OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, frames * 5, frames * -10, 0x20, 0x20, 1, frames * 5,
                                     frames * -10, 0x20, 0x20));
         gSPDisplayList(POLY_XLU_DISP++, gTrialBarrierOrbDL);
-        Matrix_Pop();
+        OoT_Matrix_Pop();
         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gDPPipeSync(POLY_XLU_DISP++);
         gDPSetPrimColor(POLY_XLU_DISP++, 0x00, 0x80, 50, 0, 100, 255);
         gSPSegment(POLY_XLU_DISP++, 0x0A,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x20, 1, frames, frames, 0x20, 0x20));
+                   OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x20, 1, frames, frames, 0x20, 0x20));
         gSPDisplayList(POLY_XLU_DISP++, gTrialBarrierFloorDL);
         gDPPipeSync(POLY_XLU_DISP++);
         gDPSetPrimColor(POLY_XLU_DISP++, 0x00, 0x80, sEnergyColors[colorIndex + 0], sEnergyColors[colorIndex + 1],
@@ -318,7 +318,7 @@ void DemoKekkai_DrawTrialBarrier(Actor* thisx, PlayState* play2) {
         gDPSetEnvColor(POLY_XLU_DISP++, sEnergyColors[colorIndex + 3], sEnergyColors[colorIndex + 4],
                        sEnergyColors[colorIndex + 5], 128);
         gSPSegment(POLY_XLU_DISP++, 0x08,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, frames * 5, frames * -10, 0x20, 0x20, 1, frames * 5,
+                   OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, frames * 5, frames * -10, 0x20, 0x20, 1, frames * 5,
                                     frames * -10, 0x20, 0x40));
         gSPDisplayList(POLY_XLU_DISP++, gTrialBarrierEnergyDL);
         CLOSE_DISPS(play->state.gfxCtx);
@@ -336,7 +336,7 @@ void DemoKekkai_DrawTowerBarrier(Actor* thisx, PlayState* play) {
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gDPSetPrimColor(POLY_XLU_DISP++, 0x00, 0x80, 255, 170, 255, 255);
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, scroll * 2, scroll * -4, 0x20, 0x40, 1, scroll * 2, scroll * -4,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, scroll * 2, scroll * -4, 0x20, 0x40, 1, scroll * 2, scroll * -4,
                                 0x20, 0x40));
     gSPDisplayList(POLY_XLU_DISP++, gTowerBarrierDL);
     CLOSE_DISPS(play->state.gfxCtx);

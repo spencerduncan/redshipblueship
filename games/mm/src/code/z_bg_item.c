@@ -4,7 +4,7 @@
  * @param transformFlags How other actors standing on the dynapoly actor's collision move when the dynapoly actor moves.
  *   See `DYNA_TRANSFORM_POS`, `DYNA_TRANSFORM_ROT_Y`.
  */
-void DynaPolyActor_Init(DynaPolyActor* dynaActor, s32 transformFlags) {
+void MM_DynaPolyActor_Init(DynaPolyActor* dynaActor, s32 transformFlags) {
     dynaActor->bgId = -1;
     dynaActor->pushForce = 0.0f;
     dynaActor->unk14C = 0.0f;
@@ -15,43 +15,43 @@ void DynaPolyActor_Init(DynaPolyActor* dynaActor, s32 transformFlags) {
 void DynaPolyActor_LoadMesh(PlayState* play, DynaPolyActor* dynaActor, CollisionHeader* meshHeader) {
     CollisionHeader* header = NULL;
 
-    CollisionHeader_GetVirtual(meshHeader, &header);
-    dynaActor->bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &dynaActor->actor, header);
+    MM_CollisionHeader_GetVirtual(meshHeader, &header);
+    dynaActor->bgId = MM_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &dynaActor->actor, header);
 }
 
-void DynaPolyActor_UnsetAllInteractFlags(DynaPolyActor* dynaActor) {
+void MM_DynaPolyActor_UnsetAllInteractFlags(DynaPolyActor* dynaActor) {
     dynaActor->interactFlags = 0;
 }
 
-void DynaPolyActor_SetActorOnTop(DynaPolyActor* dynaActor) {
+void MM_DynaPolyActor_SetActorOnTop(DynaPolyActor* dynaActor) {
     dynaActor->interactFlags |= DYNA_INTERACT_ACTOR_ON_TOP;
 }
 
-void DynaPolyActor_SetPlayerOnTop(DynaPolyActor* dynaActor) {
+void MM_DynaPolyActor_SetPlayerOnTop(DynaPolyActor* dynaActor) {
     dynaActor->interactFlags |= DYNA_INTERACT_PLAYER_ON_TOP;
 }
 
-void DynaPoly_SetPlayerOnTop(CollisionContext* colCtx, s32 bgId) {
-    DynaPolyActor* dynaActor = DynaPoly_GetActor(colCtx, bgId);
+void MM_DynaPoly_SetPlayerOnTop(CollisionContext* colCtx, s32 bgId) {
+    DynaPolyActor* dynaActor = MM_DynaPoly_GetActor(colCtx, bgId);
 
     if (dynaActor != NULL) {
-        DynaPolyActor_SetPlayerOnTop(dynaActor);
+        MM_DynaPolyActor_SetPlayerOnTop(dynaActor);
     }
 }
 
-void DynaPolyActor_SetPlayerAbove(DynaPolyActor* dynaActor) {
+void MM_DynaPolyActor_SetPlayerAbove(DynaPolyActor* dynaActor) {
     dynaActor->interactFlags |= DYNA_INTERACT_PLAYER_ABOVE;
 }
 
-void DynaPoly_SetPlayerAbove(CollisionContext* colCtx, s32 bgId) {
-    DynaPolyActor* dynaActor = DynaPoly_GetActor(colCtx, bgId);
+void MM_DynaPoly_SetPlayerAbove(CollisionContext* colCtx, s32 bgId) {
+    DynaPolyActor* dynaActor = MM_DynaPoly_GetActor(colCtx, bgId);
 
     if (dynaActor != NULL) {
-        DynaPolyActor_SetPlayerAbove(dynaActor);
+        MM_DynaPolyActor_SetPlayerAbove(dynaActor);
     }
 }
 
-void DynaPolyActor_SetSwitchPressed(DynaPolyActor* dynaActor) {
+void MM_DynaPolyActor_SetSwitchPressed(DynaPolyActor* dynaActor) {
     dynaActor->interactFlags |= DYNA_INTERACT_ACTOR_SWITCH_PRESSED;
 }
 
@@ -59,7 +59,7 @@ void DynaPolyActor_SetHeavySwitchPressed(DynaPolyActor* dynaActor) {
     dynaActor->interactFlags |= DYNA_INTERACT_ACTOR_HEAVY_SWITCH_PRESSED;
 }
 
-s32 DynaPolyActor_IsActorOnTop(DynaPolyActor* dynaActor) {
+s32 MM_DynaPolyActor_IsActorOnTop(DynaPolyActor* dynaActor) {
     if (dynaActor->interactFlags & DYNA_INTERACT_ACTOR_ON_TOP) {
         return true;
     } else {
@@ -67,7 +67,7 @@ s32 DynaPolyActor_IsActorOnTop(DynaPolyActor* dynaActor) {
     }
 }
 
-s32 DynaPolyActor_IsPlayerOnTop(DynaPolyActor* dynaActor) {
+s32 MM_DynaPolyActor_IsPlayerOnTop(DynaPolyActor* dynaActor) {
     if (dynaActor->interactFlags & DYNA_INTERACT_PLAYER_ON_TOP) {
         return true;
     } else {
@@ -75,7 +75,7 @@ s32 DynaPolyActor_IsPlayerOnTop(DynaPolyActor* dynaActor) {
     }
 }
 
-s32 DynaPolyActor_IsPlayerAbove(DynaPolyActor* dynaActor) {
+s32 MM_DynaPolyActor_IsPlayerAbove(DynaPolyActor* dynaActor) {
     if (dynaActor->interactFlags & DYNA_INTERACT_PLAYER_ABOVE) {
         return true;
     } else {
@@ -83,7 +83,7 @@ s32 DynaPolyActor_IsPlayerAbove(DynaPolyActor* dynaActor) {
     }
 }
 
-s32 DynaPolyActor_IsSwitchPressed(DynaPolyActor* dynaActor) {
+s32 MM_DynaPolyActor_IsSwitchPressed(DynaPolyActor* dynaActor) {
     if (dynaActor->interactFlags & DYNA_INTERACT_ACTOR_SWITCH_PRESSED) {
         return true;
     } else {
@@ -104,8 +104,8 @@ s32 DynaPolyActor_ValidateMove(PlayState* play, DynaPolyActor* dynaActor, s16 st
     Vec3f startPos;
     Vec3f endPos;
     Vec3f intersectionPos;
-    f32 sin = Math_SinS(dynaActor->yRotation);
-    f32 cos = Math_CosS(dynaActor->yRotation);
+    f32 sin = MM_Math_SinS(dynaActor->yRotation);
+    f32 cos = MM_Math_CosS(dynaActor->yRotation);
     s32 bgId;
     CollisionPoly* poly;
     f32 adjustedStartRadius;
@@ -122,7 +122,7 @@ s32 DynaPolyActor_ValidateMove(PlayState* play, DynaPolyActor* dynaActor, s16 st
     endPos.y = startPos.y;
     endPos.z = sign * adjustedEndRadius * cos + startPos.z;
 
-    if (BgCheck_EntityLineTest3(&play->colCtx, &startPos, &endPos, &intersectionPos, &poly, true, false, false, true,
+    if (MM_BgCheck_EntityLineTest3(&play->colCtx, &startPos, &endPos, &intersectionPos, &poly, true, false, false, true,
                                 &bgId, &dynaActor->actor, 0.0f)) {
         return false;
     }
@@ -132,7 +132,7 @@ s32 DynaPolyActor_ValidateMove(PlayState* play, DynaPolyActor* dynaActor, s16 st
     endPos.x = sign * adjustedEndRadius * sin + startPos.x;
     endPos.z = sign * adjustedEndRadius * cos + startPos.z;
 
-    if (BgCheck_EntityLineTest3(&play->colCtx, &startPos, &endPos, &intersectionPos, &poly, true, false, false, true,
+    if (MM_BgCheck_EntityLineTest3(&play->colCtx, &startPos, &endPos, &intersectionPos, &poly, true, false, false, true,
                                 &bgId, &dynaActor->actor, 0.0f)) {
         return false;
     }

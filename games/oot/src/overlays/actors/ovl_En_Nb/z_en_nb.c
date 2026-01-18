@@ -55,12 +55,12 @@ typedef enum {
     /* 0x04 */ NB_DRAW_LOOK_DIRECTION
 } EnNbDrawMode;
 
-void EnNb_Init(Actor* thisx, PlayState* play);
-void EnNb_Destroy(Actor* thisx, PlayState* play);
-void EnNb_Update(Actor* thisx, PlayState* play);
-void EnNb_Draw(Actor* thisx, PlayState* play);
+void OoT_EnNb_Init(Actor* thisx, PlayState* play);
+void OoT_EnNb_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnNb_Update(Actor* thisx, PlayState* play);
+void OoT_EnNb_Draw(Actor* thisx, PlayState* play);
 
-static ColliderCylinderInitType1 sCylinderInit = {
+static ColliderCylinderInitType1 OoT_sCylinderInit = {
     {
         COLTYPE_HIT0,
         AT_NONE,
@@ -79,7 +79,7 @@ static ColliderCylinderInitType1 sCylinderInit = {
     { 25, 80, 0, { 0, 0, 0 } },
 };
 
-static void* sEyeTextures[] = {
+static void* OoT_sEyeTextures[] = {
     gNabooruEyeOpenTex,
     gNabooruEyeHalfTex,
     gNabooruEyeClosedTex,
@@ -119,7 +119,7 @@ void EnNb_UpdatePath(EnNb* this, PlayState* play) {
         this->finalPos.x = pointPos[1].x;
         this->finalPos.y = pointPos[1].y;
         this->finalPos.z = pointPos[1].z;
-        this->pathYaw = (Math_FAtan2F(this->finalPos.x - this->initialPos.x, this->finalPos.z - this->initialPos.z) *
+        this->pathYaw = (OoT_Math_FAtan2F(this->finalPos.x - this->initialPos.x, this->finalPos.z - this->initialPos.z) *
                          (0x8000 / M_PI));
         // "En_Nb_Get_path_info Rail Data Get! = %d!!!!!!!!!!!!!!"
         osSyncPrintf("En_Nb_Get_path_info レールデータをゲットだぜ = %d!!!!!!!!!!!!!!\n", path);
@@ -132,23 +132,23 @@ void EnNb_UpdatePath(EnNb* this, PlayState* play) {
 void EnNb_SetupCollider(Actor* thisx, PlayState* play) {
     EnNb* this = (EnNb*)thisx;
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinderType1(play, &this->collider, thisx, &sCylinderInit);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinderType1(play, &this->collider, thisx, &OoT_sCylinderInit);
 }
 
 void EnNb_UpdateCollider(EnNb* this, PlayState* play) {
     s32 pad[4];
     ColliderCylinder* collider = &this->collider;
 
-    Collider_UpdateCylinder(&this->actor, collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &collider->base);
+    OoT_Collider_UpdateCylinder(&this->actor, collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &collider->base);
 }
 
-void EnNb_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnNb_Destroy(Actor* thisx, PlayState* play) {
     EnNb* this = (EnNb*)thisx;
 
     D_80AB4318 = 0;
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
@@ -158,7 +158,7 @@ void func_80AB0FBC(EnNb* this, PlayState* play) {
 
     this->interactInfo.trackPos = player->actor.world.pos;
     this->interactInfo.yOffset = kREG(16) + 9.0f;
-    Npc_TrackPoint(&this->actor, &this->interactInfo, kREG(17) + 0xC, NPC_TRACKING_HEAD_AND_TORSO);
+    OoT_Npc_TrackPoint(&this->actor, &this->interactInfo, kREG(17) + 0xC, NPC_TRACKING_HEAD_AND_TORSO);
 }
 
 void func_80AB1040(EnNb* this, PlayState* play) {
@@ -166,7 +166,7 @@ void func_80AB1040(EnNb* this, PlayState* play) {
 
     this->interactInfo.trackPos = player->actor.world.pos;
     this->interactInfo.yOffset = kREG(16) + 9.0f;
-    Npc_TrackPoint(&this->actor, &this->interactInfo, kREG(17) + 0xC, NPC_TRACKING_FULL_BODY);
+    OoT_Npc_TrackPoint(&this->actor, &this->interactInfo, kREG(17) + 0xC, NPC_TRACKING_FULL_BODY);
 }
 
 void func_80AB10C4(EnNb* this) {
@@ -175,11 +175,11 @@ void func_80AB10C4(EnNb* this) {
     Vec3s* tempPtr2;
 
     tempPtr = &this->interactInfo.headRot;
-    Math_SmoothStepToS(&tempPtr->x, 0, 20, 6200, 100);
-    Math_SmoothStepToS(&tempPtr->y, 0, 20, 6200, 100);
+    OoT_Math_SmoothStepToS(&tempPtr->x, 0, 20, 6200, 100);
+    OoT_Math_SmoothStepToS(&tempPtr->y, 0, 20, 6200, 100);
     tempPtr2 = &this->interactInfo.torsoRot;
-    Math_SmoothStepToS(&tempPtr2->x, 0, 20, 6200, 100);
-    Math_SmoothStepToS(&tempPtr2->y, 0, 20, 6200, 100);
+    OoT_Math_SmoothStepToS(&tempPtr2->x, 0, 20, 6200, 100);
+    OoT_Math_SmoothStepToS(&tempPtr2->y, 0, 20, 6200, 100);
 }
 
 void EnNb_UpdateEyes(EnNb* this) {
@@ -188,11 +188,11 @@ void EnNb_UpdateEyes(EnNb* this) {
     s16* eyeIdx = &this->eyeIdx;
 
     if (DECR(*blinkTimer) == 0) {
-        *blinkTimer = Rand_S16Offset(60, 60);
+        *blinkTimer = OoT_Rand_S16Offset(60, 60);
     }
 
     *eyeIdx = *blinkTimer;
-    if (*eyeIdx >= ARRAY_COUNT(sEyeTextures)) {
+    if (*eyeIdx >= ARRAY_COUNT(OoT_sEyeTextures)) {
         *eyeIdx = 0;
     }
 }
@@ -226,11 +226,11 @@ void func_80AB1210(EnNb* this, PlayState* play) {
 }
 
 void func_80AB1284(EnNb* this, PlayState* play) {
-    Actor_UpdateBgCheckInfo(play, &this->actor, 75.0f, 30.0f, 30.0f, 4);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 75.0f, 30.0f, 30.0f, 4);
 }
 
-s32 EnNb_UpdateSkelAnime(EnNb* this) {
-    return SkelAnime_Update(&this->skelAnime);
+s32 OoT_EnNb_UpdateSkelAnime(EnNb* this) {
+    return OoT_SkelAnime_Update(&this->skelAnime);
 }
 
 CsCmdActorCue* EnNb_GetNpcCsAction(PlayState* play, s32 npcActionIdx) {
@@ -288,7 +288,7 @@ void EnNb_SetInitialCsPosRot(EnNb* this, PlayState* play, s32 npcActionIdx) {
 }
 
 void EnNb_SetCurrentAnim(EnNb* this, AnimationHeader* animation, u8 mode, f32 transitionRate, s32 arg4) {
-    f32 frameCount = Animation_GetLastFrame(animation);
+    f32 frameCount = OoT_Animation_GetLastFrame(animation);
     f32 playbackSpeed;
     f32 unk0;
     f32 fc;
@@ -303,7 +303,7 @@ void EnNb_SetCurrentAnim(EnNb* this, AnimationHeader* animation, u8 mode, f32 tr
         playbackSpeed = -1.0f;
     }
 
-    Animation_Change(&this->skelAnime, animation, playbackSpeed, unk0, fc, mode, transitionRate);
+    OoT_Animation_Change(&this->skelAnime, animation, playbackSpeed, unk0, fc, mode, transitionRate);
 }
 
 void EnNb_SetChamberAnim(EnNb* this, PlayState* play) {
@@ -316,7 +316,7 @@ void EnNb_SpawnBlueWarp(EnNb* this, PlayState* play) {
     f32 posY = this->actor.world.pos.y;
     f32 posZ = this->actor.world.pos.z;
 
-    Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DOOR_WARP1, posX, posY, posZ, 0, 0, 0, WARP_SAGES);
+    OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DOOR_WARP1, posX, posY, posZ, 0, 0, 0, WARP_SAGES);
 }
 
 void EnNb_GiveMedallion(EnNb* this, PlayState* play) {
@@ -325,9 +325,9 @@ void EnNb_GiveMedallion(EnNb* this, PlayState* play) {
     f32 posY = player->actor.world.pos.y + 50.0f;
     f32 posZ = player->actor.world.pos.z;
 
-    Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DEMO_EFFECT, posX, posY, posZ, 0, 0, 0, 0xC);
+    OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DEMO_EFFECT, posX, posY, posZ, 0, 0, 0, 0xC);
     if (GameInteractor_Should(VB_GIVE_ITEM_SPIRIT_MEDALLION, true)) {
-        Item_Give(play, ITEM_MEDALLION_SPIRIT);
+        OoT_Item_Give(play, ITEM_MEDALLION_SPIRIT);
     }
 }
 
@@ -345,7 +345,7 @@ void EnNb_SetupChamberCsImpl(EnNb* this, PlayState* play) {
         play->csCtx.segment = &D_80AB431C;
         gSaveContext.cutsceneTrigger = 2;
         if (GameInteractor_Should(VB_GIVE_ITEM_SPIRIT_MEDALLION, true)) {
-            Item_Give(play, ITEM_MEDALLION_SPIRIT);
+            OoT_Item_Give(play, ITEM_MEDALLION_SPIRIT);
         }
         player->actor.world.rot.y = player->actor.shape.rot.y = this->actor.world.rot.y + 0x8000;
     }
@@ -379,7 +379,7 @@ void EnNb_SetupArmRaise(EnNb* this, PlayState* play) {
     if (play->csCtx.state != CS_STATE_IDLE) {
         csCmdNPCAction = play->csCtx.npcActions[1];
         if (csCmdNPCAction != NULL && csCmdNPCAction->action == 3) {
-            Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, Animation_GetLastFrame(animation), ANIMMODE_ONCE,
+            OoT_Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, OoT_Animation_GetLastFrame(animation), ANIMMODE_ONCE,
                              0.0f);
             this->action = NB_CHAMBER_RAISE_ARM;
         }
@@ -390,7 +390,7 @@ void EnNb_SetupRaisedArmTransition(EnNb* this, s32 animFinished) {
     AnimationHeader* animation = &gNabooruArmsRaisedGivingMedallionAnim;
 
     if (animFinished) {
-        Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, Animation_GetLastFrame(animation), ANIMMODE_LOOP,
+        OoT_Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, OoT_Animation_GetLastFrame(animation), ANIMMODE_LOOP,
                          0.0f);
         this->action = NB_CHAMBER_RAISE_ARM_TRANSITION;
     }
@@ -408,7 +408,7 @@ void EnNb_SetupMedallion(EnNb* this, PlayState* play) {
     }
 }
 
-// Action func is never explicitly set to this, but it runs when the memory gets zero cleared
+// Action func is never explicitly set to this, but it runs when the memory gets OoT_zero cleared
 void EnNb_SetupChamberCs(EnNb* this, PlayState* play) {
     EnNb_SetupChamberCsImpl(this, play);
 }
@@ -419,14 +419,14 @@ void EnNb_SetupChamberWarp(EnNb* this, PlayState* play) {
 
 void EnNb_ComeUp(EnNb* this, PlayState* play) {
     EnNb_ComeUpImpl(this, play);
-    EnNb_UpdateSkelAnime(this);
+    OoT_EnNb_UpdateSkelAnime(this);
     EnNb_UpdateEyes(this);
     EnNb_SetupDefaultChamberIdle(this);
 }
 
 void func_80AB193C(EnNb* this, PlayState* play) {
     func_80AB1284(this, play);
-    EnNb_UpdateSkelAnime(this);
+    OoT_EnNb_UpdateSkelAnime(this);
     EnNb_UpdateEyes(this);
     EnNb_SetupArmRaise(this, play);
 }
@@ -435,21 +435,21 @@ void EnNb_RaiseArm(EnNb* this, PlayState* play) {
     s32 animFinished;
 
     func_80AB1284(this, play);
-    animFinished = EnNb_UpdateSkelAnime(this);
+    animFinished = OoT_EnNb_UpdateSkelAnime(this);
     EnNb_UpdateEyes(this);
     EnNb_SetupRaisedArmTransition(this, animFinished);
 }
 
 void func_80AB19BC(EnNb* this, PlayState* play) {
     func_80AB1284(this, play);
-    EnNb_UpdateSkelAnime(this);
+    OoT_EnNb_UpdateSkelAnime(this);
     EnNb_UpdateEyes(this);
     EnNb_SetupMedallion(this, play);
 }
 
 void func_80AB19FC(EnNb* this, PlayState* play) {
     func_80AB1284(this, play);
-    EnNb_UpdateSkelAnime(this);
+    OoT_EnNb_UpdateSkelAnime(this);
     EnNb_UpdateEyes(this);
 }
 
@@ -464,7 +464,7 @@ void EnNb_PlaySealingSound(void) {
 }
 
 void EnNb_InitializeDemo6K(EnNb* this, PlayState* play) {
-    Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DEMO_6K, this->actor.world.pos.x,
+    OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DEMO_6K, this->actor.world.pos.x,
                        kREG(21) + 22.0f + this->actor.world.pos.y, this->actor.world.pos.z, 0, 0, 0, 7);
 }
 
@@ -533,7 +533,7 @@ void EnNb_Hide(EnNb* this, PlayState* play) {
 
 void EnNb_Fade(EnNb* this, PlayState* play) {
     func_80AB1284(this, play);
-    EnNb_UpdateSkelAnime(this);
+    OoT_EnNb_UpdateSkelAnime(this);
     EnNb_UpdateEyes(this);
     EnNb_CheckToFade(this, play);
     func_80AB1210(this, play);
@@ -541,7 +541,7 @@ void EnNb_Fade(EnNb* this, PlayState* play) {
 
 void EnNb_CreateLightOrb(EnNb* this, PlayState* play) {
     func_80AB1284(this, play);
-    EnNb_UpdateSkelAnime(this);
+    OoT_EnNb_UpdateSkelAnime(this);
     EnNb_UpdateEyes(this);
     EnNb_SetupLightOrb(this, play);
     func_80AB1210(this, play);
@@ -550,7 +550,7 @@ void EnNb_CreateLightOrb(EnNb* this, PlayState* play) {
 void EnNb_DrawTransparency(EnNb* this, PlayState* play) {
     s32 pad[2];
     s16 eyeSegIdx = this->eyeIdx;
-    void* eyeTex = sEyeTextures[eyeSegIdx];
+    void* eyeTex = OoT_sEyeTextures[eyeSegIdx];
     SkelAnime* skelAnime = &this->skelAnime;
 
     OPEN_DISPS(play->state.gfxCtx);
@@ -560,7 +560,7 @@ void EnNb_DrawTransparency(EnNb* this, PlayState* play) {
     gSPSegment(POLY_XLU_DISP++, 0x09, SEGMENTED_TO_VIRTUAL(eyeTex));
     gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 0, this->alpha);
     gSPSegment(POLY_XLU_DISP++, 0x0C, &D_80116280[0]);
-    POLY_XLU_DISP = SkelAnime_DrawFlex(play, skelAnime->skeleton, skelAnime->jointTable, skelAnime->dListCount, NULL,
+    POLY_XLU_DISP = OoT_SkelAnime_DrawFlex(play, skelAnime->skeleton, skelAnime->jointTable, skelAnime->dListCount, NULL,
                                        NULL, NULL, POLY_XLU_DISP);
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -570,7 +570,7 @@ void EnNb_InitKidnap(EnNb* this, PlayState* play) {
     EnNb_SetCurrentAnim(this, &gNabooruTrappedInVortexPushingGroundAnim, 0, 0.0f, 0);
     this->action = NB_KIDNAPPED;
     this->actor.shape.shadowAlpha = 0;
-    Flags_SetEventChkInf(EVENTCHKINF_NABOORU_CAPTURED_BY_TWINROVA);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_NABOORU_CAPTURED_BY_TWINROVA);
 }
 
 void EnNb_PlayCrySFX(EnNb* this, PlayState* play) {
@@ -594,7 +594,7 @@ void EnNb_SetPosInPortal(EnNb* this, PlayState* play) {
     Vec3f endPos;
 
     if (csCmdNPCAction != NULL) {
-        f0 = Environment_LerpWeightAccelDecel(csCmdNPCAction->endFrame, csCmdNPCAction->startFrame, play->csCtx.frames,
+        f0 = OoT_Environment_LerpWeightAccelDecel(csCmdNPCAction->endFrame, csCmdNPCAction->startFrame, play->csCtx.frames,
                                               4, 4);
         startPos.x = csCmdNPCAction->startPos.x;
         startPos.y = csCmdNPCAction->startPos.y;
@@ -619,7 +619,7 @@ void EnNb_SetRaisedArmCaptureAnim(EnNb* this, s32 animFinished) {
     AnimationHeader* animation = &gNabooruSuckedByVortexAnim;
 
     if (animFinished) {
-        Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, Animation_GetLastFrame(animation), ANIMMODE_LOOP,
+        OoT_Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, OoT_Animation_GetLastFrame(animation), ANIMMODE_LOOP,
                          0.0f);
     }
 }
@@ -627,7 +627,7 @@ void EnNb_SetRaisedArmCaptureAnim(EnNb* this, s32 animFinished) {
 void EnNb_SetupLookAroundInKidnap(EnNb* this) {
     AnimationHeader* animation = &gNabooruTrappedInVortexPushingGroundAnim;
 
-    Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, Animation_GetLastFrame(animation), ANIMMODE_LOOP, -8.0f);
+    OoT_Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, OoT_Animation_GetLastFrame(animation), ANIMMODE_LOOP, -8.0f);
     this->action = NB_KIDNAPPED_LOOK_AROUND;
     this->drawMode = NB_DRAW_DEFAULT;
 }
@@ -635,7 +635,7 @@ void EnNb_SetupLookAroundInKidnap(EnNb* this) {
 void EnNb_SetupKidnap(EnNb* this) {
     AnimationHeader* animation = &gNabooruTrappedInVortexRaisingArmAnim;
 
-    Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, Animation_GetLastFrame(animation), ANIMMODE_ONCE, -8.0f);
+    OoT_Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, OoT_Animation_GetLastFrame(animation), ANIMMODE_ONCE, -8.0f);
     this->action = NB_PORTAL_FALLTHROUGH;
     this->drawMode = NB_DRAW_DEFAULT;
 }
@@ -660,7 +660,7 @@ void EnNb_CheckKidnapCsMode(EnNb* this, PlayState* play) {
                     EnNb_SetupKidnap(this);
                     break;
                 case 9:
-                    Actor_Kill(&this->actor);
+                    OoT_Actor_Kill(&this->actor);
                     break;
                 default:
                     // "Operation Doesn't Exist!!!!!!!!"
@@ -681,7 +681,7 @@ void EnNb_MovingInPortal(EnNb* this, PlayState* play) {
     EnNb_PlayCrySFX(this, play);
     EnNb_PlayAgonySFX(this, play);
     EnNb_UpdateEyes(this);
-    EnNb_UpdateSkelAnime(this);
+    OoT_EnNb_UpdateSkelAnime(this);
     EnNb_CheckKidnapCsMode(this, play);
 }
 
@@ -689,7 +689,7 @@ void EnNb_SuckedInByPortal(EnNb* this, PlayState* play) {
     s32 animFinished;
 
     EnNb_UpdateEyes(this);
-    animFinished = EnNb_UpdateSkelAnime(this);
+    animFinished = OoT_EnNb_UpdateSkelAnime(this);
     EnNb_SetRaisedArmCaptureAnim(this, animFinished);
     EnNb_SetPosInPortal(this, play);
     EnNb_CheckKidnapCsMode(this, play);
@@ -716,7 +716,7 @@ void EnNb_PlayKneelingOnGroundSFX(EnNb* this) {
     s32 pad[2];
 
     if ((this->skelAnime.mode == 2) &&
-        (Animation_OnFrame(&this->skelAnime, 18.0f) || Animation_OnFrame(&this->skelAnime, 25.0f))) {
+        (OoT_Animation_OnFrame(&this->skelAnime, 18.0f) || OoT_Animation_OnFrame(&this->skelAnime, 25.0f))) {
         Sfx_PlaySfxAtPos(&this->actor.projectedPos, NA_SE_EV_HUMAN_BOUND);
     }
 }
@@ -724,7 +724,7 @@ void EnNb_PlayKneelingOnGroundSFX(EnNb* this) {
 void EnNb_PlayLookRightSFX(EnNb* this) {
     s32 pad[2];
 
-    if ((this->skelAnime.mode == 2) && Animation_OnFrame(&this->skelAnime, 9.0f)) {
+    if ((this->skelAnime.mode == 2) && OoT_Animation_OnFrame(&this->skelAnime, 9.0f)) {
         Sfx_PlaySfxAtPos(&this->actor.projectedPos, NA_SE_PL_WALK_CONCRETE);
     }
 }
@@ -732,13 +732,13 @@ void EnNb_PlayLookRightSFX(EnNb* this) {
 void EnNb_PlayLookLeftSFX(EnNb* this) {
     s32 pad[2];
 
-    if (Animation_OnFrame(&this->skelAnime, 9.0f) || Animation_OnFrame(&this->skelAnime, 13.0f)) {
+    if (OoT_Animation_OnFrame(&this->skelAnime, 9.0f) || OoT_Animation_OnFrame(&this->skelAnime, 13.0f)) {
         Sfx_PlaySfxAtPos(&this->actor.projectedPos, NA_SE_PL_WALK_CONCRETE);
     }
 }
 
 void EnNb_InitDemo6KInConfrontation(EnNb* this, PlayState* play) {
-    Actor_Spawn(&play->actorCtx, play, ACTOR_DEMO_6K, this->actor.world.pos.x,
+    OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_DEMO_6K, this->actor.world.pos.x,
                 kREG(21) + 22.0f + this->actor.world.pos.y, this->actor.world.pos.z, 0, 0, 0, 0xB, true);
 }
 
@@ -756,10 +756,10 @@ void func_80AB26C8(EnNb* this) {
 void func_80AB26DC(EnNb* this, PlayState* play) {
     s32 pad;
     AnimationHeader* animation = &gNabooruCollapseFromStandingToKneelingTransitionAnim;
-    f32 lastFrame = Animation_GetLastFrame(animation);
+    f32 lastFrame = OoT_Animation_GetLastFrame(animation);
 
     EnNb_SetupCsPosRot(this, play, 1);
-    Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, lastFrame, ANIMMODE_ONCE, 0.0f);
+    OoT_Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, lastFrame, ANIMMODE_ONCE, 0.0f);
     this->action = NB_ACTION_14;
     this->drawMode = NB_DRAW_KNEEL;
     this->actor.shape.shadowAlpha = 0xFF;
@@ -767,9 +767,9 @@ void func_80AB26DC(EnNb* this, PlayState* play) {
 
 void EnNb_SetupKneel(EnNb* this) {
     AnimationHeader* animation = &gNabooruCollapseFromStandingToKneelingTransitionAnim;
-    f32 lastFrame = Animation_GetLastFrame(animation);
+    f32 lastFrame = OoT_Animation_GetLastFrame(animation);
 
-    Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, lastFrame, ANIMMODE_ONCE, 0.0f);
+    OoT_Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, lastFrame, ANIMMODE_ONCE, 0.0f);
     this->action = NB_KNEEL;
     this->drawMode = NB_DRAW_KNEEL;
     this->actor.shape.shadowAlpha = 0xFF;
@@ -779,7 +779,7 @@ void EnNb_CheckIfKneeling(EnNb* this, s32 animFinished) {
     AnimationHeader* animation = &gNabooruOnAllFoursAnim;
 
     if (animFinished) {
-        Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, Animation_GetLastFrame(animation), ANIMMODE_LOOP,
+        OoT_Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, OoT_Animation_GetLastFrame(animation), ANIMMODE_LOOP,
                          0.0f);
         this->drawMode = NB_DRAW_KNEEL;
     }
@@ -787,9 +787,9 @@ void EnNb_CheckIfKneeling(EnNb* this, s32 animFinished) {
 
 void EnNb_SetupLookRight(EnNb* this) {
     AnimationHeader* animation = &gNabooruOnAllFoursToOnOneKneeLookingRightTransitionAnim;
-    f32 lastFrame = Animation_GetLastFrame(animation);
+    f32 lastFrame = OoT_Animation_GetLastFrame(animation);
 
-    Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, lastFrame, ANIMMODE_ONCE, -8.0f);
+    OoT_Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, lastFrame, ANIMMODE_ONCE, -8.0f);
     this->action = NB_LOOK_RIGHT;
     this->drawMode = NB_DRAW_DEFAULT;
     this->actor.shape.shadowAlpha = 0xFF;
@@ -799,7 +799,7 @@ void EnNb_CheckIfLookingRight(EnNb* this, s32 animFinished) {
     AnimationHeader* animation = &gNabooruOnOneKneeLookingRightAnim;
 
     if (animFinished) {
-        Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, Animation_GetLastFrame(animation), ANIMMODE_LOOP,
+        OoT_Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, OoT_Animation_GetLastFrame(animation), ANIMMODE_LOOP,
                          0.0f);
         this->drawMode = NB_DRAW_LOOK_DIRECTION;
     }
@@ -807,9 +807,9 @@ void EnNb_CheckIfLookingRight(EnNb* this, s32 animFinished) {
 
 void EnNb_SetupLookLeft(EnNb* this) {
     AnimationHeader* animation = &gNabooruOnOneKneeTurningHeadRightToLeftTransitionAnim;
-    f32 lastFrame = Animation_GetLastFrame(animation);
+    f32 lastFrame = OoT_Animation_GetLastFrame(animation);
 
-    Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, lastFrame, ANIMMODE_ONCE, -8.0f);
+    OoT_Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, lastFrame, ANIMMODE_ONCE, -8.0f);
     this->action = NB_LOOK_LEFT;
     this->drawMode = NB_DRAW_LOOK_DIRECTION;
     this->actor.shape.shadowAlpha = 0xFF;
@@ -819,7 +819,7 @@ void EnNb_CheckIfLookLeft(EnNb* this, s32 animFinished) {
     AnimationHeader* animation = &gNabooruOnOneKneeLookingLeftAnim;
 
     if (animFinished) {
-        Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, Animation_GetLastFrame(animation), ANIMMODE_LOOP,
+        OoT_Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, OoT_Animation_GetLastFrame(animation), ANIMMODE_LOOP,
                          0.0f);
     }
 }
@@ -833,9 +833,9 @@ void EnNb_SetupDemo6KInConfrontation(EnNb* this, PlayState* play, s32 animFinish
 
 void EnNb_SetupRun(EnNb* this) {
     AnimationHeader* animation = &gNabooruKneeingToRunningToHitAnim;
-    f32 lastFrame = Animation_GetLastFrame(animation);
+    f32 lastFrame = OoT_Animation_GetLastFrame(animation);
 
-    Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, lastFrame, ANIMMODE_ONCE, -8.0f);
+    OoT_Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, lastFrame, ANIMMODE_ONCE, -8.0f);
     this->action = NB_RUN;
     this->drawMode = NB_DRAW_LOOK_DIRECTION;
     this->actor.shape.shadowAlpha = 0xFF;
@@ -905,7 +905,7 @@ void EnNb_Kneel(EnNb* this, PlayState* play) {
     s32 animFinished;
 
     EnNb_UpdateEyes(this);
-    animFinished = EnNb_UpdateSkelAnime(this);
+    animFinished = OoT_EnNb_UpdateSkelAnime(this);
     EnNb_CheckIfKneeling(this, animFinished);
     EnNb_PlayKneelingOnGroundSFX(this);
     func_80AB2688(this, play);
@@ -917,7 +917,7 @@ void EnNb_LookRight(EnNb* this, PlayState* play) {
     s32 animFinished;
 
     EnNb_UpdateEyes(this);
-    animFinished = EnNb_UpdateSkelAnime(this);
+    animFinished = OoT_EnNb_UpdateSkelAnime(this);
     EnNb_CheckIfLookingRight(this, animFinished);
     EnNb_PlayLookRightSFX(this);
     func_80AB2688(this, play);
@@ -929,7 +929,7 @@ void EnNb_LookLeft(EnNb* this, PlayState* play) {
     s32 animFinished;
 
     EnNb_UpdateEyes(this);
-    animFinished = EnNb_UpdateSkelAnime(this);
+    animFinished = OoT_EnNb_UpdateSkelAnime(this);
     EnNb_CheckIfLookLeft(this, animFinished);
     func_80AB2688(this, play);
     func_80AB1284(this, play);
@@ -941,7 +941,7 @@ void EnNb_Run(EnNb* this, PlayState* play) {
 
     EnNb_PlayKnuckleDefeatSFX(this, play);
     EnNb_UpdateEyes(this);
-    animFinished = EnNb_UpdateSkelAnime(this);
+    animFinished = OoT_EnNb_UpdateSkelAnime(this);
     EnNb_PlayLookLeftSFX(this);
     func_80AB2688(this, play);
     func_80AB1284(this, play);
@@ -953,7 +953,7 @@ void EnNb_ConfrontationDestroy(EnNb* this, PlayState* play) {
     this->timer++;
 
     if (this->timer > 60.0f) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
@@ -987,7 +987,7 @@ void func_80AB2FE4(EnNb* this, PlayState* play) {
     s32 pad;
     s16 eyeIdx = this->eyeIdx;
     SkelAnime* skelAnime = &this->skelAnime;
-    void* eyeTexture = sEyeTextures[eyeIdx];
+    void* eyeTexture = OoT_sEyeTextures[eyeIdx];
     s32 pad1;
 
     OPEN_DISPS(play->state.gfxCtx);
@@ -1081,7 +1081,7 @@ void EnNb_CheckCreditsCsMode(EnNb* this, PlayState* play) {
 
 void EnNb_CreditsFade(EnNb* this, PlayState* play) {
     func_80AB1284(this, play);
-    EnNb_UpdateSkelAnime(this);
+    OoT_EnNb_UpdateSkelAnime(this);
     EnNb_UpdateEyes(this);
     EnNb_SetAlphaInCredits(this);
     EnNb_SetupCreditsSit(this);
@@ -1089,7 +1089,7 @@ void EnNb_CreditsFade(EnNb* this, PlayState* play) {
 
 void func_80AB3428(EnNb* this, PlayState* play) {
     func_80AB1284(this, play);
-    EnNb_UpdateSkelAnime(this);
+    OoT_EnNb_UpdateSkelAnime(this);
     EnNb_UpdateEyes(this);
     EnNb_CheckCreditsCsModeImpl(this, play);
 }
@@ -1098,17 +1098,17 @@ void EnNb_LookUp(EnNb* this, PlayState* play) {
     s32 animFinished;
 
     func_80AB1284(this, play);
-    animFinished = EnNb_UpdateSkelAnime(this);
+    animFinished = OoT_EnNb_UpdateSkelAnime(this);
     EnNb_UpdateEyes(this);
     EnNb_CheckIfLookingUp(this, animFinished);
 }
 
 void EnNb_CrawlspaceSpawnCheck(EnNb* this, PlayState* play) {
-    if (!IS_RANDO && !Flags_GetEventChkInf(EVENTCHKINF_NABOORU_CAPTURED_BY_TWINROVA) && LINK_IS_CHILD) {
+    if (!IS_RANDO && !OoT_Flags_GetEventChkInf(EVENTCHKINF_NABOORU_CAPTURED_BY_TWINROVA) && LINK_IS_CHILD) {
         EnNb_UpdatePath(this, play);
 
         // looking into crawlspace
-        if (!Flags_GetEventChkInf(EVENTCHKINF_SPOKE_TO_NABOORU_IN_SPIRIT_TEMPLE)) {
+        if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_SPOKE_TO_NABOORU_IN_SPIRIT_TEMPLE)) {
             EnNb_SetCurrentAnim(this, &gNabooruKneeingAtCrawlspaceAnim, 0, 0.0f, 0);
             this->action = NB_CROUCH_CRAWLSPACE;
             this->drawMode = NB_DRAW_DEFAULT;
@@ -1121,7 +1121,7 @@ void EnNb_CrawlspaceSpawnCheck(EnNb* this, PlayState* play) {
             this->drawMode = NB_DRAW_DEFAULT;
         }
     } else {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
@@ -1139,7 +1139,7 @@ void func_80AB359C(EnNb* this) {
     temp_t1 += 25;
 
     if (temp_t1 >= this->movementTimer) {
-        f0 = Environment_LerpWeightAccelDecel(temp_t1, 0, this->movementTimer, 3, 3);
+        f0 = OoT_Environment_LerpWeightAccelDecel(temp_t1, 0, this->movementTimer, 3, 3);
         world->pos.x = initialPos->x + (f0 * (finalPos->x - initialPos->x));
         world->pos.y = initialPos->y + (f0 * (finalPos->y - initialPos->y));
         world->pos.z = initialPos->z + (f0 * (finalPos->z - initialPos->z));
@@ -1171,13 +1171,13 @@ void func_80AB36DC(EnNb* this, PlayState* play) {
         s16 invScale = 4 - moveTime;
 
         if (invScale > 0) {
-            Math_SmoothStepToS(&this->actor.shape.rot.y, this->pathYaw, invScale, 6200, 100);
+            OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->pathYaw, invScale, 6200, 100);
         }
     } else {
         s16 invScale = (u16)(kREG(17) + 25) - moveTime;
 
         if (invScale > 0) {
-            Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, invScale, 6200, 100);
+            OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, invScale, 6200, 100);
         }
     }
 }
@@ -1205,7 +1205,7 @@ void func_80AB3838(EnNb* this, PlayState* play) {
     } else {
         this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY;
 
-        if (!Flags_GetInfTable(INFTABLE_16C)) {
+        if (!OoT_Flags_GetInfTable(INFTABLE_16C)) {
             this->actor.textId = 0x601D;
         } else {
             this->actor.textId = 0x6024;
@@ -1217,7 +1217,7 @@ void func_80AB3838(EnNb* this, PlayState* play) {
 
 void EnNb_SetupPathMovement(EnNb* this, PlayState* play) {
     EnNb_SetCurrentAnim(this, &gNabooruStandingToWalkingTransitionAnim, 2, -8.0f, 0);
-    Flags_SetEventChkInf(EVENTCHKINF_SPOKE_TO_NABOORU_IN_SPIRIT_TEMPLE);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_SPOKE_TO_NABOORU_IN_SPIRIT_TEMPLE);
     this->action = NB_IN_PATH;
     this->actor.flags &= ~(ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY);
 }
@@ -1230,17 +1230,17 @@ void EnNb_SetTextIdAsChild(EnNb* this, PlayState* play) {
 
     textId = this->actor.textId;
 
-    if (Message_GetState(&play->msgCtx) == TEXT_STATE_CLOSING) {
+    if (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_CLOSING) {
         if (textId == 0x6025) {
             EnNb_SetupPathMovement(this, play);
         } else {
             if (textId == 0x6027) {
-                Flags_SetInfTable(INFTABLE_16C);
+                OoT_Flags_SetInfTable(INFTABLE_16C);
             }
             this->action = NB_IDLE_CRAWLSPACE;
         }
         this->actor.flags &= ~(ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY);
-    } else if ((Message_GetState(&play->msgCtx) == TEXT_STATE_CHOICE) && Message_ShouldAdvance(play)) {
+    } else if ((OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_CHOICE) && OoT_Message_ShouldAdvance(play)) {
         choiceIndex = play->msgCtx.choiceIndex;
 
         if (textId == 0x601D) {
@@ -1274,7 +1274,7 @@ void EnNb_SetTextIdAsChild(EnNb* this, PlayState* play) {
             }
         }
 
-        Message_ContinueTextbox(play, this->actor.textId);
+        OoT_Message_ContinueTextbox(play, this->actor.textId);
     }
 }
 
@@ -1296,7 +1296,7 @@ void func_80AB3B04(EnNb* this, PlayState* play) {
         this->action = NB_ACTION_30;
     } else {
         this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY;
-        this->actor.textId = Text_GetFaceReaction(play, 0x23);
+        this->actor.textId = OoT_Text_GetFaceReaction(play, 0x23);
 
         if ((this->actor.textId) == 0) {
             this->actor.textId = 0x6026;
@@ -1307,7 +1307,7 @@ void func_80AB3B04(EnNb* this, PlayState* play) {
 }
 
 void func_80AB3B7C(EnNb* this, PlayState* play) {
-    if (Message_GetState(&play->msgCtx) == TEXT_STATE_CLOSING) {
+    if (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_CLOSING) {
         this->action = NB_IDLE_AFTER_TALK;
         this->actor.flags &= ~(ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY);
     }
@@ -1316,7 +1316,7 @@ void func_80AB3B7C(EnNb* this, PlayState* play) {
 void EnNb_WaitForNotice(EnNb* this, PlayState* play) {
     func_80AB1284(this, play);
     EnNb_UpdateCollider(this, play);
-    EnNb_UpdateSkelAnime(this);
+    OoT_EnNb_UpdateSkelAnime(this);
     EnNb_UpdateEyes(this);
     EnNb_CheckNoticed(this, play);
 }
@@ -1326,7 +1326,7 @@ void EnNb_StandUpAfterNotice(EnNb* this, PlayState* play) {
 
     func_80AB1284(this, play);
     EnNb_UpdateCollider(this, play);
-    animFinished = EnNb_UpdateSkelAnime(this);
+    animFinished = OoT_EnNb_UpdateSkelAnime(this);
     EnNb_UpdateEyes(this);
     EnNb_SetupIdleCrawlspace(this, animFinished);
 }
@@ -1335,7 +1335,7 @@ void EnNb_BlockCrawlspace(EnNb* this, PlayState* play) {
     func_80AB1284(this, play);
     EnNb_UpdateCollider(this, play);
     func_80AB0FBC(this, play);
-    EnNb_UpdateSkelAnime(this);
+    OoT_EnNb_UpdateSkelAnime(this);
     EnNb_UpdateEyes(this);
     func_80AB3838(this, play);
 }
@@ -1344,7 +1344,7 @@ void EnNb_InitCrawlspaceDialogue(EnNb* this, PlayState* play) {
     func_80AB1284(this, play);
     EnNb_UpdateCollider(this, play);
     func_80AB0FBC(this, play);
-    EnNb_UpdateSkelAnime(this);
+    OoT_EnNb_UpdateSkelAnime(this);
     EnNb_UpdateEyes(this);
     EnNb_SetTextIdAsChild(this, play);
 }
@@ -1357,7 +1357,7 @@ void EnNb_FollowPath(EnNb* this, PlayState* play) {
     EnNb_UpdateCollider(this, play);
     func_80AB36DC(this, play);
     func_80AB10C4(this);
-    animFinished = EnNb_UpdateSkelAnime(this);
+    animFinished = OoT_EnNb_UpdateSkelAnime(this);
     EnNb_UpdateEyes(this);
     func_80AB3A7C(this, play, animFinished);
 }
@@ -1366,7 +1366,7 @@ void func_80AB3DB0(EnNb* this, PlayState* play) {
     func_80AB1284(this, play);
     EnNb_UpdateCollider(this, play);
     func_80AB0FBC(this, play);
-    EnNb_UpdateSkelAnime(this);
+    OoT_EnNb_UpdateSkelAnime(this);
     EnNb_UpdateEyes(this);
     func_80AB3B04(this, play);
 }
@@ -1375,12 +1375,12 @@ void func_80AB3E10(EnNb* this, PlayState* play) {
     func_80AB1284(this, play);
     EnNb_UpdateCollider(this, play);
     func_80AB1040(this, play);
-    EnNb_UpdateSkelAnime(this);
+    OoT_EnNb_UpdateSkelAnime(this);
     EnNb_UpdateEyes(this);
     func_80AB3B7C(this, play);
 }
 
-static EnNbActionFunc sActionFuncs[] = {
+static EnNbActionFunc OoT_sActionFuncs[] = {
     EnNb_SetupChamberCs,
     EnNb_SetupChamberWarp,
     EnNb_ComeUp,
@@ -1414,25 +1414,25 @@ static EnNbActionFunc sActionFuncs[] = {
     func_80AB3E10,
 };
 
-void EnNb_Update(Actor* thisx, PlayState* play) {
+void OoT_EnNb_Update(Actor* thisx, PlayState* play) {
     EnNb* this = (EnNb*)thisx;
 
-    if (this->action < 0 || this->action > 30 || sActionFuncs[this->action] == NULL) {
+    if (this->action < 0 || this->action > 30 || OoT_sActionFuncs[this->action] == NULL) {
         // "Main mode is wrong!!!!!!!!!!!!!!!!!!!!!!!!!"
         osSyncPrintf(VT_FGCOL(RED) "メインモードがおかしい!!!!!!!!!!!!!!!!!!!!!!!!!\n" VT_RST);
         return;
     }
 
-    sActionFuncs[this->action](this, play);
+    OoT_sActionFuncs[this->action](this, play);
 }
 
-void EnNb_Init(Actor* thisx, PlayState* play) {
+void OoT_EnNb_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     EnNb* this = (EnNb*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 30.0f);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 30.0f);
     EnNb_SetupCollider(thisx, play);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gNabooruSkel, NULL, this->jointTable, this->morphTable, NB_LIMB_MAX);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gNabooruSkel, NULL, this->jointTable, this->morphTable, NB_LIMB_MAX);
 
     switch (EnNb_GetType(this)) {
         case NB_TYPE_DEMO02:
@@ -1456,7 +1456,7 @@ void EnNb_Init(Actor* thisx, PlayState* play) {
     }
 }
 
-s32 EnNb_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
+s32 OoT_EnNb_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
     EnNb* this = (EnNb*)thisx;
     NpcInteractInfo* interactInfo = &this->interactInfo;
     s32 ret = false;
@@ -1476,14 +1476,14 @@ s32 EnNb_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* po
     return ret;
 }
 
-void EnNb_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
+void OoT_EnNb_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
     EnNb* this = (EnNb*)thisx;
 
     if (limbIndex == NB_LIMB_HEAD) {
         Vec3f vec1 = { 0.0f, 10.0f, 0.0f };
         Vec3f vec2;
 
-        Matrix_MultVec3f(&vec1, &vec2);
+        OoT_Matrix_MultVec3f(&vec1, &vec2);
         this->actor.focus.pos.x = vec2.x;
         this->actor.focus.pos.y = vec2.y;
         this->actor.focus.pos.z = vec2.z;
@@ -1500,7 +1500,7 @@ void EnNb_DrawDefault(EnNb* this, PlayState* play) {
     s32 pad;
     s16 eyeIdx = this->eyeIdx;
     SkelAnime* skelAnime = &this->skelAnime;
-    void* eyeTexture = sEyeTextures[eyeIdx];
+    void* eyeTexture = OoT_sEyeTextures[eyeIdx];
     s32 pad1;
 
     OPEN_DISPS(play->state.gfxCtx);
@@ -1510,25 +1510,25 @@ void EnNb_DrawDefault(EnNb* this, PlayState* play) {
     gSPSegment(POLY_OPA_DISP++, 0x09, SEGMENTED_TO_VIRTUAL(eyeTexture));
     gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 255);
     gSPSegment(POLY_OPA_DISP++, 0x0C, &D_80116280[2]);
-    SkelAnime_DrawSkeletonOpa(play, skelAnime, EnNb_OverrideLimbDraw, EnNb_PostLimbDraw, &this->actor);
+    SkelAnime_DrawSkeletonOpa(play, skelAnime, OoT_EnNb_OverrideLimbDraw, OoT_EnNb_PostLimbDraw, &this->actor);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-static EnNbDrawFunc sDrawFuncs[] = {
+static EnNbDrawFunc OoT_sDrawFuncs[] = {
     EnNb_DrawNothing, EnNb_DrawDefault, EnNb_DrawTransparency, func_80AB2E70, func_80AB2FE4,
 };
 
-void EnNb_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnNb_Draw(Actor* thisx, PlayState* play) {
     EnNb* this = (EnNb*)thisx;
 
-    if (this->drawMode < 0 || this->drawMode >= 5 || sDrawFuncs[this->drawMode] == NULL) {
+    if (this->drawMode < 0 || this->drawMode >= 5 || OoT_sDrawFuncs[this->drawMode] == NULL) {
         // "Draw mode is wrong!!!!!!!!!!!!!!!!!!!!!!!!!"
         osSyncPrintf(VT_FGCOL(RED) "描画モードがおかしい!!!!!!!!!!!!!!!!!!!!!!!!!\n" VT_RST);
         return;
     }
 
-    sDrawFuncs[this->drawMode](this, play);
+    OoT_sDrawFuncs[this->drawMode](this, play);
 }
 
 const ActorInit En_Nb_InitVars = {
@@ -1537,9 +1537,9 @@ const ActorInit En_Nb_InitVars = {
     FLAGS,
     OBJECT_NB,
     sizeof(EnNb),
-    (ActorFunc)EnNb_Init,
-    (ActorFunc)EnNb_Destroy,
-    (ActorFunc)EnNb_Update,
-    (ActorFunc)EnNb_Draw,
+    (ActorFunc)OoT_EnNb_Init,
+    (ActorFunc)OoT_EnNb_Destroy,
+    (ActorFunc)OoT_EnNb_Update,
+    (ActorFunc)OoT_EnNb_Draw,
     NULL,
 };

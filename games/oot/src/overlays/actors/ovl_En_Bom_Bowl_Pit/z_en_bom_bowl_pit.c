@@ -20,7 +20,7 @@ void EnBomBowlPit_GivePrize(EnBomBowlPit* this, PlayState* play);
 void EnBomBowlPit_WaitTillPrizeGiven(EnBomBowlPit* this, PlayState* play);
 void EnBomBowlPit_Reset(EnBomBowlPit* this, PlayState* play);
 
-static s32 sGetItemIds[] = { GI_BOMB_BAG_30, GI_HEART_PIECE, GI_BOMBCHUS_10, GI_BOMBS_1, GI_RUPEE_PURPLE };
+static s32 OoT_sGetItemIds[] = { GI_BOMB_BAG_30, GI_HEART_PIECE, GI_BOMBCHUS_10, GI_BOMBS_1, GI_RUPEE_PURPLE };
 
 const ActorInit En_Bom_Bowl_Pit_InitVars = {
     ACTOR_EN_BOM_BOWL_PIT,
@@ -70,12 +70,12 @@ void EnBomBowlPit_DetectHit(EnBomBowlPit* this, PlayState* play) {
 
             if (((fabsf(chuPosDiff.x) < 40.0f) || (BREG(2))) && ((fabsf(chuPosDiff.y) < 40.0f) || (BREG(2))) &&
                 ((fabsf(chuPosDiff.z) < 40.0f) || (BREG(2)))) {
-                Player_SetCsActionWithHaltedActors(play, NULL, 8);
+                OoT_Player_SetCsActionWithHaltedActors(play, NULL, 8);
                 chu->timer = 1;
 
-                this->camId = Play_CreateSubCamera(play);
-                Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_WAIT);
-                Play_ChangeCameraStatus(play, this->camId, CAM_STAT_ACTIVE);
+                this->camId = OoT_Play_CreateSubCamera(play);
+                OoT_Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_WAIT);
+                OoT_Play_ChangeCameraStatus(play, this->camId, CAM_STAT_ACTIVE);
 
                 this->unk_1C8.x = this->unk_1C8.y = this->unk_1C8.z = 0.1f;
                 this->unk_1A4.x = this->unk_1A4.y = this->unk_1A4.z = 0.1f;
@@ -106,10 +106,10 @@ void EnBomBowlPit_DetectHit(EnBomBowlPit* this, PlayState* play) {
 
                 Play_CameraSetAtEye(play, this->camId, &this->unk_180, &this->unk_18C);
                 this->actor.textId = 0xF;
-                Message_StartTextbox(play, this->actor.textId, NULL);
+                OoT_Message_StartTextbox(play, this->actor.textId, NULL);
                 this->unk_154 = TEXT_STATE_EVENT;
                 Sfx_PlaySfxCentered(NA_SE_EV_HIT_SOUND);
-                Player_SetCsActionWithHaltedActors(play, NULL, 8);
+                OoT_Player_SetCsActionWithHaltedActors(play, NULL, 8);
                 this->status = 1;
                 this->actionFunc = EnBomBowlPit_CameraDollyIn;
                 break;
@@ -122,24 +122,24 @@ void EnBomBowlPit_DetectHit(EnBomBowlPit* this, PlayState* play) {
 
 void EnBomBowlPit_CameraDollyIn(EnBomBowlPit* this, PlayState* play) {
     if (this->camId != SUBCAM_FREE) {
-        Math_ApproachF(&this->unk_180.x, this->unk_1BC.x, this->unk_1C8.x, this->unk_1D4.x);
-        Math_ApproachF(&this->unk_180.y, this->unk_1BC.y, this->unk_1C8.y, this->unk_1D4.y);
-        Math_ApproachF(&this->unk_180.z, this->unk_1BC.z, this->unk_1C8.z, this->unk_1D4.z);
-        Math_ApproachF(&this->unk_18C.x, this->unk_198.x, this->unk_1A4.x, this->unk_1B0.x);
-        Math_ApproachF(&this->unk_18C.y, this->unk_198.y, this->unk_1A4.y, this->unk_1B0.y);
-        Math_ApproachF(&this->unk_18C.z, this->unk_198.z, this->unk_1A4.z, this->unk_1B0.z);
+        OoT_Math_ApproachF(&this->unk_180.x, this->unk_1BC.x, this->unk_1C8.x, this->unk_1D4.x);
+        OoT_Math_ApproachF(&this->unk_180.y, this->unk_1BC.y, this->unk_1C8.y, this->unk_1D4.y);
+        OoT_Math_ApproachF(&this->unk_180.z, this->unk_1BC.z, this->unk_1C8.z, this->unk_1D4.z);
+        OoT_Math_ApproachF(&this->unk_18C.x, this->unk_198.x, this->unk_1A4.x, this->unk_1B0.x);
+        OoT_Math_ApproachF(&this->unk_18C.y, this->unk_198.y, this->unk_1A4.y, this->unk_1B0.y);
+        OoT_Math_ApproachF(&this->unk_18C.z, this->unk_198.z, this->unk_1A4.z, this->unk_1B0.z);
     }
 
     Play_CameraSetAtEye(play, this->camId, &this->unk_180, &this->unk_18C);
 
-    if ((this->unk_154 == Message_GetState(&play->msgCtx)) && Message_ShouldAdvance(play)) {
-        Message_CloseTextbox(play);
+    if ((this->unk_154 == OoT_Message_GetState(&play->msgCtx)) && OoT_Message_ShouldAdvance(play)) {
+        OoT_Message_CloseTextbox(play);
     }
 
     if ((fabsf(this->unk_18C.x - this->unk_198.x) < 5.0f) && (fabsf(this->unk_18C.y - this->unk_198.y) < 5.0f) &&
         (fabsf(this->unk_18C.z - this->unk_198.z) < 5.0f) && (fabsf(this->unk_180.x - this->unk_1BC.x) < 5.0f) &&
         (fabsf(this->unk_180.y - this->unk_1BC.y) < 5.0f) && (fabsf(this->unk_180.z - this->unk_1BC.z) < 5.0f)) {
-        Message_CloseTextbox(play);
+        OoT_Message_CloseTextbox(play);
         this->timer = 30;
         this->actionFunc = EnBomBowlPit_SpawnPrize;
     }
@@ -147,7 +147,7 @@ void EnBomBowlPit_CameraDollyIn(EnBomBowlPit* this, PlayState* play) {
 
 void EnBomBowlPit_SpawnPrize(EnBomBowlPit* this, PlayState* play) {
     if (this->timer == 0) {
-        this->exItem = (EnExItem*)Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_EX_ITEM,
+        this->exItem = (EnExItem*)OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_EX_ITEM,
                                                      this->actor.world.pos.x, this->actor.world.pos.y,
                                                      this->actor.world.pos.z - 70.0f, 0, 0, 0, this->prizeIndex);
         if (this->exItem != NULL) {
@@ -167,9 +167,9 @@ void EnBomBowlPit_SetupGivePrize(EnBomBowlPit* this, PlayState* play) {
                 break;
         }
 
-        Play_ClearCamera(play, this->camId);
-        Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_ACTIVE);
-        Player_SetCsActionWithHaltedActors(play, NULL, 8);
+        OoT_Play_ClearCamera(play, this->camId);
+        OoT_Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_ACTIVE);
+        OoT_Player_SetCsActionWithHaltedActors(play, NULL, 8);
         this->actionFunc = EnBomBowlPit_GivePrize;
     }
 }
@@ -177,8 +177,8 @@ void EnBomBowlPit_SetupGivePrize(EnBomBowlPit* this, PlayState* play) {
 void EnBomBowlPit_GivePrize(EnBomBowlPit* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    Player_SetCsActionWithHaltedActors(play, NULL, 7);
-    this->getItemId = sGetItemIds[this->prizeIndex];
+    OoT_Player_SetCsActionWithHaltedActors(play, NULL, 7);
+    this->getItemId = OoT_sGetItemIds[this->prizeIndex];
 
     if ((this->getItemId == GI_BOMB_BAG_30) && (CUR_CAPACITY(UPG_BOMB_BAG) == 30)) {
         this->getItemId = GI_BOMB_BAG_40;
@@ -187,22 +187,22 @@ void EnBomBowlPit_GivePrize(EnBomBowlPit* this, PlayState* play) {
     player->stateFlags1 &= ~PLAYER_STATE1_IN_CUTSCENE;
     this->actor.parent = NULL;
     if (GameInteractor_Should(VB_GIVE_ITEM_FROM_BOMBCHU_BOWLING, true, this)) {
-        Actor_OfferGetItem(&this->actor, play, this->getItemId, 2000.0f, 1000.0f);
+        OoT_Actor_OfferGetItem(&this->actor, play, this->getItemId, 2000.0f, 1000.0f);
     }
     player->stateFlags1 |= PLAYER_STATE1_IN_CUTSCENE;
     this->actionFunc = EnBomBowlPit_WaitTillPrizeGiven;
 }
 
 void EnBomBowlPit_WaitTillPrizeGiven(EnBomBowlPit* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play) || !GameInteractor_Should(VB_GIVE_ITEM_FROM_BOMBCHU_BOWLING, true, this)) {
+    if (OoT_Actor_HasParent(&this->actor, play) || !GameInteractor_Should(VB_GIVE_ITEM_FROM_BOMBCHU_BOWLING, true, this)) {
         this->actionFunc = EnBomBowlPit_Reset;
     } else {
-        Actor_OfferGetItem(&this->actor, play, this->getItemId, 2000.0f, 1000.0f);
+        OoT_Actor_OfferGetItem(&this->actor, play, this->getItemId, 2000.0f, 1000.0f);
     }
 }
 
 void EnBomBowlPit_Reset(EnBomBowlPit* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && Message_ShouldAdvance(play)) {
+    if ((OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && OoT_Message_ShouldAdvance(play)) {
         // "Normal termination"/"completion"
         osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ 正常終了 ☆☆☆☆☆ \n" VT_RST);
         if (this->getItemId == GI_HEART_PIECE) {

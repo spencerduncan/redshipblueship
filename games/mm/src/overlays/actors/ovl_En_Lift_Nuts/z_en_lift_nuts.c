@@ -86,7 +86,7 @@ typedef enum {
     /* 19 */ ENLIFTNUTS_ANIM_MAX
 } EnLiftNutsAnimation;
 
-static AnimationInfo sAnimationInfo[ENLIFTNUTS_ANIM_MAX] = {
+static AnimationInfo MM_sAnimationInfo[ENLIFTNUTS_ANIM_MAX] = {
     { &gBusinessScrubStandingAnim, 1.0f, 0.0f, 0.0f, ANIMMODE_LOOP, -4.0f },     // ENLIFTNUTS_ANIM_STANDING
     { &gBusinessScrubWalkAnim, 1.0f, 0.0f, 0.0f, ANIMMODE_LOOP, -4.0f },         // ENLIFTNUTS_ANIM_WALK
     { &gBusinessScrubRiseUpAnim, 1.0f, 0.0f, 0.0f, ANIMMODE_ONCE, -4.0f },       // ENLIFTNUTS_ANIM_RISE_UP
@@ -109,11 +109,11 @@ static AnimationInfo sAnimationInfo[ENLIFTNUTS_ANIM_MAX] = {
     { &gBusinessScrubBurrowAnim, 1.0f, 8.0f, 0.0f, ANIMMODE_ONCE, 0.0f },        // ENLIFTNUTS_ANIM_BURROW_SHORT
 };
 
-Gfx* sEyeTextures[] = { gBusinessScrubEyesDL, gBusinessScrubEyesWideDL, gBusinessScrubEyesSquintDL };
+Gfx* MM_sEyeTextures[] = { gBusinessScrubEyesDL, gBusinessScrubEyesWideDL, gBusinessScrubEyesSquintDL };
 
 static s32 sPad = 0;
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -133,7 +133,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 25, 75, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 MM_sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
 
 // #region 2S2H [Port]
 // Moved static vars out of function scope so they can be cleared in actor reset
@@ -285,15 +285,15 @@ void EnLiftNuts_Init(Actor* thisx, PlayState* play) {
     Path* path;
     Vec3s* points;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 35.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gBusinessScrubSkel, &gBusinessScrubBurrowAnim, this->jointTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 35.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gBusinessScrubSkel, &gBusinessScrubBurrowAnim, this->jointTable,
                        this->morphTable, BUSINESS_SCRUB_LIMB_MAX);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, DamageTable_Get(0x16), &sColChkInfoInit);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, MM_DamageTable_Get(0x16), &MM_sColChkInfoInit);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
     if (this->actor.floorBgId != BGCHECK_SCENE) {
-        DynaPolyActor* bgActor = DynaPoly_GetActor(&play->colCtx, this->actor.floorBgId);
+        DynaPolyActor* bgActor = MM_DynaPoly_GetActor(&play->colCtx, this->actor.floorBgId);
 
         if (bgActor != NULL) {
             this->actor.world.pos = bgActor->actor.world.pos;
@@ -314,7 +314,7 @@ void EnLiftNuts_Init(Actor* thisx, PlayState* play) {
     this->waypointPos.y = points[0].y;
     this->waypointPos.z = points[0].z;
     EnLiftNuts_AddSharedMemoryEntry(this, play);
-    if (!Flags_GetSwitch(play, 0x41)) {
+    if (!MM_Flags_GetSwitch(play, 0x41)) {
         EnLiftNuts_MinigameState(ENLIFTNUTS_MINIGAME_STATE_MODE_SET, ENLIFTNUTS_MINIGAME_STATE_NONE);
         EnLiftNuts_SetupIdleHidden(this);
     } else if (EnLiftNuts_Autotalk(this, ENLIFTNUTS_AUTOTALK_MODE_CHECK_OFF)) {
@@ -332,12 +332,12 @@ void EnLiftNuts_Init(Actor* thisx, PlayState* play) {
 void EnLiftNuts_Destroy(Actor* thisx, PlayState* play) {
     EnLiftNuts* this = (EnLiftNuts*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
     EnLiftNuts_FreeSharedMemoryEntry(this, play);
 }
 
 void EnLiftNuts_SetupIdleHidden(EnLiftNuts* this) {
-    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENLIFTNUTS_ANIM_BURROW_SHORT);
+    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENLIFTNUTS_ANIM_BURROW_SHORT);
     this->actionFunc = EnLiftNuts_IdleHidden;
     this->timer = 0;
 }
@@ -352,9 +352,9 @@ void EnLiftNuts_IdleHidden(EnLiftNuts* this, PlayState* play) {
 
 void EnLiftNuts_SetupBurrow(EnLiftNuts* this) {
     if (this->actionFunc == EnLiftNuts_Idle) {
-        Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENLIFTNUTS_ANIM_BURROW_HALF);
+        Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENLIFTNUTS_ANIM_BURROW_HALF);
     } else {
-        Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENLIFTNUTS_ANIM_BURROW_LONG);
+        Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENLIFTNUTS_ANIM_BURROW_LONG);
     }
 
     Actor_PlaySfx(&this->actor, NA_SE_EN_AKINDONUTS_HIDE);
@@ -362,9 +362,9 @@ void EnLiftNuts_SetupBurrow(EnLiftNuts* this) {
 }
 
 void EnLiftNuts_Burrow(EnLiftNuts* this, PlayState* play) {
-    if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         EnLiftNuts_SetupIdleHidden(this);
-    } else if (Animation_OnFrame(&this->skelAnime, 5.0f)) {
+    } else if (MM_Animation_OnFrame(&this->skelAnime, 5.0f)) {
         EnLiftNuts_SpawnDust(this, play);
     }
 }
@@ -373,17 +373,17 @@ void EnLiftNuts_SetupIdle(EnLiftNuts* this) {
     if (EnLiftNuts_MinigameState(ENLIFTNUTS_MINIGAME_STATE_MODE_CHECK, ENLIFTNUTS_MINIGAME_STATE_STARTING)) {
         this->actionFunc = EnLiftNuts_Idle;
     } else {
-        Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENLIFTNUTS_ANIM_RISE_UP);
+        Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENLIFTNUTS_ANIM_RISE_UP);
         Actor_PlaySfx(&this->actor, NA_SE_EN_AKINDONUTS_HIDE);
         this->actionFunc = EnLiftNuts_RiseUp;
     }
 }
 
 void EnLiftNuts_RiseUp(EnLiftNuts* this, PlayState* play) {
-    if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
-        Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENLIFTNUTS_ANIM_BOB);
+    if (MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+        Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENLIFTNUTS_ANIM_BOB);
         this->actionFunc = EnLiftNuts_Idle;
-    } else if (Animation_OnFrame(&this->skelAnime, 8.0f)) {
+    } else if (MM_Animation_OnFrame(&this->skelAnime, 8.0f)) {
         EnLiftNuts_SpawnDust(this, play);
     }
 }
@@ -402,33 +402,33 @@ void EnLiftNuts_Idle(EnLiftNuts* this, PlayState* play) {
                 switch (CURRENT_DAY) {
                     case 1:
                         if ((CURRENT_TIME > CLOCK_TIME(23, 30)) || (CURRENT_TIME <= CLOCK_TIME(6, 0))) {
-                            Message_StartTextbox(play, 0x27F7, &this->actor);
+                            MM_Message_StartTextbox(play, 0x27F7, &this->actor);
                             this->textId = 0x27F7;
                         } else if (CHECK_WEEKEVENTREG(WEEKEVENTREG_WON_DEKU_PLAYGROUND_DAY_1)) {
-                            Message_StartTextbox(play, 0x27D9, &this->actor);
+                            MM_Message_StartTextbox(play, 0x27D9, &this->actor);
                             this->textId = 0x27D9;
                         } else {
-                            Message_StartTextbox(play, 0x27DA, &this->actor);
+                            MM_Message_StartTextbox(play, 0x27DA, &this->actor);
                             this->textId = 0x27DA;
                         }
                         break;
 
                     case 2:
                         if ((CURRENT_TIME > CLOCK_TIME(23, 30)) || (CURRENT_TIME <= CLOCK_TIME(6, 0))) {
-                            Message_StartTextbox(play, 0x27F7, &this->actor);
+                            MM_Message_StartTextbox(play, 0x27F7, &this->actor);
                             this->textId = 0x27F7;
                         } else {
                             if (CHECK_WEEKEVENTREG(WEEKEVENTREG_WON_DEKU_PLAYGROUND_DAY_2)) {
-                                Message_StartTextbox(play, 0x27DB, &this->actor);
+                                MM_Message_StartTextbox(play, 0x27DB, &this->actor);
                                 this->textId = 0x27DB;
                                 break;
                             }
 
                             if (CHECK_WEEKEVENTREG(WEEKEVENTREG_WON_DEKU_PLAYGROUND_DAY_1)) {
-                                Message_StartTextbox(play, 0x27DC, &this->actor);
+                                MM_Message_StartTextbox(play, 0x27DC, &this->actor);
                                 this->textId = 0x27DC;
                             } else {
-                                Message_StartTextbox(play, 0x27DD, &this->actor);
+                                MM_Message_StartTextbox(play, 0x27DD, &this->actor);
                                 this->textId = 0x27DD;
                             }
                         }
@@ -436,19 +436,19 @@ void EnLiftNuts_Idle(EnLiftNuts* this, PlayState* play) {
 
                     case 3:
                         if ((CURRENT_TIME > CLOCK_TIME(23, 30)) || (CURRENT_TIME <= CLOCK_TIME(6, 0))) {
-                            Message_StartTextbox(play, 0x27F7, &this->actor);
+                            MM_Message_StartTextbox(play, 0x27F7, &this->actor);
                             this->textId = 0x27F7;
                         } else if (CHECK_WEEKEVENTREG(WEEKEVENTREG_WON_DEKU_PLAYGROUND_DAY_3)) {
-                            Message_StartTextbox(play, 0x27DE, &this->actor);
+                            MM_Message_StartTextbox(play, 0x27DE, &this->actor);
                             this->textId = 0x27DE;
                         } else if (EnLiftNuts_GetNumDaysWon() == 2) {
-                            Message_StartTextbox(play, 0x27DF, &this->actor);
+                            MM_Message_StartTextbox(play, 0x27DF, &this->actor);
                             this->textId = 0x27DF;
                         } else if (EnLiftNuts_GetNumDaysWon() == 1) {
-                            Message_StartTextbox(play, 0x27E0, &this->actor);
+                            MM_Message_StartTextbox(play, 0x27E0, &this->actor);
                             this->textId = 0x27E0;
                         } else {
-                            Message_StartTextbox(play, 0x27E1, &this->actor);
+                            MM_Message_StartTextbox(play, 0x27E1, &this->actor);
                             this->textId = 0x27E1;
                         }
                         break;
@@ -458,53 +458,53 @@ void EnLiftNuts_Idle(EnLiftNuts* this, PlayState* play) {
                 }
             } else if (EnLiftNuts_MinigameState(ENLIFTNUTS_MINIGAME_STATE_MODE_CHECK,
                                                 ENLIFTNUTS_MINIGAME_STATE_AFTER)) {
-                if (Flags_GetSwitch(play, 0x40)) {
-                    Flags_UnsetSwitch(play, 0x40);
+                if (MM_Flags_GetSwitch(play, 0x40)) {
+                    MM_Flags_UnsetSwitch(play, 0x40);
                     Inventory_SaveDekuPlaygroundHighScore(TIMER_ID_MINIGAME_2);
                     if (CHECK_WEEKEVENTREG(WEEKEVENTREG_WON_DEKU_PLAYGROUND_DAY_1) &&
                         CHECK_WEEKEVENTREG(WEEKEVENTREG_WON_DEKU_PLAYGROUND_DAY_2) && (CURRENT_DAY == 3)) {
                         this->timer = 0;
-                        Message_StartTextbox(play, 0x27F4, &this->actor);
+                        MM_Message_StartTextbox(play, 0x27F4, &this->actor);
                         this->textId = 0x27F4;
                     } else {
-                        Message_StartTextbox(play, 0x27EE, &this->actor);
+                        MM_Message_StartTextbox(play, 0x27EE, &this->actor);
                         this->textId = 0x27EE;
                     }
                 } else {
                     if (((void)0, gSaveContext.timerCurTimes[TIMER_ID_MINIGAME_2]) >=
                         gSaveContext.save.saveInfo.dekuPlaygroundHighScores[CURRENT_DAY - 1]) {
                         if (gSaveContext.timerCurTimes[TIMER_ID_MINIGAME_2] < SECONDS_TO_TIMER(120)) {
-                            Message_StartTextbox(play, 0x27F9, &this->actor);
+                            MM_Message_StartTextbox(play, 0x27F9, &this->actor);
                             this->textId = 0x27F9;
                         } else {
-                            Message_StartTextbox(play, 0x27EB, &this->actor);
+                            MM_Message_StartTextbox(play, 0x27EB, &this->actor);
                             this->textId = 0x27EB;
                         }
                     } else {
-                        Message_StartTextbox(play, 0x27ED, &this->actor);
+                        MM_Message_StartTextbox(play, 0x27ED, &this->actor);
                         this->textId = 0x27ED;
                     }
                 }
-                Flags_UnsetSwitch(play, 0x41);
+                MM_Flags_UnsetSwitch(play, 0x41);
                 this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
-            } else if (!Flags_GetSwitch(play, 0x42)) { // Explain Rules
-                Flags_SetSwitch(play, 0x42);
-                Message_StartTextbox(play, 0x27E6, &this->actor);
+            } else if (!MM_Flags_GetSwitch(play, 0x42)) { // Explain Rules
+                MM_Flags_SetSwitch(play, 0x42);
+                MM_Message_StartTextbox(play, 0x27E6, &this->actor);
                 this->textId = 0x27E6;
             } else {
                 switch (CURRENT_DAY) {
                     case 1:
-                        Message_StartTextbox(play, 0x27E7, &this->actor);
+                        MM_Message_StartTextbox(play, 0x27E7, &this->actor);
                         this->textId = 0x27E7;
                         break;
 
                     case 2:
-                        Message_StartTextbox(play, 0x27E8, &this->actor);
+                        MM_Message_StartTextbox(play, 0x27E8, &this->actor);
                         this->textId = 0x27E8;
                         break;
 
                     case 3:
-                        Message_StartTextbox(play, 0x27E9, &this->actor);
+                        MM_Message_StartTextbox(play, 0x27E9, &this->actor);
                         this->textId = 0x27E9;
                         break;
 
@@ -513,7 +513,7 @@ void EnLiftNuts_Idle(EnLiftNuts* this, PlayState* play) {
                 }
             }
         } else {
-            Message_StartTextbox(play, 0x27D8, &this->actor);
+            MM_Message_StartTextbox(play, 0x27D8, &this->actor);
             this->textId = 0x27D8;
         }
         EnLiftNuts_SetupStartConversation(this);
@@ -524,31 +524,31 @@ void EnLiftNuts_Idle(EnLiftNuts* this, PlayState* play) {
             Actor_OfferTalk(&this->actor, play, 100.0f);
         }
     }
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 0xA, 0x1000, 0x500);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 0xA, 0x1000, 0x500);
 }
 
 void EnLiftNuts_HandleConversationChoice(EnLiftNuts* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    if (Message_ShouldAdvance(play)) {
+    if (MM_Message_ShouldAdvance(play)) {
         switch (this->textId) {
             case 0x27E2:
                 if (play->msgCtx.choiceIndex == 0) { // Yes
                     if (gSaveContext.save.saveInfo.playerData.rupees >= 10) {
                         Audio_PlaySfx_MessageDecide();
-                        Message_StartTextbox(play, 0x27E5, &this->actor);
+                        MM_Message_StartTextbox(play, 0x27E5, &this->actor);
                         this->textId = 0x27E5;
-                        Rupees_ChangeBy(-10);
+                        MM_Rupees_ChangeBy(-10);
                     } else {
                         Audio_PlaySfx(NA_SE_SY_ERROR);
-                        Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENLIFTNUTS_ANIM_WALK);
-                        Message_StartTextbox(play, 0x27E4, &this->actor);
+                        Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENLIFTNUTS_ANIM_WALK);
+                        MM_Message_StartTextbox(play, 0x27E4, &this->actor);
                         this->textId = 0x27E4;
                     }
                 } else {
                     Audio_PlaySfx_MessageCancel();
-                    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENLIFTNUTS_ANIM_WALK);
-                    Message_StartTextbox(play, 0x27E3, &this->actor);
+                    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENLIFTNUTS_ANIM_WALK);
+                    MM_Message_StartTextbox(play, 0x27E3, &this->actor);
                     this->textId = 0x27E3;
                 }
                 break;
@@ -572,7 +572,7 @@ void EnLiftNuts_HandleConversationChoice(EnLiftNuts* this, PlayState* play) {
 void EnLiftNuts_HandleConversationEvent(EnLiftNuts* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    if (Message_ShouldAdvance(play)) {
+    if (MM_Message_ShouldAdvance(play)) {
         switch (this->textId) {
             case 0x27D9:
             case 0x27DA:
@@ -583,7 +583,7 @@ void EnLiftNuts_HandleConversationEvent(EnLiftNuts* this, PlayState* play) {
             case 0x27DF:
             case 0x27E0:
             case 0x27E1:
-                Message_StartTextbox(play, 0x27E2, &this->actor);
+                MM_Message_StartTextbox(play, 0x27E2, &this->actor);
                 this->textId = 0x27E2;
                 break;
 
@@ -593,26 +593,26 @@ void EnLiftNuts_HandleConversationEvent(EnLiftNuts* this, PlayState* play) {
                 break;
 
             case 0x27E5:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 player->stateFlags1 |= PLAYER_STATE1_20;
                 EnLiftNuts_SetupMove(this);
                 break;
 
             case 0x27E6:
-                Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENLIFTNUTS_ANIM_WALK);
+                Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENLIFTNUTS_ANIM_WALK);
                 switch (CURRENT_DAY) {
                     case 1:
-                        Message_StartTextbox(play, 0x27E7, &this->actor);
+                        MM_Message_StartTextbox(play, 0x27E7, &this->actor);
                         this->textId = 0x27E7;
                         break;
 
                     case 2:
-                        Message_StartTextbox(play, 0x27E8, &this->actor);
+                        MM_Message_StartTextbox(play, 0x27E8, &this->actor);
                         this->textId = 0x27E8;
                         break;
 
                     case 3:
-                        Message_StartTextbox(play, 0x27E9, &this->actor);
+                        MM_Message_StartTextbox(play, 0x27E9, &this->actor);
                         this->textId = 0x27E9;
                         break;
 
@@ -624,54 +624,54 @@ void EnLiftNuts_HandleConversationEvent(EnLiftNuts* this, PlayState* play) {
             case 0x27E7:
             case 0x27E8:
             case 0x27E9:
-                Message_StartTextbox(play, 0x27FA, &this->actor);
+                MM_Message_StartTextbox(play, 0x27FA, &this->actor);
                 this->textId = 0x27FA;
                 break;
 
             case 0x27FA:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 player->stateFlags1 &= ~PLAYER_STATE1_20;
                 EnLiftNuts_SetupStartGame(this);
                 break;
 
             case 0x27EE:
-                Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENLIFTNUTS_ANIM_JUMP);
-                Message_StartTextbox(play, 0x27EF, &this->actor);
+                Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENLIFTNUTS_ANIM_JUMP);
+                MM_Message_StartTextbox(play, 0x27EF, &this->actor);
                 this->textId = 0x27EF;
                 break;
 
             case 0x27EF:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 EnLiftNuts_SetupGiveReward(this);
                 EnLiftNuts_GiveReward(this, play);
                 break;
 
             case 0x27F1:
-                Message_StartTextbox(play, 0x27F2, &this->actor);
+                MM_Message_StartTextbox(play, 0x27F2, &this->actor);
                 this->textId = 0x27F2;
                 break;
 
             case 0x27F2:
-                Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENLIFTNUTS_ANIM_WALK);
-                Message_StartTextbox(play, 0x27F3, &this->actor);
+                Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENLIFTNUTS_ANIM_WALK);
+                MM_Message_StartTextbox(play, 0x27F3, &this->actor);
                 this->textId = 0x27F3;
                 break;
 
             case 0x27F4:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 EnLiftNuts_SetupGiveReward(this);
                 EnLiftNuts_GiveReward(this, play);
                 break;
 
             case 0x27F5:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 EnLiftNuts_MinigameState(ENLIFTNUTS_MINIGAME_STATE_MODE_SET, ENLIFTNUTS_MINIGAME_STATE_NONE);
                 player->stateFlags1 &= ~PLAYER_STATE1_20;
                 EnLiftNuts_SetupBurrow(this);
                 break;
 
             case 0x27F9:
-                Message_StartTextbox(play, 0x27ED, &this->actor);
+                MM_Message_StartTextbox(play, 0x27ED, &this->actor);
                 this->textId = 0x27ED;
                 break;
 
@@ -688,17 +688,17 @@ void EnLiftNuts_SetupStartConversation(EnLiftNuts* this) {
         if (EnLiftNuts_MinigameState(ENLIFTNUTS_MINIGAME_STATE_MODE_CHECK, ENLIFTNUTS_MINIGAME_STATE_NONE)) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_AKINDONUTS_HIDE);
         }
-        Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENLIFTNUTS_ANIM_JUMP);
+        Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENLIFTNUTS_ANIM_JUMP);
     }
     this->actionFunc = EnLiftNuts_StartConversation;
 }
 
 void EnLiftNuts_StartConversation(EnLiftNuts* this, PlayState* play) {
-    if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         if ((this->textId == 0x27EE) || (this->textId == 0x27F4) || (this->textId == 0x27F5)) {
-            Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENLIFTNUTS_ANIM_SHOCKED_START);
+            Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENLIFTNUTS_ANIM_SHOCKED_START);
         } else {
-            Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENLIFTNUTS_ANIM_STANDING);
+            Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENLIFTNUTS_ANIM_STANDING);
         }
         this->actionFunc = EnLiftNuts_HandleConversation;
     }
@@ -707,7 +707,7 @@ void EnLiftNuts_StartConversation(EnLiftNuts* this, PlayState* play) {
 void EnLiftNuts_HandleConversation(EnLiftNuts* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_NONE:
         case TEXT_STATE_NEXT:
         case TEXT_STATE_CLOSING:
@@ -723,7 +723,7 @@ void EnLiftNuts_HandleConversation(EnLiftNuts* this, PlayState* play) {
             break;
 
         case TEXT_STATE_DONE:
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 player->stateFlags1 &= ~PLAYER_STATE1_20;
                 EnLiftNuts_SetupBurrow(this);
                 EnLiftNuts_Autotalk(this, ENLIFTNUTS_AUTOTALK_MODE_SET_OFF);
@@ -737,23 +737,23 @@ void EnLiftNuts_HandleConversation(EnLiftNuts* this, PlayState* play) {
             break;
     }
 
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 0xA, 0x2000, 0x500);
-    if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 0xA, 0x2000, 0x500);
+    if (MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         switch (this->textId) {
             case 0x27EE:
-                Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENLIFTNUTS_ANIM_SHOCKED_SHAKE_HEAD);
+                Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENLIFTNUTS_ANIM_SHOCKED_SHAKE_HEAD);
                 break;
 
             case 0x27EF:
-                Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENLIFTNUTS_ANIM_WALK);
+                Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENLIFTNUTS_ANIM_WALK);
                 break;
 
             case 0x27F4:
                 if (this->timer == 0) {
-                    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENLIFTNUTS_ANIM_SHOCKED_SHAKE_HEAD);
+                    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENLIFTNUTS_ANIM_SHOCKED_SHAKE_HEAD);
                     this->timer++;
                 } else if (this->timer == 4) {
-                    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENLIFTNUTS_ANIM_SHOCKED_POUND);
+                    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENLIFTNUTS_ANIM_SHOCKED_POUND);
                     this->timer = 0;
                 } else {
                     this->timer++;
@@ -769,7 +769,7 @@ void EnLiftNuts_HandleConversation(EnLiftNuts* this, PlayState* play) {
 
 void EnLiftNuts_SetupMove(EnLiftNuts* this) {
     this->actor.speed = 2.0f;
-    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENLIFTNUTS_ANIM_WALK);
+    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENLIFTNUTS_ANIM_WALK);
     EnLiftNuts_Autotalk(this, ENLIFTNUTS_AUTOTALK_MODE_SET_ON);
     EnLiftNuts_MinigameState(ENLIFTNUTS_MINIGAME_STATE_MODE_SET, ENLIFTNUTS_MINIGAME_STATE_STARTING);
     this->actionFunc = EnLiftNuts_Move;
@@ -778,7 +778,7 @@ void EnLiftNuts_SetupMove(EnLiftNuts* this) {
 void EnLiftNuts_Move(EnLiftNuts* this, PlayState* play) {
     f32 dist;
 
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 10, 0x1000, 0x500);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 10, 0x1000, 0x500);
     dist = Math_Vec3f_StepTo(&this->actor.world.pos, &this->waypointPos, this->actor.speed);
     this->actor.world.pos.y += this->actor.gravity;
 
@@ -800,9 +800,9 @@ void EnLiftNuts_MovePlayerToActor(EnLiftNuts* this, PlayState* play) {
     s16 yawDiff;
 
     yaw = this->actor.yawTowardsPlayer - 0x8000;
-    controlStickAngle = Math_Vec3f_Yaw(&player->actor.world.pos, &this->actor.home.pos);
+    controlStickAngle = MM_Math_Vec3f_Yaw(&player->actor.world.pos, &this->actor.home.pos);
     yawDiff = controlStickAngle - yaw;
-    distXZ = Math_Vec3f_DistXZ(&player->actor.world.pos, &this->actor.home.pos);
+    distXZ = MM_Math_Vec3f_DistXZ(&player->actor.world.pos, &this->actor.home.pos);
 
     if (this->actor.xzDistToPlayer < distXZ) {
         if (ABS_ALT(yawDiff) < 0x2000) {
@@ -875,7 +875,7 @@ void EnLiftNuts_RunGame(EnLiftNuts* this, PlayState* play) {
          (player->actor.world.pos.y < 20.0f)) ||
         (gSaveContext.timerCurTimes[TIMER_ID_MINIGAME_2] >= SECONDS_TO_TIMER(120))) {
         player->stateFlags1 |= PLAYER_STATE1_20;
-        Flags_SetSwitch(play, 0x41);
+        MM_Flags_SetSwitch(play, 0x41);
         EnLiftNuts_SetupEndGame(this, play);
     }
 
@@ -884,9 +884,9 @@ void EnLiftNuts_RunGame(EnLiftNuts* this, PlayState* play) {
 
         if (((void)0, gSaveContext.timerCurTimes[TIMER_ID_MINIGAME_2]) <
             gSaveContext.save.saveInfo.dekuPlaygroundHighScores[CURRENT_DAY - 1]) {
-            Flags_SetSwitch(play, 0x40);
+            MM_Flags_SetSwitch(play, 0x40);
         }
-        Flags_SetSwitch(play, 0x41);
+        MM_Flags_SetSwitch(play, 0x41);
         EnLiftNuts_SetupEndGame(this, play);
     }
 }
@@ -904,13 +904,13 @@ void EnLiftNuts_EndGame(EnLiftNuts* this, PlayState* play) {
     if (this->timer == 10) {
         if (((void)0, gSaveContext.timerCurTimes[TIMER_ID_MINIGAME_2]) >
             gSaveContext.save.saveInfo.dekuPlaygroundHighScores[CURRENT_DAY - 1]) {
-            Message_StartTextbox(play, 0x27EA, &this->actor);
+            MM_Message_StartTextbox(play, 0x27EA, &this->actor);
             this->textId = 0x27EA;
         } else if (*this->minigameScore == (ENGAMELUPY_POINTS * 6)) {
-            Message_StartTextbox(play, 0x27F8, &this->actor);
+            MM_Message_StartTextbox(play, 0x27F8, &this->actor);
             this->textId = 0x27F8;
         } else {
-            Message_StartTextbox(play, 0x27EC, &this->actor);
+            MM_Message_StartTextbox(play, 0x27EC, &this->actor);
             this->textId = 0x27EC;
         }
     } else if (this->timer == 30) {
@@ -930,7 +930,7 @@ void EnLiftNuts_SetupGiveReward(EnLiftNuts* this) {
 }
 
 void EnLiftNuts_GiveReward(EnLiftNuts* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play)) {
+    if (MM_Actor_HasParent(&this->actor, play)) {
         this->actor.parent = NULL;
         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_WON_DEKU_PLAYGROUND_DAY_1) &&
             CHECK_WEEKEVENTREG(WEEKEVENTREG_WON_DEKU_PLAYGROUND_DAY_2) && (CURRENT_DAY == 3) &&
@@ -939,9 +939,9 @@ void EnLiftNuts_GiveReward(EnLiftNuts* this, PlayState* play) {
         }
         EnLiftNuts_SetupResumeConversation(this);
     } else if ((this->textId == 0x27F4) && !CHECK_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_DEKU_PLAYGROUND_HEART_PIECE)) {
-        Actor_OfferGetItem(&this->actor, play, GI_HEART_PIECE, 500.0f, 100.0f);
+        MM_Actor_OfferGetItem(&this->actor, play, GI_HEART_PIECE, 500.0f, 100.0f);
     } else {
-        Actor_OfferGetItem(&this->actor, play, GI_RUPEE_PURPLE, 500.0f, 100.0f);
+        MM_Actor_OfferGetItem(&this->actor, play, GI_RUPEE_PURPLE, 500.0f, 100.0f);
     }
 }
 
@@ -956,15 +956,15 @@ void EnLiftNuts_ResumeConversation(EnLiftNuts* this, PlayState* play) {
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_WON_DEKU_PLAYGROUND_DAY_1) &&
             CHECK_WEEKEVENTREG(WEEKEVENTREG_WON_DEKU_PLAYGROUND_DAY_2) && (CURRENT_DAY == 3)) {
-            Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENLIFTNUTS_ANIM_SHOCKED_END);
-            Message_StartTextbox(play, 0x27F5, &this->actor);
+            Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENLIFTNUTS_ANIM_SHOCKED_END);
+            MM_Message_StartTextbox(play, 0x27F5, &this->actor);
             this->textId = 0x27F5;
         } else if (EnLiftNuts_GetNumDaysWon() > 0) {
-            Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENLIFTNUTS_ANIM_WALK);
-            Message_StartTextbox(play, 0x27F0, &this->actor);
+            Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENLIFTNUTS_ANIM_WALK);
+            MM_Message_StartTextbox(play, 0x27F0, &this->actor);
             this->textId = 0x27F0;
         } else {
-            Message_StartTextbox(play, 0x27F1, &this->actor);
+            MM_Message_StartTextbox(play, 0x27F1, &this->actor);
             this->textId = 0x27F1;
         }
         this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
@@ -996,7 +996,7 @@ void EnLiftNuts_SetupStartHiding(EnLiftNuts* this) {
         this->isFirstTimeHiding = true;
     }
     if (this->actionFunc == EnLiftNuts_IdleHidden) {
-        Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENLIFTNUTS_ANIM_BOB);
+        Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENLIFTNUTS_ANIM_BOB);
     }
     this->timer = 0;
     this->actionFunc = EnLiftNuts_StartHiding;
@@ -1005,17 +1005,17 @@ void EnLiftNuts_SetupStartHiding(EnLiftNuts* this) {
 void EnLiftNuts_StartHiding(EnLiftNuts* this, PlayState* play) {
     if (this->timer == 22) {
         if (this->isFirstTimeHiding == true) {
-            Message_StartTextbox(play, 0x27F6, &this->actor);
+            MM_Message_StartTextbox(play, 0x27F6, &this->actor);
             this->textId = 0x27F6;
         }
-        Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENLIFTNUTS_ANIM_BURROW_HALF);
+        Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENLIFTNUTS_ANIM_BURROW_HALF);
         this->actionFunc = EnLiftNuts_Hide;
     }
     this->timer++;
 }
 
 void EnLiftNuts_Hide(EnLiftNuts* this, PlayState* play) {
-    if (Animation_OnFrame(&this->skelAnime, 5.0f)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, 5.0f)) {
         EnLiftNuts_SpawnDust(this, play);
     }
 }
@@ -1056,9 +1056,9 @@ void EnLiftNuts_SpawnDust(EnLiftNuts* this, PlayState* play) {
     accel.y = 0.0f;
 
     for (i = 0; i < 30; i++) {
-        velocity.x = Rand_Centered() * 15.0f;
-        velocity.y = Rand_ZeroOne() * 2.0f;
-        velocity.z = Rand_Centered() * 15.0f;
+        velocity.x = MM_Rand_Centered() * 15.0f;
+        velocity.y = MM_Rand_ZeroOne() * 2.0f;
+        velocity.z = MM_Rand_Centered() * 15.0f;
 
         accel.x = -0.2f * velocity.x;
         accel.z = -0.2f * velocity.z;
@@ -1068,17 +1068,17 @@ void EnLiftNuts_SpawnDust(EnLiftNuts* this, PlayState* play) {
 }
 
 void EnLiftNuts_UpdateCollision(EnLiftNuts* this, PlayState* play) {
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void EnLiftNuts_Update(Actor* thisx, PlayState* play) {
     EnLiftNuts* this = (EnLiftNuts*)thisx;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     this->actionFunc(this, play);
     EnLiftNuts_UpdateCollision(this, play);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
     EnLiftNuts_TryHide(this, play);
 
     if (EnLiftNuts_MinigameState(ENLIFTNUTS_MINIGAME_STATE_MODE_CHECK, ENLIFTNUTS_MINIGAME_STATE_RUNNING)) {
@@ -1097,7 +1097,7 @@ s32 EnLiftNuts_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec
     }
 
     if (limbIndex == BUSINESS_SCRUB_LIMB_EYES) {
-        *dList = sEyeTextures[this->eyeTexIndex];
+        *dList = MM_sEyeTextures[this->eyeTexIndex];
     }
     return false;
 }
@@ -1107,7 +1107,7 @@ void EnLiftNuts_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s*
     EnLiftNuts* this = (EnLiftNuts*)thisx;
 
     if (limbIndex == BUSINESS_SCRUB_LIMB_HAT) {
-        Matrix_MultVec3f(&sFocusOffset, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&sFocusOffset, &this->actor.focus.pos);
     }
 }
 
@@ -1115,7 +1115,7 @@ void EnLiftNuts_Draw(Actor* thisx, PlayState* play) {
     EnLiftNuts* this = (EnLiftNuts*)thisx;
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnLiftNuts_OverrideLimbDraw, EnLiftNuts_PostLimbDraw, thisx);
 }
 

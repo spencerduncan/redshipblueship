@@ -5,7 +5,7 @@
 uintptr_t sSysCfbFbPtr[2];
 uintptr_t sSysCfbEnd;
 
-void SysCfb_Init(s32 n64dd) {
+void OoT_SysCfb_Init(s32 n64dd) {
     u32 screenSize;
     uintptr_t tmpFbEnd;
 
@@ -46,7 +46,7 @@ void SysCfb_Init(s32 n64dd) {
     FB_CreateFramebuffers();
 }
 
-void SysCfb_Reset() {
+void OoT_SysCfb_Reset() {
     sSysCfbFbPtr[0] = 0;
     sSysCfbFbPtr[1] = 0;
     sSysCfbEnd = 0;

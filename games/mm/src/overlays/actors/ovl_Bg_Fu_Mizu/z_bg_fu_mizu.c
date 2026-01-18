@@ -31,10 +31,10 @@ void BgFuMizu_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     CollisionHeader* colHeader = NULL;
 
-    Actor_SetScale(&this->dyna.actor, 1.0f);
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
-    CollisionHeader_GetVirtual(&object_fu_kaiten_Colheader_0037F8, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    MM_Actor_SetScale(&this->dyna.actor, 1.0f);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_CollisionHeader_GetVirtual(&object_fu_kaiten_Colheader_0037F8, &colHeader);
+    this->dyna.bgId = MM_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
     this->unk_160 = 0;
     this->dyna.actor.world.pos.y = -10.0f + this->dyna.actor.home.pos.y;
 }
@@ -42,7 +42,7 @@ void BgFuMizu_Init(Actor* thisx, PlayState* play) {
 void BgFuMizu_Destroy(Actor* thisx, PlayState* play) {
     BgFuMizu* this = (BgFuMizu*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 s32 func_80ADABA4(BgFuMizu* this, PlayState* play) {
@@ -71,7 +71,7 @@ void BgFuMizu_Update(Actor* thisx, PlayState* play) {
     } else {
         heightTarget = 25.0f + this->dyna.actor.home.pos.y;
     }
-    if (Math_SmoothStepToF(&this->dyna.actor.world.pos.y, heightTarget, 0.05f, 1.0f, 0.5f) > 1.0f) {
+    if (MM_Math_SmoothStepToF(&this->dyna.actor.world.pos.y, heightTarget, 0.05f, 1.0f, 0.5f) > 1.0f) {
         if (this->unk_160 == 1) {
             Actor_PlaySfx_Flagged(&this->dyna.actor, NA_SE_EV_WATER_LEVEL_DOWN_FIX - SFX_FLAG);
         } else {

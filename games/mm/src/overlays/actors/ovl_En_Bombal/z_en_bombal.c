@@ -36,7 +36,7 @@ ActorProfile En_Bombal_Profile = {
     /**/ EnBombal_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -59,9 +59,9 @@ static ColliderCylinderInit sCylinderInit = {
 void EnBombal_Init(Actor* thisx, PlayState* play) {
     EnBombal* this = (EnBombal*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 25.0f);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 25.0f);
     this->actor.colChkInfo.mass = 0;
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
     this->actor.attentionRangeType = ATTENTION_RANGE_6;
     this->actor.colChkInfo.health = 1;
     this->scale = 0.1f;
@@ -72,7 +72,7 @@ void EnBombal_Init(Actor* thisx, PlayState* play) {
 void EnBombal_Destroy(Actor* thisx, PlayState* play) {
     EnBombal* this = (EnBombal*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void func_80C05B24(EnBombal* this) {
@@ -84,8 +84,8 @@ void func_80C05B3C(EnBombal* this, PlayState* play) {
     Player* player;
 
     this->oscillationAngle += 1500.0f;
-    this->actor.velocity.y = Math_SinS(this->oscillationAngle);
-    Math_ApproachF(&this->scale, 0.1f, 0.3f, 0.01f);
+    this->actor.velocity.y = MM_Math_SinS(this->oscillationAngle);
+    MM_Math_ApproachF(&this->scale, 0.1f, 0.3f, 0.01f);
 
     if (play->msgCtx.msgLength == 0) {
         if (this->collider.base.acFlags & AC_HIT) {
@@ -125,9 +125,9 @@ void func_80C05C44(EnBombal* this, PlayState* play) {
     }
 
     if (phi_s0) {
-        Math_Vec3f_Copy(&effPos, &this->actor.world.pos);
+        MM_Math_Vec3f_Copy(&effPos, &this->actor.world.pos);
         effPos.y += 60.0f;
-        Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, effPos.x, effPos.y, effPos.z, 255, 255, 200,
+        MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, effPos.x, effPos.y, effPos.z, 255, 255, 200,
                     CLEAR_TAG_PARAMS(CLEAR_TAG_LARGE_EXPLOSION));
 
         for (i = 0; i < 100; i++) {
@@ -148,7 +148,7 @@ void func_80C05DE8(EnBombal* this, PlayState* play) {
             !CHECK_WEEKEVENTREG(WEEKEVENTREG_85_02)) {
             CutsceneManager_Stop(this->csId);
         }
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -167,8 +167,8 @@ void EnBombal_Update(Actor* thisx, PlayState* play) {
 
     this->actor.shape.rot.y = this->actor.world.rot.y;
 
-    Actor_SetFocus(&this->actor, 30.0f);
-    Actor_SetScale(&this->actor, this->scale);
+    MM_Actor_SetFocus(&this->actor, 30.0f);
+    MM_Actor_SetScale(&this->actor, this->scale);
 
     this->actionFunc(this, play);
 
@@ -176,8 +176,8 @@ void EnBombal_Update(Actor* thisx, PlayState* play) {
     EnBombal_UpdateEffects(this, play);
 
     if (!this->isPopped) {
-        Collider_UpdateCylinder(&this->actor, &this->collider);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -185,8 +185,8 @@ void EnBombal_Draw(Actor* thisx, PlayState* play) {
     EnBombal* this = (EnBombal*)thisx;
 
     if (this->isPopped != true) {
-        Gfx_DrawDListOpa(play, gMajoraBalloonDL);
-        Gfx_DrawDListOpa(play, gMajoraBalloonKnotDL);
+        MM_Gfx_DrawDListOpa(play, gMajoraBalloonDL);
+        MM_Gfx_DrawDListOpa(play, gMajoraBalloonKnotDL);
     }
     EnBombal_DrawEffects(this, play);
 }
@@ -202,15 +202,15 @@ void EnBombal_InitEffects(EnBombal* this, Vec3f* pos, s16 fadeDelay) {
             effect->alphaFadeDelay = fadeDelay;
             effect->alpha = 255;
 
-            effect->accel.x = (Rand_ZeroOne() - 0.5f) * 10.0f;
-            effect->accel.y = (Rand_ZeroOne() - 0.5f) * 10.0f;
-            effect->accel.z = (Rand_ZeroOne() - 0.5f) * 10.0f;
+            effect->accel.x = (MM_Rand_ZeroOne() - 0.5f) * 10.0f;
+            effect->accel.y = (MM_Rand_ZeroOne() - 0.5f) * 10.0f;
+            effect->accel.z = (MM_Rand_ZeroOne() - 0.5f) * 10.0f;
 
-            effect->velocity.x = Rand_ZeroOne() - 0.5f;
-            effect->velocity.y = Rand_ZeroOne() - 0.5f;
-            effect->velocity.z = Rand_ZeroOne() - 0.5f;
+            effect->velocity.x = MM_Rand_ZeroOne() - 0.5f;
+            effect->velocity.y = MM_Rand_ZeroOne() - 0.5f;
+            effect->velocity.z = MM_Rand_ZeroOne() - 0.5f;
 
-            effect->scale = (Rand_ZeroFloat(1.0f) * 0.5f) + 2.0f;
+            effect->scale = (MM_Rand_ZeroFloat(1.0f) * 0.5f) + 2.0f;
             return;
         }
     }
@@ -253,10 +253,10 @@ void EnBombal_DrawEffects(EnBombal* this, PlayState* play) {
 
     for (i = 0; i < ARRAY_COUNT(this->effects); i++, effect++) {
         if (effect->isEnabled) {
-            Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
-            Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
+            MM_Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
+            MM_Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
 
-            POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_20);
+            POLY_XLU_DISP = MM_Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_20);
 
             gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(&gSun1Tex));
 
@@ -267,7 +267,7 @@ void EnBombal_DrawEffects(EnBombal* this, PlayState* play) {
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, 255);
             gDPSetEnvColor(POLY_XLU_DISP++, 250, 180, 255, effect->alpha);
 
-            Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
+            MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
             Matrix_RotateZF(DEG_TO_RAD(play->state.frames * 20.0f), MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);

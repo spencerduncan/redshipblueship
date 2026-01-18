@@ -4,7 +4,7 @@
 
 OSPiHandle __CartRomHandle ALIGNED(8);
 
-OSPiHandle* osCartRomInit(void) {
+OSPiHandle* MM_osCartRomInit(void) {
     register u32 initialConfig;
     register s32 status;
     register u32 prevInt;

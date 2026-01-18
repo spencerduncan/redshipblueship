@@ -17,10 +17,10 @@
 #define FU_RESET_LOOK_ANGLE (1 << 0)
 #define FU_WAIT (1 << 1)
 
-void EnFu_Init(Actor* thisx, PlayState* play);
-void EnFu_Destroy(Actor* thisx, PlayState* play);
-void EnFu_Update(Actor* thisx, PlayState* play);
-void EnFu_Draw(Actor* thisx, PlayState* play);
+void OoT_EnFu_Init(Actor* thisx, PlayState* play);
+void OoT_EnFu_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnFu_Update(Actor* thisx, PlayState* play);
+void OoT_EnFu_Draw(Actor* thisx, PlayState* play);
 
 void EnFu_WaitChild(EnFu* this, PlayState* play);
 void func_80A1DA04(EnFu* this, PlayState* play);
@@ -38,14 +38,14 @@ const ActorInit En_Fu_InitVars = {
     FLAGS,
     OBJECT_FU,
     sizeof(EnFu),
-    (ActorFunc)EnFu_Init,
-    (ActorFunc)EnFu_Destroy,
-    (ActorFunc)EnFu_Update,
-    (ActorFunc)EnFu_Draw,
+    (ActorFunc)OoT_EnFu_Init,
+    (ActorFunc)OoT_EnFu_Destroy,
+    (ActorFunc)OoT_EnFu_Update,
+    (ActorFunc)OoT_EnFu_Draw,
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -76,18 +76,18 @@ typedef enum {
     /* 0x01 */ FU_FACE_MAD
 } EnFuFace;
 
-void EnFu_Init(Actor* thisx, PlayState* play) {
+void OoT_EnFu_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     EnFu* this = (EnFu*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 36.0f);
-    SkelAnime_InitFlex(play, &this->skelanime, &gWindmillManSkel, &gWindmillManPlayStillAnim, this->jointTable,
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 36.0f);
+    OoT_SkelAnime_InitFlex(play, &this->skelanime, &gWindmillManSkel, &gWindmillManPlayStillAnim, this->jointTable,
                        this->morphTable, FU_LIMB_MAX);
-    Animation_PlayLoop(&this->skelanime, &gWindmillManPlayStillAnim);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    OoT_Animation_PlayLoop(&this->skelanime, &gWindmillManPlayStillAnim);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
-    Actor_SetScale(&this->actor, 0.01f);
+    OoT_Actor_SetScale(&this->actor, 0.01f);
     if (!LINK_IS_ADULT) {
         this->actionFunc = EnFu_WaitChild;
         this->facialExpression = FU_FACE_CALM;
@@ -100,9 +100,9 @@ void EnFu_Init(Actor* thisx, PlayState* play) {
     this->actor.targetMode = 6;
 }
 
-void EnFu_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnFu_Destroy(Actor* thisx, PlayState* play) {
     EnFu* this = (EnFu*)thisx;
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 
     ResourceMgr_UnregisterSkeleton(&this->skelanime);
 }
@@ -126,30 +126,30 @@ s32 func_80A1D94C(EnFu* this, PlayState* play, u16 textID, EnFuActionFunc action
 }
 
 void func_80A1DA04(EnFu* this, PlayState* play) {
-    if (Actor_TextboxIsClosing(&this->actor, play)) {
+    if (OoT_Actor_TextboxIsClosing(&this->actor, play)) {
         this->behaviorFlags &= ~FU_WAIT;
         this->actionFunc = EnFu_WaitChild;
 
         if (this->skelanime.animation == &gWindmillManPlayAndMoveHeadAnim) {
-            Animation_Change(&this->skelanime, &gWindmillManPlayStillAnim, 1.0f, 0.0f,
-                             Animation_GetLastFrame(&gWindmillManPlayStillAnim), ANIMMODE_ONCE, -4.0f);
+            OoT_Animation_Change(&this->skelanime, &gWindmillManPlayStillAnim, 1.0f, 0.0f,
+                             OoT_Animation_GetLastFrame(&gWindmillManPlayStillAnim), ANIMMODE_ONCE, -4.0f);
         }
     }
 }
 
 void EnFu_WaitChild(EnFu* this, PlayState* play) {
-    u16 textID = Text_GetFaceReaction(play, 0xB);
+    u16 textID = OoT_Text_GetFaceReaction(play, 0xB);
 
     if (textID == 0) {
-        textID = (Flags_GetEventChkInf(EVENTCHKINF_DRAINED_WELL_IN_KAKARIKO)) ? 0x5033 : 0x5032;
+        textID = (OoT_Flags_GetEventChkInf(EVENTCHKINF_DRAINED_WELL_IN_KAKARIKO)) ? 0x5033 : 0x5032;
     }
 
     // if ACTOR_FLAG_PLAYER_TALKED_TO is set and textID is 0x5033, change animation
     // if func_80A1D94C returns 1, actionFunc is set to func_80A1DA04
     if (func_80A1D94C(this, play, textID, func_80A1DA04)) {
         if (textID == 0x5033) {
-            Animation_Change(&this->skelanime, &gWindmillManPlayAndMoveHeadAnim, 1.0f, 0.0f,
-                             Animation_GetLastFrame(&gWindmillManPlayAndMoveHeadAnim), ANIMMODE_ONCE, -4.0f);
+            OoT_Animation_Change(&this->skelanime, &gWindmillManPlayAndMoveHeadAnim, 1.0f, 0.0f,
+                             OoT_Animation_GetLastFrame(&gWindmillManPlayAndMoveHeadAnim), ANIMMODE_ONCE, -4.0f);
         }
     }
 }
@@ -157,13 +157,13 @@ void EnFu_WaitChild(EnFu* this, PlayState* play) {
 void func_80A1DB60(EnFu* this, PlayState* play) {
     if (play->csCtx.state == CS_STATE_IDLE) {
         this->actionFunc = EnFu_WaitAdult;
-        Flags_SetEventChkInf(EVENTCHKINF_LEARNED_SONG_OF_STORMS);
+        OoT_Flags_SetEventChkInf(EVENTCHKINF_LEARNED_SONG_OF_STORMS);
         play->msgCtx.ocarinaMode = OCARINA_MODE_04;
     }
 }
 
 void func_80A1DBA0(EnFu* this, PlayState* play) {
-    if (Actor_TextboxIsClosing(&this->actor, play)) {
+    if (OoT_Actor_TextboxIsClosing(&this->actor, play)) {
         this->actionFunc = EnFu_WaitAdult;
     }
 }
@@ -181,7 +181,7 @@ void func_80A1DBD4(EnFu* this, PlayState* play) {
         this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
 
         play->msgCtx.ocarinaMode = OCARINA_MODE_00;
-        Flags_SetEventChkInf(EVENTCHKINF_PLAYED_SONG_OF_STORMS_IN_WINDMILL);
+        OoT_Flags_SetEventChkInf(EVENTCHKINF_PLAYED_SONG_OF_STORMS_IN_WINDMILL);
     } else if (play->msgCtx.ocarinaMode == OCARINA_MODE_02) {
         player->stateFlags2 &= ~PLAYER_STATE2_ATTEMPT_PLAY_FOR_ACTOR;
         this->actionFunc = EnFu_WaitAdult;
@@ -195,7 +195,7 @@ void EnFu_WaitForPlayback(EnFu* this, PlayState* play) {
 
     player->stateFlags2 |= PLAYER_STATE2_NEAR_OCARINA_ACTOR;
     // if dialog state is 7, player has played back the song
-    if (Message_GetState(&play->msgCtx) == TEXT_STATE_SONG_DEMO_DONE) {
+    if (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_SONG_DEMO_DONE) {
         func_8010BD58(play, OCARINA_ACTION_PLAYBACK_STORMS);
         this->actionFunc = func_80A1DBD4;
     }
@@ -206,7 +206,7 @@ void EnFu_TeachSong(EnFu* this, PlayState* play) {
 
     player->stateFlags2 |= PLAYER_STATE2_NEAR_OCARINA_ACTOR;
     // if dialog state is 2, start song demonstration
-    if (Message_GetState(&play->msgCtx) == TEXT_STATE_CLOSING) {
+    if (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_CLOSING) {
         this->behaviorFlags &= ~FU_WAIT;
         Audio_OcaSetInstrument(4); // seems to be related to setting instrument type
         func_8010BD58(play, OCARINA_ACTION_TEACH_STORMS);
@@ -219,11 +219,11 @@ void EnFu_WaitAdult(EnFu* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
     yawDiff = this->actor.yawTowardsPlayer - this->actor.shape.rot.y;
-    if ((Flags_GetEventChkInf(EVENTCHKINF_LEARNED_SONG_OF_STORMS))) {
+    if ((OoT_Flags_GetEventChkInf(EVENTCHKINF_LEARNED_SONG_OF_STORMS))) {
         func_80A1D94C(this, play, 0x508E, func_80A1DBA0);
     } else if (player->stateFlags2 & PLAYER_STATE2_ATTEMPT_PLAY_FOR_ACTOR) {
         this->actor.textId = 0x5035;
-        Message_StartTextbox(play, this->actor.textId, NULL);
+        OoT_Message_StartTextbox(play, this->actor.textId, NULL);
         this->actionFunc = EnFu_TeachSong;
         this->behaviorFlags |= FU_WAIT;
     } else if (Actor_ProcessTalkRequest(&this->actor, play)) {
@@ -237,31 +237,31 @@ void EnFu_WaitAdult(EnFu* this, PlayState* play) {
     }
 }
 
-void EnFu_Update(Actor* thisx, PlayState* play) {
+void OoT_EnFu_Update(Actor* thisx, PlayState* play) {
     s32 pad;
     EnFu* this = (EnFu*)thisx;
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     Actor_MoveXZGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
-    if ((!(this->behaviorFlags & FU_WAIT)) && (SkelAnime_Update(&this->skelanime) != 0)) {
-        Animation_Change(&this->skelanime, this->skelanime.animation, 1.0f, 0.0f,
-                         Animation_GetLastFrame(this->skelanime.animation), ANIMMODE_ONCE, 0.0f);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
+    if ((!(this->behaviorFlags & FU_WAIT)) && (OoT_SkelAnime_Update(&this->skelanime) != 0)) {
+        OoT_Animation_Change(&this->skelanime, this->skelanime.animation, 1.0f, 0.0f,
+                         OoT_Animation_GetLastFrame(this->skelanime.animation), ANIMMODE_ONCE, 0.0f);
     }
     this->actionFunc(this, play);
     if ((this->behaviorFlags & FU_RESET_LOOK_ANGLE)) {
-        Math_SmoothStepToS(&this->lookAngleOffset.x, 0, 6, 6200, 100);
-        Math_SmoothStepToS(&this->lookAngleOffset.y, 0, 6, 6200, 100);
-        Math_SmoothStepToS(&this->unk_2A2.x, 0, 6, 6200, 100);
-        Math_SmoothStepToS(&this->unk_2A2.y, 0, 6, 6200, 100);
+        OoT_Math_SmoothStepToS(&this->lookAngleOffset.x, 0, 6, 6200, 100);
+        OoT_Math_SmoothStepToS(&this->lookAngleOffset.y, 0, 6, 6200, 100);
+        OoT_Math_SmoothStepToS(&this->unk_2A2.x, 0, 6, 6200, 100);
+        OoT_Math_SmoothStepToS(&this->unk_2A2.y, 0, 6, 6200, 100);
         this->behaviorFlags &= ~FU_RESET_LOOK_ANGLE;
     } else {
         func_80038290(play, &this->actor, &this->lookAngleOffset, &this->unk_2A2, this->actor.focus.pos);
     }
 }
 
-s32 EnFu_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
+s32 OoT_EnFu_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
     EnFu* this = (EnFu*)thisx;
     s32 pad;
 
@@ -282,21 +282,21 @@ s32 EnFu_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* po
     }
 
     if (limbIndex == FU_LIMB_CHEST_MUSIC_BOX) {
-        rot->y += (Math_SinS((play->state.frames * (limbIndex * 50 + 0x814))) * 200.0f);
-        rot->z += (Math_CosS((play->state.frames * (limbIndex * 50 + 0x940))) * 200.0f);
+        rot->y += (OoT_Math_SinS((play->state.frames * (limbIndex * 50 + 0x814))) * 200.0f);
+        rot->z += (OoT_Math_CosS((play->state.frames * (limbIndex * 50 + 0x940))) * 200.0f);
     }
     return false;
 }
 
-void EnFu_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
+void OoT_EnFu_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
     EnFu* this = (EnFu*)thisx;
 
     if (limbIndex == FU_LIMB_HEAD) {
-        Matrix_MultVec3f(&sMtxSrc, &this->actor.focus.pos);
+        OoT_Matrix_MultVec3f(&sMtxSrc, &this->actor.focus.pos);
     }
 }
 
-void EnFu_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnFu_Draw(Actor* thisx, PlayState* play) {
     static void* sEyesSegments[] = { gWindmillManEyeClosedTex, gWindmillManEyeAngryTex };
     static void* sMouthSegments[] = { gWindmillManMouthOpenTex, gWindmillManMouthAngryTex };
     s32 pad;
@@ -307,7 +307,7 @@ void EnFu_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL_37Opa(play->state.gfxCtx);
     gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(sEyesSegments[this->facialExpression]));
     gSPSegment(POLY_OPA_DISP++, 0x09, SEGMENTED_TO_VIRTUAL(sMouthSegments[this->facialExpression]));
-    SkelAnime_DrawSkeletonOpa(play, &this->skelanime, EnFu_OverrideLimbDraw, EnFu_PostLimbDraw, this);
+    SkelAnime_DrawSkeletonOpa(play, &this->skelanime, OoT_EnFu_OverrideLimbDraw, OoT_EnFu_PostLimbDraw, this);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

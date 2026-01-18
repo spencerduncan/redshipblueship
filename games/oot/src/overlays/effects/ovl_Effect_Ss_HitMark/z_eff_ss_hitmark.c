@@ -21,13 +21,13 @@ u32 EffectSsHitMark_Init(PlayState* play, u32 index, EffectSs* this, void* initP
 void EffectSsHitMark_Draw(PlayState* play, u32 index, EffectSs* this);
 void EffectSsHitMark_Update(PlayState* play, u32 index, EffectSs* this);
 
-static Color_RGB8 sColors[] = {
+static Color_RGB8 OoT_sColors[] = {
     { 255, 255, 255 }, { 255, 255, 0 }, { 255, 255, 255 }, { 255, 0, 0 },   { 255, 200, 100 }, { 200, 150, 0 },
     { 150, 100, 0 },   { 100, 50, 0 },  { 255, 255, 255 }, { 255, 0, 0 },   { 255, 255, 0 },   { 255, 0, 0 },
     { 255, 255, 255 }, { 0, 255, 200 }, { 255, 255, 255 }, { 150, 0, 255 },
 };
 
-static void* sTextures[] = {
+static void* OoT_sTextures[] = {
     gEffHitMark1Tex,  gEffHitMark2Tex,  gEffHitMark3Tex,  gEffHitMark4Tex,  gEffHitMark5Tex,  gEffHitMark6Tex,
     gEffHitMark7Tex,  gEffHitMark8Tex,  gEffHitMark9Tex,  gEffHitMark10Tex, gEffHitMark11Tex, gEffHitMark12Tex,
     gEffHitMark13Tex, gEffHitMark14Tex, gEffHitMark15Tex, gEffHitMark16Tex, gEffHitMark17Tex, gEffHitMark18Tex,
@@ -58,12 +58,12 @@ u32 EffectSsHitMark_Init(PlayState* play, u32 index, EffectSs* this, void* initP
     colorIdx = initParams->type * 4;
     this->rTexIdx = 0;
     this->rType = initParams->type;
-    this->rPrimColorR = sColors[colorIdx].r;
-    this->rPrimColorG = sColors[colorIdx].g;
-    this->rPrimColorB = sColors[colorIdx].b;
-    this->rEnvColorR = sColors[colorIdx + 1].r;
-    this->rEnvColorG = sColors[colorIdx + 1].g;
-    this->rEnvColorB = sColors[colorIdx + 1].b;
+    this->rPrimColorR = OoT_sColors[colorIdx].r;
+    this->rPrimColorG = OoT_sColors[colorIdx].g;
+    this->rPrimColorB = OoT_sColors[colorIdx].b;
+    this->rEnvColorR = OoT_sColors[colorIdx + 1].r;
+    this->rEnvColorG = OoT_sColors[colorIdx + 1].g;
+    this->rEnvColorB = OoT_sColors[colorIdx + 1].b;
     this->rScale = initParams->scale;
 
     return 1;
@@ -81,18 +81,18 @@ void EffectSsHitMark_Draw(PlayState* play, u32 index, EffectSs* this) {
 
     OPEN_DISPS(gfxCtx);
 
-    SkinMatrix_SetTranslate(&mfTrans, this->pos.x, this->pos.y, this->pos.z);
+    OoT_SkinMatrix_SetTranslate(&mfTrans, this->pos.x, this->pos.y, this->pos.z);
     scale = this->rScale / 100.0f;
-    SkinMatrix_SetScale(&mfScale, scale, scale, 1.0f);
-    SkinMatrix_MtxFMtxFMult(&mfTrans, &play->billboardMtxF, &mfTrans11DA0);
-    SkinMatrix_MtxFMtxFMult(&mfTrans11DA0, &mfScale, &mfResult);
+    OoT_SkinMatrix_SetScale(&mfScale, scale, scale, 1.0f);
+    OoT_SkinMatrix_MtxFMtxFMult(&mfTrans, &play->billboardMtxF, &mfTrans11DA0);
+    OoT_SkinMatrix_MtxFMtxFMult(&mfTrans11DA0, &mfScale, &mfResult);
     gSPMatrix(POLY_XLU_DISP++, &gMtxClear, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
-    mtx = SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
+    mtx = OoT_SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
 
     if (mtx != NULL) {
         gSPMatrix(POLY_XLU_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-        gSPSegment(POLY_XLU_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(sTextures[(this->rType * 8) + (this->rTexIdx)]));
+        gSPSegment(POLY_XLU_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(OoT_sTextures[(this->rType * 8) + (this->rTexIdx)]));
         Gfx_SetupDL_61Xlu(gfxCtx);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, this->rPrimColorR, this->rPrimColorG, this->rPrimColorB, 255);
         gDPSetEnvColor(POLY_XLU_DISP++, this->rEnvColorR, this->rEnvColorG, this->rEnvColorB, 0);
@@ -112,11 +112,11 @@ void EffectSsHitMark_Update(PlayState* play, u32 index, EffectSs* this) {
 
     if (this->rTexIdx != 0) {
         colorIdx = this->rType * 4 + 2;
-        this->rPrimColorR = func_80027DD4(this->rPrimColorR, sColors[colorIdx].r, this->life + 1);
-        this->rPrimColorG = func_80027DD4(this->rPrimColorG, sColors[colorIdx].g, this->life + 1);
-        this->rPrimColorB = func_80027DD4(this->rPrimColorB, sColors[colorIdx].b, this->life + 1);
-        this->rEnvColorR = func_80027DD4(this->rEnvColorR, sColors[colorIdx + 1].r, this->life + 1);
-        this->rEnvColorG = func_80027DD4(this->rEnvColorG, sColors[colorIdx + 1].g, this->life + 1);
-        this->rEnvColorB = func_80027DD4(this->rEnvColorB, sColors[colorIdx + 1].b, this->life + 1);
+        this->rPrimColorR = func_80027DD4(this->rPrimColorR, OoT_sColors[colorIdx].r, this->life + 1);
+        this->rPrimColorG = func_80027DD4(this->rPrimColorG, OoT_sColors[colorIdx].g, this->life + 1);
+        this->rPrimColorB = func_80027DD4(this->rPrimColorB, OoT_sColors[colorIdx].b, this->life + 1);
+        this->rEnvColorR = func_80027DD4(this->rEnvColorR, OoT_sColors[colorIdx + 1].r, this->life + 1);
+        this->rEnvColorG = func_80027DD4(this->rEnvColorG, OoT_sColors[colorIdx + 1].g, this->life + 1);
+        this->rEnvColorB = func_80027DD4(this->rEnvColorB, OoT_sColors[colorIdx + 1].b, this->life + 1);
     }
 }

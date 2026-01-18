@@ -4,7 +4,7 @@
 #include "soh/ResourceManagerHelpers.h"
 
 void func_80110990(PlayState* play) {
-    Map_Destroy(play);
+    OoT_Map_Destroy(play);
 }
 
 void func_801109B0(PlayState* play) {
@@ -15,7 +15,7 @@ void func_801109B0(PlayState* play) {
     gSaveContext.sunsSongState = SUNSSONG_INACTIVE;
     gSaveContext.unk_13E8 = gSaveContext.unk_13EA = 0;
 
-    View_Init(&interfaceCtx->view, play->state.gfxCtx);
+    OoT_View_Init(&interfaceCtx->view, play->state.gfxCtx);
 
     interfaceCtx->unk_1FA = interfaceCtx->unk_261 = interfaceCtx->unk_1FC = 0;
     interfaceCtx->unk_1EC = interfaceCtx->unk_1EE = interfaceCtx->unk_1F0 = 0;
@@ -122,7 +122,7 @@ void func_801109B0(PlayState* play) {
     osSyncPrintf("ＰＡＲＡＭＥＴＥＲ領域＝%x\n", parameterSize + 0x5300); // "Parameter Area = %x"
 
     HealthMeter_Init(play);
-    Map_Init(play);
+    OoT_Map_Init(play);
 
     interfaceCtx->unk_23C = interfaceCtx->unk_242 = 0;
 
@@ -139,11 +139,11 @@ void func_801109B0(PlayState* play) {
     R_A_BTN_COLOR(2) = 50;
 }
 
-void Message_Init(PlayState* play) {
+void OoT_Message_Init(PlayState* play) {
     MessageContext* msgCtx = &play->msgCtx;
     s32 pad;
 
-    Message_SetTables();
+    OoT_Message_SetTables();
 
     play->msgCtx.ocarinaMode = OCARINA_MODE_00;
 
@@ -152,7 +152,7 @@ void Message_Init(PlayState* play) {
     msgCtx->textId = msgCtx->textboxEndType = msgCtx->choiceIndex = msgCtx->ocarinaAction = msgCtx->textUnskippable = 0;
     msgCtx->textColorAlpha = 255;
 
-    View_Init(&msgCtx->view, play->state.gfxCtx);
+    OoT_View_Init(&msgCtx->view, play->state.gfxCtx);
 
     msgCtx->textboxSegment = GAMESTATE_ALLOC_MC(&play->state, 0x2200);
 
@@ -162,7 +162,7 @@ void Message_Init(PlayState* play) {
     assert(msgCtx->textboxSegment != NULL);
 
     if (ResourceMgr_GetGameRegion(0) == GAME_REGION_PAL && gSaveContext.language != LANGUAGE_JPN) {
-        Font_LoadOrderedFont(&play->msgCtx.font);
+        OoT_Font_LoadOrderedFont(&play->msgCtx.font);
     } else { // GAME_REGION_NTSC
         Font_LoadOrderedFontNTSC(&play->msgCtx.font);
     }
@@ -581,6 +581,6 @@ void Regs_InitDataImpl(void) {
     VREG(92) = -63;
 }
 
-void Regs_InitData(PlayState* play) {
+void OoT_Regs_InitData(PlayState* play) {
     Regs_InitDataImpl();
 }

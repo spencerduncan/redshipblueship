@@ -1,7 +1,7 @@
 #include "global.h"
 
 StackEntry sBootThreadInfo;
-OSThread sIdleThread;
+OSThread OoT_sIdleThread;
 u8 sIdleThreadStack[0x400];
 StackEntry sIdleThreadInfo;
 u8 sBootThreadStack[0x400];
@@ -10,21 +10,21 @@ void cleararena(void) {
     // bzero(_dmadataSegmentStart, osMemSize - OS_K0_TO_PHYSICAL(_dmadataSegmentStart));
 }
 
-void bootproc(void) {
-    StackCheck_Init(&sBootThreadInfo, sBootThreadStack, sBootThreadStack + sizeof(sBootThreadStack), 0, -1, "boot");
+void OoT_bootproc(void) {
+    OoT_StackCheck_Init(&sBootThreadInfo, sBootThreadStack, sBootThreadStack + sizeof(sBootThreadStack), 0, -1, "boot");
 
-    osMemSize = osGetMemSize();
+    osMemSize = OoT_osGetMemSize();
     cleararena();
     __osInitialize_common();
     __osInitialize_autodetect();
 
-    gCartHandle = osCartRomInit();
-    osDriveRomInit();
+    OoT_gCartHandle = OoT_osCartRomInit();
+    OoT_osDriveRomInit();
     isPrintfInit();
     Locale_Init();
 
-    StackCheck_Init(&sIdleThreadInfo, sIdleThreadStack, sIdleThreadStack + sizeof(sIdleThreadStack), 0, 256, "idle");
-    osCreateThread(&sIdleThread, 1, Idle_ThreadEntry, NULL, sIdleThreadStack + sizeof(sIdleThreadStack),
+    OoT_StackCheck_Init(&sIdleThreadInfo, sIdleThreadStack, sIdleThreadStack + sizeof(sIdleThreadStack), 0, 256, "idle");
+    osCreateThread(&OoT_sIdleThread, 1, OoT_Idle_ThreadEntry, NULL, sIdleThreadStack + sizeof(sIdleThreadStack),
                    Z_PRIORITY_MAIN);
-    osStartThread(&sIdleThread);
+    OoT_osStartThread(&OoT_sIdleThread);
 }

@@ -53,16 +53,16 @@ s32 ShrinkWindow_Pillarbox_GetSize(void) {
     return sShrinkWindowPtr->pillarboxSize;
 }
 
-void ShrinkWindow_Init(void) {
+void MM_ShrinkWindow_Init(void) {
     sShrinkWindowPtr = &sShrinkWindow;
     memset(sShrinkWindowPtr, 0, sizeof(sShrinkWindow));
 }
 
-void ShrinkWindow_Destroy(void) {
+void MM_ShrinkWindow_Destroy(void) {
     sShrinkWindowPtr = NULL;
 }
 
-void ShrinkWindow_Update(s32 framerateDivisor) {
+void MM_ShrinkWindow_Update(s32 framerateDivisor) {
     s32 step = (framerateDivisor == 3) ? 10 : (30 / framerateDivisor);
     s32 nextSize;
 
@@ -95,18 +95,18 @@ void ShrinkWindow_Draw(GraphicsContext* gfxCtx) {
         gDPSetFillColor(gfx++, (GPACK_RGBA5551(0, 0, 0, 1) << 16) | GPACK_RGBA5551(0, 0, 0, 1));
         // #region 2S2H [Cosmetic] Account for different aspect ratios than 4:3
         gDPFillWideRectangle(gfx++, OTRGetRectDimensionFromLeftEdge(0), 0,
-                             OTRGetRectDimensionFromRightEdge(gScreenWidth - 1), letterboxSize - 1);
-        gDPFillWideRectangle(gfx++, OTRGetRectDimensionFromLeftEdge(0), gScreenHeight - letterboxSize,
-                             OTRGetRectDimensionFromRightEdge(gScreenWidth - 1), gScreenHeight - 1);
+                             OTRGetRectDimensionFromRightEdge(MM_gScreenWidth - 1), letterboxSize - 1);
+        gDPFillWideRectangle(gfx++, OTRGetRectDimensionFromLeftEdge(0), MM_gScreenHeight - letterboxSize,
+                             OTRGetRectDimensionFromRightEdge(MM_gScreenWidth - 1), MM_gScreenHeight - 1);
 
         gDPPipeSync(gfx++);
         gDPSetCycleType(gfx++, G_CYC_1CYCLE);
         gDPSetRenderMode(gfx++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
         gDPSetPrimColor(gfx++, 0, 0, 0, 0, 0, 0);
         gDPFillWideRectangle(gfx++, OTRGetRectDimensionFromLeftEdge(0), letterboxSize,
-                             OTRGetRectDimensionFromRightEdge(gScreenWidth), letterboxSize + 1);
-        gDPFillWideRectangle(gfx++, OTRGetRectDimensionFromLeftEdge(0), gScreenHeight - letterboxSize - 1,
-                             OTRGetRectDimensionFromRightEdge(gScreenWidth), gScreenHeight - letterboxSize);
+                             OTRGetRectDimensionFromRightEdge(MM_gScreenWidth), letterboxSize + 1);
+        gDPFillWideRectangle(gfx++, OTRGetRectDimensionFromLeftEdge(0), MM_gScreenHeight - letterboxSize - 1,
+                             OTRGetRectDimensionFromRightEdge(MM_gScreenWidth), MM_gScreenHeight - letterboxSize);
         // #endregion
 
         gDPPipeSync(gfx++);
@@ -127,9 +127,9 @@ void ShrinkWindow_Draw(GraphicsContext* gfxCtx) {
 
         // #region 2S2H [Cosmetic] Account for different aspect ratios than 4:3
         gDPFillWideRectangle(gfx++, OTRGetRectDimensionFromLeftEdge(0), 0,
-                             OTRGetRectDimensionFromRightEdge(pillarboxSize - 1), gScreenHeight - 1);
-        gDPFillWideRectangle(gfx++, OTRGetRectDimensionFromLeftEdge(gScreenWidth - pillarboxSize), 0,
-                             OTRGetRectDimensionFromRightEdge(gScreenWidth - 1), gScreenHeight - 1);
+                             OTRGetRectDimensionFromRightEdge(pillarboxSize - 1), MM_gScreenHeight - 1);
+        gDPFillWideRectangle(gfx++, OTRGetRectDimensionFromLeftEdge(MM_gScreenWidth - pillarboxSize), 0,
+                             OTRGetRectDimensionFromRightEdge(MM_gScreenWidth - 1), MM_gScreenHeight - 1);
 
         gDPPipeSync(gfx++);
         gDPSetCycleType(gfx++, G_CYC_1CYCLE);
@@ -137,9 +137,9 @@ void ShrinkWindow_Draw(GraphicsContext* gfxCtx) {
         gDPSetPrimColor(gfx++, 0, 0, 0, 0, 0, 0);
 
         gDPFillWideRectangle(gfx++, OTRGetRectDimensionFromLeftEdge(pillarboxSize), 0, pillarboxSize + 2,
-                             gScreenHeight);
-        gDPFillWideRectangle(gfx++, OTRGetRectDimensionFromLeftEdge(gScreenWidth - pillarboxSize - 2), 0,
-                             OTRGetRectDimensionFromRightEdge(gScreenWidth - pillarboxSize), gScreenHeight);
+                             MM_gScreenHeight);
+        gDPFillWideRectangle(gfx++, OTRGetRectDimensionFromLeftEdge(MM_gScreenWidth - pillarboxSize - 2), 0,
+                             OTRGetRectDimensionFromRightEdge(MM_gScreenWidth - pillarboxSize), MM_gScreenHeight);
         // #endregion
 
         gDPPipeSync(gfx++);

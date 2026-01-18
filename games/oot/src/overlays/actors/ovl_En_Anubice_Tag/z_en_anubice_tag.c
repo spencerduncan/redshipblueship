@@ -50,7 +50,7 @@ void EnAnubiceTag_Destroy(Actor* thisx, PlayState* play) {
 }
 
 void EnAnubiceTag_SpawnAnubis(EnAnubiceTag* this, PlayState* play) {
-    this->anubis = (EnAnubice*)Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_ANUBICE,
+    this->anubis = (EnAnubice*)OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_ANUBICE,
                                                   this->actor.world.pos.x, this->actor.world.pos.y,
                                                   this->actor.world.pos.z, 0, this->actor.yawTowardsPlayer, 0, 0);
 
@@ -69,12 +69,12 @@ void EnAnubiceTag_ManageAnubis(EnAnubiceTag* this, PlayState* play) {
             return;
         }
     } else {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
 
     if (anubis->deathTimer != 0) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
 
@@ -82,10 +82,10 @@ void EnAnubiceTag_ManageAnubis(EnAnubiceTag* this, PlayState* play) {
         if (!anubis->isLinkOutOfRange) {
             if (!anubis->isKnockedback) {
                 anubis->isMirroringLink = true;
-                offset.x = -Math_SinS(this->actor.yawTowardsPlayer) * this->actor.xzDistToPlayer;
-                offset.z = -Math_CosS(this->actor.yawTowardsPlayer) * this->actor.xzDistToPlayer;
-                Math_ApproachF(&anubis->actor.world.pos.x, (this->actor.world.pos.x + offset.x), 0.3f, 10.0f);
-                Math_ApproachF(&anubis->actor.world.pos.z, (this->actor.world.pos.z + offset.z), 0.3f, 10.0f);
+                offset.x = -OoT_Math_SinS(this->actor.yawTowardsPlayer) * this->actor.xzDistToPlayer;
+                offset.z = -OoT_Math_CosS(this->actor.yawTowardsPlayer) * this->actor.xzDistToPlayer;
+                OoT_Math_ApproachF(&anubis->actor.world.pos.x, (this->actor.world.pos.x + offset.x), 0.3f, 10.0f);
+                OoT_Math_ApproachF(&anubis->actor.world.pos.z, (this->actor.world.pos.z + offset.z), 0.3f, 10.0f);
                 return;
             }
         }
@@ -106,7 +106,7 @@ void EnAnubiceTag_Draw(Actor* thisx, PlayState* play) {
     EnAnubiceTag* this = (EnAnubiceTag*)thisx;
 
     if (BREG(0) != 0) {
-        DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
+        OoT_DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
                                this->actor.world.rot.x, this->actor.world.rot.y, this->actor.world.rot.z, 1.0f, 1.0f,
                                1.0f, 0xFF, 0, 0, 0xFF, 4, play->state.gfxCtx);
     }

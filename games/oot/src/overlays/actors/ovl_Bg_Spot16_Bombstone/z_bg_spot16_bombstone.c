@@ -23,7 +23,7 @@ void func_808B5A78(BgSpot16Bombstone* this);
 
 static EnBombf* sPlayerBomb = NULL;
 
-static s16 sTimer = 0;
+static s16 OoT_sTimer = 0;
 
 static s16 D_808B5DD8[][10] = {
     { 0x0008, 0x0004, 0x0046, 0x07D0, 0xFCE0, 0x0000, 0x0064, 0x0000, 0x0000, 0x0000 },
@@ -34,7 +34,7 @@ static s16 D_808B5DD8[][10] = {
     { 0x0006, 0x0009, 0x0028, 0x0000, 0x0BB8, 0xD8F0, 0x001E, 0x0000, 0x0000, 0x0000 },
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[] = {
+static ColliderJntSphElementInit OoT_sJntSphElementsInit[] = {
     {
         {
             ELEMTYPE_UNK0,
@@ -48,7 +48,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit OoT_sJntSphInit = {
     {
         COLTYPE_HARD,
         AT_NONE,
@@ -58,10 +58,10 @@ static ColliderJntSphInit sJntSphInit = {
         COLSHAPE_JNTSPH,
     },
     1,
-    sJntSphElementsInit,
+    OoT_sJntSphElementsInit,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -135,7 +135,7 @@ static InitChainEntry sInitChainDebris[] = {
     ICHAIN_F32(uncullZoneDownward, 1000, ICHAIN_STOP),
 };
 
-static Vec3f sVelocity = { 0.0f, 0.0f, 0.0f };
+static Vec3f OoT_sVelocity = { 0.0f, 0.0f, 0.0f };
 
 static Vec3f sAcceleration = { 0.0f, 0.4f, 0.0f };
 
@@ -151,8 +151,8 @@ void func_808B4C30(BgSpot16Bombstone* this) {
 void func_808B4C4C(BgSpot16Bombstone* this, PlayState* play) {
     s32 pad;
 
-    Collider_InitJntSph(play, &this->colliderJntSph);
-    Collider_SetJntSph(play, &this->colliderJntSph, &this->actor, &sJntSphInit, this->colliderElements);
+    OoT_Collider_InitJntSph(play, &this->colliderJntSph);
+    OoT_Collider_SetJntSph(play, &this->colliderJntSph, &this->actor, &OoT_sJntSphInit, this->colliderElements);
     this->colliderJntSph.elements[0].dim.worldSphere.center.x = this->actor.world.pos.x;
     this->colliderJntSph.elements[0].dim.worldSphere.center.y = this->actor.world.pos.y + 50.0f;
     this->colliderJntSph.elements[0].dim.worldSphere.center.z = this->actor.world.pos.z;
@@ -162,25 +162,25 @@ void func_808B4C4C(BgSpot16Bombstone* this, PlayState* play) {
 void func_808B4D04(BgSpot16Bombstone* this, PlayState* play) {
     s32 pad;
 
-    Collider_InitCylinder(play, &this->colliderCylinder);
-    Collider_SetCylinder(play, &this->colliderCylinder, &this->actor, &sCylinderInit);
+    OoT_Collider_InitCylinder(play, &this->colliderCylinder);
+    OoT_Collider_SetCylinder(play, &this->colliderCylinder, &this->actor, &OoT_sCylinderInit);
     this->colliderCylinder.dim.pos.x += (s16)this->actor.world.pos.x;
     this->colliderCylinder.dim.pos.y += (s16)this->actor.world.pos.y;
     this->colliderCylinder.dim.pos.z += (s16)this->actor.world.pos.z;
 }
 
 s32 func_808B4D9C(BgSpot16Bombstone* this, PlayState* play) {
-    if (Flags_GetSwitch(play, this->switchFlag)) {
+    if (OoT_Flags_GetSwitch(play, this->switchFlag)) {
         osSyncPrintf("Spot16 obj 爆弾石 破壊済み\n");
         return false;
     }
-    Actor_ProcessInitChain(&this->actor, sInitChainBoulder);
-    Actor_SetScale(&this->actor, 0.4f);
+    OoT_Actor_ProcessInitChain(&this->actor, sInitChainBoulder);
+    OoT_Actor_SetScale(&this->actor, 0.4f);
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
     func_808B4C4C(this, play);
     func_808B4D04(this, play);
-    this->sinRotation = Math_SinS(this->actor.shape.rot.y);
-    this->cosRotation = Math_CosS(this->actor.shape.rot.y);
+    this->sinRotation = OoT_Math_SinS(this->actor.shape.rot.y);
+    this->cosRotation = OoT_Math_CosS(this->actor.shape.rot.y);
     this->dList = gDodongosCavernRock3DL;
 
     func_808B5934(this);
@@ -194,20 +194,20 @@ s32 func_808B4E58(BgSpot16Bombstone* this, PlayState* play) {
     f32 sinValue;
     f32 cosValue;
 
-    Actor_ProcessInitChain(actor, sInitChainDebris);
+    OoT_Actor_ProcessInitChain(actor, sInitChainDebris);
 
     actor->speedXZ = D_808B5DD8[actor->params][0];
     actor->velocity.y = D_808B5DD8[actor->params][1];
 
-    Actor_SetScale(actor, D_808B5DD8[actor->params][2] * scaleFactor);
+    OoT_Actor_SetScale(actor, D_808B5DD8[actor->params][2] * scaleFactor);
 
     this->unk_210 = (f32)D_808B5DD8[actor->params][3];
     this->unk_212 = (f32)D_808B5DD8[actor->params][4];
 
     actor->world.rot.y = D_808B5DD8[actor->params][5];
 
-    sinValue = Math_SinS(this->actor.world.rot.y);
-    cosValue = Math_CosS(this->actor.world.rot.y);
+    sinValue = OoT_Math_SinS(this->actor.world.rot.y);
+    cosValue = OoT_Math_CosS(this->actor.world.rot.y);
 
     actor->world.pos.x = (sinValue * sinCosPosFactor) + actor->home.pos.x;
     actor->world.pos.y = D_808B5DD8[actor->params][6] + actor->home.pos.y;
@@ -257,7 +257,7 @@ void BgSpot16Bombstone_Init(Actor* thisx, PlayState* play) {
     }
 
     if (!shouldLive) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
     osSyncPrintf("Spot16 obj 爆弾石 (scaleX %f)(arg_data 0x%04x)\n", this->actor.scale.x, this->actor.params);
@@ -268,8 +268,8 @@ void BgSpot16Bombstone_Destroy(Actor* thisx, PlayState* play) {
 
     if (this->actor.params == 0xFF) {
         // Boulder is intact so remove its collider
-        Collider_DestroyJntSph(play, &this->colliderJntSph);
-        Collider_DestroyCylinder(play, &this->colliderCylinder);
+        OoT_Collider_DestroyJntSph(play, &this->colliderJntSph);
+        OoT_Collider_DestroyCylinder(play, &this->colliderCylinder);
     }
 }
 
@@ -306,7 +306,7 @@ void func_808B5240(BgSpot16Bombstone* this, PlayState* play) {
         position.y = D_808B5EB0[index][2] + actorPosition->y;
         position.z = ((this->cosRotation * tempUnk6) - (tempUnk2 * this->sinRotation)) + actorPosition->z;
 
-        func_800287AC(play, &position, &sVelocity, &sAcceleration, D_808B5EB0[index][4], D_808B5EB0[index][5],
+        func_800287AC(play, &position, &OoT_sVelocity, &sAcceleration, D_808B5EB0[index][4], D_808B5EB0[index][5],
                       D_808B5EB0[index][6]);
 
         this->unk_158 += 1;
@@ -321,7 +321,7 @@ void BgSpot16Bombstone_SpawnFragments(BgSpot16Bombstone* this, PlayState* play) 
     s16 scale;
 
     if (this->actor.params == 0) {
-        Actor_Spawn(&play->actorCtx, play, ACTOR_BG_SPOT16_BOMBSTONE, this->actor.world.pos.x, this->actor.world.pos.y,
+        OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_BG_SPOT16_BOMBSTONE, this->actor.world.pos.x, this->actor.world.pos.y,
                     this->actor.world.pos.z, 0, 0, 0, 5, true);
         index = 3;
     } else {
@@ -330,17 +330,17 @@ void BgSpot16Bombstone_SpawnFragments(BgSpot16Bombstone* this, PlayState* play) 
 
     if (index < ARRAY_COUNT(D_808B6074)) {
         do {
-            pos.x = ((Rand_ZeroOne() - 0.5f) * 8.0f) + this->actor.world.pos.x;
-            pos.y = ((Rand_ZeroOne() * 5.0f) + this->actor.world.pos.y) + 8.0f;
-            pos.z = ((Rand_ZeroOne() - 0.5f) * 8.0f) + this->actor.world.pos.z;
+            pos.x = ((OoT_Rand_ZeroOne() - 0.5f) * 8.0f) + this->actor.world.pos.x;
+            pos.y = ((OoT_Rand_ZeroOne() * 5.0f) + this->actor.world.pos.y) + 8.0f;
+            pos.z = ((OoT_Rand_ZeroOne() - 0.5f) * 8.0f) + this->actor.world.pos.z;
 
-            velocity.x = (Rand_ZeroOne() - 0.5f) * 16.0f;
-            velocity.y = (Rand_ZeroOne() * 14.0) + (fabsf(this->actor.velocity.y) * velocityYMultiplier);
-            velocity.z = (Rand_ZeroOne() - 0.5f) * 16.0f;
+            velocity.x = (OoT_Rand_ZeroOne() - 0.5f) * 16.0f;
+            velocity.y = (OoT_Rand_ZeroOne() * 14.0) + (fabsf(this->actor.velocity.y) * velocityYMultiplier);
+            velocity.z = (OoT_Rand_ZeroOne() - 0.5f) * 16.0f;
 
             scale = D_808B6074[index] * this->actor.scale.x * 3;
 
-            EffectSsKakera_Spawn(play, &pos, &velocity, &this->actor.world.pos, -420, 0x31, 0xF, 0xF, 0, scale, 2, 0x40,
+            OoT_EffectSsKakera_Spawn(play, &pos, &velocity, &this->actor.world.pos, -420, 0x31, 0xF, 0xF, 0, scale, 2, 0x40,
                                  160, KAKERA_COLOR_NONE, OBJECT_BOMBIWA, object_bombiwa_DL_0009E0);
             index += 1;
         } while (index != ARRAY_COUNT(D_808B6074));
@@ -353,7 +353,7 @@ void func_808B561C(BgSpot16Bombstone* this, PlayState* play) {
 
     world = &this->actor.world;
     for (index = 0; index < ARRAY_COUNT(D_808B6088); index++) {
-        if (Actor_Spawn(&play->actorCtx, play, ACTOR_BG_SPOT16_BOMBSTONE, world->pos.x, world->pos.y, world->pos.z, 0,
+        if (OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_BG_SPOT16_BOMBSTONE, world->pos.x, world->pos.y, world->pos.z, 0,
                         0, 0, D_808B6088[index], true) == NULL) {
             break;
         }
@@ -375,7 +375,7 @@ void func_808B56BC(BgSpot16Bombstone* this, PlayState* play) {
         adjustedYawDiff = absYawDiff - 0x3FFF;
 
         if (adjustedYawDiff > 0) {
-            sinValue = Math_SinS(adjustedYawDiff) * this->actor.xzDistToPlayer;
+            sinValue = OoT_Math_SinS(adjustedYawDiff) * this->actor.xzDistToPlayer;
 
             if (sinValue >= 0.0f) {
                 player->actor.world.pos.x += sinValue * this->sinRotation;
@@ -393,21 +393,21 @@ void func_808B57E0(BgSpot16Bombstone* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
     EnBombf* currentBomb;
 
-    if (sTimer > 0) {
-        sTimer--;
+    if (OoT_sTimer > 0) {
+        OoT_sTimer--;
     }
 
     if (sPlayerBomb != NULL) {
         if (sPlayerBomb->actor.update == NULL) {
             sPlayerBomb = NULL;
-        } else if (sTimer <= 0 && sPlayerBomb->actor.world.pos.y < 1400.0f &&
-                   Math3D_Dist1DSq(sPlayerBomb->actor.world.pos.x + 1579.0f, sPlayerBomb->actor.world.pos.z + 790.0f) <
+        } else if (OoT_sTimer <= 0 && sPlayerBomb->actor.world.pos.y < 1400.0f &&
+                   OoT_Math3D_Dist1DSq(sPlayerBomb->actor.world.pos.x + 1579.0f, sPlayerBomb->actor.world.pos.z + 790.0f) <
                        SQ(400.0f) &&
                    sPlayerBomb->actor.params == 0) {
             currentBomb = sPlayerBomb;
             if (currentBomb->timer > 0) {
-                sTimer = currentBomb->timer + 20;
-                OnePointCutscene_Init(play, 4180, sTimer, NULL, MAIN_CAM);
+                OoT_sTimer = currentBomb->timer + 20;
+                OnePointCutscene_Init(play, 4180, OoT_sTimer, NULL, MAIN_CAM);
             }
         }
     } else if (player->stateFlags1 & PLAYER_STATE1_CARRYING_ACTOR) {
@@ -439,14 +439,14 @@ void func_808B5950(BgSpot16Bombstone* this, PlayState* play) {
 
         OnePointCutscene_Init(play, 4180, 50, NULL, MAIN_CAM);
 
-        Flags_SetSwitch(play, this->switchFlag);
-        Flags_SetEventChkInf(EVENTCHKINF_BOMBED_DODONGOS_CAVERN_ENTRANCE);
+        OoT_Flags_SetSwitch(play, this->switchFlag);
+        OoT_Flags_SetEventChkInf(EVENTCHKINF_BOMBED_DODONGOS_CAVERN_ENTRANCE);
 
         func_808B5A78(this);
     } else {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderCylinder.base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliderJntSph.base);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderJntSph.base);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderCylinder.base);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliderJntSph.base);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderJntSph.base);
     }
 
     if (mREG(64) == 1) {
@@ -473,7 +473,7 @@ void func_808B5A94(BgSpot16Bombstone* this, PlayState* play) {
     }
 
     if (this->unk_154 > 60) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
@@ -483,7 +483,7 @@ void func_808B5AF0(BgSpot16Bombstone* this) {
 }
 
 void func_808B5B04(BgSpot16Bombstone* this, PlayState* play) {
-    if (Object_IsLoaded(&play->objectCtx, this->bombiwaBankIndex)) {
+    if (OoT_Object_IsLoaded(&play->objectCtx, this->bombiwaBankIndex)) {
         func_808B5B58(this);
         this->actor.draw = BgSpot16Bombstone_Draw;
     }
@@ -502,19 +502,19 @@ void func_808B5B6C(BgSpot16Bombstone* this, PlayState* play) {
     actor->shape.rot.z += this->unk_212;
 
     if (this->unk_154 > 60) {
-        Actor_Kill(actor);
+        OoT_Actor_Kill(actor);
         return;
     }
 
     if (actor->bgCheckFlags & 8 || (actor->bgCheckFlags & 1 && actor->velocity.y < 0.0f)) {
         BgSpot16Bombstone_SpawnFragments(this, play);
         BgSpot16Bombstone_SpawnDust(this, play);
-        SoundSource_PlaySfxAtFixedWorldPos(play, &actor->world.pos, 20, NA_SE_EV_ROCK_BROKEN);
-        Actor_Kill(actor);
+        OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &actor->world.pos, 20, NA_SE_EV_ROCK_BROKEN);
+        OoT_Actor_Kill(actor);
         return;
     }
 
-    Actor_UpdateBgCheckInfo(play, actor, 17.5f, 35.0f, 0.0f, 5);
+    OoT_Actor_UpdateBgCheckInfo(play, actor, 17.5f, 35.0f, 0.0f, 5);
 }
 
 void BgSpot16Bombstone_Update(Actor* thisx, PlayState* play) {
@@ -550,5 +550,5 @@ void BgSpot16Bombstone_Draw(Actor* thisx, PlayState* play) {
 
 void BgSpot16Bombstone_Reset(void) {
     sPlayerBomb = NULL;
-    sTimer = 0;
+    OoT_sTimer = 0;
 }

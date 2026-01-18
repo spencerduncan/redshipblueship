@@ -10,13 +10,13 @@
 
 #define FLAGS ACTOR_FLAG_DRAW_CULLING_DISABLED
 
-void ObjMakeoshihiki_Init(Actor* thisx, PlayState* play);
+void OoT_ObjMakeoshihiki_Init(Actor* thisx, PlayState* play);
 void ObjMakeoshihiki_Draw(Actor* thisx, PlayState* play);
 
 const ActorInit Obj_Makeoshihiki_InitVars = {
     ACTOR_OBJ_MAKEOSHIHIKI,       ACTORCAT_PROP,           FLAGS,
-    OBJECT_GAMEPLAY_DANGEON_KEEP, sizeof(ObjMakeoshihiki), (ActorFunc)ObjMakeoshihiki_Init,
-    (ActorFunc)Actor_Noop,        (ActorFunc)Actor_Noop,   (ActorFunc)ObjMakeoshihiki_Draw,
+    OBJECT_GAMEPLAY_DANGEON_KEEP, sizeof(ObjMakeoshihiki), (ActorFunc)OoT_ObjMakeoshihiki_Init,
+    (ActorFunc)OoT_Actor_Noop,        (ActorFunc)OoT_Actor_Noop,   (ActorFunc)ObjMakeoshihiki_Draw,
 };
 
 typedef struct {
@@ -46,16 +46,16 @@ static BlockConfig sBlocks[] = {
 
 static u32 sFlags[3][2] = { { 0, 0 }, { 1, 0 }, { 0, 1 } };
 
-static void (*sFlagSwitchFuncs[])(PlayState* play, s32 flag) = { Flags_UnsetSwitch, Flags_SetSwitch };
+static void (*sFlagSwitchFuncs[])(PlayState* play, s32 flag) = { OoT_Flags_UnsetSwitch, OoT_Flags_SetSwitch };
 
-void ObjMakeoshihiki_Init(Actor* thisx, PlayState* play) {
+void OoT_ObjMakeoshihiki_Init(Actor* thisx, PlayState* play) {
     BlockConfig* block = &sBlocks[thisx->home.rot.z & 1];
     s32 typeIdx;
     Vec3f* spawnPos;
 
-    if (!((thisx->params >> 6) & 1) && Flags_GetSwitch(play, thisx->params & 0x3F)) {
+    if (!((thisx->params >> 6) & 1) && OoT_Flags_GetSwitch(play, thisx->params & 0x3F)) {
         typeIdx = 1;
-    } else if (!((thisx->params >> 0xE) & 1) && Flags_GetSwitch(play, (thisx->params >> 8) & 0x3F)) {
+    } else if (!((thisx->params >> 0xE) & 1) && OoT_Flags_GetSwitch(play, (thisx->params >> 8) & 0x3F)) {
         typeIdx = 2;
     } else {
         typeIdx = 0;
@@ -63,13 +63,13 @@ void ObjMakeoshihiki_Init(Actor* thisx, PlayState* play) {
 
     spawnPos = &block->posVecs[typeIdx];
 
-    if (Actor_SpawnAsChild(&play->actorCtx, thisx, play, ACTOR_OBJ_OSHIHIKI, spawnPos->x, spawnPos->y, spawnPos->z, 0,
+    if (OoT_Actor_SpawnAsChild(&play->actorCtx, thisx, play, ACTOR_OBJ_OSHIHIKI, spawnPos->x, spawnPos->y, spawnPos->z, 0,
                            block->rotY, 0, ((block->color << 6) & 0xC0) | (block->type & 0xF) | 0xFF00) == NULL) {
         // "Push-pull block failure"
         osSyncPrintf(VT_COL(RED, WHITE));
         osSyncPrintf("Ｅｒｒｏｒ : 押し引きブロック発生失敗(%s %d)\n", __FILE__, __LINE__);
         osSyncPrintf(VT_RST);
-        Actor_Kill(thisx);
+        OoT_Actor_Kill(thisx);
         return;
     }
     if (block->unk_24[typeIdx] & 2) {
@@ -88,12 +88,12 @@ void ObjMakeoshihiki_Draw(Actor* thisx, PlayState* play) {
     s32 cond2;
 
     for (i = 0; i < 3; i++) {
-        if (Math3D_Vec3fDistSq(&thisx->child->world.pos, &block->posVecs[i]) < 0.001f) {
+        if (OoT_Math3D_Vec3fDistSq(&thisx->child->world.pos, &block->posVecs[i]) < 0.001f) {
             if (block->unk_24[i] & 1) {
                 if ((thisx->params >> 6) & 1) {
                     sfxCond1 = false;
                 } else {
-                    if (Flags_GetSwitch(play, thisx->params & 0x3F)) {
+                    if (OoT_Flags_GetSwitch(play, thisx->params & 0x3F)) {
                         cond = true;
                     } else {
                         cond = false;
@@ -104,7 +104,7 @@ void ObjMakeoshihiki_Draw(Actor* thisx, PlayState* play) {
                 if ((thisx->params >> 0xE) & 1) {
                     sfxCond2 = false;
                 } else {
-                    if (Flags_GetSwitch(play, (thisx->params >> 8) & 0x3F)) {
+                    if (OoT_Flags_GetSwitch(play, (thisx->params >> 8) & 0x3F)) {
                         cond2 = true;
                     } else {
                         cond2 = false;

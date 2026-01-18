@@ -41,7 +41,7 @@ const ActorInit En_Fw_InitVars = {
     NULL,
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[1] = {
+static ColliderJntSphElementInit OoT_sJntSphElementsInit[1] = {
     {
         {
             ELEMTYPE_UNK0,
@@ -55,7 +55,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[1] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit OoT_sJntSphInit = {
     {
         COLTYPE_HIT6,
         AT_ON | AT_TYPE_ENEMY,
@@ -65,7 +65,7 @@ static ColliderJntSphInit sJntSphInit = {
         COLSHAPE_JNTSPH,
     },
     1,
-    sJntSphElementsInit,
+    OoT_sJntSphElementsInit,
 };
 
 static CollisionCheckInfoInit2 D_80A1FB94 = { 8, 2, 25, 25, MASS_IMMOVABLE };
@@ -76,7 +76,7 @@ typedef enum {
     /* 2 */ ENFW_ANIM_2
 } EnFwAnimation;
 
-static AnimationInfo sAnimationInfo[] = {
+static AnimationInfo OoT_sAnimationInfo[] = {
     { &gFlareDancerCoreInitRunCycleAnim, 0.0f, 0.0f, -1.0f, ANIMMODE_ONCE_INTERP, 0.0f },
     { &gFlareDancerCoreRunCycleAnim, 1.0f, 0.0f, -1.0f, ANIMMODE_ONCE_INTERP, -8.0f },
     { &gFlareDancerCoreEndRunCycleAnim, 1.0f, 0.0f, -1.0f, ANIMMODE_LOOP_INTERP, -8.0f },
@@ -119,7 +119,7 @@ s32 EnFw_PlayerInRange(EnFw* this, PlayState* play) {
         return false;
     }
 
-    if (BgCheck_EntityLineTest1(&play->colCtx, &this->actor.world.pos, &player->actor.world.pos, &collisionPos, &poly,
+    if (OoT_BgCheck_EntityLineTest1(&play->colCtx, &this->actor.world.pos, &player->actor.world.pos, &collisionPos, &poly,
                                 true, false, false, true, &bgId)) {
         return false;
     }
@@ -132,9 +132,9 @@ Vec3f* EnFw_GetPosAdjAroundCircle(Vec3f* dst, EnFw* this, f32 radius, s16 dir) {
     Vec3f posAdj;
 
     // increase rotation around circle ~30 degrees.
-    angle = Math_Vec3f_Yaw(&this->actor.parent->home.pos, &this->actor.world.pos) + (dir * 0x1554);
-    posAdj.x = (Math_SinS(angle) * radius) + this->actor.parent->home.pos.x;
-    posAdj.z = (Math_CosS(angle) * radius) + this->actor.parent->home.pos.z;
+    angle = OoT_Math_Vec3f_Yaw(&this->actor.parent->home.pos, &this->actor.world.pos) + (dir * 0x1554);
+    posAdj.x = (OoT_Math_SinS(angle) * radius) + this->actor.parent->home.pos.x;
+    posAdj.z = (OoT_Math_CosS(angle) * radius) + this->actor.parent->home.pos.z;
     posAdj.x -= this->actor.world.pos.x;
     posAdj.z -= this->actor.world.pos.z;
     *dst = posAdj;
@@ -153,9 +153,9 @@ s32 EnFw_CheckCollider(EnFw* this, PlayState* play) {
             this->lastDmgHook = false;
         }
         this->collider.base.acFlags &= ~AC_HIT;
-        if (Actor_ApplyDamage(&this->actor) <= 0) {
+        if (OoT_Actor_ApplyDamage(&this->actor) <= 0) {
             if (this->actor.parent->colChkInfo.health <= 8) {
-                Enemy_StartFinishingBlow(play, &this->actor);
+                OoT_Enemy_StartFinishingBlow(play, &this->actor);
                 this->actor.parent->colChkInfo.health = 0;
             } else {
                 this->actor.parent->colChkInfo.health -= 8;
@@ -177,14 +177,14 @@ s32 EnFw_SpawnDust(EnFw* this, u8 timer, f32 scale, f32 scaleStep, s32 dustCnt, 
 
     pos = this->actor.world.pos;
     pos.y = this->actor.floorHeight + 2.0f;
-    angle = ((Rand_ZeroOne() - 0.5f) * 0x10000);
+    angle = ((OoT_Rand_ZeroOne() - 0.5f) * 0x10000);
     i = dustCnt;
     while (i >= 0) {
-        accel.x = (Rand_ZeroOne() - 0.5f) * xzAccel;
+        accel.x = (OoT_Rand_ZeroOne() - 0.5f) * xzAccel;
         accel.y = yAccel;
-        accel.z = (Rand_ZeroOne() - 0.5f) * xzAccel;
-        pos.x = (Math_SinS(angle) * radius) + this->actor.world.pos.x;
-        pos.z = (Math_CosS(angle) * radius) + this->actor.world.pos.z;
+        accel.z = (OoT_Rand_ZeroOne() - 0.5f) * xzAccel;
+        pos.x = (OoT_Math_SinS(angle) * radius) + this->actor.world.pos.x;
+        pos.z = (OoT_Math_CosS(angle) * radius) + this->actor.world.pos.z;
         EnFw_AddDust(this, &pos, &velocity, &accel, timer, scale, scaleStep);
         angle += (s16)(0x10000 / dustCnt);
         i--;
@@ -195,13 +195,13 @@ s32 EnFw_SpawnDust(EnFw* this, u8 timer, f32 scale, f32 scaleStep, s32 dustCnt, 
 void EnFw_Init(Actor* thisx, PlayState* play) {
     EnFw* this = (EnFw*)thisx;
 
-    SkelAnime_InitFlex(play, &this->skelAnime, &gFlareDancerCoreSkel, NULL, this->jointTable, this->morphTable, 11);
-    Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENFW_ANIM_0);
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 20.0f);
-    Collider_InitJntSph(play, &this->collider);
-    Collider_SetJntSph(play, &this->collider, &this->actor, &sJntSphInit, this->sphs);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, DamageTable_Get(0x10), &D_80A1FB94);
-    Actor_SetScale(&this->actor, 0.01f);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gFlareDancerCoreSkel, NULL, this->jointTable, this->morphTable, 11);
+    Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENFW_ANIM_0);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 20.0f);
+    OoT_Collider_InitJntSph(play, &this->collider);
+    OoT_Collider_SetJntSph(play, &this->collider, &this->actor, &OoT_sJntSphInit, this->sphs);
+    OoT_CollisionCheck_SetInfo2(&this->actor.colChkInfo, OoT_DamageTable_Get(0x10), &D_80A1FB94);
+    OoT_Actor_SetScale(&this->actor, 0.01f);
     this->runDirection = -this->actor.params;
     this->actionFunc = EnFw_Bounce;
     this->actor.gravity = -1.0f;
@@ -209,14 +209,14 @@ void EnFw_Init(Actor* thisx, PlayState* play) {
 
 void EnFw_Destroy(Actor* thisx, PlayState* play) {
     EnFw* this = (EnFw*)thisx;
-    Collider_DestroyJntSph(play, &this->collider);
+    OoT_Collider_DestroyJntSph(play, &this->collider);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
 
 void EnFw_Bounce(EnFw* this, PlayState* play) {
     if (EnFw_DoBounce(this, 3, 8.0f) && this->bounceCnt == 0) {
-        this->returnToParentTimer = Rand_S16Offset(300, 150);
+        this->returnToParentTimer = OoT_Rand_S16Offset(300, 150);
         this->actionFunc = EnFw_Run;
     }
 }
@@ -228,11 +228,11 @@ void EnFw_Run(EnFw* this, PlayState* play) {
     EnBom* bomb;
     Actor* flareDancer;
 
-    Math_SmoothStepToF(&this->skelAnime.playSpeed, 1.0f, 0.1f, 1.0f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->skelAnime.playSpeed, 1.0f, 0.1f, 1.0f, 0.0f);
     if (this->skelAnime.animation == &gFlareDancerCoreInitRunCycleAnim) {
-        if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame) == 0) {
-            this->runRadius = Math_Vec3f_DistXYZ(&this->actor.world.pos, &this->actor.parent->world.pos);
-            Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENFW_ANIM_2);
+        if (OoT_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame) == 0) {
+            this->runRadius = OoT_Math_Vec3f_DistXYZ(&this->actor.world.pos, &this->actor.parent->world.pos);
+            Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENFW_ANIM_2);
         }
         return;
     }
@@ -253,28 +253,28 @@ void EnFw_Run(EnFw* this, PlayState* play) {
 
     if (this->explosionTimer != 0) {
         this->skelAnime.playSpeed = 0.0f;
-        Math_SmoothStepToF(&this->actor.scale.x, 0.024999999f, 0.08f, 0.6f, 0.0f);
-        Actor_SetScale(&this->actor, this->actor.scale.x);
+        OoT_Math_SmoothStepToF(&this->actor.scale.x, 0.024999999f, 0.08f, 0.6f, 0.0f);
+        OoT_Actor_SetScale(&this->actor, this->actor.scale.x);
         if (this->actor.colorFilterTimer == 0) {
-            Actor_SetColorFilter(&this->actor, 0x4000, 0xC8, 0, this->explosionTimer);
+            OoT_Actor_SetColorFilter(&this->actor, 0x4000, 0xC8, 0, this->explosionTimer);
             this->explosionTimer--;
         }
 
         if (this->explosionTimer == 0) {
-            bomb = (EnBom*)Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BOM, this->bompPos.x, this->bompPos.y,
+            bomb = (EnBom*)OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BOM, this->bompPos.x, this->bompPos.y,
                                        this->bompPos.z, 0, 0, 0x600, 0, true);
             if (bomb != NULL) {
                 bomb->timer = 0;
             }
             flareDancer = this->actor.parent;
             flareDancer->params |= 0x4000;
-            Item_DropCollectibleRandom(play, NULL, &this->actor.world.pos, 0xA0);
-            Actor_Kill(&this->actor);
+            OoT_Item_DropCollectibleRandom(play, NULL, &this->actor.world.pos, 0xA0);
+            OoT_Actor_Kill(&this->actor);
             return;
         }
     } else {
         if (!(this->actor.bgCheckFlags & 1) || this->actor.velocity.y > 0.0f) {
-            Actor_SetColorFilter(&this->actor, 0x4000, 0xC8, 0, this->damageTimer);
+            OoT_Actor_SetColorFilter(&this->actor, 0x4000, 0xC8, 0, this->damageTimer);
             return;
         }
         DECR(this->damageTimer);
@@ -287,13 +287,13 @@ void EnFw_Run(EnFw* this, PlayState* play) {
         }
 
         // Run outwards until the radius of the run circle is 200
-        Math_SmoothStepToF(&this->runRadius, 200.0f, 0.3f, 100.0f, 0.0f);
+        OoT_Math_SmoothStepToF(&this->runRadius, 200.0f, 0.3f, 100.0f, 0.0f);
 
         if (this->turnAround) {
-            Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 0.1f, 1.0f, 0.0f);
+            OoT_Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 0.1f, 1.0f, 0.0f);
             tmpAngle = (s16)(this->actor.world.rot.y ^ 0x8000);
             facingDir = this->actor.shape.rot.y;
-            tmpAngle = Math_SmoothStepToF(&facingDir, tmpAngle, 0.1f, 10000.0f, 0.0f);
+            tmpAngle = OoT_Math_SmoothStepToF(&facingDir, tmpAngle, 0.1f, 10000.0f, 0.0f);
             this->actor.shape.rot.y = facingDir;
             if (tmpAngle > 0x1554) {
                 return;
@@ -302,7 +302,7 @@ void EnFw_Run(EnFw* this, PlayState* play) {
         } else {
             Vec3f sp48;
             EnFw_GetPosAdjAroundCircle(&sp48, this, this->runRadius, this->runDirection);
-            Math_SmoothStepToS(&this->actor.shape.rot.y, (Math_FAtan2F(sp48.x, sp48.z) * (0x8000 / M_PI)), 4, 0xFA0, 1);
+            OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, (OoT_Math_FAtan2F(sp48.x, sp48.z) * (0x8000 / M_PI)), 4, 0xFA0, 1);
         }
 
         this->actor.world.rot = this->actor.shape.rot;
@@ -318,16 +318,16 @@ void EnFw_Run(EnFw* this, PlayState* play) {
                 Audio_PlayActorSound2(&this->actor, NA_SE_EN_FLAME_MAN_SLIDE);
                 this->slideSfxTimer = 4;
             }
-            Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 0.1f, 1.0f, 0.0f);
+            OoT_Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 0.1f, 1.0f, 0.0f);
             this->skelAnime.playSpeed = 0.0f;
-            EnFw_SpawnDust(this, 8, 0.16f, 0.2f, 3, 8.0f, 20.0f, ((Rand_ZeroOne() - 0.5f) * 0.2f) + 0.3f);
+            EnFw_SpawnDust(this, 8, 0.16f, 0.2f, 3, 8.0f, 20.0f, ((OoT_Rand_ZeroOne() - 0.5f) * 0.2f) + 0.3f);
             this->slideTimer--;
             if (this->slideTimer == 0) {
                 this->turnAround = true;
                 this->runDirection = -this->runDirection;
             }
         } else {
-            Math_SmoothStepToF(&this->actor.speedXZ, 6.0f, 0.1f, 1.0f, 0.0f);
+            OoT_Math_SmoothStepToF(&this->actor.speedXZ, 6.0f, 0.1f, 1.0f, 0.0f);
             phi_v0 = this->skelAnime.curFrame;
             if (phi_v0 == 1 || phi_v0 == 4) {
                 Audio_PlayActorSound2(&this->actor, NA_SE_EN_FLAME_MAN_RUN);
@@ -340,15 +340,15 @@ void EnFw_Run(EnFw* this, PlayState* play) {
 void EnFw_TurnToParentInitPos(EnFw* this, PlayState* play) {
     s16 angleToParentInit;
 
-    angleToParentInit = Math_Vec3f_Yaw(&this->actor.world.pos, &this->actor.parent->home.pos);
-    Math_SmoothStepToS(&this->actor.shape.rot.y, angleToParentInit, 4, 0xFA0, 1);
+    angleToParentInit = OoT_Math_Vec3f_Yaw(&this->actor.world.pos, &this->actor.parent->home.pos);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, angleToParentInit, 4, 0xFA0, 1);
     if (ABS(angleToParentInit - this->actor.shape.rot.y) < 0x65) {
         // angle to parent init pos is ~0.5 degrees
         this->actor.world.rot = this->actor.shape.rot;
         this->actor.velocity.y = 14.0f;
         this->actor.home.pos = this->actor.world.pos;
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_STAL_JUMP);
-        Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENFW_ANIM_1);
+        Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENFW_ANIM_1);
         this->actionFunc = EnFw_JumpToParentInitPos;
     }
 }
@@ -356,25 +356,25 @@ void EnFw_TurnToParentInitPos(EnFw* this, PlayState* play) {
 void EnFw_JumpToParentInitPos(EnFw* this, PlayState* play) {
     if (this->actor.bgCheckFlags & 1 && this->actor.velocity.y <= 0.0f) {
         this->actor.parent->params |= 0x8000;
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     } else {
-        Math_SmoothStepToF(&this->actor.world.pos.x, this->actor.parent->home.pos.x, 0.6f, 8.0f, 0.0f);
-        Math_SmoothStepToF(&this->actor.world.pos.z, this->actor.parent->home.pos.z, 0.6f, 8.0f, 0.0f);
+        OoT_Math_SmoothStepToF(&this->actor.world.pos.x, this->actor.parent->home.pos.x, 0.6f, 8.0f, 0.0f);
+        OoT_Math_SmoothStepToF(&this->actor.world.pos.z, this->actor.parent->home.pos.z, 0.6f, 8.0f, 0.0f);
     }
 }
 
 void EnFw_Update(Actor* thisx, PlayState* play) {
     EnFw* this = (EnFw*)thisx;
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if (!CHECK_FLAG_ALL(this->actor.flags, ACTOR_FLAG_HOOKSHOT_ATTACHED)) {
         // not attached to hookshot.
         Actor_MoveXZGravity(&this->actor);
-        Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 20.0f, 0.0f, 5);
+        OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 20.0f, 0.0f, 5);
         this->actionFunc(this, play);
         if (this->damageTimer == 0 && this->explosionTimer == 0 && this->actionFunc == EnFw_Run) {
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+            OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
         }
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -388,24 +388,24 @@ void EnFw_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
 
     if (limbIndex == 2) {
         // body
-        Matrix_MultVec3f(&zeroVec, &this->bompPos);
+        OoT_Matrix_MultVec3f(&zeroVec, &this->bompPos);
     }
 
     if (limbIndex == 3) {
         // head
-        Matrix_MultVec3f(&zeroVec, &this->actor.focus.pos);
+        OoT_Matrix_MultVec3f(&zeroVec, &this->actor.focus.pos);
     }
 
-    Collider_UpdateSpheres(limbIndex, &this->collider);
+    OoT_Collider_UpdateSpheres(limbIndex, &this->collider);
 }
 
 void EnFw_Draw(Actor* thisx, PlayState* play) {
     EnFw* this = (EnFw*)thisx;
 
     EnFw_UpdateDust(this);
-    Matrix_Push();
+    OoT_Matrix_Push();
     EnFw_DrawDust(this, play);
-    Matrix_Pop();
+    OoT_Matrix_Pop();
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, EnFw_OverrideLimbDraw, EnFw_PostLimbDraw, this);
 }
@@ -439,8 +439,8 @@ void EnFw_UpdateDust(EnFw* this) {
             if ((--eff->timer) == 0) {
                 eff->type = 0;
             }
-            eff->accel.x = (Rand_ZeroOne() * 0.4f) - 0.2f;
-            eff->accel.z = (Rand_ZeroOne() * 0.4f) - 0.2f;
+            eff->accel.x = (OoT_Rand_ZeroOne() * 0.4f) - 0.2f;
+            eff->accel.z = (OoT_Rand_ZeroOne() * 0.4f) - 0.2f;
             eff->pos.x += eff->velocity.x;
             eff->pos.y += eff->velocity.y;
             eff->pos.z += eff->velocity.z;
@@ -472,7 +472,7 @@ void EnFw_DrawDust(EnFw* this, PlayState* play) {
 
         if (eff->type != 0) {
             if (!firstDone) {
-                POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, 0U);
+                POLY_XLU_DISP = OoT_Gfx_SetupDL(POLY_XLU_DISP, 0U);
                 gSPDisplayList(POLY_XLU_DISP++, gFlareDancerDL_7928);
                 gDPSetEnvColor(POLY_XLU_DISP++, 100, 60, 20, 0);
                 firstDone = true;
@@ -481,9 +481,9 @@ void EnFw_DrawDust(EnFw* this, PlayState* play) {
             alpha = eff->timer * (255.0f / eff->initialTimer);
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 170, 130, 90, alpha);
             gDPPipeSync(POLY_XLU_DISP++);
-            Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
-            Matrix_Scale(eff->scale, eff->scale, 1.0f, MTXMODE_APPLY);
+            OoT_Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
+            OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
+            OoT_Matrix_Scale(eff->scale, eff->scale, 1.0f, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             idx = eff->timer * (8.0f / eff->initialTimer);
             gSPSegment(POLY_XLU_DISP++, 0x8, SEGMENTED_TO_VIRTUAL(dustTextures[idx]));

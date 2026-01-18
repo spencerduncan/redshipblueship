@@ -31,10 +31,10 @@ const ActorInit Bg_Ice_Shelter_InitVars = {
     NULL,
 };
 
-static f32 sScales[] = { 0.1f, 0.06f, 0.1f, 0.1f, 0.25f };
+static f32 OoT_sScales[] = { 0.1f, 0.06f, 0.1f, 0.1f, 0.25f };
 
-static Color_RGBA8 sDustPrimColor = { 250, 250, 250, 255 };
-static Color_RGBA8 sDustEnvColor = { 180, 180, 180, 255 };
+static Color_RGBA8 OoT_sDustPrimColor = { 250, 250, 250, 255 };
+static Color_RGBA8 OoT_sDustEnvColor = { 180, 180, 180, 255 };
 
 static ColliderCylinderInit sCylinder1Init = {
     {
@@ -109,22 +109,22 @@ void func_80890740(BgIceShelter* this, PlayState* play) {
     blueFireArrowsEnabledOnRedIceLoad = CVarGetInteger(CVAR_ENHANCEMENT("BlueFireArrows"), 0) ||
                                         (IS_RANDO && Randomizer_GetSettingValue(RSK_BLUE_FIRE_ARROWS));
 
-    Collider_InitCylinder(play, &this->cylinder1);
+    OoT_Collider_InitCylinder(play, &this->cylinder1);
     // If "Blue Fire Arrows" is enabled, set up a collider on the red ice that responds to them
     if (blueFireArrowsEnabledOnRedIceLoad) {
-        Collider_SetCylinder(play, &this->cylinder1, &this->dyna.actor, &sIceArrowCylinderInit);
+        OoT_Collider_SetCylinder(play, &this->cylinder1, &this->dyna.actor, &sIceArrowCylinderInit);
     } else {
-        Collider_SetCylinder(play, &this->cylinder1, &this->dyna.actor, &sCylinder1Init);
+        OoT_Collider_SetCylinder(play, &this->cylinder1, &this->dyna.actor, &sCylinder1Init);
     }
-    Collider_UpdateCylinder(&this->dyna.actor, &this->cylinder1);
+    OoT_Collider_UpdateCylinder(&this->dyna.actor, &this->cylinder1);
 
     this->cylinder1.dim.radius = cylinderRadii[type];
     this->cylinder1.dim.height = cylinderHeights[type];
 
     if (type == 0 || type == 1 || type == 4) {
-        Collider_InitCylinder(play, &this->cylinder2);
-        Collider_SetCylinder(play, &this->cylinder2, &this->dyna.actor, &sCylinder2Init);
-        Collider_UpdateCylinder(&this->dyna.actor, &this->cylinder2);
+        OoT_Collider_InitCylinder(play, &this->cylinder2);
+        OoT_Collider_SetCylinder(play, &this->cylinder2, &this->dyna.actor, &sCylinder2Init);
+        OoT_Collider_UpdateCylinder(&this->dyna.actor, &this->cylinder2);
         this->cylinder2.dim.radius = cylinderRadii[type];
         this->cylinder2.dim.height = cylinderHeights[type];
     }
@@ -140,9 +140,9 @@ void func_80890874(BgIceShelter* this, PlayState* play, CollisionHeader* collisi
     CollisionHeader* colHeader = NULL;
     s32 pad2;
 
-    DynaPolyActor_Init(&this->dyna, moveFlag);
-    CollisionHeader_GetVirtual(collision, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_DynaPolyActor_Init(&this->dyna, moveFlag);
+    OoT_CollisionHeader_GetVirtual(collision, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
 
     if (this->dyna.bgId == BG_ACTOR_MAX) {
         // "Warning : move BG registration failed"
@@ -152,15 +152,15 @@ void func_80890874(BgIceShelter* this, PlayState* play, CollisionHeader* collisi
 }
 
 void func_808908FC(Vec3f* dest, Vec3f* src, s16 angle) {
-    f32 sin = Math_SinS(angle);
-    f32 cos = Math_CosS(angle);
+    f32 sin = OoT_Math_SinS(angle);
+    f32 cos = OoT_Math_CosS(angle);
 
     dest->x = (src->z * sin) + (src->x * cos);
     dest->y = src->y;
     dest->z = (src->z * cos) - (src->x * sin);
 }
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(uncullZoneForward, 1200, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 500, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneDownward, 1000, ICHAIN_STOP),
@@ -171,7 +171,7 @@ void BgIceShelter_Init(Actor* thisx, PlayState* play) {
     BgIceShelter* this = (BgIceShelter*)thisx;
     s16 type = (this->dyna.actor.params >> 8) & 7;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
 
     if (type == 4) {
         this->dyna.actor.world.rot.x += 0xBB8;
@@ -181,9 +181,9 @@ void BgIceShelter_Init(Actor* thisx, PlayState* play) {
     }
 
     if (type == 4) {
-        Math_Vec3f_Copy(&this->dyna.actor.scale, &kzIceScale);
+        OoT_Math_Vec3f_Copy(&this->dyna.actor.scale, &kzIceScale);
     } else {
-        Actor_SetScale(&this->dyna.actor, sScales[type]);
+        OoT_Actor_SetScale(&this->dyna.actor, OoT_sScales[type]);
     }
 
     switch (type) {
@@ -199,8 +199,8 @@ void BgIceShelter_Init(Actor* thisx, PlayState* play) {
 
     this->dyna.actor.colChkInfo.mass = MASS_IMMOVABLE;
 
-    if (!((this->dyna.actor.params >> 6) & 1) && (Flags_GetSwitch(play, this->dyna.actor.params & 0x3F))) {
-        Actor_Kill(&this->dyna.actor);
+    if (!((this->dyna.actor.params >> 6) & 1) && (OoT_Flags_GetSwitch(play, this->dyna.actor.params & 0x3F))) {
+        OoT_Actor_Kill(&this->dyna.actor);
         return;
     }
 
@@ -215,17 +215,17 @@ void BgIceShelter_Destroy(Actor* thisx, PlayState* play) {
     switch ((this->dyna.actor.params >> 8) & 7) {
         case 2:
         case 3:
-            DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+            OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
             break;
 
         case 0:
         case 1:
         case 4:
-            Collider_DestroyCylinder(play, &this->cylinder2);
+            OoT_Collider_DestroyCylinder(play, &this->cylinder2);
             break;
     }
 
-    Collider_DestroyCylinder(play, &this->cylinder1);
+    OoT_Collider_DestroyCylinder(play, &this->cylinder1);
 }
 
 static s16 D_80891794[] = { 0x0000, 0x4000, 0x2000, 0x6000, 0x1000, 0x5000, 0x3000, 0x7000 };
@@ -247,30 +247,30 @@ void func_80890B8C(BgIceShelter* this, PlayState* play, f32 chance, f32 scale) {
     frames = (s16)play->state.frames & 7;
 
     for (i = 0; i < 2; i++) {
-        if (chance < Rand_ZeroOne()) {
+        if (chance < OoT_Rand_ZeroOne()) {
             continue;
         }
 
         xzOffset = 42.0f * scale;
         icePos = &this->dyna.actor.world.pos;
         angle = D_80891794[frames] + (i * 0x8000);
-        sin = Math_SinS(angle);
-        cos = Math_CosS(angle);
+        sin = OoT_Math_SinS(angle);
+        cos = OoT_Math_CosS(angle);
 
         dustPos.x = (xzOffset * sin) + icePos->x;
         dustPos.y = (16.0f * scale) + icePos->y;
         dustPos.z = (xzOffset * cos) + icePos->z;
 
-        dustVel.x = ((Rand_ZeroOne() * 3.0f) - 1.0f) * sin;
+        dustVel.x = ((OoT_Rand_ZeroOne() * 3.0f) - 1.0f) * sin;
         dustVel.y = 0.0f;
-        dustVel.z = ((Rand_ZeroOne() * 3.0f) - 1.0f) * cos;
+        dustVel.z = ((OoT_Rand_ZeroOne() * 3.0f) - 1.0f) * cos;
 
         dustAccel.x = 0.07f * sin;
         dustAccel.y = 0.8f;
         dustAccel.z = 0.07f * cos;
 
-        func_8002829C(play, &dustPos, &dustVel, &dustAccel, &sDustPrimColor, &sDustEnvColor, 450.0f * scale,
-                      (s16)((Rand_ZeroOne() * 40.0f) + 40.0f) * scale);
+        func_8002829C(play, &dustPos, &dustVel, &dustAccel, &OoT_sDustPrimColor, &OoT_sDustEnvColor, 450.0f * scale,
+                      (s16)((OoT_Rand_ZeroOne() * 40.0f) + 40.0f) * scale);
     }
 }
 
@@ -290,27 +290,27 @@ void func_80890E00(BgIceShelter* this, PlayState* play, f32 chance, f32 arg3) {
     for (i = 0; i < 2; i++) {
         icePos = &this->dyna.actor.world.pos;
 
-        if (chance < Rand_ZeroOne()) {
+        if (chance < OoT_Rand_ZeroOne()) {
             continue;
         }
 
-        posOffset.x = (D_808917A4[frames] + ((Rand_ZeroOne() * 12.0f) - 6.0f)) * D_808917B4[i];
+        posOffset.x = (D_808917A4[frames] + ((OoT_Rand_ZeroOne() * 12.0f) - 6.0f)) * D_808917B4[i];
         posOffset.y = 15.0f;
-        posOffset.z = ((84.0f - posOffset.x) * 0.2f) + (Rand_ZeroOne() * 20.0f);
+        posOffset.z = ((84.0f - posOffset.x) * 0.2f) + (OoT_Rand_ZeroOne() * 20.0f);
 
         func_808908FC(&dustPos, &posOffset, this->dyna.actor.world.rot.y);
-        Math_Vec3f_Sum(&dustPos, icePos, &dustPos);
+        OoT_Math_Vec3f_Sum(&dustPos, icePos, &dustPos);
 
-        dustVel.x = (Rand_ZeroOne() * 3.0f) - 1.5f;
+        dustVel.x = (OoT_Rand_ZeroOne() * 3.0f) - 1.5f;
         dustVel.y = 0.0f;
-        dustVel.z = (Rand_ZeroOne() * 3.0f) - 1.5f;
+        dustVel.z = (OoT_Rand_ZeroOne() * 3.0f) - 1.5f;
 
-        dustAccel.x = (Rand_ZeroOne() * 0.14f) - 0.07f;
+        dustAccel.x = (OoT_Rand_ZeroOne() * 0.14f) - 0.07f;
         dustAccel.y = 0.8f;
-        dustAccel.z = (Rand_ZeroOne() * 0.14f) - 0.07f;
+        dustAccel.z = (OoT_Rand_ZeroOne() * 0.14f) - 0.07f;
 
-        func_8002829C(play, &dustPos, &dustVel, &dustAccel, &sDustPrimColor, &sDustEnvColor, 450,
-                      (Rand_ZeroOne() * 40.0f) + 40.0f);
+        func_8002829C(play, &dustPos, &dustVel, &dustAccel, &OoT_sDustPrimColor, &OoT_sDustEnvColor, 450,
+                      (OoT_Rand_ZeroOne() * 40.0f) + 40.0f);
     }
 }
 
@@ -353,12 +353,12 @@ void func_8089107C(BgIceShelter* this, PlayState* play) {
         case 0:
         case 1:
         case 4:
-            CollisionCheck_SetOC(play, &play->colChkCtx, &this->cylinder1.base);
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->cylinder2.base);
+            OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->cylinder1.base);
+            OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->cylinder2.base);
             break;
     }
 
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->cylinder1.base);
+    OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->cylinder1.base);
 }
 
 // For "Blue Fire Arrows" enhancement: If hit by an Ice Arrow, melt the red ice (copied from the default blue fire
@@ -409,8 +409,8 @@ void func_808911D4(BgIceShelter* this, PlayState* play) {
             case 0:
             case 1:
             case 4:
-                CollisionCheck_SetOC(play, &play->colChkCtx, &this->cylinder1.base);
-                CollisionCheck_SetAC(play, &play->colChkCtx, &this->cylinder2.base);
+                OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->cylinder1.base);
+                OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->cylinder2.base);
                 break;
         }
     }
@@ -427,14 +427,14 @@ void func_808911D4(BgIceShelter* this, PlayState* play) {
 
     if (this->alpha <= 0) {
         if (!((this->dyna.actor.params >> 6) & 1)) {
-            Flags_SetSwitch(play, this->dyna.actor.params & 0x3F);
+            OoT_Flags_SetSwitch(play, this->dyna.actor.params & 0x3F);
         }
 
         if (type == 4) {
             Sfx_PlaySfxCentered(NA_SE_SY_CORRECT_CHIME);
         }
 
-        Actor_Kill(&this->dyna.actor);
+        OoT_Actor_Kill(&this->dyna.actor);
     }
 }
 
@@ -475,7 +475,7 @@ void BgIceShelter_Draw(Actor* thisx, PlayState* play2) {
         case 1:
         case 4:
             gSPSegment(POLY_XLU_DISP++, 0x08,
-                       Gfx_TwoTexScroll(play->state.gfxCtx, 0, -play->gameplayFrames & 0x7F,
+                       OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, -play->gameplayFrames & 0x7F,
                                         -play->gameplayFrames & 0x7F, 0x20, 0x20, 1, -play->gameplayFrames & 0x7F,
                                         play->gameplayFrames & 0x7F, 0x20, 0x20));
             gSPDisplayList(POLY_XLU_DISP++, gRedIceBlockDL);
@@ -483,10 +483,10 @@ void BgIceShelter_Draw(Actor* thisx, PlayState* play2) {
 
         case 2:
             gSPSegment(POLY_XLU_DISP++, 0x08,
-                       Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, play->gameplayFrames & 0xFF, 0x40, 0x40, 1, 0,
+                       OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, play->gameplayFrames & 0xFF, 0x40, 0x40, 1, 0,
                                         -play->gameplayFrames & 0xFF, 0x40, 0x40));
             gSPSegment(POLY_XLU_DISP++, 0x09,
-                       Gfx_TwoTexScroll(play->state.gfxCtx, 0, -play->gameplayFrames & 0xFF,
+                       OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, -play->gameplayFrames & 0xFF,
                                         play->gameplayFrames & 0xFF, 0x40, 0x40, 1, play->gameplayFrames & 0xFF,
                                         play->gameplayFrames & 0xFF, 0x40, 0x40));
             gSPDisplayList(POLY_XLU_DISP++, gRedIcePlatformDL);

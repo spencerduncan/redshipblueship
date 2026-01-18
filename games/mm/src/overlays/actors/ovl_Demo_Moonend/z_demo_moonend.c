@@ -33,17 +33,17 @@ ActorProfile Demo_Moonend_Profile = {
 void DemoMoonend_Init(Actor* thisx, PlayState* play) {
     DemoMoonend* this = (DemoMoonend*)thisx;
 
-    Actor_SetScale(&this->actor, 0.1f);
+    MM_Actor_SetScale(&this->actor, 0.1f);
     this->actionFunc = DemoMoonend_DoNothing;
 
     if (DEMOMOONEND_GET_PARAM_F(thisx) == 1) {
-        Actor_SetScale(&this->actor, 0.05f);
-        Actor_SetScale(&this->actor, 6.0f);
+        MM_Actor_SetScale(&this->actor, 0.05f);
+        MM_Actor_SetScale(&this->actor, 6.0f);
         this->actor.draw = NULL;
         this->cueType = CS_CMD_ACTOR_CUE_558;
         this->actionFunc = func_80C17B60;
     } else {
-        Actor_SetScale(&this->actor, 0.095f);
+        MM_Actor_SetScale(&this->actor, 0.095f);
         Keyframe_InitFlex(&this->kfSkelAnime, gMoonendKFSkel_B5A0, gMoonendKFAnim_1214, this->jointTable,
                           this->morphTable, NULL);
         Keyframe_FlexPlayOnce(&this->kfSkelAnime, gMoonendKFAnim_1214);
@@ -169,8 +169,8 @@ s32 DemoMoonend_OverrideLimbDraw(PlayState* play, KFSkelAnimeFlex* kfSkelAnime, 
     DemoMoonend* this = (DemoMoonend*)thisx;
 
     if (limbIndex == 2) {
-        Matrix_Push();
-        Matrix_RotateYS(Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) + 0x8000, MTXMODE_APPLY);
+        MM_Matrix_Push();
+        Matrix_RotateYS(MM_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) + 0x8000, MTXMODE_APPLY);
     }
 
     return true;
@@ -181,7 +181,7 @@ s32 DemoMoonend_PostLimbDraw(PlayState* play, KFSkelAnimeFlex* kfSkelAnime, s32 
     DemoMoonend* this = (DemoMoonend*)thisx;
 
     if (limbIndex == 8) {
-        Matrix_Pop();
+        MM_Matrix_Pop();
     }
 
     return true;

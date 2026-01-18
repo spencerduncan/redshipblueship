@@ -32,7 +32,7 @@ const ActorInit En_Yukabyun_InitVars = {
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -52,7 +52,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 28, 8, 0, { 0, 0, 0 } },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F(scale, 1, ICHAIN_CONTINUE),
     ICHAIN_F32(targetArrowOffset, 16, ICHAIN_STOP),
 };
@@ -62,10 +62,10 @@ static void* D_80B43F64[] = { gFloorTileEnemyTopTex, gFloorTileEnemyBottomTex };
 void EnYukabyun_Init(Actor* thisx, PlayState* play) {
     EnYukabyun* this = (EnYukabyun*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 0.4f);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 0.4f);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
     this->actor.params++;
     this->unk_152 = 0;
     this->unk_150 = (u8)(this->actor.params) * 0xA + 0x14;
@@ -74,7 +74,7 @@ void EnYukabyun_Init(Actor* thisx, PlayState* play) {
 
 void EnYukabyun_Destroy(Actor* thisx, PlayState* play) {
     EnYukabyun* this = (EnYukabyun*)thisx;
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void func_80B43A94(EnYukabyun* this, PlayState* play) {
@@ -95,23 +95,23 @@ void func_80B43AD4(EnYukabyun* this, PlayState* play) {
         this->actor.speedXZ = 10.0f;
         this->actionfunc = func_80B43B6C;
     }
-    Math_StepToF(&this->actor.world.pos.y, this->actor.home.pos.y + 30.0f, 1.0f);
+    OoT_Math_StepToF(&this->actor.world.pos.y, this->actor.home.pos.y + 30.0f, 1.0f);
     func_8002F974(&this->actor, NA_SE_EN_YUKABYUN_FLY - SFX_FLAG);
 }
 
 void func_80B43B6C(EnYukabyun* this, PlayState* play) {
     this->actor.shape.rot.y += this->unk_150;
     if (this->actor.xzDistToPlayer > 5000.0f) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
     func_8002F974(&this->actor, NA_SE_EN_YUKABYUN_FLY - SFX_FLAG);
 }
 
 void EnYukabyun_Break(EnYukabyun* this, PlayState* play) {
-    EffectSsHahen_SpawnBurst(play, &this->actor.world.pos, 8.0f, 0, 1300, 300, 15, OBJECT_YUKABYUN, 10,
+    OoT_EffectSsHahen_SpawnBurst(play, &this->actor.world.pos, 8.0f, 0, 1300, 300, 15, OBJECT_YUKABYUN, 10,
                              gFloorTileEnemyFragmentDL);
-    Actor_Kill(&this->actor);
+    OoT_Actor_Kill(&this->actor);
     GameInteractor_ExecuteOnEnemyDefeat(&this->actor);
 }
 
@@ -126,7 +126,7 @@ void EnYukabyun_Update(Actor* thisx, PlayState* play) {
         this->collider.base.acFlags &= ~AC_HIT;
         this->collider.base.ocFlags1 &= ~OC1_HIT;
         this->actor.flags &= ~(ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE);
-        SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 30, NA_SE_EN_OCTAROCK_ROCK);
+        OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 30, NA_SE_EN_OCTAROCK_ROCK);
         this->actionfunc = EnYukabyun_Break;
     }
 
@@ -134,16 +134,16 @@ void EnYukabyun_Update(Actor* thisx, PlayState* play) {
     Actor_MoveXZGravity(&this->actor);
 
     if (!(this->actionfunc == func_80B43A94 || this->actionfunc == EnYukabyun_Break)) {
-        Actor_UpdateBgCheckInfo(play, &this->actor, 5.0f, 20.0f, 8.0f, 5);
-        Collider_UpdateCylinder(&this->actor, &this->collider);
+        OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 5.0f, 20.0f, 8.0f, 5);
+        OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
 
         this->actor.flags |= ACTOR_FLAG_SFX_FOR_PLAYER_BODY_HIT;
 
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
-    Actor_SetFocus(&this->actor, 4.0f);
+    OoT_Actor_SetFocus(&this->actor, 4.0f);
 }
 
 void EnYukabyun_Draw(Actor* thisx, PlayState* play) {

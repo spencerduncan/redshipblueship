@@ -44,12 +44,12 @@ void EnEgblock_Init(Actor* thisx, PlayState* play) {
     CollisionHeader* colHeader = NULL;
     s32 pad;
 
-    DynaPolyActor_Init(&this->dyna, 0);
-    CollisionHeader_GetVirtual(&gEyegoreBlockCol, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    MM_DynaPolyActor_Init(&this->dyna, 0);
+    MM_CollisionHeader_GetVirtual(&gEyegoreBlockCol, &colHeader);
+    this->dyna.bgId = MM_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
     this->dyna.actor.colChkInfo.mass = MASS_IMMOVABLE;
     this->inactive = false;
-    Actor_SetScale(&this->dyna.actor, 0.5f);
+    MM_Actor_SetScale(&this->dyna.actor, 0.5f);
     this->type = EGBLOCK_GET_TYPE(&this->dyna.actor);
     this->paramF80 = EGBLOCK_GET_PARAM_F80(&this->dyna.actor);
     this->param7F = EGBLOCK_GET_PARAM_7F(&this->dyna.actor);
@@ -65,7 +65,7 @@ void EnEgblock_Destroy(Actor* thisx, PlayState* play) {
     EnEgblock* this = (EnEgblock*)thisx;
 
     if (this->dyna.actor.colChkInfo.health == 1) {
-        DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+        MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
     }
 }
 
@@ -77,8 +77,8 @@ void EnEgblock_Active(EnEgblock* this, PlayState* play) {
         for (i = 0; i < ARRAY_COUNT(this->effects); i++) {
             EnEgblock_SpawnEffect(this, &this->dyna.actor.world.pos, 30, (i & 1) + EGBLOCK_EFFECT_DEBRIS_FLAT);
         }
-        DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
-        Actor_SpawnFloorDustRing(play, &this->dyna.actor, &this->dyna.actor.world.pos, 30.0f, 30, 10.0f, 100, 30, true);
+        MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+        MM_Actor_SpawnFloorDustRing(play, &this->dyna.actor, &this->dyna.actor.world.pos, 30.0f, 30, 10.0f, 100, 30, true);
         this->inactive = true;
         this->timer = 50;
         this->actionFunc = EnEgblock_Inactive;
@@ -87,7 +87,7 @@ void EnEgblock_Active(EnEgblock* this, PlayState* play) {
 
 void EnEgblock_Inactive(EnEgblock* this, PlayState* play) {
     if (this->timer == 0) {
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
     }
 }
 
@@ -132,21 +132,21 @@ void EnEgblock_SpawnEffect(EnEgblock* this, Vec3f* pos, s16 lifetime, s16 arg3) 
         if (!effect->isActive) {
             effect->isActive = true;
             effect->pos = *pos;
-            effect->pos.x += Rand_CenteredFloat(50.0f);
-            effect->pos.z += Rand_CenteredFloat(50.0f);
+            effect->pos.x += MM_Rand_CenteredFloat(50.0f);
+            effect->pos.z += MM_Rand_CenteredFloat(50.0f);
             effect->timer = lifetime;
             effect->alpha = 255;
             effect->type = arg3;
-            effect->accel.x = Rand_ZeroOne() - 0.5f;
+            effect->accel.x = MM_Rand_ZeroOne() - 0.5f;
             effect->accel.y = -1.0f;
-            effect->accel.z = Rand_ZeroOne() - 0.5f;
-            effect->velocity.x = 2.0f * (Rand_ZeroOne() - 0.5f);
-            effect->velocity.y = 5.0f + (10.0f * Rand_ZeroOne());
-            effect->velocity.z = 2.0f * (Rand_ZeroOne() - 0.5f);
-            effect->scale = 0.5f + (0.2f * Rand_ZeroFloat(1.0f));
-            effect->rot.x = Rand_CenteredFloat(0x7530);
-            effect->rot.y = Rand_CenteredFloat(0x7530);
-            effect->rot.z = Rand_CenteredFloat(0x7530);
+            effect->accel.z = MM_Rand_ZeroOne() - 0.5f;
+            effect->velocity.x = 2.0f * (MM_Rand_ZeroOne() - 0.5f);
+            effect->velocity.y = 5.0f + (10.0f * MM_Rand_ZeroOne());
+            effect->velocity.z = 2.0f * (MM_Rand_ZeroOne() - 0.5f);
+            effect->scale = 0.5f + (0.2f * MM_Rand_ZeroFloat(1.0f));
+            effect->rot.x = MM_Rand_CenteredFloat(0x7530);
+            effect->rot.y = MM_Rand_CenteredFloat(0x7530);
+            effect->rot.z = MM_Rand_CenteredFloat(0x7530);
             break;
         }
     }
@@ -198,10 +198,10 @@ void EnEgblock_DrawEffects(EnEgblock* this, PlayState* play) {
             switch (effect->type) {
                 case EGBLOCK_EFFECT_DEBRIS_SOLID:
                 case EGBLOCK_EFFECT_DEBRIS_FLAT:
-                    Matrix_Push();
+                    MM_Matrix_Push();
 
-                    Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
-                    Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
+                    MM_Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
+                    MM_Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
                     Matrix_RotateYS(effect->rot.y, MTXMODE_APPLY);
                     Matrix_RotateXS(effect->rot.x, MTXMODE_APPLY);
                     Matrix_RotateZS(effect->rot.z, MTXMODE_APPLY);
@@ -216,7 +216,7 @@ void EnEgblock_DrawEffects(EnEgblock* this, PlayState* play) {
                         gSPDisplayList(POLY_OPA_DISP++, gEyegoreEffectFlatDebrisDL);
                     }
 
-                    Matrix_Pop();
+                    MM_Matrix_Pop();
                     break;
 
                 default:

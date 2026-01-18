@@ -129,7 +129,7 @@ Vec3f D_80BC36B8 = { 0.0f, 60.0f, 20.0f };
 Vec3f D_80BC36C4 = { 10.0f, 60.0f, 25.0f };
 Vec3f D_80BC36D0 = { 0.0f, 58.0f, 20.0f };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HIT1,
         AT_NONE,
@@ -149,7 +149,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 12, 64, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 MM_sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
 
 typedef enum EnJaAnimation {
     /* -1 */ ENJA_ANIM_NONE = -1,
@@ -162,7 +162,7 @@ typedef enum EnJaAnimation {
     /*  6 */ ENJA_ANIM_MAX
 } EnJaAnimation;
 
-static AnimationInfoS sAnimationInfo[ENJA_ANIM_MAX] = {
+static AnimationInfoS MM_sAnimationInfo[ENJA_ANIM_MAX] = {
     { &object_boj_Anim_002734, 1.0f, 0, -1, ANIMMODE_LOOP, 0 },  // ENJA_ANIM_0
     { &object_boj_Anim_0033B0, 1.0f, 0, -1, ANIMMODE_LOOP, 0 },  // ENJA_ANIM_1
     { &object_boj_Anim_002734, 1.0f, 0, -1, ANIMMODE_LOOP, -4 }, // ENJA_ANIM_2
@@ -173,7 +173,7 @@ static AnimationInfoS sAnimationInfo[ENJA_ANIM_MAX] = {
 
 void EnJa_UpdateSkelAnime(EnJa* this) {
     this->skelAnime.playSpeed = this->animPlaySpeed;
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 }
 
 s32 EnJa_ChangeAnim(EnJa* this, s32 animIndex) {
@@ -181,7 +181,7 @@ s32 EnJa_ChangeAnim(EnJa* this, s32 animIndex) {
 
     if (this->animIndex != animIndex) {
         this->animIndex = animIndex;
-        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, animIndex);
+        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, animIndex);
         this->animPlaySpeed = this->skelAnime.playSpeed;
     }
 
@@ -191,9 +191,9 @@ s32 EnJa_ChangeAnim(EnJa* this, s32 animIndex) {
 void func_80BC1984(EnJa* this, PlayState* play) {
     s32 pad[2];
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
     this->collider.dim.height = TRUNCF_BINANG(fabsf(this->actor.focus.pos.y - this->actor.world.pos.y)) + 5;
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 s32 func_80BC19FC(EnJa* this, PlayState* play) {
@@ -212,7 +212,7 @@ void func_80BC1A68(EnJa* this) {
     if (DECR(this->unk_360) == 0) {
         this->unk_362++;
         if (this->unk_362 >= 4) {
-            this->unk_360 = Rand_S16Offset(30, 30);
+            this->unk_360 = MM_Rand_S16Offset(30, 30);
             this->unk_362 = 0;
         }
     }
@@ -225,9 +225,9 @@ Actor* func_80BC1AE0(EnJa* this, PlayState* play) {
 
     if (ja != NULL) {
         this->actor.child = ja;
-        Math_Vec3f_Copy(&sp24, &ja->world.pos);
-        Math_Vec3f_Copy(&sp30, &this->actor.world.pos);
-        this->actor.world.rot.y = Math_Vec3f_Yaw(&sp30, &sp24);
+        MM_Math_Vec3f_Copy(&sp24, &ja->world.pos);
+        MM_Math_Vec3f_Copy(&sp30, &this->actor.world.pos);
+        this->actor.world.rot.y = MM_Math_Vec3f_Yaw(&sp30, &sp24);
     } else {
         this->actor.child = NULL;
     }
@@ -244,26 +244,26 @@ s32 func_80BC1B60(EnJa* this, PlayState* play) {
     Vec3f sp34;
     s16 sp32;
 
-    Math_Vec3f_Copy(&sp40, &this->unk_1E0->world.pos);
-    Math_Vec3f_Copy(&sp34, &this->actor.world.pos);
-    sp32 = Math_Vec3f_Yaw(&sp34, &sp40);
-    Math_ApproachS(&this->unk_356, (sp32 - this->unk_35A) - this->actor.shape.rot.y, 4, 0x2AA8);
+    MM_Math_Vec3f_Copy(&sp40, &this->unk_1E0->world.pos);
+    MM_Math_Vec3f_Copy(&sp34, &this->actor.world.pos);
+    sp32 = MM_Math_Vec3f_Yaw(&sp34, &sp40);
+    MM_Math_ApproachS(&this->unk_356, (sp32 - this->unk_35A) - this->actor.shape.rot.y, 4, 0x2AA8);
     this->unk_356 = CLAMP(this->unk_356, -0x1FFE, 0x1FFE);
 
-    Math_ApproachS(&this->unk_35A, (sp32 - this->unk_356) - this->actor.shape.rot.y, 4, 0x2AA8);
+    MM_Math_ApproachS(&this->unk_35A, (sp32 - this->unk_356) - this->actor.shape.rot.y, 4, 0x2AA8);
     this->unk_35A = CLAMP(this->unk_35A, -0x1C70, 0x1C70);
 
     if (this->unk_1E0->id == ACTOR_PLAYER) {
         sp40.y = ((Player*)this->unk_1E0)->bodyPartsPos[PLAYER_BODYPART_HEAD].y + 3.0f;
     } else {
-        Math_Vec3f_Copy(&sp40, &this->unk_1E0->focus.pos);
+        MM_Math_Vec3f_Copy(&sp40, &this->unk_1E0->focus.pos);
     }
 
-    Math_Vec3f_Copy(&sp34, &this->actor.focus.pos);
-    Math_ApproachS(&this->unk_354, Math_Vec3f_Pitch(&sp34, &sp40) - this->unk_358, 4, 0x2AA8);
+    MM_Math_Vec3f_Copy(&sp34, &this->actor.focus.pos);
+    MM_Math_ApproachS(&this->unk_354, MM_Math_Vec3f_Pitch(&sp34, &sp40) - this->unk_358, 4, 0x2AA8);
     this->unk_354 = CLAMP(this->unk_354, -0x1C70, 0x1C70);
 
-    Math_ApproachS(&this->unk_358, Math_Vec3f_Pitch(&sp34, &sp40) - this->unk_354, 4, 0x2AA8);
+    MM_Math_ApproachS(&this->unk_358, MM_Math_Vec3f_Pitch(&sp34, &sp40) - this->unk_354, 4, 0x2AA8);
     this->unk_358 = CLAMP(this->unk_358, -0x1C70, 0x1C70);
 
     return true;
@@ -293,7 +293,7 @@ s32 func_80BC1D70(EnJa* this, PlayState* play) {
 
 void func_80BC1E40(EnJa* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
-    s32 talkState = Message_GetState(&play->msgCtx);
+    s32 talkState = MM_Message_GetState(&play->msgCtx);
     f32 phi_f0;
 
     if (((play->msgCtx.currentTextId < 0xFF) || (play->msgCtx.currentTextId > 0x200)) &&
@@ -313,7 +313,7 @@ void func_80BC1E40(EnJa* this, PlayState* play) {
     this->unk_34C += (this->unk_348 != 0.0f) ? 60.0f : -60.0f;
     this->unk_34C = CLAMP(this->unk_34C, 0.0f, 120.0f);
 
-    Matrix_Translate(this->unk_34C, 0.0f, 0.0f, MTXMODE_APPLY);
+    MM_Matrix_Translate(this->unk_34C, 0.0f, 0.0f, MTXMODE_APPLY);
     this->prevTalkState = talkState;
 }
 
@@ -376,7 +376,7 @@ void func_80BC2150(EnJa* this, PlayState* play) {
     if ((this->scheduleResult == 1) || (this->scheduleResult == 2)) {
         func_80BC213C(this, play);
     }
-    Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 4, 0x1554);
+    MM_Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 4, 0x1554);
 }
 
 void func_80BC21A8(EnJa* this, PlayState* play) {
@@ -389,7 +389,7 @@ void func_80BC21A8(EnJa* this, PlayState* play) {
         this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
         scheduleOutput.result = 0;
     } else {
-        this->actor.shape.shadowDraw = ActorShadow_DrawCircle;
+        this->actor.shape.shadowDraw = MM_ActorShadow_DrawCircle;
         this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
     }
     this->scheduleResult = scheduleOutput.result;
@@ -430,14 +430,14 @@ void func_80BC22F4(EnJa* this, PlayState* play) {
 void EnJa_Init(Actor* thisx, PlayState* play) {
     EnJa* this = (EnJa*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 18.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &object_boj_Skel_00C240, NULL, this->jointTable, this->morphTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 18.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &object_boj_Skel_00C240, NULL, this->jointTable, this->morphTable,
                        OBJECT_BOJ_LIMB_MAX);
     this->animIndex = ENJA_ANIM_NONE;
     EnJa_ChangeAnim(this, ENJA_ANIM_0);
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, DamageTable_Get(0x16), &sColChkInfoInit);
-    Actor_SetScale(&this->actor, 0.01f);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, MM_DamageTable_Get(0x16), &MM_sColChkInfoInit);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->actor.attentionRangeType = ATTENTION_RANGE_0;
     this->actor.cullingVolumeDistance = 800.0f;
     this->actor.gravity = 0.0f;
@@ -451,7 +451,7 @@ void EnJa_Init(Actor* thisx, PlayState* play) {
 void EnJa_Destroy(Actor* thisx, PlayState* play) {
     EnJa* this = (EnJa*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnJa_Update(Actor* thisx, PlayState* play) {
@@ -474,7 +474,7 @@ void EnJa_Update(Actor* thisx, PlayState* play) {
 
         if (this->scheduleResult != 2) {
             Actor_MoveWithGravity(&this->actor);
-            Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 12.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+            MM_Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 12.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
         }
         func_80BC1984(this, play);
     }
@@ -504,18 +504,18 @@ void EnJa_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
     s32 pad2;
 
     if (limbIndex == OBJECT_BOJ_LIMB_0F) {
-        Matrix_MultVec3f(&D_80BC3780, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&D_80BC3780, &this->actor.focus.pos);
         Math_Vec3s_Copy(&this->actor.focus.rot, &this->actor.world.rot);
     } else if ((this->unk_340 & 0x40) && (limbIndex == OBJECT_BOJ_LIMB_0B)) {
         OPEN_DISPS(play->state.gfxCtx);
 
-        Matrix_Push();
-        Matrix_TranslateRotateZYX(&D_80BC3774, &D_80BC37A4);
+        MM_Matrix_Push();
+        MM_Matrix_TranslateRotateZYX(&D_80BC3774, &D_80BC37A4);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_OPA_DISP++, object_boj_DL_00BA30);
 
-        Matrix_Pop();
+        MM_Matrix_Pop();
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -526,9 +526,9 @@ void EnJa_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
              ((this->skelAnime.curFrame >= 35.0f) && (this->skelAnime.curFrame <= 47.0f)))) {
             OPEN_DISPS(play->state.gfxCtx);
 
-            Matrix_Push();
-            Matrix_Translate(D_80BC378C.x, D_80BC378C.y, D_80BC378C.z, MTXMODE_APPLY);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
+            MM_Matrix_Push();
+            MM_Matrix_Translate(D_80BC378C.x, D_80BC378C.y, D_80BC378C.z, MTXMODE_APPLY);
+            MM_Matrix_ReplaceRotation(&play->billboardMtxF);
 
             gDPPipeSync(POLY_OPA_DISP++);
 
@@ -557,17 +557,17 @@ void EnJa_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
             gSPDisplayList(POLY_OPA_DISP++, object_boj_DL_00BCC8);
 
-            Matrix_Pop();
+            MM_Matrix_Pop();
 
             CLOSE_DISPS(play->state.gfxCtx);
         } else if (limbIndex == OBJECT_BOJ_LIMB_0E) {
             if ((this->skelAnime.curFrame >= 0.0f) && (this->skelAnime.curFrame <= 18.0f)) {
                 OPEN_DISPS(play->state.gfxCtx);
 
-                Matrix_Push();
+                MM_Matrix_Push();
 
-                Matrix_Translate(D_80BC3798.x, D_80BC3798.y, D_80BC3798.z, MTXMODE_APPLY);
-                Matrix_ReplaceRotation(&play->billboardMtxF);
+                MM_Matrix_Translate(D_80BC3798.x, D_80BC3798.y, D_80BC3798.z, MTXMODE_APPLY);
+                MM_Matrix_ReplaceRotation(&play->billboardMtxF);
 
                 gDPPipeSync(POLY_OPA_DISP++);
 
@@ -596,7 +596,7 @@ void EnJa_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
                 MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
                 gSPDisplayList(POLY_OPA_DISP++, object_boj_DL_00BCC8);
 
-                Matrix_Pop();
+                MM_Matrix_Pop();
 
                 CLOSE_DISPS(play->state.gfxCtx);
             }
@@ -630,25 +630,25 @@ void EnJa_TransformLimbDraw(PlayState* play, s32 limbIndex, Actor* thisx) {
             SubS_UpdateLimb(this->unk_354 + this->unk_358 + 0x4000,
                             this->unk_356 + this->unk_35A + this->actor.shape.rot.y + 0x4000, &this->unk_1EC,
                             &this->unk_274, stepRot, overrideRot);
-            Matrix_Pop();
-            Matrix_Translate(this->unk_1EC.x, this->unk_1EC.y, this->unk_1EC.z, MTXMODE_NEW);
-            Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+            MM_Matrix_Pop();
+            MM_Matrix_Translate(this->unk_1EC.x, this->unk_1EC.y, this->unk_1EC.z, MTXMODE_NEW);
+            MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
             Matrix_RotateYS(this->unk_274.y, MTXMODE_APPLY);
             Matrix_RotateXS(this->unk_274.x, MTXMODE_APPLY);
             Matrix_RotateZS(this->unk_274.z, MTXMODE_APPLY);
-            Matrix_Push();
+            MM_Matrix_Push();
             break;
 
         case OBJECT_BOJ_LIMB_08:
             SubS_UpdateLimb(this->unk_358 + 0x4000, this->unk_35A + this->actor.shape.rot.y + 0x4000, &this->unk_1F8,
                             &this->unk_27A, stepRot, overrideRot);
-            Matrix_Pop();
-            Matrix_Translate(this->unk_1F8.x, this->unk_1F8.y, this->unk_1F8.z, MTXMODE_NEW);
-            Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+            MM_Matrix_Pop();
+            MM_Matrix_Translate(this->unk_1F8.x, this->unk_1F8.y, this->unk_1F8.z, MTXMODE_NEW);
+            MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
             Matrix_RotateYS(this->unk_27A.y, MTXMODE_APPLY);
             Matrix_RotateXS(this->unk_27A.x, MTXMODE_APPLY);
             Matrix_RotateZS(this->unk_27A.z, MTXMODE_APPLY);
-            Matrix_Push();
+            MM_Matrix_Push();
             break;
 
         default:
@@ -687,10 +687,10 @@ void EnJa_Draw(Actor* thisx, PlayState* play) {
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
         gSPSegment(POLY_OPA_DISP++, 0x08,
-                   Gfx_EnvColor(play->state.gfxCtx, D_80BC37AC[phi_t2].r, D_80BC37AC[phi_t2].g, D_80BC37AC[phi_t2].b,
+                   MM_Gfx_EnvColor(play->state.gfxCtx, D_80BC37AC[phi_t2].r, D_80BC37AC[phi_t2].g, D_80BC37AC[phi_t2].b,
                                 D_80BC37AC[phi_t2].a));
         gSPSegment(POLY_OPA_DISP++, 0x09,
-                   Gfx_EnvColor(play->state.gfxCtx, D_80BC37B4[phi_t2].r, D_80BC37B4[phi_t2].g, D_80BC37B4[phi_t2].b,
+                   MM_Gfx_EnvColor(play->state.gfxCtx, D_80BC37B4[phi_t2].r, D_80BC37B4[phi_t2].g, D_80BC37B4[phi_t2].b,
                                 D_80BC37B4[phi_t2].a));
         gSPSegment(POLY_OPA_DISP++, 0x0A, Lib_SegmentedToVirtual(D_80BC37BC[this->unk_362]));
         gDPPipeSync(POLY_OPA_DISP++);
@@ -715,10 +715,10 @@ void func_80BC2EA4(EnJa* this) {
     s32 i;
     Vec3f sp28;
 
-    sp44 = Math_SinS(this->actor.shape.rot.y);
-    sp40 = Math_CosS(this->actor.shape.rot.y);
-    sp3C = Math_SinS(this->actor.child->shape.rot.y);
-    sp38 = Math_CosS(this->actor.child->shape.rot.y);
+    sp44 = MM_Math_SinS(this->actor.shape.rot.y);
+    sp40 = MM_Math_CosS(this->actor.shape.rot.y);
+    sp3C = MM_Math_SinS(this->actor.child->shape.rot.y);
+    sp38 = MM_Math_CosS(this->actor.child->shape.rot.y);
 
     for (i = 0; i < ARRAY_COUNT(this->unk_234); i++) {
         this->unk_234[i].unk_0E = i * 0x30;
@@ -792,13 +792,13 @@ void func_80BC32D8(EnJa* this, PlayState* play) {
         }
     }
 
-    if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         if (this->unk_366 > 0) {
             this->unk_366--;
         } else {
             this->unk_366 = 3;
         }
-    } else if (Animation_OnFrame(&this->skelAnime, 34.0f)) {
+    } else if (MM_Animation_OnFrame(&this->skelAnime, 34.0f)) {
         if (this->unk_364 > 0) {
             this->unk_364--;
         } else {
@@ -814,9 +814,9 @@ void func_80BC33C0(EnJaStruct* ptr, PlayState* play) {
         OPEN_DISPS(play->state.gfxCtx);
 
         FrameInterpolation_RecordOpenChild(ptr, ptr->unk_0C);
-        Matrix_Translate(ptr->unk_00.x, ptr->unk_00.y, ptr->unk_00.z, MTXMODE_NEW);
-        Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
-        Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
+        MM_Matrix_Translate(ptr->unk_00.x, ptr->unk_00.y, ptr->unk_00.z, MTXMODE_NEW);
+        MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
+        MM_Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
 
         switch (ptr->unk_0C) {
             case 0:

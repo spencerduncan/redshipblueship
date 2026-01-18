@@ -2,10 +2,10 @@
 #include "libc/math.h"
 
 /**
- * guPositionF
+ * MM_guPositionF
  * Creates a rotation/parallel translation modelling matrix (floating point)
  */
-void guPositionF(f32 mf[4][4], f32 rot, f32 pitch, f32 yaw, f32 scale, f32 x, f32 y, f32 z) {
+void MM_guPositionF(f32 mf[4][4], f32 rot, f32 pitch, f32 yaw, f32 scale, f32 x, f32 y, f32 z) {
     static f32 D_80134D00 = M_PIF / 180.0f;
     f32 sinr;
     f32 sinp;
@@ -47,13 +47,13 @@ void guPositionF(f32 mf[4][4], f32 rot, f32 pitch, f32 yaw, f32 scale, f32 x, f3
 }
 
 /**
- * guPosition
+ * MM_guPosition
  * Creates a rotational/parallel translation modeling matrix (fixed point)
  */
-void guPosition(Mtx* m, f32 rot, f32 pitch, f32 yaw, f32 scale, f32 x, f32 y, f32 z) {
+void MM_guPosition(Mtx* m, f32 rot, f32 pitch, f32 yaw, f32 scale, f32 x, f32 y, f32 z) {
     f32 mf[4][4];
 
-    guPositionF(mf, rot, pitch, yaw, scale, x, y, z);
+    MM_guPositionF(mf, rot, pitch, yaw, scale, x, y, z);
 
     guMtxF2L(mf, m);
 }

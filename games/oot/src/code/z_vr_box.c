@@ -545,7 +545,7 @@ SkyboxTableEntry sSkyboxTable[] = {
     },
 };
 
-void Skybox_Setup(PlayState* play, SkyboxContext* skyboxCtx, s16 skyboxId) {
+void OoT_Skybox_Setup(PlayState* play, SkyboxContext* skyboxCtx, s16 skyboxId) {
     size_t size;
     s16 i;
     u8 sp41; // imageIdx
@@ -556,8 +556,8 @@ void Skybox_Setup(PlayState* play, SkyboxContext* skyboxCtx, s16 skyboxId) {
     switch (skyboxId) {
         case SKYBOX_NORMAL_SKY:
             phi_v1 = 0;
-            if (gSaveContext.retainWeatherMode != 0 && gSaveContext.sceneSetupIndex < 4 && gWeatherMode > 0 &&
-                gWeatherMode < 6) {
+            if (gSaveContext.retainWeatherMode != 0 && gSaveContext.sceneSetupIndex < 4 && OoT_gWeatherMode > 0 &&
+                OoT_gWeatherMode < 6) {
                 phi_v1 = 1;
             }
 
@@ -569,7 +569,7 @@ void Skybox_Setup(PlayState* play, SkyboxContext* skyboxCtx, s16 skyboxId) {
                     play->envCtx.skybox2Index = sp40 = D_8011FC1C[phi_v1][i].skybox2Index;
                     if (D_8011FC1C[phi_v1][i].blend != 0) {
                         play->envCtx.skyboxBlend =
-                            Environment_LerpWeight(D_8011FC1C[phi_v1][i].endTime, D_8011FC1C[phi_v1][i].startTime,
+                            OoT_Environment_LerpWeight(D_8011FC1C[phi_v1][i].endTime, D_8011FC1C[phi_v1][i].startTime,
                                                    ((void)0, gSaveContext.skyboxTime)) *
                             255.0f;
                     } else {
@@ -889,14 +889,14 @@ void Skybox_Setup(PlayState* play, SkyboxContext* skyboxCtx, s16 skyboxId) {
     }
 }
 
-void Skybox_Init(GameState* state, SkyboxContext* skyboxCtx, s16 skyboxId) {
+void OoT_Skybox_Init(GameState* state, SkyboxContext* skyboxCtx, s16 skyboxId) {
     PlayState* play = (PlayState*)state;
 
     skyboxCtx->skyboxId = skyboxId;
     skyboxCtx->unk_140 = 0;
     skyboxCtx->rot.x = skyboxCtx->rot.y = skyboxCtx->rot.z = 0.0f;
 
-    Skybox_Setup(play, skyboxCtx, skyboxId);
+    OoT_Skybox_Setup(play, skyboxCtx, skyboxId);
     osSyncPrintf("\n\n\n＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊\n\n\n"
                  "ＴＹＰＥ＝%d"
                  "\n\n\n＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊\n\n\n",
@@ -933,7 +933,7 @@ void Skybox_Init(GameState* state, SkyboxContext* skyboxCtx, s16 skyboxId) {
     }
 }
 
-void Skybox_Update(SkyboxContext* skyboxCtx) {
+void OoT_Skybox_Update(SkyboxContext* skyboxCtx) {
     if (skyboxCtx->skyboxId != SKYBOX_NONE) {
         osSyncPrintf(VT_FGCOL(GREEN));
 

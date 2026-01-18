@@ -43,7 +43,7 @@ ActorProfile En_Zog_Profile = {
     /**/ EnZog_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -103,7 +103,7 @@ typedef enum EnZogAnimation {
     /* 31 */ ENZOG_ANIM_MAX
 } EnZogAnimation;
 
-static AnimationHeader* sAnimations[ENZOG_ANIM_MAX] = {
+static AnimationHeader* MM_sAnimations[ENZOG_ANIM_MAX] = {
     &object_zog_Anim_00FC0C, // ENZOG_ANIM_0
     &object_zog_Anim_0106B0, // ENZOG_ANIM_1
     &object_zog_Anim_0166F4, // ENZOG_ANIM_2
@@ -149,16 +149,16 @@ void func_80B93310(Actor* thisx, Lights* mapper, PlayState* play) {
             this->actor.shape.shadowAlpha = 255;
         }
 
-        Math_Vec3f_Copy(&sp34, &this->actor.world.pos);
+        MM_Math_Vec3f_Copy(&sp34, &this->actor.world.pos);
 
-        sp2C = sqrtf(SQ(this->actor.focus.pos.x - this->unk_2F0.x) + SQ(this->actor.focus.pos.z - this->unk_2F0.z));
+        sp2C = MM_sqrtf(SQ(this->actor.focus.pos.x - this->unk_2F0.x) + SQ(this->actor.focus.pos.z - this->unk_2F0.z));
         if (sp2C < 12.0f) {
             sp2C = 12.0f;
         } else if (sp2C > 60.0f) {
             sp2C = 60.0f;
         }
 
-        Math_Vec3f_Copy(&this->actor.world.pos, &this->unk_2F0);
+        MM_Math_Vec3f_Copy(&this->actor.world.pos, &this->unk_2F0);
         func_800B4AEC(play, &this->actor, 50.0f);
         if (sp34.y < this->actor.floorHeight) {
             this->actor.world.pos.y = this->actor.floorHeight;
@@ -166,9 +166,9 @@ void func_80B93310(Actor* thisx, Lights* mapper, PlayState* play) {
             this->actor.world.pos.y = sp34.y;
         }
         this->actor.scale.z *= sp2C * (1 / 12.0f);
-        ActorShadow_DrawCircle(&this->actor, mapper, play);
+        MM_ActorShadow_DrawCircle(&this->actor, mapper, play);
         this->actor.scale.z = this->actor.scale.x;
-        Math_Vec3f_Copy(&this->actor.world.pos, &sp34);
+        MM_Math_Vec3f_Copy(&this->actor.world.pos, &sp34);
     }
 }
 
@@ -182,7 +182,7 @@ void func_80B93468(EnZog* this, PlayState* play) {
 
         this->actor.world.pos.x = points[-1].x;
         this->actor.world.pos.z = points[-1].z;
-        this->actor.world.rot.y = Math_Atan2S(points->x - this->actor.world.pos.x, points->z - this->actor.world.pos.z);
+        this->actor.world.rot.y = MM_Math_Atan2S(points->x - this->actor.world.pos.x, points->z - this->actor.world.pos.z);
         this->actor.speed = 0.0f;
     }
 }
@@ -205,20 +205,20 @@ void EnZog_Init(Actor* thisx, PlayState* play) {
         sTexturesDesegmented = true;
     }
 
-    ActorShape_Init(&this->actor.shape, 0.0f, func_80B93310, 24.0f);
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, func_80B93310, 24.0f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->actionFunc = func_80B95128;
     this->actor.textId = 0x1004;
-    SkelAnime_InitFlex(play, &this->skelAnime, &object_zog_Skel_029170, &object_zog_Anim_00FC0C, this->jointTable,
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &object_zog_Skel_029170, &object_zog_Anim_00FC0C, this->jointTable,
                        this->morphTable, OBJECT_ZOG_LIMB_MAX);
-    Animation_PlayOnce(&this->skelAnime, &object_zog_Anim_00FC0C);
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    MM_Animation_PlayOnce(&this->skelAnime, &object_zog_Anim_00FC0C);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
 
     if ((ENZOG_GET_F(&this->actor) != ENZOG_F_2) &&
         GameInteractor_Should(VB_CONSIDER_MIKAU_HEALED, INV_CONTENT(ITEM_MASK_ZORA) == ITEM_MASK_ZORA, true) &&
         ((play->csCtx.scriptIndex != 2) || (gSaveContext.sceneLayer != 0) || (play->sceneId != SCENE_30GYOSON))) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -233,7 +233,7 @@ void EnZog_Init(Actor* thisx, PlayState* play) {
     this->csIdIndex = -1;
     this->unk_322 = 100;
 
-    Math_Vec3f_Copy(&this->unk_2F0, &this->actor.world.pos);
+    MM_Math_Vec3f_Copy(&this->unk_2F0, &this->actor.world.pos);
 
     if (ENZOG_GET_F(&this->actor) == ENZOG_F_2) {
         this->actionFunc = func_80B95240;
@@ -270,7 +270,7 @@ void EnZog_Init(Actor* thisx, PlayState* play) {
     this->actor.home.rot.z = 0;
     if (ENZOG_GET_F(&this->actor) != ENZOG_F_2) {
         for (i = 0; i < 5; i++) {
-            Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_TANRON4, this->actor.world.pos.x,
+            MM_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_TANRON4, this->actor.world.pos.x,
                                this->actor.world.pos.y + 500.0f, this->actor.world.pos.z, 0, 0, 0, 100);
         }
     }
@@ -283,7 +283,7 @@ void EnZog_Init(Actor* thisx, PlayState* play) {
         this->unk_31C = 2;
         this->unk_31E = 0;
 
-        Animation_PlayLoop(&this->skelAnime, sAnimations[ENZOG_ANIM_7]);
+        MM_Animation_PlayLoop(&this->skelAnime, MM_sAnimations[ENZOG_ANIM_7]);
         this->actor.textId = 0x1009;
         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_91_02)) {
             this->actor.textId = 0x103C;
@@ -303,12 +303,12 @@ void EnZog_Init(Actor* thisx, PlayState* play) {
 void EnZog_Destroy(Actor* thisx, PlayState* play) {
     EnZog* this = (EnZog*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnZog_ChangeAnim(EnZog* this, s16 animIndex, u8 animMode) {
-    Animation_Change(&this->skelAnime, sAnimations[animIndex], 1.0f, 0.0f,
-                     Animation_GetLastFrame(sAnimations[animIndex]), animMode, -5.0f);
+    MM_Animation_Change(&this->skelAnime, MM_sAnimations[animIndex], 1.0f, 0.0f,
+                     MM_Animation_GetLastFrame(MM_sAnimations[animIndex]), animMode, -5.0f);
     this->animIndex = animIndex;
 }
 
@@ -325,7 +325,7 @@ void func_80B93A48(EnZog* this, PlayState* play) {
                                 ARRAY_COUNT(D_80B95950) };
     s16* table;
 
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (MM_SkelAnime_Update(&this->skelAnime)) {
         if (this->unk_302 != this->unk_300) {
             this->unk_302++;
         } else if (this->unk_302 == 0) {
@@ -345,8 +345,8 @@ void func_80B93A48(EnZog* this, PlayState* play) {
         table = D_80B95974[this->unk_2FC];
 
         this->animIndex = table[this->unk_302];
-        Animation_PlayOnce(&this->skelAnime, sAnimations[this->animIndex]);
-        SkelAnime_Update(&this->skelAnime);
+        MM_Animation_PlayOnce(&this->skelAnime, MM_sAnimations[this->animIndex]);
+        MM_SkelAnime_Update(&this->skelAnime);
     }
 }
 
@@ -384,7 +384,7 @@ s32 func_80B93BE0(EnZog* this, PlayState* play) {
     }
 
     points++;
-    temp_v0 = Math_Atan2S(points->x - this->actor.world.pos.x, points->z - this->actor.world.pos.z);
+    temp_v0 = MM_Math_Atan2S(points->x - this->actor.world.pos.x, points->z - this->actor.world.pos.z);
 
     if (ABS_ALT(temp_v0 - this->actor.world.rot.y) > 0x4000) {
         this->unk_2EC++;
@@ -405,10 +405,10 @@ void func_80B93D2C(EnZog* this, PlayState* play) {
     Vec3f sp28 = this->actor.world.pos;
 
     sp28.y += this->actor.depthInWater;
-    this->actor.world.pos.y += (this->actor.depthInWater - 10.0f) + (2.0f * Math_SinS(this->unk_308));
+    this->actor.world.pos.y += (this->actor.depthInWater - 10.0f) + (2.0f * MM_Math_SinS(this->unk_308));
     this->unk_308 += 0x200;
     if ((play->gameplayFrames % 16) == 0) {
-        EffectSsGRipple_Spawn(play, &sp28, 150, 500, 0);
+        MM_EffectSsGRipple_Spawn(play, &sp28, 150, 500, 0);
     }
 }
 
@@ -419,26 +419,26 @@ void func_80B93DE8(Vec3f* arg0, PlayState* play, s32 arg2) {
     static Color_RGBA8 D_80B959A8 = { 80, 80, 220, 255 };
     Vec3f sp2C;
 
-    sp2C.x = Rand_CenteredFloat(30.0f) + arg0->x;
+    sp2C.x = MM_Rand_CenteredFloat(30.0f) + arg0->x;
     sp2C.y = arg0->y + 3.0f;
-    sp2C.z = Rand_CenteredFloat(30.0f) + arg0->z;
+    sp2C.z = MM_Rand_CenteredFloat(30.0f) + arg0->z;
     EffectSsKirakira_SpawnDispersed(play, &sp2C, &D_80B9598C, &D_80B95998, &D_80B959A4, &D_80B959A8, 1000, arg2);
 }
 
 s32 func_80B93EA0(EnZog* this, PlayState* play) {
     s16 cueId;
 
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (MM_SkelAnime_Update(&this->skelAnime)) {
         switch (this->cueId) {
             case 2:
             case 3:
-                Animation_PlayLoop(&this->skelAnime, sAnimations[ENZOG_ANIM_12]);
+                MM_Animation_PlayLoop(&this->skelAnime, MM_sAnimations[ENZOG_ANIM_12]);
                 this->unk_31C = 0;
                 this->unk_31E = 1;
                 break;
 
             case 4:
-                Animation_PlayLoop(&this->skelAnime, sAnimations[ENZOG_ANIM_14]);
+                MM_Animation_PlayLoop(&this->skelAnime, MM_sAnimations[ENZOG_ANIM_14]);
                 this->unk_31C = 2;
                 this->unk_31E = 1;
                 break;
@@ -446,14 +446,14 @@ s32 func_80B93EA0(EnZog* this, PlayState* play) {
             case 5:
                 switch (this->animIndex) {
                     case ENZOG_ANIM_16:
-                        Animation_PlayOnce(&this->skelAnime, sAnimations[ENZOG_ANIM_17]);
+                        MM_Animation_PlayOnce(&this->skelAnime, MM_sAnimations[ENZOG_ANIM_17]);
                         this->animIndex = ENZOG_ANIM_17;
                         this->unk_31C = 2;
                         this->unk_31E = 0;
                         break;
 
                     case ENZOG_ANIM_17:
-                        Animation_Change(&this->skelAnime, sAnimations[ENZOG_ANIM_7], 0.0f, 0.0f, 0.0f, ANIMMODE_LOOP,
+                        MM_Animation_Change(&this->skelAnime, MM_sAnimations[ENZOG_ANIM_7], 0.0f, 0.0f, 0.0f, ANIMMODE_LOOP,
                                          0.0f);
                         break;
 
@@ -463,28 +463,28 @@ s32 func_80B93EA0(EnZog* this, PlayState* play) {
                 break;
 
             case 6:
-                Animation_PlayLoop(&this->skelAnime, sAnimations[ENZOG_ANIM_9]);
+                MM_Animation_PlayLoop(&this->skelAnime, MM_sAnimations[ENZOG_ANIM_9]);
                 this->unk_31C = 1;
                 this->unk_31E = 1;
                 break;
 
             case 12:
-                Animation_PlayLoop(&this->skelAnime, sAnimations[ENZOG_ANIM_28]);
+                MM_Animation_PlayLoop(&this->skelAnime, MM_sAnimations[ENZOG_ANIM_28]);
                 break;
 
             case 13:
-                Animation_PlayLoop(&this->skelAnime, sAnimations[ENZOG_ANIM_30]);
+                MM_Animation_PlayLoop(&this->skelAnime, MM_sAnimations[ENZOG_ANIM_30]);
                 break;
 
             case 14:
-                Animation_PlayLoop(&this->skelAnime, sAnimations[ENZOG_ANIM_26]);
+                MM_Animation_PlayLoop(&this->skelAnime, MM_sAnimations[ENZOG_ANIM_26]);
                 break;
 
             case 15:
-                Animation_PlayLoop(&this->skelAnime, sAnimations[ENZOG_ANIM_23]);
+                MM_Animation_PlayLoop(&this->skelAnime, MM_sAnimations[ENZOG_ANIM_23]);
                 break;
         }
-        SkelAnime_Update(&this->skelAnime);
+        MM_SkelAnime_Update(&this->skelAnime);
     }
 
     if (Cutscene_IsCueInChannel(play, CS_CMD_ACTOR_CUE_471)) {
@@ -588,24 +588,24 @@ s32 func_80B93EA0(EnZog* this, PlayState* play) {
                     break;
 
                 case 11:
-                    Animation_PlayLoop(&this->skelAnime, sAnimations[ENZOG_ANIM_24]);
+                    MM_Animation_PlayLoop(&this->skelAnime, MM_sAnimations[ENZOG_ANIM_24]);
                     break;
 
                 case 12:
-                    Animation_PlayOnce(&this->skelAnime, sAnimations[ENZOG_ANIM_27]);
+                    MM_Animation_PlayOnce(&this->skelAnime, MM_sAnimations[ENZOG_ANIM_27]);
                     break;
 
                 case 13:
-                    Animation_PlayOnce(&this->skelAnime, sAnimations[ENZOG_ANIM_29]);
+                    MM_Animation_PlayOnce(&this->skelAnime, MM_sAnimations[ENZOG_ANIM_29]);
                     break;
 
                 case 14:
                     this->unk_30A |= 2;
-                    Animation_PlayOnce(&this->skelAnime, sAnimations[ENZOG_ANIM_25]);
+                    MM_Animation_PlayOnce(&this->skelAnime, MM_sAnimations[ENZOG_ANIM_25]);
                     break;
 
                 case 15:
-                    Animation_PlayOnce(&this->skelAnime, sAnimations[ENZOG_ANIM_22]);
+                    MM_Animation_PlayOnce(&this->skelAnime, MM_sAnimations[ENZOG_ANIM_22]);
                     break;
 
                 default:
@@ -643,9 +643,9 @@ void func_80B943EC(EnZog* this, PlayState* play) {
 }
 
 void func_80B94470(EnZog* this, PlayState* play) {
-    if (Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) {
-        if (Message_ShouldAdvance(play) && (play->msgCtx.currentTextId == 0x103C)) {
-            Message_CloseTextbox(play);
+    if (MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) {
+        if (MM_Message_ShouldAdvance(play) && (play->msgCtx.currentTextId == 0x103C)) {
+            MM_Message_CloseTextbox(play);
             this->actionFunc = func_80B9451C;
             this->unk_300 = this->unk_302 = 0;
             this->unk_31C = 2;
@@ -693,9 +693,9 @@ void func_80B946B4(EnZog* this, PlayState* play) {
 }
 
 void func_80B946FC(EnZog* this, PlayState* play) {
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_CHOICE:
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 switch (play->msgCtx.choiceIndex) {
                     case 0:
                         Audio_PlaySfx_MessageDecide();
@@ -706,30 +706,30 @@ void func_80B946FC(EnZog* this, PlayState* play) {
 
                     case 1:
                         Audio_PlaySfx_MessageCancel();
-                        Message_ContinueTextbox(play, 0x1014);
+                        MM_Message_ContinueTextbox(play, 0x1014);
                         break;
                 }
             }
             break;
 
         case TEXT_STATE_EVENT:
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 switch (play->msgCtx.currentTextId) {
                     case 0x1008:
-                        Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                        MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                         break;
 
                     case 0x1009:
                         this->unk_300 = 4;
-                        Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                        MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                         break;
 
                     case 0x1014:
-                        Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                        MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                         break;
 
                     case 0x1015:
-                        Message_CloseTextbox(play);
+                        MM_Message_CloseTextbox(play);
                         this->actionFunc = func_80B948A8;
                         this->unk_300 = this->unk_302 = 0;
                         this->unk_31C = 2;
@@ -800,7 +800,7 @@ void func_80B94A00(EnZog* this, PlayState* play) {
     if ((this->actor.depthInWater > 0.0f) && ((play->gameplayFrames % 8) == 0)) {
         sp30 = this->actor.world.pos;
         sp30.y += this->actor.depthInWater;
-        EffectSsGRipple_Spawn(play, &sp30, 150, 500, 0);
+        MM_EffectSsGRipple_Spawn(play, &sp30, 150, 500, 0);
     }
 
     if (this->actor.shape.yOffset > 0.0f) {
@@ -810,12 +810,12 @@ void func_80B94A00(EnZog* this, PlayState* play) {
     func_80B93A48(this, play);
 
     if ((this->animIndex == ENZOG_ANIM_4) &&
-        (Animation_OnFrame(&this->skelAnime, 136.0f) || Animation_OnFrame(&this->skelAnime, 155.0f))) {
+        (MM_Animation_OnFrame(&this->skelAnime, 136.0f) || MM_Animation_OnFrame(&this->skelAnime, 155.0f))) {
         Actor_PlaySfx(&this->actor, NA_SE_PL_WALK_GROUND + SURFACE_SFX_OFFSET_WATER_SHALLOW);
     }
 
     if ((this->animIndex == ENZOG_ANIM_5) &&
-        (Animation_OnFrame(&this->skelAnime, 12.0f) || Animation_OnFrame(&this->skelAnime, 37.0f))) {
+        (MM_Animation_OnFrame(&this->skelAnime, 12.0f) || MM_Animation_OnFrame(&this->skelAnime, 37.0f))) {
         if (this->actor.depthInWater > 0.0f) {
             Actor_PlaySfx(&this->actor, NA_SE_PL_WALK_GROUND + SURFACE_SFX_OFFSET_WATER_SHALLOW);
         } else {
@@ -858,17 +858,17 @@ void func_80B94D0C(EnZog* this, PlayState* play) {
         this->unk_31E = 0;
     }
 
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         this->unk_320 = 5;
         switch (play->msgCtx.currentTextId) {
             case 0x1004:
             case 0x1005:
             case 0x1006:
-                Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                 break;
 
             case 0x1007:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 this->actionFunc = func_80B94E34;
                 this->unk_300 = 5;
                 this->unk_320 = 0;
@@ -896,25 +896,25 @@ void func_80B94E34(EnZog* this, PlayState* play) {
             Vec3f sp38;
 
             Lib_Vec3f_TranslateAndRotateY(&this->actor.world.pos, this->actor.shape.rot.y, &D_80B959AC, &sp38);
-            sp38.x += Rand_CenteredFloat(30.0f);
+            sp38.x += MM_Rand_CenteredFloat(30.0f);
             sp38.y += 20.0f;
-            sp38.z += Rand_CenteredFloat(30.0f);
-            if (WaterBox_GetSurface1(play, &play->colCtx, sp38.x, sp38.z, &sp38.y, &waterBox) &&
+            sp38.z += MM_Rand_CenteredFloat(30.0f);
+            if (MM_WaterBox_GetSurface1(play, &play->colCtx, sp38.x, sp38.z, &sp38.y, &waterBox) &&
                 (this->actor.world.pos.y < sp38.y)) {
-                EffectSsGSplash_Spawn(play, &sp38, NULL, NULL, 1,
-                                      Rand_ZeroFloat(this->actor.speed * 40.0f) + (this->actor.speed * 60.0f));
+                MM_EffectSsGSplash_Spawn(play, &sp38, NULL, NULL, 1,
+                                      MM_Rand_ZeroFloat(this->actor.speed * 40.0f) + (this->actor.speed * 60.0f));
             }
 
             if ((player->actor.speed > 3.0f) && (this->unk_324 == 0)) {
                 this->unk_324 = 25;
-                Player_PlaySfx(player, player->ageProperties->voiceSfxIdOffset + NA_SE_VO_LI_PUSH);
+                MM_Player_PlaySfx(player, player->ageProperties->voiceSfxIdOffset + NA_SE_VO_LI_PUSH);
             }
         }
         this->actor.speed *= 0.3f;
     }
 
     if (ABS_ALT(this->actor.yawTowardsPlayer - this->actor.world.rot.y) > 0x5000) {
-        Actor_OfferGetItem(&this->actor, play, GI_NONE, 60.0f, 40.0f);
+        MM_Actor_OfferGetItem(&this->actor, play, GI_NONE, 60.0f, 40.0f);
     }
 
     if (this->unk_324 > 0) {
@@ -987,7 +987,7 @@ void EnZog_Update(Actor* thisx, PlayState* play) {
     EnZog* this = (EnZog*)thisx;
 
     Actor_MoveWithGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 10.0f, 10.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 10.0f, 10.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
     if (Cutscene_IsCueInChannel(play, CS_CMD_ACTOR_CUE_471) && (ENZOG_GET_F(&this->actor) != ENZOG_F_2)) {
         this->actionFunc = func_80B9461C;
         this->actor.shape.yOffset = 0.0f;
@@ -995,8 +995,8 @@ void EnZog_Update(Actor* thisx, PlayState* play) {
 
     this->actionFunc(this, play);
 
-    if (((this->animIndex == ENZOG_ANIM_6) && Animation_OnFrame(&this->skelAnime, 43.0f)) ||
-        ((this->animIndex == ENZOG_ANIM_17) && Animation_OnFrame(&this->skelAnime, 14.0f))) {
+    if (((this->animIndex == ENZOG_ANIM_6) && MM_Animation_OnFrame(&this->skelAnime, 43.0f)) ||
+        ((this->animIndex == ENZOG_ANIM_17) && MM_Animation_OnFrame(&this->skelAnime, 14.0f))) {
         Actor_PlaySfx(&this->actor, NA_SE_EV_LAND_SAND);
     }
 
@@ -1005,9 +1005,9 @@ void EnZog_Update(Actor* thisx, PlayState* play) {
         this->collider.dim.pos.y = this->actor.world.pos.y;
         this->collider.dim.pos.z = this->unk_2F0.z;
     } else {
-        Collider_UpdateCylinder(&this->actor, &this->collider);
+        MM_Collider_UpdateCylinder(&this->actor, &this->collider);
     }
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 
     this->actor.focus.pos = this->actor.world.pos;
     this->actor.focus.pos.y += 30.0f;
@@ -1035,12 +1035,12 @@ void EnZog_PostLimbDrawOpa(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* r
 
     D_80B959B8.y = 1000.0f;
     if (limbIndex == OBJECT_ZOG_LIMB_09) {
-        Matrix_MultVec3f(&D_80B959B8, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&D_80B959B8, &this->actor.focus.pos);
     }
     D_80B959B8.y = 0.0f;
 
     if (limbIndex == OBJECT_ZOG_LIMB_01) {
-        Matrix_MultVec3f(&D_80B959B8, &this->unk_2F0);
+        MM_Matrix_MultVec3f(&D_80B959B8, &this->unk_2F0);
     }
 
     if ((this->unk_30A & 2) && (limbIndex == OBJECT_ZOG_LIMB_11)) {
@@ -1058,12 +1058,12 @@ void EnZog_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot,
 
     D_80B959C4.y = 1000.0f;
     if (limbIndex == OBJECT_ZOG_LIMB_09) {
-        Matrix_MultVec3f(&D_80B959C4, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&D_80B959C4, &this->actor.focus.pos);
     }
     D_80B959C4.y = 0.0f;
 
     if (limbIndex == OBJECT_ZOG_LIMB_01) {
-        Matrix_MultVec3f(&D_80B959C4, &this->unk_2F0);
+        MM_Matrix_MultVec3f(&D_80B959C4, &this->unk_2F0);
     }
 
     if ((this->unk_30A & 2) && (limbIndex == OBJECT_ZOG_LIMB_11)) {
@@ -1096,7 +1096,7 @@ void EnZog_Draw(Actor* thisx, PlayState* play) {
 
         POLY_XLU_DISP = &gfx[3];
         POLY_XLU_DISP =
-            SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+            MM_SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                                NULL, EnZog_PostLimbDraw, &this->actor, POLY_XLU_DISP);
     } else {
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
@@ -1109,7 +1109,7 @@ void EnZog_Draw(Actor* thisx, PlayState* play) {
         gDPSetEnvColor(&gfx[2], 0, 0, 0, 255);
 
         POLY_OPA_DISP = &gfx[3];
-        SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+        MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                               NULL, EnZog_PostLimbDrawOpa, &this->actor);
     }
 

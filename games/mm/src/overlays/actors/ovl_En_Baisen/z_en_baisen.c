@@ -33,7 +33,7 @@ ActorProfile En_Baisen_Profile = {
     /**/ EnBaisen_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -53,7 +53,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 20, 60, 0, { 0, 0, 0 } },
 };
 
-static u16 sTextIds[] = { 0x2ABD, 0x2ABB, 0x2AD5, 0x2AD6, 0x2AD7, 0x2AD8, 0x2AC6 };
+static u16 MM_sTextIds[] = { 0x2ABD, 0x2ABB, 0x2AD5, 0x2AD6, 0x2AD7, 0x2AD8, 0x2AC6 };
 
 typedef enum {
     /* 0 */ ENBAISEN_ANIM_0,
@@ -62,13 +62,13 @@ typedef enum {
     /* 3 */ ENBAISEN_ANIM_MAX
 } EnBaisenAnimation;
 
-static AnimationHeader* sAnimations[ENBAISEN_ANIM_MAX] = {
+static AnimationHeader* MM_sAnimations[ENBAISEN_ANIM_MAX] = {
     &object_bai_Anim_0011C0, // ENBAISEN_ANIM_0
     &object_bai_Anim_0008B4, // ENBAISEN_ANIM_1
     &object_bai_Anim_008198, // ENBAISEN_ANIM_2
 };
 
-static u8 sAnimationModes[ENBAISEN_ANIM_MAX] = {
+static u8 MM_sAnimationModes[ENBAISEN_ANIM_MAX] = {
     ANIMMODE_LOOP, // ENBAISEN_ANIM_0
     ANIMMODE_LOOP, // ENBAISEN_ANIM_1
     ANIMMODE_LOOP, // ENBAISEN_ANIM_2
@@ -77,8 +77,8 @@ static u8 sAnimationModes[ENBAISEN_ANIM_MAX] = {
 void EnBaisen_Init(Actor* thisx, PlayState* play) {
     EnBaisen* this = (EnBaisen*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 25.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &object_bai_Skel_007908, &object_bai_Anim_0011C0, this->jointTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 25.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &object_bai_Skel_007908, &object_bai_Anim_0011C0, this->jointTable,
                        this->morphTable, OBJECT_BAI_LIMB_MAX);
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
     this->paramCopy = this->actor.params;
@@ -86,7 +86,7 @@ void EnBaisen_Init(Actor* thisx, PlayState* play) {
         this->unk290 = true;
         if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_RESOLVED_MAYOR_MEETING) &&
             ((gSaveContext.save.day != 3) || !gSaveContext.save.isNight)) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
     } else {
         this->collider.dim.radius = 30;
@@ -94,12 +94,12 @@ void EnBaisen_Init(Actor* thisx, PlayState* play) {
         this->collider.dim.yShift = 0;
         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_RESOLVED_MAYOR_MEETING) ||
             ((gSaveContext.save.day == 3) && gSaveContext.save.isNight)) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
     }
     this->actor.attentionRangeType = ATTENTION_RANGE_6;
     this->actor.gravity = -3.0f;
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
     if (this->paramCopy == 0) {
         this->actionFunc = func_80BE87B0;
     } else {
@@ -110,14 +110,14 @@ void EnBaisen_Init(Actor* thisx, PlayState* play) {
 void EnBaisen_Destroy(Actor* thisx, PlayState* play) {
     EnBaisen* this = (EnBaisen*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnBaisen_ChangeAnim(EnBaisen* this, s32 animIndex) {
     this->animIndex = animIndex;
-    this->animEndFrame = Animation_GetLastFrame(sAnimations[animIndex]);
-    Animation_Change(&this->skelAnime, sAnimations[this->animIndex], 1.0f, 0.0f, this->animEndFrame,
-                     sAnimationModes[this->animIndex], -10.0f);
+    this->animEndFrame = MM_Animation_GetLastFrame(MM_sAnimations[animIndex]);
+    MM_Animation_Change(&this->skelAnime, MM_sAnimations[this->animIndex], 1.0f, 0.0f, this->animEndFrame,
+                     MM_sAnimationModes[this->animIndex], -10.0f);
 }
 
 void func_80BE871C(EnBaisen* this) {
@@ -157,7 +157,7 @@ void func_80BE87FC(EnBaisen* this) {
         EnBaisen_ChangeAnim(this, ENBAISEN_ANIM_0);
     }
 
-    this->actor.textId = sTextIds[this->textIdIndex];
+    this->actor.textId = MM_sTextIds[this->textIdIndex];
     this->unk29C = 0;
     this->actionFunc = func_80BE887C;
 }
@@ -171,7 +171,7 @@ void func_80BE887C(EnBaisen* this, PlayState* play) {
             if (CHECK_WEEKEVENTREG(WEEKEVENTREG_ATTENDED_MAYOR_MEETING)) {
                 this->textIdIndex = 1;
             }
-            if (Player_GetMask(play) == PLAYER_MASK_COUPLE) {
+            if (MM_Player_GetMask(play) == PLAYER_MASK_COUPLE) {
                 this->textIdIndex = 6;
             }
             if (this->cutsceneState == 1) {
@@ -179,7 +179,7 @@ void func_80BE887C(EnBaisen* this, PlayState* play) {
                 return;
             }
         }
-        this->actor.textId = sTextIds[this->textIdIndex];
+        this->actor.textId = MM_sTextIds[this->textIdIndex];
         Actor_OfferTalk(&this->actor, play, 70.0f);
     }
 }
@@ -206,7 +206,7 @@ void func_80BE89D8(EnBaisen* this, PlayState* play) {
             EnBaisen_ChangeAnim(this, ENBAISEN_ANIM_1);
         }
     } else {
-        this->unk29E = Math_Vec3f_Yaw(&this->actor.world.pos, &this->targetActor->world.pos);
+        this->unk29E = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &this->targetActor->world.pos);
         if (this->animIndex != ENBAISEN_ANIM_0) {
             EnBaisen_ChangeAnim(this, ENBAISEN_ANIM_0);
         }
@@ -229,17 +229,17 @@ void func_80BE8AAC(EnBaisen* this, PlayState* play) {
         }
     } else {
         if (this->targetActor != NULL) {
-            this->unk29E = Math_Vec3f_Yaw(&this->actor.world.pos, &this->targetActor->world.pos);
+            this->unk29E = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &this->targetActor->world.pos);
         }
         if (this->animIndex != ENBAISEN_ANIM_0) {
             EnBaisen_ChangeAnim(this, ENBAISEN_ANIM_0);
         }
     }
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
-        Message_CloseTextbox(play);
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
+        MM_Message_CloseTextbox(play);
         this->textIdIndex++;
         if (this->textIdIndex < 6) {
-            Message_ContinueTextbox(play, sTextIds[this->textIdIndex]);
+            MM_Message_ContinueTextbox(play, MM_sTextIds[this->textIdIndex]);
             if ((this->textIdIndex % 2) == 0) {
                 this->targetActor = this->heishiPointer;
             } else {
@@ -256,29 +256,29 @@ void EnBaisen_Update(Actor* thisx, PlayState* play) {
     s32 pad;
     EnBaisen* this = (EnBaisen*)thisx;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     if (this->unusedCounter != 0) {
         this->unusedCounter--;
     }
     this->actor.shape.rot.y = this->actor.world.rot.y;
     if ((this->paramCopy != 0) && (gSaveContext.save.day == 3) && gSaveContext.save.isNight) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
     this->actionFunc(this, play);
     Actor_MoveWithGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 50.0f,
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 50.0f,
                             UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4 | UPDBGCHECKINFO_FLAG_8 |
                                 UPDBGCHECKINFO_FLAG_10);
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     if (this->unk290) {
         func_80BE871C(this);
     }
-    Actor_SetFocus(&this->actor, 60.0f);
-    Math_SmoothStepToS(&this->headRotX, this->headRotXTarget, 1, 0xBB8, 0);
-    Math_SmoothStepToS(&this->headRotY, this->headRotYTarget, 1, 0x3E8, 0);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Actor_SetFocus(&this->actor, 60.0f);
+    MM_Math_SmoothStepToS(&this->headRotX, this->headRotXTarget, 1, 0xBB8, 0);
+    MM_Math_SmoothStepToS(&this->headRotY, this->headRotYTarget, 1, 0x3E8, 0);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 s32 EnBaisen_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx) {
@@ -297,6 +297,6 @@ void EnBaisen_Draw(Actor* thisx, PlayState* play) {
     EnBaisen* this = (EnBaisen*)thisx;
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnBaisen_OverrideLimbDraw, NULL, &this->actor);
 }

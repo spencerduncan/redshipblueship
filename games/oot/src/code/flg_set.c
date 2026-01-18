@@ -1,6 +1,6 @@
 #include "global.h"
 
-void FlagSet_Update(PlayState* play) {
+void OoT_FlagSet_Update(PlayState* play) {
     static s32 entryIdx = 0;
     static u32 curBit = 0;
     static s32 timer = 0;
@@ -47,31 +47,31 @@ void FlagSet_Update(PlayState* play) {
         s32 pad;
 
         polyOpa = POLY_OPA_DISP;
-        gfx = Graph_GfxPlusOne(polyOpa);
+        gfx = OoT_Graph_GfxPlusOne(polyOpa);
         gSPDisplayList(OVERLAY_DISP++, gfx);
 
-        GfxPrint_Init(&printer);
-        GfxPrint_Open(&printer, gfx);
-        GfxPrint_SetColor(&printer, 250, 50, 50, 255);
-        GfxPrint_SetPos(&printer, 4, 13);
-        GfxPrint_Printf(&printer, entries[entryIdx].name);
-        GfxPrint_SetPos(&printer, 4, 15);
+        OoT_GfxPrint_Init(&printer);
+        OoT_GfxPrint_Open(&printer, gfx);
+        OoT_GfxPrint_SetColor(&printer, 250, 50, 50, 255);
+        OoT_GfxPrint_SetPos(&printer, 4, 13);
+        OoT_GfxPrint_Printf(&printer, entries[entryIdx].name);
+        OoT_GfxPrint_SetPos(&printer, 4, 15);
 
         for (bitIdx = 15; bitIdx >= 0; bitIdx--) {
             if ((u32)bitIdx == curBit) {
-                GfxPrint_SetColor(&printer, 200, 200, 200, 255);
+                OoT_GfxPrint_SetColor(&printer, 200, 200, 200, 255);
             } else {
-                GfxPrint_SetColor(&printer, 100, 100, 100, 255);
+                OoT_GfxPrint_SetColor(&printer, 100, 100, 100, 255);
             }
 
             if (*entries[entryIdx].value & (1 << bitIdx)) {
-                GfxPrint_Printf(&printer, "1");
+                OoT_GfxPrint_Printf(&printer, "1");
             } else {
-                GfxPrint_Printf(&printer, "0");
+                OoT_GfxPrint_Printf(&printer, "0");
             }
 
             if ((bitIdx % 4) == 0) {
-                GfxPrint_Printf(&printer, " ");
+                OoT_GfxPrint_Printf(&printer, " ");
             }
         }
 
@@ -136,11 +136,11 @@ void FlagSet_Update(PlayState* play) {
             timer--;
         }
 
-        gfx = GfxPrint_Close(&printer);
-        GfxPrint_Destroy(&printer);
+        gfx = OoT_GfxPrint_Close(&printer);
+        OoT_GfxPrint_Destroy(&printer);
 
         gSPEndDisplayList(gfx++);
-        Graph_BranchDlist(polyOpa, gfx);
+        OoT_Graph_BranchDlist(polyOpa, gfx);
         POLY_OPA_DISP = gfx;
     }
 

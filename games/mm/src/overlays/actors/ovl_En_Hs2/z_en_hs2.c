@@ -8,10 +8,10 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY)
 
-void EnHs2_Init(Actor* thisx, PlayState* play);
-void EnHs2_Destroy(Actor* thisx, PlayState* play);
-void EnHs2_Update(Actor* thisx, PlayState* play);
-void EnHs2_Draw(Actor* thisx, PlayState* play);
+void MM_EnHs2_Init(Actor* thisx, PlayState* play);
+void MM_EnHs2_Destroy(Actor* thisx, PlayState* play);
+void MM_EnHs2_Update(Actor* thisx, PlayState* play);
+void MM_EnHs2_Draw(Actor* thisx, PlayState* play);
 
 void EnHs2_DoNothing(EnHs2* this, PlayState* play);
 
@@ -21,30 +21,30 @@ ActorProfile En_Hs2_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(EnHs2),
-    /**/ EnHs2_Init,
-    /**/ EnHs2_Destroy,
-    /**/ EnHs2_Update,
-    /**/ EnHs2_Draw,
+    /**/ MM_EnHs2_Init,
+    /**/ MM_EnHs2_Destroy,
+    /**/ MM_EnHs2_Update,
+    /**/ MM_EnHs2_Draw,
 };
 
-void EnHs2_Init(Actor* thisx, PlayState* play) {
+void MM_EnHs2_Init(Actor* thisx, PlayState* play) {
     EnHs2* this = (EnHs2*)thisx;
 
-    Actor_SetScale(&this->actor, 1.0f);
+    MM_Actor_SetScale(&this->actor, 1.0f);
     this->actionFunc = EnHs2_DoNothing;
 }
 
-void EnHs2_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnHs2_Destroy(Actor* thisx, PlayState* play) {
 }
 
 void EnHs2_DoNothing(EnHs2* this, PlayState* play) {
 }
 
-void EnHs2_Update(Actor* thisx, PlayState* play) {
+void MM_EnHs2_Update(Actor* thisx, PlayState* play) {
     EnHs2* this = (EnHs2*)thisx;
 
     this->actionFunc(this, play);
 }
 
-void EnHs2_Draw(Actor* thisx, PlayState* play) {
+void MM_EnHs2_Draw(Actor* thisx, PlayState* play) {
 }

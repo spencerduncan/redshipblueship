@@ -10,10 +10,10 @@
 #define PLANE_HALFWIDTH 100.0f
 #define PLANE_HALFWIDTH_2 200.0f
 
-void EnHoll_Init(Actor* thisx, PlayState* play);
-void EnHoll_Destroy(Actor* thisx, PlayState* play);
-void EnHoll_Update(Actor* thisx, PlayState* play);
-void EnHoll_Draw(Actor* thisx, PlayState* play);
+void OoT_EnHoll_Init(Actor* thisx, PlayState* play);
+void OoT_EnHoll_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnHoll_Update(Actor* thisx, PlayState* play);
+void OoT_EnHoll_Draw(Actor* thisx, PlayState* play);
 
 void EnHoll_NextAction(EnHoll* this, PlayState* play);
 void func_80A58DD4(EnHoll* this, PlayState* play);
@@ -29,18 +29,18 @@ const ActorInit En_Holl_InitVars = {
     FLAGS,
     OBJECT_GAMEPLAY_KEEP,
     sizeof(EnHoll),
-    (ActorFunc)EnHoll_Init,
-    (ActorFunc)EnHoll_Destroy,
-    (ActorFunc)EnHoll_Update,
-    (ActorFunc)EnHoll_Draw,
+    (ActorFunc)OoT_EnHoll_Init,
+    (ActorFunc)OoT_EnHoll_Destroy,
+    (ActorFunc)OoT_EnHoll_Update,
+    (ActorFunc)OoT_EnHoll_Draw,
     NULL,
 };
 
-static EnHollActionFunc sActionFuncs[] = {
+static EnHollActionFunc OoT_sActionFuncs[] = {
     func_80A58DD4, func_80A591C0, func_80A59520, func_80A59618, func_80A59014, func_80A593A4, func_80A59014,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(uncullZoneForward, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 400, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneDownward, 400, ICHAIN_STOP),
@@ -72,7 +72,7 @@ static f32 sHorizTriggerDists[2][4] = {
     { 100.0f, 75.0f, 50.0f, 25.0f },
 };
 
-void EnHoll_SetupAction(EnHoll* this, EnHollActionFunc func) {
+void OoT_EnHoll_SetupAction(EnHoll* this, EnHollActionFunc func) {
     this->actionFunc = func;
 }
 
@@ -84,7 +84,7 @@ void EnHoll_ChooseAction(EnHoll* this) {
     s32 action;
 
     action = (this->actor.params >> 6) & 7;
-    EnHoll_SetupAction(this, sActionFuncs[action]);
+    OoT_EnHoll_SetupAction(this, OoT_sActionFuncs[action]);
     if (action != 0) {
         this->actor.draw = NULL;
     } else {
@@ -92,15 +92,15 @@ void EnHoll_ChooseAction(EnHoll* this) {
     }
 }
 
-void EnHoll_Init(Actor* thisx, PlayState* play) {
+void OoT_EnHoll_Init(Actor* thisx, PlayState* play) {
     EnHoll* this = (EnHoll*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
     EnHoll_ChooseAction(this);
     this->unk_14F = 0;
 }
 
-void EnHoll_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnHoll_Destroy(Actor* thisx, PlayState* play) {
     s32 transitionActorIdx = (u16)thisx->params >> 0xA;
     TransitionActorEntry* transitionEntry = &play->transiActorCtx.list[transitionActorIdx];
 
@@ -125,7 +125,7 @@ void func_80A58DD4(EnHoll* this, PlayState* play) {
     f32 absZ;
     s32 transitionActorIdx;
 
-    Actor_WorldToActorCoords(&this->actor, &vec, &player->actor.world.pos);
+    OoT_Actor_WorldToActorCoords(&this->actor, &vec, &player->actor.world.pos);
     this->side = (vec.z < 0.0f) ? 0 : 1;
     absZ = fabsf(vec.z);
     if (vec.y > PLANE_Y_MIN && vec.y < PLANE_Y_MAX && fabsf(vec.x) < PLANE_HALFWIDTH &&
@@ -162,7 +162,7 @@ void func_80A59014(EnHoll* this, PlayState* play) {
     f32 planeHalfWidth;
     f32 absZ;
 
-    Actor_WorldToActorCoords(&this->actor, &vec, (useViewEye) ? &play->view.eye : &player->actor.world.pos);
+    OoT_Actor_WorldToActorCoords(&this->actor, &vec, (useViewEye) ? &play->view.eye : &player->actor.world.pos);
     planeHalfWidth = (((this->actor.params >> 6) & 7) == 6) ? PLANE_HALFWIDTH : PLANE_HALFWIDTH_2;
 
     temp = EnHoll_IsKokiriSetup8();
@@ -178,7 +178,7 @@ void func_80A59014(EnHoll* this, PlayState* play) {
         if (this->actor.room != play->roomCtx.curRoom.num) {
             if (room) {}
             if (func_8009728C(play, &play->roomCtx, this->actor.room)) {
-                EnHoll_SetupAction(this, EnHoll_NextAction);
+                OoT_EnHoll_SetupAction(this, EnHoll_NextAction);
             }
         }
     }
@@ -201,11 +201,11 @@ void func_80A591C0(EnHoll* this, PlayState* play) {
         }
         if (absY < 95.0f) {
             this->actor.room = play->transiActorCtx.list[transitionActorIdx].sides[1].room;
-            Math_SmoothStepToF(&player->actor.world.pos.x, this->actor.world.pos.x, 1.0f, 50.0f, 10.0f);
-            Math_SmoothStepToF(&player->actor.world.pos.z, this->actor.world.pos.z, 1.0f, 50.0f, 10.0f);
+            OoT_Math_SmoothStepToF(&player->actor.world.pos.x, this->actor.world.pos.x, 1.0f, 50.0f, 10.0f);
+            OoT_Math_SmoothStepToF(&player->actor.world.pos.z, this->actor.world.pos.z, 1.0f, 50.0f, 10.0f);
             if (this->actor.room != play->roomCtx.curRoom.num &&
                 func_8009728C(play, &play->roomCtx, this->actor.room) != 0) {
-                EnHoll_SetupAction(this, EnHoll_NextAction);
+                OoT_EnHoll_SetupAction(this, EnHoll_NextAction);
                 this->unk_14F = 1;
                 player->actor.speedXZ = 0.0f;
             }
@@ -234,7 +234,7 @@ void func_80A593A4(EnHoll* this, PlayState* play) {
             this->actor.room = play->transiActorCtx.list[transitionActorIdx].sides[side].room;
             if (this->actor.room != play->roomCtx.curRoom.num &&
                 func_8009728C(play, &play->roomCtx, this->actor.room) != 0) {
-                EnHoll_SetupAction(this, EnHoll_NextAction);
+                OoT_EnHoll_SetupAction(this, EnHoll_NextAction);
                 this->unk_14F = 1;
             }
         }
@@ -258,7 +258,7 @@ void func_80A59520(EnHoll* this, PlayState* play) {
             this->actor.room = play->transiActorCtx.list[transitionActorIdx].sides[side].room;
             if (this->actor.room != play->roomCtx.curRoom.num &&
                 func_8009728C(play, &play->roomCtx, this->actor.room) != 0) {
-                EnHoll_SetupAction(this, EnHoll_NextAction);
+                OoT_EnHoll_SetupAction(this, EnHoll_NextAction);
             }
         }
     }
@@ -272,13 +272,13 @@ void func_80A59618(EnHoll* this, PlayState* play) {
     s32 side;
     s32 transitionActorIdx;
 
-    if (!Flags_GetSwitch(play, this->actor.params & 0x3F)) {
+    if (!OoT_Flags_GetSwitch(play, this->actor.params & 0x3F)) {
         if (this->unk_14F != 0) {
             play->unk_11E18 = 0;
             this->unk_14F = 0;
         }
     } else {
-        Actor_WorldToActorCoords(&this->actor, &vec, &player->actor.world.pos);
+        OoT_Actor_WorldToActorCoords(&this->actor, &vec, &player->actor.world.pos);
         absZ = fabsf(vec.z);
         if (PLANE_Y_MIN < vec.y && vec.y < PLANE_Y_MAX && fabsf(vec.x) < PLANE_HALFWIDTH_2 && absZ < 100.0f) {
             this->unk_14F = 1;
@@ -294,7 +294,7 @@ void func_80A59618(EnHoll* this, PlayState* play) {
                 this->actor.room = play->transiActorCtx.list[transitionActorIdx].sides[side].room;
                 if (this->actor.room != play->roomCtx.curRoom.num &&
                     func_8009728C(play, &play->roomCtx, this->actor.room) != 0) {
-                    EnHoll_SetupAction(this, EnHoll_NextAction);
+                    OoT_EnHoll_SetupAction(this, EnHoll_NextAction);
                 }
             }
         } else if (this->unk_14F != 0) {
@@ -314,7 +314,7 @@ void EnHoll_NextAction(EnHoll* this, PlayState* play) {
     }
 }
 
-void EnHoll_Update(Actor* thisx, PlayState* play) {
+void OoT_EnHoll_Update(Actor* thisx, PlayState* play) {
     EnHoll* this = (EnHoll*)thisx;
 
     this->actionFunc(this, play);
@@ -322,7 +322,7 @@ void EnHoll_Update(Actor* thisx, PlayState* play) {
 
 #include "overlays/ovl_En_Holl/ovl_En_Holl.h"
 
-void EnHoll_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnHoll_Draw(Actor* thisx, PlayState* play) {
     EnHoll* this = (EnHoll*)thisx;
     Gfx* gfxP;
     u32 setupDlIdx;
@@ -338,7 +338,7 @@ void EnHoll_Draw(Actor* thisx, PlayState* play) {
             gfxP = POLY_XLU_DISP;
             setupDlIdx = 0;
         }
-        gfxP = Gfx_SetupDL(gfxP, setupDlIdx);
+        gfxP = OoT_Gfx_SetupDL(gfxP, setupDlIdx);
         if (this->side == 0) {
             Matrix_RotateY(M_PI, MTXMODE_APPLY);
         }

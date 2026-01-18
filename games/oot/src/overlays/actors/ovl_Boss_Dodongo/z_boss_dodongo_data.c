@@ -10,7 +10,7 @@ static u8 D_808C7000[] = {
     1, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0,
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[19] = {
+static ColliderJntSphElementInit OoT_sJntSphElementsInit[19] = {
     {
         {
             ELEMTYPE_UNK3,
@@ -222,7 +222,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[19] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit OoT_sJntSphInit = {
     {
         COLTYPE_HIT3,
         AT_ON | AT_TYPE_ENEMY,
@@ -232,7 +232,7 @@ static ColliderJntSphInit sJntSphInit = {
         COLSHAPE_JNTSPH,
     },
     19,
-    sJntSphElementsInit,
+    OoT_sJntSphElementsInit,
 };
 
 static Vec3f sUnkZeroVec = { 0.0f, 0.0f, 0.0f };

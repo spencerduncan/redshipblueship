@@ -25,7 +25,7 @@ void RumbleManager_Update(RumbleManager* rumbleMgr) {
 
         if (D_801D1E70) {
             for (i = 0; i < MAXCONTROLLERS; i++) {
-                PadMgr_RumbleSetSingle(i, false);
+                MM_PadMgr_RumbleSetSingle(i, false);
             }
         }
 
@@ -40,7 +40,7 @@ void RumbleManager_Update(RumbleManager* rumbleMgr) {
     // Start up the manager by wiping old requests
     if (rumbleMgr->state == RUMBLEMANAGER_STATE_INITIAL) {
         for (i = 0; i < MAXCONTROLLERS; i++) {
-            PadMgr_RumbleSetSingle(i, false);
+            MM_PadMgr_RumbleSetSingle(i, false);
         }
 
         for (i = 0; i < RUMBLE_REQUEST_BUFFER_SIZE; i++) {

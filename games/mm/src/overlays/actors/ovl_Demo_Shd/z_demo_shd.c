@@ -8,10 +8,10 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED)
 
-void DemoShd_Init(Actor* thisx, PlayState* play);
-void DemoShd_Destroy(Actor* thisx, PlayState* play);
-void DemoShd_Update(Actor* thisx, PlayState* play);
-void DemoShd_Draw(Actor* thisx, PlayState* play);
+void MM_DemoShd_Init(Actor* thisx, PlayState* play);
+void MM_DemoShd_Destroy(Actor* thisx, PlayState* play);
+void MM_DemoShd_Update(Actor* thisx, PlayState* play);
+void MM_DemoShd_Draw(Actor* thisx, PlayState* play);
 
 ActorProfile Demo_Shd_Profile = {
     /**/ ACTOR_DEMO_SHD,
@@ -19,17 +19,17 @@ ActorProfile Demo_Shd_Profile = {
     /**/ FLAGS,
     /**/ OBJECT_FWALL,
     /**/ sizeof(DemoShd),
-    /**/ DemoShd_Init,
-    /**/ DemoShd_Destroy,
-    /**/ DemoShd_Update,
-    /**/ DemoShd_Draw,
+    /**/ MM_DemoShd_Init,
+    /**/ MM_DemoShd_Destroy,
+    /**/ MM_DemoShd_Update,
+    /**/ MM_DemoShd_Draw,
 };
 
-void DemoShd_Init(Actor* thisx, PlayState* play) {
+void MM_DemoShd_Init(Actor* thisx, PlayState* play) {
 }
-void DemoShd_Destroy(Actor* thisx, PlayState* play) {
+void MM_DemoShd_Destroy(Actor* thisx, PlayState* play) {
 }
-void DemoShd_Update(Actor* thisx, PlayState* play) {
+void MM_DemoShd_Update(Actor* thisx, PlayState* play) {
 }
-void DemoShd_Draw(Actor* thisx, PlayState* play) {
+void MM_DemoShd_Draw(Actor* thisx, PlayState* play) {
 }

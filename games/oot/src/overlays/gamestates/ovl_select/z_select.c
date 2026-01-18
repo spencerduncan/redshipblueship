@@ -15,7 +15,7 @@
 #include "soh/ResourceManagerHelpers.h"
 
 void Select_SwitchBetterWarpMode(SelectContext* this, u8 isBetterWarpMode);
-void Sram_InitDebugSave(void);
+void OoT_Sram_InitDebugSave(void);
 
 void Select_LoadTitle(SelectContext* this) {
     this->state.running = false;
@@ -27,7 +27,7 @@ void Select_LoadGame(SelectContext* this, s32 entranceIndex) {
     osSyncPrintf("\n\n\nＦＩＬＥ＿ＮＯ＝%x\n\n\n", gSaveContext.fileNum);
     osSyncPrintf(VT_RST);
     if (gSaveContext.fileNum == 0xFF) {
-        Sram_InitDebugSave();
+        OoT_Sram_InitDebugSave();
         gSaveContext.magicFillTarget = gSaveContext.magic;
         gSaveContext.magic = 0;
         gSaveContext.magicCapacity = 0;
@@ -77,9 +77,9 @@ void Select_LoadGame(SelectContext* this, s32 entranceIndex) {
     gSaveContext.seqId = (u8)NA_BGM_DISABLED;
     gSaveContext.natureAmbienceId = 0xFF;
     gSaveContext.showTitleCard = true;
-    gWeatherMode = 0;
+    OoT_gWeatherMode = 0;
     this->state.running = false;
-    SET_NEXT_GAMESTATE(&this->state, Play_Init, PlayState);
+    SET_NEXT_GAMESTATE(&this->state, OoT_Play_Init, PlayState);
 }
 
 void Select_Grotto_LoadGame(SelectContext* this, s32 grottoIndex) {
@@ -87,7 +87,7 @@ void Select_Grotto_LoadGame(SelectContext* this, s32 grottoIndex) {
     osSyncPrintf("\n\n\nＦＩＬＥ＿ＮＯ＝%x\n\n\n", gSaveContext.fileNum);
     osSyncPrintf(VT_RST);
     if (gSaveContext.fileNum == 0xFF) {
-        Sram_InitDebugSave();
+        OoT_Sram_InitDebugSave();
         gSaveContext.magicFillTarget = gSaveContext.magic;
         gSaveContext.magic = 0;
         gSaveContext.magicCapacity = 0;
@@ -130,12 +130,12 @@ void Select_Grotto_LoadGame(SelectContext* this, s32 grottoIndex) {
     gSaveContext.seqId = (u8)NA_BGM_DISABLED;
     gSaveContext.natureAmbienceId = 0xFF;
     gSaveContext.showTitleCard = true;
-    gWeatherMode = 0;
+    OoT_gWeatherMode = 0;
     this->state.running = false;
-    SET_NEXT_GAMESTATE(&this->state, Play_Init, PlayState);
+    SET_NEXT_GAMESTATE(&this->state, OoT_Play_Init, PlayState);
 }
 
-static SceneSelectEntry sScenes[] = {
+static SceneSelectEntry OoT_sScenes[] = {
     { " 1:SPOT00", " 1:Hyrule Field", " 1:Hylianische Steppe", " 1:Plaine d'Hyrule", Select_LoadGame,
       ENTR_HYRULE_FIELD_PAST_BRIDGE_SPAWN },
     { " 2:SPOT01", " 2:Kakariko Village", " 2:Kakariko", " 2:Village Cocorico", Select_LoadGame,
@@ -960,15 +960,15 @@ void Select_UpdateMenu(SelectContext* this) {
             if (this->timerUp == 0) {
                 this->timerUp = 20;
                 this->lockUp = true;
-                Audio_PlaySoundGeneral(NA_SE_IT_SWORD_IMPACT, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_IT_SWORD_IMPACT, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                 this->verticalInput = R_UPDATE_RATE;
             }
         }
 
         if (CHECK_BTN_ALL(input->cur.button, BTN_DUP) && this->timerUp == 0) {
-            Audio_PlaySoundGeneral(NA_SE_IT_SWORD_IMPACT, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_IT_SWORD_IMPACT, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             this->verticalInput = R_UPDATE_RATE * 3;
         }
 
@@ -979,27 +979,27 @@ void Select_UpdateMenu(SelectContext* this) {
             if (this->timerDown == 0) {
                 this->timerDown = 20;
                 this->lockDown = true;
-                Audio_PlaySoundGeneral(NA_SE_IT_SWORD_IMPACT, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_IT_SWORD_IMPACT, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                 this->verticalInput = -R_UPDATE_RATE;
             }
         }
 
         if (CHECK_BTN_ALL(input->cur.button, BTN_DDOWN) && (this->timerDown == 0)) {
-            Audio_PlaySoundGeneral(NA_SE_IT_SWORD_IMPACT, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_IT_SWORD_IMPACT, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             this->verticalInput = -R_UPDATE_RATE * 3;
         }
 
         if (CHECK_BTN_ALL(input->press.button, BTN_DLEFT) || CHECK_BTN_ALL(input->cur.button, BTN_DLEFT)) {
-            Audio_PlaySoundGeneral(NA_SE_IT_SWORD_IMPACT, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_IT_SWORD_IMPACT, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             this->verticalInput = R_UPDATE_RATE;
         }
 
         if (CHECK_BTN_ALL(input->press.button, BTN_DRIGHT) || CHECK_BTN_ALL(input->cur.button, BTN_DRIGHT)) {
-            Audio_PlaySoundGeneral(NA_SE_IT_SWORD_IMPACT, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_IT_SWORD_IMPACT, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             this->verticalInput = -R_UPDATE_RATE;
         }
     }
@@ -1085,12 +1085,12 @@ void Better_Select_UpdateMenu(SelectContext* this) {
         if (CHECK_BTN_ALL(input->press.button, BTN_B)) {
             if (LINK_AGE_IN_YEARS == YEARS_ADULT) {
                 gSaveContext.linkAge = 1;
-                Audio_PlaySoundGeneral(NA_SE_VO_LI_SWORD_N_KID, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_VO_LI_SWORD_N_KID, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             } else {
                 gSaveContext.linkAge = 0;
-                Audio_PlaySoundGeneral(NA_SE_VO_LI_SWORD_N, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_VO_LI_SWORD_N, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             }
         }
 
@@ -1098,13 +1098,13 @@ void Better_Select_UpdateMenu(SelectContext* this) {
             if (gSaveContext.dayTime > 0xC000 || gSaveContext.dayTime < 0x4555) {
                 gSaveContext.nightFlag = 0;
                 gSaveContext.dayTime = 0x8000;
-                Audio_PlaySoundGeneral(NA_SE_EV_CHICKEN_CRY_M, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_EV_CHICKEN_CRY_M, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             } else {
                 gSaveContext.nightFlag = 1;
                 gSaveContext.dayTime = 0x0000;
-                Audio_PlaySoundGeneral(NA_SE_EV_DOG_CRY_EVENING, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_EV_DOG_CRY_EVENING, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             }
         }
 
@@ -1114,27 +1114,27 @@ void Better_Select_UpdateMenu(SelectContext* this) {
                 this->betterScenes[this->currentScene].entrancePairs[this->pageDownIndex].canBeMQ) {
                 this->opt = this->opt ? 0 : 1;
                 if (this->opt) {
-                    Audio_PlaySoundGeneral(NA_SE_IT_SWORD_PICKOUT, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                           &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                    Audio_PlaySoundGeneral(NA_SE_IT_SWORD_PICKOUT, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                           &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                 } else {
-                    Audio_PlaySoundGeneral(NA_SE_IT_SWORD_PUTAWAY, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                           &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                    Audio_PlaySoundGeneral(NA_SE_IT_SWORD_PUTAWAY, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                           &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                 }
             }
         }
 
         if (CHECK_BTN_ALL(input->press.button, BTN_CLEFT) || CHECK_BTN_ALL(input->press.button, BTN_DLEFT)) {
             this->pageDownIndex--;
-            Audio_PlaySoundGeneral(NA_SE_IT_SWORD_SWING, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_IT_SWORD_SWING, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             if (this->pageDownIndex < 0) {
                 this->pageDownIndex = this->betterScenes[this->currentScene].entranceCount - 1;
             }
         }
         if (CHECK_BTN_ALL(input->press.button, BTN_CRIGHT) || CHECK_BTN_ALL(input->press.button, BTN_DRIGHT)) {
             this->pageDownIndex++;
-            Audio_PlaySoundGeneral(NA_SE_IT_SWORD_SWING, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_IT_SWORD_SWING, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             if (this->pageDownIndex > this->betterScenes[this->currentScene].entranceCount - 1) {
                 this->pageDownIndex = 0;
             }
@@ -1147,16 +1147,16 @@ void Better_Select_UpdateMenu(SelectContext* this) {
             if (this->timerUp == 0) {
                 this->timerUp = 20;
                 this->lockUp = true;
-                Audio_PlaySoundGeneral(NA_SE_IT_SWORD_IMPACT, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_IT_SWORD_IMPACT, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                 this->verticalInput = R_UPDATE_RATE;
             }
         }
 
         if ((CHECK_BTN_ALL(input->cur.button, BTN_DUP) || CHECK_BTN_ALL(input->cur.button, BTN_CUP)) &&
             this->timerUp == 0) {
-            Audio_PlaySoundGeneral(NA_SE_IT_SWORD_IMPACT, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_IT_SWORD_IMPACT, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             this->verticalInput = R_UPDATE_RATE * 3;
         }
 
@@ -1167,16 +1167,16 @@ void Better_Select_UpdateMenu(SelectContext* this) {
             if (this->timerDown == 0) {
                 this->timerDown = 20;
                 this->lockDown = true;
-                Audio_PlaySoundGeneral(NA_SE_IT_SWORD_IMPACT, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_IT_SWORD_IMPACT, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                 this->verticalInput = -R_UPDATE_RATE;
             }
         }
 
         if ((CHECK_BTN_ALL(input->cur.button, BTN_DDOWN) || CHECK_BTN_ALL(input->cur.button, BTN_CDOWN)) &&
             (this->timerDown == 0)) {
-            Audio_PlaySoundGeneral(NA_SE_IT_SWORD_IMPACT, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_IT_SWORD_IMPACT, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             this->verticalInput = -R_UPDATE_RATE * 3;
         }
     }
@@ -1254,19 +1254,19 @@ void Select_PrintMenu(SelectContext* this, GfxPrint* printer) {
     s32 i;
     char* name;
 
-    GfxPrint_SetColor(printer, 255, 155, 150, 255);
-    GfxPrint_SetPos(printer, 12, 2);
-    GfxPrint_Printf(printer, "ZELDA MAP SELECT");
-    GfxPrint_SetColor(printer, 255, 255, 255, 255);
+    OoT_GfxPrint_SetColor(printer, 255, 155, 150, 255);
+    OoT_GfxPrint_SetPos(printer, 12, 2);
+    OoT_GfxPrint_Printf(printer, "ZELDA MAP SELECT");
+    OoT_GfxPrint_SetColor(printer, 255, 255, 255, 255);
 
     for (i = 0; i < 20; i++) {
-        GfxPrint_SetPos(printer, 9, i + 4);
+        OoT_GfxPrint_SetPos(printer, 9, i + 4);
 
         scene = (this->topDisplayedScene + i + this->count) % this->count;
         if (scene == this->currentScene) {
-            GfxPrint_SetColor(printer, 255, 20, 20, 255);
+            OoT_GfxPrint_SetColor(printer, 255, 20, 20, 255);
         } else {
-            GfxPrint_SetColor(printer, 200, 200, 55, 255);
+            OoT_GfxPrint_SetColor(printer, 200, 200, 55, 255);
         }
 
         if (CVarGetInteger(CVAR_DEVELOPER_TOOLS("DebugWarpScreenTranslation"), 1)) {
@@ -1293,20 +1293,20 @@ void Select_PrintMenu(SelectContext* this, GfxPrint* printer) {
             name = "**Null**";
         }
 
-        GfxPrint_Printf(printer, "%s", name);
+        OoT_GfxPrint_Printf(printer, "%s", name);
     };
 
-    GfxPrint_SetColor(printer, 155, 55, 150, 255);
+    OoT_GfxPrint_SetColor(printer, 155, 55, 150, 255);
 
     // Small position hack of the OPT=X text since german Link's Age overlap if translated
     if (CVarGetInteger(CVAR_DEVELOPER_TOOLS("DebugWarpScreenTranslation"), 1) &&
         gSaveContext.language == LANGUAGE_GER) {
-        GfxPrint_SetPos(printer, 26, 26);
+        OoT_GfxPrint_SetPos(printer, 26, 26);
     } else {
-        GfxPrint_SetPos(printer, 20, 26);
+        OoT_GfxPrint_SetPos(printer, 20, 26);
     }
 
-    GfxPrint_Printf(printer, "OPT=%d", this->opt);
+    OoT_GfxPrint_Printf(printer, "OPT=%d", this->opt);
 }
 
 void Better_Select_PrintMenu(SelectContext* this, GfxPrint* printer) {
@@ -1314,37 +1314,37 @@ void Better_Select_PrintMenu(SelectContext* this, GfxPrint* printer) {
     s32 i;
     char* name;
 
-    GfxPrint_SetColor(printer, 255, 255, 255, 255);
-    GfxPrint_SetPos(printer, 12, 2);
+    OoT_GfxPrint_SetColor(printer, 255, 255, 255, 255);
+    OoT_GfxPrint_SetPos(printer, 12, 2);
     if (CVarGetInteger(CVAR_DEVELOPER_TOOLS("DebugWarpScreenTranslation"), 1)) {
         switch (gSaveContext.language) {
             case LANGUAGE_ENG:
             default:
-                GfxPrint_Printf(printer, "Scene Selection");
+                OoT_GfxPrint_Printf(printer, "Scene Selection");
                 break;
             case LANGUAGE_GER:
-                GfxPrint_Printf(printer, "Szenenauswahl");
+                OoT_GfxPrint_Printf(printer, "Szenenauswahl");
                 break;
             case LANGUAGE_FRA:
-                GfxPrint_Printf(printer, "Selection de Scene");
+                OoT_GfxPrint_Printf(printer, "Selection de Scene");
                 break;
             case LANGUAGE_JPN:
-                GfxPrint_Printf(printer, "シーンセレクト");
+                OoT_GfxPrint_Printf(printer, "シーンセレクト");
                 break;
         }
     } else {
-        GfxPrint_Printf(printer, "Scene Selection");
+        OoT_GfxPrint_Printf(printer, "Scene Selection");
     }
-    GfxPrint_SetColor(printer, 255, 255, 255, 255);
+    OoT_GfxPrint_SetColor(printer, 255, 255, 255, 255);
 
     for (i = 0; i < 20; i++) {
-        GfxPrint_SetPos(printer, 3, i + 4);
+        OoT_GfxPrint_SetPos(printer, 3, i + 4);
 
         scene = (this->topDisplayedScene + i + this->count) % this->count;
         if (scene == this->currentScene) {
-            GfxPrint_SetColor(printer, 255, 100, 100, 255);
+            OoT_GfxPrint_SetColor(printer, 255, 100, 100, 255);
         } else {
-            GfxPrint_SetColor(printer, 175, 175, 175, 255);
+            OoT_GfxPrint_SetColor(printer, 175, 175, 175, 255);
         }
 
         if (CVarGetInteger(CVAR_DEVELOPER_TOOLS("DebugWarpScreenTranslation"), 1)) {
@@ -1370,39 +1370,39 @@ void Better_Select_PrintMenu(SelectContext* this, GfxPrint* printer) {
             name = "**Null**";
         }
 
-        GfxPrint_Printf(printer, "%s", name);
+        OoT_GfxPrint_Printf(printer, "%s", name);
     };
 
-    GfxPrint_SetColor(printer, 205, 100, 200, 255);
-    GfxPrint_SetPos(printer, 3, 26);
+    OoT_GfxPrint_SetColor(printer, 205, 100, 200, 255);
+    OoT_GfxPrint_SetPos(printer, 3, 26);
 
     if (CVarGetInteger(CVAR_DEVELOPER_TOOLS("DebugWarpScreenTranslation"), 1)) {
         switch (gSaveContext.language) {
             case LANGUAGE_ENG:
             default:
-                GfxPrint_Printf(printer, "%s",
+                OoT_GfxPrint_Printf(printer, "%s",
                                 this->betterScenes[this->currentScene].entrancePairs[this->pageDownIndex].englishName);
                 break;
             case LANGUAGE_GER:
-                GfxPrint_Printf(printer, "%s",
+                OoT_GfxPrint_Printf(printer, "%s",
                                 this->betterScenes[this->currentScene].entrancePairs[this->pageDownIndex].germanName);
                 break;
             case LANGUAGE_FRA:
-                GfxPrint_Printf(printer, "%s",
+                OoT_GfxPrint_Printf(printer, "%s",
                                 this->betterScenes[this->currentScene].entrancePairs[this->pageDownIndex].frenchName);
                 break;
             case LANGUAGE_JPN:
-                GfxPrint_Printf(printer, "%s",
+                OoT_GfxPrint_Printf(printer, "%s",
                                 this->betterScenes[this->currentScene].entrancePairs[this->pageDownIndex].japaneseName);
                 break;
         }
     } else {
-        GfxPrint_Printf(printer, "%s",
+        OoT_GfxPrint_Printf(printer, "%s",
                         this->betterScenes[this->currentScene].entrancePairs[this->pageDownIndex].englishName);
     }
 }
 
-static SceneSelectLoadingMessages sLoadingMessages[] = {
+static SceneSelectLoadingMessages OoT_sLoadingMessages[] = {
     { GFXP_HIRAGANA "ｼﾊﾞﾗｸｵﾏﾁｸﾀﾞｻｲ", "Please wait a minute", "Bitte warte eine Minute",
       "Veuillez patienter une minute" },
     { GFXP_HIRAGANA "ﾁｮｯﾄ ﾏｯﾃﾈ", "Hold on a sec",
@@ -1428,27 +1428,27 @@ static SceneSelectLoadingMessages sLoadingMessages[] = {
 void Select_PrintLoadingMessage(SelectContext* this, GfxPrint* printer) {
     s32 randomMsg;
 
-    GfxPrint_SetPos(printer, 10, 15);
-    GfxPrint_SetColor(printer, 255, 255, 255, 255);
-    randomMsg = Rand_ZeroOne() * ARRAY_COUNT(sLoadingMessages);
+    OoT_GfxPrint_SetPos(printer, 10, 15);
+    OoT_GfxPrint_SetColor(printer, 255, 255, 255, 255);
+    randomMsg = OoT_Rand_ZeroOne() * ARRAY_COUNT(OoT_sLoadingMessages);
     if (CVarGetInteger(CVAR_DEVELOPER_TOOLS("DebugWarpScreenTranslation"), 1)) {
         switch (gSaveContext.language) {
             case LANGUAGE_ENG:
             default:
-                GfxPrint_Printf(printer, "%s", sLoadingMessages[randomMsg].englishMessage);
+                OoT_GfxPrint_Printf(printer, "%s", OoT_sLoadingMessages[randomMsg].englishMessage);
                 break;
             case LANGUAGE_GER:
-                GfxPrint_Printf(printer, "%s", sLoadingMessages[randomMsg].germanMessage);
+                OoT_GfxPrint_Printf(printer, "%s", OoT_sLoadingMessages[randomMsg].germanMessage);
                 break;
             case LANGUAGE_FRA:
-                GfxPrint_Printf(printer, "%s", sLoadingMessages[randomMsg].frenchMessage);
+                OoT_GfxPrint_Printf(printer, "%s", OoT_sLoadingMessages[randomMsg].frenchMessage);
                 break;
             case LANGUAGE_JPN:
-                GfxPrint_Printf(printer, "%s", sLoadingMessages[randomMsg].japaneseMessage);
+                OoT_GfxPrint_Printf(printer, "%s", OoT_sLoadingMessages[randomMsg].japaneseMessage);
                 break;
         }
     } else {
-        GfxPrint_Printf(printer, "%s", sLoadingMessages[randomMsg].japaneseMessage);
+        OoT_GfxPrint_Printf(printer, "%s", OoT_sLoadingMessages[randomMsg].japaneseMessage);
     }
 }
 
@@ -1463,73 +1463,73 @@ static BetterSceneSelectAgeLabels sBetterAgeLabels[] = {
 };
 
 void Select_PrintAgeSetting(SelectContext* this, GfxPrint* printer, s32 age) {
-    GfxPrint_SetPos(printer, 4, 26);
-    GfxPrint_SetColor(printer, 255, 255, 55, 255);
+    OoT_GfxPrint_SetPos(printer, 4, 26);
+    OoT_GfxPrint_SetColor(printer, 255, 255, 55, 255);
     if (CVarGetInteger(CVAR_DEVELOPER_TOOLS("DebugWarpScreenTranslation"), 1)) {
         switch (gSaveContext.language) {
             case LANGUAGE_ENG:
             default:
-                GfxPrint_Printf(printer, "Age:%s", sAgeLabels[age].englishAge);
+                OoT_GfxPrint_Printf(printer, "Age:%s", sAgeLabels[age].englishAge);
                 break;
             case LANGUAGE_GER:
-                GfxPrint_Printf(printer, "Alter:%s", sAgeLabels[age].germanAge);
+                OoT_GfxPrint_Printf(printer, "Alter:%s", sAgeLabels[age].germanAge);
                 break;
             case LANGUAGE_FRA:
-                GfxPrint_Printf(printer, "Age:%s", sAgeLabels[age].frenchAge);
+                OoT_GfxPrint_Printf(printer, "Age:%s", sAgeLabels[age].frenchAge);
                 break;
             case LANGUAGE_JPN:
-                GfxPrint_Printf(printer, "Age:%s", sAgeLabels[age].japaneseAge);
+                OoT_GfxPrint_Printf(printer, "Age:%s", sAgeLabels[age].japaneseAge);
                 break;
         }
     } else {
-        GfxPrint_Printf(printer, "Age:%s", sAgeLabels[age].japaneseAge);
+        OoT_GfxPrint_Printf(printer, "Age:%s", sAgeLabels[age].japaneseAge);
     }
 }
 
 void Better_Select_PrintAgeSetting(SelectContext* this, GfxPrint* printer, s32 age) {
     if (gSaveContext.language == LANGUAGE_JPN) {
-        GfxPrint_SetPos(printer, 22, 25); // For better alignment for Japanese menu
+        OoT_GfxPrint_SetPos(printer, 22, 25); // For better alignment for Japanese menu
     } else {
-        GfxPrint_SetPos(printer, 25, 25);
+        OoT_GfxPrint_SetPos(printer, 25, 25);
     }
-    GfxPrint_SetColor(printer, 100, 100, 100, 255);
+    OoT_GfxPrint_SetColor(printer, 100, 100, 100, 255);
     if (CVarGetInteger(CVAR_DEVELOPER_TOOLS("DebugWarpScreenTranslation"), 1)) {
         switch (gSaveContext.language) {
             case LANGUAGE_ENG:
             case LANGUAGE_FRA:
             default:
-                GfxPrint_Printf(printer, "(B)Age:");
+                OoT_GfxPrint_Printf(printer, "(B)Age:");
                 break;
             case LANGUAGE_GER:
-                GfxPrint_Printf(printer, "(B)Alter:");
+                OoT_GfxPrint_Printf(printer, "(B)Alter:");
                 break;
             case LANGUAGE_JPN:
-                GfxPrint_Printf(printer, "(B)し゛た゛い:");
+                OoT_GfxPrint_Printf(printer, "(B)し゛た゛い:");
                 break;
         }
     } else {
-        GfxPrint_Printf(printer, "(B)Age:");
+        OoT_GfxPrint_Printf(printer, "(B)Age:");
     }
 
-    GfxPrint_SetColor(printer, 55, 200, 50, 255);
+    OoT_GfxPrint_SetColor(printer, 55, 200, 50, 255);
     if (CVarGetInteger(CVAR_DEVELOPER_TOOLS("DebugWarpScreenTranslation"), 1)) {
         switch (gSaveContext.language) {
             case LANGUAGE_ENG:
             default:
-                GfxPrint_Printf(printer, "%s", sBetterAgeLabels[age].englishAge);
+                OoT_GfxPrint_Printf(printer, "%s", sBetterAgeLabels[age].englishAge);
                 break;
             case LANGUAGE_GER:
-                GfxPrint_Printf(printer, "%s", sBetterAgeLabels[age].germanAge);
+                OoT_GfxPrint_Printf(printer, "%s", sBetterAgeLabels[age].germanAge);
                 break;
             case LANGUAGE_FRA:
-                GfxPrint_Printf(printer, "%s", sBetterAgeLabels[age].frenchAge);
+                OoT_GfxPrint_Printf(printer, "%s", sBetterAgeLabels[age].frenchAge);
                 break;
             case LANGUAGE_JPN:
-                GfxPrint_Printf(printer, "%s", sBetterAgeLabels[age].japaneseAge);
+                OoT_GfxPrint_Printf(printer, "%s", sBetterAgeLabels[age].japaneseAge);
                 break;
         }
     } else {
-        GfxPrint_Printf(printer, "%s", sBetterAgeLabels[age].englishAge);
+        OoT_GfxPrint_Printf(printer, "%s", sBetterAgeLabels[age].englishAge);
     }
 }
 
@@ -1554,8 +1554,8 @@ void Select_PrintCutsceneSetting(SelectContext* this, GfxPrint* printer, u16 csI
     int lang =
         CVarGetInteger(CVAR_DEVELOPER_TOOLS("DebugWarpScreenTranslation"), 1) ? (gSaveContext.language + 1) % 4 : 0;
 
-    GfxPrint_SetPos(printer, 4, 25);
-    GfxPrint_SetColor(printer, 255, 255, 55, 255);
+    OoT_GfxPrint_SetPos(printer, 4, 25);
+    OoT_GfxPrint_SetColor(printer, 255, 255, 55, 255);
 
     switch (csIndex) {
         case 0:
@@ -1605,14 +1605,14 @@ void Select_PrintCutsceneSetting(SelectContext* this, GfxPrint* printer, u16 csI
     };
 
     gSaveContext.skyboxTime = gSaveContext.dayTime;
-    GfxPrint_Printf(printer, "Stage:" GFXP_KATAKANA "%s", label);
+    OoT_GfxPrint_Printf(printer, "Stage:" GFXP_KATAKANA "%s", label);
 }
 
 void Better_Select_PrintTimeSetting(SelectContext* this, GfxPrint* printer) {
     char* label;
 
-    GfxPrint_SetPos(printer, 22, 24);
-    GfxPrint_SetColor(printer, 100, 100, 100, 255);
+    OoT_GfxPrint_SetPos(printer, 22, 24);
+    OoT_GfxPrint_SetColor(printer, 100, 100, 100, 255);
 
     if (gSaveContext.dayTime > 0xC000 || gSaveContext.dayTime < 0x4555) {
         if (CVarGetInteger(CVAR_DEVELOPER_TOOLS("DebugWarpScreenTranslation"), 1)) {
@@ -1659,38 +1659,38 @@ void Better_Select_PrintTimeSetting(SelectContext* this, GfxPrint* printer) {
         switch (gSaveContext.language) {
             case LANGUAGE_ENG:
             default:
-                GfxPrint_Printf(printer, "(Z/R)Time:");
+                OoT_GfxPrint_Printf(printer, "(Z/R)Time:");
                 break;
             case LANGUAGE_GER:
-                GfxPrint_Printf(printer, "(Z/R)Zeit:");
+                OoT_GfxPrint_Printf(printer, "(Z/R)Zeit:");
                 break;
             case LANGUAGE_FRA:
-                GfxPrint_Printf(printer, "(Z/R)Temps:");
+                OoT_GfxPrint_Printf(printer, "(Z/R)Temps:");
                 break;
             case LANGUAGE_JPN:
-                GfxPrint_Printf(printer, "(Z/R)し゛かん:");
+                OoT_GfxPrint_Printf(printer, "(Z/R)し゛かん:");
                 break;
         }
     } else {
-        GfxPrint_Printf(printer, "(Z/R)Time:");
+        OoT_GfxPrint_Printf(printer, "(Z/R)Time:");
     }
 
-    GfxPrint_SetColor(printer, 200, 200, 55, 255);
-    GfxPrint_Printf(printer, "%s", label);
+    OoT_GfxPrint_SetColor(printer, 200, 200, 55, 255);
+    OoT_GfxPrint_Printf(printer, "%s", label);
 }
 
 void Better_Select_PrintMQSetting(SelectContext* this, GfxPrint* printer) {
     char* label;
 
     if (this->betterScenes[this->currentScene].entrancePairs[this->pageDownIndex].canBeMQ) {
-        GfxPrint_SetColor(printer, 100, 100, 100, 255);
-        GfxPrint_SetPos(printer, 3, 25);
+        OoT_GfxPrint_SetColor(printer, 100, 100, 100, 255);
+        OoT_GfxPrint_SetPos(printer, 3, 25);
 
         // MQ can be toggled
         if (ResourceMgr_GameHasMasterQuest() && ResourceMgr_GameHasOriginal()) {
-            GfxPrint_Printf(printer, "(L)MQ:");
+            OoT_GfxPrint_Printf(printer, "(L)MQ:");
         } else {
-            GfxPrint_Printf(printer, "MQ:");
+            OoT_GfxPrint_Printf(printer, "MQ:");
         }
 
         if (CVarGetInteger(CVAR_DEVELOPER_TOOLS("DebugWarpScreenTranslation"), 1)) {
@@ -1711,8 +1711,8 @@ void Better_Select_PrintMQSetting(SelectContext* this, GfxPrint* printer) {
             label = this->opt ? "ON" : "OFF";
         }
 
-        GfxPrint_SetColor(printer, 0, 150, 194, 255);
-        GfxPrint_Printf(printer, "%s", label);
+        OoT_GfxPrint_SetColor(printer, 0, 150, 194, 255);
+        OoT_GfxPrint_Printf(printer, "%s", label);
     }
 }
 
@@ -1729,8 +1729,8 @@ void Select_DrawMenu(SelectContext* this) {
     Gfx_SetupDL_28Opa(gfxCtx);
 
     // printer = alloca(sizeof(GfxPrint));
-    GfxPrint_Init(&printer);
-    GfxPrint_Open(&printer, POLY_OPA_DISP);
+    OoT_GfxPrint_Init(&printer);
+    OoT_GfxPrint_Open(&printer, POLY_OPA_DISP);
     if (this->isBetterWarp) {
         Better_Select_PrintTimeSetting(this, &printer);
         Better_Select_PrintAgeSetting(this, &printer, ((void)0, gSaveContext.linkAge));
@@ -1741,8 +1741,8 @@ void Select_DrawMenu(SelectContext* this) {
         Select_PrintAgeSetting(this, &printer, ((void)0, gSaveContext.linkAge));
         Select_PrintCutsceneSetting(this, &printer, ((void)0, gSaveContext.cutsceneIndex));
     }
-    POLY_OPA_DISP = GfxPrint_Close(&printer);
-    GfxPrint_Destroy(&printer);
+    POLY_OPA_DISP = OoT_GfxPrint_Close(&printer);
+    OoT_GfxPrint_Destroy(&printer);
 
     CLOSE_DISPS(gfxCtx);
 }
@@ -1760,11 +1760,11 @@ void Select_DrawLoadingScreen(SelectContext* this) {
     Gfx_SetupDL_28Opa(gfxCtx);
 
     // printer = alloca(sizeof(GfxPrint));
-    GfxPrint_Init(&printer);
-    GfxPrint_Open(&printer, POLY_OPA_DISP);
+    OoT_GfxPrint_Init(&printer);
+    OoT_GfxPrint_Open(&printer, POLY_OPA_DISP);
     Select_PrintLoadingMessage(this, &printer);
-    POLY_OPA_DISP = GfxPrint_Close(&printer);
-    GfxPrint_Destroy(&printer);
+    POLY_OPA_DISP = OoT_GfxPrint_Close(&printer);
+    OoT_GfxPrint_Destroy(&printer);
 
     CLOSE_DISPS(gfxCtx);
 }
@@ -1842,7 +1842,7 @@ void Select_SwitchBetterWarpMode(SelectContext* this, u8 isBetterWarpMode) {
         gSaveContext.nightFlag = CVarGetInteger(CVAR_GENERAL("BetterDebugWarpScreenNightFlag"), 0);
         gSaveContext.dayTime = gSaveContext.nightFlag ? 0x0000 : 0x8000;
     } else {
-        this->count = ARRAY_COUNT(sScenes);
+        this->count = ARRAY_COUNT(OoT_sScenes);
 
         if ((dREG(80) >= 0) && (dREG(80) < this->count)) {
             this->currentScene = dREG(80);
@@ -1858,7 +1858,7 @@ void Select_Init(GameState* thisx) {
 
     this->state.main = Select_Main;
     this->state.destroy = Select_Destroy;
-    this->scenes = sScenes;
+    this->scenes = OoT_sScenes;
     this->betterScenes = sBetterScenes;
     this->betterGrottos = sBetterGrottos;
     this->topDisplayedScene = 0;
@@ -1872,8 +1872,8 @@ void Select_Init(GameState* thisx) {
     this->pageDownStops[6] = 91; // Escaping Ganon's Tower 3
     this->pageDownIndex = 0;
     this->opt = 0;
-    this->count = ARRAY_COUNT(sScenes);
-    View_Init(&this->view, this->state.gfxCtx);
+    this->count = ARRAY_COUNT(OoT_sScenes);
+    OoT_View_Init(&this->view, this->state.gfxCtx);
     this->view.flags = (0x08 | 0x02);
     this->verticalInputAccumulator = 0;
     this->verticalInput = 0;

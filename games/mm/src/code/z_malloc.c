@@ -3,34 +3,34 @@
 #include "os_malloc.h"
 #include <string.h>
 
-Arena sZeldaArena;
+Arena MM_sZeldaArena;
 
-void* ZeldaArena_Malloc(size_t size) {
-    void* ptr = __osMalloc(&sZeldaArena, size);
-
-    return ptr;
-}
-
-void* ZeldaArena_MallocR(size_t size) {
-    void* ptr = __osMallocR(&sZeldaArena, size);
+void* MM_ZeldaArena_Malloc(size_t size) {
+    void* ptr = __osMalloc(&MM_sZeldaArena, size);
 
     return ptr;
 }
 
-void* ZeldaArena_Realloc(void* ptr, size_t newSize) {
-    ptr = __osRealloc(&sZeldaArena, ptr, newSize);
+void* MM_ZeldaArena_MallocR(size_t size) {
+    void* ptr = __osMallocR(&MM_sZeldaArena, size);
+
     return ptr;
 }
 
-void ZeldaArena_Free(void* ptr) {
-    __osFree(&sZeldaArena, ptr);
+void* MM_ZeldaArena_Realloc(void* ptr, size_t newSize) {
+    ptr = __osRealloc(&MM_sZeldaArena, ptr, newSize);
+    return ptr;
 }
 
-void* ZeldaArena_Calloc(size_t num, size_t size) {
+void MM_ZeldaArena_Free(void* ptr) {
+    __osFree(&MM_sZeldaArena, ptr);
+}
+
+void* MM_ZeldaArena_Calloc(size_t num, size_t size) {
     void* ptr;
     size_t totalSize = num * size;
 
-    ptr = __osMalloc(&sZeldaArena, totalSize);
+    ptr = __osMalloc(&MM_sZeldaArena, totalSize);
     if (ptr != NULL) {
         memset(ptr, 0, totalSize);
     }
@@ -38,22 +38,22 @@ void* ZeldaArena_Calloc(size_t num, size_t size) {
     return ptr;
 }
 
-void ZeldaArena_GetSizes(size_t* outMaxFree, size_t* outFree, size_t* outAlloc) {
-    __osGetSizes(&sZeldaArena, outMaxFree, outFree, outAlloc);
+void MM_ZeldaArena_GetSizes(size_t* outMaxFree, size_t* outFree, size_t* outAlloc) {
+    __osGetSizes(&MM_sZeldaArena, outMaxFree, outFree, outAlloc);
 }
 
-s32 ZeldaArena_Check(void) {
-    return __osCheckArena(&sZeldaArena);
+s32 MM_ZeldaArena_Check(void) {
+    return __osCheckArena(&MM_sZeldaArena);
 }
 
-void ZeldaArena_Init(void* start, size_t size) {
-    __osMallocInit(&sZeldaArena, start, size);
+void MM_ZeldaArena_Init(void* start, size_t size) {
+    __osMallocInit(&MM_sZeldaArena, start, size);
 }
 
-void ZeldaArena_Cleanup(void) {
-    __osMallocCleanup(&sZeldaArena);
+void MM_ZeldaArena_Cleanup(void) {
+    __osMallocCleanup(&MM_sZeldaArena);
 }
 
 u8 ZeldaArena_IsInitialized(void) {
-    return __osMallocIsInitalized(&sZeldaArena);
+    return __osMallocIsInitalized(&MM_sZeldaArena);
 }

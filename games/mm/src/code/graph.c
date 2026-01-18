@@ -10,9 +10,9 @@
 
 // Variables are put before most headers as a hacky way to bypass bss reordering
 FaultAddrConvClient sGraphFaultAddrConvClient;
-FaultClient sGraphFaultClient;
+FaultClient MM_sGraphFaultClient;
 GfxMasterList* gGfxMasterDL;
-CfbInfo sGraphCfbInfos[3];
+CfbInfo MM_sGraphCfbInfos[3];
 OSTime sGraphPrevUpdateEndTime;
 
 #include "variables.h"
@@ -34,35 +34,35 @@ void Graph_StartFrame();
 void Graph_ProcessGfxCommands(Gfx* commands);
 void Graph_ProcessFrame(void (*run_one_game_iter)(void));
 
-void Graph_FaultClient(void) {
-    FaultDrawer_DrawText(30, 100, "ShowFrameBuffer PAGE 0/1");
-    osViSwapBuffer(SysCfb_GetFramebuffer(0));
-    osViSetMode(gActiveViMode);
-    osViSetSpecialFeatures(OS_VI_DITHER_FILTER_ON | OS_VI_GAMMA_OFF);
-    Fault_WaitForInput();
-    osViSwapBuffer(SysCfb_GetFramebuffer(1));
-    osViSetMode(gActiveViMode);
-    osViSetSpecialFeatures(OS_VI_DITHER_FILTER_ON | OS_VI_GAMMA_OFF);
+void MM_Graph_FaultClient(void) {
+    MM_FaultDrawer_DrawText(30, 100, "ShowFrameBuffer PAGE 0/1");
+    MM_osViSwapBuffer(SysCfb_GetFramebuffer(0));
+    MM_osViSetMode(gActiveViMode);
+    MM_osViSetSpecialFeatures(OS_VI_DITHER_FILTER_ON | OS_VI_GAMMA_OFF);
+    MM_Fault_WaitForInput();
+    MM_osViSwapBuffer(SysCfb_GetFramebuffer(1));
+    MM_osViSetMode(gActiveViMode);
+    MM_osViSetSpecialFeatures(OS_VI_DITHER_FILTER_ON | OS_VI_GAMMA_OFF);
 }
 
-void Graph_InitTHGA(TwoHeadGfxArena* arena, Gfx* buffer, s32 size) {
-    THGA_Init(arena, buffer, size);
+void MM_Graph_InitTHGA(TwoHeadGfxArena* arena, Gfx* buffer, s32 size) {
+    MM_THGA_Init(arena, buffer, size);
 }
 
 void Graph_SetNextGfxPool(GraphicsContext* gfxCtx) {
-    GfxPool* pool = &gGfxPools[gfxCtx->gfxPoolIdx % 2];
+    GfxPool* pool = &MM_gGfxPools[gfxCtx->gfxPoolIdx % 2];
 
     gGfxMasterDL = &pool->master;
-    gSegments[0x0E] = gGfxMasterDL;
+    MM_gSegments[0x0E] = gGfxMasterDL;
 
     pool->headMagic = GFXPOOL_HEAD_MAGIC;
     pool->tailMagic = GFXPOOL_TAIL_MAGIC;
 
-    Graph_InitTHGA(&gfxCtx->polyOpa, pool->polyOpaBuffer, sizeof(pool->polyOpaBuffer));
-    Graph_InitTHGA(&gfxCtx->polyXlu, pool->polyXluBuffer, sizeof(pool->polyXluBuffer));
-    Graph_InitTHGA(&gfxCtx->overlay, pool->overlayBuffer, sizeof(pool->overlayBuffer));
-    Graph_InitTHGA(&gfxCtx->work, pool->workBuffer, sizeof(pool->workBuffer));
-    Graph_InitTHGA(&gfxCtx->debug, pool->debugBuffer, sizeof(pool->debugBuffer));
+    MM_Graph_InitTHGA(&gfxCtx->polyOpa, pool->polyOpaBuffer, sizeof(pool->polyOpaBuffer));
+    MM_Graph_InitTHGA(&gfxCtx->polyXlu, pool->polyXluBuffer, sizeof(pool->polyXluBuffer));
+    MM_Graph_InitTHGA(&gfxCtx->overlay, pool->overlayBuffer, sizeof(pool->overlayBuffer));
+    MM_Graph_InitTHGA(&gfxCtx->work, pool->workBuffer, sizeof(pool->workBuffer));
+    MM_Graph_InitTHGA(&gfxCtx->debug, pool->debugBuffer, sizeof(pool->debugBuffer));
 
     gfxCtx->polyOpaBuffer = pool->polyOpaBuffer;
     gfxCtx->polyXluBuffer = pool->polyXluBuffer;
@@ -71,7 +71,7 @@ void Graph_SetNextGfxPool(GraphicsContext* gfxCtx) {
     gfxCtx->debugBuffer = pool->debugBuffer;
 
     gfxCtx->curFrameBuffer = SysCfb_GetFramebuffer(gfxCtx->framebufferIndex % 2);
-    gSegments[0x0F] = gfxCtx->curFrameBuffer;
+    MM_gSegments[0x0F] = gfxCtx->curFrameBuffer;
 
     gfxCtx->zbuffer = SysCfb_GetZBuffer();
 
@@ -83,13 +83,13 @@ void Graph_SetNextGfxPool(GraphicsContext* gfxCtx) {
     gSPBranchList(&gGfxMasterDL->debugDisp[0], pool->debugBuffer);
 }
 
-GameStateOverlay* Graph_GetNextGameState(GameState* gameState) {
-    GameStateFunc gameStateInit = GameState_GetInit(gameState);
+GameStateOverlay* MM_Graph_GetNextGameState(GameState* gameState) {
+    GameStateFunc gameStateInit = MM_GameState_GetInit(gameState);
 
     // Generates code to match gameStateInit to a gamestate entry and returns it if found
 #define DEFINE_GAMESTATE_INTERNAL(typeName, enumName) \
     if (gameStateInit == typeName##_Init) {           \
-        return &gGameStateOverlayTable[enumName];     \
+        return &MM_gGameStateOverlayTable[enumName];     \
     }
 #define DEFINE_GAMESTATE(typeName, enumName, name) DEFINE_GAMESTATE_INTERNAL(typeName, enumName)
 
@@ -103,7 +103,7 @@ GameStateOverlay* Graph_GetNextGameState(GameState* gameState) {
 
 uintptr_t Graph_FaultAddrConv(uintptr_t address, void* param) {
     uintptr_t addr = address;
-    GameStateOverlay* gameStateOvl = &gGameStateOverlayTable[0];
+    GameStateOverlay* gameStateOvl = &MM_gGameStateOverlayTable[0];
     uintptr_t ramConv;
     void* ramStart;
     size_t diff;
@@ -123,22 +123,22 @@ uintptr_t Graph_FaultAddrConv(uintptr_t address, void* param) {
     return 0;
 }
 
-void Graph_Init(GraphicsContext* gfxCtx) {
+void MM_Graph_Init(GraphicsContext* gfxCtx) {
     memset(gfxCtx, 0, sizeof(GraphicsContext));
     gfxCtx->gfxPoolIdx = 0;
     gfxCtx->framebufferIndex = 0;
     gfxCtx->viMode = NULL;
-    gfxCtx->viConfigFeatures = gViConfigFeatures;
-    gfxCtx->xScale = gViConfigXScale;
-    gfxCtx->yScale = gViConfigYScale;
-    osCreateMesgQueue(&gfxCtx->queue, gfxCtx->msgBuff, ARRAY_COUNT(gfxCtx->msgBuff));
-    // Fault_AddClient(&sGraphFaultClient, (void*)Graph_FaultClient, NULL, NULL);
-    // Fault_AddAddrConvClient(&sGraphFaultAddrConvClient, Graph_FaultAddrConv, NULL);
+    gfxCtx->viConfigFeatures = MM_gViConfigFeatures;
+    gfxCtx->xScale = MM_gViConfigXScale;
+    gfxCtx->yScale = MM_gViConfigYScale;
+    MM_osCreateMesgQueue(&gfxCtx->queue, gfxCtx->msgBuff, ARRAY_COUNT(gfxCtx->msgBuff));
+    // MM_Fault_AddClient(&MM_sGraphFaultClient, (void*)MM_Graph_FaultClient, NULL, NULL);
+    // MM_Fault_AddAddrConvClient(&sGraphFaultAddrConvClient, Graph_FaultAddrConv, NULL);
 }
 
-void Graph_Destroy(GraphicsContext* gfxCtx) {
-    // Fault_RemoveClient(&sGraphFaultClient);
-    // Fault_RemoveAddrConvClient(&sGraphFaultAddrConvClient);
+void MM_Graph_Destroy(GraphicsContext* gfxCtx) {
+    // MM_Fault_RemoveClient(&MM_sGraphFaultClient);
+    // MM_Fault_RemoveAddrConvClient(&sGraphFaultAddrConvClient);
 }
 
 /**
@@ -146,7 +146,7 @@ void Graph_Destroy(GraphicsContext* gfxCtx) {
  * Waits for up to 3 additional seconds for any current graphics task to complete.
  * If it does not signal completion in that time, retry or trigger a crash.
  */
-void Graph_TaskSet00(GraphicsContext* gfxCtx, GameState* gameState) {
+void MM_Graph_TaskSet00(GraphicsContext* gfxCtx, GameState* gameState) {
     static s32 retryCount = 10;
     static s32 cfbIdx = 0;
     OSTask_t* task = &gfxCtx->task.list.t;
@@ -156,20 +156,20 @@ void Graph_TaskSet00(GraphicsContext* gfxCtx, GameState* gameState) {
     CfbInfo* cfb;
 
 retry:
-// osSetTimer(&timer, OS_USEC_TO_CYCLES(3 * 1000 * 1000), 0, &gfxCtx->queue, (OSMesg)666);
-// osRecvMesg(&gfxCtx->queue, &msg, OS_MESG_BLOCK);
-// osStopTimer(&timer);
+// MM_osSetTimer(&timer, OS_USEC_TO_CYCLES(3 * 1000 * 1000), 0, &gfxCtx->queue, (OSMesg)666);
+// MM_osRecvMesg(&gfxCtx->queue, &msg, OS_MESG_BLOCK);
+// MM_osStopTimer(&timer);
 #if 0
     if (msg == (OSMesg)666) {
         osSyncPrintf("GRAPH SP TIMEOUT\n");
         if (retryCount >= 0) {
             retryCount--;
-            Sched_SendGfxCancelMsg(&gSchedContext);
+            Sched_SendGfxCancelMsg(&MM_gSchedContext);
             goto retry;
         } else {
             // graph.c: No more! die!
             osSyncPrintf("graph.c:もうダメ！死ぬ！\n");
-            //Fault_AddHungupAndCrashImpl("RCP is HUNG UP!!", "Oh! MY GOD!!");
+            //MM_Fault_AddHungupAndCrashImpl("RCP is HUNG UP!!", "Oh! MY GOD!!");
         }
     }
 #endif
@@ -180,9 +180,9 @@ retry:
 
     task->type = M_GFXTASK;
     task->flags = OS_SC_DRAM_DLIST;
-    task->ucode_boot = SysUcode_GetUCodeBoot();
-    task->ucode_boot_size = SysUcode_GetUCodeBootSize();
-    task->ucode = SysUcode_GetUCode();
+    task->ucode_boot = MM_SysUcode_GetUCodeBoot();
+    task->ucode_boot_size = MM_SysUcode_GetUCodeBootSize();
+    task->ucode = MM_SysUcode_GetUCode();
     // task->ucode_data = SysUcode_GetUCodeData();
     task->ucode_size = SP_UCODE_SIZE;
     task->ucode_data_size = SP_UCODE_DATA_SIZE;
@@ -195,8 +195,8 @@ retry:
     task->data_size = (uintptr_t)WORK_DISP - (uintptr_t)gfxCtx->workBuffer;
     CLOSE_DISPS(gfxCtx);
 
-    task->yield_data_ptr = (u64*)gGfxSPTaskYieldBuffer;
-    task->yield_data_size = sizeof(gGfxSPTaskYieldBuffer);
+    task->yield_data_ptr = (u64*)MM_gGfxSPTaskYieldBuffer;
+    task->yield_data_size = sizeof(MM_gGfxSPTaskYieldBuffer);
 
     scTask->next = NULL;
     scTask->flags = OS_SC_RCP_MASK | OS_SC_SWAPBUFFER | OS_SC_LAST_TASK;
@@ -212,8 +212,8 @@ retry:
 
     { s32 pad; }
 
-    cfb = &sGraphCfbInfos[cfbIdx];
-    cfbIdx = (cfbIdx + 1) % ARRAY_COUNT(sGraphCfbInfos);
+    cfb = &MM_sGraphCfbInfos[cfbIdx];
+    cfbIdx = (cfbIdx + 1) % ARRAY_COUNT(MM_sGraphCfbInfos);
 
     cfb->fb1 = gfxCtx->curFrameBuffer;
     cfb->swapBuffer = gfxCtx->curFrameBuffer;
@@ -233,12 +233,12 @@ retry:
     scTask->framebuffer = cfb;
 
     while (gfxCtx->queue.validCount != 0) {
-        osRecvMesg(&gfxCtx->queue, NULL, OS_MESG_NOBLOCK);
+        MM_osRecvMesg(&gfxCtx->queue, NULL, OS_MESG_NOBLOCK);
     }
 
-    gfxCtx->schedMsgQ = &gSchedContext.cmdQ;
-    osSendMesg(&gSchedContext.cmdQ, OS_MESG_PTR(scTask), OS_MESG_BLOCK);
-    Sched_SendEntryMsg(&gSchedContext);
+    gfxCtx->schedMsgQ = &MM_gSchedContext.cmdQ;
+    MM_osSendMesg(&MM_gSchedContext.cmdQ, OS_MESG_PTR(scTask), OS_MESG_BLOCK);
+    MM_Sched_SendEntryMsg(&MM_gSchedContext);
 }
 
 void Graph_UpdateGame(GameState* gameState) {
@@ -264,7 +264,7 @@ void Graph_ExecuteAndDraw(GraphicsContext* gfxCtx, GameState* gameState) {
     gameState->unk_A3 = 0;
     Graph_SetNextGfxPool(gfxCtx);
 
-    GameState_Update(gameState);
+    MM_GameState_Update(gameState);
 
     OPEN_DISPS(gfxCtx);
 
@@ -294,34 +294,34 @@ void Graph_ExecuteAndDraw(GraphicsContext* gfxCtx, GameState* gameState) {
     problem = false;
 
     {
-        GfxPool* pool = &gGfxPools[gfxCtx->gfxPoolIdx % 2];
+        GfxPool* pool = &MM_gGfxPools[gfxCtx->gfxPoolIdx % 2];
 
         if (pool->headMagic != GFXPOOL_HEAD_MAGIC) {
-            // Fault_AddHungupAndCrash("../graph.c", 1054);
+            // MM_Fault_AddHungupAndCrash("../graph.c", 1054);
         }
         if (pool->tailMagic != GFXPOOL_TAIL_MAGIC) {
-            // Fault_AddHungupAndCrash("../graph.c", 1066);
+            // MM_Fault_AddHungupAndCrash("../graph.c", 1066);
         }
     }
 
-    if (THGA_IsCrash(&gfxCtx->polyOpa)) {
+    if (MM_THGA_IsCrash(&gfxCtx->polyOpa)) {
         problem = true;
     }
-    if (THGA_IsCrash(&gfxCtx->polyXlu)) {
+    if (MM_THGA_IsCrash(&gfxCtx->polyXlu)) {
         problem = true;
     }
-    if (THGA_IsCrash(&gfxCtx->overlay)) {
+    if (MM_THGA_IsCrash(&gfxCtx->overlay)) {
         problem = true;
     }
-    if (THGA_IsCrash(&gfxCtx->work)) {
+    if (MM_THGA_IsCrash(&gfxCtx->work)) {
         problem = true;
     }
-    if (THGA_IsCrash(&gfxCtx->debug)) {
+    if (MM_THGA_IsCrash(&gfxCtx->debug)) {
         problem = true;
     }
 
     if (!problem) {
-        Graph_TaskSet00(gfxCtx, gameState);
+        MM_Graph_TaskSet00(gfxCtx, gameState);
         gfxCtx->gfxPoolIdx++;
         gfxCtx->framebufferIndex++;
 
@@ -332,11 +332,11 @@ void Graph_ExecuteAndDraw(GraphicsContext* gfxCtx, GameState* gameState) {
     }
 
     {
-        OSTime time = osGetTime();
+        OSTime time = MM_osGetTime();
 
         gRSPGfxTimeTotal = gRSPGfxTimeAcc;
         gRSPAudioTimeTotal = gRSPAudioTimeAcc;
-        // #region @2S2H [Port] gRDPTimeAcc is usually set in Sched_HandleRDPDone, which
+        // #region @2S2H [Port] gRDPTimeAcc is usually set in MM_Sched_HandleRDPDone, which
         // is currently never called and stubbed out in the port. For now we're
         // just opting to set this to the time per frame / 10 instead, no idea
         // how bad of an idea this is. :)
@@ -353,7 +353,7 @@ void Graph_ExecuteAndDraw(GraphicsContext* gfxCtx, GameState* gameState) {
     }
 }
 
-void Graph_Update(GraphicsContext* gfxCtx, GameState* gameState) {
+void MM_Graph_Update(GraphicsContext* gfxCtx, GameState* gameState) {
     gameState->unk_A3 = 0;
 
     Graph_UpdateGame(gameState);
@@ -381,9 +381,9 @@ static struct RunFrameContext {
     int state;
 } runFrameContext;
 
-void RunFrame() {
+void MM_RunFrame() {
     GraphicsContext gfxCtx;
-    GameStateOverlay* nextOvl = &gGameStateOverlayTable[0];
+    GameStateOverlay* nextOvl = &MM_gGameStateOverlayTable[0];
     GameStateOverlay* ovl;
     GameState* gameState;
     u32 size;
@@ -396,30 +396,30 @@ void RunFrame() {
             goto nextFrame;
     }
 
-    runFrameContext.nextOvl = &gGameStateOverlayTable[0];
-    SysCfb_Init();
-    Graph_Init(&runFrameContext.gfxCtx);
+    runFrameContext.nextOvl = &MM_gGameStateOverlayTable[0];
+    MM_SysCfb_Init();
+    MM_Graph_Init(&runFrameContext.gfxCtx);
     while (runFrameContext.nextOvl) {
         runFrameContext.ovl = runFrameContext.nextOvl;
-        Overlay_LoadGameState(runFrameContext.ovl);
+        MM_Overlay_LoadGameState(runFrameContext.ovl);
 
         size = runFrameContext.ovl->instanceSize;
         osSyncPrintf("クラスサイズ＝%dバイト\n", size); // "Class size = %d bytes"
 
-        runFrameContext.gameState = SystemArena_Malloc(size);
+        runFrameContext.gameState = MM_SystemArena_Malloc(size);
 
         memset(runFrameContext.gameState, 0, size); // fix
-        GameState_Init(runFrameContext.gameState, runFrameContext.ovl->init, &runFrameContext.gfxCtx);
+        MM_GameState_Init(runFrameContext.gameState, runFrameContext.ovl->init, &runFrameContext.gfxCtx);
 
         uint64_t freq = GetFrequency();
 
-        while (GameState_IsRunning(runFrameContext.gameState)) {
+        while (MM_GameState_IsRunning(runFrameContext.gameState)) {
 
             Graph_StartFrame();
 
-            PadMgr_ThreadEntry();
+            MM_PadMgr_ThreadEntry();
 
-            Graph_Update(&runFrameContext.gfxCtx, runFrameContext.gameState);
+            MM_Graph_Update(&runFrameContext.gfxCtx, runFrameContext.gameState);
             // ticksB = GetPerfCounter();
 
             // Graph_ProcessGfxCommands(runFrameContext.gfxCtx.workBuffer);
@@ -431,31 +431,31 @@ void RunFrame() {
         nextFrame:;
         }
 
-        runFrameContext.nextOvl = Graph_GetNextGameState(runFrameContext.gameState);
-        GameState_Destroy(runFrameContext.gameState);
-        SystemArena_Free(runFrameContext.gameState);
-        Overlay_FreeGameState(runFrameContext.ovl);
+        runFrameContext.nextOvl = MM_Graph_GetNextGameState(runFrameContext.gameState);
+        MM_GameState_Destroy(runFrameContext.gameState);
+        MM_SystemArena_Free(runFrameContext.gameState);
+        MM_Overlay_FreeGameState(runFrameContext.ovl);
     }
-    Graph_Destroy(&runFrameContext.gfxCtx);
+    MM_Graph_Destroy(&runFrameContext.gfxCtx);
 }
 
 // Hot-swap support - defined in GameExports.cpp
 extern bool Combo_CheckHotSwap(void);
 
-void Graph_ThreadEntry(void* arg0) {
+void MM_Graph_ThreadEntry(void* arg0) {
     while (WindowIsRunning()) {
         // Check for F10 hot-swap request
         if (Combo_CheckHotSwap()) {
             break;  // Exit game loop to allow switch
         }
-        RunFrame();
+        MM_RunFrame();
     }
 }
 
 // #region 2S2H [Debugging] Debugging methods for viewing file/line info in the renderer.
 // Particularly useful with the Gfx Debugger window
 // Modeled after OOT-debug decomp
-void Graph_OpenDisps(Gfx** dispRefs, Gfx* dispVals, GraphicsContext* gfxCtx, const char* file, s32 line) {
+void MM_Graph_OpenDisps(Gfx** dispRefs, Gfx* dispVals, GraphicsContext* gfxCtx, const char* file, s32 line) {
     // Copy pointers and values for restoration in CloseDisps
     dispRefs[0] = gfxCtx->polyOpa.p;
     dispVals[0] = gfxCtx->polyOpa.p[0];
@@ -469,7 +469,7 @@ void Graph_OpenDisps(Gfx** dispRefs, Gfx* dispVals, GraphicsContext* gfxCtx, con
     gDPNoOpOpenDisp(gfxCtx->overlay.p++, file, line);
 }
 
-void Graph_CloseDisps(Gfx** dispRefs, Gfx* dispVals, GraphicsContext* gfxCtx, const char* file, s32 line) {
+void MM_Graph_CloseDisps(Gfx** dispRefs, Gfx* dispVals, GraphicsContext* gfxCtx, const char* file, s32 line) {
     // If no instructions were added for a buffer since the OpenDisp,
     // restore the buffer pointer and original value (essentially removing the noop open)
     if (dispRefs[0] + 1 == gfxCtx->polyOpa.p) {

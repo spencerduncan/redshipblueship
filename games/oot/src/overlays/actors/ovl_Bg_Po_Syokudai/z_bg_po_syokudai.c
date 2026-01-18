@@ -24,7 +24,7 @@ void BgPoSyokudai_Destroy(Actor* thisx, PlayState* play);
 void BgPoSyokudai_Update(Actor* thisx, PlayState* play);
 void BgPoSyokudai_Draw(Actor* thisx, PlayState* play);
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_METAL,
         AT_NONE,
@@ -44,14 +44,14 @@ static ColliderCylinderInit sCylinderInit = {
     { 12, 60, 0, { 0, 0, 0 } },
 };
 
-static Color_RGBA8 sPrimColors[] = {
+static Color_RGBA8 OoT_sPrimColors[] = {
     { 255, 170, 255, 255 },
     { 255, 200, 0, 255 },
     { 0, 170, 255, 255 },
     { 170, 255, 0, 255 },
 };
 
-static Color_RGBA8 sEnvColors[] = {
+static Color_RGBA8 OoT_sEnvColors[] = {
     { 100, 0, 255, 255 },
     { 255, 0, 0, 255 },
     { 0, 0, 255, 255 },
@@ -71,7 +71,7 @@ const ActorInit Bg_Po_Syokudai_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 1000, ICHAIN_STOP),
 };
 
@@ -79,50 +79,50 @@ void BgPoSyokudai_Init(Actor* thisx, PlayState* play) {
     BgPoSyokudai* this = (BgPoSyokudai*)thisx;
     s32 pad;
 
-    Actor_ProcessInitChain(thisx, sInitChain);
+    OoT_Actor_ProcessInitChain(thisx, OoT_sInitChain);
 
     this->flameColor = (thisx->params >> 8) & 0xFF;
     thisx->params &= 0x3F;
 
     thisx->colChkInfo.mass = MASS_IMMOVABLE;
 
-    this->lightNode = LightContext_InsertLight(play, &play->lightCtx, &this->lightInfo);
-    Lights_PointGlowSetInfo(&this->lightInfo, thisx->world.pos.x, (s16)thisx->world.pos.y + 65, thisx->world.pos.z, 0,
+    this->lightNode = OoT_LightContext_InsertLight(play, &play->lightCtx, &this->lightInfo);
+    OoT_Lights_PointGlowSetInfo(&this->lightInfo, thisx->world.pos.x, (s16)thisx->world.pos.y + 65, thisx->world.pos.z, 0,
                             0, 0, 0);
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, thisx, &sCylinderInit);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, thisx, &OoT_sCylinderInit);
 
     this->collider.dim.pos.x = thisx->world.pos.x;
     this->collider.dim.pos.y = thisx->world.pos.y;
     this->collider.dim.pos.z = thisx->world.pos.z;
 
-    if (this->flameColor == POE_FLAME_PURPLE && Flags_GetSwitch(play, POE_TORCH_FLAG + POE_FLAME_GREEN) &&
-        Flags_GetSwitch(play, POE_TORCH_FLAG + POE_FLAME_BLUE) &&
-        Flags_GetSwitch(play, POE_TORCH_FLAG + POE_FLAME_RED) && !Flags_GetSwitch(play, thisx->params)) {
+    if (this->flameColor == POE_FLAME_PURPLE && OoT_Flags_GetSwitch(play, POE_TORCH_FLAG + POE_FLAME_GREEN) &&
+        OoT_Flags_GetSwitch(play, POE_TORCH_FLAG + POE_FLAME_BLUE) &&
+        OoT_Flags_GetSwitch(play, POE_TORCH_FLAG + POE_FLAME_RED) && !OoT_Flags_GetSwitch(play, thisx->params)) {
 
-        Actor_Spawn(&play->actorCtx, play, ACTOR_EN_PO_SISTERS, 119.0f, 225.0f, -1566.0f, 0, 0, 0, thisx->params, true);
+        OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_PO_SISTERS, 119.0f, 225.0f, -1566.0f, 0, 0, 0, thisx->params, true);
         play->envCtx.unk_BF = 0x4;
 
-    } else if (!Flags_GetSwitch(play, POE_TORCH_FLAG + POE_FLAME_PURPLE) && !Flags_GetSwitch(play, 0x1B)) {
+    } else if (!OoT_Flags_GetSwitch(play, POE_TORCH_FLAG + POE_FLAME_PURPLE) && !OoT_Flags_GetSwitch(play, 0x1B)) {
 
-        Actor_Spawn(&play->actorCtx, play, ACTOR_EN_PO_SISTERS, thisx->world.pos.x, thisx->world.pos.y + 52.0f,
+        OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_PO_SISTERS, thisx->world.pos.x, thisx->world.pos.y + 52.0f,
                     thisx->world.pos.z, 0, 0, 0, (this->flameColor << 8) + thisx->params + 0x1000, true);
 
-    } else if (!Flags_GetSwitch(play, thisx->params)) {
+    } else if (!OoT_Flags_GetSwitch(play, thisx->params)) {
         if (play->envCtx.unk_BF == 0xFF) {
             play->envCtx.unk_BF = 4;
         }
     }
 
-    this->flameTextureScroll = (s16)(Rand_ZeroOne() * 20.0f);
+    this->flameTextureScroll = (s16)(OoT_Rand_ZeroOne() * 20.0f);
 }
 
 void BgPoSyokudai_Destroy(Actor* thisx, PlayState* play) {
     BgPoSyokudai* this = (BgPoSyokudai*)thisx;
 
-    LightContext_RemoveLight(play, &play->lightCtx, this->lightNode);
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_LightContext_RemoveLight(play, &play->lightCtx, this->lightNode);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 
     if (play->envCtx.unk_BF != 0xFF) {
         play->envCtx.unk_BF = 0xFF;
@@ -133,9 +133,9 @@ void BgPoSyokudai_Update(Actor* thisx, PlayState* play) {
     BgPoSyokudai* this = (BgPoSyokudai*)thisx;
     s32 pad;
 
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-    if (Flags_GetSwitch(play, this->actor.params)) {
+    OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    if (OoT_Flags_GetSwitch(play, this->actor.params)) {
         func_8002F974(&this->actor, NA_SE_EV_TORCH - SFX_FLAG);
     }
     this->flameTextureScroll++;
@@ -154,31 +154,31 @@ void BgPoSyokudai_Draw(Actor* thisx, PlayState* play) {
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_OPA_DISP++, gGoldenTorchDL);
 
-    if (Flags_GetSwitch(play, this->actor.params)) {
-        Color_RGBA8* primColor = &sPrimColors[this->flameColor];
-        Color_RGBA8* envColor = &sEnvColors[this->flameColor];
+    if (OoT_Flags_GetSwitch(play, this->actor.params)) {
+        Color_RGBA8* primColor = &OoT_sPrimColors[this->flameColor];
+        Color_RGBA8* envColor = &OoT_sEnvColors[this->flameColor];
 
-        lightBrightness = (0.3f * Rand_ZeroOne()) + 0.7f;
+        lightBrightness = (0.3f * OoT_Rand_ZeroOne()) + 0.7f;
 
         red = (u8)(primColor->r * lightBrightness);
         green = (u8)(primColor->g * lightBrightness);
         blue = (u8)(primColor->b * lightBrightness);
 
-        Lights_PointSetColorAndRadius(&this->lightInfo, red, green, blue, 200);
+        OoT_Lights_PointSetColorAndRadius(&this->lightInfo, red, green, blue, 200);
 
         Gfx_SetupDL_25Xlu(play->state.gfxCtx);
         gSPSegment(POLY_XLU_DISP++, 0x08,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0, (this->flameTextureScroll * -20) & 0x1FF,
+                   OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0, (this->flameTextureScroll * -20) & 0x1FF,
                                     32, 128));
 
         gDPSetPrimColor(POLY_XLU_DISP++, 0x80, 0x80, primColor->r, primColor->g, primColor->b, 255);
         gDPSetEnvColor(POLY_XLU_DISP++, envColor->r, envColor->g, envColor->b, 255);
 
-        Matrix_Translate(0.0f, 52.0f, 0.0f, MTXMODE_APPLY);
-        Matrix_RotateY((s16)(Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) - this->actor.shape.rot.y + 0x8000) *
+        OoT_Matrix_Translate(0.0f, 52.0f, 0.0f, MTXMODE_APPLY);
+        Matrix_RotateY((s16)(OoT_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) - this->actor.shape.rot.y + 0x8000) *
                            (M_PI / 0x8000),
                        MTXMODE_APPLY);
-        Matrix_Scale(0.0027f, 0.0027f, 0.0027f, MTXMODE_APPLY);
+        OoT_Matrix_Scale(0.0027f, 0.0027f, 0.0027f, MTXMODE_APPLY);
 
         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);

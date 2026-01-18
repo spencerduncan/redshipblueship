@@ -1,6 +1,6 @@
 #include "global.h"
 
-void osViSetYScale(f32 scale) {
+void OoT_osViSetYScale(f32 scale) {
     register u32 prevInt = __osDisableInt();
 
     __osViNext->y.factor = scale;

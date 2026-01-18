@@ -18,41 +18,41 @@ ActorProfile Player_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(Player),
-    /**/ PlayerCall_Init,
-    /**/ PlayerCall_Destroy,
-    /**/ PlayerCall_Update,
-    /**/ PlayerCall_Draw,
+    /**/ MM_PlayerCall_Init,
+    /**/ MM_PlayerCall_Destroy,
+    /**/ MM_PlayerCall_Update,
+    /**/ MM_PlayerCall_Draw,
 };
 
-void Player_Init(Actor* thisx, PlayState* play);
-void Player_Destroy(Actor* thisx, PlayState* play);
-void Player_Update(Actor* thisx, PlayState* play);
-void Player_Draw(Actor* thisx, PlayState* play);
+void MM_Player_Init(Actor* thisx, PlayState* play);
+void MM_Player_Destroy(Actor* thisx, PlayState* play);
+void MM_Player_Update(Actor* thisx, PlayState* play);
+void MM_Player_Draw(Actor* thisx, PlayState* play);
 
-void PlayerCall_InitFuncPtrs(void) {
-    sPlayerCallInitFunc = KaleidoManager_GetRamAddr(Player_Init);
-    sPlayerCallDestroyFunc = KaleidoManager_GetRamAddr(Player_Destroy);
-    sPlayerCallUpdateFunc = KaleidoManager_GetRamAddr(Player_Update);
-    sPlayerCallDrawFunc = KaleidoManager_GetRamAddr(Player_Draw);
+void MM_PlayerCall_InitFuncPtrs(void) {
+    sPlayerCallInitFunc = MM_KaleidoManager_GetRamAddr(MM_Player_Init);
+    sPlayerCallDestroyFunc = MM_KaleidoManager_GetRamAddr(MM_Player_Destroy);
+    sPlayerCallUpdateFunc = MM_KaleidoManager_GetRamAddr(MM_Player_Update);
+    sPlayerCallDrawFunc = MM_KaleidoManager_GetRamAddr(MM_Player_Draw);
 }
 
-void PlayerCall_Init(Actor* thisx, PlayState* play) {
-    KaleidoScopeCall_LoadPlayer();
-    PlayerCall_InitFuncPtrs();
+void MM_PlayerCall_Init(Actor* thisx, PlayState* play) {
+    MM_KaleidoScopeCall_LoadPlayer();
+    MM_PlayerCall_InitFuncPtrs();
     sPlayerCallInitFunc(thisx, play);
 }
 
-void PlayerCall_Destroy(Actor* thisx, PlayState* play) {
-    KaleidoScopeCall_LoadPlayer();
+void MM_PlayerCall_Destroy(Actor* thisx, PlayState* play) {
+    MM_KaleidoScopeCall_LoadPlayer();
     sPlayerCallDestroyFunc(thisx, play);
 }
 
-void PlayerCall_Update(Actor* thisx, PlayState* play) {
-    KaleidoScopeCall_LoadPlayer();
+void MM_PlayerCall_Update(Actor* thisx, PlayState* play) {
+    MM_KaleidoScopeCall_LoadPlayer();
     sPlayerCallUpdateFunc(thisx, play);
 }
 
-void PlayerCall_Draw(Actor* thisx, PlayState* play) {
-    KaleidoScopeCall_LoadPlayer();
+void MM_PlayerCall_Draw(Actor* thisx, PlayState* play) {
+    MM_KaleidoScopeCall_LoadPlayer();
     sPlayerCallDrawFunc(thisx, play);
 }

@@ -63,22 +63,22 @@ void func_80B22C00(EnHanabiStruct* arg0) {
 }
 
 void func_80B22C2C(EnHanabiStruct* arg0, s32 arg1) {
-    arg0->unk_01 = (s32)Rand_ZeroFloat(20.0f) + 60;
+    arg0->unk_01 = (s32)MM_Rand_ZeroFloat(20.0f) + 60;
     arg0->unk_02 = arg1;
     arg0->unk_14.x = 0.7f;
 }
 
 s32 func_80B22C80(Vec3f* arg0, EnHanabiStruct* arg1, f32 arg2) {
     Vec3s* phi_s1 = &D_80B23AA0[0];
-    f32 temp_f22 = (Rand_ZeroFloat(0.2f) + 0.6f) * arg2;
-    s32 temp_s6 = (s32)Rand_ZeroFloat(6.0f) * 3;
+    f32 temp_f22 = (MM_Rand_ZeroFloat(0.2f) + 0.6f) * arg2;
+    s32 temp_s6 = (s32)MM_Rand_ZeroFloat(6.0f) * 3;
     s32 i;
     s32 j;
 
     for (i = 0, j = 0; j < ARRAY_COUNT(D_80B23AA0) && i < 400; i++, arg1++) {
         if (arg1->unk_00 <= 0) {
             arg1->unk_00 = 1;
-            Math_Vec3f_Copy(&arg1->unk_08, arg0);
+            MM_Math_Vec3f_Copy(&arg1->unk_08, arg0);
             arg1->unk_20.x = phi_s1->x * temp_f22;
             arg1->unk_20.y = (phi_s1->y * temp_f22) + 50.0f;
             arg1->unk_20.z = phi_s1->z * temp_f22;
@@ -106,9 +106,9 @@ void func_80B22E0C(EnHanabiStruct* arg0) {
             arg0->unk_20.y *= arg0->unk_14.x;
             arg0->unk_20.y -= 1.0f;
 
-            arg0->unk_20.x += Rand_CenteredFloat(0.8f);
-            arg0->unk_20.y += Rand_CenteredFloat(0.8f);
-            arg0->unk_20.z += Rand_CenteredFloat(0.8f);
+            arg0->unk_20.x += MM_Rand_CenteredFloat(0.8f);
+            arg0->unk_20.y += MM_Rand_CenteredFloat(0.8f);
+            arg0->unk_20.z += MM_Rand_CenteredFloat(0.8f);
 
             if (arg0->unk_01 > 0) {
                 arg0->unk_01--;
@@ -142,7 +142,7 @@ void func_80B22FA8(EnHanabiStruct* arg0, PlayState* play2) {
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-    POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_20);
+    POLY_XLU_DISP = MM_Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_20);
 
     gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gSun1Tex));
     gSPDisplayList(POLY_XLU_DISP++, gSunSparkleMaterialDL);
@@ -154,13 +154,13 @@ void func_80B22FA8(EnHanabiStruct* arg0, PlayState* play2) {
             continue;
         }
         FrameInterpolation_RecordOpenChild(arg0, i);
-        Matrix_Translate(arg0->unk_08.x, arg0->unk_08.y, arg0->unk_08.z, MTXMODE_NEW);
-        Matrix_ReplaceRotation(&play->billboardMtxF);
+        MM_Matrix_Translate(arg0->unk_08.x, arg0->unk_08.y, arg0->unk_08.z, MTXMODE_NEW);
+        MM_Matrix_ReplaceRotation(&play->billboardMtxF);
         if (arg0->unk_01 < 40) {
-            Matrix_Scale(arg0->unk_04 * 0.025f * arg0->unk_01, arg0->unk_04 * 0.025f * arg0->unk_01, 1.0f,
+            MM_Matrix_Scale(arg0->unk_04 * 0.025f * arg0->unk_01, arg0->unk_04 * 0.025f * arg0->unk_01, 1.0f,
                          MTXMODE_APPLY);
         } else {
-            Matrix_Scale(arg0->unk_04, arg0->unk_04, 1.0f, MTXMODE_APPLY);
+            MM_Matrix_Scale(arg0->unk_04, arg0->unk_04, 1.0f, MTXMODE_APPLY);
         }
         Matrix_RotateZS(play->gameplayFrames * 4864, MTXMODE_APPLY);
 
@@ -197,15 +197,15 @@ void EnHanabi_Init(Actor* thisx, PlayState* play2) {
     //! FAKE:
     if (1) {}
 
-    Actor_SetScale(thisx, 1.0f);
+    MM_Actor_SetScale(thisx, 1.0f);
     this->actionFunc = func_80B23910;
     this->unk_144 = 0;
     func_80B22C00(this->unk_148);
 
     for (i = 0; i < ARRAY_COUNT(this->unk_4608); i++) {
-        Lights_PointNoGlowSetInfo(&this->unk_4608[i], thisx->world.pos.x, thisx->world.pos.y, thisx->world.pos.z, 255,
+        MM_Lights_PointNoGlowSetInfo(&this->unk_4608[i], thisx->world.pos.x, thisx->world.pos.y, thisx->world.pos.z, 255,
                                   255, 255, -1);
-        this->unk_4634[i] = LightContext_InsertLight(play, &play->lightCtx, &this->unk_4608[i]);
+        this->unk_4634[i] = MM_LightContext_InsertLight(play, &play->lightCtx, &this->unk_4608[i]);
     }
 
     if (ENHANABI_GET_1F(thisx) == ENHANABI_1F_1) {
@@ -220,7 +220,7 @@ void EnHanabi_Destroy(Actor* thisx, PlayState* play2) {
     s32 i;
 
     for (i = 0; i < ARRAY_COUNT(this->unk_4634); i++) {
-        LightContext_RemoveLight(play, &play->lightCtx, this->unk_4634[i]);
+        MM_LightContext_RemoveLight(play, &play->lightCtx, this->unk_4634[i]);
     }
 }
 
@@ -245,7 +245,7 @@ void func_80B234C8(EnHanabi* this) {
                 }
             }
 
-            Lights_PointSetColorAndRadius(&this->unk_4608[i], D_80B23C2C[this->unk_4648[i]],
+            MM_Lights_PointSetColorAndRadius(&this->unk_4608[i], D_80B23C2C[this->unk_4648[i]],
                                           D_80B23C2C[this->unk_4648[i] + 1], D_80B23C2C[this->unk_4648[i] + 2], phi_v1);
         }
     }
@@ -257,7 +257,7 @@ void func_80B235CC(EnHanabi* this, Vec3f* arg1, s32 arg2) {
     for (i = 0; i < ARRAY_COUNT(this->unk_4640); i++) {
         if (this->unk_4640[i] == 0) {
             this->unk_4648[i] = arg2;
-            Lights_PointNoGlowSetInfo(&this->unk_4608[i], arg1->x, arg1->y, arg1->z, D_80B23C2C[arg2],
+            MM_Lights_PointNoGlowSetInfo(&this->unk_4608[i], arg1->x, arg1->y, arg1->z, D_80B23C2C[arg2],
                                       D_80B23C2C[arg2 + 1], D_80B23C2C[arg2 + 2], 0x3E8);
             this->unk_4640[i] = 20;
             break;
@@ -279,17 +279,17 @@ void func_80B236C8(EnHanabi* this, PlayState* play) {
             return;
         }
 
-        Math_Vec3f_Copy(&sp34, &this->actor.world.pos);
+        MM_Math_Vec3f_Copy(&sp34, &this->actor.world.pos);
 
         if (this->actor.home.rot.x != 0) {
-            sp30 = Rand_ZeroFloat(200.0f) + this->actor.home.rot.x;
+            sp30 = MM_Rand_ZeroFloat(200.0f) + this->actor.home.rot.x;
         } else {
-            sp30 = Rand_ZeroFloat(200.0f) + 300.0f;
+            sp30 = MM_Rand_ZeroFloat(200.0f) + 300.0f;
         }
 
-        sp34.x += sp30 * Math_SinS(this->actor.home.rot.y);
-        sp34.y += Rand_CenteredFloat(300.0f);
-        sp34.z += sp30 * Math_CosS(this->actor.home.rot.y);
+        sp34.x += sp30 * MM_Math_SinS(this->actor.home.rot.y);
+        sp34.y += MM_Rand_CenteredFloat(300.0f);
+        sp34.z += sp30 * MM_Math_CosS(this->actor.home.rot.y);
 
         if (this->actor.home.rot.x > 0x258) {
             sp28 = func_80B22C80(&sp34, this->unk_148, 2.0f);
@@ -297,8 +297,8 @@ void func_80B236C8(EnHanabi* this, PlayState* play) {
             sp28 = func_80B22C80(&sp34, this->unk_148, 1.0f);
         }
 
-        this->actor.home.rot.y += TRUNCF_BINANG((Rand_ZeroFloat(40.0f) + 80.0f) * 256.0f);
-        this->unk_144 = (s32)Rand_ZeroFloat(5.0f) + 20;
+        this->actor.home.rot.y += TRUNCF_BINANG((MM_Rand_ZeroFloat(40.0f) + 80.0f) * 256.0f);
+        this->unk_144 = (s32)MM_Rand_ZeroFloat(5.0f) + 20;
         Actor_PlaySfx(&this->actor, NA_SE_OC_FIREWORKS);
         func_80B235CC(this, &sp34, sp28);
     }
@@ -307,7 +307,7 @@ void func_80B236C8(EnHanabi* this, PlayState* play) {
 void func_80B23894(EnHanabi* this, PlayState* play) {
     func_80B236C8(this, play);
     if (func_80B22F34(this->unk_148) == 0) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -349,7 +349,7 @@ void EnHanabi_Update(Actor* thisx, PlayState* play) {
 void EnHanabi_Draw(Actor* thisx, PlayState* play) {
     EnHanabi* this = (EnHanabi*)thisx;
 
-    Matrix_Push();
+    MM_Matrix_Push();
     func_80B22FA8(this->unk_148, play);
-    Matrix_Pop();
+    MM_Matrix_Pop();
 }

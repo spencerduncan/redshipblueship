@@ -55,7 +55,7 @@ void func_80987330(DemoIm* this, PlayState* play);
 void DemoIm_DrawNothing(DemoIm* this, PlayState* play);
 void DemoIm_DrawSolid(DemoIm* this, PlayState* play);
 
-static void* sEyeTextures[] = {
+static void* OoT_sEyeTextures[] = {
     gImpaEyeOpenTex,
     gImpaEyeHalfTex,
     gImpaEyeClosedTex,
@@ -63,7 +63,7 @@ static void* sEyeTextures[] = {
 
 static u32 D_8098783C = 0;
 
-static ColliderCylinderInitType1 sCylinderInit = {
+static ColliderCylinderInitType1 OoT_sCylinderInit = {
     {
         COLTYPE_HIT0,
         AT_NONE,
@@ -77,7 +77,7 @@ static ColliderCylinderInitType1 sCylinderInit = {
 
 #include "z_demo_im_cutscene_data.c" EARLY
 
-static DemoImActionFunc sActionFuncs[] = {
+static DemoImActionFunc OoT_sActionFuncs[] = {
     func_809856F8, func_80985718, func_80985738, func_80985770, func_809857B0, func_809857F0, func_80985830,
     func_80985C10, func_80985C40, func_80985C94, func_809863BC, func_809863DC, func_80986430, func_80986494,
     func_809864D4, func_809868E8, func_80986908, func_80986948, func_80986D40, func_80986DC8, func_80986E20,
@@ -87,7 +87,7 @@ static DemoImActionFunc sActionFuncs[] = {
 
 static Vec3f D_809887D8 = { 0.0f, 10.0f, 0.0f };
 
-static DemoImDrawFunc sDrawFuncs[] = {
+static DemoImDrawFunc OoT_sDrawFuncs[] = {
     DemoIm_DrawNothing,
     DemoIm_DrawSolid,
     DemoIm_DrawTranslucent,
@@ -112,7 +112,7 @@ void func_80984BE0(DemoIm* this) {
     s16* eyeIndex = &this->eyeIndex;
 
     if (DECR(*blinkTimer) == 0) {
-        *blinkTimer = Rand_S16Offset(60, 60);
+        *blinkTimer = OoT_Rand_S16Offset(60, 60);
     }
 
     *eyeIndex = *blinkTimer;
@@ -150,21 +150,21 @@ void func_80984C8C(DemoIm* this, PlayState* play) {
 void DemoIm_InitCollider(Actor* thisx, PlayState* play) {
     DemoIm* this = (DemoIm*)thisx;
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinderType1(play, &this->collider, &this->actor, &sCylinderInit);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinderType1(play, &this->collider, &this->actor, &OoT_sCylinderInit);
 }
 
 void DemoIm_DestroyCollider(Actor* thisx, PlayState* play) {
     DemoIm* this = (DemoIm*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void DemoIm_UpdateCollider(DemoIm* this, PlayState* play) {
     s32 pad[5];
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void func_80984DB8(DemoIm* this) {
@@ -172,11 +172,11 @@ void func_80984DB8(DemoIm* this) {
     Vec3s* headRot = &this->interactInfo.headRot;
     Vec3s* torsoRot = &this->interactInfo.torsoRot;
 
-    Math_SmoothStepToS(&headRot->x, 0, 20, 6200, 100);
-    Math_SmoothStepToS(&headRot->y, 0, 20, 6200, 100);
+    OoT_Math_SmoothStepToS(&headRot->x, 0, 20, 6200, 100);
+    OoT_Math_SmoothStepToS(&headRot->y, 0, 20, 6200, 100);
 
-    Math_SmoothStepToS(&torsoRot->x, 0, 20, 6200, 100);
-    Math_SmoothStepToS(&torsoRot->y, 0, 20, 6200, 100);
+    OoT_Math_SmoothStepToS(&torsoRot->x, 0, 20, 6200, 100);
+    OoT_Math_SmoothStepToS(&torsoRot->y, 0, 20, 6200, 100);
 }
 
 void func_80984E58(DemoIm* this, PlayState* play) {
@@ -189,7 +189,7 @@ void func_80984E58(DemoIm* this, PlayState* play) {
 
     yawDiff = this->actor.yawTowardsPlayer - this->actor.shape.rot.y;
     npcTrackingMode = (ABS(yawDiff) < 0x18E3) ? NPC_TRACKING_HEAD_AND_TORSO : NPC_TRACKING_NONE;
-    Npc_TrackPoint(&this->actor, &this->interactInfo, kREG(17) + 0xC, npcTrackingMode);
+    OoT_Npc_TrackPoint(&this->actor, &this->interactInfo, kREG(17) + 0xC, npcTrackingMode);
 }
 
 void func_80984F10(DemoIm* this, PlayState* play) {
@@ -198,7 +198,7 @@ void func_80984F10(DemoIm* this, PlayState* play) {
     this->interactInfo.trackPos = player->actor.world.pos;
     this->interactInfo.yOffset = kREG(16) + 12.0f;
 
-    Npc_TrackPoint(&this->actor, &this->interactInfo, kREG(17) + 0xC, NPC_TRACKING_HEAD_AND_TORSO);
+    OoT_Npc_TrackPoint(&this->actor, &this->interactInfo, kREG(17) + 0xC, NPC_TRACKING_HEAD_AND_TORSO);
 }
 
 void func_80984F94(DemoIm* this, PlayState* play) {
@@ -206,15 +206,15 @@ void func_80984F94(DemoIm* this, PlayState* play) {
 
     this->interactInfo.trackPos = player->actor.world.pos;
     this->interactInfo.yOffset = kREG(16) + 4.0f;
-    Npc_TrackPoint(&this->actor, &this->interactInfo, kREG(17) + 0xC, NPC_TRACKING_FULL_BODY);
+    OoT_Npc_TrackPoint(&this->actor, &this->interactInfo, kREG(17) + 0xC, NPC_TRACKING_FULL_BODY);
 }
 
 void DemoIm_UpdateBgCheckInfo(DemoIm* this, PlayState* play) {
-    Actor_UpdateBgCheckInfo(play, &this->actor, 75.0f, 30.0f, 30.0f, 5);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 75.0f, 30.0f, 30.0f, 5);
 }
 
 s32 DemoIm_UpdateSkelAnime(DemoIm* this) {
-    return SkelAnime_Update(&this->skelAnime);
+    return OoT_SkelAnime_Update(&this->skelAnime);
 }
 
 s32 DemoIm_IsCsStateIdle(PlayState* play) {
@@ -281,7 +281,7 @@ void func_80985200(DemoIm* this, PlayState* play, s32 actionIdx) {
 
 void DemoIm_ChangeAnim(DemoIm* this, AnimationHeader* animHeaderSeg, u8 animMode, f32 transitionRate,
                        s32 playBackwards) {
-    f32 frameCount = Animation_GetLastFrame(animHeaderSeg);
+    f32 frameCount = OoT_Animation_GetLastFrame(animHeaderSeg);
     f32 playbackSpeed;
     f32 startFrame;
     f32 endFrame;
@@ -296,7 +296,7 @@ void DemoIm_ChangeAnim(DemoIm* this, AnimationHeader* animHeaderSeg, u8 animMode
         playbackSpeed = -1.0f;
     }
 
-    Animation_Change(&this->skelAnime, animHeaderSeg, playbackSpeed, startFrame, endFrame, animMode, transitionRate);
+    OoT_Animation_Change(&this->skelAnime, animHeaderSeg, playbackSpeed, startFrame, endFrame, animMode, transitionRate);
 }
 
 void func_80985310(DemoIm* this, PlayState* play) {
@@ -309,7 +309,7 @@ void func_80985358(DemoIm* this, PlayState* play) {
     f32 posY = this->actor.world.pos.y;
     f32 posZ = this->actor.world.pos.z;
 
-    Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DOOR_WARP1, posX, posY, posZ, 0, 0, 0, WARP_SAGES);
+    OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DOOR_WARP1, posX, posY, posZ, 0, 0, 0, WARP_SAGES);
 }
 
 void func_809853B4(DemoIm* this, PlayState* play) {
@@ -318,9 +318,9 @@ void func_809853B4(DemoIm* this, PlayState* play) {
     f32 playerY = player->actor.world.pos.y + 80.0f;
     f32 playerZ = player->actor.world.pos.z;
 
-    Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DEMO_EFFECT, playerX, playerY, playerZ, 0, 0, 0, 0xD);
+    OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DEMO_EFFECT, playerX, playerY, playerZ, 0, 0, 0, 0xD);
     if (GameInteractor_Should(VB_GIVE_ITEM_SHADOW_MEDALLION, true)) {
-        Item_Give(play, ITEM_MEDALLION_SHADOW);
+        OoT_Item_Give(play, ITEM_MEDALLION_SHADOW);
     }
 }
 
@@ -338,7 +338,7 @@ void func_8098544C(DemoIm* this, PlayState* play) {
         play->csCtx.segment = D_8098786C;
         gSaveContext.cutsceneTrigger = 2;
         if (GameInteractor_Should(VB_GIVE_ITEM_SHADOW_MEDALLION, true)) {
-            Item_Give(play, ITEM_MEDALLION_SHADOW);
+            OoT_Item_Give(play, ITEM_MEDALLION_SHADOW);
         }
         player->actor.world.rot.y = player->actor.shape.rot.y = this->actor.world.rot.y + 0x8000;
     }
@@ -347,7 +347,7 @@ void func_8098544C(DemoIm* this, PlayState* play) {
 void func_809854DC(DemoIm* this, PlayState* play) {
     if ((play->csCtx.state != CS_STATE_IDLE) && (play->csCtx.npcActions[5] != NULL) &&
         (play->csCtx.npcActions[5]->action == 2)) {
-        Animation_Change(&this->skelAnime, &gImpaIdleAnim, 1.0f, 0.0f, Animation_GetLastFrame(&gImpaIdleAnim),
+        OoT_Animation_Change(&this->skelAnime, &gImpaIdleAnim, 1.0f, 0.0f, OoT_Animation_GetLastFrame(&gImpaIdleAnim),
                          ANIMMODE_LOOP, 0.0f);
         this->action = 2;
         this->drawConfig = 1;
@@ -365,7 +365,7 @@ void func_8098557C(DemoIm* this) {
 void func_809855A8(DemoIm* this, PlayState* play) {
     if ((play->csCtx.state != CS_STATE_IDLE) && (play->csCtx.npcActions[5] != NULL) &&
         (play->csCtx.npcActions[5]->action == 3)) {
-        Animation_Change(&this->skelAnime, &gImpaRaiseArmsAnim, 1.0f, 0.0f, Animation_GetLastFrame(&gImpaRaiseArmsAnim),
+        OoT_Animation_Change(&this->skelAnime, &gImpaRaiseArmsAnim, 1.0f, 0.0f, OoT_Animation_GetLastFrame(&gImpaRaiseArmsAnim),
                          ANIMMODE_ONCE, 4.0f);
         this->action = 4;
     }
@@ -373,8 +373,8 @@ void func_809855A8(DemoIm* this, PlayState* play) {
 
 void func_80985640(DemoIm* this, s32 arg1) {
     if (arg1 != 0) {
-        Animation_Change(&this->skelAnime, &gImpaPresentShadowMedallionAnim, 1.0f, 0.0f,
-                         Animation_GetLastFrame(&gImpaPresentShadowMedallionAnim), ANIMMODE_LOOP, 0.0f);
+        OoT_Animation_Change(&this->skelAnime, &gImpaPresentShadowMedallionAnim, 1.0f, 0.0f,
+                         OoT_Animation_GetLastFrame(&gImpaPresentShadowMedallionAnim), ANIMMODE_LOOP, 0.0f);
         this->action = 5;
     }
 }
@@ -442,14 +442,14 @@ void func_809858A8(void) {
 }
 
 void DemoIm_SpawnLightBall(DemoIm* this, PlayState* play) {
-    Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DEMO_6K, this->actor.world.pos.x,
+    OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DEMO_6K, this->actor.world.pos.x,
                        (kREG(17) + 24.0f) + this->actor.world.pos.y, this->actor.world.pos.z, 0, 0, 0, 6);
 }
 
 void func_80985948(DemoIm* this, PlayState* play) {
     if (func_809850E8(this, play, 4, 5)) {
-        Animation_Change(&this->skelAnime, &gImpaPrepareSealGanonAnim, 1.0f, 0.0f,
-                         Animation_GetLastFrame(&gImpaPrepareSealGanonAnim), ANIMMODE_ONCE, 0.0f);
+        OoT_Animation_Change(&this->skelAnime, &gImpaPrepareSealGanonAnim, 1.0f, 0.0f,
+                         OoT_Animation_GetLastFrame(&gImpaPrepareSealGanonAnim), ANIMMODE_ONCE, 0.0f);
         this->action = 8;
         this->drawConfig = 2;
         this->alpha = 0;
@@ -488,7 +488,7 @@ void func_809859E0(DemoIm* this, PlayState* play) {
 
 void func_80985B34(DemoIm* this, PlayState* play) {
     if (func_80985134(this, play, 4, 5)) {
-        Animation_Change(&this->skelAnime, &gImpaSealGanonAnim, 1.0f, 0.0f, Animation_GetLastFrame(&gImpaSealGanonAnim),
+        OoT_Animation_Change(&this->skelAnime, &gImpaSealGanonAnim, 1.0f, 0.0f, OoT_Animation_GetLastFrame(&gImpaSealGanonAnim),
                          ANIMMODE_ONCE, -8.0f);
         this->action = 8;
         this->drawConfig = 2;
@@ -526,7 +526,7 @@ void func_80985C94(DemoIm* this, PlayState* play) {
 void DemoIm_DrawTranslucent(DemoIm* this, PlayState* play) {
     s32 pad[2];
     s16 eyeIndex = this->eyeIndex;
-    void* eyeTex = sEyeTextures[eyeIndex];
+    void* eyeTex = OoT_sEyeTextures[eyeIndex];
     SkelAnime* skelAnime = &this->skelAnime;
 
     OPEN_DISPS(play->state.gfxCtx);
@@ -538,7 +538,7 @@ void DemoIm_DrawTranslucent(DemoIm* this, PlayState* play) {
     gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 0, this->alpha);
     gSPSegment(POLY_XLU_DISP++, 0x0C, &D_80116280[0]);
 
-    POLY_XLU_DISP = SkelAnime_DrawFlex(play, skelAnime->skeleton, skelAnime->jointTable, skelAnime->dListCount, NULL,
+    POLY_XLU_DISP = OoT_SkelAnime_DrawFlex(play, skelAnime->skeleton, skelAnime->jointTable, skelAnime->dListCount, NULL,
                                        NULL, NULL, POLY_XLU_DISP);
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -559,7 +559,7 @@ void func_80985EAC(DemoIm* this, PlayState* play) {
 }
 
 void func_80985EF4(DemoIm* this) {
-    if (!Animation_OnFrame(&this->skelAnime, Animation_GetLastFrame(&gImpaWhistlingAnim) - 1.0f)) {
+    if (!OoT_Animation_OnFrame(&this->skelAnime, OoT_Animation_GetLastFrame(&gImpaWhistlingAnim) - 1.0f)) {
         DemoIm_UpdateSkelAnime(this);
     }
 }
@@ -570,7 +570,7 @@ void func_80985F54(DemoIm* this) {
 }
 
 void func_80985F64(DemoIm* this, PlayState* play) {
-    Animation_Change(&this->skelAnime, &gImpaIdleAnim, 1.0f, 0.0f, Animation_GetLastFrame(&gImpaIdleAnim),
+    OoT_Animation_Change(&this->skelAnime, &gImpaIdleAnim, 1.0f, 0.0f, OoT_Animation_GetLastFrame(&gImpaIdleAnim),
                      ANIMMODE_LOOP, 0.0f);
     func_80985180(this, play, 5);
     this->action = 11;
@@ -579,15 +579,15 @@ void func_80985F64(DemoIm* this, PlayState* play) {
 
 void func_80985FE8(DemoIm* this, s32 arg1) {
     if (arg1 != 0) {
-        Animation_Change(&this->skelAnime, &gImpaWhistlingAnim, 1.0f, 0.0f, Animation_GetLastFrame(&gImpaWhistlingAnim),
+        OoT_Animation_Change(&this->skelAnime, &gImpaWhistlingAnim, 1.0f, 0.0f, OoT_Animation_GetLastFrame(&gImpaWhistlingAnim),
                          ANIMMODE_LOOP, -8.0f);
     }
 }
 
 void func_8098604C(DemoIm* this) {
-    f32 frameCount = Animation_GetLastFrame(&gImpaStartWhistlingAnim);
+    f32 frameCount = OoT_Animation_GetLastFrame(&gImpaStartWhistlingAnim);
 
-    Animation_Change(&this->skelAnime, &gImpaStartWhistlingAnim, 1.0f, 0.0f, frameCount, ANIMMODE_ONCE, -8.0f);
+    OoT_Animation_Change(&this->skelAnime, &gImpaStartWhistlingAnim, 1.0f, 0.0f, frameCount, ANIMMODE_ONCE, -8.0f);
     this->action = 12;
     this->drawConfig = 1;
     this->unk_2D0 = 1;
@@ -600,15 +600,15 @@ void func_809860C8(DemoIm* this) {
 
 void func_809860DC(DemoIm* this, s32 arg1) {
     if (arg1 != 0) {
-        Animation_Change(&this->skelAnime, &gImpaIdleAnim, 1.0f, 0.0f, Animation_GetLastFrame(&gImpaIdleAnim),
+        OoT_Animation_Change(&this->skelAnime, &gImpaIdleAnim, 1.0f, 0.0f, OoT_Animation_GetLastFrame(&gImpaIdleAnim),
                          ANIMMODE_LOOP, -8.0f);
         this->unk_2D0 = 0;
     }
 }
 
 void func_80986148(DemoIm* this) {
-    Animation_Change(&this->skelAnime, &gImpaStartWhistlingAnim, -1.0f,
-                     Animation_GetLastFrame(&gImpaStartWhistlingAnim), 0.0f, ANIMMODE_ONCE, -8.0f);
+    OoT_Animation_Change(&this->skelAnime, &gImpaStartWhistlingAnim, -1.0f,
+                     OoT_Animation_GetLastFrame(&gImpaStartWhistlingAnim), 0.0f, ANIMMODE_ONCE, -8.0f);
     this->action = 14;
     this->drawConfig = 1;
 }
@@ -626,8 +626,8 @@ void func_809861C4(DemoIm* this, PlayState* play) {
                     func_80986148(this);
                     break;
                 case 7:
-                    Animation_Change(&this->skelAnime, &gImpaWhistlingAnim, 1.0f, 0.0f,
-                                     Animation_GetLastFrame(&gImpaWhistlingAnim), ANIMMODE_LOOP, -8.0f);
+                    OoT_Animation_Change(&this->skelAnime, &gImpaWhistlingAnim, 1.0f, 0.0f,
+                                     OoT_Animation_GetLastFrame(&gImpaWhistlingAnim), ANIMMODE_LOOP, -8.0f);
                     this->action = 12;
                     break;
                 default:
@@ -724,12 +724,12 @@ void func_8098652C(DemoIm* this, PlayState* play) {
 }
 
 void func_80986570(DemoIm* this, PlayState* play) {
-    if (Animation_OnFrame(&this->skelAnime, 7.0f) && (this->actor.bgCheckFlags & 1)) {
+    if (OoT_Animation_OnFrame(&this->skelAnime, 7.0f) && (this->actor.bgCheckFlags & 1)) {
         u32 sfxId = SFX_FLAG;
 
         sfxId += SurfaceType_GetSfx(&play->colCtx, this->actor.floorPoly, this->actor.floorBgId);
-        Audio_PlaySoundGeneral(sfxId, &this->actor.projectedPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(sfxId, &this->actor.projectedPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     }
 }
 
@@ -743,11 +743,11 @@ void func_809865F8(DemoIm* this, PlayState* play, s32 arg2) {
             if (this->unk_27C == 0) {
                 Vec3f* thisPos = &this->actor.world.pos;
                 s16 shapeRotY = this->actor.shape.rot.y;
-                f32 spawnPosX = thisPos->x + (Math_SinS(shapeRotY) * 30.0f);
+                f32 spawnPosX = thisPos->x + (OoT_Math_SinS(shapeRotY) * 30.0f);
                 f32 spawnPosY = thisPos->y;
-                f32 spawnPosZ = thisPos->z + (Math_CosS(shapeRotY) * 30.0f);
+                f32 spawnPosZ = thisPos->z + (OoT_Math_CosS(shapeRotY) * 30.0f);
 
-                Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ARROW, spawnPosX, spawnPosY, spawnPosZ, 0xFA0,
+                OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ARROW, spawnPosX, spawnPosY, spawnPosZ, 0xFA0,
                             this->actor.shape.rot.y, 0, ARROW_CS_NUT, true);
                 this->unk_27C = 1;
             }
@@ -763,7 +763,7 @@ void func_80986700(DemoIm* this) {
 }
 
 void func_80986710(DemoIm* this, PlayState* play) {
-    Animation_Change(&this->skelAnime, &gImpaIdleAnim, 1.0f, 0.0f, Animation_GetLastFrame(&gImpaIdleAnim),
+    OoT_Animation_Change(&this->skelAnime, &gImpaIdleAnim, 1.0f, 0.0f, OoT_Animation_GetLastFrame(&gImpaIdleAnim),
                      ANIMMODE_LOOP, 0.0f);
     func_80985180(this, play, 5);
     this->action = 16;
@@ -771,8 +771,8 @@ void func_80986710(DemoIm* this, PlayState* play) {
 }
 
 void func_80986794(DemoIm* this) {
-    Animation_Change(&this->skelAnime, &gImpaThrowDekuNutAnim, 1.0f, 0.0f,
-                     Animation_GetLastFrame(&gImpaThrowDekuNutAnim), ANIMMODE_ONCE, -8.0f);
+    OoT_Animation_Change(&this->skelAnime, &gImpaThrowDekuNutAnim, 1.0f, 0.0f,
+                     OoT_Animation_GetLastFrame(&gImpaThrowDekuNutAnim), ANIMMODE_ONCE, -8.0f);
     this->action = 17;
     this->drawConfig = 1;
 }
@@ -796,7 +796,7 @@ void func_8098680C(DemoIm* this, PlayState* play) {
                     func_80986794(this);
                     break;
                 case 11:
-                    Actor_Kill(&this->actor);
+                    OoT_Actor_Kill(&this->actor);
                     break;
                 default:
                     osSyncPrintf("Demo_Im_Spot00_Check_DemoMode:そんな動作は無い!!!!!!!!\n");
@@ -851,7 +851,7 @@ s32 func_80986A5C(DemoIm* this, PlayState* play) {
     f32 playerPosX = player->actor.world.pos.x;
     f32 thisPosX = this->actor.world.pos.x;
 
-    if ((thisPosX - (kREG(17) + 130.0f) < playerPosX) && (!Play_InCsMode(play))) {
+    if ((thisPosX - (kREG(17) + 130.0f) < playerPosX) && (!OoT_Play_InCsMode(play))) {
         return true;
     } else {
         return false;
@@ -870,7 +870,7 @@ s32 func_80986AD0(DemoIm* this, PlayState* play) {
 }
 
 void func_80986B2C(PlayState* play) {
-    if (Message_GetState(&play->msgCtx) == TEXT_STATE_CLOSING) {
+    if (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_CLOSING) {
         Player* player = GET_PLAYER(play);
 
         // In entrance rando have impa bring link back to the front of castle grounds
@@ -881,7 +881,7 @@ void func_80986B2C(PlayState* play) {
         }
         play->transitionType = TRANS_TYPE_CIRCLE(TCA_STARBURST, TCC_BLACK, TCS_FAST);
         play->transitionTrigger = TRANS_TRIGGER_START;
-        Player_SetCsActionWithHaltedActors(play, &player->actor, 8);
+        OoT_Player_SetCsActionWithHaltedActors(play, &player->actor, 8);
     }
 }
 
@@ -901,7 +901,7 @@ void func_80986BE4(DemoIm* this, s32 arg1) {
 }
 
 void func_80986BF8(DemoIm* this, PlayState* play) {
-    if (Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_ZELDAS_LETTER)) {
+    if (OoT_Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_ZELDAS_LETTER)) {
         this->action = 24;
         this->drawConfig = 1;
         this->unk_280 = 1;
@@ -916,15 +916,15 @@ void func_80986C30(DemoIm* this, PlayState* play) {
             gSaveContext.cutsceneTrigger = 1;
             func_80985F54(this);
         }
-        Flags_SetEventChkInf(EVENTCHKINF_LEARNED_ZELDAS_LULLABY);
+        OoT_Flags_SetEventChkInf(EVENTCHKINF_LEARNED_ZELDAS_LULLABY);
         if (GameInteractor_Should(VB_GIVE_ITEM_ZELDAS_LULLABY, true)) {
-            Item_Give(play, ITEM_SONG_LULLABY);
+            OoT_Item_Give(play, ITEM_SONG_LULLABY);
         }
     }
 }
 
 void func_80986CC8(DemoIm* this) {
-    if (Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_ZELDAS_LETTER)) {
+    if (OoT_Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_ZELDAS_LETTER)) {
         this->action = 26;
         this->drawConfig = 1;
         this->unk_280 = 1;
@@ -934,7 +934,7 @@ void func_80986CC8(DemoIm* this) {
 
 void func_80986CFC(DemoIm* this, PlayState* play) {
     if (func_80986A5C(this, play)) {
-        Flags_SetEventChkInf(EVENTCHKINF_4C);
+        OoT_Flags_SetEventChkInf(EVENTCHKINF_4C);
         this->action = 19;
     }
 }
@@ -943,10 +943,10 @@ void func_80986D40(DemoIm* this, PlayState* play) {
     if (gSaveContext.sceneSetupIndex == 6) {
         this->action = 19;
         this->drawConfig = 1;
-    } else if ((Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE)) &&
+    } else if ((OoT_Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE)) &&
                !IS_RANDO) { // SoH [Randomizer] Not sure why we're not killing impa here.
-        Actor_Kill(&this->actor);
-    } else if (!Flags_GetEventChkInf(EVENTCHKINF_LEARNED_ZELDAS_LULLABY)) {
+        OoT_Actor_Kill(&this->actor);
+    } else if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_LEARNED_ZELDAS_LULLABY)) {
         this->action = 23;
     } else {
         this->action = 20;
@@ -1110,19 +1110,19 @@ void func_80987330(DemoIm* this, PlayState* play) {
 void DemoIm_Update(Actor* thisx, PlayState* play) {
     DemoIm* this = (DemoIm*)thisx;
 
-    if ((this->action < 0) || (this->action >= 31) || (sActionFuncs[this->action] == NULL)) {
+    if ((this->action < 0) || (this->action >= 31) || (OoT_sActionFuncs[this->action] == NULL)) {
         osSyncPrintf(VT_FGCOL(RED) "メインモードがおかしい!!!!!!!!!!!!!!!!!!!!!!!!!\n" VT_RST);
         return;
     }
-    sActionFuncs[this->action](this, play);
+    OoT_sActionFuncs[this->action](this, play);
 }
 
 void DemoIm_Init(Actor* thisx, PlayState* play) {
     DemoIm* this = (DemoIm*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 30.0f);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 30.0f);
     DemoIm_InitCollider(thisx, play);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gImpaSkel, NULL, this->jointTable, this->morphTable, 17);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gImpaSkel, NULL, this->jointTable, this->morphTable, 17);
     thisx->flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
 
     switch (this->actor.params) {
@@ -1187,7 +1187,7 @@ void DemoIm_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot
         Vec3f sp28 = D_809887D8;
         Vec3f dest;
 
-        Matrix_MultVec3f(&sp28, &dest);
+        OoT_Matrix_MultVec3f(&sp28, &dest);
         this->actor.focus.pos.x = dest.x;
         this->actor.focus.pos.y = dest.y;
         this->actor.focus.pos.z = dest.z;
@@ -1203,7 +1203,7 @@ void DemoIm_DrawNothing(DemoIm* this, PlayState* play) {
 void DemoIm_DrawSolid(DemoIm* this, PlayState* play) {
     s32 pad[2];
     s16 eyeIndex = this->eyeIndex;
-    void* eyeTexture = sEyeTextures[eyeIndex];
+    void* eyeTexture = OoT_sEyeTextures[eyeIndex];
     SkelAnime* skelAnime = &this->skelAnime;
 
     OPEN_DISPS(play->state.gfxCtx);
@@ -1223,9 +1223,9 @@ void DemoIm_DrawSolid(DemoIm* this, PlayState* play) {
 void DemoIm_Draw(Actor* thisx, PlayState* play) {
     DemoIm* this = (DemoIm*)thisx;
 
-    if ((this->drawConfig < 0) || (this->drawConfig >= 3) || (sDrawFuncs[this->drawConfig] == NULL)) {
+    if ((this->drawConfig < 0) || (this->drawConfig >= 3) || (OoT_sDrawFuncs[this->drawConfig] == NULL)) {
         osSyncPrintf(VT_FGCOL(RED) "描画モードがおかしい!!!!!!!!!!!!!!!!!!!!!!!!!\n" VT_RST);
         return;
     }
-    sDrawFuncs[this->drawConfig](this, play);
+    OoT_sDrawFuncs[this->drawConfig](this, play);
 }

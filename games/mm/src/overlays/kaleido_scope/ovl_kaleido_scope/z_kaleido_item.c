@@ -11,13 +11,13 @@
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include <libultraship/bridge/consolevariablebridge.h>
 
-s16 sEquipState = EQUIP_STATE_MAGIC_ARROW_GROW_ORB;
+s16 MM_sEquipState = EQUIP_STATE_MAGIC_ARROW_GROW_ORB;
 
 // Timer to hold magic arrow icon over magic arrow slot before moving when equipping.
 s16 sEquipMagicArrowSlotHoldTimer = 0;
 
 // Number of frames to move icon from slot to target position when equipping.
-s16 sEquipAnimTimer = 10;
+s16 MM_sEquipAnimTimer = 10;
 
 u8 gPlayerFormSlotRestrictions[PLAYER_FORM_MAX][ITEM_NUM_SLOTS] = {
     // PLAYER_FORM_FIERCE_DEITY
@@ -181,7 +181,7 @@ s16 sAmmoRectHeight[] = {
 
 extern const char* gAmmoDigitTextures[10];
 
-void KaleidoScope_DrawAmmoCount(PauseContext* pauseCtx, GraphicsContext* gfxCtx, s16 item, u16 ammoIndex) {
+void MM_KaleidoScope_DrawAmmoCount(PauseContext* pauseCtx, GraphicsContext* gfxCtx, s16 item, u16 ammoIndex) {
     s16 ammoUpperDigit;
     s16 ammo;
 
@@ -250,7 +250,7 @@ static s16 sMagicArrowEffectsR[] = { 255, 100, 255 };
 static s16 sMagicArrowEffectsG[] = { 0, 100, 255 };
 static s16 sMagicArrowEffectsB[] = { 0, 255, 100 };
 
-void KaleidoScope_DrawItemSelect(PlayState* play) {
+void MM_KaleidoScope_DrawItemSelect(PlayState* play) {
     PauseContext* pauseCtx = &play->pauseCtx;
     u16 i;
     u16 j;
@@ -295,7 +295,7 @@ void KaleidoScope_DrawItemSelect(PlayState* play) {
         if (((void)0, gSaveContext.save.saveInfo.inventory.items[i]) != ITEM_NONE) {
             if ((pauseCtx->mainState == PAUSE_MAIN_STATE_IDLE) && (pauseCtx->pageIndex == PAUSE_ITEM) &&
                 (pauseCtx->cursorSpecialPos == 0) && gPlayerFormSlotRestrictions[GET_PLAYER_FORM][i]) {
-                if ((sEquipState == EQUIP_STATE_MAGIC_ARROW_HOVER_OVER_BOW_SLOT) && (i == SLOT_ARROW_ICE)) {
+                if ((MM_sEquipState == EQUIP_STATE_MAGIC_ARROW_HOVER_OVER_BOW_SLOT) && (i == SLOT_ARROW_ICE)) {
                     // Possible bug:
                     // Supposed to be `SLOT_BOW`, unchanged from OoT, instead increase size of ice arrow icon
                     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, sMagicArrowEffectsR[pauseCtx->equipTargetItem - 0xB5],
@@ -323,7 +323,7 @@ void KaleidoScope_DrawItemSelect(PlayState* play) {
                         pauseCtx->itemVtx[j + 0].v.ob[1] - 32;
                 }
             }
-            // #region 2S2H [Port] Originally this was done in KaleidoScope_Update, but now we are using gSPGrayscale.
+            // #region 2S2H [Port] Originally this was done in MM_KaleidoScope_Update, but now we are using gSPGrayscale.
             ItemId itemId = gSaveContext.save.saveInfo.inventory.items[i];
             u8 itemRestricted = GameInteractor_Should(
                 VB_ITEM_BE_RESTRICTED, !gPlayerFormItemRestrictions[GET_PLAYER_FORM][(s32)itemId], &itemId);
@@ -333,7 +333,7 @@ void KaleidoScope_DrawItemSelect(PlayState* play) {
             }
             gSPVertex(POLY_OPA_DISP++, &pauseCtx->itemVtx[j + 0], 4, 0);
             KaleidoScope_DrawTexQuadRGBA32(
-                play->state.gfxCtx, gItemIcons[((void)0, gSaveContext.save.saveInfo.inventory.items[i])], 32, 32, 0);
+                play->state.gfxCtx, MM_gItemIcons[((void)0, gSaveContext.save.saveInfo.inventory.items[i])], 32, 32, 0);
             if (itemRestricted) {
                 gSPGrayscale(POLY_OPA_DISP++, false);
             }
@@ -351,9 +351,9 @@ void KaleidoScope_DrawItemSelect(PlayState* play) {
 
             // Loop over slots (i) and ammoIndex (j)
             for (j = 0, i = 0; i < ITEM_NUM_SLOTS; i++) {
-                if (gAmmoItems[i] != ITEM_NONE) {
+                if (MM_gAmmoItems[i] != ITEM_NONE) {
                     if (((void)0, gSaveContext.save.saveInfo.inventory.items[i]) != ITEM_NONE) {
-                        KaleidoScope_DrawAmmoCount(pauseCtx, play->state.gfxCtx,
+                        MM_KaleidoScope_DrawAmmoCount(pauseCtx, play->state.gfxCtx,
                                                    ((void)0, gSaveContext.save.saveInfo.inventory.items[i]), j);
                     }
                     j++;
@@ -437,7 +437,7 @@ void KaleidoScope_UpdateItemCursor(PlayState* play) {
                                 pauseCtx->cursorXIndex[PAUSE_ITEM] = cursorXIndex;
                                 pauseCtx->cursorPoint[PAUSE_ITEM] = cursorPoint;
 
-                                KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_LEFT);
+                                MM_KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_LEFT);
 
                                 moveCursorResult = PAUSE_CURSOR_RESULT_SPECIAL_POS;
                             }
@@ -468,7 +468,7 @@ void KaleidoScope_UpdateItemCursor(PlayState* play) {
                                 pauseCtx->cursorXIndex[PAUSE_ITEM] = cursorXIndex;
                                 pauseCtx->cursorPoint[PAUSE_ITEM] = cursorPoint;
 
-                                KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_RIGHT);
+                                MM_KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_RIGHT);
 
                                 moveCursorResult = PAUSE_CURSOR_RESULT_SPECIAL_POS;
                             }
@@ -514,7 +514,7 @@ void KaleidoScope_UpdateItemCursor(PlayState* play) {
                     }
 
                     // No item available
-                    KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_RIGHT);
+                    MM_KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_RIGHT);
                     break;
                 }
             }
@@ -552,7 +552,7 @@ void KaleidoScope_UpdateItemCursor(PlayState* play) {
                     }
 
                     // No item available
-                    KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_LEFT);
+                    MM_KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_LEFT);
                     break;
                 }
             }
@@ -746,8 +746,8 @@ void KaleidoScope_UpdateItemCursor(PlayState* play) {
                     pauseCtx->equipAnimY = pauseCtx->itemVtx[vtxIndex].v.ob[1] * 10;
                     pauseCtx->equipAnimAlpha = 255;
                     sEquipMagicArrowSlotHoldTimer = 0;
-                    sEquipState = EQUIP_STATE_MOVE_TO_C_BTN;
-                    sEquipAnimTimer = 10;
+                    MM_sEquipState = EQUIP_STATE_MOVE_TO_C_BTN;
+                    MM_sEquipAnimTimer = 10;
 
                     if ((pauseCtx->equipTargetItem == ITEM_ARROW_FIRE) ||
                         (pauseCtx->equipTargetItem == ITEM_ARROW_ICE) ||
@@ -761,8 +761,8 @@ void KaleidoScope_UpdateItemCursor(PlayState* play) {
                         }
                         Audio_PlaySfx(NA_SE_SY_SET_FIRE_ARROW + magicArrowIndex);
                         pauseCtx->equipTargetItem = 0xB5 + magicArrowIndex;
-                        pauseCtx->equipAnimAlpha = sEquipState = 0; // EQUIP_STATE_MAGIC_ARROW_GROW_ORB
-                        sEquipAnimTimer = 6;
+                        pauseCtx->equipAnimAlpha = MM_sEquipState = 0; // EQUIP_STATE_MAGIC_ARROW_GROW_ORB
+                        MM_sEquipAnimTimer = 6;
                     } else {
                         Audio_PlaySfx(NA_SE_SY_DECIDE);
                     }
@@ -792,13 +792,13 @@ void KaleidoScope_UpdateItemCursor(PlayState* play) {
     }
 }
 
-s16 sCButtonPosX[] = {
+s16 MM_sCButtonPosX[] = {
     660, 900, 1140,
     // #region 2S2H [Dpad]
     1350, 1030, 1190, 1190
     // #endregion
 };
-s16 sCButtonPosY[] = {
+s16 MM_sCButtonPosY[] = {
     1100, 920, 1100,
     // #region 2S2H [Dpad]
     570, 570, 410, 730
@@ -1471,7 +1471,7 @@ void KaleidoScope_UpdateDpadItemEquip(PlayState* play) {
 }
 // #endregion
 
-void KaleidoScope_UpdateItemEquip(PlayState* play) {
+void MM_KaleidoScope_UpdateItemEquip(PlayState* play) {
     static s16 sEquipMagicArrowBowSlotHoldTimer = 0;
     PauseContext* pauseCtx = &play->pauseCtx;
     Vtx* bowItemVtx;
@@ -1479,40 +1479,40 @@ void KaleidoScope_UpdateItemEquip(PlayState* play) {
     u16 offsetY;
 
     // Grow glowing orb when equipping magic arrows
-    if (sEquipState == EQUIP_STATE_MAGIC_ARROW_GROW_ORB) {
+    if (MM_sEquipState == EQUIP_STATE_MAGIC_ARROW_GROW_ORB) {
         pauseCtx->equipAnimAlpha += 14;
         if (pauseCtx->equipAnimAlpha > 255) {
             pauseCtx->equipAnimAlpha = 254;
-            sEquipState++;
+            MM_sEquipState++;
         }
         // Hover over magic arrow slot when the next state is reached
         sEquipMagicArrowSlotHoldTimer = 5;
         return;
     }
 
-    if (sEquipState == EQUIP_STATE_MAGIC_ARROW_HOVER_OVER_BOW_SLOT) {
+    if (MM_sEquipState == EQUIP_STATE_MAGIC_ARROW_HOVER_OVER_BOW_SLOT) {
         sEquipMagicArrowBowSlotHoldTimer--;
 
         if (sEquipMagicArrowBowSlotHoldTimer == 0) {
             pauseCtx->equipTargetItem -= 0xB5 - ITEM_BOW_FIRE;
             pauseCtx->equipTargetSlot = SLOT_BOW;
-            sEquipAnimTimer = 6;
+            MM_sEquipAnimTimer = 6;
             pauseCtx->equipAnimScale = 320;
             pauseCtx->equipAnimShrinkRate = 40;
-            sEquipState++;
+            MM_sEquipState++;
             Audio_PlaySfx(NA_SE_SY_SYNTH_MAGIC_ARROW);
         }
         return;
     }
 
     // #region 2S2H [Cosmetic] Track the C button position vanilla values or HUD editor adjusted values
-    s16 cButtonPosX = sCButtonPosX[pauseCtx->equipTargetCBtn];
-    s16 cButtonPosY = sCButtonPosY[pauseCtx->equipTargetCBtn];
+    s16 cButtonPosX = MM_sCButtonPosX[pauseCtx->equipTargetCBtn];
+    s16 cButtonPosY = MM_sCButtonPosY[pauseCtx->equipTargetCBtn];
 
     HudEditor_SetActiveElement(pauseCtx->equipTargetCBtn < 3 ? HUD_EDITOR_ELEMENT_C_LEFT + pauseCtx->equipTargetCBtn
                                                              : HUD_EDITOR_ELEMENT_D_PAD);
 
-    if (sEquipState == EQUIP_STATE_MOVE_TO_C_BTN && HudEditor_ShouldOverrideDraw()) {
+    if (MM_sEquipState == EQUIP_STATE_MOVE_TO_C_BTN && HudEditor_ShouldOverrideDraw()) {
         s16 equipAnimShrinkRate = 40;
         HudEditor_ModifyKaleidoEquipAnimValues(&cButtonPosX, &cButtonPosY, &equipAnimShrinkRate);
 
@@ -1526,7 +1526,7 @@ void KaleidoScope_UpdateItemEquip(PlayState* play) {
             pauseCtx->equipAnimScale = 0;
             pauseCtx->equipAnimShrinkRate = 0;
         }
-    } else if (sEquipState == EQUIP_STATE_MOVE_TO_C_BTN && pauseCtx->equipTargetCBtn >= 3) {
+    } else if (MM_sEquipState == EQUIP_STATE_MOVE_TO_C_BTN && pauseCtx->equipTargetCBtn >= 3) {
         // Equips to DPad need to shrink fast to be have a final smaller size (16px),
         // So we override the anim shrink rate at the beginning (value is 320)
         if (pauseCtx->equipAnimScale == 320) {
@@ -1537,14 +1537,14 @@ void KaleidoScope_UpdateItemEquip(PlayState* play) {
     HudEditor_SetActiveElement(HUD_EDITOR_ELEMENT_NONE);
     // #endregion
 
-    if (sEquipState == EQUIP_STATE_MAGIC_ARROW_MOVE_TO_BOW_SLOT) {
+    if (MM_sEquipState == EQUIP_STATE_MAGIC_ARROW_MOVE_TO_BOW_SLOT) {
         bowItemVtx = &pauseCtx->itemVtx[SLOT_BOW * 4];
-        offsetX = ABS_ALT(pauseCtx->equipAnimX - bowItemVtx->v.ob[0] * 10) / sEquipAnimTimer;
-        offsetY = ABS_ALT(pauseCtx->equipAnimY - bowItemVtx->v.ob[1] * 10) / sEquipAnimTimer;
+        offsetX = ABS_ALT(pauseCtx->equipAnimX - bowItemVtx->v.ob[0] * 10) / MM_sEquipAnimTimer;
+        offsetY = ABS_ALT(pauseCtx->equipAnimY - bowItemVtx->v.ob[1] * 10) / MM_sEquipAnimTimer;
     } else {
         // 2S2H [Cosmetic] Use position vars from above
-        offsetX = ABS_ALT(pauseCtx->equipAnimX - cButtonPosX) / sEquipAnimTimer;
-        offsetY = ABS_ALT(pauseCtx->equipAnimY - cButtonPosY) / sEquipAnimTimer;
+        offsetX = ABS_ALT(pauseCtx->equipAnimX - cButtonPosX) / MM_sEquipAnimTimer;
+        offsetY = ABS_ALT(pauseCtx->equipAnimY - cButtonPosY) / MM_sEquipAnimTimer;
     }
 
     if ((pauseCtx->equipTargetItem >= 0xB5) && (pauseCtx->equipAnimAlpha < 254)) {
@@ -1557,11 +1557,11 @@ void KaleidoScope_UpdateItemEquip(PlayState* play) {
     }
 
     if (sEquipMagicArrowSlotHoldTimer == 0) {
-        pauseCtx->equipAnimScale -= pauseCtx->equipAnimShrinkRate / sEquipAnimTimer;
-        pauseCtx->equipAnimShrinkRate -= pauseCtx->equipAnimShrinkRate / sEquipAnimTimer;
+        pauseCtx->equipAnimScale -= pauseCtx->equipAnimShrinkRate / MM_sEquipAnimTimer;
+        pauseCtx->equipAnimShrinkRate -= pauseCtx->equipAnimShrinkRate / MM_sEquipAnimTimer;
 
         // Update coordinates of item icon while being equipped
-        if (sEquipState == EQUIP_STATE_MAGIC_ARROW_MOVE_TO_BOW_SLOT) {
+        if (MM_sEquipState == EQUIP_STATE_MAGIC_ARROW_MOVE_TO_BOW_SLOT) {
             // target is the bow slot
             if (pauseCtx->equipAnimX >= (pauseCtx->itemVtx[SLOT_BOW * 4].v.ob[0] * 10)) {
                 pauseCtx->equipAnimX -= offsetX;
@@ -1590,10 +1590,10 @@ void KaleidoScope_UpdateItemEquip(PlayState* play) {
             }
         }
 
-        sEquipAnimTimer--;
-        if (sEquipAnimTimer == 0) {
-            if (sEquipState == EQUIP_STATE_MAGIC_ARROW_MOVE_TO_BOW_SLOT) {
-                sEquipState++;
+        MM_sEquipAnimTimer--;
+        if (MM_sEquipAnimTimer == 0) {
+            if (MM_sEquipState == EQUIP_STATE_MAGIC_ARROW_MOVE_TO_BOW_SLOT) {
+                MM_sEquipState++;
                 sEquipMagicArrowBowSlotHoldTimer = 4;
                 return;
             }
@@ -1870,7 +1870,7 @@ void KaleidoScope_UpdateItemEquip(PlayState* play) {
 
             // Reset params
             pauseCtx->mainState = PAUSE_MAIN_STATE_IDLE;
-            sEquipAnimTimer = 10;
+            MM_sEquipAnimTimer = 10;
             pauseCtx->equipAnimScale = 320;
             pauseCtx->equipAnimShrinkRate = 40;
         }

@@ -12,7 +12,7 @@ u32 gOSContInitialized = 0;
 
 #define HALF_SECOND OS_USEC_TO_CYCLES(500000)
 
-s32 osContInit(OSMesgQueue* mq, u8* ctlBitfield, OSContStatus* status) {
+s32 OoT_osContInit(OSMesgQueue* mq, u8* ctlBitfield, OSContStatus* status) {
     OSMesg mesg;
     s32 ret = 0;
     OSTime currentTime;
@@ -24,22 +24,22 @@ s32 osContInit(OSMesgQueue* mq, u8* ctlBitfield, OSContStatus* status) {
     }
 
     gOSContInitialized = 1;
-    currentTime = osGetTime();
+    currentTime = OoT_osGetTime();
     if (HALF_SECOND > currentTime) {
-        osCreateMesgQueue(&timerqueue, &mesg, 1);
-        osSetTimer(&timer, HALF_SECOND - currentTime, 0, &timerqueue, &mesg);
-        osRecvMesg(&timerqueue, &mesg, OS_MESG_BLOCK);
+        OoT_osCreateMesgQueue(&timerqueue, &mesg, 1);
+        OoT_osSetTimer(&timer, HALF_SECOND - currentTime, 0, &timerqueue, &mesg);
+        OoT_osRecvMesg(&timerqueue, &mesg, OS_MESG_BLOCK);
     }
     __osMaxControllers = MAXCONTROLLERS;
     __osPackRequestData(CONT_CMD_REQUEST_STATUS);
     ret = __osSiRawStartDma(OS_WRITE, &__osPifInternalBuff);
-    osRecvMesg(mq, &mesg, OS_MESG_BLOCK);
+    OoT_osRecvMesg(mq, &mesg, OS_MESG_BLOCK);
     ret = __osSiRawStartDma(OS_READ, &__osPifInternalBuff);
-    osRecvMesg(mq, &mesg, OS_MESG_BLOCK);
+    OoT_osRecvMesg(mq, &mesg, OS_MESG_BLOCK);
     __osContGetInitData(ctlBitfield, status);
     __osContLastPoll = CONT_CMD_REQUEST_STATUS;
     __osSiCreateAccessQueue();
-    osCreateMesgQueue(&__osEepromTimerMsgQ, &__osEepromTimerMsg, 1);
+    OoT_osCreateMesgQueue(&__osEepromTimerMsgQ, &__osEepromTimerMsg, 1);
 
     return ret;
 }

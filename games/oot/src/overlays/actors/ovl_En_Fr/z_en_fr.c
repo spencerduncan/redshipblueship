@@ -11,9 +11,9 @@
     (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED | \
      ACTOR_FLAG_UPDATE_DURING_OCARINA)
 
-void EnFr_Init(Actor* thisx, PlayState* play);
-void EnFr_Destroy(Actor* thisx, PlayState* play);
-void EnFr_Update(Actor* thisx, PlayState* play);
+void OoT_EnFr_Init(Actor* thisx, PlayState* play);
+void OoT_EnFr_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnFr_Update(Actor* thisx, PlayState* play);
 void EnFr_UpdateIdle(Actor* thisx, PlayState* play);
 void EnFr_UpdateActive(Actor* thisx, PlayState* play);
 void EnFr_Draw(Actor* thisx, PlayState* play);
@@ -133,9 +133,9 @@ const ActorInit En_Fr_InitVars = {
     FLAGS,
     OBJECT_FR,
     sizeof(EnFr),
-    (ActorFunc)EnFr_Init,
-    (ActorFunc)EnFr_Destroy,
-    (ActorFunc)EnFr_Update,
+    (ActorFunc)OoT_EnFr_Init,
+    (ActorFunc)OoT_EnFr_Destroy,
+    (ActorFunc)OoT_EnFr_Update,
     NULL,
     (ActorResetFunc)EnFr_Reset,
 };
@@ -162,7 +162,7 @@ static s16 sTimerFrogSong[] = {
     40, 20, 15, 12, 12,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_U8(targetMode, 2, ICHAIN_CONTINUE),
     ICHAIN_F32(targetArrowOffset, 30, ICHAIN_STOP),
 };
@@ -173,7 +173,7 @@ static u8 sTimerJumpingOutOfWater[] = {
     5, 1, 7, 3, 9,
 };
 
-// targetScale (default = 150.0) Actor scale target for Math_ApproachF
+// targetScale (default = 150.0) Actor scale target for OoT_Math_ApproachF
 // Used as a frog grows from hearing a new child song
 static f32 sGrowingScale[] = {
     180.0f,
@@ -213,7 +213,7 @@ void EnFr_OrientUnderwater(EnFr* this) {
     vec1.x = vec1.y = 0.0f;
     vec1.z = this->xzDistToLogSpot = sLogSpotToFromWater[this->actor.params].xzDist;
     Matrix_RotateY(sLogSpotToFromWater[this->actor.params].yaw, MTXMODE_NEW);
-    Matrix_MultVec3f(&vec1, &vec2);
+    OoT_Matrix_MultVec3f(&vec1, &vec2);
     this->actor.world.pos.x = this->posLogSpot.x + vec2.x;
     this->actor.world.pos.z = this->posLogSpot.z + vec2.z;
     this->actor.world.pos.y = sLogSpotToFromWater[this->actor.params].yDist + this->posLogSpot.y;
@@ -224,7 +224,7 @@ void EnFr_OrientUnderwater(EnFr* this) {
     this->actor.gravity = 0.0f;
 }
 
-void EnFr_Init(Actor* thisx, PlayState* play) {
+void OoT_EnFr_Init(Actor* thisx, PlayState* play) {
     EnFr* this = (EnFr*)thisx;
 
     if (this->actor.params == 0) {
@@ -233,7 +233,7 @@ void EnFr_Init(Actor* thisx, PlayState* play) {
         this->actor.update = EnFr_UpdateIdle;
         this->actor.flags &= ~(ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_UPDATE_CULLING_DISABLED);
         this->actor.flags &= ~0;
-        Actor_ChangeCategory(play, &play->actorCtx, &this->actor, ACTORCAT_PROP);
+        OoT_Actor_ChangeCategory(play, &play->actorCtx, &this->actor, ACTORCAT_PROP);
         this->actor.textId = 0x40AC;
         this->actionFunc = EnFr_Idle;
     } else {
@@ -247,7 +247,7 @@ void EnFr_Init(Actor* thisx, PlayState* play) {
 
         this->objBankIndex = Object_GetIndex(&play->objectCtx, OBJECT_GAMEPLAY_FIELD_KEEP);
         if (this->objBankIndex < 0) {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
             osSyncPrintf(VT_COL(RED, WHITE));
             // "There is no bank!!"
             osSyncPrintf("%s[%d] : バンクが無いよ！！\n", __FILE__, __LINE__);
@@ -266,37 +266,37 @@ void EnFr_DrawActive(EnFr* this) {
     this->actor.draw = EnFr_Draw;
 }
 
-void EnFr_Update(Actor* thisx, PlayState* play) {
+void OoT_EnFr_Update(Actor* thisx, PlayState* play) {
     EnFr* this = (EnFr*)thisx;
     s32 pad;
     s32 frogIndex;
     s32 pad2;
 
-    if (Object_IsLoaded(&play->objectCtx, this->objBankIndex)) {
+    if (OoT_Object_IsLoaded(&play->objectCtx, this->objBankIndex)) {
         this->actor.flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
         frogIndex = this->actor.params - 1;
         sEnFrPointers.frogs[frogIndex] = this;
-        Actor_ProcessInitChain(&this->actor, sInitChain);
+        OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
         // frog
-        SkelAnime_InitFlex(play, &this->skelAnime, &object_fr_Skel_00B498, &object_fr_Anim_001534, this->jointTable,
+        OoT_SkelAnime_InitFlex(play, &this->skelAnime, &object_fr_Skel_00B498, &object_fr_Anim_001534, this->jointTable,
                            this->morphTable, 24);
         // butterfly
-        SkelAnime_Init(play, &this->skelAnimeButterfly, &gButterflySkel, &gButterflyAnim, this->jointTableButterfly,
+        OoT_SkelAnime_Init(play, &this->skelAnimeButterfly, &gButterflySkel, &gButterflyAnim, this->jointTableButterfly,
                        this->morphTableButterfly, 8);
         // When playing the song for the HP, the frog with the next note and the butterfly turns on its lightsource
-        this->lightNode = LightContext_InsertLight(play, &play->lightCtx, &this->lightInfo);
-        Lights_PointNoGlowSetInfo(&this->lightInfo, this->actor.home.pos.x, this->actor.home.pos.y,
+        this->lightNode = OoT_LightContext_InsertLight(play, &play->lightCtx, &this->lightInfo);
+        OoT_Lights_PointNoGlowSetInfo(&this->lightInfo, this->actor.home.pos.x, this->actor.home.pos.y,
                                   this->actor.home.pos.z, 255, 255, 255, -1);
         // Check to see if the song for a particular frog has been played.
         // If it has, the frog is larger. If not, the frog is smaller
         this->scale = gSaveContext.eventChkInf[13] & sSongIndex[sFrogToSongIndex[frogIndex]] ? 270.0f : 150.0f;
         // When the frogs are not active (link doesn't have his ocarina out),
         // Then shrink the frogs down by a factor of 10,000
-        Actor_SetScale(&this->actor, this->scale * 0.0001f);
+        OoT_Actor_SetScale(&this->actor, this->scale * 0.0001f);
         this->actor.minVelocityY = -9999.0f;
-        Actor_SetFocus(&this->actor, 10.0f);
+        OoT_Actor_SetFocus(&this->actor, 10.0f);
         this->eyeTexIndex = 1;
-        this->blinkTimer = (s16)(Rand_ZeroFloat(60.0f) + 20.0f);
+        this->blinkTimer = (s16)(OoT_Rand_ZeroFloat(60.0f) + 20.0f);
         this->blinkFunc = EnFr_DecrementBlinkTimerUpdate;
         this->isBelowWaterSurfacePrevious = this->isBelowWaterSurfaceCurrent = false;
         this->isJumpingUp = false;
@@ -312,7 +312,7 @@ void EnFr_Update(Actor* thisx, PlayState* play) {
         EnFr_DrawIdle(this);
         this->actor.update = EnFr_UpdateActive;
         this->isButterflyDrawn = false;
-        this->xyAngleButterfly = 0x1000 * (s16)Rand_ZeroFloat(255.0f);
+        this->xyAngleButterfly = 0x1000 * (s16)OoT_Rand_ZeroFloat(255.0f);
         this->posButterflyLight.x = this->posButterfly.x = this->posLogSpot.x;
         this->posButterflyLight.y = this->posButterfly.y = this->posLogSpot.y + 50.0f;
         this->posButterflyLight.z = this->posButterfly.z = this->posLogSpot.z;
@@ -320,10 +320,10 @@ void EnFr_Update(Actor* thisx, PlayState* play) {
     }
 }
 
-void EnFr_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnFr_Destroy(Actor* thisx, PlayState* play) {
     EnFr* this = (EnFr*)thisx;
 
-    LightContext_RemoveLight(play, &play->lightCtx, this->lightNode);
+    OoT_LightContext_RemoveLight(play, &play->lightCtx, this->lightNode);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
     ResourceMgr_UnregisterSkeleton(&this->skelAnimeButterfly);
@@ -333,7 +333,7 @@ void EnFr_IsDivingIntoWater(EnFr* this, PlayState* play) {
     WaterBox* waterBox;
     f32 waterSurface;
 
-    if (WaterBox_GetSurfaceImpl(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &waterSurface,
+    if (OoT_WaterBox_GetSurfaceImpl(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &waterSurface,
                                 &waterBox)) {
         this->isBelowWaterSurfacePrevious = this->isBelowWaterSurfaceCurrent;
         this->isBelowWaterSurfaceCurrent = this->actor.world.pos.y <= waterSurface ? true : false;
@@ -348,7 +348,7 @@ void EnFr_DivingIntoWater(EnFr* this, PlayState* play) {
         vec.x = this->actor.world.pos.x;
         vec.y = this->actor.world.pos.y - 10.0f;
         vec.z = this->actor.world.pos.z;
-        EffectSsGSplash_Spawn(play, &vec, NULL, NULL, 1, 1);
+        OoT_EffectSsGSplash_Spawn(play, &vec, NULL, NULL, 1, 1);
 
         if (this->isBelowWaterSurfaceCurrent == false) {
             Audio_PlayActorSound2(&this->actor, NA_SE_EV_DIVE_INTO_WATER_L);
@@ -390,7 +390,7 @@ void EnFr_DecrementBlinkTimerUpdate(EnFr* this) {
         this->blinkTimer--;
     } else if (this->eyeTexIndex) {
         this->eyeTexIndex = 0;
-        this->blinkTimer = (s16)(Rand_ZeroFloat(60.0f) + 20.0f);
+        this->blinkTimer = (s16)(OoT_Rand_ZeroFloat(60.0f) + 20.0f);
         this->blinkFunc = EnFr_DecrementBlinkTimer;
     } else {
         this->eyeTexIndex = 1;
@@ -400,8 +400,8 @@ void EnFr_DecrementBlinkTimerUpdate(EnFr* this) {
 
 void EnFr_SetupJumpingOutOfWater(EnFr* this, PlayState* play) {
     if (sEnFrPointers.flags == sTimerJumpingOutOfWater[this->actor.params - 1]) {
-        Animation_Change(&this->skelAnime, &object_fr_Anim_0007BC, 1.0f, 0.0f,
-                         Animation_GetLastFrame(&object_fr_Anim_0007BC), ANIMMODE_ONCE, 0.0f);
+        OoT_Animation_Change(&this->skelAnime, &object_fr_Anim_0007BC, 1.0f, 0.0f,
+                         OoT_Animation_GetLastFrame(&object_fr_Anim_0007BC), ANIMMODE_ONCE, 0.0f);
         EnFr_DrawActive(this);
         this->actionFunc = EnFr_JumpingOutOfWater;
     }
@@ -423,11 +423,11 @@ void EnFr_JumpingOutOfWater(EnFr* this, PlayState* play) {
     vec1.x = vec1.y = 0.0f;
     vec1.z = this->xzDistToLogSpot;
     Matrix_RotateY(((this->actor.world.rot.y + 0x8000) / (f32)0x8000) * M_PI, MTXMODE_NEW);
-    Matrix_MultVec3f(&vec1, &vec2);
+    OoT_Matrix_MultVec3f(&vec1, &vec2);
     this->actor.world.pos.x = this->posLogSpot.x + vec2.x;
     this->actor.world.pos.z = this->posLogSpot.z + vec2.z;
     if (this->skelAnime.curFrame >= 3.0f) {
-        Math_ApproachF(&this->xzDistToLogSpot, 0.0f, 1.0f, 10.0f);
+        OoT_Math_ApproachF(&this->xzDistToLogSpot, 0.0f, 1.0f, 10.0f);
     }
 
     if (EnFr_IsBelowLogSpot(this, &vec2.y)) {
@@ -442,27 +442,27 @@ void EnFr_JumpingOutOfWater(EnFr* this, PlayState* play) {
 }
 
 void EnFr_OrientOnLogSpot(EnFr* this, PlayState* play) {
-    s16 rotYRemaining = Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 2, 10000, 100);
+    s16 rotYRemaining = OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 2, 10000, 100);
 
     this->actor.world.rot.y = this->actor.shape.rot.y;
 
     if ((rotYRemaining == 0) && (this->skelAnime.curFrame == this->skelAnime.endFrame)) {
         sEnFrPointers.flags++;
         this->actionFunc = EnFr_ChooseJumpFromLogSpot;
-        Animation_Change(&this->skelAnime, &object_fr_Anim_001534, 1.0f, 0.0f,
-                         Animation_GetLastFrame(&object_fr_Anim_001534), ANIMMODE_LOOP, 0.0f);
+        OoT_Animation_Change(&this->skelAnime, &object_fr_Anim_001534, 1.0f, 0.0f,
+                         OoT_Animation_GetLastFrame(&object_fr_Anim_001534), ANIMMODE_LOOP, 0.0f);
     }
 }
 
 void EnFr_ChooseJumpFromLogSpot(EnFr* this, PlayState* play) {
     if (sEnFrPointers.flags == 12) {
         this->actor.world.rot.y = ((f32)0x8000 / M_PI) * sLogSpotToFromWater[this->actor.params].yaw;
-        Animation_Change(&this->skelAnime, &object_fr_Anim_0007BC, 1.0f, 0.0f,
-                         Animation_GetLastFrame(&object_fr_Anim_0007BC), ANIMMODE_ONCE, 0.0f);
+        OoT_Animation_Change(&this->skelAnime, &object_fr_Anim_0007BC, 1.0f, 0.0f,
+                         OoT_Animation_GetLastFrame(&object_fr_Anim_0007BC), ANIMMODE_ONCE, 0.0f);
         this->actionFunc = EnFr_JumpingBackIntoWater;
     } else if (this->isJumpingUp) {
-        Animation_Change(&this->skelAnime, &object_fr_Anim_0007BC, 1.0f, 0.0f,
-                         Animation_GetLastFrame(&object_fr_Anim_0007BC), ANIMMODE_ONCE, 0.0f);
+        OoT_Animation_Change(&this->skelAnime, &object_fr_Anim_0007BC, 1.0f, 0.0f,
+                         OoT_Animation_GetLastFrame(&object_fr_Anim_0007BC), ANIMMODE_ONCE, 0.0f);
         this->actionFunc = EnFr_JumpingUp;
     }
 }
@@ -484,8 +484,8 @@ void EnFr_JumpingUp(EnFr* this, PlayState* play) {
     if (EnFr_IsBelowLogSpot(this, &yDistToLogSpot)) {
         this->isJumpingUp = false;
         this->actor.gravity = 0.0f;
-        Animation_Change(&this->skelAnime, &object_fr_Anim_0011C0, 1.0f, 0.0f,
-                         Animation_GetLastFrame(&object_fr_Anim_0011C0), ANIMMODE_LOOP, 0.0f);
+        OoT_Animation_Change(&this->skelAnime, &object_fr_Anim_0011C0, 1.0f, 0.0f,
+                         OoT_Animation_GetLastFrame(&object_fr_Anim_0011C0), ANIMMODE_LOOP, 0.0f);
         this->actionFunc = EnFr_ChooseJumpFromLogSpot;
     } else if ((this->actor.velocity.y <= 0.0f) && (yDistToLogSpot < 40.0f)) {
         this->skelAnime.playSpeed = 1.0f;
@@ -495,7 +495,7 @@ void EnFr_JumpingUp(EnFr* this, PlayState* play) {
 void EnFr_JumpingBackIntoWater(EnFr* this, PlayState* play) {
     f32 yUnderwater = sLogSpotToFromWater[this->actor.params].yDist + this->posLogSpot.y;
 
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.world.rot.y, 2, 10000, 100);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.world.rot.y, 2, 10000, 100);
     if (this->skelAnime.curFrame == 6.0f) {
         this->skelAnime.playSpeed = 0.0f;
     } else if (this->skelAnime.curFrame == 3.0f) {
@@ -506,8 +506,8 @@ void EnFr_JumpingBackIntoWater(EnFr* this, PlayState* play) {
 
     // Final Spot Reached
     if ((this->actor.velocity.y < 0.0f) && (this->actor.world.pos.y < yUnderwater)) {
-        Animation_Change(&this->skelAnime, &object_fr_Anim_001534, 1.0f, 0.0f,
-                         Animation_GetLastFrame(&object_fr_Anim_001534), ANIMMODE_LOOP, 0.0f);
+        OoT_Animation_Change(&this->skelAnime, &object_fr_Anim_001534, 1.0f, 0.0f,
+                         OoT_Animation_GetLastFrame(&object_fr_Anim_001534), ANIMMODE_LOOP, 0.0f);
         this->actionFunc = EnFr_SetupJumpingOutOfWater;
         EnFr_DrawIdle(this);
         this->isDeactivating = true;
@@ -518,7 +518,7 @@ void EnFr_JumpingBackIntoWater(EnFr* this, PlayState* play) {
 void EnFr_SetScaleActive(EnFr* this, PlayState* play) {
     switch (this->isGrowing) {
         case false:
-            Math_ApproachF(&this->scale, sGrowingScale[this->growingScaleIndex], 2.0f, 25.0f);
+            OoT_Math_ApproachF(&this->scale, sGrowingScale[this->growingScaleIndex], 2.0f, 25.0f);
             if (this->scale >= sGrowingScale[this->growingScaleIndex]) {
                 this->scale = sGrowingScale[this->growingScaleIndex];
                 if (this->growingScaleIndex < 3) {
@@ -530,7 +530,7 @@ void EnFr_SetScaleActive(EnFr* this, PlayState* play) {
             }
             break;
         case true:
-            Math_ApproachF(&this->scale, 150.0f, 2.0f, 25.0f);
+            OoT_Math_ApproachF(&this->scale, 150.0f, 2.0f, 25.0f);
             if (this->scale <= 150.0f) {
                 this->scale = 150.0f;
                 this->growingScaleIndex++;
@@ -550,39 +550,39 @@ void EnFr_ButterflyPath(EnFr* this, PlayState* play) {
     Vec3f vec2;
 
     this->xyAngleButterfly += 0x1000;
-    Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
-    Matrix_RotateZYX(this->actor.world.rot.x, this->actor.world.rot.y, this->actor.world.rot.z, MTXMODE_APPLY);
+    OoT_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
+    OoT_Matrix_RotateZYX(this->actor.world.rot.x, this->actor.world.rot.y, this->actor.world.rot.z, MTXMODE_APPLY);
     vec1.x = vec1.y = 0.0f;
     vec1.z = 25.0f;
-    Matrix_MultVec3f(&vec1, &vec2);
-    sin = Math_SinS(this->xyAngleButterfly * 2) * 5.0f;
-    this->posButterfly.x = (Math_SinS(rotY) * sin) + vec2.x;
-    this->posButterfly.y = (2.0f * Math_CosS(this->xyAngleButterfly)) + (this->posLogSpot.y + 50.0f);
-    this->posButterfly.z = (Math_CosS(rotY) * sin) + vec2.z;
-    Matrix_Translate(this->posButterfly.x, this->posButterfly.y, this->posButterfly.z, MTXMODE_NEW);
-    Matrix_RotateZYX(this->actor.world.rot.x, this->actor.world.rot.y, this->actor.world.rot.z, MTXMODE_APPLY);
+    OoT_Matrix_MultVec3f(&vec1, &vec2);
+    sin = OoT_Math_SinS(this->xyAngleButterfly * 2) * 5.0f;
+    this->posButterfly.x = (OoT_Math_SinS(rotY) * sin) + vec2.x;
+    this->posButterfly.y = (2.0f * OoT_Math_CosS(this->xyAngleButterfly)) + (this->posLogSpot.y + 50.0f);
+    this->posButterfly.z = (OoT_Math_CosS(rotY) * sin) + vec2.z;
+    OoT_Matrix_Translate(this->posButterfly.x, this->posButterfly.y, this->posButterfly.z, MTXMODE_NEW);
+    OoT_Matrix_RotateZYX(this->actor.world.rot.x, this->actor.world.rot.y, this->actor.world.rot.z, MTXMODE_APPLY);
     vec1.x = 0.0f;
     vec1.y = -15.0f;
     vec1.z = 20.0f;
-    Matrix_MultVec3f(&vec1, &this->posButterflyLight);
+    OoT_Matrix_MultVec3f(&vec1, &this->posButterflyLight);
 }
 
 void EnFr_UpdateActive(Actor* thisx, PlayState* play) {
     EnFr* this = (EnFr*)thisx;
 
     this->jumpCounter++;
-    Actor_SetScale(&this->actor, this->scale * 0.0001f);
+    OoT_Actor_SetScale(&this->actor, this->scale * 0.0001f);
 
     if (this->isActive) {
         EnFr_SetScaleActive(this, play);
     } else {
-        Actor_SetFocus(&this->actor, 10.0f);
+        OoT_Actor_SetFocus(&this->actor, 10.0f);
         this->blinkFunc(this);
         this->actionFunc(this, play);
         EnFr_IsDivingIntoWater(this, play);
         EnFr_DivingIntoWater(this, play);
-        SkelAnime_Update(&this->skelAnime);
-        SkelAnime_Update(&this->skelAnimeButterfly);
+        OoT_SkelAnime_Update(&this->skelAnime);
+        OoT_SkelAnime_Update(&this->skelAnimeButterfly);
         EnFr_ButterflyPath(this, play);
         Actor_MoveXZGravity(&this->actor);
     }
@@ -640,15 +640,15 @@ void EnFr_Activate(EnFr* this, PlayState* play) {
 void EnFr_ActivateCheckFrogSong(EnFr* this, PlayState* play) {
     if (sEnFrPointers.flags == 11) {
         // Check if all 6 child songs have been played for the frogs
-        if ((Flags_GetEventChkInf(EVENTCHKINF_SONGS_FOR_FROGS_ZL))           // ZL
-            && (Flags_GetEventChkInf(EVENTCHKINF_SONGS_FOR_FROGS_EPONA))     // Epona
-            && (Flags_GetEventChkInf(EVENTCHKINF_SONGS_FOR_FROGS_SARIA))     // Saria
-            && (Flags_GetEventChkInf(EVENTCHKINF_SONGS_FOR_FROGS_SUNS))      // Suns
-            && (Flags_GetEventChkInf(EVENTCHKINF_SONGS_FOR_FROGS_SOT))       // SoT
-            && (Flags_GetEventChkInf(EVENTCHKINF_SONGS_FOR_FROGS_STORMS))) { // SoS
+        if ((OoT_Flags_GetEventChkInf(EVENTCHKINF_SONGS_FOR_FROGS_ZL))           // ZL
+            && (OoT_Flags_GetEventChkInf(EVENTCHKINF_SONGS_FOR_FROGS_EPONA))     // Epona
+            && (OoT_Flags_GetEventChkInf(EVENTCHKINF_SONGS_FOR_FROGS_SARIA))     // Saria
+            && (OoT_Flags_GetEventChkInf(EVENTCHKINF_SONGS_FOR_FROGS_SUNS))      // Suns
+            && (OoT_Flags_GetEventChkInf(EVENTCHKINF_SONGS_FOR_FROGS_SOT))       // SoT
+            && (OoT_Flags_GetEventChkInf(EVENTCHKINF_SONGS_FOR_FROGS_STORMS))) { // SoS
             this->actionFunc = EnFr_TalkBeforeFrogSong;
             this->songIndex = FROG_CHOIR_SONG;
-            Message_StartTextbox(play, 0x40AB, &this->actor);
+            OoT_Message_StartTextbox(play, 0x40AB, &this->actor);
         } else {
             this->songIndex = FROG_ZL;
             this->actionFunc = func_80A1BE98;
@@ -763,8 +763,8 @@ void EnFr_ChildSongFirstTime(EnFr* this, PlayState* play) {
 }
 
 void EnFr_TalkBeforeFrogSong(EnFr* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
-        Message_CloseTextbox(play);
+    if ((OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && OoT_Message_ShouldAdvance(play)) {
+        OoT_Message_CloseTextbox(play);
         this->frogSongTimer = 2;
         this->actionFunc = EnFr_SetupFrogSong;
     }
@@ -809,10 +809,10 @@ void EnFr_DeactivateButterfly() {
 }
 
 u8 EnFr_GetNextNoteFrogSong(u8 ocarinaNoteIndex) {
-    if (!Flags_GetEventChkInf(EVENTCHKINF_SONGS_FOR_FROGS_CHOIR)) {
-        return gFrogsSongPtr[ocarinaNoteIndex];
+    if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_SONGS_FOR_FROGS_CHOIR)) {
+        return OoT_gFrogsSongPtr[ocarinaNoteIndex];
     } else {
-        return sOcarinaNotes[(s32)Rand_ZeroFloat(60.0f) % 5];
+        return sOcarinaNotes[(s32)OoT_Rand_ZeroFloat(60.0f) % 5];
     }
 }
 
@@ -875,7 +875,7 @@ s32 EnFr_IsFrogSongComplete(EnFr* this, PlayState* play) {
 }
 
 void EnFr_OcarinaMistake(EnFr* this, PlayState* play) {
-    Message_CloseTextbox(play);
+    OoT_Message_CloseTextbox(play);
     this->reward = GI_NONE;
     Sfx_PlaySfxCentered(NA_SE_SY_OCARINA_ERROR);
     Audio_OcaSetInstrument(0);
@@ -954,14 +954,14 @@ void EnFr_SetupReward(EnFr* this, PlayState* play, u8 unkCondition) {
 }
 
 void EnFr_PrintTextBox(EnFr* this, PlayState* play) {
-    Message_StartTextbox(play, this->actor.textId, &this->actor);
+    OoT_Message_StartTextbox(play, this->actor.textId, &this->actor);
     this->actionFunc = EnFr_TalkBeforeReward;
 }
 
 void EnFr_TalkBeforeReward(EnFr* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && OoT_Message_ShouldAdvance(play)) {
         this->frogSongTimer = 100;
-        Message_CloseTextbox(play);
+        OoT_Message_CloseTextbox(play);
         this->actionFunc = EnFr_SetReward;
     }
 }
@@ -1046,21 +1046,21 @@ void EnFr_Deactivate(EnFr* this, PlayState* play) {
         this->actionFunc = EnFr_Idle;
     } else {
         this->actionFunc = EnFr_GiveReward;
-        Actor_OfferGetItem(&this->actor, play, this->reward, 30.0f, 100.0f);
+        OoT_Actor_OfferGetItem(&this->actor, play, this->reward, 30.0f, 100.0f);
     }
 }
 
 void EnFr_GiveReward(EnFr* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play)) {
+    if (OoT_Actor_HasParent(&this->actor, play)) {
         this->actor.parent = NULL;
         this->actionFunc = EnFr_SetIdle;
     } else {
-        Actor_OfferGetItem(&this->actor, play, this->reward, 30.0f, 100.0f);
+        OoT_Actor_OfferGetItem(&this->actor, play, this->reward, 30.0f, 100.0f);
     }
 }
 
 void EnFr_SetIdle(EnFr* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && Message_ShouldAdvance(play)) {
+    if ((OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && OoT_Message_ShouldAdvance(play)) {
         this->actionFunc = EnFr_Idle;
     }
 }
@@ -1069,7 +1069,7 @@ void EnFr_UpdateIdle(Actor* thisx, PlayState* play) {
     EnFr* this = (EnFr*)thisx;
 
     if (BREG(0)) {
-        DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
+        OoT_DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
                                this->actor.world.rot.x, this->actor.world.rot.y, this->actor.world.rot.z, 1.0f, 1.0f,
                                1.0f, 255, 0, 0, 255, 4, play->state.gfxCtx);
     }
@@ -1089,11 +1089,11 @@ void EnFr_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
 
     if ((limbIndex == 7) || (limbIndex == 8)) {
         OPEN_DISPS(play->state.gfxCtx);
-        Matrix_Push();
-        Matrix_ReplaceRotation(&play->billboardMtxF);
+        OoT_Matrix_Push();
+        OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
         gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPDisplayList(POLY_OPA_DISP++, *dList);
-        Matrix_Pop();
+        OoT_Matrix_Pop();
         CLOSE_DISPS(play->state.gfxCtx);
     }
 }
@@ -1113,16 +1113,16 @@ void EnFr_Draw(Actor* thisx, PlayState* play) {
     lightRadius = this->isButterflyDrawn ? 95 : -1;
     gDPPipeSync(POLY_OPA_DISP++);
     gDPSetEnvColor(POLY_OPA_DISP++, 255, 255, 255, 255);
-    Lights_PointNoGlowSetInfo(&this->lightInfo, this->posButterflyLight.x, this->posButterflyLight.y,
+    OoT_Lights_PointNoGlowSetInfo(&this->lightInfo, this->posButterflyLight.x, this->posButterflyLight.y,
                               this->posButterflyLight.z, 255, 255, 255, lightRadius);
     gDPSetEnvColor(POLY_OPA_DISP++, sEnFrColor[frogIndex].r, sEnFrColor[frogIndex].g, sEnFrColor[frogIndex].b, 255);
     gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(eyeTextures[this->eyeTexIndex]));
     gSPSegment(POLY_OPA_DISP++, 0x09, SEGMENTED_TO_VIRTUAL(eyeTextures[this->eyeTexIndex]));
     SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, EnFr_OverrideLimbDraw, EnFr_PostLimbDraw, this);
     if (this->isButterflyDrawn) {
-        Matrix_Translate(this->posButterfly.x, this->posButterfly.y, this->posButterfly.z, MTXMODE_NEW);
-        Matrix_Scale(0.015f, 0.015f, 0.015f, MTXMODE_APPLY);
-        Matrix_RotateZYX(this->actor.shape.rot.x, this->actor.shape.rot.y, this->actor.shape.rot.z, MTXMODE_APPLY);
+        OoT_Matrix_Translate(this->posButterfly.x, this->posButterfly.y, this->posButterfly.z, MTXMODE_NEW);
+        OoT_Matrix_Scale(0.015f, 0.015f, 0.015f, MTXMODE_APPLY);
+        OoT_Matrix_RotateZYX(this->actor.shape.rot.x, this->actor.shape.rot.y, this->actor.shape.rot.z, MTXMODE_APPLY);
         SkelAnime_DrawSkeletonOpa(play, &this->skelAnimeButterfly, NULL, NULL, NULL);
     }
     CLOSE_DISPS(play->state.gfxCtx);

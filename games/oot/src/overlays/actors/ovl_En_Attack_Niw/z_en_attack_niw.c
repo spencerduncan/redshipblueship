@@ -11,10 +11,10 @@
 
 #define FLAGS ACTOR_FLAG_UPDATE_CULLING_DISABLED
 
-void EnAttackNiw_Init(Actor* thisx, PlayState* play);
-void EnAttackNiw_Destroy(Actor* thisx, PlayState* play);
-void EnAttackNiw_Update(Actor* thisx, PlayState* play);
-void EnAttackNiw_Draw(Actor* thisx, PlayState* play);
+void OoT_EnAttackNiw_Init(Actor* thisx, PlayState* play);
+void OoT_EnAttackNiw_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnAttackNiw_Update(Actor* thisx, PlayState* play);
+void OoT_EnAttackNiw_Draw(Actor* thisx, PlayState* play);
 
 void func_809B5670(EnAttackNiw* this, PlayState* play);
 void func_809B5C18(EnAttackNiw* this, PlayState* play);
@@ -26,46 +26,46 @@ const ActorInit En_Attack_Niw_InitVars = {
     FLAGS,
     OBJECT_NIW,
     sizeof(EnAttackNiw),
-    (ActorFunc)EnAttackNiw_Init,
-    (ActorFunc)EnAttackNiw_Destroy,
-    (ActorFunc)EnAttackNiw_Update,
-    (ActorFunc)EnAttackNiw_Draw,
+    (ActorFunc)OoT_EnAttackNiw_Init,
+    (ActorFunc)OoT_EnAttackNiw_Destroy,
+    (ActorFunc)OoT_EnAttackNiw_Update,
+    (ActorFunc)OoT_EnAttackNiw_Draw,
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_U8(targetMode, 1, ICHAIN_CONTINUE),
     ICHAIN_F32_DIV1000(gravity, -2000, ICHAIN_CONTINUE),
     ICHAIN_F32(targetArrowOffset, 0, ICHAIN_STOP),
 };
 
-void EnAttackNiw_Init(Actor* thisx, PlayState* play) {
+void OoT_EnAttackNiw_Init(Actor* thisx, PlayState* play) {
     EnAttackNiw* this = (EnAttackNiw*)thisx;
     s32 pad;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 25.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gCuccoSkel, &gCuccoAnim, this->jointTable, this->morphTable, 16);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 25.0f);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gCuccoSkel, &gCuccoAnim, this->jointTable, this->morphTable, 16);
     if (this->actor.params < 0) {
         this->actor.params = 0;
     }
-    Actor_SetScale(&this->actor, 0.01f);
+    OoT_Actor_SetScale(&this->actor, 0.01f);
     this->actor.gravity = 0.0f;
-    this->unk_298.x = Rand_CenteredFloat(100.0f);
-    this->unk_298.y = Rand_CenteredFloat(10.0f);
-    this->unk_298.z = Rand_CenteredFloat(100.0f);
-    Actor_SetScale(&this->actor, 0.01f);
+    this->unk_298.x = OoT_Rand_CenteredFloat(100.0f);
+    this->unk_298.y = OoT_Rand_CenteredFloat(10.0f);
+    this->unk_298.z = OoT_Rand_CenteredFloat(100.0f);
+    OoT_Actor_SetScale(&this->actor, 0.01f);
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
-    this->actor.shape.rot.y = this->actor.world.rot.y = (Rand_ZeroOne() - 0.5f) * 60000.0f;
+    this->actor.shape.rot.y = this->actor.world.rot.y = (OoT_Rand_ZeroOne() - 0.5f) * 60000.0f;
     this->actionFunc = func_809B5670;
 
     if (CVarGetInteger("gCrowdControl", 0) &&
         CVarGetInteger(CVAR_REMOTE_CROWD_CONTROL("SpawnedEnemiesIgnoredIngame"), 0)) {
-        Actor_ChangeCategory(gPlayState, &gPlayState->actorCtx, this, ACTORCAT_NPC);
+        OoT_Actor_ChangeCategory(OoT_gPlayState, &OoT_gPlayState->actorCtx, this, ACTORCAT_NPC);
     }
 }
 
-void EnAttackNiw_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnAttackNiw_Destroy(Actor* thisx, PlayState* play) {
     EnAttackNiw* this = (EnAttackNiw*)thisx;
     EnNiw* cucco = (EnNiw*)this->actor.parent;
 
@@ -90,7 +90,7 @@ void func_809B5268(EnAttackNiw* this, PlayState* play, s16 arg2) {
         if ((this->unk_28E & 1) == 0) {
             this->unk_264 = 0.0f;
             if (arg2 == 0) {
-                this->unk_254 = Rand_ZeroFloat(30.0f);
+                this->unk_254 = OoT_Rand_ZeroFloat(30.0f);
             }
         }
     }
@@ -147,28 +147,28 @@ void func_809B5268(EnAttackNiw* this, PlayState* play, s16 arg2) {
     }
 
     if (this->unk_288 != this->unk_2C0) {
-        Math_ApproachF(&this->unk_2C0, this->unk_288, 0.5f, 4000.0f);
+        OoT_Math_ApproachF(&this->unk_2C0, this->unk_288, 0.5f, 4000.0f);
     }
     if (this->unk_264 != this->unk_2BC) {
-        Math_ApproachF(&this->unk_2BC, this->unk_264, 0.5f, 4000.0f);
+        OoT_Math_ApproachF(&this->unk_2BC, this->unk_264, 0.5f, 4000.0f);
     }
     if (this->unk_26C != this->unk_2A4.x) {
-        Math_ApproachF(&this->unk_2A4.x, this->unk_26C, 0.8f, 7000.0f);
+        OoT_Math_ApproachF(&this->unk_2A4.x, this->unk_26C, 0.8f, 7000.0f);
     }
     if (this->unk_280 != this->unk_2A4.y) {
-        Math_ApproachF(&this->unk_2A4.y, this->unk_280, 0.8f, 7000.0f);
+        OoT_Math_ApproachF(&this->unk_2A4.y, this->unk_280, 0.8f, 7000.0f);
     }
     if (this->unk_284 != this->unk_2A4.z) {
-        Math_ApproachF(&this->unk_2A4.z, this->unk_284, 0.8f, 7000.0f);
+        OoT_Math_ApproachF(&this->unk_2A4.z, this->unk_284, 0.8f, 7000.0f);
     }
     if (this->unk_268 != this->unk_2B0.x) {
-        Math_ApproachF(&this->unk_2B0.x, this->unk_268, 0.8f, 7000.0f);
+        OoT_Math_ApproachF(&this->unk_2B0.x, this->unk_268, 0.8f, 7000.0f);
     }
     if (this->unk_278 != this->unk_2B0.y) {
-        Math_ApproachF(&this->unk_2B0.y, this->unk_278, 0.8f, 7000.0f);
+        OoT_Math_ApproachF(&this->unk_2B0.y, this->unk_278, 0.8f, 7000.0f);
     }
     if (this->unk_27C != this->unk_2B0.z) {
-        Math_ApproachF(&this->unk_2B0.z, this->unk_27C, 0.8f, 7000.0f);
+        OoT_Math_ApproachF(&this->unk_2B0.z, this->unk_27C, 0.8f, 7000.0f);
     }
 }
 
@@ -176,8 +176,8 @@ s32 func_809B55EC(EnAttackNiw* this, PlayState* play) {
     s16 sp1E;
     s16 sp1C;
 
-    Actor_SetFocus(&this->actor, this->unk_2E4);
-    Actor_GetScreenPos(play, &this->actor, &sp1E, &sp1C);
+    OoT_Actor_SetFocus(&this->actor, this->unk_2E4);
+    OoT_Actor_GetScreenPos(play, &this->actor, &sp1E, &sp1C);
     if ((this->actor.projectedPos.z < -20.0f) || (sp1E < 0) || (sp1E > SCREEN_WIDTH) || (sp1C < 0) ||
         (sp1C > SCREEN_HEIGHT)) {
         return 0;
@@ -204,15 +204,15 @@ void func_809B5670(EnAttackNiw* this, PlayState* play) {
     sp34.y = play->view.lookAt.y + tmpf2;
     sp34.z = play->view.lookAt.z + tmpf3;
 
-    this->unk_2D4 = Math_Vec3f_Yaw(&this->actor.world.pos, &sp34);
-    this->unk_2D0 = Math_Vec3f_Pitch(&this->actor.world.pos, &sp34) * -1.0f;
+    this->unk_2D4 = OoT_Math_Vec3f_Yaw(&this->actor.world.pos, &sp34);
+    this->unk_2D0 = OoT_Math_Vec3f_Pitch(&this->actor.world.pos, &sp34) * -1.0f;
 
-    Math_SmoothStepToS(&this->actor.world.rot.y, this->unk_2D4, 5, this->unk_2DC, 0);
-    Math_SmoothStepToS(&this->actor.world.rot.x, this->unk_2D0, 5, this->unk_2DC, 0);
-    Math_ApproachF(&this->unk_2DC, 5000.0f, 1.0f, 100.0f);
+    OoT_Math_SmoothStepToS(&this->actor.world.rot.y, this->unk_2D4, 5, this->unk_2DC, 0);
+    OoT_Math_SmoothStepToS(&this->actor.world.rot.x, this->unk_2D0, 5, this->unk_2DC, 0);
+    OoT_Math_ApproachF(&this->unk_2DC, 5000.0f, 1.0f, 100.0f);
 
-    Actor_SetFocus(&this->actor, this->unk_2E4);
-    Actor_GetScreenPos(play, &this->actor, &sp4E, &sp4C);
+    OoT_Actor_SetFocus(&this->actor, this->unk_2E4);
+    OoT_Actor_GetScreenPos(play, &this->actor, &sp4E, &sp4C);
 
     if (this->actor.bgCheckFlags & 8) {
         this->unk_2D4 = this->actor.yawTowardsPlayer;
@@ -251,7 +251,7 @@ void func_809B5670(EnAttackNiw* this, PlayState* play) {
 
 void func_809B59B0(EnAttackNiw* this, PlayState* play) {
     if (!func_809B55EC(this, play)) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
 
@@ -270,12 +270,12 @@ void func_809B59B0(EnAttackNiw* this, PlayState* play) {
         }
     }
     if (this->unk_25C == 0x32) {
-        this->unk_2D4 = Rand_CenteredFloat(200.0f) + this->actor.yawTowardsPlayer;
+        this->unk_2D4 = OoT_Rand_CenteredFloat(200.0f) + this->actor.yawTowardsPlayer;
     }
-    Math_SmoothStepToS(&this->actor.world.rot.y, this->unk_2D4, 2, this->unk_2DC, 0);
-    Math_SmoothStepToS(&this->actor.world.rot.x, this->unk_2D0, 2, this->unk_2DC, 0);
-    Math_ApproachF(&this->unk_2DC, 10000.0f, 1.0f, 1000.0f);
-    Math_ApproachF(&this->actor.speedXZ, this->unk_2E0, 0.9f, 1.0f);
+    OoT_Math_SmoothStepToS(&this->actor.world.rot.y, this->unk_2D4, 2, this->unk_2DC, 0);
+    OoT_Math_SmoothStepToS(&this->actor.world.rot.x, this->unk_2D0, 2, this->unk_2DC, 0);
+    OoT_Math_ApproachF(&this->unk_2DC, 10000.0f, 1.0f, 1000.0f);
+    OoT_Math_ApproachF(&this->actor.speedXZ, this->unk_2E0, 0.9f, 1.0f);
     if ((this->actor.gravity == -2.0f) && (this->unk_262 == 0) &&
         ((this->actor.bgCheckFlags & 8) || (this->unk_25C == 0))) {
         this->unk_2E0 = 0.0f;
@@ -292,16 +292,16 @@ void func_809B59B0(EnAttackNiw* this, PlayState* play) {
 
 void func_809B5C18(EnAttackNiw* this, PlayState* play) {
     if (!func_809B55EC(this, play)) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
-    Math_SmoothStepToS(&this->actor.world.rot.x, this->unk_2D0, 5, this->unk_2DC, 0);
-    Math_ApproachF(&this->unk_2DC, 5000.0f, 1.0f, 100.0f);
-    Math_ApproachF(&this->actor.velocity.y, 5.0f, 0.3f, 1.0f);
+    OoT_Math_SmoothStepToS(&this->actor.world.rot.x, this->unk_2D0, 5, this->unk_2DC, 0);
+    OoT_Math_ApproachF(&this->unk_2DC, 5000.0f, 1.0f, 100.0f);
+    OoT_Math_ApproachF(&this->actor.velocity.y, 5.0f, 0.3f, 1.0f);
     func_809B5268(this, play, 2);
 }
 
-void EnAttackNiw_Update(Actor* thisx, PlayState* play) {
+void OoT_EnAttackNiw_Update(Actor* thisx, PlayState* play) {
     f32 tmpf1;
     EnAttackNiw* this = (EnAttackNiw*)thisx;
     EnNiw* cucco;
@@ -336,7 +336,7 @@ void EnAttackNiw_Update(Actor* thisx, PlayState* play) {
     this->actor.shape.rot = this->actor.world.rot;
     this->actor.shape.shadowScale = 15.0f;
     this->actionFunc(this, play2);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 60.0f, 0x1D);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 60.0f, 0x1D);
 
     if (this->actionFunc == func_809B5670) {
         Actor_MoveXYZ(&this->actor);
@@ -345,14 +345,14 @@ void EnAttackNiw_Update(Actor* thisx, PlayState* play) {
     }
 
     if (this->actor.floorHeight <= BGCHECK_Y_MIN) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
 
     if ((this->actor.bgCheckFlags & 0x20) && (this->actionFunc != func_809B5C18)) {
-        Math_Vec3f_Copy(&sp30, &this->actor.world.pos);
+        OoT_Math_Vec3f_Copy(&sp30, &this->actor.world.pos);
         sp30.y += this->actor.yDistToWater;
-        EffectSsGSplash_Spawn(play, &sp30, 0, 0, 0, 0x190);
+        OoT_EffectSsGSplash_Spawn(play, &sp30, 0, 0, 0, 0x190);
         this->unk_2DC = 0.0f;
         this->actor.gravity = 0.0f;
         this->unk_2E0 = 0.0f;
@@ -403,7 +403,7 @@ s32 func_809B5F98(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s
     return 0;
 }
 
-void EnAttackNiw_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnAttackNiw_Draw(Actor* thisx, PlayState* play) {
     EnAttackNiw* this = (EnAttackNiw*)thisx;
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);

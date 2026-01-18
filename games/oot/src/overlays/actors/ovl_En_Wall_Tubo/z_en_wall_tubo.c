@@ -91,9 +91,9 @@ void EnWallTubo_DetectChu(EnWallTubo* this, PlayState* play) {
                     chu->timer = 2;
                     Sfx_PlaySfxCentered(NA_SE_SY_TRE_BOX_APPEAR);
                     this->timer = 60;
-                    EffectSsBomb2_SpawnLayered(play, &this->explosionCenter, &effVelocity, &effAccel, 200, 40);
+                    OoT_EffectSsBomb2_SpawnLayered(play, &this->explosionCenter, &effVelocity, &effAccel, 200, 40);
                     quakeIndex = Quake_Add(GET_ACTIVE_CAM(play), 1);
-                    Quake_SetSpeed(quakeIndex, 0x7FFF);
+                    OoT_Quake_SetSpeed(quakeIndex, 0x7FFF);
                     Quake_SetQuakeValues(quakeIndex, 100, 0, 0, 0);
                     Quake_SetCountdown(quakeIndex, 100);
                     this->actionFunc = EnWallTubo_SetWallFall;
@@ -113,11 +113,11 @@ void EnWallTubo_SetWallFall(EnWallTubo* this, PlayState* play) {
     Vec3f effPos;
 
     if ((play->gameplayFrames & 1) == 0) {
-        effPos.x = this->explosionCenter.x + Rand_CenteredFloat(300.0f);
-        effPos.y = this->explosionCenter.y + Rand_CenteredFloat(300.0f);
+        effPos.x = this->explosionCenter.x + OoT_Rand_CenteredFloat(300.0f);
+        effPos.y = this->explosionCenter.y + OoT_Rand_CenteredFloat(300.0f);
         effPos.z = this->explosionCenter.z;
-        EffectSsBomb2_SpawnLayered(play, &effPos, &effVelocity, &effAccel, 100, 30);
-        EffectSsHahen_SpawnBurst(play, &effPos, 10.0f, 0, 50, 15, 3, HAHEN_OBJECT_DEFAULT, 10, NULL);
+        OoT_EffectSsBomb2_SpawnLayered(play, &effPos, &effVelocity, &effAccel, 100, 30);
+        OoT_EffectSsHahen_SpawnBurst(play, &effPos, 10.0f, 0, 50, 15, 3, HAHEN_OBJECT_DEFAULT, 10, NULL);
         Audio_PlayActorSound2(&this->actor, NA_SE_IT_BOMB_EXPLOSION);
     }
 
@@ -134,7 +134,7 @@ void EnWallTubo_SetWallFall(EnWallTubo* this, PlayState* play) {
             osSyncPrintf(VT_FGCOL(CYAN) "☆☆☆☆ やった原！ ☆☆☆☆☆ \n" VT_RST);
         }
 
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
@@ -148,7 +148,7 @@ void EnWallTubo_Update(Actor* thisx, PlayState* play) {
     this->actionFunc(this, play);
 
     if (BREG(0)) {
-        DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
+        OoT_DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
                                this->actor.world.rot.x, this->actor.world.rot.y, this->actor.world.rot.z, 1.0f, 1.0f,
                                1.0f, 0, 0, 255, 255, 4, play->state.gfxCtx);
     }

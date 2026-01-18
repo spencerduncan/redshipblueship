@@ -12,10 +12,10 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED)
 
-void DemoKankyo_Init(Actor* thisx, PlayState* play);
-void DemoKankyo_Destroy(Actor* thisx, PlayState* play);
-void DemoKankyo_Update(Actor* thisx, PlayState* play);
-void DemoKankyo_Draw(Actor* thisx, PlayState* play);
+void MM_DemoKankyo_Init(Actor* thisx, PlayState* play);
+void MM_DemoKankyo_Destroy(Actor* thisx, PlayState* play);
+void MM_DemoKankyo_Update(Actor* thisx, PlayState* play);
+void MM_DemoKankyo_Draw(Actor* thisx, PlayState* play);
 void DemoKankyo_Reset(void);
 
 void DemoKakyo_MoonSparklesActionFunc(DemoKankyo* this, PlayState* play);
@@ -29,16 +29,16 @@ ActorProfile Demo_Kankyo_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(DemoKankyo),
-    /**/ DemoKankyo_Init,
-    /**/ DemoKankyo_Destroy,
-    /**/ DemoKankyo_Update,
-    /**/ DemoKankyo_Draw,
+    /**/ MM_DemoKankyo_Init,
+    /**/ MM_DemoKankyo_Destroy,
+    /**/ MM_DemoKankyo_Update,
+    /**/ MM_DemoKankyo_Draw,
     /**/ DemoKankyo_Reset,
 };
 
 static s32 sObjectBubbleId = OBJECT_BUBBLE | 0x10000;
 
-void DemoKankyo_SetupAction(DemoKankyo* this, DemoKankyoActionFunc actionFunc) {
+void MM_DemoKankyo_SetupAction(DemoKankyo* this, DemoKankyoActionFunc actionFunc) {
     this->actionFunc = actionFunc;
 }
 
@@ -61,7 +61,7 @@ void DemoKakyo_LostWoodsSparkleActionFunc(DemoKankyo* this, PlayState* play) {
         if (play->envCtx.precipitation[PRECIP_SNOW_MAX] != 0) {
             play->envCtx.precipitation[PRECIP_SNOW_MAX]--;
         } else {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
     } else if (play->envCtx.precipitation[PRECIP_SNOW_MAX] < DEMOKANKYO_EFFECT_COUNT) {
         play->envCtx.precipitation[PRECIP_SNOW_MAX] += 16;
@@ -78,7 +78,7 @@ void DemoKakyo_LostWoodsSparkleActionFunc(DemoKankyo* this, PlayState* play) {
         eyeToAt.x = play->view.at.x - play->view.eye.x;
         eyeToAt.y = play->view.at.y - play->view.eye.y;
         eyeToAt.z = play->view.at.z - play->view.eye.z;
-        eyeToAtMag = sqrtf(SQXYZ(eyeToAt));
+        eyeToAtMag = MM_sqrtf(SQXYZ(eyeToAt));
         eyeToAtNormX = eyeToAt.x / eyeToAtMag;
         eyeToAtNormY = eyeToAt.y / eyeToAtMag;
         eyeToAtNormZ = eyeToAt.z / eyeToAtMag;
@@ -89,21 +89,21 @@ void DemoKakyo_LostWoodsSparkleActionFunc(DemoKankyo* this, PlayState* play) {
                 this->effects[i].posBase.y = play->view.eye.y + (eyeToAtNormY * 80.0f);
                 this->effects[i].posBase.z = play->view.eye.z + (eyeToAtNormZ * 80.0f);
 
-                this->effects[i].posOffset.x = (Rand_ZeroOne() - 0.5f) * 160.0f;
+                this->effects[i].posOffset.x = (MM_Rand_ZeroOne() - 0.5f) * 160.0f;
                 this->effects[i].posOffset.y = 30.0f;
-                this->effects[i].posOffset.z = (Rand_ZeroOne() - 0.5f) * 160.0f;
+                this->effects[i].posOffset.z = (MM_Rand_ZeroOne() - 0.5f) * 160.0f;
 
-                this->effects[i].speedTarget = (Rand_ZeroOne() * 1.6f) + 0.5f;
+                this->effects[i].speedTarget = (MM_Rand_ZeroOne() * 1.6f) + 0.5f;
                 this->effects[i].alpha = 0;
-                this->effects[i].alphaClock = Rand_ZeroOne() * 65535; // random 0 to max of u16
+                this->effects[i].alphaClock = MM_Rand_ZeroOne() * 65535; // random 0 to max of u16
                 this->effects[i].scale = 0.1f;
 
                 // speedClock is angles in radians,
-                // should have used Rand_ZeroOne() * 2 * M_PI
+                // should have used MM_Rand_ZeroOne() * 2 * M_PI
                 // however, due to properties of sine waves, this is effectively still random
-                this->effects[i].speedClock.x = Rand_ZeroOne() * 360.0f;
-                this->effects[i].speedClock.y = Rand_ZeroOne() * 360.0f;
-                this->effects[i].speedClock.z = Rand_ZeroOne() * 360.0f;
+                this->effects[i].speedClock.x = MM_Rand_ZeroOne() * 360.0f;
+                this->effects[i].speedClock.y = MM_Rand_ZeroOne() * 360.0f;
+                this->effects[i].speedClock.z = MM_Rand_ZeroOne() * 360.0f;
                 this->effects[i].pad50 = 0;
                 this->effects[i].state += DEMO_KANKYO_STATE_SINGLE;
                 break;
@@ -123,17 +123,17 @@ void DemoKakyo_LostWoodsSparkleActionFunc(DemoKankyo* this, PlayState* play) {
                     // The first 32 effects will become skyfish particles
                     // This block is also init code and only runs once
                     if (i < 32) {
-                        if (Rand_ZeroOne() < 0.5f) {
-                            this->effects[i].LostWoodsSkyFishSpeedXZ = TRUNCF_BINANG(Rand_ZeroOne() * 200.0f) + 200;
+                        if (MM_Rand_ZeroOne() < 0.5f) {
+                            this->effects[i].LostWoodsSkyFishSpeedXZ = TRUNCF_BINANG(MM_Rand_ZeroOne() * 200.0f) + 200;
                         } else {
-                            this->effects[i].LostWoodsSkyFishSpeedXZ = -200 - TRUNCF_BINANG(Rand_ZeroOne() * 200.0f);
+                            this->effects[i].LostWoodsSkyFishSpeedXZ = -200 - TRUNCF_BINANG(MM_Rand_ZeroOne() * 200.0f);
                         }
-                        this->effects[i].LostWoodsSkyFishPosOffsetMax = TRUNCF_BINANG(Rand_ZeroOne() * 50.0f) + 15;
-                        this->effects[i].LostWoodsSkyFishSpeedY = ((Rand_ZeroOne() * 10.0f) + 10.0f) * 0.01f;
+                        this->effects[i].LostWoodsSkyFishPosOffsetMax = TRUNCF_BINANG(MM_Rand_ZeroOne() * 50.0f) + 15;
+                        this->effects[i].LostWoodsSkyFishSpeedY = ((MM_Rand_ZeroOne() * 10.0f) + 10.0f) * 0.01f;
 
                         // Only the 31st particle matters as sLostWoodsSkyFishParticleNum will be overwritten
                         // every particle until the last skyfish particle is initialized
-                        randSkyfishParticleNum = Rand_ZeroOne();
+                        randSkyfishParticleNum = MM_Rand_ZeroOne();
                         if (randSkyfishParticleNum < 0.2f) {
                             sLostWoodsSkyFishParticleNum = 1;
                         } else if (randSkyfishParticleNum < 0.2f) {
@@ -153,8 +153,8 @@ void DemoKakyo_LostWoodsSparkleActionFunc(DemoKankyo* this, PlayState* play) {
                         this->effects[i].speedTarget = 0.0f;
                     }
 
-                    Math_SmoothStepToF(&this->effects[i].scale, 0.1f, 0.1f, 0.001f, 0.00001f);
-                    Math_SmoothStepToF(&this->effects[i].speed, this->effects[i].speedTarget, 0.5f, 0.2f, 0.02f);
+                    MM_Math_SmoothStepToF(&this->effects[i].scale, 0.1f, 0.1f, 0.001f, 0.00001f);
+                    MM_Math_SmoothStepToF(&this->effects[i].speed, this->effects[i].speedTarget, 0.5f, 0.2f, 0.02f);
                     this->effects[i].posOffset.x += sinf(this->effects[i].speedClock.x) * this->effects[i].speed;
                     this->effects[i].posOffset.y += sinf(this->effects[i].speedClock.y) * this->effects[i].speed;
                     this->effects[i].posOffset.z += sinf(this->effects[i].speedClock.z) * this->effects[i].speed;
@@ -162,66 +162,66 @@ void DemoKakyo_LostWoodsSparkleActionFunc(DemoKankyo* this, PlayState* play) {
                     switch ((i >> 1) & 3) {
                         case 0:
                             this->effects[i].speedClock.x += 0.008f;
-                            this->effects[i].speedClock.y += 0.05f * Rand_ZeroOne();
+                            this->effects[i].speedClock.y += 0.05f * MM_Rand_ZeroOne();
                             this->effects[i].speedClock.z += 0.015f;
                             break;
 
                         case 1:
-                            this->effects[i].speedClock.x += 0.01f * Rand_ZeroOne();
-                            this->effects[i].speedClock.y += 0.05f * Rand_ZeroOne();
-                            this->effects[i].speedClock.z += 0.005f * Rand_ZeroOne();
+                            this->effects[i].speedClock.x += 0.01f * MM_Rand_ZeroOne();
+                            this->effects[i].speedClock.y += 0.05f * MM_Rand_ZeroOne();
+                            this->effects[i].speedClock.z += 0.005f * MM_Rand_ZeroOne();
                             break;
 
                         case 2:
-                            this->effects[i].speedClock.x += 0.01f * Rand_ZeroOne();
-                            this->effects[i].speedClock.y += 0.4f * Rand_ZeroOne();
-                            this->effects[i].speedClock.z += 0.004f * Rand_ZeroOne();
+                            this->effects[i].speedClock.x += 0.01f * MM_Rand_ZeroOne();
+                            this->effects[i].speedClock.y += 0.4f * MM_Rand_ZeroOne();
+                            this->effects[i].speedClock.z += 0.004f * MM_Rand_ZeroOne();
                             break;
 
                         case 3:
-                            this->effects[i].speedClock.x += 0.01f * Rand_ZeroOne();
-                            this->effects[i].speedClock.y += 0.08f * Rand_ZeroOne();
-                            this->effects[i].speedClock.z += 0.05f * Rand_ZeroOne();
+                            this->effects[i].speedClock.x += 0.01f * MM_Rand_ZeroOne();
+                            this->effects[i].speedClock.y += 0.08f * MM_Rand_ZeroOne();
+                            this->effects[i].speedClock.z += 0.05f * MM_Rand_ZeroOne();
                             break;
                     }
 
                 } else if (this->effects[i].state == DEMO_KANKYO_STATE_SKYFISH) {
                     if ((i & sLostWoodsSkyFishParticleNum) == 0) {
                         // Head particle
-                        Math_SmoothStepToF(&this->effects[i].scale, 0.25f, 0.1f, 0.001f, 0.00001f);
+                        MM_Math_SmoothStepToF(&this->effects[i].scale, 0.25f, 0.1f, 0.001f, 0.00001f);
 
-                        Math_SmoothStepToF(&this->effects[i].posBase.x, player->actor.world.pos.x, 0.5f, 1.0f, 0.2f);
-                        Math_SmoothStepToF(&this->effects[i].posBase.y, player->actor.world.pos.y + 50.0f, 0.5f, 1.0f,
+                        MM_Math_SmoothStepToF(&this->effects[i].posBase.x, player->actor.world.pos.x, 0.5f, 1.0f, 0.2f);
+                        MM_Math_SmoothStepToF(&this->effects[i].posBase.y, player->actor.world.pos.y + 50.0f, 0.5f, 1.0f,
                                            0.2f);
-                        Math_SmoothStepToF(&this->effects[i].posBase.z, player->actor.world.pos.z, 0.5f, 1.0f, 0.2f);
+                        MM_Math_SmoothStepToF(&this->effects[i].posBase.z, player->actor.world.pos.z, 0.5f, 1.0f, 0.2f);
 
-                        Math_SmoothStepToF(&this->effects[i].posOffset.x,
-                                           Math_SinS(this->effects[i].LostWoodsSkyFishSpeedXZClock - 0x8000) *
+                        MM_Math_SmoothStepToF(&this->effects[i].posOffset.x,
+                                           MM_Math_SinS(this->effects[i].LostWoodsSkyFishSpeedXZClock - 0x8000) *
                                                this->effects[i].LostWoodsSkyFishPosOffsetMax,
                                            0.5f, 2.0f, 0.2f);
-                        Math_SmoothStepToF(&this->effects[i].posOffset.z,
-                                           Math_CosS(this->effects[i].LostWoodsSkyFishSpeedXZClock - 0x8000) *
+                        MM_Math_SmoothStepToF(&this->effects[i].posOffset.z,
+                                           MM_Math_CosS(this->effects[i].LostWoodsSkyFishSpeedXZClock - 0x8000) *
                                                this->effects[i].LostWoodsSkyFishPosOffsetMax,
                                            0.5f, 2.0f, 0.2f);
                         this->effects[i].LostWoodsSkyFishSpeedXZClock += this->effects[i].LostWoodsSkyFishSpeedXZ;
                         this->effects[i].posOffset.y += sinf(this->effects[i].speedClock.y);
-                        this->effects[i].speedClock.x += 0.2f * Rand_ZeroOne(); // unused calculation
+                        this->effects[i].speedClock.x += 0.2f * MM_Rand_ZeroOne(); // unused calculation
                         this->effects[i].speedClock.y += this->effects[i].LostWoodsSkyFishSpeedY;
-                        this->effects[i].speedClock.z += 0.1f * Rand_ZeroOne(); // unused calculation
+                        this->effects[i].speedClock.z += 0.1f * MM_Rand_ZeroOne(); // unused calculation
 
                         this->effects[i].posOffset.x =
-                            Math_SinS(this->effects[i].LostWoodsSkyFishSpeedXZClock - 0x8000) *
+                            MM_Math_SinS(this->effects[i].LostWoodsSkyFishSpeedXZClock - 0x8000) *
                             this->effects[i].LostWoodsSkyFishPosOffsetMax;
                         this->effects[i].posOffset.z =
-                            Math_CosS(this->effects[i].LostWoodsSkyFishSpeedXZClock - 0x8000) *
+                            MM_Math_CosS(this->effects[i].LostWoodsSkyFishSpeedXZClock - 0x8000) *
                             this->effects[i].LostWoodsSkyFishPosOffsetMax;
                     } else {
                         // Tail Particles
-                        Math_SmoothStepToF(&this->effects[i].scale, 0.1f, 0.1f, 0.001f, 0.00001f);
+                        MM_Math_SmoothStepToF(&this->effects[i].scale, 0.1f, 0.1f, 0.001f, 0.00001f);
 
                         // Unused calculation, speed only used in posOffset calculations,
                         // but posOffset gets overwritten for tail particles immediately below
-                        Math_SmoothStepToF(&this->effects[i].speed, 1.5f, 0.5f, 0.1f, 0.0002f);
+                        MM_Math_SmoothStepToF(&this->effects[i].speed, 1.5f, 0.5f, 0.1f, 0.0002f);
 
                         // particles in the skyfish's tail are moved to the previous position of the particle directly
                         // in front
@@ -284,10 +284,10 @@ void DemoKakyo_LostWoodsSparkleActionFunc(DemoKankyo* this, PlayState* play) {
 }
 
 void DemoKakyo_GiantObjectCheck(DemoKankyo* this, PlayState* play) {
-    if (Object_IsLoaded(&play->objectCtx, this->objectSlot)) {
+    if (MM_Object_IsLoaded(&play->objectCtx, this->objectSlot)) {
         this->isSafeToDrawGiants = true;
         this->actor.objectSlot = this->objectSlot;
-        DemoKankyo_SetupAction(this, DemoKakyo_MoonSparklesActionFunc);
+        MM_DemoKankyo_SetupAction(this, DemoKakyo_MoonSparklesActionFunc);
     }
 }
 
@@ -316,7 +316,7 @@ void DemoKakyo_MoonSparklesActionFunc(DemoKankyo* this, PlayState* play) {
     eyeToAt.x = play->view.at.x - play->view.eye.x;
     eyeToAt.y = play->view.at.y - play->view.eye.y;
     eyeToAt.z = play->view.at.z - play->view.eye.z;
-    eyeToAtMag = sqrtf(SQXYZ(eyeToAt));
+    eyeToAtMag = MM_sqrtf(SQXYZ(eyeToAt));
     eyeToAtNormX = eyeToAt.x / eyeToAtMag;
     eyeToAtNormY = eyeToAt.y / eyeToAtMag;
     eyeToAtNormZ = eyeToAt.z / eyeToAtMag;
@@ -330,21 +330,21 @@ void DemoKakyo_MoonSparklesActionFunc(DemoKankyo* this, PlayState* play) {
                 this->effects[i].posBase.y = play->view.eye.y + (eyeToAtNormY * halfScreenHeight);
                 this->effects[i].posBase.z = play->view.eye.z + (eyeToAtNormZ * halfScreenHeight);
 
-                this->effects[i].posOffset.x = (Rand_ZeroOne() - 0.5f) * (2.0f * halfScreenHeight);
-                this->effects[i].posOffset.y = (Rand_ZeroOne() - 0.5f) * (2.0f * halfScreenHeight);
-                this->effects[i].posOffset.z = (Rand_ZeroOne() - 0.5f) * (2.0f * halfScreenHeight);
+                this->effects[i].posOffset.x = (MM_Rand_ZeroOne() - 0.5f) * (2.0f * halfScreenHeight);
+                this->effects[i].posOffset.y = (MM_Rand_ZeroOne() - 0.5f) * (2.0f * halfScreenHeight);
+                this->effects[i].posOffset.z = (MM_Rand_ZeroOne() - 0.5f) * (2.0f * halfScreenHeight);
 
-                this->effects[i].speedTarget = (Rand_ZeroOne() * 1.6f) + 0.5f;
+                this->effects[i].speedTarget = (MM_Rand_ZeroOne() * 1.6f) + 0.5f;
                 this->effects[i].alpha = 0;
-                this->effects[i].alphaClock = (Rand_ZeroOne() * 65535);
+                this->effects[i].alphaClock = (MM_Rand_ZeroOne() * 65535);
                 this->effects[i].scale = 0.2f;
 
                 // speedClock is angles in radians,
-                // should have used Rand_ZeroOne() * 2 * M_PI
+                // should have used MM_Rand_ZeroOne() * 2 * M_PI
                 // however, due to properties of sine waves, this is effectively still random
-                this->effects[i].speedClock.x = Rand_ZeroOne() * 360.0f;
-                this->effects[i].speedClock.y = Rand_ZeroOne() * 360.0f;
-                this->effects[i].speedClock.z = Rand_ZeroOne() * 360.0f;
+                this->effects[i].speedClock.x = MM_Rand_ZeroOne() * 360.0f;
+                this->effects[i].speedClock.y = MM_Rand_ZeroOne() * 360.0f;
+                this->effects[i].speedClock.z = MM_Rand_ZeroOne() * 360.0f;
 
                 this->effects[i].pad50 = 0;
                 this->effects[i].state += DEMO_KANKYO_STATE_SINGLE;
@@ -363,8 +363,8 @@ void DemoKakyo_MoonSparklesActionFunc(DemoKankyo* this, PlayState* play) {
                 newEye.y = play->view.eye.y + (eyeToAtNormY * halfScreenHeight);
                 newEye.z = play->view.eye.z + (eyeToAtNormZ * halfScreenHeight);
 
-                Math_SmoothStepToF(&this->effects[i].scale, 0.2f, 0.1f, 0.001f, 0.00001f);
-                Math_SmoothStepToF(&this->effects[i].speed, this->effects[i].speedTarget, 0.5f, 0.2f, 0.02f);
+                MM_Math_SmoothStepToF(&this->effects[i].scale, 0.2f, 0.1f, 0.001f, 0.00001f);
+                MM_Math_SmoothStepToF(&this->effects[i].speed, this->effects[i].speedTarget, 0.5f, 0.2f, 0.02f);
 
                 this->effects[i].posOffset.x += sinf(this->effects[i].speedClock.x) * this->effects[i].speed;
                 this->effects[i].posOffset.y += sinf(this->effects[i].speedClock.y) * this->effects[i].speed;
@@ -373,26 +373,26 @@ void DemoKakyo_MoonSparklesActionFunc(DemoKankyo* this, PlayState* play) {
                 switch ((i >> 1) & 3) {
                     case 0:
                         this->effects[i].speedClock.x += 0.008f;
-                        this->effects[i].speedClock.y += 0.05f * Rand_ZeroOne();
+                        this->effects[i].speedClock.y += 0.05f * MM_Rand_ZeroOne();
                         this->effects[i].speedClock.z += 0.015f;
                         break;
 
                     case 1:
-                        this->effects[i].speedClock.x += 0.01f * Rand_ZeroOne();
-                        this->effects[i].speedClock.y += 0.05f * Rand_ZeroOne();
-                        this->effects[i].speedClock.z += 0.005f * Rand_ZeroOne();
+                        this->effects[i].speedClock.x += 0.01f * MM_Rand_ZeroOne();
+                        this->effects[i].speedClock.y += 0.05f * MM_Rand_ZeroOne();
+                        this->effects[i].speedClock.z += 0.005f * MM_Rand_ZeroOne();
                         break;
 
                     case 2:
-                        this->effects[i].speedClock.x += 0.01f * Rand_ZeroOne();
-                        this->effects[i].speedClock.y += 0.4f * Rand_ZeroOne();
-                        this->effects[i].speedClock.z += 0.004f * Rand_ZeroOne();
+                        this->effects[i].speedClock.x += 0.01f * MM_Rand_ZeroOne();
+                        this->effects[i].speedClock.y += 0.4f * MM_Rand_ZeroOne();
+                        this->effects[i].speedClock.z += 0.004f * MM_Rand_ZeroOne();
                         break;
 
                     case 3:
-                        this->effects[i].speedClock.x += 0.01f * Rand_ZeroOne();
-                        this->effects[i].speedClock.y += 0.08f * Rand_ZeroOne();
-                        this->effects[i].speedClock.z += 0.05f * Rand_ZeroOne();
+                        this->effects[i].speedClock.x += 0.01f * MM_Rand_ZeroOne();
+                        this->effects[i].speedClock.y += 0.08f * MM_Rand_ZeroOne();
+                        this->effects[i].speedClock.z += 0.05f * MM_Rand_ZeroOne();
                         break;
                 }
 
@@ -415,7 +415,7 @@ void DemoKakyo_MoonSparklesActionFunc(DemoKankyo* this, PlayState* play) {
                 worldPos.y = this->effects[i].posBase.y + this->effects[i].posOffset.y;
                 worldPos.z = this->effects[i].posBase.z + this->effects[i].posOffset.z;
 
-                randZeroOne = Math_Vec3f_DistXZ(&worldPos, &play->view.eye) / 200.0f;
+                randZeroOne = MM_Math_Vec3f_DistXZ(&worldPos, &play->view.eye) / 200.0f;
                 randZeroOne = CLAMP(randZeroOne, 0.0f, 1.0f);
                 halfScreenWidth = 100.0f + randZeroOne + 60.0f; // range 160 to 161...? thats about half screen width
 
@@ -457,7 +457,7 @@ void DemoKakyo_MoonSparklesActionFunc(DemoKankyo* this, PlayState* play) {
     }
 }
 
-void DemoKankyo_Init(Actor* thisx, PlayState* play) {
+void MM_DemoKankyo_Init(Actor* thisx, PlayState* play) {
     DemoKankyo* this = (DemoKankyo*)thisx;
     s32 pad;
     s32 i;
@@ -476,23 +476,23 @@ void DemoKankyo_Init(Actor* thisx, PlayState* play) {
             objectSlot = 0;
             this->actor.room = -1;
             if (sLostWoodsSparklesMutex == false) {
-                DemoKankyo_SetupAction(this, DemoKakyo_LostWoodsSparkleActionFunc);
+                MM_DemoKankyo_SetupAction(this, DemoKakyo_LostWoodsSparkleActionFunc);
                 sLostWoodsSparklesMutex = true;
             } else {
-                Actor_Kill(&this->actor);
+                MM_Actor_Kill(&this->actor);
             }
             break;
 
         case DEMO_KANKYO_TYPE_GIANTS:
             this->isSafeToDrawGiants = false;
             objectSlot = Object_GetSlot(&play->objectCtx, sObjectBubbleId);
-            DemoKankyo_SetupAction(this, DemoKakyo_GiantObjectCheck);
+            MM_DemoKankyo_SetupAction(this, DemoKakyo_GiantObjectCheck);
             break;
 
         case DEMO_KANKYO_TYPE_MOON:
             objectSlot = 0;
             this->isSafeToDrawGiants = true;
-            DemoKankyo_SetupAction(this, DemoKakyo_MoonSparklesActionFunc);
+            MM_DemoKankyo_SetupAction(this, DemoKakyo_MoonSparklesActionFunc);
             break;
 
         default:
@@ -506,13 +506,13 @@ void DemoKankyo_Init(Actor* thisx, PlayState* play) {
     }
 }
 
-void DemoKankyo_Destroy(Actor* thisx, PlayState* play) {
+void MM_DemoKankyo_Destroy(Actor* thisx, PlayState* play) {
     DemoKankyo* this = (DemoKankyo*)thisx;
 
-    Actor_Kill(&this->actor);
+    MM_Actor_Kill(&this->actor);
 }
 
-void DemoKankyo_Update(Actor* thisx, PlayState* play) {
+void MM_DemoKankyo_Update(Actor* thisx, PlayState* play) {
     DemoKankyo* this = (DemoKankyo*)thisx;
 
     this->actionFunc(this, play);
@@ -530,7 +530,7 @@ void DemoKakyo_DrawLostWoodsSparkle(Actor* thisx, PlayState* play2) {
     if (!(play->cameraPtrs[CAM_ID_MAIN]->stateFlags & CAM_STATE_UNDERWATER)) {
         OPEN_DISPS(play->state.gfxCtx);
 
-        POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_20);
+        POLY_XLU_DISP = MM_Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_20);
 
         gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gSun1Tex));
         gSPDisplayList(POLY_XLU_DISP++, gSunSparkleMaterialDL);
@@ -555,13 +555,13 @@ void DemoKakyo_DrawLostWoodsSparkle(Actor* thisx, PlayState* play2) {
             if ((screenPos.x >= xMin) && (screenPos.x < xMax) && (screenPos.y >= 0.0f) &&
                 (screenPos.y < SCREEN_HEIGHT)) {
                 FrameInterpolation_RecordOpenChild(&this->effects[i], this->effects[i].epoch);
-                Matrix_Translate(worldPos.x, worldPos.y, worldPos.z, MTXMODE_NEW);
+                MM_Matrix_Translate(worldPos.x, worldPos.y, worldPos.z, MTXMODE_NEW);
                 scaleAlpha = this->effects[i].alpha / 50.0f;
                 if (scaleAlpha > 1.0f) {
                     scaleAlpha = 1.0f;
                 }
 
-                Matrix_Scale(this->effects[i].scale * scaleAlpha, this->effects[i].scale * scaleAlpha,
+                MM_Matrix_Scale(this->effects[i].scale * scaleAlpha, this->effects[i].scale * scaleAlpha,
                              this->effects[i].scale * scaleAlpha, MTXMODE_APPLY);
 
                 // adjust transparency of this particle
@@ -605,7 +605,7 @@ void DemoKakyo_DrawLostWoodsSparkle(Actor* thisx, PlayState* play2) {
                         break;
                 }
 
-                Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
+                MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
                 Matrix_RotateZF(DEG_TO_RAD(play->state.frames * 20.0f), MTXMODE_APPLY);
 
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
@@ -655,14 +655,14 @@ void DemoKankyo_DrawMoonAndGiant(Actor* thisx, PlayState* play2) {
             if ((screenPos.x >= xMin) && (screenPos.x < xMax) && (screenPos.y >= 0.0f) &&
                 (screenPos.y < SCREEN_HEIGHT)) {
                 FrameInterpolation_RecordOpenChild(&this->effects[i], this->effects[i].epoch);
-                Matrix_Translate(worldPos.x, worldPos.y, worldPos.z, MTXMODE_NEW);
+                MM_Matrix_Translate(worldPos.x, worldPos.y, worldPos.z, MTXMODE_NEW);
                 alphaScale = this->effects[i].alpha / 50.0f;
                 if (alphaScale > 1.0f) {
                     alphaScale = 1.0f;
                 }
-                Matrix_Scale(this->effects[i].scale * alphaScale, this->effects[i].scale * alphaScale,
+                MM_Matrix_Scale(this->effects[i].scale * alphaScale, this->effects[i].scale * alphaScale,
                              this->effects[i].scale * alphaScale, MTXMODE_APPLY);
-                alphaScale = Math_Vec3f_DistXYZ(&worldPos, &play->view.eye) / 300.0f;
+                alphaScale = MM_Math_Vec3f_DistXYZ(&worldPos, &play->view.eye) / 300.0f;
                 alphaScale = CLAMP(1.0f - alphaScale, 0.0f, 1.0f);
 
                 if (this->actor.params == DEMO_KANKYO_TYPE_GIANTS) {
@@ -687,7 +687,7 @@ void DemoKankyo_DrawMoonAndGiant(Actor* thisx, PlayState* play2) {
 
                 gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
 
-                Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
+                MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
 
                 Matrix_RotateZF(DEG_TO_RAD(play->state.frames * 20.0f), MTXMODE_APPLY);
 
@@ -706,7 +706,7 @@ void DemoKankyo_DrawMoonAndGiant(Actor* thisx, PlayState* play2) {
     }
 }
 
-void DemoKankyo_Draw(Actor* thisx, PlayState* play) {
+void MM_DemoKankyo_Draw(Actor* thisx, PlayState* play) {
     DemoKankyo* this = (DemoKankyo*)thisx;
 
     switch (this->actor.params) {

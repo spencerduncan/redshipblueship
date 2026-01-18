@@ -28,7 +28,7 @@ ActorProfile Demo_Getitem_Profile = {
     /**/ NULL,
 };
 
-static s16 sObjectIds[] = { OBJECT_GI_MASK14, OBJECT_GI_SWORD_4 };
+static s16 MM_sObjectIds[] = { OBJECT_GI_MASK14, OBJECT_GI_SWORD_4 };
 
 static s16 sGetItemDraws[] = { GID_MASK_GREAT_FAIRY, GID_SWORD_GREAT_FAIRY };
 
@@ -50,14 +50,14 @@ void DemoGetitem_Init(Actor* thisx, PlayState* play) {
         itemIndex = DEMOGETITEM_ITEM_SWORD_GREAT_FAIRY;
     }
 
-    Actor_SetScale(&this->actor, 0.25f);
+    MM_Actor_SetScale(&this->actor, 0.25f);
     this->actionFunc = DemoGetitem_Wait;
     this->getItemDrawId = sGetItemDraws[itemIndex];
     this->cueType = sCueTypes[itemIndex];
 
-    objectSlot = Object_GetSlot(&play->objectCtx, sObjectIds[itemIndex]);
+    objectSlot = Object_GetSlot(&play->objectCtx, MM_sObjectIds[itemIndex]);
     if (objectSlot <= OBJECT_SLOT_NONE) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -68,7 +68,7 @@ void DemoGetitem_Destroy(Actor* thisx, PlayState* play) {
 }
 
 void DemoGetitem_Wait(DemoGetitem* this, PlayState* play) {
-    if (Object_IsLoaded(&play->objectCtx, this->objectSlot)) {
+    if (MM_Object_IsLoaded(&play->objectCtx, this->objectSlot)) {
         this->actor.draw = NULL;
         this->actor.objectSlot = this->objectSlot;
         this->actionFunc = DemoGetitem_PerformCutsceneActions;
@@ -92,13 +92,13 @@ void DemoGetitem_PerformCutsceneActions(DemoGetitem* this, PlayState* play) {
                 break;
 
             case 3:
-                Actor_Kill(&this->actor);
+                MM_Actor_Kill(&this->actor);
                 break;
 
             case 4:
                 this->actor.draw = DemoGetitem_Draw;
                 Cutscene_ActorTranslateAndYaw(&this->actor, play, Cutscene_GetCueChannel(play, this->cueType));
-                this->actor.shape.yOffset = Math_SinS(bobPhase) * 15.0f;
+                this->actor.shape.yOffset = MM_Math_SinS(bobPhase) * 15.0f;
                 break;
 
             default:
@@ -121,5 +121,5 @@ void DemoGetitem_Draw(Actor* thisx, PlayState* play) {
 
     func_800B8050(&this->actor, play, 0);
     func_800B8118(&this->actor, play, 0);
-    GetItem_Draw(play, this->getItemDrawId);
+    MM_GetItem_Draw(play, this->getItemDrawId);
 }

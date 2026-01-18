@@ -126,12 +126,12 @@ void EnGanonMant_Tear(EnGanonMant* this) {
     s16 areaX;
     s16 areaY;
     s16 texIdx;
-    f32 tx = Rand_ZeroFloat(MANT_TEX_WIDTH);
-    f32 ty = Rand_ZeroFloat(MANT_TEX_HEIGHT);
-    f32 tearAngle = Rand_ZeroFloat(2 * M_PI);
+    f32 tx = OoT_Rand_ZeroFloat(MANT_TEX_WIDTH);
+    f32 ty = OoT_Rand_ZeroFloat(MANT_TEX_HEIGHT);
+    f32 tearAngle = OoT_Rand_ZeroFloat(2 * M_PI);
     f32 tearDirX = sinf(tearAngle);
     f32 tearDirY = cosf(tearAngle);
-    TearShape* shape = &sTearShapes[(s16)Rand_ZeroFloat(ARRAY_COUNT(sTearShapes) - 0.01f)];
+    TearShape* shape = &sTearShapes[(s16)OoT_Rand_ZeroFloat(ARRAY_COUNT(sTearShapes) - 0.01f)];
     s16 count = shape->count;
     s16* tearAreaSizes = shape->tearAreaSizes;
 
@@ -152,8 +152,8 @@ void EnGanonMant_Tear(EnGanonMant* this) {
     }
 
     for (i = 0; i < 4; i++) {
-        this->strands[(s16)Rand_ZeroFloat(GANON_MANT_NUM_STRANDS - 0.1f)]
-            .torn[(s16)Rand_ZeroFloat(GANON_MANT_NUM_JOINTS - 0.1f)] = true;
+        this->strands[(s16)OoT_Rand_ZeroFloat(GANON_MANT_NUM_STRANDS - 0.1f)]
+            .torn[(s16)OoT_Rand_ZeroFloat(GANON_MANT_NUM_JOINTS - 0.1f)] = true;
     }
 }
 
@@ -183,7 +183,7 @@ void EnGanonMant_UpdateStrand(PlayState* play, EnGanonMant* this, Vec3f* root, V
         delta.x = 0.0f;
         delta.z = -30.0f;
         Matrix_RotateY(BINANG_TO_RAD(this->actor.shape.rot.y), MTXMODE_NEW);
-        Matrix_MultVec3f(&delta, &posStep);
+        OoT_Matrix_MultVec3f(&delta, &posStep);
         for (i = 0; i < GANON_MANT_NUM_JOINTS; i++) {
             (pos + i)->x += posStep.x;
             (pos + i)->z += posStep.z;
@@ -202,22 +202,22 @@ void EnGanonMant_UpdateStrand(PlayState* play, EnGanonMant* this, Vec3f* root, V
             pos->z = root->z;
         } else {
             // Decelerate
-            Math_ApproachZeroF(&vel->x, 1.0f, 0.1f);
-            Math_ApproachZeroF(&vel->y, 1.0f, 0.1f);
-            Math_ApproachZeroF(&vel->z, 1.0f, 0.1f);
+            OoT_Math_ApproachZeroF(&vel->x, 1.0f, 0.1f);
+            OoT_Math_ApproachZeroF(&vel->y, 1.0f, 0.1f);
+            OoT_Math_ApproachZeroF(&vel->z, 1.0f, 0.1f);
 
             // Push the cloak away from attached actor, plus oscillations
             delta.x = 0;
             delta.z = (this->backPush + (sinf((strandNum * (2 * M_PI)) / 2.1f) * this->backSwayMagnitude)) *
                       sBackSwayCoefficients[i];
             Matrix_RotateY(this->baseYaw, MTXMODE_NEW);
-            Matrix_MultVec3f(&delta, &backSwayOffset);
+            OoT_Matrix_MultVec3f(&delta, &backSwayOffset);
 
             // Push the cloak out to either side, in a swaying manner
             delta.x = cosf((strandNum * M_PI) / (GANON_MANT_NUM_STRANDS - 1.0f)) * this->sideSwayMagnitude *
                       sSideSwayCoefficients[i];
             delta.z = 0;
-            Matrix_MultVec3f(&delta, &sideSwayOffset);
+            OoT_Matrix_MultVec3f(&delta, &sideSwayOffset);
 
             // Calculate position difference
             gravity = this->gravity;
@@ -226,8 +226,8 @@ void EnGanonMant_UpdateStrand(PlayState* play, EnGanonMant* this, Vec3f* root, V
             z = ((pos->z + vel->z) - (pos - 1)->z) + (backSwayOffset.z + sideSwayOffset.z);
 
             // Calculate rotations in the direction of the position difference
-            yaw = Math_Atan2F(z, x);
-            x = -Math_Atan2F(sqrtf(SQ(x) + SQ(z)), y);
+            yaw = OoT_Math_Atan2F(z, x);
+            x = -OoT_Math_Atan2F(OoT_sqrtf(SQ(x) + SQ(z)), y);
             (rot - 1)->x = x;
 
             // Calculate real position difference of correct length in the correct direction
@@ -235,7 +235,7 @@ void EnGanonMant_UpdateStrand(PlayState* play, EnGanonMant* this, Vec3f* root, V
             delta.z = jointLength;
             Matrix_RotateY(yaw, MTXMODE_NEW);
             Matrix_RotateX(x, MTXMODE_APPLY);
-            Matrix_MultVec3f(&delta, &posStep);
+            OoT_Matrix_MultVec3f(&delta, &posStep);
 
             // Save position
             x = pos->x;
@@ -250,11 +250,11 @@ void EnGanonMant_UpdateStrand(PlayState* play, EnGanonMant* this, Vec3f* root, V
             // Pushes the cloak away from the actor if it is too close
             xDiff = pos->x - this->actor.world.pos.x;
             zDiff = pos->z - this->actor.world.pos.z;
-            if (sqrtf(SQ(xDiff) + SQ(zDiff)) < (sDistMultipliers[i] * this->minDist)) {
-                yaw = Math_Atan2F(zDiff, xDiff);
+            if (OoT_sqrtf(SQ(xDiff) + SQ(zDiff)) < (sDistMultipliers[i] * this->minDist)) {
+                yaw = OoT_Math_Atan2F(zDiff, xDiff);
                 delta.z = this->minDist * sDistMultipliers[i];
                 Matrix_RotateY(yaw, MTXMODE_NEW);
-                Matrix_MultVec3f(&delta, &posStep);
+                OoT_Matrix_MultVec3f(&delta, &posStep);
                 pos->x = this->actor.world.pos.x + posStep.x;
                 pos->z = this->actor.world.pos.z + posStep.z;
             }
@@ -291,7 +291,7 @@ void EnGanonMant_UpdateStrand(PlayState* play, EnGanonMant* this, Vec3f* root, V
             // update angle
             xDiff = pos->x - nextPos->x;
             zDiff = pos->z - nextPos->z;
-            (rot - 1)->y = Math_Atan2F(zDiff, xDiff);
+            (rot - 1)->y = OoT_Math_Atan2F(zDiff, xDiff);
         }
     }
     rot[11].y = rot[10].y;
@@ -332,7 +332,7 @@ void EnGanonMant_UpdateVertices(EnGanonMant* this) {
             vtx->n.ob[2] = strand->joints[j].z;
             Matrix_RotateY(strand->rotations[j].y, MTXMODE_NEW);
             Matrix_RotateX(strand->rotations[j].x, MTXMODE_APPLY);
-            Matrix_MultVec3f(&up, &normal);
+            OoT_Matrix_MultVec3f(&up, &normal);
             vtx->n.n[0] = normal.x;
             vtx->n.n[1] = normal.y;
             vtx->n.n[2] = normal.z;
@@ -374,7 +374,7 @@ void EnGanonMant_DrawCloak(PlayState* play, EnGanonMant* this) {
     // Invalidate cape texture mask as it may have been torn
     gSPInvalidateTexCache(POLY_OPA_DISP++, sMaskTex);
 
-    Matrix_Translate(0.0f, 0.0f, 0.0f, MTXMODE_NEW);
+    OoT_Matrix_Translate(0.0f, 0.0f, 0.0f, MTXMODE_NEW);
 
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
@@ -441,22 +441,22 @@ void EnGanonMant_Draw(Actor* thisx, PlayState* play) {
         midpoint.z = rightPos->z + zDiff * 0.5f;
 
         // Calculte base orientation for chosen endpoints
-        yaw = Math_Atan2F(zDiff, xDiff);
-        pitch = -Math_Atan2F(sqrtf(SQ(xDiff) + SQ(zDiff)), yDiff);
-        diffHalfDist = sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff)) * 0.5f;
+        yaw = OoT_Math_Atan2F(zDiff, xDiff);
+        pitch = -OoT_Math_Atan2F(OoT_sqrtf(SQ(xDiff) + SQ(zDiff)), yDiff);
+        diffHalfDist = OoT_sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff)) * 0.5f;
 
         Matrix_RotateY(yaw, MTXMODE_NEW);
         Matrix_RotateX(pitch, MTXMODE_APPLY);
         this->baseYaw = yaw - M_PI / 2.0f;
 
         for (strandIdx = 0; strandIdx < GANON_MANT_NUM_STRANDS; strandIdx++) {
-            Matrix_Push();
+            OoT_Matrix_Push();
 
             // Calculate root positions for chosen endpoints
             strandOffset.x = sinf((strandIdx * M_PI) / (GANON_MANT_NUM_STRANDS - 1)) * diffHalfDist;
             strandOffset.y = 0;
             strandOffset.z = -cosf((strandIdx * M_PI) / (GANON_MANT_NUM_STRANDS - 1)) * diffHalfDist;
-            Matrix_MultVec3f(&strandOffset, &strandDivPos);
+            OoT_Matrix_MultVec3f(&strandOffset, &strandDivPos);
             this->strands[strandIdx].root.x = midpoint.x + strandDivPos.x;
             this->strands[strandIdx].root.y = midpoint.y + strandDivPos.y;
             this->strands[strandIdx].root.z = midpoint.z + strandDivPos.z;
@@ -470,7 +470,7 @@ void EnGanonMant_Draw(Actor* thisx, PlayState* play) {
             EnGanonMant_UpdateStrand(play, this, &this->strands[strandIdx].root, this->strands[strandIdx].joints,
                                      this->strands[nextStrandIdx].joints, this->strands[strandIdx].rotations,
                                      this->strands[strandIdx].velocities, strandIdx);
-            Matrix_Pop();
+            OoT_Matrix_Pop();
         }
         EnGanonMant_UpdateVertices(this);
         this->updateHasRun = false;

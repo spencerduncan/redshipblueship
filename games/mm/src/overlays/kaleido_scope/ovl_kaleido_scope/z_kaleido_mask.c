@@ -280,7 +280,7 @@ void KaleidoScope_DrawMaskSelect(PlayState* play) {
                 gSPVertex(POLY_OPA_DISP++, &pauseCtx->maskVtx[j + 0], 4, 0);
                 KaleidoScope_DrawTexQuadRGBA32(
                     play->state.gfxCtx,
-                    gItemIcons[((void)0, gSaveContext.save.saveInfo.inventory.items[i + ITEM_NUM_SLOTS])], 32, 32, 0);
+                    MM_gItemIcons[((void)0, gSaveContext.save.saveInfo.inventory.items[i + ITEM_NUM_SLOTS])], 32, 32, 0);
             }
         }
     }
@@ -357,7 +357,7 @@ void KaleidoScope_UpdateMaskCursor(PlayState* play) {
                                 pauseCtx->cursorXIndex[PAUSE_MASK] = cursorXIndex;
                                 pauseCtx->cursorPoint[PAUSE_MASK] = cursorPoint;
 
-                                KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_LEFT);
+                                MM_KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_LEFT);
 
                                 moveCursorResult = PAUSE_CURSOR_RESULT_SPECIAL_POS;
                             }
@@ -387,7 +387,7 @@ void KaleidoScope_UpdateMaskCursor(PlayState* play) {
                                 pauseCtx->cursorXIndex[PAUSE_MASK] = cursorXIndex;
                                 pauseCtx->cursorPoint[PAUSE_MASK] = cursorPoint;
 
-                                KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_RIGHT);
+                                MM_KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_RIGHT);
 
                                 moveCursorResult = PAUSE_CURSOR_RESULT_SPECIAL_POS;
                             }
@@ -438,7 +438,7 @@ void KaleidoScope_UpdateMaskCursor(PlayState* play) {
                     }
 
                     // No item available
-                    KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_RIGHT);
+                    MM_KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_RIGHT);
                     break;
                 }
             }
@@ -479,7 +479,7 @@ void KaleidoScope_UpdateMaskCursor(PlayState* play) {
                     }
 
                     // No item available
-                    KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_LEFT);
+                    MM_KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_LEFT);
                     break;
                 }
             }
@@ -632,8 +632,8 @@ void KaleidoScope_UpdateMaskCursor(PlayState* play) {
                     }
                     // #endregion
 
-                    if ((Player_GetEnvironmentalHazard(play) >= PLAYER_ENV_HAZARD_UNDERWATER_FLOOR) &&
-                        (Player_GetEnvironmentalHazard(play) <= PLAYER_ENV_HAZARD_UNDERWATER_FREE) &&
+                    if ((MM_Player_GetEnvironmentalHazard(play) >= PLAYER_ENV_HAZARD_UNDERWATER_FLOOR) &&
+                        (MM_Player_GetEnvironmentalHazard(play) <= PLAYER_ENV_HAZARD_UNDERWATER_FREE) &&
                         ((cursorSlot == (SLOT_MASK_DEKU - ITEM_NUM_SLOTS)) ||
                          (cursorSlot == (SLOT_MASK_GORON - ITEM_NUM_SLOTS)))) {
                         Audio_PlaySfx(NA_SE_SY_ERROR);

@@ -148,16 +148,16 @@ static ColliderTrisInit sTrisInitStingerWall = {
     sTrisElementInitWall,
 };
 
-static Gfx* sDLists[] = {
+static Gfx* OoT_sDLists[] = {
     gObjectMizuObjectsBwallDL_001A30, gObjectMizuObjectsBwallDL_002390, gObjectMizuObjectsBwallDL_001CD0,
     gObjectMizuObjectsBwallDL_002090, gObjectMizuObjectsBwallDL_001770,
 };
-static CollisionHeader* sColHeaders[] = {
+static CollisionHeader* OoT_sColHeaders[] = {
     &gObjectMizuObjectsBwallCol_001C58, &gObjectMizuObjectsBwallCol_0025A4, &gObjectMizuObjectsBwallCol_001DE8,
     &gObjectMizuObjectsBwallCol_001DE8, &gObjectMizuObjectsBwallCol_001DE8,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(uncullZoneScale, 1500, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneDownward, 1100, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 1000, ICHAIN_CONTINUE),
@@ -175,28 +175,28 @@ void BgMizuBwall_Init(Actor* thisx, PlayState* play) {
     BgMizuBwall* this = (BgMizuBwall*)thisx;
     CollisionHeader* colHeader = NULL;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
     this->yRot = this->dyna.actor.world.pos.y;
-    this->dList = sDLists[(u16)this->dyna.actor.params & 0xF];
-    DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
-    CollisionHeader_GetVirtual(sColHeaders[(u16)this->dyna.actor.params & 0xF], &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    this->dList = OoT_sDLists[(u16)this->dyna.actor.params & 0xF];
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
+    OoT_CollisionHeader_GetVirtual(OoT_sColHeaders[(u16)this->dyna.actor.params & 0xF], &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
 
     switch ((u16)this->dyna.actor.params & 0xF) {
         case MIZUBWALL_FLOOR:
-            if (Flags_GetSwitch(play, ((u16)this->dyna.actor.params >> 8) & 0x3F)) {
+            if (OoT_Flags_GetSwitch(play, ((u16)this->dyna.actor.params >> 8) & 0x3F)) {
                 func_8003EBF8(play, &play->colCtx.dyna, this->dyna.bgId);
                 this->dList = NULL;
                 this->actionFunc = BgMizuBwall_DoNothing;
             } else {
-                Collider_InitTris(play, &this->collider);
-                if (!Collider_SetTris(play, &this->collider, &this->dyna.actor, &sTrisInitFloor, this->elements)) {
+                OoT_Collider_InitTris(play, &this->collider);
+                if (!OoT_Collider_SetTris(play, &this->collider, &this->dyna.actor, &sTrisInitFloor, this->elements)) {
                     osSyncPrintf("Error : コリジョンデータセット失敗(%s %d)(arg_data 0x%04x)\n", __FILE__, __LINE__,
                                  this->dyna.actor.params);
-                    Actor_Kill(&this->dyna.actor);
+                    OoT_Actor_Kill(&this->dyna.actor);
                 } else {
-                    f32 sin = Math_SinS(this->dyna.actor.shape.rot.y);
-                    f32 cos = Math_CosS(this->dyna.actor.shape.rot.y);
+                    f32 sin = OoT_Math_SinS(this->dyna.actor.shape.rot.y);
+                    f32 cos = OoT_Math_CosS(this->dyna.actor.shape.rot.y);
                     s32 i;
                     s32 j;
                     Vec3f offset;
@@ -212,26 +212,26 @@ void BgMizuBwall_Init(Actor* thisx, PlayState* play) {
                             vtx[j].y += this->dyna.actor.world.pos.y;
                             vtx[j].z += this->dyna.actor.world.pos.z;
                         }
-                        Collider_SetTrisVertices(&this->collider, i, &vtx[0], &vtx[1], &vtx[2]);
+                        OoT_Collider_SetTrisVertices(&this->collider, i, &vtx[0], &vtx[1], &vtx[2]);
                     }
                     this->actionFunc = BgMizuBwall_Idle;
                 }
             }
             break;
         case MIZUBWALL_RUTO_ROOM:
-            if (Flags_GetSwitch(play, ((u16)this->dyna.actor.params >> 8) & 0x3F)) {
+            if (OoT_Flags_GetSwitch(play, ((u16)this->dyna.actor.params >> 8) & 0x3F)) {
                 func_8003EBF8(play, &play->colCtx.dyna, this->dyna.bgId);
                 this->dList = NULL;
                 this->actionFunc = BgMizuBwall_DoNothing;
             } else {
-                Collider_InitTris(play, &this->collider);
-                if (!Collider_SetTris(play, &this->collider, &this->dyna.actor, &sTrisInitRutoWall, this->elements)) {
+                OoT_Collider_InitTris(play, &this->collider);
+                if (!OoT_Collider_SetTris(play, &this->collider, &this->dyna.actor, &sTrisInitRutoWall, this->elements)) {
                     osSyncPrintf("Error : コリジョンデータセット失敗(%s %d)(arg_data 0x%04x)\n", __FILE__, __LINE__,
                                  this->dyna.actor.params);
-                    Actor_Kill(&this->dyna.actor);
+                    OoT_Actor_Kill(&this->dyna.actor);
                 } else {
-                    f32 sin = Math_SinS(this->dyna.actor.shape.rot.y);
-                    f32 cos = Math_CosS(this->dyna.actor.shape.rot.y);
+                    f32 sin = OoT_Math_SinS(this->dyna.actor.shape.rot.y);
+                    f32 cos = OoT_Math_CosS(this->dyna.actor.shape.rot.y);
                     s32 i;
                     s32 j;
                     Vec3f offset;
@@ -247,26 +247,26 @@ void BgMizuBwall_Init(Actor* thisx, PlayState* play) {
                             vtx[j].y += this->dyna.actor.world.pos.y;
                             vtx[j].z += this->dyna.actor.world.pos.z;
                         }
-                        Collider_SetTrisVertices(&this->collider, i, &vtx[0], &vtx[1], &vtx[2]);
+                        OoT_Collider_SetTrisVertices(&this->collider, i, &vtx[0], &vtx[1], &vtx[2]);
                     }
                     this->actionFunc = BgMizuBwall_Idle;
                 }
             }
             break;
         case MIZUBWALL_UNUSED:
-            if (Flags_GetSwitch(play, ((u16)this->dyna.actor.params >> 8) & 0x3F)) {
+            if (OoT_Flags_GetSwitch(play, ((u16)this->dyna.actor.params >> 8) & 0x3F)) {
                 func_8003EBF8(play, &play->colCtx.dyna, this->dyna.bgId);
                 this->dList = NULL;
                 this->actionFunc = BgMizuBwall_DoNothing;
             } else {
-                Collider_InitTris(play, &this->collider);
-                if (!Collider_SetTris(play, &this->collider, &this->dyna.actor, &sTrisInitUnusedWall, this->elements)) {
+                OoT_Collider_InitTris(play, &this->collider);
+                if (!OoT_Collider_SetTris(play, &this->collider, &this->dyna.actor, &sTrisInitUnusedWall, this->elements)) {
                     osSyncPrintf("Error : コリジョンデータセット失敗(%s %d)(arg_data 0x%04x)\n", __FILE__, __LINE__,
                                  this->dyna.actor.params);
-                    Actor_Kill(&this->dyna.actor);
+                    OoT_Actor_Kill(&this->dyna.actor);
                 } else {
-                    f32 sin = Math_SinS(this->dyna.actor.shape.rot.y);
-                    f32 cos = Math_CosS(this->dyna.actor.shape.rot.y);
+                    f32 sin = OoT_Math_SinS(this->dyna.actor.shape.rot.y);
+                    f32 cos = OoT_Math_CosS(this->dyna.actor.shape.rot.y);
                     s32 i;
                     s32 j;
                     Vec3f offset;
@@ -284,27 +284,27 @@ void BgMizuBwall_Init(Actor* thisx, PlayState* play) {
                             vtx[j].y += this->dyna.actor.world.pos.y;
                             vtx[j].z += this->dyna.actor.world.pos.z;
                         }
-                        Collider_SetTrisVertices(&this->collider, i, &vtx[0], &vtx[1], &vtx[2]);
+                        OoT_Collider_SetTrisVertices(&this->collider, i, &vtx[0], &vtx[1], &vtx[2]);
                     }
                     this->actionFunc = BgMizuBwall_Idle;
                 }
             }
             break;
         case MIZUBWALL_STINGER_ROOM_1:
-            if (Flags_GetSwitch(play, ((u16)this->dyna.actor.params >> 8) & 0x3F)) {
+            if (OoT_Flags_GetSwitch(play, ((u16)this->dyna.actor.params >> 8) & 0x3F)) {
                 func_8003EBF8(play, &play->colCtx.dyna, this->dyna.bgId);
                 this->dList = NULL;
                 this->actionFunc = BgMizuBwall_DoNothing;
             } else {
-                Collider_InitTris(play, &this->collider);
-                if (!Collider_SetTris(play, &this->collider, &this->dyna.actor, &sTrisInitStingerWall,
+                OoT_Collider_InitTris(play, &this->collider);
+                if (!OoT_Collider_SetTris(play, &this->collider, &this->dyna.actor, &sTrisInitStingerWall,
                                       this->elements)) {
                     osSyncPrintf("Error : コリジョンデータセット失敗(%s %d)(arg_data 0x%04x)\n", __FILE__, __LINE__,
                                  this->dyna.actor.params);
-                    Actor_Kill(&this->dyna.actor);
+                    OoT_Actor_Kill(&this->dyna.actor);
                 } else {
-                    f32 sin = Math_SinS(this->dyna.actor.shape.rot.y);
-                    f32 cos = Math_CosS(this->dyna.actor.shape.rot.y);
+                    f32 sin = OoT_Math_SinS(this->dyna.actor.shape.rot.y);
+                    f32 cos = OoT_Math_CosS(this->dyna.actor.shape.rot.y);
                     s32 i;
                     s32 j;
                     Vec3f offset;
@@ -322,27 +322,27 @@ void BgMizuBwall_Init(Actor* thisx, PlayState* play) {
                             vtx[j].y += this->dyna.actor.world.pos.y;
                             vtx[j].z += this->dyna.actor.world.pos.z;
                         }
-                        Collider_SetTrisVertices(&this->collider, i, &vtx[0], &vtx[1], &vtx[2]);
+                        OoT_Collider_SetTrisVertices(&this->collider, i, &vtx[0], &vtx[1], &vtx[2]);
                     }
                     this->actionFunc = BgMizuBwall_Idle;
                 }
             }
             break;
         case MIZUBWALL_STINGER_ROOM_2:
-            if (Flags_GetSwitch(play, ((u16)this->dyna.actor.params >> 8) & 0x3F)) {
+            if (OoT_Flags_GetSwitch(play, ((u16)this->dyna.actor.params >> 8) & 0x3F)) {
                 func_8003EBF8(play, &play->colCtx.dyna, this->dyna.bgId);
                 this->dList = NULL;
                 this->actionFunc = BgMizuBwall_DoNothing;
             } else {
-                Collider_InitTris(play, &this->collider);
-                if (!Collider_SetTris(play, &this->collider, &this->dyna.actor, &sTrisInitStingerWall,
+                OoT_Collider_InitTris(play, &this->collider);
+                if (!OoT_Collider_SetTris(play, &this->collider, &this->dyna.actor, &sTrisInitStingerWall,
                                       this->elements)) {
                     osSyncPrintf("Error : コリジョンデータセット失敗(%s %d)(arg_data 0x%04x)\n", __FILE__, __LINE__,
                                  this->dyna.actor.params);
-                    Actor_Kill(&this->dyna.actor);
+                    OoT_Actor_Kill(&this->dyna.actor);
                 } else {
-                    f32 sin = Math_SinS(this->dyna.actor.shape.rot.y);
-                    f32 cos = Math_CosS(this->dyna.actor.shape.rot.y);
+                    f32 sin = OoT_Math_SinS(this->dyna.actor.shape.rot.y);
+                    f32 cos = OoT_Math_CosS(this->dyna.actor.shape.rot.y);
                     s32 i;
                     s32 j;
                     Vec3f offset;
@@ -360,7 +360,7 @@ void BgMizuBwall_Init(Actor* thisx, PlayState* play) {
                             vtx[j].y += this->dyna.actor.world.pos.y;
                             vtx[j].z += this->dyna.actor.world.pos.z;
                         }
-                        Collider_SetTrisVertices(&this->collider, i, &vtx[0], &vtx[1], &vtx[2]);
+                        OoT_Collider_SetTrisVertices(&this->collider, i, &vtx[0], &vtx[1], &vtx[2]);
                     }
                     this->actionFunc = BgMizuBwall_Idle;
                 }
@@ -373,8 +373,8 @@ void BgMizuBwall_Destroy(Actor* thisx, PlayState* play) {
     s32 pad;
     BgMizuBwall* this = (BgMizuBwall*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
-    Collider_DestroyTris(play, &this->collider);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_Collider_DestroyTris(play, &this->collider);
 }
 
 void BgMizuBwall_SetAlpha(BgMizuBwall* this, PlayState* play) {
@@ -421,28 +421,28 @@ void BgMizuBwall_SpawnDebris(BgMizuBwall* this, PlayState* play) {
     Vec3f debrisPos;
     f32 tempx;
     f32 tempz;
-    f32 sin = Math_SinS(this->dyna.actor.shape.rot.y);
-    f32 cos = Math_CosS(this->dyna.actor.shape.rot.y);
+    f32 sin = OoT_Math_SinS(this->dyna.actor.shape.rot.y);
+    f32 cos = OoT_Math_CosS(this->dyna.actor.shape.rot.y);
     Vec3f debrisOffsets[15];
 
     for (i = 0; i < ARRAY_COUNT(debrisOffsets); i++) {
         switch ((u16)this->dyna.actor.params & 0xF) {
             case MIZUBWALL_FLOOR:
-                debrisOffsets[i].x = (Rand_ZeroOne() * 80.0f) - 40.0f;
-                debrisOffsets[i].y = Rand_ZeroOne() * 0;
-                debrisOffsets[i].z = (Rand_ZeroOne() * 80.0f) - 40.0f;
+                debrisOffsets[i].x = (OoT_Rand_ZeroOne() * 80.0f) - 40.0f;
+                debrisOffsets[i].y = OoT_Rand_ZeroOne() * 0;
+                debrisOffsets[i].z = (OoT_Rand_ZeroOne() * 80.0f) - 40.0f;
                 break;
             case MIZUBWALL_RUTO_ROOM:
-                debrisOffsets[i].x = Rand_ZeroOne() * 0;
-                debrisOffsets[i].y = Rand_ZeroOne() * 100.0f;
-                debrisOffsets[i].z = (Rand_ZeroOne() * 80.0f) - 40.0f;
+                debrisOffsets[i].x = OoT_Rand_ZeroOne() * 0;
+                debrisOffsets[i].y = OoT_Rand_ZeroOne() * 100.0f;
+                debrisOffsets[i].z = (OoT_Rand_ZeroOne() * 80.0f) - 40.0f;
                 break;
             case MIZUBWALL_UNUSED:
             case MIZUBWALL_STINGER_ROOM_1:
             default:
-                debrisOffsets[i].x = (Rand_ZeroOne() * 120) - 60.0f;
-                debrisOffsets[i].y = Rand_ZeroOne() * 120;
-                debrisOffsets[i].z = Rand_ZeroOne() * 0;
+                debrisOffsets[i].x = (OoT_Rand_ZeroOne() * 120) - 60.0f;
+                debrisOffsets[i].y = OoT_Rand_ZeroOne() * 120;
+                debrisOffsets[i].z = OoT_Rand_ZeroOne() * 0;
                 break;
         }
     }
@@ -455,10 +455,10 @@ void BgMizuBwall_SpawnDebris(BgMizuBwall* this, PlayState* play) {
         debrisPos.y = thisPos->y + debrisOffsets[i].y;
         debrisPos.z = thisPos->z + tempz * cos - tempx * sin;
 
-        rand1 = (s16)(Rand_ZeroOne() * 120.0f) + 20;
-        rand2 = (s16)(Rand_ZeroOne() * 240.0f) + 20;
+        rand1 = (s16)(OoT_Rand_ZeroOne() * 120.0f) + 20;
+        rand2 = (s16)(OoT_Rand_ZeroOne() * 240.0f) + 20;
         func_80033480(play, &debrisPos, 50.0f, 2, rand1, rand2, 0);
-        Actor_Spawn(&play->actorCtx, play, ACTOR_EN_A_OBJ, debrisPos.x, debrisPos.y, debrisPos.z, 0, 0, 0, 0xB, true);
+        OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_A_OBJ, debrisPos.x, debrisPos.y, debrisPos.z, 0, 0, 0, 0xB, true);
     }
 }
 
@@ -466,17 +466,17 @@ void BgMizuBwall_Idle(BgMizuBwall* this, PlayState* play) {
     BgMizuBwall_SetAlpha(this, play);
     if (this->collider.base.acFlags & AC_HIT) {
         this->collider.base.acFlags &= ~AC_HIT;
-        Flags_SetSwitch(play, ((u16)this->dyna.actor.params >> 8) & 0x3F);
+        OoT_Flags_SetSwitch(play, ((u16)this->dyna.actor.params >> 8) & 0x3F);
         this->breakTimer = 1;
         func_8003EBF8(play, &play->colCtx.dyna, this->dyna.bgId);
         this->dList = NULL;
         BgMizuBwall_SpawnDebris(this, play);
         Audio_PlayActorSound2(&this->dyna.actor, NA_SE_EV_WALL_BROKEN);
-        Audio_PlaySoundGeneral(NA_SE_SY_CORRECT_CHIME, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_SY_CORRECT_CHIME, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         this->actionFunc = BgMizuBwall_Break;
     } else if (this->dyna.actor.xzDistToPlayer < 600.0f) {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -508,16 +508,16 @@ void BgMizuBwall_Draw(Actor* thisx, PlayState* play2) {
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gSPSegment(POLY_OPA_DISP++, 0x08,
-               Gfx_TwoTexScrollEnvColor(play->state.gfxCtx, 0, 1 * frames, 0, 0x20, 0x20, 1, 0, 0, 0x20, 0x20, 0, 0, 0,
+               OoT_Gfx_TwoTexScrollEnvColor(play->state.gfxCtx, 0, 1 * frames, 0, 0x20, 0x20, 1, 0, 0, 0x20, 0x20, 0, 0, 0,
                                         this->scrollAlpha1));
     gSPSegment(POLY_OPA_DISP++, 0x09,
-               Gfx_TwoTexScrollEnvColor(play->state.gfxCtx, 0, 1 * frames, 0, 0x20, 0x20, 1, 0, 0, 0x20, 0x20, 0, 0, 0,
+               OoT_Gfx_TwoTexScrollEnvColor(play->state.gfxCtx, 0, 1 * frames, 0, 0x20, 0x20, 1, 0, 0, 0x20, 0x20, 0, 0, 0,
                                         this->scrollAlpha2));
     gSPSegment(POLY_OPA_DISP++, 0x0A,
-               Gfx_TwoTexScrollEnvColor(play->state.gfxCtx, 0, 1 * frames, 0, 0x20, 0x20, 1, 0, 0, 0x20, 0x20, 0, 0, 0,
+               OoT_Gfx_TwoTexScrollEnvColor(play->state.gfxCtx, 0, 1 * frames, 0, 0x20, 0x20, 1, 0, 0, 0x20, 0x20, 0, 0, 0,
                                         this->scrollAlpha3));
     gSPSegment(POLY_OPA_DISP++, 0x0B,
-               Gfx_TwoTexScrollEnvColor(play->state.gfxCtx, 0, 3 * frames, 0, 0x20, 0x20, 1, 0, 0, 0x20, 0x20, 0, 0, 0,
+               OoT_Gfx_TwoTexScrollEnvColor(play->state.gfxCtx, 0, 3 * frames, 0, 0x20, 0x20, 1, 0, 0, 0x20, 0x20, 0, 0, 0,
                                         this->scrollAlpha4));
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), 2);
 

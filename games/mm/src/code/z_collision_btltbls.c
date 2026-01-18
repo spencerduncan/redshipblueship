@@ -1,6 +1,6 @@
 #include "global.h"
 
-DamageTable sDamageTablePresets[] = {
+DamageTable MM_sDamageTablePresets[] = {
     { {
         /* Deku Nut       */ DMG_ENTRY(0, 0x1),
         /* Deku Stick     */ DMG_ENTRY(1, 0x0),
@@ -789,18 +789,18 @@ DamageTable sDamageTablePresets[] = {
  * Returns a pointer to one of the 23 damage table presets, or NULL if the index
  * is out of range.
  */
-DamageTable* DamageTable_Get(s32 index) {
-    if ((index < 0) || (index >= ARRAY_COUNT(sDamageTablePresets))) {
+DamageTable* MM_DamageTable_Get(s32 index) {
+    if ((index < 0) || (index >= ARRAY_COUNT(MM_sDamageTablePresets))) {
         return NULL;
     }
 
-    return &sDamageTablePresets[index];
+    return &MM_sDamageTablePresets[index];
 }
 
 /**
  * Sets all entries in a damage table to 0
  */
-void DamageTable_Clear(DamageTable* damageTable) {
+void MM_DamageTable_Clear(DamageTable* damageTable) {
     s32 i;
 
     for (i = 0; i < ARRAY_COUNT(damageTable->attack); i++) {

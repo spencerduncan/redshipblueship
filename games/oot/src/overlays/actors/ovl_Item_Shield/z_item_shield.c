@@ -18,7 +18,7 @@ void ItemShield_Draw(Actor* thisx, PlayState* play);
 void func_80B86F68(ItemShield* this, PlayState* play);
 void func_80B86BC8(ItemShield* this, PlayState* play);
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -67,44 +67,44 @@ void ItemShield_Init(Actor* thisx, PlayState* play) {
 
     switch (this->actor.params) {
         case 0:
-            ActorShape_Init(&this->actor.shape, 1400.0f, NULL, 0.0f);
+            OoT_ActorShape_Init(&this->actor.shape, 1400.0f, NULL, 0.0f);
             this->actor.shape.rot.x = 0x4000;
             ItemShield_SetupAction(this, func_80B86BC8);
             break;
 
         case 1:
-            ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
+            OoT_ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
             ItemShield_SetupAction(this, func_80B86F68);
             this->unk_19C |= 2;
             for (i = 0; i < 8; i++) {
                 this->unk_19E[i] = 1 + 2 * i;
-                this->unk_1A8[i].x = Rand_CenteredFloat(10.0f);
-                this->unk_1A8[i].y = Rand_CenteredFloat(10.0f);
-                this->unk_1A8[i].z = Rand_CenteredFloat(10.0f);
+                this->unk_1A8[i].x = OoT_Rand_CenteredFloat(10.0f);
+                this->unk_1A8[i].y = OoT_Rand_CenteredFloat(10.0f);
+                this->unk_1A8[i].z = OoT_Rand_CenteredFloat(10.0f);
             }
             break;
     }
 
-    Actor_SetScale(&this->actor, 0.01f);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    OoT_Actor_SetScale(&this->actor, 0.01f);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
     osSyncPrintf(VT_FGCOL(GREEN) "Item_Shild %d \n" VT_RST, this->actor.params);
 }
 
 void ItemShield_Destroy(Actor* thisx, PlayState* play) {
     ItemShield* this = (ItemShield*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void func_80B86AC8(ItemShield* this, PlayState* play) {
     Actor_MoveXZGravity(&this->actor);
-    if (Actor_HasParent(&this->actor, play)) {
-        Actor_Kill(&this->actor);
+    if (OoT_Actor_HasParent(&this->actor, play)) {
+        OoT_Actor_Kill(&this->actor);
         return;
     }
-    Actor_OfferGetItem(&this->actor, play, GI_SHIELD_DEKU, 30.0f, 50.0f);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 10.0f, 0.0f, 5);
+    OoT_Actor_OfferGetItem(&this->actor, play, GI_SHIELD_DEKU, 30.0f, 50.0f);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 10.0f, 0.0f, 5);
     if (this->actor.bgCheckFlags & 1) {
         this->timer--;
         if (this->timer < 60) {
@@ -115,17 +115,17 @@ void func_80B86AC8(ItemShield* this, PlayState* play) {
             }
         }
         if (this->timer == 0) {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
         }
     }
 }
 
 void func_80B86BC8(ItemShield* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play)) {
-        Actor_Kill(&this->actor);
+    if (OoT_Actor_HasParent(&this->actor, play)) {
+        OoT_Actor_Kill(&this->actor);
         return;
     }
-    Actor_OfferGetItem(&this->actor, play, GI_SHIELD_DEKU, 30.0f, 50.0f);
+    OoT_Actor_OfferGetItem(&this->actor, play, GI_SHIELD_DEKU, 30.0f, 50.0f);
     if (this->collider.base.acFlags & AC_HIT) {
         ItemShield_SetupAction(this, func_80B86AC8);
         this->actor.velocity.y = 4.0f;
@@ -134,8 +134,8 @@ void func_80B86BC8(ItemShield* this, PlayState* play) {
         this->actor.speedXZ = 0.0f;
         this->timer = 160;
     } else {
-        Collider_UpdateCylinder(&this->actor, &this->collider);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -149,22 +149,22 @@ void func_80B86CA8(ItemShield* this, PlayState* play) {
     s32 temp;
 
     Actor_MoveXZGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 10.0f, 0.0f, 5);
-    this->actor.shape.yOffset = ABS(Math_SinS(this->actor.shape.rot.x)) * 1500.0f;
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 10.0f, 0.0f, 5);
+    this->actor.shape.yOffset = ABS(OoT_Math_SinS(this->actor.shape.rot.x)) * 1500.0f;
 
     for (i = 0; i < 8; i++) {
         temp = 15 - this->unk_19E[i];
         D_80B871F4.x = this->unk_1A8[i].x;
         D_80B871F4.y = this->unk_1A8[i].y + (this->actor.shape.yOffset * 0.01f) + (D_80B87200[temp] * -10.0f * 0.2f);
         D_80B871F4.z = this->unk_1A8[i].z;
-        EffectSsFireTail_SpawnFlame(play, &this->actor, &D_80B871F4, D_80B87200[temp] * 0.2f, -1, D_80B87240[temp]);
+        OoT_EffectSsFireTail_SpawnFlame(play, &this->actor, &D_80B871F4, D_80B87200[temp] * 0.2f, -1, D_80B87240[temp]);
         if (this->unk_19E[i] != 0) {
             this->unk_19E[i]--;
         } else if (this->timer > 16) {
             this->unk_19E[i] = 15;
-            this->unk_1A8[i].x = Rand_CenteredFloat(15.0f);
-            this->unk_1A8[i].y = Rand_CenteredFloat(10.0f);
-            this->unk_1A8[i].z = Rand_CenteredFloat(15.0f);
+            this->unk_1A8[i].x = OoT_Rand_CenteredFloat(15.0f);
+            this->unk_1A8[i].y = OoT_Rand_CenteredFloat(10.0f);
+            this->unk_1A8[i].z = OoT_Rand_CenteredFloat(15.0f);
         }
     }
     if (this->actor.bgCheckFlags & 1) {
@@ -172,12 +172,12 @@ void func_80B86CA8(ItemShield* this, PlayState* play) {
         this->unk_198 -= this->unk_198 >> 2;
         this->actor.shape.rot.x += this->unk_198;
         if ((this->timer >= 8) && (this->timer < 24)) {
-            Actor_SetScale(&this->actor, (this->timer - 8) * 0.000625f);
+            OoT_Actor_SetScale(&this->actor, (this->timer - 8) * 0.000625f);
         }
         if (this->timer != 0) {
             this->timer--;
         } else {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
         }
     }
 }
@@ -192,8 +192,8 @@ void func_80B86F68(ItemShield* this, PlayState* play) {
     this->actor.world.pos.z = shield->zw;
     this->unk_19C &= ~2;
 
-    this->actor.shape.rot.y = Math_Atan2S(-shield->zz, -shield->xz);
-    this->actor.shape.rot.x = Math_Atan2S(-shield->yz, sqrtf(shield->zz * shield->zz + shield->xz * shield->xz));
+    this->actor.shape.rot.y = OoT_Math_Atan2S(-shield->zz, -shield->xz);
+    this->actor.shape.rot.x = OoT_Math_Atan2S(-shield->yz, OoT_sqrtf(shield->zz * shield->zz + shield->xz * shield->xz));
 
     if (ABS(this->actor.shape.rot.x) > 0x4000) {
         this->unk_19C |= 1;

@@ -48,7 +48,7 @@ ActorProfile Dm_Char01_Profile = {
     (ActorFunc)DmChar01_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeScale, 300, ICHAIN_STOP),
 };
 
@@ -60,8 +60,8 @@ void DmChar01_Init(Actor* thisx, PlayState* play) {
     s32 i;
     gWoodfallSceneryDynamicPoisonWaterVtxData = ResourceMgr_LoadVtxByName(gWoodfallSceneryDynamicPoisonWaterVtx);
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    Actor_SetScale(&this->dyna.actor, 1.0f);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
+    MM_Actor_SetScale(&this->dyna.actor, 1.0f);
 
     this->unk_346 = 0;
     this->unk_34D = false;
@@ -86,7 +86,7 @@ void DmChar01_Init(Actor* thisx, PlayState* play) {
                 this->unk_1AC[i] = gWoodfallSceneryDynamicPoisonWaterVtxData[i].v.ob[1] * 409.6f;
             }
 
-            DynaPolyActor_Init(&this->dyna, 0);
+            MM_DynaPolyActor_Init(&this->dyna, 0);
             DynaPolyActor_LoadMesh(play, &this->dyna, &gWoodfallSceneryPoisonWaterDamageCol);
 
             this->unk_34D = true;
@@ -116,7 +116,7 @@ void DmChar01_Init(Actor* thisx, PlayState* play) {
             }
             this->dyna.actor.world.rot.y += 0x8000;
             this->dyna.actor.shape.rot.y += 0x8000;
-            DynaPolyActor_Init(&this->dyna, 0);
+            MM_DynaPolyActor_Init(&this->dyna, 0);
             DynaPolyActor_LoadMesh(play, &this->dyna, &gWoodfallSceneryTempleCol);
             this->unk_34D = true;
             this->unk_348 = 200.0f;
@@ -127,13 +127,13 @@ void DmChar01_Init(Actor* thisx, PlayState* play) {
             this->dyna.actor.world.rot.y += 0x8000;
             this->dyna.actor.shape.rot.y += 0x8000;
             if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_20_01)) {
-                Actor_Kill(&this->dyna.actor);
+                MM_Actor_Kill(&this->dyna.actor);
                 return;
             }
 
-            Actor_Spawn(&play->actorCtx, play, ACTOR_OBJ_ETCETERA, 5.0f, 202.0f, 294.0f, 0, 0, 0,
+            MM_Actor_Spawn(&play->actorCtx, play, ACTOR_OBJ_ETCETERA, 5.0f, 202.0f, 294.0f, 0, 0, 0,
                         DEKU_FLOWER_PARAMS(DEKU_FLOWER_TYPE_PINK_WITH_INITIAL_BOUNCE));
-            DynaPolyActor_Init(&this->dyna, 0);
+            MM_DynaPolyActor_Init(&this->dyna, 0);
             DynaPolyActor_LoadMesh(play, &this->dyna, &gWoodfallSceneryTempleRampAndPlatformCol);
 
             this->unk_34D = true;
@@ -155,7 +155,7 @@ void DmChar01_Destroy(Actor* thisx, PlayState* play) {
     DmChar01* this = (DmChar01*)thisx;
 
     if (this->unk_34D) {
-        DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+        MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
     }
 }
 
@@ -260,16 +260,16 @@ void func_80AA892C(DmChar01* this, PlayState* play) {
     }
 
     for (i = 0; i < ResourceMgr_GetVtxArraySizeByName(gWoodfallSceneryDynamicPoisonWaterVtx); i++) {
-        s32 temp_s2 = sqrtf(SQ((f32)gWoodfallSceneryDynamicPoisonWaterVtxData[i].v.ob[2]) +
+        s32 temp_s2 = MM_sqrtf(SQ((f32)gWoodfallSceneryDynamicPoisonWaterVtxData[i].v.ob[2]) +
                             SQ((f32)gWoodfallSceneryDynamicPoisonWaterVtxData[i].v.ob[0]));
-        f32 cos = Math_CosS((temp_s2 / 1892.0f) * 0x4000);
+        f32 cos = MM_Math_CosS((temp_s2 / 1892.0f) * 0x4000);
         f32 temp_f20 = (1.0f - (ABS_ALT(temp_s2 - D_80AAAE22) / 1892.0f)) * D_80AAAE20 * cos;
 
         if (temp_f20 < 0.0f) {
             temp_f20 = 0.0f;
         }
 
-        temp_f18 = Math_SinS(this->unk_1AC[i]) * 15.0f;
+        temp_f18 = MM_Math_SinS(this->unk_1AC[i]) * 15.0f;
         temp_f20 += temp_f18;
 
         this->unk_1AC[i] += 1600;
@@ -306,23 +306,23 @@ void func_80AA8C28(DmChar01* this, PlayState* play) {
     }
 
     for (i = 0; i < ResourceMgr_GetVtxArraySizeByName(gWoodfallSceneryDynamicPoisonWaterVtx); i++) {
-        s32 temp_s2 = sqrtf(SQ((f32)gWoodfallSceneryDynamicPoisonWaterVtxData[i].v.ob[2]) +
+        s32 temp_s2 = MM_sqrtf(SQ((f32)gWoodfallSceneryDynamicPoisonWaterVtxData[i].v.ob[2]) +
                             SQ((f32)gWoodfallSceneryDynamicPoisonWaterVtxData[i].v.ob[0]));
-        f32 cos = Math_CosS((temp_s2 / 1892.0f) * 0x4000);
+        f32 cos = MM_Math_CosS((temp_s2 / 1892.0f) * 0x4000);
         f32 temp_f20 = (1.0f - (ABS_ALT(temp_s2 - D_80AAAE22) / 1892.0f)) * D_80AAAE20 * cos;
 
         if (temp_f20 < 0.0f) {
             temp_f20 = 0.0f;
         }
 
-        temp_f18 = Math_SinS(this->unk_1AC[i]) * 15.0f;
+        temp_f18 = MM_Math_SinS(this->unk_1AC[i]) * 15.0f;
         temp_f20 += temp_f18;
 
         this->unk_1AC[i] += 1600;
         gWoodfallSceneryDynamicPoisonWaterVtxData[i].v.ob[1] = temp_f20;
     }
 
-    Math_SmoothStepToF(&this->unk_348, 0.0f, 0.02f, 0.6f, 0.4f);
+    MM_Math_SmoothStepToF(&this->unk_348, 0.0f, 0.02f, 0.6f, 0.4f);
 
     if (this->unk_348 < 0.01f) {
         this->unk_34C = 2;
@@ -338,11 +338,11 @@ void func_80AA8F1C(DmChar01* this, PlayState* play) {
 
 void func_80AA8F2C(DmChar01* this, PlayState* play) {
     if (D_80AAAE26 != 0) {
-        Math_SmoothStepToF(&this->dyna.actor.world.pos.y, 0.0f, 0.05f, 6.0f, 0.001f);
-        Math_SmoothStepToF(&this->unk_348, 0.0f, 0.01f, 0.5f, 0.4f);
+        MM_Math_SmoothStepToF(&this->dyna.actor.world.pos.y, 0.0f, 0.05f, 6.0f, 0.001f);
+        MM_Math_SmoothStepToF(&this->unk_348, 0.0f, 0.01f, 0.5f, 0.4f);
         if ((s32)this->dyna.actor.world.pos.y >= 0) {
             D_80AAAE26 = 2;
-            Actor_Spawn(&play->actorCtx, play, ACTOR_OBJ_ETCETERA, 5.0f, 202.0f, 294.0f, 0, 0, 0,
+            MM_Actor_Spawn(&play->actorCtx, play, ACTOR_OBJ_ETCETERA, 5.0f, 202.0f, 294.0f, 0, 0, 0,
                         DEKU_FLOWER_PARAMS(DEKU_FLOWER_TYPE_PINK_WITH_INITIAL_BOUNCE));
             this->actionFunc = func_80AA90F4;
         }
@@ -362,11 +362,11 @@ void func_80AA9020(DmChar01* this, PlayState* play) {
 }
 
 void func_80AA90AC(DmChar01* this, PlayState* play) {
-    Math_SmoothStepToF(&this->dyna.actor.world.pos.y, 0.0f, 0.05f, 2.0f, 0.001f);
+    MM_Math_SmoothStepToF(&this->dyna.actor.world.pos.y, 0.0f, 0.05f, 2.0f, 0.001f);
 }
 
 void func_80AA90F4(DmChar01* this, PlayState* play) {
-    Math_SmoothStepToF(&this->unk_348, 0.0f, 0.02f, 0.8f, 0.4f);
+    MM_Math_SmoothStepToF(&this->unk_348, 0.0f, 0.02f, 0.8f, 0.4f);
 }
 
 void DmChar01_Update(Actor* thisx, PlayState* play2) {
@@ -414,15 +414,15 @@ void DmChar01_Draw(Actor* thisx, PlayState* play) {
             switch (this->unk_34C) {
                 case 0:
                     AnimatedMat_Draw(play, Lib_SegmentedToVirtual(gWoodfallSceneryPoisonWaterTexAnim));
-                    Gfx_DrawDListOpa(play, gWoodfallSceneryPoisonWaterDL);
+                    MM_Gfx_DrawDListOpa(play, gWoodfallSceneryPoisonWaterDL);
                     break;
 
                 case 1:
                     if (gSaveContext.sceneLayer == 1) {
                         AnimatedMat_Draw(play, Lib_SegmentedToVirtual(gWoodfallSceneryPurifiedWaterTexAnim));
-                        Gfx_DrawDListOpa(play, gWoodfallSceneryFloorDL);
-                        Gfx_DrawDListXlu(play, gWoodfallSceneryPurifiedWaterDL);
-                        Matrix_Translate(0.0f, 10.0f, 0.0f, MTXMODE_APPLY);
+                        MM_Gfx_DrawDListOpa(play, gWoodfallSceneryFloorDL);
+                        MM_Gfx_DrawDListXlu(play, gWoodfallSceneryPurifiedWaterDL);
+                        MM_Matrix_Translate(0.0f, 10.0f, 0.0f, MTXMODE_APPLY);
                     }
                     AnimatedMat_Draw(play, Lib_SegmentedToVirtual(gWoodfallSceneryDynamicPoisonWaterTexAnim));
 
@@ -457,8 +457,8 @@ void DmChar01_Draw(Actor* thisx, PlayState* play) {
 
                 case 2:
                     AnimatedMat_Draw(play, Lib_SegmentedToVirtual(gWoodfallSceneryPurifiedWaterTexAnim));
-                    Gfx_DrawDListOpa(play, gWoodfallSceneryFloorDL);
-                    Gfx_DrawDListXlu(play, gWoodfallSceneryPurifiedWaterDL);
+                    MM_Gfx_DrawDListOpa(play, gWoodfallSceneryFloorDL);
+                    MM_Gfx_DrawDListXlu(play, gWoodfallSceneryPurifiedWaterDL);
                     break;
             }
             break;
@@ -467,19 +467,19 @@ void DmChar01_Draw(Actor* thisx, PlayState* play) {
             switch (this->unk_34C) {
                 case 0:
                     AnimatedMat_Draw(play, Lib_SegmentedToVirtual(gWoodfallSceneryPoisonWallsTexAnim));
-                    Gfx_DrawDListOpa(play, gWoodfallSceneryPoisonWallsDL);
+                    MM_Gfx_DrawDListOpa(play, gWoodfallSceneryPoisonWallsDL);
                     break;
 
                 case 1:
                     AnimatedMat_Draw(play, Lib_SegmentedToVirtual(gWoodfallSceneryPurifiedWallsTexAnim));
-                    Gfx_DrawDListOpa(play, gWoodfallSceneryPurifiedWallsDL);
+                    MM_Gfx_DrawDListOpa(play, gWoodfallSceneryPurifiedWallsDL);
                     break;
             }
             break;
 
         case DMCHAR01_2:
             AnimatedMat_Draw(play, Lib_SegmentedToVirtual(gWoodfallSceneryTempleTexAnim));
-            Gfx_DrawDListOpa(play, gWoodfallSceneryTempleDL);
+            MM_Gfx_DrawDListOpa(play, gWoodfallSceneryTempleDL);
 
             if ((this->unk_34C != 0) && ((u8)this->unk_348 != 0)) {
                 AnimatedMat_Draw(play, Lib_SegmentedToVirtual(gWoodfallSceneryWaterFlowingOverTempleTexAnim));
@@ -526,30 +526,30 @@ void DmChar01_Draw(Actor* thisx, PlayState* play) {
                         f32 phi_f2 = D_80AAAABC;
                         s16 temp;
 
-                        spBC = Rand_ZeroOne() * D_80AAAAC8;
+                        spBC = MM_Rand_ZeroOne() * D_80AAAAC8;
                         if ((play->state.frames % 2) != 0) {
-                            sp44.x = (Rand_ZeroOne() - 0.5f) * (2.0f * phi_f2);
+                            sp44.x = (MM_Rand_ZeroOne() - 0.5f) * (2.0f * phi_f2);
                             sp44.y = D_80AAAAB8;
-                            sp44.z = (Rand_ZeroOne() * D_80AAAAC4) + phi_f2;
+                            sp44.z = (MM_Rand_ZeroOne() * D_80AAAAC4) + phi_f2;
                             temp = TRUNCF_BINANG(spBC) + D_80AAAACC;
-                            EffectSsGSplash_Spawn(play, &sp44, NULL, NULL, 0, temp);
+                            MM_EffectSsGSplash_Spawn(play, &sp44, NULL, NULL, 0, temp);
                         } else {
-                            sp44.x = -phi_f2 - (Rand_ZeroOne() * D_80AAAAC4);
+                            sp44.x = -phi_f2 - (MM_Rand_ZeroOne() * D_80AAAAC4);
                             sp44.y = D_80AAAAB8;
-                            sp44.z = (Rand_ZeroOne() - 0.5f) * (2.0f * phi_f2);
+                            sp44.z = (MM_Rand_ZeroOne() - 0.5f) * (2.0f * phi_f2);
                             temp = TRUNCF_BINANG(spBC) + D_80AAAACC;
-                            EffectSsGSplash_Spawn(play, &sp44, NULL, NULL, 0, temp);
+                            MM_EffectSsGSplash_Spawn(play, &sp44, NULL, NULL, 0, temp);
                         }
                     }
                 }
             }
 
-            Gfx_DrawDListXlu(play, gWoodfallSceneryTempleEntrancesDL);
+            MM_Gfx_DrawDListXlu(play, gWoodfallSceneryTempleEntrancesDL);
             break;
 
         case DMCHAR01_3:
             if (thisx->world.pos.y > -120.0f) {
-                Gfx_DrawDListOpa(play, gWoodfallSceneryTempleRampAndPlatformDL);
+                MM_Gfx_DrawDListOpa(play, gWoodfallSceneryTempleRampAndPlatformDL);
             }
             break;
     }

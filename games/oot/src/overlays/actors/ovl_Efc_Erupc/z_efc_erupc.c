@@ -36,7 +36,7 @@ void EfcErupc_Init(Actor* thisx, PlayState* play) {
     EfcErupc* this = (EfcErupc*)thisx;
 
     EfcErupc_SetupAction(this, EfcErupc_UpdateAction);
-    Actor_SetScale(&this->actor, 1.0f);
+    OoT_Actor_SetScale(&this->actor, 1.0f);
     EfcErupc_InitParticles(this->particles);
     this->unk_14C = this->unk_14E = this->unk_150 = 0;
     this->unk_152 = 5;
@@ -81,7 +81,7 @@ void EfcErupc_UpdateAction(EfcErupc* this, PlayState* play) {
                 case 2:
                     if (this->unk_14E == 0) {
                         func_800F3F3C(6);
-                        Flags_SetEventChkInf(EVENTCHKINF_DEATH_MOUNTAIN_ERUPTED);
+                        OoT_Flags_SetEventChkInf(EVENTCHKINF_DEATH_MOUNTAIN_ERUPTED);
                     }
                     this->unk_14E++;
                     break;
@@ -95,11 +95,11 @@ void EfcErupc_UpdateAction(EfcErupc* this, PlayState* play) {
     accel.x = 0.0f;
     pos.y = this->actor.world.pos.y + 300.0f;
     for (i = 0; i < this->unk_152; i++) {
-        pos.x = Rand_CenteredFloat(100.0f) + this->actor.world.pos.x;
-        pos.z = Rand_CenteredFloat(100.0f) + this->actor.world.pos.z;
-        vel.x = Rand_CenteredFloat(100.0f);
-        vel.y = Rand_ZeroFloat(100.0f);
-        vel.z = Rand_CenteredFloat(100.0f);
+        pos.x = OoT_Rand_CenteredFloat(100.0f) + this->actor.world.pos.x;
+        pos.z = OoT_Rand_CenteredFloat(100.0f) + this->actor.world.pos.z;
+        vel.x = OoT_Rand_CenteredFloat(100.0f);
+        vel.y = OoT_Rand_ZeroFloat(100.0f);
+        vel.z = OoT_Rand_CenteredFloat(100.0f);
         accel.y = this->unk_154 * 0.1f;
         EfcErupc_AddParticle(this->particles, &pos, &vel, &accel, 80.0f);
     }
@@ -121,19 +121,19 @@ void EfcErupc_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
 
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, this->unk_14C * 1, this->unk_14E * -4, 32, 64, 1,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, this->unk_14C * 1, this->unk_14E * -4, 32, 64, 1,
                                 this->unk_14C * 4, this->unk_14E * -20, 64, 64));
 
     gSPSegment(
         POLY_XLU_DISP++, 0x09,
-        Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, this->unk_150 * -4, 16, 128, 1, 0, this->unk_150 * 12, 32, 32));
+        OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, this->unk_150 * -4, 16, 128, 1, 0, this->unk_150 * 12, 32, 32));
 
     gSPSegment(
         POLY_XLU_DISP++, 0x0A,
-        Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, this->unk_150 * -4, 16, 128, 1, 0, this->unk_150 * 12, 32, 32));
+        OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, this->unk_150 * -4, 16, 128, 1, 0, this->unk_150 * 12, 32, 32));
 
-    Matrix_Push();
-    Matrix_Scale(0.8f, 0.8f, 0.8f, MTXMODE_APPLY);
+    OoT_Matrix_Push();
+    OoT_Matrix_Scale(0.8f, 0.8f, 0.8f, MTXMODE_APPLY);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
     if (play->csCtx.state != 0) {
@@ -141,8 +141,8 @@ void EfcErupc_Draw(Actor* thisx, PlayState* play) {
             gSPDisplayList(POLY_XLU_DISP++, object_efc_erupc_DL_002570);
         }
     }
-    Matrix_Pop();
-    Matrix_Scale(3.4f, 3.4f, 3.4f, MTXMODE_APPLY);
+    OoT_Matrix_Pop();
+    OoT_Matrix_Scale(3.4f, 3.4f, 3.4f, MTXMODE_APPLY);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     if (play->csCtx.state != 0) {
         CsCmdActorCue* csActorAction = play->csCtx.npcActions[2];
@@ -175,9 +175,9 @@ void EfcErupc_DrawParticles(EfcErupcParticles* particles, PlayState* play) {
                             particles->alpha);
             gDPSetEnvColor(POLY_XLU_DISP++, 150, 0, 0, 0);
             gDPPipeSync(POLY_XLU_DISP++);
-            Matrix_Translate(particles->pos.x, particles->pos.y, particles->pos.z, MTXMODE_NEW);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
-            Matrix_Scale(particles->scale, particles->scale, 1.0f, MTXMODE_APPLY);
+            OoT_Matrix_Translate(particles->pos.x, particles->pos.y, particles->pos.z, MTXMODE_NEW);
+            OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
+            OoT_Matrix_Scale(particles->scale, particles->scale, 1.0f, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(POLY_XLU_DISP++, object_efc_erupc_DL_0027D8);
         }
@@ -241,7 +241,7 @@ void EfcErupc_AddParticle(EfcErupcParticles* particles, Vec3f* pos, Vec3f* vel, 
             particles->accel = *accel;
             particles->scale = scaleFactor / 1000.0f;
             particles->alpha = 255;
-            particles->animTimer = (s16)Rand_ZeroFloat(10.0f);
+            particles->animTimer = (s16)OoT_Rand_ZeroFloat(10.0f);
             return;
         }
     }

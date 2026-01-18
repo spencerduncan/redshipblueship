@@ -48,7 +48,7 @@ const ActorInit En_Fd_InitVars = {
     NULL,
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[12] = {
+static ColliderJntSphElementInit OoT_sJntSphElementsInit[12] = {
     {
         {
             ELEMTYPE_UNK0,
@@ -183,7 +183,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[12] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit OoT_sJntSphInit = {
     {
         COLTYPE_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -193,10 +193,10 @@ static ColliderJntSphInit sJntSphInit = {
         COLSHAPE_JNTSPH,
     },
     12,
-    sJntSphElementsInit,
+    OoT_sJntSphElementsInit,
 };
 
-static CollisionCheckInfoInit2 sColChkInit = { 24, 2, 25, 25, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 OoT_sColChkInit = { 24, 2, 25, 25, MASS_IMMOVABLE };
 
 typedef enum {
     /* 0 */ ENFD_ANIM_0,
@@ -206,7 +206,7 @@ typedef enum {
     /* 4 */ ENFD_ANIM_4
 } EnFdAnimation;
 
-static AnimationInfo sAnimationInfo[] = {
+static AnimationInfo OoT_sAnimationInfo[] = {
     { &gFlareDancerCastingFireAnim, 1.0f, 0.0f, -1.0f, ANIMMODE_ONCE_INTERP, 0.0f },
     { &gFlareDancerBackflipAnim, 1.0f, 0.0f, -1.0f, ANIMMODE_ONCE_INTERP, -10.0f },
     { &gFlareDancerGettingUpAnim, 0.0f, 0.0f, -1.0f, ANIMMODE_ONCE_INTERP, -10.0f },
@@ -219,7 +219,7 @@ s32 EnFd_SpawnCore(EnFd* this, PlayState* play) {
         return false;
     }
 
-    if (Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_FW, this->corePos.x, this->corePos.y,
+    if (OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_FW, this->corePos.x, this->corePos.y,
                            this->corePos.z, 0, this->actor.shape.rot.y, 0, this->runDir) == NULL) {
         return false;
     }
@@ -244,7 +244,7 @@ void EnFd_SpawnChildFire(EnFd* this, PlayState* play, s16 fireCnt, s16 color) {
 
     for (i = 0; i < fireCnt; i++) {
         s16 angle = (s16)((((i * 360.0f) / fireCnt) * (0x10000 / 360.0f))) + this->actor.yawTowardsPlayer;
-        Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_FD_FIRE, this->actor.world.pos.x,
+        OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_FD_FIRE, this->actor.world.pos.x,
                            this->actor.world.pos.y, this->actor.world.pos.z, 0, angle, 0, (color << 0xF) | i);
     }
 }
@@ -258,9 +258,9 @@ void EnFd_SpawnDot(EnFd* this, PlayState* play) {
         pos.x = this->actor.world.pos.x;
         pos.y = this->actor.floorHeight + 4.0f;
         pos.z = this->actor.world.pos.z;
-        accel.x = (Rand_ZeroOne() - 0.5f) * 2.0f;
-        accel.y = ((Rand_ZeroOne() - 0.5f) * 0.2f) + 0.3f;
-        accel.z = (Rand_ZeroOne() - 0.5f) * 2.0f;
+        accel.x = (OoT_Rand_ZeroOne() - 0.5f) * 2.0f;
+        accel.y = ((OoT_Rand_ZeroOne() - 0.5f) * 0.2f) + 0.3f;
+        accel.z = (OoT_Rand_ZeroOne() - 0.5f) * 2.0f;
         EnFd_AddEffect(this, FD_EFFECT_FLAME, &pos, &velocity, &accel, 8, 0.6f, 0.2f);
     }
 }
@@ -299,7 +299,7 @@ s32 EnFd_ColliderCheck(EnFd* this, PlayState* play) {
         this->invincibilityTimer = 30;
         this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_FLAME_DAMAGE);
-        Enemy_StartFinishingBlow(play, &this->actor);
+        OoT_Enemy_StartFinishingBlow(play, &this->actor);
         return true;
     } else if (DECR(this->attackTimer) == 0 && this->collider.base.atFlags & AT_HIT) {
         this->collider.base.atFlags &= ~AT_HIT;
@@ -330,18 +330,18 @@ s32 EnFd_CanSeeActor(EnFd* this, Actor* actor, PlayState* play) {
     s32 pad;
 
     // Check to see if `actor` is within 400 units of `this`
-    if (Math_Vec3f_DistXYZ(&this->actor.world.pos, &actor->world.pos) > 400.0f) {
+    if (OoT_Math_Vec3f_DistXYZ(&this->actor.world.pos, &actor->world.pos) > 400.0f) {
         return false;
     }
 
     // Check to see if the angle between this facing angle and `actor` is withing ~40 degrees
-    angle = (f32)Math_Vec3f_Yaw(&this->actor.world.pos, &actor->world.pos) - this->actor.shape.rot.y;
+    angle = (f32)OoT_Math_Vec3f_Yaw(&this->actor.world.pos, &actor->world.pos) - this->actor.shape.rot.y;
     if (ABS(angle) > 0x1C70) {
         return false;
     }
 
     // check to see if the line between `this` and `actor` does not intersect a collision poly
-    if (BgCheck_EntityLineTest1(&play->colCtx, &this->actor.world.pos, &actor->world.pos, &colPoint, &colPoly, true,
+    if (OoT_BgCheck_EntityLineTest1(&play->colCtx, &this->actor.world.pos, &actor->world.pos, &colPoint, &colPoly, true,
                                 false, false, true, &bgId)) {
         return false;
     }
@@ -401,9 +401,9 @@ Vec3f* EnFd_GetPosAdjAroundCircle(Vec3f* dst, EnFd* this, f32 radius, s16 dir) {
     s16 angle;
     Vec3f newPos;
 
-    angle = Math_Vec3f_Yaw(&this->actor.home.pos, &this->actor.world.pos) + (dir * 0x1554); // ~30 degrees
-    newPos.x = (Math_SinS(angle) * radius) + this->actor.home.pos.x;
-    newPos.z = (Math_CosS(angle) * radius) + this->actor.home.pos.z;
+    angle = OoT_Math_Vec3f_Yaw(&this->actor.home.pos, &this->actor.world.pos) + (dir * 0x1554); // ~30 degrees
+    newPos.x = (OoT_Math_SinS(angle) * radius) + this->actor.home.pos.x;
+    newPos.z = (OoT_Math_CosS(angle) * radius) + this->actor.home.pos.z;
     newPos.x -= this->actor.world.pos.x;
     newPos.z -= this->actor.world.pos.z;
     *dst = newPos;
@@ -424,7 +424,7 @@ s32 EnFd_ShouldStopRunning(EnFd* this, PlayState* play, f32 radius, s16* runDir)
     pos.y = this->actor.world.pos.y;
     pos.z += this->actor.world.pos.z;
 
-    if (BgCheck_EntityLineTest1(&play->colCtx, &this->actor.world.pos, &pos, &colPoint, &poly, true, false, false, true,
+    if (OoT_BgCheck_EntityLineTest1(&play->colCtx, &this->actor.world.pos, &pos, &colPoint, &poly, true, false, false, true,
                                 &bgId)) {
         *runDir = -*runDir;
         return true;
@@ -434,7 +434,7 @@ s32 EnFd_ShouldStopRunning(EnFd* this, PlayState* play, f32 radius, s16* runDir)
         return false;
     }
 
-    if (Rand_ZeroOne() > 0.5f) {
+    if (OoT_Rand_ZeroOne() > 0.5f) {
         *runDir = -*runDir;
     }
     return true;
@@ -442,7 +442,7 @@ s32 EnFd_ShouldStopRunning(EnFd* this, PlayState* play, f32 radius, s16* runDir)
 
 void EnFd_Fade(EnFd* this, PlayState* play) {
     if (this->invincibilityTimer != 0) {
-        Math_SmoothStepToF(&this->fadeAlpha, 0.0f, 0.3f, 10.0f, 0.0f);
+        OoT_Math_SmoothStepToF(&this->fadeAlpha, 0.0f, 0.3f, 10.0f, 0.0f);
         this->actor.shape.shadowAlpha = this->fadeAlpha;
         if (!(this->fadeAlpha >= 0.9f)) {
             this->invincibilityTimer = 0;
@@ -456,17 +456,17 @@ void EnFd_Fade(EnFd* this, PlayState* play) {
 void EnFd_Init(Actor* thisx, PlayState* play) {
     EnFd* this = (EnFd*)thisx;
 
-    SkelAnime_InitFlex(play, &this->skelAnime, &gFlareDancerSkel, NULL, this->jointTable, this->morphTable, 27);
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 32.0f);
-    Collider_InitJntSph(play, &this->collider);
-    Collider_SetJntSph(play, &this->collider, &this->actor, &sJntSphInit, this->colSphs);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, DamageTable_Get(0xF), &sColChkInit);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gFlareDancerSkel, NULL, this->jointTable, this->morphTable, 27);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 32.0f);
+    OoT_Collider_InitJntSph(play, &this->collider);
+    OoT_Collider_SetJntSph(play, &this->collider, &this->actor, &OoT_sJntSphInit, this->colSphs);
+    OoT_CollisionCheck_SetInfo2(&this->actor.colChkInfo, OoT_DamageTable_Get(0xF), &OoT_sColChkInit);
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
     this->actor.flags |= ACTOR_FLAG_SFX_FOR_PLAYER_BODY_HIT;
-    Actor_SetScale(&this->actor, 0.01f);
+    OoT_Actor_SetScale(&this->actor, 0.01f);
     this->firstUpdateFlag = true;
     this->actor.gravity = -1.0f;
-    this->runDir = Rand_ZeroOne() < 0.5f ? -1 : 1;
+    this->runDir = OoT_Rand_ZeroOne() < 0.5f ? -1 : 1;
     this->actor.naviEnemyId = 0x22;
     this->actionFunc = EnFd_Reappear;
 }
@@ -474,7 +474,7 @@ void EnFd_Init(Actor* thisx, PlayState* play) {
 void EnFd_Destroy(Actor* thisx, PlayState* play) {
     EnFd* this = (EnFd*)thisx;
 
-    Collider_DestroyJntSph(play, &this->collider);
+    OoT_Collider_DestroyJntSph(play, &this->collider);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
@@ -486,19 +486,19 @@ void EnFd_Reappear(EnFd* this, PlayState* play) {
     this->coreActive = false;
     this->actor.scale.y = 0.0f;
     this->fadeAlpha = 255.0f;
-    Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENFD_ANIM_0);
+    Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENFD_ANIM_0);
     Audio_PlayActorSound2(&this->actor, NA_SE_EN_FLAME_LAUGH);
     this->actionFunc = EnFd_SpinAndGrow;
 }
 
 void EnFd_SpinAndGrow(EnFd* this, PlayState* play) {
-    if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    if (OoT_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         this->actor.velocity.y = 6.0f;
         this->actor.scale.y = 0.01f;
         this->actor.world.rot.y ^= 0x8000;
         this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
         this->actor.speedXZ = 8.0f;
-        Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENFD_ANIM_1);
+        Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENFD_ANIM_1);
         this->actionFunc = EnFd_JumpToGround;
     } else {
         this->actor.scale.y = this->skelAnime.curFrame * (0.01f / this->skelAnime.animLength);
@@ -512,7 +512,7 @@ void EnFd_JumpToGround(EnFd* this, PlayState* play) {
         this->actor.velocity.y = 0.0f;
         this->actor.speedXZ = 0.0f;
         this->actor.world.rot.y = this->actor.shape.rot.y;
-        Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENFD_ANIM_2);
+        Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENFD_ANIM_2);
         this->actionFunc = EnFd_Land;
     }
 }
@@ -520,13 +520,13 @@ void EnFd_JumpToGround(EnFd* this, PlayState* play) {
 void EnFd_Land(EnFd* this, PlayState* play) {
     Vec3f adjPos;
 
-    Math_SmoothStepToF(&this->skelAnime.playSpeed, 1.0f, 0.1f, 1.0f, 0.0f);
-    if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
-        this->spinTimer = Rand_S16Offset(60, 90);
-        this->runRadius = Math_Vec3f_DistXYZ(&this->actor.world.pos, &this->actor.home.pos);
+    OoT_Math_SmoothStepToF(&this->skelAnime.playSpeed, 1.0f, 0.1f, 1.0f, 0.0f);
+    if (OoT_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+        this->spinTimer = OoT_Rand_S16Offset(60, 90);
+        this->runRadius = OoT_Math_Vec3f_DistXYZ(&this->actor.world.pos, &this->actor.home.pos);
         EnFd_GetPosAdjAroundCircle(&adjPos, this, this->runRadius, this->runDir);
-        this->actor.world.rot.y = Math_FAtan2F(adjPos.x, adjPos.z) * (0x8000 / M_PI);
-        Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENFD_ANIM_4);
+        this->actor.world.rot.y = OoT_Math_FAtan2F(adjPos.x, adjPos.z) * (0x8000 / M_PI);
+        Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENFD_ANIM_4);
         this->actionFunc = EnFd_SpinAndSpawnFire;
     }
 }
@@ -560,7 +560,7 @@ void EnFd_SpinAndSpawnFire(EnFd* this, PlayState* play) {
         rotSpeed = 0.0f;
         tgtSpeed = fabsf(deceleration);
         deceleration /= tgtSpeed;
-        Math_ApproachF(&rotSpeed, tgtSpeed, 0.6f, 0x2000);
+        OoT_Math_ApproachF(&rotSpeed, tgtSpeed, 0.6f, 0x2000);
         rotSpeed *= deceleration;
         this->actor.shape.rot.y += (s16)rotSpeed;
         rotSpeed = fabsf(rotSpeed);
@@ -570,11 +570,11 @@ void EnFd_SpinAndSpawnFire(EnFd* this, PlayState* play) {
         }
 
         if (this->actor.shape.rot.y == this->actor.world.rot.y) {
-            this->initYawToInitPos = Math_Vec3f_Yaw(&this->actor.home.pos, &this->actor.world.pos);
+            this->initYawToInitPos = OoT_Math_Vec3f_Yaw(&this->actor.home.pos, &this->actor.world.pos);
             this->curYawToInitPos = this->runDir < 0 ? 0xFFFF : 0;
             this->circlesToComplete = (play->state.frames & 7) + 2;
-            this->spinTimer = Rand_S16Offset(30, 120);
-            Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENFD_ANIM_3);
+            this->spinTimer = OoT_Rand_S16Offset(30, 120);
+            Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENFD_ANIM_3);
             this->actionFunc = EnFd_Run;
         }
     }
@@ -596,13 +596,13 @@ void EnFd_Run(EnFd* this, PlayState* play) {
             this->actor.world.rot.y ^= 0x8000;
             this->actor.velocity.y = 6.0f;
             this->actor.speedXZ = 0.0f;
-            Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENFD_ANIM_1);
+            Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENFD_ANIM_1);
             this->actionFunc = EnFd_JumpToGround;
             return;
         }
     }
 
-    yawToYawTarget = Math_Vec3f_Yaw(&this->actor.home.pos, &this->actor.world.pos) - this->initYawToInitPos;
+    yawToYawTarget = OoT_Math_Vec3f_Yaw(&this->actor.home.pos, &this->actor.world.pos) - this->initYawToInitPos;
     if (this->runDir > 0) {
         if ((u16)this->curYawToInitPos > (u16)(yawToYawTarget)) {
             this->circlesToComplete--;
@@ -620,19 +620,19 @@ void EnFd_Run(EnFd* this, PlayState* play) {
     // the distance to that threat, otherwise default to 200.
     potentialThreat = EnFd_FindPotentialTheat(this, play);
     if ((potentialThreat != NULL) && (this->invincibilityTimer == 0)) {
-        runRadiusTarget = Math_Vec3f_DistXYZ(&this->actor.home.pos, &potentialThreat->world.pos);
+        runRadiusTarget = OoT_Math_Vec3f_DistXYZ(&this->actor.home.pos, &potentialThreat->world.pos);
     } else {
         runRadiusTarget = 200.0f;
     }
-    Math_SmoothStepToF(&this->runRadius, runRadiusTarget, 0.3f, 100.0f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->runRadius, runRadiusTarget, 0.3f, 100.0f, 0.0f);
     EnFd_GetPosAdjAroundCircle(&adjPos, this, this->runRadius, this->runDir);
-    Math_SmoothStepToS(&this->actor.shape.rot.y, Math_FAtan2F(adjPos.x, adjPos.z) * (0x8000 / M_PI), 4, 0xFA0, 1);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, OoT_Math_FAtan2F(adjPos.x, adjPos.z) * (0x8000 / M_PI), 4, 0xFA0, 1);
     this->actor.world.rot = this->actor.shape.rot;
     func_8002F974(&this->actor, NA_SE_EN_FLAME_RUN - SFX_FLAG);
     if (this->skelAnime.curFrame == 6.0f || this->skelAnime.curFrame == 13.0f || this->skelAnime.curFrame == 28.0f) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_FLAME_KICK);
     }
-    Math_SmoothStepToF(&this->actor.speedXZ, 8.0f, 0.1f, 1.0f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->actor.speedXZ, 8.0f, 0.1f, 1.0f, 0.0f);
 }
 
 /**
@@ -644,7 +644,7 @@ void EnFd_WaitForCore(EnFd* this, PlayState* play) {
     if (this->spinTimer != 0) {
         this->spinTimer--;
         if (this->spinTimer == 0) {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
         }
     } else if (this->actor.params & FLG_COREDONE) {
         this->actionFunc = EnFd_Reappear;
@@ -665,7 +665,7 @@ void EnFd_Update(Actor* thisx, PlayState* play) {
     }
 
     if (this->actionFunc != EnFd_Reappear) {
-        SkelAnime_Update(&this->skelAnime);
+        OoT_SkelAnime_Update(&this->skelAnime);
         EnFd_SpawnDot(this, play);
     }
 
@@ -675,7 +675,7 @@ void EnFd_Update(Actor* thisx, PlayState* play) {
             this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
             this->invincibilityTimer = 30;
             Audio_PlayActorSound2(&this->actor, NA_SE_EN_FLAME_DAMAGE);
-            Enemy_StartFinishingBlow(play, &this->actor);
+            OoT_Enemy_StartFinishingBlow(play, &this->actor);
         } else {
             this->actor.flags &= ~ACTOR_FLAG_HOOKSHOT_ATTACHED;
         }
@@ -683,7 +683,7 @@ void EnFd_Update(Actor* thisx, PlayState* play) {
         EnFd_ColliderCheck(this, play);
     }
     Actor_MoveXZGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
     EnFd_Fade(this, play);
     this->actionFunc(this, play);
     EnFd_UpdateDots(this);
@@ -691,13 +691,13 @@ void EnFd_Update(Actor* thisx, PlayState* play) {
     if (this->actionFunc != EnFd_Reappear && this->actionFunc != EnFd_SpinAndGrow &&
         this->actionFunc != EnFd_WaitForCore) {
         if (this->attackTimer == 0 && this->invincibilityTimer == 0) {
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+            OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
         }
 
         if ((this->actionFunc == EnFd_Run) || (this->actionFunc == EnFd_SpinAndSpawnFire)) {
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+            OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
         }
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -728,11 +728,11 @@ void EnFd_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
     s32 i;
 
     if (limbIndex == 21) {
-        Matrix_MultVec3f(&initialPos, &this->corePos);
+        OoT_Matrix_MultVec3f(&initialPos, &this->corePos);
     }
 
     if (limbIndex == 13) {
-        Matrix_MultVec3f(&initialPos, &this->actor.focus.pos);
+        OoT_Matrix_MultVec3f(&initialPos, &this->actor.focus.pos);
     }
 
     if (limbIndex == 3 || limbIndex == 6 || limbIndex == 7 || limbIndex == 10 || limbIndex == 14 || limbIndex == 15 ||
@@ -740,19 +740,19 @@ void EnFd_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
         limbIndex == 24 || limbIndex == 25 || limbIndex == 26) {
         if ((play->state.frames % 2) != 0) {
             for (i = 0; i < 1; i++) {
-                Matrix_MultVec3f(&initialPos, &pos);
-                pos.x += (Rand_ZeroOne() - 0.5f) * 20.0f;
-                pos.y += (Rand_ZeroOne() - 0.5f) * 40.0f;
-                pos.z += (Rand_ZeroOne() - 0.5f) * 20.0f;
-                accel.x = (Rand_ZeroOne() - 0.5f) * 0.4f;
-                accel.y = ((Rand_ZeroOne() - 0.5f) * 0.2f) + 0.6f;
-                accel.z = (Rand_ZeroOne() - 0.5f) * 0.4f;
+                OoT_Matrix_MultVec3f(&initialPos, &pos);
+                pos.x += (OoT_Rand_ZeroOne() - 0.5f) * 20.0f;
+                pos.y += (OoT_Rand_ZeroOne() - 0.5f) * 40.0f;
+                pos.z += (OoT_Rand_ZeroOne() - 0.5f) * 20.0f;
+                accel.x = (OoT_Rand_ZeroOne() - 0.5f) * 0.4f;
+                accel.y = ((OoT_Rand_ZeroOne() - 0.5f) * 0.2f) + 0.6f;
+                accel.z = (OoT_Rand_ZeroOne() - 0.5f) * 0.4f;
                 EnFd_AddEffect(this, FD_EFFECT_DOT, &pos, &velocity, &accel, 0, 0.006f, 0.0f);
             }
         }
     }
 
-    Collider_UpdateSpheres(limbIndex, &this->collider);
+    OoT_Collider_UpdateSpheres(limbIndex, &this->collider);
 }
 
 void EnFd_Draw(Actor* thisx, PlayState* play) {
@@ -775,10 +775,10 @@ void EnFd_Draw(Actor* thisx, PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    Matrix_Push();
+    OoT_Matrix_Push();
     EnFd_DrawDots(this, play);
     EnFd_DrawFlames(this, play);
-    Matrix_Pop();
+    OoT_Matrix_Pop();
     if (this->actionFunc != EnFd_Reappear && !(this->fadeAlpha < 0.9f)) {
         Gfx_SetupDL_25Xlu(play->state.gfxCtx);
         clampedHealth = CLAMP(thisx->colChkInfo.health - 1, 0, 23);
@@ -787,12 +787,12 @@ void EnFd_Draw(Actor* thisx, PlayState* play) {
         gDPSetEnvColor(POLY_XLU_DISP++, envColors[clampedHealth / 8].r, envColors[clampedHealth / 8].g,
                        envColors[clampedHealth / 8].b, (u8)this->fadeAlpha);
         gSPSegment(POLY_XLU_DISP++, 0x8,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, 0xFF - (u8)(frames * 6), 8, 0x40));
+                   OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, 0xFF - (u8)(frames * 6), 8, 0x40));
         gDPPipeSync(POLY_XLU_DISP++);
         gSPSegment(POLY_XLU_DISP++, 0x9, D_80116280);
 
         POLY_XLU_DISP =
-            SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+            OoT_SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                                EnFd_OverrideLimbDraw, EnFd_PostLimbDraw, this, POLY_XLU_DISP);
     }
     CLOSE_DISPS(play->state.gfxCtx);
@@ -816,7 +816,7 @@ void EnFd_AddEffect(EnFd* this, u8 type, Vec3f* pos, Vec3f* velocity, Vec3f* acc
         eff->velocity = *velocity;
         if (eff->type == FD_EFFECT_DOT) {
             eff->color.a = 255;
-            eff->timer = (s16)(Rand_ZeroOne() * 10.0f);
+            eff->timer = (s16)(OoT_Rand_ZeroOne() * 10.0f);
         }
         eff->epoch++;
         return;
@@ -833,8 +833,8 @@ void EnFd_UpdateFlames(EnFd* this) {
             if (eff->timer == 0) {
                 eff->type = FD_EFFECT_NONE;
             }
-            eff->accel.x = (Rand_ZeroOne() * 0.4f) - 0.2f;
-            eff->accel.z = (Rand_ZeroOne() * 0.4f) - 0.2f;
+            eff->accel.x = (OoT_Rand_ZeroOne() * 0.4f) - 0.2f;
+            eff->accel.z = (OoT_Rand_ZeroOne() * 0.4f) - 0.2f;
             eff->pos.x += eff->velocity.x;
             eff->pos.y += eff->velocity.y;
             eff->pos.z += eff->velocity.z;
@@ -896,16 +896,16 @@ void EnFd_DrawFlames(EnFd* this, PlayState* play) {
             FrameInterpolation_RecordOpenChild(eff, eff->epoch);
 
             if (!firstDone) {
-                POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, 0);
+                POLY_XLU_DISP = OoT_Gfx_SetupDL(POLY_XLU_DISP, 0);
                 gSPDisplayList(POLY_XLU_DISP++, gFlareDancerDL_7928);
                 gDPSetEnvColor(POLY_XLU_DISP++, 255, 10, 0, (u8)((this->fadeAlpha / 255.0f) * 255));
                 firstDone = true;
             }
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 0, (u8)((this->fadeAlpha / 255.0f) * 255));
             gDPPipeSync(POLY_XLU_DISP++);
-            Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
-            Matrix_Scale(eff->scale, eff->scale, 1.0f, MTXMODE_APPLY);
+            OoT_Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
+            OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
+            OoT_Matrix_Scale(eff->scale, eff->scale, 1.0f, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             idx = eff->timer * (8.0f / eff->initialTimer);
             gSPSegment(POLY_XLU_DISP++, 0x8, SEGMENTED_TO_VIRTUAL(dustTextures[idx]));
@@ -940,9 +940,9 @@ void EnFd_DrawDots(EnFd* this, PlayState* play) {
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, eff->color.r, eff->color.g, eff->color.b,
                             (u8)(eff->color.a * (this->fadeAlpha / 255.0f)));
             gDPPipeSync(POLY_XLU_DISP++);
-            Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
-            Matrix_Scale(eff->scale, eff->scale, 1.0f, MTXMODE_APPLY);
+            OoT_Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
+            OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
+            OoT_Matrix_Scale(eff->scale, eff->scale, 1.0f, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(POLY_XLU_DISP++, gFlareDancerTriangleParticleDL);
 

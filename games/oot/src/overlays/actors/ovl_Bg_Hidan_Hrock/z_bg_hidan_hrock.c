@@ -31,7 +31,7 @@ const ActorInit Bg_Hidan_Hrock_InitVars = {
     NULL,
 };
 
-static ColliderTrisElementInit sTrisElementsInit[2] = {
+static ColliderTrisElementInit OoT_sTrisElementsInit[2] = {
     {
         {
             ELEMTYPE_UNK0,
@@ -56,7 +56,7 @@ static ColliderTrisElementInit sTrisElementsInit[2] = {
     },
 };
 
-static ColliderTrisInit sTrisInit = {
+static ColliderTrisInit OoT_sTrisInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -66,10 +66,10 @@ static ColliderTrisInit sTrisInit = {
         COLSHAPE_TRIS,
     },
     2,
-    sTrisElementsInit,
+    OoT_sTrisElementsInit,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_CONTINUE),
     ICHAIN_F32(gravity, -1, ICHAIN_STOP),
 };
@@ -84,15 +84,15 @@ void BgHidanHrock_Init(Actor* thisx, PlayState* play) {
     s32 j;
     CollisionHeader* collisionHeader = NULL;
 
-    Actor_ProcessInitChain(thisx, sInitChain);
+    OoT_Actor_ProcessInitChain(thisx, OoT_sInitChain);
     this->unk_16A = thisx->params & 0x3F;
     thisx->params = (thisx->params >> 8) & 0xFF;
-    Collider_InitTris(play, &this->collider);
-    Collider_SetTris(play, &this->collider, thisx, &sTrisInit, this->colliderItems);
-    DynaPolyActor_Init(&this->dyna, DPM_UNK);
+    OoT_Collider_InitTris(play, &this->collider);
+    OoT_Collider_SetTris(play, &this->collider, thisx, &OoT_sTrisInit, this->colliderItems);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
 
-    sinRotY = Math_SinS(thisx->shape.rot.y);
-    cosRotY = Math_CosS(thisx->shape.rot.y);
+    sinRotY = OoT_Math_SinS(thisx->shape.rot.y);
+    cosRotY = OoT_Math_CosS(thisx->shape.rot.y);
 
     if (thisx->params == 0) {
         sinRotY *= 1.5f;
@@ -100,7 +100,7 @@ void BgHidanHrock_Init(Actor* thisx, PlayState* play) {
     }
 
     for (i = 0; i < 2; i++) {
-        colliderElementInit = &sTrisInit.elements[i];
+        colliderElementInit = &OoT_sTrisInit.elements[i];
 
         if (1) {
             for (j = 0; j < 3; j++) {
@@ -111,10 +111,10 @@ void BgHidanHrock_Init(Actor* thisx, PlayState* play) {
                 vertices[j].z = vtx->z * cosRotY + (thisx->home.pos.z - vtx->x * sinRotY);
             }
         }
-        Collider_SetTrisVertices(&this->collider, i, &vertices[0], &vertices[1], &vertices[2]);
+        OoT_Collider_SetTrisVertices(&this->collider, i, &vertices[0], &vertices[1], &vertices[2]);
     }
 
-    if (Flags_GetSwitch(play, this->unk_16A)) {
+    if (OoT_Flags_GetSwitch(play, this->unk_16A)) {
         this->actionFunc = func_808894A4;
         if (thisx->params == 0) {
             thisx->world.pos.y -= 2800.0f;
@@ -133,19 +133,19 @@ void BgHidanHrock_Init(Actor* thisx, PlayState* play) {
     }
 
     if (thisx->params == 0) {
-        CollisionHeader_GetVirtual(&gFireTempleTallestPillarAboveRoomBeforeBossCol, &collisionHeader);
+        OoT_CollisionHeader_GetVirtual(&gFireTempleTallestPillarAboveRoomBeforeBossCol, &collisionHeader);
     } else {
-        CollisionHeader_GetVirtual(&gFireTemplePillarInsertedInGroundCol, &collisionHeader);
+        OoT_CollisionHeader_GetVirtual(&gFireTemplePillarInsertedInGroundCol, &collisionHeader);
     }
 
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, collisionHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, collisionHeader);
 }
 
 void BgHidanHrock_Destroy(Actor* thisx, PlayState* play) {
     BgHidanHrock* this = (BgHidanHrock*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
-    Collider_DestroyTris(play, &this->collider);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_Collider_DestroyTris(play, &this->collider);
 }
 
 void func_808894A4(BgHidanHrock* this, PlayState* play) {
@@ -157,9 +157,9 @@ void func_808894B0(BgHidanHrock* this, PlayState* play) {
     }
 
     this->dyna.actor.world.pos.x =
-        (Math_SinS(this->dyna.actor.world.rot.y + (this->unk_168 << 0xE)) * 5.0f) + this->dyna.actor.home.pos.x;
+        (OoT_Math_SinS(this->dyna.actor.world.rot.y + (this->unk_168 << 0xE)) * 5.0f) + this->dyna.actor.home.pos.x;
     this->dyna.actor.world.pos.z =
-        (Math_CosS(this->dyna.actor.world.rot.y + (this->unk_168 << 0xE)) * 5.0f) + this->dyna.actor.home.pos.z;
+        (OoT_Math_CosS(this->dyna.actor.world.rot.y + (this->unk_168 << 0xE)) * 5.0f) + this->dyna.actor.home.pos.z;
 
     if (!(this->unk_168 % 4)) {
         func_800AA000(this->dyna.actor.xyzDistToPlayerSq, 180, 10, 100);
@@ -184,7 +184,7 @@ void func_808894B0(BgHidanHrock* this, PlayState* play) {
 void func_8088960C(BgHidanHrock* this, PlayState* play) {
     this->dyna.actor.velocity.y++;
 
-    if (Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y, this->dyna.actor.velocity.y)) {
+    if (OoT_Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y, this->dyna.actor.velocity.y)) {
         this->dyna.actor.flags &= ~(ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED);
         Audio_PlayActorSound2(&this->dyna.actor, NA_SE_EV_BLOCK_BOUND);
 
@@ -192,7 +192,7 @@ void func_8088960C(BgHidanHrock* this, PlayState* play) {
             if (play->roomCtx.curRoom.num == 10) {
                 this->dyna.actor.room = 10;
             } else {
-                Actor_Kill(&this->dyna.actor);
+                OoT_Actor_Kill(&this->dyna.actor);
             }
         }
 
@@ -211,15 +211,15 @@ void func_808896B8(BgHidanHrock* this, PlayState* play) {
         }
 
         this->unk_168 = 20;
-        Flags_SetSwitch(play, this->unk_16A);
+        OoT_Flags_SetSwitch(play, this->unk_16A);
     } else {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 
-    if (DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
-        Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y - 5.0f, 1.0f);
+    if (OoT_DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
+        OoT_Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y - 5.0f, 1.0f);
     } else {
-        Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y, 1.0f);
+        OoT_Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y, 1.0f);
     }
 }
 
@@ -236,5 +236,5 @@ void BgHidanHrock_Draw(Actor* thisx, PlayState* play) {
         gFireTemplePillarInsertedInGroundDL,
     };
 
-    Gfx_DrawDListOpa(play, dlists[thisx->params]);
+    OoT_Gfx_DrawDListOpa(play, dlists[thisx->params]);
 }

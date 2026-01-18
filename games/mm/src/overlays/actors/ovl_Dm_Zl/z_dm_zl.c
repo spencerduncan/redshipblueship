@@ -38,7 +38,7 @@ typedef enum {
     /* 7 */ ZELDA_ANIM_MAX
 } DmZlAnimation;
 
-static AnimationInfo sAnimationInfo[ZELDA_ANIM_MAX] = {
+static AnimationInfo MM_sAnimationInfo[ZELDA_ANIM_MAX] = {
     { &gDmZl4FacingAwayHandsOverEmblemLoopAnim, 1.0f, 0.0f, -1.0f, ANIMMODE_LOOP, -10.0f }, // ZELDA_ANIM_FACING_AWAY
     { &gDmZl4TurningAround2Anim, 1.0f, 0.0f, -1.0f, ANIMMODE_ONCE, -10.0f },       // ZELDA_ANIM_TURNING_TOWARD_PLAYER
     { &gDmZl4HandsOverEmblemLoopAnim, 1.0f, 0.0f, -1.0f, ANIMMODE_LOOP, -10.0f },  // ZELDA_ANIM_FACING_PLAYER
@@ -48,7 +48,7 @@ static AnimationInfo sAnimationInfo[ZELDA_ANIM_MAX] = {
     { &gDmZl4PlayingOcarinaAnim, 1.0f, 0.0f, -1.0f, ANIMMODE_LOOP, -10.0f },       // ZELDA_ANIM_PLAYING_OCARINA
 };
 
-static TexturePtr sMouthTextures[] = {
+static TexturePtr MM_sMouthTextures[] = {
     gZl4MouthNeutralTex,
     gZl4MouthOpenSmilingTex,
     gZl4MouthFrowningTex,
@@ -62,7 +62,7 @@ typedef enum {
     /* 3 */ ZELDA_MOUTH_OPEN
 } DmZlMouthTextures;
 
-static TexturePtr sEyeTextures[] = {
+static TexturePtr MM_sEyeTextures[] = {
     gDmZl4EyeOpenNormalTex,
     gDmZl4EyeHalfTex,
     gDmZl4EyeClosedTex,
@@ -99,12 +99,12 @@ void DmZl_ChangeAnim(SkelAnime* skelAnime, AnimationInfo* animInfo, u16 animInde
     animInfo += animIndex;
 
     if (animInfo->frameCount < 0.0f) {
-        endFrame = Animation_GetLastFrame(animInfo->animation);
+        endFrame = MM_Animation_GetLastFrame(animInfo->animation);
     } else {
         endFrame = animInfo->frameCount;
     }
 
-    Animation_Change(skelAnime, animInfo->animation, animInfo->playSpeed, animInfo->startFrame, endFrame,
+    MM_Animation_Change(skelAnime, animInfo->animation, animInfo->playSpeed, animInfo->startFrame, endFrame,
                      animInfo->mode, animInfo->morphFrames);
 }
 
@@ -115,11 +115,11 @@ void DmZl_Init(Actor* thisx, PlayState* play) {
     this->animIndex = ZELDA_ANIM_FACING_AWAY;
     this->unk_2BA = 0;
     this->actor.lockOnArrowOffset = 1000.0f;
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 24.0f);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 24.0f);
     // these three set to NULL should mean they are dynamically allocated
-    SkelAnime_InitFlex(play, &this->skelAnime, &gZl4Skel, NULL, NULL, NULL, 0);
-    DmZl_ChangeAnim(&this->skelAnime, &sAnimationInfo[this->animIndex], 0);
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gZl4Skel, NULL, NULL, NULL, 0);
+    DmZl_ChangeAnim(&this->skelAnime, &MM_sAnimationInfo[this->animIndex], 0);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->actionFunc = DmZl_DoNothing;
 }
 
@@ -158,21 +158,21 @@ void DmZl_HandleCutscene(DmZl* this, PlayState* play) {
 
             if (this->animIndex != animIndex) {
                 this->animIndex = animIndex;
-                DmZl_ChangeAnim(&this->skelAnime, &sAnimationInfo[this->animIndex], 0);
+                DmZl_ChangeAnim(&this->skelAnime, &MM_sAnimationInfo[this->animIndex], 0);
             }
         }
 
         Cutscene_ActorTranslateAndYaw(&this->actor, play, cueChannel);
     }
 
-    if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         animIndex = cueChannel = this->animIndex;
 
         if ((animIndex == ZELDA_ANIM_TURNING_TOWARD_PLAYER) || (animIndex == ZELDA_ANIM_GIVING_OCARINA_START) ||
             (animIndex == ZELDA_ANIM_PLAYING_OCARINA_START)) {
             // these animations don't loop at the end, they lead into the next animation
             this->animIndex++;
-            DmZl_ChangeAnim(&this->skelAnime, &sAnimationInfo[this->animIndex], 0);
+            DmZl_ChangeAnim(&this->skelAnime, &MM_sAnimationInfo[this->animIndex], 0);
         }
     }
 }
@@ -196,7 +196,7 @@ void DmZl_UpdateFace(DmZl* this) {
     switch (this->nextEyeState) {
         case ZELDA_EYE_STATE_NORMAL:
             if (this->blinkTimer == 0) {
-                this->blinkTimer = Rand_S16Offset(30, 30);
+                this->blinkTimer = MM_Rand_S16Offset(30, 30);
             }
             break;
         case ZELDA_EYE_STATE_CLOSED:
@@ -258,7 +258,7 @@ void DmZl_Update(Actor* thisx, PlayState* play) {
     DmZl* this = (DmZl*)thisx;
 
     DmZl_UpdateFace(this);
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     DmZl_HandleCutscene(this, play);
     this->actionFunc(this, play);
 }
@@ -286,14 +286,14 @@ void DmZl_Draw(Actor* thisx, PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sEyeTextures[this->eyeTextureIndexRight]));
+    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTextureIndexRight]));
 
-    gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(sEyeTextures[this->eyeTextureIndexLeft]));
+    gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTextureIndexLeft]));
 
-    gSPSegment(POLY_OPA_DISP++, 0x0A, Lib_SegmentedToVirtual(sMouthTextures[this->mouthTextureIndex]));
+    gSPSegment(POLY_OPA_DISP++, 0x0A, Lib_SegmentedToVirtual(MM_sMouthTextures[this->mouthTextureIndex]));
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           DmZl_OverrideLimbDraw, DmZl_PostLimbDraw, &this->actor);
 
     CLOSE_DISPS(play->state.gfxCtx);

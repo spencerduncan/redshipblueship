@@ -10,7 +10,7 @@ void DynaPolyActor_UpdateCarriedActorPos(CollisionContext* colCtx, s32 bgId, Act
     Vec3f pos;
     Vec3f tempPos;
 
-    if (!DynaPoly_IsBgIdBgActor(bgId)) {
+    if (!MM_DynaPoly_IsBgIdBgActor(bgId)) {
         return;
     }
 
@@ -21,7 +21,7 @@ void DynaPolyActor_UpdateCarriedActorPos(CollisionContext* colCtx, s32 bgId, Act
         colCtx->dyna.bgActors[bgId].prevTransform.rot.z, colCtx->dyna.bgActors[bgId].prevTransform.pos.x,
         colCtx->dyna.bgActors[bgId].prevTransform.pos.y, colCtx->dyna.bgActors[bgId].prevTransform.pos.z);
 
-    if (SkinMatrix_Invert(&prevTransform, &prevTransformInv) == 2) {
+    if (MM_SkinMatrix_Invert(&prevTransform, &prevTransformInv) == 2) {
         return;
     }
 
@@ -35,8 +35,8 @@ void DynaPolyActor_UpdateCarriedActorPos(CollisionContext* colCtx, s32 bgId, Act
     // Apply the movement of the dynapoly actor `bgId` over the last frame to the `carriedActor` position
     // pos = curTransform * prevTransformInv * pos
     // Note (curTransform * prevTransformInv) represents the transform relative to the previous frame
-    SkinMatrix_Vec3fMtxFMultXYZ(&prevTransformInv, &carriedActor->world.pos, &tempPos);
-    SkinMatrix_Vec3fMtxFMultXYZ(&curTransform, &tempPos, &pos);
+    MM_SkinMatrix_Vec3fMtxFMultXYZ(&prevTransformInv, &carriedActor->world.pos, &tempPos);
+    MM_SkinMatrix_Vec3fMtxFMultXYZ(&curTransform, &tempPos, &pos);
 
     carriedActor->world.pos = pos;
 }
@@ -47,7 +47,7 @@ void DynaPolyActor_UpdateCarriedActorPos(CollisionContext* colCtx, s32 bgId, Act
 void DynaPolyActor_UpdateCarriedActorRotY(CollisionContext* colCtx, s32 bgId, Actor* carriedActor) {
     s16 rotY;
 
-    if (!DynaPoly_IsBgIdBgActor(bgId)) {
+    if (!MM_DynaPoly_IsBgIdBgActor(bgId)) {
         return;
     }
 
@@ -64,16 +64,16 @@ void DynaPolyActor_UpdateCarriedActorRotY(CollisionContext* colCtx, s32 bgId, Ac
 void DynaPolyActor_AttachCarriedActor(CollisionContext* colCtx, Actor* carriedActor, s32 bgId) {
     DynaPolyActor* dynaActor;
 
-    if (!DynaPoly_IsBgIdBgActor(bgId)) {
+    if (!MM_DynaPoly_IsBgIdBgActor(bgId)) {
         return;
     }
 
-    dynaActor = DynaPoly_GetActor(colCtx, bgId);
+    dynaActor = MM_DynaPoly_GetActor(colCtx, bgId);
     if (dynaActor != NULL) {
-        DynaPolyActor_SetActorOnTop(dynaActor);
+        MM_DynaPolyActor_SetActorOnTop(dynaActor);
 
         if (CHECK_FLAG_ALL(carriedActor->flags, ACTOR_FLAG_CAN_PRESS_SWITCHES)) {
-            DynaPolyActor_SetSwitchPressed(dynaActor);
+            MM_DynaPolyActor_SetSwitchPressed(dynaActor);
         }
         if (CHECK_FLAG_ALL(carriedActor->flags, ACTOR_FLAG_CAN_PRESS_HEAVY_SWITCHES)) {
             DynaPolyActor_SetHeavySwitchPressed(dynaActor);
@@ -89,7 +89,7 @@ u32 DynaPolyActor_TransformCarriedActor(CollisionContext* colCtx, s32 bgId, Acto
     u32 wasUpdated = false;
     DynaPolyActor* dynaActor;
 
-    if (!DynaPoly_IsBgIdBgActor(bgId)) {
+    if (!MM_DynaPoly_IsBgIdBgActor(bgId)) {
         return false;
     }
 
@@ -97,7 +97,7 @@ u32 DynaPolyActor_TransformCarriedActor(CollisionContext* colCtx, s32 bgId, Acto
         return false;
     }
 
-    dynaActor = DynaPoly_GetActor(colCtx, bgId);
+    dynaActor = MM_DynaPoly_GetActor(colCtx, bgId);
 
     if (dynaActor == NULL) {
         return false;

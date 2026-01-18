@@ -1,6 +1,6 @@
 #include "global.h"
 
-void osYieldThread(void) {
+void OoT_osYieldThread(void) {
     register u32 prevInt = __osDisableInt();
 
     __osRunningThread->state = OS_STATE_RUNNABLE;

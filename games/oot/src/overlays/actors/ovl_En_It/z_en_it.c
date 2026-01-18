@@ -12,7 +12,7 @@ void EnIt_Init(Actor* thisx, PlayState* play);
 void EnIt_Destroy(Actor* thisx, PlayState* play);
 void EnIt_Update(Actor* thisx, PlayState* play);
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -32,7 +32,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 40, 10, 0, { 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 OoT_sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
 
 const ActorInit En_It_InitVars = {
     ACTOR_EN_IT,
@@ -51,21 +51,21 @@ void EnIt_Init(Actor* thisx, PlayState* play) {
     EnIt* this = (EnIt*)thisx;
 
     this->actor.params = 0x0D05;
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, 0, &sColChkInfoInit);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
+    OoT_CollisionCheck_SetInfo2(&this->actor.colChkInfo, 0, &OoT_sColChkInfoInit);
 }
 
 void EnIt_Destroy(Actor* thisx, PlayState* play) {
     EnIt* this = (EnIt*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnIt_Update(Actor* thisx, PlayState* play) {
     EnIt* this = (EnIt*)thisx;
     s32 pad;
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }

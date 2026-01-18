@@ -34,7 +34,7 @@ typedef enum DmChar04Animation {
     /* 2 */ DMCHAR04_ANIM_MAX
 } DmChar04Animation;
 
-static AnimationInfo sAnimationInfo[DMCHAR04_ANIM_MAX] = {
+static AnimationInfo MM_sAnimationInfo[DMCHAR04_ANIM_MAX] = {
     { &gameplay_keep_Anim_02B2E8, 1.0f, 0.0f, -1.0f, ANIMMODE_LOOP, 0.0f }, // DMCHAR04_ANIM_0
     { &gameplay_keep_Anim_029140, 1.0f, 0.0f, -1.0f, ANIMMODE_LOOP, 0.0f }, // DMCHAR04_ANIM_1
 };
@@ -45,21 +45,21 @@ void DmChar04_ChangeAnim(SkelAnime* skelAnime, AnimationInfo* animInfo, u16 anim
     animInfo += animIndex;
 
     if (animInfo->frameCount < 0.0f) {
-        endFrame = Animation_GetLastFrame(animInfo->animation);
+        endFrame = MM_Animation_GetLastFrame(animInfo->animation);
     } else {
         endFrame = animInfo->frameCount;
     }
 
-    Animation_Change(skelAnime, animInfo->animation, animInfo->playSpeed, animInfo->startFrame, endFrame,
+    MM_Animation_Change(skelAnime, animInfo->animation, animInfo->playSpeed, animInfo->startFrame, endFrame,
                      animInfo->mode, animInfo->morphFrames);
 }
 
-static Color_RGBAf sPrimColors[] = {
+static Color_RGBAf MM_sPrimColors[] = {
     { 250.0f, 255.0f, 230.0f, 255.0f },
     { 10.0f, 10.0f, 40.0f, 255.0f },
     { 255.0f, 235.0f, 220.0f, 255.0f },
 };
-static Color_RGBAf sEnvColors[] = {
+static Color_RGBAf MM_sEnvColors[] = {
     { 220.0f, 160.0f, 80.0f, 255.0f },
     { 120.0f, 255.0f, 255.0f, 255.0f },
     { 255.0f, 235.0f, 220.0f, 255.0f },
@@ -68,17 +68,17 @@ static Color_RGBAf sEnvColors[] = {
 void DmChar04_Init(Actor* thisx, PlayState* play) {
     DmChar04* this = (DmChar04*)thisx;
 
-    this->primColors = sPrimColors[this->actor.params];
-    this->envColors = sEnvColors[this->actor.params];
+    this->primColors = MM_sPrimColors[this->actor.params];
+    this->envColors = MM_sEnvColors[this->actor.params];
     this->actor.lockOnArrowOffset = 3000.0f;
     this->cueId = 99;
     this->timer = this->actor.params << 0xB;
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 24.0f);
-    SkelAnime_Init(play, &this->skelAnime, &gameplay_keep_Skel_02AF58, &gameplay_keep_Anim_029140, this->jointTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 24.0f);
+    MM_SkelAnime_Init(play, &this->skelAnime, &gameplay_keep_Skel_02AF58, &gameplay_keep_Anim_029140, this->jointTable,
                    this->morphTable, FAIRY_LIMB_MAX);
-    ActorShape_Init(&this->actor.shape, 0.0f, NULL, 15.0f);
-    DmChar04_ChangeAnim(&this->skelAnime, &sAnimationInfo[DMCHAR04_ANIM_0], 0);
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, NULL, 15.0f);
+    DmChar04_ChangeAnim(&this->skelAnime, &MM_sAnimationInfo[DMCHAR04_ANIM_0], 0);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->actionFunc = DmChar04_HandleCutscene;
 }
 
@@ -99,7 +99,7 @@ void DmChar04_HandleCutscene(DmChar04* this, PlayState* play) {
                 } else {
                     this->animIndex = DMCHAR04_ANIM_0;
                 }
-                DmChar04_ChangeAnim(&this->skelAnime, &sAnimationInfo[this->animIndex], 0);
+                DmChar04_ChangeAnim(&this->skelAnime, &MM_sAnimationInfo[this->animIndex], 0);
             }
         }
         Cutscene_ActorTranslateAndYaw(&this->actor, play, cueChannel);
@@ -111,7 +111,7 @@ void DmChar04_HandleCutscene(DmChar04* this, PlayState* play) {
 void DmChar04_Update(Actor* thisx, PlayState* play) {
     DmChar04* this = (DmChar04*)thisx;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     this->actionFunc(this, play);
     this->timer++;
 }
@@ -125,10 +125,10 @@ s32 DmChar04_OverrideLimbDraw(PlayState* play2, s32 limbIndex, Gfx** dList, Vec3
     DmChar04* this = (DmChar04*)thisx;
 
     if (limbIndex == FAIRY_LIMB_6) {
-        sp28 = ((Math_SinS(this->timer * 0x1000) * 0.1f) + 1.0f) * 0.012f * (this->actor.scale.x * (1.0f / 0.008f));
-        Matrix_MultVec3f(&D_80AAC4F0, &sp1C);
-        Matrix_Translate(sp1C.x, sp1C.y, sp1C.z, MTXMODE_NEW);
-        Matrix_Scale(sp28, sp28, sp28, MTXMODE_APPLY);
+        sp28 = ((MM_Math_SinS(this->timer * 0x1000) * 0.1f) + 1.0f) * 0.012f * (this->actor.scale.x * (1.0f / 0.008f));
+        MM_Matrix_MultVec3f(&D_80AAC4F0, &sp1C);
+        MM_Matrix_Translate(sp1C.x, sp1C.y, sp1C.z, MTXMODE_NEW);
+        MM_Matrix_Scale(sp28, sp28, sp28, MTXMODE_APPLY);
     }
     return false;
 }
@@ -155,7 +155,7 @@ void DmChar04_Draw(Actor* thisx, PlayState* play) {
     gDPSetEnvColor(POLY_XLU_DISP++, (u8)(s8)this->envColors.r, (u8)(s8)this->envColors.g, (u8)(s8)this->envColors.b,
                    (u8)(s8)((f32)alpha * 1));
     gDPSetDither(POLY_XLU_DISP++, G_CD_BAYER);
-    POLY_XLU_DISP = SkelAnime_Draw(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
+    POLY_XLU_DISP = MM_SkelAnime_Draw(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                    DmChar04_OverrideLimbDraw, NULL, &this->actor, POLY_XLU_DISP);
 
     CLOSE_DISPS(play->state.gfxCtx);

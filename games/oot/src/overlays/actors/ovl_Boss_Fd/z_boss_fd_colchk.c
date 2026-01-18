@@ -212,7 +212,7 @@ static ColliderJntSphElementInit sJntSphItemsInit[19] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit OoT_sJntSphInit = {
     {
         COLTYPE_METAL,
         AT_ON | AT_TYPE_ENEMY,

@@ -33,7 +33,7 @@ ActorProfile Bg_Astr_Bombwall_Profile = {
     /**/ BgAstrBombwall_Draw,
 };
 
-static ColliderTrisElementInit sTrisElementsInit[2] = {
+static ColliderTrisElementInit MM_sTrisElementsInit[2] = {
     {
         {
             ELEM_MATERIAL_UNK0,
@@ -58,7 +58,7 @@ static ColliderTrisElementInit sTrisElementsInit[2] = {
     },
 };
 
-static ColliderTrisInit sTrisInit = {
+static ColliderTrisInit MM_sTrisInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -67,11 +67,11 @@ static ColliderTrisInit sTrisInit = {
         OC2_NONE,
         COLSHAPE_TRIS,
     },
-    ARRAY_COUNT(sTrisElementsInit),
-    sTrisElementsInit,
+    ARRAY_COUNT(MM_sTrisElementsInit),
+    MM_sTrisElementsInit,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 1000, ICHAIN_STOP),
 };
 
@@ -86,10 +86,10 @@ void BgAstrBombwall_InitCollider(ColliderTrisInit* init, Vec3f* pos, Vec3s* rot,
 
     for (i = 0; i < init->count; i++) {
         for (j = 0; j < 3; j++) {
-            Matrix_MultVec3f(init->elements[i].dim.vtx + j, &sp54[j]);
-            Math_Vec3f_Sum(&sp54[j], pos, &sp54[j]);
+            MM_Matrix_MultVec3f(init->elements[i].dim.vtx + j, &sp54[j]);
+            MM_Math_Vec3f_Sum(&sp54[j], pos, &sp54[j]);
         }
-        Collider_SetTrisVertices(collider, i, &sp54[0], &sp54[1], &sp54[2]);
+        MM_Collider_SetTrisVertices(collider, i, &sp54[0], &sp54[1], &sp54[2]);
     }
 }
 
@@ -97,20 +97,20 @@ void BgAstrBombwall_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     BgAstrBombwall* this = (BgAstrBombwall*)thisx;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
     DynaPolyActor_LoadMesh(play, &this->dyna, &object_astr_obj_Colheader_002498);
-    Collider_InitTris(play, &this->collider);
-    if (Flags_GetSwitch(play, BGASTRBOMBWALL_GET_SWITCH_FLAG(thisx))) {
-        Actor_Kill(&this->dyna.actor);
+    MM_Collider_InitTris(play, &this->collider);
+    if (MM_Flags_GetSwitch(play, BGASTRBOMBWALL_GET_SWITCH_FLAG(thisx))) {
+        MM_Actor_Kill(&this->dyna.actor);
         return;
     }
     this->dyna.actor.flags |= ACTOR_FLAG_UCODE_POINT_LIGHT_ENABLED;
-    if (!Collider_SetTris(play, &this->collider, &this->dyna.actor, &sTrisInit, this->colliderElements)) {
-        Actor_Kill(&this->dyna.actor);
+    if (!MM_Collider_SetTris(play, &this->collider, &this->dyna.actor, &MM_sTrisInit, this->colliderElements)) {
+        MM_Actor_Kill(&this->dyna.actor);
         return;
     }
-    BgAstrBombwall_InitCollider(&sTrisInit, &this->dyna.actor.world.pos, &this->dyna.actor.shape.rot, &this->collider);
+    BgAstrBombwall_InitCollider(&MM_sTrisInit, &this->dyna.actor.world.pos, &this->dyna.actor.shape.rot, &this->collider);
     SubS_FillCutscenesList(&this->dyna.actor, this->csIdList, ARRAY_COUNT(this->csIdList));
     func_80C0A378(this);
 }
@@ -118,7 +118,7 @@ void BgAstrBombwall_Init(Actor* thisx, PlayState* play) {
 void BgAstrBombwall_Destroy(Actor* thisx, PlayState* play) {
     BgAstrBombwall* this = (BgAstrBombwall*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_80C0A120(BgAstrBombwall* this, PlayState* play) {
@@ -131,16 +131,16 @@ void func_80C0A120(BgAstrBombwall* this, PlayState* play) {
 
     Matrix_RotateYS(this->dyna.actor.shape.rot.y, MTXMODE_NEW);
     for (i = 0; i < 30; i++) {
-        vec.x = Rand_Centered() * 140.0f;
-        vec.y = Rand_ZeroOne() * 200.0f;
+        vec.x = MM_Rand_Centered() * 140.0f;
+        vec.y = MM_Rand_ZeroOne() * 200.0f;
         vec.z = 0.0f;
-        Matrix_MultVec3f(&vec, &pos);
-        Math_Vec3f_Sum(&this->dyna.actor.world.pos, &pos, &pos);
-        func_800BBFB0(play, &pos, 50.0f, 2, Rand_ZeroOne() * 120.0f + 20.0f, Rand_ZeroOne() * 240.0f + 20.0f, 0);
-        velocity.x = Rand_ZeroOne() * 2.5f;
-        velocity.y = (Rand_ZeroOne() * 2.5f) + 1.0f;
-        velocity.z = Rand_ZeroOne() * 2.5f;
-        rand = Rand_ZeroOne();
+        MM_Matrix_MultVec3f(&vec, &pos);
+        MM_Math_Vec3f_Sum(&this->dyna.actor.world.pos, &pos, &pos);
+        func_800BBFB0(play, &pos, 50.0f, 2, MM_Rand_ZeroOne() * 120.0f + 20.0f, MM_Rand_ZeroOne() * 240.0f + 20.0f, 0);
+        velocity.x = MM_Rand_ZeroOne() * 2.5f;
+        velocity.y = (MM_Rand_ZeroOne() * 2.5f) + 1.0f;
+        velocity.z = MM_Rand_ZeroOne() * 2.5f;
+        rand = MM_Rand_ZeroOne();
 
         if (rand < 0.2f) {
             var_v0 = 0x60;
@@ -149,7 +149,7 @@ void func_80C0A120(BgAstrBombwall* this, PlayState* play) {
         } else {
             var_v0 = 0x20;
         }
-        EffectSsKakera_Spawn(play, &pos, &velocity, &pos, -260, var_v0, 20, 0, 0, 10, 0, 0, 50, -1, OBJECT_ASTR_OBJ,
+        MM_EffectSsKakera_Spawn(play, &pos, &velocity, &pos, -260, var_v0, 20, 0, 0, 10, 0, 0, 50, -1, OBJECT_ASTR_OBJ,
                              object_astr_obj_DL_002178);
     }
 }
@@ -161,10 +161,10 @@ void func_80C0A378(BgAstrBombwall* this) {
 void func_80C0A38C(BgAstrBombwall* this, PlayState* play) {
     if (this->collider.base.acFlags & AC_HIT) {
         this->collider.base.acFlags &= ~AC_HIT;
-        Flags_SetSwitch(play, BGASTRBOMBWALL_GET_SWITCH_FLAG(&this->dyna.actor));
+        MM_Flags_SetSwitch(play, BGASTRBOMBWALL_GET_SWITCH_FLAG(&this->dyna.actor));
         func_80C0A400(this, play);
     } else {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 

@@ -26,7 +26,7 @@ void func_8097D130(DemoGo* this, PlayState* play);
 void func_8097D290(DemoGo* this, PlayState* play);
 void func_8097D29C(DemoGo* this, PlayState* play);
 
-static void* sEyeTextures[] = { gGoronCsEyeOpenTex, gGoronCsEyeHalfTex, gGoronCsEyeClosedTex };
+static void* OoT_sEyeTextures[] = { gGoronCsEyeOpenTex, gGoronCsEyeHalfTex, gGoronCsEyeClosedTex };
 
 static DemoGoActionFunc D_8097D44C[] = {
     func_8097CFDC, func_8097CFFC, func_8097D01C, func_8097D058, func_8097D088, func_8097D0D0, func_8097D130,
@@ -75,15 +75,15 @@ void func_8097C8A8(DemoGo* this, PlayState* play) {
     f32 sp1C;
 
     if ((thisx->params == 0) || (thisx->params == 1)) {
-        SkinMatrix_Vec3fMtxFMultXYZW(&play->viewProjectionMtxF, &thisx->world.pos, &sp20, &sp1C);
-        SoundSource_PlaySfxAtFixedWorldPos(play, &sp20, 20, NA_SE_EV_OBJECT_FALL);
+        OoT_SkinMatrix_Vec3fMtxFMultXYZW(&play->viewProjectionMtxF, &thisx->world.pos, &sp20, &sp1C);
+        OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &sp20, 20, NA_SE_EV_OBJECT_FALL);
     }
 }
 
 void DemoGo_Destroy(Actor* thisx, PlayState* play) {
     DemoGo* this = (DemoGo*)thisx;
 
-    SkelAnime_Free(&this->skelAnime, play);
+    OoT_SkelAnime_Free(&this->skelAnime, play);
 }
 
 void func_8097C930(DemoGo* this) {
@@ -92,7 +92,7 @@ void func_8097C930(DemoGo* this) {
     s32 pad[3];
 
     if (DECR(*something) == 0) {
-        *something = Rand_S16Offset(60, 60);
+        *something = OoT_Rand_S16Offset(60, 60);
     }
     *other = *something;
     if (*other >= 3) {
@@ -107,13 +107,13 @@ void func_8097C9B8(DemoGo* this) {
 void func_8097C9DC(DemoGo* this) {
     s32 pad[2];
 
-    if (Animation_OnFrame(&this->skelAnime, 12.0f) || Animation_OnFrame(&this->skelAnime, 25.0f)) {
+    if (OoT_Animation_OnFrame(&this->skelAnime, 12.0f) || OoT_Animation_OnFrame(&this->skelAnime, 25.0f)) {
         Sfx_PlaySfxAtPos(&this->actor.projectedPos, NA_SE_EN_MORIBLIN_WALK);
     }
 }
 
 void func_8097CA30(DemoGo* this, PlayState* play) {
-    Actor_UpdateBgCheckInfo(play, &this->actor, 75.0f, 30.0f, 30.0f, 5);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 75.0f, 30.0f, 30.0f, 5);
 }
 
 void func_8097CA78(DemoGo* this, PlayState* play) {
@@ -136,7 +136,7 @@ void func_8097CB0C(DemoGo* this, PlayState* play) {
     if (play->csCtx.state != CS_STATE_IDLE) {
         npcAction = csCtx->npcActions[func_8097C870(this)];
         if (npcAction != NULL) {
-            temp_ret = Environment_LerpWeight(npcAction->endFrame, npcAction->startFrame, csCtx->frames);
+            temp_ret = OoT_Environment_LerpWeight(npcAction->endFrame, npcAction->startFrame, csCtx->frames);
             startPos.x = npcAction->startPos.x;
             startPos.y = npcAction->startPos.y;
             startPos.z = npcAction->startPos.z;
@@ -192,7 +192,7 @@ void func_8097CCE0(DemoGo* this, PlayState* play) {
 }
 
 s32 DemoGo_UpdateSkelAnime(DemoGo* this) {
-    return SkelAnime_Update(&this->skelAnime);
+    return OoT_SkelAnime_Update(&this->skelAnime);
 }
 
 s32 func_8097CDB0(DemoGo* this, PlayState* play, u16 npcAction) {
@@ -241,7 +241,7 @@ void func_8097CEEC(DemoGo* this, PlayState* play) {
 void func_8097CF20(DemoGo* this, PlayState* play, s32 arg2) {
     AnimationHeader* animation = &gGoronAnim_0029A8;
     if (arg2 != 0) {
-        Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, Animation_GetLastFrame(animation), ANIMMODE_LOOP,
+        OoT_Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, OoT_Animation_GetLastFrame(animation), ANIMMODE_LOOP,
                          -8.0f);
         this->action = 5;
         this->unk_19C = 0.0f;
@@ -315,9 +315,9 @@ void DemoGo_Init(Actor* thisx, PlayState* play) {
     DemoGo* this = (DemoGo*)thisx;
     AnimationHeader* animation = &gGoronAnim_004930;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 30.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gGoronSkel, NULL, NULL, NULL, 0);
-    Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, Animation_GetLastFrame(animation), ANIMMODE_ONCE, 0.0f);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 30.0f);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gGoronSkel, NULL, NULL, NULL, 0);
+    OoT_Animation_Change(&this->skelAnime, animation, 1.0f, 0.0f, OoT_Animation_GetLastFrame(animation), ANIMMODE_ONCE, 0.0f);
     this->action = 0;
 }
 
@@ -328,7 +328,7 @@ void func_8097D29C(DemoGo* this, PlayState* play) {
     s32 pad;
     s16 eyeTexIdx = this->unk_190;
     SkelAnime* skelAnime = &this->skelAnime;
-    void* eyeTexture = sEyeTextures[eyeTexIdx];
+    void* eyeTexture = OoT_sEyeTextures[eyeTexIdx];
     void* mouthTexture = gGoronCsMouthSmileTex;
 
     OPEN_DISPS(play->state.gfxCtx);

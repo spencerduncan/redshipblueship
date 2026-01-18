@@ -41,12 +41,12 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void EnHoll_Init(Actor* thisx, PlayState* play);
-void EnHoll_Destroy(Actor* thisx, PlayState* play);
-void EnHoll_Update(Actor* thisx, PlayState* play);
-void EnHoll_Draw(Actor* thisx, PlayState* play);
+void MM_EnHoll_Init(Actor* thisx, PlayState* play);
+void MM_EnHoll_Destroy(Actor* thisx, PlayState* play);
+void MM_EnHoll_Update(Actor* thisx, PlayState* play);
+void MM_EnHoll_Draw(Actor* thisx, PlayState* play);
 
-void EnHoll_SetupAction(EnHoll* this);
+void MM_EnHoll_SetupAction(EnHoll* this);
 void EnHoll_SetPlayerSide(PlayState* play, EnHoll* this, Vec3f* transformedPlayerPos);
 void EnHoll_ChangeRooms(PlayState* play);
 void EnHoll_VisibleIdle(EnHoll* this, PlayState* play);
@@ -61,21 +61,21 @@ ActorProfile En_Holl_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(EnHoll),
-    /**/ EnHoll_Init,
-    /**/ EnHoll_Destroy,
-    /**/ EnHoll_Update,
-    /**/ EnHoll_Draw,
+    /**/ MM_EnHoll_Init,
+    /**/ MM_EnHoll_Destroy,
+    /**/ MM_EnHoll_Update,
+    /**/ MM_EnHoll_Draw,
 };
 
 #include "overlays/ovl_En_Holl/ovl_En_Holl.h"
 
 static EnHoll* sInstancePlayingSound = NULL;
 
-static EnHollActionFunc sActionFuncs[] = {
+static EnHollActionFunc MM_sActionFuncs[] = {
     EnHoll_VisibleIdle, EnHoll_VerticalIdle, EnHoll_TransparentIdle, EnHoll_VerticalBgCoverIdle, EnHoll_VisibleIdle,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 400, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 400, ICHAIN_STOP),
@@ -93,9 +93,9 @@ static f32 sTranslucencyPlaneDistance = 100.0f;
 //! Visible Room Halls: Being inside this plane indicates the draw function won't render.
 static f32 sTransparencyPlaneDistance = 50.0f;
 
-void EnHoll_SetupAction(EnHoll* this) {
+void MM_EnHoll_SetupAction(EnHoll* this) {
     this->type = EN_HOLL_GET_TYPE(&this->actor);
-    this->actionFunc = sActionFuncs[this->type];
+    this->actionFunc = MM_sActionFuncs[this->type];
     if (EN_HOLL_IS_VISIBLE(this)) {
         this->alpha = 255;
     } else {
@@ -106,23 +106,23 @@ void EnHoll_SetupAction(EnHoll* this) {
 void EnHoll_SetPlayerSide(PlayState* play, EnHoll* this, Vec3f* transformedPlayerPos) {
     Player* player = GET_PLAYER(play);
 
-    Actor_WorldToActorCoords(&this->actor, transformedPlayerPos, &player->actor.world.pos);
+    MM_Actor_WorldToActorCoords(&this->actor, transformedPlayerPos, &player->actor.world.pos);
     this->playerSide = (transformedPlayerPos->z < 0.0f) ? EN_HOLL_BEHIND : EN_HOLL_BEFORE;
 }
 
-void EnHoll_Init(Actor* thisx, PlayState* play) {
+void MM_EnHoll_Init(Actor* thisx, PlayState* play) {
     EnHoll* this = (EnHoll*)thisx;
     s32 pad;
     Vec3f transformedPlayerPos;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    EnHoll_SetupAction(this);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
+    MM_EnHoll_SetupAction(this);
     this->bgCoverAlphaActive = false;
     this->alpha = 255;
     EnHoll_SetPlayerSide(play, this, &transformedPlayerPos);
 }
 
-void EnHoll_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnHoll_Destroy(Actor* thisx, PlayState* play) {
     EnHoll* this = (EnHoll*)thisx;
 
     if (!EN_HOLL_IS_SCENE_CHANGER(this)) {
@@ -154,7 +154,7 @@ void EnHoll_VisibleIdle(EnHoll* this, PlayState* play) {
         u32 zActorBitmask = D_801AED48[EN_HOLL_GET_Z_ACTOR_BITMASK_INDEX(&this->actor)];
 
         if (!(halfDaysBit & zActorBitmask)) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
             return;
         }
 
@@ -223,7 +223,7 @@ void EnHoll_TransparentIdle(EnHoll* this, PlayState* play) {
     f32 enHollTop;
     f32 playerDistFromCentralPlane;
 
-    Actor_WorldToActorCoords(&this->actor, &transformedPlayerPos,
+    MM_Actor_WorldToActorCoords(&this->actor, &transformedPlayerPos,
                              useViewEye ? &play->view.eye : &player->actor.world.pos);
     enHollTop = (play->sceneId == SCENE_PIRATE) ? EN_HOLL_TOP_PIRATE : EN_HOLL_TOP_DEFAULT;
 
@@ -301,11 +301,11 @@ void EnHoll_RoomTransitionIdle(EnHoll* this, PlayState* play) {
         if (play->bgCoverAlpha == 0) {
             this->bgCoverAlphaActive = false;
         }
-        EnHoll_SetupAction(this);
+        MM_EnHoll_SetupAction(this);
     }
 }
 
-void EnHoll_Update(Actor* thisx, PlayState* play) {
+void MM_EnHoll_Update(Actor* thisx, PlayState* play) {
     EnHoll* this = (EnHoll*)thisx;
     Player* player = GET_PLAYER(play);
 
@@ -315,7 +315,7 @@ void EnHoll_Update(Actor* thisx, PlayState* play) {
     }
 }
 
-void EnHoll_Draw(Actor* thisx, PlayState* play) {
+void MM_EnHoll_Draw(Actor* thisx, PlayState* play) {
     EnHoll* this = (EnHoll*)thisx;
     Gfx* dList;
     u32 setupDListIndex;
@@ -330,7 +330,7 @@ void EnHoll_Draw(Actor* thisx, PlayState* play) {
             dList = POLY_XLU_DISP;
             setupDListIndex = SETUPDL_0;
         }
-        dList = Gfx_SetupDL(dList, setupDListIndex);
+        dList = MM_Gfx_SetupDL(dList, setupDListIndex);
         if (this->playerSide == EN_HOLL_BEHIND) {
             Matrix_RotateYF(M_PIf, MTXMODE_APPLY);
         }

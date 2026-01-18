@@ -1,14 +1,14 @@
 #include <libultraship/libultra.h>
 
-const char gBuildVersion[] = "Copper Bravo (9.1.1)";
-const u16 gBuildVersionMajor = 9;
-const u16 gBuildVersionMinor = 1;
-const u16 gBuildVersionPatch = 1;
+const char OoT_gBuildVersion[] = "Copper Bravo (9.1.1)";
+const u16 OoT_gBuildVersionMajor = 9;
+const u16 OoT_gBuildVersionMinor = 1;
+const u16 OoT_gBuildVersionPatch = 1;
 
-const char gGitBranch[] = "main";
-const char gGitCommitHash[] = "9ef2d79";
-const char gGitCommitTag[] = "";
+const char OoT_gGitBranch[] = "main";
+const char OoT_gGitCommitHash[] = "9ef2d79";
+const char OoT_gGitCommitTag[] = "";
 
-const char gBuildTeam[] = "github.com/harbourmasters";
-const char gBuildDate[] = __DATE__ " " __TIME__;
-const char gBuildMakeOption[] = "";
+const char OoT_gBuildTeam[] = "github.com/harbourmasters";
+const char OoT_gBuildDate[] = __DATE__ " " __TIME__;
+const char OoT_gBuildMakeOption[] = "";

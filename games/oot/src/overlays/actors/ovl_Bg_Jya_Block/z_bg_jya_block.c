@@ -27,7 +27,7 @@ const ActorInit Bg_Jya_Block_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 333, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 1800, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 500, ICHAIN_CONTINUE),
@@ -39,20 +39,20 @@ void BgJyaBlock_Init(Actor* thisx, PlayState* play) {
     BgJyaBlock* this = (BgJyaBlock*)thisx;
     CollisionHeader* colHeader = NULL;
 
-    DynaPolyActor_Init(&this->dyna, 0);
-    CollisionHeader_GetVirtual(&gPushBlockCol, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, 0);
+    OoT_CollisionHeader_GetVirtual(&gPushBlockCol, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
 
-    if ((LINK_AGE_IN_YEARS != YEARS_CHILD) || !Flags_GetSwitch(play, thisx->params & 0x3F)) {
-        Actor_Kill(&this->dyna.actor);
+    if ((LINK_AGE_IN_YEARS != YEARS_CHILD) || !OoT_Flags_GetSwitch(play, thisx->params & 0x3F)) {
+        OoT_Actor_Kill(&this->dyna.actor);
     }
 }
 
 void BgJyaBlock_Destroy(Actor* thisx, PlayState* play) {
     BgJyaBlock* this = (BgJyaBlock*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void BgJyaBlock_Update(Actor* thisx, PlayState* play) {

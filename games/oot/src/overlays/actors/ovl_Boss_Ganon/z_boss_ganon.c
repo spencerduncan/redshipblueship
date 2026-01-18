@@ -109,7 +109,7 @@ static ColliderCylinderInit sLightBallCylinderInit = {
 };
 
 static u8 D_808E4C58[] = { 0, 12, 10, 12, 14, 16, 12, 14, 16, 12, 14, 16, 12, 14, 16, 10, 16, 14 };
-static Vec3f sZeroVec = { 0.0f, 0.0f, 0.0f };
+static Vec3f OoT_sZeroVec = { 0.0f, 0.0f, 0.0f };
 
 EnGanonMant* sBossGanonCape;
 
@@ -136,16 +136,16 @@ void BossGanonEff_SpawnWindowShard(PlayState* play, Vec3f* pos, Vec3f* velocity,
             eff->type = GDF_EFF_WINDOW_SHARD;
             eff->pos = *pos;
             eff->velocity = *velocity;
-            eff->accel = sZeroVec;
+            eff->accel = OoT_sZeroVec;
             eff->scale = scale;
             eff->accel.y = -1.5f;
-            eff->unk_44 = Rand_ZeroFloat(6.28f);
-            eff->unk_48 = Rand_ZeroFloat(6.28f);
-            color = &shardColors[(s16)Rand_ZeroFloat(2.99f)];
+            eff->unk_44 = OoT_Rand_ZeroFloat(6.28f);
+            eff->unk_48 = OoT_Rand_ZeroFloat(6.28f);
+            color = &shardColors[(s16)OoT_Rand_ZeroFloat(2.99f)];
             eff->color.r = color->r;
             eff->color.g = color->g;
             eff->color.b = color->b;
-            eff->timer = (s16)Rand_ZeroFloat(20.0f);
+            eff->timer = (s16)OoT_Rand_ZeroFloat(20.0f);
             eff->epoch++;
             break;
         }
@@ -163,9 +163,9 @@ void BossGanonEff_SpawnSparkle(PlayState* play, Vec3f* pos, Vec3f* velocity, Vec
             eff->velocity = *velocity;
             eff->accel = *accel;
             eff->scale = scale / 1000.0f;
-            eff->unk_2E = (s16)Rand_ZeroFloat(100.0f) + 0xC8;
+            eff->unk_2E = (s16)OoT_Rand_ZeroFloat(100.0f) + 0xC8;
             eff->unk_30 = arg6;
-            eff->timer = (s16)Rand_ZeroFloat(10.0f);
+            eff->timer = (s16)OoT_Rand_ZeroFloat(10.0f);
             eff->epoch++;
             break;
         }
@@ -186,11 +186,11 @@ void BossGanonEff_SpawnLightRay(PlayState* play, Vec3f* pos, Vec3f* velocity, Ve
             eff->scale = scale / 1000.0f;
             eff->unk_38 = 1.0f;
             eff->unk_40 = arg5;
-            eff->unk_2E = (s16)Rand_ZeroFloat(100.0f) + 0xC8;
+            eff->unk_2E = (s16)OoT_Rand_ZeroFloat(100.0f) + 0xC8;
             eff->unk_30 = arg6;
-            eff->timer = (s16)Rand_ZeroFloat(10.0f);
-            eff->unk_48 = Math_Atan2F(eff->velocity.z, eff->velocity.x);
-            eff->unk_44 = -Math_Atan2F(sqrtf(SQXZ(eff->velocity)), eff->velocity.y);
+            eff->timer = (s16)OoT_Rand_ZeroFloat(10.0f);
+            eff->unk_48 = OoT_Math_Atan2F(eff->velocity.z, eff->velocity.x);
+            eff->unk_44 = -OoT_Math_Atan2F(OoT_sqrtf(SQXZ(eff->velocity)), eff->velocity.y);
             eff->epoch++;
             break;
         }
@@ -204,10 +204,10 @@ void BossGanonEff_SpawnShock(PlayState* play, f32 scale, s16 shockType) {
     for (i = 0; i < 75; i++, eff++) {
         if (eff->type == GDF_EFF_NONE) {
             eff->type = GDF_EFF_SHOCK;
-            eff->pos = sZeroVec;
+            eff->pos = OoT_sZeroVec;
             eff->pos.y = -2000.0f;
-            eff->velocity = sZeroVec;
-            eff->accel = sZeroVec;
+            eff->velocity = OoT_sZeroVec;
+            eff->accel = OoT_sZeroVec;
             eff->scale = scale / 1000.0f;
             eff->unk_2E = shockType;
             eff->timer = 0;
@@ -224,8 +224,8 @@ void BossGanonEff_SpawnLightning(PlayState* play, f32 scale, f32 arg2, f32 arg3)
     for (i = 0; i < 150; i++, eff++) {
         if (eff->type == GDF_EFF_NONE) {
             eff->type = GDF_EFF_LIGHTNING;
-            eff->velocity = sZeroVec;
-            eff->accel = sZeroVec;
+            eff->velocity = OoT_sZeroVec;
+            eff->accel = OoT_sZeroVec;
             eff->unk_2E = 0;
             eff->scale = scale;
             eff->unk_48 = arg2;
@@ -245,12 +245,12 @@ void BossGanonEff_SpawnDustDark(PlayState* play, Vec3f* pos, f32 scale, f32 arg3
         if (eff->type == GDF_EFF_NONE) {
             eff->type = GDF_EFF_IMPACT_DUST_DARK;
             eff->pos = *pos;
-            eff->velocity = sZeroVec;
-            eff->accel = sZeroVec;
+            eff->velocity = OoT_sZeroVec;
+            eff->accel = OoT_sZeroVec;
             eff->scale = scale;
             eff->unk_40 = 1.0f;
             eff->unk_38 = arg3;
-            eff->unk_30 = (s16)Rand_ZeroFloat(100.0f);
+            eff->unk_30 = (s16)OoT_Rand_ZeroFloat(100.0f);
             eff->unk_2E = eff->timer = eff->alpha = 0;
             eff->epoch++;
             break;
@@ -263,12 +263,12 @@ void BossGanonEff_SpawnDustLight(PlayState* play, Vec3f* pos, f32 scale, f32 arg
 
     effArr[bufIndex].type = GDF_EFF_IMPACT_DUST_LIGHT;
     effArr[bufIndex].pos = *pos;
-    effArr[bufIndex].velocity = sZeroVec;
-    effArr[bufIndex].accel = sZeroVec;
+    effArr[bufIndex].velocity = OoT_sZeroVec;
+    effArr[bufIndex].accel = OoT_sZeroVec;
     effArr[bufIndex].unk_40 = 1.0f;
     effArr[bufIndex].scale = scale;
     effArr[bufIndex].unk_38 = arg3;
-    effArr[bufIndex].unk_30 = Rand_ZeroFloat(100.0f);
+    effArr[bufIndex].unk_30 = OoT_Rand_ZeroFloat(100.0f);
     effArr[bufIndex].unk_2E = effArr[bufIndex].timer = effArr[bufIndex].alpha = 0;
     effArr[bufIndex].epoch++;
 }
@@ -281,13 +281,13 @@ void BossGanonEff_SpawnShockwave(PlayState* play, Vec3f* pos, f32 scale, f32 arg
         if (eff->type == GDF_EFF_NONE) {
             eff->type = GDF_EFF_SHOCKWAVE;
             eff->pos = *pos;
-            eff->velocity = sZeroVec;
-            eff->accel = sZeroVec;
+            eff->velocity = OoT_sZeroVec;
+            eff->accel = OoT_sZeroVec;
             eff->alpha = 255;
             eff->unk_40 = 0.6f;
             eff->scale = scale;
             eff->unk_38 = arg3;
-            eff->unk_30 = (s16)Rand_ZeroFloat(100.0f);
+            eff->unk_30 = (s16)OoT_Rand_ZeroFloat(100.0f);
             eff->unk_2E = eff->timer = 0;
             eff->epoch++;
             break;
@@ -303,8 +303,8 @@ void BossGanonEff_SpawnBlackDot(PlayState* play, Vec3f* pos, f32 scale) {
         if (eff->type == GDF_EFF_NONE) {
             eff->type = GDF_EFF_BLACK_DOT;
             eff->pos = *pos;
-            eff->velocity = sZeroVec;
-            eff->accel = sZeroVec;
+            eff->velocity = OoT_sZeroVec;
+            eff->accel = OoT_sZeroVec;
             eff->unk_38 = 0.0f;
             eff->scale = scale / 1000.0f;
             eff->timer = 0;
@@ -324,10 +324,10 @@ void BossGanon_SetColliderPos(Vec3f* pos, ColliderCylinder* collider) {
 
 void BossGanon_SetAnimationObject(BossGanon* this, PlayState* play, s32 objectId) {
     this->animBankIndex = Object_GetIndex(&play->objectCtx, objectId);
-    gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->animBankIndex].segment);
+    OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->animBankIndex].segment);
 }
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_U8(targetMode, 5, ICHAIN_CONTINUE),
     ICHAIN_S8(naviEnemyId, 0x3D, ICHAIN_CONTINUE),
     ICHAIN_F32_DIV1000(gravity, 0, ICHAIN_CONTINUE),
@@ -345,7 +345,7 @@ void BossGanon_Init(Actor* thisx, PlayState* play2) {
     Player* player = GET_PLAYER(play);
 
     if (thisx->params < 0x64) {
-        Flags_SetSwitch(play, 0x14);
+        OoT_Flags_SetSwitch(play, 0x14);
         play->specialEffects = sBossGanonEffectBuf;
 
         for (i = 0; i < ARRAY_COUNT(sBossGanonEffectBuf); i++) {
@@ -354,18 +354,18 @@ void BossGanon_Init(Actor* thisx, PlayState* play2) {
 
         sBossGanonGanondorf = this;
         thisx->colChkInfo.health = 40;
-        Actor_ProcessInitChain(thisx, sInitChain);
-        ActorShape_Init(&thisx->shape, 0, NULL, 0);
-        Actor_SetScale(thisx, 0.01f);
-        SkelAnime_InitFlex(play, &this->skelAnime, &gGanondorfSkel, NULL, NULL, NULL, 0);
-        Collider_InitCylinder(play, &this->collider);
-        Collider_SetCylinder(play, &this->collider, thisx, &sDorfCylinderInit);
+        OoT_Actor_ProcessInitChain(thisx, OoT_sInitChain);
+        OoT_ActorShape_Init(&thisx->shape, 0, NULL, 0);
+        OoT_Actor_SetScale(thisx, 0.01f);
+        OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gGanondorfSkel, NULL, NULL, NULL, 0);
+        OoT_Collider_InitCylinder(play, &this->collider);
+        OoT_Collider_SetCylinder(play, &this->collider, thisx, &sDorfCylinderInit);
 
         if (thisx->params != 1) {
             BossGanon_SetupIntroCutscene(this, play);
             this->organAlpha = 255;
         } else {
-            cond = Flags_GetSwitch(play, 0x37) &&
+            cond = OoT_Flags_GetSwitch(play, 0x37) &&
                    ((play->sceneNum == SCENE_GANON_BOSS) || (play->sceneNum == SCENE_GANONS_TOWER_COLLAPSE_EXTERIOR) ||
                     (play->sceneNum == SCENE_GANONS_TOWER_COLLAPSE_INTERIOR) ||
                     (play->sceneNum == SCENE_INSIDE_GANONS_CASTLE_COLLAPSE));
@@ -373,16 +373,16 @@ void BossGanon_Init(Actor* thisx, PlayState* play2) {
             if (!cond) {
                 BossGanon_SetupTowerCutscene(this, play);
             } else {
-                Actor_Kill(thisx);
+                OoT_Actor_Kill(thisx);
                 return;
             }
 
             BossGanon_SetupTowerCutscene(this, play);
         }
 
-        sBossGanonCape = (EnGanonMant*)Actor_SpawnAsChild(&play->actorCtx, thisx, play, ACTOR_EN_GANON_MANT, 0.0f, 0.0f,
+        sBossGanonCape = (EnGanonMant*)OoT_Actor_SpawnAsChild(&play->actorCtx, thisx, play, ACTOR_EN_GANON_MANT, 0.0f, 0.0f,
                                                           0.0f, 0, 0, 0, 1);
-        Actor_ChangeCategory(play, &play->actorCtx, thisx, ACTORCAT_BOSS);
+        OoT_Actor_ChangeCategory(play, &play->actorCtx, thisx, ACTORCAT_BOSS);
     } else {
         thisx->flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
         this->fwork[GDF_FWORK_1] = 255.0f;
@@ -408,13 +408,13 @@ void BossGanon_Init(Actor* thisx, PlayState* play2) {
                 }
 
                 this->timers[1] = 3;
-                Collider_InitCylinder(play, &this->collider);
-                Collider_SetCylinder(play, &this->collider, thisx, &sLightBallCylinderInit);
+                OoT_Collider_InitCylinder(play, &this->collider);
+                OoT_Collider_SetCylinder(play, &this->collider, thisx, &sLightBallCylinderInit);
             } else if (thisx->params >= 0xFA) {
                 // big magic light ball charge
                 thisx->update = func_808E2544;
                 thisx->draw = func_808E324C;
-                this->unk_1A2 = Rand_ZeroFloat(10000.0f);
+                this->unk_1A2 = OoT_Rand_ZeroFloat(10000.0f);
 
                 for (i = 0; i < 15; i++) {
                     this->unk_2EC[i] = thisx->world.pos;
@@ -429,7 +429,7 @@ void BossGanon_Init(Actor* thisx, PlayState* play2) {
                 if (thisx->params == 0xC8) {
                     this->timers[0] = 7;
                 } else {
-                    this->timers[0] = (s16)Rand_ZeroFloat(3.0f) + 3;
+                    this->timers[0] = (s16)OoT_Rand_ZeroFloat(3.0f) + 3;
                 }
 
                 for (i = 0; i < 15; i++) {
@@ -446,17 +446,17 @@ void BossGanon_Init(Actor* thisx, PlayState* play2) {
             yDistFromPlayer = (player->actor.world.pos.y + 30.0f) - thisx->world.pos.y;
             zDistFromPlayer = player->actor.world.pos.z - thisx->world.pos.z;
 
-            thisx->world.rot.y = Math_Atan2S(zDistFromPlayer, xDistFromPlayer);
-            thisx->world.rot.x = Math_Atan2S(sqrtf(SQ(xDistFromPlayer) + SQ(zDistFromPlayer)), yDistFromPlayer);
+            thisx->world.rot.y = OoT_Math_Atan2S(zDistFromPlayer, xDistFromPlayer);
+            thisx->world.rot.x = OoT_Math_Atan2S(OoT_sqrtf(SQ(xDistFromPlayer) + SQ(zDistFromPlayer)), yDistFromPlayer);
 
-            if (Rand_ZeroOne() < 0) {
-                thisx->world.rot.y += (s16)Rand_CenteredFloat(5000.0f);
-                thisx->world.rot.x += (s16)Rand_CenteredFloat(5000.0f);
+            if (OoT_Rand_ZeroOne() < 0) {
+                thisx->world.rot.y += (s16)OoT_Rand_CenteredFloat(5000.0f);
+                thisx->world.rot.x += (s16)OoT_Rand_CenteredFloat(5000.0f);
             }
 
             this->timers[1] = 3;
-            Collider_InitCylinder(play, &this->collider);
-            Collider_SetCylinder(play, &this->collider, thisx, &sLightBallCylinderInit);
+            OoT_Collider_InitCylinder(play, &this->collider);
+            OoT_Collider_SetCylinder(play, &this->collider, thisx, &sLightBallCylinderInit);
         }
     }
 
@@ -472,11 +472,11 @@ void BossGanon_Destroy(Actor* thisx, PlayState* play) {
     BossGanon* this = (BossGanon*)thisx;
 
     if ((this->actor.params < 0xC8) || (this->actor.params >= 0x104)) {
-        Collider_DestroyCylinder(play, &this->collider);
+        OoT_Collider_DestroyCylinder(play, &this->collider);
     }
 
     if (this->actor.params < 0x64) {
-        SkelAnime_Free(&this->skelAnime, play);
+        OoT_SkelAnime_Free(&this->skelAnime, play);
     }
 }
 
@@ -485,16 +485,16 @@ void BossGanon_SetupIntroCutscene(BossGanon* this, PlayState* play) {
     s32 animBankIndex = Object_GetIndex(&play->objectCtx, OBJECT_GANON_ANIME2);
 
     if (animBankIndex < 0) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
 
-    if (Object_IsLoaded(&play->objectCtx, animBankIndex)) {
+    if (OoT_Object_IsLoaded(&play->objectCtx, animBankIndex)) {
         this->actionFunc = BossGanon_IntroCutscene;
         this->unk_198 = 1;
         this->animBankIndex = animBankIndex;
-        gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[animBankIndex].segment);
-        Animation_MorphToLoop(&this->skelAnime, &gGanondorfPlayOrganAnim, 0.0f);
+        OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[animBankIndex].segment);
+        OoT_Animation_MorphToLoop(&this->skelAnime, &gGanondorfPlayOrganAnim, 0.0f);
     } else {
         this->actionFunc = BossGanon_SetupIntroCutscene;
     }
@@ -541,7 +541,7 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
     f32 cos;
     Camera* mainCam;
 
-    gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->animBankIndex].segment);
+    OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->animBankIndex].segment);
 
     sBossGanonCape->backPush = -2.0f;
     sBossGanonCape->backSwayMagnitude = 0.25f;
@@ -550,7 +550,7 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
 
     this->csTimer++;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
     switch (this->csState) {
         case 0:
@@ -566,19 +566,19 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
             this->actor.shape.rot.y = 0;
 
             func_80064520(play, &play->csCtx);
-            Player_SetCsActionWithHaltedActors(play, &this->actor, 8);
-            this->csCamIndex = Play_CreateSubCamera(play);
-            Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_WAIT);
-            Play_ChangeCameraStatus(play, this->csCamIndex, CAM_STAT_ACTIVE);
+            OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 8);
+            this->csCamIndex = OoT_Play_CreateSubCamera(play);
+            OoT_Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_WAIT);
+            OoT_Play_ChangeCameraStatus(play, this->csCamIndex, CAM_STAT_ACTIVE);
             this->csCamFov = 60.0f;
 
-            if (Flags_GetEventChkInf(EVENTCHKINF_BEGAN_GANONDORF_BATTLE) || IS_RANDO || IS_BOSS_RUSH) {
+            if (OoT_Flags_GetEventChkInf(EVENTCHKINF_BEGAN_GANONDORF_BATTLE) || IS_RANDO || IS_BOSS_RUSH) {
                 // watched cutscene already, skip most of it
                 this->csState = 17;
                 this->csTimer = 0;
                 player->actor.world.pos.z = 20.0f;
                 this->useOpenHand = false;
-                Animation_MorphToLoop(&this->skelAnime, &gGanondorfStandBackwardsAnim, -5.0f);
+                OoT_Animation_MorphToLoop(&this->skelAnime, &gGanondorfStandBackwardsAnim, -5.0f);
                 this->fwork[GDF_FWORK_1] = 1000.0f;
                 BossGanon_SetIntroCsCamera(this, 11);
                 this->unk_198 = 2;
@@ -591,11 +591,11 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
                 this->useOpenHand = true;
                 BossGanon_SetIntroCsCamera(this, 0);
                 this->csState = 1;
-                sBossGanonZelda = (EnZl3*)Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_ZL3, 0.0f,
+                sBossGanonZelda = (EnZl3*)OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_ZL3, 0.0f,
                                                              220.0f, -150.0f, 0, 0, 0, 0x2000);
             }
 
-            Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_GANON_ORGAN, 0.0f, 0.0f, 0.0f, 0, 0, 0, 1);
+            OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_GANON_ORGAN, 0.0f, 0.0f, 0.0f, 0, 0, 0, 1);
             sBossGanonCape->minY = 57.0f;
             // fallthrough
         case 1:
@@ -610,11 +610,11 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
             BossGanon_SetIntroCsCamera(this, 1);
 
             if (this->csTimer == 10) {
-                Player_SetCsActionWithHaltedActors(play, &this->actor, 5);
+                OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 5);
             }
 
             if (this->csTimer == 13) {
-                Player_PlaySfx(&player->actor, player->ageProperties->unk_92 + NA_SE_VO_LI_SURPRISE);
+                OoT_Player_PlaySfx(&player->actor, player->ageProperties->unk_92 + NA_SE_VO_LI_SURPRISE);
             }
 
             if (this->csTimer != 35) {
@@ -636,14 +636,14 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
             play->envCtx.unk_D8 = 0.0f;
             this->csCamAt.y = (sinf(this->unk_704) * 300.0f) + this->csCamEye.y;
             this->csCamAt.z = (cosf(this->unk_704) * -300.0f) + this->csCamEye.z;
-            Math_ApproachF(&this->unk_704, 0.25f, 0.05f, this->csCamAtMaxStep.y);
-            Math_ApproachF(&this->csCamAtMaxStep.y, 0.01f, 1.0f, 0.0001f);
+            OoT_Math_ApproachF(&this->unk_704, 0.25f, 0.05f, this->csCamAtMaxStep.y);
+            OoT_Math_ApproachF(&this->csCamAtMaxStep.y, 0.01f, 1.0f, 0.0001f);
 
             if (this->csTimer != 200) {
                 break;
             }
 
-            Player_SetCsActionWithHaltedActors(play, &this->actor, 8);
+            OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 8);
             this->csState = 4;
             BossGanon_SetIntroCsCamera(this, 2);
             this->csTimer = 0;
@@ -675,7 +675,7 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
             }
 
             if (this->csTimer == 10) {
-                Player_SetCsActionWithHaltedActors(play, &this->actor, 0x4B);
+                OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 0x4B);
             }
 
             if (this->csTimer == 70) {
@@ -707,10 +707,10 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
         case 7:
             this->envLightMode = 6;
             // fade in links triforce
-            Math_ApproachF(&this->fwork[GDF_TRIFORCE_PRIM_A], 255.0f, 1.0f, 10.0f);
-            Math_ApproachF(&this->fwork[GDF_TRIFORCE_SCALE], 0.4f, 1.0f, 0.3f);
-            Math_ApproachF(&this->fwork[GDF_TRIFORCE_PRIM_B], 170.0f, 1.0f, 2.55f);
-            Math_ApproachF(&this->fwork[GDF_TRIFORCE_ENV_G], 200.0f, 1.0f, 3.0f);
+            OoT_Math_ApproachF(&this->fwork[GDF_TRIFORCE_PRIM_A], 255.0f, 1.0f, 10.0f);
+            OoT_Math_ApproachF(&this->fwork[GDF_TRIFORCE_SCALE], 0.4f, 1.0f, 0.3f);
+            OoT_Math_ApproachF(&this->fwork[GDF_TRIFORCE_PRIM_B], 170.0f, 1.0f, 2.55f);
+            OoT_Math_ApproachF(&this->fwork[GDF_TRIFORCE_ENV_G], 200.0f, 1.0f, 3.0f);
 
             if (this->csTimer >= 30) {
                 this->envLightMode = 65;
@@ -741,7 +741,7 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
 
             this->csState = 9;
             this->csTimer = 0;
-            Player_SetCsActionWithHaltedActors(play, &this->actor, 8);
+            OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 8);
             sBossGanonZelda->unk_3C8 = 0;
             this->triforceType = GDF_TRIFORCE_ZELDA;
             this->fwork[GDF_TRIFORCE_SCALE] = 10.0f;
@@ -755,10 +755,10 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
             this->envLightMode = 7;
             BossGanon_SetIntroCsCamera(this, 6);
             // fade in zeldas triforce
-            Math_ApproachF(&this->fwork[GDF_TRIFORCE_PRIM_A], 255.0f, 1.0f, 10.0f);
-            Math_ApproachF(&this->fwork[GDF_TRIFORCE_SCALE], 0.4f, 1.0f, 0.3f);
-            Math_ApproachF(&this->fwork[GDF_TRIFORCE_PRIM_B], 170.0f, 1.0f, 2.55f);
-            Math_ApproachF(&this->fwork[GDF_TRIFORCE_ENV_G], 200.0f, 1.0f, 3.0f);
+            OoT_Math_ApproachF(&this->fwork[GDF_TRIFORCE_PRIM_A], 255.0f, 1.0f, 10.0f);
+            OoT_Math_ApproachF(&this->fwork[GDF_TRIFORCE_SCALE], 0.4f, 1.0f, 0.3f);
+            OoT_Math_ApproachF(&this->fwork[GDF_TRIFORCE_PRIM_B], 170.0f, 1.0f, 2.55f);
+            OoT_Math_ApproachF(&this->fwork[GDF_TRIFORCE_ENV_G], 200.0f, 1.0f, 3.0f);
 
             if (this->csTimer == 30) {
                 sBossGanonZelda->unk_3C8 = 1;
@@ -795,7 +795,7 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
             player->actor.world.pos.z = 20.0f;
 
             if (this->csTimer == 20) {
-                Player_SetCsActionWithHaltedActors(play, &this->actor, 0x17);
+                OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 0x17);
                 Interface_ChangeAlpha(11); // show hearts only
             }
 
@@ -819,20 +819,20 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
 
             if (this->csTimer == 30) {
                 Audio_QueueSeqCmd(0x100100FF);
-                this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfStopPlayingOrganAnim);
-                Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfStopPlayingOrganAnim, -5.0f);
+                this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfStopPlayingOrganAnim);
+                OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfStopPlayingOrganAnim, -5.0f);
             }
 
-            if ((this->csTimer > 30) && Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
-                Animation_MorphToLoop(&this->skelAnime, &gGanondorfLeanOnOrganAnim, 0.0f);
+            if ((this->csTimer > 30) && OoT_Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
+                OoT_Animation_MorphToLoop(&this->skelAnime, &gGanondorfLeanOnOrganAnim, 0.0f);
                 this->fwork[GDF_FWORK_1] = 1000.0f;
             }
 
             if (this->csTimer == 80) {
-                Message_StartTextbox(play, 0x70C8, NULL);
+                OoT_Message_StartTextbox(play, 0x70C8, NULL);
             }
 
-            if ((this->csTimer > 180) && (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
+            if ((this->csTimer > 180) && (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
                 this->csState = 15;
                 this->csTimer = 0;
                 this->useOpenHand = false;
@@ -845,10 +845,10 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
             BossGanon_SetIntroCsCamera(this, 10);
 
             if (this->csTimer == 30) {
-                Message_StartTextbox(play, 0x70C9, NULL);
+                OoT_Message_StartTextbox(play, 0x70C9, NULL);
             }
 
-            if ((this->csTimer > 100) && (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
+            if ((this->csTimer > 100) && (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
                 this->csState = 16;
                 this->csTimer = 0;
                 BossGanon_SetIntroCsCamera(this, 11);
@@ -864,16 +864,16 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
 
             if (this->csTimer <= 20) {
                 if (this->csTimer == 20) {
-                    Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfStandUpFromOrganAnim, -5.0f);
-                    this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfStandUpFromOrganAnim);
+                    OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfStandUpFromOrganAnim, -5.0f);
+                    this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfStandUpFromOrganAnim);
                 }
-            } else if (Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
-                Message_StartTextbox(play, 0x70CA, NULL);
-                Animation_MorphToLoop(&this->skelAnime, &gGanondorfStandBackwardsAnim, -5.0f);
+            } else if (OoT_Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
+                OoT_Message_StartTextbox(play, 0x70CA, NULL);
+                OoT_Animation_MorphToLoop(&this->skelAnime, &gGanondorfStandBackwardsAnim, -5.0f);
                 this->fwork[GDF_FWORK_1] = 1000.0f;
             }
 
-            if ((this->csTimer > 100) && (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
+            if ((this->csTimer > 100) && (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
                 this->csState = 17;
                 this->csTimer = 0;
             }
@@ -883,8 +883,8 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
             this->envLightMode = 3;
 
             if (this->csTimer == 20) {
-                Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfTurnAroundAnim, -5.0f);
-                this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfTurnAroundAnim);
+                OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfTurnAroundAnim, -5.0f);
+                this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfTurnAroundAnim);
             }
 
             if (this->csTimer > 10) {
@@ -896,9 +896,9 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
                     Audio_PlayActorSound2(&this->actor, NA_SE_EV_GANON_MANTLE);
                 }
 
-                Math_ApproachF(&this->csCamFov, 110.0f, 0.1f, this->csCamMaxStepScale * 2.0f);
-                Math_ApproachF(&this->csCamEye.z, -290.0f, 0.1f, this->csCamMaxStepScale * 2.4f);
-                Math_ApproachF(&this->csCamMaxStepScale, 0.75f, 1.0f, 0.05f);
+                OoT_Math_ApproachF(&this->csCamFov, 110.0f, 0.1f, this->csCamMaxStepScale * 2.0f);
+                OoT_Math_ApproachF(&this->csCamEye.z, -290.0f, 0.1f, this->csCamMaxStepScale * 2.4f);
+                OoT_Math_ApproachF(&this->csCamMaxStepScale, 0.75f, 1.0f, 0.05f);
 
                 if (this->csTimer == 70) {
                     this->csState = 18;
@@ -906,7 +906,7 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
                     this->csCamFov = 60.0f;
                     BossGanon_SetIntroCsCamera(this, 12);
                     if (!IS_RANDO && !IS_BOSS_RUSH) {
-                        Message_StartTextbox(play, 0x70CB, NULL);
+                        OoT_Message_StartTextbox(play, 0x70CB, NULL);
                     }
                 }
             }
@@ -918,21 +918,21 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
             this->csCamEye.y += -6.0f;
             this->csCamEye.z += 6.0f;
 
-            if (Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1] - 5.0f)) {
-                Animation_MorphToLoop(&this->skelAnime, &gGanondorfStandIdleAnim, -5.0f);
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1] - 5.0f)) {
+                OoT_Animation_MorphToLoop(&this->skelAnime, &gGanondorfStandIdleAnim, -5.0f);
                 this->fwork[GDF_FWORK_1] = 1000.0f;
             }
 
-            if ((this->csTimer <= 50) || (Message_GetState(&play->msgCtx) != TEXT_STATE_NONE)) {
+            if ((this->csTimer <= 50) || (OoT_Message_GetState(&play->msgCtx) != TEXT_STATE_NONE)) {
                 break;
             }
 
             this->csState = 19;
             this->csTimer = 0;
             if (!IS_BOSS_RUSH) {
-                Message_StartTextbox(play, 0x70CC, NULL);
+                OoT_Message_StartTextbox(play, 0x70CC, NULL);
             }
-            Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfRaiseHandStartAnim, -5.0f);
+            OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfRaiseHandStartAnim, -5.0f);
             this->triforceType = GDF_TRIFORCE_DORF;
             this->fwork[GDF_TRIFORCE_SCALE] = 10.0f;
             this->fwork[GDF_TRIFORCE_PRIM_A] = 0.0f;
@@ -961,17 +961,17 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
                 }
 
                 // fade in ganondorf's triforce
-                Math_ApproachF(&this->fwork[GDF_TRIFORCE_PRIM_A], 255.0f, 1.0f, 10.0f);
-                Math_ApproachF(&this->fwork[GDF_TRIFORCE_SCALE], 0.6f, 1.0f, 0.3f);
-                Math_ApproachF(&this->fwork[GDF_TRIFORCE_PRIM_B], 170.0f, 1.0f, 2.55f);
-                Math_ApproachF(&this->fwork[GDF_TRIFORCE_ENV_G], 200.0f, 1.0f, 3.0f);
+                OoT_Math_ApproachF(&this->fwork[GDF_TRIFORCE_PRIM_A], 255.0f, 1.0f, 10.0f);
+                OoT_Math_ApproachF(&this->fwork[GDF_TRIFORCE_SCALE], 0.6f, 1.0f, 0.3f);
+                OoT_Math_ApproachF(&this->fwork[GDF_TRIFORCE_PRIM_B], 170.0f, 1.0f, 2.55f);
+                OoT_Math_ApproachF(&this->fwork[GDF_TRIFORCE_ENV_G], 200.0f, 1.0f, 3.0f);
             }
 
             if (this->csTimer == 17) {
-                Animation_MorphToLoop(&this->skelAnime, &gGanondorfRaiseHandLoopAnim, -5.0f);
+                OoT_Animation_MorphToLoop(&this->skelAnime, &gGanondorfRaiseHandLoopAnim, -5.0f);
             }
 
-            if ((this->csTimer > 80) && (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
+            if ((this->csTimer > 80) && (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
                 // In rando, skip past dark waves section straight to title card phase of the cutscene.
                 if (IS_RANDO || IS_BOSS_RUSH) {
                     this->timers[2] = 30;
@@ -1015,11 +1015,11 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
         case 20: // zoom cam out
             this->envLightMode = 10;
             moveCam = true;
-            Math_ApproachF(&this->csCamMaxStepScale, 0.15f, 1.0f, 0.015f);
+            OoT_Math_ApproachF(&this->csCamMaxStepScale, 0.15f, 1.0f, 0.015f);
 
             if (this->csTimer <= 40) {
-                Math_ApproachF(&this->fwork[GDF_VORTEX_ALPHA], 255.0f, 1.0f, 6.5f);
-                Math_ApproachF(&this->fwork[GDF_VORTEX_SCALE], 0.2f, 1.0f, 0.025f);
+                OoT_Math_ApproachF(&this->fwork[GDF_VORTEX_ALPHA], 255.0f, 1.0f, 6.5f);
+                OoT_Math_ApproachF(&this->fwork[GDF_VORTEX_SCALE], 0.2f, 1.0f, 0.025f);
             }
 
             if (this->csTimer > 20) {
@@ -1032,7 +1032,7 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
             }
 
             if (this->csTimer == 30) {
-                Player_SetCsActionWithHaltedActors(play, &this->actor, 0x4A);
+                OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 0x4A);
             }
 
             if (this->csTimer <= 50) {
@@ -1061,10 +1061,10 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
             this->csCamAt.z = 0.0f;
 
             if (this->csTimer == 13) {
-                Message_StartTextbox(play, 0x70CD, NULL);
+                OoT_Message_StartTextbox(play, 0x70CD, NULL);
             }
 
-            if ((this->csTimer <= 120) || (Message_GetState(&play->msgCtx) != TEXT_STATE_NONE)) {
+            if ((this->csTimer <= 120) || (OoT_Message_GetState(&play->msgCtx) != TEXT_STATE_NONE)) {
                 break;
             }
 
@@ -1085,19 +1085,19 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
                 this->envLightMode = 12;
             }
 
-            Math_ApproachZeroF(&this->fwork[GDF_VORTEX_ALPHA], 1.0f, 10.0f);
+            OoT_Math_ApproachZeroF(&this->fwork[GDF_VORTEX_ALPHA], 1.0f, 10.0f);
 
             this->csCamEye.x = -30.0f;
             this->csCamEye.y = 137.0f;
             this->csCamEye.z = -110.0f;
 
-            Math_ApproachF(&this->csCamAt.y, this->unk_1FC.y + 30.0f, 0.1f, 20.0f);
-            Math_ApproachF(&this->csCamAt.x, this->unk_1FC.x - 10.0f, 0.1f, 5.0f);
+            OoT_Math_ApproachF(&this->csCamAt.y, this->unk_1FC.y + 30.0f, 0.1f, 20.0f);
+            OoT_Math_ApproachF(&this->csCamAt.x, this->unk_1FC.x - 10.0f, 0.1f, 5.0f);
 
             if (this->csTimer == 20) {
                 BossGanon_SetAnimationObject(this, play, OBJECT_GANON_ANIME1);
-                Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfGetUp3Anim, 0.0f);
-                SkelAnime_Update(&this->skelAnime);
+                OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfGetUp3Anim, 0.0f);
+                OoT_SkelAnime_Update(&this->skelAnime);
                 this->actor.shape.yOffset = 0.0f;
                 sBossGanonCape->attachShouldersTimer = 18.0f;
                 Audio_PlayActorSound2(&this->actor, NA_SE_EV_GANON_MANTLE);
@@ -1106,37 +1106,37 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
             }
 
             if (this->csTimer == 50) {
-                gSegments[6] = VIRTUAL_TO_PHYSICAL(
+                OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(
                     play->objectCtx.status[Object_GetIndex(&play->objectCtx, OBJECT_GANON)].segment);
 
-                if (!Flags_GetEventChkInf(EVENTCHKINF_BEGAN_GANONDORF_BATTLE)) {
-                    TitleCard_InitBossName(play, &play->actorCtx.titleCtx,
+                if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_BEGAN_GANONDORF_BATTLE)) {
+                    OoT_TitleCard_InitBossName(play, &play->actorCtx.titleCtx,
                                            SEGMENTED_TO_VIRTUAL(gGanondorfTitleCardENGTex), 160, 180, 128, 40, true);
                 }
 
-                Flags_SetEventChkInf(EVENTCHKINF_BEGAN_GANONDORF_BATTLE);
+                OoT_Flags_SetEventChkInf(EVENTCHKINF_BEGAN_GANONDORF_BATTLE);
             }
 
             if (this->csTimer >= 20) {
                 this->legSwayEnabled = true;
                 Audio_PlayActorSound2(&this->actor, NA_SE_EN_GANON_FLOAT - SFX_FLAG);
 
-                Math_ApproachF(&this->actor.world.pos.y, 228.0f, 0.05f, 2.0f);
-                Math_ApproachF(&this->actor.world.pos.z, -230.0f, 0.05f, 4.0f);
+                OoT_Math_ApproachF(&this->actor.world.pos.y, 228.0f, 0.05f, 2.0f);
+                OoT_Math_ApproachF(&this->actor.world.pos.z, -230.0f, 0.05f, 4.0f);
 
                 sBossGanonCape->backPush = -3.0f;
                 sBossGanonCape->backSwayMagnitude = 0.25f;
                 sBossGanonCape->sideSwayMagnitude = -3.0f;
 
-                sin = Math_SinS(this->csTimer * 1500);
+                sin = OoT_Math_SinS(this->csTimer * 1500);
                 this->actor.velocity.y = this->fwork[GDF_FWORK_0] * sin * 0.04f;
                 this->actor.world.pos.y += this->actor.velocity.y;
 
-                cos = Math_CosS(this->csTimer * 1800);
+                cos = OoT_Math_CosS(this->csTimer * 1800);
                 this->actor.world.pos.x = this->fwork[GDF_FWORK_0] * cos * 0.5f;
                 this->actor.velocity.x = this->actor.world.pos.x - this->actor.prevPos.x;
 
-                Math_ApproachF(&this->fwork[GDF_FWORK_0], 50.0f, 1.0f, 1.0f);
+                OoT_Math_ApproachF(&this->fwork[GDF_FWORK_0], 50.0f, 1.0f, 1.0f);
             }
 
             if (this->csTimer > 30) {
@@ -1148,14 +1148,14 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
             }
 
             if (this->csTimer == 120) {
-                mainCam = Play_GetCamera(play, MAIN_CAM);
+                mainCam = OoT_Play_GetCamera(play, MAIN_CAM);
                 mainCam->eye = this->csCamEye;
                 mainCam->eyeNext = this->csCamEye;
                 mainCam->at = this->csCamAt;
                 func_800C08AC(play, this->csCamIndex, 0);
                 this->csState = this->csCamIndex = 0;
                 func_80064534(play, &play->csCtx);
-                Player_SetCsActionWithHaltedActors(play, &this->actor, 7);
+                OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 7);
                 BossGanon_SetupWait(this, play);
             }
 
@@ -1168,18 +1168,18 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
 
     if (this->csCamIndex != 0) {
         if (moveCam) {
-            Math_ApproachF(&this->csCamEye.x, this->csCamTargetEye.x, this->csCamMovementScale,
+            OoT_Math_ApproachF(&this->csCamEye.x, this->csCamTargetEye.x, this->csCamMovementScale,
                            this->csCamEyeMaxStep.x * this->csCamMaxStepScale);
-            Math_ApproachF(&this->csCamEye.y, this->csCamTargetEye.y, this->csCamMovementScale,
+            OoT_Math_ApproachF(&this->csCamEye.y, this->csCamTargetEye.y, this->csCamMovementScale,
                            this->csCamEyeMaxStep.y * this->csCamMaxStepScale);
-            Math_ApproachF(&this->csCamEye.z, this->csCamTargetEye.z, this->csCamMovementScale,
+            OoT_Math_ApproachF(&this->csCamEye.z, this->csCamTargetEye.z, this->csCamMovementScale,
                            this->csCamEyeMaxStep.z * this->csCamMaxStepScale);
 
-            Math_ApproachF(&this->csCamAt.x, this->csCamTargetAt.x, this->csCamMovementScale,
+            OoT_Math_ApproachF(&this->csCamAt.x, this->csCamTargetAt.x, this->csCamMovementScale,
                            this->csCamAtMaxStep.x * this->csCamMaxStepScale);
-            Math_ApproachF(&this->csCamAt.y, this->csCamTargetAt.y, this->csCamMovementScale,
+            OoT_Math_ApproachF(&this->csCamAt.y, this->csCamTargetAt.y, this->csCamMovementScale,
                            this->csCamAtMaxStep.y * this->csCamMaxStepScale);
-            Math_ApproachF(&this->csCamAt.z, this->csCamTargetAt.z, this->csCamMovementScale,
+            OoT_Math_ApproachF(&this->csCamAt.z, this->csCamTargetAt.z, this->csCamMovementScale,
                            this->csCamAtMaxStep.z * this->csCamMaxStepScale);
         }
 
@@ -1192,14 +1192,14 @@ void BossGanon_SetupDeathCutscene(BossGanon* this, PlayState* play) {
     s32 pad;
     s32 animBankIndex = Object_GetIndex(&play->objectCtx, OBJECT_GANON_ANIME2);
 
-    if (Object_IsLoaded(&play->objectCtx, animBankIndex)) {
+    if (OoT_Object_IsLoaded(&play->objectCtx, animBankIndex)) {
         this->actionFunc = BossGanon_DeathAndTowerCutscene;
         this->csTimer = this->csState = 0;
         this->unk_198 = 1;
         this->animBankIndex = animBankIndex;
-        gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[animBankIndex].segment);
-        Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfDefeatedStartAnim, 0.0f);
-        this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfDefeatedStartAnim);
+        OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[animBankIndex].segment);
+        OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfDefeatedStartAnim, 0.0f);
+        this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfDefeatedStartAnim);
         this->unk_508 = 0.0f;
     }
 }
@@ -1208,11 +1208,11 @@ void BossGanon_SetupTowerCutscene(BossGanon* this, PlayState* play) {
     s32 pad;
     s32 animBankIndex = Object_GetIndex(&play->objectCtx, OBJECT_GANON_ANIME2);
 
-    if (Object_IsLoaded(&play->objectCtx, animBankIndex)) {
+    if (OoT_Object_IsLoaded(&play->objectCtx, animBankIndex)) {
         this->animBankIndex = animBankIndex;
-        gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[animBankIndex].segment);
-        Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfDefeatedStartAnim, 0.0f);
-        this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfDefeatedStartAnim);
+        OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[animBankIndex].segment);
+        OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfDefeatedStartAnim, 0.0f);
+        this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfDefeatedStartAnim);
         this->actionFunc = BossGanon_DeathAndTowerCutscene;
         this->csTimer = 0;
         this->csState = 100;
@@ -1229,7 +1229,7 @@ void BossGanon_ShatterWindows(u8 windowShatterState) {
     u8* templateTex = ResourceGetDataByName(SEGMENTED_TO_VIRTUAL(gGanondorfWindowShatterTemplateTex));
 
     for (i = 0; i < ARRAY_COUNT(sWindowShatterTex); i++) {
-        if ((sWindowShatterTex[i] != 1) && (Rand_ZeroOne() < 0.03f)) {
+        if ((sWindowShatterTex[i] != 1) && (OoT_Rand_ZeroOne() < 0.03f)) {
             if ((templateTex[i] == 0) || (windowShatterState == GDF_WINDOW_SHATTER_FULL)) {
                 sWindowShatterTex[i] = 1;
             }
@@ -1260,18 +1260,18 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
     Camera* mainCam;
     Vec3f sp64;
 
-    gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->animBankIndex].segment);
+    OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->animBankIndex].segment);
 
     this->csTimer++;
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
     switch (this->csState) {
         case 0:
             func_80064520(play, &play->csCtx);
-            Player_SetCsActionWithHaltedActors(play, &this->actor, 8);
-            this->csCamIndex = Play_CreateSubCamera(play);
-            Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_WAIT);
-            Play_ChangeCameraStatus(play, this->csCamIndex, CAM_STAT_ACTIVE);
+            OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 8);
+            this->csCamIndex = OoT_Play_CreateSubCamera(play);
+            OoT_Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_WAIT);
+            OoT_Play_ChangeCameraStatus(play, this->csCamIndex, CAM_STAT_ACTIVE);
 
             this->actor.world.pos.x = 0.0f;
             this->actor.world.pos.y = 70.0f;
@@ -1317,8 +1317,8 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             this->csCamAt.y = this->unk_1FC.y + 30.0f;
             this->csCamAt.z = this->unk_1FC.z;
 
-            if (Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
-                Animation_MorphToLoop(&this->skelAnime, &gGanondorfDefeatedLoopAnim, 0.0f);
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
+                OoT_Animation_MorphToLoop(&this->skelAnime, &gGanondorfDefeatedLoopAnim, 0.0f);
                 this->csState = 2;
                 this->csTimer = 0;
             }
@@ -1338,7 +1338,7 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             if (this->csTimer >= 30) {
                 this->csState = 3;
                 this->csTimer = 0;
-                Message_StartTextbox(play, 0x70CE, NULL);
+                OoT_Message_StartTextbox(play, 0x70CE, NULL);
                 this->fwork[GDF_FWORK_1] = 1000.0f;
             }
 
@@ -1363,16 +1363,16 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             this->csCamAt.z = this->unk_1FC.z;
 
             if ((this->fwork[GDF_FWORK_1] > 100.0f) && (this->csTimer > 100) &&
-                (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
-                Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfVomitStartAnim, 0.0f);
-                this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfVomitStartAnim);
+                (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
+                OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfVomitStartAnim, 0.0f);
+                this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfVomitStartAnim);
                 Audio_PlayActorSound2(&this->actor, NA_SE_EN_GANON_TOKETU);
             } else {
-                if (Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1] - 16.0f)) {
+                if (OoT_Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1] - 16.0f)) {
                     for (i = 0; i < 40; i++) {
-                        sp98.x = Rand_CenteredFloat(5.0f);
-                        sp98.y = Rand_CenteredFloat(1.5f) + 1.0f;
-                        sp98.z = Rand_ZeroFloat(5.0f) + 2.0f;
+                        sp98.x = OoT_Rand_CenteredFloat(5.0f);
+                        sp98.y = OoT_Rand_CenteredFloat(1.5f) + 1.0f;
+                        sp98.z = OoT_Rand_ZeroFloat(5.0f) + 2.0f;
 
                         sp8C.x = 0.0f;
                         sp8C.y = -1.0f;
@@ -1383,12 +1383,12 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
                         sp80.z = this->unk_208.z;
 
                         func_8002836C(play, &sp80, &sp98, &sp8C, &bloodPrimColor, &bloodEnvColor,
-                                      (s16)Rand_ZeroFloat(50.0f) + 50, 0, 17);
+                                      (s16)OoT_Rand_ZeroFloat(50.0f) + 50, 0, 17);
                     }
                 }
 
-                if (Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
-                    Animation_MorphToLoop(&this->skelAnime, &gGanondorfVomitLoopAnim, 0.0f);
+                if (OoT_Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
+                    OoT_Animation_MorphToLoop(&this->skelAnime, &gGanondorfVomitLoopAnim, 0.0f);
                     this->csState = 4;
                     this->csTimer = 0;
                 }
@@ -1399,7 +1399,7 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             this->envLightMode = 14;
 
             if (this->csTimer == 30) {
-                Message_StartTextbox(play, 0x70CF, NULL);
+                OoT_Message_StartTextbox(play, 0x70CF, NULL);
                 this->csState = 5;
                 this->csTimer = 0;
             }
@@ -1408,11 +1408,11 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
         case 5:
             this->envLightMode = 14;
 
-            if ((this->csTimer > 70) && (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
+            if ((this->csTimer > 70) && (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
                 this->csState = 6;
                 this->csTimer = 0;
-                Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfYellStartAnim, 0.0f);
-                this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfYellStartAnim);
+                OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfYellStartAnim, 0.0f);
+                this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfYellStartAnim);
 
                 this->csCamMovementScale = 0.05f;
                 this->csCamMaxStepScale = 0.0f;
@@ -1440,10 +1440,10 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
         case 6:
             this->envLightMode = 14;
             moveCam = true;
-            Math_ApproachF(&this->csCamMaxStepScale, 0.2f, 1.0f, 0.01f);
+            OoT_Math_ApproachF(&this->csCamMaxStepScale, 0.2f, 1.0f, 0.01f);
 
-            if (Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
-                Animation_MorphToLoop(&this->skelAnime, &gGanondorfYellLoopAnim, 0.0f);
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
+                OoT_Animation_MorphToLoop(&this->skelAnime, &gGanondorfYellLoopAnim, 0.0f);
                 this->csState = 7;
                 this->csTimer = 0;
                 this->unk_2E8 = 0;
@@ -1475,7 +1475,7 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             this->csCamAt.y = 0.0f;
             this->csCamAt.z = 70.0f;
 
-            this->unk_70C = Math_SinS(this->csTimer * 0x6300) * 0.2f;
+            this->unk_70C = OoT_Math_SinS(this->csTimer * 0x6300) * 0.2f;
 
             Sfx_PlaySfxCentered(NA_SE_EV_EARTHQUAKE - SFX_FLAG);
 
@@ -1488,7 +1488,7 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             }
 
             this->unk_2E6 = 20000;
-            Math_ApproachF(&this->unk_508, 5.0f, 0.05f, 0.1f);
+            OoT_Math_ApproachF(&this->unk_508, 5.0f, 0.05f, 0.1f);
 
             if (this->csTimer == 30) {
                 this->csState = 9;
@@ -1511,19 +1511,19 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             Audio_PlayActorSound2(&this->actor, NA_SE_EN_GANON_BODY_SPARK - SFX_FLAG);
 
             if (this->csTimer == 2) {
-                Player_SetCsActionWithHaltedActors(play, &this->actor, 0x39);
+                OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 0x39);
             }
 
             if (this->csTimer > 50) {
-                Math_ApproachZeroF(&this->unk_710, 1.0f, 0.2f);
-                Math_ApproachF(&this->csCamEye.x, 270.0f, 0.05f, this->csCamMaxStepScale * 30.0f);
-                Math_ApproachF(&this->csCamEye.z, 260.0f, 0.05f, this->csCamMaxStepScale * 20.0f);
-                Math_ApproachF(&this->csCamAt.y, 103.0f, 0.05f, this->csCamMaxStepScale * 6.0f);
-                Math_ApproachF(&this->csCamAt.z, 280.0f, 0.05f, this->csCamMaxStepScale * 20.0f);
-                Math_ApproachF(&this->csCamMaxStepScale, 1.0f, 1.0f, 0.01f);
+                OoT_Math_ApproachZeroF(&this->unk_710, 1.0f, 0.2f);
+                OoT_Math_ApproachF(&this->csCamEye.x, 270.0f, 0.05f, this->csCamMaxStepScale * 30.0f);
+                OoT_Math_ApproachF(&this->csCamEye.z, 260.0f, 0.05f, this->csCamMaxStepScale * 20.0f);
+                OoT_Math_ApproachF(&this->csCamAt.y, 103.0f, 0.05f, this->csCamMaxStepScale * 6.0f);
+                OoT_Math_ApproachF(&this->csCamAt.z, 280.0f, 0.05f, this->csCamMaxStepScale * 20.0f);
+                OoT_Math_ApproachF(&this->csCamMaxStepScale, 1.0f, 1.0f, 0.01f);
             }
 
-            this->unk_70C = Math_SinS(this->csTimer * 0x6300) * this->unk_710;
+            this->unk_70C = OoT_Math_SinS(this->csTimer * 0x6300) * this->unk_710;
             Sfx_PlaySfxCentered(NA_SE_EV_EARTHQUAKE - SFX_FLAG);
 
             if (this->csTimer < 100) {
@@ -1535,7 +1535,7 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             }
 
             if (this->csTimer >= 130) {
-                Math_ApproachF(&this->whiteFillAlpha, 255.0f, 1.0f, 5.0f);
+                OoT_Math_ApproachF(&this->whiteFillAlpha, 255.0f, 1.0f, 5.0f);
             }
 
             if (this->csTimer == 180) {
@@ -1547,14 +1547,14 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
 
         case 100:
             func_80064520(play, &play->csCtx);
-            Player_SetCsActionWithHaltedActors(play, &this->actor, 8);
-            this->csCamIndex = Play_CreateSubCamera(play);
-            Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_WAIT);
-            Play_ChangeCameraStatus(play, this->csCamIndex, CAM_STAT_ACTIVE);
-            Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfCollapseAnim, 0.0f);
-            this->fwork[1] = Animation_GetLastFrame(&gGanondorfDefeatedStartAnim);
+            OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 8);
+            this->csCamIndex = OoT_Play_CreateSubCamera(play);
+            OoT_Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_WAIT);
+            OoT_Play_ChangeCameraStatus(play, this->csCamIndex, CAM_STAT_ACTIVE);
+            OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfCollapseAnim, 0.0f);
+            this->fwork[1] = OoT_Animation_GetLastFrame(&gGanondorfDefeatedStartAnim);
             this->skelAnime.playSpeed = 0.0f;
-            sBossGanonZelda = (EnZl3*)Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_ZL3, 0.0f,
+            sBossGanonZelda = (EnZl3*)OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_ZL3, 0.0f,
                                                          6000.0f, 0.0f, 0, 0, 0, 0x2000);
 
             if (!IS_RANDO && !IS_BOSS_RUSH) {
@@ -1599,11 +1599,11 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             // fallthrough
         case 101:
             player->actor.world.pos.y = 4102.0f;
-            Math_ApproachZeroF(&this->whiteFillAlpha, 1.0f, 5.0f);
+            OoT_Math_ApproachZeroF(&this->whiteFillAlpha, 1.0f, 5.0f);
 
             if (this->csTimer > 40) {
-                Math_ApproachF(&this->csCamEye.z, -520.0f, 0.1f, this->csCamMaxStepScale);
-                Math_ApproachF(&this->csCamMaxStepScale, 5.0f, 1.0f, 0.1f);
+                OoT_Math_ApproachF(&this->csCamEye.z, -520.0f, 0.1f, this->csCamMaxStepScale);
+                OoT_Math_ApproachF(&this->csCamMaxStepScale, 5.0f, 1.0f, 0.1f);
 
                 if (this->csTimer == 150) {
                     this->skelAnime.playSpeed = 1.0f;
@@ -1646,11 +1646,11 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             this->csCamAt.z = -135.0f;
 
             if (this->csTimer == 5) {
-                Player_SetCsActionWithHaltedActors(play, &this->actor, 0x4C);
+                OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 0x4C);
             }
 
             if (this->csTimer == 70) {
-                Player_SetCsActionWithHaltedActors(play, &this->actor, 0x4D);
+                OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 0x4D);
             }
 
             if (this->csTimer == 90) {
@@ -1665,7 +1665,7 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
 
         case 103:
             Audio_PlayActorSound2(&sBossGanonZelda->actor, NA_SE_EV_DOWN_TO_GROUND - SFX_FLAG);
-            Math_ApproachF(&sBossGanonZelda->actor.world.pos.y, 4102.0f, 0.05f, 1.5f);
+            OoT_Math_ApproachF(&sBossGanonZelda->actor.world.pos.y, 4102.0f, 0.05f, 1.5f);
 
             this->csCamEye.x = -242.0f;
             this->csCamEye.y = 4122.0f;
@@ -1686,7 +1686,7 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
         case 104:
             // In rando, fade out the white here as the earlier part is skipped.
             if (IS_RANDO || IS_BOSS_RUSH) {
-                Math_ApproachZeroF(&this->whiteFillAlpha, 1.0f, 10.0f);
+                OoT_Math_ApproachZeroF(&this->whiteFillAlpha, 1.0f, 10.0f);
             }
 
             this->csCamEye.x = -432.0f;
@@ -1698,7 +1698,7 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             this->csCamAt.z = sBossGanonZelda->actor.world.pos.z;
 
             if (this->csTimer >= 10) {
-                Math_ApproachZeroF(&play->envCtx.unk_D8, 1.0f, 0.05f);
+                OoT_Math_ApproachZeroF(&play->envCtx.unk_D8, 1.0f, 0.05f);
             }
 
             if (this->csTimer == 10) {
@@ -1734,22 +1734,22 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             this->csCamAt.z = sBossGanonZelda->actor.world.pos.z - 25.0f;
 
             if (this->csTimer == 10) {
-                Message_StartTextbox(play, 0x70D0, NULL);
+                OoT_Message_StartTextbox(play, 0x70D0, NULL);
             }
 
-            if ((this->csTimer > 100) && (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
+            if ((this->csTimer > 100) && (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
                 this->csState = 1055;
                 this->csTimer = 0;
             }
             break;
 
         case 1055:
-            this->unk_70C = Math_SinS(this->csTimer * 0x6300) * 0.3f;
+            this->unk_70C = OoT_Math_SinS(this->csTimer * 0x6300) * 0.3f;
             Sfx_PlaySfxCentered(NA_SE_EV_EARTHQUAKE - SFX_FLAG);
 
             if (this->csTimer == 20) {
                 sBossGanonZelda->unk_3C8 = 5;
-                Player_SetCsActionWithHaltedActors(play, &this->actor, 0x39);
+                OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 0x39);
             }
 
             if (this->csTimer == 40) {
@@ -1759,7 +1759,7 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             break;
 
         case 1056:
-            this->unk_70C = Math_SinS(this->csTimer * 0x6300) * 0.3f;
+            this->unk_70C = OoT_Math_SinS(this->csTimer * 0x6300) * 0.3f;
             Sfx_PlaySfxCentered(NA_SE_EV_EARTHQUAKE - SFX_FLAG);
 
             this->csCamEye.x = -503.0f;
@@ -1777,14 +1777,14 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             break;
 
         case 1057:
-            this->unk_70C = Math_SinS(this->csTimer * 0x6300) * (50.0f * this->csCamMovementScale);
+            this->unk_70C = OoT_Math_SinS(this->csTimer * 0x6300) * (50.0f * this->csCamMovementScale);
             Sfx_PlaySfxCentered(NA_SE_EV_EARTHQUAKE - SFX_FLAG);
 
-            Math_ApproachF(&this->csCamEye.x, -1200.0f, 0.1f, this->csCamMovementScale * 697.0f);
-            Math_ApproachF(&this->csCamEye.y, 4241.0f, 0.1f, this->csCamMovementScale * 113.0f);
-            Math_ApproachF(&this->csCamEye.z, -1048.0f, 0.1f, this->csCamMovementScale * 886.0f);
+            OoT_Math_ApproachF(&this->csCamEye.x, -1200.0f, 0.1f, this->csCamMovementScale * 697.0f);
+            OoT_Math_ApproachF(&this->csCamEye.y, 4241.0f, 0.1f, this->csCamMovementScale * 113.0f);
+            OoT_Math_ApproachF(&this->csCamEye.z, -1048.0f, 0.1f, this->csCamMovementScale * 886.0f);
 
-            Math_ApproachF(&this->csCamMovementScale, 0.05f, 1.0f, 0.001f);
+            OoT_Math_ApproachF(&this->csCamMovementScale, 0.05f, 1.0f, 0.001f);
 
             if (this->csTimer > 80) {
                 this->csState = 106;
@@ -1801,7 +1801,7 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             this->csCamAt.y = sBossGanonZelda->actor.world.pos.y + 40.0f + 5.0f;
             this->csCamAt.z = sBossGanonZelda->actor.world.pos.z - 25.0f;
 
-            this->unk_70C = Math_SinS(this->csTimer * 0x6300) * 0.3f;
+            this->unk_70C = OoT_Math_SinS(this->csTimer * 0x6300) * 0.3f;
             Sfx_PlaySfxCentered(NA_SE_EV_EARTHQUAKE - SFX_FLAG);
 
             if (this->csTimer == 70) {
@@ -1809,19 +1809,19 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             }
 
             if (this->csTimer == 90) {
-                Message_StartTextbox(play, 0x70D1, NULL);
+                OoT_Message_StartTextbox(play, 0x70D1, NULL);
             }
 
-            if ((this->csTimer > 150) && (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
+            if ((this->csTimer > 150) && (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
                 this->csState = 107;
                 this->csTimer = 0;
-                Message_StartTextbox(play, 0x70D2, NULL);
-                Player_SetCsActionWithHaltedActors(play, &this->actor, 0x39);
+                OoT_Message_StartTextbox(play, 0x70D2, NULL);
+                OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 0x39);
             }
             break;
 
         case 107:
-            this->unk_70C = Math_SinS(this->csTimer * 0x6300) * 0.8f;
+            this->unk_70C = OoT_Math_SinS(this->csTimer * 0x6300) * 0.8f;
             Sfx_PlaySfxCentered(NA_SE_EV_EARTHQUAKE - SFX_FLAG);
 
             this->csCamEye.x = -380.0f;
@@ -1832,7 +1832,7 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             this->csCamAt.y = (sBossGanonZelda->actor.world.pos.y + 40.0f + 5.0f) - 20.0f;
             this->csCamAt.z = (sBossGanonZelda->actor.world.pos.z - 25.0f) + 80.0f;
 
-            if ((this->csTimer > 50) && (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
+            if ((this->csTimer > 50) && (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
                 sBossGanonZelda->unk_3C8 = 7;
                 this->csState = 108;
                 this->csTimer = 0;
@@ -1840,7 +1840,7 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             break;
 
         case 108:
-            this->unk_70C = Math_SinS(this->csTimer * 0x6300) * 0.8f;
+            this->unk_70C = OoT_Math_SinS(this->csTimer * 0x6300) * 0.8f;
             Sfx_PlaySfxCentered(NA_SE_EV_EARTHQUAKE - SFX_FLAG);
 
             this->csCamAt.x = (sBossGanonZelda->actor.world.pos.x - 5.0f) - 30.0f;
@@ -1848,7 +1848,7 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             this->csCamAt.z = (sBossGanonZelda->actor.world.pos.z - 25.0f) + 80.0f;
 
             if (this->csTimer > 50) {
-                mainCam = Play_GetCamera(play, MAIN_CAM);
+                mainCam = OoT_Play_GetCamera(play, MAIN_CAM);
 
                 mainCam->eye = this->csCamEye;
                 mainCam->eyeNext = this->csCamEye;
@@ -1858,8 +1858,8 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
                 this->csState = 109;
                 this->csCamIndex = 0;
                 func_80064534(play, &play->csCtx);
-                Player_SetCsActionWithHaltedActors(play, &this->actor, 7);
-                Flags_SetSwitch(play, 0x37);
+                OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 7);
+                OoT_Flags_SetSwitch(play, 0x37);
             }
             break;
 
@@ -1874,17 +1874,17 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
 
     if (this->csCamIndex != 0) {
         if (moveCam) {
-            Math_ApproachF(&this->csCamEye.x, this->csCamTargetEye.x, this->csCamMovementScale,
+            OoT_Math_ApproachF(&this->csCamEye.x, this->csCamTargetEye.x, this->csCamMovementScale,
                            this->csCamEyeMaxStep.x * this->csCamMaxStepScale);
-            Math_ApproachF(&this->csCamEye.y, this->csCamTargetEye.y, this->csCamMovementScale,
+            OoT_Math_ApproachF(&this->csCamEye.y, this->csCamTargetEye.y, this->csCamMovementScale,
                            this->csCamEyeMaxStep.y * this->csCamMaxStepScale);
-            Math_ApproachF(&this->csCamEye.z, this->csCamTargetEye.z, this->csCamMovementScale,
+            OoT_Math_ApproachF(&this->csCamEye.z, this->csCamTargetEye.z, this->csCamMovementScale,
                            this->csCamEyeMaxStep.z * this->csCamMaxStepScale);
-            Math_ApproachF(&this->csCamAt.x, this->csCamTargetAt.x, this->csCamMovementScale,
+            OoT_Math_ApproachF(&this->csCamAt.x, this->csCamTargetAt.x, this->csCamMovementScale,
                            this->csCamAtMaxStep.x * this->csCamMaxStepScale);
-            Math_ApproachF(&this->csCamAt.y, this->csCamTargetAt.y, this->csCamMovementScale,
+            OoT_Math_ApproachF(&this->csCamAt.y, this->csCamTargetAt.y, this->csCamMovementScale,
                            this->csCamAtMaxStep.y * this->csCamMaxStepScale);
-            Math_ApproachF(&this->csCamAt.z, this->csCamTargetAt.z, this->csCamMovementScale,
+            OoT_Math_ApproachF(&this->csCamAt.z, this->csCamTargetAt.z, this->csCamMovementScale,
                            this->csCamAtMaxStep.z * this->csCamMaxStepScale);
         }
 
@@ -1913,18 +1913,18 @@ void BossGanon_PoundFloor(BossGanon* this, PlayState* play) {
     Vec3f sp54;
     Vec3f sp48;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
     switch (this->unk_1C2) {
         case 0:
-            targetPosX = Math_SinS(this->unk_1A2 * 1280);
+            targetPosX = OoT_Math_SinS(this->unk_1A2 * 1280);
             targetPosX = targetPosX * this->fwork[GDF_CENTER_POS];
-            targetPosZ = Math_CosS(this->unk_1A2 * 1792);
+            targetPosZ = OoT_Math_CosS(this->unk_1A2 * 1792);
             targetPosZ = targetPosZ * this->fwork[GDF_CENTER_POS];
 
-            Math_ApproachF(&this->actor.world.pos.x, targetPosX, 0.05f, this->fwork[GDF_FWORK_0]);
-            Math_ApproachF(&this->actor.world.pos.z, targetPosZ, 0.05f, this->fwork[GDF_FWORK_0]);
-            Math_ApproachF(&this->fwork[GDF_CENTER_POS], 0.0f, 1, 1.5f);
+            OoT_Math_ApproachF(&this->actor.world.pos.x, targetPosX, 0.05f, this->fwork[GDF_FWORK_0]);
+            OoT_Math_ApproachF(&this->actor.world.pos.z, targetPosZ, 0.05f, this->fwork[GDF_FWORK_0]);
+            OoT_Math_ApproachF(&this->fwork[GDF_CENTER_POS], 0.0f, 1, 1.5f);
 
             if (this->timers[0] == 5) {
                 Audio_PlayActorSound2(&this->actor, NA_SE_EN_GANON_HIT_GND);
@@ -1932,19 +1932,19 @@ void BossGanon_PoundFloor(BossGanon* this, PlayState* play) {
 
             if (this->timers[0] < 14) {
                 heightTarget = 250.0f;
-                this->unk_258 += (Rand_ZeroFloat(M_PI / 2) + (M_PI / 2));
-                Math_ApproachF(&this->handLightBallScale, 7.0f, 0.5f, 1.0f);
+                this->unk_258 += (OoT_Rand_ZeroFloat(M_PI / 2) + (M_PI / 2));
+                OoT_Math_ApproachF(&this->handLightBallScale, 7.0f, 0.5f, 1.0f);
                 this->envLightMode = 1;
             } else {
                 heightTarget = 200.0f;
             }
 
-            Math_ApproachF(&this->actor.world.pos.y, heightTarget, 0.1f, this->actor.velocity.y);
-            Math_ApproachF(&this->actor.velocity.y, 20.0f, 1.0f, 1.0f);
+            OoT_Math_ApproachF(&this->actor.world.pos.y, heightTarget, 0.1f, this->actor.velocity.y);
+            OoT_Math_ApproachF(&this->actor.velocity.y, 20.0f, 1.0f, 1.0f);
 
             if (this->timers[0] == 14) {
-                this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfPoundAnim);
-                Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfPoundAnim, 0.0f);
+                this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfPoundAnim);
+                OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfPoundAnim, 0.0f);
                 this->actor.velocity.y = 0.0f;
             }
 
@@ -1957,7 +1957,7 @@ void BossGanon_PoundFloor(BossGanon* this, PlayState* play) {
         case 1:
             sBossGanonCape->gravity = -1.0f;
             this->envLightMode = 1;
-            Math_ApproachF(&this->actor.velocity.y, -50.0f, 1.0f, 10.0f);
+            OoT_Math_ApproachF(&this->actor.velocity.y, -50.0f, 1.0f, 10.0f);
             this->actor.world.pos.y += this->actor.velocity.y;
 
             if (this->actor.world.pos.y < 60.0f) {
@@ -1973,10 +1973,10 @@ void BossGanon_PoundFloor(BossGanon* this, PlayState* play) {
                 sp60.y = 0.0f;
 
                 for (i = 0; i < 80; i++) {
-                    sp6C.x = Rand_CenteredFloat(25.0f);
-                    sp6C.y = Rand_ZeroFloat(17.0f);
-                    sp6C.z = Rand_CenteredFloat(25.0f);
-                    BossGanonEff_SpawnLightRay(play, &sp60, &sp6C, &sZeroVec, Rand_ZeroFloat(300.0f) + 500.0f, 13.0f,
+                    sp6C.x = OoT_Rand_CenteredFloat(25.0f);
+                    sp6C.y = OoT_Rand_ZeroFloat(17.0f);
+                    sp6C.z = OoT_Rand_CenteredFloat(25.0f);
+                    BossGanonEff_SpawnLightRay(play, &sp60, &sp6C, &OoT_sZeroVec, OoT_Rand_ZeroFloat(300.0f) + 500.0f, 13.0f,
                                                0x1E);
                 }
             }
@@ -1986,8 +1986,8 @@ void BossGanon_PoundFloor(BossGanon* this, PlayState* play) {
             this->envLightMode = 1;
 
             if (this->timers[0] == 0) {
-                this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfPoundEndAnim);
-                Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfPoundEndAnim, 0.0f);
+                this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfPoundEndAnim);
+                OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfPoundEndAnim, 0.0f);
                 this->unk_1C2 = 3;
                 this->unk_19F = 1;
                 this->actor.velocity.y = 0.0f;
@@ -1995,13 +1995,13 @@ void BossGanon_PoundFloor(BossGanon* this, PlayState* play) {
             break;
 
         case 3:
-            Math_ApproachF(&this->actor.world.pos.y, 150.0f, 0.1f, this->actor.velocity.y);
-            Math_ApproachF(&this->actor.velocity.y, 20.0f, 1.0f, 1.0f);
+            OoT_Math_ApproachF(&this->actor.world.pos.y, 150.0f, 0.1f, this->actor.velocity.y);
+            OoT_Math_ApproachF(&this->actor.velocity.y, 20.0f, 1.0f, 1.0f);
 
-            if (Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
-                this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfGetUp3Anim);
-                Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfGetUp3Anim, 0.0f);
-                SkelAnime_Update(&this->skelAnime);
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
+                this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfGetUp3Anim);
+                OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfGetUp3Anim, 0.0f);
+                OoT_SkelAnime_Update(&this->skelAnime);
                 sBossGanonCape->attachShouldersTimer = 18.0f;
                 Audio_PlayActorSound2(&this->actor, NA_SE_EV_GANON_MANTLE);
                 this->unk_1C2 = 4;
@@ -2009,10 +2009,10 @@ void BossGanon_PoundFloor(BossGanon* this, PlayState* play) {
             break;
 
         case 4:
-            Math_ApproachF(&this->actor.world.pos.y, 150.0f, 0.1f, this->actor.velocity.y);
-            Math_ApproachF(&this->actor.velocity.y, 20.0f, 1.0f, 1.0f);
+            OoT_Math_ApproachF(&this->actor.world.pos.y, 150.0f, 0.1f, this->actor.velocity.y);
+            OoT_Math_ApproachF(&this->actor.velocity.y, 20.0f, 1.0f, 1.0f);
 
-            if (Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
                 BossGanon_SetupWait(this, play);
             }
             break;
@@ -2037,7 +2037,7 @@ void BossGanon_SetupChargeBigMagic(BossGanon* this, PlayState* play) {
     this->actor.velocity.x = 0.0f;
     this->actor.velocity.y = 0.0f;
     this->fwork[GDF_CENTER_POS] = 100.0f;
-    this->unk_1AA = Rand_ZeroFloat(20000.0f);
+    this->unk_1AA = OoT_Rand_ZeroFloat(20000.0f);
     this->unk_1AC = 0;
     this->actionFunc = BossGanon_ChargeBigMagic;
 }
@@ -2051,34 +2051,34 @@ void BossGanon_ChargeBigMagic(BossGanon* this, PlayState* play) {
     Vec3f sp68;
     s16 i;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
-    targetPosX = Math_SinS(this->unk_1A2 * 1280);
+    targetPosX = OoT_Math_SinS(this->unk_1A2 * 1280);
     targetPosX = targetPosX * this->fwork[GDF_CENTER_POS];
 
-    targetPosZ = Math_CosS(this->unk_1A2 * 1792);
+    targetPosZ = OoT_Math_CosS(this->unk_1A2 * 1792);
     targetPosZ = targetPosZ * this->fwork[GDF_CENTER_POS];
 
-    Math_ApproachF(&this->actor.world.pos.x, targetPosX, 0.05f, this->fwork[GDF_FWORK_0]);
-    Math_ApproachF(&this->actor.world.pos.z, targetPosZ, 0.05, this->fwork[GDF_FWORK_0]);
+    OoT_Math_ApproachF(&this->actor.world.pos.x, targetPosX, 0.05f, this->fwork[GDF_FWORK_0]);
+    OoT_Math_ApproachF(&this->actor.world.pos.z, targetPosZ, 0.05, this->fwork[GDF_FWORK_0]);
 
-    Math_ApproachF(&this->fwork[GDF_CENTER_POS], 0.0f, 1.0f, 1.5f);
-    Math_ApproachF(&this->actor.world.pos.y, 200.0f, 0.05f, this->actor.velocity.y);
-    Math_ApproachF(&this->actor.velocity.y, 20.0f, 1.0f, 1.0f);
+    OoT_Math_ApproachF(&this->fwork[GDF_CENTER_POS], 0.0f, 1.0f, 1.5f);
+    OoT_Math_ApproachF(&this->actor.world.pos.y, 200.0f, 0.05f, this->actor.velocity.y);
+    OoT_Math_ApproachF(&this->actor.velocity.y, 20.0f, 1.0f, 1.0f);
 
     switch (this->unk_1C2) {
         case 0:
             if (this->timers[0] == 0) {
-                this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfBigMagicChargeStartAnim);
-                Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfBigMagicChargeStartAnim, 0.0f);
+                this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfBigMagicChargeStartAnim);
+                OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfBigMagicChargeStartAnim, 0.0f);
                 this->unk_1C2 = 1;
             }
             break;
 
         case 1:
-            if (Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
-                this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfBigMagicChargeHoldAnim);
-                Animation_MorphToLoop(&this->skelAnime, &gGanondorfBigMagicChargeHoldAnim, 0.0f);
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
+                this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfBigMagicChargeHoldAnim);
+                OoT_Animation_MorphToLoop(&this->skelAnime, &gGanondorfBigMagicChargeHoldAnim, 0.0f);
                 this->unk_1C2 = 2;
                 this->timers[0] = 100;
             }
@@ -2091,17 +2091,17 @@ void BossGanon_ChargeBigMagic(BossGanon* this, PlayState* play) {
             this->unk_278.y = this->unk_2EC[0].y + 50.0f + 30.0f;
             this->unk_278.z = this->unk_2EC[0].z;
 
-            Math_ApproachF(&this->unk_284, 0.25f, 0.1f, 0.006f);
-            Math_ApproachF(&this->unk_288, 255.0f, 1.0f, 255.0f);
-            Math_ApproachF(&this->unk_28C, 0.25f, 0.1f, 0.006f);
+            OoT_Math_ApproachF(&this->unk_284, 0.25f, 0.1f, 0.006f);
+            OoT_Math_ApproachF(&this->unk_288, 255.0f, 1.0f, 255.0f);
+            OoT_Math_ApproachF(&this->unk_28C, 0.25f, 0.1f, 0.006f);
 
             if ((this->timers[0] > 20) && (this->timers[0] < 60)) {
-                Math_ApproachF(&this->unk_290, 255.0f, 1.0f, 15.0f);
+                OoT_Math_ApproachF(&this->unk_290, 255.0f, 1.0f, 15.0f);
             }
 
             if (this->timers[0] == 0) {
-                this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfBigMagicWindupAnim);
-                Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfBigMagicWindupAnim, 0.0f);
+                this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfBigMagicWindupAnim);
+                OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfBigMagicWindupAnim, 0.0f);
                 this->unk_1C2 = 3;
                 this->timers[0] = 6;
                 this->timers[1] = 15;
@@ -2109,11 +2109,11 @@ void BossGanon_ChargeBigMagic(BossGanon* this, PlayState* play) {
                 break;
             }
 
-            Math_ApproachS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x3E8);
+            OoT_Math_ApproachS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x3E8);
 
             if (this->timers[0] < -4) {
                 for (i = 0; i < ARRAY_COUNT(this->unk_294); i++) {
-                    Math_ApproachF(&this->unk_294[i], 0.0f, 1.0f, 40.0f);
+                    OoT_Math_ApproachF(&this->unk_294[i], 0.0f, 1.0f, 40.0f);
                 }
             } else if ((this->timers[0] >= 7) && (this->timers[0] < 26)) {
                 if (this->unk_1AC < ARRAY_COUNT(this->unk_294)) {
@@ -2121,17 +2121,17 @@ void BossGanon_ChargeBigMagic(BossGanon* this, PlayState* play) {
                 }
 
                 for (i = 0; i < this->unk_1AC; i++) {
-                    Math_ApproachF(&this->unk_294[i], 200.0f, 1.0f, 40.0f);
+                    OoT_Math_ApproachF(&this->unk_294[i], 200.0f, 1.0f, 40.0f);
                 }
             }
 
             if (this->timers[0] <= 30) {
-                Math_ApproachF(&this->unk_284, 0.4f, 0.5f, 0.017f);
+                OoT_Math_ApproachF(&this->unk_284, 0.4f, 0.5f, 0.017f);
                 this->unk_28C = this->unk_284;
             }
 
             if (this->timers[0] <= 30) {
-                Math_ApproachF(&this->unk_2D0, 45.0f, 0.1f, 10.0f);
+                OoT_Math_ApproachF(&this->unk_2D0, 45.0f, 0.1f, 10.0f);
                 this->lensFlareTimer = 1;
                 this->lensFlareMode = 2;
                 gCustomLensFlarePos = this->unk_278;
@@ -2163,12 +2163,12 @@ void BossGanon_ChargeBigMagic(BossGanon* this, PlayState* play) {
 
             if (this->timers[0] > 30) {
                 sp74.x = 0.0f;
-                sp74.y = Rand_ZeroFloat(10.0f) + 150.0f;
+                sp74.y = OoT_Rand_ZeroFloat(10.0f) + 150.0f;
                 sp74.z = 0.0f;
 
                 Matrix_RotateY(BINANG_TO_RAD(this->actor.yawTowardsPlayer), MTXMODE_NEW);
-                Matrix_RotateZ(Rand_ZeroFloat(65536.0f), MTXMODE_APPLY);
-                Matrix_MultVec3f(&sp74, &sp68);
+                Matrix_RotateZ(OoT_Rand_ZeroFloat(65536.0f), MTXMODE_APPLY);
+                OoT_Matrix_MultVec3f(&sp74, &sp68);
 
                 sp80.x = this->unk_278.x + sp68.x;
                 sp80.y = this->unk_278.y + sp68.y;
@@ -2182,7 +2182,7 @@ void BossGanon_ChargeBigMagic(BossGanon* this, PlayState* play) {
             this->envLightMode = 2;
 
             for (i = 0; i < ARRAY_COUNT(this->unk_294); i++) {
-                Math_ApproachF(&this->unk_294[i], 0.0f, 1.0f, 40.0f);
+                OoT_Math_ApproachF(&this->unk_294[i], 0.0f, 1.0f, 40.0f);
             }
 
             if (this->timers[0] == 1) {
@@ -2191,17 +2191,17 @@ void BossGanon_ChargeBigMagic(BossGanon* this, PlayState* play) {
             }
 
             if (this->timers[0] == 0) {
-                Math_ApproachZeroF(&this->unk_284, 1.0f, 0.08f);
+                OoT_Math_ApproachZeroF(&this->unk_284, 1.0f, 0.08f);
                 this->unk_28C = this->unk_284;
-                Math_ApproachZeroF(&this->unk_2D0, 1.0f, 10.0f);
-                Math_ApproachF(&this->unk_278.x, this->unk_1FC.x, 0.5f, 30.0f);
-                Math_ApproachF(&this->unk_278.y, this->unk_1FC.y, 0.5f, 30.0f);
-                Math_ApproachF(&this->unk_278.z, this->unk_1FC.z, 0.5f, 30.0f);
+                OoT_Math_ApproachZeroF(&this->unk_2D0, 1.0f, 10.0f);
+                OoT_Math_ApproachF(&this->unk_278.x, this->unk_1FC.x, 0.5f, 30.0f);
+                OoT_Math_ApproachF(&this->unk_278.y, this->unk_1FC.y, 0.5f, 30.0f);
+                OoT_Math_ApproachF(&this->unk_278.z, this->unk_1FC.z, 0.5f, 30.0f);
             }
 
             if (this->timers[1] == 0) {
-                this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfBigMagicThrowAnim);
-                Animation_MorphToLoop(&this->skelAnime, &gGanondorfBigMagicThrowAnim, 0.0f);
+                this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfBigMagicThrowAnim);
+                OoT_Animation_MorphToLoop(&this->skelAnime, &gGanondorfBigMagicThrowAnim, 0.0f);
                 this->unk_1C2 = 4;
                 this->unk_288 = 0.0f;
                 this->unk_290 = 0.0f;
@@ -2213,9 +2213,9 @@ void BossGanon_ChargeBigMagic(BossGanon* this, PlayState* play) {
         case 4:
             this->envLightMode = 2;
 
-            if (Animation_OnFrame(&this->skelAnime, 5.0f)) {
+            if (OoT_Animation_OnFrame(&this->skelAnime, 5.0f)) {
                 for (i = 0; i < 5; i++) {
-                    Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_BOSS_GANON, this->unk_1FC.x,
+                    OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_BOSS_GANON, this->unk_1FC.x,
                                        this->unk_1FC.y, this->unk_1FC.z, 0, this->actor.yawTowardsPlayer, 0, 0x104 + i);
                 }
 
@@ -2223,14 +2223,14 @@ void BossGanon_ChargeBigMagic(BossGanon* this, PlayState* play) {
                 Audio_PlayActorSound2(&this->actor, NA_SE_EN_GANON_THROW_BIG);
             }
 
-            if (Animation_OnFrame(&this->skelAnime, 3.0f)) {
+            if (OoT_Animation_OnFrame(&this->skelAnime, 3.0f)) {
                 sBossGanonCape->attachShouldersTimer = 26.0f;
                 Audio_PlayActorSound2(&this->actor, NA_SE_EV_GANON_MANTLE);
             }
 
-            if (Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
-                this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfBigMagicThrowEndAnim);
-                Animation_MorphToLoop(&this->skelAnime, &gGanondorfBigMagicThrowEndAnim, 0.0f);
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
+                this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfBigMagicThrowEndAnim);
+                OoT_Animation_MorphToLoop(&this->skelAnime, &gGanondorfBigMagicThrowEndAnim, 0.0f);
                 this->unk_1C2 = 5;
             }
             break;
@@ -2238,7 +2238,7 @@ void BossGanon_ChargeBigMagic(BossGanon* this, PlayState* play) {
         case 5:
             this->envLightMode = 2;
 
-            if (Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
                 BossGanon_SetupWait(this, play);
             }
             break;
@@ -2247,10 +2247,10 @@ void BossGanon_ChargeBigMagic(BossGanon* this, PlayState* play) {
 
 void BossGanon_SetupWait(BossGanon* this, PlayState* play) {
     BossGanon_SetAnimationObject(this, play, OBJECT_GANON_ANIME1);
-    Animation_MorphToLoop(&this->skelAnime, &gGanondorfFloatAnim, -10.0f);
+    OoT_Animation_MorphToLoop(&this->skelAnime, &gGanondorfFloatAnim, -10.0f);
     this->actionFunc = BossGanon_Wait;
     this->fwork[GDF_FWORK_0] = 0.0f;
-    this->timers[0] = (s16)Rand_ZeroFloat(64.0f) + 30;
+    this->timers[0] = (s16)OoT_Rand_ZeroFloat(64.0f) + 30;
     this->unk_1C2 = 0;
     sBossGanonCape->minY = 2.0f;
 }
@@ -2268,19 +2268,19 @@ void BossGanon_Wait(BossGanon* this, PlayState* play) {
     sBossGanonCape->sideSwayMagnitude = -3.0f;
     sBossGanonCape->minDist = 20.0f;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
     if ((this->unk_1C2 == 0) && !(player->actor.world.pos.y < 0.0f)) {
         if (!(player->stateFlags1 & PLAYER_STATE1_HANGING_OFF_LEDGE) && (fabsf(player->actor.world.pos.x) < 110.0f) &&
             (fabsf(player->actor.world.pos.z) < 110.0f)) {
             BossGanon_SetupPoundFloor(this, play);
         } else if ((this->timers[0] == 0) && !(player->stateFlags1 & PLAYER_STATE1_HANGING_OFF_LEDGE)) {
-            this->timers[0] = (s16)Rand_ZeroFloat(30.0f) + 30;
+            this->timers[0] = (s16)OoT_Rand_ZeroFloat(30.0f) + 30;
 
             if ((s8)this->actor.colChkInfo.health >= 20) {
                 BossGanon_SetupChargeLightBall(this, play);
-            } else if (Rand_ZeroOne() >= 0.5f) {
-                if ((Rand_ZeroOne() >= 0.5f) || (this->actor.xzDistToPlayer > 350.0f)) {
+            } else if (OoT_Rand_ZeroOne() >= 0.5f) {
+                if ((OoT_Rand_ZeroOne() >= 0.5f) || (this->actor.xzDistToPlayer > 350.0f)) {
                     BossGanon_SetupChargeBigMagic(this, play);
                 } else {
                     BossGanon_SetupPoundFloor(this, play);
@@ -2291,35 +2291,35 @@ void BossGanon_Wait(BossGanon* this, PlayState* play) {
         }
     }
 
-    sin = Math_SinS(this->unk_1A2 * 1280) * 100.0f;
-    cos = Math_CosS(this->unk_1A2 * 1792) * 100.0f;
+    sin = OoT_Math_SinS(this->unk_1A2 * 1280) * 100.0f;
+    cos = OoT_Math_CosS(this->unk_1A2 * 1792) * 100.0f;
 
-    Math_ApproachF(&this->actor.world.pos.x, sin, 0.05f, this->fwork[GDF_FWORK_0]);
-    Math_ApproachF(&this->actor.world.pos.y, 150.0f, 0.05f, this->fwork[GDF_FWORK_0] * 0.2f);
-    Math_ApproachF(&this->actor.world.pos.z, cos, 0.05f, this->fwork[GDF_FWORK_0]);
-    Math_ApproachF(&this->fwork[GDF_FWORK_0], 50.0f, 1.0f, 0.5f);
+    OoT_Math_ApproachF(&this->actor.world.pos.x, sin, 0.05f, this->fwork[GDF_FWORK_0]);
+    OoT_Math_ApproachF(&this->actor.world.pos.y, 150.0f, 0.05f, this->fwork[GDF_FWORK_0] * 0.2f);
+    OoT_Math_ApproachF(&this->actor.world.pos.z, cos, 0.05f, this->fwork[GDF_FWORK_0]);
+    OoT_Math_ApproachF(&this->fwork[GDF_FWORK_0], 50.0f, 1.0f, 0.5f);
 
     this->actor.velocity.x = this->actor.world.pos.x - this->actor.prevPos.x;
     this->actor.velocity.z = this->actor.world.pos.z - this->actor.prevPos.z;
 
-    sin = Math_SinS(this->unk_1A2 * 1500);
+    sin = OoT_Math_SinS(this->unk_1A2 * 1500);
     this->actor.velocity.y = this->fwork[GDF_FWORK_0] * sin * 0.04f;
     this->actor.world.pos.y += this->actor.velocity.y;
 
-    Math_ApproachS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0xBB8);
+    OoT_Math_ApproachS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0xBB8);
     Sfx_PlaySfxAtPos(&this->actor.projectedPos, NA_SE_EN_FANTOM_FLOAT - SFX_FLAG);
 }
 
 void BossGanon_SetupChargeLightBall(BossGanon* this, PlayState* play) {
     BossGanon_SetAnimationObject(this, play, OBJECT_GANON_ANIME1);
-    this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfChargeLightBallAnim);
-    Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfChargeLightBallAnim, -3.0f);
+    this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfChargeLightBallAnim);
+    OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfChargeLightBallAnim, -3.0f);
     this->actionFunc = BossGanon_ChargeLightBall;
     this->timers[0] = 25;
 }
 
 void BossGanon_ChargeLightBall(BossGanon* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
     sBossGanonCape->backPush = -3.0f;
     sBossGanonCape->backSwayMagnitude = 1.25f;
@@ -2332,35 +2332,35 @@ void BossGanon_ChargeLightBall(BossGanon* this, PlayState* play) {
 
     if (this->timers[0] == 17) {
         this->unk_26C = 10;
-        this->unk_270 = Rand_ZeroFloat(M_PI);
+        this->unk_270 = OoT_Rand_ZeroFloat(M_PI);
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_GANON_SPARK);
     }
 
     if (this->timers[0] < 10) {
-        this->unk_258 += (Rand_ZeroFloat(M_PI / 2) + (M_PI / 2));
-        Math_ApproachF(&this->handLightBallScale, 10.0f, 0.5f, 1.25f);
+        this->unk_258 += (OoT_Rand_ZeroFloat(M_PI / 2) + (M_PI / 2));
+        OoT_Math_ApproachF(&this->handLightBallScale, 10.0f, 0.5f, 1.25f);
 
         if (this->timers[0] == 0) {
             BossGanon_SetupPlayTennis(this, play);
         }
     }
 
-    Math_ApproachS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x7D0);
+    OoT_Math_ApproachS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x7D0);
 
     this->actor.world.pos.x += this->actor.velocity.x;
     this->actor.world.pos.z += this->actor.velocity.z;
 
-    Math_ApproachZeroF(&this->actor.velocity.x, 1.0f, 0.5f);
-    Math_ApproachZeroF(&this->actor.velocity.z, 1.0f, 0.5f);
+    OoT_Math_ApproachZeroF(&this->actor.velocity.x, 1.0f, 0.5f);
+    OoT_Math_ApproachZeroF(&this->actor.velocity.z, 1.0f, 0.5f);
 
-    this->actor.velocity.y = Math_SinS(this->unk_1A2 * 1500) * 2.0f;
+    this->actor.velocity.y = OoT_Math_SinS(this->unk_1A2 * 1500) * 2.0f;
     this->actor.world.pos.y += this->actor.velocity.y;
 }
 
 void BossGanon_SetupPlayTennis(BossGanon* this, PlayState* play) {
     BossGanon_SetAnimationObject(this, play, OBJECT_GANON_ANIME1);
-    this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfThrowAnim);
-    Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfThrowAnim, 0.0f);
+    this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfThrowAnim);
+    OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfThrowAnim, 0.0f);
     this->actionFunc = BossGanon_PlayTennis;
 }
 
@@ -2369,16 +2369,16 @@ void BossGanon_PlayTennis(BossGanon* this, PlayState* play) {
     static s16 capeRightArmDurations[] = { 26, 20 };
     s16 rand;
 
-    SkelAnime_Update(&this->skelAnime);
-    Math_ApproachZeroF(&this->handLightBallScale, 1.0f, 0.2f);
+    OoT_SkelAnime_Update(&this->skelAnime);
+    OoT_Math_ApproachZeroF(&this->handLightBallScale, 1.0f, 0.2f);
 
     switch (this->unk_1C2) {
         case 0:
             this->envLightMode = 1;
 
-            if (Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
                 this->unk_1C2 = 1;
-                Animation_MorphToLoop(&this->skelAnime, &gGanondorfFloatAnim, 0.0f);
+                OoT_Animation_MorphToLoop(&this->skelAnime, &gGanondorfFloatAnim, 0.0f);
             }
 
             if (this->skelAnime.curFrame <= 12.0f) {
@@ -2387,24 +2387,24 @@ void BossGanon_PlayTennis(BossGanon* this, PlayState* play) {
                 gCustomLensFlarePos = this->unk_260;
             }
 
-            if (Animation_OnFrame(&this->skelAnime, 12.0f)) {
+            if (OoT_Animation_OnFrame(&this->skelAnime, 12.0f)) {
                 this->handLightBallScale = 0.0f;
             }
 
-            if (Animation_OnFrame(&this->skelAnime, 11.0f)) {
+            if (OoT_Animation_OnFrame(&this->skelAnime, 11.0f)) {
                 this->unk_25C = 1;
                 Audio_PlayActorSound2(&this->actor, NA_SE_EN_GANON_THROW);
                 Audio_PlayActorSound2(&this->actor, NA_SE_EN_GANON_THROW_MASIC);
-                Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_BOSS_GANON, this->unk_260.x,
+                OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_BOSS_GANON, this->unk_260.x,
                                    this->unk_260.y, this->unk_260.z, 0, 0, 0, 0x64);
             }
             break;
 
         case 1:
             if (this->startVolley) {
-                rand = Rand_ZeroOne() * 1.99f;
-                this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(volleyAnims[rand]);
-                Animation_MorphToPlayOnce(&this->skelAnime, volleyAnims[rand], 0.0f);
+                rand = OoT_Rand_ZeroOne() * 1.99f;
+                this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(volleyAnims[rand]);
+                OoT_Animation_MorphToPlayOnce(&this->skelAnime, volleyAnims[rand], 0.0f);
                 sBossGanonCape->attachRightArmTimer = capeRightArmDurations[rand];
                 Audio_PlayActorSound2(&this->actor, NA_SE_EV_GANON_MANTLE);
                 this->startVolley = false;
@@ -2412,23 +2412,23 @@ void BossGanon_PlayTennis(BossGanon* this, PlayState* play) {
             break;
     }
 
-    Math_ApproachS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x7D0);
+    OoT_Math_ApproachS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x7D0);
 
     this->actor.world.pos.x += this->actor.velocity.x;
     this->actor.world.pos.z += this->actor.velocity.z;
 
-    Math_SmoothStepToF(&this->actor.velocity.x, 0.0f, 1.0f, 0.5f, 0.0f);
-    Math_SmoothStepToF(&this->actor.velocity.z, 0.0f, 1.0f, 0.5f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->actor.velocity.x, 0.0f, 1.0f, 0.5f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->actor.velocity.z, 0.0f, 1.0f, 0.5f, 0.0f);
 
-    this->actor.velocity.y = Math_SinS(this->unk_1A2 * 1500) * 2.0f;
+    this->actor.velocity.y = OoT_Math_SinS(this->unk_1A2 * 1500) * 2.0f;
     this->actor.world.pos.y += this->actor.velocity.y;
 }
 
 void BossGanon_SetupBlock(BossGanon* this, PlayState* play) {
     if ((this->actionFunc != BossGanon_Block) || (this->unk_1C2 != 0)) {
         BossGanon_SetAnimationObject(this, play, OBJECT_GANON_ANIME1);
-        this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfBlockAnim);
-        Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfBlockAnim, 0.0f);
+        this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfBlockAnim);
+        OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfBlockAnim, 0.0f);
         this->actionFunc = BossGanon_Block;
     }
 
@@ -2440,7 +2440,7 @@ void BossGanon_SetupBlock(BossGanon* this, PlayState* play) {
 
 void BossGanon_Block(BossGanon* this, PlayState* play) {
     this->collider.base.colType = 9;
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     sBossGanonCape->backPush = -9.0f;
     sBossGanonCape->backSwayMagnitude = 0.25f;
     sBossGanonCape->sideSwayMagnitude = -2.0f;
@@ -2449,16 +2449,16 @@ void BossGanon_Block(BossGanon* this, PlayState* play) {
     if (this->unk_1C2 == 0) {
         if (this->timers[0] == 0) {
             this->unk_1C2 = 1;
-            Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfBlockReleaseAnim, 0.0f);
-            this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfBlockReleaseAnim);
-            SkelAnime_Update(&this->skelAnime);
+            OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfBlockReleaseAnim, 0.0f);
+            this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfBlockReleaseAnim);
+            OoT_SkelAnime_Update(&this->skelAnime);
             sBossGanonCape->attachShouldersTimer = 15.0f;
             Audio_PlayActorSound2(&this->actor, NA_SE_EV_GANON_MANTLE);
         }
     } else {
         sBossGanonCape->sideSwayMagnitude = -13.0f;
 
-        if (Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
+        if (OoT_Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
             BossGanon_SetupWait(this, play);
         }
     }
@@ -2467,17 +2467,17 @@ void BossGanon_Block(BossGanon* this, PlayState* play) {
     this->actor.world.pos.y += this->actor.velocity.y;
     this->actor.world.pos.z += this->actor.velocity.z;
 
-    Math_ApproachZeroF(&this->actor.velocity.x, 1.0f, 0.5f);
-    Math_ApproachZeroF(&this->actor.velocity.y, 1.0f, 0.5f);
-    Math_ApproachZeroF(&this->actor.velocity.z, 1.0f, 0.5f);
+    OoT_Math_ApproachZeroF(&this->actor.velocity.x, 1.0f, 0.5f);
+    OoT_Math_ApproachZeroF(&this->actor.velocity.y, 1.0f, 0.5f);
+    OoT_Math_ApproachZeroF(&this->actor.velocity.z, 1.0f, 0.5f);
 }
 
 void BossGanon_SetupHitByLightBall(BossGanon* this, PlayState* play) {
     s16 i;
 
     BossGanon_SetAnimationObject(this, play, OBJECT_GANON_ANIME1);
-    this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfBigMagicHitAnim);
-    Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfBigMagicHitAnim, 0);
+    this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfBigMagicHitAnim);
+    OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfBigMagicHitAnim, 0);
     this->timers[0] = 70;
     sBossGanonCape->attachRightArmTimer = sBossGanonCape->attachLeftArmTimer = 0;
 
@@ -2498,48 +2498,48 @@ void BossGanon_HitByLightBall(BossGanon* this, PlayState* play) {
     s16 i;
     Vec3f sp50;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
     if (this->unk_1C2 == 0) {
         BossGanonEff_SpawnShock(play, 1500.0f, GDF_SHOCK_DORF_YELLOW);
 
-        if (Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
-            this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfLightArrowWaitAnim);
-            Animation_MorphToLoop(&this->skelAnime, &gGanondorfLightArrowWaitAnim, 0.0f);
+        if (OoT_Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
+            this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfLightArrowWaitAnim);
+            OoT_Animation_MorphToLoop(&this->skelAnime, &gGanondorfLightArrowWaitAnim, 0.0f);
             this->unk_1C2 = 1;
         }
     } else if (this->unk_1C2 == 1) {
         BossGanonEff_SpawnShock(play, 1000.0f, GDF_SHOCK_DORF_YELLOW);
 
         if (this->timers[0] == 0) {
-            this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfGetUp3Anim);
-            Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfGetUp3Anim, 0.0f);
+            this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfGetUp3Anim);
+            OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfGetUp3Anim, 0.0f);
             this->unk_1C2 = 2;
-            SkelAnime_Update(&this->skelAnime);
+            OoT_SkelAnime_Update(&this->skelAnime);
             sBossGanonCape->attachShouldersTimer = 18.0f;
             Audio_PlayActorSound2(&this->actor, NA_SE_EV_GANON_MANTLE);
             Audio_PlayActorSound2(&this->actor, NA_SE_EN_GANON_RESTORE);
             this->timers[2] = 130;
         }
     } else {
-        if (Animation_OnFrame(&this->skelAnime, 7.0f)) {
+        if (OoT_Animation_OnFrame(&this->skelAnime, 7.0f)) {
             for (i = 0; i < 100; i++) {
-                sp50.x = Rand_CenteredFloat(25.0f);
-                sp50.y = Rand_CenteredFloat(25.0f);
-                sp50.z = Rand_CenteredFloat(25.0f);
+                sp50.x = OoT_Rand_CenteredFloat(25.0f);
+                sp50.y = OoT_Rand_CenteredFloat(25.0f);
+                sp50.z = OoT_Rand_CenteredFloat(25.0f);
 
-                BossGanonEff_SpawnSparkle(play, &this->unk_1FC, &sp50, &sZeroVec, Rand_ZeroFloat(200.0f) + 500.0f,
+                BossGanonEff_SpawnSparkle(play, &this->unk_1FC, &sp50, &OoT_sZeroVec, OoT_Rand_ZeroFloat(200.0f) + 500.0f,
                                           0x14);
             }
             Audio_PlayActorSound2(&this->actor, NA_SE_PL_WALK_WATER2);
         }
 
-        if (Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
+        if (OoT_Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
             BossGanon_SetupWait(this, play);
         }
     }
 
-    this->actor.velocity.y = Math_SinS(this->unk_1A2 * 1500) * 2.0f;
+    this->actor.velocity.y = OoT_Math_SinS(this->unk_1A2 * 1500) * 2.0f;
     this->actor.world.pos.y += this->actor.velocity.y;
 }
 
@@ -2548,8 +2548,8 @@ void BossGanon_SetupVulnerable(BossGanon* this, PlayState* play) {
 
     if (this->actionFunc != BossGanon_Vulnerable) {
         BossGanon_SetAnimationObject(this, play, OBJECT_GANON_ANIME1);
-        this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfLightArrowHitAnim);
-        Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfLightArrowHitAnim, 0.0f);
+        this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfLightArrowHitAnim);
+        OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfLightArrowHitAnim, 0.0f);
         sBossGanonCape->attachRightArmTimer = sBossGanonCape->attachLeftArmTimer = 0;
         this->actionFunc = BossGanon_Vulnerable;
 
@@ -2564,9 +2564,9 @@ void BossGanon_SetupVulnerable(BossGanon* this, PlayState* play) {
         sBossGanonCape->minDist = 20.0f;
 
         for (i = 0; i < 10; i++) {
-            Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_BOSS_GANON, this->unk_1FC.x, this->unk_1FC.y,
-                               this->unk_1FC.z, Rand_CenteredFloat(0x8000),
-                               (s16)Rand_CenteredFloat(0x8000) + this->actor.yawTowardsPlayer, 0, 0xC8 + i);
+            OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_BOSS_GANON, this->unk_1FC.x, this->unk_1FC.y,
+                               this->unk_1FC.z, OoT_Rand_CenteredFloat(0x8000),
+                               (s16)OoT_Rand_CenteredFloat(0x8000) + this->actor.yawTowardsPlayer, 0, 0xC8 + i);
         }
 
         this->unk_1A4 = 0;
@@ -2585,38 +2585,38 @@ void BossGanon_Vulnerable(BossGanon* this, PlayState* play) {
         this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
     }
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
     this->envLightMode = 1;
     this->actor.world.pos.y += this->actor.velocity.y;
 
     if (this->unk_1A4 < 0x28) {
-        Math_ApproachF(&this->unk_508, 4.0f, 0.1f, 0.1f);
+        OoT_Math_ApproachF(&this->unk_508, 4.0f, 0.1f, 0.1f);
     }
 
     if ((this->unk_1A4 >= 0x28) && (this->unk_1A4 < 0x37)) {
-        Math_ApproachF(&this->unk_508, 0.0f, 1.0f, 0.5f);
+        OoT_Math_ApproachF(&this->unk_508, 0.0f, 1.0f, 0.5f);
     }
 
     if (this->unk_1A4 >= 0x37) {
-        Math_ApproachF(&this->unk_508, 5.0f, 0.1f, 0.15f);
+        OoT_Math_ApproachF(&this->unk_508, 5.0f, 0.1f, 0.15f);
         this->shockGlow = true;
     }
 
     switch (this->unk_1C2) {
         case 0:
-            if (Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
                 this->unk_1C2 = 1;
-                this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfLightEnergyHitAnim);
-                Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfLightEnergyHitAnim, 0.0f);
+                this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfLightEnergyHitAnim);
+                OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfLightEnergyHitAnim, 0.0f);
             }
             break;
 
         case 1:
-            if (Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
                 this->unk_1C2 = 2;
-                this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfDownedAnim);
-                Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfDownedAnim, 0.0f);
+                this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfDownedAnim);
+                OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfDownedAnim, 0.0f);
             }
             break;
 
@@ -2628,8 +2628,8 @@ void BossGanon_Vulnerable(BossGanon* this, PlayState* play) {
                 this->actor.world.pos.y = 40.0f;
                 this->actor.velocity.y = 0.0f;
                 this->unk_1C2 = 3;
-                this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfLandAnim);
-                Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfLandAnim, 0.0f);
+                this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfLandAnim);
+                OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfLandAnim, 0.0f);
                 this->timers[0] = 70;
                 this->actor.flags |= ACTOR_FLAG_HOOKSHOT_PULLS_PLAYER;
             }
@@ -2640,26 +2640,26 @@ void BossGanon_Vulnerable(BossGanon* this, PlayState* play) {
                 this->unk_19F = 1;
             }
 
-            if (Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
                 this->unk_1C2 = 4;
-                this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfVulnerableAnim);
-                Animation_MorphToLoop(&this->skelAnime, &gGanondorfVulnerableAnim, 0.0f);
+                this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfVulnerableAnim);
+                OoT_Animation_MorphToLoop(&this->skelAnime, &gGanondorfVulnerableAnim, 0.0f);
             }
             break;
 
         case 4:
-            if (Animation_OnFrame(&this->skelAnime, 5.0f)) {
+            if (OoT_Animation_OnFrame(&this->skelAnime, 5.0f)) {
                 Audio_PlayActorSound2(&this->actor, NA_SE_EN_GANON_DOWN);
             }
 
             if (this->timers[0] == 0) {
                 this->unk_1C2 = 5;
-                this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfGetUp1Anim);
-                Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfGetUp1Anim, 0.0f);
+                this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfGetUp1Anim);
+                OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfGetUp1Anim, 0.0f);
                 this->unk_2D4 = 80;
 
                 for (i = 1; i < 15; i++) {
-                    this->unk_4E4[i] = Rand_ZeroFloat(10.0f);
+                    this->unk_4E4[i] = OoT_Rand_ZeroFloat(10.0f);
                 }
 
                 this->unk_2E6 = 80;
@@ -2671,10 +2671,10 @@ void BossGanon_Vulnerable(BossGanon* this, PlayState* play) {
         case 5:
             BossGanonEff_SpawnShock(play, 1000.0f, GDF_SHOCK_DORF_YELLOW);
 
-            if (Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
                 this->unk_1C2 = 6;
-                this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfGetUp2Anim);
-                Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfGetUp2Anim, 0.0f);
+                this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfGetUp2Anim);
+                OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfGetUp2Anim, 0.0f);
                 sBossGanonCape->minDist = 20.0f;
                 this->unk_19F = 1;
             }
@@ -2682,20 +2682,20 @@ void BossGanon_Vulnerable(BossGanon* this, PlayState* play) {
 
         case 6:
             this->envLightMode = 0;
-            Math_ApproachF(&this->actor.world.pos.y, 200.0f, 0.1f, 1000.0f);
+            OoT_Math_ApproachF(&this->actor.world.pos.y, 200.0f, 0.1f, 1000.0f);
 
-            if (Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
                 this->unk_1C2 = 7;
             }
             break;
 
         case 7:
             this->envLightMode = 0;
-            Math_ApproachF(&this->actor.world.pos.y, 150.0f, 0.05f, 30.0f);
-            this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfGetUp3Anim);
-            Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfGetUp3Anim, 0.0f);
+            OoT_Math_ApproachF(&this->actor.world.pos.y, 150.0f, 0.05f, 30.0f);
+            this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfGetUp3Anim);
+            OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfGetUp3Anim, 0.0f);
             this->unk_1C2 = 8;
-            SkelAnime_Update(&this->skelAnime);
+            OoT_SkelAnime_Update(&this->skelAnime);
             sBossGanonCape->attachShouldersTimer = 18.0f;
             Audio_PlayActorSound2(&this->actor, NA_SE_EV_GANON_MANTLE);
             Audio_PlayActorSound2(&this->actor, NA_SE_EN_GANON_RESTORE);
@@ -2704,12 +2704,12 @@ void BossGanon_Vulnerable(BossGanon* this, PlayState* play) {
         case 8:
             this->envLightMode = 0;
 
-            if (Animation_OnFrame(&this->skelAnime, 7.0f)) {
+            if (OoT_Animation_OnFrame(&this->skelAnime, 7.0f)) {
                 for (i = 0; i < 100; i++) {
-                    sp40.x = Rand_CenteredFloat(25.0f);
-                    sp40.y = Rand_CenteredFloat(25.0f);
-                    sp40.z = Rand_CenteredFloat(25.0f);
-                    BossGanonEff_SpawnSparkle(play, &this->unk_1FC, &sp40, &sZeroVec, Rand_ZeroFloat(200.0f) + 500.0f,
+                    sp40.x = OoT_Rand_CenteredFloat(25.0f);
+                    sp40.y = OoT_Rand_CenteredFloat(25.0f);
+                    sp40.z = OoT_Rand_CenteredFloat(25.0f);
+                    BossGanonEff_SpawnSparkle(play, &this->unk_1FC, &sp40, &OoT_sZeroVec, OoT_Rand_ZeroFloat(200.0f) + 500.0f,
                                               0x14);
                 }
 
@@ -2717,7 +2717,7 @@ void BossGanon_Vulnerable(BossGanon* this, PlayState* play) {
                 this->timers[3] = 50;
             }
 
-            if (Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
                 BossGanon_SetupWait(this, play);
             }
             break;
@@ -2726,26 +2726,26 @@ void BossGanon_Vulnerable(BossGanon* this, PlayState* play) {
 
 void BossGanon_SetupDamaged(BossGanon* this, PlayState* play) {
     BossGanon_SetAnimationObject(this, play, OBJECT_GANON_ANIME1);
-    this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfDamageAnim);
-    Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfDamageAnim, 0.0f);
+    this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfDamageAnim);
+    OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfDamageAnim, 0.0f);
     this->actionFunc = BossGanon_Damaged;
 }
 
 void BossGanon_Damaged(BossGanon* this, PlayState* play) {
     this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
     if (this->unk_1A4 >= 0x37) {
-        Math_ApproachF(&this->unk_508, 5.0f, 0.1f, 0.15f);
+        OoT_Math_ApproachF(&this->unk_508, 5.0f, 0.1f, 0.15f);
         this->shockGlow = true;
     }
 
-    if (Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
+    if (OoT_Animation_OnFrame(&this->skelAnime, this->fwork[GDF_FWORK_1])) {
         this->actionFunc = BossGanon_Vulnerable;
         this->unk_1C2 = 4;
-        this->fwork[GDF_FWORK_1] = Animation_GetLastFrame(&gGanondorfVulnerableAnim);
-        Animation_MorphToLoop(&this->skelAnime, &gGanondorfVulnerableAnim, 0.0f);
+        this->fwork[GDF_FWORK_1] = OoT_Animation_GetLastFrame(&gGanondorfVulnerableAnim);
+        OoT_Animation_MorphToLoop(&this->skelAnime, &gGanondorfVulnerableAnim, 0.0f);
     }
 }
 
@@ -2774,10 +2774,10 @@ void BossGanon_UpdateDamage(BossGanon* this, PlayState* play) {
                 u32 flags;
 
                 for (i = 0; i < 30; i++) {
-                    sp50.x = Rand_CenteredFloat(20.0f);
-                    sp50.y = Rand_CenteredFloat(20.0f);
-                    sp50.z = Rand_CenteredFloat(20.0f);
-                    BossGanonEff_SpawnSparkle(play, &this->unk_1FC, &sp50, &sZeroVec, Rand_ZeroFloat(200.0f) + 500.0f,
+                    sp50.x = OoT_Rand_CenteredFloat(20.0f);
+                    sp50.y = OoT_Rand_CenteredFloat(20.0f);
+                    sp50.z = OoT_Rand_CenteredFloat(20.0f);
+                    BossGanonEff_SpawnSparkle(play, &this->unk_1FC, &sp50, &OoT_sZeroVec, OoT_Rand_ZeroFloat(200.0f) + 500.0f,
                                               0x1E);
                 }
 
@@ -2795,8 +2795,8 @@ void BossGanon_UpdateDamage(BossGanon* this, PlayState* play) {
 
                 for (i = 0; i < ARRAY_COUNT(sBossGanonCape->strands); i++) {
                     for (j = 1; j < 12; j++) {
-                        sBossGanonCape->strands[i].velocities[j].x = Rand_CenteredFloat(15.0f);
-                        sBossGanonCape->strands[i].velocities[j].z = Rand_CenteredFloat(15.0f);
+                        sBossGanonCape->strands[i].velocities[j].x = OoT_Rand_CenteredFloat(15.0f);
+                        sBossGanonCape->strands[i].velocities[j].z = OoT_Rand_CenteredFloat(15.0f);
                     }
                 }
 
@@ -2804,7 +2804,7 @@ void BossGanon_UpdateDamage(BossGanon* this, PlayState* play) {
                     BossGanon_SetupDeathCutscene(this, play);
                     Audio_PlayActorSound2(&this->actor, NA_SE_EN_GANON_DEAD);
                     Audio_PlayActorSound2(&this->actor, NA_SE_EN_GANON_DD_THUNDER);
-                    Sfx_PlaySfxAtPos(&sZeroVec, NA_SE_EN_LAST_DAMAGE);
+                    Sfx_PlaySfxAtPos(&OoT_sZeroVec, NA_SE_EN_LAST_DAMAGE);
                     Audio_QueueSeqCmd(0x100100FF);
                     this->screenFlashTimer = 4;
                     GameInteractor_ExecuteOnBossDefeat(&this->actor);
@@ -2821,8 +2821,8 @@ void BossGanon_UpdateDamage(BossGanon* this, PlayState* play) {
 
             for (i = 0; i < ARRAY_COUNT(sBossGanonCape->strands); i++) {
                 for (j = 1; j < 12; j++) {
-                    sBossGanonCape->strands[i].velocities[j].x = Rand_CenteredFloat(15.0f);
-                    sBossGanonCape->strands[i].velocities[j].z = Rand_CenteredFloat(15.0f);
+                    sBossGanonCape->strands[i].velocities[j].x = OoT_Rand_CenteredFloat(15.0f);
+                    sBossGanonCape->strands[i].velocities[j].z = OoT_Rand_CenteredFloat(15.0f);
                 }
             }
         }
@@ -2863,7 +2863,7 @@ void BossGanon_Update(Actor* thisx, PlayState* play2) {
     if ((this->actionFunc != BossGanon_IntroCutscene) && (this->actionFunc != BossGanon_DeathAndTowerCutscene)) {
         BossGanon_SetAnimationObject(this, play, OBJECT_GANON_ANIME1);
     } else {
-        gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->animBankIndex].segment);
+        OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->animBankIndex].segment);
     }
 
     if (this->windowShatterState != GDF_WINDOW_SHATTER_OFF) {
@@ -2871,23 +2871,23 @@ void BossGanon_Update(Actor* thisx, PlayState* play2) {
         shardVel.y = 0.0f;
 
         for (i = 0; i < 10; i++) {
-            shardPos.y = Rand_ZeroFloat(240.0f) + 20.0f;
+            shardPos.y = OoT_Rand_ZeroFloat(240.0f) + 20.0f;
 
-            if (Rand_ZeroOne() < 0.5f) {
+            if (OoT_Rand_ZeroOne() < 0.5f) {
                 shardPos.x = 463;
-                shardPos.z = Rand_ZeroFloat(463.0f);
+                shardPos.z = OoT_Rand_ZeroFloat(463.0f);
 
-                shardVel.x = Rand_ZeroFloat(2.0f);
-                shardVel.z = Rand_ZeroFloat(1.0f);
+                shardVel.x = OoT_Rand_ZeroFloat(2.0f);
+                shardVel.z = OoT_Rand_ZeroFloat(1.0f);
             } else {
                 shardPos.z = 463;
-                shardPos.x = Rand_ZeroFloat(463.0f);
+                shardPos.x = OoT_Rand_ZeroFloat(463.0f);
 
-                shardVel.z = Rand_ZeroFloat(2.0f);
-                shardVel.x = Rand_ZeroFloat(1.0f);
+                shardVel.z = OoT_Rand_ZeroFloat(2.0f);
+                shardVel.x = OoT_Rand_ZeroFloat(1.0f);
             }
 
-            BossGanonEff_SpawnWindowShard(play, &shardPos, &shardVel, Rand_ZeroFloat(0.075f) + 0.08f);
+            BossGanonEff_SpawnWindowShard(play, &shardPos, &shardVel, OoT_Rand_ZeroFloat(0.075f) + 0.08f);
         }
     }
 
@@ -2936,34 +2936,34 @@ void BossGanon_Update(Actor* thisx, PlayState* play2) {
     if (this->csState == 0) {
         BossGanon_UpdateDamage(this, play);
         BossGanon_SetColliderPos(&this->unk_1FC, &this->collider);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 
         if (this->unk_2D4 == 0) {
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+            OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
 
             if ((this->actionFunc != BossGanon_HitByLightBall) && (this->actionFunc != BossGanon_Vulnerable) &&
                 (this->actionFunc != BossGanon_Damaged)) {
-                CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+                OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
             }
         }
     }
 
     if (this->legSwayEnabled) {
-        sin = Math_SinS(-this->actor.shape.rot.y);
-        cos = Math_CosS(-this->actor.shape.rot.y);
+        sin = OoT_Math_SinS(-this->actor.shape.rot.y);
+        cos = OoT_Math_CosS(-this->actor.shape.rot.y);
 
         legRotX = ((this->actor.velocity.z * sin) + (cos * this->actor.velocity.x)) * 300.0f;
         legRotY = ((-sin * this->actor.velocity.x) + (cos * this->actor.velocity.z)) * 300.0f;
-        legRotZ = (Math_SinS(this->unk_1A2 * 2268) * -500.0f) - 500.0f;
+        legRotZ = (OoT_Math_SinS(this->unk_1A2 * 2268) * -500.0f) - 500.0f;
     } else {
         legRotY = legRotX = legRotZ = 0.0f;
     }
 
     this->legSwayEnabled = false;
 
-    Math_SmoothStepToF(&this->legRot.x, legRotX, 1.0f, 600.0f, 0.0f);
-    Math_SmoothStepToF(&this->legRot.y, legRotY, 1.0f, 600.0f, 0.0f);
-    Math_SmoothStepToF(&this->legRot.z, legRotZ, 1.0f, 100.0f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->legRot.x, legRotX, 1.0f, 600.0f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->legRot.y, legRotY, 1.0f, 600.0f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->legRot.z, legRotZ, 1.0f, 100.0f, 0.0f);
 
     if (this->timers[2] == 1) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_GANON_LAUGH);
@@ -2978,9 +2978,9 @@ void BossGanon_Update(Actor* thisx, PlayState* play2) {
         for (i = 1; i < ARRAY_COUNT(this->unk_49C); i++) {
             if (this->unk_4E4[i] != 0) {
                 this->unk_4E4[i]--;
-                Math_ApproachF(&this->unk_49C[i], this->unk_508, 1.0f, 2.0f);
+                OoT_Math_ApproachF(&this->unk_49C[i], this->unk_508, 1.0f, 2.0f);
             } else {
-                Math_ApproachZeroF(&this->unk_49C[i], 1.0f, 0.2f);
+                OoT_Math_ApproachZeroF(&this->unk_49C[i], 1.0f, 0.2f);
             }
         }
 
@@ -3007,7 +3007,7 @@ void BossGanon_Update(Actor* thisx, PlayState* play2) {
         }
 
         BossGanonEff_SpawnLightning(play, 1.0f, D_808E4D44[this->unk_26C] * (M_PI / 5) + this->unk_270,
-                                    Rand_CenteredFloat(M_PI / 5) + (M_PI / 2));
+                                    OoT_Rand_CenteredFloat(M_PI / 5) + (M_PI / 2));
     }
 
     // see if light ball hit and should knock platform down?
@@ -3030,8 +3030,8 @@ void BossGanon_Update(Actor* thisx, PlayState* play2) {
             spD8.y = 0.0f;
             spD8.z = 15.0f * (30.0f - this->unk_19C);
 
-            Matrix_RotateY(Rand_ZeroFloat(6.2831855f), MTXMODE_NEW);
-            Matrix_MultVec3f(&spD8, &platformCheckPos);
+            Matrix_RotateY(OoT_Rand_ZeroFloat(6.2831855f), MTXMODE_NEW);
+            OoT_Matrix_MultVec3f(&spD8, &platformCheckPos);
 
             this->unk_19E += BossGanon_CheckFallingPlatforms(this, play, &platformCheckPos);
         }
@@ -3050,7 +3050,7 @@ void BossGanon_Update(Actor* thisx, PlayState* play2) {
                 spBC.z = 60.0f;
 
                 Matrix_RotateY(i * (M_PI / 4), MTXMODE_NEW);
-                Matrix_MultVec3f(&spBC, &spB0);
+                OoT_Matrix_MultVec3f(&spBC, &spB0);
 
                 platCheckPosBomb.x = explosive->world.pos.x + spB0.x;
                 platCheckPosBomb.y = explosive->world.pos.y;
@@ -3091,15 +3091,15 @@ void BossGanon_Update(Actor* thisx, PlayState* play2) {
         case -1:
             break;
         case 0:
-            Math_ApproachF(&play->envCtx.unk_D8, 0.0f, 1.0f, 0.02f);
+            OoT_Math_ApproachF(&play->envCtx.unk_D8, 0.0f, 1.0f, 0.02f);
             break;
         case 1:
             play->envCtx.unk_BD = 1;
-            Math_ApproachF(&play->envCtx.unk_D8, 1.0f, 1.0f, 0.1f);
+            OoT_Math_ApproachF(&play->envCtx.unk_D8, 1.0f, 1.0f, 0.1f);
             break;
         case 2:
             play->envCtx.unk_BD = 1;
-            Math_ApproachF(&play->envCtx.unk_D8, 1.0f, 1.0f, 0.02f);
+            OoT_Math_ApproachF(&play->envCtx.unk_D8, 1.0f, 1.0f, 0.02f);
             break;
         case 3:
             play->envCtx.unk_BD = 3;
@@ -3116,7 +3116,7 @@ void BossGanon_Update(Actor* thisx, PlayState* play2) {
         case 5:
             play->envCtx.unk_BE = 5;
             play->envCtx.unk_BD = 3;
-            Math_ApproachZeroF(&play->envCtx.unk_D8, 1.0f, 0.075f);
+            OoT_Math_ApproachZeroF(&play->envCtx.unk_D8, 1.0f, 0.075f);
             break;
         case 6:
             play->envCtx.unk_BE = 5;
@@ -3125,7 +3125,7 @@ void BossGanon_Update(Actor* thisx, PlayState* play2) {
         case 65:
             play->envCtx.unk_BE = 3;
             play->envCtx.unk_BD = 6;
-            Math_ApproachZeroF(&play->envCtx.unk_D8, 1.0f, 0.05f);
+            OoT_Math_ApproachZeroF(&play->envCtx.unk_D8, 1.0f, 0.05f);
             break;
         case 7:
             play->envCtx.unk_BE = 7;
@@ -3134,37 +3134,37 @@ void BossGanon_Update(Actor* thisx, PlayState* play2) {
         case 75:
             play->envCtx.unk_BE = 4;
             play->envCtx.unk_BD = 8;
-            Math_ApproachZeroF(&play->envCtx.unk_D8, 1.0f, 0.05f);
+            OoT_Math_ApproachZeroF(&play->envCtx.unk_D8, 1.0f, 0.05f);
             break;
         case 8:
             play->envCtx.unk_BE = 3;
             play->envCtx.unk_BD = 9;
-            Math_ApproachF(&play->envCtx.unk_D8, 1.0f, 1.0f, 0.05f);
+            OoT_Math_ApproachF(&play->envCtx.unk_D8, 1.0f, 1.0f, 0.05f);
             break;
         case 9:
             play->envCtx.unk_BE = 3;
             play->envCtx.unk_BD = 0xA;
-            Math_ApproachZeroF(&play->envCtx.unk_D8, 1.0f, 0.05f);
+            OoT_Math_ApproachZeroF(&play->envCtx.unk_D8, 1.0f, 0.05f);
             break;
         case 10:
             play->envCtx.unk_BE = 3;
             play->envCtx.unk_BD = 0xB;
-            Math_ApproachF(&play->envCtx.unk_D8, 1.0f, 1.0f, 0.05f);
+            OoT_Math_ApproachF(&play->envCtx.unk_D8, 1.0f, 1.0f, 0.05f);
             this->unk_1A4 = 0;
             break;
         case 11:
             play->envCtx.unk_BE = 0xC;
             play->envCtx.unk_BD = 0xB;
-            Math_ApproachF(&play->envCtx.unk_D8, (Math_CosS(this->unk_1A4 * 0x1800) * 0.5f) + 0.5f, 1.0f, 1.0f);
+            OoT_Math_ApproachF(&play->envCtx.unk_D8, (OoT_Math_CosS(this->unk_1A4 * 0x1800) * 0.5f) + 0.5f, 1.0f, 1.0f);
             break;
         case 12:
             play->envCtx.unk_BE = 0xC;
             play->envCtx.unk_BD = 3;
-            Math_ApproachF(&play->envCtx.unk_D8, 1.0f, 1.0f, 0.05f);
+            OoT_Math_ApproachF(&play->envCtx.unk_D8, 1.0f, 1.0f, 0.05f);
             break;
         case 13:
             play->envCtx.unk_BD = 0xD;
-            Math_ApproachF(&play->envCtx.unk_D8, 1.0f, 1.0f, 0.025f);
+            OoT_Math_ApproachF(&play->envCtx.unk_D8, 1.0f, 1.0f, 0.025f);
             break;
         case 14:
             play->envCtx.unk_BD = 0xE;
@@ -3173,12 +3173,12 @@ void BossGanon_Update(Actor* thisx, PlayState* play2) {
         case 15:
             play->envCtx.unk_BE = 0xE;
             play->envCtx.unk_BD = 0xF;
-            Math_ApproachF(&play->envCtx.unk_D8, 1.0f, 1.0f, 0.01f);
+            OoT_Math_ApproachF(&play->envCtx.unk_D8, 1.0f, 1.0f, 0.01f);
             break;
         case 16:
             play->envCtx.unk_BE = 0x10;
             play->envCtx.unk_BD = 0xF;
-            Math_ApproachZeroF(&play->envCtx.unk_D8, 1.0f, 0.05f);
+            OoT_Math_ApproachZeroF(&play->envCtx.unk_D8, 1.0f, 0.05f);
             break;
         case 20:
             play->envCtx.unk_BE = 2;
@@ -3216,9 +3216,9 @@ void BossGanon_Update(Actor* thisx, PlayState* play2) {
             targetLensFlareScale = 10.0f;
         }
 
-        Math_ApproachF(&this->lensFlareScale, targetLensFlareScale, 0.3f, 10.0f);
+        OoT_Math_ApproachF(&this->lensFlareScale, targetLensFlareScale, 0.3f, 10.0f);
     } else {
-        Math_ApproachZeroF(&this->lensFlareScale, 1.0f, 5.0f);
+        OoT_Math_ApproachZeroF(&this->lensFlareScale, 1.0f, 5.0f);
 
         if (this->lensFlareScale == 0.0f) {
             this->lensFlareMode = 0;
@@ -3250,7 +3250,7 @@ void BossGanon_Update(Actor* thisx, PlayState* play2) {
         zOffset = (cosf(i * 1.2566371f) * 600.0f);
 
         // 5 or 6 light balls that go into the charge. not the same as the ones that he throws
-        Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_BOSS_GANON, this->unk_1FC.x + xOffset,
+        OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_BOSS_GANON, this->unk_1FC.x + xOffset,
                            this->unk_1FC.y, this->unk_1FC.z + zOffset, 0, (s16)(i * 13107.2f) + 0x6000, 0, 0xFA + i);
         this->unk_274 = 0;
     }
@@ -3321,34 +3321,34 @@ void BossGanon_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* 
 
     bodyPart = bodyPartLimbMap[limbIndex];
     if (bodyPart >= 0) {
-        Matrix_MultVec3f(&D_808E4DB8, &this->unk_2EC[bodyPart]);
+        OoT_Matrix_MultVec3f(&D_808E4DB8, &this->unk_2EC[bodyPart]);
     }
 
     if (limbIndex == 2) {
-        Matrix_MultVec3f(&D_808E4DB8, &this->unk_1FC);
+        OoT_Matrix_MultVec3f(&D_808E4DB8, &this->unk_1FC);
     } else if (limbIndex == 19) {
-        Matrix_MultVec3f(&D_808E4DB8, &this->actor.focus.pos);
+        OoT_Matrix_MultVec3f(&D_808E4DB8, &this->actor.focus.pos);
     } else if (limbIndex == 11) {
         OPEN_DISPS(play->state.gfxCtx);
 
-        Matrix_MultVec3f(&D_808E4DB8, &this->unk_208);
+        OoT_Matrix_MultVec3f(&D_808E4DB8, &this->unk_208);
         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPDisplayList(POLY_XLU_DISP++, SEGMENTED_TO_VIRTUAL(gGanondorfEyesDL));
 
         CLOSE_DISPS(play->state.gfxCtx);
     } else if (limbIndex == 6) {
-        Matrix_MultVec3f(&D_808E4DC4, &this->unk_238);
+        OoT_Matrix_MultVec3f(&D_808E4DC4, &this->unk_238);
     } else if (limbIndex == 10) {
-        Matrix_MultVec3f(&D_808E4DD0, &this->unk_22C);
+        OoT_Matrix_MultVec3f(&D_808E4DD0, &this->unk_22C);
 
         if (this->unk_25C == 0) {
-            Matrix_MultVec3f(&D_808E4DDC, &this->unk_260);
+            OoT_Matrix_MultVec3f(&D_808E4DDC, &this->unk_260);
         }
 
         this->unk_25C = 0;
 
         if (this->triforceType == GDF_TRIFORCE_DORF) {
-            Matrix_MultVec3f(&D_808E4DE8, &this->triforcePos);
+            OoT_Matrix_MultVec3f(&D_808E4DE8, &this->triforcePos);
         }
     } else if (limbIndex == 4) {
         Vec3f sp28 = D_808E4DA0;
@@ -3362,7 +3362,7 @@ void BossGanon_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* 
             sp28.z += 700.0f;
         }
 
-        Matrix_MultVec3f(&sp28, &this->unk_220);
+        OoT_Matrix_MultVec3f(&sp28, &this->unk_220);
     } else if (limbIndex == 8) {
         Vec3f sp1C = D_808E4DAC;
 
@@ -3376,7 +3376,7 @@ void BossGanon_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* 
             sp1C.z += -700.0f;
         }
 
-        Matrix_MultVec3f(&sp1C, &this->unk_214);
+        OoT_Matrix_MultVec3f(&sp1C, &this->unk_214);
     }
 }
 
@@ -3422,11 +3422,11 @@ void BossGanon_DrawShock(BossGanon* this, PlayState* play) {
             for (i = 0; i < ARRAY_COUNT(player->bodyPartsPos); i++) {
                 FrameInterpolation_RecordOpenChild("Ganondorf Shock 0", i);
 
-                Matrix_Translate(player->bodyPartsPos[i].x, player->bodyPartsPos[i].y, player->bodyPartsPos[i].z,
+                OoT_Matrix_Translate(player->bodyPartsPos[i].x, player->bodyPartsPos[i].y, player->bodyPartsPos[i].z,
                                  MTXMODE_NEW);
-                Matrix_ReplaceRotation(&play->billboardMtxF);
-                Matrix_Scale(this->unk_49C[i], this->unk_49C[i], this->unk_49C[i], MTXMODE_APPLY);
-                Matrix_RotateZ(Rand_CenteredFloat(M_PI), MTXMODE_APPLY);
+                OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
+                OoT_Matrix_Scale(this->unk_49C[i], this->unk_49C[i], this->unk_49C[i], MTXMODE_APPLY);
+                Matrix_RotateZ(OoT_Rand_CenteredFloat(M_PI), MTXMODE_APPLY);
                 gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
                 gSPDisplayList(POLY_XLU_DISP++, gGanondorfSquareDL);
 
@@ -3436,12 +3436,12 @@ void BossGanon_DrawShock(BossGanon* this, PlayState* play) {
             for (i = 1; i < 15; i++) {
                 FrameInterpolation_RecordOpenChild("Ganondorf Shock 1", i);
 
-                Matrix_Translate(this->unk_2EC[i].x, this->unk_2EC[i].y, this->unk_2EC[i].z, MTXMODE_NEW);
-                Matrix_ReplaceRotation(&play->billboardMtxF);
-                Matrix_Scale(this->unk_49C[i], this->unk_49C[i], this->unk_49C[i], MTXMODE_APPLY);
+                OoT_Matrix_Translate(this->unk_2EC[i].x, this->unk_2EC[i].y, this->unk_2EC[i].z, MTXMODE_NEW);
+                OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
+                OoT_Matrix_Scale(this->unk_49C[i], this->unk_49C[i], this->unk_49C[i], MTXMODE_APPLY);
 
                 if (!this->shockGlow) {
-                    Matrix_RotateZ(Rand_CenteredFloat(M_PI), MTXMODE_APPLY);
+                    Matrix_RotateZ(OoT_Rand_CenteredFloat(M_PI), MTXMODE_APPLY);
                 }
 
                 gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -3449,7 +3449,7 @@ void BossGanon_DrawShock(BossGanon* this, PlayState* play) {
                 if (this->shockGlow) {
                     gSPSegment(
                         POLY_XLU_DISP++, 0x08,
-                        Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0, (this->unk_1A2 + i) * -15, 32, 64));
+                        OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0, (this->unk_1A2 + i) * -15, 32, 64));
                     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 200, 255, 170, 255);
                     gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, 0, 128);
                     gSPDisplayList(POLY_XLU_DISP++, gGanondorfShockGlowDL);
@@ -3484,9 +3484,9 @@ void BossGanon_DrawHandLightBall(BossGanon* this, PlayState* play) {
 
         gSPDisplayList(POLY_XLU_DISP++, gGanondorfLightBallMaterialDL);
 
-        Matrix_Translate(this->unk_260.x, this->unk_260.y, this->unk_260.z, MTXMODE_NEW);
-        Matrix_ReplaceRotation(&play->billboardMtxF);
-        Matrix_Scale(this->handLightBallScale, this->handLightBallScale, this->handLightBallScale, MTXMODE_APPLY);
+        OoT_Matrix_Translate(this->unk_260.x, this->unk_260.y, this->unk_260.z, MTXMODE_NEW);
+        OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
+        OoT_Matrix_Scale(this->handLightBallScale, this->handLightBallScale, this->handLightBallScale, MTXMODE_APPLY);
         Matrix_RotateZ(this->unk_258, 1);
         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPDisplayList(POLY_XLU_DISP++, gGanondorfSquareDL);
@@ -3494,8 +3494,8 @@ void BossGanon_DrawHandLightBall(BossGanon* this, PlayState* play) {
         alpha = ((this->unk_1A2 % 2) != 0) ? 100 : 80;
         gDPPipeSync(POLY_XLU_DISP++);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 155, alpha);
-        Matrix_Translate(this->unk_260.x, 0.0f, this->unk_260.z, MTXMODE_NEW);
-        Matrix_Scale(this->handLightBallScale * 0.75f, 1.0f, this->handLightBallScale * 0.75f, MTXMODE_APPLY);
+        OoT_Matrix_Translate(this->unk_260.x, 0.0f, this->unk_260.z, MTXMODE_NEW);
+        OoT_Matrix_Scale(this->handLightBallScale * 0.75f, 1.0f, this->handLightBallScale * 0.75f, MTXMODE_APPLY);
         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPDisplayList(POLY_XLU_DISP++, gGanondorfLightCoreDL);
     }
@@ -3518,28 +3518,28 @@ void BossGanon_DrawBigMagicCharge(BossGanon* this, PlayState* play) {
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 170, (s8)this->unk_290);
         gDPSetEnvColor(POLY_XLU_DISP++, 200, 255, 0, 128);
         gSPSegment(POLY_XLU_DISP++, 0x08,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, this->unk_1A2 * -2, 0, 0x40, 0x40, 1, 0, this->unk_1A2 * 0xA,
+                   OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, this->unk_1A2 * -2, 0, 0x40, 0x40, 1, 0, this->unk_1A2 * 0xA,
                                     0x40, 0x40));
-        Matrix_Translate(this->unk_278.x, this->unk_278.y, this->unk_278.z, MTXMODE_NEW);
-        Matrix_ReplaceRotation(&play->billboardMtxF);
-        Matrix_Scale(this->unk_28C, this->unk_28C, this->unk_28C, MTXMODE_APPLY);
+        OoT_Matrix_Translate(this->unk_278.x, this->unk_278.y, this->unk_278.z, MTXMODE_NEW);
+        OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
+        OoT_Matrix_Scale(this->unk_28C, this->unk_28C, this->unk_28C, MTXMODE_APPLY);
         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPDisplayList(POLY_XLU_DISP++, gGanondorfLightFlecksDL);
 
         // background circle texture
-        Matrix_Translate(this->unk_278.x, this->unk_278.y, this->unk_278.z, MTXMODE_NEW);
-        Matrix_ReplaceRotation(&play->billboardMtxF);
-        Matrix_Scale(this->unk_284, this->unk_284, this->unk_284, MTXMODE_APPLY);
+        OoT_Matrix_Translate(this->unk_278.x, this->unk_278.y, this->unk_278.z, MTXMODE_NEW);
+        OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
+        OoT_Matrix_Scale(this->unk_284, this->unk_284, this->unk_284, MTXMODE_APPLY);
         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 0, 100, (s8)this->unk_288);
         gSPSegment(POLY_XLU_DISP++, 0x09,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x20, 1, 0, this->unk_1A2 * -4, 0x20, 0x20));
+                   OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x20, 1, 0, this->unk_1A2 * -4, 0x20, 0x20));
         gSPDisplayList(POLY_XLU_DISP++, gGanondorfBigMagicBGCircleDL);
 
         // yellow background dot
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 150, 170, 0, (s8)this->unk_288);
         gSPSegment(POLY_XLU_DISP++, 0x0A,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x20, 1, this->unk_1A2 * 2,
+                   OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x20, 1, this->unk_1A2 * 2,
                                     this->unk_1A2 * -0x14, 0x40, 0x40));
         gSPDisplayList(POLY_XLU_DISP++, gGanondorfDotDL);
 
@@ -3549,15 +3549,15 @@ void BossGanon_DrawBigMagicCharge(BossGanon* this, PlayState* play) {
         gSPDisplayList(POLY_XLU_DISP++, gGanondorfLightBallMaterialDL);
 
         // light ball geometry
-        Matrix_Translate(this->unk_278.x, this->unk_278.y, this->unk_278.z, MTXMODE_NEW);
-        Matrix_ReplaceRotation(&play->billboardMtxF);
-        Matrix_Scale(this->unk_2D0, this->unk_2D0, this->unk_2D0, MTXMODE_APPLY);
+        OoT_Matrix_Translate(this->unk_278.x, this->unk_278.y, this->unk_278.z, MTXMODE_NEW);
+        OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
+        OoT_Matrix_Scale(this->unk_2D0, this->unk_2D0, this->unk_2D0, MTXMODE_APPLY);
         Matrix_RotateZ((this->unk_1A2 * 10.0f) / 1000.0f, MTXMODE_APPLY);
         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPDisplayList(POLY_XLU_DISP++, gGanondorfSquareDL);
 
         BossGanon_InitRand(this->unk_1AA + 1, 0x71AC, 0x263A);
-        Matrix_Translate(this->unk_278.x, this->unk_278.y, this->unk_278.z, MTXMODE_NEW);
+        OoT_Matrix_Translate(this->unk_278.x, this->unk_278.y, this->unk_278.z, MTXMODE_NEW);
         Matrix_RotateY((this->unk_1A2 * 10.0f) / 1000.0f, MTXMODE_APPLY);
         gDPSetEnvColor(POLY_XLU_DISP++, 200, 255, 0, 0);
 
@@ -3569,16 +3569,16 @@ void BossGanon_DrawBigMagicCharge(BossGanon* this, PlayState* play) {
             f32 xzRot = (BossGanon_RandZeroOne() - 0.5f) * M_PI * 1.5f;
 
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, (s8)this->unk_294[i]);
-            Matrix_Push();
+            OoT_Matrix_Push();
             Matrix_RotateY(xzRot + yRot, MTXMODE_APPLY);
             Matrix_RotateX((BossGanon_RandZeroOne() - 0.5f) * M_PI, MTXMODE_APPLY);
             Matrix_RotateZ(xzRot, MTXMODE_APPLY);
-            Matrix_Translate(0.0f, 0.0f, 50.0f, MTXMODE_APPLY);
-            Matrix_Scale(4.0f, 4.0f, 1.0f, MTXMODE_APPLY);
+            OoT_Matrix_Translate(0.0f, 0.0f, 50.0f, MTXMODE_APPLY);
+            OoT_Matrix_Scale(4.0f, 4.0f, 1.0f, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(POLY_XLU_DISP++, gGanondorfLightRayTriDL);
 
-            Matrix_Pop();
+            OoT_Matrix_Pop();
 
             FrameInterpolation_RecordCloseChild();
         }
@@ -3593,7 +3593,7 @@ void BossGanon_DrawTriforce(BossGanon* this, PlayState* play) {
     if (this->fwork[GDF_TRIFORCE_PRIM_A] > 0.0f) {
         OPEN_DISPS(play->state.gfxCtx);
 
-        Matrix_Push();
+        OoT_Matrix_Push();
 
         gDPPipeSync(POLY_XLU_DISP++);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, (u8)this->fwork[GDF_TRIFORCE_PRIM_B],
@@ -3615,7 +3615,7 @@ void BossGanon_DrawTriforce(BossGanon* this, PlayState* play) {
             this->triforcePos.z += 4.0f;
         }
 
-        Matrix_Translate(this->triforcePos.x, this->triforcePos.y, this->triforcePos.z, MTXMODE_NEW);
+        OoT_Matrix_Translate(this->triforcePos.x, this->triforcePos.y, this->triforcePos.z, MTXMODE_NEW);
 
         if (this->triforceType == GDF_TRIFORCE_PLAYER) {
             Matrix_RotateX(-1.4f, MTXMODE_APPLY);
@@ -3625,14 +3625,14 @@ void BossGanon_DrawTriforce(BossGanon* this, PlayState* play) {
             Matrix_RotateX(1.1f, 1);
             Matrix_RotateZ(-0.99999994f, MTXMODE_APPLY);
         } else {
-            Matrix_ReplaceRotation(&play->billboardMtxF);
+            OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
         }
 
-        Matrix_Scale(this->fwork[GDF_TRIFORCE_SCALE], this->fwork[GDF_TRIFORCE_SCALE], 1.0f, MTXMODE_APPLY);
+        OoT_Matrix_Scale(this->fwork[GDF_TRIFORCE_SCALE], this->fwork[GDF_TRIFORCE_SCALE], 1.0f, MTXMODE_APPLY);
         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPDisplayList(POLY_XLU_DISP++, SEGMENTED_TO_VIRTUAL(gGanondorfTriforceDL));
 
-        Matrix_Pop();
+        OoT_Matrix_Pop();
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -3644,29 +3644,29 @@ void BossGanon_DrawDarkVortex(BossGanon* this, PlayState* play) {
     if (this->fwork[GDF_VORTEX_ALPHA] > 0.0f) {
         OPEN_DISPS(play->state.gfxCtx);
 
-        Matrix_Push();
+        OoT_Matrix_Push();
         gDPPipeSync(POLY_XLU_DISP++);
         gSPSegment(POLY_XLU_DISP++, 0x08,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, this->unk_1A2 * -8, 0, 0x20, 0x40, 1, this->unk_1A2 * -4,
+                   OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, this->unk_1A2 * -8, 0, 0x20, 0x40, 1, this->unk_1A2 * -4,
                                     this->unk_1A2 * -8, 0x20, 0x20));
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 100, 0, 200, (s8)this->fwork[GDF_VORTEX_ALPHA]);
         gDPSetEnvColor(POLY_XLU_DISP++, 130, 0, 0, 128);
 
         if (this->csState != 21) {
-            Matrix_Translate(0.0f, 105.0f, -400.0f, MTXMODE_NEW);
+            OoT_Matrix_Translate(0.0f, 105.0f, -400.0f, MTXMODE_NEW);
             Matrix_RotateX(M_PI / 2, MTXMODE_APPLY);
         } else {
-            Matrix_Translate(-50.0f, 50.0f, -150.0f, MTXMODE_NEW);
+            OoT_Matrix_Translate(-50.0f, 50.0f, -150.0f, MTXMODE_NEW);
             Matrix_RotateY(M_PI / 10, MTXMODE_APPLY);
             Matrix_RotateX(M_PI / 2, MTXMODE_APPLY);
         }
 
-        Matrix_Scale(this->fwork[GDF_VORTEX_SCALE], this->fwork[GDF_VORTEX_SCALE], this->fwork[GDF_VORTEX_SCALE],
+        OoT_Matrix_Scale(this->fwork[GDF_VORTEX_SCALE], this->fwork[GDF_VORTEX_SCALE], this->fwork[GDF_VORTEX_SCALE],
                      MTXMODE_APPLY);
         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPDisplayList(POLY_XLU_DISP++, SEGMENTED_TO_VIRTUAL(gGanondorfVortexDL));
 
-        Matrix_Pop();
+        OoT_Matrix_Pop();
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -3708,7 +3708,7 @@ void func_808E0254(BossGanon* this, u8* tex, f32 arg2) {
                 sp68.y = this->unk_2EC[i].y - this->actor.world.pos.y + 76 + 30 + 30;
                 sp68.z = this->unk_2EC[i].z - this->actor.world.pos.z;
             }
-            Matrix_MultVec3f(&sp68, &sp5C);
+            OoT_Matrix_MultVec3f(&sp68, &sp5C);
 
             sp5C.x *= 0.4f;
             sp5C.y *= 0.4f;
@@ -3786,7 +3786,7 @@ void BossGanon_GenShadowTexture(u8* tex, BossGanon* this, PlayState* play) {
             sp7C.y = sBossGanonCape->strands[i].joints[j].y - this->actor.world.pos.y + 76.0f + 100.0f + 30.0f;
             sp7C.z = sBossGanonCape->strands[i].joints[j].z - this->actor.world.pos.z;
 
-            Matrix_MultVec3f(&sp7C, &sp70);
+            OoT_Matrix_MultVec3f(&sp7C, &sp70);
 
             sp70.x = sp70.x * 0.28f;
             sp70.y = sp70.y * 0.28f;
@@ -3830,12 +3830,12 @@ void BossGanon_DrawShadowTexture(void* tex, BossGanon* this, PlayState* play) {
 
     if (this->csState < 100) {
         zOffset = (((((this->actor.world.pos.y - 10) + 70.0f) * -5.0f) / 10.0f) + 10.0f);
-        Matrix_Translate(this->actor.world.pos.x, 0.0f, this->actor.world.pos.z + zOffset, MTXMODE_NEW);
+        OoT_Matrix_Translate(this->actor.world.pos.x, 0.0f, this->actor.world.pos.z + zOffset, MTXMODE_NEW);
     } else {
-        Matrix_Translate(this->actor.world.pos.x, 4102.0f, this->actor.world.pos.z - 20.0f, MTXMODE_NEW);
+        OoT_Matrix_Translate(this->actor.world.pos.x, 4102.0f, this->actor.world.pos.z - 20.0f, MTXMODE_NEW);
     }
 
-    Matrix_Scale(0.95000005f, 1.0f, 0.95000005f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(0.95000005f, 1.0f, 0.95000005f, MTXMODE_APPLY);
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_OPA_DISP++, gGanondorfShadowSetupDL);
     gDPLoadTextureBlock(POLY_OPA_DISP++, tex, G_IM_FMT_I, G_IM_SIZ_8b, 64, 64, 0, G_TX_NOMIRROR | G_TX_CLAMP,
@@ -3864,7 +3864,7 @@ void BossGanon_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
 
     if ((this->unk_1A6 & 2) != 0) {
-        POLY_OPA_DISP = Gfx_SetFog(POLY_OPA_DISP, 255, 50, 0, 0, 900, 1099);
+        POLY_OPA_DISP = OoT_Gfx_SetFog(POLY_OPA_DISP, 255, 50, 0, 0, 900, 1099);
     }
 
     gSPSegment(POLY_XLU_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(gGanondorfNormalEyeTex));
@@ -3875,7 +3875,7 @@ void BossGanon_Draw(Actor* thisx, PlayState* play) {
     this->unk_2EC[0].y = this->unk_2EC[1].y + 30.0f;
     this->unk_2EC[0].z = this->unk_2EC[1].z;
 
-    POLY_OPA_DISP = Play_SetFog(play, POLY_OPA_DISP);
+    POLY_OPA_DISP = OoT_Play_SetFog(play, POLY_OPA_DISP);
 
     BossGanon_DrawEffects(play);
 
@@ -3951,32 +3951,32 @@ void BossGanon_LightBall_Update(Actor* thisx, PlayState* play2) {
 
     if (this->unk_1A8 != 0) {
         if (this->unk_1A8 == 2) {
-            Math_ApproachZeroF(&this->fwork[GDF_FWORK_1], 1.0f, 10.0f);
-            Math_ApproachF(&this->actor.scale.x, 30.0f, 0.5f, 100.0f);
+            OoT_Math_ApproachZeroF(&this->fwork[GDF_FWORK_1], 1.0f, 10.0f);
+            OoT_Math_ApproachF(&this->actor.scale.x, 30.0f, 0.5f, 100.0f);
         } else {
             this->actor.shape.rot.y += 0x1000;
             ganondorf->lensFlareTimer = 1;
             gCustomLensFlarePos = this->actor.world.pos;
-            Math_ApproachZeroF(&this->fwork[GDF_FWORK_1], 1.0f, 30.0f);
-            Math_ApproachF(&this->actor.scale.x, 20.0f, 0.5f, 100.0f);
-            this->fwork[GDF_FWORK_0] += ((M_PI / 2) + Rand_ZeroFloat(M_PI / 4));
+            OoT_Math_ApproachZeroF(&this->fwork[GDF_FWORK_1], 1.0f, 30.0f);
+            OoT_Math_ApproachF(&this->actor.scale.x, 20.0f, 0.5f, 100.0f);
+            this->fwork[GDF_FWORK_0] += ((M_PI / 2) + OoT_Rand_ZeroFloat(M_PI / 4));
         }
 
-        Actor_SetScale(&this->actor, this->actor.scale.x);
+        OoT_Actor_SetScale(&this->actor, this->actor.scale.x);
 
         if (this->fwork[GDF_FWORK_1] == 0.0f) {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
         }
     } else {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_GANON_FIRE - SFX_FLAG);
 
         if ((this->unk_1A2 % 2) != 0) {
-            Actor_SetScale(&this->actor, 6.0f);
+            OoT_Actor_SetScale(&this->actor, 6.0f);
         } else {
-            Actor_SetScale(&this->actor, 5.25f);
+            OoT_Actor_SetScale(&this->actor, 5.25f);
         }
 
-        this->actor.shape.rot.z += (s16)(Rand_ZeroOne() * 20000.0f) + 0x4000;
+        this->actor.shape.rot.z += (s16)(OoT_Rand_ZeroOne() * 20000.0f) + 0x4000;
 
         for (i = 0; i < ARRAY_COUNT(this->timers); i++) {
             if (this->timers[i] != 0) {
@@ -3993,14 +3993,14 @@ void BossGanon_LightBall_Update(Actor* thisx, PlayState* play2) {
         zDistFromLink = player->actor.world.pos.z - this->actor.world.pos.z;
 
         Actor_UpdateVelocityXYZ(&this->actor);
-        Actor_UpdatePos(&this->actor);
+        OoT_Actor_UpdatePos(&this->actor);
 
         switch (this->unk_1C2) {
             case 0:
                 if ((player->stateFlags1 & PLAYER_STATE1_SWINGING_BOTTLE) &&
                     (ABS((s16)(player->actor.shape.rot.y - (s16)(ganondorf->actor.yawTowardsPlayer + 0x8000))) <
                      0x2000) &&
-                    (sqrtf(SQ(xDistFromLink) + SQ(yDistFromLink) + SQ(zDistFromLink)) <= 25.0f)) {
+                    (OoT_sqrtf(SQ(xDistFromLink) + SQ(yDistFromLink) + SQ(zDistFromLink)) <= 25.0f)) {
                     hitWithBottle = true;
                 } else {
                     hitWithBottle = false;
@@ -4014,26 +4014,26 @@ void BossGanon_LightBall_Update(Actor* thisx, PlayState* play2) {
                     if ((hitWithBottle == false) && (acHitInfo->toucher.dmgFlags & 0x100000)) {
                         spBA = 2;
                         Audio_PlaySoundGeneral(NA_SE_IT_SHIELD_REFLECT_MG, &player->actor.projectedPos, 4,
-                                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale,
-                                               &gSfxDefaultReverb);
+                                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale,
+                                               &OoT_gSfxDefaultReverb);
                         func_800AA000(this->actor.xyzDistToPlayerSq, 0xFF, 0x14, 0x96);
                     } else {
                         spBA = 1;
-                        this->actor.world.rot.y = Math_Atan2S(zDistFromGanondorf, xDistFromGanondorf);
+                        this->actor.world.rot.y = OoT_Math_Atan2S(zDistFromGanondorf, xDistFromGanondorf);
                         this->actor.world.rot.x =
-                            Math_Atan2S(sqrtf(SQ(xDistFromGanondorf) + SQ(zDistFromGanondorf)), yDistFromGanondorf);
+                            OoT_Math_Atan2S(OoT_sqrtf(SQ(xDistFromGanondorf) + SQ(zDistFromGanondorf)), yDistFromGanondorf);
                         this->unk_1A4++;
                         this->timers[1] = 2;
                         Audio_PlaySoundGeneral(NA_SE_IT_SWORD_REFLECT_MG, &player->actor.projectedPos, 4,
-                                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale,
-                                               &gSfxDefaultReverb);
+                                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale,
+                                               &OoT_gSfxDefaultReverb);
                         func_800AA000(this->actor.xyzDistToPlayerSq, 0xB4, 0x14, 0x64);
 
                         if (hitWithBottle == false) {
                             // if ganondorf is 250 units away from link, at least 3 volleys are required
                             if ((ganondorf->actor.xyzDistToPlayerSq > 62500.0f) && (this->unk_1A4 < 3)) {
                                 this->unk_1C2 = 1;
-                            } else if (Rand_ZeroOne() < 0.7f) {
+                            } else if (OoT_Rand_ZeroOne() < 0.7f) {
                                 this->unk_1C2 = 1;
                             } else {
                                 this->unk_1C2 = 3;
@@ -4045,7 +4045,7 @@ void BossGanon_LightBall_Update(Actor* thisx, PlayState* play2) {
                             }
                             break;
                         } else {
-                            if (Rand_ZeroOne() < 0.9f) {
+                            if (OoT_Rand_ZeroOne() < 0.9f) {
                                 this->unk_1C2 = 1;
                             } else {
                                 this->unk_1C2 = 3;
@@ -4053,10 +4053,10 @@ void BossGanon_LightBall_Update(Actor* thisx, PlayState* play2) {
                         }
                     }
                 } else {
-                    if (sqrtf(SQ(xDistFromLink) + SQ(yDistFromLink) + SQ(zDistFromLink)) <= 25.0f) {
+                    if (OoT_sqrtf(SQ(xDistFromLink) + SQ(yDistFromLink) + SQ(zDistFromLink)) <= 25.0f) {
                         spBA = 5;
                         func_8002F6D4(play, &this->actor, 3.0f, this->actor.world.rot.y, 0.0f, 0x30);
-                        SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40,
+                        OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40,
                                                            NA_SE_EN_GANON_HIT_THUNDER);
                         ganondorf->timers[2] = 20;
 
@@ -4075,7 +4075,7 @@ void BossGanon_LightBall_Update(Actor* thisx, PlayState* play2) {
                 if ((ganondorf->actionFunc == BossGanon_PlayTennis) && (ganondorf->unk_1C2 == 1)) {
                     minReflectDist = (this->actor.speedXZ >= 19.0f) ? 250.0f : 170.0f;
 
-                    if (sqrtf(SQ(xDistFromGanondorf) + SQ(yDistFromGanondorf) + SQ(zDistFromGanondorf)) <
+                    if (OoT_sqrtf(SQ(xDistFromGanondorf) + SQ(yDistFromGanondorf) + SQ(zDistFromGanondorf)) <
                         minReflectDist) {
                         ganondorf->startVolley = true;
                         this->timers[0] = 8;
@@ -4087,8 +4087,8 @@ void BossGanon_LightBall_Update(Actor* thisx, PlayState* play2) {
             case 2:
                 if (this->timers[0] == 1) {
                     spBA = 1;
-                    this->actor.world.rot.y = Math_Atan2S(zDistFromLink, xDistFromLink);
-                    this->actor.world.rot.x = Math_Atan2S(sqrtf(SQ(xDistFromLink) + SQ(zDistFromLink)), yDistFromLink);
+                    this->actor.world.rot.y = OoT_Math_Atan2S(zDistFromLink, xDistFromLink);
+                    this->actor.world.rot.x = OoT_Math_Atan2S(OoT_sqrtf(SQ(xDistFromLink) + SQ(zDistFromLink)), yDistFromLink);
                     this->timers[1] = 2;
                     Audio_PlayActorSound2(&this->actor, NA_SE_IT_SWORD_REFLECT_MG);
                     Audio_PlayActorSound2(&this->actor, NA_SE_EN_GANON_AT_RETURN);
@@ -4097,25 +4097,25 @@ void BossGanon_LightBall_Update(Actor* thisx, PlayState* play2) {
                 }
                 // fallthrough
             case 4:
-                if (sqrtf(SQ(xDistFromGanondorf) + SQ(yDistFromGanondorf) + SQ(zDistFromGanondorf)) < 30.0f) {
+                if (OoT_sqrtf(SQ(xDistFromGanondorf) + SQ(yDistFromGanondorf) + SQ(zDistFromGanondorf)) < 30.0f) {
                     spBA = 3;
-                    SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40, NA_SE_EN_GANON_DAMAGE1);
-                    SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40, NA_SE_EN_GANON_HIT_THUNDER);
+                    OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40, NA_SE_EN_GANON_DAMAGE1);
+                    OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40, NA_SE_EN_GANON_HIT_THUNDER);
                 }
                 break;
 
             case 3:
-                if (sqrtf(SQ(xDistFromGanondorf) + SQ(yDistFromGanondorf) + SQ(zDistFromGanondorf)) < 100.0f) {
+                if (OoT_sqrtf(SQ(xDistFromGanondorf) + SQ(yDistFromGanondorf) + SQ(zDistFromGanondorf)) < 100.0f) {
                     ganondorf->startVolley = true;
                     this->unk_1C2 = 4;
                 }
                 break;
         }
 
-        Collider_UpdateCylinder(&this->actor, &this->collider);
+        OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
 
         if (this->timers[1] == 0) {
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+            OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
         }
 
         for (i = 0; i < 2; i++) {
@@ -4124,15 +4124,15 @@ void BossGanon_LightBall_Update(Actor* thisx, PlayState* play2) {
 
             spAC.x = spAC.y = spAC.z = 0.0f;
 
-            sp94.x = Rand_CenteredFloat(30.0f) + this->actor.world.pos.x;
-            sp94.y = Rand_CenteredFloat(30.0f) + this->actor.world.pos.y;
-            sp94.z = Rand_CenteredFloat(30.0f) + this->actor.world.pos.z;
+            sp94.x = OoT_Rand_CenteredFloat(30.0f) + this->actor.world.pos.x;
+            sp94.y = OoT_Rand_CenteredFloat(30.0f) + this->actor.world.pos.y;
+            sp94.z = OoT_Rand_CenteredFloat(30.0f) + this->actor.world.pos.z;
 
-            BossGanonEff_SpawnSparkle(play, &sp94, &spAC, &spA0, Rand_ZeroFloat(500.0f) + 700.0f, 0x1E);
+            BossGanonEff_SpawnSparkle(play, &sp94, &spAC, &spA0, OoT_Rand_ZeroFloat(500.0f) + 700.0f, 0x1E);
         }
 
         if (this->actor.world.pos.y < 10.0f) {
-            Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 20.0f, 20.0f, 4);
+            OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 20.0f, 20.0f, 4);
         }
 
         if ((fabsf(this->actor.world.pos.x) > 465.0f) || (this->actor.world.pos.y > 500.0f) ||
@@ -4147,30 +4147,30 @@ void BossGanon_LightBall_Update(Actor* thisx, PlayState* play2) {
             s16 sp4E;
 
             if (spBA == 1) {
-                sp58 = Rand_ZeroFloat(100.0f) + 300.0f;
+                sp58 = OoT_Rand_ZeroFloat(100.0f) + 300.0f;
                 sp54 = 10.0f;
                 phi_f20 = 25.0f;
                 sp4E = 40;
             } else {
-                sp58 = Rand_ZeroFloat(200.0f) + 500.0f;
+                sp58 = OoT_Rand_ZeroFloat(200.0f) + 500.0f;
                 sp54 = 15.0f;
                 phi_f20 = 30.0f;
                 sp4E = 70;
-                SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 80, NA_SE_EN_GANON_HIT_THUNDER);
+                OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 80, NA_SE_EN_GANON_HIT_THUNDER);
             }
 
             for (i = 0; i < sp4E; i++) {
                 if (spBA != 0) {
-                    spAC.x = Rand_CenteredFloat(phi_f20);
-                    spAC.y = Rand_CenteredFloat(phi_f20);
-                    spAC.z = Rand_CenteredFloat(phi_f20);
+                    spAC.x = OoT_Rand_CenteredFloat(phi_f20);
+                    spAC.y = OoT_Rand_CenteredFloat(phi_f20);
+                    spAC.z = OoT_Rand_CenteredFloat(phi_f20);
                 } else {
-                    spAC.x = Rand_CenteredFloat(phi_f20);
-                    spAC.y = Rand_ZeroFloat(25.0f);
-                    spAC.z = Rand_CenteredFloat(phi_f20);
+                    spAC.x = OoT_Rand_CenteredFloat(phi_f20);
+                    spAC.y = OoT_Rand_ZeroFloat(25.0f);
+                    spAC.z = OoT_Rand_CenteredFloat(phi_f20);
                 }
 
-                BossGanonEff_SpawnLightRay(play, &this->actor.world.pos, &spAC, &sZeroVec, sp58, sp54, 0x1E);
+                BossGanonEff_SpawnLightRay(play, &this->actor.world.pos, &spAC, &OoT_sZeroVec, sp58, sp54, 0x1E);
             }
 
             if (spBA != 1) {
@@ -4207,13 +4207,13 @@ void BossGanon_LightBall_Draw(Actor* thisx, PlayState* play) {
     alpha = ((this->unk_1A2 % 2) != 0) ? this->fwork[GDF_FWORK_1] * 0.4f : this->fwork[GDF_FWORK_1] * 0.35f;
 
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 155, (s8)alpha);
-    Matrix_Push();
-    Matrix_Translate(this->actor.world.pos.x, this->actor.floorHeight, this->actor.world.pos.z, MTXMODE_NEW);
-    Matrix_Scale(this->actor.scale.x * 0.75f, 1.0f, this->actor.scale.z * 0.75f, MTXMODE_APPLY);
+    OoT_Matrix_Push();
+    OoT_Matrix_Translate(this->actor.world.pos.x, this->actor.floorHeight, this->actor.world.pos.z, MTXMODE_NEW);
+    OoT_Matrix_Scale(this->actor.scale.x * 0.75f, 1.0f, this->actor.scale.z * 0.75f, MTXMODE_APPLY);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_XLU_DISP++, gGanondorfLightCoreDL);
 
-    Matrix_Pop();
+    OoT_Matrix_Pop();
     gSPDisplayList(POLY_XLU_DISP++, gGanondorfLightBallMaterialDL);
 
     gDPPipeSync(POLY_XLU_DISP++);
@@ -4224,18 +4224,18 @@ void BossGanon_LightBall_Draw(Actor* thisx, PlayState* play) {
         for (i = 0; i < 8; i++) {
             FrameInterpolation_RecordOpenChild("Ganondorf Light Ball 0", i);
 
-            Matrix_Push();
+            OoT_Matrix_Push();
             Matrix_RotateY(i * (M_PI / 8), MTXMODE_APPLY);
             Matrix_RotateZ(this->fwork[GDF_FWORK_0], MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
             gSPDisplayList(POLY_XLU_DISP++, gGanondorfSquareDL);
-            Matrix_Pop();
+            OoT_Matrix_Pop();
 
             FrameInterpolation_RecordCloseChild();
         }
     } else if (this->unk_1A8 == 0) {
-        Matrix_ReplaceRotation(&play->billboardMtxF);
+        OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
         Matrix_RotateZ((this->actor.shape.rot.z / 32768.0f) * 3.1416f, MTXMODE_APPLY);
         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPDisplayList(POLY_XLU_DISP++, gGanondorfSquareDL);
@@ -4260,8 +4260,8 @@ void func_808E1EB4(Actor* thisx, PlayState* play2) {
 
     this->unk_1A2++;
     dorf->envLightMode = 1;
-    Actor_SetScale(&this->actor, 6.0f);
-    this->actor.shape.rot.z += ((s16)(Rand_ZeroOne() * 20000.0f) + 0x4000);
+    OoT_Actor_SetScale(&this->actor, 6.0f);
+    this->actor.shape.rot.z += ((s16)(OoT_Rand_ZeroOne() * 20000.0f) + 0x4000);
 
     for (i = 0; i < ARRAY_COUNT(this->timers); i++) {
         if (this->timers[i] != 0) {
@@ -4270,7 +4270,7 @@ void func_808E1EB4(Actor* thisx, PlayState* play2) {
     }
 
     Actor_UpdateVelocityXYZ(&this->actor);
-    Actor_UpdatePos(&this->actor);
+    OoT_Actor_UpdatePos(&this->actor);
 
     this->unk_1A6++;
 
@@ -4289,14 +4289,14 @@ void func_808E1EB4(Actor* thisx, PlayState* play2) {
         yDiff = dorf->unk_1FC.y - this->actor.world.pos.y;
         zDiff = dorf->unk_1FC.z - this->actor.world.pos.z;
 
-        yRotTarget = RADF_TO_BINANG(Math_FAtan2F(xDiff, zDiff));
-        xzDist = sqrtf(SQ(xDiff) + SQ(zDiff));
-        xRotTarget = RADF_TO_BINANG(Math_FAtan2F(yDiff, xzDist));
+        yRotTarget = RADF_TO_BINANG(OoT_Math_FAtan2F(xDiff, zDiff));
+        xzDist = OoT_sqrtf(SQ(xDiff) + SQ(zDiff));
+        xRotTarget = RADF_TO_BINANG(OoT_Math_FAtan2F(yDiff, xzDist));
 
-        Math_ApproachS(&this->actor.world.rot.x, xRotTarget, 1, 0x1000);
-        Math_ApproachS(&this->actor.world.rot.y, yRotTarget, 1, 0x1000);
+        OoT_Math_ApproachS(&this->actor.world.rot.x, xRotTarget, 1, 0x1000);
+        OoT_Math_ApproachS(&this->actor.world.rot.y, yRotTarget, 1, 0x1000);
 
-        if (sqrtf(SQ(xDiff) + SQ(zDiff) + SQ(yDiff)) < 40.0f) {
+        if (OoT_sqrtf(SQ(xDiff) + SQ(zDiff) + SQ(yDiff)) < 40.0f) {
             this->unk_1C2 = 2;
             this->timers[0] = 30;
             this->actor.speedXZ = 0.0f;
@@ -4307,15 +4307,15 @@ void func_808E1EB4(Actor* thisx, PlayState* play2) {
 
                 for (i = 0; i < 150; i++) {
 
-                    vel.x = Rand_CenteredFloat(25.0f);
-                    vel.y = Rand_CenteredFloat(25.0f);
-                    vel.z = Rand_CenteredFloat(25.0f);
+                    vel.x = OoT_Rand_CenteredFloat(25.0f);
+                    vel.y = OoT_Rand_CenteredFloat(25.0f);
+                    vel.z = OoT_Rand_CenteredFloat(25.0f);
 
                     accel.x = vel.x * -0.03f;
                     accel.y = vel.y * -0.03f;
                     accel.z = vel.z * -0.03f;
 
-                    BossGanonEff_SpawnLightRay(play, &dorf->unk_1FC, &vel, &accel, Rand_ZeroFloat(500.0f) + 1000.0f,
+                    BossGanonEff_SpawnLightRay(play, &dorf->unk_1FC, &vel, &accel, OoT_Rand_ZeroFloat(500.0f) + 1000.0f,
                                                15.0f, 0x14);
                 }
 
@@ -4330,14 +4330,14 @@ void func_808E1EB4(Actor* thisx, PlayState* play2) {
                 dorf->lensFlareMode = 1;
                 dorf->unk_508 = 10.0f;
 
-                Actor_SpawnAsChild(&play->actorCtx, &dorf->actor, play, ACTOR_BOSS_GANON, dorf->unk_1FC.x,
+                OoT_Actor_SpawnAsChild(&play->actorCtx, &dorf->actor, play, ACTOR_BOSS_GANON, dorf->unk_1FC.x,
                                    dorf->unk_1FC.y, dorf->unk_1FC.z, 0, 0, 0, 0x12C);
             }
 
             this->actor.world.pos.y = 5000.0f;
         }
     } else if (this->timers[0] == 0) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
@@ -4355,10 +4355,10 @@ void func_808E229C(Actor* thisx, PlayState* play2) {
 
     for (i = 9; i >= 0; i--) {
         temp = (s16)(((this->unk_1A6 - i) + 0xF) % 15);
-        Matrix_Translate(this->unk_2EC[temp].x, this->unk_2EC[temp].y, this->unk_2EC[temp].z, MTXMODE_NEW);
-        Matrix_Scale(this->actor.scale.x * (1.0f - (i * 0.07000001f)), this->actor.scale.y * (1.0f - (i * 0.07000001f)),
+        OoT_Matrix_Translate(this->unk_2EC[temp].x, this->unk_2EC[temp].y, this->unk_2EC[temp].z, MTXMODE_NEW);
+        OoT_Matrix_Scale(this->actor.scale.x * (1.0f - (i * 0.07000001f)), this->actor.scale.y * (1.0f - (i * 0.07000001f)),
                      this->actor.scale.z * (1.0f - (i * 0.07000001f)), MTXMODE_APPLY);
-        Matrix_ReplaceRotation(&play->billboardMtxF);
+        OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
         Matrix_RotateZ(((2.0f * (i * M_PI)) / 10.0f) + BINANG_TO_RAD(this->actor.shape.rot.z), MTXMODE_APPLY);
         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPDisplayList(POLY_XLU_DISP++, gGanondorfSquareDL);
@@ -4386,7 +4386,7 @@ void func_808E2544(Actor* thisx, PlayState* play) {
     Vec3f sp60;
 
     this->unk_1A2++;
-    Actor_SetScale(&this->actor, 0.01f);
+    OoT_Actor_SetScale(&this->actor, 0.01f);
 
     for (i = 0; i < ARRAY_COUNT(this->timers); i++) {
         if (this->timers[i] != 0) {
@@ -4395,7 +4395,7 @@ void func_808E2544(Actor* thisx, PlayState* play) {
     }
 
     Actor_UpdateVelocityXYZ(&this->actor);
-    Actor_UpdatePos(&this->actor);
+    OoT_Actor_UpdatePos(&this->actor);
 
     this->unk_1A6++;
 
@@ -4410,36 +4410,36 @@ void func_808E2544(Actor* thisx, PlayState* play) {
     switch (this->unk_1C2) {
         case 0:
             this->actor.speedXZ = 40.0f;
-            Math_ApproachF(&this->fwork[1], 255.0f, 1.0f, 40.0f);
+            OoT_Math_ApproachF(&this->fwork[1], 255.0f, 1.0f, 40.0f);
             xDiff = dorf->unk_278.x - this->actor.world.pos.x;
             yDiff = dorf->unk_278.y - this->actor.world.pos.y;
             zDiff = dorf->unk_278.z - this->actor.world.pos.z;
-            sp80 = RADF_TO_BINANG(Math_FAtan2F(xDiff, zDiff));
-            xzDist = sqrtf(SQ(xDiff) + SQ(zDiff));
+            sp80 = RADF_TO_BINANG(OoT_Math_FAtan2F(xDiff, zDiff));
+            xzDist = OoT_sqrtf(SQ(xDiff) + SQ(zDiff));
 
-            xRot = RADF_TO_BINANG(Math_FAtan2F(yDiff, xzDist));
+            xRot = RADF_TO_BINANG(OoT_Math_FAtan2F(yDiff, xzDist));
             sp84 = (xzDist * 700.0f) / 10.0f;
             if (sp84 > 6144.0f) {
                 sp84 = 6144.0f;
             }
 
-            xRot += (Math_CosS(this->unk_1A2 * 0x2200) * sp84);
+            xRot += (OoT_Math_CosS(this->unk_1A2 * 0x2200) * sp84);
             this->actor.world.rot.x = xRot;
-            Math_ApproachS(&this->actor.shape.rot.y, sp80, 1, this->csCamMaxStepScale);
-            Math_ApproachF(&this->csCamMaxStepScale, 4096.0f, 1.0f, 256.0f);
-            this->actor.world.rot.y = (Math_SinS(this->unk_1A2 * 0x1A00) * sp84) + this->actor.shape.rot.y;
+            OoT_Math_ApproachS(&this->actor.shape.rot.y, sp80, 1, this->csCamMaxStepScale);
+            OoT_Math_ApproachF(&this->csCamMaxStepScale, 4096.0f, 1.0f, 256.0f);
+            this->actor.world.rot.y = (OoT_Math_SinS(this->unk_1A2 * 0x1A00) * sp84) + this->actor.shape.rot.y;
 
-            if (sqrtf(SQ(xDiff) + SQ(zDiff) + SQ(yDiff)) < 45.0f) {
+            if (OoT_sqrtf(SQ(xDiff) + SQ(zDiff) + SQ(yDiff)) < 45.0f) {
                 this->unk_1C2 = 1;
                 this->actor.speedXZ = 0.0f;
             }
             break;
 
         case 1:
-            Math_ApproachZeroF(&this->fwork[1], 1.0f, 40.0f);
+            OoT_Math_ApproachZeroF(&this->fwork[1], 1.0f, 40.0f);
 
             if (this->fwork[1] == 0.0f) {
-                Actor_Kill(&this->actor);
+                OoT_Actor_Kill(&this->actor);
             }
             break;
 
@@ -4455,7 +4455,7 @@ void func_808E2544(Actor* thisx, PlayState* play) {
             this->fwork[1] = 255.0f;
             this->unk_1F0 = player->actor.world.pos;
             new_var = this->unk_1F0.x - this->actor.world.pos.x;
-            this->actor.shape.rot.y = RADF_TO_BINANG(Math_FAtan2F(new_var, this->unk_1F0.z - this->actor.world.pos.z)) +
+            this->actor.shape.rot.y = RADF_TO_BINANG(OoT_Math_FAtan2F(new_var, this->unk_1F0.z - this->actor.world.pos.z)) +
                                       (this->actor.params << 0xD) - 0x20C000;
             // fallthrough
         case 11:
@@ -4465,26 +4465,26 @@ void func_808E2544(Actor* thisx, PlayState* play) {
                 yDiff = (this->unk_1F0.y + 30.0f) - this->actor.world.pos.y;
                 zDiff = this->unk_1F0.z - this->actor.world.pos.z;
 
-                sp80 = RADF_TO_BINANG(Math_FAtan2F(xDiff, zDiff));
-                this->actor.shape.rot.x = RADF_TO_BINANG(Math_FAtan2F(yDiff, sqrtf(SQ(xDiff) + SQ(zDiff))));
-                Math_ApproachS(&this->actor.shape.rot.y, sp80, 1, this->csCamMaxStepScale);
-                Math_ApproachF(&this->csCamMaxStepScale, 4096.0f, 1.0f, 256.0f);
+                sp80 = RADF_TO_BINANG(OoT_Math_FAtan2F(xDiff, zDiff));
+                this->actor.shape.rot.x = RADF_TO_BINANG(OoT_Math_FAtan2F(yDiff, OoT_sqrtf(SQ(xDiff) + SQ(zDiff))));
+                OoT_Math_ApproachS(&this->actor.shape.rot.y, sp80, 1, this->csCamMaxStepScale);
+                OoT_Math_ApproachF(&this->csCamMaxStepScale, 4096.0f, 1.0f, 256.0f);
             }
 
-            sp84 = (sqrtf(this->actor.xyzDistToPlayerSq) * 200.0f) / 10.0f;
+            sp84 = (OoT_sqrtf(this->actor.xyzDistToPlayerSq) * 200.0f) / 10.0f;
             if (sp84 > 13824.0f) {
                 sp84 = 13824.0f;
             }
 
-            this->actor.world.rot.x = (Math_CosS(this->unk_1A2 * 0x3400) * sp84 * 0.1f) + this->actor.shape.rot.x;
-            this->actor.world.rot.y = (Math_SinS(this->unk_1A2 * 0x1A00) * sp84) + this->actor.shape.rot.y;
+            this->actor.world.rot.x = (OoT_Math_CosS(this->unk_1A2 * 0x3400) * sp84 * 0.1f) + this->actor.shape.rot.x;
+            this->actor.world.rot.y = (OoT_Math_SinS(this->unk_1A2 * 0x1A00) * sp84) + this->actor.shape.rot.y;
 
             if ((player->meleeWeaponState != 0) && (player->meleeWeaponAnimation >= 0x18) &&
                 (this->actor.xzDistToPlayer < 80.0f)) {
                 this->unk_1C2 = 0xC;
                 this->actor.speedXZ = -30.0f;
                 Actor_UpdateVelocityXYZ(&this->actor);
-                Actor_UpdatePos(&this->actor);
+                OoT_Actor_UpdatePos(&this->actor);
                 this->unk_1F0 = dorf->unk_1FC;
                 numEffects = 10;
                 break;
@@ -4495,17 +4495,17 @@ void func_808E2544(Actor* thisx, PlayState* play) {
 
                 this->collider.base.acFlags &= ~2;
 
-                if (!(acHitInfo->toucher.dmgFlags & 0x100000) || Player_HasMirrorShieldEquipped(play)) {
+                if (!(acHitInfo->toucher.dmgFlags & 0x100000) || OoT_Player_HasMirrorShieldEquipped(play)) {
                     func_800AA000(this->actor.xyzDistToPlayerSq, 0xB4, 0x14, 0x64);
                     this->unk_1C2 = 0xC;
                     this->actor.speedXZ = -30.0f;
 
                     Actor_UpdateVelocityXYZ(&this->actor);
-                    Actor_UpdatePos(&this->actor);
+                    OoT_Actor_UpdatePos(&this->actor);
 
-                    this->unk_1F0.x = Rand_CenteredFloat(700.0f) + dorf->unk_1FC.x;
-                    this->unk_1F0.y = Rand_CenteredFloat(200.0f) + dorf->unk_1FC.y;
-                    this->unk_1F0.z = Rand_CenteredFloat(700.0f) + dorf->unk_1FC.z;
+                    this->unk_1F0.x = OoT_Rand_CenteredFloat(700.0f) + dorf->unk_1FC.x;
+                    this->unk_1F0.y = OoT_Rand_CenteredFloat(200.0f) + dorf->unk_1FC.y;
+                    this->unk_1F0.z = OoT_Rand_CenteredFloat(700.0f) + dorf->unk_1FC.z;
 
                     this->unk_1F0.x = this->unk_1F0.x + ((this->unk_1F0.x - this->actor.world.pos.x) * 100.0f);
                     this->unk_1F0.y = this->unk_1F0.y + ((this->unk_1F0.y - this->actor.world.pos.y) * 100.0f);
@@ -4516,23 +4516,23 @@ void func_808E2544(Actor* thisx, PlayState* play) {
                 }
             }
 
-            Collider_UpdateCylinder(&this->actor, &this->collider);
+            OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
 
             if (this->timers[1] == 0) {
-                CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+                OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
             }
 
             xDiff = player->actor.world.pos.x - this->actor.world.pos.x;
             yDiff = (player->actor.world.pos.y + 30.0f) - this->actor.world.pos.y;
             zDiff = player->actor.world.pos.z - this->actor.world.pos.z;
 
-            if (sqrtf(SQ(xDiff) + SQ(zDiff) + SQ(yDiff)) < 30.0f) {
+            if (OoT_sqrtf(SQ(xDiff) + SQ(zDiff) + SQ(yDiff)) < 30.0f) {
                 this->unk_1C2 = 1;
                 this->actor.speedXZ = 0.0f;
 
                 if (dorf->timers[2] == 0) {
                     func_8002F6D4(play, &this->actor, 3.0f, this->actor.world.rot.y, 0.0f, 0x50);
-                    SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40, NA_SE_EN_GANON_HIT_THUNDER);
+                    OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40, NA_SE_EN_GANON_HIT_THUNDER);
                     dorf->timers[2] = 20;
 
                     for (i = 0; i < ARRAY_COUNT(this->unk_4E4); i++) {
@@ -4554,18 +4554,18 @@ void func_808E2544(Actor* thisx, PlayState* play) {
             yDiff = this->unk_1F0.y - this->actor.world.pos.y;
             zDiff = this->unk_1F0.z - this->actor.world.pos.z;
 
-            sp80 = RADF_TO_BINANG(Math_FAtan2F(xDiff, zDiff));
-            xzDist = sqrtf(SQ(xDiff) + SQ(zDiff));
-            xRot = RADF_TO_BINANG(Math_FAtan2F(yDiff, xzDist));
+            sp80 = RADF_TO_BINANG(OoT_Math_FAtan2F(xDiff, zDiff));
+            xzDist = OoT_sqrtf(SQ(xDiff) + SQ(zDiff));
+            xRot = RADF_TO_BINANG(OoT_Math_FAtan2F(yDiff, xzDist));
             sp84 = (xzDist * 700.0f) / 10.0f;
 
             if (sp84 > 6144.0f) {
                 sp84 = 6144.0f;
             }
 
-            sp80 += Math_SinS(this->unk_1A2 * 0x2200) * sp84;
+            sp80 += OoT_Math_SinS(this->unk_1A2 * 0x2200) * sp84;
 
-            xRot += Math_CosS(this->unk_1A2 * 0x1800) * sp84;
+            xRot += OoT_Math_CosS(this->unk_1A2 * 0x1800) * sp84;
 
             this->actor.world.rot.x = xRot;
             this->actor.world.rot.y = sp80;
@@ -4574,7 +4574,7 @@ void func_808E2544(Actor* thisx, PlayState* play) {
             yDiff = dorf->unk_1FC.y - this->actor.world.pos.y;
             zDiff = dorf->unk_1FC.z - this->actor.world.pos.z;
 
-            if (sqrtf(SQ(xDiff) + SQ(zDiff) + SQ(yDiff)) < 45.0f) {
+            if (OoT_sqrtf(SQ(xDiff) + SQ(zDiff) + SQ(yDiff)) < 45.0f) {
                 BossGanon_SetupHitByLightBall(dorf, play);
                 this->timers[0] = 150;
                 numEffects = 40;
@@ -4594,20 +4594,20 @@ void func_808E2544(Actor* thisx, PlayState* play) {
             this->actor.speedXZ = 0.0f;
             numEffects = 10;
             BossGanon_CheckFallingPlatforms(this, play, &this->actor.world.pos);
-            Actor_SpawnAsChild(&play->actorCtx, &dorf->actor, play, ACTOR_BOSS_GANON, this->actor.world.pos.x,
+            OoT_Actor_SpawnAsChild(&play->actorCtx, &dorf->actor, play, ACTOR_BOSS_GANON, this->actor.world.pos.x,
                                this->actor.world.pos.y, this->actor.world.pos.z, 0, 0, 0, 0x190);
         }
     }
 
     if (numEffects) {
-        SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 80, NA_SE_EN_FANTOM_THUNDER);
+        OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 80, NA_SE_EN_FANTOM_THUNDER);
 
         for (i = 0; i < numEffects; i++) {
-            sp60.x = Rand_CenteredFloat(30.0f);
-            sp60.y = Rand_CenteredFloat(30.0f);
-            sp60.z = Rand_CenteredFloat(30.0);
+            sp60.x = OoT_Rand_CenteredFloat(30.0f);
+            sp60.y = OoT_Rand_CenteredFloat(30.0f);
+            sp60.z = OoT_Rand_CenteredFloat(30.0);
 
-            BossGanonEff_SpawnLightRay(play, &this->actor.world.pos, &sp60, &sZeroVec, Rand_ZeroFloat(200.0f) + 500.0f,
+            BossGanonEff_SpawnLightRay(play, &this->actor.world.pos, &sp60, &OoT_sZeroVec, OoT_Rand_ZeroFloat(200.0f) + 500.0f,
                                        15.0f, 0x1E);
         }
     }
@@ -4636,10 +4636,10 @@ void func_808E324C(Actor* thisx, PlayState* play) {
 
     for (i = 0; i < 12; i++) {
         temp = (s16)(((this->unk_1A6 - i) + 0xF) % 15);
-        Matrix_Translate(this->unk_2EC[temp].x, this->unk_2EC[temp].y, this->unk_2EC[temp].z, MTXMODE_NEW);
+        OoT_Matrix_Translate(this->unk_2EC[temp].x, this->unk_2EC[temp].y, this->unk_2EC[temp].z, MTXMODE_NEW);
         Matrix_RotateY(this->unk_3C4[temp].y, MTXMODE_APPLY);
         Matrix_RotateX(-this->unk_3C4[temp].x, MTXMODE_APPLY);
-        Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+        OoT_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
         Matrix_RotateY(M_PI / 2, MTXMODE_APPLY);
         MATRIX_TOMTX(mtx);
         gSPMatrix(POLY_XLU_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -4647,10 +4647,10 @@ void func_808E324C(Actor* thisx, PlayState* play) {
         mtx++;
     };
 
-    Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
-    Matrix_ReplaceRotation(&play->billboardMtxF);
-    Matrix_Scale(10.0f, 10.0f, 10.0f, MTXMODE_APPLY);
-    Matrix_RotateZ(Rand_CenteredFloat(M_PI), MTXMODE_APPLY);
+    OoT_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
+    OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
+    OoT_Matrix_Scale(10.0f, 10.0f, 10.0f, MTXMODE_APPLY);
+    Matrix_RotateZ(OoT_Rand_CenteredFloat(M_PI), MTXMODE_APPLY);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_XLU_DISP++, gGanondorfLightBallMaterialDL);
 
@@ -4698,7 +4698,7 @@ void BossGanon_UpdateEffects(PlayState* play) {
                     eff->type = GDF_EFF_NONE;
                 }
             } else if (eff->type == GDF_EFF_SPARKLE) {
-                eff->unk_3C += Rand_ZeroFloat(M_PI / 2) + M_PI / 2;
+                eff->unk_3C += OoT_Rand_ZeroFloat(M_PI / 2) + M_PI / 2;
                 eff->unk_2E -= eff->unk_30;
 
                 if (eff->unk_2E <= 0) {
@@ -4716,14 +4716,14 @@ void BossGanon_UpdateEffects(PlayState* play) {
                 yDiff = sBossGanonGanondorf->unk_278.y - eff->pos.y;
                 zDiff = sBossGanonGanondorf->unk_278.z - eff->pos.z;
 
-                yRot = Math_FAtan2F(xDiff, zDiff);
+                yRot = OoT_Math_FAtan2F(xDiff, zDiff);
 
-                xRot = -Math_FAtan2F(yDiff, sqrtf(SQ(xDiff) + SQ(zDiff)));
+                xRot = -OoT_Math_FAtan2F(yDiff, OoT_sqrtf(SQ(xDiff) + SQ(zDiff)));
                 spA0.z = eff->unk_38;
                 Matrix_RotateY(yRot, MTXMODE_NEW);
                 Matrix_RotateX(xRot, MTXMODE_APPLY);
-                Matrix_MultVec3f(&spA0, &eff->velocity);
-                Math_ApproachF(&eff->unk_38, 10.0f, 1.0f, 0.5f);
+                OoT_Matrix_MultVec3f(&spA0, &eff->velocity);
+                OoT_Math_ApproachF(&eff->unk_38, 10.0f, 1.0f, 0.5f);
 
                 eff->alpha += 10;
 
@@ -4731,11 +4731,11 @@ void BossGanon_UpdateEffects(PlayState* play) {
                     eff->alpha = 255;
                 }
 
-                if ((sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff)) < 20.0f) || (eff->timer > 70)) {
+                if ((OoT_sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff)) < 20.0f) || (eff->timer > 70)) {
                     eff->type = GDF_EFF_NONE;
                 }
             } else if (eff->type == GDF_EFF_LIGHT_RAY) {
-                eff->unk_3C += Rand_ZeroFloat(M_PI / 2) + M_PI / 2;
+                eff->unk_3C += OoT_Rand_ZeroFloat(M_PI / 2) + M_PI / 2;
                 eff->unk_2E -= eff->unk_30;
 
                 if (eff->unk_2E <= 0) {
@@ -4749,30 +4749,30 @@ void BossGanon_UpdateEffects(PlayState* play) {
                     eff->alpha = 255;
                 }
 
-                Math_ApproachF(&eff->unk_38, eff->unk_40, 1.0f, (eff->unk_40 / 15.0f) * 4.0f);
+                OoT_Math_ApproachF(&eff->unk_38, eff->unk_40, 1.0f, (eff->unk_40 / 15.0f) * 4.0f);
             } else if (eff->type == GDF_EFF_SHOCK) {
                 if (eff->unk_2E == GDF_SHOCK_DORF_YELLOW) {
-                    bodyPart = (s16)Rand_ZeroFloat(13.9f) + 1;
+                    bodyPart = (s16)OoT_Rand_ZeroFloat(13.9f) + 1;
 
-                    eff->pos.x = sBossGanonGanondorf->unk_2EC[bodyPart].x + Rand_CenteredFloat(20.0f);
-                    eff->pos.y = sBossGanonGanondorf->unk_2EC[bodyPart].y + Rand_CenteredFloat(20.0f);
-                    eff->pos.z = sBossGanonGanondorf->unk_2EC[bodyPart].z + Rand_CenteredFloat(20.0f);
+                    eff->pos.x = sBossGanonGanondorf->unk_2EC[bodyPart].x + OoT_Rand_CenteredFloat(20.0f);
+                    eff->pos.y = sBossGanonGanondorf->unk_2EC[bodyPart].y + OoT_Rand_CenteredFloat(20.0f);
+                    eff->pos.z = sBossGanonGanondorf->unk_2EC[bodyPart].z + OoT_Rand_CenteredFloat(20.0f);
                 } else {
-                    bodyPart = (s16)Rand_ZeroFloat(17.9f);
+                    bodyPart = (s16)OoT_Rand_ZeroFloat(17.9f);
 
-                    eff->pos.x = player->bodyPartsPos[bodyPart].x + Rand_CenteredFloat(10.0f);
-                    eff->pos.y = player->bodyPartsPos[bodyPart].y + Rand_CenteredFloat(15.0f);
-                    eff->pos.z = player->bodyPartsPos[bodyPart].z + Rand_CenteredFloat(10.0f);
+                    eff->pos.x = player->bodyPartsPos[bodyPart].x + OoT_Rand_CenteredFloat(10.0f);
+                    eff->pos.y = player->bodyPartsPos[bodyPart].y + OoT_Rand_CenteredFloat(15.0f);
+                    eff->pos.z = player->bodyPartsPos[bodyPart].z + OoT_Rand_CenteredFloat(10.0f);
                 }
 
-                eff->unk_3C += (Rand_ZeroFloat(M_PI / 2) + M_PI / 2);
+                eff->unk_3C += (OoT_Rand_ZeroFloat(M_PI / 2) + M_PI / 2);
 
                 if (eff->timer > 20) {
                     eff->type = GDF_EFF_NONE;
                 }
             } else if (eff->type == GDF_EFF_LIGHTNING) {
                 if (eff->unk_3C == 0.0f) {
-                    eff->unk_44 = BINANG_TO_RAD(Camera_GetInputDirYaw(Play_GetCamera(play, MAIN_CAM)));
+                    eff->unk_44 = BINANG_TO_RAD(OoT_Camera_GetInputDirYaw(OoT_Play_GetCamera(play, MAIN_CAM)));
                 } else {
                     eff->unk_44 = M_PI / 2;
                 }
@@ -4801,8 +4801,8 @@ void BossGanon_UpdateEffects(PlayState* play) {
                     }
                 }
 
-                Math_ApproachF(&eff->scale, eff->unk_38, 1.0f, 0.01f);
-                Math_ApproachF(&eff->unk_40, 4.0f, 1.0f, 0.15f);
+                OoT_Math_ApproachF(&eff->scale, eff->unk_38, 1.0f, 0.01f);
+                OoT_Math_ApproachF(&eff->unk_40, 4.0f, 1.0f, 0.15f);
             } else if (eff->type == GDF_EFF_IMPACT_DUST_LIGHT) {
                 if (i == 0) {
                     Sfx_PlaySfxCentered(NA_SE_EN_GANON_WAVE_GND - SFX_FLAG);
@@ -4830,8 +4830,8 @@ void BossGanon_UpdateEffects(PlayState* play) {
                     }
                 }
 
-                Math_ApproachF(&eff->scale, eff->unk_38, 1.0f, 0.1f);
-                Math_ApproachF(&eff->unk_40, 1.0f, 1.0f, 0.15f);
+                OoT_Math_ApproachF(&eff->scale, eff->unk_38, 1.0f, 0.1f);
+                OoT_Math_ApproachF(&eff->unk_40, 1.0f, 1.0f, 0.15f);
             } else if (eff->type == GDF_EFF_SHOCKWAVE) {
                 eff->unk_30++; // unused
                 eff->alpha -= 30;
@@ -4841,11 +4841,11 @@ void BossGanon_UpdateEffects(PlayState* play) {
                     eff->type = GDF_EFF_NONE;
                 }
 
-                Math_ApproachF(&eff->scale, eff->unk_38, 1.0f, 0.13f);
+                OoT_Math_ApproachF(&eff->scale, eff->unk_38, 1.0f, 0.13f);
 
                 if ((eff->timer < 150) && (fabsf(player->actor.world.pos.y) < 5.0f)) {
                     distToPlayer =
-                        sqrtf(SQ(eff->pos.x - player->actor.world.pos.x) + SQ(eff->pos.z - player->actor.world.pos.z));
+                        OoT_sqrtf(SQ(eff->pos.x - player->actor.world.pos.x) + SQ(eff->pos.z - player->actor.world.pos.z));
 
                     if (((eff->scale * 150.0f) < distToPlayer) && (distToPlayer < (eff->scale * 300.0f))) {
                         eff->timer = 150;
@@ -4858,7 +4858,7 @@ void BossGanon_UpdateEffects(PlayState* play) {
     }
 }
 
-static void* sLightningTextures[] = {
+static void* OoT_sLightningTextures[] = {
     gGanondorfLightning1Tex,  gGanondorfLightning1Tex, gGanondorfLightning2Tex,  gGanondorfLightning3Tex,
     gGanondorfLightning4Tex,  gGanondorfLightning5Tex, gGanondorfLightning6Tex,  gGanondorfLightning7Tex,
     gGanondorfLightning8Tex,  gGanondorfLightning9Tex, gGanondorfLightning10Tex, gGanondorfLightning11Tex,
@@ -4900,8 +4900,8 @@ void BossGanon_DrawEffects(PlayState* play) {
             } else {
                 gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, 255);
             }
-            Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
-            Matrix_Scale(eff->scale, eff->scale, eff->scale, MTXMODE_APPLY);
+            OoT_Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
+            OoT_Matrix_Scale(eff->scale, eff->scale, eff->scale, MTXMODE_APPLY);
             Matrix_RotateY(eff->unk_48, MTXMODE_APPLY);
             Matrix_RotateX(eff->unk_44, MTXMODE_APPLY);
             gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -4923,9 +4923,9 @@ void BossGanon_DrawEffects(PlayState* play) {
                 flag++;
             }
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, eff->alpha);
-            Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
-            Matrix_Scale(eff->scale, eff->scale, 1.0f, MTXMODE_APPLY);
+            OoT_Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
+            OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
+            OoT_Matrix_Scale(eff->scale, eff->scale, 1.0f, MTXMODE_APPLY);
             Matrix_RotateZ(eff->unk_3C, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(POLY_XLU_DISP++, gGanondorfSquareDL);
@@ -4946,11 +4946,11 @@ void BossGanon_DrawEffects(PlayState* play) {
                 flag++;
             }
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, eff->alpha);
-            Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
+            OoT_Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
             Matrix_RotateY(eff->unk_48, MTXMODE_APPLY);
             Matrix_RotateX(eff->unk_44, MTXMODE_APPLY);
             Matrix_RotateZ(eff->unk_3C, MTXMODE_APPLY);
-            Matrix_Scale(eff->scale, eff->scale, eff->unk_38 * eff->scale, MTXMODE_APPLY);
+            OoT_Matrix_Scale(eff->scale, eff->scale, eff->unk_38 * eff->scale, MTXMODE_APPLY);
             Matrix_RotateX(M_PI / 2, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(POLY_XLU_DISP++, gGanondorfSquareDL);
@@ -4975,8 +4975,8 @@ void BossGanon_DrawEffects(PlayState* play) {
                 }
                 flag++;
             }
-            Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
-            Matrix_Scale(eff->scale, eff->scale, 1.0f, MTXMODE_APPLY);
+            OoT_Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
+            OoT_Matrix_Scale(eff->scale, eff->scale, 1.0f, MTXMODE_APPLY);
             Matrix_RotateX(eff->unk_3C * 1.3f, MTXMODE_APPLY);
             Matrix_RotateZ(eff->unk_3C, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -4996,14 +4996,14 @@ void BossGanon_DrawEffects(PlayState* play) {
                             255);
             gDPSetEnvColor(POLY_XLU_DISP++, sLightningEnvColors[(eff->timer * 3) + 0],
                            sLightningEnvColors[(eff->timer * 3) + 1], sLightningEnvColors[(eff->timer * 3) + 2], 0);
-            Matrix_Translate(sBossGanonGanondorf->unk_260.x, sBossGanonGanondorf->unk_260.y,
+            OoT_Matrix_Translate(sBossGanonGanondorf->unk_260.x, sBossGanonGanondorf->unk_260.y,
                              sBossGanonGanondorf->unk_260.z, MTXMODE_NEW);
             Matrix_RotateY(eff->unk_48, MTXMODE_APPLY);
             Matrix_RotateZ(eff->unk_3C, MTXMODE_APPLY);
-            Matrix_Scale(eff->scale, eff->scale, eff->scale, MTXMODE_APPLY);
+            OoT_Matrix_Scale(eff->scale, eff->scale, eff->scale, MTXMODE_APPLY);
             Matrix_RotateY(eff->unk_44, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-            gSPSegment(POLY_XLU_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(sLightningTextures[eff->timer]));
+            gSPSegment(POLY_XLU_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(OoT_sLightningTextures[eff->timer]));
             gSPDisplayList(POLY_XLU_DISP++, gGanondorfLightningDL);
             FrameInterpolation_RecordCloseChild();
         }
@@ -5018,10 +5018,10 @@ void BossGanon_DrawEffects(PlayState* play) {
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 0, 0, 0, eff->alpha);
             gDPSetEnvColor(POLY_XLU_DISP++, 100, 70, 0, 128);
             gSPSegment(POLY_XLU_DISP++, 0x08,
-                       Gfx_TwoTexScroll(play->state.gfxCtx, 0, eff->timer * 4, 0, 32, 64, 1, eff->timer * 2,
+                       OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, eff->timer * 4, 0, 32, 64, 1, eff->timer * 2,
                                         eff->timer * -20, 32, 32));
-            Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
-            Matrix_Scale(eff->scale, eff->unk_40 * eff->scale, eff->scale, MTXMODE_APPLY);
+            OoT_Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
+            OoT_Matrix_Scale(eff->scale, eff->unk_40 * eff->scale, eff->scale, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(POLY_XLU_DISP++, gGanondorfImpactDarkDL);
             FrameInterpolation_RecordCloseChild();
@@ -5037,10 +5037,10 @@ void BossGanon_DrawEffects(PlayState* play) {
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, eff->alpha);
             gDPSetEnvColor(POLY_XLU_DISP++, 200, 100, 0, 128);
             gSPSegment(POLY_XLU_DISP++, 0x08,
-                       Gfx_TwoTexScroll(play->state.gfxCtx, 0, eff->timer * 4, 0, 32, 64, 1, eff->timer * 2,
+                       OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, eff->timer * 4, 0, 32, 64, 1, eff->timer * 2,
                                         eff->timer * -20, 32, 32));
-            Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
-            Matrix_Scale(eff->scale, eff->unk_40 * eff->scale, eff->scale, MTXMODE_APPLY);
+            OoT_Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
+            OoT_Matrix_Scale(eff->scale, eff->unk_40 * eff->scale, eff->scale, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(POLY_XLU_DISP++, gGanondorfImpactLightDL);
             FrameInterpolation_RecordCloseChild();
@@ -5056,10 +5056,10 @@ void BossGanon_DrawEffects(PlayState* play) {
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 170, eff->alpha);
             gDPSetEnvColor(POLY_XLU_DISP++, 150, 255, 0, 128);
             gSPSegment(POLY_XLU_DISP++, 0x08,
-                       Gfx_TwoTexScroll(play->state.gfxCtx, 0, (eff->timer * 100), 0, 64, 32, 1, (eff->timer * 100), 0,
+                       OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, (eff->timer * 100), 0, 64, 32, 1, (eff->timer * 100), 0,
                                         64, 32));
-            Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
-            Matrix_Scale((eff->scale * 200.0f) / 1500.0f, (eff->unk_40 * 200.0f) / 1500.0f,
+            OoT_Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
+            OoT_Matrix_Scale((eff->scale * 200.0f) / 1500.0f, (eff->unk_40 * 200.0f) / 1500.0f,
                          (eff->scale * 200.0f) / 1500.0f, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(POLY_XLU_DISP++, gGanondorfShockwaveDL);
@@ -5077,10 +5077,10 @@ void BossGanon_DrawEffects(PlayState* play) {
             gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, 255, 128);
             gSPSegment(
                 POLY_XLU_DISP++, 0x0A,
-                Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 32, 1, eff->timer * 2, eff->timer * -20, 64, 64));
-            Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
-            Matrix_Scale(eff->scale, eff->scale, 1.0f, MTXMODE_APPLY);
+                OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 32, 1, eff->timer * 2, eff->timer * -20, 64, 64));
+            OoT_Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
+            OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
+            OoT_Matrix_Scale(eff->scale, eff->scale, 1.0f, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(POLY_XLU_DISP++, gGanondorfDotDL);
             FrameInterpolation_RecordCloseChild();

@@ -32,7 +32,7 @@ const ActorInit Bg_Gnd_Soulmeiro_InitVars = {
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -52,7 +52,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 50, 20, 20, { 0, 0, 0 } },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 1000, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 1000, ICHAIN_CONTINUE),
@@ -63,20 +63,20 @@ void BgGndSoulmeiro_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     BgGndSoulmeiro* this = (BgGndSoulmeiro*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
     this->actionFunc = NULL;
 
     switch (this->actor.params & 0xFF) {
         case 0:
-            Collider_InitCylinder(play, &this->collider);
-            Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+            OoT_Collider_InitCylinder(play, &this->collider);
+            OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
             this->actionFunc = func_8087B284;
-            if (Flags_GetSwitch(play, (this->actor.params >> 8) & 0x3F)) {
+            if (OoT_Flags_GetSwitch(play, (this->actor.params >> 8) & 0x3F)) {
 
-                Actor_Spawn(&play->actorCtx, play, ACTOR_MIR_RAY, this->actor.world.pos.x, this->actor.world.pos.y,
+                OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_MIR_RAY, this->actor.world.pos.x, this->actor.world.pos.y,
                             this->actor.world.pos.z, 0, 0, 0, 9, true);
                 this->actor.draw = NULL;
-                Actor_Kill(&this->actor);
+                OoT_Actor_Kill(&this->actor);
                 return;
             } else {
                 this->actor.draw = BgGndSoulmeiro_Draw;
@@ -84,7 +84,7 @@ void BgGndSoulmeiro_Init(Actor* thisx, PlayState* play) {
             break;
         case 1:
         case 2:
-            if (Flags_GetSwitch(play, (this->actor.params >> 8) & 0x3F)) {
+            if (OoT_Flags_GetSwitch(play, (this->actor.params >> 8) & 0x3F)) {
                 this->actor.draw = BgGndSoulmeiro_Draw;
             } else {
                 this->actor.draw = NULL;
@@ -98,7 +98,7 @@ void BgGndSoulmeiro_Destroy(Actor* thisx, PlayState* play) {
     BgGndSoulmeiro* this = (BgGndSoulmeiro*)thisx;
 
     if ((this->actor.params & 0xFF) == 0) {
-        Collider_DestroyCylinder(play, &this->collider);
+        OoT_Collider_DestroyCylinder(play, &this->collider);
     }
 }
 
@@ -113,44 +113,44 @@ void func_8087AF38(BgGndSoulmeiro* this, PlayState* play) {
     }
 
     if (this->unk_198 == 20) {
-        Flags_SetSwitch(play, (thisx->params >> 8) & 0x3F);
+        OoT_Flags_SetSwitch(play, (thisx->params >> 8) & 0x3F);
         thisx->draw = NULL;
     }
 
     // This should be this->unk_198 == 0, this is required to match
     if (!this->unk_198) {
-        Flags_SetSwitch(play, (thisx->params >> 8) & 0x3F);
-        Actor_Kill(&this->actor);
-        Actor_Spawn(&play->actorCtx, play, ACTOR_MIR_RAY, thisx->world.pos.x, thisx->world.pos.y, thisx->world.pos.z, 0,
+        OoT_Flags_SetSwitch(play, (thisx->params >> 8) & 0x3F);
+        OoT_Actor_Kill(&this->actor);
+        OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_MIR_RAY, thisx->world.pos.x, thisx->world.pos.y, thisx->world.pos.z, 0,
                     0, 0, 9, true);
     } else if ((this->unk_198 % 6) == 0) {
         s32 i;
-        s16 temp_2 = Rand_ZeroOne() * (10922.0f); // This should be: 0x10000 / 6.0f
+        s16 temp_2 = OoT_Rand_ZeroOne() * (10922.0f); // This should be: 0x10000 / 6.0f
 
         vecA.y = 0.0f;
         vecB.y = thisx->world.pos.y;
 
         for (i = 0; i < 6; i++) {
-            s16 temp_1 = Rand_CenteredFloat(0x2800) + temp_2;
-            f32 temp_3 = Math_SinS(temp_1);
-            f32 temp_4 = Math_CosS(temp_1);
+            s16 temp_1 = OoT_Rand_CenteredFloat(0x2800) + temp_2;
+            f32 temp_3 = OoT_Math_SinS(temp_1);
+            f32 temp_4 = OoT_Math_CosS(temp_1);
             f32 distXZ;
 
             vecB.x = thisx->world.pos.x + (120.0f * temp_3);
             vecB.z = thisx->world.pos.z + (120.0f * temp_4);
-            distXZ = Math_Vec3f_DistXZ(&thisx->home.pos, &vecB) * (1.0f / 120.0f);
+            distXZ = OoT_Math_Vec3f_DistXZ(&thisx->home.pos, &vecB) * (1.0f / 120.0f);
             if (distXZ < 0.7f) {
-                temp_3 = Math_SinS(temp_1 + 0x8000);
-                temp_4 = Math_CosS(temp_1 + 0x8000);
+                temp_3 = OoT_Math_SinS(temp_1 + 0x8000);
+                temp_4 = OoT_Math_CosS(temp_1 + 0x8000);
                 vecB.x = thisx->world.pos.x + (120.0f * temp_3);
                 vecB.z = thisx->world.pos.z + (120.0f * temp_4);
-                distXZ = Math_Vec3f_DistXZ(&thisx->home.pos, &vecB) * (1.0f / 120.0f);
+                distXZ = OoT_Math_Vec3f_DistXZ(&thisx->home.pos, &vecB) * (1.0f / 120.0f);
             }
 
             vecA.x = 4.0f * temp_3 * distXZ;
             vecA.y = 0.0f;
             vecA.z = 4.0f * temp_4 * distXZ;
-            EffectSsDeadDb_Spawn(play, &thisx->home.pos, &vecA, &zeroVec, 60, 6, 255, 255, 150, 170, 255, 0, 0, 1, 14,
+            OoT_EffectSsDeadDb_Spawn(play, &thisx->home.pos, &vecA, &zeroVec, 60, 6, 255, 255, 150, 170, 255, 0, 0, 1, 14,
                                  true);
             temp_2 += 0x2AAA;
         }
@@ -160,22 +160,22 @@ void func_8087AF38(BgGndSoulmeiro* this, PlayState* play) {
 void func_8087B284(BgGndSoulmeiro* this, PlayState* play) {
     s32 pad;
 
-    if (!Flags_GetSwitch(play, (this->actor.params >> 8) & 0x3F)) {
+    if (!OoT_Flags_GetSwitch(play, (this->actor.params >> 8) & 0x3F)) {
         this->actor.draw = BgGndSoulmeiro_Draw;
         if (this->collider.base.acFlags & AC_HIT) {
-            Audio_PlaySoundGeneral(NA_SE_SY_CORRECT_CHIME, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_CORRECT_CHIME, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             this->unk_198 = 40;
             this->actionFunc = func_8087AF38;
         } else {
-            Collider_UpdateCylinder(&this->actor, &this->collider);
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+            OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+            OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
         }
     }
 }
 
 void func_8087B350(BgGndSoulmeiro* this, PlayState* play) {
-    if (Flags_GetSwitch(play, (this->actor.params >> 8) & 0x3F)) {
+    if (OoT_Flags_GetSwitch(play, (this->actor.params >> 8) & 0x3F)) {
         this->actor.draw = BgGndSoulmeiro_Draw;
     } else {
         this->actor.draw = NULL;
@@ -207,10 +207,10 @@ void BgGndSoulmeiro_Draw(Actor* thisx, PlayState* play) {
             CLOSE_DISPS(play->state.gfxCtx);
             break;
         case 1:
-            Gfx_DrawDListXlu(play, dLists[params]);
+            OoT_Gfx_DrawDListXlu(play, dLists[params]);
             break;
         case 2:
-            Gfx_DrawDListOpa(play, dLists[params]);
+            OoT_Gfx_DrawDListOpa(play, dLists[params]);
             break;
     }
 }

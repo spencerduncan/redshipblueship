@@ -39,12 +39,12 @@ ActorProfile Obj_Y2shutter_Profile = {
     /**/ ObjY2shutter_Draw,
 };
 
-ShutterInfo sShutterInfo[] = {
+ShutterInfo MM_sShutterInfo[] = {
     { gPirateBarredShutterDL, &gPirateBarredShutterCol, 120.0f, 20.0f, 3.0f, -20.0f, 3.0f, 4, 8, 160 },
     { gPirateGratedShutterDL, &gPirateGratedShutterCol, 150.0f, 1.0f, 0.04f, -1.0f, 0.04f, 6, 12, 160 },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 800, ICHAIN_CONTINUE),
@@ -53,18 +53,18 @@ static InitChainEntry sInitChain[] = {
 
 void ObjY2shutter_Init(Actor* thisx, PlayState* play) {
     s32 pad[2];
-    ShutterInfo* info = &sShutterInfo[OBJY2SHUTTER_GET_TYPE(thisx)];
+    ShutterInfo* info = &MM_sShutterInfo[OBJY2SHUTTER_GET_TYPE(thisx)];
     ObjY2shutter* this = (ObjY2shutter*)thisx;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, 0);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
+    MM_DynaPolyActor_Init(&this->dyna, 0);
     DynaPolyActor_LoadMesh(play, &this->dyna, info->colHeader);
 }
 
 void ObjY2shutter_Destroy(Actor* thisx, PlayState* play) {
     ObjY2shutter* this = (ObjY2shutter*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void ObjY2shutter_SetupOpen(ObjY2shutter* this, ShutterInfo* info, ShutterType shutterType) {
@@ -79,13 +79,13 @@ void ObjY2shutter_Update(Actor* thisx, PlayState* play) {
     s32 pad;
     ObjY2shutter* this = (ObjY2shutter*)thisx;
     ShutterType shutterType = OBJY2SHUTTER_GET_TYPE(&this->dyna.actor);
-    ShutterInfo* info = &sShutterInfo[shutterType];
+    ShutterInfo* info = &MM_sShutterInfo[shutterType];
     f32 targetPosY = this->dyna.actor.world.pos.y;
     f32 targetVelocityY = 0.0f;
     f32 accelY = 0.0f;
 
-    sShutterInfo[0].openTimer = DREG(84) + 160;
-    sShutterInfo[1].openTimer = DREG(85) + 160;
+    MM_sShutterInfo[0].openTimer = DREG(84) + 160;
+    MM_sShutterInfo[1].openTimer = DREG(85) + 160;
 
     if (((shutterType == SHUTTER_BARRED) && (DREG(86) != 0)) || ((shutterType != SHUTTER_BARRED) && (DREG(87) != 0))) {
         if (shutterType == SHUTTER_BARRED) {
@@ -94,15 +94,15 @@ void ObjY2shutter_Update(Actor* thisx, PlayState* play) {
             DREG(87) = 0;
         }
 
-        if (Flags_GetSwitch(play, OBJY2SHUTTER_GET_SWITCH_FLAG(&this->dyna.actor))) {
-            Flags_UnsetSwitch(play, OBJY2SHUTTER_GET_SWITCH_FLAG(&this->dyna.actor));
+        if (MM_Flags_GetSwitch(play, OBJY2SHUTTER_GET_SWITCH_FLAG(&this->dyna.actor))) {
+            MM_Flags_UnsetSwitch(play, OBJY2SHUTTER_GET_SWITCH_FLAG(&this->dyna.actor));
         } else {
-            Flags_SetSwitch(play, OBJY2SHUTTER_GET_SWITCH_FLAG(&this->dyna.actor));
+            MM_Flags_SetSwitch(play, OBJY2SHUTTER_GET_SWITCH_FLAG(&this->dyna.actor));
         }
     }
 
     if (this->settleTimer == 0) {
-        if (Flags_GetSwitch(play, OBJY2SHUTTER_GET_SWITCH_FLAG(&this->dyna.actor))) {
+        if (MM_Flags_GetSwitch(play, OBJY2SHUTTER_GET_SWITCH_FLAG(&this->dyna.actor))) {
             s16 csId = this->dyna.actor.csId;
 
             if (this->openTimer == 0) {
@@ -123,7 +123,7 @@ void ObjY2shutter_Update(Actor* thisx, PlayState* play) {
                 targetVelocityY = info->openVelocity;
                 accelY = info->openAccel;
                 if (this->openTimer < 2) {
-                    Flags_UnsetSwitch(play, OBJY2SHUTTER_GET_SWITCH_FLAG(&this->dyna.actor));
+                    MM_Flags_UnsetSwitch(play, OBJY2SHUTTER_GET_SWITCH_FLAG(&this->dyna.actor));
                 } else {
                     this->openTimer--;
                 }
@@ -141,7 +141,7 @@ void ObjY2shutter_Update(Actor* thisx, PlayState* play) {
         }
     }
 
-    Math_StepToF(&this->dyna.actor.velocity.y, targetVelocityY, accelY);
+    MM_Math_StepToF(&this->dyna.actor.velocity.y, targetVelocityY, accelY);
     this->dyna.actor.world.pos.y += this->dyna.actor.velocity.y;
 
     if (((this->dyna.actor.world.pos.y - targetPosY) * targetVelocityY) >= 0.0f) {
@@ -168,7 +168,7 @@ void ObjY2shutter_Update(Actor* thisx, PlayState* play) {
 
 void ObjY2shutter_Draw(Actor* thisx, PlayState* play) {
     ObjY2shutter* this = (ObjY2shutter*)thisx;
-    ShutterInfo* info = &sShutterInfo[(OBJY2SHUTTER_GET_TYPE(&this->dyna.actor))];
+    ShutterInfo* info = &MM_sShutterInfo[(OBJY2SHUTTER_GET_TYPE(&this->dyna.actor))];
 
-    Gfx_DrawDListOpa(play, info->dList);
+    MM_Gfx_DrawDListOpa(play, info->dList);
 }

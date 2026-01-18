@@ -17,24 +17,24 @@
 
 #define PARAMS ((EffectSsHahenInitParams*)initParamsx)
 
-u32 EffectSsHahen_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsHahen_Update(PlayState* play, u32 index, EffectSs* this);
-void EffectSsHahen_Draw(PlayState* play, u32 index, EffectSs* this);
+u32 MM_EffectSsHahen_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void MM_EffectSsHahen_Update(PlayState* play, u32 index, EffectSs* this);
+void MM_EffectSsHahen_Draw(PlayState* play, u32 index, EffectSs* this);
 
 EffectSsProfile Effect_Ss_Hahen_Profile = {
     EFFECT_SS_HAHEN,
-    EffectSsHahen_Init,
+    MM_EffectSsHahen_Init,
 };
 
-void EffectSsHahen_CheckForObject(EffectSs* this, PlayState* play) {
+void MM_EffectSsHahen_CheckForObject(EffectSs* this, PlayState* play) {
     if (((this->rObjectSlot = Object_GetSlot(&play->objectCtx, this->rObjectId)) <= OBJECT_SLOT_NONE) ||
-        !Object_IsLoaded(&play->objectCtx, this->rObjectSlot)) {
+        !MM_Object_IsLoaded(&play->objectCtx, this->rObjectSlot)) {
         this->life = -1;
         this->draw = NULL;
     }
 }
 
-u32 EffectSsHahen_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 MM_EffectSsHahen_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsHahenInitParams* initParams = PARAMS;
 
     this->pos = initParams->pos;
@@ -45,18 +45,18 @@ u32 EffectSsHahen_Init(PlayState* play, u32 index, EffectSs* this, void* initPar
     if (initParams->dList != NULL) {
         this->gfx = initParams->dList;
         this->rObjectId = initParams->objectId;
-        EffectSsHahen_CheckForObject(this, play);
+        MM_EffectSsHahen_CheckForObject(this, play);
     } else {
         this->gfx = gEffFragments1DL;
         this->rObjectId = HAHEN_OBJECT_DEFAULT;
     }
 
-    this->draw = EffectSsHahen_Draw;
-    this->update = EffectSsHahen_Update;
+    this->draw = MM_EffectSsHahen_Draw;
+    this->update = MM_EffectSsHahen_Update;
     this->rFlags = initParams->flags;
     this->rScale = initParams->scale;
-    this->rPitch = Rand_ZeroOne() * 314.0f;
-    this->rYaw = Rand_ZeroOne() * 314.0f;
+    this->rPitch = MM_Rand_ZeroOne() * 314.0f;
+    this->rYaw = MM_Rand_ZeroOne() * 314.0f;
     this->rMinLife = 200 - initParams->life;
 
     return 1;
@@ -94,7 +94,7 @@ void EffectSsHahen_DrawXlu(PlayState* play, EffectSs* this) {
     CLOSE_DISPS(gfxCtx);
 }
 
-void EffectSsHahen_Draw(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsHahen_Draw(PlayState* play, u32 index, EffectSs* this) {
     f32 scale;
 
     if (this->rFlags & HAHEN_SMALL) {
@@ -103,10 +103,10 @@ void EffectSsHahen_Draw(PlayState* play, u32 index, EffectSs* this) {
         scale = this->rScale * 0.001f;
     }
 
-    Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
+    MM_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
     Matrix_RotateYF(this->rYaw * 0.01f, MTXMODE_APPLY);
     Matrix_RotateXFApply(this->rPitch * 0.01f);
-    Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+    MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
 
     if (this->rFlags & HAHEN_XLU) {
         EffectSsHahen_DrawXlu(play, this);
@@ -115,7 +115,7 @@ void EffectSsHahen_Draw(PlayState* play, u32 index, EffectSs* this) {
     }
 }
 
-void EffectSsHahen_Update(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsHahen_Update(PlayState* play, u32 index, EffectSs* this) {
     Player* player = GET_PLAYER(play);
 
     this->rPitch += 0x37;
@@ -126,6 +126,6 @@ void EffectSsHahen_Update(PlayState* play, u32 index, EffectSs* this) {
     }
 
     if (this->rObjectId != HAHEN_OBJECT_DEFAULT) {
-        EffectSsHahen_CheckForObject(this, play);
+        MM_EffectSsHahen_CheckForObject(this, play);
     }
 }

@@ -2,7 +2,7 @@
 #include "global.h"
 #include "ultra64/pfs.h"
 
-s32 osPfsFreeBlocks(OSPfs* pfs, s32* leftoverBytes) {
+s32 OoT_osPfsFreeBlocks(OSPfs* pfs, s32* leftoverBytes) {
     s32 j;
     s32 pages = 0;
     __OSInode inode;

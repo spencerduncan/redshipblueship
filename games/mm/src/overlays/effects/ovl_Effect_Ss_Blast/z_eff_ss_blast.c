@@ -22,16 +22,16 @@
 
 #define PARAMS ((EffectSsBlastInitParams*)initParamsx)
 
-u32 EffectSsBlast_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsBlast_Update(PlayState* play, u32 index, EffectSs* this);
-void EffectSsBlast_Draw(PlayState* play, u32 index, EffectSs* this);
+u32 MM_EffectSsBlast_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void MM_EffectSsBlast_Update(PlayState* play, u32 index, EffectSs* this);
+void MM_EffectSsBlast_Draw(PlayState* play, u32 index, EffectSs* this);
 
 EffectSsProfile Effect_Ss_Blast_Profile = {
     EFFECT_SS_BLAST,
-    EffectSsBlast_Init,
+    MM_EffectSsBlast_Init,
 };
 
-u32 EffectSsBlast_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 MM_EffectSsBlast_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsBlastInitParams* initParams = PARAMS;
 
     this->pos = initParams->pos;
@@ -40,8 +40,8 @@ u32 EffectSsBlast_Init(PlayState* play, u32 index, EffectSs* this, void* initPar
     this->accel = initParams->accel;
     this->gfx = gEffShockwaveDL;
     this->life = initParams->life;
-    this->draw = EffectSsBlast_Draw;
-    this->update = EffectSsBlast_Update;
+    this->draw = MM_EffectSsBlast_Draw;
+    this->update = MM_EffectSsBlast_Update;
     this->rPrimColorR = initParams->primColor.r;
     this->rPrimColorG = initParams->primColor.g;
     this->rPrimColorB = initParams->primColor.b;
@@ -58,7 +58,7 @@ u32 EffectSsBlast_Init(PlayState* play, u32 index, EffectSs* this, void* initPar
     return 1;
 }
 
-void EffectSsBlast_Draw(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsBlast_Draw(PlayState* play, u32 index, EffectSs* this) {
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     MtxF mf;
     s32 pad;
@@ -72,16 +72,16 @@ void EffectSsBlast_Draw(PlayState* play, u32 index, EffectSs* this) {
     gDPSetEnvColor(POLY_XLU_DISP++, this->rEnvColorR, this->rEnvColorG, this->rEnvColorB, this->rEnvColorA);
     Play_GetFloorSurface(play, &mf, &this->pos);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, this->rPrimColorR, this->rPrimColorG, this->rPrimColorB, this->rPrimColorA);
-    Matrix_Put(&mf);
-    Matrix_Scale(radius, radius, radius, MTXMODE_APPLY);
+    MM_Matrix_Put(&mf);
+    MM_Matrix_Scale(radius, radius, radius, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
     gSPDisplayList(POLY_XLU_DISP++, this->gfx);
 
     CLOSE_DISPS(gfxCtx);
 }
 
-void EffectSsBlast_Update(PlayState* play, u32 index, EffectSs* this) {
-    Math_StepToS(&this->rPrimColorA, 0, this->rAlphaStep);
+void MM_EffectSsBlast_Update(PlayState* play, u32 index, EffectSs* this) {
+    MM_Math_StepToS(&this->rPrimColorA, 0, this->rAlphaStep);
     this->rScale += this->rScaleStep;
 
     if (this->rScaleStep != 0) {

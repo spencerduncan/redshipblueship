@@ -1,6 +1,6 @@
 #include "global.h"
 
-void ViMode_LogPrint(OSViMode* osViMode) {
+void OoT_ViMode_LogPrint(OSViMode* osViMode) {
     LOG_ADDRESS("osvimodep", osViMode);
     LOG_ADDRESS("osvimodep->comRegs.ctrl", osViMode->comRegs.ctrl);
     LOG_ADDRESS("osvimodep->comRegs.width", osViMode->comRegs.width);
@@ -23,7 +23,7 @@ void ViMode_LogPrint(OSViMode* osViMode) {
 }
 
 // This function configures the custom VI mode (`viMode.customViMode`) based on the other flags in `viMode`.
-void ViMode_Configure(ViMode* viMode, s32 mode, s32 type, s32 unk_70, s32 unk_74, s32 unk_78, s32 unk_7C, s32 width,
+void OoT_ViMode_Configure(ViMode* viMode, s32 mode, s32 type, s32 unk_70, s32 unk_74, s32 unk_78, s32 unk_7C, s32 width,
                       s32 height, s32 unk_left, s32 unk_right, s32 unk_top, s32 unk_bottom) {
     s32 not_70;
     s32 not_74;
@@ -143,7 +143,7 @@ void ViMode_Configure(ViMode* viMode, s32 mode, s32 type, s32 unk_70, s32 unk_74
     viMode->customViMode.fldRegs[1].vIntr = 2;
 }
 
-void ViMode_Save(ViMode* viMode) {
+void OoT_ViMode_Save(ViMode* viMode) {
     SREG(48) = viMode->viModeBase;
     SREG(49) = viMode->viWidth;
     SREG(50) = viMode->viHeight;
@@ -155,22 +155,22 @@ void ViMode_Save(ViMode* viMode) {
         SREG(58) = 0;
         switch (SREG(59)) {
             case 1:
-                osSyncPrintf("osViModePalLan1\n");
-                ViMode_LogPrint(&osViModePalLan1);
+                osSyncPrintf("OoT_osViModePalLan1\n");
+                OoT_ViMode_LogPrint(&OoT_osViModePalLan1);
                 break;
             case 2:
-                osSyncPrintf("osViModeFpalLan1\n");
-                ViMode_LogPrint(&osViModeFpalLan1);
+                osSyncPrintf("OoT_osViModeFpalLan1\n");
+                OoT_ViMode_LogPrint(&OoT_osViModeFpalLan1);
                 break;
             default:
                 osSyncPrintf("Custom\n");
-                ViMode_LogPrint(&viMode->customViMode);
+                OoT_ViMode_LogPrint(&viMode->customViMode);
                 break;
         }
     }
 }
 
-void ViMode_Load(ViMode* viMode) {
+void OoT_ViMode_Load(ViMode* viMode) {
     if ((SREG(49) & ~3) == 1) {
         SREG(49) += 4;
     }
@@ -184,7 +184,7 @@ void ViMode_Load(ViMode* viMode) {
     viMode->unk_58 = SREG(54);
 }
 
-void ViMode_Init(ViMode* viMode) {
+void OoT_ViMode_Init(ViMode* viMode) {
     viMode->viModeBase = 0;
     viMode->viWidth = SCREEN_WIDTH;
     viMode->viHeight = SCREEN_HEIGHT;
@@ -199,13 +199,13 @@ void ViMode_Init(ViMode* viMode) {
     viMode->unk_74 = false;
     viMode->unk_70 = true;
 
-    ViMode_Save(viMode);
+    OoT_ViMode_Save(viMode);
 }
 
-void ViMode_Destroy(ViMode* viMode) {
+void OoT_ViMode_Destroy(ViMode* viMode) {
 }
 
-void ViMode_ConfigureFeatures(ViMode* viMode, s32 viFeatures) {
+void OoT_ViMode_ConfigureFeatures(ViMode* viMode, s32 viFeatures) {
     u32 ctrl = viMode->customViMode.comRegs.ctrl;
 
     if (viFeatures & OS_VI_GAMMA_ON) {
@@ -230,13 +230,13 @@ void ViMode_ConfigureFeatures(ViMode* viMode, s32 viFeatures) {
 }
 
 // This function uses controller input (C buttons + D pad) to reconfigure the custom VI mode
-void ViMode_Update(ViMode* viMode, Input* input) {
-    ViMode_Load(viMode);
+void OoT_ViMode_Update(ViMode* viMode, Input* input) {
+    OoT_ViMode_Load(viMode);
     if ((viMode->viModeBase == 1) || (viMode->viModeBase == 2) || (viMode->viModeBase == 3)) {
-        gScreenWidth = viMode->viWidth;
-        gScreenHeight = viMode->viHeight;
+        OoT_gScreenWidth = viMode->viWidth;
+        OoT_gScreenHeight = viMode->viHeight;
         if (CHECK_BTN_ALL(input->cur.button, BTN_START | BTN_CUP | BTN_CRIGHT)) {
-            ViMode_Init(viMode);
+            OoT_ViMode_Init(viMode);
         }
         if (CHECK_BTN_ALL(input->cur.button, BTN_CUP)) {
             if (CHECK_BTN_ALL(input->cur.button, BTN_DUP)) {
@@ -307,15 +307,15 @@ void ViMode_Update(ViMode* viMode, Input* input) {
                 viMode->unk_60 = 0;
             }
         }
-        ViMode_Configure(viMode, OS_VI_UNK28, osTvType, viMode->unk_70, viMode->unk_74, viMode->unk_78, viMode->unk_7C,
+        OoT_ViMode_Configure(viMode, OS_VI_UNK28, osTvType, viMode->unk_70, viMode->unk_74, viMode->unk_78, viMode->unk_7C,
                          viMode->viWidth, viMode->viHeight, viMode->unk_5C, viMode->unk_58, viMode->unk_64,
                          viMode->unk_60);
-        ViMode_ConfigureFeatures(viMode, viMode->viFeatures);
+        OoT_ViMode_ConfigureFeatures(viMode, viMode->viFeatures);
         if (viMode->viModeBase == 3) {
-            ViMode_LogPrint(&osViModeNtscLan1);
-            ViMode_LogPrint(&viMode->customViMode);
+            OoT_ViMode_LogPrint(&OoT_osViModeNtscLan1);
+            OoT_ViMode_LogPrint(&viMode->customViMode);
             viMode->viModeBase = 2;
         }
     }
-    ViMode_Save(viMode);
+    OoT_ViMode_Save(viMode);
 }

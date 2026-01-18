@@ -26,7 +26,7 @@ ActorProfile En_Onpuman_Profile = {
     /**/ NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -49,11 +49,11 @@ static ColliderCylinderInit sCylinderInit = {
 void EnOnpuman_Init(Actor* thisx, PlayState* play) {
     EnOnpuman* this = (EnOnpuman*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 36.0f);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 36.0f);
     this->actor.flags |= ACTOR_FLAG_UPDATE_DURING_OCARINA;
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->actor.attentionRangeType = ATTENTION_RANGE_6;
     this->unk_2A4 = 0;
     this->unk_2A0 = NULL;
@@ -66,7 +66,7 @@ void EnOnpuman_Init(Actor* thisx, PlayState* play) {
 void EnOnpuman_Destroy(Actor* thisx, PlayState* play) {
     EnOnpuman* this = (EnOnpuman*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 Actor* func_80B11F44(PlayState* play) {
@@ -100,15 +100,15 @@ void func_80B11F78(EnOnpuman* this, PlayState* play) {
 void func_80B1202C(EnOnpuman* this, PlayState* play2) {
     PlayState* play = play2;
 
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         switch (play->msgCtx.currentTextId) {
             case 0x8D4:
                 this->unk_2A4 |= 1;
-                Message_ContinueTextbox(play, 0x8DA);
+                MM_Message_ContinueTextbox(play, 0x8DA);
                 break;
 
             case 0x8DA:
-                Message_ContinueTextbox(play, 0x8D6);
+                MM_Message_ContinueTextbox(play, 0x8D6);
                 if (this->unk_2A0 != NULL) {
                     this->unk_2A0->home.rot.x = 0x50;
                 }
@@ -139,9 +139,9 @@ void func_80B1202C(EnOnpuman* this, PlayState* play2) {
 }
 
 void func_80B1217C(EnOnpuman* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         this->actionFunc = func_80B121D8;
-        Message_CloseTextbox(play);
+        MM_Message_CloseTextbox(play);
     }
 }
 
@@ -150,7 +150,7 @@ void func_80B121D8(EnOnpuman* this, PlayState* play) {
 
     if (Actor_OcarinaInteractionAccepted(&this->actor, &play->state)) {
         this->actionFunc = func_80B1202C;
-        Message_StartTextbox(play, 0x8D4, NULL);
+        MM_Message_StartTextbox(play, 0x8D4, NULL);
         this->unk_2A0 = func_80B11F44(play);
     } else if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         this->actionFunc = func_80B1217C;
@@ -170,9 +170,9 @@ void EnOnpuman_Update(Actor* thisx, PlayState* play) {
     s32 pad;
     EnOnpuman* this = (EnOnpuman*)thisx;
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     Actor_MoveWithGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
     this->actionFunc(this, play);
 }

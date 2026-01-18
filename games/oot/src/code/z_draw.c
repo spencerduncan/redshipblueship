@@ -85,29 +85,29 @@
 void GetItem_DrawMaskOrBombchu(PlayState* play, s16 drawId);
 void GetItem_DrawSoldOut(PlayState* play, s16 drawId);
 void GetItem_DrawBlueFire(PlayState* play, s16 drawId);
-void GetItem_DrawPoes(PlayState* play, s16 drawId);
+void OoT_GetItem_DrawPoes(PlayState* play, s16 drawId);
 void GetItem_DrawFairy(PlayState* play, s16 drawId);
 void GetItem_DrawMirrorShield(PlayState* play, s16 drawId);
-void GetItem_DrawSkullToken(PlayState* play, s16 drawId);
+void OoT_GetItem_DrawSkullToken(PlayState* play, s16 drawId);
 void GetItem_DrawEggOrMedallion(PlayState* play, s16 drawId);
-void GetItem_DrawCompass(PlayState* play, s16 drawId);
-void GetItem_DrawPotion(PlayState* play, s16 drawId);
-void GetItem_DrawGoronSword(PlayState* play, s16 drawId);
-void GetItem_DrawDekuNuts(PlayState* play, s16 drawId);
-void GetItem_DrawRecoveryHeart(PlayState* play, s16 drawId);
-void GetItem_DrawFish(PlayState* play, s16 drawId);
-void GetItem_DrawOpa0(PlayState* play, s16 drawId);
-void GetItem_DrawOpa0Xlu1(PlayState* play, s16 drawId);
-void GetItem_DrawXlu01(PlayState* play, s16 drawId);
+void OoT_GetItem_DrawCompass(PlayState* play, s16 drawId);
+void OoT_GetItem_DrawPotion(PlayState* play, s16 drawId);
+void OoT_GetItem_DrawGoronSword(PlayState* play, s16 drawId);
+void OoT_GetItem_DrawDekuNuts(PlayState* play, s16 drawId);
+void OoT_GetItem_DrawRecoveryHeart(PlayState* play, s16 drawId);
+void OoT_GetItem_DrawFish(PlayState* play, s16 drawId);
+void OoT_GetItem_DrawOpa0(PlayState* play, s16 drawId);
+void OoT_GetItem_DrawOpa0Xlu1(PlayState* play, s16 drawId);
+void OoT_GetItem_DrawXlu01(PlayState* play, s16 drawId);
 void GetItem_DrawOpa10Xlu2(PlayState* play, s16 drawId);
-void GetItem_DrawMagicArrow(PlayState* play, s16 drawId);
+void OoT_GetItem_DrawMagicArrow(PlayState* play, s16 drawId);
 void GetItem_DrawMagicSpell(PlayState* play, s16 drawId);
 void GetItem_DrawOpa1023(PlayState* play, s16 drawId);
 void GetItem_DrawOpa10Xlu32(PlayState* play, s16 drawId);
-void GetItem_DrawSmallRupee(PlayState* play, s16 drawId);
+void OoT_GetItem_DrawSmallRupee(PlayState* play, s16 drawId);
 void GetItem_DrawScale(PlayState* play, s16 drawId);
 void GetItem_DrawBulletBag(PlayState* play, s16 drawId);
-void GetItem_DrawWallet(PlayState* play, s16 drawId);
+void OoT_GetItem_DrawWallet(PlayState* play, s16 drawId);
 void GetItem_DrawJewel(PlayState* play, s16 drawId);
 void GetItem_DrawJewelKokiri(PlayState* play, s16 drawId);
 void GetItem_DrawJewelGoron(PlayState* play, s16 drawId);
@@ -121,29 +121,29 @@ typedef struct {
     /* 0x04 */ Gfx* dlists[8];
 } DrawItemTableEntry; // size = 0x24
 
-DrawItemTableEntry sDrawItemTable[] = {
+DrawItemTableEntry OoT_sDrawItemTable[] = {
     // bottle, OBJECT_GI_BOTTLE
-    { GetItem_DrawOpa0Xlu1, { gGiBottleStopperDL, gGiBottleDL } },
+    { OoT_GetItem_DrawOpa0Xlu1, { gGiBottleStopperDL, gGiBottleDL } },
     // small key, OBJECT_GI_KEY
-    { GetItem_DrawOpa0, { gGiSmallKeyDL } },
+    { OoT_GetItem_DrawOpa0, { gGiSmallKeyDL } },
     // minuet of forest, OBJECT_GI_MELODY
-    { GetItem_DrawXlu01, { gGiMinuetColorDL, gGiSongNoteDL } },
+    { OoT_GetItem_DrawXlu01, { gGiMinuetColorDL, gGiSongNoteDL } },
     // bolero of fire, OBJECT_GI_MELODY
-    { GetItem_DrawXlu01, { gGiBoleroColorDL, gGiSongNoteDL } },
+    { OoT_GetItem_DrawXlu01, { gGiBoleroColorDL, gGiSongNoteDL } },
     // serenade of water, OBJECT_GI_MELODY
-    { GetItem_DrawXlu01, { gGiSerenadeColorDL, gGiSongNoteDL } },
+    { OoT_GetItem_DrawXlu01, { gGiSerenadeColorDL, gGiSongNoteDL } },
     // requiem of spirit, OBJECT_GI_MELODY
-    { GetItem_DrawXlu01, { gGiRequiemColorDL, gGiSongNoteDL } },
+    { OoT_GetItem_DrawXlu01, { gGiRequiemColorDL, gGiSongNoteDL } },
     // nocturne of shadow, OBJECT_GI_MELODY
-    { GetItem_DrawXlu01, { gGiNocturneColorDL, gGiSongNoteDL } },
+    { OoT_GetItem_DrawXlu01, { gGiNocturneColorDL, gGiSongNoteDL } },
     // prelude of light, OBJECT_GI_MELODY
-    { GetItem_DrawXlu01, { gGiPreludeColorDL, gGiSongNoteDL } },
+    { OoT_GetItem_DrawXlu01, { gGiPreludeColorDL, gGiSongNoteDL } },
     // recovery heart, OBJECT_GI_HEART
-    { GetItem_DrawRecoveryHeart, { gGiRecoveryHeartDL } },
+    { OoT_GetItem_DrawRecoveryHeart, { gGiRecoveryHeartDL } },
     // boss key, OBJECT_GI_BOSSKEY
-    { GetItem_DrawOpa0Xlu1, { gGiBossKeyDL, gGiBossKeyGemDL } },
+    { OoT_GetItem_DrawOpa0Xlu1, { gGiBossKeyDL, gGiBossKeyGemDL } },
     // compass, OBJECT_GI_COMPASS
-    { GetItem_DrawCompass, { gGiCompassDL, gGiCompassGlassDL } },
+    { OoT_GetItem_DrawCompass, { gGiCompassDL, gGiCompassGlassDL } },
     // forest medallion, OBJECT_GI_MEDAL
     { GetItem_DrawEggOrMedallion, { gGiForestMedallionFaceDL, gGiMedallionDL } },
     // fire medallion, OBJECT_GI_MEDAL
@@ -157,11 +157,11 @@ DrawItemTableEntry sDrawItemTable[] = {
     // light medallion, OBJECT_GI_MEDAL
     { GetItem_DrawEggOrMedallion, { gGiLightMedallionFaceDL, gGiMedallionDL } },
     // deku nuts, OBJECT_GI_NUTS
-    { GetItem_DrawDekuNuts, { gGiNutDL } },
+    { OoT_GetItem_DrawDekuNuts, { gGiNutDL } },
     // heart container, OBJECT_GI_HEARTS
-    { GetItem_DrawXlu01, { gGiHeartBorderDL, gGiHeartContainerDL } },
+    { OoT_GetItem_DrawXlu01, { gGiHeartBorderDL, gGiHeartContainerDL } },
     // heart piece, OBJECT_GI_HEARTS
-    { GetItem_DrawXlu01, { gGiHeartBorderDL, gGiHeartPieceDL } },
+    { OoT_GetItem_DrawXlu01, { gGiHeartBorderDL, gGiHeartPieceDL } },
     // quiver 30, OBJECT_GI_ARROWCASE
     { GetItem_DrawOpa1023, { gGiQuiverInnerDL, gGiQuiver30InnerColorDL, gGiQuiver30OuterColorDL, gGiQuiverOuterDL } },
     // quiver 40, OBJECT_GI_ARROWCASE
@@ -175,35 +175,35 @@ DrawItemTableEntry sDrawItemTable[] = {
     // bomb bag 40, OBJECT_GI_BOMBPOUCH
     { GetItem_DrawOpa1023, { gGiBombBagDL, gGiBombBag40BagColorDL, gGiBombBag40RingColorDL, gGiBombBagRingDL } },
     // stick, OBJECT_GI_STICK
-    { GetItem_DrawOpa0, { gGiStickDL } },
+    { OoT_GetItem_DrawOpa0, { gGiStickDL } },
     // dungeon map, OBJECT_GI_MAP
-    { GetItem_DrawOpa0, { gGiDungeonMapDL } },
+    { OoT_GetItem_DrawOpa0, { gGiDungeonMapDL } },
     // deku shield, OBJECT_GI_SHIELD_1
-    { GetItem_DrawOpa0, { gGiDekuShieldDL } },
+    { OoT_GetItem_DrawOpa0, { gGiDekuShieldDL } },
     // small magic jar, OBJECT_GI_MAGICPOT
-    { GetItem_DrawOpa0, { gGiMagicJarSmallDL } },
+    { OoT_GetItem_DrawOpa0, { gGiMagicJarSmallDL } },
     // large magic jar, OBJECT_GI_MAGICPOT
-    { GetItem_DrawOpa0, { gGiMagicJarLargeDL } },
+    { OoT_GetItem_DrawOpa0, { gGiMagicJarLargeDL } },
     // bombs, OBJECT_GI_BOMB_1
-    { GetItem_DrawOpa0, { gGiBombDL } },
+    { OoT_GetItem_DrawOpa0, { gGiBombDL } },
     // stone of agony, OBJECT_GI_MAP
-    { GetItem_DrawOpa0, { gGiStoneOfAgonyDL } },
+    { OoT_GetItem_DrawOpa0, { gGiStoneOfAgonyDL } },
     // adult's wallet, OBJECT_GI_PURSE
-    { GetItem_DrawWallet,
+    { OoT_GetItem_DrawWallet,
       { gGiWalletDL, gGiAdultWalletColorDL, gGiAdultWalletRupeeOuterColorDL, gGiWalletRupeeOuterDL,
         gGiAdultWalletStringColorDL, gGiWalletStringDL, gGiAdultWalletRupeeInnerColorDL, gGiWalletRupeeInnerDL } },
     // giant's wallet, OBJECT_GI_PURSE
-    { GetItem_DrawWallet,
+    { OoT_GetItem_DrawWallet,
       { gGiWalletDL, gGiGiantsWalletColorDL, gGiGiantsWalletRupeeOuterColorDL, gGiWalletRupeeOuterDL,
         gGiGiantsWalletStringColorDL, gGiWalletStringDL, gGiGiantsWalletRupeeInnerColorDL, gGiWalletRupeeInnerDL } },
     // gerudo card, OBJECT_GI_GERUDO
-    { GetItem_DrawOpa0, { gGiGerudoCardDL } },
+    { OoT_GetItem_DrawOpa0, { gGiGerudoCardDL } },
     // arrows (small), OBJECT_GI_ARROW
-    { GetItem_DrawOpa0, { gGiArrowSmallDL } },
+    { OoT_GetItem_DrawOpa0, { gGiArrowSmallDL } },
     // arrows (medium), OBJECT_GI_ARROW
-    { GetItem_DrawOpa0, { gGiArrowMediumDL } },
+    { OoT_GetItem_DrawOpa0, { gGiArrowMediumDL } },
     // arrows (large), OBJECT_GI_ARROW
-    { GetItem_DrawOpa0, { gGiArrowLargeDL } },
+    { OoT_GetItem_DrawOpa0, { gGiArrowLargeDL } },
     // bombchus, OBJECT_GI_BOMB_2
     { GetItem_DrawMaskOrBombchu, { gGiBombchuDL } },
     // egg, OBJECT_GI_EGG
@@ -213,69 +213,69 @@ DrawItemTableEntry sDrawItemTable[] = {
     // gold scale, OBJECT_GI_SCALE
     { GetItem_DrawScale, { gGiScaleWaterDL, gGiGoldenScaleWaterColorDL, gGiGoldenScaleColorDL, gGiScaleDL } },
     // hylian shield, OBJECT_GI_SHIELD_2
-    { GetItem_DrawOpa0, { gGiHylianShieldDL } },
+    { OoT_GetItem_DrawOpa0, { gGiHylianShieldDL } },
     // hookshot, OBJECT_GI_HOOKSHOT
-    { GetItem_DrawOpa0, { gGiHookshotDL } },
+    { OoT_GetItem_DrawOpa0, { gGiHookshotDL } },
     // longshot, OBJECT_GI_HOOKSHOT
-    { GetItem_DrawOpa0, { gGiLongshotDL } },
+    { OoT_GetItem_DrawOpa0, { gGiLongshotDL } },
     // ocarina of time, OBJECT_GI_OCARINA
-    { GetItem_DrawOpa0Xlu1, { gGiOcarinaTimeDL, gGiOcarinaTimeHolesDL } },
+    { OoT_GetItem_DrawOpa0Xlu1, { gGiOcarinaTimeDL, gGiOcarinaTimeHolesDL } },
     // milk, OBJECT_GI_MILK
-    { GetItem_DrawOpa0Xlu1, { gGiMilkBottleContentsDL, gGiMilkBottleDL } },
+    { OoT_GetItem_DrawOpa0Xlu1, { gGiMilkBottleContentsDL, gGiMilkBottleDL } },
     // keaton mask, OBJECT_GI_KI_TAN_MASK
-    { GetItem_DrawOpa0Xlu1, { gGiKeatonMaskDL, gGiKeatonMaskEyesDL } },
+    { OoT_GetItem_DrawOpa0Xlu1, { gGiKeatonMaskDL, gGiKeatonMaskEyesDL } },
     // spooky mask, OBJECT_GI_REDEAD_MASK
-    { GetItem_DrawOpa0, { gGiSpookyMaskDL } },
+    { OoT_GetItem_DrawOpa0, { gGiSpookyMaskDL } },
     // slingshot, OBJECT_GI_PACHINKO
-    { GetItem_DrawOpa0, { gGiSlingshotDL } },
+    { OoT_GetItem_DrawOpa0, { gGiSlingshotDL } },
     // boomerang, OBJECT_GI_BOOMERANG
-    { GetItem_DrawOpa0, { gGiBoomerangDL } },
+    { OoT_GetItem_DrawOpa0, { gGiBoomerangDL } },
     // bow, OBJECT_GI_BOW
-    { GetItem_DrawOpa0, { gGiBowDL } },
+    { OoT_GetItem_DrawOpa0, { gGiBowDL } },
     // lens, OBJECT_GI_GLASSES
-    { GetItem_DrawOpa0Xlu1, { gGiLensDL, gGiLensGlassDL } },
+    { OoT_GetItem_DrawOpa0Xlu1, { gGiLensDL, gGiLensGlassDL } },
     // green potion, OBJECT_GI_LIQUID
-    { GetItem_DrawPotion,
+    { OoT_GetItem_DrawPotion,
       { gGiPotionPotDL, gGiGreenPotColorDL, gGiGreenLiquidColorDL, gGiPotionLiquidDL, gGiGreenPatternColorDL,
         gGiPotionPatternDL } },
     // red potion, OBJECT_GI_LIQUID
-    { GetItem_DrawPotion,
+    { OoT_GetItem_DrawPotion,
       { gGiPotionPotDL, gGiRedPotColorDL, gGiRedLiquidColorDL, gGiPotionLiquidDL, gGiRedPatternColorDL,
         gGiPotionPatternDL } },
     // blue potion, OBJECT_GI_LIQUID
-    { GetItem_DrawPotion,
+    { OoT_GetItem_DrawPotion,
       { gGiPotionPotDL, gGiBluePotColorDL, gGiBlueLiquidColorDL, gGiPotionLiquidDL, gGiBluePatternColorDL,
         gGiPotionPatternDL } },
     // mirror shield, OBJECT_GI_SHIELD_3
     { GetItem_DrawMirrorShield, { gGiMirrorShieldDL, gGiMirrorShieldSymbolDL } },
     // zelda's letter, OBJECT_GI_LETTER
-    { GetItem_DrawOpa0Xlu1, { gGiLetterDL, gGiLetterWritingDL } },
+    { OoT_GetItem_DrawOpa0Xlu1, { gGiLetterDL, gGiLetterWritingDL } },
     // goron tunic, OBJECT_GI_CLOTHES
     { GetItem_DrawOpa1023, { gGiTunicCollarDL, gGiGoronCollarColorDL, gGiGoronTunicColorDL, gGiTunicDL } },
     // zora tunic, OBJECT_GI_CLOTHES
     { GetItem_DrawOpa1023, { gGiTunicCollarDL, gGiZoraCollarColorDL, gGiZoraTunicColorDL, gGiTunicDL } },
     // beans, OBJECT_GI_BEAN
-    { GetItem_DrawOpa0, { gGiBeanDL } },
+    { OoT_GetItem_DrawOpa0, { gGiBeanDL } },
     // fish, OBJECT_GI_FISH
-    { GetItem_DrawFish, { gGiFishDL } },
+    { OoT_GetItem_DrawFish, { gGiFishDL } },
     // saw, OBJECT_GI_SAW
-    { GetItem_DrawOpa0, { gGiSawDL } },
+    { OoT_GetItem_DrawOpa0, { gGiSawDL } },
     // hammer, OBJECT_GI_HAMMER
-    { GetItem_DrawOpa0, { gGiHammerDL } },
+    { OoT_GetItem_DrawOpa0, { gGiHammerDL } },
     // grass, OBJECT_GI_GRASS
-    { GetItem_DrawOpa0, { gGiGrassDL } },
+    { OoT_GetItem_DrawOpa0, { gGiGrassDL } },
     // biggorons sword, OBJECT_GI_LONGSWORD
-    { GetItem_DrawGoronSword, { gGiBiggoronSwordDL } },
+    { OoT_GetItem_DrawGoronSword, { gGiBiggoronSwordDL } },
     // chicken, OBJECT_GI_NIWATORI
     { GetItem_DrawOpa10Xlu2, { gGiChickenDL, gGiChickenColorDL, gGiChickenEyesDL } },
     // ruto's letter, OBJECT_GI_BOTTLE_LETTER
-    { GetItem_DrawOpa0Xlu1, { gGiLetterBottleContentsDL, gGiLetterBottleDL } },
+    { OoT_GetItem_DrawOpa0Xlu1, { gGiLetterBottleContentsDL, gGiLetterBottleDL } },
     // fairy ocarina, OBJECT_GI_OCARINA_0
-    { GetItem_DrawOpa0Xlu1, { gGiOcarinaFairyDL, gGiOcarinaFairyHolesDL } },
+    { OoT_GetItem_DrawOpa0Xlu1, { gGiOcarinaFairyDL, gGiOcarinaFairyHolesDL } },
     // iron boots, OBJECT_GI_BOOTS_2
-    { GetItem_DrawOpa0Xlu1, { gGiIronBootsDL, gGiIronBootsRivetsDL } },
+    { OoT_GetItem_DrawOpa0Xlu1, { gGiIronBootsDL, gGiIronBootsRivetsDL } },
     // seeds, OBJECT_GI_SEED
-    { GetItem_DrawOpa0, { gGiSeedDL } },
+    { OoT_GetItem_DrawOpa0, { gGiSeedDL } },
     // silver gauntlets, OBJECT_GI_GLOVES
     { GetItem_DrawOpa10Xlu32,
       { gGiGauntletsDL, gGiSilverGauntletsColorDL, gGiGauntletsPlateDL, gGiSilverGauntletsPlateColorDL } },
@@ -291,29 +291,29 @@ DrawItemTableEntry sDrawItemTable[] = {
     // blue n coin, OBJECT_GI_COIN
     { GetItem_DrawOpa10Xlu2, { gGiCoinDL, gGiBlueCoinColorDL, gGiNDL } },
     // skull mask, OBJECT_GI_SKJ_MASK
-    { GetItem_DrawOpa0, { gGiSkullMaskDL } },
+    { OoT_GetItem_DrawOpa0, { gGiSkullMaskDL } },
     // bunny hood OBJECT_GI_RABIT_MASK
-    { GetItem_DrawOpa0Xlu1, { gGiBunnyHoodDL, gGiBunnyHoodEyesDL } },
+    { OoT_GetItem_DrawOpa0Xlu1, { gGiBunnyHoodDL, gGiBunnyHoodEyesDL } },
     // mask of truth, OBJECT_GI_TRUTH_MASK
-    { GetItem_DrawOpa0Xlu1, { gGiMaskOfTruthDL, gGiMaskOfTruthAccentsDL } },
+    { OoT_GetItem_DrawOpa0Xlu1, { gGiMaskOfTruthDL, gGiMaskOfTruthAccentsDL } },
     // eyedrops, OBJECT_GI_EYE_LOTION
-    { GetItem_DrawOpa0Xlu1, { gGiEyeDropsCapDL, gGiEyeDropsBottleDL } },
+    { OoT_GetItem_DrawOpa0Xlu1, { gGiEyeDropsCapDL, gGiEyeDropsBottleDL } },
     // odd potion, OBJECT_GI_POWDER
-    { GetItem_DrawOpa0, { gGiOddPotionDL } },
+    { OoT_GetItem_DrawOpa0, { gGiOddPotionDL } },
     // odd mushroom, OBJECT_GI_MUSHROOM
-    { GetItem_DrawOpa0, { gGiOddMushroomDL } },
+    { OoT_GetItem_DrawOpa0, { gGiOddMushroomDL } },
     // claim check, OBJECT_GI_TICKETSTONE
-    { GetItem_DrawOpa0Xlu1, { gGiClaimCheckDL, gGiClaimCheckWritingDL } },
+    { OoT_GetItem_DrawOpa0Xlu1, { gGiClaimCheckDL, gGiClaimCheckWritingDL } },
     // broken goron's sword, OBJECT_GI_BROKENSWORD
-    { GetItem_DrawGoronSword, { gGiBrokenGoronSwordDL } },
+    { OoT_GetItem_DrawGoronSword, { gGiBrokenGoronSwordDL } },
     // prescription, OBJECT_GI_PRESCRIPTION
-    { GetItem_DrawOpa0Xlu1, { gGiPrescriptionDL, gGiPrescriptionWritingDL } },
+    { OoT_GetItem_DrawOpa0Xlu1, { gGiPrescriptionDL, gGiPrescriptionWritingDL } },
     // goron bracelet, OBJECT_GI_BRACELET
-    { GetItem_DrawOpa0, { gGiGoronBraceletDL } },
+    { OoT_GetItem_DrawOpa0, { gGiGoronBraceletDL } },
     // sold out, OBJECT_GI_SOLDOUT
     { GetItem_DrawSoldOut, { gGiSoldOutDL } },
     // frog, OBJECT_GI_FROG
-    { GetItem_DrawOpa0Xlu1, { gGiFrogDL, gGiFrogEyesDL } },
+    { OoT_GetItem_DrawOpa0Xlu1, { gGiFrogDL, gGiFrogEyesDL } },
     // goron mask, OBJECT_GI_GOLONMASK
     { GetItem_DrawMaskOrBombchu, { gGiGoronMaskDL } },
     // zora mask, OBJECT_GI_ZORAMASK
@@ -323,15 +323,15 @@ DrawItemTableEntry sDrawItemTable[] = {
     // cojiro, OBJECT_GI_NIWATORI
     { GetItem_DrawOpa10Xlu2, { gGiChickenDL, gGiCojiroColorDL, gGiChickenEyesDL } },
     // hover boots, OBJECT_GI_HOVERBOOTS
-    { GetItem_DrawOpa0, { gGiHoverBootsDL } },
+    { OoT_GetItem_DrawOpa0, { gGiHoverBootsDL } },
     // fire arrows, OBJECT_GI_M_ARROW
-    { GetItem_DrawMagicArrow, { gGiMagicArrowDL, gGiFireArrowColorDL, gGiArrowMagicDL } },
+    { OoT_GetItem_DrawMagicArrow, { gGiMagicArrowDL, gGiFireArrowColorDL, gGiArrowMagicDL } },
     // ice arrows, OBJECT_GI_M_ARROW
-    { GetItem_DrawMagicArrow, { gGiMagicArrowDL, gGiIceArrowColorDL, gGiArrowMagicDL } },
+    { OoT_GetItem_DrawMagicArrow, { gGiMagicArrowDL, gGiIceArrowColorDL, gGiArrowMagicDL } },
     // light arrows, OBJECT_GI_M_ARROW
-    { GetItem_DrawMagicArrow, { gGiMagicArrowDL, gGiLightArrowColorDL, gGiArrowMagicDL } },
+    { OoT_GetItem_DrawMagicArrow, { gGiMagicArrowDL, gGiLightArrowColorDL, gGiArrowMagicDL } },
     // skulltula token, OBJECT_GI_SUTARU
-    { GetItem_DrawSkullToken, { gGiSkulltulaTokenDL, gGiSkulltulaTokenFlameDL } },
+    { OoT_GetItem_DrawSkullToken, { gGiSkulltulaTokenDL, gGiSkulltulaTokenFlameDL } },
     // din's fire, OBJECT_GI_GODDESS
     { GetItem_DrawMagicSpell, { gGiMagicSpellDiamondDL, gGiDinsFireColorDL, gGiMagicSpellOrbDL } },
     // farore's wind, OBJECT_GI_GODDESS
@@ -341,11 +341,11 @@ DrawItemTableEntry sDrawItemTable[] = {
     // blue fire, OBJECT_GI_FIRE
     { GetItem_DrawBlueFire, { gGiBlueFireChamberstickDL, gGiBlueFireFlameDL } },
     // bugs, OBJECT_GI_INSECT
-    { GetItem_DrawOpa0Xlu1, { gGiBugsContainerDL, gGiBugsGlassDL } },
+    { OoT_GetItem_DrawOpa0Xlu1, { gGiBugsContainerDL, gGiBugsGlassDL } },
     // butterfly, OBJECT_GI_BUTTERFLY
-    { GetItem_DrawOpa0Xlu1, { gGiButterflyContainerDL, gGiButterflyGlassDL } },
+    { OoT_GetItem_DrawOpa0Xlu1, { gGiButterflyContainerDL, gGiButterflyGlassDL } },
     // poe, OBJECT_GI_GHOST
-    { GetItem_DrawPoes,
+    { OoT_GetItem_DrawPoes,
       { gGiGhostContainerLidDL, gGiGhostContainerGlassDL, gGiGhostContainerContentsDL, gGiPoeColorDL } },
     // fairy, OBJECT_GI_SOUL
     { GetItem_DrawFairy, { gGiFairyContainerBaseCapDL, gGiFairyContainerGlassDL, gGiFairyContainerContentsDL } },
@@ -353,15 +353,15 @@ DrawItemTableEntry sDrawItemTable[] = {
     { GetItem_DrawBulletBag,
       { gGiBulletBagDL, gGiBulletBagColorDL, gGiBulletBagStringDL, gGiBulletBagStringColorDL, gGiBulletBagWritingDL } },
     // green rupee, OBJECT_GI_RUPY
-    { GetItem_DrawSmallRupee,
+    { OoT_GetItem_DrawSmallRupee,
       { gGiRupeeInnerDL, gGiGreenRupeeInnerColorDL, gGiRupeeOuterDL, gGiGreenRupeeOuterColorDL } },
     // blue rupee, OBJECT_GI_RUPY
-    { GetItem_DrawSmallRupee,
+    { OoT_GetItem_DrawSmallRupee,
       { gGiRupeeInnerDL, gGiBlueRupeeInnerColorDL, gGiRupeeOuterDL, gGiBlueRupeeOuterColorDL } },
     // red rupee, OBJECT_GI_RUPY
-    { GetItem_DrawSmallRupee, { gGiRupeeInnerDL, gGiRedRupeeInnerColorDL, gGiRupeeOuterDL, gGiRedRupeeOuterColorDL } },
+    { OoT_GetItem_DrawSmallRupee, { gGiRupeeInnerDL, gGiRedRupeeInnerColorDL, gGiRupeeOuterDL, gGiRedRupeeOuterColorDL } },
     // big poe, OBJECT_GI_GHOST
-    { GetItem_DrawPoes,
+    { OoT_GetItem_DrawPoes,
       { gGiGhostContainerLidDL, gGiGhostContainerGlassDL, gGiGhostContainerContentsDL, gGiBigPoeColorDL } },
     // purple rupee, OBJECT_GI_RUPY
     { GetItem_DrawOpa10Xlu32,
@@ -374,9 +374,9 @@ DrawItemTableEntry sDrawItemTable[] = {
       { gGiBulletBagDL, gGiBulletBag50ColorDL, gGiBulletBagStringDL, gGiBulletBag50StringColorDL,
         gGiBulletBagWritingDL } },
     // kokiri sword, OBJECT_GI_SWORD_1
-    { GetItem_DrawOpa0, { gGiKokiriSwordDL } },
+    { OoT_GetItem_DrawOpa0, { gGiKokiriSwordDL } },
     // gold skulltula token, OBJECT_ST
-    { GetItem_DrawSkullToken, { gSkulltulaTokenDL, gSkulltulaTokenFlameDL } },
+    { OoT_GetItem_DrawSkullToken, { gSkulltulaTokenDL, gSkulltulaTokenFlameDL } },
 
     { GetItem_DrawJewelKokiri, { gGiKokiriEmeraldGemDL, gGiKokiriEmeraldSettingDL } },
     { GetItem_DrawJewelGoron, { gGiGoronRubyGemDL, gGiGoronRubySettingDL } },
@@ -398,19 +398,19 @@ DrawItemTableEntry sDrawItemTable[] = {
  * Draw "Get Item" Model
  * Calls the corresponding draw function for the given draw ID
  */
-void GetItem_Draw(PlayState* play, s16 drawId) {
-    sDrawItemTable[drawId].drawFunc(play, drawId);
+void OoT_GetItem_Draw(PlayState* play, s16 drawId) {
+    OoT_sDrawItemTable[drawId].drawFunc(play, drawId);
 }
 
 /**
  * Draw "Get Item" Model from a `GetItemEntry`
- * Uses the Custom Draw Function if it exists, or just calls `GetItem_Draw`
+ * Uses the Custom Draw Function if it exists, or just calls `OoT_GetItem_Draw`
  */
 void GetItemEntry_Draw(PlayState* play, GetItemEntry getItemEntry) {
     if (getItemEntry.drawFunc != NULL) {
         getItemEntry.drawFunc(play, &getItemEntry);
     } else {
-        GetItem_Draw(play, getItemEntry.gid);
+        OoT_GetItem_Draw(play, getItemEntry.gid);
     }
 }
 
@@ -476,13 +476,13 @@ void GetItem_DrawJewel(PlayState* play, s16 drawId) {
     OPEN_DISPS(play->state.gfxCtx);
 
     gSPSegment(POLY_XLU_DISP++, 9,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0 % 256, (256 - (0 % 256)) - 1, 64, 64, 1, 0 % 256,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0 % 256, (256 - (0 % 256)) - 1, 64, 64, 1, 0 % 256,
                                 (256 - (0 % 256)) - 1, 16, 16));
 
-    gSPSegment(POLY_OPA_DISP++, 8, Gfx_TexScroll(play->state.gfxCtx, (u8)0, (u8)0, 16, 16));
+    gSPSegment(POLY_OPA_DISP++, 8, OoT_Gfx_TexScroll(play->state.gfxCtx, (u8)0, (u8)0, 16, 16));
 
-    Matrix_Push();
-    Matrix_RotateZYX(0, -0x4000, 0x4000, MTXMODE_APPLY);
+    OoT_Matrix_Push();
+    OoT_Matrix_RotateZYX(0, -0x4000, 0x4000, MTXMODE_APPLY);
 
     gSPMatrix(POLY_XLU_DISP++, Matrix_NewMtx(play->state.gfxCtx, "../z_demo_effect.c", 2597),
               G_MTX_NOPUSH | G_MTX_LOAD);
@@ -494,14 +494,14 @@ void GetItem_DrawJewel(PlayState* play, s16 drawId) {
     // func_8002ED80(&this->actor, play, 0);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 128, primXluColor[0], primXluColor[1], primXluColor[2], 255);
     gDPSetEnvColor(POLY_XLU_DISP++, envXluColor[0], envXluColor[1], envXluColor[2], 255);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     // func_8002EBCC(&this->actor, play, 0);
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 128, primOpaColor[0], primOpaColor[1], primOpaColor[2], 255);
     gDPSetEnvColor(POLY_OPA_DISP++, envOpaColor[0], envOpaColor[1], envOpaColor[2], 255);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[1]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[1]);
 
-    Matrix_Pop();
+    OoT_Matrix_Pop();
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -513,7 +513,7 @@ void GetItem_DrawMaskOrBombchu(PlayState* play, s16 drawId) {
 
     Gfx_SetupDL_26Opa(play->state.gfxCtx);
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -523,9 +523,9 @@ void GetItem_DrawSoldOut(PlayState* play, s16 drawId) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, 5);
+    POLY_XLU_DISP = OoT_Gfx_SetupDL(POLY_XLU_DISP, 5);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -537,43 +537,43 @@ void GetItem_DrawBlueFire(PlayState* play, s16 drawId) {
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
 
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0 * (play->state.frames * 0), 0 * (play->state.frames * 0), 16,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0 * (play->state.frames * 0), 0 * (play->state.frames * 0), 16,
                                 32, 1, 1 * (play->state.frames * 1), 1 * -(play->state.frames * 8), 16, 32));
-    Matrix_Push();
-    Matrix_Translate(-8.0f, -2.0f, 0.0f, MTXMODE_APPLY);
-    Matrix_ReplaceRotation(&play->billboardMtxF);
+    OoT_Matrix_Push();
+    OoT_Matrix_Translate(-8.0f, -2.0f, 0.0f, MTXMODE_APPLY);
+    OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[1]);
-    Matrix_Pop();
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[1]);
+    OoT_Matrix_Pop();
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void GetItem_DrawPoes(PlayState* play, s16 drawId) {
+void OoT_GetItem_DrawPoes(PlayState* play, s16 drawId) {
     s32 pad;
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
 
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[1]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[1]);
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0 * (play->state.frames * 0), 0 * (play->state.frames * 0), 16,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0 * (play->state.frames * 0), 0 * (play->state.frames * 0), 16,
                                 32, 1, 1 * (play->state.frames * 1), 1 * -(play->state.frames * 6), 16, 32));
-    Matrix_Push();
-    Matrix_ReplaceRotation(&play->billboardMtxF);
+    OoT_Matrix_Push();
+    OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[3]);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[2]);
-    Matrix_Pop();
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[3]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[2]);
+    OoT_Matrix_Pop();
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -585,19 +585,19 @@ void GetItem_DrawFairy(PlayState* play, s16 drawId) {
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
 
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[1]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[1]);
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0 * (play->state.frames * 0), 0 * (play->state.frames * 0), 32,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0 * (play->state.frames * 0), 0 * (play->state.frames * 0), 32,
                                 32, 1, 1 * (play->state.frames * 1), 1 * -(play->state.frames * 6), 32, 32));
-    Matrix_Push();
-    Matrix_ReplaceRotation(&play->billboardMtxF);
+    OoT_Matrix_Push();
+    OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[2]);
-    Matrix_Pop();
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[2]);
+    OoT_Matrix_Pop();
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -609,34 +609,34 @@ void GetItem_DrawMirrorShield(PlayState* play, s16 drawId) {
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gSPSegment(POLY_OPA_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0 * (play->state.frames * 0) % 256,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0 * (play->state.frames * 0) % 256,
                                 1 * (play->state.frames * 2) % 256, 64, 64, 1, 0 * (play->state.frames * 0) % 128,
                                 1 * (play->state.frames * 1) % 128, 32, 32));
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
 
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[1]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[1]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void GetItem_DrawSkullToken(PlayState* play, s16 drawId) {
+void OoT_GetItem_DrawSkullToken(PlayState* play, s16 drawId) {
     s32 pad;
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
 
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0 * (play->state.frames * 0), 1 * -(play->state.frames * 5), 32,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0 * (play->state.frames * 0), 1 * -(play->state.frames * 5), 32,
                                 32, 1, 0 * (play->state.frames * 0), 0 * (play->state.frames * 0), 32, 64));
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[1]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[1]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -648,89 +648,89 @@ void GetItem_DrawEggOrMedallion(PlayState* play, s16 drawId) {
 
     Gfx_SetupDL_26Opa(play->state.gfxCtx);
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[0]);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[1]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[1]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void GetItem_DrawCompass(PlayState* play, s16 drawId) {
+void OoT_GetItem_DrawCompass(PlayState* play, s16 drawId) {
     s32 pad;
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
 
-    POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, 5);
+    POLY_XLU_DISP = OoT_Gfx_SetupDL(POLY_XLU_DISP, 5);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[1]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[1]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void GetItem_DrawPotion(PlayState* play, s16 drawId) {
+void OoT_GetItem_DrawPotion(PlayState* play, s16 drawId) {
     s32 pad;
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gSPSegment(POLY_OPA_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, -1 * (play->state.frames * 1), 1 * (play->state.frames * 1), 32,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, -1 * (play->state.frames * 1), 1 * (play->state.frames * 1), 32,
                                 32, 1, -1 * (play->state.frames * 1), 1 * (play->state.frames * 1), 32, 32));
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[1]);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[0]);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[2]);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[3]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[1]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[2]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[3]);
 
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[4]);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[5]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[4]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[5]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void GetItem_DrawGoronSword(PlayState* play, s16 drawId) {
+void OoT_GetItem_DrawGoronSword(PlayState* play, s16 drawId) {
     s32 pad;
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gSPSegment(POLY_OPA_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 1 * (play->state.frames * 1), 0 * (play->state.frames * 1), 32,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 1 * (play->state.frames * 1), 0 * (play->state.frames * 1), 32,
                                 32, 1, 0 * (play->state.frames * 1), 0 * (play->state.frames * 1), 32, 32));
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void GetItem_DrawDekuNuts(PlayState* play, s16 drawId) {
+void OoT_GetItem_DrawDekuNuts(PlayState* play, s16 drawId) {
     s32 pad;
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gSPSegment(POLY_OPA_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 1 * (play->state.frames * 6), 1 * (play->state.frames * 6), 32,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 1 * (play->state.frames * 6), 1 * (play->state.frames * 6), 32,
                                 32, 1, 1 * (play->state.frames * 6), 1 * (play->state.frames * 6), 32, 32));
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void GetItem_DrawRecoveryHeart(PlayState* play, s16 drawId) {
+void OoT_GetItem_DrawRecoveryHeart(PlayState* play, s16 drawId) {
     s32 pad;
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0 * (play->state.frames * 1), 1 * -(play->state.frames * 3), 32,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0 * (play->state.frames * 1), 1 * -(play->state.frames * 3), 32,
                                 32, 1, 0 * (play->state.frames * 1), 1 * -(play->state.frames * 2), 32, 32));
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
     if (CVarGetInteger(CVAR_COSMETIC("Consumable.Hearts.Changed"), 0)) {
@@ -738,52 +738,52 @@ void GetItem_DrawRecoveryHeart(PlayState* play, s16 drawId) {
         gDPSetGrayscaleColor(POLY_XLU_DISP++, color.r, color.g, color.b, 255);
         gSPGrayscale(POLY_XLU_DISP++, true);
     }
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
     if (CVarGetInteger(CVAR_COSMETIC("Consumable.Hearts.Changed"), 0)) {
         gSPGrayscale(POLY_XLU_DISP++, false);
     }
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void GetItem_DrawFish(PlayState* play, s16 drawId) {
+void OoT_GetItem_DrawFish(PlayState* play, s16 drawId) {
     s32 pad;
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0 * (play->state.frames * 0), 1 * (play->state.frames * 1), 32,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0 * (play->state.frames * 0), 1 * (play->state.frames * 1), 32,
                                 32, 1, 0 * (play->state.frames * 0), 1 * (play->state.frames * 1), 32, 32));
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void GetItem_DrawOpa0(PlayState* play, s16 drawId) {
+void OoT_GetItem_DrawOpa0(PlayState* play, s16 drawId) {
     s32 pad;
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void GetItem_DrawOpa0Xlu1(PlayState* play, s16 drawId) {
+void OoT_GetItem_DrawOpa0Xlu1(PlayState* play, s16 drawId) {
     s32 pad;
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
 
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[1]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[1]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -807,21 +807,21 @@ void GetItem_DrawGenericMusicNote(PlayState* play, s16 drawId) {
     gDPSetGrayscaleColor(POLY_XLU_DISP++, colors[color_slot][0], colors[color_slot][1], colors[color_slot][2], 255);
     gSPGrayscale(POLY_XLU_DISP++, true);
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
     gSPGrayscale(POLY_XLU_DISP++, false);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void GetItem_DrawXlu01(PlayState* play, s16 drawId) {
+void OoT_GetItem_DrawXlu01(PlayState* play, s16 drawId) {
     s32 pad;
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[0]);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[1]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[1]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -833,29 +833,29 @@ void GetItem_DrawOpa10Xlu2(PlayState* play, s16 drawId) {
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[1]);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[1]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
 
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[2]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[2]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void GetItem_DrawMagicArrow(PlayState* play, s16 drawId) {
+void OoT_GetItem_DrawMagicArrow(PlayState* play, s16 drawId) {
     s32 pad;
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
 
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[1]);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[2]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[1]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[2]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -867,12 +867,12 @@ void GetItem_DrawMagicSpell(PlayState* play, s16 drawId) {
 
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 1 * (play->state.frames * 2), 1 * -(play->state.frames * 6), 32,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 1 * (play->state.frames * 2), 1 * -(play->state.frames * 6), 32,
                                 32, 1, 1 * (play->state.frames * 1), -1 * (play->state.frames * 2), 32, 32));
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[0]);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[1]);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[2]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[1]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[2]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -884,10 +884,10 @@ void GetItem_DrawOpa1023(PlayState* play, s16 drawId) {
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[1]);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[0]);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[2]);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[3]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[1]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[2]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[3]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -899,33 +899,33 @@ void GetItem_DrawOpa10Xlu32(PlayState* play, s16 drawId) {
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[1]);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[1]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
 
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[3]);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[2]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[3]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[2]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void GetItem_DrawSmallRupee(PlayState* play, s16 drawId) {
+void OoT_GetItem_DrawSmallRupee(PlayState* play, s16 drawId) {
     s32 pad;
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    Matrix_Scale(0.7f, 0.7f, 0.7f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(0.7f, 0.7f, 0.7f, MTXMODE_APPLY);
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[1]);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[1]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
 
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[3]);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[2]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[3]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[2]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -937,13 +937,13 @@ void GetItem_DrawScale(PlayState* play, s16 drawId) {
 
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 1 * (play->state.frames * 2), -1 * (play->state.frames * 2), 64,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 1 * (play->state.frames * 2), -1 * (play->state.frames * 2), 64,
                                 64, 1, 1 * (play->state.frames * 4), 1 * -(play->state.frames * 4), 32, 32));
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[2]);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[3]);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[1]);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[2]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[3]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[1]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -955,33 +955,33 @@ void GetItem_DrawBulletBag(PlayState* play, s16 drawId) {
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[1]);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[1]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
 
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[2]);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[3]);
-    gSPDisplayList(POLY_XLU_DISP++, sDrawItemTable[drawId].dlists[4]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[2]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[3]);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sDrawItemTable[drawId].dlists[4]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void GetItem_DrawWallet(PlayState* play, s16 drawId) {
+void OoT_GetItem_DrawWallet(PlayState* play, s16 drawId) {
     s32 pad;
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[1]);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[0]);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[2]);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[3]);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[4]);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[5]);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[6]);
-    gSPDisplayList(POLY_OPA_DISP++, sDrawItemTable[drawId].dlists[7]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[1]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[0]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[2]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[3]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[4]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[5]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[6]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDrawItemTable[drawId].dlists[7]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -991,7 +991,7 @@ void GetItem_DrawTriforcePiece(PlayState* play, s16 drawId) {
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
 
-    Matrix_Scale(0.035f, 0.035f, 0.035f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(0.035f, 0.035f, 0.035f, MTXMODE_APPLY);
 
     uint8_t index = gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected % 3;
     Gfx* triforcePieceDL;
@@ -1022,21 +1022,21 @@ void GetItem_DrawFishingPole(PlayState* play, s16 drawId) {
 
     // Draw rod
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
-    Matrix_Scale(0.2, 0.2, 0.2, MTXMODE_APPLY);
+    OoT_Matrix_Scale(0.2, 0.2, 0.2, MTXMODE_APPLY);
     gSPMatrix(POLY_OPA_DISP++, Matrix_NewMtx(play->state.gfxCtx, (char*)__FILE__, __LINE__),
               G_MTX_MODELVIEW | G_MTX_LOAD);
     gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gFishingPoleGiDL);
 
     // Draw lure
-    Matrix_Push();
-    Matrix_Scale(5.0f, 5.0f, 5.0f, MTXMODE_APPLY);
+    OoT_Matrix_Push();
+    OoT_Matrix_Scale(5.0f, 5.0f, 5.0f, MTXMODE_APPLY);
     pos.x = 0.0f;
     pos.y = -25.5f;
     pos.z = -4.0f;
-    Matrix_Translate(pos.x, pos.y, pos.z, MTXMODE_APPLY);
+    OoT_Matrix_Translate(pos.x, pos.y, pos.z, MTXMODE_APPLY);
     Matrix_RotateZ(M_PI / -2, MTXMODE_APPLY);
     Matrix_RotateY((M_PI / -2) - 0.2f, MTXMODE_APPLY);
-    Matrix_Scale(0.006f, 0.006f, 0.006f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(0.006f, 0.006f, 0.006f, MTXMODE_APPLY);
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gSPMatrix(POLY_OPA_DISP++, Matrix_NewMtx(play->state.gfxCtx, (char*)__FILE__, __LINE__),
               G_MTX_NOPUSH | G_MTX_MODELVIEW | G_MTX_LOAD);
@@ -1044,7 +1044,7 @@ void GetItem_DrawFishingPole(PlayState* play, s16 drawId) {
 
     // Draw hooks
     Matrix_RotateY(0.2f, MTXMODE_APPLY);
-    Matrix_Translate(0.0f, 0.0f, -300.0f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(0.0f, 0.0f, -300.0f, MTXMODE_APPLY);
     gSPMatrix(POLY_OPA_DISP++, Matrix_NewMtx(play->state.gfxCtx, (char*)__FILE__, __LINE__),
               G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gFishingLureHookDL);
@@ -1053,7 +1053,7 @@ void GetItem_DrawFishingPole(PlayState* play, s16 drawId) {
               G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gFishingLureHookDL);
 
-    Matrix_Translate(0.0f, -2200.0f, 700.0f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(0.0f, -2200.0f, 700.0f, MTXMODE_APPLY);
     gSPMatrix(POLY_OPA_DISP++, Matrix_NewMtx(play->state.gfxCtx, (char*)__FILE__, __LINE__),
               G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gFishingLureHookDL);
@@ -1062,7 +1062,7 @@ void GetItem_DrawFishingPole(PlayState* play, s16 drawId) {
               G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gFishingLureHookDL);
 
-    Matrix_Pop();
+    OoT_Matrix_Pop();
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

@@ -31,7 +31,7 @@ ActorProfile Obj_HsStump_Profile = {
     /**/ ObjHsStump_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 180, ICHAIN_STOP),
 };
 
@@ -40,18 +40,18 @@ static Vec3f sIceSmokeAccel = { 0.0f, 0.0f, 0.0f };
 void ObjHsStump_Init(Actor* thisx, PlayState* play) {
     ObjHsStump* this = (ObjHsStump*)thisx;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
     this->isHidden = OBJHSSTUMP_GET_ISHIDDEN(thisx);
     this->switchFlag = OBJHSSTUMP_GET_SWITCH_FLAG(thisx);
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
     DynaPolyActor_LoadMesh(play, &this->dyna, &object_hsstump_Colheader_0011B0);
     switch (this->isHidden) {
         case true:
-            if (Flags_GetSwitch(play, this->switchFlag)) {
+            if (MM_Flags_GetSwitch(play, this->switchFlag)) {
                 this->isHidden = false;
             } else {
                 this->dyna.actor.draw = NULL;
-                Actor_SetScale(&this->dyna.actor, 0.0f);
+                MM_Actor_SetScale(&this->dyna.actor, 0.0f);
                 DynaPoly_DisableCollision(play, &play->colCtx.dyna, this->dyna.bgId);
             }
             // fallthrough
@@ -69,7 +69,7 @@ void ObjHsStump_SetupIdle(ObjHsStump* this, PlayState* play) {
 }
 
 void ObjHsStump_Idle(ObjHsStump* this, PlayState* play) {
-    if ((this->isHidden == true) && Flags_GetSwitch(play, this->switchFlag)) {
+    if ((this->isHidden == true) && MM_Flags_GetSwitch(play, this->switchFlag)) {
         ObjHsStump_SetupAppear(this, play);
     }
 }
@@ -85,9 +85,9 @@ void ObjHsStump_SetupAppear(ObjHsStump* this, PlayState* play) {
 
 void ObjHsStump_Appear(ObjHsStump* this, PlayState* play) {
     if (this->framesAppeared >= 0) {
-        Math_SmoothStepToF(&this->rotFactor, 0.0f, 1.0f, this->framesAppeared + 18.0f, 0.01f);
-        this->dyna.actor.shape.rot.x = (Math_SinS(this->rotAngle) * this->rotFactor) + this->dyna.actor.home.rot.x;
-        this->dyna.actor.shape.rot.z = (Math_SinS(this->rotAngle * 2) * this->rotFactor) + this->dyna.actor.home.rot.z;
+        MM_Math_SmoothStepToF(&this->rotFactor, 0.0f, 1.0f, this->framesAppeared + 18.0f, 0.01f);
+        this->dyna.actor.shape.rot.x = (MM_Math_SinS(this->rotAngle) * this->rotFactor) + this->dyna.actor.home.rot.x;
+        this->dyna.actor.shape.rot.z = (MM_Math_SinS(this->rotAngle * 2) * this->rotFactor) + this->dyna.actor.home.rot.z;
         this->rotAngle += 0x2000;
     }
     if (this->framesAppeared <= 10) {
@@ -117,13 +117,13 @@ void ObjHsStump_Appear(ObjHsStump* this, PlayState* play) {
                 Lib_Vec3f_TranslateAndRotateY(&this->dyna.actor.world.pos, iceSmokeAngle, &iceSmokePosOffset,
                                               &iceSmokePos);
                 Lib_Vec3f_TranslateAndRotateY(&gZeroVec3f, iceSmokeAngle, &iceSmokeVelOffset, &iceSmokeVel);
-                EffectSsIceSmoke_Spawn(play, &iceSmokePos, &iceSmokeVel, &sIceSmokeAccel, 100);
+                MM_EffectSsIceSmoke_Spawn(play, &iceSmokePos, &iceSmokeVel, &sIceSmokeAccel, 100);
             }
         }
     }
     if (this->framesAppeared >= 10) {
-        Math_SmoothStepToF(&this->dyna.actor.scale.x, 18.0f * 0.01f, 1.0f, 0.01f, 0.001f);
-        Actor_SetScale(&this->dyna.actor, this->dyna.actor.scale.x);
+        MM_Math_SmoothStepToF(&this->dyna.actor.scale.x, 18.0f * 0.01f, 1.0f, 0.01f, 0.001f);
+        MM_Actor_SetScale(&this->dyna.actor, this->dyna.actor.scale.x);
     }
     if (this->dyna.actor.scale.x == (18.0f * 0.01f)) {
         this->isHidden = false;
@@ -136,7 +136,7 @@ void ObjHsStump_Appear(ObjHsStump* this, PlayState* play) {
 void ObjHsStump_Destroy(Actor* thisx, PlayState* play) {
     ObjHsStump* this = (ObjHsStump*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void ObjHsStump_Update(Actor* thisx, PlayState* play) {
@@ -146,5 +146,5 @@ void ObjHsStump_Update(Actor* thisx, PlayState* play) {
 }
 
 void ObjHsStump_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, object_hsstump_DL_0003B8);
+    MM_Gfx_DrawDListOpa(play, object_hsstump_DL_0003B8);
 }

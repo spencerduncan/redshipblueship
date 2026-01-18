@@ -41,19 +41,19 @@ static s32 (*D_808B1FA4[])(BgSpot09Obj* this, PlayState* play) = {
     func_808B1BA0,
 };
 
-static InitChainEntry sInitChain1[] = {
+static InitChainEntry OoT_sInitChain1[] = {
     ICHAIN_F32(uncullZoneForward, 7200, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 3000, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneDownward, 7200, ICHAIN_STOP),
 };
 
-static InitChainEntry sInitChain2[] = {
+static InitChainEntry OoT_sInitChain2[] = {
     ICHAIN_F32(uncullZoneForward, 7200, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 800, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneDownward, 1500, ICHAIN_STOP),
 };
 
-static Gfx* sDLists[] = {
+static Gfx* OoT_sDLists[] = {
     gValleyBridgeSidesDL, gValleyBrokenBridgeDL, gValleyBridgeChildDL, gCarpentersTentDL, gValleyRepairedBridgeDL,
 };
 
@@ -86,9 +86,9 @@ s32 func_808B1AE0(BgSpot09Obj* this, PlayState* play) {
 
 s32 func_808B1BA0(BgSpot09Obj* this, PlayState* play) {
     if (this->dyna.actor.params == 3) {
-        Actor_SetScale(&this->dyna.actor, 0.1f);
+        OoT_Actor_SetScale(&this->dyna.actor, 0.1f);
     } else {
-        Actor_SetScale(&this->dyna.actor, 1.0f);
+        OoT_Actor_SetScale(&this->dyna.actor, 1.0f);
     }
     return 1;
 }
@@ -99,9 +99,9 @@ s32 func_808B1BEC(BgSpot09Obj* this, PlayState* play) {
     s32 pad2[2];
 
     if (D_808B1F90[this->dyna.actor.params] != NULL) {
-        DynaPolyActor_Init(&this->dyna, DPM_UNK);
-        CollisionHeader_GetVirtual(D_808B1F90[this->dyna.actor.params], &colHeader);
-        this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+        OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
+        OoT_CollisionHeader_GetVirtual(D_808B1F90[this->dyna.actor.params], &colHeader);
+        this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
     }
     return true;
 }
@@ -118,12 +118,12 @@ s32 func_808B1C70(BgSpot09Obj* this, PlayState* play) {
 }
 
 s32 func_808B1CEC(BgSpot09Obj* this, PlayState* play) {
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain1);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain1);
     return true;
 }
 
 s32 func_808B1D18(BgSpot09Obj* this, PlayState* play) {
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain2);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain2);
     return true;
 }
 
@@ -147,9 +147,9 @@ void BgSpot09Obj_Init(Actor* thisx, PlayState* play) {
     }
 
     if (!func_808B1C70(this, play)) {
-        Actor_Kill(&this->dyna.actor);
+        OoT_Actor_Kill(&this->dyna.actor);
     } else if (!func_808B1D44(this, play)) {
-        Actor_Kill(&this->dyna.actor);
+        OoT_Actor_Kill(&this->dyna.actor);
     }
 }
 
@@ -158,7 +158,7 @@ void BgSpot09Obj_Destroy(Actor* thisx, PlayState* play) {
     BgSpot09Obj* this = (BgSpot09Obj*)thisx;
 
     if (this->dyna.actor.params != 0) {
-        DynaPoly_DeleteBgActor(play, dynaColCtx, this->dyna.bgId);
+        OoT_DynaPoly_DeleteBgActor(play, dynaColCtx, this->dyna.bgId);
     }
 }
 
@@ -166,7 +166,7 @@ void BgSpot09Obj_Update(Actor* thisx, PlayState* play) {
 }
 
 void BgSpot09Obj_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, sDLists[thisx->params]);
+    OoT_Gfx_DrawDListOpa(play, OoT_sDLists[thisx->params]);
 
     if (thisx->params == 3) {
         OPEN_DISPS(play->state.gfxCtx);

@@ -682,7 +682,7 @@ void Keyframe_DrawFlexLimb(PlayState* play, KFSkelAnimeFlex* kfSkelAnime, s32* l
     pos.y = jointData->y;
     pos.z = jointData->z;
 
-    Matrix_Push();
+    MM_Matrix_Push();
 
     newDList = limbDList = limb->dList;
     drawFlags = limb->drawFlags;
@@ -695,14 +695,14 @@ void Keyframe_DrawFlexLimb(PlayState* play, KFSkelAnimeFlex* kfSkelAnime, s32* l
             kfSkelAnime->transformCallbacks[limb->callbackIndex](play, kfSkelAnime, *limbIndex, &newDList, &drawFlags,
                                                                  arg)) {
 
-            Matrix_TranslateRotateZYX(&pos, &rot);
+            MM_Matrix_TranslateRotateZYX(&pos, &rot);
 
             if (scale.x != 1.0f || scale.y != 1.0f || scale.z != 1.0f) {
-                Matrix_Scale(scale.x, scale.y, scale.z, MTXMODE_APPLY);
+                MM_Matrix_Scale(scale.x, scale.y, scale.z, MTXMODE_APPLY);
             }
 
             if (newDList != NULL) {
-                Matrix_ToMtx(*mtxStack);
+                MM_Matrix_ToMtx(*mtxStack);
 
                 if (drawFlags & KEYFRAME_DRAW_XLU) {
                     gSPMatrix(POLY_XLU_DISP++, *mtxStack, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -715,7 +715,7 @@ void Keyframe_DrawFlexLimb(PlayState* play, KFSkelAnimeFlex* kfSkelAnime, s32* l
                 (*mtxStack)++;
             } else if (limbDList != NULL) {
                 gSPMatrix(POLY_OPA_DISP++, *mtxStack, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-                Matrix_ToMtx(*mtxStack);
+                MM_Matrix_ToMtx(*mtxStack);
 
                 (*mtxStack)++;
             }
@@ -732,7 +732,7 @@ void Keyframe_DrawFlexLimb(PlayState* play, KFSkelAnimeFlex* kfSkelAnime, s32* l
         Keyframe_DrawFlexLimb(play, kfSkelAnime, limbIndex, overrideKeyframeDraw, postKeyframeDraw, arg, mtxStack);
     }
 
-    Matrix_Pop();
+    MM_Matrix_Pop();
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
@@ -1225,7 +1225,7 @@ void Keyframe_DrawStandardLimb(PlayState* play, KFSkelAnime* kfSkelAnime, s32* l
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    Matrix_Push();
+    MM_Matrix_Push();
 
     newDList = limbDList = limb->dList;
     drawFlags = limb->drawFlags;
@@ -1234,10 +1234,10 @@ void Keyframe_DrawStandardLimb(PlayState* play, KFSkelAnime* kfSkelAnime, s32* l
         (overrideKeyframeDraw != NULL &&
          overrideKeyframeDraw(play, kfSkelAnime, *limbIndex, &newDList, &drawFlags, arg, &rot, &pos))) {
 
-        Matrix_TranslateRotateZYX(&pos, &rot);
+        MM_Matrix_TranslateRotateZYX(&pos, &rot);
 
         if (newDList != NULL) {
-            Matrix_ToMtx(*mtxStack);
+            MM_Matrix_ToMtx(*mtxStack);
 
             if (drawFlags & KEYFRAME_DRAW_XLU) {
                 gSPMatrix(POLY_XLU_DISP++, *mtxStack, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -1248,7 +1248,7 @@ void Keyframe_DrawStandardLimb(PlayState* play, KFSkelAnime* kfSkelAnime, s32* l
             }
             (*mtxStack)++;
         } else if (limbDList != NULL) {
-            Matrix_ToMtx(*mtxStack);
+            MM_Matrix_ToMtx(*mtxStack);
 
             gSPMatrix(POLY_OPA_DISP++, *mtxStack, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             (*mtxStack)++;
@@ -1265,7 +1265,7 @@ void Keyframe_DrawStandardLimb(PlayState* play, KFSkelAnime* kfSkelAnime, s32* l
         Keyframe_DrawStandardLimb(play, kfSkelAnime, limbIndex, overrideKeyframeDraw, postKeyframeDraw, arg, mtxStack);
     }
 
-    Matrix_Pop();
+    MM_Matrix_Pop();
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

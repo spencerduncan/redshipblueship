@@ -33,7 +33,7 @@ ActorProfile Dm_Gm_Profile = {
 
 /**
  * Anju stores her animations across different objects and the ones used by this actor are put together right next to
- * each other in the sAnimationInfo array. Due to this, animation functions check which object to load by comparing
+ * each other in the MM_sAnimationInfo array. Due to this, animation functions check which object to load by comparing
  * index ranges. To make this a bit easier to read, this enum includes `DMGM_ANIMOBJ_*` values that mark when a range of
  * animations of a certain object start
  */
@@ -44,7 +44,7 @@ typedef enum DmGmAnimation {
 
     /*  2 */ DMGM_ANIMOBJ_AN4,
     /*  2 */ DMGM_ANIM_MASK_STAND_LOOP = DMGM_ANIMOBJ_AN4,
-    /*  3 */ DMGM_ANIM_HOLD_HANDS, //! @bug See note at `sAnimationInfo`
+    /*  3 */ DMGM_ANIM_HOLD_HANDS, //! @bug See note at `MM_sAnimationInfo`
     /*  4 */ DMGM_ANIM_MASK_KNEEL,
     /*  5 */ DMGM_ANIM_MASK_KNEEL_LOOP,
     /*  6 */ DMGM_ANIM_HUG,
@@ -58,7 +58,7 @@ typedef enum DmGmAnimation {
     /* 14 */ DMGM_ANIM_MAX
 } DmGmAnimation;
 
-static AnimationInfoS sAnimationInfo[DMGM_ANIM_MAX] = {
+static AnimationInfoS MM_sAnimationInfo[DMGM_ANIM_MAX] = {
     { &gAnju1SittingInDisbeliefAnim, 1.0f, 0, -1, ANIMMODE_LOOP, 0 }, // DMGM_ANIM_SITTING_IN_DISBELIEF
     { &gAnju1SitAnim, 1.0f, 0, -1, ANIMMODE_LOOP, 0 },                // DMGM_ANIM_SIT
 
@@ -90,9 +90,9 @@ s32 DmGm_UpdateSkelAnime(DmGm* this, PlayState* play) {
     }
 
     if (objectIndex2 > OBJECT_SLOT_NONE) {
-        gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[objectIndex2].segment);
-        isAnimFinished = SkelAnime_Update(&this->skelAnime);
-        gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[objectSlot].segment);
+        MM_gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[objectIndex2].segment);
+        isAnimFinished = MM_SkelAnime_Update(&this->skelAnime);
+        MM_gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[objectSlot].segment);
     }
 
     return isAnimFinished;
@@ -110,10 +110,10 @@ s32 DmGm_ChangeAnim(DmGm* this, PlayState* play, DmGmAnimation animIndex) {
     }
 
     if ((objectIndex2 > OBJECT_SLOT_NONE) && (this->animIndex != animIndex)) {
-        gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[objectIndex2].segment);
+        MM_gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[objectIndex2].segment);
         this->animIndex = animIndex;
-        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, animIndex);
-        gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[objectSlot].segment);
+        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, animIndex);
+        MM_gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[objectSlot].segment);
     }
 
     return didAnimChange;
@@ -141,7 +141,7 @@ void DmGm_Blink(DmGm* this) {
     if (DECR(this->eyeTimer) == 0) {
         this->eyeTexIndex++;
         if (this->eyeTexIndex > DMGM_EYES_HALF2) {
-            this->eyeTimer = Rand_S16Offset(30, 30);
+            this->eyeTimer = MM_Rand_S16Offset(30, 30);
             this->eyeTexIndex = 0;
         }
     }
@@ -153,27 +153,27 @@ s32 DmGm_UpdateHeadRot(DmGm* this, PlayState* play) {
     Vec3f pos;
     s16 yaw;
 
-    Math_Vec3f_Copy(&lookAtActorPos, &this->lookAtActor->world.pos);
-    Math_Vec3f_Copy(&pos, &this->actor.world.pos);
-    yaw = Math_Vec3f_Yaw(&pos, &lookAtActorPos);
+    MM_Math_Vec3f_Copy(&lookAtActorPos, &this->lookAtActor->world.pos);
+    MM_Math_Vec3f_Copy(&pos, &this->actor.world.pos);
+    yaw = MM_Math_Vec3f_Yaw(&pos, &lookAtActorPos);
 
-    Math_ApproachS(&this->headRotY, (yaw - this->torsoRotY) - this->actor.shape.rot.y, 4, 0x2AA8);
+    MM_Math_ApproachS(&this->headRotY, (yaw - this->torsoRotY) - this->actor.shape.rot.y, 4, 0x2AA8);
     this->headRotY = CLAMP(this->headRotY, -0x1FFE, 0x1FFE);
 
-    Math_ApproachS(&this->torsoRotY, (yaw - this->headRotY) - this->actor.shape.rot.y, 4, 0x2AA8);
+    MM_Math_ApproachS(&this->torsoRotY, (yaw - this->headRotY) - this->actor.shape.rot.y, 4, 0x2AA8);
     this->torsoRotY = CLAMP(this->torsoRotY, -0x1C70, 0x1C70);
 
     if (this->lookAtActor->id == ACTOR_PLAYER) {
         lookAtActorPos.y = ((Player*)this->lookAtActor)->bodyPartsPos[PLAYER_BODYPART_HEAD].y + 3.0f;
     } else {
-        Math_Vec3f_Copy(&lookAtActorPos, &this->lookAtActor->focus.pos);
+        MM_Math_Vec3f_Copy(&lookAtActorPos, &this->lookAtActor->focus.pos);
     }
 
-    Math_Vec3f_Copy(&pos, &this->actor.focus.pos);
-    Math_ApproachS(&this->headRotZ, Math_Vec3f_Pitch(&pos, &lookAtActorPos) - this->torsoRotZ, 4, 0x2AA8);
+    MM_Math_Vec3f_Copy(&pos, &this->actor.focus.pos);
+    MM_Math_ApproachS(&this->headRotZ, MM_Math_Vec3f_Pitch(&pos, &lookAtActorPos) - this->torsoRotZ, 4, 0x2AA8);
     this->headRotZ = CLAMP(this->headRotZ, -0x1C70, 0x1C70);
 
-    Math_ApproachS(&this->torsoRotZ, Math_Vec3f_Pitch(&pos, &lookAtActorPos) - this->headRotZ, 4, 0x2AA8);
+    MM_Math_ApproachS(&this->torsoRotZ, MM_Math_Vec3f_Pitch(&pos, &lookAtActorPos) - this->headRotZ, 4, 0x2AA8);
     this->torsoRotZ = CLAMP(this->torsoRotZ, -0x1C70, 0x1C70);
 
     return true;
@@ -223,14 +223,14 @@ Actor* DmGm_FindAnjusMotherActor(PlayState* play) {
 void DmGm_WaitForObject(DmGm* this, PlayState* play) {
     if ((this->an4ObjectSlot > OBJECT_SLOT_NONE) && SubS_IsObjectLoaded(this->an4ObjectSlot, play) &&
         (this->msmoObjectSlot > OBJECT_SLOT_NONE) && SubS_IsObjectLoaded(this->msmoObjectSlot, play)) {
-        ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 14.0f);
-        SkelAnime_InitFlex(play, &this->skelAnime, &gAnju1Skel, NULL, this->jointTable, this->morphTable,
+        MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 14.0f);
+        MM_SkelAnime_InitFlex(play, &this->skelAnime, &gAnju1Skel, NULL, this->jointTable, this->morphTable,
                            ANJU1_LIMB_MAX);
 
         this->animIndex = DMGM_ANIM_NONE;
         DmGm_ChangeAnim(this, play, DMGM_ANIM_SITTING_IN_DISBELIEF);
         this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
-        Actor_SetScale(&this->actor, 0.01f);
+        MM_Actor_SetScale(&this->actor, 0.01f);
         this->stateFlags |= 1;
         this->actor.draw = DmGm_Draw;
 
@@ -287,7 +287,7 @@ void DmGm_HandleCouplesMaskCs(DmGm* this, PlayState* play) {
                 case 8:
                     if ((this->animIndex == DMGM_ANIM_LOOK_UP) || (this->animIndex == DMGM_ANIM_MASK_KNEEL) ||
                         (this->animIndex == DMGM_ANIM_HUG) || (this->animIndex == DMGM_ANIM_HUG_RELEASE)) {
-                        if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+                        if (MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
                             DmGm_ChangeAnim(this, play, this->animIndex + 1);
                         }
                     }
@@ -330,7 +330,7 @@ void DmGm_Update(Actor* thisx, PlayState* play) {
         DmGm_UpdateSkelAnime(this, play);
         DmGm_Blink(this);
     }
-    Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 12.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 12.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
 }
 
 void DmGm_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* thisx) {
@@ -345,15 +345,15 @@ void DmGm_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
 
         OPEN_DISPS(play->state.gfxCtx);
 
-        Matrix_Push();
-        Matrix_TranslateRotateZYX(&D_80C25218, &D_80C25224);
+        MM_Matrix_Push();
+        MM_Matrix_TranslateRotateZYX(&D_80C25218, &D_80C25224);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
         gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[msmoObjectSlot].segment);
         gSPDisplayList(POLY_OPA_DISP++, gMoonMaskDL);
         gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[objectSlot].segment);
 
-        Matrix_Pop();
+        MM_Matrix_Pop();
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -361,7 +361,7 @@ void DmGm_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
     if (limbIndex == ANJU1_LIMB_HEAD) {
         static Vec3f D_80C2522C = { 1000.0f, 0.0f, 0.0f };
 
-        Matrix_MultVec3f(&D_80C2522C, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&D_80C2522C, &this->actor.focus.pos);
         Math_Vec3s_Copy(&this->actor.focus.rot, &this->actor.world.rot);
     }
 }
@@ -387,33 +387,33 @@ void DmGm_TransformLimbDraw(PlayState* play, s32 limbIndex, Actor* thisx) {
         SubS_UpdateLimb(this->headRotZ + this->torsoRotZ + 0x4000,
                         this->headRotY + this->torsoRotY + this->actor.shape.rot.y + 0x4000, &this->headComputedPos,
                         &this->headComputedRot, stepRot, overrideRot);
-        Matrix_Pop();
-        Matrix_Translate(this->headComputedPos.x, this->headComputedPos.y, this->headComputedPos.z, MTXMODE_NEW);
-        Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+        MM_Matrix_Pop();
+        MM_Matrix_Translate(this->headComputedPos.x, this->headComputedPos.y, this->headComputedPos.z, MTXMODE_NEW);
+        MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
         Matrix_RotateYS(this->headComputedRot.y, MTXMODE_APPLY);
         Matrix_RotateXS(this->headComputedRot.x, MTXMODE_APPLY);
         Matrix_RotateZS(this->headComputedRot.z, MTXMODE_APPLY);
-        Matrix_Push();
+        MM_Matrix_Push();
     } else if (limbIndex == ANJU1_LIMB_TORSO) {
         SubS_UpdateLimb(this->torsoRotZ + 0x4000, this->torsoRotY + this->actor.shape.rot.y + 0x4000,
                         &this->torsoComputedPos, &this->torsoComputedRot, stepRot, overrideRot);
-        Matrix_Pop();
-        Matrix_Translate(this->torsoComputedPos.x, this->torsoComputedPos.y, this->torsoComputedPos.z, MTXMODE_NEW);
-        Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+        MM_Matrix_Pop();
+        MM_Matrix_Translate(this->torsoComputedPos.x, this->torsoComputedPos.y, this->torsoComputedPos.z, MTXMODE_NEW);
+        MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
         Matrix_RotateYS(this->torsoComputedRot.y, MTXMODE_APPLY);
         Matrix_RotateXS(this->torsoComputedRot.x, MTXMODE_APPLY);
         Matrix_RotateZS(this->torsoComputedRot.z, MTXMODE_APPLY);
-        Matrix_Push();
+        MM_Matrix_Push();
     }
 }
 
 void DmGm_Draw(Actor* thisx, PlayState* play) {
-    static TexturePtr sMouthTextures[DMGM_MOUTH_MAX] = {
+    static TexturePtr MM_sMouthTextures[DMGM_MOUTH_MAX] = {
         gAnju1MouthClosedTex, // DMGM_MOUTH_CLOSED
         gAnju1MouthHappyTex,  // DMGM_MOUTH_HAPPY
         gAnju1MouthOpenTex,   // DMGM_MOUTH_OPEN
     };
-    static TexturePtr sEyeTextures[DMGM_EYES_MAX] = {
+    static TexturePtr MM_sEyeTextures[DMGM_EYES_MAX] = {
         gAnju1EyeOpenTex,           // DMGM_EYES_OPEN
         gAnju1EyeHalfTex,           // DMGM_EYES_HALF1
         gAnju1EyeClosedTex,         // DMGM_EYES_CLOSED
@@ -428,8 +428,8 @@ void DmGm_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sEyeTextures[this->eyeTexIndex]));
-    gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(sMouthTextures[DMGM_MOUTH_CLOSED]));
+    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
+    gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sMouthTextures[DMGM_MOUTH_CLOSED]));
 
     SkelAnime_DrawTransformFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                    this->skelAnime.dListCount, NULL, DmGm_PostLimbDraw, DmGm_TransformLimbDraw,

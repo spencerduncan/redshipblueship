@@ -44,16 +44,16 @@ void Audio_InitNoteSub(Note* note, NoteSubEu* sub, NoteSubAttributes* attrs) {
         sub->headsetPanRight = gHeadsetPanQuantization[0x3F - smallPanIndex];
         sub->bitField1.usesHeadsetPanEffects2 = true;
 
-        volLeft = gHeadsetPanVolume[pan];
-        volRight = gHeadsetPanVolume[0x7F - pan];
+        volLeft = OoT_gHeadsetPanVolume[pan];
+        volRight = OoT_gHeadsetPanVolume[0x7F - pan];
     } else if (stereoHeadsetEffects && gAudioContext.soundMode == 0) {
         strongLeft = strongRight = 0;
         sub->headsetPanRight = 0;
         sub->headsetPanLeft = 0;
         sub->bitField1.usesHeadsetPanEffects2 = false;
 
-        volLeft = gStereoPanVolume[pan];
-        volRight = gStereoPanVolume[0x7F - pan];
+        volLeft = OoT_gStereoPanVolume[pan];
+        volRight = OoT_gStereoPanVolume[0x7F - pan];
         if (pan < 0x20) {
             strongLeft = 1;
         } else if (pan > 0x60) {
@@ -88,8 +88,8 @@ void Audio_InitNoteSub(Note* note, NoteSubEu* sub, NoteSubAttributes* attrs) {
     } else {
         sub->bitField0.stereoStrongRight = sp24.strongRight;
         sub->bitField0.stereoStrongLeft = sp24.strongLeft;
-        volLeft = gDefaultPanVolume[pan];
-        volRight = gDefaultPanVolume[0x7F - pan];
+        volLeft = OoT_gDefaultPanVolume[pan];
+        volRight = OoT_gDefaultPanVolume[0x7F - pan];
     }
 
     vel = 0.0f > vel ? 0.0f : vel;
@@ -327,7 +327,7 @@ Instrument* Audio_GetInstrumentInner(s32 fontId, s32 instId) {
         return NULL;
     }
 
-    if (!AudioLoad_IsFontLoadComplete(fontId)) {
+    if (!OoT_AudioLoad_IsFontLoadComplete(fontId)) {
         gAudioContext.audioErrorFlags = fontId + 0x10000000;
         return NULL;
     }
@@ -355,7 +355,7 @@ Drum* Audio_GetDrum(s32 fontId, s32 drumId) {
         return NULL;
     }
 
-    if (!AudioLoad_IsFontLoadComplete(fontId)) {
+    if (!OoT_AudioLoad_IsFontLoadComplete(fontId)) {
         gAudioContext.audioErrorFlags = fontId + 0x10000000;
         return NULL;
     }
@@ -379,7 +379,7 @@ SoundFontSound* Audio_GetSfx(s32 fontId, s32 sfxId) {
         return NULL;
     }
 
-    if (!AudioLoad_IsFontLoadComplete(fontId)) {
+    if (!OoT_AudioLoad_IsFontLoadComplete(fontId)) {
         gAudioContext.audioErrorFlags = fontId + 0x10000000;
         return NULL;
     }
@@ -405,7 +405,7 @@ s32 Audio_SetFontInstrument(s32 instrumentType, s32 fontId, s32 index, void* val
         return -1;
     }
 
-    if (!AudioLoad_IsFontLoadComplete(fontId)) {
+    if (!OoT_AudioLoad_IsFontLoadComplete(fontId)) {
         return -2;
     }
 
@@ -568,7 +568,7 @@ s32 Audio_BuildSyntheticWave(Note* note, SequenceLayer* layer, s32 waveId) {
     note->playbackState.waveId = waveId;
     note->playbackState.sampleCountIndex = sampleCountIndex;
 
-    note->noteSubEu.sound.samples = &gWaveSamples[waveId - 128][sampleCountIndex * 64];
+    note->noteSubEu.sound.samples = &OoT_gWaveSamples[waveId - 128][sampleCountIndex * 64];
 
     return sampleCountIndex;
 }
@@ -940,6 +940,6 @@ void Audio_NoteInitAll(void) {
         note->portamento.speed = 0;
         note->playbackState.stereoHeadsetEffects = false;
         note->unk_BC = 0;
-        note->synthesisState.synthesisBuffers = AudioHeap_AllocDmaMemory(&gAudioContext.notesAndBuffersPool, 0x1E0);
+        note->synthesisState.synthesisBuffers = OoT_AudioHeap_AllocDmaMemory(&gAudioContext.notesAndBuffersPool, 0x1E0);
     }
 }

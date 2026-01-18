@@ -25,7 +25,7 @@ ActorProfile Mir_Ray2_Profile = {
     /**/ MirRay2_Draw,
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[1] = {
+static ColliderJntSphElementInit MM_sJntSphElementsInit[1] = {
     {
         {
             ELEM_MATERIAL_UNK0,
@@ -39,7 +39,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[1] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit MM_sJntSphInit = {
     {
         COL_MATERIAL_NONE,
         AT_ON | AT_TYPE_OTHER,
@@ -48,8 +48,8 @@ static ColliderJntSphInit sJntSphInit = {
         OC2_NONE,
         COLSHAPE_JNTSPH,
     },
-    ARRAY_COUNT(sJntSphElementsInit),
-    sJntSphElementsInit,
+    ARRAY_COUNT(MM_sJntSphElementsInit),
+    MM_sJntSphElementsInit,
 };
 
 void func_80AF3F70(MirRay2* this) {
@@ -61,11 +61,11 @@ void func_80AF3F70(MirRay2* this) {
 
 void func_80AF3FE0(MirRay2* this, PlayState* play) {
     if (this->actor.xzDistToPlayer < this->range) {
-        Math_StepToS(&this->radius, 150, 50);
+        MM_Math_StepToS(&this->radius, 150, 50);
     } else {
-        Math_StepToS(&this->radius, 0, 50);
+        MM_Math_StepToS(&this->radius, 0, 50);
     }
-    Lights_PointNoGlowSetInfo(&this->lightInfo, this->actor.world.pos.x, this->actor.world.pos.y + 100.0f,
+    MM_Lights_PointNoGlowSetInfo(&this->lightInfo, this->actor.world.pos.x, this->actor.world.pos.y + 100.0f,
                               this->actor.world.pos.z, 255, 255, 255, this->radius);
 }
 
@@ -78,19 +78,19 @@ void MirRay2_Init(Actor* thisx, PlayState* play) {
     } else {
         this->range = this->actor.home.rot.x * 4.0f;
     }
-    Actor_SetScale(&this->actor, 1.0f);
+    MM_Actor_SetScale(&this->actor, 1.0f);
     if (MIRRAY2_GET_F(&this->actor) != 1) {
-        ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawWhiteCircle, this->range * 0.02f);
+        MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawWhiteCircle, this->range * 0.02f);
     }
     func_80AF3FE0(this, play);
-    this->light = LightContext_InsertLight(play, &play->lightCtx, &this->lightInfo);
-    Collider_InitJntSph(play, &this->collider);
-    Collider_SetJntSph(play, &this->collider, &this->actor, &sJntSphInit, &this->elements);
+    this->light = MM_LightContext_InsertLight(play, &play->lightCtx, &this->lightInfo);
+    MM_Collider_InitJntSph(play, &this->collider);
+    MM_Collider_SetJntSph(play, &this->collider, &this->actor, &MM_sJntSphInit, &this->elements);
     func_80AF3F70(this);
     this->actor.shape.rot.x = 0;
     this->actor.world.rot.x = this->actor.shape.rot.x;
     if (MIRRAY2_GET_F(thisx) != 1) {
-        if ((MIRRAY2_GET_SWITCH_FLAG(thisx) != 0x7F) && !Flags_GetSwitch(play, MIRRAY2_GET_SWITCH_FLAG(thisx))) {
+        if ((MIRRAY2_GET_SWITCH_FLAG(thisx) != 0x7F) && !MM_Flags_GetSwitch(play, MIRRAY2_GET_SWITCH_FLAG(thisx))) {
             this->unk1A4 |= 1;
         }
     }
@@ -99,26 +99,26 @@ void MirRay2_Init(Actor* thisx, PlayState* play) {
 void MirRay2_Destroy(Actor* thisx, PlayState* play) {
     MirRay2* this = (MirRay2*)thisx;
 
-    LightContext_RemoveLight(play, &play->lightCtx, this->light);
-    Collider_DestroyJntSph(play, &this->collider);
+    MM_LightContext_RemoveLight(play, &play->lightCtx, this->light);
+    MM_Collider_DestroyJntSph(play, &this->collider);
 }
 
 void MirRay2_Update(Actor* thisx, PlayState* play) {
     MirRay2* this = (MirRay2*)thisx;
 
     if (this->unk1A4 & 1) {
-        if (Flags_GetSwitch(play, MIRRAY2_GET_SWITCH_FLAG(thisx))) {
+        if (MM_Flags_GetSwitch(play, MIRRAY2_GET_SWITCH_FLAG(thisx))) {
             this->unk1A4 &= ~1;
         }
     } else {
         func_80AF3FE0(this, play);
         if (MIRRAY2_GET_F(thisx) != 1) {
-            Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 10.0f, 10.0f, UPDBGCHECKINFO_FLAG_4);
+            MM_Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 10.0f, 10.0f, UPDBGCHECKINFO_FLAG_4);
             this->actor.shape.shadowAlpha = 0x50;
         } else {
             func_80AF3F70(this);
         }
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
     }
 }
 

@@ -139,7 +139,7 @@ void func_80095D04(PlayState* play, Room* room, u32 flags) {
         sp90.x = polygonDlist->pos.x;
         sp90.y = polygonDlist->pos.y;
         sp90.z = polygonDlist->pos.z;
-        SkinMatrix_Vec3fMtxFMultXYZW(&play->viewProjectionMtxF, &sp90, &sp84, &sp80);
+        OoT_SkinMatrix_Vec3fMtxFMultXYZW(&play->viewProjectionMtxF, &sp90, &sp84, &sp80);
         if (-(f32)polygonDlist->unk_06 < sp84.z) {
             temp_f2 = sp84.z - polygonDlist->unk_06;
             if (temp_f2 < play->lightCtx.fogFar) {
@@ -241,10 +241,10 @@ s32 swapAndConvertJPEG(void* data) {
         osSyncPrintf("Expanding jpeg data\n");
         osSyncPrintf("Work buffer address (Z buffer) %08x\n", gZBuffer);
 
-        time = osGetTime();
+        time = OoT_osGetTime();
 
         memcpy(data, decodedJpeg, size);
-        time = osGetTime() - time;
+        time = OoT_osGetTime() - time;
 
         osSyncPrintf("Success... I think. time = %6.3f ms", OS_CYCLES_TO_USEC(time) / 1000.0f);
         osSyncPrintf("Writing back to original address from work buffer.");
@@ -301,7 +301,7 @@ void Room_DrawBackground2D(Gfx** gfxP, void* tex, void* tlut, u16 width, u16 hei
     if ((fmt == G_IM_FMT_RGBA) && (SREG(26) == 0)) {
         bg->b.frameW = width * (1 << 2);
         bg->b.frameH = height * (1 << 2);
-        guS2DInitBg(bg);
+        OoT_guS2DInitBg(bg);
 
         // #region SOH [Port][Widescreen]
         // When larger than 4:3 we want to render an additional black rectangle behind the 2d image
@@ -390,7 +390,7 @@ void func_80096680(PlayState* play, Room* room, u32 flags) {
                 POLY_OPA_DISP = spA8;
             }
 
-            gSPLoadUcode(POLY_OPA_DISP++, SysUcode_GetUCode());
+            gSPLoadUcode(POLY_OPA_DISP++, OoT_SysUcode_GetUCode());
         }
     }
 
@@ -492,7 +492,7 @@ void func_80096B6C(PlayState* play, Room* room, u32 flags) {
                 POLY_OPA_DISP = spA8;
             }
 
-            gSPLoadUcode(POLY_OPA_DISP++, SysUcode_GetUCode());
+            gSPLoadUcode(POLY_OPA_DISP++, OoT_SysUcode_GetUCode());
         }
     }
 
@@ -603,7 +603,7 @@ s32 func_8009728C(PlayState* play, RoomContext* roomCtx, s32 roomNum) {
         roomCtx->unk_34 =
             (void*)ALIGN16((intptr_t)roomCtx->bufPtrs[roomCtx->unk_30] - ((size + 8) * roomCtx->unk_30 + 7));
 
-        osCreateMesgQueue(&roomCtx->loadQueue, &roomCtx->loadMsg, 1);
+        OoT_osCreateMesgQueue(&roomCtx->loadQueue, &roomCtx->loadMsg, 1);
         DmaMgr_SendRequest2(&roomCtx->dmaRequest, roomCtx->unk_34, play->roomList[roomNum].vromStart, size, 0,
                             &roomCtx->loadQueue, OS_MESG_PTR(NULL), __FILE__, __LINE__);
         roomCtx->unk_30 ^= 1;
@@ -618,14 +618,14 @@ s32 func_800973FC(PlayState* play, RoomContext* roomCtx) {
     return OTRfunc_800973FC(play, roomCtx);
 
     if (roomCtx->status == 1) {
-        if (!osRecvMesg(&roomCtx->loadQueue, NULL, OS_MESG_NOBLOCK)) {
+        if (!OoT_osRecvMesg(&roomCtx->loadQueue, NULL, OS_MESG_NOBLOCK)) {
             roomCtx->status = 0;
             roomCtx->curRoom.segment = roomCtx->unk_34;
-            gSegments[3] = VIRTUAL_TO_PHYSICAL(roomCtx->unk_34);
+            OoT_gSegments[3] = VIRTUAL_TO_PHYSICAL(roomCtx->unk_34);
 
-            Scene_ExecuteCommands(play, roomCtx->curRoom.segment);
+            OoT_Scene_ExecuteCommands(play, roomCtx->curRoom.segment);
             Player_SetBootData(play, GET_PLAYER(play));
-            Actor_SpawnTransitionActors(play, &play->actorCtx);
+            OoT_Actor_SpawnTransitionActors(play, &play->actorCtx);
 
             return 1;
         }
@@ -636,9 +636,9 @@ s32 func_800973FC(PlayState* play, RoomContext* roomCtx) {
     return 1;
 }
 
-void Room_Draw(PlayState* play, Room* room, u32 flags) {
+void OoT_Room_Draw(PlayState* play, Room* room, u32 flags) {
     if (room->segment != NULL) {
-        gSegments[3] = VIRTUAL_TO_PHYSICAL(room->segment);
+        OoT_gSegments[3] = VIRTUAL_TO_PHYSICAL(room->segment);
         assert(room->meshHeader->base.type < ARRAY_COUNTU(sRoomDrawHandlers));
         sRoomDrawHandlers[room->meshHeader->base.type](play, room, flags);
     }
@@ -648,19 +648,19 @@ void func_80097534(PlayState* play, RoomContext* roomCtx) {
     roomCtx->prevRoom.num = -1;
     roomCtx->prevRoom.segment = NULL;
     func_80031B14(play, &play->actorCtx); // kills all actors without room num set to -1
-    Actor_SpawnTransitionActors(play, &play->actorCtx);
-    Map_InitRoomData(play, roomCtx->curRoom.num);
+    OoT_Actor_SpawnTransitionActors(play, &play->actorCtx);
+    OoT_Map_InitRoomData(play, roomCtx->curRoom.num);
     if (!((play->sceneNum >= SCENE_HYRULE_FIELD) && (play->sceneNum <= SCENE_LON_LON_RANCH))) {
         Map_SavePlayerInitialInfo(play);
     }
-    Audio_SetEnvReverb(play->roomCtx.curRoom.echo);
+    OoT_Audio_SetEnvReverb(play->roomCtx.curRoom.echo);
     u8 idx = gSaveContext.ship.stats.tsIdx;
     gSaveContext.ship.stats.sceneTimestamps[idx].scene = gSaveContext.ship.stats.sceneNum;
     gSaveContext.ship.stats.sceneTimestamps[idx].room = gSaveContext.ship.stats.roomNum;
     gSaveContext.ship.stats.sceneTimestamps[idx].roomTime = gSaveContext.ship.stats.roomTimer / 2;
     gSaveContext.ship.stats.sceneTimestamps[idx].isRoom =
-        gPlayState->sceneNum == gSaveContext.ship.stats.sceneTimestamps[idx].scene &&
-        gPlayState->roomCtx.curRoom.num != gSaveContext.ship.stats.sceneTimestamps[idx].room;
+        OoT_gPlayState->sceneNum == gSaveContext.ship.stats.sceneTimestamps[idx].scene &&
+        OoT_gPlayState->roomCtx.curRoom.num != gSaveContext.ship.stats.sceneTimestamps[idx].room;
     gSaveContext.ship.stats.tsIdx++;
     gSaveContext.ship.stats.roomNum = roomCtx->curRoom.num;
     gSaveContext.ship.stats.roomTimer = 0;

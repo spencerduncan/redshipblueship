@@ -52,13 +52,13 @@ const ActorInit En_Horse_Normal_InitVars = {
     NULL,
 };
 
-static AnimationHeader* sAnimations[] = {
+static AnimationHeader* OoT_sAnimations[] = {
     &gHorseNormalIdleAnim,      &gHorseNormalWhinnyAnim,  &gHorseNormalRefuseAnim,
     &gHorseNormalRearingAnim,   &gHorseNormalWalkingAnim, &gHorseNormalTrottingAnim,
     &gHorseNormalGallopingAnim, &gHorseNormalJumpingAnim, &gHorseNormalJumpingHighAnim,
 };
 
-static ColliderCylinderInit sCylinderInit1 = {
+static ColliderCylinderInit OoT_sCylinderInit1 = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -78,7 +78,7 @@ static ColliderCylinderInit sCylinderInit1 = {
     { 40, 100, 0, { 0, 0, 0 } },
 };
 
-static ColliderCylinderInit sCylinderInit2 = {
+static ColliderCylinderInit OoT_sCylinderInit2 = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -98,7 +98,7 @@ static ColliderCylinderInit sCylinderInit2 = {
     { 60, 100, 0, { 0, 0, 0 } },
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[] = {
+static ColliderJntSphElementInit OoT_sJntSphElementsInit[] = {
     {
         {
             ELEMTYPE_UNK0,
@@ -112,7 +112,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit OoT_sJntSphInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -121,11 +121,11 @@ static ColliderJntSphInit sJntSphInit = {
         OC2_TYPE_1,
         COLSHAPE_JNTSPH,
     },
-    ARRAY_COUNT(sJntSphElementsInit),
-    sJntSphElementsInit,
+    ARRAY_COUNT(OoT_sJntSphElementsInit),
+    OoT_sJntSphElementsInit,
 };
 
-static CollisionCheckInfoInit sColChkInfoInit = { 10, 35, 100, MASS_HEAVY };
+static CollisionCheckInfoInit OoT_sColChkInfoInit = { 10, 35, 100, MASS_HEAVY };
 
 // Unused
 static EnHorseNormalUnkStruct1 D_80A6D428[] = {
@@ -151,8 +151,8 @@ void func_80A6B250(EnHorseNormal* this) {
 
     if (D_80A6D4C0[this->unk_200] < this->skin.skelAnime.curFrame &&
         ((this->unk_200 != 0) || !(D_80A6D4C0[1] < this->skin.skelAnime.curFrame))) {
-        Audio_PlaySoundGeneral(NA_SE_EV_HORSE_WALK, &this->actor.projectedPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_EV_HORSE_WALK, &this->actor.projectedPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         this->unk_200++;
         if (this->unk_200 >= ARRAY_COUNT(D_80A6D4C0)) {
             this->unk_200 = 0;
@@ -177,7 +177,7 @@ f32 func_80A6B30C(EnHorseNormal* this) {
     return result;
 }
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(uncullZoneScale, 1200, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneDownward, 300, ICHAIN_STOP),
 };
@@ -186,49 +186,49 @@ void EnHorseNormal_Init(Actor* thisx, PlayState* play) {
     EnHorseNormal* this = (EnHorseNormal*)thisx;
     s32 pad;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    Actor_SetScale(&this->actor, 0.01f);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
+    OoT_Actor_SetScale(&this->actor, 0.01f);
     this->actor.gravity = -3.5f;
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawHorse, 20.0f);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawHorse, 20.0f);
     this->actor.speedXZ = 0.0f;
     this->actor.focus.pos = this->actor.world.pos;
     this->actor.focus.pos.y += 70.0f;
     this->action = HORSE_CYCLE_ANIMATIONS;
     this->animationIdx = 0;
-    Collider_InitCylinder(play, &this->bodyCollider);
-    Collider_SetCylinder(play, &this->bodyCollider, &this->actor, &sCylinderInit1);
-    Collider_InitJntSph(play, &this->headCollider);
-    Collider_SetJntSph(play, &this->headCollider, &this->actor, &sJntSphInit, this->headElements);
-    Collider_InitCylinder(play, &this->cloneCollider);
-    Collider_SetCylinder(play, &this->cloneCollider, &this->actor, &sCylinderInit2);
-    CollisionCheck_SetInfo(&this->actor.colChkInfo, NULL, &sColChkInfoInit);
+    OoT_Collider_InitCylinder(play, &this->bodyCollider);
+    OoT_Collider_SetCylinder(play, &this->bodyCollider, &this->actor, &OoT_sCylinderInit1);
+    OoT_Collider_InitJntSph(play, &this->headCollider);
+    OoT_Collider_SetJntSph(play, &this->headCollider, &this->actor, &OoT_sJntSphInit, this->headElements);
+    OoT_Collider_InitCylinder(play, &this->cloneCollider);
+    OoT_Collider_SetCylinder(play, &this->cloneCollider, &this->actor, &OoT_sCylinderInit2);
+    OoT_CollisionCheck_SetInfo(&this->actor.colChkInfo, NULL, &OoT_sColChkInfoInit);
     if (play->sceneNum == SCENE_LON_LON_RANCH) {
         if (this->actor.world.rot.z == 0 || !IS_DAY) {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
             return;
         }
         if (!LINK_IS_ADULT) {
-            if (Flags_GetEventChkInf(EVENTCHKINF_TALON_RETURNED_FROM_CASTLE)) {
+            if (OoT_Flags_GetEventChkInf(EVENTCHKINF_TALON_RETURNED_FROM_CASTLE)) {
                 if (this->actor.world.rot.z != 3) {
-                    Actor_Kill(&this->actor);
+                    OoT_Actor_Kill(&this->actor);
                     return;
                 }
             } else if (this->actor.world.rot.z != 1) {
-                Actor_Kill(&this->actor);
+                OoT_Actor_Kill(&this->actor);
                 return;
             }
-        } else if (Flags_GetEventChkInf(EVENTCHKINF_EPONA_OBTAINED) || (DREG(1) != 0)) {
+        } else if (OoT_Flags_GetEventChkInf(EVENTCHKINF_EPONA_OBTAINED) || (DREG(1) != 0)) {
             if (this->actor.world.rot.z != 7) {
-                Actor_Kill(&this->actor);
+                OoT_Actor_Kill(&this->actor);
                 return;
             }
         } else if (this->actor.world.rot.z != 5) {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
             return;
         }
         this->actor.home.rot.z = this->actor.world.rot.z = this->actor.shape.rot.z = 0;
-        Skin_Init(play, &this->skin, &gHorseNormalSkel, &gHorseNormalIdleAnim);
-        Animation_PlayOnce(&this->skin.skelAnime, sAnimations[this->animationIdx]);
+        OoT_Skin_Init(play, &this->skin, &gHorseNormalSkel, &gHorseNormalIdleAnim);
+        OoT_Animation_PlayOnce(&this->skin.skelAnime, OoT_sAnimations[this->animationIdx]);
         if ((this->actor.world.pos.x == -730.0f && this->actor.world.pos.y == 0.0f &&
              this->actor.world.pos.z == -1100.0f) ||
             (this->actor.world.pos.x == 880.0f && this->actor.world.pos.y == 0.0f &&
@@ -238,27 +238,27 @@ void EnHorseNormal_Init(Actor* thisx, PlayState* play) {
         }
     } else if (play->sceneNum == SCENE_STABLE) {
         if (IS_DAY) {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
             return;
         } else {
-            Skin_Init(play, &this->skin, &gHorseNormalSkel, &gHorseNormalIdleAnim);
-            Animation_PlayOnce(&this->skin.skelAnime, sAnimations[this->animationIdx]);
+            OoT_Skin_Init(play, &this->skin, &gHorseNormalSkel, &gHorseNormalIdleAnim);
+            OoT_Animation_PlayOnce(&this->skin.skelAnime, OoT_sAnimations[this->animationIdx]);
             func_80A6C6B0(this);
             return;
         }
     } else if (play->sceneNum == SCENE_GERUDOS_FORTRESS) {
         if (this->actor.world.pos.x == 3707.0f && this->actor.world.pos.y == 1413.0f &&
             this->actor.world.pos.z == -665.0f) {
-            Skin_Init(play, &this->skin, &gHorseNormalSkel, &gHorseNormalIdleAnim);
-            Animation_PlayOnce(&this->skin.skelAnime, sAnimations[this->animationIdx]);
+            OoT_Skin_Init(play, &this->skin, &gHorseNormalSkel, &gHorseNormalIdleAnim);
+            OoT_Animation_PlayOnce(&this->skin.skelAnime, OoT_sAnimations[this->animationIdx]);
             func_80A6C4CC(this);
             return;
         }
-        Skin_Init(play, &this->skin, &gHorseNormalSkel, &gHorseNormalIdleAnim);
-        Animation_PlayOnce(&this->skin.skelAnime, sAnimations[this->animationIdx]);
+        OoT_Skin_Init(play, &this->skin, &gHorseNormalSkel, &gHorseNormalIdleAnim);
+        OoT_Animation_PlayOnce(&this->skin.skelAnime, OoT_sAnimations[this->animationIdx]);
     } else {
-        Skin_Init(play, &this->skin, &gHorseNormalSkel, &gHorseNormalIdleAnim);
-        Animation_PlayOnce(&this->skin.skelAnime, sAnimations[this->animationIdx]);
+        OoT_Skin_Init(play, &this->skin, &gHorseNormalSkel, &gHorseNormalIdleAnim);
+        OoT_Animation_PlayOnce(&this->skin.skelAnime, OoT_sAnimations[this->animationIdx]);
     }
     if ((this->actor.params & 0xF0) == 0x10 && (this->actor.params & 0xF) != 0xF) {
         func_80A6B91C(this, play);
@@ -270,10 +270,10 @@ void EnHorseNormal_Init(Actor* thisx, PlayState* play) {
 void EnHorseNormal_Destroy(Actor* thisx, PlayState* play) {
     EnHorseNormal* this = (EnHorseNormal*)thisx;
 
-    Skin_Free(play, &this->skin);
-    Collider_DestroyCylinder(play, &this->bodyCollider);
-    Collider_DestroyCylinder(play, &this->cloneCollider);
-    Collider_DestroyJntSph(play, &this->headCollider);
+    OoT_Skin_Free(play, &this->skin);
+    OoT_Collider_DestroyCylinder(play, &this->bodyCollider);
+    OoT_Collider_DestroyCylinder(play, &this->cloneCollider);
+    OoT_Collider_DestroyJntSph(play, &this->headCollider);
 }
 
 void func_80A6B91C(EnHorseNormal* this, PlayState* play) {
@@ -282,8 +282,8 @@ void func_80A6B91C(EnHorseNormal* this, PlayState* play) {
     this->animationIdx = 6;
     this->waypoint = 0;
     this->actor.speedXZ = 7.0f;
-    Animation_Change(&this->skin.skelAnime, sAnimations[this->animationIdx], func_80A6B30C(this), 0.0f,
-                     Animation_GetLastFrame(sAnimations[this->animationIdx]), ANIMMODE_ONCE, 0.0f);
+    OoT_Animation_Change(&this->skin.skelAnime, OoT_sAnimations[this->animationIdx], func_80A6B30C(this), 0.0f,
+                     OoT_Animation_GetLastFrame(OoT_sAnimations[this->animationIdx]), ANIMMODE_ONCE, 0.0f);
 }
 
 void EnHorseNormal_FollowPath(EnHorseNormal* this, PlayState* play) {
@@ -296,7 +296,7 @@ void EnHorseNormal_FollowPath(EnHorseNormal* this, PlayState* play) {
     pointPos += this->waypoint;
     dx = pointPos->x - this->actor.world.pos.x;
     dz = pointPos->z - this->actor.world.pos.z;
-    Math_SmoothStepToS(&this->actor.world.rot.y, Math_FAtan2F(dx, dz) * (0x8000 / M_PI), 0xA, 0x7D0, 1);
+    OoT_Math_SmoothStepToS(&this->actor.world.rot.y, OoT_Math_FAtan2F(dx, dz) * (0x8000 / M_PI), 0xA, 0x7D0, 1);
     this->actor.shape.rot.y = this->actor.world.rot.y;
     if (SQ(dx) + SQ(dz) < 600.0f) {
         this->waypoint++;
@@ -305,9 +305,9 @@ void EnHorseNormal_FollowPath(EnHorseNormal* this, PlayState* play) {
         }
     }
     this->skin.skelAnime.playSpeed = func_80A6B30C(this);
-    if (SkelAnime_Update(&this->skin.skelAnime)) {
-        Animation_Change(&this->skin.skelAnime, sAnimations[this->animationIdx], func_80A6B30C(this), 0.0f,
-                         Animation_GetLastFrame(sAnimations[this->animationIdx]), ANIMMODE_ONCE, 0.0f);
+    if (OoT_SkelAnime_Update(&this->skin.skelAnime)) {
+        OoT_Animation_Change(&this->skin.skelAnime, OoT_sAnimations[this->animationIdx], func_80A6B30C(this), 0.0f,
+                         OoT_Animation_GetLastFrame(OoT_sAnimations[this->animationIdx]), ANIMMODE_ONCE, 0.0f);
         func_80A6BCEC(this);
     }
 }
@@ -316,17 +316,17 @@ void EnHorseNormal_NextAnimation(EnHorseNormal* this) {
     this->action = HORSE_CYCLE_ANIMATIONS;
     this->animationIdx++;
 
-    if (this->animationIdx >= ARRAY_COUNT(sAnimations)) {
+    if (this->animationIdx >= ARRAY_COUNT(OoT_sAnimations)) {
         this->animationIdx = 0;
     }
 
-    Animation_PlayOnce(&this->skin.skelAnime, sAnimations[this->animationIdx]);
+    OoT_Animation_PlayOnce(&this->skin.skelAnime, OoT_sAnimations[this->animationIdx]);
 }
 
 void EnHorseNormal_CycleAnimations(EnHorseNormal* this, PlayState* play) {
     this->actor.speedXZ = 0.0f;
 
-    if (SkelAnime_Update(&this->skin.skelAnime)) {
+    if (OoT_SkelAnime_Update(&this->skin.skelAnime)) {
         EnHorseNormal_NextAnimation(this);
     }
 }
@@ -338,17 +338,17 @@ void func_80A6BC48(EnHorseNormal* this) {
     this->unk_21E = 0;
     this->actor.speedXZ = 0.0f;
     this->unk_218 = 0.0f;
-    Animation_Change(&this->skin.skelAnime, sAnimations[this->animationIdx], func_80A6B30C(this), 0.0f,
-                     Animation_GetLastFrame(sAnimations[this->animationIdx]), ANIMMODE_ONCE, 0.0f);
+    OoT_Animation_Change(&this->skin.skelAnime, OoT_sAnimations[this->animationIdx], func_80A6B30C(this), 0.0f,
+                     OoT_Animation_GetLastFrame(OoT_sAnimations[this->animationIdx]), ANIMMODE_ONCE, 0.0f);
 }
 
 void func_80A6BCEC(EnHorseNormal* this) {
     if (this->animationIdx == 5) {
-        Audio_PlaySoundGeneral(NA_SE_EV_HORSE_RUN, &this->actor.projectedPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_EV_HORSE_RUN, &this->actor.projectedPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     } else if (this->animationIdx == 6) {
-        Audio_PlaySoundGeneral(NA_SE_EV_HORSE_RUN, &this->actor.projectedPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_EV_HORSE_RUN, &this->actor.projectedPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     }
 }
 
@@ -357,12 +357,12 @@ void func_80A6BD7C(EnHorseNormal* this) {
 
     if (this->animationIdx == 0 && frame > 28.0f && !(this->unk_1E4 & 1)) {
         this->unk_1E4 |= 1;
-        Audio_PlaySoundGeneral(NA_SE_EV_HORSE_SANDDUST, &this->actor.projectedPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_EV_HORSE_SANDDUST, &this->actor.projectedPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     } else if (this->animationIdx == 3 && frame > 25.0f && !(this->unk_1E4 & 2)) {
         this->unk_1E4 |= 2;
-        Audio_PlaySoundGeneral(NA_SE_EV_HORSE_LAND2, &this->actor.projectedPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_EV_HORSE_LAND2, &this->actor.projectedPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     }
 }
 
@@ -379,8 +379,8 @@ void EnHorseNormal_Wander(EnHorseNormal* this, PlayState* play) {
             this->unk_218 = 0.0f;
             break;
         case 1:
-            if (Rand_ZeroOne() < 0.1f) {
-                this->unk_218 = 2.0f * Rand_ZeroOne() - 1.0f;
+            if (OoT_Rand_ZeroOne() < 0.1f) {
+                this->unk_218 = 2.0f * OoT_Rand_ZeroOne() - 1.0f;
             }
             this->actor.speedXZ += this->unk_218;
             if (this->actor.speedXZ <= 0.0f) {
@@ -398,10 +398,10 @@ void EnHorseNormal_Wander(EnHorseNormal* this, PlayState* play) {
                 this->actor.speedXZ = 8.0f;
                 phi_t0 = 6;
             }
-            if (Rand_ZeroOne() < 0.1f || (this->unk_21E == 0 && ((this->actor.bgCheckFlags & 8) ||
+            if (OoT_Rand_ZeroOne() < 0.1f || (this->unk_21E == 0 && ((this->actor.bgCheckFlags & 8) ||
                                                                  (this->bodyCollider.base.ocFlags1 & OC1_HIT) ||
                                                                  (this->headCollider.base.ocFlags1 & OC1_HIT)))) {
-                this->unk_21E += (Rand_ZeroOne() * 30.0f) - 15.0f;
+                this->unk_21E += (OoT_Rand_ZeroOne() * 30.0f) - 15.0f;
                 if (this->unk_21E > 50) {
                     this->unk_21E = 50;
                 } else if (this->unk_21E < -50) {
@@ -413,7 +413,7 @@ void EnHorseNormal_Wander(EnHorseNormal* this, PlayState* play) {
                 this->unk_21C = -300;
             } else if (this->unk_21C > 300) {
                 this->unk_21C = 300;
-            } else if (Rand_ZeroOne() < 0.25f && fabsf(this->unk_21C) < 100.0f) {
+            } else if (OoT_Rand_ZeroOne() < 0.25f && fabsf(this->unk_21C) < 100.0f) {
                 this->unk_21C = 0;
                 this->unk_21E = 0;
             }
@@ -425,30 +425,30 @@ void EnHorseNormal_Wander(EnHorseNormal* this, PlayState* play) {
             break;
     }
 
-    if (phi_t0 != this->animationIdx || SkelAnime_Update(&this->skin.skelAnime)) {
+    if (phi_t0 != this->animationIdx || OoT_SkelAnime_Update(&this->skin.skelAnime)) {
         if (phi_t0 != this->animationIdx) {
             this->animationIdx = phi_t0;
             this->unk_1E4 &= ~1;
             this->unk_1E4 &= ~2;
             if (phi_t0 == 1) {
-                Audio_PlaySoundGeneral(NA_SE_EV_HORSE_GROAN, &this->unk_204, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_EV_HORSE_GROAN, &this->unk_204, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             } else if (phi_t0 == 3) {
-                Audio_PlaySoundGeneral(NA_SE_EV_HORSE_NEIGH, &this->unk_204, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_EV_HORSE_NEIGH, &this->unk_204, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             } else {
                 func_80A6BCEC(this);
             }
-            Animation_Change(&this->skin.skelAnime, sAnimations[this->animationIdx], func_80A6B30C(this), 0.0f,
-                             Animation_GetLastFrame(sAnimations[this->animationIdx]), ANIMMODE_ONCE, -3.0f);
+            OoT_Animation_Change(&this->skin.skelAnime, OoT_sAnimations[this->animationIdx], func_80A6B30C(this), 0.0f,
+                             OoT_Animation_GetLastFrame(OoT_sAnimations[this->animationIdx]), ANIMMODE_ONCE, -3.0f);
         } else {
             switch (D_80A6D510[this->animationIdx]) {
                 case 0:
-                    if (Rand_ZeroOne() < 0.25f) {
+                    if (OoT_Rand_ZeroOne() < 0.25f) {
                         this->unk_218 = 1.0f;
                         phi_t0 = 4;
                     } else {
-                        phi_t0 = D_80A6D4F4[(s32)(Rand_ZeroOne() * 2)];
+                        phi_t0 = D_80A6D4F4[(s32)(OoT_Rand_ZeroOne() * 2)];
                         this->actor.speedXZ = 0.0f;
                         this->unk_218 = 0.0f;
                     }
@@ -462,21 +462,21 @@ void EnHorseNormal_Wander(EnHorseNormal* this, PlayState* play) {
             this->unk_1E4 &= ~1;
             this->unk_1E4 &= ~2;
             if (phi_t0 == 1) {
-                Audio_PlaySoundGeneral(NA_SE_EV_HORSE_GROAN, &this->unk_204, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_EV_HORSE_GROAN, &this->unk_204, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             } else if (phi_t0 == 3) {
-                Audio_PlaySoundGeneral(NA_SE_EV_HORSE_NEIGH, &this->unk_204, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_EV_HORSE_NEIGH, &this->unk_204, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             } else {
                 func_80A6BCEC(this);
             }
             if (phi_t0 != this->animationIdx) {
                 this->animationIdx = phi_t0;
-                Animation_Change(&this->skin.skelAnime, sAnimations[this->animationIdx], func_80A6B30C(this), 0.0f,
-                                 Animation_GetLastFrame(sAnimations[this->animationIdx]), ANIMMODE_ONCE, -3.0f);
+                OoT_Animation_Change(&this->skin.skelAnime, OoT_sAnimations[this->animationIdx], func_80A6B30C(this), 0.0f,
+                                 OoT_Animation_GetLastFrame(OoT_sAnimations[this->animationIdx]), ANIMMODE_ONCE, -3.0f);
             } else {
-                Animation_Change(&this->skin.skelAnime, sAnimations[this->animationIdx], func_80A6B30C(this), 0.0f,
-                                 Animation_GetLastFrame(sAnimations[this->animationIdx]), ANIMMODE_ONCE, 0.0f);
+                OoT_Animation_Change(&this->skin.skelAnime, OoT_sAnimations[this->animationIdx], func_80A6B30C(this), 0.0f,
+                                 OoT_Animation_GetLastFrame(OoT_sAnimations[this->animationIdx]), ANIMMODE_ONCE, 0.0f);
             }
         }
     }
@@ -489,28 +489,28 @@ void func_80A6C4CC(EnHorseNormal* this) {
     this->unk_21E = 0;
     this->actor.speedXZ = 0.0f;
     this->unk_218 = 0.0f;
-    Animation_Change(&this->skin.skelAnime, sAnimations[this->animationIdx], func_80A6B30C(this), 0.0f,
-                     Animation_GetLastFrame(sAnimations[this->animationIdx]), ANIMMODE_ONCE, 0.0f);
+    OoT_Animation_Change(&this->skin.skelAnime, OoT_sAnimations[this->animationIdx], func_80A6B30C(this), 0.0f,
+                     OoT_Animation_GetLastFrame(OoT_sAnimations[this->animationIdx]), ANIMMODE_ONCE, 0.0f);
 }
 
 void EnHorseNormal_Wait(EnHorseNormal* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skin.skelAnime)) {
-        f32 rand = Rand_ZeroOne();
+    if (OoT_SkelAnime_Update(&this->skin.skelAnime)) {
+        f32 rand = OoT_Rand_ZeroOne();
 
         if (rand < 0.4f) {
             this->animationIdx = 0;
         } else if (rand < 0.8f) {
             this->animationIdx = 1;
-            Audio_PlaySoundGeneral(NA_SE_EV_HORSE_GROAN, &this->unk_204, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_EV_HORSE_GROAN, &this->unk_204, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         } else {
             this->animationIdx = 3;
-            Audio_PlaySoundGeneral(NA_SE_EV_HORSE_NEIGH, &this->unk_204, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_EV_HORSE_NEIGH, &this->unk_204, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         }
 
-        Animation_Change(&this->skin.skelAnime, sAnimations[this->animationIdx], func_80A6B30C(this), 0.0f,
-                         Animation_GetLastFrame(sAnimations[this->animationIdx]), ANIMMODE_ONCE, 0.0f);
+        OoT_Animation_Change(&this->skin.skelAnime, OoT_sAnimations[this->animationIdx], func_80A6B30C(this), 0.0f,
+                         OoT_Animation_GetLastFrame(OoT_sAnimations[this->animationIdx]), ANIMMODE_ONCE, 0.0f);
     }
 }
 
@@ -522,32 +522,32 @@ void func_80A6C6B0(EnHorseNormal* this) {
     this->actor.flags |= ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED;
     this->actor.speedXZ = 0.0f;
     this->unk_218 = 0.0f;
-    Animation_Change(&this->skin.skelAnime, sAnimations[this->animationIdx], func_80A6B30C(this), 0.0f,
-                     Animation_GetLastFrame(sAnimations[this->animationIdx]), ANIMMODE_ONCE, 0.0f);
+    OoT_Animation_Change(&this->skin.skelAnime, OoT_sAnimations[this->animationIdx], func_80A6B30C(this), 0.0f,
+                     OoT_Animation_GetLastFrame(OoT_sAnimations[this->animationIdx]), ANIMMODE_ONCE, 0.0f);
 }
 
 void EnHorseNormal_WaitClone(EnHorseNormal* this, PlayState* play) {
     func_80A6BD7C(this);
 
-    if (SkelAnime_Update(&this->skin.skelAnime)) {
-        f32 rand = Rand_ZeroOne();
+    if (OoT_SkelAnime_Update(&this->skin.skelAnime)) {
+        f32 rand = OoT_Rand_ZeroOne();
 
         if (rand < 0.4f) {
             this->animationIdx = 0;
         } else if (rand < 0.8f) {
             this->animationIdx = 1;
             this->unk_1E4 |= 0x20;
-            Audio_PlaySoundGeneral(NA_SE_EV_HORSE_GROAN, &this->unk_204, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_EV_HORSE_GROAN, &this->unk_204, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         } else {
             this->animationIdx = 3;
             this->unk_1E4 |= 0x20;
-            Audio_PlaySoundGeneral(NA_SE_EV_HORSE_NEIGH, &this->unk_204, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_EV_HORSE_NEIGH, &this->unk_204, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         }
 
-        Animation_Change(&this->skin.skelAnime, sAnimations[this->animationIdx], func_80A6B30C(this), 0.0f,
-                         Animation_GetLastFrame(sAnimations[this->animationIdx]), ANIMMODE_ONCE, 0.0f);
+        OoT_Animation_Change(&this->skin.skelAnime, OoT_sAnimations[this->animationIdx], func_80A6B30C(this), 0.0f,
+                         OoT_Animation_GetLastFrame(OoT_sAnimations[this->animationIdx]), ANIMMODE_ONCE, 0.0f);
 
         this->unk_1E4 &= ~1;
         this->unk_1E4 &= ~2;
@@ -563,14 +563,14 @@ void func_80A6C8E0(EnHorseNormal* this, PlayState* play) {
     Vec3f sp28;
     s32 sp24;
 
-    sp28.x = (Math_SinS(this->actor.shape.rot.y) * 30.0f) + this->actor.world.pos.x;
+    sp28.x = (OoT_Math_SinS(this->actor.shape.rot.y) * 30.0f) + this->actor.world.pos.x;
     sp28.y = this->actor.world.pos.y + 60.0f;
-    sp28.z = (Math_CosS(this->actor.shape.rot.y) * 30.0f) + this->actor.world.pos.z;
-    this->unk_220 = BgCheck_EntityRaycastFloor3(&play->colCtx, &sp38, &sp24, &sp28);
-    this->actor.shape.rot.x = Math_FAtan2F(this->actor.world.pos.y - this->unk_220, 30.0f) * (0x8000 / M_PI);
+    sp28.z = (OoT_Math_CosS(this->actor.shape.rot.y) * 30.0f) + this->actor.world.pos.z;
+    this->unk_220 = OoT_BgCheck_EntityRaycastFloor3(&play->colCtx, &sp38, &sp24, &sp28);
+    this->actor.shape.rot.x = OoT_Math_FAtan2F(this->actor.world.pos.y - this->unk_220, 30.0f) * (0x8000 / M_PI);
 }
 
-static EnHorseNormalActionFunc sActionFuncs[] = {
+static EnHorseNormalActionFunc OoT_sActionFuncs[] = {
     EnHorseNormal_CycleAnimations, EnHorseNormal_Wander,     EnHorseNormal_Wait,
     EnHorseNormal_WaitClone,       EnHorseNormal_FollowPath,
 };
@@ -579,9 +579,9 @@ void EnHorseNormal_Update(Actor* thisx, PlayState* play) {
     EnHorseNormal* this = (EnHorseNormal*)thisx;
     s32 pad;
 
-    sActionFuncs[this->action](this, play);
+    OoT_sActionFuncs[this->action](this, play);
     Actor_MoveXZGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 35.0f, 100.0f, 0x1D);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 35.0f, 100.0f, 0x1D);
     if (play->sceneNum == SCENE_LON_LON_RANCH && this->actor.world.pos.z < -2400.0f) {
         this->actor.world.pos.z = -2400.0f;
     }
@@ -589,8 +589,8 @@ void EnHorseNormal_Update(Actor* thisx, PlayState* play) {
     this->actor.focus.pos.y += 70.0f;
     this->unk_204 = this->actor.projectedPos;
     this->unk_204.y += 120.0f;
-    Collider_UpdateCylinder(&this->actor, &this->bodyCollider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->bodyCollider.base);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->bodyCollider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->bodyCollider.base);
     if (this->actor.speedXZ == 0.0f) {
         this->actor.colChkInfo.mass = MASS_IMMOVABLE;
     } else {
@@ -608,7 +608,7 @@ void EnHorseNormal_PostDraw(Actor* thisx, PlayState* play, Skin* skin) {
         sp4C.x = this->headCollider.elements[i].dim.modelSphere.center.x;
         sp4C.y = this->headCollider.elements[i].dim.modelSphere.center.y;
         sp4C.z = this->headCollider.elements[i].dim.modelSphere.center.z;
-        Skin_GetLimbPos(skin, this->headCollider.elements[i].dim.limb, &sp4C, &sp40);
+        OoT_Skin_GetLimbPos(skin, this->headCollider.elements[i].dim.limb, &sp4C, &sp40);
         this->headCollider.elements[i].dim.worldSphere.center.x = sp40.x;
         this->headCollider.elements[i].dim.worldSphere.center.y = sp40.y;
         this->headCollider.elements[i].dim.worldSphere.center.z = sp40.z;
@@ -617,33 +617,33 @@ void EnHorseNormal_PostDraw(Actor* thisx, PlayState* play, Skin* skin) {
     }
 
     //! @bug see relevant comment in `EnHorse_SkinCallback1`
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->headCollider.base);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->headCollider.base);
 }
 
 void func_80A6CC88(PlayState* play, EnHorseNormal* this, Vec3f* arg2) {
     f32 curFrame = this->skin.skelAnime.curFrame;
     f32 wDest;
 
-    SkinMatrix_Vec3fMtxFMultXYZW(&play->viewProjectionMtxF, arg2, &this->unk_1E8, &wDest);
+    OoT_SkinMatrix_Vec3fMtxFMultXYZW(&play->viewProjectionMtxF, arg2, &this->unk_1E8, &wDest);
     this->unk_1F4 = this->unk_1E8;
     this->unk_1F4.y += 120.0f;
 
     if (this->animationIdx == 0 && curFrame > 28.0f && !(this->unk_1E4 & 8)) {
         this->unk_1E4 |= 8;
-        Audio_PlaySoundGeneral(NA_SE_EV_HORSE_SANDDUST, &this->unk_1E8, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_EV_HORSE_SANDDUST, &this->unk_1E8, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     } else if (this->animationIdx == 3 && curFrame > 25.0f && !(this->unk_1E4 & 0x10)) {
         this->unk_1E4 |= 0x10;
-        Audio_PlaySoundGeneral(NA_SE_EV_HORSE_LAND2, &this->unk_1E8, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_EV_HORSE_LAND2, &this->unk_1E8, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     } else if (this->animationIdx == 3 && this->unk_1E4 & 0x20) {
         this->unk_1E4 &= ~0x20;
-        Audio_PlaySoundGeneral(NA_SE_EV_HORSE_NEIGH, &this->unk_1F4, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_EV_HORSE_NEIGH, &this->unk_1F4, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     } else if (this->animationIdx == 1 && this->unk_1E4 & 0x20) {
         this->unk_1E4 &= ~0x20;
-        Audio_PlaySoundGeneral(NA_SE_EV_HORSE_GROAN, &this->unk_1F4, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_EV_HORSE_GROAN, &this->unk_1F4, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     }
 }
 
@@ -701,7 +701,7 @@ void EnHorseNormal_Draw(Actor* thisx, PlayState* play) {
                                               this->actor.shape.rot.x, cloneRotY, this->actor.shape.rot.z, clonePos.x,
                                               (this->actor.shape.yOffset * this->actor.scale.y) + clonePos.y,
                                               clonePos.z);
-        mtx1 = SkinMatrix_MtxFToNewMtx(play->state.gfxCtx, &skinMtx);
+        mtx1 = OoT_SkinMatrix_MtxFToNewMtx(play->state.gfxCtx, &skinMtx);
         if (mtx1 == NULL) {
             return;
         }
@@ -712,12 +712,12 @@ void EnHorseNormal_Draw(Actor* thisx, PlayState* play) {
         this->cloneCollider.dim.pos.x = clonePos.x;
         this->cloneCollider.dim.pos.y = clonePos.y;
         this->cloneCollider.dim.pos.z = clonePos.z;
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->cloneCollider.base);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->cloneCollider.base);
         Gfx_SetupDL_44Xlu(play->state.gfxCtx);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 0, 0, 0, 255);
-        Matrix_Translate(clonePos.x, clonePos.y, clonePos.z, MTXMODE_NEW);
+        OoT_Matrix_Translate(clonePos.x, clonePos.y, clonePos.z, MTXMODE_NEW);
         temp_f0_4 = (1.0f - (distFromGround * 0.01f)) * this->actor.shape.shadowScale;
-        Matrix_Scale(this->actor.scale.x * temp_f0_4, 1.0f, this->actor.scale.z * temp_f0_4, MTXMODE_APPLY);
+        OoT_Matrix_Scale(this->actor.scale.x * temp_f0_4, 1.0f, this->actor.scale.z * temp_f0_4, MTXMODE_APPLY);
         Matrix_RotateY(cloneRotY * (2.0f * M_PI / 0x10000), MTXMODE_APPLY);
         mtx2 = MATRIX_NEWMTX(play->state.gfxCtx);
         if (mtx2 != NULL) {

@@ -20,34 +20,34 @@
 
 #define PARAMS ((EffectSsEnFireInitParams*)initParamsx)
 
-u32 EffectSsEnFire_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsEnFire_Update(PlayState* play, u32 index, EffectSs* this);
-void EffectSsEnFire_Draw(PlayState* play, u32 index, EffectSs* this);
+u32 MM_EffectSsEnFire_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void MM_EffectSsEnFire_Update(PlayState* play, u32 index, EffectSs* this);
+void MM_EffectSsEnFire_Draw(PlayState* play, u32 index, EffectSs* this);
 
 EffectSsProfile Effect_Ss_En_Fire_Profile = {
     EFFECT_SS_EN_FIRE,
-    EffectSsEnFire_Init,
+    MM_EffectSsEnFire_Init,
 };
 
-u32 EffectSsEnFire_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 MM_EffectSsEnFire_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsEnFireInitParams* initParams = PARAMS;
 
-    Math_Vec3f_Copy(&this->pos, &initParams->pos);
-    Math_Vec3f_Copy(&this->velocity, &gZeroVec3f);
-    Math_Vec3f_Copy(&this->accel, &gZeroVec3f);
+    MM_Math_Vec3f_Copy(&this->pos, &initParams->pos);
+    MM_Math_Vec3f_Copy(&this->velocity, &gZeroVec3f);
+    MM_Math_Vec3f_Copy(&this->accel, &gZeroVec3f);
     this->life = 20;
     this->rLifespan = this->life;
     this->actor = initParams->actor;
-    this->rScroll = Rand_ZeroOne() * 20.0f;
-    this->draw = EffectSsEnFire_Draw;
-    this->update = EffectSsEnFire_Update;
+    this->rScroll = MM_Rand_ZeroOne() * 20.0f;
+    this->draw = MM_EffectSsEnFire_Draw;
+    this->update = MM_EffectSsEnFire_Update;
     this->rUnused = -15;
 
     if (initParams->bodyPart <= BODYPART_NONE) {
-        this->rYaw = Math_Vec3f_Yaw(&initParams->actor->world.pos, &initParams->pos) - initParams->actor->shape.rot.y;
+        this->rYaw = MM_Math_Vec3f_Yaw(&initParams->actor->world.pos, &initParams->pos) - initParams->actor->shape.rot.y;
         this->rPitch =
-            Math_Vec3f_Pitch(&initParams->actor->world.pos, &initParams->pos) - initParams->actor->shape.rot.x;
-        this->vec.z = Math_Vec3f_DistXYZ(&initParams->pos, &initParams->actor->world.pos);
+            MM_Math_Vec3f_Pitch(&initParams->actor->world.pos, &initParams->pos) - initParams->actor->shape.rot.x;
+        this->vec.z = MM_Math_Vec3f_DistXYZ(&initParams->pos, &initParams->actor->world.pos);
     }
 
     this->rScaleMax = initParams->scale;
@@ -65,7 +65,7 @@ u32 EffectSsEnFire_Init(PlayState* play, u32 index, EffectSs* this, void* initPa
     return 1;
 }
 
-void EffectSsEnFire_Draw(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsEnFire_Draw(PlayState* play, u32 index, EffectSs* this) {
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     f32 scale;
     s16 camYaw;
@@ -74,12 +74,12 @@ void EffectSsEnFire_Draw(PlayState* play, u32 index, EffectSs* this) {
 
     OPEN_DISPS(gfxCtx);
 
-    Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
-    camYaw = (Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) + 0x8000);
+    MM_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
+    camYaw = (MM_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) + 0x8000);
     Matrix_RotateYS(camYaw, MTXMODE_APPLY);
 
-    scale = Math_SinS(this->life * 0x333) * (this->rScale * 0.00005f);
-    Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+    scale = MM_Math_SinS(this->life * 0x333) * (this->rScale * 0.00005f);
+    MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
     redGreen = this->life - 5;
@@ -93,7 +93,7 @@ void EffectSsEnFire_Draw(PlayState* play, u32 index, EffectSs* this) {
     gDPSetPrimColor(POLY_XLU_DISP++, 0x0, 0x80, redGreen * 12.7f, redGreen * 12.7f, 0, 255);
     gSPSegment(
         POLY_XLU_DISP++, 0x08,
-        Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, (this->rScroll * -20) & 0x1FF, 0x20, 0x80));
+        MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, (this->rScroll * -20) & 0x1FF, 0x20, 0x80));
 
     if ((this->rFlags & 0x7FFF) || (this->life < 18)) {
         gSPDisplayList(POLY_XLU_DISP++, gEffFire2DL);
@@ -114,7 +114,7 @@ typedef struct {
     /* 0x14C */ Vec3s firePos[10];
 } FireActorS; // size = 0x180
 
-void EffectSsEnFire_Update(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsEnFire_Update(PlayState* play, u32 index, EffectSs* this) {
     this->rScroll++;
 
     if (this->actor != NULL) {
@@ -122,14 +122,14 @@ void EffectSsEnFire_Update(PlayState* play, u32 index, EffectSs* this) {
             this->life++;
         }
         if (this->actor->update != NULL) {
-            Math_SmoothStepToS(&this->rScale, this->rScaleMax, 1, this->rScaleMax >> 3, 0);
+            MM_Math_SmoothStepToS(&this->rScale, this->rScaleMax, 1, this->rScaleMax >> 3, 0);
 
             if (this->rBodyPart <= BODYPART_NONE) {
-                Matrix_Translate(this->actor->world.pos.x, this->actor->world.pos.y, this->actor->world.pos.z,
+                MM_Matrix_Translate(this->actor->world.pos.x, this->actor->world.pos.y, this->actor->world.pos.z,
                                  MTXMODE_NEW);
                 Matrix_RotateYS(this->rYaw + this->actor->shape.rot.y, MTXMODE_APPLY);
                 Matrix_RotateXS(this->rPitch + this->actor->shape.rot.x, MTXMODE_APPLY);
-                Matrix_MultVec3f(&this->vec, &this->pos);
+                MM_Matrix_MultVec3f(&this->vec, &this->pos);
             } else if (this->rFlags & ENFIRE_FLAGS_BODYPART_POS_VEC3S) {
                 this->pos.x = ((FireActorS*)this->actor)->firePos[this->rBodyPart].x;
                 this->pos.y = ((FireActorS*)this->actor)->firePos[this->rBodyPart].y;

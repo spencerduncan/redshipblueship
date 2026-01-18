@@ -1,6 +1,6 @@
 #include "global.h"
 
-void osDestroyThread(OSThread* thread) {
+void OoT_osDestroyThread(OSThread* thread) {
     register u32 prevInt = __osDisableInt();
     register OSThread* s1;
     register OSThread* s2;

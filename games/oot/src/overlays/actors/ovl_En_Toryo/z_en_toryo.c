@@ -34,7 +34,7 @@ const ActorInit En_Toryo_InitVars = {
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -54,9 +54,9 @@ static ColliderCylinderInit sCylinderInit = {
     { 18, 63, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 OoT_sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
 
-static DamageTable sDamageTable = {
+static DamageTable OoT_sDamageTable = {
     /* Deku nut      */ DMG_ENTRY(0, 0x0),
     /* Deku stick    */ DMG_ENTRY(0, 0x0),
     /* Slingshot     */ DMG_ENTRY(0, 0x0),
@@ -118,17 +118,17 @@ void EnToryo_Init(Actor* thisx, PlayState* play) {
     }
 
     if ((this->stateFlags & 7) == 0) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 42.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &object_toryo_Skel_007150, NULL, this->jointTable, this->morphTable, 17);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, &sDamageTable, &sColChkInfoInit);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
-    Animation_Change(&this->skelAnime, sEnToryoAnimation.animation, 1.0f, 0.0f,
-                     Animation_GetLastFrame(sEnToryoAnimation.animation), sEnToryoAnimation.mode,
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 42.0f);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &object_toryo_Skel_007150, NULL, this->jointTable, this->morphTable, 17);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
+    OoT_CollisionCheck_SetInfo2(&this->actor.colChkInfo, &OoT_sDamageTable, &OoT_sColChkInfoInit);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
+    OoT_Animation_Change(&this->skelAnime, sEnToryoAnimation.animation, 1.0f, 0.0f,
+                     OoT_Animation_GetLastFrame(sEnToryoAnimation.animation), sEnToryoAnimation.mode,
                      sEnToryoAnimation.morphFrames);
     this->stateFlags |= 8;
     this->actor.targetMode = 6;
@@ -138,7 +138,7 @@ void EnToryo_Init(Actor* thisx, PlayState* play) {
 void EnToryo_Destroy(Actor* thisx, PlayState* play) {
     EnToryo* this = (EnToryo*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
@@ -148,7 +148,7 @@ s32 func_80B203D8(EnToryo* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
     s32 ret = 1;
 
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (OoT_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_NONE:
         case TEXT_STATE_DONE_HAS_NEXT:
         case TEXT_STATE_CLOSING:
@@ -157,9 +157,9 @@ s32 func_80B203D8(EnToryo* this, PlayState* play) {
             ret = 1;
             break;
         case TEXT_STATE_CHOICE:
-            if (Message_ShouldAdvance(play)) {
+            if (OoT_Message_ShouldAdvance(play)) {
                 if (play->msgCtx.choiceIndex == 0) {
-                    Message_CloseTextbox(play);
+                    OoT_Message_CloseTextbox(play);
                     this->actor.parent = NULL;
                     player->exchangeItemId = EXCH_ITEM_NONE;
                     play->msgCtx.msgMode = MSGMODE_PAUSED;
@@ -175,28 +175,28 @@ s32 func_80B203D8(EnToryo* this, PlayState* play) {
             switch (this->actor.textId) {
                 case 0x5028:
                     ret = 1;
-                    if (Message_ShouldAdvance(play)) {
-                        Flags_SetInfTable(INFTABLE_172);
+                    if (OoT_Message_ShouldAdvance(play)) {
+                        OoT_Flags_SetInfTable(INFTABLE_172);
                         ret = 0;
                     }
                     break;
                 case 0x601B:
                     ret = 1;
-                    if (Message_ShouldAdvance(play)) {
+                    if (OoT_Message_ShouldAdvance(play)) {
                         ret = 4;
                     }
                     break;
                 case 0x606F:
                     ret = 1;
-                    if (Message_ShouldAdvance(play)) {
-                        Flags_SetInfTable(INFTABLE_171);
+                    if (OoT_Message_ShouldAdvance(play)) {
+                        OoT_Flags_SetInfTable(INFTABLE_171);
                         ret = 0;
                     }
                     break;
                 case 0x606A:
                     ret = 1;
-                    if (Message_ShouldAdvance(play)) {
-                        Flags_SetInfTable(INFTABLE_170);
+                    if (OoT_Message_ShouldAdvance(play)) {
+                        OoT_Flags_SetInfTable(INFTABLE_170);
                         ret = 0;
                     }
                     break;
@@ -206,7 +206,7 @@ s32 func_80B203D8(EnToryo* this, PlayState* play) {
                 case 0x606E:
                 default:
                     ret = 1;
-                    if (Message_ShouldAdvance(play)) {
+                    if (OoT_Message_ShouldAdvance(play)) {
                         ret = 0;
                     }
                     break;
@@ -221,7 +221,7 @@ s32 func_80B205CC(EnToryo* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
     s32 ret = 5;
 
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (OoT_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_NONE:
         case TEXT_STATE_DONE_HAS_NEXT:
         case TEXT_STATE_CLOSING:
@@ -231,7 +231,7 @@ s32 func_80B205CC(EnToryo* this, PlayState* play) {
             ret = 5;
             break;
         case TEXT_STATE_DONE:
-            if (Message_ShouldAdvance(play)) {
+            if (OoT_Message_ShouldAdvance(play)) {
                 ret = 0;
             }
             break;
@@ -245,7 +245,7 @@ u32 func_80B20634(EnToryo* this, PlayState* play) {
     if (this->unk_1E0 != 0) {
         if (this->unk_1E0 == 10) {
             Sfx_PlaySfxCentered(NA_SE_SY_TRE_BOX_APPEAR);
-            if (Flags_GetInfTable(INFTABLE_171)) {
+            if (OoT_Flags_GetInfTable(INFTABLE_171)) {
                 ret = 0x606E;
             } else {
                 ret = 0x606D;
@@ -259,20 +259,20 @@ u32 func_80B20634(EnToryo* this, PlayState* play) {
 }
 
 s32 func_80B206A0(EnToryo* this, PlayState* play) {
-    s32 textId = Text_GetFaceReaction(play, 0);
+    s32 textId = OoT_Text_GetFaceReaction(play, 0);
     s32 ret = textId;
 
     if (textId == 0) {
         if ((this->stateFlags & 1)) {
             if (GET_EVENTCHKINF_CARPENTERS_FREE_ALL()) {
                 ret = 0x606C;
-            } else if ((Flags_GetInfTable(INFTABLE_170))) {
+            } else if ((OoT_Flags_GetInfTable(INFTABLE_170))) {
                 ret = 0x606B;
             } else {
                 ret = 0x606A;
             }
         } else if ((this->stateFlags & 2)) {
-            if ((Flags_GetInfTable(INFTABLE_172))) {
+            if ((OoT_Flags_GetInfTable(INFTABLE_172))) {
                 ret = 0x5029;
             } else {
                 ret = 0x5028;
@@ -294,7 +294,7 @@ void func_80B20768(EnToryo* this, PlayState* play) {
 
     if (this->unk_1E4 == 3 && !GameInteractor_Should(VB_FIX_SAW_SOFTLOCK, false)) {
         Actor_ProcessTalkRequest(&this->actor, play);
-        Message_ContinueTextbox(play, this->actor.textId);
+        OoT_Message_ContinueTextbox(play, this->actor.textId);
         this->unk_1E4 = 1;
     }
 
@@ -308,17 +308,17 @@ void func_80B20768(EnToryo* this, PlayState* play) {
     }
 
     if (this->unk_1E4 == 2) {
-        Message_ContinueTextbox(play, this->actor.textId);
+        OoT_Message_ContinueTextbox(play, this->actor.textId);
         this->unk_1E4 = 1;
     }
 
     if (this->unk_1E4 == 4) {
-        if (Actor_HasParent(&this->actor, play) || !GameInteractor_Should(VB_TRADE_SAW, true, this)) {
+        if (OoT_Actor_HasParent(&this->actor, play) || !GameInteractor_Should(VB_TRADE_SAW, true, this)) {
             this->actor.parent = NULL;
             this->unk_1E4 = 5;
             Flags_SetRandomizerInf(RAND_INF_ADULT_TRADES_GV_TRADE_SAW);
         } else {
-            Actor_OfferGetItem(&this->actor, play, GI_SWORD_BROKEN, 100.0f, 10.0f);
+            OoT_Actor_OfferGetItem(&this->actor, play, GI_SWORD_BROKEN, 100.0f, 10.0f);
         }
         return;
     }
@@ -334,7 +334,7 @@ void func_80B20768(EnToryo* this, PlayState* play) {
             return;
         }
 
-        Actor_GetScreenPos(play, &this->actor, &sp32, &sp30);
+        OoT_Actor_GetScreenPos(play, &this->actor, &sp32, &sp30);
         if ((sp32 >= 0) && (sp32 < 0x141) && (sp30 >= 0) && (sp30 < 0xF1)) {
             this->actor.textId = func_80B206A0(this, play);
             func_8002F298(&this->actor, play, 100.0f, 10);
@@ -343,7 +343,7 @@ void func_80B20768(EnToryo* this, PlayState* play) {
 }
 
 void func_80B20914(EnToryo* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     func_80B20768(this, play);
     if (this->unk_1E4 != 0) {
         this->stateFlags |= 0x10;
@@ -358,8 +358,8 @@ void EnToryo_Update(Actor* thisx, PlayState* play) {
     Player* player = GET_PLAYER(play);
     f32 rot;
 
-    Collider_UpdateCylinder(thisx, collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, (Collider*)collider);
+    OoT_Collider_UpdateCylinder(thisx, collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, (Collider*)collider);
 
     this->actionFunc(this, play);
 
@@ -369,15 +369,15 @@ void EnToryo_Update(Actor* thisx, PlayState* play) {
         this->interactInfo.trackPos.z = player->actor.focus.pos.z;
 
         if ((this->stateFlags & 0x10)) {
-            Npc_TrackPoint(thisx, &this->interactInfo, 0, NPC_TRACKING_FULL_BODY);
+            OoT_Npc_TrackPoint(thisx, &this->interactInfo, 0, NPC_TRACKING_FULL_BODY);
             return;
         }
 
         rot = thisx->yawTowardsPlayer - thisx->shape.rot.y;
         if ((rot < 14563.0f) && (rot > -14563.0f)) {
-            Npc_TrackPoint(thisx, &this->interactInfo, 0, NPC_TRACKING_HEAD_AND_TORSO);
+            OoT_Npc_TrackPoint(thisx, &this->interactInfo, 0, NPC_TRACKING_HEAD_AND_TORSO);
         } else {
-            Npc_TrackPoint(thisx, &this->interactInfo, 0, NPC_TRACKING_NONE);
+            OoT_Npc_TrackPoint(thisx, &this->interactInfo, 0, NPC_TRACKING_NONE);
         }
     }
 }
@@ -412,7 +412,7 @@ void EnToryo_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* ro
 
     switch (limbIndex) {
         case 15:
-            Matrix_MultVec3f(&sMultVec, &this->actor.focus.pos);
+            OoT_Matrix_MultVec3f(&sMultVec, &this->actor.focus.pos);
             break;
     }
 }

@@ -35,11 +35,11 @@ void BgKeikokuSaku_Init(Actor* thisx, PlayState* play) {
     BgKeikokuSaku* this = (BgKeikokuSaku*)thisx;
     CollisionHeader* colHeader = NULL;
 
-    DynaPolyActor_Init(&this->dyna, 0);
-    CollisionHeader_GetVirtual(&object_keikoku_obj_Colheader_002300, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    MM_DynaPolyActor_Init(&this->dyna, 0);
+    MM_CollisionHeader_GetVirtual(&object_keikoku_obj_Colheader_002300, &colHeader);
+    this->dyna.bgId = MM_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
     this->switchFlag = BGKEIKOKUSAKU_GET_SWITCH_FLAG(thisx);
-    if (Flags_GetSwitch(play, this->switchFlag)) {
+    if (MM_Flags_GetSwitch(play, this->switchFlag)) {
         this->dyna.actor.world.pos.z = 2659.0f;
     } else {
         this->actionFunc = func_80A5389C;
@@ -49,11 +49,11 @@ void BgKeikokuSaku_Init(Actor* thisx, PlayState* play) {
 void BgKeikokuSaku_Destroy(Actor* thisx, PlayState* play) {
     BgKeikokuSaku* this = (BgKeikokuSaku*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_80A5389C(BgKeikokuSaku* this, PlayState* play) {
-    if (Flags_GetSwitch(play, this->switchFlag)) {
+    if (MM_Flags_GetSwitch(play, this->switchFlag)) {
         this->actionFunc = func_80A538E0;
     }
 }

@@ -4,7 +4,7 @@
 #include "soh/frame_interpolation.h"
 #include <assert.h>
 
-void EffectBlure_AddVertex(EffectBlure* this, Vec3f* p1, Vec3f* p2) {
+void OoT_EffectBlure_AddVertex(EffectBlure* this, Vec3f* p1, Vec3f* p2) {
     EffectBlureElement* elem;
     s32 numElements;
     Vec3f sp16C;
@@ -44,19 +44,19 @@ void EffectBlure_AddVertex(EffectBlure* this, Vec3f* p1, Vec3f* p2) {
             sp160.y = (p1->y + p2->y) * 0.5f;
             sp160.z = (p1->z + p2->z) * 0.5f;
 
-            Math_Vec3f_Diff(&sp160, &sp16C, &sp154);
-            scale = Math3D_Vec3fMagnitude(&sp154);
+            OoT_Math_Vec3f_Diff(&sp160, &sp16C, &sp154);
+            scale = OoT_Math3D_Vec3fMagnitude(&sp154);
             if (!(fabsf(scale) < 0.008f)) {
                 scale = 1.0f / scale;
-                Math_Vec3f_Scale(&sp154, scale);
+                OoT_Math_Vec3f_Scale(&sp154, scale);
 
-                SkinMatrix_SetTranslate(&sp110, sp160.x, sp160.y, sp160.z);
+                OoT_SkinMatrix_SetTranslate(&sp110, sp160.x, sp160.y, sp160.z);
                 SkinMatrix_SetRotateAxis(&spD0, this->addAngle, sp154.x, sp154.y, sp154.z);
-                SkinMatrix_MtxFMtxFMult(&sp110, &spD0, &sp90);
-                SkinMatrix_SetTranslate(&sp110, -sp160.x, -sp160.y, -sp160.z);
-                SkinMatrix_MtxFMtxFMult(&sp90, &sp110, &sp50);
-                SkinMatrix_Vec3fMtxFMultXYZ(&sp50, p1, &sp38);
-                SkinMatrix_Vec3fMtxFMultXYZ(&sp50, p2, &sp44);
+                OoT_SkinMatrix_MtxFMtxFMult(&sp110, &spD0, &sp90);
+                OoT_SkinMatrix_SetTranslate(&sp110, -sp160.x, -sp160.y, -sp160.z);
+                OoT_SkinMatrix_MtxFMtxFMult(&sp90, &sp110, &sp50);
+                OoT_SkinMatrix_Vec3fMtxFMultXYZ(&sp50, p1, &sp38);
+                OoT_SkinMatrix_Vec3fMtxFMultXYZ(&sp50, p2, &sp44);
 
                 elem->p1.x = sp38.x;
                 elem->p1.y = sp38.y;
@@ -77,7 +77,7 @@ void EffectBlure_ChangeType(EffectBlure* this, int type) {
     this->trailType = type;
 }
 
-void EffectBlure_AddSpace(EffectBlure* this) {
+void OoT_EffectBlure_AddSpace(EffectBlure* this) {
     EffectBlureElement* elem;
     s32 numElements;
 
@@ -97,7 +97,7 @@ void EffectBlure_AddSpace(EffectBlure* this) {
     }
 }
 
-void EffectBlure_InitElements(EffectBlure* this) {
+void OoT_EffectBlure_InitElements(EffectBlure* this) {
     EffectBlureElement* elem;
     s32 i;
 
@@ -118,12 +118,12 @@ void EffectBlure_InitElements(EffectBlure* this) {
     }
 }
 
-void EffectBlure_Init1(void* thisx, void* initParamsx) {
+void OoT_EffectBlure_Init1(void* thisx, void* initParamsx) {
     EffectBlure* this = (EffectBlure*)thisx;
     EffectBlureInit1* initParams = (EffectBlureInit1*)initParamsx;
 
     if ((this != NULL) && (initParams != NULL)) {
-        EffectBlure_InitElements(this);
+        OoT_EffectBlure_InitElements(this);
         this->p1StartColor.r = initParams->p1StartColor[0];
         this->p2StartColor.r = initParams->p2StartColor[0];
         this->p1EndColor.r = initParams->p1EndColor[0];
@@ -160,12 +160,12 @@ void EffectBlure_Init1(void* thisx, void* initParamsx) {
     }
 }
 
-void EffectBlure_Init2(void* thisx, void* initParamsx) {
+void OoT_EffectBlure_Init2(void* thisx, void* initParamsx) {
     EffectBlure* this = (EffectBlure*)thisx;
     EffectBlureInit2* initParams = (EffectBlureInit2*)initParamsx;
 
     if ((this != NULL) && (initParams != NULL)) {
-        EffectBlure_InitElements(this);
+        OoT_EffectBlure_InitElements(this);
         this->p1StartColor.r = initParams->p1StartColor[0];
         this->p2StartColor.r = initParams->p2StartColor[0];
         this->p1EndColor.r = initParams->p1EndColor[0];
@@ -196,10 +196,10 @@ void EffectBlure_Init2(void* thisx, void* initParamsx) {
     }
 }
 
-void EffectBlure_Destroy(void* thisx) {
+void OoT_EffectBlure_Destroy(void* thisx) {
 }
 
-s32 EffectBlure_Update(void* thisx) {
+s32 OoT_EffectBlure_Update(void* thisx) {
     EffectBlure* this = (EffectBlure*)thisx;
     s32 i;
     Color_RGBA8 color;
@@ -391,7 +391,7 @@ s32 EffectBlure_Update(void* thisx) {
     return 0;
 }
 
-void EffectBlure_UpdateFlags(EffectBlureElement* elem) {
+void OoT_EffectBlure_UpdateFlags(EffectBlureElement* elem) {
     Vec3f sp64;
     Vec3f sp58;
     Vec3f sp4C;
@@ -407,13 +407,13 @@ void EffectBlure_UpdateFlags(EffectBlureElement* elem) {
         f32 sp30;
         f32 sp2C;
 
-        Math_Vec3s_DiffToVec3f(&sp64, &elem->p1, &prev->p1);
-        Math_Vec3s_DiffToVec3f(&sp58, &elem->p2, &prev->p2);
-        Math_Vec3s_DiffToVec3f(&sp4C, &next->p1, &elem->p1);
-        Math_Vec3s_DiffToVec3f(&sp40, &next->p2, &elem->p2);
+        OoT_Math_Vec3s_DiffToVec3f(&sp64, &elem->p1, &prev->p1);
+        OoT_Math_Vec3s_DiffToVec3f(&sp58, &elem->p2, &prev->p2);
+        OoT_Math_Vec3s_DiffToVec3f(&sp4C, &next->p1, &elem->p1);
+        OoT_Math_Vec3s_DiffToVec3f(&sp40, &next->p2, &elem->p2);
 
-        if (Math3D_CosOut(&sp64, &sp4C, &sp34) || Math3D_CosOut(&sp58, &sp40, &sp30) ||
-            Math3D_CosOut(&sp4C, &sp40, &sp2C)) {
+        if (OoT_Math3D_CosOut(&sp64, &sp4C, &sp34) || OoT_Math3D_CosOut(&sp58, &sp40, &sp30) ||
+            OoT_Math3D_CosOut(&sp4C, &sp40, &sp2C)) {
             elem->flags &= ~3;
             elem->flags |= 0;
         } else if ((sp34 <= -0.5f) || (sp30 <= -0.5f) || (sp2C <= 0.7071f)) { // cos(45 degrees)
@@ -426,7 +426,7 @@ void EffectBlure_UpdateFlags(EffectBlureElement* elem) {
     }
 }
 
-void EffectBlure_GetComputedValues(EffectBlure* this, s32 index, f32 ratio, Vec3s* vec1, Vec3s* vec2,
+void OoT_EffectBlure_GetComputedValues(EffectBlure* this, s32 index, f32 ratio, Vec3s* vec1, Vec3s* vec2,
                                    Color_RGBA8* color1, Color_RGBA8* color2) {
     Vec3s sp30;
     f32 mode4Param;
@@ -505,16 +505,16 @@ void EffectBlure_GetComputedValues(EffectBlure* this, s32 index, f32 ratio, Vec3
     }
 }
 
-void EffectBlure_SetupSmooth(EffectBlure* this, GraphicsContext* gfxCtx) {
+void OoT_EffectBlure_SetupSmooth(EffectBlure* this, GraphicsContext* gfxCtx) {
     OPEN_DISPS(gfxCtx);
 
-    POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, 0x26);
+    POLY_XLU_DISP = OoT_Gfx_SetupDL(POLY_XLU_DISP, 0x26);
 
     CLOSE_DISPS(gfxCtx);
 }
 
 // original name: "SQ_NoInterpolate_disp"
-void EffectBlure_DrawElemNoInterpolation(EffectBlure* this, EffectBlureElement* elem, s32 index,
+void OoT_EffectBlure_DrawElemNoInterpolation(EffectBlure* this, EffectBlureElement* elem, s32 index,
                                          GraphicsContext* gfxCtx) {
     static Vtx_t baseVtx = VTX_T(0, 0, 0, 0, 0, 255, 255, 255, 255);
     Vtx* vtx;
@@ -529,7 +529,7 @@ void EffectBlure_DrawElemNoInterpolation(EffectBlure* this, EffectBlureElement* 
 
     OPEN_DISPS(gfxCtx);
 
-    Math_Vec3s_ToVec3f(&sp6C, &this->elements[0].p2);
+    OoT_Math_Vec3s_ToVec3f(&sp6C, &this->elements[0].p2);
 
     vtx = Graph_Alloc(gfxCtx, sizeof(Vtx[4]));
     if (vtx == NULL) {
@@ -542,13 +542,13 @@ void EffectBlure_DrawElemNoInterpolation(EffectBlure* this, EffectBlureElement* 
         vtx[3].v = baseVtx;
 
         ratio = (f32)elem->timer / (f32)this->elemDuration;
-        EffectBlure_GetComputedValues(this, index, ratio, &sp8C, &sp84, &sp7C, &sp78);
+        OoT_EffectBlure_GetComputedValues(this, index, ratio, &sp8C, &sp84, &sp7C, &sp78);
 
         sp60.x = sp84.x;
         sp60.y = sp84.y;
         sp60.z = sp84.z;
-        Math_Vec3f_Diff(&sp60, &sp6C, &sp54);
-        Math_Vec3f_Scale(&sp54, 10.0f);
+        OoT_Math_Vec3f_Diff(&sp60, &sp6C, &sp54);
+        OoT_Math_Vec3f_Scale(&sp54, 10.0f);
         vtx[0].v.ob[0] = sp54.x;
         vtx[0].v.ob[1] = sp54.y;
         vtx[0].v.ob[2] = sp54.z;
@@ -560,8 +560,8 @@ void EffectBlure_DrawElemNoInterpolation(EffectBlure* this, EffectBlureElement* 
         sp60.x = sp8C.x;
         sp60.y = sp8C.y;
         sp60.z = sp8C.z;
-        Math_Vec3f_Diff(&sp60, &sp6C, &sp54);
-        Math_Vec3f_Scale(&sp54, 10.0f);
+        OoT_Math_Vec3f_Diff(&sp60, &sp6C, &sp54);
+        OoT_Math_Vec3f_Scale(&sp54, 10.0f);
         vtx[1].v.ob[0] = sp54.x;
         vtx[1].v.ob[1] = sp54.y;
         vtx[1].v.ob[2] = sp54.z;
@@ -571,13 +571,13 @@ void EffectBlure_DrawElemNoInterpolation(EffectBlure* this, EffectBlureElement* 
         vtx[1].v.cn[3] = sp7C.a;
 
         ratio = (f32)(elem + 1)->timer / (f32)this->elemDuration;
-        EffectBlure_GetComputedValues(this, index + 1, ratio, &sp8C, &sp84, &sp7C, &sp78);
+        OoT_EffectBlure_GetComputedValues(this, index + 1, ratio, &sp8C, &sp84, &sp7C, &sp78);
 
         sp60.x = sp8C.x;
         sp60.y = sp8C.y;
         sp60.z = sp8C.z;
-        Math_Vec3f_Diff(&sp60, &sp6C, &sp54);
-        Math_Vec3f_Scale(&sp54, 10.0f);
+        OoT_Math_Vec3f_Diff(&sp60, &sp6C, &sp54);
+        OoT_Math_Vec3f_Scale(&sp54, 10.0f);
         vtx[2].v.ob[0] = sp54.x;
         vtx[2].v.ob[1] = sp54.y;
         vtx[2].v.ob[2] = sp54.z;
@@ -589,8 +589,8 @@ void EffectBlure_DrawElemNoInterpolation(EffectBlure* this, EffectBlureElement* 
         sp60.x = sp84.x;
         sp60.y = sp84.y;
         sp60.z = sp84.z;
-        Math_Vec3f_Diff(&sp60, &sp6C, &sp54);
-        Math_Vec3f_Scale(&sp54, 10.0f);
+        OoT_Math_Vec3f_Diff(&sp60, &sp6C, &sp54);
+        OoT_Math_Vec3f_Scale(&sp54, 10.0f);
         vtx[3].v.ob[0] = sp54.x;
         vtx[3].v.ob[1] = sp54.y;
         vtx[3].v.ob[2] = sp54.z;
@@ -606,7 +606,7 @@ void EffectBlure_DrawElemNoInterpolation(EffectBlure* this, EffectBlureElement* 
     CLOSE_DISPS(gfxCtx);
 }
 
-void EffectBlure_DrawElemHermiteInterpolation(EffectBlure* this, EffectBlureElement* elem, s32 index,
+void OoT_EffectBlure_DrawElemHermiteInterpolation(EffectBlure* this, EffectBlureElement* elem, s32 index,
                                               GraphicsContext* gfxCtx) {
     static Vtx_t baseVtx = VTX_T(0, 0, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF);
     Vtx* vtx;
@@ -636,21 +636,21 @@ void EffectBlure_DrawElemHermiteInterpolation(EffectBlure* this, EffectBlureElem
 
     OPEN_DISPS(gfxCtx);
 
-    Math_Vec3s_ToVec3f(&sp138, &this->elements[0].p2);
+    OoT_Math_Vec3s_ToVec3f(&sp138, &this->elements[0].p2);
 
     ratio = (f32)elem->timer / (f32)this->elemDuration;
-    EffectBlure_GetComputedValues(this, index, ratio, &sp1EC, &sp1E4, &sp1A4, &sp1A0);
-    Math_Vec3s_ToVec3f(&sp1CC, &sp1EC);
-    Math_Vec3s_ToVec3f(&sp1C0, &sp1E4);
+    OoT_EffectBlure_GetComputedValues(this, index, ratio, &sp1EC, &sp1E4, &sp1A4, &sp1A0);
+    OoT_Math_Vec3s_ToVec3f(&sp1CC, &sp1EC);
+    OoT_Math_Vec3s_ToVec3f(&sp1C0, &sp1E4);
 
     ratio = (f32)(elem + 1)->timer / (f32)this->elemDuration;
-    EffectBlure_GetComputedValues(this, index + 1, ratio, &sp1EC, &sp1E4, &sp19C, &sp198);
-    Math_Vec3s_ToVec3f(&sp18C, &sp1EC);
-    Math_Vec3s_ToVec3f(&sp180, &sp1E4);
+    OoT_EffectBlure_GetComputedValues(this, index + 1, ratio, &sp1EC, &sp1E4, &sp19C, &sp198);
+    OoT_Math_Vec3s_ToVec3f(&sp18C, &sp1EC);
+    OoT_Math_Vec3s_ToVec3f(&sp180, &sp1E4);
 
     if ((elem->flags & 3) == 2) {
-        Math_Vec3f_Diff(&sp18C, &sp1CC, &sp1B4);
-        Math_Vec3f_Diff(&sp180, &sp1C0, &sp1A8);
+        OoT_Math_Vec3f_Diff(&sp18C, &sp1CC, &sp1B4);
+        OoT_Math_Vec3f_Diff(&sp180, &sp1C0, &sp1A8);
     } else {
         Vec3f sp118;
         Vec3f sp10C;
@@ -658,19 +658,19 @@ void EffectBlure_DrawElemHermiteInterpolation(EffectBlure* this, EffectBlureElem
         assert(index - 1 >= 0);
 
         ratio = (f32)(elem - 1)->timer / (f32)this->elemDuration;
-        EffectBlure_GetComputedValues(this, index - 1, ratio, &sp1EC, &sp1E4, &sp1DC, &sp1D8);
-        Math_Vec3s_ToVec3f(&sp118, &sp1EC);
-        Math_Vec3s_ToVec3f(&sp10C, &sp1E4);
-        Math_Vec3f_Diff(&sp18C, &sp118, &sp1B4);
-        Math_Vec3f_Diff(&sp180, &sp10C, &sp1A8);
+        OoT_EffectBlure_GetComputedValues(this, index - 1, ratio, &sp1EC, &sp1E4, &sp1DC, &sp1D8);
+        OoT_Math_Vec3s_ToVec3f(&sp118, &sp1EC);
+        OoT_Math_Vec3s_ToVec3f(&sp10C, &sp1E4);
+        OoT_Math_Vec3f_Diff(&sp18C, &sp118, &sp1B4);
+        OoT_Math_Vec3f_Diff(&sp180, &sp10C, &sp1A8);
     }
 
-    Math_Vec3f_Scale(&sp1B4, 0.5f);
-    Math_Vec3f_Scale(&sp1A8, 0.5f);
+    OoT_Math_Vec3f_Scale(&sp1B4, 0.5f);
+    OoT_Math_Vec3f_Scale(&sp1A8, 0.5f);
 
     if (((elem + 1)->flags & 3) == 2) {
-        Math_Vec3f_Diff(&sp18C, &sp1CC, &sp174);
-        Math_Vec3f_Diff(&sp180, &sp1C0, &sp168);
+        OoT_Math_Vec3f_Diff(&sp18C, &sp1CC, &sp174);
+        OoT_Math_Vec3f_Diff(&sp180, &sp1C0, &sp168);
     } else {
         Vec3f sp100;
         Vec3f spF4;
@@ -678,42 +678,42 @@ void EffectBlure_DrawElemHermiteInterpolation(EffectBlure* this, EffectBlureElem
         assert(index + 2 < this->numElements);
 
         ratio = (f32)(elem + 2)->timer / (f32)this->elemDuration;
-        EffectBlure_GetComputedValues(this, index + 2, ratio, &sp1EC, &sp1E4, &sp1DC, &sp1D8);
-        Math_Vec3s_ToVec3f(&sp100, &sp1EC);
-        Math_Vec3s_ToVec3f(&spF4, &sp1E4);
-        Math_Vec3f_Diff(&sp100, &sp1CC, &sp174);
-        Math_Vec3f_Diff(&spF4, &sp1C0, &sp168);
+        OoT_EffectBlure_GetComputedValues(this, index + 2, ratio, &sp1EC, &sp1E4, &sp1DC, &sp1D8);
+        OoT_Math_Vec3s_ToVec3f(&sp100, &sp1EC);
+        OoT_Math_Vec3s_ToVec3f(&spF4, &sp1E4);
+        OoT_Math_Vec3f_Diff(&sp100, &sp1CC, &sp174);
+        OoT_Math_Vec3f_Diff(&spF4, &sp1C0, &sp168);
     }
 
-    Math_Vec3f_Scale(&sp174, 0.5f);
-    Math_Vec3f_Scale(&sp168, 0.5f);
+    OoT_Math_Vec3f_Scale(&sp174, 0.5f);
+    OoT_Math_Vec3f_Scale(&sp168, 0.5f);
 
     vtx = Graph_Alloc(gfxCtx, sizeof(Vtx[16]));
     if (vtx == NULL) {
         // "Vertices cannot be secured."
         osSyncPrintf("z_eff_blure.c::SQ_HermiteInterpolate_disp() 頂点確保できず。\n");
     } else {
-        Math_Vec3f_Diff(&sp1CC, &sp138, &sp158);
-        Math_Vec3f_Scale(&sp158, 10.0f);
-        Math_Vec3f_Diff(&sp1C0, &sp138, &sp14C);
-        Math_Vec3f_Scale(&sp14C, 10.0f);
+        OoT_Math_Vec3f_Diff(&sp1CC, &sp138, &sp158);
+        OoT_Math_Vec3f_Scale(&sp158, 10.0f);
+        OoT_Math_Vec3f_Diff(&sp1C0, &sp138, &sp14C);
+        OoT_Math_Vec3f_Scale(&sp14C, 10.0f);
 
-        Color_RGBA8_Copy(&sp148, &sp1A4);
-        Color_RGBA8_Copy(&sp144, &sp1A0);
+        OoT_Color_RGBA8_Copy(&sp148, &sp1A4);
+        OoT_Color_RGBA8_Copy(&sp144, &sp1A0);
 
         vtx[0].v = baseVtx;
         vtx[1].v = baseVtx;
 
-        vtx[0].v.ob[0] = Math_FNearbyIntF(sp158.x);
-        vtx[0].v.ob[1] = Math_FNearbyIntF(sp158.y);
-        vtx[0].v.ob[2] = Math_FNearbyIntF(sp158.z);
+        vtx[0].v.ob[0] = OoT_Math_FNearbyIntF(sp158.x);
+        vtx[0].v.ob[1] = OoT_Math_FNearbyIntF(sp158.y);
+        vtx[0].v.ob[2] = OoT_Math_FNearbyIntF(sp158.z);
         vtx[0].v.cn[0] = sp148.r;
         vtx[0].v.cn[1] = sp148.g;
         vtx[0].v.cn[2] = sp148.b;
         vtx[0].v.cn[3] = sp148.a;
-        vtx[1].v.ob[0] = Math_FNearbyIntF(sp14C.x);
-        vtx[1].v.ob[1] = Math_FNearbyIntF(sp14C.y);
-        vtx[1].v.ob[2] = Math_FNearbyIntF(sp14C.z);
+        vtx[1].v.ob[0] = OoT_Math_FNearbyIntF(sp14C.x);
+        vtx[1].v.ob[1] = OoT_Math_FNearbyIntF(sp14C.y);
+        vtx[1].v.ob[2] = OoT_Math_FNearbyIntF(sp14C.z);
         vtx[1].v.cn[0] = sp144.r;
         vtx[1].v.cn[1] = sp144.g;
         vtx[1].v.cn[2] = sp144.b;
@@ -737,29 +737,29 @@ void EffectBlure_DrawElemHermiteInterpolation(EffectBlure* this, EffectBlureElem
             spE0.x = (temp_f24 * sp1CC.x) + (temp_f26 * sp18C.x) + (temp_f22 * sp1B4.x) + (temp_f20 * sp174.x);
             spE0.y = (temp_f24 * sp1CC.y) + (temp_f26 * sp18C.y) + (temp_f22 * sp1B4.y) + (temp_f20 * sp174.y);
             spE0.z = (temp_f24 * sp1CC.z) + (temp_f26 * sp18C.z) + (temp_f22 * sp1B4.z) + (temp_f20 * sp174.z);
-            Math_Vec3f_Diff(&spE0, &sp138, &sp158);
-            Math_Vec3f_Scale(&sp158, 10.0f);
+            OoT_Math_Vec3f_Diff(&spE0, &sp138, &sp158);
+            OoT_Math_Vec3f_Scale(&sp158, 10.0f);
 
             spE0.x = (temp_f24 * sp1C0.x) + (temp_f26 * sp180.x) + (temp_f22 * sp1A8.x) + (temp_f20 * sp168.x);
             spE0.y = (temp_f24 * sp1C0.y) + (temp_f26 * sp180.y) + (temp_f22 * sp1A8.y) + (temp_f20 * sp168.y);
             spE0.z = (temp_f24 * sp1C0.z) + (temp_f26 * sp180.z) + (temp_f22 * sp1A8.z) + (temp_f20 * sp168.z);
-            Math_Vec3f_Diff(&spE0, &sp138, &sp14C);
-            Math_Vec3f_Scale(&sp14C, 10.0f);
+            OoT_Math_Vec3f_Diff(&spE0, &sp138, &sp14C);
+            OoT_Math_Vec3f_Scale(&sp14C, 10.0f);
 
             vtx[j1].v = baseVtx;
             vtx[j2].v = baseVtx;
 
-            vtx[j1].v.ob[0] = Math_FNearbyIntF(sp158.x);
-            vtx[j1].v.ob[1] = Math_FNearbyIntF(sp158.y);
-            vtx[j1].v.ob[2] = Math_FNearbyIntF(sp158.z);
+            vtx[j1].v.ob[0] = OoT_Math_FNearbyIntF(sp158.x);
+            vtx[j1].v.ob[1] = OoT_Math_FNearbyIntF(sp158.y);
+            vtx[j1].v.ob[2] = OoT_Math_FNearbyIntF(sp158.z);
             vtx[j1].v.cn[0] = func_80027E84(sp1A4.r, sp19C.r, temp_f28);
             vtx[j1].v.cn[1] = func_80027E84(sp1A4.g, sp19C.g, temp_f28);
             vtx[j1].v.cn[2] = func_80027E84(sp1A4.b, sp19C.b, temp_f28);
             vtx[j1].v.cn[3] = func_80027E84(sp1A4.a, sp19C.a, temp_f28);
 
-            vtx[j2].v.ob[0] = Math_FNearbyIntF(sp14C.x);
-            vtx[j2].v.ob[1] = Math_FNearbyIntF(sp14C.y);
-            vtx[j2].v.ob[2] = Math_FNearbyIntF(sp14C.z);
+            vtx[j2].v.ob[0] = OoT_Math_FNearbyIntF(sp14C.x);
+            vtx[j2].v.ob[1] = OoT_Math_FNearbyIntF(sp14C.y);
+            vtx[j2].v.ob[2] = OoT_Math_FNearbyIntF(sp14C.z);
             vtx[j2].v.cn[0] = func_80027E84(sp1A0.r, sp198.r, temp_f28);
             vtx[j2].v.cn[1] = func_80027E84(sp1A0.g, sp198.g, temp_f28);
             vtx[j2].v.cn[2] = func_80027E84(sp1A0.b, sp198.b, temp_f28);
@@ -779,7 +779,7 @@ void EffectBlure_DrawElemHermiteInterpolation(EffectBlure* this, EffectBlureElem
     CLOSE_DISPS(gfxCtx);
 }
 
-void EffectBlure_DrawSmooth(EffectBlure* this2, GraphicsContext* gfxCtx) {
+void OoT_EffectBlure_DrawSmooth(EffectBlure* this2, GraphicsContext* gfxCtx) {
     EffectBlure* this = this2;
     EffectBlureElement* elem;
     s32 i;
@@ -800,19 +800,19 @@ void EffectBlure_DrawSmooth(EffectBlure* this2, GraphicsContext* gfxCtx) {
     this->elements[0].flags |= 2;
 
     for (elem = &this->elements[1]; elem < this->elements + this->numElements - 1; elem++) {
-        EffectBlure_UpdateFlags(elem);
+        OoT_EffectBlure_UpdateFlags(elem);
     }
 
     this->elements[this->numElements - 1].flags &= ~3;
     this->elements[this->numElements - 1].flags |= 2;
 
     FrameInterpolation_RecordOpenChild(this, epoch);
-    EffectBlure_SetupSmooth(this, gfxCtx);
-    SkinMatrix_SetTranslate(&spDC, this->elements[0].p2.x, this->elements[0].p2.y, this->elements[0].p2.z);
-    SkinMatrix_SetScale(&sp9C, 0.1f, 0.1f, 0.1f);
-    SkinMatrix_MtxFMtxFMult(&spDC, &sp9C, &sp5C);
+    OoT_EffectBlure_SetupSmooth(this, gfxCtx);
+    OoT_SkinMatrix_SetTranslate(&spDC, this->elements[0].p2.x, this->elements[0].p2.y, this->elements[0].p2.z);
+    OoT_SkinMatrix_SetScale(&sp9C, 0.1f, 0.1f, 0.1f);
+    OoT_SkinMatrix_MtxFMtxFMult(&spDC, &sp9C, &sp5C);
 
-    mtx = SkinMatrix_MtxFToNewMtx(gfxCtx, &sp5C);
+    mtx = OoT_SkinMatrix_MtxFToNewMtx(gfxCtx, &sp5C);
     if (mtx == NULL) {
         return;
     }
@@ -827,9 +827,9 @@ void EffectBlure_DrawSmooth(EffectBlure* this2, GraphicsContext* gfxCtx) {
             (((elem->flags & 3) == 2) && (((elem + 1)->flags & 3) == 0)) ||
             (((elem->flags & 3) == 0) && (((elem + 1)->flags & 3) == 2)) ||
             (((elem->flags & 3) == 2) && (((elem + 1)->flags & 3) == 2))) {
-            EffectBlure_DrawElemNoInterpolation(this, elem, i, gfxCtx);
+            OoT_EffectBlure_DrawElemNoInterpolation(this, elem, i, gfxCtx);
         } else {
-            EffectBlure_DrawElemHermiteInterpolation(this, elem, i, gfxCtx);
+            OoT_EffectBlure_DrawElemHermiteInterpolation(this, elem, i, gfxCtx);
         }
     }
 
@@ -838,19 +838,19 @@ void EffectBlure_DrawSmooth(EffectBlure* this2, GraphicsContext* gfxCtx) {
     CLOSE_DISPS(gfxCtx);
 }
 
-void EffectBlure_SetupSimple(GraphicsContext* gfxCtx, EffectBlure* this, Vtx* vtx) {
+void OoT_EffectBlure_SetupSimple(GraphicsContext* gfxCtx, EffectBlure* this, Vtx* vtx) {
     OPEN_DISPS(gfxCtx);
 
-    POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, 0x26);
+    POLY_XLU_DISP = OoT_Gfx_SetupDL(POLY_XLU_DISP, 0x26);
 
     CLOSE_DISPS(gfxCtx);
 }
 
-void EffectBlure_SetupSimpleAlt(GraphicsContext* gfxCtx, EffectBlure* this, Vtx* vtx) {
+void OoT_EffectBlure_SetupSimpleAlt(GraphicsContext* gfxCtx, EffectBlure* this, Vtx* vtx) {
     OPEN_DISPS(gfxCtx);
 
     gDPPipeSync(POLY_XLU_DISP++);
-    POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, 0x26);
+    POLY_XLU_DISP = OoT_Gfx_SetupDL(POLY_XLU_DISP, 0x26);
 
     gDPSetCycleType(POLY_XLU_DISP++, G_CYC_2CYCLE);
     gDPSetTextureLUT(POLY_XLU_DISP++, G_TT_NONE);
@@ -872,14 +872,14 @@ void EffectBlure_SetupSimpleAlt(GraphicsContext* gfxCtx, EffectBlure* this, Vtx*
 }
 
 void (*sSetupHandlers[])(GraphicsContext* gfxCtx, EffectBlure* this, Vtx* vtx) = {
-    EffectBlure_SetupSimple,
-    EffectBlure_SetupSimpleAlt,
+    OoT_EffectBlure_SetupSimple,
+    OoT_EffectBlure_SetupSimpleAlt,
 };
 
 s32 D_80115788 = 0; // unused
 
 // original name: "EffectBlureInfo2_disp_makeDisplayList"
-void EffectBlure_DrawSimpleVertices(GraphicsContext* gfxCtx, EffectBlure* this, Vtx* vtx) {
+void OoT_EffectBlure_DrawSimpleVertices(GraphicsContext* gfxCtx, EffectBlure* this, Vtx* vtx) {
     Mtx* mtx;
 
     OPEN_DISPS(gfxCtx);
@@ -921,20 +921,20 @@ void EffectBlure_DrawSimpleVertices(GraphicsContext* gfxCtx, EffectBlure* this, 
                 sp1A4.y = ((f32)vtx[4 * i + 2].v.ob[1] + (f32)vtx[4 * i + 3].v.ob[1]) * 0.5f;
                 sp1A4.z = ((f32)vtx[4 * i + 2].v.ob[2] + (f32)vtx[4 * i + 3].v.ob[2]) * 0.5f;
 
-                Math_Vec3f_Diff(&sp1A4, &sp1B0, &sp198);
-                scale = sqrtf(SQ(sp198.x) + SQ(sp198.y) + SQ(sp198.z));
+                OoT_Math_Vec3f_Diff(&sp1A4, &sp1B0, &sp198);
+                scale = OoT_sqrtf(SQ(sp198.x) + SQ(sp198.y) + SQ(sp198.z));
 
                 if (fabsf(scale) > 0.0005f) {
                     scale = 1.0f / scale;
-                    Math_Vec3f_Scale(&sp198, scale);
+                    OoT_Math_Vec3f_Scale(&sp198, scale);
 
-                    SkinMatrix_SetTranslate(&sp154, sp1B0.x, sp1B0.y, sp1B0.z);
+                    OoT_SkinMatrix_SetTranslate(&sp154, sp1B0.x, sp1B0.y, sp1B0.z);
                     SkinMatrix_SetRotateAxis(&sp114, 0x3FFF, sp198.x, sp198.y, sp198.z);
-                    SkinMatrix_MtxFMtxFMult(&sp154, &sp114, &spD4);
-                    SkinMatrix_SetTranslate(&sp154, -sp1B0.x, -sp1B0.y, -sp1B0.z);
-                    SkinMatrix_MtxFMtxFMult(&spD4, &sp154, &sp94);
+                    OoT_SkinMatrix_MtxFMtxFMult(&sp154, &sp114, &spD4);
+                    OoT_SkinMatrix_SetTranslate(&sp154, -sp1B0.x, -sp1B0.y, -sp1B0.z);
+                    OoT_SkinMatrix_MtxFMtxFMult(&spD4, &sp154, &sp94);
 
-                    mtx = SkinMatrix_MtxFToNewMtx(gfxCtx, &sp94);
+                    mtx = OoT_SkinMatrix_MtxFToNewMtx(gfxCtx, &sp94);
                     if (mtx == NULL) {
                         // "Forced termination because a matrix cannot be taken"
                         osSyncPrintf("EffectBlureInfo2_disp_makeDisplayList()マトリックス取れないので,強制終了\n");
@@ -969,7 +969,7 @@ Vtx_t D_801157CC[] = {
     VTX_T(0, 0, 0, 2048, 0, 0xFF, 0xFF, 0xFF, 0xFF),
 };
 
-void EffectBlure_DrawSimple(EffectBlure* this2, GraphicsContext* gfxCtx) {
+void OoT_EffectBlure_DrawSimple(EffectBlure* this2, GraphicsContext* gfxCtx) {
     EffectBlure* this = this2;
     Vtx* vtx;
     Vtx* vtxIter;
@@ -1012,7 +1012,7 @@ void EffectBlure_DrawSimple(EffectBlure* this2, GraphicsContext* gfxCtx) {
             elem = &this->elements[i];
 
             ratio = (f32)elem->timer / (f32)this->elemDuration;
-            EffectBlure_GetComputedValues(this, i, ratio, &sp74, &sp6C, &sp64, &sp60);
+            OoT_EffectBlure_GetComputedValues(this, i, ratio, &sp74, &sp6C, &sp64, &sp60);
 
             j = i * 4 - 2;
             if (j >= 0) {
@@ -1059,11 +1059,11 @@ void EffectBlure_DrawSimple(EffectBlure* this2, GraphicsContext* gfxCtx) {
             }
         }
 
-        EffectBlure_DrawSimpleVertices(gfxCtx, this, vtx);
+        OoT_EffectBlure_DrawSimpleVertices(gfxCtx, this, vtx);
     }
 }
 
-void EffectBlure_Draw(void* thisx, GraphicsContext* gfxCtx) {
+void OoT_EffectBlure_Draw(void* thisx, GraphicsContext* gfxCtx) {
     EffectBlure* this = (EffectBlure*)thisx;
     Vtx* vtx;
     EffectBlureElement* elem;
@@ -1178,9 +1178,9 @@ void EffectBlure_Draw(void* thisx, GraphicsContext* gfxCtx) {
                 }
             }
         } else if (this->drawMode < 2) {
-            EffectBlure_DrawSimple(this, gfxCtx);
+            OoT_EffectBlure_DrawSimple(this, gfxCtx);
         } else {
-            EffectBlure_DrawSmooth(this, gfxCtx);
+            OoT_EffectBlure_DrawSmooth(this, gfxCtx);
         }
     }
 

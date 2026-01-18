@@ -29,7 +29,7 @@ const ActorInit Bg_Pushbox_InitVars = {
     (ActorFunc)BgPushbox_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32_DIV1000(gravity, -2000, ICHAIN_STOP),
 };
 
@@ -43,18 +43,18 @@ void BgPushbox_Init(Actor* thisx, PlayState* play) {
     CollisionHeader* colHeader = NULL;
     s32 pad2;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DPM_UNK);
-    CollisionHeader_GetVirtual(&gBlockSmallCol, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
-    ActorShape_Init(&this->dyna.actor.shape, 0.0f, NULL, 0.0f);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
+    OoT_CollisionHeader_GetVirtual(&gBlockSmallCol, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_ActorShape_Init(&this->dyna.actor.shape, 0.0f, NULL, 0.0f);
     BgPushbox_SetupAction(this, BgPushbox_UpdateImpl);
 }
 
 void BgPushbox_Destroy(Actor* thisx, PlayState* play) {
     BgPushbox* this = (BgPushbox*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void BgPushbox_UpdateImpl(BgPushbox* this, PlayState* play) {
@@ -62,10 +62,10 @@ void BgPushbox_UpdateImpl(BgPushbox* this, PlayState* play) {
     this->dyna.actor.speedXZ = (this->dyna.actor.speedXZ < -1.0f)
                                    ? -1.0f
                                    : ((this->dyna.actor.speedXZ > 1.0f) ? 1.0f : this->dyna.actor.speedXZ);
-    Math_StepToF(&this->dyna.actor.speedXZ, 0.0f, 0.2f);
+    OoT_Math_StepToF(&this->dyna.actor.speedXZ, 0.0f, 0.2f);
     this->dyna.actor.world.rot.y = this->dyna.unk_158;
     Actor_MoveXZGravity(&this->dyna.actor);
-    Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 20.0f, 40.0f, 40.0f, 0x1D);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 20.0f, 40.0f, 40.0f, 0x1D);
 }
 
 void BgPushbox_Update(Actor* thisx, PlayState* play) {

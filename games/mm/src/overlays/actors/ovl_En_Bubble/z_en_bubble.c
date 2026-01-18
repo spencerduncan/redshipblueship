@@ -8,14 +8,14 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED)
 
-void EnBubble_Init(Actor* thisx, PlayState* play);
-void EnBubble_Destroy(Actor* thisx, PlayState* play);
-void EnBubble_Update(Actor* thisx, PlayState* play);
-void EnBubble_Draw(Actor* thisx, PlayState* play);
+void MM_EnBubble_Init(Actor* thisx, PlayState* play);
+void MM_EnBubble_Destroy(Actor* thisx, PlayState* play);
+void MM_EnBubble_Update(Actor* thisx, PlayState* play);
+void MM_EnBubble_Draw(Actor* thisx, PlayState* play);
 
-void EnBubble_Wait(EnBubble* this, PlayState* play);
-void EnBubble_Pop(EnBubble* this, PlayState* play);
-void EnBubble_Regrow(EnBubble* this, PlayState* play);
+void MM_EnBubble_Wait(EnBubble* this, PlayState* play);
+void MM_EnBubble_Pop(EnBubble* this, PlayState* play);
+void MM_EnBubble_Regrow(EnBubble* this, PlayState* play);
 
 ActorProfile En_Bubble_Profile = {
     /**/ ACTOR_EN_BUBBLE,
@@ -23,13 +23,13 @@ ActorProfile En_Bubble_Profile = {
     /**/ FLAGS,
     /**/ OBJECT_BUBBLE,
     /**/ sizeof(EnBubble),
-    /**/ EnBubble_Init,
-    /**/ EnBubble_Destroy,
-    /**/ EnBubble_Update,
-    /**/ EnBubble_Draw,
+    /**/ MM_EnBubble_Init,
+    /**/ MM_EnBubble_Destroy,
+    /**/ MM_EnBubble_Update,
+    /**/ MM_EnBubble_Draw,
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[2] = {
+static ColliderJntSphElementInit MM_sJntSphElementsInit[2] = {
     {
         {
             ELEM_MATERIAL_UNK0,
@@ -54,7 +54,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[2] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit MM_sJntSphInit = {
     {
         COL_MATERIAL_HIT6,
         AT_ON | AT_TYPE_ENEMY,
@@ -63,28 +63,28 @@ static ColliderJntSphInit sJntSphInit = {
         OC2_TYPE_1,
         COLSHAPE_JNTSPH,
     },
-    ARRAY_COUNT(sJntSphElementsInit),
-    sJntSphElementsInit,
+    ARRAY_COUNT(MM_sJntSphElementsInit),
+    MM_sJntSphElementsInit,
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 1, 2, 25, 25, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 MM_sColChkInfoInit = { 1, 2, 25, 25, MASS_IMMOVABLE };
 
-void EnBubble_SetDimensions(EnBubble* this, f32 dim) {
+void MM_EnBubble_SetDimensions(EnBubble* this, f32 dim) {
     f32 x;
     f32 y;
     f32 z;
     f32 norm;
 
     this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
-    Actor_SetScale(&this->actor, 1.0f);
+    MM_Actor_SetScale(&this->actor, 1.0f);
     this->actor.shape.yOffset = 16.0f;
     this->modelRotSpeed = 16.0f;
     this->modelEllipticity = 0.08f;
     this->modelWidth = dim;
     this->modelHeight = dim;
-    x = Rand_ZeroOne();
-    y = Rand_ZeroOne();
-    z = Rand_ZeroOne();
+    x = MM_Rand_ZeroOne();
+    y = MM_Rand_ZeroOne();
+    z = MM_Rand_ZeroOne();
     this->unk_210 = 1.0f;
     this->unk_214 = 1.0f;
     norm = SQ(x) + SQ(y) + SQ(z);
@@ -105,27 +105,27 @@ s32 func_8089F59C(EnBubble* this) {
 }
 
 s32 func_8089F5D0(EnBubble* this) {
-    EnBubble_SetDimensions(this, -1.0f);
+    MM_EnBubble_SetDimensions(this, -1.0f);
     return 12;
 }
 
-void EnBubble_DamagePlayer(EnBubble* this, PlayState* play) {
+void MM_EnBubble_DamagePlayer(EnBubble* this, PlayState* play) {
     play->damagePlayer(play, -this->colliderSphere.elements[0].base.atDmgInfo.damage);
     func_800B8E1C(play, &this->actor, 6.0f, this->actor.yawTowardsPlayer, 6.0f);
 }
 
-s32 EnBubble_Explosion(EnBubble* this, PlayState* play) {
-    static Color_RGBA8 sEffectPrimColor = { 255, 255, 255, 255 };
-    static Color_RGBA8 sEffectEnvColor = { 150, 150, 150, 0 };
+s32 MM_EnBubble_Explosion(EnBubble* this, PlayState* play) {
+    static Color_RGBA8 MM_sEffectPrimColor = { 255, 255, 255, 255 };
+    static Color_RGBA8 MM_sEffectEnvColor = { 150, 150, 150, 0 };
     s32 i;
     Vec3f effectAccel = { 0.0f, -0.5f, 0.0f };
     Vec3f effectVelocity;
     Vec3f effectPos;
 
-    Math_SmoothStepToF(&this->modelWidth, 4.0f, 0.1f, 1000.0f, 0.0f);
-    Math_SmoothStepToF(&this->modelHeight, 4.0f, 0.1f, 1000.0f, 0.0f);
-    Math_SmoothStepToF(&this->modelRotSpeed, 54.0f, 0.1f, 1000.0f, 0.0f);
-    Math_SmoothStepToF(&this->modelEllipticity, 0.2f, 0.1f, 1000.0f, 0.0f);
+    MM_Math_SmoothStepToF(&this->modelWidth, 4.0f, 0.1f, 1000.0f, 0.0f);
+    MM_Math_SmoothStepToF(&this->modelHeight, 4.0f, 0.1f, 1000.0f, 0.0f);
+    MM_Math_SmoothStepToF(&this->modelRotSpeed, 54.0f, 0.1f, 1000.0f, 0.0f);
+    MM_Math_SmoothStepToF(&this->modelEllipticity, 0.2f, 0.1f, 1000.0f, 0.0f);
     this->actor.shape.yOffset = (this->modelHeight + 1.0f) * 16.0f;
 
     if (DECR(this->explosionCountdown) != 0) {
@@ -135,15 +135,15 @@ s32 EnBubble_Explosion(EnBubble* this, PlayState* play) {
     effectPos.y = this->actor.world.pos.y + this->actor.shape.yOffset;
     effectPos.z = this->actor.world.pos.z;
     for (i = 0; i < 20; i++) {
-        effectVelocity.x = (Rand_ZeroOne() - 0.5f) * 7.0f;
-        effectVelocity.y = Rand_ZeroOne() * 7.0f;
-        effectVelocity.z = (Rand_ZeroOne() - 0.5f) * 7.0f;
-        EffectSsDtBubble_SpawnCustomColor(play, &effectPos, &effectVelocity, &effectAccel, &sEffectPrimColor,
-                                          &sEffectEnvColor, Rand_S16Offset(100, 50), 25, 0);
+        effectVelocity.x = (MM_Rand_ZeroOne() - 0.5f) * 7.0f;
+        effectVelocity.y = MM_Rand_ZeroOne() * 7.0f;
+        effectVelocity.z = (MM_Rand_ZeroOne() - 0.5f) * 7.0f;
+        MM_EffectSsDtBubble_SpawnCustomColor(play, &effectPos, &effectVelocity, &effectAccel, &MM_sEffectPrimColor,
+                                          &MM_sEffectEnvColor, MM_Rand_S16Offset(100, 50), 25, 0);
     }
-    Item_DropCollectibleRandom(play, NULL, &this->actor.world.pos, 0x50);
+    MM_Item_DropCollectibleRandom(play, NULL, &this->actor.world.pos, 0x50);
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
-    return Rand_S16Offset(90, 60);
+    return MM_Rand_S16Offset(90, 60);
 }
 
 s32 func_8089F8BC(EnBubble* this) {
@@ -168,8 +168,8 @@ s32 func_8089F908(EnBubble* this) {
 void EnBubble_Vec3fNormalizedReflect(Vec3f* vec1, Vec3f* vec2, Vec3f* dest) {
     f32 norm;
 
-    Math3D_Vec3fReflect(vec1, vec2, dest);
-    norm = sqrtf(SQ(dest->x) + SQ(dest->y) + SQ(dest->z));
+    MM_Math3D_Vec3fReflect(vec1, vec2, dest);
+    norm = MM_sqrtf(SQ(dest->x) + SQ(dest->y) + SQ(dest->z));
     if (norm != 0.0f) {
         dest->x /= norm;
         dest->y /= norm;
@@ -179,8 +179,8 @@ void EnBubble_Vec3fNormalizedReflect(Vec3f* vec1, Vec3f* vec2, Vec3f* dest) {
     }
 }
 
-void EnBubble_Vec3fNormalize(Vec3f* vec) {
-    f32 norm = sqrtf(SQ(vec->x) + SQ(vec->y) + SQ(vec->z));
+void MM_EnBubble_Vec3fNormalize(Vec3f* vec) {
+    f32 norm = MM_sqrtf(SQ(vec->x) + SQ(vec->y) + SQ(vec->z));
 
     if (norm != 0.0f) {
         vec->x /= norm;
@@ -191,7 +191,7 @@ void EnBubble_Vec3fNormalize(Vec3f* vec) {
     }
 }
 
-void EnBubble_Fly(EnBubble* this, PlayState* play) {
+void MM_EnBubble_Fly(EnBubble* this, PlayState* play) {
     CollisionPoly* poly;
     Actor* bumpActor;
     Vec3f sp84;
@@ -206,7 +206,7 @@ void EnBubble_Fly(EnBubble* this, PlayState* play) {
     if (this->colliderSphere.elements[1].base.acElemFlags & ACELEM_HIT) {
         bumpActor = this->colliderSphere.base.ac;
         this->normalizedBumpVelocity = bumpActor->velocity;
-        EnBubble_Vec3fNormalize(&this->normalizedBumpVelocity);
+        MM_EnBubble_Vec3fNormalize(&this->normalizedBumpVelocity);
         this->velocityFromBump.x += this->normalizedBumpVelocity.x * 3.0f;
         this->velocityFromBump.y += this->normalizedBumpVelocity.y * 3.0f;
         this->velocityFromBump.z += this->normalizedBumpVelocity.z * 3.0f;
@@ -218,7 +218,7 @@ void EnBubble_Fly(EnBubble* this, PlayState* play) {
     bounceDirection.x = this->velocityFromBounce.x + this->velocityFromBump.x;
     bounceDirection.y = this->velocityFromBounce.y + this->velocityFromBump.y + this->yVelocity;
     bounceDirection.z = this->velocityFromBounce.z + this->velocityFromBump.z;
-    EnBubble_Vec3fNormalize(&bounceDirection);
+    MM_EnBubble_Vec3fNormalize(&bounceDirection);
 
     sp78.x = this->actor.world.pos.x;
     sp78.y = this->actor.world.pos.y + this->actor.shape.yOffset;
@@ -228,7 +228,7 @@ void EnBubble_Fly(EnBubble* this, PlayState* play) {
     sp6C.x += (bounceDirection.x * 24.0f);
     sp6C.y += (bounceDirection.y * 24.0f);
     sp6C.z += (bounceDirection.z * 24.0f);
-    if (BgCheck_EntityLineTest1(&play->colCtx, &sp78, &sp6C, &sp84, &poly, true, true, true, false, &bgId)) {
+    if (MM_BgCheck_EntityLineTest1(&play->colCtx, &sp78, &sp6C, &sp84, &poly, true, true, true, false, &bgId)) {
         normal.x = COLPOLY_GET_NORMAL(poly->normal.x);
         normal.y = COLPOLY_GET_NORMAL(poly->normal.y);
         normal.z = COLPOLY_GET_NORMAL(poly->normal.z);
@@ -236,7 +236,7 @@ void EnBubble_Fly(EnBubble* this, PlayState* play) {
         this->bounceDirection = bounceDirection;
         bounceCount = this->bounceCount;
         this->bounceCount = ++bounceCount;
-        if (bounceCount > TRUNCF_BINANG(Rand_ZeroOne() * 10.0f)) {
+        if (bounceCount > TRUNCF_BINANG(MM_Rand_ZeroOne() * 10.0f)) {
             this->bounceCount = 0;
         }
         bounceSpeed = (this->bounceCount == 0) ? 3.6000001f : 3.0f;
@@ -255,7 +255,7 @@ void EnBubble_Fly(EnBubble* this, PlayState* play) {
         this->bounceDirection = bounceDirection;
         bounceCount = this->bounceCount;
         this->bounceCount = ++bounceCount;
-        if (bounceCount > TRUNCF_BINANG(Rand_ZeroOne() * 10.0f)) {
+        if (bounceCount > TRUNCF_BINANG(MM_Rand_ZeroOne() * 10.0f)) {
             this->bounceCount = 0;
         }
         bounceSpeed = (this->bounceCount == 0) ? 3.6000001f : 3.0f;
@@ -271,9 +271,9 @@ void EnBubble_Fly(EnBubble* this, PlayState* play) {
     this->actor.velocity.x = this->velocityFromBounce.x + this->velocityFromBump.x;
     this->actor.velocity.y = this->velocityFromBounce.y + this->velocityFromBump.y + this->yVelocity;
     this->actor.velocity.z = this->velocityFromBounce.z + this->velocityFromBump.z;
-    Math_ApproachF(&this->velocityFromBump.x, 0.0f, 0.3f, 0.1f);
-    Math_ApproachF(&this->velocityFromBump.y, 0.0f, 0.3f, 0.1f);
-    Math_ApproachF(&this->velocityFromBump.z, 0.0f, 0.3f, 0.1f);
+    MM_Math_ApproachF(&this->velocityFromBump.x, 0.0f, 0.3f, 0.1f);
+    MM_Math_ApproachF(&this->velocityFromBump.y, 0.0f, 0.3f, 0.1f);
+    MM_Math_ApproachF(&this->velocityFromBump.z, 0.0f, 0.3f, 0.1f);
 }
 
 s32 func_8089FF30(EnBubble* this) {
@@ -294,12 +294,12 @@ s32 func_8089FF30(EnBubble* this) {
 }
 
 s32 EnBubble_IsPopped(EnBubble* this, PlayState* play) {
-    if ((DECR(this->timer) != 0) || (this->actionFunc == EnBubble_Pop)) {
+    if ((DECR(this->timer) != 0) || (this->actionFunc == MM_EnBubble_Pop)) {
         return false;
     }
     if (this->colliderSphere.base.ocFlags2 & OC2_HIT_PLAYER) {
         this->colliderSphere.base.ocFlags2 &= ~OC2_HIT_PLAYER;
-        EnBubble_DamagePlayer(this, play);
+        MM_EnBubble_DamagePlayer(this, play);
         this->timer = 8;
         return true;
     }
@@ -315,7 +315,7 @@ void func_808A005C(EnBubble* this) {
     src.y = dim->modelSphere.center.y;
     src.z = dim->modelSphere.center.z;
 
-    Matrix_MultVec3f(&src, &dest);
+    MM_Matrix_MultVec3f(&src, &dest);
     dim->worldSphere.center.x = dest.x;
     dim->worldSphere.center.y = dest.y;
     dim->worldSphere.center.z = dest.z;
@@ -323,94 +323,94 @@ void func_808A005C(EnBubble* this) {
     this->colliderSphere.elements[1].dim = *dim;
 }
 
-void EnBubble_Init(Actor* thisx, PlayState* play) {
+void MM_EnBubble_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     EnBubble* this = (EnBubble*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 16.0f, ActorShadow_DrawCircle, 0.2f);
-    Collider_InitJntSph(play, &this->colliderSphere);
-    Collider_SetJntSph(play, &this->colliderSphere, &this->actor, &sJntSphInit, this->colliderElements);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, DamageTable_Get(9), &sColChkInfoInit);
+    MM_ActorShape_Init(&this->actor.shape, 16.0f, MM_ActorShadow_DrawCircle, 0.2f);
+    MM_Collider_InitJntSph(play, &this->colliderSphere);
+    MM_Collider_SetJntSph(play, &this->colliderSphere, &this->actor, &MM_sJntSphInit, this->colliderElements);
+    MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, MM_DamageTable_Get(9), &MM_sColChkInfoInit);
     //! @bug: hint Id not correctly migrated from OoT `NAVI_ENEMY_SHABOM`
     this->actor.hintId = TATL_HINT_ID_IGOS_DU_IKANA;
-    this->bounceDirection.x = Rand_ZeroOne();
-    this->bounceDirection.y = Rand_ZeroOne();
-    this->bounceDirection.z = Rand_ZeroOne();
-    EnBubble_Vec3fNormalize(&this->bounceDirection);
+    this->bounceDirection.x = MM_Rand_ZeroOne();
+    this->bounceDirection.y = MM_Rand_ZeroOne();
+    this->bounceDirection.z = MM_Rand_ZeroOne();
+    MM_EnBubble_Vec3fNormalize(&this->bounceDirection);
     this->velocityFromBounce.x = this->bounceDirection.x * 3.0f;
     this->velocityFromBounce.y = this->bounceDirection.y * 3.0f;
     this->velocityFromBounce.z = this->bounceDirection.z * 3.0f;
-    EnBubble_SetDimensions(this, 0);
-    this->actionFunc = EnBubble_Wait;
+    MM_EnBubble_SetDimensions(this, 0);
+    this->actionFunc = MM_EnBubble_Wait;
 }
 
-void EnBubble_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnBubble_Destroy(Actor* thisx, PlayState* play) {
     EnBubble* this = (EnBubble*)thisx;
 
-    Collider_DestroyJntSph(play, &this->colliderSphere);
+    MM_Collider_DestroyJntSph(play, &this->colliderSphere);
 }
 
-void EnBubble_Wait(EnBubble* this, PlayState* play) {
+void MM_EnBubble_Wait(EnBubble* this, PlayState* play) {
     if (EnBubble_IsPopped(this, play)) {
         this->explosionCountdown = func_8089F59C(this);
-        this->actionFunc = EnBubble_Pop;
+        this->actionFunc = MM_EnBubble_Pop;
     } else {
-        EnBubble_Fly(this, play);
+        MM_EnBubble_Fly(this, play);
         this->actor.shape.yOffset = (this->modelHeight + 1.0f) * 16.0f;
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderSphere.base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliderSphere.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderSphere.base);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliderSphere.base);
     }
 }
 
-void EnBubble_Pop(EnBubble* this, PlayState* play) {
-    if (EnBubble_Explosion(this, play) > -1) {
-        SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 60, NA_SE_EN_AWA_BREAK);
-        Actor_Kill(&this->actor);
+void MM_EnBubble_Pop(EnBubble* this, PlayState* play) {
+    if (MM_EnBubble_Explosion(this, play) > -1) {
+        MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 60, NA_SE_EN_AWA_BREAK);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
-void EnBubble_Disappear(EnBubble* this, PlayState* play) {
+void MM_EnBubble_Disappear(EnBubble* this, PlayState* play) {
     s32 temp_v0 = func_8089F8BC(this);
 
     if (temp_v0 >= 0) {
-        this->actor.shape.shadowDraw = ActorShadow_DrawCircle;
+        this->actor.shape.shadowDraw = MM_ActorShadow_DrawCircle;
         this->explosionCountdown = temp_v0;
-        this->actionFunc = EnBubble_Regrow;
+        this->actionFunc = MM_EnBubble_Regrow;
     }
 }
 
-void EnBubble_Regrow(EnBubble* this, PlayState* play) {
+void MM_EnBubble_Regrow(EnBubble* this, PlayState* play) {
     if (func_8089F908(this)) {
-        this->actionFunc = EnBubble_Wait;
+        this->actionFunc = MM_EnBubble_Wait;
     }
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderSphere.base);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliderSphere.base);
+    MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderSphere.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliderSphere.base);
 }
 
-void EnBubble_Update(Actor* thisx, PlayState* play) {
+void MM_EnBubble_Update(Actor* thisx, PlayState* play) {
     EnBubble* this = (EnBubble*)thisx;
 
-    Actor_UpdatePos(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 16.0f, 16.0f, 0.0f,
+    MM_Actor_UpdatePos(&this->actor);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 16.0f, 16.0f, 0.0f,
                             UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_2 | UPDBGCHECKINFO_FLAG_4);
     this->actionFunc(this, play);
-    Actor_SetFocus(&this->actor, this->actor.shape.yOffset);
+    MM_Actor_SetFocus(&this->actor, this->actor.shape.yOffset);
 }
 
-void EnBubble_Draw(Actor* thisx, PlayState* play) {
+void MM_EnBubble_Draw(Actor* thisx, PlayState* play) {
     s32 pad;
     EnBubble* this = (EnBubble*)thisx;
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    if (this->actionFunc != EnBubble_Disappear) {
+    if (this->actionFunc != MM_EnBubble_Disappear) {
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-        Math_SmoothStepToF(&this->modelRotSpeed, 16.0f, 0.2f, 1000.0f, 0.0f);
-        Math_SmoothStepToF(&this->modelEllipticity, 0.08f, 0.2f, 1000.0f, 0.0f);
-        Matrix_ReplaceRotation(&play->billboardMtxF);
-        Matrix_Scale(this->modelWidth + 1.0f, this->modelHeight + 1.0f, 1.0f, MTXMODE_APPLY);
+        MM_Math_SmoothStepToF(&this->modelRotSpeed, 16.0f, 0.2f, 1000.0f, 0.0f);
+        MM_Math_SmoothStepToF(&this->modelEllipticity, 0.08f, 0.2f, 1000.0f, 0.0f);
+        MM_Matrix_ReplaceRotation(&play->billboardMtxF);
+        MM_Matrix_Scale(this->modelWidth + 1.0f, this->modelHeight + 1.0f, 1.0f, MTXMODE_APPLY);
         Matrix_RotateZF(DEG_TO_RAD((f32)play->state.frames) * this->modelRotSpeed, MTXMODE_APPLY);
-        Matrix_Scale(this->modelEllipticity + 1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
+        MM_Matrix_Scale(this->modelEllipticity + 1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
         Matrix_RotateZF(DEG_TO_RAD(-(f32)play->state.frames) * this->modelRotSpeed, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
@@ -419,7 +419,7 @@ void EnBubble_Draw(Actor* thisx, PlayState* play) {
 
     CLOSE_DISPS(play->state.gfxCtx);
 
-    if (this->actionFunc != EnBubble_Disappear) {
+    if (this->actionFunc != MM_EnBubble_Disappear) {
         this->actor.shape.shadowScale = (this->modelWidth + 1.0f) * 0.2f;
         func_808A005C(this);
     }

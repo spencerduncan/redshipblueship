@@ -12,10 +12,10 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_DURING_OCARINA)
 
-void EnGs_Init(Actor* thisx, PlayState* play);
-void EnGs_Destroy(Actor* thisx, PlayState* play);
-void EnGs_Update(Actor* thisx, PlayState* play);
-void EnGs_Draw(Actor* thisx, PlayState* play);
+void OoT_EnGs_Init(Actor* thisx, PlayState* play);
+void OoT_EnGs_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnGs_Update(Actor* thisx, PlayState* play);
+void OoT_EnGs_Draw(Actor* thisx, PlayState* play);
 
 void func_80A4F734(EnGs* this, PlayState* play);
 void func_80A4F700(EnGs* this, PlayState* play);
@@ -28,14 +28,14 @@ const ActorInit En_Gs_InitVars = {
     FLAGS,
     OBJECT_GS,
     sizeof(EnGs),
-    (ActorFunc)EnGs_Init,
-    (ActorFunc)EnGs_Destroy,
-    (ActorFunc)EnGs_Update,
-    (ActorFunc)EnGs_Draw,
+    (ActorFunc)OoT_EnGs_Init,
+    (ActorFunc)OoT_EnGs_Destroy,
+    (ActorFunc)OoT_EnGs_Update,
+    (ActorFunc)OoT_EnGs_Draw,
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_HARD,
         AT_NONE,
@@ -55,9 +55,9 @@ static ColliderCylinderInit sCylinderInit = {
     { 21, 48, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 OoT_sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
 
-static DamageTable sDamageTable = {
+static DamageTable OoT_sDamageTable = {
     /* Deku nut      */ DMG_ENTRY(0, 0x0),
     /* Deku stick    */ DMG_ENTRY(0, 0x0),
     /* Slingshot     */ DMG_ENTRY(0, 0xE),
@@ -92,17 +92,17 @@ static DamageTable sDamageTable = {
     /* Unknown 2     */ DMG_ENTRY(0, 0x0),
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
 
-void EnGs_Init(Actor* thisx, PlayState* play) {
+void OoT_EnGs_Init(Actor* thisx, PlayState* play) {
     EnGs* this = (EnGs*)thisx;
 
-    Actor_ProcessInitChain(thisx, sInitChain);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, thisx, &sCylinderInit);
-    CollisionCheck_SetInfo2(&thisx->colChkInfo, &sDamageTable, &sColChkInfoInit);
+    OoT_Actor_ProcessInitChain(thisx, OoT_sInitChain);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, thisx, &OoT_sCylinderInit);
+    OoT_CollisionCheck_SetInfo2(&thisx->colChkInfo, &OoT_sDamageTable, &OoT_sColChkInfoInit);
 
     thisx->targetMode = 6;
     this->unk_1D8 = thisx->world.pos;
@@ -115,14 +115,14 @@ void EnGs_Init(Actor* thisx, PlayState* play) {
     this->unk_1B4[1].z = 1.0f;
 }
 
-void EnGs_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnGs_Destroy(Actor* thisx, PlayState* play) {
 }
 
 s32 func_80A4E3EC(EnGs* this, PlayState* play) {
     s32 ret = 2;
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (OoT_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_DONE:
-            if (Message_ShouldAdvance(play)) {
+            if (OoT_Message_ShouldAdvance(play)) {
                 switch (this->actor.textId) {
                     case 0x2054:
                         this->actor.textId = (this->actor.params & 0xFF) + 0x400;
@@ -155,18 +155,18 @@ void func_80A4E470(EnGs* this, PlayState* play) {
                 if ((play->msgCtx.unk_E3F2 == OCARINA_SONG_SARIAS) || (play->msgCtx.unk_E3F2 == OCARINA_SONG_EPONAS) ||
                     (play->msgCtx.unk_E3F2 == OCARINA_SONG_LULLABY) || (play->msgCtx.unk_E3F2 == OCARINA_SONG_SUNS) ||
                     (play->msgCtx.unk_E3F2 == OCARINA_SONG_TIME)) {
-                    Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ELF, this->actor.world.pos.x,
+                    OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ELF, this->actor.world.pos.x,
                                 this->actor.world.pos.y + 40.0f, this->actor.world.pos.z, 0, 0, 0, FAIRY_HEAL_TIMED,
                                 true);
                     Audio_PlayActorSound2(&this->actor, NA_SE_EV_BUTTERFRY_TO_FAIRY);
                 } else if (play->msgCtx.unk_E3F2 == OCARINA_SONG_STORMS) {
-                    Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ELF, this->actor.world.pos.x,
+                    OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ELF, this->actor.world.pos.x,
                                 this->actor.world.pos.y + 40.0f, this->actor.world.pos.z, 0, 0, 0, FAIRY_HEAL_BIG,
                                 true);
                     Audio_PlayActorSound2(&this->actor, NA_SE_EV_BUTTERFRY_TO_FAIRY);
                 }
                 this->unk_19D = 0;
-                Flags_SetSwitch(play, (this->actor.params >> 8) & 0x3F);
+                OoT_Flags_SetSwitch(play, (this->actor.params >> 8) & 0x3F);
             } else if (play->msgCtx.ocarinaMode == OCARINA_MODE_01) {
                 player->stateFlags2 |= PLAYER_STATE2_NEAR_OCARINA_ACTOR;
             }
@@ -179,21 +179,21 @@ void func_80A4E648(EnGs* this, PlayState* play) {
     s16 sp24;
 
     if (this->unk_19C == 1) {
-        Message_ContinueTextbox(play, this->actor.textId);
+        OoT_Message_ContinueTextbox(play, this->actor.textId);
         this->unk_19C = 2;
     } else if (this->unk_19C == 2) {
         this->unk_19C = func_80A4E3EC(this, play);
     } else if (Actor_ProcessTalkRequest(&this->actor, play)) {
         this->unk_19C = 2;
     } else {
-        Actor_GetScreenPos(play, &this->actor, &sp26, &sp24);
+        OoT_Actor_GetScreenPos(play, &this->actor, &sp26, &sp24);
         if ((sp26 >= 0) && (sp26 <= SCREEN_WIDTH) && (sp24 >= 0) && (sp24 <= SCREEN_HEIGHT) && (this->unk_19C != 3)) {
             if (func_8002F2CC(&this->actor, play, 40.0f) == 1) {
                 if (IS_RANDO) {
                     // if we're rando'd, always use the non-mask text id
                     this->actor.textId = 0x2053;
                 } else {
-                    if (Player_GetMask(play) == PLAYER_MASK_TRUTH) {
+                    if (OoT_Player_GetMask(play) == PLAYER_MASK_TRUTH) {
                         this->actor.textId = 0x2054;
                     } else {
                         this->actor.textId = 0x2053;
@@ -206,10 +206,10 @@ void func_80A4E648(EnGs* this, PlayState* play) {
 
 f32 func_80A4E754(EnGs* this, PlayState* play, f32* arg2, f32* arg3, u16* arg4, f32 arg5, f32 arg6, f32 arg7, s32 arg8,
                   s32 arg9) {
-    f32 sp2C = Math_SmoothStepToF(arg2, *arg3, arg5, arg6, arg7);
+    f32 sp2C = OoT_Math_SmoothStepToF(arg2, *arg3, arg5, arg6, arg7);
 
     if (arg9 == 0) {
-        sp2C = Math_SmoothStepToF(arg2, *arg3, arg5, arg6, arg7);
+        sp2C = OoT_Math_SmoothStepToF(arg2, *arg3, arg5, arg6, arg7);
         this->unk_1B4[0].x = 1.0f + (sinf((((*arg4 % arg8) * (1.0f / arg8)) * 360.0f) * (M_PI / 180.0f)) * *arg2);
         this->unk_1B4[0].y = 1.0f - (sinf((((*arg4 % arg8) * (1.0f / arg8)) * 360.0f) * (M_PI / 180.0f)) * *arg2);
         *arg4 += 1;
@@ -226,8 +226,8 @@ void func_80A4E910(EnGs* this, PlayState* play) {
         this->unk_1EC = 0.0f;
     } else if ((this->unk_19F == 1) && (func_80A4E754(this, play, &this->unk_1E8, &this->unk_1EC, &this->unk_200, 0.8f,
                                                       0.007f, 0.001f, 7, 0) == 0.0f)) {
-        if (!Play_InCsMode(play)) {
-            Message_StartTextbox(play, 0x71B1, NULL);
+        if (!OoT_Play_InCsMode(play)) {
+            OoT_Message_StartTextbox(play, 0x71B1, NULL);
         }
         this->unk_19C = 0;
         this->actionFunc = func_80A4F734;
@@ -260,7 +260,7 @@ void func_80A4EB3C(EnGs* this, PlayState* play) {
         this->unk_1EC = -0.8f;
         this->unk_19F++;
     } else if (this->unk_19F == 1) {
-        ret = Math_SmoothStepToF(&this->unk_1E8, this->unk_1EC, 1.0f, 0.4f, 0.001f);
+        ret = OoT_Math_SmoothStepToF(&this->unk_1E8, this->unk_1EC, 1.0f, 0.4f, 0.001f);
         this->unk_1B4[0].y = this->unk_1E8 + 1.0f;
         if (ret == 0.0f) {
             this->unk_200 = 0;
@@ -274,7 +274,7 @@ void func_80A4EB3C(EnGs* this, PlayState* play) {
             this->unk_1EC = 0.0f;
         }
     } else if (this->unk_19F == 3) {
-        ret = Math_SmoothStepToF(&this->unk_1E8, this->unk_1EC, 1.0f, 0.5f, 0.001f);
+        ret = OoT_Math_SmoothStepToF(&this->unk_1E8, this->unk_1EC, 1.0f, 0.5f, 0.001f);
         this->unk_1B4[0].y = this->unk_1E8 + 1.0f;
         if (ret == 0.0f) {
             this->unk_1E8 = 0.5f;
@@ -321,19 +321,19 @@ void func_80A4ED34(EnGs* this, PlayState* play) {
 
     if (this->unk_19F == 2) {
         this->unk_200--;
-        Color_RGBA8_Copy(&this->flashColor, &baseWhite);
+        OoT_Color_RGBA8_Copy(&this->flashColor, &baseWhite);
         if ((this->unk_200 < 80) && ((this->unk_200 % 20) < 8)) {
             if (this->unk_200 < 20) {
-                Color_RGBA8_Copy(&this->flashColor, &flashRed);
+                OoT_Color_RGBA8_Copy(&this->flashColor, &flashRed);
                 if ((this->unk_200 % 20) == 7) {
-                    Audio_PlaySoundGeneral(NA_SE_SY_WARNING_COUNT_E, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                           &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                    Audio_PlaySoundGeneral(NA_SE_SY_WARNING_COUNT_E, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                           &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                 }
             } else {
-                Color_RGBA8_Copy(&this->flashColor, &flashBlue);
+                OoT_Color_RGBA8_Copy(&this->flashColor, &flashBlue);
                 if ((this->unk_200 % 20) == 7) {
-                    Audio_PlaySoundGeneral(NA_SE_SY_WARNING_COUNT_N, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                           &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                    Audio_PlaySoundGeneral(NA_SE_SY_WARNING_COUNT_N, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                           &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                 }
             }
         }
@@ -346,14 +346,14 @@ void func_80A4ED34(EnGs* this, PlayState* play) {
 
     if (this->unk_19F == 3) {
         for (i = 0; i < 3; i++) {
-            dustVelocity.x = Rand_CenteredFloat(15.0f);
-            dustVelocity.y = Rand_ZeroFloat(-1.0f);
-            dustVelocity.z = Rand_CenteredFloat(15.0f);
+            dustVelocity.x = OoT_Rand_CenteredFloat(15.0f);
+            dustVelocity.y = OoT_Rand_ZeroFloat(-1.0f);
+            dustVelocity.z = OoT_Rand_CenteredFloat(15.0f);
             dustPos.x = this->actor.world.pos.x + (dustVelocity.x + dustVelocity.x);
             dustPos.y = this->actor.world.pos.y + 7.0f;
             dustPos.z = this->actor.world.pos.z + (dustVelocity.z + dustVelocity.z);
             func_8002836C(play, &dustPos, &dustVelocity, &dustAccel, &dustPrim, &dustEnv,
-                          (s16)Rand_ZeroFloat(50.0f) + 200, 40, 15);
+                          (s16)OoT_Rand_ZeroFloat(50.0f) + 200, 40, 15);
         }
 
         func_8002F974(&this->actor, NA_SE_EV_FIRE_PILLAR - SFX_FLAG);
@@ -368,13 +368,13 @@ void func_80A4ED34(EnGs* this, PlayState* play) {
     }
 
     if (this->unk_19F == 4) {
-        Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 60.0f, 3);
+        OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 60.0f, 3);
         if (this->actor.bgCheckFlags & 0x18) {
             bomb2Pos.x = this->actor.world.pos.x;
             bomb2Pos.y = this->actor.world.pos.y;
             bomb2Pos.z = this->actor.world.pos.z;
             Audio_PlayActorSound2(&this->actor, NA_SE_IT_BOMB_EXPLOSION);
-            EffectSsBomb2_SpawnLayered(play, &bomb2Pos, &bomb2Velocity, &bomb2Accel, 100, 20);
+            OoT_EffectSsBomb2_SpawnLayered(play, &bomb2Pos, &bomb2Velocity, &bomb2Accel, 100, 20);
             this->unk_200 = 10;
             this->unk_19E |= 8;
             this->actionFunc = func_80A4F700;
@@ -384,7 +384,7 @@ void func_80A4ED34(EnGs* this, PlayState* play) {
 
         Actor_MoveXZGravity(&this->actor);
         if (this->actor.yDistToPlayer < -12000.0f) {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
         }
     }
 }
@@ -405,8 +405,8 @@ void func_80A4F13C(EnGs* this, PlayState* play) {
         this->unk_19F = 1;
     }
     if (this->unk_19F == 1) {
-        Math_SmoothStepToF(&this->unk_1F0, this->unk_1F4, 1.0f, 0.1f, 0.001f);
-        tmpf1 = Math_SmoothStepToF(&this->unk_1E8, this->unk_1EC, 1.0f, this->unk_1F0, 0.001f);
+        OoT_Math_SmoothStepToF(&this->unk_1F0, this->unk_1F4, 1.0f, 0.1f, 0.001f);
+        tmpf1 = OoT_Math_SmoothStepToF(&this->unk_1E8, this->unk_1EC, 1.0f, this->unk_1F0, 0.001f);
         this->unk_1A0[0].y += (s32)(this->unk_1E8 * (0x10000 / 360.0f));
         if (tmpf1 == 0.0f) {
             this->unk_200 = 0;
@@ -426,8 +426,8 @@ void func_80A4F13C(EnGs* this, PlayState* play) {
     }
     if (this->unk_19F == 3) {
         this->unk_1A0[0].y += 0x4000;
-        tmpf1 = Math_SmoothStepToF(&this->unk_1E8, this->unk_1EC, 0.8f, 0.2f, 0.001f);
-        Math_SmoothStepToF(&this->unk_1F0, this->unk_1F4, 0.8f, 0.2f, 0.001f);
+        tmpf1 = OoT_Math_SmoothStepToF(&this->unk_1E8, this->unk_1EC, 0.8f, 0.2f, 0.001f);
+        OoT_Math_SmoothStepToF(&this->unk_1F0, this->unk_1F4, 0.8f, 0.2f, 0.001f);
         this->unk_1B4[0].x = this->unk_1F0 + 1.0f;
         this->unk_1B4[0].y = this->unk_1E8 + 1.0f;
         if (tmpf1 == 0.0f) {
@@ -437,7 +437,7 @@ void func_80A4F13C(EnGs* this, PlayState* play) {
         }
     }
     if (this->unk_19F == 4) {
-        tmpf1 = Math_SmoothStepToF(&this->unk_1E8, this->unk_1EC, 0.8f, 16384.0f, 3640.0f);
+        tmpf1 = OoT_Math_SmoothStepToF(&this->unk_1E8, this->unk_1EC, 0.8f, 16384.0f, 3640.0f);
         this->unk_1A0[0].y += (s16)this->unk_1E8;
         if (tmpf1 == 0.0f) {
 
@@ -457,7 +457,7 @@ void func_80A4F13C(EnGs* this, PlayState* play) {
             tmp += 0xFFFF0001;
         }
         this->unk_1E8 = tmp;
-        tmpf1 = Math_SmoothStepToF(&this->unk_1E8, this->unk_1EC, 0.8f, 3640.0f, 0.001f);
+        tmpf1 = OoT_Math_SmoothStepToF(&this->unk_1E8, this->unk_1EC, 0.8f, 3640.0f, 0.001f);
         this->unk_1A0[0].y = this->unk_1E8;
         if (tmpf1 == 0.0f) {
             this->unk_1E8 = this->unk_1B4[0].y - 1.0f;
@@ -473,9 +473,9 @@ void func_80A4F13C(EnGs* this, PlayState* play) {
         }
     }
     if (this->unk_19F == 6) {
-        tmpf1 = Math_SmoothStepToF(&this->unk_1E8, this->unk_1EC, 0.8f, 0.1f, 0.001f);
-        tmpf2 = Math_SmoothStepToF(&this->unk_1F0, this->unk_1F4, 0.8f, 0.1f, 0.001f);
-        tmpf3 = Math_SmoothStepToF(&this->unk_1F8, this->unk_1FC, 0.8f, 0.02f, 0.001f);
+        tmpf1 = OoT_Math_SmoothStepToF(&this->unk_1E8, this->unk_1EC, 0.8f, 0.1f, 0.001f);
+        tmpf2 = OoT_Math_SmoothStepToF(&this->unk_1F0, this->unk_1F4, 0.8f, 0.1f, 0.001f);
+        tmpf3 = OoT_Math_SmoothStepToF(&this->unk_1F8, this->unk_1FC, 0.8f, 0.02f, 0.001f);
         this->unk_1B4[0].x = this->unk_1F0 + 1.0f;
         this->unk_1B4[0].y = this->unk_1E8 + 1.0f;
         this->unk_1B4[0].x += sinf((((this->unk_200 % 10) * 0.1f) * 360.0f) * (M_PI / 180.0f)) * this->unk_1F8;
@@ -493,12 +493,12 @@ void func_80A4F13C(EnGs* this, PlayState* play) {
 
 void func_80A4F700(EnGs* this, PlayState* play) {
     if (this->unk_200-- <= 0) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
 void func_80A4F734(EnGs* this, PlayState* play) {
-    if (!Flags_GetSwitch(play, (this->actor.params >> 8) & 0x3F)) {
+    if (!OoT_Flags_GetSwitch(play, (this->actor.params >> 8) & 0x3F)) {
         func_80A4E470(this, play);
     }
 }
@@ -519,11 +519,11 @@ void func_80A4F77C(EnGs* this) {
     this->unk_19C = 3;
 }
 
-void EnGs_Update(Actor* thisx, PlayState* play2) {
+void OoT_EnGs_Update(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     EnGs* this = (EnGs*)thisx;
 
-    Actor_SetFocus(&this->actor, 23.0f);
+    OoT_Actor_SetFocus(&this->actor, 23.0f);
     if (!(this->unk_19E & 0x10)) {
         if (this->collider.base.acFlags & AC_HIT) {
             this->unk_19F = 0;
@@ -557,15 +557,15 @@ void EnGs_Update(Actor* thisx, PlayState* play2) {
                     break;
             }
         }
-        Collider_UpdateCylinder(&this->actor, &this->collider);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
     this->actionFunc(this, play);
     func_80A4E648(this, play);
 }
 
-void EnGs_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnGs_Draw(Actor* thisx, PlayState* play) {
     EnGs* this = (EnGs*)thisx;
     s32 tmp;
     u32 frames;
@@ -575,12 +575,12 @@ void EnGs_Draw(Actor* thisx, PlayState* play) {
 
         frames = play->gameplayFrames;
         Gfx_SetupDL_25Opa(play->state.gfxCtx);
-        Matrix_Push();
+        OoT_Matrix_Push();
         if (this->unk_19E & 1) {
             Matrix_RotateY(this->unk_1A0[0].y * (M_PI / 0x8000), MTXMODE_APPLY);
             Matrix_RotateX(this->unk_1A0[0].x * (M_PI / 0x8000), MTXMODE_APPLY);
             Matrix_RotateZ(this->unk_1A0[0].z * (M_PI / 0x8000), MTXMODE_APPLY);
-            Matrix_Scale(this->unk_1B4[0].x, this->unk_1B4[0].y, this->unk_1B4[0].z, MTXMODE_APPLY);
+            OoT_Matrix_Scale(this->unk_1B4[0].x, this->unk_1B4[0].y, this->unk_1B4[0].z, MTXMODE_APPLY);
             Matrix_RotateY(this->unk_1A0[1].y * (M_PI / 0x8000), MTXMODE_APPLY);
             Matrix_RotateX(this->unk_1A0[1].x * (M_PI / 0x8000), MTXMODE_APPLY);
             Matrix_RotateZ(this->unk_1A0[1].z * (M_PI / 0x8000), MTXMODE_APPLY);
@@ -605,15 +605,15 @@ void EnGs_Draw(Actor* thisx, PlayState* play) {
         gSPDisplayList(POLY_OPA_DISP++, gGossipStoneDL);
         gSPDisplayList(POLY_OPA_DISP++, gGossipStoneSquishedDL);
 
-        Matrix_Pop();
+        OoT_Matrix_Pop();
         if (this->unk_19E & 2) {
             Gfx_SetupDL_25Xlu(play->state.gfxCtx);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
-            Matrix_Scale(0.05f, -0.05f, 1.0f, MTXMODE_APPLY);
+            OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
+            OoT_Matrix_Scale(0.05f, -0.05f, 1.0f, MTXMODE_APPLY);
 
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPSegment(POLY_XLU_DISP++, 0x08,
-                       Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, -frames * 0x14, 0x20, 0x80));
+                       OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, -frames * 0x14, 0x20, 0x80));
             gDPSetPrimColor(POLY_XLU_DISP++, 128, 128, 255, 255, 0, 255);
             gDPSetEnvColor(POLY_XLU_DISP++, 255, 0, 0, 0);
             gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);

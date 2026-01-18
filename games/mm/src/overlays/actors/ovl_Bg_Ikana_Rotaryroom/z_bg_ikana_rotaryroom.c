@@ -69,7 +69,7 @@ static ColliderJntSphElementInit sJntSphElementsInit1[2] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit1 = {
+static ColliderJntSphInit MM_sJntSphInit1 = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -96,7 +96,7 @@ static ColliderJntSphElementInit sJntSphElementsInit2[1] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit2 = {
+static ColliderJntSphInit MM_sJntSphInit2 = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -131,7 +131,7 @@ Vec3s D_80B821C4[] = {
 
 f32 D_80B82200[] = { 64.0f, 66.0f, 66.0f, 30.0f, 41.0f };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
 
@@ -140,13 +140,13 @@ CollisionHeader* D_80B82218[] = { &object_ikana_obj_Colheader_006368, &object_ik
 void func_80B802E0(BgIkanaRotaryroom* this) {
     s32 pad;
 
-    Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
+    MM_Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
                                  this->dyna.actor.world.pos.z, &this->dyna.actor.shape.rot);
-    Matrix_Scale(this->dyna.actor.scale.x, this->dyna.actor.scale.y, this->dyna.actor.scale.z, MTXMODE_APPLY);
+    MM_Matrix_Scale(this->dyna.actor.scale.x, this->dyna.actor.scale.y, this->dyna.actor.scale.z, MTXMODE_APPLY);
 
-    Collider_UpdateSpheres(0, &this->collider);
+    MM_Collider_UpdateSpheres(0, &this->collider);
     if (!BGIKANAROTARYROOM_GET_1(&this->dyna.actor)) {
-        Collider_UpdateSpheres(1, &this->collider);
+        MM_Collider_UpdateSpheres(1, &this->collider);
     }
 }
 
@@ -164,13 +164,13 @@ void func_80B80440(BgIkanaRotaryroom* this, PlayState* play) {
     s32 pad;
     Vec3f sp50;
 
-    Matrix_Push();
-    Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
+    MM_Matrix_Push();
+    MM_Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
                                  this->dyna.actor.world.pos.z, &this->dyna.actor.shape.rot);
-    if (Flags_GetSwitch(play, BGIKANAROTARYROOM_GET_SWITCH_FLAG_2(&this->dyna.actor))) {
-        Matrix_Translate(D_80B82178.x, D_80B82178.y, D_80B82178.z, MTXMODE_APPLY);
+    if (MM_Flags_GetSwitch(play, BGIKANAROTARYROOM_GET_SWITCH_FLAG_2(&this->dyna.actor))) {
+        MM_Matrix_Translate(D_80B82178.x, D_80B82178.y, D_80B82178.z, MTXMODE_APPLY);
     } else {
-        Matrix_Translate(D_80B8216C.x, D_80B8216C.y, D_80B8216C.z, MTXMODE_APPLY);
+        MM_Matrix_Translate(D_80B8216C.x, D_80B8216C.y, D_80B8216C.z, MTXMODE_APPLY);
     }
     Matrix_MultZero(&sp50);
     func_80B80358(&sp50);
@@ -178,7 +178,7 @@ void func_80B80440(BgIkanaRotaryroom* this, PlayState* play) {
         &play->actorCtx, play, ACTOR_BG_IKANA_BLOCK, sp50.x, sp50.y, sp50.z, this->dyna.actor.shape.rot.x,
         this->dyna.actor.shape.rot.y, this->dyna.actor.shape.rot.z, -1,
         CutsceneManager_GetAdditionalCsId(this->dyna.actor.csId), this->dyna.actor.halfDaysBits, NULL);
-    Matrix_Pop();
+    MM_Matrix_Pop();
 }
 
 void func_80B80550(BgIkanaRotaryroom* this, PlayState* play) {
@@ -193,46 +193,46 @@ void func_80B80550(BgIkanaRotaryroom* this, PlayState* play) {
     MtxF sp68;
     Vec3s sp60;
 
-    if (Flags_GetSwitch(play, BGIKANAROTARYROOM_GET_SWITCH_FLAG_1(&this->dyna.actor))) {
+    if (MM_Flags_GetSwitch(play, BGIKANAROTARYROOM_GET_SWITCH_FLAG_1(&this->dyna.actor))) {
         spC4 = 1;
     } else {
         spC4 = 0;
     }
 
     actor = play->actorCtx.actorLists[ACTORCAT_DOOR].first;
-    Matrix_Push();
+    MM_Matrix_Push();
     sp60.x = BINANG_ROT180(this->dyna.actor.home.rot.x);
     sp60.y = this->dyna.actor.home.rot.y;
     sp60.z = this->dyna.actor.home.rot.z;
-    Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
+    MM_Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
                                  this->dyna.actor.world.pos.z, &sp60);
 
     while (actor != NULL) {
         if (actor->id == ACTOR_DOOR_SHUTTER) {
-            Math_Vec3f_Diff(&actor->world.pos, &this->dyna.actor.world.pos, &spB4);
+            MM_Math_Vec3f_Diff(&actor->world.pos, &this->dyna.actor.world.pos, &spB4);
 
             for (i = 0; i < ARRAY_COUNT(D_80B82184); i++) {
                 ptr = &D_80B82184[spC8][i];
 
-                if ((Math3D_Vec3fDistSq(&spB4, &D_80B82184[spC8][i].unk_04) < SQ(250.0f)) &&
+                if ((MM_Math3D_Vec3fDistSq(&spB4, &D_80B82184[spC8][i].unk_04) < SQ(250.0f)) &&
                     ((ptr->unk_00 ^ spC4) && (ptr->unk_01 == 0))) {
-                    Matrix_Push();
-                    Matrix_Translate(spB4.x, spB4.y, spB4.z, MTXMODE_APPLY);
+                    MM_Matrix_Push();
+                    MM_Matrix_Translate(spB4.x, spB4.y, spB4.z, MTXMODE_APPLY);
                     Matrix_RotateYS(actor->shape.rot.y - this->dyna.actor.home.rot.y, MTXMODE_APPLY);
                     Matrix_RotateXS(actor->shape.rot.x - this->dyna.actor.home.rot.x, MTXMODE_APPLY);
                     Matrix_RotateZS(actor->shape.rot.z - this->dyna.actor.home.rot.z, MTXMODE_APPLY);
                     Matrix_MultZero(&actor->world.pos);
                     func_80B80358(&actor->world.pos);
-                    Matrix_Get(&sp68);
+                    MM_Matrix_Get(&sp68);
                     Matrix_MtxFToYXZRot(&sp68, &actor->shape.rot, false);
-                    Matrix_Pop();
+                    MM_Matrix_Pop();
                 }
             }
         }
         actor = actor->next;
     }
 
-    Matrix_Pop();
+    MM_Matrix_Pop();
 }
 
 BgIkanaRotaryroomStruct4* func_80B80778(BgIkanaRotaryroom* this, PlayState* play, Actor* arg2) {
@@ -246,20 +246,20 @@ BgIkanaRotaryroomStruct4* func_80B80778(BgIkanaRotaryroom* this, PlayState* play
     if (1) {}
 
     if (arg2->id == ACTOR_DOOR_SHUTTER) {
-        Matrix_Push();
+        MM_Matrix_Push();
 
         for (i = 0; i < ARRAY_COUNT(D_80B82184); i++) {
             ptr = &D_80B82184[temp_s3][i];
             if ((ptr->unk_01 == 0) &&
-                (Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
+                (MM_Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
                                               this->dyna.actor.world.pos.z, &this->dyna.actor.shape.rot),
-                 Matrix_MultVec3f(&ptr->unk_04, &sp68), (Math3D_Vec3fDistSq(&arg2->world.pos, &sp68) < SQ(250.0f)))) {
+                 MM_Matrix_MultVec3f(&ptr->unk_04, &sp68), (MM_Math3D_Vec3fDistSq(&arg2->world.pos, &sp68) < SQ(250.0f)))) {
                 sp58 = ptr;
                 break;
             }
         }
 
-        Matrix_Pop();
+        MM_Matrix_Pop();
     }
     return sp58;
 }
@@ -269,24 +269,24 @@ void func_80B80894(BgIkanaRotaryroom* this, PlayState* play) {
     Actor* actor = this->unk_204.unk_00;
     s32 i;
 
-    Matrix_Push();
+    MM_Matrix_Push();
 
     Matrix_RotateZS(-this->dyna.actor.shape.rot.z, MTXMODE_NEW);
     Matrix_RotateXS(-this->dyna.actor.shape.rot.x, MTXMODE_APPLY);
     Matrix_RotateYS(-this->dyna.actor.shape.rot.y, MTXMODE_APPLY);
-    Matrix_Translate(-this->dyna.actor.world.pos.x, -this->dyna.actor.world.pos.y, -this->dyna.actor.world.pos.z,
+    MM_Matrix_Translate(-this->dyna.actor.world.pos.x, -this->dyna.actor.world.pos.y, -this->dyna.actor.world.pos.z,
                      MTXMODE_APPLY);
 
     if (actor != NULL) {
-        Matrix_Push();
+        MM_Matrix_Push();
 
-        Matrix_Translate(actor->world.pos.x, actor->world.pos.y, actor->world.pos.z, MTXMODE_APPLY);
+        MM_Matrix_Translate(actor->world.pos.x, actor->world.pos.y, actor->world.pos.z, MTXMODE_APPLY);
         Matrix_RotateYS(actor->shape.rot.y, MTXMODE_APPLY);
         Matrix_RotateXS(actor->shape.rot.x, MTXMODE_APPLY);
         Matrix_RotateZS(actor->shape.rot.z, MTXMODE_APPLY);
-        Matrix_Get(&this->unk_204.unk_04);
+        MM_Matrix_Get(&this->unk_204.unk_04);
 
-        Matrix_Pop();
+        MM_Matrix_Pop();
     }
 
     for (i = 0; i < ARRAY_COUNT(this->unk_248); i++) {
@@ -299,15 +299,15 @@ void func_80B80894(BgIkanaRotaryroom* this, PlayState* play) {
         if (func_80B80778(this, play, actor) && (i < 2)) {
             this->unk_248[i].unk_00 = actor;
 
-            Matrix_Push();
+            MM_Matrix_Push();
 
-            Matrix_Translate(actor->world.pos.x, actor->world.pos.y, actor->world.pos.z, MTXMODE_APPLY);
+            MM_Matrix_Translate(actor->world.pos.x, actor->world.pos.y, actor->world.pos.z, MTXMODE_APPLY);
             Matrix_RotateYS(actor->shape.rot.y, MTXMODE_APPLY);
             Matrix_RotateXS(actor->shape.rot.x, MTXMODE_APPLY);
             Matrix_RotateZS(actor->shape.rot.z, MTXMODE_APPLY);
-            Matrix_Get(&this->unk_248[i].unk_04);
+            MM_Matrix_Get(&this->unk_248[i].unk_04);
 
-            Matrix_Pop();
+            MM_Matrix_Pop();
             i++;
         }
         actor = actor->next;
@@ -323,15 +323,15 @@ void func_80B80894(BgIkanaRotaryroom* this, PlayState* play) {
         if ((actor->id == ACTOR_EN_TORCH2) && (actor->update != NULL) && (i < ARRAY_COUNT(this->unk_2D0))) {
             this->unk_2D0[i].unk_00 = actor;
 
-            Matrix_Push();
+            MM_Matrix_Push();
 
-            Matrix_Translate(actor->world.pos.x, actor->world.pos.y, actor->world.pos.z, MTXMODE_APPLY);
+            MM_Matrix_Translate(actor->world.pos.x, actor->world.pos.y, actor->world.pos.z, MTXMODE_APPLY);
             Matrix_RotateYS(actor->shape.rot.y, MTXMODE_APPLY);
             Matrix_RotateXS(actor->shape.rot.x, MTXMODE_APPLY);
             Matrix_RotateZS(actor->shape.rot.z, MTXMODE_APPLY);
-            Matrix_Get(&this->unk_2D0[i].unk_04);
+            MM_Matrix_Get(&this->unk_2D0[i].unk_04);
 
-            Matrix_Pop();
+            MM_Matrix_Pop();
             i++;
         }
         actor = actor->next;
@@ -349,15 +349,15 @@ void func_80B80894(BgIkanaRotaryroom* this, PlayState* play) {
             this->unk_3E0[i].unk_44 = actor->shape.rot;
             this->unk_3E0[i].unk_4C = 0.0f;
 
-            Matrix_Push();
+            MM_Matrix_Push();
 
-            Matrix_Translate(actor->world.pos.x, actor->world.pos.y, actor->world.pos.z, MTXMODE_APPLY);
+            MM_Matrix_Translate(actor->world.pos.x, actor->world.pos.y, actor->world.pos.z, MTXMODE_APPLY);
             Matrix_RotateYS(actor->shape.rot.y, MTXMODE_APPLY);
             Matrix_RotateXS(actor->shape.rot.x, MTXMODE_APPLY);
             Matrix_RotateZS(actor->shape.rot.z, MTXMODE_APPLY);
-            Matrix_Get(&this->unk_3E0[i].unk_04);
+            MM_Matrix_Get(&this->unk_3E0[i].unk_04);
 
-            Matrix_Pop();
+            MM_Matrix_Pop();
             i++;
         }
         actor = actor->next;
@@ -367,18 +367,18 @@ void func_80B80894(BgIkanaRotaryroom* this, PlayState* play) {
     if (actor->update != NULL) {
         this->unk_520.unk_40 = actor->shape.rot;
 
-        Matrix_Push();
+        MM_Matrix_Push();
 
-        Matrix_Translate(actor->world.pos.x, actor->world.pos.y, actor->world.pos.z, MTXMODE_APPLY);
+        MM_Matrix_Translate(actor->world.pos.x, actor->world.pos.y, actor->world.pos.z, MTXMODE_APPLY);
         Matrix_RotateYS(actor->shape.rot.y, MTXMODE_APPLY);
         Matrix_RotateXS(actor->shape.rot.x, MTXMODE_APPLY);
         Matrix_RotateZS(actor->shape.rot.z, MTXMODE_APPLY);
-        Matrix_Get(&this->unk_520.unk_00);
+        MM_Matrix_Get(&this->unk_520.unk_00);
 
-        Matrix_Pop();
+        MM_Matrix_Pop();
     }
 
-    Matrix_Pop();
+    MM_Matrix_Pop();
 }
 
 void func_80B80C88(BgIkanaRotaryroom* this, PlayState* play) {
@@ -391,83 +391,83 @@ void func_80B80C88(BgIkanaRotaryroom* this, PlayState* play) {
     s32 i;
     MtxF sp3C;
 
-    Matrix_Push();
-    Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
+    MM_Matrix_Push();
+    MM_Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
                                  this->dyna.actor.world.pos.z, &this->dyna.actor.shape.rot);
 
     if (ikanaBlock != NULL) {
-        Matrix_Push();
+        MM_Matrix_Push();
 
-        Matrix_Mult(&this->unk_204.unk_04, MTXMODE_APPLY);
+        MM_Matrix_Mult(&this->unk_204.unk_04, MTXMODE_APPLY);
         Matrix_MultZero(&ikanaBlock->dyna.actor.world.pos);
         func_80B80358(&ikanaBlock->dyna.actor.world.pos);
-        Matrix_Get(&sp3C);
+        MM_Matrix_Get(&sp3C);
         Matrix_MtxFToYXZRot(&sp3C, &ikanaBlock->dyna.actor.shape.rot, false);
 
-        Matrix_Pop();
+        MM_Matrix_Pop();
     }
 
     for (i = 0; i < ARRAY_COUNT(this->unk_248); i++) {
         ptr = this->unk_248[i].unk_00;
         if (ptr != NULL) {
-            Matrix_Push();
+            MM_Matrix_Push();
 
-            Matrix_Mult(&this->unk_248[i].unk_04, MTXMODE_APPLY);
+            MM_Matrix_Mult(&this->unk_248[i].unk_04, MTXMODE_APPLY);
             Matrix_MultZero(&ptr->world.pos);
             func_80B80358(&ptr->world.pos);
-            Matrix_Get(&sp3C);
+            MM_Matrix_Get(&sp3C);
             Matrix_MtxFToYXZRot(&sp3C, &ptr->shape.rot, false);
 
-            Matrix_Pop();
+            MM_Matrix_Pop();
         }
     }
 
     for (i = 0; i < ARRAY_COUNT(this->unk_2D0); i++) {
         ptr2 = this->unk_2D0[i].unk_00;
         if (ptr2 != NULL) {
-            Matrix_Push();
+            MM_Matrix_Push();
 
-            Matrix_Mult(&this->unk_2D0[i].unk_04, MTXMODE_APPLY);
+            MM_Matrix_Mult(&this->unk_2D0[i].unk_04, MTXMODE_APPLY);
             Matrix_MultZero(&ptr2->world.pos);
             func_80B80358(&ptr2->world.pos);
-            Matrix_Get(&sp3C);
+            MM_Matrix_Get(&sp3C);
             Matrix_MtxFToYXZRot(&sp3C, &ptr2->shape.rot, false);
 
-            Matrix_Pop();
+            MM_Matrix_Pop();
         }
     }
 
     for (i = 0; i < ARRAY_COUNT(this->unk_3E0); i++) {
         ptr3 = this->unk_3E0[i].unk_00;
         if (ptr3 != NULL) {
-            Matrix_Push();
+            MM_Matrix_Push();
 
-            Matrix_Mult(&this->unk_3E0[i].unk_04, MTXMODE_APPLY);
+            MM_Matrix_Mult(&this->unk_3E0[i].unk_04, MTXMODE_APPLY);
             Matrix_MultZero(&ptr3->world.pos);
             func_80B80358(&ptr3->world.pos);
-            Matrix_Get(&sp3C);
+            MM_Matrix_Get(&sp3C);
             Matrix_MtxFToYXZRot(&sp3C, &ptr3->shape.rot, false);
 
-            Matrix_Pop();
+            MM_Matrix_Pop();
         }
     }
 
     player = GET_PLAYER(play);
     if (player != NULL) {
-        Matrix_Push();
+        MM_Matrix_Push();
 
-        Matrix_Mult(&this->unk_520.unk_00, MTXMODE_APPLY);
+        MM_Matrix_Mult(&this->unk_520.unk_00, MTXMODE_APPLY);
         Matrix_MultZero(&player->actor.world.pos);
-        Math_Vec3f_Copy(&player->actor.home.pos, &player->actor.world.pos);
+        MM_Math_Vec3f_Copy(&player->actor.home.pos, &player->actor.world.pos);
         func_80B80358(&player->actor.world.pos);
-        Matrix_Get(&sp3C);
+        MM_Matrix_Get(&sp3C);
         Matrix_MtxFToYXZRot(&sp3C, &player->actor.shape.rot, false);
 
-        Matrix_Pop();
+        MM_Matrix_Pop();
         player->actor.freezeTimer = 2;
     }
 
-    Matrix_Pop();
+    MM_Matrix_Pop();
 }
 
 s32 func_80B80F08(BgIkanaRotaryroom* this, PlayState* play) {
@@ -478,24 +478,24 @@ s32 func_80B80F08(BgIkanaRotaryroom* this, PlayState* play) {
     s32 sp24 = false;
 
     if (ikanaBlock != NULL) {
-        Matrix_Push();
+        MM_Matrix_Push();
 
-        Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
+        MM_Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
                                      this->dyna.actor.world.pos.z, &this->dyna.actor.shape.rot);
-        Matrix_Translate(D_80B82178.x, D_80B82178.y, D_80B82178.z, MTXMODE_APPLY);
+        MM_Matrix_Translate(D_80B82178.x, D_80B82178.y, D_80B82178.z, MTXMODE_APPLY);
         Matrix_MultZero(&sp34);
-        Matrix_SetTranslateRotateYXZ(ikanaBlock->dyna.actor.world.pos.x,
+        MM_Matrix_SetTranslateRotateYXZ(ikanaBlock->dyna.actor.world.pos.x,
                                      ikanaBlock->dyna.actor.world.pos.y + ikanaBlock->unk_170,
                                      ikanaBlock->dyna.actor.world.pos.z, &ikanaBlock->dyna.actor.shape.rot);
         Matrix_MultZero(&sp28);
 
-        Matrix_Pop();
+        MM_Matrix_Pop();
 
-        if (Math3D_Vec3fDistSq(&sp34, &sp28) < 3.0f) {
-            if (!Flags_GetSwitch(play, BGIKANAROTARYROOM_GET_SWITCH_FLAG_2(&this->dyna.actor))) {
+        if (MM_Math3D_Vec3fDistSq(&sp34, &sp28) < 3.0f) {
+            if (!MM_Flags_GetSwitch(play, BGIKANAROTARYROOM_GET_SWITCH_FLAG_2(&this->dyna.actor))) {
                 sp24 = true;
             }
-            Flags_SetSwitch(play, BGIKANAROTARYROOM_GET_SWITCH_FLAG_2(&this->dyna.actor));
+            MM_Flags_SetSwitch(play, BGIKANAROTARYROOM_GET_SWITCH_FLAG_2(&this->dyna.actor));
         }
     }
     return sp24;
@@ -521,16 +521,16 @@ void func_80B81010(BgIkanaRotaryroom* this, PlayState* play) {
             ptr2 = &this->unk_3E0[i];
 
             if (ptr != NULL) {
-                temp_s2 = Math_ScaledStepToS(&ptr->shape.rot.x, ptr2->unk_44.x, 0xBB8) & 1;
-                temp_s2 &= Math_ScaledStepToS(&ptr->shape.rot.y, ptr2->unk_44.y, 0xBB8);
-                temp_s2 &= Math_ScaledStepToS(&ptr->shape.rot.z, ptr2->unk_44.z, 0xBB8);
+                temp_s2 = MM_Math_ScaledStepToS(&ptr->shape.rot.x, ptr2->unk_44.x, 0xBB8) & 1;
+                temp_s2 &= MM_Math_ScaledStepToS(&ptr->shape.rot.y, ptr2->unk_44.y, 0xBB8);
+                temp_s2 &= MM_Math_ScaledStepToS(&ptr->shape.rot.z, ptr2->unk_44.z, 0xBB8);
 
                 ptr2->unk_4C -= 2.0f;
                 if (ptr2->unk_4C < -30.0f) {
                     ptr2->unk_4C = -30.0f;
                 }
 
-                Math_Vec3f_Copy(&ptr->prevPos, &ptr->world.pos);
+                MM_Math_Vec3f_Copy(&ptr->prevPos, &ptr->world.pos);
 
                 ptr->world.pos.y += ptr2->unk_4C;
 
@@ -561,7 +561,7 @@ void func_80B81010(BgIkanaRotaryroom* this, PlayState* play) {
             ptr = this->unk_3E0[i].unk_00;
             if (ptr != NULL) {
                 ptr->shape.rot = this->unk_3E0[i].unk_44;
-                Math_Vec3f_Copy(&ptr->prevPos, &ptr->world.pos);
+                MM_Math_Vec3f_Copy(&ptr->prevPos, &ptr->world.pos);
             }
         }
         this->unk_578 = NULL;
@@ -592,9 +592,9 @@ void func_80B81234(BgIkanaRotaryroom* this, PlayState* play) {
             sp58.y = ptr->unk_4C.y + 50.0f;
             sp58.z = ptr->unk_4C.z;
 
-            sp64 = Math_ScaledStepToS(&player->actor.shape.rot.x, ptr->unk_40.x, 0x7D0) & 1;
-            sp64 &= Math_ScaledStepToS(&player->actor.shape.rot.y, ptr->unk_40.y, 0x7D0);
-            sp64 &= Math_ScaledStepToS(&player->actor.shape.rot.z, ptr->unk_40.z, 0x7D0);
+            sp64 = MM_Math_ScaledStepToS(&player->actor.shape.rot.x, ptr->unk_40.x, 0x7D0) & 1;
+            sp64 &= MM_Math_ScaledStepToS(&player->actor.shape.rot.y, ptr->unk_40.y, 0x7D0);
+            sp64 &= MM_Math_ScaledStepToS(&player->actor.shape.rot.z, ptr->unk_40.z, 0x7D0);
 
             ptr->unk_48 -= 2.1f;
             ptr->unk_48 *= 0.98f;
@@ -603,14 +603,14 @@ void func_80B81234(BgIkanaRotaryroom* this, PlayState* play) {
             }
             ptr->unk_4C.y += ptr->unk_48;
 
-            Matrix_Push();
+            MM_Matrix_Push();
 
             Matrix_RotateYS(player->actor.shape.rot.y, MTXMODE_NEW);
             Matrix_RotateXS(player->actor.shape.rot.x, MTXMODE_APPLY);
             Matrix_RotateZS(player->actor.shape.rot.z, MTXMODE_APPLY);
             Matrix_MultVecY(sp44, &sp4C);
 
-            Matrix_Pop();
+            MM_Matrix_Pop();
 
             temp_f0 = BgCheck_EntityRaycastFloor5_2(play, &play->colCtx, &sp40, &bgId, NULL, &sp58);
             if (ptr->unk_4C.y <= temp_f0) {
@@ -619,14 +619,14 @@ void func_80B81234(BgIkanaRotaryroom* this, PlayState* play) {
                 sp64 = 0;
             }
 
-            Math_Vec3f_Copy(&player->actor.home.pos, &player->actor.world.pos);
+            MM_Math_Vec3f_Copy(&player->actor.home.pos, &player->actor.world.pos);
 
             player->actor.world.pos.x = ptr->unk_4C.x - sp4C.x;
             player->actor.world.pos.y = (ptr->unk_4C.y - sp4C.y) + sp44;
             player->actor.world.pos.z = ptr->unk_4C.z - sp4C.z;
 
             if (sp64 != 0) {
-                Math_Vec3f_Copy(&player->actor.home.pos, &player->actor.world.pos);
+                MM_Math_Vec3f_Copy(&player->actor.home.pos, &player->actor.world.pos);
                 this->unk_57C = NULL;
             } else {
                 player->actor.freezeTimer = 2;
@@ -635,7 +635,7 @@ void func_80B81234(BgIkanaRotaryroom* this, PlayState* play) {
     } else {
         if (player != NULL) {
             player->actor.shape.rot = this->unk_520.unk_40;
-            Math_Vec3f_Copy(&player->actor.home.pos, &player->actor.world.pos);
+            MM_Math_Vec3f_Copy(&player->actor.home.pos, &player->actor.world.pos);
         }
         this->unk_57C = NULL;
     }
@@ -646,9 +646,9 @@ void func_80B814B8(BgIkanaRotaryroom* this, PlayState* play) {
 
     if (CutsceneManager_GetCurrentCsId() == this->dyna.actor.csId) {
         if (player->actor.bgCheckFlags & BGCHECKFLAG_CRUSHED) {
-            Player_PlaySfx(player, NA_SE_VO_LI_DAMAGE_S + player->ageProperties->voiceSfxIdOffset);
+            MM_Player_PlaySfx(player, NA_SE_VO_LI_DAMAGE_S + player->ageProperties->voiceSfxIdOffset);
             func_80169EFC(play);
-            Player_PlaySfx(player, NA_SE_VO_LI_TAKEN_AWAY + player->ageProperties->voiceSfxIdOffset);
+            MM_Player_PlaySfx(player, NA_SE_VO_LI_TAKEN_AWAY + player->ageProperties->voiceSfxIdOffset);
             play->haltAllActors = true;
             Audio_PlaySfx(NA_SE_OC_ABYSS);
             this->actionFunc = NULL;
@@ -665,7 +665,7 @@ void func_80B81570(BgIkanaRotaryroom* this, PlayState* play) {
     s32 pad;
     s32 pad2;
 
-    Matrix_Push();
+    MM_Matrix_Push();
     Matrix_RotateYS(this->dyna.actor.shape.rot.y, MTXMODE_NEW);
 
     for (i = 0; i < ARRAY_COUNT(D_80B821C4); i++) {
@@ -673,17 +673,17 @@ void func_80B81570(BgIkanaRotaryroom* this, PlayState* play) {
         sp64.y = D_80B821C4[i].y;
         sp64.z = D_80B821C4[i].z;
 
-        Matrix_MultVec3f(&sp64, &sp70);
+        MM_Matrix_MultVec3f(&sp64, &sp70);
 
         sp70.x += this->dyna.actor.world.pos.x;
         sp70.y += this->dyna.actor.world.pos.y;
         sp70.z += this->dyna.actor.world.pos.z;
 
-        Actor_Spawn(&play->actorCtx, play, ACTOR_EN_WATER_EFFECT, sp70.x, sp70.y, sp70.z, 0, 0, 0,
+        MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_WATER_EFFECT, sp70.x, sp70.y, sp70.z, 0, 0, 0,
                     ENWATEREFFECT_TYPE_FALLING_ROCK_SPAWNER);
     }
 
-    Matrix_Pop();
+    MM_Matrix_Pop();
 }
 
 s32 func_80B816A4(BgIkanaRotaryroom* this) {
@@ -704,22 +704,22 @@ void BgIkanaRotaryroom_Init(Actor* thisx, PlayState* play) {
     BgIkanaRotaryroom* this = (BgIkanaRotaryroom*)thisx;
     s32 sp34 = BGIKANAROTARYROOM_GET_1(&this->dyna.actor);
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
 
-    if (Flags_GetSwitch(play, BGIKANAROTARYROOM_GET_SWITCH_FLAG_1(&this->dyna.actor))) {
+    if (MM_Flags_GetSwitch(play, BGIKANAROTARYROOM_GET_SWITCH_FLAG_1(&this->dyna.actor))) {
         this->dyna.actor.shape.rot.x = -0x8000;
     } else {
         this->dyna.actor.shape.rot.x = 0;
     }
 
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
     DynaPolyActor_LoadMesh(play, &this->dyna, D_80B82218[sp34]);
 
-    Collider_InitJntSph(play, &this->collider);
+    MM_Collider_InitJntSph(play, &this->collider);
     if (!sp34) {
-        Collider_SetJntSph(play, &this->collider, &this->dyna.actor, &sJntSphInit1, this->colliderElements);
+        MM_Collider_SetJntSph(play, &this->collider, &this->dyna.actor, &MM_sJntSphInit1, this->colliderElements);
     } else {
-        Collider_SetJntSph(play, &this->collider, &this->dyna.actor, &sJntSphInit2, this->colliderElements);
+        MM_Collider_SetJntSph(play, &this->collider, &this->dyna.actor, &MM_sJntSphInit2, this->colliderElements);
     }
 
     func_80B802E0(this);
@@ -741,8 +741,8 @@ void BgIkanaRotaryroom_Init(Actor* thisx, PlayState* play) {
 void BgIkanaRotaryroom_Destroy(Actor* thisx, PlayState* play) {
     BgIkanaRotaryroom* this = (BgIkanaRotaryroom*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
-    Collider_DestroyJntSph(play, &this->collider);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_Collider_DestroyJntSph(play, &this->collider);
 }
 
 void func_80B818B4(BgIkanaRotaryroom* this) {
@@ -756,14 +756,14 @@ void func_80B818C8(Actor* thisx, PlayState* play) {
     if (this->collider.base.acFlags & AC_HIT) {
         this->collider.base.acFlags &= ~AC_HIT;
         switchFlag = BGIKANAROTARYROOM_GET_SWITCH_FLAG_1(&this->dyna.actor);
-        if (Flags_GetSwitch(play, switchFlag)) {
-            Flags_UnsetSwitch(play, switchFlag);
+        if (MM_Flags_GetSwitch(play, switchFlag)) {
+            MM_Flags_UnsetSwitch(play, switchFlag);
         } else {
-            Flags_SetSwitch(play, switchFlag);
+            MM_Flags_SetSwitch(play, switchFlag);
         }
         func_80B81978(this);
     } else {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -792,7 +792,7 @@ void func_80B819F0(Actor* thisx, PlayState* play) {
     if (CutsceneManager_IsNext(this->dyna.actor.csId)) {
         CutsceneManager_StartWithPlayerCs(this->dyna.actor.csId, &this->dyna.actor);
         if (this->dyna.actor.csId > CS_ID_NONE) {
-            Player_SetCsActionWithHaltedActors(play, &this->dyna.actor, PLAYER_CSACTION_WAIT);
+            MM_Player_SetCsActionWithHaltedActors(play, &this->dyna.actor, PLAYER_CSACTION_WAIT);
         }
         func_80B81A64(this);
     } else {
@@ -832,7 +832,7 @@ void func_80B81A80(Actor* thisx, PlayState* play) {
     } else if (this->unk_584 == 15) {
         s16 quakeIndex = Quake_Request(GET_ACTIVE_CAM(play), QUAKE_TYPE_3);
 
-        Quake_SetSpeed(quakeIndex, 31536);
+        MM_Quake_SetSpeed(quakeIndex, 31536);
         Quake_SetPerturbations(quakeIndex, 6, 0, 100, 0);
         Quake_SetDuration(quakeIndex, 22);
     }
@@ -859,12 +859,12 @@ void func_80B81BA0(Actor* thisx, PlayState* play) {
     if (!(this->unk_584 & 7)) {
         s16 quakeIndex = Quake_Request(GET_ACTIVE_CAM(play), QUAKE_TYPE_3);
 
-        Quake_SetSpeed(quakeIndex, 31536);
-        Quake_SetPerturbations(quakeIndex, (s32)(Rand_ZeroOne() * 2.5f) + 3, 0, 10, 0);
+        MM_Quake_SetSpeed(quakeIndex, 31536);
+        Quake_SetPerturbations(quakeIndex, (s32)(MM_Rand_ZeroOne() * 2.5f) + 3, 0, 10, 0);
         Quake_SetDuration(quakeIndex, 15);
     }
 
-    if (Flags_GetSwitch(play, BGIKANAROTARYROOM_GET_SWITCH_FLAG_1(&this->dyna.actor))) {
+    if (MM_Flags_GetSwitch(play, BGIKANAROTARYROOM_GET_SWITCH_FLAG_1(&this->dyna.actor))) {
         if (this->dyna.actor.shape.rot.x < 0) {
             this->dyna.actor.shape.rot.x = -0x8000;
             sp30 = 1;
@@ -929,7 +929,7 @@ void func_80B81DC8(Actor* thisx, PlayState* play) {
     } else if (this->unk_584 == 19) {
         s16 quakeIndex = Quake_Request(GET_ACTIVE_CAM(play), QUAKE_TYPE_3);
 
-        Quake_SetSpeed(quakeIndex, 20000);
+        MM_Quake_SetSpeed(quakeIndex, 20000);
         Quake_SetPerturbations(quakeIndex, 5, 0, 40, 60);
         Quake_SetDuration(quakeIndex, 17);
     }
@@ -993,11 +993,11 @@ void BgIkanaRotaryroom_Draw(Actor* thisx, PlayState* play) {
     s32 param = BGIKANAROTARYROOM_GET_1(&this->dyna.actor);
 
     if (!param) {
-        Gfx_DrawDListOpa(play, object_ikana_obj_DL_0048A0);
-        Gfx_DrawDListXlu(play, object_ikana_obj_DL_004710);
+        MM_Gfx_DrawDListOpa(play, object_ikana_obj_DL_0048A0);
+        MM_Gfx_DrawDListXlu(play, object_ikana_obj_DL_004710);
     } else {
         AnimatedMat_Draw(play, this->unk_1FC);
-        Gfx_DrawDListOpa(play, object_ikana_obj_DL_007448);
-        Gfx_DrawDListXlu(play, object_ikana_obj_DL_007360);
+        MM_Gfx_DrawDListOpa(play, object_ikana_obj_DL_007448);
+        MM_Gfx_DrawDListXlu(play, object_ikana_obj_DL_007360);
     }
 }

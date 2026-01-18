@@ -19,10 +19,10 @@ typedef enum {
     /* 3 */ CHU_GIRL_EYES_AWAKE
 } BombchuGirlEyeMode;
 
-void EnBomBowlMan_Init(Actor* thisx, PlayState* play);
-void EnBomBowlMan_Destroy(Actor* thisx, PlayState* play);
-void EnBomBowlMan_Update(Actor* thisx, PlayState* play);
-void EnBomBowlMan_Draw(Actor* thisx, PlayState* play);
+void OoT_EnBomBowlMan_Init(Actor* thisx, PlayState* play);
+void OoT_EnBomBowlMan_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnBomBowlMan_Update(Actor* thisx, PlayState* play);
+void OoT_EnBomBowlMan_Draw(Actor* thisx, PlayState* play);
 
 void EnBomBowMan_SetupWaitAsleep(EnBomBowlMan* this, PlayState* play);
 void EnBomBowMan_WaitAsleep(EnBomBowlMan* this, PlayState* play);
@@ -46,14 +46,14 @@ const ActorInit En_Bom_Bowl_Man_InitVars = {
     FLAGS,
     OBJECT_BG,
     sizeof(EnBomBowlMan),
-    (ActorFunc)EnBomBowlMan_Init,
-    (ActorFunc)EnBomBowlMan_Destroy,
-    (ActorFunc)EnBomBowlMan_Update,
-    (ActorFunc)EnBomBowlMan_Draw,
+    (ActorFunc)OoT_EnBomBowlMan_Init,
+    (ActorFunc)OoT_EnBomBowlMan_Destroy,
+    (ActorFunc)OoT_EnBomBowlMan_Update,
+    (ActorFunc)OoT_EnBomBowlMan_Draw,
     NULL,
 };
 
-void EnBomBowlMan_Init(Actor* thisx, PlayState* play2) {
+void OoT_EnBomBowlMan_Init(Actor* thisx, PlayState* play2) {
     static f32 cuccoColliderDims[][3] = { { 16.0f, 46.0f, 0.0f }, { 36.0f, 56.0f, 0.0f } };
     static Vec3f cuccoSpawnPos[] = { { 60, -60, -430 }, { 0, -120, -620 } };
     static f32 cuccoScales[] = { 0.01f, 0.03f };
@@ -62,8 +62,8 @@ void EnBomBowlMan_Init(Actor* thisx, PlayState* play2) {
     s32 i;
     PlayState* play = play2;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 30.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gChuGirlSkel, &gChuGirlNoddingOffAnim, this->jointTable,
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 30.0f);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gChuGirlSkel, &gChuGirlNoddingOffAnim, this->jointTable,
                        this->morphTable, 11);
     // "☆ Man, my shoulders hurt~ ☆"
     osSyncPrintf(VT_FGCOL(GREEN) "☆ もー 肩こっちゃうよねぇ〜 \t\t ☆ \n" VT_RST);
@@ -72,7 +72,7 @@ void EnBomBowlMan_Init(Actor* thisx, PlayState* play2) {
                  play->bombchuBowlingStatus);
     this->posCopy = this->actor.world.pos;
     this->actor.shape.yOffset = -60.0f;
-    Actor_SetScale(&this->actor, 0.013f);
+    OoT_Actor_SetScale(&this->actor, 0.013f);
 
     for (i = 0; i < 2; i++) {
         if (CVarGetInteger(CVAR_ENHANCEMENT("CustomizeBombchuBowling"), 0) &&
@@ -82,7 +82,7 @@ void EnBomBowlMan_Init(Actor* thisx, PlayState* play2) {
             continue;
         }
 
-        cucco = (EnSyatekiNiw*)Actor_Spawn(&play->actorCtx, play, ACTOR_EN_SYATEKI_NIW, cuccoSpawnPos[i].x,
+        cucco = (EnSyatekiNiw*)OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_SYATEKI_NIW, cuccoSpawnPos[i].x,
                                            cuccoSpawnPos[i].y, cuccoSpawnPos[i].z, 0, 0, 0, 1, true);
 
         if (cucco != NULL) {
@@ -92,20 +92,20 @@ void EnBomBowlMan_Init(Actor* thisx, PlayState* play2) {
         }
     }
 
-    this->prizeSelect = IS_RANDO ? 0 : (s16)Rand_ZeroFloat(4.99f);
+    this->prizeSelect = IS_RANDO ? 0 : (s16)OoT_Rand_ZeroFloat(4.99f);
     this->actor.targetMode = 1;
     this->actionFunc = EnBomBowMan_SetupWaitAsleep;
 }
 
-void EnBomBowlMan_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnBomBowlMan_Destroy(Actor* thisx, PlayState* play) {
     EnBomBowlMan* this = (EnBomBowlMan*)thisx;
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
 
 void EnBomBowMan_SetupWaitAsleep(EnBomBowlMan* this, PlayState* play) {
-    this->frameCount = (f32)Animation_GetLastFrame(&gChuGirlNoddingOffAnim);
-    Animation_Change(&this->skelAnime, &gChuGirlNoddingOffAnim, 1.0f, 0.0f, this->frameCount, ANIMMODE_LOOP, -10.0f);
+    this->frameCount = (f32)OoT_Animation_GetLastFrame(&gChuGirlNoddingOffAnim);
+    OoT_Animation_Change(&this->skelAnime, &gChuGirlNoddingOffAnim, 1.0f, 0.0f, this->frameCount, ANIMMODE_LOOP, -10.0f);
     this->actor.textId = 0xC0;
     this->dialogState = TEXT_STATE_EVENT;
     this->actionFunc = EnBomBowMan_WaitAsleep;
@@ -114,7 +114,7 @@ void EnBomBowMan_SetupWaitAsleep(EnBomBowlMan* this, PlayState* play) {
 void EnBomBowMan_WaitAsleep(EnBomBowlMan* this, PlayState* play) {
     s16 yawDiff;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
     if (Actor_ProcessTalkRequest(&this->actor, play)) {
         this->actionFunc = EnBomBowMan_TalkAsleep;
@@ -128,17 +128,17 @@ void EnBomBowMan_WaitAsleep(EnBomBowlMan* this, PlayState* play) {
 }
 
 void EnBomBowMan_TalkAsleep(EnBomBowlMan* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
-    if ((Message_GetState(&play->msgCtx) == this->dialogState) && Message_ShouldAdvance(play)) {
+    if ((OoT_Message_GetState(&play->msgCtx) == this->dialogState) && OoT_Message_ShouldAdvance(play)) {
         play->msgCtx.msgMode = MSGMODE_PAUSED;
         this->actionFunc = EnBomBowMan_WakeUp;
     }
 }
 
 void EnBomBowMan_WakeUp(EnBomBowlMan* this, PlayState* play) {
-    this->frameCount = (f32)Animation_GetLastFrame(&gChuGirlWakeUpAnim);
-    Animation_Change(&this->skelAnime, &gChuGirlWakeUpAnim, 1.0f, 0.0f, this->frameCount, ANIMMODE_ONCE, -10.0f);
+    this->frameCount = (f32)OoT_Animation_GetLastFrame(&gChuGirlWakeUpAnim);
+    OoT_Animation_Change(&this->skelAnime, &gChuGirlWakeUpAnim, 1.0f, 0.0f, this->frameCount, ANIMMODE_ONCE, -10.0f);
     this->eyeMode = CHU_GIRL_EYES_OPEN_SLOWLY;
     this->actionFunc = EnBomBowMan_BlinkAwake;
 }
@@ -146,18 +146,18 @@ void EnBomBowMan_WakeUp(EnBomBowlMan* this, PlayState* play) {
 void EnBomBowMan_BlinkAwake(EnBomBowlMan* this, PlayState* play) {
     f32 frameCount = this->skelAnime.curFrame;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if (frameCount == 30.0f) {
         this->dialogState = TEXT_STATE_EVENT;
 
         if (GameInteractor_Should(VB_BE_ABLE_TO_PLAY_BOMBCHU_BOWLING,
-                                  (Flags_GetEventChkInf(EVENTCHKINF_USED_DODONGOS_CAVERN_BLUE_WARP)) || BREG(2))) {
+                                  (OoT_Flags_GetEventChkInf(EVENTCHKINF_USED_DODONGOS_CAVERN_BLUE_WARP)) || BREG(2))) {
             this->actor.textId = 0xBF;
         } else {
             this->actor.textId = 0x7058;
         }
     }
-    Message_ContinueTextbox(play, this->actor.textId);
+    OoT_Message_ContinueTextbox(play, this->actor.textId);
 
     if ((this->eyeTextureIndex == 0) && (this->eyeMode == CHU_GIRL_EYES_BLINK_RAPIDLY) && (this->blinkTimer == 0)) {
         // Blink twice, then move on
@@ -171,15 +171,15 @@ void EnBomBowMan_BlinkAwake(EnBomBowlMan* this, PlayState* play) {
 }
 
 void EnBomBowMan_CheckBeatenDC(EnBomBowlMan* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
-    if ((Message_GetState(&play->msgCtx) == this->dialogState) && Message_ShouldAdvance(play)) {
-        Message_CloseTextbox(play);
-        this->frameCount = (f32)Animation_GetLastFrame(&gChuGirlLeanOverCounterAnim);
-        Animation_Change(&this->skelAnime, &gChuGirlLeanOverCounterAnim, 1.0f, 0.0f, this->frameCount, ANIMMODE_LOOP,
+    if ((OoT_Message_GetState(&play->msgCtx) == this->dialogState) && OoT_Message_ShouldAdvance(play)) {
+        OoT_Message_CloseTextbox(play);
+        this->frameCount = (f32)OoT_Animation_GetLastFrame(&gChuGirlLeanOverCounterAnim);
+        OoT_Animation_Change(&this->skelAnime, &gChuGirlLeanOverCounterAnim, 1.0f, 0.0f, this->frameCount, ANIMMODE_LOOP,
                          -10.0f);
         this->eyeMode = CHU_GIRL_EYES_AWAKE;
-        this->blinkTimer = (s16)Rand_ZeroFloat(60.0f) + 20;
+        this->blinkTimer = (s16)OoT_Rand_ZeroFloat(60.0f) + 20;
 
         bool bombchuBowlingClosed;
         if (IS_RANDO) {
@@ -189,21 +189,21 @@ void EnBomBowMan_CheckBeatenDC(EnBomBowlMan* this, PlayState* play) {
             bombchuBowlingClosed = (INV_CONTENT(explosive) == ITEM_NONE);
         } else {
             // if not rando'd, check if we have beaten Dodongo's Cavern
-            bombchuBowlingClosed = !((Flags_GetEventChkInf(EVENTCHKINF_USED_DODONGOS_CAVERN_BLUE_WARP)) || BREG(2));
+            bombchuBowlingClosed = !((OoT_Flags_GetEventChkInf(EVENTCHKINF_USED_DODONGOS_CAVERN_BLUE_WARP)) || BREG(2));
         }
         if (bombchuBowlingClosed) {
             this->actionFunc = EnBomBowMan_WaitNotBeatenDC;
         } else {
             this->actor.textId = 0x18;
             this->dialogState = TEXT_STATE_CHOICE;
-            Message_ContinueTextbox(play, this->actor.textId);
+            OoT_Message_ContinueTextbox(play, this->actor.textId);
             this->actionFunc = EnBomBowlMan_HandlePlayChoice;
         }
     }
 }
 
 void EnBomBowMan_WaitNotBeatenDC(EnBomBowlMan* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
     if (Actor_ProcessTalkRequest(&this->actor, play)) {
         this->actionFunc = EnBomBowMan_TalkNotBeatenDC;
@@ -213,16 +213,16 @@ void EnBomBowMan_WaitNotBeatenDC(EnBomBowlMan* this, PlayState* play) {
 }
 
 void EnBomBowMan_TalkNotBeatenDC(EnBomBowlMan* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
-    if ((Message_GetState(&play->msgCtx) == this->dialogState) && Message_ShouldAdvance(play)) {
-        Message_CloseTextbox(play);
+    if ((OoT_Message_GetState(&play->msgCtx) == this->dialogState) && OoT_Message_ShouldAdvance(play)) {
+        OoT_Message_CloseTextbox(play);
         this->actionFunc = EnBomBowMan_WaitNotBeatenDC;
     }
 }
 
 void EnBomBowMan_SetupRunGame(EnBomBowlMan* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
     if (this->minigamePlayStatus == 0) {
         if (!this->startedPlaying) {
@@ -243,7 +243,7 @@ void EnBomBowMan_SetupRunGame(EnBomBowlMan* this, PlayState* play) {
 void EnBomBowMan_RunGame(EnBomBowlMan* this, PlayState* play) {
     s16 yawDiff;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
     if (BREG(3)) {
         osSyncPrintf(VT_FGCOL(RED) "☆ game_play->bomchu_game_flag ☆ %d\n" VT_RST, play->bombchuBowlingStatus);
@@ -286,10 +286,10 @@ void EnBomBowMan_RunGame(EnBomBowlMan* this, PlayState* play) {
 
         play->bombchuBowlingStatus = 0;
         this->playingAgain = true;
-        Message_StartTextbox(play, this->actor.textId, NULL);
+        OoT_Message_StartTextbox(play, this->actor.textId, NULL);
 
         if (this->gameResult == 2) {
-            Player_SetCsActionWithHaltedActors(play, NULL, 8);
+            OoT_Player_SetCsActionWithHaltedActors(play, NULL, 8);
         }
         this->actionFunc = EnBomBowlMan_HandlePlayChoice;
     } else {
@@ -310,15 +310,15 @@ void EnBomBowMan_RunGame(EnBomBowlMan* this, PlayState* play) {
 }
 
 void EnBomBowlMan_HandlePlayChoice(EnBomBowlMan* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
-    if ((Message_GetState(&play->msgCtx) == this->dialogState) && Message_ShouldAdvance(play)) {
-        Message_CloseTextbox(play);
+    if ((OoT_Message_GetState(&play->msgCtx) == this->dialogState) && OoT_Message_ShouldAdvance(play)) {
+        OoT_Message_CloseTextbox(play);
 
         switch (play->msgCtx.choiceIndex) {
             case 0: // Yes
                 if (gSaveContext.rupees >= 30) {
-                    Rupees_ChangeBy(-30);
+                    OoT_Rupees_ChangeBy(-30);
                     this->minigamePlayStatus = 1;
                     this->wallStatus[0] = this->wallStatus[1] = 0;
                     if (CVarGetInteger(CVAR_ENHANCEMENT("CustomizeBombchuBowling"), 0)) {
@@ -326,25 +326,25 @@ void EnBomBowlMan_HandlePlayChoice(EnBomBowlMan* this, PlayState* play) {
                     } else {
                         play->bombchuBowlingStatus = 10;
                     }
-                    Flags_SetSwitch(play, 0x38);
+                    OoT_Flags_SetSwitch(play, 0x38);
 
                     if (!this->startedPlaying && !this->playingAgain) {
                         this->actor.textId = 0x19;
-                        Message_ContinueTextbox(play, this->actor.textId);
+                        OoT_Message_ContinueTextbox(play, this->actor.textId);
                         this->dialogState = TEXT_STATE_EVENT;
                         this->actionFunc = func_809C41FC;
                     } else {
                         this->actor.textId = 0x1B;
-                        Message_ContinueTextbox(play, this->actor.textId);
+                        OoT_Message_ContinueTextbox(play, this->actor.textId);
                         this->dialogState = TEXT_STATE_EVENT;
                         OnePointCutscene_Init(play, 8010, -99, NULL, MAIN_CAM);
-                        Player_SetCsActionWithHaltedActors(play, NULL, 8);
+                        OoT_Player_SetCsActionWithHaltedActors(play, NULL, 8);
                         this->actionFunc = EnBomBowMan_SetupChooseShowPrize;
                     }
                 } else {
                     this->playingAgain = false;
                     this->actor.textId = 0x85;
-                    Message_ContinueTextbox(play, this->actor.textId);
+                    OoT_Message_ContinueTextbox(play, this->actor.textId);
                     this->dialogState = TEXT_STATE_EVENT;
                     this->actionFunc = func_809C41FC;
                 }
@@ -353,7 +353,7 @@ void EnBomBowlMan_HandlePlayChoice(EnBomBowlMan* this, PlayState* play) {
             case 1: // No
                 this->playingAgain = false;
                 this->actor.textId = 0x2D;
-                Message_ContinueTextbox(play, this->actor.textId);
+                OoT_Message_ContinueTextbox(play, this->actor.textId);
                 this->dialogState = TEXT_STATE_EVENT;
                 this->actionFunc = func_809C41FC;
         }
@@ -361,24 +361,24 @@ void EnBomBowlMan_HandlePlayChoice(EnBomBowlMan* this, PlayState* play) {
 }
 
 void func_809C41FC(EnBomBowlMan* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    if ((Message_GetState(&play->msgCtx) == this->dialogState) && Message_ShouldAdvance(play)) {
-        Message_CloseTextbox(play);
+    OoT_SkelAnime_Update(&this->skelAnime);
+    if ((OoT_Message_GetState(&play->msgCtx) == this->dialogState) && OoT_Message_ShouldAdvance(play)) {
+        OoT_Message_CloseTextbox(play);
 
-        if (((this->actor.textId == 0x2D) || (this->actor.textId == 0x85)) && Flags_GetSwitch(play, 0x38)) {
-            Flags_UnsetSwitch(play, 0x38);
+        if (((this->actor.textId == 0x2D) || (this->actor.textId == 0x85)) && OoT_Flags_GetSwitch(play, 0x38)) {
+            OoT_Flags_UnsetSwitch(play, 0x38);
         }
 
         if (this->minigamePlayStatus == 1) {
             this->actor.textId = 0x1B;
-            Message_ContinueTextbox(play, this->actor.textId);
+            OoT_Message_ContinueTextbox(play, this->actor.textId);
             this->dialogState = TEXT_STATE_EVENT;
             OnePointCutscene_Init(play, 8010, -99, NULL, MAIN_CAM);
-            Player_SetCsActionWithHaltedActors(play, NULL, 8);
+            OoT_Player_SetCsActionWithHaltedActors(play, NULL, 8);
             this->actionFunc = EnBomBowMan_SetupChooseShowPrize;
         } else {
             if (this->gameResult == 2) {
-                Player_SetCsActionWithHaltedActors(play, NULL, 7);
+                OoT_Player_SetCsActionWithHaltedActors(play, NULL, 7);
             }
             this->actionFunc = EnBomBowMan_SetupRunGame;
         }
@@ -390,13 +390,13 @@ void EnBomBowMan_SetupChooseShowPrize(EnBomBowlMan* this, PlayState* play) {
     Vec3f velocity = { 0.0f, 0.0f, 0.0f };
     Vec3f pos;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
-    if ((Message_GetState(&play->msgCtx) == this->dialogState) && Message_ShouldAdvance(play)) {
+    if ((OoT_Message_GetState(&play->msgCtx) == this->dialogState) && OoT_Message_ShouldAdvance(play)) {
         pos.x = 148.0f;
         pos.y = 40.0f;
         pos.z = 300.0f;
-        EffectSsBomb2_SpawnLayered(play, &pos, &velocity, &accel, 50, 15);
+        OoT_EffectSsBomb2_SpawnLayered(play, &pos, &velocity, &accel, 50, 15);
         Audio_PlayActorSound2(&this->actor, NA_SE_IT_GOODS_APPEAR);
         this->prizeRevealTimer = 10;
         this->actionFunc = EnBomBowMan_ChooseShowPrize;
@@ -413,7 +413,7 @@ void EnBomBowMan_ChooseShowPrize(EnBomBowlMan* this, PlayState* play) {
     s16 prizeTemp;
     s32 pad;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
     if (this->prizeRevealTimer == 0) {
         switch (this->prizeSelect) {
@@ -457,13 +457,13 @@ void EnBomBowMan_ChooseShowPrize(EnBomBowlMan* this, PlayState* play) {
             this->prizeIndex = BREG(7) - 1;
         }
 
-        this->exItem = (EnExItem*)Actor_SpawnAsChild(
+        this->exItem = (EnExItem*)OoT_Actor_SpawnAsChild(
             &play->actorCtx, &this->actor, play, ACTOR_EN_EX_ITEM, sPrizePosOffset[this->prizeIndex].x + 148.0f,
             sPrizePosOffset[this->prizeIndex].y + 40.0f, sPrizePosOffset[this->prizeIndex].z + 300.0f, 0,
             sPrizeRot[this->prizeIndex], 0, this->prizeIndex + EXITEM_COUNTER);
 
         if (!this->startedPlaying) {
-            this->bowlPit = (EnBomBowlPit*)Actor_SpawnAsChild(&play->actorCtx, &this->actor, play,
+            this->bowlPit = (EnBomBowlPit*)OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play,
                                                               ACTOR_EN_BOM_BOWL_PIT, 0.0f, 90.0f, -860.0f, 0, 0, 0, 0);
             if (this->bowlPit != NULL) {
                 this->bowlPit->prizeIndex = this->prizeIndex;
@@ -475,7 +475,7 @@ void EnBomBowMan_ChooseShowPrize(EnBomBowlMan* this, PlayState* play) {
         this->bowlPit->start = 1;
         this->minigamePlayStatus = 2;
         this->actor.textId = 0x405A;
-        Message_ContinueTextbox(play, this->actor.textId);
+        OoT_Message_ContinueTextbox(play, this->actor.textId);
         this->dialogState = TEXT_STATE_EVENT;
 
         // Cycle through prizes in order
@@ -488,10 +488,10 @@ void EnBomBowMan_ChooseShowPrize(EnBomBowlMan* this, PlayState* play) {
 }
 
 void EnBomBowlMan_BeginPlayGame(EnBomBowlMan* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
-    if ((Message_GetState(&play->msgCtx) == this->dialogState) && Message_ShouldAdvance(play)) {
-        Message_CloseTextbox(play);
+    if ((OoT_Message_GetState(&play->msgCtx) == this->dialogState) && OoT_Message_ShouldAdvance(play)) {
+        OoT_Message_CloseTextbox(play);
         func_8005B1A4(GET_ACTIVE_CAM(play));
         this->startedPlaying = true;
 
@@ -501,17 +501,17 @@ void EnBomBowlMan_BeginPlayGame(EnBomBowlMan* this, PlayState* play) {
 
         // "Wow"
         osSyncPrintf(VT_FGCOL(YELLOW) "☆ わー ☆ %d\n" VT_RST, play->bombchuBowlingStatus);
-        Player_SetCsActionWithHaltedActors(play, NULL, 7);
+        OoT_Player_SetCsActionWithHaltedActors(play, NULL, 7);
         this->actionFunc = EnBomBowMan_SetupRunGame;
     }
 }
 
-void EnBomBowlMan_Update(Actor* thisx, PlayState* play) {
+void OoT_EnBomBowlMan_Update(Actor* thisx, PlayState* play) {
     EnBomBowlMan* this = (EnBomBowlMan*)thisx;
 
     this->timer++;
     this->actor.focus.pos.y = 60.0f;
-    Actor_SetFocus(&this->actor, 60.0f);
+    OoT_Actor_SetFocus(&this->actor, 60.0f);
 
     switch (this->eyeMode) {
         case CHU_GIRL_EYES_ASLEEP:
@@ -535,7 +535,7 @@ void EnBomBowlMan_Update(Actor* thisx, PlayState* play) {
                 this->eyeTextureIndex++;
                 if (this->eyeTextureIndex >= 3) {
                     this->eyeTextureIndex = 0;
-                    this->blinkTimer = (s16)Rand_ZeroFloat(60.0f) + 20;
+                    this->blinkTimer = (s16)OoT_Rand_ZeroFloat(60.0f) + 20;
                 }
             }
 
@@ -549,7 +549,7 @@ void EnBomBowlMan_Update(Actor* thisx, PlayState* play) {
     this->actionFunc(this, play);
 }
 
-s32 EnBomBowlMan_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
+s32 OoT_EnBomBowlMan_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
     EnBomBowlMan* this = (EnBomBowlMan*)thisx;
 
     if (limbIndex == 4) { // head
@@ -560,7 +560,7 @@ s32 EnBomBowlMan_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, V
     return false;
 }
 
-void EnBomBowlMan_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnBomBowlMan_Draw(Actor* thisx, PlayState* play) {
     static void* eyeTextures[] = { gChuGirlEyeOpenTex, gChuGirlEyeHalfTex, gChuGirlEyeClosedTex };
     EnBomBowlMan* this = (EnBomBowlMan*)thisx;
 
@@ -568,7 +568,7 @@ void EnBomBowlMan_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(eyeTextures[this->eyeTextureIndex]));
-    SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, EnBomBowlMan_OverrideLimbDraw, NULL, this);
+    SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, OoT_EnBomBowlMan_OverrideLimbDraw, NULL, this);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

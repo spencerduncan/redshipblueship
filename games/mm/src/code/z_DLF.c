@@ -2,7 +2,7 @@
 #include "system_malloc.h"
 #include "loadfragment.h"
 
-void Overlay_LoadGameState(GameStateOverlay* overlayEntry) {
+void MM_Overlay_LoadGameState(GameStateOverlay* overlayEntry) {
     void* vramStart;
 
     if (overlayEntry->loadedRamAddr != NULL) {
@@ -16,7 +16,7 @@ void Overlay_LoadGameState(GameStateOverlay* overlayEntry) {
     }
 
     overlayEntry->loadedRamAddr =
-        Overlay_AllocateAndLoad(overlayEntry->vromStart, overlayEntry->vromEnd, vramStart, overlayEntry->vramEnd);
+        MM_Overlay_AllocateAndLoad(overlayEntry->vromStart, overlayEntry->vromEnd, vramStart, overlayEntry->vramEnd);
 
     if (overlayEntry->loadedRamAddr != NULL) {
         overlayEntry->unk_14 = (void*)(uintptr_t)((overlayEntry->unk_14 != NULL)
@@ -53,7 +53,7 @@ void Overlay_LoadGameState(GameStateOverlay* overlayEntry) {
     }
 }
 
-void Overlay_FreeGameState(GameStateOverlay* overlayEntry) {
+void MM_Overlay_FreeGameState(GameStateOverlay* overlayEntry) {
     s32 var_v0;
 
     if (overlayEntry->loadedRamAddr != NULL) {
@@ -89,7 +89,7 @@ void Overlay_FreeGameState(GameStateOverlay* overlayEntry) {
                                                                                (uintptr_t)overlayEntry->loadedRamAddr))
                                                           : NULL);
 
-            SystemArena_Free(overlayEntry->loadedRamAddr);
+            MM_SystemArena_Free(overlayEntry->loadedRamAddr);
             overlayEntry->loadedRamAddr = NULL;
         }
     }

@@ -17,10 +17,10 @@
 #define MERGE_MASTER 0x40
 #define MERGE_SLAVE 0x20
 
-void EnFloormas_Init(Actor* thisx, PlayState* play);
-void EnFloormas_Destroy(Actor* thisx, PlayState* play);
-void EnFloormas_Update(Actor* thisx, PlayState* play);
-void EnFloormas_Draw(Actor* thisx, PlayState* play);
+void OoT_EnFloormas_Init(Actor* thisx, PlayState* play);
+void OoT_EnFloormas_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnFloormas_Update(Actor* thisx, PlayState* play);
+void OoT_EnFloormas_Draw(Actor* thisx, PlayState* play);
 
 void EnFloormas_GrabLink(EnFloormas* this, PlayState* play);
 void EnFloormas_Split(EnFloormas* this, PlayState* play);
@@ -52,14 +52,14 @@ const ActorInit En_Floormas_InitVars = {
     FLAGS,
     OBJECT_WALLMASTER,
     sizeof(EnFloormas),
-    (ActorFunc)EnFloormas_Init,
-    (ActorFunc)EnFloormas_Destroy,
-    (ActorFunc)EnFloormas_Update,
-    (ActorFunc)EnFloormas_Draw,
+    (ActorFunc)OoT_EnFloormas_Init,
+    (ActorFunc)OoT_EnFloormas_Destroy,
+    (ActorFunc)OoT_EnFloormas_Update,
+    (ActorFunc)OoT_EnFloormas_Draw,
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_HIT0,
         AT_ON | AT_TYPE_ENEMY,
@@ -79,9 +79,9 @@ static ColliderCylinderInit sCylinderInit = {
     { 25, 40, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit sColChkInfoInit = { 4, 30, 40, 150 };
+static CollisionCheckInfoInit OoT_sColChkInfoInit = { 4, 30, 40, 150 };
 
-static DamageTable sDamageTable = {
+static DamageTable OoT_sDamageTable = {
     /* Deku nut      */ DMG_ENTRY(0, 0x1),
     /* Deku stick    */ DMG_ENTRY(2, 0x0),
     /* Slingshot     */ DMG_ENTRY(1, 0x0),
@@ -116,25 +116,25 @@ static DamageTable sDamageTable = {
     /* Unknown 2     */ DMG_ENTRY(0, 0x0),
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_S8(naviEnemyId, 0x31, ICHAIN_CONTINUE),
     ICHAIN_F32(targetArrowOffset, 5500, ICHAIN_CONTINUE),
     ICHAIN_F32_DIV1000(gravity, -1000, ICHAIN_STOP),
 };
 
-void EnFloormas_Init(Actor* thisx, PlayState* play2) {
+void OoT_EnFloormas_Init(Actor* thisx, PlayState* play2) {
     EnFloormas* this = (EnFloormas*)thisx;
     PlayState* play = play2;
     s32 invisble;
     s32 pad;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 50.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gWallmasterSkel, &gWallmasterWaitAnim, this->jointTable,
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 50.0f);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gWallmasterSkel, &gWallmasterWaitAnim, this->jointTable,
                        this->morphTable, 25);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo(&this->actor.colChkInfo, &sDamageTable, &sColChkInfoInit);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
+    OoT_CollisionCheck_SetInfo(&this->actor.colChkInfo, &OoT_sDamageTable, &OoT_sColChkInfoInit);
     this->zOffset = -1600;
     invisble = this->actor.params & SPAWN_INVISIBLE;
 
@@ -152,19 +152,19 @@ void EnFloormas_Init(Actor* thisx, PlayState* play2) {
     } else {
         // spawn first small floormaster
         this->actor.parent =
-            Actor_Spawn(&play->actorCtx, play, ACTOR_EN_FLOORMAS, this->actor.world.pos.x, this->actor.world.pos.y,
+            OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_FLOORMAS, this->actor.world.pos.x, this->actor.world.pos.y,
                         this->actor.world.pos.z, 0, 0, 0, invisble + SPAWN_SMALL, true);
         if (this->actor.parent == NULL) {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
             return;
         }
         // spawn 2nd small floormaster
         this->actor.child =
-            Actor_Spawn(&play->actorCtx, play, ACTOR_EN_FLOORMAS, this->actor.world.pos.x, this->actor.world.pos.y,
+            OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_FLOORMAS, this->actor.world.pos.x, this->actor.world.pos.y,
                         this->actor.world.pos.z, 0, 0, 0, invisble + SPAWN_SMALL, true);
         if (this->actor.child == NULL) {
-            Actor_Kill(this->actor.parent);
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(this->actor.parent);
+            OoT_Actor_Kill(&this->actor);
             return;
         }
 
@@ -177,10 +177,10 @@ void EnFloormas_Init(Actor* thisx, PlayState* play2) {
     }
 }
 
-void EnFloormas_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnFloormas_Destroy(Actor* thisx, PlayState* play) {
     EnFloormas* this = (EnFloormas*)thisx;
     ColliderCylinder* col = &this->collider;
-    Collider_DestroyCylinder(play, col);
+    OoT_Collider_DestroyCylinder(play, col);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
@@ -198,30 +198,30 @@ void EnFloormas_MakeVulnerable(EnFloormas* this) {
 }
 
 void EnFloormas_SetupBigDecideAction(EnFloormas* this) {
-    Animation_PlayOnce(&this->skelAnime, &gWallmasterWaitAnim);
+    OoT_Animation_PlayOnce(&this->skelAnime, &gWallmasterWaitAnim);
     this->actionFunc = EnFloormas_BigDecideAction;
     this->actor.speedXZ = 0.0f;
 }
 
 void EnFloormas_SetupStand(EnFloormas* this) {
-    Animation_MorphToPlayOnce(&this->skelAnime, &gWallmasterStandUpAnim, -3.0f);
+    OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gWallmasterStandUpAnim, -3.0f);
     this->actionFunc = EnFloormas_Stand;
 }
 
 void EnFloormas_SetupBigWalk(EnFloormas* this) {
     if (this->actionFunc != EnFloormas_Run) {
-        Animation_PlayLoopSetSpeed(&this->skelAnime, &gWallmasterWalkAnim, 1.5f);
+        OoT_Animation_PlayLoopSetSpeed(&this->skelAnime, &gWallmasterWalkAnim, 1.5f);
     } else {
         this->skelAnime.playSpeed = 1.5f;
     }
 
-    this->actionTimer = Rand_S16Offset(2, 4);
+    this->actionTimer = OoT_Rand_S16Offset(2, 4);
     this->actionFunc = EnFloormas_BigWalk;
     this->actor.speedXZ = 1.5f;
 }
 
 void EnFloormas_SetupBigStopWalk(EnFloormas* this) {
-    Animation_PlayOnce(&this->skelAnime, &gWallmasterStopWalkAnim);
+    OoT_Animation_PlayOnce(&this->skelAnime, &gWallmasterStopWalkAnim);
     this->actionFunc = EnFloormas_BigStopWalk;
     this->actor.speedXZ = 0.0f;
 }
@@ -238,9 +238,9 @@ void EnFloormas_SetupTurn(EnFloormas* this) {
 
     this->actor.speedXZ = 0.0f;
     if (rotDelta > 0) {
-        Animation_MorphToPlayOnce(&this->skelAnime, &gFloormasterTurnAnim, -3.0f);
+        OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gFloormasterTurnAnim, -3.0f);
     } else {
-        Animation_Change(&this->skelAnime, &gFloormasterTurnAnim, -1.0f, Animation_GetLastFrame(&gFloormasterTurnAnim),
+        OoT_Animation_Change(&this->skelAnime, &gFloormasterTurnAnim, -1.0f, OoT_Animation_GetLastFrame(&gFloormasterTurnAnim),
                          0.0f, ANIMMODE_ONCE, -3.0f);
     }
 
@@ -254,12 +254,12 @@ void EnFloormas_SetupTurn(EnFloormas* this) {
 }
 
 void EnFloormas_SetupHover(EnFloormas* this, PlayState* play) {
-    Animation_Change(&this->skelAnime, &gWallmasterHoverAnim, 3.0f, 0, Animation_GetLastFrame(&gWallmasterHoverAnim),
+    OoT_Animation_Change(&this->skelAnime, &gWallmasterHoverAnim, 3.0f, 0, OoT_Animation_GetLastFrame(&gWallmasterHoverAnim),
                      ANIMMODE_ONCE, -3.0f);
     this->actor.speedXZ = 0.0f;
     this->actor.gravity = 0.0f;
     EnFloormas_MakeInvulnerable(this);
-    Actor_SpawnFloorDustRing(play, &this->actor, &this->actor.world.pos, 15.0f, 6, 20.0f, 300, 100, true);
+    OoT_Actor_SpawnFloorDustRing(play, &this->actor, &this->actor.world.pos, 15.0f, 6, 20.0f, 300, 100, true);
     Audio_PlayActorSound2(&this->actor, NA_SE_EN_FLOORMASTER_ATTACK);
     this->actionFunc = EnFloormas_Hover;
 }
@@ -272,7 +272,7 @@ void EnFloormas_SetupCharge(EnFloormas* this) {
 }
 
 void EnFloormas_SetupLand(EnFloormas* this) {
-    Animation_Change(&this->skelAnime, &gWallmasterJumpAnim, 1.0f, 41.0f, 42.0f, ANIMMODE_ONCE, 5.0f);
+    OoT_Animation_Change(&this->skelAnime, &gWallmasterJumpAnim, 1.0f, 41.0f, 42.0f, ANIMMODE_ONCE, 5.0f);
     if ((this->actor.speedXZ < 0.0f) || (this->actionFunc != EnFloormas_Charge)) {
         this->actionTimer = 30;
     } else {
@@ -284,37 +284,37 @@ void EnFloormas_SetupLand(EnFloormas* this) {
 
 void EnFloormas_SetupSplit(EnFloormas* this) {
 
-    Actor_SetScale(&this->actor, 0.004f);
+    OoT_Actor_SetScale(&this->actor, 0.004f);
     this->actor.flags |= ACTOR_FLAG_UPDATE_CULLING_DISABLED;
     if (CHECK_FLAG_ALL(this->actor.flags, ACTOR_FLAG_REACT_TO_LENS)) {
         this->actor.draw = EnFloormas_DrawHighlighted;
     } else {
-        this->actor.draw = EnFloormas_Draw;
+        this->actor.draw = OoT_EnFloormas_Draw;
     }
     this->actor.shape.rot.y = this->actor.parent->shape.rot.y + 0x5555;
     this->actor.world.pos = this->actor.parent->world.pos;
     this->actor.params = 0x10;
-    Animation_Change(&this->skelAnime, &gWallmasterJumpAnim, 1.0f, 41.0f, Animation_GetLastFrame(&gWallmasterJumpAnim),
+    OoT_Animation_Change(&this->skelAnime, &gWallmasterJumpAnim, 1.0f, 41.0f, OoT_Animation_GetLastFrame(&gWallmasterJumpAnim),
                      ANIMMODE_ONCE, 0.0f);
-    this->collider.dim.radius = sCylinderInit.dim.radius * 0.6f;
-    this->collider.dim.height = sCylinderInit.dim.height * 0.6f;
+    this->collider.dim.radius = OoT_sCylinderInit.dim.radius * 0.6f;
+    this->collider.dim.height = OoT_sCylinderInit.dim.height * 0.6f;
     this->collider.info.bumperFlags &= ~BUMP_HOOKABLE;
     this->actor.speedXZ = 4.0f;
     this->actor.velocity.y = 7.0f;
     // using div creates a signed check.
-    this->actor.colChkInfo.health = sColChkInfoInit.health >> 1;
+    this->actor.colChkInfo.health = OoT_sColChkInfoInit.health >> 1;
     this->actionFunc = EnFloormas_Split;
 }
 
 void EnFloormas_SetupSmWalk(EnFloormas* this) {
-    Animation_PlayLoopSetSpeed(&this->skelAnime, &gWallmasterWalkAnim, 4.5f);
+    OoT_Animation_PlayLoopSetSpeed(&this->skelAnime, &gWallmasterWalkAnim, 4.5f);
     this->actionFunc = EnFloormas_SmWalk;
     this->actor.speedXZ = 5.0f;
 }
 
 void EnFloormas_SetupSmDecideAction(EnFloormas* this) {
     if (this->actionFunc != EnFloormas_SmWalk) {
-        Animation_PlayLoopSetSpeed(&this->skelAnime, &gWallmasterWalkAnim, 4.5f);
+        OoT_Animation_PlayLoopSetSpeed(&this->skelAnime, &gWallmasterWalkAnim, 4.5f);
     }
     this->actionFunc = EnFloormas_SmDecideAction;
     this->actor.speedXZ = 5.0f;
@@ -330,18 +330,18 @@ void EnFloormas_SetupSmShrink(EnFloormas* this, PlayState* play) {
     pos.x = this->actor.world.pos.x;
     pos.y = this->actor.world.pos.y + 15.0f;
     pos.z = this->actor.world.pos.z;
-    EffectSsDeadDb_Spawn(play, &pos, &velocity, &accel, 150, -10, 255, 255, 255, 255, 0, 0, 255, 1, 9, true);
+    OoT_EffectSsDeadDb_Spawn(play, &pos, &velocity, &accel, 150, -10, 255, 255, 255, 255, 0, 0, 255, 1, 9, true);
     this->actionFunc = EnFloormas_SmShrink;
 }
 
 void EnFloormas_SetupSlaveJumpAtMaster(EnFloormas* this) {
-    Animation_Change(&this->skelAnime, &gWallmasterJumpAnim, 2.0f, 0.0f, 41.0f, ANIMMODE_ONCE, 0.0f);
+    OoT_Animation_Change(&this->skelAnime, &gWallmasterJumpAnim, 2.0f, 0.0f, 41.0f, ANIMMODE_ONCE, 0.0f);
     this->actionFunc = EnFloormas_SmSlaveJumpAtMaster;
     this->actor.speedXZ = 0.0f;
 }
 
 void EnFloormas_SetupJumpAtLink(EnFloormas* this) {
-    Animation_Change(&this->skelAnime, &gWallmasterJumpAnim, 2.0f, 0.0f, 41.0f, ANIMMODE_ONCE, 0.0f);
+    OoT_Animation_Change(&this->skelAnime, &gWallmasterJumpAnim, 2.0f, 0.0f, 41.0f, ANIMMODE_ONCE, 0.0f);
     this->actionFunc = EnFloormas_JumpAtLink;
     this->actor.speedXZ = 0.0f;
 }
@@ -350,7 +350,7 @@ void EnFloormas_SetupGrabLink(EnFloormas* this, Player* player) {
     f32 yDelta;
     f32 xzDelta;
 
-    Animation_Change(&this->skelAnime, &gWallmasterJumpAnim, 1.0f, 36.0f, 45.0f, ANIMMODE_ONCE, -3.0f);
+    OoT_Animation_Change(&this->skelAnime, &gWallmasterJumpAnim, 1.0f, 36.0f, 45.0f, ANIMMODE_ONCE, -3.0f);
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
     this->actor.speedXZ = 0.0f;
     this->actor.velocity.y = 0.0f;
@@ -363,14 +363,14 @@ void EnFloormas_SetupGrabLink(EnFloormas* this, Player* player) {
         xzDelta = -70.0f;
     }
     this->actor.world.pos.y = player->actor.world.pos.y + yDelta;
-    this->actor.world.pos.x = Math_SinS(this->actor.shape.rot.y) * (xzDelta * 0.1f) + player->actor.world.pos.x;
-    this->actor.world.pos.z = Math_CosS(this->actor.shape.rot.y) * (xzDelta * 0.1f) + player->actor.world.pos.z;
+    this->actor.world.pos.x = OoT_Math_SinS(this->actor.shape.rot.y) * (xzDelta * 0.1f) + player->actor.world.pos.x;
+    this->actor.world.pos.z = OoT_Math_CosS(this->actor.shape.rot.y) * (xzDelta * 0.1f) + player->actor.world.pos.z;
     this->actor.shape.rot.x = -0x4CE0;
     this->actionFunc = EnFloormas_GrabLink;
 }
 
 void EnFloormas_SetupMerge(EnFloormas* this) {
-    Animation_PlayOnce(&this->skelAnime, &gWallmasterWaitAnim);
+    OoT_Animation_PlayOnce(&this->skelAnime, &gWallmasterWaitAnim);
     this->actionTimer = 0;
     this->smActionTimer += 1500;
     EnFloormas_MakeInvulnerable(this);
@@ -383,9 +383,9 @@ void EnFloormas_SetupSmWait(EnFloormas* this) {
 
     // if this is the last remaining small floor master, kill all.
     if ((parent->actionFunc == EnFloormas_SmWait) && (child->actionFunc == EnFloormas_SmWait)) {
-        Actor_Kill(&parent->actor);
-        Actor_Kill(&child->actor);
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&parent->actor);
+        OoT_Actor_Kill(&child->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
     this->actor.draw = NULL;
@@ -394,32 +394,32 @@ void EnFloormas_SetupSmWait(EnFloormas* this) {
 }
 
 void EnFloormas_SetupTakeDamage(EnFloormas* this) {
-    Animation_MorphToPlayOnce(&this->skelAnime, &gWallmasterDamageAnim, -3.0f);
+    OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gWallmasterDamageAnim, -3.0f);
     if (this->collider.info.acHitInfo->toucher.dmgFlags & 0x1F824) {
         this->actor.world.rot.y = this->collider.base.ac->world.rot.y;
     } else {
-        this->actor.world.rot.y = Actor_WorldYawTowardActor(&this->actor, this->collider.base.ac) + 0x8000;
+        this->actor.world.rot.y = OoT_Actor_WorldYawTowardActor(&this->actor, this->collider.base.ac) + 0x8000;
     }
-    Actor_SetColorFilter(&this->actor, 0x4000, 0xFF, 0, 0x14);
+    OoT_Actor_SetColorFilter(&this->actor, 0x4000, 0xFF, 0, 0x14);
     this->actionFunc = EnFloormas_TakeDamage;
     this->actor.speedXZ = 5.0f;
     this->actor.velocity.y = 5.5f;
 }
 
 void EnFloormas_SetupRecover(EnFloormas* this) {
-    Animation_PlayOnce(&this->skelAnime, &gWallmasterRecoverFromDamageAnim);
+    OoT_Animation_PlayOnce(&this->skelAnime, &gWallmasterRecoverFromDamageAnim);
     this->actor.velocity.y = this->actor.speedXZ = 0.0f;
     this->actor.world.rot.y = this->actor.shape.rot.y;
     this->actionFunc = EnFloormas_Recover;
 }
 
 void EnFloormas_SetupFreeze(EnFloormas* this) {
-    Animation_Change(&this->skelAnime, &gWallmasterJumpAnim, 1.5f, 0, 20.0f, ANIMMODE_ONCE, -3.0f);
+    OoT_Animation_Change(&this->skelAnime, &gWallmasterJumpAnim, 1.5f, 0, 20.0f, ANIMMODE_ONCE, -3.0f);
     this->actor.speedXZ = 0.0f;
     if (this->actor.colChkInfo.damageEffect == 4) {
-        Actor_SetColorFilter(&this->actor, -0x8000, 0xFF, 0, 0x50);
+        OoT_Actor_SetColorFilter(&this->actor, -0x8000, 0xFF, 0, 0x50);
     } else {
-        Actor_SetColorFilter(&this->actor, 0, 0xFF, 0, 0x50);
+        OoT_Actor_SetColorFilter(&this->actor, 0, 0xFF, 0, 0x50);
         if (this->actor.scale.x > 0.004f) {
             Audio_PlayActorSound2(&this->actor, NA_SE_EN_GOMA_JR_FREEZE);
         } else {
@@ -441,20 +441,20 @@ void EnFloormas_Die(EnFloormas* this, PlayState* play) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_FLOORMASTER_SPLIT);
     } else {
         // Die
-        Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos, 0x90);
+        OoT_Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos, 0x90);
         EnFloormas_SetupSmShrink(this, play);
         GameInteractor_ExecuteOnEnemyDefeat(&this->actor);
     }
 }
 
 void EnFloormas_BigDecideAction(EnFloormas* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (OoT_SkelAnime_Update(&this->skelAnime)) {
         // within 400 units of link and within 90 degrees rotation of him
-        if (this->actor.xzDistToPlayer < 400.0f && !Actor_IsFacingPlayer(&this->actor, 0x4000)) {
+        if (this->actor.xzDistToPlayer < 400.0f && !OoT_Actor_IsFacingPlayer(&this->actor, 0x4000)) {
             this->actionTarget = this->actor.yawTowardsPlayer;
             EnFloormas_SetupTurn(this);
             // within 280 units of link and within 45 degrees rotation of him
-        } else if (this->actor.xzDistToPlayer < 280.0f && Actor_IsFacingPlayer(&this->actor, 0x2000)) {
+        } else if (this->actor.xzDistToPlayer < 280.0f && OoT_Actor_IsFacingPlayer(&this->actor, 0x2000)) {
             EnFloormas_SetupHover(this, play);
         } else {
             EnFloormas_SetupStand(this);
@@ -463,7 +463,7 @@ void EnFloormas_BigDecideAction(EnFloormas* this, PlayState* play) {
 }
 
 void EnFloormas_Stand(EnFloormas* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (OoT_SkelAnime_Update(&this->skelAnime)) {
         if (this->actor.scale.x > 0.004f) {
             EnFloormas_SetupBigWalk(this);
         } else if (this->actor.params == MERGE_SLAVE) {
@@ -477,26 +477,26 @@ void EnFloormas_Stand(EnFloormas* this, PlayState* play) {
 void EnFloormas_BigWalk(EnFloormas* this, PlayState* play) {
     s32 animPastFrame;
 
-    SkelAnime_Update(&this->skelAnime);
-    animPastFrame = Animation_OnFrame(&this->skelAnime, 0.0f);
+    OoT_SkelAnime_Update(&this->skelAnime);
+    animPastFrame = OoT_Animation_OnFrame(&this->skelAnime, 0.0f);
     if (animPastFrame) {
         if (this->actionTimer != 0) {
             this->actionTimer--;
         }
     }
-    if (((animPastFrame || (Animation_OnFrame(&this->skelAnime, 12.0f))) ||
-         (Animation_OnFrame(&this->skelAnime, 24.0f) != 0)) ||
-        (Animation_OnFrame(&this->skelAnime, 36.0f) != 0)) {
+    if (((animPastFrame || (OoT_Animation_OnFrame(&this->skelAnime, 12.0f))) ||
+         (OoT_Animation_OnFrame(&this->skelAnime, 24.0f) != 0)) ||
+        (OoT_Animation_OnFrame(&this->skelAnime, 36.0f) != 0)) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_FALL_WALK);
     }
 
-    if ((this->actor.xzDistToPlayer < 320.0f) && (Actor_IsFacingPlayer(&this->actor, 0x4000))) {
+    if ((this->actor.xzDistToPlayer < 320.0f) && (OoT_Actor_IsFacingPlayer(&this->actor, 0x4000))) {
         EnFloormas_SetupRun(this);
     } else if (this->actor.bgCheckFlags & 8) {
         // set target rotation to the colliding wall's rotation
         this->actionTarget = this->actor.wallYaw;
         EnFloormas_SetupTurn(this);
-    } else if ((this->actor.xzDistToPlayer < 400.0f) && !Actor_IsFacingPlayer(&this->actor, 0x4000)) {
+    } else if ((this->actor.xzDistToPlayer < 400.0f) && !OoT_Actor_IsFacingPlayer(&this->actor, 0x4000)) {
         // set target rotation to link.
         this->actionTarget = this->actor.yawTowardsPlayer;
         EnFloormas_SetupTurn(this);
@@ -506,21 +506,21 @@ void EnFloormas_BigWalk(EnFloormas* this, PlayState* play) {
 }
 
 void EnFloormas_BigStopWalk(EnFloormas* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (OoT_SkelAnime_Update(&this->skelAnime)) {
         EnFloormas_SetupBigDecideAction(this);
     }
 }
 
 void EnFloormas_Run(EnFloormas* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    if (Animation_OnFrame(&this->skelAnime, 0.0f) || Animation_OnFrame(&this->skelAnime, 12.0f) ||
-        Animation_OnFrame(&this->skelAnime, 24.0f) || Animation_OnFrame(&this->skelAnime, 36.0f)) {
+    OoT_SkelAnime_Update(&this->skelAnime);
+    if (OoT_Animation_OnFrame(&this->skelAnime, 0.0f) || OoT_Animation_OnFrame(&this->skelAnime, 12.0f) ||
+        OoT_Animation_OnFrame(&this->skelAnime, 24.0f) || OoT_Animation_OnFrame(&this->skelAnime, 36.0f)) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_FALL_WALK);
     }
 
-    Math_ApproachS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 3, 0x71C);
+    OoT_Math_ApproachS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 3, 0x71C);
 
-    if ((this->actor.xzDistToPlayer < 280.0f) && Actor_IsFacingPlayer(&this->actor, 0x2000) &&
+    if ((this->actor.xzDistToPlayer < 280.0f) && OoT_Actor_IsFacingPlayer(&this->actor, 0x2000) &&
         !(this->actor.bgCheckFlags & 8)) {
         EnFloormas_SetupHover(this, play);
     } else if (this->actor.xzDistToPlayer > 400.0f) {
@@ -533,12 +533,12 @@ void EnFloormas_Turn(EnFloormas* this, PlayState* play) {
     f32 sp30;
     f32 sp2C;
 
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (OoT_SkelAnime_Update(&this->skelAnime)) {
         EnFloormas_SetupStand(this);
     }
 
-    if (((this->skelAnime.playSpeed > 0.0f) && Animation_OnFrame(&this->skelAnime, 21.0f)) ||
-        ((this->skelAnime.playSpeed < 0.0f) && Animation_OnFrame(&this->skelAnime, 6.0f))) {
+    if (((this->skelAnime.playSpeed > 0.0f) && OoT_Animation_OnFrame(&this->skelAnime, 21.0f)) ||
+        ((this->skelAnime.playSpeed < 0.0f) && OoT_Animation_OnFrame(&this->skelAnime, 6.0f))) {
         if (this->actor.scale.x > 0.004f) {
             Audio_PlayActorSound2(&this->actor, NA_SE_EN_FALL_WALK);
         } else {
@@ -548,24 +548,24 @@ void EnFloormas_Turn(EnFloormas* this, PlayState* play) {
     // Needed to match
     if (!this->skelAnime.curFrame) {}
     if (this->skelAnime.curFrame >= 7.0f && this->skelAnime.curFrame < 22.0f) {
-        sp30 = Math_SinS(this->actor.shape.rot.y + 0x4268);
-        sp2C = Math_CosS(this->actor.shape.rot.y + 0x4268);
+        sp30 = OoT_Math_SinS(this->actor.shape.rot.y + 0x4268);
+        sp2C = OoT_Math_CosS(this->actor.shape.rot.y + 0x4268);
         this->actor.shape.rot.y += this->actionTarget;
         this->actor.world.pos.x -=
-            (this->actor.scale.x * 2700.0f) * (Math_SinS(this->actor.shape.rot.y + 0x4268) - sp30);
+            (this->actor.scale.x * 2700.0f) * (OoT_Math_SinS(this->actor.shape.rot.y + 0x4268) - sp30);
         this->actor.world.pos.z -=
-            (this->actor.scale.x * 2700.0f) * (Math_CosS(this->actor.shape.rot.y + 0x4268) - sp2C);
+            (this->actor.scale.x * 2700.0f) * (OoT_Math_CosS(this->actor.shape.rot.y + 0x4268) - sp2C);
     }
 }
 
 void EnFloormas_Hover(EnFloormas* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (OoT_SkelAnime_Update(&this->skelAnime)) {
         EnFloormas_SetupCharge(this);
     }
     this->actor.shape.rot.x += 0x140;
     this->actor.world.pos.y += 10.0f;
-    Math_ApproachS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 3, 2730);
-    Math_StepToS(&this->zOffset, 1200, 100);
+    OoT_Math_ApproachS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 3, 2730);
+    OoT_Math_StepToS(&this->zOffset, 1200, 100);
 }
 
 void EnFloormas_Slide(EnFloormas* this, PlayState* play) {
@@ -578,13 +578,13 @@ void EnFloormas_Slide(EnFloormas* this, PlayState* play) {
     pos.y = this->actor.floorHeight;
 
     velocity.y = 2.0f;
-    velocity.x = Math_SinS(this->actor.shape.rot.y + 0x6000) * 7.0f;
-    velocity.z = Math_CosS(this->actor.shape.rot.y + 0x6000) * 7.0f;
+    velocity.x = OoT_Math_SinS(this->actor.shape.rot.y + 0x6000) * 7.0f;
+    velocity.z = OoT_Math_CosS(this->actor.shape.rot.y + 0x6000) * 7.0f;
 
     func_800286CC(play, &pos, &velocity, &accel, 450, 100);
 
-    velocity.x = Math_SinS(this->actor.shape.rot.y - 0x6000) * 7.0f;
-    velocity.z = Math_CosS(this->actor.shape.rot.y - 0x6000) * 7.0f;
+    velocity.x = OoT_Math_SinS(this->actor.shape.rot.y - 0x6000) * 7.0f;
+    velocity.z = OoT_Math_CosS(this->actor.shape.rot.y - 0x6000) * 7.0f;
 
     func_800286CC(play, &pos, &velocity, &accel, 450, 100);
 
@@ -598,8 +598,8 @@ void EnFloormas_Charge(EnFloormas* this, PlayState* play) {
         this->actionTimer--;
     }
 
-    Math_StepToF(&this->actor.speedXZ, 15.0f, SQ(this->actor.speedXZ) * (1.0f / 3.0f));
-    Math_ScaledStepToS(&this->actor.shape.rot.x, -0x1680, 0x140);
+    OoT_Math_StepToF(&this->actor.speedXZ, 15.0f, SQ(this->actor.speedXZ) * (1.0f / 3.0f));
+    OoT_Math_ScaledStepToS(&this->actor.shape.rot.x, -0x1680, 0x140);
 
     distFromGround = this->actor.world.pos.y - this->actor.floorHeight;
     if (distFromGround < 10.0f) {
@@ -639,21 +639,21 @@ void EnFloormas_Land(EnFloormas* this, PlayState* play) {
     }
 
     if (isOnGround) {
-        Math_StepToF(&this->actor.speedXZ, 0.0f, 2.0f);
+        OoT_Math_StepToF(&this->actor.speedXZ, 0.0f, 2.0f);
     }
 
     if ((this->actor.speedXZ > 0.0f) && ((this->actor.world.pos.y - this->actor.floorHeight) < 12.0f)) {
         EnFloormas_Slide(this, play);
     }
 
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (OoT_SkelAnime_Update(&this->skelAnime)) {
         if (this->actionTimer != 0) {
             this->actionTimer--;
         }
 
         if (this->actionTimer == 0 && isOnGround) {
             if (this->skelAnime.endFrame < 45.0f) {
-                this->skelAnime.endFrame = Animation_GetLastFrame(&gWallmasterJumpAnim);
+                this->skelAnime.endFrame = OoT_Animation_GetLastFrame(&gWallmasterJumpAnim);
             } else if (this->actor.params == MERGE_MASTER) {
                 EnFloormas_SetupMerge(this);
             } else {
@@ -663,18 +663,18 @@ void EnFloormas_Land(EnFloormas* this, PlayState* play) {
         }
     }
 
-    Math_ScaledStepToS(&this->actor.shape.rot.x, 0, 0x140);
-    Math_StepToS(&this->zOffset, -1600, 100);
+    OoT_Math_ScaledStepToS(&this->actor.shape.rot.x, 0, 0x140);
+    OoT_Math_StepToS(&this->zOffset, -1600, 100);
 }
 
 void EnFloormas_Split(EnFloormas* this, PlayState* play) {
     if (this->actor.bgCheckFlags & 1) {
-        if (SkelAnime_Update(&this->skelAnime)) {
+        if (OoT_SkelAnime_Update(&this->skelAnime)) {
             this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
             this->smActionTimer = 50;
             EnFloormas_SetupStand(this);
         }
-        Math_StepToF(&this->actor.speedXZ, 0.0f, 1.0f);
+        OoT_Math_StepToF(&this->actor.speedXZ, 0.0f, 1.0f);
     }
 
     if (this->actor.bgCheckFlags & 2) {
@@ -683,10 +683,10 @@ void EnFloormas_Split(EnFloormas* this, PlayState* play) {
 }
 
 void EnFloormas_SmWalk(EnFloormas* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     DECR(this->smActionTimer);
 
-    if (Animation_OnFrame(&this->skelAnime, 0.0f) || Animation_OnFrame(&this->skelAnime, 18.0f)) {
+    if (OoT_Animation_OnFrame(&this->skelAnime, 0.0f) || OoT_Animation_OnFrame(&this->skelAnime, 18.0f)) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_FLOORMASTER_SM_WALK);
     }
 
@@ -696,7 +696,7 @@ void EnFloormas_SmWalk(EnFloormas* this, PlayState* play) {
         this->actionTarget = this->actor.wallYaw;
         EnFloormas_SetupTurn(this);
     } else if (this->actor.xzDistToPlayer < 120.0f) {
-        Math_ScaledStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer + 0x8000, 0x38E);
+        OoT_Math_ScaledStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer + 0x8000, 0x38E);
     }
 }
 
@@ -704,8 +704,8 @@ void EnFloormas_SmDecideAction(EnFloormas* this, PlayState* play) {
     Actor* primaryFloormas;
     s32 isAgainstWall;
 
-    SkelAnime_Update(&this->skelAnime);
-    if (Animation_OnFrame(&this->skelAnime, 0.0f) || Animation_OnFrame(&this->skelAnime, 18.0f)) {
+    OoT_SkelAnime_Update(&this->skelAnime);
+    if (OoT_Animation_OnFrame(&this->skelAnime, 0.0f) || OoT_Animation_OnFrame(&this->skelAnime, 18.0f)) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_FLOORMASTER_SM_WALK);
     }
     isAgainstWall = this->actor.bgCheckFlags & 8;
@@ -725,12 +725,12 @@ void EnFloormas_SmDecideAction(EnFloormas* this, PlayState* play) {
             return;
         }
 
-        Math_ScaledStepToS(&this->actor.shape.rot.y, Actor_WorldYawTowardActor(&this->actor, primaryFloormas), 0x38E);
-        if (Actor_WorldDistXZToActor(&this->actor, primaryFloormas) < 80.0f) {
+        OoT_Math_ScaledStepToS(&this->actor.shape.rot.y, OoT_Actor_WorldYawTowardActor(&this->actor, primaryFloormas), 0x38E);
+        if (OoT_Actor_WorldDistXZToActor(&this->actor, primaryFloormas) < 80.0f) {
             EnFloormas_SetupSlaveJumpAtMaster(this);
         }
     } else {
-        Math_ApproachS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 3, 0x71C);
+        OoT_Math_ApproachS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 3, 0x71C);
         if (this->actor.xzDistToPlayer < 80.0f) {
             EnFloormas_SetupJumpAtLink(this);
         }
@@ -738,7 +738,7 @@ void EnFloormas_SmDecideAction(EnFloormas* this, PlayState* play) {
 }
 
 void EnFloormas_SmShrink(EnFloormas* this, PlayState* play) {
-    if (Math_StepToF(&this->actor.scale.x, 0.0f, 0.0015f)) {
+    if (OoT_Math_StepToF(&this->actor.scale.x, 0.0f, 0.0015f)) {
         EnFloormas_SetupSmWait(this);
     }
     this->actor.scale.z = this->actor.scale.x;
@@ -748,10 +748,10 @@ void EnFloormas_SmShrink(EnFloormas* this, PlayState* play) {
 void EnFloormas_JumpAtLink(EnFloormas* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if (this->skelAnime.curFrame < 20.0f) {
-        Math_ApproachS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 2, 0xE38);
-    } else if (Animation_OnFrame(&this->skelAnime, 20.0f)) {
+        OoT_Math_ApproachS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 2, 0xE38);
+    } else if (OoT_Animation_OnFrame(&this->skelAnime, 20.0f)) {
         this->actor.speedXZ = 5.0f;
         this->actor.velocity.y = 7.0f;
     } else if (this->actor.bgCheckFlags & 2) {
@@ -773,7 +773,7 @@ void EnFloormas_GrabLink(EnFloormas* this, PlayState* play) {
     f32 yDelta;
     f32 xzDelta;
 
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (OoT_SkelAnime_Update(&this->skelAnime)) {
         if (this->skelAnime.playSpeed > 0.0f) {
             this->skelAnime.playSpeed = -1.0f;
             this->skelAnime.endFrame = 36.0f;
@@ -794,8 +794,8 @@ void EnFloormas_GrabLink(EnFloormas* this, PlayState* play) {
     }
 
     this->actor.world.pos.y = player->actor.world.pos.y + yDelta;
-    this->actor.world.pos.x = Math_SinS(this->actor.shape.rot.y) * (xzDelta * 0.1f) + player->actor.world.pos.x;
-    this->actor.world.pos.z = Math_CosS(this->actor.shape.rot.y) * (xzDelta * 0.1f) + player->actor.world.pos.z;
+    this->actor.world.pos.x = OoT_Math_SinS(this->actor.shape.rot.y) * (xzDelta * 0.1f) + player->actor.world.pos.x;
+    this->actor.world.pos.z = OoT_Math_CosS(this->actor.shape.rot.y) * (xzDelta * 0.1f) + player->actor.world.pos.z;
 
     // let go
     if (!(player->stateFlags2 & PLAYER_STATE2_GRABBED_BY_ENEMY) || (player->invincibilityTimer < 0)) {
@@ -819,9 +819,9 @@ void EnFloormas_GrabLink(EnFloormas* this, PlayState* play) {
         // Damage link every 20 frames
         if ((this->actionTarget % 20) == 0) {
             if (!LINK_IS_ADULT) {
-                Player_PlaySfx(&player->actor, NA_SE_VO_LI_DAMAGE_S_KID);
+                OoT_Player_PlaySfx(&player->actor, NA_SE_VO_LI_DAMAGE_S_KID);
             } else {
-                Player_PlaySfx(&player->actor, NA_SE_VO_LI_DAMAGE_S);
+                OoT_Player_PlaySfx(&player->actor, NA_SE_VO_LI_DAMAGE_S);
             }
             play->damagePlayer(play, -8);
         }
@@ -833,7 +833,7 @@ void EnFloormas_GrabLink(EnFloormas* this, PlayState* play) {
 void EnFloormas_SmSlaveJumpAtMaster(EnFloormas* this, PlayState* play) {
     Actor* primFloormas;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if (this->actor.parent->params == MERGE_MASTER) {
         primFloormas = this->actor.parent;
     } else if (this->actor.child->params == MERGE_MASTER) {
@@ -845,11 +845,11 @@ void EnFloormas_SmSlaveJumpAtMaster(EnFloormas* this, PlayState* play) {
         }
         return;
     }
-    if (Animation_OnFrame(&this->skelAnime, 20.0f)) {
+    if (OoT_Animation_OnFrame(&this->skelAnime, 20.0f)) {
         this->actor.speedXZ = 5.0f;
         this->actor.velocity.y = 7.0f;
     } else if (this->skelAnime.curFrame < 20.0f) {
-        Math_ApproachS(&this->actor.shape.rot.y, Actor_WorldYawTowardActor(&this->actor, primFloormas), 2, 0xE38);
+        OoT_Math_ApproachS(&this->actor.shape.rot.y, OoT_Actor_WorldYawTowardActor(&this->actor, primFloormas), 2, 0xE38);
     } else if ((((primFloormas->world.pos.y - this->actor.world.pos.y) < -10.0f) &&
                 (fabsf(this->actor.world.pos.x - primFloormas->world.pos.x) < 10.0f)) &&
                (fabsf(this->actor.world.pos.z - primFloormas->world.pos.z) < 10.0f)) {
@@ -863,7 +863,7 @@ void EnFloormas_SmSlaveJumpAtMaster(EnFloormas* this, PlayState* play) {
 
     if (fabsf(this->actor.world.pos.x - primFloormas->world.pos.x) < 5.0f &&
         fabsf(this->actor.world.pos.z - primFloormas->world.pos.z) < 5.0f) {
-        Math_StepToF(&this->actor.speedXZ, 0, 2.0f);
+        OoT_Math_StepToF(&this->actor.speedXZ, 0, 2.0f);
     }
 }
 
@@ -902,9 +902,9 @@ void EnFloormas_Merge(EnFloormas* this, PlayState* play) {
     prevScale = this->actor.scale.x;
 
     if (mergeCnt == 1) {
-        Math_StepToF(&this->actor.scale.x, 0.007f, 0.0005f);
+        OoT_Math_StepToF(&this->actor.scale.x, 0.007f, 0.0005f);
     } else if (mergeCnt == 0) {
-        Math_StepToF(&this->actor.scale.x, 0.01f, 0.0005f);
+        OoT_Math_StepToF(&this->actor.scale.x, 0.01f, 0.0005f);
     }
 
     curScale = this->actor.scale.x;
@@ -914,23 +914,23 @@ void EnFloormas_Merge(EnFloormas* this, PlayState* play) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_FLOORMASTER_EXPAND);
     }
 
-    this->collider.dim.radius = (sCylinderInit.dim.radius * 100.0f) * this->actor.scale.x;
-    this->collider.dim.height = (sCylinderInit.dim.height * 100.0f) * this->actor.scale.x;
+    this->collider.dim.radius = (OoT_sCylinderInit.dim.radius * 100.0f) * this->actor.scale.x;
+    this->collider.dim.height = (OoT_sCylinderInit.dim.height * 100.0f) * this->actor.scale.x;
 
-    if (SkelAnime_Update(&this->skelAnime) != 0) {
+    if (OoT_SkelAnime_Update(&this->skelAnime) != 0) {
         if (this->actor.scale.x >= 0.01f) {
             this->actor.flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
             EnFloormas_MakeVulnerable(this);
             this->actor.params = 0;
             this->collider.info.bumperFlags |= BUMP_HOOKABLE;
-            this->actor.colChkInfo.health = sColChkInfoInit.health;
+            this->actor.colChkInfo.health = OoT_sColChkInfoInit.health;
             EnFloormas_SetupStand(this);
         } else {
             if (this->actionTimer == 0) {
-                Animation_PlayOnce(&this->skelAnime, &gFloormasterTapFingerAnim);
+                OoT_Animation_PlayOnce(&this->skelAnime, &gFloormasterTapFingerAnim);
                 this->actionTimer = 1;
             } else {
-                Animation_PlayOnce(&this->skelAnime, &gWallmasterWaitAnim);
+                OoT_Animation_PlayOnce(&this->skelAnime, &gWallmasterWaitAnim);
                 this->actionTimer = 0;
             }
         }
@@ -942,7 +942,7 @@ void EnFloormas_SmWait(EnFloormas* this, PlayState* play) {
 }
 
 void EnFloormas_TakeDamage(EnFloormas* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skelAnime) != 0) {
+    if (OoT_SkelAnime_Update(&this->skelAnime) != 0) {
         if (this->actor.colChkInfo.health == 0) {
             EnFloormas_Die(this, play);
         } else {
@@ -950,24 +950,24 @@ void EnFloormas_TakeDamage(EnFloormas* this, PlayState* play) {
         }
     }
 
-    if (Animation_OnFrame(&this->skelAnime, 13.0f)) {
+    if (OoT_Animation_OnFrame(&this->skelAnime, 13.0f)) {
         if (this->actor.scale.x > 0.004f) {
             Audio_PlayActorSound2(&this->actor, NA_SE_EN_DODO_M_GND);
         } else {
             Audio_PlayActorSound2(&this->actor, NA_SE_EN_DODO_M_GND);
         }
     }
-    Math_StepToF(&this->actor.speedXZ, 0.0f, 0.2f);
+    OoT_Math_StepToF(&this->actor.speedXZ, 0.0f, 0.2f);
 }
 
 void EnFloormas_Recover(EnFloormas* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skelAnime) != 0) {
+    if (OoT_SkelAnime_Update(&this->skelAnime) != 0) {
         EnFloormas_SetupStand(this);
     }
 }
 
 void EnFloormas_Freeze(EnFloormas* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if (this->actionTimer != 0) {
         this->actionTimer--;
     }
@@ -986,7 +986,7 @@ void EnFloormas_ColliderCheck(EnFloormas* this, PlayState* play) {
 
     if ((this->collider.base.acFlags & AC_HIT) != 0) {
         this->collider.base.acFlags &= ~AC_HIT;
-        Actor_SetDropFlag(&this->actor, &this->collider.info, 1);
+        OoT_Actor_SetDropFlag(&this->actor, &this->collider.info, 1);
         if ((this->actor.colChkInfo.damageEffect != 0) || (this->actor.colChkInfo.damage != 0)) {
             if (this->collider.base.colType != COLTYPE_HARD) {
                 isSmall = 0;
@@ -997,13 +997,13 @@ void EnFloormas_ColliderCheck(EnFloormas* this, PlayState* play) {
                     this->actor.colChkInfo.damage = 2;
                     this->actor.colChkInfo.damageEffect = 0;
                 }
-                if (Actor_ApplyDamage(&this->actor) == 0) {
+                if (OoT_Actor_ApplyDamage(&this->actor) == 0) {
                     if (isSmall) {
                         Audio_PlayActorSound2(&this->actor, NA_SE_EN_FLOORMASTER_SM_DEAD);
                     } else {
                         Audio_PlayActorSound2(&this->actor, NA_SE_EN_FALL_DEAD);
                     }
-                    Enemy_StartFinishingBlow(play, &this->actor);
+                    OoT_Enemy_StartFinishingBlow(play, &this->actor);
                     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
                 } else if (this->actor.colChkInfo.damage != 0) {
                     Audio_PlayActorSound2(&this->actor, NA_SE_EN_FALL_DAMAGE);
@@ -1025,7 +1025,7 @@ void EnFloormas_ColliderCheck(EnFloormas* this, PlayState* play) {
     }
 }
 
-void EnFloormas_Update(Actor* thisx, PlayState* play) {
+void OoT_EnFloormas_Update(Actor* thisx, PlayState* play) {
     EnFloormas* this = (EnFloormas*)thisx;
     s32 pad;
 
@@ -1055,24 +1055,24 @@ void EnFloormas_Update(Actor* thisx, PlayState* play) {
             Actor_MoveXZGravity(&this->actor);
         }
 
-        Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, this->actor.scale.x * 3000.0f, 0.0f, 0x1D);
-        Collider_UpdateCylinder(&this->actor, &this->collider);
+        OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, this->actor.scale.x * 3000.0f, 0.0f, 0x1D);
+        OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
         if (this->actionFunc == EnFloormas_Charge) {
             this->actor.flags |= ACTOR_FLAG_SFX_FOR_PLAYER_BODY_HIT;
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+            OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
         }
         if (this->actionFunc != EnFloormas_GrabLink) {
             if (this->actionFunc != EnFloormas_Split && this->actionFunc != EnFloormas_TakeDamage &&
                 this->actor.freezeTimer == 0) {
-                CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+                OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
             }
 
             if ((this->actionFunc != EnFloormas_SmSlaveJumpAtMaster) || (this->skelAnime.curFrame < 20.0f)) {
-                CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+                OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
             }
         }
 
-        Actor_SetFocus(&this->actor, this->actor.scale.x * 2500.0f);
+        OoT_Actor_SetFocus(&this->actor, this->actor.scale.x * 2500.0f);
 
         if (this->collider.base.colType == COLTYPE_HARD) {
             if (this->actionTarget != 0) {
@@ -1086,7 +1086,7 @@ void EnFloormas_Update(Actor* thisx, PlayState* play) {
     }
 }
 
-s32 EnFloormas_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx,
+s32 OoT_EnFloormas_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx,
                                 Gfx** gfx) {
     EnFloormas* this = (EnFloormas*)thisx;
 
@@ -1096,22 +1096,22 @@ s32 EnFloormas_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec
     return false;
 }
 
-void EnFloormas_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx, Gfx** gfx) {
+void OoT_EnFloormas_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx, Gfx** gfx) {
     if (limbIndex == 2) {
-        Matrix_Push();
-        Matrix_Translate(1600.0f, -700.0f, -1700.0f, MTXMODE_APPLY);
+        OoT_Matrix_Push();
+        OoT_Matrix_Translate(1600.0f, -700.0f, -1700.0f, MTXMODE_APPLY);
         Matrix_RotateY(DEGTORAD(60.0f), MTXMODE_APPLY);
         Matrix_RotateZ(DEGTORAD(15.0f), MTXMODE_APPLY);
-        Matrix_Scale(2.0f, 2.0f, 2.0f, MTXMODE_APPLY);
+        OoT_Matrix_Scale(2.0f, 2.0f, 2.0f, MTXMODE_APPLY);
         gSPMatrix((*gfx)++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_LOAD);
         gSPDisplayList((*gfx)++, gWallmasterFingerDL);
-        Matrix_Pop();
+        OoT_Matrix_Pop();
     }
 }
 
 static Color_RGBA8 sMergeColor = { 0, 255, 0, 0 };
 
-void EnFloormas_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnFloormas_Draw(Actor* thisx, PlayState* play) {
     EnFloormas* this = (EnFloormas*)thisx;
 
     OPEN_DISPS(play->state.gfxCtx);
@@ -1122,8 +1122,8 @@ void EnFloormas_Draw(Actor* thisx, PlayState* play) {
     }
 
     POLY_OPA_DISP =
-        SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
-                           EnFloormas_OverrideLimbDraw, EnFloormas_PostLimbDraw, this, POLY_OPA_DISP);
+        OoT_SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+                           OoT_EnFloormas_OverrideLimbDraw, OoT_EnFloormas_PostLimbDraw, this, POLY_OPA_DISP);
     if (this->collider.base.colType == COLTYPE_HARD) {
         func_80026608(play);
     }
@@ -1141,8 +1141,8 @@ void EnFloormas_DrawHighlighted(Actor* thisx, PlayState* play) {
         func_80026690(play, &sMergeColor, this->actionTarget % 0x28, 0x28);
     }
     POLY_XLU_DISP =
-        SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
-                           EnFloormas_OverrideLimbDraw, EnFloormas_PostLimbDraw, this, POLY_XLU_DISP);
+        OoT_SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+                           OoT_EnFloormas_OverrideLimbDraw, OoT_EnFloormas_PostLimbDraw, this, POLY_XLU_DISP);
     if (this->collider.base.colType == COLTYPE_HARD) {
         func_80026A6C(play);
     }

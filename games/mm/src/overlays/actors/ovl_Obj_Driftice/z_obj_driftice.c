@@ -70,12 +70,12 @@ static ObjDrifticeDataStruct D_80A676D0[] = {
     { 0x4B0, 0x4B0, 100.0f, 300.0f },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_STOP),
 };
 
 void func_80A66570(ObjDriftice* this, s32 arg1) {
-    Math_Vec3s_ToVec3f(&this->dyna.actor.world.pos, &this->pathPoints[arg1]);
+    MM_Math_Vec3s_ToVec3f(&this->dyna.actor.world.pos, &this->pathPoints[arg1]);
 }
 
 void func_80A665AC(s16* arg0, s16 arg1) {
@@ -95,18 +95,18 @@ f32 func_80A665EC(ObjDrifticeStruct* arg0, ObjDriftice* this) {
     } else if (this->unk_248 < -9) {
         sp20 = 0.0f;
     } else if (this->unk_248 > 0) {
-        sp20 = (Math_CosS(fabsf(this->unk_248) * (0x8000 * 0.1f)) - 1.0f) * 4.0f;
+        sp20 = (MM_Math_CosS(fabsf(this->unk_248) * (0x8000 * 0.1f)) - 1.0f) * 4.0f;
     } else {
-        sp20 = (Math_CosS(fabsf(this->unk_248) * (0x8000 * 0.1f)) + 1.0f) * -4.0f;
+        sp20 = (MM_Math_CosS(fabsf(this->unk_248) * (0x8000 * 0.1f)) + 1.0f) * -4.0f;
     }
 
     if (this->unk_248 > 0) {
         if (arg0->unk_00.unk_00 > 0) {
             arg0->unk_00.unk_00--;
         } else {
-            arg0->unk_00.unk_00 = Rand_S16Offset(30, 70);
-            arg0->unk_00.unk_04 = Rand_S16Offset(1000, 1000);
-            arg0->unk_00.unk_0C = (Rand_ZeroOne() * 1.5f) + 1.0f;
+            arg0->unk_00.unk_00 = MM_Rand_S16Offset(30, 70);
+            arg0->unk_00.unk_04 = MM_Rand_S16Offset(1000, 1000);
+            arg0->unk_00.unk_0C = (MM_Rand_ZeroOne() * 1.5f) + 1.0f;
             arg0->unk_00.unk_10 = fabsf(arg0->unk_00.unk_0C - arg0->unk_00.unk_08) * 0.05f;
         }
     } else {
@@ -116,9 +116,9 @@ f32 func_80A665EC(ObjDrifticeStruct* arg0, ObjDriftice* this) {
     }
 
     arg0->unk_00.unk_02 += arg0->unk_00.unk_04;
-    Math_StepToF(&arg0->unk_00.unk_08, arg0->unk_00.unk_0C, arg0->unk_00.unk_10);
+    MM_Math_StepToF(&arg0->unk_00.unk_08, arg0->unk_00.unk_0C, arg0->unk_00.unk_10);
 
-    sp20 += (Math_SinS(arg0->unk_00.unk_02) * arg0->unk_00.unk_08);
+    sp20 += (MM_Math_SinS(arg0->unk_00.unk_02) * arg0->unk_00.unk_08);
     return sp20;
 }
 
@@ -133,14 +133,14 @@ f32 func_80A667F0(ObjDrifticeStruct3* arg0, ObjDriftice* this) {
         if (temp_s0->unk_00 > 0) {
             temp_s0->unk_00--;
         } else {
-            temp_s0->unk_00 = Rand_S16Offset(30, 70);
-            temp_s0->unk_04 = Rand_S16Offset(D_80A67694[i].unk_00, D_80A67694[i].unk_02);
-            temp_s0->unk_0C = D_80A67694[i].unk_04 + (D_80A67694[i].unk_08 * Rand_ZeroOne());
+            temp_s0->unk_00 = MM_Rand_S16Offset(30, 70);
+            temp_s0->unk_04 = MM_Rand_S16Offset(D_80A67694[i].unk_00, D_80A67694[i].unk_02);
+            temp_s0->unk_0C = D_80A67694[i].unk_04 + (D_80A67694[i].unk_08 * MM_Rand_ZeroOne());
             temp_s0->unk_10 = fabsf(temp_s0->unk_0C - temp_s0->unk_08) * 0.05f;
         }
         temp_s0->unk_02 += temp_s0->unk_04;
-        Math_StepToF(&temp_s0->unk_08, temp_s0->unk_0C, temp_s0->unk_10);
-        temp_f20 += Math_SinS(temp_s0->unk_02) * temp_s0->unk_08;
+        MM_Math_StepToF(&temp_s0->unk_08, temp_s0->unk_0C, temp_s0->unk_10);
+        temp_f20 += MM_Math_SinS(temp_s0->unk_02) * temp_s0->unk_08;
     }
 
     return temp_f20;
@@ -161,19 +161,19 @@ void func_80A66930(ObjDrifticeStruct2* arg0, ObjDriftice* this, s16* arg2, s16* 
             temp_f20 = 0.01f;
         }
 
-        Math_StepToS(&arg0->unk_02, 1200.0f * temp_f20, 0x64);
+        MM_Math_StepToS(&arg0->unk_02, 1200.0f * temp_f20, 0x64);
         phi_s0 = 2500.0f * temp_f20;
-        Math_StepToS(&arg0->unk_06, Math_CosS(arg0->unk_04 * 6.5536f) * (120.0f * temp_f20), 0x28);
-        Math_StepToF(&arg0->unk_08, 1.0f, 0.02f);
+        MM_Math_StepToS(&arg0->unk_06, MM_Math_CosS(arg0->unk_04 * 6.5536f) * (120.0f * temp_f20), 0x28);
+        MM_Math_StepToF(&arg0->unk_08, 1.0f, 0.02f);
     } else {
-        Math_StepToS(&arg0->unk_02, 0, 0x96);
+        MM_Math_StepToS(&arg0->unk_02, 0, 0x96);
         phi_s0 = 0;
-        Math_StepToS(&arg0->unk_06, 20, 7);
-        Math_StepToF(&arg0->unk_08, 0.0f, 0.02f);
+        MM_Math_StepToS(&arg0->unk_06, 20, 7);
+        MM_Math_StepToF(&arg0->unk_08, 0.0f, 0.02f);
     }
-    Math_ScaledStepToS(&arg0->unk_00, this->dyna.actor.yawTowardsPlayer, arg0->unk_02);
+    MM_Math_ScaledStepToS(&arg0->unk_00, this->dyna.actor.yawTowardsPlayer, arg0->unk_02);
     *arg3 = arg0->unk_00;
-    Math_ScaledStepToS(&arg0->unk_04, phi_s0, arg0->unk_06);
+    MM_Math_ScaledStepToS(&arg0->unk_04, phi_s0, arg0->unk_06);
 
     for (i = 0; i < 2; i++) {
         temp_s0 = &arg0->unk_0C[i];
@@ -181,14 +181,14 @@ void func_80A66930(ObjDrifticeStruct2* arg0, ObjDriftice* this, s16* arg2, s16* 
         if (temp_s0->unk_00 > 0) {
             temp_s0->unk_00--;
         } else {
-            temp_s0->unk_00 = Rand_S16Offset(30, 70);
-            temp_s0->unk_04 = Rand_S16Offset(D_80A676B8[i].unk_00, D_80A676B8[i].unk_02);
-            temp_s0->unk_0C = D_80A676B8[i].unk_04 + (D_80A676B8[i].unk_08 * Rand_ZeroOne());
+            temp_s0->unk_00 = MM_Rand_S16Offset(30, 70);
+            temp_s0->unk_04 = MM_Rand_S16Offset(D_80A676B8[i].unk_00, D_80A676B8[i].unk_02);
+            temp_s0->unk_0C = D_80A676B8[i].unk_04 + (D_80A676B8[i].unk_08 * MM_Rand_ZeroOne());
             temp_s0->unk_10 = fabsf(temp_s0->unk_0C - temp_s0->unk_08) * 0.033333335f;
         }
         temp_s0->unk_02 += temp_s0->unk_04;
-        Math_StepToF(&temp_s0->unk_08, temp_s0->unk_0C, temp_s0->unk_10);
-        temp_f22 += Math_SinS(temp_s0->unk_02) * temp_s0->unk_08;
+        MM_Math_StepToF(&temp_s0->unk_08, temp_s0->unk_0C, temp_s0->unk_10);
+        temp_f22 += MM_Math_SinS(temp_s0->unk_02) * temp_s0->unk_08;
     }
 
     temp_f22 *= arg0->unk_08;
@@ -204,13 +204,13 @@ void func_80A66C4C(ObjDrifticeStruct4* arg0, ObjDriftice* this, s16* arg2, s16* 
     if (arg0->unk_00[0] > 0) {
         arg0->unk_00[0]--;
     } else {
-        arg0->unk_00[0] = Rand_S16Offset(30, 70);
-        arg0->unk_00[2] = Rand_S16Offset(-200, 200);
-        arg0->unk_00[4] = Rand_S16Offset(-400, 400);
+        arg0->unk_00[0] = MM_Rand_S16Offset(30, 70);
+        arg0->unk_00[2] = MM_Rand_S16Offset(-200, 200);
+        arg0->unk_00[4] = MM_Rand_S16Offset(-400, 400);
     }
 
-    Math_StepToS(&arg0->unk_00[1], arg0->unk_00[2], 0x32);
-    Math_StepToS(&arg0->unk_00[3], arg0->unk_00[4], 0x32);
+    MM_Math_StepToS(&arg0->unk_00[1], arg0->unk_00[2], 0x32);
+    MM_Math_StepToS(&arg0->unk_00[3], arg0->unk_00[4], 0x32);
 
     *arg3 = arg0->unk_00[3] + arg0->unk_00[1];
 
@@ -220,14 +220,14 @@ void func_80A66C4C(ObjDrifticeStruct4* arg0, ObjDriftice* this, s16* arg2, s16* 
         if (temp_s0->unk_00 > 0) {
             temp_s0->unk_00--;
         } else {
-            temp_s0->unk_00 = Rand_S16Offset(30, 70);
-            temp_s0->unk_04 = Rand_S16Offset(D_80A676D0[i].unk_00, D_80A676D0[i].unk_02);
-            temp_s0->unk_0C = D_80A676D0[i].unk_04 + (D_80A676D0[i].unk_08 * Rand_ZeroOne());
+            temp_s0->unk_00 = MM_Rand_S16Offset(30, 70);
+            temp_s0->unk_04 = MM_Rand_S16Offset(D_80A676D0[i].unk_00, D_80A676D0[i].unk_02);
+            temp_s0->unk_0C = D_80A676D0[i].unk_04 + (D_80A676D0[i].unk_08 * MM_Rand_ZeroOne());
             temp_s0->unk_10 = fabsf(temp_s0->unk_0C - temp_s0->unk_08) * 0.033333335f;
         }
         temp_s0->unk_02 += temp_s0->unk_04;
-        Math_StepToF(&temp_s0->unk_08, temp_s0->unk_0C, temp_s0->unk_10);
-        temp_f20 += Math_SinS(temp_s0->unk_02) * temp_s0->unk_08;
+        MM_Math_StepToF(&temp_s0->unk_08, temp_s0->unk_0C, temp_s0->unk_10);
+        temp_f20 += MM_Math_SinS(temp_s0->unk_02) * temp_s0->unk_08;
     }
 
     *arg2 = temp_f20;
@@ -255,9 +255,9 @@ void func_80A66E30(ObjDrifticeStruct* arg0, ObjDriftice* this) {
     sp24 = (sp32 * temp_s1[2]) + (sp36 * temp_s1[3]) * (temp = 1.0f);
     sp22 = (sp34 + sp30) - this->dyna.actor.shape.rot.y;
 
-    this->dyna.actor.shape.rot.x = Math_CosS(sp22) * sp24;
+    this->dyna.actor.shape.rot.x = MM_Math_CosS(sp22) * sp24;
     func_80A665AC(&this->dyna.actor.shape.rot.x, 0xA28);
-    this->dyna.actor.shape.rot.z = -Math_SinS(sp22) * sp24;
+    this->dyna.actor.shape.rot.z = -MM_Math_SinS(sp22) * sp24;
     func_80A665AC(&this->dyna.actor.shape.rot.z, 0xA28);
 }
 
@@ -269,14 +269,14 @@ void ObjDriftice_Init(Actor* thisx, PlayState* play) {
     s32 phi_a1;
     s32 sp20;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
 
     this->dyna.actor.shape.rot.x = 0;
     this->dyna.actor.world.rot.x = 0;
     this->dyna.actor.shape.rot.z = 0;
     this->dyna.actor.world.rot.z = 0;
 
-    Actor_SetScale(&this->dyna.actor, sp2C[0] * 0.035377357f);
+    MM_Actor_SetScale(&this->dyna.actor, sp2C[0] * 0.035377357f);
     this->dyna.actor.cullingVolumeScale = sp2C[1];
     this->dyna.actor.cullingVolumeDownward = sp2C[2];
     this->unk_240 = 1.0f / this->dyna.actor.scale.x;
@@ -298,7 +298,7 @@ void ObjDriftice_Init(Actor* thisx, PlayState* play) {
         phi_a1 |= 3;
     }
 
-    DynaPolyActor_Init(&this->dyna, phi_a1);
+    MM_DynaPolyActor_Init(&this->dyna, phi_a1);
     DynaPolyActor_LoadMesh(play, &this->dyna, &object_driftice_Colheader_001AA8);
 
     if (sp20 != 0) {
@@ -320,7 +320,7 @@ void ObjDriftice_Init(Actor* thisx, PlayState* play) {
 void ObjDriftice_Destroy(Actor* thisx, PlayState* play) {
     ObjDriftice* this = (ObjDriftice*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_80A671A8(ObjDriftice* this) {
@@ -343,10 +343,10 @@ void func_80A671E0(ObjDriftice* this, PlayState* play) {
     s32 sp30;
     Actor* thisx = &this->dyna.actor;
 
-    Math_Vec3s_ToVec3f(&sp40, &(&this->pathPoints[this->unk_164])[this->unk_168]);
-    Math_Vec3f_Diff(&sp40, &this->dyna.actor.world.pos, &thisx->velocity);
+    MM_Math_Vec3s_ToVec3f(&sp40, &(&this->pathPoints[this->unk_164])[this->unk_168]);
+    MM_Math_Vec3f_Diff(&sp40, &this->dyna.actor.world.pos, &thisx->velocity);
 
-    sp3C = Math3D_Vec3fMagnitude(&thisx->velocity);
+    sp3C = MM_Math3D_Vec3fMagnitude(&thisx->velocity);
     if (sp3C < (this->unk_23C * 8.0f)) {
         phi_f0 = this->unk_23C * 0.4f;
         phi_f12 = this->unk_23C * 0.05f;
@@ -355,10 +355,10 @@ void func_80A671E0(ObjDriftice* this, PlayState* play) {
         phi_f12 = this->unk_23C * 0.13f;
     }
 
-    Math_StepToF(&this->dyna.actor.speed, phi_f0, phi_f12);
+    MM_Math_StepToF(&this->dyna.actor.speed, phi_f0, phi_f12);
 
     if ((this->dyna.actor.speed + 0.05f) < sp3C) {
-        Math_Vec3f_Scale(&this->dyna.actor.velocity, this->dyna.actor.speed / sp3C);
+        MM_Math_Vec3f_Scale(&this->dyna.actor.velocity, this->dyna.actor.speed / sp3C);
         this->dyna.actor.world.pos.x += this->dyna.actor.velocity.x;
         this->dyna.actor.world.pos.y += this->dyna.actor.velocity.y;
         this->dyna.actor.world.pos.z += this->dyna.actor.velocity.z;
@@ -426,7 +426,7 @@ void func_80A674C4(ObjDriftice* this, PlayState* play) {
 void ObjDriftice_Update(Actor* thisx, PlayState* play) {
     ObjDriftice* this = (ObjDriftice*)thisx;
 
-    if (DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
+    if (MM_DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
         if (this->unk_248 < 0) {
             this->unk_248 = 1;
         } else {
@@ -452,5 +452,5 @@ void ObjDriftice_Update(Actor* thisx, PlayState* play) {
 void ObjDriftice_Draw(Actor* thisx, PlayState* play) {
     ObjDriftice* this = (ObjDriftice*)thisx;
 
-    Gfx_DrawDListOpa(play, object_driftice_DL_0016A0);
+    MM_Gfx_DrawDListOpa(play, object_driftice_DL_0016A0);
 }

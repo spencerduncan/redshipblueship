@@ -41,7 +41,7 @@ void TransitionUnk_InitGraphics(TransitionUnk* this) {
 
     guMtxIdent(&this->modelView);
     guMtxIdent(&this->unk_98);
-    guOrtho(&this->projection, 0.0f, SCREEN_WIDTH, SCREEN_HEIGHT, 0.0f, -1000.0f, 1000.0f, 1.0f);
+    OoT_guOrtho(&this->projection, 0.0f, SCREEN_WIDTH, SCREEN_HEIGHT, 0.0f, -1000.0f, 1000.0f, 1.0f);
 
     for (frame = 0; frame < 2; frame++) {
         this->frame = frame;
@@ -108,7 +108,7 @@ void TransitionUnk_InitData(TransitionUnk* this) {
 void TransitionUnk_Destroy(TransitionUnk* this) {
     osSyncPrintf("fbdemo_cleanup(%08x)\n", this);
     osSyncPrintf("msleep(100);\n");
-    Sleep_Msec(100);
+    OoT_Sleep_Msec(100);
 
     if (this->unk_0C != NULL) {
         SYSTEM_ARENA_FREE_DEBUG(this->unk_0C);

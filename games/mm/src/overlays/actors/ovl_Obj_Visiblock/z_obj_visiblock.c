@@ -21,11 +21,11 @@ ActorProfile Obj_Visiblock_Profile = {
     /**/ sizeof(ObjVisiblock),
     /**/ ObjVisiblock_Init,
     /**/ ObjVisiblock_Destroy,
-    /**/ Actor_Noop,
+    /**/ MM_Actor_Noop,
     /**/ ObjVisiblock_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 200, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 150, ICHAIN_CONTINUE),
@@ -35,17 +35,17 @@ static InitChainEntry sInitChain[] = {
 void ObjVisiblock_Init(Actor* thisx, PlayState* play) {
     ObjVisiblock* this = (ObjVisiblock*)thisx;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, 0);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
+    MM_DynaPolyActor_Init(&this->dyna, 0);
     DynaPolyActor_LoadMesh(play, &this->dyna, &gLensOfTruthPlatformCol);
 }
 
 void ObjVisiblock_Destroy(Actor* thisx, PlayState* play) {
     ObjVisiblock* this = (ObjVisiblock*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void ObjVisiblock_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListXlu(play, gLensOfTruthPlatformDL);
+    MM_Gfx_DrawDListXlu(play, gLensOfTruthPlatformDL);
 }

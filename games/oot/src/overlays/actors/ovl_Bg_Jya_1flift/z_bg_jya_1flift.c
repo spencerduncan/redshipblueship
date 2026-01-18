@@ -38,7 +38,7 @@ const ActorInit Bg_Jya_1flift_InitVars = {
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -60,7 +60,7 @@ static ColliderCylinderInit sCylinderInit = {
 
 static f32 sFinalPositions[] = { 443.0f, -50.0f };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 1200, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 400, ICHAIN_CONTINUE),
@@ -72,9 +72,9 @@ void BgJya1flift_InitDynapoly(BgJya1flift* this, PlayState* play, CollisionHeade
     CollisionHeader* colHeader = NULL;
     s32 pad2;
 
-    DynaPolyActor_Init(&this->dyna, moveFlag);
-    CollisionHeader_GetVirtual(collision, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_DynaPolyActor_Init(&this->dyna, moveFlag);
+    OoT_CollisionHeader_GetVirtual(collision, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
 
     if (this->dyna.bgId == BG_ACTOR_MAX) {
         // "Warning : move BG login failed"
@@ -86,8 +86,8 @@ void BgJya1flift_InitDynapoly(BgJya1flift* this, PlayState* play, CollisionHeade
 void BgJya1flift_InitCollision(Actor* thisx, PlayState* play) {
     BgJya1flift* this = (BgJya1flift*)thisx;
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->dyna.actor, &sCylinderInit);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->dyna.actor, &OoT_sCylinderInit);
     this->dyna.actor.colChkInfo.mass = MASS_IMMOVABLE;
 }
 
@@ -97,13 +97,13 @@ void BgJya1flift_Init(Actor* thisx, PlayState* play) {
     osSyncPrintf("(１Ｆリフト)(flag %d)(room %d)\n", sKankyoIsSpawned, play->roomCtx.curRoom.num);
     this->hasInitialized = false;
     if (sKankyoIsSpawned) {
-        Actor_Kill(thisx);
+        OoT_Actor_Kill(thisx);
         return;
     }
     BgJya1flift_InitDynapoly(this, play, &g1fliftCol, 0);
-    Actor_ProcessInitChain(thisx, sInitChain);
+    OoT_Actor_ProcessInitChain(thisx, OoT_sInitChain);
     BgJya1flift_InitCollision(thisx, play);
-    if (Flags_GetSwitch(play, (thisx->params & 0x3F))) {
+    if (OoT_Flags_GetSwitch(play, (thisx->params & 0x3F))) {
         LINK_AGE_IN_YEARS == YEARS_ADULT ? BgJya1flift_ChangeDirection(this) : BgJya1flift_SetupDoNothing(this);
     } else {
         BgJya1flift_SetupWaitForSwitch(this);
@@ -118,8 +118,8 @@ void BgJya1flift_Destroy(Actor* thisx, PlayState* play) {
 
     if (this->hasInitialized) {
         sKankyoIsSpawned = false;
-        Collider_DestroyCylinder(play, &this->collider);
-        DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+        OoT_Collider_DestroyCylinder(play, &this->collider);
+        OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
     }
 }
 
@@ -129,7 +129,7 @@ void BgJya1flift_SetupWaitForSwitch(BgJya1flift* this) {
 }
 
 void BgJya1flift_WaitForSwitch(BgJya1flift* this, PlayState* play) {
-    if (Flags_GetSwitch(play, (this->dyna.actor.params & 0x3F))) {
+    if (OoT_Flags_GetSwitch(play, (this->dyna.actor.params & 0x3F))) {
         BgJya1flift_ChangeDirection(this);
     }
 }
@@ -151,13 +151,13 @@ void BgJya1flift_ChangeDirection(BgJya1flift* this) {
 void BgJya1flift_Move(BgJya1flift* this, PlayState* play) {
     f32 tempVelocity;
 
-    Math_StepToF(&this->dyna.actor.velocity.y, 6.0f, 0.4f);
+    OoT_Math_StepToF(&this->dyna.actor.velocity.y, 6.0f, 0.4f);
     if (this->dyna.actor.velocity.y < 1.0f) {
         tempVelocity = 1.0f;
     } else {
         tempVelocity = this->dyna.actor.velocity.y;
     }
-    if (fabsf(Math_SmoothStepToF(&this->dyna.actor.world.pos.y, (sFinalPositions[this->isMovingDown]), 0.5f,
+    if (fabsf(OoT_Math_SmoothStepToF(&this->dyna.actor.world.pos.y, (sFinalPositions[this->isMovingDown]), 0.5f,
                                  tempVelocity, 1.0f)) < 0.001f) {
         this->dyna.actor.world.pos.y = sFinalPositions[this->isMovingDown];
         BgJya1flift_ResetMoveDelay(this);
@@ -187,22 +187,22 @@ void BgJya1flift_Update(Actor* thisx, PlayState* play2) {
     // Room 0 is the first room and 6 is the room that the lift starts on
     if (play->roomCtx.curRoom.num == 6 || play->roomCtx.curRoom.num == 0) {
         this->actionFunc(this, play);
-        tempIsRiding = DynaPolyActor_IsPlayerOnTop(&this->dyna) ? true : false;
+        tempIsRiding = OoT_DynaPolyActor_IsPlayerOnTop(&this->dyna) ? true : false;
         if ((this->actionFunc == BgJya1flift_Move) || (this->actionFunc == BgJya1flift_DelayMove)) {
             if (tempIsRiding) {
-                Camera_ChangeSetting(play->cameraPtrs[MAIN_CAM], CAM_SET_FIRE_PLATFORM);
+                OoT_Camera_ChangeSetting(play->cameraPtrs[MAIN_CAM], CAM_SET_FIRE_PLATFORM);
             } else if (!tempIsRiding && this->isLinkRiding) {
-                Camera_ChangeSetting(play->cameraPtrs[MAIN_CAM], CAM_SET_DUNGEON0);
+                OoT_Camera_ChangeSetting(play->cameraPtrs[MAIN_CAM], CAM_SET_DUNGEON0);
             }
         }
         this->isLinkRiding = tempIsRiding;
-        Collider_UpdateCylinder(thisx, &this->collider);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        OoT_Collider_UpdateCylinder(thisx, &this->collider);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     } else {
-        Actor_Kill(thisx);
+        OoT_Actor_Kill(thisx);
     }
 }
 
 void BgJya1flift_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, g1fliftDL);
+    OoT_Gfx_DrawDListOpa(play, g1fliftDL);
 }

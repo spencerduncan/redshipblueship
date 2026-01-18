@@ -25,13 +25,13 @@ typedef enum {
     /* 0x08 */ CLEAR_TAG_EFFECT_ISOLATED_SMOKE
 } ClearTagEffectType;
 
-void EnClearTag_Init(Actor* thisx, PlayState* play);
-void EnClearTag_Destroy(Actor* thisx, PlayState* play);
-void EnClearTag_Update(Actor* thisx, PlayState* play);
-void EnClearTag_Draw(Actor* thisx, PlayState* play);
+void MM_EnClearTag_Init(Actor* thisx, PlayState* play);
+void MM_EnClearTag_Destroy(Actor* thisx, PlayState* play);
+void MM_EnClearTag_Update(Actor* thisx, PlayState* play);
+void MM_EnClearTag_Draw(Actor* thisx, PlayState* play);
 
-void EnClearTag_UpdateEffects(EnClearTag* this, PlayState* play);
-void EnClearTag_DrawEffects(Actor* thisx, PlayState* play);
+void MM_EnClearTag_UpdateEffects(EnClearTag* this, PlayState* play);
+void MM_EnClearTag_DrawEffects(Actor* thisx, PlayState* play);
 
 ActorProfile En_Clear_Tag_Profile = {
     /**/ ACTOR_EN_CLEAR_TAG,
@@ -39,13 +39,13 @@ ActorProfile En_Clear_Tag_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(EnClearTag),
-    /**/ EnClearTag_Init,
-    /**/ EnClearTag_Destroy,
-    /**/ EnClearTag_Update,
-    /**/ EnClearTag_Draw,
+    /**/ MM_EnClearTag_Init,
+    /**/ MM_EnClearTag_Destroy,
+    /**/ MM_EnClearTag_Update,
+    /**/ MM_EnClearTag_Draw,
 };
 
-static Vec3f sZeroVector = { 0.0f, 0.0f, 0.0f };
+static Vec3f MM_sZeroVector = { 0.0f, 0.0f, 0.0f };
 
 static Vec3f sLightRayEnvColor[] = {
     { 255.0f, 255.0f, 0.0f },
@@ -116,7 +116,7 @@ static TexturePtr sWaterSplashTextures[] = {
  * Creates a debris effect.
  * Debris effects are spawned by an explosion.
  */
-void EnClearTag_CreateDebrisEffect(EnClearTag* this, Vec3f* pos, Vec3f* velocity, Vec3f* accel, f32 scale,
+void MM_EnClearTag_CreateDebrisEffect(EnClearTag* this, Vec3f* pos, Vec3f* velocity, Vec3f* accel, f32 scale,
                                    f32 rotationZ) {
     EnClearTagEffect* effect = this->effect;
     s16 i;
@@ -133,14 +133,14 @@ void EnClearTag_CreateDebrisEffect(EnClearTag* this, Vec3f* pos, Vec3f* velocity
             effect->scale = scale;
 
             // Set the debris effects to spawn in a circle.
-            effect->rotationY = Rand_ZeroFloat(M_PIf * 2);
-            effect->rotationX = Rand_ZeroFloat(M_PIf * 2);
+            effect->rotationY = MM_Rand_ZeroFloat(M_PIf * 2);
+            effect->rotationX = MM_Rand_ZeroFloat(M_PIf * 2);
 
             effect->effectsTimer = effect->bounces = 0;
 
             effect->rotationZ = rotationZ;
 
-            effect->actionTimer = Rand_ZeroFloat(10.0f);
+            effect->actionTimer = MM_Rand_ZeroFloat(10.0f);
 
             break;
         }
@@ -151,19 +151,19 @@ void EnClearTag_CreateDebrisEffect(EnClearTag* this, Vec3f* pos, Vec3f* velocity
  * Creates a smoke effect.
  * Smoke effects are spawned by an explosion.
  */
-void EnClearTag_CreateSmokeEffect(EnClearTag* this, Vec3f* pos, f32 scale) {
+void MM_EnClearTag_CreateSmokeEffect(EnClearTag* this, Vec3f* pos, f32 scale) {
     s16 i;
     EnClearTagEffect* effect = this->effect;
 
     // Look for an available effect to allocate a smoke effect to.
     for (i = 0; i < ARRAY_COUNT(this->effect); i++, effect++) {
         if (effect->type == CLEAR_TAG_EFFECT_AVAILABLE) {
-            effect->actionTimer = Rand_ZeroFloat(100.0f);
+            effect->actionTimer = MM_Rand_ZeroFloat(100.0f);
             effect->type = CLEAR_TAG_EFFECT_SMOKE;
 
             effect->pos = *pos;
-            effect->velocity = sZeroVector;
-            effect->accel = sZeroVector;
+            effect->velocity = MM_sZeroVector;
+            effect->accel = MM_sZeroVector;
 
             effect->scale = scale;
             effect->maxScale = 2.0f * scale;
@@ -194,12 +194,12 @@ void EnClearTag_CreateIsolatedSmokeEffect(EnClearTag* this, Vec3f* pos, f32 scal
     // Look for an available effect to allocate a smoke effect to.
     for (i = 0; i < ARRAY_COUNT(this->effect); i++, effect++) {
         if (effect->type == CLEAR_TAG_EFFECT_AVAILABLE) {
-            effect->actionTimer = Rand_ZeroFloat(100.0f);
+            effect->actionTimer = MM_Rand_ZeroFloat(100.0f);
             effect->type = CLEAR_TAG_EFFECT_ISOLATED_SMOKE;
 
             effect->pos = *pos;
-            effect->velocity = sZeroVector;
-            effect->accel = sZeroVector;
+            effect->velocity = MM_sZeroVector;
+            effect->accel = MM_sZeroVector;
 
             effect->scale = scale;
             effect->maxScale = 2.0f * scale;
@@ -231,7 +231,7 @@ void EnClearTag_CreateIsolatedSmokeEffect(EnClearTag* this, Vec3f* pos, f32 scal
  * Flash effects are spawned by an explosion or a pop.
  * Flash effects have two components: 1) a billboard flash, and 2) a light effect on the ground.
  */
-void EnClearTag_CreateFlashEffect(EnClearTag* this, Vec3f* pos, f32 scale, f32 floorHeight) {
+void MM_EnClearTag_CreateFlashEffect(EnClearTag* this, Vec3f* pos, f32 scale, f32 floorHeight) {
     EnClearTagEffect* effect = this->effect;
     s16 i;
 
@@ -241,8 +241,8 @@ void EnClearTag_CreateFlashEffect(EnClearTag* this, Vec3f* pos, f32 scale, f32 f
             effect->type = CLEAR_TAG_EFFECT_FLASH;
 
             effect->pos = *pos;
-            effect->velocity = sZeroVector;
-            effect->accel = sZeroVector;
+            effect->velocity = MM_sZeroVector;
+            effect->accel = MM_sZeroVector;
 
             effect->scale = 0.0f;
             effect->maxScale = scale * 3.0f;
@@ -281,13 +281,13 @@ void EnClearTag_CreateLightRayEffect(EnClearTag* this, Vec3f* pos, Vec3f* veloci
             effect->maxScale = 1.0f;
             effect->maxScaleTarget = maxScaleTarget;
 
-            effect->lightRayAlpha = Rand_ZeroFloat(100.0f) + 200.0f;
+            effect->lightRayAlpha = MM_Rand_ZeroFloat(100.0f) + 200.0f;
             effect->lightRayAlphaDecrementSpeed = alphaDecrementSpeed;
 
-            effect->actionTimer = Rand_ZeroFloat(10.0f);
+            effect->actionTimer = MM_Rand_ZeroFloat(10.0f);
 
             effect->rotationY = Math_Atan2F_XY(effect->velocity.z, effect->velocity.x);
-            effect->rotationX = -Math_Atan2F_XY(sqrtf(SQXZ(effect->velocity)), effect->velocity.y);
+            effect->rotationX = -Math_Atan2F_XY(MM_sqrtf(SQXZ(effect->velocity)), effect->velocity.y);
 
             effect->envColor.r = 255.0f;
             effect->envColor.g = 255.0f;
@@ -323,13 +323,13 @@ void EnClearTag_CreateIsolatedLightRayEffect(EnClearTag* this, Vec3f* pos, Vec3f
             effect->maxScale = 1.0f;
             effect->maxScaleTarget = maxScaleTarget;
 
-            effect->lightRayAlpha = Rand_ZeroFloat(100.0f) + 200.0f;
+            effect->lightRayAlpha = MM_Rand_ZeroFloat(100.0f) + 200.0f;
             effect->lightRayAlphaDecrementSpeed = alphaDecrementSpeed;
 
-            effect->actionTimer = Rand_ZeroFloat(10.0f);
+            effect->actionTimer = MM_Rand_ZeroFloat(10.0f);
 
             effect->rotationY = Math_Atan2F_XY(effect->velocity.z, effect->velocity.x);
-            effect->rotationX = -Math_Atan2F_XY(sqrtf(SQXZ(effect->velocity)), effect->velocity.y);
+            effect->rotationX = -Math_Atan2F_XY(MM_sqrtf(SQXZ(effect->velocity)), effect->velocity.y);
 
             effect->envColor.r = sLightRayEnvColor[colorIndex].x;
             effect->envColor.g = sLightRayEnvColor[colorIndex].y;
@@ -357,8 +357,8 @@ void EnClearTag_CreateShockwaveEffect(EnClearTag* this, Vec3f* pos, f32 maxScale
             effect->type = CLEAR_TAG_EFFECT_SHOCKWAVE;
 
             effect->pos = *pos;
-            effect->velocity = sZeroVector;
-            effect->accel = sZeroVector;
+            effect->velocity = MM_sZeroVector;
+            effect->accel = MM_sZeroVector;
 
             effect->maxScale = maxScale;
             effect->scale = 0.0f;
@@ -384,12 +384,12 @@ void EnClearTag_CreateSplashEffect(EnClearTag* this, Vec3f* pos, s16 effectsTime
     for (i = 0; i < ARRAY_COUNT(this->effect) - 1; i++, effect++) {
         if (effect->type == CLEAR_TAG_EFFECT_AVAILABLE) {
             // Immediately overwritten and generates a lot of wasted asm (f32 to u8)
-            effect->actionTimer = Rand_ZeroFloat(100.0f);
+            effect->actionTimer = MM_Rand_ZeroFloat(100.0f);
             effect->type = CLEAR_TAG_EFFECT_SPLASH;
 
             effect->pos = *pos;
-            effect->velocity = sZeroVector;
-            effect->accel = sZeroVector;
+            effect->velocity = MM_sZeroVector;
+            effect->accel = MM_sZeroVector;
 
             effect->scale = 0.0f;
             effect->maxScale = 0.0f;
@@ -408,14 +408,14 @@ void EnClearTag_CreateSplashEffect(EnClearTag* this, Vec3f* pos, s16 effectsTime
  * EnClearTag destructor.
  * No Operation takes place.
  */
-void EnClearTag_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnClearTag_Destroy(Actor* thisx, PlayState* play) {
 }
 
 /**
  * EnClearTag constructor.
  * This initializes effects, and sets up ClearTag instance data.
  */
-void EnClearTag_Init(Actor* thisx, PlayState* play) {
+void MM_EnClearTag_Init(Actor* thisx, PlayState* play) {
     s32 pad[3];
     EnClearTag* this = (EnClearTag*)thisx;
     f32 lightRayMaxScale;
@@ -427,7 +427,7 @@ void EnClearTag_Init(Actor* thisx, PlayState* play) {
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
     if (thisx->params >= 0) {
         this->activeTimer = 70;
-        Math_Vec3f_Copy(&pos, &this->actor.world.pos);
+        MM_Math_Vec3f_Copy(&pos, &this->actor.world.pos);
 
         // Initialize isolated smoke effect
         if (thisx->params == CLEAR_TAG_SMOKE) {
@@ -440,17 +440,17 @@ void EnClearTag_Init(Actor* thisx, PlayState* play) {
             if ((thisx->params == CLEAR_TAG_SMALL_LIGHT_RAYS) || (thisx->params == CLEAR_TAG_LARGE_LIGHT_RAYS)) {
                 for (i = 0; i < 54; i++) {
                     lightRayMaxScale =
-                        sLightRayMaxScale[thisx->params] + Rand_ZeroFloat(sLightRayMaxScale[thisx->params]);
-                    Matrix_RotateYF(Rand_ZeroFloat(M_PIf * 2), MTXMODE_NEW);
-                    Matrix_RotateXFApply(Rand_ZeroFloat(M_PIf * 2));
+                        sLightRayMaxScale[thisx->params] + MM_Rand_ZeroFloat(sLightRayMaxScale[thisx->params]);
+                    Matrix_RotateYF(MM_Rand_ZeroFloat(M_PIf * 2), MTXMODE_NEW);
+                    Matrix_RotateXFApply(MM_Rand_ZeroFloat(M_PIf * 2));
                     Matrix_MultVecZ(lightRayMaxScale, &velocity);
                     accel.x = velocity.x * -0.03f;
                     accel.y = velocity.y * -0.03f;
                     accel.z = velocity.z * -0.03f;
                     EnClearTag_CreateIsolatedLightRayEffect(
                         this, &pos, &velocity, &accel,
-                        sLightRayScale[thisx->params] + Rand_ZeroFloat(sLightRayScale[thisx->params] * 0.5f),
-                        sLightRayMaxScaleTarget[thisx->params], this->actor.world.rot.z, Rand_ZeroFloat(10.0f) + 20.0f);
+                        sLightRayScale[thisx->params] + MM_Rand_ZeroFloat(sLightRayScale[thisx->params] * 0.5f),
+                        sLightRayMaxScaleTarget[thisx->params], this->actor.world.rot.z, MM_Rand_ZeroFloat(10.0f) + 20.0f);
                 }
                 return;
             }
@@ -465,9 +465,9 @@ void EnClearTag_Init(Actor* thisx, PlayState* play) {
             }
 
             // Initialize flash effect
-            Actor_UpdateBgCheckInfo(play, &this->actor, 50.0f, 30.0f, 100.0f, UPDBGCHECKINFO_FLAG_4);
+            MM_Actor_UpdateBgCheckInfo(play, &this->actor, 50.0f, 30.0f, 100.0f, UPDBGCHECKINFO_FLAG_4);
             pos = this->actor.world.pos;
-            EnClearTag_CreateFlashEffect(this, &pos, sFlashMaxScale[thisx->params], this->actor.floorHeight);
+            MM_EnClearTag_CreateFlashEffect(this, &pos, sFlashMaxScale[thisx->params], this->actor.floorHeight);
 
             // Is not underwater
             if (!(this->actor.bgCheckFlags & BGCHECKFLAG_WATER)) {
@@ -476,7 +476,7 @@ void EnClearTag_Init(Actor* thisx, PlayState* play) {
 
                     // Initialize smoke effect
                     if (thisx->params != CLEAR_TAG_POP) {
-                        EnClearTag_CreateSmokeEffect(this, &pos, sSmokeScale[thisx->params]);
+                        MM_EnClearTag_CreateSmokeEffect(this, &pos, sSmokeScale[thisx->params]);
                     }
 
                     // Initialize shockwave effect
@@ -494,17 +494,17 @@ void EnClearTag_Init(Actor* thisx, PlayState* play) {
                     for (i = 0; i < 18; i++) {
                         velocity.x = sinf(i * (33.0f / 40.0f)) * i * .5f;
                         velocity.z = cosf(i * (33.0f / 40.0f)) * i * .5f;
-                        velocity.y = Rand_ZeroFloat(8.0f) + 7.0f;
+                        velocity.y = MM_Rand_ZeroFloat(8.0f) + 7.0f;
 
-                        velocity.x += Rand_CenteredFloat(0.5f);
-                        velocity.z += Rand_CenteredFloat(0.5f);
+                        velocity.x += MM_Rand_CenteredFloat(0.5f);
+                        velocity.z += MM_Rand_CenteredFloat(0.5f);
 
                         accel.x = 0.0f;
                         accel.y = -1.0f;
                         accel.z = 0.0f;
-                        EnClearTag_CreateDebrisEffect(this, &pos, &velocity, &accel,
+                        MM_EnClearTag_CreateDebrisEffect(this, &pos, &velocity, &accel,
                                                       sDebrisScale[thisx->params] +
-                                                          Rand_ZeroFloat(sDebrisScale[thisx->params]),
+                                                          MM_Rand_ZeroFloat(sDebrisScale[thisx->params]),
                                                       this->actor.floorHeight);
                     }
                 }
@@ -513,17 +513,17 @@ void EnClearTag_Init(Actor* thisx, PlayState* play) {
             // Initialize light ray effect
             pos = this->actor.world.pos;
             for (i = 0; i < 44; i++) {
-                lightRayMaxScale = sLightRayMaxScale[thisx->params] + Rand_ZeroFloat(sLightRayMaxScale[thisx->params]);
-                Matrix_RotateYF(Rand_ZeroFloat(2 * M_PIf), MTXMODE_NEW);
-                Matrix_RotateXFApply(Rand_ZeroFloat(2 * M_PIf));
+                lightRayMaxScale = sLightRayMaxScale[thisx->params] + MM_Rand_ZeroFloat(sLightRayMaxScale[thisx->params]);
+                Matrix_RotateYF(MM_Rand_ZeroFloat(2 * M_PIf), MTXMODE_NEW);
+                Matrix_RotateXFApply(MM_Rand_ZeroFloat(2 * M_PIf));
                 Matrix_MultVecZ(lightRayMaxScale, &velocity);
                 accel.x = velocity.x * -0.03f;
                 accel.y = velocity.y * -0.03f;
                 accel.z = velocity.z * -0.03f;
                 EnClearTag_CreateLightRayEffect(this, &pos, &velocity, &accel,
                                                 sLightRayScale[thisx->params] +
-                                                    Rand_ZeroFloat(sLightRayScale[thisx->params] * 0.5f),
-                                                sLightRayMaxScaleTarget[thisx->params], Rand_ZeroFloat(10.0f) + 20.0f);
+                                                    MM_Rand_ZeroFloat(sLightRayScale[thisx->params] * 0.5f),
+                                                sLightRayMaxScaleTarget[thisx->params], MM_Rand_ZeroFloat(10.0f) + 20.0f);
             }
         }
 
@@ -559,20 +559,20 @@ void EnClearTag_UpdateCamera(EnClearTag* this, PlayState* play) {
             break;
         case 1:
             Cutscene_StartManual(play, &play->csCtx);
-            this->subCamId = Play_CreateSubCamera(play);
-            Play_ChangeCameraStatus(play, CAM_ID_MAIN, CAM_STATUS_WAIT);
-            Play_ChangeCameraStatus(play, this->subCamId, CAM_STATUS_ACTIVE);
-            Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_4);
-            mainCam = Play_GetCamera(play, CAM_ID_MAIN);
+            this->subCamId = MM_Play_CreateSubCamera(play);
+            MM_Play_ChangeCameraStatus(play, CAM_ID_MAIN, CAM_STATUS_WAIT);
+            MM_Play_ChangeCameraStatus(play, this->subCamId, CAM_STATUS_ACTIVE);
+            MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_4);
+            mainCam = MM_Play_GetCamera(play, CAM_ID_MAIN);
             this->subCamEye.x = mainCam->eye.x;
             this->subCamEye.y = mainCam->eye.y;
             this->subCamEye.z = mainCam->eye.z;
             this->subCamAt.x = mainCam->at.x;
             this->subCamAt.y = mainCam->at.y;
             this->subCamAt.z = mainCam->at.z;
-            Message_StartTextbox(play, 0xF, NULL);
+            MM_Message_StartTextbox(play, 0xF, NULL);
             this->cameraState = 2;
-            Audio_PlaySfx_AtPosWithReverb(&gSfxDefaultPos, NA_SE_VO_NA_LISTEN, 0x20);
+            Audio_PlaySfx_AtPosWithReverb(&MM_gSfxDefaultPos, NA_SE_VO_NA_LISTEN, 0x20);
         case 2:
             if (player->actor.world.pos.z > 0.0f) {
                 player->actor.world.pos.z = 290.0f;
@@ -581,14 +581,14 @@ void EnClearTag_UpdateCamera(EnClearTag* this, PlayState* play) {
             }
 
             player->actor.speed = 0.0f;
-            if (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE) {
-                mainCam = Play_GetCamera(play, CAM_ID_MAIN);
+            if (MM_Message_GetState(&play->msgCtx) == TEXT_STATE_NONE) {
+                mainCam = MM_Play_GetCamera(play, CAM_ID_MAIN);
                 mainCam->eye = this->subCamEye;
                 mainCam->eyeNext = this->subCamEye;
                 mainCam->at = this->subCamAt;
                 func_80169AFC(play, this->subCamId, 0);
                 Cutscene_StopManual(play, &play->csCtx);
-                Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
+                MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
                 this->cameraState = 0;
                 this->subCamId = SUB_CAM_ID_DONE;
                 this->activeTimer = 20;
@@ -605,7 +605,7 @@ void EnClearTag_UpdateCamera(EnClearTag* this, PlayState* play) {
  * EnClear_Tag update function.
  * Decides whether to update or to mark for death
  */
-void EnClearTag_Update(Actor* thisx, PlayState* play) {
+void MM_EnClearTag_Update(Actor* thisx, PlayState* play) {
     EnClearTag* this = (EnClearTag*)thisx;
 
     if (this->activeTimer != 0) {
@@ -615,9 +615,9 @@ void EnClearTag_Update(Actor* thisx, PlayState* play) {
     if (this->actor.params < 0) {
         EnClearTag_UpdateCamera(this, play);
     } else if (this->activeTimer != 0) {
-        EnClearTag_UpdateEffects(this, play);
+        MM_EnClearTag_UpdateEffects(this, play);
     } else {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -625,8 +625,8 @@ void EnClearTag_Update(Actor* thisx, PlayState* play) {
  * EnClearTag draw function.
  * Setups DrawEffects
  */
-void EnClearTag_Draw(Actor* thisx, PlayState* play) {
-    EnClearTag_DrawEffects(thisx, play);
+void MM_EnClearTag_Draw(Actor* thisx, PlayState* play) {
+    MM_EnClearTag_DrawEffects(thisx, play);
 }
 
 /**
@@ -635,7 +635,7 @@ void EnClearTag_Draw(Actor* thisx, PlayState* play) {
  * Moves and bounces debris effects.
  * Fades most effects out of view. When effects are completely faded away they are removed.
  */
-void EnClearTag_UpdateEffects(EnClearTag* this, PlayState* play) {
+void MM_EnClearTag_UpdateEffects(EnClearTag* this, PlayState* play) {
     EnClearTagEffect* effect = this->effect;
     s16 i;
     f32 originalYPosition;
@@ -667,14 +667,14 @@ void EnClearTag_UpdateEffects(EnClearTag* this, PlayState* play) {
                     sphereCenter.y += 5.0f;
 
                     // Check if the debris has hit the ground.
-                    if (BgCheck_SphVsFirstPoly(&play->colCtx, &sphereCenter, 11.0f)) {
+                    if (MM_BgCheck_SphVsFirstPoly(&play->colCtx, &sphereCenter, 11.0f)) {
                         effect->pos.y = originalYPosition;
 
                         // Bounce the debris effect.
                         if (effect->bounces <= 0) {
                             effect->bounces++;
                             effect->velocity.y *= -0.5f;
-                            effect->effectsTimer = Rand_ZeroFloat(20.0f) + 25.0f;
+                            effect->effectsTimer = MM_Rand_ZeroFloat(20.0f) + 25.0f;
                         } else {
                             // The Debris effect is done bouncing. Set its velocity and acceleration to 0.
                             effect->velocity.x = effect->velocity.z = effect->accel.y = effect->velocity.y = 0.0f;
@@ -693,35 +693,35 @@ void EnClearTag_UpdateEffects(EnClearTag* this, PlayState* play) {
                 }
             } else if (effect->type == CLEAR_TAG_EFFECT_FIRE) {
                 // Fade the fire effect.
-                Math_ApproachZeroF(&effect->primColor.a, 1.0f, 15.0f);
+                MM_Math_ApproachZeroF(&effect->primColor.a, 1.0f, 15.0f);
                 if (effect->primColor.a <= 0.0f) {
                     effect->type = CLEAR_TAG_EFFECT_AVAILABLE;
                 }
             } else if (effect->type == CLEAR_TAG_EFFECT_SHOCKWAVE) {
                 if (effect->actionTimer > 3) {
-                    Math_ApproachF(&effect->scale, effect->maxScale, 0.2f, effect->maxScale * 0.6666666f);
-                    Math_ApproachZeroF(&effect->primColor.a, 1.0f, 15.0f);
+                    MM_Math_ApproachF(&effect->scale, effect->maxScale, 0.2f, effect->maxScale * 0.6666666f);
+                    MM_Math_ApproachZeroF(&effect->primColor.a, 1.0f, 15.0f);
                     if (effect->primColor.a <= 0.0f) {
                         effect->type = CLEAR_TAG_EFFECT_AVAILABLE;
                     }
                 }
             } else if (effect->type == CLEAR_TAG_EFFECT_SMOKE) {
                 // Fade the smoke effects.
-                Math_ApproachZeroF(&effect->primColor.r, 1.0f, 20.0f);
-                Math_ApproachZeroF(&effect->primColor.g, 1.0f, 2.0f);
-                Math_ApproachZeroF(&effect->envColor.r, 1.0f, 25.5f);
-                Math_ApproachZeroF(&effect->envColor.g, 1.0f, 21.5f);
-                Math_ApproachZeroF(&effect->envColor.b, 1.0f, 25.5f);
+                MM_Math_ApproachZeroF(&effect->primColor.r, 1.0f, 20.0f);
+                MM_Math_ApproachZeroF(&effect->primColor.g, 1.0f, 2.0f);
+                MM_Math_ApproachZeroF(&effect->envColor.r, 1.0f, 25.5f);
+                MM_Math_ApproachZeroF(&effect->envColor.g, 1.0f, 21.5f);
+                MM_Math_ApproachZeroF(&effect->envColor.b, 1.0f, 25.5f);
 
                 // Smooth scale the smoke effects.
-                Math_ApproachF(&effect->scale, effect->maxScale, 0.05f, 0.1f);
+                MM_Math_ApproachF(&effect->scale, effect->maxScale, 0.05f, 0.1f);
 
                 if (effect->primColor.r == 0.0f) {
-                    Math_ApproachF(&effect->smokeScaleX, 3.0f, 0.1f, 0.01f);
-                    Math_ApproachF(&effect->smokeScaleY, 3.0f, 0.1f, 0.02f);
+                    MM_Math_ApproachF(&effect->smokeScaleX, 3.0f, 0.1f, 0.01f);
+                    MM_Math_ApproachF(&effect->smokeScaleY, 3.0f, 0.1f, 0.02f);
 
                     // Fade the smoke effects.
-                    Math_ApproachZeroF(&effect->primColor.a, 1.0f, 5.f);
+                    MM_Math_ApproachZeroF(&effect->primColor.a, 1.0f, 5.f);
 
                     // If the smoke effect has fully faded, unload it.
                     if (effect->primColor.a <= 0.0f) {
@@ -730,29 +730,29 @@ void EnClearTag_UpdateEffects(EnClearTag* this, PlayState* play) {
                 }
             } else if (effect->type == CLEAR_TAG_EFFECT_ISOLATED_SMOKE) {
                 // Smooth scale the isolated smoke effects.
-                Math_ApproachF(&effect->scale, effect->maxScale, 0.05f, 0.1f);
+                MM_Math_ApproachF(&effect->scale, effect->maxScale, 0.05f, 0.1f);
                 if (effect->actionTimer > 10) {
-                    Math_ApproachF(&effect->smokeScaleX, 3.0f, 0.1f, 0.01f);
-                    Math_ApproachF(&effect->smokeScaleY, 3.0f, 0.1f, 0.02f);
+                    MM_Math_ApproachF(&effect->smokeScaleX, 3.0f, 0.1f, 0.01f);
+                    MM_Math_ApproachF(&effect->smokeScaleY, 3.0f, 0.1f, 0.02f);
 
                     // Fade the smoke effects.
-                    Math_ApproachZeroF(&effect->primColor.a, 1.0f, 5.f);
+                    MM_Math_ApproachZeroF(&effect->primColor.a, 1.0f, 5.f);
                     if (effect->primColor.a <= 0.0f) {
                         effect->type = CLEAR_TAG_EFFECT_AVAILABLE;
                     }
                 }
             } else if (effect->type == CLEAR_TAG_EFFECT_FLASH) {
                 // Smooth scale the flash effects.
-                Math_ApproachF(&effect->scale, effect->maxScale, 0.5f, 6.0f);
+                MM_Math_ApproachF(&effect->scale, effect->maxScale, 0.5f, 6.0f);
 
                 // Fade the flash effects.
-                Math_ApproachZeroF(&effect->primColor.a, 1.0f, 15.0f);
+                MM_Math_ApproachZeroF(&effect->primColor.a, 1.0f, 15.0f);
                 if (effect->primColor.a <= 0.0f) {
                     effect->type = CLEAR_TAG_EFFECT_AVAILABLE;
                 }
             } else if (effect->type == CLEAR_TAG_EFFECT_LIGHT_RAYS) {
                 // Rotate the light ray effect.
-                effect->rotationZ += Rand_ZeroFloat(M_PIf / 2) + (M_PIf / 2);
+                effect->rotationZ += MM_Rand_ZeroFloat(M_PIf / 2) + (M_PIf / 2);
 
                 // Fade the light ray effects.
                 effect->lightRayAlpha -= effect->lightRayAlphaDecrementSpeed;
@@ -766,15 +766,15 @@ void EnClearTag_UpdateEffects(EnClearTag* this, PlayState* play) {
                 }
 
                 // Smooth scale the light ray effects.
-                Math_ApproachF(&effect->maxScale, effect->maxScaleTarget, 1.0f,
+                MM_Math_ApproachF(&effect->maxScale, effect->maxScaleTarget, 1.0f,
                                (effect->maxScaleTarget / 15.0f) * 4.0f);
             } else if (effect->type == CLEAR_TAG_EFFECT_SPLASH) {
                 if (effect->effectsTimer == 0) {
                     effect->scale = 7.0f;
 
                     // Smooth scale the splash effects.
-                    Math_ApproachF(&effect->maxScale, 500.0f, 1.0f, 50.0f);
-                    Math_ApproachF(&effect->rotationX, 1.5f, 1.0f, 0.12f);
+                    MM_Math_ApproachF(&effect->maxScale, 500.0f, 1.0f, 50.0f);
+                    MM_Math_ApproachF(&effect->rotationX, 1.5f, 1.0f, 0.12f);
                     if (effect->actionTimer > 7) {
                         effect->type = CLEAR_TAG_EFFECT_AVAILABLE;
                     }
@@ -795,7 +795,7 @@ void EnClearTag_UpdateEffects(EnClearTag* this, PlayState* play) {
  * Each effect type is drawn before the next. The function will apply a material that
  * applies to all effects of that type while drawing the first effect of that type.
  */
-void EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
+void MM_EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
     u8 isMaterialApplied = false;
     s16 i;
     s16 j;
@@ -824,8 +824,8 @@ void EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
             }
 
             // Draw the debris effect.
-            Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
-            Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
+            MM_Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
+            MM_Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
             Matrix_RotateYF(effect->rotationY, MTXMODE_APPLY);
             Matrix_RotateXFApply(effect->rotationX);
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, gfxCtx);
@@ -845,8 +845,8 @@ void EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
                 gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, 255, (s8)effect->primColor.a);
                 gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, (s8)effect->primColor.a);
                 func_800C0094(this->actor.floorPoly, effect->pos.x, effect->pos.y, effect->pos.z, &mtxF);
-                Matrix_Put(&mtxF);
-                Matrix_Scale(effect->scale, 1.0f, effect->scale, MTXMODE_APPLY);
+                MM_Matrix_Put(&mtxF);
+                MM_Matrix_Scale(effect->scale, 1.0f, effect->scale, MTXMODE_APPLY);
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
                 gSPDisplayList(POLY_XLU_DISP++, gEffShockwaveDL);
                 FrameInterpolation_RecordCloseChild();
@@ -871,8 +871,8 @@ void EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
                 // Draw the ground flash effect.
                 gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 200, (s8)(effect->primColor.a * 0.7f));
                 func_800C0094(this->actor.floorPoly, effect->pos.x, this->actor.floorHeight, effect->pos.z, &mtxF);
-                Matrix_Put(&mtxF);
-                Matrix_Scale(effect->scale * 3.0f, 1.0f, effect->scale * 3.0f, MTXMODE_APPLY);
+                MM_Matrix_Put(&mtxF);
+                MM_Matrix_Scale(effect->scale * 3.0f, 1.0f, effect->scale * 3.0f, MTXMODE_APPLY);
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
                 gSPDisplayList(POLY_XLU_DISP++, gClearTagFlashEffectGroundDL);
                 FrameInterpolation_RecordCloseChild();
@@ -899,11 +899,11 @@ void EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, (s8)effect->primColor.r, (s8)effect->primColor.g,
                             (s8)effect->primColor.b, (s8)effect->primColor.a);
             gSPSegment(POLY_XLU_DISP++, 0x08,
-                       Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, -effect->actionTimer * 5, 32, 64, 1, 0, 0, 32, 32));
-            Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
-            Matrix_Scale(effect->smokeScaleX * effect->scale, effect->smokeScaleY * effect->scale, 1.0f, MTXMODE_APPLY);
-            Matrix_Translate(0.0f, 20.0f, 0.0f, MTXMODE_APPLY);
+                       MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, -effect->actionTimer * 5, 32, 64, 1, 0, 0, 32, 32));
+            MM_Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
+            MM_Matrix_ReplaceRotation(&play->billboardMtxF);
+            MM_Matrix_Scale(effect->smokeScaleX * effect->scale, effect->smokeScaleY * effect->scale, 1.0f, MTXMODE_APPLY);
+            MM_Matrix_Translate(0.0f, 20.0f, 0.0f, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
             gSPDisplayList(POLY_XLU_DISP++, gClearTagFireEffectDL);
             FrameInterpolation_RecordCloseChild();
@@ -926,10 +926,10 @@ void EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
             // Draw the fire effect.
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 200, 20, 0, (s8)effect->primColor.a);
             gSPSegment(POLY_XLU_DISP++, 0x08,
-                       Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, -effect->actionTimer * 15, 32, 64, 1, 0, 0, 32, 32));
-            Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
-            Matrix_Scale(effect->scale, effect->scale, 1.0f, MTXMODE_APPLY);
+                       MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, -effect->actionTimer * 15, 32, 64, 1, 0, 0, 32, 32));
+            MM_Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
+            MM_Matrix_ReplaceRotation(&play->billboardMtxF);
+            MM_Matrix_Scale(effect->scale, effect->scale, 1.0f, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
             gSPDisplayList(POLY_XLU_DISP++, gClearTagFireEffectDL);
             FrameInterpolation_RecordCloseChild();
@@ -951,9 +951,9 @@ void EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
 
             // Draw the flash billboard effect.
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 200, (s8)effect->primColor.a);
-            Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
-            Matrix_Scale(2.0f * effect->scale, 2.0f * effect->scale, 1.0f, MTXMODE_APPLY);
+            MM_Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
+            MM_Matrix_ReplaceRotation(&play->billboardMtxF);
+            MM_Matrix_Scale(2.0f * effect->scale, 2.0f * effect->scale, 1.0f, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
             gSPDisplayList(POLY_XLU_DISP++, gClearTagFlashEffectDL);
             FrameInterpolation_RecordCloseChild();
@@ -978,11 +978,11 @@ void EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
             // Draw the light ray effect.
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, (u8)effect->primColor.r, (u8)effect->primColor.g,
                             (u8)effect->primColor.b, (u8)effect->primColor.a);
-            Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
+            MM_Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
             Matrix_RotateYF(effect->rotationY, MTXMODE_APPLY);
             Matrix_RotateXFApply(effect->rotationX);
             Matrix_RotateZF(effect->rotationZ, MTXMODE_APPLY);
-            Matrix_Scale(effect->scale * 0.5f, effect->scale * 0.5f, effect->maxScale * effect->scale, MTXMODE_APPLY);
+            MM_Matrix_Scale(effect->scale * 0.5f, effect->scale * 0.5f, effect->maxScale * effect->scale, MTXMODE_APPLY);
             Matrix_RotateXFApply(M_PIf / 2);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
             gSPDisplayList(POLY_XLU_DISP++, gClearTagLightRayEffectDL);
@@ -1014,14 +1014,14 @@ void EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
                  * `ySurface` returns the water box's surface, while `outWaterBox` returns a pointer to the WaterBox
                  */
                 ySurface = effect->pos.y;
-                if (WaterBox_GetSurface1(play, &play->colCtx, effect->pos.x + vec.x, effect->pos.z + vec.z, &ySurface,
+                if (MM_WaterBox_GetSurface1(play, &play->colCtx, effect->pos.x + vec.x, effect->pos.z + vec.z, &ySurface,
                                          &waterBox)) {
                     if ((effect->pos.y - ySurface) < 200.0f) {
                         // Draw the splash effect.
-                        Matrix_Translate(effect->pos.x + vec.x, ySurface, effect->pos.z + vec.z, MTXMODE_NEW);
+                        MM_Matrix_Translate(effect->pos.x + vec.x, ySurface, effect->pos.z + vec.z, MTXMODE_NEW);
                         Matrix_RotateYF(2.0f * (j * M_PIf) * (1.0f / 16.0f), MTXMODE_APPLY);
                         Matrix_RotateXFApply(effect->rotationX);
-                        Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
+                        MM_Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
                         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
                         gSPDisplayList(POLY_XLU_DISP++, gEffWaterSplashDL);
                     }

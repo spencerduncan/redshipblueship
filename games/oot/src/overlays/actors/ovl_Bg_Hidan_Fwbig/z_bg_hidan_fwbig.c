@@ -45,7 +45,7 @@ const ActorInit Bg_Hidan_Fwbig_InitVars = {
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -65,7 +65,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 30, 130, 0, { 0, 0, 0 } },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(uncullZoneScale, 1000, ICHAIN_STOP),
 };
 
@@ -74,9 +74,9 @@ void BgHidanFwbig_Init(Actor* thisx, PlayState* play2) {
     BgHidanFwbig* this = (BgHidanFwbig*)thisx;
     Player* player = GET_PLAYER(play);
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
     this->direction = (u16)(thisx->params >> 8);
     thisx->params &= 0xFF;
@@ -90,18 +90,18 @@ void BgHidanFwbig_Init(Actor* thisx, PlayState* play2) {
             this->direction = 1;
             this->actor.home.rot.y = this->actor.shape.rot.y = -0x31C8;
         } else {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
             return;
         }
         BgHidanFwbig_UpdatePosition(this);
-        Actor_SetScale(&this->actor, 0.15f);
+        OoT_Actor_SetScale(&this->actor, 0.15f);
         this->collider.dim.height = 230;
         this->actor.flags |= ACTOR_FLAG_UPDATE_CULLING_DISABLED;
         this->moveState = FWBIG_MOVE;
         this->actionFunc = BgHidanFwbig_WaitForPlayer;
         this->actor.world.pos.y = this->actor.home.pos.y - (2400.0f * this->actor.scale.y);
     } else {
-        Actor_SetScale(&this->actor, 0.1f);
+        OoT_Actor_SetScale(&this->actor, 0.1f);
         this->actionFunc = BgHidanFwbig_WaitForSwitch;
     }
 }
@@ -110,18 +110,18 @@ void BgHidanFwbig_Destroy(Actor* thisx, PlayState* play) {
     s32 pad;
     BgHidanFwbig* this = (BgHidanFwbig*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void BgHidanFwbig_UpdatePosition(BgHidanFwbig* this) {
     s16 startAngle = this->actor.shape.rot.y + this->direction * -0x4000;
 
-    this->actor.world.pos.x = (Math_SinS(startAngle) * 885.4f) + this->actor.home.pos.x;
-    this->actor.world.pos.z = (Math_CosS(startAngle) * 885.4f) + this->actor.home.pos.z;
+    this->actor.world.pos.x = (OoT_Math_SinS(startAngle) * 885.4f) + this->actor.home.pos.x;
+    this->actor.world.pos.z = (OoT_Math_CosS(startAngle) * 885.4f) + this->actor.home.pos.z;
 }
 
 void BgHidanFwbig_WaitForSwitch(BgHidanFwbig* this, PlayState* play) {
-    if (Flags_GetSwitch(play, this->actor.params)) {
+    if (OoT_Flags_GetSwitch(play, this->actor.params)) {
         this->actionFunc = BgHidanFwbig_WaitForCs;
         OnePointCutscene_Init(play, 3340, -99, &this->actor, MAIN_CAM);
         this->timer = 35;
@@ -135,9 +135,9 @@ void BgHidanFwbig_WaitForCs(BgHidanFwbig* this, PlayState* play) {
 }
 
 void BgHidanFwbig_Rise(BgHidanFwbig* this, PlayState* play) {
-    if (Math_StepToF(&this->actor.world.pos.y, this->actor.home.pos.y, 10.0f)) {
+    if (OoT_Math_StepToF(&this->actor.world.pos.y, this->actor.home.pos.y, 10.0f)) {
         if (this->direction == 0) {
-            Flags_UnsetSwitch(play, this->actor.params);
+            OoT_Flags_UnsetSwitch(play, this->actor.params);
             this->actionFunc = BgHidanFwbig_WaitForSwitch;
         } else {
             this->actionFunc = BgHidanFwbig_Move;
@@ -146,12 +146,12 @@ void BgHidanFwbig_Rise(BgHidanFwbig* this, PlayState* play) {
 }
 
 void BgHidanFwbig_Lower(BgHidanFwbig* this, PlayState* play) {
-    if (Math_StepToF(&this->actor.world.pos.y, this->actor.home.pos.y - (2400.0f * this->actor.scale.y), 10.0f)) {
+    if (OoT_Math_StepToF(&this->actor.world.pos.y, this->actor.home.pos.y - (2400.0f * this->actor.scale.y), 10.0f)) {
         if (this->direction == 0) {
             this->actionFunc = BgHidanFwbig_WaitForTimer;
             this->timer = 150;
         } else if (this->moveState == FWBIG_KILL) {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
         } else {
             if (this->moveState == FWBIG_MOVE) {
                 this->actor.shape.rot.y -= (this->direction * 0x1800);
@@ -186,8 +186,8 @@ void BgHidanFwbig_WaitForPlayer(BgHidanFwbig* this, PlayState* play) {
 }
 
 void BgHidanFwbig_Move(BgHidanFwbig* this, PlayState* play) {
-    if (!Player_InCsMode(play)) {
-        if (Math_ScaledStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y + (this->direction * 0x6390), 0x20)) {
+    if (!OoT_Player_InCsMode(play)) {
+        if (OoT_Math_ScaledStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y + (this->direction * 0x6390), 0x20)) {
             this->moveState = FWBIG_RESET;
             this->actionFunc = BgHidanFwbig_Lower;
         } else {
@@ -202,7 +202,7 @@ void BgHidanFwbig_MoveCollider(BgHidanFwbig* this, PlayState* play) {
     f32 cs;
     f32 sn;
 
-    Actor_WorldToActorCoords(&this->actor, &projPos, &player->actor.world.pos);
+    OoT_Actor_WorldToActorCoords(&this->actor, &projPos, &player->actor.world.pos);
     projPos.z = ((projPos.z >= 0.0f) ? 1.0f : -1.0f) * 25.0f * -1.0f;
     if (this->direction == 0) {
         projPos.x = CLAMP(projPos.x, -360.0f, 360.0f);
@@ -210,8 +210,8 @@ void BgHidanFwbig_MoveCollider(BgHidanFwbig* this, PlayState* play) {
         projPos.x = CLAMP(projPos.x, -500.0f, 500.0f);
     }
 
-    sn = Math_SinS(this->actor.shape.rot.y);
-    cs = Math_CosS(this->actor.shape.rot.y);
+    sn = OoT_Math_SinS(this->actor.shape.rot.y);
+    cs = OoT_Math_CosS(this->actor.shape.rot.y);
     this->collider.dim.pos.x = this->actor.world.pos.x + (projPos.x * cs) + (projPos.z * sn);
     this->collider.dim.pos.z = this->actor.world.pos.z - (projPos.x * sn) + (projPos.z * cs);
     this->collider.dim.pos.y = this->actor.world.pos.y;
@@ -244,8 +244,8 @@ void BgHidanFwbig_Update(Actor* thisx, PlayState* play) {
             func_8002F974(&this->actor, NA_SE_EV_FLAME_OF_FIRE - SFX_FLAG);
         }
         BgHidanFwbig_MoveCollider(this, play);
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -268,7 +268,7 @@ void BgHidanFwbig_Draw(Actor* thisx, PlayState* play) {
     gDPSetEnvColor(POLY_XLU_DISP++, 255, 0, 0, 0);
 
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, play->gameplayFrames % 0x80, 0, 0x20, 0x40, 1, 0,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, play->gameplayFrames % 0x80, 0, 0x20, 0x40, 1, 0,
                                 (u8)(play->gameplayFrames * -15), 0x20, 0x40));
 
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);

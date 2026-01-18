@@ -1,7 +1,7 @@
 #include <libultraship/libultra.h>
 #include "global.h"
 
-s32 osPfsIsPlug(OSMesgQueue* mq, u8* pattern) {
+s32 OoT_osPfsIsPlug(OSMesgQueue* mq, u8* pattern) {
     s32 ret = 0;
     OSMesg msg;
     u8 bitpattern;
@@ -16,10 +16,10 @@ s32 osPfsIsPlug(OSMesgQueue* mq, u8* pattern) {
         __osPfsRequestData(CONT_CMD_REQUEST_STATUS);
 
         ret = __osSiRawStartDma(OS_WRITE, &gPifMempakBuf);
-        osRecvMesg(mq, &msg, OS_MESG_BLOCK);
+        OoT_osRecvMesg(mq, &msg, OS_MESG_BLOCK);
 
         ret = __osSiRawStartDma(OS_READ, &gPifMempakBuf);
-        osRecvMesg(mq, &msg, OS_MESG_BLOCK);
+        OoT_osRecvMesg(mq, &msg, OS_MESG_BLOCK);
 
         __osPfsGetInitData(&bitpattern, &contData[0]);
 

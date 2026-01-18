@@ -37,7 +37,7 @@ ActorProfile Bg_Open_Shutter_Profile = {
     /**/ BgOpenShutter_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 350, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 350, ICHAIN_CONTINUE),
@@ -53,7 +53,7 @@ f32 func_80ACAB10(PlayState* play, Actor* actor, f32 arg2, f32 arg3, f32 arg4) {
     point.y = player->actor.world.pos.y + arg2;
     point.z = player->actor.world.pos.z;
 
-    Actor_WorldToActorCoords(actor, &offset, &point);
+    MM_Actor_WorldToActorCoords(actor, &offset, &point);
     if ((arg3 < fabsf(offset.x)) || (arg4 < fabsf(offset.y))) {
         return FLT_MAX;
     } else {
@@ -66,7 +66,7 @@ s8 func_80ACABA8(BgOpenShutter* this, PlayState* play) {
     f32 temp_fv0;
     s16 temp_v0;
 
-    if (!Player_InCsMode(play) && (this->slidingDoor.dyna.actor.xzDistToPlayer < 100.0f)) {
+    if (!MM_Player_InCsMode(play) && (this->slidingDoor.dyna.actor.xzDistToPlayer < 100.0f)) {
         temp_fv0 = func_80ACAB10(play, &this->slidingDoor.dyna.actor, 0.0f, 65.0f, 15.0f);
         if (fabsf(temp_fv0) < 50.0f) {
             temp_v0 = player->actor.shape.rot.y - this->slidingDoor.dyna.actor.shape.rot.y;
@@ -89,8 +89,8 @@ s8 func_80ACABA8(BgOpenShutter* this, PlayState* play) {
 void BgOpenShutter_Init(Actor* thisx, PlayState* play) {
     BgOpenShutter* this = (BgOpenShutter*)thisx;
 
-    Actor_ProcessInitChain(&this->slidingDoor.dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->slidingDoor.dyna, DYNA_TRANSFORM_POS);
+    MM_Actor_ProcessInitChain(&this->slidingDoor.dyna.actor, MM_sInitChain);
+    MM_DynaPolyActor_Init(&this->slidingDoor.dyna, DYNA_TRANSFORM_POS);
     DynaPolyActor_LoadMesh(play, &this->slidingDoor.dyna, &object_open_obj_Colheader_001640);
     this->actionFunc = func_80ACAD88;
 }
@@ -100,7 +100,7 @@ void BgOpenShutter_Destroy(Actor* thisx, PlayState* play) {
     s32 transition = DOOR_GET_TRANSITION_ID(thisx);
 
     play->transitionActors.list[transition].id = -play->transitionActors.list[transition].id;
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->slidingDoor.dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->slidingDoor.dyna.bgId);
 }
 
 void func_80ACAD88(BgOpenShutter* this, PlayState* play) {
@@ -110,7 +110,7 @@ void func_80ACAD88(BgOpenShutter* this, PlayState* play) {
         Player* player = GET_PLAYER(play);
 
         Actor_PlaySfx(&this->slidingDoor.dyna.actor, NA_SE_EV_SLIDE_DOOR_OPEN);
-        Camera_ChangeDoorCam(play->cameraPtrs[CAM_ID_MAIN], &this->slidingDoor.dyna.actor, player->cv.doorBgCamIndex,
+        MM_Camera_ChangeDoorCam(play->cameraPtrs[CAM_ID_MAIN], &this->slidingDoor.dyna.actor, player->cv.doorBgCamIndex,
                              0.0f, 12, 15, 10);
         this->unk_164 = 0;
         this->actionFunc = func_80ACAE5C;
@@ -129,8 +129,8 @@ void func_80ACAD88(BgOpenShutter* this, PlayState* play) {
 }
 
 void func_80ACAE5C(BgOpenShutter* this, PlayState* play) {
-    Math_StepToF(&this->slidingDoor.dyna.actor.velocity.y, 15.0f, 3.0f);
-    if (Math_StepToF(&this->slidingDoor.dyna.actor.world.pos.y, this->slidingDoor.dyna.actor.home.pos.y + 120.0f,
+    MM_Math_StepToF(&this->slidingDoor.dyna.actor.velocity.y, 15.0f, 3.0f);
+    if (MM_Math_StepToF(&this->slidingDoor.dyna.actor.world.pos.y, this->slidingDoor.dyna.actor.home.pos.y + 120.0f,
                      this->slidingDoor.dyna.actor.velocity.y)) {
         this->unk_164++;
     }
@@ -144,16 +144,16 @@ void func_80ACAEF0(BgOpenShutter* this, PlayState* play) {
     s32 pad;
     s16 quakeIndex;
 
-    Math_StepToF(&this->slidingDoor.dyna.actor.velocity.y, 20.0f, 8.0f);
-    if (Math_StepToF(&this->slidingDoor.dyna.actor.world.pos.y, this->slidingDoor.dyna.actor.home.pos.y,
+    MM_Math_StepToF(&this->slidingDoor.dyna.actor.velocity.y, 20.0f, 8.0f);
+    if (MM_Math_StepToF(&this->slidingDoor.dyna.actor.world.pos.y, this->slidingDoor.dyna.actor.home.pos.y,
                      this->slidingDoor.dyna.actor.velocity.y)) {
         this->slidingDoor.dyna.actor.floorHeight = this->slidingDoor.dyna.actor.home.pos.y;
-        Actor_SpawnFloorDustRing(play, &this->slidingDoor.dyna.actor, &this->slidingDoor.dyna.actor.world.pos, 60.0f,
+        MM_Actor_SpawnFloorDustRing(play, &this->slidingDoor.dyna.actor, &this->slidingDoor.dyna.actor.world.pos, 60.0f,
                                  10, 8.0f, 500, 10, true);
         Actor_PlaySfx(&this->slidingDoor.dyna.actor, NA_SE_EV_BIGWALL_BOUND);
 
-        quakeIndex = Quake_Request(Play_GetCamera(play, CAM_ID_MAIN), QUAKE_TYPE_3);
-        Quake_SetSpeed(quakeIndex, -32536);
+        quakeIndex = Quake_Request(MM_Play_GetCamera(play, CAM_ID_MAIN), QUAKE_TYPE_3);
+        MM_Quake_SetSpeed(quakeIndex, -32536);
         Quake_SetPerturbations(quakeIndex, 2, 0, 0, 0);
         Quake_SetDuration(quakeIndex, 10);
 
@@ -189,5 +189,5 @@ void BgOpenShutter_Update(Actor* thisx, PlayState* play2) {
 }
 
 void BgOpenShutter_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, object_open_obj_DL_0003E8);
+    MM_Gfx_DrawDListOpa(play, object_open_obj_DL_0003E8);
 }

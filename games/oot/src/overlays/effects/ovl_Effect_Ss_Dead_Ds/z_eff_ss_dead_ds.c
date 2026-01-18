@@ -17,16 +17,16 @@
 #define rAlphaStep regs[10]
 #define rHalfOfLife regs[11]
 
-u32 EffectSsDeadDs_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsDeadDs_Draw(PlayState* play, u32 index, EffectSs* this);
-void EffectSsDeadDs_Update(PlayState* play, u32 index, EffectSs* this);
+u32 OoT_EffectSsDeadDs_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void OoT_EffectSsDeadDs_Draw(PlayState* play, u32 index, EffectSs* this);
+void OoT_EffectSsDeadDs_Update(PlayState* play, u32 index, EffectSs* this);
 
 EffectSsInit Effect_Ss_Dead_Ds_InitVars = {
     EFFECT_SS_DEAD_DS,
-    EffectSsDeadDs_Init,
+    OoT_EffectSsDeadDs_Init,
 };
 
-u32 EffectSsDeadDs_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 OoT_EffectSsDeadDs_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsDeadDsInitParams* initParams = (EffectSsDeadDsInitParams*)initParamsx;
 
     this->pos = initParams->pos;
@@ -36,8 +36,8 @@ u32 EffectSsDeadDs_Init(PlayState* play, u32 index, EffectSs* this, void* initPa
     this->rScaleStep = initParams->scaleStep;
     this->rHalfOfLife = initParams->life / 2;
     this->rAlphaStep = initParams->alpha / this->rHalfOfLife;
-    this->draw = EffectSsDeadDs_Draw;
-    this->update = EffectSsDeadDs_Update;
+    this->draw = OoT_EffectSsDeadDs_Draw;
+    this->update = OoT_EffectSsDeadDs_Update;
     this->rScale = initParams->scale;
     this->rAlpha = initParams->alpha;
     this->rTimer = 0;
@@ -45,7 +45,7 @@ u32 EffectSsDeadDs_Init(PlayState* play, u32 index, EffectSs* this, void* initPa
     return 1;
 }
 
-void EffectSsDeadDs_Draw(PlayState* play, u32 index, EffectSs* this) {
+void OoT_EffectSsDeadDs_Draw(PlayState* play, u32 index, EffectSs* this) {
     s32 pad;
     f32 scale;
     s32 pad1;
@@ -71,19 +71,19 @@ void EffectSsDeadDs_Draw(PlayState* play, u32 index, EffectSs* this) {
         sp44.y = pos.y - this->velocity.y;
         sp44.z = pos.z - this->velocity.z;
 
-        if (BgCheck_EntitySphVsWall1(&play->colCtx, &this->pos, &pos, &sp44, 1.5f, &floorPoly, 1.0f)) {
+        if (OoT_BgCheck_EntitySphVsWall1(&play->colCtx, &this->pos, &pos, &sp44, 1.5f, &floorPoly, 1.0f)) {
             func_80038A28(floorPoly, this->pos.x, this->pos.y, this->pos.z, &mf);
-            Matrix_Put(&mf);
+            OoT_Matrix_Put(&mf);
         } else {
             pos.y++;
-            temp = BgCheck_EntityRaycastFloor1(&play->colCtx, &floorPoly, &pos);
+            temp = OoT_BgCheck_EntityRaycastFloor1(&play->colCtx, &floorPoly, &pos);
 
             if (floorPoly != NULL) {
                 func_80038A28(floorPoly, this->pos.x, temp + 1.5f, this->pos.z, &mf);
-                Matrix_Put(&mf);
+                OoT_Matrix_Put(&mf);
             } else {
-                Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
-                Matrix_Get(&mf);
+                OoT_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
+                OoT_Matrix_Get(&mf);
             }
         }
 
@@ -95,10 +95,10 @@ void EffectSsDeadDs_Draw(PlayState* play, u32 index, EffectSs* this) {
         this->rTimer++;
     }
 
-    Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
-    Matrix_RotateZYX(this->rRoll, this->rPitch, this->rYaw, MTXMODE_APPLY);
+    OoT_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
+    OoT_Matrix_RotateZYX(this->rRoll, this->rPitch, this->rYaw, MTXMODE_APPLY);
     Matrix_RotateX(1.57f, MTXMODE_APPLY);
-    Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+    OoT_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gDPSetCombineLERP(POLY_XLU_DISP++, 0, 0, 0, PRIMITIVE, TEXEL0, 0, PRIMITIVE, 0, 0, 0, 0, PRIMITIVE, TEXEL0, 0,
                       PRIMITIVE, 0);
@@ -107,7 +107,7 @@ void EffectSsDeadDs_Draw(PlayState* play, u32 index, EffectSs* this) {
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void EffectSsDeadDs_Update(PlayState* play, u32 index, EffectSs* this) {
+void OoT_EffectSsDeadDs_Update(PlayState* play, u32 index, EffectSs* this) {
     if (this->life < this->rHalfOfLife) {
 
         this->rScale += this->rScaleStep;

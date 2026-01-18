@@ -73,7 +73,7 @@ void EnTest4_HandleDayNightSwapFromInit(EnTest4* this, PlayState* play) {
 
         Interface_NewDay(play, CURRENT_DAY);
         gSceneSeqState = SCENESEQ_MORNING;
-        Environment_PlaySceneSequence(play);
+        MM_Environment_PlaySceneSequence(play);
         Environment_NewDay(&play->envCtx);
         this->actionFunc = EnTest4_HandleEvents;
     }
@@ -127,7 +127,7 @@ void EnTest4_HandleDayNightSwap(EnTest4* this, PlayState* play) {
         Interface_NewDay(play, CURRENT_DAY);
         Message_DisplaySceneTitleCard(play, sDawnOfTextIds[CURRENT_DAY - 1]);
         gSceneSeqState = SCENESEQ_MORNING;
-        Environment_PlaySceneSequence(play);
+        MM_Environment_PlaySceneSequence(play);
         Environment_NewDay(&play->envCtx);
         this->actionFunc = EnTest4_HandleEvents;
     }
@@ -345,7 +345,7 @@ void EnTest4_Init(Actor* thisx, PlayState* play) {
     }
 
     if (sIsLoaded || CHECK_EVENTINF(EVENTINF_TRIGGER_DAYTELOP)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     } else {
         sIsLoaded = true;
         this->actor.room = -1;
@@ -360,7 +360,7 @@ void EnTest4_Init(Actor* thisx, PlayState* play) {
                 SET_NEXT_GAMESTATE(&play->state, DayTelop_Init, sizeof(DayTelopState));
                 this->daytimeIndex = THREEDAY_DAYTIME_DAY;
                 gSaveContext.save.time = CLOCK_TIME(6, 0);
-                Actor_Kill(&this->actor);
+                MM_Actor_Kill(&this->actor);
             } else {
                 gSaveContext.save.day = 1;
                 eventDayCount = gSaveContext.save.day;
@@ -416,7 +416,7 @@ void EnTest4_HandleEvents(EnTest4* this, PlayState* play) {
     };
     Player* player = GET_PLAYER(play);
 
-    if ((play->transitionMode == TRANS_MODE_OFF) && !Play_InCsMode(play) && (play->numSetupActors <= 0) &&
+    if ((play->transitionMode == TRANS_MODE_OFF) && !MM_Play_InCsMode(play) && (play->numSetupActors <= 0) &&
         (play->roomCtx.status == 0) && !Play_IsDebugCamEnabled()) {
         u16 transitionTime = sDayNightTransitionTimes[this->daytimeIndex];
         s16 curTimeUntilTransition;
@@ -449,7 +449,7 @@ void EnTest4_HandleEvents(EnTest4* this, PlayState* play) {
                 if (CURRENT_DAY == 3) {
                     // Turn day with mooncrash
                     Interface_StartMoonCrash(play);
-                    Actor_Kill(&this->actor);
+                    MM_Actor_Kill(&this->actor);
                     SET_EVENTINF(EVENTINF_17);
                 } else if (((sCsIdList[this->daytimeIndex] <= CS_ID_NONE) ||
                             (play->actorCtx.flags & ACTORCTX_FLAG_TELESCOPE_ON)) &&
@@ -459,7 +459,7 @@ void EnTest4_HandleEvents(EnTest4* this, PlayState* play) {
                 } else {
                     // Turn day with DayTelop cutscene
                     gSaveContext.screenScale = 0.0f;
-                    Play_SetRespawnData(play, RESPAWN_MODE_DOWN, Entrance_CreateFromSpawn(0), player->unk_3CE,
+                    MM_Play_SetRespawnData(play, RESPAWN_MODE_DOWN, Entrance_CreateFromSpawn(0), player->unk_3CE,
                                         PLAYER_PARAMS(0xFF, PLAYER_START_MODE_B), &player->unk_3C0, player->unk_3CC);
                     func_80169EFC(play);
                     if (player->stateFlags1 & PLAYER_STATE1_800000) {
@@ -476,7 +476,7 @@ void EnTest4_HandleEvents(EnTest4* this, PlayState* play) {
 
                     gSaveContext.respawnFlag = -4;
                     SET_EVENTINF(EVENTINF_TRIGGER_DAYTELOP);
-                    Actor_Kill(&this->actor);
+                    MM_Actor_Kill(&this->actor);
                 }
             }
 
@@ -520,7 +520,7 @@ void EnTest4_HandleEvents(EnTest4* this, PlayState* play) {
                         playerParams = PLAYER_PARAMS(0xFF, PLAYER_START_MODE_B);
                     }
 
-                    Play_SetRespawnData(play, RESPAWN_MODE_RETURN, entrance, player->unk_3CE, playerParams,
+                    MM_Play_SetRespawnData(play, RESPAWN_MODE_RETURN, entrance, player->unk_3CE, playerParams,
                                         &player->unk_3C0, player->unk_3CC);
 
                     if ((play->sceneId == SCENE_TENMON_DAI) || (play->sceneId == SCENE_00KEIKOKU)) {
@@ -532,7 +532,7 @@ void EnTest4_HandleEvents(EnTest4* this, PlayState* play) {
                     play->transitionTrigger = TRANS_TRIGGER_START;
                     play->transitionType = TRANS_TYPE_FADE_BLACK;
                     player->stateFlags1 |= PLAYER_STATE1_200;
-                    Actor_Kill(&this->actor);
+                    MM_Actor_Kill(&this->actor);
                 }
                 EnTest4_GetBellTimeOnDay3(this);
             } else {
@@ -592,18 +592,18 @@ void EnTest4_HandleCutscene(EnTest4* this, PlayState* play) {
 void EnTest4_UpdateWeatherClear(EnTest4* this, PlayState* play) {
     if ((CURRENT_DAY == 2) && (CURRENT_TIME >= CLOCK_TIME(7, 0)) && (CURRENT_TIME < CLOCK_TIME(17, 30)) &&
         (play->envCtx.precipitation[PRECIP_SNOW_CUR] == 0)) {
-        gWeatherMode = WEATHER_MODE_RAIN;
-        Environment_PlayStormNatureAmbience(play);
+        MM_gWeatherMode = WEATHER_MODE_RAIN;
+        MM_Environment_PlayStormNatureAmbience(play);
         play->envCtx.lightningState = LIGHTNING_ON;
         play->envCtx.precipitation[PRECIP_RAIN_MAX] = 60;
     } else if ((play->envCtx.precipitation[PRECIP_RAIN_MAX] != 0) && ((play->state.frames % 4) == 0)) {
         play->envCtx.precipitation[PRECIP_RAIN_MAX]--;
         if (play->envCtx.precipitation[PRECIP_RAIN_MAX] == 8) {
-            Environment_StopStormNatureAmbience(play);
+            MM_Environment_StopStormNatureAmbience(play);
         }
     }
 
-    if (gWeatherMode == WEATHER_MODE_RAIN) {
+    if (MM_gWeatherMode == WEATHER_MODE_RAIN) {
         this->weather = THREEDAY_WEATHER_RAIN;
     }
 }
@@ -612,11 +612,11 @@ void EnTest4_UpdateWeatherRainy(EnTest4* this, PlayState* play) {
     if (((CURRENT_TIME >= CLOCK_TIME(17, 30)) && (CURRENT_TIME < CLOCK_TIME(23, 0)) &&
          (play->envCtx.precipitation[PRECIP_RAIN_MAX] != 0)) ||
         (play->envCtx.precipitation[PRECIP_SNOW_CUR] != 0)) {
-        gWeatherMode = WEATHER_MODE_CLEAR;
+        MM_gWeatherMode = WEATHER_MODE_CLEAR;
         play->envCtx.lightningState = LIGHTNING_LAST;
     }
 
-    if (gWeatherMode == WEATHER_MODE_CLEAR) {
+    if (MM_gWeatherMode == WEATHER_MODE_CLEAR) {
         this->weather = THREEDAY_WEATHER_CLEAR;
     }
 }

@@ -81,7 +81,7 @@ typedef enum {
     /* 13 */ FSN_ANIM_MAX
 } FsnAnimation;
 
-static AnimationInfoS sAnimationInfo[FSN_ANIM_MAX] = {
+static AnimationInfoS MM_sAnimationInfo[FSN_ANIM_MAX] = {
     { &gFsnIdleAnim, 1.0f, 0, -1, ANIMMODE_LOOP, 0 },                // FSN_ANIM_IDLE
     { &gFsnScratchBackAnim, 1.0f, 0, -1, ANIMMODE_LOOP, 0 },         // FSN_ANIM_SCRATCH_BACK
     { &gFsnTurnAroundAnim, 1.0f, 0, -1, ANIMMODE_ONCE, 0 },          // FSN_ANIM_TURN_AROUND_FORWARD
@@ -97,7 +97,7 @@ static AnimationInfoS sAnimationInfo[FSN_ANIM_MAX] = {
     { &gFsnMakeOfferAnim, 1.0f, 0, -1, ANIMMODE_ONCE, 0 },           // FSN_ANIM_MAKE_OFFER
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -136,7 +136,7 @@ bool EnFsn_TestItemSelected(PlayState* play) {
 }
 
 u16 EnFsn_GetWelcome(PlayState* play) {
-    switch (Player_GetMask(play)) {
+    switch (MM_Player_GetMask(play)) {
         case PLAYER_MASK_NONE:
             return 0x29CC;
 
@@ -211,7 +211,7 @@ void EnFsn_HandleConversationBackroom(EnFsn* this, PlayState* play) {
         default:
             break;
     }
-    Message_StartTextbox(play, this->textId, &this->actor);
+    MM_Message_StartTextbox(play, this->textId, &this->actor);
     if (this->flags & ENFSN_END_CONVERSATION) {
         if (this->flags & ENFSN_GAVE_LETTER_TO_MAMA) {
             this->flags &= ~ENFSN_GAVE_LETTER_TO_MAMA;
@@ -226,7 +226,7 @@ void EnFsn_HandleConversationBackroom(EnFsn* this, PlayState* play) {
 }
 
 void EnFsn_HandleSetupResumeInteraction(EnFsn* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && Message_ShouldAdvance(play) &&
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && MM_Message_ShouldAdvance(play) &&
         (this->cutsceneState == ENFSN_CUTSCENESTATE_STOPPED)) {
         Actor_TalkOfferAccepted(&this->actor, &play->state);
         Actor_OfferTalkExchangeEquiCylinder(&this->actor, play, 400.0f, PLAYER_IA_MINUS1);
@@ -241,7 +241,7 @@ void EnFsn_UpdateCollider(EnFsn* this, PlayState* play) {
     this->collider.dim.pos.x = this->actor.world.pos.x;
     this->collider.dim.pos.y = this->actor.world.pos.y;
     this->collider.dim.pos.z = this->actor.world.pos.z;
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void EnFsn_HandleLookToShopkeeperBuyingCutscene(EnFsn* this) {
@@ -403,7 +403,7 @@ void EnFsn_SpawnShopItems(EnFsn* this, PlayState* play) {
             this->items[i] = NULL;
         } else {
             this->items[i] =
-                (EnGirlA*)Actor_Spawn(&play->actorCtx, play, ACTOR_EN_GIRLA, sShopItemPositions[i].x,
+                (EnGirlA*)MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_GIRLA, sShopItemPositions[i].x,
                                       sShopItemPositions[i].y, sShopItemPositions[i].z, 0, 0, 0, this->itemIds[i]);
         }
     }
@@ -430,7 +430,7 @@ void EnFsn_EndInteraction(EnFsn* this, PlayState* play) {
 s32 EnFsn_TestEndInteraction(EnFsn* this, PlayState* play, Input* input) {
     if (CHECK_BTN_ALL(input->press.button, BTN_B)) {
         this->actor.textId = (CURRENT_DAY == 3) ? 0x29DF : 0x29D1;
-        Message_StartTextbox(play, this->actor.textId, &this->actor);
+        MM_Message_StartTextbox(play, this->actor.textId, &this->actor);
         Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_CURIOSITY_SHOP_MAN);
         this->actionFunc = EnFsn_SetupEndInteraction;
         return true;
@@ -441,7 +441,7 @@ s32 EnFsn_TestEndInteraction(EnFsn* this, PlayState* play, Input* input) {
 s32 EnFsn_TestCancelOption(EnFsn* this, PlayState* play, Input* input) {
     if (CHECK_BTN_ALL(input->press.button, BTN_B)) {
         this->actionFunc = this->prevActionFunc;
-        Message_ContinueTextbox(play, this->items[this->cursorIndex]->actor.textId);
+        MM_Message_ContinueTextbox(play, this->items[this->cursorIndex]->actor.textId);
         return true;
     }
     return false;
@@ -453,7 +453,7 @@ void EnFsn_UpdateCursorPos(EnFsn* this, PlayState* play) {
     f32 xOffset = 0.0f;
     f32 yOffset = 17.0f;
 
-    Actor_GetScreenPos(play, &this->items[this->cursorIndex]->actor, &screenPosX, &screenPosY);
+    MM_Actor_GetScreenPos(play, &this->items[this->cursorIndex]->actor, &screenPosX, &screenPosY);
     this->cursorPos.x = screenPosX + xOffset;
     this->cursorPos.y = screenPosY + yOffset;
     this->cursorPos.z = 1.2f;
@@ -477,13 +477,13 @@ s32 EnFsn_FacingShopkeeperDialogResult(EnFsn* this, PlayState* play) {
             } else {
                 this->actor.textId = 0x29D8;
             }
-            Message_StartTextbox(play, this->actor.textId, &this->actor);
+            MM_Message_StartTextbox(play, this->actor.textId, &this->actor);
             return true;
 
         case 1:
             Audio_PlaySfx_MessageCancel();
             this->actor.textId = (CURRENT_DAY == 3) ? 0x29DF : 0x29D1;
-            Message_StartTextbox(play, this->actor.textId, &this->actor);
+            MM_Message_StartTextbox(play, this->actor.textId, &this->actor);
             Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_CURIOSITY_SHOP_MAN);
             this->actionFunc = EnFsn_SetupEndInteraction;
             return true;
@@ -500,7 +500,7 @@ s32 EnFsn_HasPlayerSelectedItem(EnFsn* this, PlayState* play, Input* input) {
     if (EnFsn_TestItemSelected(play)) {
         if (!this->items[this->cursorIndex]->isOutOfStock) {
             this->prevActionFunc = this->actionFunc;
-            Message_ContinueTextbox(play, this->items[this->cursorIndex]->choiceTextId);
+            MM_Message_ContinueTextbox(play, this->items[this->cursorIndex]->choiceTextId);
             Audio_PlaySfx(NA_SE_SY_DECIDE);
             this->stickLeftPrompt.isEnabled = false;
             this->stickRightPrompt.isEnabled = false;
@@ -571,7 +571,7 @@ void EnFsn_PositionSelectedItem(EnFsn* this) {
  *    Returns true if animation has completed
  */
 s32 EnFsn_TakeItemOffShelf(EnFsn* this) {
-    Math_ApproachF(&this->shopItemSelectedTween, 1.0f, 1.0f, 0.15f);
+    MM_Math_ApproachF(&this->shopItemSelectedTween, 1.0f, 1.0f, 0.15f);
     if (this->shopItemSelectedTween >= 0.85f) {
         this->shopItemSelectedTween = 1.0f;
     }
@@ -586,7 +586,7 @@ s32 EnFsn_TakeItemOffShelf(EnFsn* this) {
  *    Returns true if animation has completed
  */
 s32 EnFsn_ReturnItemToShelf(EnFsn* this) {
-    Math_ApproachF(&this->shopItemSelectedTween, 0.0f, 1.0f, 0.15f);
+    MM_Math_ApproachF(&this->shopItemSelectedTween, 0.0f, 1.0f, 0.15f);
     if (this->shopItemSelectedTween <= 0.15f) {
         this->shopItemSelectedTween = 0.0f;
     }
@@ -747,7 +747,7 @@ void EnFsn_InitShop(EnFsn* this, PlayState* play) {
     this->blinkTimer = 20;
     this->animIndex = FSN_ANIM_HANDS_ON_COUNTER_START;
     this->eyeTexIndex = 0;
-    SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+    SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
     this->actionFunc = EnFsn_Idle;
 }
 
@@ -756,11 +756,11 @@ void EnFsn_Idle(EnFsn* this, PlayState* play) {
 
     if (this->animIndex == FSN_ANIM_HANDS_ON_COUNTER_START) {
         s16 curFrame = this->skelAnime.curFrame;
-        s16 endFrame = Animation_GetLastFrame(sAnimationInfo[this->animIndex].animation);
+        s16 endFrame = MM_Animation_GetLastFrame(MM_sAnimationInfo[this->animIndex].animation);
 
         if (curFrame == endFrame) {
             this->animIndex = FSN_ANIM_HANDS_ON_COUNTER_LOOP;
-            SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+            SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
         }
         return;
     }
@@ -780,7 +780,7 @@ void EnFsn_Idle(EnFsn* this, PlayState* play) {
             this->cutsceneState = ENFSN_CUTSCENESTATE_WAITING;
         }
         this->actor.textId = EnFsn_GetWelcome(play);
-        Message_StartTextbox(play, this->actor.textId, &this->actor);
+        MM_Message_StartTextbox(play, this->actor.textId, &this->actor);
         player->actor.world.pos.x = 1.0f;
         player->actor.world.pos.z = -34.0f;
         this->actionFunc = EnFsn_BeginInteraction;
@@ -793,31 +793,31 @@ void EnFsn_Idle(EnFsn* this, PlayState* play) {
 
 void EnFsn_Haggle(EnFsn* this, PlayState* play) {
     s16 curFrame = this->skelAnime.curFrame;
-    s16 endFrame = Animation_GetLastFrame(sAnimationInfo[this->animIndex].animation);
+    s16 endFrame = MM_Animation_GetLastFrame(MM_sAnimationInfo[this->animIndex].animation);
 
     if (this->flags & ENFSN_ANGRY) {
         this->flags &= ~ENFSN_ANGRY;
         this->animIndex = FSN_ANIM_SLAM_COUNTER_LOOP;
-        SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+        SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
     } else {
-        if ((this->animIndex == FSN_ANIM_SLAM_COUNTER_LOOP) && Animation_OnFrame(&this->skelAnime, 18.0f)) {
+        if ((this->animIndex == FSN_ANIM_SLAM_COUNTER_LOOP) && MM_Animation_OnFrame(&this->skelAnime, 18.0f)) {
             Actor_PlaySfx(&this->actor, NA_SE_EV_HANKO);
         }
         if (this->flags & ENFSN_CALM_DOWN) {
             this->flags &= ~ENFSN_CALM_DOWN;
             this->animIndex = FSN_ANIM_HANDS_ON_COUNTER_LOOP;
-            SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+            SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
         } else if (this->flags & ENFSN_OFFER_FINAL_PRICE) {
             this->flags &= ~ENFSN_OFFER_FINAL_PRICE;
             this->animIndex = FSN_ANIM_MAKE_OFFER;
-            SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+            SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
         } else {
             if (this->animIndex == FSN_ANIM_MAKE_OFFER) {
                 if (curFrame == endFrame) {
                     this->animIndex = FSN_ANIM_HANDS_ON_COUNTER_LOOP;
-                    SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+                    SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
                 } else {
-                    if (Animation_OnFrame(&this->skelAnime, 28.0f)) {
+                    if (MM_Animation_OnFrame(&this->skelAnime, 28.0f)) {
                         Actor_PlaySfx(&this->actor, NA_SE_EV_HANKO);
                     }
                     return;
@@ -835,7 +835,7 @@ void EnFsn_BeginInteraction(EnFsn* this, PlayState* play) {
         if (CutsceneManager_IsNext(this->csId)) {
             CutsceneManager_StartWithPlayerCsAndSetFlag(this->csId, &this->actor);
             this->cutsceneState = ENFSN_CUTSCENESTATE_PLAYING;
-            if (Player_GetMask(play) == PLAYER_MASK_NONE) {
+            if (MM_Player_GetMask(play) == PLAYER_MASK_NONE) {
                 Interface_SetAButtonDoAction(play, DO_ACTION_NEXT);
                 if (EnFsn_HasItemsToSell()) {
                     this->actionFunc = EnFsn_AskBuyOrSell;
@@ -853,26 +853,26 @@ void EnFsn_BeginInteraction(EnFsn* this, PlayState* play) {
 }
 
 void EnFsn_StartBuying(EnFsn* this, PlayState* play) {
-    u8 talkState = Message_GetState(&play->msgCtx);
+    u8 talkState = MM_Message_GetState(&play->msgCtx);
     Player* player = GET_PLAYER(play);
 
     EnFsn_HandleLookToShopkeeperBuyingCutscene(this);
-    if ((talkState == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((talkState == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         switch (this->actor.textId) {
             case 0x29CC:
                 this->actor.textId = 0x29CD;
-                Message_StartTextbox(play, this->actor.textId, &this->actor);
+                MM_Message_StartTextbox(play, this->actor.textId, &this->actor);
                 break;
 
             case 0x29CD:
                 this->actor.textId = 0x29CE;
                 EnFsn_HandleLookToShopkeeperBuyingCutscene(this);
-                Message_StartTextbox(play, this->actor.textId, &this->actor);
+                MM_Message_StartTextbox(play, this->actor.textId, &this->actor);
                 break;
 
             case 0x29CE:
                 this->actor.textId = 0xFF;
-                Message_StartTextbox(play, this->actor.textId, &this->actor);
+                MM_Message_StartTextbox(play, this->actor.textId, &this->actor);
                 this->actionFunc = EnFsn_DeterminePrice;
                 break;
 
@@ -888,10 +888,10 @@ void EnFsn_StartBuying(EnFsn* this, PlayState* play) {
 }
 
 void EnFsn_AskBuyOrSell(EnFsn* this, PlayState* play) {
-    u8 talkState = Message_GetState(&play->msgCtx);
+    u8 talkState = MM_Message_GetState(&play->msgCtx);
 
     if (talkState == TEXT_STATE_EVENT) {
-        if (Message_ShouldAdvance(play)) {
+        if (MM_Message_ShouldAdvance(play)) {
             switch (this->actor.textId) {
                 case 0x29CC:
                     if (CURRENT_DAY != 3) {
@@ -899,7 +899,7 @@ void EnFsn_AskBuyOrSell(EnFsn* this, PlayState* play) {
                     } else {
                         this->actor.textId = 0x29D2;
                     }
-                    Message_StartTextbox(play, this->actor.textId, &this->actor);
+                    MM_Message_StartTextbox(play, this->actor.textId, &this->actor);
                     break;
 
                 case 0x29D2:
@@ -911,7 +911,7 @@ void EnFsn_AskBuyOrSell(EnFsn* this, PlayState* play) {
                     } else {
                         this->actor.textId = 0x29D4;
                     }
-                    Message_StartTextbox(play, this->actor.textId, &this->actor);
+                    MM_Message_StartTextbox(play, this->actor.textId, &this->actor);
                     break;
 
                 case 0x29D3:
@@ -919,7 +919,7 @@ void EnFsn_AskBuyOrSell(EnFsn* this, PlayState* play) {
                 case 0x29FA:
                 case 0x2A01:
                     this->actor.textId = 0x29D5;
-                    Message_StartTextbox(play, this->actor.textId, &this->actor);
+                    MM_Message_StartTextbox(play, this->actor.textId, &this->actor);
                     break;
 
                 default:
@@ -928,7 +928,7 @@ void EnFsn_AskBuyOrSell(EnFsn* this, PlayState* play) {
         }
     } else if (talkState == TEXT_STATE_CHOICE) {
         Interface_SetAButtonDoAction(play, DO_ACTION_DECIDE);
-        if (!EnFsn_TestEndInteraction(this, play, CONTROLLER1(&play->state)) && Message_ShouldAdvance(play)) {
+        if (!EnFsn_TestEndInteraction(this, play, CONTROLLER1(&play->state)) && MM_Message_ShouldAdvance(play)) {
             switch (play->msgCtx.choiceIndex) {
                 case 0:
                     Audio_PlaySfx_MessageDecide();
@@ -936,7 +936,7 @@ void EnFsn_AskBuyOrSell(EnFsn* this, PlayState* play) {
                     this->stickLeftPrompt.isEnabled = false;
                     this->stickRightPrompt.isEnabled = true;
                     this->actor.textId = 0x29D6;
-                    Message_StartTextbox(play, this->actor.textId, &this->actor);
+                    MM_Message_StartTextbox(play, this->actor.textId, &this->actor);
                     this->actionFunc = EnFsn_FaceShopkeeperSelling;
                     break;
 
@@ -945,7 +945,7 @@ void EnFsn_AskBuyOrSell(EnFsn* this, PlayState* play) {
                     this->isSelling = false;
                     this->actor.textId = 0x29CE;
                     EnFsn_HandleLookToShopkeeperBuyingCutscene(this);
-                    Message_StartTextbox(play, this->actor.textId, &this->actor);
+                    MM_Message_StartTextbox(play, this->actor.textId, &this->actor);
                     this->actionFunc = EnFsn_StartBuying;
                     break;
 
@@ -959,7 +959,7 @@ void EnFsn_AskBuyOrSell(EnFsn* this, PlayState* play) {
 void EnFsn_SetupDeterminePrice(EnFsn* this, PlayState* play) {
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         this->actor.textId = 0xFF;
-        Message_StartTextbox(play, this->actor.textId, &this->actor);
+        MM_Message_StartTextbox(play, this->actor.textId, &this->actor);
         this->actionFunc = EnFsn_DeterminePrice;
     }
 }
@@ -969,7 +969,7 @@ void EnFsn_DeterminePrice(EnFsn* this, PlayState* play) {
     PlayerItemAction itemAction;
     u8 buttonItem;
 
-    if (Message_GetState(&play->msgCtx) == TEXT_STATE_PAUSE_MENU) {
+    if (MM_Message_GetState(&play->msgCtx) == TEXT_STATE_PAUSE_MENU) {
         itemAction = func_80123810(play);
 
         if (itemAction > PLAYER_IA_NONE) {
@@ -990,14 +990,14 @@ void EnFsn_DeterminePrice(EnFsn* this, PlayState* play) {
                 this->actionFunc = EnFsn_StartBuying;
             }
             this->actor.textId = player->actor.textId;
-            Message_CloseTextbox(play);
+            MM_Message_CloseTextbox(play);
         } else if (itemAction <= PLAYER_IA_MINUS1) {
             if (CURRENT_DAY == 3) {
                 this->actor.textId = 0x29DF;
             } else {
                 this->actor.textId = 0x29D1;
             }
-            Message_StartTextbox(play, this->actor.textId, &this->actor);
+            MM_Message_StartTextbox(play, this->actor.textId, &this->actor);
             Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_CURIOSITY_SHOP_MAN);
             this->actionFunc = EnFsn_SetupEndInteraction;
         }
@@ -1005,10 +1005,10 @@ void EnFsn_DeterminePrice(EnFsn* this, PlayState* play) {
 }
 
 void EnFsn_MakeOffer(EnFsn* this, PlayState* play) {
-    u8 talkState = Message_GetState(&play->msgCtx);
+    u8 talkState = MM_Message_GetState(&play->msgCtx);
     Player* player = GET_PLAYER(play);
 
-    if (talkState == TEXT_STATE_CHOICE && Message_ShouldAdvance(play)) {
+    if (talkState == TEXT_STATE_CHOICE && MM_Message_ShouldAdvance(play)) {
         switch (play->msgCtx.choiceIndex) {
             case 0:
                 Audio_PlaySfx_MessageDecide();
@@ -1055,20 +1055,20 @@ void EnFsn_MakeOffer(EnFsn* this, PlayState* play) {
 }
 
 void EnFsn_GiveItem(EnFsn* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play)) {
+    if (MM_Actor_HasParent(&this->actor, play)) {
         if ((this->isSelling == true) && (this->items[this->cursorIndex]->getItemId == GI_MASK_ALL_NIGHT)) {
             Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_RECEIVED_ALL_NIGHT_MASK);
             Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_CURIOSITY_SHOP_MAN);
         }
         this->actor.parent = NULL;
         if (ENFSN_IS_SHOP(&this->actor) && !this->isSelling) {
-            Player_UpdateBottleHeld(play, GET_PLAYER(play), ITEM_BOTTLE, PLAYER_IA_BOTTLE_EMPTY);
+            MM_Player_UpdateBottleHeld(play, GET_PLAYER(play), ITEM_BOTTLE, PLAYER_IA_BOTTLE_EMPTY);
         }
         this->actionFunc = EnFsn_SetupResumeInteraction;
     } else if (this->isSelling == true) {
-        Actor_OfferGetItem(&this->actor, play, this->items[this->cursorIndex]->getItemId, 300.0f, 300.0f);
+        MM_Actor_OfferGetItem(&this->actor, play, this->items[this->cursorIndex]->getItemId, 300.0f, 300.0f);
     } else {
-        Actor_OfferGetItem(&this->actor, play, this->getItemId, 300.0f, 300.0f);
+        MM_Actor_OfferGetItem(&this->actor, play, this->getItemId, 300.0f, 300.0f);
     }
 }
 
@@ -1092,7 +1092,7 @@ void EnFsn_ResumeInteraction(EnFsn* this, PlayState* play) {
                 this->csId = this->lookToShopkeeperCsId;
                 this->actor.textId = (this->numSellingItems <= 0) ? 0x29DE : 0x29D6;
             }
-            Message_StartTextbox(play, this->actor.textId, &this->actor);
+            MM_Message_StartTextbox(play, this->actor.textId, &this->actor);
             if (CutsceneManager_GetCurrentCsId() == CS_ID_GLOBAL_TALK) {
                 CutsceneManager_Stop(CS_ID_GLOBAL_TALK);
             }
@@ -1147,7 +1147,7 @@ void EnFsn_LookToShelf(EnFsn* this, PlayState* play) {
             this->cutsceneState = ENFSN_CUTSCENESTATE_PLAYING;
             EnFsn_UpdateCursorPos(this, play);
             this->actionFunc = EnFsn_BrowseShelf;
-            Message_ContinueTextbox(play, this->items[this->cursorIndex]->actor.textId);
+            MM_Message_ContinueTextbox(play, this->items[this->cursorIndex]->actor.textId);
         } else {
             CutsceneManager_Queue(this->csId);
         }
@@ -1155,7 +1155,7 @@ void EnFsn_LookToShelf(EnFsn* this, PlayState* play) {
 }
 
 void EnFsn_BrowseShelf(EnFsn* this, PlayState* play) {
-    u8 talkstate = Message_GetState(&play->msgCtx);
+    u8 talkstate = MM_Message_GetState(&play->msgCtx);
     s32 pad;
     u8 prevCursorIdx = this->cursorIndex;
 
@@ -1173,7 +1173,7 @@ void EnFsn_BrowseShelf(EnFsn* this, PlayState* play) {
                 EnFsn_CursorLeftRight(this);
                 if (this->cursorIndex != prevCursorIdx) {
                     Audio_PlaySfx(NA_SE_SY_CURSOR);
-                    Message_ContinueTextbox(play, this->items[this->cursorIndex]->actor.textId);
+                    MM_Message_ContinueTextbox(play, this->items[this->cursorIndex]->actor.textId);
                 }
             }
         }
@@ -1196,7 +1196,7 @@ void EnFsn_LookToShopkeeperFromShelf(EnFsn* this, PlayState* play) {
             this->stickLeftPrompt.isEnabled = false;
             this->stickRightPrompt.isEnabled = true;
             this->actor.textId = 0x29D6;
-            Message_ContinueTextbox(play, this->actor.textId);
+            MM_Message_ContinueTextbox(play, this->actor.textId);
             this->actionFunc = EnFsn_FaceShopkeeperSelling;
         } else {
             CutsceneManager_Queue(this->csId);
@@ -1220,7 +1220,7 @@ void EnFsn_HandleCanPlayerBuyItem(EnFsn* this, PlayState* play) {
             Audio_PlaySfx_MessageDecide();
             item = this->items[this->cursorIndex];
             item->buyFanfareFunc(play, item);
-            Actor_OfferGetItem(&this->actor, play, this->items[this->cursorIndex]->getItemId, 300.0f, 300.0f);
+            MM_Actor_OfferGetItem(&this->actor, play, this->items[this->cursorIndex]->getItemId, 300.0f, 300.0f);
             play->msgCtx.msgMode = MSGMODE_TEXT_CLOSING;
             play->msgCtx.stateTimer = 4;
             Interface_SetHudVisibility(HUD_VISIBILITY_ALL);
@@ -1240,13 +1240,13 @@ void EnFsn_HandleCanPlayerBuyItem(EnFsn* this, PlayState* play) {
 
         case CANBUY_RESULT_NEED_RUPEES:
             Audio_PlaySfx(NA_SE_SY_ERROR);
-            Message_ContinueTextbox(play, 0x29F0);
+            MM_Message_ContinueTextbox(play, 0x29F0);
             this->actionFunc = EnFsn_PlayerCannotBuy;
             break;
 
         case CANBUY_RESULT_CANNOT_GET_NOW:
             Audio_PlaySfx(NA_SE_SY_ERROR);
-            Message_ContinueTextbox(play, 0x29DD);
+            MM_Message_ContinueTextbox(play, 0x29DD);
             this->actionFunc = EnFsn_PlayerCannotBuy;
             break;
 
@@ -1256,9 +1256,9 @@ void EnFsn_HandleCanPlayerBuyItem(EnFsn* this, PlayState* play) {
 }
 
 void EnFsn_SetupEndInteraction(EnFsn* this, PlayState* play) {
-    u8 talkState = Message_GetState(&play->msgCtx);
+    u8 talkState = MM_Message_GetState(&play->msgCtx);
 
-    if (((talkState == TEXT_STATE_EVENT) || (talkState == TEXT_STATE_DONE)) && Message_ShouldAdvance(play)) {
+    if (((talkState == TEXT_STATE_EVENT) || (talkState == TEXT_STATE_DONE)) && MM_Message_ShouldAdvance(play)) {
         if (CHECK_QUEST_ITEM(QUEST_BOMBERS_NOTEBOOK)) {
             if (play->msgCtx.bombersNotebookEventQueueCount == 0) {
                 EnFsn_EndInteraction(this, play);
@@ -1273,11 +1273,11 @@ void EnFsn_SetupEndInteraction(EnFsn* this, PlayState* play) {
 }
 
 void EnFsn_SelectItem(EnFsn* this, PlayState* play) {
-    u8 talkState = Message_GetState(&play->msgCtx);
+    u8 talkState = MM_Message_GetState(&play->msgCtx);
 
     if (EnFsn_TakeItemOffShelf(this) && (talkState == TEXT_STATE_CHOICE)) {
         Interface_SetAButtonDoAction(play, DO_ACTION_DECIDE);
-        if (!EnFsn_TestCancelOption(this, play, CONTROLLER1(&play->state)) && Message_ShouldAdvance(play)) {
+        if (!EnFsn_TestCancelOption(this, play, CONTROLLER1(&play->state)) && MM_Message_ShouldAdvance(play)) {
             switch (play->msgCtx.choiceIndex) {
                 case 0:
                     EnFsn_HandleCanPlayerBuyItem(this, play);
@@ -1286,7 +1286,7 @@ void EnFsn_SelectItem(EnFsn* this, PlayState* play) {
                 case 1:
                     Audio_PlaySfx_MessageCancel();
                     this->actionFunc = this->prevActionFunc;
-                    Message_ContinueTextbox(play, this->items[this->cursorIndex]->actor.textId);
+                    MM_Message_ContinueTextbox(play, this->items[this->cursorIndex]->actor.textId);
                     break;
 
                 default:
@@ -1297,14 +1297,14 @@ void EnFsn_SelectItem(EnFsn* this, PlayState* play) {
 }
 
 void EnFsn_PlayerCannotBuy(EnFsn* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         this->actionFunc = this->prevActionFunc;
-        Message_ContinueTextbox(play, this->items[this->cursorIndex]->actor.textId);
+        MM_Message_ContinueTextbox(play, this->items[this->cursorIndex]->actor.textId);
     }
 }
 
 void EnFsn_AskCanBuyMore(EnFsn* this, PlayState* play) {
-    u8 talkState = Message_GetState(&play->msgCtx);
+    u8 talkState = MM_Message_GetState(&play->msgCtx);
 
     if (this->cutsceneState == ENFSN_CUTSCENESTATE_STOPPED) {
         if (CutsceneManager_IsNext(this->csId)) {
@@ -1319,19 +1319,19 @@ void EnFsn_AskCanBuyMore(EnFsn* this, PlayState* play) {
         }
     }
     if (talkState == TEXT_STATE_CHOICE) {
-        if (Message_ShouldAdvance(play)) {
+        if (MM_Message_ShouldAdvance(play)) {
             switch (play->msgCtx.choiceIndex) {
                 case 0:
                     Audio_PlaySfx_MessageDecide();
                     this->actor.textId = 0xFF;
-                    Message_StartTextbox(play, this->actor.textId, &this->actor);
+                    MM_Message_StartTextbox(play, this->actor.textId, &this->actor);
                     this->actionFunc = EnFsn_DeterminePrice;
                     break;
 
                 case 1:
                     Audio_PlaySfx_MessageCancel();
                     this->actor.textId = (CURRENT_DAY == 3) ? 0x29DF : 0x29D1;
-                    Message_StartTextbox(play, this->actor.textId, &this->actor);
+                    MM_Message_StartTextbox(play, this->actor.textId, &this->actor);
                     Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_CURIOSITY_SHOP_MAN);
                     break;
 
@@ -1339,7 +1339,7 @@ void EnFsn_AskCanBuyMore(EnFsn* this, PlayState* play) {
                     break;
             }
         }
-    } else if (((talkState == TEXT_STATE_EVENT) || (talkState == TEXT_STATE_DONE)) && Message_ShouldAdvance(play)) {
+    } else if (((talkState == TEXT_STATE_EVENT) || (talkState == TEXT_STATE_DONE)) && MM_Message_ShouldAdvance(play)) {
         if (CHECK_QUEST_ITEM(QUEST_BOMBERS_NOTEBOOK)) {
             if (play->msgCtx.bombersNotebookEventQueueCount == 0) {
                 EnFsn_EndInteraction(this, play);
@@ -1354,7 +1354,7 @@ void EnFsn_AskCanBuyMore(EnFsn* this, PlayState* play) {
 }
 
 void EnFsn_AskCanBuyAterRunningOutOfItems(EnFsn* this, PlayState* play) {
-    u8 talkState = Message_GetState(&play->msgCtx);
+    u8 talkState = MM_Message_GetState(&play->msgCtx);
 
     if (this->cutsceneState == ENFSN_CUTSCENESTATE_STOPPED) {
         if (CutsceneManager_IsNext(this->csId)) {
@@ -1369,20 +1369,20 @@ void EnFsn_AskCanBuyAterRunningOutOfItems(EnFsn* this, PlayState* play) {
         }
     }
     if (talkState == TEXT_STATE_CHOICE) {
-        if (Message_ShouldAdvance(play)) {
+        if (MM_Message_ShouldAdvance(play)) {
             switch (play->msgCtx.choiceIndex) {
                 case 0:
                     Audio_PlaySfx_MessageDecide();
                     this->isSelling = false;
                     this->actor.textId = 0x29CE;
-                    Message_StartTextbox(play, this->actor.textId, &this->actor);
+                    MM_Message_StartTextbox(play, this->actor.textId, &this->actor);
                     this->actionFunc = EnFsn_StartBuying;
                     break;
 
                 case 1:
                     Audio_PlaySfx_MessageCancel();
                     this->actor.textId = (CURRENT_DAY == 3) ? 0x29DF : 0x29D1;
-                    Message_StartTextbox(play, this->actor.textId, &this->actor);
+                    MM_Message_StartTextbox(play, this->actor.textId, &this->actor);
                     Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_CURIOSITY_SHOP_MAN);
                     break;
 
@@ -1390,7 +1390,7 @@ void EnFsn_AskCanBuyAterRunningOutOfItems(EnFsn* this, PlayState* play) {
                     break;
             }
         }
-    } else if (((talkState == TEXT_STATE_EVENT) || (talkState == TEXT_STATE_DONE)) && Message_ShouldAdvance(play)) {
+    } else if (((talkState == TEXT_STATE_EVENT) || (talkState == TEXT_STATE_DONE)) && MM_Message_ShouldAdvance(play)) {
         if (CHECK_QUEST_ITEM(QUEST_BOMBERS_NOTEBOOK)) {
             if (play->msgCtx.bombersNotebookEventQueueCount == 0) {
                 EnFsn_EndInteraction(this, play);
@@ -1405,13 +1405,13 @@ void EnFsn_AskCanBuyAterRunningOutOfItems(EnFsn* this, PlayState* play) {
 }
 
 void EnFsn_FaceShopkeeperSelling(EnFsn* this, PlayState* play) {
-    u8 talkState = Message_GetState(&play->msgCtx);
+    u8 talkState = MM_Message_GetState(&play->msgCtx);
     u8 cursorIndex;
 
     if (talkState == TEXT_STATE_CHOICE) {
         Interface_SetAButtonDoAction(play, DO_ACTION_DECIDE);
         if (!EnFsn_TestEndInteraction(this, play, CONTROLLER1(&play->state)) &&
-            (!Message_ShouldAdvance(play) || !EnFsn_FacingShopkeeperDialogResult(this, play)) &&
+            (!MM_Message_ShouldAdvance(play) || !EnFsn_FacingShopkeeperDialogResult(this, play)) &&
             this->stickAccumX > 0) {
             cursorIndex = EnFsn_SetCursorIndexFromNeutral(this);
             if (cursorIndex != CURSOR_INVALID) {
@@ -1422,16 +1422,16 @@ void EnFsn_FaceShopkeeperSelling(EnFsn* this, PlayState* play) {
                 Audio_PlaySfx(NA_SE_SY_CURSOR);
             }
         }
-    } else if ((talkState == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    } else if ((talkState == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         this->actor.textId = 0x29D6;
-        Message_StartTextbox(play, this->actor.textId, &this->actor);
+        MM_Message_StartTextbox(play, this->actor.textId, &this->actor);
         //! FAKE:
         if (play) {}
     }
 }
 
 void EnFsn_SetupEndInteractionImmediately(EnFsn* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         EnFsn_EndInteraction(this, play);
     }
 }
@@ -1447,7 +1447,7 @@ void EnFsn_IdleBackroom(EnFsn* this, PlayState* play) {
 }
 
 void EnFsn_ConverseBackroom(EnFsn* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         if (this->flags & ENFSN_END_CONVERSATION) {
             this->flags &= ~ENFSN_END_CONVERSATION;
             play->msgCtx.msgMode = MSGMODE_TEXT_CLOSING;
@@ -1479,7 +1479,7 @@ void EnFsn_Blink(EnFsn* this) {
         this->blinkTimer = decr;
     } else if (decr == 0) {
         this->eyeTexIndex = 2;
-        this->blinkTimer = (s32)(Rand_ZeroOne() * 60.0f) + 20;
+        this->blinkTimer = (s32)(MM_Rand_ZeroOne() * 60.0f) + 20;
     } else {
         this->eyeTexIndex = 1;
         this->blinkTimer = decr;
@@ -1490,12 +1490,12 @@ void EnFsn_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     EnFsn* this = (EnFsn*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 20.0f);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 20.0f);
 
     // #region 2S2H [Port] ENFSN_LIMB_MAX originally had a +1 because the game incorrectly thought the skel had 18 limbs
     // when it only has 17. We also need to patch the count in skelAnime because it is reading the wrong number from the
     // skeleton header.
-    SkelAnime_InitFlex(play, &this->skelAnime, &gFsnSkel, &gFsnIdleAnim, this->jointTable, this->morphTable,
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gFsnSkel, &gFsnIdleAnim, this->jointTable, this->morphTable,
                        ENFSN_LIMB_MAX);
     this->skelAnime.limbCount = ENFSN_LIMB_MAX;
 
@@ -1506,17 +1506,17 @@ void EnFsn_Init(Actor* thisx, PlayState* play) {
         EnFsn_InitShop(this, play);
     } else {
         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_RECOVERED_STOLEN_BOMB_BAG) || CHECK_WEEKEVENTREG(WEEKEVENTREG_SAKON_DEAD)) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
             return;
         }
-        Collider_InitCylinder(play, &this->collider);
-        Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+        MM_Collider_InitCylinder(play, &this->collider);
+        Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
         this->blinkTimer = 20;
         this->eyeTexIndex = 0;
         this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
         this->actor.attentionRangeType = ATTENTION_RANGE_0;
         this->animIndex = FSN_ANIM_IDLE;
-        SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+        SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
         this->actionFunc = EnFsn_IdleBackroom;
     }
 }
@@ -1524,7 +1524,7 @@ void EnFsn_Init(Actor* thisx, PlayState* play) {
 void EnFsn_Destroy(Actor* thisx, PlayState* play) {
     EnFsn* this = (EnFsn*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnFsn_Update(Actor* thisx, PlayState* play) {
@@ -1541,7 +1541,7 @@ void EnFsn_Update(Actor* thisx, PlayState* play) {
         EnFsn_UpdateStickDirectionPromptAnim(this);
         EnFsn_UpdateCursorAnim(this);
     }
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     if (ENFSN_IS_BACKROOM(&this->actor)) {
         EnFsn_UpdateCollider(this, play);
     }
@@ -1684,8 +1684,8 @@ s32 EnFsn_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* p
                 break;
         }
         if (fidgetIndex < 9) {
-            rot->y += TRUNCF_BINANG(Math_SinS(this->fidgetTableY[fidgetIndex]) * 200.0f);
-            rot->z += TRUNCF_BINANG(Math_CosS(this->fidgetTableZ[fidgetIndex]) * 200.0f);
+            rot->y += TRUNCF_BINANG(MM_Math_SinS(this->fidgetTableY[fidgetIndex]) * 200.0f);
+            rot->z += TRUNCF_BINANG(MM_Math_CosS(this->fidgetTableZ[fidgetIndex]) * 200.0f);
         }
     }
     if (limbIndex == FSN_LIMB_TOUPEE) {
@@ -1712,7 +1712,7 @@ void EnFsn_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot,
 }
 
 void EnFsn_Draw(Actor* thisx, PlayState* play) {
-    static TexturePtr sEyeTextures[] = { gFsnEyeOpenTex, gFsnEyeHalfTex, gFsnEyeClosedTex };
+    static TexturePtr MM_sEyeTextures[] = { gFsnEyeOpenTex, gFsnEyeHalfTex, gFsnEyeClosedTex };
     s32 pad;
     EnFsn* this = (EnFsn*)thisx;
     s16 i;
@@ -1720,9 +1720,9 @@ void EnFsn_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL37_Opa(play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sEyeTextures[this->eyeTexIndex]));
-    gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(sEyeTextures[this->eyeTexIndex]));
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
+    gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnFsn_OverrideLimbDraw, EnFsn_PostLimbDraw, &this->actor);
 
     for (i = 0; i < this->totalSellingItems; i++) {

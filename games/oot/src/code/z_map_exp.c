@@ -84,7 +84,7 @@ void Map_SetFloorPalettesData(PlayState* play, s16 floor) {
         case SCENE_SHADOW_TEMPLE_BOSS:
             for (i = 0; i < gMapData->maxPaletteCount[mapIndex]; i++) {
                 room = gMapData->paletteRoom[mapIndex][floor][i];
-                if ((room != 0xFF) && (gSaveContext.sceneFlags[mapIndex].rooms & gBitFlags[room])) {
+                if ((room != 0xFF) && (gSaveContext.sceneFlags[mapIndex].rooms & OoT_gBitFlags[room])) {
                     Map_SetPaletteData(play, room);
                 }
             }
@@ -395,7 +395,7 @@ void Map_InitData(PlayState* play, s16 room) {
             } else if (play->sceneNum == SCENE_LAKE_HYLIA) {
                 if ((LINK_AGE_IN_YEARS == YEARS_ADULT) &&
                     ((!IS_RANDO && !CHECK_QUEST_ITEM(QUEST_MEDALLION_WATER)) ||
-                     (IS_RANDO && !Flags_GetEventChkInf(EVENTCHKINF_USED_WATER_TEMPLE_BLUE_WARP)))) {
+                     (IS_RANDO && !OoT_Flags_GetEventChkInf(EVENTCHKINF_USED_WATER_TEMPLE_BLUE_WARP)))) {
                     extendedMapIndex = 0x15;
                 }
             } else if (play->sceneNum == SCENE_GERUDO_VALLEY) {
@@ -463,7 +463,7 @@ void Map_InitData(PlayState* play, s16 room) {
     }
 }
 
-void Map_InitRoomData(PlayState* play, s16 room) {
+void OoT_Map_InitRoomData(PlayState* play, s16 room) {
     s32 mapIndex = gSaveContext.mapIndex;
     InterfaceContext* interfaceCtx = &play->interfaceCtx;
 
@@ -490,7 +490,7 @@ void Map_InitRoomData(PlayState* play, s16 room) {
             case SCENE_WATER_TEMPLE_BOSS:
             case SCENE_SPIRIT_TEMPLE_BOSS:
             case SCENE_SHADOW_TEMPLE_BOSS:
-                gSaveContext.sceneFlags[mapIndex].rooms |= gBitFlags[room];
+                gSaveContext.sceneFlags[mapIndex].rooms |= OoT_gBitFlags[room];
                 osSyncPrintf("ＲＯＯＭ＿ＩＮＦ＝%d\n", gSaveContext.sceneFlags[mapIndex].rooms);
                 interfaceCtx->mapRoomNum = room;
                 interfaceCtx->unk_25A = mapIndex;
@@ -510,12 +510,12 @@ void Map_InitRoomData(PlayState* play, s16 room) {
     }
 }
 
-void Map_Destroy(PlayState* play) {
+void OoT_Map_Destroy(PlayState* play) {
     MapMark_ClearPointers(play);
     gMapData = NULL;
 }
 
-void Map_Init(PlayState* play) {
+void OoT_Map_Init(PlayState* play) {
     s32 mapIndex = gSaveContext.mapIndex;
     InterfaceContext* interfaceCtx = &play->interfaceCtx;
 
@@ -595,7 +595,7 @@ void Map_Init(PlayState* play) {
                 R_COMPASS_OFFSET_X = gMapData->dgnCompassInfo[mapIndex][2];
                 R_COMPASS_OFFSET_Y = gMapData->dgnCompassInfo[mapIndex][3];
                 R_MAP_TEX_INDEX = R_MAP_TEX_INDEX_BASE = gMapData->dgnMinimapTexIndexBase[mapIndex];
-                Map_InitRoomData(play, play->roomCtx.curRoom.num);
+                OoT_Map_InitRoomData(play, play->roomCtx.curRoom.num);
                 MapMark_Init(play);
             }
             break;
@@ -665,7 +665,7 @@ void Minimap_DrawCompassIcons(PlayState* play) {
                 if (CVarGetInteger(CVAR_COSMETIC("HUD.Minimap.UseMargins"), 0) != 0) {
                     X_Margins_Minimap = Left_MM_Margin;
                 };
-                Matrix_Translate(
+                OoT_Matrix_Translate(
                     OTRGetDimensionFromLeftEdge((tempXOffset + (X_Margins_Minimap * 10) + tempX +
                                                  (CVarGetInteger(CVAR_COSMETIC("HUD.Minimap.PosX"), 0) * 10)) /
                                                 10.0f),
@@ -677,7 +677,7 @@ void Minimap_DrawCompassIcons(PlayState* play) {
                 if (CVarGetInteger(CVAR_COSMETIC("HUD.Minimap.UseMargins"), 0) != 0) {
                     X_Margins_Minimap = Right_MM_Margin;
                 };
-                Matrix_Translate(
+                OoT_Matrix_Translate(
                     OTRGetDimensionFromRightEdge((tempXOffset + (X_Margins_Minimap * 10) + tempX +
                                                   (CVarGetInteger(CVAR_COSMETIC("HUD.Minimap.PosX"), 0) * 10)) /
                                                  10.0f),
@@ -686,7 +686,7 @@ void Minimap_DrawCompassIcons(PlayState* play) {
                         10.0f,
                     0.0f, MTXMODE_NEW);
             } else if (CVarGetInteger(CVAR_COSMETIC("HUD.Minimap.PosType"), 0) == ANCHOR_NONE) {
-                Matrix_Translate(
+                OoT_Matrix_Translate(
                     (tempXOffset + tempX + (CVarGetInteger(CVAR_COSMETIC("HUD.Minimap.PosX"), 0) * 10) / 10.0f),
                     (R_COMPASS_OFFSET_Y + ((Y_Margins_Minimap * 10) * -1) - tempZ +
                      ((CVarGetInteger(CVAR_COSMETIC("HUD.Minimap.PosY"), 0) * 10) * -1)) /
@@ -694,10 +694,10 @@ void Minimap_DrawCompassIcons(PlayState* play) {
                     0.0f, MTXMODE_NEW);
             }
         } else {
-            Matrix_Translate(OTRGetDimensionFromRightEdge((tempXOffset + (X_Margins_Minimap * 10) + tempX) / 10.0f),
+            OoT_Matrix_Translate(OTRGetDimensionFromRightEdge((tempXOffset + (X_Margins_Minimap * 10) + tempX) / 10.0f),
                              (R_COMPASS_OFFSET_Y + ((Y_Margins_Minimap * 10) * -1) - tempZ) / 10.0f, 0.0f, MTXMODE_NEW);
         }
-        Matrix_Scale(0.4f, 0.4f, 0.4f, MTXMODE_APPLY);
+        OoT_Matrix_Scale(0.4f, 0.4f, 0.4f, MTXMODE_APPLY);
         Matrix_RotateX(-1.6f, MTXMODE_APPLY);
         tempX = ((0x7FFF - player->actor.shape.rot.y) / 0x400) *
                 (CVarGetInteger(CVAR_ENHANCEMENT("MirroredWorld"), 0) ? -1 : 1);
@@ -718,7 +718,7 @@ void Minimap_DrawCompassIcons(PlayState* play) {
                 if (CVarGetInteger(CVAR_COSMETIC("HUD.Minimap.UseMargins"), 0) != 0) {
                     X_Margins_Minimap = Left_MM_Margin;
                 };
-                Matrix_Translate(
+                OoT_Matrix_Translate(
                     OTRGetDimensionFromLeftEdge((tempXOffset + (X_Margins_Minimap * 10) + tempX +
                                                  (CVarGetInteger(CVAR_COSMETIC("HUD.Minimap.PosX"), 0) * 10)) /
                                                 10.0f),
@@ -730,7 +730,7 @@ void Minimap_DrawCompassIcons(PlayState* play) {
                 if (CVarGetInteger(CVAR_COSMETIC("HUD.Minimap.UseMargins"), 0) != 0) {
                     X_Margins_Minimap = Right_MM_Margin;
                 };
-                Matrix_Translate(
+                OoT_Matrix_Translate(
                     OTRGetDimensionFromRightEdge((tempXOffset + (X_Margins_Minimap * 10) + tempX +
                                                   (CVarGetInteger(CVAR_COSMETIC("HUD.Minimap.PosX"), 0) * 10)) /
                                                  10.0f),
@@ -739,17 +739,17 @@ void Minimap_DrawCompassIcons(PlayState* play) {
                         10.0f,
                     0.0f, MTXMODE_NEW);
             } else if (CVarGetInteger(CVAR_COSMETIC("HUD.Minimap.PosType"), 0) == ANCHOR_NONE) {
-                Matrix_Translate(
+                OoT_Matrix_Translate(
                     (tempXOffset + tempX + (CVarGetInteger(CVAR_COSMETIC("HUD.Minimap.PosX"), 0) * 10) / 10.0f),
                     (R_COMPASS_OFFSET_Y - tempZ + ((CVarGetInteger(CVAR_COSMETIC("HUD.Minimap.PosY"), 0) * 10) * -1)) /
                         10.0f,
                     0.0f, MTXMODE_NEW);
             }
         } else {
-            Matrix_Translate(OTRGetDimensionFromRightEdge((tempXOffset + (X_Margins_Minimap * 10) + tempX) / 10.0f),
+            OoT_Matrix_Translate(OTRGetDimensionFromRightEdge((tempXOffset + (X_Margins_Minimap * 10) + tempX) / 10.0f),
                              (R_COMPASS_OFFSET_Y + ((Y_Margins_Minimap * 10) * -1) - tempZ) / 10.0f, 0.0f, MTXMODE_NEW);
         }
-        Matrix_Scale(VREG(9) / 100.0f, VREG(9) / 100.0f, VREG(9) / 100.0f, MTXMODE_APPLY);
+        OoT_Matrix_Scale(VREG(9) / 100.0f, VREG(9) / 100.0f, VREG(9) / 100.0f, MTXMODE_APPLY);
         Matrix_RotateX(VREG(52) / 10.0f, MTXMODE_APPLY);
         Matrix_RotateY((sPlayerInitialDirection * (CVarGetInteger(CVAR_ENHANCEMENT("MirroredWorld"), 0) ? -1 : 1)) /
                            10.0f,
@@ -861,14 +861,14 @@ void Minimap_Draw(PlayState* play) {
                     }
                 }
 
-                if (CHECK_BTN_ALL(play->state.input[0].press.button, BTN_L) && !Play_InCsMode(play) &&
+                if (CHECK_BTN_ALL(play->state.input[0].press.button, BTN_L) && !OoT_Play_InCsMode(play) &&
                     enableMapToggle) {
-                    osSyncPrintf("Game_play_demo_mode_check=%d\n", Play_InCsMode(play));
+                    osSyncPrintf("Game_play_demo_mode_check=%d\n", OoT_Play_InCsMode(play));
                     // clang-format off
-                    if (!R_MINIMAP_DISABLED) { Audio_PlaySoundGeneral(NA_SE_SY_CAMERA_ZOOM_UP, &gSfxDefaultPos, 4,
-                                                                      &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb); }
-                    else { Audio_PlaySoundGeneral(NA_SE_SY_CAMERA_ZOOM_DOWN, &gSfxDefaultPos, 4,
-                                                  &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb); }
+                    if (!R_MINIMAP_DISABLED) { Audio_PlaySoundGeneral(NA_SE_SY_CAMERA_ZOOM_UP, &OoT_gSfxDefaultPos, 4,
+                                                                      &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb); }
+                    else { Audio_PlaySoundGeneral(NA_SE_SY_CAMERA_ZOOM_DOWN, &OoT_gSfxDefaultPos, 4,
+                                                  &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb); }
                     // clang-format on
                     R_MINIMAP_DISABLED ^= 1;
                 }
@@ -1004,7 +1004,7 @@ void Minimap_Draw(PlayState* play) {
                         //! 20
                         if ((gMapData->owEntranceFlag[sEntranceIconMapIndex] == 0xFFFF) ||
                             ((gMapData->owEntranceFlag[sEntranceIconMapIndex] != 0xFFFF) &&
-                             ((gSaveContext.infTable[26] & gBitFlags[gMapData->owEntranceFlag[mapIndex]]) ||
+                             ((gSaveContext.infTable[26] & OoT_gBitFlags[gMapData->owEntranceFlag[mapIndex]]) ||
                               CVarGetInteger(CVAR_ENHANCEMENT("AlwaysShowDungeonMinimapIcon"), 0)))) {
                             gDPLoadTextureBlock(OVERLAY_DISP++, gMapDungeonEntranceIconTex, G_IM_FMT_RGBA, G_IM_SIZ_16b,
                                                 iconSize, iconSize, 0, G_TX_NOMIRROR | G_TX_WRAP,
@@ -1041,7 +1041,7 @@ void Minimap_Draw(PlayState* play) {
 
                     // Ice Cavern entrance icon
                     if ((play->sceneNum == SCENE_ZORAS_FOUNTAIN) &&
-                        ((gSaveContext.infTable[26] & gBitFlags[9]) ||
+                        ((gSaveContext.infTable[26] & OoT_gBitFlags[9]) ||
                          CVarGetInteger(CVAR_ENHANCEMENT("AlwaysShowDungeonMinimapIcon"), 0))) {
                         gDPLoadTextureBlock(OVERLAY_DISP++, gMapDungeonEntranceIconTex, G_IM_FMT_RGBA, G_IM_SIZ_16b,
                                             iconSize, iconSize, 0, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP,
@@ -1054,13 +1054,13 @@ void Minimap_Draw(PlayState* play) {
                     Minimap_DrawCompassIcons(play); // Draw icons for the player spawn and current position
                 }
 
-                if (CHECK_BTN_ALL(play->state.input[0].press.button, BTN_L) && !Play_InCsMode(play) &&
+                if (CHECK_BTN_ALL(play->state.input[0].press.button, BTN_L) && !OoT_Play_InCsMode(play) &&
                     enableMapToggle) {
                     // clang-format off
-                    if (!R_MINIMAP_DISABLED) { Audio_PlaySoundGeneral(NA_SE_SY_CAMERA_ZOOM_UP, &gSfxDefaultPos, 4,
-                                                                      &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb); }
-                    else { Audio_PlaySoundGeneral(NA_SE_SY_CAMERA_ZOOM_DOWN, &gSfxDefaultPos, 4,
-                                                  &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb); }
+                    if (!R_MINIMAP_DISABLED) { Audio_PlaySoundGeneral(NA_SE_SY_CAMERA_ZOOM_UP, &OoT_gSfxDefaultPos, 4,
+                                                                      &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb); }
+                    else { Audio_PlaySoundGeneral(NA_SE_SY_CAMERA_ZOOM_DOWN, &OoT_gSfxDefaultPos, 4,
+                                                  &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb); }
                     // clang-format on
                     R_MINIMAP_DISABLED ^= 1;
                 }
@@ -1076,7 +1076,7 @@ s16 Map_GetFloorTextIndexOffset(s32 mapIndex, s32 floor) {
     return gMapData->floorTexIndexOffset[mapIndex][floor];
 }
 
-void Map_Update(PlayState* play) {
+void OoT_Map_Update(PlayState* play) {
     static s16 sLastRoomNum = 99;
     Player* player = GET_PLAYER(play);
     s32 mapIndex = gSaveContext.mapIndex;
@@ -1114,7 +1114,7 @@ void Map_Update(PlayState* play) {
                     }
                 }
 
-                gSaveContext.sceneFlags[mapIndex].floors |= gBitFlags[floor];
+                gSaveContext.sceneFlags[mapIndex].floors |= OoT_gBitFlags[floor];
                 VREG(30) = floor;
                 if (R_MAP_TEX_INDEX != (R_MAP_TEX_INDEX_BASE + Map_GetFloorTextIndexOffset(mapIndex, floor))) {
                     R_MAP_TEX_INDEX = R_MAP_TEX_INDEX_BASE + Map_GetFloorTextIndexOffset(mapIndex, floor);

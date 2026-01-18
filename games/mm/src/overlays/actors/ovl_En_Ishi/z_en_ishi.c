@@ -16,9 +16,9 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_THROW_ONLY)
 
-void EnIshi_Init(Actor* thisx, PlayState* play);
-void EnIshi_Destroy(Actor* thisx, PlayState* play2);
-void EnIshi_Update(Actor* thisx, PlayState* play);
+void MM_EnIshi_Init(Actor* thisx, PlayState* play);
+void MM_EnIshi_Destroy(Actor* thisx, PlayState* play2);
+void MM_EnIshi_Update(Actor* thisx, PlayState* play);
 
 void EnIshi_SpawnDebrisSmallRock(Actor* thisx, PlayState* play);
 void EnIshi_SpawnDebrisBoulder(Actor* thisx, PlayState* play);
@@ -50,9 +50,9 @@ ActorProfile En_Ishi_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(EnIshi),
-    /**/ EnIshi_Init,
-    /**/ EnIshi_Destroy,
-    /**/ EnIshi_Update,
+    /**/ MM_EnIshi_Init,
+    /**/ MM_EnIshi_Destroy,
+    /**/ MM_EnIshi_Update,
     /**/ NULL,
 };
 
@@ -73,9 +73,9 @@ static EnIshiSpawnFunc sIshiSpawnDustFuncs[] = {
     EnIshi_SpawnDustBoulder,
 };
 
-static s16 sObjectIds[] = { GAMEPLAY_FIELD_KEEP, OBJECT_ISHI };
+static s16 MM_sObjectIds[] = { GAMEPLAY_FIELD_KEEP, OBJECT_ISHI };
 
-static ColliderCylinderInit sCylinderInit[] = {
+static ColliderCylinderInit MM_sCylinderInit[] = {
     {
         {
             COL_MATERIAL_HARD,
@@ -116,7 +116,7 @@ static ColliderCylinderInit sCylinderInit[] = {
     },
 };
 
-static CollisionCheckInfoInit sColChkInfoInit = { 0, 12, 60, MASS_IMMOVABLE };
+static CollisionCheckInfoInit MM_sColChkInfoInit = { 0, 12, 60, MASS_IMMOVABLE };
 
 static s16 sIshiSmallRockDebrisScales[] = { 16, 13, 11, 9, 7, 5 };
 
@@ -129,7 +129,7 @@ static s16 sIshiItemDrops[] = {
 // used for spawning the collectable item drops
 static Vec3f sUnitVecY = { 0.0f, 1.0f, 0.0f };
 
-static InitChainEntry sInitChain[][5] = {
+static InitChainEntry MM_sInitChain[][5] = {
     {
         ICHAIN_F32_DIV1000(gravity, -1200, ICHAIN_CONTINUE),
         ICHAIN_F32_DIV1000(terminalVelocity, -20000, ICHAIN_CONTINUE),
@@ -153,16 +153,16 @@ static EnIshiDrawFunc sIshiGameplayKeepObjectDrawFuncs[] = {
     EnIshi_DrawGameplayKeepBoulder,
 };
 
-void EnIshi_InitCollider(Actor* thisx, PlayState* play) {
+void MM_EnIshi_InitCollider(Actor* thisx, PlayState* play) {
     EnIshi* this = (EnIshi*)thisx;
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit[ENISHI_GET_SIZE_FLAG(&this->actor)]);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit[ENISHI_GET_SIZE_FLAG(&this->actor)]);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
 }
 
 // Return true/false if the rock is able to snap to the floor and is above BGCHECK_Y_MIN.
-s32 EnIshi_SnapToFloor(EnIshi* this, PlayState* play, f32 yOffset) {
+s32 MM_EnIshi_SnapToFloor(EnIshi* this, PlayState* play, f32 yOffset) {
     Vec3f pos;
     s32 bgId;
 
@@ -170,10 +170,10 @@ s32 EnIshi_SnapToFloor(EnIshi* this, PlayState* play, f32 yOffset) {
     pos.y = this->actor.world.pos.y + 30.0f;
     pos.z = this->actor.world.pos.z;
     this->actor.floorHeight =
-        BgCheck_EntityRaycastFloor5(&play->colCtx, &this->actor.floorPoly, &bgId, &this->actor, &pos);
+        MM_BgCheck_EntityRaycastFloor5(&play->colCtx, &this->actor.floorPoly, &bgId, &this->actor, &pos);
     if (this->actor.floorHeight > BGCHECK_Y_MIN) {
         this->actor.world.pos.y = this->actor.floorHeight + yOffset;
-        Math_Vec3f_Copy(&this->actor.home.pos, &this->actor.world.pos);
+        MM_Math_Vec3f_Copy(&this->actor.home.pos, &this->actor.world.pos);
         return true;
     } else {
         return false;
@@ -194,13 +194,13 @@ void EnIshi_SpawnDebrisSmallRock(Actor* thisx, PlayState* play) {
         debrisModel = gSmallRockDL;
     }
 
-    objectId = sObjectIds[ENISHI_GET_USE_OBJECT(&this->actor)];
+    objectId = MM_sObjectIds[ENISHI_GET_USE_OBJECT(&this->actor)];
 
     for (i = 0; i < ARRAY_COUNT(sIshiSmallRockDebrisScales); i++) {
-        pos.x = ((Rand_ZeroOne() - 0.5f) * 8.0f) + this->actor.world.pos.x;
-        pos.y = (Rand_ZeroOne() * 5.0f) + this->actor.world.pos.y + 5.0f;
-        pos.z = ((Rand_ZeroOne() - 0.5f) * 8.0f) + this->actor.world.pos.z;
-        Math_Vec3f_Copy(&velocity, &this->actor.velocity);
+        pos.x = ((MM_Rand_ZeroOne() - 0.5f) * 8.0f) + this->actor.world.pos.x;
+        pos.y = (MM_Rand_ZeroOne() * 5.0f) + this->actor.world.pos.y + 5.0f;
+        pos.z = ((MM_Rand_ZeroOne() - 0.5f) * 8.0f) + this->actor.world.pos.z;
+        MM_Math_Vec3f_Copy(&velocity, &this->actor.velocity);
 
         if (this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) {
             velocity.x *= 0.6f;
@@ -212,13 +212,13 @@ void EnIshi_SpawnDebrisSmallRock(Actor* thisx, PlayState* play) {
             velocity.z *= -0.5f;
         }
 
-        velocity.x += (Rand_ZeroOne() - 0.5f) * 11.0f;
-        velocity.y += (Rand_ZeroOne() * 7.0f) + 6.0f;
-        velocity.z += (Rand_ZeroOne() - 0.5f) * 11.0f;
+        velocity.x += (MM_Rand_ZeroOne() - 0.5f) * 11.0f;
+        velocity.y += (MM_Rand_ZeroOne() * 7.0f) + 6.0f;
+        velocity.z += (MM_Rand_ZeroOne() - 0.5f) * 11.0f;
 
         // -420: gravity
         // 40:life
-        EffectSsKakera_Spawn(play, &pos, &velocity, &pos, -420, ((s32)Rand_Next() > 0) ? 65 : 33, 30, 5, 0,
+        MM_EffectSsKakera_Spawn(play, &pos, &velocity, &pos, -420, ((s32)MM_Rand_Next() > 0) ? 65 : 33, 30, 5, 0,
                              sIshiSmallRockDebrisScales[i], 3, 10, 40, -1, objectId, debrisModel);
     }
 }
@@ -236,13 +236,13 @@ void EnIshi_SpawnDebrisBoulder(Actor* thisx, PlayState* play) {
 
     for (i = 0; i < ARRAY_COUNT(sIshiBoulderDebrisScales); i++) {
         angle += 0x4E20;
-        randMagnitude = Rand_ZeroOne() * 10.0f;
+        randMagnitude = MM_Rand_ZeroOne() * 10.0f;
 
-        pos.x = (Math_SinS(angle) * randMagnitude) + this->actor.world.pos.x;
-        pos.y = (Rand_ZeroOne() * 40.0f) + this->actor.world.pos.y + 5.0f;
-        pos.z = (Math_CosS(angle) * randMagnitude) + this->actor.world.pos.z;
+        pos.x = (MM_Math_SinS(angle) * randMagnitude) + this->actor.world.pos.x;
+        pos.y = (MM_Rand_ZeroOne() * 40.0f) + this->actor.world.pos.y + 5.0f;
+        pos.z = (MM_Math_CosS(angle) * randMagnitude) + this->actor.world.pos.z;
 
-        Math_Vec3f_Copy(&velocity, &this->actor.velocity);
+        MM_Math_Vec3f_Copy(&velocity, &this->actor.velocity);
 
         if (this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) {
             velocity.x *= 0.9f;
@@ -254,10 +254,10 @@ void EnIshi_SpawnDebrisBoulder(Actor* thisx, PlayState* play) {
             velocity.z *= -0.9f;
         }
 
-        randMagnitude = Rand_ZeroOne() * 10.0f;
-        velocity.x += randMagnitude * Math_SinS(angle);
-        velocity.y += (Rand_ZeroOne() * 4.0f) + (Rand_ZeroOne() * i * 0.7f);
-        velocity.z += randMagnitude * Math_CosS(angle);
+        randMagnitude = MM_Rand_ZeroOne() * 10.0f;
+        velocity.x += randMagnitude * MM_Math_SinS(angle);
+        velocity.y += (MM_Rand_ZeroOne() * 4.0f) + (MM_Rand_ZeroOne() * i * 0.7f);
+        velocity.z += randMagnitude * MM_Math_CosS(angle);
 
         if (i == 0) {
             arg5 = 41;
@@ -270,7 +270,7 @@ void EnIshi_SpawnDebrisBoulder(Actor* thisx, PlayState* play) {
             gravity = -320;
         }
 
-        EffectSsKakera_Spawn(play, &pos, &velocity, &this->actor.world.pos, gravity, arg5, 30, 5, 0,
+        MM_EffectSsKakera_Spawn(play, &pos, &velocity, &this->actor.world.pos, gravity, arg5, 30, 5, 0,
                              sIshiBoulderDebrisScales[i], 5, 2, 70, 0, GAMEPLAY_FIELD_KEEP,
                              gFieldSilverBoulderDebrisDL);
     }
@@ -279,7 +279,7 @@ void EnIshi_SpawnDebrisBoulder(Actor* thisx, PlayState* play) {
 void EnIshi_SpawnDustSmallRock(Actor* thisx, PlayState* play) {
     Vec3f pos;
 
-    Math_Vec3f_Copy(&pos, &thisx->world.pos);
+    MM_Math_Vec3f_Copy(&pos, &thisx->world.pos);
     if (thisx->bgCheckFlags & BGCHECKFLAG_GROUND) {
         pos.x += 2.0f * thisx->velocity.x;
         pos.y -= 2.0f * thisx->velocity.y;
@@ -300,7 +300,7 @@ void EnIshi_SpawnDustSmallRock(Actor* thisx, PlayState* play) {
 void EnIshi_SpawnDustBoulder(Actor* thisx, PlayState* play) {
     Vec3f pos;
 
-    Math_Vec3f_Copy(&pos, &thisx->world.pos);
+    MM_Math_Vec3f_Copy(&pos, &thisx->world.pos);
     if (thisx->bgCheckFlags & BGCHECKFLAG_GROUND) {
         pos.x += 2.0f * thisx->velocity.x;
         pos.y -= 2.0f * thisx->velocity.y;
@@ -321,7 +321,7 @@ void EnIshi_SpawnDustBoulder(Actor* thisx, PlayState* play) {
 void EnIshi_DropItem(EnIshi* this, PlayState* play) {
     if ((ENISHI_GET_SIZE_FLAG(&this->actor) == ISHI_SIZE_SMALL_ROCK) &&
         !ENISHI_GET_IGNORE_DROP_TABLE_FLAG(&this->actor)) {
-        Item_DropCollectibleRandom(play, NULL, &this->actor.world.pos, ENISHI_GET_DROP_TABLE(&this->actor) * 0x10);
+        MM_Item_DropCollectibleRandom(play, NULL, &this->actor.world.pos, ENISHI_GET_DROP_TABLE(&this->actor) * 0x10);
     }
 }
 
@@ -335,18 +335,18 @@ void EnIshi_DropCollectable(EnIshi* this, PlayState* play) {
     s16 temp_v1_2;
 
     if (collectableItem00Id >= ITEM00_RUPEE_GREEN) { // not ITEM00_NO_DROP, the 0 index of the list
-        item = Item_DropCollectible(play, &this->actor.world.pos,
+        item = MM_Item_DropCollectible(play, &this->actor.world.pos,
                                     collectableItem00Id | (ENISHI_GET_COLLECTABLE_FLAG(&this->actor) << 8));
         if (item != NULL) {
             // random direction/rotation calculations?
-            // none of the other Item_DropCollectible rotation changes are similar enough
+            // none of the other MM_Item_DropCollectible rotation changes are similar enough
             // kinda looks like ObjSwitch_IsEyeSwitchHit code
-            Matrix_Push();
+            MM_Matrix_Push();
             Matrix_RotateYS(this->actor.shape.rot.y, MTXMODE_NEW);
             Matrix_RotateXS(this->actor.shape.rot.x, MTXMODE_APPLY);
             Matrix_RotateZS(this->actor.shape.rot.z, MTXMODE_APPLY);
             Matrix_MultVecY(1.0f, &sp30);
-            cosResult = Math3D_Cos(&sp30, &sUnitVecY);
+            cosResult = MM_Math3D_Cos(&sp30, &sUnitVecY);
             if (cosResult < 0.707f) {
                 temp_v1_2 = Math_Atan2S_XY(sp30.z, sp30.x) - item->world.rot.y;
                 if (ABS_ALT(temp_v1_2) > 0x4000) {
@@ -358,7 +358,7 @@ void EnIshi_DropCollectable(EnIshi* this, PlayState* play) {
                 }
                 item->velocity.y *= verticalVelMagnitude;
             }
-            Matrix_Pop();
+            MM_Matrix_Pop();
         }
     }
 }
@@ -371,14 +371,14 @@ void EnIshi_ApplyGravity(EnIshi* this) {
 }
 
 void EnIshi_SetVelocity(Vec3f* velocity, f32 scale) {
-    scale += ((Rand_ZeroOne() * 0.2f) - 0.1f) * scale;
+    scale += ((MM_Rand_ZeroOne() * 0.2f) - 0.1f) * scale;
 
     velocity->x -= velocity->x * scale;
     velocity->y -= velocity->y * scale;
     velocity->z -= velocity->z * scale;
 }
 
-void EnIshi_SpawnBugs(EnIshi* this, PlayState* play) {
+void MM_EnIshi_SpawnBugs(EnIshi* this, PlayState* play) {
     s32 i;
 
     for (i = 0; i < 3; i++) {
@@ -397,7 +397,7 @@ s32 EnIshi_IsUnderwater(EnIshi* this, PlayState* play) {
     f32 waterSurface;
     s32 bgId;
 
-    if (WaterBox_GetSurfaceImpl(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &waterSurface,
+    if (MM_WaterBox_GetSurfaceImpl(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &waterSurface,
                                 &waterBox, &bgId) &&
         (this->actor.world.pos.y < waterSurface)) {
         return true;
@@ -406,7 +406,7 @@ s32 EnIshi_IsUnderwater(EnIshi* this, PlayState* play) {
     }
 }
 
-void EnIshi_Init(Actor* thisx, PlayState* play) {
+void MM_EnIshi_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     EnIshi* this = (EnIshi*)thisx;
     s32 rockSize = ENISHI_GET_SIZE_FLAG(&this->actor);
@@ -416,28 +416,28 @@ void EnIshi_Init(Actor* thisx, PlayState* play) {
         this->flags |= ISHI_FLAG_CUTSCENE_ROCK;
     }
 
-    Actor_ProcessInitChain(&this->actor, sInitChain[rockSize]);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain[rockSize]);
 
     if (play->csCtx.state != CS_STATE_IDLE) {
         this->actor.cullingVolumeDistance += 1000.0f;
     }
 
     if ((this->actor.shape.rot.y == ISHI_RANDOM_ROTATION_FLAG) && !(this->flags & ISHI_FLAG_CUTSCENE_ROCK)) {
-        this->actor.shape.rot.y = this->actor.world.rot.y = Rand_Next() >> 0x10;
+        this->actor.shape.rot.y = this->actor.world.rot.y = MM_Rand_Next() >> 0x10;
     }
 
-    Actor_SetScale(&this->actor, sIshiSizes[rockSize]);
-    EnIshi_InitCollider(&this->actor, play);
+    MM_Actor_SetScale(&this->actor, sIshiSizes[rockSize]);
+    MM_EnIshi_InitCollider(&this->actor, play);
 
-    if ((rockSize == ISHI_SIZE_SILVER_BOULDER) && Flags_GetSwitch(play, ENISHI_GET_SWITCH_FLAG(&this->actor))) {
-        Actor_Kill(&this->actor);
+    if ((rockSize == ISHI_SIZE_SILVER_BOULDER) && MM_Flags_GetSwitch(play, ENISHI_GET_SWITCH_FLAG(&this->actor))) {
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
-    CollisionCheck_SetInfo(&this->actor.colChkInfo, NULL, &sColChkInfoInit);
+    MM_CollisionCheck_SetInfo(&this->actor.colChkInfo, NULL, &MM_sColChkInfoInit);
 
     if (rockSize == ISHI_SIZE_SILVER_BOULDER) {
-        this->actor.shape.shadowDraw = ActorShadow_DrawCircle;
+        this->actor.shape.shadowDraw = MM_ActorShadow_DrawCircle;
         this->actor.shape.shadowScale = 2.3f;
     } else {
         this->actor.shape.shadowScale = 2.4f;
@@ -446,8 +446,8 @@ void EnIshi_Init(Actor* thisx, PlayState* play) {
 
     this->actor.shape.yOffset = sIshiShapeYOffsets[rockSize];
 
-    if (!ignoreSnapToFloor && !EnIshi_SnapToFloor(this, play, 0)) {
-        Actor_Kill(&this->actor);
+    if (!ignoreSnapToFloor && !MM_EnIshi_SnapToFloor(this, play, 0)) {
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -455,20 +455,20 @@ void EnIshi_Init(Actor* thisx, PlayState* play) {
         this->flags |= ISHI_FLAG_UNDERWATER;
     }
 
-    this->objectSlot = Object_GetSlot(&play->objectCtx, sObjectIds[ENISHI_GET_USE_OBJECT(&this->actor)]);
+    this->objectSlot = Object_GetSlot(&play->objectCtx, MM_sObjectIds[ENISHI_GET_USE_OBJECT(&this->actor)]);
     if (this->objectSlot <= OBJECT_SLOT_NONE) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
     EnIshi_SetupWaitForObject(this);
 }
 
-void EnIshi_Destroy(Actor* thisx, PlayState* play2) {
+void MM_EnIshi_Destroy(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     EnIshi* this = (EnIshi*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnIshi_SetupWaitForObject(EnIshi* this) {
@@ -476,7 +476,7 @@ void EnIshi_SetupWaitForObject(EnIshi* this) {
 }
 
 void EnIshi_WaitForObject(EnIshi* this, PlayState* play) {
-    if (Object_IsLoaded(&play->objectCtx, this->objectSlot)) {
+    if (MM_Object_IsLoaded(&play->objectCtx, this->objectSlot)) {
         this->actor.objectSlot = this->objectSlot;
         this->actor.flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
         if (!ENISHI_GET_USE_OBJECT(&this->actor)) {
@@ -502,13 +502,13 @@ void EnIshi_Idle(EnIshi* this, PlayState* play) {
         this->collider.base.acFlags &= ~AC_HIT;
     }
 
-    if (Actor_HasParent(&this->actor, play)) { // has been picked up by player
+    if (MM_Actor_HasParent(&this->actor, play)) { // has been picked up by player
         EnIshi_SetupHeldByPlayer(this);
-        SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 20, sIshiPullRockSfx[rockSize]);
+        MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 20, sIshiPullRockSfx[rockSize]);
         if (ENISHI_GET_SPAWN_BUGS_FLAG(&this->actor)) {
-            EnIshi_SpawnBugs(this, play);
+            MM_EnIshi_SpawnBugs(this, play);
         }
-        this->actor.shape.shadowDraw = ActorShadow_DrawCircle;
+        this->actor.shape.shadowDraw = MM_ActorShadow_DrawCircle;
         return;
     }
 
@@ -520,11 +520,11 @@ void EnIshi_Idle(EnIshi* this, PlayState* play) {
             return;
         }
         EnIshi_DropItem(this, play);
-        SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, sCutsceneSfxDuration[rockSize],
+        MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, sCutsceneSfxDuration[rockSize],
                                            sCutsceneSfxId[rockSize]);
         sIshiSpawnDebrisFuncs[rockSize](&this->actor, play);
         sIshiSpawnDustFuncs[rockSize](&this->actor, play);
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -536,22 +536,22 @@ void EnIshi_Idle(EnIshi* this, PlayState* play) {
         if (this->hitTimer > 0) {
             this->hitTimer--;
             if (this->hitTimer == 0) {
-                this->collider.base.colMaterial = sCylinderInit[rockSize].base.colMaterial;
+                this->collider.base.colMaterial = MM_sCylinderInit[rockSize].base.colMaterial;
             } else {
                 this->collider.base.colMaterial = COL_MATERIAL_NONE;
             }
         }
 
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 
         // pick up mechanic
         if ((this->actor.xzDistToPlayer < 90.0f) && !cutsceneRock) {
             if (rockSize == ISHI_SIZE_SILVER_BOULDER) {
                 // Silver can only be picked up by goron form
-                Actor_OfferGetItem(&this->actor, play, GI_NONE, 80.0f, 20.0f);
+                MM_Actor_OfferGetItem(&this->actor, play, GI_NONE, 80.0f, 20.0f);
             } else {
-                Actor_OfferGetItem(&this->actor, play, GI_NONE, 50.0f, 10.0f);
+                MM_Actor_OfferGetItem(&this->actor, play, GI_NONE, 50.0f, 10.0f);
             }
         }
     }
@@ -570,16 +570,16 @@ void EnIshi_HeldByPlayer(EnIshi* this, PlayState* play) {
     Vec3f pos;
     s32 bgId;
 
-    if (Actor_HasNoParent(&this->actor, play)) { // player has tossed us
+    if (MM_Actor_HasNoParent(&this->actor, play)) { // player has tossed us
         this->actor.room = play->roomCtx.curRoom.num;
         if (ENISHI_GET_SIZE_FLAG(&this->actor) == ISHI_SIZE_SILVER_BOULDER) {
-            Flags_SetSwitch(play, ENISHI_GET_SWITCH_FLAG(&this->actor));
+            MM_Flags_SetSwitch(play, ENISHI_GET_SWITCH_FLAG(&this->actor));
         }
         EnIshi_SetupThrown(this);
         EnIshi_ApplyGravity(this);
         EnIshi_SetVelocity(&this->actor.velocity, sIshiVelocities[ENISHI_GET_SIZE_FLAG(&this->actor)]);
-        Actor_UpdatePos(&this->actor);
-        Actor_UpdateBgCheckInfo(play, &this->actor, 7.5f, 35.0f, 0.0f,
+        MM_Actor_UpdatePos(&this->actor);
+        MM_Actor_UpdateBgCheckInfo(play, &this->actor, 7.5f, 35.0f, 0.0f,
                                 UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4 | UPDBGCHECKINFO_FLAG_40 |
                                     UPDBGCHECKINFO_FLAG_80);
     } else { // still being held, follow player
@@ -588,23 +588,23 @@ void EnIshi_HeldByPlayer(EnIshi* this, PlayState* play) {
         pos.z = this->actor.world.pos.z;
         // why does it track floor height? it uses bgcollision to detect floor hit in Thrown
         this->actor.floorHeight =
-            BgCheck_EntityRaycastFloor5(&play->colCtx, &this->actor.floorPoly, &bgId, &this->actor, &pos);
+            MM_BgCheck_EntityRaycastFloor5(&play->colCtx, &this->actor.floorPoly, &bgId, &this->actor, &pos);
     }
 }
 
 void EnIshi_SetupThrown(EnIshi* this) {
     f32 randomStart;
 
-    this->actor.velocity.x = Math_SinS(this->actor.world.rot.y) * this->actor.speed;
-    this->actor.velocity.z = Math_CosS(this->actor.world.rot.y) * this->actor.speed;
+    this->actor.velocity.x = MM_Math_SinS(this->actor.world.rot.y) * this->actor.speed;
+    this->actor.velocity.z = MM_Math_CosS(this->actor.world.rot.y) * this->actor.speed;
     if (!ENISHI_GET_SIZE_FLAG(&this->actor)) {
-        randomStart = Rand_ZeroOne() - 0.9f;
+        randomStart = MM_Rand_ZeroOne() - 0.9f;
         sIshiThrownXRotationVel = randomStart * 11000.0f;
-        sIshiThrownYRotationVel = ((Rand_ZeroOne() - 0.5f) * 3000.0f) * (fabsf(randomStart) + 0.1f);
+        sIshiThrownYRotationVel = ((MM_Rand_ZeroOne() - 0.5f) * 3000.0f) * (fabsf(randomStart) + 0.1f);
     } else {
-        randomStart = Rand_ZeroOne() - 0.5f;
+        randomStart = MM_Rand_ZeroOne() - 0.5f;
         sIshiThrownXRotationVel = randomStart * 6000.0f;
-        sIshiThrownYRotationVel = ((Rand_ZeroOne() - 0.5f) * 1200.0f) * (fabsf(randomStart) + 0.5f);
+        sIshiThrownYRotationVel = ((MM_Rand_ZeroOne() - 0.5f) * 1200.0f) * (fabsf(randomStart) + 0.5f);
     }
 
     this->actor.colChkInfo.mass = 200;
@@ -633,7 +633,7 @@ void EnIshi_Thrown(EnIshi* this, PlayState* play) {
         sIshiSpawnDebrisFuncs[rockSize](&this->actor, play);
 
         if (!(this->actor.bgCheckFlags & BGCHECKFLAG_WATER)) {
-            SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, sCutsceneSfxDuration[rockSize],
+            MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, sCutsceneSfxDuration[rockSize],
                                                sCutsceneSfxId[rockSize]);
             sIshiSpawnDustFuncs[rockSize](&this->actor, play);
         }
@@ -641,14 +641,14 @@ void EnIshi_Thrown(EnIshi* this, PlayState* play) {
         if (rockSize == ISHI_SIZE_SILVER_BOULDER) {
             s16 quakeIndex = Quake_Request(GET_ACTIVE_CAM(play), QUAKE_TYPE_3);
 
-            Quake_SetSpeed(quakeIndex, 17232);
+            MM_Quake_SetSpeed(quakeIndex, 17232);
             Quake_SetPerturbations(quakeIndex, 3, 0, 0, 0);
             Quake_SetDuration(quakeIndex, 7);
 
             Rumble_Request(this->actor.xyzDistToPlayerSq, 255, 20, 150);
         }
 
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -657,20 +657,20 @@ void EnIshi_Thrown(EnIshi* this, PlayState* play) {
             pos.x = this->actor.world.pos.x;
             pos.y = this->actor.world.pos.y + this->actor.depthInWater;
             pos.z = this->actor.world.pos.z;
-            EffectSsGSplash_Spawn(play, &pos, NULL, NULL, 0, 350);
-            EffectSsGRipple_Spawn(play, &pos, 150, 650, 0);
+            MM_EffectSsGSplash_Spawn(play, &pos, NULL, NULL, 0, 350);
+            MM_EffectSsGRipple_Spawn(play, &pos, 150, 650, 0);
         } else {
             pos.y = this->actor.world.pos.y + this->actor.depthInWater;
 
             for (spashAngle = 0, i = 0; i < 11; i++, spashAngle += 0x1746) {
-                pos.x = this->actor.world.pos.x + (Math_SinS((s32)(Rand_ZeroOne() * 2000.0f) + spashAngle) * 50.0f);
-                pos.z = this->actor.world.pos.z + (Math_CosS((s32)(Rand_ZeroOne() * 2000.0f) + spashAngle) * 50.0f);
-                EffectSsGSplash_Spawn(play, &pos, NULL, NULL, 0, 350);
+                pos.x = this->actor.world.pos.x + (MM_Math_SinS((s32)(MM_Rand_ZeroOne() * 2000.0f) + spashAngle) * 50.0f);
+                pos.z = this->actor.world.pos.z + (MM_Math_CosS((s32)(MM_Rand_ZeroOne() * 2000.0f) + spashAngle) * 50.0f);
+                MM_EffectSsGSplash_Spawn(play, &pos, NULL, NULL, 0, 350);
             }
 
             pos.x = this->actor.world.pos.x;
             pos.z = this->actor.world.pos.z;
-            EffectSsGRipple_Spawn(play, &pos, 500, 900, 4);
+            MM_EffectSsGRipple_Spawn(play, &pos, 500, 900, 4);
         }
 
         this->actor.terminalVelocity = -6.0f;
@@ -682,22 +682,22 @@ void EnIshi_Thrown(EnIshi* this, PlayState* play) {
         sIshiThrownXRotationVel >>= 2;
         sIshiThrownYRotationVel >>= 2;
 
-        SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40, NA_SE_EV_DIVE_INTO_WATER_L);
+        MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40, NA_SE_EV_DIVE_INTO_WATER_L);
         this->actor.bgCheckFlags &= ~BGCHECKFLAG_WATER_TOUCH;
     }
 
-    Math_StepToF(&this->actor.shape.yOffset, 0.0f, 2.0f);
+    MM_Math_StepToF(&this->actor.shape.yOffset, 0.0f, 2.0f);
     EnIshi_ApplyGravity(this);
     EnIshi_SetVelocity(&this->actor.velocity, sIshiVelocities[rockSize]);
-    Actor_UpdatePos(&this->actor);
+    MM_Actor_UpdatePos(&this->actor);
     this->actor.shape.rot.x += sIshiThrownXRotationVel;
     this->actor.shape.rot.y += sIshiThrownYRotationVel;
-    Actor_UpdateBgCheckInfo(play, &this->actor, 7.5f, 35.0f, 0.0f,
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 7.5f, 35.0f, 0.0f,
                             UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4 | UPDBGCHECKINFO_FLAG_40 |
                                 UPDBGCHECKINFO_FLAG_80);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-    CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
 }
 
 // This should trigger cutscenes, but I couldnt get it to trigger in testing
@@ -716,7 +716,7 @@ void EnIshi_CutsceneExplode(EnIshi* this, PlayState* play) {
 
     if (CutsceneManager_IsNext(this->actor.csId)) {
         CutsceneManager_StartWithPlayerCs(this->actor.csId, &this->actor);
-        SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, sCutsceneSfxDuration[rockSize],
+        MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, sCutsceneSfxDuration[rockSize],
                                            sCutsceneSfxId[rockSize]);
         sIshiSpawnDebrisFuncs[rockSize](&this->actor, play);
         sIshiSpawnDustFuncs[rockSize](&this->actor, play);
@@ -733,13 +733,13 @@ void EnIshi_SetupKill(EnIshi* this) {
 
 void EnIshi_Kill(EnIshi* this, PlayState* play) {
     if (this->actor.csId <= CS_ID_NONE) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     } else if (CutsceneManager_GetCurrentCsId() != this->actor.csId) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
-void EnIshi_Update(Actor* thisx, PlayState* play) {
+void MM_EnIshi_Update(Actor* thisx, PlayState* play) {
     EnIshi* this = (EnIshi*)thisx;
 
     this->actionFunc(this, play);
@@ -753,7 +753,7 @@ void EnIshi_DrawGameplayKeepSmallRock(EnIshi* this, PlayState* play) {
 
     if ((this->actor.projectedPos.z <= 1200.0f) ||
         ((this->flags & ISHI_FLAG_UNDERWATER) && (this->actor.projectedPos.z < 1300.0f))) {
-        Gfx_DrawDListOpa(play, gFieldSmallRockOpaDL);
+        MM_Gfx_DrawDListOpa(play, gFieldSmallRockOpaDL);
         return;
     }
 
@@ -820,5 +820,5 @@ void EnIshi_DrawGameplayKeepObject(Actor* thisx, PlayState* play) {
 }
 
 void EnIshi_DrawIshiObject(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, gSmallRockDL);
+    MM_Gfx_DrawDListOpa(play, gSmallRockDL);
 }

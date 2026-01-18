@@ -26,7 +26,7 @@ ActorProfile Bg_Mbar_Chair_Profile = {
     /**/ BgMbarChair_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 2000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 60, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 80, ICHAIN_CONTINUE),
@@ -36,20 +36,20 @@ static InitChainEntry sInitChain[] = {
 void BgMbarChair_Init(Actor* thisx, PlayState* play) {
     BgMbarChair* this = (BgMbarChair*)thisx;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, 0);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
+    MM_DynaPolyActor_Init(&this->dyna, 0);
     DynaPolyActor_LoadMesh(play, &this->dyna, &object_mbar_obj_Colheader_0019B4);
 }
 
 void BgMbarChair_Destroy(Actor* thisx, PlayState* play) {
     BgMbarChair* this = (BgMbarChair*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void BgMbarChair_Update(Actor* thisx, PlayState* play) {
 }
 
 void BgMbarChair_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, object_mbar_obj_DL_000288);
+    MM_Gfx_DrawDListOpa(play, object_mbar_obj_DL_000288);
 }

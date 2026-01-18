@@ -20,16 +20,16 @@
 #define rEnvColorA regs[10]
 #define rLifespan regs[11]
 
-u32 EffectSsGRipple_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsGRipple_Draw(PlayState* play, u32 index, EffectSs* this);
-void EffectSsGRipple_Update(PlayState* play, u32 index, EffectSs* this);
+u32 OoT_EffectSsGRipple_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void OoT_EffectSsGRipple_Draw(PlayState* play, u32 index, EffectSs* this);
+void OoT_EffectSsGRipple_Update(PlayState* play, u32 index, EffectSs* this);
 
 EffectSsInit Effect_Ss_G_Ripple_InitVars = {
     EFFECT_SS_G_RIPPLE,
-    EffectSsGRipple_Init,
+    OoT_EffectSsGRipple_Init,
 };
 
-u32 EffectSsGRipple_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 OoT_EffectSsGRipple_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     s32 pad;
     Vec3f zeroVec = { 0.0f, 0.0f, 0.0f };
     WaterBox* waterBox;
@@ -41,8 +41,8 @@ u32 EffectSsGRipple_Init(PlayState* play, u32 index, EffectSs* this, void* initP
     this->gfx = SEGMENTED_TO_VIRTUAL(gEffWaterRippleDL);
     this->life = initParams->life + 20;
     this->flags = 0;
-    this->draw = EffectSsGRipple_Draw;
-    this->update = EffectSsGRipple_Update;
+    this->draw = OoT_EffectSsGRipple_Draw;
+    this->update = OoT_EffectSsGRipple_Update;
     this->rRadius = initParams->radius;
     this->rRadiusMax = initParams->radiusMax;
     this->rLifespan = initParams->life;
@@ -54,12 +54,12 @@ u32 EffectSsGRipple_Init(PlayState* play, u32 index, EffectSs* this, void* initP
     this->rEnvColorG = 255;
     this->rEnvColorB = 255;
     this->rEnvColorA = 255;
-    this->rWaterBoxNum = WaterBox_GetSurface2(play, &play->colCtx, &initParams->pos, 3.0f, &waterBox);
+    this->rWaterBoxNum = OoT_WaterBox_GetSurface2(play, &play->colCtx, &initParams->pos, 3.0f, &waterBox);
 
     return 1;
 }
 
-void EffectSsGRipple_DrawRipple(PlayState* play, EffectSs* this, void* segment) {
+void OoT_EffectSsGRipple_DrawRipple(PlayState* play, EffectSs* this, void* segment) {
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     f32 radius;
     s32 pad;
@@ -81,11 +81,11 @@ void EffectSsGRipple_DrawRipple(PlayState* play, EffectSs* this, void* segment) 
         yPos = this->pos.y;
     }
 
-    SkinMatrix_SetTranslate(&mfTrans, this->pos.x, yPos, this->pos.z);
-    SkinMatrix_SetScale(&mfScale, radius, radius, radius);
-    SkinMatrix_MtxFMtxFMult(&mfTrans, &mfScale, &mfResult);
+    OoT_SkinMatrix_SetTranslate(&mfTrans, this->pos.x, yPos, this->pos.z);
+    OoT_SkinMatrix_SetScale(&mfScale, radius, radius, radius);
+    OoT_SkinMatrix_MtxFMtxFMult(&mfTrans, &mfScale, &mfResult);
 
-    mtx = SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
+    mtx = OoT_SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
 
     if (mtx != NULL) {
         gSPMatrix(POLY_XLU_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -101,27 +101,27 @@ void EffectSsGRipple_DrawRipple(PlayState* play, EffectSs* this, void* segment) 
     CLOSE_DISPS(gfxCtx);
 }
 
-void EffectSsGRipple_Draw(PlayState* play, u32 index, EffectSs* this) {
+void OoT_EffectSsGRipple_Draw(PlayState* play, u32 index, EffectSs* this) {
     if (this->rLifespan == 0) {
-        EffectSsGRipple_DrawRipple(play, this, gEffWaterRippleTex);
+        OoT_EffectSsGRipple_DrawRipple(play, this, gEffWaterRippleTex);
     }
 }
 
-void EffectSsGRipple_Update(PlayState* play, u32 index, EffectSs* this) {
+void OoT_EffectSsGRipple_Update(PlayState* play, u32 index, EffectSs* this) {
     f32 radius;
     f32 primAlpha;
     f32 envAlpha;
 
     if (DECR(this->rLifespan) == 0) {
         radius = this->rRadius;
-        Math_SmoothStepToF(&radius, this->rRadiusMax, 0.2f, 30.0f, 1.0f);
+        OoT_Math_SmoothStepToF(&radius, this->rRadiusMax, 0.2f, 30.0f, 1.0f);
         this->rRadius = radius;
 
         primAlpha = this->rPrimColorA;
         envAlpha = this->rEnvColorA;
 
-        Math_SmoothStepToF(&primAlpha, 0.0f, 0.2f, 15.0f, 7.0f);
-        Math_SmoothStepToF(&envAlpha, 0.0f, 0.2f, 15.0f, 7.0f);
+        OoT_Math_SmoothStepToF(&primAlpha, 0.0f, 0.2f, 15.0f, 7.0f);
+        OoT_Math_SmoothStepToF(&envAlpha, 0.0f, 0.2f, 15.0f, 7.0f);
 
         this->rPrimColorA = primAlpha;
         this->rEnvColorA = envAlpha;

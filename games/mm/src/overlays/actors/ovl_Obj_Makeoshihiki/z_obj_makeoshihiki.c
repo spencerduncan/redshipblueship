@@ -8,7 +8,7 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void ObjMakeoshihiki_Init(Actor* thisx, PlayState* play);
+void MM_ObjMakeoshihiki_Init(Actor* thisx, PlayState* play);
 void ObjMakeoshihiki_Update(Actor* thisx, PlayState* play);
 
 ActorProfile Obj_Makeoshihiki_Profile = {
@@ -17,16 +17,16 @@ ActorProfile Obj_Makeoshihiki_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(ObjMakeoshihiki),
-    /**/ ObjMakeoshihiki_Init,
-    /**/ Actor_Noop,
+    /**/ MM_ObjMakeoshihiki_Init,
+    /**/ MM_Actor_Noop,
     /**/ ObjMakeoshihiki_Update,
     /**/ NULL,
 };
 
 s32 ObjMakeoshihiki_GetChildSpawnPointIndex(ObjMakeoshihiki* this, PlayState* play) {
     s32 pad;
-    s32 pathIndexOffset1 = Flags_GetSwitch(play, OBJMAKEOSHIHIKI_GET_SWITCH_FLAG_1(&this->actor)) ? 1 : 0;
-    s32 pathIndexOffset2 = Flags_GetSwitch(play, OBJMAKEOSHIHIKI_GET_SWITCH_FLAG_2(&this->actor)) ? 2 : 0;
+    s32 pathIndexOffset1 = MM_Flags_GetSwitch(play, OBJMAKEOSHIHIKI_GET_SWITCH_FLAG_1(&this->actor)) ? 1 : 0;
+    s32 pathIndexOffset2 = MM_Flags_GetSwitch(play, OBJMAKEOSHIHIKI_GET_SWITCH_FLAG_2(&this->actor)) ? 2 : 0;
 
     return pathIndexOffset1 + pathIndexOffset2;
 }
@@ -41,19 +41,19 @@ void ObjMakeoshihiki_SetSwitchFlags(ObjMakeoshihiki* this, PlayState* play, s32 
     switchFlag1 = OBJMAKEOSHIHIKI_GET_SWITCH_FLAG_1(&this->actor);
 
     if (pathIndex & 2) {
-        Flags_SetSwitch(play, switchFlag2);
+        MM_Flags_SetSwitch(play, switchFlag2);
     } else {
-        Flags_UnsetSwitch(play, switchFlag2);
+        MM_Flags_UnsetSwitch(play, switchFlag2);
     }
 
     if (pathIndex & 1) {
-        Flags_SetSwitch(play, switchFlag1);
+        MM_Flags_SetSwitch(play, switchFlag1);
     } else {
-        Flags_UnsetSwitch(play, switchFlag1);
+        MM_Flags_UnsetSwitch(play, switchFlag1);
     }
 }
 
-void ObjMakeoshihiki_Init(Actor* thisx, PlayState* play) {
+void MM_ObjMakeoshihiki_Init(Actor* thisx, PlayState* play) {
     ObjMakeoshihiki* this = (ObjMakeoshihiki*)thisx;
     Vec3s* childPoint;
     Path* path;
@@ -64,9 +64,9 @@ void ObjMakeoshihiki_Init(Actor* thisx, PlayState* play) {
     this->pathCount = path->count;
     childPointIndex = ObjMakeoshihiki_GetChildSpawnPointIndex(this, play);
     childPoint = &this->pathPoints[childPointIndex];
-    if (Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_OBJ_OSHIHIKI, childPoint->x, childPoint->y,
+    if (MM_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_OBJ_OSHIHIKI, childPoint->x, childPoint->y,
                            childPoint->z, 0, 0, 0, 0xFFF1) == NULL) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -82,8 +82,8 @@ void ObjMakeoshihiki_Update(Actor* thisx, PlayState* play) {
             this->actor.child = NULL;
         } else {
             for (loopPathIndex = 0; loopPathIndex < this->pathCount; loopPathIndex++) {
-                Math_Vec3s_ToVec3f(&pathPointF, &this->pathPoints[loopPathIndex]);
-                if (Math3D_Vec3fDistSq(&this->actor.child->world.pos, &pathPointF) < SQ(0.5f)) {
+                MM_Math_Vec3s_ToVec3f(&pathPointF, &this->pathPoints[loopPathIndex]);
+                if (MM_Math3D_Vec3fDistSq(&this->actor.child->world.pos, &pathPointF) < SQ(0.5f)) {
                     ObjMakeoshihiki_SetSwitchFlags(this, play, loopPathIndex);
                     return;
                 }

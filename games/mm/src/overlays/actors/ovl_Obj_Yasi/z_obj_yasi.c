@@ -28,7 +28,7 @@ ActorProfile Obj_Yasi_Profile = {
     /**/ ObjYasi_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 400, ICHAIN_CONTINUE),
@@ -38,8 +38,8 @@ static InitChainEntry sInitChain[] = {
 void ObjYasi_Init(Actor* thisx, PlayState* play) {
     ObjYasi* this = (ObjYasi*)thisx;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, 0);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
+    MM_DynaPolyActor_Init(&this->dyna, 0);
     DynaPolyActor_LoadMesh(play, &this->dyna, &gPalmTreeCol);
 
     this->dyna.actor.home.rot.y = 0;
@@ -53,7 +53,7 @@ void ObjYasi_Init(Actor* thisx, PlayState* play) {
 void ObjYasi_Destroy(Actor* thisx, PlayState* play) {
     ObjYasi* this = (ObjYasi*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void ObjYasi_Update(Actor* thisx, PlayState* play) {
@@ -63,11 +63,11 @@ void ObjYasi_Update(Actor* thisx, PlayState* play) {
 
     if (this->dyna.actor.home.rot.z != 0) {
         if (CAN_DROP_NUT(thisx)) {
-            if (Rand_ZeroOne() < 0.5f) {
+            if (MM_Rand_ZeroOne() < 0.5f) {
                 dropPos.x = this->dyna.actor.world.pos.x;
                 dropPos.y = this->dyna.actor.world.pos.y + 280.0f;
                 dropPos.z = this->dyna.actor.world.pos.z;
-                Item_DropCollectible(play, &dropPos, ITEM00_DEKU_NUTS_1);
+                MM_Item_DropCollectible(play, &dropPos, ITEM00_DEKU_NUTS_1);
             }
         }
         this->dyna.actor.home.rot.y = GET_PLAYER(play)->actor.shape.rot.y;
@@ -83,7 +83,7 @@ void ObjYasi_Update(Actor* thisx, PlayState* play) {
 void ObjYasi_Draw(Actor* thisx, PlayState* play) {
     ObjYasi* this = (ObjYasi*)thisx;
 
-    Matrix_Translate(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y, this->dyna.actor.world.pos.z,
+    MM_Matrix_Translate(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y, this->dyna.actor.world.pos.z,
                      MTXMODE_NEW);
 
     if (this->dyna.actor.shape.rot.x != 0) {
@@ -94,6 +94,6 @@ void ObjYasi_Draw(Actor* thisx, PlayState* play) {
         Matrix_RotateYS(this->dyna.actor.shape.rot.y, MTXMODE_APPLY);
     }
 
-    Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
-    Gfx_DrawDListOpa(play, gPalmTreeDL);
+    MM_Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
+    MM_Gfx_DrawDListOpa(play, gPalmTreeDL);
 }

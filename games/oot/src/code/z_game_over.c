@@ -3,7 +3,7 @@
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
 
-void GameOver_Init(PlayState* play) {
+void OoT_GameOver_Init(PlayState* play) {
     play->gameOverCtx.state = GAMEOVER_INACTIVE;
 }
 
@@ -12,14 +12,14 @@ void GameOver_FadeInLights(PlayState* play) {
 
     if ((gameOverCtx->state >= GAMEOVER_DEATH_WAIT_GROUND && gameOverCtx->state < GAMEOVER_REVIVE_START) ||
         (gameOverCtx->state >= GAMEOVER_REVIVE_RUMBLE && gameOverCtx->state < GAMEOVER_REVIVE_FADE_OUT)) {
-        Environment_FadeInGameOverLights(play);
+        OoT_Environment_FadeInGameOverLights(play);
     }
 }
 
 // This variable cannot be moved into this file as all of z_message_PAL rodata is in the way
 extern s16 gGameOverTimer;
 
-void GameOver_Update(PlayState* play) {
+void OoT_GameOver_Update(PlayState* play) {
     GameOverContext* gameOverCtx = &play->gameOverCtx;
     s16 i;
     s16 j;
@@ -29,7 +29,7 @@ void GameOver_Update(PlayState* play) {
 
     switch (gameOverCtx->state) {
         case GAMEOVER_DEATH_START:
-            Message_CloseTextbox(play);
+            OoT_Message_CloseTextbox(play);
 
             gSaveContext.timerState = TIMER_STATE_OFF;
             gSaveContext.subTimerState = SUBTIMER_STATE_OFF;
@@ -80,7 +80,7 @@ void GameOver_Update(PlayState* play) {
             gSaveContext.forceRisingButtonAlphas = gSaveContext.unk_13E8 = gSaveContext.unk_13EA =
                 gSaveContext.unk_13EC = 0;
 
-            Environment_InitGameOverLights(play);
+            OoT_Environment_InitGameOverLights(play);
             gGameOverTimer = 20;
             v90 = VREG(90);
             v91 = VREG(91);
@@ -108,7 +108,7 @@ void GameOver_Update(PlayState* play) {
         case GAMEOVER_REVIVE_START:
             gameOverCtx->state++;
             gGameOverTimer = 0;
-            Environment_InitGameOverLights(play);
+            OoT_Environment_InitGameOverLights(play);
             ShrinkWindow_SetVal(0x20);
             return;
 
@@ -143,7 +143,7 @@ void GameOver_Update(PlayState* play) {
             break;
 
         case GAMEOVER_REVIVE_FADE_OUT:
-            Environment_FadeOutGameOverLights(play);
+            OoT_Environment_FadeOutGameOverLights(play);
             gGameOverTimer--;
 
             if (gGameOverTimer == 0) {

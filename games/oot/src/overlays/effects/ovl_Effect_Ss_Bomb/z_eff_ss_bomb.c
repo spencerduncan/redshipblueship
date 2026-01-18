@@ -22,9 +22,9 @@ EffectSsInit Effect_Ss_Bomb_InitVars = {
 u32 EffectSsBomb_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsBombInitParams* initParams = (EffectSsBombInitParams*)initParamsx;
 
-    Math_Vec3f_Copy(&this->pos, &initParams->pos);
-    Math_Vec3f_Copy(&this->velocity, &initParams->velocity);
-    Math_Vec3f_Copy(&this->accel, &initParams->accel);
+    OoT_Math_Vec3f_Copy(&this->pos, &initParams->pos);
+    OoT_Math_Vec3f_Copy(&this->velocity, &initParams->velocity);
+    OoT_Math_Vec3f_Copy(&this->accel, &initParams->accel);
     this->gfx = SEGMENTED_TO_VIRTUAL(gEffBombExplosion1DL);
     this->life = 20;
     this->draw = EffectSsBomb_Draw;
@@ -56,14 +56,14 @@ void EffectSsBomb_Draw(PlayState* play, u32 index, EffectSs* this) {
 
     scale = this->rScale / 100.0f;
 
-    SkinMatrix_SetTranslate(&mfTrans, this->pos.x, this->pos.y, this->pos.z);
-    SkinMatrix_SetScale(&mfScale, scale, scale, 1.0f);
-    SkinMatrix_MtxFMtxFMult(&mfTrans, &play->billboardMtxF, &mfTrans11DA0);
-    SkinMatrix_MtxFMtxFMult(&mfTrans11DA0, &mfScale, &mfResult);
+    OoT_SkinMatrix_SetTranslate(&mfTrans, this->pos.x, this->pos.y, this->pos.z);
+    OoT_SkinMatrix_SetScale(&mfScale, scale, scale, 1.0f);
+    OoT_SkinMatrix_MtxFMtxFMult(&mfTrans, &play->billboardMtxF, &mfTrans11DA0);
+    OoT_SkinMatrix_MtxFMtxFMult(&mfTrans11DA0, &mfScale, &mfResult);
 
     gSPMatrix(POLY_XLU_DISP++, &gMtxClear, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
-    mtx = SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
+    mtx = OoT_SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
 
     if (mtx != NULL) {
         gSPMatrix(POLY_XLU_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -88,6 +88,6 @@ void EffectSsBomb_Update(PlayState* play, u32 index, EffectSs* this) {
         this->rTexIdx = 3;
     }
 
-    this->accel.x = ((Rand_ZeroOne() * 0.4f) - 0.2f);
-    this->accel.z = ((Rand_ZeroOne() * 0.4f) - 0.2f);
+    this->accel.x = ((OoT_Rand_ZeroOne() * 0.4f) - 0.2f);
+    this->accel.z = ((OoT_Rand_ZeroOne() * 0.4f) - 0.2f);
 }

@@ -18,7 +18,7 @@ void func_809FFDC8(EnEg* this, PlayState* play);
 
 static s32 voided = false;
 
-static EnEgActionFunc sActionFuncs[] = {
+static EnEgActionFunc OoT_sActionFuncs[] = {
     func_809FFDC8,
 };
 
@@ -50,7 +50,7 @@ void EnEg_Init(Actor* thisx, PlayState* play) {
 }
 
 void func_809FFDC8(EnEg* this, PlayState* play) {
-    if (!voided && (gSaveContext.subTimerSeconds < 1) && Flags_GetSwitch(play, 0x36) && (kREG(0) == 0)) {
+    if (!voided && (gSaveContext.subTimerSeconds < 1) && OoT_Flags_GetSwitch(play, 0x36) && (kREG(0) == 0)) {
         // Void the player out
         Play_TriggerRespawn(play);
         gSaveContext.respawnFlag = -2;
@@ -65,11 +65,11 @@ void EnEg_Update(Actor* thisx, PlayState* play) {
     EnEg* this = (EnEg*)thisx;
     s32 action = this->action;
 
-    if (((action < 0) || (0 < action)) || (sActionFuncs[action] == NULL)) {
+    if (((action < 0) || (0 < action)) || (OoT_sActionFuncs[action] == NULL)) {
         // "Main Mode is wrong!!!!!!!!!!!!!!!!!!!!!!!!!"
         osSyncPrintf(VT_FGCOL(RED) "メインモードがおかしい!!!!!!!!!!!!!!!!!!!!!!!!!\n" VT_RST);
     } else {
-        sActionFuncs[action](this, play);
+        OoT_sActionFuncs[action](this, play);
     }
 }
 

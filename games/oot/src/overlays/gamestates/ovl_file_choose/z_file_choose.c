@@ -31,7 +31,7 @@
 #define MIN_QUEST (ResourceMgr_GameHasOriginal() ? QUEST_NORMAL : QUEST_MASTER)
 #define MAX_QUEST QUEST_BOSSRUSH
 
-void Sram_InitDebugSave(void);
+void OoT_Sram_InitDebugSave(void);
 void Sram_InitBossRushSave();
 
 void FileChoose_DrawTextureI8(GraphicsContext* gfxCtx, const void* texture, s16 texWidth, s16 texHeight, s16 rectLeft,
@@ -102,11 +102,11 @@ void FileChoose_DrawTextRec(GraphicsContext* gfxCtx, s32 r, s32 g, s32 b, s32 a,
     CLOSE_DISPS(gfxCtx);
 }
 
-static s16 sUnused = 106;
+static s16 OoT_sUnused = 106;
 
 static s16 sScreenFillAlpha = 255;
 
-static Gfx sScreenFillSetupDL[] = {
+static Gfx OoT_sScreenFillSetupDL[] = {
     gsDPPipeSync(),
     gsSPClearGeometryMode(G_ZBUFFER | G_SHADE | G_CULL_BOTH | G_FOG | G_LIGHTING | G_TEXTURE_GEN |
                           G_TEXTURE_GEN_LINEAR | G_LOD | G_SHADING_SMOOTH),
@@ -117,9 +117,9 @@ static Gfx sScreenFillSetupDL[] = {
     gsSPEndDisplayList(),
 };
 
-static s16 sFileInfoBoxPartWidths[] = { 36, 36, 36, 36, 24 };
+static s16 OoT_sFileInfoBoxPartWidths[] = { 36, 36, 36, 36, 24 };
 
-s16 sWindowContentColors[2][3] = {
+s16 OoT_sWindowContentColors[2][3] = {
     { 100, 150, 255 }, // blue
     { 100, 100, 100 }, // gray
 };
@@ -368,7 +368,7 @@ void FileChoose_UpdateRandomizer() {
         return;
     } else if (CVarGetInteger(CVAR_GENERAL("RandoGenerating"), 0) == 0 && generating) {
         if (Randomizer_IsSeedGenerated()) {
-            Audio_PlayFanfare(NA_BGM_HORSE_GOAL);
+            OoT_Audio_PlayFanfare(NA_BGM_HORSE_GOAL);
             retries = 0;
         } else {
             Sfx_PlaySfxCentered(NA_SE_SY_OCARINA_ERROR);
@@ -432,30 +432,30 @@ void FileChoose_UpdateMainMenu(GameState* thisx) {
     if (CHECK_BTN_ALL(input->press.button, BTN_START) || CHECK_BTN_ALL(input->press.button, BTN_A)) {
         if (this->buttonIndex <= FS_BTN_MAIN_FILE_3) {
             if (!Save_GetSaveMetaInfo(this->buttonIndex)->valid) {
-                Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                 this->prevConfigMode = this->configMode;
                 this->configMode = CM_ROTATE_TO_QUEST_MENU;
                 this->logoAlpha = 0;
             } else if (!FileChoose_IsSaveCompatible(Save_GetSaveMetaInfo(this->buttonIndex))) {
-                Audio_PlaySoundGeneral(NA_SE_SY_FSEL_ERROR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_SY_FSEL_ERROR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             } else if (this->n64ddFlags[this->buttonIndex] == this->n64ddFlag) {
-                Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                 this->actionTimer = 8;
                 this->selectMode = SM_FADE_MAIN_TO_SELECT;
                 this->selectedFileIndex = this->buttonIndex;
                 this->menuMode = FS_MENU_MODE_SELECT;
                 this->nextTitleLabel = FS_TITLE_OPEN_FILE;
             } else if (!this->n64ddFlags[this->buttonIndex]) {
-                Audio_PlaySoundGeneral(NA_SE_SY_FSEL_ERROR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_SY_FSEL_ERROR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             }
         } else {
             if (this->warningLabel == FS_WARNING_NONE) {
-                Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                 this->prevConfigMode = this->configMode;
 
                 if (this->buttonIndex == FS_BTN_MAIN_COPY) {
@@ -478,14 +478,14 @@ void FileChoose_UpdateMainMenu(GameState* thisx) {
 
                 this->actionTimer = 8;
             } else {
-                Audio_PlaySoundGeneral(NA_SE_SY_FSEL_ERROR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_SY_FSEL_ERROR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             }
         }
     } else {
         if ((ABS(this->stickRelY) > 30) || (dpad && CHECK_BTN_ANY(input->press.button, BTN_DDOWN | BTN_DUP))) {
-            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CURSOR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CURSOR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
 
             if ((this->stickRelY > 30) || (dpad && CHECK_BTN_ALL(input->press.button, BTN_DUP))) {
                 this->buttonIndex--;
@@ -665,8 +665,8 @@ void FileChoose_UpdateQuestMenu(GameState* thisx) {
             this->questType[this->buttonIndex] = MAX_QUEST;
         }
 
-        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CURSOR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CURSOR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
 
         GameInteractor_ExecuteOnUpdateFileQuestSelection(this->questType[this->buttonIndex]);
     }
@@ -675,19 +675,19 @@ void FileChoose_UpdateQuestMenu(GameState* thisx) {
         gSaveContext.ship.quest.id = this->questType[this->buttonIndex];
 
         if (this->questType[this->buttonIndex] == QUEST_BOSSRUSH) {
-            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             this->prevConfigMode = this->configMode;
             this->configMode = CM_ROTATE_TO_BOSS_RUSH_MENU;
             return;
         } else if (this->questType[this->buttonIndex] == QUEST_RANDOMIZER) {
-            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             this->prevConfigMode = this->configMode;
             this->configMode = CM_ROTATE_TO_RANDOMIZER_SETTINGS_MENU;
         } else {
-            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             osSyncPrintf("Selected Dungeon Quest: %d\n", IS_MASTER_QUEST);
             this->prevConfigMode = this->configMode;
             this->configMode = CM_ROTATE_TO_NAME_ENTRY;
@@ -767,8 +767,8 @@ void FileChoose_UpdateRandomizerMenu(GameState* thisx) {
 
         GameInteractor_ExecuteOnUpdateFileRandomizerOptionSelection(this->randomizerIndex);
 
-        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CURSOR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CURSOR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     }
 
     if (CHECK_BTN_ALL(input->press.button, BTN_B)) {
@@ -780,8 +780,8 @@ void FileChoose_UpdateRandomizerMenu(GameState* thisx) {
         if (this->randomizerIndex == RSM_START_RANDOMIZER) {
             if (Randomizer_IsSeedGenerated() || Randomizer_IsSpoilerLoaded()) {
                 SohFileSelect_ShowPresetModal();
-                Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                 static u8 emptyName[] = { 0x3E, 0x3E, 0x3E, 0x3E, 0x3E, 0x3E, 0x3E, 0x3E };
                 static u8 emptyNameNES[] = { 0xDF, 0xDF, 0xDF, 0xDF, 0xDF, 0xDF, 0xDF, 0xDF };
                 static u8 linkName[] = { 0x15, 0x2C, 0x31, 0x2E, 0x3E, 0x3E, 0x3E, 0x3E };
@@ -823,8 +823,8 @@ void FileChoose_UpdateRandomizerMenu(GameState* thisx) {
         } else if (this->randomizerIndex == RSM_GENERATE_RANDOMIZER) {
             Randomizer_GenerateRandomizer();
         } else if (this->randomizerIndex == RSM_OPEN_RANDOMIZER_SETTINGS) {
-            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             Randomizer_ShowRandomizerMenu();
         }
     }
@@ -1062,7 +1062,7 @@ void FileChoose_ConfigModeUpdate(GameState* thisx) {
     static s32 previousLanguage = LANGUAGE_ENG;
     if (previousLanguage != gSaveContext.language) {
         if (ResourceMgr_GetGameRegion(0) == GAME_REGION_PAL && gSaveContext.language != LANGUAGE_JPN) {
-            Font_LoadOrderedFont(&this->font);
+            OoT_Font_LoadOrderedFont(&this->font);
         } else { // GAME_REGION_NTSC
             Font_LoadOrderedFontNTSC(&this->font);
         }
@@ -1189,7 +1189,7 @@ void FileChoose_SetWindowContentVtx(GameState* thisx) {
         for (phi_t5 = 0; phi_t5 < 5; phi_t5++, phi_t2 += 4) {
             this->windowContentVtx[phi_t2].v.ob[0] = this->windowContentVtx[phi_t2 + 2].v.ob[0] = phi_t0;
             this->windowContentVtx[phi_t2 + 1].v.ob[0] = this->windowContentVtx[phi_t2 + 3].v.ob[0] =
-                this->windowContentVtx[phi_t2].v.ob[0] + sFileInfoBoxPartWidths[phi_t5];
+                this->windowContentVtx[phi_t2].v.ob[0] + OoT_sFileInfoBoxPartWidths[phi_t5];
 
             this->windowContentVtx[phi_t2].v.ob[1] = this->windowContentVtx[phi_t2 + 1].v.ob[1] =
                 this->fileNamesY[phi_a1] + 0x2C;
@@ -1198,9 +1198,9 @@ void FileChoose_SetWindowContentVtx(GameState* thisx) {
                 this->windowContentVtx[phi_t2].v.ob[1] - 0x38;
 
             this->windowContentVtx[phi_t2 + 1].v.tc[0] = this->windowContentVtx[phi_t2 + 3].v.tc[0] =
-                sFileInfoBoxPartWidths[phi_t5] << 5;
+                OoT_sFileInfoBoxPartWidths[phi_t5] << 5;
             this->windowContentVtx[phi_t2 + 2].v.tc[1] = this->windowContentVtx[phi_t2 + 3].v.tc[1] = 0x700;
-            phi_t0 += sFileInfoBoxPartWidths[phi_t5];
+            phi_t0 += OoT_sFileInfoBoxPartWidths[phi_t5];
         }
     }
 
@@ -1425,7 +1425,7 @@ static s16 sQuestItemGreen[] = { 255, 255, 255, 255, 60, 100, 130, 50, 200 };
 static s16 sQuestItemBlue[] = { 255, 255, 255, 0, 0, 255, 0, 255, 0 };
 static s16 sQuestItemFlags[] = { 0x0012, 0x0013, 0x0014, 0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005 };
 static s16 sNamePrimColors[2][3] = { { 255, 255, 255 }, { 100, 100, 100 } };
-static void* sHeartTextures[] = { gHeartFullTex, gDefenseHeartFullTex };
+static void* OoT_sHeartTextures[] = { gHeartFullTex, gDefenseHeartFullTex };
 
 void FileChoose_DrawFileInfo(GameState* thisx, s16 fileIndex, s16 isActive) {
     FileChooseContext* this = (FileChooseContext*)thisx;
@@ -1546,7 +1546,7 @@ void FileChoose_DrawFileInfo(GameState* thisx, s16 fileIndex, s16 isActive) {
             for (vtxOffset = 0, j = 0; j < i; j++, vtxOffset += 4) {
                 gSPVertex(POLY_OPA_DISP++, &this->windowContentVtx[D_8081284C[fileIndex] + vtxOffset] + 0x30, 4, 0);
 
-                POLY_OPA_DISP = FileChoose_QuadTextureIA8(POLY_OPA_DISP, sHeartTextures[heartType], 0x10, 0x10, 0);
+                POLY_OPA_DISP = FileChoose_QuadTextureIA8(POLY_OPA_DISP, OoT_sHeartTextures[heartType], 0x10, 0x10, 0);
             }
         }
 
@@ -1561,7 +1561,7 @@ void FileChoose_DrawFileInfo(GameState* thisx, s16 fileIndex, s16 isActive) {
         if (GameInteractor_Should(VB_FILE_SELECT_DRAW_QUEST_ITEMS, true, this, fileIndex, textAlpha)) {
             // draw quest items
             for (vtxOffset = 0, j = 0; j < 9; j++, vtxOffset += 4) {
-                if (Save_GetSaveMetaInfo(fileIndex)->questItems & gBitFlags[sQuestItemFlags[j]]) {
+                if (Save_GetSaveMetaInfo(fileIndex)->questItems & OoT_gBitFlags[sQuestItemFlags[j]]) {
                     gSPVertex(POLY_OPA_DISP++, &this->windowContentVtx[D_8081284C[fileIndex] + vtxOffset] + 0x80, 4, 0);
                     gDPPipeSync(POLY_OPA_DISP++);
                     gDPSetPrimColor(POLY_OPA_DISP++, 0x00, 0x00, sQuestItemRed[j], sQuestItemGreen[j],
@@ -1585,12 +1585,12 @@ void FileChoose_DrawFileInfo(GameState* thisx, s16 fileIndex, s16 isActive) {
     CLOSE_DISPS(this->state.gfxCtx);
 }
 
-static void* sFileInfoBoxTextures[] = {
+static void* OoT_sFileInfoBoxTextures[] = {
     gFileSelFileInfoBox1Tex, gFileSelFileInfoBox2Tex, gFileSelFileInfoBox3Tex,
     gFileSelFileInfoBox4Tex, gFileSelFileInfoBox5Tex,
 };
 
-static void* sTitleLabels[4][9] = {
+static void* OoT_sTitleLabels[4][9] = {
     { gFileSelPleaseSelectAFileENGTex, gFileSelOpenThisFileENGTex, gFileSelCopyWhichFileENGTex,
       gFileSelCopyToWhichFileENGTex, gFileSelAreYouSureENGTex, gFileSelFileCopiedENGTex, gFileSelEraseWhichFileENGTex,
       gFileSelAreYouSure2ENGTex, gFileSelFileErasedENGTex },
@@ -1605,7 +1605,7 @@ static void* sTitleLabels[4][9] = {
       gFileSelAreYouSure2JPNTex, gFileSelFileErasedJPNTex },
 };
 
-static void* sWarningLabels[4][5] = {
+static void* OoT_sWarningLabels[4][5] = {
     { gFileSelNoFileToCopyENGTex, gFileSelNoFileToEraseENGTex, gFileSelNoEmptyFileENGTex, gFileSelFileEmptyENGTex,
       gFileSelFileInUseENGTex },
     { gFileSelNoFileToCopyGERTex, gFileSelNoFileToEraseGERTex, gFileSelNoEmptyFileGERTex, gFileSelFileEmptyGERTex,
@@ -1616,14 +1616,14 @@ static void* sWarningLabels[4][5] = {
       gFileSelFileInUseJPNTex },
 };
 
-static void* sFileButtonTextures[4][3] = {
+static void* OoT_sFileButtonTextures[4][3] = {
     { gFileSelFile1ButtonENGTex, gFileSelFile2ButtonENGTex, gFileSelFile3ButtonENGTex },
     { gFileSelFile1ButtonGERTex, gFileSelFile2ButtonGERTex, gFileSelFile3ButtonGERTex },
     { gFileSelFile1ButtonFRATex, gFileSelFile2ButtonFRATex, gFileSelFile3ButtonFRATex },
     { gFileSelFile1ButtonJPNTex, gFileSelFile2ButtonJPNTex, gFileSelFile3ButtonJPNTex },
 };
 
-static void* sActionButtonTextures[4][4] = {
+static void* OoT_sActionButtonTextures[4][4] = {
     { gFileSelCopyButtonENGTex, gFileSelEraseButtonENGTex, gFileSelYesButtonENGTex, gFileSelQuitButtonENGTex },
     { gFileSelCopyButtonGERTex, gFileSelEraseButtonGERTex, gFileSelYesButtonGERTex, gFileSelQuitButtonGERTex },
     { gFileSelCopyButtonFRATex, gFileSelEraseButtonFRATex, gFileSelYesButtonFRATex, gFileSelQuitButtonFRATex },
@@ -1699,7 +1699,7 @@ void FileChoose_DrawWindowContents(GameState* thisx) {
             tex = FileChoose_GetSohOptionsTitleTexName(gSaveContext.language);
             break;
         default:
-            tex = sTitleLabels[gSaveContext.language][this->titleLabel];
+            tex = OoT_sTitleLabels[gSaveContext.language][this->titleLabel];
             break;
     }
 
@@ -1873,7 +1873,7 @@ void FileChoose_DrawWindowContents(GameState* thisx) {
                this->configMode != CM_NAME_ENTRY_TO_RANDOMIZER_SETTINGS_MENU) {
         gDPPipeSync(POLY_OPA_DISP++);
         gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, this->titleAlpha[1]);
-        gDPLoadTextureBlock(POLY_OPA_DISP++, sTitleLabels[gSaveContext.language][this->nextTitleLabel], G_IM_FMT_IA,
+        gDPLoadTextureBlock(POLY_OPA_DISP++, OoT_sTitleLabels[gSaveContext.language][this->nextTitleLabel], G_IM_FMT_IA,
                             G_IM_SIZ_8b, 128, 16, 0, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK,
                             G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
         gSP1Quadrangle(POLY_OPA_DISP++, 0, 2, 3, 1, 0);
@@ -1892,8 +1892,8 @@ void FileChoose_DrawWindowContents(GameState* thisx) {
                 gSPVertex(POLY_OPA_DISP++, &this->windowContentVtx[temp], 20, 0);
 
                 for (quadVtxIndex = 0, i = 0; i < 5; i++, quadVtxIndex += 4) {
-                    gDPLoadTextureBlock(POLY_OPA_DISP++, sFileInfoBoxTextures[i], G_IM_FMT_IA, G_IM_SIZ_16b,
-                                        sFileInfoBoxPartWidths[i], 56, 0, G_TX_NOMIRROR | G_TX_WRAP,
+                    gDPLoadTextureBlock(POLY_OPA_DISP++, OoT_sFileInfoBoxTextures[i], G_IM_FMT_IA, G_IM_SIZ_16b,
+                                        OoT_sFileInfoBoxPartWidths[i], 56, 0, G_TX_NOMIRROR | G_TX_WRAP,
                                         G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
                     gSP1Quadrangle(POLY_OPA_DISP++, quadVtxIndex, quadVtxIndex + 2, quadVtxIndex + 3, quadVtxIndex + 1,
                                    0);
@@ -1908,26 +1908,26 @@ void FileChoose_DrawWindowContents(GameState* thisx) {
             isActive = ((this->n64ddFlag == this->n64ddFlags[i]) || (this->nameBoxAlpha[i] == 0)) ? 0 : 1;
 
             if (!FileChoose_IsSaveCompatible(Save_GetSaveMetaInfo(i)) && Save_GetSaveMetaInfo(i)->valid) {
-                gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, sWindowContentColors[1][0], sWindowContentColors[1][1],
-                                sWindowContentColors[1][2], this->fileButtonAlpha[i]);
+                gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, OoT_sWindowContentColors[1][0], OoT_sWindowContentColors[1][1],
+                                OoT_sWindowContentColors[1][2], this->fileButtonAlpha[i]);
             } else {
-                gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, sWindowContentColors[isActive][0],
-                                sWindowContentColors[isActive][1], sWindowContentColors[isActive][2],
+                gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, OoT_sWindowContentColors[isActive][0],
+                                OoT_sWindowContentColors[isActive][1], OoT_sWindowContentColors[isActive][2],
                                 this->fileButtonAlpha[i]);
             }
 
-            gDPLoadTextureBlock(POLY_OPA_DISP++, sFileButtonTextures[gSaveContext.language][i], G_IM_FMT_IA,
+            gDPLoadTextureBlock(POLY_OPA_DISP++, OoT_sFileButtonTextures[gSaveContext.language][i], G_IM_FMT_IA,
                                 G_IM_SIZ_16b, 64, 16, 0, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP,
                                 G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
             gSP1Quadrangle(POLY_OPA_DISP++, 0, 2, 3, 1, 0);
 
             // draw file name box
             if (!FileChoose_IsSaveCompatible(Save_GetSaveMetaInfo(i))) {
-                gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, sWindowContentColors[1][0], sWindowContentColors[1][1],
-                                sWindowContentColors[1][2], this->nameBoxAlpha[i]);
+                gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, OoT_sWindowContentColors[1][0], OoT_sWindowContentColors[1][1],
+                                OoT_sWindowContentColors[1][2], this->nameBoxAlpha[i]);
             } else {
-                gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, sWindowContentColors[isActive][0],
-                                sWindowContentColors[isActive][1], sWindowContentColors[isActive][2],
+                gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, OoT_sWindowContentColors[isActive][0],
+                                OoT_sWindowContentColors[isActive][1], OoT_sWindowContentColors[isActive][2],
                                 this->nameBoxAlpha[i]);
             }
 
@@ -1938,8 +1938,8 @@ void FileChoose_DrawWindowContents(GameState* thisx) {
 
             // draw disk label for 64DD
             if (this->n64ddFlags[i]) {
-                gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, sWindowContentColors[isActive][0],
-                                sWindowContentColors[isActive][1], sWindowContentColors[isActive][2],
+                gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, OoT_sWindowContentColors[isActive][0],
+                                OoT_sWindowContentColors[isActive][1], OoT_sWindowContentColors[isActive][2],
                                 this->nameBoxAlpha[i]);
                 gDPLoadTextureBlock(POLY_OPA_DISP++, gFileSelDISKButtonTex, G_IM_FMT_IA, G_IM_SIZ_16b, 44, 16, 0,
                                     G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK,
@@ -1950,11 +1950,11 @@ void FileChoose_DrawWindowContents(GameState* thisx) {
             // draw rando label
             if (Save_GetSaveMetaInfo(i)->randoSave) {
                 if (!FileChoose_IsSaveCompatible(Save_GetSaveMetaInfo(i))) {
-                    gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, sWindowContentColors[1][0], sWindowContentColors[1][1],
-                                    sWindowContentColors[1][2], this->nameBoxAlpha[i]);
+                    gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, OoT_sWindowContentColors[1][0], OoT_sWindowContentColors[1][1],
+                                    OoT_sWindowContentColors[1][2], this->nameBoxAlpha[i]);
                 } else {
-                    gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, sWindowContentColors[isActive][0],
-                                    sWindowContentColors[isActive][1], sWindowContentColors[isActive][2],
+                    gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, OoT_sWindowContentColors[isActive][0],
+                                    OoT_sWindowContentColors[isActive][1], OoT_sWindowContentColors[isActive][2],
                                     this->nameAlpha[i]);
                 }
                 gDPLoadTextureBlock(POLY_OPA_DISP++, gFileSelRANDButtonTex, G_IM_FMT_IA, G_IM_SIZ_16b, 44, 16, 0,
@@ -1966,11 +1966,11 @@ void FileChoose_DrawWindowContents(GameState* thisx) {
             if (Save_GetSaveMetaInfo(i)->requiresMasterQuest && !Save_GetSaveMetaInfo(i)->randoSave &&
                 Save_GetSaveMetaInfo(i)->valid) {
                 if (!FileChoose_IsSaveCompatible(Save_GetSaveMetaInfo(i))) {
-                    gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, sWindowContentColors[1][0], sWindowContentColors[1][1],
-                                    sWindowContentColors[1][2], this->nameBoxAlpha[i]);
+                    gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, OoT_sWindowContentColors[1][0], OoT_sWindowContentColors[1][1],
+                                    OoT_sWindowContentColors[1][2], this->nameBoxAlpha[i]);
                 } else {
-                    gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, sWindowContentColors[isActive][0],
-                                    sWindowContentColors[isActive][1], sWindowContentColors[isActive][2],
+                    gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, OoT_sWindowContentColors[isActive][0],
+                                    OoT_sWindowContentColors[isActive][1], OoT_sWindowContentColors[isActive][2],
                                     this->nameAlpha[i]);
                 }
                 gDPLoadTextureBlock(POLY_OPA_DISP++, gFileSelMQButtonTex, G_IM_FMT_IA, G_IM_SIZ_16b, 44, 16, 0,
@@ -1981,11 +1981,11 @@ void FileChoose_DrawWindowContents(GameState* thisx) {
 
             // draw connectors
             if (!FileChoose_IsSaveCompatible(Save_GetSaveMetaInfo(i)) && Save_GetSaveMetaInfo(i)->valid) {
-                gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, sWindowContentColors[1][0], sWindowContentColors[1][1],
-                                sWindowContentColors[1][2], this->fileButtonAlpha[i]);
+                gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, OoT_sWindowContentColors[1][0], OoT_sWindowContentColors[1][1],
+                                OoT_sWindowContentColors[1][2], this->fileButtonAlpha[i]);
             } else {
-                gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, sWindowContentColors[isActive][0],
-                                sWindowContentColors[isActive][1], sWindowContentColors[isActive][2],
+                gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, OoT_sWindowContentColors[isActive][0],
+                                OoT_sWindowContentColors[isActive][1], OoT_sWindowContentColors[isActive][2],
                                 this->connectorAlpha[i]);
             }
             gDPLoadTextureBlock(POLY_OPA_DISP++, gFileSelConnectorTex, G_IM_FMT_IA, G_IM_SIZ_8b, 24, 16, 0,
@@ -2017,7 +2017,7 @@ void FileChoose_DrawWindowContents(GameState* thisx) {
             gDPPipeSync(POLY_OPA_DISP++);
             gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, this->windowColor[0], this->windowColor[1], this->windowColor[2],
                             this->actionButtonAlpha[i]);
-            gDPLoadTextureBlock(POLY_OPA_DISP++, sActionButtonTextures[gSaveContext.language][i], G_IM_FMT_IA,
+            gDPLoadTextureBlock(POLY_OPA_DISP++, OoT_sActionButtonTextures[gSaveContext.language][i], G_IM_FMT_IA,
                                 G_IM_SIZ_16b, 64, 16, 0, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP,
                                 G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
             gSP1Quadrangle(POLY_OPA_DISP++, quadVtxIndex, quadVtxIndex + 2, quadVtxIndex + 3, quadVtxIndex + 1, 0);
@@ -2031,7 +2031,7 @@ void FileChoose_DrawWindowContents(GameState* thisx) {
 
             gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, this->windowColor[0], this->windowColor[1], this->windowColor[2],
                             this->confirmButtonAlpha[i]);
-            gDPLoadTextureBlock(POLY_OPA_DISP++, sActionButtonTextures[gSaveContext.language][temp], G_IM_FMT_IA,
+            gDPLoadTextureBlock(POLY_OPA_DISP++, OoT_sActionButtonTextures[gSaveContext.language][temp], G_IM_FMT_IA,
                                 G_IM_SIZ_16b, 64, 16, 0, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP,
                                 G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
             gSP1Quadrangle(POLY_OPA_DISP++, quadVtxIndex, quadVtxIndex + 2, quadVtxIndex + 3, quadVtxIndex + 1, 0);
@@ -2070,7 +2070,7 @@ void FileChoose_DrawWindowContents(GameState* thisx) {
                               PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
             gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, this->emptyFileTextAlpha);
             gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 0);
-            gDPLoadTextureBlock(POLY_OPA_DISP++, sWarningLabels[gSaveContext.language][this->warningLabel], G_IM_FMT_IA,
+            gDPLoadTextureBlock(POLY_OPA_DISP++, OoT_sWarningLabels[gSaveContext.language][this->warningLabel], G_IM_FMT_IA,
                                 G_IM_SIZ_8b, 128, 16, 0, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP,
                                 G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
             gSP1Quadrangle(POLY_OPA_DISP++, 16, 18, 19, 17, 0);
@@ -2092,15 +2092,15 @@ void FileChoose_ConfigModeDraw(GameState* thisx) {
     OPEN_DISPS(this->state.gfxCtx);
     gDPPipeSync(POLY_OPA_DISP++);
 
-    eyeX = 1000.0f * Math_CosS(ZREG(11)) - 1000.0f * Math_SinS(ZREG(11));
+    eyeX = 1000.0f * OoT_Math_CosS(ZREG(11)) - 1000.0f * OoT_Math_SinS(ZREG(11));
     eyeY = ZREG(13);
-    eyeZ = 1000.0f * Math_SinS(ZREG(11)) + 1000.0f * Math_CosS(ZREG(11));
+    eyeZ = 1000.0f * OoT_Math_SinS(ZREG(11)) + 1000.0f * OoT_Math_CosS(ZREG(11));
 
     FileChoose_SetView(this, eyeX, eyeY, eyeZ);
     SkyboxDraw_Draw(&this->skyboxCtx, this->state.gfxCtx, 1, this->envCtx.skyboxBlend, eyeX, eyeY, eyeZ);
     gDPSetTextureLUT(POLY_OPA_DISP++, G_TT_NONE);
     ZREG(11) += ZREG(10);
-    Environment_UpdateSkybox(NULL, SKYBOX_NORMAL_SKY, &this->envCtx, &this->skyboxCtx);
+    OoT_Environment_UpdateSkybox(NULL, SKYBOX_NORMAL_SKY, &this->envCtx, &this->skyboxCtx);
     gDPPipeSync(POLY_OPA_DISP++);
     Gfx_SetupDL_42Opa(this->state.gfxCtx);
     FileChoose_SetView(this, 0.0f, 0.0f, 64.0f);
@@ -2119,8 +2119,8 @@ void FileChoose_ConfigModeDraw(GameState* thisx) {
                         this->windowAlpha);
         gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 0);
 
-        Matrix_Translate(0.0f, 0.0f, -93.6f, MTXMODE_NEW);
-        Matrix_Scale(0.78f, 0.78f, 0.78f, MTXMODE_APPLY);
+        OoT_Matrix_Translate(0.0f, 0.0f, -93.6f, MTXMODE_NEW);
+        OoT_Matrix_Scale(0.78f, 0.78f, 0.78f, MTXMODE_APPLY);
 
         if (this->windowRot != 0) {
             if ((this->configMode >= CM_MAIN_TO_OPTIONS && this->configMode <= CM_OPTIONS_TO_MAIN) ||
@@ -2155,8 +2155,8 @@ void FileChoose_ConfigModeDraw(GameState* thisx) {
                         this->windowAlpha);
         gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 0);
 
-        Matrix_Translate(0.0f, 0.0f, -93.6f, MTXMODE_NEW);
-        Matrix_Scale(0.78f, 0.78f, 0.78f, MTXMODE_APPLY);
+        OoT_Matrix_Translate(0.0f, 0.0f, -93.6f, MTXMODE_NEW);
+        OoT_Matrix_Scale(0.78f, 0.78f, 0.78f, MTXMODE_APPLY);
         // Invert name select when switching from randomizer settings menu to name entry, otherwise
         // it'll show on the backside while rotating to the menu.
         if (this->configMode == CM_ROTATE_TO_NAME_ENTRY && this->prevConfigMode == CM_RANDOMIZER_SETTINGS_MENU) {
@@ -2192,8 +2192,8 @@ void FileChoose_ConfigModeDraw(GameState* thisx) {
                         this->windowAlpha);
         gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 0);
 
-        Matrix_Translate(0.0f, 0.0f, -93.6f, MTXMODE_NEW);
-        Matrix_Scale(0.78f, 0.78f, 0.78f, MTXMODE_APPLY);
+        OoT_Matrix_Translate(0.0f, 0.0f, -93.6f, MTXMODE_NEW);
+        OoT_Matrix_Scale(0.78f, 0.78f, 0.78f, MTXMODE_APPLY);
         Matrix_RotateX((this->windowRot - 314.0f) / 100.0f, MTXMODE_APPLY);
 
         gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(this->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -2229,8 +2229,8 @@ void FileChoose_ConfigModeDraw(GameState* thisx) {
                         this->windowAlpha);
         gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 0);
 
-        Matrix_Translate(0.0f, 0.0f, -93.6f, MTXMODE_NEW);
-        Matrix_Scale(0.78f, 0.78f, 0.78f, MTXMODE_APPLY);
+        OoT_Matrix_Translate(0.0f, 0.0f, -93.6f, MTXMODE_NEW);
+        OoT_Matrix_Scale(0.78f, 0.78f, 0.78f, MTXMODE_APPLY);
         Matrix_RotateX((this->windowRot - 314.0f) / 100.0f, MTXMODE_APPLY);
 
         gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(this->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -2262,8 +2262,8 @@ void FileChoose_ConfigModeDraw(GameState* thisx) {
                         this->windowAlpha);
         gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 0);
 
-        Matrix_Translate(0.0f, 0.0f, -93.6f, MTXMODE_NEW);
-        Matrix_Scale(0.78f, 0.78f, 0.78f, MTXMODE_APPLY);
+        OoT_Matrix_Translate(0.0f, 0.0f, -93.6f, MTXMODE_NEW);
+        OoT_Matrix_Scale(0.78f, 0.78f, 0.78f, MTXMODE_APPLY);
         Matrix_RotateX((this->windowRot - 628.0f) / 100.0f, MTXMODE_APPLY);
 
         gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(this->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -2383,22 +2383,22 @@ void FileChoose_ConfirmFile(GameState* thisx) {
     if (CHECK_BTN_ALL(input->press.button, BTN_START) || (CHECK_BTN_ALL(input->press.button, BTN_A))) {
         if (this->confirmButtonIndex == FS_BTN_CONFIRM_YES) {
             func_800AA000(300.0f, 180, 20, 100);
-            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             this->selectMode = SM_FADE_OUT;
             func_800F6964(0xF);
         } else {
-            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CLOSE, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CLOSE, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             this->selectMode++;
         }
     } else if (CHECK_BTN_ALL(input->press.button, BTN_B)) {
-        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CLOSE, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CLOSE, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         this->selectMode++;
     } else if ((ABS(this->stickRelY) >= 30) || (dpad && CHECK_BTN_ANY(input->press.button, BTN_DDOWN | BTN_DUP))) {
-        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CURSOR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CURSOR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         this->confirmButtonIndex ^= 1;
     }
 
@@ -2507,26 +2507,26 @@ void FileChoose_LoadGame(GameState* thisx) {
     u16 swordEquipValue;
     s32 pad;
 
-    Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                           &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+    Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                           &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     gSaveContext.fileNum = this->buttonIndex;
     gSaveContext.gameMode = GAMEMODE_NORMAL;
 
     if ((this->buttonIndex == FS_BTN_SELECT_FILE_1 && CVarGetInteger(CVAR_DEVELOPER_TOOLS("DebugEnabled"), 0)) ||
         this->buttonIndex == 0xFF) {
         if (this->buttonIndex == 0xFF) {
-            Sram_InitDebugSave();
+            OoT_Sram_InitDebugSave();
         } else {
-            Sram_OpenSave();
+            OoT_Sram_OpenSave();
         }
         SET_NEXT_GAMESTATE(&this->state, Select_Init, SelectContext);
     } else {
         if (this->buttonIndex == 0xFE) {
             Sram_InitBossRushSave();
         } else {
-            Sram_OpenSave();
+            OoT_Sram_OpenSave();
         }
-        SET_NEXT_GAMESTATE(&this->state, Play_Init, PlayState);
+        SET_NEXT_GAMESTATE(&this->state, OoT_Play_Init, PlayState);
     }
 
     this->state.running = false;
@@ -2603,15 +2603,15 @@ void FileChoose_SelectModeDraw(GameState* thisx) {
 
     gDPPipeSync(POLY_OPA_DISP++);
 
-    eyeX = 1000.0f * Math_CosS(ZREG(11)) - 1000.0f * Math_SinS(ZREG(11));
+    eyeX = 1000.0f * OoT_Math_CosS(ZREG(11)) - 1000.0f * OoT_Math_SinS(ZREG(11));
     eyeY = ZREG(13);
-    eyeZ = 1000.0f * Math_SinS(ZREG(11)) + 1000.0f * Math_CosS(ZREG(11));
+    eyeZ = 1000.0f * OoT_Math_SinS(ZREG(11)) + 1000.0f * OoT_Math_CosS(ZREG(11));
 
     FileChoose_SetView(this, eyeX, eyeY, eyeZ);
     SkyboxDraw_Draw(&this->skyboxCtx, this->state.gfxCtx, 1, this->envCtx.skyboxBlend, eyeX, eyeY, eyeZ);
     gDPSetTextureLUT(POLY_OPA_DISP++, G_TT_NONE);
     ZREG(11) += ZREG(10);
-    Environment_UpdateSkybox(NULL, SKYBOX_NORMAL_SKY, &this->envCtx, &this->skyboxCtx);
+    OoT_Environment_UpdateSkybox(NULL, SKYBOX_NORMAL_SKY, &this->envCtx, &this->skyboxCtx);
     gDPPipeSync(POLY_OPA_DISP++);
     Gfx_SetupDL_42Opa(this->state.gfxCtx);
     FileChoose_SetView(this, 0.0f, 0.0f, 64.0f);
@@ -2623,8 +2623,8 @@ void FileChoose_SelectModeDraw(GameState* thisx) {
                     this->windowAlpha);
     gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 0);
 
-    Matrix_Translate(0.0f, 0.0f, -93.6f, MTXMODE_NEW);
-    Matrix_Scale(0.78f, 0.78f, 0.78f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(0.0f, 0.0f, -93.6f, MTXMODE_NEW);
+    OoT_Matrix_Scale(0.78f, 0.78f, 0.78f, MTXMODE_APPLY);
     Matrix_RotateX(this->windowRot / 100.0f, MTXMODE_APPLY);
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(this->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
@@ -2676,8 +2676,8 @@ void FileChoose_DrawRandoSaveVersionWarning(GameState* thisx) {
     // Draw rando seed warning when build version doesn't match for Major or Minor number
     for (int fileIndex = 0; fileIndex < 3; fileIndex++) {
         if (Save_GetSaveMetaInfo(fileIndex)->randoSave == 1 && this->menuMode == FS_MENU_MODE_SELECT &&
-            (gBuildVersionMajor != Save_GetSaveMetaInfo(fileIndex)->buildVersionMajor ||
-             gBuildVersionMinor != Save_GetSaveMetaInfo(fileIndex)->buildVersionMinor)) {
+            (OoT_gBuildVersionMajor != Save_GetSaveMetaInfo(fileIndex)->buildVersionMajor ||
+             OoT_gBuildVersionMinor != Save_GetSaveMetaInfo(fileIndex)->buildVersionMinor)) {
 
             // Use file info alpha to match fading
             u8 textAlpha = this->fileInfoAlpha[fileIndex];
@@ -2740,9 +2740,9 @@ void FileChoose_Main(GameState* thisx) {
         helpTextColor.r = MIN(backgroundColor.r + 100, 255);
         helpTextColor.g = MIN(backgroundColor.g + 100, 255);
         helpTextColor.b = MIN(backgroundColor.b + 100, 255);
-        sWindowContentColors[0][0] = backgroundColor.r;
-        sWindowContentColors[0][1] = backgroundColor.g;
-        sWindowContentColors[0][2] = backgroundColor.b;
+        OoT_sWindowContentColors[0][0] = backgroundColor.r;
+        OoT_sWindowContentColors[0][1] = backgroundColor.g;
+        OoT_sWindowContentColors[0][2] = backgroundColor.b;
     } else {
         this->windowColor[0] = 100;
         this->windowColor[1] = 150;
@@ -2750,9 +2750,9 @@ void FileChoose_Main(GameState* thisx) {
         this->highlightColor[0] = 155;
         this->highlightColor[1] = 255;
         this->highlightColor[2] = 255;
-        sWindowContentColors[0][0] = 100;
-        sWindowContentColors[0][1] = 150;
-        sWindowContentColors[0][2] = 255;
+        OoT_sWindowContentColors[0][0] = 100;
+        OoT_sWindowContentColors[0][1] = 150;
+        OoT_sWindowContentColors[0][2] = 255;
     }
 
     OPEN_DISPS(this->state.gfxCtx);
@@ -2896,9 +2896,9 @@ void FileChoose_Main(GameState* thisx) {
     FileChoose_DrawRandoSaveVersionWarning(&this->state);
 
     gDPPipeSync(POLY_OPA_DISP++);
-    gSPDisplayList(POLY_OPA_DISP++, sScreenFillSetupDL);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sScreenFillSetupDL);
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 0, 0, 0, sScreenFillAlpha);
-    gDPFillRectangle(POLY_OPA_DISP++, 0, 0, gScreenWidth - 1, gScreenHeight - 1);
+    gDPFillRectangle(POLY_OPA_DISP++, 0, 0, OoT_gScreenWidth - 1, OoT_gScreenHeight - 1);
 
     CLOSE_DISPS(this->state.gfxCtx);
 }
@@ -3073,7 +3073,7 @@ void FileChoose_InitContext(GameState* thisx) {
     gSaveContext.skyboxTime = 0;
     gSaveContext.dayTime = 0;
 
-    Skybox_Init(&this->state, &this->skyboxCtx, SKYBOX_NORMAL_SKY);
+    OoT_Skybox_Init(&this->state, &this->skyboxCtx, SKYBOX_NORMAL_SKY);
 
     gTimeIncrement = 10;
 
@@ -3093,7 +3093,7 @@ void FileChoose_InitContext(GameState* thisx) {
     envCtx->unk_84 = 0.0f;
     envCtx->unk_88 = 0.0f;
 
-    Environment_UpdateSkybox(NULL, SKYBOX_NORMAL_SKY, &this->envCtx, &this->skyboxCtx);
+    OoT_Environment_UpdateSkybox(NULL, SKYBOX_NORMAL_SKY, &this->envCtx, &this->skyboxCtx);
 
     for (int buttonIndex = 0; buttonIndex < ARRAY_COUNT(gSaveContext.buttonStatus); buttonIndex++) {
         gSaveContext.buttonStatus[buttonIndex] = BTN_ENABLED;
@@ -3129,15 +3129,15 @@ void FileChoose_Init(GameState* thisx) {
     DmaMgr_SendRequest1(this->parameterSegment, (u32)_parameter_staticSegmentRomStart, size, __FILE__, __LINE__);
 
     // Load some registers used by the dialog system
-    Regs_InitData(NULL); // Passing in NULL as we dont have a playstate, and it isn't used in the func
+    OoT_Regs_InitData(NULL); // Passing in NULL as we dont have a playstate, and it isn't used in the func
 
-    Matrix_Init(&this->state);
-    View_Init(&this->view, this->state.gfxCtx);
+    OoT_Matrix_Init(&this->state);
+    OoT_View_Init(&this->view, this->state.gfxCtx);
     this->state.main = FileChoose_Main;
     this->state.destroy = FileChoose_Destroy;
     FileChoose_InitContext(&this->state);
     if (ResourceMgr_GetGameRegion(0) == GAME_REGION_PAL && gSaveContext.language != LANGUAGE_JPN) {
-        Font_LoadOrderedFont(&this->font);
+        OoT_Font_LoadOrderedFont(&this->font);
     } else { // GAME_REGION_NTSC
         Font_LoadOrderedFontNTSC(&this->font);
     }

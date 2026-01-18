@@ -8,10 +8,10 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void EnMm2_Init(Actor* thisx, PlayState* play);
-void EnMm2_Destroy(Actor* thisx, PlayState* play);
-void EnMm2_Update(Actor* thisx, PlayState* play);
-void EnMm2_Draw(Actor* thisx, PlayState* play);
+void MM_EnMm2_Init(Actor* thisx, PlayState* play);
+void MM_EnMm2_Destroy(Actor* thisx, PlayState* play);
+void MM_EnMm2_Update(Actor* thisx, PlayState* play);
+void MM_EnMm2_Draw(Actor* thisx, PlayState* play);
 
 void EnMm2_Reading(EnMm2* this, PlayState* play);
 void EnMm2_WaitForRead(EnMm2* this, PlayState* play);
@@ -22,32 +22,32 @@ ActorProfile En_Mm2_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(EnMm2),
-    /**/ EnMm2_Init,
-    /**/ EnMm2_Destroy,
-    /**/ EnMm2_Update,
-    /**/ EnMm2_Draw,
+    /**/ MM_EnMm2_Init,
+    /**/ MM_EnMm2_Destroy,
+    /**/ MM_EnMm2_Update,
+    /**/ MM_EnMm2_Draw,
 };
 
 #include "overlays/ovl_En_Mm2/ovl_En_Mm2.h"
 
-void EnMm2_Init(Actor* thisx, PlayState* play) {
+void MM_EnMm2_Init(Actor* thisx, PlayState* play) {
     EnMm2* this = (EnMm2*)thisx;
 
-    Actor_SetScale(&this->actor, 0.015f);
+    MM_Actor_SetScale(&this->actor, 0.015f);
     this->actionFunc = EnMm2_WaitForRead;
 }
 
-void EnMm2_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnMm2_Destroy(Actor* thisx, PlayState* play) {
 }
 
 /**
  * Action function whilst Link is reading the letter.
  */
 void EnMm2_Reading(EnMm2* this, PlayState* play) {
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_EVENT:
-            if (Message_ShouldAdvance(play)) {
-                Message_CloseTextbox(play);
+            if (MM_Message_ShouldAdvance(play)) {
+                MM_Message_CloseTextbox(play);
                 this->actionFunc = EnMm2_WaitForRead;
             }
             break;
@@ -67,20 +67,20 @@ void EnMm2_Reading(EnMm2* this, PlayState* play) {
  */
 void EnMm2_WaitForRead(EnMm2* this, PlayState* play) {
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
-        Message_StartTextbox(play, 0x277B, &this->actor);
+        MM_Message_StartTextbox(play, 0x277B, &this->actor);
         this->actionFunc = EnMm2_Reading;
-    } else if ((this->actor.xzDistToPlayer < 60.0f) && Player_IsFacingActor(&this->actor, 0x3000, play)) {
+    } else if ((this->actor.xzDistToPlayer < 60.0f) && MM_Player_IsFacingActor(&this->actor, 0x3000, play)) {
         Actor_OfferTalk(&this->actor, play, 110.0f);
     }
 }
 
-void EnMm2_Update(Actor* thisx, PlayState* play) {
+void MM_EnMm2_Update(Actor* thisx, PlayState* play) {
     EnMm2* this = (EnMm2*)thisx;
 
     this->actionFunc(this, play);
 }
 
-void EnMm2_Draw(Actor* thisx, PlayState* play) {
+void MM_EnMm2_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);

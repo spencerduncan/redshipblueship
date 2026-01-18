@@ -14,7 +14,7 @@ static Gfx sRCPSetupFade[] = {
     gsSPEndDisplayList(),
 };
 
-void TransitionFade_Start(void* thisx) {
+void OoT_TransitionFade_Start(void* thisx) {
     TransitionFade* this = (TransitionFade*)thisx;
 
     switch (this->fadeType) {
@@ -31,17 +31,17 @@ void TransitionFade_Start(void* thisx) {
     this->isDone = 0;
 }
 
-void* TransitionFade_Init(void* thisx) {
+void* OoT_TransitionFade_Init(void* thisx) {
     TransitionFade* this = (TransitionFade*)thisx;
 
     memset(this, 0, sizeof(*this));
     return this;
 }
 
-void TransitionFade_Destroy(void* thisx) {
+void OoT_TransitionFade_Destroy(void* thisx) {
 }
 
-void TransitionFade_Update(void* thisx, s32 updateRate) {
+void OoT_TransitionFade_Update(void* thisx, s32 updateRate) {
     s32 alpha;
     s16 newAlpha;
     TransitionFade* this = (TransitionFade*)thisx;
@@ -67,12 +67,12 @@ void TransitionFade_Update(void* thisx, s32 updateRate) {
             newAlpha = this->fadeColor.a;
             if (iREG(50) != 0) {
                 if (iREG(50) < 0) {
-                    if (Math_StepToS(&newAlpha, 255, 255)) {
+                    if (OoT_Math_StepToS(&newAlpha, 255, 255)) {
                         iREG(50) = 150;
                     }
                 } else {
-                    Math_StepToS(&iREG(50), 20, 60);
-                    if (Math_StepToS(&newAlpha, 0, iREG(50))) {
+                    OoT_Math_StepToS(&iREG(50), 20, 60);
+                    if (OoT_Math_StepToS(&newAlpha, 0, iREG(50))) {
                         iREG(50) = 0;
                         this->isDone = 1;
                     }
@@ -83,7 +83,7 @@ void TransitionFade_Update(void* thisx, s32 updateRate) {
     }
 }
 
-void TransitionFade_Draw(void* thisx, Gfx** gfxP) {
+void OoT_TransitionFade_Draw(void* thisx, Gfx** gfxP) {
     TransitionFade* this = (TransitionFade*)thisx;
     Gfx* gfx;
     Color_RGBA8_u32* color = &this->fadeColor;
@@ -92,25 +92,25 @@ void TransitionFade_Draw(void* thisx, Gfx** gfxP) {
         gfx = *gfxP;
         gSPDisplayList(gfx++, sRCPSetupFade);
         gDPSetPrimColor(gfx++, 0, 0, color->r, color->g, color->b, color->a);
-        gDPFillRectangle(gfx++, 0, 0, gScreenWidth - 1, gScreenHeight - 1);
+        gDPFillRectangle(gfx++, 0, 0, OoT_gScreenWidth - 1, OoT_gScreenHeight - 1);
         gDPPipeSync(gfx++);
         *gfxP = gfx;
     }
 }
 
-s32 TransitionFade_IsDone(void* thisx) {
+s32 OoT_TransitionFade_IsDone(void* thisx) {
     TransitionFade* this = (TransitionFade*)thisx;
 
     return this->isDone;
 }
 
-void TransitionFade_SetColor(void* thisx, u32 color) {
+void OoT_TransitionFade_SetColor(void* thisx, u32 color) {
     TransitionFade* this = (TransitionFade*)thisx;
 
     this->fadeColor.rgba = color;
 }
 
-void TransitionFade_SetType(void* thisx, s32 type) {
+void OoT_TransitionFade_SetType(void* thisx, s32 type) {
     TransitionFade* this = (TransitionFade*)thisx;
 
     if (type == 1) {

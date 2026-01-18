@@ -20,10 +20,10 @@ typedef struct {
     /* 0x08 */ s8 colType;
 } BombableWallInfo;
 
-void BgBreakwall_Init(Actor* thisx, PlayState* play);
-void BgBreakwall_Destroy(Actor* thisx, PlayState* play);
-void BgBreakwall_Update(Actor* thisx, PlayState* play);
-void BgBreakwall_Draw(Actor* thisx, PlayState* play);
+void OoT_BgBreakwall_Init(Actor* thisx, PlayState* play);
+void OoT_BgBreakwall_Destroy(Actor* thisx, PlayState* play);
+void OoT_BgBreakwall_Update(Actor* thisx, PlayState* play);
+void OoT_BgBreakwall_Draw(Actor* thisx, PlayState* play);
 
 void BgBreakwall_WaitForObject(BgBreakwall* this, PlayState* play);
 void BgBreakwall_Wait(BgBreakwall* this, PlayState* play);
@@ -35,14 +35,14 @@ const ActorInit Bg_Breakwall_InitVars = {
     FLAGS,
     OBJECT_GAMEPLAY_KEEP,
     sizeof(BgBreakwall),
-    (ActorFunc)BgBreakwall_Init,
-    (ActorFunc)BgBreakwall_Destroy,
-    (ActorFunc)BgBreakwall_Update,
+    (ActorFunc)OoT_BgBreakwall_Init,
+    (ActorFunc)OoT_BgBreakwall_Destroy,
+    (ActorFunc)OoT_BgBreakwall_Update,
     NULL,
     NULL,
 };
 
-static ColliderQuadInit sQuadInit = {
+static ColliderQuadInit OoT_sQuadInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -90,7 +90,7 @@ static BombableWallInfo sBombableWallInfo[] = {
     { &object_kingdodongo_Col_025B64, NULL, -1 },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 400, ICHAIN_CONTINUE),
@@ -99,11 +99,11 @@ static InitChainEntry sInitChain[] = {
 
 bool blueFireArrowsEnabledOnMudwallLoad = false;
 
-void BgBreakwall_SetupAction(BgBreakwall* this, BgBreakwallActionFunc actionFunc) {
+void OoT_BgBreakwall_SetupAction(BgBreakwall* this, BgBreakwallActionFunc actionFunc) {
     this->actionFunc = actionFunc;
 }
 
-void BgBreakwall_Init(Actor* thisx, PlayState* play) {
+void OoT_BgBreakwall_Init(Actor* thisx, PlayState* play) {
     BgBreakwall* this = (BgBreakwall*)thisx;
     s32 pad;
     s32 wallType = ((this->dyna.actor.params >> 13) & 3) & 0xFF;
@@ -112,8 +112,8 @@ void BgBreakwall_Init(Actor* thisx, PlayState* play) {
     blueFireArrowsEnabledOnMudwallLoad = CVarGetInteger(CVAR_ENHANCEMENT("BlueFireArrows"), 0) ||
                                          (IS_RANDO && Randomizer_GetSettingValue(RSK_BLUE_FIRE_ARROWS));
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DPM_UNK);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
     this->bombableWallDList = sBombableWallInfo[wallType].dList;
     this->colType = sBombableWallInfo[wallType].colType;
 
@@ -122,20 +122,20 @@ void BgBreakwall_Init(Actor* thisx, PlayState* play) {
     }
 
     if (this->bombableWallDList != NULL) {
-        if (Flags_GetSwitch(play, this->dyna.actor.params & 0x3F)) {
-            Actor_Kill(&this->dyna.actor);
+        if (OoT_Flags_GetSwitch(play, this->dyna.actor.params & 0x3F)) {
+            OoT_Actor_Kill(&this->dyna.actor);
             return;
         }
 
-        ActorShape_Init(&this->dyna.actor.shape, 0.0f, NULL, 0.0f);
+        OoT_ActorShape_Init(&this->dyna.actor.shape, 0.0f, NULL, 0.0f);
 
         // If "Blue Fire Arrows" are enabled, set up this collider for them
         if (blueFireArrowsEnabledOnMudwallLoad) {
-            Collider_InitQuad(play, &this->collider);
-            Collider_SetQuad(play, &this->collider, &this->dyna.actor, &sIceArrowQuadInit);
+            OoT_Collider_InitQuad(play, &this->collider);
+            OoT_Collider_SetQuad(play, &this->collider, &this->dyna.actor, &sIceArrowQuadInit);
         } else {
-            Collider_InitQuad(play, &this->collider);
-            Collider_SetQuad(play, &this->collider, &this->dyna.actor, &sQuadInit);
+            OoT_Collider_InitQuad(play, &this->collider);
+            OoT_Collider_SetQuad(play, &this->collider, &this->dyna.actor, &OoT_sQuadInit);
         }
     } else {
         this->dyna.actor.world.pos.y -= 40.0f;
@@ -145,16 +145,16 @@ void BgBreakwall_Init(Actor* thisx, PlayState* play) {
                                                    : Object_GetIndex(&play->objectCtx, OBJECT_BWALL);
 
     if (this->bankIndex < 0) {
-        Actor_Kill(&this->dyna.actor);
+        OoT_Actor_Kill(&this->dyna.actor);
     } else {
-        BgBreakwall_SetupAction(this, BgBreakwall_WaitForObject);
+        OoT_BgBreakwall_SetupAction(this, BgBreakwall_WaitForObject);
     }
 }
 
-void BgBreakwall_Destroy(Actor* thisx, PlayState* play) {
+void OoT_BgBreakwall_Destroy(Actor* thisx, PlayState* play) {
     BgBreakwall* this = (BgBreakwall*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 /**
@@ -200,17 +200,17 @@ Actor* BgBreakwall_SpawnFragments(PlayState* play, BgBreakwall* this, Vec3f* pos
 
     for (i = 0; i < count; angle2 += 0x4000, i++) {
         angle1 = ABS(this->dyna.actor.world.rot.y) + angle2;
-        Matrix_Translate(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y, this->dyna.actor.world.pos.z,
+        OoT_Matrix_Translate(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y, this->dyna.actor.world.pos.z,
                          MTXMODE_NEW);
-        Matrix_RotateZYX(this->dyna.actor.world.rot.x, this->dyna.actor.world.rot.y, this->dyna.actor.world.rot.z,
+        OoT_Matrix_RotateZYX(this->dyna.actor.world.rot.x, this->dyna.actor.world.rot.y, this->dyna.actor.world.rot.z,
                          MTXMODE_APPLY);
-        Matrix_Translate(pos->x, pos->y, pos->z, MTXMODE_APPLY);
+        OoT_Matrix_Translate(pos->x, pos->y, pos->z, MTXMODE_APPLY);
 
         for (j = 3; j >= 0; j--) {
             for (k = 3; k >= 0; k--) {
-                Matrix_MultVec3f(&actorPosList[j][k], &actorPos);
-                actor = Actor_Spawn(&play->actorCtx, play, ACTOR_EN_A_OBJ, Rand_CenteredFloat(20.0f) + actorPos.x,
-                                    Rand_CenteredFloat(20.0f) + actorPos.y, Rand_CenteredFloat(20.0f) + actorPos.z,
+                OoT_Matrix_MultVec3f(&actorPosList[j][k], &actorPos);
+                actor = OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_A_OBJ, OoT_Rand_CenteredFloat(20.0f) + actorPos.x,
+                                    OoT_Rand_CenteredFloat(20.0f) + actorPos.y, OoT_Rand_CenteredFloat(20.0f) + actorPos.z,
                                     actorRotList[k].x, actorRotList[k].y + angle1, actorRotList[k].z, 0x000B, true);
 
                 if ((j & 1) == 0) {
@@ -218,15 +218,15 @@ Actor* BgBreakwall_SpawnFragments(PlayState* play, BgBreakwall* this, Vec3f* pos
                 }
 
                 if (actor != NULL) {
-                    actor->speedXZ = Rand_ZeroOne() + (accel * 0.6f);
-                    actor->velocity.y = Rand_ZeroOne() + (accel * 0.6f);
-                    actor->world.rot.y += (s16)((Rand_ZeroOne() - 0.5f) * 3000.0f);
-                    actor->world.rot.x = (s16)(Rand_ZeroOne() * 3500.0f) + 2000;
-                    actor->world.rot.z = (s16)(Rand_ZeroOne() * 3500.0f) + 2000;
+                    actor->speedXZ = OoT_Rand_ZeroOne() + (accel * 0.6f);
+                    actor->velocity.y = OoT_Rand_ZeroOne() + (accel * 0.6f);
+                    actor->world.rot.y += (s16)((OoT_Rand_ZeroOne() - 0.5f) * 3000.0f);
+                    actor->world.rot.x = (s16)(OoT_Rand_ZeroOne() * 3500.0f) + 2000;
+                    actor->world.rot.z = (s16)(OoT_Rand_ZeroOne() * 3500.0f) + 2000;
                     actor->parent = &this->dyna.actor;
-                    actor->scale.x = actorScaleList[k].x + Rand_CenteredFloat(0.001f);
-                    actor->scale.y = actorScaleList[k].y + Rand_CenteredFloat(0.001f);
-                    actor->scale.z = actorScaleList[k].z + Rand_CenteredFloat(0.001f);
+                    actor->scale.x = actorScaleList[k].x + OoT_Rand_CenteredFloat(0.001f);
+                    actor->scale.y = actorScaleList[k].y + OoT_Rand_CenteredFloat(0.001f);
+                    actor->scale.z = actorScaleList[k].z + OoT_Rand_CenteredFloat(0.001f);
                 }
             }
         }
@@ -239,21 +239,21 @@ Actor* BgBreakwall_SpawnFragments(PlayState* play, BgBreakwall* this, Vec3f* pos
  * Sets up the collision model as well is the object dependency and action function to use.
  */
 void BgBreakwall_WaitForObject(BgBreakwall* this, PlayState* play) {
-    if (Object_IsLoaded(&play->objectCtx, this->bankIndex)) {
+    if (OoT_Object_IsLoaded(&play->objectCtx, this->bankIndex)) {
         CollisionHeader* colHeader = NULL;
         s32 wallType = ((this->dyna.actor.params >> 13) & 3) & 0xFF;
 
         this->dyna.actor.objBankIndex = this->bankIndex;
-        Actor_SetObjectDependency(play, &this->dyna.actor);
+        OoT_Actor_SetObjectDependency(play, &this->dyna.actor);
         this->dyna.actor.flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
-        this->dyna.actor.draw = BgBreakwall_Draw;
-        CollisionHeader_GetVirtual(sBombableWallInfo[wallType].colHeader, &colHeader);
-        this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+        this->dyna.actor.draw = OoT_BgBreakwall_Draw;
+        OoT_CollisionHeader_GetVirtual(sBombableWallInfo[wallType].colHeader, &colHeader);
+        this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
 
         if (wallType == BWALL_KD_LAVA_COVER) {
-            BgBreakwall_SetupAction(this, BgBreakwall_LavaCoverMove);
+            OoT_BgBreakwall_SetupAction(this, BgBreakwall_LavaCoverMove);
         } else {
-            BgBreakwall_SetupAction(this, BgBreakwall_Wait);
+            OoT_BgBreakwall_SetupAction(this, BgBreakwall_Wait);
         }
     }
 }
@@ -280,7 +280,7 @@ void BgBreakwall_Wait(BgBreakwall* this, PlayState* play) {
         Vec3f effectPos;
         s32 wallType = ((this->dyna.actor.params >> 13) & 3) & 0xFF;
 
-        DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+        OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
         effectPos.y = effectPos.z = effectPos.x = 0.0f;
 
         if (this->dyna.actor.world.rot.x == 0) {
@@ -291,7 +291,7 @@ void BgBreakwall_Wait(BgBreakwall* this, PlayState* play) {
         }
 
         BgBreakwall_SpawnFragments(play, this, &effectPos, 0.0f, 6.4f, 5.0f, 1, 2.0f);
-        Flags_SetSwitch(play, this->dyna.actor.params & 0x3F);
+        OoT_Flags_SetSwitch(play, this->dyna.actor.params & 0x3F);
 
         if (wallType == BWALL_KD_FLOOR) {
             Audio_PlayActorSound2(&this->dyna.actor, NA_SE_EV_EXPLOSION);
@@ -299,24 +299,24 @@ void BgBreakwall_Wait(BgBreakwall* this, PlayState* play) {
             Audio_PlayActorSound2(&this->dyna.actor, NA_SE_EV_WALL_BROKEN);
         }
 
-        if ((wallType == BWALL_DC_ENTRANCE) && (!Flags_GetEventChkInf(EVENTCHKINF_ENTERED_DODONGOS_CAVERN))) {
-            Flags_SetEventChkInf(EVENTCHKINF_ENTERED_DODONGOS_CAVERN);
+        if ((wallType == BWALL_DC_ENTRANCE) && (!OoT_Flags_GetEventChkInf(EVENTCHKINF_ENTERED_DODONGOS_CAVERN))) {
+            OoT_Flags_SetEventChkInf(EVENTCHKINF_ENTERED_DODONGOS_CAVERN);
             if (GameInteractor_Should(VB_PLAY_ENTRANCE_CS, true, EVENTCHKINF_ENTERED_DODONGOS_CAVERN,
                                       gSaveContext.entranceIndex)) {
                 Cutscene_SetSegment(play, gDcOpeningCs);
                 gSaveContext.cutsceneTrigger = 1;
-                Player_SetCsActionWithHaltedActors(play, NULL, 0x31);
+                OoT_Player_SetCsActionWithHaltedActors(play, NULL, 0x31);
             }
-            Audio_PlaySoundGeneral(NA_SE_SY_CORRECT_CHIME, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_CORRECT_CHIME, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         }
 
         if (this->dyna.actor.params < 0) {
-            Audio_PlaySoundGeneral(NA_SE_SY_TRE_BOX_APPEAR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_TRE_BOX_APPEAR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         }
 
-        Actor_Kill(&this->dyna.actor);
+        OoT_Actor_Kill(&this->dyna.actor);
     }
 }
 
@@ -325,10 +325,10 @@ void BgBreakwall_Wait(BgBreakwall* this, PlayState* play) {
  * longer hurt by the lava.
  */
 void BgBreakwall_LavaCoverMove(BgBreakwall* this, PlayState* play) {
-    Math_StepToF(&this->dyna.actor.world.pos.y, KREG(80) + this->dyna.actor.home.pos.y, 1.0f);
+    OoT_Math_StepToF(&this->dyna.actor.world.pos.y, KREG(80) + this->dyna.actor.home.pos.y, 1.0f);
 }
 
-void BgBreakwall_Update(Actor* thisx, PlayState* play) {
+void OoT_BgBreakwall_Update(Actor* thisx, PlayState* play) {
     BgBreakwall* this = (BgBreakwall*)thisx;
 
     this->actionFunc(this, play);
@@ -343,7 +343,7 @@ static Vec3f sColQuadList[][4] = {
     { { 10.0f, 0.0f, 10.0f }, { -10.0f, 0.0f, 10.0f }, { 10.0f, 0.0f, -10.0f }, { -10.0f, 0.0f, -10.0f } },
 };
 
-void BgBreakwall_Draw(Actor* thisx, PlayState* play) {
+void OoT_BgBreakwall_Draw(Actor* thisx, PlayState* play) {
     s32 pad;
     BgBreakwall* this = (BgBreakwall*)thisx;
 
@@ -361,11 +361,11 @@ void BgBreakwall_Draw(Actor* thisx, PlayState* play) {
             s32 i;
 
             for (i = 0; i < 4; i++) {
-                Matrix_MultVec3f(src++, dst++);
+                OoT_Matrix_MultVec3f(src++, dst++);
             }
 
-            Collider_SetQuadVertices(&this->collider, &colQuad[0], &colQuad[1], &colQuad[2], &colQuad[3]);
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+            OoT_Collider_SetQuadVertices(&this->collider, &colQuad[0], &colQuad[1], &colQuad[2], &colQuad[3]);
+            OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
         }
 
         CLOSE_DISPS(play->state.gfxCtx);

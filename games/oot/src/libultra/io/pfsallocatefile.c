@@ -2,7 +2,7 @@
 #include "global.h"
 #include "ultra64/pfs.h"
 
-s32 osPfsAllocateFile(OSPfs* pfs, u16 companyCode, u32 gameCode, u8* gameName, u8* extName, s32 fileSize, s32* fileNo) {
+s32 OoT_osPfsAllocateFile(OSPfs* pfs, u16 companyCode, u32 gameCode, u8* gameName, u8* extName, s32 fileSize, s32* fileNo) {
     s32 startPage;
     s32 decleared;
     s32 prevPage;
@@ -24,7 +24,7 @@ s32 osPfsAllocateFile(OSPfs* pfs, u16 companyCode, u32 gameCode, u8* gameName, u
 
     fileSizeInPages = (fileSize + PFS_PAGE_SIZE - 1) / PFS_PAGE_SIZE;
 
-    if (((ret = osPfsFindFile(pfs, companyCode, gameCode, gameName, extName, fileNo)) != 0) &&
+    if (((ret = OoT_osPfsFindFile(pfs, companyCode, gameCode, gameName, extName, fileNo)) != 0) &&
         (ret != PFS_ERR_INVALID)) {
         return ret;
     }
@@ -32,7 +32,7 @@ s32 osPfsAllocateFile(OSPfs* pfs, u16 companyCode, u32 gameCode, u8* gameName, u
         return PFS_ERR_EXIST;
     }
 
-    ret = osPfsFreeBlocks(pfs, &bytes);
+    ret = OoT_osPfsFreeBlocks(pfs, &bytes);
     if (fileSize > bytes) {
         return PFS_DATA_FULL;
     }
@@ -41,7 +41,7 @@ s32 osPfsAllocateFile(OSPfs* pfs, u16 companyCode, u32 gameCode, u8* gameName, u
         return (PFS_ERR_INVALID);
     }
 
-    if (((ret = osPfsFindFile(pfs, 0, 0, 0, 0, fileNo)) != 0) && (ret != PFS_ERR_INVALID)) {
+    if (((ret = OoT_osPfsFindFile(pfs, 0, 0, 0, 0, fileNo)) != 0) && (ret != PFS_ERR_INVALID)) {
         return ret;
     }
     if (*fileNo == -1) {

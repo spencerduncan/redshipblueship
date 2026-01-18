@@ -29,7 +29,7 @@ const ActorInit En_Cs_InitVars = {
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -49,9 +49,9 @@ static ColliderCylinderInit sCylinderInit = {
     { 18, 63, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit2 = { 0, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 OoT_sColChkInfoInit2 = { 0, 0, 0, 0, MASS_IMMOVABLE };
 
-static DamageTable sDamageTable[] = {
+static DamageTable OoT_sDamageTable[] = {
     /* Deku nut      */ DMG_ENTRY(0, 0x0),
     /* Deku stick    */ DMG_ENTRY(0, 0x0),
     /* Slingshot     */ DMG_ENTRY(0, 0x0),
@@ -93,7 +93,7 @@ typedef enum {
     /* 3 */ ENCS_ANIM_3
 } EnCsAnimation;
 
-static AnimationFrameCountInfo sAnimationInfo[] = {
+static AnimationFrameCountInfo OoT_sAnimationInfo[] = {
     { &gGraveyardKidWalkAnim, 1.0f, ANIMMODE_ONCE, -10.0f },
     { &gGraveyardKidSwingStickUpAnim, 1.0f, ANIMMODE_ONCE, -10.0f },
     { &gGraveyardKidGrabStickTwoHandsAnim, 1.0f, ANIMMODE_ONCE, -10.0f },
@@ -106,16 +106,16 @@ void EnCs_ChangeAnim(EnCs* this, s32 index, s32* currentIndex) {
     if ((*currentIndex < 0) || (index == *currentIndex)) {
         morphFrames = 0.0f;
     } else {
-        morphFrames = sAnimationInfo[index].morphFrames;
+        morphFrames = OoT_sAnimationInfo[index].morphFrames;
     }
 
-    if (sAnimationInfo[index].frameCount >= 0.0f) {
-        Animation_Change(&this->skelAnime, sAnimationInfo[index].animation, sAnimationInfo[index].frameCount, 0.0f,
-                         Animation_GetLastFrame(sAnimationInfo[index].animation), sAnimationInfo[index].mode,
+    if (OoT_sAnimationInfo[index].frameCount >= 0.0f) {
+        OoT_Animation_Change(&this->skelAnime, OoT_sAnimationInfo[index].animation, OoT_sAnimationInfo[index].frameCount, 0.0f,
+                         OoT_Animation_GetLastFrame(OoT_sAnimationInfo[index].animation), OoT_sAnimationInfo[index].mode,
                          morphFrames);
     } else {
-        Animation_Change(&this->skelAnime, sAnimationInfo[index].animation, sAnimationInfo[index].frameCount,
-                         Animation_GetLastFrame(sAnimationInfo[index].animation), 0.0f, sAnimationInfo[index].mode,
+        OoT_Animation_Change(&this->skelAnime, OoT_sAnimationInfo[index].animation, OoT_sAnimationInfo[index].frameCount,
+                         OoT_Animation_GetLastFrame(OoT_sAnimationInfo[index].animation), 0.0f, OoT_sAnimationInfo[index].mode,
                          morphFrames);
     }
 
@@ -127,23 +127,23 @@ void EnCs_Init(Actor* thisx, PlayState* play) {
     s32 pad;
 
     if (!IS_DAY) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 19.0f);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 19.0f);
 
-    SkelAnime_InitFlex(play, &this->skelAnime, &gGraveyardKidSkel, NULL, this->jointTable, this->morphTable, 16);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gGraveyardKidSkel, NULL, this->jointTable, this->morphTable, 16);
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
 
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, sDamageTable, &sColChkInfoInit2);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
+    OoT_CollisionCheck_SetInfo2(&this->actor.colChkInfo, OoT_sDamageTable, &OoT_sColChkInfoInit2);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
 
-    Animation_Change(&this->skelAnime, sAnimationInfo[ENCS_ANIM_0].animation, 1.0f, 0.0f,
-                     Animation_GetLastFrame(sAnimationInfo[ENCS_ANIM_0].animation), sAnimationInfo[ENCS_ANIM_0].mode,
-                     sAnimationInfo[ENCS_ANIM_0].morphFrames);
+    OoT_Animation_Change(&this->skelAnime, OoT_sAnimationInfo[ENCS_ANIM_0].animation, 1.0f, 0.0f,
+                     OoT_Animation_GetLastFrame(OoT_sAnimationInfo[ENCS_ANIM_0].animation), OoT_sAnimationInfo[ENCS_ANIM_0].mode,
+                     OoT_sAnimationInfo[ENCS_ANIM_0].morphFrames);
 
     this->actor.targetMode = 6;
     this->path = this->actor.params & 0xFF;
@@ -161,7 +161,7 @@ void EnCs_Init(Actor* thisx, PlayState* play) {
 void EnCs_Destroy(Actor* thisx, PlayState* play) {
     EnCs* this = (EnCs*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
@@ -171,9 +171,9 @@ s32 EnCs_GetTalkState(EnCs* this, PlayState* play) {
     s32 pad2;
     s32 talkState = 1;
 
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (OoT_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_CHOICE:
-            if (Message_ShouldAdvance(play)) {
+            if (OoT_Message_ShouldAdvance(play)) {
                 if (play->msgCtx.choiceIndex == 0) {
                     this->actor.textId = 0x2026;
                     EnCs_ChangeAnim(this, ENCS_ANIM_3, &this->currentAnimIndex);
@@ -186,12 +186,12 @@ s32 EnCs_GetTalkState(EnCs* this, PlayState* play) {
             }
             break;
         case TEXT_STATE_DONE:
-            if (Message_ShouldAdvance(play)) {
+            if (OoT_Message_ShouldAdvance(play)) {
                 if (this->actor.textId == 0x2026) {
                     Player_UnsetMask(play);
-                    Item_Give(play, ITEM_SOLD_OUT);
+                    OoT_Item_Give(play, ITEM_SOLD_OUT);
                     Flags_SetItemGetInf(ITEMGETINF_3A);
-                    Rupees_ChangeBy(30);
+                    OoT_Rupees_ChangeBy(30);
                     this->actor.textId = 0x2027;
                     talkState = 2;
                 } else {
@@ -212,7 +212,7 @@ s32 EnCs_GetTalkState(EnCs* this, PlayState* play) {
 
 s32 EnCs_GetTextID(EnCs* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
-    s32 textId = Text_GetFaceReaction(play, 15);
+    s32 textId = OoT_Text_GetFaceReaction(play, 15);
 
     if (Flags_GetItemGetInf(ITEMGETINF_3A)) {
         if (textId == 0) {
@@ -235,7 +235,7 @@ void EnCs_HandleTalking(EnCs* this, PlayState* play) {
     s16 sp28;
 
     if (this->talkState == 2) {
-        Message_ContinueTextbox(play, this->actor.textId);
+        OoT_Message_ContinueTextbox(play, this->actor.textId);
         this->talkState = 1;
     } else if (this->talkState == 1) {
         this->talkState = EnCs_GetTalkState(this, play);
@@ -254,7 +254,7 @@ void EnCs_HandleTalking(EnCs* this, PlayState* play) {
 
         this->talkState = 1;
     } else {
-        Actor_GetScreenPos(play, &this->actor, &sp2A, &sp28);
+        OoT_Actor_GetScreenPos(play, &this->actor, &sp2A, &sp28);
 
         if ((sp2A >= 0) && (sp2A <= 320) && (sp28 >= 0) && (sp28 <= 240) &&
             (func_8002F2CC(&this->actor, play, 100.0f))) {
@@ -294,9 +294,9 @@ s32 EnCs_HandleWalking(EnCs* this, PlayState* play) {
     EnCs_GetPathPoint(play->setupPathList, &pathPos, this->path, this->waypoint);
     xDiff = pathPos.x - this->actor.world.pos.x;
     zDiff = pathPos.z - this->actor.world.pos.z;
-    walkAngle1 = Math_FAtan2F(xDiff, zDiff) * (32768.0f / M_PI);
+    walkAngle1 = OoT_Math_FAtan2F(xDiff, zDiff) * (32768.0f / M_PI);
     this->walkAngle = walkAngle1;
-    this->walkDist = sqrtf((xDiff * xDiff) + (zDiff * zDiff));
+    this->walkDist = OoT_sqrtf((xDiff * xDiff) + (zDiff * zDiff));
 
     while (this->walkDist <= 10.44f) {
         this->waypoint++;
@@ -309,16 +309,16 @@ s32 EnCs_HandleWalking(EnCs* this, PlayState* play) {
         EnCs_GetPathPoint(play->setupPathList, &pathPos, this->path, this->waypoint);
         xDiff = pathPos.x - this->actor.world.pos.x;
         zDiff = pathPos.z - this->actor.world.pos.z;
-        walkAngle2 = Math_FAtan2F(xDiff, zDiff) * (32768.0f / M_PI);
+        walkAngle2 = OoT_Math_FAtan2F(xDiff, zDiff) * (32768.0f / M_PI);
         this->walkAngle = walkAngle2;
-        this->walkDist = sqrtf((xDiff * xDiff) + (zDiff * zDiff));
+        this->walkDist = OoT_sqrtf((xDiff * xDiff) + (zDiff * zDiff));
     }
 
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->walkAngle, 1, 2500, 0);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->walkAngle, 1, 2500, 0);
     this->actor.world.rot.y = this->actor.shape.rot.y;
     this->actor.speedXZ = this->walkSpeed;
     Actor_MoveXZGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
 
     return 0;
 }
@@ -333,19 +333,19 @@ void EnCs_Walk(EnCs* this, PlayState* play) {
         return;
     }
 
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (OoT_SkelAnime_Update(&this->skelAnime)) {
         animIndex = this->currentAnimIndex;
 
         if (this->talkState == 0) {
             if (Flags_GetItemGetInf(ITEMGETINF_3A)) {
-                rnd = Rand_ZeroOne() * 10.0f;
+                rnd = OoT_Rand_ZeroOne() * 10.0f;
             } else {
-                rnd = Rand_ZeroOne() * 5.0f;
+                rnd = OoT_Rand_ZeroOne() * 5.0f;
             }
 
             if (rnd == 0) {
                 if (Flags_GetItemGetInf(ITEMGETINF_3A)) {
-                    animIndex = 2.0f * Rand_ZeroOne();
+                    animIndex = 2.0f * OoT_Rand_ZeroOne();
                     animIndex = (animIndex == 0) ? ENCS_ANIM_2 : ENCS_ANIM_1;
                 } else {
                     animIndex = ENCS_ANIM_2;
@@ -382,7 +382,7 @@ void EnCs_Wait(EnCs* this, PlayState* play) {
         return;
     }
 
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (OoT_SkelAnime_Update(&this->skelAnime)) {
         animIndex = this->currentAnimIndex;
 
         if (this->talkState == 0) {
@@ -402,7 +402,7 @@ void EnCs_Wait(EnCs* this, PlayState* play) {
 void EnCs_Talk(EnCs* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    if (SkelAnime_Update(&this->skelAnime) != 0) {
+    if (OoT_SkelAnime_Update(&this->skelAnime) != 0) {
         EnCs_ChangeAnim(this, this->currentAnimIndex, &this->currentAnimIndex);
     }
 
@@ -410,7 +410,7 @@ void EnCs_Talk(EnCs* this, PlayState* play) {
     this->interactInfo.trackPos.x = player->actor.focus.pos.x;
     this->interactInfo.trackPos.y = player->actor.focus.pos.y;
     this->interactInfo.trackPos.z = player->actor.focus.pos.z;
-    Npc_TrackPoint(&this->actor, &this->interactInfo, 0, NPC_TRACKING_FULL_BODY);
+    OoT_Npc_TrackPoint(&this->actor, &this->interactInfo, 0, NPC_TRACKING_FULL_BODY);
 
     if (this->talkState == 0) {
         EnCs_ChangeAnim(this, ENCS_ANIM_0, &this->currentAnimIndex);
@@ -436,8 +436,8 @@ void EnCs_Update(Actor* thisx, PlayState* play) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EV_CHIBI_WALK);
     }
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 
     this->actionFunc(this, play);
 
@@ -479,7 +479,7 @@ void EnCs_Draw(Actor* thisx, PlayState* play) {
         if (childLinkObjectIndex >= 0) {
             Mtx* mtx;
 
-            Matrix_Put(&this->spookyMaskMtx);
+            OoT_Matrix_Put(&this->spookyMaskMtx);
             mtx = MATRIX_NEWMTX(play->state.gfxCtx);
             gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.status[childLinkObjectIndex].segment);
             gSPSegment(POLY_OPA_DISP++, 0x0D, mtx - 7);
@@ -515,11 +515,11 @@ void EnCs_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
     EnCs* this = (EnCs*)thisx;
 
     if (limbIndex == 15) {
-        Matrix_MultVec3f(&D_809E2970, &this->actor.focus.pos);
-        Matrix_Translate(0.0f, -200.0f, 0.0f, MTXMODE_APPLY);
+        OoT_Matrix_MultVec3f(&D_809E2970, &this->actor.focus.pos);
+        OoT_Matrix_Translate(0.0f, -200.0f, 0.0f, MTXMODE_APPLY);
         Matrix_RotateY(0.0f, MTXMODE_APPLY);
         Matrix_RotateX(0.0f, MTXMODE_APPLY);
         Matrix_RotateZ(5.0 * M_PI / 9.0, MTXMODE_APPLY);
-        Matrix_Get(&this->spookyMaskMtx);
+        OoT_Matrix_Get(&this->spookyMaskMtx);
     }
 }

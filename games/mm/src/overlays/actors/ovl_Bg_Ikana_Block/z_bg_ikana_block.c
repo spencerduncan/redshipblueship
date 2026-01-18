@@ -37,7 +37,7 @@ ActorProfile Bg_Ikana_Block_Profile = {
     /**/ NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 250, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 250, ICHAIN_CONTINUE),
@@ -127,7 +127,7 @@ s32 func_80B7EB94(BgIkanaBlock* this, PlayState* play) {
     sp64.y += this->dyna.actor.world.pos.y + this->unk_170 + 2.0f;
     sp64.z += this->dyna.actor.world.pos.z;
 
-    return !BgCheck_EntityLineTest3(&play->colCtx, &sp70, &sp64, &sp58, &sp54, true, false, false, true, &bgId,
+    return !MM_BgCheck_EntityLineTest3(&play->colCtx, &sp70, &sp64, &sp58, &sp54, true, false, false, true, &bgId,
                                     &this->dyna.actor, 0.0f);
 }
 
@@ -174,7 +174,7 @@ s32 func_80B7EEB4(BgIkanaBlock* this, PlayState* play) {
     func_80B7EDC4(this, play);
 
     if (this->dyna.actor.floorHeight > (BGCHECK_Y_MIN + 1.0f)) {
-        if (DynaPoly_GetActor(&play->colCtx, this->dyna.actor.floorBgId)) {
+        if (MM_DynaPoly_GetActor(&play->colCtx, this->dyna.actor.floorBgId)) {
             this->dyna.actor.world.pos.y = this->dyna.actor.floorHeight - this->unk_170;
             return true;
         }
@@ -185,8 +185,8 @@ s32 func_80B7EEB4(BgIkanaBlock* this, PlayState* play) {
 void BgIkanaBlock_Init(Actor* thisx, PlayState* play) {
     BgIkanaBlock* this = (BgIkanaBlock*)thisx;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
     DynaPolyActor_LoadMesh(play, &this->dyna, &gameplay_dangeon_keep_Colheader_007498);
     DynaPoly_DisableCollision(play, &play->colCtx.dyna, this->dyna.bgId);
     this->unk_15C = Lib_SegmentedToVirtual(gameplay_dangeon_keep_Matanimheader_01B370);
@@ -198,7 +198,7 @@ void BgIkanaBlock_Init(Actor* thisx, PlayState* play) {
 void BgIkanaBlock_Destroy(Actor* thisx, PlayState* play) {
     BgIkanaBlock* this = (BgIkanaBlock*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_80B7F00C(BgIkanaBlock* this) {
@@ -290,9 +290,9 @@ void func_80B7F1A8(BgIkanaBlock* this) {
 void func_80B7F290(BgIkanaBlock* this, PlayState* play) {
     s32 pad;
 
-    Math_StepToF(&this->unk_16C, 2.0f, 0.4f);
+    MM_Math_StepToF(&this->unk_16C, 2.0f, 0.4f);
 
-    if (GameInteractor_Should(VB_BLOCK_BE_FINISHED_PULLING, Math_StepToF(this->unk_164, this->unk_168, this->unk_16C),
+    if (GameInteractor_Should(VB_BLOCK_BE_FINISHED_PULLING, MM_Math_StepToF(this->unk_164, this->unk_168, this->unk_16C),
                               this->unk_164, this->unk_168, this->unk_16C, this->unk_16C)) {
         Player* player = GET_PLAYER(play);
 
@@ -356,7 +356,7 @@ void BgIkanaBlock_Update(Actor* thisx, PlayState* play) {
 
     this->actionFunc(this, play);
 
-    Actor_SetFocus(&this->dyna.actor, 30.0f);
+    MM_Actor_SetFocus(&this->dyna.actor, 30.0f);
 
     if (this->unk_17E != 0) {
         if (this->unk_17F > 0) {

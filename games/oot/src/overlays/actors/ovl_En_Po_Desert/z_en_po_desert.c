@@ -53,7 +53,7 @@ static ColliderCylinderInit sColliderInit = {
     { 25, 50, 20, { 0, 0, 0 } },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_S8(naviEnemyId, 0x5C, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 2000, ICHAIN_CONTINUE),
     ICHAIN_F32(targetArrowOffset, 3200, ICHAIN_STOP),
@@ -63,18 +63,18 @@ void EnPoDesert_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     EnPoDesert* this = (EnPoDesert*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    SkelAnime_Init(play, &this->skelAnime, &gPoeFieldSkel, &gPoeFieldFloatAnim, this->jointTable, this->morphTable, 10);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sColliderInit);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
+    OoT_SkelAnime_Init(play, &this->skelAnime, &gPoeFieldSkel, &gPoeFieldFloatAnim, this->jointTable, this->morphTable, 10);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &sColliderInit);
     this->lightColor.r = 255;
     this->lightColor.g = 255;
     this->lightColor.b = 210;
     this->lightColor.a = 255;
-    this->lightNode = LightContext_InsertLight(play, &play->lightCtx, &this->lightInfo);
-    Lights_PointNoGlowSetInfo(&this->lightInfo, this->actor.home.pos.x, this->actor.home.pos.y, this->actor.home.pos.z,
+    this->lightNode = OoT_LightContext_InsertLight(play, &play->lightCtx, &this->lightInfo);
+    OoT_Lights_PointNoGlowSetInfo(&this->lightInfo, this->actor.home.pos.x, this->actor.home.pos.y, this->actor.home.pos.z,
                               255, 255, 255, 200);
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 37.0f);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 37.0f);
     this->currentPathPoint = 1;
     this->actor.params = (this->actor.params >> 8) & 0xFF;
     this->targetY = this->actor.world.pos.y;
@@ -84,8 +84,8 @@ void EnPoDesert_Init(Actor* thisx, PlayState* play) {
 void EnPoDesert_Destroy(Actor* thisx, PlayState* play) {
     EnPoDesert* this = (EnPoDesert*)thisx;
 
-    LightContext_RemoveLight(play, &play->lightCtx, this->lightNode);
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_LightContext_RemoveLight(play, &play->lightCtx, this->lightNode);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
@@ -94,12 +94,12 @@ void EnPoDesert_SetNextPathPoint(EnPoDesert* this, PlayState* play) {
     Path* path = &play->setupPathList[this->actor.params];
     Vec3s* pathPoint;
 
-    Animation_MorphToLoop(&this->skelAnime, &gPoeFieldDisappearAnim, -6.0f);
+    OoT_Animation_MorphToLoop(&this->skelAnime, &gPoeFieldDisappearAnim, -6.0f);
     pathPoint = &((Vec3s*)SEGMENTED_TO_VIRTUAL(path->points))[this->currentPathPoint];
     this->actor.home.pos.x = pathPoint->x;
     this->actor.home.pos.y = pathPoint->y;
     this->actor.home.pos.z = pathPoint->z;
-    this->initDistToNextPoint = Actor_WorldDistXZToPoint(&this->actor, &this->actor.home.pos);
+    this->initDistToNextPoint = OoT_Actor_WorldDistXZToPoint(&this->actor, &this->actor.home.pos);
     this->initDistToNextPoint = CLAMP_MIN(this->initDistToNextPoint, 1.0f);
     this->currentPathPoint++;
     this->yDiff = this->actor.home.pos.y - this->actor.world.pos.y;
@@ -111,12 +111,12 @@ void EnPoDesert_SetNextPathPoint(EnPoDesert* this, PlayState* play) {
 }
 
 void EnPoDesert_SetupMoveToNextPoint(EnPoDesert* this) {
-    Animation_MorphToLoop(&this->skelAnime, &gPoeFieldFloatAnim, -5.0f);
+    OoT_Animation_MorphToLoop(&this->skelAnime, &gPoeFieldFloatAnim, -5.0f);
     this->actionFunc = EnPoDesert_MoveToNextPoint;
 }
 
 void EnPoDesert_SetupDisappear(EnPoDesert* this) {
-    Animation_MorphToPlayOnce(&this->skelAnime, &gPoeFieldDisappearAnim, -6.0f);
+    OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gPoeFieldDisappearAnim, -6.0f);
     this->actionTimer = 16;
     this->actor.speedXZ = 0.0f;
     Audio_PlayActorSound2(&this->actor, NA_SE_EN_PO_DISAPPEAR);
@@ -130,18 +130,18 @@ void EnPoDesert_UpdateSpeedModifier(EnPoDesert* this) {
     if (this->speedModifier != 0) {
         this->speedModifier--;
     }
-    this->actor.world.pos.y = Math_SinS(this->speedModifier * 0x800) * 13.0f + this->targetY;
+    this->actor.world.pos.y = OoT_Math_SinS(this->speedModifier * 0x800) * 13.0f + this->targetY;
 }
 
 void EnPoDesert_WaitForPlayer(EnPoDesert* this, PlayState* play) {
     func_8002F974(&this->actor, NA_SE_EN_PO_FLY - SFX_FLAG);
     if (this->actor.xzDistToPlayer < 200.0f && (this->currentPathPoint != 2 || play->actorCtx.lensActive)) {
         if (this->currentPathPoint == 2) {
-            if (Play_InCsMode(play)) {
+            if (OoT_Play_InCsMode(play)) {
                 this->actor.shape.rot.y += 0x800;
                 return;
             }
-            Message_StartTextbox(play, 0x600B, NULL);
+            OoT_Message_StartTextbox(play, 0x600B, NULL);
         }
         EnPoDesert_SetupMoveToNextPoint(this);
     } else {
@@ -156,14 +156,14 @@ void EnPoDesert_MoveToNextPoint(EnPoDesert* this, PlayState* play) {
         this->actionTimer--;
     }
     temp_f20 = sinf(this->actionTimer * (M_PI / 20.0f)) * 5.0f;
-    this->actor.world.pos.x += temp_f20 * Math_CosS(this->actor.shape.rot.y);
-    this->actor.world.pos.z += temp_f20 * Math_SinS(this->actor.shape.rot.y);
+    this->actor.world.pos.x += temp_f20 * OoT_Math_CosS(this->actor.shape.rot.y);
+    this->actor.world.pos.z += temp_f20 * OoT_Math_SinS(this->actor.shape.rot.y);
     if (this->actionTimer == 0) {
         this->actionTimer = 40;
     }
-    temp_f20 = Actor_WorldDistXZToPoint(&this->actor, &this->actor.home.pos);
-    this->actor.world.rot.y = Actor_WorldYawTowardPoint(&this->actor, &this->actor.home.pos);
-    Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y + 0x8000, 5, 0x400);
+    temp_f20 = OoT_Actor_WorldDistXZToPoint(&this->actor, &this->actor.home.pos);
+    this->actor.world.rot.y = OoT_Actor_WorldYawTowardPoint(&this->actor, &this->actor.home.pos);
+    OoT_Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y + 0x8000, 5, 0x400);
     this->actor.speedXZ = sinf(this->speedModifier * (M_PI / 32.0f)) * 2.5f + 5.5f;
     func_8002F974(&this->actor, NA_SE_EN_PO_FLY - SFX_FLAG);
     this->targetY = this->actor.home.pos.y - ((temp_f20 * this->yDiff) / this->initDistToNextPoint);
@@ -184,7 +184,7 @@ void EnPoDesert_Disappear(EnPoDesert* this, PlayState* play) {
     this->lightColor.a = this->actionTimer * 15.9375f;
     this->actor.shape.shadowAlpha = this->lightColor.a;
     if (this->actionTimer == 0) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
@@ -192,17 +192,17 @@ void EnPoDesert_Update(Actor* thisx, PlayState* play) {
     EnPoDesert* this = (EnPoDesert*)thisx;
     s32 pad;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     this->actionFunc(this, play);
     Actor_MoveXZGravity(&this->actor);
     EnPoDesert_UpdateSpeedModifier(this);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 27.0f, 60.0f, 4);
-    Actor_SetFocus(&this->actor, 42.0f);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 27.0f, 60.0f, 4);
+    OoT_Actor_SetFocus(&this->actor, 42.0f);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     if (play->actorCtx.lensActive) {
         this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_REACT_TO_LENS;
-        this->actor.shape.shadowDraw = ActorShadow_DrawCircle;
+        this->actor.shape.shadowDraw = OoT_ActorShadow_DrawCircle;
     } else {
         this->actor.shape.shadowDraw = NULL;
         this->actor.flags &= ~(ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_REACT_TO_LENS);
@@ -216,7 +216,7 @@ s32 EnPoDesert_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec
 
     if (this->actionFunc == EnPoDesert_Disappear && limbIndex == 7) {
         mtxScale = this->actionTimer / 16.0f;
-        Matrix_Scale(mtxScale, mtxScale, mtxScale, MTXMODE_APPLY);
+        OoT_Matrix_Scale(mtxScale, mtxScale, mtxScale, MTXMODE_APPLY);
     }
     if (!CHECK_FLAG_ALL(this->actor.flags, ACTOR_FLAG_REACT_TO_LENS)) {
         *dList = NULL;
@@ -233,8 +233,8 @@ void EnPoDesert_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s*
     Vec3f lightPos;
 
     if (limbIndex == 7) {
-        Matrix_MultVec3f(&baseLightPos, &lightPos);
-        rand = Rand_ZeroOne();
+        OoT_Matrix_MultVec3f(&baseLightPos, &lightPos);
+        rand = OoT_Rand_ZeroOne();
         color.r = (s16)(rand * 30.0f) + 225;
         color.g = (s16)(rand * 100.0f) + 155;
         color.b = (s16)(rand * 160.0f) + 95;
@@ -247,7 +247,7 @@ void EnPoDesert_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s*
             gDPPipeSync((*gfxP)++);
             gDPSetEnvColor((*gfxP)++, this->lightColor.r, this->lightColor.g, this->lightColor.b, this->lightColor.a);
         }
-        Lights_PointNoGlowSetInfo(&this->lightInfo, lightPos.x, lightPos.y, lightPos.z, color.r, color.g, color.b, 200);
+        OoT_Lights_PointNoGlowSetInfo(&this->lightInfo, lightPos.x, lightPos.y, lightPos.z, color.r, color.g, color.b, 200);
     }
 }
 
@@ -256,9 +256,9 @@ void EnPoDesert_Draw(Actor* thisx, PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
-    gSPSegment(POLY_XLU_DISP++, 0x0A, Gfx_EnvColor(play->state.gfxCtx, 255, 85, 0, 255));
+    gSPSegment(POLY_XLU_DISP++, 0x0A, OoT_Gfx_EnvColor(play->state.gfxCtx, 255, 85, 0, 255));
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_EnvColor(play->state.gfxCtx, this->lightColor.r, this->lightColor.g, this->lightColor.b,
+               OoT_Gfx_EnvColor(play->state.gfxCtx, this->lightColor.r, this->lightColor.g, this->lightColor.b,
                             this->lightColor.a));
     if (this->actionFunc == EnPoDesert_Disappear) {
         gSPSegment(POLY_XLU_DISP++, 0x0C, D_80116280);

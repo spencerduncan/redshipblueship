@@ -9,10 +9,10 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_UPDATE_DURING_OCARINA)
 
-void OceffWipe2_Init(Actor* thisx, PlayState* play);
-void OceffWipe2_Destroy(Actor* thisx, PlayState* play);
-void OceffWipe2_Update(Actor* thisx, PlayState* play);
-void OceffWipe2_Draw(Actor* thisx, PlayState* play);
+void MM_OceffWipe2_Init(Actor* thisx, PlayState* play);
+void MM_OceffWipe2_Destroy(Actor* thisx, PlayState* play);
+void MM_OceffWipe2_Update(Actor* thisx, PlayState* play);
+void MM_OceffWipe2_Draw(Actor* thisx, PlayState* play);
 
 ActorProfile Oceff_Wipe2_Profile = {
     ACTOR_OCEFF_WIPE2,
@@ -20,43 +20,43 @@ ActorProfile Oceff_Wipe2_Profile = {
     FLAGS,
     GAMEPLAY_KEEP,
     sizeof(OceffWipe2),
-    (ActorFunc)OceffWipe2_Init,
-    (ActorFunc)OceffWipe2_Destroy,
-    (ActorFunc)OceffWipe2_Update,
-    (ActorFunc)OceffWipe2_Draw,
+    (ActorFunc)MM_OceffWipe2_Init,
+    (ActorFunc)MM_OceffWipe2_Destroy,
+    (ActorFunc)MM_OceffWipe2_Update,
+    (ActorFunc)MM_OceffWipe2_Draw,
 };
 
 #include "assets/overlays/ovl_Oceff_Wipe2/ovl_Oceff_Wipe2.h"
 
 static s32 sBssPad;
 
-void OceffWipe2_Init(Actor* thisx, PlayState* play) {
+void MM_OceffWipe2_Init(Actor* thisx, PlayState* play) {
     OceffWipe2* this = (OceffWipe2*)thisx;
 
-    Actor_SetScale(&this->actor, 0.1f);
+    MM_Actor_SetScale(&this->actor, 0.1f);
     this->timer = 0;
     this->actor.world.pos = GET_ACTIVE_CAM(play)->eye;
 }
 
-void OceffWipe2_Destroy(Actor* thisx, PlayState* play) {
+void MM_OceffWipe2_Destroy(Actor* thisx, PlayState* play) {
     OceffWipe2* this = (OceffWipe2*)thisx;
 
-    Magic_Reset(play);
+    MM_Magic_Reset(play);
     play->msgCtx.ocarinaSongEffectActive = false;
 }
 
-void OceffWipe2_Update(Actor* thisx, PlayState* play) {
+void MM_OceffWipe2_Update(Actor* thisx, PlayState* play) {
     OceffWipe2* this = (OceffWipe2*)thisx;
 
     this->actor.world.pos = GET_ACTIVE_CAM(play)->eye;
     if (this->timer < 100) {
         this->timer++;
     } else {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
-void OceffWipe2_Draw(Actor* thisx, PlayState* play) {
+void MM_OceffWipe2_Draw(Actor* thisx, PlayState* play) {
     u32 scroll = play->state.frames & 0xFF;
     OceffWipe2* this = (OceffWipe2*)thisx;
     f32 z;
@@ -80,7 +80,7 @@ void OceffWipe2_Draw(Actor* thisx, PlayState* play) {
     // #endregion
 
     if (this->timer < 32) {
-        z = Math_SinS(this->timer * 0x200) * effectDistance;
+        z = MM_Math_SinS(this->timer * 0x200) * effectDistance;
     } else {
         z = effectDistance;
     }
@@ -99,17 +99,17 @@ void OceffWipe2_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-    Matrix_Translate(eye.x + quakeOffset.x, eye.y + quakeOffset.y, eye.z + quakeOffset.z, MTXMODE_NEW);
-    Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
-    Matrix_ReplaceRotation(&play->billboardMtxF);
+    MM_Matrix_Translate(eye.x + quakeOffset.x, eye.y + quakeOffset.y, eye.z + quakeOffset.z, MTXMODE_NEW);
+    MM_Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
+    MM_Matrix_ReplaceRotation(&play->billboardMtxF);
     Matrix_RotateXS(0x708, MTXMODE_APPLY);
-    Matrix_Translate(0.0f, 0.0f, -z, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, 0.0f, -z, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 170, 255);
     gDPSetEnvColor(POLY_XLU_DISP++, 255, 100, 0, 128);
     gSPDisplayList(POLY_XLU_DISP++, sEponaSongFrustumMaterialDL);
-    gSPDisplayList(POLY_XLU_DISP++, Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, scroll * 6, scroll * -6, 64,
+    gSPDisplayList(POLY_XLU_DISP++, MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, scroll * 6, scroll * -6, 64,
                                                      64, 1, scroll * -6, 0, 64, 64));
     gSPDisplayList(POLY_XLU_DISP++, sEponaSongFrustumModelDL);
 

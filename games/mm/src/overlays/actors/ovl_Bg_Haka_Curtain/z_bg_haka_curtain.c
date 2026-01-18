@@ -36,7 +36,7 @@ ActorProfile Bg_Haka_Curtain_Profile = {
     /**/ BgHakaCurtain_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 700, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 600, ICHAIN_CONTINUE),
@@ -46,10 +46,10 @@ static InitChainEntry sInitChain[] = {
 void BgHakaCurtain_Init(Actor* thisx, PlayState* play) {
     BgHakaCurtain* this = (BgHakaCurtain*)thisx;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
     DynaPolyActor_LoadMesh(play, &this->dyna, &object_haka_obj_Colheader_001588);
-    if (Flags_GetClear(play, this->dyna.actor.room)) {
+    if (MM_Flags_GetClear(play, this->dyna.actor.room)) {
         func_80B6DE80(this);
         return;
     }
@@ -59,7 +59,7 @@ void BgHakaCurtain_Init(Actor* thisx, PlayState* play) {
 void BgHakaCurtain_Destroy(Actor* thisx, PlayState* play) {
     BgHakaCurtain* this = (BgHakaCurtain*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_80B6DC98(BgHakaCurtain* this) {
@@ -67,7 +67,7 @@ void func_80B6DC98(BgHakaCurtain* this) {
 }
 
 void func_80B6DCAC(BgHakaCurtain* this, PlayState* play) {
-    if (Flags_GetClear(play, this->dyna.actor.room)) {
+    if (MM_Flags_GetClear(play, this->dyna.actor.room)) {
         func_80B6DCEC(this);
     }
 }
@@ -99,9 +99,9 @@ void func_80B6DD80(BgHakaCurtain* this) {
 
 void func_80B6DD9C(BgHakaCurtain* this, PlayState* play) {
     if (this->dyna.actor.world.pos.y < this->dyna.actor.home.pos.y + 150.0f - 30.0f) {
-        Math_StepToF(&this->dyna.actor.velocity.y, 1.6f, 0.12f);
+        MM_Math_StepToF(&this->dyna.actor.velocity.y, 1.6f, 0.12f);
     } else {
-        Math_StepToF(&this->dyna.actor.velocity.y, 0.8f, 0.05f);
+        MM_Math_StepToF(&this->dyna.actor.velocity.y, 0.8f, 0.05f);
     }
     this->dyna.actor.world.pos.y += this->dyna.actor.velocity.y;
     if (this->dyna.actor.home.pos.y + 150.0f < this->dyna.actor.world.pos.y) {
@@ -133,5 +133,5 @@ void BgHakaCurtain_Update(Actor* thisx, PlayState* play) {
 }
 
 void BgHakaCurtain_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, object_haka_obj_DL_001410);
+    MM_Gfx_DrawDListOpa(play, object_haka_obj_DL_001410);
 }

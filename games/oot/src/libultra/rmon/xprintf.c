@@ -26,8 +26,8 @@
         }                            \
     }
 
-char spaces[] = "                                ";
-char zeroes[] = "00000000000000000000000000000000";
+char OoT_spaces[] = "                                ";
+char OoT_zeroes[] = "00000000000000000000000000000000";
 
 void _Putfld(_Pft*, va_list*, u8, u8*);
 
@@ -89,14 +89,14 @@ s32 _Printf(PrintCallback pfn, void* arg, const char* fmt, va_list ap) {
         }
         _Putfld(&x, &ap, *s, ac);
         x.width -= x.n0 + x.nz0 + x.n1 + x.nz1 + x.n2 + x.nz2;
-        _PAD(x.width, spaces, !(x.flags & FLAGS_MINUS));
+        _PAD(x.width, OoT_spaces, !(x.flags & FLAGS_MINUS));
         _PROUT((char*)ac, x.n0);
-        _PAD(x.nz0, zeroes, 1);
+        _PAD(x.nz0, OoT_zeroes, 1);
         _PROUT(x.s, x.n1);
-        _PAD(x.nz1, zeroes, 1);
+        _PAD(x.nz1, OoT_zeroes, 1);
         _PROUT((char*)(&x.s[x.n1]), x.n2)
-        _PAD(x.nz2, zeroes, 1);
-        _PAD(x.width, spaces, x.flags & FLAGS_MINUS);
+        _PAD(x.nz2, OoT_zeroes, 1);
+        _PAD(x.width, OoT_spaces, x.flags & FLAGS_MINUS);
         fmt = (char*)s + 1;
     }
 }

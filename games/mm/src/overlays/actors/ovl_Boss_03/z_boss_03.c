@@ -144,7 +144,7 @@ void Boss03_SpawnEffectWetSpot(PlayState* play, Vec3f* pos) {
             eff->velocity = gZeroVec3f;
             eff->accel = gZeroVec3f;
             eff->alpha = 150;
-            eff->alphaDelta = Rand_ZeroFloat(4.0f) + 5.0f;
+            eff->alphaDelta = MM_Rand_ZeroFloat(4.0f) + 5.0f;
             return;
         }
 
@@ -165,10 +165,10 @@ void Boss03_SpawnEffectDroplet(PlayState* play, Vec3f* pos) {
             eff->accel.y = -2.0f;
             eff->unk_34.x = 0.1f;
             eff->unk_34.y = 0.0f;
-            eff->unk_34.z = Rand_ZeroFloat(2 * M_PIf);
-            eff->unk_02 = Rand_ZeroFloat(100.0f);
-            eff->velocity.x = Rand_CenteredFloat(25.0f);
-            eff->velocity.z = Rand_CenteredFloat(25.0f);
+            eff->unk_34.z = MM_Rand_ZeroFloat(2 * M_PIf);
+            eff->unk_02 = MM_Rand_ZeroFloat(100.0f);
+            eff->velocity.x = MM_Rand_CenteredFloat(25.0f);
+            eff->velocity.z = MM_Rand_CenteredFloat(25.0f);
             return;
         }
 
@@ -188,11 +188,11 @@ void Boss03_SpawnEffectSplash(PlayState* play, Vec3f* pos, Vec3f* velocity) {
             eff->pos = *pos;
             eff->velocity = *velocity;
             eff->accel = accel;
-            temp_f2 = Rand_ZeroFloat(0.02f) + 0.02f;
+            temp_f2 = MM_Rand_ZeroFloat(0.02f) + 0.02f;
             eff->unk_34.y = temp_f2;
             eff->unk_34.x = temp_f2;
-            eff->unk_34.z = Rand_ZeroFloat(2 * M_PIf);
-            eff->unk_02 = Rand_ZeroFloat(100.0f);
+            eff->unk_34.z = MM_Rand_ZeroFloat(2 * M_PIf);
+            eff->unk_02 = MM_Rand_ZeroFloat(100.0f);
             return;
         }
 
@@ -211,7 +211,7 @@ void Boss03_SpawnEffectBubble(PlayState* play, Vec3f* pos) {
             eff->velocity = gZeroVec3f;
             eff->accel = gZeroVec3f;
             eff->accel.y = 0.2f;
-            eff->unk_34.x = Rand_ZeroFloat(0.3f) + 0.2f;
+            eff->unk_34.x = MM_Rand_ZeroFloat(0.3f) + 0.2f;
             eff->unk_02 = 0;
             return;
         }
@@ -390,7 +390,7 @@ static ColliderJntSphElementInit sBodyJntSphElementsInit[] = {
     },
 };
 
-static ColliderJntSphInit sBodyJntSphInit = {
+static ColliderJntSphInit MM_sBodyJntSphInit = {
     {
         COL_MATERIAL_METAL,
         AT_ON | AT_TYPE_ENEMY,
@@ -431,20 +431,20 @@ void Boss03_SpawnDust(Boss03* this, PlayState* play) {
         Vec3f accel;
 
         for (i = 0; i < 5; i++) {
-            velocity.x = Rand_CenteredFloat(10.0f);
-            velocity.y = Rand_ZeroFloat(2.0f) + 2.0f;
-            velocity.z = Rand_CenteredFloat(10.0f);
+            velocity.x = MM_Rand_CenteredFloat(10.0f);
+            velocity.y = MM_Rand_ZeroFloat(2.0f) + 2.0f;
+            velocity.z = MM_Rand_CenteredFloat(10.0f);
 
             accel.y = -0.075f;
             accel.z = 0.0f;
             accel.x = 0.0f;
 
-            pos.y = Rand_ZeroFloat(20.0f) + 5.0f;
-            pos.z = Rand_CenteredFloat(150.0f) + this->insideJawPos.z;
-            pos.x = Rand_CenteredFloat(150.0f) + this->insideJawPos.x;
+            pos.y = MM_Rand_ZeroFloat(20.0f) + 5.0f;
+            pos.z = MM_Rand_CenteredFloat(150.0f) + this->insideJawPos.z;
+            pos.x = MM_Rand_CenteredFloat(150.0f) + this->insideJawPos.x;
 
             func_800B0EB0(play, &pos, &velocity, &accel, &sGyorgDustPrimColor, &sGyorgDustEnvColor,
-                          Rand_ZeroFloat(200.0f) + 400.0f, 10, Rand_ZeroFloat(10.0f) + 25.0f);
+                          MM_Rand_ZeroFloat(200.0f) + 400.0f, 10, MM_Rand_ZeroFloat(10.0f) + 25.0f);
         }
     }
 }
@@ -456,11 +456,11 @@ void Boss03_Init(Actor* thisx, PlayState* play2) {
     Vec3f sp70;
 
     if (CHECK_WEEKEVENTREG(WEEKEVENTREG_CLEARED_GREAT_BAY_TEMPLE)) {
-        Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DOOR_WARP1, 0.0f, PLATFORM_HEIGHT, 200.0f, 0, 0,
+        MM_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DOOR_WARP1, 0.0f, PLATFORM_HEIGHT, 200.0f, 0, 0,
                            0, ENDOORWARP1_FF_1);
-        Actor_Spawn(&play->actorCtx, play, ACTOR_ITEM_B_HEART, 0.0f, PLATFORM_HEIGHT, 0.0f, 0, 0, 0,
+        MM_Actor_Spawn(&play->actorCtx, play, ACTOR_ITEM_B_HEART, 0.0f, PLATFORM_HEIGHT, 0.0f, 0, 0, 0,
                     BHEART_PARAM_NORMAL);
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -468,17 +468,17 @@ void Boss03_Init(Actor* thisx, PlayState* play2) {
         this->actor.update = Boss03_SeaweedUpdate;
         this->actor.draw = Boss03_SeaweedDraw;
 
-        this->unk_240 = Rand_ZeroFloat(1000.0f);
+        this->unk_240 = MM_Rand_ZeroFloat(1000.0f);
 
-        this->actor.scale.x = Rand_ZeroFloat(0.0075f) + 0.027f;
+        this->actor.scale.x = MM_Rand_ZeroFloat(0.0075f) + 0.027f;
         this->actor.scale.y = 0.02f;
         this->actor.scale.z = 0.015f;
 
         // Manually set the joint table of seaweed
         for (i = 0; i < 6; i++) {
-            this->jointTable[i].x = Math_SinS(this->unk_240 * 0x100 + i * 15000) * 3000.0f;
-            this->jointTable[i].y = Math_SinS(this->unk_240 * 0x180 + i * 20000) * 2000.0f;
-            this->jointTable[i].z = Math_SinS(this->unk_240 * 0x10 + i * 19000) * 4000.0f;
+            this->jointTable[i].x = MM_Math_SinS(this->unk_240 * 0x100 + i * 15000) * 3000.0f;
+            this->jointTable[i].y = MM_Math_SinS(this->unk_240 * 0x180 + i * 20000) * 2000.0f;
+            this->jointTable[i].z = MM_Math_SinS(this->unk_240 * 0x10 + i * 19000) * 4000.0f;
         }
 
         this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
@@ -500,7 +500,7 @@ void Boss03_Init(Actor* thisx, PlayState* play2) {
         Matrix_MultVecZ((rand * 800.0f) + 400.0f, &sp70);
 
         rand = Boss03_RandZeroOne();
-        Actor_Spawn(&play->actorCtx, play, ACTOR_BOSS_03, sp70.x, sp70.y, sp70.z, 0, rand * 0x10000, 0,
+        MM_Actor_Spawn(&play->actorCtx, play, ACTOR_BOSS_03, sp70.x, sp70.y, sp70.z, 0, rand * 0x10000, 0,
                     GYORG_PARAM_SEAWEED);
     }
 
@@ -517,10 +517,10 @@ void Boss03_Init(Actor* thisx, PlayState* play2) {
     this->actor.colChkInfo.health = 10;
 
     Collider_InitAndSetJntSph(play, &this->headCollider, &this->actor, &sHeadJntSphInit, this->headColliderElements);
-    Collider_InitAndSetJntSph(play, &this->bodyCollider, &this->actor, &sBodyJntSphInit, this->bodyColliderElements);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gGyorgSkel, &gGyorgCrawlingAnim, this->jointTable, this->morphTable,
+    Collider_InitAndSetJntSph(play, &this->bodyCollider, &this->actor, &MM_sBodyJntSphInit, this->bodyColliderElements);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gGyorgSkel, &gGyorgCrawlingAnim, this->jointTable, this->morphTable,
                        GYORG_LIMB_MAX);
-    Actor_SetScale(&this->actor, 0.2f);
+    MM_Actor_SetScale(&this->actor, 0.2f);
 
     if ((KREG(64) != 0) || CHECK_EVENTINF(EVENTINF_INTRO_CS_WATCHED_GYORG)) {
         this->actionFunc = func_809E344C;
@@ -547,7 +547,7 @@ void func_809E344C(Boss03* this, PlayState* play) {
     // Mid-air
     if (player->actor.world.pos.y < 540.0f) {
         this->actionFunc = func_809E34B8;
-        Animation_MorphToLoop(&this->skelAnime, &gGyorgFastSwimmingAnim, -15.0f);
+        MM_Animation_MorphToLoop(&this->skelAnime, &gGyorgFastSwimmingAnim, -15.0f);
         this->unk_274 = 0;
         this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
     }
@@ -572,56 +572,56 @@ void func_809E34B8(Boss03* this, PlayState* play) {
     this->unk_27C = 1.0f;
     this->unk_278 = 10.0f;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
-    Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
+    MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
     Matrix_RotateYS(this->actor.world.rot.y, MTXMODE_APPLY);
 
     xDiff = this->unk_268.x - this->actor.world.pos.x;
     yDiff = this->unk_268.y - this->actor.world.pos.y;
     zDiff = this->unk_268.z - this->actor.world.pos.z;
 
-    Math_ApproachS(&this->actor.world.rot.x, Math_Atan2S_XY(sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
+    MM_Math_ApproachS(&this->actor.world.rot.x, Math_Atan2S_XY(MM_sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
 
     bodyYRotTarget =
-        Math_SmoothStepToS(&this->actor.world.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0xA, this->unk_274, 0) * -0.5f;
-    Math_ApproachS(&this->bodyYRot, bodyYRotTarget, 5, 0x100);
+        MM_Math_SmoothStepToS(&this->actor.world.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0xA, this->unk_274, 0) * -0.5f;
+    MM_Math_ApproachS(&this->bodyYRot, bodyYRotTarget, 5, 0x100);
 
-    Math_ApproachS(&this->unk_274, this->unk_276, 1, 0x100);
-    Math_ApproachF(&this->actor.speed, this->unk_278, 1.0f, this->unk_27C);
-    Math_ApproachF(&this->unk_260, sinf(this->skelAnime.curFrame * (M_PIf / 5.0f)) * 10.0f * 0.01f, 0.5f, 1.0f);
+    MM_Math_ApproachS(&this->unk_274, this->unk_276, 1, 0x100);
+    MM_Math_ApproachF(&this->actor.speed, this->unk_278, 1.0f, this->unk_27C);
+    MM_Math_ApproachF(&this->unk_260, sinf(this->skelAnime.curFrame * (M_PIf / 5.0f)) * 10.0f * 0.01f, 0.5f, 1.0f);
 
     if ((this->workTimer[WORK_TIMER_UNK2_A] == 0) && (this->actor.bgCheckFlags & BGCHECKFLAG_WALL)) {
         Matrix_MultVecZ(-500.0f, &this->unk_268);
-        this->unk_268.y = Rand_ZeroFloat(100.0f) + 150.0f;
+        this->unk_268.y = MM_Rand_ZeroFloat(100.0f) + 150.0f;
         this->workTimer[WORK_TIMER_UNK2_A] = 60;
-        this->workTimer[WORK_TIMER_UNK0_A] = Rand_ZeroFloat(60.0f) + 60.0f;
+        this->workTimer[WORK_TIMER_UNK0_A] = MM_Rand_ZeroFloat(60.0f) + 60.0f;
         this->unk_274 = 0x100;
     }
 
     if (this->workTimer[WORK_TIMER_UNK2_A] == 0) {
-        if ((sqrtf(SQ(xDiff) + SQ(zDiff)) < 100.0f) || (this->workTimer[WORK_TIMER_UNK0_A] == 0)) {
+        if ((MM_sqrtf(SQ(xDiff) + SQ(zDiff)) < 100.0f) || (this->workTimer[WORK_TIMER_UNK0_A] == 0)) {
             for (i = 0; i < 200; i++) {
-                this->unk_268.x = Rand_CenteredFloat(2500.0f);
-                this->unk_268.y = Rand_ZeroFloat(100.0f) + 150.0f;
-                this->unk_268.z = Rand_CenteredFloat(2500.0f);
+                this->unk_268.x = MM_Rand_CenteredFloat(2500.0f);
+                this->unk_268.y = MM_Rand_ZeroFloat(100.0f) + 150.0f;
+                this->unk_268.z = MM_Rand_CenteredFloat(2500.0f);
 
                 xDiff = this->unk_268.x - this->actor.world.pos.x;
                 zDiff = this->unk_268.z - this->actor.world.pos.z;
 
-                if (sqrtf(SQ(xDiff) + SQ(zDiff)) > 300.0f) {
+                if (MM_sqrtf(SQ(xDiff) + SQ(zDiff)) > 300.0f) {
                     break;
                 }
             }
 
             this->unk_274 = 0x100;
-            this->workTimer[WORK_TIMER_UNK0_A] = Rand_ZeroFloat(60.0f) + 60.0f;
+            this->workTimer[WORK_TIMER_UNK0_A] = MM_Rand_ZeroFloat(60.0f) + 60.0f;
         }
     }
 
     Actor_MoveWithoutGravityReverse(&this->actor);
-    Math_ApproachS(&this->actor.shape.rot.x, this->actor.world.rot.x, 2, this->unk_274 * 2);
-    Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 2, this->unk_274 * 2);
+    MM_Math_ApproachS(&this->actor.shape.rot.x, this->actor.world.rot.x, 2, this->unk_274 * 2);
+    MM_Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 2, this->unk_274 * 2);
 
     if (this->workTimer[WORK_TIMER_UNK1_A] == 0) {
         // Player is above water && Player is standing on ground
@@ -639,7 +639,7 @@ void func_809E34B8(Boss03* this, PlayState* play) {
 
 void Boss03_SetupChasePlayer(Boss03* this, PlayState* play) {
     this->actionFunc = Boss03_ChasePlayer;
-    Animation_MorphToLoop(&this->skelAnime, &gGyorgFastSwimmingAnim, -10.0f);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gGyorgFastSwimmingAnim, -10.0f);
     this->workTimer[WORK_TIMER_CURRENT_ACTION] = 100;
     this->unk_276 = 0x1000;
     this->skelAnime.playSpeed = 1.5f;
@@ -664,24 +664,24 @@ void Boss03_ChasePlayer(Boss03* this, PlayState* play) {
 
     this->unk_2BD = true;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     xDiff = player->actor.world.pos.x - this->actor.world.pos.x;
     yDiff = (player->actor.world.pos.y - this->actor.world.pos.y) + 50.0f;
     zDiff = player->actor.world.pos.z - this->actor.world.pos.z;
 
-    Math_ApproachS(&this->actor.world.rot.x, Math_Atan2S_XY(sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
+    MM_Math_ApproachS(&this->actor.world.rot.x, Math_Atan2S_XY(MM_sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
     bodyYRotTarget =
-        Math_SmoothStepToS(&this->actor.world.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0xA, this->unk_274, 0) * -0.5f;
-    Math_ApproachS(&this->bodyYRot, bodyYRotTarget, 5, 0x100);
+        MM_Math_SmoothStepToS(&this->actor.world.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0xA, this->unk_274, 0) * -0.5f;
+    MM_Math_ApproachS(&this->bodyYRot, bodyYRotTarget, 5, 0x100);
 
-    Math_ApproachS(&this->unk_274, this->unk_276, 1, 0x100);
-    Math_ApproachF(&this->actor.speed, this->unk_278, 1.0f, this->unk_27C);
-    Math_ApproachF(&this->unk_260, sinf(this->skelAnime.curFrame * (M_PIf / 5.0f)) * 10.0f * 0.01f, 0.5f, 1.0f);
+    MM_Math_ApproachS(&this->unk_274, this->unk_276, 1, 0x100);
+    MM_Math_ApproachF(&this->actor.speed, this->unk_278, 1.0f, this->unk_27C);
+    MM_Math_ApproachF(&this->unk_260, sinf(this->skelAnime.curFrame * (M_PIf / 5.0f)) * 10.0f * 0.01f, 0.5f, 1.0f);
     Actor_MoveWithoutGravityReverse(&this->actor);
 
-    Math_ApproachS(&this->actor.shape.rot.x, this->actor.world.rot.x, 2, this->unk_274 * 2);
-    Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 2, this->unk_274 * 2);
+    MM_Math_ApproachS(&this->actor.shape.rot.x, this->actor.world.rot.x, 2, this->unk_274 * 2);
+    MM_Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 2, this->unk_274 * 2);
 
     // If either (Player is standing on ground && Player is above water) or (WORK_TIMER_CURRENT_ACTION timer runs out),
     // then stop chasing
@@ -707,26 +707,26 @@ void Boss03_ChasePlayer(Boss03* this, PlayState* play) {
             sp44 = 100.0f;
         }
 
-        Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
+        MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
         Matrix_RotateYS(this->actor.world.rot.y, MTXMODE_APPLY);
         Matrix_MultVecZ(sp44, &sp50);
 
         xDiff = sp50.x - player->actor.world.pos.x;
         zDiff = sp50.z - player->actor.world.pos.z;
 
-        if (sqrtf(SQ(xDiff) + SQ(zDiff)) < (2.0f * phi_f2)) {
-            Math_ApproachS(&this->jawZRot, 0x3200, 2, 0x1800);
+        if (MM_sqrtf(SQ(xDiff) + SQ(zDiff)) < (2.0f * phi_f2)) {
+            MM_Math_ApproachS(&this->jawZRot, 0x3200, 2, 0x1800);
             this->unk_278 = 25.0f;
             this->unk_27C = 5.0f;
             this->skelAnime.playSpeed = 2.5f;
         }
 
         // Near enough to Player?
-        if (sqrtf(SQ(xDiff) + SQ(zDiff)) < phi_f2) {
+        if (MM_sqrtf(SQ(xDiff) + SQ(zDiff)) < phi_f2) {
             Boss03_SetupCatchPlayer(this, play, sp43);
 
             if (sp43 != 0) {
-                Actor_Spawn(&play->actorCtx, play, ACTOR_EN_WATER_EFFECT, player->actor.world.pos.x, this->waterHeight,
+                MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_WATER_EFFECT, player->actor.world.pos.x, this->waterHeight,
                             player->actor.world.pos.z, 0, 0, 0x78, ENWATEREFFECT_TYPE_GYORG_RIPPLES);
                 Boss03_PlayUnderwaterSfx(&this->actor.projectedPos, NA_SE_EN_KONB_SINK_OLD);
             }
@@ -740,7 +740,7 @@ void Boss03_ChasePlayer(Boss03* this, PlayState* play) {
 
 void Boss03_SetupCatchPlayer(Boss03* this, PlayState* play, u8 arg2) {
     this->actionFunc = Boss03_CatchPlayer;
-    Animation_MorphToLoop(&this->skelAnime, &gGyorgFastSwimmingAnim, -15.0f);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gGyorgFastSwimmingAnim, -15.0f);
     this->workTimer[WORK_TIMER_CURRENT_ACTION] = 100;
     this->unk_2C4 = 0.0f;
     this->unk_2B8 = 0.0f;
@@ -761,23 +761,23 @@ void Boss03_CatchPlayer(Boss03* this, PlayState* play) {
     this->unk_278 = 15.0f;
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     xDiff = player->actor.world.pos.x - this->actor.world.pos.x;
     yDiff = player->actor.world.pos.y - this->actor.world.pos.y;
     zDiff = player->actor.world.pos.z - this->actor.world.pos.z;
 
-    Math_ApproachS(&this->actor.world.rot.x, Math_Atan2S_XY(sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
-    Math_ApproachS(&this->bodyYRot,
-                   Math_SmoothStepToS(&this->actor.world.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0xA, this->unk_274, 0) *
+    MM_Math_ApproachS(&this->actor.world.rot.x, Math_Atan2S_XY(MM_sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
+    MM_Math_ApproachS(&this->bodyYRot,
+                   MM_Math_SmoothStepToS(&this->actor.world.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0xA, this->unk_274, 0) *
                        -0.5f,
                    5, 0x100);
-    Math_ApproachS(&this->unk_274, this->unk_276, 1, 0x100);
-    Math_ApproachF(&this->actor.speed, this->unk_278, 1.0f, this->unk_27C);
-    Math_ApproachF(&this->unk_260, sinf(this->skelAnime.curFrame * (M_PIf / 5.0f)) * 10.0f * 0.01f, 0.5f, 1.0f);
+    MM_Math_ApproachS(&this->unk_274, this->unk_276, 1, 0x100);
+    MM_Math_ApproachF(&this->actor.speed, this->unk_278, 1.0f, this->unk_27C);
+    MM_Math_ApproachF(&this->unk_260, sinf(this->skelAnime.curFrame * (M_PIf / 5.0f)) * 10.0f * 0.01f, 0.5f, 1.0f);
     Actor_MoveWithoutGravityReverse(&this->actor);
-    Math_ApproachS(&this->actor.shape.rot.x, this->actor.world.rot.x, 2, this->unk_274 * 2);
-    Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 2, this->unk_274 * 2);
+    MM_Math_ApproachS(&this->actor.shape.rot.x, this->actor.world.rot.x, 2, this->unk_274 * 2);
+    MM_Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 2, this->unk_274 * 2);
 
     // If either (Player is standing on ground && Player is above water) or (WORK_TIMER_CURRENT_ACTION timer runs out)
     // then stop trying to catch Player
@@ -796,9 +796,9 @@ void Boss03_CatchPlayer(Boss03* this, PlayState* play) {
     } else {
         f32 phi_f0;
 
-        Math_ApproachF(&player->actor.world.pos.x, this->insideJawPos.x, 1.0f, this->unk_2B8);
-        Math_ApproachF(&player->actor.world.pos.y, this->insideJawPos.y, 1.0f, this->unk_2B8);
-        Math_ApproachF(&player->actor.world.pos.z, this->insideJawPos.z, 1.0f, this->unk_2B8);
+        MM_Math_ApproachF(&player->actor.world.pos.x, this->insideJawPos.x, 1.0f, this->unk_2B8);
+        MM_Math_ApproachF(&player->actor.world.pos.y, this->insideJawPos.y, 1.0f, this->unk_2B8);
+        MM_Math_ApproachF(&player->actor.world.pos.z, this->insideJawPos.z, 1.0f, this->unk_2B8);
 
         if (this->unk_242 != 0) {
             phi_f0 = 10.0f;
@@ -806,23 +806,23 @@ void Boss03_CatchPlayer(Boss03* this, PlayState* play) {
             phi_f0 = 2.0f;
         }
 
-        Math_ApproachF(&this->unk_2B8, 100.0f, 1.0f, phi_f0);
+        MM_Math_ApproachF(&this->unk_2B8, 100.0f, 1.0f, phi_f0);
 
         if (this->unk_2B8 > 30.0f) {
             if ((&this->actor != player->actor.parent) && (play->grabPlayer(play, player) != 0)) {
                 player->actor.parent = &this->actor;
-                AudioSfx_PlaySfx(NA_SE_VO_LI_DAMAGE_S, &player->actor.projectedPos, 4, &gSfxDefaultFreqAndVolScale,
-                                 &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                AudioSfx_PlaySfx(NA_SE_VO_LI_DAMAGE_S, &player->actor.projectedPos, 4, &MM_gSfxDefaultFreqAndVolScale,
+                                 &MM_gSfxDefaultFreqAndVolScale, &MM_gSfxDefaultReverb);
                 Boss03_SetupChewPlayer(this, play);
             }
         } else {
-            Math_ApproachS(&this->jawZRot, 0x3200, 2, 0xC00 * phi_f0);
+            MM_Math_ApproachS(&this->jawZRot, 0x3200, 2, 0xC00 * phi_f0);
         }
 
-        Math_ApproachS(&player->actor.world.rot.x, 0x4000, 1, 0x400);
-        Math_ApproachS(&player->actor.shape.rot.x, 0x4000, 1, 0x400);
-        Math_ApproachS(&player->actor.world.rot.y, this->unk_2A2.y, 1, 0x400);
-        Math_ApproachS(&player->actor.shape.rot.y, this->unk_2A2.y, 1, 0x400);
+        MM_Math_ApproachS(&player->actor.world.rot.x, 0x4000, 1, 0x400);
+        MM_Math_ApproachS(&player->actor.shape.rot.x, 0x4000, 1, 0x400);
+        MM_Math_ApproachS(&player->actor.world.rot.y, this->unk_2A2.y, 1, 0x400);
+        MM_Math_ApproachS(&player->actor.shape.rot.y, this->unk_2A2.y, 1, 0x400);
     }
 
     Boss03_SpawnDust(this, play);
@@ -840,7 +840,7 @@ void Boss03_SetupChewPlayer(Boss03* this, PlayState* play) {
     out.x = 0.0f;
     out.y = 200.0f;
     out.z = 700.0f;
-    Matrix_MultVec3f(&out, &this->unk_268);
+    MM_Matrix_MultVec3f(&out, &this->unk_268);
 
     this->unk_276 = 0x800;
     this->unk_242 = 0;
@@ -863,42 +863,42 @@ void Boss03_ChewPlayer(Boss03* this, PlayState* play) {
         Play_EnableMotionBlur(150);
     }
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
-    Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
+    MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
     Matrix_RotateYS(this->actor.world.rot.y, MTXMODE_APPLY);
 
     xDiff = this->unk_268.x - this->actor.world.pos.x;
     yDiff = this->unk_268.y - this->actor.world.pos.y;
     zDiff = this->unk_268.z - this->actor.world.pos.z;
 
-    Math_ApproachS(&this->actor.world.rot.x, Math_Atan2S_XY(sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
-    Math_ApproachS(&this->bodyYRot,
-                   Math_SmoothStepToS(&this->actor.world.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0xA, this->unk_274, 0) *
+    MM_Math_ApproachS(&this->actor.world.rot.x, Math_Atan2S_XY(MM_sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
+    MM_Math_ApproachS(&this->bodyYRot,
+                   MM_Math_SmoothStepToS(&this->actor.world.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0xA, this->unk_274, 0) *
                        -0.5f,
                    5, 0x100);
-    Math_ApproachS(&this->unk_274, this->unk_276, 1, 0x100);
-    Math_ApproachF(&this->unk_260, sinf(this->skelAnime.curFrame * (M_PIf / 5.0f)) * 10.0f * 0.01f, 0.5f, 1.0f);
+    MM_Math_ApproachS(&this->unk_274, this->unk_276, 1, 0x100);
+    MM_Math_ApproachF(&this->unk_260, sinf(this->skelAnime.curFrame * (M_PIf / 5.0f)) * 10.0f * 0.01f, 0.5f, 1.0f);
 
     switch (this->unk_242) {
         case 0:
-            Math_ApproachF(&this->actor.speed, 10.0f, 1.0f, 1.0f);
-            if (sqrtf(SQ(xDiff) + SQ(zDiff)) < 100.0f) {
+            MM_Math_ApproachF(&this->actor.speed, 10.0f, 1.0f, 1.0f);
+            if (MM_sqrtf(SQ(xDiff) + SQ(zDiff)) < 100.0f) {
                 this->unk_242 = 1;
-                Animation_MorphToLoop(&this->skelAnime, &gGyorgBackingUpAnim, -15.0f);
+                MM_Animation_MorphToLoop(&this->skelAnime, &gGyorgBackingUpAnim, -15.0f);
             }
             break;
 
         case 1:
-            Math_ApproachF(&this->actor.speed, 0.0f, 1.0f, 0.5f);
-            Math_ApproachF(&this->actor.world.pos.y, 200.0f, 0.05f, 5.0f);
+            MM_Math_ApproachF(&this->actor.speed, 0.0f, 1.0f, 0.5f);
+            MM_Math_ApproachF(&this->actor.world.pos.y, 200.0f, 0.05f, 5.0f);
             break;
     }
 
     Actor_MoveWithoutGravityReverse(&this->actor);
 
-    Math_ApproachS(&this->actor.shape.rot.x, this->actor.world.rot.x, 2, this->unk_274 * 2);
-    Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 2, this->unk_274 * 2);
+    MM_Math_ApproachS(&this->actor.shape.rot.x, this->actor.world.rot.x, 2, this->unk_274 * 2);
+    MM_Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 2, this->unk_274 * 2);
 
     // Mashing A or B reduces the time Gyorg is chewing Player
     if (CHECK_BTN_ALL(input->press.button, BTN_A) || CHECK_BTN_ALL(input->press.button, BTN_B)) {
@@ -921,15 +921,15 @@ void Boss03_ChewPlayer(Boss03* this, PlayState* play) {
         }
 
         func_809E344C(this, play);
-        this->workTimer[WORK_TIMER_UNK1_A] = Rand_ZeroFloat(100.0f) + 200.0f;
+        this->workTimer[WORK_TIMER_UNK1_A] = MM_Rand_ZeroFloat(100.0f) + 200.0f;
 
         return;
     }
 
     player->actor.world.pos = this->insideJawPos;
 
-    jawZRotTarget = Math_SinS(this->unk_240 * 0x2000);
-    Math_ApproachS(&this->jawZRot, jawZRotTarget * 2000.0f, 2, 0x3000);
+    jawZRotTarget = MM_Math_SinS(this->unk_240 * 0x2000);
+    MM_Math_ApproachS(&this->jawZRot, jawZRotTarget * 2000.0f, 2, 0x3000);
 
     player->actor.shape.rot.x = 0x4000;
     player->actor.world.rot.x = player->actor.shape.rot.x;
@@ -937,10 +937,10 @@ void Boss03_ChewPlayer(Boss03* this, PlayState* play) {
     player->actor.world.rot.y = player->actor.shape.rot.y = this->unk_2A2.y;
 
     if (this->workTimer[WORK_TIMER_CURRENT_ACTION] < 5) {
-        Math_ApproachS(&this->jawZRot, 0x3200, 2, 0x1800);
-        Math_ApproachF(&this->unk_2C4, 100.0f, 1.0f, 100.0f);
+        MM_Math_ApproachS(&this->jawZRot, 0x3200, 2, 0x1800);
+        MM_Math_ApproachF(&this->unk_2C4, 100.0f, 1.0f, 100.0f);
     } else {
-        Math_ApproachF(&this->unk_2C4, -300.0f, 1.0f, 5.0f);
+        MM_Math_ApproachF(&this->unk_2C4, -300.0f, 1.0f, 5.0f);
         if ((this->unk_240 % 8) == 0) {
             Boss03_PlayUnderwaterSfx(&this->actor.projectedPos, NA_SE_EN_KONB_BITE_OLD);
         }
@@ -949,13 +949,13 @@ void Boss03_ChewPlayer(Boss03* this, PlayState* play) {
 
 void Boss03_SetupPrepareCharge(Boss03* this, PlayState* play) {
     this->actionFunc = Boss03_PrepareCharge;
-    Animation_MorphToLoop(&this->skelAnime, &gGyorgBackingUpAnim, -15.0f);
-    this->workTimer[WORK_TIMER_CURRENT_ACTION] = Rand_ZeroFloat(30.0f) + 80.0f;
+    MM_Animation_MorphToLoop(&this->skelAnime, &gGyorgBackingUpAnim, -15.0f);
+    this->workTimer[WORK_TIMER_CURRENT_ACTION] = MM_Rand_ZeroFloat(30.0f) + 80.0f;
     this->workTimer[WORK_TIMER_UNK1_B] = 50;
     this->unk_274 = 0;
 
-    if (sqrtf(SQXZ(this->actor.world.pos)) > 600.0f) {
-        if (Rand_ZeroOne() < 0.5f) {
+    if (MM_sqrtf(SQXZ(this->actor.world.pos)) > 600.0f) {
+        if (MM_Rand_ZeroOne() < 0.5f) {
             this->unk_242 = 1;
         } else {
             this->unk_242 = 0;
@@ -977,21 +977,21 @@ void Boss03_PrepareCharge(Boss03* this, PlayState* play) {
     }
 
     // Rotate towards Player
-    Math_ApproachS(&this->bodyYRot,
-                   Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 0xA, this->unk_274, 0) *
+    MM_Math_ApproachS(&this->bodyYRot,
+                   MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 0xA, this->unk_274, 0) *
                        -0.7f,
                    5, 0x200);
-    Math_ApproachS(&this->unk_274, 0x800, 1, 0x100);
-    Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 2, 0x1000);
-    Math_ApproachS(&this->actor.world.rot.x, 0, 0xA, 0x200);
-    Math_ApproachS(&this->actor.shape.rot.x, 0, 0xA, 0x200);
+    MM_Math_ApproachS(&this->unk_274, 0x800, 1, 0x100);
+    MM_Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 2, 0x1000);
+    MM_Math_ApproachS(&this->actor.world.rot.x, 0, 0xA, 0x200);
+    MM_Math_ApproachS(&this->actor.shape.rot.x, 0, 0xA, 0x200);
 
     posYTarget = this->waterHeight - 70.0f;
     if (posYTarget < this->actor.world.pos.y) {
-        Math_ApproachF(&this->actor.world.pos.y, posYTarget, 0.05f, 5.0f);
+        MM_Math_ApproachF(&this->actor.world.pos.y, posYTarget, 0.05f, 5.0f);
     }
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     // Player is above water && Player is standing on ground
     if ((this->waterHeight < player->actor.world.pos.y) && (player->actor.bgCheckFlags & BGCHECKFLAG_GROUND)) {
@@ -1004,7 +1004,7 @@ void Boss03_PrepareCharge(Boss03* this, PlayState* play) {
     }
 
     // Turns back slowly
-    Math_ApproachF(&this->actor.speed, -3.0f, 1.0f, 0.5f);
+    MM_Math_ApproachF(&this->actor.speed, -3.0f, 1.0f, 0.5f);
     Actor_MoveWithoutGravityReverse(&this->actor);
 }
 
@@ -1012,7 +1012,7 @@ void Boss03_SetupCharge(Boss03* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
     this->actionFunc = Boss03_Charge;
-    Animation_MorphToLoop(&this->skelAnime, &gGyorgFastSwimmingAnim, -15.0f);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gGyorgFastSwimmingAnim, -15.0f);
     this->unk_268 = player->actor.world.pos;
 }
 
@@ -1027,28 +1027,28 @@ void Boss03_Charge(Boss03* this, PlayState* play) {
     s16 rotXTarget;
 
     this->skelAnime.playSpeed = 2.0f;
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     Boss03_PlayUnderwaterSfx(&this->actor.projectedPos, NA_SE_EN_KONB_PREATTACK_OLD - SFX_FLAG);
 
     xDiff = this->unk_268.x - this->actor.world.pos.x;
     yDiff = (this->unk_268.y - this->actor.world.pos.y) - 50.0f;
     zDiff = this->unk_268.z - this->actor.world.pos.z;
 
-    Math_ApproachS(&this->actor.world.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0xA, 0x1000);
+    MM_Math_ApproachS(&this->actor.world.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0xA, 0x1000);
 
-    rotXTarget = Math_Atan2S_XY(sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff);
-    Math_ApproachS(&this->actor.world.rot.x, rotXTarget, 0xA, 0x1000);
+    rotXTarget = Math_Atan2S_XY(MM_sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff);
+    MM_Math_ApproachS(&this->actor.world.rot.x, rotXTarget, 0xA, 0x1000);
 
     this->actor.shape.rot = this->actor.world.rot;
 
-    Math_ApproachF(&this->actor.speed, 25.0f, 1.0f, 3.0f);
-    Math_ApproachF(&this->unk_260, sinf(this->skelAnime.curFrame * (M_PIf / 5.0f)) * 10.0f * 0.01f, 0.5f, 1.0f);
+    MM_Math_ApproachF(&this->actor.speed, 25.0f, 1.0f, 3.0f);
+    MM_Math_ApproachF(&this->unk_260, sinf(this->skelAnime.curFrame * (M_PIf / 5.0f)) * 10.0f * 0.01f, 0.5f, 1.0f);
     Actor_MoveWithoutGravityReverse(&this->actor);
 
     if (this->actor.speed >= 20.0f) {
         // Jump over platform
         if (this->unk_242 == 1) {
-            if (sqrtf(SQXZ(this->actor.world.pos)) < 700.0f) {
+            if (MM_sqrtf(SQXZ(this->actor.world.pos)) < 700.0f) {
                 Boss03_SetupJumpOverPlatform(this, play);
                 return;
             }
@@ -1058,7 +1058,7 @@ void Boss03_Charge(Boss03* this, PlayState* play) {
         if (this->actor.bgCheckFlags & BGCHECKFLAG_WALL) {
             Audio_PlaySfx(NA_SE_IT_BIG_BOMB_EXPLOSION);
             Actor_RequestQuakeAndRumble(&this->actor, play, 20, 15);
-            Actor_Spawn(&play->actorCtx, play, ACTOR_EN_WATER_EFFECT, 0.0f, this->waterHeight, 0.0f, 0, 0, 0x96,
+            MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_WATER_EFFECT, 0.0f, this->waterHeight, 0.0f, 0, 0, 0x96,
                         ENWATEREFFECT_TYPE_GYORG_SHOCKWAVE);
 
             // Player is above water && Player is standing on ground
@@ -1086,16 +1086,16 @@ void Boss03_JumpOverPlatform(Boss03* this, PlayState* play) {
     Boss03_PlayUnderwaterSfx(&this->actor.projectedPos, NA_SE_EN_KONB_JUMP_LEV_OLD - SFX_FLAG);
 
     this->skelAnime.playSpeed = 2.0f;
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
-    Math_ApproachS(&this->actor.world.rot.x, this->actor.velocity.y * -300.0f, 2, 0x2000);
+    MM_Math_ApproachS(&this->actor.world.rot.x, this->actor.velocity.y * -300.0f, 2, 0x2000);
     this->actor.shape.rot.x = this->actor.world.rot.x;
 
     Actor_MoveWithGravity(&this->actor);
     if ((this->actor.velocity.y < 0.0f) && (this->actor.world.pos.y < this->waterHeight + 50.0f)) {
         this->bubbleEffectSpawnCount = 2;
         this->actor.gravity = 0.0f;
-        Math_ApproachZeroF(&this->actor.velocity.y, 1.0f, 1.0f);
+        MM_Math_ApproachZeroF(&this->actor.velocity.y, 1.0f, 1.0f);
         if (this->actor.velocity.y == 0.0f) {
             func_809E344C(this, play);
             this->workTimer[WORK_TIMER_UNK1_A] = 50;
@@ -1105,9 +1105,9 @@ void Boss03_JumpOverPlatform(Boss03* this, PlayState* play) {
         Vec3f sp30;
 
         for (i = 0; i < 3; i++) {
-            sp30.x = this->actor.world.pos.x + Rand_CenteredFloat(150.0f);
+            sp30.x = this->actor.world.pos.x + MM_Rand_CenteredFloat(150.0f);
             sp30.y = this->actor.world.pos.y;
-            sp30.z = this->actor.world.pos.z + Rand_CenteredFloat(150.0f);
+            sp30.z = this->actor.world.pos.z + MM_Rand_CenteredFloat(150.0f);
             Boss03_SpawnEffectDroplet(play, &sp30);
         }
     }
@@ -1119,7 +1119,7 @@ void Boss03_JumpOverPlatform(Boss03* this, PlayState* play) {
 
 void Boss03_SetupIntroCutscene(Boss03* this, PlayState* play) {
     this->actionFunc = Boss03_IntroCutscene;
-    Animation_MorphToLoop(&this->skelAnime, &gGyorgFastSwimmingAnim, -10.0f);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gGyorgFastSwimmingAnim, -10.0f);
     this->skelAnime.playSpeed = 2.0f;
 }
 
@@ -1153,10 +1153,10 @@ void Boss03_IntroCutscene(Boss03* this, PlayState* play) {
         case 0:
             if (player->actor.world.pos.y < 1350.0f) {
                 Cutscene_StartManual(play, &play->csCtx);
-                Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
-                this->subCamId = Play_CreateSubCamera(play);
-                Play_ChangeCameraStatus(play, CAM_ID_MAIN, CAM_STATUS_WAIT);
-                Play_ChangeCameraStatus(play, this->subCamId, CAM_STATUS_ACTIVE);
+                MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
+                this->subCamId = MM_Play_CreateSubCamera(play);
+                MM_Play_ChangeCameraStatus(play, CAM_ID_MAIN, CAM_STATUS_WAIT);
+                MM_Play_ChangeCameraStatus(play, this->subCamId, CAM_STATUS_ACTIVE);
 
                 this->actor.world.rot.y = -0x7B30;
                 this->prevPlayerPos.y = 1850.0f;
@@ -1188,7 +1188,7 @@ void Boss03_IntroCutscene(Boss03* this, PlayState* play) {
                     this->subCamEye.z = player->actor.world.pos.z + 100.0f;
                     this->subCamAt.x = player->actor.world.pos.x;
 
-                    Math_ApproachF(&this->subCamAt.y, player->actor.world.pos.y + 30.0f, 0.5f, 100.0f);
+                    MM_Math_ApproachF(&this->subCamAt.y, player->actor.world.pos.y + 30.0f, 0.5f, 100.0f);
                     this->subCamAt.z = player->actor.world.pos.z;
 
                     if (this->csTimer > 105) {
@@ -1205,10 +1205,10 @@ void Boss03_IntroCutscene(Boss03* this, PlayState* play) {
                             yDiff = D_809E9104[this->unk_242].y - this->actor.world.pos.y;
                             zDiff = D_809E9104[this->unk_242].z - this->actor.world.pos.z;
 
-                            Math_ApproachS(&this->actor.world.rot.x,
-                                           Math_Atan2S_XY(sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
-                            Math_ApproachS(&this->actor.world.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0xA, this->unk_274);
-                            Math_ApproachS(&this->unk_274, 0x200, 1, 0x10);
+                            MM_Math_ApproachS(&this->actor.world.rot.x,
+                                           Math_Atan2S_XY(MM_sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
+                            MM_Math_ApproachS(&this->actor.world.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0xA, this->unk_274);
+                            MM_Math_ApproachS(&this->unk_274, 0x200, 1, 0x10);
 
                             if ((this->csTimer > 30) && (this->csTimer < 50)) {
                                 bubblesToSpawnNum = 2;
@@ -1219,11 +1219,11 @@ void Boss03_IntroCutscene(Boss03* this, PlayState* play) {
                             }
 
                             if (this->csTimer > 50) {
-                                Math_ApproachF(&this->actor.speed, this->unk_278, 1.0f, 0.1f);
+                                MM_Math_ApproachF(&this->actor.speed, this->unk_278, 1.0f, 0.1f);
                             }
 
                             if (this->unk_242 < 2) {
-                                if (sqrtf(SQ(xDiff) + SQ(zDiff)) < 100.0f) {
+                                if (MM_sqrtf(SQ(xDiff) + SQ(zDiff)) < 100.0f) {
                                     this->unk_242++;
                                     this->unk_274 = 0;
                                     if (this->unk_242 >= 2) {
@@ -1252,7 +1252,7 @@ void Boss03_IntroCutscene(Boss03* this, PlayState* play) {
         case 3:
             Boss03_PlayUnderwaterSfx(&this->actor.projectedPos, NA_SE_EN_KONB_PREATTACK_OLD - SFX_FLAG);
             sp5A = 0x1970;
-            Math_ApproachF(&this->actor.speed, 15.0f, 1.0f, 2.0f);
+            MM_Math_ApproachF(&this->actor.speed, 15.0f, 1.0f, 2.0f);
             if (this->csTimer > 20) {
                 this->csState = 4;
                 this->csTimer = 0;
@@ -1264,15 +1264,15 @@ void Boss03_IntroCutscene(Boss03* this, PlayState* play) {
 
             if (this->csTimer == 5) {
                 // Rotates Player towards Gyorg
-                Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_8);
+                MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_8);
             }
 
             this->subCamEye.x = player->actor.world.pos.x + 30.0f;
-            this->subCamEye.y = player->actor.world.pos.y + Player_GetHeight(player) - 4.0f + BREG(17);
+            this->subCamEye.y = player->actor.world.pos.y + MM_Player_GetHeight(player) - 4.0f + BREG(17);
             this->subCamEye.z = player->actor.world.pos.z - 30.0f;
 
             this->subCamAt.x = player->actor.world.pos.x;
-            this->subCamAt.y = player->actor.world.pos.y + Player_GetHeight(player) - 18.0f + 6.0f + BREG(18);
+            this->subCamAt.y = player->actor.world.pos.y + MM_Player_GetHeight(player) - 18.0f + 6.0f + BREG(18);
             this->subCamAt.z = player->actor.world.pos.z;
 
             if (player->transformation == PLAYER_FORM_FIERCE_DEITY) {
@@ -1291,7 +1291,7 @@ void Boss03_IntroCutscene(Boss03* this, PlayState* play) {
                 Play_DisableMotionBlur();
 
                 case 5:
-                    SkelAnime_Update(&this->skelAnime);
+                    MM_SkelAnime_Update(&this->skelAnime);
                     this->actor.speed = 20.0f;
                     Actor_MoveWithoutGravityReverse(&this->actor);
                     player->actor.shape.rot.y = -0x1470;
@@ -1323,28 +1323,28 @@ void Boss03_IntroCutscene(Boss03* this, PlayState* play) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_KONB_JUMP_LEV_OLD - SFX_FLAG);
 
             if (this->csTimer == 30) {
-                TitleCard_InitBossName(&play->state, &play->actorCtx.titleCtx,
+                MM_TitleCard_InitBossName(&play->state, &play->actorCtx.titleCtx,
                                        Lib_SegmentedToVirtual(gGyorgTitleCardTex), 160, 180, 128, 40);
             }
 
             if ((this->csTimer < 24) || (this->csTimer >= 90)) {
-                SkelAnime_Update(&this->skelAnime);
-                Math_ApproachS(&this->actor.world.rot.x, this->actor.velocity.y * -300.0f, 3, 0x1000);
+                MM_SkelAnime_Update(&this->skelAnime);
+                MM_Math_ApproachS(&this->actor.world.rot.x, this->actor.velocity.y * -300.0f, 3, 0x1000);
                 Actor_MoveWithGravity(&this->actor);
                 if ((this->actor.velocity.y <= 0.0f) && (this->actor.world.pos.y < (this->waterHeight + 50.0f))) {
                     this->bubbleEffectSpawnCount = 2;
                     this->actor.gravity = 0.0f;
-                    Math_ApproachZeroF(&this->actor.velocity.y, 1.0f, 1.0f);
-                    Math_ApproachZeroF(&this->actor.speed, 1.0f, 0.5f);
+                    MM_Math_ApproachZeroF(&this->actor.velocity.y, 1.0f, 1.0f);
+                    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 0.5f);
                 } else {
                     if (1) {}
                     if (1) {}
                     if (1) {}
 
                     for (i = 0; i < 3; i++) {
-                        effectPos.x = Rand_CenteredFloat(150.0f) + this->actor.world.pos.x;
+                        effectPos.x = MM_Rand_CenteredFloat(150.0f) + this->actor.world.pos.x;
                         effectPos.y = this->actor.world.pos.y;
-                        effectPos.z = Rand_CenteredFloat(150.0f) + this->actor.world.pos.z;
+                        effectPos.z = MM_Rand_CenteredFloat(150.0f) + this->actor.world.pos.z;
 
                         Boss03_SpawnEffectDroplet(play, &effectPos);
                     }
@@ -1354,20 +1354,20 @@ void Boss03_IntroCutscene(Boss03* this, PlayState* play) {
                     this->subCamAtNext.z = this->actor.world.pos.z;
                 }
             } else {
-                Math_ApproachF(&this->subCamEye.x, player->actor.world.pos.x + 30.0f - 90.0f + 300.0f - 90.0f, 0.05f,
+                MM_Math_ApproachF(&this->subCamEye.x, player->actor.world.pos.x + 30.0f - 90.0f + 300.0f - 90.0f, 0.05f,
                                3.0f);
-                Math_ApproachF(&this->subCamEye.y, player->actor.world.pos.y + 40.0f + 10.0f + 90.0f, 0.05f, 3.0f);
-                Math_ApproachF(&this->subCamEye.z, player->actor.world.pos.z - 30.0f + 160.0f + 300.0f - 90.0f, 0.05f,
+                MM_Math_ApproachF(&this->subCamEye.y, player->actor.world.pos.y + 40.0f + 10.0f + 90.0f, 0.05f, 3.0f);
+                MM_Math_ApproachF(&this->subCamEye.z, player->actor.world.pos.z - 30.0f + 160.0f + 300.0f - 90.0f, 0.05f,
                                3.0f);
-                Math_ApproachF(&this->unk_568, 90.0f, 0.05f, 3.0f);
+                MM_Math_ApproachF(&this->unk_568, 90.0f, 0.05f, 3.0f);
             }
 
-            Math_ApproachF(&this->subCamAt.x, this->subCamAtNext.x, 0.5f, 100.0f);
-            Math_ApproachF(&this->subCamAt.y, this->subCamAtNext.y + this->unk_568, 0.5f, 100.0f);
-            Math_ApproachF(&this->subCamAt.z, this->subCamAtNext.z, 0.5f, 100.0f);
+            MM_Math_ApproachF(&this->subCamAt.x, this->subCamAtNext.x, 0.5f, 100.0f);
+            MM_Math_ApproachF(&this->subCamAt.y, this->subCamAtNext.y + this->unk_568, 0.5f, 100.0f);
+            MM_Math_ApproachF(&this->subCamAt.z, this->subCamAtNext.z, 0.5f, 100.0f);
 
             if (this->csTimer == 145) {
-                Camera* mainCam = Play_GetCamera(play, CAM_ID_MAIN);
+                Camera* mainCam = MM_Play_GetCamera(play, CAM_ID_MAIN);
 
                 mainCam->eye = this->subCamEye;
                 mainCam->eyeNext = this->subCamEye;
@@ -1375,7 +1375,7 @@ void Boss03_IntroCutscene(Boss03* this, PlayState* play) {
 
                 func_80169AFC(play, this->subCamId, 0);
                 Cutscene_StopManual(play, &play->csCtx);
-                Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
+                MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
                 this->subCamId = SUB_CAM_ID_DONE;
 
                 func_809E344C(this, play);
@@ -1394,8 +1394,8 @@ void Boss03_IntroCutscene(Boss03* this, PlayState* play) {
         phi_f2 = this->actor.speed * 0.02f;
         phi_f2 = CLAMP_MAX(phi_f2, 0.12f);
 
-        sp5C = Math_SinS(this->unk_240 * sp5A) * phi_f2;
-        Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
+        sp5C = MM_Math_SinS(this->unk_240 * sp5A) * phi_f2;
+        MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
         Matrix_RotateYS(this->actor.world.rot.y, MTXMODE_APPLY);
         Matrix_RotateYF(sp5C, MTXMODE_APPLY);
         Matrix_RotateXS(this->actor.world.rot.x, MTXMODE_APPLY);
@@ -1404,9 +1404,9 @@ void Boss03_IntroCutscene(Boss03* this, PlayState* play) {
         this->subCamEye = this->actor.world.pos;
 
         for (i = 0; i < bubblesToSpawnNum; i++) {
-            effectPos.x = Rand_CenteredFloat(100.0f) + this->subCamAt.x;
-            effectPos.y = (Rand_CenteredFloat(100.0f) + this->subCamAt.y) - 150.0f;
-            effectPos.z = Rand_CenteredFloat(100.0f) + this->subCamAt.z;
+            effectPos.x = MM_Rand_CenteredFloat(100.0f) + this->subCamAt.x;
+            effectPos.y = (MM_Rand_CenteredFloat(100.0f) + this->subCamAt.y) - 150.0f;
+            effectPos.z = MM_Rand_CenteredFloat(100.0f) + this->subCamAt.z;
 
             Boss03_SpawnEffectBubble(play, &effectPos);
         }
@@ -1420,8 +1420,8 @@ void Boss03_IntroCutscene(Boss03* this, PlayState* play) {
 
 void Boss03_SetupDeathCutscene(Boss03* this, PlayState* play) {
     this->actionFunc = Boss03_DeathCutscene;
-    Animation_MorphToLoop(&this->skelAnime, &gGyorgFloppingAnim, -10.0f);
-    this->floppingAnimLastFrame = Animation_GetLastFrame(&gGyorgFloppingAnim);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gGyorgFloppingAnim, -10.0f);
+    this->floppingAnimLastFrame = MM_Animation_GetLastFrame(&gGyorgFloppingAnim);
     SEQCMD_STOP_SEQUENCE(SEQ_PLAYER_BGM_MAIN, 1);
     this->workTimer[WORK_TIMER_UNK0_C] = 0;
     this->unk_242 = 0;
@@ -1439,7 +1439,7 @@ void Boss03_DeathCutscene(Boss03* this, PlayState* play) {
     s32 pad;
     f32 pad2;
     f32 sp64;
-    Camera* mainCam = Play_GetCamera(play, CAM_ID_MAIN);
+    Camera* mainCam = MM_Play_GetCamera(play, CAM_ID_MAIN);
     Player* player;
     f32 sp4C;
 
@@ -1453,10 +1453,10 @@ void Boss03_DeathCutscene(Boss03* this, PlayState* play) {
         case 0:
             if (CutsceneManager_GetCurrentCsId() == CS_ID_NONE) {
                 Cutscene_StartManual(play, &play->csCtx);
-                Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_1);
-                this->subCamId = Play_CreateSubCamera(play);
-                Play_ChangeCameraStatus(play, CAM_ID_MAIN, CAM_STATUS_WAIT);
-                Play_ChangeCameraStatus(play, this->subCamId, CAM_STATUS_ACTIVE);
+                MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_1);
+                this->subCamId = MM_Play_CreateSubCamera(play);
+                MM_Play_ChangeCameraStatus(play, CAM_ID_MAIN, CAM_STATUS_WAIT);
+                MM_Play_ChangeCameraStatus(play, this->subCamId, CAM_STATUS_ACTIVE);
                 this->unk_2BE = Math_Atan2S_XY(this->actor.world.pos.z, this->actor.world.pos.x);
 
                 // Player is above water && Player is standing on ground
@@ -1493,46 +1493,46 @@ void Boss03_DeathCutscene(Boss03* this, PlayState* play) {
 
                     this->unk_568 += this->unk_56C;
                     Matrix_RotateYF(this->unk_568, MTXMODE_NEW);
-                    Matrix_MultVec3f(&sp90, &this->subCamEyeNext);
+                    MM_Matrix_MultVec3f(&sp90, &this->subCamEyeNext);
 
                     this->subCamEyeNext.x += this->actor.world.pos.x;
                     this->subCamEyeNext.y += this->waterHeight;
                     this->subCamEyeNext.z += this->actor.world.pos.z;
 
                     sp4C = 40.0f + aux2;
-                    Math_ApproachF(&this->subCamEye.x, this->subCamEyeNext.x, 0.1f, sp4C);
-                    Math_ApproachF(&this->subCamEye.y, this->subCamEyeNext.y, 0.1f, sp4C);
-                    Math_ApproachF(&this->subCamEye.z, this->subCamEyeNext.z, 0.1f, sp4C);
+                    MM_Math_ApproachF(&this->subCamEye.x, this->subCamEyeNext.x, 0.1f, sp4C);
+                    MM_Math_ApproachF(&this->subCamEye.y, this->subCamEyeNext.y, 0.1f, sp4C);
+                    MM_Math_ApproachF(&this->subCamEye.z, this->subCamEyeNext.z, 0.1f, sp4C);
                     sp4C = 70.0f + aux2;
-                    Math_ApproachF(&this->subCamAt.x, this->subCamAtNext.x, 0.1f, sp4C);
-                    Math_ApproachF(&this->subCamAt.y, this->subCamAtNext.y, 0.1f, sp4C);
-                    Math_ApproachF(&this->subCamAt.z, this->subCamAtNext.z, 0.1f, sp4C);
+                    MM_Math_ApproachF(&this->subCamAt.x, this->subCamAtNext.x, 0.1f, sp4C);
+                    MM_Math_ApproachF(&this->subCamAt.y, this->subCamAtNext.y, 0.1f, sp4C);
+                    MM_Math_ApproachF(&this->subCamAt.z, this->subCamAtNext.z, 0.1f, sp4C);
             }
             break;
     }
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     switch (this->unk_242) {
         case 0:
-            Math_ApproachF(&this->actor.world.pos.y, Math_SinS(this->unk_240 * 0x1000) * 80.0f + this->waterHeight,
+            MM_Math_ApproachF(&this->actor.world.pos.y, MM_Math_SinS(this->unk_240 * 0x1000) * 80.0f + this->waterHeight,
                            1.0f, 10.0f);
             this->actor.shape.rot.z += 0x100;
             Matrix_RotateYS(this->unk_2BE, MTXMODE_NEW);
             Matrix_MultVecZ(500.0f, &sp84);
-            Math_ApproachF(&this->actor.world.pos.x, sp84.x, 0.1f, 5.0f);
-            Math_ApproachF(&this->actor.world.pos.z, sp84.z, 0.1f, 5.0f);
+            MM_Math_ApproachF(&this->actor.world.pos.x, sp84.x, 0.1f, 5.0f);
+            MM_Math_ApproachF(&this->actor.world.pos.z, sp84.z, 0.1f, 5.0f);
 
-            if (Animation_OnFrame(&this->skelAnime, this->floppingAnimLastFrame)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, this->floppingAnimLastFrame)) {
                 Actor_PlaySfx(&this->actor, NA_SE_EN_KONB_DEAD_JUMP2_OLD);
             }
-            if (Animation_OnFrame(&this->skelAnime, this->floppingAnimLastFrame * 0.5f)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, this->floppingAnimLastFrame * 0.5f)) {
                 Actor_PlaySfx(&this->actor, NA_SE_EN_KONB_DEAD_JUMP_OLD);
             }
 
             if ((this->workTimer[WORK_TIMER_UNK0_C] == 0) && ((this->waterHeight - 100.0f) < this->actor.world.pos.y)) {
-                this->workTimer[WORK_TIMER_UNK0_C] = Rand_ZeroFloat(15.0f) + 15.0f;
-                Actor_Spawn(&play->actorCtx, play, ACTOR_EN_WATER_EFFECT, this->actor.world.pos.x, this->waterHeight,
+                this->workTimer[WORK_TIMER_UNK0_C] = MM_Rand_ZeroFloat(15.0f) + 15.0f;
+                MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_WATER_EFFECT, this->actor.world.pos.x, this->waterHeight,
                             this->actor.world.pos.z, 0, 0, 0x78, ENWATEREFFECT_TYPE_GYORG_RIPPLES);
 
                 if (this->actionFunc == Boss03_DeathCutscene) {
@@ -1560,35 +1560,35 @@ void Boss03_DeathCutscene(Boss03* this, PlayState* play) {
                     Actor_PlaySfx(&this->actor, NA_SE_EN_KONB_DEAD_JUMP2_OLD);
                 }
             }
-            Math_ApproachF(&this->unk_56C, 0.01f, 1.0f, 0.0005f);
+            MM_Math_ApproachF(&this->unk_56C, 0.01f, 1.0f, 0.0005f);
             break;
 
         case 1:
             if (this->unk_240 == 0x96) {
                 SEQCMD_PLAY_SEQUENCE(SEQ_PLAYER_BGM_MAIN, 0, NA_BGM_CLEAR_BOSS | SEQ_FLAG_ASYNC);
             }
-            Math_ApproachF(&this->unk_56C, 0.01f, 1.0f, 0.0005f);
-            Math_ApproachF(&this->actor.scale.x, 0.01f, 0.05f, 0.001f);
-            Actor_SetScale(&this->actor, this->actor.scale.x);
+            MM_Math_ApproachF(&this->unk_56C, 0.01f, 1.0f, 0.0005f);
+            MM_Math_ApproachF(&this->actor.scale.x, 0.01f, 0.05f, 0.001f);
+            MM_Actor_SetScale(&this->actor, this->actor.scale.x);
 
             if (this->actor.velocity.y < 0.0f) {
                 if (this->actor.world.pos.y < PLATFORM_HEIGHT + (100.0f * sp64)) {
                     this->actor.world.pos.y = PLATFORM_HEIGHT + (100.0f * sp64);
-                    this->actor.velocity.y = ((Rand_ZeroFloat(10.0f) + 7.5f) * sp64) + 7.5f;
-                    this->actor.speed = ((Rand_ZeroFloat(5.0f) + 2.5f) * sp64) + 2.5f;
+                    this->actor.velocity.y = ((MM_Rand_ZeroFloat(10.0f) + 7.5f) * sp64) + 7.5f;
+                    this->actor.speed = ((MM_Rand_ZeroFloat(5.0f) + 2.5f) * sp64) + 2.5f;
 
-                    if (Rand_ZeroOne() < 0.5f) {
+                    if (MM_Rand_ZeroOne() < 0.5f) {
                         this->shapeRotTargetX =
-                            (TRUNCF_BINANG(Rand_CenteredFloat(0x1F4)) + this->shapeRotTargetX) + 0x8000;
+                            (TRUNCF_BINANG(MM_Rand_CenteredFloat(0x1F4)) + this->shapeRotTargetX) + 0x8000;
                     }
 
-                    if (Rand_ZeroOne() < 0.5f) {
+                    if (MM_Rand_ZeroOne() < 0.5f) {
                         this->shapeRotTargetZ =
-                            (TRUNCF_BINANG(Rand_CenteredFloat(0x1F4)) + this->shapeRotTargetZ) + 0x8000;
+                            (TRUNCF_BINANG(MM_Rand_CenteredFloat(0x1F4)) + this->shapeRotTargetZ) + 0x8000;
                     }
 
-                    if (Rand_ZeroOne() < 0.5f) {
-                        this->shapeRotTargetY = Rand_ZeroFloat(0x10000);
+                    if (MM_Rand_ZeroOne() < 0.5f) {
+                        this->shapeRotTargetY = MM_Rand_ZeroFloat(0x10000);
                     }
 
                     this->actor.world.rot.y = Math_Atan2S_XY(-this->actor.world.pos.z, -this->actor.world.pos.x);
@@ -1598,43 +1598,43 @@ void Boss03_DeathCutscene(Boss03* this, PlayState* play) {
                 }
             }
 
-            Math_ApproachS(&this->actor.shape.rot.y, this->shapeRotTargetY, 3, 0x500);
-            Math_ApproachS(&this->actor.shape.rot.x, this->shapeRotTargetX, 3, 0xA00);
-            Math_ApproachS(&this->actor.shape.rot.z, this->shapeRotTargetZ, 3, 0xA00);
+            MM_Math_ApproachS(&this->actor.shape.rot.y, this->shapeRotTargetY, 3, 0x500);
+            MM_Math_ApproachS(&this->actor.shape.rot.x, this->shapeRotTargetX, 3, 0xA00);
+            MM_Math_ApproachS(&this->actor.shape.rot.z, this->shapeRotTargetZ, 3, 0xA00);
 
             sp4C = 150.0f * sp64;
 
             for (i = 0; i < 1; i++) {
-                sp78.x = Rand_CenteredFloat(sp4C) + this->actor.world.pos.x;
+                sp78.x = MM_Rand_CenteredFloat(sp4C) + this->actor.world.pos.x;
                 sp78.y = this->actor.world.pos.y;
-                sp78.z = Rand_CenteredFloat(sp4C) + this->actor.world.pos.z;
+                sp78.z = MM_Rand_CenteredFloat(sp4C) + this->actor.world.pos.z;
                 Boss03_SpawnEffectDroplet(play, &sp78);
             }
 
             Actor_MoveWithGravity(&this->actor);
             if (this->actor.scale.x <= 0.0111f) {
                 this->unk_242 = 2;
-                Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DOOR_WARP1, 0.0f, PLATFORM_HEIGHT, 200.0f,
+                MM_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DOOR_WARP1, 0.0f, PLATFORM_HEIGHT, 200.0f,
                                    0, 0, 0, ENDOORWARP1_FF_1);
-                Actor_Spawn(&play->actorCtx, play, ACTOR_ITEM_B_HEART, this->actor.focus.pos.x, PLATFORM_HEIGHT,
+                MM_Actor_Spawn(&play->actorCtx, play, ACTOR_ITEM_B_HEART, this->actor.focus.pos.x, PLATFORM_HEIGHT,
                             this->actor.focus.pos.z, 0, 0, 0, BHEART_PARAM_NORMAL);
                 this->csTimer = 0;
-                Actor_SetScale(&this->actor, 0.0f);
+                MM_Actor_SetScale(&this->actor, 0.0f);
                 AudioSfx_StopByPos(&this->actor.projectedPos);
             }
             break;
 
         case 2:
-            Math_ApproachZeroF(&this->unk_56C, 1.0f, 0.0005f);
+            MM_Math_ApproachZeroF(&this->unk_56C, 1.0f, 0.0005f);
             if (this->csTimer == 60) {
-                mainCam = Play_GetCamera(play, CAM_ID_MAIN);
+                mainCam = MM_Play_GetCamera(play, CAM_ID_MAIN);
                 mainCam->eye = this->subCamEye;
                 mainCam->eyeNext = this->subCamEye;
                 mainCam->at = this->subCamAt;
                 func_80169AFC(play, this->subCamId, 0);
                 this->subCamId = SUB_CAM_ID_DONE;
                 Cutscene_StopManual(play, &play->csCtx);
-                Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
+                MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
                 this->csState = 3;
                 Play_DisableMotionBlur();
                 Boss03_PlayUnderwaterSfx(&this->actor.projectedPos, NA_SE_EN_KONB_INIT_OLD);
@@ -1654,7 +1654,7 @@ void Boss03_DeathCutscene(Boss03* this, PlayState* play) {
 
 void Boss03_SetupSpawnSmallFishesCutscene(Boss03* this, PlayState* play) {
     this->actionFunc = Boss03_SpawnSmallFishesCutscene;
-    Animation_MorphToLoop(&this->skelAnime, &gGyorgBackingUpAnim, -15.0f);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gGyorgBackingUpAnim, -15.0f);
     this->csState = 0;
     this->csTimer = 0;
 }
@@ -1662,16 +1662,16 @@ void Boss03_SetupSpawnSmallFishesCutscene(Boss03* this, PlayState* play) {
 void Boss03_SpawnSmallFishesCutscene(Boss03* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     this->csTimer++;
     switch (this->csState) {
         case 0:
             if (CutsceneManager_GetCurrentCsId() == CS_ID_NONE) {
                 Cutscene_StartManual(play, &play->csCtx);
-                Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_1);
-                this->subCamId = Play_CreateSubCamera(play);
-                Play_ChangeCameraStatus(play, CAM_ID_MAIN, CAM_STATUS_WAIT);
-                Play_ChangeCameraStatus(play, this->subCamId, CAM_STATUS_ACTIVE);
+                MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_1);
+                this->subCamId = MM_Play_CreateSubCamera(play);
+                MM_Play_ChangeCameraStatus(play, CAM_ID_MAIN, CAM_STATUS_WAIT);
+                MM_Play_ChangeCameraStatus(play, this->subCamId, CAM_STATUS_ACTIVE);
                 this->csState = 1;
                 this->unk_2BE = 0xBB8;
 
@@ -1693,7 +1693,7 @@ void Boss03_SpawnSmallFishesCutscene(Boss03* this, PlayState* play) {
 
                     player->actor.shape.rot.y = player->actor.world.rot.y = this->actor.world.rot.y + 0x8000;
 
-                    Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
+                    MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
                                      MTXMODE_NEW);
                     Matrix_RotateYS(this->actor.shape.rot.y + this->unk_2BE, MTXMODE_APPLY);
                     Matrix_MultVecZ(340.0f, &this->subCamEye);
@@ -1702,13 +1702,13 @@ void Boss03_SpawnSmallFishesCutscene(Boss03* this, PlayState* play) {
                     this->subCamAt.y = this->actor.world.pos.y;
                     this->subCamAt.z = this->actor.world.pos.z;
 
-                    Math_ApproachS(&this->unk_2BE, -4000, 10, 70);
+                    MM_Math_ApproachS(&this->unk_2BE, -4000, 10, 70);
 
                     if (this->csTimer >= 61) {
-                        Math_ApproachS(&this->jawZRot, 0x3200, 5, 0x500);
+                        MM_Math_ApproachS(&this->jawZRot, 0x3200, 5, 0x500);
                         if ((this->csTimer >= 90) && (this->csTimer < 130)) {
                             if ((this->csTimer % 2) != 0) {
-                                Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_TANRON3,
+                                MM_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_TANRON3,
                                                    this->actor.world.pos.x - 110.0f, this->actor.world.pos.y - 20.0f,
                                                    this->actor.world.pos.z - 110.0f, 0, this->actor.shape.rot.y, 0, 0);
                                 this->numSpawnedSmallFish++;
@@ -1720,7 +1720,7 @@ void Boss03_SpawnSmallFishesCutscene(Boss03* this, PlayState* play) {
                     }
 
                     if (this->csTimer >= 150) {
-                        Camera* mainCam = Play_GetCamera(play, CAM_ID_MAIN);
+                        Camera* mainCam = MM_Play_GetCamera(play, CAM_ID_MAIN);
 
                         mainCam->eye = this->subCamEye;
                         mainCam->eyeNext = this->subCamEye;
@@ -1729,7 +1729,7 @@ void Boss03_SpawnSmallFishesCutscene(Boss03* this, PlayState* play) {
                         func_80169AFC(play, this->subCamId, 0);
                         this->subCamId = SUB_CAM_ID_DONE;
                         Cutscene_StopManual(play, &play->csCtx);
-                        Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
+                        MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
 
                         func_809E344C(this, play);
                         this->workTimer[WORK_TIMER_UNK1_A] = 50;
@@ -1751,7 +1751,7 @@ void Boss03_SetupStunned(Boss03* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
     if (this->actionFunc != Boss03_Stunned) {
-        Animation_MorphToLoop(&this->skelAnime, &gGyorgStunnedAnim, -15.0f);
+        MM_Animation_MorphToLoop(&this->skelAnime, &gGyorgStunnedAnim, -15.0f);
         this->workTimer[WORK_TIMER_STUNNED] = 200;
         this->actionFunc = Boss03_Stunned;
     }
@@ -1773,7 +1773,7 @@ void Boss03_Stunned(Boss03* this, PlayState* play) {
         Boss03_PlayUnderwaterSfx(&this->actor.projectedPos, NA_SE_EN_COMMON_WEAKENED - SFX_FLAG);
     }
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     if ((this->waterHeight + 30.0f) < this->actor.world.pos.y) {
         this->actor.gravity = -2.0f;
@@ -1783,12 +1783,12 @@ void Boss03_Stunned(Boss03* this, PlayState* play) {
             Actor_RequestQuakeAndRumble(&this->actor, play, 10, 10);
         }
     } else {
-        Math_ApproachS(&this->actor.shape.rot.z, -0x6000, 0xA, 0x900);
-        Math_ApproachS(&this->actor.world.rot.x, 0x800, 0xA, 0x1000);
+        MM_Math_ApproachS(&this->actor.shape.rot.z, -0x6000, 0xA, 0x900);
+        MM_Math_ApproachS(&this->actor.world.rot.x, 0x800, 0xA, 0x1000);
         this->actor.shape.rot.x = this->actor.world.rot.x;
 
-        Math_ApproachF(&this->actor.world.pos.y, 100.0f, 0.05f, 5.0f);
-        Math_ApproachF(&this->actor.speed, 0.0f, 1.0f, 1.5f);
+        MM_Math_ApproachF(&this->actor.world.pos.y, 100.0f, 0.05f, 5.0f);
+        MM_Math_ApproachF(&this->actor.speed, 0.0f, 1.0f, 1.5f);
         Actor_MoveWithoutGravityReverse(&this->actor);
     }
 
@@ -1799,7 +1799,7 @@ void Boss03_Stunned(Boss03* this, PlayState* play) {
 }
 
 void Boss03_SetupDamaged(Boss03* this, PlayState* play) {
-    Animation_MorphToLoop(&this->skelAnime, &gGyorgFloppingAnim, -10.0f);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gGyorgFloppingAnim, -10.0f);
     this->actionFunc = Boss03_Damaged;
     this->workTimer[WORK_TIMER_CURRENT_ACTION] = 30;
 }
@@ -1810,10 +1810,10 @@ void Boss03_SetupDamaged(Boss03* this, PlayState* play) {
 void Boss03_Damaged(Boss03* this, PlayState* play) {
     this->unk_25C = 15;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
-    Math_ApproachS(&this->jawZRot, ((Math_SinS(this->unk_240 * 0x2000) * 3000.0f) + 0x3000), 2, 0x3000);
-    Math_ApproachF(&this->actor.world.pos.y, 200.0f, 0.05f, 10.0f);
+    MM_Math_ApproachS(&this->jawZRot, ((MM_Math_SinS(this->unk_240 * 0x2000) * 3000.0f) + 0x3000), 2, 0x3000);
+    MM_Math_ApproachF(&this->actor.world.pos.y, 200.0f, 0.05f, 10.0f);
 
     if (this->workTimer[WORK_TIMER_CURRENT_ACTION] == 0) {
         if ((s8)this->actor.colChkInfo.health <= 5) {
@@ -1889,7 +1889,7 @@ void Boss03_UpdateCollision(Boss03* this, PlayState* play) {
                         Boss03_PlayUnderwaterSfx(&D_809E9848, NA_SE_EN_KONB_DEAD2_OLD);
                         Boss03_SetupDeathCutscene(this, play);
                         GameInteractor_ExecuteOnBossDefeated(this->actor.id); // 2S2H Time Splits
-                        Enemy_StartFinishingBlow(play, &this->actor);
+                        MM_Enemy_StartFinishingBlow(play, &this->actor);
                     } else {
                         Boss03_SetupDamaged(this, play);
                         Boss03_PlayUnderwaterSfx(&this->actor.projectedPos, NA_SE_EN_KONB_DAMAGE_OLD);
@@ -1936,7 +1936,7 @@ void Boss03_UpdateCollision(Boss03* this, PlayState* play) {
                     if ((s8)this->actor.colChkInfo.health <= 0) {
                         Boss03_PlayUnderwaterSfx(&D_809E9848, NA_SE_EN_KONB_DEAD_OLD);
                         Boss03_PlayUnderwaterSfx(&D_809E9848, NA_SE_EN_KONB_DEAD2_OLD);
-                        Enemy_StartFinishingBlow(play, &this->actor);
+                        MM_Enemy_StartFinishingBlow(play, &this->actor);
                         Boss03_SetupDeathCutscene(this, play);
                     } else {
                         Boss03_SetupDamaged(this, play);
@@ -1975,7 +1975,7 @@ void Boss03_Update(Actor* thisx, PlayState* play2) {
 
         this->unk_2BD = false;
 
-        Math_Vec3f_Copy(&D_809E9848, &this->actor.projectedPos);
+        MM_Math_Vec3f_Copy(&D_809E9848, &this->actor.projectedPos);
 
         for (i = 0; i < ARRAY_COUNT(this->workTimer); i++) {
             if (this->workTimer[i] != 0) {
@@ -1998,10 +1998,10 @@ void Boss03_Update(Actor* thisx, PlayState* play2) {
         this->actionFunc(this, play);
 
         if (this->actionFunc != Boss03_DeathCutscene) {
-            Math_ApproachS(&this->actor.shape.rot.z, 0, 0xA, 0x800);
+            MM_Math_ApproachS(&this->actor.shape.rot.z, 0, 0xA, 0x800);
             this->actor.world.pos.y -= 100.0f;
             this->actor.prevPos.y -= 100.0f;
-            Actor_UpdateBgCheckInfo(play, &this->actor, 50.0f, 150.0f, 100.0f,
+            MM_Actor_UpdateBgCheckInfo(play, &this->actor, 50.0f, 150.0f, 100.0f,
                                     UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
             this->actor.world.pos.y += 100.0f;
             this->actor.prevPos.y += 100.0f;
@@ -2018,7 +2018,7 @@ void Boss03_Update(Actor* thisx, PlayState* play2) {
                 Actor_PlaySfx(&this->actor, NA_SE_EN_KONB_SINK_OLD);
             }
 
-            Actor_Spawn(&play->actorCtx, play, ACTOR_EN_WATER_EFFECT, this->actor.world.pos.x, this->waterHeight,
+            MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_WATER_EFFECT, this->actor.world.pos.x, this->waterHeight,
                         this->actor.world.pos.z, 0, 0, 0x78, ENWATEREFFECT_TYPE_GYORG_RIPPLES);
 
             this->unk_280 = 27;
@@ -2037,23 +2037,23 @@ void Boss03_Update(Actor* thisx, PlayState* play2) {
 
         Boss03_UpdateCollision(this, play);
 
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->bodyCollider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->bodyCollider.base);
 
         if (player->transformation == PLAYER_FORM_HUMAN) {
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->headCollider.base);
+            MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->headCollider.base);
         }
 
         if (!this->unk_2BD) {
             if (player->transformation != PLAYER_FORM_HUMAN) {
-                CollisionCheck_SetAC(play, &play->colChkCtx, &this->headCollider.base);
+                MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->headCollider.base);
             }
-            CollisionCheck_SetOC(play, &play->colChkCtx, &this->headCollider.base);
-            CollisionCheck_SetOC(play, &play->colChkCtx, &this->bodyCollider.base);
+            MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->headCollider.base);
+            MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->bodyCollider.base);
         }
 
         if ((this->actionFunc != Boss03_Stunned) && (!this->unk_2BD)) {
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->headCollider.base);
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->bodyCollider.base);
+            MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->headCollider.base);
+            MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->bodyCollider.base);
         }
     }
 
@@ -2062,7 +2062,7 @@ void Boss03_Update(Actor* thisx, PlayState* play2) {
         dblueActor->world.pos.y = this->waterHeight;
     }
 
-    Math_ApproachZeroF(&this->unk_260, 0.1f, 0.05f);
+    MM_Math_ApproachZeroF(&this->unk_260, 0.1f, 0.05f);
 
     if (this->unk_290 != 0) {
         this->unk_294 += 0.1f;
@@ -2070,18 +2070,18 @@ void Boss03_Update(Actor* thisx, PlayState* play2) {
         this->leftFinYRot = sinf(this->unk_294) * 1280.0f;
         this->rightFinYRot = sinf(this->unk_298) * 1280.0f;
     } else {
-        Math_ApproachS(&this->rightFinYRot, 0, 0xA, 0x100);
-        Math_ApproachS(&this->leftFinYRot, 0, 0xA, 0x100);
+        MM_Math_ApproachS(&this->rightFinYRot, 0, 0xA, 0x100);
+        MM_Math_ApproachS(&this->leftFinYRot, 0, 0xA, 0x100);
     }
 
-    Math_ApproachS(&this->bodyYRot, 0, 0xA, 0x100);
-    Math_ApproachS(&this->jawZRot, 0, 0xA, 0x200);
+    MM_Math_ApproachS(&this->bodyYRot, 0, 0xA, 0x100);
+    MM_Math_ApproachS(&this->jawZRot, 0, 0xA, 0x200);
 
     if ((this->unk_240 % 2) == 0) {
         for (i = 0; i < this->bubbleEffectSpawnCount; i++) {
-            bubblePos.x = Rand_CenteredFloat(100.0f) + this->actor.world.pos.x;
-            bubblePos.y = Rand_CenteredFloat(100.0f) + this->actor.world.pos.y;
-            bubblePos.z = Rand_CenteredFloat(100.0f) + this->actor.world.pos.z;
+            bubblePos.x = MM_Rand_CenteredFloat(100.0f) + this->actor.world.pos.x;
+            bubblePos.y = MM_Rand_CenteredFloat(100.0f) + this->actor.world.pos.y;
+            bubblePos.z = MM_Rand_CenteredFloat(100.0f) + this->actor.world.pos.z;
 
             Boss03_SpawnEffectBubble(play, &bubblePos);
         }
@@ -2098,8 +2098,8 @@ void Boss03_Update(Actor* thisx, PlayState* play2) {
     }
 
     if (this->actionFunc != Boss03_CatchPlayer) {
-        Math_ApproachS(&player->actor.world.rot.x, 0, 1, 0x80);
-        Math_ApproachS(&player->actor.shape.rot.x, 0, 1, 0x80);
+        MM_Math_ApproachS(&player->actor.world.rot.x, 0, 1, 0x80);
+        MM_Math_ApproachS(&player->actor.shape.rot.x, 0, 1, 0x80);
     }
 
     if ((this->waterHeight < player->actor.world.pos.y) && (this->prevPlayerPos.y <= this->waterHeight)) {
@@ -2112,9 +2112,9 @@ void Boss03_Update(Actor* thisx, PlayState* play2) {
         if (this->wetSpotEffectSpawnCount != 0) {
             this->wetSpotEffectSpawnCount--;
 
-            wetSpotPos.x = Rand_CenteredFloat(50.0f) + player->actor.world.pos.x;
+            wetSpotPos.x = MM_Rand_CenteredFloat(50.0f) + player->actor.world.pos.x;
             wetSpotPos.y = PLATFORM_HEIGHT;
-            wetSpotPos.z = Rand_CenteredFloat(50.0f) + player->actor.world.pos.z;
+            wetSpotPos.z = MM_Rand_CenteredFloat(50.0f) + player->actor.world.pos.z;
             Boss03_SpawnEffectWetSpot(play, &wetSpotPos);
         }
     }
@@ -2136,12 +2136,12 @@ void Boss03_Update(Actor* thisx, PlayState* play2) {
 
         for (j = 0, i = 0; i < 20; j++) {
             Matrix_RotateYF(yRot, MTXMODE_NEW);
-            Matrix_MultVecZ(Rand_ZeroFloat(60.000004f) + 312.0f, &dropletPos);
-            dropletPos.x += this->unk_284 + Rand_CenteredFloat(40.0f);
+            Matrix_MultVecZ(MM_Rand_ZeroFloat(60.000004f) + 312.0f, &dropletPos);
+            dropletPos.x += this->unk_284 + MM_Rand_CenteredFloat(40.0f);
             dropletPos.y = PLATFORM_HEIGHT;
-            dropletPos.z += this->unk_28C + Rand_CenteredFloat(40.0f);
+            dropletPos.z += this->unk_28C + MM_Rand_CenteredFloat(40.0f);
 
-            if (sqrtf(SQ(dropletPos.x) + SQ(dropletPos.z)) < 355.0f) {
+            if (MM_sqrtf(SQ(dropletPos.x) + SQ(dropletPos.z)) < 355.0f) {
                 Boss03_SpawnEffectDroplet(play, &dropletPos);
                 i++;
             }
@@ -2163,7 +2163,7 @@ void Boss03_SetObject(PlayState* play, s16 objectId) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[objectSlot].segment);
+    MM_gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[objectSlot].segment);
 
     gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[objectSlot].segment);
     gSPSegment(POLY_XLU_DISP++, 0x06, play->objectCtx.slots[objectSlot].segment);
@@ -2256,12 +2256,12 @@ void Boss03_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot
     Player* player = GET_PLAYER(play);
 
     if (limbIndex == GYORG_LIMB_HEAD) {
-        Matrix_MultVec3f(&D_809E9148, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&D_809E9148, &this->actor.focus.pos);
     }
 
     sphereElementIndex = sLimbToSphere[0][limbIndex];
     if (sphereElementIndex > -1) {
-        Matrix_MultVec3f(&D_809E9154[sphereElementIndex], &spherePos);
+        MM_Matrix_MultVec3f(&D_809E9154[sphereElementIndex], &spherePos);
 
         if (sphereElementIndex < 2) {
             if ((this->actionFunc == Boss03_Stunned) && (this->waterHeight < player->actor.world.pos.y)) {
@@ -2278,8 +2278,8 @@ void Boss03_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot
         MtxF mf;
 
         D_809E91B4.x = this->unk_2C4 + 300.0f;
-        Matrix_MultVec3f(&D_809E91B4, &this->insideJawPos);
-        Matrix_Get(&mf);
+        MM_Matrix_MultVec3f(&D_809E91B4, &this->insideJawPos);
+        MM_Matrix_Get(&mf);
         Matrix_MtxFToYXZRot(&mf, &this->unk_2A2, false);
     }
 }
@@ -2293,14 +2293,14 @@ void Boss03_Draw(Actor* thisx, PlayState* play) {
 
     if (!this->unk_2D5) {
         if ((this->unk_25E % 2) != 0) {
-            POLY_OPA_DISP = Gfx_SetFog(POLY_OPA_DISP, 255, 0, 0, 255, 900, 1099);
+            POLY_OPA_DISP = MM_Gfx_SetFog(POLY_OPA_DISP, 255, 0, 0, 255, 900, 1099);
         }
 
         Matrix_RotateYF(this->unk_260, MTXMODE_APPLY);
-        Matrix_Translate(0.0f, -600.0f, 0.0f, MTXMODE_APPLY);
-        SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+        MM_Matrix_Translate(0.0f, -600.0f, 0.0f, MTXMODE_APPLY);
+        MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                               Boss03_OverrideLimbDraw, Boss03_PostLimbDraw, &this->actor);
-        POLY_OPA_DISP = Play_SetFog(play, POLY_OPA_DISP);
+        POLY_OPA_DISP = MM_Play_SetFog(play, POLY_OPA_DISP);
     }
 
     this->unk_2BC = 0;
@@ -2341,18 +2341,18 @@ void Boss03_UpdateEffects(PlayState* play) {
             phi_f0 = 200.0f;
         }
 
-        Math_ApproachF(&eff->unk_40, phi_f0, 1.0f, 80.0f);
+        MM_Math_ApproachF(&eff->unk_40, phi_f0, 1.0f, 80.0f);
 
         if (eff->type == GYORG_EFFECT_DROPLET) {
             eff->unk_34.z += 0.15f;
 
-            Math_ApproachF(&eff->unk_34.x, 0.03f, 0.5f, 0.005f);
-            Math_ApproachF(&eff->unk_34.y, 0.5f, 0.5f, 0.02f);
+            MM_Math_ApproachF(&eff->unk_34.x, 0.03f, 0.5f, 0.005f);
+            MM_Math_ApproachF(&eff->unk_34.y, 0.5f, 0.5f, 0.02f);
 
             if (eff->pos.y <= WATER_HEIGHT) {
                 eff->type = GYORG_EFFECT_NONE;
                 eff->pos.y = WATER_HEIGHT;
-                EffectSsGRipple_Spawn(play, &eff->pos, 0, 80, 0);
+                MM_EffectSsGRipple_Spawn(play, &eff->pos, 0, 80, 0);
             } else if (eff->pos.y <= PLATFORM_HEIGHT) {
                 s16 j;
 
@@ -2363,14 +2363,14 @@ void Boss03_UpdateEffects(PlayState* play) {
                 eff->velocity = gZeroVec3f;
                 eff->accel = gZeroVec3f;
                 eff->alpha = 150;
-                eff->alphaDelta = Rand_ZeroFloat(4.0f) + 5.0f;
+                eff->alphaDelta = MM_Rand_ZeroFloat(4.0f) + 5.0f;
 
                 for (j = 0; j < 4; j++) {
                     Matrix_RotateYF((2.0f * (j * M_PIf)) / 6.0f, MTXMODE_NEW);
                     sp94.x = 0.0f;
-                    sp94.y = Rand_ZeroFloat(4.0f) + 2.0f;
-                    sp94.z = Rand_ZeroFloat(1.5f) + 1.5f;
-                    Matrix_MultVec3f(&sp94, &velocity);
+                    sp94.y = MM_Rand_ZeroFloat(4.0f) + 2.0f;
+                    sp94.z = MM_Rand_ZeroFloat(1.5f) + 1.5f;
+                    MM_Matrix_MultVec3f(&sp94, &velocity);
                     Boss03_SpawnEffectSplash(play, &eff->pos, &velocity);
                 }
             }
@@ -2389,10 +2389,10 @@ void Boss03_UpdateEffects(PlayState* play) {
                 eff->velocity = gZeroVec3f;
                 eff->accel = gZeroVec3f;
                 eff->alpha = 150;
-                eff->alphaDelta = Rand_ZeroFloat(4.0f) + 5.0f;
+                eff->alphaDelta = MM_Rand_ZeroFloat(4.0f) + 5.0f;
             }
         } else if (eff->type == GYORG_EFFECT_WET_SPOT) {
-            Math_ApproachF(&eff->unk_34.x, eff->unk_34.y, 0.1f, 0.6f);
+            MM_Math_ApproachF(&eff->unk_34.x, eff->unk_34.y, 0.1f, 0.6f);
 
             eff->alpha -= eff->alphaDelta;
             if (eff->alpha <= 0) {
@@ -2435,9 +2435,9 @@ void Boss03_DrawEffects(PlayState* play) {
                 flag = true;
             }
 
-            Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
-            Matrix_Scale(eff->unk_34.x, eff->unk_34.x, 1.0f, MTXMODE_APPLY);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
+            MM_Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
+            MM_Matrix_Scale(eff->unk_34.x, eff->unk_34.x, 1.0f, MTXMODE_APPLY);
+            MM_Matrix_ReplaceRotation(&play->billboardMtxF);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
             gSPDisplayList(POLY_OPA_DISP++, gGyorgBubbleModelDL);
@@ -2456,7 +2456,7 @@ void Boss03_DrawEffects(PlayState* play) {
             FrameInterpolation_RecordOpenChild(eff, eff->type);
             FrameInterpolation_IgnoreActorMtx();
             if (!flag) {
-                POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_0);
+                POLY_XLU_DISP = MM_Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_0);
 
                 gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gEffDust1Tex));
                 gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_004260);
@@ -2467,15 +2467,15 @@ void Boss03_DrawEffects(PlayState* play) {
 
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, (u8)eff->unk_40, (u8)((((void)0, eff->unk_40) + 55.0f)), 225, 150);
 
-            Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
+            MM_Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
 
             if (eff->type == GYORG_EFFECT_DROPLET) {
-                Matrix_RotateYF(BINANG_TO_RAD(Camera_GetInputDirYaw(GET_ACTIVE_CAM(play))), MTXMODE_APPLY);
+                Matrix_RotateYF(BINANG_TO_RAD(MM_Camera_GetInputDirYaw(GET_ACTIVE_CAM(play))), MTXMODE_APPLY);
             } else { // GYORG_EFFECT_SPLASH
-                Matrix_ReplaceRotation(&play->billboardMtxF);
+                MM_Matrix_ReplaceRotation(&play->billboardMtxF);
             }
 
-            Matrix_Scale(eff->unk_34.x, eff->unk_34.y, 1.0f, MTXMODE_APPLY);
+            MM_Matrix_Scale(eff->unk_34.x, eff->unk_34.y, 1.0f, MTXMODE_APPLY);
             Matrix_RotateZF(eff->unk_34.z, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
@@ -2505,9 +2505,9 @@ void Boss03_DrawEffects(PlayState* play) {
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, TRUNCF_BINANG(eff->unk_40),
                             ((void)0, TRUNCF_BINANG(eff->unk_40) + 55), 225, eff->alpha);
 
-            Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
+            MM_Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
 
-            Matrix_Scale(eff->unk_34.x, 1.0f, eff->unk_34.x, MTXMODE_APPLY);
+            MM_Matrix_Scale(eff->unk_34.x, 1.0f, eff->unk_34.x, MTXMODE_APPLY);
             Matrix_RotateYF(eff->unk_34.z, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
@@ -2549,7 +2549,7 @@ void Boss03_SeaweedUpdate(Actor* thisx, PlayState* play) {
         xDiff = player->actor.world.pos.x - this->seaweedSegmentPositions[i].x;
         yDiff = player->actor.world.pos.y - this->seaweedSegmentPositions[i].y;
         zDiff = player->actor.world.pos.z - this->seaweedSegmentPositions[i].z;
-        distanceBetweenSeaweedAndDisturbance = sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff));
+        distanceBetweenSeaweedAndDisturbance = MM_sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff));
         disturbanceFactor = player->actor.speed * 3.0f + 70.0f;
 
         // Player is standing on ground
@@ -2565,7 +2565,7 @@ void Boss03_SeaweedUpdate(Actor* thisx, PlayState* play) {
         }
 
         if (distanceBetweenSeaweedAndDisturbance < disturbanceFactor) {
-            Math_ApproachS(&this->morphTable[i].x, (disturbanceFactor - distanceBetweenSeaweedAndDisturbance) * 200.0f,
+            MM_Math_ApproachS(&this->morphTable[i].x, (disturbanceFactor - distanceBetweenSeaweedAndDisturbance) * 200.0f,
                            0xA, maxBendSpeed);
             if (maxBendSpeed != 0) {
                 flag |= SEAWEED_FLAG_INTERACT_PLAYER;
@@ -2574,7 +2574,7 @@ void Boss03_SeaweedUpdate(Actor* thisx, PlayState* play) {
     }
 
     if (flag & SEAWEED_FLAG_INTERACT_PLAYER) {
-        Math_ApproachS(&this->actor.shape.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0x14, 0x800);
+        MM_Math_ApproachS(&this->actor.shape.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0x14, 0x800);
     }
 
     if (sGyorgBossInstance->actor.world.pos.y - 40.0f < sGyorgBossInstance->waterHeight) {
@@ -2583,7 +2583,7 @@ void Boss03_SeaweedUpdate(Actor* thisx, PlayState* play) {
             yDiff = sGyorgBossInstance->actor.world.pos.y - this->seaweedSegmentPositions[i].y;
             zDiff = sGyorgBossInstance->actor.world.pos.z - this->seaweedSegmentPositions[i].z;
 
-            distanceBetweenSeaweedAndDisturbance = sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff));
+            distanceBetweenSeaweedAndDisturbance = MM_sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff));
 
             if ((i == 0) && (distanceBetweenSeaweedAndDisturbance > 400.0f)) {
                 break;
@@ -2598,7 +2598,7 @@ void Boss03_SeaweedUpdate(Actor* thisx, PlayState* play) {
             }
 
             if (distanceBetweenSeaweedAndDisturbance < disturbanceFactor) {
-                Math_ApproachS(&this->morphTable[i].x,
+                MM_Math_ApproachS(&this->morphTable[i].x,
                                (disturbanceFactor - distanceBetweenSeaweedAndDisturbance) * 200.0f, 0xA, maxBendSpeed);
                 if (maxBendSpeed != 0) {
                     flag |= SEAWEED_FLAG_INTERACT_GYORG;
@@ -2607,13 +2607,13 @@ void Boss03_SeaweedUpdate(Actor* thisx, PlayState* play) {
         }
 
         if (flag & SEAWEED_FLAG_INTERACT_GYORG) {
-            Math_ApproachS(&this->actor.shape.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0x14, 0x800);
+            MM_Math_ApproachS(&this->actor.shape.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0x14, 0x800);
         }
     }
 
     if (flag == SEAWEED_FLAG_INTERACT_NONE) {
         for (i = 0; i < 6; i++) {
-            Math_ApproachS(&this->morphTable[i].x, 0, 0x14, 0x80);
+            MM_Math_ApproachS(&this->morphTable[i].x, 0, 0x14, 0x80);
         }
     }
 }
@@ -2635,8 +2635,8 @@ void Boss03_SeaweedDraw(Actor* thisx, PlayState* play) {
 
     gSPSegment(POLY_OPA_DISP++, 0x0D, mtx);
 
-    Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
-    Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+    MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
+    MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
     Matrix_RotateYS(this->actor.shape.rot.y, MTXMODE_APPLY);
     Matrix_RotateZS(0x4000, MTXMODE_APPLY);
     // The indices looks a bit random...
@@ -2649,13 +2649,13 @@ void Boss03_SeaweedDraw(Actor* thisx, PlayState* play) {
         Matrix_RotateXS(this->jointTable[i].y + this->morphTable[i].y, MTXMODE_APPLY);
         Matrix_RotateZS(this->jointTable[i].z + this->morphTable[i].z, MTXMODE_APPLY);
 
-        Matrix_ToMtx(mtx);
+        MM_Matrix_ToMtx(mtx);
         gSPMatrix(POLY_OPA_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
         gSPDisplayList(POLY_OPA_DISP++, sGyorgSeaweedDLs[i]);
 
         Matrix_MultZero(&this->seaweedSegmentPositions[i]);
-        Matrix_Translate(4000.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+        MM_Matrix_Translate(4000.0f, 0.0f, 0.0f, MTXMODE_APPLY);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

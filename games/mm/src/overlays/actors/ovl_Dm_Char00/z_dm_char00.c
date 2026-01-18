@@ -122,7 +122,7 @@ typedef enum {
     /* 0x55 */ DMCHAR00_ANIM_MAX
 } DmChar00Animation;
 
-static AnimationInfo sAnimationInfo[DMCHAR00_ANIM_MAX] = {
+static AnimationInfo MM_sAnimationInfo[DMCHAR00_ANIM_MAX] = {
     { &gameplay_keep_Anim_02B2E8, 1.0f, 0.0f, -1.0f, ANIMMODE_LOOP, 0.0f },        // DMCHAR00_ANIM_0
     { &gameplay_keep_Anim_029140, 1.0f, 0.0f, -1.0f, ANIMMODE_LOOP, 0.0f },        // DMCHAR00_ANIM_1
     { &object_delf_Anim_004FF4, 1.0f, 0.0f, -1.0f, ANIMMODE_ONCE, 0.0f },          // DMCHAR00_ANIM_2
@@ -230,12 +230,12 @@ void DmChar00_ChangeAnim(SkelAnime* skelAnime, AnimationInfo* animInfo, u16 anim
     animInfo += animIndex;
 
     if (animInfo->frameCount < 0.0f) {
-        endFrame = Animation_GetLastFrame(animInfo->animation);
+        endFrame = MM_Animation_GetLastFrame(animInfo->animation);
     } else {
         endFrame = animInfo->frameCount;
     }
 
-    Animation_Change(skelAnime, animInfo->animation, animInfo->playSpeed, animInfo->startFrame, endFrame,
+    MM_Animation_Change(skelAnime, animInfo->animation, animInfo->playSpeed, animInfo->startFrame, endFrame,
                      animInfo->mode, animInfo->morphFrames);
 }
 
@@ -493,7 +493,7 @@ void func_80AA5BF8(DmChar00* this, PlayState* play) {
         }
     }
 
-    if ((this->animIndex == DMCHAR00_ANIM_53) && Animation_OnFrame(&this->skelAnime, 16.0f)) {
+    if ((this->animIndex == DMCHAR00_ANIM_53) && MM_Animation_OnFrame(&this->skelAnime, 16.0f)) {
         Actor_PlaySfx(&this->actor, NA_SE_EV_BLACK_FAIRY_DASH);
     }
 }
@@ -667,7 +667,7 @@ void DmChar00_Init(Actor* thisx, PlayState* play) {
     DmChar00* this = (DmChar00*)thisx;
 
     if ((play->sceneId == SCENE_LOST_WOODS) && !Cutscene_IsPlaying(play)) {
-        Actor_Kill(thisx);
+        MM_Actor_Kill(thisx);
     }
 
     this->unk_240 = D_80AA77A8[DMCHAR00_GET(thisx)];
@@ -677,12 +677,12 @@ void DmChar00_Init(Actor* thisx, PlayState* play) {
     this->cueId = 99;
     this->unk_262 = DMCHAR00_GET_F800(thisx);
 
-    ActorShape_Init(&thisx->shape, 0.0f, ActorShadow_DrawCircle, 24.0f);
-    SkelAnime_Init(play, &this->skelAnime, gameplay_keep_Skel_02AF58, &gameplay_keep_Anim_029140, this->jointTable,
+    MM_ActorShape_Init(&thisx->shape, 0.0f, MM_ActorShadow_DrawCircle, 24.0f);
+    MM_SkelAnime_Init(play, &this->skelAnime, gameplay_keep_Skel_02AF58, &gameplay_keep_Anim_029140, this->jointTable,
                    this->morphTable, FAIRY_LIMB_MAX);
-    ActorShape_Init(&thisx->shape, 0.0f, NULL, 15.0f);
-    DmChar00_ChangeAnim(&this->skelAnime, &sAnimationInfo[DMCHAR00_ANIM_0], 0);
-    Actor_SetScale(thisx, 0.01f);
+    MM_ActorShape_Init(&thisx->shape, 0.0f, NULL, 15.0f);
+    DmChar00_ChangeAnim(&this->skelAnime, &MM_sAnimationInfo[DMCHAR00_ANIM_0], 0);
+    MM_Actor_SetScale(thisx, 0.01f);
     this->actionFunc = func_80AA67F8;
 }
 
@@ -787,7 +787,7 @@ void DmChar00_HandleCutscene(DmChar00* this, PlayState* play) {
                         break;
 
                     case 0x16:
-                        Actor_Kill(&this->actor);
+                        MM_Actor_Kill(&this->actor);
                         break;
 
                     case 0x17:
@@ -922,7 +922,7 @@ void DmChar00_HandleCutscene(DmChar00* this, PlayState* play) {
                         this->animIndex = DMCHAR00_ANIM_0;
                         break;
                 }
-                DmChar00_ChangeAnim(&this->skelAnime, &sAnimationInfo[this->animIndex], 0);
+                DmChar00_ChangeAnim(&this->skelAnime, &MM_sAnimationInfo[this->animIndex], 0);
             }
         }
         Cutscene_ActorTranslateAndYaw(&this->actor, play, cueChannel);
@@ -930,12 +930,12 @@ void DmChar00_HandleCutscene(DmChar00* this, PlayState* play) {
         this->cueId = 99;
     }
 
-    if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         switch (this->animIndex) {
             case DMCHAR00_ANIM_4:
             case DMCHAR00_ANIM_5:
                 this->animIndex += 4;
-                DmChar00_ChangeAnim(&this->skelAnime, &sAnimationInfo[this->animIndex], 0);
+                DmChar00_ChangeAnim(&this->skelAnime, &MM_sAnimationInfo[this->animIndex], 0);
                 this->skelAnime.curFrame = 37.0f;
                 break;
 
@@ -944,7 +944,7 @@ void DmChar00_HandleCutscene(DmChar00* this, PlayState* play) {
             case DMCHAR00_ANIM_20:
             case DMCHAR00_ANIM_21:
                 this->animIndex += 2;
-                DmChar00_ChangeAnim(&this->skelAnime, &sAnimationInfo[this->animIndex], 0);
+                DmChar00_ChangeAnim(&this->skelAnime, &MM_sAnimationInfo[this->animIndex], 0);
                 break;
 
             case DMCHAR00_ANIM_10:
@@ -972,18 +972,18 @@ void DmChar00_HandleCutscene(DmChar00* this, PlayState* play) {
             case DMCHAR00_ANIM_80:
             case DMCHAR00_ANIM_83:
                 this->animIndex += 1;
-                DmChar00_ChangeAnim(&this->skelAnime, &sAnimationInfo[this->animIndex], 0);
+                DmChar00_ChangeAnim(&this->skelAnime, &MM_sAnimationInfo[this->animIndex], 0);
                 break;
 
             case DMCHAR00_ANIM_45:
                 this->animIndex = DMCHAR00_ANIM_19;
-                DmChar00_ChangeAnim(&this->skelAnime, &sAnimationInfo[this->animIndex], 0);
+                DmChar00_ChangeAnim(&this->skelAnime, &MM_sAnimationInfo[this->animIndex], 0);
                 break;
 
             case DMCHAR00_ANIM_70:
             case DMCHAR00_ANIM_77:
                 this->animIndex = DMCHAR00_ANIM_0;
-                DmChar00_ChangeAnim(&this->skelAnime, &sAnimationInfo[this->animIndex], 0);
+                DmChar00_ChangeAnim(&this->skelAnime, &MM_sAnimationInfo[this->animIndex], 0);
                 break;
 
             default:
@@ -998,16 +998,16 @@ void func_80AA67F8(DmChar00* this, PlayState* play) {
     if ((play->csCtx.state == CS_STATE_IDLE) && (gSaveContext.sceneLayer == 0) && (play->csCtx.scriptIndex == 1)) {
         if (this->animIndex != DMCHAR00_ANIM_42) {
             this->animIndex = DMCHAR00_ANIM_42;
-            DmChar00_ChangeAnim(&this->skelAnime, &sAnimationInfo[this->animIndex], 0);
+            DmChar00_ChangeAnim(&this->skelAnime, &MM_sAnimationInfo[this->animIndex], 0);
         }
 
-        Math_SmoothStepToF(&this->actor.world.pos.x, 0.0f, 0.5f, 0.5f, 0.001f);
-        Math_SmoothStepToF(&this->actor.world.pos.y, 30.0f, 0.5f, 0.5f, 0.001f);
-        Math_SmoothStepToF(&this->actor.world.pos.z, -560.0f, 0.5f, 20.0f, 0.001f);
+        MM_Math_SmoothStepToF(&this->actor.world.pos.x, 0.0f, 0.5f, 0.5f, 0.001f);
+        MM_Math_SmoothStepToF(&this->actor.world.pos.y, 30.0f, 0.5f, 0.5f, 0.001f);
+        MM_Math_SmoothStepToF(&this->actor.world.pos.z, -560.0f, 0.5f, 20.0f, 0.001f);
 
         if (player->actor.world.pos.z < -625.0f) {
             this->animIndex = DMCHAR00_ANIM_43;
-            DmChar00_ChangeAnim(&this->skelAnime, &sAnimationInfo[this->animIndex], 0);
+            DmChar00_ChangeAnim(&this->skelAnime, &MM_sAnimationInfo[this->animIndex], 0);
             this->actionFunc = func_80AA695C;
             this->skelAnime.playSpeed = 1.5f;
         }
@@ -1016,16 +1016,16 @@ void func_80AA67F8(DmChar00* this, PlayState* play) {
 
 void func_80AA695C(DmChar00* this, PlayState* play) {
     if (this->animIndex == DMCHAR00_ANIM_44) {
-        Math_SmoothStepToF(&this->actor.world.pos.x, 0.0f, 0.5f, 0.5f, 0.001f);
-        Math_SmoothStepToF(&this->actor.world.pos.y, 30.0f, 0.5f, 0.5f, 0.001f);
-        Math_SmoothStepToF(&this->actor.world.pos.z, -680.0f, 0.5f, 10.0f, 0.001f);
+        MM_Math_SmoothStepToF(&this->actor.world.pos.x, 0.0f, 0.5f, 0.5f, 0.001f);
+        MM_Math_SmoothStepToF(&this->actor.world.pos.y, 30.0f, 0.5f, 0.5f, 0.001f);
+        MM_Math_SmoothStepToF(&this->actor.world.pos.z, -680.0f, 0.5f, 10.0f, 0.001f);
     }
 }
 
 void DmChar00_Update(Actor* thisx, PlayState* play) {
     DmChar00* this = (DmChar00*)thisx;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     this->actionFunc(this, play);
 
@@ -1041,10 +1041,10 @@ s32 DmChar00_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f
     Vec3f sp1C;
 
     if (limbIndex == FAIRY_LIMB_6) {
-        sp28 = ((Math_SinS(this->unk_262 * 0x1000) * 0.1f) + 1.0f) * 0.012f * (this->actor.scale.x * (1.0f / 0.008f));
-        Matrix_MultVec3f(&D_80AA7808, &sp1C);
-        Matrix_Translate(sp1C.x, sp1C.y, sp1C.z, MTXMODE_NEW);
-        Matrix_Scale(sp28, sp28, sp28, MTXMODE_APPLY);
+        sp28 = ((MM_Math_SinS(this->unk_262 * 0x1000) * 0.1f) + 1.0f) * 0.012f * (this->actor.scale.x * (1.0f / 0.008f));
+        MM_Matrix_MultVec3f(&D_80AA7808, &sp1C);
+        MM_Matrix_Translate(sp1C.x, sp1C.y, sp1C.z, MTXMODE_NEW);
+        MM_Matrix_Scale(sp28, sp28, sp28, MTXMODE_APPLY);
     }
     return false;
 }
@@ -1086,7 +1086,7 @@ void DmChar00_Draw(Actor* thisx, PlayState* play2) {
                    (u8)(s8)((f32)phi_a0 * 1));
     gDPSetDither(POLY_XLU_DISP++, G_CD_BAYER);
 
-    POLY_XLU_DISP = SkelAnime_Draw(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
+    POLY_XLU_DISP = MM_SkelAnime_Draw(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                    DmChar00_OverrideLimbDraw, NULL, &this->actor, POLY_XLU_DISP);
 
     CLOSE_DISPS(play->state.gfxCtx);

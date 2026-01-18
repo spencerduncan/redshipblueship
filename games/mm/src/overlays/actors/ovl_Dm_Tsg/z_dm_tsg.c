@@ -31,13 +31,13 @@ void DmTsg_Init(Actor* thisx, PlayState* play) {
     s32 i;
 
     if (gSaveContext.save.entrance == ENTRANCE(OPENING_DUNGEON, 0)) {
-        Actor_SetScale(&this->actor, 0.1f);
+        MM_Actor_SetScale(&this->actor, 0.1f);
         for (i = 0; i < DMTSG_UNK_SIZE; i++) {
-            this->unk_78C[i] = Rand_ZeroOne() * 0xFFFF;
-            this->unk_856[i] = TRUNCF_BINANG(Rand_ZeroOne() * 200.0f) + 100;
+            this->unk_78C[i] = MM_Rand_ZeroOne() * 0xFFFF;
+            this->unk_856[i] = TRUNCF_BINANG(MM_Rand_ZeroOne() * 200.0f) + 100;
         }
     } else {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -50,10 +50,10 @@ void DmTsg_Update(Actor* thisx, PlayState* play) {
     s16 i;
 
     for (i = 0; i < DMTSG_UNK_SIZE; i++) {
-        this->unk_5F8[i] = (Math_SinS((i % 16U) * this->unk_854) * 60.0f) + 120.0f;
-        this->unk_148[i].x = Math_CosS(this->unk_78C[i]) * this->unk_5F8[i];
+        this->unk_5F8[i] = (MM_Math_SinS((i % 16U) * this->unk_854) * 60.0f) + 120.0f;
+        this->unk_148[i].x = MM_Math_CosS(this->unk_78C[i]) * this->unk_5F8[i];
         this->unk_148[i].y = this->unk_788 + (i * 16);
-        this->unk_148[i].z = Math_SinS(this->unk_78C[i]) * this->unk_5F8[i];
+        this->unk_148[i].z = MM_Math_SinS(this->unk_78C[i]) * this->unk_5F8[i];
         this->unk_78C[i] += this->unk_856[i];
     }
 
@@ -77,12 +77,12 @@ void DmTsg_Draw(Actor* thisx, PlayState* play2) {
 
     if (this->canDraw) {
         for (i = 0, j = 0; i < DMTSG_UNK_SIZE; i++) {
-            Matrix_Translate(this->unk_148[i].x + this->actor.world.pos.x, this->unk_148[i].y + this->actor.world.pos.y,
+            MM_Matrix_Translate(this->unk_148[i].x + this->actor.world.pos.x, this->unk_148[i].y + this->actor.world.pos.y,
                              this->unk_148[i].z + this->actor.world.pos.z, MTXMODE_NEW);
-            Matrix_Scale(0.3f, 0.3f, 0.3f, MTXMODE_APPLY);
+            MM_Matrix_Scale(0.3f, 0.3f, 0.3f, MTXMODE_APPLY);
             AnimatedMat_DrawStep(play, Lib_SegmentedToVirtual(object_open_obj_Matanimheader_011458), j++);
-            Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
-            Gfx_DrawDListXlu(play, object_open_obj_DL_002D30);
+            MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
+            MM_Gfx_DrawDListXlu(play, object_open_obj_DL_002D30);
             if (j >= 10) {
                 j = 0;
             }

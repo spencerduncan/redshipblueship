@@ -61,7 +61,7 @@ void DemoSyoten_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     DemoSyoten* this = (DemoSyoten*)thisx;
 
-    Actor_SetScale(&this->actor, 0.3f);
+    MM_Actor_SetScale(&this->actor, 0.3f);
 
     this->actionFunc = func_80C16A64;
     this->unk_3E4 = 0;
@@ -79,20 +79,20 @@ void DemoSyoten_Init(Actor* thisx, PlayState* play) {
             this->actor.draw = NULL;
             this->actionFunc = func_80C16A74;
             this->actor.child =
-                Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EFF_DUST, this->actor.world.pos.x,
+                MM_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EFF_DUST, this->actor.world.pos.x,
                                    this->actor.world.pos.y, this->actor.world.pos.z, 0, this->actor.shape.rot.y, 0, 0);
             this->cueType = CS_CMD_ACTOR_CUE_533;
-            Actor_SetScale(&this->actor, 0.05f);
+            MM_Actor_SetScale(&this->actor, 0.05f);
             break;
 
         case DEMOSYOTEN_F_1:
-            Actor_SetScale(&this->actor, 0.1f);
+            MM_Actor_SetScale(&this->actor, 0.1f);
             this->unk_3DC = object_syoten_DL_001370;
             this->unk_3E0 = Lib_SegmentedToVirtual(&object_syoten_Matanimheader_001448);
             this->unk_3E4 |= 1;
             this->actionFunc = func_80C16BD4;
             this->cueType = CS_CMD_ACTOR_CUE_533;
-            Actor_SetScale(&this->actor, 0.05f);
+            MM_Actor_SetScale(&this->actor, 0.05f);
             break;
 
         case DEMOSYOTEN_F_2:
@@ -101,7 +101,7 @@ void DemoSyoten_Init(Actor* thisx, PlayState* play) {
             this->cueType = CS_CMD_ACTOR_CUE_534;
             this->actionFunc = func_80C16DD4;
             this->unk_3E4 |= 2;
-            Actor_SetScale(&this->actor, 4.0f);
+            MM_Actor_SetScale(&this->actor, 4.0f);
             break;
 
         case DEMOSYOTEN_F_3:
@@ -110,7 +110,7 @@ void DemoSyoten_Init(Actor* thisx, PlayState* play) {
             this->cueType = CS_CMD_ACTOR_CUE_536;
             this->unk_3E4 |= 8;
             this->actionFunc = func_80C16EAC;
-            Actor_SetScale(&this->actor, 0.5f);
+            MM_Actor_SetScale(&this->actor, 0.5f);
             break;
 
         case DEMOSYOTEN_F_4:
@@ -122,7 +122,7 @@ void DemoSyoten_Init(Actor* thisx, PlayState* play) {
             this->unk_3E4 |= 1;
             this->unk_3E4 |= 8;
             this->actor.draw = func_80C17690;
-            Actor_SetScale(&this->actor, 5.0f);
+            MM_Actor_SetScale(&this->actor, 5.0f);
             break;
     }
 }
@@ -145,12 +145,12 @@ void func_80C16760(DemoSyoten* this, PlayState* play) {
         this->path = &play->setupPathList[DEMOSYOTEN_GET_PATH_INDEX(&this->actor)];
         if (this->path != NULL) {
             points = Lib_SegmentedToVirtual(this->path->points);
-            Math_Vec3s_ToVec3f(&this->actor.world.pos, &points[0]);
+            MM_Math_Vec3s_ToVec3f(&this->actor.world.pos, &points[0]);
             this->unk_3EC++;
             points++;
-            Math_Vec3s_ToVec3f(&sp2C, points);
-            this->actor.world.rot.y = Math_Vec3f_Yaw(&this->actor.world.pos, &sp2C);
-            this->actor.world.rot.x = Math_Vec3f_Pitch(&this->actor.world.pos, &sp2C);
+            MM_Math_Vec3s_ToVec3f(&sp2C, points);
+            this->actor.world.rot.y = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &sp2C);
+            this->actor.world.rot.x = MM_Math_Vec3f_Pitch(&this->actor.world.pos, &sp2C);
         }
     } else {
         this->path = NULL;
@@ -169,11 +169,11 @@ s32 func_80C16818(DemoSyoten* this) {
 
     points = Lib_SegmentedToVirtual(this->path->points);
     points += this->unk_3EC;
-    Math_Vec3s_ToVec3f(&sp28, points);
-    this->actor.world.rot.y = Math_Vec3f_Yaw(&this->actor.world.pos, &sp28);
-    this->actor.world.rot.x = Math_Vec3f_Pitch(&this->actor.world.pos, &sp28);
+    MM_Math_Vec3s_ToVec3f(&sp28, points);
+    this->actor.world.rot.y = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &sp28);
+    this->actor.world.rot.x = MM_Math_Vec3f_Pitch(&this->actor.world.pos, &sp28);
     Actor_MoveWithoutGravityReverse(&this->actor);
-    if (Math_Vec3f_DistXYZ(&this->actor.world.pos, &sp28) < 2.0f) {
+    if (MM_Math_Vec3f_DistXYZ(&this->actor.world.pos, &sp28) < 2.0f) {
         return true;
     }
     return false;
@@ -190,12 +190,12 @@ void func_80C168D0(DemoSyoten* this, PlayState* play) {
     if (path != NULL) {
         points = Lib_SegmentedToVirtual(this->path->points);
         points += this->unk_3EC;
-        Math_Vec3s_ToVec3f(&worldPos, points);
+        MM_Math_Vec3s_ToVec3f(&worldPos, points);
         Actor_GetProjectedPos(play, &worldPos, &projectedPos, &invW);
-        Math_Vec3f_Copy(&worldPos, &this->actor.projectedPos);
+        MM_Math_Vec3f_Copy(&worldPos, &this->actor.projectedPos);
         worldPos.z = worldPos.y;
         projectedPos.z = projectedPos.y;
-        this->actor.shape.rot.z = -Math_Vec3f_Yaw(&projectedPos, &worldPos);
+        this->actor.shape.rot.z = -MM_Math_Vec3f_Yaw(&projectedPos, &worldPos);
     }
 }
 
@@ -288,7 +288,7 @@ void func_80C16BD4(DemoSyoten* this, PlayState* play) {
                 case 1:
                 case 2:
                     this->actor.draw = NULL;
-                    Actor_SetScale(&this->actor, 0.0f);
+                    MM_Actor_SetScale(&this->actor, 0.0f);
                     break;
 
                 case 3:
@@ -312,7 +312,7 @@ void func_80C16BD4(DemoSyoten* this, PlayState* play) {
                 if (this->actor.scale.x < 0.05f) {
                     this->actor.scale.x += 0.000625f;
                 }
-                Actor_SetScale(&this->actor, this->actor.scale.x);
+                MM_Actor_SetScale(&this->actor, this->actor.scale.x);
                 break;
 
             case 4:
@@ -372,7 +372,7 @@ void func_80C16EAC(DemoSyoten* this, PlayState* play) {
                 case 1:
                     this->actor.draw = NULL;
                     this->unk_3D8 = 0.0f;
-                    Actor_SetScale(&this->actor, 0.5f);
+                    MM_Actor_SetScale(&this->actor, 0.5f);
                     break;
 
                 case 2:
@@ -386,7 +386,7 @@ void func_80C16EAC(DemoSyoten* this, PlayState* play) {
                 this->actor.scale.x += 0.1875f;
             }
 
-            Actor_SetScale(&this->actor, this->actor.scale.x);
+            MM_Actor_SetScale(&this->actor, this->actor.scale.x);
 
             if (this->unk_3D8 < 1.0f) {
                 this->unk_3D8 += 0.025f;
@@ -492,7 +492,7 @@ void func_80C173B4(Actor* thisx, PlayState* play) {
 
     if (mtxStack != NULL) {
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-        Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
+        MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
         Keyframe_DrawFlex(play, &this->kfSkelAnime, mtxStack, DemoSyoten_OverrideLimbDraw, NULL, &this->actor);
     }
 }
@@ -522,13 +522,13 @@ void DemoSyoten_Draw(Actor* thisx, PlayState* play) {
 
     if (this->unk_3E4 & 4) {
         Matrix_RotateZS(-this->actor.shape.rot.z, MTXMODE_APPLY);
-        Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
+        MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
         Matrix_RotateZS(this->actor.shape.rot.z, MTXMODE_APPLY);
-        Matrix_Scale(1.0f, 5.0f, 1.0f, MTXMODE_APPLY);
+        MM_Matrix_Scale(1.0f, 5.0f, 1.0f, MTXMODE_APPLY);
     }
 
     if (this->unk_3E4 & 1) {
-        Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
+        MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
     }
 
     if (this->unk_3E4 & 8) {
@@ -558,7 +558,7 @@ void func_80C17690(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-    Matrix_RotateYS(BINANG_ROT180(Camera_GetCamDirYaw(GET_ACTIVE_CAM(play))), MTXMODE_APPLY);
+    Matrix_RotateYS(BINANG_ROT180(MM_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play))), MTXMODE_APPLY);
 
     if (this->unk_3E4 & 8) {
         func_80C17468(play);

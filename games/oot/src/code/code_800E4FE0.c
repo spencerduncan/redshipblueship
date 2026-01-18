@@ -38,17 +38,17 @@ AudioTask* func_800E4FE0(void) {
 extern u64 rspAspMainDataStart[];
 extern u64 rspAspMainDataEnd[];
 
-void AudioMgr_CreateNextAudioBuffer(s16* samples, u32 num_samples) {
+void OoT_AudioMgr_CreateNextAudioBuffer(s16* samples, u32 num_samples) {
     OSMesg sp4C;
 
     gAudioContext.totalTaskCnt++;
 
-    AudioLoad_DecreaseSampleDmaTtls();
-    AudioLoad_ProcessLoads(gAudioContext.resetStatus);
-    AudioLoad_ProcessScriptLoads();
+    OoT_AudioLoad_DecreaseSampleDmaTtls();
+    OoT_AudioLoad_ProcessLoads(gAudioContext.resetStatus);
+    OoT_AudioLoad_ProcessScriptLoads();
 
     if (gAudioContext.resetStatus != 0) {
-        if (AudioHeap_ResetStep() == 0) {
+        if (OoT_AudioHeap_ResetStep() == 0) {
             if (gAudioContext.resetStatus == 0) {
                 osSendMesg8(gAudioContext.audioResetQueueP, gAudioContext.audioResetSpecIdToLoad, OS_MESG_NOBLOCK);
             }
@@ -58,7 +58,7 @@ void AudioMgr_CreateNextAudioBuffer(s16* samples, u32 num_samples) {
     int j = 0;
     if (gAudioContext.resetStatus == 0) {
         // msg = 0000RREE R = read pos, E = End Pos
-        while (osRecvMesg(gAudioContext.cmdProcQueueP, &sp4C, OS_MESG_NOBLOCK) != -1) {
+        while (OoT_osRecvMesg(gAudioContext.cmdProcQueueP, &sp4C, OS_MESG_NOBLOCK) != -1) {
             Audio_ProcessCmds(sp4C.data32);
             j++;
         }
@@ -67,7 +67,7 @@ void AudioMgr_CreateNextAudioBuffer(s16* samples, u32 num_samples) {
         }
     }
     s32 writtenCmds;
-    AudioSynth_Update(gAudioContext.curAbiCmdBuf, &writtenCmds, samples, num_samples);
+    OoT_AudioSynth_Update(gAudioContext.curAbiCmdBuf, &writtenCmds, samples, num_samples);
     gAudioContext.audioRandom = (gAudioContext.audioRandom + gAudioContext.totalTaskCnt) * osGetCount();
 }
 
@@ -107,11 +107,11 @@ AudioTask* func_800E5000(void) {
     gAudioContext.curAIBufIdx++;
     gAudioContext.curAIBufIdx %= 3;
     index = (gAudioContext.curAIBufIdx - 2 + 3) % 3;
-    samplesRemainingInAi = osAiGetLength() / 4;
+    samplesRemainingInAi = OoT_osAiGetLength() / 4;
 
     if (gAudioContext.resetTimer < 16) {
         if (gAudioContext.aiBufLengths[index] != 0) {
-            osAiSetNextBuffer(gAudioContext.aiBuffers[index], gAudioContext.aiBufLengths[index] * 4);
+            OoT_osAiSetNextBuffer(gAudioContext.aiBuffers[index], gAudioContext.aiBufLengths[index] * 4);
             if (gAudioContext.aiBuffers[index]) {}
             if (gAudioContext.aiBufLengths[index]) {}
         }
@@ -123,31 +123,31 @@ AudioTask* func_800E5000(void) {
 
     sp5C = gAudioContext.curAudioFrameDmaCount;
     for (i = 0; i < gAudioContext.curAudioFrameDmaCount; i++) {
-        if (osRecvMesg(&gAudioContext.currAudioFrameDmaQueue, NULL, OS_MESG_NOBLOCK) == 0) {
+        if (OoT_osRecvMesg(&gAudioContext.currAudioFrameDmaQueue, NULL, OS_MESG_NOBLOCK) == 0) {
             sp5C--;
         }
     }
 
     if (sp5C != 0) {
         for (i = 0; i < sp5C; i++) {
-            osRecvMesg(&gAudioContext.currAudioFrameDmaQueue, NULL, OS_MESG_BLOCK);
+            OoT_osRecvMesg(&gAudioContext.currAudioFrameDmaQueue, NULL, OS_MESG_BLOCK);
         }
     }
 
     sp48 = gAudioContext.currAudioFrameDmaQueue.validCount;
     if (sp48 != 0) {
         for (i = 0; i < sp48; i++) {
-            osRecvMesg(&gAudioContext.currAudioFrameDmaQueue, NULL, OS_MESG_NOBLOCK);
+            OoT_osRecvMesg(&gAudioContext.currAudioFrameDmaQueue, NULL, OS_MESG_NOBLOCK);
         }
     }
 
     gAudioContext.curAudioFrameDmaCount = 0;
-    AudioLoad_DecreaseSampleDmaTtls();
-    AudioLoad_ProcessLoads(gAudioContext.resetStatus);
-    AudioLoad_ProcessScriptLoads();
+    OoT_AudioLoad_DecreaseSampleDmaTtls();
+    OoT_AudioLoad_ProcessLoads(gAudioContext.resetStatus);
+    OoT_AudioLoad_ProcessScriptLoads();
 
     if (gAudioContext.resetStatus != 0) {
-        if (AudioHeap_ResetStep() == 0) {
+        if (OoT_AudioHeap_ResetStep() == 0) {
             if (gAudioContext.resetStatus == 0) {
                 osSendMesg8(gAudioContext.audioResetQueueP, gAudioContext.audioResetSpecIdToLoad, OS_MESG_NOBLOCK);
             }
@@ -186,7 +186,7 @@ AudioTask* func_800E5000(void) {
     j = 0;
     if (gAudioContext.resetStatus == 0) {
         // msg = 0000RREE R = read pos, E = End Pos
-        while (osRecvMesg(gAudioContext.cmdProcQueueP, &sp4C, OS_MESG_NOBLOCK) != -1) {
+        while (OoT_osRecvMesg(gAudioContext.cmdProcQueueP, &sp4C, OS_MESG_NOBLOCK) != -1) {
             Audio_ProcessCmds(sp4C.data32);
             j++;
         }
@@ -196,11 +196,11 @@ AudioTask* func_800E5000(void) {
     }
 
     gAudioContext.curAbiCmdBuf =
-        AudioSynth_Update(gAudioContext.curAbiCmdBuf, &abiCmdCnt, currAiBuffer, gAudioContext.aiBufLengths[index]);
+        OoT_AudioSynth_Update(gAudioContext.curAbiCmdBuf, &abiCmdCnt, currAiBuffer, gAudioContext.aiBufLengths[index]);
     gAudioContext.audioRandom = (gAudioContext.audioRandom + gAudioContext.totalTaskCnt) * osGetCount();
     gAudioContext.audioRandom =
         gAudioContext.aiBuffers[index][gAudioContext.totalTaskCnt & 0xFF] + gAudioContext.audioRandom;
-    gWaveSamples[8] = (s16*)(((u8*)func_800E4FE0) + (gAudioContext.audioRandom & 0xFFF0));
+    OoT_gWaveSamples[8] = (s16*)(((u8*)func_800E4FE0) + (gAudioContext.audioRandom & 0xFFF0));
 
     index = gAudioContext.rspTaskIdx;
     gAudioContext.currTask->taskQueue = NULL;
@@ -244,14 +244,14 @@ void func_800E5584(AudioCmd* cmd) {
 
     switch (cmd->op) {
         case 0x81:
-            AudioLoad_SyncLoadSeqParts(cmd->arg1, cmd->arg2);
+            OoT_AudioLoad_SyncLoadSeqParts(cmd->arg1, cmd->arg2);
             return;
         case 0x82:
-            AudioLoad_SyncInitSeqPlayer(cmd->arg0, cmd->arg1, cmd->arg2);
+            OoT_AudioLoad_SyncInitSeqPlayer(cmd->arg0, cmd->arg1, cmd->arg2);
             func_800E59AC(cmd->arg0, cmd->data);
             return;
         case 0x85:
-            AudioLoad_SyncInitSeqPlayerSkipTicks(cmd->arg0, cmd->arg1, cmd->data);
+            OoT_AudioLoad_SyncInitSeqPlayerSkipTicks(cmd->arg0, cmd->arg1, cmd->data);
             return;
         case 0x83:
             if (gAudioContext.seqPlayers[cmd->arg0].enabled) {
@@ -293,19 +293,19 @@ void func_800E5584(AudioCmd* cmd) {
 
             return;
         case 0xF3:
-            AudioLoad_SyncLoadInstrument(cmd->arg0, cmd->arg1, cmd->arg2);
+            OoT_AudioLoad_SyncLoadInstrument(cmd->arg0, cmd->arg1, cmd->arg2);
             return;
         case 0xF4:
-            AudioLoad_AsyncLoadSampleBank(cmd->arg0, cmd->arg1, cmd->arg2, &gAudioContext.externalLoadQueue);
+            OoT_AudioLoad_AsyncLoadSampleBank(cmd->arg0, cmd->arg1, cmd->arg2, &gAudioContext.externalLoadQueue);
             return;
         case 0xF5:
-            AudioLoad_AsyncLoadFont(cmd->arg0, cmd->arg1, cmd->arg2, &gAudioContext.externalLoadQueue);
+            OoT_AudioLoad_AsyncLoadFont(cmd->arg0, cmd->arg1, cmd->arg2, &gAudioContext.externalLoadQueue);
             return;
         case 0xFC:
-            AudioLoad_AsyncLoadSeq(cmd->arg0, cmd->arg1, cmd->arg2, &gAudioContext.externalLoadQueue);
+            OoT_AudioLoad_AsyncLoadSeq(cmd->arg0, cmd->arg1, cmd->arg2, &gAudioContext.externalLoadQueue);
             return;
         case 0xF6:
-            AudioLoad_DiscardSeqFonts(cmd->arg1);
+            OoT_AudioLoad_DiscardSeqFonts(cmd->arg1);
             return;
         case 0x90:
             gAudioContext.unk_5BDC[cmd->arg0] = cmd->asUShort;
@@ -375,10 +375,10 @@ void Audio_InitMesgQueuesInternal(void) {
     gAudioContext.taskStartQueueP = &gAudioContext.taskStartQueue;
     gAudioContext.cmdProcQueueP = &gAudioContext.cmdProcQueue;
     gAudioContext.audioResetQueueP = &gAudioContext.audioResetQueue;
-    osCreateMesgQueue(gAudioContext.taskStartQueueP, gAudioContext.taskStartMsgs,
+    OoT_osCreateMesgQueue(gAudioContext.taskStartQueueP, gAudioContext.taskStartMsgs,
                       ARRAY_COUNT(gAudioContext.taskStartMsgs));
-    osCreateMesgQueue(gAudioContext.cmdProcQueueP, gAudioContext.cmdProcMsgs, ARRAY_COUNT(gAudioContext.cmdProcMsgs));
-    osCreateMesgQueue(gAudioContext.audioResetQueueP, gAudioContext.audioResetMesgs,
+    OoT_osCreateMesgQueue(gAudioContext.cmdProcQueueP, gAudioContext.cmdProcMsgs, ARRAY_COUNT(gAudioContext.cmdProcMsgs));
+    OoT_osCreateMesgQueue(gAudioContext.audioResetQueueP, gAudioContext.audioResetMesgs,
                       ARRAY_COUNT(gAudioContext.audioResetMesgs));
 }
 
@@ -511,7 +511,7 @@ void Audio_ProcessCmds(u32 msg) {
 u32 func_800E5E20(u32* out) {
     u32 sp1C;
 
-    if (osRecvMesg(&gAudioContext.externalLoadQueue, (OSMesg*)&sp1C, OS_MESG_NOBLOCK) == -1) {
+    if (OoT_osRecvMesg(&gAudioContext.externalLoadQueue, (OSMesg*)&sp1C, OS_MESG_NOBLOCK) == -1) {
         *out = 0;
         return 0;
     }
@@ -520,7 +520,7 @@ u32 func_800E5E20(u32* out) {
 }
 
 u8* func_800E5E84(s32 arg0, u32* arg1) {
-    return AudioLoad_GetFontsForSequence(arg0, arg1);
+    return OoT_AudioLoad_GetFontsForSequence(arg0, arg1);
 }
 
 void func_800E5EA4(s32 arg0, u32* arg1, u32* arg2) {
@@ -532,7 +532,7 @@ s32 func_800E5EDC(void) {
     s32 pad;
     OSMesg sp18;
 
-    if (osRecvMesg(gAudioContext.audioResetQueueP, &sp18, OS_MESG_NOBLOCK) == -1) {
+    if (OoT_osRecvMesg(gAudioContext.audioResetQueueP, &sp18, OS_MESG_NOBLOCK) == -1) {
         return 0;
     } else if (gAudioContext.audioResetSpecIdToLoad != sp18.data8) {
         return -1;
@@ -544,7 +544,7 @@ s32 func_800E5EDC(void) {
 void func_800E5F34(void) {
     // macro?
     // clang-format off
-    s32 chk = -1; OSMesg sp28; do {} while (osRecvMesg(gAudioContext.audioResetQueueP, &sp28, OS_MESG_NOBLOCK) != chk);
+    s32 chk = -1; OSMesg sp28; do {} while (OoT_osRecvMesg(gAudioContext.audioResetQueueP, &sp28, OS_MESG_NOBLOCK) != chk);
     // clang-format on
 }
 
@@ -563,7 +563,7 @@ s32 func_800E5F88(s32 resetPreloadID) {
             gAudioContext.audioResetSpecIdToLoad = resetPreloadID;
             return -3;
         } else {
-            osRecvMesg(gAudioContext.audioResetQueueP, &msg, OS_MESG_BLOCK);
+            OoT_osRecvMesg(gAudioContext.audioResetQueueP, &msg, OS_MESG_BLOCK);
         }
     }
 
@@ -758,8 +758,8 @@ void func_800E651C(u32 arg0, s32 arg1) {
 }
 
 void Audio_WaitForAudioTask(void) {
-    osRecvMesg(gAudioContext.taskStartQueueP, NULL, OS_MESG_NOBLOCK);
-    osRecvMesg(gAudioContext.taskStartQueueP, NULL, OS_MESG_BLOCK);
+    OoT_osRecvMesg(gAudioContext.taskStartQueueP, NULL, OS_MESG_NOBLOCK);
+    OoT_osRecvMesg(gAudioContext.taskStartQueueP, NULL, OS_MESG_BLOCK);
 }
 
 s32 func_800E6590(s32 playerIdx, s32 arg1, s32 arg2) {

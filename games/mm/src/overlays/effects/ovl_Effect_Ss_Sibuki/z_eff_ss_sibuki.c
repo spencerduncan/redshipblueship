@@ -21,16 +21,16 @@
 
 #define PARAMS ((EffectSsSibukiInitParams*)initParamsx)
 
-u32 EffectSsSibuki_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsSibuki_Update(PlayState* play, u32 index, EffectSs* this);
-void EffectSsSibuki_Draw(PlayState* play, u32 index, EffectSs* this);
+u32 MM_EffectSsSibuki_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void MM_EffectSsSibuki_Update(PlayState* play, u32 index, EffectSs* this);
+void MM_EffectSsSibuki_Draw(PlayState* play, u32 index, EffectSs* this);
 
 EffectSsProfile Effect_Ss_Sibuki_Profile = {
     EFFECT_SS_SIBUKI,
-    EffectSsSibuki_Init,
+    MM_EffectSsSibuki_Init,
 };
 
-u32 EffectSsSibuki_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 MM_EffectSsSibuki_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsSibukiInitParams* initParams = PARAMS;
 
     this->pos = initParams->pos;
@@ -43,10 +43,10 @@ u32 EffectSsSibuki_Init(PlayState* play, u32 index, EffectSs* this, void* initPa
         this->gfx = (void*)OS_K0_TO_PHYSICAL(SEGMENTED_TO_K0(tex));
     }
 
-    this->life = ((s32)((Rand_ZeroOne() * (500.0f + KREG(64))) * 0.01f)) + KREG(65) + 10;
+    this->life = ((s32)((MM_Rand_ZeroOne() * (500.0f + KREG(64))) * 0.01f)) + KREG(65) + 10;
     this->rMoveDelay = initParams->moveDelay + 1;
-    this->draw = EffectSsSibuki_Draw;
-    this->update = EffectSsSibuki_Update;
+    this->draw = MM_EffectSsSibuki_Draw;
+    this->update = MM_EffectSsSibuki_Update;
     this->rDirection = initParams->direction;
     this->rScale = initParams->scale;
     this->rPrimColorR = 100;
@@ -61,14 +61,14 @@ u32 EffectSsSibuki_Init(PlayState* play, u32 index, EffectSs* this, void* initPa
     return 1;
 }
 
-void EffectSsSibuki_Draw(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsSibuki_Draw(PlayState* play, u32 index, EffectSs* this) {
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     f32 scale = this->rScale / 100.0f;
 
     OPEN_DISPS(gfxCtx);
 
-    Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
-    Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+    MM_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
+    MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, gfxCtx);
     Gfx_SetupDL25_Opa(gfxCtx);
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, this->rPrimColorR, this->rPrimColorG, this->rPrimColorB, this->rPrimColorA);
@@ -79,7 +79,7 @@ void EffectSsSibuki_Draw(PlayState* play, u32 index, EffectSs* this) {
     CLOSE_DISPS(gfxCtx);
 }
 
-void EffectSsSibuki_Update(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsSibuki_Update(PlayState* play, u32 index, EffectSs* this) {
     Player* player = GET_PLAYER(play);
     s32 pad[2];
     f32 xzVelScale;
@@ -92,19 +92,19 @@ void EffectSsSibuki_Update(PlayState* play, u32 index, EffectSs* this) {
         this->rMoveDelay--;
 
         if (this->rMoveDelay == 0) {
-            s16 yaw = Camera_GetInputDirYaw(Play_GetCamera(play, CAM_ID_MAIN));
+            s16 yaw = MM_Camera_GetInputDirYaw(MM_Play_GetCamera(play, CAM_ID_MAIN));
 
-            xzVelScale = ((200.0f + KREG(20)) * 0.01f) + ((0.1f * Rand_ZeroOne()) * (KREG(23) + 20.0f));
+            xzVelScale = ((200.0f + KREG(20)) * 0.01f) + ((0.1f * MM_Rand_ZeroOne()) * (KREG(23) + 20.0f));
 
             if (this->rDirection != 0) {
                 xzVelScale *= -1.0f;
             }
 
-            this->velocity.x = Math_CosS(yaw) * xzVelScale;
-            this->velocity.z = -Math_SinS(yaw) * xzVelScale;
+            this->velocity.x = MM_Math_CosS(yaw) * xzVelScale;
+            this->velocity.z = -MM_Math_SinS(yaw) * xzVelScale;
 
-            this->velocity.y = ((700.0f + KREG(21)) * 0.01f) + ((0.1f * Rand_ZeroOne()) * (KREG(24) + 20.0f));
-            this->accel.y = ((-100.0f + KREG(22)) * 0.01f) + ((0.1f * Rand_ZeroOne()) * KREG(25));
+            this->velocity.y = ((700.0f + KREG(21)) * 0.01f) + ((0.1f * MM_Rand_ZeroOne()) * (KREG(24) + 20.0f));
+            this->accel.y = ((-100.0f + KREG(22)) * 0.01f) + ((0.1f * MM_Rand_ZeroOne()) * KREG(25));
 
             if (KREG(3) != 0) {
                 this->velocity.x *= (KREG(3) * 0.01f);

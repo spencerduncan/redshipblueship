@@ -26,7 +26,7 @@ ActorProfile En_Hit_Tag_Profile = {
     /**/ NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -50,19 +50,19 @@ void EnHitTag_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     EnHitTag* this = (EnHitTag*)thisx;
 
-    Actor_SetScale(&this->actor, 1.0f);
+    MM_Actor_SetScale(&this->actor, 1.0f);
     this->actionFunc = EnHitTag_WaitForHit;
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    if (Flags_GetSwitch(play, ENHITTAG_GET_SWITCH_FLAG(thisx))) {
-        Actor_Kill(&this->actor);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    if (MM_Flags_GetSwitch(play, ENHITTAG_GET_SWITCH_FLAG(thisx))) {
+        MM_Actor_Kill(&this->actor);
     }
 }
 
 void EnHitTag_Destroy(Actor* thisx, PlayState* play) {
     EnHitTag* this = (EnHitTag*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnHitTag_WaitForHit(EnHitTag* this, PlayState* play) {
@@ -71,16 +71,16 @@ void EnHitTag_WaitForHit(EnHitTag* this, PlayState* play) {
 
     if (this->collider.base.acFlags & AC_HIT) {
         Audio_PlaySfx(NA_SE_SY_GET_RUPY);
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         dropLocation.x = this->actor.world.pos.x;
         dropLocation.y = this->actor.world.pos.y;
         dropLocation.z = this->actor.world.pos.z;
 
         for (i = 0; i < 3; i++) {
-            Item_DropCollectible(play, &dropLocation, ITEM00_RUPEE_GREEN);
+            MM_Item_DropCollectible(play, &dropLocation, ITEM00_RUPEE_GREEN);
         }
     } else {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 

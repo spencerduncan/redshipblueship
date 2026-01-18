@@ -39,14 +39,14 @@ void BgGateShutter_Init(Actor* thisx, PlayState* play) {
     s32 pad[2];
     CollisionHeader* colHeader = NULL;
 
-    DynaPolyActor_Init(&this->dyna, DPM_UNK);
-    CollisionHeader_GetVirtual(&gKakarikoGuardGateCol, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
+    OoT_CollisionHeader_GetVirtual(&gKakarikoGuardGateCol, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
     this->somePos.x = thisx->world.pos.x;
     this->somePos.y = thisx->world.pos.y;
     this->somePos.z = thisx->world.pos.z;
-    if (((Flags_GetInfTable(INFTABLE_SHOWED_ZELDAS_LETTER_TO_GATE_GUARD)) ||
-         (!IS_RANDO && (Flags_GetEventChkInf(EVENTCHKINF_PULLED_MASTER_SWORD_FROM_PEDESTAL))) ||
+    if (((OoT_Flags_GetInfTable(INFTABLE_SHOWED_ZELDAS_LETTER_TO_GATE_GUARD)) ||
+         (!IS_RANDO && (OoT_Flags_GetEventChkInf(EVENTCHKINF_PULLED_MASTER_SWORD_FROM_PEDESTAL))) ||
          (IS_RANDO && (Randomizer_GetSettingValue(RSK_KAK_GATE) == RO_KAK_GATE_OPEN))) &&
         (play->sceneNum == SCENE_KAKARIKO_VILLAGE)) {
         thisx->world.pos.x = -89.0f;
@@ -63,11 +63,11 @@ void BgGateShutter_Init(Actor* thisx, PlayState* play) {
 void BgGateShutter_Destroy(Actor* thisx, PlayState* play) {
     BgGateShutter* this = (BgGateShutter*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_8087828C(BgGateShutter* this, PlayState* play) {
-    if (this->openingState == 1 && !Flags_GetInfTable(INFTABLE_SHOWED_ZELDAS_LETTER_TO_GATE_GUARD)) {
+    if (this->openingState == 1 && !OoT_Flags_GetInfTable(INFTABLE_SHOWED_ZELDAS_LETTER_TO_GATE_GUARD)) {
         this->unk_178 = 2;
         this->actionFunc = func_80878300;
     } else if (this->openingState == 2) {
@@ -85,7 +85,7 @@ void func_80878300(BgGateShutter* this, PlayState* play) {
     if (this->unk_178 == 0) {
         Audio_PlayActorSound2(thisx, NA_SE_EV_METALGATE_OPEN - SFX_FLAG);
         thisx->world.pos.x -= 2.0f;
-        Math_ApproachF(&thisx->world.pos.z, -1375.0f, 0.8f, 0.3f);
+        OoT_Math_ApproachF(&thisx->world.pos.z, -1375.0f, 0.8f, 0.3f);
         if (thisx->world.pos.x < -89.0f) {
             Audio_PlayActorSound2(thisx, NA_SE_EV_BRIDGE_OPEN_STOP);
             this->unk_178 = 0x1E;
@@ -107,7 +107,7 @@ void func_808783D4(BgGateShutter* this, PlayState* play) {
     if (this->unk_178 == 0) {
         Audio_PlayActorSound2(thisx, NA_SE_EV_METALGATE_OPEN - SFX_FLAG);
         thisx->world.pos.x += 2.0f;
-        Math_ApproachF(&thisx->world.pos.z, -1350.0f, 0.8f, 0.3f);
+        OoT_Math_ApproachF(&thisx->world.pos.z, -1350.0f, 0.8f, 0.3f);
         if (thisx->world.pos.x > 90.0f) {
             thisx->world.pos.x = 91.0f;
             Audio_PlayActorSound2(thisx, NA_SE_EV_BRIDGE_OPEN_STOP);

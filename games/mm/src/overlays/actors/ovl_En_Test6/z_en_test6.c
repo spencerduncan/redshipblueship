@@ -170,56 +170,56 @@ void EnTest6_SetupCutscene(EnTest6* this, PlayState* play) {
 
             if (CHECK_EVENTINF(EVENTINF_THREEDAYRESET_LOST_RUPEES)) {
                 for (i = 0; i < 6; i++) {
-                    sSoTCsAmmoDrops[(s32)(Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type =
+                    sSoTCsAmmoDrops[(s32)(MM_Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type =
                         SOTCS_AMMO_DROP_RUPEE_GREEN;
                 }
-                sSoTCsAmmoDrops[(s32)(Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type =
+                sSoTCsAmmoDrops[(s32)(MM_Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type =
                     SOTCS_AMMO_DROP_RUPEE_GREEN;
-                sSoTCsAmmoDrops[(s32)(Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type = SOTCS_AMMO_DROP_RUPEE_BLUE;
+                sSoTCsAmmoDrops[(s32)(MM_Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type = SOTCS_AMMO_DROP_RUPEE_BLUE;
                 ammoFlags |= SOTCS_AMMO_FLAG_RUPEE;
             }
 
             if (CHECK_EVENTINF(EVENTINF_THREEDAYRESET_LOST_ARROW_AMMO)) {
-                sSoTCsAmmoDrops[(s32)(Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type = SOTCS_AMMO_DROP_ARROWS;
-                sSoTCsAmmoDrops[(s32)(Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type = SOTCS_AMMO_DROP_ARROWS;
+                sSoTCsAmmoDrops[(s32)(MM_Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type = SOTCS_AMMO_DROP_ARROWS;
+                sSoTCsAmmoDrops[(s32)(MM_Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type = SOTCS_AMMO_DROP_ARROWS;
                 if (!(ammoFlags & SOTCS_AMMO_FLAG_RUPEE)) {
-                    sSoTCsAmmoDrops[(s32)(Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type = SOTCS_AMMO_DROP_ARROWS;
-                    sSoTCsAmmoDrops[(s32)(Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type = SOTCS_AMMO_DROP_ARROWS;
+                    sSoTCsAmmoDrops[(s32)(MM_Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type = SOTCS_AMMO_DROP_ARROWS;
+                    sSoTCsAmmoDrops[(s32)(MM_Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type = SOTCS_AMMO_DROP_ARROWS;
                 }
                 ammoFlags |= SOTCS_AMMO_FLAG_ARROW;
             }
 
             if (CHECK_EVENTINF(EVENTINF_THREEDAYRESET_LOST_BOMB_AMMO)) {
-                sSoTCsAmmoDrops[(s32)(Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type = SOTCS_AMMO_DROP_BOMB;
-                sSoTCsAmmoDrops[(s32)(Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type = SOTCS_AMMO_DROP_BOMB;
+                sSoTCsAmmoDrops[(s32)(MM_Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type = SOTCS_AMMO_DROP_BOMB;
+                sSoTCsAmmoDrops[(s32)(MM_Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type = SOTCS_AMMO_DROP_BOMB;
                 if (!(ammoFlags & SOTCS_AMMO_FLAG_RUPEE)) {
-                    sSoTCsAmmoDrops[(s32)(Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type = SOTCS_AMMO_DROP_BOMB;
-                    sSoTCsAmmoDrops[(s32)(Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type = SOTCS_AMMO_DROP_BOMB;
+                    sSoTCsAmmoDrops[(s32)(MM_Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type = SOTCS_AMMO_DROP_BOMB;
+                    sSoTCsAmmoDrops[(s32)(MM_Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type = SOTCS_AMMO_DROP_BOMB;
                 }
                 ammoFlags |= SOTCS_AMMO_FLAG_BOMB;
             }
 
             if (CHECK_EVENTINF(EVENTINF_THREEDAYRESET_LOST_NUT_AMMO)) {
-                sSoTCsAmmoDrops[(s32)(Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type = SOTCS_AMMO_DROP_DEKU_NUT;
+                sSoTCsAmmoDrops[(s32)(MM_Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type = SOTCS_AMMO_DROP_DEKU_NUT;
                 if (!(ammoFlags & (SOTCS_AMMO_FLAG_ARROW | SOTCS_AMMO_FLAG_BOMB | SOTCS_AMMO_FLAG_RUPEE))) {
-                    sSoTCsAmmoDrops[(s32)(Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type =
+                    sSoTCsAmmoDrops[(s32)(MM_Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type =
                         SOTCS_AMMO_DROP_DEKU_NUT;
                 }
                 ammoFlags |= SOTCS_AMMO_FLAG_NUT;
             }
 
             if (CHECK_EVENTINF(EVENTINF_THREEDAYRESET_LOST_STICK_AMMO)) {
-                sSoTCsAmmoDrops[(s32)(Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type = SOTCS_AMMO_DROP_DEKU_STICK;
+                sSoTCsAmmoDrops[(s32)(MM_Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type = SOTCS_AMMO_DROP_DEKU_STICK;
                 if (!(ammoFlags & (SOTCS_AMMO_FLAG_ARROW | SOTCS_AMMO_FLAG_BOMB | SOTCS_AMMO_FLAG_RUPEE))) {
-                    sSoTCsAmmoDrops[(s32)(Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type =
+                    sSoTCsAmmoDrops[(s32)(MM_Rand_ZeroOne() * ARRAY_COUNT(sSoTCsAmmoDrops))].type =
                         SOTCS_AMMO_DROP_DEKU_STICK;
                 }
             }
 
             for (i = 0; i < ARRAY_COUNT(sSoTCsAmmoDrops); i++) {
-                sSoTCsAmmoDrops[i].pos.x = ((2.0f * Rand_ZeroOne()) - 1.0f) * 80.0f;
-                sSoTCsAmmoDrops[i].pos.z = ((2.0f * Rand_ZeroOne()) - 1.0f) * 80.0f;
-                sSoTCsAmmoDrops[i].pos.y = (((2.0f * Rand_ZeroOne()) - 1.0f) * 40.0f) + yOffset;
+                sSoTCsAmmoDrops[i].pos.x = ((2.0f * MM_Rand_ZeroOne()) - 1.0f) * 80.0f;
+                sSoTCsAmmoDrops[i].pos.z = ((2.0f * MM_Rand_ZeroOne()) - 1.0f) * 80.0f;
+                sSoTCsAmmoDrops[i].pos.y = (((2.0f * MM_Rand_ZeroOne()) - 1.0f) * 40.0f) + yOffset;
                 sSoTCsAmmoDrops[i].scale = -10.0f;
                 if (sSoTCsAmmoDrops[i].type <= SOTCS_AMMO_DROP_DEKU_STICK) {
                     sSoTCsAmmoDrops[i].draw = EnTest6_DrawAmmoDropDefault;
@@ -258,10 +258,10 @@ void EnTest6_DrawAmmoDropDefault(EnTest6* this, PlayState* play, SoTCsAmmoDrops*
     OPEN_DISPS(play->state.gfxCtx);
 
     if (ammoDrop->type != SOTCS_AMMO_DROP_NONE) {
-        Matrix_Translate(ammoDrop->pos.x * ammoDrop->scale, ammoDrop->pos.y, ammoDrop->pos.z * ammoDrop->scale,
+        MM_Matrix_Translate(ammoDrop->pos.x * ammoDrop->scale, ammoDrop->pos.y, ammoDrop->pos.z * ammoDrop->scale,
                          MTXMODE_NEW);
-        Matrix_Scale(ammoDrop->scale * 0.02f, ammoDrop->scale * 0.02f, ammoDrop->scale * 0.02f, MTXMODE_APPLY);
-        POLY_OPA_DISP = Play_SetFog(play, POLY_OPA_DISP);
+        MM_Matrix_Scale(ammoDrop->scale * 0.02f, ammoDrop->scale * 0.02f, ammoDrop->scale * 0.02f, MTXMODE_APPLY);
+        POLY_OPA_DISP = MM_Play_SetFog(play, POLY_OPA_DISP);
         POLY_OPA_DISP = Gfx_SetupDL66(POLY_OPA_DISP);
 
         gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sSoTCsAmmoDropTextures[ammoDrop->type]));
@@ -269,12 +269,12 @@ void EnTest6_DrawAmmoDropDefault(EnTest6* this, PlayState* play, SoTCsAmmoDrops*
         gSPDisplayList(POLY_OPA_DISP++, gItemDropDL);
     }
 
-    Matrix_Translate(ammoDrop->pos.x * ammoDrop->scale, ammoDrop->pos.y, ammoDrop->pos.z * ammoDrop->scale,
+    MM_Matrix_Translate(ammoDrop->pos.x * ammoDrop->scale, ammoDrop->pos.y, ammoDrop->pos.z * ammoDrop->scale,
                      MTXMODE_NEW);
-    Matrix_Scale(2.0f * ammoDrop->scale, 2.0f * ammoDrop->scale, 2.0f * ammoDrop->scale, MTXMODE_APPLY);
-    Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
+    MM_Matrix_Scale(2.0f * ammoDrop->scale, 2.0f * ammoDrop->scale, 2.0f * ammoDrop->scale, MTXMODE_APPLY);
+    MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
     Matrix_RotateZS(play->state.frames * 512, MTXMODE_APPLY);
-    Matrix_Translate(0.0f, 0.0f, 2.0f, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, 0.0f, 2.0f, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
@@ -312,21 +312,21 @@ void EnTest6_DrawAmmoDropRupee(EnTest6* this, PlayState* play, SoTCsAmmoDrops* a
 
         gSPSegment(POLY_OPA_DISP++, 0x07, gfxHead);
 
-        Matrix_Translate(ammoDropPos.x, ammoDropPos.y, ammoDropPos.z, MTXMODE_NEW);
-        Matrix_Scale(ammoDrop->scale * 0.018f, ammoDrop->scale * 0.018f, ammoDrop->scale * 0.018f, MTXMODE_APPLY);
-        Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
+        MM_Matrix_Translate(ammoDropPos.x, ammoDropPos.y, ammoDropPos.z, MTXMODE_NEW);
+        MM_Matrix_Scale(ammoDrop->scale * 0.018f, ammoDrop->scale * 0.018f, ammoDrop->scale * 0.018f, MTXMODE_APPLY);
+        MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
         gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sSoTCsAmmoDropTextures[ammoDrop->type]));
         gSPDisplayList(POLY_OPA_DISP++, gRupeeDL);
     }
 
-    Matrix_Translate(ammoDrop->pos.x * ammoDrop->scale, ammoDrop->pos.y, ammoDrop->pos.z * ammoDrop->scale,
+    MM_Matrix_Translate(ammoDrop->pos.x * ammoDrop->scale, ammoDrop->pos.y, ammoDrop->pos.z * ammoDrop->scale,
                      MTXMODE_NEW);
-    Matrix_Scale(ammoDrop->scale * 2.5f, ammoDrop->scale * 2.5f, ammoDrop->scale * 2.5f, MTXMODE_APPLY);
-    Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
+    MM_Matrix_Scale(ammoDrop->scale * 2.5f, ammoDrop->scale * 2.5f, ammoDrop->scale * 2.5f, MTXMODE_APPLY);
+    MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
     Matrix_RotateZS(play->state.frames * 256, MTXMODE_APPLY);
-    Matrix_Translate(0.0f, 0.0f, 4.0f, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, 0.0f, 4.0f, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
@@ -354,14 +354,14 @@ void EnTest6_Init(Actor* thisx, PlayState* play2) {
          (SOTCS_GET_OCARINA_MODE(&this->actor) == OCARINA_MODE_APPLY_INV_SOT_SLOW) ||
          (SOTCS_GET_OCARINA_MODE(&this->actor) == OCARINA_MODE_APPLY_DOUBLE_SOT)) &&
         (play->playerCsIds[PLAYER_CS_ID_SONG_WARP] == CS_ID_NONE)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
     for (i = 0; i < ARRAY_COUNT(this->lights); i++) {
-        Lights_PointNoGlowSetInfo(&this->lights[i].info, this->actor.world.pos.x, (s32)this->actor.world.pos.y - 20,
+        MM_Lights_PointNoGlowSetInfo(&this->lights[i].info, this->actor.world.pos.x, (s32)this->actor.world.pos.y - 20,
                                   this->actor.world.pos.z, 255, 255, 180, -1);
-        this->lights[i].node = LightContext_InsertLight(play, &play->lightCtx, &this->lights[i].info);
+        this->lights[i].node = MM_LightContext_InsertLight(play, &play->lightCtx, &this->lights[i].info);
     }
 
     this->screenFillAlpha = 0;
@@ -400,7 +400,7 @@ void EnTest6_Destroy(Actor* thisx, PlayState* play2) {
     play->envCtx.fillScreen = false;
 
     for (i = 0; i < ARRAY_COUNT(this->lights); i++) {
-        LightContext_RemoveLight(play, &play->lightCtx, this->lights[i].node);
+        MM_LightContext_RemoveLight(play, &play->lightCtx, this->lights[i].node);
     }
 }
 
@@ -454,10 +454,10 @@ void EnTest6_StopInvertedSoTCutscene(EnTest6* this, PlayState* play) {
     player->actor.freezeTimer = 0;
     play->soaringCsOrSoTCsPlaying = false;
     CutsceneManager_Stop(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]);
-    Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_END);
+    MM_Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_END);
     EnTest6_DisableMotionBlur();
     Distortion_RemoveRequest(DISTORTION_TYPE_SONG_OF_TIME);
-    Actor_Kill(&this->actor);
+    MM_Actor_Kill(&this->actor);
 }
 
 Color_RGB8 sInvSoTCsFogColor = { 230, 230, 220 };
@@ -478,8 +478,8 @@ void EnTest6_InvertedSoTCutscene(EnTest6* this, PlayState* play) {
     f32 temp;
     Camera* subCam;
 
-    subCam = Play_GetCamera(play, this->subCamId);
-    mainCam = Play_GetCamera(play, CAM_ID_MAIN);
+    subCam = MM_Play_GetCamera(play, this->subCamId);
+    mainCam = MM_Play_GetCamera(play, CAM_ID_MAIN);
 
     // Update cutscene effects
     switch (this->cueId) {
@@ -518,14 +518,14 @@ void EnTest6_InvertedSoTCutscene(EnTest6* this, PlayState* play) {
                     this->invSoTClockPos[i].z = player->actor.world.pos.z;
                 }
 
-                this->invSoTParticles = ZeldaArena_Malloc(sizeof(Vec3f) * SOTCS_NUM_PARTICLES);
+                this->invSoTParticles = MM_ZeldaArena_Malloc(sizeof(Vec3f) * SOTCS_NUM_PARTICLES);
                 if (this->invSoTParticles != NULL) {
                     for (i = 0; i < ARRAY_COUNT(this->invSoTParticles[0]); i++) {
-                        (*this->invSoTParticles)[i].x = (((2.0f * Rand_ZeroOne()) - 1.0f) * 40.0f) + subCam->eye.x +
+                        (*this->invSoTParticles)[i].x = (((2.0f * MM_Rand_ZeroOne()) - 1.0f) * 40.0f) + subCam->eye.x +
                                                         ((subCam->at.x - subCam->eye.x) * 0.2f);
-                        (*this->invSoTParticles)[i].y = (((2.0f * Rand_ZeroOne()) - 1.0f) * 120.0f) + subCam->eye.y +
+                        (*this->invSoTParticles)[i].y = (((2.0f * MM_Rand_ZeroOne()) - 1.0f) * 120.0f) + subCam->eye.y +
                                                         ((subCam->at.y - subCam->eye.y) * 0.2f) + temp;
-                        (*this->invSoTParticles)[i].z = (((2.0f * Rand_ZeroOne()) - 1.0f) * 40.0f) + subCam->eye.z +
+                        (*this->invSoTParticles)[i].z = (((2.0f * MM_Rand_ZeroOne()) - 1.0f) * 40.0f) + subCam->eye.z +
                                                         ((subCam->at.z - subCam->eye.z) * 0.2f);
                     }
                 }
@@ -566,15 +566,15 @@ void EnTest6_InvertedSoTCutscene(EnTest6* this, PlayState* play) {
 
             for (i = 0; i < SOTCS_INV_NUM_CLOCKS; i++) {
                 clockYaw += 0x10000 / SOTCS_INV_NUM_CLOCKS;
-                this->invSoTClockPos[i].x = player->actor.world.pos.x + (Math_SinS(clockYaw) * this->clockDist);
+                this->invSoTClockPos[i].x = player->actor.world.pos.x + (MM_Math_SinS(clockYaw) * this->clockDist);
                 this->invSoTClockPos[i].y = player->actor.world.pos.y;
-                this->invSoTClockPos[i].z = player->actor.world.pos.z + (Math_CosS(clockYaw) * this->clockDist);
+                this->invSoTClockPos[i].z = player->actor.world.pos.z + (MM_Math_CosS(clockYaw) * this->clockDist);
             }
 
             if (this->invSoTParticles != NULL) {
                 for (i = 0; i < ARRAY_COUNT(this->invSoTParticles[0]); i++) {
                     // Wiggle in the x-direction
-                    (*this->invSoTParticles)[i].x += 2.0f * ((2.0f * Rand_ZeroOne()) - 1.0f);
+                    (*this->invSoTParticles)[i].x += 2.0f * ((2.0f * MM_Rand_ZeroOne()) - 1.0f);
 
                     // Fall or rise depending on slow-down or speed-up
                     if (SOTCS_GET_OCARINA_MODE(&this->actor) == OCARINA_MODE_APPLY_INV_SOT_FAST) {
@@ -585,7 +585,7 @@ void EnTest6_InvertedSoTCutscene(EnTest6* this, PlayState* play) {
                         (*this->invSoTParticles)[i].y -= 1.0f;
                     }
                     // Wiggle in the z-direction
-                    (*this->invSoTParticles)[i].z += 2.0f * ((2.0f * Rand_ZeroOne()) - 1.0f);
+                    (*this->invSoTParticles)[i].z += 2.0f * ((2.0f * MM_Rand_ZeroOne()) - 1.0f);
                 }
             }
 
@@ -595,7 +595,7 @@ void EnTest6_InvertedSoTCutscene(EnTest6* this, PlayState* play) {
                 Distortion_RemoveRequest(DISTORTION_TYPE_SONG_OF_TIME);
                 play->soaringCsOrSoTCsPlaying = false;
                 if (this->invSoTParticles != NULL) {
-                    ZeldaArena_Free(this->invSoTParticles);
+                    MM_ZeldaArena_Free(this->invSoTParticles);
                 }
                 this->cueId = SOTCS_CUEID_INV_END;
             }
@@ -615,30 +615,30 @@ void EnTest6_InvertedSoTCutscene(EnTest6* this, PlayState* play) {
 
     // Update Player Cutscene Animation
     if (this->screenFillAlpha != 0) {
-        Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_WAIT);
+        MM_Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_WAIT);
     } else {
         if (this->timer == 90) {
             // Look side-to-side but downwards, with chin down
             // gPlayerAnim_al_elf_tobidasi
-            Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_66);
+            MM_Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_66);
         }
 
         if (this->timer == 70) {
             // close eyes and sway body in circles
             // gPlayerAnim_alink_yurayura
-            Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_82);
+            MM_Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_82);
         }
 
         if (this->timer == 30) {
             // Look side-to-side but upwards, with chin up
             // gPlayerAnim_alink_kyoro
-            Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_81);
+            MM_Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_81);
         }
 
         if (this->timer == 5) {
             // Give a big nod of approval
             // gPlayerAnim_al_yes
-            Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_74);
+            MM_Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_74);
         }
     }
 
@@ -652,9 +652,9 @@ void EnTest6_InvertedSoTCutscene(EnTest6* this, PlayState* play) {
         subCamAt.y = subCam->at.y + (((player->actor.focus.pos.y - subCam->at.y) - 20.0f) * temp);
         subCamAt.z = subCam->at.z + ((player->actor.world.pos.z - subCam->at.z) * temp);
 
-        eyeNext.x = subCamAt.x + (Math_SinS(player->actor.world.rot.y) * 80.0f);
+        eyeNext.x = subCamAt.x + (MM_Math_SinS(player->actor.world.rot.y) * 80.0f);
         eyeNext.y = subCamAt.y + 20.0f;
-        eyeNext.z = subCamAt.z + (Math_CosS(player->actor.world.rot.y) * 80.0f);
+        eyeNext.z = subCamAt.z + (MM_Math_CosS(player->actor.world.rot.y) * 80.0f);
         temp *= 0.75f;
 
         VEC3F_LERPIMPDST(&subCamEye, &subCam->eye, &eyeNext, temp);
@@ -708,10 +708,10 @@ void EnTest6_StopDoubleSoTCutscene(EnTest6* this, PlayState* play) {
     player->actor.freezeTimer = 0;
     play->soaringCsOrSoTCsPlaying = false;
     CutsceneManager_Stop(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]);
-    Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_END);
+    MM_Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_END);
     EnTest6_DisableMotionBlur();
     Distortion_RemoveRequest(DISTORTION_TYPE_SONG_OF_TIME);
-    Actor_Kill(&this->actor);
+    MM_Actor_Kill(&this->actor);
 }
 
 static Vec3f sSubCamUp = { 0.0f, 1.0f, 0.0f };
@@ -791,7 +791,7 @@ void EnTest6_DoubleSoTCutscene(EnTest6* this, PlayState* play) {
             break;
 
         case 110:
-            Audio_PlayFanfare(NA_BGM_SONG_OF_DOUBLE_TIME);
+            MM_Audio_PlayFanfare(NA_BGM_SONG_OF_DOUBLE_TIME);
             break;
 
         case 38:
@@ -835,7 +835,7 @@ void EnTest6_DoubleSoTCutscene(EnTest6* this, PlayState* play) {
 
     if (this->timer == 115) {
         subCamId = CutsceneManager_GetCurrentSubCamId(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]);
-        subCam = Play_GetCamera(play, subCamId);
+        subCam = MM_Play_GetCamera(play, subCamId);
 
         this->subCamAt = subCam->at;
         this->subCamEye = subCam->eye;
@@ -850,7 +850,7 @@ void EnTest6_DoubleSoTCutscene(EnTest6* this, PlayState* play) {
 
         Play_SetCameraAtEyeUp(play, subCamId, &this->subCamAt, &this->subCamEye, &sSubCamUp);
         Play_SetCameraFov(play, subCamId, this->subCamFov);
-        Play_SetCameraRoll(play, subCamId, 0);
+        MM_Play_SetCameraRoll(play, subCamId, 0);
     }
 
     switch (this->timer) {
@@ -867,23 +867,23 @@ void EnTest6_DoubleSoTCutscene(EnTest6* this, PlayState* play) {
             break;
 
         case 98:
-            Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_64);
+            MM_Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_64);
             break;
 
         case 68:
-            Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_65);
+            MM_Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_65);
             break;
 
         case 52:
-            Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_88);
+            MM_Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_88);
             break;
 
         case 43:
-            Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_114);
+            MM_Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_114);
             break;
 
         case 38:
-            Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_WAIT);
+            MM_Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_WAIT);
             break;
 
         case 14:
@@ -1081,7 +1081,7 @@ void EnTest6_SharedSoTCutscene(EnTest6* this, PlayState* play) {
                 return;
 
             case SOTCS_CUEID_DOUBLE_END:
-                Play_SetRespawnData(play, RESPAWN_MODE_RETURN, ((void)0, gSaveContext.save.entrance), player->unk_3CE,
+                MM_Play_SetRespawnData(play, RESPAWN_MODE_RETURN, ((void)0, gSaveContext.save.entrance), player->unk_3CE,
                                     PLAYER_PARAMS(0xFF, PLAYER_START_MODE_B), &player->unk_3C0, player->unk_3CC);
                 this->drawType = SOTCS_DRAW_TYPE_NONE;
                 play->transitionTrigger = TRANS_TRIGGER_START;
@@ -1162,7 +1162,7 @@ void EnTest6_SharedSoTCutscene(EnTest6* this, PlayState* play) {
 
             case SOTCS_CUEID_DOUBLE_END:
                 if (CURRENT_TIME > CLOCK_TIME(12, 0)) {
-                    Play_SetRespawnData(play, RESPAWN_MODE_RETURN, ((void)0, gSaveContext.save.entrance),
+                    MM_Play_SetRespawnData(play, RESPAWN_MODE_RETURN, ((void)0, gSaveContext.save.entrance),
                                         player->unk_3CE, PLAYER_PARAMS(0xFF, PLAYER_START_MODE_B), &player->unk_3C0,
                                         player->unk_3CC);
                     this->drawType = SOTCS_DRAW_TYPE_NONE;
@@ -1178,8 +1178,8 @@ void EnTest6_SharedSoTCutscene(EnTest6* this, PlayState* play) {
 
     if (this->drawType == SOTCS_DRAW_RESET_CYCLE_SOT) {
         for (i = 0; i < ARRAY_COUNT(sSoTCsAmmoDrops); i++) {
-            sSoTCsAmmoDrops[i].pos.x += 2.0f * ((2.0f * Rand_ZeroOne()) - 1.0f);
-            sSoTCsAmmoDrops[i].pos.z += 2.0f * ((2.0f * Rand_ZeroOne()) - 1.0f);
+            sSoTCsAmmoDrops[i].pos.x += 2.0f * ((2.0f * MM_Rand_ZeroOne()) - 1.0f);
+            sSoTCsAmmoDrops[i].pos.z += 2.0f * ((2.0f * MM_Rand_ZeroOne()) - 1.0f);
             sSoTCsAmmoDrops[i].pos.y += 3.0f;
 
             if (player->actor.world.pos.y < sSoTCsAmmoDrops[i].pos.y) {
@@ -1214,7 +1214,7 @@ void EnTest6_DrawThreeDayResetSoTCutscene(EnTest6* this, PlayState* play) {
     clockPos.y = 0.0f;
 
     clock1Yaw = this->clockAngle;
-    clock2Yaw = clock1Yaw + 0x4E20 + (s32)(0x2EE0 * Math_SinS(play->state.frames));
+    clock2Yaw = clock1Yaw + 0x4E20 + (s32)(0x2EE0 * MM_Math_SinS(play->state.frames));
     // The `& 0x3C` ensures the angle only updates once every 4 frames
     angle = (play->state.frames & 0x3C) * 1024;
     angle *= this->clockSpeed / 200.0f;
@@ -1225,11 +1225,11 @@ void EnTest6_DrawThreeDayResetSoTCutscene(EnTest6* this, PlayState* play) {
     for (i = 0; i < (SOTCS_RESET_NUM_CLOCKS / 2); i++) {
         // Clock 1
         clock1Yaw += 0x1000;
-        clockPos.x = Math_CosS(clock1Yaw) * this->clockDist;
-        clockPos.z = Math_SinS(clock1Yaw) * this->clockDist;
-        Matrix_Translate(clockPos.x, clockPos.y, clockPos.z, MTXMODE_NEW);
+        clockPos.x = MM_Math_CosS(clock1Yaw) * this->clockDist;
+        clockPos.z = MM_Math_SinS(clock1Yaw) * this->clockDist;
+        MM_Matrix_Translate(clockPos.x, clockPos.y, clockPos.z, MTXMODE_NEW);
         Matrix_RotateXS(0x4000, MTXMODE_APPLY);
-        Matrix_Scale(0.8f, 0.8f, 0.8f, MTXMODE_APPLY);
+        MM_Matrix_Scale(0.8f, 0.8f, 0.8f, MTXMODE_APPLY);
         Matrix_RotateZS(angle, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(this->gfx++, play->state.gfxCtx);
@@ -1240,11 +1240,11 @@ void EnTest6_DrawThreeDayResetSoTCutscene(EnTest6* this, PlayState* play) {
 
         // Clock 2
         clock2Yaw += 0x1000;
-        clockPos.x = Math_CosS(clock2Yaw) * this->clockDist;
-        clockPos.z = Math_SinS(clock2Yaw) * this->clockDist;
-        Matrix_Translate(clockPos.x, clockPos.y, clockPos.z, MTXMODE_NEW);
+        clockPos.x = MM_Math_CosS(clock2Yaw) * this->clockDist;
+        clockPos.z = MM_Math_SinS(clock2Yaw) * this->clockDist;
+        MM_Matrix_Translate(clockPos.x, clockPos.y, clockPos.z, MTXMODE_NEW);
         Matrix_RotateXS(0x4000, MTXMODE_APPLY);
-        Matrix_Scale(0.8f, 0.8f, 0.8f, MTXMODE_APPLY);
+        MM_Matrix_Scale(0.8f, 0.8f, 0.8f, MTXMODE_APPLY);
         Matrix_RotateZS(-angle, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(this->gfx++, play->state.gfxCtx);
@@ -1317,13 +1317,13 @@ void EnTest6_DrawDoubleSoTCutscene(EnTest6* this, PlayState* play) {
 
     // Draw clocks
     for (i = 0; i < SOTCS_DOUBLE_NUM_CLOCKS; i++) {
-        clockPos.y = Math_CosS(clockRotX) * this->clockDist;
-        clockPos.z = Math_SinS(clockRotX) * this->clockDist;
+        clockPos.y = MM_Math_CosS(clockRotX) * this->clockDist;
+        clockPos.z = MM_Math_SinS(clockRotX) * this->clockDist;
         // Rotate the entire clock ring
         Matrix_RotateZS(this->clockRingRotZ, MTXMODE_NEW);
 
-        Matrix_Translate(clockPos.x, clockPos.y, clockPos.z, MTXMODE_APPLY);
-        Matrix_Scale(0.85f, 0.85f, 0.85f, MTXMODE_APPLY);
+        MM_Matrix_Translate(clockPos.x, clockPos.y, clockPos.z, MTXMODE_APPLY);
+        MM_Matrix_Scale(0.85f, 0.85f, 0.85f, MTXMODE_APPLY);
         // Orient the clock so the plane it's drawn on also passes through player
         Matrix_RotateXS(clockRotX, MTXMODE_APPLY);
         // Rotate around the normal of the plane, so the clock plane does not change,
@@ -1341,7 +1341,7 @@ void EnTest6_DrawDoubleSoTCutscene(EnTest6* this, PlayState* play) {
 
     Lights_PointSetPosition(&this->lights[0].info, player->actor.world.pos.x, player->actor.world.pos.y - 10.0f,
                             player->actor.world.pos.z);
-    Lights_PointSetColorAndRadius(&this->lights[0].info, 100, 250, 100, 200);
+    MM_Lights_PointSetColorAndRadius(&this->lights[0].info, 100, 250, 100, 200);
 
     POLY_OPA_DISP = this->gfx;
 
@@ -1365,7 +1365,7 @@ void EnTest6_DrawInvertedSoTCutscene(EnTest6* this, PlayState* play2) {
         case SOTCS_CUEID_INV_UNUSED:
             Lights_PointSetPosition(&this->lights[0].info, player->actor.world.pos.x, player->actor.world.pos.y - 10.0f,
                                     player->actor.world.pos.z);
-            Lights_PointSetColorAndRadius(&this->lights[0].info, 245, 245, 200, this->alpha);
+            MM_Lights_PointSetColorAndRadius(&this->lights[0].info, 245, 245, 200, this->alpha);
             break;
 
         case SOTCS_CUEID_INV_CLOCKS:
@@ -1373,9 +1373,9 @@ void EnTest6_DrawInvertedSoTCutscene(EnTest6* this, PlayState* play2) {
 
             // Draw clocks
             for (i = 0; i < ARRAY_COUNT(this->invSoTClockPos); i++) {
-                Matrix_Translate(this->invSoTClockPos[i].x, this->invSoTClockPos[i].y, this->invSoTClockPos[i].z,
+                MM_Matrix_Translate(this->invSoTClockPos[i].x, this->invSoTClockPos[i].y, this->invSoTClockPos[i].z,
                                  MTXMODE_NEW);
-                Matrix_Scale(0.3f, 0.3f, 0.3f, MTXMODE_APPLY);
+                MM_Matrix_Scale(0.3f, 0.3f, 0.3f, MTXMODE_APPLY);
                 Matrix_RotateXS(-0x4000, MTXMODE_APPLY);
                 Matrix_RotateZS(this->invSoTClockYaw, MTXMODE_APPLY);
 
@@ -1391,16 +1391,16 @@ void EnTest6_DrawInvertedSoTCutscene(EnTest6* this, PlayState* play2) {
             // Draw black particles
             if (this->invSoTParticles != NULL) {
                 for (i = 0; i < SOTCS_NUM_PARTICLES; i++) {
-                    flashScale = Rand_ZeroOne() * 0.0025f;
-                    Matrix_Translate((*this->invSoTParticles)[i].x, (*this->invSoTParticles)[i].y,
+                    flashScale = MM_Rand_ZeroOne() * 0.0025f;
+                    MM_Matrix_Translate((*this->invSoTParticles)[i].x, (*this->invSoTParticles)[i].y,
                                      (*this->invSoTParticles)[i].z, MTXMODE_NEW);
-                    Matrix_Scale(flashScale, flashScale, flashScale, MTXMODE_APPLY);
+                    MM_Matrix_Scale(flashScale, flashScale, flashScale, MTXMODE_APPLY);
 
                     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, 128, 128, 128, this->alpha >> 1);
                     gDPSetEnvColor(POLY_XLU_DISP++, 230, 230, 180, this->alpha);
 
                     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-                    Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
+                    MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
                     Matrix_RotateZS(this->invSoTClockYaw + (i << 2), MTXMODE_APPLY);
 
                     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
@@ -1410,7 +1410,7 @@ void EnTest6_DrawInvertedSoTCutscene(EnTest6* this, PlayState* play2) {
 
             Lights_PointSetPosition(&this->lights[0].info, player->actor.world.pos.x, player->actor.world.pos.y - 10.0f,
                                     player->actor.world.pos.z);
-            Lights_PointSetColorAndRadius(&this->lights[0].info, 250, 250, 100, this->alpha);
+            MM_Lights_PointSetColorAndRadius(&this->lights[0].info, 250, 250, 100, this->alpha);
             break;
 
         case SOTCS_CUEID_INV_INIT:

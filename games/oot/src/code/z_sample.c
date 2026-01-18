@@ -2,7 +2,7 @@
 
 void Sample_HandleStateChange(SampleContext* this) {
     if (CHECK_BTN_ALL(this->state.input[0].press.button, BTN_START)) {
-        SET_NEXT_GAMESTATE(&this->state, Play_Init, PlayState);
+        SET_NEXT_GAMESTATE(&this->state, OoT_Play_Init, PlayState);
         this->state.running = false;
     }
 }
@@ -24,11 +24,11 @@ void Sample_Draw(SampleContext* this) {
     {
         Mtx* mtx = Graph_Alloc(gfxCtx, sizeof(Mtx));
 
-        guPosition(mtx, SREG(37), SREG(38), SREG(39), 1.0f, SREG(40), SREG(41), SREG(42));
+        OoT_guPosition(mtx, SREG(37), SREG(38), SREG(39), 1.0f, SREG(40), SREG(41), SREG(42));
         gSPMatrix(POLY_OPA_DISP++, mtx, G_MTX_LOAD);
     }
 
-    POLY_OPA_DISP = Gfx_SetFog2(POLY_OPA_DISP, 255, 255, 255, 0, 0, 0);
+    POLY_OPA_DISP = OoT_Gfx_SetFog2(POLY_OPA_DISP, 255, 255, 255, 0, 0, 0);
     Gfx_SetupDL_25Opa(gfxCtx);
 
     gDPSetCycleType(POLY_OPA_DISP++, G_CYC_1CYCLE);
@@ -53,7 +53,7 @@ void Sample_SetupView(SampleContext* this) {
     View* view = &this->view;
     GraphicsContext* gfxCtx = this->state.gfxCtx;
 
-    View_Init(view, gfxCtx);
+    OoT_View_Init(view, gfxCtx);
     SET_FULLSCREEN_VIEWPORT(view);
     func_800AA460(view, 60.0f, 10.0f, 12800.0f);
 

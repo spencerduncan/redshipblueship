@@ -58,7 +58,7 @@ void EnTagObj_Update(Actor* thisx, PlayState* play) {
     EnTagObj* this = (EnTagObj*)thisx;
 
     if (!this->hasSpawnedSeahorse) {
-        Actor_Spawn(&play->actorCtx, play, ACTOR_EN_OT, this->actor.world.pos.x, this->actor.world.pos.y,
+        MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_OT, this->actor.world.pos.x, this->actor.world.pos.y,
                     this->actor.world.pos.z, 0, 0, 0, SEAHORSE_PARAMS(SEAHORSE_TYPE_0, 0, 0));
         this->hasSpawnedSeahorse = true;
     }

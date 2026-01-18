@@ -10,10 +10,10 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED)
 
-void EnMag_Init(Actor* thisx, PlayState* play);
-void EnMag_Destroy(Actor* thisx, PlayState* play);
-void EnMag_Update(Actor* thisx, PlayState* play);
-void EnMag_Draw(Actor* thisx, PlayState* play);
+void MM_EnMag_Init(Actor* thisx, PlayState* play);
+void MM_EnMag_Destroy(Actor* thisx, PlayState* play);
+void MM_EnMag_Update(Actor* thisx, PlayState* play);
+void MM_EnMag_Draw(Actor* thisx, PlayState* play);
 
 /**
  * Steps `var` towards `target` linearly, so that it will arrive in `timeRemaining` seconds. Can be used from either
@@ -90,13 +90,13 @@ ActorProfile En_Mag_Profile = {
     /**/ FLAGS,
     /**/ OBJECT_MAG,
     /**/ sizeof(EnMag),
-    /**/ EnMag_Init,
-    /**/ EnMag_Destroy,
-    /**/ EnMag_Update,
-    /**/ EnMag_Draw,
+    /**/ MM_EnMag_Init,
+    /**/ MM_EnMag_Destroy,
+    /**/ MM_EnMag_Update,
+    /**/ MM_EnMag_Draw,
 };
 
-void EnMag_Init(Actor* thisx, PlayState* play) {
+void MM_EnMag_Init(Actor* thisx, PlayState* play) {
     EnMag* this = (EnMag*)thisx;
     u16 i;
 
@@ -164,7 +164,7 @@ void EnMag_Init(Actor* thisx, PlayState* play) {
         gSaveContext.transWipeSpeed = 255;
     }
 
-    Font_LoadOrderedFont(&this->font);
+    MM_Font_LoadOrderedFont(&this->font);
 
     this->unk11F58 = 0;
     this->unk11F5A = 0;
@@ -183,7 +183,7 @@ void EnMag_Init(Actor* thisx, PlayState* play) {
     sZeldaEffectColorTargetIndex = 0;
 }
 
-void EnMag_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnMag_Destroy(Actor* thisx, PlayState* play) {
 }
 
 void EnMag_UpdateDisplayEffectColors(Actor* thisx) {
@@ -224,7 +224,7 @@ void EnMag_UpdateDisplayEffectColors(Actor* thisx) {
  * Controls the actions performed using a switch and the `state` struct variable rather than action functions. Most of
  * these are to do with fading various parts in and out.
  */
-void EnMag_Update(Actor* thisx, PlayState* play) {
+void MM_EnMag_Update(Actor* thisx, PlayState* play) {
     static s16 sAppearEffectPrimGreenTargets[] = { 255, 155 };
     static s16 sAppearEffectEnvRedTargets[] = { 255, 0 };
     static s16 sAppearEffectEnvBlueTargets[] = { 0, 155 };
@@ -381,7 +381,7 @@ void EnMag_Update(Actor* thisx, PlayState* play) {
                             CHECK_BTN_ALL(CONTROLLER1(&play->state)->press.button, BTN_A) ||
                             CHECK_BTN_ALL(CONTROLLER1(&play->state)->press.button, BTN_B)) {
                             if (play->transitionTrigger != TRANS_TRIGGER_START) {
-                                Audio_SetCutsceneFlag(false);
+                                MM_Audio_SetCutsceneFlag(false);
                                 gOpeningEntranceIndex++;
                                 if (gOpeningEntranceIndex >= 2) {
                                     gOpeningEntranceIndex = 0;
@@ -461,7 +461,7 @@ void EnMag_Update(Actor* thisx, PlayState* play) {
  * @param[in]     rectLeft  X coordinate of the top-left of the draw position.
  * @param[in]     rectTop   Y coordinate of the top-left of the draw position.
  */
-void EnMag_DrawTextureI8(Gfx** gfxP, TexturePtr texture, s16 texWidth, s16 texHeight, s16 rectLeft, s16 rectTop) {
+void MM_EnMag_DrawTextureI8(Gfx** gfxP, TexturePtr texture, s16 texWidth, s16 texHeight, s16 rectLeft, s16 rectTop) {
     Gfx* gfx = *gfxP;
 
     gDPLoadTextureBlock(gfx++, texture, G_IM_FMT_I, G_IM_SIZ_8b, texWidth, texHeight, 0, G_TX_NOMIRROR | G_TX_WRAP,
@@ -512,7 +512,7 @@ void EnMag_DrawTextureIA8(Gfx** gfxP, TexturePtr texture, s16 texWidth, s16 texH
  * @param[in]     index        Index into the scrolling arrays to use for gDPSetTileSize.
  * @param[in]     this         Pointer to EnMag instance.
  */
-void EnMag_DrawEffectTextures(Gfx** gfxP, TexturePtr maskTex, TexturePtr effectTex, s16 maskWidth, s16 maskHeight,
+void MM_EnMag_DrawEffectTextures(Gfx** gfxP, TexturePtr maskTex, TexturePtr effectTex, s16 maskWidth, s16 maskHeight,
                               s16 effectWidth, s16 effectHeight, s16 rectLeft, s16 rectTop, u16 shifts, u16 shiftt,
                               u16 index, EnMag* this) {
     Gfx* gfx = *gfxP;
@@ -568,7 +568,7 @@ void EnMag_DrawImageRGBA32HDSupport(Gfx** gfxp, s16 centerX, s16 centerY, Textur
  * @param[in]     width   Width of the texture.
  * @param[in]     height  Height of the texture.
  */
-void EnMag_DrawImageRGBA32(Gfx** gfxP, s16 centerX, s16 centerY, TexturePtr source, u32 width, u32 height) {
+void MM_EnMag_DrawImageRGBA32(Gfx** gfxP, s16 centerX, s16 centerY, TexturePtr source, u32 width, u32 height) {
     // 2S2H [HD Textures]
     return EnMag_DrawImageRGBA32HDSupport(gfxP, centerX, centerY, source, width, height);
 
@@ -638,7 +638,7 @@ void EnMag_DrawImageRGBA32(Gfx** gfxP, s16 centerX, s16 centerY, TexturePtr sour
  * @param[in]     rectLeft X coordinate of the top-left of the draw position.
  * @param[in]     rectTop  Y coordinate of the top-left of the draw position.
  */
-void EnMag_DrawCharTexture(Gfx** gfxP, TexturePtr texture, s32 rectLeft, s32 rectTop) {
+void MM_EnMag_DrawCharTexture(Gfx** gfxP, TexturePtr texture, s32 rectLeft, s32 rectTop) {
     Gfx* gfx = *gfxP;
 
     gDPLoadTextureBlock_4b(gfx++, texture, G_IM_FMT_I, 16, 16, 0, G_TX_NOMIRROR | G_TX_CLAMP,
@@ -707,7 +707,7 @@ void EnMag_DrawCharTexture(Gfx** gfxP, TexturePtr texture, s32 rectLeft, s32 rec
  * Loads title, PRESS START text, etc. graphics to gfxP, which is made to live on
  * POLY_OPA_DISP, but is used by OVERLAY_DISP.
  */
-void EnMag_DrawInner(Actor* thisx, PlayState* play, Gfx** gfxP) {
+void MM_EnMag_DrawInner(Actor* thisx, PlayState* play, Gfx** gfxP) {
     static u8 sPressStartFontIndices[] = {
         0x19, 0x1B, 0x0E, 0x1C, 0x1C, 0x1C, 0x1D, 0x0A, 0x1B, 0x1D,
     }; // Indices into this->font.fontBuf
@@ -761,7 +761,7 @@ void EnMag_DrawInner(Actor* thisx, PlayState* play, Gfx** gfxP) {
             for (j = 0, rectLeft = EFFECT_TEX_TOP; j < 3; j++, k++, rectLeft += EFFECT_MASK_TEX_WIDTH) {
                 this->effectScrollSs[k] += sEffectScrollVelocitySs[k];
                 this->effectScrollTs[k] += sEffectScrollVelocityTs[k];
-                EnMag_DrawEffectTextures(&gfx, sAppearEffectMaskTextures[k], sEffectTextures[k], EFFECT_MASK_TEX_WIDTH,
+                MM_EnMag_DrawEffectTextures(&gfx, sAppearEffectMaskTextures[k], sEffectTextures[k], EFFECT_MASK_TEX_WIDTH,
                                          EFFECT_MASK_TEX_HEIGHT, EFFECT_TEX_WIDTH, EFFECT_TEX_HEIGHT, rectLeft, rectTop,
                                          1, 1, k, this);
             }
@@ -778,7 +778,7 @@ void EnMag_DrawInner(Actor* thisx, PlayState* play, Gfx** gfxP) {
         gDPSetEnvColor(gfx++, this->majorasMaskEnvColor[0], this->majorasMaskEnvColor[1], this->majorasMaskEnvColor[2],
                        255);
 
-        EnMag_DrawImageRGBA32(&gfx, MAJORAS_MASK_TEX_CENTER_X, MAJORAS_MASK_TEX_CENTER_Y, gTitleScreenMajorasMaskTex,
+        MM_EnMag_DrawImageRGBA32(&gfx, MAJORAS_MASK_TEX_CENTER_X, MAJORAS_MASK_TEX_CENTER_Y, gTitleScreenMajorasMaskTex,
                               MAJORAS_MASK_TEX_WIDTH, MAJORAS_MASK_TEX_HEIGHT);
     }
 
@@ -798,7 +798,7 @@ void EnMag_DrawInner(Actor* thisx, PlayState* play, Gfx** gfxP) {
     if (this->displayEffectPrimLodFrac != 0) {
         for (k = 0, i = 0, rectTop = EFFECT_TEX_LEFT; i < 2; i++, rectTop += EFFECT_MASK_TEX_HEIGHT) {
             for (j = 0, rectLeft = EFFECT_TEX_TOP; j < 3; j++, k++, rectLeft += EFFECT_MASK_TEX_WIDTH) {
-                EnMag_DrawEffectTextures(&gfx, sDisplayEffectMaskTextures[k], sEffectTextures[k], EFFECT_MASK_TEX_WIDTH,
+                MM_EnMag_DrawEffectTextures(&gfx, sDisplayEffectMaskTextures[k], sEffectTextures[k], EFFECT_MASK_TEX_WIDTH,
                                          EFFECT_MASK_TEX_HEIGHT, EFFECT_TEX_WIDTH, EFFECT_TEX_HEIGHT, rectLeft, rectTop,
                                          1, 1, k, this);
             }
@@ -820,7 +820,7 @@ void EnMag_DrawInner(Actor* thisx, PlayState* play, Gfx** gfxP) {
         gDPSetPrimColor(gfx++, 0, 0, 0, 0, 0, this->subtitleAlpha);
         gDPSetEnvColor(gfx++, 100, 0, 100, 255);
 
-        EnMag_DrawTextureI8(&gfx, gTitleScreenMajorasMaskSubtitleMaskTex, SUBTITLE_TEX_WIDTH, SUBTITLE_TEX_HEIGHT,
+        MM_EnMag_DrawTextureI8(&gfx, gTitleScreenMajorasMaskSubtitleMaskTex, SUBTITLE_TEX_WIDTH, SUBTITLE_TEX_HEIGHT,
                             SUBTITLE_TEX_LEFT, SUBTITLE_TEX_TOP);
     }
 
@@ -837,7 +837,7 @@ void EnMag_DrawInner(Actor* thisx, PlayState* play, Gfx** gfxP) {
 
     gDPSetPrimColor(gfx++, 0, 120, 208, 102, 222, this->subtitleAlpha);
 
-    EnMag_DrawTextureI8(&gfx, gTitleScreenMajorasMaskSubtitleTex, SUBTITLE_TEX_WIDTH, SUBTITLE_TEX_HEIGHT,
+    MM_EnMag_DrawTextureI8(&gfx, gTitleScreenMajorasMaskSubtitleTex, SUBTITLE_TEX_WIDTH, SUBTITLE_TEX_HEIGHT,
                         SUBTITLE_TEX_LEFT, SUBTITLE_TEX_TOP);
 
     Gfx_SetupDL39_Ptr(&gfx);
@@ -848,7 +848,7 @@ void EnMag_DrawInner(Actor* thisx, PlayState* play, Gfx** gfxP) {
     if (this->mainTitleAlpha != 0) {
         gDPSetPrimColor(gfx++, 0, 0, 255, 255, 255, this->mainTitleAlpha);
 
-        EnMag_DrawImageRGBA32(&gfx, ZELDA_TEX_CENTER_X, ZELDA_TEX_CENTER_Y, gTitleScreenZeldaLogoTex, ZELDA_TEX_WIDTH,
+        MM_EnMag_DrawImageRGBA32(&gfx, ZELDA_TEX_CENTER_X, ZELDA_TEX_CENTER_Y, gTitleScreenZeldaLogoTex, ZELDA_TEX_WIDTH,
                               ZELDA_TEX_HEIGHT);
 
         gDPPipeSync(gfx++);
@@ -861,7 +861,7 @@ void EnMag_DrawInner(Actor* thisx, PlayState* play, Gfx** gfxP) {
 
         gDPSetPrimColor(gfx++, 0, 0, 208, 102, 222, this->mainTitleAlpha);
 
-        EnMag_DrawTextureI8(&gfx, gTitleScreenTheLegendOfTextTex, THE_LEGEND_OF_TEX_WIDTH, THE_LEGEND_OF_TEX_HEIGHT,
+        MM_EnMag_DrawTextureI8(&gfx, gTitleScreenTheLegendOfTextTex, THE_LEGEND_OF_TEX_WIDTH, THE_LEGEND_OF_TEX_HEIGHT,
                             THE_LEGEND_OF_TEX_LEFT, THE_LEGEND_OF_TEX_TOP);
     }
 
@@ -950,7 +950,7 @@ void EnMag_DrawInner(Actor* thisx, PlayState* play, Gfx** gfxP) {
 
         rectLeft = PRESS_START_LEFT + 1;
         for (i = 0; i < ARRAY_COUNT(sPressStartFontIndices); i++) {
-            EnMag_DrawCharTexture(&gfx, font->fontBuf + sPressStartFontIndices[i] * FONT_CHAR_TEX_SIZE, rectLeft,
+            MM_EnMag_DrawCharTexture(&gfx, font->fontBuf + sPressStartFontIndices[i] * FONT_CHAR_TEX_SIZE, rectLeft,
                                   PRESS_START_TOP + 1);
 
             rectLeft += PRESS_START_CHAR_SPACING;
@@ -965,7 +965,7 @@ void EnMag_DrawInner(Actor* thisx, PlayState* play, Gfx** gfxP) {
 
         rectLeft = PRESS_START_LEFT;
         for (i = 0; i < ARRAY_COUNT(sPressStartFontIndices); i++) {
-            EnMag_DrawCharTexture(&gfx, font->fontBuf + sPressStartFontIndices[i] * FONT_CHAR_TEX_SIZE, rectLeft,
+            MM_EnMag_DrawCharTexture(&gfx, font->fontBuf + sPressStartFontIndices[i] * FONT_CHAR_TEX_SIZE, rectLeft,
                                   PRESS_START_TOP);
             rectLeft += PRESS_START_CHAR_SPACING;
             if (i == 4) {
@@ -992,7 +992,7 @@ void EnMag_DrawInner(Actor* thisx, PlayState* play, Gfx** gfxP) {
  * Jumps drawing to POLY_OPA_DISP to take advantage of the extra space available, but jmups back and actually draws
  * using OVERLAY_DISP.
  */
-void EnMag_Draw(Actor* thisx, PlayState* play) {
+void MM_EnMag_Draw(Actor* thisx, PlayState* play) {
     s32 pad;
     Gfx* gfx;
     Gfx* gfxRef;
@@ -1000,13 +1000,13 @@ void EnMag_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     gfxRef = POLY_OPA_DISP;
-    gfx = Graph_GfxPlusOne(gfxRef);
+    gfx = MM_Graph_GfxPlusOne(gfxRef);
     gSPDisplayList(OVERLAY_DISP++, gfx);
 
-    EnMag_DrawInner(thisx, play, &gfx);
+    MM_EnMag_DrawInner(thisx, play, &gfx);
 
     gSPEndDisplayList(gfx++);
-    Graph_BranchDlist(gfxRef, gfx);
+    MM_Graph_BranchDlist(gfxRef, gfx);
     POLY_OPA_DISP = gfx;
 
     CLOSE_DISPS(play->state.gfxCtx);

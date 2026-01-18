@@ -34,13 +34,13 @@ ActorProfile En_Fall2_Profile = {
 void EnFall2_Init(Actor* thisx, PlayState* play) {
     EnFall2* this = (EnFall2*)thisx;
 
-    Actor_SetScale(&this->actor, 1.0f);
+    MM_Actor_SetScale(&this->actor, 1.0f);
     this->actionFunc = EnFall2_DoNothing;
     Keyframe_InitFlex(&this->kfSkelAnime, gFall2KFSkel_8898, gFall2FKAnim_5EF4, this->jointTable, this->morphTable,
                       NULL);
     Keyframe_FlexPlayLoop(&this->kfSkelAnime, (void*)gFall2FKAnim_5EF4);
     this->unk2DC = Lib_SegmentedToVirtual((void*)object_fall2_Matanimheader_008840);
-    Actor_SetScale(&this->actor, 0.02f);
+    MM_Actor_SetScale(&this->actor, 0.02f);
     this->actionFunc = EnFall2_HandleCutscene;
     this->cueType = CS_CMD_ACTOR_CUE_561;
     this->alphaLevel = 0.0f;
@@ -91,7 +91,7 @@ void EnFall2_DoNothing(EnFall2* this, PlayState* play) {
 void func_80C1B8B4(EnFall2* this) {
     this->actor.draw = EnFall2_Draw;
     if (this->cueId == 1) {
-        Actor_SetScale(&this->actor, 0.02f);
+        MM_Actor_SetScale(&this->actor, 0.02f);
     }
 }
 
@@ -162,7 +162,7 @@ void EnFall2_Draw(Actor* thisx, PlayState* play) {
 
         if (mtxStack != NULL) {
             Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-            Matrix_RotateYS((s16)(Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) + 0x8000), MTXMODE_APPLY);
+            Matrix_RotateYS((s16)(MM_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) + 0x8000), MTXMODE_APPLY);
             Keyframe_DrawFlex(play, &this->kfSkelAnime, mtxStack, NULL, NULL, &this->actor);
         }
     }

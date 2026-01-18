@@ -23,7 +23,7 @@ u32 EffectSsHitmark_Init(PlayState* play, u32 index, EffectSs* this, void* initP
 void EffectSsHitmark_Update(PlayState* play, u32 index, EffectSs* this);
 void EffectSsHitmark_Draw(PlayState* play, u32 index, EffectSs* this);
 
-static Color_RGB8 sColors[] = {
+static Color_RGB8 MM_sColors[] = {
     { 255, 255, 255 }, { 255, 255, 0 }, // EFFECT_HITMARK_WHITE Init
     { 255, 255, 255 }, { 255, 0, 0 },   // EFFECT_HITMARK_WHITE Update
     { 255, 200, 100 }, { 200, 150, 0 }, // EFFECT_HITMARK_DUST Init
@@ -34,7 +34,7 @@ static Color_RGB8 sColors[] = {
     { 255, 255, 255 }, { 150, 0, 255 }, // EFFECT_HITMARK_METAL Update
 };
 
-static TexturePtr sTextures[] = {
+static TexturePtr MM_sTextures[] = {
     // EFFECT_HITMARK_WHITE
     gEffHitmarkWhiteMetal1Tex,
     gEffHitmarkWhiteMetal2Tex,
@@ -97,12 +97,12 @@ u32 EffectSsHitmark_Init(PlayState* play, u32 index, EffectSs* this, void* initP
     colorIndex = initParams->type * 4;
     this->rTexIndex = 0;
     this->rType = initParams->type;
-    this->rPrimColorR = sColors[colorIndex].r;
-    this->rPrimColorG = sColors[colorIndex].g;
-    this->rPrimColorB = sColors[colorIndex].b;
-    this->rEnvColorR = sColors[colorIndex + 1].r;
-    this->rEnvColorG = sColors[colorIndex + 1].g;
-    this->rEnvColorB = sColors[colorIndex + 1].b;
+    this->rPrimColorR = MM_sColors[colorIndex].r;
+    this->rPrimColorG = MM_sColors[colorIndex].g;
+    this->rPrimColorB = MM_sColors[colorIndex].b;
+    this->rEnvColorR = MM_sColors[colorIndex + 1].r;
+    this->rEnvColorG = MM_sColors[colorIndex + 1].g;
+    this->rEnvColorB = MM_sColors[colorIndex + 1].b;
     this->rScale = initParams->scale;
 
     return 1;
@@ -121,18 +121,18 @@ void EffectSsHitmark_Draw(PlayState* play, u32 index, EffectSs* this) {
 
     OPEN_DISPS(gfxCtx);
 
-    SkinMatrix_SetTranslate(&mfTrans, this->pos.x, this->pos.y, this->pos.z);
+    MM_SkinMatrix_SetTranslate(&mfTrans, this->pos.x, this->pos.y, this->pos.z);
     scale = this->rScale / 100.0f;
-    SkinMatrix_SetScale(&mfScale, scale, scale, 1.0f);
-    SkinMatrix_MtxFMtxFMult(&mfTrans, &play->billboardMtxF, &mfTransBillboard);
-    SkinMatrix_MtxFMtxFMult(&mfTransBillboard, &mfScale, &mfResult);
+    MM_SkinMatrix_SetScale(&mfScale, scale, scale, 1.0f);
+    MM_SkinMatrix_MtxFMtxFMult(&mfTrans, &play->billboardMtxF, &mfTransBillboard);
+    MM_SkinMatrix_MtxFMtxFMult(&mfTransBillboard, &mfScale, &mfResult);
     gSPMatrix(POLY_XLU_DISP++, &gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
-    mtx = SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
+    mtx = MM_SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
 
     if (mtx != NULL) {
         gSPMatrix(POLY_XLU_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-        tex = sTextures[(this->rType * 8) + (this->rTexIndex)];
+        tex = MM_sTextures[(this->rType * 8) + (this->rTexIndex)];
         gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(tex));
         Gfx_SetupDL61_Xlu(gfxCtx);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, this->rPrimColorR, this->rPrimColorG, this->rPrimColorB, 255);
@@ -153,11 +153,11 @@ void EffectSsHitmark_Update(PlayState* play, u32 index, EffectSs* this) {
 
     if (this->rTexIndex != 0) {
         colorIndex = this->rType * 4 + 2;
-        this->rPrimColorR = EffectSs_LerpInv(this->rPrimColorR, sColors[colorIndex].r, this->life + 1);
-        this->rPrimColorG = EffectSs_LerpInv(this->rPrimColorG, sColors[colorIndex].g, this->life + 1);
-        this->rPrimColorB = EffectSs_LerpInv(this->rPrimColorB, sColors[colorIndex].b, this->life + 1);
-        this->rEnvColorR = EffectSs_LerpInv(this->rEnvColorR, sColors[colorIndex + 1].r, this->life + 1);
-        this->rEnvColorG = EffectSs_LerpInv(this->rEnvColorG, sColors[colorIndex + 1].g, this->life + 1);
-        this->rEnvColorB = EffectSs_LerpInv(this->rEnvColorB, sColors[colorIndex + 1].b, this->life + 1);
+        this->rPrimColorR = EffectSs_LerpInv(this->rPrimColorR, MM_sColors[colorIndex].r, this->life + 1);
+        this->rPrimColorG = EffectSs_LerpInv(this->rPrimColorG, MM_sColors[colorIndex].g, this->life + 1);
+        this->rPrimColorB = EffectSs_LerpInv(this->rPrimColorB, MM_sColors[colorIndex].b, this->life + 1);
+        this->rEnvColorR = EffectSs_LerpInv(this->rEnvColorR, MM_sColors[colorIndex + 1].r, this->life + 1);
+        this->rEnvColorG = EffectSs_LerpInv(this->rEnvColorG, MM_sColors[colorIndex + 1].g, this->life + 1);
+        this->rEnvColorB = EffectSs_LerpInv(this->rEnvColorB, MM_sColors[colorIndex + 1].b, this->life + 1);
     }
 }

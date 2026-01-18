@@ -405,7 +405,7 @@ ActorProfile En_Al_Profile = {
     /**/ EnAl_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HIT1,
         AT_NONE,
@@ -425,7 +425,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 14, 62, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 MM_sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
 
 typedef enum {
     /* -1 */ ENAL_ANIM_NONE = -1,
@@ -440,7 +440,7 @@ typedef enum {
     /*  8 */ ENAL_ANIM_MAX
 } EnAlAnimation;
 
-static AnimationInfoS sAnimationInfo[ENAL_ANIM_MAX] = {
+static AnimationInfoS MM_sAnimationInfo[ENAL_ANIM_MAX] = {
     { &object_al_Anim_000C54, 1.0f, 0, -1, ANIMMODE_LOOP, -4 }, // ENAL_ANIM_0
     { &object_al_Anim_00DBE0, 1.0f, 0, -1, ANIMMODE_LOOP, 0 },  // ENAL_ANIM_1
     { &object_al_Anim_00DBE0, 1.0f, 0, -1, ANIMMODE_LOOP, -4 }, // ENAL_ANIM_2
@@ -484,7 +484,7 @@ Actor* EnAl_FindActor(EnAl* this, PlayState* play, u8 actorCategory, s16 actorId
 
 void EnAl_UpdateSkelAnime(EnAl* this) {
     this->skelAnime.playSpeed = this->animPlaySpeed;
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 }
 
 s32 EnAl_ChangeAnim(EnAl* this, s32 animIndex) {
@@ -501,7 +501,7 @@ s32 EnAl_ChangeAnim(EnAl* this, s32 animIndex) {
 
     if (changeAnim) {
         this->animIndex = animIndex;
-        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, animIndex);
+        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, animIndex);
         this->animPlaySpeed = this->skelAnime.playSpeed;
     }
 
@@ -512,10 +512,10 @@ void func_80BDE318(EnAl* this, PlayState* play) {
     s32 pad;
     f32 temp;
 
-    Collider_UpdateCylinder(&this->actor, &this->unk_310);
+    MM_Collider_UpdateCylinder(&this->actor, &this->unk_310);
     temp = this->actor.focus.pos.y - this->actor.world.pos.y;
     this->unk_310.dim.height = temp;
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->unk_310.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->unk_310.base);
 }
 
 Actor* func_80BDE384(EnAl* this, PlayState* play) {
@@ -587,13 +587,13 @@ s32 func_80BDE4E0(EnAl* this, s16* arg1, s16 arg2) {
     }
 
     if ((arg2 + 1) == *arg1) {
-        Math_Vec3f_Copy(&sp28, &this->unk_368->world.pos);
-        Math_Vec3f_Copy(&sp34, &this->actor.world.pos);
-        sp42 = Math_Vec3f_Yaw(&sp34, &sp28);
+        MM_Math_Vec3f_Copy(&sp28, &this->unk_368->world.pos);
+        MM_Math_Vec3f_Copy(&sp34, &this->actor.world.pos);
+        sp42 = MM_Math_Vec3f_Yaw(&sp34, &sp28);
         temp = sp42 / 364;
         this->unk_4E8++;
         if ((temp != (this->actor.world.rot.y / 364)) && (this->unk_4E8 < 20)) {
-            Math_ApproachS(&this->actor.world.rot.y, sp42, 3, 0x2AA8);
+            MM_Math_ApproachS(&this->actor.world.rot.y, sp42, 3, 0x2AA8);
         } else {
             EnAl_ChangeAnim(this, ENAL_ANIM_5);
             this->actor.world.rot.y = sp42;
@@ -626,7 +626,7 @@ s32 func_80BDE678(EnAl* this, s16* arg1, s16 arg2) {
         temp = sp22 / 364;
         this->unk_4E8++;
         if ((temp != (this->actor.world.rot.y / 364)) && (this->unk_4E8 < 20)) {
-            Math_ApproachS(&this->actor.world.rot.y, sp22, 3, 0x2AA8);
+            MM_Math_ApproachS(&this->actor.world.rot.y, sp22, 3, 0x2AA8);
         } else {
             EnAl_ChangeAnim(this, ENAL_ANIM_2);
             this->actor.world.rot.y = sp22;
@@ -655,7 +655,7 @@ s32 func_80BDE7FC(Actor* thisx, PlayState* play) {
         case 6:
         case 8:
             if ((this->actor.child != NULL) && (this->actor.child->update != NULL)) {
-                Camera_SetTargetActor(Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(csId)),
+                Camera_SetTargetActor(MM_Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(csId)),
                                       this->actor.child);
             }
             this->unk_4E6++;
@@ -666,7 +666,7 @@ s32 func_80BDE7FC(Actor* thisx, PlayState* play) {
         case 3:
         case 5:
         case 7:
-            Camera_SetTargetActor(Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(csId)), &this->actor);
+            Camera_SetTargetActor(MM_Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(csId)), &this->actor);
             this->unk_4E6++;
             sp20 = true;
             break;
@@ -777,7 +777,7 @@ MsgScript* EnAl_GetMsgScript(EnAl* this, PlayState* play) {
                 return D_80BDFE8C;
             }
 
-            if (Player_GetMask(play) == PLAYER_MASK_KAFEIS_MASK) {
+            if (MM_Player_GetMask(play) == PLAYER_MASK_KAFEIS_MASK) {
                 return D_80BDFE7C;
             }
             return D_80BDFE84;
@@ -789,7 +789,7 @@ MsgScript* EnAl_GetMsgScript(EnAl* this, PlayState* play) {
             }
 
             this->msgScriptCallback = func_80BDEA14;
-            if (Player_GetMask(play) != PLAYER_MASK_KAFEIS_MASK) {
+            if (MM_Player_GetMask(play) != PLAYER_MASK_KAFEIS_MASK) {
                 return D_80BDFDE8;
             }
 
@@ -840,21 +840,21 @@ void func_80BDED20(EnAl* this) {
     Vec3f sp34;
     s32 pad2;
 
-    Math_Vec3f_Copy(&sp40, &this->unk_368->world.pos);
-    Math_Vec3f_Copy(&sp34, &this->actor.world.pos);
+    MM_Math_Vec3f_Copy(&sp40, &this->unk_368->world.pos);
+    MM_Math_Vec3f_Copy(&sp34, &this->actor.world.pos);
 
-    Math_ApproachS(&this->unk_4DE, Math_Vec3f_Yaw(&sp34, &sp40) - this->actor.shape.rot.y, 4, 0x2AA8);
+    MM_Math_ApproachS(&this->unk_4DE, MM_Math_Vec3f_Yaw(&sp34, &sp40) - this->actor.shape.rot.y, 4, 0x2AA8);
     this->unk_4DE = CLAMP(this->unk_4DE, -0x1FFE, 0x1FFE);
 
-    Math_Vec3f_Copy(&sp34, &this->actor.focus.pos);
+    MM_Math_Vec3f_Copy(&sp34, &this->actor.focus.pos);
 
     if (this->unk_368->id == ACTOR_PLAYER) {
         sp40.y = ((Player*)this->unk_368)->bodyPartsPos[PLAYER_BODYPART_HEAD].y + 3.0f;
     } else {
-        Math_Vec3f_Copy(&sp40, &this->unk_368->focus.pos);
+        MM_Math_Vec3f_Copy(&sp40, &this->unk_368->focus.pos);
     }
 
-    Math_ApproachS(&this->unk_4DC, Math_Vec3f_Pitch(&sp34, &sp40), 4, 0x2AA8);
+    MM_Math_ApproachS(&this->unk_4DC, MM_Math_Vec3f_Pitch(&sp34, &sp40), 4, 0x2AA8);
     this->unk_4DC = CLAMP(this->unk_4DC, -0x1554, 0x1554);
 }
 
@@ -886,7 +886,7 @@ void func_80BDEF3C(EnAl* this, PlayState* play) {
         this->unk_4C2 &= ~0x20;
         this->unk_4C2 |= 0x200;
         this->unk_4E4++;
-    } else if ((this->unk_4E4 == 1) && Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    } else if ((this->unk_4E4 == 1) && MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         EnAl_ChangeAnim(this, ENAL_ANIM_0);
         this->unk_4C2 &= ~0x200;
         this->unk_4C2 |= 0x20;
@@ -898,7 +898,7 @@ void func_80BDEFE4(EnAl* this, PlayState* play) {
     if (this->unk_4E4 == 0) {
         EnAl_ChangeAnim(this, ENAL_ANIM_6);
         this->unk_4E4 += 1;
-    } else if ((this->unk_4E4 == 1) && Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    } else if ((this->unk_4E4 == 1) && MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         EnAl_ChangeAnim(this, ENAL_ANIM_5);
         this->unk_4E4 += 1;
     }
@@ -1086,7 +1086,7 @@ void func_80BDF578(EnAl* this, PlayState* play) {
             break;
     }
 
-    Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 3, 0x2AA8);
+    MM_Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 3, 0x2AA8);
 }
 
 void func_80BDF5E8(EnAl* this, PlayState* play) {
@@ -1099,7 +1099,7 @@ void func_80BDF5E8(EnAl* this, PlayState* play) {
         this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
         scheduleOutput.result = 0;
     } else {
-        this->actor.shape.shadowDraw = ActorShadow_DrawCircle;
+        this->actor.shape.shadowDraw = MM_ActorShadow_DrawCircle;
         this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
     }
     this->scheduleResult = scheduleOutput.result;
@@ -1117,21 +1117,21 @@ void func_80BDF6C4(EnAl* this, PlayState* play) {
         this->msgScriptPos = 0;
         this->actionFunc = func_80BDF5E8;
     } else {
-        Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 3, 0x2AA8);
+        MM_Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 3, 0x2AA8);
     }
 }
 
 void EnAl_Init(Actor* thisx, PlayState* play) {
     EnAl* this = (EnAl*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gMadameAromaSkel, NULL, this->jointTable, this->morphTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gMadameAromaSkel, NULL, this->jointTable, this->morphTable,
                        MADAME_AROMA_LIMB_MAX);
     this->animIndex = ENAL_ANIM_NONE;
     EnAl_ChangeAnim(this, ENAL_ANIM_1);
-    Collider_InitAndSetCylinder(play, &this->unk_310, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, DamageTable_Get(0x16), &sColChkInfoInit);
-    Actor_SetScale(&this->actor, 0.01f);
+    Collider_InitAndSetCylinder(play, &this->unk_310, &this->actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, MM_DamageTable_Get(0x16), &MM_sColChkInfoInit);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->scheduleResult = 0;
     this->actionFunc = func_80BDF5E8;
 
@@ -1141,7 +1141,7 @@ void EnAl_Init(Actor* thisx, PlayState* play) {
 void EnAl_Destroy(Actor* thisx, PlayState* play) {
     EnAl* this = (EnAl*)thisx;
 
-    Collider_DestroyCylinder(play, &this->unk_310);
+    MM_Collider_DestroyCylinder(play, &this->unk_310);
 }
 
 void EnAl_Update(Actor* thisx, PlayState* play) {
@@ -1186,31 +1186,31 @@ void EnAl_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
 
     switch (limbIndex) {
         case MADAME_AROMA_LIMB_SHAWL_MIDDLE:
-            Matrix_Get(&this->unk_190[0]);
+            MM_Matrix_Get(&this->unk_190[0]);
             break;
 
         case MADAME_AROMA_LIMB_SHAWL_UPPER:
-            Matrix_Get(&this->unk_190[1]);
+            MM_Matrix_Get(&this->unk_190[1]);
             break;
 
         case MADAME_AROMA_LIMB_SHAWL_LEFT_LOWER_MIDDLE:
-            Matrix_Get(&this->unk_190[2]);
+            MM_Matrix_Get(&this->unk_190[2]);
             break;
 
         case MADAME_AROMA_LIMB_SHAWL_LEFT_LOWER:
-            Matrix_Get(&this->unk_190[3]);
+            MM_Matrix_Get(&this->unk_190[3]);
             break;
 
         case MADAME_AROMA_LIMB_SHAWL_RIGHT_LOWER_MIDDLE:
-            Matrix_Get(&this->unk_190[4]);
+            MM_Matrix_Get(&this->unk_190[4]);
             break;
 
         case MADAME_AROMA_LIMB_SHAWL_RIGHT_LOWER:
-            Matrix_Get(&this->unk_190[5]);
+            MM_Matrix_Get(&this->unk_190[5]);
             break;
 
         case MADAME_AROMA_LIMB_HEAD:
-            Matrix_MultVec3f(&D_80BE0070, &this->actor.focus.pos);
+            MM_Matrix_MultVec3f(&D_80BE0070, &this->actor.focus.pos);
             Math_Vec3s_Copy(&this->actor.focus.rot, &this->actor.world.rot);
             break;
 
@@ -1239,13 +1239,13 @@ void EnAl_TransformLimbDraw(PlayState* play, s32 limbIndex, Actor* thisx) {
     if (limbIndex == MADAME_AROMA_LIMB_HEAD) {
         SubS_UpdateLimb(this->unk_4DC + 0x4000, this->unk_4DE + this->actor.shape.rot.y + 0x4000, &this->unk_36C,
                         &this->unk_378, stepRot, overrideRot);
-        Matrix_Pop();
-        Matrix_Translate(this->unk_36C.x, this->unk_36C.y, this->unk_36C.z, MTXMODE_NEW);
-        Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+        MM_Matrix_Pop();
+        MM_Matrix_Translate(this->unk_36C.x, this->unk_36C.y, this->unk_36C.z, MTXMODE_NEW);
+        MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
         Matrix_RotateYS(this->unk_378.y, MTXMODE_APPLY);
         Matrix_RotateXS(this->unk_378.x, MTXMODE_APPLY);
         Matrix_RotateZS(this->unk_378.z, MTXMODE_APPLY);
-        Matrix_Push();
+        MM_Matrix_Push();
     }
 }
 
@@ -1257,13 +1257,13 @@ void EnAl_Draw(Actor* thisx, PlayState* play) {
         OPEN_DISPS(play->state.gfxCtx);
 
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
-        Matrix_Translate(0.0f, 0.0f, 850.0f, MTXMODE_APPLY);
+        MM_Matrix_Translate(0.0f, 0.0f, 850.0f, MTXMODE_APPLY);
         SkelAnime_DrawTransformFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                        this->skelAnime.dListCount, EnAl_OverrideLimbDraw, EnAl_PostLimbDraw,
                                        EnAl_TransformLimbDraw, &this->actor);
 
         for (i = 0; i < ARRAY_COUNT(this->unk_190); i++) {
-            Matrix_Put(&this->unk_190[i]);
+            MM_Matrix_Put(&this->unk_190[i]);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
             gSPDisplayList(POLY_OPA_DISP++, D_80BE007C[i]);

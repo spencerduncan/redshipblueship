@@ -46,24 +46,24 @@ void ObjKinoko_Update(Actor* thisx, PlayState* play) {
         thisx->draw = ObjKinoko_Draw;
         thisx->hintId = TATL_HINT_ID_MUSHROOM;
         thisx->flags |= ACTOR_FLAG_ATTENTION_ENABLED;
-        if (Actor_HasParent(thisx, play)) {
-            Flags_SetCollectible(play, OBJ_KINOKO_GET_FLAG(thisx));
-            Actor_Kill(thisx);
+        if (MM_Actor_HasParent(thisx, play)) {
+            MM_Flags_SetCollectible(play, OBJ_KINOKO_GET_FLAG(thisx));
+            MM_Actor_Kill(thisx);
             return;
         }
-        Actor_OfferGetItem(thisx, play, GI_MAX, 20.0f, 10.0f);
-        if (Math_SmoothStepToF(&thisx->speed, 0.0f, 0.04f, 2.0f, 0.5f) < 0.5f) {
+        MM_Actor_OfferGetItem(thisx, play, GI_MAX, 20.0f, 10.0f);
+        if (MM_Math_SmoothStepToF(&thisx->speed, 0.0f, 0.04f, 2.0f, 0.5f) < 0.5f) {
             thisx->scale.x = 0.0f;
             thisx->speed = 110.0f;
             thisx->velocity.x = 0.2f;
         }
-        if (Math_SmoothStepToF(&thisx->scale.x, thisx->velocity.x, 0.04f, 0.004f, 0.001f) <
+        if (MM_Math_SmoothStepToF(&thisx->scale.x, thisx->velocity.x, 0.04f, 0.004f, 0.001f) <
             ((thisx->velocity.x == 0.0f) ? 0.0f : 0.05f)) {
             thisx->velocity.x = 0.0f;
         }
         thisx->scale.y = thisx->scale.x;
         thisx->scale.z = thisx->scale.x;
-        thisx->shape.rot.y = Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) + 0x8000;
+        thisx->shape.rot.y = MM_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) + 0x8000;
     }
 }
 

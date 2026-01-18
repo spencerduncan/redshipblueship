@@ -108,7 +108,7 @@ s32 Schedule_CheckMiscS(PlayState* play, u8** script, ScheduleOutput* output) {
          GameInteractor_Should(VB_CHECK_FOR_ROOM_KEY, INV_CONTENT(ITEM_ROOM_KEY) == ITEM_ROOM_KEY)) ||
         ((cmd->which == SCHEDULE_CHECK_MISC_LETTER_TO_KAFEI) &&
          (INV_CONTENT(ITEM_LETTER_TO_KAFEI) == ITEM_LETTER_TO_KAFEI)) ||
-        ((cmd->which == SCHEDULE_CHECK_MISC_MASK_ROMANI) && (Player_GetMask(play) == PLAYER_MASK_ROMANI))) {
+        ((cmd->which == SCHEDULE_CHECK_MISC_MASK_ROMANI) && (MM_Player_GetMask(play) == PLAYER_MASK_ROMANI))) {
         *script += cmd->offset;
     }
 

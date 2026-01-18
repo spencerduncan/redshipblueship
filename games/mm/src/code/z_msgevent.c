@@ -149,10 +149,10 @@ s32 MsgEvent_OfferItem(Actor* actor, PlayState* play, u8** script, MsgScriptCall
     f32 yRange = fabsf(actor->playerHeightRel) + 1.0f;
     s16 skip = SCRIPT_PACK_16(cmd->offsetH, cmd->offsetL);
 
-    if (Actor_HasParent(actor, play)) {
+    if (MM_Actor_HasParent(actor, play)) {
         *script += skip;
     } else {
-        Actor_OfferGetItem(actor, play, getItemId, xzRange, yRange);
+        MM_Actor_OfferGetItem(actor, play, getItemId, xzRange, yRange);
         return true;
     }
     return false;
@@ -207,7 +207,7 @@ s32 MsgEvent_CheckRupees(Actor* actor, PlayState* play, u8** script, MsgScriptCa
 }
 
 /**
- * Branch forward if the callback is null or returns non-zero
+ * Branch forward if the callback is null or returns non-MM_zero
  *
  * Command structure:
  *  0:(u8)  cmd
@@ -287,10 +287,10 @@ s32 MsgEvent_AwaitTextJump(Actor* actor, PlayState* play, u8** script, MsgScript
     MsgScriptCmdAwaitTextJump* cmd = (MsgScriptCmdAwaitTextJump*)*script;
     s16 skip;
 
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_CHOICE:
         case TEXT_STATE_EVENT:
-            if (!Message_ShouldAdvance(play)) {
+            if (!MM_Message_ShouldAdvance(play)) {
                 return true;
             }
         case TEXT_STATE_CLOSING:
@@ -312,10 +312,10 @@ s32 MsgEvent_AwaitTextJump(Actor* actor, PlayState* play, u8** script, MsgScript
  * Command size: 1
  */
 s32 MsgEvent_AwaitText(Actor* actor, PlayState* play, u8** script, MsgScriptCallback callback, s32* endScript) {
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_CHOICE:
         case TEXT_STATE_EVENT:
-            if (!Message_ShouldAdvance(play)) {
+            if (!MM_Message_ShouldAdvance(play)) {
                 return true;
             }
             break;
@@ -337,14 +337,14 @@ s32 MsgEvent_AwaitText(Actor* actor, PlayState* play, u8** script, MsgScriptCall
  * Command size: 1
  */
 s32 MsgEvent_AwaitTextEnd(Actor* actor, PlayState* play, u8** script, MsgScriptCallback callback, s32* endScript) {
-    s32 state = Message_GetState(&play->msgCtx);
+    s32 state = MM_Message_GetState(&play->msgCtx);
 
     *endScript = false;
 
     switch (state) {
         case TEXT_STATE_CHOICE:
         case TEXT_STATE_EVENT:
-            if (!Message_ShouldAdvance(play)) {
+            if (!MM_Message_ShouldAdvance(play)) {
                 break;
             }
         case TEXT_STATE_CLOSING:
@@ -367,7 +367,7 @@ s32 MsgEvent_AwaitTextEnd(Actor* actor, PlayState* play, u8** script, MsgScriptC
 s32 MsgEvent_BeginText(Actor* actor, PlayState* play, u8** script, MsgScriptCallback callback, s32* endScript) {
     MsgScriptCmdBeginText* cmd = (MsgScriptCmdBeginText*)*script;
 
-    Message_StartTextbox(play, SCRIPT_PACK_16(cmd->textIdH, cmd->textIdL), NULL);
+    MM_Message_StartTextbox(play, SCRIPT_PACK_16(cmd->textIdH, cmd->textIdL), NULL);
     return false;
 }
 
@@ -381,7 +381,7 @@ s32 MsgEvent_BeginText(Actor* actor, PlayState* play, u8** script, MsgScriptCall
 s32 MsgEvent_ContinueText(Actor* actor, PlayState* play, u8** script, MsgScriptCallback callback, s32* endScript) {
     MsgScriptCmdContinueText* cmd = (MsgScriptCmdContinueText*)*script;
 
-    Message_ContinueTextbox(play, SCRIPT_PACK_16(cmd->textIdH, cmd->textIdL));
+    MM_Message_ContinueTextbox(play, SCRIPT_PACK_16(cmd->textIdH, cmd->textIdL));
     return false;
 }
 
@@ -420,7 +420,7 @@ s32 MsgEvent_SetWeekEventReg(Actor* actor, PlayState* play, u8** script, MsgScri
  * Command size: 1
  */
 s32 MsgEvent_CloseText(Actor* actor, PlayState* play, u8** script, MsgScriptCallback callback, s32* endScript) {
-    Message_CloseTextbox(play);
+    MM_Message_CloseTextbox(play);
     return false;
 }
 
@@ -435,8 +435,8 @@ s32 MsgEvent_SetCollectible(Actor* actor, PlayState* play, u8** script, MsgScrip
     MsgScriptCmdSetCollectible* cmd = (MsgScriptCmdSetCollectible*)*script;
     s32 flag = SCRIPT_PACK_16(cmd->flagH, cmd->flagL);
 
-    if (!Flags_GetCollectible(play, flag)) {
-        Flags_SetCollectible(play, flag);
+    if (!MM_Flags_GetCollectible(play, flag)) {
+        MM_Flags_SetCollectible(play, flag);
     }
     actor->parent = NULL;
     return false;
@@ -453,7 +453,7 @@ s32 MsgEvent_ChangeRupees(Actor* actor, PlayState* play, u8** script, MsgScriptC
     MsgScriptCmdChangeRupees* cmd = (MsgScriptCmdChangeRupees*)*script;
     s16 rupees = SCRIPT_PACK_16(cmd->rupeesH, cmd->rupeesL);
 
-    Rupees_ChangeBy(rupees);
+    MM_Rupees_ChangeBy(rupees);
     return false;
 }
 
@@ -610,10 +610,10 @@ s32 MsgEvent_CheckItemAction(Actor* actor, PlayState* play, u8** script, MsgScri
     s16 skip;
     PlayerItemAction curItemAction;
 
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_CHOICE:
         case TEXT_STATE_EVENT:
-            if (!Message_ShouldAdvance(play)) {
+            if (!MM_Message_ShouldAdvance(play)) {
                 return true;
             }
         case TEXT_STATE_PAUSE_MENU:
@@ -671,7 +671,7 @@ s32 MsgEvent_CheckWornMask(Actor* actor, PlayState* play, u8** script, MsgScript
     s32 mask = SCRIPT_PACK_16(cmd->maskH, cmd->maskL);
     s16 skip = SCRIPT_PACK_16(cmd->offsetH, cmd->offsetL);
 
-    if (Player_GetMask(play) == mask) {
+    if (MM_Player_GetMask(play) == mask) {
         *script += skip;
     }
     return false;
@@ -743,7 +743,7 @@ s32 MsgEvent_CheckSwitchFlag(Actor* actor, PlayState* play, u8** script, MsgScri
     s16 flag = SCRIPT_PACK_16(cmd->flagH, cmd->flagL);
     s16 skip = SCRIPT_PACK_16(cmd->offsetH, cmd->offsetL);
 
-    if (Flags_GetSwitch(play, flag)) {
+    if (MM_Flags_GetSwitch(play, flag)) {
         *script += skip;
     }
     return false;
@@ -761,7 +761,7 @@ s32 MsgEvent_SetSwitchFlag(Actor* actor, PlayState* play, u8** script, MsgScript
     MsgScriptCmdSetSwitchFlag* cmd = (MsgScriptCmdSetSwitchFlag*)*script;
     s16 flag = SCRIPT_PACK_16(cmd->flagH, cmd->flagL);
 
-    Flags_SetSwitch(play, flag);
+    MM_Flags_SetSwitch(play, flag);
     return false;
 }
 
@@ -835,7 +835,7 @@ s32 MsgEvent_CheckOnDay(Actor* actor, PlayState* play, u8** script, MsgScriptCal
 }
 
 /**
- * Branches forward if callback exists and returns non-zero
+ * Branches forward if callback exists and returns non-MM_zero
  *
  * Command structure:
  *  0:(u8)  cmd
@@ -887,7 +887,7 @@ s32 MsgEvent_DeleteItem(Actor* actor, PlayState* play, u8** script, MsgScriptCal
         return false;
     }
 
-    Inventory_DeleteItem(item, SLOT(item));
+    MM_Inventory_DeleteItem(item, SLOT(item));
     return false;
 }
 
@@ -944,7 +944,7 @@ s32 MsgEvent_PlayerTalk(Actor* actor, PlayState* play, u8** script, MsgScriptCal
     u16 textId = SCRIPT_PACK_16(cmd->textIdH, cmd->textIdL);
 
     player->actor.textId = textId;
-    Message_CloseTextbox(play);
+    MM_Message_CloseTextbox(play);
     return false;
 }
 
@@ -972,18 +972,18 @@ s32 MsgEvent_NotebookEvent(Actor* actor, PlayState* play, u8** script, MsgScript
  * Command size: 1
  */
 s32 MsgEvent_AwaitTextDone(Actor* actor, PlayState* play, u8** script, MsgScriptCallback callback, s32* endScript) {
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_CLOSING:
             break;
 
         case TEXT_STATE_CHOICE:
         case TEXT_STATE_EVENT:
-            if (!Message_ShouldAdvance(play)) {
+            if (!MM_Message_ShouldAdvance(play)) {
                 return true;
             }
 
         case TEXT_STATE_DONE:
-            if (!Message_ShouldAdvance(play)) {
+            if (!MM_Message_ShouldAdvance(play)) {
                 return true;
             }
             break;

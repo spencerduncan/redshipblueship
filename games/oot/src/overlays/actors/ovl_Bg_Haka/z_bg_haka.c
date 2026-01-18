@@ -33,7 +33,7 @@ const ActorInit Bg_Haka_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(minVelocityY, 0, ICHAIN_CONTINUE),
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
@@ -43,23 +43,23 @@ void BgHaka_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     CollisionHeader* colHeader = NULL;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DPM_UNK);
-    CollisionHeader_GetVirtual(&gGravestoneCol, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
+    OoT_CollisionHeader_GetVirtual(&gGravestoneCol, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
     this->actionFunc = func_8087B7E8;
 }
 
 void BgHaka_Destroy(Actor* thisx, PlayState* play) {
     BgHaka* this = (BgHaka*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_8087B758(BgHaka* this, Player* player) {
     Vec3f sp1C;
 
-    Actor_WorldToActorCoords(&this->dyna.actor, &sp1C, &player->actor.world.pos);
+    OoT_Actor_WorldToActorCoords(&this->dyna.actor, &sp1C, &player->actor.world.pos);
     if (fabsf(sp1C.x) < 34.6f && sp1C.z > -112.8f && sp1C.z < -36.0f) {
         player->stateFlags2 |= PLAYER_STATE2_FORCE_SAND_FLOOR_SOUND;
     }
@@ -73,13 +73,13 @@ void func_8087B7E8(BgHaka* this, PlayState* play) {
             !CVarGetInteger(CVAR_ENHANCEMENT("DayGravePull"), 0)) {
             this->dyna.unk_150 = 0.0f;
             player->stateFlags2 &= ~PLAYER_STATE2_MOVING_DYNAPOLY;
-            if (!Play_InCsMode(play)) {
-                Message_StartTextbox(play, 0x5073, NULL);
+            if (!OoT_Play_InCsMode(play)) {
+                OoT_Message_StartTextbox(play, 0x5073, NULL);
                 this->dyna.actor.params = 100;
                 this->actionFunc = func_8087BAE4;
             }
         } else if (0.0f < this->dyna.unk_150 ||
-                   (play->sceneNum == SCENE_LAKE_HYLIA && !LINK_IS_ADULT && !Flags_GetSwitch(play, 0x23))) {
+                   (play->sceneNum == SCENE_LAKE_HYLIA && !LINK_IS_ADULT && !OoT_Flags_GetSwitch(play, 0x23))) {
             this->dyna.unk_150 = 0.0f;
             player->stateFlags2 &= ~PLAYER_STATE2_MOVING_DYNAPOLY;
         } else {
@@ -96,11 +96,11 @@ void func_8087B938(BgHaka* this, PlayState* play) {
 
     this->dyna.actor.speedXZ += 0.05f;
     this->dyna.actor.speedXZ = CLAMP_MAX(this->dyna.actor.speedXZ, 1.5f);
-    sp38 = Math_StepToF(&this->dyna.actor.minVelocityY, 60.0f, this->dyna.actor.speedXZ);
+    sp38 = OoT_Math_StepToF(&this->dyna.actor.minVelocityY, 60.0f, this->dyna.actor.speedXZ);
     this->dyna.actor.world.pos.x =
-        Math_SinS(this->dyna.actor.world.rot.y) * this->dyna.actor.minVelocityY + this->dyna.actor.home.pos.x;
+        OoT_Math_SinS(this->dyna.actor.world.rot.y) * this->dyna.actor.minVelocityY + this->dyna.actor.home.pos.x;
     this->dyna.actor.world.pos.z =
-        Math_CosS(this->dyna.actor.world.rot.y) * this->dyna.actor.minVelocityY + this->dyna.actor.home.pos.z;
+        OoT_Math_CosS(this->dyna.actor.world.rot.y) * this->dyna.actor.minVelocityY + this->dyna.actor.home.pos.z;
     if (sp38 != 0) {
         this->dyna.unk_150 = 0.0f;
         this->state = 1;
@@ -118,7 +118,7 @@ void func_8087B938(BgHaka* this, PlayState* play) {
         if (this->dyna.actor.params == 1) {
             Sfx_PlaySfxCentered(NA_SE_SY_CORRECT_CHIME);
         } else if (!IS_DAY && play->sceneNum == SCENE_GRAVEYARD) {
-            Actor_Spawn(&play->actorCtx, play, ACTOR_EN_POH, this->dyna.actor.home.pos.x, this->dyna.actor.home.pos.y,
+            OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_POH, this->dyna.actor.home.pos.x, this->dyna.actor.home.pos.y,
                         this->dyna.actor.home.pos.z, 0, this->dyna.actor.shape.rot.y, 0, 1, true);
         }
 
@@ -196,10 +196,10 @@ void BgHaka_Draw(Actor* thisx, PlayState* play) {
         play->envCtx.adjLight1Color[0] = newColor.r;
         play->envCtx.adjLight1Color[1] = newColor.g;
         play->envCtx.adjLight1Color[2] = newColor.b;
-        gVisMonoColor.r = newColor.r;
-        gVisMonoColor.g = newColor.g;
-        gVisMonoColor.b = newColor.b;
-        gVisMonoColor.a = 255;
+        OoT_gVisMonoColor.r = newColor.r;
+        OoT_gVisMonoColor.g = newColor.g;
+        OoT_gVisMonoColor.b = newColor.b;
+        OoT_gVisMonoColor.a = 255;
         gDPSetGrayscaleColor(POLY_OPA_DISP++, newColor.r, newColor.g, newColor.b, 255);
         gSPGrayscale(POLY_OPA_DISP++, true);
     }
@@ -212,7 +212,7 @@ void BgHaka_Draw(Actor* thisx, PlayState* play) {
     if (((BgHaka*)thisx)->state == 2) {
         gSPGrayscale(POLY_OPA_DISP++, false);
     }
-    Matrix_Translate(0.0f, 0.0f, thisx->minVelocityY * 10.0f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(0.0f, 0.0f, thisx->minVelocityY * 10.0f, MTXMODE_APPLY);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_XLU_DISP++, gGravestoneEarthDL);
 

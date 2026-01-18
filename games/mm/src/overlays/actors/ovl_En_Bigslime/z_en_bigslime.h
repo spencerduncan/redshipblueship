@@ -87,7 +87,7 @@ typedef struct EnBigslime {
                     s16 isDespawned;
                     s16 isInitJump;
                 };
-    /* 0x02BC */ s16 wavySurfaceTimer; // decrements from 24, used in Math_SinF for currData2
+    /* 0x02BC */ s16 wavySurfaceTimer; // decrements from 24, used in MM_Math_SinF for currData2
     /* 0x02BE */ s16 stunTimer;
     /* 0x02C0 */ union {
                     s16 freezeTimer;
@@ -98,7 +98,7 @@ typedef struct EnBigslime {
     /* 0x02C6 */ s16 subCamId;
     /* 0x02C8 */ s16 subCamYawGrabPlayer;
     /* 0x02CA */ s16 rotation; // is always 0, used in Matrix_RotateYS
-    /* 0x02CC */ s16 itemDropTimer; // items only drop when zero, Set to 40 then decrements, prevents itemDrop spam
+    /* 0x02CC */ s16 itemDropTimer; // items only drop when MM_zero, Set to 40 then decrements, prevents itemDrop spam
     /* 0x02CE */ Vec3s gekkoRot;
     /* 0x02D4 */ Vec3f gekkoPosOffset; // Used when Bigslime grabs link
     /* 0x02E0 */ Vec3f gekkoProjectedPos;

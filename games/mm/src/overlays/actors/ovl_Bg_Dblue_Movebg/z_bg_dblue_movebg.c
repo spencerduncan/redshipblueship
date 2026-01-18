@@ -77,7 +77,7 @@ static Gfx* sXluDLists[] = {
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, gGreatBayTempleObjectWhirlpoolDL, NULL,
 };
 
-static CollisionHeader* sColHeaders[] = {
+static CollisionHeader* MM_sColHeaders[] = {
     NULL,
     &gGreatBayTempleObjectTwoWaySwitchCol,
     NULL,
@@ -100,7 +100,7 @@ s16 D_80A2B96C[] = { 0, 0x16C, -0x16C, 0 };
 
 static s16 sCsIdList[] = { CS_ID_NONE, CS_ID_NONE };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeScale, 1500, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 1100, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 1000, ICHAIN_CONTINUE),
@@ -120,11 +120,11 @@ s32 func_80A29A80(PlayState* play, s32 switchFlagBase, s32 arg2) {
 
         while (switchFlagOffset--) {
             if ((1 << switchFlagOffset) & val2) {
-                if (!Flags_GetSwitch(play, switchFlagBase + switchFlagOffset)) {
+                if (!MM_Flags_GetSwitch(play, switchFlagBase + switchFlagOffset)) {
                     sp2C = 0;
                     break;
                 }
-            } else if (Flags_GetSwitch(play, switchFlagBase + switchFlagOffset)) {
+            } else if (MM_Flags_GetSwitch(play, switchFlagBase + switchFlagOffset)) {
                 sp2C = 0;
                 break;
             }
@@ -133,20 +133,20 @@ s32 func_80A29A80(PlayState* play, s32 switchFlagBase, s32 arg2) {
         sp2C = 0;
         switch (arg2) {
             case 14:
-                if (!Flags_GetSwitch(play, switchFlagBase)) {
+                if (!MM_Flags_GetSwitch(play, switchFlagBase)) {
                     sp2C = 1;
                 }
 
-                if (Flags_GetSwitch(play, switchFlagBase + 1) && Flags_GetSwitch(play, switchFlagBase + 2) &&
-                    Flags_GetSwitch(play, switchFlagBase + 3)) {
+                if (MM_Flags_GetSwitch(play, switchFlagBase + 1) && MM_Flags_GetSwitch(play, switchFlagBase + 2) &&
+                    MM_Flags_GetSwitch(play, switchFlagBase + 3)) {
                     sp2C += 2;
                 }
                 break;
 
             case 15:
-                if (!Flags_GetSwitch(play, switchFlagBase) ||
-                    (Flags_GetSwitch(play, switchFlagBase + 1) && Flags_GetSwitch(play, switchFlagBase + 2) &&
-                     Flags_GetSwitch(play, switchFlagBase + 3))) {
+                if (!MM_Flags_GetSwitch(play, switchFlagBase) ||
+                    (MM_Flags_GetSwitch(play, switchFlagBase + 1) && MM_Flags_GetSwitch(play, switchFlagBase + 2) &&
+                     MM_Flags_GetSwitch(play, switchFlagBase + 3))) {
                     sp2C = 1;
                 }
                 break;
@@ -160,15 +160,15 @@ void BgDblueMovebg_Init(Actor* thisx, PlayState* play) {
     BgDblueMovebg* this = (BgDblueMovebg*)thisx;
     s32 i;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
     this->unk_160 = BGDBLUEMOVEBG_GET_F(thisx);
     this->unk_1BC = BGDBLUEMOVEBG_GET_F000(thisx);
     this->switchFlag = BGDBLUEMOVEBG_GET_SWITCH_FLAG(thisx);
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
 
     if ((this->unk_160 == 9) || (this->unk_160 == 8)) {
         if (D_80A2BBF4.unk_00 != 0) {
-            Actor_Kill(&this->dyna.actor);
+            MM_Actor_Kill(&this->dyna.actor);
             return;
         }
         this->unk_170 = this->dyna.actor.room;
@@ -179,7 +179,7 @@ void BgDblueMovebg_Init(Actor* thisx, PlayState* play) {
         this->dyna.actor.shape.rot.z = 0;
     } else if (this->unk_160 == 6) {
         if (D_80A2BBF4.unk_01 != 0) {
-            Actor_Kill(&this->dyna.actor);
+            MM_Actor_Kill(&this->dyna.actor);
             return;
         }
         this->unk_171 = this->dyna.actor.world.rot.z;
@@ -190,8 +190,8 @@ void BgDblueMovebg_Init(Actor* thisx, PlayState* play) {
         D_80A2BBF4.unk_01 = 1;
     }
 
-    if (sColHeaders[this->unk_160] != NULL) {
-        DynaPolyActor_LoadMesh(play, &this->dyna, sColHeaders[this->unk_160]);
+    if (MM_sColHeaders[this->unk_160] != NULL) {
+        DynaPolyActor_LoadMesh(play, &this->dyna, MM_sColHeaders[this->unk_160]);
     }
 
     this->opaDList = sOpaDLists[this->unk_160];
@@ -215,7 +215,7 @@ void BgDblueMovebg_Init(Actor* thisx, PlayState* play) {
             }
             this->unk_17E = 0;
             this->unk_184 = 0.0f;
-            if (Flags_GetSwitch(play, this->switchFlag)) {
+            if (MM_Flags_GetSwitch(play, this->switchFlag)) {
                 this->unk_18C = 0x384;
             } else {
                 this->unk_18C = 0;
@@ -238,8 +238,8 @@ void BgDblueMovebg_Init(Actor* thisx, PlayState* play) {
             this->dyna.actor.shape.rot.x = 0;
             this->dyna.actor.world.rot.z = 0;
             this->dyna.actor.shape.rot.z = 0;
-            if (Flags_GetSwitch(play, this->switchFlag)) {
-                Actor_Kill(&this->dyna.actor);
+            if (MM_Flags_GetSwitch(play, this->switchFlag)) {
+                MM_Actor_Kill(&this->dyna.actor);
                 break;
             }
             this->unk_18C = 0;
@@ -263,8 +263,8 @@ void BgDblueMovebg_Init(Actor* thisx, PlayState* play) {
             Matrix_RotateYS(this->dyna.actor.shape.rot.y, MTXMODE_NEW);
             Matrix_MultVecX(2240.0f, &this->unk_190);
             Matrix_MultVecX(-10.0f, &this->unk_19C);
-            Math_Vec3f_Sum(&this->unk_190, &this->dyna.actor.world.pos, &this->unk_190);
-            Math_Vec3f_Sum(&this->unk_19C, &this->dyna.actor.world.pos, &this->unk_19C);
+            MM_Math_Vec3f_Sum(&this->unk_190, &this->dyna.actor.world.pos, &this->unk_190);
+            MM_Math_Vec3f_Sum(&this->unk_19C, &this->dyna.actor.world.pos, &this->unk_19C);
             D_80A2BBF0 = this;
             this->dyna.actor.flags |= ACTOR_FLAG_DRAW_CULLING_DISABLED;
             this->actionFunc = func_80A2AED0;
@@ -278,7 +278,7 @@ void BgDblueMovebg_Init(Actor* thisx, PlayState* play) {
             this->unk_1CC = D_80A2B96C[func_80A29A80(play, this->switchFlag, this->unk_1BC)];
             D_80A2BBF0 = this;
             this->dyna.actor.flags |= ACTOR_FLAG_DRAW_CULLING_DISABLED;
-            this->dyna.actor.update = Actor_Noop;
+            this->dyna.actor.update = MM_Actor_Noop;
             this->dyna.actor.draw = func_80A2B274;
             break;
     }
@@ -287,7 +287,7 @@ void BgDblueMovebg_Init(Actor* thisx, PlayState* play) {
 void BgDblueMovebg_Destroy(Actor* thisx, PlayState* play) {
     BgDblueMovebg* this = (BgDblueMovebg*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
     if ((this->unk_160 == 9) || (this->unk_160 == 8)) {
         AudioSfx_StopByPos(&this->unk_1A8);
     }
@@ -337,7 +337,7 @@ void func_80A2A1E0(BgDblueMovebg* this, PlayState* play) {
         this->unk_17E--;
     }
 
-    Math_StepToS(&this->unk_1CC, this->unk_1CE, 12);
+    MM_Math_StepToS(&this->unk_1CC, this->unk_1CE, 12);
     this->dyna.actor.shape.rot.y += this->unk_1CC;
 
     if (play->roomCtx.curRoom.num == 0) {
@@ -350,7 +350,7 @@ void func_80A2A1E0(BgDblueMovebg* this, PlayState* play) {
         if (play->roomCtx.curRoom.num != this->unk_171) {
             if ((play->roomCtx.prevRoom.num != this->unk_170) && (play->roomCtx.prevRoom.num != this->unk_171)) {
                 D_80A2BBF4.unk_01 = 0;
-                Actor_Kill(&this->dyna.actor);
+                MM_Actor_Kill(&this->dyna.actor);
             }
         }
     }
@@ -407,16 +407,16 @@ void func_80A2A444(BgDblueMovebg* this, PlayState* play) {
         this->unk_188 = CLAMP_MAX(this->unk_188, 5);
     }
 
-    sp20 = Math_StepToS(&this->unk_18A, 900, this->unk_188);
+    sp20 = MM_Math_StepToS(&this->unk_18A, 900, this->unk_188);
     temp_v0 = this->unk_18A * this->unk_17E;
     this->dyna.actor.shape.rot.y =
         (s32)DEG_TO_BINANG_ALT3((this->unk_18C + temp_v0) * 0.1f) + this->dyna.actor.home.rot.y;
 
     if ((player->stateFlags2 & PLAYER_STATE2_10) && (this->unk_184 > 0.0f)) {
         player->actor.world.pos.x =
-            (Math_SinS(this->dyna.actor.shape.rot.y - this->unk_18E) * this->unk_184) + this->dyna.actor.home.pos.x;
+            (MM_Math_SinS(this->dyna.actor.shape.rot.y - this->unk_18E) * this->unk_184) + this->dyna.actor.home.pos.x;
         player->actor.world.pos.z =
-            (Math_CosS(this->dyna.actor.shape.rot.y - this->unk_18E) * this->unk_184) + this->dyna.actor.home.pos.z;
+            (MM_Math_CosS(this->dyna.actor.shape.rot.y - this->unk_18E) * this->unk_184) + this->dyna.actor.home.pos.z;
     } else {
         this->unk_184 = 0.0f;
     }
@@ -424,7 +424,7 @@ void func_80A2A444(BgDblueMovebg* this, PlayState* play) {
     if (sp20) {
         player->stateFlags2 &= ~PLAYER_STATE2_10;
         this->dyna.pushForce = 0.0f;
-        Flags_SetSwitch(play, this->switchFlag);
+        MM_Flags_SetSwitch(play, this->switchFlag);
         Actor_PlaySfx(&this->dyna.actor, NA_SE_EV_STONEDOOR_STOP);
 
         if (func_80A29A80(play, this->unk_1C8, this->unk_1C4)) {
@@ -452,9 +452,9 @@ void func_80A2A688(BgDblueMovebg* this, PlayState* play) {
         CutsceneManager_Stop(this->csIdList[0]);
     }
 
-    if (Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y - 60.0f, 2.0f) &&
+    if (MM_Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y - 60.0f, 2.0f) &&
         (this->unk_180 <= 0)) {
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
     }
 }
 
@@ -497,15 +497,15 @@ void func_80A2A7F8(BgDblueMovebg* this, PlayState* play) {
         this->unk_188 = CLAMP_MAX(this->unk_188, 5);
     }
 
-    sp28 = Math_StepToS(&this->unk_18A, 900, this->unk_188);
+    sp28 = MM_Math_StepToS(&this->unk_18A, 900, this->unk_188);
     sp26 = this->unk_18A * this->unk_17E;
     this->dyna.actor.shape.rot.y = (s32)DEG_TO_BINANG_ALT3((this->unk_18C + sp26) * 0.1f) + this->dyna.actor.home.rot.y;
 
     if ((player->stateFlags2 & PLAYER_STATE2_10) && (this->unk_184 > 0.0f)) {
         player->actor.world.pos.x =
-            (Math_SinS(this->dyna.actor.shape.rot.y - this->unk_18E) * this->unk_184) + this->dyna.actor.home.pos.x;
+            (MM_Math_SinS(this->dyna.actor.shape.rot.y - this->unk_18E) * this->unk_184) + this->dyna.actor.home.pos.x;
         player->actor.world.pos.z =
-            (Math_CosS(this->dyna.actor.shape.rot.y - this->unk_18E) * this->unk_184) + this->dyna.actor.home.pos.z;
+            (MM_Math_CosS(this->dyna.actor.shape.rot.y - this->unk_18E) * this->unk_184) + this->dyna.actor.home.pos.z;
     } else {
         this->unk_184 = 0.0f;
     }
@@ -514,9 +514,9 @@ void func_80A2A7F8(BgDblueMovebg* this, PlayState* play) {
         temp = (this->unk_18C + sp26 + 3600) % 3600;
 
         if ((temp == 900) || (temp == 2700)) {
-            Flags_SetSwitch(play, this->switchFlag);
+            MM_Flags_SetSwitch(play, this->switchFlag);
         } else {
-            Flags_UnsetSwitch(play, this->switchFlag);
+            MM_Flags_UnsetSwitch(play, this->switchFlag);
         }
 
         player->stateFlags1 |= PLAYER_STATE1_20;
@@ -597,11 +597,11 @@ void func_80A2ABD0(BgDblueMovebg* this, PlayState* play) {
             Matrix_RotateYS(this->dyna.actor.shape.rot.y, MTXMODE_NEW);
             Matrix_RotateXS(this->dyna.actor.shape.rot.x + (j * 0x2000), MTXMODE_APPLY);
             Matrix_RotateZS(this->dyna.actor.shape.rot.z, MTXMODE_APPLY);
-            Matrix_MultVec3f(&D_80A2B988, &spAC);
-            Math_Vec3f_Sum(&this->dyna.actor.world.pos, &spAC, &spAC);
-            Math_Vec3f_Copy(&this->unk_238[i][j], &spAC);
+            MM_Matrix_MultVec3f(&D_80A2B988, &spAC);
+            MM_Math_Vec3f_Sum(&this->dyna.actor.world.pos, &spAC, &spAC);
+            MM_Math_Vec3f_Copy(&this->unk_238[i][j], &spAC);
             temp_f20 = spAC.y - this->unk_2F8[i]->world.pos.y;
-            temp_f0 = Math_Vec3f_DistXZ(&this->unk_2F8[i]->world.pos, &spAC);
+            temp_f0 = MM_Math_Vec3f_DistXZ(&this->unk_2F8[i]->world.pos, &spAC);
 
             if ((this->unk_300[i][j] != 0) && (temp_f20 <= 12.0f) && (temp_f20 >= 0.0f) && (temp_f0 <= 60.0f)) {
                 phi_v0 = 1;
@@ -616,12 +616,12 @@ void func_80A2ABD0(BgDblueMovebg* this, PlayState* play) {
 
             if (phi_v0) {
                 this->unk_300[i][j] = i + 1;
-                Math_StepToF(&this->unk_1F8[i][j], 1.0f, 0.2f);
-                Math_StepToS(&this->unk_1D8[i][j], 255, 20);
+                MM_Math_StepToF(&this->unk_1F8[i][j], 1.0f, 0.2f);
+                MM_Math_StepToS(&this->unk_1D8[i][j], 255, 20);
             } else {
                 this->unk_300[i][j] = 0;
-                Math_StepToF(&this->unk_1F8[i][j], 0.0f, 0.01f);
-                Math_StepToS(&this->unk_1D8[i][j], 0, 20);
+                MM_Math_StepToF(&this->unk_1F8[i][j], 0.0f, 0.01f);
+                MM_Math_StepToS(&this->unk_1D8[i][j], 0, 20);
             }
         }
     }
@@ -635,7 +635,7 @@ void func_80A2AED0(BgDblueMovebg* this, PlayState* play) {
         if (play->roomCtx.curRoom.num != this->unk_171) {
             if ((play->roomCtx.prevRoom.num != this->unk_170) && (play->roomCtx.prevRoom.num != this->unk_171)) {
                 D_80A2BBF4.unk_00 = 0;
-                Actor_Kill(&this->dyna.actor);
+                MM_Actor_Kill(&this->dyna.actor);
                 return;
             }
         }
@@ -668,7 +668,7 @@ void func_80A2AED0(BgDblueMovebg* this, PlayState* play) {
         }
     }
 
-    Math_StepToS(&this->unk_1CC, this->unk_1CE, 12);
+    MM_Math_StepToS(&this->unk_1CC, this->unk_1CE, 12);
     this->dyna.actor.shape.rot.x += this->unk_1CC;
 
     if (this->unk_160 == 8) {
@@ -694,15 +694,15 @@ void func_80A2AED0(BgDblueMovebg* this, PlayState* play) {
                                            this->unk_19C.x, this->unk_19C.z, &sp54.x, &sp54.z, &sp50)) {
             sp54.y = this->dyna.actor.world.pos.y;
         } else {
-            if (Math_Vec3f_DistXYZ(&play->view.eye, &this->unk_190) <=
-                Math_Vec3f_DistXYZ(&play->view.eye, &this->unk_19C)) {
-                Math_Vec3f_Copy(&sp54, &this->unk_190);
+            if (MM_Math_Vec3f_DistXYZ(&play->view.eye, &this->unk_190) <=
+                MM_Math_Vec3f_DistXYZ(&play->view.eye, &this->unk_19C)) {
+                MM_Math_Vec3f_Copy(&sp54, &this->unk_190);
             } else {
-                Math_Vec3f_Copy(&sp54, &this->unk_19C);
+                MM_Math_Vec3f_Copy(&sp54, &this->unk_19C);
             }
         }
 
-        SkinMatrix_Vec3fMtxFMultXYZ(&play->viewProjectionMtxF, &sp54, &this->unk_1A8);
+        MM_SkinMatrix_Vec3fMtxFMultXYZ(&play->viewProjectionMtxF, &sp54, &this->unk_1A8);
         this->unk_1D4 = ABS(this->unk_1CC) / 364.0f;
     }
 }
@@ -736,7 +736,7 @@ void func_80A2B274(Actor* thisx, PlayState* play) {
     s16 temp_v1;
 
     if (this != D_80A2BBF0) {
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
         return;
     }
 
@@ -772,7 +772,7 @@ void BgDblueMovebg_Draw(Actor* thisx, PlayState* play2) {
     Gfx* gfx;
     Gfx* gfx2;
 
-    Matrix_Push();
+    MM_Matrix_Push();
 
     OPEN_DISPS(play->state.gfxCtx);
 
@@ -782,7 +782,7 @@ void BgDblueMovebg_Draw(Actor* thisx, PlayState* play2) {
         }
 
         if ((this->opaDList != NULL) || (this->unk_160 == 6)) {
-            gfx2 = Gfx_SetupDL(POLY_OPA_DISP, SETUPDL_25);
+            gfx2 = MM_Gfx_SetupDL(POLY_OPA_DISP, SETUPDL_25);
 
             MATRIX_FINALIZE_AND_LOAD(&gfx2[0], play->state.gfxCtx);
 
@@ -810,7 +810,7 @@ void BgDblueMovebg_Draw(Actor* thisx, PlayState* play2) {
         }
     }
 
-    Matrix_Pop();
+    MM_Matrix_Pop();
 
     CLOSE_DISPS(play->state.gfxCtx);
 
@@ -819,7 +819,7 @@ void BgDblueMovebg_Draw(Actor* thisx, PlayState* play2) {
 
         OPEN_DISPS(play->state.gfxCtx);
 
-        Matrix_Translate(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y, this->dyna.actor.world.pos.z,
+        MM_Matrix_Translate(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y, this->dyna.actor.world.pos.z,
                          MTXMODE_NEW);
         Matrix_RotateYS(this->dyna.actor.shape.rot.y, MTXMODE_APPLY);
         Matrix_RotateXS(this->dyna.actor.shape.rot.x, MTXMODE_APPLY);
@@ -831,17 +831,17 @@ void BgDblueMovebg_Draw(Actor* thisx, PlayState* play2) {
                 if (this->unk_1D8[j][i] > 0) {
                     if (this->unk_1F8[j][i] > 0.1f) {
                         gSPSegment(gfx++, 0x09,
-                                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0,
+                                   MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0,
                                                     (s32)(((play->gameplayFrames % 128) * -9.0f) / this->unk_1F8[j][i]),
                                                     0x20, 0x20, 1, 0, 0, 0x20, 0x20));
                     }
-                    Matrix_Push();
+                    MM_Matrix_Push();
                     Matrix_RotateXS(i * 0x2000, MTXMODE_APPLY);
-                    Matrix_Translate(1785.0f, 0.0f, 270.0f, MTXMODE_APPLY);
+                    MM_Matrix_Translate(1785.0f, 0.0f, 270.0f, MTXMODE_APPLY);
                     if (j != 0) {
                         Matrix_RotateZS(-0x8000, MTXMODE_APPLY);
                     }
-                    Matrix_Scale(this->unk_1F8[j][i] * this->dyna.actor.scale.x,
+                    MM_Matrix_Scale(this->unk_1F8[j][i] * this->dyna.actor.scale.x,
                                  this->unk_1F8[j][i] * this->dyna.actor.scale.y,
                                  this->unk_1F8[j][i] * this->dyna.actor.scale.z, MTXMODE_APPLY);
 
@@ -849,7 +849,7 @@ void BgDblueMovebg_Draw(Actor* thisx, PlayState* play2) {
                     gDPSetEnvColor(gfx++, 255, 255, 255, this->unk_1D8[j][i]);
                     gSPDisplayList(gfx++, gGreatBayTempleObjectWaterwheelSplashDL);
 
-                    Matrix_Pop();
+                    MM_Matrix_Pop();
                 }
             }
         }

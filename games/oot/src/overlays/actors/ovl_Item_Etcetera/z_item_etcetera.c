@@ -10,11 +10,11 @@
 
 #define FLAGS ACTOR_FLAG_UPDATE_CULLING_DISABLED
 
-void ItemEtcetera_Init(Actor* thisx, PlayState* play);
-void ItemEtcetera_Destroy(Actor* thisx, PlayState* play);
-void ItemEtcetera_Update(Actor* thisx, PlayState* play);
-void ItemEtcetera_DrawThroughLens(Actor* thisx, PlayState* play);
-void ItemEtcetera_Draw(Actor* thisx, PlayState* play);
+void OoT_ItemEtcetera_Init(Actor* thisx, PlayState* play);
+void OoT_ItemEtcetera_Destroy(Actor* thisx, PlayState* play);
+void OoT_ItemEtcetera_Update(Actor* thisx, PlayState* play);
+void OoT_ItemEtcetera_DrawThroughLens(Actor* thisx, PlayState* play);
+void OoT_ItemEtcetera_Draw(Actor* thisx, PlayState* play);
 
 void func_80B857D0(ItemEtcetera* this, PlayState* play);
 void func_80B85824(ItemEtcetera* this, PlayState* play);
@@ -30,14 +30,14 @@ const ActorInit Item_Etcetera_InitVars = {
     FLAGS,
     OBJECT_GAMEPLAY_KEEP,
     sizeof(ItemEtcetera),
-    (ActorFunc)ItemEtcetera_Init,
-    (ActorFunc)ItemEtcetera_Destroy,
-    (ActorFunc)ItemEtcetera_Update,
+    (ActorFunc)OoT_ItemEtcetera_Init,
+    (ActorFunc)OoT_ItemEtcetera_Destroy,
+    (ActorFunc)OoT_ItemEtcetera_Update,
     NULL,
     NULL,
 };
 
-static s16 sObjectIds[] = {
+static s16 OoT_sObjectIds[] = {
     OBJECT_GI_BOTTLE, OBJECT_GI_BOTTLE_LETTER, OBJECT_GI_SHIELD_2, OBJECT_GI_ARROWCASE, OBJECT_GI_SCALE,
     OBJECT_GI_SCALE,  OBJECT_GI_KEY,           OBJECT_GI_M_ARROW,  OBJECT_GI_RUPY,      OBJECT_GI_RUPY,
     OBJECT_GI_RUPY,   OBJECT_GI_RUPY,          OBJECT_GI_HEARTS,   OBJECT_GI_KEY,
@@ -50,16 +50,16 @@ static s16 sDrawItemIndexes[] = {
     GID_RUPEE_RED,    GID_RUPEE_PURPLE, GID_HEART_PIECE,   GID_KEY_SMALL,
 };
 
-static s16 sGetItemIds[] = {
+static s16 OoT_sGetItemIds[] = {
     GI_BOTTLE,     GI_LETTER_RUTO, GI_SHIELD_HYLIAN, GI_QUIVER_40, GI_SCALE_SILVER, GI_SCALE_GOLDEN, GI_KEY_SMALL,
     GI_ARROW_FIRE, GI_NONE,        GI_NONE,          GI_NONE,      GI_NONE,         GI_NONE,         GI_NONE,
 };
 
-void ItemEtcetera_SetupAction(ItemEtcetera* this, ItemEtceteraActionFunc actionFunc) {
+void OoT_ItemEtcetera_SetupAction(ItemEtcetera* this, ItemEtceteraActionFunc actionFunc) {
     this->actionFunc = actionFunc;
 }
 
-void ItemEtcetera_Init(Actor* thisx, PlayState* play) {
+void OoT_ItemEtcetera_Init(Actor* thisx, PlayState* play) {
     ItemEtcetera* this = (ItemEtcetera*)thisx;
     s32 pad;
     s32 type;
@@ -67,7 +67,7 @@ void ItemEtcetera_Init(Actor* thisx, PlayState* play) {
 
     type = this->actor.params & 0xFF;
     osSyncPrintf("no = %d\n", type);
-    objBankIndex = Object_GetIndex(&play->objectCtx, sObjectIds[type]);
+    objBankIndex = Object_GetIndex(&play->objectCtx, OoT_sObjectIds[type]);
     osSyncPrintf("bank_ID = %d\n", objBankIndex);
     if (objBankIndex < 0) {
         assert(objBankIndex < 0);
@@ -75,22 +75,22 @@ void ItemEtcetera_Init(Actor* thisx, PlayState* play) {
         this->objBankIndex = objBankIndex;
     }
     this->giDrawId = sDrawItemIndexes[type];
-    this->getItemId = sGetItemIds[type];
+    this->getItemId = OoT_sGetItemIds[type];
     this->futureActionFunc = func_80B85824;
-    this->drawFunc = ItemEtcetera_Draw;
-    Actor_SetScale(&this->actor, 0.25f);
-    ItemEtcetera_SetupAction(this, func_80B857D0);
+    this->drawFunc = OoT_ItemEtcetera_Draw;
+    OoT_Actor_SetScale(&this->actor, 0.25f);
+    OoT_ItemEtcetera_SetupAction(this, func_80B857D0);
     switch (type) {
         case ITEM_ETC_LETTER:
-            Actor_SetScale(&this->actor, 0.5f);
+            OoT_Actor_SetScale(&this->actor, 0.5f);
             this->futureActionFunc = func_80B858B4;
-            if (Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_RUTOS_LETTER)) {
-                Actor_Kill(&this->actor);
+            if (OoT_Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_RUTOS_LETTER)) {
+                OoT_Actor_Kill(&this->actor);
             }
             break;
         case ITEM_ETC_ARROW_FIRE:
             this->futureActionFunc = ItemEtcetera_UpdateFireArrow;
-            Actor_SetScale(&this->actor, 0.5f);
+            OoT_Actor_SetScale(&this->actor, 0.5f);
             this->actor.draw = NULL;
             this->actor.shape.yOffset = 50.0f;
             break;
@@ -100,19 +100,19 @@ void ItemEtcetera_Init(Actor* thisx, PlayState* play) {
         case ITEM_ETC_RUPEE_PURPLE_CHEST_GAME:
         case ITEM_ETC_HEART_PIECE_CHEST_GAME:
         case ITEM_ETC_KEY_SMALL_CHEST_GAME:
-            Actor_SetScale(&this->actor, 0.5f);
+            OoT_Actor_SetScale(&this->actor, 0.5f);
             this->futureActionFunc = func_80B85B28;
-            this->drawFunc = ItemEtcetera_DrawThroughLens;
+            this->drawFunc = OoT_ItemEtcetera_DrawThroughLens;
             this->actor.world.pos.y += 15.0f;
             break;
     }
 }
 
-void ItemEtcetera_Destroy(Actor* thisx, PlayState* play) {
+void OoT_ItemEtcetera_Destroy(Actor* thisx, PlayState* play) {
 }
 
 void func_80B857D0(ItemEtcetera* this, PlayState* play) {
-    if (Object_IsLoaded(&play->objectCtx, this->objBankIndex)) {
+    if (OoT_Object_IsLoaded(&play->objectCtx, this->objBankIndex)) {
         this->actor.objBankIndex = this->objBankIndex;
         this->actor.draw = this->drawFunc;
         this->actionFunc = this->futureActionFunc;
@@ -120,30 +120,30 @@ void func_80B857D0(ItemEtcetera* this, PlayState* play) {
 }
 
 void func_80B85824(ItemEtcetera* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play)) {
+    if (OoT_Actor_HasParent(&this->actor, play)) {
         if ((this->actor.params & 0xFF) == 1) {
-            Flags_SetEventChkInf(EVENTCHKINF_OBTAINED_RUTOS_LETTER);
-            Flags_SetSwitch(play, 0xB);
+            OoT_Flags_SetEventChkInf(EVENTCHKINF_OBTAINED_RUTOS_LETTER);
+            OoT_Flags_SetSwitch(play, 0xB);
         }
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     } else {
-        Actor_OfferGetItem(&this->actor, play, this->getItemId, 30.0f, 50.0f);
+        OoT_Actor_OfferGetItem(&this->actor, play, this->getItemId, 30.0f, 50.0f);
     }
 }
 
 void func_80B858B4(ItemEtcetera* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play)) {
+    if (OoT_Actor_HasParent(&this->actor, play)) {
         if ((this->actor.params & 0xFF) == 1) {
-            Flags_SetEventChkInf(EVENTCHKINF_OBTAINED_RUTOS_LETTER);
-            Flags_SetSwitch(play, 0xB);
+            OoT_Flags_SetEventChkInf(EVENTCHKINF_OBTAINED_RUTOS_LETTER);
+            OoT_Flags_SetSwitch(play, 0xB);
         }
 
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     } else {
-        Actor_OfferGetItem(&this->actor, play, this->getItemId, 30.0f, 50.0f);
+        OoT_Actor_OfferGetItem(&this->actor, play, this->getItemId, 30.0f, 50.0f);
 
         if ((play->gameplayFrames & 0xD) == 0) {
-            EffectSsBubble_Spawn(play, &this->actor.world.pos, 0.0f, 0.0f, 10.0f, 0.13f);
+            OoT_EffectSsBubble_Spawn(play, &this->actor.world.pos, 0.0f, 0.0f, 10.0f, 0.13f);
         }
     }
 }
@@ -155,18 +155,18 @@ void ItemEtcetera_SpawnSparkles(ItemEtcetera* this, PlayState* play) {
     static Color_RGBA8 envColor = { 255, 50, 50, 0 };
     Vec3f pos;
 
-    velocity.x = Rand_CenteredFloat(3.0f);
-    velocity.z = Rand_CenteredFloat(3.0f);
+    velocity.x = OoT_Rand_CenteredFloat(3.0f);
+    velocity.z = OoT_Rand_CenteredFloat(3.0f);
     velocity.y = -0.05f;
     accel.y = -0.025f;
-    pos.x = Rand_CenteredFloat(12.0f) + this->actor.world.pos.x;
-    pos.y = (Rand_ZeroOne() * 6.0f) + this->actor.world.pos.y;
-    pos.z = Rand_CenteredFloat(12.0f) + this->actor.world.pos.z;
+    pos.x = OoT_Rand_CenteredFloat(12.0f) + this->actor.world.pos.x;
+    pos.y = (OoT_Rand_ZeroOne() * 6.0f) + this->actor.world.pos.y;
+    pos.z = OoT_Rand_CenteredFloat(12.0f) + this->actor.world.pos.z;
     EffectSsKiraKira_SpawnDispersed(play, &pos, &velocity, &accel, &primColor, &envColor, 5000, 16);
 }
 
 void ItemEtcetera_MoveFireArrowDown(ItemEtcetera* this, PlayState* play) {
-    Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 10.0f, 0.0f, 5);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 10.0f, 0.0f, 5);
     Actor_MoveXZGravity(&this->actor);
     if (!(this->actor.bgCheckFlags & 1)) {
         ItemEtcetera_SpawnSparkles(this, play);
@@ -176,8 +176,8 @@ void ItemEtcetera_MoveFireArrowDown(ItemEtcetera* this, PlayState* play) {
 }
 
 void func_80B85B28(ItemEtcetera* this, PlayState* play) {
-    if (Flags_GetTreasure(play, (this->actor.params >> 8) & 0x1F)) {
-        Actor_Kill(&this->actor);
+    if (OoT_Flags_GetTreasure(play, (this->actor.params >> 8) & 0x1F)) {
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
@@ -185,7 +185,7 @@ void ItemEtcetera_UpdateFireArrow(ItemEtcetera* this, PlayState* play) {
     if ((play->csCtx.state != CS_STATE_IDLE) && (play->csCtx.npcActions[0] != NULL)) {
         LOG_NUM("(game_play->demo_play.npcdemopnt[0]->dousa)", play->csCtx.npcActions[0]->action);
         if (play->csCtx.npcActions[0]->action == 2) {
-            this->actor.draw = ItemEtcetera_Draw;
+            this->actor.draw = OoT_ItemEtcetera_Draw;
             this->actor.gravity = -0.1f;
             this->actor.minVelocityY = -4.0f;
             this->actionFunc = ItemEtcetera_MoveFireArrowDown;
@@ -197,24 +197,24 @@ void ItemEtcetera_UpdateFireArrow(ItemEtcetera* this, PlayState* play) {
     }
 }
 
-void ItemEtcetera_Update(Actor* thisx, PlayState* play) {
+void OoT_ItemEtcetera_Update(Actor* thisx, PlayState* play) {
     ItemEtcetera* this = (ItemEtcetera*)thisx;
     this->actionFunc(this, play);
 }
 
-void ItemEtcetera_DrawThroughLens(Actor* thisx, PlayState* play) {
+void OoT_ItemEtcetera_DrawThroughLens(Actor* thisx, PlayState* play) {
     ItemEtcetera* this = (ItemEtcetera*)thisx;
     if (play->actorCtx.lensActive) {
         func_8002EBCC(&this->actor, play, 0);
         func_8002ED80(&this->actor, play, 0);
-        GetItem_Draw(play, this->giDrawId);
+        OoT_GetItem_Draw(play, this->giDrawId);
     }
 }
 
-void ItemEtcetera_Draw(Actor* thisx, PlayState* play) {
+void OoT_ItemEtcetera_Draw(Actor* thisx, PlayState* play) {
     ItemEtcetera* this = (ItemEtcetera*)thisx;
 
     func_8002EBCC(&this->actor, play, 0);
     func_8002ED80(&this->actor, play, 0);
-    GetItem_Draw(play, this->giDrawId);
+    OoT_GetItem_Draw(play, this->giDrawId);
 }

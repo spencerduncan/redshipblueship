@@ -25,7 +25,7 @@ void func_80B14648(ObjHakaisi* this, PlayState* play);
 void func_80B149A8(ObjHakaisi* this);
 void func_80B149C0(ObjHakaisi* this, PlayState* play);
 void func_80B14A24(ObjHakaisi* this, PlayState* play, Vec3f vec);
-void func_80B14B6C(ObjHakaisi* this, PlayState* play, Vec3f vec, s16 arg3);
+void MM_func_80B14B6C(ObjHakaisi* this, PlayState* play, Vec3f vec, s16 arg3);
 void func_80B14CF8(PlayState* play, Vec3f vec, s16 arg2, s16 arg3, s32 arg4);
 void func_80B14F4C(ObjHakaisi* this, PlayState* play, s32 arg2);
 void func_80B151E0(ObjHakaisi* this, PlayState* play);
@@ -85,7 +85,7 @@ void ObjHakaisi_Init(Actor* thisx, PlayState* play) {
             break;
     }
 
-    Actor_SetScale(&this->dyna.actor, 1.0f);
+    MM_Actor_SetScale(&this->dyna.actor, 1.0f);
     this->dyna.actor.attentionRangeType = ATTENTION_RANGE_0;
     this->dyna.actor.colChkInfo.health = 30;
     if (OBJHAKAISI_GET_FF(&this->dyna.actor) == 3) {
@@ -94,10 +94,10 @@ void ObjHakaisi_Init(Actor* thisx, PlayState* play) {
         return;
     }
 
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
-    CollisionHeader_GetVirtual(&object_hakaisi_Colheader_002FC4, &sp7C);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_CollisionHeader_GetVirtual(&object_hakaisi_Colheader_002FC4, &sp7C);
 
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, sp7C);
+    this->dyna.bgId = MM_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, sp7C);
     this->unk_19A = 0;
     this->unk_198 = 0;
     this->switchFlag = OBJHAKAISI_GET_SWITCH_FLAG(thisx);
@@ -107,31 +107,31 @@ void ObjHakaisi_Init(Actor* thisx, PlayState* play) {
         this->switchFlag = SWITCH_FLAG_NONE;
     }
 
-    if ((this->switchFlag != SWITCH_FLAG_NONE) && Flags_GetSwitch(play, this->switchFlag)) {
-        Actor_Kill(&this->dyna.actor);
+    if ((this->switchFlag != SWITCH_FLAG_NONE) && MM_Flags_GetSwitch(play, this->switchFlag)) {
+        MM_Actor_Kill(&this->dyna.actor);
     }
 
-    Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
 
     if (this->dyna.actor.floorPoly == NULL) {
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
     }
 
     func_800C0094(this->dyna.actor.floorPoly, this->dyna.actor.world.pos.x, this->dyna.actor.floorHeight,
                   this->dyna.actor.world.pos.z, &sp3C);
-    Matrix_Put(&sp3C);
+    MM_Matrix_Put(&sp3C);
     Matrix_RotateYS(this->dyna.actor.shape.rot.y, MTXMODE_APPLY);
-    Matrix_Scale(this->dyna.actor.scale.x, this->dyna.actor.scale.y, this->dyna.actor.scale.z, MTXMODE_APPLY);
-    Matrix_Get(&sp3C);
+    MM_Matrix_Scale(this->dyna.actor.scale.x, this->dyna.actor.scale.y, this->dyna.actor.scale.z, MTXMODE_APPLY);
+    MM_Matrix_Get(&sp3C);
     Matrix_MtxFToYXZRot(&sp3C, &this->dyna.actor.shape.rot, true);
     this->dyna.actor.world.rot = this->dyna.actor.shape.rot;
-    Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
+    MM_Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
                                  this->dyna.actor.world.pos.z, &this->dyna.actor.shape.rot);
-    Matrix_Scale(this->dyna.actor.scale.x, this->dyna.actor.scale.y, this->dyna.actor.scale.z, MTXMODE_APPLY);
-    Matrix_MultVec3f(&D_80B155B0, &this->dyna.actor.focus.pos);
+    MM_Matrix_Scale(this->dyna.actor.scale.x, this->dyna.actor.scale.y, this->dyna.actor.scale.z, MTXMODE_APPLY);
+    MM_Matrix_MultVec3f(&D_80B155B0, &this->dyna.actor.focus.pos);
 
     for (i = 0; i < ARRAY_COUNT(D_80B155BC); i++) {
-        Matrix_MultVec3f(&D_80B155BC[i], &this->unk_160[i]);
+        MM_Matrix_MultVec3f(&D_80B155BC[i], &this->unk_160[i]);
     }
 
     func_80B1444C(this);
@@ -141,7 +141,7 @@ void ObjHakaisi_Destroy(Actor* thisx, PlayState* play) {
     ObjHakaisi* this = (ObjHakaisi*)thisx;
 
     if (OBJHAKAISI_GET_FF(&this->dyna.actor) != 3) {
-        DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+        MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
     }
 }
 
@@ -170,7 +170,7 @@ void func_80B14510(ObjHakaisi* this) {
 }
 
 void func_80B14524(ObjHakaisi* this, PlayState* play) {
-    if (Actor_TextboxIsClosing(&this->dyna.actor, play)) {
+    if (MM_Actor_TextboxIsClosing(&this->dyna.actor, play)) {
         func_80B1444C(this);
     }
 }
@@ -211,8 +211,8 @@ void func_80B14648(ObjHakaisi* this, PlayState* play) {
     if (this->dyna.actor.colChkInfo.health == 0) {
         func_80B14A24(this, play, this->unk_160[this->unk_194]);
         func_80B14A24(this, play, this->unk_160[this->unk_194]);
-        func_80B14B6C(this, play, this->unk_160[this->unk_194], 70);
-        Flags_SetSwitch(play, this->switchFlag);
+        MM_func_80B14B6C(this, play, this->unk_160[this->unk_194], 70);
+        MM_Flags_SetSwitch(play, this->switchFlag);
         this->dyna.actor.draw = NULL;
         func_80B149A8(this);
     }
@@ -222,19 +222,19 @@ void func_80B14648(ObjHakaisi* this, PlayState* play) {
             func_80B14A24(this, play, this->unk_160[this->unk_194]);
             func_80B14A24(this, play, this->unk_160[this->unk_194]);
             func_80B14F4C(this, play, false);
-            func_80B14B6C(this, play, this->unk_160[this->unk_194], 40);
+            MM_func_80B14B6C(this, play, this->unk_160[this->unk_194], 40);
             this->unk_194 = 1;
         } else if ((this->unk_19E > 10) && (this->dyna.actor.colChkInfo.health <= 10)) {
             func_80B14A24(this, play, this->unk_160[this->unk_194]);
             func_80B14A24(this, play, this->unk_160[this->unk_194]);
-            func_80B14B6C(this, play, this->unk_160[this->unk_194], 60);
+            MM_func_80B14B6C(this, play, this->unk_160[this->unk_194], 60);
             this->unk_194 = 2;
         }
         this->unk_19A = 0;
         this->dyna.actor.shape.yOffset -= 3.0f;
     }
 
-    Math_ApproachZeroF(&this->dyna.actor.shape.yOffset, 0.8f, 100.0f);
+    MM_Math_ApproachZeroF(&this->dyna.actor.shape.yOffset, 0.8f, 100.0f);
     this->unk_19E = this->dyna.actor.colChkInfo.health;
 }
 
@@ -257,14 +257,14 @@ void func_80B14A24(ObjHakaisi* this, PlayState* play, Vec3f vec) {
     func_80B14CF8(play, vec, 100, 30, 5);
 
     for (i = 0; i < 5; i++) {
-        vec.x += Rand_Centered() * 20.0f;
-        vec.y += Rand_ZeroOne() * 5.0f;
-        vec.z += Rand_Centered() * 20.0f;
-        EffectSsHahen_SpawnBurst(play, &vec, 5.0f, 0, 20, 15, 3, OBJECT_HAKAISI, 10, object_hakaisi_DL_0021B0);
+        vec.x += MM_Rand_Centered() * 20.0f;
+        vec.y += MM_Rand_ZeroOne() * 5.0f;
+        vec.z += MM_Rand_Centered() * 20.0f;
+        MM_EffectSsHahen_SpawnBurst(play, &vec, 5.0f, 0, 20, 15, 3, OBJECT_HAKAISI, 10, object_hakaisi_DL_0021B0);
     }
 }
 
-void func_80B14B6C(ObjHakaisi* this, PlayState* play, Vec3f vec, s16 arg3) {
+void MM_func_80B14B6C(ObjHakaisi* this, PlayState* play, Vec3f vec, s16 arg3) {
     s32 i;
     s16 temp_s1;
     Vec3f sp6C;
@@ -272,13 +272,13 @@ void func_80B14B6C(ObjHakaisi* this, PlayState* play, Vec3f vec, s16 arg3) {
     Actor_PlaySfx(&this->dyna.actor, NA_SE_EV_WALL_BROKEN);
 
     for (i = 0; i < 5; i++) {
-        temp_s1 = Rand_Next();
+        temp_s1 = MM_Rand_Next();
 
-        sp6C.x = (Math_SinS(temp_s1) * 15.0f) + vec.x;
-        sp6C.y = (Rand_ZeroOne() * 3.0f) + vec.y;
-        sp6C.z = (Math_CosS(temp_s1) * 15.0f) + vec.z;
+        sp6C.x = (MM_Math_SinS(temp_s1) * 15.0f) + vec.x;
+        sp6C.y = (MM_Rand_ZeroOne() * 3.0f) + vec.y;
+        sp6C.z = (MM_Math_CosS(temp_s1) * 15.0f) + vec.z;
 
-        EffectSsHahen_SpawnBurst(play, &sp6C, 10.0f, 0, arg3, 30, 2, OBJECT_HAKAISI, 15, object_hakaisi_DL_0021B0);
+        MM_EffectSsHahen_SpawnBurst(play, &sp6C, 10.0f, 0, arg3, 30, 2, OBJECT_HAKAISI, 15, object_hakaisi_DL_0021B0);
     }
 
     func_80B14CF8(play, vec, 100, 50, 20);
@@ -296,17 +296,17 @@ void func_80B14CF8(PlayState* play, Vec3f vec, s16 arg2, s16 arg3, s32 arg4) {
     f32 temp_f22;
 
     for (i = 0; i < arg4; i++) {
-        temp_f20 = Rand_ZeroOne() * 30.0f;
-        temp_f22 = Rand_ZeroOne() * 1.5f;
-        temp_s0 = Rand_Next();
+        temp_f20 = MM_Rand_ZeroOne() * 30.0f;
+        temp_f22 = MM_Rand_ZeroOne() * 1.5f;
+        temp_s0 = MM_Rand_Next();
 
-        pos.x = (Math_SinS(temp_s0) * temp_f20) + vec.x;
-        pos.y = (Rand_Centered() * 4.0f) + vec.y;
-        pos.z = (Math_CosS(temp_s0) * temp_f20) + vec.z;
+        pos.x = (MM_Math_SinS(temp_s0) * temp_f20) + vec.x;
+        pos.y = (MM_Rand_Centered() * 4.0f) + vec.y;
+        pos.z = (MM_Math_CosS(temp_s0) * temp_f20) + vec.z;
 
-        velocity.x += temp_f22 * Math_SinS(temp_s0);
-        velocity.y += Rand_Centered() + 0.5f;
-        velocity.z += temp_f22 * Math_CosS(temp_s0);
+        velocity.x += temp_f22 * MM_Math_SinS(temp_s0);
+        velocity.y += MM_Rand_Centered() + 0.5f;
+        velocity.z += temp_f22 * MM_Math_CosS(temp_s0);
 
         accel.x = -0.1f * velocity.x;
         accel.y = -0.1f * velocity.y;
@@ -318,11 +318,11 @@ void func_80B14CF8(PlayState* play, Vec3f vec, s16 arg2, s16 arg3, s32 arg4) {
 
 void func_80B14F4C(ObjHakaisi* this, PlayState* play, s32 arg2) {
     if (!arg2) {
-        Actor_Spawn(&play->actorCtx, play, ACTOR_OBJ_HAKAISI, this->dyna.actor.world.pos.x,
+        MM_Actor_Spawn(&play->actorCtx, play, ACTOR_OBJ_HAKAISI, this->dyna.actor.world.pos.x,
                     this->dyna.actor.world.pos.y + 55.0f, this->dyna.actor.world.pos.z - 10.0f,
                     this->dyna.actor.shape.rot.x, this->dyna.actor.shape.rot.y, this->dyna.actor.shape.rot.z, 4);
     } else {
-        Actor_Spawn(&play->actorCtx, play, ACTOR_OBJ_HAKAISI, this->dyna.actor.world.pos.x + 20.0f,
+        MM_Actor_Spawn(&play->actorCtx, play, ACTOR_OBJ_HAKAISI, this->dyna.actor.world.pos.x + 20.0f,
                     this->dyna.actor.world.pos.y + 30.0f, this->dyna.actor.world.pos.z - 10.0f,
                     this->dyna.actor.shape.rot.x, this->dyna.actor.shape.rot.y, this->dyna.actor.shape.rot.z, 5);
     }
@@ -345,12 +345,12 @@ void ObjHakaisi_Draw(Actor* thisx, PlayState* play) {
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_OPA_DISP++, object_hakaisi_DL_002650);
     } else if (this->unk_194 == 1) {
-        Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
+        MM_Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_OPA_DISP++, object_hakaisi_DL_0029C0);
     } else {
-        Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
+        MM_Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_OPA_DISP++, object_hakaisi_DL_002CC0);
@@ -363,7 +363,7 @@ void func_80B151E0(ObjHakaisi* this, PlayState* play) {
     this->dyna.actor.update = func_80B1544C;
     this->dyna.actor.draw = func_80B154A0;
     this->dyna.actor.destroy = func_80B15254;
-    Actor_SetScale(&this->dyna.actor, 0.1f);
+    MM_Actor_SetScale(&this->dyna.actor, 0.1f);
     this->dyna.actor.shape.yOffset = 100.0f;
     this->dyna.actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
     func_80B15264(this);
@@ -375,14 +375,14 @@ void func_80B15254(Actor* thisx, PlayState* play) {
 void func_80B15264(ObjHakaisi* this) {
     static Vec3f D_80B15600 = { 1.0f, 0.0f, 0.0f };
     s32 pad;
-    s16 sp32 = Rand_Next();
+    s16 sp32 = MM_Rand_Next();
 
-    Matrix_RotateZYX(Rand_Next(), Rand_Next(), Rand_Next(), MTXMODE_NEW);
-    Matrix_MultVec3f(&D_80B15600, &this->unk_184);
+    MM_Matrix_RotateZYX(MM_Rand_Next(), MM_Rand_Next(), MM_Rand_Next(), MTXMODE_NEW);
+    MM_Matrix_MultVec3f(&D_80B15600, &this->unk_184);
     this->dyna.actor.gravity = -1.0f;
-    this->unk_19C = (s32)Rand_Next() >> 0x12;
-    this->dyna.actor.velocity.x = Math_SinS(sp32) * 4.0f;
-    this->dyna.actor.velocity.z = Math_CosS(sp32) * 4.0f;
+    this->unk_19C = (s32)MM_Rand_Next() >> 0x12;
+    this->dyna.actor.velocity.x = MM_Math_SinS(sp32) * 4.0f;
+    this->dyna.actor.velocity.z = MM_Math_CosS(sp32) * 4.0f;
     this->dyna.actor.velocity.y = 7.0f;
     this->actionFunc = func_80B15330;
 }
@@ -392,19 +392,19 @@ void func_80B15330(ObjHakaisi* this, PlayState* play) {
     MtxF sp34;
 
     this->dyna.actor.velocity.y += this->dyna.actor.gravity;
-    Actor_UpdatePos(&this->dyna.actor);
+    MM_Actor_UpdatePos(&this->dyna.actor);
 
     if (this->dyna.actor.bgCheckFlags & BGCHECKFLAG_GROUND_TOUCH) {
-        func_80B14B6C(this, play, this->dyna.actor.world.pos, 40);
+        MM_func_80B14B6C(this, play, this->dyna.actor.world.pos, 40);
         func_80B14CF8(play, this->dyna.actor.world.pos, 100, 30, 10);
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
     }
 
     Matrix_RotateAxisS(this->unk_19C, &this->unk_184, MTXMODE_NEW);
     Matrix_RotateYS(this->dyna.actor.shape.rot.y, MTXMODE_APPLY);
     Matrix_RotateXS(this->dyna.actor.shape.rot.x, MTXMODE_APPLY);
     Matrix_RotateZS(this->dyna.actor.shape.rot.z, MTXMODE_APPLY);
-    Matrix_Get(&sp34);
+    MM_Matrix_Get(&sp34);
 
     Matrix_MtxFToYXZRot(&sp34, &this->dyna.actor.shape.rot, false);
 }
@@ -414,7 +414,7 @@ void func_80B1544C(Actor* thisx, PlayState* play) {
 
     this->actionFunc(this, play);
 
-    Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
 }
 
 void func_80B154A0(Actor* thisx, PlayState* play) {

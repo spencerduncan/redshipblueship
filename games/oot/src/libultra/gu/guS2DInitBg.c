@@ -1,6 +1,6 @@
 #include "global.h"
 
-void guS2DInitBg(uObjBg* bg) {
+void OoT_guS2DInitBg(uObjBg* bg) {
     u32 size;
     s32 tmem = (bg->b.imageFmt == G_IM_FMT_CI) ? 0x100 : 0x200;
     u16 shift = (6 - bg->b.imageSiz);

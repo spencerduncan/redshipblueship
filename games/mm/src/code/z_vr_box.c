@@ -254,7 +254,7 @@ void Skybox_Calculate128(SkyboxContext* skyboxCtx, s32 nFaces) {
     }
 }
 
-void Skybox_Setup(GameState* gameState, SkyboxContext* skyboxCtx, s16 skyboxId) {
+void MM_Skybox_Setup(GameState* gameState, SkyboxContext* skyboxCtx, s16 skyboxId) {
     PlayState* play = (PlayState*)gameState;
     size_t size;
     void* segment;
@@ -267,7 +267,7 @@ void Skybox_Setup(GameState* gameState, SkyboxContext* skyboxCtx, s16 skyboxId) 
             // skyboxCtx->staticSegments[0] = &D_80025D00;
             // size = SEGMENT_ROM_SIZE(d2_cloud_static);
             // segment = (void*)ALIGN8((uintptr_t)skyboxCtx->staticSegments[0] + size);
-            // DmaMgr_SendRequest0(skyboxCtx->staticSegments[0], SEGMENT_ROM_START(d2_cloud_static), size);
+            // MM_DmaMgr_SendRequest0(skyboxCtx->staticSegments[0], SEGMENT_ROM_START(d2_cloud_static), size);
 
             // 2S2h [Port] Bypass DMA request and assign each skybox texture directly to the static segment
             for (size_t i = 0; i < ARRAY_COUNTU(skyboxCtx->staticSegments[0]); i++) {
@@ -278,7 +278,7 @@ void Skybox_Setup(GameState* gameState, SkyboxContext* skyboxCtx, s16 skyboxId) 
             // skyboxCtx->staticSegments[1] = segment;
             // size = SEGMENT_ROM_SIZE(d2_fine_static);
             // segment = (void*)ALIGN8((uintptr_t)segment + size);
-            // DmaMgr_SendRequest0(skyboxCtx->staticSegments[1], SEGMENT_ROM_START(d2_fine_static), size);
+            // MM_DmaMgr_SendRequest0(skyboxCtx->staticSegments[1], SEGMENT_ROM_START(d2_fine_static), size);
             for (size_t i = 0; i < ARRAY_COUNTU(skyboxCtx->staticSegments[1]); i++) {
                 skyboxCtx->staticSegments[1][i] = sSkyboxTextures[SKYBOX_TEXTURES_FINE][i];
             }
@@ -331,7 +331,7 @@ void Skybox_Reload(PlayState* play, SkyboxContext* skyboxCtx, s16 skyboxId) {
 
     switch (skyboxId) {
         case SKYBOX_NORMAL_SKY:
-            osCreateMesgQueue(&skyboxCtx->loadQueue, skyboxCtx->loadMsg, ARRAY_COUNT(skyboxCtx->loadMsg));
+            MM_osCreateMesgQueue(&skyboxCtx->loadQueue, skyboxCtx->loadMsg, ARRAY_COUNT(skyboxCtx->loadMsg));
 
             if (play->envCtx.skybox1Index == 0) {
                 // Send a DMA request for the clear sky texture
@@ -356,8 +356,8 @@ void Skybox_Reload(PlayState* play, SkyboxContext* skyboxCtx, s16 skyboxId) {
                 }
             }
 
-            osRecvMesg(&skyboxCtx->loadQueue, NULL, OS_MESG_BLOCK);
-            osCreateMesgQueue(&skyboxCtx->loadQueue, skyboxCtx->loadMsg, ARRAY_COUNT(skyboxCtx->loadMsg));
+            MM_osRecvMesg(&skyboxCtx->loadQueue, NULL, OS_MESG_BLOCK);
+            MM_osCreateMesgQueue(&skyboxCtx->loadQueue, skyboxCtx->loadMsg, ARRAY_COUNT(skyboxCtx->loadMsg));
 
             if (play->envCtx.skybox2Index == 0) {
                 // Send a DMA request for the clear sky texture
@@ -381,8 +381,8 @@ void Skybox_Reload(PlayState* play, SkyboxContext* skyboxCtx, s16 skyboxId) {
                 }
             }
 
-            osRecvMesg(&skyboxCtx->loadQueue, NULL, OS_MESG_BLOCK);
-            osCreateMesgQueue(&skyboxCtx->loadQueue, skyboxCtx->loadMsg, ARRAY_COUNT(skyboxCtx->loadMsg));
+            MM_osRecvMesg(&skyboxCtx->loadQueue, NULL, OS_MESG_BLOCK);
+            MM_osCreateMesgQueue(&skyboxCtx->loadQueue, skyboxCtx->loadMsg, ARRAY_COUNT(skyboxCtx->loadMsg));
 
             // size = SEGMENT_ROM_SIZE(d2_fine_pal_static);
 
@@ -390,7 +390,7 @@ void Skybox_Reload(PlayState* play, SkyboxContext* skyboxCtx, s16 skyboxId) {
             // DmaMgr_RequestAsync(&skyboxCtx->paletteDmaRequest, skyboxCtx->palette,
             //                     SEGMENT_ROM_START(d2_fine_pal_static), size, 0, &skyboxCtx->loadQueue, NULL);
 
-            osRecvMesg(&skyboxCtx->loadQueue, NULL, OS_MESG_BLOCK);
+            MM_osRecvMesg(&skyboxCtx->loadQueue, NULL, OS_MESG_BLOCK);
 
             skyboxCtx->palette = gSkyboxTLUT;
 
@@ -406,11 +406,11 @@ void Skybox_Reload(PlayState* play, SkyboxContext* skyboxCtx, s16 skyboxId) {
     }
 }
 
-void Skybox_Init(GameState* gameState, SkyboxContext* skyboxCtx, s16 skyboxId) {
+void MM_Skybox_Init(GameState* gameState, SkyboxContext* skyboxCtx, s16 skyboxId) {
     skyboxCtx->shouldDraw = false;
     skyboxCtx->rot.x = skyboxCtx->rot.y = skyboxCtx->rot.z = 0.0f;
 
-    Skybox_Setup(gameState, skyboxCtx, skyboxId);
+    MM_Skybox_Setup(gameState, skyboxCtx, skyboxId);
 
     if (skyboxId != SKYBOX_NONE) {
         skyboxCtx->dListBuf = THA_AllocTailAlign16(&gameState->tha, 12 * 150 * sizeof(Gfx));

@@ -36,7 +36,7 @@ const ActorInit En_Brob_InitVars = {
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_HIT0,
         AT_ON | AT_TYPE_ENEMY,
@@ -56,31 +56,31 @@ static ColliderCylinderInit sCylinderInit = {
     { 8000, 11000, -5000, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit sColChkInfoInit = { 0, 60, 120, MASS_IMMOVABLE };
+static CollisionCheckInfoInit OoT_sColChkInfoInit = { 0, 60, 120, MASS_IMMOVABLE };
 
 void EnBrob_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     EnBrob* this = (EnBrob*)thisx;
     CollisionHeader* colHeader = NULL;
 
-    SkelAnime_InitFlex(play, &this->skelAnime, &object_brob_Skel_0015D8, &object_brob_Anim_001750, this->jointTable,
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &object_brob_Skel_0015D8, &object_brob_Anim_001750, this->jointTable,
                        this->morphTable, 10);
-    DynaPolyActor_Init(&this->dyna, DPM_UNK);
-    CollisionHeader_GetVirtual(&object_brob_Col_001A70, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
-    Collider_InitCylinder(play, &this->colliders[0]);
-    Collider_SetCylinder(play, &this->colliders[0], &this->dyna.actor, &sCylinderInit);
-    Collider_InitCylinder(play, &this->colliders[1]);
-    Collider_SetCylinder(play, &this->colliders[1], &this->dyna.actor, &sCylinderInit);
-    CollisionCheck_SetInfo(&thisx->colChkInfo, NULL, &sColChkInfoInit);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
+    OoT_CollisionHeader_GetVirtual(&object_brob_Col_001A70, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
+    OoT_Collider_InitCylinder(play, &this->colliders[0]);
+    OoT_Collider_SetCylinder(play, &this->colliders[0], &this->dyna.actor, &OoT_sCylinderInit);
+    OoT_Collider_InitCylinder(play, &this->colliders[1]);
+    OoT_Collider_SetCylinder(play, &this->colliders[1], &this->dyna.actor, &OoT_sCylinderInit);
+    OoT_CollisionCheck_SetInfo(&thisx->colChkInfo, NULL, &OoT_sColChkInfoInit);
     if (((thisx->params >> 8) & 0xFF) == 0) {
-        Actor_SetScale(&this->dyna.actor, 0.01f);
+        OoT_Actor_SetScale(&this->dyna.actor, 0.01f);
         thisx->params &= 0xFF;
         if (thisx->params != 0xFF) {
             thisx->scale.y *= (thisx->params & 0xFF) * (1.0f / 30.0f);
         }
     } else {
-        Actor_SetScale(&this->dyna.actor, 0.005f);
+        OoT_Actor_SetScale(&this->dyna.actor, 0.005f);
         thisx->params &= 0xFF;
         if (thisx->params != 0xFF) {
             thisx->scale.y *= (thisx->params & 0xFF) * (2.0f / 30.0f);
@@ -100,9 +100,9 @@ void EnBrob_Init(Actor* thisx, PlayState* play) {
 void EnBrob_Destroy(Actor* thisx, PlayState* play) {
     EnBrob* this = (EnBrob*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
-    Collider_DestroyCylinder(play, &this->colliders[0]);
-    Collider_DestroyCylinder(play, &this->colliders[1]);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_Collider_DestroyCylinder(play, &this->colliders[0]);
+    OoT_Collider_DestroyCylinder(play, &this->colliders[1]);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
@@ -115,36 +115,36 @@ void func_809CADDC(EnBrob* this, PlayState* play) {
 }
 
 void func_809CAE44(EnBrob* this, PlayState* play) {
-    Animation_PlayOnce(&this->skelAnime, &object_brob_Anim_001750);
+    OoT_Animation_PlayOnce(&this->skelAnime, &object_brob_Anim_001750);
     func_8003EBF8(play, &play->colCtx.dyna, this->dyna.bgId);
     this->unk_1AE = 1000;
     this->actionFunc = func_809CB114;
 }
 
 void func_809CAEA0(EnBrob* this) {
-    Animation_MorphToLoop(&this->skelAnime, &object_brob_Anim_001958, -5.0f);
+    OoT_Animation_MorphToLoop(&this->skelAnime, &object_brob_Anim_001958, -5.0f);
     this->unk_1AE = 8000;
     this->timer = 1200;
     this->actionFunc = func_809CB218;
 }
 
 void func_809CAEF4(EnBrob* this) {
-    Animation_MorphToPlayOnce(&this->skelAnime, &object_brob_Anim_000290, -5.0f);
+    OoT_Animation_MorphToPlayOnce(&this->skelAnime, &object_brob_Anim_000290, -5.0f);
     this->unk_1AE -= 125.0f;
-    Actor_SetColorFilter(&this->dyna.actor, 0, 0xFF, 0, 0x50);
+    OoT_Actor_SetColorFilter(&this->dyna.actor, 0, 0xFF, 0, 0x50);
     Audio_PlayActorSound2(&this->dyna.actor, NA_SE_EN_GOMA_JR_FREEZE);
     this->actionFunc = func_809CB2B8;
 }
 
 void func_809CAF88(EnBrob* this) {
-    Animation_Change(&this->skelAnime, &object_brob_Anim_001750, -1.0f,
-                     Animation_GetLastFrame(&object_brob_Anim_001750), 0.0f, ANIMMODE_ONCE, -5.0f);
+    OoT_Animation_Change(&this->skelAnime, &object_brob_Anim_001750, -1.0f,
+                     OoT_Animation_GetLastFrame(&object_brob_Anim_001750), 0.0f, ANIMMODE_ONCE, -5.0f);
     this->unk_1AE = 8250;
     this->actionFunc = func_809CB354;
 }
 
 void func_809CB008(EnBrob* this) {
-    Animation_MorphToLoop(&this->skelAnime, &object_brob_Anim_001678, -5.0f);
+    OoT_Animation_MorphToLoop(&this->skelAnime, &object_brob_Anim_001678, -5.0f);
     this->timer = 10;
     this->actionFunc = func_809CB458;
 }
@@ -154,7 +154,7 @@ void func_809CB054(EnBrob* this, PlayState* play) {
         this->timer--;
     }
     if (this->timer == 0) {
-        if (DynaPolyActor_IsPlayerOnTop(&this->dyna) != 0) {
+        if (OoT_DynaPolyActor_IsPlayerOnTop(&this->dyna) != 0) {
             func_8002F71C(play, &this->dyna.actor, 5.0f, this->dyna.actor.yawTowardsPlayer, 1.0f);
             func_809CAE44(this, play);
         } else if (this->dyna.actor.xzDistToPlayer < 300.0f) {
@@ -168,7 +168,7 @@ void func_809CB054(EnBrob* this, PlayState* play) {
 void func_809CB114(EnBrob* this, PlayState* play) {
     f32 curFrame;
 
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (OoT_SkelAnime_Update(&this->skelAnime)) {
         func_809CAEA0(this);
     } else {
         curFrame = this->skelAnime.curFrame;
@@ -183,8 +183,8 @@ void func_809CB114(EnBrob* this, PlayState* play) {
 }
 
 void func_809CB218(EnBrob* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    if (Animation_OnFrame(&this->skelAnime, 6.0f) || Animation_OnFrame(&this->skelAnime, 15.0f)) {
+    OoT_SkelAnime_Update(&this->skelAnime);
+    if (OoT_Animation_OnFrame(&this->skelAnime, 6.0f) || OoT_Animation_OnFrame(&this->skelAnime, 15.0f)) {
         Audio_PlayActorSound2(&this->dyna.actor, NA_SE_EN_BROB_WAVE);
     }
     if (this->timer != 0) {
@@ -196,7 +196,7 @@ void func_809CB218(EnBrob* this, PlayState* play) {
 }
 
 void func_809CB2B8(EnBrob* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (OoT_SkelAnime_Update(&this->skelAnime)) {
         func_809CADDC(this, play);
     } else if (this->skelAnime.curFrame < 8.0f) {
         this->unk_1AE -= 1250.0f;
@@ -207,7 +207,7 @@ void func_809CB2B8(EnBrob* this, PlayState* play) {
 void func_809CB354(EnBrob* this, PlayState* play) {
     f32 curFrame;
 
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (OoT_SkelAnime_Update(&this->skelAnime)) {
         func_809CADDC(this, play);
     } else {
         curFrame = this->skelAnime.curFrame;
@@ -227,8 +227,8 @@ void func_809CB458(EnBrob* this, PlayState* play) {
     f32 dist2;
     s32 i;
 
-    SkelAnime_Update(&this->skelAnime);
-    if (Animation_OnFrame(&this->skelAnime, 0) && (this->timer != 0)) {
+    OoT_SkelAnime_Update(&this->skelAnime);
+    if (OoT_Animation_OnFrame(&this->skelAnime, 0) && (this->timer != 0)) {
         this->timer--;
     }
 
@@ -248,9 +248,9 @@ void func_809CB458(EnBrob* this, PlayState* play) {
             dist1 = -dist1;
             dist2 = -dist2;
         }
-        pos.y = (((Rand_ZeroOne() * 15000.0f) + 1000.0f) * this->dyna.actor.scale.y) + this->dyna.actor.world.pos.y;
-        EffectSsLightning_Spawn(play, &pos, &primColor, &envColor, this->dyna.actor.scale.y * 8000.0f,
-                                Rand_ZeroOne() * 65536.0f, 4, 1);
+        pos.y = (((OoT_Rand_ZeroOne() * 15000.0f) + 1000.0f) * this->dyna.actor.scale.y) + this->dyna.actor.world.pos.y;
+        OoT_EffectSsLightning_Spawn(play, &pos, &primColor, &envColor, this->dyna.actor.scale.y * 8000.0f,
+                                OoT_Rand_ZeroOne() * 65536.0f, 4, 1);
     }
 
     if (this->timer == 0) {
@@ -294,15 +294,15 @@ void EnBrob_Update(Actor* thisx, PlayState* play2) {
     this->actionFunc(this, play);
     if (this->actionFunc != func_809CB054 && this->actionFunc != func_809CB354) {
         if (this->actionFunc != func_809CB2B8) {
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliders[0].base);
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliders[1].base);
+            OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliders[0].base);
+            OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliders[1].base);
             if (this->actionFunc != func_809CB114) {
-                CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliders[0].base);
-                CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliders[1].base);
+                OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliders[0].base);
+                OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliders[1].base);
             }
         }
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliders[0].base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliders[1].base);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliders[0].base);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliders[1].base);
     }
 }
 
@@ -310,7 +310,7 @@ void EnBrob_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot
     EnBrob* this = (EnBrob*)thisx;
     MtxF mtx;
 
-    Matrix_Get(&mtx);
+    OoT_Matrix_Get(&mtx);
     if (limbIndex == 3) {
         this->colliders[0].dim.pos.x = mtx.xw;
         this->colliders[0].dim.pos.y = mtx.yw;
@@ -326,6 +326,6 @@ void EnBrob_Draw(Actor* thisx, PlayState* play) {
     EnBrob* this = (EnBrob*)thisx;
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
-    Matrix_Translate(0.0f, this->unk_1AE, 0.0f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(0.0f, this->unk_1AE, 0.0f, MTXMODE_APPLY);
     SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, NULL, EnBrob_PostLimbDraw, this);
 }

@@ -34,7 +34,7 @@ const ActorInit Bg_Hidan_Sima_InitVars = {
     NULL,
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[2] = {
+static ColliderJntSphElementInit OoT_sJntSphElementsInit[2] = {
     {
         {
             ELEMTYPE_UNK0,
@@ -59,7 +59,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[2] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit OoT_sJntSphInit = {
     {
         COLTYPE_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -68,11 +68,11 @@ static ColliderJntSphInit sJntSphInit = {
         OC2_TYPE_2,
         COLSHAPE_JNTSPH,
     },
-    ARRAY_COUNT(sJntSphElementsInit),
-    sJntSphElementsInit,
+    ARRAY_COUNT(OoT_sJntSphElementsInit),
+    OoT_sJntSphElementsInit,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
 
@@ -87,17 +87,17 @@ void BgHidanSima_Init(Actor* thisx, PlayState* play) {
     CollisionHeader* colHeader = NULL;
     s32 i;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
     if (this->dyna.actor.params == 0) {
-        CollisionHeader_GetVirtual(&gFireTempleStonePlatform1Col, &colHeader);
+        OoT_CollisionHeader_GetVirtual(&gFireTempleStonePlatform1Col, &colHeader);
     } else {
-        CollisionHeader_GetVirtual(&gFireTempleStonePlatform2Col, &colHeader);
+        OoT_CollisionHeader_GetVirtual(&gFireTempleStonePlatform2Col, &colHeader);
     }
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
-    Collider_InitJntSph(play, &this->collider);
-    Collider_SetJntSph(play, &this->collider, &this->dyna.actor, &sJntSphInit, this->elements);
-    for (i = 0; i < ARRAY_COUNT(sJntSphElementsInit); i++) {
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_Collider_InitJntSph(play, &this->collider);
+    OoT_Collider_SetJntSph(play, &this->collider, &this->dyna.actor, &OoT_sJntSphInit, this->elements);
+    for (i = 0; i < ARRAY_COUNT(OoT_sJntSphElementsInit); i++) {
         this->collider.elements[i].dim.worldSphere.radius = this->collider.elements[i].dim.modelSphere.radius;
     }
     if (this->dyna.actor.params == 0) {
@@ -110,18 +110,18 @@ void BgHidanSima_Init(Actor* thisx, PlayState* play) {
 void BgHidanSima_Destroy(Actor* thisx, PlayState* play) {
     BgHidanSima* this = (BgHidanSima*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
-    Collider_DestroyJntSph(play, &this->collider);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_Collider_DestroyJntSph(play, &this->collider);
 }
 
 void func_8088E518(BgHidanSima* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y, 3.4f);
-    if (DynaPolyActor_IsPlayerOnTop(&this->dyna) &&
+    OoT_Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y, 3.4f);
+    if (OoT_DynaPolyActor_IsPlayerOnTop(&this->dyna) &&
         !(player->stateFlags1 & (PLAYER_STATE1_HANGING_OFF_LEDGE | PLAYER_STATE1_CLIMBING_LEDGE))) {
         this->timer = 20;
-        this->dyna.actor.world.rot.y = Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) + 0x4000;
+        this->dyna.actor.world.rot.y = OoT_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) + 0x4000;
         if (this->dyna.actor.home.pos.y <= this->dyna.actor.world.pos.y) {
             this->actionFunc = func_8088E5D0;
         } else {
@@ -136,9 +136,9 @@ void func_8088E5D0(BgHidanSima* this, PlayState* play) {
     }
     if (this->timer != 0) {
         this->dyna.actor.world.pos.x =
-            Math_SinS(this->dyna.actor.world.rot.y + (this->timer * 0x4000)) * 5.0f + this->dyna.actor.home.pos.x;
+            OoT_Math_SinS(this->dyna.actor.world.rot.y + (this->timer * 0x4000)) * 5.0f + this->dyna.actor.home.pos.x;
         this->dyna.actor.world.pos.z =
-            Math_CosS(this->dyna.actor.world.rot.y + (this->timer * 0x4000)) * 5.0f + this->dyna.actor.home.pos.z;
+            OoT_Math_CosS(this->dyna.actor.world.rot.y + (this->timer * 0x4000)) * 5.0f + this->dyna.actor.home.pos.z;
     } else {
         this->actionFunc = func_8088E6D0;
         this->dyna.actor.world.pos.x = this->dyna.actor.home.pos.x;
@@ -151,12 +151,12 @@ void func_8088E5D0(BgHidanSima* this, PlayState* play) {
 }
 
 void func_8088E6D0(BgHidanSima* this, PlayState* play) {
-    if (DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
+    if (OoT_DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
         this->timer = 20;
     } else if (this->timer != 0) {
         this->timer--;
     }
-    Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y - 100.0f, 1.7f);
+    OoT_Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y - 100.0f, 1.7f);
     if (this->timer == 0) {
         this->actionFunc = func_8088E518;
     }
@@ -184,8 +184,8 @@ void func_8088E7A8(BgHidanSima* this, PlayState* play) {
     } else {
         temp = (sinf((this->timer * 0.01667 - 0.5) * M_PI) + 1) * -200;
     }
-    this->dyna.actor.world.pos.x = Math_SinS(this->dyna.actor.world.rot.y) * temp + this->dyna.actor.home.pos.x;
-    this->dyna.actor.world.pos.z = Math_CosS(this->dyna.actor.world.rot.y) * temp + this->dyna.actor.home.pos.z;
+    this->dyna.actor.world.pos.x = OoT_Math_SinS(this->dyna.actor.world.rot.y) * temp + this->dyna.actor.home.pos.x;
+    this->dyna.actor.world.pos.z = OoT_Math_CosS(this->dyna.actor.world.rot.y) * temp + this->dyna.actor.home.pos.z;
     if (this->timer == 0) {
         this->timer = 20;
         this->actionFunc = func_8088E760;
@@ -196,8 +196,8 @@ void func_8088E7A8(BgHidanSima* this, PlayState* play) {
 void func_8088E90C(BgHidanSima* this) {
     ColliderJntSphElement* elem;
     s32 i;
-    f32 cos = Math_CosS(this->dyna.actor.world.rot.y + 0x8000);
-    f32 sin = Math_SinS(this->dyna.actor.world.rot.y + 0x8000);
+    f32 cos = OoT_Math_CosS(this->dyna.actor.world.rot.y + 0x8000);
+    f32 sin = OoT_Math_SinS(this->dyna.actor.world.rot.y + 0x8000);
 
     for (i = 0; i < 2; i++) {
         elem = &this->collider.elements[i];
@@ -221,7 +221,7 @@ void BgHidanSima_Update(Actor* thisx, PlayState* play) {
         this->dyna.actor.world.pos.y = this->dyna.actor.home.pos.y - ((1.0f - cosf(temp * (M_PI / 20))) * 5.0f);
         if (this->actionFunc == func_8088E7A8) {
             func_8088E90C(this);
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+            OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
         }
     }
 }
@@ -235,9 +235,9 @@ Gfx* func_8088EB54(PlayState* play, BgHidanSima* this, Gfx* gfx) {
     f32 sin;
     s32 pad[2];
 
-    Matrix_MtxFCopy(&mtxF, &gMtxFClear);
-    cos = Math_CosS(this->dyna.actor.world.rot.y + 0x8000);
-    sin = Math_SinS(this->dyna.actor.world.rot.y + 0x8000);
+    OoT_Matrix_MtxFCopy(&mtxF, &gMtxFClear);
+    cos = OoT_Math_CosS(this->dyna.actor.world.rot.y + 0x8000);
+    sin = OoT_Math_SinS(this->dyna.actor.world.rot.y + 0x8000);
 
     phi_s5 = (60 - this->timer) >> 1;
     phi_s5 = CLAMP_MAX(phi_s5, 3);
@@ -260,14 +260,14 @@ Gfx* func_8088EB54(PlayState* play, BgHidanSima* this, Gfx* gfx) {
         mtxF.zz += 0.4f;
 
         gSPSegment(gfx++, 0x09, SEGMENTED_TO_VIRTUAL(sFireballsTexs[(this->timer + s3) % 7]));
-        gSPMatrix(gfx++, Matrix_MtxFToMtx(MATRIX_CHECKFLOATS(&mtxF), Graph_Alloc(play->state.gfxCtx, sizeof(Mtx))),
+        gSPMatrix(gfx++, OoT_Matrix_MtxFToMtx(MATRIX_CHECKFLOATS(&mtxF), Graph_Alloc(play->state.gfxCtx, sizeof(Mtx))),
                   G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPDisplayList(gfx++, gFireTempleFireballDL);
     }
     mtxF.xw = this->dyna.actor.world.pos.x + (phi_s5 * 25 + 80) * sin;
     mtxF.zw = this->dyna.actor.world.pos.z + (phi_s5 * 25 + 80) * cos;
     gSPSegment(gfx++, 0x09, SEGMENTED_TO_VIRTUAL(sFireballsTexs[(this->timer + s3) % 7]));
-    gSPMatrix(gfx++, Matrix_MtxFToMtx(MATRIX_CHECKFLOATS(&mtxF), Graph_Alloc(play->state.gfxCtx, sizeof(Mtx))),
+    gSPMatrix(gfx++, OoT_Matrix_MtxFToMtx(MATRIX_CHECKFLOATS(&mtxF), Graph_Alloc(play->state.gfxCtx, sizeof(Mtx))),
               G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(gfx++, gFireTempleFireballDL);
     return gfx;
@@ -284,7 +284,7 @@ void BgHidanSima_Draw(Actor* thisx, PlayState* play) {
     } else {
         gSPDisplayList(POLY_OPA_DISP++, gFireTempleStonePlatform2DL);
         if (this->actionFunc == func_8088E7A8) {
-            POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, 0x14);
+            POLY_XLU_DISP = OoT_Gfx_SetupDL(POLY_XLU_DISP, 0x14);
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 1, 255, 255, 0, 150);
             gDPSetEnvColor(POLY_XLU_DISP++, 255, 0, 0, 255);
             POLY_XLU_DISP = func_8088EB54(play, this, POLY_XLU_DISP);

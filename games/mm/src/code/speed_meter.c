@@ -19,7 +19,7 @@ volatile OSTime gRSPAudioTimeTotal;
 
 /**
  * How much time the RSP ran graphics tasks for over the course of `gGraphUpdatePeriod`.
- * Typically the RSP runs 1 graphics task per `Graph_Update` cycle, but may run 0 (see `Graph_Update`).
+ * Typically the RSP runs 1 graphics task per `MM_Graph_Update` cycle, but may run 0 (see `MM_Graph_Update`).
  */
 volatile OSTime gRSPGfxTimeTotal;
 
@@ -29,7 +29,7 @@ volatile OSTime gRSPGfxTimeTotal;
 volatile OSTime gRDPTimeTotal;
 
 /**
- * How much time elapsed between the last two `Graph_Update` ending.
+ * How much time elapsed between the last two `MM_Graph_Update` ending.
  * This is expected to be at least the duration of a single frame, since it includes the time spent waiting on the
  * graphics task to be done.
  */
@@ -54,9 +54,9 @@ typedef struct {
     /* 0x6 */ u16 color;
 } SpeedMeterTimeEntry; // size = 0x8
 
-SpeedMeterTimeEntry* sSpeedMeterTimeEntryPtr;
+SpeedMeterTimeEntry* MM_sSpeedMeterTimeEntryPtr;
 
-SpeedMeterTimeEntry sSpeedMeterTimeEntryArray[] = {
+SpeedMeterTimeEntry MM_sSpeedMeterTimeEntryArray[] = {
     { &gRSPAudioTimeTotal, 0, 6, GPACK_RGBA5551(0, 0, 255, 1) },
     { &gRSPGfxTimeTotal, 0, 8, GPACK_RGBA5551(255, 128, 128, 1) },
     { &gRDPTimeTotal, 0, 10, GPACK_RGBA5551(0, 255, 0, 1) },
@@ -92,19 +92,19 @@ typedef struct {
         }                                                              \
     } while (0)
 
-void SpeedMeter_InitImpl(SpeedMeter* this, s32 x, s32 y) {
+void MM_SpeedMeter_InitImpl(SpeedMeter* this, s32 x, s32 y) {
     this->x = x;
     this->y = y;
 }
 
-void SpeedMeter_Init(SpeedMeter* this) {
-    SpeedMeter_InitImpl(this, 32, 22);
+void MM_SpeedMeter_Init(SpeedMeter* this) {
+    MM_SpeedMeter_InitImpl(this, 32, 22);
 }
 
-void SpeedMeter_Destroy(SpeedMeter* this) {
+void MM_SpeedMeter_Destroy(SpeedMeter* this) {
 }
 
-void SpeedMeter_DrawTimeEntries(SpeedMeter* this, GraphicsContext* gfxCtx) {
+void MM_SpeedMeter_DrawTimeEntries(SpeedMeter* this, GraphicsContext* gfxCtx) {
     s32 pad[3];
     u32 baseX = 32;
     s32 width;
@@ -121,21 +121,21 @@ void SpeedMeter_DrawTimeEntries(SpeedMeter* this, GraphicsContext* gfxCtx) {
 
     OPEN_DISPS(gfxCtx);
 
-    /*! @bug if gIrqMgrRetraceTime is 0, CLOSE_DISPS will never be reached */
-    if (gIrqMgrRetraceTime == 0) {
+    /*! @bug if MM_gIrqMgrRetraceTime is 0, CLOSE_DISPS will never be reached */
+    if (MM_gIrqMgrRetraceTime == 0) {
         // 2S2H [Port] We need our close disps helpers called to prevent interpolation crashes
         CLOSE_DISPS_PORT_HELPERS(gfxCtx);
         return;
     }
 
-    sSpeedMeterTimeEntryPtr = &sSpeedMeterTimeEntryArray[0];
-    for (i = 0; i < ARRAY_COUNT(sSpeedMeterTimeEntryArray); i++) {
-        width = ((f64)*sSpeedMeterTimeEntryPtr->time / gIrqMgrRetraceTime) * 64.0;
-        sSpeedMeterTimeEntryPtr->x = baseX + width;
-        sSpeedMeterTimeEntryPtr++;
+    MM_sSpeedMeterTimeEntryPtr = &MM_sSpeedMeterTimeEntryArray[0];
+    for (i = 0; i < ARRAY_COUNT(MM_sSpeedMeterTimeEntryArray); i++) {
+        width = ((f64)*MM_sSpeedMeterTimeEntryPtr->time / MM_gIrqMgrRetraceTime) * 64.0;
+        MM_sSpeedMeterTimeEntryPtr->x = baseX + width;
+        MM_sSpeedMeterTimeEntryPtr++;
     }
 
-    View_Init(&view, gfxCtx);
+    MM_View_Init(&view, gfxCtx);
     view.flags = VIEW_VIEWPORT | VIEW_PROJECTION_ORTHO;
 
     SET_FULLSCREEN_VIEWPORT_DYNAMIC(&view);
@@ -154,11 +154,11 @@ void SpeedMeter_DrawTimeEntries(SpeedMeter* this, GraphicsContext* gfxCtx) {
     gDrawRect(gfx++, GPACK_RGBA5551(255, 0, 0, 1), baseX + 64 * 2, uly, baseX + 64 * 3, lry);
     gDrawRect(gfx++, GPACK_RGBA5551(255, 0, 255, 1), baseX + 64 * 3, uly, baseX + 64 * 4, lry);
 
-    sSpeedMeterTimeEntryPtr = &sSpeedMeterTimeEntryArray[0];
-    for (i = 0; i < ARRAY_COUNT(sSpeedMeterTimeEntryArray); i++) {
-        gDrawRect(gfx++, sSpeedMeterTimeEntryPtr->color, baseX, lry + sSpeedMeterTimeEntryPtr->y,
-                  sSpeedMeterTimeEntryPtr->x, lry + sSpeedMeterTimeEntryPtr->y + 1);
-        sSpeedMeterTimeEntryPtr++;
+    MM_sSpeedMeterTimeEntryPtr = &MM_sSpeedMeterTimeEntryArray[0];
+    for (i = 0; i < ARRAY_COUNT(MM_sSpeedMeterTimeEntryArray); i++) {
+        gDrawRect(gfx++, MM_sSpeedMeterTimeEntryPtr->color, baseX, lry + MM_sSpeedMeterTimeEntryPtr->y,
+                  MM_sSpeedMeterTimeEntryPtr->x, lry + MM_sSpeedMeterTimeEntryPtr->y + 1);
+        MM_sSpeedMeterTimeEntryPtr++;
     }
     gDPPipeSync(gfx++);
 
@@ -167,7 +167,7 @@ void SpeedMeter_DrawTimeEntries(SpeedMeter* this, GraphicsContext* gfxCtx) {
     CLOSE_DISPS(gfxCtx);
 }
 
-void SpeedMeter_InitAllocEntry(SpeedMeterAllocEntry* this, u32 maxVal, u32 val, u16 backColor, u16 foreColor, u32 ulx,
+void MM_SpeedMeter_InitAllocEntry(SpeedMeterAllocEntry* this, u32 maxVal, u32 val, u16 backColor, u16 foreColor, u32 ulx,
                                u32 lrx, u32 uly, u32 lry) {
     this->maxVal = maxVal;
     this->val = val;
@@ -179,7 +179,7 @@ void SpeedMeter_InitAllocEntry(SpeedMeterAllocEntry* this, u32 maxVal, u32 val, 
     this->lry = lry;
 }
 
-void SpeedMeter_DrawAllocEntry(SpeedMeterAllocEntry* this, GraphicsContext* gfxCtx) {
+void MM_SpeedMeter_DrawAllocEntry(SpeedMeterAllocEntry* this, GraphicsContext* gfxCtx) {
     s32 usedOff;
     View view;
     Gfx* gfx;
@@ -187,7 +187,7 @@ void SpeedMeter_DrawAllocEntry(SpeedMeterAllocEntry* this, GraphicsContext* gfxC
     if (this->maxVal != 0) {
         OPEN_DISPS(gfxCtx);
 
-        View_Init(&view, gfxCtx);
+        MM_View_Init(&view, gfxCtx);
         view.flags = VIEW_VIEWPORT | VIEW_PROJECTION_ORTHO;
 
         SET_FULLSCREEN_VIEWPORT_DYNAMIC(&view);
@@ -215,7 +215,7 @@ void SpeedMeter_DrawAllocEntry(SpeedMeterAllocEntry* this, GraphicsContext* gfxC
     }
 }
 
-void SpeedMeter_DrawAllocEntries(SpeedMeter* meter, GraphicsContext* gfxCtx, GameState* state) {
+void MM_SpeedMeter_DrawAllocEntries(SpeedMeter* meter, GraphicsContext* gfxCtx, GameState* state) {
     s32 pad[2];
     u32 ulx = 30;
     u32 lrx = 290;
@@ -233,44 +233,44 @@ void SpeedMeter_DrawAllocEntries(SpeedMeter* meter, GraphicsContext* gfxCtx, Gam
     y = 212;
     if (R_ENABLE_ARENA_DBG > 2) {
         if (ZeldaArena_IsInitialized()) {
-            ZeldaArena_GetSizes(&zeldaFreeMax, &zeldaFree, &zeldaAlloc);
-            SpeedMeter_InitAllocEntry(&entry, zeldaFree + zeldaAlloc, zeldaAlloc, GPACK_RGBA5551(0, 0, 255, 1),
+            MM_ZeldaArena_GetSizes(&zeldaFreeMax, &zeldaFree, &zeldaAlloc);
+            MM_SpeedMeter_InitAllocEntry(&entry, zeldaFree + zeldaAlloc, zeldaAlloc, GPACK_RGBA5551(0, 0, 255, 1),
                                       GPACK_RGBA5551(255, 255, 255, 1), ulx, lrx, y, y + 1);
-            SpeedMeter_DrawAllocEntry(&entry, gfxCtx);
+            MM_SpeedMeter_DrawAllocEntry(&entry, gfxCtx);
             y++;
             y++;
         }
     }
 
     if (R_ENABLE_ARENA_DBG > 1) {
-        SystemArena_GetSizes((size_t*)&sysFreeMax, (size_t*)&sysFree, (size_t*)&sysAlloc);
-        SpeedMeter_InitAllocEntry(&entry, sysFree + sysAlloc - state->tha.size, sysAlloc - state->tha.size,
+        MM_SystemArena_GetSizes((size_t*)&sysFreeMax, (size_t*)&sysFree, (size_t*)&sysAlloc);
+        MM_SpeedMeter_InitAllocEntry(&entry, sysFree + sysAlloc - state->tha.size, sysAlloc - state->tha.size,
                                   GPACK_RGBA5551(0, 0, 255, 1), GPACK_RGBA5551(255, 128, 128, 1), ulx, lrx, y, y);
-        SpeedMeter_DrawAllocEntry(&entry, gfxCtx);
+        MM_SpeedMeter_DrawAllocEntry(&entry, gfxCtx);
         y++;
     }
 
     tha = &state->tha;
-    SpeedMeter_InitAllocEntry(&entry, tha->size, tha->size - THA_GetRemaining(tha), GPACK_RGBA5551(0, 0, 255, 1),
+    MM_SpeedMeter_InitAllocEntry(&entry, tha->size, tha->size - THA_GetRemaining(tha), GPACK_RGBA5551(0, 0, 255, 1),
                               GPACK_RGBA5551(0, 255, 0, 1), ulx, lrx, y, y);
-    SpeedMeter_DrawAllocEntry(&entry, gfxCtx);
+    MM_SpeedMeter_DrawAllocEntry(&entry, gfxCtx);
     y++;
 
     thga = &gfxCtx->polyOpa;
-    SpeedMeter_InitAllocEntry(&entry, thga->size, thga->size - THGA_GetRemaining(thga), GPACK_RGBA5551(0, 0, 255, 1),
+    MM_SpeedMeter_InitAllocEntry(&entry, thga->size, thga->size - THGA_GetRemaining(thga), GPACK_RGBA5551(0, 0, 255, 1),
                               GPACK_RGBA5551(255, 0, 255, 1), ulx, lrx, y, y);
-    SpeedMeter_DrawAllocEntry(&entry, gfxCtx);
+    MM_SpeedMeter_DrawAllocEntry(&entry, gfxCtx);
     y++;
 
     thga = &gfxCtx->polyXlu;
-    SpeedMeter_InitAllocEntry(&entry, thga->size, thga->size - THGA_GetRemaining(thga), GPACK_RGBA5551(0, 0, 255, 1),
+    MM_SpeedMeter_InitAllocEntry(&entry, thga->size, thga->size - THGA_GetRemaining(thga), GPACK_RGBA5551(0, 0, 255, 1),
                               GPACK_RGBA5551(255, 255, 0, 1), ulx, lrx, y, y);
-    SpeedMeter_DrawAllocEntry(&entry, gfxCtx);
+    MM_SpeedMeter_DrawAllocEntry(&entry, gfxCtx);
     y++;
 
     thga = &gfxCtx->overlay;
-    SpeedMeter_InitAllocEntry(&entry, thga->size, thga->size - THGA_GetRemaining(thga), GPACK_RGBA5551(0, 0, 255, 1),
+    MM_SpeedMeter_InitAllocEntry(&entry, thga->size, thga->size - THGA_GetRemaining(thga), GPACK_RGBA5551(0, 0, 255, 1),
                               GPACK_RGBA5551(255, 0, 0, 1), ulx, lrx, y, y);
-    SpeedMeter_DrawAllocEntry(&entry, gfxCtx);
+    MM_SpeedMeter_DrawAllocEntry(&entry, gfxCtx);
     y++;
 }

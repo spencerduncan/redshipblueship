@@ -47,7 +47,7 @@ void EffChange_Init(Actor* thisx, PlayState* play) {
     this->actionFunc = func_80A4C5CC;
     this->actor.draw = EffChange_Draw;
     EffChange_SetColors(this, EFFCHANGE_GET_COLORS(thisx));
-    Actor_SetScale(&this->actor, 0.075f);
+    MM_Actor_SetScale(&this->actor, 0.075f);
     this->primColors[3] = 0;
     Keyframe_InitFlex(&this->kfSkelAnime, gGameplayKeepKFSkel_2900C, gGameplayKeepKFAnim_281DC, this->jointTable,
                       this->morphTable, NULL);
@@ -78,9 +78,9 @@ void func_80A4C5CC(EffChange* this, PlayState* play) {
     f32 phi_fv0;
 
     if (Keyframe_UpdateFlex(&this->kfSkelAnime)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         CutsceneManager_Stop(CS_ID_GLOBAL_ELEGY);
-        Environment_AdjustLights(play, 0.0f, 850.0f, 0.2f, 0.0f);
+        MM_Environment_AdjustLights(play, 0.0f, 850.0f, 0.2f, 0.0f);
         return;
     }
 
@@ -107,7 +107,7 @@ void func_80A4C5CC(EffChange* this, PlayState* play) {
     } else if (phi_fv0 < 0.0f) {
         phi_fv0 = 0.0f;
     }
-    Environment_AdjustLights(play, phi_fv0, 850.0f, 0.2f, 0.0f);
+    MM_Environment_AdjustLights(play, phi_fv0, 850.0f, 0.2f, 0.0f);
     if (CutsceneManager_GetCurrentCsId() != CS_ID_GLOBAL_ELEGY) {
         if (CutsceneManager_IsNext(CS_ID_GLOBAL_ELEGY)) {
             CutsceneManager_Start(CS_ID_GLOBAL_ELEGY, &this->actor);
@@ -133,7 +133,7 @@ void EffChange_Draw(Actor* thisx, PlayState* play) {
 
     if (mtxStack != NULL) {
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-        Matrix_RotateYS((Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) + 0x8000), MTXMODE_APPLY);
+        Matrix_RotateYS((MM_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) + 0x8000), MTXMODE_APPLY);
 
         OPEN_DISPS(play->state.gfxCtx);
 

@@ -10,12 +10,12 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED)
 
-void MirRay_Init(Actor* thisx, PlayState* play);
-void MirRay_Destroy(Actor* thisx, PlayState* play);
-void MirRay_Update(Actor* thisx, PlayState* play);
-void MirRay_Draw(Actor* thisx, PlayState* play);
+void MM_MirRay_Init(Actor* thisx, PlayState* play);
+void MM_MirRay_Destroy(Actor* thisx, PlayState* play);
+void MM_MirRay_Update(Actor* thisx, PlayState* play);
+void MM_MirRay_Draw(Actor* thisx, PlayState* play);
 
-s32 MirRay_CheckInFrustum(Vec3f* vecA, Vec3f* vecB, f32 pointx, f32 pointy, f32 pointz, s16 radiusA, s16 radiusB);
+s32 MM_MirRay_CheckInFrustum(Vec3f* vecA, Vec3f* vecB, f32 pointx, f32 pointy, f32 pointz, s16 radiusA, s16 radiusB);
 
 typedef struct {
     /* 0x00 */ Vec3f pos;
@@ -45,15 +45,15 @@ ActorProfile Mir_Ray_Profile = {
     /**/ FLAGS,
     /**/ OBJECT_MIR_RAY,
     /**/ sizeof(MirRay),
-    /**/ MirRay_Init,
-    /**/ MirRay_Destroy,
-    /**/ MirRay_Update,
-    /**/ MirRay_Draw,
+    /**/ MM_MirRay_Init,
+    /**/ MM_MirRay_Destroy,
+    /**/ MM_MirRay_Update,
+    /**/ MM_MirRay_Draw,
 };
 
 u8 D_808E3BF0 = false;
 
-static ColliderQuadInit sQuadInit = {
+static ColliderQuadInit MM_sQuadInit = {
     {
         COL_MATERIAL_NONE,
         AT_ON | AT_TYPE_PLAYER,
@@ -73,7 +73,7 @@ static ColliderQuadInit sQuadInit = {
     { { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f } } },
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[1] = {
+static ColliderJntSphElementInit MM_sJntSphElementsInit[1] = {
     {
         {
             ELEM_MATERIAL_UNK0,
@@ -87,7 +87,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[1] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit MM_sJntSphInit = {
     {
         COL_MATERIAL_NONE,
         AT_ON | AT_TYPE_PLAYER,
@@ -96,14 +96,14 @@ static ColliderJntSphInit sJntSphInit = {
         OC2_NONE,
         COLSHAPE_JNTSPH,
     },
-    ARRAY_COUNT(sJntSphElementsInit),
-    sJntSphElementsInit,
+    ARRAY_COUNT(MM_sJntSphElementsInit),
+    MM_sJntSphElementsInit,
 };
 
 // Note: this data is unchanged from OoT and hardcoded for Spirit Temple, so the actor will not work at all without
 // modification.
 
-MirRayDataEntry sMirRayData[] = {
+MirRayDataEntry MM_sMirRayData[] = {
     {
         { -0x488, 0x2AE, -0x370 },
         { -0x398, 0x1E0, -0x379 },
@@ -230,7 +230,7 @@ MirRayDataEntry sMirRayData[] = {
     },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 0, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 1000, ICHAIN_CONTINUE),
@@ -239,8 +239,8 @@ static InitChainEntry sInitChain[] = {
 
 const char D_808E3DD0[] = "反射光 発生失敗";
 
-void MirRay_SetupCollider(MirRay* this) {
-    MirRayDataEntry* dataEntry = &sMirRayData[MIRRAY_LOCATION(&this->actor)];
+void MM_MirRay_SetupCollider(MirRay* this) {
+    MirRayDataEntry* dataEntry = &MM_sMirRayData[MIRRAY_LOCATION(&this->actor)];
     f32 x = (this->poolPt.x - this->sourcePt.x) * dataEntry->unk_10;
     f32 y = (this->poolPt.y - this->sourcePt.y) * dataEntry->unk_10;
     f32 z = (this->poolPt.z - this->sourcePt.z) * dataEntry->unk_10;
@@ -254,19 +254,19 @@ void MirRay_SetupCollider(MirRay* this) {
 
 // Set up a light point between source point and reflection point. Reflection point is the pool point (for windows) or
 // at the player position (for mirrors)
-void MirRay_MakeShieldLight(MirRay* this, PlayState* play) {
+void MM_MirRay_MakeShieldLight(MirRay* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
-    MirRayDataEntry* dataEntry = &sMirRayData[MIRRAY_LOCATION(&this->actor)];
+    MirRayDataEntry* dataEntry = &MM_sMirRayData[MIRRAY_LOCATION(&this->actor)];
     Vec3f reflectionPt;
     Vec3s lightPt;
 
-    if (MirRay_CheckInFrustum(&this->sourcePt, &this->poolPt, player->actor.world.pos.x,
+    if (MM_MirRay_CheckInFrustum(&this->sourcePt, &this->poolPt, player->actor.world.pos.x,
                               player->actor.world.pos.y + 30.0f, player->actor.world.pos.z, this->sourceEndRad,
                               this->poolEndRad)) {
         if (dataEntry->params & 8) {
-            Math_Vec3f_Diff(&player->actor.world.pos, &this->sourcePt, &reflectionPt);
+            MM_Math_Vec3f_Diff(&player->actor.world.pos, &this->sourcePt, &reflectionPt);
         } else {
-            Math_Vec3f_Diff(&this->poolPt, &this->sourcePt, &reflectionPt);
+            MM_Math_Vec3f_Diff(&this->poolPt, &this->sourcePt, &reflectionPt);
         }
 
         lightPt.x = (dataEntry->unk_18 * reflectionPt.x) + this->sourcePt.x;
@@ -274,27 +274,27 @@ void MirRay_MakeShieldLight(MirRay* this, PlayState* play) {
         lightPt.z = (dataEntry->unk_18 * reflectionPt.z) + this->sourcePt.z;
 
         // Fade up
-        Math_StepToS(&this->lightPointRad, dataEntry->lgtPtMaxRad, 6);
-        Lights_PointNoGlowSetInfo(&this->lightInfo, lightPt.x, lightPt.y, lightPt.z, dataEntry->color.r,
+        MM_Math_StepToS(&this->lightPointRad, dataEntry->lgtPtMaxRad, 6);
+        MM_Lights_PointNoGlowSetInfo(&this->lightInfo, lightPt.x, lightPt.y, lightPt.z, dataEntry->color.r,
                                   dataEntry->color.g, dataEntry->color.b, this->lightPointRad);
     } else {
         // Fade down
-        Math_StepToS(&this->lightPointRad, 0, 6);
-        Lights_PointSetColorAndRadius(&this->lightInfo, dataEntry->color.r, dataEntry->color.g, dataEntry->color.b,
+        MM_Math_StepToS(&this->lightPointRad, 0, 6);
+        MM_Lights_PointSetColorAndRadius(&this->lightInfo, dataEntry->color.r, dataEntry->color.g, dataEntry->color.b,
                                       this->lightPointRad);
     }
 }
 
-void MirRay_Init(Actor* thisx, PlayState* play) {
+void MM_MirRay_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     MirRay* this = (MirRay*)thisx;
-    MirRayDataEntry* dataEntry = &sMirRayData[MIRRAY_LOCATION(&this->actor)];
+    MirRayDataEntry* dataEntry = &MM_sMirRayData[MIRRAY_LOCATION(&this->actor)];
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
 
     if (MIRRAY_LOCATION(&this->actor) >= MIRRAY_MAX) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 
     this->sourcePt.x = dataEntry->sourcePoint.x;
@@ -307,9 +307,9 @@ void MirRay_Init(Actor* thisx, PlayState* play) {
     this->poolPt.z = dataEntry->poolPoint.z;
     this->poolEndRad = dataEntry->poolEndRadius;
 
-    Lights_PointNoGlowSetInfo(&this->lightInfo, this->sourcePt.x, this->sourcePt.y, this->sourcePt.z, 255, 255, 255,
+    MM_Lights_PointNoGlowSetInfo(&this->lightInfo, this->sourcePt.x, this->sourcePt.y, this->sourcePt.z, 255, 255, 255,
                               100);
-    this->lightNode = LightContext_InsertLight(play, &play->lightCtx, &this->lightInfo);
+    this->lightNode = MM_LightContext_InsertLight(play, &play->lightCtx, &this->lightInfo);
 
     this->shieldCorners[0].x = -536.0f;
     this->shieldCorners[0].y = -939.0f;
@@ -330,15 +330,15 @@ void MirRay_Init(Actor* thisx, PlayState* play) {
     this->shieldCorners[5].y = -800.0f;
 
     if (dataEntry->params & 2) {
-        Collider_InitJntSph(play, &this->collider1);
-        Collider_SetJntSph(play, &this->collider1, &this->actor, &sJntSphInit, this->collider1Elements);
+        MM_Collider_InitJntSph(play, &this->collider1);
+        MM_Collider_SetJntSph(play, &this->collider1, &this->actor, &MM_sJntSphInit, this->collider1Elements);
         if (!(dataEntry->params & 4)) { // Beams not from mirrors
-            MirRay_SetupCollider(this);
+            MM_MirRay_SetupCollider(this);
         }
     }
 
-    Collider_InitQuad(play, &this->collider2);
-    Collider_SetQuad(play, &this->collider2, &this->actor, &sQuadInit);
+    MM_Collider_InitQuad(play, &this->collider2);
+    MM_Collider_SetQuad(play, &this->collider2, &this->actor, &MM_sQuadInit);
 
     if ((MIRRAY_LOCATION(&this->actor) == MIRRAY_SPIRIT_TOPROOM_CEILINGMIRROR) ||
         (MIRRAY_LOCATION(&this->actor) == MIRRAY_SPIRIT_TOPROOM_COBRA1) ||
@@ -347,19 +347,19 @@ void MirRay_Init(Actor* thisx, PlayState* play) {
     }
 }
 
-void MirRay_Destroy(Actor* thisx, PlayState* play) {
+void MM_MirRay_Destroy(Actor* thisx, PlayState* play) {
     MirRay* this = (MirRay*)thisx;
 
-    LightContext_RemoveLight(play, &play->lightCtx, this->lightNode);
+    MM_LightContext_RemoveLight(play, &play->lightCtx, this->lightNode);
 
-    if (sMirRayData[MIRRAY_LOCATION(&this->actor)].params & 2) {
-        Collider_DestroyJntSph(play, &this->collider1);
+    if (MM_sMirRayData[MIRRAY_LOCATION(&this->actor)].params & 2) {
+        MM_Collider_DestroyJntSph(play, &this->collider1);
     }
 
-    Collider_DestroyQuad(play, &this->collider2);
+    MM_Collider_DestroyQuad(play, &this->collider2);
 }
 
-void MirRay_Update(Actor* thisx, PlayState* play) {
+void MM_MirRay_Update(Actor* thisx, PlayState* play) {
     s32 pad;
     MirRay* this = (MirRay*)thisx;
     Player* player = GET_PLAYER(play);
@@ -367,18 +367,18 @@ void MirRay_Update(Actor* thisx, PlayState* play) {
     D_808E3BF0 = false;
 
     if (!this->unLit) {
-        if (sMirRayData[MIRRAY_LOCATION(&this->actor)].params & 2) {
-            if (sMirRayData[MIRRAY_LOCATION(&this->actor)].params & 4) {
-                MirRay_SetupCollider(this);
+        if (MM_sMirRayData[MIRRAY_LOCATION(&this->actor)].params & 2) {
+            if (MM_sMirRayData[MIRRAY_LOCATION(&this->actor)].params & 4) {
+                MM_MirRay_SetupCollider(this);
             }
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider1.base);
+            MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider1.base);
         }
 
         if (this->reflectIntensity > 0.0f) {
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider2.base);
+            MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider2.base);
         }
 
-        MirRay_MakeShieldLight(this, play);
+        MM_MirRay_MakeShieldLight(this, play);
 
         if (this->reflectIntensity > 0.0f) {
             Actor_PlaySfx_Flagged2(&player->actor, NA_SE_IT_SHIELD_BEAM - SFX_FLAG);
@@ -386,7 +386,7 @@ void MirRay_Update(Actor* thisx, PlayState* play) {
     }
 }
 
-void MirRay_SetIntensity(MirRay* this, PlayState* play) {
+void MM_MirRay_SetIntensity(MirRay* this, PlayState* play) {
     f32 sp4C[3];
     s32 pad[4];
     Player* player = GET_PLAYER(play);
@@ -397,16 +397,16 @@ void MirRay_SetIntensity(MirRay* this, PlayState* play) {
 
     this->reflectIntensity = 0.0f;
 
-    if (MirRay_CheckInFrustum(&this->sourcePt, &this->poolPt, shieldMtx->xw, shieldMtx->yw, shieldMtx->zw,
+    if (MM_MirRay_CheckInFrustum(&this->sourcePt, &this->poolPt, shieldMtx->xw, shieldMtx->yw, shieldMtx->zw,
                               this->sourceEndRad, this->poolEndRad)) {
-        temp_f0 = sqrtf(SQ(shieldMtx->zz) + (SQ(shieldMtx->xz) + SQ(shieldMtx->yz)));
+        temp_f0 = MM_sqrtf(SQ(shieldMtx->zz) + (SQ(shieldMtx->xz) + SQ(shieldMtx->yz)));
         if (temp_f0 == 0.0f) {
             this->reflectRange = 1.0f;
         } else {
             this->reflectRange = 1.0f / temp_f0;
         }
 
-        if (sMirRayData[MIRRAY_LOCATION(&this->actor)].params & 1) {
+        if (MM_sMirRayData[MIRRAY_LOCATION(&this->actor)].params & 1) {
             this->reflectIntensity = 1.0f;
         } else {
             sp4C[0] = this->poolPt.x - this->sourcePt.x;
@@ -416,7 +416,7 @@ void MirRay_SetIntensity(MirRay* this, PlayState* play) {
             temp_f2 = (-shieldMtx->xz * sp4C[0]) - (shieldMtx->yz * sp4C[1]) - (shieldMtx->zz * sp4C[2]);
 
             if (temp_f2 < 0.0f) {
-                temp_f0_2 = sqrtf(SQ(sp4C[0]) + SQ(sp4C[1]) + SQ(sp4C[2]));
+                temp_f0_2 = MM_sqrtf(SQ(sp4C[0]) + SQ(sp4C[1]) + SQ(sp4C[2]));
                 if ((temp_f0 != 0.0f) && (temp_f0_2 != 0.0f)) {
                     this->reflectIntensity = -temp_f2 / (temp_f0 * temp_f0_2);
                 }
@@ -427,7 +427,7 @@ void MirRay_SetIntensity(MirRay* this, PlayState* play) {
 
 // Draws six images, one for each corner of the shield, by finding the intersection of a line segment from the corner
 // perpendicular to the shield with the nearest collision (if any).
-void MirRay_SetupReflectionPolys(MirRay* this, PlayState* play, MirRayShieldReflection* reflection) {
+void MM_MirRay_SetupReflectionPolys(MirRay* this, PlayState* play, MirRayShieldReflection* reflection) {
     s32 i;
     Player* player = GET_PLAYER(play);
     MtxF* shieldMtx = &player->shieldMf;
@@ -453,7 +453,7 @@ void MirRay_SetupReflectionPolys(MirRay* this, PlayState* play, MirRayShieldRefl
         posB.y = sp60[1] + posA.y;
         posB.z = sp60[2] + posA.z;
 
-        if (BgCheck_AnyLineTest1(&play->colCtx, &posA, &posB, &sp70, &outPoly, true)) {
+        if (MM_BgCheck_AnyLineTest1(&play->colCtx, &posA, &posB, &sp70, &outPoly, true)) {
             reflection[i].reflectionPoly = outPoly;
         } else {
             reflection[i].reflectionPoly = NULL;
@@ -462,7 +462,7 @@ void MirRay_SetupReflectionPolys(MirRay* this, PlayState* play, MirRayShieldRefl
 }
 
 // Remove reflections that are in the same position and are sufficiently near to the same plane
-void MirRay_RemoveSimilarReflections(MirRayShieldReflection* reflection) {
+void MM_MirRay_RemoveSimilarReflections(MirRayShieldReflection* reflection) {
     s32 i;
     s32 j;
 
@@ -481,7 +481,7 @@ void MirRay_RemoveSimilarReflections(MirRayShieldReflection* reflection) {
 }
 
 // Creates the reflected beam's collider (to interact with objects) and places and orients the shield images
-void MirRay_ReflectedBeam(MirRay* this, PlayState* play, MirRayShieldReflection* reflection) {
+void MM_MirRay_ReflectedBeam(MirRay* this, PlayState* play, MirRayShieldReflection* reflection) {
     Player* player = GET_PLAYER(play);
     s32 i;
     f32 temp_f0;
@@ -519,7 +519,7 @@ void MirRay_ReflectedBeam(MirRay* this, PlayState* play, MirRayShieldReflection*
         vecC.y = vecD.y + (shieldMtx->yx * 300.0f);
         vecC.z = vecD.z + (shieldMtx->zx * 300.0f);
 
-        Collider_SetQuadVertices(&this->collider2, &vecA, &vecB, &vecC, &vecD);
+        MM_Collider_SetQuadVertices(&this->collider2, &vecA, &vecB, &vecC, &vecD);
 
         for (i = 0; i < 6; i++) {
             if (reflection[i].reflectionPoly != NULL) {
@@ -527,14 +527,14 @@ void MirRay_ReflectedBeam(MirRay* this, PlayState* play, MirRayShieldReflection*
                 normalVec[1] = COLPOLY_GET_NORMAL(reflection[i].reflectionPoly->normal.y);
                 normalVec[2] = COLPOLY_GET_NORMAL(reflection[i].reflectionPoly->normal.z);
 
-                if (Math3D_LineSegVsPlane(normalVec[0], normalVec[1], normalVec[2], reflection[i].reflectionPoly->dist,
+                if (MM_Math3D_LineSegVsPlane(normalVec[0], normalVec[1], normalVec[2], reflection[i].reflectionPoly->dist,
                                           &vecB, &vecD, &sp118, 1)) {
 
                     reflection[i].pos.x = sp118.x;
                     reflection[i].pos.y = sp118.y;
                     reflection[i].pos.z = sp118.z;
 
-                    temp_f0 = sqrtf(SQ(sp118.x - vecB.x) + SQ(sp118.y - vecB.y) + SQ(sp118.z - vecB.z));
+                    temp_f0 = MM_sqrtf(SQ(sp118.x - vecB.x) + SQ(sp118.y - vecB.y) + SQ(sp118.z - vecB.z));
 
                     if (temp_f0 < (this->reflectIntensity * 600.0f)) {
                         reflection[i].opacity = 200;
@@ -559,7 +559,7 @@ void MirRay_ReflectedBeam(MirRay* this, PlayState* play, MirRayShieldReflection*
                             reflection[i].mtx.wz = reflection[i].mtx.xw = reflection[i].mtx.yw = reflection[i].mtx.zw =
                                 0.0f;
 
-                    if (Math3D_LineSegVsPlane(normalVec[0], normalVec[1], normalVec[2],
+                    if (MM_Math3D_LineSegVsPlane(normalVec[0], normalVec[1], normalVec[2],
                                               reflection[i].reflectionPoly->dist, &sp10C, &sp100, &intersection, 1)) {
                         reflection[i].mtx.xx = intersection.x - sp118.x;
                         reflection[i].mtx.yx = intersection.y - sp118.y;
@@ -574,7 +574,7 @@ void MirRay_ReflectedBeam(MirRay* this, PlayState* play, MirRayShieldReflection*
                     sp100.y = (spE8[1] * 4.0f) + sp10C.y;
                     sp100.z = (spE8[2] * 4.0f) + sp10C.z;
 
-                    if (Math3D_LineSegVsPlane(normalVec[0], normalVec[1], normalVec[2],
+                    if (MM_Math3D_LineSegVsPlane(normalVec[0], normalVec[1], normalVec[2],
                                               reflection[i].reflectionPoly->dist, &sp10C, &sp100, &intersection, 1)) {
                         reflection[i].mtx.xy = intersection.x - sp118.x;
                         reflection[i].mtx.yy = intersection.y - sp118.y;
@@ -588,7 +588,7 @@ void MirRay_ReflectedBeam(MirRay* this, PlayState* play, MirRayShieldReflection*
     }
 }
 
-void MirRay_Draw(Actor* thisx, PlayState* play) {
+void MM_MirRay_Draw(Actor* thisx, PlayState* play) {
     s32 pad;
     MirRay* this = (MirRay*)thisx;
     Player* player = GET_PLAYER(play);
@@ -598,8 +598,8 @@ void MirRay_Draw(Actor* thisx, PlayState* play) {
     this->reflectIntensity = 0.0f;
 
     if (!D_808E3BF0 && !this->unLit && Player_IsHoldingMirrorShield(play)) {
-        Matrix_Mult(&player->shieldMf, MTXMODE_NEW);
-        MirRay_SetIntensity(this, play);
+        MM_Matrix_Mult(&player->shieldMf, MTXMODE_NEW);
+        MM_MirRay_SetIntensity(this, play);
 
         if (this->reflectIntensity <= 0.0f) {
             return;
@@ -608,7 +608,7 @@ void MirRay_Draw(Actor* thisx, PlayState* play) {
         OPEN_DISPS(play->state.gfxCtx);
 
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-        Matrix_Scale(1.0f, 1.0f, this->reflectIntensity, MTXMODE_APPLY);
+        MM_Matrix_Scale(1.0f, 1.0f, this->reflectIntensity, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, (u8)(s8)(this->reflectIntensity * 100.0f));
@@ -617,9 +617,9 @@ void MirRay_Draw(Actor* thisx, PlayState* play) {
 
         gSPDisplayList(POLY_XLU_DISP++, object_mir_ray_DL_000168);
 
-        MirRay_SetupReflectionPolys(this, play, reflection);
-        MirRay_RemoveSimilarReflections(reflection);
-        MirRay_ReflectedBeam(this, play, reflection);
+        MM_MirRay_SetupReflectionPolys(this, play, reflection);
+        MM_MirRay_RemoveSimilarReflections(reflection);
+        MM_MirRay_ReflectedBeam(this, play, reflection);
 
         if (reflection[0].reflectionPoly == NULL) {
             reflection[0].opacity = 0;
@@ -635,9 +635,9 @@ void MirRay_Draw(Actor* thisx, PlayState* play) {
 
         for (i = 0; i < ARRAY_COUNT(reflection); i++) {
             if (reflection[i].reflectionPoly != NULL) {
-                Matrix_Translate(reflection[i].pos.x, reflection[i].pos.y, reflection[i].pos.z, MTXMODE_NEW);
-                Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
-                Matrix_Mult(&reflection[i].mtx, MTXMODE_APPLY);
+                MM_Matrix_Translate(reflection[i].pos.x, reflection[i].pos.y, reflection[i].pos.z, MTXMODE_NEW);
+                MM_Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
+                MM_Matrix_Mult(&reflection[i].mtx, MTXMODE_APPLY);
 
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
                 gDPSetRenderMode(POLY_XLU_DISP++, G_RM_FOG_SHADE_A, G_RM_AA_ZB_XLU_DECAL2);
@@ -654,7 +654,7 @@ void MirRay_Draw(Actor* thisx, PlayState* play) {
 
 // Computes if the Point (pointx, pointy, pointz) lies within the right conical frustum with one end centred at vecA
 // with radius radiusA, the other at vecB with radius radiusB
-s32 MirRay_CheckInFrustum(Vec3f* vecA, Vec3f* vecB, f32 pointx, f32 pointy, f32 pointz, s16 radiusA, s16 radiusB) {
+s32 MM_MirRay_CheckInFrustum(Vec3f* vecA, Vec3f* vecB, f32 pointx, f32 pointy, f32 pointz, s16 radiusA, s16 radiusB) {
     f32 coneRadius;
     f32 closestPtx;
     f32 closestPty;
@@ -693,13 +693,13 @@ s32 MirRay_CheckInFrustum(Vec3f* vecA, Vec3f* vecB, f32 pointx, f32 pointy, f32 
         if (1) {}
 
         // Stores the vector difference again
-        Math_Vec3f_Diff(vecB, vecA, &sp5C);
+        MM_Math_Vec3f_Diff(vecB, vecA, &sp5C);
 
         sp50.x = pointx - vecA->x;
         sp50.y = pointy - vecA->y;
         sp50.z = pointz - vecA->z;
 
-        if (Math3D_Cos(&sp5C, &sp50) < 0.0f) {
+        if (MM_Math3D_Cos(&sp5C, &sp50) < 0.0f) {
             return false;
         }
 
@@ -707,7 +707,7 @@ s32 MirRay_CheckInFrustum(Vec3f* vecA, Vec3f* vecB, f32 pointx, f32 pointy, f32 
         sp44.y = pointy - vecB->y;
         sp44.z = pointz - vecB->z;
 
-        if (Math3D_Cos(&sp5C, &sp44) > 0.0f) {
+        if (MM_Math3D_Cos(&sp5C, &sp44) > 0.0f) {
             return false;
         }
         return true;

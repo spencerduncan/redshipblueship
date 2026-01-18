@@ -39,7 +39,7 @@ ActorProfile En_Guruguru_Profile = {
 static u16 textIDs[] = { 0x292A, 0x292B, 0x292C, 0x292D, 0x292E, 0x292F, 0x2930, 0x2931,
                          0x2932, 0x2933, 0x2934, 0x2935, 0x2936, 0x294D, 0x294E };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -65,12 +65,12 @@ typedef enum {
     /* 2 */ GURU_GURU_ANIM_MAX
 } GuruGuruAnimation;
 
-static AnimationHeader* sAnimations[GURU_GURU_ANIM_MAX] = {
+static AnimationHeader* MM_sAnimations[GURU_GURU_ANIM_MAX] = {
     &gGuruGuruPlayStillAnim,       // GURU_GURU_ANIM_PLAY_STILL
     &gGuruGuruPlayAndMoveHeadAnim, // GURU_GURU_ANIM_PLAY_MOVE_HEAD
 };
 
-static u8 sAnimationModes[GURU_GURU_ANIM_MAX] = {
+static u8 MM_sAnimationModes[GURU_GURU_ANIM_MAX] = {
     ANIMMODE_LOOP, // GURU_GURU_ANIM_PLAY_STILL
     ANIMMODE_LOOP, // GURU_GURU_ANIM_PLAY_MOVE_HEAD
 };
@@ -80,19 +80,19 @@ static f32 sPlaySpeeds[GURU_GURU_ANIM_MAX] = {
     1.0f, // GURU_GURU_ANIM_PLAY_MOVE_HEAD
 };
 
-static TexturePtr sEyeTextures[] = { gGuruGuruEyeClosedTex, gGuruGuruEyeAngryTex };
-static TexturePtr sMouthTextures[] = { gGuruGuruMouthOpenTex, gGuruGuruMouthAngryTex };
+static TexturePtr MM_sEyeTextures[] = { gGuruGuruEyeClosedTex, gGuruGuruEyeAngryTex };
+static TexturePtr MM_sMouthTextures[] = { gGuruGuruMouthOpenTex, gGuruGuruMouthAngryTex };
 
 void EnGuruguru_Init(Actor* thisx, PlayState* play) {
     EnGuruguru* this = (EnGuruguru*)thisx;
 
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 19.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gGuruGuruSkel, &gGuruGuruPlayStillAnim, this->jointTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 19.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gGuruGuruSkel, &gGuruGuruPlayStillAnim, this->jointTable,
                        this->morphTable, GURU_GURU_LIMB_MAX);
     this->actor.attentionRangeType = ATTENTION_RANGE_0;
     if (this->actor.params != 2) {
-        Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+        Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
     }
     if (!gSaveContext.save.isNight) {
         if (this->actor.params == 0) {
@@ -103,12 +103,12 @@ void EnGuruguru_Init(Actor* thisx, PlayState* play) {
             this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
             this->actionFunc = EnGuruguru_DoNothing;
         } else {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
     } else if (this->actor.params == 1) {
         func_80BC6E10(this);
     } else {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -116,14 +116,14 @@ void EnGuruguru_Destroy(Actor* thisx, PlayState* play) {
     EnGuruguru* this = (EnGuruguru*)thisx;
 
     if (this->actor.params != 2) {
-        Collider_DestroyCylinder(play, &this->collider);
+        MM_Collider_DestroyCylinder(play, &this->collider);
     }
 }
 
 void EnGuruguru_ChangeAnim(EnGuruguru* this, s32 animIndex) {
-    this->animEndFrame = Animation_GetLastFrame(sAnimations[animIndex]);
-    Animation_Change(&this->skelAnime, sAnimations[animIndex], sPlaySpeeds[animIndex], 0.0f, this->animEndFrame,
-                     sAnimationModes[animIndex], -4.0f);
+    this->animEndFrame = MM_Animation_GetLastFrame(MM_sAnimations[animIndex]);
+    MM_Animation_Change(&this->skelAnime, MM_sAnimations[animIndex], sPlaySpeeds[animIndex], 0.0f, this->animEndFrame,
+                     MM_sAnimationModes[animIndex], -4.0f);
 }
 
 void EnGuruguru_DoNothing(EnGuruguru* this, PlayState* play) {
@@ -161,7 +161,7 @@ void func_80BC6F14(EnGuruguru* this, PlayState* play) {
     s16 yaw;
     s16 yawTemp;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     if (this->unk270 != 0) {
         Player* player = GET_PLAYER(play);
 
@@ -203,10 +203,10 @@ void func_80BC7068(EnGuruguru* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
     if (this->unk268 != 0) {
-        SkelAnime_Update(&this->skelAnime);
+        MM_SkelAnime_Update(&this->skelAnime);
     } else if (this->unusedTimer == 0) {
         this->unusedTimer = 6;
-        if (Message_GetState(&play->msgCtx) != TEXT_STATE_EVENT) {
+        if (MM_Message_GetState(&play->msgCtx) != TEXT_STATE_EVENT) {
             if (this->unk266 == 0) {
                 if (this->headZRotTarget != 0) {
                     this->headZRotTarget = 0;
@@ -222,8 +222,8 @@ void func_80BC7068(EnGuruguru* this, PlayState* play) {
             }
         }
     }
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
-        Message_CloseTextbox(play);
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
+        MM_Message_CloseTextbox(play);
         this->headZRotTarget = 0;
         if ((this->textIdIndex == 13) || (this->textIdIndex == 14)) {
             Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_GURU_GURU);
@@ -286,7 +286,7 @@ void func_80BC7068(EnGuruguru* this, PlayState* play) {
                 this->skelAnime.playSpeed = 1.0f;
             }
             this->unk266 = 1;
-            Message_ContinueTextbox(play, textIDs[this->textIdIndex]);
+            MM_Message_ContinueTextbox(play, textIDs[this->textIdIndex]);
             return;
         }
         Audio_MuteSeqPlayerBgmSub(false);
@@ -304,8 +304,8 @@ void func_80BC73F4(EnGuruguru* this) {
 }
 
 void func_80BC7440(EnGuruguru* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    if (Actor_HasParent(&this->actor, play)) {
+    MM_SkelAnime_Update(&this->skelAnime);
+    if (MM_Actor_HasParent(&this->actor, play)) {
         this->actor.parent = NULL;
         this->textIdIndex++;
         this->actor.textId = textIDs[this->textIdIndex];
@@ -315,12 +315,12 @@ void func_80BC7440(EnGuruguru* this, PlayState* play) {
         SET_WEEKEVENTREG(WEEKEVENTREG_38_40);
         this->actionFunc = func_80BC7520;
     } else {
-        Actor_OfferGetItem(&this->actor, play, GI_MASK_BREMEN, 300.0f, 300.0f);
+        MM_Actor_OfferGetItem(&this->actor, play, GI_MASK_BREMEN, 300.0f, 300.0f);
     }
 }
 
 void func_80BC7520(EnGuruguru* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         this->actionFunc = func_80BC7068;
     } else {
@@ -336,11 +336,11 @@ void EnGuruguru_Update(Actor* thisx, PlayState* play) {
 
     if (!gSaveContext.save.isNight) {
         if (this->actor.params == 1) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
             return;
         }
     } else if ((this->actor.params == 0) || (this->actor.params == 2)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -373,16 +373,16 @@ void EnGuruguru_Update(Actor* thisx, PlayState* play) {
             this->headXRotTarget = -0x1388;
         }
     }
-    Actor_SetScale(&this->actor, 0.01f);
-    Actor_SetFocus(&this->actor, 50.0f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetFocus(&this->actor, 50.0f);
     Actor_MoveWithGravity(&this->actor);
-    Math_SmoothStepToS(&this->headXRot, this->headXRotTarget, 1, 0xBB8, 0);
-    Math_SmoothStepToS(&this->headZRot, this->headZRotTarget, 1, 0x3E8, 0);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 50.0f,
+    MM_Math_SmoothStepToS(&this->headXRot, this->headXRotTarget, 1, 0xBB8, 0);
+    MM_Math_SmoothStepToS(&this->headZRot, this->headZRotTarget, 1, 0x3E8, 0);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 50.0f,
                             UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4 | UPDBGCHECKINFO_FLAG_8 |
                                 UPDBGCHECKINFO_FLAG_10);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 s32 EnGuruguru_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx) {
@@ -403,9 +403,9 @@ void EnGuruguru_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_K0(sEyeTextures[this->texIndex]));
-    gSPSegment(POLY_OPA_DISP++, 0x09, SEGMENTED_TO_K0(sMouthTextures[this->texIndex]));
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_K0(MM_sEyeTextures[this->texIndex]));
+    gSPSegment(POLY_OPA_DISP++, 0x09, SEGMENTED_TO_K0(MM_sMouthTextures[this->texIndex]));
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnGuruguru_OverrideLimbDraw, NULL, &this->actor);
 
     CLOSE_DISPS(play->state.gfxCtx);

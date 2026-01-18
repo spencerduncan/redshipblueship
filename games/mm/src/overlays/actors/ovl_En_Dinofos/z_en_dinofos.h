@@ -80,7 +80,7 @@ typedef struct EnDinofos {
         s16 walkTimer;
         s16 idleTimer;
     };
-    // unk_294 is all zeroes in-game. Leftovers from OoT.
+    // unk_294 is all MM_zeroes in-game. Leftovers from OoT.
     /* 0x294 */ UNK_TYPE1 unk_294[4];
     /* 0x298 */ s16 subCamId;
     /* 0x29A */ Vec3s subCamRot;

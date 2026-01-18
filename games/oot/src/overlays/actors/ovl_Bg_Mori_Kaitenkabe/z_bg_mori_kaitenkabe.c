@@ -34,7 +34,7 @@ const ActorInit Bg_Mori_Kaitenkabe_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(uncullZoneForward, 1000, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 1000, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneDownward, 1000, ICHAIN_CONTINUE),
@@ -54,13 +54,13 @@ void BgMoriKaitenkabe_Init(Actor* thisx, PlayState* play) {
 
     // "Forest Temple object 【Rotating Wall (arg_data: 0x% 04x)】 appears"
     osSyncPrintf("◯◯◯森の神殿オブジェクト【回転壁(arg_data : 0x%04x)】出現 \n", this->dyna.actor.params);
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DPM_UNK);
-    CollisionHeader_GetVirtual(&gMoriKaitenkabeCol, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
+    OoT_CollisionHeader_GetVirtual(&gMoriKaitenkabeCol, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
     this->moriTexObjIndex = Object_GetIndex(&play->objectCtx, OBJECT_MORI_TEX);
     if (this->moriTexObjIndex < 0) {
-        Actor_Kill(&this->dyna.actor);
+        OoT_Actor_Kill(&this->dyna.actor);
         // "【Rotating wall】 Bank danger!"
         osSyncPrintf("【回転壁】 バンク危険！(%s %d)\n", __FILE__, __LINE__);
     } else {
@@ -72,11 +72,11 @@ void BgMoriKaitenkabe_Destroy(Actor* thisx, PlayState* play) {
     s32 pad;
     BgMoriKaitenkabe* this = (BgMoriKaitenkabe*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void BgMoriKaitenkabe_WaitForMoriTex(BgMoriKaitenkabe* this, PlayState* play) {
-    if (Object_IsLoaded(&play->objectCtx, this->moriTexObjIndex)) {
+    if (OoT_Object_IsLoaded(&play->objectCtx, this->moriTexObjIndex)) {
         BgMoriKaitenkabe_SetupWait(this);
         this->dyna.actor.draw = BgMoriKaitenkabe_Draw;
     }
@@ -96,15 +96,15 @@ void BgMoriKaitenkabe_Wait(BgMoriKaitenkabe* this, PlayState* play) {
     if (this->dyna.unk_150 > 0.001f) {
         this->timer++;
         if ((this->timer > (28 - CVarGetInteger(CVAR_ENHANCEMENT("FasterBlockPush"), 0) * 4)) &&
-            !Player_InCsMode(play)) {
+            !OoT_Player_InCsMode(play)) {
             BgMoriKaitenkabe_SetupRotate(this);
             if (GameInteractor_Should(VB_FREEZE_LINK_FOR_FOREST_PILLARS, true)) {
-                Player_SetCsActionWithHaltedActors(play, &this->dyna.actor, 8);
+                OoT_Player_SetCsActionWithHaltedActors(play, &this->dyna.actor, 8);
             }
-            Math_Vec3f_Copy(&this->lockedPlayerPos, &player->actor.world.pos);
-            push.x = Math_SinS(this->dyna.unk_158);
+            OoT_Math_Vec3f_Copy(&this->lockedPlayerPos, &player->actor.world.pos);
+            push.x = OoT_Math_SinS(this->dyna.unk_158);
             push.y = 0.0f;
-            push.z = Math_CosS(this->dyna.unk_158);
+            push.z = OoT_Math_CosS(this->dyna.unk_158);
             leverArm.x = this->dyna.actor.world.pos.x - player->actor.world.pos.x;
             leverArm.y = 0.0f;
             leverArm.z = this->dyna.actor.world.pos.z - player->actor.world.pos.z;
@@ -131,11 +131,11 @@ void BgMoriKaitenkabe_Rotate(BgMoriKaitenkabe* this, PlayState* play) {
     Actor* thisx = &this->dyna.actor;
     s16 rotY;
 
-    Math_StepToF(&this->rotSpeed, 0.6f, 0.02f);
-    if (Math_StepToF(&this->rotYdeg, this->rotDirection * 45.0f, this->rotSpeed)) {
+    OoT_Math_StepToF(&this->rotSpeed, 0.6f, 0.02f);
+    if (OoT_Math_StepToF(&this->rotYdeg, this->rotDirection * 45.0f, this->rotSpeed)) {
         BgMoriKaitenkabe_SetupWait(this);
         if (GameInteractor_Should(VB_FREEZE_LINK_FOR_FOREST_PILLARS, true)) {
-            Player_SetCsActionWithHaltedActors(play, thisx, 7);
+            OoT_Player_SetCsActionWithHaltedActors(play, thisx, 7);
         }
         if (this->rotDirection > 0.0f) {
             thisx->home.rot.y += 0x2000;
@@ -154,7 +154,7 @@ void BgMoriKaitenkabe_Rotate(BgMoriKaitenkabe* this, PlayState* play) {
         player->stateFlags2 &= ~PLAYER_STATE2_MOVING_DYNAPOLY;
     }
     if (GameInteractor_Should(VB_FREEZE_LINK_FOR_FOREST_PILLARS, true)) {
-        Math_Vec3f_Copy(&player->actor.world.pos, &this->lockedPlayerPos);
+        OoT_Math_Vec3f_Copy(&player->actor.world.pos, &this->lockedPlayerPos);
     }
 }
 

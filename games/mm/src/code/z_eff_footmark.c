@@ -56,7 +56,7 @@ void EffFootmark_Add(PlayState* play, MtxF* mf, Actor* actor, u8 id, Vec3f* pos,
         if (destination == NULL) {
             destination = oldest;
         }
-        Matrix_MtxFCopy(&destination->mf, mf);
+        MM_Matrix_MtxFCopy(&destination->mf, mf);
         destination->actor = actor;
         destination->pos.x = pos->x;
         destination->pos.y = pos->y;
@@ -115,8 +115,8 @@ void EffFootmark_Draw(PlayState* play) {
         if (footmark->actor != NULL) {
             FrameInterpolation_RecordOpenChild(footmark, i);
 
-            Matrix_Put(&footmark->mf);
-            Matrix_Scale(footmark->size * (1.0f / 0x100) * 0.7f, 1, footmark->size * (1.0f / 0x100), MTXMODE_APPLY);
+            MM_Matrix_Put(&footmark->mf);
+            MM_Matrix_Scale(footmark->size * (1.0f / 0x100) * 0.7f, 1, footmark->size * (1.0f / 0x100), MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 

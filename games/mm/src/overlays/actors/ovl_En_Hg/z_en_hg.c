@@ -47,7 +47,7 @@ ActorProfile En_Hg_Profile = {
     /**/ EnHg_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HIT0,
         AT_NONE,
@@ -67,7 +67,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 18, 46, 0, { 0, 0, 0 } },
 };
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(0, 0x1),
     /* Deku Stick     */ DMG_ENTRY(1, 0xD),
     /* Horse trample  */ DMG_ENTRY(0, 0x0),
@@ -102,7 +102,7 @@ static DamageTable sDamageTable = {
     /* Powder Keg     */ DMG_ENTRY(1, 0xF),
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit2 = {
+static CollisionCheckInfoInit2 MM_sColChkInfoInit2 = {
     0, 0, 0, 0, 0x80,
 };
 
@@ -118,7 +118,7 @@ typedef enum {
     /* 8 */ HG_ANIM_MAX
 } HgAnimation;
 
-static AnimationInfo sAnimationInfo[HG_ANIM_MAX] = {
+static AnimationInfo MM_sAnimationInfo[HG_ANIM_MAX] = {
     { &gPamelasFatherIdleAnim, 1.0f, 0.0f, 0.0f, ANIMMODE_LOOP, -4.0f },          // HG_ANIM_IDLE
     { &gPamelasFatherLurchForwardAnim, 1.0f, 0.0f, 0.0f, ANIMMODE_LOOP, -4.0f },  // HG_ANIM_LURCH_FORWARD
     { &gPamelasFatherRecoilFromHitAnim, 1.0f, 0.0f, 0.0f, ANIMMODE_LOOP, -4.0f }, // HG_ANIM_RECOIL
@@ -136,14 +136,14 @@ void EnHg_Init(Actor* thisx, PlayState* play) {
     s16 csId = this->actor.csId;
     s32 i;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, NULL, 36.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gPamelasFatherGibdoSkel, &gPamelasFatherIdleAnim, this->jointTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, NULL, 36.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gPamelasFatherGibdoSkel, &gPamelasFatherIdleAnim, this->jointTable,
                        this->morphTable, PAMELAS_FATHER_GIBDO_LIMB_MAX);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, &sDamageTable, &sColChkInfoInit2);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, &MM_sDamageTable, &MM_sColChkInfoInit2);
     if (CHECK_WEEKEVENTREG(WEEKEVENTREG_75_20) || CHECK_WEEKEVENTREG(WEEKEVENTREG_CLEARED_STONE_TOWER_TEMPLE)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
     this->actor.attentionRangeType = ATTENTION_RANGE_1;
     this->actor.colChkInfo.health = 0;
@@ -161,11 +161,11 @@ void EnHg_Init(Actor* thisx, PlayState* play) {
 void EnHg_Destroy(Actor* thisx, PlayState* play) {
     EnHg* this = (EnHg*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnHg_SetupWait(EnHg* this) {
-    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, HG_ANIM_IDLE);
+    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, HG_ANIM_IDLE);
     this->actionFunc = EnHg_Wait;
 }
 
@@ -183,7 +183,7 @@ void EnHg_Wait(EnHg* this, PlayState* play) {
 }
 
 void EnHg_SetupChasePlayer(EnHg* this) {
-    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, HG_ANIM_LURCH_FORWARD);
+    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, HG_ANIM_LURCH_FORWARD);
     this->actionFunc = EnHg_ChasePlayer;
 }
 
@@ -192,48 +192,48 @@ void EnHg_ChasePlayer(EnHg* this, PlayState* play) {
     s32 pad;
 
     this->actor.speed = 1.6f;
-    if (!(player->stateFlags2 & PLAYER_STATE2_USING_OCARINA) && (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
+    if (!(player->stateFlags2 & PLAYER_STATE2_USING_OCARINA) && (MM_Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
         if (((this->skelAnime.curFrame > 9.0f) && (this->skelAnime.curFrame < 16.0f)) ||
             ((this->skelAnime.curFrame > 44.0f) && (this->skelAnime.curFrame < 51.0f))) {
             Actor_MoveWithGravity(&this->actor);
-            Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x3E8, 0x14);
+            MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x3E8, 0x14);
             this->actor.world.rot.y = this->actor.shape.rot.y;
         }
-        if ((Math_Vec3f_DistXZ(&this->actor.world.pos, &this->actor.home.pos) > 200.0f) &&
-            (Math_Vec3f_DistXZ(&player->actor.world.pos, &this->actor.home.pos) > 200.0f)) {
+        if ((MM_Math_Vec3f_DistXZ(&this->actor.world.pos, &this->actor.home.pos) > 200.0f) &&
+            (MM_Math_Vec3f_DistXZ(&player->actor.world.pos, &this->actor.home.pos) > 200.0f)) {
             EnHg_SetupChasePlayerWait(this);
         }
     }
 }
 
 void EnHg_SetupChasePlayerWait(EnHg* this) {
-    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, HG_ANIM_IDLE);
+    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, HG_ANIM_IDLE);
     this->actionFunc = EnHg_ChasePlayerWait;
 }
 
 void EnHg_ChasePlayerWait(EnHg* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    if (Math_Vec3f_DistXZ(&player->actor.world.pos, &this->actor.home.pos) < 200.0f) {
+    if (MM_Math_Vec3f_DistXZ(&player->actor.world.pos, &this->actor.home.pos) < 200.0f) {
         EnHg_SetupChasePlayer(this);
     }
 }
 
 void EnHg_SetupReactToHit(EnHg* this) {
-    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, HG_ANIM_RECOIL);
+    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, HG_ANIM_RECOIL);
     this->actionFunc = EnHg_ReactToHit;
 }
 
 void EnHg_ReactToHit(EnHg* this, PlayState* play) {
-    if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         EnHg_SetupChasePlayerWait(this);
     }
 }
 
 void EnHg_HandleTatlDialog(EnHg* this, PlayState* play) {
-    if (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE) {
+    if (MM_Message_GetState(&play->msgCtx) == TEXT_STATE_NONE) {
         if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
-            Message_StartTextbox(play, 0x24F, &this->actor);
+            MM_Message_StartTextbox(play, 0x24F, &this->actor);
         } else {
             Actor_OfferTalk(&this->actor, play, 80.0f);
         }
@@ -255,11 +255,11 @@ void EnHg_UpdateCollision(EnHg* this, PlayState* play) {
             this->collider.base.acFlags &= ~AC_HIT;
             EnHg_SetupReactToHit(this);
         }
-        Collider_UpdateCylinder(&this->actor, &this->collider);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
         if ((this->actionFunc != EnHg_ReactToHit) && (this->actionFunc != EnHg_PlayCutscene) &&
             (this->actionFunc != EnHg_HandleCutscene)) {
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+            MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
         }
     }
 }
@@ -295,19 +295,19 @@ void EnHg_HandleCutscene(EnHg* this, PlayState* play) {
             switch (play->csCtx.actorCues[cueChannel]->id) {
                 case 1:
                     this->animIndex = HG_ANIM_IDLE;
-                    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, HG_ANIM_IDLE);
+                    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, HG_ANIM_IDLE);
                     break;
 
                 case 2:
                     this->csIdList[2] = 0;
                     this->animIndex = HG_ANIM_LEAN_FORWARD;
-                    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, HG_ANIM_LEAN_FORWARD);
+                    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, HG_ANIM_LEAN_FORWARD);
                     break;
 
                 case 3:
                     this->csIdList[2] = 0;
                     this->animIndex = HG_ANIM_CURL_UP;
-                    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, HG_ANIM_CURL_UP);
+                    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, HG_ANIM_CURL_UP);
                     break;
 
                 case 4:
@@ -316,32 +316,32 @@ void EnHg_HandleCutscene(EnHg* this, PlayState* play) {
                     if ((this->csIdIndex == HG_CS_GET_MASK) || (this->csIdIndex == HG_CS_SONG_OF_HEALING)) {
                         Audio_PlaySfx_2(NA_SE_EN_HALF_REDEAD_TRANS);
                     }
-                    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, HG_ANIM_PANIC);
+                    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, HG_ANIM_PANIC);
                     break;
 
                 case 5:
                     this->animIndex = HG_ANIM_LURCH_FORWARD;
-                    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, HG_ANIM_LURCH_FORWARD);
+                    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, HG_ANIM_LURCH_FORWARD);
                     break;
 
                 case 6:
                     SET_WEEKEVENTREG(WEEKEVENTREG_75_20);
-                    Actor_Kill(&this->actor);
+                    MM_Actor_Kill(&this->actor);
                     break;
 
                 default:
                     break;
             }
-        } else if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+        } else if (MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
             switch (this->animIndex) {
                 case HG_ANIM_LEAN_FORWARD:
                     this->animIndex = HG_ANIM_REACH_FORWARD;
-                    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, HG_ANIM_REACH_FORWARD);
+                    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, HG_ANIM_REACH_FORWARD);
                     break;
 
                 case HG_ANIM_CURL_UP:
                     this->animIndex = HG_ANIM_CROUCHED_PANIC;
-                    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, HG_ANIM_CROUCHED_PANIC);
+                    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, HG_ANIM_CROUCHED_PANIC);
                     break;
 
                 default:
@@ -431,10 +431,10 @@ void EnHg_Update(Actor* thisx, PlayState* play) {
     EnHg* this = (EnHg*)thisx;
 
     this->actionFunc(this, play);
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     EnHg_UpdateCollision(this, play);
     EnHg_WaitForPlayerAction(this, play);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 25.0f, 0.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 25.0f, 0.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
     EnHg_PlayRedeadSfx(this, play);
 }
 
@@ -445,7 +445,7 @@ s32 EnHg_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* po
 void EnHg_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* thisx) {
     EnHg* this = (EnHg*)thisx;
     if (limbIndex == PAMELAS_FATHER_GIBDO_LIMB_EYEBROWS) {
-        Matrix_Get(&this->mf);
+        MM_Matrix_Get(&this->mf);
     } else if (limbIndex == PAMELAS_FATHER_GIBDO_LIMB_HEAD) {
         Matrix_MultZero(&this->actor.focus.pos);
     }
@@ -457,9 +457,9 @@ void EnHg_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnHg_OverrideLimbDraw, EnHg_PostLimbDraw, &this->actor);
-    Matrix_Put(&this->mf);
+    MM_Matrix_Put(&this->mf);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     gSPDisplayList(POLY_OPA_DISP++, gPamelasFatherGibdoEyebrowsDL);
 

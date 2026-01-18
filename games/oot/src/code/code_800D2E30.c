@@ -14,7 +14,7 @@ void func_800D2E30(UnkRumbleStruct* arg0) {
     if (arg0->unk_105 == 0) {
         if (D_8012DBB0 != 0) {
             for (i = 0; i < 4; i++) {
-                gPadMgr.pakType[i] = 0;
+                OoT_gPadMgr.pakType[i] = 0;
             }
         }
         D_8012DBB0 = arg0->unk_105;
@@ -25,7 +25,7 @@ void func_800D2E30(UnkRumbleStruct* arg0) {
 
     if (arg0->unk_104 == 2) {
         for (i = 0; i < 4; ++i) {
-            gPadMgr.pakType[i] = 0;
+            OoT_gPadMgr.pakType[i] = 0;
         }
 
         for (i = 0; i < 0x40; i++) {

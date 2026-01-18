@@ -306,26 +306,26 @@ typedef enum PromptQuad {
 } PromptQuad;
 
 // NES
-void KaleidoScope_MoveCursorToSpecialPos(PlayState* play, s16 cursorSpecialPos);
+void MM_KaleidoScope_MoveCursorToSpecialPos(PlayState* play, s16 cursorSpecialPos);
 void KaleidoScope_DrawTexQuadRGBA32(GraphicsContext* gfxCtx, TexturePtr texture, u16 width, u16 height, u16 point);
-void KaleidoScope_SetView(PauseContext* pauseCtx, f32 eyeX, f32 eyeY, f32 eyeZ);
+void MM_KaleidoScope_SetView(PauseContext* pauseCtx, f32 eyeX, f32 eyeY, f32 eyeZ);
 void KaleidoScope_MoveCursorFromSpecialPos(PlayState* play);
 
 // Map
-void KaleidoScope_DrawDungeonMap(PlayState* play);
+void MM_KaleidoScope_DrawDungeonMap(PlayState* play);
 void KaleidoScope_UpdateDungeonCursor(PlayState* play);
-void KaleidoScope_DrawWorldMap(PlayState* play);
+void MM_KaleidoScope_DrawWorldMap(PlayState* play);
 void KaleidoScope_UpdateWorldMapCursor(PlayState* play);
 
 // Collect
-void KaleidoScope_DrawQuestStatus(PlayState* play);
+void MM_KaleidoScope_DrawQuestStatus(PlayState* play);
 void KaleidoScope_UpdateQuestCursor(PlayState* play);
 
 // Item
 void KaleidoScope_SetCursorVtxPos(PauseContext* pauseCtx, u16 vtxIndex, Vtx* vtx);
-void KaleidoScope_DrawItemSelect(PlayState* play);
+void MM_KaleidoScope_DrawItemSelect(PlayState* play);
 void KaleidoScope_UpdateItemCursor(PlayState* play);
-void KaleidoScope_UpdateItemEquip(PlayState* play);
+void MM_KaleidoScope_UpdateItemEquip(PlayState* play);
 
 // Mask
 void KaleidoScope_DrawMaskSelect(PlayState* play);
@@ -333,7 +333,7 @@ void KaleidoScope_UpdateMaskCursor(PlayState* play);
 void KaleidoScope_UpdateMaskEquip(PlayState* play);
 
 // Prompt
-void KaleidoScope_UpdatePrompt(PlayState* play);
+void MM_KaleidoScope_UpdatePrompt(PlayState* play);
 
 // Debug
 void KaleidoScope_DrawInventoryEditor(PlayState* play);

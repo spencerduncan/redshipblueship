@@ -12,11 +12,11 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED)
 
-void EnMag_Init(Actor* thisx, PlayState* play);
-void EnMag_Destroy(Actor* thisx, PlayState* play);
-void EnMag_Update(Actor* thisx, PlayState* play);
-void EnMag_Draw(Actor* thisx, PlayState* play);
-void EnMag_DrawInner(Actor* thisx, PlayState* play, Gfx** gfxp);
+void OoT_EnMag_Init(Actor* thisx, PlayState* play);
+void OoT_EnMag_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnMag_Update(Actor* thisx, PlayState* play);
+void OoT_EnMag_Draw(Actor* thisx, PlayState* play);
+void OoT_EnMag_DrawInner(Actor* thisx, PlayState* play, Gfx** gfxp);
 
 typedef void (*EnMagDrawInnerFunc)(struct Actor*, PlayState*, Gfx**);
 
@@ -28,10 +28,10 @@ const ActorInit En_Mag_InitVars = {
     FLAGS,
     OBJECT_MAG,
     sizeof(EnMag),
-    (ActorFunc)EnMag_Init,
-    (ActorFunc)EnMag_Destroy,
-    (ActorFunc)EnMag_Update,
-    (ActorFunc)EnMag_Draw,
+    (ActorFunc)OoT_EnMag_Init,
+    (ActorFunc)OoT_EnMag_Destroy,
+    (ActorFunc)OoT_EnMag_Update,
+    (ActorFunc)OoT_EnMag_Draw,
     NULL,
 };
 
@@ -59,7 +59,7 @@ FontType sFontType;
 
 static s16 sDelayTimer = 0;
 
-void EnMag_Init(Actor* thisx, PlayState* play) {
+void OoT_EnMag_Init(Actor* thisx, PlayState* play) {
     EnMag* this = (EnMag*)thisx;
     bool isMQ = ResourceMgr_IsGameMasterQuest();
 
@@ -132,7 +132,7 @@ void EnMag_Init(Actor* thisx, PlayState* play) {
 
     // Default to PAL if it exists
     if (ResourceMgr_IsPalLoaded()) {
-        Font_LoadOrderedFont(&this->font);
+        OoT_Font_LoadOrderedFont(&this->font);
         sFontType = FONT_TYPE_PAL;
     } else {
         Font_LoadOrderedFontNTSC(&this->font);
@@ -145,10 +145,10 @@ void EnMag_Init(Actor* thisx, PlayState* play) {
     this->unk_E320 = 0;
 }
 
-void EnMag_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnMag_Destroy(Actor* thisx, PlayState* play) {
 }
 
-void EnMag_Update(Actor* thisx, PlayState* play) {
+void OoT_EnMag_Update(Actor* thisx, PlayState* play) {
     s32 pad[2];
     EnMag* this = (EnMag*)thisx;
     bool isMQ = ResourceMgr_IsGameMasterQuest();
@@ -159,8 +159,8 @@ void EnMag_Update(Actor* thisx, PlayState* play) {
                 CHECK_BTN_ALL(play->state.input[0].press.button, BTN_A) ||
                 CHECK_BTN_ALL(play->state.input[0].press.button, BTN_B)) {
 
-                Audio_PlaySoundGeneral(NA_SE_SY_PIECE_OF_HEART, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_SY_PIECE_OF_HEART, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
 
                 this->mainAlpha = 210;
                 this->subAlpha = 255;
@@ -196,10 +196,10 @@ void EnMag_Update(Actor* thisx, PlayState* play) {
                     CHECK_BTN_ALL(play->state.input[0].press.button, BTN_B)) {
 
                     if (play->transitionTrigger != TRANS_TRIGGER_START) {
-                        Audio_SetCutsceneFlag(0);
+                        OoT_Audio_SetCutsceneFlag(0);
 
-                        Audio_PlaySoundGeneral(NA_SE_SY_PIECE_OF_HEART, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                        Audio_PlaySoundGeneral(NA_SE_SY_PIECE_OF_HEART, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
 
                         gSaveContext.gameMode = GAMEMODE_FILE_SELECT;
                         play->transitionTrigger = TRANS_TRIGGER_START;
@@ -328,7 +328,7 @@ void EnMag_Update(Actor* thisx, PlayState* play) {
     }
 }
 
-void EnMag_DrawTextureI8(Gfx** gfxP, void* texture, s16 texWidth, s16 texHeight, s16 rectLeft, s16 rectTop,
+void OoT_EnMag_DrawTextureI8(Gfx** gfxP, void* texture, s16 texWidth, s16 texHeight, s16 rectLeft, s16 rectTop,
                          s16 rectWidth, s16 rectHeight, u16 dsdx, u16 dtdy) {
     Gfx* gfx = *gfxP;
 
@@ -341,7 +341,7 @@ void EnMag_DrawTextureI8(Gfx** gfxP, void* texture, s16 texWidth, s16 texHeight,
     *gfxP = gfx;
 }
 
-void EnMag_DrawEffectTextures(Gfx** gfxP, void* maskTex, void* effectTex, s16 maskWidth, s16 maskHeight,
+void OoT_EnMag_DrawEffectTextures(Gfx** gfxP, void* maskTex, void* effectTex, s16 maskWidth, s16 maskHeight,
                               s16 effectWidth, s16 effectHeight, s16 rectLeft, s16 rectTop, s16 rectWidth,
                               s16 rectHeight, u16 dsdx, u16 dtdy, u16 shifts, u16 shiftt, u16 flag, EnMag* this) {
     Gfx* gfx = *gfxP;
@@ -363,7 +363,7 @@ void EnMag_DrawEffectTextures(Gfx** gfxP, void* maskTex, void* effectTex, s16 ma
     *gfxP = gfx;
 }
 
-void EnMag_DrawImageRGBA32(Gfx** gfxp, s16 centerX, s16 centerY, const char* source, u32 width, u32 height) {
+void OoT_EnMag_DrawImageRGBA32(Gfx** gfxp, s16 centerX, s16 centerY, const char* source, u32 width, u32 height) {
     Gfx* gfx = *gfxp;
     u8* curTexture;
     s32 textureCount;
@@ -394,7 +394,7 @@ void EnMag_DrawImageRGBA32(Gfx** gfxp, s16 centerX, s16 centerY, const char* sou
     *gfxp = gfx;
 }
 
-void EnMag_DrawCharTexture(Gfx** gfxP, u8* texture, s32 rectLeft, s32 rectTop) {
+void OoT_EnMag_DrawCharTexture(Gfx** gfxP, u8* texture, s32 rectLeft, s32 rectTop) {
     Gfx* gfx = *gfxP;
 
     YREG(0) = 1024.0f / (YREG(1) / 100.0f);
@@ -427,12 +427,12 @@ bool EnMag_ShouldDrawNoController(Font* font, Gfx** gfxP, bool isActualText) {
     }
 
     if (sFontType != FONT_TYPE_PAL) {
-        Font_LoadOrderedFont(font);
+        OoT_Font_LoadOrderedFont(font);
         sFontType = FONT_TYPE_PAL;
     }
 
     for (i = 0; i < length; i++) {
-        EnMag_DrawCharTexture(&gfx, font->fontBuf + (noControllerMsg[language][i] - '\x37') * FONT_CHAR_TEX_SIZE,
+        OoT_EnMag_DrawCharTexture(&gfx, font->fontBuf + (noControllerMsg[language][i] - '\x37') * FONT_CHAR_TEX_SIZE,
                               rectLeft, rectTop);
         if (noControllerMsg[language][i] == ' ') {
             rectLeft += VREG(23);
@@ -462,12 +462,12 @@ bool EnMag_ShouldDrawPressStart(Font* font, Gfx** gfxP, bool isActualText) {
     }
 
     if (sFontType != FONT_TYPE_PAL) {
-        Font_LoadOrderedFont(font);
+        OoT_Font_LoadOrderedFont(font);
         sFontType = FONT_TYPE_PAL;
     }
 
     for (i = 0; i < length; i++) {
-        EnMag_DrawCharTexture(&gfx, font->fontBuf + (pressStartMsg[language][i] - '\x37') * FONT_CHAR_TEX_SIZE,
+        OoT_EnMag_DrawCharTexture(&gfx, font->fontBuf + (pressStartMsg[language][i] - '\x37') * FONT_CHAR_TEX_SIZE,
                               rectLeft, rectTop);
         if (pressStartMsg[language][i] == ' ') {
             rectLeft += YREG(9);
@@ -498,7 +498,7 @@ bool EnMag_ShouldDrawPressStart(Font* font, Gfx** gfxP, bool isActualText) {
 #define COPYRIGHT_TEX_WIDTH (isGC ? 160 : 128)
 #define COPYRIGHT_TEX_LEFT (isGC ? 78 : 94)
 
-void EnMag_DrawInner(Actor* thisx, PlayState* play, Gfx** gfxP) {
+void OoT_EnMag_DrawInner(Actor* thisx, PlayState* play, Gfx** gfxP) {
     static s16 textAlpha = 0;
     static s16 textFadeDirection = 0;
     static s16 textFadeTimer = 0;
@@ -548,7 +548,7 @@ void EnMag_DrawInner(Actor* thisx, PlayState* play, Gfx** gfxP) {
     if ((s16)this->effectPrimLodFrac != 0) {
         for (k = 0, i = 0, rectTop = 0; i < 3; i++, rectTop += 64) {
             for (j = 0, rectLeft = 64 + LOGO_X_SHIFT; j < 3; j++, k++, rectLeft += 64) {
-                EnMag_DrawEffectTextures(&gfx, effectMaskTextures[k], gTitleFlameEffectTex, 64, 64, 32, 32, rectLeft,
+                OoT_EnMag_DrawEffectTextures(&gfx, effectMaskTextures[k], gTitleFlameEffectTex, 64, 64, 32, 32, rectLeft,
                                          rectTop, 64, 64, 1024, 1024, 1, 1, k, this);
             }
         }
@@ -557,7 +557,7 @@ void EnMag_DrawInner(Actor* thisx, PlayState* play, Gfx** gfxP) {
     gDPSetPrimColor(gfx++, 0, 0, 255, 255, 255, (s16)this->mainAlpha);
 
     if ((s16)this->mainAlpha != 0) {
-        EnMag_DrawImageRGBA32(&gfx, 160 + LOGO_X_SHIFT, 100, (u8*)LOGO_TEX, 160, 160);
+        OoT_EnMag_DrawImageRGBA32(&gfx, 160 + LOGO_X_SHIFT, 100, (u8*)LOGO_TEX, 160, 160);
     }
 
     Gfx_SetupDL_39Ptr(&gfx);
@@ -582,8 +582,8 @@ void EnMag_DrawInner(Actor* thisx, PlayState* play, Gfx** gfxP) {
     }
 
     if ((s16)this->mainAlpha != 0) {
-        EnMag_DrawTextureI8(&gfx, gTitleTheLegendOfTextTex, 72, 8, 154 + LOGO_X_SHIFT, 73, 72, 8, 1024, 1024);
-        EnMag_DrawTextureI8(&gfx, gTitleOcarinaOfTimeTMTextTex, 96, 8, 152 + LOGO_X_SHIFT, 127, 96, 8, 1024, 1024);
+        OoT_EnMag_DrawTextureI8(&gfx, gTitleTheLegendOfTextTex, 72, 8, 154 + LOGO_X_SHIFT, 73, 72, 8, 1024, 1024);
+        OoT_EnMag_DrawTextureI8(&gfx, gTitleOcarinaOfTimeTMTextTex, 96, 8, 152 + LOGO_X_SHIFT, 127, 96, 8, 1024, 1024);
 
         gDPPipeSync(gfx++);
 
@@ -595,17 +595,17 @@ void EnMag_DrawInner(Actor* thisx, PlayState* play, Gfx** gfxP) {
             gDPSetEnvColor(gfx++, 20, 80, 160, 255);
         }
 
-        EnMag_DrawTextureI8(&gfx, gTitleTheLegendOfTextTex, 72, 8, 153 + LOGO_X_SHIFT, 72, 72, 8, 1024, 1024);
-        EnMag_DrawTextureI8(&gfx, gTitleOcarinaOfTimeTMTextTex, 96, 8, 151 + LOGO_X_SHIFT, 126, 96, 8, 1024, 1024);
+        OoT_EnMag_DrawTextureI8(&gfx, gTitleTheLegendOfTextTex, 72, 8, 153 + LOGO_X_SHIFT, 72, 72, 8, 1024, 1024);
+        OoT_EnMag_DrawTextureI8(&gfx, gTitleOcarinaOfTimeTMTextTex, 96, 8, 151 + LOGO_X_SHIFT, 126, 96, 8, 1024, 1024);
 
         if (isMQ) {
             gDPPipeSync(gfx++);
             gDPSetPrimColor(gfx++, 0, 0, 255, 255, 255, (s16)this->subAlpha);
 
             if (gSaveContext.language == LANGUAGE_JPN || ResourceMgr_GetGameVersion(0) == OOT_NTSC_JP_MQ) {
-                EnMag_DrawImageRGBA32(&gfx, 235, 149, (u8*)gTitleUraLogoTex, 40, 40);
+                OoT_EnMag_DrawImageRGBA32(&gfx, 235, 149, (u8*)gTitleUraLogoTex, 40, 40);
             } else {
-                EnMag_DrawImageRGBA32(&gfx, 174, 145, (u8*)gTitleMasterQuestSubtitleTex, 128, 32);
+                OoT_EnMag_DrawImageRGBA32(&gfx, 174, 145, (u8*)gTitleMasterQuestSubtitleTex, 128, 32);
             }
         }
     }
@@ -675,7 +675,7 @@ void EnMag_DrawInner(Actor* thisx, PlayState* play, Gfx** gfxP) {
         if (EnMag_ShouldDrawNoController(font, &gfx, false)) {
             rectLeft = VREG(19) + 1;
             for (i = 0; i < ARRAY_COUNT(noControllerFontIndices[sFontType]); i++) {
-                EnMag_DrawCharTexture(&gfx, font->fontBuf + noControllerFontIndices[sFontType][i] * FONT_CHAR_TEX_SIZE,
+                OoT_EnMag_DrawCharTexture(&gfx, font->fontBuf + noControllerFontIndices[sFontType][i] * FONT_CHAR_TEX_SIZE,
                                       rectLeft, YREG(10) + 172);
                 rectLeft += VREG(21);
                 if (i == 1) {
@@ -691,7 +691,7 @@ void EnMag_DrawInner(Actor* thisx, PlayState* play, Gfx** gfxP) {
         if (EnMag_ShouldDrawNoController(font, &gfx, true)) {
             rectLeft = VREG(19);
             for (i = 0; i < ARRAY_COUNT(noControllerFontIndices[sFontType]); i++) {
-                EnMag_DrawCharTexture(&gfx, font->fontBuf + noControllerFontIndices[sFontType][i] * FONT_CHAR_TEX_SIZE,
+                OoT_EnMag_DrawCharTexture(&gfx, font->fontBuf + noControllerFontIndices[sFontType][i] * FONT_CHAR_TEX_SIZE,
                                       rectLeft, YREG(10) + 171);
                 rectLeft += VREG(21);
                 if (i == 1) {
@@ -715,7 +715,7 @@ void EnMag_DrawInner(Actor* thisx, PlayState* play, Gfx** gfxP) {
         if (EnMag_ShouldDrawPressStart(font, &gfx, false)) {
             rectLeft = YREG(7) + 1;
             for (i = 0; i < ARRAY_COUNT(pressStartFontIndices[sFontType]); i++) {
-                EnMag_DrawCharTexture(&gfx, font->fontBuf + pressStartFontIndices[sFontType][i] * FONT_CHAR_TEX_SIZE,
+                OoT_EnMag_DrawCharTexture(&gfx, font->fontBuf + pressStartFontIndices[sFontType][i] * FONT_CHAR_TEX_SIZE,
                                       rectLeft, YREG(10) + 172);
                 rectLeft += YREG(8);
                 if (i == 4) {
@@ -731,7 +731,7 @@ void EnMag_DrawInner(Actor* thisx, PlayState* play, Gfx** gfxP) {
         if (EnMag_ShouldDrawPressStart(font, &gfx, true)) {
             rectLeft = YREG(7);
             for (i = 0; i < ARRAY_COUNT(pressStartFontIndices[sFontType]); i++) {
-                EnMag_DrawCharTexture(&gfx, font->fontBuf + pressStartFontIndices[sFontType][i] * FONT_CHAR_TEX_SIZE,
+                OoT_EnMag_DrawCharTexture(&gfx, font->fontBuf + pressStartFontIndices[sFontType][i] * FONT_CHAR_TEX_SIZE,
                                       rectLeft, YREG(10) + 171);
                 rectLeft += YREG(8);
                 if (i == 4) {
@@ -754,7 +754,7 @@ void EnMag_DrawInner(Actor* thisx, PlayState* play, Gfx** gfxP) {
     *gfxP = gfx;
 }
 
-void EnMag_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnMag_Draw(Actor* thisx, PlayState* play) {
     s32 pad;
     Gfx* gfx;
     Gfx* gfxRef;
@@ -762,13 +762,13 @@ void EnMag_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     gfxRef = POLY_OPA_DISP;
-    gfx = Graph_GfxPlusOne(gfxRef);
+    gfx = OoT_Graph_GfxPlusOne(gfxRef);
     gSPDisplayList(OVERLAY_DISP++, gfx);
 
-    EnMag_DrawInner(thisx, play, &gfx);
+    OoT_EnMag_DrawInner(thisx, play, &gfx);
 
     gSPEndDisplayList(gfx++);
-    Graph_BranchDlist(gfxRef, gfx);
+    OoT_Graph_BranchDlist(gfxRef, gfx);
     POLY_OPA_DISP = gfx;
 
     CLOSE_DISPS(play->state.gfxCtx);
