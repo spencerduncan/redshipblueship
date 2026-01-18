@@ -53,6 +53,15 @@ if(MSVC)
     )
 endif()
 
+# Set output directory to match game DLLs on Windows
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    set_target_properties(combo PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/${CMAKE_VS_PLATFORM_NAME}/$<CONFIG>"
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/${CMAKE_VS_PLATFORM_NAME}/$<CONFIG>"
+        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/${CMAKE_VS_PLATFORM_NAME}/$<CONFIG>"
+    )
+endif()
+
 # Tests - only for static builds since tests use internal C++ classes
 # When combo is a DLL, internal classes aren't exported
 if(BUILD_TESTING AND NOT (WIN32 AND REDSHIP_BUILD_SHARED))
@@ -85,6 +94,13 @@ if(REDSHIP_BUILD_SHARED)
     if(MSVC)
         set_target_properties(redship PROPERTIES
             MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+        )
+    endif()
+
+    # Set output directory to match game DLLs on Windows
+    if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+        set_target_properties(redship PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/${CMAKE_VS_PLATFORM_NAME}/$<CONFIG>"
         )
     endif()
 
