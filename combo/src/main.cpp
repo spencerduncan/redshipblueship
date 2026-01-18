@@ -21,6 +21,7 @@
 #include "combo/ComboContextBridge.h"
 #include "combo/CrossGameEntrance.h"
 #include "combo/FrozenState.h"
+#include "combo/test/TestRunner.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -235,13 +236,40 @@ void PrintUsage(const char* progName) {
     std::cout << "Options:" << std::endl;
     std::cout << "  --game oot      Run Ocarina of Time" << std::endl;
     std::cout << "  --game mm       Run Majora's Mask" << std::endl;
+    std::cout << "  --test <name>   Run automated tests (use 'list' to see available)" << std::endl;
     std::cout << "  --test-entrance Use Mido's House instead of Happy Mask Shop" << std::endl;
     std::cout << "  --help          Show this help message" << std::endl;
     std::cout << "\n";
     std::cout << "If no game is specified, a menu will be displayed." << std::endl;
     std::cout << "\n";
+    std::cout << "Test mode:" << std::endl;
+    std::cout << "  --test boot-oot       Boot OoT to main menu" << std::endl;
+    std::cout << "  --test boot-mm        Boot MM to main menu" << std::endl;
+    std::cout << "  --test switch-oot-mm  Test game switch OoT -> MM" << std::endl;
+    std::cout << "  --test switch-mm-oot  Test game switch MM -> OoT" << std::endl;
+    std::cout << "  --test roundtrip      Full round-trip with state verification" << std::endl;
+    std::cout << "  --test all            Run all tests" << std::endl;
+    std::cout << "  --test list           List available tests" << std::endl;
+    std::cout << "\n";
     std::cout << "Hotkeys:" << std::endl;
     std::cout << "  F10             Switch between OoT and MM" << std::endl;
+}
+
+/**
+ * Parse --test argument
+ * @return Test name if --test is present, empty string otherwise
+ */
+std::string ParseTestArg(int argc, char** argv) {
+    for (int i = 1; i < argc; i++) {
+        if (std::strcmp(argv[i], "--test") == 0 && i + 1 < argc) {
+            return argv[i + 1];
+        }
+        // Also support --test=name syntax
+        if (std::strncmp(argv[i], "--test=", 7) == 0) {
+            return argv[i] + 7;
+        }
+    }
+    return "";
 }
 
 /**
@@ -279,6 +307,12 @@ int main(int argc, char** argv) {
             PrintUsage(argv[0]);
             return 0;
         }
+    }
+
+    // Check for test mode - this takes a completely different path
+    std::string testArg = ParseTestArg(argc, argv);
+    if (!testArg.empty()) {
+        return Combo::RunTestMode(testArg);
     }
 
     Combo::ComboContextBridge bridge;
@@ -448,7 +482,7 @@ int main(int argc, char** argv) {
                 std::cerr << "[HOT-SWITCH] Target game: " << Combo::GameToId(nextGame) << std::endl;
 
                 // Try to restore frozen state for the target game
-                const Combo::GameExports* exports = bridge.GetGameExports(nextGame);
+                const GameExports* exports = bridge.GetGameExports(nextGame);
                 if (exports && exports->LoadState) {
                     std::cerr << "[HOT-SWITCH] Attempting to restore frozen state..." << std::endl;
                     int loadResult = exports->LoadState(nullptr, 0);
