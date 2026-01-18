@@ -125,6 +125,9 @@ endif()
 if(BUILD_TESTING AND REDSHIP_BUILD_SHARED)
     enable_testing()
 
+    # Configurable timeout for CI environments with varying performance
+    set(REDSHIP_TEST_TIMEOUT 60 CACHE STRING "Test timeout in seconds")
+
     # Boot tests - verify each game can initialize
     add_test(NAME BootOoT COMMAND redship --test boot-oot)
     add_test(NAME BootMM COMMAND redship --test boot-mm)
@@ -136,11 +139,17 @@ if(BUILD_TESTING AND REDSHIP_BUILD_SHARED)
     # Full round-trip test
     add_test(NAME RoundTrip COMMAND redship --test roundtrip)
 
-    # Mark all tests as expected to fail until infrastructure is complete
+    # TODO(#29): Remove WILL_FAIL when unified build provides game integration
+    # Exit criteria for removing WILL_FAIL:
+    #   1. BootOoT: OoT boots to main menu within timeout in headless mode
+    #   2. BootMM: MM boots to main menu within timeout in headless mode
+    #   3. SwitchOoTMM: Cross-game transition completes without crash
+    #   4. SwitchMMOoT: Reverse transition completes without crash
+    #   5. RoundTrip: Full OoT->MM->OoT cycle with state verification
     set_tests_properties(
         BootOoT BootMM SwitchOoTMM SwitchMMOoT RoundTrip
         PROPERTIES
         WILL_FAIL TRUE
-        TIMEOUT 60
+        TIMEOUT ${REDSHIP_TEST_TIMEOUT}
     )
 endif()
