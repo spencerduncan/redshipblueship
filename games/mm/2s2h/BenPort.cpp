@@ -738,6 +738,14 @@ extern "C" void InitOTR() {
     fprintf(stderr, "[MM InitOTR DEBUG] Platform-specific init done\n");
     fflush(stderr);
 
+    // Create a minimal Ship::Context early so LocateFileAcrossAppDirs works correctly.
+    // This matches OoT's pattern where OTRGlobals is created before the extraction check.
+    // The context will be replaced when OTRGlobals is constructed later.
+    static std::shared_ptr<Ship::Context> sEarlyContext =
+        Ship::Context::CreateUninitializedInstance("2 Ship 2 Harkinian", appShortName, "2ship2harkinian.json");
+    fprintf(stderr, "[MM InitOTR DEBUG] Early context created for path resolution\n");
+    fflush(stderr);
+
     // BENTODO: OTRExporter is filling the version file with garbage. Uncomment once fixed.
     // Check2ShipArchiveVersion(Ship::Context::GetPathRelativeToAppBundle("2ship.o2r"));
 
