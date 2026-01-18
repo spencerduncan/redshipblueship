@@ -14,12 +14,46 @@
 #include "combo/test/TestRunner.h"
 #include "combo/CrossGameEntrance.h"
 
-#include <iostream>
+#include <algorithm>
 #include <chrono>
 #include <cstdarg>
 #include <cstdlib>
+#include <iostream>
 
 namespace Combo {
+
+// ============================================================================
+// Headless Environment Setup
+// ============================================================================
+
+void SetupHeadlessEnvironment() {
+    // Set SDL to use dummy drivers (no actual window/audio)
+    // This needs to happen BEFORE SDL_Init
+#ifdef _WIN32
+    _putenv_s("SDL_VIDEODRIVER", "dummy");
+    _putenv_s("SDL_AUDIODRIVER", "dummy");
+#else
+    setenv("SDL_VIDEODRIVER", "dummy", 1);
+    setenv("SDL_AUDIODRIVER", "dummy", 1);
+#endif
+}
+
+// ============================================================================
+// Test Registration
+// ============================================================================
+
+// Registration pattern: single source of truth for test names and implementations.
+// Adding a test requires adding ONE entry here - no separate list to maintain.
+const std::vector<TestCase>& TestRunner::GetRegisteredTests() {
+    static const std::vector<TestCase> s_tests = {
+        {"boot-oot",      [](TestRunner& r) { return r.TestBootGame(Game::OoT); }},
+        {"boot-mm",       [](TestRunner& r) { return r.TestBootGame(Game::MM); }},
+        {"switch-oot-mm", [](TestRunner& r) { return r.TestGameSwitch(Game::OoT, Game::MM); }},
+        {"switch-mm-oot", [](TestRunner& r) { return r.TestGameSwitch(Game::MM, Game::OoT); }},
+        {"roundtrip",     [](TestRunner& r) { return r.TestRoundTrip(); }},
+    };
+    return s_tests;
+}
 
 // ============================================================================
 // Construction / Destruction
@@ -36,16 +70,13 @@ bool TestRunner::RunTest(const std::string& testName) {
     auto startTime = std::chrono::steady_clock::now();
     bool passed = false;
 
-    if (testName == "boot-oot") {
-        passed = TestBootGame(Game::OoT);
-    } else if (testName == "boot-mm") {
-        passed = TestBootGame(Game::MM);
-    } else if (testName == "switch-oot-mm") {
-        passed = TestGameSwitch(Game::OoT, Game::MM);
-    } else if (testName == "switch-mm-oot") {
-        passed = TestGameSwitch(Game::MM, Game::OoT);
-    } else if (testName == "roundtrip") {
-        passed = TestRoundTrip();
+    // Look up test in registry
+    const auto& tests = GetRegisteredTests();
+    auto it = std::find_if(tests.begin(), tests.end(),
+        [&testName](const TestCase& tc) { return tc.name == testName; });
+
+    if (it != tests.end()) {
+        passed = it->fn(*this);
     } else {
         Log("Unknown test: %s", testName.c_str());
         Fail(testName, "Unknown test name");
@@ -66,11 +97,11 @@ bool TestRunner::RunTest(const std::string& testName) {
 int TestRunner::RunAllTests() {
     m_results.clear();
 
-    auto tests = GetAvailableTests();
+    const auto& tests = GetRegisteredTests();
     int failures = 0;
 
     for (const auto& test : tests) {
-        if (!RunTest(test)) {
+        if (!RunTest(test.name)) {
             failures++;
         }
     }
@@ -80,13 +111,12 @@ int TestRunner::RunAllTests() {
 }
 
 std::vector<std::string> TestRunner::GetAvailableTests() {
-    return {
-        "boot-oot",
-        "boot-mm",
-        "switch-oot-mm",
-        "switch-mm-oot",
-        "roundtrip"
-    };
+    // Derived from registered tests to ensure sync
+    std::vector<std::string> names;
+    for (const auto& test : GetRegisteredTests()) {
+        names.push_back(test.name);
+    }
+    return names;
 }
 
 // ============================================================================
@@ -101,15 +131,7 @@ bool TestRunner::TestBootGame(Game game) {
     // For now, this is a placeholder that demonstrates the structure
 
     if (m_headless) {
-        // Set SDL to use dummy drivers (no actual window/audio)
-        // This needs to happen BEFORE SDL_Init
-#ifdef _WIN32
-        _putenv_s("SDL_VIDEODRIVER", "dummy");
-        _putenv_s("SDL_AUDIODRIVER", "dummy");
-#else
-        setenv("SDL_VIDEODRIVER", "dummy", 1);
-        setenv("SDL_AUDIODRIVER", "dummy", 1);
-#endif
+        SetupHeadlessEnvironment();
     }
 
     // Placeholder: In the unified build, this would:

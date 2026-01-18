@@ -11,6 +11,12 @@
  *   redship --test switch-mm-oot   # Test game switch MM -> OoT
  *   redship --test roundtrip       # Full round-trip with state verification
  *   redship --test all             # Run all tests (exit code = failure count)
+ *   redship --test list            # List available tests (exit code = 0)
+ *
+ * Exit Codes (for CI integration):
+ *   0     = All tests passed, OR 'list' command was executed
+ *   N > 0 = N tests failed (when running 'all')
+ *   1     = Single test failed (when running specific test)
  */
 
 #pragma once
@@ -49,6 +55,18 @@ struct TestResult {
     double durationSeconds;
 };
 
+// Forward declaration for test function signature
+class TestRunner;
+
+/**
+ * Test case registration entry.
+ * Uses a registration pattern to prevent test list/implementation desync.
+ */
+struct TestCase {
+    std::string name;
+    std::function<bool(TestRunner&)> fn;
+};
+
 /**
  * TestRunner - drives game execution for automated testing.
  *
@@ -79,8 +97,15 @@ public:
 
     /**
      * List available test names.
+     * Derived from the registered test cases to ensure sync.
      */
     static std::vector<std::string> GetAvailableTests();
+
+    /**
+     * Get the registered test cases.
+     * Uses a registration pattern to prevent test list/implementation desync.
+     */
+    static const std::vector<TestCase>& GetRegisteredTests();
 
     // ========================================================================
     // Configuration
@@ -182,9 +207,20 @@ private:
 
 /**
  * Parse --test argument and run appropriate tests.
+ *
  * @param testArg The argument after --test (e.g., "boot-oot", "all")
- * @return Exit code (0 = success, non-zero = failures)
+ * @return Exit code for CI integration:
+ *         - 0: All tests passed, or 'list' command executed
+ *         - N > 0: N tests failed (for 'all' command)
+ *         - 1: Single test failed (for specific test name)
  */
 int RunTestMode(const std::string& testArg);
+
+/**
+ * Set up headless environment for testing.
+ * Sets SDL_VIDEODRIVER=dummy and SDL_AUDIODRIVER=dummy.
+ * Must be called before SDL_Init().
+ */
+void SetupHeadlessEnvironment();
 
 } // namespace Combo
