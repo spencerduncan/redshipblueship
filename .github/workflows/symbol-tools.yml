@@ -33,11 +33,7 @@ jobs:
   check-collisions:
     name: Check Symbol Collisions
     runs-on: ubuntu-latest
-    # Only run collision check if games/*/src changed
-    # This prevents false positives when only tools change
-    if: |
-      github.event_name == 'push' ||
-      contains(github.event.pull_request.changed_files, 'games/')
+    # Always run when workflow triggers - path filters already handle when to run
     steps:
       - uses: actions/checkout@v4
 
@@ -57,13 +53,23 @@ jobs:
 
           echo "Found $COLLISION_COUNT symbol collisions"
 
-          # Store the count for comparison
-          # In a real LSC scenario, you'd compare against a known baseline
-          # For now, we just report the count
+          # =================================================================
+          # Baseline Strategy (for after LSC completes):
+          # =================================================================
+          # 1. After namespacing LSC, commit baseline_collisions.txt with
+          #    expected collision count (ideally 0)
+          # 2. Enable the check below to fail if new collisions are introduced
+          # 3. This prevents backsliding - new un-namespaced symbols fail CI
+          #
+          # To enable after LSC:
+          #   - Set EXPECTED_COLLISIONS=0 (or whatever baseline is)
+          #   - Uncomment the comparison check
+          # =================================================================
 
-          # After namespacing is complete, uncomment this to fail on ANY collision:
-          # if [ "$COLLISION_COUNT" -gt 0 ]; then
-          #   echo "ERROR: Symbol collisions detected!"
+          # EXPECTED_COLLISIONS=0  # Set after LSC completes
+          # if [ "$COLLISION_COUNT" -gt "$EXPECTED_COLLISIONS" ]; then
+          #   echo "ERROR: New symbol collisions detected!"
+          #   echo "Expected: $EXPECTED_COLLISIONS, Found: $COLLISION_COUNT"
           #   echo "New symbols need OoT_/MM_ prefixes before merge."
           #   cat collision_report.txt
           #   exit 1
