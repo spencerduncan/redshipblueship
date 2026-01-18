@@ -6,7 +6,7 @@ const u16 gBuildVersionMinor = 1;
 const u16 gBuildVersionPatch = 1;
 
 const char gGitBranch[] = "main";
-const char gGitCommitHash[] = "8f2338f";
+const char gGitCommitHash[] = "9ef2d79";
 const char gGitCommitTag[] = "";
 
 const char gBuildTeam[] = "github.com/harbourmasters";

@@ -444,19 +444,33 @@ int main(int argc, char** argv) {
             if (targetPreInitialized) {
                 // INSTANT HOT-SWITCH: Target game is pre-initialized
                 // Skip Shutdown/Init - just switch the active game pointer
-                std::cout << "[HOT-SWITCH] Target game is pre-initialized, performing instant switch" << std::endl;
+                std::cerr << "[HOT-SWITCH] Target game is pre-initialized, performing instant switch" << std::endl;
+                std::cerr << "[HOT-SWITCH] Target game: " << Combo::GameToId(nextGame) << std::endl;
+
+                // Try to restore frozen state for the target game
+                const Combo::GameExports* exports = bridge.GetGameExports(nextGame);
+                if (exports && exports->LoadState) {
+                    std::cerr << "[HOT-SWITCH] Attempting to restore frozen state..." << std::endl;
+                    int loadResult = exports->LoadState(nullptr, 0);
+                    std::cerr << "[HOT-SWITCH] LoadState returned: " << loadResult
+                              << " (0=success, -1=no state)" << std::endl;
+                } else {
+                    std::cerr << "[HOT-SWITCH] No LoadState function available" << std::endl;
+                }
 
                 // For entrance-based switches, set up the target entrance
                 if (isEntranceSwitch && targetEntrance != 0) {
-                    std::cout << "[HOT-SWITCH] Setting startup entrance to 0x"
+                    std::cerr << "[HOT-SWITCH] Setting startup entrance to 0x"
                               << std::hex << targetEntrance << std::dec << std::endl;
                     Combo_SetStartupEntrance(targetEntrance);
+                    std::cerr << "[HOT-SWITCH] Startup entrance set, verifying: 0x"
+                              << std::hex << Combo_GetStartupEntrance() << std::dec << std::endl;
                 }
 
                 // Just switch - no shutdown, no init needed
                 selected = nextGame;
                 bridge.SwitchGame(selected);
-                std::cout << "[HOT-SWITCH] Switch complete, starting "
+                std::cerr << "[HOT-SWITCH] Switch complete, about to run "
                           << bridge.GetGameName(selected).value_or("game") << std::endl;
                 // Loop continues, will run the new game
             } else {
