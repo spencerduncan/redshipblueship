@@ -51,7 +51,7 @@ ActorProfile En_Syateki_Dekunuts_Profile = {
     /**/ EnSyatekiDekunuts_Reset,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HIT6,
         AT_NONE,
@@ -84,7 +84,7 @@ typedef enum ShootingGalleryDekuScrubAnimation {
     /* 7 */ SG_DEKU_ANIM_MAX
 } ShootingGalleryDekuScrubAnimation;
 
-static AnimationInfo sAnimationInfo[SG_DEKU_ANIM_MAX] = {
+static AnimationInfo MM_sAnimationInfo[SG_DEKU_ANIM_MAX] = {
     { &gDekuScrubUpAnim, 1.0f, 0.0f, 0.0f, ANIMMODE_ONCE, -1.0f },         // SG_DEKU_ANIM_UP
     { &gDekuScrubBurrowAnim, 1.0f, 0.0f, 0.0f, ANIMMODE_ONCE, -1.0f },     // SG_DEKU_ANIM_BURROW
     { &gDekuScrubIdleAnim, 1.0f, 0.0f, 0.0f, ANIMMODE_LOOP, -1.0f },       // SG_DEKU_ANIM_IDLE
@@ -94,7 +94,7 @@ static AnimationInfo sAnimationInfo[SG_DEKU_ANIM_MAX] = {
     { &gDekuScrubUnburrowAnim, 1.0f, 0.0f, 0.0f, ANIMMODE_ONCE, -1.0f },   // SG_DEKU_ANIM_UNBURROW
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_S8(hintId, TATL_HINT_ID_MAD_SCRUB, ICHAIN_CONTINUE),
     ICHAIN_F32(gravity, 0, ICHAIN_CONTINUE),
     ICHAIN_F32(lockOnArrowOffset, 2600, ICHAIN_STOP),
@@ -115,15 +115,15 @@ void EnSyatekiDekunuts_Init(Actor* thisx, PlayState* play2) {
     s32 i;
 
     path = syatekiMan->path;
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
 
     if (SG_DEKU_GET_TYPE(&this->actor) == SG_DEKU_TYPE_BONUS) {
-        Actor_SetScale(&this->actor, 0.01f);
+        MM_Actor_SetScale(&this->actor, 0.01f);
         this->collider.dim = sBonusDekuScrubColliderDimensions[0];
         pathType = SG_PATH_TYPE_DEKU_BONUS;
     } else {
-        Actor_SetScale(&this->actor, 0.02f);
+        MM_Actor_SetScale(&this->actor, 0.02f);
         pathType = SG_PATH_TYPE_DEKU_NORMAL;
     }
 
@@ -142,13 +142,13 @@ void EnSyatekiDekunuts_Init(Actor* thisx, PlayState* play2) {
         this->shouldDrawFlowers = false;
     }
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 35.0f);
-    SkelAnime_Init(play, &this->skelAnime, &gDekuScrubSkel, &gDekuScrubBurrowAnim, this->jointTable, this->morphTable,
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 35.0f);
+    MM_SkelAnime_Init(play, &this->skelAnime, &gDekuScrubSkel, &gDekuScrubBurrowAnim, this->jointTable, this->morphTable,
                    DEKU_SCRUB_LIMB_MAX);
 
     if (path == NULL) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -164,11 +164,11 @@ void EnSyatekiDekunuts_Init(Actor* thisx, PlayState* play2) {
 void EnSyatekiDekunuts_Destroy(Actor* thisx, PlayState* play) {
     EnSyatekiDekunuts* this = (EnSyatekiDekunuts*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnSyatekiDekunuts_SetupWaitForSignal(EnSyatekiDekunuts* this) {
-    Animation_PlayOnceSetSpeed(&this->skelAnime, &gDekuScrubUpAnim, 0.0f);
+    MM_Animation_PlayOnceSetSpeed(&this->skelAnime, &gDekuScrubUpAnim, 0.0f);
 
     this->actor.speed = 0.0f;
     this->actor.world = this->actor.home;
@@ -265,7 +265,7 @@ void EnSyatekiDekunuts_WaitToEmerge(EnSyatekiDekunuts* this, PlayState* play) {
 
 void EnSyatekiDekunuts_SetupEmerge(EnSyatekiDekunuts* this) {
     Actor_PlaySfx(&this->actor, NA_SE_EN_NUTS_UP);
-    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, SG_DEKU_ANIM_UP);
+    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, SG_DEKU_ANIM_UP);
     this->actor.shape.rot.y = this->actor.yawTowardsPlayer;
     this->actor.world.rot.y = this->actor.yawTowardsPlayer;
     this->actionFunc = EnSyatekiDekunuts_Emerge;
@@ -277,19 +277,19 @@ void EnSyatekiDekunuts_SetupEmerge(EnSyatekiDekunuts* this) {
  * adjust the headdress's rotation.
  */
 void EnSyatekiDekunuts_Emerge(EnSyatekiDekunuts* this, PlayState* play) {
-    if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         EnSyatekiDekunuts_SetupLookAround(this);
     }
 
     if (this->headdressType == SG_DEKU_HEADDRESS_TYPE_FLIPPED_UP) {
-        Math_SmoothStepToS(&this->headdressRotZ, -0x8000, 5, 0x1000, 0x100);
+        MM_Math_SmoothStepToS(&this->headdressRotZ, -0x8000, 5, 0x1000, 0x100);
     }
 
     this->timer++;
 }
 
 void EnSyatekiDekunuts_SetupLookAround(EnSyatekiDekunuts* this) {
-    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, SG_DEKU_ANIM_LOOK_AROUND);
+    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, SG_DEKU_ANIM_LOOK_AROUND);
     if (SG_DEKU_GET_TYPE(&this->actor) != SG_DEKU_TYPE_BONUS) {
         this->actionFunc = EnSyatekiDekunuts_LookAround;
     } else {
@@ -331,7 +331,7 @@ void EnSyatekiDekunuts_BonusLookAround(EnSyatekiDekunuts* this, PlayState* play)
 }
 
 void EnSyatekiDekunuts_SetupBurrow(EnSyatekiDekunuts* this) {
-    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, SG_DEKU_ANIM_BURROW);
+    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, SG_DEKU_ANIM_BURROW);
     this->actionFunc = EnSyatekiDekunuts_Burrow;
 }
 
@@ -343,7 +343,7 @@ void EnSyatekiDekunuts_Burrow(EnSyatekiDekunuts* this, PlayState* play) {
     EnSyatekiMan* syatekiMan = (EnSyatekiMan*)this->actor.parent;
 
     if (syatekiMan->shootingGameState == SG_GAME_STATE_RUNNING) {
-        if ((this->timer > 160) && Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+        if ((this->timer > 160) && MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
             this->timer = 0;
             EnSyatekiDekunuts_SetupWaitToEmerge(this);
         } else {
@@ -371,23 +371,23 @@ void EnSyatekiDekunuts_GameEnd(EnSyatekiDekunuts* this, PlayState* play) {
 }
 
 void EnSyatekiDekunuts_SetupDead(EnSyatekiDekunuts* this, PlayState* play) {
-    static Vec3f sVelocity = { 0.0f, 20.0f, 0.0f };
-    static Vec3f sAccel = { 0.0f, 0.0f, 0.0f };
+    static Vec3f MM_sVelocity = { 0.0f, 20.0f, 0.0f };
+    static Vec3f MM_sAccel = { 0.0f, 0.0f, 0.0f };
     EnSyatekiMan* syatekiMan = (EnSyatekiMan*)this->actor.parent;
 
     if (SG_DEKU_GET_TYPE(&this->actor) == SG_DEKU_TYPE_BONUS) {
-        EffectSsExtra_Spawn(play, &this->actor.world.pos, &sVelocity, &sAccel, 5, EXTRA_SCORE_INDEX_100);
+        MM_EffectSsExtra_Spawn(play, &this->actor.world.pos, &MM_sVelocity, &MM_sAccel, 5, EXTRA_SCORE_INDEX_100);
         syatekiMan->score += SG_POINTS_DEKU_BONUS;
         syatekiMan->bonusDekuScrubHitCounter++;
     } else {
-        EffectSsExtra_Spawn(play, &this->actor.world.pos, &sVelocity, &sAccel, 5, EXTRA_SCORE_INDEX_30);
+        MM_EffectSsExtra_Spawn(play, &this->actor.world.pos, &MM_sVelocity, &MM_sAccel, 5, EXTRA_SCORE_INDEX_30);
         syatekiMan->score += SG_POINTS_DEKU_NORMAL;
         syatekiMan->dekuScrubHitCounter++;
     }
 
     Actor_PlaySfx(&this->actor, NA_SE_EN_NUTS_DAMAGE);
     this->isAlive = false;
-    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, SG_DEKU_ANIM_DAMAGE);
+    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, SG_DEKU_ANIM_DAMAGE);
     this->timer = 160;
     this->actionFunc = EnSyatekiDekunuts_Dead;
 }
@@ -397,9 +397,9 @@ void EnSyatekiDekunuts_Dead(EnSyatekiDekunuts* this, PlayState* play) {
     static Color_RGBA8 sEnvColor = { 150, 150, 150, 0 };
     EnSyatekiMan* syatekiMan = (EnSyatekiMan*)this->actor.parent;
 
-    if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         if (this->timer == 160) {
-            Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, SG_DEKU_ANIM_DIE);
+            Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, SG_DEKU_ANIM_DIE);
             Actor_PlaySfx(&this->actor, NA_SE_EN_NUTS_DEAD);
             this->timer--;
         } else if (this->timer < 160) {
@@ -408,10 +408,10 @@ void EnSyatekiDekunuts_Dead(EnSyatekiDekunuts* this, PlayState* play) {
             pos.x = this->actor.world.pos.x;
             pos.y = this->actor.world.pos.y + 18.0f;
             pos.z = this->actor.world.pos.z;
-            EffectSsDeadDb_Spawn(play, &pos, &gZeroVec3f, &gZeroVec3f, &sPrimColor, &sEnvColor, 200, 0, 13);
-            SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 30, NA_SE_EN_EXTINCT);
+            MM_EffectSsDeadDb_Spawn(play, &pos, &gZeroVec3f, &gZeroVec3f, &sPrimColor, &sEnvColor, 200, 0, 13);
+            MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 30, NA_SE_EN_EXTINCT);
             pos.y = this->actor.world.pos.y + 10.0f;
-            EffectSsHahen_SpawnBurst(play, &pos, 3.0f, 0, 12, 3, 15, HAHEN_OBJECT_DEFAULT, 10, NULL);
+            MM_EffectSsHahen_SpawnBurst(play, &pos, 3.0f, 0, 12, 3, 15, HAHEN_OBJECT_DEFAULT, 10, NULL);
 
             if (SG_DEKU_GET_TYPE(&this->actor) != SG_DEKU_TYPE_BONUS) {
                 syatekiMan->dekuScrubFlags &= ~(1 << this->index);
@@ -436,7 +436,7 @@ void EnSyatekiDekunuts_Update(Actor* thisx, PlayState* play) {
             if (SG_DEKU_GET_TYPE(&this->actor) == SG_DEKU_TYPE_BONUS) {
                 // BENTODO This had | 0x900 which interfered with the 16 bit sequence IDs. Removing it doesn't seem to
                 // anything bad.
-                Audio_PlayFanfare(NA_BGM_GET_ITEM);
+                MM_Audio_PlayFanfare(NA_BGM_GET_ITEM);
             } else {
                 Audio_PlaySfx(NA_SE_SY_TRE_BOX_APPEAR);
             }
@@ -445,13 +445,13 @@ void EnSyatekiDekunuts_Update(Actor* thisx, PlayState* play) {
             EnSyatekiDekunuts_SetupDead(this, play);
         }
 
-        Collider_UpdateCylinder(&this->actor, &this->collider);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     } else {
         this->collider.base.acFlags &= ~AC_HIT;
     }
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 }
 
 s32 EnSyatekiDekunuts_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot,
@@ -471,7 +471,7 @@ void EnSyatekiDekunuts_Draw(Actor* thisx, PlayState* play) {
     s32 i;
 
     if (this->actionFunc != EnSyatekiDekunuts_WaitForSignal) {
-        SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
+        MM_SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                           EnSyatekiDekunuts_OverrideLimbDraw, NULL, &this->actor);
     }
 
@@ -484,8 +484,8 @@ void EnSyatekiDekunuts_Draw(Actor* thisx, PlayState* play) {
             OPEN_DISPS(play->state.gfxCtx);
 
             Gfx_SetupDL25_Opa(play->state.gfxCtx);
-            Matrix_Translate(flowerPos.x, flowerPos.y, flowerPos.z, MTXMODE_NEW);
-            Matrix_Scale(0.02f, 0.02f, 0.02f, MTXMODE_APPLY);
+            MM_Matrix_Translate(flowerPos.x, flowerPos.y, flowerPos.z, MTXMODE_NEW);
+            MM_Matrix_Scale(0.02f, 0.02f, 0.02f, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
             gSPDisplayList(POLY_OPA_DISP++, gDekuScrubFlowerDL);
 

@@ -24,7 +24,7 @@ u32 EffectSsGMagma2_Init(PlayState* play, u32 index, EffectSs* this, void* initP
 void EffectSsGMagma2_Draw(PlayState* play, u32 index, EffectSs* this);
 void EffectSsGMagma2_Update(PlayState* play, u32 index, EffectSs* this);
 
-static void* sTextures[] = {
+static void* OoT_sTextures[] = {
     object_kingdodongo_Tex_02E4E0, object_kingdodongo_Tex_02E8E0, object_kingdodongo_Tex_02ECE0,
     object_kingdodongo_Tex_02F0E0, object_kingdodongo_Tex_02F4E0, object_kingdodongo_Tex_02F8E0,
     object_kingdodongo_Tex_02FCE0, object_kingdodongo_Tex_0300E0, object_kingdodongo_Tex_0304E0,
@@ -41,11 +41,11 @@ u32 EffectSsGMagma2_Init(PlayState* play, u32 index, EffectSs* this, void* initP
     s32 objBankIndex = Object_GetIndex(&play->objectCtx, OBJECT_KINGDODONGO);
     s32 pad;
 
-    if ((objBankIndex >= 0) && Object_IsLoaded(&play->objectCtx, objBankIndex)) {
+    if ((objBankIndex >= 0) && OoT_Object_IsLoaded(&play->objectCtx, objBankIndex)) {
         Vec3f zeroVec = { 0.0f, 0.0f, 0.0f };
         EffectSsGMagma2InitParams* initParams = (EffectSsGMagma2InitParams*)initParamsx;
 
-        gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[objBankIndex].segment);
+        OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[objBankIndex].segment);
         this->rObjBankIdx = objBankIndex;
         this->pos = initParams->pos;
         this->velocity = zeroVec;
@@ -82,21 +82,21 @@ void EffectSsGMagma2_Draw(PlayState* play, u32 index, EffectSs* this) {
 
     OPEN_DISPS(gfxCtx);
 
-    Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
-    Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
-    gSegments[6] = VIRTUAL_TO_PHYSICAL(object);
+    OoT_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
+    OoT_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+    OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(object);
     gSPSegment(POLY_XLU_DISP++, 0x06, object);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
     if (this->rDrawMode == 0) {
-        POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, 0x3D);
+        POLY_XLU_DISP = OoT_Gfx_SetupDL(POLY_XLU_DISP, 0x3D);
     } else {
-        POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, 0);
+        POLY_XLU_DISP = OoT_Gfx_SetupDL(POLY_XLU_DISP, 0);
     }
 
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, this->rPrimColorR, this->rPrimColorG, 0, this->rPrimColorA);
     gDPSetEnvColor(POLY_XLU_DISP++, this->rEnvColorR, this->rEnvColorG, 0, this->rEnvColorA);
-    gSPSegment(POLY_XLU_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(sTextures[this->rTexIdx]));
+    gSPSegment(POLY_XLU_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(OoT_sTextures[this->rTexIdx]));
     gSPDisplayList(POLY_XLU_DISP++, this->gfx);
 
     CLOSE_DISPS(gfxCtx);

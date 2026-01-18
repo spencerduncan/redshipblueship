@@ -67,7 +67,7 @@ ActorProfile En_Ma4_Profile = {
     /**/ EnMa4_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -87,13 +87,13 @@ static ColliderCylinderInit sCylinderInit = {
     { 18, 46, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 MM_sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
 
-static TexturePtr sEyeTextures[] = {
+static TexturePtr MM_sEyeTextures[] = {
     gRomaniEyeOpenTex, gRomaniEyeHalfTex, gRomaniEyeClosedTex, gRomaniEyeHappyTex, gRomaniEyeSadTex,
 };
 
-static TexturePtr sMouthTextures[] = {
+static TexturePtr MM_sMouthTextures[] = {
     gRomaniMouthHappyTex,
     gRomaniMouthFrownTex,
     gRomaniMouthHangingOpenTex,
@@ -106,7 +106,7 @@ void EnMa4_UpdateEyes(EnMa4* this) {
     } else if (DECR(this->blinkTimer) == 0) {
         this->eyeTexIndex++;
         if (this->eyeTexIndex >= 3) {
-            this->blinkTimer = Rand_S16Offset(30, 30);
+            this->blinkTimer = MM_Rand_S16Offset(30, 30);
             this->eyeTexIndex = 0;
         }
     }
@@ -161,8 +161,8 @@ static AnimationSpeedInfo sAnimationSpeedInfo[ENMA4_ANIM_MAX] = {
 };
 
 void EnMa4_ChangeAnim(EnMa4* this, s32 animIndex) {
-    Animation_Change(&this->skelAnime, sAnimationSpeedInfo[animIndex].animation, 1.0f, 0.0f,
-                     Animation_GetLastFrame(sAnimationSpeedInfo[animIndex].animation),
+    MM_Animation_Change(&this->skelAnime, sAnimationSpeedInfo[animIndex].animation, 1.0f, 0.0f,
+                     MM_Animation_GetLastFrame(sAnimationSpeedInfo[animIndex].animation),
                      sAnimationSpeedInfo[animIndex].mode, sAnimationSpeedInfo[animIndex].morphFrames);
 }
 
@@ -182,7 +182,7 @@ void func_80ABDD9C(EnMa4* this, PlayState* play) {
 
     this->interactInfo.trackPos = player->actor.world.pos;
     this->interactInfo.trackPos.y -= -10.0f;
-    Npc_TrackPoint(&this->actor, &this->interactInfo, 0, trackingMode);
+    MM_Npc_TrackPoint(&this->actor, &this->interactInfo, 0, trackingMode);
 }
 
 void EnMa4_InitPath(EnMa4* this, PlayState* play) {
@@ -202,22 +202,22 @@ void EnMa4_InitPath(EnMa4* this, PlayState* play) {
     nextPoint.z = this->pathPoints[1].z;
 
     this->actor.world.pos = this->actor.home.pos;
-    this->actor.shape.rot.y = this->actor.world.rot.y = Math_Vec3f_Yaw(&this->actor.world.pos, &nextPoint);
+    this->actor.shape.rot.y = this->actor.world.rot.y = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &nextPoint);
 }
 
 void EnMa4_Init(Actor* thisx, PlayState* play) {
     EnMa4* this = (EnMa4*)thisx;
     s32 pad;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 18.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gRomaniSkel, NULL, this->jointTable, this->morphTable, ROMANI_LIMB_MAX);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 18.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gRomaniSkel, NULL, this->jointTable, this->morphTable, ROMANI_LIMB_MAX);
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, DamageTable_Get(0x16), &sColChkInfoInit);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, MM_DamageTable_Get(0x16), &MM_sColChkInfoInit);
 
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_SetScale(&this->actor, 0.01f);
 
     this->actor.attentionRangeType = ATTENTION_RANGE_0;
     this->interactInfo.talkState = NPC_TALK_STATE_IDLE;
@@ -265,7 +265,7 @@ void EnMa4_Init(Actor* thisx, PlayState* play) {
 void EnMa4_Destroy(Actor* thisx, PlayState* play) {
     EnMa4* this = (EnMa4*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
     CLEAR_WEEKEVENTREG(WEEKEVENTREG_08_01);
 }
 
@@ -278,7 +278,7 @@ void EnMa4_RunInCircles(EnMa4* this, PlayState* play) {
     s32 pad;
     s16 sp2E;
 
-    if ((sAnimIndex != ENMA4_ANIM_9) && Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    if ((sAnimIndex != ENMA4_ANIM_9) && MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         if (sAnimIndex == ENMA4_ANIM_3) {
             if (D_80AC0250 < 3) {
                 D_80AC0250++;
@@ -294,19 +294,19 @@ void EnMa4_RunInCircles(EnMa4* this, PlayState* play) {
         }
     }
 
-    if ((sAnimIndex == ENMA4_ANIM_13) && Animation_OnFrame(&this->skelAnime, 37.0f)) {
+    if ((sAnimIndex == ENMA4_ANIM_13) && MM_Animation_OnFrame(&this->skelAnime, 37.0f)) {
         Actor_PlaySfx(&this->actor, NA_SE_EV_ROMANI_BOW_FLICK);
     }
 
     sp34.x = this->pathPoints[this->waypointIndex].x;
     sp34.y = this->pathPoints[this->waypointIndex].y;
     sp34.z = this->pathPoints[this->waypointIndex].z;
-    sp2E = Math_Vec3f_Yaw(&this->actor.world.pos, &sp34);
-    if (Math_Vec3f_DistXZ(&this->actor.world.pos, &sp34) > 50.0f) {
-        Math_SmoothStepToS(&this->actor.world.rot.y, sp2E, 10, 0x3000, 0x100);
-        Math_SmoothStepToS(&this->actor.shape.rot.y, sp2E, 5, 0x3000, 0x100);
+    sp2E = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &sp34);
+    if (MM_Math_Vec3f_DistXZ(&this->actor.world.pos, &sp34) > 50.0f) {
+        MM_Math_SmoothStepToS(&this->actor.world.rot.y, sp2E, 10, 0x3000, 0x100);
+        MM_Math_SmoothStepToS(&this->actor.shape.rot.y, sp2E, 5, 0x3000, 0x100);
     } else {
-        if ((D_80AC0254 == 0) && ((Rand_Next() % 4) == 0)) {
+        if ((D_80AC0254 == 0) && ((MM_Rand_Next() % 4) == 0)) {
             this->actor.speed = 0.0f;
             D_80AC0254 = 2;
             EnMa4_ChangeAnim(this, ENMA4_ANIM_3);
@@ -324,10 +324,10 @@ void EnMa4_RunInCircles(EnMa4* this, PlayState* play) {
         }
     }
 
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
     Actor_MoveWithGravity(&this->actor);
     if (this->skelAnime.animation == &gRomaniRunAnim) {
-        if (Animation_OnFrame(&this->skelAnime, 0.0f) || Animation_OnFrame(&this->skelAnime, 4.0f)) {
+        if (MM_Animation_OnFrame(&this->skelAnime, 0.0f) || MM_Animation_OnFrame(&this->skelAnime, 4.0f)) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_ROMANI_WALK);
         }
     }
@@ -361,7 +361,7 @@ void EnMa4_Wait(EnMa4* this, PlayState* play) {
         this->actor.flags |= ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
     } else if (this->type != MA4_TYPE_ALIENS_WON) {
         EnMa4_RunInCircles(this, play);
-    } else if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    } else if (MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         this->animTimer++;
         if (this->animTimer == 5) {
             EnMa4_ChangeAnim(this, ENMA4_ANIM_17); // Traumatized anim
@@ -383,16 +383,16 @@ void EnMa4_Wait(EnMa4* this, PlayState* play) {
 
 // Chooses the next dialogue based on player's selection
 void EnMa4_HandlePlayerChoice(EnMa4* this, PlayState* play) {
-    if (Message_ShouldAdvance(play)) {
+    if (MM_Message_ShouldAdvance(play)) {
         switch (this->textId) {
             case 0x3339:
                 if (play->msgCtx.choiceIndex == 0) {
                     Audio_PlaySfx_MessageDecide();
-                    Message_StartTextbox(play, 0x333A, &this->actor);
+                    MM_Message_StartTextbox(play, 0x333A, &this->actor);
                     this->textId = 0x333A;
                 } else {
                     Audio_PlaySfx_MessageDecide();
-                    Message_StartTextbox(play, 0x333B, &this->actor);
+                    MM_Message_StartTextbox(play, 0x333B, &this->actor);
                     this->textId = 0x333B;
                 }
                 break;
@@ -401,12 +401,12 @@ void EnMa4_HandlePlayerChoice(EnMa4* this, PlayState* play) {
                 if (play->msgCtx.choiceIndex == 0) {
                     Audio_PlaySfx_MessageDecide();
                     SET_WEEKEVENTREG(WEEKEVENTREG_PROMISED_TO_HELP_WITH_ALIENS);
-                    Message_StartTextbox(play, 0x3343, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3343, &this->actor);
                     this->textId = 0x3343;
                 } else {
                     Audio_PlaySfx_MessageCancel();
                     EnMa4_SetFaceExpression(this, 0, 1);
-                    Message_StartTextbox(play, 0x3342, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3342, &this->actor);
                     this->textId = 0x3342;
                     this->state = MA4_STATE_DEFAULT;
                     Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_ROMANI);
@@ -417,12 +417,12 @@ void EnMa4_HandlePlayerChoice(EnMa4* this, PlayState* play) {
                 if (play->msgCtx.choiceIndex == 0) {
                     Audio_PlaySfx_MessageDecide();
                     SET_WEEKEVENTREG(WEEKEVENTREG_PROMISED_TO_HELP_WITH_ALIENS);
-                    Message_StartTextbox(play, 0x3343, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3343, &this->actor);
                     this->textId = 0x3343;
                 } else {
                     Audio_PlaySfx_MessageCancel();
                     EnMa4_SetFaceExpression(this, 0, 1);
-                    Message_StartTextbox(play, 0x3342, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3342, &this->actor);
                     this->textId = 0x3342;
                 }
                 break;
@@ -430,11 +430,11 @@ void EnMa4_HandlePlayerChoice(EnMa4* this, PlayState* play) {
             case 0x3347:
                 if (play->msgCtx.choiceIndex == 0) {
                     Audio_PlaySfx_MessageDecide();
-                    Message_StartTextbox(play, 0x3349, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3349, &this->actor);
                     this->textId = 0x3349;
                 } else {
                     Audio_PlaySfx_MessageCancel();
-                    Message_StartTextbox(play, 0x3348, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3348, &this->actor);
                     this->textId = 0x3348;
                     Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_ROMANI);
                 }
@@ -445,7 +445,7 @@ void EnMa4_HandlePlayerChoice(EnMa4* this, PlayState* play) {
                     s32 aux;
 
                     Audio_PlaySfx_MessageDecide();
-                    Message_StartTextbox(play, 0x334E, &this->actor);
+                    MM_Message_StartTextbox(play, 0x334E, &this->actor);
                     this->textId = 0x334E;
                     if (CHECK_QUEST_ITEM(QUEST_SONG_EPONA)) {
                         Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_PROMISED_TO_HELP_WITH_ALIENS);
@@ -454,7 +454,7 @@ void EnMa4_HandlePlayerChoice(EnMa4* this, PlayState* play) {
                 } else { // No.
                     Audio_PlaySfx_MessageCancel();
                     EnMa4_SetFaceExpression(this, 0, 0);
-                    Message_StartTextbox(play, 0x334C, &this->actor);
+                    MM_Message_StartTextbox(play, 0x334C, &this->actor);
                     this->textId = 0x334C;
                 }
                 break;
@@ -462,12 +462,12 @@ void EnMa4_HandlePlayerChoice(EnMa4* this, PlayState* play) {
             case 0x3354:
                 if (play->msgCtx.choiceIndex == 0) {
                     Audio_PlaySfx_MessageDecide();
-                    Message_StartTextbox(play, 0x3349, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3349, &this->actor);
                     this->textId = 0x3349;
                 } else {
                     Audio_PlaySfx_MessageCancel();
                     EnMa4_SetFaceExpression(this, 1, 0);
-                    Message_StartTextbox(play, 0x3355, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3355, &this->actor);
                     this->textId = 0x3355;
                     Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_ROMANI);
                 }
@@ -477,19 +477,19 @@ void EnMa4_HandlePlayerChoice(EnMa4* this, PlayState* play) {
                 // "Try again?"
                 if (play->msgCtx.choiceIndex == 0) { // Yes
                     Audio_PlaySfx_MessageDecide();
-                    Message_CloseTextbox(play);
+                    MM_Message_CloseTextbox(play);
                     EnMa4_SetupBeginHorsebackGame(this);
                 } else { // No
                     if (this->type == MA4_TYPE_ALIENS_DEFEATED) {
                         Audio_PlaySfx_MessageCancel();
                         EnMa4_SetFaceExpression(this, 3, 3);
-                        Message_StartTextbox(play, 0x3357, &this->actor);
+                        MM_Message_StartTextbox(play, 0x3357, &this->actor);
                         this->textId = 0x3357;
                         Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_ROMANI);
                     } else {
                         Audio_PlaySfx_MessageCancel();
                         EnMa4_SetFaceExpression(this, 4, 2);
-                        Message_StartTextbox(play, 0x335B, &this->actor);
+                        MM_Message_StartTextbox(play, 0x335B, &this->actor);
                         this->textId = 0x335B;
                         Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_ROMANI);
                     }
@@ -499,12 +499,12 @@ void EnMa4_HandlePlayerChoice(EnMa4* this, PlayState* play) {
             case 0x3359:
                 if (play->msgCtx.choiceIndex == 0) {
                     Audio_PlaySfx_MessageDecide();
-                    Message_StartTextbox(play, 0x3349, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3349, &this->actor);
                     this->textId = 0x3349;
                 } else {
                     Audio_PlaySfx_MessageCancel();
                     EnMa4_SetFaceExpression(this, 4, 2);
-                    Message_StartTextbox(play, 0x335A, &this->actor);
+                    MM_Message_StartTextbox(play, 0x335A, &this->actor);
                     this->textId = 0x335A;
                     Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_ROMANI);
                 }
@@ -520,87 +520,87 @@ void EnMa4_ChooseNextDialogue(EnMa4* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
     s32 aux;
 
-    if (Message_ShouldAdvance(play)) {
+    if (MM_Message_ShouldAdvance(play)) {
         switch (this->textId) {
             case 0x2390:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 EnMa4_SetupBeginHorsebackGame(this);
                 break;
 
             case 0x3335:
                 EnMa4_SetFaceExpression(this, 0, 3);
-                Message_StartTextbox(play, 0x3336, &this->actor);
+                MM_Message_StartTextbox(play, 0x3336, &this->actor);
                 this->textId = 0x3336;
                 Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_ROMANI);
                 break;
 
             case 0x3338:
-                Message_StartTextbox(play, 0x3339, &this->actor);
+                MM_Message_StartTextbox(play, 0x3339, &this->actor);
                 this->textId = 0x3339;
                 break;
 
             case 0x333A:
             case 0x333B:
                 EnMa4_SetFaceExpression(this, 0, 3);
-                Message_StartTextbox(play, 0x333C, &this->actor);
+                MM_Message_StartTextbox(play, 0x333C, &this->actor);
                 this->textId = 0x333C;
                 break;
 
             case 0x333C:
                 EnMa4_SetFaceExpression(this, 0, 2);
-                Message_StartTextbox(play, 0x333D, &this->actor);
+                MM_Message_StartTextbox(play, 0x333D, &this->actor);
                 this->textId = 0x333D;
                 break;
 
             case 0x333D:
-                Message_StartTextbox(play, 0x333E, &this->actor);
+                MM_Message_StartTextbox(play, 0x333E, &this->actor);
                 this->textId = 0x333E;
                 break;
 
             case 0x333E:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 EnMa4_SetupBeginDescribeThemCs(this);
                 break;
 
             case 0x333F:
-                Message_StartTextbox(play, 0x3340, &this->actor);
+                MM_Message_StartTextbox(play, 0x3340, &this->actor);
                 this->textId = 0x3340;
                 break;
 
             case 0x3340:
                 EnMa4_SetFaceExpression(this, 0, 3);
-                Message_StartTextbox(play, 0x3341, &this->actor);
+                MM_Message_StartTextbox(play, 0x3341, &this->actor);
                 this->textId = 0x3341;
                 break;
 
             case 0x3343:
                 EnMa4_SetFaceExpression(this, 0, 0);
-                Message_StartTextbox(play, 0x3344, &this->actor);
+                MM_Message_StartTextbox(play, 0x3344, &this->actor);
                 this->textId = 0x3344;
                 break;
 
             case 0x3344:
-                Message_StartTextbox(play, 0x3345, &this->actor);
+                MM_Message_StartTextbox(play, 0x3345, &this->actor);
                 this->textId = 0x3345;
                 break;
 
             case 0x3345:
-                Message_StartTextbox(play, 0x3349, &this->actor);
+                MM_Message_StartTextbox(play, 0x3349, &this->actor);
                 this->textId = 0x3349;
                 break;
 
             case 0x3349:
-                Message_StartTextbox(play, 0x334A, &this->actor);
+                MM_Message_StartTextbox(play, 0x334A, &this->actor);
                 this->textId = 0x334A;
                 break;
 
             case 0x334A:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 EnMa4_SetupBeginHorsebackGame(this);
                 break;
 
             case 0x334C:
-                Message_StartTextbox(play, 0x334D, &this->actor);
+                MM_Message_StartTextbox(play, 0x334D, &this->actor);
                 this->textId = 0x334D;
                 break;
 
@@ -609,10 +609,10 @@ void EnMa4_ChooseNextDialogue(EnMa4* this, PlayState* play) {
             case 0x335D:
             case 0x335E:
                 if (this->type == MA4_TYPE_DAY1) {
-                    Message_StartTextbox(play, 0x3352, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3352, &this->actor);
                     this->textId = 0x3352;
                 } else {
-                    Message_StartTextbox(play, 0x3356, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3356, &this->actor);
                     this->textId = 0x3356;
                 }
                 break;
@@ -624,10 +624,10 @@ void EnMa4_ChooseNextDialogue(EnMa4* this, PlayState* play) {
                 // Check if player has Epona's song
                 if (GameInteractor_Should(VB_ROMANI_CONSIDER_EPONA_SONG_GIVEN, CHECK_QUEST_ITEM(QUEST_SONG_EPONA),
                                           true)) {
-                    Message_StartTextbox(play, 0x334C, &this->actor);
+                    MM_Message_StartTextbox(play, 0x334C, &this->actor);
                     this->textId = 0x334C;
                 } else {
-                    Message_CloseTextbox(play);
+                    MM_Message_CloseTextbox(play);
                     player->stateFlags1 |= PLAYER_STATE1_20;
                     EnMa4_SetupBeginEponasSongCs(this);
                     EnMa4_BeginEponasSongCs(this, play);
@@ -636,11 +636,11 @@ void EnMa4_ChooseNextDialogue(EnMa4* this, PlayState* play) {
 
             case 0x3358:
                 if ((GET_PLAYER_FORM != PLAYER_FORM_HUMAN) || !CHECK_QUEST_ITEM(QUEST_SONG_EPONA)) {
-                    Message_StartTextbox(play, 0x335C, &this->actor);
+                    MM_Message_StartTextbox(play, 0x335C, &this->actor);
                     this->textId = 0x335C;
                     Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_ROMANI);
                 } else {
-                    Message_StartTextbox(play, 0x3359, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3359, &this->actor);
                     this->textId = 0x3359;
                 }
                 break;
@@ -661,7 +661,7 @@ void EnMa4_SetupDialogueHandler(EnMa4* this) {
 }
 
 void EnMa4_DialogueHandler(EnMa4* this, PlayState* play) {
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_CHOICE: // Player answered a question
             EnMa4_HandlePlayerChoice(this, play);
             break;
@@ -671,7 +671,7 @@ void EnMa4_DialogueHandler(EnMa4* this, PlayState* play) {
             break;
 
         case TEXT_STATE_DONE: // End conversation
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 if ((play->msgCtx.bombersNotebookEventQueueCount == 0) || !CHECK_QUEST_ITEM(QUEST_BOMBERS_NOTEBOOK)) {
                     EnMa4_SetupWait(this);
                 }
@@ -688,7 +688,7 @@ void EnMa4_DialogueHandler(EnMa4* this, PlayState* play) {
     }
 
     if (this->type != MA4_TYPE_ALIENS_WON) {
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x7D0, 0x3E8);
+        MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x7D0, 0x3E8);
     }
 }
 
@@ -707,7 +707,7 @@ void EnMa4_BeginHorsebackGame(EnMa4* this, PlayState* play) {
 void EnMa4_HorsebackGameCheckPlayerInteractions(EnMa4* this, PlayState* play) {
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         // "You're feeling confident"
-        Message_StartTextbox(play, 0x336E, &this->actor);
+        MM_Message_StartTextbox(play, 0x336E, &this->actor);
         this->actionFunc = EnMa4_HorsebackGameTalking;
     } else if (gSaveContext.timerCurTimes[TIMER_ID_MINIGAME_2] < SECONDS_TO_TIMER(115)) {
         Actor_OfferTalk(&this->actor, play, 100.0f);
@@ -715,7 +715,7 @@ void EnMa4_HorsebackGameCheckPlayerInteractions(EnMa4* this, PlayState* play) {
 }
 
 void EnMa4_HorsebackGameTalking(EnMa4* this, PlayState* play) {
-    if (Actor_TextboxIsClosing(&this->actor, play)) {
+    if (MM_Actor_TextboxIsClosing(&this->actor, play)) {
         this->actionFunc = EnMa4_HorsebackGameWait;
     }
 }
@@ -780,10 +780,10 @@ void EnMa4_HorsebackGameEnd(EnMa4* this, PlayState* play) {
 
     if (sFrameCounter == 25) {
         if (this->poppedBalloonCounter == 10) {
-            Message_StartTextbox(play, 0x334F, &this->actor);
+            MM_Message_StartTextbox(play, 0x334F, &this->actor);
             this->textId = 0x334F;
         } else {
-            Message_StartTextbox(play, 0x334B, &this->actor);
+            MM_Message_StartTextbox(play, 0x334B, &this->actor);
             this->textId = 0x334B;
         }
     } else if (sFrameCounter == 50) {
@@ -860,7 +860,7 @@ void EnMa4_EponasSongCs(EnMa4* this, PlayState* play) {
         }
 
         Cutscene_ActorTranslateAndYaw(&this->actor, play, cueChannel);
-        if ((sCueId == 2) && (this->animTimer == 0) && Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+        if ((sCueId == 2) && (this->animTimer == 0) && MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
             EnMa4_ChangeAnim(this, ENMA4_ANIM_7);
         }
     } else {
@@ -884,7 +884,7 @@ void EnMa4_EndEponasSongCs(EnMa4* this, PlayState* play) {
     this->actor.flags |= ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         player->stateFlags1 &= ~PLAYER_STATE1_20;
-        Message_StartTextbox(play, 0x334C, &this->actor);
+        MM_Message_StartTextbox(play, 0x334C, &this->actor);
         this->textId = 0x334C;
         this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
         EnMa4_SetupDialogueHandler(this);
@@ -914,25 +914,25 @@ void EnMa4_StartDialogue(EnMa4* this, PlayState* play) {
             if (GET_PLAYER_FORM != PLAYER_FORM_HUMAN) {
                 if (CHECK_WEEKEVENTREG(WEEKEVENTREG_21_80)) {
                     EnMa4_SetFaceExpression(this, 3, 3);
-                    Message_StartTextbox(play, 0x3337, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3337, &this->actor);
                     this->textId = 0x3337;
                     Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_ROMANI);
                 } else {
-                    Message_StartTextbox(play, 0x3335, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3335, &this->actor);
                     this->textId = 0x3335;
                     SET_WEEKEVENTREG(WEEKEVENTREG_21_80);
                 }
             } else if (this->state == MA4_STATE_DEFAULT) {
                 if (CHECK_WEEKEVENTREG(WEEKEVENTREG_21_40)) {
                     if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_PROMISED_TO_HELP_WITH_ALIENS)) {
-                        Message_StartTextbox(play, 0x3346, &this->actor);
+                        MM_Message_StartTextbox(play, 0x3346, &this->actor);
                         this->textId = 0x3346;
                     } else {
-                        Message_StartTextbox(play, 0x3347, &this->actor);
+                        MM_Message_StartTextbox(play, 0x3347, &this->actor);
                         this->textId = 0x3347;
                     }
                 } else {
-                    Message_StartTextbox(play, 0x3338, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3338, &this->actor);
                     this->textId = 0x3338;
                     SET_WEEKEVENTREG(WEEKEVENTREG_21_40);
                 }
@@ -940,7 +940,7 @@ void EnMa4_StartDialogue(EnMa4* this, PlayState* play) {
                 if (gSaveContext.timerCurTimes[TIMER_ID_MINIGAME_2] >= SECONDS_TO_TIMER(120)) {
                     // "Too bad Grasshopper"
                     EnMa4_SetFaceExpression(this, 0, 0);
-                    Message_StartTextbox(play, 0x336D, &this->actor);
+                    MM_Message_StartTextbox(play, 0x336D, &this->actor);
                     this->textId = 0x336D;
                 } else {
                     time = gSaveContext.timerCurTimes[TIMER_ID_MINIGAME_2];
@@ -948,11 +948,11 @@ void EnMa4_StartDialogue(EnMa4* this, PlayState* play) {
                         // [Score] New record!
                         HS_SET_HORSE_BACK_BALLOON_TIME(time);
                         EnMa4_SetFaceExpression(this, 0, 3);
-                        Message_StartTextbox(play, 0x3350, &this->actor);
+                        MM_Message_StartTextbox(play, 0x3350, &this->actor);
                         this->textId = 0x3350;
                     } else {
                         // [Score] Great.
-                        Message_StartTextbox(play, 0x3351, &this->actor);
+                        MM_Message_StartTextbox(play, 0x3351, &this->actor);
                         this->textId = 0x3351;
                     }
                 }
@@ -960,7 +960,7 @@ void EnMa4_StartDialogue(EnMa4* this, PlayState* play) {
                 this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
             } else if (this->state == MA4_STATE_AFTERDESCRIBETHEMCS) {
                 // "Cremia doesn't believe me..."
-                Message_StartTextbox(play, 0x3340, &this->actor);
+                MM_Message_StartTextbox(play, 0x3340, &this->actor);
                 this->textId = 0x3340;
                 this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
             }
@@ -970,31 +970,31 @@ void EnMa4_StartDialogue(EnMa4* this, PlayState* play) {
             if (GET_PLAYER_FORM != PLAYER_FORM_HUMAN) {
                 if (CHECK_WEEKEVENTREG(WEEKEVENTREG_21_80)) {
                     EnMa4_SetFaceExpression(this, 3, 3);
-                    Message_StartTextbox(play, 0x3337, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3337, &this->actor);
                     this->textId = 0x3337;
                     Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_ROMANI);
                 } else {
-                    Message_StartTextbox(play, 0x3335, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3335, &this->actor);
                     this->textId = 0x3335;
                     SET_WEEKEVENTREG(WEEKEVENTREG_21_80);
                 }
             } else if (this->state == MA4_STATE_DEFAULT) {
-                Message_StartTextbox(play, 0x3354, &this->actor);
+                MM_Message_StartTextbox(play, 0x3354, &this->actor);
                 this->textId = 0x3354;
             } else if (this->state == MA4_STATE_AFTERHORSEBACKGAME) {
                 if (gSaveContext.timerCurTimes[TIMER_ID_MINIGAME_2] >= SECONDS_TO_TIMER(120)) {
                     // "Try again?"
-                    Message_StartTextbox(play, 0x3356, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3356, &this->actor);
                     this->textId = 0x3356;
                 } else {
                     time = gSaveContext.timerCurTimes[TIMER_ID_MINIGAME_2];
                     if ((s32)time < HS_GET_HORSE_BACK_BALLOON_TIME()) {
                         HS_SET_HORSE_BACK_BALLOON_TIME(time);
                         EnMa4_SetFaceExpression(this, 0, 3);
-                        Message_StartTextbox(play, 0x3350, &this->actor);
+                        MM_Message_StartTextbox(play, 0x3350, &this->actor);
                         this->textId = 0x3350;
                     } else {
-                        Message_StartTextbox(play, 0x3351, &this->actor);
+                        MM_Message_StartTextbox(play, 0x3351, &this->actor);
                         this->textId = 0x3351;
                     }
                 }
@@ -1006,23 +1006,23 @@ void EnMa4_StartDialogue(EnMa4* this, PlayState* play) {
         case MA4_TYPE_ALIENS_WON:
             if (this->state == MA4_STATE_DEFAULT) {
                 // "Huh... You?"
-                Message_StartTextbox(play, 0x3358, &this->actor);
+                MM_Message_StartTextbox(play, 0x3358, &this->actor);
                 this->textId = 0x3358;
             } else if (this->state == MA4_STATE_AFTERHORSEBACKGAME) {
                 if (gSaveContext.timerCurTimes[TIMER_ID_MINIGAME_2] >= SECONDS_TO_TIMER(120)) {
                     // "Try again?"
-                    Message_StartTextbox(play, 0x3356, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3356, &this->actor);
                     this->textId = 0x3356;
                 } else {
                     time = gSaveContext.timerCurTimes[TIMER_ID_MINIGAME_2];
                     if ((s32)time < HS_GET_HORSE_BACK_BALLOON_TIME()) {
                         // New record
                         HS_SET_HORSE_BACK_BALLOON_TIME(time);
-                        Message_StartTextbox(play, 0x335D, &this->actor);
+                        MM_Message_StartTextbox(play, 0x335D, &this->actor);
                         this->textId = 0x335D;
                     } else {
                         // "Old record was: [record]"
-                        Message_StartTextbox(play, 0x335E, &this->actor);
+                        MM_Message_StartTextbox(play, 0x335E, &this->actor);
                         this->textId = 0x335E;
                     }
                 }
@@ -1033,7 +1033,7 @@ void EnMa4_StartDialogue(EnMa4* this, PlayState* play) {
 
         default:
             // Dead code
-            Message_StartTextbox(play, 0x3335, &this->actor);
+            MM_Message_StartTextbox(play, 0x3335, &this->actor);
             this->textId = 0x3335;
             break;
     }
@@ -1056,9 +1056,9 @@ void EnMa4_Update(Actor* thisx, PlayState* play) {
     EnMa4* this = (EnMa4*)thisx;
     s32 pad;
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-    SkelAnime_Update(&this->skelAnime);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_SkelAnime_Update(&this->skelAnime);
     EnMa4_UpdateEyes(this);
     this->actionFunc(this, play);
     func_80ABDD9C(this, play);
@@ -1087,7 +1087,7 @@ void EnMa4_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot,
     Vec3f sp28 = { 800.0f, 0.0f, 0.0f };
 
     if (limbIndex == ROMANI_LIMB_HEAD) {
-        Matrix_MultVec3f(&sp28, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&sp28, &this->actor.focus.pos);
     } else if (limbIndex == ROMANI_LIMB_LEFT_HAND) {
         if (this->hasBow == true) {
             OPEN_DISPS(play->state.gfxCtx);
@@ -1111,10 +1111,10 @@ void EnMa4_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_K0(sEyeTextures[this->eyeTexIndex]));
-    gSPSegment(POLY_OPA_DISP++, 0x09, SEGMENTED_TO_K0(sMouthTextures[this->mouthTexIndex]));
+    gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_K0(MM_sEyeTextures[this->eyeTexIndex]));
+    gSPSegment(POLY_OPA_DISP++, 0x09, SEGMENTED_TO_K0(MM_sMouthTextures[this->mouthTexIndex]));
 
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnMa4_OverrideLimbDraw, EnMa4_PostLimbDraw, &this->actor);
 
     CLOSE_DISPS(play->state.gfxCtx);

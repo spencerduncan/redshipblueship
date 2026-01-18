@@ -84,8 +84,8 @@ typedef struct EnRd {
     /* 0x3EA */ u8 grabDamageTimer;
     /* 0x3EB */ u8 grabState;
     /* 0x3EC */ u8 isMourning;
-    /* 0x3ED */ u8 playerStunWaitTimer; // Cannot stun the player if this is non-zero
-    /* 0x3EE */ u8 grabWaitTimer; // Cannot grab the player if this is non-zero
+    /* 0x3ED */ u8 playerStunWaitTimer; // Cannot stun the player if this is non-MM_zero
+    /* 0x3EE */ u8 grabWaitTimer; // Cannot grab the player if this is non-MM_zero
     /* 0x3EF */ u8 action;
     /* 0x3F0 */ u8 damageEffect;
     /* 0x3F1 */ s8 unk_3F1; // related to player->unk_ADD

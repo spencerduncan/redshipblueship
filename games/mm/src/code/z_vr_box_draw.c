@@ -1,15 +1,15 @@
 #include "global.h"
 #include "2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h"
 
-Mtx* sSkyboxDrawMatrix;
+Mtx* MM_sSkyboxDrawMatrix;
 
 Mtx* Skybox_UpdateMatrix(SkyboxContext* skyboxCtx, f32 x, f32 y, f32 z) {
-    Matrix_Translate(x, y, z, MTXMODE_NEW);
-    Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
+    MM_Matrix_Translate(x, y, z, MTXMODE_NEW);
+    MM_Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
     Matrix_RotateXFApply(skyboxCtx->rot.x);
     Matrix_RotateYF(skyboxCtx->rot.y, MTXMODE_APPLY);
     Matrix_RotateZF(skyboxCtx->rot.z, MTXMODE_APPLY);
-    return Matrix_ToMtx(sSkyboxDrawMatrix);
+    return MM_Matrix_ToMtx(MM_sSkyboxDrawMatrix);
 }
 
 void Skybox_SetColors(SkyboxContext* skyboxCtx, u8 primR, u8 primG, u8 primB, u8 envR, u8 envG, u8 envB) {
@@ -31,14 +31,14 @@ void Skybox_Draw(SkyboxContext* skyboxCtx, GraphicsContext* gfxCtx, s16 skyboxId
     gSPTexture(POLY_OPA_DISP++, 0x8000, 0x8000, 0, G_TX_RENDERTILE, G_ON);
 
     // Prepare matrix
-    sSkyboxDrawMatrix = GRAPH_ALLOC(gfxCtx, sizeof(Mtx));
-    Matrix_Translate(x, y, z, MTXMODE_NEW);
-    Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
+    MM_sSkyboxDrawMatrix = GRAPH_ALLOC(gfxCtx, sizeof(Mtx));
+    MM_Matrix_Translate(x, y, z, MTXMODE_NEW);
+    MM_Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
     Matrix_RotateXFApply(skyboxCtx->rot.x);
     Matrix_RotateYF(skyboxCtx->rot.y, MTXMODE_APPLY);
     Matrix_RotateZF(skyboxCtx->rot.z, MTXMODE_APPLY);
-    Matrix_ToMtx(sSkyboxDrawMatrix);
-    gSPMatrix(POLY_OPA_DISP++, sSkyboxDrawMatrix, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+    MM_Matrix_ToMtx(MM_sSkyboxDrawMatrix);
+    gSPMatrix(POLY_OPA_DISP++, MM_sSkyboxDrawMatrix, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
     // Enable magic square RGB dithering and bilinear filtering
     gDPSetColorDither(POLY_OPA_DISP++, G_CD_MAGICSQ);
@@ -75,5 +75,5 @@ void Skybox_Draw(SkyboxContext* skyboxCtx, GraphicsContext* gfxCtx, s16 skyboxId
     CLOSE_DISPS(gfxCtx);
 }
 
-void Skybox_Update(SkyboxContext* skyboxCtx) {
+void MM_Skybox_Update(SkyboxContext* skyboxCtx) {
 }

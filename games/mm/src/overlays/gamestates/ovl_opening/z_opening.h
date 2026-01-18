@@ -9,7 +9,7 @@ typedef struct {
     /* 0x0A8 */ View view;
 } TitleSetupState; // size = 0x210
 
-void TitleSetup_Init(GameState* thisx);
-void TitleSetup_Destroy(GameState* thisx);
+void MM_TitleSetup_Init(GameState* thisx);
+void MM_TitleSetup_Destroy(GameState* thisx);
 
 #endif

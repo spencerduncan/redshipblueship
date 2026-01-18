@@ -28,7 +28,7 @@ ActorProfile En_Cha_Profile = {
     /**/ EnCha_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_WOOD,
         AT_NONE,
@@ -52,10 +52,10 @@ void EnCha_Init(Actor* thisx, PlayState* play) {
     EnCha* this = (EnCha*)thisx;
     s32 pad;
 
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->actor.home.rot.z = 0;
     this->actionFunc = EnCha_Idle;
     this->actor.home.rot.x = this->actor.home.rot.z;
@@ -65,7 +65,7 @@ void EnCha_Init(Actor* thisx, PlayState* play) {
 void EnCha_Destroy(Actor* thisx, PlayState* play) {
     EnCha* this = (EnCha*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnCha_Ring(EnCha* this, PlayState* play) {
@@ -103,18 +103,18 @@ void EnCha_Update(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     EnCha* this = (EnCha*)thisx;
 
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     this->actionFunc(this, play);
     if ((this->actor.shape.rot.z > -0x1F40) && (this->actor.shape.rot.z < 0x1F40)) {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
 void EnCha_Draw(Actor* thisx, PlayState* play) {
     EnCha* this = (EnCha*)thisx;
 
-    Gfx_DrawDListOpa(play, object_cha_DL_000710);
-    Matrix_Translate(-1094.0f, 4950.0f, 9.0f, MTXMODE_APPLY);
+    MM_Gfx_DrawDListOpa(play, object_cha_DL_000710);
+    MM_Matrix_Translate(-1094.0f, 4950.0f, 9.0f, MTXMODE_APPLY);
     Matrix_RotateXS(this->actor.home.rot.x, MTXMODE_APPLY);
-    Gfx_DrawDListOpa(play, object_cha_DL_000958);
+    MM_Gfx_DrawDListOpa(play, object_cha_DL_000958);
 }

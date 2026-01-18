@@ -36,7 +36,7 @@ const ActorInit Bg_Jya_Lift_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 1400, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 1800, ICHAIN_CONTINUE),
@@ -47,9 +47,9 @@ void BgJyaLift_InitDynapoly(BgJyaLift* this, PlayState* play, CollisionHeader* c
     s32 pad;
     CollisionHeader* colHeader = NULL;
 
-    DynaPolyActor_Init(&this->dyna, moveFlag);
-    CollisionHeader_GetVirtual(collisionHeader, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_DynaPolyActor_Init(&this->dyna, moveFlag);
+    OoT_CollisionHeader_GetVirtual(collisionHeader, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
 }
 
 void BgJyaLift_Init(Actor* thisx, PlayState* play) {
@@ -57,15 +57,15 @@ void BgJyaLift_Init(Actor* thisx, PlayState* play) {
 
     this->isSpawned = false;
     if (sKankyoIsSpawned) {
-        Actor_Kill(thisx);
+        OoT_Actor_Kill(thisx);
         return;
     }
 
     // "Goddess lift CT"
     osSyncPrintf("女神リフト CT\n");
     BgJyaLift_InitDynapoly(this, play, &gLiftCol, DPM_UNK);
-    Actor_ProcessInitChain(thisx, sInitChain);
-    if (Flags_GetSwitch(play, (thisx->params & 0x3F))) {
+    OoT_Actor_ProcessInitChain(thisx, OoT_sInitChain);
+    if (OoT_Flags_GetSwitch(play, (thisx->params & 0x3F))) {
         BgJyaLift_SetFinalPosY(this);
     } else {
         BgJyaLift_SetInitPosY(this);
@@ -83,7 +83,7 @@ void BgJyaLift_Destroy(Actor* thisx, PlayState* play) {
         // "Goddess Lift DT"
         osSyncPrintf("女神リフト DT\n");
         sKankyoIsSpawned = false;
-        DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+        OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
     }
 }
 
@@ -94,7 +94,7 @@ void BgJyaLift_SetInitPosY(BgJyaLift* this) {
 }
 
 void BgJyaLift_DelayMove(BgJyaLift* this, PlayState* play) {
-    if (Flags_GetSwitch(play, this->dyna.actor.params & 0x3F) || (this->moveDelay > 0)) {
+    if (OoT_Flags_GetSwitch(play, this->dyna.actor.params & 0x3F) || (this->moveDelay > 0)) {
         this->moveDelay++;
         if (this->moveDelay >= 20) {
             // The cutscene of the platform lowering will show the central room in an unloaded state if
@@ -119,9 +119,9 @@ void BgJyaLift_Move(BgJyaLift* this, PlayState* play) {
     f32 distFromBottom;
     f32 tempVelocity;
 
-    Math_SmoothStepToF(&this->dyna.actor.velocity.y, 4.0f, 0.1f, 1.0f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->dyna.actor.velocity.y, 4.0f, 0.1f, 1.0f, 0.0f);
     tempVelocity = (this->dyna.actor.velocity.y < 0.2f) ? 0.2f : this->dyna.actor.velocity.y;
-    distFromBottom = Math_SmoothStepToF(&this->dyna.actor.world.pos.y, 973.0f, 0.1f, tempVelocity, 0.2f);
+    distFromBottom = OoT_Math_SmoothStepToF(&this->dyna.actor.world.pos.y, 973.0f, 0.1f, tempVelocity, 0.2f);
     if ((this->dyna.actor.world.pos.y < 1440.0f) && (1440.0f <= this->dyna.actor.prevPos.y)) {
         func_8005B1A4(GET_ACTIVE_CAM(play));
     }
@@ -147,19 +147,19 @@ void BgJyaLift_Update(Actor* thisx, PlayState* play2) {
     }
     if ((this->dyna.interactFlags & DYNA_INTERACT_PLAYER_ABOVE) &&
         ((this->unk_16B & DYNA_INTERACT_PLAYER_ABOVE) == 0)) {
-        Camera_ChangeSetting(play->cameraPtrs[MAIN_CAM], CAM_SET_DIRECTED_YAW);
+        OoT_Camera_ChangeSetting(play->cameraPtrs[MAIN_CAM], CAM_SET_DIRECTED_YAW);
     } else if (((this->dyna.interactFlags) & 4) == 0 && ((this->unk_16B & 4)) &&
                (play->cameraPtrs[MAIN_CAM]->setting == CAM_SET_DIRECTED_YAW)) {
-        Camera_ChangeSetting(play->cameraPtrs[MAIN_CAM], CAM_SET_DUNGEON0);
+        OoT_Camera_ChangeSetting(play->cameraPtrs[MAIN_CAM], CAM_SET_DUNGEON0);
     }
     this->unk_16B = this->dyna.interactFlags;
 
     // Spirit Temple room 5 is the main room with the statue room 25 is directly above room 5
     if ((play->roomCtx.curRoom.num != 5) && (play->roomCtx.curRoom.num != 25)) {
-        Actor_Kill(thisx);
+        OoT_Actor_Kill(thisx);
     }
 }
 
 void BgJyaLift_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, gLiftDL);
+    OoT_Gfx_DrawDListOpa(play, gLiftDL);
 }

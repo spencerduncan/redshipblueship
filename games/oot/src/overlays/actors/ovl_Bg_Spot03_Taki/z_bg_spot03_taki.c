@@ -30,7 +30,7 @@ const ActorInit Bg_Spot03_Taki_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
 
@@ -52,10 +52,10 @@ void BgSpot03Taki_Init(Actor* thisx, PlayState* play) {
     CollisionHeader* colHeader = NULL;
 
     this->switchFlag = (this->dyna.actor.params & 0x3F);
-    DynaPolyActor_Init(&this->dyna, DPM_UNK);
-    CollisionHeader_GetVirtual(&object_spot03_object_Col_000C98, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
+    OoT_CollisionHeader_GetVirtual(&object_spot03_object_Col_000C98, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
     this->bufferIndex = 0;
     this->openingAlpha = 255.0f;
     BgSpot03Taki_ApplyOpeningAlpha(this, 0);
@@ -66,12 +66,12 @@ void BgSpot03Taki_Init(Actor* thisx, PlayState* play) {
 void BgSpot03Taki_Destroy(Actor* thisx, PlayState* play) {
     BgSpot03Taki* this = (BgSpot03Taki*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void BgSpot03Taki_HandleWaterfallState(BgSpot03Taki* this, PlayState* play) {
     if (this->state == WATERFALL_CLOSED) {
-        if (Flags_GetSwitch(play, this->switchFlag)) {
+        if (OoT_Flags_GetSwitch(play, this->switchFlag)) {
             this->state = WATERFALL_OPENING_ANIMATED;
             this->timer = 40;
             OnePointCutscene_Init(play, 4100, -99, NULL, MAIN_CAM);
@@ -103,7 +103,7 @@ void BgSpot03Taki_HandleWaterfallState(BgSpot03Taki* this, PlayState* play) {
                 func_8003EC50(play, &play->colCtx.dyna, this->dyna.bgId);
                 this->state = WATERFALL_CLOSED;
                 this->openingAlpha = 255.0f;
-                Flags_UnsetSwitch(play, this->switchFlag);
+                OoT_Flags_UnsetSwitch(play, this->switchFlag);
             }
         }
     }
@@ -132,7 +132,7 @@ void BgSpot03Taki_Draw(Actor* thisx, PlayState* play) {
 
     gSPSegment(
         POLY_XLU_DISP++, 0x08,
-        Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, gameplayFrames * 5, 64, 64, 1, 0, gameplayFrames * 5, 64, 64));
+        OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, gameplayFrames * 5, 64, 64, 1, 0, gameplayFrames * 5, 64, 64));
 
     gSPDisplayList(POLY_XLU_DISP++, object_spot03_object_DL_000B20);
 
@@ -145,7 +145,7 @@ void BgSpot03Taki_Draw(Actor* thisx, PlayState* play) {
     gSPDisplayList(POLY_XLU_DISP++, object_spot03_object_DL_000BC0);
 
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, gameplayFrames * 1, gameplayFrames * 3, 64, 64, 1,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, gameplayFrames * 1, gameplayFrames * 3, 64, 64, 1,
                                 -gameplayFrames, gameplayFrames * 3, 64, 64));
 
     gSPDisplayList(POLY_XLU_DISP++, object_spot03_object_DL_001580);

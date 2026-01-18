@@ -4,16 +4,16 @@
 #include "align_asset_macro.h"
 
 // #region 2S2H [HD Textures]
-#define drGfxPrintFontData "__OTR__textures/font/sGfxPrintFontData"
+#define drGfxPrintFontData "__OTR__textures/font/MM_sGfxPrintFontData"
 static const ALIGN_ASSET(2) char rGfxPrintFontData[] = drGfxPrintFontData;
 
-#define drGfxPrintFontDataAlt "__OTR__alt/textures/font/sGfxPrintFontData"
+#define drGfxPrintFontDataAlt "__OTR__alt/textures/font/MM_sGfxPrintFontData"
 static const ALIGN_ASSET(2) char rGfxPrintFontDataAlt[] = drGfxPrintFontDataAlt;
 
-bool sHasArchiveTexture = false;
+bool MM_sHasArchiveTexture = false;
 
 // Checks if we have a gfx font as a resource in an archive, which needs to be rendered differently
-bool GfxPrint_HasArchiveTexture() {
+bool MM_GfxPrint_HasArchiveTexture() {
     return ResourceMgr_FileExists(rGfxPrintFontData) ||
            (ResourceMgr_IsAltAssetsEnabled() && ResourceMgr_FileExists(rGfxPrintFontDataAlt));
 }
@@ -26,7 +26,7 @@ bool GfxPrint_HasArchiveTexture() {
 #define GFXP_FLAG_ENLARGE (1 << 6)
 #define GFXP_FLAG_OPEN (1 << 7)
 
-static u16 sGfxPrintFontTLUT[64] = {
+static u16 MM_sGfxPrintFontTLUT[64] = {
     0x0000, 0xFFFF, 0x0000, 0xFFFF, 0x0000, 0xFFFF, 0x0000, 0xFFFF, 0x0000, 0xFFFF, 0x0000, 0xFFFF, 0x0000,
     0xFFFF, 0x0000, 0xFFFF, 0x0000, 0x0000, 0xFFFF, 0xFFFF, 0x0000, 0x0000, 0xFFFF, 0xFFFF, 0x0000, 0x0000,
     0xFFFF, 0xFFFF, 0x0000, 0x0000, 0xFFFF, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0xFFFF, 0xFFFF,
@@ -34,14 +34,14 @@ static u16 sGfxPrintFontTLUT[64] = {
     0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
 };
 
-static u16 sGfxPrintRainbowTLUT[16] = {
+static u16 MM_sGfxPrintRainbowTLUT[16] = {
     0xF801, 0xFBC1, 0xFFC1, 0x07C1, 0x0421, 0x003F, 0x803F, 0xF83F,
     0xF801, 0xFBC1, 0xFFC1, 0x07C1, 0x0421, 0x003F, 0x803F, 0xF83F,
 };
 
-static u8 sGfxPrintRainbowData[8] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77 };
+static u8 MM_sGfxPrintRainbowData[8] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77 };
 
-static u8 sGfxPrintFontData[(16 * 256) / 2] = {
+static u8 MM_sGfxPrintFontData[(16 * 256) / 2] = {
     0x00, 0xDF, 0xFD, 0x00, 0x0A, 0xEE, 0xFF, 0xA0, 0x0D, 0xF2, 0x2D, 0xD0, 0x06, 0x61, 0x1D, 0xC0, 0x01, 0x12, 0x2D,
     0xD0, 0x06, 0x71, 0x99, 0x00, 0x01, 0x1E, 0xED, 0x10, 0x07, 0x7E, 0xF7, 0x00, 0x01, 0x56, 0x29, 0x90, 0x05, 0x58,
     0x97, 0x60, 0x0D, 0xD2, 0x29, 0x90, 0x05, 0x59, 0x97, 0x70, 0x04, 0xDF, 0xFD, 0x40, 0x02, 0x6E, 0xF7, 0x00, 0x00,
@@ -152,7 +152,7 @@ static u8 sGfxPrintFontData[(16 * 256) / 2] = {
     0x1B, 0xAA, 0x40, 0x21, 0x00, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
-void GfxPrint_Setup(GfxPrint* this) {
+void MM_GfxPrint_Setup(GfxPrint* this) {
     s32 width = 16;
     s32 height = 256;
     s32 i;
@@ -165,17 +165,17 @@ void GfxPrint_Setup(GfxPrint* this) {
     gDPSetCombineMode(this->dList++, G_CC_DECALRGBA, G_CC_DECALRGBA);
 
     // 2S2H [HD Textures] Font data from an archive has 4 times the width as the letter columns are side by side
-    if (sHasArchiveTexture) {
+    if (MM_sHasArchiveTexture) {
         gDPLoadTextureBlock_4b(this->dList++, rGfxPrintFontData, G_IM_FMT_CI, width * 4, height, 0,
                                G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK,
                                G_TX_NOLOD, G_TX_NOLOD);
     } else {
-        gDPLoadTextureBlock_4b(this->dList++, sGfxPrintFontData, G_IM_FMT_CI, width, height, 0,
+        gDPLoadTextureBlock_4b(this->dList++, MM_sGfxPrintFontData, G_IM_FMT_CI, width, height, 0,
                                G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK,
                                G_TX_NOLOD, G_TX_NOLOD);
     }
 
-    gDPLoadTLUT(this->dList++, 64, 256, sGfxPrintFontTLUT);
+    gDPLoadTLUT(this->dList++, 64, 256, MM_sGfxPrintFontTLUT);
 
     for (i = 1; i < 4; i++) {
         gDPSetTile(this->dList++, G_IM_FMT_CI, G_IM_SIZ_4b, 1, 0, i * 2, i, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK,
@@ -186,10 +186,10 @@ void GfxPrint_Setup(GfxPrint* this) {
     gDPSetColor(this->dList++, G_SETPRIMCOLOR, this->color.rgba);
 
     // #region 2S2H [Port] Rainbow disabled until LUS supports multiple palettes and tiles
-    // gDPLoadMultiTile_4b(this->dList++, sGfxPrintRainbowData, 0, 1, G_IM_FMT_CI, 2, 8, 0, 0, 1, 7, 4,
+    // gDPLoadMultiTile_4b(this->dList++, MM_sGfxPrintRainbowData, 0, 1, G_IM_FMT_CI, 2, 8, 0, 0, 1, 7, 4,
     //                     G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, 1, 3, G_TX_NOLOD, G_TX_NOLOD);
 
-    // gDPLoadTLUT(this->dList++, 16, 320, sGfxPrintRainbowTLUT);
+    // gDPLoadTLUT(this->dList++, 16, 320, MM_sGfxPrintRainbowTLUT);
 
     // for (i = 1; i < 4; i++) {
     //     gDPSetTile(this->dList++, G_IM_FMT_CI, G_IM_SIZ_4b, 1, 0, i * 2 + 1, 4, G_TX_NOMIRROR | G_TX_WRAP, 3,
@@ -199,7 +199,7 @@ void GfxPrint_Setup(GfxPrint* this) {
     // #endregion
 }
 
-void GfxPrint_SetColor(GfxPrint* this, u32 r, u32 g, u32 b, u32 a) {
+void MM_GfxPrint_SetColor(GfxPrint* this, u32 r, u32 g, u32 b, u32 a) {
     this->color.r = r;
     this->color.g = g;
     this->color.b = b;
@@ -208,21 +208,21 @@ void GfxPrint_SetColor(GfxPrint* this, u32 r, u32 g, u32 b, u32 a) {
     gDPSetColor(this->dList++, G_SETPRIMCOLOR, this->color.rgba);
 }
 
-void GfxPrint_SetPosPx(GfxPrint* this, s32 x, s32 y) {
+void MM_GfxPrint_SetPosPx(GfxPrint* this, s32 x, s32 y) {
     this->posX = this->baseX + (x << 2);
     this->posY = this->baseY + (y << 2);
 }
 
-void GfxPrint_SetPos(GfxPrint* this, s32 x, s32 y) {
-    GfxPrint_SetPosPx(this, x << 3, y << 3);
+void MM_GfxPrint_SetPos(GfxPrint* this, s32 x, s32 y) {
+    MM_GfxPrint_SetPosPx(this, x << 3, y << 3);
 }
 
-void GfxPrint_SetBasePosPx(GfxPrint* this, s32 x, s32 y) {
+void MM_GfxPrint_SetBasePosPx(GfxPrint* this, s32 x, s32 y) {
     this->baseX = x << 2;
     this->baseY = y << 2;
 }
 
-void GfxPrint_PrintCharImpl(GfxPrint* this, u8 c) {
+void MM_GfxPrint_PrintCharImpl(GfxPrint* this, u8 c) {
     u32 tile = (c & 0xFF) * 2;
     u16 s = c & 4;
     u16 t = c >> 3;
@@ -249,7 +249,7 @@ void GfxPrint_PrintCharImpl(GfxPrint* this, u8 c) {
     // different CI palette values. Custom font data from archives instead are all 4 sets laid out side by side.
     // This means we have to compute an additional offset value that represents which of the 4 sets a letter is from.
     u16 assetOffsetX = 0;
-    if (sHasArchiveTexture) {
+    if (MM_sHasArchiveTexture) {
         // Multiplied by the offset of 2 columns before added with the original value below
         assetOffsetX = (c & 0x3) * (256 * 2);
         tile = 0;
@@ -274,7 +274,7 @@ void GfxPrint_PrintChar(GfxPrint* this, u8 c) {
     if (c == ' ') {
         this->posX += 32;
     } else if (c > ' ' && c < 0x7F) {
-        GfxPrint_PrintCharImpl(this, c);
+        MM_GfxPrint_PrintCharImpl(this, c);
     } else if (c >= 0xA0 && c < 0xE0) {
         if (this->flags & GFXP_FLAG_HIRAGANA) {
             if (c < 0xC0) {
@@ -283,7 +283,7 @@ void GfxPrint_PrintChar(GfxPrint* this, u8 c) {
                 c += 0x20;
             }
         }
-        GfxPrint_PrintCharImpl(this, c);
+        MM_GfxPrint_PrintCharImpl(this, c);
     } else {
         switch (c) {
             case '\0':
@@ -295,7 +295,7 @@ void GfxPrint_PrintChar(GfxPrint* this, u8 c) {
                 break;
             case '\t':
                 do {
-                    GfxPrint_PrintCharImpl(this, ' ');
+                    MM_GfxPrint_PrintCharImpl(this, ' ');
                 } while ((this->posX - this->baseX) % 256);
                 break;
             case GFXP_HIRAGANA_CHAR:
@@ -319,7 +319,7 @@ void GfxPrint_PrintChar(GfxPrint* this, u8 c) {
     }
 }
 
-void GfxPrint_PrintStringWithSize(GfxPrint* this, const void* buffer, size_t charSize, size_t charCount) {
+void MM_GfxPrint_PrintStringWithSize(GfxPrint* this, const void* buffer, size_t charSize, size_t charCount) {
     const char* str = (const char*)buffer;
     size_t count = charSize * charCount;
 
@@ -331,7 +331,7 @@ void GfxPrint_PrintStringWithSize(GfxPrint* this, const void* buffer, size_t cha
     // }
 }
 
-void GfxPrint_PrintString(GfxPrint* this, const char* str) {
+void MM_GfxPrint_PrintString(GfxPrint* this, const char* str) {
     // 2S2H [Port] Process the string with our wrapper that converts Japanese UTF8 characters for the print system
     OTRGfxPrint(str, this, GfxPrint_PrintChar);
     // while (*str != '\0') {
@@ -339,18 +339,18 @@ void GfxPrint_PrintString(GfxPrint* this, const char* str) {
     // }
 }
 
-void* GfxPrint_Callback(void* arg, const char* str, size_t size) {
+void* MM_GfxPrint_Callback(void* arg, const char* str, size_t size) {
     GfxPrint* this = arg;
 
-    GfxPrint_PrintStringWithSize(this, str, sizeof(char), size);
+    MM_GfxPrint_PrintStringWithSize(this, str, sizeof(char), size);
 
     return this;
 }
 
-void GfxPrint_Init(GfxPrint* this) {
+void MM_GfxPrint_Init(GfxPrint* this) {
     this->flags &= ~GFXP_FLAG_OPEN;
 
-    this->callback = GfxPrint_Callback;
+    this->callback = MM_GfxPrint_Callback;
     this->dList = NULL;
     this->posX = 0;
     this->posY = 0;
@@ -364,21 +364,21 @@ void GfxPrint_Init(GfxPrint* this) {
     this->flags |= GFXP_FLAG_UPDATE;
 
     // 2S2H [HD Textures] Track whether we have a archive font for the life of this printer
-    sHasArchiveTexture = GfxPrint_HasArchiveTexture();
+    MM_sHasArchiveTexture = MM_GfxPrint_HasArchiveTexture();
 }
 
-void GfxPrint_Destroy(GfxPrint* this) {
+void MM_GfxPrint_Destroy(GfxPrint* this) {
 }
 
-void GfxPrint_Open(GfxPrint* this, Gfx* dList) {
+void MM_GfxPrint_Open(GfxPrint* this, Gfx* dList) {
     if (!(this->flags & GFXP_FLAG_OPEN)) {
         this->flags |= GFXP_FLAG_OPEN;
         this->dList = dList;
-        GfxPrint_Setup(this);
+        MM_GfxPrint_Setup(this);
     }
 }
 
-Gfx* GfxPrint_Close(GfxPrint* this) {
+Gfx* MM_GfxPrint_Close(GfxPrint* this) {
     Gfx* ret;
 
     this->flags &= ~GFXP_FLAG_OPEN;
@@ -388,16 +388,16 @@ Gfx* GfxPrint_Close(GfxPrint* this) {
     return ret;
 }
 
-s32 GfxPrint_VPrintf(GfxPrint* this, const char* fmt, va_list args) {
-    return PrintUtils_VPrintf(&this->callback, fmt, args);
+s32 MM_GfxPrint_VPrintf(GfxPrint* this, const char* fmt, va_list args) {
+    return MM_PrintUtils_VPrintf(&this->callback, fmt, args);
 }
 
-s32 GfxPrint_Printf(GfxPrint* this, const char* fmt, ...) {
+s32 MM_GfxPrint_Printf(GfxPrint* this, const char* fmt, ...) {
     s32 ret;
     va_list args;
     va_start(args, fmt);
 
-    ret = GfxPrint_VPrintf(this, fmt, args);
+    ret = MM_GfxPrint_VPrintf(this, fmt, args);
 
     va_end(args);
 

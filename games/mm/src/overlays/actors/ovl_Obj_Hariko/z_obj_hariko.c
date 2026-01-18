@@ -36,7 +36,7 @@ ActorProfile Obj_Hariko_Profile = {
 void ObjHariko_Init(Actor* thisx, PlayState* play) {
     ObjHariko* this = (ObjHariko*)thisx;
 
-    Actor_SetScale(&this->actor, 0.1f);
+    MM_Actor_SetScale(&this->actor, 0.1f);
     this->headRot.x = 0;
     this->headRot.y = 0;
     this->headRot.z = 0;
@@ -63,9 +63,9 @@ void ObjHariko_SetupBobHead(ObjHariko* this) {
 
 void ObjHariko_BobHead(ObjHariko* this, PlayState* play) {
     this->headOffset += 0x1555;
-    this->headRot.x = Math_SinS(this->headOffset) * this->bobbleStep;
-    this->headRot.y = Math_CosS(this->headOffset) * this->bobbleStep;
-    Math_SmoothStepToF(&this->bobbleStep, 0, 0.5f, 18.0f, 18.0f);
+    this->headRot.x = MM_Math_SinS(this->headOffset) * this->bobbleStep;
+    this->headRot.y = MM_Math_CosS(this->headOffset) * this->bobbleStep;
+    MM_Math_SmoothStepToF(&this->bobbleStep, 0, 0.5f, 18.0f, 18.0f);
     if (this->bobbleStep < 182.0f) {
         ObjHariko_SetupWait(this);
     }
@@ -91,7 +91,7 @@ void ObjHariko_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    Matrix_Push();
+    MM_Matrix_Push();
     Matrix_RotateXS(this->headRot.x, MTXMODE_APPLY);
     Matrix_RotateYS(this->headRot.y, MTXMODE_APPLY);
 
@@ -99,7 +99,7 @@ void ObjHariko_Draw(Actor* thisx, PlayState* play) {
     gSPDisplayList(POLY_OPA_DISP++, gHarikoBodyDL);
     gSPDisplayList(POLY_OPA_DISP++, gHarikoFaceDL);
 
-    Matrix_Pop();
+    MM_Matrix_Pop();
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

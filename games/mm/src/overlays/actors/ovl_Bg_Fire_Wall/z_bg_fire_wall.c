@@ -31,7 +31,7 @@ ActorProfile Bg_Fire_Wall_Profile = {
     /**/ NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -51,7 +51,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 34, 85, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit sColChkInfoInit = { 1, 80, 100, MASS_IMMOVABLE };
+static CollisionCheckInfoInit MM_sColChkInfoInit = { 1, 80, 100, MASS_IMMOVABLE };
 
 static TexturePtr sFlameTextures[] = {
     gFwallFireball0Tex, gFwallFireball1Tex, gFwallFireball2Tex, gFwallFireball3Tex,
@@ -63,15 +63,15 @@ void BgFireWall_Init(Actor* thisx, PlayState* play) {
 
     this->unk_14C = this->actor.params;
     this->actor.scale.y = 0.005f;
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo(&this->actor.colChkInfo, NULL, &sColChkInfoInit);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo(&this->actor.colChkInfo, NULL, &MM_sColChkInfoInit);
     this->actor.scale.z = 0.12f;
     this->actor.scale.x = 0.12f;
     this->unk_15C = 0.09f;
     this->unk_158 = 0.1f;
     this->unk_160 = 300.0f;
-    this->texIndex = Rand_S16Offset(0, ARRAY_COUNT(sFlameTextures) - 1);
+    this->texIndex = MM_Rand_S16Offset(0, ARRAY_COUNT(sFlameTextures) - 1);
     this->actor.flags |= ACTOR_FLAG_UPDATE_CULLING_DISABLED;
     this->collider.dim.pos.y = this->actor.world.pos.y;
     this->actionFunc = func_809AC638;
@@ -80,7 +80,7 @@ void BgFireWall_Init(Actor* thisx, PlayState* play) {
 void BgFireWall_Destroy(Actor* thisx, PlayState* play) {
     BgFireWall* this = (BgFireWall*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 s32 func_809AC5C0(BgFireWall* thisx, PlayState* play) {
@@ -88,7 +88,7 @@ s32 func_809AC5C0(BgFireWall* thisx, PlayState* play) {
     Player* player = GET_PLAYER(play);
     Vec3f sp1C;
 
-    Actor_WorldToActorCoords(&this->actor, &sp1C, &player->actor.world.pos);
+    MM_Actor_WorldToActorCoords(&this->actor, &sp1C, &player->actor.world.pos);
     if ((fabsf(sp1C.x) < this->unk_160) && (fabsf(sp1C.z) < (this->unk_160 + 20.0f))) {
         return true;
     }
@@ -115,8 +115,8 @@ void func_809AC68C(BgFireWall* this, PlayState* play) {
 void func_809AC6C0(BgFireWall* this, PlayState* play) {
     if ((this->unk_14C != 0) || (func_809AC5C0(this, play))) {
         this->unk_15C = 0.09f;
-        Math_StepToF(&this->actor.scale.y, this->unk_15C + this->unk_154, this->unk_158);
-    } else if (Math_StepToF(&this->actor.scale.y, 0.005f, this->unk_158)) {
+        MM_Math_StepToF(&this->actor.scale.y, this->unk_15C + this->unk_154, this->unk_158);
+    } else if (MM_Math_StepToF(&this->actor.scale.y, 0.005f, this->unk_158)) {
         this->actionFunc = func_809AC638;
     } else {
         this->timer = 0;
@@ -126,7 +126,7 @@ void func_809AC6C0(BgFireWall* this, PlayState* play) {
 void func_809AC760(BgFireWall* this, PlayState* play) {
     s16 phi_a3;
 
-    if (Actor_IsFacingPlayer(&this->actor, 0x4000)) {
+    if (MM_Actor_IsFacingPlayer(&this->actor, 0x4000)) {
         phi_a3 = this->actor.shape.rot.y;
     } else {
         phi_a3 = (this->actor.shape.rot.y + 0x8000);
@@ -141,7 +141,7 @@ void func_809AC7F8(BgFireWall* this, PlayState* play) {
     f32 sin;
     f32 cos;
 
-    Actor_WorldToActorCoords(&this->actor, &sp38, &player->actor.world.pos);
+    MM_Actor_WorldToActorCoords(&this->actor, &sp38, &player->actor.world.pos);
     sp38.x = CLAMP(sp38.x, -80.0f, 80.0f);
 
     if (this->step == 0) {
@@ -156,15 +156,15 @@ void func_809AC7F8(BgFireWall* this, PlayState* play) {
         sp38.z = this->step * 25.0f;
     }
 
-    sin = Math_SinS(this->actor.shape.rot.y);
-    cos = Math_CosS(this->actor.shape.rot.y);
+    sin = MM_Math_SinS(this->actor.shape.rot.y);
+    cos = MM_Math_CosS(this->actor.shape.rot.y);
     this->collider.dim.pos.x = this->actor.world.pos.x + (sp38.x * cos) + (sp38.z * sin);
     this->collider.dim.pos.z = this->actor.world.pos.z - (sp38.x * sin) + (sp38.z * cos);
 }
 
 void func_809AC970(BgFireWall* this, PlayState* play) {
-    if (Math_StepToF(&this->actor.scale.y, 0.005f, this->unk_158)) {
-        Actor_Kill(&this->actor);
+    if (MM_Math_StepToF(&this->actor.scale.y, 0.005f, this->unk_158)) {
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -183,8 +183,8 @@ void BgFireWall_Update(Actor* thisx, PlayState* play2) {
         Actor_PlaySfx_Flagged(&this->actor, NA_SE_EV_FIRE_PLATE - SFX_FLAG);
         if ((this->unk_14C == 0) || ((this->unk_14C != 0) && (this->actor.xzDistToPlayer < 240.0f))) {
             func_809AC7F8(this, play);
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
-            CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+            MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+            MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
         }
     }
     this->texIndex = (this->texIndex + 1) % ARRAY_COUNT(sFlameTextures);
@@ -203,7 +203,7 @@ void BgFireWall_Draw(Actor* thisx, PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_20);
+    POLY_XLU_DISP = MM_Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_20);
     gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(sFlameTextures[this->texIndex]));
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x01, 255, 255, 0, 150);
     gDPSetEnvColor(POLY_XLU_DISP++, 255, 0, 0, 255);

@@ -63,7 +63,7 @@ typedef enum SuttariAnimation {
     /*  9 */ SUTTARI_ANIM_MAX
 } SuttariAnimation;
 
-static AnimationInfo sAnimationInfo[SUTTARI_ANIM_MAX] = {
+static AnimationInfo MM_sAnimationInfo[SUTTARI_ANIM_MAX] = {
     { &object_boj_Anim_00071C, 1.0f, 0.0f, 0.0f, ANIMMODE_LOOP, 0.0f },  // SUTTARI_ANIM_0
     { &object_boj_Anim_0128F4, 1.0f, 0.0f, 0.0f, ANIMMODE_LOOP, 0.0f },  // SUTTARI_ANIM_1
     { &object_boj_Anim_011F84, 1.0f, 0.0f, 0.0f, ANIMMODE_LOOP, 0.0f },  // SUTTARI_ANIM_2
@@ -75,7 +75,7 @@ static AnimationInfo sAnimationInfo[SUTTARI_ANIM_MAX] = {
     { &object_boj_Anim_010BDC, 1.0f, 0.0f, 0.0f, ANIMMODE_LOOP, 0.0f },  // SUTTARI_ANIM_8
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -95,11 +95,11 @@ static ColliderCylinderInit sCylinderInit = {
     { 18, 64, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit2 = {
+static CollisionCheckInfoInit2 MM_sColChkInfoInit2 = {
     0, 18, 64, 0, MASS_IMMOVABLE,
 };
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(1, 0x0),
     /* Deku Stick     */ DMG_ENTRY(1, 0x0),
     /* Horse trample  */ DMG_ENTRY(1, 0x0),
@@ -207,7 +207,7 @@ void EnSuttari_UpdateCollider(EnSuttari* this, PlayState* play) {
                 if (GameInteractor_Should(VB_SAKON_TAKE_DAMAGE, true, this)) {
                     this->flags1 |= 0x100;
                     this->flags1 &= ~0x40;
-                    Enemy_StartFinishingBlow(play, &this->actor);
+                    MM_Enemy_StartFinishingBlow(play, &this->actor);
                 }
             } else if (this->actor.colChkInfo.damageEffect == 0xE) {
                 this->flags1 |= 0x200;
@@ -216,13 +216,13 @@ void EnSuttari_UpdateCollider(EnSuttari* this, PlayState* play) {
         }
     }
 
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 
     if ((this->flags1 & 1) && (this->actionFunc != func_80BADE14)) {
-        Actor_UpdateBgCheckInfo(play, &this->actor, 35.0f, 30.0f, 30.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
+        MM_Actor_UpdateBgCheckInfo(play, &this->actor, 35.0f, 30.0f, 30.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
     } else {
-        Actor_UpdateBgCheckInfo(play, &this->actor, 35.0f, 30.0f, 30.0f, UPDBGCHECKINFO_FLAG_4);
+        MM_Actor_UpdateBgCheckInfo(play, &this->actor, 35.0f, 30.0f, 30.0f, UPDBGCHECKINFO_FLAG_4);
     }
 }
 
@@ -255,10 +255,10 @@ s32 func_80BAA904(EnSuttari* this, PlayState* play) {
     s32 pad;
     CollisionPoly* poly;
 
-    pos.x = (Math_SinS(this->actor.world.rot.y) * 50.0f) + this->actor.world.pos.x;
+    pos.x = (MM_Math_SinS(this->actor.world.rot.y) * 50.0f) + this->actor.world.pos.x;
     pos.y = this->actor.world.pos.y + 100.0f;
-    pos.z = (Math_CosS(this->actor.world.rot.y) * 50.0f) + this->actor.world.pos.z;
-    if (BgCheck_EntityRaycastFloor2(play, &play->colCtx, &poly, &pos) > -500.0f) {
+    pos.z = (MM_Math_CosS(this->actor.world.rot.y) * 50.0f) + this->actor.world.pos.z;
+    if (MM_BgCheck_EntityRaycastFloor2(play, &play->colCtx, &poly, &pos) > -500.0f) {
         return false;
     }
     return true;
@@ -266,7 +266,7 @@ s32 func_80BAA904(EnSuttari* this, PlayState* play) {
 
 void func_80BAA9B4(EnSuttari* this) {
     s16 curFrame = this->skelAnime.curFrame;
-    s16 endFrame = Animation_GetLastFrame(sAnimationInfo[this->animIndex].animation);
+    s16 endFrame = MM_Animation_GetLastFrame(MM_sAnimationInfo[this->animIndex].animation);
 
     switch (this->textId) {
         case 0x1454:
@@ -279,14 +279,14 @@ void func_80BAA9B4(EnSuttari* this) {
         case 0x145B:
             if ((this->animIndex != SUTTARI_ANIM_8) && (curFrame == endFrame)) {
                 this->animIndex = SUTTARI_ANIM_8;
-                Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, this->animIndex);
+                Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
             }
             break;
 
         default:
             if ((this->animIndex != SUTTARI_ANIM_1) && (curFrame == endFrame)) {
                 this->animIndex = SUTTARI_ANIM_1;
-                Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, this->animIndex);
+                Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
             }
     }
 }
@@ -295,7 +295,7 @@ void func_80BAAA94(EnSuttari* this) {
     switch (this->textId) {
         case 0x29E5:
             this->animIndex = SUTTARI_ANIM_1;
-            Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, this->animIndex);
+            Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
             break;
 
         case 0x29E9:
@@ -312,12 +312,12 @@ void func_80BAAA94(EnSuttari* this) {
 
         case 0x29EC:
             this->animIndex = SUTTARI_ANIM_7;
-            Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, this->animIndex);
+            Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
             break;
 
         case 0x29ED:
             this->animIndex = SUTTARI_ANIM_1;
-            Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, this->animIndex);
+            Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
             break;
 
         default:
@@ -461,19 +461,19 @@ void func_80BAAB78(EnSuttari* this, PlayState* play) {
                 break;
         }
     }
-    Message_StartTextbox(play, this->textId, &this->actor);
+    MM_Message_StartTextbox(play, this->textId, &this->actor);
 }
 
 void func_80BAAF1C(EnSuttari* this) {
     s16 curFrame = this->skelAnime.curFrame;
-    s16 endFrame = Animation_GetLastFrame(sAnimationInfo[this->animIndex].animation);
+    s16 endFrame = MM_Animation_GetLastFrame(MM_sAnimationInfo[this->animIndex].animation);
 
     if (this->animIndex == SUTTARI_ANIM_5) {
         this->animIndex = SUTTARI_ANIM_3;
-        Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, this->animIndex);
+        Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
     } else if ((this->animIndex == SUTTARI_ANIM_3) && (curFrame == endFrame)) {
         this->animIndex = SUTTARI_ANIM_6;
-        Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, this->animIndex);
+        Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
         this->flags1 &= ~0x100;
     }
 }
@@ -484,17 +484,17 @@ void func_80BAAFDC(EnSuttari* this, PlayState* play) {
         Vec3f effectPos;
         Vec3f effectVelocity;
 
-        Math_Vec3f_Copy(&effectPos, &this->actor.world.pos);
-        effectPos.x += Math_SinS(this->actor.world.rot.y + this->unk3F4) * 10.0f;
+        MM_Math_Vec3f_Copy(&effectPos, &this->actor.world.pos);
+        effectPos.x += MM_Math_SinS(this->actor.world.rot.y + this->unk3F4) * 10.0f;
         effectPos.y += 60.0f;
-        effectPos.z += Math_CosS(this->actor.world.rot.y + this->unk3F4) * 10.0f;
-        Matrix_Push();
+        effectPos.z += MM_Math_CosS(this->actor.world.rot.y + this->unk3F4) * 10.0f;
+        MM_Matrix_Push();
         Matrix_RotateYS(this->actor.shape.rot.y, MTXMODE_NEW);
         effectVelocityOffset.z = 20.0f;
-        Matrix_MultVec3f(&effectVelocityOffset, &effectVelocity);
-        Matrix_Pop();
+        MM_Matrix_MultVec3f(&effectVelocityOffset, &effectVelocity);
+        MM_Matrix_Pop();
         if (!this->playerDetected) {
-            EffectSsSolderSrchBall_Spawn(play, &effectPos, &effectVelocity, &gZeroVec3f, 50, &this->playerDetected,
+            MM_EffectSsSolderSrchBall_Spawn(play, &effectPos, &effectVelocity, &gZeroVec3f, 50, &this->playerDetected,
                                          SOLDERSRCHBALL_INVISIBLE);
         }
         if (this->playerDetected == true) {
@@ -517,17 +517,17 @@ void func_80BAB1A0(EnSuttari* this, PlayState* play) {
         Vec3f effectPos;
         Vec3f effectVelocity;
 
-        Math_Vec3f_Copy(&effectPos, &this->actor.world.pos);
-        effectPos.x += Math_SinS(this->actor.world.rot.y + this->unk3F4) * 350.0f;
+        MM_Math_Vec3f_Copy(&effectPos, &this->actor.world.pos);
+        effectPos.x += MM_Math_SinS(this->actor.world.rot.y + this->unk3F4) * 350.0f;
         effectPos.y += 60.0f;
-        effectPos.z += Math_CosS(this->actor.world.rot.y + this->unk3F4) * 350.0f;
-        Matrix_Push();
+        effectPos.z += MM_Math_CosS(this->actor.world.rot.y + this->unk3F4) * 350.0f;
+        MM_Matrix_Push();
         Matrix_RotateYS(this->actor.shape.rot.y, MTXMODE_NEW);
         effectVelocityOffset.z = 20.0f;
-        Matrix_MultVec3f(&effectVelocityOffset, &effectVelocity);
-        Matrix_Pop();
+        MM_Matrix_MultVec3f(&effectVelocityOffset, &effectVelocity);
+        MM_Matrix_Pop();
         if (!this->playerDetected) {
-            EffectSsSolderSrchBall_Spawn(play, &effectPos, &effectVelocity, &gZeroVec3f, 50, &this->playerDetected,
+            MM_EffectSsSolderSrchBall_Spawn(play, &effectPos, &effectVelocity, &gZeroVec3f, 50, &this->playerDetected,
                                          SOLDERSRCHBALL_INVISIBLE);
         }
         if (this->playerDetected == true) {
@@ -551,15 +551,15 @@ void func_80BAB374(EnSuttari* this, PlayState* play) {
     Vec3f sp38;
 
     if ((curFrame % 3) == 0) {
-        sp38.x = Rand_CenteredFloat(15.0f) + this->actor.world.pos.x;
+        sp38.x = MM_Rand_CenteredFloat(15.0f) + this->actor.world.pos.x;
         sp38.y = this->actor.world.pos.y;
-        sp38.z = Rand_CenteredFloat(15.0f) + this->actor.world.pos.z;
-        Actor_SpawnFloorDustRing(play, &this->actor, &sp38, 10.0f, 0, 2.0f, 0, 0, false);
+        sp38.z = MM_Rand_CenteredFloat(15.0f) + this->actor.world.pos.z;
+        MM_Actor_SpawnFloorDustRing(play, &this->actor, &sp38, 10.0f, 0, 2.0f, 0, 0, false);
     }
 }
 
 void func_80BAB434(EnSuttari* this) {
-    this->unk3F2 = Math_SinS(this->unk3F4) * 60.0f * (0x10000 / 360.0f);
+    this->unk3F2 = MM_Math_SinS(this->unk3F4) * 60.0f * (0x10000 / 360.0f);
     this->unk3F4 += 0x400;
 }
 
@@ -576,8 +576,8 @@ void func_80BAB4F0(EnSuttari* this, PlayState* play) {
     if (this->flags1 & 0x80) {
         EnSuttari_UpdateCollider(this, play);
     }
-    SkelAnime_Update(&this->skelAnime);
-    if (!(this->flags1 & 4) && (Player_GetMask(play) != PLAYER_MASK_STONE)) {
+    MM_SkelAnime_Update(&this->skelAnime);
+    if (!(this->flags1 & 4) && (MM_Player_GetMask(play) != PLAYER_MASK_STONE)) {
         if (SubS_AngleDiffLessEqual(this->actor.shape.rot.y, 0x36B0, this->actor.yawTowardsPlayer)) {
             point.x = player->actor.world.pos.x;
             point.y = player->bodyPartsPos[PLAYER_BODYPART_HEAD].y + 3.0f;
@@ -585,12 +585,12 @@ void func_80BAB4F0(EnSuttari* this, PlayState* play) {
             SubS_TrackPoint(&point, &this->actor.focus.pos, &this->actor.shape.rot, &this->trackTarget, &this->headRot,
                             &this->torsoRot, &sTrackOptions);
         } else {
-            Math_SmoothStepToS(&this->trackTarget.x, 0, 4, 0x3E8, 1);
-            Math_SmoothStepToS(&this->trackTarget.y, 0, 4, 0x3E8, 1);
-            Math_SmoothStepToS(&this->headRot.x, 0, 4, 0x3E8, 1);
-            Math_SmoothStepToS(&this->headRot.y, 0, 4, 0x3E8, 1);
-            Math_SmoothStepToS(&this->torsoRot.x, 0, 4, 0x3E8, 1);
-            Math_SmoothStepToS(&this->torsoRot.y, 0, 4, 0x3E8, 1);
+            MM_Math_SmoothStepToS(&this->trackTarget.x, 0, 4, 0x3E8, 1);
+            MM_Math_SmoothStepToS(&this->trackTarget.y, 0, 4, 0x3E8, 1);
+            MM_Math_SmoothStepToS(&this->headRot.x, 0, 4, 0x3E8, 1);
+            MM_Math_SmoothStepToS(&this->headRot.y, 0, 4, 0x3E8, 1);
+            MM_Math_SmoothStepToS(&this->torsoRot.x, 0, 4, 0x3E8, 1);
+            MM_Math_SmoothStepToS(&this->torsoRot.y, 0, 4, 0x3E8, 1);
         }
     }
     SubS_UpdateFidgetTables(play, this->fidgetTableY, this->fidgetTableZ, OBJECT_BOJ_LIMB_MAX);
@@ -627,7 +627,7 @@ s32 EnSuttari_HasReachedPointForward(EnSuttari* this, Path* path, s32 pointIndex
     f32 d;
     Vec3f point;
 
-    Math_Vec3s_ToVec3f(&point, &points[index]);
+    MM_Math_Vec3s_ToVec3f(&point, &points[index]);
 
     if (index == 0) {
         diffX = points[1].x - points[0].x;
@@ -639,7 +639,7 @@ s32 EnSuttari_HasReachedPointForward(EnSuttari* this, Path* path, s32 pointIndex
         diffX = points[index + 1].x - points[index - 1].x;
         diffZ = points[index + 1].z - points[index - 1].z;
     }
-    Math3D_RotateXZPlane(&point, RAD_TO_BINANG(Math_FAtan2F(diffX, diffZ)), &px, &pz, &d);
+    MM_Math3D_RotateXZPlane(&point, RAD_TO_BINANG(MM_Math_FAtan2F(diffX, diffZ)), &px, &pz, &d);
 
     if (((px * this->actor.world.pos.x) + (pz * this->actor.world.pos.z) + d) > 0.0f) {
         reached = true;
@@ -660,7 +660,7 @@ s32 EnSuttari_HasReachedPointReverse(EnSuttari* this, Path* path, s32 pointIndex
     f32 d;
     Vec3f point;
 
-    Math_Vec3s_ToVec3f(&point, &points[index]);
+    MM_Math_Vec3s_ToVec3f(&point, &points[index]);
 
     if (index == 0) {
         diffX = points[0].x - points[1].x;
@@ -673,7 +673,7 @@ s32 EnSuttari_HasReachedPointReverse(EnSuttari* this, Path* path, s32 pointIndex
         diffZ = points[index - 1].z - points[index + 1].z;
     }
 
-    Math3D_RotateXZPlane(&point, RAD_TO_BINANG(Math_FAtan2F(diffX, diffZ)), &px, &pz, &d);
+    MM_Math3D_RotateXZPlane(&point, RAD_TO_BINANG(MM_Math_FAtan2F(diffX, diffZ)), &px, &pz, &d);
 
     if (((px * this->actor.world.pos.x) + (pz * this->actor.world.pos.z) + d) > 0.0f) {
         reached = true;
@@ -695,7 +695,7 @@ void func_80BABA90(EnSuttari* this, s32 arg1, u8 arg2) {
                 target = this->actor.wallYaw;
             }
         }
-        Math_SmoothStepToS(&this->actor.world.rot.y, target, 4, 0x3E8, 1);
+        MM_Math_SmoothStepToS(&this->actor.world.rot.y, target, 4, 0x3E8, 1);
         this->actor.shape.rot.y = this->actor.world.rot.y;
         if (EnSuttari_HasReachedPointForward(this, this->paths[arg1], this->unk1F4[arg1])) {
             if (this->unk1F4[arg1] >= (this->paths[arg1]->count - 1)) {
@@ -720,7 +720,7 @@ void func_80BABB90(EnSuttari* this, s32 arg1) {
         if (this->actor.bgCheckFlags & BGCHECKFLAG_WALL) {
             target = this->actor.wallYaw;
         }
-        Math_SmoothStepToS(&this->actor.world.rot.y, target, 1, 0xBB8, 0);
+        MM_Math_SmoothStepToS(&this->actor.world.rot.y, target, 1, 0xBB8, 0);
         this->actor.shape.rot.y = this->actor.world.rot.y;
         if (EnSuttari_HasReachedPointReverse(this, this->paths[arg1], this->unk1F4[arg1])) {
             if (this->unk1F4[arg1] <= 0) {
@@ -785,16 +785,16 @@ s32 func_80BABDD8(EnSuttari* this, PlayState* play, ScheduleOutput* scheduleOutp
         return false;
     }
     sp28 = Lib_SegmentedToVirtual(this->timePath->points);
-    Math_Vec3s_ToVec3f(&sp38, &sp28[0]);
-    Math_Vec3s_ToVec3f(&sp2C, &sp28[1]);
+    MM_Math_Vec3s_ToVec3f(&sp38, &sp28[0]);
+    MM_Math_Vec3s_ToVec3f(&sp2C, &sp28[1]);
     this->unk434 = sp44 - scheduleOutput->time0;
     this->unk436 = scheduleOutput->time1 - scheduleOutput->time0;
     if ((scheduleOutput->result != 10) && (scheduleOutput->result != 11)) {
         door->openTimer = 75;
     }
-    Math_Vec3f_Copy(&this->unk438, &sp38);
-    Math_Vec3f_Copy(&this->unk444, &sp2C);
-    this->actor.world.rot.y = Math_Vec3f_Yaw(&sp38, &sp2C);
+    MM_Math_Vec3f_Copy(&this->unk438, &sp38);
+    MM_Math_Vec3f_Copy(&this->unk444, &sp2C);
+    this->actor.world.rot.y = MM_Math_Vec3f_Yaw(&sp38, &sp2C);
     this->actor.world.pos = sp38;
     return true;
 }
@@ -870,7 +870,7 @@ s32 func_80BABFD4(EnSuttari* this, PlayState* play) {
     } else {
         sp70 = this->actor.world.pos;
         sp64 = this->timePathTargetPos;
-        this->actor.world.rot.y = Math_Vec3f_Yaw(&sp70, &sp64);
+        this->actor.world.rot.y = MM_Math_Vec3f_Yaw(&sp70, &sp64);
     }
     if (SubS_InCsMode(play)) {
         this->timePathElapsedTime = sp54;
@@ -892,7 +892,7 @@ s32 func_80BAC220(EnSuttari* this, PlayState* play) {
         tmp2 = (this->unk436 < this->unk434) ? this->unk436 : this->unk434;
         this->unk434 = tmp2;
     }
-    tmp = Math_Vec3f_DistXZ(&this->unk438, &this->unk444) / this->unk436;
+    tmp = MM_Math_Vec3f_DistXZ(&this->unk438, &this->unk444) / this->unk436;
     sp3C.x = sp3C.y = 0.0f;
     sp3C.z = this->unk434 * tmp;
     Lib_Vec3f_TranslateAndRotateY(&this->unk438, this->actor.world.rot.y, &sp3C, &sp30);
@@ -904,7 +904,7 @@ s32 func_80BAC220(EnSuttari* this, PlayState* play) {
 void func_80BAC2FC(EnSuttari* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
     s16 curFrame = this->skelAnime.curFrame;
-    s16 endFrame = Animation_GetLastFrame(sAnimationInfo[this->animIndex].animation);
+    s16 endFrame = MM_Animation_GetLastFrame(MM_sAnimationInfo[this->animIndex].animation);
 
     switch (this->scheduleResult) {
         case 12:
@@ -916,7 +916,7 @@ void func_80BAC2FC(EnSuttari* this, PlayState* play) {
         case 15:
             if ((this->animIndex == SUTTARI_ANIM_1) && (curFrame == endFrame)) {
                 this->animIndex = SUTTARI_ANIM_2;
-                Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, this->animIndex);
+                Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
             }
             if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_83_04) && !(this->flags1 & 0x1000)) {
                 if (CutsceneManager_IsNext(this->csIdList[0])) {
@@ -952,7 +952,7 @@ void func_80BAC2FC(EnSuttari* this, PlayState* play) {
             this->enFsn->flags &= ~ENFSN_HAGGLE;
             if (this->animIndex != SUTTARI_ANIM_2) {
                 this->animIndex = SUTTARI_ANIM_2;
-                Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, this->animIndex);
+                Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
             }
             func_80BAC220(this, play);
             break;
@@ -970,7 +970,7 @@ void func_80BAC2FC(EnSuttari* this, PlayState* play) {
             break;
 
         case 1:
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
             break;
 
         case 2:
@@ -988,7 +988,7 @@ void func_80BAC2FC(EnSuttari* this, PlayState* play) {
             if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_RECOVERED_STOLEN_BOMB_BAG)) {
                 if ((this->animIndex == SUTTARI_ANIM_2) || (this->animIndex == SUTTARI_ANIM_1)) {
                     this->animIndex = SUTTARI_ANIM_5;
-                    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, this->animIndex);
+                    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
                 }
                 this->flags1 |= 0x10;
                 if (this->flags2 & 2) {
@@ -999,7 +999,7 @@ void func_80BAC2FC(EnSuttari* this, PlayState* play) {
                     player->stateFlags1 |= PLAYER_STATE1_10000000;
                 }
                 this->textId = 0x2A30;
-                Message_StartTextbox(play, this->textId, &this->actor);
+                MM_Message_StartTextbox(play, this->textId, &this->actor);
                 this->actionFunc = func_80BAD2B4;
             }
             break;
@@ -1007,12 +1007,12 @@ void func_80BAC2FC(EnSuttari* this, PlayState* play) {
         default:
             break;
     }
-    Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 4, 0x1554);
+    MM_Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 4, 0x1554);
 }
 
 void func_80BAC6E8(EnSuttari* this, PlayState* play) {
-    ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &object_boj_Skel_00C240, &object_boj_Anim_00071C, this->jointTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &object_boj_Skel_00C240, &object_boj_Anim_00071C, this->jointTable,
                        this->morphTable, OBJECT_BOJ_LIMB_MAX);
     this->actor.draw = EnSuttari_Draw;
     this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
@@ -1020,7 +1020,7 @@ void func_80BAC6E8(EnSuttari* this, PlayState* play) {
         this->flags1 |= 1;
         if ((gSaveContext.save.day == 1) || (gSaveContext.save.day == 2)) {
             this->animIndex = SUTTARI_ANIM_2;
-            Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, this->animIndex);
+            Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
             this->flags1 |= 0x80;
             this->actionFunc = func_80BACA14;
             return;
@@ -1029,43 +1029,43 @@ void func_80BAC6E8(EnSuttari* this, PlayState* play) {
                    !CHECK_WEEKEVENTREG(WEEKEVENTREG_RECOVERED_STOLEN_BOMB_BAG) &&
                    CHECK_WEEKEVENTREG(WEEKEVENTREG_51_08)) {
             this->animIndex = SUTTARI_ANIM_2;
-            Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, this->animIndex);
+            Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
             this->actionFunc = func_80BACEE0;
             return;
         }
     } else if (play->sceneId == SCENE_BACKTOWN) {
         if ((CURRENT_TIME >= CLOCK_TIME(0, 20)) && (CURRENT_TIME < CLOCK_TIME(6, 0))) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
 
         if ((gSaveContext.save.entrance == ENTRANCE(NORTH_CLOCK_TOWN, 7)) || CHECK_WEEKEVENTREG(WEEKEVENTREG_58_40)) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
         this->csIdList[0] = this->actor.csId;
         this->csIdList[1] = CutsceneManager_GetAdditionalCsId(this->csIdList[0]);
         this->flags1 |= 0x80;
         this->flags1 |= 8;
         this->animIndex = SUTTARI_ANIM_1;
-        Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, this->animIndex);
+        Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
         this->actionFunc = func_80BAD004;
         return;
     } else if (play->sceneId == SCENE_ICHIBA) {
         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_RECOVERED_STOLEN_BOMB_BAG)) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
             return;
         }
         this->animIndex = SUTTARI_ANIM_0;
-        Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, this->animIndex);
+        Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
         this->flags1 |= 2;
         this->actionFunc = func_80BAD5F8;
         return;
     } else if (play->sceneId == SCENE_AYASHIISHOP) {
         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_RECOVERED_STOLEN_BOMB_BAG)) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
             return;
         }
         this->animIndex = SUTTARI_ANIM_0;
-        Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, this->animIndex);
+        Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
         this->csIdList[0] = this->actor.csId;
         this->csIdList[1] = CutsceneManager_GetAdditionalCsId(this->csIdList[0]);
         this->flags1 |= 4;
@@ -1077,7 +1077,7 @@ void func_80BAC6E8(EnSuttari* this, PlayState* play) {
         this->actionFunc = func_80BACA14;
         return;
     }
-    Actor_Kill(&this->actor);
+    MM_Actor_Kill(&this->actor);
 }
 
 void func_80BACA14(EnSuttari* this, PlayState* play) {
@@ -1085,7 +1085,7 @@ void func_80BACA14(EnSuttari* this, PlayState* play) {
 
     if ((this->animIndex == SUTTARI_ANIM_1) || (this->animIndex == SUTTARI_ANIM_8)) {
         this->animIndex = SUTTARI_ANIM_2;
-        Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, this->animIndex);
+        Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
     }
     func_80BABA90(this, 0, 0);
     func_80BAB434(this);
@@ -1104,7 +1104,7 @@ void func_80BACA14(EnSuttari* this, PlayState* play) {
             Actor_OfferTalk(&this->actor, play, 200.0f);
         }
     }
-    Math_ApproachF(&this->actor.speed, 5.0f, 0.2f, 0.1f);
+    MM_Math_ApproachF(&this->actor.speed, 5.0f, 0.2f, 0.1f);
     Actor_MoveWithGravity(&this->actor);
 }
 
@@ -1124,9 +1124,9 @@ void func_80BACBB0(EnSuttari* this, PlayState* play) {
         } else {
             target = -this->actor.yawTowardsPlayer;
         }
-        Math_SmoothStepToS(&this->actor.world.rot.y, target, 4, 0x3E8, 1);
+        MM_Math_SmoothStepToS(&this->actor.world.rot.y, target, 4, 0x3E8, 1);
         this->actor.shape.rot.y = this->actor.world.rot.y;
-        Math_ApproachF(&this->actor.speed, 5.0f, 0.2f, 0.1f);
+        MM_Math_ApproachF(&this->actor.speed, 5.0f, 0.2f, 0.1f);
     } else {
         this->actionFunc = func_80BACD2C;
         this->actor.speed = 0.0f;
@@ -1148,9 +1148,9 @@ void func_80BACD2C(EnSuttari* this, PlayState* play) {
     }
     if ((this->actor.playerHeightRel < 60.0f) && (this->actor.xzDistToPlayer < 500.0f)) {
         this->actionFunc = func_80BACBB0;
-        Math_ApproachF(&this->actor.speed, 5.0f, 0.2f, 0.1f);
+        MM_Math_ApproachF(&this->actor.speed, 5.0f, 0.2f, 0.1f);
     } else {
-        Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 4, 0x3E8, 1);
+        MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 4, 0x3E8, 1);
         this->actor.shape.rot.y = this->actor.world.rot.y;
     }
     Actor_MoveWithGravity(&this->actor);
@@ -1191,7 +1191,7 @@ void func_80BACEE0(EnSuttari* this, PlayState* play) {
         SET_WEEKEVENTREG(WEEKEVENTREG_58_80);
         this->actionFunc = func_80BADDB4;
         this->actor.speed = 0.0f;
-    } else if (Player_GetMask(play) != PLAYER_MASK_STONE) {
+    } else if (MM_Player_GetMask(play) != PLAYER_MASK_STONE) {
         func_80BAB1A0(this, play);
     }
     Actor_MoveWithGravity(&this->actor);
@@ -1213,7 +1213,7 @@ void func_80BAD004(EnSuttari* this, PlayState* play) {
     func_80BAC2FC(this, play);
 
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
-        Message_StartTextbox(play, 0x2A3A, &this->actor);
+        MM_Message_StartTextbox(play, 0x2A3A, &this->actor);
         this->actionFunc = func_80BAD130;
     } else if ((this->actor.xzDistToPlayer < 200.0f) || this->actor.isLockedOn) {
         Actor_OfferTalkNearColChkInfoCylinder(&this->actor, play);
@@ -1223,9 +1223,9 @@ void func_80BAD004(EnSuttari* this, PlayState* play) {
 }
 
 void func_80BAD130(EnSuttari* this, PlayState* play) {
-    u8 talkState = Message_GetState(&play->msgCtx);
+    u8 talkState = MM_Message_GetState(&play->msgCtx);
 
-    if (((talkState == TEXT_STATE_EVENT) || (talkState == TEXT_STATE_DONE)) && Message_ShouldAdvance(play)) {
+    if (((talkState == TEXT_STATE_EVENT) || (talkState == TEXT_STATE_DONE)) && MM_Message_ShouldAdvance(play)) {
         play->msgCtx.msgMode = MSGMODE_TEXT_CLOSING;
         play->msgCtx.stateTimer = 4;
         if (this->flags1 & 8) {
@@ -1239,14 +1239,14 @@ void func_80BAD130(EnSuttari* this, PlayState* play) {
             this->actionFunc = func_80BADF3C;
         }
     }
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x1000, 0x100);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x1000, 0x100);
 }
 
 void func_80BAD230(EnSuttari* this, PlayState* play) {
     if (CutsceneManager_IsNext(this->csIdList[1])) {
         CutsceneManager_Start(this->csIdList[1], &this->actor);
         this->textId = 0x2A31;
-        Message_StartTextbox(play, this->textId, &this->actor);
+        MM_Message_StartTextbox(play, this->textId, &this->actor);
         this->flags1 |= 0x4000;
         SEQCMD_PLAY_SEQUENCE(SEQ_PLAYER_BGM_MAIN, 0, NA_BGM_CHASE | SEQ_FLAG_ASYNC);
         this->actionFunc = func_80BAD380;
@@ -1256,7 +1256,7 @@ void func_80BAD230(EnSuttari* this, PlayState* play) {
 }
 
 void func_80BAD2B4(EnSuttari* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         if (this->textId == 0x2A30) {
             CutsceneManager_Stop(this->csIdList[0]);
             CutsceneManager_Queue(this->csIdList[1]);
@@ -1273,7 +1273,7 @@ void func_80BAD2B4(EnSuttari* this, PlayState* play) {
 }
 
 void func_80BAD380(EnSuttari* this, PlayState* play) {
-    u8 talkState = Message_GetState(&play->msgCtx);
+    u8 talkState = MM_Message_GetState(&play->msgCtx);
     Player* player = GET_PLAYER(play);
 
     if ((player->stateFlags1 & PLAYER_STATE1_TALKING) && (play->msgCtx.currentTextId != 0x2A31)) {
@@ -1282,7 +1282,7 @@ void func_80BAD380(EnSuttari* this, PlayState* play) {
     } else {
         this->flags1 &= ~0x8000;
         func_80BABA90(this, 1, 1);
-        if ((this->flags1 & 0x4000) && (talkState == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+        if ((this->flags1 & 0x4000) && (talkState == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
             this->flags2 &= ~0x10;
             player->stateFlags1 &= ~PLAYER_STATE1_10000000;
             this->flags1 &= ~0x4000;
@@ -1298,10 +1298,10 @@ void func_80BAD380(EnSuttari* this, PlayState* play) {
             SET_WEEKEVENTREG(WEEKEVENTREG_SAKON_DEAD);
             this->flags2 |= 4;
             this->actor.speed = 0.0f;
-            Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->actor.world.pos.x, this->actor.world.pos.y,
+            MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->actor.world.pos.x, this->actor.world.pos.y,
                         this->actor.world.pos.z, 0, 0, 0, CLEAR_TAG_PARAMS(CLEAR_TAG_SMALL_EXPLOSION));
-            SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 30, NA_SE_IT_BOMB_EXPLOSION);
-            Actor_Kill(&this->actor);
+            MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 30, NA_SE_IT_BOMB_EXPLOSION);
+            MM_Actor_Kill(&this->actor);
             return;
         }
         if (this->unk1F4[1] == -0x63) {
@@ -1314,7 +1314,7 @@ void func_80BAD380(EnSuttari* this, PlayState* play) {
             EnSuttari_TriggerTransition(play, ENTRANCE(NORTH_CLOCK_TOWN, 7));
         } else {
             this->unk3F2 = this->headRot.y;
-            Math_ApproachF(&this->actor.speed, 4.0f, 0.2f, 0.5f);
+            MM_Math_ApproachF(&this->actor.speed, 4.0f, 0.2f, 0.5f);
             Actor_MoveWithGravity(&this->actor);
             func_80BAB374(this, play);
         }
@@ -1324,11 +1324,11 @@ void func_80BAD380(EnSuttari* this, PlayState* play) {
 void func_80BAD5F8(EnSuttari* this, PlayState* play) {
     ScheduleOutput scheduleOutput;
     s16 curFrame = this->skelAnime.curFrame;
-    s16 endFrame = Animation_GetLastFrame(sAnimationInfo[this->animIndex].animation);
+    s16 endFrame = MM_Animation_GetLastFrame(MM_sAnimationInfo[this->animIndex].animation);
 
     if ((curFrame == endFrame) && (this->animIndex == SUTTARI_ANIM_0) && (this->flags1 & 0x20)) {
         this->animIndex = SUTTARI_ANIM_2;
-        Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, this->animIndex);
+        Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
     }
     this->timePathTimeSpeed = R_TIME_SPEED + ((void)0, gSaveContext.save.timeSpeedOffset);
     if (!Schedule_RunScript(play, D_80BAE820, &scheduleOutput) ||
@@ -1341,13 +1341,13 @@ void func_80BAD5F8(EnSuttari* this, PlayState* play) {
     this->scheduleResult = scheduleOutput.result;
     func_80BAC2FC(this, play);
     if ((this->unk430 == 1) && (this->timePath->additionalPathIndex == ADDITIONAL_PATH_INDEX_NONE)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
     func_80BAB434(this);
     if ((this->flags1 & 0x20) && (this->unk430 == 0) && (scheduleOutput.result != 7)) {
         if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
-            Message_StartTextbox(play, 0x2A02, &this->actor);
+            MM_Message_StartTextbox(play, 0x2A02, &this->actor);
             this->actionFunc = func_80BAD130;
         } else if ((this->actor.xzDistToPlayer < 100.0f) || this->actor.isLockedOn) {
             Actor_OfferTalkNearColChkInfoCylinder(&this->actor, play);
@@ -1359,14 +1359,14 @@ void func_80BAD5F8(EnSuttari* this, PlayState* play) {
 void func_80BAD7F8(EnSuttari* this, PlayState* play) {
     ScheduleOutput scheduleOutput;
     s16 curFrame = this->skelAnime.curFrame;
-    s16 endFrame = Animation_GetLastFrame(sAnimationInfo[this->animIndex].animation);
+    s16 endFrame = MM_Animation_GetLastFrame(MM_sAnimationInfo[this->animIndex].animation);
 
     if (this->enFsn == NULL) {
         this->enFsn = (EnFsn*)EnSuttari_GetActorById(play, ACTOR_EN_FSN);
     } else {
         if ((this->flags1 & 0x2000) && (this->animIndex == SUTTARI_ANIM_1) && (curFrame == endFrame)) {
             this->animIndex = SUTTARI_ANIM_2;
-            Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, this->animIndex);
+            Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
         }
         this->timePathTimeSpeed = R_TIME_SPEED + ((void)0, gSaveContext.save.timeSpeedOffset);
         if (!Schedule_RunScript(play, D_80BAE820, &scheduleOutput) ||
@@ -1379,12 +1379,12 @@ void func_80BAD7F8(EnSuttari* this, PlayState* play) {
         this->scheduleResult = scheduleOutput.result;
         func_80BAC2FC(this, play);
         if ((this->unk430 == 1) && (this->timePath->additionalPathIndex == ADDITIONAL_PATH_INDEX_NONE)) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
             return;
         }
         if ((this->flags1 & 0x20) && (scheduleOutput.result != 9)) {
             if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
-                Message_StartTextbox(play, 0x2A02, &this->actor);
+                MM_Message_StartTextbox(play, 0x2A02, &this->actor);
                 this->actionFunc = func_80BAD130;
             } else if ((this->actor.xzDistToPlayer < 100.0f) || this->actor.isLockedOn) {
                 Actor_OfferTalkNearColChkInfoCylinder(&this->actor, play);
@@ -1406,19 +1406,19 @@ void func_80BADA08(EnSuttari* this, PlayState* play) {
 }
 
 void func_80BADA9C(EnSuttari* this, PlayState* play) {
-    u8 talkstate = Message_GetState(&play->msgCtx);
+    u8 talkstate = MM_Message_GetState(&play->msgCtx);
     s16 curFrame = this->skelAnime.curFrame;
-    s16 endFrame = Animation_GetLastFrame(sAnimationInfo[this->animIndex].animation);
+    s16 endFrame = MM_Animation_GetLastFrame(MM_sAnimationInfo[this->animIndex].animation);
 
     if (this->flags1 & 1) {
         this->unk3F2 = this->headRot.y;
         func_80BAA9B4(this);
     } else if ((this->animIndex == SUTTARI_ANIM_7) && (curFrame == endFrame)) {
         this->animIndex = SUTTARI_ANIM_1;
-        Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, this->animIndex);
+        Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
     }
     if (talkstate == TEXT_STATE_EVENT) {
-        if (Message_ShouldAdvance(play)) {
+        if (MM_Message_ShouldAdvance(play)) {
             if (this->flags1 & 0x400) {
                 if (this->textId == 0x29EE) {
                     CutsceneManager_Stop(this->csIdList[this->csIdIndex]);
@@ -1440,7 +1440,7 @@ void func_80BADA9C(EnSuttari* this, PlayState* play) {
             }
             func_80BAAB78(this, play);
         }
-    } else if ((talkstate == TEXT_STATE_CHOICE) && Message_ShouldAdvance(play)) {
+    } else if ((talkstate == TEXT_STATE_CHOICE) && MM_Message_ShouldAdvance(play)) {
         switch (play->msgCtx.choiceIndex) {
             case 0:
                 Audio_PlaySfx_MessageDecide();
@@ -1458,7 +1458,7 @@ void func_80BADA9C(EnSuttari* this, PlayState* play) {
         }
     }
     if (!(this->flags1 & 4)) {
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x1000, 0x100);
+        MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x1000, 0x100);
         this->actor.world.rot.y = this->actor.shape.rot.y;
     }
 }
@@ -1492,17 +1492,17 @@ void func_80BADE14(EnSuttari* this, PlayState* play) {
         this->actor.speed = 0.0f;
     } else {
         this->unk3F2 = this->headRot.y;
-        Math_ApproachF(&this->actor.speed, 6.0f, 0.2f, 0.5f);
+        MM_Math_ApproachF(&this->actor.speed, 6.0f, 0.2f, 0.5f);
     }
     Actor_MoveWithGravity(&this->actor);
 }
 
 void func_80BADE8C(EnSuttari* this, PlayState* play) {
     this->unk3F2 = this->headRot.y;
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 1, 0xBB8, 0);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 1, 0xBB8, 0);
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
-        Message_StartTextbox(play, 0x2A3A, &this->actor);
+        MM_Message_StartTextbox(play, 0x2A3A, &this->actor);
         this->actionFunc = func_80BAD130;
     } else {
         this->actor.flags |= ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
@@ -1513,11 +1513,11 @@ void func_80BADE8C(EnSuttari* this, PlayState* play) {
 void func_80BADF3C(EnSuttari* this, PlayState* play) {
     func_80BABB90(this, 0);
     if (this->unk1F4[0] == -0x63) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
     this->unk3F2 = this->headRot.y;
     if (DECR(this->unk3F6) == 0) {
-        Math_ApproachF(&this->actor.speed, 6.0f, 0.2f, 0.5f);
+        MM_Math_ApproachF(&this->actor.speed, 6.0f, 0.2f, 0.5f);
     }
     Actor_MoveWithGravity(&this->actor);
 }
@@ -1527,15 +1527,15 @@ void EnSuttari_Init(Actor* thisx, PlayState* play) {
     s32 pad;
 
     if (CHECK_WEEKEVENTREG(WEEKEVENTREG_SAKON_DEAD)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
-    Collider_InitCylinder(play, &this->collider);
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, &sDamageTable, &sColChkInfoInit2);
+    MM_Collider_InitCylinder(play, &this->collider);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, &MM_sDamageTable, &MM_sColChkInfoInit2);
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
     EnSuttari_GetPaths(this, play);
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->actionFunc = func_80BAC6E8;
     this->actor.gravity = -4.0f;
 }
@@ -1546,7 +1546,7 @@ void EnSuttari_Destroy(Actor* thisx, PlayState* play) {
     if ((play->sceneId == SCENE_BACKTOWN) && !(this->flags2 & 4)) {
         SEQCMD_STOP_SEQUENCE(SEQ_PLAYER_BGM_MAIN, 20);
     }
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnSuttari_Update(Actor* thisx, PlayState* play) {
@@ -1566,11 +1566,11 @@ void EnSuttari_Update(Actor* thisx, PlayState* play) {
     }
     if (this->scheduleResult != 0) {
         if ((this->animIndex == SUTTARI_ANIM_2) || (this->animIndex == SUTTARI_ANIM_6)) {
-            if (Animation_OnFrame(&this->skelAnime, 8.0f) || Animation_OnFrame(&this->skelAnime, 16.0f)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, 8.0f) || MM_Animation_OnFrame(&this->skelAnime, 16.0f)) {
                 Actor_PlaySfx(&this->actor, NA_SE_EV_PAMERA_WALK);
             }
         } else if ((this->animIndex == SUTTARI_ANIM_0) || (this->animIndex == SUTTARI_ANIM_5)) {
-            if (Animation_OnFrame(&this->skelAnime, 8.0f) || Animation_OnFrame(&this->skelAnime, 17.0f)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, 8.0f) || MM_Animation_OnFrame(&this->skelAnime, 17.0f)) {
                 Actor_PlaySfx(&this->actor, NA_SE_EV_PAMERA_WALK);
             }
         }
@@ -1583,10 +1583,10 @@ s32 EnSuttari_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3
     if (limbIndex == OBJECT_BOJ_LIMB_0F) {
         *dList = object_boj_DL_00AF90;
         if (!(this->flags1 & 4)) {
-            Matrix_Translate(1500.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+            MM_Matrix_Translate(1500.0f, 0.0f, 0.0f, MTXMODE_APPLY);
             Matrix_RotateXS(this->unk3F2, MTXMODE_APPLY);
             Matrix_RotateZS(-this->headRot.x, MTXMODE_APPLY);
-            Matrix_Translate(-1500.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+            MM_Matrix_Translate(-1500.0f, 0.0f, 0.0f, MTXMODE_APPLY);
         }
     }
     if (limbIndex == OBJECT_BOJ_LIMB_08) {
@@ -1594,8 +1594,8 @@ s32 EnSuttari_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3
         Matrix_RotateZS(-this->torsoRot.x, MTXMODE_APPLY);
     }
     if ((limbIndex == OBJECT_BOJ_LIMB_08) || (limbIndex == OBJECT_BOJ_LIMB_09) || (limbIndex == OBJECT_BOJ_LIMB_0C)) {
-        rot->y += TRUNCF_BINANG(Math_SinS(this->fidgetTableY[limbIndex]) * 200.0f);
-        rot->z += TRUNCF_BINANG(Math_CosS(this->fidgetTableZ[limbIndex]) * 200.0f);
+        rot->y += TRUNCF_BINANG(MM_Math_SinS(this->fidgetTableY[limbIndex]) * 200.0f);
+        rot->z += TRUNCF_BINANG(MM_Math_CosS(this->fidgetTableZ[limbIndex]) * 200.0f);
     }
     return false;
 }
@@ -1611,12 +1611,12 @@ void EnSuttari_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* 
     if (((this->flags1 & 8) && (this->flags1 & 0x10)) || ((this->flags1 & 2) && !(this->flags1 & 0x20)) ||
         ((this->flags1 & 4) && !(this->flags1 & 0x20))) {
         if (limbIndex == OBJECT_BOJ_LIMB_08) {
-            curState = Matrix_GetCurrent();
-            Matrix_MultVec3f(&D_80BAE95C, &this->unk3F8);
+            curState = MM_Matrix_GetCurrent();
+            MM_Matrix_MultVec3f(&D_80BAE95C, &this->unk3F8);
             if (this->actor.child == NULL) {
                 if (this->flags1 & 0x100) {
                     bombBag =
-                        Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_NIMOTSU, curState->mf[3][0],
+                        MM_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_NIMOTSU, curState->mf[3][0],
                                            curState->mf[3][1], curState->mf[3][2], 0, 0, 0, -1);
                     if (bombBag != NULL) {
                         Matrix_MtxFToYXZRot(curState, &bombBag->shape.rot, false);
@@ -1634,7 +1634,7 @@ void EnSuttari_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* 
         }
     }
     if (limbIndex == OBJECT_BOJ_LIMB_0F) {
-        Matrix_MultVec3f(&D_80BAE950, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&D_80BAE950, &this->actor.focus.pos);
     }
 }
 
@@ -1651,8 +1651,8 @@ void EnSuttari_Draw(Actor* thisx, PlayState* play) {
         OPEN_DISPS(play->state.gfxCtx);
 
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
-        gSPSegment(POLY_OPA_DISP++, 0x08, Gfx_EnvColor(play->state.gfxCtx, 255, 255, 255, 0));
-        gSPSegment(POLY_OPA_DISP++, 0x09, Gfx_EnvColor(play->state.gfxCtx, 55, 55, 255, 0));
+        gSPSegment(POLY_OPA_DISP++, 0x08, MM_Gfx_EnvColor(play->state.gfxCtx, 255, 255, 255, 0));
+        gSPSegment(POLY_OPA_DISP++, 0x09, MM_Gfx_EnvColor(play->state.gfxCtx, 55, 55, 255, 0));
         gDPPipeSync(POLY_OPA_DISP++);
         SkelAnime_DrawTransformFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                        this->skelAnime.dListCount, EnSuttari_OverrideLimbDraw, EnSuttari_PostLimbDraw,

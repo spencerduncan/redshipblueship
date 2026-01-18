@@ -26,10 +26,10 @@ typedef enum {
     /* 1 */ RM_MOUTH_OPEN
 } RunningManMouthTex;
 
-void EnMm_Init(Actor* thisx, PlayState* play);
-void EnMm_Destroy(Actor* thisx, PlayState* play);
-void EnMm_Update(Actor* thisx, PlayState* play);
-void EnMm_Draw(Actor* thisx, PlayState* play);
+void OoT_EnMm_Init(Actor* thisx, PlayState* play);
+void OoT_EnMm_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnMm_Update(Actor* thisx, PlayState* play);
+void OoT_EnMm_Draw(Actor* thisx, PlayState* play);
 
 void func_80AAE598(EnMm* this, PlayState* play);
 void func_80AAE294(EnMm* this, PlayState* play);
@@ -46,14 +46,14 @@ const ActorInit En_Mm_InitVars = {
     FLAGS,
     OBJECT_MM,
     sizeof(EnMm),
-    (ActorFunc)EnMm_Init,
-    (ActorFunc)EnMm_Destroy,
-    (ActorFunc)EnMm_Update,
-    (ActorFunc)EnMm_Draw,
+    (ActorFunc)OoT_EnMm_Init,
+    (ActorFunc)OoT_EnMm_Destroy,
+    (ActorFunc)OoT_EnMm_Update,
+    (ActorFunc)OoT_EnMm_Draw,
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -73,9 +73,9 @@ static ColliderCylinderInit sCylinderInit = {
     { 18, 63, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit[] = { 0, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 OoT_sColChkInfoInit[] = { 0, 0, 0, 0, MASS_IMMOVABLE };
 
-static DamageTable sDamageTable = {
+static DamageTable OoT_sDamageTable = {
     /* Deku nut      */ DMG_ENTRY(0, 0x0),
     /* Deku stick    */ DMG_ENTRY(0, 0x0),
     /* Slingshot     */ DMG_ENTRY(0, 0x0),
@@ -110,7 +110,7 @@ static DamageTable sDamageTable = {
     /* Unknown 2     */ DMG_ENTRY(0, 0x0),
 };
 
-static AnimationSpeedInfo sAnimationInfo[] = {
+static AnimationSpeedInfo OoT_sAnimationInfo[] = {
     { &gRunningManRunAnim, 1.0f, ANIMMODE_LOOP, -7.0f },     { &gRunningManSitStandAnim, -1.0f, ANIMMODE_ONCE, -7.0f },
     { &gRunningManSitWaitAnim, 1.0f, ANIMMODE_LOOP, -7.0f }, { &gRunningManSitStandAnim, 1.0f, ANIMMODE_ONCE, -7.0f },
     { &gRunningManSprintAnim, 1.0f, ANIMMODE_LOOP, -7.0f },  { &gRunningManExcitedAnim, 1.0f, ANIMMODE_LOOP, -12.0f },
@@ -131,7 +131,7 @@ static EnMmPathInfo sPathInfo[] = {
     { -1, 0, 2, 0 },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(uncullZoneForward, 4000, ICHAIN_STOP),
 };
 
@@ -141,39 +141,39 @@ void EnMm_ChangeAnim(EnMm* this, s32 index, s32* currentIndex) {
     if ((*currentIndex < 0) || (index == *currentIndex)) {
         morphFrames = 0.0f;
     } else {
-        morphFrames = sAnimationInfo[index].morphFrames;
+        morphFrames = OoT_sAnimationInfo[index].morphFrames;
     }
 
-    if (sAnimationInfo[index].playSpeed >= 0.0f) {
-        Animation_Change(&this->skelAnime, sAnimationInfo[index].animation, sAnimationInfo[index].playSpeed, 0.0f,
-                         Animation_GetLastFrame(sAnimationInfo[index].animation), sAnimationInfo[index].mode,
+    if (OoT_sAnimationInfo[index].playSpeed >= 0.0f) {
+        OoT_Animation_Change(&this->skelAnime, OoT_sAnimationInfo[index].animation, OoT_sAnimationInfo[index].playSpeed, 0.0f,
+                         OoT_Animation_GetLastFrame(OoT_sAnimationInfo[index].animation), OoT_sAnimationInfo[index].mode,
                          morphFrames);
     } else {
-        Animation_Change(&this->skelAnime, sAnimationInfo[index].animation, sAnimationInfo[index].playSpeed,
-                         Animation_GetLastFrame(sAnimationInfo[index].animation), 0.0f, sAnimationInfo[index].mode,
+        OoT_Animation_Change(&this->skelAnime, OoT_sAnimationInfo[index].animation, OoT_sAnimationInfo[index].playSpeed,
+                         OoT_Animation_GetLastFrame(OoT_sAnimationInfo[index].animation), 0.0f, OoT_sAnimationInfo[index].mode,
                          morphFrames);
     }
 
     *currentIndex = index;
 }
 
-void EnMm_Init(Actor* thisx, PlayState* play) {
+void OoT_EnMm_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     EnMm* this = (EnMm*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 21.0f);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 21.0f);
 
-    SkelAnime_InitFlex(play, &this->skelAnime, &gRunningManSkel, NULL, this->jointTable, this->morphTable, 16);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gRunningManSkel, NULL, this->jointTable, this->morphTable, 16);
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, &sDamageTable, sColChkInfoInit);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
+    OoT_CollisionCheck_SetInfo2(&this->actor.colChkInfo, &OoT_sDamageTable, OoT_sColChkInfoInit);
 
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
-    Animation_Change(&this->skelAnime, sAnimationInfo[RM_ANIM_RUN].animation, 1.0f, 0.0f,
-                     Animation_GetLastFrame(sAnimationInfo[RM_ANIM_RUN].animation), sAnimationInfo[RM_ANIM_RUN].mode,
-                     sAnimationInfo[RM_ANIM_RUN].morphFrames);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
+    OoT_Animation_Change(&this->skelAnime, OoT_sAnimationInfo[RM_ANIM_RUN].animation, 1.0f, 0.0f,
+                     OoT_Animation_GetLastFrame(OoT_sAnimationInfo[RM_ANIM_RUN].animation), OoT_sAnimationInfo[RM_ANIM_RUN].mode,
+                     OoT_sAnimationInfo[RM_ANIM_RUN].morphFrames);
 
     this->path = this->actor.params & 0xFF;
     this->unk_1F0 = 2;
@@ -194,11 +194,11 @@ void EnMm_Init(Actor* thisx, PlayState* play) {
     }
 }
 
-void EnMm_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnMm_Destroy(Actor* thisx, PlayState* play) {
     s32 pad;
     EnMm* this = (EnMm*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
@@ -218,37 +218,37 @@ s32 func_80AADAA0(EnMm* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
     s32 sp1C = 1;
 
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (OoT_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_NONE:
         case TEXT_STATE_DONE_HAS_NEXT:
         case TEXT_STATE_CLOSING:
         case TEXT_STATE_DONE_FADING:
             break;
         case TEXT_STATE_CHOICE:
-            if (Message_ShouldAdvance(play)) {
+            if (OoT_Message_ShouldAdvance(play)) {
                 if (play->msgCtx.choiceIndex == 0) {
                     player->actor.textId = 0x202D;
                     this->unk_254 &= ~1;
                     EnMm_ChangeAnim(this, RM_ANIM_HAPPY, &this->curAnimIndex);
                 } else {
                     player->actor.textId = 0x202C;
-                    Flags_SetInfTable(INFTABLE_17C);
+                    OoT_Flags_SetInfTable(INFTABLE_17C);
                 }
                 sp1C = 2;
             }
             break;
         case TEXT_STATE_EVENT:
-            if (Message_ShouldAdvance(play)) {
+            if (OoT_Message_ShouldAdvance(play)) {
                 Player_UnsetMask(play);
-                Item_Give(play, ITEM_SOLD_OUT);
+                OoT_Item_Give(play, ITEM_SOLD_OUT);
                 Flags_SetItemGetInf(ITEMGETINF_3B);
-                Rupees_ChangeBy(500);
+                OoT_Rupees_ChangeBy(500);
                 player->actor.textId = 0x202E;
                 sp1C = 2;
             }
             break;
         case TEXT_STATE_DONE:
-            if (Message_ShouldAdvance(play)) {
+            if (OoT_Message_ShouldAdvance(play)) {
                 if ((player->actor.textId == 0x202E) || (player->actor.textId == 0x202C)) {
                     this->unk_254 |= 1;
                     EnMm_ChangeAnim(this, RM_ANIM_SIT_WAIT, &this->curAnimIndex);
@@ -265,14 +265,14 @@ s32 EnMm_GetTextId(EnMm* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
     s32 textId;
 
-    textId = Text_GetFaceReaction(play, 0x1C);
+    textId = OoT_Text_GetFaceReaction(play, 0x1C);
 
     if (Flags_GetItemGetInf(ITEMGETINF_3B)) {
         if (textId == 0) {
             textId = 0x204D;
         }
     } else if (player->currentMask == PLAYER_MASK_BUNNY) {
-        textId = (Flags_GetInfTable(INFTABLE_17C)) ? 0x202B : 0x202A;
+        textId = (OoT_Flags_GetInfTable(INFTABLE_17C)) ? 0x202B : 0x202A;
     } else if (textId == 0) {
         textId = 0x2029;
     }
@@ -287,7 +287,7 @@ void func_80AADCD0(EnMm* this, PlayState* play) {
     s16 sp24;
 
     if (this->unk_1E0 == 2) {
-        Message_ContinueTextbox(play, player->actor.textId);
+        OoT_Message_ContinueTextbox(play, player->actor.textId);
         this->unk_1E0 = 1;
     } else if (this->unk_1E0 == 1) {
         this->unk_1E0 = func_80AADAA0(this, play);
@@ -302,7 +302,7 @@ void func_80AADCD0(EnMm* this, PlayState* play) {
                 }
             }
         } else {
-            Actor_GetScreenPos(play, &this->actor, &sp26, &sp24);
+            OoT_Actor_GetScreenPos(play, &this->actor, &sp26, &sp24);
             yawDiff = ABS((s16)(this->actor.yawTowardsPlayer - this->actor.shape.rot.y));
 
             if ((sp26 >= 0) && (sp26 <= 0x140) && (sp24 >= 0) && (sp24 <= 0xF0) && (yawDiff <= 17152.0f) &&
@@ -340,8 +340,8 @@ s32 func_80AADEF0(EnMm* this, PlayState* play) {
     xDiff = waypointPos.x - this->actor.world.pos.x;
     zDiff = waypointPos.z - this->actor.world.pos.z;
 
-    this->yawToWaypoint = (s32)(Math_FAtan2F(xDiff, zDiff) * (0x8000 / M_PI));
-    this->distToWaypoint = sqrtf(SQ(xDiff) + SQ(zDiff));
+    this->yawToWaypoint = (s32)(OoT_Math_FAtan2F(xDiff, zDiff) * (0x8000 / M_PI));
+    this->distToWaypoint = OoT_sqrtf(SQ(xDiff) + SQ(zDiff));
 
     while ((this->distToWaypoint <= 10.44f) && (this->unk_1E8 != 0)) {
         this->waypoint += sPathInfo[this->unk_1E8].unk_00;
@@ -385,21 +385,21 @@ s32 func_80AADEF0(EnMm* this, PlayState* play) {
         xDiff = waypointPos.x - this->actor.world.pos.x;
         zDiff = waypointPos.z - this->actor.world.pos.z;
 
-        this->yawToWaypoint = (s32)(Math_FAtan2F(xDiff, zDiff) * (0x8000 / M_PI));
-        this->distToWaypoint = sqrtf(SQ(xDiff) + SQ(zDiff));
+        this->yawToWaypoint = (s32)(OoT_Math_FAtan2F(xDiff, zDiff) * (0x8000 / M_PI));
+        this->distToWaypoint = OoT_sqrtf(SQ(xDiff) + SQ(zDiff));
     }
 
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->yawToWaypoint, 1, 2500, 0);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->yawToWaypoint, 1, 2500, 0);
     this->actor.world.rot.y = this->actor.shape.rot.y;
-    Math_SmoothStepToF(&this->actor.speedXZ, this->speedXZ, 0.6f, this->distToWaypoint, 0.0f);
+    OoT_Math_SmoothStepToF(&this->actor.speedXZ, this->speedXZ, 0.6f, this->distToWaypoint, 0.0f);
     Actor_MoveXZGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
 
     return 0;
 }
 
 void func_80AAE224(EnMm* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (OoT_SkelAnime_Update(&this->skelAnime)) {
         this->actionFunc = func_80AAE598;
         this->unk_1E8 = 0;
         this->mouthTexIndex = RM_MOUTH_CLOSED;
@@ -414,8 +414,8 @@ void func_80AAE294(EnMm* this, PlayState* play) {
     f32 floorYNorm;
     Vec3f dustPos;
 
-    if (!Player_InCsMode(play)) {
-        SkelAnime_Update(&this->skelAnime);
+    if (!OoT_Player_InCsMode(play)) {
+        OoT_SkelAnime_Update(&this->skelAnime);
 
         if (this->curAnimIndex == 0) {
             if (((s32)this->skelAnime.curFrame == 1) || ((s32)this->skelAnime.curFrame == 6)) {
@@ -475,7 +475,7 @@ void func_80AAE294(EnMm* this, PlayState* play) {
 }
 
 void func_80AAE50C(EnMm* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (OoT_SkelAnime_Update(&this->skelAnime)) {
         this->sitTimer = 0;
         this->actionFunc = func_80AAE294;
 
@@ -493,7 +493,7 @@ void func_80AAE50C(EnMm* this, PlayState* play) {
 
 void func_80AAE598(EnMm* this, PlayState* play) {
     func_80038290(play, &this->actor, &this->unk_248, &this->unk_24E, this->actor.focus.pos);
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
     if ((func_80AADA70() != 0) && (this->unk_1E0 == 0)) {
         this->unk_1E0 = 3;
@@ -503,17 +503,17 @@ void func_80AAE598(EnMm* this, PlayState* play) {
     }
 }
 
-void EnMm_Update(Actor* thisx, PlayState* play) {
+void OoT_EnMm_Update(Actor* thisx, PlayState* play) {
     s32 pad;
     EnMm* this = (EnMm*)thisx;
 
     this->actionFunc(this, play);
     func_80AADCD0(this, play);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
-void EnMm_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnMm_Draw(Actor* thisx, PlayState* play) {
     static void* mouthTextures[] = { gRunningManMouthOpenTex, gRunningManMouthClosedTex };
     s32 pad;
     EnMm* this = (EnMm*)thisx;
@@ -534,7 +534,7 @@ void EnMm_Draw(Actor* thisx, PlayState* play) {
 
             mtx = Graph_Alloc(play->state.gfxCtx, sizeof(Mtx) * 2);
 
-            Matrix_Put(&this->unk_208);
+            OoT_Matrix_Put(&this->unk_208);
             mtx2 = MATRIX_NEWMTX(play->state.gfxCtx);
 
             gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.status[linkChildObjBankIndex].segment);
@@ -545,14 +545,14 @@ void EnMm_Draw(Actor* thisx, PlayState* play) {
             sp50.y = 3518;
             sp50.z = -13450;
 
-            Matrix_SetTranslateRotateYXZ(97.0f, -1203.0f, -240.0f, &sp50);
+            OoT_Matrix_SetTranslateRotateYXZ(97.0f, -1203.0f, -240.0f, &sp50);
             MATRIX_TOMTX(mtx++);
 
             sp50.x = -994;
             sp50.y = -3518;
             sp50.z = -13450;
 
-            Matrix_SetTranslateRotateYXZ(97.0f, -1203.0f, 240.0f, &sp50);
+            OoT_Matrix_SetTranslateRotateYXZ(97.0f, -1203.0f, 240.0f, &sp50);
             MATRIX_TOMTX(mtx);
 
             gSPDisplayList(POLY_OPA_DISP++, gLinkChildBunnyHoodDL);
@@ -589,12 +589,12 @@ void EnMm_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
     EnMm* this = (EnMm*)thisx;
 
     if (limbIndex == 15) {
-        Matrix_MultVec3f(&headOffset, &this->actor.focus.pos);
-        Matrix_Translate(260.0f, 20.0f, 0.0f, MTXMODE_APPLY);
+        OoT_Matrix_MultVec3f(&headOffset, &this->actor.focus.pos);
+        OoT_Matrix_Translate(260.0f, 20.0f, 0.0f, MTXMODE_APPLY);
         Matrix_RotateY(0.0f, MTXMODE_APPLY);
         Matrix_RotateX(0.0f, MTXMODE_APPLY);
         Matrix_RotateZ(4.0f * M_PI / 5.0f, MTXMODE_APPLY);
-        Matrix_Translate(-260.0f, 58.0f, 10.0f, MTXMODE_APPLY);
-        Matrix_Get(&this->unk_208);
+        OoT_Matrix_Translate(-260.0f, 58.0f, 10.0f, MTXMODE_APPLY);
+        OoT_Matrix_Get(&this->unk_208);
     }
 }

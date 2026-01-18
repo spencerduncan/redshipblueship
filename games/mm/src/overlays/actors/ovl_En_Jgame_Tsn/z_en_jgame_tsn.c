@@ -56,13 +56,13 @@ typedef enum EnJgameTsnAnimation {
     /*  3 */ ENJGAMETSN_ANIM_MAX
 } EnJgameTsnAnimation;
 
-static AnimationInfo sAnimationInfo[ENJGAMETSN_ANIM_MAX] = {
+static AnimationInfo MM_sAnimationInfo[ENJGAMETSN_ANIM_MAX] = {
     { &object_tsn_Anim_0092FC, 1.0f, 0.0f, 0.0f, ANIMMODE_LOOP, -6.0f }, // ENJGAMETSN_ANIM_0
     { &object_tsn_Anim_000964, 1.0f, 0.0f, 0.0f, ANIMMODE_LOOP, -6.0f }, // ENJGAMETSN_ANIM_1
     { &object_tsn_Anim_001198, 1.0f, 0.0f, 0.0f, ANIMMODE_LOOP, -6.0f }, // ENJGAMETSN_ANIM_2
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -91,12 +91,12 @@ void EnJgameTsn_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     EnJgameTsn* this = (EnJgameTsn*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 36.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &object_tsn_Skel_008AB8, &object_tsn_Anim_0092FC, this->jointTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 36.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &object_tsn_Skel_008AB8, &object_tsn_Anim_0092FC, this->jointTable,
                        this->morphTable, OBJECT_TSN_LIMB_MAX);
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
 
     this->actor.attentionRangeType = ATTENTION_RANGE_6;
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
@@ -120,7 +120,7 @@ void func_80C13A2C(EnJgameTsn* this, PlayState* play) {
     s32 i;
 
     if (path == NULL) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 
     for (i = 0; i < ARRAY_COUNT(this->unk_1D8); i++) {
@@ -129,7 +129,7 @@ void func_80C13A2C(EnJgameTsn* this, PlayState* play) {
 
         path = &play->setupPathList[path->additionalPathIndex];
         if (path == NULL) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
     }
 
@@ -138,7 +138,7 @@ void func_80C13A2C(EnJgameTsn* this, PlayState* play) {
 
     path = &play->setupPathList[path->additionalPathIndex];
     if (path == NULL) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 
     this->unk_200.points = Lib_SegmentedToVirtual(path->points);
@@ -148,12 +148,12 @@ void func_80C13A2C(EnJgameTsn* this, PlayState* play) {
 void EnJgameTsn_Destroy(Actor* thisx, PlayState* play) {
     EnJgameTsn* this = (EnJgameTsn*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
     CLEAR_WEEKEVENTREG(WEEKEVENTREG_90_20);
 }
 
 void func_80C13B74(EnJgameTsn* this) {
-    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENJGAMETSN_ANIM_0);
+    Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENJGAMETSN_ANIM_0);
     this->actionFunc = func_80C13BB8;
 }
 
@@ -164,30 +164,30 @@ void func_80C13BB8(EnJgameTsn* this, PlayState* play) {
         if (this->actor.flags & ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED) {
             this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
             if (gSaveContext.timerCurTimes[TIMER_ID_MINIGAME_2] > SECONDS_TO_TIMER(0)) {
-                Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENJGAMETSN_ANIM_1);
-                Message_StartTextbox(play, 0x10A2, &this->actor);
+                Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENJGAMETSN_ANIM_1);
+                MM_Message_StartTextbox(play, 0x10A2, &this->actor);
                 this->unk_300 = 0x10A2;
             } else if (gSaveContext.minigameScore < 20) {
-                Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENJGAMETSN_ANIM_1);
-                Message_StartTextbox(play, 0x10A2, &this->actor);
+                Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENJGAMETSN_ANIM_1);
+                MM_Message_StartTextbox(play, 0x10A2, &this->actor);
                 this->unk_300 = 0x10A2;
             } else {
-                Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENJGAMETSN_ANIM_2);
-                Message_StartTextbox(play, 0x10A3, &this->actor);
+                Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENJGAMETSN_ANIM_2);
+                MM_Message_StartTextbox(play, 0x10A3, &this->actor);
                 this->unk_300 = 0x10A3;
             }
         } else if (((CURRENT_TIME > CLOCK_TIME(4, 0)) && (CURRENT_TIME < CLOCK_TIME(7, 0))) ||
                    ((CURRENT_TIME > CLOCK_TIME(16, 0)) && (CURRENT_TIME < CLOCK_TIME(19, 0)))) {
-            Message_StartTextbox(play, 0x1094, &this->actor);
+            MM_Message_StartTextbox(play, 0x1094, &this->actor);
             this->unk_300 = 0x1094;
         } else if (this->unk_2F8 == 0) {
             this->unk_2F8 = 1;
-            Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENJGAMETSN_ANIM_1);
-            Message_StartTextbox(play, 0x1095, &this->actor);
+            Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENJGAMETSN_ANIM_1);
+            MM_Message_StartTextbox(play, 0x1095, &this->actor);
             this->unk_300 = 0x1095;
         } else {
-            Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENJGAMETSN_ANIM_1);
-            Message_StartTextbox(play, 0x1096, &this->actor);
+            Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENJGAMETSN_ANIM_1);
+            MM_Message_StartTextbox(play, 0x1096, &this->actor);
             this->unk_300 = 0x1096;
         }
         func_80C14030(this);
@@ -205,7 +205,7 @@ void func_80C13BB8(EnJgameTsn* this, PlayState* play) {
         this->unk_2FE = 0;
     }
 
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 5, 0x71C, 0xB6);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 5, 0x71C, 0xB6);
     this->actor.world.rot.y = this->actor.shape.rot.y;
 }
 
@@ -219,12 +219,12 @@ void func_80C13E90(EnJgameTsn* this, PlayState* play) {
         this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
         if (((CURRENT_TIME > CLOCK_TIME(4, 0)) && (CURRENT_TIME < CLOCK_TIME(7, 0))) ||
             ((CURRENT_TIME > CLOCK_TIME(16, 0)) && (CURRENT_TIME < CLOCK_TIME(19, 0)))) {
-            Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENJGAMETSN_ANIM_2);
-            Message_StartTextbox(play, 0x1094, &this->actor);
+            Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENJGAMETSN_ANIM_2);
+            MM_Message_StartTextbox(play, 0x1094, &this->actor);
             this->unk_300 = 0x1094;
         } else {
-            Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENJGAMETSN_ANIM_1);
-            Message_StartTextbox(play, 0x1098, &this->actor);
+            Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENJGAMETSN_ANIM_1);
+            MM_Message_StartTextbox(play, 0x1098, &this->actor);
             this->unk_300 = 0x1098;
         }
         func_80C14030(this);
@@ -258,7 +258,7 @@ void func_80C14030(EnJgameTsn* this) {
 }
 
 void func_80C14044(EnJgameTsn* this, PlayState* play) {
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_NONE:
         case TEXT_STATE_NEXT:
         case TEXT_STATE_CLOSING:
@@ -274,7 +274,7 @@ void func_80C14044(EnJgameTsn* this, PlayState* play) {
             break;
 
         case TEXT_STATE_DONE:
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 if (CutsceneManager_GetCurrentCsId() == this->actor.csId) {
                     CutsceneManager_Stop(this->actor.csId);
                 }
@@ -286,7 +286,7 @@ void func_80C14044(EnJgameTsn* this, PlayState* play) {
             break;
     }
 
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x71C, 0xB6);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x71C, 0xB6);
     this->actor.world.rot.y = this->actor.shape.rot.y;
 }
 
@@ -312,7 +312,7 @@ void func_80C1418C(EnJgameTsn* this, PlayState* play) {
 }
 
 void func_80C141DC(EnJgameTsn* this) {
-    this->unk_218 = Rand_Next() & 3;
+    this->unk_218 = MM_Rand_Next() & 3;
     this->unk_2FC = 0;
     *this->unk_208[this->unk_218] |= OBJLUPYGAMELIFT_IGNITE_FIRE;
     this->actionFunc = func_80C14230;
@@ -324,7 +324,7 @@ void func_80C14230(EnJgameTsn* this, PlayState* play) {
     s32 rand;
 
     if ((this->unk_2FC > 100) || func_80C14BCC(this, play)) {
-        rand = Rand_Next() % 3;
+        rand = MM_Rand_Next() % 3;
 
         this->unk_2FC = 0;
         if (rand < this->unk_218) {
@@ -346,8 +346,8 @@ void func_80C14230(EnJgameTsn* this, PlayState* play) {
     this->unk_2FC++;
 
     if ((player->actor.bgCheckFlags & BGCHECKFLAG_GROUND_TOUCH) && func_80C149B0(play, &this->unk_200)) {
-        Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENJGAMETSN_ANIM_2);
-        Message_StartTextbox(play, 0x109F, &this->actor);
+        Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENJGAMETSN_ANIM_2);
+        MM_Message_StartTextbox(play, 0x109F, &this->actor);
         this->unk_300 = 0x109F;
         player->stateFlags1 |= PLAYER_STATE1_20;
         *this->unk_208[this->unk_218] &= ~OBJLUPYGAMELIFT_IGNITE_FIRE;
@@ -355,8 +355,8 @@ void func_80C14230(EnJgameTsn* this, PlayState* play) {
         func_80C14030(this);
     } else if ((player->actor.bgCheckFlags & BGCHECKFLAG_WATER_TOUCH) ||
                (player->actor.bgCheckFlags & BGCHECKFLAG_WATER)) {
-        Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENJGAMETSN_ANIM_2);
-        Message_StartTextbox(play, 0x10A0, &this->actor);
+        Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENJGAMETSN_ANIM_2);
+        MM_Message_StartTextbox(play, 0x10A0, &this->actor);
         this->unk_300 = 0x10A0;
         player->stateFlags1 |= PLAYER_STATE1_20;
         *this->unk_208[this->unk_218] &= ~OBJLUPYGAMELIFT_IGNITE_FIRE;
@@ -365,7 +365,7 @@ void func_80C14230(EnJgameTsn* this, PlayState* play) {
     }
 
     if (gSaveContext.timerCurTimes[TIMER_ID_MINIGAME_2] == SECONDS_TO_TIMER(0)) {
-        Message_StartTextbox(play, 0x10A1, &this->actor);
+        MM_Message_StartTextbox(play, 0x10A1, &this->actor);
         this->unk_300 = 0x10A1;
         player->stateFlags1 |= PLAYER_STATE1_20;
         *this->unk_208[this->unk_218] &= ~OBJLUPYGAMELIFT_IGNITE_FIRE;
@@ -390,15 +390,15 @@ void func_80C14540(EnJgameTsn* this) {
 }
 
 void func_80C14554(EnJgameTsn* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play)) {
+    if (MM_Actor_HasParent(&this->actor, play)) {
         if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_FISHERMANS_JUMPING_GAME_HEART_PIECE)) {
             SET_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_FISHERMANS_JUMPING_GAME_HEART_PIECE);
         }
         func_80C145FC(this);
     } else if (CHECK_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_FISHERMANS_JUMPING_GAME_HEART_PIECE)) {
-        Actor_OfferGetItem(&this->actor, play, GI_RUPEE_PURPLE, 500.0f, 100.0f);
+        MM_Actor_OfferGetItem(&this->actor, play, GI_RUPEE_PURPLE, 500.0f, 100.0f);
     } else {
-        Actor_OfferGetItem(&this->actor, play, GI_HEART_PIECE, 500.0f, 100.0f);
+        MM_Actor_OfferGetItem(&this->actor, play, GI_HEART_PIECE, 500.0f, 100.0f);
     }
 }
 
@@ -408,7 +408,7 @@ void func_80C145FC(EnJgameTsn* this) {
 
 void func_80C14610(EnJgameTsn* this, PlayState* play) {
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
-        Message_StartTextbox(play, 0x10A4, &this->actor);
+        MM_Message_StartTextbox(play, 0x10A4, &this->actor);
         this->unk_300 = 0x10A4;
         func_80C14030(this);
     } else {
@@ -417,20 +417,20 @@ void func_80C14610(EnJgameTsn* this, PlayState* play) {
 }
 
 void func_80C14684(EnJgameTsn* this, PlayState* play) {
-    if (Message_ShouldAdvance(play)) {
+    if (MM_Message_ShouldAdvance(play)) {
         if (play->msgCtx.choiceIndex == 0) {
             if (gSaveContext.save.saveInfo.playerData.rupees >= 20) {
-                Message_StartTextbox(play, 0x109E, &this->actor);
+                MM_Message_StartTextbox(play, 0x109E, &this->actor);
                 this->unk_300 = 0x109E;
-                Rupees_ChangeBy(-20);
+                MM_Rupees_ChangeBy(-20);
             } else {
-                Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENJGAMETSN_ANIM_2);
-                Message_StartTextbox(play, 0x109D, &this->actor);
+                Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENJGAMETSN_ANIM_2);
+                MM_Message_StartTextbox(play, 0x109D, &this->actor);
                 this->unk_300 = 0x109D;
             }
         } else {
-            Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENJGAMETSN_ANIM_2);
-            Message_StartTextbox(play, 0x109C, &this->actor);
+            Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENJGAMETSN_ANIM_2);
+            MM_Message_StartTextbox(play, 0x109C, &this->actor);
             this->unk_300 = 0x109C;
         }
     }
@@ -448,32 +448,32 @@ void func_80C1476C(EnJgameTsn* this, PlayState* play) {
 }
 
 void func_80C147B4(EnJgameTsn* this, PlayState* play) {
-    if (Message_ShouldAdvance(play)) {
+    if (MM_Message_ShouldAdvance(play)) {
         switch (this->unk_300) {
             case 0x1095:
-                Message_StartTextbox(play, 0x1096, &this->actor);
+                MM_Message_StartTextbox(play, 0x1096, &this->actor);
                 this->unk_300 = 0x1096;
                 break;
 
             case 0x1096:
-                Message_StartTextbox(play, 0x1097, &this->actor);
+                MM_Message_StartTextbox(play, 0x1097, &this->actor);
                 this->unk_300 = 0x1097;
                 break;
 
             case 0x1098:
-                Message_StartTextbox(play, 0x1099, &this->actor);
+                MM_Message_StartTextbox(play, 0x1099, &this->actor);
                 this->unk_300 = 0x1099;
                 func_80C13F88(this);
                 break;
 
             case 0x1099:
-                Message_StartTextbox(play, 0x109A, &this->actor);
+                MM_Message_StartTextbox(play, 0x109A, &this->actor);
                 this->unk_300 = 0x109A;
                 break;
 
             case 0x109A:
-                Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, ENJGAMETSN_ANIM_0);
-                Message_StartTextbox(play, 0x109B, &this->actor);
+                Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, ENJGAMETSN_ANIM_0);
+                MM_Message_StartTextbox(play, 0x109B, &this->actor);
                 this->unk_300 = 0x109B;
                 break;
 
@@ -481,7 +481,7 @@ void func_80C147B4(EnJgameTsn* this, PlayState* play) {
                 if (CutsceneManager_GetCurrentCsId() == this->actor.csId) {
                     CutsceneManager_Stop(this->actor.csId);
                 }
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 func_80C1476C(this, play);
                 func_80C1410C(this, play);
                 break;
@@ -489,7 +489,7 @@ void func_80C147B4(EnJgameTsn* this, PlayState* play) {
             case 0x109F:
             case 0x10A0:
             case 0x10A1:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 gSaveContext.minigameStatus = MINIGAME_STATUS_END;
                 gSaveContext.timerStates[TIMER_ID_MINIGAME_2] = TIMER_STATE_STOP;
                 CLEAR_WEEKEVENTREG(WEEKEVENTREG_90_20);
@@ -497,7 +497,7 @@ void func_80C147B4(EnJgameTsn* this, PlayState* play) {
                 break;
 
             case 0x10A3:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 func_80C14540(this);
                 func_80C14554(this, play);
                 break;
@@ -596,15 +596,15 @@ s32 func_80C14BCC(EnJgameTsn* this, PlayState* play) {
 }
 
 void func_80C14D14(EnJgameTsn* this, PlayState* play) {
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void func_80C14D58(EnJgameTsn* this, PlayState* play) {
     Actor_TrackPlayer(play, &this->actor, &this->headRot, &this->torsoRot, this->actor.focus.pos);
 
     if (DECR(this->unk_2FA) == 0) {
-        this->unk_2FA = Rand_S16Offset(60, 60);
+        this->unk_2FA = MM_Rand_S16Offset(60, 60);
     }
 
     if ((this->unk_2FA == 1) || (this->unk_2FA == 3)) {
@@ -619,7 +619,7 @@ void EnJgameTsn_Update(Actor* thisx, PlayState* play) {
 
     this->actionFunc(this, play);
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     func_80C14D14(this, play);
     func_80C14D58(this, play);
 }
@@ -654,7 +654,7 @@ void EnJgameTsn_Draw(Actor* thisx, PlayState* play) {
     gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80C150A4[this->unk_21C]));
     gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(D_80C150A4[this->unk_21C]));
 
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnJgamesTsn_OverrideLimbDraw, EnJgamesTsn_PostLimbDraw, &this->actor);
 
     CLOSE_DISPS(play->state.gfxCtx);

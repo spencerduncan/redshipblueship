@@ -70,10 +70,10 @@ typedef enum {
     CUT_VERT_R
 } EnKanbanCutType;
 
-void EnKanban_Init(Actor* thisx, PlayState* play);
-void EnKanban_Destroy(Actor* thisx, PlayState* play);
-void EnKanban_Update(Actor* thisx, PlayState* play);
-void EnKanban_Draw(Actor* thisx, PlayState* play);
+void OoT_EnKanban_Init(Actor* thisx, PlayState* play);
+void OoT_EnKanban_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnKanban_Update(Actor* thisx, PlayState* play);
+void OoT_EnKanban_Draw(Actor* thisx, PlayState* play);
 
 const ActorInit En_Kanban_InitVars = {
     ACTOR_EN_KANBAN,
@@ -81,14 +81,14 @@ const ActorInit En_Kanban_InitVars = {
     FLAGS,
     OBJECT_KANBAN,
     sizeof(EnKanban),
-    (ActorFunc)EnKanban_Init,
-    (ActorFunc)EnKanban_Destroy,
-    (ActorFunc)EnKanban_Update,
-    (ActorFunc)EnKanban_Draw,
+    (ActorFunc)OoT_EnKanban_Init,
+    (ActorFunc)OoT_EnKanban_Destroy,
+    (ActorFunc)OoT_EnKanban_Update,
+    (ActorFunc)OoT_EnKanban_Draw,
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -108,12 +108,12 @@ static ColliderCylinderInit sCylinderInit = {
     { 20, 50, 5, { 0, 0, 0 } },
 };
 
-static u16 sPartFlags[] = {
+static u16 OoT_sPartFlags[] = {
     PART_UPPER_LEFT,  PART_LEFT_UPPER,  PART_LEFT_LOWER, PART_RIGHT_UPPER, PART_RIGHT_LOWER, PART_LOWER_LEFT,
     PART_UPPER_RIGHT, PART_LOWER_RIGHT, PART_POST_UPPER, PART_POST_LOWER,  PART_POST_STAND,
 };
 
-static Vec3f sPieceOffsets[] = {
+static Vec3f OoT_sPieceOffsets[] = {
     /* WHOLE_SIGN   */ { 0.0f, 44.0f, 0.0f },
     /* UPPER_HALF   */ { 0.0f, 50.0f, 0.0f },
     /* LOWER_HALF   */ { 0.0f, 38.0f, 0.0f },
@@ -135,7 +135,7 @@ static Vec3f sPieceOffsets[] = {
     /* POST_LOWER   */ { 0.0f, 38.0f, 0.0f },
 };
 
-static Vec3f sPieceSizes[] = {
+static Vec3f OoT_sPieceSizes[] = {
     /* WHOLE_SIGN */ { 1500.0f, 1000.0f, 0.0f },
     /* UPPER_HALF */ { 1500.0f, 500.0f, 0.0f },
     /* LOWER_HALF */ { 1500.0f, 500.0f, 0.0f },
@@ -157,7 +157,7 @@ static Vec3f sPieceSizes[] = {
     /* POST_LOWER  */ { 200.0f, 500.0f, 0.0f },
 };
 
-static u8 sCutTypes[] = {
+static u8 OoT_sCutTypes[] = {
     /* 1H_OVER     */ CUT_VERT_L, /* 2H_OVER     */ CUT_VERT_L,
     /* 1H_COMBO    */ CUT_DIAG_R, /* 2H_COMBO    */ CUT_DIAG_R,
     /* 1H_LEFT     */ CUT_HORIZ,  /* 2H_LEFT     */ CUT_HORIZ,
@@ -174,7 +174,7 @@ static u8 sCutTypes[] = {
     /* 1H_BIG_SPIN */ CUT_POST,   /* 2H_BIG_SPIN */ CUT_POST,
 };
 
-static u16 sCutFlags[] = {
+static u16 OoT_sCutFlags[] = {
     /* CUT_POST   */ ALL_PARTS,       /* CUT_VERT_L */ LEFT_HALF,
     /* CUT_HORIZ  */ UPPER_HALF,      /* CUT_DIAG_L */ UPPERLEFT_HALF,
     /* CUT_DIAG_R */ UPPERRIGHT_HALF, /* CUT_VERT_R */ RIGHT_HALF,
@@ -186,20 +186,20 @@ void EnKanban_SetFloorRot(EnKanban* this) {
         f32 ny = COLPOLY_GET_NORMAL(this->actor.floorPoly->normal.y);
         f32 nz = COLPOLY_GET_NORMAL(this->actor.floorPoly->normal.z);
 
-        this->floorRot.x = -Math_FAtan2F(-nz * ny, 1.0f);
-        this->floorRot.z = Math_FAtan2F(-nx * ny, 1.0f);
+        this->floorRot.x = -OoT_Math_FAtan2F(-nz * ny, 1.0f);
+        this->floorRot.z = OoT_Math_FAtan2F(-nx * ny, 1.0f);
     }
 }
 
-void EnKanban_Init(Actor* thisx, PlayState* play) {
+void OoT_EnKanban_Init(Actor* thisx, PlayState* play) {
     EnKanban* this = (EnKanban*)thisx;
 
-    Actor_SetScale(&this->actor, 0.01f);
+    OoT_Actor_SetScale(&this->actor, 0.01f);
     if (this->actor.params != ENKANBAN_PIECE) {
         this->actor.targetMode = 0;
         this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
-        Collider_InitCylinder(play, &this->collider);
-        Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+        OoT_Collider_InitCylinder(play, &this->collider);
+        OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
         osSyncPrintf("KANBAN ARG    %x\n", this->actor.params);
         if (this->actor.params == ENKANBAN_FISHING) {
             if (LINK_IS_CHILD) {
@@ -212,7 +212,7 @@ void EnKanban_Init(Actor* thisx, PlayState* play) {
         }
         this->bounceX = 1;
         this->partFlags = 0xFFFF;
-        Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 10.0f, 50.0f, 4);
+        OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 10.0f, 50.0f, 4);
         EnKanban_SetFloorRot(this);
         if (LINK_IS_CHILD) {
             this->actor.world.pos.y -= 15.0f;
@@ -220,12 +220,12 @@ void EnKanban_Init(Actor* thisx, PlayState* play) {
     }
 }
 
-void EnKanban_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnKanban_Destroy(Actor* thisx, PlayState* play) {
     s32 pad;
     EnKanban* this = (EnKanban*)thisx;
 
     if (this->actionState == ENKANBAN_SIGN) {
-        Collider_DestroyCylinder(play, &this->collider);
+        OoT_Collider_DestroyCylinder(play, &this->collider);
     }
 }
 
@@ -243,14 +243,14 @@ void EnKanban_Message(EnKanban* this, PlayState* play) {
             this->msgTimer--;
         }
     } else {
-        if (Actor_TextboxIsClosing(&this->actor, play)) {
+        if (OoT_Actor_TextboxIsClosing(&this->actor, play)) {
             this->msgFlag = false;
             this->msgTimer = 20;
         }
     }
 }
 
-void EnKanban_Update(Actor* thisx, PlayState* play2) {
+void OoT_EnKanban_Update(Actor* thisx, PlayState* play2) {
     u8 bounced = false;
     PlayState* play = play2;
     EnKanban* this = (EnKanban*)thisx;
@@ -277,7 +277,7 @@ void EnKanban_Update(Actor* thisx, PlayState* play2) {
             if ((this->invincibilityTimer == 0) && (this->collider.base.acFlags & AC_HIT)) {
                 this->collider.base.acFlags &= ~AC_HIT;
                 this->invincibilityTimer = 6;
-                piece = (EnKanban*)Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_KANBAN,
+                piece = (EnKanban*)OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_KANBAN,
                                                       this->actor.world.pos.x, this->actor.world.pos.y,
                                                       this->actor.world.pos.z, this->actor.shape.rot.x,
                                                       this->actor.shape.rot.y, this->actor.shape.rot.z, ENKANBAN_PIECE);
@@ -287,7 +287,7 @@ void EnKanban_Update(Actor* thisx, PlayState* play2) {
                     u8 i;
 
                     if (hitItem->toucher.dmgFlags & 0x700) {
-                        this->cutType = sCutTypes[player->meleeWeaponAnimation];
+                        this->cutType = OoT_sCutTypes[player->meleeWeaponAnimation];
                     } else {
                         this->cutType = CUT_POST;
                     }
@@ -298,18 +298,18 @@ void EnKanban_Update(Actor* thisx, PlayState* play2) {
                             this->cutType = CUT_VERT_R;
                         }
                     }
-                    piece->partFlags = sCutFlags[this->cutType] & this->partFlags;
+                    piece->partFlags = OoT_sCutFlags[this->cutType] & this->partFlags;
                     if (piece->partFlags == 0) {
-                        Actor_Kill(&piece->actor);
+                        OoT_Actor_Kill(&piece->actor);
                         return;
                     }
                     piece->partCount = 0;
-                    for (i = 0; i < ARRAY_COUNT(sPartFlags); i++) {
-                        if (sPartFlags[i] & piece->partFlags) {
+                    for (i = 0; i < ARRAY_COUNT(OoT_sPartFlags); i++) {
+                        if (OoT_sPartFlags[i] & piece->partFlags) {
                             piece->partCount++;
                         }
                     }
-                    this->partFlags &= ~sCutFlags[this->cutType];
+                    this->partFlags &= ~OoT_sCutFlags[this->cutType];
                     if (!(this->partFlags & ALL_PARTS)) {
                         this->zTargetTimer = 10;
                     }
@@ -359,29 +359,29 @@ void EnKanban_Update(Actor* thisx, PlayState* play2) {
                     }
 
                     Matrix_RotateY((this->actor.shape.rot.y / (f32)0x8000) * M_PI, MTXMODE_NEW);
-                    Matrix_MultVec3f(&sPieceOffsets[piece->pieceType], &offset);
+                    OoT_Matrix_MultVec3f(&OoT_sPieceOffsets[piece->pieceType], &offset);
                     piece->actor.world.pos.x += offset.x;
                     piece->actor.world.pos.y += offset.y;
                     piece->actor.world.pos.z += offset.z;
-                    piece->offset.x = -sPieceOffsets[piece->pieceType].x / this->actor.scale.x;
-                    piece->offset.y = -sPieceOffsets[piece->pieceType].y / this->actor.scale.x;
-                    piece->offset.z = -sPieceOffsets[piece->pieceType].z / this->actor.scale.x;
-                    piece->pieceWidth = sPieceSizes[piece->pieceType].x;
-                    piece->pieceHeight = sPieceSizes[piece->pieceType].y;
+                    piece->offset.x = -OoT_sPieceOffsets[piece->pieceType].x / this->actor.scale.x;
+                    piece->offset.y = -OoT_sPieceOffsets[piece->pieceType].y / this->actor.scale.x;
+                    piece->offset.z = -OoT_sPieceOffsets[piece->pieceType].z / this->actor.scale.x;
+                    piece->pieceWidth = OoT_sPieceSizes[piece->pieceType].x;
+                    piece->pieceHeight = OoT_sPieceSizes[piece->pieceType].y;
                     piece->actor.gravity = -1.0f;
                     piece->actionState = ENKANBAN_AIR;
-                    piece->actor.world.rot.y = (s16)Rand_CenteredFloat(0x3000) + this->actor.yawTowardsPlayer + 0x8000;
-                    piece->actor.velocity.y = Rand_ZeroFloat(2.0f) + 3.0f;
-                    piece->actor.speedXZ = Rand_ZeroFloat(2.0f) + 3.0f;
+                    piece->actor.world.rot.y = (s16)OoT_Rand_CenteredFloat(0x3000) + this->actor.yawTowardsPlayer + 0x8000;
+                    piece->actor.velocity.y = OoT_Rand_ZeroFloat(2.0f) + 3.0f;
+                    piece->actor.speedXZ = OoT_Rand_ZeroFloat(2.0f) + 3.0f;
                     if (piece->partCount >= 4) {
-                        piece->bounceX = (s16)Rand_ZeroFloat(10.0f) + 6;
-                        piece->bounceZ = (s16)Rand_ZeroFloat(10.0f) + 6;
+                        piece->bounceX = (s16)OoT_Rand_ZeroFloat(10.0f) + 6;
+                        piece->bounceZ = (s16)OoT_Rand_ZeroFloat(10.0f) + 6;
                     } else {
-                        piece->bounceX = (s16)Rand_ZeroFloat(7.0f) + 3;
-                        piece->bounceZ = (s16)Rand_ZeroFloat(7.0f) + 3;
+                        piece->bounceX = (s16)OoT_Rand_ZeroFloat(7.0f) + 3;
+                        piece->bounceZ = (s16)OoT_Rand_ZeroFloat(7.0f) + 3;
                     }
-                    piece->spinVel.y = Rand_CenteredFloat(0x1800);
-                    if (Rand_ZeroOne() < 0.5f) {
+                    piece->spinVel.y = OoT_Rand_CenteredFloat(0x1800);
+                    if (OoT_Rand_ZeroOne() < 0.5f) {
                         piece->direction = 1;
                     } else {
                         piece->direction = -1;
@@ -395,9 +395,9 @@ void EnKanban_Update(Actor* thisx, PlayState* play2) {
             }
             this->actor.focus.pos = this->actor.world.pos;
             this->actor.focus.pos.y += 44.0f;
-            Collider_UpdateCylinder(&this->actor, &this->collider);
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-            CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+            OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+            OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+            OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
             if (this->actor.xzDistToPlayer > 500.0f) {
                 this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
                 this->partFlags = 0xFFFF;
@@ -427,7 +427,7 @@ void EnKanban_Update(Actor* thisx, PlayState* play2) {
             u8 onGround;
 
             Actor_MoveXZGravity(&this->actor);
-            Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 30.0f, 50.0f, 5);
+            OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 30.0f, 50.0f, 5);
 
             tempX = this->actor.world.pos.x;
             tempY = this->actor.world.pos.y;
@@ -436,7 +436,7 @@ void EnKanban_Update(Actor* thisx, PlayState* play2) {
             tempYDistToWater = this->actor.yDistToWater;
 
             this->actor.world.pos.z += ((this->actor.world.pos.y - this->actor.floorHeight) * -50.0f) / 100.0f;
-            Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 10.0f, 50.0f, 4);
+            OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 10.0f, 50.0f, 4);
             EnKanban_SetFloorRot(this);
 
             this->actor.world.pos.x = tempX;
@@ -492,9 +492,9 @@ void EnKanban_Update(Actor* thisx, PlayState* play2) {
                 Audio_PlayActorSound2(&this->actor, NA_SE_EV_BOMB_DROP_WATER);
                 this->bounceX = this->bounceZ = 0;
                 this->actor.world.pos.y += this->actor.yDistToWater;
-                EffectSsGSplash_Spawn(play, &this->actor.world.pos, NULL, NULL, 0, (this->partCount * 20) + 300);
-                EffectSsGRipple_Spawn(play, &this->actor.world.pos, 150, 650, 0);
-                EffectSsGRipple_Spawn(play, &this->actor.world.pos, 300, 800, 5);
+                OoT_EffectSsGSplash_Spawn(play, &this->actor.world.pos, NULL, NULL, 0, (this->partCount * 20) + 300);
+                OoT_EffectSsGRipple_Spawn(play, &this->actor.world.pos, 150, 650, 0);
+                OoT_EffectSsGRipple_Spawn(play, &this->actor.world.pos, 300, 800, 5);
                 this->actor.velocity.y = 0.0f;
                 this->actor.gravity = 0.0f;
                 osSyncPrintf(" WAT  Y  = %f\n", this->actor.yDistToWater);
@@ -507,7 +507,7 @@ void EnKanban_Update(Actor* thisx, PlayState* play2) {
                 if (this->bounceCount <= 0) {
                     this->bounceCount++;
                     this->actor.velocity.y *= -0.3f;
-                    this->actor.world.rot.y += (s16)Rand_CenteredFloat(16384.0f);
+                    this->actor.world.rot.y += (s16)OoT_Rand_CenteredFloat(16384.0f);
                 } else {
                     this->actor.velocity.y = 0.0f;
                 }
@@ -520,7 +520,7 @@ void EnKanban_Update(Actor* thisx, PlayState* play2) {
                             this->bounceX = 0;
                         }
                     }
-                    if (Rand_ZeroOne() < 0.5f) {
+                    if (OoT_Rand_ZeroOne() < 0.5f) {
                         this->spinXFlag = true;
                     } else {
                         this->spinXFlag = false;
@@ -535,14 +535,14 @@ void EnKanban_Update(Actor* thisx, PlayState* play2) {
                             this->bounceZ = 0;
                         }
                     }
-                    if (Rand_ZeroOne() < 0.5f) {
+                    if (OoT_Rand_ZeroOne() < 0.5f) {
                         this->spinZFlag = true;
                     } else {
                         this->spinZFlag = false;
                     }
                     bounced = true;
                 }
-                Math_ApproachS(&this->actor.shape.rot.x, this->direction * 0x4000, 1, 0x2000);
+                OoT_Math_ApproachS(&this->actor.shape.rot.x, this->direction * 0x4000, 1, 0x2000);
             } else {
                 this->actor.shape.rot.y += this->spinVel.y;
                 this->actor.shape.rot.x += this->direction * 0x7D0;
@@ -561,8 +561,8 @@ void EnKanban_Update(Actor* thisx, PlayState* play2) {
                 pos.y = this->actor.floorHeight + 3.0f;
                 dustCount = this->partCount * 0.5f;
                 for (j = 0; j < dustCount + 3; j++) {
-                    pos.x = this->actor.world.pos.x + Rand_CenteredFloat((this->partCount * 0.5f) + 20.0f);
-                    pos.z = this->actor.world.pos.z + Rand_CenteredFloat((this->partCount * 0.5f) + 20.0f);
+                    pos.x = this->actor.world.pos.x + OoT_Rand_CenteredFloat((this->partCount * 0.5f) + 20.0f);
+                    pos.z = this->actor.world.pos.z + OoT_Rand_CenteredFloat((this->partCount * 0.5f) + 20.0f);
                     func_800286CC(play, &pos, &velocity, &accel, 100, 5);
                 }
             }
@@ -575,20 +575,20 @@ void EnKanban_Update(Actor* thisx, PlayState* play2) {
             signpost = (EnKanban*)this->actor.parent;
 
             if (signpost->partFlags == 0xFFFF) {
-                Actor_Kill(&this->actor);
+                OoT_Actor_Kill(&this->actor);
             }
-            Math_ApproachF(&this->actor.shape.yOffset, 100.0f, 1.0f, 5.0f);
+            OoT_Math_ApproachF(&this->actor.shape.yOffset, 100.0f, 1.0f, 5.0f);
             if (this->actionState == ENKANBAN_WATER) {
                 s32 rippleDelay;
                 s32 rippleScale;
 
                 if ((player->actor.speedXZ > 0.0f) && (player->actor.world.pos.y < this->actor.world.pos.y) &&
                     (this->actor.xyzDistToPlayerSq < 2500.0f)) {
-                    Math_ApproachF(&this->actor.speedXZ, player->actor.speedXZ, 1.0f, 0.2f);
+                    OoT_Math_ApproachF(&this->actor.speedXZ, player->actor.speedXZ, 1.0f, 0.2f);
                     if (this->actor.speedXZ > 1.0f) {
                         this->actor.speedXZ = 1.0f;
                     }
-                    if (Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer + 0x8000, 1, 0x1000,
+                    if (OoT_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer + 0x8000, 1, 0x1000,
                                            0) > 0) {
                         this->spinVel.y = this->actor.speedXZ * 1000.0f;
                     } else {
@@ -600,7 +600,7 @@ void EnKanban_Update(Actor* thisx, PlayState* play2) {
                 }
                 Actor_MoveXZGravity(&this->actor);
                 if (this->actor.speedXZ != 0.0f) {
-                    Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 10.0f, 50.0f, 5);
+                    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 10.0f, 50.0f, 5);
                     if (this->actor.bgCheckFlags & 8) {
                         this->actor.speedXZ *= -0.5f;
                         if (this->spinVel.y > 0) {
@@ -609,15 +609,15 @@ void EnKanban_Update(Actor* thisx, PlayState* play2) {
                             this->spinVel.y = 0x7D0;
                         }
                     }
-                    Math_ApproachZeroF(&this->actor.speedXZ, 1.0f, 0.15f);
+                    OoT_Math_ApproachZeroF(&this->actor.speedXZ, 1.0f, 0.15f);
                 }
                 this->actor.shape.rot.y += this->spinVel.y;
-                Math_ApproachS(&this->spinVel.y, 0, 1, 0x3A);
-                Math_ApproachS(&this->actor.shape.rot.x, this->direction * 0x4000, 2, 0x1000);
-                Math_ApproachS(&this->spinRot.x, Math_SinS(2500 * this->frameCount) * 500.0f, 2, 0x1000);
-                Math_ApproachS(&this->spinRot.z, Math_CosS(3000 * this->frameCount) * 500.0f, 2, 0x1000);
-                Math_ApproachZeroF(&this->floorRot.x, 0.5f, 0.2f);
-                Math_ApproachZeroF(&this->floorRot.z, 0.5f, 0.2f);
+                OoT_Math_ApproachS(&this->spinVel.y, 0, 1, 0x3A);
+                OoT_Math_ApproachS(&this->actor.shape.rot.x, this->direction * 0x4000, 2, 0x1000);
+                OoT_Math_ApproachS(&this->spinRot.x, OoT_Math_SinS(2500 * this->frameCount) * 500.0f, 2, 0x1000);
+                OoT_Math_ApproachS(&this->spinRot.z, OoT_Math_CosS(3000 * this->frameCount) * 500.0f, 2, 0x1000);
+                OoT_Math_ApproachZeroF(&this->floorRot.x, 0.5f, 0.2f);
+                OoT_Math_ApproachZeroF(&this->floorRot.z, 0.5f, 0.2f);
                 if (fabsf(this->actor.speedXZ) > 1.0f) {
                     rippleDelay = 0;
                 } else if (fabsf(this->actor.speedXZ) > 0.5f) {
@@ -633,27 +633,27 @@ void EnKanban_Update(Actor* thisx, PlayState* play2) {
                     } else {
                         rippleScale = 200;
                     }
-                    EffectSsGRipple_Spawn(play, &this->actor.world.pos, rippleScale, rippleScale + 500, 0);
+                    OoT_EffectSsGRipple_Spawn(play, &this->actor.world.pos, rippleScale, rippleScale + 500, 0);
                 }
             } else if ((play->actorCtx.unk_02 != 0) && (this->actor.xyzDistToPlayerSq < SQ(100.0f))) {
-                f32 hammerStrength = (100.0f - sqrtf(this->actor.xyzDistToPlayerSq)) * 0.05f;
+                f32 hammerStrength = (100.0f - OoT_sqrtf(this->actor.xyzDistToPlayerSq)) * 0.05f;
 
                 this->actionState = ENKANBAN_AIR;
                 this->actor.gravity = -1.0f;
-                this->actor.world.rot.y = Rand_CenteredFloat(0x10000);
+                this->actor.world.rot.y = OoT_Rand_CenteredFloat(0x10000);
                 if (this->partCount >= 4) {
-                    this->bounceX = (s16)Rand_ZeroFloat(10.0f) + 6;
-                    this->bounceZ = (s16)Rand_ZeroFloat(10.0f) + 6;
+                    this->bounceX = (s16)OoT_Rand_ZeroFloat(10.0f) + 6;
+                    this->bounceZ = (s16)OoT_Rand_ZeroFloat(10.0f) + 6;
                     this->actor.velocity.y = 2.0f + hammerStrength;
-                    this->actor.speedXZ = Rand_ZeroFloat(1.0f);
+                    this->actor.speedXZ = OoT_Rand_ZeroFloat(1.0f);
                 } else {
-                    this->bounceX = (s16)Rand_ZeroFloat(7.0f) + 3;
-                    this->bounceZ = (s16)Rand_ZeroFloat(7.0f) + 3;
+                    this->bounceX = (s16)OoT_Rand_ZeroFloat(7.0f) + 3;
+                    this->bounceZ = (s16)OoT_Rand_ZeroFloat(7.0f) + 3;
                     this->actor.velocity.y = 3.0f + hammerStrength;
-                    this->actor.speedXZ = Rand_ZeroFloat(1.5f);
+                    this->actor.speedXZ = OoT_Rand_ZeroFloat(1.5f);
                 }
-                this->spinVel.y = Rand_CenteredFloat(0x1800);
-                if (Rand_ZeroOne() < 0.5f) {
+                this->spinVel.y = OoT_Rand_CenteredFloat(0x1800);
+                if (OoT_Rand_ZeroOne() < 0.5f) {
                     this->direction = 1;
                 } else {
                     this->direction = -1;
@@ -674,25 +674,25 @@ void EnKanban_Update(Actor* thisx, PlayState* play2) {
                     dx = this->actor.world.pos.x - bomb->world.pos.x;
                     dy = this->actor.world.pos.y - bomb->world.pos.y;
                     dz = this->actor.world.pos.z - bomb->world.pos.z;
-                    if (sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 100.0f) {
-                        f32 bombStrength = (100.0f - sqrtf(SQ(dx) + SQ(dy) + SQ(dz))) * 0.05f;
+                    if (OoT_sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 100.0f) {
+                        f32 bombStrength = (100.0f - OoT_sqrtf(SQ(dx) + SQ(dy) + SQ(dz))) * 0.05f;
 
                         this->actionState = ENKANBAN_AIR;
                         this->actor.gravity = -1.0f;
-                        this->actor.world.rot.y = Math_FAtan2F(dx, dz) * (0x8000 / M_PI);
+                        this->actor.world.rot.y = OoT_Math_FAtan2F(dx, dz) * (0x8000 / M_PI);
                         if (this->partCount >= 4) {
-                            this->bounceX = (s16)Rand_ZeroFloat(10.0f) + 6;
-                            this->bounceZ = (s16)Rand_ZeroFloat(10.0f) + 6;
+                            this->bounceX = (s16)OoT_Rand_ZeroFloat(10.0f) + 6;
+                            this->bounceZ = (s16)OoT_Rand_ZeroFloat(10.0f) + 6;
                             this->actor.velocity.y = 2.5f + bombStrength;
                             this->actor.speedXZ = 3.0f + bombStrength;
                         } else {
-                            this->bounceX = (s16)Rand_ZeroFloat(7.0f) + 3;
-                            this->bounceZ = (s16)Rand_ZeroFloat(7.0f) + 3;
+                            this->bounceX = (s16)OoT_Rand_ZeroFloat(7.0f) + 3;
+                            this->bounceZ = (s16)OoT_Rand_ZeroFloat(7.0f) + 3;
                             this->actor.velocity.y = 5.0f + bombStrength;
                             this->actor.speedXZ = 4.0f + bombStrength;
                         }
-                        this->spinVel.y = Rand_CenteredFloat(0x1800);
-                        if (Rand_ZeroOne() < 0.5f) {
+                        this->spinVel.y = OoT_Rand_CenteredFloat(0x1800);
+                        if (OoT_Rand_ZeroOne() < 0.5f) {
                             this->direction = 1;
                         } else {
                             this->direction = -1;
@@ -716,8 +716,8 @@ void EnKanban_Update(Actor* thisx, PlayState* play2) {
                         (play->msgCtx.unk_E3F2 == OCARINA_SONG_LULLABY)) {
                         this->actionState = ENKANBAN_REPAIR;
                         this->bounceX = 1;
-                        Audio_PlaySoundGeneral(NA_SE_SY_TRE_BOX_APPEAR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                        Audio_PlaySoundGeneral(NA_SE_SY_TRE_BOX_APPEAR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                     }
                     break;
             }
@@ -732,37 +732,37 @@ void EnKanban_Update(Actor* thisx, PlayState* play2) {
             signpost = (EnKanban*)this->actor.parent;
 
             if (signpost->partFlags == 0xFFFF) {
-                Actor_Kill(&this->actor);
+                OoT_Actor_Kill(&this->actor);
             }
 
             Matrix_RotateY((signpost->actor.shape.rot.y / (f32)0x8000) * M_PI, MTXMODE_NEW);
-            Matrix_MultVec3f(&sPieceOffsets[this->pieceType], &offset);
+            OoT_Matrix_MultVec3f(&OoT_sPieceOffsets[this->pieceType], &offset);
             distX =
-                Math_SmoothStepToF(&this->actor.world.pos.x, signpost->actor.world.pos.x + offset.x, 1.0f, 3.0f, 0.0f);
+                OoT_Math_SmoothStepToF(&this->actor.world.pos.x, signpost->actor.world.pos.x + offset.x, 1.0f, 3.0f, 0.0f);
             distY =
-                Math_SmoothStepToF(&this->actor.world.pos.y, signpost->actor.world.pos.y + offset.y, 1.0f, 3.0f, 0.0f);
+                OoT_Math_SmoothStepToF(&this->actor.world.pos.y, signpost->actor.world.pos.y + offset.y, 1.0f, 3.0f, 0.0f);
             distZ =
-                Math_SmoothStepToF(&this->actor.world.pos.z, signpost->actor.world.pos.z + offset.z, 1.0f, 3.0f, 0.0f);
-            pDiff = Math_SmoothStepToS(&this->actor.shape.rot.x, signpost->actor.shape.rot.x, 1, 0x200, 0);
-            yDiff = Math_SmoothStepToS(&this->actor.shape.rot.y, signpost->actor.shape.rot.y, 1, 0x200, 0);
-            rDiff = Math_SmoothStepToS(&this->actor.shape.rot.z, signpost->actor.shape.rot.z, 1, 0x200, 0);
-            Math_ApproachS(&this->spinRot.x, 0, 1, 0x200);
-            Math_ApproachS(&this->spinRot.z, 0, 1, 0x200);
-            Math_ApproachZeroF(&this->floorRot.x, 1.0f, 0.05f);
-            Math_ApproachZeroF(&this->floorRot.z, 1.0f, 0.05f);
-            Math_ApproachZeroF(&this->actor.shape.yOffset, 1.0f, 2.0f);
+                OoT_Math_SmoothStepToF(&this->actor.world.pos.z, signpost->actor.world.pos.z + offset.z, 1.0f, 3.0f, 0.0f);
+            pDiff = OoT_Math_SmoothStepToS(&this->actor.shape.rot.x, signpost->actor.shape.rot.x, 1, 0x200, 0);
+            yDiff = OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, signpost->actor.shape.rot.y, 1, 0x200, 0);
+            rDiff = OoT_Math_SmoothStepToS(&this->actor.shape.rot.z, signpost->actor.shape.rot.z, 1, 0x200, 0);
+            OoT_Math_ApproachS(&this->spinRot.x, 0, 1, 0x200);
+            OoT_Math_ApproachS(&this->spinRot.z, 0, 1, 0x200);
+            OoT_Math_ApproachZeroF(&this->floorRot.x, 1.0f, 0.05f);
+            OoT_Math_ApproachZeroF(&this->floorRot.z, 1.0f, 0.05f);
+            OoT_Math_ApproachZeroF(&this->actor.shape.yOffset, 1.0f, 2.0f);
             if (((distX + distY + distZ) == 0.0f) &&
                 ((pDiff + yDiff + rDiff + this->spinRot.x + this->spinRot.z) == 0) && (this->floorRot.x == 0.0f) &&
                 (this->floorRot.z == 0.0f)) {
                 signpost->partFlags |= this->partFlags;
                 signpost->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
-                Actor_Kill(&this->actor);
+                OoT_Actor_Kill(&this->actor);
             }
         } break;
     }
 }
 
-static Gfx* sDisplayLists[] = {
+static Gfx* OoT_sDisplayLists[] = {
     object_kanban_DL_000CB0, object_kanban_DL_000DB8, object_kanban_DL_000E78, object_kanban_DL_000F38,
     object_kanban_DL_000FF8, object_kanban_DL_0010B8, object_kanban_DL_0011C0, object_kanban_DL_0012C8,
     object_kanban_DL_0013D0, object_kanban_DL_001488, object_kanban_DL_001540,
@@ -770,7 +770,7 @@ static Gfx* sDisplayLists[] = {
 
 #include "z_en_kanban_gfx.c"
 
-static f32 sCutAngles[] = {
+static f32 OoT_sCutAngles[] = {
     /* CUT_POST   */ 0.50f * M_PI,
     /* CUT_VERT_L */ 0.00f * M_PI,
     /* CUT_HORIZ  */ 0.50f * M_PI,
@@ -779,11 +779,11 @@ static f32 sCutAngles[] = {
     /* CUT_VERT_R */ 0.00f * M_PI,
 };
 
-static s32 sUnused[] = { 0, 0, 0 }; // Unused zero vector?
+static s32 OoT_sUnused[] = { 0, 0, 0 }; // Unused OoT_zero vector?
 
 #include "overlays/ovl_En_Kanban/ovl_En_Kanban.h"
 
-void EnKanban_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnKanban_Draw(Actor* thisx, PlayState* play) {
     EnKanban* this = (EnKanban*)thisx;
     f32 zShift;
     f32 zShift2;
@@ -795,45 +795,45 @@ void EnKanban_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     gSPDisplayList(POLY_OPA_DISP++, object_kanban_DL_000C30);
     if (this->actionState != ENKANBAN_SIGN) {
-        Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
-        Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+        OoT_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
+        OoT_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
         Matrix_RotateX(this->floorRot.x, MTXMODE_APPLY);
         Matrix_RotateZ(this->floorRot.z, MTXMODE_APPLY);
-        Matrix_Translate(0.0f, this->actor.shape.yOffset, 0.0f, MTXMODE_APPLY);
+        OoT_Matrix_Translate(0.0f, this->actor.shape.yOffset, 0.0f, MTXMODE_APPLY);
         Matrix_RotateY((this->actor.shape.rot.y / (f32)0x8000) * M_PI, MTXMODE_APPLY);
         Matrix_RotateX((this->actor.shape.rot.x / (f32)0x8000) * M_PI, MTXMODE_APPLY);
-        zShift = fabsf(Math_SinS(this->spinRot.x) * this->pieceHeight);
-        zShift2 = fabsf(Math_SinS(this->spinRot.z) * this->pieceWidth);
+        zShift = fabsf(OoT_Math_SinS(this->spinRot.x) * this->pieceHeight);
+        zShift2 = fabsf(OoT_Math_SinS(this->spinRot.z) * this->pieceWidth);
         zShift = MAX(zShift2, zShift);
         zShift *= -(f32)this->direction;
-        Matrix_Translate(0.0f, 0.0f, zShift, MTXMODE_APPLY);
+        OoT_Matrix_Translate(0.0f, 0.0f, zShift, MTXMODE_APPLY);
         Matrix_RotateX((this->spinRot.x / (f32)0x8000) * M_PI, MTXMODE_APPLY);
         Matrix_RotateY((this->spinRot.z / (f32)0x8000) * M_PI, MTXMODE_APPLY);
-        Matrix_Translate(this->offset.x, this->offset.y, this->offset.z - 100.0f, MTXMODE_APPLY);
+        OoT_Matrix_Translate(this->offset.x, this->offset.y, this->offset.z - 100.0f, MTXMODE_APPLY);
         gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-        for (i = 0; i < ARRAY_COUNT(sPartFlags); i++) {
-            if (sPartFlags[i] & this->partFlags) {
-                gSPDisplayList(POLY_OPA_DISP++, sDisplayLists[i]);
+        for (i = 0; i < ARRAY_COUNT(OoT_sPartFlags); i++) {
+            if (OoT_sPartFlags[i] & this->partFlags) {
+                gSPDisplayList(POLY_OPA_DISP++, OoT_sDisplayLists[i]);
             }
         }
     } else {
-        Matrix_Translate(0.0f, 0.0f, -100.0f, MTXMODE_APPLY);
+        OoT_Matrix_Translate(0.0f, 0.0f, -100.0f, MTXMODE_APPLY);
         gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         if (this->partFlags == 0xFFFF) {
             gSPDisplayList(POLY_OPA_DISP++, gSignRectangularDL);
         } else {
-            for (i = 0; i < ARRAY_COUNT(sPartFlags); i++) {
-                if (sPartFlags[i] & this->partFlags) {
-                    gSPDisplayList(POLY_OPA_DISP++, sDisplayLists[i]);
+            for (i = 0; i < ARRAY_COUNT(OoT_sPartFlags); i++) {
+                if (OoT_sPartFlags[i] & this->partFlags) {
+                    gSPDisplayList(POLY_OPA_DISP++, OoT_sDisplayLists[i]);
                 }
             }
         }
         if (this->cutMarkAlpha != 0) {
             f32 cutOffset = (this->cutType == CUT_POST) ? -1200.0f : 0.0f;
 
-            Matrix_Translate(0.0f, 4400.0f + cutOffset, 200.0f, MTXMODE_APPLY);
-            Matrix_RotateZ(sCutAngles[this->cutType], MTXMODE_APPLY);
-            Matrix_Scale(0.0f, 10.0f, 2.0f, MTXMODE_APPLY);
+            OoT_Matrix_Translate(0.0f, 4400.0f + cutOffset, 200.0f, MTXMODE_APPLY);
+            Matrix_RotateZ(OoT_sCutAngles[this->cutType], MTXMODE_APPLY);
+            OoT_Matrix_Scale(0.0f, 10.0f, 2.0f, MTXMODE_APPLY);
             gDPPipeSync(POLY_XLU_DISP++);
             gDPSetPrimColor(POLY_XLU_DISP++, 0x00, 0x00, 255, 255, 255, this->cutMarkAlpha);
             gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, 150, 0);
@@ -862,11 +862,11 @@ void EnKanban_Draw(Actor* thisx, PlayState* play) {
                 zShift = ((this->actor.world.pos.y - this->actor.floorHeight) * -50.0f) / 100.0f;
             }
 
-            Matrix_Translate(this->actor.world.pos.x, this->actor.floorHeight, this->actor.world.pos.z + zShift,
+            OoT_Matrix_Translate(this->actor.world.pos.x, this->actor.floorHeight, this->actor.world.pos.z + zShift,
                              MTXMODE_NEW);
             Matrix_RotateX(this->floorRot.x, MTXMODE_APPLY);
             Matrix_RotateZ(this->floorRot.z, MTXMODE_APPLY);
-            Matrix_Scale(this->actor.scale.x, 0.0f, this->actor.scale.z, MTXMODE_APPLY);
+            OoT_Matrix_Scale(this->actor.scale.x, 0.0f, this->actor.scale.z, MTXMODE_APPLY);
             if (this->actionState == ENKANBAN_SIGN) {
                 Matrix_RotateX(-M_PI / 5, MTXMODE_APPLY);
             }
@@ -874,7 +874,7 @@ void EnKanban_Draw(Actor* thisx, PlayState* play) {
             Matrix_RotateX((this->actor.shape.rot.x / (f32)0x8000) * M_PI, MTXMODE_APPLY);
             Matrix_RotateX((this->spinRot.x / (f32)0x8000) * M_PI, MTXMODE_APPLY);
             Matrix_RotateY((this->spinRot.z / (f32)0x8000) * M_PI, MTXMODE_APPLY);
-            Matrix_Translate(this->offset.x, this->offset.y, this->offset.z, MTXMODE_APPLY);
+            OoT_Matrix_Translate(this->offset.x, this->offset.y, this->offset.z, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
             for (i = 0; i < 0x400; i++) {

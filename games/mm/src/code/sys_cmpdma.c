@@ -47,7 +47,7 @@ void CmpDma_GetFileInfo(uintptr_t segmentRom, s32 id, uintptr_t* outFileRom, siz
     uintptr_t dataStart;
     uintptr_t refOff;
 
-    DmaMgr_DmaRomToRam(segmentRom, &sDmaBuffer.dataStart, sizeof(sDmaBuffer.dataStart));
+    MM_DmaMgr_DmaRomToRam(segmentRom, &sDmaBuffer.dataStart, sizeof(sDmaBuffer.dataStart));
 
     dataStart = sDmaBuffer.dataStart;
     refOff = id * sizeof(u32);
@@ -58,12 +58,12 @@ void CmpDma_GetFileInfo(uintptr_t segmentRom, s32 id, uintptr_t* outFileRom, siz
         *size = 0;
     } else if (refOff == 0) {
         // get offset start of next file, i.e. size of first file
-        DmaMgr_DmaRomToRam(segmentRom + sizeof(u32), &sDmaBuffer.dataSize, sizeof(sDmaBuffer.dataSize));
+        MM_DmaMgr_DmaRomToRam(segmentRom + sizeof(u32), &sDmaBuffer.dataSize, sizeof(sDmaBuffer.dataSize));
         *outFileRom = segmentRom + dataStart;
         *size = sDmaBuffer.dataSize;
     } else {
         // get offset start, end from dataStart
-        DmaMgr_DmaRomToRam(refOff + segmentRom, &sDmaBuffer.offset, sizeof(sDmaBuffer.offset));
+        MM_DmaMgr_DmaRomToRam(refOff + segmentRom, &sDmaBuffer.offset, sizeof(sDmaBuffer.offset));
         *outFileRom = sDmaBuffer.offset.start + segmentRom + dataStart;
         *size = sDmaBuffer.offset.end - sDmaBuffer.offset.start;
     }
@@ -72,7 +72,7 @@ void CmpDma_GetFileInfo(uintptr_t segmentRom, s32 id, uintptr_t* outFileRom, siz
 
 void CmpDma_Decompress(uintptr_t romStart, size_t size, void* dst) {
     if (size != 0) {
-        Yaz0_Decompress(romStart, dst, size);
+        MM_Yaz0_Decompress(romStart, dst, size);
     }
 }
 
@@ -83,11 +83,11 @@ void CmpDma_LoadFileImpl(uintptr_t segmentRom, s32 id, void* dst, size_t size) {
 
     CmpDma_GetFileInfo(segmentRom, id, &romStart, &compressedSize, &flag);
     if (flag & 1) {
-        void* tempBuf = SystemArena_Malloc(0x1000);
+        void* tempBuf = MM_SystemArena_Malloc(0x1000);
 
         CmpDma_Decompress(romStart, compressedSize, tempBuf);
         func_80178AC0(tempBuf, dst, size);
-        SystemArena_Free(tempBuf);
+        MM_SystemArena_Free(tempBuf);
     } else {
         CmpDma_Decompress(romStart, compressedSize, dst);
     }
@@ -106,7 +106,7 @@ void CmpDma_LoadAllFiles(uintptr_t segmentVrom, void* dst, size_t size) {
     void* nextDst;
     u32 dataStart;
 
-    DmaMgr_DmaRomToRam(rom, &sDmaBuffer.dataStart, sizeof(sDmaBuffer.dataStart));
+    MM_DmaMgr_DmaRomToRam(rom, &sDmaBuffer.dataStart, sizeof(sDmaBuffer.dataStart));
 
     dataStart = sDmaBuffer.dataStart;
     nextDst = dst;

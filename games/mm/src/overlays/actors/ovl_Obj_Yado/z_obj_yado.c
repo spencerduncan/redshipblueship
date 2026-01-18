@@ -26,7 +26,7 @@ ActorProfile Obj_Yado_Profile = {
     /**/ ObjYado_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
 
@@ -35,7 +35,7 @@ AnimatedMaterial* D_80C16470;
 void ObjYado_Init(Actor* thisx, PlayState* play) {
     ObjYado* this = (ObjYado*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
     D_80C16470 = Lib_SegmentedToVirtual(object_yado_obj_Matanimheader_0012E8);
     this->isNight = gSaveContext.save.isNight;
 }
@@ -64,8 +64,8 @@ void ObjYado_Draw(Actor* thisx, PlayState* play) {
     }
 
     AnimatedMat_Draw(play, D_80C16470);
-    Gfx_DrawDListOpa(play, object_yado_obj_DL_000430);
-    Gfx_DrawDListXlu(play, object_yado_obj_DL_000320);
+    MM_Gfx_DrawDListOpa(play, object_yado_obj_DL_000430);
+    MM_Gfx_DrawDListXlu(play, object_yado_obj_DL_000320);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

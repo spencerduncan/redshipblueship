@@ -1,6 +1,6 @@
 #include "global.h"
 
-void MtxConv_F2L(Mtx* mtx, MtxF* mf) {
+void MM_MtxConv_F2L(Mtx* mtx, MtxF* mf) {
     s32 i;
     s32 j;
 
@@ -14,6 +14,6 @@ void MtxConv_F2L(Mtx* mtx, MtxF* mf) {
     }
 }
 
-void MtxConv_L2F(MtxF* mtx, Mtx* mf) {
+void MM_MtxConv_L2F(MtxF* mtx, Mtx* mf) {
     guMtxL2F(mtx->mf, mf);
 }

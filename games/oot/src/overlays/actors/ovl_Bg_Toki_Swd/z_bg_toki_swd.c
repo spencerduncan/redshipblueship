@@ -37,7 +37,7 @@ const ActorInit Bg_Toki_Swd_InitVars = {
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -57,9 +57,9 @@ static ColliderCylinderInit sCylinderInit = {
     { 10, 70, 0, { 0 } },
 };
 
-static CollisionCheckInfoInit sColChkInfoInit = { 10, 35, 100, MASS_IMMOVABLE };
+static CollisionCheckInfoInit OoT_sColChkInfoInit = { 10, 35, 100, MASS_IMMOVABLE };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 25, ICHAIN_STOP),
 };
 
@@ -71,7 +71,7 @@ void BgTokiSwd_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     BgTokiSwd* this = (BgTokiSwd*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
     this->actor.shape.yOffset = 800.0f;
     BgTokiSwd_SetupAction(this, func_808BAF40);
 
@@ -90,10 +90,10 @@ void BgTokiSwd_Init(Actor* thisx, PlayState* play) {
         // don't give child link a kokiri sword if we don't have one
         uint32_t kokiriSwordBitMask = 1 << 0;
         if (!(gSaveContext.inventory.equipment & kokiriSwordBitMask)) {
-            Player* player = GET_PLAYER(gPlayState);
+            Player* player = GET_PLAYER(OoT_gPlayState);
             player->currentSwordItemId = ITEM_NONE;
             gSaveContext.equips.buttonItems[0] = ITEM_NONE;
-            Inventory_ChangeEquipment(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_NONE);
+            OoT_Inventory_ChangeEquipment(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_NONE);
         }
     }
 
@@ -101,22 +101,22 @@ void BgTokiSwd_Init(Actor* thisx, PlayState* play) {
         play->roomCtx.unk_74[0] = 0xFF;
     }
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, thisx, &sCylinderInit);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetInfo(&this->actor.colChkInfo, NULL, &sColChkInfoInit);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, thisx, &OoT_sCylinderInit);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetInfo(&this->actor.colChkInfo, NULL, &OoT_sColChkInfoInit);
 }
 
 void BgTokiSwd_Destroy(Actor* thisx, PlayState* play) {
     BgTokiSwd* this = (BgTokiSwd*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void func_808BAF40(BgTokiSwd* this, PlayState* play) {
-    if (((Flags_GetEventChkInf(EVENTCHKINF_ENTERED_MASTER_SWORD_CHAMBER)) == 0) && (gSaveContext.sceneSetupIndex < 4) &&
-        Actor_IsFacingAndNearPlayer(&this->actor, 800.0f, 0x7530) && !Play_InCsMode(play)) {
-        Flags_SetEventChkInf(EVENTCHKINF_ENTERED_MASTER_SWORD_CHAMBER);
+    if (((OoT_Flags_GetEventChkInf(EVENTCHKINF_ENTERED_MASTER_SWORD_CHAMBER)) == 0) && (gSaveContext.sceneSetupIndex < 4) &&
+        OoT_Actor_IsFacingAndNearPlayer(&this->actor, 800.0f, 0x7530) && !OoT_Play_InCsMode(play)) {
+        OoT_Flags_SetEventChkInf(EVENTCHKINF_ENTERED_MASTER_SWORD_CHAMBER);
         if (GameInteractor_Should(VB_PLAY_ENTRANCE_CS, true, EVENTCHKINF_ENTERED_MASTER_SWORD_CHAMBER,
                                   gSaveContext.entranceIndex)) {
             play->csCtx.segment = D_808BBD90;
@@ -124,11 +124,11 @@ void func_808BAF40(BgTokiSwd* this, PlayState* play) {
         }
     }
 
-    if (!LINK_IS_ADULT || (Flags_GetEventChkInf(EVENTCHKINF_LEARNED_PRELUDE_OF_LIGHT) && !IS_RANDO) || IS_RANDO) {
-        if (Actor_HasParent(&this->actor, play)) {
+    if (!LINK_IS_ADULT || (OoT_Flags_GetEventChkInf(EVENTCHKINF_LEARNED_PRELUDE_OF_LIGHT) && !IS_RANDO) || IS_RANDO) {
+        if (OoT_Actor_HasParent(&this->actor, play)) {
             if (!LINK_IS_ADULT) {
                 if (GameInteractor_Should(VB_GIVE_ITEM_MASTER_SWORD, true)) {
-                    Item_Give(play, ITEM_SWORD_MASTER);
+                    OoT_Item_Give(play, ITEM_SWORD_MASTER);
                 }
                 play->csCtx.segment = D_808BB2F0;
 
@@ -147,8 +147,8 @@ void func_808BAF40(BgTokiSwd* this, PlayState* play) {
             BgTokiSwd_SetupAction(this, func_808BB0AC);
         } else {
             Player* player = GET_PLAYER(play);
-            if (Actor_IsFacingPlayer(&this->actor, 0x2000)) {
-                Actor_OfferCarry(&this->actor, play);
+            if (OoT_Actor_IsFacingPlayer(&this->actor, 0x2000)) {
+                OoT_Actor_OfferCarry(&this->actor, play);
             }
         }
     }
@@ -165,7 +165,7 @@ void func_808BB0AC(BgTokiSwd* this, PlayState* play) {
     Player* player;
 
     // if sword has a parent it has been pulled/placed from the pedestal
-    if (Actor_HasParent(&this->actor, play)) {
+    if (OoT_Actor_HasParent(&this->actor, play)) {
         if (!LINK_IS_ADULT) {
             Audio_PlayActorSound2(&this->actor, NA_SE_IT_SWORD_PUTAWAY_STN);
             this->actor.draw = NULL; // sword has been pulled, dont draw sword
@@ -189,7 +189,7 @@ void BgTokiSwd_Update(Actor* thisx, PlayState* play) {
     BgTokiSwd* this = (BgTokiSwd*)thisx;
 
     this->actionFunc(this, play);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void BgTokiSwd_Draw(Actor* thisx, PlayState* play2) {
@@ -209,7 +209,7 @@ void BgTokiSwd_Draw(Actor* thisx, PlayState* play2) {
 
     func_8002EBCC(&this->actor, play, 0);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Gfx_TexScroll(play->state.gfxCtx, 0, -(play->gameplayFrames % 0x80), 32, 32));
+    gSPSegment(POLY_OPA_DISP++, 0x08, OoT_Gfx_TexScroll(play->state.gfxCtx, 0, -(play->gameplayFrames % 0x80), 32, 32));
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_OPA_DISP++, object_toki_objects_DL_001BD0);
 

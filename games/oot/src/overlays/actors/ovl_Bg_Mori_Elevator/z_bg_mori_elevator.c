@@ -32,7 +32,7 @@ const ActorInit Bg_Mori_Elevator_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(uncullZoneForward, 2000, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 500, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneDownward, 3000, ICHAIN_CONTINUE),
@@ -90,7 +90,7 @@ void BgMoriElevator_Init(Actor* thisx, PlayState* play) {
     this->unk_172 = sKankyoIsSpawned;
     this->moriTexObjIndex = Object_GetIndex(&play->objectCtx, OBJECT_MORI_TEX);
     if (this->moriTexObjIndex < 0) {
-        Actor_Kill(thisx);
+        OoT_Actor_Kill(thisx);
         // "Forest Temple obj elevator Bank Danger!"
         osSyncPrintf("Error : 森の神殿 obj elevator バンク危険！(%s %d)\n", __FILE__, __LINE__);
     } else {
@@ -100,14 +100,14 @@ void BgMoriElevator_Init(Actor* thisx, PlayState* play) {
                 osSyncPrintf("森の神殿 elevator CT\n");
                 sKankyoIsSpawned = true;
                 this->dyna.actor.room = -1;
-                Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-                DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
-                CollisionHeader_GetVirtual(&gMoriElevatorCol, &colHeader);
-                this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
+                OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+                OoT_DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
+                OoT_CollisionHeader_GetVirtual(&gMoriElevatorCol, &colHeader);
+                this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
                 BgMoriElevator_SetupWaitAfterInit(this);
                 break;
             case true:
-                Actor_Kill(thisx);
+                OoT_Actor_Kill(thisx);
                 break;
         }
     }
@@ -119,7 +119,7 @@ void BgMoriElevator_Destroy(Actor* thisx, PlayState* play) {
     if (this->unk_172 == 0) {
         // "Forest Temple elevator DT"
         osSyncPrintf("森の神殿 elevator DT\n");
-        DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+        OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
         sKankyoIsSpawned = false;
     }
 }
@@ -135,8 +135,8 @@ void BgMoriElevator_SetupWaitAfterInit(BgMoriElevator* this) {
 }
 
 void BgMoriElevator_WaitAfterInit(BgMoriElevator* this, PlayState* play) {
-    if (Object_IsLoaded(&play->objectCtx, this->moriTexObjIndex)) {
-        if (Flags_GetSwitch(play, this->dyna.actor.params & 0x3F)) {
+    if (OoT_Object_IsLoaded(&play->objectCtx, this->moriTexObjIndex)) {
+        if (OoT_Flags_GetSwitch(play, this->dyna.actor.params & 0x3F)) {
             if (play->roomCtx.curRoom.num == 2) {
                 this->dyna.actor.world.pos.y = 73.0f;
                 BgMoriElevator_SetupSetPosition(this);
@@ -211,11 +211,11 @@ void BgMoriElevator_SetPosition(BgMoriElevator* this, PlayState* play) {
     } else if ((play->roomCtx.curRoom.num == 17) && (-275.0f < this->dyna.actor.world.pos.y)) {
         this->targetY = -779.0f;
         BgMoriElevator_StopMovement(this);
-    } else if ((play->roomCtx.curRoom.num == 2) && Flags_GetSwitch(play, this->dyna.actor.params & 0x3F) &&
+    } else if ((play->roomCtx.curRoom.num == 2) && OoT_Flags_GetSwitch(play, this->dyna.actor.params & 0x3F) &&
                (this->unk_16C == 0)) {
         this->targetY = 73.0f;
         func_808A1C30(this);
-    } else if ((play->roomCtx.curRoom.num == 2) && !Flags_GetSwitch(play, this->dyna.actor.params & 0x3F) &&
+    } else if ((play->roomCtx.curRoom.num == 2) && !OoT_Flags_GetSwitch(play, this->dyna.actor.params & 0x3F) &&
                (this->unk_16C != 0)) {
         this->targetY = 233.0f;
         func_808A1CF4(this, play);
@@ -246,7 +246,7 @@ void BgMoriElevator_Update(Actor* thisx, PlayState* play) {
 
     this->actionFunc(this, play);
     this->unk_170 = this->dyna.interactFlags;
-    this->unk_16C = Flags_GetSwitch(play, (thisx->params & 0x3F));
+    this->unk_16C = OoT_Flags_GetSwitch(play, (thisx->params & 0x3F));
 }
 
 void BgMoriElevator_Draw(Actor* thisx, PlayState* play) {

@@ -20,7 +20,7 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void EnHy_Init(Actor* thisx, PlayState* play);
+void OoT_EnHy_Init(Actor* thisx, PlayState* play);
 void EnHy_Destroy(Actor* thisx, PlayState* play);
 void EnHy_Update(Actor* thisx, PlayState* play);
 void EnHy_Draw(Actor* thisx, PlayState* play);
@@ -41,7 +41,7 @@ const ActorInit En_Hy_InitVars = {
     FLAGS,
     OBJECT_GAMEPLAY_KEEP,
     sizeof(EnHy),
-    (ActorFunc)EnHy_Init,
+    (ActorFunc)OoT_EnHy_Init,
     (ActorFunc)EnHy_Destroy,
     (ActorFunc)EnHy_Update,
     (ActorFunc)EnHy_Draw,
@@ -68,7 +68,7 @@ static ColliderCylinderInit sColCylInit = {
     { 20, 46, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 OoT_sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
 
 // NULL-terminated arrays of eye textures
 static void* sEyeTexturesAOB[] = { gDogLadyEyeOpenTex, gDogLadyEyeHalfTex, gDogLadyEyeClosedTex, NULL };
@@ -179,7 +179,7 @@ typedef enum {
     /* 26 */ ENHY_ANIM_26
 } EnHyAnimationIndex;
 
-static AnimationInfo sAnimationInfo[] = {
+static AnimationInfo OoT_sAnimationInfo[] = {
     /* ENHY_ANIM_0 */ { &gObjOsAnim_092C, 1.0f, 0.0f, -1.0f, 0x00, 0.0f },
     /* ENHY_ANIM_1 */ { &gObjOsAnim_0228, 1.0f, 0.0f, -1.0f, 0x00, 0.0f },
     /* ENHY_ANIM_2 */ { &gObjOsAnim_4CF4, 1.0f, 0.0f, -1.0f, 0x00, 0.0f },
@@ -218,7 +218,7 @@ typedef struct {
     /* 0x0B */ u8 animInfoIndex; // EnHyAnimationIndex
 } EnHyModelInfo;                 // size = 0xC
 
-static EnHyModelInfo sModelInfo[] = {
+static EnHyModelInfo OoT_sModelInfo[] = {
     /* ENHY_TYPE_AOB */
     { ENHY_HEAD_AOB, ENHY_SKEL_AOB, { 255, 255, 255, 255 }, ENHY_SKEL_AOB, { 255, 255, 255, 255 }, ENHY_ANIM_0 },
     /* ENHY_TYPE_COB */
@@ -356,9 +356,9 @@ static EnHyInit2Info sInit2Info[] = {
 };
 
 s32 EnHy_FindSkelAndHeadObjects(EnHy* this, PlayState* play) {
-    u8 headInfoIndex = sModelInfo[this->actor.params & 0x7F].headInfoIndex;
-    u8 skelInfoIndex2 = sModelInfo[this->actor.params & 0x7F].skelInfoIndex2;
-    u8 skelInfoIndex1 = sModelInfo[this->actor.params & 0x7F].skelInfoIndex1;
+    u8 headInfoIndex = OoT_sModelInfo[this->actor.params & 0x7F].headInfoIndex;
+    u8 skelInfoIndex2 = OoT_sModelInfo[this->actor.params & 0x7F].skelInfoIndex2;
+    u8 skelInfoIndex1 = OoT_sModelInfo[this->actor.params & 0x7F].skelInfoIndex1;
 
     this->objBankIndexSkel1 = Object_GetIndex(&play->objectCtx, sSkeletonInfo[skelInfoIndex1].objectId);
     if (this->objBankIndexSkel1 < 0) {
@@ -379,15 +379,15 @@ s32 EnHy_FindSkelAndHeadObjects(EnHy* this, PlayState* play) {
 }
 
 s32 EnHy_AreSkelAndHeadObjectsLoaded(EnHy* this, PlayState* play) {
-    if (!Object_IsLoaded(&play->objectCtx, this->objBankIndexSkel1)) {
+    if (!OoT_Object_IsLoaded(&play->objectCtx, this->objBankIndexSkel1)) {
         return false;
     }
 
-    if (!Object_IsLoaded(&play->objectCtx, this->objBankIndexSkel2)) {
+    if (!OoT_Object_IsLoaded(&play->objectCtx, this->objBankIndexSkel2)) {
         return false;
     }
 
-    if (!Object_IsLoaded(&play->objectCtx, this->objBankIndexHead)) {
+    if (!OoT_Object_IsLoaded(&play->objectCtx, this->objBankIndexHead)) {
         return false;
     }
 
@@ -405,7 +405,7 @@ s32 EnHy_FindOsAnimeObject(EnHy* this, PlayState* play) {
 }
 
 s32 EnHy_IsOsAnimeObjectLoaded(EnHy* this, PlayState* play) {
-    if (!Object_IsLoaded(&play->objectCtx, this->objBankIndexOsAnime)) {
+    if (!OoT_Object_IsLoaded(&play->objectCtx, this->objBankIndexOsAnime)) {
         return false;
     }
 
@@ -414,14 +414,14 @@ s32 EnHy_IsOsAnimeObjectLoaded(EnHy* this, PlayState* play) {
 
 void func_80A6F7CC(EnHy* this, PlayState* play, s32 getItemId) {
     this->unkGetItemId = getItemId;
-    Actor_OfferGetItem(&this->actor, play, getItemId, this->actor.xzDistToPlayer + 1.0f,
+    OoT_Actor_OfferGetItem(&this->actor, play, getItemId, this->actor.xzDistToPlayer + 1.0f,
                        fabsf(this->actor.yDistToPlayer) + 1.0f);
 }
 
 u16 func_80A6F810(PlayState* play, Actor* thisx) {
     Player* player = GET_PLAYER(play);
     EnHy* this = (EnHy*)thisx;
-    u16 textId = Text_GetFaceReaction(play, (this->actor.params & 0x7F) + 37);
+    u16 textId = OoT_Text_GetFaceReaction(play, (this->actor.params & 0x7F) + 37);
 
     if (textId != 0) {
         if ((this->actor.params & 0x7F) == ENHY_TYPE_BOJ_5) {
@@ -433,7 +433,7 @@ u16 func_80A6F810(PlayState* play, Actor* thisx) {
     switch (this->actor.params & 0x7F) {
         case ENHY_TYPE_AOB:
             if (play->sceneNum == SCENE_KAKARIKO_CENTER_GUEST_HOUSE) {
-                return (this->unk_330 & 0x800) ? 0x508D : ((Flags_GetInfTable(INFTABLE_CB)) ? 0x508C : 0x508B);
+                return (this->unk_330 & 0x800) ? 0x508D : ((OoT_Flags_GetInfTable(INFTABLE_CB)) ? 0x508C : 0x508B);
             } else if (play->sceneNum == SCENE_MARKET_DAY) {
                 return (gSaveContext.eventInf[3] & 1) ? 0x709B : 0x709C;
             } else if (gSaveContext.dogIsLost) {
@@ -450,87 +450,87 @@ u16 func_80A6F810(PlayState* play, Actor* thisx) {
                 return 0x70A0;
             }
         case ENHY_TYPE_COB:
-            if (Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE)) {
-                return (Flags_GetInfTable(INFTABLE_C1)) ? 0x7017 : 0x7045;
+            if (OoT_Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE)) {
+                return (OoT_Flags_GetInfTable(INFTABLE_C1)) ? 0x7017 : 0x7045;
             } else {
-                return (Flags_GetInfTable(INFTABLE_C0)) ? 0x7017 : 0x7016;
+                return (OoT_Flags_GetInfTable(INFTABLE_C0)) ? 0x7017 : 0x7016;
             }
         case ENHY_TYPE_AHG_2:
             if (play->sceneNum == SCENE_KAKARIKO_CENTER_GUEST_HOUSE) {
                 return 0x5086;
             } else if (play->sceneNum == SCENE_KAKARIKO_VILLAGE) {
                 return 0x5085;
-            } else if (Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE)) {
-                return (Flags_GetInfTable(INFTABLE_C3)) ? 0x701A : 0x7047;
-            } else if (Flags_GetEventChkInf(EVENTCHKINF_TALON_RETURNED_FROM_CASTLE)) {
+            } else if (OoT_Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE)) {
+                return (OoT_Flags_GetInfTable(INFTABLE_C3)) ? 0x701A : 0x7047;
+            } else if (OoT_Flags_GetEventChkInf(EVENTCHKINF_TALON_RETURNED_FROM_CASTLE)) {
                 return 0x701A;
-            } else if (Flags_GetEventChkInf(EVENTCHKINF_SPOKE_TO_CHILD_MALON_AT_CASTLE_OR_MARKET)) {
+            } else if (OoT_Flags_GetEventChkInf(EVENTCHKINF_SPOKE_TO_CHILD_MALON_AT_CASTLE_OR_MARKET)) {
                 return 0x701B;
-            } else if (Flags_GetInfTable(INFTABLE_C2)) {
+            } else if (OoT_Flags_GetInfTable(INFTABLE_C2)) {
                 return 0x701C;
             } else {
                 return 0x701A;
             }
         case ENHY_TYPE_BOJ_3:
-            return (Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE))
-                       ? ((Flags_GetInfTable(INFTABLE_C4)) ? 0x7001 : 0x70EB)
+            return (OoT_Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE))
+                       ? ((OoT_Flags_GetInfTable(INFTABLE_C4)) ? 0x7001 : 0x70EB)
                        : 0x7001;
         case ENHY_TYPE_AHG_4:
-            return (Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE))
+            return (OoT_Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE))
                        ? 0x704B
-                       : ((Flags_GetInfTable(INFTABLE_C5)) ? 0x7024 : 0x7023);
+                       : ((OoT_Flags_GetInfTable(INFTABLE_C5)) ? 0x7024 : 0x7023);
         case ENHY_TYPE_BOJ_5:
             player->exchangeItemId = EXCH_ITEM_BLUE_FIRE;
             return 0x700C;
         case ENHY_TYPE_BBA:
-            return (Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE))
+            return (OoT_Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE))
                        ? 0x704A
-                       : ((Flags_GetInfTable(INFTABLE_C6)) ? 0x7022 : 0x7021);
+                       : ((OoT_Flags_GetInfTable(INFTABLE_C6)) ? 0x7022 : 0x7021);
         case ENHY_TYPE_BJI_7:
             if (play->sceneNum == SCENE_KAKARIKO_CENTER_GUEST_HOUSE) {
                 return 0x5088;
             } else if (play->sceneNum == SCENE_KAKARIKO_VILLAGE) {
                 return 0x5087;
             } else {
-                return (Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE))
+                return (OoT_Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE))
                            ? 0x704D
-                           : ((Flags_GetInfTable(INFTABLE_C7)) ? 0x7028 : 0x7027);
+                           : ((OoT_Flags_GetInfTable(INFTABLE_C7)) ? 0x7028 : 0x7027);
             }
         case ENHY_TYPE_CNE_8:
-            if (Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE)) {
-                return (Flags_GetInfTable(INFTABLE_C9)) ? 0x701E : 0x7048;
+            if (OoT_Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE)) {
+                return (OoT_Flags_GetInfTable(INFTABLE_C9)) ? 0x701E : 0x7048;
             } else {
-                return (Flags_GetInfTable(INFTABLE_C8)) ? 0x701E : 0x701D;
+                return (OoT_Flags_GetInfTable(INFTABLE_C8)) ? 0x701E : 0x701D;
             }
         case ENHY_TYPE_BOJ_9:
             if (play->sceneNum == SCENE_KAKARIKO_CENTER_GUEST_HOUSE) {
-                return (Flags_GetEventChkInf(EVENTCHKINF_BONGO_BONGO_ESCAPED_FROM_WELL)) ? 0x5082 : 0x5081;
+                return (OoT_Flags_GetEventChkInf(EVENTCHKINF_BONGO_BONGO_ESCAPED_FROM_WELL)) ? 0x5082 : 0x5081;
             } else if (play->sceneNum == SCENE_KAKARIKO_VILLAGE) {
                 return CHECK_QUEST_ITEM(QUEST_MEDALLION_SHADOW) ? 0x5080 : 0x507F;
             } else {
-                return (Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE))
+                return (OoT_Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE))
                            ? 0x7049
-                           : ((Flags_GetInfTable(INFTABLE_CA)) ? 0x7020 : 0x701F);
+                           : ((OoT_Flags_GetInfTable(INFTABLE_CA)) ? 0x7020 : 0x701F);
             }
         case ENHY_TYPE_BOJ_10:
             if (play->sceneNum == SCENE_IMPAS_HOUSE) {
-                return (Flags_GetEventChkInf(EVENTCHKINF_BONGO_BONGO_ESCAPED_FROM_WELL)) ? 0x507E : 0x507D;
+                return (OoT_Flags_GetEventChkInf(EVENTCHKINF_BONGO_BONGO_ESCAPED_FROM_WELL)) ? 0x507E : 0x507D;
             } else if (play->sceneNum == SCENE_KAKARIKO_VILLAGE) {
                 return CHECK_QUEST_ITEM(QUEST_MEDALLION_SHADOW) ? 0x507C : 0x507B;
             } else {
-                return (Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE))
+                return (OoT_Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE))
                            ? 0x7046
-                           : ((Flags_GetInfTable(INFTABLE_CD)) ? 0x7019 : 0x7018);
+                           : ((OoT_Flags_GetInfTable(INFTABLE_CD)) ? 0x7019 : 0x7018);
             }
         case ENHY_TYPE_CNE_11:
-            return (Flags_GetInfTable(INFTABLE_ENTERED_HYRULE_CASTLE))
-                       ? ((Flags_GetInfTable(INFTABLE_CC)) ? 0x7014 : 0x70A4)
+            return (OoT_Flags_GetInfTable(INFTABLE_ENTERED_HYRULE_CASTLE))
+                       ? ((OoT_Flags_GetInfTable(INFTABLE_CC)) ? 0x7014 : 0x70A4)
                        : 0x7014;
         case ENHY_TYPE_BOJ_12:
             if (play->sceneNum == SCENE_KAKARIKO_VILLAGE) {
                 return !IS_DAY ? 0x5084 : 0x5083;
             } else {
-                return (Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE)) ? 0x7044 : 0x7015;
+                return (OoT_Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE)) ? 0x7044 : 0x7015;
             }
         case ENHY_TYPE_AHG_13:
             return 0x7055;
@@ -543,22 +543,22 @@ u16 func_80A6F810(PlayState* play, Actor* thisx) {
         case ENHY_TYPE_AHG_17:
             if (!LINK_IS_ADULT) {
                 if (IS_DAY) {
-                    return (Flags_GetInfTable(INFTABLE_160)) ? 0x5058 : 0x5057;
+                    return (OoT_Flags_GetInfTable(INFTABLE_160)) ? 0x5058 : 0x5057;
                 } else {
-                    return (Flags_GetInfTable(INFTABLE_161)) ? 0x505A : 0x5059;
+                    return (OoT_Flags_GetInfTable(INFTABLE_161)) ? 0x505A : 0x5059;
                 }
             } else if (IS_DAY) {
-                return (Flags_GetInfTable(INFTABLE_162)) ? 0x505C : 0x505B;
+                return (OoT_Flags_GetInfTable(INFTABLE_162)) ? 0x505C : 0x505B;
             } else {
                 return 0x5058;
             }
         case ENHY_TYPE_BOB_18:
             if (!LINK_IS_ADULT) {
-                return (Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE))
+                return (OoT_Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE))
                            ? 0x505F
-                           : ((Flags_GetInfTable(INFTABLE_163)) ? 0x505E : 0x505D);
+                           : ((OoT_Flags_GetInfTable(INFTABLE_163)) ? 0x505E : 0x505D);
             } else {
-                return (this->unk_330 & 0x800) ? 0x5062 : ((Flags_GetInfTable(INFTABLE_164)) ? 0x5061 : 0x5060);
+                return (this->unk_330 & 0x800) ? 0x5062 : ((OoT_Flags_GetInfTable(INFTABLE_164)) ? 0x5061 : 0x5060);
             }
         case ENHY_TYPE_BJI_19:
             return 0x7120;
@@ -574,7 +574,7 @@ s16 func_80A70058(PlayState* play, Actor* thisx) {
     s16 beggarItems[] = { ITEM_BLUE_FIRE, ITEM_FISH, ITEM_BUG, ITEM_FAIRY };
     s16 beggarRewards[] = { 150, 100, 50, 25 };
 
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (OoT_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_NONE:
         case TEXT_STATE_DONE_HAS_NEXT:
         case TEXT_STATE_CHOICE:
@@ -589,8 +589,8 @@ s16 func_80A70058(PlayState* play, Actor* thisx) {
                 case 0x709F:
                     if (!this->unk_215) {
                         Audio_PlaySoundGeneral(this->actor.textId == 0x709F ? NA_SE_SY_CORRECT_CHIME : NA_SE_SY_ERROR,
-                                               &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                                               &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                         this->unk_215 = true;
                     }
                     break;
@@ -599,8 +599,8 @@ s16 func_80A70058(PlayState* play, Actor* thisx) {
                 case 0x70F2:
                 case 0x70F3:
                     if (this->skelAnime.animation != &gObjOsAnim_33B4) {
-                        Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENHY_ANIM_23);
-                        Audio_PlayFanfare(NA_BGM_ITEM_GET | 0x900);
+                        Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENHY_ANIM_23);
+                        OoT_Audio_PlayFanfare(NA_BGM_ITEM_GET | 0x900);
                     }
                     break;
             }
@@ -611,80 +611,80 @@ s16 func_80A70058(PlayState* play, Actor* thisx) {
                 case 0x70F1:
                 case 0x70F2:
                 case 0x70F3:
-                    Rupees_ChangeBy(beggarRewards[this->actor.textId - 0x70F0]);
-                    Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENHY_ANIM_17);
-                    Player_UpdateBottleHeld(play, GET_PLAYER(play), ITEM_BOTTLE, PLAYER_IA_BOTTLE);
+                    OoT_Rupees_ChangeBy(beggarRewards[this->actor.textId - 0x70F0]);
+                    Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENHY_ANIM_17);
+                    OoT_Player_UpdateBottleHeld(play, GET_PLAYER(play), ITEM_BOTTLE, PLAYER_IA_BOTTLE);
                     break;
                 case 0x7016:
-                    Flags_SetInfTable(INFTABLE_C0);
+                    OoT_Flags_SetInfTable(INFTABLE_C0);
                     break;
                 case 0x7045:
-                    Flags_SetInfTable(INFTABLE_C1);
+                    OoT_Flags_SetInfTable(INFTABLE_C1);
                     break;
                 case 0x701B:
-                    Flags_SetInfTable(INFTABLE_C2);
+                    OoT_Flags_SetInfTable(INFTABLE_C2);
                     break;
                 case 0x7047:
-                    Flags_SetInfTable(INFTABLE_C3);
+                    OoT_Flags_SetInfTable(INFTABLE_C3);
                     break;
                 case 0x70EB:
-                    Flags_SetInfTable(INFTABLE_C4);
+                    OoT_Flags_SetInfTable(INFTABLE_C4);
                     break;
                 case 0x7023:
-                    Flags_SetInfTable(INFTABLE_C5);
+                    OoT_Flags_SetInfTable(INFTABLE_C5);
                     break;
                 case 0x7021:
-                    Flags_SetInfTable(INFTABLE_C6);
+                    OoT_Flags_SetInfTable(INFTABLE_C6);
                     break;
                 case 0x7027:
-                    Flags_SetInfTable(INFTABLE_C7);
+                    OoT_Flags_SetInfTable(INFTABLE_C7);
                     break;
                 case 0x701D:
-                    Flags_SetInfTable(INFTABLE_C8);
+                    OoT_Flags_SetInfTable(INFTABLE_C8);
                     break;
                 case 0x7048:
-                    Flags_SetInfTable(INFTABLE_C9);
+                    OoT_Flags_SetInfTable(INFTABLE_C9);
                     break;
                 case 0x701F:
-                    Flags_SetInfTable(INFTABLE_CA);
+                    OoT_Flags_SetInfTable(INFTABLE_CA);
                     break;
                 case 0x7018:
-                    Flags_SetInfTable(INFTABLE_CD);
+                    OoT_Flags_SetInfTable(INFTABLE_CD);
                     break;
                 case 0x70A4:
-                    Flags_SetInfTable(INFTABLE_CC);
+                    OoT_Flags_SetInfTable(INFTABLE_CC);
                     break;
                 case 0x5057:
-                    Flags_SetInfTable(INFTABLE_160);
+                    OoT_Flags_SetInfTable(INFTABLE_160);
                     break;
                 case 0x5059:
-                    Flags_SetInfTable(INFTABLE_161);
+                    OoT_Flags_SetInfTable(INFTABLE_161);
                     break;
                 case 0x505B:
-                    Flags_SetInfTable(INFTABLE_162);
+                    OoT_Flags_SetInfTable(INFTABLE_162);
                     break;
                 case 0x505D:
-                    Flags_SetInfTable(INFTABLE_163);
+                    OoT_Flags_SetInfTable(INFTABLE_163);
                     break;
                 case 0x5060:
-                    Flags_SetInfTable(INFTABLE_164);
+                    OoT_Flags_SetInfTable(INFTABLE_164);
                     break;
                 case 0x508B:
-                    Flags_SetInfTable(INFTABLE_CB);
+                    OoT_Flags_SetInfTable(INFTABLE_CB);
                     break;
                 case 0x709E:
                     gSaveContext.dogParams = 0;
                     break;
                 case 0x709F:
                     if (GameInteractor_Should(VB_GIVE_ITEM_FROM_LOST_DOG, true, this)) {
-                        func_80A6F7CC(this, play, Flags_GetInfTable(INFTABLE_191) ? GI_RUPEE_BLUE : GI_HEART_PIECE);
+                        func_80A6F7CC(this, play, OoT_Flags_GetInfTable(INFTABLE_191) ? GI_RUPEE_BLUE : GI_HEART_PIECE);
                         this->actionFunc = func_80A714C4;
                     }
                     break;
             }
             return NPC_TALK_STATE_IDLE;
         case TEXT_STATE_EVENT:
-            if (!Message_ShouldAdvance(play)) {
+            if (!OoT_Message_ShouldAdvance(play)) {
                 return NPC_TALK_STATE_TALKING;
             } else {
                 return NPC_TALK_STATE_ACTION;
@@ -696,12 +696,12 @@ s16 func_80A70058(PlayState* play, Actor* thisx) {
 
 void EnHy_UpdateEyes(EnHy* this) {
     if (DECR(this->nextEyeIndexTimer) == 0) {
-        u8 headInfoIndex = sModelInfo[this->actor.params & 0x7F].headInfoIndex;
+        u8 headInfoIndex = OoT_sModelInfo[this->actor.params & 0x7F].headInfoIndex;
 
         this->curEyeIndex++;
         if ((sHeadInfo[headInfoIndex].eyeTextures != NULL) &&
             (sHeadInfo[headInfoIndex].eyeTextures[this->curEyeIndex] == NULL)) {
-            this->nextEyeIndexTimer = Rand_S16Offset(30, 30);
+            this->nextEyeIndexTimer = OoT_Rand_S16Offset(30, 30);
             this->curEyeIndex = 0;
         }
     }
@@ -718,14 +718,14 @@ void EnHy_InitSetProperties(EnHy* this) {
     u8 type = this->actor.params & 0x7F;
 
     this->actor.shape.shadowScale = sInit2Info[type].shadowScale;
-    Actor_SetScale(&this->actor, sInit2Info[type].scale);
+    OoT_Actor_SetScale(&this->actor, sInit2Info[type].scale);
     this->actor.targetMode = sInit2Info[type].targetMode;
     this->modelOffset = sInit2Info[type].modelOffset;
     this->unkRange = sInit2Info[type].unkRange;
     this->unkRange += this->collider.dim.radius;
 }
 
-void EnHy_UpdateCollider(EnHy* this, PlayState* play) {
+void OoT_EnHy_UpdateCollider(EnHy* this, PlayState* play) {
     Vec3s pos;
 
     pos.x = this->actor.world.pos.x;
@@ -735,7 +735,7 @@ void EnHy_UpdateCollider(EnHy* this, PlayState* play) {
     pos.y += sColliderInfo[this->actor.params & 0x7F].offset.y;
     pos.z += sColliderInfo[this->actor.params & 0x7F].offset.z;
     this->collider.dim.pos = pos;
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void func_80A70834(EnHy* this, PlayState* play) {
@@ -751,7 +751,7 @@ void func_80A70834(EnHy* this, PlayState* play) {
                     this->actor.textId = 0x70EF;
                     break;
                 default:
-                    if (Player_GetMask(play) == PLAYER_MASK_NONE) {
+                    if (OoT_Player_GetMask(play) == PLAYER_MASK_NONE) {
                         this->actor.textId = 0x70ED;
                     }
                     break;
@@ -768,7 +768,7 @@ void func_80A70834(EnHy* this, PlayState* play) {
                     this->actor.textId = 0x70F2;
                     break;
                 default:
-                    if (Player_GetMask(play) == PLAYER_MASK_NONE) {
+                    if (OoT_Player_GetMask(play) == PLAYER_MASK_NONE) {
                         this->actor.textId = 0x700C;
                     }
                     break;
@@ -816,10 +816,10 @@ void func_80A70978(EnHy* this, PlayState* play) {
         this->interactInfo.yOffset = sInit1Info[this->actor.params & 0x7F].unkValueChild;
     }
 
-    Npc_TrackPoint(&this->actor, &this->interactInfo, sInit1Info[this->actor.params & 0x7F].unkPresetIndex,
+    OoT_Npc_TrackPoint(&this->actor, &this->interactInfo, sInit1Info[this->actor.params & 0x7F].unkPresetIndex,
                    trackingMode);
 
-    if (Npc_UpdateTalking(play, &this->actor, &this->interactInfo.talkState, this->unkRange, func_80A6F810,
+    if (OoT_Npc_UpdateTalking(play, &this->actor, &this->interactInfo.talkState, this->unkRange, func_80A6F810,
                           func_80A70058)) {
         func_80A70834(this, play);
     }
@@ -877,8 +877,8 @@ s32 EnHy_ShouldSpawn(EnHy* this, PlayState* play) {
                 return true;
             } else if (IS_NIGHT) {
                 return false;
-            } else if ((Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE)) &&
-                       !Flags_GetEventChkInf(EVENTCHKINF_PULLED_MASTER_SWORD_FROM_PEDESTAL)) {
+            } else if ((OoT_Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE)) &&
+                       !OoT_Flags_GetEventChkInf(EVENTCHKINF_PULLED_MASTER_SWORD_FROM_PEDESTAL)) {
                 return false;
             } else {
                 return true;
@@ -895,16 +895,16 @@ s32 EnHy_ShouldSpawn(EnHy* this, PlayState* play) {
     }
 }
 
-void EnHy_Init(Actor* thisx, PlayState* play) {
+void OoT_EnHy_Init(Actor* thisx, PlayState* play) {
     EnHy* this = (EnHy*)thisx;
 
     if ((this->actor.params & 0x7F) >= ENHY_TYPE_MAX || !EnHy_FindOsAnimeObject(this, play) ||
         !EnHy_FindSkelAndHeadObjects(this, play)) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 
     if (!EnHy_ShouldSpawn(this, play)) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 
     this->getItemEntry = (GetItemEntry)GET_ITEM_NONE;
@@ -914,7 +914,7 @@ void EnHy_Init(Actor* thisx, PlayState* play) {
 void EnHy_Destroy(Actor* thisx, PlayState* play) {
     EnHy* this = (EnHy*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
@@ -922,17 +922,17 @@ void EnHy_Destroy(Actor* thisx, PlayState* play) {
 void EnHy_InitImpl(EnHy* this, PlayState* play) {
     if (EnHy_IsOsAnimeObjectLoaded(this, play) && EnHy_AreSkelAndHeadObjectsLoaded(this, play)) {
         this->actor.objBankIndex = this->objBankIndexSkel1;
-        gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->actor.objBankIndex].segment);
-        SkelAnime_InitFlex(play, &this->skelAnime,
-                           sSkeletonInfo[sModelInfo[this->actor.params & 0x7F].skelInfoIndex1].skeleton, NULL,
+        OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->actor.objBankIndex].segment);
+        OoT_SkelAnime_InitFlex(play, &this->skelAnime,
+                           sSkeletonInfo[OoT_sModelInfo[this->actor.params & 0x7F].skelInfoIndex1].skeleton, NULL,
                            this->jointTable, this->morphTable, 16);
-        ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 0.0f);
-        gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->objBankIndexOsAnime].segment);
-        Collider_InitCylinder(play, &this->collider);
-        Collider_SetCylinder(play, &this->collider, &this->actor, &sColCylInit);
+        OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 0.0f);
+        OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->objBankIndexOsAnime].segment);
+        OoT_Collider_InitCylinder(play, &this->collider);
+        OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &sColCylInit);
         EnHy_InitCollider(this);
-        CollisionCheck_SetInfo2(&this->actor.colChkInfo, NULL, &sColChkInfoInit);
-        Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, sModelInfo[this->actor.params & 0x7F].animInfoIndex);
+        OoT_CollisionCheck_SetInfo2(&this->actor.colChkInfo, NULL, &OoT_sColChkInfoInit);
+        Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, OoT_sModelInfo[this->actor.params & 0x7F].animInfoIndex);
 
         if ((play->sceneNum == SCENE_BACK_ALLEY_DAY) || (play->sceneNum == SCENE_MARKET_DAY)) {
             this->actor.flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
@@ -944,7 +944,7 @@ void EnHy_InitImpl(EnHy* this, PlayState* play) {
         }
 
         EnHy_InitSetProperties(this);
-        this->path = Path_GetByIndex(play, (this->actor.params & 0x780) >> 7, 15);
+        this->path = OoT_Path_GetByIndex(play, (this->actor.params & 0x780) >> 7, 15);
 
         switch (this->actor.params & 0x7F) {
             case ENHY_TYPE_BOJ_3:
@@ -986,7 +986,7 @@ void EnHy_InitImpl(EnHy* this, PlayState* play) {
                 this->actionFunc = EnHy_DoNothing;
                 break;
             default:
-                Actor_Kill(&this->actor);
+                OoT_Actor_Kill(&this->actor);
                 break;
         }
     }
@@ -995,14 +995,14 @@ void EnHy_InitImpl(EnHy* this, PlayState* play) {
 void func_80A710F8(EnHy* this, PlayState* play) {
     if (this->interactInfo.talkState != NPC_TALK_STATE_IDLE) {
         if (this->skelAnime.animation != &gObjOsAnim_0BFC) {
-            Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENHY_ANIM_26);
+            Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENHY_ANIM_26);
         }
     } else if (gSaveContext.eventInf[3] & 1) {
         if (this->skelAnime.animation != &gObjOsAnim_0FE4) {
-            Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENHY_ANIM_25);
+            Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENHY_ANIM_25);
         }
     } else if (this->skelAnime.animation != &gObjOsAnim_12E8) {
-        Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENHY_ANIM_24);
+        Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENHY_ANIM_24);
     }
 }
 
@@ -1010,8 +1010,8 @@ void func_80A711B4(EnHy* this, PlayState* play) {
     s16 yaw;
     f32 distSq;
 
-    distSq = Path_OrientAndGetDistSq(&this->actor, this->path, this->waypoint, &yaw);
-    Math_SmoothStepToS(&this->actor.world.rot.y, yaw, 10, 1000, 1);
+    distSq = OoT_Path_OrientAndGetDistSq(&this->actor, this->path, this->waypoint, &yaw);
+    OoT_Math_SmoothStepToS(&this->actor.world.rot.y, yaw, 10, 1000, 1);
     this->actor.shape.rot = this->actor.world.rot;
 
     if ((distSq > 0.0f) && (distSq < 1000.0f)) {
@@ -1031,7 +1031,7 @@ void EnHy_DoNothing(EnHy* this, PlayState* play) {
 
 void func_80A712C0(EnHy* this, PlayState* play) {
     if ((this->actor.xzDistToPlayer <= 100.0f) && (this->path != NULL)) {
-        Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENHY_ANIM_7);
+        Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENHY_ANIM_7);
         this->actor.speedXZ = 0.4f;
         this->actionFunc = func_80A7134C;
     }
@@ -1044,16 +1044,16 @@ void func_80A7134C(EnHy* this, PlayState* play) {
     f32 distSq;
 
     if ((this->skelAnime.animation == &gObjOsAnim_2160) && (this->interactInfo.talkState != NPC_TALK_STATE_IDLE)) {
-        Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENHY_ANIM_8);
+        Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENHY_ANIM_8);
     }
 
     if ((this->skelAnime.animation == &gObjOsAnim_265C) && (this->interactInfo.talkState == NPC_TALK_STATE_IDLE)) {
-        Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENHY_ANIM_7);
+        Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENHY_ANIM_7);
     }
 
     this->actor.speedXZ = 0.4f;
-    distSq = Path_OrientAndGetDistSq(&this->actor, this->path, this->waypoint, &yaw);
-    Math_SmoothStepToS(&this->actor.world.rot.y, yaw, 10, 1000, 1);
+    distSq = OoT_Path_OrientAndGetDistSq(&this->actor, this->path, this->waypoint, &yaw);
+    OoT_Math_SmoothStepToS(&this->actor.world.rot.y, yaw, 10, 1000, 1);
     this->actor.shape.rot = this->actor.world.rot;
 
     if (!(distSq <= 0.0f) && !(distSq >= 1000.0f)) {
@@ -1074,16 +1074,16 @@ void func_80A7134C(EnHy* this, PlayState* play) {
 }
 
 void func_80A714C4(EnHy* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play)) {
+    if (OoT_Actor_HasParent(&this->actor, play)) {
         this->actionFunc = func_80A71530;
     } else {
-        Actor_OfferGetItem(&this->actor, play, this->unkGetItemId, this->actor.xzDistToPlayer + 1.0f,
+        OoT_Actor_OfferGetItem(&this->actor, play, this->unkGetItemId, this->actor.xzDistToPlayer + 1.0f,
                            fabsf(this->actor.yDistToPlayer) + 1.0f);
     }
 }
 
 void func_80A71530(EnHy* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && Message_ShouldAdvance(play)) {
+    if ((OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && OoT_Message_ShouldAdvance(play)) {
         switch (this->unkGetItemId) {
             case GI_HEART_PIECE:
                 gSaveContext.dogParams = 0;
@@ -1091,7 +1091,7 @@ void func_80A71530(EnHy* this, PlayState* play) {
                 SET_INFTABLE(INFTABLE_191);
                 break;
             case GI_RUPEE_BLUE:
-                Rupees_ChangeBy(5);
+                OoT_Rupees_ChangeBy(5);
                 gSaveContext.dogParams = 0;
                 gSaveContext.dogIsLost = false;
                 break;
@@ -1105,20 +1105,20 @@ void EnHy_Update(Actor* thisx, PlayState* play) {
     EnHy* this = (EnHy*)thisx;
 
     if (this->actionFunc != EnHy_InitImpl) {
-        gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->objBankIndexOsAnime].segment);
-        SkelAnime_Update(&this->skelAnime);
+        OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->objBankIndexOsAnime].segment);
+        OoT_SkelAnime_Update(&this->skelAnime);
         EnHy_UpdateEyes(this);
 
         if (this->interactInfo.talkState == NPC_TALK_STATE_IDLE) {
             Actor_MoveXZGravity(&this->actor);
         }
 
-        Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
+        OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
     }
 
     this->actionFunc(this, play);
     func_80A70978(this, play);
-    EnHy_UpdateCollider(this, play);
+    OoT_EnHy_UpdateCollider(this, play);
 }
 
 s32 EnHy_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
@@ -1132,8 +1132,8 @@ s32 EnHy_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* po
 
     if (limbIndex == 15) {
         gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.status[this->objBankIndexHead].segment);
-        gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->objBankIndexHead].segment);
-        i = sModelInfo[this->actor.params & 0x7F].headInfoIndex;
+        OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->objBankIndexHead].segment);
+        i = OoT_sModelInfo[this->actor.params & 0x7F].headInfoIndex;
         *dList = sHeadInfo[i].headDList;
 
         if (sHeadInfo[i].eyeTextures != NULL) {
@@ -1141,15 +1141,15 @@ s32 EnHy_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* po
             gSPSegment(POLY_OPA_DISP++, 0x0A, SEGMENTED_TO_VIRTUAL(ptr));
         }
 
-        gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->objBankIndexSkel1].segment);
+        OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->objBankIndexSkel1].segment);
     }
 
     if (limbIndex == 15) {
-        Matrix_Translate(1400.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+        OoT_Matrix_Translate(1400.0f, 0.0f, 0.0f, MTXMODE_APPLY);
         sp48 = this->interactInfo.headRot;
         Matrix_RotateX((sp48.y / (f32)0x8000) * M_PI, MTXMODE_APPLY);
         Matrix_RotateZ((sp48.x / (f32)0x8000) * M_PI, MTXMODE_APPLY);
-        Matrix_Translate(-1400.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+        OoT_Matrix_Translate(-1400.0f, 0.0f, 0.0f, MTXMODE_APPLY);
     }
 
     if (limbIndex == 8) {
@@ -1159,8 +1159,8 @@ s32 EnHy_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* po
     }
 
     if ((limbIndex == 8) || (limbIndex == 9) || (limbIndex == 12)) {
-        rot->y += Math_SinS(this->unk_21C[limbIndex]) * 200.0f;
-        rot->z += Math_CosS(this->unk_23C[limbIndex]) * 200.0f;
+        rot->y += OoT_Math_SinS(this->unk_21C[limbIndex]) * 200.0f;
+        rot->z += OoT_Math_CosS(this->unk_23C[limbIndex]) * 200.0f;
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -1177,7 +1177,7 @@ void EnHy_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
 
     if (limbIndex == 7) {
         gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.status[this->objBankIndexSkel2].segment);
-        gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->objBankIndexSkel2].segment);
+        OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->objBankIndexSkel2].segment);
     }
 
     if ((this->actor.params & 0x7F) == ENHY_TYPE_BOJ_3 && limbIndex == 8) {
@@ -1185,7 +1185,7 @@ void EnHy_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
     }
 
     if (limbIndex == 15) {
-        Matrix_MultVec3f(&sp3C, &this->actor.focus.pos);
+        OoT_Matrix_MultVec3f(&sp3C, &this->actor.focus.pos);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -1211,9 +1211,9 @@ void EnHy_Draw(Actor* thisx, PlayState* play) {
 
     if (this->actionFunc != EnHy_InitImpl) {
         Gfx_SetupDL_25Opa(play->state.gfxCtx);
-        Matrix_Translate(this->modelOffset.x, this->modelOffset.y, this->modelOffset.z, MTXMODE_APPLY);
-        envColorSeg8 = sModelInfo[this->actor.params & 0x7F].envColorSeg8;
-        envColorSeg9 = sModelInfo[this->actor.params & 0x7F].envColorSeg9;
+        OoT_Matrix_Translate(this->modelOffset.x, this->modelOffset.y, this->modelOffset.z, MTXMODE_APPLY);
+        envColorSeg8 = OoT_sModelInfo[this->actor.params & 0x7F].envColorSeg8;
+        envColorSeg9 = OoT_sModelInfo[this->actor.params & 0x7F].envColorSeg9;
 
         switch (this->actor.params & 0x7F) {
             // ENHY_TYPE_AOB

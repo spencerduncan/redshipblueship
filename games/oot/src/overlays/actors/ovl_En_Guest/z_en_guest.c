@@ -35,7 +35,7 @@ const ActorInit En_Guest_InitVars = {
     NULL,
 };
 
-static ColliderCylinderInitType1 sCylinderInit = {
+static ColliderCylinderInitType1 OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -47,7 +47,7 @@ static ColliderCylinderInitType1 sCylinderInit = {
     { 10, 60, 0, { 0, 0, 0 } },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_U8(targetMode, 6, ICHAIN_CONTINUE),
     ICHAIN_F32(targetArrowOffset, 500, ICHAIN_STOP),
 };
@@ -55,8 +55,8 @@ static InitChainEntry sInitChain[] = {
 void EnGuest_Init(Actor* thisx, PlayState* play) {
     EnGuest* this = (EnGuest*)thisx;
 
-    if (Flags_GetInfTable(INFTABLE_SHOWED_ZELDAS_LETTER_TO_GATE_GUARD)) {
-        Actor_Kill(&this->actor);
+    if (OoT_Flags_GetInfTable(INFTABLE_SHOWED_ZELDAS_LETTER_TO_GATE_GUARD)) {
+        OoT_Actor_Kill(&this->actor);
     } else {
         this->osAnimeBankIndex = Object_GetIndex(&play->objectCtx, OBJECT_OS_ANIME);
         if (this->osAnimeBankIndex < 0) {
@@ -72,7 +72,7 @@ void EnGuest_Init(Actor* thisx, PlayState* play) {
 void EnGuest_Destroy(Actor* thisx, PlayState* play) {
     EnGuest* this = (EnGuest*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
@@ -81,23 +81,23 @@ void EnGuest_Update(Actor* thisx, PlayState* play) {
     EnGuest* this = (EnGuest*)thisx;
     s32 pad;
 
-    if (Object_IsLoaded(&play->objectCtx, this->osAnimeBankIndex)) {
+    if (OoT_Object_IsLoaded(&play->objectCtx, this->osAnimeBankIndex)) {
         this->actor.flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
-        Actor_ProcessInitChain(&this->actor, sInitChain);
+        OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
 
-        SkelAnime_InitFlex(play, &this->skelAnime, &object_boj_Skel_0000F0, NULL, this->jointTable, this->morphTable,
+        OoT_SkelAnime_InitFlex(play, &this->skelAnime, &object_boj_Skel_0000F0, NULL, this->jointTable, this->morphTable,
                            16);
-        gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->osAnimeBankIndex].segment);
-        Animation_Change(&this->skelAnime, &gObjOsAnim_42AC, 1.0f, 0.0f, Animation_GetLastFrame(&gObjOsAnim_42AC),
+        OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->osAnimeBankIndex].segment);
+        OoT_Animation_Change(&this->skelAnime, &gObjOsAnim_42AC, 1.0f, 0.0f, OoT_Animation_GetLastFrame(&gObjOsAnim_42AC),
                          ANIMMODE_LOOP, 0.0f);
 
         this->actor.draw = EnGuest_Draw;
         this->actor.update = func_80A505CC;
 
-        Collider_InitCylinder(play, &this->collider);
-        Collider_SetCylinderType1(play, &this->collider, &this->actor, &sCylinderInit);
+        OoT_Collider_InitCylinder(play, &this->collider);
+        OoT_Collider_SetCylinderType1(play, &this->collider, &this->actor, &OoT_sCylinderInit);
 
-        Actor_SetFocus(&this->actor, 60.0f);
+        OoT_Actor_SetFocus(&this->actor, 60.0f);
 
         this->unk_30E = 0;
         this->unk_30D = 0;
@@ -122,7 +122,7 @@ void func_80A5046C(EnGuest* this) {
             if (this->unk_30E >= 3) {
                 this->unk_30E = 0;
                 this->unk_30D = 0;
-                this->unk_2CA = (s32)Rand_ZeroFloat(60.0f) + 20;
+                this->unk_2CA = (s32)OoT_Rand_ZeroFloat(60.0f) + 20;
             } else {
                 this->unk_2CA = 1;
             }
@@ -139,7 +139,7 @@ void func_80A50518(EnGuest* this, PlayState* play) {
 }
 
 void func_80A5057C(EnGuest* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && Message_ShouldAdvance(play)) {
+    if ((OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && OoT_Message_ShouldAdvance(play)) {
         this->actionFunc = func_80A50518;
     }
 }
@@ -161,17 +161,17 @@ void func_80A505CC(Actor* thisx, PlayState* play) {
     } else {
         this->interactInfo.yOffset = 20.0f;
     }
-    Npc_TrackPoint(&this->actor, &this->interactInfo, 6, NPC_TRACKING_HEAD_AND_TORSO);
+    OoT_Npc_TrackPoint(&this->actor, &this->interactInfo, 6, NPC_TRACKING_HEAD_AND_TORSO);
 
     func_80034F54(play, this->unk_2CC, this->unk_2EC, 16);
 
-    gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->osAnimeBankIndex].segment);
+    OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->osAnimeBankIndex].segment);
 
-    SkelAnime_Update(&this->skelAnime);
-    Actor_SetFocus(&this->actor, 60.0f);
+    OoT_SkelAnime_Update(&this->skelAnime);
+    OoT_Actor_SetFocus(&this->actor, 60.0f);
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 Gfx* func_80A50708(GraphicsContext* gfxCtx, u8 r, u8 g, u8 b, u8 a) {
@@ -192,11 +192,11 @@ s32 EnGuest_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f*
 
     if (limbIndex == 15) {
         *dList = object_boj_DL_0059B0;
-        Matrix_Translate(1400.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+        OoT_Matrix_Translate(1400.0f, 0.0f, 0.0f, MTXMODE_APPLY);
         sp3C = this->interactInfo.headRot;
         Matrix_RotateX((sp3C.y / 32768.0f) * M_PI, MTXMODE_APPLY);
         Matrix_RotateZ((sp3C.x / 32768.0f) * M_PI, MTXMODE_APPLY);
-        Matrix_Translate(-1400.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+        OoT_Matrix_Translate(-1400.0f, 0.0f, 0.0f, MTXMODE_APPLY);
     }
 
     if (limbIndex == 8) {
@@ -206,8 +206,8 @@ s32 EnGuest_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f*
     }
 
     if (limbIndex == 8 || limbIndex == 9 || limbIndex == 12) {
-        rot->y += Math_SinS(this->unk_2CC[limbIndex]) * 200.0f;
-        rot->z += Math_CosS(this->unk_2EC[limbIndex]) * 200.0f;
+        rot->y += OoT_Math_SinS(this->unk_2CC[limbIndex]) * 200.0f;
+        rot->z += OoT_Math_CosS(this->unk_2EC[limbIndex]) * 200.0f;
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

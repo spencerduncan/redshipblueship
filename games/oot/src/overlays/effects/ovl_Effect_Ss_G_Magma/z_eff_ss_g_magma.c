@@ -26,7 +26,7 @@ u32 EffectSsGMagma_Init(PlayState* play, u32 index, EffectSs* this, void* initPa
     this->update = EffectSsGMagma_Update;
     this->gfx = SEGMENTED_TO_VIRTUAL(gEffMagmaBubbleDL);
     this->life = 16;
-    this->rgScale = (s16)(Rand_ZeroOne() * 100.0f) + 200;
+    this->rgScale = (s16)(OoT_Rand_ZeroOne() * 100.0f) + 200;
     this->rgTexIdx = 0;
     this->rgTexIdxStep = 50;
     this->rgPrimColorR = 255;
@@ -41,7 +41,7 @@ u32 EffectSsGMagma_Init(PlayState* play, u32 index, EffectSs* this, void* initPa
     return 1;
 }
 
-static void* sTextures[] = {
+static void* OoT_sTextures[] = {
     gEffMagmaBubble1Tex, gEffMagmaBubble2Tex, gEffMagmaBubble3Tex, gEffMagmaBubble4Tex,
     gEffMagmaBubble5Tex, gEffMagmaBubble6Tex, gEffMagmaBubble7Tex, gEffMagmaBubble8Tex,
 };
@@ -53,7 +53,7 @@ void EffectSsGMagma_Draw(PlayState* play, u32 index, EffectSs* this) {
         texIdx = 7;
     }
 
-    EffectSs_DrawGEffect(play, this, sTextures[texIdx]);
+    OoT_EffectSs_DrawGEffect(play, this, OoT_sTextures[texIdx]);
 }
 
 void EffectSsGMagma_Update(PlayState* play, u32 index, EffectSs* this) {

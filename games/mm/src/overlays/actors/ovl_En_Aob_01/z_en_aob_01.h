@@ -17,7 +17,7 @@ typedef void (*EnAob01ActionFunc)(struct EnAob01*, PlayState*);
 
 //! @bug This should be shifted up by 1 to match how EnRacedog expects the path index to be supplied.
 //! It doesn't cause any problems in the final game because every time EnAob01 is spawned, all the
-//! bits here are zero.
+//! bits here are MM_zero.
 #define ENAOB01_GET_RACEDOG_PATH_INDEX(thisx) ((thisx)->params & 0x7E00)
 
 #define ENAOB01_FLAG_PLAYER_CONFIRMED_CHOICE (1 << 1)

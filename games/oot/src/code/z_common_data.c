@@ -3,7 +3,7 @@
 
 SaveContext gSaveContext;
 
-void SaveContext_Init(void) {
+void OoT_SaveContext_Init(void) {
     memset(&gSaveContext, 0, sizeof(gSaveContext));
     gSaveContext.seqId = (u8)NA_BGM_DISABLED;
     gSaveContext.natureAmbienceId = NATURE_ID_DISABLED;

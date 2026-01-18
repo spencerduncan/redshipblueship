@@ -39,7 +39,7 @@ ActorProfile Obj_Spinyroll_Profile = {
     /**/ ObjSpinyroll_Draw,
 };
 
-static ColliderTrisElementInit sTrisElementsInit[] = {
+static ColliderTrisElementInit MM_sTrisElementsInit[] = {
     {
         {
             ELEM_MATERIAL_UNK0,
@@ -108,7 +108,7 @@ static ColliderTrisElementInit sTrisElementsInit[] = {
     },
 };
 
-static ColliderTrisInit sTrisInit = {
+static ColliderTrisInit MM_sTrisInit = {
     {
         COL_MATERIAL_METAL,
         AT_ON | AT_TYPE_ENEMY,
@@ -117,8 +117,8 @@ static ColliderTrisInit sTrisInit = {
         OC2_NONE,
         COLSHAPE_TRIS,
     },
-    ARRAY_COUNT(sTrisElementsInit),
-    sTrisElementsInit,
+    ARRAY_COUNT(MM_sTrisElementsInit),
+    MM_sTrisElementsInit,
 };
 
 f32 D_80A1F1B8[] = { 1.0f, 2.0f, 4.0f };
@@ -135,7 +135,7 @@ f32 D_80A1F1F4[] = { 30.0f, -30.0f };
 
 f32 D_80A1F1FC[] = { 9.0f, -9.0f };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 500, ICHAIN_STOP),
 };
@@ -145,15 +145,15 @@ s16 D_80A1F20C[] = { 0xFA0, -0xFA0 };
 void func_80A1DA50(PlayState* play, ObjSpinyroll* this, Vec3f* arg2, Vec3f* arg3) {
     Vec3f sp1C;
 
-    Math_Vec3f_Sum(arg2, arg3, &sp1C);
-    Math_Vec3f_Scale(&sp1C, 0.5f);
+    MM_Math_Vec3f_Sum(arg2, arg3, &sp1C);
+    MM_Math_Vec3f_Scale(&sp1C, 0.5f);
     EffectSsHitmark_SpawnFixedScale(play, EFFECT_HITMARK_METAL, &sp1C);
     Actor_PlaySfx(&this->dyna.actor, NA_SE_IT_SHIELD_REFLECT_SW);
 }
 
 void func_80A1DAAC(Vec3f* arg0, Vec3f* arg1, s16 arg2) {
-    f32 sp1C = Math_SinS(arg2);
-    f32 sp18 = Math_CosS(arg2);
+    f32 sp1C = MM_Math_SinS(arg2);
+    f32 sp18 = MM_Math_CosS(arg2);
 
     arg0->x = (arg1->z * sp1C) + (arg1->x * sp18);
     arg0->y = arg1->y;
@@ -172,23 +172,23 @@ void func_80A1DB2C(Actor* thisx) {
 
     for (i = 0; i < ARRAY_COUNT(this->colliderElements); i++) {
         for (j = 0; j < ARRAY_COUNT(sp7C); j++) {
-            ptr = &sTrisInit.elements[i];
+            ptr = &MM_sTrisInit.elements[i];
 
             sp70.x = ptr->dim.vtx[j].x * temp;
             sp70.y = ptr->dim.vtx[j].y;
             sp70.z = ptr->dim.vtx[j].z;
 
             func_80A1DAAC(&sp7C[j], &sp70, this->dyna.actor.shape.rot.y);
-            Math_Vec3f_Sum(&sp7C[j], &this->dyna.actor.world.pos, &sp7C[j]);
+            MM_Math_Vec3f_Sum(&sp7C[j], &this->dyna.actor.world.pos, &sp7C[j]);
         }
-        Collider_SetTrisVertices(&this->collider, i, &sp7C[0], &sp7C[1], &sp7C[2]);
+        MM_Collider_SetTrisVertices(&this->collider, i, &sp7C[0], &sp7C[1], &sp7C[2]);
     }
 }
 
 void func_80A1DC5C(ObjSpinyroll* this) {
     this->unk_4D8 += 0x5DC0;
-    Math_StepToF(&this->unk_4D4, 0.0f, 0.32f);
-    this->unk_4D0 = ((Math_SinS(this->unk_4D8) + 1.0f) * this->unk_4D4) + 24.0f;
+    MM_Math_StepToF(&this->unk_4D4, 0.0f, 0.32f);
+    this->unk_4D0 = ((MM_Math_SinS(this->unk_4D8) + 1.0f) * this->unk_4D4) + 24.0f;
 }
 
 void func_80A1DCCC(ObjSpinyroll* this) {
@@ -209,23 +209,23 @@ void func_80A1DD18(ObjSpinyroll* this) {
     f32 temp_f0;
     Vec3f* sp20 = &this->unk_4AC[this->unk_4A8 ^ 1];
 
-    Math_Vec3f_Diff(sp20, &this->dyna.actor.world.pos, &this->unk_4C4);
+    MM_Math_Vec3f_Diff(sp20, &this->dyna.actor.world.pos, &this->unk_4C4);
 
-    temp_f0 = Math3D_Vec3fMagnitude(&this->unk_4C4);
+    temp_f0 = MM_Math3D_Vec3fMagnitude(&this->unk_4C4);
     if (temp_f0 < 0.01f) {
-        Math_Vec3f_Diff(sp20, &this->unk_4AC[this->unk_4A8], &this->unk_4C4);
+        MM_Math_Vec3f_Diff(sp20, &this->unk_4AC[this->unk_4A8], &this->unk_4C4);
 
-        temp_f0 = Math3D_Vec3fMagnitude(&this->unk_4C4);
+        temp_f0 = MM_Math3D_Vec3fMagnitude(&this->unk_4C4);
         if (temp_f0 < 0.01f) {
-            Math_Vec3f_Copy(&this->unk_4C4, &gZeroVec3f);
+            MM_Math_Vec3f_Copy(&this->unk_4C4, &gZeroVec3f);
             return;
         }
     }
-    Math_Vec3f_Scale(&this->unk_4C4, 1.0f / temp_f0);
+    MM_Math_Vec3f_Scale(&this->unk_4C4, 1.0f / temp_f0);
 }
 
 void func_80A1DE10(ObjSpinyroll* this) {
-    this->dyna.actor.world.rot.y = Math_Vec3f_Yaw(&this->dyna.actor.world.pos, &this->unk_4AC[this->unk_4A8 ^ 1]);
+    this->dyna.actor.world.rot.y = MM_Math_Vec3f_Yaw(&this->dyna.actor.world.pos, &this->unk_4AC[this->unk_4A8 ^ 1]);
 }
 
 void func_80A1DE58(ObjSpinyroll* this) {
@@ -245,15 +245,15 @@ s32 func_80A1DEB8(ObjSpinyroll* this) {
     s32 sp30 = this->unk_4A8 ^ 1;
     Vec3f sp24;
 
-    Math_StepToF(&this->dyna.actor.speed, this->unk_4A4, this->unk_4A4 * 0.2f);
+    MM_Math_StepToF(&this->dyna.actor.speed, this->unk_4A4, this->unk_4A4 * 0.2f);
 
     this->dyna.actor.world.pos.x += this->dyna.actor.speed * this->unk_4C4.x;
     this->dyna.actor.world.pos.y += this->dyna.actor.speed * this->unk_4C4.y;
     this->dyna.actor.world.pos.z += this->dyna.actor.speed * this->unk_4C4.z;
 
-    Math_Vec3f_Diff(&this->unk_4AC[sp30], &this->dyna.actor.world.pos, &sp24);
+    MM_Math_Vec3f_Diff(&this->unk_4AC[sp30], &this->dyna.actor.world.pos, &sp24);
 
-    return Math3D_Vec3fMagnitudeSq(&sp24) < (SQ(this->dyna.actor.speed) + 0.05f);
+    return MM_Math3D_Vec3fMagnitudeSq(&sp24) < (SQ(this->dyna.actor.speed) + 0.05f);
 }
 
 void func_80A1DFA0(ObjSpinyroll* this) {
@@ -305,23 +305,23 @@ s32 func_80A1E074(ObjSpinyroll* this, PlayState* play, Vec3f* arg2, s32 arg3) {
 
         for (j = 0; j < ptr->unk_F4; j++) {
             temp_s1 = &ptr->unk_00[i][j];
-            spC8.x = (temp_s1->unk_00 * Math_CosS(this->dyna.actor.world.rot.y)) + this->dyna.actor.world.pos.x;
-            spC8.z = (temp_s1->unk_00 * -Math_SinS(this->dyna.actor.world.rot.y)) + this->dyna.actor.world.pos.z;
+            spC8.x = (temp_s1->unk_00 * MM_Math_CosS(this->dyna.actor.world.rot.y)) + this->dyna.actor.world.pos.x;
+            spC8.z = (temp_s1->unk_00 * -MM_Math_SinS(this->dyna.actor.world.rot.y)) + this->dyna.actor.world.pos.z;
 
             spBC.x = temp_f22 + spC8.x;
             spBC.z = temp_f24 + spC8.z;
 
-            if (BgCheck_EntityLineTest3(&play->colCtx, &spC8, &spBC, &spB0, &temp_s1->unk_04, true, false, false, true,
+            if (MM_BgCheck_EntityLineTest3(&play->colCtx, &spC8, &spBC, &spB0, &temp_s1->unk_04, true, false, false, true,
                                         &temp_s1->bgId, &this->dyna.actor, 0.0f)) {
                 if (arg3 && (this->dyna.actor.flags & ACTOR_FLAG_INSIDE_CULLING_VOLUME)) {
                     func_80A1DA50(play, this, &spC8, &spB0);
                 }
 
-                temp_f0 = Math3D_Vec3fDistSq(&spC8, &spB0);
+                temp_f0 = MM_Math3D_Vec3fDistSq(&spC8, &spB0);
                 if (temp_f0 < temp_f20) {
                     temp_f20 = temp_f0;
                     sp98 = true;
-                    Math_Vec3f_Diff(&spB0, &spBC, arg2);
+                    MM_Math_Vec3f_Diff(&spB0, &spBC, arg2);
                     ptr->unk_F0 = temp_s1;
                 }
             }
@@ -344,7 +344,7 @@ s32 func_80A1E2D8(ObjSpinyroll* this, PlayState* play, s32 arg2) {
 
 s32 func_80A1E334(CollisionContext* colCtx, f32* arg1, CollisionPoly** polyOut, s32* bgId, Vec3f* arg4,
                   ObjSpinyroll* this) {
-    f32 temp_f0 = BgCheck_EntityRaycastFloor5(colCtx, polyOut, bgId, &this->dyna.actor, arg4);
+    f32 temp_f0 = MM_BgCheck_EntityRaycastFloor5(colCtx, polyOut, bgId, &this->dyna.actor, arg4);
 
     *arg1 = temp_f0;
     return *arg1 > (BGCHECK_Y_MIN + 1);
@@ -352,7 +352,7 @@ s32 func_80A1E334(CollisionContext* colCtx, f32* arg1, CollisionPoly** polyOut, 
 
 s32 func_80A1E394(CollisionContext* colCtx, f32* arg1, CollisionPoly** polyOut, s32* bgId, Vec3f* arg4,
                   ObjSpinyroll* this) {
-    return BgCheck_EntityCheckCeiling(colCtx, arg1, arg4, 24.0f, polyOut, bgId, &this->dyna.actor);
+    return MM_BgCheck_EntityCheckCeiling(colCtx, arg1, arg4, 24.0f, polyOut, bgId, &this->dyna.actor);
 }
 
 s32 func_80A1E3D8(ObjSpinyroll* this, PlayState* play, f32* arg2, s32 arg3) {
@@ -431,7 +431,7 @@ s32 func_80A1E648(ObjSpinyroll* this, PlayState* play, s32 arg2) {
 
 DynaPolyActor* func_80A1E694(ObjSpinyroll* this, PlayState* play) {
     if (this->unk_3A4.unk_F0 != NULL) {
-        return DynaPoly_GetActor(&play->colCtx, this->unk_3A4.unk_F0->bgId);
+        return MM_DynaPoly_GetActor(&play->colCtx, this->unk_3A4.unk_F0->bgId);
     }
     return NULL;
 }
@@ -439,7 +439,7 @@ DynaPolyActor* func_80A1E694(ObjSpinyroll* this, PlayState* play) {
 s32 func_80A1E6D4(ObjSpinyroll* this, PlayState* play) {
     DynaPolyActor* temp_v0 = func_80A1E694(this, play);
 
-    if ((temp_v0 != NULL) && (Math3D_Vec3fDistSq(&temp_v0->actor.world.pos, &temp_v0->actor.prevPos) > SQ(0.01f))) {
+    if ((temp_v0 != NULL) && (MM_Math3D_Vec3fDistSq(&temp_v0->actor.world.pos, &temp_v0->actor.prevPos) > SQ(0.01f))) {
         return true;
     }
     return false;
@@ -456,7 +456,7 @@ void ObjSpinyroll_Init(Actor* thisx, PlayState* play) {
     Vec3s* sp30;
 
     sp44 = D_80A1F1B8[OBJSPINYROLL_GET_C000(&this->dyna.actor)];
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
     this->dyna.actor.world.rot.x = 0;
     this->dyna.actor.world.rot.z = 0;
 
@@ -468,11 +468,11 @@ void ObjSpinyroll_Init(Actor* thisx, PlayState* play) {
     this->dyna.actor.scale.z = 0.1f;
 
     this->dyna.actor.cullingVolumeScale = 250.0f * sp44;
-    DynaPolyActor_Init(&this->dyna, 0);
+    MM_DynaPolyActor_Init(&this->dyna, 0);
     DynaPolyActor_LoadMesh(play, &this->dyna, &object_spinyroll_Colheader_000E68);
 
-    Collider_InitTris(play, &this->collider);
-    Collider_SetTris(play, &this->collider, &this->dyna.actor, &sTrisInit, this->colliderElements);
+    MM_Collider_InitTris(play, &this->collider);
+    MM_Collider_SetTris(play, &this->collider, &this->dyna.actor, &MM_sTrisInit, this->colliderElements);
 
     if (OBJSPINYROLL_GET_PATH_INDEX(&this->dyna.actor) == OBJSPINYROLL_PATH_INDEX_NONE) {
         func_80A1E9C4(this);
@@ -489,9 +489,9 @@ void ObjSpinyroll_Init(Actor* thisx, PlayState* play) {
     sp34 = &points[0];
     sp30 = &points[1];
 
-    Math_Vec3s_ToVec3f(&this->unk_4AC[0], sp34);
-    Math_Vec3s_ToVec3f(&this->unk_4AC[1], sp30);
-    Math_Vec3f_Copy(&this->dyna.actor.world.pos, &this->unk_4AC[0]);
+    MM_Math_Vec3s_ToVec3f(&this->unk_4AC[0], sp34);
+    MM_Math_Vec3s_ToVec3f(&this->unk_4AC[1], sp30);
+    MM_Math_Vec3f_Copy(&this->dyna.actor.world.pos, &this->unk_4AC[0]);
 
     if ((sp34->x == sp30->x) && (sp34->y != sp30->y) && (sp34->z == sp30->z)) {
         this->unk_49C = true;
@@ -499,7 +499,7 @@ void ObjSpinyroll_Init(Actor* thisx, PlayState* play) {
                ((sp34->x == sp30->x) && (sp34->y == sp30->y) && (sp34->z != sp30->z))) {
         this->unk_49C = false;
     } else {
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
         return;
     }
 
@@ -511,8 +511,8 @@ void ObjSpinyroll_Init(Actor* thisx, PlayState* play) {
 void ObjSpinyroll_Destroy(Actor* thisx, PlayState* play) {
     ObjSpinyroll* this = (ObjSpinyroll*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
-    Collider_DestroyTris(play, &this->collider);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_Collider_DestroyTris(play, &this->collider);
 }
 
 void func_80A1E9C4(ObjSpinyroll* this) {
@@ -534,7 +534,7 @@ void func_80A1EA10(ObjSpinyroll* this) {
 }
 
 void func_80A1EA4C(ObjSpinyroll* this, PlayState* play) {
-    if (Math_ScaledStepToS(&this->unk_4DA, 0, this->unk_4DE)) {
+    if (MM_Math_ScaledStepToS(&this->unk_4DA, 0, this->unk_4DE)) {
         if (this->unk_4E2 > 0) {
             this->unk_4E2--;
             if (this->unk_4E2 <= 0) {
@@ -551,7 +551,7 @@ void func_80A1EAAC(ObjSpinyroll* this) {
 }
 
 void func_80A1EAE0(ObjSpinyroll* this, PlayState* play) {
-    if (Math_ScaledStepToS(&this->unk_4DA, this->unk_4DC, 0x6E)) {
+    if (MM_Math_ScaledStepToS(&this->unk_4DA, this->unk_4DC, 0x6E)) {
         if (!this->unk_49C) {
             func_80A1EB40(this);
         } else {
@@ -593,7 +593,7 @@ void func_80A1EC24(ObjSpinyroll* this) {
 void func_80A1EC38(ObjSpinyroll* this, PlayState* play) {
     s32 sp24 = true;
 
-    Math_ScaledStepToS(&this->unk_4DA, 0, this->unk_4DE);
+    MM_Math_ScaledStepToS(&this->unk_4DA, 0, this->unk_4DE);
 
     if (func_80A1E2D8(this, play, 0) && func_80A1E6D4(this, play)) {
         sp24 = false;
@@ -640,8 +640,8 @@ void ObjSpinyroll_Update(Actor* thisx, PlayState* play2) {
     func_80A1DC5C(this);
     func_80A1DB2C(thisx);
 
-    CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void ObjSpinyroll_Draw(Actor* thisx, PlayState* play) {
@@ -660,8 +660,8 @@ void ObjSpinyroll_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    temp_f26 = Math_CosS(this->dyna.actor.shape.rot.y) * 120.0f;
-    temp_f28 = Math_SinS(this->dyna.actor.shape.rot.y) * -120.0f;
+    temp_f26 = MM_Math_CosS(this->dyna.actor.shape.rot.y) * 120.0f;
+    temp_f28 = MM_Math_SinS(this->dyna.actor.shape.rot.y) * -120.0f;
     temp_f30 = this->dyna.actor.world.pos.y + this->unk_4D0;
 
     if (temp_s1 == OBJSPINYROLL_GET_C000_0) {
@@ -683,8 +683,8 @@ void ObjSpinyroll_Draw(Actor* thisx, PlayState* play) {
     sp84.z = this->dyna.actor.shape.rot.z;
 
     for (i = 0; i < phi_s4; i++) {
-        Matrix_SetTranslateRotateYXZ(phi_f22, temp_f30, phi_f24, &sp84);
-        Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
+        MM_Matrix_SetTranslateRotateYXZ(phi_f22, temp_f30, phi_f24, &sp84);
+        MM_Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_OPA_DISP++, object_spinyroll_DL_000460);

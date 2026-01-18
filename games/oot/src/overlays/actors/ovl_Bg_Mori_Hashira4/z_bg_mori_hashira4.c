@@ -34,14 +34,14 @@ const ActorInit Bg_Mori_Hashira4_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(uncullZoneForward, 1000, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 700, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneDownward, 1000, ICHAIN_CONTINUE),
     ICHAIN_VEC3F_DIV1000(scale, 1000, ICHAIN_STOP),
 };
 
-static Gfx* sDisplayLists[] = { gMoriHashiraPlatformsDL, gMoriHashiraGateDL };
+static Gfx* OoT_sDisplayLists[] = { gMoriHashiraPlatformsDL, gMoriHashiraGateDL };
 
 static s16 sUnkTimer; // seems to be unused
 
@@ -55,9 +55,9 @@ void BgMoriHashira4_InitDynaPoly(BgMoriHashira4* this, PlayState* play, Collisio
     s32 pad2;
 
     colHeader = NULL;
-    DynaPolyActor_Init(&this->dyna, moveFlag);
-    CollisionHeader_GetVirtual(collision, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_DynaPolyActor_Init(&this->dyna, moveFlag);
+    OoT_CollisionHeader_GetVirtual(collision, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
 
     if (this->dyna.bgId == BG_ACTOR_MAX) {
         // "Warning : move BG login failed"
@@ -78,19 +78,19 @@ void BgMoriHashira4_Init(Actor* thisx, PlayState* play) {
     } else {
         BgMoriHashira4_InitDynaPoly(this, play, &gMoriHashira2Col, DPM_UNK);
     }
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
     this->moriTexObjIndex = Object_GetIndex(&play->objectCtx, OBJECT_MORI_TEX);
     if (this->moriTexObjIndex < 0) {
-        Actor_Kill(&this->dyna.actor);
+        OoT_Actor_Kill(&this->dyna.actor);
         // "Bank danger!"
         osSyncPrintf("Error : バンク危険！(arg_data 0x%04x)(%s %d)\n", this->dyna.actor.params, __FILE__, __LINE__);
         return;
     }
-    if ((this->dyna.actor.params != 0) && Flags_GetSwitch(play, this->switchFlag)) {
-        Actor_Kill(&this->dyna.actor);
+    if ((this->dyna.actor.params != 0) && OoT_Flags_GetSwitch(play, this->switchFlag)) {
+        OoT_Actor_Kill(&this->dyna.actor);
         return;
     }
-    Actor_SetFocus(&this->dyna.actor, 50.0f);
+    OoT_Actor_SetFocus(&this->dyna.actor, 50.0f);
     BgMoriHashira4_SetupWaitForMoriTex(this);
     // "(4 pillars of the Forest Temple) Bank danger"
     osSyncPrintf("(森の神殿 ４本柱)(arg_data 0x%04x)\n", this->dyna.actor.params);
@@ -101,7 +101,7 @@ void BgMoriHashira4_Destroy(Actor* thisx, PlayState* play) {
     s32 pad;
     BgMoriHashira4* this = (BgMoriHashira4*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void BgMoriHashira4_SetupWaitForMoriTex(BgMoriHashira4* this) {
@@ -109,7 +109,7 @@ void BgMoriHashira4_SetupWaitForMoriTex(BgMoriHashira4* this) {
 }
 
 void BgMoriHashira4_WaitForMoriTex(BgMoriHashira4* this, PlayState* play) {
-    if (Object_IsLoaded(&play->objectCtx, this->moriTexObjIndex)) {
+    if (OoT_Object_IsLoaded(&play->objectCtx, this->moriTexObjIndex)) {
         this->gateTimer = 0;
         if (this->dyna.actor.params == 0) {
             BgMoriHashira4_SetupPillarsRotate(this);
@@ -130,7 +130,7 @@ void BgMoriHashira4_PillarsRotate(BgMoriHashira4* this, PlayState* play) {
 }
 
 void BgMoriHashira4_GateWait(BgMoriHashira4* this, PlayState* play) {
-    if (Flags_GetSwitch(play, this->switchFlag) || (this->gateTimer != 0)) {
+    if (OoT_Flags_GetSwitch(play, this->switchFlag) || (this->gateTimer != 0)) {
         this->gateTimer++;
         if (this->gateTimer > 30) {
             Audio_PlayActorSound2(&this->dyna.actor, NA_SE_EV_METALDOOR_OPEN);
@@ -142,8 +142,8 @@ void BgMoriHashira4_GateWait(BgMoriHashira4* this, PlayState* play) {
 }
 
 void BgMoriHashira4_GateOpen(BgMoriHashira4* this, PlayState* play) {
-    if (Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y + 120.0f, 10.0f)) {
-        Actor_Kill(&this->dyna.actor);
+    if (OoT_Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y + 120.0f, 10.0f)) {
+        OoT_Actor_Kill(&this->dyna.actor);
     }
 }
 
@@ -167,6 +167,6 @@ void BgMoriHashira4_Draw(Actor* thisx, PlayState* play) {
 
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
-    gSPDisplayList(POLY_OPA_DISP++, sDisplayLists[this->dyna.actor.params]);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sDisplayLists[this->dyna.actor.params]);
     CLOSE_DISPS(play->state.gfxCtx);
 }

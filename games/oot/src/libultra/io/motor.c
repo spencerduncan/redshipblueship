@@ -23,9 +23,9 @@ s32 __osMotorAccess(OSPfs* pfs, u32 vibrate) {
 
     __osContLastPoll = CONT_CMD_END;
     __osSiRawStartDma(OS_WRITE, &osPifBuffers[pfs->channel]);
-    osRecvMesg(pfs->queue, NULL, OS_MESG_BLOCK);
+    OoT_osRecvMesg(pfs->queue, NULL, OS_MESG_BLOCK);
     __osSiRawStartDma(OS_READ, &osPifBuffers[pfs->channel]);
-    osRecvMesg(pfs->queue, NULL, OS_MESG_BLOCK);
+    OoT_osRecvMesg(pfs->queue, NULL, OS_MESG_BLOCK);
 
     ret = ((__OSContRamHeader*)buf)->rxsize & 0xC0;
     if (!ret) {
@@ -68,7 +68,7 @@ void _MakeMotorData(s32 channel, OSPifRam* buf) {
     *bufptr = 0xFE;
 }
 
-s32 osMotorInit(OSMesgQueue* ctrlrqueue, OSPfs* pfs, s32 channel) {
+s32 OoT_osMotorInit(OSMesgQueue* ctrlrqueue, OSPfs* pfs, s32 channel) {
     s32 ret;
     u8 sp24[BLOCKSIZE];
 

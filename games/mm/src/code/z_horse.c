@@ -129,29 +129,29 @@ void Horse_SpawnOverworld(PlayState* play, Player* player) {
         s32 pad2[3];
 
         pos.y += 5.0f;
-        yIntersect = BgCheck_EntityRaycastFloor1(&play->colCtx, &poly, &pos);
+        yIntersect = MM_BgCheck_EntityRaycastFloor1(&play->colCtx, &poly, &pos);
         if (yIntersect == BGCHECK_Y_MIN) {
             yIntersect = player->actor.world.pos.y;
         }
 
-        player->rideActor = Actor_Spawn(&play->actorCtx, play, ACTOR_EN_HORSE, player->actor.world.pos.x, yIntersect,
+        player->rideActor = MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_HORSE, player->actor.world.pos.x, yIntersect,
                                         player->actor.world.pos.z, player->actor.shape.rot.x, player->actor.shape.rot.y,
                                         player->actor.shape.rot.z, ENHORSE_PARAMS(ENHORSE_PARAM_4000, ENHORSE_11));
         Player_MountHorse(play, player, player->rideActor);
         Player_SetCameraHorseSetting(play, player);
     } else if ((play->sceneId == gSaveContext.save.saveInfo.horseData.sceneId) && CHECK_QUEST_ITEM(QUEST_SONG_EPONA)) {
         if (Horse_IsValidSpawn(gSaveContext.save.saveInfo.horseData.sceneId)) {
-            Actor_Spawn(&play->actorCtx, play, ACTOR_EN_HORSE, gSaveContext.save.saveInfo.horseData.pos.x,
+            MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_HORSE, gSaveContext.save.saveInfo.horseData.pos.x,
                         gSaveContext.save.saveInfo.horseData.pos.y, gSaveContext.save.saveInfo.horseData.pos.z, 0,
                         gSaveContext.save.saveInfo.horseData.yaw, 0, ENHORSE_PARAMS(ENHORSE_PARAM_4000, ENHORSE_1));
         } else {
             Horse_ResetHorseData(play);
         }
     } else if ((play->sceneId == SCENE_F01) && !CHECK_QUEST_ITEM(QUEST_SONG_EPONA)) {
-        Actor_Spawn(&play->actorCtx, play, ACTOR_EN_HORSE, -1420.0f, 257.0f, -1285.0f, 0, 0x2AAA, 0,
+        MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_HORSE, -1420.0f, 257.0f, -1285.0f, 0, 0x2AAA, 0,
                     ENHORSE_PARAMS(ENHORSE_PARAM_4000, ENHORSE_1));
     } else if (CHECK_QUEST_ITEM(QUEST_SONG_EPONA) && Horse_IsValidSpawn(play->sceneId)) {
-        Actor_Spawn(&play->actorCtx, play, ACTOR_EN_HORSE, player->actor.world.pos.x, player->actor.world.pos.y,
+        MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_HORSE, player->actor.world.pos.x, player->actor.world.pos.y,
                     player->actor.world.pos.z, 0, player->actor.shape.rot.y, 0,
                     ENHORSE_PARAMS(ENHORSE_PARAM_4000, ENHORSE_2));
     }
@@ -160,18 +160,18 @@ void Horse_SpawnOverworld(PlayState* play, Player* player) {
 void Horse_SpawnMinigame(PlayState* play, Player* player) {
     if ((play->sceneId == SCENE_KOEPONARACE) &&
         (GET_WEEKEVENTREG_HORSE_RACE_STATE == WEEKEVENTREG_HORSE_RACE_STATE_START)) {
-        player->rideActor = Actor_Spawn(&play->actorCtx, play, ACTOR_EN_HORSE, -1262.0f, -106.0f, 470.0f, 0, 0x7FFF, 0,
+        player->rideActor = MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_HORSE, -1262.0f, -106.0f, 470.0f, 0, 0x7FFF, 0,
                                         ENHORSE_PARAMS(ENHORSE_PARAM_4000, ENHORSE_13));
         Player_MountHorse(play, player, player->rideActor);
         Player_SetCameraHorseSetting(play, player);
     } else if ((play->sceneId == SCENE_KOEPONARACE) &&
                ((GET_WEEKEVENTREG_HORSE_RACE_STATE == WEEKEVENTREG_HORSE_RACE_STATE_3) ||
                 (GET_WEEKEVENTREG_HORSE_RACE_STATE == WEEKEVENTREG_HORSE_RACE_STATE_2))) {
-        Actor_Spawn(&play->actorCtx, play, ACTOR_EN_HORSE, -1741.0f, -106.0f, -641.0f, 0, -0x4FA4, 0,
+        MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_HORSE, -1741.0f, -106.0f, -641.0f, 0, -0x4FA4, 0,
                     ENHORSE_PARAMS(ENHORSE_PARAM_4000, ENHORSE_1));
     } else if ((gSaveContext.save.entrance == ENTRANCE(ROMANI_RANCH, 0)) && (Cutscene_GetSceneLayer(play) != 0) &&
                (player->transformation == PLAYER_FORM_HUMAN)) {
-        player->rideActor = Actor_Spawn(&play->actorCtx, play, ACTOR_EN_HORSE, -1106.0f, 260.0f, -1185.0f, 0, 0x13, 0,
+        player->rideActor = MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_HORSE, -1106.0f, 260.0f, -1185.0f, 0, 0x13, 0,
                                         ENHORSE_PARAMS(ENHORSE_PARAM_4000, ENHORSE_7));
         Player_MountHorse(play, player, player->rideActor);
         Player_SetCameraHorseSetting(play, player);
@@ -197,7 +197,7 @@ void Horse_Spawn(PlayState* play, Player* player) {
 }
 
 void Horse_RotateToPoint(Actor* actor, Vec3f* pos, s16 turnYaw) {
-    s16 yaw = Math_Vec3f_Yaw(&actor->world.pos, pos) - actor->world.rot.y;
+    s16 yaw = MM_Math_Vec3f_Yaw(&actor->world.pos, pos) - actor->world.rot.y;
 
     if (yaw > turnYaw) {
         actor->world.rot.y += turnYaw;
@@ -216,7 +216,7 @@ s32 Horse_IsActive(PlayState* play, ActorContext* actorCtx) {
     if (bgActor != NULL) {
         while (true) {
             if ((bgActor->update != NULL) && (bgActor->init == NULL)) {
-                if (Object_IsLoaded(&play->objectCtx, bgActor->objectSlot)) {
+                if (MM_Object_IsLoaded(&play->objectCtx, bgActor->objectSlot)) {
                     if ((bgActor->id == ACTOR_EN_HORSE) && (((EnHorse*)bgActor)->action != ENHORSE_ACTION_INACTIVE)) {
                         return true;
                     }

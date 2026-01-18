@@ -16,32 +16,32 @@ typedef struct {
     /* 0x008 */ LightNode buf[LIGHTS_BUFFER_SIZE];
 } LightsBuffer; // size = 0x188
 
-LightsBuffer sLightsBuffer;
+LightsBuffer OoT_sLightsBuffer;
 
-void Lights_PointSetInfo(LightInfo* info, s16 x, s16 y, s16 z, u8 r, u8 g, u8 b, s16 radius, s32 type) {
+void OoT_Lights_PointSetInfo(LightInfo* info, s16 x, s16 y, s16 z, u8 r, u8 g, u8 b, s16 radius, s32 type) {
     info->type = type;
     info->params.point.x = x;
     info->params.point.y = y;
     info->params.point.z = z;
-    Lights_PointSetColorAndRadius(info, r, g, b, radius);
+    OoT_Lights_PointSetColorAndRadius(info, r, g, b, radius);
 }
 
-void Lights_PointNoGlowSetInfo(LightInfo* info, s16 x, s16 y, s16 z, u8 r, u8 g, u8 b, s16 radius) {
-    Lights_PointSetInfo(info, x, y, z, r, g, b, radius, LIGHT_POINT_NOGLOW);
+void OoT_Lights_PointNoGlowSetInfo(LightInfo* info, s16 x, s16 y, s16 z, u8 r, u8 g, u8 b, s16 radius) {
+    OoT_Lights_PointSetInfo(info, x, y, z, r, g, b, radius, LIGHT_POINT_NOGLOW);
 }
 
-void Lights_PointGlowSetInfo(LightInfo* info, s16 x, s16 y, s16 z, u8 r, u8 g, u8 b, s16 radius) {
-    Lights_PointSetInfo(info, x, y, z, r, g, b, radius, LIGHT_POINT_GLOW);
+void OoT_Lights_PointGlowSetInfo(LightInfo* info, s16 x, s16 y, s16 z, u8 r, u8 g, u8 b, s16 radius) {
+    OoT_Lights_PointSetInfo(info, x, y, z, r, g, b, radius, LIGHT_POINT_GLOW);
 }
 
-void Lights_PointSetColorAndRadius(LightInfo* info, u8 r, u8 g, u8 b, s16 radius) {
+void OoT_Lights_PointSetColorAndRadius(LightInfo* info, u8 r, u8 g, u8 b, s16 radius) {
     info->params.point.color[0] = r;
     info->params.point.color[1] = g;
     info->params.point.color[2] = b;
     info->params.point.radius = radius;
 }
 
-void Lights_DirectionalSetInfo(LightInfo* info, s8 x, s8 y, s8 z, u8 r, u8 g, u8 b) {
+void OoT_Lights_DirectionalSetInfo(LightInfo* info, s8 x, s8 y, s8 z, u8 r, u8 g, u8 b) {
     info->type = LIGHT_DIRECTIONAL;
     info->params.dir.x = x;
     info->params.dir.y = y;
@@ -52,7 +52,7 @@ void Lights_DirectionalSetInfo(LightInfo* info, s8 x, s8 y, s8 z, u8 r, u8 g, u8
 }
 
 // unused
-void Lights_Reset(Lights* lights, u8 ambentR, u8 ambentG, u8 ambentB) {
+void OoT_Lights_Reset(Lights* lights, u8 ambentR, u8 ambentG, u8 ambentB) {
     lights->l.a.l.col[0] = lights->l.a.l.colc[0] = ambentR;
     lights->l.a.l.col[1] = lights->l.a.l.colc[1] = ambentG;
     lights->l.a.l.col[2] = lights->l.a.l.colc[2] = ambentB;
@@ -62,7 +62,7 @@ void Lights_Reset(Lights* lights, u8 ambentR, u8 ambentG, u8 ambentB) {
 /*
  * Draws every light in the provided Lights group
  */
-void Lights_Draw(Lights* lights, GraphicsContext* gfxCtx) {
+void OoT_Lights_Draw(Lights* lights, GraphicsContext* gfxCtx) {
     Light* light;
     s32 i;
 
@@ -91,7 +91,7 @@ void Lights_Draw(Lights* lights, GraphicsContext* gfxCtx) {
 #endif
 }
 
-Light* Lights_FindSlot(Lights* lights) {
+Light* OoT_Lights_FindSlot(Lights* lights) {
     if (lights->numLights >= 7) {
         return NULL;
     } else {
@@ -99,7 +99,7 @@ Light* Lights_FindSlot(Lights* lights) {
     }
 }
 
-void Lights_BindPoint(Lights* lights, LightParams* params, Vec3f* vec) {
+void OoT_Lights_BindPoint(Lights* lights, LightParams* params, Vec3f* vec) {
     f32 xDiff;
     f32 yDiff;
     f32 zDiff;
@@ -115,10 +115,10 @@ void Lights_BindPoint(Lights* lights, LightParams* params, Vec3f* vec) {
         posDiff = SQ(xDiff) + SQ(yDiff) + SQ(zDiff);
 
         if (posDiff < SQ(scale)) {
-            light = Lights_FindSlot(lights);
+            light = OoT_Lights_FindSlot(lights);
 
             if (light != NULL) {
-                posDiff = sqrtf(posDiff);
+                posDiff = OoT_sqrtf(posDiff);
                 scale = posDiff / scale;
                 scale = 1 - SQ(scale);
 
@@ -136,8 +136,8 @@ void Lights_BindPoint(Lights* lights, LightParams* params, Vec3f* vec) {
     }
 }
 
-void Lights_BindDirectional(Lights* lights, LightParams* params, Vec3f* vec) {
-    Light* light = Lights_FindSlot(lights);
+void OoT_Lights_BindDirectional(Lights* lights, LightParams* params, Vec3f* vec) {
+    Light* light = OoT_Lights_FindSlot(lights);
 
     if (light != NULL) {
         light->l.col[0] = light->l.colc[0] = params->dir.color[0];
@@ -157,8 +157,8 @@ void Lights_BindDirectional(Lights* lights, LightParams* params, Vec3f* vec) {
  * Note: Lights in a given list can only be binded to however many free slots are
  * available in the Lights group. This is at most 7 slots for a new group, but could be less.
  */
-void Lights_BindAll(Lights* lights, LightNode* listHead, Vec3f* vec) {
-    LightsBindFunc bindFuncs[] = { Lights_BindPoint, Lights_BindDirectional, Lights_BindPoint };
+void OoT_Lights_BindAll(Lights* lights, LightNode* listHead, Vec3f* vec) {
+    LightsBindFunc bindFuncs[] = { OoT_Lights_BindPoint, OoT_Lights_BindDirectional, OoT_Lights_BindPoint };
     LightInfo* info;
 
     while (listHead != NULL) {
@@ -168,54 +168,54 @@ void Lights_BindAll(Lights* lights, LightNode* listHead, Vec3f* vec) {
     }
 }
 
-LightNode* Lights_FindBufSlot() {
+LightNode* OoT_Lights_FindBufSlot() {
     LightNode* node;
 
-    if (sLightsBuffer.numOccupied >= LIGHTS_BUFFER_SIZE) {
+    if (OoT_sLightsBuffer.numOccupied >= LIGHTS_BUFFER_SIZE) {
         return NULL;
     }
 
-    node = &sLightsBuffer.buf[sLightsBuffer.searchIndex];
+    node = &OoT_sLightsBuffer.buf[OoT_sLightsBuffer.searchIndex];
 
     while (node->info != NULL) {
-        sLightsBuffer.searchIndex++;
+        OoT_sLightsBuffer.searchIndex++;
 
-        if (sLightsBuffer.searchIndex < LIGHTS_BUFFER_SIZE) {
+        if (OoT_sLightsBuffer.searchIndex < LIGHTS_BUFFER_SIZE) {
             node++;
         } else {
-            sLightsBuffer.searchIndex = 0;
-            node = &sLightsBuffer.buf[0];
+            OoT_sLightsBuffer.searchIndex = 0;
+            node = &OoT_sLightsBuffer.buf[0];
         }
     }
 
-    sLightsBuffer.numOccupied++;
+    OoT_sLightsBuffer.numOccupied++;
 
     return node;
 }
 
 // return type must not be void to match
-s32 Lights_FreeNode(LightNode* light) {
+s32 OoT_Lights_FreeNode(LightNode* light) {
     if (light != NULL) {
-        sLightsBuffer.numOccupied--;
+        OoT_sLightsBuffer.numOccupied--;
         light->info = NULL;
-        sLightsBuffer.searchIndex = (light - sLightsBuffer.buf) / sizeof(LightNode);
+        OoT_sLightsBuffer.searchIndex = (light - OoT_sLightsBuffer.buf) / sizeof(LightNode);
     }
 }
 
-void LightContext_Init(PlayState* play, LightContext* lightCtx) {
-    LightContext_InitList(play, lightCtx);
-    LightContext_SetAmbientColor(lightCtx, 80, 80, 80);
-    LightContext_SetFog(lightCtx, 0, 0, 0, 996, 12800);
-    memset(&sLightsBuffer, 0, sizeof(sLightsBuffer));
+void OoT_LightContext_Init(PlayState* play, LightContext* lightCtx) {
+    OoT_LightContext_InitList(play, lightCtx);
+    OoT_LightContext_SetAmbientColor(lightCtx, 80, 80, 80);
+    OoT_LightContext_SetFog(lightCtx, 0, 0, 0, 996, 12800);
+    memset(&OoT_sLightsBuffer, 0, sizeof(OoT_sLightsBuffer));
 }
 
-void LightContext_SetAmbientColor(LightContext* lightCtx, u8 r, u8 g, u8 b) {
+void OoT_LightContext_SetAmbientColor(LightContext* lightCtx, u8 r, u8 g, u8 b) {
     lightCtx->ambientColor[0] = r;
     lightCtx->ambientColor[1] = g;
     lightCtx->ambientColor[2] = b;
 }
 
-void LightContext_SetFog(LightContext* lightCtx, u8 r, u8 g, u8 b, s16 fogNear, s16 fogFar) {
+void OoT_LightContext_SetFog(LightContext* lightCtx, u8 r, u8 g, u8 b, s16 fogNear, s16 fogFar) {
     lightCtx->fogColor[0] = r;
     lightCtx->fogColor[1] = g;
     lightCtx->fogColor[2] = b;
@@ -226,17 +226,17 @@ void LightContext_SetFog(LightContext* lightCtx, u8 r, u8 g, u8 b, s16 fogNear, 
 /**
  * Allocate a new Lights group and initilize the ambient color with that provided by LightContext
  */
-Lights* LightContext_NewLights(LightContext* lightCtx, GraphicsContext* gfxCtx) {
-    return Lights_New(gfxCtx, lightCtx->ambientColor[0], lightCtx->ambientColor[1], lightCtx->ambientColor[2]);
+Lights* OoT_LightContext_NewLights(LightContext* lightCtx, GraphicsContext* gfxCtx) {
+    return OoT_Lights_New(gfxCtx, lightCtx->ambientColor[0], lightCtx->ambientColor[1], lightCtx->ambientColor[2]);
 }
 
-void LightContext_InitList(PlayState* play, LightContext* lightCtx) {
+void OoT_LightContext_InitList(PlayState* play, LightContext* lightCtx) {
     lightCtx->listHead = NULL;
 }
 
-void LightContext_DestroyList(PlayState* play, LightContext* lightCtx) {
+void OoT_LightContext_DestroyList(PlayState* play, LightContext* lightCtx) {
     while (lightCtx->listHead != NULL) {
-        LightContext_RemoveLight(play, lightCtx, lightCtx->listHead);
+        OoT_LightContext_RemoveLight(play, lightCtx, lightCtx->listHead);
         lightCtx->listHead = lightCtx->listHead->next;
     }
 }
@@ -245,12 +245,12 @@ void LightContext_DestroyList(PlayState* play, LightContext* lightCtx) {
  * Insert a new light into the list pointed to by LightContext
  *
  * Note: Due to the limited number of slots in a Lights group, inserting too many lights in the
- * list may result in older entries not being bound to a Light when calling Lights_BindAll
+ * list may result in older entries not being bound to a Light when calling OoT_Lights_BindAll
  */
-LightNode* LightContext_InsertLight(PlayState* play, LightContext* lightCtx, LightInfo* info) {
+LightNode* OoT_LightContext_InsertLight(PlayState* play, LightContext* lightCtx, LightInfo* info) {
     LightNode* node;
 
-    node = Lights_FindBufSlot();
+    node = OoT_Lights_FindBufSlot();
 
     if (node != NULL) {
         node->info = info;
@@ -267,7 +267,7 @@ LightNode* LightContext_InsertLight(PlayState* play, LightContext* lightCtx, Lig
     return node;
 }
 
-void LightContext_RemoveLight(PlayState* play, LightContext* lightCtx, LightNode* node) {
+void OoT_LightContext_RemoveLight(PlayState* play, LightContext* lightCtx, LightNode* node) {
     if (node != NULL) {
         if (node->prev != NULL) {
             node->prev->next = node->next;
@@ -279,12 +279,12 @@ void LightContext_RemoveLight(PlayState* play, LightContext* lightCtx, LightNode
             node->next->prev = node->prev;
         }
 
-        Lights_FreeNode(node);
+        OoT_Lights_FreeNode(node);
     }
 }
 
 // unused
-Lights* Lights_NewAndDraw(GraphicsContext* gfxCtx, u8 ambientR, u8 ambientG, u8 ambientB, u8 numLights, u8 r, u8 g,
+Lights* OoT_Lights_NewAndDraw(GraphicsContext* gfxCtx, u8 ambientR, u8 ambientG, u8 ambientB, u8 numLights, u8 r, u8 g,
                           u8 b, s8 x, s8 y, s8 z) {
     Lights* lights;
     s32 i;
@@ -305,12 +305,12 @@ Lights* Lights_NewAndDraw(GraphicsContext* gfxCtx, u8 ambientR, u8 ambientG, u8 
         lights->l.l[i].l.dir[2] = z;
     }
 
-    Lights_Draw(lights, gfxCtx);
+    OoT_Lights_Draw(lights, gfxCtx);
 
     return lights;
 }
 
-Lights* Lights_New(GraphicsContext* gfxCtx, u8 ambientR, u8 ambientG, u8 ambientB) {
+Lights* OoT_Lights_New(GraphicsContext* gfxCtx, u8 ambientR, u8 ambientG, u8 ambientB) {
     Lights* lights;
 
     lights = Graph_Alloc(gfxCtx, sizeof(Lights));
@@ -323,7 +323,7 @@ Lights* Lights_New(GraphicsContext* gfxCtx, u8 ambientR, u8 ambientG, u8 ambient
     return lights;
 }
 
-void Lights_GlowCheckPrepare(PlayState* play) {
+void OoT_Lights_GlowCheckPrepare(PlayState* play) {
     LightNode* node;
     LightPoint* params;
     Vec3f pos;
@@ -361,7 +361,7 @@ void Lights_GlowCheckPrepare(PlayState* play) {
     }
 }
 
-void Lights_GlowCheck(PlayState* play) {
+void OoT_Lights_GlowCheck(PlayState* play) {
     LightNode* node;
     LightPoint* params;
     Vec3f pos;
@@ -407,7 +407,7 @@ void Lights_GlowCheck(PlayState* play) {
     }
 }
 
-void Lights_DrawGlow(PlayState* play) {
+void OoT_Lights_DrawGlow(PlayState* play) {
     s32 pad;
     LightNode* node;
 
@@ -434,8 +434,8 @@ void Lights_DrawGlow(PlayState* play) {
 
             FrameInterpolation_RecordOpenChild(node, 0);
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, params->color[0], params->color[1], params->color[2], 50);
-            Matrix_Translate(params->x, params->y, params->z, MTXMODE_NEW);
-            Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+            OoT_Matrix_Translate(params->x, params->y, params->z, MTXMODE_NEW);
+            OoT_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(POLY_XLU_DISP++, gGlowCircleDL);
             FrameInterpolation_RecordCloseChild();

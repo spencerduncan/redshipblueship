@@ -187,7 +187,7 @@ static ColliderJntSphElementInit sJntSphItemsInit1[] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit1 = {
+static ColliderJntSphInit OoT_sJntSphInit1 = {
     {
         COLTYPE_METAL,
         AT_ON | AT_TYPE_ENEMY,
@@ -225,7 +225,7 @@ static ColliderJntSphElementInit sJntSphItemsInit2[] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit2 = {
+static ColliderJntSphInit OoT_sJntSphInit2 = {
     {
         COLTYPE_METAL,
         AT_ON | AT_TYPE_ENEMY,
@@ -289,7 +289,7 @@ static s8 D_80907144[] = {
 
 static Vec3f D_80907164 = { 800.0f, 420.0f, 100.0f };
 
-static void* sEyeTextures[] = {
+static void* OoT_sEyeTextures[] = {
     gGanonEyeOpenTex,
     gGanonEyeHalfTex,
     gGanonEyeClosedTex,

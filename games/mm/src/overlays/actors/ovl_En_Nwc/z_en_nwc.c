@@ -13,10 +13,10 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void EnNwc_Init(Actor* thisx, PlayState* play);
-void EnNwc_Destroy(Actor* thisx, PlayState* play);
-void EnNwc_Update(Actor* thisx, PlayState* play);
-void EnNwc_Draw(Actor* thisx, PlayState* play);
+void MM_EnNwc_Init(Actor* thisx, PlayState* play);
+void MM_EnNwc_Destroy(Actor* thisx, PlayState* play);
+void MM_EnNwc_Update(Actor* thisx, PlayState* play);
+void MM_EnNwc_Draw(Actor* thisx, PlayState* play);
 
 void EnNwc_LoadNiwSkeleton(EnNwc* this, PlayState* play);
 void EnNwc_CrowAtTheEnd(EnNwc* this, PlayState* play);
@@ -44,27 +44,27 @@ ActorProfile En_Nwc_Profile = {
     /**/ FLAGS,
     /**/ OBJECT_NWC,
     /**/ sizeof(EnNwc),
-    /**/ EnNwc_Init,
-    /**/ EnNwc_Destroy,
-    /**/ EnNwc_Update,
-    /**/ EnNwc_Draw,
+    /**/ MM_EnNwc_Init,
+    /**/ MM_EnNwc_Destroy,
+    /**/ MM_EnNwc_Update,
+    /**/ MM_EnNwc_Draw,
 };
 
-void EnNwc_Init(Actor* thisx, PlayState* play) {
+void MM_EnNwc_Init(Actor* thisx, PlayState* play) {
     s32 niwObjectSlot;
     EnNwc* this = (EnNwc*)thisx;
 
     niwObjectSlot = Object_GetSlot(&play->objectCtx, OBJECT_NIW);
     if (niwObjectSlot <= OBJECT_SLOT_NONE) {
         // niw object does not exist, we need it for tranformation, despawn
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
     if (CHECK_WEEKEVENTREG(WEEKEVENTREG_25_08)) {
-        Actor_Spawn(&play->actorCtx, play, ACTOR_EN_NIW, this->actor.world.pos.x, this->actor.world.pos.y,
+        MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_NIW, this->actor.world.pos.x, this->actor.world.pos.y,
                     this->actor.world.pos.z, 0, this->actor.world.rot.y, 0, NIW_TYPE_REGULAR);
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -73,16 +73,16 @@ void EnNwc_Init(Actor* thisx, PlayState* play) {
     this->grog = EnNwc_FindGrog(play);
 
     this->footRotY = this->footRotZ = 0;
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->actionFunc = EnNwc_LoadNiwSkeleton;
     this->hasGrownUp = false;
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 6.0f);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 6.0f);
     this->actor.velocity.y = 0.0f;
     this->actor.terminalVelocity = -9.0f;
     this->actor.gravity = -1.0f;
 }
 
-void EnNwc_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnNwc_Destroy(Actor* thisx, PlayState* play) {
     EnNwc* this = (EnNwc*)thisx;
 }
 
@@ -98,16 +98,16 @@ void EnNwc_SpawnDust(EnNwc* this, PlayState* play) {
     Vec3f eye = GET_ACTIVE_CAM(play)->eye;
     s32 i;
 
-    yaw = Math_Vec3f_Yaw(&eye, &this->actor.world.pos);
-    pitch = -Math_Vec3f_Pitch(&eye, &this->actor.world.pos);
-    vec5.x = this->actor.world.pos.x - 5.0f * Math_SinS(yaw) * Math_CosS(pitch);
-    vec5.y = this->actor.world.pos.y - 5.0f * Math_SinS(pitch);
-    vec5.z = this->actor.world.pos.z - 5.0f * Math_CosS(yaw) * Math_CosS(pitch);
+    yaw = MM_Math_Vec3f_Yaw(&eye, &this->actor.world.pos);
+    pitch = -MM_Math_Vec3f_Pitch(&eye, &this->actor.world.pos);
+    vec5.x = this->actor.world.pos.x - 5.0f * MM_Math_SinS(yaw) * MM_Math_CosS(pitch);
+    vec5.y = this->actor.world.pos.y - 5.0f * MM_Math_SinS(pitch);
+    vec5.z = this->actor.world.pos.z - 5.0f * MM_Math_CosS(yaw) * MM_Math_CosS(pitch);
 
     for (i = 0; i < 5; i++) {
-        velocity.x = Rand_CenteredFloat(4.0f);
-        velocity.y = Rand_CenteredFloat(4.0f);
-        velocity.z = Rand_CenteredFloat(4.0f);
+        velocity.x = MM_Rand_CenteredFloat(4.0f);
+        velocity.y = MM_Rand_CenteredFloat(4.0f);
+        velocity.z = MM_Rand_CenteredFloat(4.0f);
         accel.x = -velocity.x * 0.1f;
         accel.y = -velocity.y * 0.1f;
         accel.z = -velocity.z * 0.1f;
@@ -175,27 +175,27 @@ void EnNwc_ChangeState(EnNwc* this, s16 newState) {
             break;
 
         case NWC_STATE_TURNING:
-            this->stateTimer = Rand_ZeroFloat(20.0f) + 15.0f;
+            this->stateTimer = MM_Rand_ZeroFloat(20.0f) + 15.0f;
             this->actionFunc = EnNwc_Turn;
-            this->fallingRotY = TRUNCF_BINANG(Rand_CenteredFloat(0x10000));
+            this->fallingRotY = TRUNCF_BINANG(MM_Rand_CenteredFloat(0x10000));
             break;
 
         case NWC_STATE_HOPPING_FORWARD:
-            this->stateTimer = Rand_ZeroFloat(20.0f) + 15.0f;
+            this->stateTimer = MM_Rand_ZeroFloat(20.0f) + 15.0f;
             this->actionFunc = EnNwc_HopForward;
             break;
 
         case NWC_STATE_FOLLOWING:
             this->actionFunc = EnNwc_Follow;
             this->transformTimer = 0;
-            this->randomRot = TRUNCF_BINANG(Rand_CenteredFloat(0x2710));
+            this->randomRot = TRUNCF_BINANG(MM_Rand_CenteredFloat(0x2710));
             break;
 
         case NWC_STATE_RUNNING:
             //! FAKE: & 0xFFFF
             this->actor.world.rot.y = this->actor.home.rot.z * 0x3000 & 0xFFFF;
             this->actor.shape.rot.y = this->actor.world.rot.y;
-            this->stateTimer = Rand_ZeroFloat(40.0f) + 120.0f;
+            this->stateTimer = MM_Rand_ZeroFloat(40.0f) + 120.0f;
             this->actionFunc = EnNwc_RunAway;
             break;
 
@@ -216,7 +216,7 @@ void EnNwc_ToggleState(EnNwc* this) {
     if (this->state != NWC_STATE_CHECK_BREMAN) {
         EnNwc_ChangeState(this, NWC_STATE_CHECK_BREMAN);
     } else {
-        EnNwc_ChangeState(this, Rand_ZeroFloat(2.0f) + 1.0f);
+        EnNwc_ChangeState(this, MM_Rand_ZeroFloat(2.0f) + 1.0f);
     }
 }
 
@@ -237,20 +237,20 @@ void EnNwc_CheckFound(EnNwc* this, PlayState* play) {
         }
 
         EnNwc_ChangeState(this, NWC_STATE_FOLLOWING);
-        Audio_PlaySfx_AtPosWithAllChannelsIO(&gSfxDefaultPos, NA_SE_SY_CHICK_JOIN_CHIME, currentChickCount);
+        Audio_PlaySfx_AtPosWithAllChannelsIO(&MM_gSfxDefaultPos, NA_SE_SY_CHICK_JOIN_CHIME, currentChickCount);
     }
 }
 
 void EnNwc_LoadNiwSkeleton(EnNwc* this, PlayState* play) {
-    if (Object_IsLoaded(&play->objectCtx, this->niwObjectSlot)) {
-        gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->niwObjectSlot].segment);
+    if (MM_Object_IsLoaded(&play->objectCtx, this->niwObjectSlot)) {
+        MM_gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->niwObjectSlot].segment);
 
-        SkelAnime_InitFlex(play, &this->niwSkeleton, &gNiwSkel, &gNiwIdleAnim, this->jointTable, this->morphTable,
+        MM_SkelAnime_InitFlex(play, &this->niwSkeleton, &gNiwSkel, &gNiwIdleAnim, this->jointTable, this->morphTable,
                            NIW_LIMB_MAX);
-        Animation_Change(&this->niwSkeleton, &gNiwIdleAnim, 1.0f, 0.0f, Animation_GetLastFrame(&gNiwIdleAnim),
+        MM_Animation_Change(&this->niwSkeleton, &gNiwIdleAnim, 1.0f, 0.0f, MM_Animation_GetLastFrame(&gNiwIdleAnim),
                          ANIMMODE_LOOP, 0.0f);
 
-        gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->nwcObjectIndex].segment);
+        MM_gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->nwcObjectIndex].segment);
         this->state = NWC_STATE_NIW_LOADED;
         EnNwc_ToggleState(this);
     }
@@ -258,9 +258,9 @@ void EnNwc_LoadNiwSkeleton(EnNwc* this, PlayState* play) {
 
 void EnNwc_CrowAtTheEnd(EnNwc* this, PlayState* play) {
     // I guess grog handles the scene transit?
-    Math_SmoothStepToS(&this->upperBodyRotY, 0x2710, 2, 0x1B58, 0x3E8);
-    Math_SmoothStepToS(&this->footRotZ, 0, 2, 0x1B58, 0x3E8);
-    Math_SmoothStepToS(&this->footRotY, 0x36B0, 2, 0x1B58, 0x3E8);
+    MM_Math_SmoothStepToS(&this->upperBodyRotY, 0x2710, 2, 0x1B58, 0x3E8);
+    MM_Math_SmoothStepToS(&this->footRotZ, 0, 2, 0x1B58, 0x3E8);
+    MM_Math_SmoothStepToS(&this->footRotY, 0x36B0, 2, 0x1B58, 0x3E8);
 }
 
 /**
@@ -288,8 +288,8 @@ void EnNwc_Follow(EnNwc* this, PlayState* play) {
                 this->actor.velocity.y = 2.0f; // hop up and down
             }
         }
-        Math_SmoothStepToS(&this->footRotZ, targetFootRot, 2, 0x1B58, 0x3E8);
-        Math_SmoothStepToS(&this->upperBodyRotY, targetUpperBodyRot, 2, 0x1B58, 0x3E8);
+        MM_Math_SmoothStepToS(&this->footRotZ, targetFootRot, 2, 0x1B58, 0x3E8);
+        MM_Math_SmoothStepToS(&this->upperBodyRotY, targetUpperBodyRot, 2, 0x1B58, 0x3E8);
 
     } else { // NOT grown up
         if (((this->stateTimer & 3) == 3) && ((this->stateTimer & 0x14) != 0)) {
@@ -308,12 +308,12 @@ void EnNwc_Follow(EnNwc* this, PlayState* play) {
             this->hasGrownUp |= 1;
             this->grog->actor.home.rot.x += 2; // increment grog's adult tranformation counter
             EnNwc_SpawnDust(this, play);
-            Actor_SetScale(&this->actor, 0.002f);
+            MM_Actor_SetScale(&this->actor, 0.002f);
             Actor_PlaySfx(&this->actor, NA_SE_EV_CHICK_TO_CHICKEN);
         }
     }
 
-    Math_Vec3f_Diff(&chickCoords[this->actor.home.rot.z], &this->actor.world.pos, &targetVector);
+    MM_Math_Vec3f_Diff(&chickCoords[this->actor.home.rot.z], &this->actor.world.pos, &targetVector);
     if (SQXZ(targetVector) < SQ(5.0f)) { // too close to keep moving, stop
         this->actor.speed = 0.0f;
 
@@ -322,22 +322,22 @@ void EnNwc_Follow(EnNwc* this, PlayState* play) {
             newRotY = this->actor.yawTowardsPlayer;
         } else {
             // for some reason the array is 10 * 2, incremented by 2, so this is "index - 1"
-            newRotY = Math_Vec3f_Yaw(&this->actor.world.pos, &chickCoords[this->actor.home.rot.z - 2]);
+            newRotY = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &chickCoords[this->actor.home.rot.z - 2]);
         }
 
     } else { // not too close: keep moving
-        this->randomRot += TRUNCF_BINANG(Rand_CenteredFloat(0x5DC));
+        this->randomRot += TRUNCF_BINANG(MM_Rand_CenteredFloat(0x5DC));
         if (this->randomRot > 0x1388) {
             this->randomRot = 0x1388;
         } else if (this->randomRot < -0x1388) {
             this->randomRot = -0x1388;
         }
         this->actor.speed = 2.0f;
-        newRotY = Math_Vec3f_Yaw(&this->actor.world.pos, &chickCoords[this->actor.home.rot.z]) + this->randomRot;
+        newRotY = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &chickCoords[this->actor.home.rot.z]) + this->randomRot;
     }
 
     this->actor.world.rot.y = newRotY;
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.world.rot.y, 2, 0xBB8, 0xC8);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.world.rot.y, 2, 0xBB8, 0xC8);
 
     if (EnNwc_PlayerReleasedBremanMarch(this, play)) {
         this->grog->actor.home.rot.x = 0; // reset adult count
@@ -350,19 +350,19 @@ void EnNwc_Follow(EnNwc* this, PlayState* play) {
         }
 
         this->hasGrownUp &= ~1;
-        Actor_SetScale(&this->actor, 0.01f);
+        MM_Actor_SetScale(&this->actor, 0.01f);
     }
 
     if (this->actor.scale.x < 0.01f) {
         this->actor.scale.x += 0.002f;
-        Actor_SetScale(&this->actor, this->actor.scale.x);
+        MM_Actor_SetScale(&this->actor, this->actor.scale.x);
     }
 
     if (this->grog->actor.home.rot.x >= 20) { // all chicks have turned into adult cucco, stop and crow
         Actor_PlaySfx(&this->actor, NA_SE_EV_CHICKEN_CRY_M);
         this->actionFunc = EnNwc_CrowAtTheEnd;
         this->actor.speed = 0.0f;
-        Actor_SetScale(&this->actor, 0.01f);
+        MM_Actor_SetScale(&this->actor, 0.01f);
     }
 }
 
@@ -437,7 +437,7 @@ void EnNwc_Turn(EnNwc* this, PlayState* play) {
 
     // they only rotate when off the ground, giving the visual that they turn by hopping
     if (!(this->actor.bgCheckFlags & BGCHECKFLAG_GROUND)) {
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->fallingRotY, 0xA, 0x1000, 0x800);
+        MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->fallingRotY, 0xA, 0x1000, 0x800);
         this->actor.world.rot.y = this->actor.shape.rot.y;
     }
 }
@@ -456,11 +456,11 @@ void EnNwc_CheckForBreman(EnNwc* this, PlayState* play) {
     EnNwc_CheckFound(this, play);
 }
 
-void EnNwc_Update(Actor* thisx, PlayState* play) {
+void MM_EnNwc_Update(Actor* thisx, PlayState* play) {
     EnNwc* this = (EnNwc*)thisx;
 
     Actor_MoveWithGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 10.0f, 10.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 10.0f, 10.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
     this->actionFunc(this, play);
 
     if (this->hasGrownUp & 1) {
@@ -469,12 +469,12 @@ void EnNwc_Update(Actor* thisx, PlayState* play) {
         this->actor.shape.shadowScale = 15.0f;
     } else {
         this->actor.objectSlot = this->nwcObjectIndex;
-        this->actor.draw = EnNwc_Draw;
+        this->actor.draw = MM_EnNwc_Draw;
         this->actor.shape.shadowScale = 6.0f;
     }
 
     if (DECR(this->blinkTimer) == 0) {
-        this->blinkTimer = Rand_S16Offset(0x3C, 0x3C);
+        this->blinkTimer = MM_Rand_S16Offset(0x3C, 0x3C);
     }
 
     if ((this->blinkTimer == 1) || (this->blinkTimer == 3)) {
@@ -484,7 +484,7 @@ void EnNwc_Update(Actor* thisx, PlayState* play) {
     }
 }
 
-void EnNwc_Draw(Actor* thisx, PlayState* play) {
+void MM_EnNwc_Draw(Actor* thisx, PlayState* play) {
     TexturePtr eyeTextures[] = { gNwcEyeOpenTex, gNwcEyeClosedTex };
     EnNwc* this = (EnNwc*)thisx;
     Gfx* dispHead;
@@ -524,6 +524,6 @@ void EnNwc_DrawAdultBody(Actor* thisx, PlayState* play) {
     EnNwc* this = (EnNwc*)thisx;
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    SkelAnime_DrawFlexOpa(play, this->niwSkeleton.skeleton, this->niwSkeleton.jointTable, this->niwSkeleton.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->niwSkeleton.skeleton, this->niwSkeleton.jointTable, this->niwSkeleton.dListCount,
                           EnNwc_OverrideLimbDraw, NULL, &this->actor);
 }

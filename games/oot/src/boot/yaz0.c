@@ -1,56 +1,56 @@
 #include "global.h"
 #include <string.h>
 
-u8 sYaz0DataBuffer[0x400];
-uintptr_t sYaz0CurDataEnd;
-uintptr_t sYaz0CurRomStart;
-u32 sYaz0CurSize;
-uintptr_t sYaz0MaxPtr;
+u8 OoT_sYaz0DataBuffer[0x400];
+uintptr_t OoT_sYaz0CurDataEnd;
+uintptr_t OoT_sYaz0CurRomStart;
+u32 OoT_sYaz0CurSize;
+uintptr_t OoT_sYaz0MaxPtr;
 
-void* Yaz0_FirstDMA(void) {
+void* OoT_Yaz0_FirstDMA(void) {
     u32 pad0;
     u32 pad1;
     u32 dmaSize;
     u32 curSize;
 
-    sYaz0MaxPtr = sYaz0CurDataEnd - 0x19;
+    OoT_sYaz0MaxPtr = OoT_sYaz0CurDataEnd - 0x19;
 
-    curSize = sYaz0CurDataEnd - (uintptr_t)sYaz0DataBuffer;
-    dmaSize = (curSize > sYaz0CurSize) ? sYaz0CurSize : curSize;
+    curSize = OoT_sYaz0CurDataEnd - (uintptr_t)OoT_sYaz0DataBuffer;
+    dmaSize = (curSize > OoT_sYaz0CurSize) ? OoT_sYaz0CurSize : curSize;
 
-    DmaMgr_DmaRomToRam(sYaz0CurRomStart, sYaz0DataBuffer, dmaSize);
-    sYaz0CurRomStart += dmaSize;
-    sYaz0CurSize -= dmaSize;
-    return sYaz0DataBuffer;
+    OoT_DmaMgr_DmaRomToRam(OoT_sYaz0CurRomStart, OoT_sYaz0DataBuffer, dmaSize);
+    OoT_sYaz0CurRomStart += dmaSize;
+    OoT_sYaz0CurSize -= dmaSize;
+    return OoT_sYaz0DataBuffer;
 }
 
-void* Yaz0_NextDMA(void* curSrcPos) {
+void* OoT_Yaz0_NextDMA(void* curSrcPos) {
     u8* dst;
     u32 restSize;
     u32 dmaSize;
 
-    restSize = sYaz0CurDataEnd - (uintptr_t)curSrcPos;
-    dst = (restSize & 7) ? (sYaz0DataBuffer - (restSize & 7)) + 8 : sYaz0DataBuffer;
+    restSize = OoT_sYaz0CurDataEnd - (uintptr_t)curSrcPos;
+    dst = (restSize & 7) ? (OoT_sYaz0DataBuffer - (restSize & 7)) + 8 : OoT_sYaz0DataBuffer;
 
     memcpy(dst, curSrcPos, restSize);
-    dmaSize = (sYaz0CurDataEnd - (uintptr_t)dst) - restSize;
-    if (sYaz0CurSize < dmaSize) {
-        dmaSize = sYaz0CurSize;
+    dmaSize = (OoT_sYaz0CurDataEnd - (uintptr_t)dst) - restSize;
+    if (OoT_sYaz0CurSize < dmaSize) {
+        dmaSize = OoT_sYaz0CurSize;
     }
 
     if (dmaSize != 0) {
-        DmaMgr_DmaRomToRam(sYaz0CurRomStart, (uintptr_t)dst + restSize, dmaSize);
-        sYaz0CurRomStart += dmaSize;
-        sYaz0CurSize -= dmaSize;
-        if (!sYaz0CurSize) {
-            sYaz0MaxPtr = (uintptr_t)dst + restSize + dmaSize;
+        OoT_DmaMgr_DmaRomToRam(OoT_sYaz0CurRomStart, (uintptr_t)dst + restSize, dmaSize);
+        OoT_sYaz0CurRomStart += dmaSize;
+        OoT_sYaz0CurSize -= dmaSize;
+        if (!OoT_sYaz0CurSize) {
+            OoT_sYaz0MaxPtr = (uintptr_t)dst + restSize + dmaSize;
         }
     }
 
     return dst;
 }
 
-void Yaz0_DecompressImpl(Yaz0Header* hdr, u8* dst) {
+void OoT_Yaz0_DecompressImpl(Yaz0Header* hdr, u8* dst) {
     u32 bitIdx = 0;
     u8* src = (u8*)hdr->data;
     u8* dstEnd = dst + hdr->decSize;
@@ -62,8 +62,8 @@ void Yaz0_DecompressImpl(Yaz0Header* hdr, u8* dst) {
 
     do {
         if (bitIdx == 0) {
-            if ((sYaz0MaxPtr < (uintptr_t)src) && (sYaz0CurSize != 0)) {
-                src = Yaz0_NextDMA(src);
+            if ((OoT_sYaz0MaxPtr < (uintptr_t)src) && (OoT_sYaz0CurSize != 0)) {
+                src = OoT_Yaz0_NextDMA(src);
             }
 
             chunkHeader = *src++;
@@ -94,9 +94,9 @@ void Yaz0_DecompressImpl(Yaz0Header* hdr, u8* dst) {
     } while (dst != dstEnd);
 }
 
-void Yaz0_Decompress(uintptr_t romStart, void* dst, size_t size) {
-    sYaz0CurRomStart = romStart;
-    sYaz0CurSize = size;
-    sYaz0CurDataEnd = sYaz0DataBuffer + sizeof(sYaz0DataBuffer);
-    Yaz0_DecompressImpl(Yaz0_FirstDMA(), dst);
+void OoT_Yaz0_Decompress(uintptr_t romStart, void* dst, size_t size) {
+    OoT_sYaz0CurRomStart = romStart;
+    OoT_sYaz0CurSize = size;
+    OoT_sYaz0CurDataEnd = OoT_sYaz0DataBuffer + sizeof(OoT_sYaz0DataBuffer);
+    OoT_Yaz0_DecompressImpl(OoT_Yaz0_FirstDMA(), dst);
 }

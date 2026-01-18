@@ -10,10 +10,10 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED)
 
-void EffDust_Init(Actor* thisx, PlayState* play);
-void EffDust_Destroy(Actor* thisx, PlayState* play);
-void EffDust_Update(Actor* thisx, PlayState* play);
-void EffDust_Draw(Actor* thisx, PlayState* play);
+void OoT_EffDust_Init(Actor* thisx, PlayState* play);
+void OoT_EffDust_Destroy(Actor* thisx, PlayState* play);
+void OoT_EffDust_Update(Actor* thisx, PlayState* play);
+void OoT_EffDust_Draw(Actor* thisx, PlayState* play);
 
 void EffDust_InitPosAndDistance(EffDust* this);
 
@@ -29,10 +29,10 @@ const ActorInit Eff_Dust_InitVars = {
     FLAGS,
     OBJECT_GAMEPLAY_KEEP,
     sizeof(EffDust),
-    (ActorFunc)EffDust_Init,
-    (ActorFunc)EffDust_Destroy,
-    (ActorFunc)EffDust_Update,
-    (ActorFunc)EffDust_Draw,
+    (ActorFunc)OoT_EffDust_Init,
+    (ActorFunc)OoT_EffDust_Destroy,
+    (ActorFunc)OoT_EffDust_Update,
+    (ActorFunc)OoT_EffDust_Draw,
     NULL,
 };
 
@@ -61,7 +61,7 @@ void EffDust_InitPosAndDistance(EffDust* this) {
     this->index = 0;
 }
 
-void EffDust_Init(Actor* thisx, PlayState* play) {
+void OoT_EffDust_Init(Actor* thisx, PlayState* play) {
     EffDust* this = (EffDust*)thisx;
     EffDustType dustEffect = this->actor.params;
 
@@ -111,7 +111,7 @@ void EffDust_Init(Actor* thisx, PlayState* play) {
     this->life = 10;
 }
 
-void EffDust_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EffDust_Destroy(Actor* thisx, PlayState* play) {
 }
 
 void EffDust_UpdateFunc_8099DB28(EffDust* this, PlayState* play) {
@@ -132,11 +132,11 @@ void EffDust_UpdateFunc_8099DB28(EffDust* this, PlayState* play) {
         i = this->index & 0x3F;
         if (this->distanceTraveled[i] >= 1.0f) {
             // Spherical coordinate system.
-            fi = Rand_CenteredFloat(8192.0f);
-            theta = Rand_CenteredFloat(4096.0f);
-            this->initialPositions[i].x = -800.0f * Math_CosS(fi) * Math_CosS(theta);
-            this->initialPositions[i].y = -800.0f * Math_SinS(theta);
-            this->initialPositions[i].z = -800.0f * Math_SinS(fi) * Math_CosS(theta);
+            fi = OoT_Rand_CenteredFloat(8192.0f);
+            theta = OoT_Rand_CenteredFloat(4096.0f);
+            this->initialPositions[i].x = -800.0f * OoT_Math_CosS(fi) * OoT_Math_CosS(theta);
+            this->initialPositions[i].y = -800.0f * OoT_Math_SinS(theta);
+            this->initialPositions[i].z = -800.0f * OoT_Math_SinS(fi) * OoT_Math_CosS(theta);
             this->distanceTraveled[i] = 0.0f;
             this->index += 1;
         }
@@ -161,11 +161,11 @@ void EffDust_UpdateFunc_8099DD74(EffDust* this, PlayState* play) {
         i = this->index & 0x3F;
         if (this->distanceTraveled[i] >= 1.0f) {
             // Spherical coordinate system.
-            fi = Rand_CenteredFloat(65536.0f);
-            theta = Rand_ZeroFloat(8192.0f);
-            this->initialPositions[i].x = 400.0f * Math_CosS(fi) * Math_CosS(theta);
-            this->initialPositions[i].y = 400.0f * Math_SinS(theta);
-            this->initialPositions[i].z = 400.0f * Math_SinS(fi) * Math_CosS(theta);
+            fi = OoT_Rand_CenteredFloat(65536.0f);
+            theta = OoT_Rand_ZeroFloat(8192.0f);
+            this->initialPositions[i].x = 400.0f * OoT_Math_CosS(fi) * OoT_Math_CosS(theta);
+            this->initialPositions[i].y = 400.0f * OoT_Math_SinS(theta);
+            this->initialPositions[i].z = 400.0f * OoT_Math_SinS(fi) * OoT_Math_CosS(theta);
             this->distanceTraveled[i] = 0.0f;
             this->index += 1;
         }
@@ -184,7 +184,7 @@ void EffDust_UpdateFunc_8099DFC0(EffDust* this, PlayState* play) {
         if (this->life != 0) {
             this->life -= 1;
         } else {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
         }
 
         for (i = 0; i < 64; i++) {
@@ -210,38 +210,38 @@ void EffDust_UpdateFunc_8099DFC0(EffDust* this, PlayState* play) {
         i = this->index & 0x3F;
         if (this->distanceTraveled[i] >= 1.0f) {
 
-            theta = Rand_CenteredFloat(65536.0f);
+            theta = OoT_Rand_CenteredFloat(65536.0f);
             switch (this->actor.params) {
                 case EFF_DUST_TYPE_2:
-                    this->initialPositions[i].x = (Rand_ZeroOne() * 4500.0f) + 700.0f;
+                    this->initialPositions[i].x = (OoT_Rand_ZeroOne() * 4500.0f) + 700.0f;
                     if (this->initialPositions[i].x > 3000.0f) {
-                        this->initialPositions[i].y = (3000.0f * Rand_ZeroOne()) * Math_SinS(theta);
-                        this->initialPositions[i].z = (3000.0f * Rand_ZeroOne()) * Math_CosS(theta);
+                        this->initialPositions[i].y = (3000.0f * OoT_Rand_ZeroOne()) * OoT_Math_SinS(theta);
+                        this->initialPositions[i].z = (3000.0f * OoT_Rand_ZeroOne()) * OoT_Math_CosS(theta);
                     } else {
-                        this->initialPositions[i].y = 3000.0f * Math_SinS(theta);
-                        this->initialPositions[i].z = 3000.0f * Math_CosS(theta);
+                        this->initialPositions[i].y = 3000.0f * OoT_Math_SinS(theta);
+                        this->initialPositions[i].z = 3000.0f * OoT_Math_CosS(theta);
                     }
                     break;
 
                 case EFF_DUST_TYPE_3:
-                    this->initialPositions[i].x = (Rand_ZeroOne() * 2500.0f) + 700.0f;
+                    this->initialPositions[i].x = (OoT_Rand_ZeroOne() * 2500.0f) + 700.0f;
                     if (this->initialPositions[i].x > 2000.0f) {
-                        this->initialPositions[i].y = (2000.0f * Rand_ZeroOne()) * Math_SinS(theta);
-                        this->initialPositions[i].z = (2000.0f * Rand_ZeroOne()) * Math_CosS(theta);
+                        this->initialPositions[i].y = (2000.0f * OoT_Rand_ZeroOne()) * OoT_Math_SinS(theta);
+                        this->initialPositions[i].z = (2000.0f * OoT_Rand_ZeroOne()) * OoT_Math_CosS(theta);
                     } else {
-                        this->initialPositions[i].y = 2000.0f * Math_SinS(theta);
-                        this->initialPositions[i].z = 2000.0f * Math_CosS(theta);
+                        this->initialPositions[i].y = 2000.0f * OoT_Math_SinS(theta);
+                        this->initialPositions[i].z = 2000.0f * OoT_Math_CosS(theta);
                     }
                     break;
 
                 case EFF_DUST_TYPE_4:
-                    this->initialPositions[i].x = (Rand_ZeroOne() * 8500.0f) + 1700.0f;
+                    this->initialPositions[i].x = (OoT_Rand_ZeroOne() * 8500.0f) + 1700.0f;
                     if (this->initialPositions[i].x > 5000.0f) {
-                        this->initialPositions[i].y = (4000.0f * Rand_ZeroOne()) * Math_SinS(theta);
-                        this->initialPositions[i].z = (4000.0f * Rand_ZeroOne()) * Math_CosS(theta);
+                        this->initialPositions[i].y = (4000.0f * OoT_Rand_ZeroOne()) * OoT_Math_SinS(theta);
+                        this->initialPositions[i].z = (4000.0f * OoT_Rand_ZeroOne()) * OoT_Math_CosS(theta);
                     } else {
-                        this->initialPositions[i].y = 4000.0f * Math_SinS(theta);
-                        this->initialPositions[i].z = 4000.0f * Math_CosS(theta);
+                        this->initialPositions[i].y = 4000.0f * OoT_Math_SinS(theta);
+                        this->initialPositions[i].z = 4000.0f * OoT_Math_CosS(theta);
                     }
 
                     break;
@@ -255,7 +255,7 @@ void EffDust_UpdateFunc_8099DFC0(EffDust* this, PlayState* play) {
     }
 }
 
-void EffDust_Update(Actor* thisx, PlayState* play) {
+void OoT_EffDust_Update(Actor* thisx, PlayState* play) {
     EffDust* this = (EffDust*)thisx;
 
     this->actionFunc(this, play);
@@ -288,13 +288,13 @@ void EffDust_DrawFunc_8099E4F4(Actor* thisx, PlayState* play2) {
 
         if (*distanceTraveled < 1.0f) {
             aux = 1.0f - (*distanceTraveled * *distanceTraveled);
-            Matrix_Translate(this->actor.world.pos.x + (initialPositions->x * ((this->dx * aux) + (1.0f - this->dx))),
+            OoT_Matrix_Translate(this->actor.world.pos.x + (initialPositions->x * ((this->dx * aux) + (1.0f - this->dx))),
                              this->actor.world.pos.y + (initialPositions->y * ((this->dy * aux) + (1.0f - this->dy))),
                              this->actor.world.pos.z + (initialPositions->z * ((this->dz * aux) + (1.0f - this->dz))),
                              MTXMODE_NEW);
 
-            Matrix_Scale(this->scalingFactor, this->scalingFactor, this->scalingFactor, MTXMODE_APPLY);
-            Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
+            OoT_Matrix_Scale(this->scalingFactor, this->scalingFactor, this->scalingFactor, MTXMODE_APPLY);
+            OoT_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
 
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(POLY_XLU_DISP++, SEGMENTED_TO_VIRTUAL(gEffSparklesDL));
@@ -347,16 +347,16 @@ void EffDust_DrawFunc_8099E784(Actor* thisx, PlayState* play2) {
 
             aux = 1.0f - (*distanceTraveled * *distanceTraveled);
 
-            Matrix_Mult(&player->mf_9E0, MTXMODE_NEW);
+            OoT_Matrix_Mult(&player->mf_9E0, MTXMODE_NEW);
 
-            Matrix_Translate(initialPositions->x * ((this->dx * aux) + (1.0f - this->dx)),
+            OoT_Matrix_Translate(initialPositions->x * ((this->dx * aux) + (1.0f - this->dx)),
                              initialPositions->y * (1.0f - *distanceTraveled) + 320.0f,
                              initialPositions->z * (1.0f - *distanceTraveled) + -20.0f, MTXMODE_APPLY);
 
-            Matrix_Scale(*distanceTraveled * this->scalingFactor, *distanceTraveled * this->scalingFactor,
+            OoT_Matrix_Scale(*distanceTraveled * this->scalingFactor, *distanceTraveled * this->scalingFactor,
                          *distanceTraveled * this->scalingFactor, MTXMODE_APPLY);
 
-            Matrix_ReplaceRotation(&play->billboardMtxF);
+            OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
 
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(POLY_XLU_DISP++, SEGMENTED_TO_VIRTUAL(gEffSparklesDL));
@@ -371,7 +371,7 @@ void EffDust_DrawFunc_8099E784(Actor* thisx, PlayState* play2) {
     CLOSE_DISPS(gfxCtx);
 }
 
-void EffDust_Draw(Actor* thisx, PlayState* play) {
+void OoT_EffDust_Draw(Actor* thisx, PlayState* play) {
     EffDust* this = (EffDust*)thisx;
 
     this->drawFunc(thisx, play);

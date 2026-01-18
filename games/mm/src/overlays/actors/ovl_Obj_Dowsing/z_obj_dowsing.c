@@ -32,11 +32,11 @@ s32 ObjDowsing_GetFlag(ObjDowsing* this, PlayState* play) {
     s32 flag = DOWSING_GET_FLAG(&this->actor);
 
     if (type == DOWSING_COLLECTIBLE) {
-        return Flags_GetCollectible(play, flag);
+        return MM_Flags_GetCollectible(play, flag);
     } else if (type == DOWSING_CHEST) {
-        return Flags_GetTreasure(play, flag);
+        return MM_Flags_GetTreasure(play, flag);
     } else if (type == DOWSING_SWITCH) {
-        return Flags_GetSwitch(play, flag);
+        return MM_Flags_GetSwitch(play, flag);
     } else {
         return 0;
     }
@@ -44,7 +44,7 @@ s32 ObjDowsing_GetFlag(ObjDowsing* this, PlayState* play) {
 
 s32 ObjDowsing_CheckValidSpawn(ObjDowsing* this, PlayState* play) {
     if (ObjDowsing_GetFlag(this, play)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return true;
     }
     return false;

@@ -81,8 +81,8 @@ void TransitionWipe5_Update(void* thisx, s32 updateRate) {
 
 void TransitionWipe5_Draw(void* thisx, Gfx** gfxP) {
     Gfx* gfx = *gfxP;
-    s32 width = gScreenWidth;
-    s32 height = gScreenHeight;
+    s32 width = MM_gScreenWidth;
+    s32 height = MM_gScreenHeight;
     void* workBuffer = gWorkBuffer;
     TransitionWipe5* this = (TransitionWipe5*)thisx;
     s32 alpha = (1.0f - this->unk_0C) * 255.0f;
@@ -113,7 +113,7 @@ void TransitionWipe5_Draw(void* thisx, Gfx** gfxP) {
         VisFbuf_SetBgSimple(&gfx, workBuffer, D_0F000000_TO_SEGMENTED, width, height, VIS_FBUF_BG_CYC_1CYC);
     }
     gDPPipeSync(gfx++);
-    gSPLoadUcode(gfx++, SysUcode_GetUCode());
+    gSPLoadUcode(gfx++, MM_SysUcode_GetUCode());
     *gfxP = gfx;
 }
 

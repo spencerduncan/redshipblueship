@@ -12,10 +12,10 @@ s32 __osPfsGetStatus(OSMesgQueue* queue, s32 channel) {
 
     __osPfsRequestOneChannel(channel, CONT_CMD_REQUEST_STATUS);
     ret = __osSiRawStartDma(OS_WRITE, &gPifMempakBuf);
-    osRecvMesg(queue, &msg, OS_MESG_BLOCK);
+    OoT_osRecvMesg(queue, &msg, OS_MESG_BLOCK);
 
     ret = __osSiRawStartDma(OS_READ, &gPifMempakBuf);
-    osRecvMesg(queue, &msg, OS_MESG_BLOCK);
+    OoT_osRecvMesg(queue, &msg, OS_MESG_BLOCK);
 
     __osPfsGetOneChannelData(channel, &data);
     if (((data.status & CONT_CARD_ON) != 0) && ((data.status & CONT_CARD_PULL) != 0)) {

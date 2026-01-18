@@ -9,33 +9,33 @@
 #include <unistd.h>
 #endif
 
-u8* gAudioHeap;
-u8* gSystemHeap;
+u8* OoT_gAudioHeap;
+u8* OoT_gSystemHeap;
 
-void Heaps_Alloc(void) {
+void OoT_Heaps_Alloc(void) {
 #ifdef _MSC_VER
-    gAudioHeap = (u8*)_aligned_malloc(AUDIO_HEAP_SIZE, 0x10);
-    gSystemHeap = (u8*)_aligned_malloc(SYSTEM_HEAP_SIZE, 0x10);
+    OoT_gAudioHeap = (u8*)_aligned_malloc(AUDIO_HEAP_SIZE, 0x10);
+    OoT_gSystemHeap = (u8*)_aligned_malloc(SYSTEM_HEAP_SIZE, 0x10);
 #elif defined(_POSIX_VERSION) && (_POSIX_VERSION >= 200112L)
-    if (posix_memalign((void**)&gAudioHeap, 0x10, AUDIO_HEAP_SIZE) != 0)
-        gAudioHeap = NULL;
-    if (posix_memalign((void**)&gSystemHeap, 0x10, SYSTEM_HEAP_SIZE) != 0)
-        gSystemHeap = NULL;
+    if (posix_memalign((void**)&OoT_gAudioHeap, 0x10, AUDIO_HEAP_SIZE) != 0)
+        OoT_gAudioHeap = NULL;
+    if (posix_memalign((void**)&OoT_gSystemHeap, 0x10, SYSTEM_HEAP_SIZE) != 0)
+        OoT_gSystemHeap = NULL;
 #else
-    gAudioHeap = (u8*)memalign(0x10, AUDIO_HEAP_SIZE);
-    gSystemHeap = (u8*)memalign(0x10, SYSTEM_HEAP_SIZE);
+    OoT_gAudioHeap = (u8*)memalign(0x10, AUDIO_HEAP_SIZE);
+    OoT_gSystemHeap = (u8*)memalign(0x10, SYSTEM_HEAP_SIZE);
 #endif
 
-    assert(gAudioHeap != NULL);
-    assert(gSystemHeap != NULL);
+    assert(OoT_gAudioHeap != NULL);
+    assert(OoT_gSystemHeap != NULL);
 }
 
-void Heaps_Free(void) {
+void OoT_Heaps_Free(void) {
 #ifdef _MSC_VER
-    _aligned_free(gAudioHeap);
-    _aligned_free(gSystemHeap);
+    _aligned_free(OoT_gAudioHeap);
+    _aligned_free(OoT_gSystemHeap);
 #else
-    free(gAudioHeap);
-    free(gSystemHeap);
+    free(OoT_gAudioHeap);
+    free(OoT_gSystemHeap);
 #endif
 }

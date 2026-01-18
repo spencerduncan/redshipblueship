@@ -13,8 +13,8 @@
 // the half of tmem (0x800 bytes) dedicated to color-indexed data.
 #define VISMONO_CFBFRAG_HEIGHT (0x800 / (SCREEN_WIDTH * G_IM_SIZ_16b_BYTES))
 
-// Maximum size of the dlist written by `VisMono_DesaturateDList`.
-// `VisMono_DesaturateDList` consistently uses `VISMONO_DLSIZE - 2` double words, so this can be 2 less.
+// Maximum size of the dlist written by `MM_VisMono_DesaturateDList`.
+// `MM_VisMono_DesaturateDList` consistently uses `VISMONO_DLSIZE - 2` double words, so this can be 2 less.
 #define VISMONO_DLSIZE (3 + SCREEN_HEIGHT / VISMONO_CFBFRAG_HEIGHT * (7 + 2 + 2 + 3) + 2 + 2)
 
 // How much each color component contributes to the desaturated result.
@@ -25,7 +25,7 @@
 #define VISMONO_FAC_BLUE 1
 #define VISMONO_FAC_NORM (0x1F * VISMONO_FAC_RED + 0x1F * VISMONO_FAC_GREEN + 0x1F * VISMONO_FAC_BLUE)
 
-void VisMono_Init(VisMono* this) {
+void MM_VisMono_Init(VisMono* this) {
     memset(this, 0, sizeof(VisMono));
     this->unk_00 = 0;
     this->setScissor = false;
@@ -39,13 +39,13 @@ void VisMono_Init(VisMono* this) {
     this->envColor.a = 0;
 }
 
-void VisMono_Destroy(VisMono* this) {
-    SystemArena_Free(this->dList);
+void MM_VisMono_Destroy(VisMono* this) {
+    MM_SystemArena_Free(this->dList);
 }
 // BENTODO move to a header since it might be helpful other places.
 #define GPACK_IA16(i, a) (((i) << 8) | (a))
 
-void VisMono_DesaturateTLUT(u16* tlut) {
+void MM_VisMono_DesaturateTLUT(u16* tlut) {
     s32 i;
 
     for (i = 0; i < 256; i++) {
@@ -66,7 +66,7 @@ void VisMono_DesaturateTLUT(u16* tlut) {
     }
 }
 
-Gfx* VisMono_DesaturateDList(Gfx* gfx) {
+Gfx* MM_VisMono_DesaturateDList(Gfx* gfx) {
     s32 y;
     s32 height = VISMONO_CFBFRAG_HEIGHT;
     u16* cfbFrag = D_0F000000_TO_SEGMENTED;
@@ -113,7 +113,7 @@ Gfx* VisMono_DesaturateDList(Gfx* gfx) {
         // The 2*n-th byte of texel 0 is the high byte of the n-th RGBA16 color of the color frame buffer.
         // The 2*n+1-th byte of texel 1 is the low byte of the n-th RGBA16 color of the color frame buffer.
 
-        // With the TLUT computed by `VisMono_DesaturateTLUT`:
+        // With the TLUT computed by `MM_VisMono_DesaturateTLUT`:
         // The 2*n-th byte of texel 0 maps to a IA16 color where the high byte I (intensity) corresponds to
         // the high byte of the n-th RGBA16 color of the color frame buffer.
         // The 2*n+1-th byte of texel 1 maps to a IA16 color where the low byte A (alpha) corresponds to
@@ -132,7 +132,7 @@ Gfx* VisMono_DesaturateDList(Gfx* gfx) {
     return gfx;
 }
 
-void VisMono_Draw(VisMono* this, Gfx** gfxp) {
+void MM_VisMono_Draw(VisMono* this, Gfx** gfxp) {
     Gfx* gfx = *gfxp;
     u16* tlut;
     Gfx* dList;
@@ -141,15 +141,15 @@ void VisMono_Draw(VisMono* this, Gfx** gfxp) {
     if (this->tlut) {
         tlut = this->tlut;
     } else {
-        tlut = Graph_DlistAlloc(&gfx, 256 * G_IM_SIZ_16b_BYTES);
-        VisMono_DesaturateTLUT(tlut);
+        tlut = MM_Graph_DlistAlloc(&gfx, 256 * G_IM_SIZ_16b_BYTES);
+        MM_VisMono_DesaturateTLUT(tlut);
     }
 
     if (this->dList) {
         dList = this->dList;
     } else {
-        dList = Graph_DlistAlloc(&gfx, VISMONO_DLSIZE * sizeof(Gfx));
-        dListEnd = VisMono_DesaturateDList(dList);
+        dList = MM_Graph_DlistAlloc(&gfx, VISMONO_DLSIZE * sizeof(Gfx));
+        dListEnd = MM_VisMono_DesaturateDList(dList);
     }
 
     gDPPipeSync(gfx++);
@@ -170,14 +170,14 @@ void VisMono_Draw(VisMono* this, Gfx** gfxp) {
     *gfxp = gfx;
 }
 
-void VisMono_DrawOld(VisMono* this) {
+void MM_VisMono_DrawOld(VisMono* this) {
     if (this->tlut == NULL) {
-        this->tlut = SystemArena_Malloc(256 * G_IM_SIZ_16b_BYTES);
-        VisMono_DesaturateTLUT(this->tlut);
+        this->tlut = MM_SystemArena_Malloc(256 * G_IM_SIZ_16b_BYTES);
+        MM_VisMono_DesaturateTLUT(this->tlut);
     }
 
     if (this->dList == NULL) {
-        this->dList = SystemArena_Malloc(VISMONO_DLSIZE * sizeof(Gfx));
-        VisMono_DesaturateDList(this->dList);
+        this->dList = MM_SystemArena_Malloc(VISMONO_DLSIZE * sizeof(Gfx));
+        MM_VisMono_DesaturateDList(this->dList);
     }
 }

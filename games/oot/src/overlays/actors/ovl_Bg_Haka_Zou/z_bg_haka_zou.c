@@ -32,7 +32,7 @@ void func_80883328(BgHakaZou* this, PlayState* play);
 void func_808834D8(BgHakaZou* this, PlayState* play);
 void BgHakaZou_DoNothing(BgHakaZou* this, PlayState* play);
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -52,7 +52,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 5, 60, 0, { 0, 0, 0 } },
 };
 
-static Vec3f sZeroVec = { 0.0f, 0.0f, 0.0f };
+static Vec3f OoT_sZeroVec = { 0.0f, 0.0f, 0.0f };
 
 const ActorInit Bg_Haka_Zou_InitVars = {
     ACTOR_BG_HAKA_ZOU,
@@ -67,7 +67,7 @@ const ActorInit Bg_Haka_Zou_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32_DIV1000(gravity, -1000, ICHAIN_CONTINUE),
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
@@ -76,25 +76,25 @@ void BgHakaZou_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     BgHakaZou* this = (BgHakaZou*)thisx;
 
-    Actor_ProcessInitChain(thisx, sInitChain);
+    OoT_Actor_ProcessInitChain(thisx, OoT_sInitChain);
 
     this->switchFlag = (thisx->params >> 8) & 0xFF;
     thisx->params &= 0xFF;
 
     if (thisx->params == STA_UNKNOWN) {
-        Actor_SetScale(thisx, (Rand_ZeroOne() * 0.005f) + 0.025f);
+        OoT_Actor_SetScale(thisx, (OoT_Rand_ZeroOne() * 0.005f) + 0.025f);
 
-        thisx->speedXZ = Rand_ZeroOne();
-        thisx->world.rot.y = thisx->shape.rot.y * ((Rand_ZeroOne() < 0.5f) ? -1 : 1) + Rand_CenteredFloat(0x1000);
+        thisx->speedXZ = OoT_Rand_ZeroOne();
+        thisx->world.rot.y = thisx->shape.rot.y * ((OoT_Rand_ZeroOne() < 0.5f) ? -1 : 1) + OoT_Rand_CenteredFloat(0x1000);
         this->timer = 20;
-        thisx->world.rot.x = Rand_S16Offset(0x100, 0x300) * ((Rand_ZeroOne() < 0.5f) ? -1 : 1);
-        thisx->world.rot.z = Rand_S16Offset(0x400, 0x800) * ((Rand_ZeroOne() < 0.5f) ? -1 : 1);
+        thisx->world.rot.x = OoT_Rand_S16Offset(0x100, 0x300) * ((OoT_Rand_ZeroOne() < 0.5f) ? -1 : 1);
+        thisx->world.rot.z = OoT_Rand_S16Offset(0x400, 0x800) * ((OoT_Rand_ZeroOne() < 0.5f) ? -1 : 1);
     } else {
-        Collider_InitCylinder(play, &this->collider);
-        Collider_SetCylinder(play, &this->collider, thisx, &sCylinderInit);
-        Collider_UpdateCylinder(thisx, &this->collider);
+        OoT_Collider_InitCylinder(play, &this->collider);
+        OoT_Collider_SetCylinder(play, &this->collider, thisx, &OoT_sCylinderInit);
+        OoT_Collider_UpdateCylinder(thisx, &this->collider);
 
-        DynaPolyActor_Init(&this->dyna, 0);
+        OoT_DynaPolyActor_Init(&this->dyna, 0);
 
         if (thisx->params == STA_GIANT_BIRD_STATUE) {
             thisx->uncullZoneForward = 2000.0f;
@@ -108,10 +108,10 @@ void BgHakaZou_Init(Actor* thisx, PlayState* play) {
                                      : Object_GetIndex(&play->objectCtx, OBJECT_HAKA_OBJECTS);
 
     if (this->requiredObjBankIndex < 0) {
-        Actor_Kill(thisx);
-    } else if ((thisx->params != STA_UNKNOWN) && Flags_GetSwitch(play, this->switchFlag)) {
+        OoT_Actor_Kill(thisx);
+    } else if ((thisx->params != STA_UNKNOWN) && OoT_Flags_GetSwitch(play, this->switchFlag)) {
         if (thisx->params != STA_GIANT_BIRD_STATUE) {
-            Actor_Kill(thisx);
+            OoT_Actor_Kill(thisx);
         } else {
             thisx->shape.rot.x = -0x4000;
             thisx->world.pos.z -= 80.0f;
@@ -126,8 +126,8 @@ void BgHakaZou_Destroy(Actor* thisx, PlayState* play) {
     BgHakaZou* this = (BgHakaZou*)thisx;
 
     if (this->dyna.actor.params != STA_UNKNOWN) {
-        DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
-        Collider_DestroyCylinder(play, &this->collider);
+        OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+        OoT_Collider_DestroyCylinder(play, &this->collider);
     }
 }
 
@@ -143,35 +143,35 @@ void func_808828F4(BgHakaZou* this, PlayState* play) {
 
     for (i = 0; i < 2; i++) {
         if (i == 0) {
-            effectPos.x = this->dyna.actor.world.pos.x - (Rand_CenteredFloat(10.0f) + 112.0f);
+            effectPos.x = this->dyna.actor.world.pos.x - (OoT_Rand_CenteredFloat(10.0f) + 112.0f);
         } else {
-            effectPos.x = Rand_CenteredFloat(10.0f) + this->dyna.actor.world.pos.x;
+            effectPos.x = OoT_Rand_CenteredFloat(10.0f) + this->dyna.actor.world.pos.x;
         }
 
-        rand = Rand_ZeroOne();
+        rand = OoT_Rand_ZeroOne();
         effectPos.y = this->dyna.actor.world.pos.y + (60.0f * rand);
         effectPos.z = this->dyna.actor.world.pos.z + (112.0f * rand);
 
-        func_800286CC(play, &effectPos, &effectVelocity, &sZeroVec, (Rand_ZeroOne() * 200.0f) + 1000.0f, 100);
+        func_800286CC(play, &effectPos, &effectVelocity, &OoT_sZeroVec, (OoT_Rand_ZeroOne() * 200.0f) + 1000.0f, 100);
     }
 }
 
 void BgHakaZou_Wait(BgHakaZou* this, PlayState* play) {
     CollisionHeader* colHeader;
 
-    if (Object_IsLoaded(&play->objectCtx, this->requiredObjBankIndex)) {
+    if (OoT_Object_IsLoaded(&play->objectCtx, this->requiredObjBankIndex)) {
         this->dyna.actor.objBankIndex = this->requiredObjBankIndex;
         this->dyna.actor.draw = BgHakaZou_Draw;
 
         if (this->dyna.actor.params == STA_UNKNOWN) {
             this->actionFunc = func_80882BDC;
         } else {
-            Actor_SetObjectDependency(play, &this->dyna.actor);
+            OoT_Actor_SetObjectDependency(play, &this->dyna.actor);
 
             colHeader = NULL;
 
             if (this->dyna.actor.params == STA_GIANT_BIRD_STATUE) {
-                CollisionHeader_GetVirtual(&object_haka_objects_Col_006F70, &colHeader);
+                OoT_CollisionHeader_GetVirtual(&object_haka_objects_Col_006F70, &colHeader);
                 this->collider.dim.radius = 80;
                 this->collider.dim.height = 100;
                 this->collider.dim.yShift = -30;
@@ -179,17 +179,17 @@ void BgHakaZou_Wait(BgHakaZou* this, PlayState* play) {
                 this->collider.dim.pos.z += 56;
                 this->dyna.actor.uncullZoneScale = 1500.0f;
             } else if (this->dyna.actor.params == STA_BOMBABLE_SKULL_WALL) {
-                CollisionHeader_GetVirtual(&object_haka_objects_Col_005E30, &colHeader);
+                OoT_CollisionHeader_GetVirtual(&object_haka_objects_Col_005E30, &colHeader);
                 this->collider.dim.yShift = -50;
             } else {
-                CollisionHeader_GetVirtual(&gBotwBombSpotCol, &colHeader);
+                OoT_CollisionHeader_GetVirtual(&gBotwBombSpotCol, &colHeader);
                 this->collider.dim.radius = 55;
                 this->collider.dim.height = 20;
             }
 
-            this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+            this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
 
-            if ((this->dyna.actor.params == STA_GIANT_BIRD_STATUE) && Flags_GetSwitch(play, this->switchFlag)) {
+            if ((this->dyna.actor.params == STA_GIANT_BIRD_STATUE) && OoT_Flags_GetSwitch(play, this->switchFlag)) {
                 this->actionFunc = BgHakaZou_DoNothing;
             } else {
                 this->actionFunc = func_80883000;
@@ -212,12 +212,12 @@ void func_80882BDC(BgHakaZou* this, PlayState* play) {
             this->dyna.actor.bgCheckFlags &= ~3;
             this->dyna.actor.speedXZ = 2.0f;
         } else {
-            Actor_Kill(&this->dyna.actor);
+            OoT_Actor_Kill(&this->dyna.actor);
         }
     }
 
     if (this->timer == 0) {
-        Actor_Kill(&this->dyna.actor);
+        OoT_Actor_Kill(&this->dyna.actor);
     }
 }
 
@@ -229,8 +229,8 @@ void func_80882CC4(BgHakaZou* this, PlayState* play) {
     f32 cos;
     s32 pad;
 
-    sin = Math_SinS(this->dyna.actor.shape.rot.y - 0x4000) * 40.0f;
-    cos = Math_CosS(this->dyna.actor.shape.rot.y - 0x4000) * 40.0f;
+    sin = OoT_Math_SinS(this->dyna.actor.shape.rot.y - 0x4000) * 40.0f;
+    cos = OoT_Math_CosS(this->dyna.actor.shape.rot.y - 0x4000) * 40.0f;
 
     for (i = 0; i < 3; i++) {
         for (j = 0; j < 3; j++) {
@@ -238,9 +238,9 @@ void func_80882CC4(BgHakaZou* this, PlayState* play) {
             actorSpawnPos.z = this->dyna.actor.world.pos.z + (j - 1) * cos;
             actorSpawnPos.y = this->dyna.actor.world.pos.y + (i - 1) * 55;
 
-            Actor_Spawn(&play->actorCtx, play, ACTOR_BG_HAKA_ZOU, actorSpawnPos.x, actorSpawnPos.y, actorSpawnPos.z, 0,
+            OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_BG_HAKA_ZOU, actorSpawnPos.x, actorSpawnPos.y, actorSpawnPos.z, 0,
                         this->dyna.actor.shape.rot.y, 0, this->dyna.actor.params + 2, true);
-            func_800286CC(play, &actorSpawnPos, &sZeroVec, &sZeroVec, 1000, 50);
+            func_800286CC(play, &actorSpawnPos, &OoT_sZeroVec, &OoT_sZeroVec, 1000, 50);
         }
     }
 }
@@ -255,21 +255,21 @@ void func_80882E54(BgHakaZou* this, PlayState* play) {
     fragmentPos.y = this->collider.dim.pos.y;
     fragmentPos.z = this->collider.dim.pos.z;
 
-    EffectSsHahen_SpawnBurst(play, &fragmentPos, 10.0f, 0, 10, 10, 4, 141, 40, gBotwBombSpotDL);
+    OoT_EffectSsHahen_SpawnBurst(play, &fragmentPos, 10.0f, 0, 10, 10, 4, 141, 40, gBotwBombSpotDL);
 
     for (i = 0; i < 2; i++) {
         for (j = 0; j < 2; j++) {
             fragmentPos.x = this->collider.dim.pos.x + (((j * 2) - 1) * num);
             fragmentPos.z = this->collider.dim.pos.z + (((i * 2) - 1) * num);
-            EffectSsHahen_SpawnBurst(play, &fragmentPos, 10.0f, 0, 10, 10, 4, 141, 40, gBotwBombSpotDL);
-            func_800286CC(play, &fragmentPos, &sZeroVec, &sZeroVec, 1000, 50);
+            OoT_EffectSsHahen_SpawnBurst(play, &fragmentPos, 10.0f, 0, 10, 10, 4, 141, 40, gBotwBombSpotDL);
+            func_800286CC(play, &fragmentPos, &OoT_sZeroVec, &OoT_sZeroVec, 1000, 50);
         }
     }
 }
 
 void func_80883000(BgHakaZou* this, PlayState* play) {
     if (this->collider.base.acFlags & AC_HIT) {
-        Flags_SetSwitch(play, this->switchFlag);
+        OoT_Flags_SetSwitch(play, this->switchFlag);
 
         if (this->dyna.actor.params == STA_GIANT_BIRD_STATUE) {
             this->timer = 20;
@@ -288,7 +288,7 @@ void func_80883000(BgHakaZou* this, PlayState* play) {
             this->actionFunc = func_80883104;
         }
     } else {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -298,7 +298,7 @@ void func_80883104(BgHakaZou* this, PlayState* play) {
     }
 
     if (this->timer == 0) {
-        Actor_Kill(&this->dyna.actor);
+        OoT_Actor_Kill(&this->dyna.actor);
     }
 }
 
@@ -310,11 +310,11 @@ void func_80883144(BgHakaZou* this, PlayState* play) {
     }
 
     if (!(this->timer % 4)) {
-        explosionPos.x = Rand_CenteredFloat(200.0f) + (this->dyna.actor.world.pos.x - 56.0f);
-        explosionPos.y = (Rand_ZeroOne() * 80.0f) + this->dyna.actor.world.pos.y;
-        explosionPos.z = Rand_CenteredFloat(200.0f) + (this->dyna.actor.world.pos.z + 56.0f);
+        explosionPos.x = OoT_Rand_CenteredFloat(200.0f) + (this->dyna.actor.world.pos.x - 56.0f);
+        explosionPos.y = (OoT_Rand_ZeroOne() * 80.0f) + this->dyna.actor.world.pos.y;
+        explosionPos.z = OoT_Rand_CenteredFloat(200.0f) + (this->dyna.actor.world.pos.z + 56.0f);
 
-        EffectSsBomb2_SpawnLayered(play, &explosionPos, &sZeroVec, &sZeroVec, 150, 70);
+        OoT_EffectSsBomb2_SpawnLayered(play, &explosionPos, &OoT_sZeroVec, &OoT_sZeroVec, 150, 70);
         Audio_PlayActorSound2(&this->dyna.actor, NA_SE_IT_BOMB_EXPLOSION);
     }
 
@@ -325,11 +325,11 @@ void func_80883144(BgHakaZou* this, PlayState* play) {
 }
 
 void func_80883254(BgHakaZou* this, PlayState* play) {
-    f32 moveDist = (Rand_ZeroOne() * 0.5f) + 0.5f;
+    f32 moveDist = (OoT_Rand_ZeroOne() * 0.5f) + 0.5f;
 
-    Math_StepToF(&this->dyna.actor.world.pos.z, this->dyna.actor.home.pos.z - 80.0f, 2.0f * moveDist);
+    OoT_Math_StepToF(&this->dyna.actor.world.pos.z, this->dyna.actor.home.pos.z - 80.0f, 2.0f * moveDist);
 
-    if (Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y - 40.0f, moveDist)) {
+    if (OoT_Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y - 40.0f, moveDist)) {
         if (this->timer != 0) {
             this->timer--;
         }
@@ -351,7 +351,7 @@ void func_80883328(BgHakaZou* this, PlayState* play) {
 
     this->dyna.actor.world.rot.x += this->dyna.actor.world.rot.x / 8.0f;
 
-    if (Math_ScaledStepToS(&this->dyna.actor.shape.rot.x, -0x4000, this->dyna.actor.world.rot.x)) {
+    if (OoT_Math_ScaledStepToS(&this->dyna.actor.shape.rot.x, -0x4000, this->dyna.actor.world.rot.x)) {
         effectPos.x = this->dyna.actor.world.pos.x;
         effectPos.y = this->dyna.actor.world.pos.y;
 
@@ -360,7 +360,7 @@ void func_80883328(BgHakaZou* this, PlayState* play) {
 
             for (i = 0; i < 4; i++) {
                 effectPos.z -= (i == 2) ? 550.0f : 50.0f;
-                func_800286CC(play, &effectPos, &sZeroVec, &sZeroVec, (Rand_ZeroOne() * 200.0f) + 1000.0f, 200);
+                func_800286CC(play, &effectPos, &OoT_sZeroVec, &OoT_sZeroVec, (OoT_Rand_ZeroOne() * 200.0f) + 1000.0f, 200);
             }
 
             effectPos.x -= 112.0f;
@@ -408,5 +408,5 @@ void BgHakaZou_Draw(Actor* thisx, PlayState* play) {
         object_haka_objects_DL_005CE0,
     };
 
-    Gfx_DrawDListOpa(play, dLists[thisx->params]);
+    OoT_Gfx_DrawDListOpa(play, dLists[thisx->params]);
 }

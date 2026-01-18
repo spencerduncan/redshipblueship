@@ -84,10 +84,10 @@ void EnFuKago_Init(Actor* thisx, PlayState* play) {
     CollisionHeader* sp34 = NULL;
     Actor* npc = play->actorCtx.actorLists[ACTORCAT_NPC].first;
 
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
-    CollisionHeader_GetVirtual(&object_fu_mato_Colheader_0015C0, &sp34);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, sp34);
-    Actor_SetScale(&this->dyna.actor, 0.1f);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_CollisionHeader_GetVirtual(&object_fu_mato_Colheader_0015C0, &sp34);
+    this->dyna.bgId = MM_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, sp34);
+    MM_Actor_SetScale(&this->dyna.actor, 0.1f);
 
     while (npc != NULL) {
         if (npc->id == ACTOR_EN_FU) {
@@ -98,7 +98,7 @@ void EnFuKago_Init(Actor* thisx, PlayState* play) {
     }
 
     if (npc == NULL) {
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
         return;
     }
 
@@ -114,7 +114,7 @@ void EnFuKago_Init(Actor* thisx, PlayState* play) {
 void EnFuKago_Destroy(Actor* thisx, PlayState* play) {
     EnFuKago* this = (EnFuKago*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 s32 func_80ACF8B8(EnFuKago* this, PlayState* play) {
@@ -138,7 +138,7 @@ s32 func_80ACF8B8(EnFuKago* this, PlayState* play) {
         return true;
     }
 
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     return false;
 }
 
@@ -194,17 +194,17 @@ void func_80ACFA78(EnFuKago* this, PlayState* play) {
         ptr->unk_00 = sp98;
         ptr->unk_30 = sp88;
 
-        ptr->unk_0C.x = (Math_CosS(y) * D_80AD0634[i].x) + (Math_SinS(y) * D_80AD0634[i].z);
-        ptr->unk_0C.y = D_80AD0634[i].y + Rand_Centered();
-        ptr->unk_0C.z = (Math_CosS(y) * D_80AD0634[i].z) - (Math_SinS(y) * D_80AD0634[i].x);
+        ptr->unk_0C.x = (MM_Math_CosS(y) * D_80AD0634[i].x) + (MM_Math_SinS(y) * D_80AD0634[i].z);
+        ptr->unk_0C.y = D_80AD0634[i].y + MM_Rand_Centered();
+        ptr->unk_0C.z = (MM_Math_CosS(y) * D_80AD0634[i].z) - (MM_Math_SinS(y) * D_80AD0634[i].x);
 
-        ptr->unk_18.x = (Math_CosS(y) * D_80AD067C[i].x) + (Math_SinS(y) * D_80AD067C[i].z);
+        ptr->unk_18.x = (MM_Math_CosS(y) * D_80AD067C[i].x) + (MM_Math_SinS(y) * D_80AD067C[i].z);
         ptr->unk_18.y = D_80AD067C[i].y;
-        ptr->unk_18.z = (Math_CosS(y) * D_80AD067C[i].z) - (Math_SinS(y) * D_80AD067C[i].x);
+        ptr->unk_18.z = (MM_Math_CosS(y) * D_80AD067C[i].z) - (MM_Math_SinS(y) * D_80AD067C[i].x);
 
-        ptr->unk_36.x = (s16)Rand_Next() >> 5;
+        ptr->unk_36.x = (s16)MM_Rand_Next() >> 5;
         ptr->unk_36.y = 0;
-        ptr->unk_36.z = (s16)Rand_Next() >> 5;
+        ptr->unk_36.z = (s16)MM_Rand_Next() >> 5;
 
         ptr->unk_24.x = D_80AD06C4[i].x;
         ptr->unk_24.y = D_80AD06C4[i].y;
@@ -220,7 +220,7 @@ void func_80ACFA78(EnFuKago* this, PlayState* play) {
     }
 
     this->dyna.actor.freezeTimer = 2;
-    EffectSsHahen_SpawnBurst(play, &this->dyna.actor.world.pos, 17.0f, 0, 15, 13, 20, HAHEN_OBJECT_DEFAULT, 10, NULL);
+    MM_EffectSsHahen_SpawnBurst(play, &this->dyna.actor.world.pos, 17.0f, 0, 15, 13, 20, HAHEN_OBJECT_DEFAULT, 10, NULL);
 
     this->unk_338 = 60;
     this->unk_33A = 1;
@@ -240,18 +240,18 @@ void func_80ACFDAC(EnFuKago* this, PlayState* play, EnFuKagoStruct* arg2) {
         if (arg2->unk_00.y < 15.0f) {
             sp34 = arg2->unk_00;
             sp34.y = 30.0f;
-            EffectSsGSplash_Spawn(play, &sp34, NULL, NULL, 0, 800);
-            EffectSsGRipple_Spawn(play, &sp34, 250, 650, 0);
+            MM_EffectSsGSplash_Spawn(play, &sp34, NULL, NULL, 0, 800);
+            MM_EffectSsGRipple_Spawn(play, &sp34, 250, 650, 0);
             arg2->unk_3C = 1;
         }
 
-        Math_SmoothStepToF(&arg2->unk_18.x, 0.0f, 0.1f, 0.1f, 0.1f);
-        Math_SmoothStepToF(&arg2->unk_18.y, -1.0f, 0.1f, 0.1f, 0.1f);
-        Math_SmoothStepToF(&arg2->unk_18.z, 0.0f, 0.1f, 0.1f, 0.1f);
+        MM_Math_SmoothStepToF(&arg2->unk_18.x, 0.0f, 0.1f, 0.1f, 0.1f);
+        MM_Math_SmoothStepToF(&arg2->unk_18.y, -1.0f, 0.1f, 0.1f, 0.1f);
+        MM_Math_SmoothStepToF(&arg2->unk_18.z, 0.0f, 0.1f, 0.1f, 0.1f);
         return;
     }
 
-    temp_f0 = Math_Vec3f_DistXZ(&arg2->unk_00, &D_80AD0714);
+    temp_f0 = MM_Math_Vec3f_DistXZ(&arg2->unk_00, &D_80AD0714);
 
     arg2->unk_18.y = ((15.0f - arg2->unk_00.y) * 0.1f) - (0.2f * arg2->unk_0C.y);
     arg2->unk_18.x = arg2->unk_0C.x * -0.1f;
@@ -263,17 +263,17 @@ void func_80ACFDAC(EnFuKago* this, PlayState* play, EnFuKagoStruct* arg2) {
     }
 
     if (ABS_ALT(arg2->unk_36.x) > 100) {
-        Math_SmoothStepToS(&arg2->unk_36.x, 0, 0xA, 0x64, 0xA);
+        MM_Math_SmoothStepToS(&arg2->unk_36.x, 0, 0xA, 0x64, 0xA);
     }
 
     if (ABS_ALT(arg2->unk_36.z) > 100) {
-        Math_SmoothStepToS(&arg2->unk_36.z, 0, 0xA, 0x64, 0xA);
+        MM_Math_SmoothStepToS(&arg2->unk_36.z, 0, 0xA, 0x64, 0xA);
     }
 
     if ((play->gameplayFrames % 8) == 0) {
         sp34 = arg2->unk_00;
         sp34.y = 30.0f;
-        EffectSsGRipple_Spawn(play, &sp34, 250, 650, 0);
+        MM_EffectSsGRipple_Spawn(play, &sp34, 250, 650, 0);
     }
 }
 
@@ -336,11 +336,11 @@ void func_80AD0288(EnFuKago* this, PlayState* play) {
     s32 pad;
     Vec3f* scale = &this->dyna.actor.scale;
 
-    Math_SmoothStepToF(&scale->x, 0.0f, 0.1f, 0.005f, 0.005f);
+    MM_Math_SmoothStepToF(&scale->x, 0.0f, 0.1f, 0.005f, 0.005f);
     scale->z = scale->x;
     scale->y = scale->x;
     if (scale->x == 0.0f) {
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
     }
 }
 
@@ -365,17 +365,17 @@ void func_80AD0340(EnFuKago* this, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     for (i = 0; i < ARRAY_COUNT(D_80AD061C); i++, ptr++) {
-        Matrix_Push();
-        Matrix_SetTranslateRotateYXZ(ptr->unk_00.x, ptr->unk_00.y, ptr->unk_00.z, &this->dyna.actor.shape.rot);
-        Matrix_Translate(ptr->unk_24.x, ptr->unk_24.y, ptr->unk_24.z, MTXMODE_APPLY);
-        Matrix_RotateZYX(ptr->unk_30.x, ptr->unk_30.y, ptr->unk_30.z, MTXMODE_APPLY);
-        Matrix_Translate(-ptr->unk_24.x, -ptr->unk_24.y, -ptr->unk_24.z, MTXMODE_APPLY);
-        Matrix_Scale(scale->x, scale->y, scale->z, MTXMODE_APPLY);
+        MM_Matrix_Push();
+        MM_Matrix_SetTranslateRotateYXZ(ptr->unk_00.x, ptr->unk_00.y, ptr->unk_00.z, &this->dyna.actor.shape.rot);
+        MM_Matrix_Translate(ptr->unk_24.x, ptr->unk_24.y, ptr->unk_24.z, MTXMODE_APPLY);
+        MM_Matrix_RotateZYX(ptr->unk_30.x, ptr->unk_30.y, ptr->unk_30.z, MTXMODE_APPLY);
+        MM_Matrix_Translate(-ptr->unk_24.x, -ptr->unk_24.y, -ptr->unk_24.z, MTXMODE_APPLY);
+        MM_Matrix_Scale(scale->x, scale->y, scale->z, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_OPA_DISP++, D_80AD061C[i]);
 
-        Matrix_Pop();
+        MM_Matrix_Pop();
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

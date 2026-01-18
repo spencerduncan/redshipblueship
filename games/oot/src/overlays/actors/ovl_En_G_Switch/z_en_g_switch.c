@@ -41,7 +41,7 @@ void EnGSwitch_DrawEffects(EnGSwitch* this, PlayState* play);
 
 static s16 sCollectedCount = 0;
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -101,10 +101,10 @@ void EnGSwitch_Init(Actor* thisx, PlayState* play) {
             // "maximum number of checks"
             osSyncPrintf(VT_FGCOL(PURPLE) "☆☆☆☆☆ 最大チェック数 ☆☆☆☆☆ %d\n" VT_RST, this->silverCount);
             osSyncPrintf("\n\n");
-            if (Flags_GetSwitch(play, this->switchFlag)) {
+            if (OoT_Flags_GetSwitch(play, this->switchFlag)) {
                 // This is a reference to Hokuto no Ken
                 osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ Ｙｏｕ ａｒｅ Ｓｈｏｃｋ！  ☆☆☆☆☆ %d\n" VT_RST, this->switchFlag);
-                Actor_Kill(&this->actor);
+                OoT_Actor_Kill(&this->actor);
             } else {
                 this->actionFunc = EnGSwitch_SilverRupeeTracker;
             }
@@ -115,15 +115,15 @@ void EnGSwitch_Init(Actor* thisx, PlayState* play) {
             osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ 子スイッチ発生 ☆☆☆☆☆ %x\n" VT_RST, this->actor.params);
             this->colorIdx = 5;
             this->numEffects = 20;
-            Collider_InitCylinder(play, &this->collider);
-            Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+            OoT_Collider_InitCylinder(play, &this->collider);
+            OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
             this->actor.draw = EnGSwitch_DrawRupee;
             this->actor.shape.yOffset = 700.0f;
-            if (Flags_GetSwitch(play, this->switchFlag)) {
+            if (OoT_Flags_GetSwitch(play, this->switchFlag)) {
                 osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ Ｙｏｕ ａｒｅ Ｓｈｏｃｋ！  ☆☆☆☆☆ %d\n" VT_RST, this->switchFlag);
-                Actor_Kill(&this->actor);
+                OoT_Actor_Kill(&this->actor);
             } else {
-                Actor_SetScale(&this->actor, 0.03f);
+                OoT_Actor_SetScale(&this->actor, 0.03f);
                 this->actionFunc = EnGSwitch_SilverRupeeIdle;
             }
             break;
@@ -132,9 +132,9 @@ void EnGSwitch_Init(Actor* thisx, PlayState* play) {
             // "Horseback archery destructible pot"
             osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ やぶさめぶち抜き壷 ☆☆☆☆☆ \n" VT_RST);
             this->actor.gravity = -3.0f;
-            this->colorIdx = Rand_ZeroFloat(2.99f);
-            Collider_InitCylinder(play, &this->collider);
-            Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+            this->colorIdx = OoT_Rand_ZeroFloat(2.99f);
+            OoT_Collider_InitCylinder(play, &this->collider);
+            OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
             this->actor.scale.x = 0.25f;
             this->actor.scale.y = 0.45f;
             this->actor.scale.z = 0.25f;
@@ -142,7 +142,7 @@ void EnGSwitch_Init(Actor* thisx, PlayState* play) {
             this->objId = OBJECT_TSUBO;
             this->objIndex = Object_GetIndex(&play->objectCtx, this->objId);
             if (this->objIndex < 0) {
-                Actor_Kill(&this->actor);
+                OoT_Actor_Kill(&this->actor);
                 // "what?"
                 osSyncPrintf(VT_FGCOL(PURPLE) " なにみの？ %d\n" VT_RST "\n", this->objIndex);
                 // "bank is funny"
@@ -155,9 +155,9 @@ void EnGSwitch_Init(Actor* thisx, PlayState* play) {
             break;
         case ENGSWITCH_TARGET_RUPEE:
             this->actor.shape.yOffset = 700.0f;
-            Actor_SetScale(&this->actor, 0.05f);
-            Collider_InitCylinder(play, &this->collider);
-            Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+            OoT_Actor_SetScale(&this->actor, 0.05f);
+            OoT_Collider_InitCylinder(play, &this->collider);
+            OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
             this->actor.draw = EnGSwitch_DrawRupee;
             this->collider.dim.radius = 20;
             this->collider.dim.height = 60;
@@ -171,7 +171,7 @@ void EnGSwitch_Destroy(Actor* thisx, PlayState* play) {
     s32 pad;
     EnGSwitch* this = (EnGSwitch*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnGSwitch_Break(EnGSwitch* this, PlayState* play) {
@@ -181,16 +181,16 @@ void EnGSwitch_Break(EnGSwitch* this, PlayState* play) {
     Vec3f velocity = { 0.0f, 0.0f, 0.0f };
     s32 i;
 
-    randPos.x = this->actor.world.pos.x + Rand_CenteredFloat(40.0f);
-    randPos.y = this->actor.world.pos.y + 30.0f + Rand_CenteredFloat(35.0f);
-    randPos.z = this->actor.world.pos.z + Rand_CenteredFloat(40.0f);
+    randPos.x = this->actor.world.pos.x + OoT_Rand_CenteredFloat(40.0f);
+    randPos.y = this->actor.world.pos.y + 30.0f + OoT_Rand_CenteredFloat(35.0f);
+    randPos.z = this->actor.world.pos.z + OoT_Rand_CenteredFloat(40.0f);
     hitPos.x = this->collider.info.bumper.hitPos.x;
     hitPos.y = this->collider.info.bumper.hitPos.y;
     hitPos.z = this->collider.info.bumper.hitPos.z;
     EffectSsHitMark_SpawnCustomScale(play, EFFECT_HITMARK_WHITE, 700, &hitPos);
     if (this->type == ENGSWITCH_ARCHERY_POT) {
         velocity.y = 15.0f;
-        EffectSsExtra_Spawn(play, &hitPos, &velocity, &accel, 5, 2);
+        OoT_EffectSsExtra_Spawn(play, &hitPos, &velocity, &accel, 5, 2);
     }
     if (this->type == ENGSWITCH_TARGET_RUPEE) {
         for (i = 0; i < this->numEffects; i++) {
@@ -200,8 +200,8 @@ void EnGSwitch_Break(EnGSwitch* this, PlayState* play) {
 }
 
 void EnGSwitch_WaitForObject(EnGSwitch* this, PlayState* play) {
-    if (Object_IsLoaded(&play->objectCtx, this->objIndex)) {
-        gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->objIndex].segment);
+    if (OoT_Object_IsLoaded(&play->objectCtx, this->objIndex)) {
+        OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[this->objIndex].segment);
         this->actor.objBankIndex = this->objIndex;
         this->actor.draw = EnGSwitch_DrawPot;
         this->actionFunc = EnGSwitch_ArcheryPot;
@@ -215,7 +215,7 @@ void EnGSwitch_SilverRupeeTracker(EnGSwitch* this, PlayState* play) {
         if (sCollectedCount < (CVarGetInteger(CVAR_ENHANCEMENT("SilverRupeeJingleExtend"), 0) ? 10 : 5)) {
             // "sound?"
             osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ 音？ ☆☆☆☆☆ %d\n" VT_RST, this->noteIndex);
-            Audio_PlaySoundTransposed(&gSfxDefaultPos, NA_SE_EV_FIVE_COUNT_LUPY, majorScale[this->noteIndex]);
+            Audio_PlaySoundTransposed(&OoT_gSfxDefaultPos, NA_SE_EV_FIVE_COUNT_LUPY, majorScale[this->noteIndex]);
             this->noteIndex = sCollectedCount;
         }
     }
@@ -229,10 +229,10 @@ void EnGSwitch_SilverRupeeTracker(EnGSwitch* this, PlayState* play) {
             Flags_SetTempClear(play, this->actor.room);
         } else {
             Sfx_PlaySfxCentered(NA_SE_SY_CORRECT_CHIME);
-            Flags_SetSwitch(play, this->switchFlag);
+            OoT_Flags_SetSwitch(play, this->switchFlag);
         }
         Sfx_PlaySfxCentered(NA_SE_SY_GET_RUPY);
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
@@ -241,7 +241,7 @@ void EnGSwitch_SilverRupeeIdle(EnGSwitch* this, PlayState* play) {
 
     this->actor.shape.rot.y += 0x800;
     if (this->actor.xyzDistToPlayerSq < 900.0f) {
-        Rupees_ChangeBy(5);
+        OoT_Rupees_ChangeBy(5);
         sCollectedCount++;
         Sfx_PlaySfxCentered(NA_SE_SY_GET_RUPY);
         this->actor.world.pos = player->actor.world.pos;
@@ -260,12 +260,12 @@ void EnGSwitch_SilverRupeeCollected(EnGSwitch* this, PlayState* play) {
 
     this->actor.shape.rot.y += 0x3C0;
     if (this->killTimer == 0) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
     this->actor.world.pos = player->actor.world.pos;
     this->actor.world.pos.y =
-        player->actor.world.pos.y + 40.0f + (this->killTimer * 0.3f) * Math_SinS(this->killTimer * 0x3A98);
+        player->actor.world.pos.y + 40.0f + (this->killTimer * 0.3f) * OoT_Math_SinS(this->killTimer * 0x3A98);
     if (LINK_IS_ADULT) {
         this->actor.world.pos.y += 20.0f;
     }
@@ -286,27 +286,27 @@ void EnGSwitch_GalleryRupee(EnGSwitch* this, PlayState* play) {
                     if (gallery->actor.update != NULL) {
                         gallery->targetState[this->index] = ENSYATEKIHIT_MISS;
                     }
-                    Actor_Kill(&this->actor);
+                    OoT_Actor_Kill(&this->actor);
                 }
                 break;
             case GSWITCH_LEFT:
-                Actor_UpdatePos(&this->actor);
+                OoT_Actor_UpdatePos(&this->actor);
                 if ((this->actor.velocity.x < 0.0f) && (this->actor.world.pos.x < this->targetPos.x)) {
                     gallery = ((EnSyatekiItm*)this->actor.parent);
                     if (gallery->actor.update != NULL) {
                         gallery->targetState[this->index] = ENSYATEKIHIT_MISS;
                     }
-                    Actor_Kill(&this->actor);
+                    OoT_Actor_Kill(&this->actor);
                 }
                 break;
             case GSWITCH_RIGHT:
-                Actor_UpdatePos(&this->actor);
+                OoT_Actor_UpdatePos(&this->actor);
                 if (this->actor.world.pos.x > this->targetPos.x) {
                     gallery = ((EnSyatekiItm*)this->actor.parent);
                     if (gallery->actor.update != NULL) {
                         gallery->targetState[this->index] = ENSYATEKIHIT_MISS;
                     }
-                    Actor_Kill(&this->actor);
+                    OoT_Actor_Kill(&this->actor);
                 }
                 break;
             default:
@@ -314,8 +314,8 @@ void EnGSwitch_GalleryRupee(EnGSwitch* this, PlayState* play) {
                     case MOVE_TARGET:
                         if ((fabsf(this->actor.world.pos.x - this->targetPos.x) > 5.0f) ||
                             (fabsf(this->actor.world.pos.y - this->targetPos.y) > 5.0f)) {
-                            Math_ApproachF(&this->actor.world.pos.x, this->targetPos.x, 0.3f, 30.0f);
-                            Math_ApproachF(&this->actor.world.pos.y, this->targetPos.y, 0.3f, 30.0f);
+                            OoT_Math_ApproachF(&this->actor.world.pos.x, this->targetPos.x, 0.3f, 30.0f);
+                            OoT_Math_ApproachF(&this->actor.world.pos.y, this->targetPos.y, 0.3f, 30.0f);
                         } else {
                             this->moveState = MOVE_HOME;
                             this->waitTimer = 60;
@@ -325,14 +325,14 @@ void EnGSwitch_GalleryRupee(EnGSwitch* this, PlayState* play) {
                         if (this->waitTimer == 0) {
                             if ((fabsf(this->actor.world.pos.x - this->actor.home.pos.x) > 5.0f) ||
                                 (fabsf(this->actor.world.pos.y - this->actor.home.pos.y) > 5.0f)) {
-                                Math_ApproachF(&this->actor.world.pos.x, this->actor.home.pos.x, 0.3f, 30.0f);
-                                Math_ApproachF(&this->actor.world.pos.y, this->actor.home.pos.y, 0.3f, 30.0f);
+                                OoT_Math_ApproachF(&this->actor.world.pos.x, this->actor.home.pos.x, 0.3f, 30.0f);
+                                OoT_Math_ApproachF(&this->actor.world.pos.y, this->actor.home.pos.y, 0.3f, 30.0f);
                             } else {
                                 gallery = ((EnSyatekiItm*)this->actor.parent);
                                 if (gallery->actor.update != NULL) {
                                     gallery->targetState[this->index] = ENSYATEKIHIT_MISS;
                                 }
-                                Actor_Kill(&this->actor);
+                                OoT_Actor_Kill(&this->actor);
                             }
                         }
                         break;
@@ -369,26 +369,26 @@ void EnGSwitch_ArcheryPot(EnGSwitch* this, PlayState* play) {
         for (i = 0, angle = 0; i < 30; i++, angle += 0x4E20) {
             Vec3f pos;
             Vec3f vel;
-            f32 sn = Math_SinS(angle);
-            f32 cs = Math_CosS(angle);
+            f32 sn = OoT_Math_SinS(angle);
+            f32 cs = OoT_Math_CosS(angle);
             f32 rand;
             s32 phi_s0;
             s32 scale;
             s32 pad;
 
             pos.x = sn * 8.0f;
-            pos.y = 10.0f + Rand_CenteredFloat(5.0f);
+            pos.y = 10.0f + OoT_Rand_CenteredFloat(5.0f);
             pos.z = cs * 8.0f;
 
             vel.x = pos.x / 2.0f;
-            vel.y = 10.0f + Rand_ZeroOne() * 15.0f;
+            vel.y = 10.0f + OoT_Rand_ZeroOne() * 15.0f;
             vel.z = pos.z / 2.0f;
 
             pos.x += thisPos->x;
             pos.y += thisPos->y;
             pos.z += thisPos->z;
 
-            rand = Rand_ZeroOne();
+            rand = OoT_Rand_ZeroOne();
             if (rand < 0.2f) {
                 phi_s0 = 0x60;
             } else if (rand < 0.6f) {
@@ -397,13 +397,13 @@ void EnGSwitch_ArcheryPot(EnGSwitch* this, PlayState* play) {
                 phi_s0 = 0x20;
             }
 
-            scale = 30.0f + Rand_ZeroOne() * 130.0f;
+            scale = 30.0f + OoT_Rand_ZeroOne() * 130.0f;
 
-            EffectSsKakera_Spawn(play, &pos, &vel, thisPos, -240, phi_s0, 10, 10, 0, scale, 0, 0x20, 60,
+            OoT_EffectSsKakera_Spawn(play, &pos, &vel, thisPos, -240, phi_s0, 10, 10, 0, scale, 0, 0x20, 60,
                                  KAKERA_COLOR_NONE, OBJECT_TSUBO, object_tsubo_DL_001960);
         }
         func_80033480(play, thisPos, 30.0f, 4, 20, 50, 0);
-        SoundSource_PlaySfxAtFixedWorldPos(play, thisPos, 40, NA_SE_EV_POT_BROKEN);
+        OoT_SoundSource_PlaySfxAtFixedWorldPos(play, thisPos, 40, NA_SE_EV_POT_BROKEN);
         EnGSwitch_Break(this, play);
         this->killTimer = 50;
         this->broken = true;
@@ -413,7 +413,7 @@ void EnGSwitch_ArcheryPot(EnGSwitch* this, PlayState* play) {
 
 void EnGSwitch_Kill(EnGSwitch* this, PlayState* play) {
     if (this->killTimer == 0) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
@@ -434,19 +434,19 @@ void EnGSwitch_Update(Actor* thisx, PlayState* play) {
     if ((this->type != ENGSWITCH_SILVER_TRACKER) && (this->type != ENGSWITCH_SILVER_RUPEE) &&
         (this->type != ENGSWITCH_TARGET_RUPEE)) {
         Actor_MoveXZGravity(&this->actor);
-        Actor_UpdateBgCheckInfo(play, &this->actor, 50.0f, 50.0f, 100.0f, 0x1C);
+        OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 50.0f, 50.0f, 100.0f, 0x1C);
     }
     if (this->actor.draw != NULL) {
         if (this->type == ENGSWITCH_TARGET_RUPEE) {
             EnGSwitch_UpdateEffects(this, play);
         }
         if ((this->actionFunc != EnGSwitch_Kill) && (this->actionFunc != EnGSwitch_SilverRupeeIdle)) {
-            Collider_UpdateCylinder(&this->actor, &this->collider);
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+            OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+            OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
         }
     }
     if (BREG(0) && (this->type == ENGSWITCH_SILVER_TRACKER)) {
-        DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
+        OoT_DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
                                this->actor.world.rot.x, this->actor.world.rot.y, this->actor.world.rot.z, 1.0f, 1.0f,
                                1.0f, 255, 0, 0, 255, 4, play->state.gfxCtx);
     }
@@ -465,7 +465,7 @@ void EnGSwitch_DrawPot(Actor* thisx, PlayState* play) {
     }
 }
 
-static void* sRupeeTextures[] = {
+static void* OoT_sRupeeTextures[] = {
     gRupeeGreenTex, gRupeeBlueTex, gRupeeRedTex, gRupeePinkTex, gRupeeOrangeTex, gRupeeSilverTex,
 };
 // The pink/orange rupee textures are authentically reversed, so the GID models should be gold/purple respectively
@@ -485,10 +485,10 @@ void EnGSwitch_DrawRupee(Actor* thisx, PlayState* play) {
 
             // purple/gold/silver rupees need less scaling
             f32 mtxScale = this->colorIdx >= 3 ? 17.5f : 25.0f;
-            Matrix_Scale(mtxScale, mtxScale, mtxScale, MTXMODE_APPLY);
+            OoT_Matrix_Scale(mtxScale, mtxScale, mtxScale, MTXMODE_APPLY);
 
             if (this->type == ENGSWITCH_TARGET_RUPEE) {
-                GetItem_Draw(play, sRupeeTexturesNew[this->colorIdx]);
+                OoT_GetItem_Draw(play, sRupeeTexturesNew[this->colorIdx]);
             } else {
                 Color_RGB8 silverRupeeColor =
                     CVarGetColor24(CVAR_COSMETIC("Consumable.SilverRupee.Value"), (Color_RGB8){ 255, 255, 255 });
@@ -549,11 +549,11 @@ void EnGSwitch_DrawRupee(Actor* thisx, PlayState* play) {
             if (shouldColor) {
                 gDPSetGrayscaleColor(POLY_OPA_DISP++, rupeeColor.r, rupeeColor.g, rupeeColor.b, 255);
                 gSPGrayscale(POLY_OPA_DISP++, true);
-                gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(sRupeeTextures[this->colorIdx]));
+                gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(OoT_sRupeeTextures[this->colorIdx]));
                 gSPDisplayList(POLY_OPA_DISP++, gRupeeDL);
                 gSPGrayscale(POLY_OPA_DISP++, false);
             } else {
-                gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(sRupeeTextures[this->colorIdx]));
+                gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(OoT_sRupeeTextures[this->colorIdx]));
                 gSPDisplayList(POLY_OPA_DISP++, gRupeeDL);
             }
         }
@@ -580,13 +580,13 @@ void EnGSwitch_SpawnEffects(EnGSwitch* this, Vec3f* pos, s16 scale, s16 colorIdx
             effect->colorIdx = colorIdx;
             effect->timer = 30;
             effect->rot.x = effect->rot.y = effect->rot.z = 0.0f;
-            pitch = Rand_CenteredFloat(1000.0f) - 13000.0f;
-            yaw = Rand_CenteredFloat(65535.0f);
+            pitch = OoT_Rand_CenteredFloat(1000.0f) - 13000.0f;
+            yaw = OoT_Rand_CenteredFloat(65535.0f);
             Matrix_RotateY(yaw, MTXMODE_NEW);
             Matrix_RotateX(pitch, MTXMODE_APPLY);
             baseVel.x = baseVel.y = 0.0f;
             baseVel.z = 20.0f;
-            Matrix_MultVec3f(&baseVel, &effect->velocity);
+            OoT_Matrix_MultVec3f(&baseVel, &effect->velocity);
             effect->flag = true;
             return;
         }
@@ -600,16 +600,16 @@ void EnGSwitch_UpdateEffects(EnGSwitch* this, PlayState* play) {
 
     for (i = 0; i < this->numEffects; i++, effect++) {
         if (effect->flag) {
-            effect->rot.x += Rand_ZeroOne() * 10.0f + 15.0f;
-            effect->rot.y += Rand_ZeroOne() * 10.0f + 15.0f;
-            effect->rot.z += Rand_ZeroOne() * 10.0f + 15.0f;
+            effect->rot.x += OoT_Rand_ZeroOne() * 10.0f + 15.0f;
+            effect->rot.y += OoT_Rand_ZeroOne() * 10.0f + 15.0f;
+            effect->rot.z += OoT_Rand_ZeroOne() * 10.0f + 15.0f;
             temp.x = effect->pos.x + effect->velocity.x;
             temp.y = effect->pos.y + effect->velocity.y;
             temp.z = effect->pos.z + effect->velocity.z;
-            Math_ApproachF(&effect->pos.x, temp.x, 0.3f, 30.0f);
-            Math_ApproachF(&effect->pos.y, temp.y, 0.8f, 250.0f);
-            Math_ApproachF(&effect->pos.z, temp.z, 0.3f, 30.0f);
-            Math_ApproachF(&effect->velocity.y, -20.0f, 0.9f, 1.0f);
+            OoT_Math_ApproachF(&effect->pos.x, temp.x, 0.3f, 30.0f);
+            OoT_Math_ApproachF(&effect->pos.y, temp.y, 0.8f, 250.0f);
+            OoT_Math_ApproachF(&effect->pos.z, temp.z, 0.3f, 30.0f);
+            OoT_Math_ApproachF(&effect->velocity.y, -20.0f, 0.9f, 1.0f);
             if (effect->timer != 0) {
                 effect->timer--;
             } else if (effect->scale < 10) {
@@ -634,8 +634,8 @@ void EnGSwitch_DrawEffects(EnGSwitch* this, PlayState* play) {
         if (effect->flag) {
             FrameInterpolation_RecordOpenChild(effect, effect->epoch);
             scale = effect->scale / 10000.0f;
-            Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
-            Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+            OoT_Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
+            OoT_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
             Matrix_RotateX(effect->rot.x, MTXMODE_APPLY);
             Matrix_RotateY(effect->rot.y, MTXMODE_APPLY);
             Matrix_RotateZ(effect->rot.z, MTXMODE_APPLY);
@@ -678,11 +678,11 @@ void EnGSwitch_DrawEffects(EnGSwitch* this, PlayState* play) {
             if (shouldColor) {
                 gDPSetGrayscaleColor(POLY_OPA_DISP++, rupeeColor.r, rupeeColor.g, rupeeColor.b, 255);
                 gSPGrayscale(POLY_OPA_DISP++, true);
-                gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(sRupeeTextures[effect->colorIdx]));
+                gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(OoT_sRupeeTextures[effect->colorIdx]));
                 gSPDisplayList(POLY_OPA_DISP++, gRupeeDL);
                 gSPGrayscale(POLY_OPA_DISP++, false);
             } else {
-                gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(sRupeeTextures[effect->colorIdx]));
+                gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(OoT_sRupeeTextures[effect->colorIdx]));
                 gSPDisplayList(POLY_OPA_DISP++, gRupeeDL);
             }
             FrameInterpolation_RecordCloseChild();

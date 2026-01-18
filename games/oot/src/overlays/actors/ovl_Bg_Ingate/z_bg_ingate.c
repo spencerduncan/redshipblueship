@@ -40,18 +40,18 @@ void BgInGate_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     CollisionHeader* colHeader = NULL;
 
-    DynaPolyActor_Init(&this->dyna, DPM_UNK);
-    CollisionHeader_GetVirtual(&gIngoGateCol, &colHeader);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
+    OoT_CollisionHeader_GetVirtual(&gIngoGateCol, &colHeader);
 
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
 
     if ((play->sceneNum != SCENE_LON_LON_RANCH || !LINK_IS_ADULT) ||
-        (((Flags_GetEventChkInf(EVENTCHKINF_EPONA_OBTAINED))) && (gSaveContext.cutsceneIndex != 0xFFF0))) {
-        Actor_Kill(&this->dyna.actor);
+        (((OoT_Flags_GetEventChkInf(EVENTCHKINF_EPONA_OBTAINED))) && (gSaveContext.cutsceneIndex != 0xFFF0))) {
+        OoT_Actor_Kill(&this->dyna.actor);
         return;
     }
 
-    Actor_SetScale(&this->dyna.actor, 0.1f);
+    OoT_Actor_SetScale(&this->dyna.actor, 0.1f);
     if (((this->dyna.actor.params & 1) != 0) && ((gSaveContext.eventInf[0] & 0xF) == 6)) {
         play->csCtx.frames = 0;
         BgInGate_SetupAction(this, func_80892890);
@@ -63,7 +63,7 @@ void BgInGate_Init(Actor* thisx, PlayState* play) {
 void BgInGate_Destroy(Actor* thisx, PlayState* play) {
     BgInGate* this = (BgInGate*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_80892890(BgInGate* this, PlayState* play) {
@@ -85,7 +85,7 @@ void func_80892890(BgInGate* this, PlayState* play) {
         if (csFrames > 0x4000) {
             csFrames = 0x4000;
         }
-        csFrames = (Math_SinS(csFrames) * 16384.0f);
+        csFrames = (OoT_Math_SinS(csFrames) * 16384.0f);
         phi1 = csFrames;
         if ((this->dyna.actor.params & 2) == 0) {
             phi1 = -phi1;

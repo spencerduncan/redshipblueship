@@ -13,7 +13,7 @@
  *     frameAdvCtx->enabled = !frameAdvCtx->enabled;
  * }
  *
- * to the start of FrameAdvance_Update, which would allow the system to be toggled on and off by holding R
+ * to the start of MM_FrameAdvance_Update, which would allow the system to be toggled on and off by holding R
  * and pressing Dpad Down on the specified controller.
  *
  * Note2: Controllers 2-4's inputs are normally zeroed out, so this would also need to be fixed to use frame advance
@@ -25,7 +25,7 @@
 #include "padutils.h"
 #include <libultraship/bridge/consolevariablebridge.h>
 
-void FrameAdvance_Init(FrameAdvanceContext* frameAdvCtx) {
+void MM_FrameAdvance_Init(FrameAdvanceContext* frameAdvCtx) {
     frameAdvCtx->timer = 0;
     frameAdvCtx->enabled = false;
 }
@@ -33,7 +33,7 @@ void FrameAdvance_Init(FrameAdvanceContext* frameAdvCtx) {
 /*
  * Returns true when frame advance is not active (game will run normally)
  */
-s32 FrameAdvance_Update(FrameAdvanceContext* frameAdvCtx, Input* input) {
+s32 MM_FrameAdvance_Update(FrameAdvanceContext* frameAdvCtx, Input* input) {
     if (CVarGetInteger("gDeveloperTools.DebugEnabled", 0)) {
         if (CHECK_BTN_ALL(input->cur.button, BTN_R) && CHECK_BTN_ALL(input->press.button, BTN_DDOWN)) {
             frameAdvCtx->enabled = !frameAdvCtx->enabled;

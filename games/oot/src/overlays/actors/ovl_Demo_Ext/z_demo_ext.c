@@ -46,7 +46,7 @@ void DemoExt_Init(Actor* thisx, PlayState* play) {
 void DemoExt_PlayVortexSFX(DemoExt* this) {
     if (this->alphaTimer <= (kREG(35) + 40.0f) - 15.0f) {
         Audio_PlaySoundGeneral(NA_SE_EV_FANTOM_WARP_L - SFX_FLAG, &this->actor.projectedPos, 4,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     }
 }
 
@@ -83,7 +83,7 @@ void DemoExt_SetupDispellVortex(DemoExt* this) {
 void DemoExt_FinishClosing(DemoExt* this) {
     this->alphaTimer += 1.0f;
     if ((kREG(35) + 40.0f) <= this->alphaTimer) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
@@ -161,7 +161,7 @@ void DemoExt_DispellVortex(DemoExt* this, PlayState* play) {
     DemoExt_FinishClosing(this);
 }
 
-static DemoExtActionFunc sActionFuncs[] = {
+static DemoExtActionFunc OoT_sActionFuncs[] = {
     DemoExt_Wait,
     DemoExt_MaintainVortex,
     DemoExt_DispellVortex,
@@ -170,11 +170,11 @@ static DemoExtActionFunc sActionFuncs[] = {
 void DemoExt_Update(Actor* thisx, PlayState* play) {
     DemoExt* this = (DemoExt*)thisx;
 
-    if ((this->action < EXT_WAIT) || (this->action > EXT_DISPELL) || sActionFuncs[this->action] == NULL) {
+    if ((this->action < EXT_WAIT) || (this->action > EXT_DISPELL) || OoT_sActionFuncs[this->action] == NULL) {
         // "Main mode is abnormal!"
         osSyncPrintf(VT_FGCOL(RED) "メインモードがおかしい!!!!!!!!!!!!!!!!!!!!!!!!!\n" VT_RST);
     } else {
-        sActionFuncs[this->action](this, play);
+        OoT_sActionFuncs[this->action](this, play);
     }
 }
 
@@ -193,12 +193,12 @@ void DemoExt_DrawVortex(Actor* thisx, PlayState* play) {
     mtx = Graph_Alloc(gfxCtx, sizeof(Mtx));
 
     OPEN_DISPS(gfxCtx);
-    Matrix_Push();
-    Matrix_Scale(scale->x, scale->y, scale->z, MTXMODE_APPLY);
-    Matrix_RotateZYX((s16)(kREG(16) + 0x4000), this->rotationPitch, kREG(18), MTXMODE_APPLY);
-    Matrix_Translate(kREG(22), kREG(23), kREG(24), MTXMODE_APPLY);
+    OoT_Matrix_Push();
+    OoT_Matrix_Scale(scale->x, scale->y, scale->z, MTXMODE_APPLY);
+    OoT_Matrix_RotateZYX((s16)(kREG(16) + 0x4000), this->rotationPitch, kREG(18), MTXMODE_APPLY);
+    OoT_Matrix_Translate(kREG(22), kREG(23), kREG(24), MTXMODE_APPLY);
     MATRIX_TOMTX(mtx);
-    Matrix_Pop();
+    OoT_Matrix_Pop();
     Gfx_SetupDL_25Xlu(gfxCtx);
 
     gDPSetPrimColor(POLY_XLU_DISP++, 0, kREG(33) + 128, kREG(25) + 140, kREG(26) + 80, kREG(27) + 140, this->primAlpha);
@@ -207,7 +207,7 @@ void DemoExt_DrawVortex(Actor* thisx, PlayState* play) {
     curScroll = this->curScroll;
     gSPSegment(
         POLY_XLU_DISP++, 0x08,
-        Gfx_TwoTexScroll(gfxCtx, 0, curScroll[0], curScroll[1], 0x40, 0x40, 1, curScroll[2], curScroll[3], 0x40, 0x40));
+        OoT_Gfx_TwoTexScroll(gfxCtx, 0, curScroll[0], curScroll[1], 0x40, 0x40, 1, curScroll[2], curScroll[3], 0x40, 0x40));
 
     gSPMatrix(POLY_XLU_DISP++, mtx, G_MTX_PUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_XLU_DISP++, gPhantomWarpDL);
@@ -216,7 +216,7 @@ void DemoExt_DrawVortex(Actor* thisx, PlayState* play) {
     CLOSE_DISPS(gfxCtx);
 }
 
-static DemoExtDrawFunc sDrawFuncs[] = {
+static DemoExtDrawFunc OoT_sDrawFuncs[] = {
     DemoExt_DrawNothing,
     DemoExt_DrawVortex,
 };
@@ -225,11 +225,11 @@ void DemoExt_Draw(Actor* thisx, PlayState* play) {
     DemoExt* this = (DemoExt*)thisx;
 
     if ((this->drawMode < EXT_DRAW_NOTHING) || (this->drawMode > EXT_DRAW_VORTEX) ||
-        sDrawFuncs[this->drawMode] == NULL) {
+        OoT_sDrawFuncs[this->drawMode] == NULL) {
         // "Draw mode is abnormal!"
         osSyncPrintf(VT_FGCOL(RED) "描画モードがおかしい!!!!!!!!!!!!!!!!!!!!!!!!!\n" VT_RST);
     } else {
-        sDrawFuncs[this->drawMode](thisx, play);
+        OoT_sDrawFuncs[this->drawMode](thisx, play);
     }
 }
 

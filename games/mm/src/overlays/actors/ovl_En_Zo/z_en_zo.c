@@ -8,13 +8,13 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void EnZo_Init(Actor* thisx, PlayState* play);
-void EnZo_Destroy(Actor* thisx, PlayState* play);
-void EnZo_Update(Actor* thisx, PlayState* play);
-void EnZo_Draw(Actor* thisx, PlayState* play);
+void MM_EnZo_Init(Actor* thisx, PlayState* play);
+void MM_EnZo_Destroy(Actor* thisx, PlayState* play);
+void MM_EnZo_Update(Actor* thisx, PlayState* play);
+void MM_EnZo_Draw(Actor* thisx, PlayState* play);
 
 void EnZo_FollowPath(EnZo* this, PlayState* play);
-void EnZo_TreadWater(EnZo* this, PlayState* play);
+void MM_EnZo_TreadWater(EnZo* this, PlayState* play);
 void EnZo_DoNothing(EnZo* this, PlayState* play);
 
 ActorProfile En_Zo_Profile = {
@@ -23,13 +23,13 @@ ActorProfile En_Zo_Profile = {
     /**/ FLAGS,
     /**/ OBJECT_ZO,
     /**/ sizeof(EnZo),
-    /**/ EnZo_Init,
-    /**/ EnZo_Destroy,
-    /**/ EnZo_Update,
-    /**/ EnZo_Draw,
+    /**/ MM_EnZo_Init,
+    /**/ MM_EnZo_Destroy,
+    /**/ MM_EnZo_Update,
+    /**/ MM_EnZo_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HIT0,
         AT_NONE,
@@ -49,9 +49,9 @@ static ColliderCylinderInit sCylinderInit = {
     { 18, 64, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 MM_sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(0, 0),
     /* Deku Stick     */ DMG_ENTRY(0, 0),
     /* Horse trample  */ DMG_ENTRY(0, 0),
@@ -98,7 +98,7 @@ typedef enum EnZoAnimation {
     /*  7 */ ENZO_ANIM_MAX
 } EnZoAnimation;
 
-static AnimationInfoS sAnimationInfo[ENZO_ANIM_MAX] = {
+static AnimationInfoS MM_sAnimationInfo[ENZO_ANIM_MAX] = {
     { &gZoraIdleAnim, 1.0f, 0, -1, ANIMMODE_LOOP, 0 },                    // ENZO_ANIM_IDLE
     { &gZoraIdleAnim, 1.0f, 0, -1, ANIMMODE_LOOP, -4 },                   // ENZO_ANIM_MORPH
     { &gZoraSurfacingAnim, 1.0f, 0, -1, ANIMMODE_LOOP, -4 },              // ENZO_ANIM_SURFACING
@@ -173,13 +173,13 @@ s32 EnZo_ChangeAnim(SkelAnime* skelAnime, s16 animIndex) {
 
     if ((animIndex > ENZO_ANIM_NONE) && (animIndex < ENZO_ANIM_MAX)) {
         didChange = true;
-        endFrame = sAnimationInfo[animIndex].frameCount;
+        endFrame = MM_sAnimationInfo[animIndex].frameCount;
         if (endFrame < 0) {
-            endFrame = Animation_GetLastFrame(sAnimationInfo[animIndex].animation);
+            endFrame = MM_Animation_GetLastFrame(MM_sAnimationInfo[animIndex].animation);
         }
-        Animation_Change(skelAnime, sAnimationInfo[animIndex].animation, sAnimationInfo[animIndex].playSpeed,
-                         sAnimationInfo[animIndex].startFrame, endFrame, sAnimationInfo[animIndex].mode,
-                         sAnimationInfo[animIndex].morphFrames);
+        MM_Animation_Change(skelAnime, MM_sAnimationInfo[animIndex].animation, MM_sAnimationInfo[animIndex].playSpeed,
+                         MM_sAnimationInfo[animIndex].startFrame, endFrame, MM_sAnimationInfo[animIndex].mode,
+                         MM_sAnimationInfo[animIndex].morphFrames);
     }
     return didChange;
 }
@@ -219,12 +219,12 @@ s32 EnZo_PlayWalkingSound(EnZo* this, PlayState* play) {
     return 0;
 }
 
-void EnZo_Blink(EnZo* this, s32 maxEyeIndex) {
+void MM_EnZo_Blink(EnZo* this, s32 maxEyeIndex) {
     if (DECR(this->blinkTimer) == 0) {
         this->eyeIndex++;
         if (this->eyeIndex >= maxEyeIndex) {
             this->eyeIndex = 0;
-            this->blinkTimer = Rand_S16Offset(30, 30);
+            this->blinkTimer = MM_Rand_S16Offset(30, 30);
         }
     }
 }
@@ -234,8 +234,8 @@ void EnZo_UpdateCollider(EnZo* this, PlayState* play) {
     this->collider.dim.pos.y = this->actor.world.pos.y;
     this->collider.dim.pos.z = this->actor.world.pos.z;
 
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 static TrackOptionsSet sTrackOptions = {
@@ -249,7 +249,7 @@ void EnZo_LookAtPlayer(EnZo* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
     Vec3f point;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     if (SubS_AngleDiffLessEqual(this->actor.shape.rot.y, 0x2710, this->actor.yawTowardsPlayer)) {
         point.x = player->actor.world.pos.x;
         point.y = player->bodyPartsPos[PLAYER_BODYPART_HEAD].y + 3.0f;
@@ -257,17 +257,17 @@ void EnZo_LookAtPlayer(EnZo* this, PlayState* play) {
         SubS_TrackPoint(&point, &this->actor.focus.pos, &this->actor.shape.rot, &this->trackTarget, &this->headRot,
                         &this->upperBodyRot, &sTrackOptions);
     } else {
-        Math_SmoothStepToS(&this->trackTarget.x, 0, 4, 0x3E8, 1);
-        Math_SmoothStepToS(&this->trackTarget.y, 0, 4, 0x3E8, 1);
+        MM_Math_SmoothStepToS(&this->trackTarget.x, 0, 4, 0x3E8, 1);
+        MM_Math_SmoothStepToS(&this->trackTarget.y, 0, 4, 0x3E8, 1);
 
-        Math_SmoothStepToS(&this->headRot.x, 0, 4, 0x3E8, 1);
-        Math_SmoothStepToS(&this->headRot.y, 0, 4, 0x3E8, 1);
+        MM_Math_SmoothStepToS(&this->headRot.x, 0, 4, 0x3E8, 1);
+        MM_Math_SmoothStepToS(&this->headRot.y, 0, 4, 0x3E8, 1);
 
-        Math_SmoothStepToS(&this->upperBodyRot.x, 0, 4, 0x3E8, 1);
-        Math_SmoothStepToS(&this->upperBodyRot.y, 0, 4, 0x3E8, 1);
+        MM_Math_SmoothStepToS(&this->upperBodyRot.x, 0, 4, 0x3E8, 1);
+        MM_Math_SmoothStepToS(&this->upperBodyRot.y, 0, 4, 0x3E8, 1);
     }
 
-    EnZo_Blink(this, 3);
+    MM_EnZo_Blink(this, 3);
     SubS_UpdateFidgetTables(play, this->fidgetTableY, this->fidgetTableZ, ZORA_LIMB_MAX);
 }
 
@@ -287,7 +287,7 @@ void EnZo_FollowPath(EnZo* this, PlayState* play) {
     s16 speed;
     Vec3f pos;
 
-    Math_SmoothStepToF(&this->actor.speed, 1.0f, 0.4f, 1000.0f, 0.0f);
+    MM_Math_SmoothStepToF(&this->actor.speed, 1.0f, 0.4f, 1000.0f, 0.0f);
     speed = this->actor.speed * 400.0f;
     if (SubS_CopyPointFromPath(this->path, this->waypoint, &pos) && SubS_MoveActorToPoint(&this->actor, &pos, speed)) {
         this->waypoint++;
@@ -298,13 +298,13 @@ void EnZo_FollowPath(EnZo* this, PlayState* play) {
 
     if (this->actor.depthInWater > 60.0f) {
         EnZo_ChangeAnim(&this->skelAnime, ENZO_ANIM_MORPH);
-        this->actionFunc = EnZo_TreadWater;
+        this->actionFunc = MM_EnZo_TreadWater;
         this->actor.gravity = 0.0f;
         this->actor.speed = 0.0f;
     }
 }
 
-void EnZo_TreadWater(EnZo* this, PlayState* play) {
+void MM_EnZo_TreadWater(EnZo* this, PlayState* play) {
     f32 targetYVel;
 
     if (this->actor.depthInWater < (sREG(0) + 50.0f)) {
@@ -312,56 +312,56 @@ void EnZo_TreadWater(EnZo* this, PlayState* play) {
     } else {
         targetYVel = 1.0f;
     }
-    Math_ApproachF(&this->actor.velocity.y, targetYVel, (sREG(1) + 18.0f) * 0.01f, (sREG(2) + 12.0f) * 0.01f);
+    MM_Math_ApproachF(&this->actor.velocity.y, targetYVel, (sREG(1) + 18.0f) * 0.01f, (sREG(2) + 12.0f) * 0.01f);
 }
 
 void EnZo_DoNothing(EnZo* this, PlayState* play) {
 }
 
-void EnZo_Init(Actor* thisx, PlayState* play) {
+void MM_EnZo_Init(Actor* thisx, PlayState* play) {
     EnZo* this = (EnZo*)thisx;
     s32 pad;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gZoraSkel, NULL, this->jointTable, this->morphTable, ZORA_LIMB_MAX);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gZoraSkel, NULL, this->jointTable, this->morphTable, ZORA_LIMB_MAX);
     EnZo_ChangeAnim(&this->skelAnime, ENZO_ANIM_IDLE);
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, &sDamageTable, &sColChkInfoInit);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, &MM_sDamageTable, &MM_sColChkInfoInit);
 
     this->path = SubS_GetPathByIndex(play, ENZO_GET_PATH_INDEX(&this->actor), ENZO_PATH_INDEX_NONE);
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
 
     this->actionFunc = EnZo_Walk;
     this->actor.gravity = -4.0f;
 }
 
-void EnZo_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnZo_Destroy(Actor* thisx, PlayState* play) {
     EnZo* this = (EnZo*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
-void EnZo_Update(Actor* thisx, PlayState* play) {
+void MM_EnZo_Update(Actor* thisx, PlayState* play) {
     EnZo* this = (EnZo*)thisx;
 
     this->actionFunc(this, play);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
     EnZo_LookAtPlayer(this, play);
     EnZo_PlayWalkingSound(this, play);
     EnZo_UpdateCollider(this, play);
 }
 
-s32 EnZo_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx,
+s32 MM_EnZo_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx,
                           Gfx** gfx) {
     EnZo* this = (EnZo*)thisx;
 
     if (limbIndex == ZORA_LIMB_HEAD) {
-        Matrix_Translate(1500.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+        MM_Matrix_Translate(1500.0f, 0.0f, 0.0f, MTXMODE_APPLY);
         Matrix_RotateXS(this->headRot.y, MTXMODE_APPLY);
         Matrix_RotateZS(-this->headRot.x, MTXMODE_APPLY);
-        Matrix_Translate(-1500.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+        MM_Matrix_Translate(-1500.0f, 0.0f, 0.0f, MTXMODE_APPLY);
     }
 
     if (limbIndex == ZORA_LIMB_TORSO) {
@@ -371,31 +371,31 @@ s32 EnZo_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* po
 
     if ((limbIndex == ZORA_LIMB_TORSO) || (limbIndex == ZORA_LIMB_LEFT_UPPER_ARM) ||
         (limbIndex == ZORA_LIMB_RIGHT_UPPER_ARM)) {
-        rot->y += TRUNCF_BINANG(Math_SinS(this->fidgetTableY[limbIndex]) * 200.0f);
-        rot->z += TRUNCF_BINANG(Math_CosS(this->fidgetTableZ[limbIndex]) * 200.0f);
+        rot->y += TRUNCF_BINANG(MM_Math_SinS(this->fidgetTableY[limbIndex]) * 200.0f);
+        rot->z += TRUNCF_BINANG(MM_Math_CosS(this->fidgetTableZ[limbIndex]) * 200.0f);
     }
     return false;
 }
 
-void EnZo_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* thisx, Gfx** gfx) {
+void MM_EnZo_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* thisx, Gfx** gfx) {
     EnZo* this = (EnZo*)thisx;
     Vec3f sp30 = { 400.0f, 0.0f, 0.0f };
     Vec3f zeroVec = { 0.0f, 0.0f, 0.0f };
 
     if (sLimbToBodyParts[limbIndex] > BODYPART_NONE) {
-        Matrix_MultVec3f(&zeroVec, &this->bodyPartsPos[sLimbToBodyParts[limbIndex]]);
+        MM_Matrix_MultVec3f(&zeroVec, &this->bodyPartsPos[sLimbToBodyParts[limbIndex]]);
     }
 
     if (limbIndex == ZORA_LIMB_HEAD) {
-        Matrix_MultVec3f(&sp30, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&sp30, &this->actor.focus.pos);
     }
 
     if (limbIndex == ZORA_LIMB_LEFT_FOOT) {
-        Matrix_MultVec3f(&zeroVec, &this->leftFootPos);
+        MM_Matrix_MultVec3f(&zeroVec, &this->leftFootPos);
     }
 
     if (limbIndex == ZORA_LIMB_RIGHT_FOOT) {
-        Matrix_MultVec3f(&zeroVec, &this->rightFootPos);
+        MM_Matrix_MultVec3f(&zeroVec, &this->rightFootPos);
     }
 }
 
@@ -408,7 +408,7 @@ static Gfx sTransparencyDlist[] = {
     gsSPEndDisplayList(),
 };
 
-void EnZo_Draw(Actor* thisx, PlayState* play) {
+void MM_EnZo_Draw(Actor* thisx, PlayState* play) {
     EnZo* this = (EnZo*)thisx;
     s32 i;
     u8* shadowTex = GRAPH_ALLOC(play->state.gfxCtx, SUBS_SHADOW_TEX_SIZE);
@@ -426,8 +426,8 @@ void EnZo_Draw(Actor* thisx, PlayState* play) {
     gSPSegment(POLY_OPA_DISP++, 0x0C, &sTransparencyDlist[2]);
 
     POLY_OPA_DISP =
-        SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
-                           EnZo_OverrideLimbDraw, EnZo_PostLimbDraw, &this->actor, POLY_OPA_DISP);
+        MM_SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+                           MM_EnZo_OverrideLimbDraw, MM_EnZo_PostLimbDraw, &this->actor, POLY_OPA_DISP);
     Matrix_RotateXS(0, MTXMODE_NEW);
 
     for (i = 0, shadowTexIter = shadowTex; i < SUBS_SHADOW_TEX_SIZE; i++) {

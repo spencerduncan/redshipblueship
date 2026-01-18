@@ -81,7 +81,7 @@ SpiralSceneInfo sSpiralSceneInfoTable[] = {
     { SCENE_DANPEI2TEST, 5 }, { SCENE_IKNINSIDE, 6 }, { SCENE_CASTLE, 6 },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F(scale, 1, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 400, ICHAIN_CONTINUE),
@@ -132,21 +132,21 @@ void DoorSpiral_Init(Actor* thisx, PlayState* play) {
     s8 objectSlot;
 
     if (this->actor.room != play->transitionActors.list[transitionId].sides[0].room) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
     this->type = DOORSPIRAL_GET_TYPE(thisx);
     this->direction = DOORSPIRAL_GET_DIRECTION(thisx);
     this->unk147 = func_809A2BF8(play);
     objectSlot = Object_GetSlot(&play->objectCtx, sSpiralObjectInfoTable[this->unk147].objectId);
     this->objectSlot = objectSlot;
     if (objectSlot <= OBJECT_SLOT_NONE) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
     DoorSpiral_SetupAction(this, func_809A2DB0);
-    Actor_SetFocus(&this->actor, 60.0f);
+    MM_Actor_SetFocus(&this->actor, 60.0f);
 }
 
 void DoorSpiral_Destroy(Actor* thisx, PlayState* play) {
@@ -156,7 +156,7 @@ void DoorSpiral_Destroy(Actor* thisx, PlayState* play) {
 }
 
 void func_809A2DB0(DoorSpiral* this, PlayState* play) {
-    if (Object_IsLoaded(&play->objectCtx, this->objectSlot)) {
+    if (MM_Object_IsLoaded(&play->objectCtx, this->objectSlot)) {
         this->actor.objectSlot = this->objectSlot;
         func_809A2B70(this, play);
     }
@@ -171,7 +171,7 @@ f32 func_809A2E08(PlayState* play, DoorSpiral* this, f32 arg2, f32 arg3, f32 arg
     point.y = player->actor.world.pos.y + arg2;
     point.z = player->actor.world.pos.z;
 
-    Actor_WorldToActorCoords(&this->actor, &offset, &point);
+    MM_Actor_WorldToActorCoords(&this->actor, &offset, &point);
 
     if ((arg3 < fabsf(offset.x)) || (arg4 < fabsf(offset.y))) {
         return FLT_MAX;
@@ -183,7 +183,7 @@ f32 func_809A2E08(PlayState* play, DoorSpiral* this, f32 arg2, f32 arg3, f32 arg
 s32 func_809A2EA0(DoorSpiral* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    if (!Player_InCsMode(play)) {
+    if (!MM_Player_InCsMode(play)) {
         SpiralInfo* spiralInfo = &sSpiralInfoTable[this->unk148];
         f32 temp_fv0 = func_809A2E08(play, this, 0.0f, spiralInfo->unk_0B, spiralInfo->unk_0C);
 

@@ -1,7 +1,7 @@
 #include "ultra64.h"
 #include "libc/math.h"
 
-void guRotateF(float m[4][4], float a, float x, float y, float z) {
+void MM_guRotateF(float m[4][4], float a, float x, float y, float z) {
     static float dtor = M_PIF / 180.0f;
     float sine;
     float cosine;
@@ -44,8 +44,8 @@ void guRotateF(float m[4][4], float a, float x, float y, float z) {
     m[0][1] = ab + zs;
 }
 
-void guRotate(Mtx* m, float a, float x, float y, float z) {
+void MM_guRotate(Mtx* m, float a, float x, float y, float z) {
     float mf[4][4];
-    guRotateF(mf, a, x, y, z);
+    MM_guRotateF(mf, a, x, y, z);
     guMtxF2L(mf, m);
 }

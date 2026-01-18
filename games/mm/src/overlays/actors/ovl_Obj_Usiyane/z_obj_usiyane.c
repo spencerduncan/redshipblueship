@@ -33,7 +33,7 @@ PosRot D_80C08660[] = {
     { { -470.0f, -850.0f, 2000.0f }, { 0, 0, -0x2710 } },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeScale, 1200, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 3000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 900, ICHAIN_STOP),
@@ -79,7 +79,7 @@ s32 func_80C07CD0(void) {
 
 void func_80C07DC4(ObjUsiyane* this, PlayState* play) {
     if (func_80C07CD0()) {
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
     }
 }
 
@@ -111,7 +111,7 @@ void func_80C07F30(ObjUsiyane* this, PlayState* play) {
             }
             func_800B12F0(play, &this->unk_168[j][i].unk_00, &gZeroVec3f, &gZeroVec3f, 100, 30, 7);
 
-            this->unk_168[j][i].unk_18.y = (s32)Rand_Next() >> 0x10;
+            this->unk_168[j][i].unk_18.y = (s32)MM_Rand_Next() >> 0x10;
 
             sp94.x = this->unk_168[j][i].unk_00.x - this->unk_708;
             sp94.y = 0.0f;
@@ -124,9 +124,9 @@ void func_80C07F30(ObjUsiyane* this, PlayState* play) {
 
             this->unk_168[j][i].unk_0C = sp94;
 
-            this->unk_168[j][i].unk_1E.x = Rand_Centered() * 4000.0f;
-            this->unk_168[j][i].unk_1E.y = Rand_Centered() * 4000.0f;
-            this->unk_168[j][i].unk_1E.z = Rand_Centered() * 4000.0f;
+            this->unk_168[j][i].unk_1E.x = MM_Rand_Centered() * 4000.0f;
+            this->unk_168[j][i].unk_1E.y = MM_Rand_Centered() * 4000.0f;
+            this->unk_168[j][i].unk_1E.z = MM_Rand_Centered() * 4000.0f;
         }
     }
 
@@ -157,7 +157,7 @@ void func_80C081C8(ObjUsiyane* this, PlayState* play) {
         }
 
     } else if (this->unk_740 >= 70) {
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
     }
     this->unk_740++;
 }
@@ -185,12 +185,12 @@ void func_80C082E0(ObjUsiyane* this, PlayState* play) {
 void ObjUsiyane_Init(Actor* thisx, PlayState* play) {
     ObjUsiyane* this = (ObjUsiyane*)thisx;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    Actor_SetScale(&this->dyna.actor, 0.1f);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
+    MM_Actor_SetScale(&this->dyna.actor, 0.1f);
 
     this->unk_744 = 0;
 
-    DynaPolyActor_Init(&this->dyna, 0);
+    MM_DynaPolyActor_Init(&this->dyna, 0);
     DynaPolyActor_LoadMesh(play, &this->dyna, &object_obj_usiyane_Colheader_0022AC);
 
     switch (OBJUSIYANE_GET_F(&this->dyna.actor)) {
@@ -204,7 +204,7 @@ void ObjUsiyane_Init(Actor* thisx, PlayState* play) {
             break;
 
         default:
-            Actor_Kill(&this->dyna.actor);
+            MM_Actor_Kill(&this->dyna.actor);
             break;
     }
 }
@@ -212,7 +212,7 @@ void ObjUsiyane_Init(Actor* thisx, PlayState* play) {
 void ObjUsiyane_Destroy(Actor* thisx, PlayState* play) {
     ObjUsiyane* this = (ObjUsiyane*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void ObjUsiyane_Update(Actor* thisx, PlayState* play) {
@@ -226,7 +226,7 @@ void ObjUsiyane_Draw(Actor* thisx, PlayState* play) {
     MtxF mf;
 
     if (!(this->unk_744 & 1)) {
-        Gfx_DrawDListOpa(play, object_obj_usiyane_DL_000838);
+        MM_Gfx_DrawDListOpa(play, object_obj_usiyane_DL_000838);
     }
 
     if (!(this->unk_744 & 2)) {
@@ -235,8 +235,8 @@ void ObjUsiyane_Draw(Actor* thisx, PlayState* play) {
         for (i = 0; i < ARRAY_COUNT(D_80C08660); i++) {
             Vec3f sp74;
 
-            Matrix_MultVec3f(&D_80C08660[i].pos, &this->unk_710[i]);
-            Matrix_MultVec3f(&gZeroVec3f, &sp74);
+            MM_Matrix_MultVec3f(&D_80C08660[i].pos, &this->unk_710[i]);
+            MM_Matrix_MultVec3f(&gZeroVec3f, &sp74);
             this->unk_708 = sp74.x;
             this->unk_70C = sp74.z;
         }
@@ -249,14 +249,14 @@ void ObjUsiyane_Draw(Actor* thisx, PlayState* play) {
 
         for (i = 0; i < ARRAY_COUNT(this->unk_168[0]); i++) {
             for (j = 0; j < ARRAY_COUNT(this->unk_168); j++) {
-                Matrix_Push();
+                MM_Matrix_Push();
                 SkinMatrix_SetScaleRotateRPYTranslate(&mf, 0.1f, 0.1f, 0.1f, this->unk_168[j][i].unk_18.x,
                                                       this->unk_168[j][i].unk_18.y, this->unk_168[j][i].unk_18.z,
                                                       this->unk_168[j][i].unk_00.x, this->unk_168[j][i].unk_00.y,
                                                       this->unk_168[j][i].unk_00.z);
-                Matrix_Put(&mf);
-                Gfx_DrawDListOpa(play, object_obj_usiyane_DL_000098);
-                Matrix_Pop();
+                MM_Matrix_Put(&mf);
+                MM_Gfx_DrawDListOpa(play, object_obj_usiyane_DL_000098);
+                MM_Matrix_Pop();
             }
         }
     }

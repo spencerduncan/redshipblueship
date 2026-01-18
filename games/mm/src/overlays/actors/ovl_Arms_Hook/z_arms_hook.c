@@ -11,13 +11,13 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED)
 
-void ArmsHook_Init(Actor* thisx, PlayState* play);
-void ArmsHook_Destroy(Actor* thisx, PlayState* play);
-void ArmsHook_Update(Actor* thisx, PlayState* play);
-void ArmsHook_Draw(Actor* thisx, PlayState* play);
+void MM_ArmsHook_Init(Actor* thisx, PlayState* play);
+void MM_ArmsHook_Destroy(Actor* thisx, PlayState* play);
+void MM_ArmsHook_Update(Actor* thisx, PlayState* play);
+void MM_ArmsHook_Draw(Actor* thisx, PlayState* play);
 
-void ArmsHook_Wait(ArmsHook* this, PlayState* play);
-void ArmsHook_Shoot(ArmsHook* this, PlayState* play);
+void MM_ArmsHook_Wait(ArmsHook* this, PlayState* play);
+void MM_ArmsHook_Shoot(ArmsHook* this, PlayState* play);
 
 ActorProfile Arms_Hook_Profile = {
     /**/ ACTOR_ARMS_HOOK,
@@ -25,10 +25,10 @@ ActorProfile Arms_Hook_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(ArmsHook),
-    /**/ ArmsHook_Init,
-    /**/ ArmsHook_Destroy,
-    /**/ ArmsHook_Update,
-    /**/ ArmsHook_Draw,
+    /**/ MM_ArmsHook_Init,
+    /**/ MM_ArmsHook_Destroy,
+    /**/ MM_ArmsHook_Update,
+    /**/ MM_ArmsHook_Draw,
 };
 
 static ColliderQuadInit D_808C1BC0 = {
@@ -51,31 +51,31 @@ static ColliderQuadInit D_808C1BC0 = {
     { { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f } } },
 };
 
-void ArmsHook_SetupAction(ArmsHook* this, ArmsHookActionFunc actionFunc) {
+void MM_ArmsHook_SetupAction(ArmsHook* this, ArmsHookActionFunc actionFunc) {
     this->actionFunc = actionFunc;
 }
 
-void ArmsHook_Init(Actor* thisx, PlayState* play) {
+void MM_ArmsHook_Init(Actor* thisx, PlayState* play) {
     ArmsHook* this = (ArmsHook*)thisx;
 
-    Collider_InitQuad(play, &this->collider);
-    Collider_SetQuad(play, &this->collider, &this->actor, &D_808C1BC0);
-    ArmsHook_SetupAction(this, ArmsHook_Wait);
+    MM_Collider_InitQuad(play, &this->collider);
+    MM_Collider_SetQuad(play, &this->collider, &this->actor, &D_808C1BC0);
+    MM_ArmsHook_SetupAction(this, MM_ArmsHook_Wait);
     this->unk1E0 = this->actor.world.pos;
 }
 
-void ArmsHook_Destroy(Actor* thisx, PlayState* play) {
+void MM_ArmsHook_Destroy(Actor* thisx, PlayState* play) {
     ArmsHook* this = (ArmsHook*)thisx;
 
     if (this->attachedActor != NULL) {
         this->attachedActor->flags &= ~ACTOR_FLAG_HOOKSHOT_ATTACHED;
     }
-    Collider_DestroyQuad(play, &this->collider);
+    MM_Collider_DestroyQuad(play, &this->collider);
 }
 
-void ArmsHook_Wait(ArmsHook* this, PlayState* play) {
+void MM_ArmsHook_Wait(ArmsHook* this, PlayState* play) {
     if (this->actor.parent == NULL) {
-        ArmsHook_SetupAction(this, ArmsHook_Shoot);
+        MM_ArmsHook_SetupAction(this, MM_ArmsHook_Shoot);
         Actor_SetSpeeds(&this->actor, 20.0f);
         this->actor.parent = &GET_PLAYER(play)->actor;
         this->timer = 26;
@@ -85,14 +85,14 @@ void ArmsHook_Wait(ArmsHook* this, PlayState* play) {
 /**
  * Start pulling Player so he flies toward the hookshot's current location.
  * Setting Player's parent pointer indicates that he should begin flying.
- * See `Player_UpdateUpperBody` and `Player_Action_HookshotFly` for Player's side of the interation.
+ * See `MM_Player_UpdateUpperBody` and `Player_Action_HookshotFly` for Player's side of the interation.
  */
 void ArmsHook_PullPlayer(ArmsHook* this) {
     this->actor.child = this->actor.parent;
     this->actor.parent->parent = &this->actor;
 }
 
-s32 ArmsHook_AttachToPlayer(ArmsHook* this, Player* player) {
+s32 MM_ArmsHook_AttachToPlayer(ArmsHook* this, Player* player) {
     player->actor.child = &this->actor;
     player->heldActor = &this->actor;
     if (this->actor.child != NULL) {
@@ -109,7 +109,7 @@ void ArmsHook_DetachFromActor(ArmsHook* this) {
     }
 }
 
-s32 ArmsHook_CheckForCancel(ArmsHook* this) {
+s32 MM_ArmsHook_CheckForCancel(ArmsHook* this) {
     Player* player = (Player*)this->actor.parent;
 
     if (Player_IsHoldingHookshot(player)) {
@@ -117,7 +117,7 @@ s32 ArmsHook_CheckForCancel(ArmsHook* this) {
             (player->stateFlags1 & (PLAYER_STATE1_DEAD | PLAYER_STATE1_4000000))) {
             this->timer = 0;
             ArmsHook_DetachFromActor(this);
-            Math_Vec3f_Copy(&this->actor.world.pos, &player->rightHandWorld.pos);
+            MM_Math_Vec3f_Copy(&this->actor.world.pos, &player->rightHandWorld.pos);
             return 1;
         }
     }
@@ -127,20 +127,20 @@ s32 ArmsHook_CheckForCancel(ArmsHook* this) {
 void ArmsHook_AttachToActor(ArmsHook* this, Actor* actor) {
     actor->flags |= ACTOR_FLAG_HOOKSHOT_ATTACHED;
     this->attachedActor = actor;
-    Math_Vec3f_Diff(&actor->world.pos, &this->actor.world.pos, &this->attachPointOffset);
+    MM_Math_Vec3f_Diff(&actor->world.pos, &this->actor.world.pos, &this->attachPointOffset);
 }
 
-void ArmsHook_Shoot(ArmsHook* this, PlayState* play) {
+void MM_ArmsHook_Shoot(ArmsHook* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
     if ((this->actor.parent == NULL) || !Player_IsHoldingHookshot(player)) {
         ArmsHook_DetachFromActor(this);
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
     Actor_PlaySfx_Flagged2(&player->actor, NA_SE_IT_HOOKSHOT_CHAIN - SFX_FLAG);
-    ArmsHook_CheckForCancel(this);
+    MM_ArmsHook_CheckForCancel(this);
 
     if ((this->timer != 0) && (this->collider.base.atFlags & AT_HIT) &&
         (this->collider.elem.atHitElem->elemMaterial != ELEM_MATERIAL_UNK4)) {
@@ -175,11 +175,11 @@ void ArmsHook_Shoot(ArmsHook* this, PlayState* play) {
                 attachedActor = NULL;
                 this->attachedActor = NULL;
             } else if (this->actor.child != NULL) {
-                f32 curActorOffsetXYZ = Actor_WorldDistXYZToActor(&this->actor, attachedActor);
-                f32 attachPointOffsetXYZ = sqrtf(SQXYZ(this->attachPointOffset));
+                f32 curActorOffsetXYZ = MM_Actor_WorldDistXYZToActor(&this->actor, attachedActor);
+                f32 attachPointOffsetXYZ = MM_sqrtf(SQXYZ(this->attachPointOffset));
 
                 // Keep the hookshot actor at the same relative offset as the initial attachment even if the actor moves
-                Math_Vec3f_Diff(&attachedActor->world.pos, &this->attachPointOffset, &this->actor.world.pos);
+                MM_Math_Vec3f_Diff(&attachedActor->world.pos, &this->attachPointOffset, &this->actor.world.pos);
 
                 // If the actor the hookshot is attached to is moving, the hookshot's current relative
                 // position will be different than the initial attachment position.
@@ -195,7 +195,7 @@ void ArmsHook_Shoot(ArmsHook* this, PlayState* play) {
             f32 velocity;
 
             bodyDistDiff =
-                Math_Vec3f_DistXYZAndStoreDiff(&player->rightHandWorld.pos, &this->actor.world.pos, &bodyDistDiffVec);
+                MM_Math_Vec3f_DistXYZAndStoreDiff(&player->rightHandWorld.pos, &this->actor.world.pos, &bodyDistDiffVec);
 
             if (bodyDistDiff < 30.0f) {
                 velocity = 0.0f;
@@ -222,22 +222,22 @@ void ArmsHook_Shoot(ArmsHook* this, PlayState* play) {
 
         if (this->actor.child == NULL) {
             // Not pulling Player
-            Math_Vec3f_Sum(&player->rightHandWorld.pos, &newPos, &this->actor.world.pos);
+            MM_Math_Vec3f_Sum(&player->rightHandWorld.pos, &newPos, &this->actor.world.pos);
             if (attachedActor != NULL) {
-                Math_Vec3f_Sum(&this->actor.world.pos, &this->attachPointOffset, &attachedActor->world.pos);
+                MM_Math_Vec3f_Sum(&this->actor.world.pos, &this->attachPointOffset, &attachedActor->world.pos);
             }
         } else {
             // Pulling Player
-            Math_Vec3f_Diff(&bodyDistDiffVec, &newPos, &player->actor.velocity);
-            player->actor.world.rot.x = Math_Atan2S_XY(sqrtf(SQXZ(bodyDistDiffVec)), -bodyDistDiffVec.y);
+            MM_Math_Vec3f_Diff(&bodyDistDiffVec, &newPos, &player->actor.velocity);
+            player->actor.world.rot.x = Math_Atan2S_XY(MM_sqrtf(SQXZ(bodyDistDiffVec)), -bodyDistDiffVec.y);
         }
 
         if (phi_f16 < 50.0f) {
             ArmsHook_DetachFromActor(this);
             if (phi_f16 == 0.0f) {
-                ArmsHook_SetupAction(this, ArmsHook_Wait);
-                if (ArmsHook_AttachToPlayer(this, player)) {
-                    Math_Vec3f_Diff(&this->actor.world.pos, &player->actor.world.pos, &player->actor.velocity);
+                MM_ArmsHook_SetupAction(this, MM_ArmsHook_Wait);
+                if (MM_ArmsHook_AttachToPlayer(this, player)) {
+                    MM_Math_Vec3f_Diff(&this->actor.world.pos, &player->actor.world.pos, &player->actor.velocity);
                     player->actor.velocity.y -= 20.0f;
                 }
             }
@@ -250,29 +250,29 @@ void ArmsHook_Shoot(ArmsHook* this, PlayState* play) {
         Vec3f sp60;
 
         Actor_MoveWithGravity(&this->actor);
-        Math_Vec3f_Diff(&this->actor.world.pos, &this->actor.prevPos, &prevFrameDiff);
-        Math_Vec3f_Sum(&this->unk1E0, &prevFrameDiff, &this->unk1E0);
+        MM_Math_Vec3f_Diff(&this->actor.world.pos, &this->actor.prevPos, &prevFrameDiff);
+        MM_Math_Vec3f_Sum(&this->unk1E0, &prevFrameDiff, &this->unk1E0);
         this->actor.shape.rot.x = Math_Atan2S_XY(this->actor.speed, -this->actor.velocity.y);
         sp60.x = this->unk1EC.x - (this->unk1E0.x - this->unk1EC.x);
         sp60.y = this->unk1EC.y - (this->unk1E0.y - this->unk1EC.y);
         sp60.z = this->unk1EC.z - (this->unk1E0.z - this->unk1EC.z);
-        if (BgCheck_EntityLineTest1(&play->colCtx, &sp60, &this->unk1E0, &posResult, &poly, true, true, true, true,
+        if (MM_BgCheck_EntityLineTest1(&play->colCtx, &sp60, &this->unk1E0, &posResult, &poly, true, true, true, true,
                                     &bgId) &&
             (!func_800B90AC(play, &this->actor, poly, bgId, &posResult) ||
-             BgCheck_ProjectileLineTest(&play->colCtx, &sp60, &this->unk1E0, &posResult, &poly, true, true, true, true,
+             MM_BgCheck_ProjectileLineTest(&play->colCtx, &sp60, &this->unk1E0, &posResult, &poly, true, true, true, true,
                                         &bgId))) {
             f32 nx = COLPOLY_GET_NORMAL(poly->normal.x);
             f32 nz = COLPOLY_GET_NORMAL(poly->normal.z);
 
-            Math_Vec3f_Copy(&this->actor.world.pos, &posResult);
+            MM_Math_Vec3f_Copy(&this->actor.world.pos, &posResult);
             this->actor.world.pos.x += 10.0f * nx;
             this->actor.world.pos.z += 10.0f * nz;
             this->timer = 1;
-            if (SurfaceType_IsHookshotSurface(&play->colCtx, poly, bgId)) {
+            if (MM_SurfaceType_IsHookshotSurface(&play->colCtx, poly, bgId)) {
                 DynaPolyActor* dynaPolyActor;
 
                 if (bgId != BGCHECK_SCENE) {
-                    dynaPolyActor = DynaPoly_GetActor(&play->colCtx, bgId);
+                    dynaPolyActor = MM_DynaPoly_GetActor(&play->colCtx, bgId);
                     if (dynaPolyActor != NULL) {
                         ArmsHook_AttachToActor(this, &dynaPolyActor->actor);
                     }
@@ -280,7 +280,7 @@ void ArmsHook_Shoot(ArmsHook* this, PlayState* play) {
                 ArmsHook_PullPlayer(this);
                 Audio_PlaySfx_AtPos(&this->actor.projectedPos, NA_SE_IT_HOOKSHOT_STICK_OBJ);
             } else {
-                CollisionCheck_SpawnShieldParticlesMetal(play, &this->actor.world.pos);
+                MM_CollisionCheck_SpawnShieldParticlesMetal(play, &this->actor.world.pos);
                 Audio_PlaySfx_AtPos(&this->actor.projectedPos, NA_SE_IT_HOOKSHOT_REFLECT);
             }
         } else if (CHECK_BTN_ANY(CONTROLLER1(&play->state)->press.button, BTN_A | BTN_B | BTN_R | BTN_CUP | BTN_CLEFT |
@@ -293,7 +293,7 @@ void ArmsHook_Shoot(ArmsHook* this, PlayState* play) {
     }
 }
 
-void ArmsHook_Update(Actor* thisx, PlayState* play) {
+void MM_ArmsHook_Update(Actor* thisx, PlayState* play) {
     ArmsHook* this = (ArmsHook*)thisx;
 
     this->actionFunc(this, play);
@@ -307,7 +307,7 @@ Vec3f D_808C1C34 = { 0.0f, -500.0f, -3000.0f };
 Vec3f D_808C1C40 = { 0.0f, 500.0f, 0.0f };
 Vec3f D_808C1C4C = { 0.0f, -500.0f, 0.0f };
 
-void ArmsHook_Draw(Actor* thisx, PlayState* play) {
+void MM_ArmsHook_Draw(Actor* thisx, PlayState* play) {
     ArmsHook* this = (ArmsHook*)thisx;
     f32 f0;
     Player* player = GET_PLAYER(play);
@@ -321,15 +321,15 @@ void ArmsHook_Draw(Actor* thisx, PlayState* play) {
 
         OPEN_DISPS(play->state.gfxCtx);
 
-        if ((ArmsHook_Shoot != this->actionFunc) || (this->timer <= 0)) {
-            Matrix_MultVec3f(&D_808C1C10, &this->unk1E0);
-            Matrix_MultVec3f(&D_808C1C28, &sp5C);
-            Matrix_MultVec3f(&D_808C1C34, &sp50);
+        if ((MM_ArmsHook_Shoot != this->actionFunc) || (this->timer <= 0)) {
+            MM_Matrix_MultVec3f(&D_808C1C10, &this->unk1E0);
+            MM_Matrix_MultVec3f(&D_808C1C28, &sp5C);
+            MM_Matrix_MultVec3f(&D_808C1C34, &sp50);
             this->weaponInfo.active = false;
         } else {
-            Matrix_MultVec3f(&D_808C1C1C, &this->unk1E0);
-            Matrix_MultVec3f(&D_808C1C40, &sp5C);
-            Matrix_MultVec3f(&D_808C1C4C, &sp50);
+            MM_Matrix_MultVec3f(&D_808C1C1C, &this->unk1E0);
+            MM_Matrix_MultVec3f(&D_808C1C40, &sp5C);
+            MM_Matrix_MultVec3f(&D_808C1C4C, &sp50);
         }
         func_80126440(play, &this->collider, &this->weaponInfo, &sp5C, &sp50);
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
@@ -337,14 +337,14 @@ void ArmsHook_Draw(Actor* thisx, PlayState* play) {
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_OPA_DISP++, object_link_child_DL_01D960);
-        Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
-        Math_Vec3f_Diff(&player->rightHandWorld.pos, &this->actor.world.pos, &sp68);
+        MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
+        MM_Math_Vec3f_Diff(&player->rightHandWorld.pos, &this->actor.world.pos, &sp68);
         sp48 = SQXZ(sp68);
-        sp4C = sqrtf(SQXZ(sp68));
-        Matrix_RotateYS(Math_Atan2S(sp68.x, sp68.z), MTXMODE_APPLY);
-        Matrix_RotateXS(Math_Atan2S(-sp68.y, sp4C), MTXMODE_APPLY);
-        f0 = sqrtf(SQ(sp68.y) + sp48);
-        Matrix_Scale(0.015f, 0.015f, f0 * 0.01f, MTXMODE_APPLY);
+        sp4C = MM_sqrtf(SQXZ(sp68));
+        Matrix_RotateYS(MM_Math_Atan2S(sp68.x, sp68.z), MTXMODE_APPLY);
+        Matrix_RotateXS(MM_Math_Atan2S(-sp68.y, sp4C), MTXMODE_APPLY);
+        f0 = MM_sqrtf(SQ(sp68.y) + sp48);
+        MM_Matrix_Scale(0.015f, 0.015f, f0 * 0.01f, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_OPA_DISP++, gHookshotChainDL);
         func_801229A0(play, player);

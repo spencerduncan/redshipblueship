@@ -23,15 +23,15 @@
 
 #define PARAMS ((EffectSsKakeraInitParams*)initParamsx)
 
-u32 EffectSsKakera_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsKakera_Update(PlayState* play, u32 index, EffectSs* this);
-void EffectSsKakera_Draw(PlayState* play, u32 index, EffectSs* this);
+u32 MM_EffectSsKakera_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void MM_EffectSsKakera_Update(PlayState* play, u32 index, EffectSs* this);
+void MM_EffectSsKakera_Draw(PlayState* play, u32 index, EffectSs* this);
 
 void EffectSsKakera_CheckForObject(EffectSs* this, PlayState* play);
 
 EffectSsProfile Effect_Ss_Kakera_Profile = {
     EFFECT_SS_KAKERA,
-    EffectSsKakera_Init,
+    MM_EffectSsKakera_Init,
 };
 
 KakeraColorStruct D_8097EAD8[] = {
@@ -42,7 +42,7 @@ KakeraColorStruct D_8097EAD8[] = {
 
 f32 D_8097EAE4[] = { 1.0f, 100.0f, 40.0f, 5.0f, 100.0f, 40.0f, 5.0f, 100.0f, 40.0f, 5.0f };
 
-u32 EffectSsKakera_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 MM_EffectSsKakera_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsKakeraInitParams* initParams = PARAMS;
 
     this->pos = initParams->pos;
@@ -65,13 +65,13 @@ u32 EffectSsKakera_Init(PlayState* play, u32 index, EffectSs* this, void* initPa
     } else {
         _dbg_hungup("../z_eff_kakera.c", 193);
     }
-    this->draw = EffectSsKakera_Draw;
-    this->update = EffectSsKakera_Update;
+    this->draw = MM_EffectSsKakera_Draw;
+    this->update = MM_EffectSsKakera_Update;
     this->vec = initParams->unk_18;
     this->rReg0 = initParams->unk_2C;
     this->rGravity = initParams->gravity;
-    this->rPitch = Rand_ZeroOne() * 0x8000;
-    this->rYaw = Rand_ZeroOne() * 0x8000;
+    this->rPitch = MM_Rand_ZeroOne() * 0x8000;
+    this->rYaw = MM_Rand_ZeroOne() * 0x8000;
     this->rReg4 = initParams->unk_26;
     this->rReg5 = initParams->unk_28;
     this->rReg6 = initParams->unk_2A;
@@ -83,10 +83,10 @@ u32 EffectSsKakera_Init(PlayState* play, u32 index, EffectSs* this, void* initPa
 }
 
 f32 func_8097DE30(f32 center, f32 range) {
-    return (2.0f * (Rand_ZeroOne() * range) - range) + center;
+    return (2.0f * (MM_Rand_ZeroOne() * range) - range) + center;
 }
 
-void EffectSsKakera_Draw(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsKakera_Draw(PlayState* play, u32 index, EffectSs* this) {
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     s16 pad;
     f32 scale = this->rScale / 256.0f;
@@ -101,10 +101,10 @@ void EffectSsKakera_Draw(PlayState* play, u32 index, EffectSs* this) {
         }
     }
 
-    Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
+    MM_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
     Matrix_RotateYS(this->rYaw, MTXMODE_APPLY);
     Matrix_RotateXS(this->rPitch, MTXMODE_APPLY);
-    Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+    MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
 
     if ((((this->rReg4 >> 7) & 1) << 7) == 0x80) {
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
@@ -128,7 +128,7 @@ void EffectSsKakera_Draw(PlayState* play, u32 index, EffectSs* this) {
 
 void EffectSsKakera_CheckForObject(EffectSs* this, PlayState* play) {
     this->rObjectSlot = Object_GetSlot(&play->objectCtx, this->rObjectId);
-    if ((this->rObjectSlot <= OBJECT_SLOT_NONE) || (!Object_IsLoaded(&play->objectCtx, this->rObjectSlot))) {
+    if ((this->rObjectSlot <= OBJECT_SLOT_NONE) || (!MM_Object_IsLoaded(&play->objectCtx, this->rObjectSlot))) {
         this->life = 0;
         this->draw = NULL;
     }
@@ -279,7 +279,7 @@ s32 func_8097E698(EffectSs* this) {
     diff.x = this->pos.x - this->vec.x;
     diff.y = this->pos.y - this->vec.y;
     diff.z = this->pos.z - this->vec.z;
-    distance = sqrtf(SQXYZ(diff));
+    distance = MM_sqrtf(SQXYZ(diff));
     if (distance > 1000.0f) {
         return false;
     }
@@ -331,7 +331,7 @@ void func_8097E7E0(EffectSs* this, PlayState* play) {
                 break;
             case 1:
                 if ((this->velocity.y < 0.0f) &&
-                    (BgCheck_SphVsFirstPoly(&play->colCtx, &this->pos, D_8097EB64[(this->rReg4 >> 2) & 3]))) {
+                    (MM_BgCheck_SphVsFirstPoly(&play->colCtx, &this->pos, D_8097EB64[(this->rReg4 >> 2) & 3]))) {
                     this->velocity.x *= func_8097DE30(0.9f, 0.2f);
                     this->velocity.y *= -0.8f;
                     this->velocity.z *= func_8097DE30(0.9f, 0.2f);
@@ -341,7 +341,7 @@ void func_8097E7E0(EffectSs* this, PlayState* play) {
                 }
                 break;
             case 2:
-                if (BgCheck_SphVsFirstPoly(&play->colCtx, &this->pos, D_8097EB64[(this->rReg4 >> 2) & 3])) {
+                if (MM_BgCheck_SphVsFirstPoly(&play->colCtx, &this->pos, D_8097EB64[(this->rReg4 >> 2) & 3])) {
                     this->rReg8 = 0;
                 }
                 break;
@@ -349,7 +349,7 @@ void func_8097E7E0(EffectSs* this, PlayState* play) {
     }
 }
 
-void EffectSsKakera_Update(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsKakera_Update(PlayState* play, u32 index, EffectSs* this) {
     switch (((this->rReg4 >> 5) & 3) << 5) {
         case 0x20:
             this->rPitch += 0x47B;

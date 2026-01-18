@@ -161,7 +161,7 @@ ActorProfile En_Ig_Profile = {
     /**/ EnIg_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HIT1,
         AT_NONE,
@@ -201,7 +201,7 @@ static ColliderSphereInit sSphereInit = {
     { 0, { { 0, 0, 0 }, 20 }, 100 },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 MM_sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
 
 typedef enum EnIgAnimation {
     /* -1 */ ENIG_ANIM_NONE = -1,
@@ -218,7 +218,7 @@ typedef enum EnIgAnimation {
     /* 10 */ ENIG_ANIM_MAX
 } EnIgAnimation;
 
-static AnimationInfoS sAnimationInfo[ENIG_ANIM_MAX] = {
+static AnimationInfoS MM_sAnimationInfo[ENIG_ANIM_MAX] = {
     { &object_dai_Anim_0048B4, 1.0f, 0, -1, ANIMMODE_LOOP, 0 },  // ENIG_ANIM_0
     { &object_dai_Anim_0048B4, 1.0f, 0, -1, ANIMMODE_LOOP, -4 }, // ENIG_ANIM_1
     { &object_dai_Anim_005100, 1.0f, 0, -1, ANIMMODE_LOOP, 0 },  // ENIG_ANIM_2
@@ -280,7 +280,7 @@ EnDoor* EnIg_FindScheduleDoor(PlayState* play, s32 scheduleOutputResult) {
 
 void EnIg_UpdateSkelAnime(EnIg* this) {
     this->skelAnime.playSpeed = this->animPlaySpeed;
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 }
 
 s32 EnIg_ChangeAnim(EnIg* this, s32 animIndex) {
@@ -311,7 +311,7 @@ s32 EnIg_ChangeAnim(EnIg* this, s32 animIndex) {
 
     if (changeAnim) {
         this->animIndex = animIndex;
-        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, animIndex);
+        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, animIndex);
         this->animPlaySpeed = this->skelAnime.playSpeed;
     }
 
@@ -319,17 +319,17 @@ s32 EnIg_ChangeAnim(EnIg* this, s32 animIndex) {
 }
 
 void func_80BF1354(EnIg* this, PlayState* play) {
-    Collider_UpdateCylinder(&this->actor, &this->collider1);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider1.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider1);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider1.base);
     this->collider2.dim.worldSphere.radius = this->collider2.dim.modelSphere.radius * this->collider2.dim.scale;
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider2.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider2.base);
 }
 
 void func_80BF13E4(EnIg* this) {
     if ((this->unk_3D0 & 0x100) && (DECR(this->unk_3F0) == 0)) {
         this->unk_3F2++;
         if (this->unk_3F2 >= 4) {
-            this->unk_3F0 = Rand_S16Offset(30, 30);
+            this->unk_3F0 = MM_Rand_S16Offset(30, 30);
             this->unk_3F2 = 0;
         }
     }
@@ -352,20 +352,20 @@ void func_80BF14B0(EnIg* this) {
     Vec3f sp34;
     s32 pad2;
 
-    Math_Vec3f_Copy(&sp40, &this->unk_2A8->world.pos);
-    Math_Vec3f_Copy(&sp34, &this->actor.world.pos);
-    Math_ApproachS(&this->unk_3EA, Math_Vec3f_Yaw(&sp34, &sp40) - this->actor.shape.rot.y, 4, 0x2AA8);
+    MM_Math_Vec3f_Copy(&sp40, &this->unk_2A8->world.pos);
+    MM_Math_Vec3f_Copy(&sp34, &this->actor.world.pos);
+    MM_Math_ApproachS(&this->unk_3EA, MM_Math_Vec3f_Yaw(&sp34, &sp40) - this->actor.shape.rot.y, 4, 0x2AA8);
     this->unk_3EA = CLAMP(this->unk_3EA, -0x1C70, 0x1C70);
 
-    Math_Vec3f_Copy(&sp34, &this->actor.focus.pos);
+    MM_Math_Vec3f_Copy(&sp34, &this->actor.focus.pos);
 
     if (this->unk_2A8->id == ACTOR_PLAYER) {
         sp40.y = ((Player*)this->unk_2A8)->bodyPartsPos[PLAYER_BODYPART_HEAD].y + 3.0f;
     } else {
-        Math_Vec3f_Copy(&sp40, &this->unk_2A8->focus.pos);
+        MM_Math_Vec3f_Copy(&sp40, &this->unk_2A8->focus.pos);
     }
 
-    Math_ApproachS(&this->unk_3E8, Math_Vec3f_Pitch(&sp34, &sp40), 4, 0x2AA8);
+    MM_Math_ApproachS(&this->unk_3E8, MM_Math_Vec3f_Pitch(&sp34, &sp40), 4, 0x2AA8);
     this->unk_3E8 = CLAMP(this->unk_3E8, -0xE38, 0xE38);
 }
 
@@ -439,7 +439,7 @@ s32 func_80BF17BC(Actor* thisx, PlayState* play) {
         case 2:
         case 4:
             if ((this->actor.child != NULL) && (this->actor.child->update != NULL)) {
-                Camera_SetTargetActor(Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(csId)),
+                Camera_SetTargetActor(MM_Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(csId)),
                                       this->actor.child);
             }
             this->unk_3F6++;
@@ -452,7 +452,7 @@ s32 func_80BF17BC(Actor* thisx, PlayState* play) {
                 CutsceneManager_Stop(csId);
                 this->unk_3F6 = 5;
             } else {
-                Camera_SetTargetActor(Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(csId)), &this->actor);
+                Camera_SetTargetActor(MM_Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(csId)), &this->actor);
             }
             this->unk_3F6++;
             ret = true;
@@ -519,7 +519,7 @@ void func_80BF1A60(EnIg* this, PlayState* play) {
     if (this->unk_3F4 == 0) {
         EnIg_ChangeAnim(this, ENIG_ANIM_4);
         this->unk_3F4++;
-    } else if ((this->unk_3F4 == 1) && Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    } else if ((this->unk_3F4 == 1) && MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         EnIg_ChangeAnim(this, ENIG_ANIM_5);
         this->unk_3F4++;
     }
@@ -599,11 +599,11 @@ s32 func_80BF1C44(EnIg* this, PlayState* play, ScheduleOutput* scheduleOutput, s
     if ((sp2C != NULL) && (sp2C->update != NULL)) {
         if (this->timePath != NULL) {
             sp48 = Lib_SegmentedToVirtual(this->timePath->points);
-            Math_Vec3s_ToVec3f(&sp3C, &sp48[this->timePath->count - 2]);
-            Math_Vec3s_ToVec3f(&sp30, &sp48[this->timePath->count - 1]);
+            MM_Math_Vec3s_ToVec3f(&sp3C, &sp48[this->timePath->count - 2]);
+            MM_Math_Vec3s_ToVec3f(&sp30, &sp48[this->timePath->count - 1]);
             this->actor.shape.shadowDraw = NULL;
-            this->actor.world.rot.y = Math_Vec3f_Yaw(&sp3C, &sp30);
-            Math_Vec3f_Copy(&this->actor.world.pos, &sp30);
+            this->actor.world.rot.y = MM_Math_Vec3f_Yaw(&sp3C, &sp30);
+            MM_Math_Vec3f_Copy(&this->actor.world.pos, &sp30);
             sp24 = true;
         }
     }
@@ -643,12 +643,12 @@ s32 func_80BF1DF4(EnIg* this, PlayState* play, ScheduleOutput* scheduleOutput) {
     if ((door != NULL) && (door->knobDoor.dyna.actor.update != NULL)) {
         if (this->timePath != NULL) {
             sp4C = Lib_SegmentedToVirtual(this->timePath->points);
-            Math_Vec3s_ToVec3f(&sp40, &sp4C[0]);
-            Math_Vec3s_ToVec3f(&sp34, &sp4C[1]);
-            Math_Vec3f_Copy(&this->unk_2B0, &sp40);
-            Math_Vec3f_Copy(&this->unk_2BC, &sp34);
-            this->actor.world.rot.y = Math_Vec3f_Yaw(&sp40, &sp34);
-            Math_Vec3f_Copy(&this->actor.world.pos, &sp40);
+            MM_Math_Vec3s_ToVec3f(&sp40, &sp4C[0]);
+            MM_Math_Vec3s_ToVec3f(&sp34, &sp4C[1]);
+            MM_Math_Vec3f_Copy(&this->unk_2B0, &sp40);
+            MM_Math_Vec3f_Copy(&this->unk_2BC, &sp34);
+            this->actor.world.rot.y = MM_Math_Vec3f_Yaw(&sp40, &sp34);
+            MM_Math_Vec3f_Copy(&this->actor.world.pos, &sp40);
 
             if (ABS_ALT(BINANG_SUB(this->actor.world.rot.y, door->knobDoor.dyna.actor.shape.rot.y)) <= 0x4000) {
                 this->unk_2A4 = -75;
@@ -734,12 +734,12 @@ s32 func_80BF219C(EnIg* this, PlayState* play, ScheduleOutput* scheduleOutput) {
 
     if ((this->timePath != 0) && (this->timePath->count >= 2)) {
         sp30 = Lib_SegmentedToVirtual(this->timePath->points);
-        Math_Vec3s_ToVec3f(&sp40, &sp30[this->timePath->count - 1]);
-        Math_Vec3s_ToVec3f(&sp34, &sp30[this->timePath->count - 2]);
-        this->actor.world.rot.y = Math_Vec3f_Yaw(&sp34, &sp40);
+        MM_Math_Vec3s_ToVec3f(&sp40, &sp30[this->timePath->count - 1]);
+        MM_Math_Vec3s_ToVec3f(&sp34, &sp30[this->timePath->count - 2]);
+        this->actor.world.rot.y = MM_Math_Vec3f_Yaw(&sp34, &sp40);
         Math_Vec3s_Copy(&this->actor.shape.rot, &this->actor.world.rot);
-        Math_Vec3f_Copy(&this->actor.world.pos, &sp40);
-        Math_Vec3f_Copy(&this->actor.prevPos, &sp40);
+        MM_Math_Vec3f_Copy(&this->actor.world.pos, &sp40);
+        MM_Math_Vec3f_Copy(&this->actor.prevPos, &sp40);
 
         switch (scheduleOutput->result) {
             case 2:
@@ -810,9 +810,9 @@ s32 func_80BF2400(EnIg* this, PlayState* play) {
     Vec3f sp20;
 
     if ((this->unk_2A8 != NULL) && (this->unk_2A8->update != NULL)) {
-        Math_Vec3f_Copy(&sp2C, &this->unk_2A8->world.pos);
-        Math_Vec3f_Copy(&sp20, &this->actor.world.pos);
-        this->actor.world.rot.y = Math_Vec3f_Yaw(&sp20, &sp2C);
+        MM_Math_Vec3f_Copy(&sp2C, &this->unk_2A8->world.pos);
+        MM_Math_Vec3f_Copy(&sp20, &this->actor.world.pos);
+        this->actor.world.rot.y = MM_Math_Vec3f_Yaw(&sp20, &sp2C);
     }
 
     return true;
@@ -833,13 +833,13 @@ s32 func_80BF2470(EnIg* this, PlayState* play) {
             }
         }
         this->unk_3E2 = CLAMP(this->unk_3E2, 0, this->unk_3E0);
-        temp = Math_Vec3f_DistXZ(&this->unk_2B0, &this->unk_2BC) / this->unk_3E0;
+        temp = MM_Math_Vec3f_DistXZ(&this->unk_2B0, &this->unk_2BC) / this->unk_3E0;
         sp38.x = 0.0f;
         sp38.y = 0.0f;
         sp38.z = this->unk_3E2 * temp;
         Lib_Vec3f_TranslateAndRotateY(&this->unk_2B0, this->actor.world.rot.y, &sp38, &this->actor.world.pos);
         this->unk_3E2 += this->timePathTimeSpeed;
-        if (Animation_OnFrame(&this->skelAnime, 0.0f) || Animation_OnFrame(&this->skelAnime, 13.0f)) {
+        if (MM_Animation_OnFrame(&this->skelAnime, 0.0f) || MM_Animation_OnFrame(&this->skelAnime, 13.0f)) {
             Actor_PlaySfx(&this->actor, NA_SE_EV_PIRATE_WALK);
         }
     }
@@ -887,14 +887,14 @@ s32 func_80BF25E8(EnIg* this, PlayState* play) {
     } else {
         sp70 = this->actor.world.pos;
         sp64 = this->timePathTargetPos;
-        this->actor.world.rot.y = Math_Vec3f_Yaw(&sp70, &sp64);
+        this->actor.world.rot.y = MM_Math_Vec3f_Yaw(&sp70, &sp64);
     }
 
     if (SubS_InCsMode(play)) {
         this->timePathElapsedTime = sp54;
         this->timePathWaypoint = sp50;
         this->timePathTargetPos = timePathTargetPos;
-    } else if (Animation_OnFrame(&this->skelAnime, 0.0f) || Animation_OnFrame(&this->skelAnime, 13.0f)) {
+    } else if (MM_Animation_OnFrame(&this->skelAnime, 0.0f) || MM_Animation_OnFrame(&this->skelAnime, 13.0f)) {
         Actor_PlaySfx(&this->actor, NA_SE_EV_PIRATE_WALK);
     }
     return false;
@@ -905,7 +905,7 @@ s32 func_80BF2890(EnIg* this, PlayState* play) {
         this->unk_3D0 &= ~0x100;
     }
 
-    if (!(this->unk_3D0 & 0x100) && Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    if (!(this->unk_3D0 & 0x100) && MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         if (this->unk_408 != 0) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_GOLON_SNORE1);
         } else {
@@ -919,12 +919,12 @@ s32 func_80BF2890(EnIg* this, PlayState* play) {
 s32 func_80BF293C(EnIg* this, PlayState* play) {
     if (this->actor.world.rot.y != this->actor.home.rot.y) {
         if ((this->actor.world.rot.y / 182) != (this->actor.home.rot.y / 182)) {
-            Math_ApproachS(&this->actor.world.rot.y, this->actor.home.rot.y, 3, 0x2AA8);
+            MM_Math_ApproachS(&this->actor.world.rot.y, this->actor.home.rot.y, 3, 0x2AA8);
         } else {
             this->actor.world.rot.y = this->actor.home.rot.y;
             EnIg_ChangeAnim(this, ENIG_ANIM_7);
         }
-    } else if ((this->animIndex == ENIG_ANIM_7) && Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    } else if ((this->animIndex == ENIG_ANIM_7) && MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         SubS_SetOfferMode(&this->unk_3D0, SUBS_OFFER_MODE_ONSCREEN, SUBS_OFFER_MODE_MASK);
         EnIg_ChangeAnim(this, ENIG_ANIM_9);
     }
@@ -964,7 +964,7 @@ void func_80BF2A50(EnIg* this, PlayState* play) {
         default:
             break;
     }
-    Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 3, 0x2AA8);
+    MM_Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 3, 0x2AA8);
 }
 
 void func_80BF2AF8(EnIg* this, PlayState* play) {
@@ -978,7 +978,7 @@ void func_80BF2AF8(EnIg* this, PlayState* play) {
         this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
         scheduleOutput.result = 0;
     } else {
-        this->actor.shape.shadowDraw = ActorShadow_DrawCircle;
+        this->actor.shape.shadowDraw = MM_ActorShadow_DrawCircle;
         this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
     }
     this->unk_2A8 = func_80BF146C(this, play);
@@ -1000,25 +1000,25 @@ void func_80BF2BD4(EnIg* this, PlayState* play) {
         this->actionFunc = func_80BF2AF8;
     } else if (((this->scheduleResult != 2) && (this->scheduleResult != 4)) &&
                ((this->unk_2A8 != NULL) && (this->unk_2A8->update != NULL))) {
-        Math_Vec3f_Copy(&sp38, &this->unk_2A8->world.pos);
-        Math_Vec3f_Copy(&sp2C, &this->actor.world.pos);
-        yaw = Math_Vec3f_Yaw(&sp2C, &sp38);
-        Math_ApproachS(&this->actor.shape.rot.y, yaw, 4, 0x2AA8);
+        MM_Math_Vec3f_Copy(&sp38, &this->unk_2A8->world.pos);
+        MM_Math_Vec3f_Copy(&sp2C, &this->actor.world.pos);
+        yaw = MM_Math_Vec3f_Yaw(&sp2C, &sp38);
+        MM_Math_ApproachS(&this->actor.shape.rot.y, yaw, 4, 0x2AA8);
     }
 }
 
 void EnIg_Init(Actor* thisx, PlayState* play) {
     EnIg* this = (EnIg*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 28.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &object_dai_Skel_0130D0, NULL, this->jointTable, this->morphTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 28.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &object_dai_Skel_0130D0, NULL, this->jointTable, this->morphTable,
                        OBJECT_DAI_LIMB_MAX);
     this->animIndex = ENIG_ANIM_NONE;
     EnIg_ChangeAnim(this, ENIG_ANIM_0);
-    Collider_InitAndSetCylinder(play, &this->collider1, &this->actor, &sCylinderInit);
+    Collider_InitAndSetCylinder(play, &this->collider1, &this->actor, &MM_sCylinderInit);
     Collider_InitAndSetSphere(play, &this->collider2, &this->actor, &sSphereInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, DamageTable_Get(0x16), &sColChkInfoInit);
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, MM_DamageTable_Get(0x16), &MM_sColChkInfoInit);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->scheduleResult = 0;
     this->actor.gravity = 0.0f;
     this->actionFunc = func_80BF2AF8;
@@ -1028,7 +1028,7 @@ void EnIg_Init(Actor* thisx, PlayState* play) {
 void EnIg_Destroy(Actor* thisx, PlayState* play) {
     EnIg* this = (EnIg*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider1);
+    MM_Collider_DestroyCylinder(play, &this->collider1);
     Collider_DestroySphere(play, &this->collider2);
 }
 
@@ -1047,7 +1047,7 @@ void EnIg_Update(Actor* thisx, PlayState* play) {
         func_80BF15EC(this);
         SubS_Offer(&this->actor, play, 60.0f, 30.0f, PLAYER_IA_NONE, this->unk_3D0 & SUBS_OFFER_MODE_MASK);
         Actor_MoveWithGravity(&this->actor);
-        Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 12.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+        MM_Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 12.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
         func_80BF1354(this, play);
     }
 }
@@ -1070,7 +1070,7 @@ void EnIg_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
     Vec3f sp2C;
 
     if (limbIndex == OBJECT_DAI_LIMB_0B) {
-        Matrix_MultVec3f(&D_80BF3528, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&D_80BF3528, &this->actor.focus.pos);
         Math_Vec3s_Copy(&this->actor.focus.rot, &this->actor.world.rot);
 
         gSPDisplayList((*gfx)++, object_dai_DL_008710);
@@ -1083,12 +1083,12 @@ void EnIg_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
 
     if (limbIndex == OBJECT_DAI_LIMB_09) {
         gSPDisplayList((*gfx)++, object_dai_DL_008B00);
-        Matrix_MultVec3f(&D_80BF351C, &sp2C);
+        MM_Matrix_MultVec3f(&D_80BF351C, &sp2C);
         Math_Vec3f_ToVec3s(&this->collider2.dim.worldSphere.center, &sp2C);
     }
 
     if (limbIndex == OBJECT_DAI_LIMB_0A) {
-        Matrix_Get(&this->unk_190);
+        MM_Matrix_Get(&this->unk_190);
     }
 }
 
@@ -1112,13 +1112,13 @@ void EnIg_TransformLimbDraw(PlayState* play, s32 limbIndex, Actor* thisx, Gfx** 
     if (limbIndex == OBJECT_DAI_LIMB_09) {
         SubS_UpdateLimb(this->unk_3E8 + 0x4000, this->unk_3EA + this->actor.shape.rot.y + 0x4000, &this->unk_2D4,
                         &this->unk_2E6, stepRot, overrideRot);
-        Matrix_Pop();
-        Matrix_Translate(this->unk_2D4.x, this->unk_2D4.y, this->unk_2D4.z, MTXMODE_NEW);
-        Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+        MM_Matrix_Pop();
+        MM_Matrix_Translate(this->unk_2D4.x, this->unk_2D4.y, this->unk_2D4.z, MTXMODE_NEW);
+        MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
         Matrix_RotateYS(this->unk_2E6.y, MTXMODE_APPLY);
         Matrix_RotateXS(this->unk_2E6.x, MTXMODE_APPLY);
         Matrix_RotateZS(this->unk_2E6.z, MTXMODE_APPLY);
-        Matrix_Push();
+        MM_Matrix_Push();
     }
 }
 
@@ -1142,7 +1142,7 @@ void EnIg_Draw(Actor* thisx, PlayState* play) {
         POLY_OPA_DISP = SubS_DrawTransformFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                                this->skelAnime.dListCount, EnIg_OverrideLimbDraw, EnIg_PostLimbDraw,
                                                EnIg_TransformLimbDraw, &this->actor, POLY_OPA_DISP);
-        Matrix_Put(&this->unk_190);
+        MM_Matrix_Put(&this->unk_190);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_OPA_DISP++, object_dai_DL_00C538);

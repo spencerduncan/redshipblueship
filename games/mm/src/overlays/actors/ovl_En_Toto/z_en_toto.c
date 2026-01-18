@@ -60,7 +60,7 @@ ActorProfile En_Toto_Profile = {
     /**/ EnToto_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_METAL,
         AT_NONE,
@@ -86,7 +86,7 @@ static EnTotoActionFunc D_80BA501C[] = {
     func_80BA3D38,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_U8(attentionRangeType, ATTENTION_RANGE_1, ICHAIN_STOP),
 };
 
@@ -105,7 +105,7 @@ typedef enum EnTotoAnimation {
     /* 4 */ ENTOTO_ANIM_MAX
 } EnTotoAnimation;
 
-static AnimationHeader* sAnimations[ENTOTO_ANIM_MAX] = {
+static AnimationHeader* MM_sAnimations[ENTOTO_ANIM_MAX] = {
     &object_zm_Anim_0028B8, // ENTOTO_ANIM_0
     &object_zm_Anim_00B894, // ENTOTO_ANIM_1
     &object_zm_Anim_002F20, // ENTOTO_ANIM_2
@@ -167,16 +167,16 @@ void func_80BA36C0(EnToto* this, PlayState* play, s32 index) {
 void EnToto_Init(Actor* thisx, PlayState* play) {
     EnToto* this = (EnToto*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
     if ((play->sceneId == SCENE_MILK_BAR) && (CURRENT_TIME >= CLOCK_TIME(6, 0)) &&
         (CURRENT_TIME < CLOCK_TIME(21, 30))) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 30.0f);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 30.0f);
     this->actor.bgCheckFlags |= BGCHECKFLAG_PLAYER_400;
-    SkelAnime_InitFlex(play, &this->skelAnime, &object_zm_Skel_00A978,
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &object_zm_Skel_00A978,
                        ((play->sceneId == SCENE_SONCHONOIE) ? &object_zm_Anim_003AA8 : &object_zm_Anim_00C880),
                        this->jointTable, this->morphTable, OBJECT_ZM_LIMB_MAX);
     func_80BA36C0(this, play, 0);
@@ -186,18 +186,18 @@ void EnToto_Init(Actor* thisx, PlayState* play) {
 void EnToto_Destroy(Actor* thisx, PlayState* play) {
     EnToto* this = (EnToto*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void func_80BA383C(EnToto* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skelAnime) && (this->actionFuncIndex == 1) &&
+    if (MM_SkelAnime_Update(&this->skelAnime) && (this->actionFuncIndex == 1) &&
         (this->skelAnime.animation != &object_zm_Anim_000C80)) {
         if ((play->msgCtx.currentTextId != 0x2A98) && (play->msgCtx.currentTextId != 0x2A99)) {
-            if ((this->animIndex & 1) || (Rand_ZeroOne() > 0.5f)) {
+            if ((this->animIndex & 1) || (MM_Rand_ZeroOne() > 0.5f)) {
                 this->animIndex = (this->animIndex + 1) & 3;
             }
         }
-        Animation_PlayOnce(&this->skelAnime, sAnimations[this->animIndex]);
+        MM_Animation_PlayOnce(&this->skelAnime, MM_sAnimations[this->animIndex]);
     }
     FaceChange_UpdateBlinkingNonHuman(&this->faceChange, 20, 80, 3);
 }
@@ -208,7 +208,7 @@ void func_80BA3930(EnToto* this, PlayState* play) {
     if (play->sceneId == SCENE_SONCHONOIE) {
         anim = &object_zm_Anim_003AA8;
     }
-    Animation_MorphToLoop(&this->skelAnime, anim, -4.0f);
+    MM_Animation_MorphToLoop(&this->skelAnime, anim, -4.0f);
 }
 
 s32 func_80BA397C(EnToto* this, s16 arg1) {
@@ -228,9 +228,9 @@ void func_80BA39C8(EnToto* this, PlayState* play) {
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         func_80BA36C0(this, play, 1);
         if (play->sceneId != SCENE_SONCHONOIE) {
-            Flags_SetSwitch(play, ENTOTO_GET_SWITCH_FLAG_1(&this->actor));
+            MM_Flags_SetSwitch(play, ENTOTO_GET_SWITCH_FLAG_1(&this->actor));
         } else if (player->transformation == PLAYER_FORM_DEKU) {
-            Flags_SetSwitch(play, ENTOTO_GET_SWITCH_FLAG_3(&this->actor));
+            MM_Flags_SetSwitch(play, ENTOTO_GET_SWITCH_FLAG_3(&this->actor));
         }
         this->unk2B6 = 0;
         return;
@@ -249,7 +249,7 @@ void func_80BA39C8(EnToto* this, PlayState* play) {
             // 2S2H [FD Enhancement] - Do not prompt for song if playing as FD. Default to dialog of cancellation
             if (play->sceneId == SCENE_SONCHONOIE || player->transformation == PLAYER_FORM_FIERCE_DEITY) {
                 if (player->transformation == PLAYER_FORM_DEKU) {
-                    if (!Flags_GetSwitch(play, ENTOTO_GET_SWITCH_FLAG_3(&this->actor))) {
+                    if (!MM_Flags_GetSwitch(play, ENTOTO_GET_SWITCH_FLAG_3(&this->actor))) {
                         this->text = &D_80BA502C[15];
                     } else {
                         this->text = &D_80BA502C[18];
@@ -259,7 +259,7 @@ void func_80BA39C8(EnToto* this, PlayState* play) {
                 }
             } else if (ENTOTO_WEEK_EVENT_FLAGS) {
                 this->text = &D_80BA502C[0];
-            } else if (!Flags_GetSwitch(play, ENTOTO_GET_SWITCH_FLAG_1(&this->actor))) {
+            } else if (!MM_Flags_GetSwitch(play, ENTOTO_GET_SWITCH_FLAG_1(&this->actor))) {
                 this->text = &D_80BA502C[2];
             } else {
                 this->text = &D_80BA502C[3];
@@ -272,24 +272,24 @@ void func_80BA39C8(EnToto* this, PlayState* play) {
 
 void func_80BA3BFC(EnToto* this, PlayState* play) {
     if (play->sceneId == SCENE_SONCHONOIE) {
-        Animation_MorphToPlayOnce(&this->skelAnime, &object_zm_Anim_000C80, -4.0f);
+        MM_Animation_MorphToPlayOnce(&this->skelAnime, &object_zm_Anim_000C80, -4.0f);
         this->animIndex = ENTOTO_ANIM_0;
     } else {
         if (this->text->unk0 == 4) {
             Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_TOTO);
         }
-        Animation_MorphToLoop(&this->skelAnime, &object_zm_Anim_00B3E0, -4.0f);
+        MM_Animation_MorphToLoop(&this->skelAnime, &object_zm_Anim_00B3E0, -4.0f);
     }
 }
 
 void func_80BA3C88(EnToto* this) {
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 4, 0xFA0, 0x320);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 4, 0xFA0, 0x320);
 }
 
 void func_80BA3CC4(EnToto* this, PlayState* play) {
     func_80BA383C(this, play);
     func_80BA3C88(this);
-    if (Actor_TextboxIsClosing(&this->actor, play)) {
+    if (MM_Actor_TextboxIsClosing(&this->actor, play)) {
         func_80BA36C0(this, play, this->text->unk1);
     } else {
         func_80BA4C44(this, play);
@@ -342,7 +342,7 @@ s32 func_80BA3ED4(EnToto* this, PlayState* play) {
 
 s32 func_80BA3EE8(EnToto* this, PlayState* play) {
     if (this->text->unk1 == 2) {
-        Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_WAIT);
+        MM_Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_WAIT);
     }
     return 0;
 }
@@ -350,10 +350,10 @@ s32 func_80BA3EE8(EnToto* this, PlayState* play) {
 s32 func_80BA3F2C(EnToto* this, PlayState* play) {
     if (this->text->textId != 0) {
         if (GameInteractor_Should(VB_TOTO_START_SOUND_CHECK, true, this)) {
-            Message_ContinueTextbox(play, this->text->textId);
+            MM_Message_ContinueTextbox(play, this->text->textId);
         }
     } else {
-        Message_CloseTextbox(play);
+        MM_Message_CloseTextbox(play);
         func_80BA3EE8(this, play);
     }
     if (this->text->unk0 == 4) {
@@ -369,7 +369,7 @@ s32 func_80BA3FB0(EnToto* this, PlayState* play) {
 
 s32 func_80BA3FCC(EnToto* this, PlayState* play) {
     if (DECR(this->unk2B1) == 0) {
-        Message_StartTextbox(play, this->text->textId, NULL);
+        MM_Message_StartTextbox(play, this->text->textId, NULL);
         return 1;
     }
     return 0;
@@ -395,21 +395,21 @@ s32 func_80BA407C(EnToto* this, PlayState* play) {
 }
 
 s32 func_80BA40D4(EnToto* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         return 1;
     }
     return 0;
 }
 
 s32 func_80BA4128(EnToto* this, PlayState* play) {
-    if (Message_GetState(&play->msgCtx) == TEXT_STATE_CLOSING) {
+    if (MM_Message_GetState(&play->msgCtx) == TEXT_STATE_CLOSING) {
         return 1;
     }
     return 0;
 }
 
 s32 func_80BA415C(EnToto* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_CHOICE) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_CHOICE) && MM_Message_ShouldAdvance(play)) {
         if (play->msgCtx.choiceIndex != 0) {
             Audio_PlaySfx_MessageCancel();
         } else {
@@ -426,7 +426,7 @@ s32 func_80BA4204(EnToto* this, PlayState* play) {
     if (DECR(this->unk2B1) == 0) {
         if (!ENTOTO_WEEK_EVENT_FLAGS) {
             temp_v1_2 = &D_80BA50DC[gSaveContext.save.playerForm - 1];
-            Message_StartTextbox(play, (this->text->unk0 == 6) ? temp_v1_2->unk0 : temp_v1_2->unk4, NULL);
+            MM_Message_StartTextbox(play, (this->text->unk0 == 6) ? temp_v1_2->unk0 : temp_v1_2->unk4, NULL);
         }
         return 1;
     }
@@ -439,7 +439,7 @@ s32 func_80BA42BC(EnToto* this, PlayState* play) {
     Vec3s* endPosListPtr = &sPlayerOverrideInputPosList[ARRAY_COUNT(sPlayerOverrideInputPosList)];
 
     func_80BA3FB0(this, play);
-    Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_END);
+    MM_Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_END);
     if (player->actor.world.pos.z > -310.0f) {
         if ((player->actor.world.pos.x > -150.0f) || (player->actor.world.pos.z > -172.0f)) {
             numPoints = ARRAY_COUNT(sPlayerOverrideInputPosList);
@@ -450,14 +450,14 @@ s32 func_80BA42BC(EnToto* this, PlayState* play) {
         }
     }
     Player_InitOverrideInput(play, &this->overrideInputEntry, numPoints, endPosListPtr - numPoints);
-    this->spotlights = Actor_Spawn(&play->actorCtx, play, ACTOR_DM_CHAR07, 0.0f, 0.0f, 0.0f, 0, 0, 0, 0xF02);
+    this->spotlights = MM_Actor_Spawn(&play->actorCtx, play, ACTOR_DM_CHAR07, 0.0f, 0.0f, 0.0f, 0, 0, 0, 0xF02);
     return 0;
 }
 
 s32 func_80BA43F4(EnToto* this, PlayState* play) {
     func_80BA3C88(this);
     if (Player_UpdateOverrideInput(play, &this->overrideInputEntry, 60.0f)) {
-        Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_19);
+        MM_Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_19);
         return func_80BA4204(this, play);
     }
     return 0;
@@ -465,7 +465,7 @@ s32 func_80BA43F4(EnToto* this, PlayState* play) {
 
 s32 func_80BA445C(EnToto* this, PlayState* play) {
     if (func_80BA4128(this, play)) {
-        Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_END);
+        MM_Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_END);
         return 1;
     }
     return 0;
@@ -480,8 +480,8 @@ s32 func_80BA44A0(EnToto* this, PlayState* play) {
 s32 func_80BA44D4(EnTotoUnkStruct2* arg0, Player* player) {
     Vec3f unk6;
 
-    Math_Vec3s_ToVec3f(&unk6, &arg0->unk6);
-    if (Math_Vec3f_DistXZ(&player->actor.world.pos, &unk6) < 10.0f) {
+    MM_Math_Vec3s_ToVec3f(&unk6, &arg0->unk6);
+    if (MM_Math_Vec3f_DistXZ(&player->actor.world.pos, &unk6) < 10.0f) {
         return 1;
     }
     return 0;
@@ -495,7 +495,7 @@ s32 func_80BA4530(EnToto* this, PlayState* play) {
     func_80BA3C88(this);
     if (player->actor.world.pos.z > -270.0f) {
         if (this->spotlights != NULL) {
-            Actor_Kill(this->spotlights);
+            MM_Actor_Kill(this->spotlights);
         }
         this->unk2B6 = 1;
         return this->text->unk1;
@@ -503,7 +503,7 @@ s32 func_80BA4530(EnToto* this, PlayState* play) {
     if (player->actor.bgCheckFlags & BGCHECKFLAG_GROUND) {
         temp_s0 = &D_80BA50DC[gSaveContext.save.playerForm - 1];
         if (func_80BA44D4(temp_s0, player)) {
-            Math_Vec3s_ToVec3f(&player->actor.world.pos, &temp_s0->unk6);
+            MM_Math_Vec3s_ToVec3f(&player->actor.world.pos, &temp_s0->unk6);
             player->actor.shape.rot.y = 0;
             player->yaw = 0;
             return func_80BA407C(this, play);
@@ -514,7 +514,7 @@ s32 func_80BA4530(EnToto* this, PlayState* play) {
                     if (this->unk2B1 < 10) {
                         this->unk2B1++;
                         if (this->unk2B1 >= 10) {
-                            Message_StartTextbox(play, D_80BA50DC[GET_PLAYER_FORM - 1].unk2, NULL);
+                            MM_Message_StartTextbox(play, D_80BA50DC[GET_PLAYER_FORM - 1].unk2, NULL);
                         }
                     }
                     return 0;
@@ -527,7 +527,7 @@ s32 func_80BA4530(EnToto* this, PlayState* play) {
 }
 
 s32 func_80BA46D8(EnToto* this, PlayState* play) {
-    Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_68);
+    MM_Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_68);
     Message_DisplayOcarinaStaff(play, sOcarinaActionWindFishPrompts[CUR_FORM]);
     return 0;
 }
@@ -571,9 +571,9 @@ s32 func_80BA47E0(EnToto* this, PlayState* play) {
     }
     for (i = 0; i < ARRAY_COUNT(D_80BA50DC); i++) {
         if ((GET_PLAYER_FORM != (i + 1)) && (D_80BA5128[i] & this->unk2B3)) {
-            Math_Vec3s_ToVec3f(&spawnPos, &D_80BA50DC[i].unk6);
+            MM_Math_Vec3s_ToVec3f(&spawnPos, &D_80BA50DC[i].unk6);
 
-            Actor_Spawn(&play->actorCtx, play, ACTOR_PLAYER, spawnPos.x, spawnPos.y, spawnPos.z, i + 2, 0, 0,
+            MM_Actor_Spawn(&play->actorCtx, play, ACTOR_PLAYER, spawnPos.x, spawnPos.y, spawnPos.z, i + 2, 0, 0,
                         PLAYER_PARAMS(0xFF, PLAYER_START_MODE_F) | 0xFFFFF000);
         }
     }
@@ -585,7 +585,7 @@ s32 func_80BA47E0(EnToto* this, PlayState* play) {
 }
 
 s32 func_80BA49A4(EnToto* this, PlayState* play) {
-    Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_68);
+    MM_Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_68);
     Audio_PlayFanfareWithPlayerIOCustomPort(NA_BGM_BALLAD_OF_THE_WIND_FISH, 4, this->unk2B3 ^ 0xF);
     this->unk2B1 = 4;
     return 0;
@@ -599,13 +599,13 @@ s32 func_80BA4A00(EnToto* this, PlayState* play) {
             actor = &GET_PLAYER(play)->actor;
             actor = actor->next;
             while (actor != NULL) {
-                Actor_Kill(actor);
+                MM_Actor_Kill(actor);
                 actor = actor->next;
             }
             if (this->spotlights != NULL) {
-                Actor_Kill(this->spotlights);
+                MM_Actor_Kill(this->spotlights);
             }
-            Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_69);
+            MM_Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_69);
             if (this->unk2B3 == 0xF) {
                 if (CURRENT_DAY == 1) {
                     SET_WEEKEVENTREG(WEEKEVENTREG_50_01);
@@ -626,17 +626,17 @@ s32 func_80BA4B24(EnToto* this, PlayState* play) {
 
     if (func_80BA40D4(this, play)) {
         player = GET_PLAYER(play);
-        Animation_MorphToPlayOnce(&this->skelAnime, &object_zm_Anim_0028B8, -4.0f);
+        MM_Animation_MorphToPlayOnce(&this->skelAnime, &object_zm_Anim_0028B8, -4.0f);
         if (player->transformation == PLAYER_FORM_ZORA) {
-            if (!Flags_GetSwitch(play, ENTOTO_GET_SWITCH_FLAG_1(&this->actor))) {
-                Flags_SetSwitch(play, ENTOTO_GET_SWITCH_FLAG_1(&this->actor));
+            if (!MM_Flags_GetSwitch(play, ENTOTO_GET_SWITCH_FLAG_1(&this->actor))) {
+                MM_Flags_SetSwitch(play, ENTOTO_GET_SWITCH_FLAG_1(&this->actor));
                 return 1;
             } else {
                 return 3;
             }
         } else {
-            if (!Flags_GetSwitch(play, ENTOTO_GET_SWITCH_FLAG_2(&this->actor))) {
-                Flags_SetSwitch(play, ENTOTO_GET_SWITCH_FLAG_2(&this->actor));
+            if (!MM_Flags_GetSwitch(play, ENTOTO_GET_SWITCH_FLAG_2(&this->actor))) {
+                MM_Flags_SetSwitch(play, ENTOTO_GET_SWITCH_FLAG_2(&this->actor));
                 return 4;
             } else {
                 return 7;
@@ -667,9 +667,9 @@ void func_80BA4CB4(EnToto* this, PlayState* play) {
         this->cueId = cue->id;
         if (this->cueId != 4) {
             if (this->cueId == 3) {
-                Animation_MorphToPlayOnce(&this->skelAnime, &object_zm_Anim_001DF0, -4.0f);
+                MM_Animation_MorphToPlayOnce(&this->skelAnime, &object_zm_Anim_001DF0, -4.0f);
             } else {
-                Animation_PlayOnce(&this->skelAnime,
+                MM_Animation_PlayOnce(&this->skelAnime,
                                    (this->cueId == 1) ? &object_zm_Anim_0016A4 : &object_zm_Anim_0022C8);
                 if ((this->cueId == 2) && (this->unk2B3 != 0xF)) {
                     Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_TOTO);
@@ -678,14 +678,14 @@ void func_80BA4CB4(EnToto* this, PlayState* play) {
             }
         }
     }
-    Math_ScaledStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 0x320);
-    if (SkelAnime_Update(&this->skelAnime)) {
+    MM_Math_ScaledStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 0x320);
+    if (MM_SkelAnime_Update(&this->skelAnime)) {
         if (this->cueId != 3) {
-            Animation_PlayLoop(&this->skelAnime, (this->cueId == 1) ? &object_zm_Anim_00C880 : &object_zm_Anim_001324);
+            MM_Animation_PlayLoop(&this->skelAnime, (this->cueId == 1) ? &object_zm_Anim_00C880 : &object_zm_Anim_001324);
         }
     }
-    if ((this->cueId == 4) && !Actor_HasParent(&this->actor, play)) {
-        Actor_OfferGetItem(&this->actor, play, GI_MASK_CIRCUS_LEADER, 9999.9f, 9999.9f);
+    if ((this->cueId == 4) && !MM_Actor_HasParent(&this->actor, play)) {
+        MM_Actor_OfferGetItem(&this->actor, play, GI_MASK_CIRCUS_LEADER, 9999.9f, 9999.9f);
     }
 }
 
@@ -699,11 +699,11 @@ void EnToto_Update(Actor* thisx, PlayState* play) {
         D_80BA51B8[this->actionFuncIndex](this, play);
     }
 
-    Collider_ResetCylinderAC(play, &this->collider.base);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-    Actor_SetFocus(&this->actor, 40.0f);
+    MM_Collider_ResetCylinderAC(play, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    MM_Actor_SetFocus(&this->actor, 40.0f);
 }
 
 void EnToto_Draw(Actor* thisx, PlayState* play) {
@@ -716,7 +716,7 @@ void EnToto_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(eyeTextures[this->faceChange.face]));
     Scene_SetRenderModeXlu(play, 0, 1);
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount, NULL,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount, NULL,
                           NULL, &this->actor);
 
     CLOSE_DISPS(play->state.gfxCtx);

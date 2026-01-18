@@ -1,6 +1,6 @@
 #include "global.h"
 
-void Overlay_Relocate(void* allocatedVRamAddress, OverlayRelocationSection* overlayInfo, void* vRamAddress) {
+void OoT_Overlay_Relocate(void* allocatedVRamAddress, OverlayRelocationSection* overlayInfo, void* vRamAddress) {
     u32 sections[4];
     u32 relocatedValue;
     u32 dbg;
@@ -24,7 +24,7 @@ void Overlay_Relocate(void* allocatedVRamAddress, OverlayRelocationSection* over
     unrelocatedAddress = 0;
     relocatedAddress = 0;
 
-    if (gOverlayLogSeverity >= 3) {
+    if (OoT_gOverlayLogSeverity >= 3) {
         osSyncPrintf("DoRelocation(%08x, %08x, %08x)\n", allocatedVRamAddress, overlayInfo, vRamAddress);
         osSyncPrintf("text=%08x, data=%08x, rodata=%08x, bss=%08x\n", overlayInfo->textSize, overlayInfo->dataSize,
                      overlayInfo->rodataSize, overlayInfo->bssSize);
@@ -103,7 +103,7 @@ void Overlay_Relocate(void* allocatedVRamAddress, OverlayRelocationSection* over
             case 0x4000000:
                 dbg += 0xA;
             case 0x6000000:
-                if (gOverlayLogSeverity >= 3) {
+                if (OoT_gOverlayLogSeverity >= 3) {
                     osSyncPrintf("%02d %08x %08x %08x ", dbg, relocDataP, relocatedValue, relocatedAddress);
                     osSyncPrintf(" %08x %08x %08x %08x\n", ((uintptr_t)relocDataP + (uintptr_t)vRamAddress) - allocu32,
                                  relocData, unrelocatedAddress, relocOffset);

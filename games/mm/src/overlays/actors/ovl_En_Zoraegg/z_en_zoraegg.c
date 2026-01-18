@@ -77,11 +77,11 @@ void EnZoraegg_Init(Actor* thisx, PlayState* play) {
         CS_CMD_ACTOR_CUE_461, CS_CMD_ACTOR_CUE_462, CS_CMD_ACTOR_CUE_464,
     };
 
-    Actor_SetScale(&this->actor, 0.006f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gZoraBabySkel, &gZoraBabySwimAnim, this->jointTable, this->morphTable,
+    MM_Actor_SetScale(&this->actor, 0.006f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gZoraBabySkel, &gZoraBabySwimAnim, this->jointTable, this->morphTable,
                        ZORA_BABY_LIMB_MAX);
-    Animation_PlayLoop(&this->skelAnime, &gZoraBabySwimAnim);
-    ActorShape_Init(&this->actor.shape, 1100.0f, NULL, 0.0f);
+    MM_Animation_PlayLoop(&this->skelAnime, &gZoraBabySwimAnim);
+    MM_ActorShape_Init(&this->actor.shape, 1100.0f, NULL, 0.0f);
 
     this->actionFunc = func_80B32084;
 
@@ -97,15 +97,15 @@ void EnZoraegg_Init(Actor* thisx, PlayState* play) {
 
     switch (ZORA_EGG_GET_TYPE(&this->actor)) {
         case ZORA_EGG_TYPE_00:
-            if (Flags_GetSwitch(play, ZORA_EGG_GET_SWITCH_FLAG(&this->actor))) {
-                Actor_Kill(&this->actor);
+            if (MM_Flags_GetSwitch(play, ZORA_EGG_GET_SWITCH_FLAG(&this->actor))) {
+                MM_Actor_Kill(&this->actor);
                 return;
             }
             break;
 
         case ZORA_EGG_TYPE_11:
             if (func_80B319A8(play) >= 7) {
-                Actor_Kill(&this->actor);
+                MM_Actor_Kill(&this->actor);
                 this->actor.home.rot.z = 1;
                 return;
             }
@@ -119,7 +119,7 @@ void EnZoraegg_Init(Actor* thisx, PlayState* play) {
         case ZORA_EGG_TYPE_08:
         case ZORA_EGG_TYPE_09:
             if (CHECK_WEEKEVENTREG(WEEKEVENTREG_19_40)) {
-                Actor_Kill(&this->actor);
+                MM_Actor_Kill(&this->actor);
                 return;
             }
             break;
@@ -132,7 +132,7 @@ void EnZoraegg_Init(Actor* thisx, PlayState* play) {
         case ZORA_EGG_TYPE_0F:
         case ZORA_EGG_TYPE_10:
             if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_19_40)) {
-                Actor_Kill(&this->actor);
+                MM_Actor_Kill(&this->actor);
                 return;
             }
             break;
@@ -163,7 +163,7 @@ void EnZoraegg_Init(Actor* thisx, PlayState* play) {
         case ZORA_EGG_TYPE_08:
         case ZORA_EGG_TYPE_09:
             this->cueType = cueTypes[ZORA_EGG_GET_TYPE(&this->actor) - ZORA_EGG_TYPE_03];
-            Animation_PlayOnce(&this->skelAnime, &gZoraBabyHatchAnim);
+            MM_Animation_PlayOnce(&this->skelAnime, &gZoraBabyHatchAnim);
             this->unk_1EC = 1;
             this->unk_1EE = 0;
             this->unk_1EF = 0;
@@ -184,14 +184,14 @@ void EnZoraegg_Init(Actor* thisx, PlayState* play) {
             this->cueType = cueTypes[ZORA_EGG_GET_TYPE(&this->actor) - ZORA_EGG_TYPE_0A];
             this->unk_1EC = 2;
             this->actionFunc = func_80B324B0;
-            Animation_PlayLoop(&this->skelAnime, &gZoraBabyNoteAnim);
+            MM_Animation_PlayLoop(&this->skelAnime, &gZoraBabyNoteAnim);
             this->unk_1EE = 0;
             this->unk_1ED = 0;
             this->unk_1EA |= 3;
             break;
 
         case ZORA_EGG_TYPE_11:
-            Actor_SetScale(&this->actor, 0.0006f);
+            MM_Actor_SetScale(&this->actor, 0.0006f);
             this->actionFunc = func_80B32D08;
             this->actor.world.pos.y -= this->actor.shape.yOffset * this->actor.scale.y;
             this->actor.shape.rot.x = 0;
@@ -229,9 +229,9 @@ void func_80B31A34(EnZoraegg* this) {
         this->unk_1EE = 0;
         this->unk_1EF = 0;
     } else if (curFrame < 93) {
-        this->unk_1EE = Math_SinS((curFrame * 0xBC) - 0x468) * 100.0f;
+        this->unk_1EE = MM_Math_SinS((curFrame * 0xBC) - 0x468) * 100.0f;
         if (curFrame >= 89) {
-            this->unk_1EF = Math_SinS((curFrame * 0x1000) - (0x59 * 0x1000)) * 100.0f;
+            this->unk_1EF = MM_Math_SinS((curFrame * 0x1000) - (0x59 * 0x1000)) * 100.0f;
         } else {
             this->unk_1EF = 0;
         }
@@ -242,9 +242,9 @@ void func_80B31A34(EnZoraegg* this) {
 
 void func_80B31C40(EnZoraegg* this, PlayState* play) {
     Actor_MoveWithGravity(&this->actor);
-    Math_Vec3f_Copy(&this->actor.focus.pos, &this->actor.world.pos);
+    MM_Math_Vec3f_Copy(&this->actor.focus.pos, &this->actor.world.pos);
     this->actor.focus.pos.y += 10.0f;
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
 }
 
 Actor* func_80B31CB4(PlayState* play) {
@@ -279,7 +279,7 @@ void func_80B31D64(EnZoraegg* this, PlayState* play, s32 arg2, f32 arg3) {
     sp24.y += arg3;
 
     if ((play->gameplayFrames & arg2) == 0) {
-        EffectSsBubble_Spawn(play, &this->actor.world.pos, 0.0f, 0.0f, 10.0f, 0.13f);
+        MM_EffectSsBubble_Spawn(play, &this->actor.world.pos, 0.0f, 0.0f, 10.0f, 0.13f);
     }
 }
 
@@ -302,9 +302,9 @@ void func_80B31E00(EnZoraegg* this) {
     if (this->unk_1E8 < 10) {
         this->unk_1E0 = sp20[this->unk_1E8 & 3];
     } else if (this->unk_1E8 < 22) {
-        this->unk_1E0 = (Math_SinS((this->unk_1E8 - 10.0f) * (4096.0f / 3)) * 0.8f) + 1.0f;
+        this->unk_1E0 = (MM_Math_SinS((this->unk_1E8 - 10.0f) * (4096.0f / 3)) * 0.8f) + 1.0f;
     } else if (this->unk_1E8 < 26) {
-        this->unk_1E0 = (Math_CosS((this->unk_1E8 - 22.0f) * 4096.0f) * 0.8f) + 1.0f;
+        this->unk_1E0 = (MM_Math_CosS((this->unk_1E8 - 22.0f) * 4096.0f) * 0.8f) + 1.0f;
     } else if (this->unk_1E8 < 32) {
         this->unk_1E0 = sp20[(this->unk_1E8 - 1) & 3];
     } else if (this->unk_1E8 < 47) {
@@ -326,21 +326,21 @@ void func_80B32084(EnZoraegg* this, PlayState* play) {
 }
 
 void func_80B32094(EnZoraegg* this, PlayState* play) {
-    if (Message_GetState(&play->msgCtx) == TEXT_STATE_CLOSING) {
+    if (MM_Message_GetState(&play->msgCtx) == TEXT_STATE_CLOSING) {
         this->actionFunc = func_80B320E0;
     }
     func_80B31C40(this, play);
 }
 
 void func_80B320E0(EnZoraegg* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play)) {
-        Flags_SetSwitch(play, ZORA_EGG_GET_SWITCH_FLAG(&this->actor));
-        Actor_Kill(&this->actor);
+    if (MM_Actor_HasParent(&this->actor, play)) {
+        MM_Flags_SetSwitch(play, ZORA_EGG_GET_SWITCH_FLAG(&this->actor));
+        MM_Actor_Kill(&this->actor);
     } else if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         this->actionFunc = func_80B32094;
-        Message_StartTextbox(play, 0x24B, &this->actor);
+        MM_Message_StartTextbox(play, 0x24B, &this->actor);
     } else {
-        Actor_OfferGetItem(&this->actor, play, GI_MAX, 80.0f, 60.0f);
+        MM_Actor_OfferGetItem(&this->actor, play, GI_MAX, 80.0f, 60.0f);
         if (this->actor.isLockedOn) {
             Actor_OfferTalk(&this->actor, play, 110.0f);
         }
@@ -406,7 +406,7 @@ void func_80B32390(EnZoraegg* this, PlayState* play) {
         if (temp_v0 != NULL) {
             CutsceneManager_StartWithPlayerCs(this->actor.csId, temp_v0);
             SET_EVENTINF(EVENTINF_33);
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
     } else if ((func_80B319A8(play) >= 7) &&
                (fabsf(player->actor.world.pos.x - this->actor.world.pos.x) < (100.0f * this->actor.scale.x)) &&
@@ -417,38 +417,38 @@ void func_80B32390(EnZoraegg* this, PlayState* play) {
 }
 
 void func_80B324B0(EnZoraegg* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     if (Cutscene_IsCueInChannel(play, this->cueType)) {
         if (this->unk_1EA & 4) {
             if (Cutscene_IsCueInChannel(play, this->cueType) &&
                 (play->csCtx.actorCues[Cutscene_GetCueChannel(play, this->cueType)]->id == 3)) {
-                Animation_PlayLoop(&this->skelAnime, &gZoraBabyNoteAnim);
+                MM_Animation_PlayLoop(&this->skelAnime, &gZoraBabyNoteAnim);
                 this->unk_1EA &= ~4;
             }
         } else {
             if (Cutscene_IsCueInChannel(play, this->cueType) &&
                 (play->csCtx.actorCues[Cutscene_GetCueChannel(play, this->cueType)]->id == 4)) {
-                Animation_PlayLoop(&this->skelAnime, &gZoraBabySongLearnedAnim);
+                MM_Animation_PlayLoop(&this->skelAnime, &gZoraBabySongLearnedAnim);
                 this->unk_1EA |= 4;
             }
         }
 
         Cutscene_ActorTranslateAndYaw(&this->actor, play, Cutscene_GetCueChannel(play, this->cueType));
 
-        if ((this->unk_1EA & 4) && Animation_OnFrame(&this->skelAnime, this->unk_1E4)) {
+        if ((this->unk_1EA & 4) && MM_Animation_OnFrame(&this->skelAnime, this->unk_1E4)) {
             Actor_PlaySfx(&this->actor, NA_SE_EV_ZORA_KIDS_SWIM_1);
-            this->unk_1E4 = Rand_ZeroFloat(5.0f);
+            this->unk_1E4 = MM_Rand_ZeroFloat(5.0f);
         }
     } else if (this->unk_1EA & 4) {
-        Animation_PlayLoop(&this->skelAnime, &gZoraBabyNoteAnim);
+        MM_Animation_PlayLoop(&this->skelAnime, &gZoraBabyNoteAnim);
         this->unk_1EA &= ~4;
     }
 }
 
 void func_80B32644(EnZoraegg* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skelAnime)) {
-        Animation_PlayLoop(&this->skelAnime, &gZoraBabyNoteAnim);
+    if (MM_SkelAnime_Update(&this->skelAnime)) {
+        MM_Animation_PlayLoop(&this->skelAnime, &gZoraBabyNoteAnim);
         this->unk_1EE = 0;
         this->unk_1EA |= 2;
     }
@@ -467,12 +467,12 @@ void func_80B32644(EnZoraegg* this, PlayState* play) {
 }
 
 void func_80B326F4(EnZoraegg* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     if (Cutscene_IsCueInChannel(play, this->cueType) &&
         (play->csCtx.actorCues[Cutscene_GetCueChannel(play, this->cueType)]->id == 3)) {
-        Animation_Change(&this->skelAnime, &gZoraBabyFormNoteAnim, 1.0f, 0.0f,
-                         Animation_GetLastFrame(&gZoraBabyFormNoteAnim), ANIMMODE_ONCE, 5.0f);
+        MM_Animation_Change(&this->skelAnime, &gZoraBabyFormNoteAnim, 1.0f, 0.0f,
+                         MM_Animation_GetLastFrame(&gZoraBabyFormNoteAnim), ANIMMODE_ONCE, 5.0f);
         this->unk_1E8 = 0;
         this->actionFunc = func_80B32644;
         SET_WEEKEVENTREG(WEEKEVENTREG_19_40);
@@ -483,30 +483,30 @@ void func_80B326F4(EnZoraegg* this, PlayState* play) {
 
     Cutscene_ActorTranslateAndYaw(&this->actor, play, Cutscene_GetCueChannel(play, this->cueType));
 
-    if (Animation_OnFrame(&this->skelAnime, 4.0f)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, 4.0f)) {
         Actor_PlaySfx(&this->actor, NA_SE_EV_ZORA_KIDS_SWIM_1);
     }
 }
 
 void func_80B32820(EnZoraegg* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (MM_SkelAnime_Update(&this->skelAnime)) {
         if (this->unk_1E8 >= 2) {
             this->actionFunc = func_80B326F4;
-            Animation_Change(&this->skelAnime, &gZoraBabySwimAnim, 1.0f, 0.0f,
-                             Animation_GetLastFrame(&gZoraBabySwimAnim), ANIMMODE_LOOP, 10.0f);
+            MM_Animation_Change(&this->skelAnime, &gZoraBabySwimAnim, 1.0f, 0.0f,
+                             MM_Animation_GetLastFrame(&gZoraBabySwimAnim), ANIMMODE_LOOP, 10.0f);
             this->unk_1E8 = 0;
-            SkelAnime_Update(&this->skelAnime);
+            MM_SkelAnime_Update(&this->skelAnime);
             return;
         }
 
-        Animation_PlayOnce(&this->skelAnime, &gZoraBabySwimUpAnim);
+        MM_Animation_PlayOnce(&this->skelAnime, &gZoraBabySwimUpAnim);
         this->unk_1E8 += 1;
-        SkelAnime_Update(&this->skelAnime);
+        MM_SkelAnime_Update(&this->skelAnime);
     }
 
     Cutscene_ActorTranslateAndYaw(&this->actor, play, Cutscene_GetCueChannel(play, this->cueType));
 
-    if (Animation_OnFrame(&this->skelAnime, 16.0f)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, 16.0f)) {
         Actor_PlaySfx(&this->actor, NA_SE_EV_ZORA_KIDS_SWIM_0);
     }
 }
@@ -516,8 +516,8 @@ void func_80B32928(EnZoraegg* this, PlayState* play) {
         this->unk_1E8++;
     }
 
-    if (SkelAnime_Update(&this->skelAnime)) {
-        Animation_PlayOnce(&this->skelAnime, &gZoraBabySwimUpAnim);
+    if (MM_SkelAnime_Update(&this->skelAnime)) {
+        MM_Animation_PlayOnce(&this->skelAnime, &gZoraBabySwimUpAnim);
         this->unk_1EA |= 1;
         this->actionFunc = func_80B32820;
         this->unk_1E8 = 0;
@@ -540,8 +540,8 @@ void func_80B32928(EnZoraegg* this, PlayState* play) {
 
     Cutscene_ActorTranslateAndYaw(&this->actor, play, Cutscene_GetCueChannel(play, this->cueType));
 
-    if (Animation_OnFrame(&this->skelAnime, 97.0f) || Animation_OnFrame(&this->skelAnime, 101.0f) ||
-        Animation_OnFrame(&this->skelAnime, 105.0f)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, 97.0f) || MM_Animation_OnFrame(&this->skelAnime, 101.0f) ||
+        MM_Animation_OnFrame(&this->skelAnime, 105.0f)) {
         Actor_PlaySfx(&this->actor, NA_SE_EV_ZORA_KIDS_SWIM_1);
     }
 }
@@ -571,7 +571,7 @@ void func_80B32B3C(EnZoraegg* this, PlayState* play) {
 void func_80B32B70(EnZoraegg* this, PlayState* play) {
     func_80B31C40(this, play);
     if (Cutscene_IsCueInChannel(play, CS_CMD_ACTOR_CUE_457)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -584,7 +584,7 @@ void func_80B32BB8(EnZoraegg* this, PlayState* play) {
     }
 
     if (Cutscene_IsCueInChannel(play, CS_CMD_ACTOR_CUE_457)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -594,11 +594,11 @@ void func_80B32C34(EnZoraegg* this, PlayState* play) {
     s32 pad;
 
     Actor_MoveWithGravity(&this->actor);
-    Math_Vec3f_Copy(&this->actor.focus.pos, &this->actor.world.pos);
+    MM_Math_Vec3f_Copy(&this->actor.focus.pos, &this->actor.world.pos);
     this->actor.focus.pos.y += 10.0f;
     sp30 = this->actor.world.pos.y;
 
-    if (WaterBox_GetSurface1(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &sp30, &waterBox)) {
+    if (MM_WaterBox_GetSurface1(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &sp30, &waterBox)) {
         if ((this->actor.world.pos.y + 50.0f) < sp30) {
             this->actionFunc = func_80B32BB8;
         }
@@ -615,18 +615,18 @@ void func_80B32D08(EnZoraegg* this, PlayState* play) {
     s32 pad;
 
     Actor_MoveWithGravity(&this->actor);
-    Math_Vec3f_Copy(&this->actor.focus.pos, &this->actor.world.pos);
+    MM_Math_Vec3f_Copy(&this->actor.focus.pos, &this->actor.world.pos);
     this->actor.focus.pos.y += 10.0f;
     sp40 = this->actor.world.pos.y;
 
-    if (WaterBox_GetSurface1(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &sp40, &waterBox)) {
+    if (MM_WaterBox_GetSurface1(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &sp40, &waterBox)) {
         if (this->actor.world.pos.y < sp40) {
             sp34.x = this->actor.world.pos.x;
             sp34.y = sp40;
             sp34.z = this->actor.world.pos.z;
 
-            EffectSsGRipple_Spawn(play, &sp34, 150, 500, 0);
-            EffectSsGSplash_Spawn(play, &sp34, NULL, NULL, 0, 200);
+            MM_EffectSsGRipple_Spawn(play, &sp34, 150, 500, 0);
+            MM_EffectSsGSplash_Spawn(play, &sp34, NULL, NULL, 0, 200);
             Actor_PlaySfx(&this->actor, NA_SE_EV_DIVE_INTO_WATER_L);
 
             this->actionFunc = func_80B32C34;
@@ -637,11 +637,11 @@ void func_80B32D08(EnZoraegg* this, PlayState* play) {
     }
 
     if (this->actor.scale.x < 0.006f) {
-        Actor_SetScale(&this->actor, this->actor.scale.x + 0.0012f);
+        MM_Actor_SetScale(&this->actor, this->actor.scale.x + 0.0012f);
     }
 
     if (this->actor.scale.x > 0.006f) {
-        Actor_SetScale(&this->actor, 0.006f);
+        MM_Actor_SetScale(&this->actor, 0.006f);
     }
 }
 
@@ -651,7 +651,7 @@ void EnZoraegg_Update(Actor* thisx, PlayState* play) {
     this->actionFunc(this, play);
 
     if (DECR(this->blinkTimer) == 0) {
-        this->blinkTimer = Rand_S16Offset(60, 60);
+        this->blinkTimer = MM_Rand_S16Offset(60, 60);
     }
 
     this->eyeIndex = this->blinkTimer;
@@ -673,26 +673,26 @@ void func_80B32F04(Actor* thisx, PlayState* play) {
     Vec3f sp4C;
     s32 pad2;
 
-    Matrix_Push();
+    MM_Matrix_Push();
 
     sp4C = GET_ACTIVE_CAM(play)->eye;
 
-    sp62 = Math_Vec3f_Yaw(&sp4C, &this->actor.focus.pos);
-    sp60 = -Math_Vec3f_Pitch(&sp4C, &this->actor.focus.pos);
+    sp62 = MM_Math_Vec3f_Yaw(&sp4C, &this->actor.focus.pos);
+    sp60 = -MM_Math_Vec3f_Pitch(&sp4C, &this->actor.focus.pos);
 
-    sp74 = -((15.0f * Math_SinS(sp62)) * Math_CosS(sp60));
-    sp78 = -(15.0f * Math_SinS(sp60));
-    sp7C = -((15.0f * Math_CosS(sp62)) * Math_CosS(sp60));
+    sp74 = -((15.0f * MM_Math_SinS(sp62)) * MM_Math_CosS(sp60));
+    sp78 = -(15.0f * MM_Math_SinS(sp60));
+    sp7C = -((15.0f * MM_Math_CosS(sp62)) * MM_Math_CosS(sp60));
 
     pos.x = this->actor.world.pos.x + sp74;
     pos.y = this->actor.world.pos.y + sp78 + 6.0f;
     pos.z = this->actor.world.pos.z + sp7C;
 
-    Matrix_Translate(pos.x, pos.y, pos.z, MTXMODE_NEW);
+    MM_Matrix_Translate(pos.x, pos.y, pos.z, MTXMODE_NEW);
 
-    sp7C = Math_SinS(play->gameplayFrames * 0x4000);
+    sp7C = MM_Math_SinS(play->gameplayFrames * 0x4000);
 
-    Matrix_Scale(this->actor.scale.x * (((sp7C + 1.0f) * 0.1f) + 9.0f),
+    MM_Matrix_Scale(this->actor.scale.x * (((sp7C + 1.0f) * 0.1f) + 9.0f),
                  this->actor.scale.y * (((sp7C + 1.0f) * 0.1f) + 9.0f),
                  this->actor.scale.z * (((sp7C + 1.0f) * 0.1f) + 9.0f), MTXMODE_APPLY);
 
@@ -711,7 +711,7 @@ void func_80B32F04(Actor* thisx, PlayState* play) {
 
     POLY_XLU_DISP = gfx;
 
-    Matrix_Pop();
+    MM_Matrix_Pop();
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -721,9 +721,9 @@ void func_80B331C8(Actor* thisx, PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    Matrix_Push();
+    MM_Matrix_Push();
 
-    Matrix_Scale(this->unk_1E0, this->unk_1E0, this->unk_1E0, MTXMODE_APPLY);
+    MM_Matrix_Scale(this->unk_1E0, this->unk_1E0, this->unk_1E0, MTXMODE_APPLY);
 
     if (this->unk_1ED >= 254) {
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
@@ -740,7 +740,7 @@ void func_80B331C8(Actor* thisx, PlayState* play) {
         gSPDisplayList(POLY_XLU_DISP++, gZoraEggDL);
     }
 
-    Matrix_Pop();
+    MM_Matrix_Pop();
 
     func_80B32F04(thisx, play);
 
@@ -767,15 +767,15 @@ s32 EnZoraegg_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3
 }
 
 void func_80B333DC(PlayState* play, Gfx** dList, f32 arg2) {
-    Matrix_Push();
-    Matrix_Scale(arg2, arg2, arg2, MTXMODE_APPLY);
+    MM_Matrix_Push();
+    MM_Matrix_Scale(arg2, arg2, arg2, MTXMODE_APPLY);
 
     OPEN_DISPS(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     gSPDisplayList(POLY_OPA_DISP++, *dList);
 
-    Matrix_Pop();
+    MM_Matrix_Pop();
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -790,8 +790,8 @@ void EnZoraegg_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* 
             switch (limbIndex) {
                 case ZORA_BABY_LIMB_TAIL1:
                     temp_f20 = this->unk_1EE * 0.01f;
-                    Matrix_Push();
-                    Matrix_Scale(temp_f20, temp_f20, temp_f20, MTXMODE_APPLY);
+                    MM_Matrix_Push();
+                    MM_Matrix_Scale(temp_f20, temp_f20, temp_f20, MTXMODE_APPLY);
 
                     OPEN_DISPS(play->state.gfxCtx);
 
@@ -802,7 +802,7 @@ void EnZoraegg_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* 
                     break;
 
                 case ZORA_BABY_LIMB_TAIL_FIN:
-                    Matrix_Pop();
+                    MM_Matrix_Pop();
                     break;
 
                 case ZORA_BABY_LIMB_RIGHT_PECTORAL_FIN:
@@ -817,8 +817,8 @@ void EnZoraegg_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* 
             switch (limbIndex) {
                 case ZORA_BABY_LIMB_TAIL1:
                     temp_f20 = (this->unk_1EE * 0.005f) + 0.5f;
-                    Matrix_Push();
-                    Matrix_Scale(1.0f, temp_f20, temp_f20, MTXMODE_APPLY);
+                    MM_Matrix_Push();
+                    MM_Matrix_Scale(1.0f, temp_f20, temp_f20, MTXMODE_APPLY);
 
                     OPEN_DISPS(play->state.gfxCtx);
 
@@ -831,7 +831,7 @@ void EnZoraegg_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* 
                 case ZORA_BABY_LIMB_TAIL_FIN:
                     temp_f2 = 1.0f / ((this->unk_1EE * 0.005f) + 0.5f);
                     temp_f20 = (this->unk_1EE * 0.0035f) + 0.65f;
-                    Matrix_Scale(1.0f, temp_f20 * temp_f2, temp_f2, MTXMODE_APPLY);
+                    MM_Matrix_Scale(1.0f, temp_f20 * temp_f2, temp_f2, MTXMODE_APPLY);
 
                     OPEN_DISPS(play->state.gfxCtx);
 
@@ -840,7 +840,7 @@ void EnZoraegg_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* 
 
                     CLOSE_DISPS(play->state.gfxCtx);
 
-                    Matrix_Pop();
+                    MM_Matrix_Pop();
                     break;
 
                 case ZORA_BABY_LIMB_RIGHT_PECTORAL_FIN:
@@ -863,7 +863,7 @@ void func_80B33818(Actor* thisx, PlayState* play) {
 
     gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sZoraBabyEyeTextures[this->eyeIndex]));
 
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnZoraegg_OverrideLimbDraw, EnZoraegg_PostLimbDraw, &this->actor);
 
     CLOSE_DISPS(play->state.gfxCtx);

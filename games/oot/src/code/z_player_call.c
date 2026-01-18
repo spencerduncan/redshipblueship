@@ -9,15 +9,15 @@ void (*sPlayerCallDestroyFunc)(Actor* thisx, PlayState* play);
 void (*sPlayerCallUpdateFunc)(Actor* thisx, PlayState* play);
 void (*sPlayerCallDrawFunc)(Actor* thisx, PlayState* play);
 
-void PlayerCall_Init(Actor* thisx, PlayState* play);
-void PlayerCall_Destroy(Actor* thisx, PlayState* play);
-void PlayerCall_Update(Actor* thisx, PlayState* play);
-void PlayerCall_Draw(Actor* thisx, PlayState* play);
+void OoT_PlayerCall_Init(Actor* thisx, PlayState* play);
+void OoT_PlayerCall_Destroy(Actor* thisx, PlayState* play);
+void OoT_PlayerCall_Update(Actor* thisx, PlayState* play);
+void OoT_PlayerCall_Draw(Actor* thisx, PlayState* play);
 
-void Player_Init(Actor* thisx, PlayState* play);
-void Player_Destroy(Actor* thisx, PlayState* play);
-void Player_Update(Actor* thisx, PlayState* play);
-void Player_Draw(Actor* thisx, PlayState* play);
+void OoT_Player_Init(Actor* thisx, PlayState* play);
+void OoT_Player_Destroy(Actor* thisx, PlayState* play);
+void OoT_Player_Update(Actor* thisx, PlayState* play);
+void OoT_Player_Draw(Actor* thisx, PlayState* play);
 
 const ActorInit Player_InitVars = {
     ACTOR_PLAYER,
@@ -25,37 +25,37 @@ const ActorInit Player_InitVars = {
     FLAGS,
     OBJECT_GAMEPLAY_KEEP,
     sizeof(Player),
-    (ActorFunc)PlayerCall_Init,
-    (ActorFunc)PlayerCall_Destroy,
-    (ActorFunc)PlayerCall_Update,
-    (ActorFunc)PlayerCall_Draw,
+    (ActorFunc)OoT_PlayerCall_Init,
+    (ActorFunc)OoT_PlayerCall_Destroy,
+    (ActorFunc)OoT_PlayerCall_Update,
+    (ActorFunc)OoT_PlayerCall_Draw,
     NULL,
 };
 
-void PlayerCall_InitFuncPtrs(void) {
-    sPlayerCallInitFunc = KaleidoManager_GetRamAddr(Player_Init);
-    sPlayerCallDestroyFunc = KaleidoManager_GetRamAddr(Player_Destroy);
-    sPlayerCallUpdateFunc = KaleidoManager_GetRamAddr(Player_Update);
-    sPlayerCallDrawFunc = KaleidoManager_GetRamAddr(Player_Draw);
+void OoT_PlayerCall_InitFuncPtrs(void) {
+    sPlayerCallInitFunc = OoT_KaleidoManager_GetRamAddr(OoT_Player_Init);
+    sPlayerCallDestroyFunc = OoT_KaleidoManager_GetRamAddr(OoT_Player_Destroy);
+    sPlayerCallUpdateFunc = OoT_KaleidoManager_GetRamAddr(OoT_Player_Update);
+    sPlayerCallDrawFunc = OoT_KaleidoManager_GetRamAddr(OoT_Player_Draw);
 }
 
-void PlayerCall_Init(Actor* thisx, PlayState* play) {
-    KaleidoScopeCall_LoadPlayer();
-    PlayerCall_InitFuncPtrs();
+void OoT_PlayerCall_Init(Actor* thisx, PlayState* play) {
+    OoT_KaleidoScopeCall_LoadPlayer();
+    OoT_PlayerCall_InitFuncPtrs();
     sPlayerCallInitFunc(thisx, play);
 }
 
-void PlayerCall_Destroy(Actor* thisx, PlayState* play) {
-    KaleidoScopeCall_LoadPlayer();
+void OoT_PlayerCall_Destroy(Actor* thisx, PlayState* play) {
+    OoT_KaleidoScopeCall_LoadPlayer();
     sPlayerCallDestroyFunc(thisx, play);
 }
 
-void PlayerCall_Update(Actor* thisx, PlayState* play) {
-    KaleidoScopeCall_LoadPlayer();
+void OoT_PlayerCall_Update(Actor* thisx, PlayState* play) {
+    OoT_KaleidoScopeCall_LoadPlayer();
     sPlayerCallUpdateFunc(thisx, play);
 }
 
-void PlayerCall_Draw(Actor* thisx, PlayState* play) {
-    KaleidoScopeCall_LoadPlayer();
+void OoT_PlayerCall_Draw(Actor* thisx, PlayState* play) {
+    OoT_KaleidoScopeCall_LoadPlayer();
     sPlayerCallDrawFunc(thisx, play);
 }

@@ -145,7 +145,7 @@ void AudioSeq_InitSequenceChannel(SequenceChannel* channel) {
     channel->notePriority = 3;
     channel->someOtherPriority = 1;
     channel->delay = 0;
-    channel->adsr.envelope = gDefaultEnvelope;
+    channel->adsr.envelope = OoT_gDefaultEnvelope;
     channel->adsr.releaseRate = 0xF0;
     channel->adsr.sustain = 0;
     channel->vibratoRateTarget = 0x800;
@@ -307,11 +307,11 @@ void AudioSeq_SequencePlayerDisable(SequencePlayer* seqPlayer) {
     seqPlayer->enabled = false;
     seqPlayer->finished = true;
 
-    if (AudioLoad_IsSeqLoadComplete(seqPlayer->seqId)) {
-        AudioLoad_SetSeqLoadStatus(seqPlayer->seqId, 3);
+    if (OoT_AudioLoad_IsSeqLoadComplete(seqPlayer->seqId)) {
+        OoT_AudioLoad_SetSeqLoadStatus(seqPlayer->seqId, 3);
     }
-    if (AudioLoad_IsFontLoadComplete(seqPlayer->defaultFont)) {
-        AudioLoad_SetFontLoadStatus(seqPlayer->defaultFont, 4);
+    if (OoT_AudioLoad_IsFontLoadComplete(seqPlayer->defaultFont)) {
+        OoT_AudioLoad_SetFontLoadStatus(seqPlayer->defaultFont, 4);
     }
 
     if (seqPlayer->defaultFont == gAudioContext.fontCache.temporary.entries[0].id) {
@@ -608,7 +608,7 @@ s32 AudioSeq_SeqLayerProcessScriptStep2(SequenceLayer* layer) {
 
             case 0xCE: {
                 u8 tempByte = AudioSeq_ScriptReadU8(state);
-                layer->unk_34 = gBendPitchTwoSemitonesFrequencies[(tempByte + 0x80) & 0xFF];
+                layer->unk_34 = OoT_gBendPitchTwoSemitonesFrequencies[(tempByte + 0x80) & 0xFF];
                 break;
             }
 
@@ -948,7 +948,7 @@ u8 AudioSeq_GetInstrument(SequenceChannel* channel, u8 instId, Instrument** inst
         adsr->envelope = inst->envelope;
         adsr->releaseRate = (inst->releaseRate);
     } else {
-        adsr->envelope = gDefaultEnvelope;
+        adsr->envelope = OoT_gDefaultEnvelope;
     }
 
     *instOut = inst;
@@ -1072,7 +1072,7 @@ void AudioSeq_SequenceChannelProcessScript(SequenceChannel* channel) {
                             command = sDat.fonts[sDat.numFonts - result - 1];
                         }
 
-                        if (AudioHeap_SearchCaches(FONT_TABLE, CACHE_EITHER, command)) {
+                        if (OoT_AudioHeap_SearchCaches(FONT_TABLE, CACHE_EITHER, command)) {
                             channel->fontId = command;
                         }
 
@@ -1106,13 +1106,13 @@ void AudioSeq_SequenceChannelProcessScript(SequenceChannel* channel) {
                     case 0xD3:
                         command = (u8)parameters[0];
                         command += 0x80;
-                        channel->freqScale = gBendPitchOneOctaveFrequencies[command];
+                        channel->freqScale = OoT_gBendPitchOneOctaveFrequencies[command];
                         channel->changes.s.freqScale = true;
                         break;
                     case 0xEE:
                         command = (u8)parameters[0];
                         command += 0x80;
-                        channel->freqScale = gBendPitchTwoSemitonesFrequencies[command];
+                        channel->freqScale = OoT_gBendPitchTwoSemitonesFrequencies[command];
                         channel->changes.s.freqScale = true;
                         break;
                     case 0xDD:
@@ -1186,14 +1186,14 @@ void AudioSeq_SequenceChannelProcessScript(SequenceChannel* channel) {
                             SequenceData sDat = ResourceMgr_LoadSeqByName(sequenceMap[seqId]);
 
                             // The game apparantely would sometimes do negative array lookups, the result of which would
-                            // get rejected by AudioHeap_SearchCaches, never changing the actual fontid.
+                            // get rejected by OoT_AudioHeap_SearchCaches, never changing the actual fontid.
                             if (result > sDat.numFonts)
                                 break;
 
                             command = sDat.fonts[(sDat.numFonts - result - 1)];
                         }
 
-                        if (AudioHeap_SearchCaches(FONT_TABLE, CACHE_EITHER, command)) {
+                        if (OoT_AudioHeap_SearchCaches(FONT_TABLE, CACHE_EITHER, command)) {
                             channel->fontId = command;
                         }
 
@@ -1342,7 +1342,7 @@ void AudioSeq_SequenceChannelProcessScript(SequenceChannel* channel) {
                         if (channel->filter != NULL) {
                             lowBits = (command >> 4) & 0xF;
                             command &= 0xF;
-                            AudioHeap_LoadFilter(channel->filter, lowBits, command);
+                            OoT_AudioHeap_LoadFilter(channel->filter, lowBits, command);
                         }
                         break;
                     case 0xB2:
@@ -1508,13 +1508,13 @@ void AudioSeq_SequencePlayerProcessSequence(SequencePlayer* seqPlayer) {
         return;
     }
 
-    if (!AudioLoad_IsSeqLoadComplete(seqPlayer->seqId) || !AudioLoad_IsFontLoadComplete(seqPlayer->defaultFont)) {
+    if (!OoT_AudioLoad_IsSeqLoadComplete(seqPlayer->seqId) || !OoT_AudioLoad_IsFontLoadComplete(seqPlayer->defaultFont)) {
         AudioSeq_SequencePlayerDisable(seqPlayer);
         return;
     }
 
-    AudioLoad_SetSeqLoadStatus(seqPlayer->seqId, 2);
-    AudioLoad_SetFontLoadStatus(seqPlayer->defaultFont, 2);
+    OoT_AudioLoad_SetSeqLoadStatus(seqPlayer->seqId, 2);
+    OoT_AudioLoad_SetFontLoadStatus(seqPlayer->defaultFont, 2);
 
     if (seqPlayer->muted && (seqPlayer->muteBehavior & 0x80)) {
         return;
@@ -1716,7 +1716,7 @@ void AudioSeq_SequencePlayerProcessSequence(SequencePlayer* seqPlayer) {
                             command = seqPlayer->playerIdx;
                         }
                         commandLow = AudioSeq_ScriptReadU8(seqScript);
-                        AudioLoad_SyncInitSeqPlayer(command, commandLow, 0);
+                        OoT_AudioLoad_SyncInitSeqPlayer(command, commandLow, 0);
                         if (command == (u8)seqPlayer->playerIdx) {
                             return;
                         }
@@ -1763,7 +1763,7 @@ void AudioSeq_SequencePlayerProcessSequence(SequencePlayer* seqPlayer) {
                         value = command;
                         temp = AudioSeq_ScriptReadU8(seqScript);
 
-                        AudioLoad_ScriptLoad(value, temp, &seqPlayer->soundScriptIO[commandLow]);
+                        OoT_AudioLoad_ScriptLoad(value, temp, &seqPlayer->soundScriptIO[commandLow]);
                         break;
                     }
                 }
@@ -1816,8 +1816,8 @@ void AudioSeq_ResetSequencePlayer(SequencePlayer* seqPlayer) {
     seqPlayer->unk_0C = 0;
     seqPlayer->transposition = 0;
     seqPlayer->noteAllocPolicy = 0;
-    seqPlayer->shortNoteVelocityTable = gDefaultShortNoteVelocityTable;
-    seqPlayer->shortNoteGateTimeTable = gDefaultShortNoteGateTimeTable;
+    seqPlayer->shortNoteVelocityTable = OoT_gDefaultShortNoteVelocityTable;
+    seqPlayer->shortNoteGateTimeTable = OoT_gDefaultShortNoteGateTimeTable;
     seqPlayer->scriptCounter = 0;
     seqPlayer->fadeVolume = 1.0f;
     seqPlayer->fadeVelocity = 0.0f;
@@ -1835,7 +1835,7 @@ void AudioSeq_InitSequencePlayerChannels(s32 playerIdx) {
     s32 i, j;
 
     for (i = 0; i < 0x10; i++) {
-        seqPlayer->channels[i] = AudioHeap_AllocZeroed(&gAudioContext.notesAndBuffersPool, sizeof(SequenceChannel));
+        seqPlayer->channels[i] = OoT_AudioHeap_AllocZeroed(&gAudioContext.notesAndBuffersPool, sizeof(SequenceChannel));
         if (seqPlayer->channels[i] == NULL) {
             seqPlayer->channels[i] = &gAudioContext.sequenceChannelNone;
         } else {

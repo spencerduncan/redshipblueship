@@ -32,11 +32,11 @@ ActorProfile En_Bombers2_Profile = {
     /**/ EnBombers2_Draw,
 };
 
-static u16 sTextIds[] = {
+static u16 MM_sTextIds[] = {
     0x0727, 0x0728, 0x0726, 0x0729, 0x072B, 0x0725, 0x072A, 0x073C,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -68,7 +68,7 @@ typedef enum {
     /*  7 */ ENBOMBERS_ANIM_MAX
 } EnBombersAnimation;
 
-static AnimationHeader* sAnimations[ENBOMBERS_ANIM_MAX] = {
+static AnimationHeader* MM_sAnimations[ENBOMBERS_ANIM_MAX] = {
     &gBomberIdleAnim,       // ENBOMBERS_ANIM_0
     &object_cs_Anim_0053F4, // ENBOMBERS_ANIM_1
     &object_cs_Anim_01007C, // ENBOMBERS_ANIM_2
@@ -78,7 +78,7 @@ static AnimationHeader* sAnimations[ENBOMBERS_ANIM_MAX] = {
     &object_cs_Anim_0026B0, // ENBOMBERS_ANIM_6
 };
 
-static u8 sAnimationModes[ENBOMBERS_ANIM_MAX] = {
+static u8 MM_sAnimationModes[ENBOMBERS_ANIM_MAX] = {
     ANIMMODE_LOOP, // ENBOMBERS_ANIM_0
     ANIMMODE_LOOP, // ENBOMBERS_ANIM_1
     ANIMMODE_LOOP, // ENBOMBERS_ANIM_2
@@ -95,7 +95,7 @@ static Gfx sSetPrimColorDL[] = {
 
 static Gfx* sSetPrimColorDlPtr = sSetPrimColorDL;
 
-static TexturePtr sEyeTextures[] = {
+static TexturePtr MM_sEyeTextures[] = {
     object_cs_Tex_00C520,
     object_cs_Tex_00CD20,
     object_cs_Tex_00D520,
@@ -108,21 +108,21 @@ void EnBombers2_Init(Actor* thisx, PlayState* play) {
     EnBombers2* this = (EnBombers2*)thisx;
 
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 19.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &object_cs_Skel_00F82C, &gBomberIdleAnim, this->jointTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 19.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &object_cs_Skel_00F82C, &gBomberIdleAnim, this->jointTable,
                        this->morphTable, OBJECT_CS_LIMB_MAX);
     this->actor.attentionRangeType = ATTENTION_RANGE_6;
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
 
     if (CHECK_WEEKEVENTREG(WEEKEVENTREG_73_80) || (gSaveContext.save.entrance == ENTRANCE(EAST_CLOCK_TOWN, 2))) {
-        this->actor.world.pos.x += Math_SinS(this->actor.home.rot.y + 0xC100) * 50.0f;
-        cos = Math_CosS(this->actor.home.rot.y + 0xC100) * 50.0f;
+        this->actor.world.pos.x += MM_Math_SinS(this->actor.home.rot.y + 0xC100) * 50.0f;
+        cos = MM_Math_CosS(this->actor.home.rot.y + 0xC100) * 50.0f;
         this->unk_2AC = true;
         this->actor.world.pos.z += cos;
     }
     this->csId = this->actor.csId;
     if (this->csId == 0) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
     func_80C04B40(this);
 }
@@ -130,17 +130,17 @@ void EnBombers2_Init(Actor* thisx, PlayState* play) {
 void EnBombers2_Destroy(Actor* thisx, PlayState* play) {
     EnBombers2* this = (EnBombers2*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnBombers2_ChangeAnim(EnBombers2* this, s32 animIndex, f32 playSpeed) {
     f32 endFrame;
 
     this->animIndex = animIndex;
-    endFrame = Animation_GetLastFrame(sAnimations[this->animIndex]);
+    endFrame = MM_Animation_GetLastFrame(MM_sAnimations[this->animIndex]);
     this->lastAnimFrame = endFrame;
-    Animation_Change(&this->skelAnime, sAnimations[this->animIndex], playSpeed, 0.0f, endFrame,
-                     sAnimationModes[this->animIndex], -10.0f);
+    MM_Animation_Change(&this->skelAnime, MM_sAnimations[this->animIndex], playSpeed, 0.0f, endFrame,
+                     MM_sAnimationModes[this->animIndex], -10.0f);
 }
 
 void func_80C04B40(EnBombers2* this) {
@@ -184,10 +184,10 @@ void func_80C04BA0(EnBombers2* this, PlayState* play) {
     if (this->unk_2AC) {
         this->textIdIndex = 7;
     }
-    this->actor.textId = sTextIds[this->textIdIndex];
+    this->actor.textId = MM_sTextIds[this->textIdIndex];
 
-    if (Text_GetFaceReaction(play, FACE_REACTION_SET_BOMBERS_HIDEOUT_GUARD) != 0) {
-        this->actor.textId = Text_GetFaceReaction(play, FACE_REACTION_SET_BOMBERS_HIDEOUT_GUARD);
+    if (MM_Text_GetFaceReaction(play, FACE_REACTION_SET_BOMBERS_HIDEOUT_GUARD) != 0) {
+        this->actor.textId = MM_Text_GetFaceReaction(play, FACE_REACTION_SET_BOMBERS_HIDEOUT_GUARD);
     }
 
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
@@ -245,7 +245,7 @@ void func_80C04D8C(EnBombers2* this, PlayState* play) {
         default:
             break;
     }
-    if ((this->talkState == Message_GetState(&play->msgCtx)) && Message_ShouldAdvance(play)) {
+    if ((this->talkState == MM_Message_GetState(&play->msgCtx)) && MM_Message_ShouldAdvance(play)) {
         if (this->talkState == TEXT_STATE_INPUT_BOMBER_CODE) {
             s32 i;
             s32 correctDigits;
@@ -264,16 +264,16 @@ void func_80C04D8C(EnBombers2* this, PlayState* play) {
 
             if (correctDigits >= 5) {
                 this->textIdIndex = 6;
-                this->actor.textId = sTextIds[this->textIdIndex];
-                Message_ContinueTextbox(play, this->actor.textId);
+                this->actor.textId = MM_sTextIds[this->textIdIndex];
+                MM_Message_ContinueTextbox(play, this->actor.textId);
                 Actor_PlaySfx(&this->actor, NA_SE_SY_PIECE_OF_HEART);
                 this->talkState = TEXT_STATE_EVENT;
                 return;
             }
         }
-        if (Text_GetFaceReaction(play, FACE_REACTION_SET_BOMBERS_HIDEOUT_GUARD) != 0) {
+        if (MM_Text_GetFaceReaction(play, FACE_REACTION_SET_BOMBERS_HIDEOUT_GUARD) != 0) {
             this->unk_28E = 0;
-            Message_CloseTextbox(play);
+            MM_Message_CloseTextbox(play);
             func_80C04B40(this);
         } else {
             s32 j;
@@ -284,14 +284,14 @@ void func_80C04D8C(EnBombers2* this, PlayState* play) {
                 case 5:
                 case 7:
                     this->unk_28E = 0;
-                    Message_CloseTextbox(play);
+                    MM_Message_CloseTextbox(play);
                     func_80C04B40(this);
                     break;
 
                 case 2:
                     this->textIdIndex = 3;
-                    this->actor.textId = sTextIds[this->textIdIndex];
-                    Message_ContinueTextbox(play, this->actor.textId);
+                    this->actor.textId = MM_sTextIds[this->textIdIndex];
+                    MM_Message_ContinueTextbox(play, this->actor.textId);
                     this->talkState = TEXT_STATE_INPUT_BOMBER_CODE;
                     break;
 
@@ -301,15 +301,15 @@ void func_80C04D8C(EnBombers2* this, PlayState* play) {
                     }
                     this->textIdIndex = 4;
                     Actor_PlaySfx(&this->actor, NA_SE_SY_ERROR);
-                    this->actor.textId = sTextIds[this->textIdIndex];
-                    Message_ContinueTextbox(play, this->actor.textId);
+                    this->actor.textId = MM_sTextIds[this->textIdIndex];
+                    MM_Message_ContinueTextbox(play, this->actor.textId);
                     this->talkState = TEXT_STATE_EVENT;
                     break;
 
                 case 4:
                     this->textIdIndex = 5;
-                    this->actor.textId = sTextIds[this->textIdIndex];
-                    Message_ContinueTextbox(play, this->actor.textId);
+                    this->actor.textId = MM_sTextIds[this->textIdIndex];
+                    MM_Message_ContinueTextbox(play, this->actor.textId);
                     this->talkState = TEXT_STATE_EVENT;
                     break;
 
@@ -331,16 +331,16 @@ void func_80C050B8(EnBombers2* this, PlayState* play) {
 
     EnBombers2_ChangeAnim(this, ENBOMBERS_ANIM_2, 1.0f);
     this->unk_2A8 = 0;
-    homeYawToPlayer = Math_Vec3f_Yaw(&this->actor.home.pos, &player->actor.world.pos);
-    Math_Vec3f_Copy(&this->unk_29C, &this->actor.world.pos);
+    homeYawToPlayer = MM_Math_Vec3f_Yaw(&this->actor.home.pos, &player->actor.world.pos);
+    MM_Math_Vec3f_Copy(&this->unk_29C, &this->actor.world.pos);
     if (this->actor.home.rot.y < homeYawToPlayer) {
-        this->unk_29C.x += Math_SinS(this->actor.home.rot.y + 0xC100) * 50.0f;
-        this->unk_29C.z += Math_CosS(this->actor.home.rot.y + 0xC100) * 50.0f;
+        this->unk_29C.x += MM_Math_SinS(this->actor.home.rot.y + 0xC100) * 50.0f;
+        this->unk_29C.z += MM_Math_CosS(this->actor.home.rot.y + 0xC100) * 50.0f;
     } else {
-        this->unk_29C.x += Math_SinS(this->actor.home.rot.y + 0x3F00) * 50.0f;
-        this->unk_29C.z += Math_CosS(this->actor.home.rot.y + 0x3F00) * 50.0f;
+        this->unk_29C.x += MM_Math_SinS(this->actor.home.rot.y + 0x3F00) * 50.0f;
+        this->unk_29C.z += MM_Math_CosS(this->actor.home.rot.y + 0x3F00) * 50.0f;
     }
-    this->unk_2B6 = Math_Vec3f_Yaw(&this->actor.home.pos, &this->unk_29C);
+    this->unk_2B6 = MM_Math_Vec3f_Yaw(&this->actor.home.pos, &this->unk_29C);
     this->unk_2C0 = 2;
     this->actionFunc = func_80C0520C;
 }
@@ -357,13 +357,13 @@ void func_80C0520C(EnBombers2* this, PlayState* play) {
             this->unk_2A8 = 1;
         }
     } else {
-        Math_SmoothStepToS(&this->actor.world.rot.y, this->unk_2B6, 1, 0xBB8, 0);
+        MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->unk_2B6, 1, 0xBB8, 0);
         if ((fabsf(this->unk_29C.x - this->actor.world.pos.x) < 3.0f) &&
             (fabsf(this->unk_29C.z - this->actor.world.pos.z) < 3.0f)) {
             this->unk_2B6 = this->actor.yawTowardsPlayer;
             this->actor.speed = 0.0f;
             if (fabsf(this->actor.world.rot.y - this->actor.yawTowardsPlayer) < 100.0f) {
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 this->talkState = TEXT_STATE_EVENT;
                 this->textIdIndex = 7;
                 EnBombers2_ChangeAnim(this, ENBOMBERS_ANIM_6, 1.0f);
@@ -372,13 +372,13 @@ void func_80C0520C(EnBombers2* this, PlayState* play) {
                 SET_WEEKEVENTREG(WEEKEVENTREG_73_80);
                 CutsceneManager_Stop(this->csId);
                 this->unk_2AC = true;
-                this->actor.textId = sTextIds[this->textIdIndex];
-                Message_StartTextbox(play, this->actor.textId, &this->actor);
+                this->actor.textId = MM_sTextIds[this->textIdIndex];
+                MM_Message_StartTextbox(play, this->actor.textId, &this->actor);
                 this->actionFunc = func_80C04D8C;
             }
         } else {
-            Math_ApproachF(&this->actor.world.pos.x, this->unk_29C.x, 0.3f, 1.0f);
-            Math_ApproachF(&this->actor.world.pos.z, this->unk_29C.z, 0.3f, 1.0f);
+            MM_Math_ApproachF(&this->actor.world.pos.x, this->unk_29C.x, 0.3f, 1.0f);
+            MM_Math_ApproachF(&this->actor.world.pos.z, this->unk_29C.z, 0.3f, 1.0f);
         }
     }
 }
@@ -389,13 +389,13 @@ void EnBombers2_Update(Actor* thisx, PlayState* play) {
     Vec3f sp34;
     s32 yawDiffAbs;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     if (this->unk_2B2 != 0) {
         this->unk_2B2--;
     }
     if ((this->animIndex == ENBOMBERS_ANIM_2) &&
-        (Animation_OnFrame(&this->skelAnime, 9.0f) || Animation_OnFrame(&this->skelAnime, 10.0f) ||
-         Animation_OnFrame(&this->skelAnime, 17.0f) || Animation_OnFrame(&this->skelAnime, 18.0f))) {
+        (MM_Animation_OnFrame(&this->skelAnime, 9.0f) || MM_Animation_OnFrame(&this->skelAnime, 10.0f) ||
+         MM_Animation_OnFrame(&this->skelAnime, 17.0f) || MM_Animation_OnFrame(&this->skelAnime, 18.0f))) {
         Actor_PlaySfx(&this->actor, NA_SE_EV_BOMBERS_WALK);
     }
     this->actor.shape.rot.y = this->actor.world.rot.y;
@@ -412,37 +412,37 @@ void EnBombers2_Update(Actor* thisx, PlayState* play) {
             }
         }
     }
-    Actor_SetFocus(&this->actor, 20.0f);
-    Actor_SetScale(&this->actor, 0.008f);
+    MM_Actor_SetFocus(&this->actor, 20.0f);
+    MM_Actor_SetScale(&this->actor, 0.008f);
     this->actionFunc(this, play);
     Actor_MoveWithGravity(&this->actor);
-    Math_SmoothStepToS(&this->unk_28A, this->unk_290, 1, 0xBB8, 0);
-    Math_SmoothStepToS(&this->unk_288, this->unk_28E, 1, 0xBB8, 0);
+    MM_Math_SmoothStepToS(&this->unk_28A, this->unk_290, 1, 0xBB8, 0);
+    MM_Math_SmoothStepToS(&this->unk_288, this->unk_28E, 1, 0xBB8, 0);
     if (this->unk_2BE == 0) {
         this->eyeIndex += 1;
         if (this->eyeIndex >= 3) {
             this->eyeIndex = 0;
-            this->unk_2BE = TRUNCF_BINANG(Rand_ZeroFloat(60.0f)) + 0x14;
+            this->unk_2BE = TRUNCF_BINANG(MM_Rand_ZeroFloat(60.0f)) + 0x14;
         }
     }
-    Math_Vec3f_Copy(&sp34, &this->actor.world.pos);
+    MM_Math_Vec3f_Copy(&sp34, &this->actor.world.pos);
     if (!this->unk_2AC) {
-        this->actor.world.pos.x = sp34.x + Math_SinS(this->actor.world.rot.y + 0x8000) * 26.0f;
-        this->actor.world.pos.z = sp34.z + Math_CosS(this->actor.world.rot.y + 0x8000) * 26.0f;
+        this->actor.world.pos.x = sp34.x + MM_Math_SinS(this->actor.world.rot.y + 0x8000) * 26.0f;
+        this->actor.world.pos.z = sp34.z + MM_Math_CosS(this->actor.world.rot.y + 0x8000) * 26.0f;
         this->collider.dim.radius = 35;
         this->collider.dim.height = 30;
     } else {
         this->collider.dim.radius = 10;
         this->collider.dim.height = 25;
     }
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     if (!this->unk_2AC) {
-        Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 50.0f,
+        MM_Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 50.0f,
                                 UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4 | UPDBGCHECKINFO_FLAG_8 |
                                     UPDBGCHECKINFO_FLAG_10);
     }
-    Math_Vec3f_Copy(&this->actor.world.pos, &sp34);
+    MM_Math_Vec3f_Copy(&this->actor.world.pos, &sp34);
 }
 
 s32 EnBombers2_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx) {
@@ -468,11 +468,11 @@ void EnBombers2_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sEyeTextures[this->eyeIndex]));
+    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeIndex]));
     gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(D_80C05920));
     gSPSegment(POLY_OPA_DISP++, 0x0A, Lib_SegmentedToVirtual(sSetPrimColorDlPtr));
     Scene_SetRenderModeXlu(play, 0, 1);
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnBombers2_OverrideLimbDraw, NULL, &this->actor);
     CLOSE_DISPS(play->state.gfxCtx);
 }

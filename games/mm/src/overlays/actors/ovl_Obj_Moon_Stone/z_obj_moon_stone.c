@@ -39,7 +39,7 @@ ActorProfile Obj_Moon_Stone_Profile = {
 void ObjMoonStone_Init(Actor* thisx, PlayState* play) {
     ObjMoonStone* this = (ObjMoonStone*)thisx;
 
-    Actor_SetScale(&this->actor, 0.3f);
+    MM_Actor_SetScale(&this->actor, 0.3f);
     this->unk194 = (this->actor.params & 0xF000) >> 0xC;
     this->actor.attentionRangeType = ATTENTION_RANGE_0;
     this->actor.shape.yOffset = 25.0f;
@@ -50,13 +50,13 @@ void ObjMoonStone_Init(Actor* thisx, PlayState* play) {
         func_80C0662C(this);
     } else if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_74_40)) {
         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_74_80)) {
-            Actor_Spawn(&play->actorCtx, play, 1, this->actor.world.pos.x, this->actor.world.pos.y,
+            MM_Actor_Spawn(&play->actorCtx, play, 1, this->actor.world.pos.x, this->actor.world.pos.y,
                         this->actor.world.pos.z, 0, 0, 0, -1);
         }
         this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
         func_80C0673C(this);
     } else {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -74,7 +74,7 @@ void func_80C06640(ObjMoonStone* this, PlayState* play) {
     sp1A -= player->actor.shape.rot.y;
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         this->actor.colChkInfo.health = 1;
-        Message_StartTextbox(play, 0x5E3, &this->actor);
+        MM_Message_StartTextbox(play, 0x5E3, &this->actor);
         func_80C066F8(this);
     } else {
         s32 phi_v0 = ABS_ALT(sp1A);
@@ -89,7 +89,7 @@ void func_80C066F8(ObjMoonStone* this) {
 }
 
 void func_80C0670C(ObjMoonStone* this, PlayState* play) {
-    if (Actor_TextboxIsClosing(&this->actor, play)) {
+    if (MM_Actor_TextboxIsClosing(&this->actor, play)) {
         this->actor.colChkInfo.health = 0;
         func_80C0662C(this);
     }
@@ -108,17 +108,17 @@ void func_80C06768(ObjMoonStone* this, PlayState* play) {
             if (GameInteractor_Should(VB_REVEAL_MOON_STONE_IN_CRATER, true, this)) {
                 this->actor.draw = ObjMoonStone_Draw;
             }
-            Actor_Spawn(&play->actorCtx, play, 1, this->actor.world.pos.x, this->actor.world.pos.y,
+            MM_Actor_Spawn(&play->actorCtx, play, 1, this->actor.world.pos.x, this->actor.world.pos.y,
                         this->actor.world.pos.z, 0, 0, 0, -1);
         }
     }
     if (this->actor.draw != NULL) {
-        if (Actor_HasParent(&this->actor, play) || !GameInteractor_Should(VB_GIVE_ITEM_FROM_MOONS_TEAR, true, this)) {
+        if (MM_Actor_HasParent(&this->actor, play) || !GameInteractor_Should(VB_GIVE_ITEM_FROM_MOONS_TEAR, true, this)) {
             this->actor.parent = NULL;
             this->actor.draw = NULL;
             func_80C0685C(this);
         } else if (this->actor.xzDistToPlayer < 25.0f) {
-            Actor_OfferGetItem(&this->actor, play, GI_MOONS_TEAR, 100.0f, 30.0f);
+            MM_Actor_OfferGetItem(&this->actor, play, GI_MOONS_TEAR, 100.0f, 30.0f);
         }
     }
 }
@@ -128,9 +128,9 @@ void func_80C0685C(ObjMoonStone* this) {
 }
 
 void func_80C06870(ObjMoonStone* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && MM_Message_ShouldAdvance(play)) {
         SET_WEEKEVENTREG(WEEKEVENTREG_74_40);
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -153,7 +153,7 @@ void ObjMoonStone_Draw(Actor* thisx, PlayState* play) {
     AnimatedMat_Draw(play, Lib_SegmentedToVirtual(gGiMoonsTearTexAnim));
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     gSPDisplayList(POLY_OPA_DISP++, gGiMoonsTearItemDL);
-    Matrix_ReplaceRotation(&play->billboardMtxF);
+    MM_Matrix_ReplaceRotation(&play->billboardMtxF);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
     gSPDisplayList(POLY_XLU_DISP++, gGiMoonsTearGlowDL);
 

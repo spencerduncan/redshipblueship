@@ -30,7 +30,7 @@ const ActorInit Bg_Spot01_Idosoko_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
 
@@ -44,16 +44,16 @@ void BgSpot01Idosoko_Init(Actor* thisx, PlayState* play) {
     CollisionHeader* colHeader = NULL;
     s32 pad2;
 
-    DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    CollisionHeader_GetVirtual(&gKakarikoBOTWStoneCol, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+    OoT_CollisionHeader_GetVirtual(&gKakarikoBOTWStoneCol, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
     // If dungeon entrance randomizer is on, remove the well stone as adult Link when
     // child Link has drained the water to the well
     if (!LINK_IS_ADULT ||
         (IS_RANDO && Randomizer_GetSettingValue(RSK_SHUFFLE_DUNGEON_ENTRANCES) != RO_DUNGEON_ENTRANCE_SHUFFLE_OFF &&
-         Flags_GetEventChkInf(EVENTCHKINF_DRAINED_WELL_IN_KAKARIKO))) {
-        Actor_Kill(&this->dyna.actor);
+         OoT_Flags_GetEventChkInf(EVENTCHKINF_DRAINED_WELL_IN_KAKARIKO))) {
+        OoT_Actor_Kill(&this->dyna.actor);
     } else {
         BgSpot01Idosoko_SetupAction(this, func_808ABF54);
     }
@@ -62,7 +62,7 @@ void BgSpot01Idosoko_Init(Actor* thisx, PlayState* play) {
 void BgSpot01Idosoko_Destroy(Actor* thisx, PlayState* play) {
     BgSpot01Idosoko* this = (BgSpot01Idosoko*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_808ABF54(BgSpot01Idosoko* this, PlayState* play) {

@@ -28,7 +28,7 @@ ActorProfile Dm_Opstage_Profile = {
     /**/ DmOpstage_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeScale, 300, ICHAIN_STOP),
 };
 
@@ -39,12 +39,12 @@ void DmOpstage_SetupAction(DmOpstage* this, DmOpstageActionFunc actionFunc) {
 void DmOpstage_Init(Actor* thisx, PlayState* play) {
     DmOpstage* this = (DmOpstage*)thisx;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
     DmOpstage_SetupAction(this, DmOpstage_HandleCutscene);
-    Actor_SetScale(&this->dyna.actor, 0.1f);
+    MM_Actor_SetScale(&this->dyna.actor, 0.1f);
 
     if (DMOPSTAGE_GET_TYPE(&this->dyna.actor) == DMOPSTAGE_TYPE_GROUND) {
-        DynaPolyActor_Init(&this->dyna, 0);
+        MM_DynaPolyActor_Init(&this->dyna, 0);
         DynaPolyActor_LoadMesh(play, &this->dyna, &gKeikokuDemoFloorCol);
     }
 
@@ -63,7 +63,7 @@ void DmOpstage_Destroy(Actor* thisx, PlayState* play) {
     DmOpstage* this = (DmOpstage*)thisx;
 
     if (DMOPSTAGE_GET_TYPE(&this->dyna.actor) == DMOPSTAGE_TYPE_GROUND) {
-        DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+        MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
     }
 }
 
@@ -105,32 +105,32 @@ void DmOpstage_Draw(Actor* thisx, PlayState* play) {
 
     if (DMOPSTAGE_GET_TYPE(&this->dyna.actor) > DMOPSTAGE_TYPE_GROUND) {
         // Assumption: worldPos is being manipulated by cutscene
-        Matrix_Translate(this->dyna.actor.world.pos.x + this->drawOffset.x,
+        MM_Matrix_Translate(this->dyna.actor.world.pos.x + this->drawOffset.x,
                          this->dyna.actor.world.pos.y + this->drawOffset.y,
                          this->dyna.actor.world.pos.z + this->drawOffset.z, MTXMODE_NEW);
         Matrix_RotateYS(this->dyna.actor.world.rot.y, MTXMODE_APPLY);
-        Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
+        MM_Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
     }
 
     switch (DMOPSTAGE_GET_TYPE(&this->dyna.actor)) {
         case DMOPSTAGE_TYPE_GROUND:
-            Gfx_DrawDListOpa(play, gKeikokuDemoFloorDL);
-            Gfx_DrawDListXlu(play, gKeikokuDemoFloorEmptyDL);
+            MM_Gfx_DrawDListOpa(play, gKeikokuDemoFloorDL);
+            MM_Gfx_DrawDListXlu(play, gKeikokuDemoFloorEmptyDL);
             break;
 
         case DMOPSTAGE_TYPE_ROOT_TREE:
-            Gfx_DrawDListOpa(play, gKeikokuDemoTallTreeWithRootBaseDL);
-            Gfx_DrawDListXlu(play, gKeikokuDemoTallTreeWithRootBaseEmptyDL);
+            MM_Gfx_DrawDListOpa(play, gKeikokuDemoTallTreeWithRootBaseDL);
+            MM_Gfx_DrawDListXlu(play, gKeikokuDemoTallTreeWithRootBaseEmptyDL);
             break;
 
         case DMOPSTAGE_TYPE_CUT_TREE:
-            Gfx_DrawDListOpa(play, gKeikokuDemoTallTreeCutDL);
-            Gfx_DrawDListXlu(play, gKeikokuDemoTallTreeCutEmptyDL);
+            MM_Gfx_DrawDListOpa(play, gKeikokuDemoTallTreeCutDL);
+            MM_Gfx_DrawDListXlu(play, gKeikokuDemoTallTreeCutEmptyDL);
             break;
 
         case DMOPSTAGE_TYPE_STRAIGHT_TREE:
-            Gfx_DrawDListOpa(play, gKeikokuDemoTallTreeStraightDL);
-            Gfx_DrawDListXlu(play, gKeikokuDemoTallTreeStraightEmptyDL);
+            MM_Gfx_DrawDListOpa(play, gKeikokuDemoTallTreeStraightDL);
+            MM_Gfx_DrawDListXlu(play, gKeikokuDemoTallTreeStraightEmptyDL);
             break;
 
         default:

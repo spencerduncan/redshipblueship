@@ -22,8 +22,8 @@ typedef enum Mure2ChildType {
     /* 3 */ OBJMURE2_CHILDTYPE_MAX
 } Mure2ChildType;
 
-void ObjMure2_Init(Actor* thisx, PlayState* play);
-void ObjMure2_Update(Actor* thisx, PlayState* play);
+void MM_ObjMure2_Init(Actor* thisx, PlayState* play);
+void MM_ObjMure2_Update(Actor* thisx, PlayState* play);
 
 void ObjMure2_SpawnChildren(ObjMure2* this, PlayState* play);
 void func_809613C4(ObjMure2* this, PlayState* play);
@@ -41,9 +41,9 @@ ActorProfile Obj_Mure2_Profile = {
     FLAGS,
     GAMEPLAY_KEEP,
     sizeof(ObjMure2),
-    (ActorFunc)ObjMure2_Init,
-    (ActorFunc)Actor_Noop,
-    (ActorFunc)ObjMure2_Update,
+    (ActorFunc)MM_ObjMure2_Init,
+    (ActorFunc)MM_Actor_Noop,
+    (ActorFunc)MM_ObjMure2_Update,
     (ActorFunc)NULL,
 };
 
@@ -79,11 +79,11 @@ static VecPolarS sScatteredBushSpawnInfo[OBJ_MURE2_CHILD_MAX] = {
 void ObjMure2_GetBushCircleSpawnPos(Vec3f pos[OBJ_MURE2_CHILD_MAX], ObjMure2* this) {
     s32 i;
 
-    Math_Vec3f_Copy(&pos[0], &this->actor.world.pos);
+    MM_Math_Vec3f_Copy(&pos[0], &this->actor.world.pos);
     for (i = 1; i < sChildCounts[OBJ_MURE2_GET_CHILD_TYPE(&this->actor)]; i++) {
-        Math_Vec3f_Copy(&pos[i], &this->actor.world.pos);
-        (pos + i)->x += 80.0f * Math_SinS((i - 1) * 0x2000);
-        (pos + i)->z += 80.0f * Math_CosS((i - 1) * 0x2000);
+        MM_Math_Vec3f_Copy(&pos[i], &this->actor.world.pos);
+        (pos + i)->x += 80.0f * MM_Math_SinS((i - 1) * 0x2000);
+        (pos + i)->z += 80.0f * MM_Math_CosS((i - 1) * 0x2000);
     }
 }
 
@@ -91,9 +91,9 @@ void ObjMure2_GetBushScatteredPos(Vec3f pos[OBJ_MURE2_CHILD_MAX], ObjMure2* this
     s32 i;
 
     for (i = 0; i < sChildCounts[OBJ_MURE2_GET_CHILD_TYPE(&this->actor)]; i++) {
-        Math_Vec3f_Copy(pos + i, &this->actor.world.pos);
-        (pos + i)->x += sScatteredBushSpawnInfo[i].distance * Math_CosS(sScatteredBushSpawnInfo[i].angle);
-        (pos + i)->z -= sScatteredBushSpawnInfo[i].distance * Math_SinS(sScatteredBushSpawnInfo[i].angle);
+        MM_Math_Vec3f_Copy(pos + i, &this->actor.world.pos);
+        (pos + i)->x += sScatteredBushSpawnInfo[i].distance * MM_Math_CosS(sScatteredBushSpawnInfo[i].angle);
+        (pos + i)->z -= sScatteredBushSpawnInfo[i].distance * MM_Math_SinS(sScatteredBushSpawnInfo[i].angle);
     }
 }
 
@@ -101,9 +101,9 @@ void ObjMure2_GetRocksSpawnPos(Vec3f pos[OBJ_MURE2_CHILD_MAX], ObjMure2* this) {
     s32 i;
 
     for (i = 0; i < sChildCounts[OBJ_MURE2_GET_CHILD_TYPE(&this->actor)]; i++) {
-        Math_Vec3f_Copy(&pos[i], &this->actor.world.pos);
-        (pos + i)->x += 80.0f * Math_SinS(i * 0x2000);
-        (pos + i)->z += 80.0f * Math_CosS(i * 0x2000);
+        MM_Math_Vec3f_Copy(&pos[i], &this->actor.world.pos);
+        (pos + i)->x += 80.0f * MM_Math_SinS(i * 0x2000);
+        (pos + i)->z += 80.0f * MM_Math_CosS(i * 0x2000);
     }
 }
 
@@ -156,10 +156,10 @@ void ObjMure2_KillChildren(ObjMure2* this, PlayState* play) {
     for (i = 0; i < sChildCounts[OBJ_MURE2_GET_CHILD_TYPE(&this->actor)]; i++) {
         if (((this->spawnFlags >> i) & 1) == 0) {
             if (this->actors[i] != NULL) {
-                if (Actor_HasParent(this->actors[i], play)) {
+                if (MM_Actor_HasParent(this->actors[i], play)) {
                     this->spawnFlags |= 1 << i;
                 } else {
-                    Actor_Kill(this->actors[i]);
+                    MM_Actor_Kill(this->actors[i]);
                 }
                 this->actors[i] = NULL;
             }
@@ -183,16 +183,16 @@ void ObjMure2_ClearChildrenList(ObjMure2* this) {
     }
 }
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 100, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 2100, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 100, ICHAIN_STOP),
 };
 
-void ObjMure2_Init(Actor* thisx, PlayState* play) {
+void MM_ObjMure2_Init(Actor* thisx, PlayState* play) {
     ObjMure2* this = (ObjMure2*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
     if (play->csCtx.state != CS_STATE_IDLE) {
         this->actor.cullingVolumeDistance += 1200.0f;
     }
@@ -212,7 +212,7 @@ void ObjMure2_SetupWaitForPlayerInRange(ObjMure2* this) {
 }
 
 void ObjMure2_WaitForPlayerInRange(ObjMure2* this, PlayState* play) {
-    if (Math3D_Dist1DSq(this->actor.projectedPos.x, this->actor.projectedPos.z) <
+    if (MM_Math3D_Dist1DSq(this->actor.projectedPos.x, this->actor.projectedPos.z) <
         sActivationRangesSq[OBJ_MURE2_GET_CHILD_TYPE(&this->actor)] * this->rangeMultiplier) {
         this->actor.flags |= ACTOR_FLAG_UPDATE_CULLING_DISABLED;
         ObjMure2_SpawnChildren(this, play);
@@ -228,14 +228,14 @@ void ObjMure2_WaitForPlayerOutOfRange(ObjMure2* this, PlayState* play) {
     ObjMure2_ClearChildrenList(this);
 
     if ((sDeactivationRangesSq[OBJ_MURE2_GET_CHILD_TYPE(&this->actor)] * this->rangeMultiplier) <=
-        Math3D_Dist1DSq(this->actor.projectedPos.x, this->actor.projectedPos.z)) {
+        MM_Math3D_Dist1DSq(this->actor.projectedPos.x, this->actor.projectedPos.z)) {
         this->actor.flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
         ObjMure2_KillChildren(this, play);
         ObjMure2_SetupWaitForPlayerInRange(this);
     }
 }
 
-void ObjMure2_Update(Actor* thisx, PlayState* play) {
+void MM_ObjMure2_Update(Actor* thisx, PlayState* play) {
     ObjMure2* this = (ObjMure2*)thisx;
 
     if (play->csCtx.state == CS_STATE_IDLE) {

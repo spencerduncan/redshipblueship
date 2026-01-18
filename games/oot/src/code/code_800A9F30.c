@@ -7,7 +7,7 @@ void func_800A9F30(PadMgr* a, s32 b) {
     // Game logic runs at 20hz but input thread runs at 60 hertz, so we call this 3 times
     for (int i = 0; i < 3; i++) {
         func_800D2E30(&D_80160FD0);
-        PadMgr_RumbleSet(a, D_80160FD0.rumbleEnable);
+        OoT_PadMgr_RumbleSet(a, D_80160FD0.rumbleEnable);
     }
 }
 
@@ -18,7 +18,7 @@ void func_800A9F6C(f32 a, u8 b, u8 c, u8 d) {
     if (1000000.0f < a) {
         temp1 = 1000;
     } else {
-        temp1 = sqrtf(a);
+        temp1 = OoT_sqrtf(a);
     }
 
     if ((temp1 < 1000) && (b != 0) && (d != 0)) {
@@ -39,7 +39,7 @@ void func_800AA000(f32 a, u8 b, u8 c, u8 d) {
     if (1000000.0f < a) {
         temp1 = 1000;
     } else {
-        temp1 = sqrtf(a);
+        temp1 = OoT_sqrtf(a);
     }
 
     if (temp1 < 1000 && b != 0 && d != 0) {
@@ -61,12 +61,12 @@ void func_800AA000(f32 a, u8 b, u8 c, u8 d) {
 void func_800AA0B4(void) {
     func_800D3140(&D_80160FD0);
 
-    gPadMgr.retraceCallback = func_800A9F30;
-    gPadMgr.retraceCallbackValue = 0;
+    OoT_gPadMgr.retraceCallback = func_800A9F30;
+    OoT_gPadMgr.retraceCallbackValue = 0;
 }
 
 void func_800AA0F0(void) {
-    PadMgr* padmgr = &gPadMgr;
+    PadMgr* padmgr = &OoT_gPadMgr;
 
     if ((padmgr->retraceCallback == func_800A9F30) && (padmgr->retraceCallbackValue == 0)) {
         padmgr->retraceCallback = NULL;
@@ -77,7 +77,7 @@ void func_800AA0F0(void) {
 }
 
 u32 func_800AA148(void) {
-    return gPadMgr.pakType[0] == 1;
+    return OoT_gPadMgr.pakType[0] == 1;
 }
 
 void func_800AA15C(void) {

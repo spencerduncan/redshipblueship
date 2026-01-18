@@ -11,7 +11,7 @@
 extern MessageTableEntry* sJpnMessageEntryTablePtr;
 
 // #region SOH [Port] Asset tables we can pull from instead of from ROM
-const char* fontTbl[140] = {
+const char* OoT_fontTbl[140] = {
     gMsgChar20SpaceTex,
     gMsgChar21ExclamationMarkTex,
     gMsgChar22QuotationMarkTex,
@@ -4168,13 +4168,13 @@ void Font_LoadCharWide(Font* font, u16 character, u16 codePointIndex) {
  * Loads a texture from nes_font_static for the requested `character` into the character texture buffer
  * at `codePointIndex`. The value of `character` is the ASCII codepoint subtract ' '/0x20.
  */
-void Font_LoadChar(Font* font, u8 character, u16 codePointIndex) {
+void OoT_Font_LoadChar(Font* font, u8 character, u16 codePointIndex) {
     // DmaMgr_SendRequest1(&font->charTexBuf[codePointIndex],
     //&_nes_font_staticSegmentRomStart[character * FONT_CHAR_TEX_SIZE], FONT_CHAR_TEX_SIZE,
     //__FILE__, __LINE__);
 
     if (character < 0x8B)
-        memcpy(&font->charTexBuf[codePointIndex], fontTbl[character], strlen(fontTbl[character]) + 1);
+        memcpy(&font->charTexBuf[codePointIndex], OoT_fontTbl[character], strlen(OoT_fontTbl[character]) + 1);
 }
 
 /**
@@ -4190,7 +4190,7 @@ void Font_LoadMessageBoxIcon(Font* font, u16 icon) {
  * Loads a full set of character textures based on their ordering in the message with text id 0xFFFC into
  * the font buffer.
  */
-void Font_LoadOrderedFont(Font* font) {
+void OoT_Font_LoadOrderedFont(Font* font) {
     size_t len;
     size_t jj;
     s32 fontStatic;
@@ -4218,7 +4218,7 @@ void Font_LoadOrderedFont(Font* font) {
             osSyncPrintf("nes_mes_buf[%d]=%d\n", codePointIndex, font->msgBuf[codePointIndex]);
 
             offset = (font->msgBuf[codePointIndex] - '\x20') * FONT_CHAR_TEX_SIZE;
-            memcpy(fontBuf, fontTbl[offset / FONT_CHAR_TEX_SIZE], strlen(fontTbl[offset / FONT_CHAR_TEX_SIZE]) + 1);
+            memcpy(fontBuf, OoT_fontTbl[offset / FONT_CHAR_TEX_SIZE], strlen(OoT_fontTbl[offset / FONT_CHAR_TEX_SIZE]) + 1);
             // DmaMgr_SendRequest1(fontBuf, fontStatic + offset, FONT_CHAR_TEX_SIZE, __FILE__, __LINE__);
             fontBufIndex += FONT_CHAR_TEX_SIZE / 8;
         }

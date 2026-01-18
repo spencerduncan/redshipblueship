@@ -20,7 +20,7 @@ void BgIceTurara_Shiver(BgIceTurara* this, PlayState* play);
 void BgIceTurara_Fall(BgIceTurara* this, PlayState* play);
 void BgIceTurara_Regrow(BgIceTurara* this, PlayState* play);
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -53,7 +53,7 @@ const ActorInit Bg_Ice_Turara_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(uncullZoneScale, 600, ICHAIN_CONTINUE),
     ICHAIN_F32(gravity, -3, ICHAIN_CONTINUE),
     ICHAIN_F32(minVelocityY, -30, ICHAIN_CONTINUE),
@@ -65,13 +65,13 @@ void BgIceTurara_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     CollisionHeader* colHeader = NULL;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DPM_UNK);
-    CollisionHeader_GetVirtual(&object_ice_objects_Col_002594, &colHeader);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->dyna.actor, &sCylinderInit);
-    Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
+    OoT_CollisionHeader_GetVirtual(&object_ice_objects_Col_002594, &colHeader);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->dyna.actor, &OoT_sCylinderInit);
+    OoT_Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
     if (this->dyna.actor.params == TURARA_STALAGMITE) {
         this->actionFunc = BgIceTurara_Stalagmite;
     } else {
@@ -84,8 +84,8 @@ void BgIceTurara_Init(Actor* thisx, PlayState* play) {
 void BgIceTurara_Destroy(Actor* thisx, PlayState* play) {
     BgIceTurara* this = (BgIceTurara*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void BgIceTurara_Break(BgIceTurara* this, PlayState* play, f32 arg2) {
@@ -97,18 +97,18 @@ void BgIceTurara_Break(BgIceTurara* this, PlayState* play, f32 arg2) {
     s32 j;
     s32 i;
 
-    SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 30, NA_SE_EV_ICE_BROKEN);
+    OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 30, NA_SE_EV_ICE_BROKEN);
     for (i = 0; i < 2; i++) {
         for (j = 0; j < 10; j++) {
-            pos.x = this->dyna.actor.world.pos.x + Rand_CenteredFloat(8.0f);
-            pos.y = this->dyna.actor.world.pos.y + (Rand_ZeroOne() * arg2) + (i * arg2);
-            pos.z = this->dyna.actor.world.pos.z + Rand_CenteredFloat(8.0f);
+            pos.x = this->dyna.actor.world.pos.x + OoT_Rand_CenteredFloat(8.0f);
+            pos.y = this->dyna.actor.world.pos.y + (OoT_Rand_ZeroOne() * arg2) + (i * arg2);
+            pos.z = this->dyna.actor.world.pos.z + OoT_Rand_CenteredFloat(8.0f);
 
-            vel.x = Rand_CenteredFloat(7.0f);
-            vel.z = Rand_CenteredFloat(7.0f);
-            vel.y = (Rand_ZeroOne() * 4.0f) + 8.0f;
+            vel.x = OoT_Rand_CenteredFloat(7.0f);
+            vel.z = OoT_Rand_CenteredFloat(7.0f);
+            vel.y = (OoT_Rand_ZeroOne() * 4.0f) + 8.0f;
 
-            EffectSsEnIce_Spawn(play, &pos, (Rand_ZeroOne() * 0.2f) + 0.1f, &vel, &accel, &primColor, &envColor, 30);
+            OoT_EffectSsEnIce_Spawn(play, &pos, (OoT_Rand_ZeroOne() * 0.2f) + 0.1f, &vel, &accel, &primColor, &envColor, 30);
         }
     }
 }
@@ -116,10 +116,10 @@ void BgIceTurara_Break(BgIceTurara* this, PlayState* play, f32 arg2) {
 void BgIceTurara_Stalagmite(BgIceTurara* this, PlayState* play) {
     if (this->collider.base.acFlags & AC_HIT) {
         BgIceTurara_Break(this, play, 50.0f);
-        Actor_Kill(&this->dyna.actor);
+        OoT_Actor_Kill(&this->dyna.actor);
         return;
     }
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void BgIceTurara_Wait(BgIceTurara* this, PlayState* play) {
@@ -143,16 +143,16 @@ void BgIceTurara_Shiver(BgIceTurara* this, PlayState* play) {
     if (this->shiverTimer == 0) {
         this->dyna.actor.world.pos.x = this->dyna.actor.home.pos.x;
         this->dyna.actor.world.pos.z = this->dyna.actor.home.pos.z;
-        Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+        OoT_Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
+        OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
         func_8003EBF8(play, &play->colCtx.dyna, this->dyna.bgId);
         this->actionFunc = BgIceTurara_Fall;
     } else {
-        sp28 = Rand_ZeroOne();
-        phi_v0_2 = (Rand_ZeroOne() < 0.5f ? -1 : 1);
+        sp28 = OoT_Rand_ZeroOne();
+        phi_v0_2 = (OoT_Rand_ZeroOne() < 0.5f ? -1 : 1);
         this->dyna.actor.world.pos.x = (phi_v0_2 * ((0.5f * sp28) + 0.5f)) + this->dyna.actor.home.pos.x;
-        sp28 = Rand_ZeroOne();
-        phi_v0_3 = (Rand_ZeroOne() < 0.5f ? -1 : 1);
+        sp28 = OoT_Rand_ZeroOne();
+        phi_v0_3 = (OoT_Rand_ZeroOne() < 0.5f ? -1 : 1);
         this->dyna.actor.world.pos.z = (phi_v0_3 * ((0.5f * sp28) + 0.5f)) + this->dyna.actor.home.pos.z;
     }
 }
@@ -170,21 +170,21 @@ void BgIceTurara_Fall(BgIceTurara* this, PlayState* play) {
             func_8003EC50(play, &play->colCtx.dyna, this->dyna.bgId);
             this->actionFunc = BgIceTurara_Regrow;
         } else {
-            Actor_Kill(&this->dyna.actor);
+            OoT_Actor_Kill(&this->dyna.actor);
             return;
         }
     } else {
         Actor_MoveXZGravity(&this->dyna.actor);
         this->dyna.actor.world.pos.y += 40.0f;
-        Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 0.0f, 0.0f, 0.0f, 4);
+        OoT_Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 0.0f, 0.0f, 0.0f, 4);
         this->dyna.actor.world.pos.y -= 40.0f;
-        Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+        OoT_Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
+        OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
 void BgIceTurara_Regrow(BgIceTurara* this, PlayState* play) {
-    if (Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y, 1.0f)) {
+    if (OoT_Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y, 1.0f)) {
         this->actionFunc = BgIceTurara_Wait;
         this->dyna.actor.velocity.y = 0.0f;
     }
@@ -197,5 +197,5 @@ void BgIceTurara_Update(Actor* thisx, PlayState* play) {
 }
 
 void BgIceTurara_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, object_ice_objects_DL_0023D0);
+    OoT_Gfx_DrawDListOpa(play, object_ice_objects_DL_0023D0);
 }

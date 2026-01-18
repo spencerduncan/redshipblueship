@@ -26,7 +26,7 @@ ActorProfile Mir_Ray3_Profile = {
     /**/ MirRay3_Draw,
 };
 
-static ColliderQuadInit sQuadInit = {
+static ColliderQuadInit MM_sQuadInit = {
     {
         COL_MATERIAL_NONE,
         AT_ON | AT_TYPE_PLAYER,
@@ -46,7 +46,7 @@ static ColliderQuadInit sQuadInit = {
     { { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f } } },
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -77,8 +77,8 @@ void MirRay3_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     MirRay3* this = (MirRay3*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
-    Actor_SetScale(&this->actor, 1.0f);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
+    MM_Actor_SetScale(&this->actor, 1.0f);
 
     this->unk_218[0].x = -536.0f;
     this->unk_218[0].y = -939.0f;
@@ -98,18 +98,18 @@ void MirRay3_Init(Actor* thisx, PlayState* play) {
     this->unk_218[5].x = 758.0f;
     this->unk_218[5].y = -800.0f;
 
-    Collider_InitQuad(play, &this->colliderQuad);
-    Collider_SetQuad(play, &this->colliderQuad, &this->actor, &sQuadInit);
-    Collider_InitCylinder(play, &this->colliderCylinder);
-    Collider_SetCylinder(play, &this->colliderCylinder, &this->actor, &sCylinderInit);
+    MM_Collider_InitQuad(play, &this->colliderQuad);
+    MM_Collider_SetQuad(play, &this->colliderQuad, &this->actor, &MM_sQuadInit);
+    MM_Collider_InitCylinder(play, &this->colliderCylinder);
+    MM_Collider_SetCylinder(play, &this->colliderCylinder, &this->actor, &MM_sCylinderInit);
     this->actor.world.rot.x = this->actor.shape.rot.x = 0;
 }
 
 void MirRay3_Destroy(Actor* thisx, PlayState* play) {
     MirRay3* this = (MirRay3*)thisx;
 
-    Collider_DestroyQuad(play, &this->colliderQuad);
-    Collider_DestroyCylinder(play, &this->colliderCylinder);
+    MM_Collider_DestroyQuad(play, &this->colliderQuad);
+    MM_Collider_DestroyCylinder(play, &this->colliderCylinder);
 }
 
 void MirRay3_Update(Actor* thisx, PlayState* play) {
@@ -120,27 +120,27 @@ void MirRay3_Update(Actor* thisx, PlayState* play) {
     this->unk_210 &= ~1;
 
     if (this->unk_214 > 0.5f) {
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderQuad.base);
+        MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderQuad.base);
     }
 
     this->unk_210 &= ~2;
 
-    if (Player_HasMirrorShieldEquipped(play)) {
+    if (MM_Player_HasMirrorShieldEquipped(play)) {
         if (this->colliderCylinder.base.acFlags & AC_HIT) {
             this->unk_210 |= 2;
         }
         this->actor.world.pos.x = player->shieldMf.mf[3][0];
         this->actor.world.pos.y = player->shieldMf.mf[3][1];
         this->actor.world.pos.z = player->shieldMf.mf[3][2];
-        Collider_UpdateCylinder(&this->actor, &this->colliderCylinder);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderCylinder.base);
+        MM_Collider_UpdateCylinder(&this->actor, &this->colliderCylinder);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderCylinder.base);
     }
 
     if (this->unk_214 > 0.1f) {
         Actor_PlaySfx_Flagged2(&player->actor, NA_SE_IT_SHIELD_BEAM - SFX_FLAG);
     }
 
-    Math_ApproachZeroF(&this->unk_214, 1.0f, 0.1f);
+    MM_Math_ApproachZeroF(&this->unk_214, 1.0f, 0.1f);
 }
 
 void func_80B9E544(MirRay3* this, PlayState* play) {
@@ -149,13 +149,13 @@ void func_80B9E544(MirRay3* this, PlayState* play) {
     f32 temp_f0;
 
     if (this->unk_210 & 2) {
-        temp_f0 = sqrtf(SQ(shieldMtx->mf[2][0]) + SQ(shieldMtx->mf[2][1]) + SQ(shieldMtx->mf[2][2]));
+        temp_f0 = MM_sqrtf(SQ(shieldMtx->mf[2][0]) + SQ(shieldMtx->mf[2][1]) + SQ(shieldMtx->mf[2][2]));
         if (temp_f0 == 0.0f) {
             this->unk_260 = 1.0f;
         } else {
             this->unk_260 = 1.0f / temp_f0;
         }
-        Math_ApproachF(&this->unk_214, 1.0f, 0.5f, 0.25f);
+        MM_Math_ApproachF(&this->unk_214, 1.0f, 0.5f, 0.25f);
     }
 }
 
@@ -185,7 +185,7 @@ void func_80B9E5F4(MirRay3* this, PlayState* play, MirRay3Struct* ptr) {
         sp7C.y = sp60[1] + sp88.y;
         sp7C.z = sp60[2] + sp88.z;
 
-        if (BgCheck_AnyLineTest1(&play->colCtx, &sp88, &sp7C, &sp70, &sp6C, true)) {
+        if (MM_BgCheck_AnyLineTest1(&play->colCtx, &sp88, &sp7C, &sp70, &sp6C, true)) {
             ptr[i].unk_4C = sp6C;
         } else {
             ptr[i].unk_4C = NULL;
@@ -249,12 +249,12 @@ void func_80B9E8D4(MirRay3* this, PlayState* play, MirRay3Struct* ptr) {
             spEC[1] = COLPOLY_GET_NORMAL(ptr[i].unk_4C->normal.y);
             spEC[2] = COLPOLY_GET_NORMAL(ptr[i].unk_4C->normal.z);
 
-            if (Math3D_LineSegVsPlane(spEC[0], spEC[1], spEC[2], ptr[i].unk_4C->dist, &sp140, &sp134, &sp128, true)) {
+            if (MM_Math3D_LineSegVsPlane(spEC[0], spEC[1], spEC[2], ptr[i].unk_4C->dist, &sp140, &sp134, &sp128, true)) {
                 ptr[i].unk_00.x = sp128.x;
                 ptr[i].unk_00.y = sp128.y;
                 ptr[i].unk_00.z = sp128.z;
 
-                temp_f0 = sqrtf(SQ(sp128.x - sp140.x) + SQ(sp128.y - sp140.y) + SQ(sp128.z - sp140.z));
+                temp_f0 = MM_sqrtf(SQ(sp128.x - sp140.x) + SQ(sp128.y - sp140.y) + SQ(sp128.z - sp140.z));
 
                 if (temp_f0 < (temp_f26 * 0.9f)) {
                     ptr[i].unk_50 = 0xFF;
@@ -280,7 +280,7 @@ void func_80B9E8D4(MirRay3* this, PlayState* play, MirRay3Struct* ptr) {
                         ptr[i].unk_0C.mf[2][3] = ptr[i].unk_0C.mf[3][0] = ptr[i].unk_0C.mf[3][1] =
                             ptr[i].unk_0C.mf[3][2] = 0.0f;
 
-                if (Math3D_LineSegVsPlane(spEC[0], spEC[1], spEC[2], ptr[i].unk_4C->dist, &sp11C, &sp110, &sp104,
+                if (MM_Math3D_LineSegVsPlane(spEC[0], spEC[1], spEC[2], ptr[i].unk_4C->dist, &sp11C, &sp110, &sp104,
                                           true)) {
                     ptr[i].unk_0C.mf[0][0] = sp104.x - sp128.x;
                     ptr[i].unk_0C.mf[0][1] = sp104.y - sp128.y;
@@ -295,7 +295,7 @@ void func_80B9E8D4(MirRay3* this, PlayState* play, MirRay3Struct* ptr) {
                 sp110.y = (spF8[1] * 4.0f) + sp11C.y;
                 sp110.z = (spF8[2] * 4.0f) + sp11C.z;
 
-                if (Math3D_LineSegVsPlane(spEC[0], spEC[1], spEC[2], ptr[i].unk_4C->dist, &sp11C, &sp110, &sp104,
+                if (MM_Math3D_LineSegVsPlane(spEC[0], spEC[1], spEC[2], ptr[i].unk_4C->dist, &sp11C, &sp110, &sp104,
                                           true)) {
                     ptr[i].unk_0C.mf[1][0] = sp104.x - sp128.x;
                     ptr[i].unk_0C.mf[1][1] = sp104.y - sp128.y;
@@ -320,8 +320,8 @@ void func_80B9E8D4(MirRay3* this, PlayState* play, MirRay3Struct* ptr) {
     {
         CollisionPoly* spC4;
 
-        if (!BgCheck_AnyLineTest1(&play->colCtx, &sp140, &sp134, &sp128, &spC4, true)) {
-            Math_Vec3f_Copy(&sp128, &sp134);
+        if (!MM_BgCheck_AnyLineTest1(&play->colCtx, &sp140, &sp134, &sp128, &spC4, true)) {
+            MM_Math_Vec3f_Copy(&sp128, &sp134);
         }
 
         sp128.x += spF8[0] * 5.0f;
@@ -336,7 +336,7 @@ void func_80B9E8D4(MirRay3* this, PlayState* play, MirRay3Struct* ptr) {
         spC8.y = (shieldMf->mf[0][1] * 300.0f) + sp128.y;
         spC8.z = (shieldMf->mf[0][2] * 300.0f) + sp128.z;
 
-        Collider_SetQuadVertices(&this->colliderQuad, &spD4, &sp140, &spC8, &sp128);
+        MM_Collider_SetQuadVertices(&this->colliderQuad, &spD4, &sp140, &spC8, &sp128);
     }
 }
 
@@ -349,8 +349,8 @@ void MirRay3_Draw(Actor* thisx, PlayState* play) {
     f32 temp;
     u16 time;
 
-    if (!(this->unk_210 & 1) && Player_HasMirrorShieldEquipped(play)) {
-        Matrix_Mult(&player->shieldMf, MTXMODE_NEW);
+    if (!(this->unk_210 & 1) && MM_Player_HasMirrorShieldEquipped(play)) {
+        MM_Matrix_Mult(&player->shieldMf, MTXMODE_NEW);
         func_80B9E544(this, play);
 
         if (this->unk_214 <= 0.1f) {
@@ -360,7 +360,7 @@ void MirRay3_Draw(Actor* thisx, PlayState* play) {
         OPEN_DISPS(play->state.gfxCtx);
 
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-        Matrix_Scale(1.0f, 1.0f, this->unk_214, MTXMODE_APPLY);
+        MM_Matrix_Scale(1.0f, 1.0f, this->unk_214, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
@@ -402,9 +402,9 @@ void MirRay3_Draw(Actor* thisx, PlayState* play) {
 
         for (i = 0; i < ARRAY_COUNT(sp8C); i++) {
             if (sp8C[i].unk_4C != NULL) {
-                Matrix_Translate(sp8C[i].unk_00.x, sp8C[i].unk_00.y, sp8C[i].unk_00.z, MTXMODE_NEW);
-                Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
-                Matrix_Mult(&sp8C[i].unk_0C, MTXMODE_APPLY);
+                MM_Matrix_Translate(sp8C[i].unk_00.x, sp8C[i].unk_00.y, sp8C[i].unk_00.z, MTXMODE_NEW);
+                MM_Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
+                MM_Matrix_Mult(&sp8C[i].unk_0C, MTXMODE_APPLY);
 
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
                 gDPPipeSync(POLY_XLU_DISP++);

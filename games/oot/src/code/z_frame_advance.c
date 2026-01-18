@@ -1,6 +1,6 @@
 #include "global.h"
 
-void FrameAdvance_Init(FrameAdvanceContext* frameAdvCtx) {
+void OoT_FrameAdvance_Init(FrameAdvanceContext* frameAdvCtx) {
     frameAdvCtx->timer = 0;
     frameAdvCtx->enabled = false;
 }
@@ -13,7 +13,7 @@ void FrameAdvance_Init(FrameAdvanceContext* frameAdvCtx) {
  *
  * This function returns true when frame advance is not active (game will run normally)
  */
-s32 FrameAdvance_Update(FrameAdvanceContext* frameAdvCtx, Input* input) {
+s32 OoT_FrameAdvance_Update(FrameAdvanceContext* frameAdvCtx, Input* input) {
     if (CHECK_BTN_ALL(input->cur.button, BTN_R) && CHECK_BTN_ALL(input->press.button, BTN_DDOWN)) {
         frameAdvCtx->enabled = !frameAdvCtx->enabled;
     }

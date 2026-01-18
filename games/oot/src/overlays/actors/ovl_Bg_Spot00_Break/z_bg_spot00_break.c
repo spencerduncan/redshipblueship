@@ -27,7 +27,7 @@ const ActorInit Bg_Spot00_Break_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(uncullZoneScale, 1200, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneDownward, 1200, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 2000, ICHAIN_CONTINUE),
@@ -39,26 +39,26 @@ void BgSpot00Break_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     CollisionHeader* colHeader = NULL;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DPM_UNK);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
 
     if (this->dyna.actor.params == 1) {
-        CollisionHeader_GetVirtual(&gBarbedWireFenceCol, &colHeader);
+        OoT_CollisionHeader_GetVirtual(&gBarbedWireFenceCol, &colHeader);
     } else {
-        CollisionHeader_GetVirtual(&gBrokenDrawbridgeCol, &colHeader);
+        OoT_CollisionHeader_GetVirtual(&gBrokenDrawbridgeCol, &colHeader);
     }
 
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
 
     if (!LINK_IS_ADULT) {
-        Actor_Kill(&this->dyna.actor);
+        OoT_Actor_Kill(&this->dyna.actor);
     }
 }
 
 void BgSpot00Break_Destroy(Actor* thisx, PlayState* play) {
     BgSpot00Break* this = (BgSpot00Break*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void BgSpot00Break_Update(Actor* thisx, PlayState* play) {
@@ -68,8 +68,8 @@ void BgSpot00Break_Draw(Actor* thisx, PlayState* play) {
     BgSpot00Break* this = (BgSpot00Break*)thisx;
 
     if (this->dyna.actor.params == 1) {
-        Gfx_DrawDListOpa(play, gBarbedWireFenceDL);
+        OoT_Gfx_DrawDListOpa(play, gBarbedWireFenceDL);
     } else {
-        Gfx_DrawDListOpa(play, gBrokenDrawbridgeDL);
+        OoT_Gfx_DrawDListOpa(play, gBrokenDrawbridgeDL);
     }
 }

@@ -8,10 +8,10 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED)
 
-void EnSda_Init(Actor* thisx, PlayState* play);
-void EnSda_Destroy(Actor* thisx, PlayState* play);
-void EnSda_Update(Actor* thisx, PlayState* play);
-void EnSda_Draw(Actor* thisx, PlayState* play);
+void OoT_EnSda_Init(Actor* thisx, PlayState* play);
+void OoT_EnSda_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnSda_Update(Actor* thisx, PlayState* play);
+void OoT_EnSda_Draw(Actor* thisx, PlayState* play);
 
 void func_80AF95C4(EnSda* this, u8* shadowTexture, Player* player, PlayState* play);
 void func_80AF9C70(u8* shadowTexture, Player* player, PlayState* play);
@@ -23,10 +23,10 @@ const ActorInit En_Sda_InitVars = {
     FLAGS,
     OBJECT_GAMEPLAY_KEEP,
     sizeof(EnSda),
-    (ActorFunc)EnSda_Init,
-    (ActorFunc)EnSda_Destroy,
-    (ActorFunc)EnSda_Update,
-    (ActorFunc)EnSda_Draw,
+    (ActorFunc)OoT_EnSda_Init,
+    (ActorFunc)OoT_EnSda_Destroy,
+    (ActorFunc)OoT_EnSda_Update,
+    (ActorFunc)OoT_EnSda_Draw,
     NULL,
 };
 
@@ -89,13 +89,13 @@ static u32 D_80AFA390[] = { 0, 0 };
 
 static Vec3f D_80AFA660[16];
 
-void EnSda_Init(Actor* thisx, PlayState* play) {
+void OoT_EnSda_Init(Actor* thisx, PlayState* play) {
 }
 
-void EnSda_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnSda_Destroy(Actor* thisx, PlayState* play) {
 }
 
-void EnSda_Update(Actor* thisx, PlayState* play) {
+void OoT_EnSda_Update(Actor* thisx, PlayState* play) {
     s32 pad;
     EnSda* this = (EnSda*)thisx;
     Player* player;
@@ -113,7 +113,7 @@ void EnSda_Update(Actor* thisx, PlayState* play) {
     osSyncPrintf("SDA MOVE END\n");
 }
 
-void EnSda_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnSda_Draw(Actor* thisx, PlayState* play) {
     EnSda* this = (EnSda*)thisx;
     Player* player;
     u8* shadowTexture = Graph_Alloc(play->state.gfxCtx, 0x1000);
@@ -164,7 +164,7 @@ void func_80AF8F60(Player* player, u8* shadowTexture, f32 arg2) {
                 sp88.y = D_80AFA660[i].y - player->actor.world.pos.y + BREG(48) + 76.0f + 30.0f - 105.0f + 15.0f;
                 sp88.z = D_80AFA660[i].z - player->actor.world.pos.z;
             }
-            Matrix_MultVec3f(&sp88, &sp7C);
+            OoT_Matrix_MultVec3f(&sp88, &sp7C);
             sp7C.x *= (1.0f + (BREG(49) / 100.0f));
             sp7C.y *= (1.0f + (BREG(49) / 100.0f));
             temp_t0 = sp7C.x + 32.0f;
@@ -285,12 +285,12 @@ void func_80AF95C4(EnSda* this, u8* shadowTexture, Player* player, PlayState* pl
         Matrix_MtxFToYXZRotS(&player->shieldMf, &sp178, false);
         sp178.y += (KREG(87) << 0xF) + 0x8000;
         sp178.x *= (KREG(88) - 1);
-        Matrix_Mult(&player->shieldMf, MTXMODE_NEW);
-        Matrix_MultVec3f(&D_80AFA0D0, &sp16C);
+        OoT_Matrix_Mult(&player->shieldMf, MTXMODE_NEW);
+        OoT_Matrix_MultVec3f(&D_80AFA0D0, &sp16C);
         Matrix_RotateY((sp178.y / 32768.0f) * M_PI, MTXMODE_NEW);
         Matrix_RotateX((sp178.x / 32768.0f) * M_PI, MTXMODE_APPLY);
         for (i = 0; i < 22; i++) {
-            Matrix_MultVec3f(&D_80AFA180[i], &sp188);
+            OoT_Matrix_MultVec3f(&D_80AFA180[i], &sp188);
             sp64[i].x = (((KREG(82) / 100.0f) + 4.0f) * sp188.x) + sp16C.x;
             sp64[i].y = (((KREG(82) / 100.0f) + 4.0f) * sp188.y) + sp16C.y;
             sp64[i].z = (((KREG(82) / 100.0f) + 4.0f) * sp188.z) + sp16C.z;
@@ -300,7 +300,7 @@ void func_80AF95C4(EnSda* this, u8* shadowTexture, Player* player, PlayState* pl
             sp194.x = sp64[i].x - player->actor.world.pos.x;
             sp194.y = sp64[i].y - player->actor.world.pos.y + KREG(80) + 16.0f;
             sp194.z = sp64[i].z - player->actor.world.pos.z;
-            Matrix_MultVec3f(&sp194, &sp188);
+            OoT_Matrix_MultVec3f(&sp194, &sp188);
             sp188.x *= (1.0f + (KREG(90) / 100.0f));
             sp188.y *= (1.0f + (KREG(90) / 100.0f));
             temp_t0 = sp188.x + 32.0f;
@@ -345,14 +345,14 @@ void func_80AF9C70(u8* shadowTexture, Player* player, PlayState* play) {
     Gfx_SetupDL_44Xlu(play->state.gfxCtx);
     gDPSetPrimColor(POLY_XLU_DISP++, 0x00, 0x00, 0, 0, 0, (BREG(52) + 50));
     gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 0, 0);
-    Matrix_Translate(player->actor.world.pos.x, player->actor.floorHeight, player->actor.world.pos.z, MTXMODE_NEW);
+    OoT_Matrix_Translate(player->actor.world.pos.x, player->actor.floorHeight, player->actor.world.pos.z, MTXMODE_NEW);
     Matrix_RotateY(BREG(51) / 100.0f, MTXMODE_APPLY);
-    Matrix_Scale(1.0f, 1.0f, (BREG(63) / 10.0f) + 1.0f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(1.0f, 1.0f, (BREG(63) / 10.0f) + 1.0f, MTXMODE_APPLY);
     tempx = (BREG(62) / 10.0f) + 2.0f;
     tempz = ((player->actor.world.pos.y - player->actor.floorHeight + BREG(54)) * (BREG(55) - 5) / 10.0f) + BREG(58) -
             20.0f;
-    Matrix_Translate(tempx, 0.0f, tempz, MTXMODE_APPLY);
-    Matrix_Scale(((BREG(56) - 250) / 1000.0f) + 0.6f, 1.0f, ((BREG(59) - 250) / 1000.0f) + 0.6f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(tempx, 0.0f, tempz, MTXMODE_APPLY);
+    OoT_Matrix_Scale(((BREG(56) - 250) / 1000.0f) + 0.6f, 1.0f, ((BREG(59) - 250) / 1000.0f) + 0.6f, MTXMODE_APPLY);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_XLU_DISP++, D_80AFA3D8);
     gDPLoadTextureBlock(POLY_XLU_DISP++, shadowTexture, G_IM_FMT_I, G_IM_SIZ_8b, 0x40, 0x40, 0,
@@ -362,7 +362,7 @@ void func_80AF9C70(u8* shadowTexture, Player* player, PlayState* play) {
     gSPDisplayList(POLY_XLU_DISP++, D_80AFA3F8);
 
     for (phi_s1 = 0; phi_s1 < KREG(78); phi_s1++) {
-        Matrix_Scale((KREG(79) / 100.0f) + 1.0f, 1.0f, (KREG(79) / 100.0f) + 1.0f, MTXMODE_APPLY);
+        OoT_Matrix_Scale((KREG(79) / 100.0f) + 1.0f, 1.0f, (KREG(79) / 100.0f) + 1.0f, MTXMODE_APPLY);
         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPDisplayList(POLY_XLU_DISP++, D_80AFA3F8);
     }

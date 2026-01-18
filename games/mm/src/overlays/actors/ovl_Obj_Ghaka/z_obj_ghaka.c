@@ -93,27 +93,27 @@ void func_80B3C39C(ObjGhaka* this, PlayState* play) {
 }
 
 void func_80B3C4E0(ObjGhaka* this, PlayState* play) {
-    u8 talkState = Message_GetState(&play->msgCtx);
+    u8 talkState = MM_Message_GetState(&play->msgCtx);
 
     if (talkState == TEXT_STATE_EVENT) {
-        if (Message_ShouldAdvance(play)) {
+        if (MM_Message_ShouldAdvance(play)) {
             play->msgCtx.msgMode = MSGMODE_TEXT_CLOSING;
             play->msgCtx.stateTimer = 4;
             func_80B3C260(this);
         }
     } else if (talkState == TEXT_STATE_CHOICE) {
-        if (Message_ShouldAdvance(play)) {
+        if (MM_Message_ShouldAdvance(play)) {
             switch (play->msgCtx.choiceIndex) {
                 case 0:
                     Audio_PlaySfx_MessageDecide();
                     this->dyna.actor.textId = 0xCF5;
-                    Message_StartTextbox(play, this->dyna.actor.textId, &this->dyna.actor);
+                    MM_Message_StartTextbox(play, this->dyna.actor.textId, &this->dyna.actor);
                     break;
 
                 case 1:
                     Audio_PlaySfx_MessageDecide();
                     this->dyna.actor.textId = 0xCF7;
-                    Message_StartTextbox(play, this->dyna.actor.textId, &this->dyna.actor);
+                    MM_Message_StartTextbox(play, this->dyna.actor.textId, &this->dyna.actor);
                     break;
 
                 case 2:
@@ -129,7 +129,7 @@ void func_80B3C4E0(ObjGhaka* this, PlayState* play) {
 
 void func_80B3C624(ObjGhaka* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
-    u8 stepTemp = Math_StepToS(&this->unk_168, 0x64, 1);
+    u8 stepTemp = MM_Math_StepToS(&this->unk_168, 0x64, 1);
 
     this->dyna.actor.world.pos.z = this->dyna.actor.home.pos.z + this->unk_168;
 
@@ -150,14 +150,14 @@ void ObjGhaka_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     CollisionHeader* colHeader = NULL;
 
-    Actor_ProcessInitChain(&this->dyna.actor, D_80B3C96C);
-    Actor_SetScale(&this->dyna.actor, 0.1f);
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
-    CollisionHeader_GetVirtual(&object_ghaka_Colheader_003CD0, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
-    Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, D_80B3C96C);
+    MM_Actor_SetScale(&this->dyna.actor, 0.1f);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_CollisionHeader_GetVirtual(&object_ghaka_Colheader_003CD0, &colHeader);
+    this->dyna.bgId = MM_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    MM_Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
     if (this->dyna.actor.floorPoly == NULL) {
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
     }
     if (CHECK_WEEKEVENTREG(WEEKEVENTREG_20_20)) {
         func_80B3C2C4(this, play);
@@ -168,7 +168,7 @@ void ObjGhaka_Init(Actor* thisx, PlayState* play) {
 void ObjGhaka_Destroy(Actor* thisx, PlayState* play) {
     ObjGhaka* this = (ObjGhaka*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void ObjGhaka_Update(Actor* thisx, PlayState* play) {

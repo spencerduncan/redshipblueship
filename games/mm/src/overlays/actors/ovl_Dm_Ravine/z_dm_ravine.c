@@ -31,7 +31,7 @@ void DmRavine_Init(Actor* thisx, PlayState* play) {
     DmRavine* this = (DmRavine*)thisx;
 
     if (CHECK_WEEKEVENTREG_ALT(WEEKEVENTREG_ENTERED_GORMAN_TRACK) | cREG(0)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -39,7 +39,7 @@ void DmRavine_Init(Actor* thisx, PlayState* play) {
     play->roomCtx.unk7A[0] = 1;
     play->roomCtx.unk7A[1] = 0;
     this->state = 0;
-    Actor_SetScale(&this->actor, 1.0f);
+    MM_Actor_SetScale(&this->actor, 1.0f);
     this->actionFunc = DmRavine_DoNothing;
 }
 
@@ -71,7 +71,7 @@ void DmRavine_Update(Actor* thisx, PlayState* play) {
             break;
 
         case DM_RAVINE_STATE_PENDING_DEATH:
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
             break;
 
         default:

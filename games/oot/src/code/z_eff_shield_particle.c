@@ -12,7 +12,7 @@ static Vtx sVertices[5] = {
 };
 
 // original name: "EffectShieldParticle_ct"
-void EffectShieldParticle_Init(void* thisx, void* initParamsx) {
+void OoT_EffectShieldParticle_Init(void* thisx, void* initParamsx) {
     EffectShieldParticle* this = (EffectShieldParticle*)thisx;
     EffectShieldParticleInit* initParams = (EffectShieldParticleInit*)initParamsx;
     EffectShieldParticleElement* elem;
@@ -40,13 +40,13 @@ void EffectShieldParticle_Init(void* thisx, void* initParamsx) {
         this->timer = 0;
 
         for (elem = &this->elements[0]; elem < &this->elements[this->numElements]; elem++) {
-            elem->initialSpeed = (Rand_ZeroOne() * (this->maxInitialSpeed * 0.5f)) + (this->maxInitialSpeed * 0.5f);
+            elem->initialSpeed = (OoT_Rand_ZeroOne() * (this->maxInitialSpeed * 0.5f)) + (this->maxInitialSpeed * 0.5f);
             elem->endX = 0.0f;
             elem->startXChange = 0.0f;
             elem->startX = 0.0f;
             elem->endXChange = elem->initialSpeed;
-            elem->yaw = Rand_ZeroOne() * 65534.0f;
-            elem->pitch = Rand_ZeroOne() * 65534.0f;
+            elem->yaw = OoT_Rand_ZeroOne() * 65534.0f;
+            elem->pitch = OoT_Rand_ZeroOne() * 65534.0f;
             elem->epoch++;
         }
 
@@ -55,25 +55,25 @@ void EffectShieldParticle_Init(void* thisx, void* initParamsx) {
             this->lightInfo.type = LIGHT_POINT_NOGLOW;
             this->lightInfo.params.point = initParams->lightPoint;
             this->lightNode =
-                LightContext_InsertLight(Effect_GetPlayState(), &Effect_GetPlayState()->lightCtx, &this->lightInfo);
+                OoT_LightContext_InsertLight(OoT_Effect_GetPlayState(), &OoT_Effect_GetPlayState()->lightCtx, &this->lightInfo);
         } else {
             this->lightNode = NULL;
         }
     }
 }
 
-void EffectShieldParticle_Destroy(void* thisx) {
+void OoT_EffectShieldParticle_Destroy(void* thisx) {
     EffectShieldParticle* this = (EffectShieldParticle*)thisx;
 
     if ((this != NULL) && (this->lightDecay == true)) {
-        if (this->lightNode == Effect_GetPlayState()->lightCtx.listHead) {
-            Effect_GetPlayState()->lightCtx.listHead = this->lightNode->next;
+        if (this->lightNode == OoT_Effect_GetPlayState()->lightCtx.listHead) {
+            OoT_Effect_GetPlayState()->lightCtx.listHead = this->lightNode->next;
         }
-        LightContext_RemoveLight(Effect_GetPlayState(), &Effect_GetPlayState()->lightCtx, this->lightNode);
+        OoT_LightContext_RemoveLight(OoT_Effect_GetPlayState(), &OoT_Effect_GetPlayState()->lightCtx, this->lightNode);
     }
 }
 
-s32 EffectShieldParticle_Update(void* thisx) {
+s32 OoT_EffectShieldParticle_Update(void* thisx) {
     EffectShieldParticle* this = (EffectShieldParticle*)thisx;
     EffectShieldParticleElement* elem;
 
@@ -115,7 +115,7 @@ s32 EffectShieldParticle_Update(void* thisx) {
     return 0;
 }
 
-void EffectShieldParticle_GetColors(EffectShieldParticle* this, Color_RGBA8* primColor, Color_RGBA8* envColor) {
+void OoT_EffectShieldParticle_GetColors(EffectShieldParticle* this, Color_RGBA8* primColor, Color_RGBA8* envColor) {
     s32 halfDuration = this->duration * 0.5f;
     f32 ratio;
 
@@ -151,7 +151,7 @@ void EffectShieldParticle_GetColors(EffectShieldParticle* this, Color_RGBA8* pri
     }
 }
 
-void EffectShieldParticle_Draw(void* thisx, GraphicsContext* gfxCtx) {
+void OoT_EffectShieldParticle_Draw(void* thisx, GraphicsContext* gfxCtx) {
     EffectShieldParticle* this = (EffectShieldParticle*)thisx;
     EffectShieldParticleElement* elem;
     Color_RGBA8 primColor;
@@ -160,7 +160,7 @@ void EffectShieldParticle_Draw(void* thisx, GraphicsContext* gfxCtx) {
     OPEN_DISPS(gfxCtx);
 
     if (this != NULL) {
-        POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, 0x26);
+        POLY_XLU_DISP = OoT_Gfx_SetupDL(POLY_XLU_DISP, 0x26);
 
         gDPSetCycleType(POLY_XLU_DISP++, G_CYC_2CYCLE);
         gDPPipeSync(POLY_XLU_DISP++);
@@ -175,7 +175,7 @@ void EffectShieldParticle_Draw(void* thisx, GraphicsContext* gfxCtx) {
         gSPClearGeometryMode(POLY_XLU_DISP++, G_CULL_BOTH | G_FOG | G_LIGHTING | G_TEXTURE_GEN | G_TEXTURE_GEN_LINEAR);
         gSPSetGeometryMode(POLY_XLU_DISP++, G_ZBUFFER | G_SHADE | G_SHADING_SMOOTH);
 
-        EffectShieldParticle_GetColors(this, &primColor, &envColor);
+        OoT_EffectShieldParticle_GetColors(this, &primColor, &envColor);
 
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, primColor.r, primColor.g, primColor.b, primColor.a);
         gDPSetEnvColor(POLY_XLU_DISP++, envColor.r, envColor.g, envColor.b, envColor.a);
@@ -196,17 +196,17 @@ void EffectShieldParticle_Draw(void* thisx, GraphicsContext* gfxCtx) {
                 temp3 = 1.0f;
             }
 
-            SkinMatrix_SetTranslate(&spC4, this->position.x, this->position.y, this->position.z);
+            OoT_SkinMatrix_SetTranslate(&spC4, this->position.x, this->position.y, this->position.z);
             SkinMatrix_SetRotateZYX(&sp104, 0, elem->yaw, 0);
-            SkinMatrix_MtxFMtxFMult(&spC4, &sp104, &sp84);
+            OoT_SkinMatrix_MtxFMtxFMult(&spC4, &sp104, &sp84);
             SkinMatrix_SetRotateZYX(&sp104, 0, 0, elem->pitch);
-            SkinMatrix_MtxFMtxFMult(&sp84, &sp104, &spC4);
-            SkinMatrix_SetTranslate(&sp104, temp1, 0.0f, 0.0f);
-            SkinMatrix_MtxFMtxFMult(&spC4, &sp104, &sp84);
-            SkinMatrix_SetScale(&sp104, temp3 * 0.02f, 0.02f, 0.02f);
-            SkinMatrix_MtxFMtxFMult(&sp84, &sp104, &spC4);
+            OoT_SkinMatrix_MtxFMtxFMult(&sp84, &sp104, &spC4);
+            OoT_SkinMatrix_SetTranslate(&sp104, temp1, 0.0f, 0.0f);
+            OoT_SkinMatrix_MtxFMtxFMult(&spC4, &sp104, &sp84);
+            OoT_SkinMatrix_SetScale(&sp104, temp3 * 0.02f, 0.02f, 0.02f);
+            OoT_SkinMatrix_MtxFMtxFMult(&sp84, &sp104, &spC4);
 
-            mtx = SkinMatrix_MtxFToNewMtx(gfxCtx, &spC4);
+            mtx = OoT_SkinMatrix_MtxFToNewMtx(gfxCtx, &spC4);
             if (mtx == NULL) {
                 break;
             }

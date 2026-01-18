@@ -8,22 +8,22 @@ void func_800430A0(CollisionContext* colCtx, s32 bgId, Actor* actor) {
     Vec3f pos;
     Vec3f tempPos;
 
-    if (DynaPoly_IsBgIdBgActor(bgId)) {
+    if (OoT_DynaPoly_IsBgIdBgActor(bgId)) {
         SkinMatrix_SetTranslateRotateYXZScale(
             &prevTransform, colCtx->dyna.bgActors[bgId].prevTransform.scale.x,
             colCtx->dyna.bgActors[bgId].prevTransform.scale.y, colCtx->dyna.bgActors[bgId].prevTransform.scale.z,
             colCtx->dyna.bgActors[bgId].prevTransform.rot.x, colCtx->dyna.bgActors[bgId].prevTransform.rot.y,
             colCtx->dyna.bgActors[bgId].prevTransform.rot.z, colCtx->dyna.bgActors[bgId].prevTransform.pos.x,
             colCtx->dyna.bgActors[bgId].prevTransform.pos.y, colCtx->dyna.bgActors[bgId].prevTransform.pos.z);
-        if (SkinMatrix_Invert(&prevTransform, &prevTransformInv) != 2) {
+        if (OoT_SkinMatrix_Invert(&prevTransform, &prevTransformInv) != 2) {
             SkinMatrix_SetTranslateRotateYXZScale(
                 &curTransform, colCtx->dyna.bgActors[bgId].curTransform.scale.x,
                 colCtx->dyna.bgActors[bgId].curTransform.scale.y, colCtx->dyna.bgActors[bgId].curTransform.scale.z,
                 colCtx->dyna.bgActors[bgId].curTransform.rot.x, colCtx->dyna.bgActors[bgId].curTransform.rot.y,
                 colCtx->dyna.bgActors[bgId].curTransform.rot.z, colCtx->dyna.bgActors[bgId].curTransform.pos.x,
                 colCtx->dyna.bgActors[bgId].curTransform.pos.y, colCtx->dyna.bgActors[bgId].curTransform.pos.z);
-            SkinMatrix_Vec3fMtxFMultXYZ(&prevTransformInv, &actor->world.pos, &tempPos);
-            SkinMatrix_Vec3fMtxFMultXYZ(&curTransform, &tempPos, &pos);
+            OoT_SkinMatrix_Vec3fMtxFMultXYZ(&prevTransformInv, &actor->world.pos, &tempPos);
+            OoT_SkinMatrix_Vec3fMtxFMultXYZ(&curTransform, &tempPos, &pos);
             actor->world.pos = pos;
             if (BGCHECK_XYZ_ABSMAX <= pos.x || pos.x <= -BGCHECK_XYZ_ABSMAX || BGCHECK_XYZ_ABSMAX <= pos.y ||
                 pos.y <= -BGCHECK_XYZ_ABSMAX || BGCHECK_XYZ_ABSMAX <= pos.z || pos.z <= -BGCHECK_XYZ_ABSMAX) {
@@ -44,7 +44,7 @@ void func_800430A0(CollisionContext* colCtx, s32 bgId, Actor* actor) {
  * Rotate actor
  */
 void func_800432A0(CollisionContext* colCtx, s32 bgId, Actor* actor) {
-    if (DynaPoly_IsBgIdBgActor(bgId)) {
+    if (OoT_DynaPoly_IsBgIdBgActor(bgId)) {
         s16 rot = colCtx->dyna.bgActors[bgId].curTransform.rot.y - colCtx->dyna.bgActors[bgId].prevTransform.rot.y;
 
         if (actor->id == ACTOR_PLAYER) {
@@ -57,13 +57,13 @@ void func_800432A0(CollisionContext* colCtx, s32 bgId, Actor* actor) {
 }
 
 void func_80043334(CollisionContext* colCtx, Actor* actor, s32 bgId) {
-    if (DynaPoly_IsBgIdBgActor(bgId)) {
-        DynaPolyActor* dynaActor = DynaPoly_GetActor(colCtx, bgId);
+    if (OoT_DynaPoly_IsBgIdBgActor(bgId)) {
+        DynaPolyActor* dynaActor = OoT_DynaPoly_GetActor(colCtx, bgId);
         if (dynaActor != NULL) {
-            DynaPolyActor_SetActorOnTop(dynaActor);
+            OoT_DynaPolyActor_SetActorOnTop(dynaActor);
 
             if (CHECK_FLAG_ALL(actor->flags, ACTOR_FLAG_CAN_PRESS_SWITCHES)) {
-                DynaPolyActor_SetSwitchPressed(dynaActor);
+                OoT_DynaPolyActor_SetSwitchPressed(dynaActor);
             }
         }
     }
@@ -77,7 +77,7 @@ s32 func_800433A4(CollisionContext* colCtx, s32 bgId, Actor* actor) {
     s32 result = false;
     DynaPolyActor* dynaActor;
 
-    if (DynaPoly_IsBgIdBgActor(bgId) == false) {
+    if (OoT_DynaPoly_IsBgIdBgActor(bgId) == false) {
         return false;
     }
 
@@ -85,7 +85,7 @@ s32 func_800433A4(CollisionContext* colCtx, s32 bgId, Actor* actor) {
         return false;
     }
 
-    dynaActor = DynaPoly_GetActor(colCtx, bgId);
+    dynaActor = OoT_DynaPoly_GetActor(colCtx, bgId);
 
     if (dynaActor == NULL) {
         return false;

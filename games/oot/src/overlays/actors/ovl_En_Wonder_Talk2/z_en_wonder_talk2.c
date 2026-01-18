@@ -81,9 +81,9 @@ void EnWonderTalk2_Init(Actor* thisx, PlayState* play) {
     if (this->switchFlag == 0x3F) {
         this->switchFlag = -1;
     }
-    if (this->switchFlag >= 0 && Flags_GetSwitch(play, this->switchFlag)) {
+    if (this->switchFlag >= 0 && OoT_Flags_GetSwitch(play, this->switchFlag)) {
         osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ Ｙｏｕ ａｒｅ Ｓｈｏｃｋ！  ☆☆☆☆☆ %d\n" VT_RST, this->switchFlag);
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
     if ((this->talkMode == 1) && (play->sceneNum == SCENE_GERUDO_TRAINING_GROUND) && (this->switchFlag != 0x08) &&
@@ -114,14 +114,14 @@ void func_80B3A15C(EnWonderTalk2* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
     this->unk_158++;
-    if ((this->switchFlag >= 0) && Flags_GetSwitch(play, this->switchFlag)) {
+    if ((this->switchFlag >= 0) && OoT_Flags_GetSwitch(play, this->switchFlag)) {
         if (!this->unk_15A) {
             this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
             this->unk_15A = true;
         }
     } else if (Actor_ProcessTalkRequest(&this->actor, play)) {
         if ((this->switchFlag >= 0) && (this->talkMode != 2)) {
-            Flags_SetSwitch(play, this->switchFlag);
+            OoT_Flags_SetSwitch(play, this->switchFlag);
             // "I saved it! All of it!"
             osSyncPrintf(VT_FGCOL(PURPLE) "☆☆☆☆☆ セーブしたよ！おもいっきり！ %x\n" VT_RST, this->switchFlag);
         }
@@ -171,22 +171,22 @@ void func_80B3A15C(EnWonderTalk2* this, PlayState* play) {
 void func_80B3A3D4(EnWonderTalk2* this, PlayState* play) {
     if (BREG(2) != 0) {
         // "Oh"
-        osSyncPrintf(VT_FGCOL(PURPLE) "☆☆☆☆☆ わー %d\n" VT_RST, Message_GetState(&play->msgCtx));
+        osSyncPrintf(VT_FGCOL(PURPLE) "☆☆☆☆☆ わー %d\n" VT_RST, OoT_Message_GetState(&play->msgCtx));
     }
 
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (OoT_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_EVENT:
         case TEXT_STATE_DONE:
-            if (Message_ShouldAdvance(play)) {
-                if (Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) {
-                    Message_CloseTextbox(play);
+            if (OoT_Message_ShouldAdvance(play)) {
+                if (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) {
+                    OoT_Message_CloseTextbox(play);
                 }
             } else {
                 break;
             }
         case TEXT_STATE_NONE:
             if ((this->switchFlag >= 0) && (this->talkMode != 4)) {
-                Flags_SetSwitch(play, this->switchFlag);
+                OoT_Flags_SetSwitch(play, this->switchFlag);
                 // "(Forced) I saved it! All of it!"
                 osSyncPrintf(VT_FGCOL(PURPLE) "☆☆☆☆☆ (強制)セーブしたよ！おもいっきり！ %x\n" VT_RST, this->switchFlag);
             }
@@ -196,7 +196,7 @@ void func_80B3A3D4(EnWonderTalk2* this, PlayState* play) {
             }
             this->actor.flags &= ~(ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_UPDATE_CULLING_DISABLED);
             if (GameInteractor_Should(VB_WONDER_TALK, true, this)) {
-                Player_SetCsActionWithHaltedActors(play, NULL, 7);
+                OoT_Player_SetCsActionWithHaltedActors(play, NULL, 7);
             }
             this->unk_156 = true;
             this->actionFunc = func_80B3A4F8;
@@ -209,7 +209,7 @@ void func_80B3A4F8(EnWonderTalk2* this, PlayState* play) {
 
     player = GET_PLAYER(play);
     this->unk_158++;
-    if (this->switchFlag >= 0 && Flags_GetSwitch(play, this->switchFlag)) {
+    if (this->switchFlag >= 0 && OoT_Flags_GetSwitch(play, this->switchFlag)) {
         if (!this->unk_15A) {
             this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
             this->unk_15A = true;
@@ -221,7 +221,7 @@ void func_80B3A4F8(EnWonderTalk2* this, PlayState* play) {
         }
         if (((this->actor.xzDistToPlayer < (40.0f + this->triggerRange)) &&
              (fabsf(player->actor.world.pos.y - this->actor.world.pos.y) < 100.0f)) &&
-            !Play_InCsMode(play)) {
+            !OoT_Play_InCsMode(play)) {
             if (this->unk_158 >= 2) {
                 osSyncPrintf("\n\n");
                 // "Transparent Message Kimi Seto"
@@ -256,8 +256,8 @@ void func_80B3A4F8(EnWonderTalk2* this, PlayState* play) {
             this->unk_158 = 0;
             if (!this->unk_156) {
                 if (GameInteractor_Should(VB_WONDER_TALK, true, this)) {
-                    Message_StartTextbox(play, this->actor.textId, NULL);
-                    Player_SetCsActionWithHaltedActors(play, NULL, 8);
+                    OoT_Message_StartTextbox(play, this->actor.textId, NULL);
+                    OoT_Player_SetCsActionWithHaltedActors(play, NULL, 8);
                 }
                 this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_UPDATE_CULLING_DISABLED;
                 this->actionFunc = func_80B3A3D4;
@@ -279,17 +279,17 @@ void EnWonderTalk2_Update(Actor* thisx, PlayState* play) {
     this->actionFunc(this, play);
     this->actor.world.pos.y = this->initPos.y;
 
-    Actor_SetFocus(&this->actor, this->height);
+    OoT_Actor_SetFocus(&this->actor, this->height);
 
     if (BREG(0) != 0) {
         if (this->unk_158 != 0) {
             if ((this->unk_158 & 1) == 0) {
-                DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
+                OoT_DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
                                        this->actor.world.rot.x, this->actor.world.rot.y, this->actor.world.rot.z, 1.0f,
                                        1.0f, 1.0f, 70, 70, 70, 255, 4, play->state.gfxCtx);
             }
         } else {
-            DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
+            OoT_DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
                                    this->actor.world.rot.x, this->actor.world.rot.y, this->actor.world.rot.z, 1.0f,
                                    1.0f, 1.0f, 0, 0, 255, 255, 4, play->state.gfxCtx);
         }

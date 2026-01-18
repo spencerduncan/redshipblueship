@@ -10,7 +10,7 @@
 s16 sCurSection = 0;
 s16 sCurRow = 0;
 
-// These defines must line up with the indices of sSectionPositions
+// These defines must line up with the indices of MM_sSectionPositions
 #define INV_EDITOR_SECTION_RUPEE 0
 #define INV_EDITOR_SECTION_HEALTH_CAPACITY 1
 #define INV_EDITOR_SECTION_HEALTH 2
@@ -40,7 +40,7 @@ typedef struct {
 } SectionPosition; // size = 0x6
 
 // clang-format off
-SectionPosition sSectionPositions[] = {
+SectionPosition MM_sSectionPositions[] = {
     // Rupees (0)
     { 65, 14, 41 },
     // Health Capacity (1)
@@ -95,7 +95,7 @@ SectionPosition sSectionPositions[] = {
 };
 // clang-format on
 
-s16 sSlotItems[] = {
+s16 MM_sSlotItems[] = {
     // Items Row 1
     ITEM_OCARINA_OF_TIME,
     ITEM_BOW,
@@ -154,7 +154,7 @@ s16 sSlotItems[] = {
     ITEM_MASK_FIERCE_DEITY,
 };
 
-s16 sRowFirstSections[] = {
+s16 MM_sRowFirstSections[] = {
     INV_EDITOR_SECTION_RUPEE,
     INV_EDITOR_SECTION_HEALTH_CAPACITY,
     INV_EDITOR_SECTION_HEALTH,
@@ -179,151 +179,151 @@ void KaleidoScope_DrawInventoryEditorText(Gfx** gfxP) {
     GfxPrint printer;
     s32 pad[2];
 
-    GfxPrint_Init(&printer);
-    GfxPrint_Open(&printer, *gfxP);
+    MM_GfxPrint_Init(&printer);
+    MM_GfxPrint_Open(&printer, *gfxP);
 
     // Rupees
-    GfxPrint_SetPos(&printer, 4, 2);
-    GfxPrint_SetColor(&printer, 255, 60, 0, 255);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾙﾋﾟｰ");
+    MM_GfxPrint_SetPos(&printer, 4, 2);
+    MM_GfxPrint_SetColor(&printer, 255, 60, 0, 255);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾙﾋﾟｰ");
 
     // Hearts
-    GfxPrint_SetPos(&printer, 15, 2);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾊｰﾄ");
-    GfxPrint_SetPos(&printer, 15, 3);
-    GfxPrint_Printf(&printer, "%s", "MAX");
-    GfxPrint_SetPos(&printer, 21, 3);
-    GfxPrint_Printf(&printer, "%s", "NOW");
-    GfxPrint_SetPos(&printer, 28, 3);
-    GfxPrint_Printf(&printer, "%s", "/4");
+    MM_GfxPrint_SetPos(&printer, 15, 2);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾊｰﾄ");
+    MM_GfxPrint_SetPos(&printer, 15, 3);
+    MM_GfxPrint_Printf(&printer, "%s", "MAX");
+    MM_GfxPrint_SetPos(&printer, 21, 3);
+    MM_GfxPrint_Printf(&printer, "%s", "NOW");
+    MM_GfxPrint_SetPos(&printer, 28, 3);
+    MM_GfxPrint_Printf(&printer, "%s", "/4");
 
     // Items
-    GfxPrint_SetPos(&printer, 4, 5);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ｱ");
-    GfxPrint_SetPos(&printer, 4, 6);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ｲ");
-    GfxPrint_SetPos(&printer, 4, 7);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾃ");
-    GfxPrint_SetPos(&printer, 4, 8);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾑ");
+    MM_GfxPrint_SetPos(&printer, 4, 5);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ｱ");
+    MM_GfxPrint_SetPos(&printer, 4, 6);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ｲ");
+    MM_GfxPrint_SetPos(&printer, 4, 7);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾃ");
+    MM_GfxPrint_SetPos(&printer, 4, 8);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾑ");
 
     // Masks
-    GfxPrint_SetPos(&printer, 24, 5);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾏ");
-    GfxPrint_SetPos(&printer, 24, 6);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ｽ");
-    GfxPrint_SetPos(&printer, 24, 7);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ｸ");
+    MM_GfxPrint_SetPos(&printer, 24, 5);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾏ");
+    MM_GfxPrint_SetPos(&printer, 24, 6);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ｽ");
+    MM_GfxPrint_SetPos(&printer, 24, 7);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ｸ");
 
     // Boss (Remains)
-    GfxPrint_SetPos(&printer, 4, 13);
-    GfxPrint_Printf(&printer, "%s", "BOSS");
+    MM_GfxPrint_SetPos(&printer, 4, 13);
+    MM_GfxPrint_Printf(&printer, "%s", "BOSS");
 
     // Sword
-    GfxPrint_SetPos(&printer, 13, 13);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ｹ");
-    GfxPrint_SetPos(&printer, 13, 14);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾝ");
+    MM_GfxPrint_SetPos(&printer, 13, 13);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ｹ");
+    MM_GfxPrint_SetPos(&printer, 13, 14);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾝ");
 
     // Shield
-    GfxPrint_SetPos(&printer, 17, 13);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾀ");
-    GfxPrint_SetPos(&printer, 17, 14);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾃ");
+    MM_GfxPrint_SetPos(&printer, 17, 13);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾀ");
+    MM_GfxPrint_SetPos(&printer, 17, 14);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾃ");
 
     // Ocarina (Songs)
-    GfxPrint_SetPos(&printer, 21, 13);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ｵｶ");
-    GfxPrint_SetPos(&printer, 21, 14);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾘﾅ");
+    MM_GfxPrint_SetPos(&printer, 21, 13);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ｵｶ");
+    MM_GfxPrint_SetPos(&printer, 21, 14);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾘﾅ");
 
     // Schedule (Bombers Notebook)
-    GfxPrint_SetPos(&printer, 4, 17);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ｽｹｼﾞｭｰﾙ");
+    MM_GfxPrint_SetPos(&printer, 4, 17);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ｽｹｼﾞｭｰﾙ");
 
     // Quiver
-    GfxPrint_SetPos(&printer, 12, 17);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾔ");
-    GfxPrint_SetPos(&printer, 12, 18);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾀﾃ");
+    MM_GfxPrint_SetPos(&printer, 12, 17);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾔ");
+    MM_GfxPrint_SetPos(&printer, 12, 18);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾀﾃ");
 
     // Bomb Bag
-    GfxPrint_SetPos(&printer, 16, 17);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾎﾞﾑ");
-    GfxPrint_SetPos(&printer, 16, 18);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾌｸﾛ");
+    MM_GfxPrint_SetPos(&printer, 16, 17);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾎﾞﾑ");
+    MM_GfxPrint_SetPos(&printer, 16, 18);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾌｸﾛ");
 
     // Gold Skulls
-    GfxPrint_SetPos(&printer, 22, 17);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ｷﾝ");
-    GfxPrint_SetPos(&printer, 22, 18);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ｽﾀ");
+    MM_GfxPrint_SetPos(&printer, 22, 17);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ｷﾝ");
+    MM_GfxPrint_SetPos(&printer, 22, 18);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ｽﾀ");
 
     // Heart Pieces
-    GfxPrint_SetPos(&printer, 29, 17);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾊｰﾄ");
-    GfxPrint_SetPos(&printer, 29, 18);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ｶｹﾗ");
-    GfxPrint_SetPos(&printer, 34, 18);
-    GfxPrint_Printf(&printer, "%s", "/4");
+    MM_GfxPrint_SetPos(&printer, 29, 17);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ﾊｰﾄ");
+    MM_GfxPrint_SetPos(&printer, 29, 18);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ｶｹﾗ");
+    MM_GfxPrint_SetPos(&printer, 34, 18);
+    MM_GfxPrint_Printf(&printer, "%s", "/4");
 
     // Keys
-    GfxPrint_SetPos(&printer, 4, 21);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ｶ");
-    GfxPrint_SetPos(&printer, 4, 22);
-    GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ｷﾞ");
+    MM_GfxPrint_SetPos(&printer, 4, 21);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ｶ");
+    MM_GfxPrint_SetPos(&printer, 4, 22);
+    MM_GfxPrint_Printf(&printer, "%s", GFXP_KATAKANA "ｷﾞ");
 
     // Map/Compass
-    GfxPrint_SetPos(&printer, 12, 21);
-    GfxPrint_Printf(&printer, "%s", "MAP");
-    GfxPrint_SetPos(&printer, 12, 22);
-    GfxPrint_Printf(&printer, "%s", "ｺﾝﾊﾟ");
+    MM_GfxPrint_SetPos(&printer, 12, 21);
+    MM_GfxPrint_Printf(&printer, "%s", "MAP");
+    MM_GfxPrint_SetPos(&printer, 12, 22);
+    MM_GfxPrint_Printf(&printer, "%s", "ｺﾝﾊﾟ");
 
     // Fairies
-    GfxPrint_SetPos(&printer, 23, 21);
-    GfxPrint_Printf(&printer, "%s", "ﾖｳ");
-    GfxPrint_SetPos(&printer, 23, 22);
-    GfxPrint_Printf(&printer, "%s", "ｾｲ");
+    MM_GfxPrint_SetPos(&printer, 23, 21);
+    MM_GfxPrint_Printf(&printer, "%s", "ﾖｳ");
+    MM_GfxPrint_SetPos(&printer, 23, 22);
+    MM_GfxPrint_Printf(&printer, "%s", "ｾｲ");
 
     // Life (double defense)
-    GfxPrint_SetPos(&printer, 4, 25);
-    GfxPrint_Printf(&printer, "%s", "ｲ");
-    GfxPrint_SetPos(&printer, 4, 26);
-    GfxPrint_Printf(&printer, "%s", "ﾉ");
-    GfxPrint_SetPos(&printer, 4, 27);
-    GfxPrint_Printf(&printer, "%s", "ﾁ");
+    MM_GfxPrint_SetPos(&printer, 4, 25);
+    MM_GfxPrint_Printf(&printer, "%s", "ｲ");
+    MM_GfxPrint_SetPos(&printer, 4, 26);
+    MM_GfxPrint_Printf(&printer, "%s", "ﾉ");
+    MM_GfxPrint_SetPos(&printer, 4, 27);
+    MM_GfxPrint_Printf(&printer, "%s", "ﾁ");
 
     // Magic
-    GfxPrint_SetPos(&printer, 8, 25);
-    GfxPrint_Printf(&printer, "%s", "ﾏ");
-    GfxPrint_SetPos(&printer, 8, 26);
-    GfxPrint_Printf(&printer, "%s", "ﾎ");
-    GfxPrint_SetPos(&printer, 8, 27);
-    GfxPrint_Printf(&printer, "%s", "ｳ");
+    MM_GfxPrint_SetPos(&printer, 8, 25);
+    MM_GfxPrint_Printf(&printer, "%s", "ﾏ");
+    MM_GfxPrint_SetPos(&printer, 8, 26);
+    MM_GfxPrint_Printf(&printer, "%s", "ﾎ");
+    MM_GfxPrint_SetPos(&printer, 8, 27);
+    MM_GfxPrint_Printf(&printer, "%s", "ｳ");
 
     // Lottery
-    GfxPrint_SetPos(&printer, 13, 25);
-    GfxPrint_Printf(&printer, "%s", "ﾀｶﾗ");
-    GfxPrint_SetPos(&printer, 13, 26);
-    GfxPrint_Printf(&printer, "%s", "ｸｼﾞ");
+    MM_GfxPrint_SetPos(&printer, 13, 25);
+    MM_GfxPrint_Printf(&printer, "%s", "ﾀｶﾗ");
+    MM_GfxPrint_SetPos(&printer, 13, 26);
+    MM_GfxPrint_Printf(&printer, "%s", "ｸｼﾞ");
 
     // Gold Color (Oceanside Spider House Mask Order)
-    GfxPrint_SetPos(&printer, 23, 24);
-    GfxPrint_Printf(&printer, "%s", "ｷﾝｲﾛ");
+    MM_GfxPrint_SetPos(&printer, 23, 24);
+    MM_GfxPrint_Printf(&printer, "%s", "ｷﾝｲﾛ");
 
     // Bombers (code)
-    GfxPrint_SetPos(&printer, 23, 26);
-    GfxPrint_Printf(&printer, "%s", "ﾎﾞﾝ");
-    GfxPrint_SetPos(&printer, 23, 27);
-    GfxPrint_Printf(&printer, "%s", "ﾊﾞｰｽﾞ");
+    MM_GfxPrint_SetPos(&printer, 23, 26);
+    MM_GfxPrint_Printf(&printer, "%s", "ﾎﾞﾝ");
+    MM_GfxPrint_SetPos(&printer, 23, 27);
+    MM_GfxPrint_Printf(&printer, "%s", "ﾊﾞｰｽﾞ");
 
-    *gfxP = GfxPrint_Close(&printer);
-    GfxPrint_Destroy(&printer);
+    *gfxP = MM_GfxPrint_Close(&printer);
+    MM_GfxPrint_Destroy(&printer);
 }
 // 2S2H [Port] (and in the function) don't do pointer math and access the list of digits directly.
 extern const char* sCounterTextures[];
 
-void KaleidoScope_DrawDigit(PlayState* play, s32 digit, s32 rectLeft, s32 rectTop) {
+void MM_KaleidoScope_DrawDigit(PlayState* play, s32 digit, s32 rectLeft, s32 rectTop) {
     OPEN_DISPS(play->state.gfxCtx);
 
     gDPLoadTextureBlock(POLY_OPA_DISP++, sCounterTextures[digit], G_IM_FMT_I, G_IM_SIZ_8b, 8, 16, 0,
@@ -358,13 +358,13 @@ void KaleidoScope_DrawInventoryEditor(PlayState* play) {
                       PRIMITIVE, 0);
 
     gfxRef = POLY_OPA_DISP;
-    gfx = Graph_GfxPlusOne(gfxRef);
+    gfx = MM_Graph_GfxPlusOne(gfxRef);
     gSPDisplayList(OVERLAY_DISP++, gfx);
 
     KaleidoScope_DrawInventoryEditorText(&gfx);
 
     gSPEndDisplayList(gfx++);
-    Graph_BranchDlist(gfxRef, gfx);
+    MM_Graph_BranchDlist(gfxRef, gfx);
     POLY_OPA_DISP = gfx;
 
     gDPPipeSync(POLY_OPA_DISP++);
@@ -372,7 +372,7 @@ void KaleidoScope_DrawInventoryEditor(PlayState* play) {
     gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 0);
 
     // Current Health Quarter (X / 4)
-    KaleidoScope_DrawDigit(play, (((void)0, gSaveContext.save.saveInfo.playerData.health) % 0x10) / 4, 217, 15);
+    MM_KaleidoScope_DrawDigit(play, (((void)0, gSaveContext.save.saveInfo.playerData.health) % 0x10) / 4, 217, 15);
 
     gDPPipeSync(POLY_OPA_DISP++);
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, 255);
@@ -397,7 +397,7 @@ void KaleidoScope_DrawInventoryEditor(PlayState* play) {
 
     // Loop over columns (i)
     for (i = 0, rectLeft = 68; i < 4; i++, rectLeft += 9) {
-        KaleidoScope_DrawDigit(play, counterDigits[i], rectLeft, 15);
+        MM_KaleidoScope_DrawDigit(play, counterDigits[i], rectLeft, 15);
     }
 
     // Health capacity
@@ -408,8 +408,8 @@ void KaleidoScope_DrawInventoryEditor(PlayState* play) {
         counterDigits[3] -= 10;
     }
 
-    KaleidoScope_DrawDigit(play, counterDigits[2], 145, 15);
-    KaleidoScope_DrawDigit(play, counterDigits[3], 154, 15);
+    MM_KaleidoScope_DrawDigit(play, counterDigits[2], 145, 15);
+    MM_KaleidoScope_DrawDigit(play, counterDigits[3], 154, 15);
 
     // Health
     counterDigits[2] = 0;
@@ -419,8 +419,8 @@ void KaleidoScope_DrawInventoryEditor(PlayState* play) {
         counterDigits[3] -= 10;
     }
 
-    KaleidoScope_DrawDigit(play, counterDigits[2], 195, 15);
-    KaleidoScope_DrawDigit(play, counterDigits[3], 204, 15);
+    MM_KaleidoScope_DrawDigit(play, counterDigits[2], 195, 15);
+    MM_KaleidoScope_DrawDigit(play, counterDigits[3], 204, 15);
 
     // Items
     // Loop over rows (i)
@@ -431,7 +431,7 @@ void KaleidoScope_DrawInventoryEditor(PlayState* play) {
             counterDigits[2] = 0;
             if ((slot == SLOT_BOW) || ((slot >= SLOT_BOMB) && (slot <= SLOT_DEKU_NUT)) || (slot == SLOT_POWDER_KEG) ||
                 (slot == SLOT_MAGIC_BEANS)) {
-                counterDigits[3] = AMMO(gAmmoItems[slot]);
+                counterDigits[3] = AMMO(MM_gAmmoItems[slot]);
             } else if ((slot == SLOT_TRADE_DEED) || (slot == SLOT_TRADE_KEY_MAMA) || (slot == SLOT_TRADE_COUPLE)) {
                 counterDigits[3] = gSaveContext.save.saveInfo.inventory.items[slot];
             } else if (slot >= SLOT_BOTTLE_1) {
@@ -450,9 +450,9 @@ void KaleidoScope_DrawInventoryEditor(PlayState* play) {
             }
 
             if (counterDigits[2] != 0) {
-                KaleidoScope_DrawDigit(play, counterDigits[2], rectLeft, rectTop);
+                MM_KaleidoScope_DrawDigit(play, counterDigits[2], rectLeft, rectTop);
             }
-            KaleidoScope_DrawDigit(play, counterDigits[3], rectLeft + 9, rectTop);
+            MM_KaleidoScope_DrawDigit(play, counterDigits[3], rectLeft + 9, rectTop);
         }
     }
 
@@ -466,7 +466,7 @@ void KaleidoScope_DrawInventoryEditor(PlayState* play) {
             if (gSaveContext.save.saveInfo.inventory.items[slot + ITEM_NUM_SLOTS] != ITEM_NONE) {
                 counterDigits[2] = 1;
             }
-            KaleidoScope_DrawDigit(play, counterDigits[2], rectLeft, rectTop);
+            MM_KaleidoScope_DrawDigit(play, counterDigits[2], rectLeft, rectTop);
         }
     }
 
@@ -477,15 +477,15 @@ void KaleidoScope_DrawInventoryEditor(PlayState* play) {
         if (CHECK_QUEST_ITEM(QUEST_REMAINS_ODOLWA + i)) {
             counterDigits[2] = 1;
         }
-        KaleidoScope_DrawDigit(play, counterDigits[2], counterDigits[1], 112);
+        MM_KaleidoScope_DrawDigit(play, counterDigits[2], counterDigits[1], 112);
         counterDigits[1] += 14;
     }
 
     // Sword
-    KaleidoScope_DrawDigit(play, GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD), 116, 100);
+    MM_KaleidoScope_DrawDigit(play, GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD), 116, 100);
 
     // Shield
-    KaleidoScope_DrawDigit(play, GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD), 145, 100);
+    MM_KaleidoScope_DrawDigit(play, GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD), 145, 100);
 
     // Songs
     // Loop over rows (j), (counterDigits[3] stores rectTop)
@@ -496,7 +496,7 @@ void KaleidoScope_DrawInventoryEditor(PlayState* play) {
             if (CHECK_QUEST_ITEM(QUEST_SONG_SONATA + slot)) {
                 counterDigits[2] = 1;
             }
-            KaleidoScope_DrawDigit(play, counterDigits[2], counterDigits[1], counterDigits[3]);
+            MM_KaleidoScope_DrawDigit(play, counterDigits[2], counterDigits[1], counterDigits[3]);
             counterDigits[1] += 14;
         }
         counterDigits[3] += 14;
@@ -508,20 +508,20 @@ void KaleidoScope_DrawInventoryEditor(PlayState* play) {
     if (CHECK_QUEST_ITEM(QUEST_SONG_LULLABY_INTRO)) {
         counterDigits[2] = 1;
     }
-    KaleidoScope_DrawDigit(play, counterDigits[2], counterDigits[1], counterDigits[3]);
+    MM_KaleidoScope_DrawDigit(play, counterDigits[2], counterDigits[1], counterDigits[3]);
 
     // Bombers Notebook
     counterDigits[2] = 0;
     if (CHECK_QUEST_ITEM(QUEST_BOMBERS_NOTEBOOK)) {
         counterDigits[2] = 1;
     }
-    KaleidoScope_DrawDigit(play, counterDigits[2], 56, 142);
+    MM_KaleidoScope_DrawDigit(play, counterDigits[2], 56, 142);
 
     // Quiver
-    KaleidoScope_DrawDigit(play, CUR_UPG_VALUE(UPG_QUIVER), 114, 134);
+    MM_KaleidoScope_DrawDigit(play, CUR_UPG_VALUE(UPG_QUIVER), 114, 134);
 
     // Bomb Bag
-    KaleidoScope_DrawDigit(play, CUR_UPG_VALUE(UPG_BOMB_BAG), 156, 134);
+    MM_KaleidoScope_DrawDigit(play, CUR_UPG_VALUE(UPG_BOMB_BAG), 156, 134);
 
     // Gold Skulls (Swamp Spider House)
     counterDigits[2] = 0;
@@ -538,9 +538,9 @@ void KaleidoScope_DrawInventoryEditor(PlayState* play) {
         counterDigits[2]++;
     }
 
-    KaleidoScope_DrawDigit(play, counterDigits[1], 196, 130);
-    KaleidoScope_DrawDigit(play, counterDigits[2], 205, 130);
-    KaleidoScope_DrawDigit(play, counterDigits[3], 214, 130);
+    MM_KaleidoScope_DrawDigit(play, counterDigits[1], 196, 130);
+    MM_KaleidoScope_DrawDigit(play, counterDigits[2], 205, 130);
+    MM_KaleidoScope_DrawDigit(play, counterDigits[3], 214, 130);
 
     // Gold Skulls (Oceans Spider House)
     counterDigits[2] = 0;
@@ -557,12 +557,12 @@ void KaleidoScope_DrawInventoryEditor(PlayState* play) {
         counterDigits[2]++;
     }
 
-    KaleidoScope_DrawDigit(play, counterDigits[1], 196, 144);
-    KaleidoScope_DrawDigit(play, counterDigits[2], 205, 144);
-    KaleidoScope_DrawDigit(play, counterDigits[3], 214, 144);
+    MM_KaleidoScope_DrawDigit(play, counterDigits[1], 196, 144);
+    MM_KaleidoScope_DrawDigit(play, counterDigits[2], 205, 144);
+    MM_KaleidoScope_DrawDigit(play, counterDigits[3], 214, 144);
 
     // Heart Pieces
-    KaleidoScope_DrawDigit(play, GET_QUEST_HEART_PIECE_COUNT, 264, 134);
+    MM_KaleidoScope_DrawDigit(play, GET_QUEST_HEART_PIECE_COUNT, 264, 134);
 
     // Keys
     // Loop over columns (i), (counterDigits[1] stores rectLeft)
@@ -578,15 +578,15 @@ void KaleidoScope_DrawInventoryEditor(PlayState* play) {
             counterDigits[2] = counterDigits[3] = 0;
         }
 
-        KaleidoScope_DrawDigit(play, counterDigits[3], counterDigits[1], 168);
+        MM_KaleidoScope_DrawDigit(play, counterDigits[3], counterDigits[1], 168);
         counterDigits[1] += 12;
     }
 
     // Dungeon Items
     // Loop over columns (i), (counterDigits[1] stores rectLeft)
     for (counterDigits[1] = 129, i = 0; i < 4; i++) {
-        counterDigits[2] = gSaveContext.save.saveInfo.inventory.dungeonItems[i] & gEquipMasks[0];
-        KaleidoScope_DrawDigit(play, counterDigits[2], counterDigits[1], 168);
+        counterDigits[2] = gSaveContext.save.saveInfo.inventory.dungeonItems[i] & MM_gEquipMasks[0];
+        MM_KaleidoScope_DrawDigit(play, counterDigits[2], counterDigits[1], 168);
         counterDigits[1] += 12;
     }
 
@@ -597,30 +597,30 @@ void KaleidoScope_DrawInventoryEditor(PlayState* play) {
         counterDigits[2] = counterDigits[3] / 10;
         counterDigits[3] -= counterDigits[2] * 10;
         if (counterDigits[2] != 0) {
-            KaleidoScope_DrawDigit(play, counterDigits[2], counterDigits[1], 168);
+            MM_KaleidoScope_DrawDigit(play, counterDigits[2], counterDigits[1], 168);
         }
-        KaleidoScope_DrawDigit(play, counterDigits[3], counterDigits[1] + 9, 168);
+        MM_KaleidoScope_DrawDigit(play, counterDigits[3], counterDigits[1] + 9, 168);
         counterDigits[1] += 21;
     }
 
     // Double Defense
-    KaleidoScope_DrawDigit(play, gSaveContext.save.saveInfo.playerData.doubleDefense, 44, 202);
+    MM_KaleidoScope_DrawDigit(play, gSaveContext.save.saveInfo.playerData.doubleDefense, 44, 202);
 
     // Magic
     //! @bug should be gSaveContext.save.saveInfo.playerData.isDoubleMagicAcquired
-    KaleidoScope_DrawDigit(play, gSaveContext.save.saveInfo.playerData.doubleDefense, 75, 202);
+    MM_KaleidoScope_DrawDigit(play, gSaveContext.save.saveInfo.playerData.doubleDefense, 75, 202);
 
     // Lottery
     // Loop over columns (i), (counterDigits[1] stores rectLeft)
     for (counterDigits[1] = 139, i = 0; i < 3; i++) {
         counterDigits[2] = gSaveContext.save.saveInfo.lotteryCodes[0][i];
 
-        KaleidoScope_DrawDigit(play, counterDigits[2], counterDigits[1], 184);
+        MM_KaleidoScope_DrawDigit(play, counterDigits[2], counterDigits[1], 184);
         counterDigits[2] = gSaveContext.save.saveInfo.lotteryCodes[1][i];
-        KaleidoScope_DrawDigit(play, counterDigits[2], counterDigits[1], 198);
+        MM_KaleidoScope_DrawDigit(play, counterDigits[2], counterDigits[1], 198);
 
         counterDigits[2] = gSaveContext.save.saveInfo.lotteryCodes[2][i];
-        KaleidoScope_DrawDigit(play, counterDigits[2], counterDigits[1], 212);
+        MM_KaleidoScope_DrawDigit(play, counterDigits[2], counterDigits[1], 212);
 
         counterDigits[1] += 12;
     }
@@ -629,7 +629,7 @@ void KaleidoScope_DrawInventoryEditor(PlayState* play) {
     // Loop over columns (i), (counterDigits[1] stores rectLeft)
     for (counterDigits[1] = 217, i = 0; i < 6; i++) {
         counterDigits[2] = gSaveContext.save.saveInfo.spiderHouseMaskOrder[i];
-        KaleidoScope_DrawDigit(play, counterDigits[2], counterDigits[1], 186);
+        MM_KaleidoScope_DrawDigit(play, counterDigits[2], counterDigits[1], 186);
 
         counterDigits[1] += 12;
     }
@@ -638,7 +638,7 @@ void KaleidoScope_DrawInventoryEditor(PlayState* play) {
     // Loop over columns (i), (counterDigits[1] stores rectLeft)
     for (counterDigits[1] = 220, i = 0; i < 5; i++) {
         counterDigits[2] = gSaveContext.save.saveInfo.bomberCode[i];
-        KaleidoScope_DrawDigit(play, counterDigits[2], counterDigits[1], 210);
+        MM_KaleidoScope_DrawDigit(play, counterDigits[2], counterDigits[1], 210);
 
         counterDigits[1] += 12;
     }
@@ -649,9 +649,9 @@ void KaleidoScope_DrawInventoryEditor(PlayState* play) {
     gDPSetCombineMode(POLY_OPA_DISP++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 0, 0, 200, 120);
 
-    gDPFillRectangle(POLY_OPA_DISP++, sSectionPositions[sCurSection].screenX, sSectionPositions[sCurSection].screenY,
-                     sSectionPositions[sCurSection].screenX + sSectionPositions[sCurSection].width,
-                     sSectionPositions[sCurSection].screenY + 15);
+    gDPFillRectangle(POLY_OPA_DISP++, MM_sSectionPositions[sCurSection].screenX, MM_sSectionPositions[sCurSection].screenY,
+                     MM_sSectionPositions[sCurSection].screenX + MM_sSectionPositions[sCurSection].width,
+                     MM_sSectionPositions[sCurSection].screenY + 15);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -687,21 +687,21 @@ void KaleidoScope_UpdateInventoryEditor(PlayState* play) {
         if (sCurRow > 17) {
             sCurRow = 0;
         }
-        sCurSection = sRowFirstSections[sCurRow];
+        sCurSection = MM_sRowFirstSections[sCurRow];
     } else if (CHECK_BTN_ANY(dBtnInput, BTN_DUP)) {
         sCurRow--;
         if (sCurRow < 0) {
             sCurRow = 17;
         }
-        sCurSection = sRowFirstSections[sCurRow];
+        sCurSection = MM_sRowFirstSections[sCurRow];
     } else if (CHECK_BTN_ANY(dBtnInput, BTN_DLEFT)) {
         sCurSection--;
         if (sCurSection < 0) {
-            sCurSection = ARRAY_COUNT(sSectionPositions) - 1;
+            sCurSection = ARRAY_COUNT(MM_sSectionPositions) - 1;
         }
     } else if (CHECK_BTN_ANY(dBtnInput, BTN_DRIGHT)) {
         sCurSection++;
-        if (sCurSection > (ARRAY_COUNT(sSectionPositions) - 1)) {
+        if (sCurSection > (ARRAY_COUNT(MM_sSectionPositions) - 1)) {
             sCurSection = 0;
         }
     }
@@ -752,13 +752,13 @@ void KaleidoScope_UpdateInventoryEditor(PlayState* play) {
         case INV_EDITOR_SECTION_HEALTH:
             // Health
             if (CHECK_BTN_ALL(input->press.button, BTN_CLEFT)) {
-                Health_ChangeBy(play, -4);
+                MM_Health_ChangeBy(play, -4);
             } else if (CHECK_BTN_ALL(input->press.button, BTN_CRIGHT)) {
-                Health_ChangeBy(play, 4);
+                MM_Health_ChangeBy(play, 4);
             } else if (CHECK_BTN_ALL(input->press.button, BTN_CUP)) {
-                Health_ChangeBy(play, -0x10);
+                MM_Health_ChangeBy(play, -0x10);
             } else if (CHECK_BTN_ALL(input->press.button, BTN_CDOWN)) {
-                Health_ChangeBy(play, 0x10);
+                MM_Health_ChangeBy(play, 0x10);
             }
             break;
 
@@ -783,28 +783,28 @@ void KaleidoScope_UpdateInventoryEditor(PlayState* play) {
                 if ((slot == SLOT_BOW) || ((slot >= SLOT_BOMB) && (slot <= SLOT_DEKU_NUT)) ||
                     (slot == SLOT_POWDER_KEG) || (slot == SLOT_MAGIC_BEANS)) {
                     if (CHECK_BTN_ALL(input->press.button, BTN_CUP)) {
-                        Inventory_DeleteItem(gAmmoItems[slot], SLOT(gAmmoItems[slot]));
-                        AMMO(gAmmoItems[slot]) = 0;
+                        MM_Inventory_DeleteItem(MM_gAmmoItems[slot], SLOT(MM_gAmmoItems[slot]));
+                        AMMO(MM_gAmmoItems[slot]) = 0;
                     }
 
                     if (CHECK_BTN_ALL(input->press.button, BTN_CRIGHT)) {
-                        if (slot != INV_CONTENT(gAmmoItems[slot])) {
-                            INV_CONTENT(gAmmoItems[slot]) = gAmmoItems[slot];
+                        if (slot != INV_CONTENT(MM_gAmmoItems[slot])) {
+                            INV_CONTENT(MM_gAmmoItems[slot]) = MM_gAmmoItems[slot];
                         }
-                        AMMO(gAmmoItems[slot])++;
-                        if (AMMO(gAmmoItems[slot]) > 99) {
-                            AMMO(gAmmoItems[slot]) = 99;
+                        AMMO(MM_gAmmoItems[slot])++;
+                        if (AMMO(MM_gAmmoItems[slot]) > 99) {
+                            AMMO(MM_gAmmoItems[slot]) = 99;
                         }
                     } else if (CHECK_BTN_ALL(input->press.button, BTN_CLEFT)) {
-                        AMMO(gAmmoItems[slot])--;
-                        if (AMMO(gAmmoItems[slot]) < 0) {
-                            AMMO(gAmmoItems[slot]) = 0;
+                        AMMO(MM_gAmmoItems[slot])--;
+                        if (AMMO(MM_gAmmoItems[slot]) < 0) {
+                            AMMO(MM_gAmmoItems[slot]) = 0;
                         }
                     }
                 } else if ((slot == SLOT_TRADE_DEED) || (slot == SLOT_TRADE_KEY_MAMA) || (slot == SLOT_TRADE_COUPLE)) {
                     if (CHECK_BTN_ALL(input->press.button, BTN_CUP)) {
-                        value = sSlotItems[slot];
-                        Inventory_DeleteItem(value, slot);
+                        value = MM_sSlotItems[slot];
+                        MM_Inventory_DeleteItem(value, slot);
                     } else if (slot == SLOT_TRADE_DEED) {
                         if (CHECK_BTN_ALL(input->press.button, BTN_CRIGHT)) {
                             if (INV_CONTENT(ITEM_MOONS_TEAR) == ITEM_NONE) {
@@ -855,7 +855,7 @@ void KaleidoScope_UpdateInventoryEditor(PlayState* play) {
                 } else if ((slot >= SLOT_BOTTLE_1) && (slot <= SLOT_BOTTLE_6)) {
                     if (CHECK_BTN_ALL(input->press.button, BTN_CUP)) {
                         value = ITEM_BOTTLE + slot - SLOT_BOTTLE_1;
-                        Inventory_DeleteItem(value, SLOT(ITEM_BOTTLE) + slot - SLOT_BOTTLE_1);
+                        MM_Inventory_DeleteItem(value, SLOT(ITEM_BOTTLE) + slot - SLOT_BOTTLE_1);
                     } else if (CHECK_BTN_ALL(input->press.button, BTN_CRIGHT)) {
                         if (gSaveContext.save.saveInfo.inventory.items[slot] == ITEM_NONE) {
                             gSaveContext.save.saveInfo.inventory.items[slot] = ITEM_BOTTLE;
@@ -877,11 +877,11 @@ void KaleidoScope_UpdateInventoryEditor(PlayState* play) {
                     if (CHECK_BTN_ALL(input->press.button, BTN_CUP) || CHECK_BTN_ALL(input->press.button, BTN_CLEFT) ||
                         CHECK_BTN_ALL(input->press.button, BTN_CDOWN) ||
                         CHECK_BTN_ALL(input->press.button, BTN_CRIGHT)) {
-                        value = sSlotItems[slot];
+                        value = MM_sSlotItems[slot];
                         if (gSaveContext.save.saveInfo.inventory.items[slot] == ITEM_NONE) {
                             INV_CONTENT(value) = value;
                         } else {
-                            Inventory_DeleteItem(value, slot);
+                            MM_Inventory_DeleteItem(value, slot);
                         }
                     }
                 }
@@ -947,14 +947,14 @@ void KaleidoScope_UpdateInventoryEditor(PlayState* play) {
                     if (value < 0) {
                         value = 0;
                     }
-                    Inventory_ChangeUpgrade(UPG_QUIVER, value);
+                    MM_Inventory_ChangeUpgrade(UPG_QUIVER, value);
                 } else if (CHECK_BTN_ALL(input->press.button, BTN_CDOWN) ||
                            CHECK_BTN_ALL(input->press.button, BTN_CRIGHT)) {
                     value++;
                     if (value > 3) {
                         value = 3;
                     }
-                    Inventory_ChangeUpgrade(UPG_QUIVER, value);
+                    MM_Inventory_ChangeUpgrade(UPG_QUIVER, value);
                 }
 
             } else if (sCurSection == INV_EDITOR_SECTION_BOMB_BAG) {
@@ -965,14 +965,14 @@ void KaleidoScope_UpdateInventoryEditor(PlayState* play) {
                     if (value < 0) {
                         value = 0;
                     }
-                    Inventory_ChangeUpgrade(UPG_BOMB_BAG, value);
+                    MM_Inventory_ChangeUpgrade(UPG_BOMB_BAG, value);
                 } else if (CHECK_BTN_ALL(input->press.button, BTN_CDOWN) ||
                            CHECK_BTN_ALL(input->press.button, BTN_CRIGHT)) {
                     value++;
                     if (value > 3) {
                         value = 3;
                     }
-                    Inventory_ChangeUpgrade(UPG_BOMB_BAG, value);
+                    MM_Inventory_ChangeUpgrade(UPG_BOMB_BAG, value);
                 }
 
             } else if (sCurSection == INV_EDITOR_SECTION_SWAMP_GOLD_SKULLS) {

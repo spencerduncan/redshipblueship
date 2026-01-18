@@ -8,15 +8,15 @@
 
 #define FLAGS 0
 
-void ObjMure_Init(Actor* thisx, PlayState* play);
-void ObjMure_Destroy(Actor* thisx, PlayState* play);
-void ObjMure_Update(Actor* thisx, PlayState* play);
+void OoT_ObjMure_Init(Actor* thisx, PlayState* play);
+void OoT_ObjMure_Destroy(Actor* thisx, PlayState* play);
+void OoT_ObjMure_Update(Actor* thisx, PlayState* play);
 
-void ObjMure_InitialAction(ObjMure* this, PlayState* play);
-void ObjMure_CulledState(ObjMure* this, PlayState* play);
-void ObjMure_ActiveState(ObjMure* this, PlayState* play);
+void OoT_ObjMure_InitialAction(ObjMure* this, PlayState* play);
+void OoT_ObjMure_CulledState(ObjMure* this, PlayState* play);
+void OoT_ObjMure_ActiveState(ObjMure* this, PlayState* play);
 
-s32 ObjMure_GetMaxChildSpawns(ObjMure* this);
+s32 OoT_ObjMure_GetMaxChildSpawns(ObjMure* this);
 
 const ActorInit Obj_Mure_InitVars = {
     ACTOR_OBJ_MURE,
@@ -24,9 +24,9 @@ const ActorInit Obj_Mure_InitVars = {
     FLAGS,
     OBJECT_GAMEPLAY_KEEP,
     sizeof(ObjMure),
-    (ActorFunc)ObjMure_Init,
-    (ActorFunc)ObjMure_Destroy,
-    (ActorFunc)ObjMure_Update,
+    (ActorFunc)OoT_ObjMure_Init,
+    (ActorFunc)OoT_ObjMure_Destroy,
+    (ActorFunc)OoT_ObjMure_Update,
     NULL,
     NULL,
 };
@@ -45,15 +45,15 @@ typedef enum {
     /* 2 */ OBJMURE_CHILD_STATE_2
 } ObjMureChildState;
 
-static f32 sZClip[] = { 1600.0f, 1600.0f, 1000.0f, 1000.0f, 1000.0f };
+static f32 OoT_sZClip[] = { 1600.0f, 1600.0f, 1000.0f, 1000.0f, 1000.0f };
 
-static s32 sMaxChildSpawns[] = { 12, 9, 8, 0 };
+static s32 OoT_sMaxChildSpawns[] = { 12, 9, 8, 0 };
 
-static s16 sSpawnActorIds[] = { ACTOR_EN_KUSA, 0, ACTOR_EN_FISH, ACTOR_EN_INSECT, ACTOR_EN_BUTTE };
+static s16 OoT_sSpawnActorIds[] = { ACTOR_EN_KUSA, 0, ACTOR_EN_FISH, ACTOR_EN_INSECT, ACTOR_EN_BUTTE };
 
-static s16 sSpawnParams[] = { 0, 2, -1, 0, -1 };
+static s16 OoT_sSpawnParams[] = { 0, 2, -1, 0, -1 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(uncullZoneForward, 1200, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 200, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneDownward, 1200, ICHAIN_STOP),
@@ -67,7 +67,7 @@ s32 ObjMure_SetCullingImpl(Actor* thisx, PlayState* play) {
         case OBJMURE_TYPE_FISH:
         case OBJMURE_TYPE_BUGS:
         case OBJMURE_TYPE_BUTTERFLY:
-            Actor_ProcessInitChain(&this->actor, sInitChain);
+            OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
             result = true;
             break;
         default:
@@ -86,7 +86,7 @@ s32 ObjMure_SetCulling(Actor* thisx, PlayState* play) {
     return true;
 }
 
-void ObjMure_Init(Actor* thisx, PlayState* play) {
+void OoT_ObjMure_Init(Actor* thisx, PlayState* play) {
     ObjMure* this = (ObjMure*)thisx;
 
     this->chNum = (thisx->params >> 0xC) & 0x0F;
@@ -96,48 +96,48 @@ void ObjMure_Init(Actor* thisx, PlayState* play) {
 
     if (this->ptn >= 4) {
         osSyncPrintf("Error 群れな敵 (%s %d)(arg_data 0x%04x)\n", __FILE__, __LINE__, thisx->params);
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     } else if (this->type >= 5) {
         osSyncPrintf("Error 群れな敵 (%s %d)(arg_data 0x%04x)\n", __FILE__, __LINE__, thisx->params);
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     } else if (!ObjMure_SetCulling(thisx, play)) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
-    this->actionFunc = ObjMure_InitialAction;
+    this->actionFunc = OoT_ObjMure_InitialAction;
     osSyncPrintf("群れな敵 (arg_data 0x%04x)(chNum(%d) ptn(%d) svNum(%d) type(%d))\n", thisx->params, this->chNum,
                  this->ptn, this->svNum, this->type);
-    if (ObjMure_GetMaxChildSpawns(this) <= 0) {
+    if (OoT_ObjMure_GetMaxChildSpawns(this) <= 0) {
         osSyncPrintf("Warning : 個体数が設定されていません(%s %d)(arg_data 0x%04x)\n", __FILE__, __LINE__,
                      thisx->params);
     }
 }
 
-void ObjMure_Destroy(Actor* thisx, PlayState* play) {
+void OoT_ObjMure_Destroy(Actor* thisx, PlayState* play) {
 }
 
-s32 ObjMure_GetMaxChildSpawns(ObjMure* this) {
+s32 OoT_ObjMure_GetMaxChildSpawns(ObjMure* this) {
     if (this->chNum == 0) {
-        return sMaxChildSpawns[this->ptn];
+        return OoT_sMaxChildSpawns[this->ptn];
     }
     return this->chNum;
 }
 
-void ObjMure_GetSpawnPos(Vec3f* outPos, Vec3f* inPos, s32 ptn, s32 idx) {
+void OoT_ObjMure_GetSpawnPos(Vec3f* outPos, Vec3f* inPos, s32 ptn, s32 idx) {
     if (ptn >= 4) {
         osSyncPrintf("おかしなの (%s %d)\n", __FILE__, __LINE__);
     }
     *outPos = *inPos;
 }
 
-void ObjMure_SpawnActors0(ObjMure* this, PlayState* play) {
+void OoT_ObjMure_SpawnActors0(ObjMure* this, PlayState* play) {
     ActorContext* ac;
     s32 i;
     Vec3f pos;
     s32 pad;
-    s32 maxChildren = ObjMure_GetMaxChildSpawns(this);
+    s32 maxChildren = OoT_ObjMure_GetMaxChildSpawns(this);
 
     for (i = 0; i < maxChildren; i++) {
         if (this->children[i] != NULL) {
@@ -149,10 +149,10 @@ void ObjMure_SpawnActors0(ObjMure* this, PlayState* play) {
                 break;
             case OBJMURE_CHILD_STATE_2:
                 ac = &play->actorCtx;
-                ObjMure_GetSpawnPos(&pos, &this->actor.world.pos, this->ptn, i);
+                OoT_ObjMure_GetSpawnPos(&pos, &this->actor.world.pos, this->ptn, i);
                 this->children[i] =
-                    Actor_Spawn(ac, play, sSpawnActorIds[this->type], pos.x, pos.y, pos.z, this->actor.world.rot.x,
-                                this->actor.world.rot.y, this->actor.world.rot.z, sSpawnParams[this->type], true);
+                    OoT_Actor_Spawn(ac, play, OoT_sSpawnActorIds[this->type], pos.x, pos.y, pos.z, this->actor.world.rot.x,
+                                this->actor.world.rot.y, this->actor.world.rot.z, OoT_sSpawnParams[this->type], true);
                 if (this->children[i] != NULL) {
                     this->children[i]->flags |= ACTOR_FLAG_GRASS_DESTROYED;
                     this->children[i]->room = this->actor.room;
@@ -162,10 +162,10 @@ void ObjMure_SpawnActors0(ObjMure* this, PlayState* play) {
                 break;
             default:
                 ac = &play->actorCtx;
-                ObjMure_GetSpawnPos(&pos, &this->actor.world.pos, this->ptn, i);
+                OoT_ObjMure_GetSpawnPos(&pos, &this->actor.world.pos, this->ptn, i);
                 this->children[i] =
-                    Actor_Spawn(ac, play, sSpawnActorIds[this->type], pos.x, pos.y, pos.z, this->actor.world.rot.x,
-                                this->actor.world.rot.y, this->actor.world.rot.z, sSpawnParams[this->type], true);
+                    OoT_Actor_Spawn(ac, play, OoT_sSpawnActorIds[this->type], pos.x, pos.y, pos.z, this->actor.world.rot.x,
+                                this->actor.world.rot.y, this->actor.world.rot.z, OoT_sSpawnParams[this->type], true);
                 if (this->children[i] != NULL) {
                     this->children[i]->room = this->actor.room;
                 } else {
@@ -176,11 +176,11 @@ void ObjMure_SpawnActors0(ObjMure* this, PlayState* play) {
     }
 }
 
-void ObjMure_SpawnActors1(ObjMure* this, PlayState* play) {
+void OoT_ObjMure_SpawnActors1(ObjMure* this, PlayState* play) {
     ActorContext* ac = (ActorContext*)play; // fake match
     Actor* actor = &this->actor;
     Vec3f spawnPos;
-    s32 maxChildren = ObjMure_GetMaxChildSpawns(this);
+    s32 maxChildren = OoT_ObjMure_GetMaxChildSpawns(this);
     s32 i;
 
     for (i = 0; i < maxChildren; i++) {
@@ -188,10 +188,10 @@ void ObjMure_SpawnActors1(ObjMure* this, PlayState* play) {
             osSyncPrintf("Error : 既に子供がいる(%s %d)(arg_data 0x%04x)\n", __FILE__, __LINE__, actor->params);
         }
         ac = &play->actorCtx;
-        ObjMure_GetSpawnPos(&spawnPos, &actor->world.pos, this->ptn, i);
-        this->children[i] = Actor_Spawn(ac, play, sSpawnActorIds[this->type], spawnPos.x, spawnPos.y, spawnPos.z,
+        OoT_ObjMure_GetSpawnPos(&spawnPos, &actor->world.pos, this->ptn, i);
+        this->children[i] = OoT_Actor_Spawn(ac, play, OoT_sSpawnActorIds[this->type], spawnPos.x, spawnPos.y, spawnPos.z,
                                         actor->world.rot.x, actor->world.rot.y, actor->world.rot.z,
-                                        (this->type == 4 && i == 0) ? 1 : sSpawnParams[this->type], true);
+                                        (this->type == 4 && i == 0) ? 1 : OoT_sSpawnParams[this->type], true);
         if (this->children[i] != NULL && this->children[i]->update != NULL) {
             this->childrenStates[i] = OBJMURE_CHILD_STATE_0;
             this->children[i]->room = actor->room;
@@ -202,19 +202,19 @@ void ObjMure_SpawnActors1(ObjMure* this, PlayState* play) {
     }
 }
 
-void ObjMure_SpawnActors(ObjMure* this, PlayState* play) {
+void OoT_ObjMure_SpawnActors(ObjMure* this, PlayState* play) {
     switch (this->svNum) {
         case 0:
-            ObjMure_SpawnActors0(this, play);
+            OoT_ObjMure_SpawnActors0(this, play);
             break;
         case 1:
-            ObjMure_SpawnActors1(this, play);
+            OoT_ObjMure_SpawnActors1(this, play);
             break;
     }
 }
 
-void ObjMure_KillActorsImpl(ObjMure* this, PlayState* play) {
-    s32 maxChildren = ObjMure_GetMaxChildSpawns(this);
+void OoT_ObjMure_KillActorsImpl(ObjMure* this, PlayState* play) {
+    s32 maxChildren = OoT_ObjMure_GetMaxChildSpawns(this);
     s32 i;
 
     for (i = 0; i < maxChildren; i++) {
@@ -224,16 +224,16 @@ void ObjMure_KillActorsImpl(ObjMure* this, PlayState* play) {
                 break;
             case OBJMURE_CHILD_STATE_2:
                 if (this->children[i] != NULL) {
-                    Actor_Kill(this->children[i]);
+                    OoT_Actor_Kill(this->children[i]);
                     this->children[i] = NULL;
                 }
                 break;
             default:
                 if (this->children[i] != NULL) {
-                    if (Actor_HasParent(this->children[i], play)) {
+                    if (OoT_Actor_HasParent(this->children[i], play)) {
                         this->children[i] = NULL;
                     } else {
-                        Actor_Kill(this->children[i]);
+                        OoT_Actor_Kill(this->children[i]);
                         this->children[i] = NULL;
                     }
                 }
@@ -242,12 +242,12 @@ void ObjMure_KillActorsImpl(ObjMure* this, PlayState* play) {
     }
 }
 
-void ObjMure_KillActors(ObjMure* this, PlayState* play) {
-    ObjMure_KillActorsImpl(this, play);
+void OoT_ObjMure_KillActors(ObjMure* this, PlayState* play) {
+    OoT_ObjMure_KillActorsImpl(this, play);
 }
 
-void ObjMure_CheckChildren(ObjMure* this, PlayState* play) {
-    s32 maxChildren = ObjMure_GetMaxChildSpawns(this);
+void OoT_ObjMure_CheckChildren(ObjMure* this, PlayState* play) {
+    s32 maxChildren = OoT_ObjMure_GetMaxChildSpawns(this);
     s32 i;
 
     for (i = 0; i < maxChildren; i++) {
@@ -269,33 +269,33 @@ void ObjMure_CheckChildren(ObjMure* this, PlayState* play) {
     }
 }
 
-void ObjMure_InitialAction(ObjMure* this, PlayState* play) {
-    this->actionFunc = ObjMure_CulledState;
+void OoT_ObjMure_InitialAction(ObjMure* this, PlayState* play) {
+    this->actionFunc = OoT_ObjMure_CulledState;
 }
 
-void ObjMure_CulledState(ObjMure* this, PlayState* play) {
+void OoT_ObjMure_CulledState(ObjMure* this, PlayState* play) {
     // #region SOH [Enhancements] Extended draw distance
     s32 distanceMultiplier = CVarGetInteger(CVAR_ENHANCEMENT("DisableDrawDistance"), 1);
     distanceMultiplier = MAX(distanceMultiplier, 1);
 
-    if (fabsf(this->actor.projectedPos.z) < sZClip[this->type] * distanceMultiplier) {
+    if (fabsf(this->actor.projectedPos.z) < OoT_sZClip[this->type] * distanceMultiplier) {
         // #endregion
-        this->actionFunc = ObjMure_ActiveState;
+        this->actionFunc = OoT_ObjMure_ActiveState;
         this->actor.flags |= ACTOR_FLAG_UPDATE_CULLING_DISABLED;
-        ObjMure_SpawnActors(this, play);
+        OoT_ObjMure_SpawnActors(this, play);
     }
 }
 
-void ObjMure_SetFollowTargets(ObjMure* this, f32 randMax) {
+void OoT_ObjMure_SetFollowTargets(ObjMure* this, f32 randMax) {
     s32 index;
-    s32 maxChildren = ObjMure_GetMaxChildSpawns(this);
+    s32 maxChildren = OoT_ObjMure_GetMaxChildSpawns(this);
     s32 i;
 
     for (i = 0; i < maxChildren; i++) {
         if (this->children[i] != NULL) {
             this->children[i]->child = NULL;
-            if (Rand_ZeroOne() <= randMax) {
-                index = Rand_ZeroOne() * (maxChildren - 0.5f);
+            if (OoT_Rand_ZeroOne() <= randMax) {
+                index = OoT_Rand_ZeroOne() * (maxChildren - 0.5f);
                 if (i != index) {
                     this->children[i]->child = this->children[index];
                 }
@@ -306,10 +306,10 @@ void ObjMure_SetFollowTargets(ObjMure* this, f32 randMax) {
 
 /**
  * Selects a child that will follow after the player
- * `idx1` is the index + 1 of the child that will follow the player. If `idx1` is zero, no actor will follow the player
+ * `idx1` is the index + 1 of the child that will follow the player. If `idx1` is OoT_zero, no actor will follow the player
  */
-void ObjMure_SetChildToFollowPlayer(ObjMure* this, s32 idx1) {
-    s32 maxChildren = ObjMure_GetMaxChildSpawns(this);
+void OoT_ObjMure_SetChildToFollowPlayer(ObjMure* this, s32 idx1) {
+    s32 maxChildren = OoT_ObjMure_GetMaxChildSpawns(this);
     s32 i;
     s32 i2;
     s32 j;
@@ -332,24 +332,24 @@ void ObjMure_SetChildToFollowPlayer(ObjMure* this, s32 idx1) {
 }
 
 // Fish, Bugs
-void ObjMure_GroupBehavior0(ObjMure* this, PlayState* play) {
+void OoT_ObjMure_GroupBehavior0(ObjMure* this, PlayState* play) {
     if (this->unk_1A4 <= 0) {
         if (this->unk_1A6) {
             this->unk_1A6 = false;
-            ObjMure_SetFollowTargets(this, (Rand_ZeroOne() * 0.5f) + 0.1f);
+            OoT_ObjMure_SetFollowTargets(this, (OoT_Rand_ZeroOne() * 0.5f) + 0.1f);
             if (this->actor.xzDistToPlayer < 60.0f) {
-                this->unk_1A4 = (s16)(Rand_ZeroOne() * 5.5f) + 4;
+                this->unk_1A4 = (s16)(OoT_Rand_ZeroOne() * 5.5f) + 4;
             } else {
-                this->unk_1A4 = (s16)(Rand_ZeroOne() * 40.5f) + 4;
+                this->unk_1A4 = (s16)(OoT_Rand_ZeroOne() * 40.5f) + 4;
             }
         } else {
             this->unk_1A6 = true;
             if (this->actor.xzDistToPlayer < 60.0f) {
-                this->unk_1A4 = (s16)(Rand_ZeroOne() * 10.5f) + 4;
-                ObjMure_SetFollowTargets(this, (Rand_ZeroOne() * 0.2f) + 0.8f);
+                this->unk_1A4 = (s16)(OoT_Rand_ZeroOne() * 10.5f) + 4;
+                OoT_ObjMure_SetFollowTargets(this, (OoT_Rand_ZeroOne() * 0.2f) + 0.8f);
             } else {
-                this->unk_1A4 = (s16)(Rand_ZeroOne() * 10.5f) + 4;
-                ObjMure_SetFollowTargets(this, (Rand_ZeroOne() * 0.2f) + 0.6f);
+                this->unk_1A4 = (s16)(OoT_Rand_ZeroOne() * 10.5f) + 4;
+                OoT_ObjMure_SetFollowTargets(this, (OoT_Rand_ZeroOne() * 0.2f) + 0.6f);
             }
         }
     }
@@ -359,34 +359,34 @@ void ObjMure_GroupBehavior0(ObjMure* this, PlayState* play) {
         this->unk_1A8 = 0;
     }
     if (this->unk_1A8 >= 80) {
-        ObjMure_SetChildToFollowPlayer(this, 1);
+        OoT_ObjMure_SetChildToFollowPlayer(this, 1);
     } else {
-        ObjMure_SetChildToFollowPlayer(this, 0);
+        OoT_ObjMure_SetChildToFollowPlayer(this, 0);
     }
 }
 
 // Butterflies
-void ObjMure_GroupBehavior1(ObjMure* this, PlayState* play) {
+void OoT_ObjMure_GroupBehavior1(ObjMure* this, PlayState* play) {
     s32 maxChildren;
     s32 i;
 
     if (this->unk_1A4 <= 0) {
         if (this->unk_1A6) {
             this->unk_1A6 = false;
-            ObjMure_SetFollowTargets(this, Rand_ZeroOne() * 0.2f);
+            OoT_ObjMure_SetFollowTargets(this, OoT_Rand_ZeroOne() * 0.2f);
             if (this->actor.xzDistToPlayer < 60.0f) {
-                this->unk_1A4 = (s16)(Rand_ZeroOne() * 5.5f) + 4;
+                this->unk_1A4 = (s16)(OoT_Rand_ZeroOne() * 5.5f) + 4;
             } else {
-                this->unk_1A4 = (s16)(Rand_ZeroOne() * 40.5f) + 4;
+                this->unk_1A4 = (s16)(OoT_Rand_ZeroOne() * 40.5f) + 4;
             }
         } else {
             this->unk_1A6 = true;
-            ObjMure_SetFollowTargets(this, Rand_ZeroOne() * 0.7f);
-            this->unk_1A4 = (s16)(Rand_ZeroOne() * 10.5f) + 4;
+            OoT_ObjMure_SetFollowTargets(this, OoT_Rand_ZeroOne() * 0.7f);
+            this->unk_1A4 = (s16)(OoT_Rand_ZeroOne() * 10.5f) + 4;
         }
     }
 
-    maxChildren = ObjMure_GetMaxChildSpawns(this);
+    maxChildren = OoT_ObjMure_GetMaxChildSpawns(this);
     for (i = 0; i < maxChildren; i++) {
         if (this->children[i] != NULL) {
             if (this->children[i]->child != NULL && this->children[i]->child->update == NULL) {
@@ -396,28 +396,28 @@ void ObjMure_GroupBehavior1(ObjMure* this, PlayState* play) {
     }
 }
 
-static ObjMureActionFunc sTypeGroupBehaviorFunc[] = {
-    NULL, NULL, ObjMure_GroupBehavior0, ObjMure_GroupBehavior0, ObjMure_GroupBehavior1,
+static ObjMureActionFunc OoT_sTypeGroupBehaviorFunc[] = {
+    NULL, NULL, OoT_ObjMure_GroupBehavior0, OoT_ObjMure_GroupBehavior0, OoT_ObjMure_GroupBehavior1,
 };
 
-void ObjMure_ActiveState(ObjMure* this, PlayState* play) {
-    ObjMure_CheckChildren(this, play);
+void OoT_ObjMure_ActiveState(ObjMure* this, PlayState* play) {
+    OoT_ObjMure_CheckChildren(this, play);
 
     // #region SOH [Enhancements] Extended draw distance
     s32 distanceMultiplier = CVarGetInteger(CVAR_ENHANCEMENT("DisableDrawDistance"), 1);
     distanceMultiplier = MAX(distanceMultiplier, 1);
 
-    if ((sZClip[this->type] + 40.0f) * distanceMultiplier <= fabsf(this->actor.projectedPos.z)) {
+    if ((OoT_sZClip[this->type] + 40.0f) * distanceMultiplier <= fabsf(this->actor.projectedPos.z)) {
         // #endregion
-        this->actionFunc = ObjMure_CulledState;
+        this->actionFunc = OoT_ObjMure_CulledState;
         this->actor.flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
-        ObjMure_KillActors(this, play);
-    } else if (sTypeGroupBehaviorFunc[this->type] != NULL) {
-        sTypeGroupBehaviorFunc[this->type](this, play);
+        OoT_ObjMure_KillActors(this, play);
+    } else if (OoT_sTypeGroupBehaviorFunc[this->type] != NULL) {
+        OoT_sTypeGroupBehaviorFunc[this->type](this, play);
     }
 }
 
-void ObjMure_Update(Actor* thisx, PlayState* play) {
+void OoT_ObjMure_Update(Actor* thisx, PlayState* play) {
     ObjMure* this = (ObjMure*)thisx;
 
     if (this->unk_1A4 > 0) {

@@ -11,13 +11,13 @@
 
 #define rReg0 regs[0]
 
-u32 EffectSsStone1_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsStone1_Update(PlayState* play, u32 index, EffectSs* this);
-void EffectSsStone1_Draw(PlayState* play, u32 index, EffectSs* this);
+u32 MM_EffectSsStone1_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void MM_EffectSsStone1_Update(PlayState* play, u32 index, EffectSs* this);
+void MM_EffectSsStone1_Draw(PlayState* play, u32 index, EffectSs* this);
 
 EffectSsProfile Effect_Ss_Stone1_Profile = {
     EFFECT_SS_STONE1,
-    EffectSsStone1_Init,
+    MM_EffectSsStone1_Init,
 };
 
 typedef struct {
@@ -26,7 +26,7 @@ typedef struct {
     /* 0x8 */ Color_RGBA8 envColor;
 } EffStoneDrawInfo; // size = 0xC
 
-static EffStoneDrawInfo sDrawInfo[] = {
+static EffStoneDrawInfo MM_sDrawInfo[] = {
     { gEffStone8Tex, { 200, 0, 0, 255 }, { 0, 0, 0, 255 } },
     { gEffStone7Tex, { 255, 100, 0, 255 }, { 100, 0, 0, 255 } },
     { gEffStone6Tex, { 255, 200, 0, 255 }, { 200, 0, 0, 255 } },
@@ -37,7 +37,7 @@ static EffStoneDrawInfo sDrawInfo[] = {
     { gEffStone1Tex, { 255, 255, 255, 255 }, { 0, 255, 255, 255 } },
 };
 
-u32 EffectSsStone1_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 MM_EffectSsStone1_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsStone1InitParams* initParams = PARAMS;
     Vec3f pos = initParams->pos;
 
@@ -45,25 +45,25 @@ u32 EffectSsStone1_Init(PlayState* play, u32 index, EffectSs* this, void* initPa
     this->vec = pos;
     this->life = 8;
     this->rReg0 = initParams->reg0;
-    this->draw = EffectSsStone1_Draw;
-    this->update = EffectSsStone1_Update;
+    this->draw = MM_EffectSsStone1_Draw;
+    this->update = MM_EffectSsStone1_Update;
 
     return 1;
 }
 
-void EffectSsStone1_Draw(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsStone1_Draw(PlayState* play, u32 index, EffectSs* this) {
     GraphicsContext* gfxCtx = play->state.gfxCtx;
-    EffStoneDrawInfo* drawParams = &sDrawInfo[this->life];
+    EffStoneDrawInfo* drawParams = &MM_sDrawInfo[this->life];
     Vec3f mfVec;
     f32 mfW;
     f32 scale;
 
     OPEN_DISPS(gfxCtx);
 
-    SkinMatrix_Vec3fMtxFMultXYZW(&play->viewProjectionMtxF, &this->pos, &mfVec, &mfW);
+    MM_SkinMatrix_Vec3fMtxFMultXYZW(&play->viewProjectionMtxF, &this->pos, &mfVec, &mfW);
     scale = (mfW < 1500.0f) ? 3.0f : (mfW / 1500.0f) * 3.0f;
-    Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
-    Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+    MM_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
+    MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
     Gfx_SetupDL61_Xlu(gfxCtx);
     gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(drawParams->texture));
@@ -75,7 +75,7 @@ void EffectSsStone1_Draw(PlayState* play, u32 index, EffectSs* this) {
     CLOSE_DISPS(gfxCtx);
 }
 
-void EffectSsStone1_Update(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsStone1_Update(PlayState* play, u32 index, EffectSs* this) {
     if ((this->life == 6) && (this->rReg0 != 0)) {
         R_TRANS_FADE_FLASH_ALPHA_STEP = 0;
     }

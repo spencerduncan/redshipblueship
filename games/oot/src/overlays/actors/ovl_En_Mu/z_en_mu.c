@@ -65,7 +65,7 @@ void EnMu_Interact(EnMu* this, PlayState* play) {
 
     textFlags = gSaveContext.eventInf[2] & 0x1F;
     gSaveContext.eventInf[2] &= ~0x1F;
-    randomIndex = (play->state.frames + (s32)(Rand_ZeroOne() * 5.0f)) % 5;
+    randomIndex = (play->state.frames + (s32)(OoT_Rand_ZeroOne() * 5.0f)) % 5;
 
     for (i = 0; i < 5; i++) {
 
@@ -97,7 +97,7 @@ void EnMu_Interact(EnMu* this, PlayState* play) {
 
 u16 EnMu_GetFaceReaction(PlayState* play, Actor* thisx) {
     EnMu* this = (EnMu*)thisx;
-    u16 faceReaction = Text_GetFaceReaction(play, this->actor.params + 0x3A);
+    u16 faceReaction = OoT_Text_GetFaceReaction(play, this->actor.params + 0x3A);
 
     if (faceReaction != 0) {
         return faceReaction;
@@ -108,7 +108,7 @@ u16 EnMu_GetFaceReaction(PlayState* play, Actor* thisx) {
 s16 EnMu_UpdateTalkState(PlayState* play, Actor* thisx) {
     EnMu* this = (EnMu*)thisx;
 
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (OoT_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_NONE:
         case TEXT_STATE_DONE_HAS_NEXT:
         case TEXT_STATE_DONE_FADING:
@@ -131,13 +131,13 @@ void EnMu_Init(Actor* thisx, PlayState* play) {
     EnMu* this = (EnMu*)thisx;
     s32 pad;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 160.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &object_mu_Skel_004F70, &object_mu_Anim_0003F4, NULL, NULL, 0);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &D_80AB0BD0);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, NULL, &D_80AB0BFC);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 160.0f);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &object_mu_Skel_004F70, &object_mu_Anim_0003F4, NULL, NULL, 0);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &D_80AB0BD0);
+    OoT_CollisionCheck_SetInfo2(&this->actor.colChkInfo, NULL, &D_80AB0BFC);
     this->actor.targetMode = 6;
-    Actor_SetScale(&this->actor, 0.01f);
+    OoT_Actor_SetScale(&this->actor, 0.01f);
     EnMu_Interact(this, play);
     EnMu_SetupAction(this, EnMu_Pose);
 }
@@ -145,7 +145,7 @@ void EnMu_Init(Actor* thisx, PlayState* play) {
 void EnMu_Destroy(Actor* thisx, PlayState* play) {
     EnMu* this = (EnMu*)thisx;
 
-    SkelAnime_Free(&this->skelAnime, play);
+    OoT_SkelAnime_Free(&this->skelAnime, play);
 }
 
 void EnMu_Pose(EnMu* this, PlayState* play) {
@@ -164,12 +164,12 @@ void EnMu_Update(Actor* thisx, PlayState* play) {
 
     this->collider.dim.pos = pos;
 
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-    SkelAnime_Update(&this->skelAnime);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_SkelAnime_Update(&this->skelAnime);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
     this->actionFunc(this, play);
     talkDist = this->collider.dim.radius + 30.0f;
-    Npc_UpdateTalking(play, &this->actor, &this->npcInfo.talkState, talkDist, EnMu_GetFaceReaction,
+    OoT_Npc_UpdateTalking(play, &this->actor, &this->npcInfo.talkState, talkDist, EnMu_GetFaceReaction,
                       EnMu_UpdateTalkState);
 
     this->actor.focus.pos = this->actor.world.pos;
@@ -181,8 +181,8 @@ s32 EnMu_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* po
 
     if ((limbIndex == 5) || (limbIndex == 6) || (limbIndex == 7) || (limbIndex == 11) || (limbIndex == 12) ||
         (limbIndex == 13) || (limbIndex == 14)) {
-        rot->y += Math_SinS(this->unk_20A[limbIndex]) * 200.0f;
-        rot->z += Math_CosS(this->unk_22A[limbIndex]) * 200.0f;
+        rot->y += OoT_Math_SinS(this->unk_20A[limbIndex]) * 200.0f;
+        rot->z += OoT_Math_CosS(this->unk_22A[limbIndex]) * 200.0f;
     }
     return false;
 }
@@ -209,7 +209,7 @@ void EnMu_Draw(Actor* thisx, PlayState* play) {
     s32 i;
 
     OPEN_DISPS(play->state.gfxCtx);
-    Matrix_Translate(-1200.0f, 0.0f, -1400.0f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(-1200.0f, 0.0f, -1400.0f, MTXMODE_APPLY);
     for (i = 0; i < 5; i++) {
         gSPSegment(POLY_OPA_DISP++, segmentId[i],
                    EnMu_DisplayListSetColor(play->state.gfxCtx, colors[this->actor.params][i].r,

@@ -26,7 +26,7 @@ EffectSsProfile Effect_En_Ice_Block_Profile = {
 
 u32 EffectEnIceBlock_CheckIceBlockObject(EffectSs* this, PlayState* play) {
     if (((this->rObjectSlot = Object_GetSlot(&play->objectCtx, OBJECT_ICE_BLOCK)) <= OBJECT_SLOT_NONE) ||
-        (!Object_IsLoaded(&play->objectCtx, this->rObjectSlot))) {
+        (!MM_Object_IsLoaded(&play->objectCtx, this->rObjectSlot))) {
         this->life = -1;
         this->draw = NULL;
         return false;
@@ -38,12 +38,12 @@ u32 EffectEnIceBlock_CheckIceBlockObject(EffectSs* this, PlayState* play) {
 u32 EffectEnIceBlock_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectEnIceBlockInitParams* params = PARAMS;
 
-    Math_Vec3f_Copy(&this->pos, &params->pos);
-    Math_Vec3f_Copy(&this->velocity, &params->velocity);
-    Math_Vec3f_Copy(&this->accel, &params->accel);
+    MM_Math_Vec3f_Copy(&this->pos, &params->pos);
+    MM_Math_Vec3f_Copy(&this->velocity, &params->velocity);
+    MM_Math_Vec3f_Copy(&this->accel, &params->accel);
     this->rScale = params->scale;
-    this->rRot = Rand_ZeroOne() * 65535.0f;
-    this->rRotVel = (s32)(Rand_ZeroOne() * 512.0f) + 0x400;
+    this->rRot = MM_Rand_ZeroOne() * 65535.0f;
+    this->rRotVel = (s32)(MM_Rand_ZeroOne() * 512.0f) + 0x400;
     this->life = 40;
 
     this->draw = EffectEnIceBlock_Draw;
@@ -66,9 +66,9 @@ void EffectEnIceBlock_Draw(PlayState* play, u32 index, EffectSs* this) {
                    play->objectCtx.slots[this->rObjectSlot].segment); // object: OBJECT_ICE_BLOCK
 
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-        Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
-        Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
-        Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
+        MM_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
+        MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+        MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
         Matrix_RotateZS(this->rRot, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);

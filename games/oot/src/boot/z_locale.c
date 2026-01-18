@@ -5,8 +5,8 @@ u32 gCurrentRegion = 0;
 LocaleCartInfo sCartInfo;
 
 void Locale_Init(void) {
-    osEPiReadIo(gCartHandle, 0x38, &sCartInfo.mediaFormat);
-    osEPiReadIo(gCartHandle, 0x3C, &sCartInfo.regionInfo);
+    OoT_osEPiReadIo(OoT_gCartHandle, 0x38, &sCartInfo.mediaFormat);
+    OoT_osEPiReadIo(OoT_gCartHandle, 0x3C, &sCartInfo.regionInfo);
 
     switch (sCartInfo.countryCode) {
         case 'J': // "NTSC-U (North America)"
@@ -15,7 +15,7 @@ void Locale_Init(void) {
         case 'E': // "NTSC-J (Japan)"
             gCurrentRegion = REGION_JP;
             break;
-        case 'P': // "PAL (Europe)"
+        case 'OoT_P': // "PAL (Europe)"
             gCurrentRegion = REGION_EU;
             break;
         default:
@@ -38,7 +38,7 @@ u32 func_80001F48(void) {
         return 0;
     }
 
-    if (gPadMgr.validCtrlrsMask & 4) {
+    if (OoT_gPadMgr.validCtrlrsMask & 4) {
         return 0;
     }
 
@@ -50,7 +50,7 @@ u32 func_80001F8C(void) {
         return 0;
     }
 
-    if (gPadMgr.validCtrlrsMask & 4) {
+    if (OoT_gPadMgr.validCtrlrsMask & 4) {
         return 1;
     }
 

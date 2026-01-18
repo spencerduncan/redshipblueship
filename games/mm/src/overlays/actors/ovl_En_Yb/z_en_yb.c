@@ -45,7 +45,7 @@ ActorProfile En_Yb_Profile = {
     /**/ EnYb_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -83,17 +83,17 @@ void EnYb_Init(Actor* thisx, PlayState* play) {
     s16 csId;
     s32 i;
 
-    Actor_SetScale(&this->actor, 0.01f);
-    ActorShape_Init(&this->actor.shape, 0.0f, EnYb_ActorShadowFunc, 20.0f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, EnYb_ActorShadowFunc, 20.0f);
 
     //! @bug this alignment is because of player animations, but should be using ALIGN16
-    SkelAnime_InitFlex(play, &this->skelAnime, &gYbSkel, &object_yb_Anim_000200,
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gYbSkel, &object_yb_Anim_000200,
                        (void*)((uintptr_t)this->jointTable & ~0xF), (void*)((uintptr_t)this->morphTable & ~0xF),
                        YB_LIMB_MAX);
 
-    Animation_PlayLoop(&this->skelAnime, &object_yb_Anim_000200);
+    MM_Animation_PlayLoop(&this->skelAnime, &object_yb_Anim_000200);
 
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
     this->actionFunc = EnYb_Idle;
     this->animIndex = 3; // gets overwritten to 2 in EnYb_ChangeAnim later
@@ -124,14 +124,14 @@ void EnYb_Init(Actor* thisx, PlayState* play) {
     }
 
     if (CHECK_WEEKEVENTREG(WEEKEVENTREG_82_04)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
 void EnYb_Destroy(Actor* thisx, PlayState* play) {
     EnYb* this = (EnYb*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void func_80BFA2FC(PlayState* play) {
@@ -153,8 +153,8 @@ void EnYb_ActorShadowFunc(Actor* thisx, Lights* mapper, PlayState* play) {
             f32 tempScale = (((27.0f - this->shadowPos.y) + this->actor.world.pos.y) * ((1 / 2.25f) * 0.001f)) + 0.01f;
             this->actor.scale.x = tempScale;
         }
-        Math_Vec3f_Copy(&oldPos, &this->actor.world.pos);
-        Math_Vec3f_Copy(&this->actor.world.pos, &this->shadowPos);
+        MM_Math_Vec3f_Copy(&oldPos, &this->actor.world.pos);
+        MM_Math_Vec3f_Copy(&this->actor.world.pos, &this->shadowPos);
         func_800B4AEC(play, &this->actor, 50.0f);
 
         if (oldPos.y < this->actor.floorHeight) {
@@ -163,8 +163,8 @@ void EnYb_ActorShadowFunc(Actor* thisx, Lights* mapper, PlayState* play) {
             this->actor.world.pos.y = oldPos.y;
         }
 
-        ActorShadow_DrawCircle(&this->actor, mapper, play);
-        Math_Vec3f_Copy(&this->actor.world.pos, &oldPos);
+        MM_ActorShadow_DrawCircle(&this->actor, mapper, play);
+        MM_Math_Vec3f_Copy(&this->actor.world.pos, &oldPos);
         this->actor.scale.x = 0.01f;
     }
 }
@@ -183,25 +183,25 @@ void EnYb_ChangeAnim(PlayState* play, EnYb* this, s16 animIndex, u8 animMode, f3
     if (animIndex > 0) {
         if (animMode == ANIMMODE_LOOP) {
             PlayerAnimation_Change(play, &this->skelAnime, gPlayerAnimations[animIndex - 1], 1.0f, 0.0f,
-                                   Animation_GetLastFrame(gPlayerAnimations[animIndex - 1]), ANIMMODE_LOOP,
+                                   MM_Animation_GetLastFrame(gPlayerAnimations[animIndex - 1]), ANIMMODE_LOOP,
                                    morphFrames);
         } else {
             // unused case, (only called once with animMode = ANIMMODE_LOOP)
             PlayerAnimation_Change(play, &this->skelAnime, gPlayerAnimations[animIndex - 1], 1.0f, 0.0f,
-                                   Animation_GetLastFrame(gPlayerAnimations[animIndex - 1]), ANIMMODE_LOOP,
+                                   MM_Animation_GetLastFrame(gPlayerAnimations[animIndex - 1]), ANIMMODE_LOOP,
                                    morphFrames);
         }
     } else {
         // unused case, (only called once with animIndex = 2)
-        Animation_Change(&this->skelAnime, gYbUnusedAnimations[animIndex], 1.0f, 0.0f,
-                         Animation_GetLastFrame(gYbUnusedAnimations[animIndex]), animMode, morphFrames);
+        MM_Animation_Change(&this->skelAnime, gYbUnusedAnimations[animIndex], 1.0f, 0.0f,
+                         MM_Animation_GetLastFrame(gYbUnusedAnimations[animIndex]), animMode, morphFrames);
     }
     this->animIndex = animIndex;
 }
 
 s32 EnYb_CanTalk(EnYb* this, PlayState* play) {
-    if ((this->actor.xzDistToPlayer < 100.0f) && Player_IsFacingActor(&this->actor, 0x3000, play) &&
-        Actor_IsFacingPlayer(&this->actor, 0x3000)) {
+    if ((this->actor.xzDistToPlayer < 100.0f) && MM_Player_IsFacingActor(&this->actor, 0x3000, play) &&
+        MM_Actor_IsFacingPlayer(&this->actor, 0x3000)) {
         return true;
     } else {
         return false;
@@ -210,7 +210,7 @@ s32 EnYb_CanTalk(EnYb* this, PlayState* play) {
 
 void EnYb_UpdateAnimation(EnYb* this, PlayState* play) {
     if (this->animIndex <= 0) {
-        SkelAnime_Update(&this->skelAnime);
+        MM_SkelAnime_Update(&this->skelAnime);
     } else {
         PlayerAnimation_Update(play, &this->skelAnime);
     }
@@ -244,17 +244,17 @@ void EnYb_Disappear(EnYb* this, PlayState* play) {
 
     EnYb_UpdateAnimation(this, play);
     for (i = 3; i >= 0; i--) {
-        sp60.x = Rand_CenteredFloat(60.0f) + this->actor.world.pos.x;
-        sp60.z = Rand_CenteredFloat(60.0f) + this->actor.world.pos.z;
-        sp60.y = Rand_CenteredFloat(50.0f) + (this->actor.world.pos.y + 20.0f);
+        sp60.x = MM_Rand_CenteredFloat(60.0f) + this->actor.world.pos.x;
+        sp60.z = MM_Rand_CenteredFloat(60.0f) + this->actor.world.pos.z;
+        sp60.y = MM_Rand_CenteredFloat(50.0f) + (this->actor.world.pos.y + 20.0f);
         func_800B3030(play, &sp60, &D_80BFB2E8, &D_80BFB2E8, 100, 0, 2);
     }
 
-    SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 20, NA_SE_EN_EXTINCT);
+    MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 20, NA_SE_EN_EXTINCT);
     if (this->alpha > 10) {
         this->alpha -= 10;
     } else {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -264,7 +264,7 @@ void EnYb_SetupLeaving(EnYb* this, PlayState* play) {
         this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
         this->actionFunc = EnYb_Talk;
         // I am counting on you
-        Message_StartTextbox(play, 0x147D, &this->actor);
+        MM_Message_StartTextbox(play, 0x147D, &this->actor);
         func_80BFA2FC(play);
     } else {
         Actor_OfferTalkExchange(&this->actor, play, 1000.0f, 1000.0f, PLAYER_IA_MINUS1);
@@ -275,49 +275,49 @@ void EnYb_SetupLeaving(EnYb* this, PlayState* play) {
 void EnYb_ReceiveMask(EnYb* this, PlayState* play) {
     EnYb_UpdateAnimation(this, play);
     // Player is parent: receiving the Kamaro mask
-    if (Actor_HasParent(&this->actor, play)) {
+    if (MM_Actor_HasParent(&this->actor, play)) {
         this->actor.parent = NULL;
         this->actionFunc = EnYb_SetupLeaving;
         this->actor.flags |= ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
         Actor_OfferTalkExchange(&this->actor, play, 1000.0f, 1000.0f, PLAYER_IA_MINUS1);
     } else {
-        Actor_OfferGetItem(&this->actor, play, GI_MASK_KAMARO, 10000.0f, 100.0f);
+        MM_Actor_OfferGetItem(&this->actor, play, GI_MASK_KAMARO, 10000.0f, 100.0f);
     }
     EnYb_EnableProximityMusic(this);
 }
 
 void EnYb_Talk(EnYb* this, PlayState* play) {
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 2, 0x1000, 0x200);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 2, 0x1000, 0x200);
     this->actor.world.rot.y = this->actor.shape.rot.y;
     EnYb_UpdateAnimation(this, play);
 
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         switch (play->msgCtx.currentTextId) {
             case 0x147D: // I am counting on you
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 this->actionFunc = EnYb_Disappear;
                 SET_WEEKEVENTREG(WEEKEVENTREG_82_04);
                 break;
 
             case 0x147C: // Spread my dance across the world
-                if (Player_GetMask(play) == PLAYER_MASK_KAMARO) {
-                    Message_CloseTextbox(play);
+                if (MM_Player_GetMask(play) == PLAYER_MASK_KAMARO) {
+                    MM_Message_CloseTextbox(play);
                     this->actionFunc = EnYb_Idle;
 
                 } else if (GameInteractor_Should(VB_HAVE_KAMAROS_MASK,
                                                  INV_CONTENT(ITEM_MASK_KAMARO) == ITEM_MASK_KAMARO)) {
-                    Message_ContinueTextbox(play, 0x147D); // I am counting on you
+                    MM_Message_ContinueTextbox(play, 0x147D); // I am counting on you
                     func_80BFA2FC(play);
 
                 } else {
-                    Message_CloseTextbox(play);
+                    MM_Message_CloseTextbox(play);
                     this->actionFunc = EnYb_ReceiveMask;
                     EnYb_ReceiveMask(this, play);
                 }
                 break;
 
             default:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 this->actionFunc = EnYb_Idle;
                 break;
         }
@@ -330,7 +330,7 @@ void EnYb_TeachingDanceFinish(EnYb* this, PlayState* play) {
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         this->actionFunc = EnYb_Talk;
         // Spread my dance across the world
-        Message_StartTextbox(play, 0x147C, &this->actor);
+        MM_Message_StartTextbox(play, 0x147C, &this->actor);
         this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
     } else {
         Actor_OfferTalkExchange(&this->actor, play, 1000.0f, 1000.0f, PLAYER_IA_MINUS1);
@@ -367,12 +367,12 @@ void EnYb_Idle(EnYb* this, PlayState* play) {
     } else if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         func_80BFA2FC(play);
         this->actionFunc = EnYb_Talk;
-        if (Player_GetMask(play) == PLAYER_MASK_KAMARO) {
+        if (MM_Player_GetMask(play) == PLAYER_MASK_KAMARO) {
             // I have taught you, go use it
-            Message_StartTextbox(play, 0x147C, &this->actor);
+            MM_Message_StartTextbox(play, 0x147C, &this->actor);
         } else {
             // regular talk to him first dialogue
-            Message_StartTextbox(play, 0x147B, &this->actor);
+            MM_Message_StartTextbox(play, 0x147B, &this->actor);
         }
     } else if (EnYb_CanTalk(this, play)) {
         Actor_OfferTalk(&this->actor, play, 120.0f);
@@ -409,12 +409,12 @@ void EnYb_Update(Actor* thisx, PlayState* play) {
     EnYb* this = (EnYb*)thisx;
 
     if (CHECK_FLAG_ALL(this->actor.flags, ACTOR_FLAG_ATTENTION_ENABLED)) {
-        Collider_UpdateCylinder(&this->actor, &this->collider);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
     if (CHECK_FLAG_ALL(this->actor.flags, ACTOR_FLAG_ATTENTION_ENABLED)) {
         Actor_MoveWithGravity(&this->actor);
-        Actor_UpdateBgCheckInfo(play, &this->actor, 40.0f, 25.0f, 40.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
+        MM_Actor_UpdateBgCheckInfo(play, &this->actor, 40.0f, 25.0f, 40.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
     }
 
     this->actionFunc(this, play);
@@ -437,10 +437,10 @@ void EnYb_PostLimbDrawOpa(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* ro
     EnYb* this = (EnYb*)thisx;
 
     if (limbIndex == YB_LIMB_HEAD) {
-        Matrix_MultVec3f(&D_80BFB2F4, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&D_80BFB2F4, &this->actor.focus.pos);
     }
     if (limbIndex == YB_LIMB_LEGS_ROOT) {
-        Matrix_MultVec3f(&gZeroVec3f, &this->shadowPos);
+        MM_Matrix_MultVec3f(&gZeroVec3f, &this->shadowPos);
     }
 }
 
@@ -448,10 +448,10 @@ void EnYb_PostLimbDrawXlu(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* ro
     EnYb* this = (EnYb*)thisx;
 
     if (limbIndex == YB_LIMB_HEAD) {
-        Matrix_MultVec3f(&D_80BFB300, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&D_80BFB300, &this->actor.focus.pos);
     }
     if (limbIndex == YB_LIMB_LEGS_ROOT) {
-        Matrix_MultVec3f(&gZeroVec3f, &this->shadowPos);
+        MM_Matrix_MultVec3f(&gZeroVec3f, &this->shadowPos);
     }
 }
 
@@ -472,13 +472,13 @@ void EnYb_Draw(Actor* thisx, PlayState* play) {
             gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 0, this->alpha);
 
             POLY_XLU_DISP =
-                SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
+                MM_SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                    this->skelAnime.dListCount, NULL, EnYb_PostLimbDrawXlu, &this->actor, POLY_XLU_DISP);
 
         } else {
             Gfx_SetupDL25_Opa(play->state.gfxCtx);
             Scene_SetRenderModeXlu(play, 0, 1);
-            SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
+            MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                   this->skelAnime.dListCount, NULL, EnYb_PostLimbDrawOpa, &this->actor);
         }
     }

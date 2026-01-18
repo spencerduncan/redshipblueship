@@ -21,7 +21,7 @@ void BgIceObjects_Stuck(BgIceObjects* this, PlayState* play);
 
 static Color_RGBA8 sWhite = { 250, 250, 250, 255 };
 static Color_RGBA8 sGray = { 180, 180, 180, 255 };
-static Vec3f sZeroVec = { 0.0f, 0.0f, 0.0f };
+static Vec3f OoT_sZeroVec = { 0.0f, 0.0f, 0.0f };
 
 const ActorInit Bg_Ice_Objects_InitVars = {
     ACTOR_BG_ICE_OBJECTS,
@@ -36,7 +36,7 @@ const ActorInit Bg_Ice_Objects_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
 
@@ -45,12 +45,12 @@ void BgIceObjects_Init(Actor* thisx, PlayState* play) {
     BgIceObjects* this = (BgIceObjects*)thisx;
     CollisionHeader* colHeader = NULL;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DPM_UNK);
-    CollisionHeader_GetVirtual(&object_ice_objects_Col_0003F0, &colHeader);
-    Math_Vec3f_Copy(&this->targetPos, &this->dyna.actor.home.pos);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
+    OoT_CollisionHeader_GetVirtual(&object_ice_objects_Col_0003F0, &colHeader);
+    OoT_Math_Vec3f_Copy(&this->targetPos, &this->dyna.actor.home.pos);
     this->actionFunc = BgIceObjects_Idle;
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
     this->dyna.actor.params = 0;
 }
 
@@ -58,7 +58,7 @@ void BgIceObjects_Destroy(Actor* thisx, PlayState* play) {
     s32 pad;
     BgIceObjects* this = (BgIceObjects*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 static s16 sXStarts[] = {
@@ -120,13 +120,13 @@ void BgIceObjects_CheckPits(BgIceObjects* this, PlayState* play) {
         ((thisx->world.pos.x >= -860.0f) && (thisx->world.pos.z >= -700.0f))) {
 
         thisx->velocity.y += 1.0f;
-        if (Math_StepToF(&thisx->world.pos.y, -300.0f, thisx->velocity.y)) {
+        if (OoT_Math_StepToF(&thisx->world.pos.y, -300.0f, thisx->velocity.y)) {
             thisx->velocity.y = 0.0f;
             thisx->world.pos.x = thisx->home.pos.x;
             thisx->world.pos.y = thisx->home.pos.y - 60.0f;
             thisx->world.pos.z = thisx->home.pos.z;
             if (thisx->params != 0) {
-                Player_SetCsActionWithHaltedActors(play, thisx, 7);
+                OoT_Player_SetCsActionWithHaltedActors(play, thisx, 7);
             }
             this->actionFunc = BgIceObjects_Reset;
         }
@@ -139,11 +139,11 @@ void BgIceObjects_Idle(BgIceObjects* this, PlayState* play) {
 
     if (this->dyna.unk_150 != 0.0f) {
         player->stateFlags2 &= ~PLAYER_STATE2_MOVING_DYNAPOLY;
-        if ((this->dyna.unk_150 > 0.0f) && !Player_InCsMode(play)) {
+        if ((this->dyna.unk_150 > 0.0f) && !OoT_Player_InCsMode(play)) {
             BgIceObjects_SetNextTarget(this, play);
-            if (Actor_WorldDistXZToPoint(thisx, &this->targetPos) > 1.0f) {
+            if (OoT_Actor_WorldDistXZToPoint(thisx, &this->targetPos) > 1.0f) {
                 thisx->flags |= ACTOR_FLAG_UPDATE_CULLING_DISABLED;
-                Player_SetCsActionWithHaltedActors(play, thisx, 8);
+                OoT_Player_SetCsActionWithHaltedActors(play, thisx, 8);
                 thisx->params = 1;
                 this->actionFunc = BgIceObjects_Slide;
             }
@@ -162,9 +162,9 @@ void BgIceObjects_Slide(BgIceObjects* this, PlayState* play) {
     f32 spread;
     Actor* thisx = &this->dyna.actor;
 
-    Math_StepToF(&thisx->speedXZ, 10.0f, 0.5f);
-    atTarget = Math_StepToF(&thisx->world.pos.x, this->targetPos.x, thisx->speedXZ);
-    atTarget &= Math_StepToF(&thisx->world.pos.z, this->targetPos.z, thisx->speedXZ);
+    OoT_Math_StepToF(&thisx->speedXZ, 10.0f, 0.5f);
+    atTarget = OoT_Math_StepToF(&thisx->world.pos.x, this->targetPos.x, thisx->speedXZ);
+    atTarget &= OoT_Math_StepToF(&thisx->world.pos.z, this->targetPos.z, thisx->speedXZ);
     if (atTarget) {
         thisx->speedXZ = 0.0f;
         this->targetPos.x = thisx->world.pos.x;
@@ -173,7 +173,7 @@ void BgIceObjects_Slide(BgIceObjects* this, PlayState* play) {
             thisx->flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
         }
         thisx->params = 0;
-        Player_SetCsActionWithHaltedActors(play, thisx, 7);
+        OoT_Player_SetCsActionWithHaltedActors(play, thisx, 7);
         Audio_PlayActorSound2(thisx, NA_SE_EV_BLOCK_BOUND);
         if ((fabsf(thisx->world.pos.x + 1387.0f) < 1.0f) && (fabsf(thisx->world.pos.z + 260.0f) < 1.0f)) {
             this->actionFunc = BgIceObjects_Stuck;
@@ -181,18 +181,18 @@ void BgIceObjects_Slide(BgIceObjects* this, PlayState* play) {
             this->actionFunc = BgIceObjects_Idle;
         }
     } else if ((thisx->speedXZ > 6.0f) && (thisx->world.pos.y >= 0.0f)) {
-        spread = Rand_CenteredFloat(120.0f);
-        velocity.x = -(1.5f + Rand_ZeroOne()) * Math_SinS(this->dyna.unk_158);
-        velocity.y = Rand_ZeroOne() + 1.0f;
-        velocity.z = -(1.5f + Rand_ZeroOne()) * Math_CosS(this->dyna.unk_158);
-        pos.x = thisx->world.pos.x - (60.0f * Math_SinS(this->dyna.unk_158)) - (Math_CosS(this->dyna.unk_158) * spread);
-        pos.z = thisx->world.pos.z - (60.0f * Math_CosS(this->dyna.unk_158)) + (Math_SinS(this->dyna.unk_158) * spread);
+        spread = OoT_Rand_CenteredFloat(120.0f);
+        velocity.x = -(1.5f + OoT_Rand_ZeroOne()) * OoT_Math_SinS(this->dyna.unk_158);
+        velocity.y = OoT_Rand_ZeroOne() + 1.0f;
+        velocity.z = -(1.5f + OoT_Rand_ZeroOne()) * OoT_Math_CosS(this->dyna.unk_158);
+        pos.x = thisx->world.pos.x - (60.0f * OoT_Math_SinS(this->dyna.unk_158)) - (OoT_Math_CosS(this->dyna.unk_158) * spread);
+        pos.z = thisx->world.pos.z - (60.0f * OoT_Math_CosS(this->dyna.unk_158)) + (OoT_Math_SinS(this->dyna.unk_158) * spread);
         pos.y = thisx->world.pos.y;
-        func_8002829C(play, &pos, &velocity, &sZeroVec, &sWhite, &sGray, 250, Rand_S16Offset(40, 15));
-        spread = Rand_CenteredFloat(120.0f);
-        pos.x = thisx->world.pos.x - (60.0f * Math_SinS(this->dyna.unk_158)) + (Math_CosS(this->dyna.unk_158) * spread);
-        pos.z = thisx->world.pos.z - (60.0f * Math_CosS(this->dyna.unk_158)) - (Math_SinS(this->dyna.unk_158) * spread);
-        func_8002829C(play, &pos, &velocity, &sZeroVec, &sWhite, &sGray, 250, Rand_S16Offset(40, 15));
+        func_8002829C(play, &pos, &velocity, &OoT_sZeroVec, &sWhite, &sGray, 250, OoT_Rand_S16Offset(40, 15));
+        spread = OoT_Rand_CenteredFloat(120.0f);
+        pos.x = thisx->world.pos.x - (60.0f * OoT_Math_SinS(this->dyna.unk_158)) + (OoT_Math_CosS(this->dyna.unk_158) * spread);
+        pos.z = thisx->world.pos.z - (60.0f * OoT_Math_CosS(this->dyna.unk_158)) - (OoT_Math_SinS(this->dyna.unk_158) * spread);
+        func_8002829C(play, &pos, &velocity, &OoT_sZeroVec, &sWhite, &sGray, 250, OoT_Rand_S16Offset(40, 15));
         func_8002F974(thisx, NA_SE_PL_SLIP_ICE_LEVEL - SFX_FLAG);
     }
     BgIceObjects_CheckPits(this, play);
@@ -206,9 +206,9 @@ void BgIceObjects_Reset(BgIceObjects* this, PlayState* play) {
         player->stateFlags2 &= ~PLAYER_STATE2_MOVING_DYNAPOLY;
         this->dyna.unk_150 = 0.0f;
     }
-    if (Math_StepToF(&thisx->world.pos.y, thisx->home.pos.y, 1.0f)) {
+    if (OoT_Math_StepToF(&thisx->world.pos.y, thisx->home.pos.y, 1.0f)) {
         thisx->flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
-        Math_Vec3f_Copy(&this->targetPos, &thisx->home.pos);
+        OoT_Math_Vec3f_Copy(&this->targetPos, &thisx->home.pos);
         this->actionFunc = BgIceObjects_Idle;
         thisx->speedXZ = 0.0f;
     }
@@ -234,5 +234,5 @@ void BgIceObjects_Draw(Actor* thisx, PlayState* play) {
     s32 pad;
     BgIceObjects* this = (BgIceObjects*)thisx;
 
-    Gfx_DrawDListOpa(play, object_ice_objects_DL_000190);
+    OoT_Gfx_DrawDListOpa(play, object_ice_objects_DL_000190);
 }

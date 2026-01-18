@@ -11,10 +11,10 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_UPDATE_DURING_OCARINA)
 
-void ArrowFire_Init(Actor* thisx, PlayState* play);
-void ArrowFire_Destroy(Actor* thisx, PlayState* play);
-void ArrowFire_Update(Actor* thisx, PlayState* play);
-void ArrowFire_Draw(Actor* thisx, PlayState* play);
+void MM_ArrowFire_Init(Actor* thisx, PlayState* play);
+void MM_ArrowFire_Destroy(Actor* thisx, PlayState* play);
+void MM_ArrowFire_Update(Actor* thisx, PlayState* play);
+void MM_ArrowFire_Draw(Actor* thisx, PlayState* play);
 
 void FireArrow_ChargeAndWait(ArrowFire* this, PlayState* play);
 void FireArrow_Fly(ArrowFire* this, PlayState* play);
@@ -27,13 +27,13 @@ ActorProfile Arrow_Fire_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(ArrowFire),
-    /**/ ArrowFire_Init,
-    /**/ ArrowFire_Destroy,
-    /**/ ArrowFire_Update,
-    /**/ ArrowFire_Draw,
+    /**/ MM_ArrowFire_Init,
+    /**/ MM_ArrowFire_Destroy,
+    /**/ MM_ArrowFire_Update,
+    /**/ MM_ArrowFire_Draw,
 };
 
-static ColliderQuadInit sQuadInit = {
+static ColliderQuadInit MM_sQuadInit = {
     {
         COL_MATERIAL_NONE,
         AT_ON | AT_TYPE_PLAYER,
@@ -53,44 +53,44 @@ static ColliderQuadInit sQuadInit = {
     { { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f } } },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 2000, ICHAIN_STOP),
 };
 
 static s32 sBssPad;
 
-void ArrowFire_SetupAction(ArrowFire* this, ArrowFireActionFunc actionFunc) {
+void MM_ArrowFire_SetupAction(ArrowFire* this, ArrowFireActionFunc actionFunc) {
     this->actionFunc = actionFunc;
 }
 
-void ArrowFire_Init(Actor* thisx, PlayState* play) {
+void MM_ArrowFire_Init(Actor* thisx, PlayState* play) {
     ArrowFire* this = (ArrowFire*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
     this->radius = 0;
     this->height = 1.0f;
-    ArrowFire_SetupAction(this, FireArrow_ChargeAndWait);
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_ArrowFire_SetupAction(this, FireArrow_ChargeAndWait);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->alpha = 160;
     this->timer = 0;
     this->screenFillIntensity = 0.0f;
-    Collider_InitAndSetQuad(play, &this->collider1, &this->actor, &sQuadInit);
-    Collider_InitAndSetQuad(play, &this->collider2, &this->actor, &sQuadInit);
+    Collider_InitAndSetQuad(play, &this->collider1, &this->actor, &MM_sQuadInit);
+    Collider_InitAndSetQuad(play, &this->collider2, &this->actor, &MM_sQuadInit);
 }
 
-void ArrowFire_Destroy(Actor* thisx, PlayState* play) {
+void MM_ArrowFire_Destroy(Actor* thisx, PlayState* play) {
     ArrowFire* this = (ArrowFire*)thisx;
 
-    Magic_Reset(play);
-    Collider_DestroyQuad(play, &this->collider1);
-    Collider_DestroyQuad(play, &this->collider2);
+    MM_Magic_Reset(play);
+    MM_Collider_DestroyQuad(play, &this->collider1);
+    MM_Collider_DestroyQuad(play, &this->collider2);
 }
 
 void FireArrow_ChargeAndWait(ArrowFire* this, PlayState* play) {
     EnArrow* arrow = (EnArrow*)this->actor.parent;
 
     if ((arrow == NULL) || (arrow->actor.update == NULL)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
     if (this->radius < 10) {
@@ -106,7 +106,7 @@ void FireArrow_ChargeAndWait(ArrowFire* this, PlayState* play) {
     if (arrow->actor.parent == NULL) {
         this->firedPos = this->actor.world.pos;
         this->radius = 10;
-        ArrowFire_SetupAction(this, FireArrow_Fly);
+        MM_ArrowFire_SetupAction(this, FireArrow_Fly);
         this->alpha = 255;
     }
 }
@@ -156,12 +156,12 @@ void FireArrow_Hit(ArrowFire* this, PlayState* play) {
     }
     if (this->timer == 0) {
         this->timer = 255;
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
     if (this->timer >= 13) {
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider1.base);
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider2.base);
+        MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider1.base);
+        MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider2.base);
     }
 }
 
@@ -171,14 +171,14 @@ void FireArrow_Fly(ArrowFire* this, PlayState* play) {
     s32 pad2;
 
     if ((arrow == NULL) || (arrow->actor.update == NULL)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
     this->actor.world.pos = arrow->actor.world.pos;
     this->actor.shape.rot = arrow->actor.shape.rot;
 
-    this->height = Math_Vec3f_DistXYZ(&this->firedPos, &this->actor.world.pos) * (1.0f / 24.0f);
+    this->height = MM_Math_Vec3f_DistXYZ(&this->firedPos, &this->actor.world.pos) * (1.0f / 24.0f);
 
     if (this->height < 1.0f) {
         this->height = 1.0f;
@@ -187,25 +187,25 @@ void FireArrow_Fly(ArrowFire* this, PlayState* play) {
     FireArrow_Lerp(&this->firedPos, &this->actor.world.pos, 0.05f);
     if (arrow->unk_261 & 1) {
         Actor_PlaySfx(&this->actor, NA_SE_IT_EXPLOSION_FRAME);
-        ArrowFire_SetupAction(this, FireArrow_Hit);
+        MM_ArrowFire_SetupAction(this, FireArrow_Hit);
         this->timer = 32;
         this->alpha = 255;
         return;
     }
     if (arrow->unk_260 < 34) {
         if (this->alpha < 35) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
             return;
         }
         this->alpha -= 25;
     }
 }
 
-void ArrowFire_Update(Actor* thisx, PlayState* play) {
+void MM_ArrowFire_Update(Actor* thisx, PlayState* play) {
     ArrowFire* this = (ArrowFire*)thisx;
 
     if ((play->msgCtx.msgMode == MSGMODE_E) || (play->msgCtx.msgMode == MSGMODE_SONG_PLAYED)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
     this->actionFunc(this, play);
@@ -225,19 +225,19 @@ void FireArrow_SetQuadVerticies(ArrowFire* this) {
     Vec3f sp2C;
     Vec3f sp20;
 
-    Matrix_MultVec3f(&D_80922284, &sp44);
-    Matrix_MultVec3f(&D_80922290, &sp38);
-    Matrix_MultVec3f(&D_8092229C, &sp2C);
-    Matrix_MultVec3f(&D_809222A8, &sp20);
-    Collider_SetQuadVertices(&this->collider1, &sp44, &sp38, &sp2C, &sp20);
-    Matrix_MultVec3f(&D_809222B4, &sp44);
-    Matrix_MultVec3f(&D_809222C0, &sp38);
-    Matrix_MultVec3f(&D_809222CC, &sp2C);
-    Matrix_MultVec3f(&D_809222D8, &sp20);
-    Collider_SetQuadVertices(&this->collider2, &sp44, &sp38, &sp2C, &sp20);
+    MM_Matrix_MultVec3f(&D_80922284, &sp44);
+    MM_Matrix_MultVec3f(&D_80922290, &sp38);
+    MM_Matrix_MultVec3f(&D_8092229C, &sp2C);
+    MM_Matrix_MultVec3f(&D_809222A8, &sp20);
+    MM_Collider_SetQuadVertices(&this->collider1, &sp44, &sp38, &sp2C, &sp20);
+    MM_Matrix_MultVec3f(&D_809222B4, &sp44);
+    MM_Matrix_MultVec3f(&D_809222C0, &sp38);
+    MM_Matrix_MultVec3f(&D_809222CC, &sp2C);
+    MM_Matrix_MultVec3f(&D_809222D8, &sp20);
+    MM_Collider_SetQuadVertices(&this->collider2, &sp44, &sp38, &sp2C, &sp20);
 }
 
-void ArrowFire_Draw(Actor* thisx, PlayState* play) {
+void MM_ArrowFire_Draw(Actor* thisx, PlayState* play) {
     EnArrow* arrow;
     ArrowFire* this = (ArrowFire*)thisx;
     u32 frames = play->state.frames;
@@ -250,12 +250,12 @@ void ArrowFire_Draw(Actor* thisx, PlayState* play) {
 
         OPEN_DISPS(play->state.gfxCtx);
 
-        Matrix_Translate(transform->world.pos.x, transform->world.pos.y, transform->world.pos.z, MTXMODE_NEW);
+        MM_Matrix_Translate(transform->world.pos.x, transform->world.pos.y, transform->world.pos.z, MTXMODE_NEW);
         Matrix_RotateYS(transform->shape.rot.y, MTXMODE_APPLY);
         Matrix_RotateXS(transform->shape.rot.x, MTXMODE_APPLY);
         Matrix_RotateZS(transform->shape.rot.z, MTXMODE_APPLY);
 
-        Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
+        MM_Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
         if (this->screenFillIntensity > 0.0f) {
             POLY_XLU_DISP = Gfx_SetupDL57(POLY_XLU_DISP);
 
@@ -273,22 +273,22 @@ void ArrowFire_Draw(Actor* thisx, PlayState* play) {
                                 COSMETIC_ELEMENT_FIRE_ARROW_PRIMARY);
         gDPSetEnvColorOverride(POLY_XLU_DISP++, 255, 0, 0, 128, COSMETIC_ELEMENT_FIRE_ARROW_SECONDARY);
 
-        Matrix_RotateZYX(0x4000, 0, 0, MTXMODE_APPLY);
+        MM_Matrix_RotateZYX(0x4000, 0, 0, MTXMODE_APPLY);
 
         if (this->timer != 0) {
-            Matrix_Translate(0.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+            MM_Matrix_Translate(0.0f, 0.0f, 0.0f, MTXMODE_APPLY);
         } else {
-            Matrix_Translate(0.0f, 1500.0f, 0.0f, MTXMODE_APPLY);
+            MM_Matrix_Translate(0.0f, 1500.0f, 0.0f, MTXMODE_APPLY);
         }
 
-        Matrix_Scale(this->radius * 0.2f, this->height * 4.0f, this->radius * 0.2f, MTXMODE_APPLY);
-        Matrix_Translate(0.0f, -700.0f, 0.0f, MTXMODE_APPLY);
+        MM_Matrix_Scale(this->radius * 0.2f, this->height * 4.0f, this->radius * 0.2f, MTXMODE_APPLY);
+        MM_Matrix_Translate(0.0f, -700.0f, 0.0f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
         FireArrow_SetQuadVerticies(this);
         gSPDisplayList(POLY_XLU_DISP++, gFireArrowMaterialDL);
-        gSPDisplayList(POLY_XLU_DISP++, Gfx_TwoTexScroll(play->state.gfxCtx, 0, 255 - ((frames * 2) % 256), 0, 64, 32,
+        gSPDisplayList(POLY_XLU_DISP++, MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 255 - ((frames * 2) % 256), 0, 64, 32,
                                                          1, 255 - (frames % 256), 511 - ((frames * 10) % 512), 64, 64));
         gSPDisplayList(POLY_XLU_DISP++, gFireArrowModelDL);
 

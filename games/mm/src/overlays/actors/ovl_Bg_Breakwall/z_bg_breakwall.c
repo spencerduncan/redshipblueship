@@ -17,10 +17,10 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED)
 
-void BgBreakwall_Init(Actor* thisx, PlayState* play);
-void BgBreakwall_Update(Actor* thisx, PlayState* play);
+void MM_BgBreakwall_Init(Actor* thisx, PlayState* play);
+void MM_BgBreakwall_Update(Actor* thisx, PlayState* play);
 
-void BgBreakwall_SetupAction(BgBreakwall* this, BgBreakwallActionFunc actionFunc);
+void MM_BgBreakwall_SetupAction(BgBreakwall* this, BgBreakwallActionFunc actionFunc);
 bool func_808B736C(BgBreakwall* this, PlayState* play);
 bool func_808B7380(BgBreakwall* this, PlayState* play);
 bool func_808B73C4(BgBreakwall* this, PlayState* play);
@@ -41,7 +41,7 @@ void func_808B7A10(BgBreakwall* this, PlayState* play);
 void func_808B7A90(Actor* thisx, PlayState* play);
 void func_808B7B54(Actor* thisx, PlayState* play);
 void func_808B7D34(Actor* thisx, PlayState* play);
-void BgBreakwall_Draw(Actor* thisx, PlayState* play);
+void MM_BgBreakwall_Draw(Actor* thisx, PlayState* play);
 
 ActorProfile Bg_Breakwall_Profile = {
     /**/ ACTOR_BG_BREAKWALL,
@@ -49,9 +49,9 @@ ActorProfile Bg_Breakwall_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(BgBreakwall),
-    /**/ BgBreakwall_Init,
+    /**/ MM_BgBreakwall_Init,
     /**/ NULL,
-    /**/ BgBreakwall_Update,
+    /**/ MM_BgBreakwall_Update,
     /**/ NULL,
 };
 
@@ -91,7 +91,7 @@ BgBreakwallStruct D_808B8140[] = {
     { OBJECT_SPOT11_OBJ, gWoodStepDL, NULL, NULL, &gWoodStepCol, func_808B736C, func_808B77D0, NULL },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F(scale, 1, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 400, ICHAIN_CONTINUE),
@@ -140,7 +140,7 @@ Color_RGBA8 D_808B8340[] = {
     { 60, 110, 110, 255 },
 };
 
-void BgBreakwall_SetupAction(BgBreakwall* this, BgBreakwallActionFunc actionFunc) {
+void MM_BgBreakwall_SetupAction(BgBreakwall* this, BgBreakwallActionFunc actionFunc) {
     this->actionFunc = actionFunc;
 }
 
@@ -164,15 +164,15 @@ bool func_808B73FC(BgBreakwall* this, PlayState* play) {
 }
 
 bool func_808B7410(BgBreakwall* this, PlayState* play) {
-    if (Flags_GetSwitch(play, this->switchFlag)) {
+    if (MM_Flags_GetSwitch(play, this->switchFlag)) {
         this->dyna.actor.draw = NULL;
     }
-    Actor_SetScale(&this->dyna.actor, 0.1f);
+    MM_Actor_SetScale(&this->dyna.actor, 0.1f);
     return true;
 }
 
 bool func_808B7460(BgBreakwall* this, PlayState* play) {
-    if (!Flags_GetSwitch(play, this->switchFlag)) {
+    if (!MM_Flags_GetSwitch(play, this->switchFlag)) {
         this->dyna.actor.scale.x = 0.1f;
     }
     return true;
@@ -193,10 +193,10 @@ bool func_808B74D8(BgBreakwall* this, PlayState* play) {
 }
 
 bool func_808B751C(BgBreakwall* this, PlayState* play) {
-    Actor_SetScale(&this->dyna.actor, 0.1f);
+    MM_Actor_SetScale(&this->dyna.actor, 0.1f);
 
     if ((BGBREAKWALL_SWITCH_FLAG(&this->dyna.actor) != 0x7F) &&
-        !Flags_GetSwitch(play, BGBREAKWALL_SWITCH_FLAG(&this->dyna.actor))) {
+        !MM_Flags_GetSwitch(play, BGBREAKWALL_SWITCH_FLAG(&this->dyna.actor))) {
         return false;
     }
 
@@ -210,38 +210,38 @@ bool func_808B751C(BgBreakwall* this, PlayState* play) {
     return true;
 }
 
-void BgBreakwall_Init(Actor* thisx, PlayState* play) {
+void MM_BgBreakwall_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     BgBreakwall* this = (BgBreakwall*)thisx;
     BgBreakwallStruct* sp24 = &D_808B8140[BGBREAKWALL_GET_F(&this->dyna.actor)];
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
     this->objectSlot = Object_GetSlot(&play->objectCtx, sp24->objectId);
 
     if ((this->objectSlot <= OBJECT_SLOT_NONE) || !sp24->unk_14(this, play)) {
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
         return;
     }
 
-    BgBreakwall_SetupAction(this, func_808B76CC);
+    MM_BgBreakwall_SetupAction(this, func_808B76CC);
     this->switchFlag = BGBREAKWALL_SWITCH_FLAG(&this->dyna.actor);
 }
 
-void BgBreakwall_Destroy(Actor* thisx, PlayState* play) {
+void MM_BgBreakwall_Destroy(Actor* thisx, PlayState* play) {
     BgBreakwall* this = (BgBreakwall*)thisx;
     BgBreakwallStruct* temp_s1 = &D_808B8140[BGBREAKWALL_GET_F(&this->dyna.actor)];
 
     if (temp_s1->unk_10 != NULL) {
-        DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+        MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
     }
 }
 
 void func_808B76CC(BgBreakwall* this, PlayState* play) {
-    if (Object_IsLoaded(&play->objectCtx, this->objectSlot)) {
+    if (MM_Object_IsLoaded(&play->objectCtx, this->objectSlot)) {
         BgBreakwallStruct* temp_s1 = &D_808B8140[BGBREAKWALL_GET_F(&this->dyna.actor)];
 
         this->dyna.actor.objectSlot = this->objectSlot;
-        this->dyna.actor.draw = BgBreakwall_Draw;
+        this->dyna.actor.draw = MM_BgBreakwall_Draw;
 
         if (((BGBREAKWALL_GET_F(&this->dyna.actor)) != BGBREAKWALL_F_7) &&
             ((BGBREAKWALL_GET_F(&this->dyna.actor)) != BGBREAKWALL_F_9) &&
@@ -249,19 +249,19 @@ void func_808B76CC(BgBreakwall* this, PlayState* play) {
             this->dyna.actor.flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
         }
 
-        Actor_SetObjectDependency(play, &this->dyna.actor);
+        MM_Actor_SetObjectDependency(play, &this->dyna.actor);
 
         if (temp_s1->unk_0C != NULL) {
             temp_s1->unk_0C = Lib_SegmentedToVirtual(temp_s1->unk_0C);
         }
 
         if (temp_s1->unk_10 != NULL) {
-            DynaPolyActor_Init(&this->dyna, 0);
+            MM_DynaPolyActor_Init(&this->dyna, 0);
             DynaPolyActor_LoadMesh(play, &this->dyna, temp_s1->unk_10);
         }
 
-        BgBreakwall_SetupAction(this, temp_s1->unk_18);
-        this->dyna.actor.destroy = BgBreakwall_Destroy;
+        MM_BgBreakwall_SetupAction(this, temp_s1->unk_18);
+        this->dyna.actor.destroy = MM_BgBreakwall_Destroy;
     }
 }
 
@@ -269,8 +269,8 @@ void func_808B77D0(BgBreakwall* this, PlayState* play) {
 }
 
 void func_808B77E0(BgBreakwall* this, PlayState* play) {
-    if (!Flags_GetSwitch(play, this->switchFlag)) {
-        this->dyna.actor.draw = BgBreakwall_Draw;
+    if (!MM_Flags_GetSwitch(play, this->switchFlag)) {
+        this->dyna.actor.draw = MM_BgBreakwall_Draw;
     } else {
         this->dyna.actor.draw = NULL;
     }
@@ -279,22 +279,22 @@ void func_808B77E0(BgBreakwall* this, PlayState* play) {
 void func_808B782C(BgBreakwall* this, PlayState* play) {
     f32 phi_f0;
 
-    if (Flags_GetSwitch(play, this->switchFlag)) {
+    if (MM_Flags_GetSwitch(play, this->switchFlag)) {
         phi_f0 = 1.0f;
     } else {
         phi_f0 = 0.1f;
     }
-    Math_SmoothStepToF(&this->dyna.actor.scale.x, phi_f0, 0.2f, 0.3f, 0.06f);
+    MM_Math_SmoothStepToF(&this->dyna.actor.scale.x, phi_f0, 0.2f, 0.3f, 0.06f);
 }
 
 void func_808B78A4(BgBreakwall* this, PlayState* play) {
     if (CHECK_WEEKEVENTREG(WEEKEVENTREG_CLEARED_GREAT_BAY_TEMPLE)) {
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
     }
 }
 
 void func_808B78DC(BgBreakwall* this, PlayState* play) {
-    Actor_SetScale(&this->dyna.actor, 3.5f);
+    MM_Actor_SetScale(&this->dyna.actor, 3.5f);
     Actor_PlaySfx_Flagged(&this->dyna.actor, NA_SE_EV_TORNADE - SFX_FLAG);
 }
 
@@ -304,15 +304,15 @@ void func_808B7914(BgBreakwall* this, PlayState* play) {
     Vec3f sp24;
 
     if ((play->gameplayFrames % 8) == 0) {
-        sp30.x = Rand_ZeroFloat(80.0f) + (this->dyna.actor.world.pos.x - 55.0f);
+        sp30.x = MM_Rand_ZeroFloat(80.0f) + (this->dyna.actor.world.pos.x - 55.0f);
         sp30.y = this->dyna.actor.world.pos.y + 70.0f;
-        sp30.z = Rand_ZeroFloat(80.0f) + (this->dyna.actor.world.pos.z - 130.0f);
+        sp30.z = MM_Rand_ZeroFloat(80.0f) + (this->dyna.actor.world.pos.z - 130.0f);
 
         sp24.x = 0.0f;
         sp24.y = 0.5f;
         sp24.z = 0.0f;
 
-        EffectSsIceSmoke_Spawn(play, &sp30, &sp24, &gZeroVec3f, -200 - (s32)(Rand_ZeroOne() * 50.0f));
+        MM_EffectSsIceSmoke_Spawn(play, &sp30, &sp24, &gZeroVec3f, -200 - (s32)(MM_Rand_ZeroOne() * 50.0f));
     }
 }
 
@@ -330,7 +330,7 @@ void func_808B7A10(BgBreakwall* this, PlayState* play) {
     }
 }
 
-void BgBreakwall_Update(Actor* thisx, PlayState* play) {
+void MM_BgBreakwall_Update(Actor* thisx, PlayState* play) {
     BgBreakwall* this = (BgBreakwall*)thisx;
 
     this->actionFunc(this, play);
@@ -410,7 +410,7 @@ void func_808B7D34(Actor* thisx, PlayState* play) {
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void BgBreakwall_Draw(Actor* thisx, PlayState* play) {
+void MM_BgBreakwall_Draw(Actor* thisx, PlayState* play) {
     s32 pad;
     BgBreakwall* this = (BgBreakwall*)thisx;
     BgBreakwallStruct* temp_s2 = &D_808B8140[BGBREAKWALL_GET_F(&this->dyna.actor)];

@@ -67,14 +67,14 @@ void ObjHgdoor_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     CollisionHeader* header = NULL;
 
-    Actor_SetScale(&this->dyna.actor, 0.1f);
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_Actor_SetScale(&this->dyna.actor, 0.1f);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
     if (OBJHGDOOR_IS_RIGHT_DOOR(&this->dyna.actor)) {
-        CollisionHeader_GetVirtual(&object_hgdoor_Colheader_001D10, &header);
+        MM_CollisionHeader_GetVirtual(&object_hgdoor_Colheader_001D10, &header);
     } else {
-        CollisionHeader_GetVirtual(&object_hgdoor_Colheader_0018C0, &header);
+        MM_CollisionHeader_GetVirtual(&object_hgdoor_Colheader_0018C0, &header);
     }
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, header);
+    this->dyna.bgId = MM_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, header);
     this->rotation = 0;
     this->timer = 0;
     this->csId = this->dyna.actor.csId;
@@ -84,7 +84,7 @@ void ObjHgdoor_Init(Actor* thisx, PlayState* play) {
 void ObjHgdoor_Destroy(Actor* thisx, PlayState* play) {
     ObjHgdoor* this = (ObjHgdoor*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void ObjHgdoor_SetupIdle(ObjHgdoor* this) {

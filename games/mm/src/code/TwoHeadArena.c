@@ -15,15 +15,15 @@
 #include "functions.h"
 #include <string.h>
 
-void* THA_GetHead(TwoHeadArena* tha) {
+void* MM_THA_GetHead(TwoHeadArena* tha) {
     return tha->head;
 }
 
-void THA_SetHead(TwoHeadArena* tha, void* newHead) {
+void MM_THA_SetHead(TwoHeadArena* tha, void* newHead) {
     tha->head = newHead;
 }
 
-void* THA_GetTail(TwoHeadArena* tha) {
+void* MM_THA_GetTail(TwoHeadArena* tha) {
     return tha->tail;
 }
 
@@ -110,7 +110,7 @@ ptrdiff_t THA_GetRemaining(TwoHeadArena* tha) {
 /**
  * @return true if the Two Head Arena has overflowed, false otherwise
  */
-u32 THA_IsCrash(TwoHeadArena* tha) {
+u32 MM_THA_IsCrash(TwoHeadArena* tha) {
     return THA_GetRemaining(tha) < 0;
 }
 
@@ -122,7 +122,7 @@ void THA_Reset(TwoHeadArena* tha) {
 /**
  * Creates a new Two Head Arena at `start` with available size `size`
  */
-void THA_Init(TwoHeadArena* tha, void* start, size_t size) {
+void MM_THA_Init(TwoHeadArena* tha, void* start, size_t size) {
     memset(tha, 0, sizeof(TwoHeadArena));
     tha->start = start;
     tha->size = size;

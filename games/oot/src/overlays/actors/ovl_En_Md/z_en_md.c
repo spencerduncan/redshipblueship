@@ -38,7 +38,7 @@ const ActorInit En_Md_InitVars = {
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -58,7 +58,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 36, 46, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 OoT_sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
 
 typedef enum {
     /*  0 */ ENMD_ANIM_0,
@@ -77,7 +77,7 @@ typedef enum {
     /* 13 */ ENMD_ANIM_13,
 } EnMdAnimation;
 
-static AnimationInfo sAnimationInfo[] = {
+static AnimationInfo OoT_sAnimationInfo[] = {
     { &gMidoHandsOnHipsIdleAnim, 0.0f, 0.0f, -1.0f, ANIMMODE_LOOP, 0.0f },
     { &gMidoHandsOnHipsIdleAnim, 0.0f, 0.0f, -1.0f, ANIMMODE_LOOP, -10.0f },
     { &gMidoRaiseHand1Anim, 1.0f, 0.0f, -1.0f, ANIMMODE_ONCE, -1.0f },
@@ -107,11 +107,11 @@ void func_80AAA250(EnMd* this) {
 void func_80AAA274(EnMd* this) {
     switch (this->unk_20A) {
         case 0:
-            Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENMD_ANIM_2);
+            Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENMD_ANIM_2);
             this->unk_20A++;
         case 1:
-            if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
-                Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENMD_ANIM_3);
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+                Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENMD_ANIM_3);
                 this->unk_20A++;
             }
     }
@@ -120,11 +120,11 @@ void func_80AAA274(EnMd* this) {
 void func_80AAA308(EnMd* this) {
     switch (this->unk_20A) {
         case 0:
-            Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENMD_ANIM_4);
+            Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENMD_ANIM_4);
             this->unk_20A++;
         case 1:
-            if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
-                Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENMD_ANIM_5);
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+                Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENMD_ANIM_5);
                 this->unk_20A++;
             }
     }
@@ -133,19 +133,19 @@ void func_80AAA308(EnMd* this) {
 void func_80AAA39C(EnMd* this) {
     switch (this->unk_20A) {
         case 0:
-            Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENMD_ANIM_2);
+            Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENMD_ANIM_2);
             func_80AAA250(this);
             this->unk_20A++;
         case 1:
-            if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
-                Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENMD_ANIM_7);
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+                Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENMD_ANIM_7);
                 this->unk_20A++;
             } else {
                 break;
             }
         case 2:
-            if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
-                Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENMD_ANIM_8);
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+                Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENMD_ANIM_8);
                 this->unk_20A++;
             }
     }
@@ -154,11 +154,11 @@ void func_80AAA39C(EnMd* this) {
 void func_80AAA474(EnMd* this) {
     switch (this->unk_20A) {
         case 0:
-            Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENMD_ANIM_7);
+            Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENMD_ANIM_7);
             this->unk_20A++;
         case 1:
-            if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
-                Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENMD_ANIM_10);
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+                Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENMD_ANIM_10);
                 this->unk_20A++;
             }
     }
@@ -167,12 +167,12 @@ void func_80AAA474(EnMd* this) {
 void func_80AAA508(EnMd* this) {
     switch (this->unk_20A) {
         case 0:
-            Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENMD_ANIM_2);
+            Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENMD_ANIM_2);
             func_80AAA250(this);
             this->unk_20A++;
         case 1:
-            if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
-                Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENMD_ANIM_10);
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+                Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENMD_ANIM_10);
                 this->unk_20A++;
             }
     }
@@ -181,11 +181,11 @@ void func_80AAA508(EnMd* this) {
 void func_80AAA5A4(EnMd* this) {
     switch (this->unk_20A) {
         case 0:
-            Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENMD_ANIM_9);
+            Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENMD_ANIM_9);
             this->unk_20A++;
         case 1:
-            if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
-                Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENMD_ANIM_6);
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+                Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENMD_ANIM_6);
                 this->unk_20A++;
             }
     }
@@ -194,12 +194,12 @@ void func_80AAA5A4(EnMd* this) {
 void func_80AAA638(EnMd* this) {
     switch (this->unk_20A) {
         case 0:
-            Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENMD_ANIM_9);
+            Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENMD_ANIM_9);
             func_80AAA250(this);
             this->unk_20A++;
         case 1:
-            if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
-                Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENMD_ANIM_10);
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+                Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENMD_ANIM_10);
                 this->unk_20A++;
             }
     }
@@ -208,11 +208,11 @@ void func_80AAA638(EnMd* this) {
 void func_80AAA6D4(EnMd* this) {
     switch (this->unk_20A) {
         case 0:
-            Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENMD_ANIM_11);
+            Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENMD_ANIM_11);
             this->unk_20A++;
         case 1:
-            if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
-                Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENMD_ANIM_6);
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+                Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENMD_ANIM_6);
                 this->unk_20A++;
             }
     }
@@ -221,11 +221,11 @@ void func_80AAA6D4(EnMd* this) {
 void func_80AAA768(EnMd* this) {
     switch (this->unk_20A) {
         case 0:
-            Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENMD_ANIM_12);
+            Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENMD_ANIM_12);
             this->unk_20A++;
         case 1:
-            if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
-                Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENMD_ANIM_3);
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+                Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENMD_ANIM_3);
                 this->unk_20A++;
             }
     }
@@ -234,11 +234,11 @@ void func_80AAA768(EnMd* this) {
 void func_80AAA7FC(EnMd* this) {
     switch (this->unk_20A) {
         case 0:
-            Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENMD_ANIM_13);
+            Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENMD_ANIM_13);
             this->unk_20A++;
         case 1:
-            if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
-                Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENMD_ANIM_6);
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+                Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENMD_ANIM_6);
                 this->unk_20A++;
             }
     }
@@ -247,12 +247,12 @@ void func_80AAA7FC(EnMd* this) {
 void func_80AAA890(EnMd* this) {
     switch (this->unk_20A) {
         case 0:
-            Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENMD_ANIM_7);
+            Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENMD_ANIM_7);
             func_80AAA250(this);
             this->unk_20A++;
         case 1:
-            if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
-                Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENMD_ANIM_10);
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+                Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENMD_ANIM_10);
                 this->unk_20A++;
             }
     }
@@ -345,7 +345,7 @@ void func_80AAAA24(EnMd* this) {
                 break;
         }
     } else if (this->skelAnime.animation != &gMidoHandsOnHipsIdleAnim) {
-        Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENMD_ANIM_10);
+        Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENMD_ANIM_10);
         func_80AAA92C(this, 0);
     }
 
@@ -353,7 +353,7 @@ void func_80AAAA24(EnMd* this) {
 }
 
 s16 func_80AAAC78(EnMd* this, PlayState* play) {
-    s16 dialogState = Message_GetState(&play->msgCtx);
+    s16 dialogState = OoT_Message_GetState(&play->msgCtx);
 
     if ((this->unk_209 == TEXT_STATE_AWAITING_NEXT) || (this->unk_209 == TEXT_STATE_EVENT) ||
         (this->unk_209 == TEXT_STATE_CLOSING) || (this->unk_209 == TEXT_STATE_DONE_HAS_NEXT)) {
@@ -367,7 +367,7 @@ s16 func_80AAAC78(EnMd* this, PlayState* play) {
 }
 
 u16 EnMd_GetTextKokiriForest(PlayState* play, EnMd* this) {
-    u16 reactionText = Text_GetFaceReaction(play, 0x11);
+    u16 reactionText = OoT_Text_GetFaceReaction(play, 0x11);
 
     if (reactionText != 0) {
         return reactionText;
@@ -380,7 +380,7 @@ u16 EnMd_GetTextKokiriForest(PlayState* play, EnMd* this) {
         return 0x1045;
     }
 
-    if (Flags_GetEventChkInf(EVENTCHKINF_SHOWED_MIDO_SWORD_SHIELD)) {
+    if (OoT_Flags_GetEventChkInf(EVENTCHKINF_SHOWED_MIDO_SWORD_SHIELD)) {
         return 0x1034;
     }
 
@@ -389,7 +389,7 @@ u16 EnMd_GetTextKokiriForest(PlayState* play, EnMd* this) {
         return 0x1033;
     }
 
-    if (Flags_GetInfTable(INFTABLE_0C)) {
+    if (OoT_Flags_GetInfTable(INFTABLE_0C)) {
         return 0x1030;
     }
 
@@ -400,7 +400,7 @@ u16 EnMd_GetTextKokiriHome(PlayState* play, EnMd* this) {
     this->unk_208 = 0;
     this->unk_209 = TEXT_STATE_NONE;
 
-    if (Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_ZELDAS_LETTER)) {
+    if (OoT_Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_ZELDAS_LETTER)) {
         return 0x1028;
     }
 
@@ -411,18 +411,18 @@ u16 EnMd_GetTextLostWoods(PlayState* play, EnMd* this) {
     this->unk_208 = 0;
     this->unk_209 = TEXT_STATE_NONE;
 
-    if (Flags_GetEventChkInf(EVENTCHKINF_USED_FOREST_TEMPLE_BLUE_WARP)) {
-        if (Flags_GetInfTable(INFTABLE_19)) {
+    if (OoT_Flags_GetEventChkInf(EVENTCHKINF_USED_FOREST_TEMPLE_BLUE_WARP)) {
+        if (OoT_Flags_GetInfTable(INFTABLE_19)) {
             return 0x1071;
         }
         return 0x1070;
     }
 
-    if (Flags_GetEventChkInf(EVENTCHKINF_PLAYED_SARIAS_SONG_FOR_MIDO_AS_ADULT)) {
+    if (OoT_Flags_GetEventChkInf(EVENTCHKINF_PLAYED_SARIAS_SONG_FOR_MIDO_AS_ADULT)) {
         return 0x1068;
     }
 
-    if (Flags_GetInfTable(INFTABLE_15)) {
+    if (OoT_Flags_GetInfTable(INFTABLE_15)) {
         return 0x1061;
     }
 
@@ -459,17 +459,17 @@ s16 func_80AAAF04(PlayState* play, Actor* thisx) {
         case TEXT_STATE_CLOSING:
             switch (this->actor.textId) {
                 case 0x1028:
-                    Flags_SetEventChkInf(EVENTCHKINF_SPOKE_TO_MIDO_ABOUT_SARIA);
+                    OoT_Flags_SetEventChkInf(EVENTCHKINF_SPOKE_TO_MIDO_ABOUT_SARIA);
                     break;
                 case 0x102F:
-                    Flags_SetEventChkInf(EVENTCHKINF_FIRST_SPOKE_TO_MIDO);
-                    Flags_SetInfTable(INFTABLE_0C);
+                    OoT_Flags_SetEventChkInf(EVENTCHKINF_FIRST_SPOKE_TO_MIDO);
+                    OoT_Flags_SetInfTable(INFTABLE_0C);
                     break;
                 case 0x1060:
-                    Flags_SetInfTable(INFTABLE_15);
+                    OoT_Flags_SetInfTable(INFTABLE_15);
                     break;
                 case 0x1070:
-                    Flags_SetInfTable(INFTABLE_19);
+                    OoT_Flags_SetInfTable(INFTABLE_19);
                     break;
                 case 0x1033:
                 case 0x1067:
@@ -477,7 +477,7 @@ s16 func_80AAAF04(PlayState* play, Actor* thisx) {
             }
             return NPC_TALK_STATE_IDLE;
         case TEXT_STATE_EVENT:
-            if (Message_ShouldAdvance(play)) {
+            if (OoT_Message_ShouldAdvance(play)) {
                 return NPC_TALK_STATE_ACTION;
             }
         default:
@@ -487,15 +487,15 @@ s16 func_80AAAF04(PlayState* play, Actor* thisx) {
 
 u8 EnMd_ShouldSpawn(EnMd* this, PlayState* play) {
     if (play->sceneNum == SCENE_KOKIRI_FOREST) {
-        if (!Flags_GetEventChkInf(EVENTCHKINF_SPOKE_TO_MIDO_AFTER_DEKU_TREES_DEATH) &&
-            !Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_ZELDAS_LETTER)) {
+        if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_SPOKE_TO_MIDO_AFTER_DEKU_TREES_DEATH) &&
+            !OoT_Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_ZELDAS_LETTER)) {
             return 1;
         }
     }
 
     if (play->sceneNum == SCENE_MIDOS_HOUSE) {
-        if (Flags_GetEventChkInf(EVENTCHKINF_SPOKE_TO_MIDO_AFTER_DEKU_TREES_DEATH) ||
-            Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_ZELDAS_LETTER)) {
+        if (OoT_Flags_GetEventChkInf(EVENTCHKINF_SPOKE_TO_MIDO_AFTER_DEKU_TREES_DEATH) ||
+            OoT_Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_ZELDAS_LETTER)) {
             if (!LINK_IS_ADULT) {
                 return 1;
             }
@@ -513,7 +513,7 @@ void EnMd_UpdateEyes(EnMd* this) {
     if (DECR(this->blinkTimer) == 0) {
         this->eyeIdx++;
         if (this->eyeIdx > 2) {
-            this->blinkTimer = Rand_S16Offset(30, 30);
+            this->blinkTimer = OoT_Rand_S16Offset(30, 30);
             this->eyeIdx = 0;
         }
     }
@@ -531,7 +531,7 @@ void func_80AAB158(EnMd* this, PlayState* play) {
         absYawDiff = ABS(yawDiff);
 
         trackingMode =
-            absYawDiff <= Npc_GetTrackingPresetMaxPlayerYaw(2) ? NPC_TRACKING_HEAD_AND_TORSO : NPC_TRACKING_NONE;
+            absYawDiff <= OoT_Npc_GetTrackingPresetMaxPlayerYaw(2) ? NPC_TRACKING_HEAD_AND_TORSO : NPC_TRACKING_NONE;
         temp2 = 1;
     } else {
         trackingMode = NPC_TRACKING_NONE;
@@ -560,10 +560,10 @@ void func_80AAB158(EnMd* this, PlayState* play) {
         this->interactInfo.yOffset = (gSaveContext.linkAge > 0) ? 0.0f : -18.0f;
     }
 
-    Npc_TrackPoint(&this->actor, &this->interactInfo, 2, trackingMode);
+    OoT_Npc_TrackPoint(&this->actor, &this->interactInfo, 2, trackingMode);
     if (this->actionFunc != func_80AABC10) {
         if (temp2) {
-            Npc_UpdateTalking(play, &this->actor, &this->interactInfo.talkState, this->collider.dim.radius + 30.0f,
+            OoT_Npc_UpdateTalking(play, &this->actor, &this->interactInfo.talkState, this->collider.dim.radius + 30.0f,
                               EnMd_GetText, func_80AAAF04);
         }
     }
@@ -585,7 +585,7 @@ u8 EnMd_FollowPath(EnMd* this, PlayState* play) {
 
     pathDiffX = pointPos->x - this->actor.world.pos.x;
     pathDiffZ = pointPos->z - this->actor.world.pos.z;
-    Math_SmoothStepToS(&this->actor.world.rot.y, Math_FAtan2F(pathDiffX, pathDiffZ) * (65536.0f / (2 * M_PI)), 4, 4000,
+    OoT_Math_SmoothStepToS(&this->actor.world.rot.y, OoT_Math_FAtan2F(pathDiffX, pathDiffZ) * (65536.0f / (2 * M_PI)), 4, 4000,
                        1);
 
     if ((SQ(pathDiffX) + SQ(pathDiffZ)) < 100.0f) {
@@ -623,13 +623,13 @@ void func_80AAB5A4(EnMd* this, PlayState* play) {
     if (play->sceneNum != SCENE_MIDOS_HOUSE) {
         if (CVarGetInteger(CVAR_ENHANCEMENT("DisableKokiriDrawDistance"), 0) != 0) {
             temp = (GameInteractor_Should(VB_MIDO_CONSIDER_DEKU_TREE_DEAD, CHECK_QUEST_ITEM(QUEST_KOKIRI_EMERALD)) &&
-                    !Flags_GetEventChkInf(EVENTCHKINF_SPOKE_TO_MIDO_AFTER_DEKU_TREES_DEATH) &&
+                    !OoT_Flags_GetEventChkInf(EVENTCHKINF_SPOKE_TO_MIDO_AFTER_DEKU_TREES_DEATH) &&
                     (play->sceneNum == SCENE_KOKIRI_FOREST))
                        ? 100.0f
                        : 32767.0f;
         } else {
             temp = (GameInteractor_Should(VB_MIDO_CONSIDER_DEKU_TREE_DEAD, CHECK_QUEST_ITEM(QUEST_KOKIRI_EMERALD)) &&
-                    !Flags_GetEventChkInf(EVENTCHKINF_SPOKE_TO_MIDO_AFTER_DEKU_TREES_DEATH) &&
+                    !OoT_Flags_GetEventChkInf(EVENTCHKINF_SPOKE_TO_MIDO_AFTER_DEKU_TREES_DEATH) &&
                     (play->sceneNum == SCENE_KOKIRI_FOREST))
                        ? 100.0f
                        : 400.0f;
@@ -647,29 +647,29 @@ void EnMd_Init(Actor* thisx, PlayState* play) {
     EnMd* this = (EnMd*)thisx;
     s32 pad;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 24.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gMidoSkel, NULL, this->jointTable, this->morphTable, 17);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 24.0f);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gMidoSkel, NULL, this->jointTable, this->morphTable, 17);
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, NULL, &sColChkInfoInit);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
+    OoT_CollisionCheck_SetInfo2(&this->actor.colChkInfo, NULL, &OoT_sColChkInfoInit);
     if (!GameInteractor_Should(VB_MIDO_SPAWN, EnMd_ShouldSpawn(this, play), this)) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
 
-    Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENMD_ANIM_0);
-    Actor_SetScale(&this->actor, 0.01f);
+    Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENMD_ANIM_0);
+    OoT_Actor_SetScale(&this->actor, 0.01f);
     this->actor.targetMode = 6;
     this->alpha = 255;
-    Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_ELF, this->actor.world.pos.x,
+    OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_ELF, this->actor.world.pos.x,
                        this->actor.world.pos.y, this->actor.world.pos.z, 0, 0, 0, FAIRY_KOKIRI);
 
-    if (((play->sceneNum == SCENE_KOKIRI_FOREST) && !Flags_GetEventChkInf(EVENTCHKINF_SHOWED_MIDO_SWORD_SHIELD)) ||
-        ((play->sceneNum == SCENE_KOKIRI_FOREST) && Flags_GetEventChkInf(EVENTCHKINF_SHOWED_MIDO_SWORD_SHIELD) &&
+    if (((play->sceneNum == SCENE_KOKIRI_FOREST) && !OoT_Flags_GetEventChkInf(EVENTCHKINF_SHOWED_MIDO_SWORD_SHIELD)) ||
+        ((play->sceneNum == SCENE_KOKIRI_FOREST) && OoT_Flags_GetEventChkInf(EVENTCHKINF_SHOWED_MIDO_SWORD_SHIELD) &&
          GameInteractor_Should(VB_MIDO_CONSIDER_DEKU_TREE_DEAD, CHECK_QUEST_ITEM(QUEST_KOKIRI_EMERALD))) ||
         ((play->sceneNum == SCENE_LOST_WOODS) &&
-         !Flags_GetEventChkInf(EVENTCHKINF_PLAYED_SARIAS_SONG_FOR_MIDO_AS_ADULT))) {
+         !OoT_Flags_GetEventChkInf(EVENTCHKINF_PLAYED_SARIAS_SONG_FOR_MIDO_AS_ADULT))) {
         this->actor.home.pos = this->actor.world.pos;
         this->actionFunc = func_80AAB948;
         return;
@@ -684,7 +684,7 @@ void EnMd_Init(Actor* thisx, PlayState* play) {
 
 void EnMd_Destroy(Actor* thisx, PlayState* play) {
     EnMd* this = (EnMd*)thisx;
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
@@ -718,13 +718,13 @@ void func_80AAB948(EnMd* this, PlayState* play) {
         this->actor.world.rot.y = this->actor.yawTowardsPlayer;
         this->actor.shape.rot.y = this->actor.yawTowardsPlayer;
 
-        yaw = Math_Vec3f_Yaw(&this->actor.home.pos, &actorToBlock->world.pos);
+        yaw = OoT_Math_Vec3f_Yaw(&this->actor.home.pos, &actorToBlock->world.pos);
 
         this->actor.world.pos.x = this->actor.home.pos.x;
-        this->actor.world.pos.x += 60.0f * Math_SinS(yaw);
+        this->actor.world.pos.x += 60.0f * OoT_Math_SinS(yaw);
 
         this->actor.world.pos.z = this->actor.home.pos.z;
-        this->actor.world.pos.z += 60.0f * Math_CosS(yaw);
+        this->actor.world.pos.z += 60.0f * OoT_Math_CosS(yaw);
 
         temp = fabsf((f32)this->actor.yawTowardsPlayer - yaw) * 0.001f * 3.0f;
         this->skelAnime.playSpeed = CLAMP(temp, 1.0f, 3.0f);
@@ -735,16 +735,16 @@ void func_80AAB948(EnMd* this, PlayState* play) {
          play->sceneNum == SCENE_KOKIRI_FOREST) ||
         this->interactInfo.talkState == NPC_TALK_STATE_ACTION) {
         if (GameInteractor_Should(VB_MIDO_CONSIDER_DEKU_TREE_DEAD, CHECK_QUEST_ITEM(QUEST_KOKIRI_EMERALD)) &&
-            !Flags_GetEventChkInf(EVENTCHKINF_SPOKE_TO_MIDO_AFTER_DEKU_TREES_DEATH) &&
+            !OoT_Flags_GetEventChkInf(EVENTCHKINF_SPOKE_TO_MIDO_AFTER_DEKU_TREES_DEATH) &&
             (play->sceneNum == SCENE_KOKIRI_FOREST)) {
             play->msgCtx.msgMode = MSGMODE_PAUSED;
         }
 
         if (play->sceneNum == SCENE_KOKIRI_FOREST) {
-            Flags_SetEventChkInf(EVENTCHKINF_SHOWED_MIDO_SWORD_SHIELD);
+            OoT_Flags_SetEventChkInf(EVENTCHKINF_SHOWED_MIDO_SWORD_SHIELD);
         }
         if (play->sceneNum == SCENE_LOST_WOODS) {
-            Flags_SetEventChkInf(EVENTCHKINF_PLAYED_SARIAS_SONG_FOR_MIDO_AS_ADULT);
+            OoT_Flags_SetEventChkInf(EVENTCHKINF_PLAYED_SARIAS_SONG_FOR_MIDO_AS_ADULT);
         }
 
         func_80AAA92C(this, 3);
@@ -782,8 +782,8 @@ void func_80AABC10(EnMd* this, PlayState* play) {
         this->actionFunc = func_80AAB948;
         play->msgCtx.ocarinaMode = OCARINA_MODE_04;
     } else if (play->msgCtx.ocarinaMode == OCARINA_MODE_03) {
-        Audio_PlaySoundGeneral(NA_SE_SY_CORRECT_CHIME, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_SY_CORRECT_CHIME, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         this->actor.textId = 0x1067;
         func_8002F2CC(&this->actor, play, this->collider.dim.radius + 30.0f);
 
@@ -804,11 +804,11 @@ void func_80AABD0C(EnMd* this, PlayState* play) {
     }
 
     if (GameInteractor_Should(VB_MIDO_CONSIDER_DEKU_TREE_DEAD, CHECK_QUEST_ITEM(QUEST_KOKIRI_EMERALD)) &&
-        !Flags_GetEventChkInf(EVENTCHKINF_SPOKE_TO_MIDO_AFTER_DEKU_TREES_DEATH) &&
+        !OoT_Flags_GetEventChkInf(EVENTCHKINF_SPOKE_TO_MIDO_AFTER_DEKU_TREES_DEATH) &&
         (play->sceneNum == SCENE_KOKIRI_FOREST)) {
-        Message_CloseTextbox(play);
-        Flags_SetEventChkInf(EVENTCHKINF_SPOKE_TO_MIDO_AFTER_DEKU_TREES_DEATH);
-        Actor_Kill(&this->actor);
+        OoT_Message_CloseTextbox(play);
+        OoT_Flags_SetEventChkInf(EVENTCHKINF_SPOKE_TO_MIDO_AFTER_DEKU_TREES_DEATH);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
 
@@ -824,14 +824,14 @@ void EnMd_Update(Actor* thisx, PlayState* play) {
     EnMd* this = (EnMd*)thisx;
     s32 pad;
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-    SkelAnime_Update(&this->skelAnime);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_SkelAnime_Update(&this->skelAnime);
     EnMd_UpdateEyes(this);
     func_80AAB5A4(this, play);
     Actor_MoveXZGravity(&this->actor);
     func_80AAB158(this, play);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
     this->actionFunc(this, play);
 }
 
@@ -840,11 +840,11 @@ s32 EnMd_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* po
     Vec3s vec;
 
     if (limbIndex == 16) {
-        Matrix_Translate(1200.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+        OoT_Matrix_Translate(1200.0f, 0.0f, 0.0f, MTXMODE_APPLY);
         vec = this->interactInfo.headRot;
         Matrix_RotateX((vec.y / 32768.0f) * M_PI, MTXMODE_APPLY);
         Matrix_RotateZ((vec.x / 32768.0f) * M_PI, MTXMODE_APPLY);
-        Matrix_Translate(-1200.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+        OoT_Matrix_Translate(-1200.0f, 0.0f, 0.0f, MTXMODE_APPLY);
     }
     if (limbIndex == 9) {
         vec = this->interactInfo.torsoRot;
@@ -853,8 +853,8 @@ s32 EnMd_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* po
     }
 
     if (((limbIndex == 9) || (limbIndex == 10)) || (limbIndex == 13)) {
-        rot->y += Math_SinS(this->unk_214[limbIndex]) * 200.0f;
-        rot->z += Math_CosS(this->unk_236[limbIndex]) * 200.0f;
+        rot->y += OoT_Math_SinS(this->unk_214[limbIndex]) * 200.0f;
+        rot->z += OoT_Math_CosS(this->unk_236[limbIndex]) * 200.0f;
     }
 
     return false;
@@ -865,12 +865,12 @@ void EnMd_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
     Vec3f vec = { 400.0f, 0.0f, 0.0f };
 
     if (limbIndex == 16) {
-        Matrix_MultVec3f(&vec, &this->actor.focus.pos);
+        OoT_Matrix_MultVec3f(&vec, &this->actor.focus.pos);
     }
 }
 
 void EnMd_Draw(Actor* thisx, PlayState* play) {
-    static void* sEyeTextures[] = {
+    static void* OoT_sEyeTextures[] = {
         gMidoEyeOpenTex,
         gMidoEyeHalfTex,
         gMidoEyeClosedTex,
@@ -880,10 +880,10 @@ void EnMd_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     if (this->alpha == 255) {
-        gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(sEyeTextures[this->eyeIdx]));
+        gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(OoT_sEyeTextures[this->eyeIdx]));
         func_80034BA0(play, &this->skelAnime, EnMd_OverrideLimbDraw, EnMd_PostLimbDraw, &this->actor, this->alpha);
     } else if (this->alpha != 0) {
-        gSPSegment(POLY_XLU_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(sEyeTextures[this->eyeIdx]));
+        gSPSegment(POLY_XLU_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(OoT_sEyeTextures[this->eyeIdx]));
         func_80034CC4(play, &this->skelAnime, EnMd_OverrideLimbDraw, EnMd_PostLimbDraw, &this->actor, this->alpha);
     }
 

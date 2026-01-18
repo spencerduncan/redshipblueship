@@ -1,7 +1,7 @@
 #include "global.h"
 #include "z64sound_source.h"
 
-void SoundSource_InitAll(PlayState* play) {
+void MM_SoundSource_InitAll(PlayState* play) {
     SoundSource* sources = &play->soundSources[0];
     s32 i;
 
@@ -10,7 +10,7 @@ void SoundSource_InitAll(PlayState* play) {
     // clang-format on
 }
 
-void SoundSource_UpdateAll(PlayState* play) {
+void MM_SoundSource_UpdateAll(PlayState* play) {
     SoundSource* source = &play->soundSources[0];
     s32 i;
 
@@ -19,7 +19,7 @@ void SoundSource_UpdateAll(PlayState* play) {
             if (DECR(source->countdown) == 0) {
                 AudioSfx_StopByPos(&source->projectedPos);
             } else {
-                SkinMatrix_Vec3fMtxFMultXYZ(&play->viewProjectionMtxF, &source->worldPos, &source->projectedPos);
+                MM_SkinMatrix_Vec3fMtxFMultXYZ(&play->viewProjectionMtxF, &source->worldPos, &source->projectedPos);
                 if (source->playSfxEachFrame) {
                     Audio_PlaySfx_AtPos(&source->projectedPos, source->sfxId);
                 }
@@ -63,11 +63,11 @@ void SoundSource_Add(PlayState* play, Vec3f* worldPos, u32 duration, u16 sfxId, 
     source->playSfxEachFrame = playSfxEachFrame;
     source->sfxId = sfxId;
 
-    SkinMatrix_Vec3fMtxFMultXYZ(&play->viewProjectionMtxF, &source->worldPos, &source->projectedPos);
+    MM_SkinMatrix_Vec3fMtxFMultXYZ(&play->viewProjectionMtxF, &source->worldPos, &source->projectedPos);
     Audio_PlaySfx_AtPos(&source->projectedPos, sfxId);
 }
 
-void SoundSource_PlaySfxAtFixedWorldPos(PlayState* play, Vec3f* worldPos, u32 duration, u16 sfxId) {
+void MM_SoundSource_PlaySfxAtFixedWorldPos(PlayState* play, Vec3f* worldPos, u32 duration, u16 sfxId) {
     SoundSource_Add(play, worldPos, duration, sfxId, false);
 }
 

@@ -59,7 +59,7 @@ typedef enum {
     /* 0xF */ EN_NEO_REEBA_DMGEFF_SHATTER         // Normal hit that can break ice if leever is frozen
 } EnNeoReebaDamageEffect;
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(0, EN_NEO_REEBA_DMGEFF_IMMUNE),
     /* Deku Stick     */ DMG_ENTRY(1, EN_NEO_REEBA_DMGEFF_NONE),
     /* Horse trample  */ DMG_ENTRY(1, EN_NEO_REEBA_DMGEFF_SHATTER),
@@ -94,7 +94,7 @@ static DamageTable sDamageTable = {
     /* Powder Keg     */ DMG_ENTRY(1, EN_NEO_REEBA_DMGEFF_SHATTER),
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HIT5,
         AT_ON | AT_TYPE_ENEMY,
@@ -117,21 +117,21 @@ static ColliderCylinderInit sCylinderInit = {
 void EnNeoReeba_Init(Actor* thisx, PlayState* play) {
     EnNeoReeba* this = (EnNeoReeba*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 0.0f);
-    SkelAnime_Init(play, &this->skelAnime, &gLeeverSkel, &gLeeverSpinAnim, this->jointTable, this->morphTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 0.0f);
+    MM_SkelAnime_Init(play, &this->skelAnime, &gLeeverSkel, &gLeeverSpinAnim, this->jointTable, this->morphTable,
                    LEEVER_LIMB_MAX);
 
     if (!EN_NEO_REEBA_IS_LARGE(&this->actor)) {
-        Actor_SetScale(&this->actor, 0.04f);
+        MM_Actor_SetScale(&this->actor, 0.04f);
         this->actor.colChkInfo.mass = 90;
         this->actor.colChkInfo.health = 1;
     } else {
-        Actor_SetScale(&this->actor, 0.05f);
+        MM_Actor_SetScale(&this->actor, 0.05f);
         this->actor.colChkInfo.mass = 180;
         this->actor.colChkInfo.health = 3;
     }
 
-    this->actor.colChkInfo.damageTable = &sDamageTable;
+    this->actor.colChkInfo.damageTable = &MM_sDamageTable;
     this->actor.attentionRangeType = ATTENTION_RANGE_2;
     this->actor.hintId = TATL_HINT_ID_LEEVER;
     this->actor.gravity = -0.5f;
@@ -146,8 +146,8 @@ void EnNeoReeba_Init(Actor* thisx, PlayState* play) {
     this->sinkRiseRate = 0.0f;
     this->rotationSpeed = 0.0f;
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
 
     EnNeoReeba_SetupWaitUnderground(this);
 }
@@ -155,7 +155,7 @@ void EnNeoReeba_Init(Actor* thisx, PlayState* play) {
 void EnNeoReeba_Destroy(Actor* thisx, PlayState* play) {
     EnNeoReeba* this = (EnNeoReeba*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnNeoReeba_SetupWaitUnderground(EnNeoReeba* this) {
@@ -170,8 +170,8 @@ void EnNeoReeba_WaitUnderground(EnNeoReeba* this, PlayState* play) {
     s32 pad;
     Player* player = GET_PLAYER(play);
 
-    if ((Actor_WorldDistXZToPoint(&player->actor, &this->actor.home.pos) < 200.0f) &&
-        (Player_GetMask(play) != PLAYER_MASK_STONE) && (fabsf(this->actor.playerHeightRel) < 100.0f)) {
+    if ((MM_Actor_WorldDistXZToPoint(&player->actor, &this->actor.home.pos) < 200.0f) &&
+        (MM_Player_GetMask(play) != PLAYER_MASK_STONE) && (fabsf(this->actor.playerHeightRel) < 100.0f)) {
         EnNeoReeba_SetupRise(this);
     }
 
@@ -198,15 +198,15 @@ void EnNeoReeba_SetupChooseAction(EnNeoReeba* this) {
 
 void EnNeoReeba_ChooseAction(EnNeoReeba* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
-    f32 distToPlayer = Actor_WorldDistXZToPoint(&player->actor, &this->actor.home.pos);
+    f32 distToPlayer = MM_Actor_WorldDistXZToPoint(&player->actor, &this->actor.home.pos);
 
     if ((distToPlayer > 200.0f) || (fabsf(this->actor.playerHeightRel) > 100.0f)) {
         EnNeoReeba_SetupSink(this);
     } else if (this->actionTimer == 0) {
         if ((distToPlayer < 140.0f) && (fabsf(this->actor.playerHeightRel) < 100.0f)) {
             this->targetPos = player->actor.world.pos;
-            this->targetPos.x += 10.0f * player->actor.speed * Math_SinS(player->actor.world.rot.y);
-            this->targetPos.z += 10.0f * player->actor.speed * Math_CosS(player->actor.world.rot.y);
+            this->targetPos.x += 10.0f * player->actor.speed * MM_Math_SinS(player->actor.world.rot.y);
+            this->targetPos.z += 10.0f * player->actor.speed * MM_Math_CosS(player->actor.world.rot.y);
             EnNeoReeba_SetupMove(this);
         } else {
             EnNeoReeba_SetupReturnHome(this);
@@ -226,10 +226,10 @@ void EnNeoReeba_SetupSink(EnNeoReeba* this) {
 }
 
 void EnNeoReeba_Sink(EnNeoReeba* this, PlayState* play) {
-    if (Math_SmoothStepToF(&this->actor.shape.yOffset, -2000.0f, 0.5f, this->sinkRiseRate, 10.0f) == 0.0f) {
+    if (MM_Math_SmoothStepToF(&this->actor.shape.yOffset, -2000.0f, 0.5f, this->sinkRiseRate, 10.0f) == 0.0f) {
         EnNeoReeba_SetupWaitUnderground(this);
     } else if ((play->gameplayFrames % 4) == 0) {
-        Actor_SpawnFloorDustRing(play, &this->actor, &this->actor.world.pos, this->actor.shape.shadowScale, 1, 8.0f,
+        MM_Actor_SpawnFloorDustRing(play, &this->actor, &this->actor.world.pos, this->actor.shape.shadowScale, 1, 8.0f,
                                  500, 10, true);
     }
 
@@ -237,7 +237,7 @@ void EnNeoReeba_Sink(EnNeoReeba* this, PlayState* play) {
         this->sinkRiseRate += 20.0f;
     }
 
-    Math_ApproachF(&this->actor.shape.shadowScale, 0.0f, 1.0f, 1.0f);
+    MM_Math_ApproachF(&this->actor.shape.shadowScale, 0.0f, 1.0f, 1.0f);
 }
 
 void EnNeoReeba_SetupRise(EnNeoReeba* this) {
@@ -250,10 +250,10 @@ void EnNeoReeba_SetupRise(EnNeoReeba* this) {
 }
 
 void EnNeoReeba_RiseOutOfGround(EnNeoReeba* this, PlayState* play) {
-    if (Math_SmoothStepToF(&this->actor.shape.yOffset, 0.0f, 0.5f, this->sinkRiseRate, 10.0f) == 0.0f) {
+    if (MM_Math_SmoothStepToF(&this->actor.shape.yOffset, 0.0f, 0.5f, this->sinkRiseRate, 10.0f) == 0.0f) {
         EnNeoReeba_SetupChooseAction(this);
     } else if (play->gameplayFrames % 4 == 0) {
-        Actor_SpawnFloorDustRing(play, &this->actor, &this->actor.world.pos, this->actor.shape.shadowScale, 1, 8.0f,
+        MM_Actor_SpawnFloorDustRing(play, &this->actor, &this->actor.world.pos, this->actor.shape.shadowScale, 1, 8.0f,
                                  500, 10, true);
     }
 
@@ -261,7 +261,7 @@ void EnNeoReeba_RiseOutOfGround(EnNeoReeba* this, PlayState* play) {
         this->sinkRiseRate -= 10.0f;
     }
 
-    Math_ApproachF(&this->actor.shape.shadowScale, 12.0f, 1.0f, 1.0f);
+    MM_Math_ApproachF(&this->actor.shape.shadowScale, 12.0f, 1.0f, 1.0f);
 }
 
 void EnNeoReeba_SetupMove(EnNeoReeba* this) {
@@ -276,7 +276,7 @@ void EnNeoReeba_SetupMove(EnNeoReeba* this) {
 void EnNeoReeba_Move(EnNeoReeba* this, PlayState* play) {
     f32 remainingDist = Math_Vec3f_StepToXZ(&this->actor.world.pos, &this->targetPos, this->actor.speed);
 
-    Actor_SpawnFloorDustRing(play, &this->actor, &this->actor.world.pos, this->actor.shape.shadowScale, 1, 4.0f, 0xFA,
+    MM_Actor_SpawnFloorDustRing(play, &this->actor, &this->actor.world.pos, this->actor.shape.shadowScale, 1, 4.0f, 0xFA,
                              10, true);
 
     if (remainingDist < 2.0f) {
@@ -315,7 +315,7 @@ void EnNeoReeba_ReturnHome(EnNeoReeba* this, PlayState* play) {
         this->actor.speed -= 1.0f;
     }
 
-    if ((Actor_WorldDistXZToPoint(&player->actor, &this->actor.home.pos) > 200.0f) ||
+    if ((MM_Actor_WorldDistXZToPoint(&player->actor, &this->actor.home.pos) > 200.0f) ||
         (fabsf(this->actor.playerHeightRel) > 100.0f)) {
         EnNeoReeba_SetupSink(this);
     }
@@ -324,8 +324,8 @@ void EnNeoReeba_ReturnHome(EnNeoReeba* this, PlayState* play) {
 void EnNeoReeba_SetupBounce(EnNeoReeba* this) {
     this->actionTimer = 60;
     this->targetPos = this->actor.world.pos;
-    this->targetPos.x -= 20.0f * Math_SinS(this->actor.yawTowardsPlayer);
-    this->targetPos.z -= 20.0f * Math_CosS(this->actor.yawTowardsPlayer);
+    this->targetPos.x -= 20.0f * MM_Math_SinS(this->actor.yawTowardsPlayer);
+    this->targetPos.z -= 20.0f * MM_Math_CosS(this->actor.yawTowardsPlayer);
     this->actionFunc = EnNeoReeba_Bounce;
 }
 
@@ -401,10 +401,10 @@ void EnNeoReeba_Frozen(EnNeoReeba* this, PlayState* play) {
 void EnNeoReeba_SetupDamageAnim(EnNeoReeba* this) {
     this->actionTimer = 10;
     this->skelAnime.playSpeed = 1.0f;
-    this->velToTarget.x = Math_SinS(this->actor.yawTowardsPlayer) * -12.0f;
-    this->velToTarget.z = Math_CosS(this->actor.yawTowardsPlayer) * -12.0f;
+    this->velToTarget.x = MM_Math_SinS(this->actor.yawTowardsPlayer) * -12.0f;
+    this->velToTarget.z = MM_Math_CosS(this->actor.yawTowardsPlayer) * -12.0f;
     this->rotationSpeed = 4551.0f;
-    Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 25);
+    MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 25);
     Actor_PlaySfx(&this->actor, NA_SE_EN_RIVA_DAMAGE);
     this->actionFunc = EnNeoReeba_DamageAnim;
 }
@@ -420,7 +420,7 @@ void EnNeoReeba_DamageAnim(EnNeoReeba* this, PlayState* play) {
         EnNeoReeba_SetupChooseAction(this);
     } else {
         this->rotationAngle -= 0x1F40;
-        Math_SmoothStepToF(&this->rotationSpeed, 0.0f, 0.5f, 182.0f, 18.0f);
+        MM_Math_SmoothStepToF(&this->rotationSpeed, 0.0f, 0.5f, 182.0f, 18.0f);
         this->actor.scale.x = this->actor.scale.z = sDamageAnimXZScales[this->actionTimer];
         this->actor.scale.y = sDamageAnimYScales[this->actionTimer];
 
@@ -430,7 +430,7 @@ void EnNeoReeba_DamageAnim(EnNeoReeba* this, PlayState* play) {
             this->actor.scale.z *= 1.5f;
         }
 
-        Actor_SpawnFloorDustRing(play, &this->actor, &this->actor.world.pos, this->actor.shape.shadowScale, 1, 4.0f,
+        MM_Actor_SpawnFloorDustRing(play, &this->actor, &this->actor.world.pos, this->actor.shape.shadowScale, 1, 4.0f,
                                  250, 10, true);
         this->actionTimer--;
     }
@@ -439,11 +439,11 @@ void EnNeoReeba_DamageAnim(EnNeoReeba* this, PlayState* play) {
 void EnNeoReeba_SetupDeathEffects(EnNeoReeba* this) {
     this->actionTimer = 10;
 
-    this->velToTarget.x = Math_SinS(this->actor.yawTowardsPlayer) * -12.0f;
-    this->velToTarget.z = Math_CosS(this->actor.yawTowardsPlayer) * -12.0f;
+    this->velToTarget.x = MM_Math_SinS(this->actor.yawTowardsPlayer) * -12.0f;
+    this->velToTarget.z = MM_Math_CosS(this->actor.yawTowardsPlayer) * -12.0f;
 
     this->rotationSpeed = 3640.0f;
-    Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 25);
+    MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 25);
     this->actor.flags |= ACTOR_FLAG_LOCK_ON_DISABLED;
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
 
@@ -456,16 +456,16 @@ void EnNeoReeba_PlayDeathEffects(EnNeoReeba* this, PlayState* play) {
     static Vec3f sDeadDbAccel = { 0.0f, 4.0f, 0.0f };
 
     if (this->actionTimer == 0) {
-        Math_ApproachZeroF(&this->actor.scale.x, 0.1f, 0.01f);
-        Math_ApproachZeroF(&this->actor.scale.y, 0.1f, 0.01f);
-        Math_ApproachZeroF(&this->actor.scale.z, 0.1f, 0.01f);
-        Math_ApproachZeroF(&this->drawEffectAlpha, 0.1f, 0.1f);
-        Math_ApproachZeroF(&this->drawEffectScale, 0.1f, 0.1f);
+        MM_Math_ApproachZeroF(&this->actor.scale.x, 0.1f, 0.01f);
+        MM_Math_ApproachZeroF(&this->actor.scale.y, 0.1f, 0.01f);
+        MM_Math_ApproachZeroF(&this->actor.scale.z, 0.1f, 0.01f);
+        MM_Math_ApproachZeroF(&this->drawEffectAlpha, 0.1f, 0.1f);
+        MM_Math_ApproachZeroF(&this->drawEffectScale, 0.1f, 0.1f);
 
         if (this->actor.scale.x < 0.01f) {
             func_800B3030(play, &this->actor.world.pos, &sDeadDbAccel, &sDeadDbVel, 120, 0, 0);
-            Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos, 0x60);
-            Actor_Kill(&this->actor);
+            MM_Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos, 0x60);
+            MM_Actor_Kill(&this->actor);
         }
     } else {
         if (this->actionTimer <= 10) {
@@ -487,7 +487,7 @@ void EnNeoReeba_PlayDeathEffects(EnNeoReeba* this, PlayState* play) {
                 target *= 1.5f;
             }
 
-            Math_SmoothStepToF(&this->drawEffectScale, target, 0.5f, 0.3f, 0.0f);
+            MM_Math_SmoothStepToF(&this->drawEffectScale, target, 0.5f, 0.3f, 0.0f);
         } else {
             f32 target = 1.6f;
 
@@ -495,14 +495,14 @@ void EnNeoReeba_PlayDeathEffects(EnNeoReeba* this, PlayState* play) {
                 target *= 1.5f;
             }
 
-            Math_SmoothStepToF(&this->drawEffectScale, target, 0.5f, 0.3f, 0.0f);
+            MM_Math_SmoothStepToF(&this->drawEffectScale, target, 0.5f, 0.3f, 0.0f);
         }
         this->actionTimer--;
     }
 }
 
 void EnNeoReeba_HandleHit(EnNeoReeba* this, PlayState* play) {
-    Actor_SetFocus(&this->actor, 20.0f);
+    MM_Actor_SetFocus(&this->actor, 20.0f);
 
     if (this->collider.base.acFlags & AC_HIT) {
         this->collider.base.acFlags &= ~AC_HIT;
@@ -524,7 +524,7 @@ void EnNeoReeba_HandleHit(EnNeoReeba* this, PlayState* play) {
             }
         }
 
-        Actor_ApplyDamage(&this->actor);
+        MM_Actor_ApplyDamage(&this->actor);
 
         switch (this->actor.colChkInfo.damageEffect) {
             case EN_NEO_REEBA_DMGEFF_FREEZE:
@@ -552,7 +552,7 @@ void EnNeoReeba_HandleHit(EnNeoReeba* this, PlayState* play) {
                 if (this->actor.colChkInfo.health > 0) {
                     EnNeoReeba_SetupDamageAnim(this);
                 } else {
-                    Enemy_StartFinishingBlow(play, &this->actor);
+                    MM_Enemy_StartFinishingBlow(play, &this->actor);
                     EnNeoReeba_SetupDeathEffects(this);
                 }
                 break;
@@ -562,12 +562,12 @@ void EnNeoReeba_HandleHit(EnNeoReeba* this, PlayState* play) {
                 this->stunTimer = 40;
                 this->drawEffectAlpha = 1.0f;
                 this->drawEffectScale = 2.0f;
-                Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_BLUE, 120, COLORFILTER_BUFFLAG_OPA, 40);
+                MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_BLUE, 120, COLORFILTER_BUFFLAG_OPA, 40);
                 EnNeoReeba_SetupStun(this);
                 break;
 
             case EN_NEO_REEBA_DMGEFF_STUN:
-                Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_BLUE, 120, COLORFILTER_BUFFLAG_OPA, 40);
+                MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_BLUE, 120, COLORFILTER_BUFFLAG_OPA, 40);
                 EnNeoReeba_SetupStun(this);
                 break;
 
@@ -582,12 +582,12 @@ void EnNeoReeba_HandleHit(EnNeoReeba* this, PlayState* play) {
     if ((this->actionFunc != EnNeoReeba_WaitUnderground) && (this->actionFunc != EnNeoReeba_Sink) &&
         (this->actionFunc != EnNeoReeba_RiseOutOfGround) && (this->actionFunc != EnNeoReeba_DamageAnim) &&
         (this->actionFunc != EnNeoReeba_PlayDeathEffects)) {
-        Collider_UpdateCylinder(&this->actor, &this->collider);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
 
         if (this->actionFunc != EnNeoReeba_Stunned) {
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+            MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
         }
     }
 }
@@ -604,9 +604,9 @@ void EnNeoReeba_UpdatePosition(EnNeoReeba* this, PlayState* play) {
         this->actor.world.pos.x += this->velToTarget.x;
         this->actor.world.pos.z += this->velToTarget.z;
 
-        Math_ApproachZeroF(&this->velToTarget.x, 1.0f, 2.0f);
-        Math_ApproachZeroF(&this->velToTarget.z, 1.0f, 2.0f);
-        Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 40.0f, 40.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
+        MM_Math_ApproachZeroF(&this->velToTarget.x, 1.0f, 2.0f);
+        MM_Math_ApproachZeroF(&this->velToTarget.z, 1.0f, 2.0f);
+        MM_Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 40.0f, 40.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
     }
 }
 
@@ -625,8 +625,8 @@ void EnNeoReeba_DrawFrozenEffects(EnNeoReeba* this, PlayState* play) {
     for (i = 0; i <= EN_NEO_REEBA_BODYPART_2; i++) {
         this->bodyPartsPos[i] = this->actor.world.pos;
 
-        this->bodyPartsPos[i].x += bodyPartPosScaleXZ * Math_SinS(BINANG_ADD(this->actor.shape.rot.y, i * 0x5555));
-        this->bodyPartsPos[i].z += bodyPartPosScaleXZ * Math_CosS(BINANG_ADD(this->actor.shape.rot.y, i * 0x5555));
+        this->bodyPartsPos[i].x += bodyPartPosScaleXZ * MM_Math_SinS(BINANG_ADD(this->actor.shape.rot.y, i * 0x5555));
+        this->bodyPartsPos[i].z += bodyPartPosScaleXZ * MM_Math_CosS(BINANG_ADD(this->actor.shape.rot.y, i * 0x5555));
         this->bodyPartsPos[i].y += 5.0f;
     }
 
@@ -650,8 +650,8 @@ void EnNeoReeba_DrawEffects(EnNeoReeba* this, PlayState* play) {
         (this->drawEffectType == ACTOR_DRAW_DMGEFF_ELECTRIC_SPARKS_SMALL)) {
         for (i = 0; i <= EN_NEO_REEBA_BODYPART_2; i++) {
             this->bodyPartsPos[i] = this->actor.world.pos;
-            this->bodyPartsPos[i].x += scale * Math_SinS(BINANG_ADD(this->actor.shape.rot.y, i * 0x5555));
-            this->bodyPartsPos[i].z += scale * Math_CosS(BINANG_ADD(this->actor.shape.rot.y, i * 0x5555));
+            this->bodyPartsPos[i].x += scale * MM_Math_SinS(BINANG_ADD(this->actor.shape.rot.y, i * 0x5555));
+            this->bodyPartsPos[i].z += scale * MM_Math_CosS(BINANG_ADD(this->actor.shape.rot.y, i * 0x5555));
             this->bodyPartsPos[i].y += -20.0f;
         }
 
@@ -675,18 +675,18 @@ void EnNeoReeba_SpawnIce(EnNeoReeba* this, PlayState* play) {
     s16 yaw;
     s32 j;
 
-    SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 30, NA_SE_EV_ICE_BROKEN);
+    MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 30, NA_SE_EV_ICE_BROKEN);
 
     for (i = 0; i < EN_NEO_REEBA_BODYPART_MAX; i++) {
-        yaw = Math_Vec3f_Yaw(&this->actor.world.pos, &this->bodyPartsPos[i]);
-        xVelocity = Math_SinS(yaw) * 3.0f;
-        zVelocity = Math_CosS(yaw) * 3.0f;
+        yaw = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &this->bodyPartsPos[i]);
+        xVelocity = MM_Math_SinS(yaw) * 3.0f;
+        zVelocity = MM_Math_CosS(yaw) * 3.0f;
 
         for (j = 0; j < 4; j++) {
-            iceVelocity.x = (Rand_Centered() * 3.0f) + xVelocity;
-            iceVelocity.z = (Rand_Centered() * 3.0f) + zVelocity;
-            iceVelocity.y = (Rand_ZeroOne() * 6.0f) + 4.0f;
-            EffectSsEnIce_Spawn(play, &this->bodyPartsPos[i], 0.7f, &iceVelocity, &sIceAccel, &sIcePrimColor,
+            iceVelocity.x = (MM_Rand_Centered() * 3.0f) + xVelocity;
+            iceVelocity.z = (MM_Rand_Centered() * 3.0f) + zVelocity;
+            iceVelocity.y = (MM_Rand_ZeroOne() * 6.0f) + 4.0f;
+            MM_EffectSsEnIce_Spawn(play, &this->bodyPartsPos[i], 0.7f, &iceVelocity, &sIceAccel, &sIcePrimColor,
                                 &sIceEnvColor, 30);
         }
     }
@@ -695,7 +695,7 @@ void EnNeoReeba_SpawnIce(EnNeoReeba* this, PlayState* play) {
 void EnNeoReeba_SinkIfStoneMask(EnNeoReeba* this, PlayState* play) {
     if ((this->actionFunc == EnNeoReeba_ChooseAction) || (this->actionFunc == EnNeoReeba_Move) ||
         (this->actionFunc == EnNeoReeba_ReturnHome)) {
-        if (Player_GetMask(play) == PLAYER_MASK_STONE) {
+        if (MM_Player_GetMask(play) == PLAYER_MASK_STONE) {
             EnNeoReeba_SetupSink(this);
         }
     }
@@ -713,7 +713,7 @@ void EnNeoReeba_Update(Actor* thisx, PlayState* play) {
 
     if ((this->actionFunc != EnNeoReeba_WaitUnderground) && (this->actionFunc != EnNeoReeba_Stunned) &&
         (this->actionFunc != EnNeoReeba_Frozen)) {
-        SkelAnime_Update(&this->skelAnime);
+        MM_SkelAnime_Update(&this->skelAnime);
     }
 
     EnNeoReeba_HandleHit(this, play);
@@ -725,8 +725,8 @@ s32 EnNeoReeba_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec
     EnNeoReeba* this = (EnNeoReeba*)thisx;
 
     if ((limbIndex == OBJECT_RB_LIMB_03) && (this->rotationSpeed != 0.0f)) {
-        rot->y += TRUNCF_BINANG(this->rotationSpeed * Math_SinS(this->rotationAngle));
-        rot->z += TRUNCF_BINANG(this->rotationSpeed * Math_CosS(this->rotationAngle));
+        rot->y += TRUNCF_BINANG(this->rotationSpeed * MM_Math_SinS(this->rotationAngle));
+        rot->z += TRUNCF_BINANG(this->rotationSpeed * MM_Math_CosS(this->rotationAngle));
     }
 
     return false;
@@ -740,7 +740,7 @@ void EnNeoReeba_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0x01, 255, 255, 255, 255);
-    SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, EnNeoReeba_OverrideLimbDraw, NULL,
+    MM_SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, EnNeoReeba_OverrideLimbDraw, NULL,
                       &this->actor);
 
     CLOSE_DISPS(play->state.gfxCtx);

@@ -5,10 +5,10 @@
 
 #define FLAGS ACTOR_FLAG_UPDATE_CULLING_DISABLED
 
-void DemoTreLgt_Init(Actor* thisx, PlayState* play);
-void DemoTreLgt_Destroy(Actor* thisx, PlayState* play);
-void DemoTreLgt_Update(Actor* thisx, PlayState* play);
-void DemoTreLgt_Draw(Actor* thisx, PlayState* play);
+void OoT_DemoTreLgt_Init(Actor* thisx, PlayState* play);
+void OoT_DemoTreLgt_Destroy(Actor* thisx, PlayState* play);
+void OoT_DemoTreLgt_Update(Actor* thisx, PlayState* play);
+void OoT_DemoTreLgt_Draw(Actor* thisx, PlayState* play);
 
 void func_80993848(DemoTreLgt* this, PlayState* play);
 void func_80993754(DemoTreLgt* this);
@@ -33,24 +33,24 @@ const ActorInit Demo_Tre_Lgt_InitVars = {
     FLAGS,
     OBJECT_BOX,
     sizeof(DemoTreLgt),
-    (ActorFunc)DemoTreLgt_Init,
-    (ActorFunc)DemoTreLgt_Destroy,
-    (ActorFunc)DemoTreLgt_Update,
-    (ActorFunc)DemoTreLgt_Draw,
+    (ActorFunc)OoT_DemoTreLgt_Init,
+    (ActorFunc)OoT_DemoTreLgt_Destroy,
+    (ActorFunc)OoT_DemoTreLgt_Update,
+    (ActorFunc)OoT_DemoTreLgt_Draw,
     NULL,
 };
 
 static TransformUpdateIndex* sTransformUpdIdx[] = { &gTreasureChestCurveAnim_4B60, &gTreasureChestCurveAnim_4F70 };
 
-static DemoTreLgtActionFunc sActionFuncs[] = {
+static DemoTreLgtActionFunc OoT_sActionFuncs[] = {
     func_8099375C,
     func_80993848,
 };
 
-void DemoTreLgt_Init(Actor* thisx, PlayState* play) {
+void OoT_DemoTreLgt_Init(Actor* thisx, PlayState* play) {
     DemoTreLgt* this = (DemoTreLgt*)thisx;
 
-    if (!SkelCurve_Init(play, &this->skelCurve, &gTreasureChestCurveSkel, sTransformUpdIdx[0])) {
+    if (!OoT_SkelCurve_Init(play, &this->skelCurve, &gTreasureChestCurveSkel, sTransformUpdIdx[0])) {
         // "Demo_Tre_Lgt_Actor_ct (); Construct failed"
         osSyncPrintf("Demo_Tre_Lgt_Actor_ct();コンストラクト失敗\n");
     }
@@ -63,10 +63,10 @@ void DemoTreLgt_Init(Actor* thisx, PlayState* play) {
     func_80993754(this);
 }
 
-void DemoTreLgt_Destroy(Actor* thisx, PlayState* play) {
+void OoT_DemoTreLgt_Destroy(Actor* thisx, PlayState* play) {
     DemoTreLgt* this = (DemoTreLgt*)thisx;
 
-    SkelCurve_Destroy(play, &this->skelCurve);
+    OoT_SkelCurve_Destroy(play, &this->skelCurve);
 }
 
 void func_80993754(DemoTreLgt* this) {
@@ -76,7 +76,7 @@ void func_80993754(DemoTreLgt* this) {
 void func_8099375C(DemoTreLgt* this, PlayState* play) {
     EnBox* treasureChest = (EnBox*)this->actor.parent;
 
-    if (treasureChest != NULL && Animation_OnFrame(&treasureChest->skelanime, 10.0f)) {
+    if (treasureChest != NULL && OoT_Animation_OnFrame(&treasureChest->skelanime, 10.0f)) {
         func_809937B4(this, play, treasureChest->skelanime.curFrame);
     }
 }
@@ -87,10 +87,10 @@ void func_809937B4(DemoTreLgt* this, PlayState* play, f32 currentFrame) {
 
     this->action = DEMO_TRE_LGT_ACTION_ANIMATE;
 
-    SkelCurve_SetAnim(skelCurve, sTransformUpdIdx[gSaveContext.linkAge], 1.0f,
+    OoT_SkelCurve_SetAnim(skelCurve, sTransformUpdIdx[gSaveContext.linkAge], 1.0f,
                       sDemoTreLgtInfo[gSaveContext.linkAge].endFrame + sDemoTreLgtInfo[gSaveContext.linkAge].unk_08,
                       currentFrame, 1.0f);
-    SkelCurve_Update(play, skelCurve);
+    OoT_SkelCurve_Update(play, skelCurve);
 }
 
 void func_80993848(DemoTreLgt* this, PlayState* play) {
@@ -119,18 +119,18 @@ void func_80993848(DemoTreLgt* this, PlayState* play) {
     }
     if ((currentFrame > 30.0f) && !(this->status & 1)) {
         this->status |= 1;
-        Audio_PlaySoundGeneral(NA_SE_EV_TRE_BOX_FLASH, &this->actor.projectedPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_EV_TRE_BOX_FLASH, &this->actor.projectedPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     }
-    if (SkelCurve_Update(play, &this->skelCurve)) {
-        Actor_Kill(&this->actor);
+    if (OoT_SkelCurve_Update(play, &this->skelCurve)) {
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
-void DemoTreLgt_Update(Actor* thisx, PlayState* play) {
+void OoT_DemoTreLgt_Update(Actor* thisx, PlayState* play) {
     DemoTreLgt* this = (DemoTreLgt*)thisx;
 
-    sActionFuncs[this->action](this, play);
+    OoT_sActionFuncs[this->action](this, play);
 }
 
 s32 DemoTreLgt_PostLimbDraw(PlayState* play, SkelAnimeCurve* skelCurve, s32 limbIndex, void* thisx) {
@@ -139,7 +139,7 @@ s32 DemoTreLgt_PostLimbDraw(PlayState* play, SkelAnimeCurve* skelCurve, s32 limb
 
     OPEN_DISPS(play->state.gfxCtx);
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, (play->state.frames * 2) % 256, 0, 64, 32, 1,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, (play->state.frames * 2) % 256, 0, 64, 32, 1,
                                 (play->state.frames * -2) % 256, 0, 64, 32));
 
     if (limbIndex == 1) {
@@ -152,7 +152,7 @@ s32 DemoTreLgt_PostLimbDraw(PlayState* play, SkelAnimeCurve* skelCurve, s32 limb
     return 1;
 }
 
-void DemoTreLgt_Draw(Actor* thisx, PlayState* play) {
+void OoT_DemoTreLgt_Draw(Actor* thisx, PlayState* play) {
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     DemoTreLgt* this = (DemoTreLgt*)thisx;
 
@@ -164,7 +164,7 @@ void DemoTreLgt_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL_25Xlu(gfxCtx);
     gDPSetEnvColor(POLY_XLU_DISP++, 200, 255, 0, 0);
-    SkelCurve_Draw(&this->actor, play, &this->skelCurve, DemoTreLgt_PostLimbDraw, NULL, 1, thisx);
+    OoT_SkelCurve_Draw(&this->actor, play, &this->skelCurve, DemoTreLgt_PostLimbDraw, NULL, 1, thisx);
 
     CLOSE_DISPS(gfxCtx);
 }

@@ -51,11 +51,11 @@ void EnBu_Draw(Actor* thisx, PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
+    MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
     Matrix_RotateZS(this->actor.shape.rot.z, MTXMODE_APPLY);
     Matrix_RotateYS(this->actor.shape.rot.y, MTXMODE_APPLY);
     Matrix_RotateXS(this->actor.shape.rot.x, MTXMODE_APPLY);
-    Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
+    MM_Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     gSPDisplayList(POLY_OPA_DISP++, this->displayListPtr);
 

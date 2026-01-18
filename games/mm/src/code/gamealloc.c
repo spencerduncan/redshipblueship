@@ -2,7 +2,7 @@
 
 #include "system_malloc.h"
 
-void GameAlloc_Log(GameAlloc* this) {
+void MM_GameAlloc_Log(GameAlloc* this) {
     GameAllocEntry* iter = this->base.next;
 
     while (iter != &this->base) {
@@ -10,8 +10,8 @@ void GameAlloc_Log(GameAlloc* this) {
     }
 }
 
-void* GameAlloc_Malloc(GameAlloc* this, size_t size) {
-    GameAllocEntry* ptr = SystemArena_Malloc(size + sizeof(GameAllocEntry));
+void* MM_GameAlloc_Malloc(GameAlloc* this, size_t size) {
+    GameAllocEntry* ptr = MM_SystemArena_Malloc(size + sizeof(GameAllocEntry));
 
     if (ptr != NULL) {
         ptr->size = size;
@@ -26,7 +26,7 @@ void* GameAlloc_Malloc(GameAlloc* this, size_t size) {
     }
 }
 
-void GameAlloc_Free(GameAlloc* this, void* data) {
+void MM_GameAlloc_Free(GameAlloc* this, void* data) {
     GameAllocEntry* ptr;
 
     if (data != NULL) {
@@ -34,18 +34,18 @@ void GameAlloc_Free(GameAlloc* this, void* data) {
         ptr->prev->next = ptr->next;
         ptr->next->prev = ptr->prev;
         this->head = this->base.prev;
-        SystemArena_Free(ptr);
+        MM_SystemArena_Free(ptr);
     }
 }
 
-void GameAlloc_Cleanup(GameAlloc* this) {
+void MM_GameAlloc_Cleanup(GameAlloc* this) {
     GameAllocEntry* next = this->base.next;
     GameAllocEntry* cur;
 
     while (&this->base != next) {
         cur = next;
         next = next->next;
-        SystemArena_Free(cur);
+        MM_SystemArena_Free(cur);
     }
 
     this->head = &this->base;
@@ -53,7 +53,7 @@ void GameAlloc_Cleanup(GameAlloc* this) {
     this->base.prev = &this->base;
 }
 
-void GameAlloc_Init(GameAlloc* this) {
+void MM_GameAlloc_Init(GameAlloc* this) {
     this->head = &this->base;
     this->base.next = &this->base;
     this->base.prev = &this->base;

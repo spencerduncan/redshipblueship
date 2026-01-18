@@ -31,7 +31,7 @@ ActorProfile Obj_Danpeilift_Profile = {
     /**/ ObjDanpeilift_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 200, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 400, ICHAIN_CONTINUE),
@@ -39,7 +39,7 @@ static InitChainEntry sInitChain[] = {
 };
 
 void ObjDanpeilift_UpdatePosition(ObjDanpeilift* this, s32 index) {
-    Math_Vec3s_ToVec3f(&this->dyna.actor.world.pos, &this->pathPoints[index]);
+    MM_Math_Vec3s_ToVec3f(&this->dyna.actor.world.pos, &this->pathPoints[index]);
 }
 
 void ObjDanpeilift_Init(Actor* thisx, PlayState* play) {
@@ -47,15 +47,15 @@ void ObjDanpeilift_Init(Actor* thisx, PlayState* play) {
     ObjDanpeiliftActionFunc tempActionFunc;
     ObjDanpeilift* this = (ObjDanpeilift*)thisx;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
     this->dyna.actor.shape.rot.x = 0;
     this->dyna.actor.world.rot.x = 0;
     this->dyna.actor.shape.rot.z = 0;
     this->dyna.actor.world.rot.z = 0;
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
     DynaPolyActor_LoadMesh(play, &this->dyna, &object_obj_danpeilift_Colheader_000BA0);
     if (this->dyna.bgId == BG_ACTOR_MAX) {
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
         return;
     }
 
@@ -78,7 +78,7 @@ void ObjDanpeilift_Init(Actor* thisx, PlayState* play) {
 
 void ObjDanpeilift_Destroy(Actor* thisx, PlayState* play) {
     ObjDanpeilift* this = (ObjDanpeilift*)thisx;
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void ObjDanpeilift_DoNothing(ObjDanpeilift* this, PlayState* play) {
@@ -94,9 +94,9 @@ void ObjDanpeilift_Move(ObjDanpeilift* this, PlayState* play) {
     s32 isPosUpdated;
     Vec3s* endPoint;
 
-    Math_Vec3s_ToVec3f(&nextPoint, this->pathPoints + this->curPoint + this->direction);
-    Math_Vec3f_Diff(&nextPoint, &thisx->world.pos, &thisx->velocity);
-    speed = Math3D_Vec3fMagnitude(&thisx->velocity);
+    MM_Math_Vec3s_ToVec3f(&nextPoint, this->pathPoints + this->curPoint + this->direction);
+    MM_Math_Vec3f_Diff(&nextPoint, &thisx->world.pos, &thisx->velocity);
+    speed = MM_Math3D_Vec3fMagnitude(&thisx->velocity);
     if ((speed < (this->speed * 8.0f)) && (this->speed > 2.0f)) {
         target = ((this->speed - 2.0f) * 0.1f) + 2.0f;
         step = this->speed * 0.03f;
@@ -105,9 +105,9 @@ void ObjDanpeilift_Move(ObjDanpeilift* this, PlayState* play) {
         step = this->speed * 0.16f;
     }
 
-    Math_StepToF(&thisx->speed, target, step);
+    MM_Math_StepToF(&thisx->speed, target, step);
     if ((thisx->speed + 0.05f) < speed) {
-        Math_Vec3f_Scale(&thisx->velocity, thisx->speed / speed);
+        MM_Math_Vec3f_Scale(&thisx->velocity, thisx->speed / speed);
         thisx->world.pos.x += thisx->velocity.x;
         thisx->world.pos.y += thisx->velocity.y;
         thisx->world.pos.z += thisx->velocity.z;
@@ -141,7 +141,7 @@ void ObjDanpeilift_Move(ObjDanpeilift* this, PlayState* play) {
 }
 
 void ObjDanpeilift_Teleport(ObjDanpeilift* this, PlayState* play) {
-    if (!DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
+    if (!MM_DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
         ObjDanpeilift_UpdatePosition(this, this->curPoint);
         DynaPoly_EnableCollision(play, &play->colCtx.dyna, this->dyna.bgId);
         this->actionFunc = ObjDanpeilift_Move;
@@ -161,7 +161,7 @@ void ObjDanpeilift_Update(Actor* thisx, PlayState* play) {
     ObjDanpeilift* this = (ObjDanpeilift*)thisx;
 
     this->actionFunc(this, play);
-    Actor_SetFocus(&this->dyna.actor, 10.0f);
+    MM_Actor_SetFocus(&this->dyna.actor, 10.0f);
     if (this->cutsceneTimer > 0) {
         this->cutsceneTimer--;
         if (this->cutsceneTimer == 0) {
@@ -172,18 +172,18 @@ void ObjDanpeilift_Update(Actor* thisx, PlayState* play) {
         f32 target;
 
         this->isPlayerOnTopPrev = this->isPlayerOnTop;
-        this->isPlayerOnTop = DynaPolyActor_IsPlayerOnTop(&this->dyna) ? true : false;
+        this->isPlayerOnTop = MM_DynaPolyActor_IsPlayerOnTop(&this->dyna) ? true : false;
         if ((this->isPlayerOnTop != this->isPlayerOnTopPrev) && (this->maxHeight < 1.0f)) {
             this->cycle = -0x8000;
             this->maxHeight = 6.0f;
         }
         this->cycle += 0xCE4;
-        Math_StepToF(&this->maxHeight, 0.0f, 0.12f);
-        step = this->isPlayerOnTop ? Math_CosS(fabsf(this->cycleSpeed) * 2048.0f) + 0.02f
-                                   : Math_SinS(fabsf(this->cycleSpeed) * 2048.0f) + 0.02f;
+        MM_Math_StepToF(&this->maxHeight, 0.0f, 0.12f);
+        step = this->isPlayerOnTop ? MM_Math_CosS(fabsf(this->cycleSpeed) * 2048.0f) + 0.02f
+                                   : MM_Math_SinS(fabsf(this->cycleSpeed) * 2048.0f) + 0.02f;
         target = this->isPlayerOnTop ? -8.0f : 0.0f;
-        Math_StepToF(&this->cycleSpeed, target, step);
-        this->dyna.actor.shape.yOffset = ((Math_SinS(this->cycle) * this->maxHeight) + this->cycleSpeed) * 10.0f;
+        MM_Math_StepToF(&this->cycleSpeed, target, step);
+        this->dyna.actor.shape.yOffset = ((MM_Math_SinS(this->cycle) * this->maxHeight) + this->cycleSpeed) * 10.0f;
     }
     if ((OBJDANPEILIFT_GET_TYPE(thisx) == 1) && (this->dyna.actor.child != NULL)) {
         if (this->dyna.actor.child->update == NULL) {
@@ -198,5 +198,5 @@ void ObjDanpeilift_Update(Actor* thisx, PlayState* play) {
 }
 
 void ObjDanpeilift_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, object_obj_danpeilift_DL_000180);
+    MM_Gfx_DrawDListOpa(play, object_obj_danpeilift_DL_000180);
 }

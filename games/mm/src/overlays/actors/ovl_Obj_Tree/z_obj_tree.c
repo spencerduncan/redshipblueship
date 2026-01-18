@@ -30,7 +30,7 @@ ActorProfile Obj_Tree_Profile = {
     /**/ ObjTree_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_TREE,
         AT_NONE,
@@ -50,7 +50,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 28, 120, 0, { 0, 0, 0 } },
 };
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(0, 0x0),
     /* Deku Stick     */ DMG_ENTRY(0, 0xF),
     /* Horse trample  */ DMG_ENTRY(0, 0x0),
@@ -93,18 +93,18 @@ void ObjTree_Init(Actor* thisx, PlayState* play) {
     CollisionHeader* colHeader = NULL;
 
     if (OBJTREE_ISLARGE(&this->dyna.actor)) {
-        Actor_SetScale(&this->dyna.actor, 0.15f);
+        MM_Actor_SetScale(&this->dyna.actor, 0.15f);
         this->dyna.actor.cullingVolumeDistance = 4000.0f;
     } else {
-        Actor_SetScale(&this->dyna.actor, 0.1f);
-        DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
-        CollisionHeader_GetVirtual(&gTreeTopCol, &colHeader);
-        this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+        MM_Actor_SetScale(&this->dyna.actor, 0.1f);
+        MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+        MM_CollisionHeader_GetVirtual(&gTreeTopCol, &colHeader);
+        this->dyna.bgId = MM_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
     }
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->dyna.actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->dyna.actor.colChkInfo, &sDamageTable, &sColchkInfoInit);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->dyna.actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo2(&this->dyna.actor.colChkInfo, &MM_sDamageTable, &sColchkInfoInit);
 
     if (OBJTREE_ISLARGE(&this->dyna.actor)) {
         this->collider.dim.height = 220;
@@ -122,10 +122,10 @@ void ObjTree_Destroy(Actor* thisx, PlayState* play) {
 
     if (!OBJTREE_ISLARGE(&this->dyna.actor)) {
         bgId = this->dyna.bgId;
-        DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, bgId);
+        MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, bgId);
     }
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void ObjTree_SetupDoNothing(ObjTree* this) {
@@ -149,20 +149,20 @@ void ObjTree_Sway(ObjTree* this, PlayState* play) {
         return;
     }
 
-    Math_SmoothStepToF(&this->swayAmplitude, 0.0f, 0.1f, 91.0f, 18.0f);
+    MM_Math_SmoothStepToF(&this->swayAmplitude, 0.0f, 0.1f, 91.0f, 18.0f);
     this->swayVelocity += 1 * 0x10000 / 360;
     this->swayAngle += this->swayVelocity;
-    this->dyna.actor.shape.rot.x = Math_SinS(this->swayAngle) * this->swayAmplitude;
-    this->dyna.actor.shape.rot.z = Math_CosS(this->swayAngle) * this->swayAmplitude;
+    this->dyna.actor.shape.rot.x = MM_Math_SinS(this->swayAngle) * this->swayAmplitude;
+    this->dyna.actor.shape.rot.z = MM_Math_CosS(this->swayAngle) * this->swayAmplitude;
     this->timer++;
 }
 
 void ObjTree_UpdateCollision(ObjTree* this, PlayState* play) {
-    Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 
     if (this->dyna.actor.xzDistToPlayer < 600.0f) {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
         if (this->dyna.actor.home.rot.y == 1) {
             this->dyna.actor.home.rot.y = 0;
             ObjTree_SetupSway(this);
@@ -187,7 +187,7 @@ void ObjTree_Draw(Actor* thisx, PlayState* play) {
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     gSPDisplayList(POLY_OPA_DISP++, gTreeBodyDL);
 
-    Matrix_RotateZYX(xRot, 0, zRot, MTXMODE_APPLY);
+    MM_Matrix_RotateZYX(xRot, 0, zRot, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     gSPDisplayList(POLY_OPA_DISP++, gTreeLeavesDL);
 

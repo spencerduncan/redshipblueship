@@ -84,7 +84,7 @@ void DayTelop_Update(DayTelopState* this, GameState* thisx) {
         }
 
         STOP_GAMESTATE(&this->state);
-        SET_NEXT_GAMESTATE(&this->state, Play_Init, sizeof(PlayState));
+        SET_NEXT_GAMESTATE(&this->state, MM_Play_Init, sizeof(PlayState));
 
         gSaveContext.save.time = CLOCK_TIME(6, 0);
         gSceneSeqState = SCENESEQ_MORNING;
@@ -220,7 +220,7 @@ void DayTelop_Main(GameState* thisx) {
 }
 
 void DayTelop_Destroy(GameState* thisx) {
-    ShrinkWindow_Destroy();
+    MM_ShrinkWindow_Destroy();
 }
 
 void DayTelop_Noop(DayTelopState* this) {
@@ -230,20 +230,20 @@ void DayTelop_LoadGraphics(DayTelopState* this) {
     size_t segmentSize = SEGMENT_ROM_SIZE(daytelop_static);
 
     this->daytelopStaticFile = THA_AllocTailAlign16(&this->state.tha, segmentSize);
-    DmaMgr_SendRequest0(this->daytelopStaticFile, SEGMENT_ROM_START(daytelop_static), segmentSize);
+    MM_DmaMgr_SendRequest0(this->daytelopStaticFile, SEGMENT_ROM_START(daytelop_static), segmentSize);
 
     segmentSize = SEGMENT_ROM_SIZE(icon_item_gameover_static);
     this->gameoverStaticFile = THA_AllocTailAlign16(&this->state.tha, segmentSize);
-    DmaMgr_SendRequest0(this->gameoverStaticFile, SEGMENT_ROM_START(icon_item_gameover_static), segmentSize);
+    MM_DmaMgr_SendRequest0(this->gameoverStaticFile, SEGMENT_ROM_START(icon_item_gameover_static), segmentSize);
 }
 
 void DayTelop_Init(GameState* thisx) {
     DayTelopState* this = (DayTelopState*)thisx;
 
     GameState_SetFramerateDivisor(&this->state, 1);
-    Matrix_Init(&this->state);
-    ShrinkWindow_Destroy();
-    View_Init(&this->view, this->state.gfxCtx);
+    MM_Matrix_Init(&this->state);
+    MM_ShrinkWindow_Destroy();
+    MM_View_Init(&this->view, this->state.gfxCtx);
     this->state.main = DayTelop_Main;
     this->state.destroy = DayTelop_Destroy;
     this->transitionCountdown = 140;

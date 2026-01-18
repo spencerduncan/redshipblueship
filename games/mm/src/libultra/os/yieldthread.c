@@ -1,6 +1,6 @@
 #include "ultra64.h"
 
-void osYieldThread(void) {
+void MM_osYieldThread(void) {
     register u32 saveMask = __osDisableInt();
 
     __osRunningThread->state = OS_STATE_RUNNABLE;

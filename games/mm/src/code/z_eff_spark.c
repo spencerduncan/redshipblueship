@@ -4,7 +4,7 @@
 #include "objects/gameplay_keep/gameplay_keep.h"
 #include "2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h"
 
-void EffectSpark_Init(void* thisx, void* initParamsx) {
+void MM_EffectSpark_Init(void* thisx, void* initParamsx) {
     EffectSpark* this = (EffectSpark*)thisx;
     EffectSparkInit* initParams = (EffectSparkInit*)initParamsx;
 
@@ -66,11 +66,11 @@ void EffectSpark_Init(void* thisx, void* initParamsx) {
             elem->position.x = this->position.x;
             elem->position.y = this->position.y;
             elem->position.z = this->position.z;
-            elem->velocity.x = Rand_ZeroOne() - 0.5f;
-            elem->velocity.y = Rand_ZeroOne() - 0.5f;
-            elem->velocity.z = Rand_ZeroOne() - 0.5f;
+            elem->velocity.x = MM_Rand_ZeroOne() - 0.5f;
+            elem->velocity.y = MM_Rand_ZeroOne() - 0.5f;
+            elem->velocity.z = MM_Rand_ZeroOne() - 0.5f;
 
-            velocityNorm = sqrtf(SQXYZ(elem->velocity));
+            velocityNorm = MM_sqrtf(SQXYZ(elem->velocity));
 
             if (!(fabsf(velocityNorm) < 0.008f)) {
                 elem->velocity.x *= this->speed * (1.0f / velocityNorm);
@@ -81,22 +81,22 @@ void EffectSpark_Init(void* thisx, void* initParamsx) {
                 elem->velocity.y = this->speed;
             }
 
-            elem->unkVelocity.x = 30000.0f - Rand_ZeroOne() * 15000.0f;
-            elem->unkVelocity.y = 30000.0f - Rand_ZeroOne() * 15000.0f;
-            elem->unkVelocity.z = 30000.0f - Rand_ZeroOne() * 15000.0f;
-            elem->unkPosition.x = Rand_ZeroOne() * 65534.0f;
-            elem->unkPosition.y = Rand_ZeroOne() * 65534.0f;
-            elem->unkPosition.z = Rand_ZeroOne() * 65534.0f;
+            elem->unkVelocity.x = 30000.0f - MM_Rand_ZeroOne() * 15000.0f;
+            elem->unkVelocity.y = 30000.0f - MM_Rand_ZeroOne() * 15000.0f;
+            elem->unkVelocity.z = 30000.0f - MM_Rand_ZeroOne() * 15000.0f;
+            elem->unkPosition.x = MM_Rand_ZeroOne() * 65534.0f;
+            elem->unkPosition.y = MM_Rand_ZeroOne() * 65534.0f;
+            elem->unkPosition.z = MM_Rand_ZeroOne() * 65534.0f;
         }
 
         this->timer = 0;
     }
 }
 
-void EffectSpark_Destroy(void* thisx) {
+void MM_EffectSpark_Destroy(void* thisx) {
 }
 
-s32 EffectSpark_Update(void* thisx) {
+s32 MM_EffectSpark_Update(void* thisx) {
     EffectSpark* this = (EffectSpark*)thisx;
     EffectSparkElement* elem;
     s32 i;
@@ -122,10 +122,10 @@ s32 EffectSpark_Update(void* thisx) {
     }
 }
 
-void EffectSpark_Draw(void* thisx, GraphicsContext* gfxCtx) {
+void MM_EffectSpark_Draw(void* thisx, GraphicsContext* gfxCtx) {
     Vtx* vtx;
     EffectSpark* this = (EffectSpark*)thisx;
-    PlayState* play = Effect_GetPlayState();
+    PlayState* play = MM_Effect_GetPlayState();
     s32 i;
     s32 j;
     u8 sp1D3;
@@ -152,7 +152,7 @@ void EffectSpark_Draw(void* thisx, GraphicsContext* gfxCtx) {
     if (this != NULL) {
         gSPMatrix(POLY_XLU_DISP++, &gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
-        POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_38);
+        POLY_XLU_DISP = MM_Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_38);
         gDPSetCycleType(POLY_XLU_DISP++, G_CYC_2CYCLE);
         gDPPipeSync(POLY_XLU_DISP++);
 
@@ -200,11 +200,11 @@ void EffectSpark_Draw(void* thisx, GraphicsContext* gfxCtx) {
             Mtx* mtx;
             f32 temp;
 
-            SkinMatrix_SetTranslate(&spEC, elem->position.x, elem->position.y, elem->position.z);
-            temp = ((Rand_ZeroOne() * 2.5f) + 1.5f) / 64.0f;
-            SkinMatrix_SetScale(&spAC, temp, temp, 1.0f);
-            SkinMatrix_MtxFMtxFMult(&spEC, &play->billboardMtxF, &sp6C);
-            SkinMatrix_MtxFMtxFMult(&sp6C, &spAC, &sp12C);
+            MM_SkinMatrix_SetTranslate(&spEC, elem->position.x, elem->position.y, elem->position.z);
+            temp = ((MM_Rand_ZeroOne() * 2.5f) + 1.5f) / 64.0f;
+            MM_SkinMatrix_SetScale(&spAC, temp, temp, 1.0f);
+            MM_SkinMatrix_MtxFMtxFMult(&spEC, &play->billboardMtxF, &sp6C);
+            MM_SkinMatrix_MtxFMtxFMult(&sp6C, &spAC, &sp12C);
 
             vtx[j].v.ob[0] = -32;
             vtx[j].v.ob[1] = -32;
@@ -252,7 +252,7 @@ void EffectSpark_Draw(void* thisx, GraphicsContext* gfxCtx) {
 
             j += 4;
 
-            mtx = SkinMatrix_MtxFToNewMtx(gfxCtx, &sp12C);
+            mtx = MM_SkinMatrix_MtxFToNewMtx(gfxCtx, &sp12C);
             if (mtx == NULL) {
                 goto end;
             }

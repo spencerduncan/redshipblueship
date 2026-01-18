@@ -9,10 +9,10 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED)
 
-void EnBoom_Init(Actor* thisx, PlayState* play);
-void EnBoom_Destroy(Actor* thisx, PlayState* play);
-void EnBoom_Update(Actor* thisx, PlayState* play);
-void EnBoom_Draw(Actor* thisx, PlayState* play);
+void OoT_EnBoom_Init(Actor* thisx, PlayState* play);
+void OoT_EnBoom_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnBoom_Update(Actor* thisx, PlayState* play);
+void OoT_EnBoom_Draw(Actor* thisx, PlayState* play);
 
 void EnBoom_Fly(EnBoom* this, PlayState* play);
 
@@ -22,14 +22,14 @@ const ActorInit En_Boom_InitVars = {
     FLAGS,
     OBJECT_GAMEPLAY_KEEP,
     sizeof(EnBoom),
-    (ActorFunc)EnBoom_Init,
-    (ActorFunc)EnBoom_Destroy,
-    (ActorFunc)EnBoom_Update,
-    (ActorFunc)EnBoom_Draw,
+    (ActorFunc)OoT_EnBoom_Init,
+    (ActorFunc)OoT_EnBoom_Destroy,
+    (ActorFunc)OoT_EnBoom_Update,
+    (ActorFunc)OoT_EnBoom_Draw,
     NULL,
 };
 
-static ColliderQuadInit sQuadInit = {
+static ColliderQuadInit OoT_sQuadInit = {
     {
         COLTYPE_NONE,
         AT_ON | AT_TYPE_PLAYER,
@@ -49,22 +49,22 @@ static ColliderQuadInit sQuadInit = {
     { { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f } } },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_S8(targetMode, 5, ICHAIN_CONTINUE),
     ICHAIN_VEC3S(shape.rot, 0, ICHAIN_STOP),
 };
 
-void EnBoom_SetupAction(EnBoom* this, EnBoomActionFunc actionFunc) {
+void OoT_EnBoom_SetupAction(EnBoom* this, EnBoomActionFunc actionFunc) {
     this->actionFunc = actionFunc;
 }
 
-void EnBoom_Init(Actor* thisx, PlayState* play) {
+void OoT_EnBoom_Init(Actor* thisx, PlayState* play) {
     EnBoom* this = (EnBoom*)thisx;
     EffectBlureInit1 blure;
 
     this->actor.room = -1;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
 
     blure.p1StartColor[0] = 255;
     blure.p1StartColor[1] = 255;
@@ -91,19 +91,19 @@ void EnBoom_Init(Actor* thisx, PlayState* play) {
     blure.calcMode = 0;
     blure.trailType = TRAIL_TYPE_BOOMERANG;
 
-    Effect_Add(play, &this->effectIndex, EFFECT_BLURE1, 0, 0, &blure);
+    OoT_Effect_Add(play, &this->effectIndex, EFFECT_BLURE1, 0, 0, &blure);
 
-    Collider_InitQuad(play, &this->collider);
-    Collider_SetQuad(play, &this->collider, &this->actor, &sQuadInit);
+    OoT_Collider_InitQuad(play, &this->collider);
+    OoT_Collider_SetQuad(play, &this->collider, &this->actor, &OoT_sQuadInit);
 
-    EnBoom_SetupAction(this, EnBoom_Fly);
+    OoT_EnBoom_SetupAction(this, EnBoom_Fly);
 }
 
-void EnBoom_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnBoom_Destroy(Actor* thisx, PlayState* play) {
     EnBoom* this = (EnBoom*)thisx;
 
     Effect_Delete(play, this->effectIndex);
-    Collider_DestroyQuad(play, &this->collider);
+    OoT_Collider_DestroyQuad(play, &this->collider);
 }
 
 void EnBoom_Fly(EnBoom* this, PlayState* play) {
@@ -127,13 +127,13 @@ void EnBoom_Fly(EnBoom* this, PlayState* play) {
 
     // If the boomerang is moving toward a targeted actor, handle setting the proper x and y angle to fly toward it.
     if (target != NULL) {
-        yawTarget = Actor_WorldYawTowardPoint(&this->actor, &target->focus.pos);
+        yawTarget = OoT_Actor_WorldYawTowardPoint(&this->actor, &target->focus.pos);
         yawDiff = this->actor.world.rot.y - yawTarget;
 
-        pitchTarget = Actor_WorldPitchTowardPoint(&this->actor, &target->focus.pos);
+        pitchTarget = OoT_Actor_WorldPitchTowardPoint(&this->actor, &target->focus.pos);
         pitchDiff = this->actor.world.rot.x - pitchTarget;
 
-        distXYZScale = (200.0f - Math_Vec3f_DistXYZ(&this->actor.world.pos, &target->focus.pos)) * 0.005f;
+        distXYZScale = (200.0f - OoT_Math_Vec3f_DistXYZ(&this->actor.world.pos, &target->focus.pos)) * 0.005f;
         if (distXYZScale < 0.12f) {
             distXYZScale = 0.12f;
         }
@@ -144,8 +144,8 @@ void EnBoom_Fly(EnBoom* this, PlayState* play) {
             //      the moveTo pointer is nulled and it flies off in a seemingly random direction.
             this->moveTo = NULL;
         } else {
-            Math_ScaledStepToS(&this->actor.world.rot.y, yawTarget, (s16)(ABS(yawDiff) * distXYZScale));
-            Math_ScaledStepToS(&this->actor.world.rot.x, pitchTarget, (s16)(ABS(pitchDiff) * distXYZScale));
+            OoT_Math_ScaledStepToS(&this->actor.world.rot.y, yawTarget, (s16)(ABS(yawDiff) * distXYZScale));
+            OoT_Math_ScaledStepToS(&this->actor.world.rot.x, pitchTarget, (s16)(ABS(pitchDiff) * distXYZScale));
         }
     }
 
@@ -169,14 +169,14 @@ void EnBoom_Fly(EnBoom* this, PlayState* play) {
     // Decrement the return timer and check if it's 0. If it is, check if Link can catch it and handle accordingly.
     // Otherwise handle grabbing and colliding.
     if (DECR(this->returnTimer) == 0 || player->boomerangQuickRecall) {
-        distFromLink = Math_Vec3f_DistXYZ(&this->actor.world.pos, &player->actor.focus.pos);
+        distFromLink = OoT_Math_Vec3f_DistXYZ(&this->actor.world.pos, &player->actor.focus.pos);
         this->moveTo = &player->actor;
 
         // If the boomerang is less than 40 units away from Link, he can catch it.
         if (distFromLink < 40.0f || player->boomerangQuickRecall) {
             target = this->grabbed;
             if (target != NULL) {
-                Math_Vec3f_Copy(&target->world.pos, &player->actor.world.pos);
+                OoT_Math_Vec3f_Copy(&target->world.pos, &player->actor.world.pos);
 
                 // If the grabbed actor is EnItem00 (HP/Key etc) set gravity and flags so it falls in front of Link.
                 // Otherwise if it's a Skulltula Token, just set flags so he collides with it to collect it.
@@ -190,16 +190,16 @@ void EnBoom_Fly(EnBoom* this, PlayState* play) {
             // Set player flags and kill the boomerang beacause Link caught it.
             player->stateFlags1 &= ~PLAYER_STATE1_BOOMERANG_THROWN;
             player->boomerangQuickRecall = false;
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
         }
     } else {
         collided = (this->collider.base.atFlags & AT_HIT);
         collided = (!!(collided));
         if (collided) {
             // Copy the position from the prevous frame to the boomerang to start the bounce back.
-            Math_Vec3f_Copy(&this->actor.world.pos, &this->actor.prevPos);
+            OoT_Math_Vec3f_Copy(&this->actor.world.pos, &this->actor.prevPos);
         } else {
-            collided = BgCheck_EntityLineTest1(&play->colCtx, &this->actor.prevPos, &this->actor.world.pos, &hitPoint,
+            collided = OoT_BgCheck_EntityLineTest1(&play->colCtx, &this->actor.prevPos, &this->actor.world.pos, &hitPoint,
                                                &this->actor.wallPoly, true, true, true, true, &hitDynaID);
 
             if (collided) {
@@ -207,11 +207,11 @@ void EnBoom_Fly(EnBoom* this, PlayState* play) {
                 // set collided to 0 so that the boomerang will go through the wall.
                 // Otherwise play a clank sound and keep collided set to bounce back.
                 if (func_8002F9EC(play, &this->actor, this->actor.wallPoly, hitDynaID, &hitPoint) != 0 ||
-                    (hitDynaID != BGCHECK_SCENE && ((hitActor = DynaPoly_GetActor(&play->colCtx, hitDynaID)) != NULL) &&
+                    (hitDynaID != BGCHECK_SCENE && ((hitActor = OoT_DynaPoly_GetActor(&play->colCtx, hitDynaID)) != NULL) &&
                      hitActor->actor.id == ACTOR_BG_BDAN_OBJECTS && hitActor->actor.params == 0)) {
                     collided = false;
                 } else {
-                    CollisionCheck_SpawnShieldParticlesMetal(play, &hitPoint);
+                    OoT_CollisionCheck_SpawnShieldParticlesMetal(play, &hitPoint);
                 }
             }
         }
@@ -233,23 +233,23 @@ void EnBoom_Fly(EnBoom* this, PlayState* play) {
         if (target->update == NULL) {
             this->grabbed = NULL;
         } else {
-            Math_Vec3f_Copy(&target->world.pos, &this->actor.world.pos);
+            OoT_Math_Vec3f_Copy(&target->world.pos, &this->actor.world.pos);
         }
     }
 }
 
-void EnBoom_Update(Actor* thisx, PlayState* play) {
+void OoT_EnBoom_Update(Actor* thisx, PlayState* play) {
     EnBoom* this = (EnBoom*)thisx;
     Player* player = GET_PLAYER(play);
 
     if (!(player->stateFlags1 & PLAYER_STATE1_IN_CUTSCENE)) {
         this->actionFunc(this, play);
-        Actor_SetFocus(&this->actor, 0.0f);
+        OoT_Actor_SetFocus(&this->actor, 0.0f);
         this->activeTimer = this->activeTimer + 1;
     }
 }
 
-void EnBoom_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnBoom_Draw(Actor* thisx, PlayState* play) {
     static Vec3f sMultVec1 = { -960.0f, 0.0f, 0.0f };
     static Vec3f sMultVec2 = { 960.0f, 0.0f, 0.0f };
     EnBoom* this = (EnBoom*)thisx;
@@ -261,11 +261,11 @@ void EnBoom_Draw(Actor* thisx, PlayState* play) {
     Matrix_RotateY(this->actor.world.rot.y * (M_PI / 0x8000), MTXMODE_APPLY);
     Matrix_RotateZ(0x1F40 * (M_PI / 0x8000), MTXMODE_APPLY);
     Matrix_RotateX(this->actor.world.rot.x * (M_PI / 0x8000), MTXMODE_APPLY);
-    Matrix_MultVec3f(&sMultVec1, &vec1);
-    Matrix_MultVec3f(&sMultVec2, &vec2);
+    OoT_Matrix_MultVec3f(&sMultVec1, &vec1);
+    OoT_Matrix_MultVec3f(&sMultVec2, &vec2);
 
     if (func_80090480(play, &this->collider, &this->boomerangInfo, &vec1, &vec2) != 0) {
-        EffectBlure_AddVertex(Effect_GetByIndex(this->effectIndex), &vec1, &vec2);
+        OoT_EffectBlure_AddVertex(OoT_Effect_GetByIndex(this->effectIndex), &vec1, &vec2);
     }
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);

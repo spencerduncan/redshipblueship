@@ -113,7 +113,7 @@ f32 AudioEffects_UpdatePortamento(Portamento* portamento) {
         portamento->mode = PORTAMENTO_MODE_OFF;
     }
 
-    portamentoFreq = AUDIO_LERPIMP(1.0f, gBendPitchOneOctaveFrequencies[bendIndex + 128], portamento->extent);
+    portamentoFreq = AUDIO_LERPIMP(1.0f, MM_gBendPitchOneOctaveFrequencies[bendIndex + 128], portamento->extent);
 
     return portamentoFreq;
 }
@@ -210,7 +210,7 @@ void AudioEffects_InitVibrato(Note* note) {
     VibratoSubStruct* subVib;
 
     vib->active = true;
-    vib->curve = gWaveSamples[2]; // gSineWaveSample
+    vib->curve = MM_gWaveSamples[2]; // MM_gSineWaveSample
 
     if (playbackState->parentLayer->unk_0A.s.useVibrato == true) {
         vib->vibSubStruct = &playbackState->parentLayer->channel->vibrato;

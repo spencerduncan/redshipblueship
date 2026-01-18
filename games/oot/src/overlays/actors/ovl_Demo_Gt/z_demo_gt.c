@@ -15,7 +15,7 @@ void DemoGt_Destroy(Actor* thisx, PlayState* play) {
     DemoGt* this = (DemoGt*)thisx;
 
     if ((this->dyna.actor.params == 1) || (this->dyna.actor.params == 2)) {
-        DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+        OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
     }
 }
 
@@ -24,11 +24,11 @@ void DemoGt_PlayEarthquakeSfx() {
 }
 
 void DemoGt_PlayExplosion1Sfx(PlayState* play, Vec3f* pos) {
-    SoundSource_PlaySfxAtFixedWorldPos(play, pos, 60, NA_SE_IT_BOMB_EXPLOSION);
+    OoT_SoundSource_PlaySfxAtFixedWorldPos(play, pos, 60, NA_SE_IT_BOMB_EXPLOSION);
 }
 
 void DemoGt_PlayExplosion2Sfx(PlayState* play, Vec3f* pos) {
-    SoundSource_PlaySfxAtFixedWorldPos(play, pos, 60, NA_SE_EV_GRAVE_EXPLOSION);
+    OoT_SoundSource_PlaySfxAtFixedWorldPos(play, pos, 60, NA_SE_EV_GRAVE_EXPLOSION);
 }
 
 void DemoGt_Rumble(PlayState* play) {
@@ -39,14 +39,14 @@ void DemoGt_SpawnDust(PlayState* play, Vec3f* pos, Vec3f* velocity, Vec3f* accel
     static Color_RGBA8 brownPrim = { 100, 80, 100, 0 };
     static Color_RGBA8 redEnv = { 255, 110, 96, 0 };
 
-    func_8002843C(play, pos, velocity, accel, &brownPrim, &redEnv, ((Rand_ZeroOne() * (scale * 0.2f)) + scale),
+    func_8002843C(play, pos, velocity, accel, &brownPrim, &redEnv, ((OoT_Rand_ZeroOne() * (scale * 0.2f)) + scale),
                   scaleStep, life);
 }
 
 void func_8097D7D8(PlayState* play, Vec3f* pos, Vec3f* velOffset, f32 scale, s32 arg4, s32 arg5, s16 life) {
     s32 pad;
 
-    if (!FrameAdvance_IsEnabled(play)) {
+    if (!OoT_FrameAdvance_IsEnabled(play)) {
         s32 frames = play->gameplayFrames;
 
         if (ABS(frames % arg4) == arg5) {
@@ -72,7 +72,7 @@ void func_8097D7D8(PlayState* play, Vec3f* pos, Vec3f* velOffset, f32 scale, s32
 }
 
 Actor* DemoGt_SpawnCloudRing(PlayState* play, Vec3f* pos, s16 params) {
-    return Actor_Spawn(&play->actorCtx, play, ACTOR_BG_SPOT16_DOUGHNUT, pos->x, pos->y, pos->z, 0, 0, 0, params, true);
+    return OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_BG_SPOT16_DOUGHNUT, pos->x, pos->y, pos->z, 0, 0, 0, params, true);
 }
 
 void DemoGt_SpawnExplosionWithSound(PlayState* play, Vec3f* pos, f32 scale) {
@@ -80,12 +80,12 @@ void DemoGt_SpawnExplosionWithSound(PlayState* play, Vec3f* pos, f32 scale) {
     Vec3f velocity = { 0.0f, 0.0f, 0.0f };
     Vec3f accel = { 0.0f, 0.0f, 0.0f };
 
-    EffectSsBomb2_SpawnLayered(play, pos, &velocity, &accel, (100.0f * scale), (15.0f * scale));
+    OoT_EffectSsBomb2_SpawnLayered(play, pos, &velocity, &accel, (100.0f * scale), (15.0f * scale));
     DemoGt_PlayExplosion1Sfx(play, pos);
 }
 
 void DemoGt_SpawnExplosionNoSound(PlayState* play, Vec3f* pos, Vec3f* velocity, Vec3f* accel, f32 scale) {
-    EffectSsBomb2_SpawnLayered(play, pos, velocity, accel, (100.0f * scale), (25.0f * scale));
+    OoT_EffectSsBomb2_SpawnLayered(play, pos, velocity, accel, (100.0f * scale), (25.0f * scale));
 }
 
 void func_8097DAC8(DemoGt* this, PlayState* play, Vec3f* spawnerPos) {
@@ -100,19 +100,19 @@ void func_8097DAC8(DemoGt* this, PlayState* play, Vec3f* spawnerPos) {
 
     for (i = 0; i < 12; i++) {
 
-        pos.x = Math_SinS(angle) * 46.0f;
-        pos.y = (Rand_ZeroOne() * 75.0f) + 2.0f;
-        pos.z = Math_CosS(angle) * 46.0f;
+        pos.x = OoT_Math_SinS(angle) * 46.0f;
+        pos.y = (OoT_Rand_ZeroOne() * 75.0f) + 2.0f;
+        pos.z = OoT_Math_CosS(angle) * 46.0f;
 
         velocity.x = (pos.x * 0.1f) + 20.0f;
-        velocity.y = Rand_ZeroOne() * 16.0f;
+        velocity.y = OoT_Rand_ZeroOne() * 16.0f;
         velocity.z = pos.z * 0.1f;
 
         pos.x += spawnerPos->x;
         pos.y += spawnerPos->y;
         pos.z += spawnerPos->z;
 
-        temp_f0 = Rand_ZeroOne();
+        temp_f0 = OoT_Rand_ZeroOne();
 
         if (temp_f0 < 0.1f) {
             phi_s0 = 96;
@@ -122,8 +122,8 @@ void func_8097DAC8(DemoGt* this, PlayState* play, Vec3f* spawnerPos) {
             phi_s0 = 32;
         }
 
-        EffectSsKakera_Spawn(play, &pos, &velocity, spawnerPos, -247, phi_s0, 3, 0, 0,
-                             (s32)(Rand_ZeroOne() * 10.0f + 30.0f), 2, 300, (s32)(Rand_ZeroOne() * 0.0f) + 30,
+        OoT_EffectSsKakera_Spawn(play, &pos, &velocity, spawnerPos, -247, phi_s0, 3, 0, 0,
+                             (s32)(OoT_Rand_ZeroOne() * 10.0f + 30.0f), 2, 300, (s32)(OoT_Rand_ZeroOne() * 0.0f) + 30,
                              KAKERA_COLOR_NONE, OBJECT_GEFF, gGanonRubbleDL);
         angle += 0x1555;
     }
@@ -141,19 +141,19 @@ void func_8097DD28(DemoGt* this, PlayState* play, Vec3f* spawnerPos) {
 
     for (i = 0; i < 8; i++) {
 
-        pos.x = Math_SinS(angle) * 30.0f;
-        pos.y = (Rand_ZeroOne() * 75.0f) + 2.0f;
-        pos.z = Math_CosS(angle) * 30.0f;
+        pos.x = OoT_Math_SinS(angle) * 30.0f;
+        pos.y = (OoT_Rand_ZeroOne() * 75.0f) + 2.0f;
+        pos.z = OoT_Math_CosS(angle) * 30.0f;
 
         velocity.x = 0.0f;
-        velocity.y = Rand_ZeroOne() * -4.0f;
+        velocity.y = OoT_Rand_ZeroOne() * -4.0f;
         velocity.z = pos.z * 0.1f;
 
         pos.x += spawnerPos->x;
         pos.y += spawnerPos->y;
         pos.z += spawnerPos->z;
 
-        temp_f0 = Rand_ZeroOne();
+        temp_f0 = OoT_Rand_ZeroOne();
 
         if (temp_f0 < 0.1f) {
             phi_s0 = 96;
@@ -163,8 +163,8 @@ void func_8097DD28(DemoGt* this, PlayState* play, Vec3f* spawnerPos) {
             phi_s0 = 32;
         }
 
-        EffectSsKakera_Spawn(play, &pos, &velocity, spawnerPos, -247, phi_s0, 3, 0, 0,
-                             (s32)((Rand_ZeroOne() * 10.0f) + 30.0f), 2, 300, (s32)(Rand_ZeroOne() * 0.0f) + 0x1E,
+        OoT_EffectSsKakera_Spawn(play, &pos, &velocity, spawnerPos, -247, phi_s0, 3, 0, 0,
+                             (s32)((OoT_Rand_ZeroOne() * 10.0f) + 30.0f), 2, 300, (s32)(OoT_Rand_ZeroOne() * 0.0f) + 0x1E,
                              KAKERA_COLOR_NONE, OBJECT_GEFF, gGanonRubbleDL);
 
         angle += 0x2000;
@@ -183,19 +183,19 @@ void func_8097DF70(DemoGt* this, PlayState* play, Vec3f* spawnerPos) {
 
     for (i = 0; i < 12; i++) {
 
-        pos.x = Math_SinS(angle) * 16.0f;
-        pos.y = (Rand_ZeroOne() * 5.0f) + 2.0f;
-        pos.z = Math_CosS(angle) * 16.0f;
+        pos.x = OoT_Math_SinS(angle) * 16.0f;
+        pos.y = (OoT_Rand_ZeroOne() * 5.0f) + 2.0f;
+        pos.z = OoT_Math_CosS(angle) * 16.0f;
 
         velocity.x = pos.x * 0.6f;
-        velocity.y = (Rand_ZeroOne() * 36.0f) + 6.0f;
+        velocity.y = (OoT_Rand_ZeroOne() * 36.0f) + 6.0f;
         velocity.z = pos.z * 0.6f;
 
         pos.x += spawnerPos->x;
         pos.y += spawnerPos->y;
         pos.z += spawnerPos->z;
 
-        temp_f0 = Rand_ZeroOne();
+        temp_f0 = OoT_Rand_ZeroOne();
 
         if (temp_f0 < 0.1f) {
             phi_s0 = 97;
@@ -205,8 +205,8 @@ void func_8097DF70(DemoGt* this, PlayState* play, Vec3f* spawnerPos) {
             phi_s0 = 33;
         }
 
-        EffectSsKakera_Spawn(play, &pos, &velocity, spawnerPos, -200, phi_s0, 10, 10, 0, Rand_ZeroOne() * 30.0f + 30.0f,
-                             2, 300, (s32)(Rand_ZeroOne() * 30.0f) + 30, KAKERA_COLOR_NONE, OBJECT_GEFF,
+        OoT_EffectSsKakera_Spawn(play, &pos, &velocity, spawnerPos, -200, phi_s0, 10, 10, 0, OoT_Rand_ZeroOne() * 30.0f + 30.0f,
+                             2, 300, (s32)(OoT_Rand_ZeroOne() * 30.0f) + 30, KAKERA_COLOR_NONE, OBJECT_GEFF,
                              gGanonRubbleDL);
         angle += 0x1555;
     }
@@ -224,19 +224,19 @@ void func_8097E1D4(PlayState* play, Vec3f* arg1, s16 arg2) {
 
     for (i = 0; i < 1; i++) {
 
-        pos.x = Math_SinS(angle) * 46.0f;
-        pos.y = (Rand_ZeroOne() * 75.0f) - 28.0f;
-        pos.z = Math_CosS(angle) * 46.0f;
+        pos.x = OoT_Math_SinS(angle) * 46.0f;
+        pos.y = (OoT_Rand_ZeroOne() * 75.0f) - 28.0f;
+        pos.z = OoT_Math_CosS(angle) * 46.0f;
 
-        velocity.x = Math_SinS(arg2) * 3.0f;
-        velocity.y = (Rand_ZeroOne() * -4.0f) + 10.0f;
-        velocity.z = Math_CosS(arg2) * 3.0f;
+        velocity.x = OoT_Math_SinS(arg2) * 3.0f;
+        velocity.y = (OoT_Rand_ZeroOne() * -4.0f) + 10.0f;
+        velocity.z = OoT_Math_CosS(arg2) * 3.0f;
 
         pos.x += arg1->x;
         pos.y += arg1->y;
         pos.z += arg1->z;
 
-        temp_f0 = Rand_ZeroOne();
+        temp_f0 = OoT_Rand_ZeroOne();
 
         if (temp_f0 < 0.1f) {
             phi_s0 = 97;
@@ -246,8 +246,8 @@ void func_8097E1D4(PlayState* play, Vec3f* arg1, s16 arg2) {
             phi_s0 = 33;
         }
 
-        EffectSsKakera_Spawn(play, &pos, &velocity, arg1, -247, phi_s0, 3, 0, 0,
-                             (s32)((Rand_ZeroOne() * 10.0f) + 30.0f), 2, 300, (s32)(Rand_ZeroOne() * 0.0f) + 30,
+        OoT_EffectSsKakera_Spawn(play, &pos, &velocity, arg1, -247, phi_s0, 3, 0, 0,
+                             (s32)((OoT_Rand_ZeroOne() * 10.0f) + 30.0f), 2, 300, (s32)(OoT_Rand_ZeroOne() * 0.0f) + 30,
                              KAKERA_COLOR_NONE, OBJECT_GEFF, gGanonRubbleDL);
 
         angle += 0x10000;
@@ -265,20 +265,20 @@ void func_8097E454(PlayState* play, Vec3f* spawnerPos, Vec3f* velocity, Vec3f* a
     f32 dustScale = 300.0f * scale;
     Vec3f pos;
 
-    if ((!FrameAdvance_IsEnabled(play)) && (arg7 > 0) && (arg6 > 0)) {
+    if ((!OoT_FrameAdvance_IsEnabled(play)) && (arg7 > 0) && (arg6 > 0)) {
         frames = (ABS((s32)play->gameplayFrames) % arg7);
         phi_s0 = 0x10000 * frames / arg6;
         increment = 0x10000 / arg6;
 
         for (i = frames; i < arg6; i += arg7) {
 
-            pos.x = (Math_SinS(phi_s0) * arg4) + spawnerPos->x;
+            pos.x = (OoT_Math_SinS(phi_s0) * arg4) + spawnerPos->x;
             pos.y = spawnerPos->y;
-            pos.z = (Math_CosS(phi_s0) * arg4) + spawnerPos->z;
+            pos.z = (OoT_Math_CosS(phi_s0) * arg4) + spawnerPos->z;
 
             DemoGt_SpawnDust(play, &pos, velocity, accel, dustScale, dustScaleStep, life);
 
-            if (Rand_ZeroOne() <= 0.05f) {
+            if (OoT_Rand_ZeroOne() <= 0.05f) {
                 func_8097E1D4(play, &pos, phi_s0);
             }
 
@@ -329,7 +329,7 @@ void func_8097E744(DemoGt* this, PlayState* play, u32 actionIdx) {
 
     if (npcAction != NULL) {
         someFloat =
-            Environment_LerpWeightAccelDecel(npcAction->endFrame, npcAction->startFrame, play->csCtx.frames, 8, 0);
+            OoT_Environment_LerpWeightAccelDecel(npcAction->endFrame, npcAction->startFrame, play->csCtx.frames, 8, 0);
         startX = npcAction->startPos.x;
         startY = npcAction->startPos.y;
         startZ = npcAction->startPos.z;
@@ -419,9 +419,9 @@ void func_8097E824(DemoGt* this, s32 arg1) {
     unk16C->y += phi_a2;
     unk16C->z += phi_a3;
 
-    tempf1 = Math_CosS(unk16C->x) * phi_f14;
-    tempf2 = Math_CosS(unk16C->y) * phi_f12;
-    tempf3 = Math_CosS(unk16C->z) * phi_f2;
+    tempf1 = OoT_Math_CosS(unk16C->x) * phi_f14;
+    tempf2 = OoT_Math_CosS(unk16C->y) * phi_f12;
+    tempf3 = OoT_Math_CosS(unk16C->z) * phi_f2;
 
     pos->x += tempf1;
     pos->y += tempf2;
@@ -443,7 +443,7 @@ u8 func_8097ED94() {
     }
 }
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
 
@@ -452,11 +452,11 @@ void func_8097EDD8(DemoGt* this, PlayState* play, CollisionHeader* collision) {
     CollisionHeader* colHeader;
 
     if (collision != NULL) {
-        Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-        DynaPolyActor_Init(&this->dyna, DPM_UNK);
+        OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+        OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
         colHeader = NULL;
-        CollisionHeader_GetVirtual(collision, &colHeader);
-        this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+        OoT_CollisionHeader_GetVirtual(collision, &colHeader);
+        this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
     }
 }
 
@@ -468,7 +468,7 @@ u8 func_8097EE44(DemoGt* this, PlayState* play, s32 updateMode, s32 drawConfig, 
         func_8097EDD8(this, play, colHeader);
         return true;
     } else {
-        Actor_Kill(&this->dyna.actor);
+        OoT_Actor_Kill(&this->dyna.actor);
         return false;
     }
 }
@@ -574,7 +574,7 @@ void func_8097F280(DemoGt* this, PlayState* play) {
         unk198[0]++;
         unk198[1]--;
     } else if (play->csCtx.frames < 170) {
-        temp_f0 = Environment_LerpWeightAccelDecel(170, 160, play->csCtx.frames, 0, 0);
+        temp_f0 = OoT_Environment_LerpWeightAccelDecel(170, 160, play->csCtx.frames, 0, 0);
 
         unk178[0] = (temp_f0 * -63.0f) + 163.0f;
         unk178[1] = (temp_f0 * -155.0f) + 255.0f;
@@ -644,35 +644,35 @@ void DemoGt_Draw1(DemoGt* this, PlayState* play) {
     spB8 = (s16)((s32)kREG(70)) + 0x4000;
     spBA = kREG(70);
     spB4 = Graph_Alloc(gfxCtx, sizeof(Mtx));
-    sp98 = 1.0f - Math_CosS(spC6);
+    sp98 = 1.0f - OoT_Math_CosS(spC6);
 
     OPEN_DISPS(gfxCtx);
 
-    spA8.x = Math_CosS(spB8);
+    spA8.x = OoT_Math_CosS(spB8);
     spA8.y = 0.0f;
-    spA8.z = Math_SinS(spB8);
-    sp9C.x = Math_CosS(spBA) * spBC * sp98;
-    sp9C.y = Math_SinS(spC6) * spBC;
-    sp9C.z = Math_SinS(spBA) * spBC * sp98;
+    spA8.z = OoT_Math_SinS(spB8);
+    sp9C.x = OoT_Math_CosS(spBA) * spBC * sp98;
+    sp9C.y = OoT_Math_SinS(spC6) * spBC;
+    sp9C.z = OoT_Math_SinS(spBA) * spBC * sp98;
 
-    Matrix_Push();
+    OoT_Matrix_Push();
 
     Matrix_RotateAxis(spC0, &spA8, MTXMODE_APPLY);
-    Matrix_Translate(sp9C.x, sp9C.y, sp9C.z, MTXMODE_APPLY);
+    OoT_Matrix_Translate(sp9C.x, sp9C.y, sp9C.z, MTXMODE_APPLY);
     MATRIX_TOMTX(spB4);
     unk198 = this->unk_198;
     unk188 = this->unk_188;
     unk178 = this->unk_178;
 
-    Matrix_Pop();
+    OoT_Matrix_Pop();
 
     Gfx_SetupDL_25Opa(gfxCtx);
 
     gSPSegment(POLY_OPA_DISP++, 0x08,
-               Gfx_TwoTexScrollEnvColor(gfxCtx, 0, 0, unk198[0], 0x20, 0x40, 1, 0, unk198[1], 0x20, 0x40, unk178[0],
+               OoT_Gfx_TwoTexScrollEnvColor(gfxCtx, 0, 0, unk198[0], 0x20, 0x40, 1, 0, unk198[1], 0x20, 0x40, unk178[0],
                                         unk178[1], unk178[2], 0x80));
     gSPSegment(POLY_OPA_DISP++, 0x0A,
-               Gfx_TwoTexScrollEnvColor(gfxCtx, 0, 0, unk198[0], 0x20, 0x40, 1, 0, unk198[1], 0x20, 0x40, unk188[0],
+               OoT_Gfx_TwoTexScrollEnvColor(gfxCtx, 0, 0, unk198[0], 0x20, 0x40, 1, 0, unk198[1], 0x20, 0x40, unk188[0],
                                         unk188[1], unk188[2], 0x80));
     gSPMatrix(POLY_OPA_DISP++, spB4, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_OPA_DISP++, gTowerCollapseCsExteriorStructureDL);
@@ -680,7 +680,7 @@ void DemoGt_Draw1(DemoGt* this, PlayState* play) {
     gDPSetEnvColor(POLY_XLU_DISP++, 128, 128, 128, 128);
     gSPSegment(
         POLY_XLU_DISP++, 0x09,
-        Gfx_TwoTexScroll(gfxCtx, 0, 0, gameplayFrames * 0x14, 0x10, 0x200, 1, 0, gameplayFrames * 0x1E, 0x10, 0x200));
+        OoT_Gfx_TwoTexScroll(gfxCtx, 0, 0, gameplayFrames * 0x14, 0x10, 0x200, 1, 0, gameplayFrames * 0x1E, 0x10, 0x200));
     gSPMatrix(POLY_XLU_DISP++, spB4, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_XLU_DISP++, gTowerCollapseCsFlameSmokeDL);
 
@@ -812,7 +812,7 @@ void func_8097FDDC(DemoGt* this, PlayState* play) {
         unk198[0]++;
         unk198[1]--;
     } else if (play->csCtx.frames < 620) {
-        f32 temp_f0 = Environment_LerpWeightAccelDecel(620, 610, play->csCtx.frames, 0, 0);
+        f32 temp_f0 = OoT_Environment_LerpWeightAccelDecel(620, 610, play->csCtx.frames, 0, 0);
 
         unk178[0] = (temp_f0 * (-13.0f)) + 163.0f;
         unk178[1] = (temp_f0 * (-43.0f)) + 193.0f;
@@ -855,7 +855,7 @@ void DemoGt_Draw2(DemoGt* this, PlayState* play) {
     unk198 = this->unk_198;
     unk178 = this->unk_178;
     gSPSegment(POLY_OPA_DISP++, 0x08,
-               Gfx_TwoTexScrollEnvColor(gfxCtx, 0, 0, unk198[0], 0x20, 0x40, 1, 0, unk198[1], 0x20, 0x40, unk178[0],
+               OoT_Gfx_TwoTexScrollEnvColor(gfxCtx, 0, 0, unk198[0], 0x20, 0x40, 1, 0, unk198[1], 0x20, 0x40, unk178[0],
                                         unk178[1], unk178[2], 128));
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_PUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_OPA_DISP++, gTowerCollapseCsCollapsedStructureInnerDL);
@@ -1203,7 +1203,7 @@ void func_80980F8C(DemoGt* this, PlayState* play) {
         sp58.y = 2100.0f;
         sp58.z = -170.0f;
 
-        Matrix_MultVec3f(&sp58, &dustPos);
+        OoT_Matrix_MultVec3f(&sp58, &dustPos);
         func_8097D7D8(play, &dustPos, &velOfset, 3.0f, 5, 0, 30);
     }
 }
@@ -1263,29 +1263,29 @@ void DemoGt_Draw4(DemoGt* this, PlayState* play2) {
         sp6A = kREG(58);
         gfxCtx = play->state.gfxCtx;
         sp60 = Graph_Alloc(gfxCtx, sizeof(Mtx));
-        sp44 = 1.0f - Math_CosS(sp76);
+        sp44 = 1.0f - OoT_Math_CosS(sp76);
 
         OPEN_DISPS(gfxCtx);
 
-        sp54.x = Math_CosS(sp68);
+        sp54.x = OoT_Math_CosS(sp68);
         sp54.y = 0.0f;
-        sp54.z = Math_SinS(sp68);
+        sp54.z = OoT_Math_SinS(sp68);
 
-        sp48.x = (Math_CosS(sp6A) * sp6C) * sp44;
-        sp48.y = Math_SinS(sp76) * sp6C;
-        sp48.z = (Math_SinS(sp6A) * sp6C) * sp44;
+        sp48.x = (OoT_Math_CosS(sp6A) * sp6C) * sp44;
+        sp48.y = OoT_Math_SinS(sp76) * sp6C;
+        sp48.z = (OoT_Math_SinS(sp6A) * sp6C) * sp44;
 
-        Matrix_Push();
+        OoT_Matrix_Push();
 
         Matrix_RotateAxis(sp70, &sp54, MTXMODE_APPLY);
-        Matrix_Translate(sp48.x, sp48.y, sp48.z, MTXMODE_APPLY);
+        OoT_Matrix_Translate(sp48.x, sp48.y, sp48.z, MTXMODE_APPLY);
         MATRIX_TOMTX(sp60);
 
-        if (!FrameAdvance_IsEnabled(play)) {
+        if (!OoT_FrameAdvance_IsEnabled(play)) {
             func_80980F8C(this, play);
         }
 
-        Matrix_Pop();
+        OoT_Matrix_Pop();
 
         Gfx_SetupDL_25Opa(gfxCtx);
         gSPMatrix(POLY_OPA_DISP++, sp60, (G_MTX_PUSH | G_MTX_LOAD) | G_MTX_MODELVIEW);
@@ -1326,7 +1326,7 @@ void func_80981458(DemoGt* this, PlayState* play) {
         sp58.y = 1170.0f;
         sp58.z = -1100.0f;
 
-        Matrix_MultVec3f(&sp58, &dustPos);
+        OoT_Matrix_MultVec3f(&sp58, &dustPos);
         func_8097D7D8(play, &dustPos, &velOffset, 7.1f, 5, 1, 30);
     }
 }
@@ -1382,29 +1382,29 @@ void DemoGt_Draw5(DemoGt* this, PlayState* play) {
     sp68 = (s16)(kREG(59) - 0x4000) + 0x4000;
     gfxCtx = play->state.gfxCtx;
     sp60 = Graph_Alloc(gfxCtx, sizeof(Mtx));
-    sp44 = 1 - Math_CosS(sp76);
+    sp44 = 1 - OoT_Math_CosS(sp76);
 
     OPEN_DISPS(gfxCtx);
 
-    sp54.x = Math_CosS(sp68);
+    sp54.x = OoT_Math_CosS(sp68);
     sp54.y = 0.0f;
-    sp54.z = Math_SinS(sp68);
+    sp54.z = OoT_Math_SinS(sp68);
 
-    sp48.x = Math_CosS(sp6A) * sp6C * sp44;
-    sp48.y = Math_SinS(sp76) * sp6C;
-    sp48.z = Math_SinS(sp6A) * sp6C * sp44;
+    sp48.x = OoT_Math_CosS(sp6A) * sp6C * sp44;
+    sp48.y = OoT_Math_SinS(sp76) * sp6C;
+    sp48.z = OoT_Math_SinS(sp6A) * sp6C * sp44;
 
-    Matrix_Push();
+    OoT_Matrix_Push();
 
     Matrix_RotateAxis(sp70, &sp54, MTXMODE_APPLY);
-    Matrix_Translate(sp48.x, sp48.y, sp48.z, MTXMODE_APPLY);
+    OoT_Matrix_Translate(sp48.x, sp48.y, sp48.z, MTXMODE_APPLY);
     MATRIX_TOMTX(sp60);
 
-    if (!FrameAdvance_IsEnabled(play)) {
+    if (!OoT_FrameAdvance_IsEnabled(play)) {
         func_80981458(this, play);
     }
 
-    Matrix_Pop();
+    OoT_Matrix_Pop();
 
     Gfx_SetupDL_25Opa(gfxCtx);
     gSPMatrix(POLY_OPA_DISP++, sp60, G_MTX_PUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -1478,25 +1478,25 @@ void DemoGt_Draw6(DemoGt* this, PlayState* play) {
     sp6C += 0x4000;
     gfxCtx = play->state.gfxCtx;
     sp64 = Graph_Alloc(gfxCtx, sizeof(Mtx));
-    sp48 = 1.0f - Math_CosS(sp78);
+    sp48 = 1.0f - OoT_Math_CosS(sp78);
 
     OPEN_DISPS(gfxCtx);
 
-    sp58.x = Math_CosS(sp6C);
+    sp58.x = OoT_Math_CosS(sp6C);
     sp58.y = 0.0f;
-    sp58.z = Math_SinS(sp6C);
+    sp58.z = OoT_Math_SinS(sp6C);
 
-    sp4C.x = Math_CosS(sp6E) * sp70 * sp48;
-    sp4C.y = Math_SinS(sp78) * sp70;
-    sp4C.z = Math_SinS(sp6E) * sp70 * sp48;
+    sp4C.x = OoT_Math_CosS(sp6E) * sp70 * sp48;
+    sp4C.y = OoT_Math_SinS(sp78) * sp70;
+    sp4C.z = OoT_Math_SinS(sp6E) * sp70 * sp48;
 
-    Matrix_Push();
+    OoT_Matrix_Push();
 
     Matrix_RotateAxis(sp74, &sp58, MTXMODE_APPLY);
-    Matrix_Translate(sp4C.x, sp4C.y, sp4C.z, MTXMODE_APPLY);
+    OoT_Matrix_Translate(sp4C.x, sp4C.y, sp4C.z, MTXMODE_APPLY);
     MATRIX_TOMTX(sp64);
 
-    Matrix_Pop();
+    OoT_Matrix_Pop();
 
     Gfx_SetupDL_25Opa(gfxCtx);
     gSPMatrix(POLY_OPA_DISP++, sp64, G_MTX_PUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -1570,25 +1570,25 @@ void DemoGt_Draw7(DemoGt* this, PlayState* play) {
     sp60 = kREG(74) + 0x7FEC;
     sp60 = sp60 + 0x4000;
     sp5C = Graph_Alloc(gfxCtx, sizeof(Mtx));
-    sp40 = 1.0f - Math_CosS(sp6E);
+    sp40 = 1.0f - OoT_Math_CosS(sp6E);
 
     OPEN_DISPS(gfxCtx);
 
-    sp50.x = Math_CosS(sp60);
+    sp50.x = OoT_Math_CosS(sp60);
     sp50.y = 0.0f;
-    sp50.z = Math_SinS(sp60);
+    sp50.z = OoT_Math_SinS(sp60);
 
-    sp44.x = (Math_CosS(sp62) * sp64) * sp40;
-    sp44.y = Math_SinS(sp6E) * sp64;
-    sp44.z = (Math_SinS(sp62) * sp64) * sp40;
+    sp44.x = (OoT_Math_CosS(sp62) * sp64) * sp40;
+    sp44.y = OoT_Math_SinS(sp6E) * sp64;
+    sp44.z = (OoT_Math_SinS(sp62) * sp64) * sp40;
 
-    Matrix_Push();
+    OoT_Matrix_Push();
 
     Matrix_RotateAxis(sp68, &sp50, MTXMODE_APPLY);
-    Matrix_Translate(sp44.x, sp44.y, sp44.z, MTXMODE_APPLY);
+    OoT_Matrix_Translate(sp44.x, sp44.y, sp44.z, MTXMODE_APPLY);
     MATRIX_TOMTX(sp5C);
 
-    Matrix_Pop();
+    OoT_Matrix_Pop();
 
     Gfx_SetupDL_25Opa(gfxCtx);
     gSPMatrix(POLY_OPA_DISP++, sp5C, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -1661,25 +1661,25 @@ void DemoGt_Draw8(DemoGt* this, PlayState* play) {
     sp60 = kREG(77) + 0xBE80;
     sp60 += 0x4000;
     sp5C = Graph_Alloc(gfxCtx, sizeof(Mtx));
-    sp40 = 1.0f - Math_CosS(sp6E);
+    sp40 = 1.0f - OoT_Math_CosS(sp6E);
 
     OPEN_DISPS(gfxCtx);
 
-    sp50.x = Math_CosS(sp60);
+    sp50.x = OoT_Math_CosS(sp60);
     sp50.y = 0.0f;
-    sp50.z = Math_SinS(sp60);
+    sp50.z = OoT_Math_SinS(sp60);
 
-    sp44.x = Math_CosS(sp62) * sp64 * sp40;
-    sp44.y = Math_SinS(sp6E) * sp64;
-    sp44.z = Math_SinS(sp62) * sp64 * sp40;
+    sp44.x = OoT_Math_CosS(sp62) * sp64 * sp40;
+    sp44.y = OoT_Math_SinS(sp6E) * sp64;
+    sp44.z = OoT_Math_SinS(sp62) * sp64 * sp40;
 
-    Matrix_Push();
+    OoT_Matrix_Push();
 
     Matrix_RotateAxis(sp68, &sp50, MTXMODE_APPLY);
-    Matrix_Translate(sp44.x, sp44.y, sp44.z, MTXMODE_APPLY);
+    OoT_Matrix_Translate(sp44.x, sp44.y, sp44.z, MTXMODE_APPLY);
     MATRIX_TOMTX(sp5C);
 
-    Matrix_Pop();
+    OoT_Matrix_Pop();
 
     Gfx_SetupDL_25Opa(gfxCtx);
     gSPMatrix(POLY_OPA_DISP++, sp5C, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -1688,7 +1688,7 @@ void DemoGt_Draw8(DemoGt* this, PlayState* play) {
     CLOSE_DISPS(gfxCtx);
 }
 
-static DemoGtUpdateFunc sUpdateFuncs[] = {
+static DemoGtUpdateFunc OoT_sUpdateFuncs[] = {
     DemoGt_Update0,  DemoGt_Update1,  DemoGt_Update2,  DemoGt_Update3,  DemoGt_Update4,
     DemoGt_Update5,  DemoGt_Update6,  DemoGt_Update7,  DemoGt_Update8,  DemoGt_Update9,
     DemoGt_Update10, DemoGt_Update11, DemoGt_Update12, DemoGt_Update13, DemoGt_Update14,
@@ -1699,7 +1699,7 @@ void DemoGt_Update(Actor* thisx, PlayState* play) {
     DemoGt* this = (DemoGt*)thisx;
     DemoGtUpdateFunc updateFunc;
 
-    if ((this->updateMode < 0) || (this->updateMode >= 19) || (updateFunc = sUpdateFuncs[this->updateMode]) == NULL) {
+    if ((this->updateMode < 0) || (this->updateMode >= 19) || (updateFunc = OoT_sUpdateFuncs[this->updateMode]) == NULL) {
         // "The main mode is strange!"
         osSyncPrintf(VT_FGCOL(RED) "メインモードがおかしい!!!!!!!!!!!!!!!!!!!!!!!!!\n" VT_RST);
         return;
@@ -1739,14 +1739,14 @@ void DemoGt_Init(Actor* thisx, PlayState* play) {
         default:
             // "Demo_Gt_Actor_ct There is no such argument !"
             osSyncPrintf("Demo_Gt_Actor_ct そんな引数は無い!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-            Actor_Kill(&this->dyna.actor);
+            OoT_Actor_Kill(&this->dyna.actor);
     }
 }
 
 void DemoGt_Draw0(DemoGt* this, PlayState* play) {
 }
 
-static DemoGtDrawFunc sDrawFuncs[] = {
+static DemoGtDrawFunc OoT_sDrawFuncs[] = {
     DemoGt_Draw0, DemoGt_Draw1, DemoGt_Draw2, DemoGt_Draw3, DemoGt_Draw4,
     DemoGt_Draw5, DemoGt_Draw6, DemoGt_Draw7, DemoGt_Draw8,
 };
@@ -1755,7 +1755,7 @@ void DemoGt_Draw(Actor* thisx, PlayState* play) {
     DemoGt* this = (DemoGt*)thisx;
     DemoGtDrawFunc drawFunc;
 
-    if ((this->drawConfig < 0) || (this->drawConfig >= 9) || (drawFunc = sDrawFuncs[this->drawConfig]) == NULL) {
+    if ((this->drawConfig < 0) || (this->drawConfig >= 9) || (drawFunc = OoT_sDrawFuncs[this->drawConfig]) == NULL) {
         // "The drawing mode is strange !!!!!!!!!!!!!!!!!!!!!!!!!"
         osSyncPrintf(VT_FGCOL(RED) "描画モードがおかしい!!!!!!!!!!!!!!!!!!!!!!!!!\n" VT_RST);
         return;

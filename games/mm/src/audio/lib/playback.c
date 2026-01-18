@@ -52,16 +52,16 @@ void AudioPlayback_InitSampleState(Note* note, NoteSampleState* sampleState, Not
         sampleState->haasEffectLeftDelaySize = gHaasEffectDelaySize[0x3F - halfPanIndex];
         sampleState->bitField1.useHaasEffect = true;
 
-        volLeft = gHeadsetPanVolume[pan];
-        volRight = gHeadsetPanVolume[0x7F - pan];
+        volLeft = MM_gHeadsetPanVolume[pan];
+        volRight = MM_gHeadsetPanVolume[0x7F - pan];
     } else if (stereoHeadsetEffects && (gAudioCtx.soundMode == SOUNDMODE_STEREO)) {
         strongLeft = strongRight = false;
         sampleState->haasEffectLeftDelaySize = 0;
         sampleState->haasEffectRightDelaySize = 0;
         sampleState->bitField1.useHaasEffect = false;
 
-        volLeft = gStereoPanVolume[pan];
-        volRight = gStereoPanVolume[0x7F - pan];
+        volLeft = MM_gStereoPanVolume[pan];
+        volRight = MM_gStereoPanVolume[0x7F - pan];
         if (pan < 0x20) {
             strongLeft = true;
         } else if (pan > 0x60) {
@@ -103,8 +103,8 @@ void AudioPlayback_InitSampleState(Note* note, NoteSampleState* sampleState, Not
     } else {
         sampleState->bitField0.strongRight = stereoData.strongRight;
         sampleState->bitField0.strongLeft = stereoData.strongLeft;
-        volLeft = gDefaultPanVolume[pan];
-        volRight = gDefaultPanVolume[0x7F - pan];
+        volLeft = MM_gDefaultPanVolume[pan];
+        volRight = MM_gDefaultPanVolume[0x7F - pan];
     }
 
     velocity = 0.0f > velocity ? 0.0f : velocity;
@@ -371,7 +371,7 @@ Instrument* AudioPlayback_GetInstrumentInner(s32 fontId, s32 instId) {
         return NULL;
     }
 
-    if (!AudioLoad_IsFontLoadComplete(fontId)) {
+    if (!MM_AudioLoad_IsFontLoadComplete(fontId)) {
         gAudioCtx.audioErrorFlags = AUDIO_ERROR(0, fontId, AUDIO_ERROR_FONT_NOT_LOADED);
         return NULL;
     }
@@ -400,7 +400,7 @@ Drum* AudioPlayback_GetDrum(s32 fontId, s32 drumId) {
         return NULL;
     }
 
-    if (!AudioLoad_IsFontLoadComplete(fontId)) {
+    if (!MM_AudioLoad_IsFontLoadComplete(fontId)) {
         gAudioCtx.audioErrorFlags = AUDIO_ERROR(0, fontId, AUDIO_ERROR_FONT_NOT_LOADED);
         return NULL;
     }
@@ -424,7 +424,7 @@ SoundEffect* AudioPlayback_GetSoundEffect(s32 fontId, s32 sfxId) {
         return NULL;
     }
 
-    if (!AudioLoad_IsFontLoadComplete(fontId)) {
+    if (!MM_AudioLoad_IsFontLoadComplete(fontId)) {
         gAudioCtx.audioErrorFlags = AUDIO_ERROR(0, fontId, AUDIO_ERROR_FONT_NOT_LOADED);
         return NULL;
     }
@@ -450,7 +450,7 @@ s32 AudioPlayback_SetFontInstrument(s32 instrumentType, s32 fontId, s32 index, v
         return -1;
     }
 
-    if (!AudioLoad_IsFontLoadComplete(fontId)) {
+    if (!MM_AudioLoad_IsFontLoadComplete(fontId)) {
         return -2;
     }
 
@@ -598,12 +598,12 @@ void AudioPlayback_SeqLayerNoteRelease(SequenceLayer* layer) {
 }
 
 /**
- * Extract the synthetic wave to use from gWaveSamples and update corresponding frequencies
+ * Extract the synthetic wave to use from MM_gWaveSamples and update corresponding frequencies
  *
  * @param note
  * @param layer
  * @param waveId the index of the type of synthetic wave to use, offset by 128
- * @return harmonicIndex, the index of the harmonic for the synthetic wave contained in gWaveSamples
+ * @return harmonicIndex, the index of the harmonic for the synthetic wave contained in MM_gWaveSamples
  */
 s32 AudioPlayback_BuildSyntheticWave(Note* note, SequenceLayer* layer, s32 waveId) {
     f32 freqScale;
@@ -619,7 +619,7 @@ s32 AudioPlayback_BuildSyntheticWave(Note* note, SequenceLayer* layer, s32 waveI
         freqScale *= (layer->portamento.extent + 1.0f);
     }
 
-    // Map frequency to the harmonic to use from gWaveSamples
+    // Map frequency to the harmonic to use from MM_gWaveSamples
     if (freqScale < 0.99999f) {
         harmonicIndex = 0;
         freqRatio = 1.0465f;
@@ -641,7 +641,7 @@ s32 AudioPlayback_BuildSyntheticWave(Note* note, SequenceLayer* layer, s32 waveI
 
     // Save the pointer to the synthethic wave
     // waveId index starts at 128, there are WAVE_SAMPLE_COUNT samples to read from
-    note->sampleState.waveSampleAddr = &gWaveSamples[waveId - 128][harmonicIndex * WAVE_SAMPLE_COUNT];
+    note->sampleState.waveSampleAddr = &MM_gWaveSamples[waveId - 128][harmonicIndex * WAVE_SAMPLE_COUNT];
 
     return harmonicIndex;
 }
@@ -1028,7 +1028,7 @@ void AudioPlayback_NoteInitAll(void) {
         note->playbackState.stereoHeadsetEffects = false;
         note->playbackState.startSamplePos = 0;
         note->synthesisState.synthesisBuffers =
-            AudioHeap_AllocDmaMemory(&gAudioCtx.miscPool, sizeof(NoteSynthesisBuffers));
-        note->playbackState.attributes.filterBuf = AudioHeap_AllocDmaMemory(&gAudioCtx.miscPool, FILTER_SIZE);
+            MM_AudioHeap_AllocDmaMemory(&gAudioCtx.miscPool, sizeof(NoteSynthesisBuffers));
+        note->playbackState.attributes.filterBuf = MM_AudioHeap_AllocDmaMemory(&gAudioCtx.miscPool, FILTER_SIZE);
     }
 }

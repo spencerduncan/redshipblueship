@@ -16,8 +16,8 @@ typedef struct {
     s16 angle;
 } Mure2sScatteredShrubInfo;
 
-void ObjMure2_Init(Actor* thisx, PlayState* play);
-void ObjMure2_Update(Actor* thisx, PlayState* play);
+void OoT_ObjMure2_Init(Actor* thisx, PlayState* play);
+void OoT_ObjMure2_Update(Actor* thisx, PlayState* play);
 
 void ObjMure2_SetPosShrubCircle(Vec3f* vec, ObjMure2* this);
 void ObjMure2_SetPosShrubScattered(Vec3f* vec, ObjMure2* this);
@@ -35,9 +35,9 @@ const ActorInit Obj_Mure2_InitVars = {
     FLAGS,
     OBJECT_GAMEPLAY_KEEP,
     sizeof(ObjMure2),
-    (ActorFunc)ObjMure2_Init,
-    (ActorFunc)Actor_Noop,
-    (ActorFunc)ObjMure2_Update,
+    (ActorFunc)OoT_ObjMure2_Init,
+    (ActorFunc)OoT_Actor_Noop,
+    (ActorFunc)OoT_ObjMure2_Update,
     NULL,
     NULL,
 };
@@ -53,11 +53,11 @@ static s16 sActorSpawnIDs[] = { ACTOR_EN_KUSA, ACTOR_EN_KUSA, ACTOR_EN_ISHI };
 void ObjMure2_SetPosShrubCircle(Vec3f* vec, ObjMure2* this) {
     s32 i;
 
-    Math_Vec3f_Copy(vec, &this->actor.world.pos);
+    OoT_Math_Vec3f_Copy(vec, &this->actor.world.pos);
     for (i = 1; i < D_80B9A818[this->actor.params & 3]; i++) {
-        Math_Vec3f_Copy(vec + i, &this->actor.world.pos);
-        (vec + i)->x += (80.0f * Math_SinS((i - 1) * 0x2000));
-        (vec + i)->z += (80.0f * Math_CosS((i - 1) * 0x2000));
+        OoT_Math_Vec3f_Copy(vec + i, &this->actor.world.pos);
+        (vec + i)->x += (80.0f * OoT_Math_SinS((i - 1) * 0x2000));
+        (vec + i)->z += (80.0f * OoT_Math_CosS((i - 1) * 0x2000));
     }
 }
 
@@ -70,9 +70,9 @@ void ObjMure2_SetPosShrubScattered(Vec3f* vec, ObjMure2* this) {
     s32 i;
 
     for (i = 0; i < D_80B9A818[this->actor.params & 3]; i++) {
-        Math_Vec3f_Copy(vec + i, &this->actor.world.pos);
-        (vec + i)->x += (sScatteredShrubInfo[i].radius * Math_CosS(sScatteredShrubInfo[i].angle));
-        (vec + i)->z -= (sScatteredShrubInfo[i].radius * Math_SinS(sScatteredShrubInfo[i].angle));
+        OoT_Math_Vec3f_Copy(vec + i, &this->actor.world.pos);
+        (vec + i)->x += (sScatteredShrubInfo[i].radius * OoT_Math_CosS(sScatteredShrubInfo[i].angle));
+        (vec + i)->z -= (sScatteredShrubInfo[i].radius * OoT_Math_SinS(sScatteredShrubInfo[i].angle));
     }
 }
 
@@ -80,9 +80,9 @@ void ObjMure2_SetPosRockCircle(Vec3f* vec, ObjMure2* this) {
     s32 i;
 
     for (i = 0; i < D_80B9A818[this->actor.params & 3]; i++) {
-        Math_Vec3f_Copy(vec + i, &this->actor.world.pos);
-        (vec + i)->x += (80.0f * Math_SinS(i * 0x2000));
-        (vec + i)->z += (80.0f * Math_CosS(i * 0x2000));
+        OoT_Math_Vec3f_Copy(vec + i, &this->actor.world.pos);
+        (vec + i)->x += (80.0f * OoT_Math_SinS(i * 0x2000));
+        (vec + i)->z += (80.0f * OoT_Math_CosS(i * 0x2000));
     }
 }
 
@@ -120,7 +120,7 @@ void ObjMure2_SpawnActors(ObjMure2* this, PlayState* play) {
 
         if (((this->currentActorNum >> i) & 1) == 0) {
             this->actorSpawnPtrList[i] =
-                Actor_Spawn(&play->actorCtx, play, sActorSpawnIDs[actorNum], spawnPos[i].x, spawnPos[i].y,
+                OoT_Actor_Spawn(&play->actorCtx, play, sActorSpawnIDs[actorNum], spawnPos[i].x, spawnPos[i].y,
                             spawnPos[i].z, this->actor.world.rot.x, 0, this->actor.world.rot.z, params, true);
             if (this->actorSpawnPtrList[i] != NULL) {
                 this->actorSpawnPtrList[i]->room = this->actor.room;
@@ -135,10 +135,10 @@ void ObjMure2_CleanupAndDie(ObjMure2* this, PlayState* play) {
     for (i = 0; i < D_80B9A818[this->actor.params & 3]; i++) {
         if (((this->currentActorNum >> i) & 1) == 0) {
             if (this->actorSpawnPtrList[i] != NULL) {
-                if (Actor_HasParent(this->actorSpawnPtrList[i], play)) {
+                if (OoT_Actor_HasParent(this->actorSpawnPtrList[i], play)) {
                     this->currentActorNum |= (1 << i);
                 } else {
-                    Actor_Kill(this->actorSpawnPtrList[i]);
+                    OoT_Actor_Kill(this->actorSpawnPtrList[i]);
                 }
                 this->actorSpawnPtrList[i] = NULL;
             }
@@ -160,16 +160,16 @@ void func_80B9A534(ObjMure2* this) {
     }
 }
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(uncullZoneForward, 100, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 2100, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneDownward, 100, ICHAIN_STOP),
 };
 
-void ObjMure2_Init(Actor* thisx, PlayState* play) {
+void OoT_ObjMure2_Init(Actor* thisx, PlayState* play) {
     ObjMure2* this = (ObjMure2*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
     if (play->csCtx.state != CS_STATE_IDLE) {
         this->actor.uncullZoneForward += 1200.0f;
     }
@@ -189,7 +189,7 @@ void func_80B9A658(ObjMure2* this) {
 }
 
 void func_80B9A668(ObjMure2* this, PlayState* play) {
-    if (Math3D_Dist1DSq(this->actor.projectedPos.x, this->actor.projectedPos.z) <
+    if (OoT_Math3D_Dist1DSq(this->actor.projectedPos.x, this->actor.projectedPos.z) <
         (sDistSquared1[this->actor.params & 3] * this->unk_184)) {
         this->actor.flags |= ACTOR_FLAG_UPDATE_CULLING_DISABLED;
         ObjMure2_SpawnActors(this, play);
@@ -205,14 +205,14 @@ void func_80B9A6F8(ObjMure2* this, PlayState* play) {
     func_80B9A534(this);
 
     if ((sDistSquared2[this->actor.params & 3] * this->unk_184) <=
-        Math3D_Dist1DSq(this->actor.projectedPos.x, this->actor.projectedPos.z)) {
+        OoT_Math3D_Dist1DSq(this->actor.projectedPos.x, this->actor.projectedPos.z)) {
         this->actor.flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
         ObjMure2_CleanupAndDie(this, play);
         func_80B9A658(this);
     }
 }
 
-void ObjMure2_Update(Actor* thisx, PlayState* play) {
+void OoT_ObjMure2_Update(Actor* thisx, PlayState* play) {
     ObjMure2* this = (ObjMure2*)thisx;
 
     if (play->csCtx.state == CS_STATE_IDLE) {

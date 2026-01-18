@@ -28,7 +28,7 @@ ActorProfile Elf_Msg3_Profile = {
     /**/ NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 1000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 1000, ICHAIN_STOP),
 };
@@ -39,29 +39,29 @@ void ElfMsg3_SetupAction(ElfMsg3* this, ElfMsg3ActionFunc actionFunc) {
 
 s32 func_80A2CD1C(ElfMsg3* this, PlayState* play) {
     if ((this->actor.home.rot.y > 0) && (this->actor.home.rot.y <= 0x80) &&
-        Flags_GetSwitch(play, this->actor.home.rot.y - 1)) {
+        MM_Flags_GetSwitch(play, this->actor.home.rot.y - 1)) {
         (void)"共倒れ"; // "Collapse together"
         if (ELFMSG3_GET_SWITCH_FLAG(&this->actor) != 0x7F) {
-            Flags_SetSwitch(play, ELFMSG3_GET_SWITCH_FLAG(&this->actor));
+            MM_Flags_SetSwitch(play, ELFMSG3_GET_SWITCH_FLAG(&this->actor));
         }
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return true;
     }
     if (this->actor.home.rot.y == 0x81) {
-        if (Flags_GetClear(play, this->actor.room)) {
+        if (MM_Flags_GetClear(play, this->actor.room)) {
             if (ELFMSG3_GET_SWITCH_FLAG(&this->actor) != 0x7F) {
-                Flags_SetSwitch(play, ELFMSG3_GET_SWITCH_FLAG(&this->actor));
+                MM_Flags_SetSwitch(play, ELFMSG3_GET_SWITCH_FLAG(&this->actor));
             }
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
             return true;
         }
     }
     if (ELFMSG3_GET_SWITCH_FLAG(&this->actor) == 0x7F) {
         return false;
     }
-    if (Flags_GetSwitch(play, ELFMSG3_GET_SWITCH_FLAG(&this->actor))) {
+    if (MM_Flags_GetSwitch(play, ELFMSG3_GET_SWITCH_FLAG(&this->actor))) {
         (void)"共倒れ"; // "Collapse together"
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return true;
     }
     return false;
@@ -71,7 +71,7 @@ void ElfMsg3_Init(Actor* thisx, PlayState* play) {
     ElfMsg3* this = (ElfMsg3*)thisx;
 
     if (!func_80A2CD1C(this, play)) {
-        Actor_ProcessInitChain(&this->actor, sInitChain);
+        MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
         if (ABS_ALT(this->actor.home.rot.x) == 0) {
             this->actor.scale.z = 0.4f;
             this->actor.scale.x = 0.4f;
@@ -137,14 +137,14 @@ void ElfMsg3_Update(Actor* thisx, PlayState* play) {
     if (!func_80A2CD1C(this, play)) {
         if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
             if (ELFMSG3_GET_SWITCH_FLAG(thisx) != 0x7F) {
-                Flags_SetSwitch(play, ELFMSG3_GET_SWITCH_FLAG(thisx));
+                MM_Flags_SetSwitch(play, ELFMSG3_GET_SWITCH_FLAG(thisx));
             }
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
             return;
         }
 
         if ((this->actor.home.rot.y >= 0) || (this->actor.home.rot.y < -0x80) ||
-            Flags_GetSwitch(play, -1 - this->actor.home.rot.y)) {
+            MM_Flags_GetSwitch(play, -1 - this->actor.home.rot.y)) {
             this->actionFunc(this, play);
         }
     }

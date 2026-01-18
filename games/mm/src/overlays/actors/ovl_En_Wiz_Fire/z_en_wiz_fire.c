@@ -49,7 +49,7 @@ ActorProfile En_Wiz_Fire_Profile = {
     /**/ EnWizFire_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -72,14 +72,14 @@ static ColliderCylinderInit sCylinderInit = {
 void EnWizFire_Init(Actor* thisx, PlayState* play) {
     EnWizFire* this = (EnWizFire*)thisx;
 
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
     this->type = EN_WIZ_FIRE_GET_TYPE(&this->actor);
     this->actor.attentionRangeType = ATTENTION_RANGE_3;
     this->wallCheckTimer = 10;
     this->alpha = 255.0f;
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
 
-    if (!Player_HasMirrorShieldEquipped(play)) {
+    if (!MM_Player_HasMirrorShieldEquipped(play)) {
         this->collider.elem.atDmgInfo.dmgFlags = 0x20000000;
     }
 
@@ -104,7 +104,7 @@ void EnWizFire_Init(Actor* thisx, PlayState* play) {
 
         case EN_WIZ_FIRE_TYPE_SMALL_FLAME:
             this->actor.draw = EnWizFire_DrawSmallFlame;
-            this->smallFlameScroll = Rand_S16Offset(0, 10000);
+            this->smallFlameScroll = MM_Rand_S16Offset(0, 10000);
             this->action = EN_WIZ_FIRE_ACTION_SMALL_FLAME;
             this->collider.elem.atDmgInfo.damage = 2;
             this->actionFunc = EnWiz_SetupSmallFlame;
@@ -134,7 +134,7 @@ void EnWizFire_Destroy(Actor* thisx, PlayState* play) {
         play->envCtx.adjLightSettings.fogNear = play->envCtx.adjLightSettings.fogColor[2];
     }
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnWiz_SetupMoveMagicProjectile(EnWizFire* this, PlayState* play) {
@@ -147,18 +147,18 @@ void EnWiz_SetupMoveMagicProjectile(EnWizFire* this, PlayState* play) {
 
     this->lowestUsedIndex = 0;
 
-    Matrix_Push();
+    MM_Matrix_Push();
     Matrix_RotateYS(this->actor.world.rot.y, MTXMODE_NEW);
     Matrix_RotateXS(this->actor.world.rot.x, MTXMODE_APPLY);
 
     if (this->type != EN_WIZ_FIRE_TYPE_MAGIC_PROJECTILE) {
-        velocity.z = Rand_CenteredFloat(2.0f) + 8.0f;
+        velocity.z = MM_Rand_CenteredFloat(2.0f) + 8.0f;
     } else {
         velocity.z = 12.0f;
     }
 
-    Matrix_MultVec3f(&velocity, &this->actor.velocity);
-    Matrix_Pop();
+    MM_Matrix_MultVec3f(&velocity, &this->actor.velocity);
+    MM_Matrix_Pop();
 
     this->actor.world.rot.x = this->actor.world.rot.y = this->actor.world.rot.z = 0;
     this->timer = 50;
@@ -192,7 +192,7 @@ void EnWiz_MoveMagicProjectile(EnWizFire* this, PlayState* play) {
     }
 
     if ((this->timer == 0) && (this->scale < 0.001f)) {
-        Math_Vec3f_Copy(&this->actor.velocity, &gZeroVec3f);
+        MM_Math_Vec3f_Copy(&this->actor.velocity, &gZeroVec3f);
         this->action = EN_WIZ_FIRE_ACTION_KILL_MAGIC_PROJECTILE;
         this->increaseLowestUsedIndexTimer = 0;
         this->actionFunc = EnWiz_KillMagicProjectile;
@@ -203,7 +203,7 @@ void EnWiz_MoveMagicProjectile(EnWizFire* this, PlayState* play) {
         this->targetScale = 0.0f;
     }
 
-    Math_ApproachF(&this->scale, this->targetScale, 0.2f, 0.01f);
+    MM_Math_ApproachF(&this->scale, this->targetScale, 0.2f, 0.01f);
 
     if (this->wallCheckTimer == 0) {
         if ((this->actor.bgCheckFlags & BGCHECKFLAG_WALL) && (this->type == EN_WIZ_FIRE_TYPE_MAGIC_PROJECTILE) &&
@@ -222,17 +222,17 @@ void EnWiz_MoveMagicProjectile(EnWizFire* this, PlayState* play) {
         if (this->type == EN_WIZ_FIRE_TYPE_ARCING_MAGIC_PROJECTILE) {
             this->increaseLowestUsedIndexTimer = 10;
 
-            Matrix_Push();
-            Matrix_RotateYS(TRUNCF_BINANG(Rand_CenteredFloat(0x100)) + this->actor.world.rot.y, MTXMODE_NEW);
-            velocity.z = Rand_CenteredFloat(2.0f) + 8.0f;
-            Matrix_MultVec3f(&velocity, &this->actor.velocity);
-            Matrix_Pop();
+            MM_Matrix_Push();
+            Matrix_RotateYS(TRUNCF_BINANG(MM_Rand_CenteredFloat(0x100)) + this->actor.world.rot.y, MTXMODE_NEW);
+            velocity.z = MM_Rand_CenteredFloat(2.0f) + 8.0f;
+            MM_Matrix_MultVec3f(&velocity, &this->actor.velocity);
+            MM_Matrix_Pop();
 
             this->actor.velocity.y = 6.0f;
             this->actor.gravity = -0.7f;
 
             if (!this->hasSpawnedSmallFlame) {
-                Actor_Spawn(&play->actorCtx, play, ACTOR_EN_WIZ_FIRE, this->actor.world.pos.x,
+                MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_WIZ_FIRE, this->actor.world.pos.x,
                             this->actor.world.pos.y - 10.0f, this->actor.world.pos.z, 0, 0, 0,
                             EN_WIZ_FIRE_TYPE_SMALL_FLAME);
                 this->hasSpawnedSmallFlame = true;
@@ -240,7 +240,7 @@ void EnWiz_MoveMagicProjectile(EnWizFire* this, PlayState* play) {
 
             this->timer = 0;
             this->scale = 0.0f;
-            Math_Vec3f_Copy(&this->actor.velocity, &gZeroVec3f);
+            MM_Math_Vec3f_Copy(&this->actor.velocity, &gZeroVec3f);
             this->action = EN_WIZ_FIRE_ACTION_KILL_MAGIC_PROJECTILE;
             this->increaseLowestUsedIndexTimer = 0;
             this->actionFunc = EnWiz_KillMagicProjectile;
@@ -254,14 +254,14 @@ void EnWiz_MoveMagicProjectile(EnWizFire* this, PlayState* play) {
                     arcingProjectileRotY = 0;
 
                     for (i = 0; i < 5; i++) {
-                        Actor_Spawn(&play->actorCtx, play, ACTOR_EN_WIZ_FIRE, this->actor.world.pos.x,
+                        MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_WIZ_FIRE, this->actor.world.pos.x,
                                     this->actor.world.pos.y, this->actor.world.pos.z, 0, arcingProjectileRotY, 0,
                                     EN_WIZ_FIRE_TYPE_ARCING_MAGIC_PROJECTILE);
-                        arcingProjectileRotY += BINANG_ADD((s32)Rand_CenteredFloat(0x1000), 0x10000 / 5);
+                        arcingProjectileRotY += BINANG_ADD((s32)MM_Rand_CenteredFloat(0x1000), 0x10000 / 5);
                     }
 
                     Actor_PlaySfx(&this->actor, NA_SE_IT_BOMB_EXPLOSION);
-                    this->poolTimer = Rand_S16Offset(70, 30);
+                    this->poolTimer = MM_Rand_S16Offset(70, 30);
                     if (this->poolTimer != 0) {
                         Actor_PlaySfx(&this->actor, NA_SE_EN_WIZ_EXP - SFX_FLAG);
                     }
@@ -269,7 +269,7 @@ void EnWiz_MoveMagicProjectile(EnWizFire* this, PlayState* play) {
                     Actor_PlaySfx(&this->actor, NA_SE_EV_ICE_FREEZE - SFX_FLAG);
                 }
 
-                Math_Vec3f_Copy(&this->actor.velocity, &gZeroVec3f);
+                MM_Math_Vec3f_Copy(&this->actor.velocity, &gZeroVec3f);
                 this->timer = 0;
                 this->action = EN_WIZ_FIRE_ACTION_POOL;
                 this->scale = 0.0f;
@@ -286,11 +286,11 @@ void EnWiz_MoveMagicProjectile(EnWizFire* this, PlayState* play) {
             if (this->collider.elem.acHitElem->atDmgInfo.dmgFlags == 0x1000) {
                 this->timer = 0;
                 this->hitByIceArrow = true;
-                SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 50, NA_SE_EV_ICE_MELT);
+                MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 50, NA_SE_EV_ICE_MELT);
             }
         }
 
-        if (Player_HasMirrorShieldEquipped(play) && (this->collider.base.atFlags & AT_BOUNCED)) {
+        if (MM_Player_HasMirrorShieldEquipped(play) && (this->collider.base.atFlags & AT_BOUNCED)) {
             Actor_PlaySfx(&this->actor, NA_SE_IT_SHIELD_REFLECT_MG);
             this->collider.base.atFlags &= ~(AT_TYPE_ENEMY | AT_BOUNCED | AT_HIT);
             this->collider.base.atFlags |= AT_TYPE_PLAYER;
@@ -312,10 +312,10 @@ void EnWiz_MoveMagicProjectile(EnWizFire* this, PlayState* play) {
 
 void EnWiz_SetupSmallFlame(EnWizFire* this, PlayState* play) {
     this->targetScale = 0.02f;
-    this->timer = Rand_S16Offset(50, 50);
-    this->scaleMod.x = Rand_CenteredFloat(1.0f) * 0.007f;
-    this->scaleMod.y = Rand_CenteredFloat(1.0f) * 0.005f;
-    this->scaleMod.z = Rand_CenteredFloat(1.0f) * 0.007f;
+    this->timer = MM_Rand_S16Offset(50, 50);
+    this->scaleMod.x = MM_Rand_CenteredFloat(1.0f) * 0.007f;
+    this->scaleMod.y = MM_Rand_CenteredFloat(1.0f) * 0.005f;
+    this->scaleMod.z = MM_Rand_CenteredFloat(1.0f) * 0.007f;
     this->actionFunc = EnWiz_SmallFlame;
 }
 
@@ -325,12 +325,12 @@ void EnWiz_SetupSmallFlame(EnWizFire* this, PlayState* play) {
  */
 void EnWiz_SmallFlame(EnWizFire* this, PlayState* play) {
     if (this->timer > 10) {
-        Math_ApproachF(&this->scale, this->targetScale, 0.3f, 0.01f);
+        MM_Math_ApproachF(&this->scale, this->targetScale, 0.3f, 0.01f);
     } else {
-        Math_ApproachF(&this->scale, 2.0f * this->targetScale, 0.2f, 0.002f);
-        Math_ApproachZeroF(&this->alpha, 1.0f, 35.0f);
+        MM_Math_ApproachF(&this->scale, 2.0f * this->targetScale, 0.2f, 0.002f);
+        MM_Math_ApproachZeroF(&this->alpha, 1.0f, 35.0f);
         if ((this->timer == 0) && (this->alpha < 2.0f)) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
         return;
     }
@@ -345,7 +345,7 @@ void EnWiz_SmallFlame(EnWizFire* this, PlayState* play) {
             if (this->collider.elem.acHitElem->atDmgInfo.dmgFlags == 0x1000) {
                 this->timer = 0;
                 this->hitByIceArrow = true;
-                SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 50, NA_SE_EV_ICE_MELT);
+                MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 50, NA_SE_EV_ICE_MELT);
             }
         }
     }
@@ -374,20 +374,20 @@ void EnWiz_Pool(EnWizFire* this, PlayState* play) {
     }
 
     if (this->poolTimer != 0) {
-        Math_ApproachF(&this->blendScale, 60.0f, 0.5f, 10.0f);
+        MM_Math_ApproachF(&this->blendScale, 60.0f, 0.5f, 10.0f);
         if (this->isIceType == true) {
             Vec3f accel = { 0.0f, 0.0f, 0.0f };
             Vec3f pos;
 
-            accel.x = Rand_CenteredFloat(3.0f) / 10.0f;
+            accel.x = MM_Rand_CenteredFloat(3.0f) / 10.0f;
             accel.y = 0.23f;
-            accel.z = Rand_CenteredFloat(3.0f) / 10.0f;
+            accel.z = MM_Rand_CenteredFloat(3.0f) / 10.0f;
 
-            Math_Vec3f_Copy(&pos, &this->actor.world.pos);
-            pos.x += Rand_CenteredFloat(150.0f);
-            pos.z += Rand_CenteredFloat(150.0f);
+            MM_Math_Vec3f_Copy(&pos, &this->actor.world.pos);
+            pos.x += MM_Rand_CenteredFloat(150.0f);
+            pos.z += MM_Rand_CenteredFloat(150.0f);
 
-            Math_ApproachF(&this->poolScale, 0.022f, 0.3f, 0.01f);
+            MM_Math_ApproachF(&this->poolScale, 0.022f, 0.3f, 0.01f);
             this->collider.dim.radius = this->poolScale * 4300.0f;
             this->collider.dim.height = 30;
             this->collider.dim.yShift = 15;
@@ -396,9 +396,9 @@ void EnWiz_Pool(EnWizFire* this, PlayState* play) {
             return;
         }
 
-        Math_ApproachF(&this->poolScale, 0.02f, 0.3f, 0.002f);
-        Math_ApproachF(&this->fireSmokeScale, 0.02f, 0.3f, 0.002f);
-        Math_ApproachF(&this->bigFlameScale, 0.02f, 0.3f, 0.2f);
+        MM_Math_ApproachF(&this->poolScale, 0.02f, 0.3f, 0.002f);
+        MM_Math_ApproachF(&this->fireSmokeScale, 0.02f, 0.3f, 0.002f);
+        MM_Math_ApproachF(&this->bigFlameScale, 0.02f, 0.3f, 0.2f);
         this->collider.dim.radius = this->poolScale * 4000.0f;
         this->collider.dim.height = this->bigFlameScale * 1850.0f;
         this->collider.dim.yShift = -15;
@@ -413,19 +413,19 @@ void EnWiz_Pool(EnWizFire* this, PlayState* play) {
                 sPoolHitByIceArrow = true;
                 this->hitByIceArrow = true;
                 this->poolTimer = 0;
-                SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 50, NA_SE_EV_ICE_MELT);
+                MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 50, NA_SE_EV_ICE_MELT);
             }
         }
 
         this->actor.world.pos.y = this->actor.floorHeight + 10.0f;
-        Actor_SetFocus(&this->actor, 0.0f);
+        MM_Actor_SetFocus(&this->actor, 0.0f);
         return;
     }
 
-    Math_ApproachZeroF(&this->blendScale, 0.2f, 3.0f);
+    MM_Math_ApproachZeroF(&this->blendScale, 0.2f, 3.0f);
 
     if (this->isIceType == true) {
-        Math_ApproachZeroF(&this->poolScale, 0.046f, 0.001f);
+        MM_Math_ApproachZeroF(&this->poolScale, 0.046f, 0.001f);
         Actor_PlaySfx(&this->actor, NA_SE_EV_ICE_FREEZE - SFX_FLAG);
 
         if (!this->shouldPoolFadeOut) {
@@ -439,21 +439,21 @@ void EnWiz_Pool(EnWizFire* this, PlayState* play) {
         }
 
         if (this->shouldPoolFadeOut && (this->poolScale < 0.05f)) {
-            Math_ApproachZeroF(&this->alpha, 1.0f, 5.0f);
+            MM_Math_ApproachZeroF(&this->alpha, 1.0f, 5.0f);
         }
 
         if ((this->poolScale < 0.001f) && (this->blendScaleFrac < 0.001f)) {
             sPoolHitByIceArrow = false;
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
 
         return;
     }
 
-    Math_ApproachZeroF(&this->bigFlameScale, 0.1f, 0.01f);
+    MM_Math_ApproachZeroF(&this->bigFlameScale, 0.1f, 0.01f);
 
     if (this->bigFlameScale < 0.01f) {
-        Math_ApproachZeroF(&this->alpha, 1.0f, 10.0f);
+        MM_Math_ApproachZeroF(&this->alpha, 1.0f, 10.0f);
         if ((this->alpha < 10.0f) && (this->blendScaleFrac < 0.001f)) {
             sPoolHitByIceArrow = false;
             if ((this->actor.parent != NULL) && (this->type == EN_WIZ_FIRE_TYPE_MAGIC_PROJECTILE) &&
@@ -463,7 +463,7 @@ void EnWiz_Pool(EnWizFire* this, PlayState* play) {
                 wiz->hasActiveProjectile = false;
             }
 
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
     }
 }
@@ -483,7 +483,7 @@ void EnWiz_KillMagicProjectile(EnWizFire* this, PlayState* play) {
                 }
             }
 
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
     }
 }
@@ -501,7 +501,7 @@ void EnWizFire_Update(Actor* thisx, PlayState* play2) {
     s16 randomScale;
     s16 index;
 
-    Actor_SetScale(&this->actor, this->scale);
+    MM_Actor_SetScale(&this->actor, this->scale);
     EnWizFire_UpdateEffects(this, play);
     this->blendScaleFrac = this->blendScale / 60.0f;
 
@@ -568,7 +568,7 @@ void EnWizFire_Update(Actor* thisx, PlayState* play2) {
     this->actionFunc(this, play);
 
     this->actor.shape.yOffset = 10.0f;
-    Actor_UpdatePos(&this->actor);
+    MM_Actor_UpdatePos(&this->actor);
 
     this->magicProjectilePos[0] = this->actor.world.pos;
 
@@ -583,7 +583,7 @@ void EnWizFire_Update(Actor* thisx, PlayState* play2) {
     DECR(this->steamSpawnTimer);
     DECR(this->poolTimer);
 
-    Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 5.0f, 10.0f,
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 5.0f, 10.0f,
                             UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4 | UPDBGCHECKINFO_FLAG_8 |
                                 UPDBGCHECKINFO_FLAG_10);
 
@@ -601,23 +601,23 @@ void EnWizFire_Update(Actor* thisx, PlayState* play2) {
         velocity.y = 1.0f;
         velocity.z = 0.0f;
 
-        scaleStep = Rand_S16Offset(20, 10);
+        scaleStep = MM_Rand_S16Offset(20, 10);
         if (this->type == EN_WIZ_FIRE_TYPE_MAGIC_PROJECTILE) {
-            scaleStep = Rand_S16Offset(40, 20);
+            scaleStep = MM_Rand_S16Offset(40, 20);
         }
 
-        this->steamSpawnTimer = Rand_S16Offset(2, 2);
+        this->steamSpawnTimer = MM_Rand_S16Offset(2, 2);
 
         for (i = 0; i < 2; i++) {
             static Color_RGBA8 sSteamPrimColor = { 250, 250, 250, 255 };
             static Color_RGBA8 sSteamEnvColor = { 180, 180, 180, 255 };
 
-            randomScale = Rand_S16Offset(20, 20);
-            pos.x = ((f32)((Rand_ZeroOne() < 0.5f) ? -1 : 1) * randomScale) + this->actor.world.pos.x;
-            pos.y = (Rand_ZeroOne() * 20.0f) + this->actor.floorHeight;
-            randomScale = Rand_S16Offset(20, 20);
-            pos.z = ((f32)((Rand_ZeroOne() < .5f) ? -1 : 1) * randomScale) + this->actor.world.pos.z;
-            func_800B0DE0(play, &pos, &velocity, &accel, &sSteamPrimColor, &sSteamEnvColor, Rand_S16Offset(350, 100),
+            randomScale = MM_Rand_S16Offset(20, 20);
+            pos.x = ((f32)((MM_Rand_ZeroOne() < 0.5f) ? -1 : 1) * randomScale) + this->actor.world.pos.x;
+            pos.y = (MM_Rand_ZeroOne() * 20.0f) + this->actor.floorHeight;
+            randomScale = MM_Rand_S16Offset(20, 20);
+            pos.z = ((f32)((MM_Rand_ZeroOne() < .5f) ? -1 : 1) * randomScale) + this->actor.world.pos.z;
+            func_800B0DE0(play, &pos, &velocity, &accel, &sSteamPrimColor, &sSteamEnvColor, MM_Rand_S16Offset(350, 100),
                           scaleStep);
         }
     }
@@ -654,10 +654,10 @@ void EnWizFire_Update(Actor* thisx, PlayState* play2) {
 
     if (!this->hitByIceArrow && !sPoolHitByIceArrow &&
         ((this->type != EN_WIZ_FIRE_TYPE_MAGIC_PROJECTILE) || (this->alpha > 200.0f))) {
-        Collider_UpdateCylinder(&this->actor, &this->collider);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
         if (player->invincibilityTimer == 0) {
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+            MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
         }
     }
 }
@@ -670,8 +670,8 @@ void EnWizFire_DrawIcePool(EnWizFire* this, PlayState* play) {
     if ((this->type == EN_WIZ_FIRE_TYPE_MAGIC_PROJECTILE) && (this->action == EN_WIZ_FIRE_ACTION_POOL)) {
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-        Matrix_Translate(this->actor.world.pos.x, this->actor.floorHeight, this->actor.world.pos.z, MTXMODE_NEW);
-        Matrix_Scale(this->poolScale, this->poolScale, this->poolScale, MTXMODE_APPLY);
+        MM_Matrix_Translate(this->actor.world.pos.x, this->actor.floorHeight, this->actor.world.pos.z, MTXMODE_NEW);
+        MM_Matrix_Scale(this->poolScale, this->poolScale, this->poolScale, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gDPPipeSync(POLY_XLU_DISP++);
@@ -681,7 +681,7 @@ void EnWizFire_DrawIcePool(EnWizFire* this, PlayState* play) {
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 215, 215, 215, (s8)this->alpha);
         gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, 255, 128);
         gSPSegment(POLY_XLU_DISP++, 0x08,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, -play->state.frames & 0x7F, -play->state.frames & 0x7F, 32,
+                   MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, -play->state.frames & 0x7F, -play->state.frames & 0x7F, 32,
                                     64, 1, play->state.frames & 0xFF, play->state.frames & 0xFF, 16, 16));
 
         Matrix_RotateYS(0, MTXMODE_APPLY);
@@ -704,12 +704,12 @@ void EnWizFire_DrawFirePoolAndFlame(EnWizFire* this, PlayState* play2) {
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-        Matrix_Push();
-        Matrix_Translate(this->actor.world.pos.x, this->actor.floorHeight, this->actor.world.pos.z, MTXMODE_NEW);
-        Matrix_Scale(this->poolScale, this->poolScale, this->poolScale, MTXMODE_APPLY);
+        MM_Matrix_Push();
+        MM_Matrix_Translate(this->actor.world.pos.x, this->actor.floorHeight, this->actor.world.pos.z, MTXMODE_NEW);
+        MM_Matrix_Scale(this->poolScale, this->poolScale, this->poolScale, MTXMODE_APPLY);
 
         gSPSegment(POLY_XLU_DISP++, 0x08,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, -play->state.frames % 128, 0, 0x20, 0x20, 1,
+                   MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, -play->state.frames % 128, 0, 0x20, 0x20, 1,
                                     (play->state.frames * 2) % 128, 0, 0x20, 0x20));
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gDPPipeSync(POLY_XLU_DISP++);
@@ -717,38 +717,38 @@ void EnWizFire_DrawFirePoolAndFlame(EnWizFire* this, PlayState* play2) {
         gDPSetEnvColor(POLY_XLU_DISP++, 255, 245, 255, 128);
         gSPDisplayList(POLY_XLU_DISP++, gWizrobeFirePoolDL);
 
-        Matrix_Pop();
+        MM_Matrix_Pop();
 
-        Matrix_Push();
-        Matrix_Translate(this->actor.world.pos.x, this->actor.floorHeight, this->actor.world.pos.z, MTXMODE_NEW);
-        Matrix_ReplaceRotation(&play->billboardMtxF);
+        MM_Matrix_Push();
+        MM_Matrix_Translate(this->actor.world.pos.x, this->actor.floorHeight, this->actor.world.pos.z, MTXMODE_NEW);
+        MM_Matrix_ReplaceRotation(&play->billboardMtxF);
 
         gSPSegment(POLY_XLU_DISP++, 0x08,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, play->state.frames % 128, (-play->state.frames * 6) % 256,
+                   MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, play->state.frames % 128, (-play->state.frames * 6) % 256,
                                     0x20, 0x40, 1, (play->state.frames * 2) % 128, (-play->state.frames * 6) % 256,
                                     0x20, 0x40));
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 80, 0, 0, (s8)this->alpha);
         gDPPipeSync(POLY_XLU_DISP++);
         gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 0, 100);
 
-        Matrix_Scale(this->fireSmokeScale, this->fireSmokeScale, this->fireSmokeScale, MTXMODE_APPLY);
+        MM_Matrix_Scale(this->fireSmokeScale, this->fireSmokeScale, this->fireSmokeScale, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_XLU_DISP++, gWizrobeFireSmokeDL);
 
-        Matrix_Pop();
+        MM_Matrix_Pop();
 
-        Matrix_Translate(this->actor.world.pos.x, this->actor.floorHeight, this->actor.world.pos.z, MTXMODE_NEW);
-        Matrix_ReplaceRotation(&play->billboardMtxF);
+        MM_Matrix_Translate(this->actor.world.pos.x, this->actor.floorHeight, this->actor.world.pos.z, MTXMODE_NEW);
+        MM_Matrix_ReplaceRotation(&play->billboardMtxF);
 
         gSPSegment(POLY_XLU_DISP++, 0x08,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, (-play->state.frames * 3) % 128, 0, 0x20, 0x20, 1, 0,
+                   MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, (-play->state.frames * 3) % 128, 0, 0x20, 0x20, 1, 0,
                                     (-play->state.frames * 10) % 256, 0x20, 0x40));
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 100, 50, 0, 255);
         gDPPipeSync(POLY_XLU_DISP++);
         gDPSetEnvColor(POLY_XLU_DISP++, 200, 235, 240, 128);
 
-        Matrix_Scale(this->bigFlameScale, this->bigFlameScale, this->bigFlameScale, MTXMODE_APPLY);
+        MM_Matrix_Scale(this->bigFlameScale, this->bigFlameScale, this->bigFlameScale, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_XLU_DISP++, gWizrobeBigFlameDL);
@@ -766,7 +766,7 @@ void EnWizFire_Draw(Actor* thisx, PlayState* play2) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-    Matrix_Push();
+    MM_Matrix_Push();
 
     for (i = ARRAY_COUNT(this->magicProjectilePos) - 1; i >= this->lowestUsedIndex; i--) {
         f32 scale = this->actor.scale.x - (i * -0.0019f);
@@ -780,10 +780,10 @@ void EnWizFire_Draw(Actor* thisx, PlayState* play2) {
                 gDPSetEnvColor(POLY_XLU_DISP++, 220, 255, 235, 0);
             }
 
-            Matrix_Translate(this->magicProjectilePos[i].x, this->magicProjectilePos[i].y + this->actor.shape.yOffset,
+            MM_Matrix_Translate(this->magicProjectilePos[i].x, this->magicProjectilePos[i].y + this->actor.shape.yOffset,
                              this->magicProjectilePos[i].z, MTXMODE_NEW);
-            Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
+            MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+            MM_Matrix_ReplaceRotation(&play->billboardMtxF);
             Matrix_RotateZS(this->actor.world.rot.z, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
@@ -791,7 +791,7 @@ void EnWizFire_Draw(Actor* thisx, PlayState* play2) {
         }
     }
 
-    Matrix_Pop();
+    MM_Matrix_Pop();
 
     CLOSE_DISPS(play->state.gfxCtx);
 
@@ -808,17 +808,17 @@ void EnWizFire_DrawSmallFlame(Actor* thisx, PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    Matrix_Translate(this->actor.world.pos.x, this->actor.floorHeight + 20.0f, this->actor.world.pos.z, MTXMODE_NEW);
-    Matrix_Scale(this->scale + this->scaleMod.x, this->scale + this->scaleMod.y, this->scale + this->scaleMod.z,
+    MM_Matrix_Translate(this->actor.world.pos.x, this->actor.floorHeight + 20.0f, this->actor.world.pos.z, MTXMODE_NEW);
+    MM_Matrix_Scale(this->scale + this->scaleMod.x, this->scale + this->scaleMod.y, this->scale + this->scaleMod.z,
                  MTXMODE_APPLY);
 
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 32, 1, this->smallFlameScroll & 0x7F,
+               MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 32, 1, this->smallFlameScroll & 0x7F,
                                 (-this->smallFlameScroll * 10) & 0x7F, 32, 32));
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, 100, 50, 0, (s8)this->alpha);
     gDPSetEnvColor(POLY_XLU_DISP++, 200, 235, 245, 255);
 
-    Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
+    MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
     gSPDisplayList(POLY_XLU_DISP++, gWizrobeSmallFlameDL);
@@ -833,11 +833,11 @@ void EnWizFire_InitializeEffect(EnWizFire* this, Vec3f* pos, Vec3f* accel) {
     for (i = 0; i < ARRAY_COUNT(this->effects); i++, effect++) {
         if (!effect->isEnabled) {
             effect->isEnabled = true;
-            Math_Vec3f_Copy(&effect->velocity, &gZeroVec3f);
-            effect->smokeScroll = Rand_ZeroFloat(100.0f);
+            MM_Math_Vec3f_Copy(&effect->velocity, &gZeroVec3f);
+            effect->smokeScroll = MM_Rand_ZeroFloat(100.0f);
             effect->pos = *pos;
             effect->accel = *accel;
-            effect->scale = (Rand_ZeroFloat(5.0f) + 20.0f) * 0.001f;
+            effect->scale = (MM_Rand_ZeroFloat(5.0f) + 20.0f) * 0.001f;
             effect->shouldDecreaseAlpha = 0;
             effect->alpha = 0;
             break;
@@ -898,12 +898,12 @@ void EnWizFire_DrawEffects(EnWizFire* this, PlayState* play) {
 
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 195, 225, 235, effect->alpha);
             gSPSegment(POLY_XLU_DISP++, 0x08,
-                       Gfx_TwoTexScroll(play->state.gfxCtx, 0, (effect->smokeScroll * 3) & 0x7F,
+                       MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, (effect->smokeScroll * 3) & 0x7F,
                                         (effect->smokeScroll * 0xF) & 0xFF, 32, 64, 1, 0, 0, 32, 32));
 
-            Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
-            Matrix_Scale(effect->scale, effect->scale, 1.0f, MTXMODE_APPLY);
+            MM_Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
+            MM_Matrix_ReplaceRotation(&play->billboardMtxF);
+            MM_Matrix_Scale(effect->scale, effect->scale, 1.0f, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
             gDPSetRenderMode(POLY_XLU_DISP++, G_RM_PASS, G_RM_AA_ZB_XLU_SURF2);

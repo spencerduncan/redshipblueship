@@ -78,7 +78,7 @@ static ColliderTrisElementInit sTrisElementInit[4] = {
     },
 };
 
-static ColliderTrisInit sTrisInit = {
+static ColliderTrisInit OoT_sTrisInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -91,7 +91,7 @@ static ColliderTrisInit sTrisInit = {
     sTrisElementInit,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_CONTINUE),
     ICHAIN_F32_DIV1000(gravity, -200, ICHAIN_STOP),
 };
@@ -101,17 +101,17 @@ void BgHidanDalm_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     CollisionHeader* colHeader = NULL;
 
-    Actor_ProcessInitChain(thisx, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DPM_UNK);
-    CollisionHeader_GetVirtual(&gFireTempleHammerableTotemCol, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
-    Collider_InitTris(play, &this->collider);
-    Collider_SetTris(play, &this->collider, thisx, &sTrisInit, this->colliderItems);
+    OoT_Actor_ProcessInitChain(thisx, OoT_sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
+    OoT_CollisionHeader_GetVirtual(&gFireTempleHammerableTotemCol, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
+    OoT_Collider_InitTris(play, &this->collider);
+    OoT_Collider_SetTris(play, &this->collider, thisx, &OoT_sTrisInit, this->colliderItems);
 
     this->switchFlag = (thisx->params >> 8) & 0xFF;
     thisx->params &= 0xFF;
-    if (Flags_GetSwitch(play, this->switchFlag)) {
-        Actor_Kill(thisx);
+    if (OoT_Flags_GetSwitch(play, this->switchFlag)) {
+        OoT_Actor_Kill(thisx);
     } else {
         this->actionFunc = BgHidanDalm_Wait;
     }
@@ -120,15 +120,15 @@ void BgHidanDalm_Init(Actor* thisx, PlayState* play) {
 void BgHidanDalm_Destroy(Actor* thisx, PlayState* play) {
     BgHidanDalm* this = (BgHidanDalm*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
-    Collider_DestroyTris(play, &this->collider);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_Collider_DestroyTris(play, &this->collider);
 }
 
 void BgHidanDalm_Wait(BgHidanDalm* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
     if (GameInteractor_Should(VB_HAMMER_TOTEM_BREAK,
-                              (this->collider.base.acFlags & AC_HIT) && !Player_InCsMode(play) &&
+                              (this->collider.base.acFlags & AC_HIT) && !OoT_Player_InCsMode(play) &&
                                   (player->meleeWeaponAnimation == 22 || player->meleeWeaponAnimation == 23),
                               this)) {
         this->collider.base.acFlags &= ~AC_HIT;
@@ -138,20 +138,20 @@ void BgHidanDalm_Wait(BgHidanDalm* this, PlayState* play) {
         } else {
             this->dyna.actor.world.rot.y += 0x4000;
         }
-        this->dyna.actor.world.pos.x += 32.5f * Math_SinS(this->dyna.actor.world.rot.y);
-        this->dyna.actor.world.pos.z += 32.5f * Math_CosS(this->dyna.actor.world.rot.y);
+        this->dyna.actor.world.pos.x += 32.5f * OoT_Math_SinS(this->dyna.actor.world.rot.y);
+        this->dyna.actor.world.pos.z += 32.5f * OoT_Math_CosS(this->dyna.actor.world.rot.y);
 
-        Player_SetCsActionWithHaltedActors(play, &this->dyna.actor, 8);
+        OoT_Player_SetCsActionWithHaltedActors(play, &this->dyna.actor, 8);
         this->dyna.actor.flags |= ACTOR_FLAG_UPDATE_CULLING_DISABLED;
         this->actionFunc = BgHidanDalm_Shrink;
         this->dyna.actor.bgCheckFlags &= ~2;
         this->dyna.actor.bgCheckFlags &= ~8;
         this->dyna.actor.speedXZ = 10.0f;
-        Flags_SetSwitch(play, this->switchFlag);
-        Player_PlaySfx(&GET_PLAYER(play)->actor, NA_SE_IT_HAMMER_HIT);
+        OoT_Flags_SetSwitch(play, this->switchFlag);
+        OoT_Player_PlaySfx(&GET_PLAYER(play)->actor, NA_SE_IT_HAMMER_HIT);
         Audio_PlayActorSound2(&this->dyna.actor, NA_SE_EV_DARUMA_VANISH);
     } else {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -161,9 +161,9 @@ void BgHidanDalm_Shrink(BgHidanDalm* this, PlayState* play) {
     Vec3f velocity;
     Vec3f pos;
 
-    if (Math_StepToF(&this->dyna.actor.scale.x, 0.0f, 0.004f)) {
-        Player_SetCsActionWithHaltedActors(play, &this->dyna.actor, 7);
-        Actor_Kill(&this->dyna.actor);
+    if (OoT_Math_StepToF(&this->dyna.actor.scale.x, 0.0f, 0.004f)) {
+        OoT_Player_SetCsActionWithHaltedActors(play, &this->dyna.actor, 7);
+        OoT_Actor_Kill(&this->dyna.actor);
     }
 
     this->dyna.actor.scale.y = this->dyna.actor.scale.z = this->dyna.actor.scale.x;
@@ -173,9 +173,9 @@ void BgHidanDalm_Shrink(BgHidanDalm* this, PlayState* play) {
     pos.z = this->dyna.actor.world.pos.z;
 
     for (i = 0; i < 4; i++) {
-        velocity.x = 5.0f * Math_SinS(this->dyna.actor.world.rot.y + 0x8000) + (Rand_ZeroOne() - 0.5f) * 5.0f;
-        velocity.z = 5.0f * Math_CosS(this->dyna.actor.world.rot.y + 0x8000) + (Rand_ZeroOne() - 0.5f) * 5.0f;
-        velocity.y = (Rand_ZeroOne() - 0.5f) * 1.5f;
+        velocity.x = 5.0f * OoT_Math_SinS(this->dyna.actor.world.rot.y + 0x8000) + (OoT_Rand_ZeroOne() - 0.5f) * 5.0f;
+        velocity.z = 5.0f * OoT_Math_CosS(this->dyna.actor.world.rot.y + 0x8000) + (OoT_Rand_ZeroOne() - 0.5f) * 5.0f;
+        velocity.y = (OoT_Rand_ZeroOne() - 0.5f) * 1.5f;
         EffectSsKiraKira_SpawnSmallYellow(play, &pos, &velocity, &accel);
     }
 }
@@ -185,7 +185,7 @@ void BgHidanDalm_Update(Actor* thisx, PlayState* play) {
 
     this->actionFunc(this, play);
     Actor_MoveXZGravity(&this->dyna.actor);
-    Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 10.0f, 15.0f, 32.0f, 5);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->dyna.actor, 10.0f, 15.0f, 32.0f, 5);
 }
 
 /**
@@ -196,28 +196,28 @@ void BgHidanDalm_UpdateCollider(BgHidanDalm* this) {
     Vec3f pos1;
     Vec3f pos0;
 
-    Matrix_MultVec3f(&sTrisElementInit[0].dim.vtx[0], &pos0);
-    Matrix_MultVec3f(&sTrisElementInit[0].dim.vtx[1], &pos1);
-    Matrix_MultVec3f(&sTrisElementInit[0].dim.vtx[2], &pos2);
-    Collider_SetTrisVertices(&this->collider, 0, &pos0, &pos1, &pos2);
-    Matrix_MultVec3f(&sTrisElementInit[1].dim.vtx[2], &pos1);
-    Collider_SetTrisVertices(&this->collider, 1, &pos0, &pos2, &pos1);
+    OoT_Matrix_MultVec3f(&sTrisElementInit[0].dim.vtx[0], &pos0);
+    OoT_Matrix_MultVec3f(&sTrisElementInit[0].dim.vtx[1], &pos1);
+    OoT_Matrix_MultVec3f(&sTrisElementInit[0].dim.vtx[2], &pos2);
+    OoT_Collider_SetTrisVertices(&this->collider, 0, &pos0, &pos1, &pos2);
+    OoT_Matrix_MultVec3f(&sTrisElementInit[1].dim.vtx[2], &pos1);
+    OoT_Collider_SetTrisVertices(&this->collider, 1, &pos0, &pos2, &pos1);
 
-    Matrix_MultVec3f(&sTrisElementInit[2].dim.vtx[0], &pos0);
-    Matrix_MultVec3f(&sTrisElementInit[2].dim.vtx[1], &pos1);
-    Matrix_MultVec3f(&sTrisElementInit[2].dim.vtx[2], &pos2);
-    Collider_SetTrisVertices(&this->collider, 2, &pos0, &pos1, &pos2);
-    Matrix_MultVec3f(&sTrisElementInit[3].dim.vtx[1], &pos2);
-    Collider_SetTrisVertices(&this->collider, 3, &pos0, &pos2, &pos1);
+    OoT_Matrix_MultVec3f(&sTrisElementInit[2].dim.vtx[0], &pos0);
+    OoT_Matrix_MultVec3f(&sTrisElementInit[2].dim.vtx[1], &pos1);
+    OoT_Matrix_MultVec3f(&sTrisElementInit[2].dim.vtx[2], &pos2);
+    OoT_Collider_SetTrisVertices(&this->collider, 2, &pos0, &pos1, &pos2);
+    OoT_Matrix_MultVec3f(&sTrisElementInit[3].dim.vtx[1], &pos2);
+    OoT_Collider_SetTrisVertices(&this->collider, 3, &pos0, &pos2, &pos1);
 }
 
 void BgHidanDalm_Draw(Actor* thisx, PlayState* play) {
     BgHidanDalm* this = (BgHidanDalm*)thisx;
 
     if (this->dyna.actor.params == 0) {
-        Gfx_DrawDListOpa(play, gFireTempleHammerableTotemBodyDL);
+        OoT_Gfx_DrawDListOpa(play, gFireTempleHammerableTotemBodyDL);
     } else {
-        Gfx_DrawDListOpa(play, gFireTempleHammerableTotemHeadDL);
+        OoT_Gfx_DrawDListOpa(play, gFireTempleHammerableTotemHeadDL);
     }
 
     if (this->actionFunc == BgHidanDalm_Wait) {

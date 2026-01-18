@@ -110,7 +110,7 @@ void _Ldtob(_Pft* args, u8 type) {
             }
             ptr = ptr + 8;
             for (j = 8; (lo > 0) && (--j >= 0);) {
-                qr = ldiv(lo, 10);
+                qr = MM_ldiv(lo, 10);
                 *--ptr = qr.rem + '0';
                 lo = qr.quot;
             }

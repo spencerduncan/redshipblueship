@@ -56,12 +56,12 @@ void SysCfb_SetLoResMode(void) {
     gCfbLeftAdjust = 0;
     gCfbUpperAdjust = 0;
     gSysCfbHiResEnabled = false;
-    gScreenWidth = gCfbWidth;
-    gScreenHeight = gCfbHeight;
-    // gActiveViMode = &osViModeNtscLan1;
+    MM_gScreenWidth = gCfbWidth;
+    MM_gScreenHeight = gCfbHeight;
+    // gActiveViMode = &MM_osViModeNtscLan1;
 
     // 2S2H [Port] Inform LUS on resolution changes
-    GfxSetNativeDimensions((uint32_t)gScreenWidth, (uint32_t)gScreenHeight);
+    GfxSetNativeDimensions((uint32_t)MM_gScreenWidth, (uint32_t)MM_gScreenHeight);
 }
 
 void SysCfb_SetHiResMode(void) {
@@ -76,8 +76,8 @@ void SysCfb_SetHiResMode(void) {
     gCfbHeight = HIRES_BUFFER_HEIGHT;
     gCfbLeftAdjust = 30;
     gCfbUpperAdjust = 10;
-    gScreenWidth = gCfbWidth;
-    gScreenHeight = gCfbHeight;
+    MM_gScreenWidth = gCfbWidth;
+    MM_gScreenHeight = gCfbHeight;
     if ((gCfbWidth == SCREEN_WIDTH_HIRES) && (gCfbHeight == SCREEN_HEIGHT_HIRES)) {
         // gActiveViMode = &osViModeNtscHpf1;
     } else {
@@ -86,17 +86,17 @@ void SysCfb_SetHiResMode(void) {
 
         rightAdjust = gCfbWidth - 610;
         lowerAdjust = gCfbHeight - 470;
-        ViMode_Configure(&sNotebookViMode, -1, osTvType, 0, 1, 0, 1, gCfbWidth, gCfbHeight, 30, rightAdjust, 10,
+        MM_ViMode_Configure(&sNotebookViMode, -1, osTvType, 0, 1, 0, 1, gCfbWidth, gCfbHeight, 30, rightAdjust, 10,
                          lowerAdjust);
         gActiveViMode = &sNotebookViMode;
     }
     gSysCfbHiResEnabled = true;
 
     // 2S2H [Port] Inform LUS on resolution changes
-    GfxSetNativeDimensions((uint32_t)gScreenWidth, (uint32_t)gScreenHeight);
+    GfxSetNativeDimensions((uint32_t)MM_gScreenWidth, (uint32_t)MM_gScreenHeight);
 }
 
-void SysCfb_Init(void) {
+void MM_SysCfb_Init(void) {
     sCfbLoRes1 = gLoBuffer.framebuffer;
     sCfbLoRes0 = gHiBuffer.framebuffer;
     sCfbHiRes1 = gFramebufferHiRes1;
@@ -108,7 +108,7 @@ void SysCfb_Init(void) {
 }
 
 // Unused
-void SysCfb_Reset(void) {
+void MM_SysCfb_Reset(void) {
     gFramebuffers[0] = NULL;
     gFramebuffers[1] = NULL;
 }

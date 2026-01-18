@@ -54,10 +54,10 @@ typedef enum {
     /* 0x2 */ TEKTITE_FLIPPED
 } EnTiteFlipState;
 
-void EnTite_Init(Actor* thisx, PlayState* play);
-void EnTite_Destroy(Actor* thisx, PlayState* play);
-void EnTite_Update(Actor* thisx, PlayState* play);
-void EnTite_Draw(Actor* thisx, PlayState* play);
+void OoT_EnTite_Init(Actor* thisx, PlayState* play);
+void OoT_EnTite_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnTite_Update(Actor* thisx, PlayState* play);
+void OoT_EnTite_Draw(Actor* thisx, PlayState* play);
 
 void EnTite_SetupIdle(EnTite* this);
 void EnTite_SetupTurnTowardPlayer(EnTite* this);
@@ -82,14 +82,14 @@ const ActorInit En_Tite_InitVars = {
     FLAGS,
     OBJECT_TITE,
     sizeof(EnTite),
-    (ActorFunc)EnTite_Init,
-    (ActorFunc)EnTite_Destroy,
-    (ActorFunc)EnTite_Update,
-    (ActorFunc)EnTite_Draw,
+    (ActorFunc)OoT_EnTite_Init,
+    (ActorFunc)OoT_EnTite_Destroy,
+    (ActorFunc)OoT_EnTite_Update,
+    (ActorFunc)OoT_EnTite_Draw,
     NULL,
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[1] = {
+static ColliderJntSphElementInit OoT_sJntSphElementsInit[1] = {
     {
         {
             ELEMTYPE_UNK0,
@@ -103,7 +103,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[1] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit OoT_sJntSphInit = {
     {
         COLTYPE_HIT6,
         AT_ON | AT_TYPE_ENEMY,
@@ -113,10 +113,10 @@ static ColliderJntSphInit sJntSphInit = {
         COLSHAPE_JNTSPH,
     },
     1,
-    sJntSphElementsInit,
+    OoT_sJntSphElementsInit,
 };
 
-static DamageTable sDamageTable[] = {
+static DamageTable OoT_sDamageTable[] = {
     /* Deku nut      */ DMG_ENTRY(0, 0x1),
     /* Deku stick    */ DMG_ENTRY(2, 0x0),
     /* Slingshot     */ DMG_ENTRY(1, 0x0),
@@ -151,7 +151,7 @@ static DamageTable sDamageTable[] = {
     /* Unknown 2     */ DMG_ENTRY(0, 0x0),
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_S8(naviEnemyId, 0x45, ICHAIN_CONTINUE),
     ICHAIN_F32(targetArrowOffset, 2000, ICHAIN_CONTINUE),
     ICHAIN_F32(minVelocityY, -40, ICHAIN_CONTINUE),
@@ -163,7 +163,7 @@ static AnimationHeader* D_80B1B634[] = {
 };
 
 // Some kind of offset for the position of each tektite foot
-static Vec3f sFootOffset = { 2800.0f, -200.0f, 0.0f };
+static Vec3f OoT_sFootOffset = { 2800.0f, -200.0f, 0.0f };
 
 // Relative positions to spawn ice chunks when tektite is frozen
 static Vec3f sIceChunks[12] = {
@@ -176,25 +176,25 @@ void EnTite_SetupAction(EnTite* this, EnTiteActionFunc actionFunc) {
     this->actionFunc = actionFunc;
 }
 
-void EnTite_Init(Actor* thisx, PlayState* play) {
+void OoT_EnTite_Init(Actor* thisx, PlayState* play) {
     EnTite* this = (EnTite*)thisx;
 
-    Actor_ProcessInitChain(thisx, sInitChain);
+    OoT_Actor_ProcessInitChain(thisx, OoT_sInitChain);
     thisx->targetMode = 3;
-    Actor_SetScale(thisx, 0.01f);
-    SkelAnime_Init(play, &this->skelAnime, &object_tite_Skel_003A20, &object_tite_Anim_0012E4, this->jointTable,
+    OoT_Actor_SetScale(thisx, 0.01f);
+    OoT_SkelAnime_Init(play, &this->skelAnime, &object_tite_Skel_003A20, &object_tite_Anim_0012E4, this->jointTable,
                    this->morphTable, 25);
-    ActorShape_Init(&thisx->shape, -200.0f, ActorShadow_DrawCircle, 70.0f);
+    OoT_ActorShape_Init(&thisx->shape, -200.0f, OoT_ActorShadow_DrawCircle, 70.0f);
     this->flipState = TEKTITE_INITIAL;
-    thisx->colChkInfo.damageTable = sDamageTable;
+    thisx->colChkInfo.damageTable = OoT_sDamageTable;
     this->actionVar1 = 0;
     this->bodyBreak.val = BODYBREAK_STATUS_FINISHED;
     thisx->focus.pos = thisx->world.pos;
     thisx->focus.pos.y += 20.0f;
     thisx->colChkInfo.health = 2;
     thisx->colChkInfo.mass = MASS_HEAVY;
-    Collider_InitJntSph(play, &this->collider);
-    Collider_SetJntSph(play, &this->collider, thisx, &sJntSphInit, &this->colliderItem);
+    OoT_Collider_InitJntSph(play, &this->collider);
+    OoT_Collider_SetJntSph(play, &this->collider, thisx, &OoT_sJntSphInit, &this->colliderItem);
     this->unk_2DC = 0x1D;
     if (this->actor.params == TEKTITE_BLUE) {
         this->unk_2DC |= 0x40; // Don't use the actor engine's ripple spawning code
@@ -204,7 +204,7 @@ void EnTite_Init(Actor* thisx, PlayState* play) {
     EnTite_SetupIdle(this);
 }
 
-void EnTite_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnTite_Destroy(Actor* thisx, PlayState* play) {
     EnTite* this = (EnTite*)thisx;
     EnEncount1* spawner;
 
@@ -218,28 +218,28 @@ void EnTite_Destroy(Actor* thisx, PlayState* play) {
         osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ 同時発生数 ☆☆☆☆☆%d\n" VT_RST, spawner->curNumSpawn);
         osSyncPrintf("\n\n");
     }
-    Collider_DestroyJntSph(play, &this->collider);
+    OoT_Collider_DestroyJntSph(play, &this->collider);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
 
 void EnTite_SetupIdle(EnTite* this) {
-    Animation_MorphToLoop(&this->skelAnime, &object_tite_Anim_0012E4, 4.0f);
+    OoT_Animation_MorphToLoop(&this->skelAnime, &object_tite_Anim_0012E4, 4.0f);
     this->action = TEKTITE_IDLE;
-    this->vIdleTimer = Rand_S16Offset(15, 30);
+    this->vIdleTimer = OoT_Rand_S16Offset(15, 30);
     this->actor.speedXZ = 0.0f;
     EnTite_SetupAction(this, EnTite_Idle);
 }
 
 void EnTite_Idle(EnTite* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 0.5f, 0.0f);
+    OoT_SkelAnime_Update(&this->skelAnime);
+    OoT_Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 0.5f, 0.0f);
     if (this->actor.params == TEKTITE_BLUE) {
         if (this->actor.bgCheckFlags & 0x20) {
             // Float on water surface
             this->actor.gravity = 0.0f;
-            Math_SmoothStepToF(&this->actor.velocity.y, 0.0f, 1.0f, 2.0f, 0.0f);
-            Math_SmoothStepToF(&this->actor.world.pos.y, this->actor.world.pos.y + this->actor.yDistToWater, 1.0f, 2.0f,
+            OoT_Math_SmoothStepToF(&this->actor.velocity.y, 0.0f, 1.0f, 2.0f, 0.0f);
+            OoT_Math_SmoothStepToF(&this->actor.world.pos.y, this->actor.world.pos.y + this->actor.yDistToWater, 1.0f, 2.0f,
                                0.0f);
         } else {
             this->actor.gravity = -1.0f;
@@ -256,10 +256,10 @@ void EnTite_Idle(EnTite* this, PlayState* play) {
 }
 
 void EnTite_SetupAttack(EnTite* this) {
-    Animation_PlayOnce(&this->skelAnime, &object_tite_Anim_00083C);
+    OoT_Animation_PlayOnce(&this->skelAnime, &object_tite_Anim_00083C);
     this->action = TEKTITE_ATTACK;
     this->vAttackState = TEKTITE_BEGIN_LUNGE;
-    this->vQueuedJumps = Rand_S16Offset(1, 3);
+    this->vQueuedJumps = OoT_Rand_S16Offset(1, 3);
     this->actor.speedXZ = 0.0f;
     this->actor.velocity.y = 0.0f;
     this->actor.world.rot.y = this->actor.shape.rot.y;
@@ -271,7 +271,7 @@ void EnTite_Attack(EnTite* this, PlayState* play) {
     s32 attackState;
     Vec3f ripplePos;
 
-    if (SkelAnime_Update(&this->skelAnime) != 0) {
+    if (OoT_SkelAnime_Update(&this->skelAnime) != 0) {
         attackState = this->vAttackState; // for deciding whether to change animation
         switch (this->vAttackState) {
             case TEKTITE_BEGIN_LUNGE:
@@ -312,7 +312,7 @@ void EnTite_Attack(EnTite* this, PlayState* play) {
                                 this->vAttackState++; // TEKTITE_SUBMERGED
                                 this->actor.velocity.y *= 0.75f;
                                 attackState = this->vAttackState;
-                                EffectSsGRipple_Spawn(play, &ripplePos, 0, 500, 0);
+                                OoT_EffectSsGRipple_Spawn(play, &ripplePos, 0, 500, 0);
                             } else {
                                 this->actor.velocity.y = 0.0f;
                                 this->actor.speedXZ = 0.0f;
@@ -342,14 +342,14 @@ void EnTite_Attack(EnTite* this, PlayState* play) {
         }
         // If switching attack state, change animation (unless tektite is switching between submerged and landed)
         if (attackState != this->vAttackState) {
-            Animation_PlayOnce(&this->skelAnime, D_80B1B634[this->vAttackState]);
+            OoT_Animation_PlayOnce(&this->skelAnime, D_80B1B634[this->vAttackState]);
         }
     }
 
     switch (this->vAttackState) {
         case TEKTITE_BEGIN_LUNGE:
             // Slightly turn to player and switch to turning/idling action if the player is too far
-            Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 1, 1000, 0);
+            OoT_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 1, 1000, 0);
             this->actor.shape.rot.y = this->actor.world.rot.y;
             angleToPlayer = this->actor.yawTowardsPlayer - this->actor.shape.rot.y;
             if ((this->actor.xzDistToPlayer > 300.0f) && (this->actor.yDistToPlayer > 80.0f)) {
@@ -369,11 +369,11 @@ void EnTite_Attack(EnTite* this, PlayState* play) {
                 }
             }
             if (!(this->collider.base.atFlags & AT_HIT) && (this->actor.flags & ACTOR_FLAG_INSIDE_CULLING_VOLUME)) {
-                CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+                OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
             } else {
                 Player* player = GET_PLAYER(play);
                 this->collider.base.atFlags &= ~AT_HIT;
-                Animation_MorphToLoop(&this->skelAnime, &object_tite_Anim_0012E4, 4.0f);
+                OoT_Animation_MorphToLoop(&this->skelAnime, &object_tite_Anim_0012E4, 4.0f);
                 this->actor.speedXZ = -6.0f;
                 this->actor.world.rot.y = this->actor.yawTowardsPlayer;
                 if (&player->actor == this->collider.base.at) {
@@ -386,13 +386,13 @@ void EnTite_Attack(EnTite* this, PlayState* play) {
             break;
         case TEKTITE_LANDED:
             // Slightly turn to player
-            Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 1, 1500, 0);
+            OoT_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 1, 1500, 0);
             break;
         case TEKTITE_SUBMERGED:
             // Float up to water surface
-            Math_SmoothStepToF(&this->actor.velocity.y, 0.0f, 1.0f, 2.0f, 0.0f);
-            Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 0.5f, 0.0f);
-            Math_SmoothStepToF(&this->actor.world.pos.y, this->actor.world.pos.y + this->actor.yDistToWater, 1.0f, 2.0f,
+            OoT_Math_SmoothStepToF(&this->actor.velocity.y, 0.0f, 1.0f, 2.0f, 0.0f);
+            OoT_Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 0.5f, 0.0f);
+            OoT_Math_SmoothStepToF(&this->actor.world.pos.y, this->actor.world.pos.y + this->actor.yDistToWater, 1.0f, 2.0f,
                                0.0f);
             break;
     }
@@ -425,7 +425,7 @@ void EnTite_Attack(EnTite* this, PlayState* play) {
 }
 
 void EnTite_SetupTurnTowardPlayer(EnTite* this) {
-    Animation_PlayLoop(&this->skelAnime, &object_tite_Anim_000A14);
+    OoT_Animation_PlayLoop(&this->skelAnime, &object_tite_Anim_000A14);
     this->action = TEKTITE_TURN_TOWARD_PLAYER;
     if ((this->actor.bgCheckFlags & 3) || ((this->actor.params == TEKTITE_BLUE) && (this->actor.bgCheckFlags & 0x20))) {
         if (this->actor.velocity.y <= 0.0f) {
@@ -452,7 +452,7 @@ void EnTite_TurnTowardPlayer(EnTite* this, PlayState* play) {
     if ((this->actor.params == TEKTITE_BLUE) && (this->actor.bgCheckFlags & 0x20)) {
         this->actor.world.pos.y += this->actor.yDistToWater;
     }
-    angleToPlayer = Actor_WorldYawTowardActor(&this->actor, &GET_PLAYER(play)->actor) - this->actor.world.rot.y;
+    angleToPlayer = OoT_Actor_WorldYawTowardActor(&this->actor, &GET_PLAYER(play)->actor) - this->actor.world.rot.y;
     if (angleToPlayer > 0) {
         turnVelocity = (angleToPlayer / 42.0f) + 10.0f;
         this->actor.world.rot.y += (turnVelocity * 2);
@@ -469,7 +469,7 @@ void EnTite_TurnTowardPlayer(EnTite* this, PlayState* play) {
     /**
      * Play sounds once every animation cycle
      */
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if (((s16)this->skelAnime.curFrame & 7) == 0) {
         if ((this->actor.params == TEKTITE_BLUE) && (this->actor.bgCheckFlags & 0x20)) {
             Audio_PlayActorSound2(&this->actor, NA_SE_EN_TEKU_WALK_WATER);
@@ -482,7 +482,7 @@ void EnTite_TurnTowardPlayer(EnTite* this, PlayState* play) {
     this->actor.shape.rot.y = this->actor.world.rot.y;
     if ((this->actor.xzDistToPlayer > 300.0f) && (this->actor.yDistToPlayer > 80.0f)) {
         EnTite_SetupIdle(this);
-    } else if (Actor_IsFacingPlayer(&this->actor, 3640)) {
+    } else if (OoT_Actor_IsFacingPlayer(&this->actor, 3640)) {
         if ((this->actor.xzDistToPlayer <= 180.0f) && (this->actor.yDistToPlayer <= 80.0f)) {
             EnTite_SetupAttack(this);
         } else {
@@ -492,12 +492,12 @@ void EnTite_TurnTowardPlayer(EnTite* this, PlayState* play) {
 }
 
 void EnTite_SetupMoveTowardPlayer(EnTite* this) {
-    Animation_PlayLoop(&this->skelAnime, &object_tite_Anim_000C70);
+    OoT_Animation_PlayLoop(&this->skelAnime, &object_tite_Anim_000C70);
     this->action = TEKTITE_MOVE_TOWARD_PLAYER;
     this->actor.velocity.y = 10.0f;
     this->actor.gravity = -1.0f;
     this->actor.speedXZ = 4.0f;
-    this->vQueuedJumps = Rand_S16Offset(1, 3);
+    this->vQueuedJumps = OoT_Rand_S16Offset(1, 3);
     if ((this->actor.params == TEKTITE_BLUE) && (this->actor.bgCheckFlags & 0x20)) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_TEKU_JUMP_WATER);
     } else {
@@ -510,8 +510,8 @@ void EnTite_SetupMoveTowardPlayer(EnTite* this) {
  *  Jumping toward player as a method of travel (different from attacking, has no hitbox)
  */
 void EnTite_MoveTowardPlayer(EnTite* this, PlayState* play) {
-    Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 0.1f, 1.0f, 0.0f);
-    SkelAnime_Update(&this->skelAnime);
+    OoT_Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 0.1f, 1.0f, 0.0f);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
     if (this->actor.bgCheckFlags & 0x42) {
         if (!(this->actor.bgCheckFlags & 0x40)) {
@@ -537,7 +537,7 @@ void EnTite_MoveTowardPlayer(EnTite* this, PlayState* play) {
         (this->actor.velocity.y <= 0.0f)) {
         // slightly turn toward player upon landing and snap to ground or water.
         this->actor.speedXZ = 0.0f;
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 1, 4000, 0);
+        OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 1, 4000, 0);
         this->actor.world.rot.y = this->actor.shape.rot.y;
         if ((this->actor.params != TEKTITE_BLUE) || !(this->actor.bgCheckFlags & 0x20)) {
             if (this->actor.floorHeight > BGCHECK_Y_MIN) {
@@ -549,12 +549,12 @@ void EnTite_MoveTowardPlayer(EnTite* this, PlayState* play) {
             ripplePos.y += this->actor.yDistToWater;
             this->actor.gravity = 0.0f;
             this->actor.velocity.y *= 0.75f;
-            EffectSsGRipple_Spawn(play, &ripplePos, 0, 500, 0);
+            OoT_EffectSsGRipple_Spawn(play, &ripplePos, 0, 500, 0);
             return;
         } else {
             // If submerged, float to surface
-            Math_SmoothStepToF(&this->actor.velocity.y, 0.0f, 1.0f, 2.0f, 0.0f);
-            Math_SmoothStepToF(&this->actor.world.pos.y, this->actor.world.pos.y + this->actor.yDistToWater, 1.0f, 2.0f,
+            OoT_Math_SmoothStepToF(&this->actor.velocity.y, 0.0f, 1.0f, 2.0f, 0.0f);
+            OoT_Math_SmoothStepToF(&this->actor.world.pos.y, this->actor.world.pos.y + this->actor.yDistToWater, 1.0f, 2.0f,
                                0.0f);
             if (this->actor.yDistToWater != 0.0f) {
                 // Do not change state until tekite has floated to surface
@@ -594,7 +594,7 @@ void EnTite_MoveTowardPlayer(EnTite* this, PlayState* play) {
     } else {
         // Turn slowly toward player
         this->actor.flags |= ACTOR_FLAG_SFX_FOR_PLAYER_BODY_HIT;
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 1, 1000, 0);
+        OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 1, 1000, 0);
         if (this->actor.velocity.y >= 6.0f) {
             if (this->actor.bgCheckFlags & 1) {
                 func_800355B8(play, &this->frontLeftFootPos);
@@ -608,7 +608,7 @@ void EnTite_MoveTowardPlayer(EnTite* this, PlayState* play) {
 
 void EnTite_SetupRecoil(EnTite* this) {
     this->action = TEKTITE_RECOIL;
-    Animation_MorphToLoop(&this->skelAnime, &object_tite_Anim_0012E4, 4.0f);
+    OoT_Animation_MorphToLoop(&this->skelAnime, &object_tite_Anim_0012E4, 4.0f);
     this->actor.speedXZ = -6.0f;
     this->actor.world.rot.y = this->actor.yawTowardsPlayer;
     this->actor.gravity = -1.0f;
@@ -622,7 +622,7 @@ void EnTite_Recoil(EnTite* this, PlayState* play) {
     s16 angleToPlayer;
 
     // Snap to ground or water surface upon landing
-    Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 0.5f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 0.5f, 0.0f);
     if (((this->actor.bgCheckFlags & 3) || (this->actor.params == TEKTITE_BLUE && (this->actor.bgCheckFlags & 0x20))) &&
         (this->actor.velocity.y <= 0.0f)) {
         if ((this->actor.params != TEKTITE_BLUE) || !(this->actor.bgCheckFlags & 0x20)) {
@@ -668,12 +668,12 @@ void EnTite_Recoil(EnTite* this, PlayState* play) {
             EnTite_SetupMoveTowardPlayer(this);
         }
     }
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 }
 
 void EnTite_SetupStunned(EnTite* this) {
-    Animation_Change(&this->skelAnime, &object_tite_Anim_0012E4, 0.0f, 0.0f,
-                     (f32)Animation_GetLastFrame(&object_tite_Anim_0012E4), ANIMMODE_LOOP, 4.0f);
+    OoT_Animation_Change(&this->skelAnime, &object_tite_Anim_0012E4, 0.0f, 0.0f,
+                     (f32)OoT_Animation_GetLastFrame(&object_tite_Anim_0012E4), ANIMMODE_LOOP, 4.0f);
     this->action = TEKTITE_STUNNED;
     this->actor.speedXZ = -6.0f;
     this->actor.world.rot.y = this->actor.yawTowardsPlayer;
@@ -690,7 +690,7 @@ void EnTite_SetupStunned(EnTite* this) {
 void EnTite_Stunned(EnTite* this, PlayState* play) {
     s16 angleToPlayer;
 
-    Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 0.5f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 0.5f, 0.0f);
     // Snap to ground or water
     if (((this->actor.bgCheckFlags & 3) ||
          ((this->actor.params == TEKTITE_BLUE) && (this->actor.bgCheckFlags & 0x20))) &&
@@ -740,7 +740,7 @@ void EnTite_Stunned(EnTite* this, PlayState* play) {
             EnTite_SetupMoveTowardPlayer(this);
         }
     }
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 }
 
 void EnTite_SetupDeathCry(EnTite* this) {
@@ -767,24 +767,24 @@ void EnTite_DeathCry(EnTite* this, PlayState* play) {
 void EnTite_FallApart(EnTite* this, PlayState* play) {
     if (BodyBreak_SpawnParts(&this->actor, &this->bodyBreak, play, this->actor.params + 0xB)) {
         if (this->actor.params == TEKTITE_BLUE) {
-            Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos, 0xE0);
+            OoT_Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos, 0xE0);
         } else {
-            Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos, 0x40);
+            OoT_Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos, 0x40);
         }
         GameInteractor_ExecuteOnEnemyDefeat(&this->actor);
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
 void EnTite_SetupFlipOnBack(EnTite* this) {
 
-    Animation_PlayLoopSetSpeed(&this->skelAnime, &object_tite_Anim_000A14, 1.5f);
+    OoT_Animation_PlayLoopSetSpeed(&this->skelAnime, &object_tite_Anim_000A14, 1.5f);
     Audio_PlayActorSound2(&this->actor, NA_SE_EN_TEKU_REVERSE);
     this->flipState = TEKTITE_FLIPPED;
     this->vOnBackTimer = 500;
     this->actor.speedXZ = 0.0f;
     this->actor.gravity = -1.0f;
-    this->vLegTwitchTimer = (Rand_ZeroOne() * 50.0f);
+    this->vLegTwitchTimer = (OoT_Rand_ZeroOne() * 50.0f);
     this->actor.velocity.y = 11.0f;
     EnTite_SetupAction(this, EnTite_FlipOnBack);
 }
@@ -793,18 +793,18 @@ void EnTite_SetupFlipOnBack(EnTite* this) {
  * During the flip animation and also while idling on back
  */
 void EnTite_FlipOnBack(EnTite* this, PlayState* play) {
-    Math_SmoothStepToS(&this->actor.shape.rot.z, 0x7FFF, 1, 4000, 0);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.z, 0x7FFF, 1, 4000, 0);
     // randomly reset the leg wiggling animation whenever timer reaches 0 to give illusion of twitching legs
     this->vLegTwitchTimer--;
     if (this->vLegTwitchTimer == 0) {
-        this->vLegTwitchTimer = Rand_ZeroOne() * 30.0f;
-        this->skelAnime.curFrame = Rand_ZeroOne() * 5.0f;
+        this->vLegTwitchTimer = OoT_Rand_ZeroOne() * 30.0f;
+        this->skelAnime.curFrame = OoT_Rand_ZeroOne() * 5.0f;
     }
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if (this->actor.bgCheckFlags & 3) {
         // Upon landing, spawn dust and make noise
         if (this->actor.bgCheckFlags & 2) {
-            Actor_SpawnFloorDustRing(play, &this->actor, &this->actor.world.pos, 20.0f, 11, 4.0f, 0, 0, false);
+            OoT_Actor_SpawnFloorDustRing(play, &this->actor, &this->actor.world.pos, 20.0f, 11, 4.0f, 0, 0, false);
             Audio_PlayActorSound2(&this->actor, NA_SE_EN_DODO_M_GND);
         }
         this->vOnBackTimer--;
@@ -829,8 +829,8 @@ void EnTite_SetupFlipUpright(EnTite* this) {
 }
 
 void EnTite_FlipUpright(EnTite* this, PlayState* play) {
-    Math_SmoothStepToS(&this->actor.shape.rot.z, 0, 1, 0xFA0, 0);
-    SkelAnime_Update(&this->skelAnime);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.z, 0, 1, 0xFA0, 0);
+    OoT_SkelAnime_Update(&this->skelAnime);
     //! @bug flying tektite: the following condition is never met and tektite stays stuck in this action forever
     if (this->actor.bgCheckFlags & 2) {
         func_80033480(play, &this->frontLeftFootPos, 1.0f, 2, 80, 15, 1);
@@ -851,19 +851,19 @@ void EnTite_CheckDamage(Actor* thisx, PlayState* play) {
         this->collider.base.acFlags &= ~AC_HIT;
         if (thisx->colChkInfo.damageEffect != 0xE) { // Immune to fire magic
             this->damageEffect = thisx->colChkInfo.damageEffect;
-            Actor_SetDropFlag(thisx, &this->collider.elements[0].info, 0);
+            OoT_Actor_SetDropFlag(thisx, &this->collider.elements[0].info, 0);
             // Stun if Tektite hit by nut, boomerang, hookshot, ice arrow or ice magic
             if ((thisx->colChkInfo.damageEffect == 1) || (thisx->colChkInfo.damageEffect == 0xF)) {
                 if (this->action != TEKTITE_STUNNED) {
-                    Actor_SetColorFilter(thisx, 0, 0x78, 0, 0x50);
-                    Actor_ApplyDamage(thisx);
+                    OoT_Actor_SetColorFilter(thisx, 0, 0x78, 0, 0x50);
+                    OoT_Actor_ApplyDamage(thisx);
                     EnTite_SetupStunned(this);
                 }
                 // Otherwise apply damage and handle death where necessary
             } else {
                 if ((thisx->colorFilterTimer == 0) || ((thisx->colorFilterParams & 0x4000) == 0)) {
-                    Actor_SetColorFilter(thisx, 0x4000, 0xFF, 0, 8);
-                    Actor_ApplyDamage(thisx);
+                    OoT_Actor_SetColorFilter(thisx, 0x4000, 0xFF, 0, 8);
+                    OoT_Actor_ApplyDamage(thisx);
                 }
                 if (thisx->colChkInfo.health == 0) {
                     EnTite_SetupDeathCry(this);
@@ -889,7 +889,7 @@ void EnTite_CheckDamage(Actor* thisx, PlayState* play) {
     }
 }
 
-void EnTite_Update(Actor* thisx, PlayState* play) {
+void OoT_EnTite_Update(Actor* thisx, PlayState* play) {
     EnTite* this = (EnTite*)thisx;
     char pad[0x4];
     CollisionPoly* floorPoly;
@@ -901,37 +901,37 @@ void EnTite_Update(Actor* thisx, PlayState* play) {
     if (thisx->colChkInfo.damageEffect != 0xE) {
         this->actionFunc(this, play);
         Actor_MoveXZGravity(thisx);
-        Actor_UpdateBgCheckInfo(play, thisx, 25.0f, 40.0f, 20.0f, this->unk_2DC);
+        OoT_Actor_UpdateBgCheckInfo(play, thisx, 25.0f, 40.0f, 20.0f, this->unk_2DC);
         // If on water, snap feet to surface and spawn ripples
         if ((this->actor.params == TEKTITE_BLUE) && (thisx->bgCheckFlags & 0x20)) {
             floorPoly = thisx->floorPoly;
             if ((((play->gameplayFrames % 8) == 0) || (thisx->velocity.y < 0.0f)) &&
-                (WaterBox_GetSurfaceImpl(play, &play->colCtx, this->backRightFootPos.x, this->backRightFootPos.z,
+                (OoT_WaterBox_GetSurfaceImpl(play, &play->colCtx, this->backRightFootPos.x, this->backRightFootPos.z,
                                          &waterSurfaceY, &waterBox)) &&
                 (this->backRightFootPos.y <= waterSurfaceY)) {
                 this->backRightFootPos.y = waterSurfaceY;
-                EffectSsGRipple_Spawn(play, &this->backRightFootPos, 0, 220, 0);
+                OoT_EffectSsGRipple_Spawn(play, &this->backRightFootPos, 0, 220, 0);
             }
             if (((((play->gameplayFrames + 2) % 8) == 0) || (thisx->velocity.y < 0.0f)) &&
-                (WaterBox_GetSurfaceImpl(play, &play->colCtx, this->backLeftFootPos.x, this->backLeftFootPos.z,
+                (OoT_WaterBox_GetSurfaceImpl(play, &play->colCtx, this->backLeftFootPos.x, this->backLeftFootPos.z,
                                          &waterSurfaceY, &waterBox)) &&
                 (this->backLeftFootPos.y <= waterSurfaceY)) {
                 this->backLeftFootPos.y = waterSurfaceY;
-                EffectSsGRipple_Spawn(play, &this->backLeftFootPos, 0, 220, 0);
+                OoT_EffectSsGRipple_Spawn(play, &this->backLeftFootPos, 0, 220, 0);
             }
             if (((((play->gameplayFrames + 4) % 8) == 0) || (thisx->velocity.y < 0.0f)) &&
-                (WaterBox_GetSurfaceImpl(play, &play->colCtx, this->frontLeftFootPos.x, this->frontLeftFootPos.z,
+                (OoT_WaterBox_GetSurfaceImpl(play, &play->colCtx, this->frontLeftFootPos.x, this->frontLeftFootPos.z,
                                          &waterSurfaceY, &waterBox)) &&
                 (this->frontLeftFootPos.y <= waterSurfaceY)) {
                 this->frontLeftFootPos.y = waterSurfaceY;
-                EffectSsGRipple_Spawn(play, &this->frontLeftFootPos, 0, 220, 0);
+                OoT_EffectSsGRipple_Spawn(play, &this->frontLeftFootPos, 0, 220, 0);
             }
             if (((((play->gameplayFrames + 1) % 8) == 0) || (thisx->velocity.y < 0.0f)) &&
-                (WaterBox_GetSurfaceImpl(play, &play->colCtx, this->frontRightFootPos.x, this->frontRightFootPos.z,
+                (OoT_WaterBox_GetSurfaceImpl(play, &play->colCtx, this->frontRightFootPos.x, this->frontRightFootPos.z,
                                          &waterSurfaceY, &waterBox)) &&
                 (this->frontRightFootPos.y <= waterSurfaceY)) {
                 this->frontRightFootPos.y = waterSurfaceY;
-                EffectSsGRipple_Spawn(play, &this->frontRightFootPos, 0, 220, 0);
+                OoT_EffectSsGRipple_Spawn(play, &this->frontRightFootPos, 0, 220, 0);
             }
             thisx->floorPoly = floorPoly;
         }
@@ -944,9 +944,9 @@ void EnTite_Update(Actor* thisx, PlayState* play) {
             }
             // Otherwise ensure the tektite is rotating back upright
         } else {
-            Math_SmoothStepToS(&thisx->shape.rot.x, 0, 1, 1000, 0);
+            OoT_Math_SmoothStepToS(&thisx->shape.rot.x, 0, 1, 1000, 0);
             if (this->flipState <= TEKTITE_UNFLIPPED) {
-                Math_SmoothStepToS(&thisx->shape.rot.z, 0, 1, 1000, 0);
+                OoT_Math_SmoothStepToS(&thisx->shape.rot.z, 0, 1, 1000, 0);
                 if (thisx->shape.yOffset > 0) {
                     thisx->shape.yOffset -= 400.0f;
                 }
@@ -956,37 +956,37 @@ void EnTite_Update(Actor* thisx, PlayState* play) {
     thisx->focus.pos = thisx->world.pos;
     thisx->focus.pos.y += 20.0f;
 
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
-void EnTite_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** limbDList, Vec3s* rot, void* thisx) {
+void OoT_EnTite_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** limbDList, Vec3s* rot, void* thisx) {
     EnTite* this = (EnTite*)thisx;
 
     switch (limbIndex) {
         case 8:
-            Matrix_MultVec3f(&sFootOffset, &this->backRightFootPos);
+            OoT_Matrix_MultVec3f(&OoT_sFootOffset, &this->backRightFootPos);
             break;
         case 13:
-            Matrix_MultVec3f(&sFootOffset, &this->frontRightFootPos);
+            OoT_Matrix_MultVec3f(&OoT_sFootOffset, &this->frontRightFootPos);
             break;
         case 18:
-            Matrix_MultVec3f(&sFootOffset, &this->backLeftFootPos);
+            OoT_Matrix_MultVec3f(&OoT_sFootOffset, &this->backLeftFootPos);
             break;
         case 23:
-            Matrix_MultVec3f(&sFootOffset, &this->frontLeftFootPos);
+            OoT_Matrix_MultVec3f(&OoT_sFootOffset, &this->frontLeftFootPos);
             break;
     }
 
     BodyBreak_SetInfo(&this->bodyBreak, limbIndex, 0, 24, 24, limbDList, BODYBREAK_OBJECT_DEFAULT);
 }
 
-void EnTite_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnTite_Draw(Actor* thisx, PlayState* play) {
     EnTite* this = (EnTite*)thisx;
 
     OPEN_DISPS(play->state.gfxCtx);
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
-    Collider_UpdateSpheres(0, &this->collider);
+    OoT_Collider_UpdateSpheres(0, &this->collider);
     if (this->actor.params == TEKTITE_BLUE) {
         gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(object_tite_Tex_001300));
         gSPSegment(POLY_OPA_DISP++, 0x09, SEGMENTED_TO_VIRTUAL(object_tite_Tex_001700));
@@ -996,7 +996,7 @@ void EnTite_Draw(Actor* thisx, PlayState* play) {
         gSPSegment(POLY_OPA_DISP++, 0x09, SEGMENTED_TO_VIRTUAL(object_tite_Tex_001F00));
         gSPSegment(POLY_OPA_DISP++, 0x0A, SEGMENTED_TO_VIRTUAL(object_tite_Tex_002100));
     }
-    SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, NULL, EnTite_PostLimbDraw, thisx);
+    SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, NULL, OoT_EnTite_PostLimbDraw, thisx);
     CLOSE_DISPS(play->state.gfxCtx);
 
     if (this->spawnIceTimer != 0) {

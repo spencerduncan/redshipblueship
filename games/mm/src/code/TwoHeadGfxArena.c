@@ -13,16 +13,16 @@
 #include "alignment.h"
 #include "functions.h"
 
-void THGA_Init(TwoHeadGfxArena* thga, void* start, size_t size) {
-    THA_Init(&thga->tha, start, size);
+void MM_THGA_Init(TwoHeadGfxArena* thga, void* start, size_t size) {
+    MM_THA_Init(&thga->tha, start, size);
 }
 
 void THGA_Destroy(TwoHeadGfxArena* thga) {
     THA_Destroy(&thga->tha);
 }
 
-u32 THGA_IsCrash(TwoHeadGfxArena* thga) {
-    return THA_IsCrash(&thga->tha);
+u32 MM_THGA_IsCrash(TwoHeadGfxArena* thga) {
+    return MM_THA_IsCrash(&thga->tha);
 }
 
 void THGA_Reset(TwoHeadGfxArena* thga) {
@@ -33,16 +33,16 @@ s32 THGA_GetRemaining(TwoHeadGfxArena* thga) {
     return THA_GetRemaining(&thga->tha);
 }
 
-Gfx* THGA_GetHead(TwoHeadGfxArena* thga) {
-    return THA_GetHead(&thga->tha);
+Gfx* MM_THGA_GetHead(TwoHeadGfxArena* thga) {
+    return MM_THA_GetHead(&thga->tha);
 }
 
-void THGA_SetHead(TwoHeadGfxArena* thga, Gfx* newHead) {
-    THA_SetHead(&thga->tha, newHead);
+void MM_THGA_SetHead(TwoHeadGfxArena* thga, Gfx* newHead) {
+    MM_THA_SetHead(&thga->tha, newHead);
 }
 
-void* THGA_GetTail(TwoHeadGfxArena* thga) {
-    return THA_GetTail(&thga->tha);
+void* MM_THGA_GetTail(TwoHeadGfxArena* thga) {
+    return MM_THA_GetTail(&thga->tha);
 }
 
 /**

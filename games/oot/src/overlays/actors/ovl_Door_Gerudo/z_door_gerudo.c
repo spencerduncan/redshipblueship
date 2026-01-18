@@ -33,7 +33,7 @@ const ActorInit Door_Gerudo_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F(scale, 1, ICHAIN_STOP),
 };
 
@@ -42,11 +42,11 @@ void DoorGerudo_Init(Actor* thisx, PlayState* play) {
     DoorGerudo* this = (DoorGerudo*)thisx;
     CollisionHeader* colHeader = NULL;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    CollisionHeader_GetVirtual(&gGerudoCellDoorCol, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+    OoT_CollisionHeader_GetVirtual(&gGerudoCellDoorCol, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
 
-    if (Flags_GetSwitch(play, thisx->params & 0x3F)) {
+    if (OoT_Flags_GetSwitch(play, thisx->params & 0x3F)) {
         this->actionFunc = func_8099485C;
         thisx->world.pos.y = thisx->home.pos.y + 200.0f;
     } else {
@@ -58,7 +58,7 @@ void DoorGerudo_Init(Actor* thisx, PlayState* play) {
 void DoorGerudo_Destroy(Actor* thisx, PlayState* play) {
     DoorGerudo* this = (DoorGerudo*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 f32 func_809946BC(PlayState* play, DoorGerudo* this, f32 arg2, f32 arg3, f32 arg4) {
@@ -69,7 +69,7 @@ f32 func_809946BC(PlayState* play, DoorGerudo* this, f32 arg2, f32 arg3, f32 arg
     playerPos.x = player->actor.world.pos.x;
     playerPos.y = player->actor.world.pos.y + arg2;
     playerPos.z = player->actor.world.pos.z;
-    Actor_WorldToActorCoords(&this->dyna.actor, &sp1C, &playerPos);
+    OoT_Actor_WorldToActorCoords(&this->dyna.actor, &sp1C, &playerPos);
 
     if ((arg3 < fabsf(sp1C.x)) || (arg4 < fabsf(sp1C.y))) {
         return FLT_MAX;
@@ -83,7 +83,7 @@ s32 func_80994750(DoorGerudo* this, PlayState* play) {
     f32 temp_f0;
     s16 rotYDiff;
 
-    if (!Player_InCsMode(play)) {
+    if (!OoT_Player_InCsMode(play)) {
         temp_f0 = func_809946BC(play, this, 0.0f, 20.0f, 15.0f);
         if (fabsf(temp_f0) < 40.0f) {
             rotYDiff = player->actor.shape.rot.y - this->dyna.actor.shape.rot.y;
@@ -102,7 +102,7 @@ void func_8099485C(DoorGerudo* this, PlayState* play) {
     if (this->unk_164 != 0) {
         this->actionFunc = func_8099496C;
         gSaveContext.inventory.dungeonKeys[gSaveContext.mapIndex] -= 1;
-        Flags_SetSwitch(play, this->dyna.actor.params & 0x3F);
+        OoT_Flags_SetSwitch(play, this->dyna.actor.params & 0x3F);
         Audio_PlayActorSound2(&this->dyna.actor, NA_SE_EV_CHAIN_KEY_UNLOCK);
         GameInteractor_ExecuteOnDungeonKeyUsedHooks(gSaveContext.mapIndex);
     } else {
@@ -113,7 +113,7 @@ void func_8099485C(DoorGerudo* this, PlayState* play) {
 
             if (gSaveContext.inventory.dungeonKeys[gSaveContext.mapIndex] <= 0) {
                 player->naviTextId = -0x203;
-            } else if (!Flags_GetCollectible(play, (this->dyna.actor.params >> 8) & 0x1F)) {
+            } else if (!OoT_Flags_GetCollectible(play, (this->dyna.actor.params >> 8) & 0x1F)) {
                 player->naviTextId = -0x225;
             } else {
                 player->doorType = PLAYER_DOORTYPE_SLIDING;
@@ -133,8 +133,8 @@ void func_8099496C(DoorGerudo* this, PlayState* play) {
 }
 
 void func_809949C8(DoorGerudo* this, PlayState* play) {
-    Math_StepToF(&this->dyna.actor.velocity.y, 15.0f, 3.0f);
-    Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y + 200.0f, this->dyna.actor.velocity.y);
+    OoT_Math_StepToF(&this->dyna.actor.velocity.y, 15.0f, 3.0f);
+    OoT_Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y + 200.0f, this->dyna.actor.velocity.y);
 }
 
 void DoorGerudo_Update(Actor* thisx, PlayState* play) {
@@ -154,8 +154,8 @@ void DoorGerudo_Draw(Actor* thisx, PlayState* play) {
     gSPDisplayList(POLY_OPA_DISP++, gGerudoCellDoorDL);
 
     if (this->unk_166 != 0) {
-        Matrix_Scale(0.01f, 0.01f, 0.025f, MTXMODE_APPLY);
-        Actor_DrawDoorLock(play, this->unk_166, DOORLOCK_NORMAL);
+        OoT_Matrix_Scale(0.01f, 0.01f, 0.025f, MTXMODE_APPLY);
+        OoT_Actor_DrawDoorLock(play, this->unk_166, DOORLOCK_NORMAL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

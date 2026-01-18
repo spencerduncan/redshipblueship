@@ -1,7 +1,7 @@
 #include "ultra64.h"
 #include "libc/stdlib.h"
 
-ldiv_t ldiv(long numer, long denom) {
+ldiv_t MM_ldiv(long numer, long denom) {
     ldiv_t val;
 
     val.quot = numer / denom;
@@ -14,7 +14,7 @@ ldiv_t ldiv(long numer, long denom) {
     return val;
 }
 
-lldiv_t lldiv(long long numer, long long denom) {
+lldiv_t MM_lldiv(long long numer, long long denom) {
     lldiv_t val;
 
     val.quot = numer / denom;

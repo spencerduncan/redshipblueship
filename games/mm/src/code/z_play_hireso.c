@@ -1130,14 +1130,14 @@ void BombersNotebook_LoadFiles(BombersNotebook* this, s32 flag) {
                 break;
             }
             CmpDma_LoadAllFiles(this->scheduleDmaSegmentStart, this->scheduleDmaSegment, this->scheduleDmaSegmentSize);
-            osCreateMesgQueue(&this->loadQueue, this->loadMsg, ARRAY_COUNT(this->loadMsg));
-            DmaMgr_SendRequestImpl(&this->dmaRequest, this->scheduleSegment, this->scheduleSegmentStart,
+            MM_osCreateMesgQueue(&this->loadQueue, this->loadMsg, ARRAY_COUNT(this->loadMsg));
+            MM_DmaMgr_SendRequestImpl(&this->dmaRequest, this->scheduleSegment, this->scheduleSegmentStart,
                                    this->scheduleSegmentSize, 0, &this->loadQueue, OS_MESG_PTR(NULL));
 #endif
             this->loadState = BOMBERS_NOTEBOOK_LOAD_STATE_STARTED;
             // fallthrough
         case BOMBERS_NOTEBOOK_LOAD_STATE_STARTED:
-            // if (osRecvMesg(&this->loadQueue, NULL, flag) == 0) {
+            // if (MM_osRecvMesg(&this->loadQueue, NULL, flag) == 0) {
             this->loadState = BOMBERS_NOTEBOOK_LOAD_STATE_DONE;
             //}
             break;
@@ -1167,7 +1167,7 @@ void BombersNotebook_Update(PlayState* play, BombersNotebook* this, Input* input
     s32 cursorEntryScan;
 
 // #region 2S2H [Port] We don't need to allocate anything because we don't use these segments.
-// We also want to avoid using malloc here because using a size of zero still allocates some data.
+// We also want to avoid using malloc here because using a size of MM_zero still allocates some data.
 #if 0
     this->scheduleDmaSegmentStart = SEGMENT_ROM_START(schedule_dma_static_yar);
     this->scheduleDmaSegmentSize = SEGMENT_ROM_SIZE(schedule_dma_static_syms);
@@ -1175,11 +1175,11 @@ void BombersNotebook_Update(PlayState* play, BombersNotebook* this, Input* input
     this->scheduleSegmentSize = SEGMENT_ROM_SIZE(schedule_static);
 
     if (this->scheduleDmaSegment == NULL) {
-        this->scheduleDmaSegment = ZeldaArena_Malloc(this->scheduleDmaSegmentSize);
+        this->scheduleDmaSegment = MM_ZeldaArena_Malloc(this->scheduleDmaSegmentSize);
     }
 
     if (this->scheduleSegment == NULL) {
-        this->scheduleSegment = ZeldaArena_Malloc(this->scheduleSegmentSize);
+        this->scheduleSegment = MM_ZeldaArena_Malloc(this->scheduleSegmentSize);
     }
 #endif
 
@@ -1292,17 +1292,17 @@ void BombersNotebook_Update(PlayState* play, BombersNotebook* this, Input* input
                     if (play->msgCtx.currentTextId !=
                         sBombersNotebookTextIds[BOMBERS_NOTEBOOK_ENTRY_GET_EVENT(
                             this->cursorPageRow + this->cursorPage, this->cursorEntry - BOMBERS_NOTEBOOK_ENTRY_SIZE)]) {
-                        Message_ContinueTextbox(play, sBombersNotebookTextIds[BOMBERS_NOTEBOOK_ENTRY_GET_EVENT(
+                        MM_Message_ContinueTextbox(play, sBombersNotebookTextIds[BOMBERS_NOTEBOOK_ENTRY_GET_EVENT(
                                                           this->cursorPageRow + this->cursorPage,
                                                           this->cursorEntry - BOMBERS_NOTEBOOK_ENTRY_SIZE)]);
                     }
                 } else {
                     if (play->msgCtx.currentTextId != sBombersNotebookTextIds[this->cursorPageRow + this->cursorPage]) {
-                        Message_ContinueTextbox(play, sBombersNotebookTextIds[this->cursorPageRow + this->cursorPage]);
+                        MM_Message_ContinueTextbox(play, sBombersNotebookTextIds[this->cursorPageRow + this->cursorPage]);
                     }
                 }
             } else {
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
             }
 
             if (stickAdjY < -30) {
@@ -1364,7 +1364,7 @@ void BombersNotebook_Destroy(BombersNotebook* this) {
     }
 #if 0
     if (this->scheduleDmaSegment != NULL) {
-        ZeldaArena_Free(this->scheduleDmaSegment);
+        MM_ZeldaArena_Free(this->scheduleDmaSegment);
         this->scheduleDmaSegment = NULL;
     }
 #endif

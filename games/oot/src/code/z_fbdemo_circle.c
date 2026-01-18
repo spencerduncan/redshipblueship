@@ -42,7 +42,7 @@ Gfx sTransCircleDL[] = {
     gsSPEndDisplayList(),
 };
 
-void TransitionCircle_Start(void* thisx) {
+void OoT_TransitionCircle_Start(void* thisx) {
     TransitionCircle* this = (TransitionCircle*)thisx;
 
     this->isDone = false;
@@ -90,25 +90,25 @@ void TransitionCircle_Start(void* thisx) {
     } else {
         this->texY = 0x1F4;
         if (this->appearanceType == TCA_RIPPLE) {
-            Audio_PlaySoundGeneral(NA_SE_OC_SECRET_WARP_OUT, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_OC_SECRET_WARP_OUT, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         }
     }
-    guPerspective(&this->projection, &this->normal, 60.0f, (4.0f / 3.0f), 10.0f, 12800.0f, 1.0f);
-    guLookAt(&this->lookAt, 0.0f, 0.0f, 400.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+    OoT_guPerspective(&this->projection, &this->normal, 60.0f, (4.0f / 3.0f), 10.0f, 12800.0f, 1.0f);
+    OoT_guLookAt(&this->lookAt, 0.0f, 0.0f, 400.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 }
 
-void* TransitionCircle_Init(void* thisx) {
+void* OoT_TransitionCircle_Init(void* thisx) {
     TransitionCircle* this = (TransitionCircle*)thisx;
 
     memset(this, 0, sizeof(*this));
     return this;
 }
 
-void TransitionCircle_Destroy(void* thisx) {
+void OoT_TransitionCircle_Destroy(void* thisx) {
 }
 
-void TransitionCircle_Update(void* thisx, s32 updateRate) {
+void OoT_TransitionCircle_Update(void* thisx, s32 updateRate) {
     TransitionCircle* this = (TransitionCircle*)thisx;
     s32 temp_t2;
     s32 temp_t3;
@@ -116,8 +116,8 @@ void TransitionCircle_Update(void* thisx, s32 updateRate) {
     if (this->direction != 0) {
         if (this->texY == 0) {
             if (this->appearanceType == TCA_RIPPLE) {
-                Audio_PlaySoundGeneral(NA_SE_OC_SECRET_WARP_IN, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_OC_SECRET_WARP_IN, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             }
         }
         this->texY += this->speed * 3 / updateRate;
@@ -141,7 +141,7 @@ void TransitionCircle_Update(void* thisx, s32 updateRate) {
     }
 }
 
-void TransitionCircle_Draw(void* thisx, Gfx** gfxP) {
+void OoT_TransitionCircle_Draw(void* thisx, Gfx** gfxP) {
     Gfx* gfx = *gfxP;
     Mtx* modelView;
     TransitionCircle* this = (TransitionCircle*)thisx;
@@ -155,7 +155,7 @@ void TransitionCircle_Draw(void* thisx, Gfx** gfxP) {
 
     this->frame ^= 1;
     gDPPipeSync(gfx++);
-    texScroll = Gfx_BranchTexScroll(&gfx, this->texX, this->texY, 16, 64);
+    texScroll = OoT_Gfx_BranchTexScroll(&gfx, this->texX, this->texY, 16, 64);
     gSPSegment(gfx++, 9, texScroll);
     gSPSegment(gfx++, 8, this->texture);
     gDPSetColor(gfx++, G_SETPRIMCOLOR, this->color.rgba);
@@ -172,7 +172,7 @@ void TransitionCircle_Draw(void* thisx, Gfx** gfxP) {
     }
 
     if (rot != 0.0f) {
-        guRotate(&modelView[1], rot, 0.0f, 0.0f, 1.0f);
+        OoT_guRotate(&modelView[1], rot, 0.0f, 0.0f, 1.0f);
         gSPMatrix(gfx++, &modelView[1], G_MTX_NOPUSH | G_MTX_MUL | G_MTX_MODELVIEW);
     }
 
@@ -185,13 +185,13 @@ void TransitionCircle_Draw(void* thisx, Gfx** gfxP) {
     *gfxP = gfx;
 }
 
-s32 TransitionCircle_IsDone(void* thisx) {
+s32 OoT_TransitionCircle_IsDone(void* thisx) {
     TransitionCircle* this = (TransitionCircle*)thisx;
 
     return this->isDone;
 }
 
-void TransitionCircle_SetType(void* thisx, s32 type) {
+void OoT_TransitionCircle_SetType(void* thisx, s32 type) {
     TransitionCircle* this = (TransitionCircle*)thisx;
 
     if (type & TC_SET_PARAMS) {
@@ -208,7 +208,7 @@ void TransitionCircle_SetType(void* thisx, s32 type) {
     }
 }
 
-void TransitionCircle_SetColor(void* thisx, u32 color) {
+void OoT_TransitionCircle_SetColor(void* thisx, u32 color) {
     TransitionCircle* this = (TransitionCircle*)thisx;
 
     this->color.rgba = color;

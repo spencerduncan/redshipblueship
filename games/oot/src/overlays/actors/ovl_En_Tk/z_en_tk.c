@@ -13,10 +13,10 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY)
 
-void EnTk_Init(Actor* thisx, PlayState* play);
-void EnTk_Destroy(Actor* thisx, PlayState* play);
-void EnTk_Update(Actor* thisx, PlayState* play);
-void EnTk_Draw(Actor* thisx, PlayState* play);
+void OoT_EnTk_Init(Actor* thisx, PlayState* play);
+void OoT_EnTk_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnTk_Update(Actor* thisx, PlayState* play);
+void OoT_EnTk_Draw(Actor* thisx, PlayState* play);
 
 s32 EnTk_CheckNextSpot(EnTk* this, PlayState* play);
 void EnTk_Rest(EnTk* this, PlayState* play);
@@ -29,10 +29,10 @@ const ActorInit En_Tk_InitVars = {
     FLAGS,
     OBJECT_TK,
     sizeof(EnTk),
-    (ActorFunc)EnTk_Init,
-    (ActorFunc)EnTk_Destroy,
-    (ActorFunc)EnTk_Update,
-    (ActorFunc)EnTk_Draw,
+    (ActorFunc)OoT_EnTk_Init,
+    (ActorFunc)OoT_EnTk_Destroy,
+    (ActorFunc)OoT_EnTk_Update,
+    (ActorFunc)OoT_EnTk_Draw,
     NULL,
 };
 
@@ -67,8 +67,8 @@ void EnTkEff_Update(EnTk* this) {
             if (eff->timeLeft == 0) {
                 eff->active = 0;
             }
-            eff->accel.x = Rand_ZeroOne() * 0.4f - 0.2f;
-            eff->accel.z = Rand_ZeroOne() * 0.4f - 0.2f;
+            eff->accel.x = OoT_Rand_ZeroOne() * 0.4f - 0.2f;
+            eff->accel.z = OoT_Rand_ZeroOne() * 0.4f - 0.2f;
             eff->pos.x += eff->speed.x;
             eff->pos.y += eff->speed.y;
             eff->pos.z += eff->speed.z;
@@ -101,7 +101,7 @@ void EnTkEff_Draw(EnTk* this, PlayState* play) {
     for (i = 0; i < ARRAY_COUNT(this->eff); i++) {
         if (eff->active != 0) {
             if (gfxSetup == 0) {
-                POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, 0);
+                POLY_XLU_DISP = OoT_Gfx_SetupDL(POLY_XLU_DISP, 0);
                 gSPDisplayList(POLY_XLU_DISP++, gDampeEff1DL);
                 gDPSetEnvColor(POLY_XLU_DISP++, 100, 60, 20, 0);
                 gfxSetup = 1;
@@ -112,9 +112,9 @@ void EnTkEff_Draw(EnTk* this, PlayState* play) {
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 170, 130, 90, alpha);
 
             gDPPipeSync(POLY_XLU_DISP++);
-            Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
-            Matrix_Scale(eff->size, eff->size, 1.0f, MTXMODE_APPLY);
+            OoT_Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
+            OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
+            OoT_Matrix_Scale(eff->size, eff->size, 1.0f, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
             imageIdx = eff->timeLeft * ((f32)ARRAY_COUNT(dustTextures) / eff->timeTotal);
@@ -133,7 +133,7 @@ s32 EnTkEff_CreateDflt(EnTk* this, Vec3f* pos, u8 duration, f32 size, f32 growth
     Vec3f speed = { 0.0f, 0.0f, 0.0f };
     Vec3f accel = { 0.0f, 0.3f, 0.0f };
 
-    accel.y += Rand_ZeroOne() * yAccelMax;
+    accel.y += OoT_Rand_ZeroOne() * yAccelMax;
 
     EnTkEff_Create(this, pos, &speed, &accel, duration, size, growth);
 
@@ -142,7 +142,7 @@ s32 EnTkEff_CreateDflt(EnTk* this, Vec3f* pos, u8 duration, f32 size, f32 growth
 
 /** z_en_tk_eff.c ends here probably **/
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -162,31 +162,31 @@ static ColliderCylinderInit sCylinderInit = {
     { 30, 52, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 OoT_sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
 
 void EnTk_RestAnim(EnTk* this, PlayState* play) {
     AnimationHeader* anim = &gDampeRestAnim;
 
-    Animation_Change(&this->skelAnime, anim, 1.0f, 0.0f, Animation_GetLastFrame(&gDampeRestAnim), ANIMMODE_LOOP,
+    OoT_Animation_Change(&this->skelAnime, anim, 1.0f, 0.0f, OoT_Animation_GetLastFrame(&gDampeRestAnim), ANIMMODE_LOOP,
                      -10.0f);
 
-    this->actionCountdown = Rand_S16Offset(60, 60);
+    this->actionCountdown = OoT_Rand_S16Offset(60, 60);
     this->actor.speedXZ = 0.0f;
 }
 
 void EnTk_WalkAnim(EnTk* this, PlayState* play) {
     AnimationHeader* anim = &gDampeWalkAnim;
 
-    Animation_Change(&this->skelAnime, anim, 1.0f, 0.0f, Animation_GetLastFrame(&gDampeRestAnim), ANIMMODE_LOOP,
+    OoT_Animation_Change(&this->skelAnime, anim, 1.0f, 0.0f, OoT_Animation_GetLastFrame(&gDampeRestAnim), ANIMMODE_LOOP,
                      -10.0f);
 
-    this->actionCountdown = Rand_S16Offset(240, 240);
+    this->actionCountdown = OoT_Rand_S16Offset(240, 240);
 }
 
 void EnTk_DigAnim(EnTk* this, PlayState* play) {
     AnimationHeader* anim = &gDampeDigAnim;
 
-    Animation_Change(&this->skelAnime, anim, 1.0f, 0.0f, Animation_GetLastFrame(&gDampeDigAnim), ANIMMODE_LOOP, -10.0f);
+    OoT_Animation_Change(&this->skelAnime, anim, 1.0f, 0.0f, OoT_Animation_GetLastFrame(&gDampeDigAnim), ANIMMODE_LOOP, -10.0f);
 
     if (EnTk_CheckNextSpot(this, play) >= 0) {
         this->validDigHere = 1;
@@ -199,9 +199,9 @@ void EnTk_UpdateEyes(EnTk* this) {
         if (this->eyeTextureIdx > 2) {
             this->blinkCycles--;
             if (this->blinkCycles < 0) {
-                this->blinkCountdown = Rand_S16Offset(30, 30);
+                this->blinkCountdown = OoT_Rand_S16Offset(30, 30);
                 this->blinkCycles = 2;
-                if (Rand_ZeroOne() > 0.5f) {
+                if (OoT_Rand_ZeroOne() > 0.5f) {
                     this->blinkCycles++;
                 }
             }
@@ -249,7 +249,7 @@ s32 EnTk_CheckNextSpot(EnTk* this, PlayState* play) {
         }
 
         dy = prop->world.pos.y - this->actor.floorHeight;
-        dxz = Actor_WorldDistXZToActor(&this->actor, prop);
+        dxz = OoT_Actor_WorldDistXZToActor(&this->actor, prop);
         if (dxz > 40.0f || dy > 10.0f) {
             prop = prop->next;
             continue;
@@ -268,7 +268,7 @@ void EnTk_CheckCurrentSpot(EnTk* this) {
 
     if (this->currentSpot != NULL) {
         dy = this->currentSpot->world.pos.y - this->actor.floorHeight;
-        dxz = Actor_WorldDistXZToActor(&this->actor, this->currentSpot);
+        dxz = OoT_Actor_WorldDistXZToActor(&this->actor, this->currentSpot);
         if (dxz > 40.0f || dy > 10.0f) {
             this->currentSpot = NULL;
         }
@@ -298,7 +298,7 @@ f32 EnTk_Step(EnTk* this, PlayState* play) {
         return 0.0f;
     } else {
         a1_ = (0x8000 / 12.0f) * (a1_ - stepFrames[i]);
-        return Math_SinS(a1_) * 2.0f;
+        return OoT_Math_SinS(a1_) * 2.0f;
     }
 }
 
@@ -319,7 +319,7 @@ s32 EnTk_Orient(EnTk* this, PlayState* play) {
     dx = point->x - this->actor.world.pos.x;
     dz = point->z - this->actor.world.pos.z;
 
-    Math_SmoothStepToS(&this->actor.shape.rot.y, Math_FAtan2F(dx, dz) * (0x8000 / M_PI), 10, 1000, 1);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, OoT_Math_FAtan2F(dx, dz) * (0x8000 / M_PI), 10, 1000, 1);
     this->actor.world.rot = this->actor.shape.rot;
 
     if (SQ(dx) + SQ(dz) < 10.0f) {
@@ -337,12 +337,12 @@ s32 EnTk_Orient(EnTk* this, PlayState* play) {
 u16 func_80B1C54C(PlayState* play, Actor* thisx) {
     u16 ret;
 
-    ret = Text_GetFaceReaction(play, 14);
+    ret = OoT_Text_GetFaceReaction(play, 14);
     if (ret != 0) {
         return ret;
     }
 
-    if (Flags_GetInfTable(INFTABLE_D9)) {
+    if (OoT_Flags_GetInfTable(INFTABLE_D9)) {
         /* "Do you want me to dig here? ..." */
         return 0x5019;
     } else {
@@ -354,21 +354,21 @@ u16 func_80B1C54C(PlayState* play, Actor* thisx) {
 s16 func_80B1C5A0(PlayState* play, Actor* thisx) {
     s32 ret = NPC_TALK_STATE_TALKING;
 
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (OoT_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_NONE:
         case TEXT_STATE_DONE_HAS_NEXT:
             break;
         case TEXT_STATE_CLOSING:
             /* "I am the boss of the carpenters ..." (wtf?) */
             if (thisx->textId == 0x5028) {
-                Flags_SetInfTable(INFTABLE_D8);
+                OoT_Flags_SetInfTable(INFTABLE_D8);
             }
             ret = NPC_TALK_STATE_IDLE;
             break;
         case TEXT_STATE_DONE_FADING:
             break;
         case TEXT_STATE_CHOICE:
-            if (Message_ShouldAdvance(play) && (thisx->textId == 0x5018 || thisx->textId == 0x5019)) {
+            if (OoT_Message_ShouldAdvance(play) && (thisx->textId == 0x5018 || thisx->textId == 0x5019)) {
                 if (play->msgCtx.choiceIndex == 1) {
                     /* "Thanks a lot!" */
                     thisx->textId = 0x0084;
@@ -377,17 +377,17 @@ s16 func_80B1C5A0(PlayState* play, Actor* thisx) {
                     thisx->textId = 0x0085;
                 } else {
                     play->msgCtx.msgMode = MSGMODE_PAUSED;
-                    Rupees_ChangeBy(-10);
-                    Flags_SetInfTable(INFTABLE_D9);
+                    OoT_Rupees_ChangeBy(-10);
+                    OoT_Flags_SetInfTable(INFTABLE_D9);
                     return NPC_TALK_STATE_ACTION;
                 }
-                Message_ContinueTextbox(play, thisx->textId);
-                Flags_SetInfTable(INFTABLE_D9);
+                OoT_Message_ContinueTextbox(play, thisx->textId);
+                OoT_Flags_SetInfTable(INFTABLE_D9);
             }
             break;
         case TEXT_STATE_EVENT:
-            if (Message_ShouldAdvance(play) && (thisx->textId == 0x0084 || thisx->textId == 0x0085)) {
-                Message_CloseTextbox(play);
+            if (OoT_Message_ShouldAdvance(play) && (thisx->textId == 0x0084 || thisx->textId == 0x0085)) {
+                OoT_Message_CloseTextbox(play);
                 ret = NPC_TALK_STATE_IDLE;
             }
             break;
@@ -405,7 +405,7 @@ s32 EnTk_ChooseReward(EnTk* this) {
     f32 luck;
     s32 reward;
 
-    luck = Rand_ZeroOne();
+    luck = OoT_Rand_ZeroOne();
 
     if (luck < 0.4f) {
         reward = 0;
@@ -473,37 +473,37 @@ void EnTk_DigEff(EnTk* this) {
     Vec3f accel = { 0.0f, 0.3f, 0.0f };
 
     if (this->skelAnime.curFrame >= 32.0f && this->skelAnime.curFrame < 40.0f) {
-        pos.x = (Rand_ZeroOne() - 0.5f) * 12.0f + this->v3f_304.x;
-        pos.y = (Rand_ZeroOne() - 0.5f) * 8.0f + this->v3f_304.y;
-        pos.z = (Rand_ZeroOne() - 0.5f) * 12.0f + this->v3f_304.z;
+        pos.x = (OoT_Rand_ZeroOne() - 0.5f) * 12.0f + this->v3f_304.x;
+        pos.y = (OoT_Rand_ZeroOne() - 0.5f) * 8.0f + this->v3f_304.y;
+        pos.z = (OoT_Rand_ZeroOne() - 0.5f) * 12.0f + this->v3f_304.z;
         EnTkEff_CreateDflt(this, &pos, 12, 0.2f, 0.1f, 0.0f);
     }
 }
 
-void EnTk_Init(Actor* thisx, PlayState* play) {
+void OoT_EnTk_Init(Actor* thisx, PlayState* play) {
     EnTk* this = (EnTk*)thisx;
     s32 pad;
 
-    ActorShape_Init(&this->actor.shape, 0, ActorShadow_DrawCircle, 24.0f);
+    OoT_ActorShape_Init(&this->actor.shape, 0, OoT_ActorShadow_DrawCircle, 24.0f);
 
-    SkelAnime_InitFlex(play, &this->skelAnime, &gDampeSkel, NULL, this->jointTable, this->morphTable, 18);
-    Animation_Change(&this->skelAnime, &gDampeRestAnim, 1.0f, 0.0f, Animation_GetLastFrame(&gDampeRestAnim),
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gDampeSkel, NULL, this->jointTable, this->morphTable, 18);
+    OoT_Animation_Change(&this->skelAnime, &gDampeRestAnim, 1.0f, 0.0f, OoT_Animation_GetLastFrame(&gDampeRestAnim),
                      ANIMMODE_LOOP, 0.0f);
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
 
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, NULL, &sColChkInfoInit);
+    OoT_CollisionCheck_SetInfo2(&this->actor.colChkInfo, NULL, &OoT_sColChkInfoInit);
 
     if (GameInteractor_Should(VB_DAMPE_IN_GRAVEYARD_DESPAWN,
                               gSaveContext.dayTime <= 0xC000 || gSaveContext.dayTime >= 0xE000 || LINK_IS_ADULT ||
                                   play->sceneNum != SCENE_GRAVEYARD,
                               this)) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
 
-    Actor_SetScale(&this->actor, 0.01f);
+    OoT_Actor_SetScale(&this->actor, 0.01f);
 
     this->actor.targetMode = 6;
     this->actor.gravity = -0.1f;
@@ -512,10 +512,10 @@ void EnTk_Init(Actor* thisx, PlayState* play) {
     this->actionFunc = EnTk_Rest;
 }
 
-void EnTk_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnTk_Destroy(Actor* thisx, PlayState* play) {
     EnTk* this = (EnTk*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
@@ -536,7 +536,7 @@ void EnTk_Rest(EnTk* this, PlayState* play) {
             return;
         }
 
-        Npc_UpdateTalking(play, &this->actor, &this->interactInfo.talkState, this->collider.dim.radius + 30.0f,
+        OoT_Npc_UpdateTalking(play, &this->actor, &this->interactInfo.talkState, this->collider.dim.radius + 30.0f,
                           func_80B1C54C, func_80B1C5A0);
     } else if (EnTk_CheckFacingPlayer(this)) {
         v1 = this->actor.shape.rot.y;
@@ -544,7 +544,7 @@ void EnTk_Rest(EnTk* this, PlayState* play) {
         v1 = this->actor.yawTowardsPlayer - v1;
 
         this->actionCountdown = 0;
-        Npc_UpdateTalking(play, &this->actor, &this->interactInfo.talkState, this->collider.dim.radius + 30.0f,
+        OoT_Npc_UpdateTalking(play, &this->actor, &this->interactInfo.talkState, this->collider.dim.radius + 30.0f,
                           func_80B1C54C, func_80B1C5A0);
     } else if (Actor_ProcessTalkRequest(&this->actor, play)) {
         v1 = this->actor.shape.rot.y;
@@ -563,7 +563,7 @@ void EnTk_Rest(EnTk* this, PlayState* play) {
     }
 
     a1_ = CLAMP(-v1, 1270, 10730);
-    Math_SmoothStepToS(&this->headRot, a1_, 6, 1000, 1);
+    OoT_Math_SmoothStepToS(&this->headRot, a1_, 6, 1000, 1);
 }
 
 void EnTk_Walk(EnTk* this, PlayState* play) {
@@ -574,7 +574,7 @@ void EnTk_Walk(EnTk* this, PlayState* play) {
     } else {
         this->actor.speedXZ = EnTk_Step(this, play);
         EnTk_Orient(this, play);
-        Math_SmoothStepToS(&this->headRot, 0, 6, 1000, 1);
+        OoT_Math_SmoothStepToS(&this->headRot, 0, 6, 1000, 1);
         EnTk_CheckCurrentSpot(this);
 
         DECR(this->actionCountdown);
@@ -611,7 +611,7 @@ void EnTk_Dig(EnTk* this, PlayState* play) {
             rewardOrigin.z = -40.0f;
 
             Matrix_RotateY(this->actor.shape.rot.y, MTXMODE_NEW);
-            Matrix_MultVec3f(&rewardOrigin, &rewardPos);
+            OoT_Matrix_MultVec3f(&rewardOrigin, &rewardPos);
 
             rewardPos.x += this->actor.world.pos.x;
             rewardPos.y += this->actor.world.pos.y;
@@ -631,7 +631,7 @@ void EnTk_Dig(EnTk* this, PlayState* play) {
                 }
             }
 
-            Item_DropCollectible(play, &rewardPos, rewardParams[this->currentReward]);
+            OoT_Item_DropCollectible(play, &rewardPos, rewardParams[this->currentReward]);
         }
     }
 
@@ -642,8 +642,8 @@ void EnTk_Dig(EnTk* this, PlayState* play) {
             Audio_PlayActorSound2(&this->actor, NA_SE_SY_ERROR);
         } else if (this->currentReward == 4) {
             /* Heart piece */
-            Audio_PlaySoundGeneral(NA_SE_SY_CORRECT_CHIME, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_CORRECT_CHIME, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         } else {
             /* Rupee */
             Audio_PlayActorSound2(&this->actor, NA_SE_SY_TRE_BOX_APPEAR);
@@ -651,12 +651,12 @@ void EnTk_Dig(EnTk* this, PlayState* play) {
     }
     this->rewardTimer++;
 
-    if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    if (OoT_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         if (this->currentReward < 0) {
             /* "Nope, nothing here!" */
-            Message_StartTextbox(play, 0x501A, NULL);
+            OoT_Message_StartTextbox(play, 0x501A, NULL);
         } else {
-            Message_CloseTextbox(play);
+            OoT_Message_CloseTextbox(play);
         }
 
         EnTk_RestAnim(this, play);
@@ -667,18 +667,18 @@ void EnTk_Dig(EnTk* this, PlayState* play) {
     }
 }
 
-void EnTk_Update(Actor* thisx, PlayState* play) {
+void OoT_EnTk_Update(Actor* thisx, PlayState* play) {
     EnTk* this = (EnTk*)thisx;
     s32 pad;
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
     Actor_MoveXZGravity(&this->actor);
 
-    Actor_UpdateBgCheckInfo(play, &this->actor, 40.0f, 10.0f, 0.0f, 5);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 40.0f, 10.0f, 0.0f, 5);
 
     this->actionFunc(this, play);
 
@@ -695,7 +695,7 @@ void func_80B1D200(PlayState* play) {
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-s32 EnTk_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
+s32 OoT_EnTk_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
     EnTk* this = (EnTk*)thisx;
 
     switch (limbIndex) {
@@ -713,24 +713,24 @@ s32 EnTk_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* po
     return false;
 }
 
-void EnTk_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
+void OoT_EnTk_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
     EnTk* this = (EnTk*)thisx;
     Vec3f sp28 = { 0.0f, 0.0f, 4600.0f };
     Vec3f sp1C = { 0.0f, 0.0f, 0.0f };
 
     /* Limb 16 - Jaw */
     if (limbIndex == 16) {
-        Matrix_MultVec3f(&sp1C, &this->actor.focus.pos);
+        OoT_Matrix_MultVec3f(&sp1C, &this->actor.focus.pos);
     }
 
     /* Limb 14 - Neck */
     if (limbIndex == 14) {
-        Matrix_MultVec3f(&sp28, &this->v3f_304);
+        OoT_Matrix_MultVec3f(&sp28, &this->v3f_304);
         func_80B1D200(play);
     }
 }
 
-void EnTk_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnTk_Draw(Actor* thisx, PlayState* play) {
     static void* sEyesSegments[] = {
         gDampeEyeOpenTex,
         gDampeEyeHalfTex,
@@ -738,9 +738,9 @@ void EnTk_Draw(Actor* thisx, PlayState* play) {
     };
     EnTk* this = (EnTk*)thisx;
 
-    Matrix_Push();
+    OoT_Matrix_Push();
     EnTkEff_Draw(this, play);
-    Matrix_Pop();
+    OoT_Matrix_Pop();
 
     OPEN_DISPS(play->state.gfxCtx);
 
@@ -748,7 +748,7 @@ void EnTk_Draw(Actor* thisx, PlayState* play) {
 
     gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(sEyesSegments[this->eyeTextureIdx]));
 
-    SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, EnTk_OverrideLimbDraw, EnTk_PostLimbDraw, this);
+    SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, OoT_EnTk_OverrideLimbDraw, OoT_EnTk_PostLimbDraw, this);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

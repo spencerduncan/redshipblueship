@@ -30,7 +30,7 @@ ActorProfile En_Cne_01_Profile = {
     /**/ EnCne01_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HIT0,
         AT_NONE,
@@ -50,9 +50,9 @@ static ColliderCylinderInit sCylinderInit = {
     { 18, 64, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 MM_sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(0, 0),
     /* Deku Stick     */ DMG_ENTRY(0, 0),
     /* Horse trample  */ DMG_ENTRY(0, 0),
@@ -106,15 +106,15 @@ void EnCne01_UpdateModel(EnCne01* this, PlayState* play) {
         SubS_TrackPoint(&point, &this->enHy.actor.focus.pos, &this->enHy.actor.shape.rot, &this->enHy.trackTarget,
                         &this->enHy.headRot, &this->enHy.torsoRot, &sTrackOptions);
     } else {
-        Math_SmoothStepToS(&this->enHy.trackTarget.x, 0, 4, 0x3E8, 1);
-        Math_SmoothStepToS(&this->enHy.trackTarget.y, 0, 4, 0x3E8, 1);
-        Math_SmoothStepToS(&this->enHy.headRot.x, 0, 4, 0x3E8, 1);
-        Math_SmoothStepToS(&this->enHy.headRot.y, 0, 4, 0x3E8, 1);
-        Math_SmoothStepToS(&this->enHy.torsoRot.x, 0, 4, 0x3E8, 1);
-        Math_SmoothStepToS(&this->enHy.torsoRot.y, 0, 4, 0x3E8, 1);
+        MM_Math_SmoothStepToS(&this->enHy.trackTarget.x, 0, 4, 0x3E8, 1);
+        MM_Math_SmoothStepToS(&this->enHy.trackTarget.y, 0, 4, 0x3E8, 1);
+        MM_Math_SmoothStepToS(&this->enHy.headRot.x, 0, 4, 0x3E8, 1);
+        MM_Math_SmoothStepToS(&this->enHy.headRot.y, 0, 4, 0x3E8, 1);
+        MM_Math_SmoothStepToS(&this->enHy.torsoRot.x, 0, 4, 0x3E8, 1);
+        MM_Math_SmoothStepToS(&this->enHy.torsoRot.y, 0, 4, 0x3E8, 1);
     }
     SubS_UpdateFidgetTables(play, this->enHy.fidgetTableY, this->enHy.fidgetTableZ, ENHY_LIMB_MAX);
-    EnHy_UpdateCollider(&this->enHy, play);
+    MM_EnHy_UpdateCollider(&this->enHy, play);
 }
 
 s32 EnCne01_TestIsTalking(EnCne01* this, PlayState* play) {
@@ -136,7 +136,7 @@ s32 func_809CB4A0(EnCne01* this, PlayState* play) {
     s16 screenPosX;
     s16 screenPosY;
 
-    Actor_GetScreenPos(play, &this->enHy.actor, &screenPosX, &screenPosY);
+    MM_Actor_GetScreenPos(play, &this->enHy.actor, &screenPosX, &screenPosY);
     //! @bug: Both x and y conditionals are always true, || should be an &&
     if (!this->enHy.waitingOnInit && ((screenPosX >= 0) || (screenPosX < SCREEN_WIDTH)) &&
         ((screenPosY >= 0) || (screenPosY < SCREEN_HEIGHT))) {
@@ -146,7 +146,7 @@ s32 func_809CB4A0(EnCne01* this, PlayState* play) {
 }
 
 void EnCne01_FinishInit(EnHy* this, PlayState* play) {
-    if (EnHy_Init(this, play, &gHylianYoungWomanSkel, ENHY_ANIM_OS_ANIME_11)) {
+    if (MM_EnHy_Init(this, play, &gHylianYoungWomanSkel, ENHY_ANIM_OS_ANIME_11)) {
         this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
         this->actor.draw = EnCne01_Draw;
         this->waitingOnInit = false;
@@ -172,16 +172,16 @@ void EnCne01_Talk(EnHy* this, PlayState* play) {
     s16 yaw;
     u8 talkState;
 
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 4, 0xFA0, 1);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 4, 0xFA0, 1);
 
-    talkState = Message_GetState(&play->msgCtx);
+    talkState = MM_Message_GetState(&play->msgCtx);
     this->msgFading = (talkState == TEXT_STATE_FADING) ? true : false;
 
     switch (talkState) {
         case TEXT_STATE_NONE:
             yaw = ABS_ALT(this->actor.shape.rot.y - this->actor.yawTowardsPlayer);
             if (yaw < 0x64) {
-                Message_StartTextbox(play, this->textId, NULL);
+                MM_Message_StartTextbox(play, this->textId, NULL);
             }
             break;
 
@@ -211,23 +211,23 @@ void EnCne01_Init(Actor* thisx, PlayState* play) {
 
     if ((this->enHy.animObjectSlot <= OBJECT_SLOT_NONE) || (this->enHy.headObjectSlot <= OBJECT_SLOT_NONE) ||
         (this->enHy.skelUpperObjectSlot <= OBJECT_SLOT_NONE) || (this->enHy.skelLowerObjectSlot <= OBJECT_SLOT_NONE)) {
-        Actor_Kill(&this->enHy.actor);
+        MM_Actor_Kill(&this->enHy.actor);
     }
     this->enHy.actor.draw = NULL;
-    Collider_InitCylinder(play, &this->enHy.collider);
-    Collider_SetCylinder(play, &this->enHy.collider, &this->enHy.actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->enHy.actor.colChkInfo, &sDamageTable, &sColChkInfoInit);
+    MM_Collider_InitCylinder(play, &this->enHy.collider);
+    MM_Collider_SetCylinder(play, &this->enHy.collider, &this->enHy.actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo2(&this->enHy.actor.colChkInfo, &MM_sDamageTable, &MM_sColChkInfoInit);
     this->enHy.actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
     this->enHy.path = SubS_GetPathByIndex(play, ENCNE01_GET_PATH_INDEX(&this->enHy.actor), ENCNE01_PATH_INDEX_NONE);
     this->enHy.waitingOnInit = true;
-    Actor_SetScale(&this->enHy.actor, 0.01f);
+    MM_Actor_SetScale(&this->enHy.actor, 0.01f);
     this->enHy.actionFunc = EnCne01_FinishInit;
 }
 
 void EnCne01_Destroy(Actor* thisx, PlayState* play) {
     EnCne01* this = (EnCne01*)thisx;
 
-    Collider_DestroyCylinder(play, &this->enHy.collider);
+    MM_Collider_DestroyCylinder(play, &this->enHy.collider);
 }
 
 void EnCne01_Update(Actor* thisx, PlayState* play) {
@@ -235,7 +235,7 @@ void EnCne01_Update(Actor* thisx, PlayState* play) {
 
     EnCne01_TestIsTalking(this, play);
     this->enHy.actionFunc(&this->enHy, play);
-    Actor_UpdateBgCheckInfo(play, &this->enHy.actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->enHy.actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
     EnCne01_UpdateModel(this, play);
     func_809CB4A0(this, play);
 }
@@ -247,24 +247,24 @@ s32 EnCne01_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f*
 
     bodyPartIndex = gEnHyLimbToBodyParts[limbIndex];
     if (bodyPartIndex > BODYPART_NONE) {
-        Matrix_MultVec3f(&zeroVec, &this->enHy.bodyPartsPos[bodyPartIndex]);
+        MM_Matrix_MultVec3f(&zeroVec, &this->enHy.bodyPartsPos[bodyPartIndex]);
     }
 
     if (limbIndex == HYLIAN_YOUNG_WOMAN_LIMB_HEAD) {
         OPEN_DISPS(play->state.gfxCtx);
 
         gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[this->enHy.headObjectSlot].segment);
-        gSegments[0x06] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->enHy.headObjectSlot].segment);
+        MM_gSegments[0x06] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->enHy.headObjectSlot].segment);
         *dList = gHylianYoungWomanHeadBrownHairDL;
-        gSegments[0x06] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->enHy.skelLowerObjectSlot].segment);
+        MM_gSegments[0x06] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->enHy.skelLowerObjectSlot].segment);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
     if (limbIndex == HYLIAN_YOUNG_WOMAN_LIMB_HEAD) {
-        Matrix_Translate(1500.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+        MM_Matrix_Translate(1500.0f, 0.0f, 0.0f, MTXMODE_APPLY);
         Matrix_RotateXS(this->enHy.headRot.y, MTXMODE_APPLY);
         Matrix_RotateZS(-this->enHy.headRot.x, MTXMODE_APPLY);
-        Matrix_Translate(-1500.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+        MM_Matrix_Translate(-1500.0f, 0.0f, 0.0f, MTXMODE_APPLY);
     }
 
     if (limbIndex == HYLIAN_YOUNG_WOMAN_LIMB_TORSO) {
@@ -273,13 +273,13 @@ s32 EnCne01_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f*
     }
 
     if ((limbIndex == HYLIAN_YOUNG_WOMAN_LIMB_HEAD) && this->enHy.msgFading && ((play->state.frames % 2) == 0)) {
-        Matrix_Translate(40.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+        MM_Matrix_Translate(40.0f, 0.0f, 0.0f, MTXMODE_APPLY);
     }
 
     if ((limbIndex == HYLIAN_YOUNG_WOMAN_LIMB_TORSO) || (limbIndex == HYLIAN_YOUNG_WOMAN_LIMB_LEFT_UPPER_ARM) ||
         (limbIndex == HYLIAN_YOUNG_WOMAN_LIMB_RIGHT_UPPER_ARM)) {
-        rot->y += TRUNCF_BINANG(Math_SinS(this->enHy.fidgetTableY[limbIndex]) * 200.0f);
-        rot->z += TRUNCF_BINANG(Math_CosS(this->enHy.fidgetTableZ[limbIndex]) * 200.0f);
+        rot->y += TRUNCF_BINANG(MM_Math_SinS(this->enHy.fidgetTableY[limbIndex]) * 200.0f);
+        rot->z += TRUNCF_BINANG(MM_Math_CosS(this->enHy.fidgetTableZ[limbIndex]) * 200.0f);
     }
 
     return false;
@@ -294,13 +294,13 @@ void EnCne01_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* ro
         OPEN_DISPS(play->state.gfxCtx);
 
         gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[this->enHy.skelUpperObjectSlot].segment);
-        gSegments[0x06] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->enHy.skelUpperObjectSlot].segment);
+        MM_gSegments[0x06] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->enHy.skelUpperObjectSlot].segment);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
 
     if (limbIndex == HYLIAN_YOUNG_WOMAN_LIMB_HEAD) {
-        Matrix_MultVec3f(&zeroVec, &this->enHy.actor.focus.pos);
+        MM_Matrix_MultVec3f(&zeroVec, &this->enHy.actor.focus.pos);
     }
 }
 
@@ -316,9 +316,9 @@ void EnCne01_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08, Gfx_EnvColor(play->state.gfxCtx, 160, 180, 255, 0));
-    gSPSegment(POLY_OPA_DISP++, 0x09, Gfx_EnvColor(play->state.gfxCtx, 160, 180, 255, 0));
-    gSPSegment(POLY_OPA_DISP++, 0x0A, Gfx_EnvColor(play->state.gfxCtx, 160, 180, 255, 0));
+    gSPSegment(POLY_OPA_DISP++, 0x08, MM_Gfx_EnvColor(play->state.gfxCtx, 160, 180, 255, 0));
+    gSPSegment(POLY_OPA_DISP++, 0x09, MM_Gfx_EnvColor(play->state.gfxCtx, 160, 180, 255, 0));
+    gSPSegment(POLY_OPA_DISP++, 0x0A, MM_Gfx_EnvColor(play->state.gfxCtx, 160, 180, 255, 0));
     gDPPipeSync(POLY_OPA_DISP++);
     SkelAnime_DrawTransformFlexOpa(play, this->enHy.skelAnime.skeleton, this->enHy.skelAnime.jointTable,
                                    this->enHy.skelAnime.dListCount, EnCne01_OverrideLimbDraw, EnCne01_PostLimbDraw,

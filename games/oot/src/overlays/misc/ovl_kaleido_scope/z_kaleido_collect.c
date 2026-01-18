@@ -7,7 +7,7 @@
 
 extern const char* digitTextures[];
 
-void KaleidoScope_DrawQuestStatus(PlayState* play, GraphicsContext* gfxCtx) {
+void OoT_KaleidoScope_DrawQuestStatus(PlayState* play, GraphicsContext* gfxCtx) {
 
     static s16 D_8082A070[][4] = {
         { 255, 0, 0, 255 },
@@ -108,11 +108,11 @@ void KaleidoScope_DrawQuestStatus(PlayState* play, GraphicsContext* gfxCtx) {
                 if ((pauseCtx->stickRelX < -30)) {
                     phi_s0 = D_8082A1AC[phi_s3][2];
                     if (phi_s0 == -3) {
-                        KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_LEFT);
+                        OoT_KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_LEFT);
                         pauseCtx->unk_1E4 = 0;
                     } else {
                         while (phi_s0 >= 0) {
-                            if ((s16)KaleidoScope_UpdateQuestStatusPoint(pauseCtx, phi_s0) != 0) {
+                            if ((s16)OoT_KaleidoScope_UpdateQuestStatusPoint(pauseCtx, phi_s0) != 0) {
                                 break;
                             }
                             phi_s0 = D_8082A1AC[phi_s0][2];
@@ -121,11 +121,11 @@ void KaleidoScope_DrawQuestStatus(PlayState* play, GraphicsContext* gfxCtx) {
                 } else if ((pauseCtx->stickRelX > 30)) {
                     phi_s0 = D_8082A1AC[phi_s3][3];
                     if (phi_s0 == -2) {
-                        KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_RIGHT);
+                        OoT_KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_RIGHT);
                         pauseCtx->unk_1E4 = 0;
                     } else {
                         while (phi_s0 >= 0) {
-                            if ((s16)KaleidoScope_UpdateQuestStatusPoint(pauseCtx, phi_s0) != 0) {
+                            if ((s16)OoT_KaleidoScope_UpdateQuestStatusPoint(pauseCtx, phi_s0) != 0) {
                                 break;
                             }
                             phi_s0 = D_8082A1AC[phi_s0][3];
@@ -136,7 +136,7 @@ void KaleidoScope_DrawQuestStatus(PlayState* play, GraphicsContext* gfxCtx) {
                 if ((pauseCtx->stickRelY < -30)) {
                     phi_s0 = D_8082A1AC[phi_s3][1];
                     while (phi_s0 >= 0) {
-                        if ((s16)KaleidoScope_UpdateQuestStatusPoint(pauseCtx, phi_s0) != 0) {
+                        if ((s16)OoT_KaleidoScope_UpdateQuestStatusPoint(pauseCtx, phi_s0) != 0) {
                             break;
                         }
                         phi_s0 = D_8082A1AC[phi_s0][1];
@@ -144,7 +144,7 @@ void KaleidoScope_DrawQuestStatus(PlayState* play, GraphicsContext* gfxCtx) {
                 } else if ((pauseCtx->stickRelY > 30)) {
                     phi_s0 = D_8082A1AC[phi_s3][0];
                     while (phi_s0 >= 0) {
-                        if ((s16)KaleidoScope_UpdateQuestStatusPoint(pauseCtx, phi_s0) != 0) {
+                        if ((s16)OoT_KaleidoScope_UpdateQuestStatusPoint(pauseCtx, phi_s0) != 0) {
                             break;
                         }
                         phi_s0 = D_8082A1AC[phi_s0][0];
@@ -153,8 +153,8 @@ void KaleidoScope_DrawQuestStatus(PlayState* play, GraphicsContext* gfxCtx) {
 
                 if (phi_s3 != pauseCtx->cursorPoint[PAUSE_QUEST]) {
                     pauseCtx->unk_1E4 = 0;
-                    Audio_PlaySoundGeneral(NA_SE_SY_CURSOR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                           &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                    Audio_PlaySoundGeneral(NA_SE_SY_CURSOR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                           &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                 }
 
                 if (pauseCtx->cursorPoint[PAUSE_QUEST] != 0x18) {
@@ -196,7 +196,7 @@ void KaleidoScope_DrawQuestStatus(PlayState* play, GraphicsContext* gfxCtx) {
                 if ((sp216 >= QUEST_SONG_MINUET) && (sp216 < QUEST_KOKIRI_EMERALD)) {
                     if (CHECK_QUEST_ITEM(pauseCtx->cursorPoint[PAUSE_QUEST])) {
                         sp216 = pauseCtx->cursorSlot[PAUSE_QUEST];
-                        pauseCtx->ocarinaSongIdx = gOcarinaSongItemMap[sp216 - QUEST_SONG_MINUET];
+                        pauseCtx->ocarinaSongIdx = OoT_gOcarinaSongItemMap[sp216 - QUEST_SONG_MINUET];
                         D_8082A120 = 10;
 
                         for (phi_s3 = 0; phi_s3 < 8; phi_s3++) {
@@ -238,8 +238,8 @@ void KaleidoScope_DrawQuestStatus(PlayState* play, GraphicsContext* gfxCtx) {
                 pauseCtx->cursorSpecialPos = 0;
                 sp216 = pauseCtx->cursorPoint[PAUSE_QUEST];
                 KaleidoScope_SetCursorVtx(pauseCtx, sp216 * 4, pauseCtx->questVtx);
-                Audio_PlaySoundGeneral(NA_SE_SY_CURSOR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_SY_CURSOR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                 if (CHECK_QUEST_ITEM(pauseCtx->cursorPoint[PAUSE_QUEST])) {
                     phi_s0_2 = pauseCtx->cursorPoint[PAUSE_QUEST] + 0x5A;
                 } else {
@@ -256,8 +256,8 @@ void KaleidoScope_DrawQuestStatus(PlayState* play, GraphicsContext* gfxCtx) {
                 pauseCtx->cursorSpecialPos = 0;
                 sp216 = pauseCtx->cursorPoint[PAUSE_QUEST];
                 KaleidoScope_SetCursorVtx(pauseCtx, sp216 * 4, pauseCtx->questVtx);
-                Audio_PlaySoundGeneral(NA_SE_SY_CURSOR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_SY_CURSOR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                 if (CHECK_QUEST_ITEM(pauseCtx->cursorPoint[PAUSE_QUEST])) {
                     if (pauseCtx->cursorPoint[PAUSE_QUEST] < 6) {
                         phi_s0_2 = pauseCtx->cursorPoint[PAUSE_QUEST] + 0x66;
@@ -294,7 +294,7 @@ void KaleidoScope_DrawQuestStatus(PlayState* play, GraphicsContext* gfxCtx) {
                 sp216 = pauseCtx->cursorSlot[PAUSE_QUEST];
                 Audio_OcaSetInstrument(1);
                 Audio_OcaSetInstrument(1);
-                pauseCtx->ocarinaSongIdx = gOcarinaSongItemMap[sp216 - QUEST_SONG_MINUET];
+                pauseCtx->ocarinaSongIdx = OoT_gOcarinaSongItemMap[sp216 - QUEST_SONG_MINUET];
                 Audio_OcaSetSongPlayback(pauseCtx->ocarinaSongIdx + 1, 1);
                 pauseCtx->unk_1E4 = 2;
                 pauseCtx->ocarinaStaff = Audio_OcaGetDisplayingStaff();
@@ -351,7 +351,7 @@ void KaleidoScope_DrawQuestStatus(PlayState* play, GraphicsContext* gfxCtx) {
             gDPSetEnvColor(POLY_OPA_DISP++, D_8082A0D8[sp218], D_8082A0E4[sp218], D_8082A0F0[sp218], 0);
             gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[sp21A], 4, 0);
 
-            KaleidoScope_DrawQuadTextureRGBA32(gfxCtx, gItemIcons[ITEM_MEDALLION_FOREST + sp218], 24, 24, 0);
+            KaleidoScope_DrawQuadTextureRGBA32(gfxCtx, OoT_gItemIcons[ITEM_MEDALLION_FOREST + sp218], 24, 24, 0);
         }
     }
 
@@ -399,7 +399,7 @@ void KaleidoScope_DrawQuestStatus(PlayState* play, GraphicsContext* gfxCtx) {
     for (sp218 = 0; sp218 < 3; sp218++, sp21A += 4) {
         if (CHECK_QUEST_ITEM(sp218 + 0x12)) {
             gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[sp21A], 4, 0);
-            KaleidoScope_DrawQuadTextureRGBA32(gfxCtx, gItemIcons[ITEM_KOKIRI_EMERALD + sp218], 24, 24, 0);
+            KaleidoScope_DrawQuadTextureRGBA32(gfxCtx, OoT_gItemIcons[ITEM_KOKIRI_EMERALD + sp218], 24, 24, 0);
         }
     }
 
@@ -410,7 +410,7 @@ void KaleidoScope_DrawQuestStatus(PlayState* play, GraphicsContext* gfxCtx) {
         if (CHECK_QUEST_ITEM(sp218 + 0x15)) {
             gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[sp21A], 4, 0);
             gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, pauseCtx->alpha);
-            KaleidoScope_DrawQuadTextureRGBA32(gfxCtx, gItemIcons[ITEM_STONE_OF_AGONY + sp218], 24, 24, 0);
+            KaleidoScope_DrawQuadTextureRGBA32(gfxCtx, OoT_gItemIcons[ITEM_STONE_OF_AGONY + sp218], 24, 24, 0);
         }
     }
 
@@ -466,7 +466,7 @@ void KaleidoScope_DrawQuestStatus(PlayState* play, GraphicsContext* gfxCtx) {
         gSPVertex(POLY_OPA_DISP++, &pauseCtx->questVtx[sp21A], 4, 0);
 
         POLY_OPA_DISP = KaleidoScope_QuadTextureIA8(
-            POLY_OPA_DISP, gItemIcons[0x79 + (((gSaveContext.inventory.questItems & 0xF0000000) & 0xF0000000) >> 0x1C)],
+            POLY_OPA_DISP, OoT_gItemIcons[0x79 + (((gSaveContext.inventory.questItems & 0xF0000000) & 0xF0000000) >> 0x1C)],
             48, 48, 0);
     }
 
@@ -780,7 +780,7 @@ void KaleidoScope_DrawQuestStatus(PlayState* play, GraphicsContext* gfxCtx) {
     CLOSE_DISPS(gfxCtx);
 }
 
-s32 KaleidoScope_UpdateQuestStatusPoint(PauseContext* pauseCtx, s32 point) {
+s32 OoT_KaleidoScope_UpdateQuestStatusPoint(PauseContext* pauseCtx, s32 point) {
     pauseCtx->cursorPoint[PAUSE_QUEST] = point;
 
     return 1;

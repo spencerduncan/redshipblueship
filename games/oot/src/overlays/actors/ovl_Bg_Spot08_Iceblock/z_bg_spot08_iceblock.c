@@ -44,9 +44,9 @@ void BgSpot08Iceblock_InitDynaPoly(BgSpot08Iceblock* this, PlayState* play, Coll
     CollisionHeader* colHeader = NULL;
     s32 pad2;
 
-    DynaPolyActor_Init(&this->dyna, flags);
-    CollisionHeader_GetVirtual(collision, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_DynaPolyActor_Init(&this->dyna, flags);
+    OoT_CollisionHeader_GetVirtual(collision, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
     if (this->dyna.bgId == BG_ACTOR_MAX) {
         // "Warning: move BG registration failed"
         osSyncPrintf("Warning : move BG 登録失敗(%s %d)(name %d)(arg_data 0x%04x)\n", __FILE__, __LINE__,
@@ -80,7 +80,7 @@ void BgSpot08Iceblock_CheckParams(BgSpot08Iceblock* this) {
 }
 
 void BgSpot08Iceblock_Bobbing(BgSpot08Iceblock* this) {
-    this->bobOffset = (Math_SinS(this->bobPhaseSlow) * 4.0f) + (Math_SinS(this->bobPhaseFast) * 3.0f);
+    this->bobOffset = (OoT_Math_SinS(this->bobPhaseSlow) * 4.0f) + (OoT_Math_SinS(this->bobPhaseFast) * 3.0f);
 }
 
 void BgSpot08Iceblock_SinkUnderPlayer(BgSpot08Iceblock* this) {
@@ -100,9 +100,9 @@ void BgSpot08Iceblock_SinkUnderPlayer(BgSpot08Iceblock* this) {
     }
 
     // Sink under Player's weight if standing on it
-    target = (DynaPolyActor_IsActorOnTop(&this->dyna) ? -4.0f : 0.0f);
+    target = (OoT_DynaPolyActor_IsActorOnTop(&this->dyna) ? -4.0f : 0.0f);
 
-    Math_StepToF(&this->sinkOffset, target, step);
+    OoT_Math_StepToF(&this->sinkOffset, target, step);
 }
 
 void BgSpot08Iceblock_SetWaterline(BgSpot08Iceblock* this) {
@@ -124,7 +124,7 @@ void BgSpot08Iceblock_CrossProduct(Vec3f* dest, Vec3f* v1, Vec3f* v2) {
 s32 BgSpot08Iceblock_NormalizeVector(Vec3f* dest, Vec3f* v) {
     f32 magnitude;
 
-    magnitude = Math3D_Vec3fMagnitude(v);
+    magnitude = OoT_Math3D_Vec3fMagnitude(v);
     if (magnitude < 0.001f) {
         dest->x = dest->y = 0.0f;
         dest->z = 1.0f;
@@ -138,7 +138,7 @@ s32 BgSpot08Iceblock_NormalizeVector(Vec3f* dest, Vec3f* v) {
 }
 
 static Vec3f sVerticalVector = { 0.0f, 1.0f, 0.0f };
-static Vec3f sZeroVector = { 0.0f, 0.0f, 0.0f };
+static Vec3f OoT_sZeroVector = { 0.0f, 0.0f, 0.0f };
 static f32 sInertias[] = { 1.0f / 70000000, 1.0f / 175000000, 1.0f / 700000000 };
 static f32 sDampingFactors[] = { 0.96f, 0.96f, 0.98f };
 
@@ -186,44 +186,44 @@ void BgSpot08Iceblock_Roll(BgSpot08Iceblock* this, PlayState* play) {
             break;
     }
 
-    Math_Vec3f_Diff(&player->actor.world.pos, &this->dyna.actor.world.pos, &playerCentroidDiff);
+    OoT_Math_Vec3f_Diff(&player->actor.world.pos, &this->dyna.actor.world.pos, &playerCentroidDiff);
     playerCentroidDiff.y -= (150.0f * this->dyna.actor.scale.y);
-    playerCentroidDist = Math3D_Vec3fMagnitude(&playerCentroidDiff);
+    playerCentroidDist = OoT_Math3D_Vec3fMagnitude(&playerCentroidDiff);
 
-    randomNutation.x = (Rand_ZeroOne() - 0.5f) * (1.0f / 625);
+    randomNutation.x = (OoT_Rand_ZeroOne() - 0.5f) * (1.0f / 625);
     randomNutation.y = 0.0f;
-    randomNutation.z = (Rand_ZeroOne() - 0.5f) * (1.0f / 625);
+    randomNutation.z = (OoT_Rand_ZeroOne() - 0.5f) * (1.0f / 625);
 
     surfaceNormalHorizontal.x = this->surfaceNormal.x;
     surfaceNormalHorizontal.y = 0.0f;
     surfaceNormalHorizontal.z = this->surfaceNormal.z;
 
     // If player is standing on it or holding the edge
-    if (DynaPolyActor_IsPlayerOnTop(&this->dyna) && (playerCentroidDist > 3.0f)) {
-        Math_Vec3f_Diff(&playerCentroidDiff, &surfaceNormalHorizontal, &playerMoment);
+    if (OoT_DynaPolyActor_IsPlayerOnTop(&this->dyna) && (playerCentroidDist > 3.0f)) {
+        OoT_Math_Vec3f_Diff(&playerCentroidDiff, &surfaceNormalHorizontal, &playerMoment);
         BgSpot08Iceblock_MultVectorScalar(&playerMoment, &playerMoment,
                                           (sInertias[rollDataIndex] * playerCentroidDist) / this->dyna.actor.scale.x);
     } else {
-        playerMoment = sZeroVector;
+        playerMoment = OoT_sZeroVector;
     }
 
     BgSpot08Iceblock_MultVectorScalar(&surfaceNormalHorizontalScaled, &surfaceNormalHorizontal, -0.01f);
 
     // Add all three deviations
-    Math_Vec3f_Sum(&this->normalDelta, &playerMoment, &this->normalDelta);
-    Math_Vec3f_Sum(&this->normalDelta, &surfaceNormalHorizontalScaled, &this->normalDelta);
-    Math_Vec3f_Sum(&this->normalDelta, &randomNutation, &this->normalDelta);
+    OoT_Math_Vec3f_Sum(&this->normalDelta, &playerMoment, &this->normalDelta);
+    OoT_Math_Vec3f_Sum(&this->normalDelta, &surfaceNormalHorizontalScaled, &this->normalDelta);
+    OoT_Math_Vec3f_Sum(&this->normalDelta, &randomNutation, &this->normalDelta);
 
     this->normalDelta.y = 0.0f;
 
-    Math_Vec3f_Sum(&this->surfaceNormal, &this->normalDelta, &tempVec);
+    OoT_Math_Vec3f_Sum(&this->surfaceNormal, &this->normalDelta, &tempVec);
 
     tempVec.x *= sDampingFactors[rollDataIndex];
     tempVec.z *= sDampingFactors[rollDataIndex];
 
     // Set up roll axis and final new angle
     if (BgSpot08Iceblock_NormalizeVector(&this->surfaceNormal, &tempVec)) {
-        deviationFromVertSq = Math3D_Dist1DSq(this->surfaceNormal.z, this->surfaceNormal.x);
+        deviationFromVertSq = OoT_Math3D_Dist1DSq(this->surfaceNormal.z, this->surfaceNormal.x);
 
         // Prevent overrolling
         if (sRollSins[rollDataIndex] < deviationFromVertSq) {
@@ -244,10 +244,10 @@ void BgSpot08Iceblock_Roll(BgSpot08Iceblock* this, PlayState* play) {
     }
 
     // Rotation by the angle between surfaceNormal and the vertical about rotationAxis
-    Matrix_RotateAxis(Math_FAcosF(Math3D_Cos(&sVerticalVector, &this->surfaceNormal)), &this->rotationAxis,
+    Matrix_RotateAxis(OoT_Math_FAcosF(OoT_Math3D_Cos(&sVerticalVector, &this->surfaceNormal)), &this->rotationAxis,
                       MTXMODE_NEW);
     Matrix_RotateY(this->dyna.actor.shape.rot.y * (M_PI / 0x8000), MTXMODE_APPLY);
-    Matrix_Get(&mtx);
+    OoT_Matrix_Get(&mtx);
     Matrix_MtxFToYXZRotS(&mtx, &this->dyna.actor.shape.rot, 0);
 }
 
@@ -256,11 +256,11 @@ void BgSpot08Iceblock_SpawnTwinFloe(BgSpot08Iceblock* this, PlayState* play) {
     f32 sin;
     f32 cos;
 
-    sin = Math_SinS(this->dyna.actor.home.rot.y) * 100.0f;
-    cos = Math_CosS(this->dyna.actor.home.rot.y) * 100.0f;
+    sin = OoT_Math_SinS(this->dyna.actor.home.rot.y) * 100.0f;
+    cos = OoT_Math_CosS(this->dyna.actor.home.rot.y) * 100.0f;
 
     if (!(this->dyna.actor.params & 0x100)) {
-        Actor_SpawnAsChild(&play->actorCtx, &this->dyna.actor, play, ACTOR_BG_SPOT08_ICEBLOCK,
+        OoT_Actor_SpawnAsChild(&play->actorCtx, &this->dyna.actor, play, ACTOR_BG_SPOT08_ICEBLOCK,
                            this->dyna.actor.home.pos.x, this->dyna.actor.home.pos.y, this->dyna.actor.home.pos.z,
                            this->dyna.actor.home.rot.x, this->dyna.actor.home.rot.y, this->dyna.actor.home.rot.z,
                            0x123);
@@ -274,7 +274,7 @@ void BgSpot08Iceblock_SpawnTwinFloe(BgSpot08Iceblock* this, PlayState* play) {
     BgSpot08Iceblock_SetupFloatOrbitingTwins(this);
 }
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(uncullZoneForward, 3000, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 1000, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneDownward, 2200, ICHAIN_STOP),
@@ -308,26 +308,26 @@ void BgSpot08Iceblock_Init(Actor* thisx, PlayState* play) {
     }
 
     if (LINK_AGE_IN_YEARS == YEARS_CHILD) {
-        Actor_Kill(&this->dyna.actor);
+        OoT_Actor_Kill(&this->dyna.actor);
         return;
     }
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
 
     switch (this->dyna.actor.params & 0xF0) {
         case 0:
-            Actor_SetScale(&this->dyna.actor, 0.2f);
+            OoT_Actor_SetScale(&this->dyna.actor, 0.2f);
             break;
         case 0x10:
-            Actor_SetScale(&this->dyna.actor, 0.1f);
+            OoT_Actor_SetScale(&this->dyna.actor, 0.1f);
             break;
         case 0x20:
-            Actor_SetScale(&this->dyna.actor, 0.05f);
+            OoT_Actor_SetScale(&this->dyna.actor, 0.05f);
             break;
     }
 
-    this->bobPhaseSlow = (s32)(Rand_ZeroOne() * (0xFFFF + 0.5f));
-    this->bobPhaseFast = (s32)(Rand_ZeroOne() * (0xFFFF + 0.5f));
+    this->bobPhaseSlow = (s32)(OoT_Rand_ZeroOne() * (0xFFFF + 0.5f));
+    this->bobPhaseFast = (s32)(OoT_Rand_ZeroOne() * (0xFFFF + 0.5f));
     this->surfaceNormal.y = 1.0f;
     this->rotationAxis.x = 1.0f;
 
@@ -351,7 +351,7 @@ void BgSpot08Iceblock_Init(Actor* thisx, PlayState* play) {
 void BgSpot08Iceblock_Destroy(Actor* thisx, PlayState* play) {
     BgSpot08Iceblock* this = (BgSpot08Iceblock*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void BgSpot08Iceblock_SetupFloatNonrotating(BgSpot08Iceblock* this) {
@@ -394,8 +394,8 @@ void BgSpot08Iceblock_FloatOrbitingTwins(BgSpot08Iceblock* this, PlayState* play
     // parent handles rotations of both
     if (!(this->dyna.actor.params & 0x100)) {
         this->dyna.actor.world.rot.y += 0x190;
-        sin = Math_SinS(this->dyna.actor.world.rot.y) * 100.0f;
-        cos = Math_CosS(this->dyna.actor.world.rot.y) * 100.0f;
+        sin = OoT_Math_SinS(this->dyna.actor.world.rot.y) * 100.0f;
+        cos = OoT_Math_CosS(this->dyna.actor.world.rot.y) * 100.0f;
 
         this->dyna.actor.world.pos.x = this->dyna.actor.home.pos.x + sin;
         this->dyna.actor.world.pos.z = this->dyna.actor.home.pos.z + cos;
@@ -417,9 +417,9 @@ void BgSpot08Iceblock_SetupNoAction(BgSpot08Iceblock* this) {
 void BgSpot08Iceblock_Update(Actor* thisx, PlayState* play) {
     BgSpot08Iceblock* this = (BgSpot08Iceblock*)thisx;
 
-    if (Rand_ZeroOne() < 0.05f) {
-        this->bobIncrSlow = Rand_S16Offset(300, 100);
-        this->bobIncrFast = Rand_S16Offset(800, 400);
+    if (OoT_Rand_ZeroOne() < 0.05f) {
+        this->bobIncrSlow = OoT_Rand_S16Offset(300, 100);
+        this->bobIncrFast = OoT_Rand_S16Offset(800, 400);
     }
 
     this->bobPhaseSlow += this->bobIncrSlow;
@@ -442,5 +442,5 @@ void BgSpot08Iceblock_Draw(Actor* thisx, PlayState* play) {
             break;
     }
 
-    Gfx_DrawDListOpa(play, dList);
+    OoT_Gfx_DrawDListOpa(play, dList);
 }

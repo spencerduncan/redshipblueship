@@ -1,5 +1,5 @@
 #include "global.h"
 
-s16 coss(u16 angle) {
-    return sins(angle + 0x4000);
+s16 OoT_coss(u16 angle) {
+    return OoT_sins(angle + 0x4000);
 }

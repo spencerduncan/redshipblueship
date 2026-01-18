@@ -318,7 +318,7 @@ ObjSpidertentStruct2 D_80B313A0[] = {
 Vec3f D_80B31400 = { 1.0f, 0.0f, 0.0f };
 Vec3f D_80B3140C = { 0.0f, 1.0f, 0.0f };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 200, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 200, ICHAIN_CONTINUE),
@@ -326,13 +326,13 @@ static InitChainEntry sInitChain[] = {
 };
 
 s32 func_80B2FB10(Vec3f* arg0, Vec3f* arg1) {
-    f32 temp_f0 = Math3D_Vec3fMagnitudeSq(arg0);
+    f32 temp_f0 = MM_Math3D_Vec3fMagnitudeSq(arg0);
     f32 temp_f2;
 
     if (temp_f0 < 9.999999e-9f) {
         return false;
     }
-    temp_f2 = 1.0f / sqrtf(temp_f0);
+    temp_f2 = 1.0f / MM_sqrtf(temp_f0);
     arg1->x = arg0->x * temp_f2;
     arg1->y = arg0->y * temp_f2;
     arg1->z = arg0->z * temp_f2;
@@ -360,14 +360,14 @@ s32 func_80B2FB94(Vec3f* arg0, f32 arg1, TriNorm* triNorm, Vec3f* arg3, f32* arg
     sp3C.y = arg0->y - temp_f2;
     sp3C.z = arg0->z - temp_f16;
 
-    if (Math3D_LineSegVsPlane(triNorm->plane.normal.x, triNorm->plane.normal.y, triNorm->plane.normal.z,
+    if (MM_Math3D_LineSegVsPlane(triNorm->plane.normal.x, triNorm->plane.normal.y, triNorm->plane.normal.z,
                               triNorm->plane.originDist, &sp48, &sp3C, arg3, 0)) {
-        temp_f0_2 = Math3D_Vec3fDistSq(arg0, arg3);
+        temp_f0_2 = MM_Math3D_Vec3fDistSq(arg0, arg3);
         temp_f2_2 = SQ(arg1) - temp_f0_2;
         if (SQ(arg1) < temp_f0_2) {
             return false;
         }
-        *arg4 = sqrtf(temp_f2_2);
+        *arg4 = MM_sqrtf(temp_f2_2);
         return true;
     }
     return false;
@@ -394,7 +394,7 @@ bool func_80B2FC98(TriNorm* triNorm, Vec3f* arg1) {
             sp78.y = vtx2->y - arg1->y;
             sp78.z = vtx2->z - arg1->z;
 
-            Math3D_Vec3f_Cross(&sp84, &sp78, &sp4C[i]);
+            MM_Math3D_Vec3f_Cross(&sp84, &sp78, &sp4C[i]);
 
             vtx2 = vtx;
         }
@@ -414,7 +414,7 @@ bool func_80B2FC98(TriNorm* triNorm, Vec3f* arg1) {
             sp78.y = 0.0f;
             sp78.z = vtx2->z - arg1->z;
 
-            Math3D_Vec3f_Cross(&sp84, &sp78, &sp4C[i]);
+            MM_Math3D_Vec3f_Cross(&sp84, &sp78, &sp4C[i]);
 
             vtx2 = vtx;
         }
@@ -434,7 +434,7 @@ bool func_80B2FC98(TriNorm* triNorm, Vec3f* arg1) {
             sp78.y = vtx2->y - arg1->y;
             sp78.z = 0.0f;
 
-            Math3D_Vec3f_Cross(&sp84, &sp78, &sp4C[i]);
+            MM_Math3D_Vec3f_Cross(&sp84, &sp78, &sp4C[i]);
 
             vtx2 = vtx;
         }
@@ -465,9 +465,9 @@ void func_80B300F4(ObjSpidertent* thisx, PlayState* play, TriNorm* triNorm, Vec3
     spAC.z = triNorm->plane.normal.z;
 
     if (triNorm->plane.normal.y < 0.5f) {
-        Math3D_Vec3f_Cross(&spAC, &D_80B3140C, &sp88);
+        MM_Math3D_Vec3f_Cross(&spAC, &D_80B3140C, &sp88);
     } else {
-        Math3D_Vec3f_Cross(&spAC, &D_80B31400, &sp88);
+        MM_Math3D_Vec3f_Cross(&spAC, &D_80B31400, &sp88);
     }
 
     if (func_80B2FB10(&sp88, &spA0)) {
@@ -475,29 +475,29 @@ void func_80B300F4(ObjSpidertent* thisx, PlayState* play, TriNorm* triNorm, Vec3
         temp_f24 = (2 * M_PIf) / sp80->unk_0F;
 
         for (i = 0; i < sp80->unk_0F; i++) {
-            temp_f2 = (Rand_ZeroOne() * temp_f24) + phi_f22;
+            temp_f2 = (MM_Rand_ZeroOne() * temp_f24) + phi_f22;
             Matrix_RotateAxisF(temp_f2, &spAC, MTXMODE_NEW);
-            Matrix_MultVec3f(&spA0, &sp94);
+            MM_Matrix_MultVec3f(&spA0, &sp94);
 
             if (arg5 == 0) {
                 spC4.x = (sp94.x * arg4) + arg3->x;
                 spC4.y = (sp94.y * arg4) + arg3->y;
                 spC4.z = (sp94.z * arg4) + arg3->z;
             } else {
-                temp_f0 = Rand_ZeroOne();
+                temp_f0 = MM_Rand_ZeroOne();
                 temp_f0 = (1.0f - SQ(temp_f0)) * arg4;
                 spC4.x = (sp94.x * temp_f0) + arg3->x;
                 spC4.y = (sp94.y * temp_f0) + arg3->y;
                 spC4.z = (sp94.z * temp_f0) + arg3->z;
             }
 
-            if ((Math3D_Vec3fDistSq(&spC4, &this->dyna.actor.world.pos) < spE0->unk_1C) &&
+            if ((MM_Math3D_Vec3fDistSq(&spC4, &this->dyna.actor.world.pos) < spE0->unk_1C) &&
                 func_80B2FC98(triNorm, &spC4)) {
                 spB8.x = sp80->unk_08 * sp94.x;
                 spB8.y = sp80->unk_08 * sp94.y;
                 spB8.z = sp80->unk_08 * sp94.z;
 
-                EffectSsDeadDb_Spawn(play, &spC4, &spB8, &gZeroVec3f, &sp80->unk_10, &sp80->unk_14, sp80->unk_0C, 0,
+                MM_EffectSsDeadDb_Spawn(play, &spC4, &spB8, &gZeroVec3f, &sp80->unk_10, &sp80->unk_14, sp80->unk_0C, 0,
                                      sp80->unk_0E);
             }
 
@@ -509,7 +509,7 @@ void func_80B300F4(ObjSpidertent* thisx, PlayState* play, TriNorm* triNorm, Vec3
 void func_80B30410(ObjSpidertent* this, Vec3f* arg1) {
     s32 i;
 
-    Math_Vec3f_Copy(&this->unk_3A4, arg1);
+    MM_Math_Vec3f_Copy(&this->unk_3A4, arg1);
     this->unk_3C2 = 255;
     this->unk_3C3 = 255;
     this->unk_3C4 = 255;
@@ -539,7 +539,7 @@ s32 func_80B30480(ObjSpidertent* this, PlayState* play, Vec3f* arg2) {
             }
 
             if (i < ARRAY_COUNT(this->colliderElements)) {
-                Math_Vec3f_Copy(arg2, &player->meleeWeaponInfo[0].tip);
+                MM_Math_Vec3f_Copy(arg2, &player->meleeWeaponInfo[0].tip);
                 return true;
             }
         }
@@ -558,37 +558,37 @@ void ObjSpidertent_Init(Actor* thisx, PlayState* play) {
     s32 i;
     s32 j;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, 0);
-    Collider_InitTris(play, &this->collider);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
+    MM_DynaPolyActor_Init(&this->dyna, 0);
+    MM_Collider_InitTris(play, &this->collider);
 
-    if (Flags_GetSwitch(play, OBJSPIDERTENT_GET_SWITCH_FLAG(&this->dyna.actor))) {
-        Actor_Kill(&this->dyna.actor);
+    if (MM_Flags_GetSwitch(play, OBJSPIDERTENT_GET_SWITCH_FLAG(&this->dyna.actor))) {
+        MM_Actor_Kill(&this->dyna.actor);
         return;
     }
 
     DynaPolyActor_LoadMesh(play, &this->dyna, ptr->unk_04);
-    Collider_SetTris(play, &this->collider, &this->dyna.actor, D_80B31350[temp_s1].unk_08, this->colliderElements);
-    Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
+    MM_Collider_SetTris(play, &this->collider, &this->dyna.actor, D_80B31350[temp_s1].unk_08, this->colliderElements);
+    MM_Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
                                  this->dyna.actor.world.pos.z, &this->dyna.actor.shape.rot);
 
     sp64.x = ptr->unk_10 * 1.2f;
     sp64.y = ptr->unk_10 * 1.2f;
     sp64.z = ptr->unk_10 * 1.2f;
 
-    Matrix_MultVec3f(&sp64, &this->dyna.actor.focus.pos);
-    Matrix_Translate(ptr->unk_10, ptr->unk_14 + 5.0f, ptr->unk_18, MTXMODE_APPLY);
-    Matrix_Scale(ptr->unk_0C, ptr->unk_0C, ptr->unk_0C, MTXMODE_APPLY);
-    Matrix_Translate(-ptr->unk_10, -ptr->unk_14, -ptr->unk_18, MTXMODE_APPLY);
+    MM_Matrix_MultVec3f(&sp64, &this->dyna.actor.focus.pos);
+    MM_Matrix_Translate(ptr->unk_10, ptr->unk_14 + 5.0f, ptr->unk_18, MTXMODE_APPLY);
+    MM_Matrix_Scale(ptr->unk_0C, ptr->unk_0C, ptr->unk_0C, MTXMODE_APPLY);
+    MM_Matrix_Translate(-ptr->unk_10, -ptr->unk_14, -ptr->unk_18, MTXMODE_APPLY);
 
     for (i = 0; i < 6; i++) {
         element = &ptr->unk_08->elements[i];
 
         for (j = 0; j < ARRAY_COUNT(sp70); j++) {
-            Matrix_MultVec3f(&element->dim.vtx[j], &sp70[j]);
+            MM_Matrix_MultVec3f(&element->dim.vtx[j], &sp70[j]);
         }
 
-        Collider_SetTrisVertices(&this->collider, i, &sp70[0], &sp70[1], &sp70[2]);
+        MM_Collider_SetTrisVertices(&this->collider, i, &sp70[0], &sp70[1], &sp70[2]);
     }
 
     func_80B307E0(this);
@@ -597,8 +597,8 @@ void ObjSpidertent_Init(Actor* thisx, PlayState* play) {
 void ObjSpidertent_Destroy(Actor* thisx, PlayState* play) {
     ObjSpidertent* this = (ObjSpidertent*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
-    Collider_DestroyTris(play, &this->collider);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_Collider_DestroyTris(play, &this->collider);
 }
 
 void func_80B307E0(ObjSpidertent* this) {
@@ -638,7 +638,7 @@ void func_80B30808(ObjSpidertent* this, PlayState* play) {
                 sp54.y = trisElem->base.acDmgInfo.hitPos.y;
                 sp54.z = trisElem->base.acDmgInfo.hitPos.z;
 
-                temp_f0 = Math3D_Vec3fDistSq(&sp54, &player->actor.world.pos);
+                temp_f0 = MM_Math3D_Vec3fDistSq(&sp54, &player->actor.world.pos);
                 if (temp_f0 < phi_f20) {
                     phi_f20 = temp_f0;
                     phi_s4 = i;
@@ -653,7 +653,7 @@ void func_80B30808(ObjSpidertent* this, PlayState* play) {
             sp70.y = hitPos->y;
             sp70.z = hitPos->z;
         } else {
-            Math_Vec3f_Copy(&sp70, &this->dyna.actor.world.pos);
+            MM_Math_Vec3f_Copy(&sp70, &this->dyna.actor.world.pos);
         }
         phi_s0 = true;
     } else if ((this->dyna.actor.xzDistToPlayer < ptr2->unk_24) && func_80B30480(this, play, &sp70)) {
@@ -664,7 +664,7 @@ void func_80B30808(ObjSpidertent* this, PlayState* play) {
         func_80B30410(this, &sp70);
         func_80B30A2C(this);
     } else {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -677,9 +677,9 @@ void func_80B30A4C(ObjSpidertent* this, PlayState* play) {
     if (CutsceneManager_IsNext(this->dyna.actor.csId)) {
         CutsceneManager_StartWithPlayerCs(this->dyna.actor.csId, &this->dyna.actor);
         if (this->dyna.actor.csId > CS_ID_NONE) {
-            Player_SetCsActionWithHaltedActors(play, &this->dyna.actor, PLAYER_CSACTION_1);
+            MM_Player_SetCsActionWithHaltedActors(play, &this->dyna.actor, PLAYER_CSACTION_1);
         }
-        Flags_SetSwitch(play, OBJSPIDERTENT_GET_SWITCH_FLAG(&this->dyna.actor));
+        MM_Flags_SetSwitch(play, OBJSPIDERTENT_GET_SWITCH_FLAG(&this->dyna.actor));
         func_80B30AD4(this);
     } else {
         CutsceneManager_Queue(this->dyna.actor.csId);
@@ -761,10 +761,10 @@ void func_80B30AF8(ObjSpidertent* this, PlayState* play) {
             this->unk_3C7--;
         } else if (this->unk_3C1 > 50) {
             Actor_PlaySfx(&this->dyna.actor, NA_SE_EN_EXTINCT);
-            this->unk_3C7 = Rand_S16Offset(2, 2);
+            this->unk_3C7 = MM_Rand_S16Offset(2, 2);
         } else {
-            SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 11, NA_SE_EN_EXTINCT);
-            this->unk_3C7 = Rand_S16Offset(2, 4);
+            MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 11, NA_SE_EN_EXTINCT);
+            this->unk_3C7 = MM_Rand_S16Offset(2, 4);
         }
 
         for (j = 0; j < ARRAY_COUNT(this->unk_3B0); j++) {
@@ -790,7 +790,7 @@ void func_80B30AF8(ObjSpidertent* this, PlayState* play) {
         }
     } else if (this->unk_3C1 <= 0) {
         CutsceneManager_Stop(this->dyna.actor.csId);
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
     }
 }
 

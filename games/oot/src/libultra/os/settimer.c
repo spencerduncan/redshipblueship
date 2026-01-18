@@ -1,6 +1,6 @@
 #include "global.h"
 
-s32 osSetTimer(OSTimer* timer, OSTime countdown, OSTime interval, OSMesgQueue* mq, OSMesg msg) {
+s32 OoT_osSetTimer(OSTimer* timer, OSTime countdown, OSTime interval, OSMesgQueue* mq, OSMesg msg) {
     OSTime time;
     OSTimer* next;
     u32 count;

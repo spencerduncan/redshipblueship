@@ -10,10 +10,10 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void EnNutsball_Init(Actor* thisx, PlayState* play);
-void EnNutsball_Destroy(Actor* thisx, PlayState* play);
-void EnNutsball_Update(Actor* thisx, PlayState* play2);
-void EnNutsball_Draw(Actor* thisx, PlayState* play);
+void MM_EnNutsball_Init(Actor* thisx, PlayState* play);
+void MM_EnNutsball_Destroy(Actor* thisx, PlayState* play);
+void MM_EnNutsball_Update(Actor* thisx, PlayState* play2);
+void MM_EnNutsball_Draw(Actor* thisx, PlayState* play);
 
 void EnNutsball_InitColliderParams(EnNutsball* this);
 
@@ -23,13 +23,13 @@ ActorProfile En_Nutsball_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(EnNutsball),
-    /**/ EnNutsball_Init,
-    /**/ EnNutsball_Destroy,
-    /**/ EnNutsball_Update,
-    /**/ EnNutsball_Draw,
+    /**/ MM_EnNutsball_Init,
+    /**/ MM_EnNutsball_Destroy,
+    /**/ MM_EnNutsball_Update,
+    /**/ MM_EnNutsball_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -49,11 +49,11 @@ static ColliderCylinderInit sCylinderInit = {
     { 13, 13, 0, { 0, 0, 0 } },
 };
 
-void EnNutsball_Init(Actor* thisx, PlayState* play) {
+void MM_EnNutsball_Init(Actor* thisx, PlayState* play) {
     EnNutsball* this = (EnNutsball*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 400.0f, ActorShadow_DrawCircle, 13.0f);
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    MM_ActorShape_Init(&this->actor.shape, 400.0f, MM_ActorShadow_DrawCircle, 13.0f);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
     this->actor.shape.rot.y = 0;
     this->actor.speed = 10.0f;
     if (this->actor.params == 2) {
@@ -72,9 +72,9 @@ void EnNutsball_Init(Actor* thisx, PlayState* play) {
     }
 }
 
-void EnNutsball_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnNutsball_Destroy(Actor* thisx, PlayState* play) {
     EnNutsball* this = (EnNutsball*)thisx;
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnNutsball_InitColliderParams(EnNutsball* this) {
@@ -84,7 +84,7 @@ void EnNutsball_InitColliderParams(EnNutsball* this) {
     this->collider.elem.atDmgInfo.damage = 2;
 }
 
-void EnNutsball_Update(Actor* thisx, PlayState* play2) {
+void MM_EnNutsball_Update(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     EnNutsball* this = (EnNutsball*)thisx;
     Player* player = GET_PLAYER(play);
@@ -100,7 +100,7 @@ void EnNutsball_Update(Actor* thisx, PlayState* play2) {
         this->timer--;
         if (this->timer < 0) {
             this->actor.velocity.y += this->actor.gravity;
-            speedXZ = sqrtf((this->actor.velocity.x * this->actor.velocity.x) +
+            speedXZ = MM_sqrtf((this->actor.velocity.x * this->actor.velocity.x) +
                             (this->actor.velocity.z * this->actor.velocity.z));
             this->actor.world.rot.x = Math_Atan2S_XY(speedXZ, this->actor.velocity.y);
         }
@@ -118,30 +118,30 @@ void EnNutsball_Update(Actor* thisx, PlayState* play2) {
                 spawnBurstPos.x = this->actor.world.pos.x;
                 spawnBurstPos.y = this->actor.world.pos.y + 4.0f;
                 spawnBurstPos.z = this->actor.world.pos.z;
-                EffectSsHahen_SpawnBurst(play, &spawnBurstPos, 6.0f, 0, 7, 3, 15, HAHEN_OBJECT_DEFAULT, 10, NULL);
+                MM_EffectSsHahen_SpawnBurst(play, &spawnBurstPos, 6.0f, 0, 7, 3, 15, HAHEN_OBJECT_DEFAULT, 10, NULL);
                 if (this->actor.params == 1) {
-                    SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 20, NA_SE_EV_NUTS_BROKEN);
+                    MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 20, NA_SE_EV_NUTS_BROKEN);
                 } else {
-                    SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 20, NA_SE_EN_OCTAROCK_ROCK);
+                    MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 20, NA_SE_EN_OCTAROCK_ROCK);
                 }
-                Actor_Kill(&this->actor);
+                MM_Actor_Kill(&this->actor);
             }
         } else {
             if (this->timer == -300) {
-                Actor_Kill(&this->actor);
+                MM_Actor_Kill(&this->actor);
             }
         }
 
         Actor_MoveWithoutGravity(&this->actor);
-        Math_Vec3f_Copy(&worldPos, &this->actor.world.pos);
-        Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 5.0f, 10.0f,
+        MM_Math_Vec3f_Copy(&worldPos, &this->actor.world.pos);
+        MM_Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 5.0f, 10.0f,
                                 UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_2 | UPDBGCHECKINFO_FLAG_4);
 
         if (this->actor.bgCheckFlags & BGCHECKFLAG_WALL) {
             if (SurfaceType_GetWallFlags(&play->colCtx, this->actor.wallPoly, this->actor.wallBgId) &
                 (WALL_FLAG_4 | WALL_FLAG_5)) {
                 this->actor.bgCheckFlags &= ~BGCHECKFLAG_WALL;
-                if (BgCheck_EntityLineTest1(&play->colCtx, &this->actor.prevPos, &worldPos, &this->actor.world.pos,
+                if (MM_BgCheck_EntityLineTest1(&play->colCtx, &this->actor.prevPos, &worldPos, &this->actor.world.pos,
                                             &poly, true, false, false, true, &bgId)) {
                     if (SurfaceType_GetWallFlags(&play->colCtx, poly, bgId) & (WALL_FLAG_4 | WALL_FLAG_5)) {
                         this->actor.world.pos.x += this->actor.velocity.x * 0.01f;
@@ -150,30 +150,30 @@ void EnNutsball_Update(Actor* thisx, PlayState* play2) {
                         this->actor.bgCheckFlags |= BGCHECKFLAG_WALL;
                     }
                 } else {
-                    Math_Vec3f_Copy(&this->actor.world.pos, &worldPos);
+                    MM_Math_Vec3f_Copy(&this->actor.world.pos, &worldPos);
                 }
             }
         }
-        Collider_UpdateCylinder(&this->actor, &this->collider);
+        MM_Collider_UpdateCylinder(&this->actor, &this->collider);
 
         this->actor.flags |= ACTOR_FLAG_SFX_FOR_PLAYER_BODY_HIT;
 
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
 
         if (this->timer < this->timerThreshold) {
-            CollisionCheck_SetOC(play, &play2->colChkCtx, &this->collider.base);
+            MM_CollisionCheck_SetOC(play, &play2->colChkCtx, &this->collider.base);
         }
     }
 }
 
-void EnNutsball_Draw(Actor* thisx, PlayState* play) {
+void MM_EnNutsball_Draw(Actor* thisx, PlayState* play) {
     EnNutsball* this = (EnNutsball*)thisx;
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
+    MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
     Matrix_RotateZS(this->actor.home.rot.z, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_058BA0);

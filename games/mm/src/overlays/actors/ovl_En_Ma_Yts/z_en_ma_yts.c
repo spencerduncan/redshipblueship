@@ -47,13 +47,13 @@ void EnMaYts_UpdateEyes(EnMaYts* this) {
     } else if (DECR(this->blinkTimer) == 0) {
         this->eyeTexIndex++;
         if (this->eyeTexIndex >= 3) {
-            this->blinkTimer = Rand_S16Offset(30, 30);
+            this->blinkTimer = MM_Rand_S16Offset(30, 30);
             this->eyeTexIndex = 0;
         }
     }
 }
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -73,7 +73,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 18, 46, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit2 = {
+static CollisionCheckInfoInit2 MM_sColChkInfoInit2 = {
     0, 0, 0, 0, MASS_IMMOVABLE,
 };
 
@@ -129,20 +129,20 @@ static AnimationSpeedInfo sAnimationSpeedInfo[ENMATYS_ANIM_MAX] = {
     { &gRomaniTurnAroundAndFlickHairAnim, 1.0f, ANIMMODE_ONCE, -6.0f }, // ENMATYS_ANIM_21
 };
 
-static TexturePtr sMouthTextures[] = {
+static TexturePtr MM_sMouthTextures[] = {
     gRomaniMouthHappyTex,
     gRomaniMouthFrownTex,
     gRomaniMouthHangingOpenTex,
     gRomaniMouthSmileTex,
 };
 
-static TexturePtr sEyeTextures[] = {
+static TexturePtr MM_sEyeTextures[] = {
     gRomaniEyeOpenTex, gRomaniEyeHalfTex, gRomaniEyeClosedTex, gRomaniEyeHappyTex, gRomaniEyeSadTex,
 };
 
 void EnMaYts_ChangeAnim(EnMaYts* this, s32 animIndex) {
-    Animation_Change(&this->skelAnime, sAnimationSpeedInfo[animIndex].animation, 1.0f, 0.0f,
-                     Animation_GetLastFrame(sAnimationSpeedInfo[animIndex].animation),
+    MM_Animation_Change(&this->skelAnime, sAnimationSpeedInfo[animIndex].animation, 1.0f, 0.0f,
+                     MM_Animation_GetLastFrame(sAnimationSpeedInfo[animIndex].animation),
                      sAnimationSpeedInfo[animIndex].mode, sAnimationSpeedInfo[animIndex].morphFrames);
 }
 
@@ -158,7 +158,7 @@ void func_80B8D12C(EnMaYts* this, PlayState* play) {
         this->interactInfo.trackPos.y -= -10.0f;
     }
 
-    Npc_TrackPoint(&this->actor, &this->interactInfo, 0, trackingMode);
+    MM_Npc_TrackPoint(&this->actor, &this->interactInfo, 0, trackingMode);
 }
 
 void EnMaYts_InitAnimation(EnMaYts* this, PlayState* play) {
@@ -253,23 +253,23 @@ void EnMaYts_Init(Actor* thisx, PlayState* play) {
 
     this->type = EN_MA_YTS_GET_TYPE(thisx);
     if (!EnMaYts_CheckValidSpawn(this, play)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 18.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gRomaniSkel, NULL, this->jointTable, this->morphTable, ROMANI_LIMB_MAX);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 18.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gRomaniSkel, NULL, this->jointTable, this->morphTable, ROMANI_LIMB_MAX);
     EnMaYts_InitAnimation(this, play);
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, DamageTable_Get(0x16), &sColChkInfoInit2);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, MM_DamageTable_Get(0x16), &MM_sColChkInfoInit2);
 
     if (this->type == MA_YTS_TYPE_SLEEPING) {
         this->collider.dim.radius = 40;
     }
 
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_SetScale(&this->actor, 0.01f);
 
     this->interactInfo.talkState = NPC_TALK_STATE_IDLE;
     this->unk_200 = 0;
@@ -310,7 +310,7 @@ void EnMaYts_Init(Actor* thisx, PlayState* play) {
 void EnMaYts_Destroy(Actor* thisx, PlayState* play) {
     EnMaYts* this = (EnMaYts*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnMaYts_SetupDoNothing(EnMaYts* this) {
@@ -334,42 +334,42 @@ void EnMaYts_StartDialogue(EnMaYts* this, PlayState* play) {
                 // Saying to non-human Link: "Cremia went to town."
                 SET_WEEKEVENTREG(WEEKEVENTREG_65_80);
                 EnMaYts_SetFaceExpression(this, 0, 0);
-                Message_StartTextbox(play, 0x335F, &this->actor);
+                MM_Message_StartTextbox(play, 0x335F, &this->actor);
                 this->textId = 0x335F;
             } else {
                 // Saying to non-human Link: "Pretend you did not hear that."
                 EnMaYts_SetFaceExpression(this, 4, 3);
-                Message_StartTextbox(play, 0x3362, &this->actor);
+                MM_Message_StartTextbox(play, 0x3362, &this->actor);
                 this->textId = 0x3362;
                 Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_ROMANI);
             }
-        } else if (Player_GetMask(play) != PLAYER_MASK_NONE) {
+        } else if (MM_Player_GetMask(play) != PLAYER_MASK_NONE) {
             if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_65_40)) {
                 SET_WEEKEVENTREG(WEEKEVENTREG_65_40);
                 EnMaYts_SetFaceExpression(this, 0, 0);
-                Message_StartTextbox(play, 0x3363, &this->actor);
+                MM_Message_StartTextbox(play, 0x3363, &this->actor);
                 this->textId = 0x3363;
             } else {
                 EnMaYts_SetFaceExpression(this, 4, 2);
-                Message_StartTextbox(play, 0x3366, &this->actor);
+                MM_Message_StartTextbox(play, 0x3366, &this->actor);
                 this->textId = 0x3366;
                 Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_ROMANI);
             }
         } else if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_PROMISED_TO_HELP_WITH_ALIENS)) {
             EnMaYts_SetFaceExpression(this, 0, 0);
-            Message_StartTextbox(play, 0x3367, &this->actor);
+            MM_Message_StartTextbox(play, 0x3367, &this->actor);
             this->textId = 0x3367;
         } else {
             if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_65_20)) {
                 // Saying to Grasshopper: "Cremia went to town."
                 SET_WEEKEVENTREG(WEEKEVENTREG_65_20);
                 EnMaYts_SetFaceExpression(this, 4, 2);
-                Message_StartTextbox(play, 0x3369, &this->actor);
+                MM_Message_StartTextbox(play, 0x3369, &this->actor);
                 this->textId = 0x3369;
             } else {
                 // Saying to Grasshopper: "You're our bodyguard."
                 EnMaYts_SetFaceExpression(this, 0, 0);
-                Message_StartTextbox(play, 0x336C, &this->actor);
+                MM_Message_StartTextbox(play, 0x336C, &this->actor);
                 this->textId = 0x336C;
                 Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_ROMANI);
             }
@@ -385,13 +385,13 @@ void EnMaYts_SetupDialogueHandler(EnMaYts* this) {
 }
 
 void EnMaYts_DialogueHandler(EnMaYts* this, PlayState* play) {
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_EVENT: // End message block
             EnMaYts_ChooseNextDialogue(this, play);
             break;
 
         case TEXT_STATE_DONE: // End conversation
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 EnMaYts_SetupStartDialogue(this);
             }
             break;
@@ -451,7 +451,7 @@ void EnMaYts_EndCreditsHandler(EnMaYts* this, PlayState* play) {
 
         Cutscene_ActorTranslateAndYaw(&this->actor, play, cueChannel);
         if ((sCueId == 2) && (this->endCreditsFlag == 0) &&
-            Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+            MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
             this->endCreditsFlag++;
             EnMaYts_ChangeAnim(this, ENMATYS_ANIM_5);
         }
@@ -463,50 +463,50 @@ void EnMaYts_EndCreditsHandler(EnMaYts* this, PlayState* play) {
 
 // Select the following dialogue based on the current one, and an appropiate face expression
 void EnMaYts_ChooseNextDialogue(EnMaYts* this, PlayState* play) {
-    if (Message_ShouldAdvance(play)) {
+    if (MM_Message_ShouldAdvance(play)) {
         switch (this->textId) {
             case 0x335F:
                 EnMaYts_SetFaceExpression(this, 0, 2);
-                Message_StartTextbox(play, 0x3360, &this->actor);
+                MM_Message_StartTextbox(play, 0x3360, &this->actor);
                 this->textId = 0x3360;
                 break;
 
             case 0x3360:
                 EnMaYts_SetFaceExpression(this, 4, 3);
-                Message_StartTextbox(play, 0x3361, &this->actor);
+                MM_Message_StartTextbox(play, 0x3361, &this->actor);
                 this->textId = 0x3361;
                 Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_ROMANI);
                 break;
 
             case 0x3363:
                 EnMaYts_SetFaceExpression(this, 1, 1);
-                Message_StartTextbox(play, 0x3364, &this->actor);
+                MM_Message_StartTextbox(play, 0x3364, &this->actor);
                 this->textId = 0x3364;
                 break;
 
             case 0x3364:
                 EnMaYts_SetFaceExpression(this, 4, 2);
-                Message_StartTextbox(play, 0x3365, &this->actor);
+                MM_Message_StartTextbox(play, 0x3365, &this->actor);
                 this->textId = 0x3365;
                 Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_ROMANI);
                 break;
 
             case 0x3367:
                 EnMaYts_SetFaceExpression(this, 4, 3);
-                Message_StartTextbox(play, 0x3368, &this->actor);
+                MM_Message_StartTextbox(play, 0x3368, &this->actor);
                 this->textId = 0x3368;
                 Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_ROMANI);
                 break;
 
             case 0x3369:
                 EnMaYts_SetFaceExpression(this, 0, 0);
-                Message_StartTextbox(play, 0x336A, &this->actor);
+                MM_Message_StartTextbox(play, 0x336A, &this->actor);
                 this->textId = 0x336A;
                 break;
 
             case 0x336A:
                 EnMaYts_SetFaceExpression(this, 3, 3);
-                Message_StartTextbox(play, 0x336B, &this->actor);
+                MM_Message_StartTextbox(play, 0x336B, &this->actor);
                 this->textId = 0x336B;
                 Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_ROMANI);
                 break;
@@ -531,9 +531,9 @@ void EnMaYts_Update(Actor* thisx, PlayState* play) {
 
     this->actionFunc(this, play);
     collider = &this->collider;
-    Collider_UpdateCylinder(&this->actor, collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &collider->base);
-    SkelAnime_Update(&this->skelAnime);
+    MM_Collider_UpdateCylinder(&this->actor, collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &collider->base);
+    MM_SkelAnime_Update(&this->skelAnime);
     EnMaYts_UpdateEyes(this);
     func_80B8D12C(this, play);
 }
@@ -580,10 +580,10 @@ void EnMaYts_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x09, SEGMENTED_TO_K0(sMouthTextures[this->mouthTexIndex]));
-    gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_K0(sEyeTextures[this->eyeTexIndex]));
+    gSPSegment(POLY_OPA_DISP++, 0x09, SEGMENTED_TO_K0(MM_sMouthTextures[this->mouthTexIndex]));
+    gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_K0(MM_sEyeTextures[this->eyeTexIndex]));
 
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnMaYts_OverrideLimbDraw, EnMaYts_PostLimbDraw, &this->actor);
 
     CLOSE_DISPS(play->state.gfxCtx);

@@ -51,7 +51,7 @@ typedef struct {
     /* 0x03 */ u8 flags3;
 } RestrictionFlags;
 
-static RestrictionFlags sRestrictionFlags[] = {
+static RestrictionFlags OoT_sRestrictionFlags[] = {
     { SCENE_HYRULE_FIELD, 0x00, 0x00, 0x10 },
     { SCENE_KAKARIKO_VILLAGE, 0x00, 0x00, 0x10 },
     { SCENE_GRAVEYARD, 0x00, 0x00, 0x10 },
@@ -155,11 +155,11 @@ static RestrictionFlags sRestrictionFlags[] = {
     { 0xFF, 0x00, 0x00, 0x00 },
 };
 
-static s16 sHBAScoreTier = 0;
+static s16 OoT_sHBAScoreTier = 0;
 static u16 sHBAScoreDigits[] = { 0, 0, 0, 0 };
 
-static u16 sCUpInvisible = 0;
-static u16 sCUpTimer = 0;
+static u16 OoT_sCUpInvisible = 0;
+static u16 OoT_sCUpTimer = 0;
 
 s16 gSpoilingItems[] = { ITEM_ODD_MUSHROOM, ITEM_FROG, ITEM_EYEDROPS };
 s16 gSpoilingItemReverts[] = { ITEM_COJIRO, ITEM_PRESCRIPTION, ITEM_PRESCRIPTION };
@@ -167,12 +167,12 @@ s16 gSpoilingItemReverts[] = { ITEM_COJIRO, ITEM_PRESCRIPTION, ITEM_PRESCRIPTION
 static Color_RGB8 sMagicBorder = { 255, 255, 255 };
 static Color_RGB8 sMagicBorder_ori = { 255, 255, 255 };
 
-static s16 sExtraItemBases[] = {
+static s16 OoT_sExtraItemBases[] = {
     ITEM_STICK, ITEM_STICK, ITEM_NUT,   ITEM_NUT,     ITEM_BOMB,    ITEM_BOMB,  ITEM_BOMB,  ITEM_BOMB, ITEM_BOW,
     ITEM_BOW,   ITEM_BOW,   ITEM_SEEDS, ITEM_BOMBCHU, ITEM_BOMBCHU, ITEM_STICK, ITEM_STICK, ITEM_NUT,  ITEM_NUT,
 };
 
-static s16 sEnvHazard = PLAYER_ENV_HAZARD_NONE;
+static s16 OoT_sEnvHazard = PLAYER_ENV_HAZARD_NONE;
 static s16 sEnvHazardActive = false;
 
 static Gfx sSetupDL_80125A60[] = {
@@ -822,7 +822,7 @@ void func_80083108(PlayState* play) {
     // Check for the player being swordless in rando (no item on B and swordless flag set)
     // Child is always assumed due to not finding kokiri sword yet. Adult is only checked with MS shuffle on.
     u8 randoIsSwordless = IS_RANDO && (LINK_IS_CHILD || Randomizer_GetSettingValue(RSK_SHUFFLE_MASTER_SWORD)) &&
-                          gSaveContext.equips.buttonItems[0] == ITEM_NONE && Flags_GetInfTable(INFTABLE_SWORDLESS);
+                          gSaveContext.equips.buttonItems[0] == ITEM_NONE && OoT_Flags_GetInfTable(INFTABLE_SWORDLESS);
     u8 randoWasSwordlessBefore = IS_RANDO && gSaveContext.buttonStatus[0] == SWORDLESS_STATUS;
     u8 randoCanTrackSwordless = randoIsSwordless && !randoWasSwordlessBefore;
 
@@ -831,7 +831,7 @@ void func_80083108(PlayState* play) {
         gSaveContext.forceRisingButtonAlphas = 0;
 
         if ((player->stateFlags1 & PLAYER_STATE1_ON_HORSE) || (play->shootingGalleryStatus > 1) ||
-            ((play->sceneNum == SCENE_BOMBCHU_BOWLING_ALLEY) && Flags_GetSwitch(play, 0x38))) {
+            ((play->sceneNum == SCENE_BOMBCHU_BOWLING_ALLEY) && OoT_Flags_GetSwitch(play, 0x38))) {
             if (gSaveContext.equips.buttonItems[0] != ITEM_NONE || randoCanTrackSwordless) {
                 gSaveContext.forceRisingButtonAlphas = 1;
 
@@ -853,7 +853,7 @@ void func_80083108(PlayState* play) {
                         gSaveContext.buttonStatus[0] = SWORDLESS_STATUS;
                     }
 
-                    if ((play->sceneNum == SCENE_BOMBCHU_BOWLING_ALLEY) && Flags_GetSwitch(play, 0x38)) {
+                    if ((play->sceneNum == SCENE_BOMBCHU_BOWLING_ALLEY) && OoT_Flags_GetSwitch(play, 0x38)) {
                         gSaveContext.equips.buttonItems[0] = ITEM_BOMBCHU;
                         Interface_LoadItemIcon1(play, 0);
                     } else {
@@ -886,7 +886,7 @@ void func_80083108(PlayState* play) {
                     Interface_ChangeAlpha(8);
                 } else if (play->shootingGalleryStatus > 1) {
                     Interface_ChangeAlpha(8);
-                } else if ((play->sceneNum == SCENE_BOMBCHU_BOWLING_ALLEY) && Flags_GetSwitch(play, 0x38)) {
+                } else if ((play->sceneNum == SCENE_BOMBCHU_BOWLING_ALLEY) && OoT_Flags_GetSwitch(play, 0x38)) {
                     Interface_ChangeAlpha(8);
                 } else if (player->stateFlags1 & PLAYER_STATE1_ON_HORSE) {
                     Interface_ChangeAlpha(12);
@@ -950,7 +950,7 @@ void func_80083108(PlayState* play) {
                 gSaveContext.buttonStatus[0] = gSaveContext.buttonStatus[1] = gSaveContext.buttonStatus[2] =
                     gSaveContext.buttonStatus[3] = gSaveContext.buttonStatus[5] = gSaveContext.buttonStatus[6] =
                         gSaveContext.buttonStatus[7] = gSaveContext.buttonStatus[8] = BTN_DISABLED;
-            } else if ((Player_GetEnvironmentalHazard(play) >= 2) && (Player_GetEnvironmentalHazard(play) < 5)) {
+            } else if ((OoT_Player_GetEnvironmentalHazard(play) >= 2) && (OoT_Player_GetEnvironmentalHazard(play) < 5)) {
                 if (gSaveContext.buttonStatus[0] != BTN_DISABLED) {
                     sp28 = 1;
                 }
@@ -966,7 +966,7 @@ void func_80083108(PlayState* play) {
                         }
 
                         gSaveContext.buttonStatus[BUTTON_STATUS_INDEX(i)] = BTN_ENABLED;
-                    } else if (Player_GetEnvironmentalHazard(play) == 2) {
+                    } else if (OoT_Player_GetEnvironmentalHazard(play) == 2) {
                         if ((gSaveContext.equips.buttonItems[i] != ITEM_HOOKSHOT) &&
                             (gSaveContext.equips.buttonItems[i] != ITEM_LONGSHOT)) {
                             if (gSaveContext.buttonStatus[BUTTON_STATUS_INDEX(i)] == BTN_ENABLED) {
@@ -1343,7 +1343,7 @@ void func_80083108(PlayState* play) {
     }
 }
 
-void Interface_SetSceneRestrictions(PlayState* play) {
+void OoT_Interface_SetSceneRestrictions(PlayState* play) {
     InterfaceContext* interfaceCtx = &play->interfaceCtx;
     s16 i;
     u8 currentScene;
@@ -1364,23 +1364,23 @@ void Interface_SetSceneRestrictions(PlayState* play) {
 
     do {
         currentScene = (u8)play->sceneNum;
-        if (sRestrictionFlags[i].scene == currentScene) {
-            interfaceCtx->restrictions.hGauge = (sRestrictionFlags[i].flags1 & 0xC0) >> 6;
-            interfaceCtx->restrictions.bButton = (sRestrictionFlags[i].flags1 & 0x30) >> 4;
-            interfaceCtx->restrictions.aButton = (sRestrictionFlags[i].flags1 & 0x0C) >> 2;
-            interfaceCtx->restrictions.bottles = (sRestrictionFlags[i].flags1 & 0x03) >> 0;
-            interfaceCtx->restrictions.tradeItems = (sRestrictionFlags[i].flags2 & 0xC0) >> 6;
-            interfaceCtx->restrictions.hookshot = (sRestrictionFlags[i].flags2 & 0x30) >> 4;
-            interfaceCtx->restrictions.ocarina = (sRestrictionFlags[i].flags2 & 0x0C) >> 2;
-            interfaceCtx->restrictions.warpSongs = (sRestrictionFlags[i].flags2 & 0x03) >> 0;
-            interfaceCtx->restrictions.sunsSong = (sRestrictionFlags[i].flags3 & 0xC0) >> 6;
-            interfaceCtx->restrictions.farores = (sRestrictionFlags[i].flags3 & 0x30) >> 4;
-            interfaceCtx->restrictions.dinsNayrus = (sRestrictionFlags[i].flags3 & 0x0C) >> 2;
-            interfaceCtx->restrictions.all = (sRestrictionFlags[i].flags3 & 0x03) >> 0;
+        if (OoT_sRestrictionFlags[i].scene == currentScene) {
+            interfaceCtx->restrictions.hGauge = (OoT_sRestrictionFlags[i].flags1 & 0xC0) >> 6;
+            interfaceCtx->restrictions.bButton = (OoT_sRestrictionFlags[i].flags1 & 0x30) >> 4;
+            interfaceCtx->restrictions.aButton = (OoT_sRestrictionFlags[i].flags1 & 0x0C) >> 2;
+            interfaceCtx->restrictions.bottles = (OoT_sRestrictionFlags[i].flags1 & 0x03) >> 0;
+            interfaceCtx->restrictions.tradeItems = (OoT_sRestrictionFlags[i].flags2 & 0xC0) >> 6;
+            interfaceCtx->restrictions.hookshot = (OoT_sRestrictionFlags[i].flags2 & 0x30) >> 4;
+            interfaceCtx->restrictions.ocarina = (OoT_sRestrictionFlags[i].flags2 & 0x0C) >> 2;
+            interfaceCtx->restrictions.warpSongs = (OoT_sRestrictionFlags[i].flags2 & 0x03) >> 0;
+            interfaceCtx->restrictions.sunsSong = (OoT_sRestrictionFlags[i].flags3 & 0xC0) >> 6;
+            interfaceCtx->restrictions.farores = (OoT_sRestrictionFlags[i].flags3 & 0x30) >> 4;
+            interfaceCtx->restrictions.dinsNayrus = (OoT_sRestrictionFlags[i].flags3 & 0x0C) >> 2;
+            interfaceCtx->restrictions.all = (OoT_sRestrictionFlags[i].flags3 & 0x03) >> 0;
 
             osSyncPrintf(VT_FGCOL(YELLOW));
-            osSyncPrintf("parameter->button_status = %x,%x,%x\n", sRestrictionFlags[i].flags1,
-                         sRestrictionFlags[i].flags2, sRestrictionFlags[i].flags3);
+            osSyncPrintf("parameter->button_status = %x,%x,%x\n", OoT_sRestrictionFlags[i].flags1,
+                         OoT_sRestrictionFlags[i].flags2, OoT_sRestrictionFlags[i].flags3);
             osSyncPrintf("h_gage=%d, b_button=%d, a_button=%d, c_bottle=%d\n", interfaceCtx->restrictions.hGauge,
                          interfaceCtx->restrictions.bButton, interfaceCtx->restrictions.aButton,
                          interfaceCtx->restrictions.bottles);
@@ -1399,7 +1399,7 @@ void Interface_SetSceneRestrictions(PlayState* play) {
             return;
         }
         i++;
-    } while (sRestrictionFlags[i].scene != 0xFF);
+    } while (OoT_sRestrictionFlags[i].scene != 0xFF);
 }
 
 Gfx* Gfx_TextureIA8(Gfx* displayListHead, void* texture, s16 textureWidth, s16 textureHeight, s16 rectLeft, s16 rectTop,
@@ -1451,7 +1451,7 @@ void Rando_Inventory_SwapAgeEquipment(void) {
 
         // This section sets up the equipment on the first time going adult.
         // On master sword shuffle the check for the B button is insufficient, and so checking the equipment is
-        // completely zero-ed is needed (Could just always use `gSaveContext.adultEquips.equipment == 0` for rando?)
+        // completely OoT_zero-ed is needed (Could just always use `gSaveContext.adultEquips.equipment == 0` for rando?)
         if (gSaveContext.adultEquips.buttonItems[0] == ITEM_NONE &&
             ((IS_RANDO && !Randomizer_GetSettingValue(RSK_SHUFFLE_MASTER_SWORD)) ||
              (gSaveContext.adultEquips.equipment == 0))) {
@@ -1479,7 +1479,7 @@ void Rando_Inventory_SwapAgeEquipment(void) {
                 !CHECK_OWNED_EQUIP(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_MASTER)) {
                 gSaveContext.equips.equipment &= (u16) ~(0xF << (EQUIP_TYPE_SWORD * 4));
                 gSaveContext.equips.buttonItems[0] = ITEM_NONE;
-                Flags_SetInfTable(INFTABLE_SWORDLESS);
+                OoT_Flags_SetInfTable(INFTABLE_SWORDLESS);
             }
             // Set the dpad to nothing
             gSaveContext.equips.buttonItems[4] = ITEM_NONE;
@@ -1512,7 +1512,7 @@ void Rando_Inventory_SwapAgeEquipment(void) {
             // In Master Sword Shuffle we want to set the swordless flag if no item is on the B button
             if (IS_RANDO && Randomizer_GetSettingValue(RSK_SHUFFLE_MASTER_SWORD) &&
                 gSaveContext.equips.buttonItems[0] == ITEM_NONE) {
-                Flags_SetInfTable(INFTABLE_SWORDLESS);
+                OoT_Flags_SetInfTable(INFTABLE_SWORDLESS);
             }
 
             gSaveContext.equips.equipment = gSaveContext.adultEquips.equipment;
@@ -1554,7 +1554,7 @@ void Rando_Inventory_SwapAgeEquipment(void) {
         // uninitialised (i.e. 0) at this point
         else if (gSaveContext.childEquips.equipment == 0) {
 
-            // zero out items
+            // OoT_zero out items
             for (i = 0; i < ARRAY_COUNT(gSaveContext.equips.buttonItems); i++) {
                 gSaveContext.equips.buttonItems[i] = ITEM_NONE;
                 if (i != 0) {
@@ -1572,7 +1572,7 @@ void Rando_Inventory_SwapAgeEquipment(void) {
         if (!CHECK_OWNED_EQUIP(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_KOKIRI)) {
             gSaveContext.equips.equipment &= (u16) ~(0xF << (EQUIP_TYPE_SWORD * 4));
             gSaveContext.equips.buttonItems[0] = ITEM_NONE;
-            Flags_SetInfTable(INFTABLE_SWORDLESS);
+            OoT_Flags_SetInfTable(INFTABLE_SWORDLESS);
         } else {
             gSaveContext.equips.equipment &= (u16) ~(0xF << (EQUIP_TYPE_SWORD * 4));
             gSaveContext.equips.equipment |= (EQUIP_VALUE_SWORD_KOKIRI << (EQUIP_TYPE_SWORD * 4));
@@ -1581,11 +1581,11 @@ void Rando_Inventory_SwapAgeEquipment(void) {
         }
     }
 
-    shieldEquipValue = gEquipMasks[EQUIP_TYPE_SHIELD] & gSaveContext.equips.equipment;
+    shieldEquipValue = OoT_gEquipMasks[EQUIP_TYPE_SHIELD] & gSaveContext.equips.equipment;
     if (shieldEquipValue) {
-        shieldEquipValue >>= gEquipShifts[EQUIP_TYPE_SHIELD];
+        shieldEquipValue >>= OoT_gEquipShifts[EQUIP_TYPE_SHIELD];
         if (!CHECK_OWNED_EQUIP_ALT(EQUIP_TYPE_SHIELD, shieldEquipValue - 1)) {
-            gSaveContext.equips.equipment &= gEquipNegMasks[EQUIP_TYPE_SHIELD];
+            gSaveContext.equips.equipment &= OoT_gEquipNegMasks[EQUIP_TYPE_SHIELD];
         }
     }
 }
@@ -1698,11 +1698,11 @@ void Inventory_SwapAgeEquipment(void) {
         }
     }
 
-    shieldEquipValue = gEquipMasks[EQUIP_TYPE_SHIELD] & gSaveContext.equips.equipment;
+    shieldEquipValue = OoT_gEquipMasks[EQUIP_TYPE_SHIELD] & gSaveContext.equips.equipment;
     if (shieldEquipValue) {
-        shieldEquipValue >>= gEquipShifts[EQUIP_TYPE_SHIELD];
+        shieldEquipValue >>= OoT_gEquipShifts[EQUIP_TYPE_SHIELD];
         if (!CHECK_OWNED_EQUIP_ALT(EQUIP_TYPE_SHIELD, shieldEquipValue - 1)) {
-            gSaveContext.equips.equipment &= gEquipNegMasks[EQUIP_TYPE_SHIELD];
+            gSaveContext.equips.equipment &= OoT_gEquipNegMasks[EQUIP_TYPE_SHIELD];
         }
     }
 }
@@ -1712,7 +1712,7 @@ void Interface_InitHorsebackArchery(PlayState* play) {
 
     gSaveContext.minigameState = 1;
     interfaceCtx->unk_23C = interfaceCtx->unk_240 = interfaceCtx->unk_242 = 0;
-    gSaveContext.minigameScore = sHBAScoreTier = 0;
+    gSaveContext.minigameScore = OoT_sHBAScoreTier = 0;
     interfaceCtx->hbaAmmo = 20;
 }
 
@@ -1732,23 +1732,23 @@ void func_800849EC(PlayState* play) {
 void Interface_LoadItemIcon1(PlayState* play, u16 button) {
     InterfaceContext* interfaceCtx = &play->interfaceCtx;
 
-    osCreateMesgQueue(&interfaceCtx->loadQueue, &interfaceCtx->loadMsg, OS_MESG_BLOCK);
+    OoT_osCreateMesgQueue(&interfaceCtx->loadQueue, &interfaceCtx->loadMsg, OS_MESG_BLOCK);
     DmaMgr_SendRequest2(&interfaceCtx->dmaRequest_160, interfaceCtx->iconItemSegment + button * 0x1000,
                         (uintptr_t)_icon_item_staticSegmentRomStart +
                             (gSaveContext.equips.buttonItems[button] * 0x1000),
                         0x1000, 0, &interfaceCtx->loadQueue, OS_MESG_PTR(NULL), __FILE__, __LINE__);
-    osRecvMesg(&interfaceCtx->loadQueue, NULL, OS_MESG_BLOCK);
+    OoT_osRecvMesg(&interfaceCtx->loadQueue, NULL, OS_MESG_BLOCK);
 }
 
 void Interface_LoadItemIcon2(PlayState* play, u16 button) {
     InterfaceContext* interfaceCtx = &play->interfaceCtx;
 
-    osCreateMesgQueue(&interfaceCtx->loadQueue, &interfaceCtx->loadMsg, OS_MESG_BLOCK);
+    OoT_osCreateMesgQueue(&interfaceCtx->loadQueue, &interfaceCtx->loadMsg, OS_MESG_BLOCK);
     DmaMgr_SendRequest2(&interfaceCtx->dmaRequest_180, interfaceCtx->iconItemSegment + button * 0x1000,
                         (uintptr_t)_icon_item_staticSegmentRomStart +
                             (gSaveContext.equips.buttonItems[button] * 0x1000),
                         0x1000, 0, &interfaceCtx->loadQueue, OS_MESG_PTR(NULL), __FILE__, __LINE__);
-    osRecvMesg(&interfaceCtx->loadQueue, NULL, OS_MESG_BLOCK);
+    OoT_osRecvMesg(&interfaceCtx->loadQueue, NULL, OS_MESG_BLOCK);
 }
 
 void func_80084BF4(PlayState* play, u16 flag) {
@@ -1834,7 +1834,7 @@ u8 Return_Item_Entry(GetItemEntry itemEntry, u8 returnItem) {
     return returnItem;
 }
 
-// Processes Item_Give returns
+// Processes OoT_Item_Give returns
 u8 Return_Item(u8 itemID, ModIndex modId, ItemID returnItem) {
     // ITEM_SOLD_OUT doesn't have an ItemTable entry, so pass custom entry instead
     if (itemID == ITEM_SOLD_OUT) {
@@ -1871,7 +1871,7 @@ u8 Return_Item(u8 itemID, ModIndex modId, ItemID returnItem) {
  * @param item
  * @return u8
  */
-u8 Item_Give(PlayState* play, u8 item) {
+u8 OoT_Item_Give(PlayState* play, u8 item) {
     // prevents getting sticks without the bag in case something got missed
     if (IS_RANDO && (item == ITEM_STICK || item == ITEM_STICKS_5 || item == ITEM_STICKS_10) &&
         Randomizer_GetSettingValue(RSK_SHUFFLE_DEKU_STICK_BAG) && CUR_UPG_VALUE(UPG_STICKS) == 0) {
@@ -1897,7 +1897,7 @@ u8 Item_Give(PlayState* play, u8 item) {
 
     slot = SLOT(item);
     if (item >= ITEM_STICKS_5) {
-        slot = SLOT(sExtraItemBases[item - ITEM_STICKS_5]);
+        slot = SLOT(OoT_sExtraItemBases[item - ITEM_STICKS_5]);
     }
 
     osSyncPrintf(VT_FGCOL(YELLOW));
@@ -1905,7 +1905,7 @@ u8 Item_Give(PlayState* play, u8 item) {
     osSyncPrintf(VT_RST);
 
     if ((item >= ITEM_MEDALLION_FOREST) && (item <= ITEM_MEDALLION_LIGHT)) {
-        gSaveContext.inventory.questItems |= gBitFlags[item - ITEM_MEDALLION_FOREST + QUEST_MEDALLION_FOREST];
+        gSaveContext.inventory.questItems |= OoT_gBitFlags[item - ITEM_MEDALLION_FOREST + QUEST_MEDALLION_FOREST];
 
         osSyncPrintf(VT_FGCOL(YELLOW));
         osSyncPrintf("封印 = %x\n", gSaveContext.inventory.questItems); // "Seals = %x"
@@ -1917,18 +1917,18 @@ u8 Item_Give(PlayState* play, u8 item) {
 
         return Return_Item(item, MOD_NONE, ITEM_NONE);
     } else if ((item >= ITEM_SONG_MINUET) && (item <= ITEM_SONG_STORMS)) {
-        gSaveContext.inventory.questItems |= gBitFlags[item - ITEM_SONG_MINUET + QUEST_SONG_MINUET];
+        gSaveContext.inventory.questItems |= OoT_gBitFlags[item - ITEM_SONG_MINUET + QUEST_SONG_MINUET];
 
         osSyncPrintf(VT_FGCOL(YELLOW));
         osSyncPrintf("楽譜 = %x\n", gSaveContext.inventory.questItems); // "Musical scores = %x"
         // "Musical scores = %x (%x) (%x)"
         osSyncPrintf("楽譜 = %x (%x) (%x)\n", gSaveContext.inventory.questItems,
-                     gBitFlags[item - ITEM_SONG_MINUET + QUEST_SONG_MINUET], gBitFlags[item - ITEM_SONG_MINUET]);
+                     OoT_gBitFlags[item - ITEM_SONG_MINUET + QUEST_SONG_MINUET], OoT_gBitFlags[item - ITEM_SONG_MINUET]);
         osSyncPrintf(VT_RST);
 
         return Return_Item(item, MOD_NONE, ITEM_NONE);
     } else if ((item >= ITEM_KOKIRI_EMERALD) && (item <= ITEM_ZORA_SAPPHIRE)) {
-        gSaveContext.inventory.questItems |= gBitFlags[item - ITEM_KOKIRI_EMERALD + QUEST_KOKIRI_EMERALD];
+        gSaveContext.inventory.questItems |= OoT_gBitFlags[item - ITEM_KOKIRI_EMERALD + QUEST_KOKIRI_EMERALD];
 
         osSyncPrintf(VT_FGCOL(YELLOW));
         osSyncPrintf("精霊石 = %x\n", gSaveContext.inventory.questItems); // "Spiritual Stones = %x"
@@ -1936,7 +1936,7 @@ u8 Item_Give(PlayState* play, u8 item) {
 
         return Return_Item(item, MOD_NONE, ITEM_NONE);
     } else if ((item == ITEM_STONE_OF_AGONY) || (item == ITEM_GERUDO_CARD)) {
-        gSaveContext.inventory.questItems |= gBitFlags[item - ITEM_STONE_OF_AGONY + QUEST_STONE_OF_AGONY];
+        gSaveContext.inventory.questItems |= OoT_gBitFlags[item - ITEM_STONE_OF_AGONY + QUEST_STONE_OF_AGONY];
 
         osSyncPrintf(VT_FGCOL(YELLOW));
         osSyncPrintf("アイテム = %x\n", gSaveContext.inventory.questItems); // "Items = %x"
@@ -1944,7 +1944,7 @@ u8 Item_Give(PlayState* play, u8 item) {
 
         return Return_Item(item, MOD_NONE, ITEM_NONE);
     } else if (item == ITEM_SKULL_TOKEN) {
-        gSaveContext.inventory.questItems |= gBitFlags[item - ITEM_SKULL_TOKEN + QUEST_SKULL_TOKEN];
+        gSaveContext.inventory.questItems |= OoT_gBitFlags[item - ITEM_SKULL_TOKEN + QUEST_SKULL_TOKEN];
         gSaveContext.inventory.gsTokens++;
 
         osSyncPrintf(VT_FGCOL(YELLOW));
@@ -1996,7 +1996,7 @@ u8 Item_Give(PlayState* play, u8 item) {
         gSaveContext.inventory.equipment |= OWNED_EQUIP_FLAG(EQUIP_TYPE_BOOTS, item - ITEM_BOOTS_KOKIRI);
         return Return_Item(item, MOD_NONE, ITEM_NONE);
     } else if ((item == ITEM_KEY_BOSS) || (item == ITEM_COMPASS) || (item == ITEM_DUNGEON_MAP)) {
-        gSaveContext.inventory.dungeonItems[gSaveContext.mapIndex] |= gBitFlags[item - ITEM_KEY_BOSS];
+        gSaveContext.inventory.dungeonItems[gSaveContext.mapIndex] |= OoT_gBitFlags[item - ITEM_KEY_BOSS];
         return Return_Item(item, MOD_NONE, ITEM_NONE);
     } else if (item == ITEM_KEY_SMALL) {
         if (gSaveContext.inventory.dungeonKeys[gSaveContext.mapIndex] < 0) {
@@ -2008,7 +2008,7 @@ u8 Item_Give(PlayState* play, u8 item) {
         }
     } else if ((item == ITEM_QUIVER_30) || (item == ITEM_BOW)) {
         if (CUR_UPG_VALUE(UPG_QUIVER) == 0) {
-            Inventory_ChangeUpgrade(UPG_QUIVER, 1);
+            OoT_Inventory_ChangeUpgrade(UPG_QUIVER, 1);
             INV_CONTENT(ITEM_BOW) = ITEM_BOW;
             AMMO(ITEM_BOW) = CAPACITY(UPG_QUIVER, 1);
             return Return_Item(item, MOD_NONE, ITEM_NONE);
@@ -2019,24 +2019,24 @@ u8 Item_Give(PlayState* play, u8 item) {
             }
         }
     } else if (item == ITEM_QUIVER_40) {
-        Inventory_ChangeUpgrade(UPG_QUIVER, 2);
+        OoT_Inventory_ChangeUpgrade(UPG_QUIVER, 2);
         AMMO(ITEM_BOW) = CAPACITY(UPG_QUIVER, 2);
         return Return_Item(item, MOD_NONE, ITEM_NONE);
     } else if (item == ITEM_QUIVER_50) {
-        Inventory_ChangeUpgrade(UPG_QUIVER, 3);
+        OoT_Inventory_ChangeUpgrade(UPG_QUIVER, 3);
         AMMO(ITEM_BOW) = CAPACITY(UPG_QUIVER, 3);
         return Return_Item(item, MOD_NONE, ITEM_NONE);
     } else if (item == ITEM_BULLET_BAG_40) {
-        Inventory_ChangeUpgrade(UPG_BULLET_BAG, 2);
+        OoT_Inventory_ChangeUpgrade(UPG_BULLET_BAG, 2);
         AMMO(ITEM_SLINGSHOT) = CAPACITY(UPG_BULLET_BAG, 2);
         return Return_Item(item, MOD_NONE, ITEM_NONE);
     } else if (item == ITEM_BULLET_BAG_50) {
-        Inventory_ChangeUpgrade(UPG_BULLET_BAG, 3);
+        OoT_Inventory_ChangeUpgrade(UPG_BULLET_BAG, 3);
         AMMO(ITEM_SLINGSHOT) = CAPACITY(UPG_BULLET_BAG, 3);
         return Return_Item(item, MOD_NONE, ITEM_NONE);
     } else if (item == ITEM_BOMB_BAG_20) {
         if (CUR_UPG_VALUE(UPG_BOMB_BAG) == 0) {
-            Inventory_ChangeUpgrade(UPG_BOMB_BAG, 1);
+            OoT_Inventory_ChangeUpgrade(UPG_BOMB_BAG, 1);
             INV_CONTENT(ITEM_BOMB) = ITEM_BOMB;
             AMMO(ITEM_BOMB) = CAPACITY(UPG_BOMB_BAG, 1);
             return Return_Item(item, MOD_NONE, ITEM_NONE);
@@ -2047,66 +2047,66 @@ u8 Item_Give(PlayState* play, u8 item) {
             }
         }
     } else if (item == ITEM_BOMB_BAG_30) {
-        Inventory_ChangeUpgrade(UPG_BOMB_BAG, 2);
+        OoT_Inventory_ChangeUpgrade(UPG_BOMB_BAG, 2);
         AMMO(ITEM_BOMB) = CAPACITY(UPG_BOMB_BAG, 2);
         return Return_Item(item, MOD_NONE, ITEM_NONE);
     } else if (item == ITEM_BOMB_BAG_40) {
-        Inventory_ChangeUpgrade(UPG_BOMB_BAG, 3);
+        OoT_Inventory_ChangeUpgrade(UPG_BOMB_BAG, 3);
         AMMO(ITEM_BOMB) = CAPACITY(UPG_BOMB_BAG, 3);
         return Return_Item(item, MOD_NONE, ITEM_NONE);
     } else if (item == ITEM_BRACELET) {
-        Inventory_ChangeUpgrade(UPG_STRENGTH, 1);
+        OoT_Inventory_ChangeUpgrade(UPG_STRENGTH, 1);
         return Return_Item(item, MOD_NONE, ITEM_NONE);
     } else if (item == ITEM_GAUNTLETS_SILVER) {
-        Inventory_ChangeUpgrade(UPG_STRENGTH, 2);
+        OoT_Inventory_ChangeUpgrade(UPG_STRENGTH, 2);
         return Return_Item(item, MOD_NONE, ITEM_NONE);
     } else if (item == ITEM_GAUNTLETS_GOLD) {
-        Inventory_ChangeUpgrade(UPG_STRENGTH, 3);
+        OoT_Inventory_ChangeUpgrade(UPG_STRENGTH, 3);
         return Return_Item(item, MOD_NONE, ITEM_NONE);
     } else if (item == ITEM_SCALE_SILVER) {
-        Inventory_ChangeUpgrade(UPG_SCALE, 1);
+        OoT_Inventory_ChangeUpgrade(UPG_SCALE, 1);
         return Return_Item(item, MOD_NONE, ITEM_NONE);
     } else if (item == ITEM_SCALE_GOLDEN) {
-        Inventory_ChangeUpgrade(UPG_SCALE, 2);
+        OoT_Inventory_ChangeUpgrade(UPG_SCALE, 2);
         return Return_Item(item, MOD_NONE, ITEM_NONE);
     } else if (item == ITEM_WALLET_ADULT) {
-        Inventory_ChangeUpgrade(UPG_WALLET, 1);
+        OoT_Inventory_ChangeUpgrade(UPG_WALLET, 1);
         if (IS_RANDO && Randomizer_GetSettingValue(RSK_FULL_WALLETS)) {
-            Rupees_ChangeBy(200);
+            OoT_Rupees_ChangeBy(200);
         }
         return Return_Item(item, MOD_NONE, ITEM_NONE);
     } else if (item == ITEM_WALLET_GIANT) {
-        Inventory_ChangeUpgrade(UPG_WALLET, 2);
+        OoT_Inventory_ChangeUpgrade(UPG_WALLET, 2);
         if (IS_RANDO && Randomizer_GetSettingValue(RSK_FULL_WALLETS)) {
-            Rupees_ChangeBy(500);
+            OoT_Rupees_ChangeBy(500);
         }
         return Return_Item(item, MOD_NONE, ITEM_NONE);
     } else if (item == ITEM_STICK_UPGRADE_20) {
         if (gSaveContext.inventory.items[slot] == ITEM_NONE) {
             INV_CONTENT(ITEM_STICK) = ITEM_STICK;
         }
-        Inventory_ChangeUpgrade(UPG_STICKS, 2);
+        OoT_Inventory_ChangeUpgrade(UPG_STICKS, 2);
         AMMO(ITEM_STICK) = CAPACITY(UPG_STICKS, 2);
         return Return_Item(item, MOD_NONE, ITEM_NONE);
     } else if (item == ITEM_STICK_UPGRADE_30) {
         if (gSaveContext.inventory.items[slot] == ITEM_NONE) {
             INV_CONTENT(ITEM_STICK) = ITEM_STICK;
         }
-        Inventory_ChangeUpgrade(UPG_STICKS, 3);
+        OoT_Inventory_ChangeUpgrade(UPG_STICKS, 3);
         AMMO(ITEM_STICK) = CAPACITY(UPG_STICKS, 3);
         return Return_Item(item, MOD_NONE, ITEM_NONE);
     } else if (item == ITEM_NUT_UPGRADE_30) {
         if (gSaveContext.inventory.items[slot] == ITEM_NONE) {
             INV_CONTENT(ITEM_NUT) = ITEM_NUT;
         }
-        Inventory_ChangeUpgrade(UPG_NUTS, 2);
+        OoT_Inventory_ChangeUpgrade(UPG_NUTS, 2);
         AMMO(ITEM_NUT) = CAPACITY(UPG_NUTS, 2);
         return Return_Item(item, MOD_NONE, ITEM_NONE);
     } else if (item == ITEM_NUT_UPGRADE_40) {
         if (gSaveContext.inventory.items[slot] == ITEM_NONE) {
             INV_CONTENT(ITEM_NUT) = ITEM_NUT;
         }
-        Inventory_ChangeUpgrade(UPG_NUTS, 3);
+        OoT_Inventory_ChangeUpgrade(UPG_NUTS, 3);
         AMMO(ITEM_NUT) = CAPACITY(UPG_NUTS, 3);
         return Return_Item(item, MOD_NONE, ITEM_NONE);
     } else if (item == ITEM_LONGSHOT) {
@@ -2144,7 +2144,7 @@ u8 Item_Give(PlayState* play, u8 item) {
         return Return_Item(item, MOD_NONE, ITEM_NONE);
     } else if (item == ITEM_STICK) {
         if (gSaveContext.inventory.items[slot] == ITEM_NONE) {
-            Inventory_ChangeUpgrade(UPG_STICKS, 1);
+            OoT_Inventory_ChangeUpgrade(UPG_STICKS, 1);
             AMMO(ITEM_STICK) = 1;
         } else {
             AMMO(ITEM_STICK)++;
@@ -2154,7 +2154,7 @@ u8 Item_Give(PlayState* play, u8 item) {
         }
     } else if ((item == ITEM_STICKS_5) || (item == ITEM_STICKS_10)) {
         if (gSaveContext.inventory.items[slot] == ITEM_NONE) {
-            Inventory_ChangeUpgrade(UPG_STICKS, 1);
+            OoT_Inventory_ChangeUpgrade(UPG_STICKS, 1);
             AMMO(ITEM_STICK) = sAmmoRefillCounts[item - ITEM_STICKS_5];
         } else {
             AMMO(ITEM_STICK) += sAmmoRefillCounts[item - ITEM_STICKS_5];
@@ -2168,7 +2168,7 @@ u8 Item_Give(PlayState* play, u8 item) {
         return Return_Item(item, MOD_NONE, returnItem);
     } else if (item == ITEM_NUT) {
         if (gSaveContext.inventory.items[slot] == ITEM_NONE) {
-            Inventory_ChangeUpgrade(UPG_NUTS, 1);
+            OoT_Inventory_ChangeUpgrade(UPG_NUTS, 1);
             AMMO(ITEM_NUT) = ITEM_NUT;
         } else {
             AMMO(ITEM_NUT)++;
@@ -2178,7 +2178,7 @@ u8 Item_Give(PlayState* play, u8 item) {
         }
     } else if ((item == ITEM_NUTS_5) || (item == ITEM_NUTS_10)) {
         if (gSaveContext.inventory.items[slot] == ITEM_NONE) {
-            Inventory_ChangeUpgrade(UPG_NUTS, 1);
+            OoT_Inventory_ChangeUpgrade(UPG_NUTS, 1);
             AMMO(ITEM_NUT) += sAmmoRefillCounts[item - ITEM_NUTS_5];
             // "Deku Nuts %d(%d)=%d BS_count=%d"
             osSyncPrintf("デクの実 %d(%d)=%d  BS_count=%d\n", item, ITEM_NUTS_5, item - ITEM_NUTS_5,
@@ -2242,7 +2242,7 @@ u8 Item_Give(PlayState* play, u8 item) {
 
         return Return_Item(item, MOD_NONE, ITEM_BOW);
     } else if (item == ITEM_SLINGSHOT) {
-        Inventory_ChangeUpgrade(UPG_BULLET_BAG, 1);
+        OoT_Inventory_ChangeUpgrade(UPG_BULLET_BAG, 1);
         INV_CONTENT(ITEM_SLINGSHOT) = ITEM_SLINGSHOT;
         AMMO(ITEM_SLINGSHOT) = 30;
         return Return_Item(item, MOD_NONE, ITEM_NONE);
@@ -2331,7 +2331,7 @@ u8 Item_Give(PlayState* play, u8 item) {
     } else if (item == ITEM_HEART) {
         osSyncPrintf("回復ハート回復ハート回復ハート\n"); // "Recovery Heart"
         if (play != NULL) {
-            Health_ChangeBy(play, FULL_HEART_HEALTH);
+            OoT_Health_ChangeBy(play, FULL_HEART_HEALTH);
         }
         return Return_Item(item, MOD_NONE, item);
     } else if (item == ITEM_MAGIC_SMALL) {
@@ -2345,8 +2345,8 @@ u8 Item_Give(PlayState* play, u8 item) {
             Magic_RequestChange(play, 12, MAGIC_ADD);
         }
 
-        if (!Flags_GetInfTable(INFTABLE_198)) {
-            Flags_SetInfTable(INFTABLE_198);
+        if (!OoT_Flags_GetInfTable(INFTABLE_198)) {
+            OoT_Flags_SetInfTable(INFTABLE_198);
             return Return_Item(item, MOD_NONE, ITEM_NONE);
         }
 
@@ -2361,14 +2361,14 @@ u8 Item_Give(PlayState* play, u8 item) {
             Magic_RequestChange(play, 24, MAGIC_ADD);
         }
 
-        if (!Flags_GetInfTable(INFTABLE_198)) {
-            Flags_SetInfTable(INFTABLE_198);
+        if (!OoT_Flags_GetInfTable(INFTABLE_198)) {
+            OoT_Flags_SetInfTable(INFTABLE_198);
             return Return_Item(item, MOD_NONE, ITEM_NONE);
         }
 
         return Return_Item(item, MOD_NONE, item);
     } else if ((item >= ITEM_RUPEE_GREEN) && (item <= ITEM_INVALID_8)) {
-        Rupees_ChangeBy(sAmmoRefillCounts[item - ITEM_RUPEE_GREEN + 10]);
+        OoT_Rupees_ChangeBy(sAmmoRefillCounts[item - ITEM_RUPEE_GREEN + 10]);
         return Return_Item(item, MOD_NONE, ITEM_NONE);
     } else if (item == ITEM_BOTTLE) {
         temp = SLOT(item);
@@ -2433,7 +2433,7 @@ u8 Item_Give(PlayState* play, u8 item) {
                 Flags_SetRandomizerInf(item - ITEM_POCKET_EGG + RAND_INF_ADULT_TRADES_HAS_POCKET_EGG);
             } else if (item == ITEM_LETTER_ZELDA) {
                 // don't care about zelda's letter if it's already been shown to the guard
-                if (!Flags_GetInfTable(INFTABLE_SHOWED_ZELDAS_LETTER_TO_GATE_GUARD)) {
+                if (!OoT_Flags_GetInfTable(INFTABLE_SHOWED_ZELDAS_LETTER_TO_GATE_GUARD)) {
                     Flags_SetRandomizerInf(RAND_INF_CHILD_TRADES_HAS_LETTER_ZELDA);
                 }
             } else {
@@ -2477,13 +2477,13 @@ u8 Item_Give(PlayState* play, u8 item) {
     return Return_Item(item, MOD_NONE, returnItem);
 }
 
-u8 Item_CheckObtainability(u8 item) {
+u8 OoT_Item_CheckObtainability(u8 item) {
     s16 i;
     s16 slot = SLOT(item);
     s32 temp;
 
     if (item >= ITEM_STICKS_5) {
-        slot = SLOT(sExtraItemBases[item - ITEM_STICKS_5]);
+        slot = SLOT(OoT_sExtraItemBases[item - ITEM_STICKS_5]);
     }
 
     osSyncPrintf(VT_FGCOL(GREEN));
@@ -2574,8 +2574,8 @@ u8 Item_CheckObtainability(u8 item) {
         return ITEM_HEART;
     } else if ((item == ITEM_MAGIC_SMALL) || (item == ITEM_MAGIC_LARGE)) {
         // "Magic Pot Get_Inf_Table( 25, 0x0100)=%d"
-        osSyncPrintf("魔法の壷 Get_Inf_Table( 25, 0x0100)=%d\n", Flags_GetInfTable(INFTABLE_198));
-        if (!Flags_GetInfTable(INFTABLE_198)) {
+        osSyncPrintf("魔法の壷 Get_Inf_Table( 25, 0x0100)=%d\n", OoT_Flags_GetInfTable(INFTABLE_198));
+        if (!OoT_Flags_GetInfTable(INFTABLE_198)) {
             return ITEM_NONE;
         } else {
             return item;
@@ -2612,7 +2612,7 @@ u8 Item_CheckObtainability(u8 item) {
     return gSaveContext.inventory.items[slot];
 }
 
-void Inventory_DeleteItem(u16 item, u16 invSlot) {
+void OoT_Inventory_DeleteItem(u16 item, u16 invSlot) {
     s16 i;
 
     if (item == ITEM_BEAN) {
@@ -2631,7 +2631,7 @@ void Inventory_DeleteItem(u16 item, u16 invSlot) {
     }
 }
 
-s32 Inventory_ReplaceItem(PlayState* play, u16 oldItem, u16 newItem) {
+s32 OoT_Inventory_ReplaceItem(PlayState* play, u16 oldItem, u16 newItem) {
     s16 i;
 
     for (i = 0; i < ARRAY_COUNT(gSaveContext.inventory.items); i++) {
@@ -2652,7 +2652,7 @@ s32 Inventory_ReplaceItem(PlayState* play, u16 oldItem, u16 newItem) {
     return 0;
 }
 
-s32 Inventory_HasEmptyBottle(void) {
+s32 OoT_Inventory_HasEmptyBottle(void) {
     u8* items = gSaveContext.inventory.items;
 
     if (items[SLOT_BOTTLE_1] == ITEM_BOTTLE) {
@@ -2691,7 +2691,7 @@ s32 Inventory_HasSpecificBottle(u8 bottleItem) {
     }
 }
 
-void Inventory_UpdateBottleItem(PlayState* play, u8 item, u8 button) {
+void OoT_Inventory_UpdateBottleItem(PlayState* play, u8 item, u8 button) {
     osSyncPrintf("item_no=%x,  c_no=%x,  Pt=%x  Item_Register=%x\n", item, button,
                  gSaveContext.equips.cButtonSlots[button - 1],
                  gSaveContext.inventory.items[gSaveContext.equips.cButtonSlots[button - 1]]);
@@ -2714,7 +2714,7 @@ void Inventory_UpdateBottleItem(PlayState* play, u8 item, u8 button) {
     gSaveContext.buttonStatus[BUTTON_STATUS_INDEX(button)] = BTN_ENABLED;
 }
 
-s32 Inventory_ConsumeFairy(PlayState* play) {
+s32 OoT_Inventory_ConsumeFairy(PlayState* play) {
     s32 bottleSlot = SLOT(ITEM_FAIRY);
     s16 i;
     s16 j;
@@ -2741,7 +2741,7 @@ s32 Inventory_ConsumeFairy(PlayState* play) {
 
 bool Inventory_HatchPocketCucco(PlayState* play) {
     if (!IS_RANDO) {
-        return Inventory_ReplaceItem(play, ITEM_POCKET_EGG, ITEM_POCKET_CUCCO);
+        return OoT_Inventory_ReplaceItem(play, ITEM_POCKET_EGG, ITEM_POCKET_CUCCO);
     }
 
     if (!Flags_GetRandomizerInf(RAND_INF_ADULT_TRADES_HAS_POCKET_EGG)) {
@@ -2750,7 +2750,7 @@ bool Inventory_HatchPocketCucco(PlayState* play) {
 
     Flags_UnsetRandomizerInf(RAND_INF_ADULT_TRADES_HAS_POCKET_EGG);
     Flags_SetRandomizerInf(RAND_INF_ADULT_TRADES_HAS_POCKET_CUCCO);
-    Inventory_ReplaceItem(play, ITEM_POCKET_EGG, ITEM_POCKET_CUCCO);
+    OoT_Inventory_ReplaceItem(play, ITEM_POCKET_EGG, ITEM_POCKET_CUCCO);
     return 1;
 }
 
@@ -2782,7 +2782,7 @@ void Interface_LoadActionLabel(InterfaceContext* interfaceCtx, u16 action, s16 l
             newName[loadOffset][length - 4] = 'R';
         } else if (gSaveContext.language == LANGUAGE_JPN) {
             newName[loadOffset][length - 6] = 'J';
-            newName[loadOffset][length - 5] = 'P';
+            newName[loadOffset][length - 5] = 'OoT_P';
             newName[loadOffset][length - 4] = 'N';
         }
         doAction = newName[loadOffset];
@@ -2790,7 +2790,7 @@ void Interface_LoadActionLabel(InterfaceContext* interfaceCtx, u16 action, s16 l
 
     char* segment = interfaceCtx->doActionSegment[loadOffset];
     interfaceCtx->doActionSegment[loadOffset] = action != DO_ACTION_NONE ? doAction : gEmptyTexture;
-    gSegments[7] = interfaceCtx->doActionSegment[loadOffset];
+    OoT_gSegments[7] = interfaceCtx->doActionSegment[loadOffset];
 }
 
 void Interface_SetDoAction(PlayState* play, u16 action) {
@@ -2816,18 +2816,18 @@ void Interface_SetNaviCall(PlayState* play, u16 naviCallState) {
         (play->csCtx.state == CS_STATE_IDLE)) {
         if (!CVarGetInteger(CVAR_AUDIO("DisableNaviCallAudio"), 0)) {
             // clang-format off
-            if (naviCallState == 0x1E) { Audio_PlaySoundGeneral(NA_SE_VO_NAVY_CALL, &gSfxDefaultPos, 4,
-                                                                &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb); }
+            if (naviCallState == 0x1E) { Audio_PlaySoundGeneral(NA_SE_VO_NAVY_CALL, &OoT_gSfxDefaultPos, 4,
+                                                                &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb); }
             // clang-format on
 
             if (naviCallState == 0x1D) {
-                func_800F4524(&gSfxDefaultPos, NA_SE_VO_NA_HELLO_2, 32);
+                func_800F4524(&OoT_gSfxDefaultPos, NA_SE_VO_NA_HELLO_2, 32);
             }
         }
 
         interfaceCtx->naviCalling = 1;
-        sCUpInvisible = 0;
-        sCUpTimer = 10;
+        OoT_sCUpInvisible = 0;
+        OoT_sCUpTimer = 10;
     } else if ((naviCallState == 0x1F) && interfaceCtx->naviCalling) {
         interfaceCtx->naviCalling = 0;
     }
@@ -2852,7 +2852,7 @@ void Interface_LoadActionLabelB(PlayState* play, u16 action) {
             newName[length - 4] = 'R';
         } else if (gSaveContext.language == LANGUAGE_JPN) {
             newName[length - 6] = 'J';
-            newName[length - 5] = 'P';
+            newName[length - 5] = 'OoT_P';
             newName[length - 4] = 'N';
         }
         doAction = newName;
@@ -2862,12 +2862,12 @@ void Interface_LoadActionLabelB(PlayState* play, u16 action) {
 
     char* segment = interfaceCtx->doActionSegment[1];
     interfaceCtx->doActionSegment[1] = action != DO_ACTION_NONE ? doAction : gEmptyTexture;
-    osRecvMesg(&interfaceCtx->loadQueue, NULL, OS_MESG_BLOCK);
+    OoT_osRecvMesg(&interfaceCtx->loadQueue, NULL, OS_MESG_BLOCK);
 
     interfaceCtx->unk_1FA = 1;
 }
 
-s32 Health_ChangeBy(PlayState* play, s16 healthChange) {
+s32 OoT_Health_ChangeBy(PlayState* play, s16 healthChange) {
     u16 heartCount;
     u16 healthLevel;
 
@@ -2889,8 +2889,8 @@ s32 Health_ChangeBy(PlayState* play, s16 healthChange) {
     }
 
     // clang-format off
-    if (healthChange > 0) { Audio_PlaySoundGeneral(NA_SE_SY_HP_RECOVER, &gSfxDefaultPos, 4,
-                                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+    if (healthChange > 0) { Audio_PlaySoundGeneral(NA_SE_SY_HP_RECOVER, &OoT_gSfxDefaultPos, 4,
+                                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     } else if ((gSaveContext.isDoubleDefenseAcquired != 0) && (healthChange < 0)) {
         healthChange >>= 1;
         osSyncPrintf("ハート減少半分！！＝%d\n", healthChange); // "Heart decrease halved!!＝%d"
@@ -2938,8 +2938,8 @@ s32 Health_ChangeBy(PlayState* play, s16 healthChange) {
     }
 }
 
-void Rupees_ChangeBy(s16 rupeeChange) {
-    if (gPlayState == NULL) {
+void OoT_Rupees_ChangeBy(s16 rupeeChange) {
+    if (OoT_gPlayState == NULL) {
         gSaveContext.rupees += rupeeChange;
     } else {
         gSaveContext.rupeeAccumulator += rupeeChange;
@@ -2983,7 +2983,7 @@ void GameplayStats_UpdateAmmoUsed(s16 item, s16 ammoUsed) {
     return;
 }
 
-void Inventory_ChangeAmmo(s16 item, s16 ammoChange) {
+void OoT_Inventory_ChangeAmmo(s16 item, s16 ammoChange) {
     // "Item = (%d)    Amount = (%d + %d)"
     osSyncPrintf("アイテム = (%d)    数 = (%d + %d)  ", item, AMMO(item), ammoChange);
 
@@ -3056,7 +3056,7 @@ void Magic_Fill(PlayState* play) {
     }
 }
 
-void Magic_Reset(PlayState* play) {
+void OoT_Magic_Reset(PlayState* play) {
     if ((gSaveContext.magicState != MAGIC_STATE_STEP_CAPACITY) && (gSaveContext.magicState != MAGIC_STATE_FILL)) {
         if (gSaveContext.magicState == MAGIC_STATE_ADD) {
             gSaveContext.prevMagicState = gSaveContext.magicState;
@@ -3072,8 +3072,8 @@ s32 Magic_RequestChange(PlayState* play, s16 amount, s16 type) {
 
     if ((type != 5) && (gSaveContext.magic - amount) < 0) {
         if (gSaveContext.magicCapacity != 0) {
-            Audio_PlaySoundGeneral(NA_SE_SY_ERROR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_ERROR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         }
         return false;
     }
@@ -3090,8 +3090,8 @@ s32 Magic_RequestChange(PlayState* play, s16 amount, s16 type) {
                 gSaveContext.magicState = MAGIC_STATE_CONSUME_SETUP;
                 return 1;
             } else {
-                Audio_PlaySoundGeneral(NA_SE_SY_ERROR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_SY_ERROR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                 return false;
             }
         case MAGIC_CONSUME_WAIT_NO_PREVIEW:
@@ -3104,8 +3104,8 @@ s32 Magic_RequestChange(PlayState* play, s16 amount, s16 type) {
                 gSaveContext.magicState = MAGIC_STATE_METER_FLASH_3;
                 return true;
             } else {
-                Audio_PlaySoundGeneral(NA_SE_SY_ERROR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_SY_ERROR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                 return false;
             }
         case MAGIC_CONSUME_LENS:
@@ -3134,8 +3134,8 @@ s32 Magic_RequestChange(PlayState* play, s16 amount, s16 type) {
                 gSaveContext.magicState = MAGIC_STATE_METER_FLASH_2;
                 return true;
             } else {
-                Audio_PlaySoundGeneral(NA_SE_SY_ERROR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_SY_ERROR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                 return false;
             }
         case MAGIC_ADD:
@@ -3229,8 +3229,8 @@ void Interface_UpdateMagicBar(PlayState* play) {
             gSaveContext.magic += 4;
 
             if (gSaveContext.gameMode == GAMEMODE_NORMAL && gSaveContext.sceneSetupIndex < 4) {
-                Audio_PlaySoundGeneral(NA_SE_SY_GAUGE_UP - SFX_FLAG, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_SY_GAUGE_UP - SFX_FLAG, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             }
 
             // "Storage  MAGIC_NOW=%d (%d)"
@@ -3318,7 +3318,7 @@ void Interface_UpdateMagicBar(PlayState* play) {
         case MAGIC_STATE_CONSUME_LENS:
             if ((play->pauseCtx.state == 0) && (play->pauseCtx.debugState == 0) && (msgCtx->msgMode == MSGMODE_NONE) &&
                 (play->gameOverCtx.state == GAMEOVER_INACTIVE) && (play->transitionTrigger == TRANS_TRIGGER_OFF) &&
-                (play->transitionMode == TRANS_MODE_OFF) && !Play_InCsMode(play)) {
+                (play->transitionMode == TRANS_MODE_OFF) && !OoT_Play_InCsMode(play)) {
                 bool hasLens = false;
                 for (int buttonIndex = 1; buttonIndex < ((CVarGetInteger(CVAR_ENHANCEMENT("DpadEquips"), 0) != 0)
                                                              ? ARRAY_COUNT(gSaveContext.equips.buttonItems)
@@ -3330,11 +3330,11 @@ void Interface_UpdateMagicBar(PlayState* play) {
                     }
                 }
                 if ((gSaveContext.magic == 0) ||
-                    ((Player_GetEnvironmentalHazard(play) >= 2) && (Player_GetEnvironmentalHazard(play) < 5)) ||
+                    ((OoT_Player_GetEnvironmentalHazard(play) >= 2) && (OoT_Player_GetEnvironmentalHazard(play) < 5)) ||
                     !hasLens || !play->actorCtx.lensActive) {
                     play->actorCtx.lensActive = false;
-                    Audio_PlaySoundGeneral(NA_SE_SY_GLASSMODE_OFF, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                           &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                    Audio_PlaySoundGeneral(NA_SE_SY_GLASSMODE_OFF, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                           &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                     gSaveContext.magicState = MAGIC_STATE_IDLE;
                     if (CVarGetInteger(CVAR_COSMETIC("Consumable.MagicBorder.Changed"), 0)) {
                         sMagicBorder = CVarGetColor24(CVAR_COSMETIC("Consumable.MagicBorder.Value"), sMagicBorder_ori);
@@ -3389,8 +3389,8 @@ void Interface_UpdateMagicBar(PlayState* play) {
 
         case MAGIC_STATE_ADD:
             gSaveContext.magic += 4;
-            Audio_PlaySoundGeneral(NA_SE_SY_GAUGE_UP - SFX_FLAG, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_GAUGE_UP - SFX_FLAG, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             if (gSaveContext.magic >= gSaveContext.magicTarget) {
                 gSaveContext.magic = gSaveContext.magicTarget;
                 gSaveContext.magicState = gSaveContext.prevMagicState;
@@ -3704,9 +3704,9 @@ void Interface_DrawEnemyHealthBar(TargetContext* targetCtx, PlayState* play) {
             // Setup DL for overlay disp
             Gfx_SetupDL_39Overlay(play->state.gfxCtx);
 
-            Matrix_Translate(projTargetCenter.x, projTargetCenter.y - slideInOffsetY, 0, MTXMODE_NEW);
-            Matrix_Scale(1.0f, scaleY, 1.0f, MTXMODE_APPLY);
-            Matrix_ToMtx(&sEnemyHealthMtx[0], __FILE__, __LINE__);
+            OoT_Matrix_Translate(projTargetCenter.x, projTargetCenter.y - slideInOffsetY, 0, MTXMODE_NEW);
+            OoT_Matrix_Scale(1.0f, scaleY, 1.0f, MTXMODE_APPLY);
+            OoT_Matrix_ToMtx(&sEnemyHealthMtx[0], __FILE__, __LINE__);
             gSPMatrix(OVERLAY_DISP++, &sEnemyHealthMtx[0], G_MTX_MODELVIEW | G_MTX_LOAD);
 
             // Health bar border
@@ -3736,9 +3736,9 @@ void Interface_DrawEnemyHealthBar(TargetContext* targetCtx, PlayState* play) {
             gSP1Quadrangle(OVERLAY_DISP++, 8, 10, 11, 9, 0);
 
             // Health bar fill
-            Matrix_Push();
-            Matrix_Translate(-0.375f, -0.5f, 0, MTXMODE_APPLY);
-            Matrix_ToMtx(&sEnemyHealthMtx[1], __FILE__, __LINE__);
+            OoT_Matrix_Push();
+            OoT_Matrix_Translate(-0.375f, -0.5f, 0, MTXMODE_APPLY);
+            OoT_Matrix_ToMtx(&sEnemyHealthMtx[1], __FILE__, __LINE__);
             gSPMatrix(OVERLAY_DISP++, &sEnemyHealthMtx[1], G_MTX_MODELVIEW | G_MTX_LOAD);
 
             gDPPipeSync(OVERLAY_DISP++);
@@ -3756,7 +3756,7 @@ void Interface_DrawEnemyHealthBar(TargetContext* targetCtx, PlayState* play) {
 
             gSP1Quadrangle(OVERLAY_DISP++, 0, 2, 3, 1, 0);
 
-            Matrix_Pop();
+            OoT_Matrix_Pop();
         }
     }
 
@@ -3811,7 +3811,7 @@ void Interface_DrawActionLabel(GraphicsContext* gfxCtx, void* texture) {
     CLOSE_DISPS(gfxCtx);
 }
 
-void Interface_DrawItemButtons(PlayState* play) {
+void OoT_Interface_DrawItemButtons(PlayState* play) {
     static void* cUpLabelTextures[] = { gNaviCUpENGTex, gNaviCUpENGTex, gNaviCUpENGTex, gNaviCUpJPTex };
     static s16 startButtonLeftPos[] = { 132, 130, 130, 132 };
     InterfaceContext* interfaceCtx = &play->interfaceCtx;
@@ -4203,10 +4203,10 @@ void Interface_DrawItemButtons(PlayState* play) {
                               PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
             gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 255, interfaceCtx->startAlpha);
             gDPSetEnvColor(OVERLAY_DISP++, 0, 0, 0, 0);
-            Matrix_Translate(PosX_StartBtn - 160 + ((Start_BTN_Scale + Start_BTN_Scale / 3) * 11.5f),
+            OoT_Matrix_Translate(PosX_StartBtn - 160 + ((Start_BTN_Scale + Start_BTN_Scale / 3) * 11.5f),
                              (PosY_StartBtn - 120 + ((Start_BTN_Scale + Start_BTN_Scale / 3) * 11.5f)) * -1, 1.0f,
                              MTXMODE_NEW);
-            Matrix_Scale(Start_BTN_Scale + (Start_BTN_Scale / 3), Start_BTN_Scale + (Start_BTN_Scale / 3),
+            OoT_Matrix_Scale(Start_BTN_Scale + (Start_BTN_Scale / 3), Start_BTN_Scale + (Start_BTN_Scale / 3),
                          Start_BTN_Scale + (Start_BTN_Scale / 3), MTXMODE_APPLY);
             gSPMatrix(OVERLAY_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
             gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[4], 4, 0);
@@ -4217,14 +4217,14 @@ void Interface_DrawItemButtons(PlayState* play) {
 
     if (interfaceCtx->naviCalling && (play->pauseCtx.state == 0) && (play->pauseCtx.debugState == 0) &&
         (play->csCtx.state == CS_STATE_IDLE)) {
-        if (!sCUpInvisible) {
+        if (!OoT_sCUpInvisible) {
             // C-Up Button Texture, Color & Label (Navi Text)
             gDPPipeSync(OVERLAY_DISP++);
 
             if ((gSaveContext.unk_13EA == 1) || (gSaveContext.unk_13EA == 2) || (gSaveContext.unk_13EA == 5)) {
                 temp = 0;
             } else if ((player->stateFlags1 & PLAYER_STATE1_CLIMBING_LADDER) ||
-                       (Player_GetEnvironmentalHazard(play) == 4) || (player->stateFlags2 & PLAYER_STATE2_CRAWLING)) {
+                       (OoT_Player_GetEnvironmentalHazard(play) == 4) || (player->stateFlags2 & PLAYER_STATE2_CRAWLING)) {
                 temp = 70;
             } else {
                 temp = interfaceCtx->healthAlpha;
@@ -4250,10 +4250,10 @@ void Interface_DrawItemButtons(PlayState* play) {
                                     (C_Up_BTN_Pos[1] + LabelY_Navi + 8) << 2, G_TX_RENDERTILE, 0, 0, 1 << 10, 1 << 10);
         }
 
-        sCUpTimer--;
-        if (sCUpTimer == 0) {
-            sCUpInvisible ^= 1;
-            sCUpTimer = 10;
+        OoT_sCUpTimer--;
+        if (OoT_sCUpTimer == 0) {
+            OoT_sCUpInvisible ^= 1;
+            OoT_sCUpTimer = 10;
         }
     }
 
@@ -4411,7 +4411,7 @@ void Interface_DrawItemButtons(PlayState* play) {
 int16_t gItemIconWidth[] = { 30, 24, 24, 24, 16, 16, 16, 16 };
 int16_t gItemIconDD[] = { 550, 680, 680, 680, 1024, 1024, 1024, 1024 };
 
-void Interface_DrawItemIconTexture(PlayState* play, void* texture, s16 button) {
+void OoT_Interface_DrawItemIconTexture(PlayState* play, void* texture, s16 button) {
     OPEN_DISPS(play->state.gfxCtx);
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     InterfaceContext* interfaceCtx = &play->interfaceCtx;
@@ -4660,7 +4660,7 @@ static int16_t gItemAmmoX[] = { B_BUTTON_X + 2, C_LEFT_BUTTON_X + 1, C_DOWN_BUTT
 static int16_t gItemAmmoY[] = { B_BUTTON_Y + 18, C_LEFT_BUTTON_Y + 17, C_DOWN_BUTTON_Y + 17, C_RIGHT_BUTTON_Y + 17,
                                 DPAD_UP_Y + 11,  DPAD_DOWN_Y + 11,     DPAD_LEFT_Y + 11,     DPAD_RIGHT_Y + 11 };
 
-void Interface_DrawAmmoCount(PlayState* play, s16 button, s16 alpha) {
+void OoT_Interface_DrawAmmoCount(PlayState* play, s16 button, s16 alpha) {
     s16 i;
     s16 ammo;
     s16 X_Margins_CL;
@@ -4910,7 +4910,7 @@ void Interface_DrawAmmoCount(PlayState* play, s16 button, s16 alpha) {
             ammo = play->interfaceCtx.hbaAmmo;
         } else if ((button == 0) && (play->shootingGalleryStatus > 1)) {
             ammo = play->shootingGalleryStatus - 1;
-        } else if ((button == 0) && (play->sceneNum == SCENE_BOMBCHU_BOWLING_ALLEY) && Flags_GetSwitch(play, 0x38)) {
+        } else if ((button == 0) && (play->sceneNum == SCENE_BOMBCHU_BOWLING_ALLEY) && OoT_Flags_GetSwitch(play, 0x38)) {
             ammo = play->bombchuBowlingStatus;
             if (ammo < 0) {
                 ammo = 0;
@@ -4949,8 +4949,8 @@ void Interface_DrawActionButton(PlayState* play, f32 x, f32 y) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    Matrix_Translate(-137.0f + x, 97.0f - y, XREG(18) / 10.0f, MTXMODE_NEW);
-    Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(-137.0f + x, 97.0f - y, XREG(18) / 10.0f, MTXMODE_NEW);
+    OoT_Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
     Matrix_RotateX(interfaceCtx->unk_1F4 / 10000.0f, MTXMODE_APPLY);
 
     gSPMatrix(OVERLAY_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
@@ -5066,7 +5066,7 @@ void func_8008A8B8(PlayState* play, s32 topY, s32 bottomY, s32 leftX, s32 rightX
     interfaceCtx->viewport.bottomY = bottomY;
     interfaceCtx->viewport.leftX = leftX;
     interfaceCtx->viewport.rightX = rightX;
-    View_SetViewport(&interfaceCtx->view, &interfaceCtx->viewport);
+    OoT_View_SetViewport(&interfaceCtx->view, &interfaceCtx->viewport);
 
     func_800AA460(&interfaceCtx->view, 60.0f, 10.0f, 60.0f);
     func_800AB560(&interfaceCtx->view);
@@ -5084,7 +5084,7 @@ const char* digitTextures[] = { gCounterDigit0Tex, gCounterDigit1Tex, gCounterDi
                                 gCounterDigit2Tex, gCounterDigit3Tex, gCounterDigit4Tex, gCounterDigit5Tex,
                                 gCounterDigit6Tex, gCounterDigit7Tex, gCounterDigit8Tex };
 
-void Interface_Draw(PlayState* play) {
+void OoT_Interface_Draw(PlayState* play) {
     static s16 magicArrowEffectsR[] = { 255, 100, 255 };
     static s16 magicArrowEffectsG[] = { 0, 100, 255 };
     static s16 magicArrowEffectsB[] = { 0, 255, 100 };
@@ -5431,7 +5431,7 @@ void Interface_Draw(PlayState* play) {
         Gfx_SetupDL_39Overlay(play->state.gfxCtx);
 
         if (fullUi) {
-            Interface_DrawItemButtons(play);
+            OoT_Interface_DrawItemButtons(play);
         }
 
         gDPPipeSync(OVERLAY_DISP++);
@@ -5442,20 +5442,20 @@ void Interface_Draw(PlayState* play) {
             // B Button Icon & Ammo Count
             if (gSaveContext.equips.buttonItems[0] != ITEM_NONE) {
                 if (fullUi) {
-                    Interface_DrawItemIconTexture(play, gItemIcons[gSaveContext.equips.buttonItems[0]], 0);
+                    OoT_Interface_DrawItemIconTexture(play, OoT_gItemIcons[gSaveContext.equips.buttonItems[0]], 0);
                 }
 
                 if ((player->stateFlags1 & PLAYER_STATE1_ON_HORSE) || (play->shootingGalleryStatus > 1) ||
-                    ((play->sceneNum == SCENE_BOMBCHU_BOWLING_ALLEY) && Flags_GetSwitch(play, 0x38))) {
+                    ((play->sceneNum == SCENE_BOMBCHU_BOWLING_ALLEY) && OoT_Flags_GetSwitch(play, 0x38))) {
 
                     if (!fullUi) {
-                        Interface_DrawItemIconTexture(play, gItemIcons[gSaveContext.equips.buttonItems[0]], 0);
+                        OoT_Interface_DrawItemIconTexture(play, OoT_gItemIcons[gSaveContext.equips.buttonItems[0]], 0);
                     }
 
                     gDPPipeSync(OVERLAY_DISP++);
                     gDPSetCombineLERP(OVERLAY_DISP++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE,
                                       0, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
-                    Interface_DrawAmmoCount(play, 0, interfaceCtx->bAlpha);
+                    OoT_Interface_DrawAmmoCount(play, 0, interfaceCtx->bAlpha);
                 }
             }
         } else {
@@ -5530,11 +5530,11 @@ void Interface_Draw(PlayState* play) {
         if (gSaveContext.equips.buttonItems[1] < 0xF0) {
             gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 255, interfaceCtx->cLeftAlpha);
             gDPSetCombineMode(OVERLAY_DISP++, G_CC_MODULATERGBA_PRIM, G_CC_MODULATERGBA_PRIM);
-            Interface_DrawItemIconTexture(play, gItemIcons[gSaveContext.equips.buttonItems[1]], 1);
+            OoT_Interface_DrawItemIconTexture(play, OoT_gItemIcons[gSaveContext.equips.buttonItems[1]], 1);
             gDPPipeSync(OVERLAY_DISP++);
             gDPSetCombineLERP(OVERLAY_DISP++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0,
                               PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
-            Interface_DrawAmmoCount(play, 1, interfaceCtx->cLeftAlpha);
+            OoT_Interface_DrawAmmoCount(play, 1, interfaceCtx->cLeftAlpha);
         }
 
         gDPPipeSync(OVERLAY_DISP++);
@@ -5543,11 +5543,11 @@ void Interface_Draw(PlayState* play) {
         if (gSaveContext.equips.buttonItems[2] < 0xF0) {
             gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 255, interfaceCtx->cDownAlpha);
             gDPSetCombineMode(OVERLAY_DISP++, G_CC_MODULATERGBA_PRIM, G_CC_MODULATERGBA_PRIM);
-            Interface_DrawItemIconTexture(play, gItemIcons[gSaveContext.equips.buttonItems[2]], 2);
+            OoT_Interface_DrawItemIconTexture(play, OoT_gItemIcons[gSaveContext.equips.buttonItems[2]], 2);
             gDPPipeSync(OVERLAY_DISP++);
             gDPSetCombineLERP(OVERLAY_DISP++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0,
                               PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
-            Interface_DrawAmmoCount(play, 2, interfaceCtx->cDownAlpha);
+            OoT_Interface_DrawAmmoCount(play, 2, interfaceCtx->cDownAlpha);
         }
 
         gDPPipeSync(OVERLAY_DISP++);
@@ -5556,11 +5556,11 @@ void Interface_Draw(PlayState* play) {
         if (gSaveContext.equips.buttonItems[3] < 0xF0) {
             gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 255, interfaceCtx->cRightAlpha);
             gDPSetCombineMode(OVERLAY_DISP++, G_CC_MODULATERGBA_PRIM, G_CC_MODULATERGBA_PRIM);
-            Interface_DrawItemIconTexture(play, gItemIcons[gSaveContext.equips.buttonItems[3]], 3);
+            OoT_Interface_DrawItemIconTexture(play, OoT_gItemIcons[gSaveContext.equips.buttonItems[3]], 3);
             gDPPipeSync(OVERLAY_DISP++);
             gDPSetCombineLERP(OVERLAY_DISP++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0,
                               PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
-            Interface_DrawAmmoCount(play, 3, interfaceCtx->cRightAlpha);
+            OoT_Interface_DrawAmmoCount(play, 3, interfaceCtx->cRightAlpha);
         }
 
         if (CVarGetInteger(CVAR_ENHANCEMENT("DpadEquips"), 0) != 0) {
@@ -5622,44 +5622,44 @@ void Interface_Draw(PlayState* play) {
             if (gSaveContext.equips.buttonItems[4] < 0xF0) {
                 gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 255, interfaceCtx->dpadUpAlpha);
                 gDPSetCombineMode(OVERLAY_DISP++, G_CC_MODULATERGBA_PRIM, G_CC_MODULATERGBA_PRIM);
-                Interface_DrawItemIconTexture(play, gItemIcons[gSaveContext.equips.buttonItems[4]], 4);
+                OoT_Interface_DrawItemIconTexture(play, OoT_gItemIcons[gSaveContext.equips.buttonItems[4]], 4);
                 gDPPipeSync(OVERLAY_DISP++);
                 gDPSetCombineLERP(OVERLAY_DISP++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0,
                                   PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
-                Interface_DrawAmmoCount(play, 4, interfaceCtx->dpadUpAlpha);
+                OoT_Interface_DrawAmmoCount(play, 4, interfaceCtx->dpadUpAlpha);
             }
 
             // DPad-Down Button Icon & Ammo Count
             if (gSaveContext.equips.buttonItems[5] < 0xF0) {
                 gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 255, interfaceCtx->dpadDownAlpha);
                 gDPSetCombineMode(OVERLAY_DISP++, G_CC_MODULATERGBA_PRIM, G_CC_MODULATERGBA_PRIM);
-                Interface_DrawItemIconTexture(play, gItemIcons[gSaveContext.equips.buttonItems[5]], 5);
+                OoT_Interface_DrawItemIconTexture(play, OoT_gItemIcons[gSaveContext.equips.buttonItems[5]], 5);
                 gDPPipeSync(OVERLAY_DISP++);
                 gDPSetCombineLERP(OVERLAY_DISP++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0,
                                   PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
-                Interface_DrawAmmoCount(play, 5, interfaceCtx->dpadDownAlpha);
+                OoT_Interface_DrawAmmoCount(play, 5, interfaceCtx->dpadDownAlpha);
             }
 
             // DPad-Left Button Icon & Ammo Count
             if (gSaveContext.equips.buttonItems[6] < 0xF0) {
                 gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 255, interfaceCtx->dpadLeftAlpha);
                 gDPSetCombineMode(OVERLAY_DISP++, G_CC_MODULATERGBA_PRIM, G_CC_MODULATERGBA_PRIM);
-                Interface_DrawItemIconTexture(play, gItemIcons[gSaveContext.equips.buttonItems[6]], 6);
+                OoT_Interface_DrawItemIconTexture(play, OoT_gItemIcons[gSaveContext.equips.buttonItems[6]], 6);
                 gDPPipeSync(OVERLAY_DISP++);
                 gDPSetCombineLERP(OVERLAY_DISP++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0,
                                   PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
-                Interface_DrawAmmoCount(play, 6, interfaceCtx->dpadLeftAlpha);
+                OoT_Interface_DrawAmmoCount(play, 6, interfaceCtx->dpadLeftAlpha);
             }
 
             // DPad-Right Button Icon & Ammo Count
             if (gSaveContext.equips.buttonItems[7] < 0xF0) {
                 gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 255, interfaceCtx->dpadRightAlpha);
                 gDPSetCombineMode(OVERLAY_DISP++, G_CC_MODULATERGBA_PRIM, G_CC_MODULATERGBA_PRIM);
-                Interface_DrawItemIconTexture(play, gItemIcons[gSaveContext.equips.buttonItems[7]], 7);
+                OoT_Interface_DrawItemIconTexture(play, OoT_gItemIcons[gSaveContext.equips.buttonItems[7]], 7);
                 gDPPipeSync(OVERLAY_DISP++);
                 gDPSetCombineLERP(OVERLAY_DISP++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0,
                                   PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
-                Interface_DrawAmmoCount(play, 7, interfaceCtx->dpadRightAlpha);
+                OoT_Interface_DrawAmmoCount(play, 7, interfaceCtx->dpadRightAlpha);
             }
         }
 
@@ -5726,8 +5726,8 @@ void Interface_Draw(PlayState* play) {
                           PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
         gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 255, interfaceCtx->aAlpha);
         gDPSetEnvColor(OVERLAY_DISP++, 0, 0, 0, 0);
-        Matrix_Translate(-138.0f + rAIconX, rAIconY, WREG(46 + languageOffset) / 10.0f, MTXMODE_NEW);
-        Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
+        OoT_Matrix_Translate(-138.0f + rAIconX, rAIconY, WREG(46 + languageOffset) / 10.0f, MTXMODE_NEW);
+        OoT_Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
         Matrix_RotateX(interfaceCtx->unk_1F4 / 10000.0f, MTXMODE_APPLY);
         gSPMatrix(OVERLAY_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
         gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[4], 4, 0);
@@ -5762,7 +5762,7 @@ void Interface_Draw(PlayState* play) {
                 gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 255, pauseCtx->equipAnimAlpha);
                 gSPVertex(OVERLAY_DISP++, &pauseCtx->cursorVtx[16], 4, 0);
 
-                gDPLoadTextureBlock(OVERLAY_DISP++, gItemIcons[pauseCtx->equipTargetItem], G_IM_FMT_RGBA, G_IM_SIZ_32b,
+                gDPLoadTextureBlock(OVERLAY_DISP++, OoT_gItemIcons[pauseCtx->equipTargetItem], G_IM_FMT_RGBA, G_IM_SIZ_32b,
                                     32, 32, 0, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK,
                                     G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
             } else {
@@ -5908,7 +5908,7 @@ void Interface_Draw(PlayState* play) {
         }
 
         if ((gSaveContext.subTimerState == SUBTIMER_STATE_RESPAWN) &&
-            (Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT)) {
+            (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT)) {
             // Trade quest timer reached 0
             sSubTimerStateTimer = 40;
             gSaveContext.cutsceneIndex = 0;
@@ -5952,8 +5952,8 @@ void Interface_Draw(PlayState* play) {
             (play->gameOverCtx.state == GAMEOVER_INACTIVE) && (msgCtx->msgMode == MSGMODE_NONE) &&
             !(player->stateFlags2 & PLAYER_STATE2_ATTEMPT_PLAY_FOR_ACTOR) &&
             (play->transitionTrigger == TRANS_TRIGGER_OFF) && (play->transitionMode == TRANS_MODE_OFF) &&
-            !Play_InCsMode(play) && (gSaveContext.minigameState != 1) && (play->shootingGalleryStatus <= 1) &&
-            !((play->sceneNum == SCENE_BOMBCHU_BOWLING_ALLEY) && Flags_GetSwitch(play, 0x38))) {
+            !OoT_Play_InCsMode(play) && (gSaveContext.minigameState != 1) && (play->shootingGalleryStatus <= 1) &&
+            !((play->sceneNum == SCENE_BOMBCHU_BOWLING_ALLEY) && OoT_Flags_GetSwitch(play, 0x38))) {
             timerId = TIMER_ID_MAIN;
             switch (gSaveContext.timerState) {
                 case TIMER_STATE_ENV_HAZARD_INIT:
@@ -6049,20 +6049,20 @@ void Interface_Draw(PlayState* play) {
                                 sEnvHazardActive = false;
                             } else if (gSaveContext.timerSeconds > 60) {
                                 if (timerDigits[4] == 1) {
-                                    Audio_PlaySoundGeneral(NA_SE_SY_MESSAGE_WOMAN, &gSfxDefaultPos, 4,
-                                                           &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale,
-                                                           &gSfxDefaultReverb);
+                                    Audio_PlaySoundGeneral(NA_SE_SY_MESSAGE_WOMAN, &OoT_gSfxDefaultPos, 4,
+                                                           &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale,
+                                                           &OoT_gSfxDefaultReverb);
                                 }
                             } else if (gSaveContext.timerSeconds >= 11) {
                                 if (timerDigits[4] & 1) {
-                                    Audio_PlaySoundGeneral(NA_SE_SY_WARNING_COUNT_N, &gSfxDefaultPos, 4,
-                                                           &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale,
-                                                           &gSfxDefaultReverb);
+                                    Audio_PlaySoundGeneral(NA_SE_SY_WARNING_COUNT_N, &OoT_gSfxDefaultPos, 4,
+                                                           &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale,
+                                                           &OoT_gSfxDefaultReverb);
                                 }
                             } else {
-                                Audio_PlaySoundGeneral(NA_SE_SY_WARNING_COUNT_E, &gSfxDefaultPos, 4,
-                                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale,
-                                                       &gSfxDefaultReverb);
+                                Audio_PlaySoundGeneral(NA_SE_SY_WARNING_COUNT_E, &OoT_gSfxDefaultPos, 4,
+                                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale,
+                                                       &OoT_gSfxDefaultReverb);
                             }
                         }
                     }
@@ -6109,9 +6109,9 @@ void Interface_Draw(PlayState* play) {
                                 sTimerStateTimer = 40;
                                 gSaveContext.timerState = TIMER_STATE_UP_FREEZE;
                             } else {
-                                Audio_PlaySoundGeneral(NA_SE_SY_WARNING_COUNT_N, &gSfxDefaultPos, 4,
-                                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale,
-                                                       &gSfxDefaultReverb);
+                                Audio_PlaySoundGeneral(NA_SE_SY_WARNING_COUNT_N, &OoT_gSfxDefaultPos, 4,
+                                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale,
+                                                       &OoT_gSfxDefaultReverb);
                             }
                         }
                     }
@@ -6213,7 +6213,7 @@ void Interface_Draw(PlayState* play) {
                                         osSyncPrintf("TOTAL_EVENT_TM=%d\n", gSaveContext.subTimerSeconds);
 
                                         if (gSaveContext.subTimerSeconds <= 0) {
-                                            if (!Flags_GetSwitch(play, 0x37) ||
+                                            if (!OoT_Flags_GetSwitch(play, 0x37) ||
                                                 ((play->sceneNum != SCENE_GANON_BOSS) &&
                                                  (play->sceneNum != SCENE_GANONS_TOWER_COLLAPSE_EXTERIOR) &&
                                                  (play->sceneNum != SCENE_GANONS_TOWER_COLLAPSE_INTERIOR) &&
@@ -6221,34 +6221,34 @@ void Interface_Draw(PlayState* play) {
                                                 sSubTimerStateTimer = 40;
                                                 gSaveContext.subTimerState = SUBTIMER_STATE_RESPAWN;
                                                 gSaveContext.cutsceneIndex = 0;
-                                                Message_StartTextbox(play, 0x71B0, NULL);
-                                                Player_SetCsActionWithHaltedActors(play, NULL, 8);
+                                                OoT_Message_StartTextbox(play, 0x71B0, NULL);
+                                                OoT_Player_SetCsActionWithHaltedActors(play, NULL, 8);
                                             } else {
                                                 sSubTimerStateTimer = 40;
                                                 gSaveContext.subTimerState = SUBTIMER_STATE_STOP;
                                             }
                                         } else if (gSaveContext.subTimerSeconds > 60) {
                                             if (timerDigits[4] == 1) {
-                                                Audio_PlaySoundGeneral(NA_SE_SY_MESSAGE_WOMAN, &gSfxDefaultPos, 4,
-                                                                       &gSfxDefaultFreqAndVolScale,
-                                                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                                                Audio_PlaySoundGeneral(NA_SE_SY_MESSAGE_WOMAN, &OoT_gSfxDefaultPos, 4,
+                                                                       &OoT_gSfxDefaultFreqAndVolScale,
+                                                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                                             }
                                         } else if (gSaveContext.subTimerSeconds > 10) {
                                             if ((timerDigits[4] & 1)) {
-                                                Audio_PlaySoundGeneral(NA_SE_SY_WARNING_COUNT_N, &gSfxDefaultPos, 4,
-                                                                       &gSfxDefaultFreqAndVolScale,
-                                                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                                                Audio_PlaySoundGeneral(NA_SE_SY_WARNING_COUNT_N, &OoT_gSfxDefaultPos, 4,
+                                                                       &OoT_gSfxDefaultFreqAndVolScale,
+                                                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                                             }
                                         } else {
-                                            Audio_PlaySoundGeneral(NA_SE_SY_WARNING_COUNT_E, &gSfxDefaultPos, 4,
-                                                                   &gSfxDefaultFreqAndVolScale,
-                                                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                                            Audio_PlaySoundGeneral(NA_SE_SY_WARNING_COUNT_E, &OoT_gSfxDefaultPos, 4,
+                                                                   &OoT_gSfxDefaultFreqAndVolScale,
+                                                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                                         }
                                     } else {
                                         gSaveContext.subTimerSeconds++;
                                         if (gSaveContext.eventInf[1] & 1) {
                                             if (gSaveContext.subTimerSeconds == 240) {
-                                                Message_StartTextbox(play, 0x6083, NULL);
+                                                OoT_Message_StartTextbox(play, 0x6083, NULL);
                                                 gSaveContext.eventInf[1] &= ~1;
                                                 gSaveContext.subTimerState = SUBTIMER_STATE_OFF;
                                             }
@@ -6256,9 +6256,9 @@ void Interface_Draw(PlayState* play) {
                                     }
 
                                     if ((gSaveContext.subTimerSeconds % 60) == 0) {
-                                        Audio_PlaySoundGeneral(NA_SE_SY_WARNING_COUNT_N, &gSfxDefaultPos, 4,
-                                                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale,
-                                                               &gSfxDefaultReverb);
+                                        Audio_PlaySoundGeneral(NA_SE_SY_WARNING_COUNT_N, &OoT_gSfxDefaultPos, 4,
+                                                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale,
+                                                               &OoT_gSfxDefaultReverb);
                                     }
                                 }
                             }
@@ -6370,14 +6370,14 @@ void Interface_Draw(PlayState* play) {
     }
 
     if (pauseCtx->debugState == 3) {
-        FlagSet_Update(play);
+        OoT_FlagSet_Update(play);
     }
 
     if (interfaceCtx->unk_244 != 0) {
         gDPPipeSync(OVERLAY_DISP++);
         gSPDisplayList(OVERLAY_DISP++, sSetupDL_80125A60);
         gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 0, 0, 0, interfaceCtx->unk_244);
-        gDPFillRectangle(OVERLAY_DISP++, 0, 0, gScreenWidth - 1, gScreenHeight - 1);
+        gDPFillRectangle(OVERLAY_DISP++, 0, 0, OoT_gScreenWidth - 1, OoT_gScreenHeight - 1);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -6490,7 +6490,7 @@ void Interface_DrawTotalGameplayTimer(PlayState* play) {
     }
 }
 
-void Interface_Update(PlayState* play) {
+void OoT_Interface_Update(PlayState* play) {
     static u8 D_80125B60 = 0;
     static s16 sPrevTimeIncrement = 0;
     MessageContext* msgCtx = &play->msgCtx;
@@ -6637,15 +6637,15 @@ void Interface_Update(PlayState* play) {
             break;
     }
 
-    Map_Update(play);
+    OoT_Map_Update(play);
 
     if (gSaveContext.healthAccumulator != 0) {
         gSaveContext.healthAccumulator -= 4;
         gSaveContext.health += 4;
 
         if ((gSaveContext.health & 0xF) < 4) {
-            Audio_PlaySoundGeneral(NA_SE_SY_HP_RECOVER, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_HP_RECOVER, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         }
 
         osSyncPrintf("now_life=%d  max_life=%d\n", gSaveContext.health, gSaveContext.healthCapacity);
@@ -6659,17 +6659,17 @@ void Interface_Update(PlayState* play) {
     }
 
     HealthMeter_HandleCriticalAlarm(play);
-    sEnvHazard = Player_GetEnvironmentalHazard(play);
+    OoT_sEnvHazard = OoT_Player_GetEnvironmentalHazard(play);
 
-    if (sEnvHazard == PLAYER_ENV_HAZARD_HOTROOM) {
+    if (OoT_sEnvHazard == PLAYER_ENV_HAZARD_HOTROOM) {
         if (CUR_EQUIP_VALUE(EQUIP_TYPE_TUNIC) == EQUIP_VALUE_TUNIC_GORON ||
             CVarGetInteger(CVAR_CHEAT("SuperTunic"), 0) != 0) {
-            sEnvHazard = PLAYER_ENV_HAZARD_NONE;
+            OoT_sEnvHazard = PLAYER_ENV_HAZARD_NONE;
         }
-    } else if ((Player_GetEnvironmentalHazard(play) >= 2) && (Player_GetEnvironmentalHazard(play) < 5)) {
+    } else if ((OoT_Player_GetEnvironmentalHazard(play) >= 2) && (OoT_Player_GetEnvironmentalHazard(play) < 5)) {
         if (CUR_EQUIP_VALUE(EQUIP_TYPE_TUNIC) == EQUIP_VALUE_TUNIC_ZORA ||
             CVarGetInteger(CVAR_CHEAT("SuperTunic"), 0) != 0) {
-            sEnvHazard = PLAYER_ENV_HAZARD_NONE;
+            OoT_sEnvHazard = PLAYER_ENV_HAZARD_NONE;
         }
     }
 
@@ -6679,15 +6679,15 @@ void Interface_Update(PlayState* play) {
         (play->pauseCtx.debugState == 0) && (msgCtx->msgMode == MSGMODE_NONE) &&
         !(player->stateFlags2 & PLAYER_STATE2_ATTEMPT_PLAY_FOR_ACTOR) &&
         (play->transitionTrigger == TRANS_TRIGGER_OFF) && (play->transitionMode == TRANS_MODE_OFF) &&
-        !Play_InCsMode(play)) {}
+        !OoT_Play_InCsMode(play)) {}
 
     if (gSaveContext.rupeeAccumulator != 0) {
         if (gSaveContext.rupeeAccumulator > 0) {
             if (gSaveContext.rupees < CUR_CAPACITY(UPG_WALLET)) {
                 gSaveContext.rupeeAccumulator--;
                 gSaveContext.rupees++;
-                Audio_PlaySoundGeneral(NA_SE_SY_RUPY_COUNT, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_SY_RUPY_COUNT, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             } else {
                 // "Rupee Amount MAX = %d"
                 osSyncPrintf("ルピー数ＭＡＸ = %d\n", CUR_CAPACITY(UPG_WALLET));
@@ -6703,13 +6703,13 @@ void Interface_Update(PlayState* play) {
                     gSaveContext.rupees = 0;
                 }
 
-                Audio_PlaySoundGeneral(NA_SE_SY_RUPY_COUNT, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_SY_RUPY_COUNT, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             } else {
                 gSaveContext.rupeeAccumulator++;
                 gSaveContext.rupees--;
-                Audio_PlaySoundGeneral(NA_SE_SY_RUPY_COUNT, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_SY_RUPY_COUNT, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             }
         } else {
             gSaveContext.rupeeAccumulator = 0;
@@ -6782,7 +6782,7 @@ void Interface_Update(PlayState* play) {
 
     if ((play->pauseCtx.state == 0) && (play->pauseCtx.debugState == 0) && (msgCtx->msgMode == MSGMODE_NONE) &&
         (play->transitionTrigger == TRANS_TRIGGER_OFF) && (play->gameOverCtx.state == GAMEOVER_INACTIVE) &&
-        (play->transitionMode == TRANS_MODE_OFF) && ((play->csCtx.state == CS_STATE_IDLE) || !Player_InCsMode(play))) {
+        (play->transitionMode == TRANS_MODE_OFF) && ((play->csCtx.state == CS_STATE_IDLE) || !OoT_Player_InCsMode(play))) {
         if ((gSaveContext.isMagicAcquired != 0) && (gSaveContext.magicLevel == 0)) {
             gSaveContext.magicLevel = gSaveContext.isDoubleMagicAcquired + 1;
             gSaveContext.magicState = MAGIC_STATE_STEP_CAPACITY;
@@ -6799,8 +6799,8 @@ void Interface_Update(PlayState* play) {
     }
 
     if (gSaveContext.timerState == TIMER_STATE_OFF) {
-        if (((sEnvHazard == PLAYER_ENV_HAZARD_HOTROOM) || (sEnvHazard == PLAYER_ENV_HAZARD_UNDERWATER_FLOOR) ||
-             (sEnvHazard == PLAYER_ENV_HAZARD_UNDERWATER_FREE)) &&
+        if (((OoT_sEnvHazard == PLAYER_ENV_HAZARD_HOTROOM) || (OoT_sEnvHazard == PLAYER_ENV_HAZARD_UNDERWATER_FLOOR) ||
+             (OoT_sEnvHazard == PLAYER_ENV_HAZARD_UNDERWATER_FREE)) &&
             ((gSaveContext.health >> 1) != 0)) {
             gSaveContext.timerState = TIMER_STATE_ENV_HAZARD_INIT;
             gSaveContext.timerX[TIMER_ID_MAIN] = 140;
@@ -6808,7 +6808,7 @@ void Interface_Update(PlayState* play) {
             sEnvHazardActive = true;
         }
     } else {
-        if (((sEnvHazard == PLAYER_ENV_HAZARD_NONE) || (sEnvHazard == PLAYER_ENV_HAZARD_SWIMMING)) &&
+        if (((OoT_sEnvHazard == PLAYER_ENV_HAZARD_NONE) || (OoT_sEnvHazard == PLAYER_ENV_HAZARD_SWIMMING)) &&
             (gSaveContext.timerState <= TIMER_STATE_ENV_HAZARD_TICK)) {
             gSaveContext.timerState = TIMER_STATE_OFF;
         }
@@ -6818,13 +6818,13 @@ void Interface_Update(PlayState* play) {
         gSaveContext.minigameScore += interfaceCtx->unk_23C;
         interfaceCtx->unk_23C = 0;
 
-        if (sHBAScoreTier == 0) {
+        if (OoT_sHBAScoreTier == 0) {
             if (gSaveContext.minigameScore >= 1000) {
-                sHBAScoreTier++;
+                OoT_sHBAScoreTier++;
             }
-        } else if (sHBAScoreTier == 1) {
+        } else if (OoT_sHBAScoreTier == 1) {
             if (gSaveContext.minigameScore >= 1500) {
-                sHBAScoreTier++;
+                OoT_sHBAScoreTier++;
             }
         }
 
@@ -6920,8 +6920,8 @@ void Interface_DrawTextCharacter(GraphicsContext* gfx, int16_t x, int16_t y, voi
                                  uint8_t textShadow) {
 
     int32_t scale = R_TEXT_CHAR_SCALE * textScale;
-    int32_t sCharTexSize = (scale / 100.0f) * 16.0f;
-    int32_t sCharTexScale = 1024.0f / (scale / 100.0f);
+    int32_t OoT_sCharTexSize = (scale / 100.0f) * 16.0f;
+    int32_t OoT_sCharTexScale = 1024.0f / (scale / 100.0f);
 
     OPEN_DISPS(gfx);
 
@@ -6935,17 +6935,17 @@ void Interface_DrawTextCharacter(GraphicsContext* gfx, int16_t x, int16_t y, voi
         // Draw drop shadow
         gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 0, 0, 0, colorA);
         gSPTextureRectangle(POLY_OPA_DISP++, (x + R_TEXT_DROP_SHADOW_OFFSET) << 2, (y + R_TEXT_DROP_SHADOW_OFFSET) << 2,
-                            (x + R_TEXT_DROP_SHADOW_OFFSET + sCharTexSize) << 2,
-                            (y + R_TEXT_DROP_SHADOW_OFFSET + sCharTexSize) << 2, G_TX_RENDERTILE, 0, 0, sCharTexScale,
-                            sCharTexScale);
+                            (x + R_TEXT_DROP_SHADOW_OFFSET + OoT_sCharTexSize) << 2,
+                            (y + R_TEXT_DROP_SHADOW_OFFSET + OoT_sCharTexSize) << 2, G_TX_RENDERTILE, 0, 0, OoT_sCharTexScale,
+                            OoT_sCharTexScale);
     }
 
     gDPPipeSync(POLY_OPA_DISP++);
 
     // Draw normal text
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, colorR, colorG, colorB, colorA);
-    gSPTextureRectangle(POLY_OPA_DISP++, x << 2, y << 2, (x + sCharTexSize) << 2, (y + sCharTexSize) << 2,
-                        G_TX_RENDERTILE, 0, 0, sCharTexScale, sCharTexScale);
+    gSPTextureRectangle(POLY_OPA_DISP++, x << 2, y << 2, (x + OoT_sCharTexSize) << 2, (y + OoT_sCharTexSize) << 2,
+                        G_TX_RENDERTILE, 0, 0, OoT_sCharTexScale, OoT_sCharTexScale);
 
     CLOSE_DISPS(gfx);
 }

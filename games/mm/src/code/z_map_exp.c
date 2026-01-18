@@ -174,7 +174,7 @@ void Map_SetAreaEntrypoint(PlayState* play) {
     sPlayerInitDir = (0x7FFF - player->actor.shape.rot.y) / 0x400;
 }
 
-void Map_InitRoomData(PlayState* play, s16 room) {
+void MM_Map_InitRoomData(PlayState* play, s16 room) {
     s32 mapIndex = gSaveContext.mapIndex;
     InterfaceContext* interfaceCtx = &play->interfaceCtx;
 
@@ -195,11 +195,11 @@ void Map_InitRoomData(PlayState* play, s16 room) {
     }
 }
 
-void Map_Destroy(PlayState* play) {
+void MM_Map_Destroy(PlayState* play) {
     MapDisp_Destroy(play);
 }
 
-void Map_Init(PlayState* play) {
+void MM_Map_Init(PlayState* play) {
     InterfaceContext* interfaceCtx = &play->interfaceCtx;
     s32 dungeonSceneSharedIndex;
 
@@ -236,7 +236,7 @@ void Map_Init(PlayState* play) {
         }
 
         gSaveContext.dungeonSceneSharedIndex = dungeonSceneSharedIndex;
-        Map_InitRoomData(play, play->roomCtx.curRoom.num);
+        MM_Map_InitRoomData(play, play->roomCtx.curRoom.num);
     }
 }
 
@@ -246,7 +246,7 @@ void Map_DrawMinimap(PlayState* play) {
 
 s16 sLastRoomNum = 99;
 
-void Map_Update(PlayState* play) {
+void MM_Map_Update(PlayState* play) {
     InterfaceContext* interfaceCtx = &play->interfaceCtx;
     Player* player = GET_PLAYER(play);
     Input* controller = CONTROLLER1(&play->state);
@@ -255,7 +255,7 @@ void Map_Update(PlayState* play) {
     s32 pad2;
 
     if ((play->pauseCtx.state <= PAUSE_STATE_OPENING_2) && (CHECK_BTN_ALL(controller->press.button, BTN_L)) &&
-        !Play_InCsMode(play) && !MapDisp_IsMinimapToggleBlocked(play)) {
+        !MM_Play_InCsMode(play) && !MapDisp_IsMinimapToggleBlocked(play)) {
         if (GameInteractor_Should(VB_MINIMAP_TOGGLE, true)) {
             if (!R_MINIMAP_DISABLED) {
                 Audio_PlaySfx(NA_SE_SY_CAMERA_ZOOM_UP);

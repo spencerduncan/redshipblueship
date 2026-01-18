@@ -3,7 +3,7 @@
 #include "soh/SaveManager.h"
 
 // when choosing a file to copy or erase, the 6 main menu buttons are placed at these offsets
-static s16 sChooseFileYOffsets[] = { -48, -48, -48, -24, -24, 0 };
+static s16 OoT_sChooseFileYOffsets[] = { -48, -48, -48, -24, -24, 0 };
 
 static s16 D_8081248C[3][3] = {
     { 0, -48, -48 },
@@ -11,7 +11,7 @@ static s16 D_8081248C[3][3] = {
     { -64, -64, 32 },
 };
 
-static s16 sEraseDelayTimer = 15;
+static s16 OoT_sEraseDelayTimer = 15;
 
 /**
  * Move buttons into place for the select source screen and fade in the proper labels.
@@ -23,9 +23,9 @@ void FileChoose_SetupCopySource(GameState* thisx) {
     s16 i;
 
     for (i = 0; i < 5; i++) {
-        yStep = (ABS(this->buttonYOffsets[i] - sChooseFileYOffsets[i])) / this->actionTimer;
+        yStep = (ABS(this->buttonYOffsets[i] - OoT_sChooseFileYOffsets[i])) / this->actionTimer;
 
-        if (this->buttonYOffsets[i] >= sChooseFileYOffsets[i]) {
+        if (this->buttonYOffsets[i] >= OoT_sChooseFileYOffsets[i]) {
             this->buttonYOffsets[i] -= yStep;
         } else {
             this->buttonYOffsets[i] += yStep;
@@ -74,24 +74,24 @@ void FileChoose_SelectCopySource(GameState* thisx) {
         this->nextTitleLabel = FS_TITLE_SELECT_FILE;
         this->configMode = CM_COPY_RETURN_MAIN;
         this->warningLabel = FS_WARNING_NONE;
-        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CLOSE, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CLOSE, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     } else if (CHECK_BTN_ANY(input->press.button, BTN_A | BTN_START)) {
         if (Save_GetSaveMetaInfo(this->buttonIndex)->valid) {
             this->actionTimer = 8;
             this->selectedFileIndex = this->buttonIndex;
             this->configMode = CM_SETUP_COPY_DEST_1;
             this->nextTitleLabel = FS_TITLE_COPY_TO;
-            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         } else {
-            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_ERROR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_ERROR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         }
     } else {
         if ((ABS(this->stickRelY) >= 30) || (dpad && CHECK_BTN_ANY(input->press.button, BTN_DDOWN | BTN_DUP))) {
-            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CURSOR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CURSOR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
 
             if ((this->stickRelY >= 30) || (dpad && CHECK_BTN_ALL(input->press.button, BTN_DUP))) {
                 this->buttonIndex--;
@@ -194,25 +194,25 @@ void FileChoose_SelectCopyDest(GameState* thisx) {
         this->nextTitleLabel = FS_TITLE_COPY_FROM;
         this->actionTimer = 8;
         this->configMode = CM_EXIT_TO_COPY_SOURCE_1;
-        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CLOSE, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CLOSE, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     } else if (CHECK_BTN_ANY(input->press.button, BTN_A | BTN_START)) {
         if (!Save_GetSaveMetaInfo(this->buttonIndex)->valid) {
             this->copyDestFileIndex = this->buttonIndex;
             this->nextTitleLabel = FS_TITLE_COPY_CONFIRM;
             this->actionTimer = 8;
             this->configMode = CM_SETUP_COPY_CONFIRM_1;
-            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         } else {
-            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_ERROR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_ERROR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         }
     } else {
 
         if ((ABS(this->stickRelY) >= 30) || (dpad && CHECK_BTN_ANY(input->press.button, BTN_DDOWN | BTN_DUP))) {
-            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CURSOR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CURSOR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
 
             if ((this->stickRelY >= 30) || (dpad && CHECK_BTN_ALL(input->press.button, BTN_DUP))) {
                 this->buttonIndex--;
@@ -288,9 +288,9 @@ void FileChoose_ExitToCopySource2(GameState* thisx) {
     s16 yStep;
 
     for (i = 0; i < 3; i++) {
-        yStep = ABS(this->buttonYOffsets[i] - sChooseFileYOffsets[i]) / this->actionTimer;
+        yStep = ABS(this->buttonYOffsets[i] - OoT_sChooseFileYOffsets[i]) / this->actionTimer;
 
-        if (this->buttonYOffsets[i] >= sChooseFileYOffsets[i]) {
+        if (this->buttonYOffsets[i] >= OoT_sChooseFileYOffsets[i]) {
             this->buttonYOffsets[i] -= yStep;
         } else {
             this->buttonYOffsets[i] += yStep;
@@ -386,8 +386,8 @@ void FileChoose_CopyConfirm(GameState* thisx) {
         this->actionTimer = 8;
         this->nextTitleLabel = FS_TITLE_COPY_TO;
         this->configMode = CM_RETURN_TO_COPY_DEST;
-        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CLOSE, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CLOSE, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     } else if (CHECK_BTN_ANY(input->press.button, BTN_A | BTN_START)) {
         dayTime = gSaveContext.dayTime;
         Save_CopyFile(this->selectedFileIndex, this->copyDestFileIndex);
@@ -397,11 +397,11 @@ void FileChoose_CopyConfirm(GameState* thisx) {
         this->actionTimer = 8;
         this->configMode = CM_COPY_ANIM_1;
         func_800AA000(300.0f, 0xB4, 0x14, 0x64);
-        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     } else if ((ABS(this->stickRelY) >= 30) || (dpad && CHECK_BTN_ANY(input->press.button, BTN_DDOWN | BTN_DUP))) {
-        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CURSOR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CURSOR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         this->buttonIndex ^= 1;
     }
 
@@ -516,8 +516,8 @@ void FileChoose_CopyAnim3(GameState* thisx) {
 
     if (this->actionTimer == 75) {
         this->connectorAlpha[this->copyDestFileIndex] = 255;
-        Audio_PlaySoundGeneral(NA_SE_EV_DIAMOND_SWITCH, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_EV_DIAMOND_SWITCH, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     }
 
     this->actionTimer--;
@@ -527,8 +527,8 @@ void FileChoose_CopyAnim3(GameState* thisx) {
             this->actionTimer = 8;
             this->nextTitleLabel = FS_TITLE_SELECT_FILE;
             this->configMode++;
-            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         }
     }
 }
@@ -664,9 +664,9 @@ void FileChoose_SetupEraseSelect(GameState* thisx) {
     s16 yStep;
 
     for (i = 0; i < 5; i++) {
-        yStep = ABS(this->buttonYOffsets[i] - sChooseFileYOffsets[i]) / this->actionTimer;
+        yStep = ABS(this->buttonYOffsets[i] - OoT_sChooseFileYOffsets[i]) / this->actionTimer;
 
-        if (this->buttonYOffsets[i] >= sChooseFileYOffsets[i]) {
+        if (this->buttonYOffsets[i] >= OoT_sChooseFileYOffsets[i]) {
             this->buttonYOffsets[i] -= yStep;
         } else {
             this->buttonYOffsets[i] += yStep;
@@ -718,24 +718,24 @@ void FileChoose_EraseSelect(GameState* thisx) {
         this->nextTitleLabel = FS_TITLE_SELECT_FILE;
         this->configMode = CM_EXIT_ERASE_TO_MAIN;
         this->warningLabel = FS_WARNING_NONE;
-        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CLOSE, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CLOSE, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     } else if (CHECK_BTN_ANY(input->press.button, BTN_A | BTN_START)) {
         if (Save_GetSaveMetaInfo(this->buttonIndex)->valid) {
             this->actionTimer = 8;
             this->selectedFileIndex = this->buttonIndex;
             this->configMode = CM_SETUP_ERASE_CONFIRM_1;
             this->nextTitleLabel = FS_TITLE_ERASE_CONFIRM;
-            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_DECIDE_L, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         } else {
-            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_ERROR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_ERROR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         }
     } else {
         if ((ABS(this->stickRelY) >= 30) || (dpad && CHECK_BTN_ANY(input->press.button, BTN_DDOWN | BTN_DUP))) {
-            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CURSOR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CURSOR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
 
             if ((this->stickRelY >= 30) || (dpad && CHECK_BTN_ALL(input->press.button, BTN_DUP))) {
                 this->buttonIndex--;
@@ -863,20 +863,20 @@ void FileChoose_EraseConfirm(GameState* thisx) {
         this->nextTitleLabel = FS_TITLE_ERASE_FILE;
         this->configMode = CM_EXIT_TO_ERASE_SELECT_1;
         this->actionTimer = 8;
-        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CLOSE, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CLOSE, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     } else if (CHECK_BTN_ANY(input->press.button, BTN_A | BTN_START)) {
         this->connectorAlpha[this->selectedFileIndex] = 0;
-        Audio_PlaySoundGeneral(NA_SE_EV_DIAMOND_SWITCH, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_EV_DIAMOND_SWITCH, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         this->actionTimer = 8;
         this->configMode = CM_ERASE_ANIM_1;
         this->nextTitleLabel = FS_TITLE_ERASE_COMPLETE;
         func_800AA000(200.0f, 0xFF, 0x14, 0x96);
-        sEraseDelayTimer = 15;
+        OoT_sEraseDelayTimer = 15;
     } else if ((ABS(this->stickRelY) >= 30) || (dpad && CHECK_BTN_ANY(input->press.button, BTN_DDOWN | BTN_DUP))) {
-        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CURSOR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CURSOR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         this->buttonIndex ^= 1;
     }
 
@@ -914,9 +914,9 @@ void FileChoose_ExitToEraseSelect2(GameState* thisx) {
     s16 i;
     s16 yStep;
 
-    yStep = ABS(this->buttonYOffsets[this->buttonIndex] - sChooseFileYOffsets[this->buttonIndex]) / this->actionTimer;
+    yStep = ABS(this->buttonYOffsets[this->buttonIndex] - OoT_sChooseFileYOffsets[this->buttonIndex]) / this->actionTimer;
 
-    if (this->buttonYOffsets[this->buttonIndex] >= sChooseFileYOffsets[this->buttonIndex]) {
+    if (this->buttonYOffsets[this->buttonIndex] >= OoT_sChooseFileYOffsets[this->buttonIndex]) {
         this->buttonYOffsets[this->buttonIndex] -= yStep;
     } else {
         this->buttonYOffsets[this->buttonIndex] += yStep;
@@ -938,7 +938,7 @@ void FileChoose_ExitToEraseSelect2(GameState* thisx) {
     this->actionTimer--;
 
     if (this->actionTimer == 0) {
-        this->buttonYOffsets[this->buttonIndex] = sChooseFileYOffsets[this->buttonIndex];
+        this->buttonYOffsets[this->buttonIndex] = OoT_sChooseFileYOffsets[this->buttonIndex];
         this->actionTimer = 8;
         this->buttonIndex = FS_BTN_ERASE_QUIT;
         this->titleLabel = this->nextTitleLabel;
@@ -957,7 +957,7 @@ void FileChoose_EraseAnim1(GameState* thisx) {
     static s16 D_80813800;
     FileChooseContext* this = (FileChooseContext*)thisx;
 
-    if (sEraseDelayTimer == 0) {
+    if (OoT_sEraseDelayTimer == 0) {
         if (this->actionTimer == 8) {
             D_80813800 = 1;
         }
@@ -989,11 +989,11 @@ void FileChoose_EraseAnim1(GameState* thisx) {
             this->actionTimer = 90;
         }
     } else {
-        sEraseDelayTimer--;
+        OoT_sEraseDelayTimer--;
 
-        if (sEraseDelayTimer == 0) {
-            Audio_PlaySoundGeneral(NA_SE_OC_ABYSS, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        if (OoT_sEraseDelayTimer == 0) {
+            Audio_PlaySoundGeneral(NA_SE_OC_ABYSS, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         }
     }
 }
@@ -1011,8 +1011,8 @@ void FileChoose_EraseAnim2(GameState* thisx) {
         this->actionTimer = 8;
         this->nextTitleLabel = FS_TITLE_SELECT_FILE;
         this->configMode++;
-        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CLOSE, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_SY_FSEL_CLOSE, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     }
 }
 

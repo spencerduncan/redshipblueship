@@ -8,13 +8,13 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void EnGirlA_Init(Actor* thisx, PlayState* play);
-void EnGirlA_Destroy(Actor* thisx, PlayState* play);
-void EnGirlA_Update(Actor* thisx, PlayState* play);
-void EnGirlA_Draw(Actor* thisx, PlayState* play);
+void MM_EnGirlA_Init(Actor* thisx, PlayState* play);
+void MM_EnGirlA_Destroy(Actor* thisx, PlayState* play);
+void MM_EnGirlA_Update(Actor* thisx, PlayState* play);
+void MM_EnGirlA_Draw(Actor* thisx, PlayState* play);
 
 void EnGirlA_InitialUpdate(EnGirlA* this, PlayState* play);
-void EnGirlA_Update2(EnGirlA* this, PlayState* play);
+void MM_EnGirlA_Update2(EnGirlA* this, PlayState* play);
 
 s32 EnGirlA_CanBuyPotionRed(PlayState* play, EnGirlA* this);
 s32 EnGirlA_CanBuyPotionGreen(PlayState* play, EnGirlA* this);
@@ -55,9 +55,9 @@ ActorProfile En_GirlA_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(EnGirlA),
-    /**/ EnGirlA_Init,
-    /**/ EnGirlA_Destroy,
-    /**/ EnGirlA_Update,
+    /**/ MM_EnGirlA_Init,
+    /**/ MM_EnGirlA_Destroy,
+    /**/ MM_EnGirlA_Update,
     /**/ NULL,
 };
 
@@ -150,7 +150,7 @@ static ShopItemEntry sShopItemEntries[] = {
       EnGirlA_CanBuyShieldMirror, EnGirlA_BuyShieldMirror, EnGirlA_BuyFanfare },
 };
 
-void EnGirlA_SetupAction(EnGirlA* this, EnGirlAActionFunc action) {
+void MM_EnGirlA_SetupAction(EnGirlA* this, EnGirlAActionFunc action) {
     this->actionFunc = action;
 }
 
@@ -159,13 +159,13 @@ void EnGirlA_InitObjIndex(EnGirlA* this, PlayState* play) {
 
     if ((params >= SI_MAX) && (params < SI_POTION_RED_1)) {
         //! @bug: Impossible to reach, && should be an ||
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
     this->objectSlot = Object_GetSlot(&play->objectCtx, sShopItemEntries[params].objectId);
     if (this->objectSlot <= OBJECT_SLOT_NONE) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -173,17 +173,17 @@ void EnGirlA_InitObjIndex(EnGirlA* this, PlayState* play) {
     this->mainActionFunc = EnGirlA_InitialUpdate;
 }
 
-void EnGirlA_Init(Actor* thisx, PlayState* play) {
+void MM_EnGirlA_Init(Actor* thisx, PlayState* play) {
     EnGirlA* this = (EnGirlA*)thisx;
 
     EnGirlA_InitObjIndex(this, play);
 }
 
-void EnGirlA_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnGirlA_Destroy(Actor* thisx, PlayState* play) {
 }
 
 s32 EnGirlA_CanBuyPotionRed(PlayState* play, EnGirlA* this) {
-    if (!Inventory_HasEmptyBottle()) {
+    if (!MM_Inventory_HasEmptyBottle()) {
         return CANBUY_RESULT_NEED_EMPTY_BOTTLE;
     }
     if (gSaveContext.save.saveInfo.playerData.rupees < play->msgCtx.unk1206C) {
@@ -193,7 +193,7 @@ s32 EnGirlA_CanBuyPotionRed(PlayState* play, EnGirlA* this) {
 }
 
 s32 EnGirlA_CanBuyPotionGreen(PlayState* play, EnGirlA* this) {
-    if (!Inventory_HasEmptyBottle()) {
+    if (!MM_Inventory_HasEmptyBottle()) {
         return CANBUY_RESULT_NEED_EMPTY_BOTTLE;
     }
     if (gSaveContext.save.saveInfo.playerData.rupees < play->msgCtx.unk1206C) {
@@ -206,7 +206,7 @@ s32 EnGirlA_CanBuyPotionBlue(PlayState* play, EnGirlA* this) {
     if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_GAVE_KOTAKE_MUSHROOM)) {
         return CANBUY_RESULT_CANNOT_GET_NOW;
     }
-    if (!Inventory_HasEmptyBottle()) {
+    if (!MM_Inventory_HasEmptyBottle()) {
         return CANBUY_RESULT_NEED_EMPTY_BOTTLE;
     }
     if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_FREE_BLUE_POTION)) {
@@ -238,7 +238,7 @@ s32 EnGirlA_CanBuyNuts(PlayState* play, EnGirlA* this) {
     if (gSaveContext.save.saveInfo.playerData.rupees < play->msgCtx.unk1206C) {
         return CANBUY_RESULT_NEED_RUPEES;
     }
-    if (Item_CheckObtainability(ITEM_DEKU_NUT) == ITEM_NONE) {
+    if (MM_Item_CheckObtainability(ITEM_DEKU_NUT) == ITEM_NONE) {
         return CANBUY_RESULT_SUCCESS_1;
     }
     return CANBUY_RESULT_SUCCESS_2;
@@ -261,7 +261,7 @@ s32 EnGirlA_CanBuyStick(PlayState* play, EnGirlA* this) {
     if (gSaveContext.save.saveInfo.playerData.rupees < play->msgCtx.unk1206C) {
         return CANBUY_RESULT_NEED_RUPEES;
     }
-    if (Item_CheckObtainability(ITEM_DEKU_STICK) == ITEM_NONE) {
+    if (MM_Item_CheckObtainability(ITEM_DEKU_STICK) == ITEM_NONE) {
         return CANBUY_RESULT_SUCCESS_1;
     }
     return CANBUY_RESULT_SUCCESS_2;
@@ -320,7 +320,7 @@ s32 EnGirlA_CanBuyBombchus(PlayState* play, EnGirlA* this) {
     if (gSaveContext.save.saveInfo.playerData.rupees < play->msgCtx.unk1206C) {
         return CANBUY_RESULT_NEED_RUPEES;
     }
-    if (Item_CheckObtainability(ITEM_BOMBCHU) == ITEM_NONE) {
+    if (MM_Item_CheckObtainability(ITEM_BOMBCHU) == ITEM_NONE) {
         return CANBUY_RESULT_SUCCESS_1;
     }
     return CANBUY_RESULT_SUCCESS_2;
@@ -364,7 +364,7 @@ s32 EnGirlA_CanBuyShieldMirror(PlayState* play, EnGirlA* this) {
 }
 
 s32 EnGirlA_CanBuyFairy(PlayState* play, EnGirlA* this) {
-    if (!Inventory_HasEmptyBottle()) {
+    if (!MM_Inventory_HasEmptyBottle()) {
         return CANBUY_RESULT_NEED_EMPTY_BOTTLE;
     }
     if (gSaveContext.save.saveInfo.playerData.rupees < play->msgCtx.unk1206C) {
@@ -381,166 +381,166 @@ void EnGirlA_BuyBottleItem(PlayState* play, EnGirlA* this) {
         case SI_POTION_RED_4:
         case SI_POTION_RED_5:
         case SI_POTION_RED_6:
-            Item_Give(play, ITEM_POTION_RED);
+            MM_Item_Give(play, ITEM_POTION_RED);
             break;
 
         case SI_POTION_GREEN_1:
         case SI_POTION_GREEN_2:
         case SI_POTION_GREEN_3:
-            Item_Give(play, ITEM_POTION_GREEN);
+            MM_Item_Give(play, ITEM_POTION_GREEN);
             break;
 
         case SI_POTION_BLUE:
-            Item_Give(play, ITEM_POTION_BLUE);
+            MM_Item_Give(play, ITEM_POTION_BLUE);
             break;
 
         case SI_FAIRY_1:
         case SI_FAIRY_2:
-            Item_Give(play, ITEM_FAIRY);
+            MM_Item_Give(play, ITEM_FAIRY);
             break;
 
         default:
             break;
     }
-    Rupees_ChangeBy(-play->msgCtx.unk1206C);
+    MM_Rupees_ChangeBy(-play->msgCtx.unk1206C);
 }
 
 void EnGirlA_BuyArrows(PlayState* play, EnGirlA* this) {
-    Inventory_ChangeAmmo(ITEM_BOW, this->itemParams);
-    Rupees_ChangeBy(-play->msgCtx.unk1206C);
+    MM_Inventory_ChangeAmmo(ITEM_BOW, this->itemParams);
+    MM_Rupees_ChangeBy(-play->msgCtx.unk1206C);
 }
 
 void EnGirlA_BuyNuts(PlayState* play, EnGirlA* this) {
     switch (this->itemParams) {
         case 5:
-            Item_Give(play, ITEM_DEKU_NUTS_5);
+            MM_Item_Give(play, ITEM_DEKU_NUTS_5);
             break;
 
         case 10:
-            Item_Give(play, ITEM_DEKU_NUTS_10);
+            MM_Item_Give(play, ITEM_DEKU_NUTS_10);
             break;
 
         default:
             break;
     }
-    Rupees_ChangeBy(-play->msgCtx.unk1206C);
+    MM_Rupees_ChangeBy(-play->msgCtx.unk1206C);
 }
 
 void EnGirlA_BuyShieldHero(PlayState* play, EnGirlA* this) {
-    Item_Give(play, ITEM_SHIELD_HERO);
-    Rupees_ChangeBy(-play->msgCtx.unk1206C);
+    MM_Item_Give(play, ITEM_SHIELD_HERO);
+    MM_Rupees_ChangeBy(-play->msgCtx.unk1206C);
 }
 
 void EnGirlA_BuyStick(PlayState* play, EnGirlA* this) {
-    Item_Give(play, ITEM_DEKU_STICK);
-    Rupees_ChangeBy(-play->msgCtx.unk1206C);
+    MM_Item_Give(play, ITEM_DEKU_STICK);
+    MM_Rupees_ChangeBy(-play->msgCtx.unk1206C);
 }
 
 void EnGirlA_BuyMaskAllNight(PlayState* play, EnGirlA* this) {
-    Item_Give(play, ITEM_MASK_ALL_NIGHT);
-    Rupees_ChangeBy(-play->msgCtx.unk1206C);
+    MM_Item_Give(play, ITEM_MASK_ALL_NIGHT);
+    MM_Rupees_ChangeBy(-play->msgCtx.unk1206C);
 }
 
 void EnGirlA_BuyBombBag(PlayState* play, EnGirlA* this) {
     //! @bug: Bomb Bag parameters in sShopItemEntries are 1 2 3, not 20 21 22
     switch (this->itemParams) {
         case 20:
-            Item_Give(play, ITEM_BOMB_BAG_20);
+            MM_Item_Give(play, ITEM_BOMB_BAG_20);
             break;
 
         case 21:
-            Item_Give(play, ITEM_BOMB_BAG_30);
+            MM_Item_Give(play, ITEM_BOMB_BAG_30);
             break;
 
         case 22:
-            Item_Give(play, ITEM_BOMB_BAG_40);
+            MM_Item_Give(play, ITEM_BOMB_BAG_40);
             break;
 
         default:
             break;
     }
-    Rupees_ChangeBy(-play->msgCtx.unk1206C);
+    MM_Rupees_ChangeBy(-play->msgCtx.unk1206C);
 }
 
 void EnGirlA_BuyBombchus(PlayState* play, EnGirlA* this) {
     if (this->itemParams == 10) {
-        Item_Give(play, ITEM_BOMBCHUS_10);
+        MM_Item_Give(play, ITEM_BOMBCHUS_10);
     }
-    Rupees_ChangeBy(-play->msgCtx.unk1206C);
+    MM_Rupees_ChangeBy(-play->msgCtx.unk1206C);
 }
 
 void EnGirlA_BuyBombs(PlayState* play, EnGirlA* this) {
     switch (this->itemParams) {
         case 5:
-            Item_Give(play, ITEM_BOMBS_5);
+            MM_Item_Give(play, ITEM_BOMBS_5);
             break;
 
         case 10:
-            Item_Give(play, ITEM_BOMBS_10);
+            MM_Item_Give(play, ITEM_BOMBS_10);
             break;
 
         case 20:
-            Item_Give(play, ITEM_BOMBS_20);
+            MM_Item_Give(play, ITEM_BOMBS_20);
             break;
 
         case 30:
-            Item_Give(play, ITEM_BOMBS_30);
+            MM_Item_Give(play, ITEM_BOMBS_30);
             break;
 
         default:
             break;
     }
-    Rupees_ChangeBy(-play->msgCtx.unk1206C);
+    MM_Rupees_ChangeBy(-play->msgCtx.unk1206C);
 }
 
 void EnGirlA_BuyBottle(PlayState* play, EnGirlA* this) {
-    Item_Give(play, ITEM_BOTTLE);
-    Rupees_ChangeBy(-play->msgCtx.unk1206C);
+    MM_Item_Give(play, ITEM_BOTTLE);
+    MM_Rupees_ChangeBy(-play->msgCtx.unk1206C);
 }
 
 void EnGirlA_BuySword(PlayState* play, EnGirlA* this) {
     switch (this->itemParams) {
         case 1:
-            Item_Give(play, ITEM_SWORD_KOKIRI);
+            MM_Item_Give(play, ITEM_SWORD_KOKIRI);
             break;
 
         case 2:
-            Item_Give(play, ITEM_SWORD_RAZOR);
+            MM_Item_Give(play, ITEM_SWORD_RAZOR);
             break;
 
         case 3:
-            Item_Give(play, ITEM_SWORD_GILDED);
+            MM_Item_Give(play, ITEM_SWORD_GILDED);
             break;
 
         case 4:
-            Item_Give(play, ITEM_SWORD_GREAT_FAIRY);
+            MM_Item_Give(play, ITEM_SWORD_GREAT_FAIRY);
             break;
 
         default:
             break;
     }
-    Rupees_ChangeBy(-play->msgCtx.unk1206C);
+    MM_Rupees_ChangeBy(-play->msgCtx.unk1206C);
 }
 
 void EnGirlA_BuyShieldMirror(PlayState* play, EnGirlA* this) {
-    Item_Give(play, ITEM_SHIELD_MIRROR);
-    Rupees_ChangeBy(-play->msgCtx.unk1206C);
+    MM_Item_Give(play, ITEM_SHIELD_MIRROR);
+    MM_Rupees_ChangeBy(-play->msgCtx.unk1206C);
 }
 
 // Fanfare is handled by the shopkeeper
 void EnGirlA_BuyFanfare(PlayState* play, EnGirlA* this) {
-    Rupees_ChangeBy(-play->msgCtx.unk1206C);
+    MM_Rupees_ChangeBy(-play->msgCtx.unk1206C);
 }
 
 void EnGirlA_DoNothing(EnGirlA* this, PlayState* play) {
 }
 
-void EnGirlA_InitItem(PlayState* play, EnGirlA* this) {
+void MM_EnGirlA_InitItem(PlayState* play, EnGirlA* this) {
     ShopItemEntry* shopItem = &sShopItemEntries[this->actor.params];
 
     this->actor.textId = shopItem->descriptionTextId;
     this->isOutOfStock = false;
-    this->actor.draw = EnGirlA_Draw;
+    this->actor.draw = MM_EnGirlA_Draw;
 }
 
 void EnGirlA_Bought(PlayState* play, EnGirlA* this) {
@@ -550,11 +550,11 @@ void EnGirlA_Bought(PlayState* play, EnGirlA* this) {
 
 void EnGirlA_Restock(PlayState* play, EnGirlA* this) {
     this->isOutOfStock = false;
-    this->actor.draw = EnGirlA_Draw;
+    this->actor.draw = MM_EnGirlA_Draw;
 }
 
 // Left over from OOT
-s32 EnGirlA_TrySetMaskItemDescription(EnGirlA* this, PlayState* play) {
+s32 MM_EnGirlA_TrySetMaskItemDescription(EnGirlA* this, PlayState* play) {
     return false;
 }
 
@@ -562,15 +562,15 @@ void EnGirlA_InitialUpdate(EnGirlA* this, PlayState* play) {
     s16 params = this->actor.params;
     ShopItemEntry* shopItem = &sShopItemEntries[params];
 
-    if (Object_IsLoaded(&play->objectCtx, this->objectSlot)) {
+    if (MM_Object_IsLoaded(&play->objectCtx, this->objectSlot)) {
         this->actor.flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
         this->actor.objectSlot = this->objectSlot;
         this->actor.textId = shopItem->descriptionTextId;
         this->choiceTextId = shopItem->choiceTextId;
 
-        // EnGirlA_TrySetMaskItemDescription always returns false
-        if (!EnGirlA_TrySetMaskItemDescription(this, play)) {
-            EnGirlA_InitItem(play, this);
+        // MM_EnGirlA_TrySetMaskItemDescription always returns false
+        if (!MM_EnGirlA_TrySetMaskItemDescription(this, play)) {
+            MM_EnGirlA_InitItem(play, this);
         }
 
         this->boughtFunc = EnGirlA_Bought;
@@ -584,47 +584,47 @@ void EnGirlA_InitialUpdate(EnGirlA* this, PlayState* play) {
         this->drawFunc = shopItem->drawFunc;
         this->getItemDrawId = shopItem->getItemDrawId;
         this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
-        Actor_SetScale(&this->actor, 0.25f);
+        MM_Actor_SetScale(&this->actor, 0.25f);
         this->actor.shape.yOffset = 24.0f;
         this->actor.shape.shadowScale = 4.0f;
         this->actor.floorHeight = this->actor.home.pos.y;
         this->actor.gravity = 0.0f;
-        EnGirlA_SetupAction(this, EnGirlA_DoNothing);
+        MM_EnGirlA_SetupAction(this, EnGirlA_DoNothing);
         this->isInitialized = true;
-        this->mainActionFunc = EnGirlA_Update2;
+        this->mainActionFunc = MM_EnGirlA_Update2;
         this->isSelected = false;
         this->rotY = 0;
         this->initialRotY = this->actor.shape.rot.y;
     }
 }
 
-void EnGirlA_Update2(EnGirlA* this, PlayState* play) {
-    Actor_SetScale(&this->actor, 0.25f);
+void MM_EnGirlA_Update2(EnGirlA* this, PlayState* play) {
+    MM_Actor_SetScale(&this->actor, 0.25f);
     this->actor.shape.yOffset = 24.0f;
     this->actor.shape.shadowScale = 4.0f;
-    EnGirlA_TrySetMaskItemDescription(this, play);
+    MM_EnGirlA_TrySetMaskItemDescription(this, play);
     this->actionFunc(this, play);
-    Actor_SetFocus(&this->actor, 5.0f);
+    MM_Actor_SetFocus(&this->actor, 5.0f);
     this->actor.shape.rot.x = 0;
     if (this->isSelected) {
         this->rotY += 0x1F4;
     } else {
-        Math_SmoothStepToS(&this->rotY, 0, 0xA, 0x7D0, 0);
+        MM_Math_SmoothStepToS(&this->rotY, 0, 0xA, 0x7D0, 0);
     }
 }
 
-void EnGirlA_Update(Actor* thisx, PlayState* play) {
+void MM_EnGirlA_Update(Actor* thisx, PlayState* play) {
     EnGirlA* this = (EnGirlA*)thisx;
 
     this->mainActionFunc(this, play);
 }
 
-void EnGirlA_Draw(Actor* thisx, PlayState* play) {
+void MM_EnGirlA_Draw(Actor* thisx, PlayState* play) {
     EnGirlA* this = (EnGirlA*)thisx;
 
     Matrix_RotateYS(this->rotY, MTXMODE_APPLY);
     if (this->drawFunc != NULL) {
         this->drawFunc(&this->actor, play, 0);
     }
-    GetItem_Draw(play, this->getItemDrawId);
+    MM_GetItem_Draw(play, this->getItemDrawId);
 }

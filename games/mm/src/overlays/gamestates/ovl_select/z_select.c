@@ -23,10 +23,10 @@ void MapSelect_LoadConsoleLogo(MapSelectState* this, u32 entrance, s32 spawn) {
 
 void MapSelect_LoadGame(MapSelectState* this, u32 entrance, s32 spawn) {
     if (gSaveContext.fileNum == 0xFF) {
-        Sram_InitDebugSave();
+        MM_Sram_InitDebugSave();
 
         // #region 2S2H [Debug] Clear all flags when using debug file slot.
-        // This is mostly copied from Sram_OpenSave.
+        // This is mostly copied from MM_Sram_OpenSave.
         for (size_t i = 0; i < ARRAY_COUNT(gSaveContext.eventInf); i++) {
             gSaveContext.eventInf[i] = 0;
         }
@@ -93,14 +93,14 @@ void MapSelect_LoadGame(MapSelectState* this, u32 entrance, s32 spawn) {
     gSaveContext.respawn[RESPAWN_MODE_ZORA].entrance = 0xFF;
     gSaveContext.respawn[RESPAWN_MODE_DEKU].entrance = 0xFF;
     gSaveContext.respawn[RESPAWN_MODE_HUMAN].entrance = 0xFF;
-    gWeatherMode = WEATHER_MODE_CLEAR;
+    MM_gWeatherMode = WEATHER_MODE_CLEAR;
 
     STOP_GAMESTATE(&this->state);
-    SET_NEXT_GAMESTATE(&this->state, Play_Init, sizeof(PlayState));
+    SET_NEXT_GAMESTATE(&this->state, MM_Play_Init, sizeof(PlayState));
 }
 
 // "Translation" (Actual name)
-SceneSelectEntry sScenes[] = {
+SceneSelectEntry MM_sScenes[] = {
     // "0: OP Woods for Cutscene Use" (Forest Opening Scene)
     { "  0:OP" GFXP_KATAKANA "ﾃﾞﾓ" GFXP_HIRAGANA "ﾖｳ ｼﾝﾘﾝ", MapSelect_LoadGame, ENTRANCE(CUTSCENE, 0) },
 
@@ -780,36 +780,36 @@ void MapSelect_UpdateMenu(MapSelectState* this) {
 void MapSelect_PrintMenu(MapSelectState* this, GfxPrint* printer) {
     s32 i;
 
-    GfxPrint_SetColor(printer, 255, 155, 150, 255);
-    GfxPrint_SetPos(printer, 12, 2);
-    GfxPrint_Printf(printer, "ZELDA MAP SELECT");
-    GfxPrint_SetColor(printer, 255, 255, 255, 255);
+    MM_GfxPrint_SetColor(printer, 255, 155, 150, 255);
+    MM_GfxPrint_SetPos(printer, 12, 2);
+    MM_GfxPrint_Printf(printer, "ZELDA MAP SELECT");
+    MM_GfxPrint_SetColor(printer, 255, 255, 255, 255);
 
     for (i = 0; i < 20; i++) {
         s32 sceneIndex;
         char* sceneName;
 
-        GfxPrint_SetPos(printer, 9, i + 4);
+        MM_GfxPrint_SetPos(printer, 9, i + 4);
         sceneIndex = (this->topDisplayedScene + i + this->count) % this->count;
         if (sceneIndex == this->currentScene) {
-            GfxPrint_SetColor(printer, 255, 20, 20, 255);
+            MM_GfxPrint_SetColor(printer, 255, 20, 20, 255);
         } else {
-            GfxPrint_SetColor(printer, 200, 200, 55, 255);
+            MM_GfxPrint_SetColor(printer, 200, 200, 55, 255);
         }
 
         sceneName = this->scenes[sceneIndex].name;
         if (sceneName == NULL) {
             sceneName = "**Null**";
         }
-        GfxPrint_Printf(printer, "%s", sceneName);
+        MM_GfxPrint_Printf(printer, "%s", sceneName);
     }
 
-    GfxPrint_SetColor(printer, 155, 55, 150, 255);
-    GfxPrint_SetPos(printer, 20, 26);
-    GfxPrint_Printf(printer, "OPT=%d", this->opt);
+    MM_GfxPrint_SetColor(printer, 155, 55, 150, 255);
+    MM_GfxPrint_SetPos(printer, 20, 26);
+    MM_GfxPrint_Printf(printer, "OPT=%d", this->opt);
 }
 
-static const char* sLoadingMessages[] = {
+static const char* MM_sLoadingMessages[] = {
     // "Please wait a minute"
     GFXP_HIRAGANA "ｼﾊﾞﾗｸｵﾏﾁｸﾀﾞｻｲ",
     // "Hold on a sec"
@@ -839,11 +839,11 @@ static const char* sLoadingMessages[] = {
 void MapSelect_PrintLoadingMessage(MapSelectState* this, GfxPrint* printer) {
     s32 randomMsg;
 
-    GfxPrint_SetPos(printer, 10, 15);
-    GfxPrint_SetColor(printer, 255, 255, 255, 255);
+    MM_GfxPrint_SetPos(printer, 10, 15);
+    MM_GfxPrint_SetColor(printer, 255, 255, 255, 255);
 
-    randomMsg = Rand_ZeroOne() * ARRAY_COUNT(sLoadingMessages);
-    GfxPrint_Printf(printer, "%s", sLoadingMessages[randomMsg]);
+    randomMsg = MM_Rand_ZeroOne() * ARRAY_COUNT(MM_sLoadingMessages);
+    MM_GfxPrint_Printf(printer, "%s", MM_sLoadingMessages[randomMsg]);
 }
 
 // Second column is unused
@@ -885,13 +885,13 @@ void MapSelect_PrintAgeSetting(MapSelectState* this, GfxPrint* printer, s32 play
         age = NULL;
     }
 
-    GfxPrint_SetPos(printer, 4, 26);
-    GfxPrint_SetColor(printer, 255, 255, 55, 255);
+    MM_GfxPrint_SetPos(printer, 4, 26);
+    MM_GfxPrint_SetColor(printer, 255, 255, 55, 255);
     if (age != NULL) {
-        GfxPrint_Printf(printer, "Age:%s", age);
+        MM_GfxPrint_Printf(printer, "Age:%s", age);
     } else {
         // clang-format off
-        GfxPrint_Printf(printer, "Age:???" "(%d)", playerForm);
+        MM_GfxPrint_Printf(printer, "Age:???" "(%d)", playerForm);
         // clang-format on
     }
 }
@@ -900,8 +900,8 @@ void MapSelect_PrintCutsceneSetting(MapSelectState* this, GfxPrint* printer, u16
     const char* stage;
     const char* day;
 
-    GfxPrint_SetPos(printer, 4, 25);
-    GfxPrint_SetColor(printer, 255, 255, 55, 255);
+    MM_GfxPrint_SetPos(printer, 4, 25);
+    MM_GfxPrint_SetColor(printer, 255, 255, 55, 255);
 
     // "-jara" used in these strings is a Kokiri speech quirk word
     switch (csIndex) {
@@ -987,10 +987,10 @@ void MapSelect_PrintCutsceneSetting(MapSelectState* this, GfxPrint* printer, u16
             break;
     }
     gSaveContext.skyboxTime = CURRENT_TIME;
-    GfxPrint_Printf(printer, "Stage:" GFXP_KATAKANA "%s", stage);
+    MM_GfxPrint_Printf(printer, "Stage:" GFXP_KATAKANA "%s", stage);
 
-    GfxPrint_SetPos(printer, 23, 25);
-    GfxPrint_SetColor(printer, 255, 255, 55, 255);
+    MM_GfxPrint_SetPos(printer, 23, 25);
+    MM_GfxPrint_SetColor(printer, 255, 255, 55, 255);
 
     switch (gSaveContext.save.day) {
         case 1:
@@ -1020,7 +1020,7 @@ void MapSelect_PrintCutsceneSetting(MapSelectState* this, GfxPrint* printer, u16
             break;
     }
 
-    GfxPrint_Printf(printer, "Day:" GFXP_HIRAGANA "%s", day);
+    MM_GfxPrint_Printf(printer, "Day:" GFXP_HIRAGANA "%s", day);
 }
 
 void MapSelect_DrawMenu(MapSelectState* this) {
@@ -1031,8 +1031,8 @@ void MapSelect_DrawMenu(MapSelectState* this) {
 
     Gfx_SetupDL28_Opa(gfxCtx);
 
-    GfxPrint_Init(&printer);
-    GfxPrint_Open(&printer, POLY_OPA_DISP);
+    MM_GfxPrint_Init(&printer);
+    MM_GfxPrint_Open(&printer, POLY_OPA_DISP);
 
     if (CVarGetInteger("gDeveloperTools.BetterMapSelect.Enabled", 0)) {
         BetterMapSelect_PrintMenu(this, &printer);
@@ -1042,8 +1042,8 @@ void MapSelect_DrawMenu(MapSelectState* this) {
         MapSelect_PrintCutsceneSetting(this, &printer, ((void)0, gSaveContext.save.cutsceneIndex));
     }
 
-    POLY_OPA_DISP = GfxPrint_Close(&printer);
-    GfxPrint_Destroy(&printer);
+    POLY_OPA_DISP = MM_GfxPrint_Close(&printer);
+    MM_GfxPrint_Destroy(&printer);
 
     CLOSE_DISPS(gfxCtx);
 }
@@ -1056,13 +1056,13 @@ void MapSelect_DrawLoadingScreen(MapSelectState* this) {
 
     Gfx_SetupDL28_Opa(gfxCtx);
 
-    GfxPrint_Init(&printer);
-    GfxPrint_Open(&printer, POLY_OPA_DISP);
+    MM_GfxPrint_Init(&printer);
+    MM_GfxPrint_Open(&printer, POLY_OPA_DISP);
 
     MapSelect_PrintLoadingMessage(this, &printer);
 
-    POLY_OPA_DISP = GfxPrint_Close(&printer);
-    GfxPrint_Destroy(&printer);
+    POLY_OPA_DISP = MM_GfxPrint_Close(&printer);
+    MM_GfxPrint_Destroy(&printer);
 
     CLOSE_DISPS(gfxCtx);
 }
@@ -1090,7 +1090,7 @@ void MapSelect_Main(GameState* thisx) {
 }
 
 void MapSelect_Destroy(GameState* thisx) {
-    ShrinkWindow_Destroy();
+    MM_ShrinkWindow_Destroy();
 }
 
 void MapSelect_Init(GameState* thisx) {
@@ -1099,7 +1099,7 @@ void MapSelect_Init(GameState* thisx) {
     this->state.main = MapSelect_Main;
     this->state.destroy = MapSelect_Destroy;
 
-    this->scenes = sScenes;
+    this->scenes = MM_sScenes;
     this->topDisplayedScene = 0;
     this->currentScene = 0;
     this->pageDownStops[0] = 0;
@@ -1111,10 +1111,10 @@ void MapSelect_Init(GameState* thisx) {
     this->pageDownStops[6] = 91;
     this->pageDownIndex = 0;
     this->opt = 0;
-    this->count = ARRAY_COUNT(sScenes);
+    this->count = ARRAY_COUNT(MM_sScenes);
 
-    ShrinkWindow_Init();
-    View_Init(&this->view, this->state.gfxCtx);
+    MM_ShrinkWindow_Init();
+    MM_View_Init(&this->view, this->state.gfxCtx);
     this->view.flags = (0x08 | 0x02);
     this->verticalInputAccumulator = 0;
     this->verticalInput = 0;

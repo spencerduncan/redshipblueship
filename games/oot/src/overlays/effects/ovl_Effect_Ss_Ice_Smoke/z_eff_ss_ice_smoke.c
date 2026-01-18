@@ -11,16 +11,16 @@
 #define rAlpha regs[1]
 #define rScale regs[2]
 
-u32 EffectSsIceSmoke_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsIceSmoke_Draw(PlayState* play, u32 index, EffectSs* this);
-void EffectSsIceSmoke_Update(PlayState* play, u32 index, EffectSs* this);
+u32 OoT_EffectSsIceSmoke_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void OoT_EffectSsIceSmoke_Draw(PlayState* play, u32 index, EffectSs* this);
+void OoT_EffectSsIceSmoke_Update(PlayState* play, u32 index, EffectSs* this);
 
 EffectSsInit Effect_Ss_Ice_Smoke_InitVars = {
     EFFECT_SS_ICE_SMOKE,
-    EffectSsIceSmoke_Init,
+    OoT_EffectSsIceSmoke_Init,
 };
 
-u32 EffectSsIceSmoke_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 OoT_EffectSsIceSmoke_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsIceSmokeInitParams* initParams = (EffectSsIceSmokeInitParams*)initParamsx;
     s32 pad;
     s32 objBankIdx;
@@ -28,19 +28,19 @@ u32 EffectSsIceSmoke_Init(PlayState* play, u32 index, EffectSs* this, void* init
 
     objBankIdx = Object_GetIndex(&play->objectCtx, OBJECT_FZ);
 
-    if ((objBankIdx > -1) && Object_IsLoaded(&play->objectCtx, objBankIdx)) {
-        oldSeg6 = gSegments[6];
-        gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[objBankIdx].segment);
-        Math_Vec3f_Copy(&this->pos, &initParams->pos);
-        Math_Vec3f_Copy(&this->velocity, &initParams->velocity);
-        Math_Vec3f_Copy(&this->accel, &initParams->accel);
+    if ((objBankIdx > -1) && OoT_Object_IsLoaded(&play->objectCtx, objBankIdx)) {
+        oldSeg6 = OoT_gSegments[6];
+        OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[objBankIdx].segment);
+        OoT_Math_Vec3f_Copy(&this->pos, &initParams->pos);
+        OoT_Math_Vec3f_Copy(&this->velocity, &initParams->velocity);
+        OoT_Math_Vec3f_Copy(&this->accel, &initParams->accel);
         this->rObjBankIdx = objBankIdx;
         this->rAlpha = 0;
         this->rScale = initParams->scale;
         this->life = 50;
-        this->draw = EffectSsIceSmoke_Draw;
-        this->update = EffectSsIceSmoke_Update;
-        gSegments[6] = oldSeg6;
+        this->draw = OoT_EffectSsIceSmoke_Draw;
+        this->update = OoT_EffectSsIceSmoke_Update;
+        OoT_gSegments[6] = oldSeg6;
 
         return 1;
     }
@@ -50,7 +50,7 @@ u32 EffectSsIceSmoke_Init(PlayState* play, u32 index, EffectSs* this, void* init
     return 0;
 }
 
-void EffectSsIceSmoke_Draw(PlayState* play, u32 index, EffectSs* this) {
+void OoT_EffectSsIceSmoke_Draw(PlayState* play, u32 index, EffectSs* this) {
     s32 pad;
     void* object;
     Mtx* mtx;
@@ -63,20 +63,20 @@ void EffectSsIceSmoke_Draw(PlayState* play, u32 index, EffectSs* this) {
 
     objBankIdx = Object_GetIndex(&play->objectCtx, OBJECT_FZ);
 
-    if ((objBankIdx > -1) && Object_IsLoaded(&play->objectCtx, objBankIdx)) {
+    if ((objBankIdx > -1) && OoT_Object_IsLoaded(&play->objectCtx, objBankIdx)) {
         gDPPipeSync(POLY_XLU_DISP++);
         Gfx_SetupDL_25Xlu(play->state.gfxCtx);
-        gSegments[6] = VIRTUAL_TO_PHYSICAL(object);
+        OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(object);
         gSPSegment(POLY_XLU_DISP++, 0x06, object);
         gSPDisplayList(POLY_XLU_DISP++, SEGMENTED_TO_VIRTUAL(gFreezardSteamStartDL));
         gDPPipeSync(POLY_XLU_DISP++);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 195, 235, 235, this->rAlpha);
         gSPSegment(POLY_XLU_DISP++, 0x08,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, this->life * 3, this->life * 15, 32, 64, 1, 0, 0, 32, 32));
-        Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
-        Matrix_ReplaceRotation(&play->billboardMtxF);
+                   OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, this->life * 3, this->life * 15, 32, 64, 1, 0, 0, 32, 32));
+        OoT_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
+        OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
         scale = this->rScale * 0.0001f;
-        Matrix_Scale(scale, scale, 1.0f, MTXMODE_APPLY);
+        OoT_Matrix_Scale(scale, scale, 1.0f, MTXMODE_APPLY);
 
         mtx = MATRIX_NEWMTX(play->state.gfxCtx);
 
@@ -91,12 +91,12 @@ void EffectSsIceSmoke_Draw(PlayState* play, u32 index, EffectSs* this) {
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void EffectSsIceSmoke_Update(PlayState* play, u32 index, EffectSs* this) {
+void OoT_EffectSsIceSmoke_Update(PlayState* play, u32 index, EffectSs* this) {
     s32 objBankIdx;
 
     objBankIdx = Object_GetIndex(&play->objectCtx, OBJECT_FZ);
 
-    if ((objBankIdx > -1) && Object_IsLoaded(&play->objectCtx, objBankIdx)) {
+    if ((objBankIdx > -1) && OoT_Object_IsLoaded(&play->objectCtx, objBankIdx)) {
         if (this->rAlpha < 100) {
             this->rAlpha += 10;
         }

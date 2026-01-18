@@ -30,7 +30,7 @@ const ActorInit Obj_Dekujr_InitVars = {
     NULL,
 };
 
-static ColliderCylinderInitToActor sCylinderInit = {
+static ColliderCylinderInitToActor OoT_sCylinderInit = {
     {
         NULL,
         0x00,
@@ -48,7 +48,7 @@ void ObjDekujr_Init(Actor* thisx, PlayState* play) {
 
     if (gSaveContext.cutsceneIndex < 0xFFF0) {
         if (!LINK_IS_ADULT) {
-            Actor_Kill(thisx);
+            OoT_Actor_Kill(thisx);
             return;
         }
         this->unk_19C = 2;
@@ -59,15 +59,15 @@ void ObjDekujr_Init(Actor* thisx, PlayState* play) {
     }
     if (!GameInteractor_Should(VB_DEKU_JR_CONSIDER_FOREST_TEMPLE_FINISHED, CHECK_QUEST_ITEM(QUEST_MEDALLION_FOREST),
                                this)) {
-        Actor_Kill(thisx);
+        OoT_Actor_Kill(thisx);
     } else {
-        ActorShape_Init(&thisx->shape, 0.0f, NULL, 0.0f);
-        Collider_InitCylinder(play, &this->collider);
-        sCylinderInit.base.actor = thisx;
-        Collider_SetCylinderToActor(play, &this->collider, &sCylinderInit);
+        OoT_ActorShape_Init(&thisx->shape, 0.0f, NULL, 0.0f);
+        OoT_Collider_InitCylinder(play, &this->collider);
+        OoT_sCylinderInit.base.actor = thisx;
+        OoT_Collider_SetCylinderToActor(play, &this->collider, &OoT_sCylinderInit);
         thisx->colChkInfo.mass = MASS_IMMOVABLE;
         thisx->textId = func_80037C30(play, 0xF);
-        Actor_SetScale(thisx, 0.4f);
+        OoT_Actor_SetScale(thisx, 0.4f);
     }
 }
 
@@ -132,8 +132,8 @@ void ObjDekujr_Update(Actor* thisx, PlayState* play) {
     ObjDekujr* this = (ObjDekujr*)thisx;
     s32 pad;
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     if ((gSaveContext.cutsceneIndex >= 0xFFF0) && (this->unk_19B == 0)) {
         this->unk_19C = 0;
         this->unk_19B = 1;
@@ -145,7 +145,7 @@ void ObjDekujr_Update(Actor* thisx, PlayState* play) {
         this->actor.world.pos.z += this->actor.velocity.z;
     } else {
         func_80037D98(play, &this->actor, 0xF, &this->unk_1A0);
-        Actor_SetFocus(&this->actor, 40.0f);
+        OoT_Actor_SetFocus(&this->actor, 40.0f);
     }
 }
 
@@ -162,7 +162,7 @@ void ObjDekujr_Draw(Actor* thisx, PlayState* play) {
 
     frameCount = play->state.frames;
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, frameCount % 128, 0, 32, 32, 1, frameCount % 128, 0, 32, 32));
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, frameCount % 128, 0, 32, 32, 1, frameCount % 128, 0, 32, 32));
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_XLU_DISP++, object_dekujr_DL_0032D8);
 

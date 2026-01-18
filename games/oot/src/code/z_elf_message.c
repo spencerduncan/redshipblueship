@@ -101,7 +101,7 @@ u32 func_8006BF1C(ElfMessage** msgp) {
         return false;
     }
 
-    temp3 = Rand_ZeroFloat(temp1);
+    temp3 = OoT_Rand_ZeroFloat(temp1);
     for (temp1 = 0; temp1 < temp2; temp1++) {
         if (sp44[temp1]) {
             if (temp3 > 0) {
@@ -155,7 +155,7 @@ u16 ElfMessage_GetSariaText(PlayState* play) {
     ElfMessage* msgs;
 
     if (!LINK_IS_ADULT) {
-        if (Actor_FindNearby(play, &player->actor, ACTOR_EN_SA, 4, 800.0f) == NULL) {
+        if (OoT_Actor_FindNearby(play, &player->actor, ACTOR_EN_SA, 4, 800.0f) == NULL) {
             if (IS_RANDO && Randomizer_GetSettingValue(RSK_SARIA_HINT)) {
                 return 0x161;
             }

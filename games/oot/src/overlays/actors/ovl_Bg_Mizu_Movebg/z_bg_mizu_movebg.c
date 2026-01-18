@@ -52,7 +52,7 @@ static CollisionHeader* D_8089EB70[] = {
     &gObjectMizuObjectsMovebgCol_003590, &gObjectMizuObjectsMovebgCol_0015F8,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(uncullZoneScale, 1500, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneDownward, 1100, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 1000, ICHAIN_CONTINUE),
@@ -67,11 +67,11 @@ static u8 D_8089EE40;
 s32 func_8089DC30(PlayState* play) {
     s32 result;
 
-    if (Flags_GetSwitch(play, WATER_TEMPLE_WATER_F1_FLAG)) {
+    if (OoT_Flags_GetSwitch(play, WATER_TEMPLE_WATER_F1_FLAG)) {
         result = 1;
-    } else if (Flags_GetSwitch(play, WATER_TEMPLE_WATER_F2_FLAG)) {
+    } else if (OoT_Flags_GetSwitch(play, WATER_TEMPLE_WATER_F2_FLAG)) {
         result = 2;
-    } else if (Flags_GetSwitch(play, WATER_TEMPLE_WATER_F3_FLAG)) {
+    } else if (OoT_Flags_GetSwitch(play, WATER_TEMPLE_WATER_F3_FLAG)) {
         result = 3;
     } else {
         result = 1;
@@ -87,12 +87,12 @@ void BgMizuMovebg_Init(Actor* thisx, PlayState* play) {
     CollisionHeader* colHeader = NULL;
     Vec3f sp48;
 
-    Actor_ProcessInitChain(thisx, sInitChain);
+    OoT_Actor_ProcessInitChain(thisx, OoT_sInitChain);
     ((BgMizuMovebg*)thisx)->homeY = thisx->world.pos.y;
     ((BgMizuMovebg*)thisx)->dlist = D_8089EB50[MOVEBG_TYPE(thisx->params)];
-    DynaPolyActor_Init(&((BgMizuMovebg*)thisx)->dyna, DPM_PLAYER);
-    CollisionHeader_GetVirtual(D_8089EB70[MOVEBG_TYPE(thisx->params)], &colHeader);
-    ((BgMizuMovebg*)thisx)->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
+    OoT_DynaPolyActor_Init(&((BgMizuMovebg*)thisx)->dyna, DPM_PLAYER);
+    OoT_CollisionHeader_GetVirtual(D_8089EB70[MOVEBG_TYPE(thisx->params)], &colHeader);
+    ((BgMizuMovebg*)thisx)->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
 
     type = MOVEBG_TYPE(thisx->params);
     switch (type) {
@@ -130,7 +130,7 @@ void BgMizuMovebg_Init(Actor* thisx, PlayState* play) {
         case 4:
         case 5:
         case 6:
-            if (Flags_GetSwitch(play, MOVEBG_FLAGS(thisx->params))) {
+            if (OoT_Flags_GetSwitch(play, MOVEBG_FLAGS(thisx->params))) {
                 thisx->world.pos.y = ((BgMizuMovebg*)thisx)->homeY + 115.19999999999999;
             } else {
                 thisx->world.pos.y = ((BgMizuMovebg*)thisx)->homeY;
@@ -156,12 +156,12 @@ void BgMizuMovebg_Init(Actor* thisx, PlayState* play) {
         case 5:
         case 6:
             Matrix_RotateY(thisx->world.rot.y * (M_PI / 32768), MTXMODE_NEW);
-            Matrix_MultVec3f(&D_8089EBA0, &sp48);
+            OoT_Matrix_MultVec3f(&D_8089EBA0, &sp48);
 
-            if (Actor_SpawnAsChild(&play->actorCtx, thisx, play, ACTOR_OBJ_HSBLOCK, thisx->world.pos.x + sp48.x,
+            if (OoT_Actor_SpawnAsChild(&play->actorCtx, thisx, play, ACTOR_OBJ_HSBLOCK, thisx->world.pos.x + sp48.x,
                                    thisx->world.pos.y + sp48.y, thisx->world.pos.z + sp48.z, thisx->world.rot.x,
                                    thisx->world.rot.y, thisx->world.rot.z, 2) == NULL) {
-                Actor_Kill(thisx);
+                OoT_Actor_Kill(thisx);
             }
             break;
     }
@@ -170,7 +170,7 @@ void BgMizuMovebg_Init(Actor* thisx, PlayState* play) {
 void BgMizuMovebg_Destroy(Actor* thisx, PlayState* play) {
     BgMizuMovebg* this = (BgMizuMovebg*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
     switch (MOVEBG_TYPE(thisx->params)) {
         case 3:
         case 4:
@@ -264,7 +264,7 @@ void func_8089E318(BgMizuMovebg* this, PlayState* play) {
             break;
         case 3:
             phi_f0 = this->homeY + D_8089EB40[func_8089DC30(play)];
-            if (!Math_StepToF(&this->dyna.actor.world.pos.y, phi_f0, 1.0f)) {
+            if (!OoT_Math_StepToF(&this->dyna.actor.world.pos.y, phi_f0, 1.0f)) {
                 if (!(D_8089EE40 & 2) && MOVEBG_SPEED(this->dyna.actor.params) != 0) {
                     D_8089EE40 |= 2;
                     this->sfxFlags |= 2;
@@ -281,12 +281,12 @@ void func_8089E318(BgMizuMovebg* this, PlayState* play) {
         case 4:
         case 5:
         case 6:
-            if (Flags_GetSwitch(play, MOVEBG_FLAGS(this->dyna.actor.params))) {
+            if (OoT_Flags_GetSwitch(play, MOVEBG_FLAGS(this->dyna.actor.params))) {
                 phi_f0 = this->homeY + 115.200005f;
             } else {
                 phi_f0 = this->homeY;
             }
-            if (!Math_StepToF(&this->dyna.actor.world.pos.y, phi_f0, 1.0f)) {
+            if (!OoT_Math_StepToF(&this->dyna.actor.world.pos.y, phi_f0, 1.0f)) {
                 if (!(D_8089EE40 & 2) && MOVEBG_SPEED(this->dyna.actor.params) != 0) {
                     D_8089EE40 |= 2;
                     this->sfxFlags |= 2;
@@ -306,7 +306,7 @@ void func_8089E318(BgMizuMovebg* this, PlayState* play) {
         case 6:
             if (play->roomCtx.curRoom.num == this->dyna.actor.room) {
                 Matrix_RotateY(this->dyna.actor.world.rot.y * (M_PI / 32768), MTXMODE_NEW);
-                Matrix_MultVec3f(&D_8089EBAC, &sp28);
+                OoT_Matrix_MultVec3f(&D_8089EBAC, &sp28);
                 this->dyna.actor.child->world.pos.x = this->dyna.actor.world.pos.x + sp28.x;
                 this->dyna.actor.child->world.pos.y = this->dyna.actor.world.pos.y + sp28.y;
                 this->dyna.actor.child->world.pos.z = this->dyna.actor.world.pos.z + sp28.z;
@@ -325,7 +325,7 @@ void func_8089E650(BgMizuMovebg* this, PlayState* play) {
 
     this->dyna.actor.speedXZ = MOVEBG_SPEED(this->dyna.actor.params) * 0.1f;
     func_8089E108(play->setupPathList, &waypoint, MOVEBG_PATH_ID(this->dyna.actor.params), this->waypointId);
-    dist = Actor_WorldDistXYZToPoint(&this->dyna.actor, &waypoint);
+    dist = OoT_Actor_WorldDistXYZToPoint(&this->dyna.actor, &waypoint);
     if (dist < this->dyna.actor.speedXZ) {
         this->dyna.actor.speedXZ = dist;
     }
@@ -367,19 +367,19 @@ void BgMizuMovebg_Draw(Actor* thisx, PlayState* play2) {
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
 
     gSPSegment(POLY_OPA_DISP++, 0x08,
-               Gfx_TwoTexScrollEnvColor(play->state.gfxCtx, 0, frames * 1, 0, 32, 32, 1, 0, 0, 32, 32, 0, 0, 0,
+               OoT_Gfx_TwoTexScrollEnvColor(play->state.gfxCtx, 0, frames * 1, 0, 32, 32, 1, 0, 0, 32, 32, 0, 0, 0,
                                         this->scrollAlpha1));
 
     gSPSegment(POLY_OPA_DISP++, 0x09,
-               Gfx_TwoTexScrollEnvColor(play->state.gfxCtx, 0, frames * 1, 0, 32, 32, 1, 0, 0, 32, 32, 0, 0, 0,
+               OoT_Gfx_TwoTexScrollEnvColor(play->state.gfxCtx, 0, frames * 1, 0, 32, 32, 1, 0, 0, 32, 32, 0, 0, 0,
                                         this->scrollAlpha2));
 
     gSPSegment(POLY_OPA_DISP++, 0x0A,
-               Gfx_TwoTexScrollEnvColor(play->state.gfxCtx, 0, frames * 1, 0, 32, 32, 1, 0, 0, 32, 32, 0, 0, 0,
+               OoT_Gfx_TwoTexScrollEnvColor(play->state.gfxCtx, 0, frames * 1, 0, 32, 32, 1, 0, 0, 32, 32, 0, 0, 0,
                                         this->scrollAlpha3));
 
     gSPSegment(POLY_OPA_DISP++, 0x0B,
-               Gfx_TwoTexScrollEnvColor(play->state.gfxCtx, 0, frames * 3, 0, 32, 32, 1, 0, 0, 32, 32, 0, 0, 0,
+               OoT_Gfx_TwoTexScrollEnvColor(play->state.gfxCtx, 0, frames * 3, 0, 32, 32, 1, 0, 0, 32, 32, 0, 0, 0,
                                         this->scrollAlpha4));
 
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);

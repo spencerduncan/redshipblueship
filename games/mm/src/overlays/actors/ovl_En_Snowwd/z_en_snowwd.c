@@ -28,7 +28,7 @@ ActorProfile En_Snowwd_Profile = {
     /**/ EnSnowwd_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_TREE,
         AT_NONE,
@@ -57,20 +57,20 @@ void EnSnowwd_Init(Actor* thisx, PlayState* play) {
     this->actor.cullingVolumeDistance = 4000.0f;
     this->actor.cullingVolumeScale = 2000.0f;
     this->actor.cullingVolumeDownward = 2400.0f;
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    Actor_SetScale(&this->actor, 1.0f);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_Actor_SetScale(&this->actor, 1.0f);
     this->actionFunc = EnSnowwd_Idle;
 }
 
 void EnSnowwd_Destroy(Actor* thisx, PlayState* play) {
     EnSnowwd* this = (EnSnowwd*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnSnowwd_Idle(EnSnowwd* this, PlayState* play) {
-    static Vec3f sAccel = { 0.0f, 0.0f, 0.0f };
-    static Vec3f sVelocity = { 0.0f, -4.0f, 0.0f };
+    static Vec3f MM_sAccel = { 0.0f, 0.0f, 0.0f };
+    static Vec3f MM_sVelocity = { 0.0f, -4.0f, 0.0f };
     static Color_RGBA8 sPrimColor = { 255, 255, 255, 255 };
     static Color_RGBA8 sEnvColor = { 200, 200, 220, 0 };
     s32 pad;
@@ -89,28 +89,28 @@ void EnSnowwd_Idle(EnSnowwd* this, PlayState* play) {
             if (SNOWWD_GET_DROP_TABLE(&this->actor) < 16) {
                 pos = thisx->world.pos;
                 pos.y += 200.0f;
-                Item_DropCollectibleRandom(play, NULL, &pos, SNOWWD_GET_DROP_TABLE(&this->actor) * DROP_TABLE_SIZE);
+                MM_Item_DropCollectibleRandom(play, NULL, &pos, SNOWWD_GET_DROP_TABLE(&this->actor) * DROP_TABLE_SIZE);
             }
             SNOWWD_DROPPED_COLLECTIBLE(&this->actor) = true;
         }
     }
     if (thisx->xzDistToPlayer < 600.0f) {
-        Collider_UpdateCylinder(thisx, &this->collider);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_Collider_UpdateCylinder(thisx, &this->collider);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
 
     // Wobble from impact and dust particles
     if (this->timer > 0) {
         this->timer--;
-        wobbleAmplitude = Math_SinS((this->timer ^ 0xFFFF) * 0x3332) * 250.0f;
-        thisx->shape.rot.x = Math_CosS(thisx->yawTowardsPlayer - thisx->shape.rot.y) * wobbleAmplitude;
-        thisx->shape.rot.z = Math_SinS(thisx->yawTowardsPlayer - thisx->shape.rot.y) * wobbleAmplitude;
+        wobbleAmplitude = MM_Math_SinS((this->timer ^ 0xFFFF) * 0x3332) * 250.0f;
+        thisx->shape.rot.x = MM_Math_CosS(thisx->yawTowardsPlayer - thisx->shape.rot.y) * wobbleAmplitude;
+        thisx->shape.rot.z = MM_Math_SinS(thisx->yawTowardsPlayer - thisx->shape.rot.y) * wobbleAmplitude;
         pos = thisx->world.pos;
-        pos.x += Rand_CenteredFloat(80.0f);
-        pos.y += 100.0f + Rand_ZeroFloat(30.0f);
-        pos.z += Rand_CenteredFloat(80.0f);
-        func_800B0EB0(play, &pos, &sVelocity, &sAccel, &sPrimColor, &sEnvColor, 200, 10, 20);
+        pos.x += MM_Rand_CenteredFloat(80.0f);
+        pos.y += 100.0f + MM_Rand_ZeroFloat(30.0f);
+        pos.z += MM_Rand_CenteredFloat(80.0f);
+        func_800B0EB0(play, &pos, &MM_sVelocity, &MM_sAccel, &sPrimColor, &sEnvColor, 200, 10, 20);
     }
 }
 

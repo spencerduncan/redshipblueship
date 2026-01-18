@@ -37,7 +37,7 @@ ActorProfile Bg_Kin2_Fence_Profile = {
     /**/ BgKin2Fence_Draw,
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[4] = {
+static ColliderJntSphElementInit MM_sJntSphElementsInit[4] = {
     {
         {
             ELEM_MATERIAL_UNK4,
@@ -84,7 +84,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[4] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit MM_sJntSphInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -93,8 +93,8 @@ static ColliderJntSphInit sJntSphInit = {
         OC2_TYPE_2,
         COLSHAPE_JNTSPH,
     },
-    ARRAY_COUNT(sJntSphElementsInit),
-    sJntSphElementsInit,
+    ARRAY_COUNT(MM_sJntSphElementsInit),
+    MM_sJntSphElementsInit,
 };
 
 s32 BgKin2Fence_CheckHitMask(BgKin2Fence* this) {
@@ -122,16 +122,16 @@ void BgKin2Fence_SpawnEyeSparkles(BgKin2Fence* this, PlayState* play, s32 mask) 
     Vec3f sp58;
     s32 pad[2];
 
-    Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
+    MM_Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
                                  this->dyna.actor.world.pos.z, &this->dyna.actor.shape.rot);
 
     for (i = 0; i < 2; i++) {
-        Matrix_MultVec3f(&sEyeSparkleSpawnPositions[mask][i], &sp58);
+        MM_Matrix_MultVec3f(&sEyeSparkleSpawnPositions[mask][i], &sp58);
         EffectSsKirakira_SpawnDispersed(play, &sp58, &gZeroVec3f, &gZeroVec3f, &sPrimColor, &sEnvColor, 6000, -10);
     }
 }
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 2000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 100, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 100, ICHAIN_CONTINUE),
@@ -142,20 +142,20 @@ void BgKin2Fence_Init(Actor* thisx, PlayState* play) {
     BgKin2Fence* this = (BgKin2Fence*)thisx;
     s32 i = 0;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, 0);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
+    MM_DynaPolyActor_Init(&this->dyna, 0);
     DynaPolyActor_LoadMesh(play, &this->dyna, &gOceanSpiderHouseFireplaceGrateCol);
-    Collider_InitJntSph(play, &this->collider);
-    Collider_SetJntSph(play, &this->collider, &this->dyna.actor, &sJntSphInit, this->colliderElements);
-    Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
+    MM_Collider_InitJntSph(play, &this->collider);
+    MM_Collider_SetJntSph(play, &this->collider, &this->dyna.actor, &MM_sJntSphInit, this->colliderElements);
+    MM_Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
                                  this->dyna.actor.world.pos.z, &this->dyna.actor.shape.rot);
-    Matrix_Scale(this->dyna.actor.scale.x, this->dyna.actor.scale.y, this->dyna.actor.scale.z, MTXMODE_APPLY);
+    MM_Matrix_Scale(this->dyna.actor.scale.x, this->dyna.actor.scale.y, this->dyna.actor.scale.z, MTXMODE_APPLY);
 
     for (i = 0; i < 4; i++) {
-        Collider_UpdateSpheres(i, &this->collider);
+        MM_Collider_UpdateSpheres(i, &this->collider);
     }
 
-    if (Flags_GetSwitch(play, BG_KIN2_FENCE_GET_SWITCH_FLAG(&this->dyna.actor))) {
+    if (MM_Flags_GetSwitch(play, BG_KIN2_FENCE_GET_SWITCH_FLAG(&this->dyna.actor))) {
         BgKin2Fence_SetupDoNothing(this);
         return;
     }
@@ -165,8 +165,8 @@ void BgKin2Fence_Init(Actor* thisx, PlayState* play) {
 void BgKin2Fence_Destroy(Actor* thisx, PlayState* play) {
     BgKin2Fence* this = (BgKin2Fence*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
-    Collider_DestroyJntSph(play, &this->collider);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_Collider_DestroyJntSph(play, &this->collider);
 }
 
 void BgKin2Fence_SetupHandleMaskCode(BgKin2Fence* this) {
@@ -202,7 +202,7 @@ void BgKin2Fence_HandleMaskCode(BgKin2Fence* this, PlayState* play) {
             this->cooldownTimer -= 1;
             return;
         }
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -213,7 +213,7 @@ void BgKin2Fence_SetupPlayOpenCutscene(BgKin2Fence* this) {
 void BgKin2Fence_PlayOpenCutscene(BgKin2Fence* this, PlayState* play) {
     if (CutsceneManager_IsNext(this->dyna.actor.csId)) {
         CutsceneManager_StartWithPlayerCs(this->dyna.actor.csId, &this->dyna.actor);
-        Flags_SetSwitch(play, BG_KIN2_FENCE_GET_SWITCH_FLAG(&this->dyna.actor));
+        MM_Flags_SetSwitch(play, BG_KIN2_FENCE_GET_SWITCH_FLAG(&this->dyna.actor));
         BgKin2Fence_SetupWaitBeforeOpen(this);
         return;
     }
@@ -238,7 +238,7 @@ void BgKin2Fence_SetupRaiseFence(BgKin2Fence* this) {
 }
 
 void BgKin2Fence_RaiseFence(BgKin2Fence* this, PlayState* play) {
-    if (Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y + 58.0f, 5.0f)) {
+    if (MM_Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y + 58.0f, 5.0f)) {
         BgKin2Fence_SetupDoNothing(this);
     }
 }
@@ -257,5 +257,5 @@ void BgKin2Fence_Update(Actor* thisx, PlayState* play) {
 }
 
 void BgKin2Fence_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, gOceanSpiderHouseFireplaceGrateDL);
+    MM_Gfx_DrawDListOpa(play, gOceanSpiderHouseFireplaceGrateDL);
 }

@@ -15,7 +15,7 @@
     (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED | \
      ACTOR_FLAG_UPDATE_DURING_OCARINA | ACTOR_FLAG_LOCK_ON_DISABLED)
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -94,15 +94,15 @@ void EnKakasi2_Init(Actor* thisx, PlayState* play) {
 
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
     this->height = 60.0f;
-    Actor_SetScale(&this->actor, 0.01f);
+    OoT_Actor_SetScale(&this->actor, 0.01f);
     this->actor.flags |= ACTOR_FLAG_HOOKSHOT_PULLS_PLAYER;
     this->unk_198 = this->actor.shape.rot.y;
 
-    if (this->switchFlag >= 0 && Flags_GetSwitch(play, this->switchFlag)) {
+    if (this->switchFlag >= 0 && OoT_Flags_GetSwitch(play, this->switchFlag)) {
         this->actor.draw = func_80A90948;
-        Collider_InitCylinder(play, &this->collider);
-        Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-        SkelAnime_InitFlex(play, &this->skelAnime, &object_ka_Skel_0065B0, &object_ka_Anim_000214, NULL, NULL, 0);
+        OoT_Collider_InitCylinder(play, &this->collider);
+        OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
+        OoT_SkelAnime_InitFlex(play, &this->skelAnime, &object_ka_Skel_0065B0, &object_ka_Anim_000214, NULL, NULL, 0);
         this->actionFunc = func_80A9062C;
     } else {
         this->actionFunc = func_80A90264;
@@ -113,8 +113,8 @@ void EnKakasi2_Init(Actor* thisx, PlayState* play) {
 void EnKakasi2_Destroy(Actor* thisx, PlayState* play) {
     EnKakasi2* this = (EnKakasi2*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
-    SkelAnime_Free(&this->skelAnime, play);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
+    OoT_SkelAnime_Free(&this->skelAnime, play);
 }
 
 void func_80A90264(EnKakasi2* this, PlayState* play) {
@@ -126,34 +126,34 @@ void func_80A90264(EnKakasi2* this, PlayState* play) {
                               (this->actor.xzDistToPlayer < this->maxSpawnDistance.x) &&
                               (fabsf(player->actor.world.pos.y - this->actor.world.pos.y) < this->maxSpawnDistance.y)) {
         this->actor.draw = func_80A90948;
-        Collider_InitCylinder(play, &this->collider);
-        Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-        SkelAnime_InitFlex(play, &this->skelAnime, &object_ka_Skel_0065B0, &object_ka_Anim_000214, NULL, NULL, 0);
+        OoT_Collider_InitCylinder(play, &this->collider);
+        OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
+        OoT_SkelAnime_InitFlex(play, &this->skelAnime, &object_ka_Skel_0065B0, &object_ka_Anim_000214, NULL, NULL, 0);
         OnePointCutscene_Attention(play, &this->actor);
         this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_LOCK_ON_DISABLED;
 
         Sfx_PlaySfxCentered(NA_SE_SY_CORRECT_CHIME);
         if (this->switchFlag >= 0) {
-            Flags_SetSwitch(play, this->switchFlag);
+            OoT_Flags_SetSwitch(play, this->switchFlag);
         }
 
         osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ SAVE 終了 ☆☆☆☆☆ %d\n" VT_RST, this->switchFlag);
         this->actionFunc = func_80A904D8;
     } else if ((this->actor.xzDistToPlayer < this->maxSpawnDistance.x) &&
                (fabsf(player->actor.world.pos.y - this->actor.world.pos.y) < this->maxSpawnDistance.y) &&
-               (Flags_GetEventChkInf(EVENTCHKINF_PLAYED_SONG_FOR_SCARECROW_AS_ADULT))) {
+               (OoT_Flags_GetEventChkInf(EVENTCHKINF_PLAYED_SONG_FOR_SCARECROW_AS_ADULT))) {
 
         this->unk_194 = 0;
         if (play->msgCtx.ocarinaMode == OCARINA_MODE_0B) {
             if (this->switchFlag >= 0) {
-                Flags_SetSwitch(play, this->switchFlag);
+                OoT_Flags_SetSwitch(play, this->switchFlag);
             }
             osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ SAVE 終了 ☆☆☆☆☆ %d\n" VT_RST, this->switchFlag);
             play->msgCtx.ocarinaMode = OCARINA_MODE_04;
             this->actor.draw = func_80A90948;
-            Collider_InitCylinder(play, &this->collider);
-            Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-            SkelAnime_InitFlex(play, &this->skelAnime, &object_ka_Skel_0065B0, &object_ka_Anim_000214, NULL, NULL, 0);
+            OoT_Collider_InitCylinder(play, &this->collider);
+            OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
+            OoT_SkelAnime_InitFlex(play, &this->skelAnime, &object_ka_Skel_0065B0, &object_ka_Anim_000214, NULL, NULL, 0);
             OnePointCutscene_Attention(play, &this->actor);
             Sfx_PlaySfxCentered(NA_SE_SY_CORRECT_CHIME);
 
@@ -164,9 +164,9 @@ void func_80A90264(EnKakasi2* this, PlayState* play) {
 }
 
 void func_80A904D8(EnKakasi2* this, PlayState* play) {
-    f32 frameCount = Animation_GetLastFrame(&object_ka_Anim_000214);
+    f32 frameCount = OoT_Animation_GetLastFrame(&object_ka_Anim_000214);
 
-    Animation_Change(&this->skelAnime, &object_ka_Anim_000214, 1.0f, 0.0f, (s16)frameCount, ANIMMODE_LOOP, -10.0f);
+    OoT_Animation_Change(&this->skelAnime, &object_ka_Anim_000214, 1.0f, 0.0f, (s16)frameCount, ANIMMODE_LOOP, -10.0f);
     Audio_PlayActorSound2(&this->actor, NA_SE_EV_COME_UP_DEKU_JR);
     this->actionFunc = func_80A90578;
 }
@@ -174,7 +174,7 @@ void func_80A904D8(EnKakasi2* this, PlayState* play) {
 void func_80A90578(EnKakasi2* this, PlayState* play) {
     s16 currentFrame;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
     currentFrame = this->skelAnime.curFrame;
     if (currentFrame == 11 || currentFrame == 17) {
@@ -182,7 +182,7 @@ void func_80A90578(EnKakasi2* this, PlayState* play) {
     }
 
     this->actor.shape.rot.y += 0x800;
-    Math_ApproachZeroF(&this->actor.shape.yOffset, 0.5f, 500.0f);
+    OoT_Math_ApproachZeroF(&this->actor.shape.yOffset, 0.5f, 500.0f);
 
     if (this->actor.shape.yOffset > -100.0f) {
         this->actionFunc = func_80A9062C;
@@ -191,18 +191,18 @@ void func_80A90578(EnKakasi2* this, PlayState* play) {
 }
 
 void func_80A9062C(EnKakasi2* this, PlayState* play) {
-    f32 frameCount = Animation_GetLastFrame(&object_ka_Anim_000214);
+    f32 frameCount = OoT_Animation_GetLastFrame(&object_ka_Anim_000214);
 
-    Animation_Change(&this->skelAnime, &object_ka_Anim_000214, 0.0f, 0.0f, (s16)frameCount, ANIMMODE_ONCE, -10.0f);
+    OoT_Animation_Change(&this->skelAnime, &object_ka_Anim_000214, 0.0f, 0.0f, (s16)frameCount, ANIMMODE_ONCE, -10.0f);
     this->actionFunc = func_80A906C4;
 }
 
 void func_80A906C4(EnKakasi2* this, PlayState* play) {
     if (this->skelAnime.curFrame != 0) {
-        Math_ApproachZeroF(&this->skelAnime.curFrame, 0.5f, 1.0f);
+        OoT_Math_ApproachZeroF(&this->skelAnime.curFrame, 0.5f, 1.0f);
     }
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->unk_198, 5, 0xBB8, 0);
-    SkelAnime_Update(&this->skelAnime);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->unk_198, 5, 0xBB8, 0);
+    OoT_SkelAnime_Update(&this->skelAnime);
 }
 
 void EnKakasi2_Update(Actor* thisx, PlayState* play2) {
@@ -210,14 +210,14 @@ void EnKakasi2_Update(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
 
     this->actor.world.rot = this->actor.shape.rot;
-    Actor_SetFocus(&this->actor, this->height);
+    OoT_Actor_SetFocus(&this->actor, this->height);
     this->actionFunc(this, play);
     Actor_MoveXZGravity(&this->actor);
 
     if (this->actor.shape.yOffset == 0.0f) {
-        Collider_UpdateCylinder(&this->actor, &this->collider);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
     if (BREG(0) != 0) {
         if (BREG(5) != 0) {
@@ -229,12 +229,12 @@ void EnKakasi2_Update(Actor* thisx, PlayState* play2) {
         if (this->actor.draw == NULL) {
             if (this->unk_194 != 0) {
                 if ((this->unk_194 % 2) == 0) {
-                    DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
+                    OoT_DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
                                            this->actor.world.rot.x, this->actor.world.rot.y, this->actor.world.rot.z,
                                            1.0f, 1.0f, 1.0f, 70, 70, 70, 255, 4, play->state.gfxCtx);
                 }
             } else {
-                DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
+                OoT_DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
                                        this->actor.world.rot.x, this->actor.world.rot.y, this->actor.world.rot.z, 1.0f,
                                        1.0f, 1.0f, 0, 255, 255, 255, 4, play->state.gfxCtx);
             }

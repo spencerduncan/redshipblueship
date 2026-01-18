@@ -32,7 +32,7 @@ const ActorInit En_Siofuki_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
 
@@ -42,20 +42,20 @@ void EnSiofuki_Init(Actor* thisx, PlayState* play) {
     CollisionHeader* colHeader = NULL;
     s32 pad;
 
-    if ((thisx->room == 10) && Flags_GetSwitch(play, 0x1E)) {
-        Actor_Kill(thisx);
+    if ((thisx->room == 10) && OoT_Flags_GetSwitch(play, 0x1E)) {
+        OoT_Actor_Kill(thisx);
         return;
     }
 
-    Actor_ProcessInitChain(thisx, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
-    CollisionHeader_GetVirtual(&object_siofuki_Col_000D78, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
+    OoT_Actor_ProcessInitChain(thisx, OoT_sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
+    OoT_CollisionHeader_GetVirtual(&object_siofuki_Col_000D78, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
     this->sfxFlags |= 1;
 
     type = ((u16)thisx->params >> 0xC) & 0xF;
     if (!((type == 0) || (type == 1))) {
-        Actor_Kill(thisx);
+        OoT_Actor_Kill(thisx);
         return;
     }
 
@@ -89,7 +89,7 @@ void EnSiofuki_Init(Actor* thisx, PlayState* play) {
         this->targetHeight = 10.0f;
         this->actionFunc = func_80AFC34C;
     } else if (type == EN_SIOFUKI_LOWERING) {
-        if (Flags_GetTreasure(play, (u16)thisx->params & 0x3F)) {
+        if (OoT_Flags_GetTreasure(play, (u16)thisx->params & 0x3F)) {
             this->currentHeight = -45.0f;
             this->targetHeight = -45.0f;
             this->actionFunc = func_80AFC544;
@@ -103,7 +103,7 @@ void EnSiofuki_Init(Actor* thisx, PlayState* play) {
 void EnSiofuki_Destroy(Actor* thisx, PlayState* play) {
     EnSiofuki* this = (EnSiofuki*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_80AFBDC8(EnSiofuki* this, PlayState* play) {
@@ -129,9 +129,9 @@ void func_80AFBE8C(EnSiofuki* this, PlayState* play) {
 
     if ((dX > (this->dyna.actor.scale.x * -346.0f)) && (dX < (this->dyna.actor.scale.x * 346.0f)) &&
         (dZ > (this->dyna.actor.scale.z * -400.0f)) && (dZ < (this->dyna.actor.scale.z * 400.0f)) && (dY < 0.0f)) {
-        if (DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
+        if (OoT_DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
             if (this->splashTimer <= 0) {
-                EffectSsGSplash_Spawn(play, &player->actor.world.pos, NULL, NULL, 1, 1);
+                OoT_EffectSsGSplash_Spawn(play, &player->actor.world.pos, NULL, NULL, 1, 1);
                 this->splashTimer = 10;
             } else {
                 this->splashTimer--;
@@ -141,14 +141,14 @@ void func_80AFBE8C(EnSiofuki* this, PlayState* play) {
             this->appliedSpeed = 0.0f;
             this->targetAppliedSpeed = 0.0f;
         } else {
-            dist2d = sqrtf(SQ(dX) + SQ(dZ));
+            dist2d = OoT_sqrtf(SQ(dX) + SQ(dZ));
             this->applySpeed = true;
             this->splashTimer = 0;
-            angle = Math_FAtan2F(dX, dZ) * (0x8000 / M_PI);
+            angle = OoT_Math_FAtan2F(dX, dZ) * (0x8000 / M_PI);
             dAngle = (player->actor.world.rot.y ^ 0x8000) - angle;
             player->actor.gravity = 0.0f;
             player->actor.velocity.y = 0.0f;
-            Math_SmoothStepToF(&player->actor.world.pos.y, this->dyna.actor.world.pos.y, 0.5f, 4.0f, 1.0f);
+            OoT_Math_SmoothStepToF(&player->actor.world.pos.y, this->dyna.actor.world.pos.y, 0.5f, 4.0f, 1.0f);
 
             if ((dAngle < 0x4000) && (dAngle > -0x4000)) {
                 this->appliedYaw = player->actor.world.rot.y ^ 0x8000;
@@ -156,13 +156,13 @@ void func_80AFBE8C(EnSiofuki* this, PlayState* play) {
                 speedScale = CLAMP_MIN(speedScale, 0.0f);
                 speedScale = CLAMP_MAX(speedScale, 1.0f);
                 player->linearVelocity *= speedScale;
-                Math_ApproachF(&this->targetAppliedSpeed, 3.0f, 1.0f, 1.0f);
-                Math_ApproachF(&this->appliedSpeed, this->targetAppliedSpeed, 1.0f, 0.3f * speedScale);
+                OoT_Math_ApproachF(&this->targetAppliedSpeed, 3.0f, 1.0f, 1.0f);
+                OoT_Math_ApproachF(&this->appliedSpeed, this->targetAppliedSpeed, 1.0f, 0.3f * speedScale);
             } else {
                 this->appliedYaw = player->actor.world.rot.y;
                 player->linearVelocity /= 2.0f;
-                Math_ApproachF(&this->targetAppliedSpeed, 3.0f, 1.0f, 1.0f);
-                Math_ApproachF(&this->appliedSpeed, this->targetAppliedSpeed, 1.0f, 0.1f);
+                OoT_Math_ApproachF(&this->targetAppliedSpeed, 3.0f, 1.0f, 1.0f);
+                OoT_Math_ApproachF(&this->appliedSpeed, this->targetAppliedSpeed, 1.0f, 0.1f);
             }
 
             player->pushedYaw = this->appliedYaw;
@@ -181,7 +181,7 @@ void func_80AFBE8C(EnSiofuki* this, PlayState* play) {
 }
 
 void func_80AFC1D0(EnSiofuki* this, PlayState* play) {
-    Math_SmoothStepToF(&this->currentHeight, this->targetHeight, 0.8f, 3.0f, 0.01f);
+    OoT_Math_SmoothStepToF(&this->currentHeight, this->targetHeight, 0.8f, 3.0f, 0.01f);
 }
 
 void func_80AFC218(EnSiofuki* this, PlayState* play) {
@@ -194,7 +194,7 @@ void func_80AFC218(EnSiofuki* this, PlayState* play) {
     }
 
     if (this->timer < 0) {
-        Flags_UnsetSwitch(play, ((u16)this->dyna.actor.params >> 6) & 0x3F);
+        OoT_Flags_UnsetSwitch(play, ((u16)this->dyna.actor.params >> 6) & 0x3F);
         switch (((u16)this->dyna.actor.params >> 0xC) & 0xF) {
             case EN_SIOFUKI_RAISING:
                 this->targetHeight = 10.0f;
@@ -210,10 +210,10 @@ void func_80AFC218(EnSiofuki* this, PlayState* play) {
     }
 
     if (((((u16)this->dyna.actor.params >> 0xC) & 0xF) == EN_SIOFUKI_LOWERING) &&
-        Flags_GetTreasure(play, (u16)this->dyna.actor.params & 0x3F)) {
+        OoT_Flags_GetTreasure(play, (u16)this->dyna.actor.params & 0x3F)) {
         this->currentHeight = -45.0f;
         this->targetHeight = -45.0f;
-        Flags_UnsetSwitch(play, ((u16)this->dyna.actor.params >> 6) & 0x3F);
+        OoT_Flags_UnsetSwitch(play, ((u16)this->dyna.actor.params >> 6) & 0x3F);
         this->actionFunc = func_80AFC544;
     }
 }
@@ -223,7 +223,7 @@ void func_80AFC34C(EnSiofuki* this, PlayState* play) {
     func_80AFBE8C(this, play);
     func_80AFC1D0(this, play);
 
-    if (Flags_GetSwitch(play, ((u16)this->dyna.actor.params >> 6) & 0x3F)) {
+    if (OoT_Flags_GetSwitch(play, ((u16)this->dyna.actor.params >> 6) & 0x3F)) {
         this->targetHeight = 400.0f;
         this->timer = 300;
         this->actionFunc = func_80AFC218;
@@ -242,7 +242,7 @@ void func_80AFC3C8(EnSiofuki* this, PlayState* play) {
         this->actionFunc = func_80AFC218;
     }
 
-    if (Flags_GetTreasure(play, (u16)this->dyna.actor.params & 0x3F)) {
+    if (OoT_Flags_GetTreasure(play, (u16)this->dyna.actor.params & 0x3F)) {
         this->currentHeight = -45.0f;
         this->targetHeight = -45.0f;
         this->actionFunc = func_80AFC544;
@@ -255,13 +255,13 @@ void func_80AFC478(EnSiofuki* this, PlayState* play) {
     func_80AFC1D0(this, play);
 
     if (((u16)this->dyna.actor.params >> 0xC & 0xF) == EN_SIOFUKI_LOWERING) {
-        if (Flags_GetSwitch(play, ((u16)this->dyna.actor.params >> 6) & 0x3F)) {
+        if (OoT_Flags_GetSwitch(play, ((u16)this->dyna.actor.params >> 6) & 0x3F)) {
             this->timer = 20;
             this->actionFunc = func_80AFC3C8;
             OnePointCutscene_Init(play, 5010, 40, &this->dyna.actor, MAIN_CAM);
         }
 
-        if (Flags_GetTreasure(play, (u16)this->dyna.actor.params & 0x3F)) {
+        if (OoT_Flags_GetTreasure(play, (u16)this->dyna.actor.params & 0x3F)) {
             this->currentHeight = -45.0f;
             this->targetHeight = -45.0f;
             this->actionFunc = func_80AFC544;
@@ -288,12 +288,12 @@ void EnSiofuki_Draw(Actor* thisx, PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
-    Matrix_Translate(0.0f, this->unk_170, 0.0f, MTXMODE_APPLY);
-    Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(0.0f, this->unk_170, 0.0f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     x = gameplayFrames * 15;
     y = gameplayFrames * -15;
-    gSPSegment(POLY_XLU_DISP++, 0x08, Gfx_TwoTexScroll(play->state.gfxCtx, 0, x, y, 64, 64, 1, x, y, 64, 64));
+    gSPSegment(POLY_XLU_DISP++, 0x08, OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, x, y, 64, 64, 1, x, y, 64, 64));
     gSPDisplayList(POLY_XLU_DISP++, object_siofuki_DL_000B70);
     CLOSE_DISPS(play->state.gfxCtx);
 

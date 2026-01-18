@@ -29,7 +29,7 @@ const ActorInit Bg_Spot17_Bakudankabe_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 3000, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 500, ICHAIN_CONTINUE),
@@ -44,8 +44,8 @@ void func_808B6BC0(BgSpot17Bakudankabe* this, PlayState* play) {
     f32 sinY;
     f32 cosY;
 
-    sinY = Math_SinS(this->dyna.actor.shape.rot.y);
-    cosY = Math_CosS(this->dyna.actor.shape.rot.y);
+    sinY = OoT_Math_SinS(this->dyna.actor.shape.rot.y);
+    cosY = OoT_Math_CosS(this->dyna.actor.shape.rot.y);
 
     burstDepthX.z = 0.0f;
     burstDepthX.x = 0.0f;
@@ -57,15 +57,15 @@ void func_808B6BC0(BgSpot17Bakudankabe* this, PlayState* play) {
         f32 temp2;
         s32 rotationSpeed;
 
-        temp1 = (Rand_ZeroOne() - 0.5f) * 140.0f;
-        temp2 = (Rand_ZeroOne() - 0.5f) * 20.0f;
+        temp1 = (OoT_Rand_ZeroOne() - 0.5f) * 140.0f;
+        temp2 = (OoT_Rand_ZeroOne() - 0.5f) * 20.0f;
 
         burstDepthY.x = this->dyna.actor.world.pos.x + temp2 * sinY + (temp1 * cosY);
         burstDepthY.y = this->dyna.actor.world.pos.y + 30.0f + (i * 6.5f);
         burstDepthY.z = this->dyna.actor.world.pos.z + temp2 * cosY - (temp1 * sinY);
 
-        burstDepthX.y = (Rand_ZeroOne() - 0.2f) * 12.0f;
-        scale = Rand_ZeroOne() * 55.0f + 8.0f;
+        burstDepthX.y = (OoT_Rand_ZeroOne() - 0.2f) * 12.0f;
+        scale = OoT_Rand_ZeroOne() * 55.0f + 8.0f;
 
         if (scale < 20) {
             gravityInfluence = -300;
@@ -75,15 +75,15 @@ void func_808B6BC0(BgSpot17Bakudankabe* this, PlayState* play) {
             gravityInfluence = -420;
         }
 
-        if (Rand_ZeroOne() < 0.4f) {
+        if (OoT_Rand_ZeroOne() < 0.4f) {
             rotationSpeed = 65;
         } else {
             rotationSpeed = 33;
         }
-        EffectSsKakera_Spawn(play, &burstDepthY, &burstDepthX, &burstDepthY, gravityInfluence, rotationSpeed, 0x1E, 4,
+        OoT_EffectSsKakera_Spawn(play, &burstDepthY, &burstDepthX, &burstDepthY, gravityInfluence, rotationSpeed, 0x1E, 4,
                              0, scale, 1, 3, 80, KAKERA_COLOR_NONE, OBJECT_GAMEPLAY_FIELD_KEEP, gFieldKakeraDL);
     }
-    Math_Vec3f_Copy(&burstDepthY, &this->dyna.actor.world.pos);
+    OoT_Math_Vec3f_Copy(&burstDepthY, &this->dyna.actor.world.pos);
     func_80033480(play, &burstDepthY, 60.0f, 4, 110, 160, 1);
     burstDepthY.y += 40.0f;
     func_80033480(play, &burstDepthY, 60.0f, 4, 120, 160, 1);
@@ -96,37 +96,37 @@ void BgSpot17Bakudankabe_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     CollisionHeader* colHeader = NULL;
 
-    DynaPolyActor_Init(&this->dyna, DPM_UNK);
-    if (Flags_GetSwitch(play, (this->dyna.actor.params & 0x3F))) {
-        Actor_Kill(&this->dyna.actor);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
+    if (OoT_Flags_GetSwitch(play, (this->dyna.actor.params & 0x3F))) {
+        OoT_Actor_Kill(&this->dyna.actor);
         return;
     }
 
-    CollisionHeader_GetVirtual(&gCraterBombableWallCol, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    OoT_CollisionHeader_GetVirtual(&gCraterBombableWallCol, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
 }
 
 void BgSpot17Bakudankabe_Destroy(Actor* thisx, PlayState* play) {
     BgSpot17Bakudankabe* this = (BgSpot17Bakudankabe*)thisx;
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void BgSpot17Bakudankabe_Update(Actor* thisx, PlayState* play) {
     BgSpot17Bakudankabe* this = (BgSpot17Bakudankabe*)thisx;
     if (this->dyna.actor.xzDistToPlayer < 650.0f && func_80033684(play, &this->dyna.actor) != NULL) {
         func_808B6BC0(this, play);
-        Flags_SetSwitch(play, (this->dyna.actor.params & 0x3F));
-        SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 40, NA_SE_EV_WALL_BROKEN);
+        OoT_Flags_SetSwitch(play, (this->dyna.actor.params & 0x3F));
+        OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 40, NA_SE_EV_WALL_BROKEN);
         Sfx_PlaySfxCentered(NA_SE_SY_CORRECT_CHIME);
-        Actor_Kill(&this->dyna.actor);
+        OoT_Actor_Kill(&this->dyna.actor);
     }
 }
 
 void BgSpot17Bakudankabe_Draw(Actor* thisx, PlayState* play) {
     s32 pad;
-    s8 r = coss(play->gameplayFrames * 1500) >> 8;
-    s8 g = coss(play->gameplayFrames * 1500) >> 8;
+    s8 r = OoT_coss(play->gameplayFrames * 1500) >> 8;
+    s8 g = OoT_coss(play->gameplayFrames * 1500) >> 8;
 
     OPEN_DISPS(play->state.gfxCtx);
 

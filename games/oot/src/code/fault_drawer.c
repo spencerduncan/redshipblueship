@@ -2,7 +2,7 @@
 #include "vt.h"
 #include <string.h>
 // rodata
-const u32 sFaultDrawerFont[] = {
+const u32 OoT_sFaultDrawerFont[] = {
     0x00DFFD00, 0x0AEEFFA0, 0x0DF22DD0, 0x06611DC0, 0x01122DD0, 0x06719900, 0x011EED10, 0x077EF700, 0x01562990,
     0x05589760, 0x0DD22990, 0x05599770, 0x04DFFD40, 0x026EF700, 0x00000000, 0x00000000, 0x08BFFB00, 0x0EFFFFC0,
     0x0BF00FB0, 0x0FF00330, 0x0FF00FF0, 0x0FF00220, 0x0CFBBF60, 0x0FFCCE20, 0x0DD44FF0, 0x0FF00220, 0x0FF00FF0,
@@ -34,7 +34,7 @@ const u32 sFaultDrawerFont[] = {
     0x05546F50, 0x00A99800, 0x02222080, 0x02001888,
 };
 
-FaultDrawer sFaultDrawerDefault = {
+FaultDrawer OoT_sFaultDrawerDefault = {
     (u16*)(0x80400000 - sizeof(u16[SCREEN_HEIGHT][SCREEN_WIDTH])), // fb
     SCREEN_WIDTH,                                                  // w
     SCREEN_HEIGHT,                                                 // h
@@ -46,7 +46,7 @@ FaultDrawer sFaultDrawerDefault = {
     GPACK_RGBA5551(0, 0, 0, 0),                                    // backColor
     22,                                                            // cursorX
     16,                                                            // cursorY
-    sFaultDrawerFont,                                              // font
+    OoT_sFaultDrawerFont,                                              // font
     8,
     8,
     0,
@@ -72,11 +72,11 @@ FaultDrawer sFaultDrawerDefault = {
 FaultDrawer sFaultDrawerStruct;
 char D_8016B6C0[0x20];
 
-void FaultDrawer_SetOsSyncPrintfEnabled(u32 enabled) {
+void OoT_FaultDrawer_SetOsSyncPrintfEnabled(u32 enabled) {
     sFaultDrawerStruct.osSyncPrintfEnabled = enabled;
 }
 
-void FaultDrawer_DrawRecImpl(s32 xStart, s32 yStart, s32 xEnd, s32 yEnd, u16 color) {
+void OoT_FaultDrawer_DrawRecImpl(s32 xStart, s32 yStart, s32 xEnd, s32 yEnd, u16 color) {
     u16* fb;
     s32 x, y;
     s32 xDiff = sFaultDrawerStruct.w - xStart;
@@ -105,7 +105,7 @@ void FaultDrawer_DrawRecImpl(s32 xStart, s32 yStart, s32 xEnd, s32 yEnd, u16 col
     }
 }
 
-void FaultDrawer_DrawChar(char c) {
+void OoT_FaultDrawer_DrawChar(char c) {
     u16* fb;
     s32 x, y;
     const u32* dataPtr;
@@ -140,7 +140,7 @@ void FaultDrawer_DrawChar(char c) {
     }
 }
 
-s32 FaultDrawer_ColorToPrintColor(u16 color) {
+s32 OoT_FaultDrawer_ColorToPrintColor(u16 color) {
     s32 i;
     for (i = 0; i < 10; i++) {
         if (color == sFaultDrawerStruct.printColors[i]) {
@@ -150,42 +150,42 @@ s32 FaultDrawer_ColorToPrintColor(u16 color) {
     return -1;
 }
 
-void FaultDrawer_UpdatePrintColor() {
+void OoT_FaultDrawer_UpdatePrintColor() {
     s32 idx;
 
     if (sFaultDrawerStruct.osSyncPrintfEnabled) {
         osSyncPrintf(VT_RST);
-        idx = FaultDrawer_ColorToPrintColor(sFaultDrawerStruct.foreColor);
+        idx = OoT_FaultDrawer_ColorToPrintColor(sFaultDrawerStruct.foreColor);
         if (idx >= 0 && idx < 8) {
             osSyncPrintf(VT_SGR("3%d"), idx);
         }
-        idx = FaultDrawer_ColorToPrintColor(sFaultDrawerStruct.backColor);
+        idx = OoT_FaultDrawer_ColorToPrintColor(sFaultDrawerStruct.backColor);
         if (idx >= 0 && idx < 8) {
             osSyncPrintf(VT_SGR("4%d"), idx);
         }
     }
 }
 
-void FaultDrawer_SetForeColor(u16 color) {
+void OoT_FaultDrawer_SetForeColor(u16 color) {
     sFaultDrawerStruct.foreColor = color;
-    FaultDrawer_UpdatePrintColor();
+    OoT_FaultDrawer_UpdatePrintColor();
 }
 
-void FaultDrawer_SetBackColor(u16 color) {
+void OoT_FaultDrawer_SetBackColor(u16 color) {
     sFaultDrawerStruct.backColor = color;
-    FaultDrawer_UpdatePrintColor();
+    OoT_FaultDrawer_UpdatePrintColor();
 }
 
-void FaultDrawer_SetFontColor(u16 color) {
-    FaultDrawer_SetForeColor(color | 1); // force alpha to be set
+void OoT_FaultDrawer_SetFontColor(u16 color) {
+    OoT_FaultDrawer_SetForeColor(color | 1); // force alpha to be set
 }
 
-void FaultDrawer_SetCharPad(s8 padW, s8 padH) {
+void OoT_FaultDrawer_SetCharPad(s8 padW, s8 padH) {
     sFaultDrawerStruct.charWPad = padW;
     sFaultDrawerStruct.charHPad = padH;
 }
 
-void FaultDrawer_SetCursor(s32 x, s32 y) {
+void OoT_FaultDrawer_SetCursor(s32 x, s32 y) {
     if (sFaultDrawerStruct.osSyncPrintfEnabled) {
         osSyncPrintf(VT_CUP("%d", "%d"),
                      (y - sFaultDrawerStruct.yStart) / (sFaultDrawerStruct.charH + sFaultDrawerStruct.charHPad),
@@ -195,17 +195,17 @@ void FaultDrawer_SetCursor(s32 x, s32 y) {
     sFaultDrawerStruct.cursorY = y;
 }
 
-void FaultDrawer_FillScreen() {
+void OoT_FaultDrawer_FillScreen() {
     if (sFaultDrawerStruct.osSyncPrintfEnabled) {
         osSyncPrintf(VT_CLS);
     }
 
-    FaultDrawer_DrawRecImpl(sFaultDrawerStruct.xStart, sFaultDrawerStruct.yStart, sFaultDrawerStruct.xEnd,
+    OoT_FaultDrawer_DrawRecImpl(sFaultDrawerStruct.xStart, sFaultDrawerStruct.yStart, sFaultDrawerStruct.xEnd,
                             sFaultDrawerStruct.yEnd, sFaultDrawerStruct.backColor | 1);
-    FaultDrawer_SetCursor(sFaultDrawerStruct.xStart, sFaultDrawerStruct.yStart);
+    OoT_FaultDrawer_SetCursor(sFaultDrawerStruct.xStart, sFaultDrawerStruct.yStart);
 }
 
-void* FaultDrawer_FormatStringFunc(void* arg, const char* str, u32 count) {
+void* OoT_FaultDrawer_FormatStringFunc(void* arg, const char* str, u32 count) {
     for (; count != 0; count--, str++) {
         s32 curXStart;
         s32 curXEnd;
@@ -213,7 +213,7 @@ void* FaultDrawer_FormatStringFunc(void* arg, const char* str, u32 count) {
         if (sFaultDrawerStruct.escCode) {
             sFaultDrawerStruct.escCode = false;
             if (*str > 0x30 && *str < 0x3A) {
-                FaultDrawer_SetForeColor(sFaultDrawerStruct.printColors[*str - 0x30]);
+                OoT_FaultDrawer_SetForeColor(sFaultDrawerStruct.printColors[*str - 0x30]);
             }
 
             curXStart = sFaultDrawerStruct.cursorX;
@@ -239,7 +239,7 @@ void* FaultDrawer_FormatStringFunc(void* arg, const char* str, u32 count) {
                         osSyncPrintf("%c", *str);
                     }
 
-                    FaultDrawer_DrawChar(*str);
+                    OoT_FaultDrawer_DrawChar(*str);
                     sFaultDrawerStruct.cursorX += sFaultDrawerStruct.charW + sFaultDrawerStruct.charWPad;
 
                     curXStart = sFaultDrawerStruct.cursorX;
@@ -253,7 +253,7 @@ void* FaultDrawer_FormatStringFunc(void* arg, const char* str, u32 count) {
             if (sFaultDrawerStruct.yEnd - sFaultDrawerStruct.charH <= sFaultDrawerStruct.cursorY) {
                 if (sFaultDrawerStruct.inputCallback) {
                     sFaultDrawerStruct.inputCallback();
-                    FaultDrawer_FillScreen();
+                    OoT_FaultDrawer_FillScreen();
                 }
                 sFaultDrawerStruct.cursorY = sFaultDrawerStruct.yStart;
             }
@@ -265,23 +265,23 @@ void* FaultDrawer_FormatStringFunc(void* arg, const char* str, u32 count) {
     return arg;
 }
 
-void FaultDrawer_VPrintf(const char* str, va_list args) { // va_list
-    _Printf(FaultDrawer_FormatStringFunc, (char*)&sFaultDrawerStruct, str, args);
+void OoT_FaultDrawer_VPrintf(const char* str, va_list args) { // va_list
+    _Printf(OoT_FaultDrawer_FormatStringFunc, (char*)&sFaultDrawerStruct, str, args);
 }
 
-void FaultDrawer_Printf(const char* fmt, ...) {
+void OoT_FaultDrawer_Printf(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    FaultDrawer_VPrintf(fmt, args);
+    OoT_FaultDrawer_VPrintf(fmt, args);
     va_end(args);
 }
 
-void FaultDrawer_DrawText(s32 x, s32 y, const char* fmt, ...) {
+void OoT_FaultDrawer_DrawText(s32 x, s32 y, const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
 
-    FaultDrawer_SetCursor(x, y);
-    FaultDrawer_VPrintf(fmt, args);
+    OoT_FaultDrawer_SetCursor(x, y);
+    OoT_FaultDrawer_VPrintf(fmt, args);
     va_end(args);
 }
 
@@ -300,6 +300,6 @@ void FaultDrawer_WritebackFBDCache() {
 }
 
 void FaultDrawer_SetDefault() {
-    memcpy(&sFaultDrawerStruct, &sFaultDrawerDefault, sizeof(FaultDrawer));
+    memcpy(&sFaultDrawerStruct, &OoT_sFaultDrawerDefault, sizeof(FaultDrawer));
     sFaultDrawerStruct.fb = (u16*)((osMemSize | 0x80000000) - sizeof(u16[SCREEN_HEIGHT][SCREEN_WIDTH]));
 }

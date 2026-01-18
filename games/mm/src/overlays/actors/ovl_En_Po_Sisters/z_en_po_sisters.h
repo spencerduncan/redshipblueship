@@ -46,13 +46,13 @@ typedef struct EnPoSisters {
     /* 0x188 */ EnPoSistersActionFunc actionFunc;
     /* 0x18C */ u8 type;
     /* 0x18D */ u8 megCloneId;
-    /* 0x18E */ u8 floatingBobbingTimer; // counts down from 32 to zero, reset
-    /* 0x18F */ u8 zTargetTimer; // how many frames the player is z targeting, if zero -> invis
+    /* 0x18E */ u8 floatingBobbingTimer; // counts down from 32 to MM_zero, reset
+    /* 0x18F */ u8 zTargetTimer; // how many frames the player is z targeting, if MM_zero -> invis
     /* 0x190 */ u8 fireCount;
     /* 0x191 */ u8 poSisterFlags;
     /* 0x192 */ union {
                 s16 stateTimer; // generic name for resets
-                s16 spinTimer; // frames of spinning since spin attack starts, when zero checks collision
+                s16 spinTimer; // frames of spinning since spin attack starts, when MM_zero checks collision
                 s16 fleeTimer; // after being hit, 5 frames of flying away
                 s16 deathTimer; // (incr) controls timings of the death cutscene, reset between the two stages
                 s16 laughTimer; // if observer, will laugh once in awhile

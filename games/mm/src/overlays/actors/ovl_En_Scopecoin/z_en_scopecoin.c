@@ -31,17 +31,17 @@ void EnScopecoin_Spin(EnScopecoin* this, PlayState* play) {
 }
 
 void EnScopecoin_CheckCollectible(EnScopecoin* this, PlayState* play) {
-    if (Flags_GetCollectible(play, OBJMUPICT_GET_RUPEE_FLAG(&this->actor))) {
-        Item_DropCollectible(play, &this->actor.world.pos, ITEM00_RUPEE_RED);
-        Actor_Kill(&this->actor);
+    if (MM_Flags_GetCollectible(play, OBJMUPICT_GET_RUPEE_FLAG(&this->actor))) {
+        MM_Item_DropCollectible(play, &this->actor.world.pos, ITEM00_RUPEE_RED);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
 void EnScopecoin_Init(Actor* thisx, PlayState* play) {
     EnScopecoin* this = (EnScopecoin*)thisx;
 
-    Actor_SetScale(&this->actor, 0.01f);
-    ActorShape_Init(&this->actor.shape, 0, ActorShadow_DrawCircle, 10.0f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
+    MM_ActorShape_Init(&this->actor.shape, 0, MM_ActorShadow_DrawCircle, 10.0f);
 
     this->rupeeIndex = OBJMUPICT_GET_RUPEE_INDEX(&this->actor);
     if ((this->rupeeIndex < 0) || (this->rupeeIndex > 7)) {
@@ -50,8 +50,8 @@ void EnScopecoin_Init(Actor* thisx, PlayState* play) {
 
     if (play->actorCtx.flags & ACTORCTX_FLAG_TELESCOPE_ON) {
         if ((this->rupeeIndex == 2) || (this->rupeeIndex == 6)) {
-            if (Flags_GetCollectible(play, OBJMUPICT_GET_RUPEE_FLAG(&this->actor))) {
-                Actor_Kill(&this->actor);
+            if (MM_Flags_GetCollectible(play, OBJMUPICT_GET_RUPEE_FLAG(&this->actor))) {
+                MM_Actor_Kill(&this->actor);
                 return;
             }
         }
@@ -59,14 +59,14 @@ void EnScopecoin_Init(Actor* thisx, PlayState* play) {
         this->actionFunc = EnScopecoin_Spin;
     } else {
         if ((this->rupeeIndex == 2) || (this->rupeeIndex == 6)) {
-            if (Flags_GetCollectible(play, OBJMUPICT_GET_RUPEE_FLAG(&this->actor))) {
-                Actor_Kill(&this->actor);
+            if (MM_Flags_GetCollectible(play, OBJMUPICT_GET_RUPEE_FLAG(&this->actor))) {
+                MM_Actor_Kill(&this->actor);
                 return;
             }
             this->actor.draw = NULL;
             this->actionFunc = EnScopecoin_CheckCollectible;
         } else {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
     }
 }
@@ -80,7 +80,7 @@ void EnScopecoin_Update(Actor* thisx, PlayState* play) {
     this->actionFunc(this, play);
 }
 
-static TexturePtr sRupeeTextures[] = {
+static TexturePtr MM_sRupeeTextures[] = {
     gRupeeGreenTex, gRupeeBlueTex, gRupeeRedTex, gRupeeOrangeTex, gRupeePurpleTex, gRupeeSilverTex, gRupeeRedTex,
 };
 
@@ -94,7 +94,7 @@ void EnScopecoin_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sRupeeTextures[this->rupeeIndex]));
+    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sRupeeTextures[this->rupeeIndex]));
     gSPDisplayList(POLY_OPA_DISP++, gRupeeDL);
 
     CLOSE_DISPS(gfxCtx);

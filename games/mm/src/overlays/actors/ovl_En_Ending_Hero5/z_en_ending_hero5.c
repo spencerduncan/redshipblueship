@@ -32,12 +32,12 @@ void EnEndingHero5_Init(Actor* thisx, PlayState* play) {
     EnEndingHero5* this = (EnEndingHero5*)thisx;
 
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->actor.attentionRangeType = ATTENTION_RANGE_6;
     this->actor.gravity = -3.0f;
-    SkelAnime_InitFlex(play, &this->skelAnime, &object_daiku_Skel_00A850, &object_daiku_Anim_002FA0, this->jointTable,
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &object_daiku_Skel_00A850, &object_daiku_Anim_002FA0, this->jointTable,
                        this->morphTable, OBJECT_DAIKU_LIMB_MAX);
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 25.0f);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 25.0f);
     this->unk25C = this->actor.params;
     EnEndingHero5_SetupIdle(this);
 }
@@ -51,7 +51,7 @@ void EnEndingHero5_SetupIdle(EnEndingHero5* this) {
 }
 
 void EnEndingHero5_Idle(EnEndingHero5* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 }
 
 void EnEndingHero5_Update(Actor* thisx, PlayState* play) {
@@ -59,7 +59,7 @@ void EnEndingHero5_Update(Actor* thisx, PlayState* play) {
 
     this->actionFunc(this, play);
     Actor_MoveWithGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 50.0f,
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 50.0f,
                             UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4 | UPDBGCHECKINFO_FLAG_8 |
                                 UPDBGCHECKINFO_FLAG_10);
 }
@@ -112,7 +112,7 @@ void EnEndingHero5_Draw(Actor* thisx, PlayState* play) {
             break;
     }
 
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount, NULL,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount, NULL,
                           EnEndingHero5_PostLimbDraw, &this->actor);
 
     CLOSE_DISPS(play->state.gfxCtx);

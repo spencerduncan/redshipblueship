@@ -41,7 +41,7 @@ EnDaiEffect* func_80B3DFF0(EnDaiEffect* effect, Vec3f arg1, Vec3f arg2, Vec3f ar
     for (i = 0; i < EN_DAI_EFFECT_COUNT; i++, effect++) {
         if (!effect->isEnabled) {
             effect->isEnabled = true;
-            effect->unk_01 = (Rand_ZeroOne() * (2.0f * (arg6 / 3.0f))) + (arg6 / 3.0f);
+            effect->unk_01 = (MM_Rand_ZeroOne() * (2.0f * (arg6 / 3.0f))) + (arg6 / 3.0f);
             effect->unk_02 = effect->unk_01;
             effect->unk_10 = arg1;
             effect->unk_1C = arg2;
@@ -76,7 +76,7 @@ void func_80B3E168(EnDaiEffect* effect, PlayState* play2) {
                 isDisplayListSet = true;
             }
 
-            Matrix_Push();
+            MM_Matrix_Push();
 
             alpha = (effect->unk_02 / (f32)effect->unk_01);
             alpha *= 255.0f;
@@ -84,17 +84,17 @@ void func_80B3E168(EnDaiEffect* effect, PlayState* play2) {
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 195, 225, 235, (u8)alpha);
 
             gSPSegment(POLY_XLU_DISP++, 0x08,
-                       Gfx_TwoTexScroll(play->state.gfxCtx, 0, (effect->unk_02 + (i * 3)) * 3,
+                       MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, (effect->unk_02 + (i * 3)) * 3,
                                         (effect->unk_02 + (i * 3)) * 15, 0x20, 0x40, 1, 0, 0, 0x20, 0x20));
 
-            Matrix_Translate(effect->unk_10.x, effect->unk_10.y, effect->unk_10.z, MTXMODE_NEW);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
-            Matrix_Scale(effect->unk_34, effect->unk_34, 1.0f, MTXMODE_APPLY);
+            MM_Matrix_Translate(effect->unk_10.x, effect->unk_10.y, effect->unk_10.z, MTXMODE_NEW);
+            MM_Matrix_ReplaceRotation(&play->billboardMtxF);
+            MM_Matrix_Scale(effect->unk_34, effect->unk_34, 1.0f, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
             gSPDisplayList(POLY_XLU_DISP++, object_dai_DL_0002E8);
 
-            Matrix_Pop();
+            MM_Matrix_Pop();
             FrameInterpolation_RecordCloseChild();
         }
     }
@@ -145,7 +145,7 @@ typedef enum {
     /*  9 */ ENDAI_ANIM_MAX
 } EnDaiAnimation;
 
-static AnimationInfoS sAnimationInfo[ENDAI_ANIM_MAX] = {
+static AnimationInfoS MM_sAnimationInfo[ENDAI_ANIM_MAX] = {
     { &object_dai_Anim_0079E4, 1.0f, 0, -1, ANIMMODE_LOOP, 0 },  // ENDAI_ANIM_0
     { &object_dai_Anim_0079E4, 1.0f, 0, -1, ANIMMODE_LOOP, -4 }, // ENDAI_ANIM_1
     { &object_dai_Anim_007354, 1.0f, 0, -1, ANIMMODE_ONCE, -4 }, // ENDAI_ANIM_2
@@ -185,7 +185,7 @@ s32 EnDai_ChangeAnim(EnDai* this, s32 animIndex) {
 
     if (changeAnim) {
         this->animIndex = animIndex;
-        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, animIndex);
+        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, animIndex);
     }
 
     return didAnimChange;
@@ -197,7 +197,7 @@ s32 func_80B3E69C(EnDai* this, PlayState* play) {
     if ((play->csCtx.state != CS_STATE_IDLE) && (play->sceneId == SCENE_12HAKUGINMAE) &&
         (play->csCtx.scriptIndex == 0) && !CHECK_WEEKEVENTREG(WEEKEVENTREG_30_01)) {
         if (!(this->unk_1CE & 0x10)) {
-            Flags_SetSwitch(play, 20);
+            MM_Flags_SetSwitch(play, 20);
             this->unk_1CE |= (0x80 | 0x10);
             this->unk_1CE &= ~(0x100 | 0x20);
             this->cueId = 255;
@@ -244,7 +244,7 @@ void func_80B3E834(EnDai* this) {
         if (phi_v1 == 0) {
             this->unk_1D6++;
             if (this->unk_1D6 >= 5) {
-                this->unk_1D8 = Rand_S16Offset(20, 20);
+                this->unk_1D8 = MM_Rand_S16Offset(20, 20);
                 this->unk_1D6 = 0;
             }
         }
@@ -318,7 +318,7 @@ s32 func_80B3E96C(EnDai* this, PlayState* play) {
     Vec3f sp50;
 
     if ((DECR(this->unk_1DA) == 0) &&
-        ((this->unk_1DC == 0) || Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame))) {
+        ((this->unk_1DC == 0) || MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame))) {
         switch (this->unk_1DC) {
             case 0:
                 EnDai_ChangeAnim(this, ENDAI_ANIM_2);
@@ -327,7 +327,7 @@ s32 func_80B3E96C(EnDai* this, PlayState* play) {
 
             case 1:
                 Actor_PlaySfx(&this->actor, NA_SE_EV_SNOWSTORM_HARD);
-                Actor_Spawn(&play->actorCtx, play, ACTOR_EN_WEATHER_TAG, this->actor.world.pos.x,
+                MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_WEATHER_TAG, this->actor.world.pos.x,
                             this->actor.world.pos.y, this->actor.world.pos.z, 0x1388, 0x708, 0x3E8, 0);
                 EnDai_ChangeAnim(this, ENDAI_ANIM_3);
                 this->unk_1DC++;
@@ -343,7 +343,7 @@ s32 func_80B3E96C(EnDai* this, PlayState* play) {
                 this->unk_1F0 = D_80B3FBF0;
                 this->unk_1FC = D_80B3FBF0;
                 this->unk_1DC = 0;
-                this->unk_1DA = Rand_S16Offset(20, 20);
+                this->unk_1DA = MM_Rand_S16Offset(20, 20);
                 break;
 
             default:
@@ -356,8 +356,8 @@ s32 func_80B3E96C(EnDai* this, PlayState* play) {
         sp68.x = sp68.z = 0.0f;
         sp68.y = 6.0f;
 
-        sp5C.x = Math_SinS(this->unk_1D4) * 80.0f;
-        sp5C.z = Math_CosS(this->unk_1D4) * 80.0f;
+        sp5C.x = MM_Math_SinS(this->unk_1D4) * 80.0f;
+        sp5C.z = MM_Math_CosS(this->unk_1D4) * 80.0f;
         sp5C.y = -40.0f;
 
         Lib_Vec3f_TranslateAndRotateY(&this->unk_1E4, this->unk_1D4, &sp50, &sp74);
@@ -474,12 +474,12 @@ void func_80B3EF90(EnDai* this, PlayState* play) {
         this->msgScriptPos = 0;
         this->actionFunc = func_80B3F00C;
     } else {
-        Math_ApproachS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 4, 0x2AA8);
+        MM_Math_ApproachS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 4, 0x2AA8);
     }
 }
 
 void func_80B3F00C(EnDai* this, PlayState* play) {
-    Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 3, 0x2AA8);
+    MM_Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 3, 0x2AA8);
 }
 
 void EnDai_HandleCutscene(EnDai* this, PlayState* play) {
@@ -528,24 +528,24 @@ void EnDai_HandleCutscene(EnDai* this, PlayState* play) {
             if (play->csCtx.curFrame == 360) {
                 Actor_PlaySfx(&this->actor, NA_SE_EN_DAIGOLON_SLEEP3 - SFX_FLAG);
             }
-            if (Animation_OnFrame(&this->skelAnime, 43.0f)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, 43.0f)) {
                 Actor_PlaySfx(&this->actor, NA_SE_EV_GORON_BOUND_1);
             }
             this->unk_1D6 = func_80B3E8BC(this, this->cueId);
             break;
 
         case 3:
-            if (Animation_OnFrame(&this->skelAnime, 6.0f)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, 6.0f)) {
                 Actor_PlaySfx(&this->actor, NA_SE_EN_DAIGOLON_SLEEP1);
             }
             this->unk_1D6 = func_80B3E8BC(this, this->cueId);
             break;
 
         case 4:
-            if (Animation_OnFrame(&this->skelAnime, 30.0f)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, 30.0f)) {
                 Actor_PlaySfx(&this->actor, NA_SE_EN_DAIGOLON_SLEEP2);
             }
-            if (Animation_OnFrame(&this->skelAnime, 35.0f)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, 35.0f)) {
                 Actor_PlaySfx(&this->actor, NA_SE_EV_GORON_BOUND_0);
             }
             this->unk_1D6 = func_80B3E8BC(this, this->cueId);
@@ -561,12 +561,12 @@ void EnDai_HandleCutscene(EnDai* this, PlayState* play) {
 void EnDai_Init(Actor* thisx, PlayState* play) {
     EnDai* this = (EnDai*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 0.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &object_dai_Skel_0130D0, NULL, this->jointTable, this->morphTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 0.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &object_dai_Skel_0130D0, NULL, this->jointTable, this->morphTable,
                        OBJECT_DAI_LIMB_MAX);
     this->animIndex = ENDAI_ANIM_NONE;
     EnDai_ChangeAnim(this, ENDAI_ANIM_0);
-    Actor_SetScale(&this->actor, 0.2f);
+    MM_Actor_SetScale(&this->actor, 0.2f);
     this->actor.attentionRangeType = ATTENTION_RANGE_10;
     this->unk_1F0 = D_80B3FBF0;
     this->unk_1FC = D_80B3FBF0;
@@ -582,7 +582,7 @@ void EnDai_Init(Actor* thisx, PlayState* play) {
     }
 
     if (CHECK_WEEKEVENTREG(WEEKEVENTREG_30_01)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -603,13 +603,13 @@ void EnDai_Update(Actor* thisx, PlayState* play) {
 
     if (!func_80B3E7C8(this, play) && func_80B3E69C(this, play)) {
         EnDai_HandleCutscene(this, play);
-        SkelAnime_Update(&this->skelAnime);
+        MM_SkelAnime_Update(&this->skelAnime);
         func_80B3E834(this);
         func_80B3E460(this);
     } else {
         this->actionFunc(this, play);
         if (!(player->stateFlags2 & PLAYER_STATE2_USING_OCARINA)) {
-            SkelAnime_Update(&this->skelAnime);
+            MM_SkelAnime_Update(&this->skelAnime);
             func_80B3E834(this);
             if (!(this->unk_1CE & 0x200)) {
                 SubS_Offer(&this->actor, play, 0.0f, 0.0f, PLAYER_IA_NONE, this->unk_1CE & SUBS_OFFER_MODE_MASK);
@@ -628,7 +628,7 @@ s32 EnDai_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* p
     }
 
     if (limbIndex == OBJECT_DAI_LIMB_0B) {
-        Matrix_MultVec3f(&gZeroVec3f, &this->unk_1E4);
+        MM_Matrix_MultVec3f(&gZeroVec3f, &this->unk_1E4);
     }
 
     if (limbIndex == OBJECT_DAI_LIMB_0A) {
@@ -650,15 +650,15 @@ void EnDai_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot,
             D_80B3FE4C.x = sREG(0);
             D_80B3FE4C.y = sREG(1);
             D_80B3FE4C.z = sREG(2);
-            Matrix_MultVec3f(&D_80B3FE4C, &this->actor.focus.pos);
+            MM_Matrix_MultVec3f(&D_80B3FE4C, &this->actor.focus.pos);
             Math_Vec3s_Copy(&this->actor.focus.rot, &this->actor.world.rot);
-            Matrix_Get(&sp24);
+            MM_Matrix_Get(&sp24);
             Matrix_MtxFToYXZRot(&sp24, &sp64, false);
             this->unk_1D4 = BINANG_SUB(sp64.y, 0x4000);
             break;
 
         case OBJECT_DAI_LIMB_0A:
-            Matrix_Get(&this->unk_18C);
+            MM_Matrix_Get(&this->unk_18C);
             break;
 
         default:
@@ -674,14 +674,14 @@ void EnDai_TransformLimbDraw(PlayState* play, s32 limbIndex, Actor* thisx, Gfx**
             if (this->unk_1CE & 0x100) {
                 func_80B3EC84(this);
             }
-            Matrix_Scale(this->unk_1F0.x, this->unk_1F0.y, this->unk_1F0.z, MTXMODE_APPLY);
+            MM_Matrix_Scale(this->unk_1F0.x, this->unk_1F0.y, this->unk_1F0.z, MTXMODE_APPLY);
             break;
 
         case OBJECT_DAI_LIMB_02:
             if (this->unk_1CE & 0x100) {
                 func_80B3ED88(this);
             }
-            Matrix_Scale(this->unk_1FC.x, this->unk_1FC.y, this->unk_1FC.z, MTXMODE_APPLY);
+            MM_Matrix_Scale(this->unk_1FC.x, this->unk_1FC.y, this->unk_1FC.z, MTXMODE_APPLY);
             break;
 
         default:
@@ -716,7 +716,7 @@ void func_80B3F78C(EnDai* this, PlayState* play) {
                                            this->skelAnime.dListCount, EnDai_OverrideLimbDraw, EnDai_PostLimbDraw,
                                            EnDai_TransformLimbDraw, &this->actor, POLY_XLU_DISP);
     if (this->unk_1CE & 0x40) {
-        Matrix_Put(&this->unk_18C);
+        MM_Matrix_Put(&this->unk_18C);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_XLU_DISP++, object_dai_DL_00C538);
@@ -747,7 +747,7 @@ void func_80B3F920(EnDai* this, PlayState* play) {
         POLY_OPA_DISP = SubS_DrawTransformFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                                this->skelAnime.dListCount, EnDai_OverrideLimbDraw, EnDai_PostLimbDraw,
                                                EnDai_TransformLimbDraw, &this->actor, POLY_OPA_DISP);
-        Matrix_Put(&this->unk_18C);
+        MM_Matrix_Put(&this->unk_18C);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_OPA_DISP++, object_dai_DL_00C538);
@@ -766,7 +766,7 @@ void func_80B3F920(EnDai* this, PlayState* play) {
         POLY_XLU_DISP = SubS_DrawTransformFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                                this->skelAnime.dListCount, EnDai_OverrideLimbDraw, EnDai_PostLimbDraw,
                                                EnDai_TransformLimbDraw, &this->actor, POLY_XLU_DISP);
-        Matrix_Put(&this->unk_18C);
+        MM_Matrix_Put(&this->unk_18C);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_XLU_DISP++, object_dai_DL_00C538);

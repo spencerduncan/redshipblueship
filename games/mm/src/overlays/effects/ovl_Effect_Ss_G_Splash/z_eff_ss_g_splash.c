@@ -7,19 +7,19 @@
 #include "z_eff_ss_g_splash.h"
 #include "objects/gameplay_keep/gameplay_keep.h"
 
-//! @bug the reuse of regs[11] means that EffectSs_DrawGEffect will treat the type as an object bank index
+//! @bug the reuse of regs[11] means that MM_EffectSs_DrawGEffect will treat the type as an object bank index
 // this ends up having no effect because the texture provided does not use segment 6
 #define rType regs[11]
 
 #define PARAMS ((EffectSsGSplashInitParams*)initParamsx)
 
-u32 EffectSsGSplash_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsGSplash_Update(PlayState* play, u32 index, EffectSs* this);
-void EffectSsGSplash_Draw(PlayState* play, u32 index, EffectSs* this);
+u32 MM_EffectSsGSplash_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void MM_EffectSsGSplash_Update(PlayState* play, u32 index, EffectSs* this);
+void MM_EffectSsGSplash_Draw(PlayState* play, u32 index, EffectSs* this);
 
 EffectSsProfile Effect_Ss_G_Splash_Profile = {
     EFFECT_SS_G_SPLASH,
-    EffectSsGSplash_Init,
+    MM_EffectSsGSplash_Init,
 };
 
 static TexturePtr sWaterSplashTextures[] = {
@@ -27,14 +27,14 @@ static TexturePtr sWaterSplashTextures[] = {
     gEffWaterSplash5Tex, gEffWaterSplash6Tex, gEffWaterSplash7Tex, gEffWaterSplash8Tex,
 };
 
-u32 EffectSsGSplash_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 MM_EffectSsGSplash_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsGSplashInitParams* initParams = PARAMS;
 
-    Math_Vec3f_Copy(&this->velocity, &gZeroVec3f);
-    Math_Vec3f_Copy(&this->accel, &gZeroVec3f);
-    Math_Vec3f_Copy(&this->pos, &initParams->pos);
-    this->draw = EffectSsGSplash_Draw;
-    this->update = EffectSsGSplash_Update;
+    MM_Math_Vec3f_Copy(&this->velocity, &gZeroVec3f);
+    MM_Math_Vec3f_Copy(&this->accel, &gZeroVec3f);
+    MM_Math_Vec3f_Copy(&this->pos, &initParams->pos);
+    this->draw = MM_EffectSsGSplash_Draw;
+    this->update = MM_EffectSsGSplash_Update;
 
     if (initParams->scale == 0) {
         initParams->scale = 600;
@@ -96,7 +96,7 @@ u32 EffectSsGSplash_Init(PlayState* play, u32 index, EffectSs* this, void* initP
     return 1;
 }
 
-void EffectSsGSplash_Draw(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsGSplash_Draw(PlayState* play, u32 index, EffectSs* this) {
     s16 texIndex;
 
     switch (this->rType) {
@@ -105,7 +105,7 @@ void EffectSsGSplash_Draw(PlayState* play, u32 index, EffectSs* this) {
             if (texIndex > 7) {
                 texIndex = 7;
             }
-            EffectSs_DrawGEffect(play, this, sWaterSplashTextures[texIndex]);
+            MM_EffectSs_DrawGEffect(play, this, sWaterSplashTextures[texIndex]);
             break;
 
         case EFFSSGSPLASH_TYPE_1:
@@ -113,7 +113,7 @@ void EffectSsGSplash_Draw(PlayState* play, u32 index, EffectSs* this) {
             if (texIndex > 7) {
                 texIndex = 7;
             }
-            EffectSs_DrawGEffect(play, this, sWaterSplashTextures[texIndex]);
+            MM_EffectSs_DrawGEffect(play, this, sWaterSplashTextures[texIndex]);
             break;
 
         case EFFSSGSPLASH_TYPE_2:
@@ -121,18 +121,18 @@ void EffectSsGSplash_Draw(PlayState* play, u32 index, EffectSs* this) {
             if (texIndex > 7) {
                 texIndex = 7;
             }
-            EffectSs_DrawGEffect(play, this, sWaterSplashTextures[texIndex]);
+            MM_EffectSs_DrawGEffect(play, this, sWaterSplashTextures[texIndex]);
             break;
     }
 }
 
-void EffectSsGSplash_Update(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsGSplash_Update(PlayState* play, u32 index, EffectSs* this) {
     Vec3f newSplashPos;
 
     if ((this->rType == EFFSSGSPLASH_TYPE_1) && (this->life == 5)) {
         newSplashPos = this->pos;
         newSplashPos.y += ((this->rgScale * 20) * 0.002f);
-        EffectSsGSplash_Spawn(play, &newSplashPos, 0, 0, 2, this->rgScale / 2);
+        MM_EffectSsGSplash_Spawn(play, &newSplashPos, 0, 0, 2, this->rgScale / 2);
     }
 
     this->rgTexIndex += this->rgTexIndexStep;

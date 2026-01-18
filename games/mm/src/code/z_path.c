@@ -1,6 +1,6 @@
 #include "global.h"
 
-Path* Path_GetByIndex(PlayState* play, s16 index, s16 indexNone) {
+Path* MM_Path_GetByIndex(PlayState* play, s16 index, s16 indexNone) {
     Path* path;
 
     if (index != indexNone) {
@@ -12,7 +12,7 @@ Path* Path_GetByIndex(PlayState* play, s16 index, s16 indexNone) {
     return path;
 }
 
-f32 Path_OrientAndGetDistSq(Actor* actor, Path* path, s16 waypoint, s16* yaw) {
+f32 MM_Path_OrientAndGetDistSq(Actor* actor, Path* path, s16 waypoint, s16* yaw) {
     f32 dx;
     f32 dz;
     Vec3s* pointPos;
@@ -27,12 +27,12 @@ f32 Path_OrientAndGetDistSq(Actor* actor, Path* path, s16 waypoint, s16* yaw) {
     dx = pointPos->x - actor->world.pos.x;
     dz = pointPos->z - actor->world.pos.z;
 
-    *yaw = Math_Atan2S(dx, dz);
+    *yaw = MM_Math_Atan2S(dx, dz);
 
     return SQ(dx) + SQ(dz);
 }
 
-void Path_CopyLastPoint(Path* path, Vec3f* dest) {
+void MM_Path_CopyLastPoint(Path* path, Vec3f* dest) {
     Vec3s* pointPos;
 
     if (path != NULL) {

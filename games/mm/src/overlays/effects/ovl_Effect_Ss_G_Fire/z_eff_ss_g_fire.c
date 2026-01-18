@@ -9,23 +9,23 @@
 
 #define PARAMS ((EffectSsGFireInitParams*)initParamsx)
 
-u32 EffectSsGFire_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsGFire_Update(PlayState* play, u32 index, EffectSs* this);
-void EffectSsGFire_Draw(PlayState* play, u32 index, EffectSs* this);
+u32 MM_EffectSsGFire_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void MM_EffectSsGFire_Update(PlayState* play, u32 index, EffectSs* this);
+void MM_EffectSsGFire_Draw(PlayState* play, u32 index, EffectSs* this);
 
 EffectSsProfile Effect_Ss_G_Fire_Profile = {
     EFFECT_SS_G_FIRE,
-    EffectSsGFire_Init,
+    MM_EffectSsGFire_Init,
 };
 
-u32 EffectSsGFire_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 MM_EffectSsGFire_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsGFireInitParams* initParams = PARAMS;
 
-    Math_Vec3f_Copy(&this->velocity, &gZeroVec3f);
-    Math_Vec3f_Copy(&this->accel, &gZeroVec3f);
-    Math_Vec3f_Copy(&this->pos, &initParams->pos);
-    this->draw = EffectSsGFire_Draw;
-    this->update = EffectSsGFire_Update;
+    MM_Math_Vec3f_Copy(&this->velocity, &gZeroVec3f);
+    MM_Math_Vec3f_Copy(&this->accel, &gZeroVec3f);
+    MM_Math_Vec3f_Copy(&this->pos, &initParams->pos);
+    this->draw = MM_EffectSsGFire_Draw;
+    this->update = MM_EffectSsGFire_Update;
     this->gfx = gEffFireFootprintDL;
     this->life = 8;
     this->flags = 0;
@@ -44,16 +44,16 @@ u32 EffectSsGFire_Init(PlayState* play, u32 index, EffectSs* this, void* initPar
     return 1;
 }
 
-void EffectSsGFire_Draw(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsGFire_Draw(PlayState* play, u32 index, EffectSs* this) {
     TexturePtr fireFootprintTextures[] = {
         gEffFireFootprint1Tex, gEffFireFootprint2Tex, gEffFireFootprint3Tex, gEffFireFootprint4Tex,
         gEffFireFootprint5Tex, gEffFireFootprint6Tex, gEffFireFootprint7Tex, gEffFireFootprint8Tex,
     };
     s16 texIndex = (this->rgTexIndex / 100) % 7;
 
-    EffectSs_DrawGEffect(play, this, fireFootprintTextures[texIndex]);
+    MM_EffectSs_DrawGEffect(play, this, fireFootprintTextures[texIndex]);
 }
 
-void EffectSsGFire_Update(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsGFire_Update(PlayState* play, u32 index, EffectSs* this) {
     this->rgTexIndex += this->rgTexIndexStep;
 }

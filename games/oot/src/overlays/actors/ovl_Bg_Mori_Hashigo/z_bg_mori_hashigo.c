@@ -37,7 +37,7 @@ const ActorInit Bg_Mori_Hashigo_InitVars = {
     NULL,
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[1] = {
+static ColliderJntSphElementInit OoT_sJntSphElementsInit[1] = {
     {
         {
             ELEMTYPE_UNK4,
@@ -51,7 +51,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[1] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit OoT_sJntSphInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -61,7 +61,7 @@ static ColliderJntSphInit sJntSphInit = {
         COLSHAPE_JNTSPH,
     },
     1,
-    sJntSphElementsInit,
+    OoT_sJntSphElementsInit,
 };
 
 static InitChainEntry sInitChainClasp[] = {
@@ -83,9 +83,9 @@ void BgMoriHashigo_InitDynapoly(BgMoriHashigo* this, PlayState* play, CollisionH
     s32 pad2;
 
     colHeader = NULL;
-    DynaPolyActor_Init(&this->dyna, moveFlag);
-    CollisionHeader_GetVirtual(collision, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_DynaPolyActor_Init(&this->dyna, moveFlag);
+    OoT_CollisionHeader_GetVirtual(collision, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
 
     if (this->dyna.bgId == BG_ACTOR_MAX) {
         // "Warning : move BG login failed"
@@ -97,8 +97,8 @@ void BgMoriHashigo_InitDynapoly(BgMoriHashigo* this, PlayState* play, CollisionH
 void BgMoriHashigo_InitCollider(BgMoriHashigo* this, PlayState* play) {
     s32 pad;
 
-    Collider_InitJntSph(play, &this->collider);
-    Collider_SetJntSph(play, &this->collider, &this->dyna.actor, &sJntSphInit, this->colliderItems);
+    OoT_Collider_InitJntSph(play, &this->collider);
+    OoT_Collider_SetJntSph(play, &this->collider, &this->dyna.actor, &OoT_sJntSphInit, this->colliderItems);
 
     this->collider.elements[0].dim.worldSphere.center.x = (s16)this->dyna.actor.world.pos.x;
     this->collider.elements[0].dim.worldSphere.center.y = (s16)this->dyna.actor.world.pos.y + 21;
@@ -112,15 +112,15 @@ s32 BgMoriHashigo_SpawnLadder(BgMoriHashigo* this, PlayState* play) {
     Vec3f pos;
     Actor* ladder;
 
-    cs = Math_CosS(this->dyna.actor.shape.rot.y);
-    sn = Math_SinS(this->dyna.actor.shape.rot.y);
+    cs = OoT_Math_CosS(this->dyna.actor.shape.rot.y);
+    sn = OoT_Math_SinS(this->dyna.actor.shape.rot.y);
 
     pos.x = 6.0f * sn + this->dyna.actor.world.pos.x;
     pos.y = -210.0f + this->dyna.actor.world.pos.y;
     pos.z = 6.0f * cs + this->dyna.actor.world.pos.z;
 
     ladder =
-        Actor_SpawnAsChild(&play->actorCtx, &this->dyna.actor, play, ACTOR_BG_MORI_HASHIGO, pos.x, pos.y, pos.z,
+        OoT_Actor_SpawnAsChild(&play->actorCtx, &this->dyna.actor, play, ACTOR_BG_MORI_HASHIGO, pos.x, pos.y, pos.z,
                            this->dyna.actor.world.rot.x, this->dyna.actor.world.rot.y, this->dyna.actor.world.rot.z, 0);
     if (ladder != NULL) {
         return true;
@@ -132,9 +132,9 @@ s32 BgMoriHashigo_SpawnLadder(BgMoriHashigo* this, PlayState* play) {
 }
 
 s32 BgMoriHashigo_InitClasp(BgMoriHashigo* this, PlayState* play) {
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChainClasp);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, sInitChainClasp);
     this->dyna.actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
-    Actor_SetFocus(&this->dyna.actor, 55.0f);
+    OoT_Actor_SetFocus(&this->dyna.actor, 55.0f);
     BgMoriHashigo_InitCollider(this, play);
     if ((this->dyna.actor.params == HASHIGO_CLASP) && !BgMoriHashigo_SpawnLadder(this, play)) {
         return false;
@@ -145,7 +145,7 @@ s32 BgMoriHashigo_InitClasp(BgMoriHashigo* this, PlayState* play) {
 
 s32 BgMoriHashigo_InitLadder(BgMoriHashigo* this, PlayState* play) {
     BgMoriHashigo_InitDynapoly(this, play, &gMoriHashigoCol, DPM_UNK);
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChainLadder);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, sInitChainLadder);
     return true;
 }
 
@@ -155,12 +155,12 @@ void BgMoriHashigo_Init(Actor* thisx, PlayState* play) {
 
     if (this->dyna.actor.params == HASHIGO_CLASP) {
         if (!BgMoriHashigo_InitClasp(this, play)) {
-            Actor_Kill(&this->dyna.actor);
+            OoT_Actor_Kill(&this->dyna.actor);
             return;
         }
     } else if (this->dyna.actor.params == HASHIGO_LADDER) {
         if (!BgMoriHashigo_InitLadder(this, play)) {
-            Actor_Kill(&this->dyna.actor);
+            OoT_Actor_Kill(&this->dyna.actor);
             return;
         }
     }
@@ -168,7 +168,7 @@ void BgMoriHashigo_Init(Actor* thisx, PlayState* play) {
     if (this->moriTexObjIndex < 0) {
         // "Bank danger!"
         osSyncPrintf("Error : バンク危険！(arg_data 0x%04x)(%s %d)\n", this->dyna.actor.params, __FILE__, __LINE__);
-        Actor_Kill(&this->dyna.actor);
+        OoT_Actor_Kill(&this->dyna.actor);
     } else {
         BgMoriHashigo_SetupWaitForMoriTex(this);
         // "(Forest Temple Ladder and its clasp)"
@@ -181,10 +181,10 @@ void BgMoriHashigo_Destroy(Actor* thisx, PlayState* play) {
     BgMoriHashigo* this = (BgMoriHashigo*)thisx;
 
     if (this->dyna.actor.params == HASHIGO_LADDER) {
-        DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+        OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
     }
     if (this->dyna.actor.params == HASHIGO_CLASP) {
-        Collider_DestroyJntSph(play, &this->collider);
+        OoT_Collider_DestroyJntSph(play, &this->collider);
     }
 }
 
@@ -193,7 +193,7 @@ void BgMoriHashigo_SetupWaitForMoriTex(BgMoriHashigo* this) {
 }
 
 void BgMoriHashigo_WaitForMoriTex(BgMoriHashigo* this, PlayState* play) {
-    if (Object_IsLoaded(&play->objectCtx, this->moriTexObjIndex)) {
+    if (OoT_Object_IsLoaded(&play->objectCtx, this->moriTexObjIndex)) {
         if (this->dyna.actor.params == HASHIGO_CLASP) {
             BgMoriHashigo_SetupClasp(this);
         } else if (this->dyna.actor.params == HASHIGO_LADDER) {
@@ -213,7 +213,7 @@ void BgMoriHashigo_Clasp(BgMoriHashigo* this, PlayState* play) {
             this->collider.base.acFlags &= ~AC_HIT;
             this->hitTimer = 10;
         } else {
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+            OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
         }
     }
 }
@@ -247,12 +247,12 @@ void BgMoriHashigo_LadderFall(BgMoriHashigo* this, PlayState* play) {
         if (this->bounceCounter >= ARRAY_COUNT(bounceSpeed)) {
             BgMoriHashigo_SetupLadderRest(this);
         } else {
-            Actor_UpdateBgCheckInfo(play, thisx, 0.0f, 0.0f, 0.0f, 0x1C);
+            OoT_Actor_UpdateBgCheckInfo(play, thisx, 0.0f, 0.0f, 0.0f, 0x1C);
             thisx->velocity.y = bounceSpeed[this->bounceCounter];
             this->bounceCounter++;
         }
     } else {
-        Actor_UpdateBgCheckInfo(play, thisx, 0.0f, 0.0f, 0.0f, 0x1C);
+        OoT_Actor_UpdateBgCheckInfo(play, thisx, 0.0f, 0.0f, 0.0f, 0x1C);
     }
 }
 

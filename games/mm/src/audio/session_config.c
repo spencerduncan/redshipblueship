@@ -23,7 +23,7 @@ const s16 gAudioTatumInit[] = {
     (SFX_SEQ_SIZE + AMBIENCE_SEQ_SIZE + SOUNDFONT_0_SIZE + SOUNDFONT_1_SIZE + SOUNDFONT_2_SIZE + 0x430)
 
 // const AudioHeapInitSizes gAudioHeapInitSizes = {
-//     ALIGN16(sizeof(gAudioHeap) - 0x100),                                         // audio heap size
+//     ALIGN16(sizeof(MM_gAudioHeap) - 0x100),                                         // audio heap size
 //     ALIGN16(PERMANENT_POOL_SIZE + AI_BUFFERS_SIZE + SOUNDFONT_LIST_SIZE + 0x40), // init pool size
 //     ALIGN16(PERMANENT_POOL_SIZE),                                                // permanent pool size
 // };
@@ -120,7 +120,7 @@ ReverbSettings* gReverbSettingsTable[] = {
     reverbSettings6, reverbSettings7, reverbSettings8, reverbSettings9, reverbSettings3,
 };
 
-AudioSpec gAudioSpecs[21] = {
+AudioSpec MM_gAudioSpecs[21] = {
     /* 0x0 */
     { 32000, 1, 24, 5, 0, 0, 2, reverbSettingsF, 0x500, 0x200, 0x7FFF, 0xAF0, 0x2D80, 0, 0x4100, 0x2D00, 0, 0,
       0xDC800 },

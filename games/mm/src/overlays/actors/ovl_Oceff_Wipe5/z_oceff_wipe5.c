@@ -35,7 +35,7 @@ void OceffWipe5_Init(Actor* thisx, PlayState* play) {
 
     gOceff5VtxData = ResourceMgr_LoadVtxByName(gOceff5Vtx);
 
-    Actor_SetScale(&this->actor, 1.0f);
+    MM_Actor_SetScale(&this->actor, 1.0f);
     this->counter = 0;
     this->actor.world.pos = play->cameraPtrs[play->activeCamId]->eye;
 }
@@ -43,7 +43,7 @@ void OceffWipe5_Init(Actor* thisx, PlayState* play) {
 void OceffWipe5_Destroy(Actor* thisx, PlayState* play) {
     OceffWipe5* this = (OceffWipe5*)thisx;
 
-    Magic_Reset(play);
+    MM_Magic_Reset(play);
     play->msgCtx.ocarinaSongEffectActive = false;
 }
 
@@ -54,15 +54,15 @@ void OceffWipe5_Update(Actor* thisx, PlayState* play) {
     if (this->counter < 100) {
         this->counter++;
     } else {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
-static u8 sPrimColors[] = {
+static u8 MM_sPrimColors[] = {
     255, 255, 200, 255, 255, 200, 200, 255, 255, 255, 255, 200, 255, 200, 255,
 };
 
-static u8 sEnvColors[] = {
+static u8 MM_sEnvColors[] = {
     50, 200, 0, 255, 50, 0, 0, 100, 255, 255, 150, 0, 255, 0, 200,
 };
 
@@ -107,7 +107,7 @@ void OceffWipe5_Draw(Actor* thisx, PlayState* play) {
     quakeOffset = Camera_GetQuakeOffset(activeCam);
 
     if (this->counter < 32) {
-        z = Math_SinS(this->counter << 9) * phi_fv1;
+        z = MM_Math_SinS(this->counter << 9) * phi_fv1;
     } else {
         z = phi_fv1;
     }
@@ -126,17 +126,17 @@ void OceffWipe5_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-    Matrix_Translate(activeCamEye.x + quakeOffset.x, activeCamEye.y + quakeOffset.y, activeCamEye.z + quakeOffset.z,
+    MM_Matrix_Translate(activeCamEye.x + quakeOffset.x, activeCamEye.y + quakeOffset.y, activeCamEye.z + quakeOffset.z,
                      MTXMODE_NEW);
-    Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
-    Matrix_ReplaceRotation(&play->billboardMtxF);
+    MM_Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
+    MM_Matrix_ReplaceRotation(&play->billboardMtxF);
     Matrix_RotateXS(0x708, MTXMODE_APPLY);
-    Matrix_Translate(0.0f, 0.0f, -z, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, 0.0f, -z, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, sPrimColors[colorIndex], sPrimColors[colorIndex + 1],
-                    sPrimColors[colorIndex + 2], 255);
-    gDPSetEnvColor(POLY_XLU_DISP++, sEnvColors[colorIndex], sEnvColors[colorIndex + 1], sEnvColors[colorIndex + 2],
+    gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, MM_sPrimColors[colorIndex], MM_sPrimColors[colorIndex + 1],
+                    MM_sPrimColors[colorIndex + 2], 255);
+    gDPSetEnvColor(POLY_XLU_DISP++, MM_sEnvColors[colorIndex], MM_sEnvColors[colorIndex + 1], MM_sEnvColors[colorIndex + 2],
                    255);
 
     AnimatedMat_Draw(play, gOceff5TexAnim);

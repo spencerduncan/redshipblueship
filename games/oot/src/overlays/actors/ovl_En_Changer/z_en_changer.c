@@ -82,7 +82,7 @@ void EnChanger_Init(Actor* thisx, PlayState* play2) {
     if (minigameRoomNum < 0) {
         minigameRoomNum = 0;
     }
-    if (Flags_GetTreasure(play, sTreasureFlags[minigameRoomNum])) {
+    if (OoT_Flags_GetTreasure(play, sTreasureFlags[minigameRoomNum])) {
         this->roomChestsOpened = true;
     }
 
@@ -102,18 +102,18 @@ void EnChanger_Init(Actor* thisx, PlayState* play2) {
     if (play->roomCtx.curRoom.num >= 6) {
         rewardChestParams = ((Flags_GetItemGetInf(ITEMGETINF_1B)) ? (0x4EA0) : (0x4EC0));
         rewardChestParams = sTreasureFlags[5] | rewardChestParams;
-        this->finalChest = (EnBox*)Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_BOX, 20.0f, 20.0f,
+        this->finalChest = (EnBox*)OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_BOX, 20.0f, 20.0f,
                                                       -2500.0f, 0, 0x7FFF, 0, rewardChestParams);
         if (this->finalChest != NULL) {
             if (this->roomChestsOpened) {
-                Flags_SetTreasure(play, rewardChestParams & 0x1F);
-                Actor_Kill(&this->actor);
+                OoT_Flags_SetTreasure(play, rewardChestParams & 0x1F);
+                OoT_Actor_Kill(&this->actor);
                 return;
             } else {
                 rewardParams = ((Flags_GetItemGetInf(ITEMGETINF_1B)) ? (ITEM_ETC_RUPEE_PURPLE_CHEST_GAME)
                                                                      : (ITEM_ETC_HEART_PIECE_CHEST_GAME)) &
                                0xFF;
-                Actor_Spawn(&play->actorCtx, play, ACTOR_ITEM_ETCETERA, 20.0f, 20.0f, -2500.0f, 0, 0, 0,
+                OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_ITEM_ETCETERA, 20.0f, 20.0f, -2500.0f, 0, 0, 0,
                             ((sTreasureFlags[5] & 0x1F) << 8) + rewardParams, true);
                 // "Central treasure instance/occurrence (GREAT)"
                 osSyncPrintf(VT_FGCOL(YELLOW) "☆☆☆☆☆ 中央宝発生(ＧＲＥＡＴ) ☆☆☆☆☆ %x\n" VT_RST, rewardChestParams);
@@ -136,7 +136,7 @@ void EnChanger_Init(Actor* thisx, PlayState* play2) {
     this->rightChestGetItemId = GI_DOOR_KEY;
     rightChestItem = ITEM_ETC_KEY_SMALL_CHEST_GAME;
 
-    if (Rand_ZeroFloat(1.99f) < 1.0f) {
+    if (OoT_Rand_ZeroFloat(1.99f) < 1.0f) {
         rightChestParams = (sLoserGetItemIds[play->roomCtx.curRoom.num] << 5) | 0x4000;
         this->rightChestNum = new_var;
         this->rightChestGetItemId = sLoserGetItemIds[play->roomCtx.curRoom.num];
@@ -148,7 +148,7 @@ void EnChanger_Init(Actor* thisx, PlayState* play2) {
         leftChestItem = ITEM_ETC_KEY_SMALL_CHEST_GAME;
     }
 
-    this->leftChest = (EnBox*)Actor_SpawnAsChild(
+    this->leftChest = (EnBox*)OoT_Actor_SpawnAsChild(
         &play->actorCtx, &this->actor, play, ACTOR_EN_BOX, sLeftChestPos[play->roomCtx.curRoom.num].x,
         sLeftChestPos[play->roomCtx.curRoom.num].y, sLeftChestPos[play->roomCtx.curRoom.num].z, 0, -0x3FFF, 0,
         leftChestParams);
@@ -164,15 +164,15 @@ void EnChanger_Init(Actor* thisx, PlayState* play2) {
         osSyncPrintf(VT_FGCOL(PURPLE) "☆☆☆☆☆ すけすけ君？ %x\n" VT_RST, rightChestItem);
         osSyncPrintf("\n\n");
         if (this->roomChestsOpened) {
-            Flags_SetTreasure(play, this->leftChestNum & 0x1F);
+            OoT_Flags_SetTreasure(play, this->leftChestNum & 0x1F);
         } else {
-            Actor_Spawn(&play->actorCtx, play, ACTOR_ITEM_ETCETERA, sLeftChestPos[play->roomCtx.curRoom.num].x,
+            OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_ITEM_ETCETERA, sLeftChestPos[play->roomCtx.curRoom.num].x,
                         sLeftChestPos[play->roomCtx.curRoom.num].y, sLeftChestPos[play->roomCtx.curRoom.num].z, 0, 0, 0,
                         ((this->leftChestNum & 0x1F) << 8) + (leftChestItem & 0xFF), true);
         }
     }
 
-    this->rightChest = (EnBox*)Actor_SpawnAsChild(
+    this->rightChest = (EnBox*)OoT_Actor_SpawnAsChild(
         &play->actorCtx, &this->actor, play, ACTOR_EN_BOX, sRightChestPos[play->roomCtx.curRoom.num].x,
         sRightChestPos[play->roomCtx.curRoom.num].y, sRightChestPos[play->roomCtx.curRoom.num].z, 0, 0x3FFF, 0,
         rightChestParams);
@@ -189,12 +189,12 @@ void EnChanger_Init(Actor* thisx, PlayState* play2) {
         osSyncPrintf("\n\n");
 
         if (this->roomChestsOpened) {
-            Flags_SetTreasure(play, this->rightChestNum & 0x1F);
-            Actor_Kill(&this->actor);
+            OoT_Flags_SetTreasure(play, this->rightChestNum & 0x1F);
+            OoT_Actor_Kill(&this->actor);
             return;
         }
 
-        Actor_Spawn(&play->actorCtx, play, ACTOR_ITEM_ETCETERA, sRightChestPos[play->roomCtx.curRoom.num].x,
+        OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_ITEM_ETCETERA, sRightChestPos[play->roomCtx.curRoom.num].x,
                     sRightChestPos[play->roomCtx.curRoom.num].y, sRightChestPos[play->roomCtx.curRoom.num].z, 0, 0, 0,
                     ((this->rightChestNum & 0x1F) << 8) + (rightChestItem & 0xFF), true);
     }
@@ -206,12 +206,12 @@ void EnChanger_Init(Actor* thisx, PlayState* play2) {
 void EnChanger_Wait(EnChanger* this, PlayState* play) {
     if (this->leftChest->unk_1F4 != 0) {
         this->timer = 80;
-        Flags_SetTreasure(play, this->rightChestNum & 0x1F);
+        OoT_Flags_SetTreasure(play, this->rightChestNum & 0x1F);
         this->actionFunc = EnChanger_OpenChests;
     } else if (this->rightChest->unk_1F4 != 0) {
         this->chestOpened = CHEST_RIGHT;
         this->timer = 80;
-        Flags_SetTreasure(play, this->leftChestNum & 0x1F);
+        OoT_Flags_SetTreasure(play, this->leftChestNum & 0x1F);
         this->actionFunc = EnChanger_OpenChests;
     }
 }
@@ -239,13 +239,13 @@ void EnChanger_OpenChests(EnChanger* this, PlayState* play) {
                 zPos = right->dyna.actor.world.pos.z;
 
                 if (this->rightChestGetItemId == GI_DOOR_KEY) {
-                    Actor_Spawn(&play->actorCtx, play, ACTOR_EN_EX_ITEM, xPos, yPos, zPos, 0, 0, 0, 0xF, true);
-                    Flags_SetSwitch(play, 0x32);
+                    OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_EX_ITEM, xPos, yPos, zPos, 0, 0, 0, 0xF, true);
+                    OoT_Flags_SetSwitch(play, 0x32);
                 } else {
                     temp_s0_2 = (s16)(this->rightChestGetItemId - GI_RUPEE_GREEN_LOSE) + EXITEM_CHEST;
                     // "Open right treasure (chest)"
                     osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ 右宝開く ☆☆☆☆☆ %d\n" VT_RST, temp_s0_2);
-                    Actor_Spawn(&play->actorCtx, play, ACTOR_EN_EX_ITEM, xPos, yPos, zPos, 0, 0, 0, temp_s0_2, true);
+                    OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_EX_ITEM, xPos, yPos, zPos, 0, 0, 0, temp_s0_2, true);
                 }
                 break;
             case CHEST_RIGHT:
@@ -254,18 +254,18 @@ void EnChanger_OpenChests(EnChanger* this, PlayState* play) {
                 zPos = left->dyna.actor.world.pos.z;
 
                 if (this->leftChestGetItemId == GI_DOOR_KEY) {
-                    Actor_Spawn(&play->actorCtx, play, ACTOR_EN_EX_ITEM, xPos, yPos, zPos, 0, 0, 0, 0xF, true);
-                    Flags_SetSwitch(play, 0x32);
+                    OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_EX_ITEM, xPos, yPos, zPos, 0, 0, 0, 0xF, true);
+                    OoT_Flags_SetSwitch(play, 0x32);
                 } else {
                     temp_s0_2 = (s16)(this->leftChestGetItemId - 0x72) + 0xA;
                     // "Open left treasure (chest)"
                     osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ 左宝開く ☆☆☆☆☆ %d\n" VT_RST, temp_s0_2);
-                    Actor_Spawn(&play->actorCtx, play, ACTOR_EN_EX_ITEM, xPos, yPos, zPos, 0, 0, 0, temp_s0_2, true);
+                    OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_EX_ITEM, xPos, yPos, zPos, 0, 0, 0, temp_s0_2, true);
                 }
                 break;
         }
 
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
@@ -274,7 +274,7 @@ void EnChanger_SetHeartPieceFlag(EnChanger* this, PlayState* play) {
         if (!Flags_GetItemGetInf(ITEMGETINF_1B)) {
             Flags_SetItemGetInf(ITEMGETINF_1B);
         }
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
@@ -288,7 +288,7 @@ void EnChanger_Update(Actor* thisx, PlayState* play) {
     }
 
     if (BREG(0)) {
-        DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
+        OoT_DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
                                this->actor.world.rot.x, this->actor.world.rot.y, this->actor.world.rot.z, 1.0f, 1.0f,
                                1.0f, 255, 0, 255, 255, 4, play->state.gfxCtx);
     }

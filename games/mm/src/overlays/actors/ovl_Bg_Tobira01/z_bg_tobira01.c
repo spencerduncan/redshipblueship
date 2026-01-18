@@ -44,7 +44,7 @@ void BgTobira01_Action(BgTobira01* this, PlayState* play) {
     } else if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_GATEKEEPER_OPENED_GORON_SHRINE) && (this->posYTick == 0) &&
                (play->actorCtx.playerImpact.timer != 0) &&
                (play->actorCtx.playerImpact.type == PLAYER_IMPACT_GORON_GROUND_POUND) &&
-               (SurfaceType_GetSceneExitIndex(&play->colCtx, player->actor.floorPoly, player->actor.floorBgId) == 6)) {
+               (MM_SurfaceType_GetSceneExitIndex(&play->colCtx, player->actor.floorPoly, player->actor.floorBgId) == 6)) {
         this->cutsceneRequested = true;
         this->unk16C = 0;
     }
@@ -72,10 +72,10 @@ void BgTobira01_Action(BgTobira01* this, PlayState* play) {
 void BgTobira01_Init(Actor* thisx, PlayState* play) {
     BgTobira01* this = (BgTobira01*)thisx;
 
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
     DynaPolyActor_LoadMesh(play, &this->dyna, &gGoronDoorCol);
     CLEAR_WEEKEVENTREG(WEEKEVENTREG_GATEKEEPER_OPENED_GORON_SHRINE);
-    Actor_SetScale(&this->dyna.actor, 1.0f);
+    MM_Actor_SetScale(&this->dyna.actor, 1.0f);
     this->timer = gSaveContext.save.isNight;
     this->posYTick = 0;
     this->actionFunc = BgTobira01_Action;
@@ -84,7 +84,7 @@ void BgTobira01_Init(Actor* thisx, PlayState* play) {
 void BgTobira01_Destroy(Actor* thisx, PlayState* play) {
     BgTobira01* this = (BgTobira01*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void BgTobira01_Update(Actor* thisx, PlayState* play) {

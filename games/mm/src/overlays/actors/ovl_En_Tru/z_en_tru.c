@@ -147,7 +147,7 @@ static Color_RGBA8 D_80A8B268[] = {
 
 static f32 D_80A8B274[] = { 60.0f, 255.0f, 60.0f };
 
-static TexturePtr sDustTextures[] = {
+static TexturePtr MM_sDustTextures[] = {
     gEffDust8Tex, gEffDust7Tex, gEffDust6Tex, gEffDust5Tex, gEffDust4Tex, gEffDust3Tex, gEffDust2Tex, gEffDust1Tex,
 };
 
@@ -171,7 +171,7 @@ static ColliderSphereInit sSphereInit = {
     { 0, { { 0, 0, 0 }, 32 }, 100 },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 1, 20, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 MM_sColChkInfoInit = { 1, 20, 0, 0, MASS_IMMOVABLE };
 
 typedef enum KoumeAnimation {
     /* 0x00 */ KOUME_ANIM_INJURED_LYING_DOWN,
@@ -193,7 +193,7 @@ typedef enum KoumeAnimation {
     /* 0x10 */ KOUME_ANIM_MAX
 } KoumeAnimation;
 
-static AnimationInfoS sAnimationInfo[KOUME_ANIM_MAX] = {
+static AnimationInfoS MM_sAnimationInfo[KOUME_ANIM_MAX] = {
     { &gKoumeInjuredLyingDownAnim, 1.0f, 0, -1, ANIMMODE_LOOP, 0 },  // KOUME_ANIM_INJURED_LYING_DOWN
     { &gKoumeInjuredLyingDownAnim, 1.0f, 0, -1, ANIMMODE_LOOP, -4 }, // KOUME_ANIM_INJURED_LYING_DOWN_MORPH
     { &gKoumeTryGetUpAnim, 1.0f, 0, -1, ANIMMODE_ONCE, -4 },         // KOUME_ANIM_TRY_GET_UP
@@ -217,7 +217,7 @@ void func_80A85620(EnTruUnkStruct* arg0, Vec3f* arg1, f32 arg2, f32 arg3, f32 ar
 
     for (i = 0; i < 30; i++, arg0++) {
         if (arg0->unk_00 == 0) {
-            arg0->unk_02 = Rand_ZeroFloat(20.0f) + arg4;
+            arg0->unk_02 = MM_Rand_ZeroFloat(20.0f) + arg4;
             arg0->unk_01 = arg0->unk_02;
             arg0->unk_00 = 1;
             arg0->unk_04 = *arg1;
@@ -257,12 +257,12 @@ void func_80A85788(EnTruUnkStruct* arg0, PlayState* play) {
         gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, 255, 128);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, (u8)alpha);
         gSPSegment(POLY_XLU_DISP++, 0x08,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, -arg0->unk_02 * 5, 32, 64, 1, 0, 0, 32, 32));
+                   MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, -arg0->unk_02 * 5, 32, 64, 1, 0, 0, 32, 32));
 
-        Matrix_Translate(arg0->unk_04.x, arg0->unk_04.y, arg0->unk_04.z, MTXMODE_NEW);
-        Matrix_ReplaceRotation(&play->billboardMtxF);
-        Matrix_Scale(arg0->unk_28, arg0->unk_28, 1.0f, MTXMODE_APPLY);
-        Matrix_Translate(0.0f, 14.0f, 0.0f, MTXMODE_APPLY);
+        MM_Matrix_Translate(arg0->unk_04.x, arg0->unk_04.y, arg0->unk_04.z, MTXMODE_NEW);
+        MM_Matrix_ReplaceRotation(&play->billboardMtxF);
+        MM_Matrix_Scale(arg0->unk_28, arg0->unk_28, 1.0f, MTXMODE_APPLY);
+        MM_Matrix_Translate(0.0f, 14.0f, 0.0f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_XLU_DISP++, D_80A890A8);
@@ -316,9 +316,9 @@ void func_80A85BCC(EnTruUnkStruct* arg0, PlayState* play) {
 
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 200, (u8)alpha);
 
-        Matrix_Translate(arg0->unk_04.x, arg0->unk_04.y, arg0->unk_04.z, MTXMODE_NEW);
-        Matrix_ReplaceRotation(&play->billboardMtxF);
-        Matrix_Scale(arg0->unk_28, arg0->unk_28, 1.0f, MTXMODE_APPLY);
+        MM_Matrix_Translate(arg0->unk_04.x, arg0->unk_04.y, arg0->unk_04.z, MTXMODE_NEW);
+        MM_Matrix_ReplaceRotation(&play->billboardMtxF);
+        MM_Matrix_Scale(arg0->unk_28, arg0->unk_28, 1.0f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_XLU_DISP++, D_80A8A108);
@@ -332,7 +332,7 @@ void func_80A85E2C(EnTruUnkStruct* arg0, Vec3f* arg1, Vec3f* arg2, Vec3f* arg3, 
 
     for (i = 0; i < 30; i++, arg0++) {
         if (arg0->unk_00 == 0) {
-            arg0->unk_02 = Rand_ZeroFloat(4.0f) + arg6;
+            arg0->unk_02 = MM_Rand_ZeroFloat(4.0f) + arg6;
             arg0->unk_01 = arg0->unk_02;
             arg0->unk_00 = arg7;
             arg0->unk_04 = *arg1;
@@ -362,12 +362,12 @@ void func_80A85F84(EnTruUnkStruct* arg0, PlayState* play) {
         }
 
         if (!flag) {
-            POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_0);
+            POLY_XLU_DISP = MM_Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_0);
             gSPDisplayList(POLY_XLU_DISP++, gKoumeDustMaterialDL);
             flag = true;
         }
 
-        Matrix_Push();
+        MM_Matrix_Push();
 
         alpha = (f32)arg0->unk_02 / arg0->unk_01;
         alpha *= D_80A8B274[arg0->unk_00 - 3];
@@ -382,15 +382,15 @@ void func_80A85F84(EnTruUnkStruct* arg0, PlayState* play) {
         gDPSetEnvColor(POLY_XLU_DISP++, D_80A8B268[arg0->unk_00 - 3].r, D_80A8B268[arg0->unk_00 - 3].g,
                        D_80A8B268[arg0->unk_00 - 3].b, 0);
 
-        Matrix_Translate(arg0->unk_04.x, arg0->unk_04.y, arg0->unk_04.z, MTXMODE_NEW);
-        Matrix_Scale(arg0->unk_28, arg0->unk_28, 1.0f, MTXMODE_APPLY);
-        Matrix_ReplaceRotation(&play->billboardMtxF);
+        MM_Matrix_Translate(arg0->unk_04.x, arg0->unk_04.y, arg0->unk_04.z, MTXMODE_NEW);
+        MM_Matrix_Scale(arg0->unk_28, arg0->unk_28, 1.0f, MTXMODE_APPLY);
+        MM_Matrix_ReplaceRotation(&play->billboardMtxF);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         index = ((f32)arg0->unk_02 / arg0->unk_01) * 8.0f;
-        gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(sDustTextures[index]));
+        gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sDustTextures[index]));
         gSPDisplayList(POLY_XLU_DISP++, gKoumeDustModelDL);
-        Matrix_Pop();
+        MM_Matrix_Pop();
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -432,21 +432,21 @@ s32 func_80A86460(EnTru* this) {
     f32 temp_f6;
     s16 phi_s1;
 
-    Math_Vec3f_Copy(&spB0, &gZeroVec3f);
-    Math_Vec3f_Copy(&sp8C, &gZeroVec3f);
-    Math_Vec3f_Copy(&spA4, &gZeroVec3f);
-    Math_Vec3f_Copy(&sp98, &gZeroVec3f);
-    phi_s1 = (Rand_ZeroOne() * 360.0f) * 182.0f;
+    MM_Math_Vec3f_Copy(&spB0, &gZeroVec3f);
+    MM_Math_Vec3f_Copy(&sp8C, &gZeroVec3f);
+    MM_Math_Vec3f_Copy(&spA4, &gZeroVec3f);
+    MM_Math_Vec3f_Copy(&sp98, &gZeroVec3f);
+    phi_s1 = (MM_Rand_ZeroOne() * 360.0f) * 182.0f;
     spB0.z = 20.0f;
     Lib_Vec3f_TranslateAndRotateY(&this->actor.world.pos, this->actor.world.rot.y, &spB0, &sp8C);
 
     for (i = 0; i < 8; i++, phi_s1 += 0x1FFE) {
-        Math_Vec3f_Copy(&spB0, &gZeroVec3f);
+        MM_Math_Vec3f_Copy(&spB0, &gZeroVec3f);
         spB0.y = 1.0f;
-        spB0.z = Rand_ZeroOne() + 3.0f;
+        spB0.z = MM_Rand_ZeroOne() + 3.0f;
         Lib_Vec3f_TranslateAndRotateY(&gZeroVec3f, phi_s1, &spB0, &sp98);
-        Math_Vec3f_Copy(&spB0, &gZeroVec3f);
-        spB0.z = (Rand_ZeroOne() * 4.0f) + 12.0f;
+        MM_Math_Vec3f_Copy(&spB0, &gZeroVec3f);
+        spB0.z = (MM_Rand_ZeroOne() * 4.0f) + 12.0f;
         Lib_Vec3f_TranslateAndRotateY(&sp8C, phi_s1, &spB0, &spA4);
         func_80A85E2C(this->unk_394, &spA4, &gZeroVec3f, &sp98, 0.4f, 0.06f, 12.0f, 4);
     }
@@ -478,14 +478,14 @@ s32 func_80A86770(EnTru* this) {
     Vec3f sp98;
     Vec3f sp8C;
     s32 i;
-    s16 phi_s0 = Rand_ZeroOne() * 360.0f * 182.0f;
+    s16 phi_s0 = MM_Rand_ZeroOne() * 360.0f * 182.0f;
 
     for (i = 0; i < 4; i++, phi_s0 += 0x3FFC) {
         Lib_Vec3f_TranslateAndRotateY(&this->actor.world.pos, phi_s0, &gZeroVec3f, &sp98);
         sp98.y = this->actor.floorHeight + 1.0f;
-        sp8C.x = Rand_ZeroOne() - 0.5f;
-        sp8C.z = Rand_ZeroOne() - 0.5f;
-        sp8C.y = Rand_ZeroOne() * 0.2f;
+        sp8C.x = MM_Rand_ZeroOne() - 0.5f;
+        sp8C.z = MM_Rand_ZeroOne() - 0.5f;
+        sp8C.y = MM_Rand_ZeroOne() * 0.2f;
         func_80A85E2C(this->unk_394, &sp98, &sp8C, &gZeroVec3f, 1.0f, 0.04f, 28.0f, 4);
     }
 
@@ -494,7 +494,7 @@ s32 func_80A86770(EnTru* this) {
 
 void EnTru_UpdateSkelAnime(EnTru* this) {
     this->skelAnime.playSpeed = this->animPlaySpeed;
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 }
 
 s32 EnTru_ChangeAnim(EnTru* this, s32 animIndex) {
@@ -502,7 +502,7 @@ s32 EnTru_ChangeAnim(EnTru* this, s32 animIndex) {
 
     if (this->animIndex != animIndex) {
         this->animIndex = animIndex;
-        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, animIndex);
+        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, animIndex);
         this->animPlaySpeed = this->skelAnime.playSpeed;
     }
 
@@ -512,7 +512,7 @@ s32 EnTru_ChangeAnim(EnTru* this, s32 animIndex) {
 void func_80A8697C(EnTru* this, PlayState* play) {
     this->collider.dim.worldSphere.radius = this->collider.dim.modelSphere.radius * this->collider.dim.scale;
     if (this->actor.draw != NULL) {
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -521,13 +521,13 @@ s32 func_80A869DC(EnTru* this, PlayState* play) {
     Vec3f sp38;
     Vec3f sp2C;
 
-    Math_ApproachS(&this->unk_368, this->actor.yawTowardsPlayer - this->actor.shape.rot.y, 4, 0x2AA8);
+    MM_Math_ApproachS(&this->unk_368, this->actor.yawTowardsPlayer - this->actor.shape.rot.y, 4, 0x2AA8);
     this->unk_368 = CLAMP(this->unk_368, -0x1FFE, 0x1FFE);
-    Math_Vec3f_Copy(&sp38, &player->actor.world.pos);
+    MM_Math_Vec3f_Copy(&sp38, &player->actor.world.pos);
     sp38.y = player->bodyPartsPos[PLAYER_BODYPART_HEAD].y + 3.0f;
-    Math_Vec3f_Copy(&sp2C, &this->actor.focus.pos);
+    MM_Math_Vec3f_Copy(&sp2C, &this->actor.focus.pos);
     sp2C.y -= 30.0f;
-    Math_ApproachS(&this->unk_366, Math_Vec3f_Pitch(&sp2C, &sp38), 4, 0x2AA8);
+    MM_Math_ApproachS(&this->unk_366, MM_Math_Vec3f_Pitch(&sp2C, &sp38), 4, 0x2AA8);
     this->unk_366 = CLAMP(this->unk_366, -0x1C70, 0x1C70);
 
     return true;
@@ -553,7 +553,7 @@ s32 func_80A86B0C(EnTru* this, PlayState* play) {
 
 s32 func_80A86BAC(EnTru* this, PlayState* play) {
     if (this->unk_34E & 0x400) {
-        Matrix_Push();
+        MM_Matrix_Push();
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
         OPEN_DISPS(play->state.gfxCtx);
@@ -577,13 +577,13 @@ s32 func_80A86BAC(EnTru* this, PlayState* play) {
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_OPA_DISP++, gKoumePotionDL);
 
-        Matrix_Pop();
+        MM_Matrix_Pop();
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
 
     if (this->unk_34E & 0x800) {
-        Matrix_Push();
+        MM_Matrix_Push();
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
         OPEN_DISPS(play->state.gfxCtx);
@@ -595,7 +595,7 @@ s32 func_80A86BAC(EnTru* this, PlayState* play) {
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_XLU_DISP++, gKoumeBottleDL);
 
-        Matrix_Pop();
+        MM_Matrix_Pop();
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -613,7 +613,7 @@ s32 func_80A86DB8(EnTru* this) {
         case KOUME_ANIM_INJURED_LYING_DOWN:
         case KOUME_ANIM_INJURED_LYING_DOWN_MORPH:
             if (DECR(this->blinkTimer) == 0) {
-                s16 rand = Rand_S16Offset(40, 20);
+                s16 rand = MM_Rand_S16Offset(40, 20);
 
                 if (this->eyeTexIndex == 2) {
                     this->blinkTimer = 8;
@@ -630,7 +630,7 @@ s32 func_80A86DB8(EnTru* this) {
             return false;
 
         case KOUME_ANIM_TRY_GET_UP:
-            if (Animation_OnFrame(&this->skelAnime, 10.0f)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, 10.0f)) {
                 this->eyeTexIndex = 1;
             } else if ((this->skelAnime.curFrame >= 11.0f) && (this->skelAnime.curFrame <= 32.0f)) {
                 this->eyeTexIndex = 0;
@@ -640,7 +640,7 @@ s32 func_80A86DB8(EnTru* this) {
             return false;
 
         case KOUME_ANIM_INJURED_RAISE_HEAD:
-            if (Animation_OnFrame(&this->skelAnime, 31.0f)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, 31.0f)) {
                 this->eyeTexIndex = 1;
             } else if (this->skelAnime.curFrame <= 32.0f) {
                 this->eyeTexIndex = 2;
@@ -650,14 +650,14 @@ s32 func_80A86DB8(EnTru* this) {
             return false;
 
         case KOUME_ANIM_DRINK:
-            if (Animation_OnFrame(&this->skelAnime, 57.0f)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, 57.0f)) {
                 this->blinkTimer = 0;
                 this->eyeTexIndex = 0;
             }
 
             if (this->skelAnime.curFrame < 57.0f) {
                 if (DECR(this->blinkTimer) == 0) {
-                    this->blinkTimer = Rand_S16Offset(8, 8);
+                    this->blinkTimer = MM_Rand_S16Offset(8, 8);
                     this->eyeTexIndex = 2;
                 } else {
                     this->eyeTexIndex = 1;
@@ -665,7 +665,7 @@ s32 func_80A86DB8(EnTru* this) {
             } else if (DECR(this->blinkTimer) == 0) {
                 this->eyeTexIndex++;
                 if (this->eyeTexIndex >= 4) {
-                    this->blinkTimer = Rand_S16Offset(20, 10);
+                    this->blinkTimer = MM_Rand_S16Offset(20, 10);
                     this->eyeTexIndex = 0;
                 }
             }
@@ -676,7 +676,7 @@ s32 func_80A86DB8(EnTru* this) {
             return false;
 
         case KOUME_ANIM_HEALED:
-            if (Animation_OnFrame(&this->skelAnime, 19.0f) || Animation_OnFrame(&this->skelAnime, 45.0f)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, 19.0f) || MM_Animation_OnFrame(&this->skelAnime, 45.0f)) {
                 this->eyeTexIndex = 1;
             } else if ((this->skelAnime.curFrame >= 19.0f) && (this->skelAnime.curFrame <= 45.0f)) {
                 this->eyeTexIndex = 2;
@@ -686,7 +686,7 @@ s32 func_80A86DB8(EnTru* this) {
             return false;
 
         case KOUME_ANIM_TAKE_OFF:
-            if (Animation_OnFrame(&this->skelAnime, 19.0f)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, 19.0f)) {
                 this->eyeTexIndex = 1;
             } else if (this->skelAnime.curFrame >= 19.0f) {
                 this->eyeTexIndex = 2;
@@ -702,7 +702,7 @@ s32 func_80A86DB8(EnTru* this) {
                 }
 
                 if (this->eyeTexIndex >= 4) {
-                    this->blinkTimer = Rand_S16Offset(30, 30);
+                    this->blinkTimer = MM_Rand_S16Offset(30, 30);
                     this->eyeTexIndex = 0;
                 }
             }
@@ -791,11 +791,11 @@ s32 func_80A87400(EnTru* this, PlayState* play) {
     s16 phi_a1;
     s32 ret = false;
 
-    this->actor.velocity.y = Math_SinS(this->unk_360) * this->unk_35C;
+    this->actor.velocity.y = MM_Math_SinS(this->unk_360) * this->unk_35C;
     this->unk_360 = CLAMP(this->unk_360 + 2000, 0, 0x4000);
 
-    Math_ApproachF(&this->unk_35C, 30.0f, 0.08f, 1000.0f);
-    Math_ApproachF(&this->actor.speed, 30.0f, 0.2f, 1000.0f);
+    MM_Math_ApproachF(&this->unk_35C, 30.0f, 0.08f, 1000.0f);
+    MM_Math_ApproachF(&this->actor.speed, 30.0f, 0.2f, 1000.0f);
 
     if (this->path != NULL) {
         sp4C = Lib_SegmentedToVirtual(this->path->points);
@@ -806,14 +806,14 @@ s32 func_80A87400(EnTru* this, PlayState* play) {
             }
             this->unk_384++;
         }
-        Math_Vec3s_ToVec3f(&sp34, &sp4C[this->unk_384]);
-        Math_Vec3f_Copy(&sp40, &this->actor.world.pos);
-        phi_a1 = Math_Vec3f_Yaw(&sp40, &sp34);
+        MM_Math_Vec3s_ToVec3f(&sp34, &sp4C[this->unk_384]);
+        MM_Math_Vec3f_Copy(&sp40, &this->actor.world.pos);
+        phi_a1 = MM_Math_Vec3f_Yaw(&sp40, &sp34);
     } else {
         phi_a1 = this->actor.world.rot.y;
     }
 
-    Math_ApproachS(&this->actor.world.rot.y, phi_a1, 4, 3640);
+    MM_Math_ApproachS(&this->actor.world.rot.y, phi_a1, 4, 3640);
     this->actor.shape.rot.y = this->actor.world.rot.y;
     Actor_MoveWithGravity(&this->actor);
     if ((s32)(this->actor.floorHeight + 80.0f) >= (s32)this->actor.world.pos.y) {
@@ -862,7 +862,7 @@ s32 func_80A875AC(Actor* thisx, PlayState* play) {
             break;
 
         case 3:
-            if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
                 this->unk_364++;
                 EnTru_ChangeAnim(this, KOUME_ANIM_INJURED_TALK);
                 ret = true;
@@ -888,10 +888,10 @@ s32 func_80A8777C(Actor* thisx, PlayState* play) {
     s32 ret = 0;
     PlayerItemAction itemAction;
 
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_CHOICE:
         case TEXT_STATE_EVENT:
-            if (!Message_ShouldAdvance(play)) {
+            if (!MM_Message_ShouldAdvance(play)) {
                 break;
             }
         // Fallthrough
@@ -952,30 +952,30 @@ s32 func_80A87880(Actor* thisx, PlayState* play) {
             break;
 
         case 3:
-            if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
                 this->unk_364++;
                 EnTru_ChangeAnim(this, KOUME_ANIM_DRINK);
                 this->actor.world.rot.y += 0x4000;
-            } else if (Animation_OnFrame(&this->skelAnime, 12.0f) && !(this->unk_34E & 0x800)) {
+            } else if (MM_Animation_OnFrame(&this->skelAnime, 12.0f) && !(this->unk_34E & 0x800)) {
                 this->unk_34E |= 0x400;
                 this->unk_34E |= 0x800;
-                Player_SetModels(player, PLAYER_MODELGROUP_DEFAULT);
+                MM_Player_SetModels(player, PLAYER_MODELGROUP_DEFAULT);
             }
             break;
 
         case 4:
-            if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
                 this->unk_364++;
                 EnTru_ChangeAnim(this, KOUME_ANIM_FINISHED_DRINKING);
                 ret = true;
-            } else if (Animation_OnFrame(&this->skelAnime, 18.0f) || Animation_OnFrame(&this->skelAnime, 32.0f) ||
-                       Animation_OnFrame(&this->skelAnime, 52.0f)) {
-                if (Animation_OnFrame(&this->skelAnime, 52.0f)) {
+            } else if (MM_Animation_OnFrame(&this->skelAnime, 18.0f) || MM_Animation_OnFrame(&this->skelAnime, 32.0f) ||
+                       MM_Animation_OnFrame(&this->skelAnime, 52.0f)) {
+                if (MM_Animation_OnFrame(&this->skelAnime, 52.0f)) {
                     this->unk_34E &= ~0x400;
-                    Player_UpdateBottleHeld(play, player, ITEM_BOTTLE, PLAYER_IA_BOTTLE_EMPTY);
+                    MM_Player_UpdateBottleHeld(play, player, ITEM_BOTTLE, PLAYER_IA_BOTTLE_EMPTY);
                 }
                 Actor_PlaySfx(&this->actor, NA_SE_EN_KOUME_DRINK);
-            } else if (Animation_OnFrame(&this->skelAnime, 90.0f)) {
+            } else if (MM_Animation_OnFrame(&this->skelAnime, 90.0f)) {
                 Actor_PlaySfx(&this->actor, NA_SE_EN_KOUME_REGAIN);
             }
 
@@ -1009,9 +1009,9 @@ s32 func_80A87B48(Actor* thisx, PlayState* play) {
             break;
 
         case 1:
-            if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
-                sp3E = BINANG_ROT180(Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)));
-                Math_Vec3f_Copy(&sp4C, &gZeroVec3f);
+            if (MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+                sp3E = BINANG_ROT180(MM_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)));
+                MM_Math_Vec3f_Copy(&sp4C, &gZeroVec3f);
                 sp4C.z = 40.0f;
                 Lib_Vec3f_TranslateAndRotateY(&this->actor.world.pos, sp3E, &sp4C, &sp40);
                 func_80A85620(this->unk_394, &sp40, 2.0f, 0.08f, 60.0f);
@@ -1019,7 +1019,7 @@ s32 func_80A87B48(Actor* thisx, PlayState* play) {
                 this->unk_370 = 20;
                 this->unk_372 = 10;
                 this->unk_364++;
-            } else if (Animation_OnFrame(&this->skelAnime, 22.0f)) {
+            } else if (MM_Animation_OnFrame(&this->skelAnime, 22.0f)) {
                 Actor_PlaySfx(&this->actor, NA_SE_EN_KOUME_MAGIC);
                 func_80A85AA4(this->unk_394, &this->unk_1F8, 1.0f, 0.1f, 40.0f);
             }
@@ -1087,7 +1087,7 @@ s32 func_80A87DC0(Actor* thisx, PlayState* play) {
             break;
 
         case 3:
-            if (!Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+            if (!MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
                 AnimTaskQueue_AddActorMovement(play, &this->actor, &this->skelAnime, 1.0f);
                 break;
             } else {
@@ -1131,8 +1131,8 @@ void func_80A87FD0(EnTru* this, PlayState* play) {
             }
 
             if ((this->animIndex == KOUME_ANIM_TRY_GET_UP) &&
-                Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
-                this->unk_362 = Rand_S16Offset(40, 20);
+                MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+                this->unk_362 = MM_Rand_S16Offset(40, 20);
                 EnTru_ChangeAnim(this, KOUME_ANIM_INJURED_LYING_DOWN_MORPH);
                 func_80A86460(this);
             } else if (this->animIndex != KOUME_ANIM_TRY_GET_UP) {
@@ -1144,7 +1144,7 @@ void func_80A87FD0(EnTru* this, PlayState* play) {
                    (fabsf(this->actor.playerHeightRel) < 10.0f) && (this->actor.xzDistToPlayer < 140.0f)) {
             SubS_SetOfferMode(&this->unk_34E, SUBS_OFFER_MODE_AUTO, SUBS_OFFER_MODE_MASK);
             this->unk_34E |= 0x1040;
-            this->unk_362 = Rand_S16Offset(40, 20);
+            this->unk_362 = MM_Rand_S16Offset(40, 20);
         } else if (func_80A873B8(this)) {
             SubS_SetOfferMode(&this->unk_34E, SUBS_OFFER_MODE_ONSCREEN, SUBS_OFFER_MODE_MASK);
         } else {
@@ -1188,14 +1188,14 @@ void EnTru_Init(Actor* thisx, PlayState* play) {
     EnTru* this = (EnTru*)thisx;
 
     if ((gSaveContext.save.entrance != ENTRANCE(WOODS_OF_MYSTERY, 0)) || CHECK_WEEKEVENTREG(WEEKEVENTREG_SAVED_KOUME)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 24.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gKoumeSkel, NULL, this->jointTable, this->morphTable, KOUME_LIMB_MAX);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 24.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gKoumeSkel, NULL, this->jointTable, this->morphTable, KOUME_LIMB_MAX);
     Collider_InitAndSetSphere(play, &this->collider, &this->actor, &sSphereInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, DamageTable_Get(0x16), &sColChkInfoInit);
+    MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, MM_DamageTable_Get(0x16), &MM_sColChkInfoInit);
     this->animIndex = -1;
     EnTru_ChangeAnim(this, KOUME_ANIM_INJURED_LYING_DOWN);
     this->path =
@@ -1205,7 +1205,7 @@ void EnTru_Init(Actor* thisx, PlayState* play) {
     }
 
     this->actor.attentionRangeType = ATTENTION_RANGE_0;
-    Actor_SetScale(&this->actor, 0.008f);
+    MM_Actor_SetScale(&this->actor, 0.008f);
     this->unk_34E = 0;
 
     if (CHECK_WEEKEVENTREG(WEEKEVENTREG_TALKED_KOUME_INJURED)) {
@@ -1215,7 +1215,7 @@ void EnTru_Init(Actor* thisx, PlayState* play) {
     }
 
     this->actionFunc = func_80A87FD0;
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
 }
 
 void EnTru_Destroy(Actor* thisx, PlayState* play) {
@@ -1256,7 +1256,7 @@ s32 EnTru_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* p
         this->actor.focus.pos.y = ((this->actor.focus.pos.y + 10.0f) / 10.0f) * 10.0f;
         this->actor.focus.pos.z = (this->actor.focus.pos.z / 10.0f) * 10.0f;
         Math_Vec3s_Copy(&this->actor.focus.rot, &this->actor.world.rot);
-        Matrix_MultVec3f(&D_80A8B3FC, &this->unk_1F8);
+        MM_Matrix_MultVec3f(&D_80A8B3FC, &this->unk_1F8);
     }
 
     if (!(this->unk_34E & 0x200) && (limbIndex == KOUME_LIMB_BROOM)) {
@@ -1299,9 +1299,9 @@ void EnTru_TransformLimbDraw(PlayState* play, s32 limbIndex, Actor* thisx) {
     if (limbIndex == KOUME_LIMB_HEAD) {
         SubS_UpdateLimb(this->unk_366, this->unk_368 + this->actor.shape.rot.y, &this->unk_1EC, &this->unk_204, stepRot,
                         overrideRot);
-        Matrix_Pop();
-        Matrix_Translate(this->unk_1EC.x, this->unk_1EC.y, this->unk_1EC.z, MTXMODE_NEW);
-        Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+        MM_Matrix_Pop();
+        MM_Matrix_Translate(this->unk_1EC.x, this->unk_1EC.y, this->unk_1EC.z, MTXMODE_NEW);
+        MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
         if (overrideRot) {
             s16 oldZ = this->unk_204.z;
 
@@ -1311,12 +1311,12 @@ void EnTru_TransformLimbDraw(PlayState* play, s32 limbIndex, Actor* thisx) {
         Matrix_RotateYS(this->unk_204.y, MTXMODE_APPLY);
         Matrix_RotateXS(this->unk_204.x, MTXMODE_APPLY);
         Matrix_RotateZS(this->unk_204.z, MTXMODE_APPLY);
-        Matrix_Push();
+        MM_Matrix_Push();
     }
 }
 
 void EnTru_Draw(Actor* thisx, PlayState* play) {
-    static TexturePtr sEyeTextures[] = {
+    static TexturePtr MM_sEyeTextures[] = {
         gKoumeEyeOpenTex,
         gKoumeEyeHalfTex,
         gKoumeEyeClosedTex,
@@ -1329,8 +1329,8 @@ void EnTru_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sEyeTextures[this->eyeTexIndex]));
-    gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(sEyeTextures[this->eyeTexIndex]));
+    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
+    gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
 
     SkelAnime_DrawTransformFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                    this->skelAnime.dListCount, EnTru_OverrideLimbDraw, EnTru_PostLimbDraw,

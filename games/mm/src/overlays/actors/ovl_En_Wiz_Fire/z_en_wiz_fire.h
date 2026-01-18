@@ -51,7 +51,7 @@ typedef struct EnWizFire {
     /* 0x016C */ s16 steamSpawnTimer;
     /* 0x016E */ s16 lowestUsedIndex;
     /* 0x0170 */ s16 smallFlameScroll;
-    /* 0x0172 */ s16 wallCheckTimer; // The projectile won't check for impacts with walls until this is zero
+    /* 0x0172 */ s16 wallCheckTimer; // The projectile won't check for impacts with walls until this is MM_zero
     /* 0x0174 */ s8 playerHitByIceProjectile; // Set, but never used
     /* 0x0178 */ Vec3f magicProjectilePos[10];
     /* 0x01F0 */ f32 poolScale;

@@ -9,12 +9,12 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED)
 
-void EnBoom_Init(Actor* thisx, PlayState* play);
-void EnBoom_Destroy(Actor* thisx, PlayState* play);
-void EnBoom_Update(Actor* thisx, PlayState* play);
-void EnBoom_Draw(Actor* thisx, PlayState* play);
+void MM_EnBoom_Init(Actor* thisx, PlayState* play);
+void MM_EnBoom_Destroy(Actor* thisx, PlayState* play);
+void MM_EnBoom_Update(Actor* thisx, PlayState* play);
+void MM_EnBoom_Draw(Actor* thisx, PlayState* play);
 
-void EnBoom_SetupAction(EnBoom* this, EnBoomActionFunc actionFunc);
+void MM_EnBoom_SetupAction(EnBoom* this, EnBoomActionFunc actionFunc);
 void func_808A2918(EnBoom* this, PlayState* play);
 
 ActorProfile En_Boom_Profile = {
@@ -23,13 +23,13 @@ ActorProfile En_Boom_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(EnBoom),
-    /**/ EnBoom_Init,
-    /**/ EnBoom_Destroy,
-    /**/ EnBoom_Update,
-    /**/ EnBoom_Draw,
+    /**/ MM_EnBoom_Init,
+    /**/ MM_EnBoom_Destroy,
+    /**/ MM_EnBoom_Update,
+    /**/ MM_EnBoom_Draw,
 };
 
-static ColliderQuadInit sQuadInit = {
+static ColliderQuadInit MM_sQuadInit = {
     {
         COL_MATERIAL_NONE,
         AT_ON | AT_TYPE_PLAYER,
@@ -49,12 +49,12 @@ static ColliderQuadInit sQuadInit = {
     { { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f } } },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_S8(attentionRangeType, ATTENTION_RANGE_5, ICHAIN_CONTINUE),
     ICHAIN_VEC3S(shape.rot, 0, ICHAIN_STOP),
 };
 
-void EnBoom_SetupAction(EnBoom* this, EnBoomActionFunc actionFunc) {
+void MM_EnBoom_SetupAction(EnBoom* this, EnBoomActionFunc actionFunc) {
     this->actionFunc = actionFunc;
 }
 
@@ -63,7 +63,7 @@ void func_808A24DC(EnBoom* this, PlayState* play) {
     f32 sp50 = this->actor.world.pos.y;
     u16 sp4E = this->actor.bgCheckFlags & BGCHECKFLAG_WATER;
 
-    if (WaterBox_GetSurface1(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &sp50, &waterBox) &&
+    if (MM_WaterBox_GetSurface1(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &sp50, &waterBox) &&
         (this->actor.world.pos.y < sp50)) {
         Vec3f sp40;
 
@@ -71,7 +71,7 @@ void func_808A24DC(EnBoom* this, PlayState* play) {
         sp40.x = this->actor.world.pos.x;
         sp40.y = this->actor.world.pos.y - 20.0f;
         sp40.z = this->actor.world.pos.z;
-        EffectSsBubble_Spawn(play, &sp40, 20.0f, 10.0f, 20.0f, 0.13f);
+        MM_EffectSsBubble_Spawn(play, &sp40, 20.0f, 10.0f, 20.0f, 0.13f);
     } else {
         this->actor.bgCheckFlags &= ~BGCHECKFLAG_WATER;
     }
@@ -80,9 +80,9 @@ void func_808A24DC(EnBoom* this, PlayState* play) {
         ((this->actor.bgCheckFlags & BGCHECKFLAG_WATER) != sp4E)) {
         Vec3f sp34;
 
-        Math_Vec3f_Diff(&this->actor.world.pos, &this->actor.prevPos, &sp34);
+        MM_Math_Vec3f_Diff(&this->actor.world.pos, &this->actor.prevPos, &sp34);
         if (sp34.y != 0.0f) {
-            f32 temp_fv0 = sqrtf(SQ(sp34.x) + SQ(sp34.z));
+            f32 temp_fv0 = MM_sqrtf(SQ(sp34.x) + SQ(sp34.z));
 
             if (temp_fv0 != 0.0f) {
                 temp_fv0 = (((sp50 - this->actor.prevPos.y) / sp34.y) * temp_fv0) / temp_fv0;
@@ -91,20 +91,20 @@ void func_808A24DC(EnBoom* this, PlayState* play) {
             sp34.x = this->actor.prevPos.x + (sp34.x * temp_fv0);
             sp34.y = sp50;
             sp34.z = this->actor.prevPos.z + (sp34.z * temp_fv0);
-            EffectSsGSplash_Spawn(play, &sp34, NULL, NULL, 0, 300);
+            MM_EffectSsGSplash_Spawn(play, &sp34, NULL, NULL, 0, 300);
         }
 
         Actor_PlaySfx(&this->actor, NA_SE_EV_DIVE_INTO_WATER_L);
 
-        EffectSsGRipple_Spawn(play, &sp34, 100, 500, 0);
-        EffectSsGRipple_Spawn(play, &sp34, 100, 500, 4);
-        EffectSsGRipple_Spawn(play, &sp34, 100, 500, 8);
+        MM_EffectSsGRipple_Spawn(play, &sp34, 100, 500, 0);
+        MM_EffectSsGRipple_Spawn(play, &sp34, 100, 500, 4);
+        MM_EffectSsGRipple_Spawn(play, &sp34, 100, 500, 8);
     }
 
     this->actor.bgCheckFlags |= BGCHECKFLAG_WATER_TOUCH;
 }
 
-void EnBoom_Init(Actor* thisx, PlayState* play) {
+void MM_EnBoom_Init(Actor* thisx, PlayState* play) {
     static u8 D_808A3068[4] = { 255, 255, 100, 255 };
     static u8 D_808A306C[4] = { 255, 255, 100, 64 };
     static u8 D_808A3070[4] = { 255, 255, 100, 0 };
@@ -115,7 +115,7 @@ void EnBoom_Init(Actor* thisx, PlayState* play) {
     s32 i;
 
     this->actor.room = -1;
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
 
     for (i = 0; i < 4; i++) {
         sp30.p1StartColor[i] = D_808A3068[i];
@@ -128,21 +128,21 @@ void EnBoom_Init(Actor* thisx, PlayState* play) {
     sp30.unkFlag = 0;
     sp30.calcMode = 0;
 
-    Effect_Add(play, &this->effectIndex, EFFECT_BLURE1, 0, 0, &sp30);
+    MM_Effect_Add(play, &this->effectIndex, EFFECT_BLURE1, 0, 0, &sp30);
 
-    Collider_InitQuad(play, &this->collider);
-    Collider_SetQuad(play, &this->collider, &this->actor, &sQuadInit);
-    EnBoom_SetupAction(this, func_808A2918);
+    MM_Collider_InitQuad(play, &this->collider);
+    MM_Collider_SetQuad(play, &this->collider, &this->actor, &MM_sQuadInit);
+    MM_EnBoom_SetupAction(this, func_808A2918);
 }
 
-void EnBoom_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnBoom_Destroy(Actor* thisx, PlayState* play) {
     EnBoom* this = (EnBoom*)thisx;
     Player* player = GET_PLAYER(play);
     Actor* otherZoraBoomerangActor;
 
     if (player != NULL) {
         Effect_Destroy(play, this->effectIndex);
-        Collider_DestroyQuad(play, &this->collider);
+        MM_Collider_DestroyQuad(play, &this->collider);
 
         otherZoraBoomerangActor = this->actor.child;
         if (otherZoraBoomerangActor != NULL) {
@@ -176,12 +176,12 @@ void func_808A2918(EnBoom* this, PlayState* play) {
     targetActor = this->moveTo;
 
     if (targetActor != NULL) {
-        sp72 = Actor_WorldYawTowardPoint(&this->actor, &targetActor->focus.pos);
+        sp72 = MM_Actor_WorldYawTowardPoint(&this->actor, &targetActor->focus.pos);
         sp70 = this->actor.world.rot.y - sp72;
-        sp6E = Actor_WorldPitchTowardPoint(&this->actor, &targetActor->focus.pos);
+        sp6E = MM_Actor_WorldPitchTowardPoint(&this->actor, &targetActor->focus.pos);
         sp6C = this->actor.world.rot.x - sp6E;
 
-        sp64 = (200.0f - Math_Vec3f_DistXYZ(&this->actor.world.pos, &targetActor->focus.pos)) * 0.005f;
+        sp64 = (200.0f - MM_Math_Vec3f_DistXYZ(&this->actor.world.pos, &targetActor->focus.pos)) * 0.005f;
         if (sp64 < 0.12f) {
             sp64 = 0.12f;
         }
@@ -200,11 +200,11 @@ void func_808A2918(EnBoom* this, PlayState* play) {
                     this->unk_1CF = -1;
                 }
 
-                Math_ScaledStepToS(&this->actor.world.rot.y, sp72,
+                MM_Math_ScaledStepToS(&this->actor.world.rot.y, sp72,
                                    (this->unk_1CF > 0) ? 0x3E8 : TRUNCF_BINANG(ABS_ALT(sp70) * sp64));
             }
 
-            Math_ScaledStepToS(&this->actor.world.rot.x, sp6E, ABS_ALT(sp6C) * sp64);
+            MM_Math_ScaledStepToS(&this->actor.world.rot.x, sp6E, ABS_ALT(sp6C) * sp64);
         }
     }
 
@@ -228,13 +228,13 @@ void func_808A2918(EnBoom* this, PlayState* play) {
         Vec3f sp50;
         s32 pad;
 
-        sp74 = BgCheck_EntityLineTest1(&play->colCtx, &this->actor.prevPos, &this->actor.world.pos, &sp50,
+        sp74 = MM_BgCheck_EntityLineTest1(&play->colCtx, &this->actor.prevPos, &this->actor.world.pos, &sp50,
                                        &this->actor.wallPoly, true, true, true, true, &bgId);
         if (sp74) {
             if (func_800B90AC(play, &this->actor, this->actor.wallPoly, bgId, &sp50)) {
                 sp74 = false;
             } else {
-                CollisionCheck_SpawnShieldParticlesMetal(play, &sp50);
+                MM_CollisionCheck_SpawnShieldParticlesMetal(play, &sp50);
             }
         }
 
@@ -247,7 +247,7 @@ void func_808A2918(EnBoom* this, PlayState* play) {
     }
 
     if (this->unk_1CC <= 16) {
-        distXYZ = Math_Vec3f_DistXYZ(&this->actor.world.pos, &player->actor.focus.pos);
+        distXYZ = MM_Math_Vec3f_DistXYZ(&this->actor.world.pos, &player->actor.focus.pos);
 
         if (&player->actor != this->moveTo) {
             if (this->moveTo == 0) {
@@ -259,7 +259,7 @@ void func_808A2918(EnBoom* this, PlayState* play) {
         if (distXYZ < 40.0f) {
             targetActor = this->unk_1C8;
             if (targetActor != NULL) {
-                Math_Vec3f_Copy(&targetActor->world.pos, &player->actor.world.pos);
+                MM_Math_Vec3f_Copy(&targetActor->world.pos, &player->actor.world.pos);
                 if (targetActor->id == ACTOR_EN_ITEM00) {
                     targetActor->gravity = -0.9f;
                     targetActor->bgCheckFlags &= ~(BGCHECKFLAG_GROUND | BGCHECKFLAG_GROUND_TOUCH);
@@ -267,7 +267,7 @@ void func_808A2918(EnBoom* this, PlayState* play) {
                     targetActor->flags &= ~ACTOR_FLAG_HOOKSHOT_ATTACHED;
                 }
             }
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
     }
 
@@ -276,12 +276,12 @@ void func_808A2918(EnBoom* this, PlayState* play) {
         if (targetActor->update == NULL) {
             this->unk_1C8 = NULL;
         } else {
-            Math_Vec3f_Copy(&targetActor->world.pos, &this->actor.world.pos);
+            MM_Math_Vec3f_Copy(&targetActor->world.pos, &this->actor.world.pos);
         }
     }
 }
 
-void EnBoom_Update(Actor* thisx, PlayState* play) {
+void MM_EnBoom_Update(Actor* thisx, PlayState* play) {
     EnBoom* this = (EnBoom*)thisx;
     Player* player = GET_PLAYER(play);
     Actor* actor;
@@ -294,7 +294,7 @@ void EnBoom_Update(Actor* thisx, PlayState* play) {
             this->actor.focus.pos.y = (this->actor.world.pos.y + actor->world.pos.y) * 0.5f;
             this->actor.focus.pos.z = (this->actor.world.pos.z + actor->world.pos.z) * 0.5f;
         } else {
-            Actor_SetFocus(&this->actor, 0.0f);
+            MM_Actor_SetFocus(&this->actor, 0.0f);
         }
 
         if (this->actor.params != ZORA_BOOMERANG_LEFT) {
@@ -316,7 +316,7 @@ EnBoomStruct D_808A3078[] = {
     { gameplay_keep_DL_06FF68, { -960.0f, 0.0f, 0.0f }, { 960.0f, 0.0f, 0.0f } },
 };
 
-void EnBoom_Draw(Actor* thisx, PlayState* play) {
+void MM_EnBoom_Draw(Actor* thisx, PlayState* play) {
     EnBoom* this = (EnBoom*)thisx;
     EnBoomStruct* sp58 = &D_808A3078[this->actor.params];
     Vec3f sp4C;
@@ -327,11 +327,11 @@ void EnBoom_Draw(Actor* thisx, PlayState* play) {
     Matrix_RotateYS(this->actor.world.rot.y, MTXMODE_APPLY);
     Matrix_RotateZS((this->actor.params != ZORA_BOOMERANG_LEFT) ? 0x1F40 : -0x1F40, MTXMODE_APPLY);
     Matrix_RotateXS(this->actor.world.rot.x, MTXMODE_APPLY);
-    Matrix_MultVec3f(&sp58->unk_04, &sp4C);
-    Matrix_MultVec3f(&sp58->unk_10, &sp40);
+    MM_Matrix_MultVec3f(&sp58->unk_04, &sp4C);
+    MM_Matrix_MultVec3f(&sp58->unk_10, &sp40);
 
     if (func_80126440(play, &this->collider, &this->weaponInfo, &sp4C, &sp40)) {
-        EffectBlure_AddVertex(Effect_GetByIndex(this->effectIndex), &sp4C, &sp40);
+        MM_EffectBlure_AddVertex(MM_Effect_GetByIndex(this->effectIndex), &sp4C, &sp40);
     }
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);

@@ -26,7 +26,7 @@ ActorProfile Obj_Y2lift_Profile = {
     /**/ ObjY2lift_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 800, ICHAIN_CONTINUE),
@@ -36,24 +36,24 @@ static InitChainEntry sInitChain[] = {
 void ObjY2lift_Init(Actor* thisx, PlayState* play) {
     ObjY2lift* this = (ObjY2lift*)thisx;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
     DynaPolyActor_LoadMesh(play, &this->dyna, &gPirateLiftPlatformCol);
 }
 
 void ObjY2lift_Destroy(Actor* thisx, PlayState* play) {
     ObjY2lift* this = (ObjY2lift*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void ObjY2lift_Update(Actor* thisx, PlayState* play) {
     ObjY2lift* this = (ObjY2lift*)thisx;
     f32 temp_fv0 = this->dyna.actor.world.pos.y;
     f32 targetVelocityY = 0.0f;
-    s32 isPlayerOnTop = DynaPolyActor_IsPlayerOnTop(&this->dyna);
+    s32 isPlayerOnTop = MM_DynaPolyActor_IsPlayerOnTop(&this->dyna);
 
-    if (isPlayerOnTop || DynaPolyActor_IsActorOnTop(&this->dyna)) {
+    if (isPlayerOnTop || MM_DynaPolyActor_IsActorOnTop(&this->dyna)) {
         if (!this->unk15D) {
             this->unk15D = true;
             this->unk15F = 12;
@@ -70,7 +70,7 @@ void ObjY2lift_Update(Actor* thisx, PlayState* play) {
         temp_fv0 = this->dyna.actor.home.pos.y;
         targetVelocityY = -2.0f;
     }
-    Math_StepToF(&this->dyna.actor.velocity.y, targetVelocityY, 0.1f);
+    MM_Math_StepToF(&this->dyna.actor.velocity.y, targetVelocityY, 0.1f);
     this->dyna.actor.world.pos.y += this->dyna.actor.velocity.y;
     if (((this->dyna.actor.world.pos.y - temp_fv0) * targetVelocityY) >= 0.0f) {
         this->dyna.actor.world.pos.y = temp_fv0;
@@ -89,5 +89,5 @@ void ObjY2lift_Update(Actor* thisx, PlayState* play) {
 }
 
 void ObjY2lift_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, gPirateLiftPlatformDL);
+    MM_Gfx_DrawDListOpa(play, gPirateLiftPlatformDL);
 }

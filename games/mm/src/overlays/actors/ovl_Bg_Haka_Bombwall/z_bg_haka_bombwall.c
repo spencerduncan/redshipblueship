@@ -34,7 +34,7 @@ ActorProfile Bg_Haka_Bombwall_Profile = {
     /**/ BgHakaBombwall_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -54,9 +54,9 @@ static ColliderCylinderInit sCylinderInit = {
     { 80, 80, 0, { 0, 0, 0 } },
 };
 
-static s16 sRockScales[4] = { 24, 15, 10, 5 };
+static s16 MM_sRockScales[4] = { 24, 15, 10, 5 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 500, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 500, ICHAIN_CONTINUE),
@@ -66,7 +66,7 @@ static InitChainEntry sInitChain[] = {
 s32 func_80BD5E00(BgHakaBombwall* this) {
     if (this->collider.base.acFlags & AC_HIT) {
         if ((this->collider.base.ac != NULL) &&
-            (Math3D_Vec3fDistSq(&this->dyna.actor.world.pos, &this->collider.base.ac->world.pos) < SQ(80.0f))) {
+            (MM_Math3D_Vec3fDistSq(&this->dyna.actor.world.pos, &this->collider.base.ac->world.pos) < SQ(80.0f))) {
             return true;
         }
     }
@@ -86,14 +86,14 @@ void func_80BD5E6C(BgHakaBombwall* this, PlayState* play) {
     s16 phi_t0;
     s16 gravity;
 
-    Matrix_Push();
+    MM_Matrix_Push();
     Matrix_RotateYS(this->dyna.actor.shape.rot.y, MTXMODE_NEW);
 
     offsetPosX = 0.0f;
     offsetPosY = 0.0f;
 
     for (i = 0; i < 30; i++) {
-        offsetPosX += 60.0f + (Rand_ZeroOne() * 20.0f);
+        offsetPosX += 60.0f + (MM_Rand_ZeroOne() * 20.0f);
 
         if (offsetPosX > 75.0f) {
             offsetPosX -= 150.0f;
@@ -103,14 +103,14 @@ void func_80BD5E6C(BgHakaBombwall* this, PlayState* play) {
 
         posOffset.x = offsetPosX;
         posOffset.y = offsetPosY;
-        posOffset.z = (Rand_ZeroOne() * 20.0f) - 10.0f;
+        posOffset.z = (MM_Rand_ZeroOne() * 20.0f) - 10.0f;
 
-        velocityOffset.x = ((Rand_ZeroOne() - 0.5f) * 5.0f) + (offsetPosX * (4.0f / 75.0f));
-        velocityOffset.y = (Rand_ZeroOne() * 7.0f) - 2.0f;
-        velocityOffset.z = (Rand_ZeroOne() * 4.0f) - 2.0f;
+        velocityOffset.x = ((MM_Rand_ZeroOne() - 0.5f) * 5.0f) + (offsetPosX * (4.0f / 75.0f));
+        velocityOffset.y = (MM_Rand_ZeroOne() * 7.0f) - 2.0f;
+        velocityOffset.z = (MM_Rand_ZeroOne() * 4.0f) - 2.0f;
 
-        Matrix_MultVec3f(&posOffset, &pos);
-        Matrix_MultVec3f(&velocityOffset, &velocity);
+        MM_Matrix_MultVec3f(&posOffset, &pos);
+        MM_Matrix_MultVec3f(&velocityOffset, &velocity);
 
         pos.x += this->dyna.actor.world.pos.x;
         pos.y += this->dyna.actor.world.pos.y;
@@ -133,7 +133,7 @@ void func_80BD5E6C(BgHakaBombwall* this, PlayState* play) {
             phi_t0 = 0;
         }
 
-        scale = sRockScales[i & (ARRAY_COUNT(sRockScales) - 1)];
+        scale = MM_sRockScales[i & (ARRAY_COUNT(MM_sRockScales) - 1)];
 
         if (scale >= 16) {
             gravity = -550;
@@ -141,36 +141,36 @@ void func_80BD5E6C(BgHakaBombwall* this, PlayState* play) {
             gravity = -450;
         }
 
-        EffectSsKakera_Spawn(play, &pos, &velocity, &pos, gravity, phi_s0, 30, 0, 0, scale, phi_t0, 0, 50, -1,
+        MM_EffectSsKakera_Spawn(play, &pos, &velocity, &pos, gravity, phi_s0, 30, 0, 0, scale, phi_t0, 0, 50, -1,
                              OBJECT_HAKA_OBJ, object_haka_obj_DL_001680);
     }
 
-    Matrix_Pop();
+    MM_Matrix_Pop();
 }
 
 void BgHakaBombwall_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     BgHakaBombwall* this = (BgHakaBombwall*)thisx;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, 0);
-    Collider_InitCylinder(play, &this->collider);
-    if (Flags_GetSwitch(play, BGHAKABOMBWALL_GET_SWITCH_FLAG(thisx))) {
-        Actor_Kill(&this->dyna.actor);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
+    MM_DynaPolyActor_Init(&this->dyna, 0);
+    MM_Collider_InitCylinder(play, &this->collider);
+    if (MM_Flags_GetSwitch(play, BGHAKABOMBWALL_GET_SWITCH_FLAG(thisx))) {
+        MM_Actor_Kill(&this->dyna.actor);
         return;
     }
 
     DynaPolyActor_LoadMesh(play, &this->dyna, &object_haka_obj_Colheader_000148);
-    Collider_SetCylinder(play, &this->collider, &this->dyna.actor, &sCylinderInit);
-    Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->dyna.actor, &MM_sCylinderInit);
+    MM_Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
     func_80BD6260(this);
 }
 
 void BgHakaBombwall_Destroy(Actor* thisx, PlayState* play) {
     BgHakaBombwall* this = (BgHakaBombwall*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void func_80BD6260(BgHakaBombwall* this) {
@@ -181,7 +181,7 @@ void func_80BD6274(BgHakaBombwall* this, PlayState* play) {
     if (func_80BD5E00(this)) {
         BgHakaBombwall_SetupPlayCutscene(this);
     } else {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -196,8 +196,8 @@ void BgHakaBombwall_PlayCutscene(BgHakaBombwall* this, PlayState* play) {
         CutsceneManager_StartWithPlayerCs(this->dyna.actor.csId, &this->dyna.actor);
         func_80BD5E6C(this, play);
         this->dyna.actor.draw = NULL;
-        Flags_SetSwitch(play, BGHAKABOMBWALL_GET_SWITCH_FLAG(&this->dyna.actor));
-        SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 0x3C, NA_SE_EV_WALL_BROKEN);
+        MM_Flags_SetSwitch(play, BGHAKABOMBWALL_GET_SWITCH_FLAG(&this->dyna.actor));
+        MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 0x3C, NA_SE_EV_WALL_BROKEN);
         DynaPoly_DisableCollision(play, &play->colCtx.dyna, this->dyna.bgId);
         BgHakaBombwall_SetupEndCutscene(this);
     } else {
@@ -214,7 +214,7 @@ void BgHakaBombwall_EndCutscene(BgHakaBombwall* this, PlayState* play) {
     this->csTimer--;
     if (this->csTimer <= 0) {
         CutsceneManager_Stop(this->dyna.actor.csId);
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
     }
 }
 
@@ -225,5 +225,5 @@ void BgHakaBombwall_Update(Actor* thisx, PlayState* play) {
 }
 
 void BgHakaBombwall_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, object_haka_obj_DL_000040);
+    MM_Gfx_DrawDListOpa(play, object_haka_obj_DL_000040);
 }

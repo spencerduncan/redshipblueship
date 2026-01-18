@@ -1,6 +1,6 @@
 #include "global.h"
 
-void osViSwapBuffer(void* vaddr) {
+void OoT_osViSwapBuffer(void* vaddr) {
     u32 prevInt = __osDisableInt();
 
     __osViNext->buffer = vaddr;

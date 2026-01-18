@@ -26,7 +26,7 @@ ActorProfile Obj_Milk_Bin_Profile = {
     /**/ ObjMilkBin_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HARD,
         AT_NONE,
@@ -49,8 +49,8 @@ static ColliderCylinderInit sCylinderInit = {
 void ObjMilkBin_Init(Actor* thisx, PlayState* play) {
     ObjMilkBin* this = (ObjMilkBin*)thisx;
 
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
 
     this->actor.shape.yOffset = 1100.0f;
     this->disableDraw = 0;
@@ -64,7 +64,7 @@ void ObjMilkBin_Init(Actor* thisx, PlayState* play) {
 void ObjMilkBin_Destroy(Actor* thisx, PlayState* play) {
     ObjMilkBin* this = (ObjMilkBin*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void ObjMilkBin_Update(Actor* thisx, PlayState* play2) {
@@ -74,7 +74,7 @@ void ObjMilkBin_Update(Actor* thisx, PlayState* play2) {
     if (this->type == OBJ_MILK_BIN_TYPE_1) {
         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_DEFENDED_AGAINST_ALIENS)) {
             if (((gSaveContext.save.day == 2) && (gSaveContext.save.isNight == 1)) || (gSaveContext.save.day >= 3)) {
-                Actor_Kill(&this->actor);
+                MM_Actor_Kill(&this->actor);
                 return;
             }
         }
@@ -87,8 +87,8 @@ void ObjMilkBin_Update(Actor* thisx, PlayState* play2) {
     }
 
     if (!(this->disableDraw & 1)) {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -96,6 +96,6 @@ void ObjMilkBin_Draw(Actor* thisx, PlayState* play) {
     ObjMilkBin* this = (ObjMilkBin*)thisx;
 
     if (!(this->disableDraw & 1)) {
-        Gfx_DrawDListOpa(play, gMilkBinMilkJarDL);
+        MM_Gfx_DrawDListOpa(play, gMilkBinMilkJarDL);
     }
 }

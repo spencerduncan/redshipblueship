@@ -12,10 +12,10 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED)
 
-void EnArrow_Init(Actor* thisx, PlayState* play);
-void EnArrow_Destroy(Actor* thisx, PlayState* play);
-void EnArrow_Update(Actor* thisx, PlayState* play);
-void EnArrow_Draw(Actor* thisx, PlayState* play);
+void OoT_EnArrow_Init(Actor* thisx, PlayState* play);
+void OoT_EnArrow_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnArrow_Update(Actor* thisx, PlayState* play);
+void OoT_EnArrow_Draw(Actor* thisx, PlayState* play);
 
 void EnArrow_Shoot(EnArrow* this, PlayState* play);
 void EnArrow_Fly(EnArrow* this, PlayState* play);
@@ -28,10 +28,10 @@ const ActorInit En_Arrow_InitVars = {
     FLAGS,
     OBJECT_GAMEPLAY_KEEP,
     sizeof(EnArrow),
-    (ActorFunc)EnArrow_Init,
-    (ActorFunc)EnArrow_Destroy,
-    (ActorFunc)EnArrow_Update,
-    (ActorFunc)EnArrow_Draw,
+    (ActorFunc)OoT_EnArrow_Init,
+    (ActorFunc)OoT_EnArrow_Destroy,
+    (ActorFunc)OoT_EnArrow_Update,
+    (ActorFunc)OoT_EnArrow_Draw,
     NULL,
 };
 
@@ -55,7 +55,7 @@ static ColliderQuadInit sColliderInit = {
     { { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f } } },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(minVelocityY, -150, ICHAIN_STOP),
 };
 
@@ -63,7 +63,7 @@ void EnArrow_SetupAction(EnArrow* this, EnArrowActionFunc actionFunc) {
     this->actionFunc = actionFunc;
 }
 
-void EnArrow_Init(Actor* thisx, PlayState* play) {
+void OoT_EnArrow_Init(Actor* thisx, PlayState* play) {
     static EffectBlureInit2 blureNormal = {
         0, 4, 0, { 0, 255, 200, 255 },   { 0, 255, 255, 255 }, { 0, 255, 200, 0 }, { 0, 255, 255, 0 }, 16,
         0, 1, 0, { 255, 255, 170, 255 }, { 0, 150, 0, 0 },     TRAIL_TYPE_REST,
@@ -137,7 +137,7 @@ void EnArrow_Init(Actor* thisx, PlayState* play) {
         blureLight.altPrimColor = (Color_RGBA8){ 255, 255, 170, 0 };
     }
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
 
     if (this->actor.params == ARROW_CS_NUT) {
         this->isCsNut = true;
@@ -147,7 +147,7 @@ void EnArrow_Init(Actor* thisx, PlayState* play) {
     if (this->actor.params <= ARROW_SEED) {
 
         if (this->actor.params <= ARROW_0E) {
-            SkelAnime_Init(play, &this->skelAnime, &gArrowSkel, &gArrow2Anim, NULL, NULL, 0);
+            OoT_SkelAnime_Init(play, &this->skelAnime, &gArrowSkel, &gArrow2Anim, NULL, NULL, 0);
         }
 
         if (this->actor.params <= ARROW_NORMAL) {
@@ -157,23 +157,23 @@ void EnArrow_Init(Actor* thisx, PlayState* play) {
                 blureNormal.elemDuration = 16;
             }
 
-            Effect_Add(play, &this->effectIndex, EFFECT_BLURE2, 0, 0, &blureNormal);
+            OoT_Effect_Add(play, &this->effectIndex, EFFECT_BLURE2, 0, 0, &blureNormal);
 
         } else if (this->actor.params == ARROW_FIRE) {
 
-            Effect_Add(play, &this->effectIndex, EFFECT_BLURE2, 0, 0, &blureFire);
+            OoT_Effect_Add(play, &this->effectIndex, EFFECT_BLURE2, 0, 0, &blureFire);
 
         } else if (this->actor.params == ARROW_ICE) {
 
-            Effect_Add(play, &this->effectIndex, EFFECT_BLURE2, 0, 0, &blureIce);
+            OoT_Effect_Add(play, &this->effectIndex, EFFECT_BLURE2, 0, 0, &blureIce);
 
         } else if (this->actor.params == ARROW_LIGHT) {
 
-            Effect_Add(play, &this->effectIndex, EFFECT_BLURE2, 0, 0, &blureLight);
+            OoT_Effect_Add(play, &this->effectIndex, EFFECT_BLURE2, 0, 0, &blureLight);
         }
 
-        Collider_InitQuad(play, &this->collider);
-        Collider_SetQuad(play, &this->collider, &this->actor, &sColliderInit);
+        OoT_Collider_InitQuad(play, &this->collider);
+        OoT_Collider_SetQuad(play, &this->collider, &this->actor, &sColliderInit);
 
         if (this->actor.params <= ARROW_NORMAL) {
             this->collider.info.toucherFlags &= ~0x18;
@@ -191,15 +191,15 @@ void EnArrow_Init(Actor* thisx, PlayState* play) {
     EnArrow_SetupAction(this, EnArrow_Shoot);
 }
 
-void EnArrow_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnArrow_Destroy(Actor* thisx, PlayState* play) {
     EnArrow* this = (EnArrow*)thisx;
 
     if (this->actor.params <= ARROW_LIGHT) {
         Effect_Delete(play, this->effectIndex);
     }
 
-    SkelAnime_Free(&this->skelAnime, play);
-    Collider_DestroyQuad(play, &this->collider);
+    OoT_SkelAnime_Free(&this->skelAnime, play);
+    OoT_Collider_DestroyQuad(play, &this->collider);
 
     if ((this->hitActor != NULL) && (this->hitActor->update != NULL)) {
         this->hitActor->flags &= ~ACTOR_FLAG_ATTACHED_TO_ARROW;
@@ -211,31 +211,31 @@ void EnArrow_Shoot(EnArrow* this, PlayState* play) {
 
     if (this->actor.parent == NULL) {
         if ((this->actor.params != ARROW_NUT) && (player->unk_A73 == 0)) {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
             return;
         }
 
         switch (this->actor.params) {
             case ARROW_SEED:
-                Player_PlaySfx(&player->actor, NA_SE_IT_SLING_SHOT);
+                OoT_Player_PlaySfx(&player->actor, NA_SE_IT_SLING_SHOT);
                 break;
 
             case ARROW_NORMAL_LIT:
             case ARROW_NORMAL_HORSE:
             case ARROW_NORMAL:
-                Player_PlaySfx(&player->actor, NA_SE_IT_ARROW_SHOT);
+                OoT_Player_PlaySfx(&player->actor, NA_SE_IT_ARROW_SHOT);
                 break;
 
             case ARROW_FIRE:
             case ARROW_ICE:
             case ARROW_LIGHT:
                 GameInteractor_Should(VB_EN_ARROW_MAGIC_CONSUMPTION, true, this);
-                Player_PlaySfx(&player->actor, NA_SE_IT_MAGIC_ARROW_SHOT);
+                OoT_Player_PlaySfx(&player->actor, NA_SE_IT_MAGIC_ARROW_SHOT);
                 break;
         }
 
         EnArrow_SetupAction(this, EnArrow_Fly);
-        Math_Vec3f_Copy(&this->unk_210, &this->actor.world.pos);
+        OoT_Math_Vec3f_Copy(&this->unk_210, &this->actor.world.pos);
 
         if (this->actor.params >= ARROW_SEED) {
             Actor_SetProjectileSpeed(&this->actor, 80.0f);
@@ -250,10 +250,10 @@ void EnArrow_Shoot(EnArrow* this, PlayState* play) {
 
 void func_809B3CEC(PlayState* play, EnArrow* this) {
     EnArrow_SetupAction(this, func_809B4640);
-    Animation_PlayOnce(&this->skelAnime, &gArrow1Anim);
-    this->actor.world.rot.y += (s32)(24576.0f * (Rand_ZeroOne() - 0.5f)) + 0x8000;
-    this->actor.velocity.y += (this->actor.speedXZ * (0.4f + (0.4f * Rand_ZeroOne())));
-    this->actor.speedXZ *= (0.04f + 0.3f * Rand_ZeroOne());
+    OoT_Animation_PlayOnce(&this->skelAnime, &gArrow1Anim);
+    this->actor.world.rot.y += (s32)(24576.0f * (OoT_Rand_ZeroOne() - 0.5f)) + 0x8000;
+    this->actor.velocity.y += (this->actor.speedXZ * (0.4f + (0.4f * OoT_Rand_ZeroOne())));
+    this->actor.speedXZ *= (0.04f + 0.3f * OoT_Rand_ZeroOne());
     this->timer = 50;
     this->actor.gravity = -1.5f;
 }
@@ -267,27 +267,27 @@ void EnArrow_CarryActor(EnArrow* this, PlayState* play) {
     f32 scale;
     s32 bgId;
 
-    Math_Vec3f_Diff(&this->actor.world.pos, &this->unk_210, &posDiffLastFrame);
+    OoT_Math_Vec3f_Diff(&this->actor.world.pos, &this->unk_210, &posDiffLastFrame);
 
     temp_f12 = ((this->actor.world.pos.x - this->hitActor->world.pos.x) * posDiffLastFrame.x) +
                ((this->actor.world.pos.y - this->hitActor->world.pos.y) * posDiffLastFrame.y) +
                ((this->actor.world.pos.z - this->hitActor->world.pos.z) * posDiffLastFrame.z);
 
     if (!(temp_f12 < 0.0f)) {
-        scale = Math3D_Vec3fMagnitudeSq(&posDiffLastFrame);
+        scale = OoT_Math3D_Vec3fMagnitudeSq(&posDiffLastFrame);
 
         if (!(scale < 1.0f)) {
             scale = temp_f12 / scale;
-            Math_Vec3f_Scale(&posDiffLastFrame, scale);
-            Math_Vec3f_Sum(&this->hitActor->world.pos, &posDiffLastFrame, &actorNextPos);
+            OoT_Math_Vec3f_Scale(&posDiffLastFrame, scale);
+            OoT_Math_Vec3f_Sum(&this->hitActor->world.pos, &posDiffLastFrame, &actorNextPos);
 
-            if (BgCheck_EntityLineTest1(&play->colCtx, &this->hitActor->world.pos, &actorNextPos, &hitPos, &hitPoly,
+            if (OoT_BgCheck_EntityLineTest1(&play->colCtx, &this->hitActor->world.pos, &actorNextPos, &hitPos, &hitPoly,
                                         true, true, true, true, &bgId)) {
                 this->hitActor->world.pos.x = hitPos.x + ((actorNextPos.x <= hitPos.x) ? 1.0f : -1.0f);
                 this->hitActor->world.pos.y = hitPos.y + ((actorNextPos.y <= hitPos.y) ? 1.0f : -1.0f);
                 this->hitActor->world.pos.z = hitPos.z + ((actorNextPos.z <= hitPos.z) ? 1.0f : -1.0f);
             } else {
-                Math_Vec3f_Copy(&this->hitActor->world.pos, &actorNextPos);
+                OoT_Math_Vec3f_Copy(&this->hitActor->world.pos, &actorNextPos);
             }
         }
     }
@@ -305,7 +305,7 @@ void EnArrow_Fly(EnArrow* this, PlayState* play) {
     Vec3f sp54;
 
     if (DECR(this->timer) == 0) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
 
@@ -326,16 +326,16 @@ void EnArrow_Fly(EnArrow* this, PlayState* play) {
 
             if (this->actor.params == ARROW_NUT) {
                 iREG(50) = -1;
-                Actor_Spawn(&play->actorCtx, play, ACTOR_EN_M_FIRE1, this->actor.world.pos.x, this->actor.world.pos.y,
+                OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_M_FIRE1, this->actor.world.pos.x, this->actor.world.pos.y,
                             this->actor.world.pos.z, 0, 0, 0, 0, true);
                 sfxId = NA_SE_IT_DEKU;
             } else {
                 sfxId = NA_SE_IT_SLING_REFLECT;
             }
 
-            EffectSsStone1_Spawn(play, &this->actor.world.pos, 0);
-            SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 20, sfxId);
-            Actor_Kill(&this->actor);
+            OoT_EffectSsStone1_Spawn(play, &this->actor.world.pos, 0);
+            OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 20, sfxId);
+            OoT_Actor_Kill(&this->actor);
         } else {
             EffectSsHitMark_SpawnCustomScale(play, 0, 150, &this->actor.world.pos);
 
@@ -346,7 +346,7 @@ void EnArrow_Fly(EnArrow* this, PlayState* play) {
                     (hitActor->flags & ACTOR_FLAG_CAN_ATTACH_TO_ARROW)) {
                     this->hitActor = hitActor;
                     EnArrow_CarryActor(this, play);
-                    Math_Vec3f_Diff(&hitActor->world.pos, &this->actor.world.pos, &this->unk_250);
+                    OoT_Math_Vec3f_Diff(&hitActor->world.pos, &this->actor.world.pos, &this->unk_250);
                     hitActor->flags |= ACTOR_FLAG_ATTACHED_TO_ARROW;
                     this->collider.base.atFlags &= ~AT_HIT;
                     this->actor.speedXZ /= 2.0f;
@@ -366,7 +366,7 @@ void EnArrow_Fly(EnArrow* this, PlayState* play) {
                 }
             } else if (this->touchedPoly) {
                 EnArrow_SetupAction(this, func_809B45E0);
-                Animation_PlayOnce(&this->skelAnime, &gArrow2Anim);
+                OoT_Animation_PlayOnce(&this->skelAnime, &gArrow2Anim);
 
                 if (this->actor.params >= ARROW_NORMAL_LIT) {
                     this->timer = 60;
@@ -379,37 +379,37 @@ void EnArrow_Fly(EnArrow* this, PlayState* play) {
             }
         }
     } else {
-        Math_Vec3f_Copy(&this->unk_210, &this->actor.world.pos);
+        OoT_Math_Vec3f_Copy(&this->unk_210, &this->actor.world.pos);
         Actor_MoveXZGravity(&this->actor);
 
         if ((this->touchedPoly =
-                 BgCheck_ProjectileLineTest(&play->colCtx, &this->actor.prevPos, &this->actor.world.pos, &hitPoint,
+                 OoT_BgCheck_ProjectileLineTest(&play->colCtx, &this->actor.prevPos, &this->actor.world.pos, &hitPoint,
                                             &this->actor.wallPoly, true, true, true, true, &bgId))) {
             func_8002F9EC(play, &this->actor, this->actor.wallPoly, bgId, &hitPoint);
-            Math_Vec3f_Copy(&posCopy, &this->actor.world.pos);
-            Math_Vec3f_Copy(&this->actor.world.pos, &hitPoint);
+            OoT_Math_Vec3f_Copy(&posCopy, &this->actor.world.pos);
+            OoT_Math_Vec3f_Copy(&this->actor.world.pos, &hitPoint);
         }
 
         if (this->actor.params <= ARROW_0E) {
-            this->actor.shape.rot.x = Math_Atan2S(this->actor.speedXZ, -this->actor.velocity.y);
+            this->actor.shape.rot.x = OoT_Math_Atan2S(this->actor.speedXZ, -this->actor.velocity.y);
         }
     }
 
     if (this->hitActor != NULL) {
         if (this->hitActor->update != NULL) {
-            Math_Vec3f_Sum(&this->unk_210, &this->unk_250, &sp60);
-            Math_Vec3f_Sum(&this->actor.world.pos, &this->unk_250, &sp54);
+            OoT_Math_Vec3f_Sum(&this->unk_210, &this->unk_250, &sp60);
+            OoT_Math_Vec3f_Sum(&this->actor.world.pos, &this->unk_250, &sp54);
 
-            if (BgCheck_EntityLineTest1(&play->colCtx, &sp60, &sp54, &hitPoint, &hitPoly, true, true, true, true,
+            if (OoT_BgCheck_EntityLineTest1(&play->colCtx, &sp60, &sp54, &hitPoint, &hitPoly, true, true, true, true,
                                         &bgId)) {
                 this->hitActor->world.pos.x = hitPoint.x + ((sp54.x <= hitPoint.x) ? 1.0f : -1.0f);
                 this->hitActor->world.pos.y = hitPoint.y + ((sp54.y <= hitPoint.y) ? 1.0f : -1.0f);
                 this->hitActor->world.pos.z = hitPoint.z + ((sp54.z <= hitPoint.z) ? 1.0f : -1.0f);
-                Math_Vec3f_Diff(&this->hitActor->world.pos, &this->actor.world.pos, &this->unk_250);
+                OoT_Math_Vec3f_Diff(&this->hitActor->world.pos, &this->actor.world.pos, &this->unk_250);
                 this->hitActor->flags &= ~ACTOR_FLAG_ATTACHED_TO_ARROW;
                 this->hitActor = NULL;
             } else {
-                Math_Vec3f_Sum(&this->actor.world.pos, &this->unk_250, &this->hitActor->world.pos);
+                OoT_Math_Vec3f_Sum(&this->actor.world.pos, &this->unk_250, &this->hitActor->world.pos);
             }
 
             if (this->touchedPoly && (this->hitActor != NULL)) {
@@ -423,29 +423,29 @@ void EnArrow_Fly(EnArrow* this, PlayState* play) {
 }
 
 void func_809B45E0(EnArrow* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
     if (DECR(this->timer) == 0) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
 void func_809B4640(EnArrow* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     Actor_MoveXZGravity(&this->actor);
 
     if (DECR(this->timer) == 0) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
-void EnArrow_Update(Actor* thisx, PlayState* play) {
+void OoT_EnArrow_Update(Actor* thisx, PlayState* play) {
     s32 pad;
     EnArrow* this = (EnArrow*)thisx;
     Player* player = GET_PLAYER(play);
 
     if (this->isCsNut || ((this->actor.params >= ARROW_NORMAL_LIT) && (player->unk_A73 != 0)) ||
-        !Player_InBlockingCsMode(play, player)) {
+        !OoT_Player_InBlockingCsMode(play, player)) {
         this->actionFunc(this, play);
     }
 
@@ -454,7 +454,7 @@ void EnArrow_Update(Actor* thisx, PlayState* play) {
                                     ACTOR_ARROW_FIRE, ACTOR_ARROW_FIRE, ACTOR_ARROW_FIRE };
 
         if (this->actor.child == NULL) {
-            Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, elementalActorIds[this->actor.params - 3],
+            OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, elementalActorIds[this->actor.params - 3],
                                this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, 0, 0, 0, 0);
         }
     } else if (this->actor.params == ARROW_NORMAL_LIT) {
@@ -475,11 +475,11 @@ void func_809B4800(EnArrow* this, PlayState* play) {
     Vec3f sp38;
     s32 addBlureVertex;
 
-    Matrix_MultVec3f(&D_809B4EA0, &this->unk_21C);
+    OoT_Matrix_MultVec3f(&D_809B4EA0, &this->unk_21C);
 
     if (EnArrow_Fly == this->actionFunc) {
-        Matrix_MultVec3f(&D_809B4E88, &sp44);
-        Matrix_MultVec3f(&D_809B4E94, &sp38);
+        OoT_Matrix_MultVec3f(&D_809B4E88, &sp44);
+        OoT_Matrix_MultVec3f(&D_809B4E94, &sp38);
 
         if (this->actor.params <= ARROW_SEED) {
             addBlureVertex = this->actor.params <= ARROW_LIGHT;
@@ -497,13 +497,13 @@ void func_809B4800(EnArrow* this, PlayState* play) {
             }
 
             if (addBlureVertex) {
-                EffectBlure_AddVertex(Effect_GetByIndex(this->effectIndex), &sp44, &sp38);
+                OoT_EffectBlure_AddVertex(OoT_Effect_GetByIndex(this->effectIndex), &sp44, &sp38);
             }
         }
     }
 }
 
-void EnArrow_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnArrow_Draw(Actor* thisx, PlayState* play) {
     s32 pad;
     EnArrow* this = (EnArrow*)thisx;
     u8 alpha;
@@ -511,10 +511,10 @@ void EnArrow_Draw(Actor* thisx, PlayState* play) {
 
     if (this->actor.params <= ARROW_0E) {
         Gfx_SetupDL_25Opa(play->state.gfxCtx);
-        SkelAnime_DrawLod(play, this->skelAnime.skeleton, this->skelAnime.jointTable, NULL, NULL, this,
+        OoT_SkelAnime_DrawLod(play, this->skelAnime.skeleton, this->skelAnime.jointTable, NULL, NULL, this,
                           (this->actor.projectedPos.z < MREG(95)) ? 0 : 1);
     } else if (this->actor.speedXZ != 0.0f) {
-        alpha = (Math_CosS(this->timer * 5000) * 127.5f) + 127.5f;
+        alpha = (OoT_Math_CosS(this->timer * 5000) * 127.5f) + 127.5f;
 
         OPEN_DISPS(play->state.gfxCtx);
 
@@ -530,15 +530,15 @@ void EnArrow_Draw(Actor* thisx, PlayState* play) {
             scale = 150.0f;
         }
 
-        Matrix_Push();
-        Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
-        // redundant check because this is contained in an if block for non-zero speed
+        OoT_Matrix_Push();
+        OoT_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
+        // redundant check because this is contained in an if block for non-OoT_zero speed
         Matrix_RotateZ((this->actor.speedXZ == 0.0f) ? 0.0f : ((play->gameplayFrames & 0xFF) * 4000) * (M_PI / 0x8000),
                        MTXMODE_APPLY);
-        Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+        OoT_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPDisplayList(POLY_XLU_DISP++, gEffSparklesDL);
-        Matrix_Pop();
+        OoT_Matrix_Pop();
         Matrix_RotateY(this->actor.world.rot.y * (M_PI / 0x8000), MTXMODE_APPLY);
         CLOSE_DISPS(play->state.gfxCtx);
     }

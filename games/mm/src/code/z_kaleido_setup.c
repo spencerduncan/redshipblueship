@@ -84,7 +84,7 @@ void func_800F4A10(PlayState* play) {
     R_PAUSE_WORLD_MAP_DEPTH = -14400;
 }
 
-void KaleidoSetup_Update(PlayState* play) {
+void MM_KaleidoSetup_Update(PlayState* play) {
     Input* input = CONTROLLER1(&play->state);
     MessageContext* msgCtx = &play->msgCtx;
     Player* player = GET_PLAYER(play);
@@ -106,7 +106,7 @@ void KaleidoSetup_Update(PlayState* play) {
         return;
     }
 
-    if (!Play_InCsMode(play) || ((msgCtx->msgMode != MSGMODE_NONE) && (msgCtx->currentTextId == 0xFF))) {
+    if (!MM_Play_InCsMode(play) || ((msgCtx->msgMode != MSGMODE_NONE) && (msgCtx->currentTextId == 0xFF))) {
         if (play->bButtonAmmoPlusOne >= 2) {
             return;
         }
@@ -144,7 +144,7 @@ void KaleidoSetup_Update(PlayState* play) {
     }
 }
 
-void KaleidoSetup_Init(PlayState* play) {
+void MM_KaleidoSetup_Init(PlayState* play) {
     PauseContext* pauseCtx = &play->pauseCtx;
     s32 pad[2];
 
@@ -180,8 +180,8 @@ void KaleidoSetup_Init(PlayState* play) {
     pauseCtx->equipAnimShrinkRate = 40;
     pauseCtx->promptAlpha = 100;
 
-    View_Init(&pauseCtx->view, play->state.gfxCtx);
+    MM_View_Init(&pauseCtx->view, play->state.gfxCtx);
 }
 
-void KaleidoSetup_Destroy(PlayState* play) {
+void MM_KaleidoSetup_Destroy(PlayState* play) {
 }

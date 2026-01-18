@@ -1,15 +1,15 @@
 #include <libultraship/libultra.h>
 
 // 2S2H [Port] Version information
-const char gBuildVersion[] = "Copper Bravo (9.1.1)";
-const u16 gBuildVersionMajor = 9;
-const u16 gBuildVersionMinor = 1;
-const u16 gBuildVersionPatch = 1;
+const char MM_gBuildVersion[] = "Copper Bravo (9.1.1)";
+const u16 MM_gBuildVersionMajor = 9;
+const u16 MM_gBuildVersionMinor = 1;
+const u16 MM_gBuildVersionPatch = 1;
 
-const char gGitBranch[] = "main";
-const char gGitCommitHash[] = "9ef2d79";
-const char gGitCommitTag[] = "";
+const char MM_gGitBranch[] = "main";
+const char MM_gGitCommitHash[] = "9ef2d79";
+const char MM_gGitCommitTag[] = "";
 
-const char gBuildTeam[] = "github.com/harbourmasters";
-const char gBuildDate[] = __DATE__ " " __TIME__;
-const char gBuildMakeOption[] = "";
+const char MM_gBuildTeam[] = "github.com/harbourmasters";
+const char MM_gBuildDate[] = __DATE__ " " __TIME__;
+const char MM_gBuildMakeOption[] = "";

@@ -4,7 +4,7 @@
 #include "soh/frame_interpolation.h"
 
 // clang-format off
-MtxF sMtxFClear = {
+MtxF OoT_sMtxFClear = {
     1.0f, 0.0f, 0.0f, 0.0f,
     0.0f, 1.0f, 0.0f, 0.0f,
     0.0f, 0.0f, 1.0f, 0.0f,
@@ -21,7 +21,7 @@ MtxF sMtxFClear = {
  *        \begin{bmatrix} \texttt{src} \\ 1 \\ \end{bmatrix}
  * \f]
  */
-void SkinMatrix_Vec3fMtxFMultXYZW(MtxF* mf, Vec3f* src, Vec3f* xyzDest, f32* wDest) {
+void OoT_SkinMatrix_Vec3fMtxFMultXYZW(MtxF* mf, Vec3f* src, Vec3f* xyzDest, f32* wDest) {
     xyzDest->x = mf->xw + ((src->x * mf->xx) + (src->y * mf->xy) + (src->z * mf->xz));
     xyzDest->y = mf->yw + ((src->x * mf->yx) + (src->y * mf->yy) + (src->z * mf->yz));
     xyzDest->z = mf->zw + ((src->x * mf->zx) + (src->y * mf->zy) + (src->z * mf->zz));
@@ -36,7 +36,7 @@ void SkinMatrix_Vec3fMtxFMultXYZW(MtxF* mf, Vec3f* src, Vec3f* xyzDest, f32* wDe
  *        \begin{bmatrix} \texttt{src} \\ 1 \\ \end{bmatrix}
  * \f]
  */
-void SkinMatrix_Vec3fMtxFMultXYZ(MtxF* mf, Vec3f* src, Vec3f* dest) {
+void OoT_SkinMatrix_Vec3fMtxFMultXYZ(MtxF* mf, Vec3f* src, Vec3f* dest) {
     f32 mx = mf->xx;
     f32 my = mf->xy;
     f32 mz = mf->xz;
@@ -59,7 +59,7 @@ void SkinMatrix_Vec3fMtxFMultXYZ(MtxF* mf, Vec3f* src, Vec3f* dest) {
  * Matrix multiplication, dest = mfA * mfB.
  * mfB and dest should not be the same matrix.
  */
-void SkinMatrix_MtxFMtxFMult(MtxF* mfA, MtxF* mfB, MtxF* dest) {
+void OoT_SkinMatrix_MtxFMtxFMult(MtxF* mfA, MtxF* mfB, MtxF* dest) {
     f32 cx;
     f32 cy;
     f32 cz;
@@ -189,11 +189,11 @@ void SkinMatrix_MtxFMtxFMult(MtxF* mfA, MtxF* mfB, MtxF* dest) {
 /**
  * "Clear" in this file means the identity matrix.
  */
-void SkinMatrix_GetClear(MtxF** mfp) {
-    *mfp = &sMtxFClear;
+void OoT_SkinMatrix_GetClear(MtxF** mfp) {
+    *mfp = &OoT_sMtxFClear;
 }
 
-void SkinMatrix_Clear(MtxF* mf) {
+void OoT_SkinMatrix_Clear(MtxF* mf) {
     mf->xx = 1.0f;
     mf->yy = 1.0f;
     mf->zz = 1.0f;
@@ -212,7 +212,7 @@ void SkinMatrix_Clear(MtxF* mf) {
     mf->zw = 0.0f;
 }
 
-void SkinMatrix_MtxFCopy(MtxF* src, MtxF* dest) {
+void OoT_SkinMatrix_MtxFCopy(MtxF* src, MtxF* dest) {
     dest->xx = src->xx;
     dest->yx = src->yx;
     dest->zx = src->zx;
@@ -236,7 +236,7 @@ void SkinMatrix_MtxFCopy(MtxF* src, MtxF* dest) {
  * returns 0 if successfully inverted
  * returns 2 if matrix non-invertible (0 determinant)
  */
-s32 SkinMatrix_Invert(MtxF* src, MtxF* dest) {
+s32 OoT_SkinMatrix_Invert(MtxF* src, MtxF* dest) {
     MtxF mfCopy;
     s32 i;
     s32 pad;
@@ -245,8 +245,8 @@ s32 SkinMatrix_Invert(MtxF* src, MtxF* dest) {
     s32 thisCol;
     s32 thisRow;
 
-    SkinMatrix_MtxFCopy(src, &mfCopy);
-    SkinMatrix_Clear(dest);
+    OoT_SkinMatrix_MtxFCopy(src, &mfCopy);
+    OoT_SkinMatrix_Clear(dest);
     for (thisCol = 0; thisCol < 4; thisCol++) {
         thisRow = thisCol;
         while ((thisRow < 4) && (fabsf(mfCopy.mf[thisCol][thisRow]) < 0.0005f)) {
@@ -263,7 +263,7 @@ s32 SkinMatrix_Invert(MtxF* src, MtxF* dest) {
         }
 
         if (thisRow != thisCol) {
-            // Diagonal element mf[thisCol][thisCol] is zero.
+            // Diagonal element mf[thisCol][thisCol] is OoT_zero.
             // Swap the rows thisCol and thisRow.
             for (i = 0; i < 4; i++) {
                 temp1 = mfCopy.mf[i][thisRow];
@@ -299,7 +299,7 @@ s32 SkinMatrix_Invert(MtxF* src, MtxF* dest) {
 /**
  * Produces a matrix which scales x,y,z components of vectors or x,y,z rows of matrices (when applied on LHS)
  */
-void SkinMatrix_SetScale(MtxF* mf, f32 x, f32 y, f32 z) {
+void OoT_SkinMatrix_SetScale(MtxF* mf, f32 x, f32 y, f32 z) {
     mf->yx = 0.0f;
     mf->zx = 0.0f;
     mf->wx = 0.0f;
@@ -323,8 +323,8 @@ void SkinMatrix_SetScale(MtxF* mf, f32 x, f32 y, f32 z) {
  */
 void SkinMatrix_SetRotateZYX(MtxF* mf, s16 x, s16 y, s16 z) {
     f32 cos;
-    f32 sinZ = Math_SinS(z);
-    f32 cosZ = Math_CosS(z);
+    f32 sinZ = OoT_Math_SinS(z);
+    f32 cosZ = OoT_Math_CosS(z);
     f32 xy;
     f32 sin;
     f32 xz;
@@ -338,8 +338,8 @@ void SkinMatrix_SetRotateZYX(MtxF* mf, s16 x, s16 y, s16 z) {
     mf->ww = 1;
 
     if (y != 0) {
-        sin = Math_SinS(y);
-        cos = Math_CosS(y);
+        sin = OoT_Math_SinS(y);
+        cos = OoT_Math_CosS(y);
 
         mf->xx = cosZ * cos;
         mf->xz = cosZ * sin;
@@ -358,8 +358,8 @@ void SkinMatrix_SetRotateZYX(MtxF* mf, s16 x, s16 y, s16 z) {
     }
 
     if (x != 0) {
-        sin = Math_SinS(x);
-        cos = Math_CosS(x);
+        sin = OoT_Math_SinS(x);
+        cos = OoT_Math_CosS(x);
 
         xy = mf->xy;
         xz = mf->xz;
@@ -384,8 +384,8 @@ void SkinMatrix_SetRotateZYX(MtxF* mf, s16 x, s16 y, s16 z) {
  */
 void SkinMatrix_SetRotateYXZ(MtxF* mf, s16 x, s16 y, s16 z) {
     f32 cos;
-    f32 sinY = Math_SinS(y);
-    f32 cosY = Math_CosS(y);
+    f32 sinY = OoT_Math_SinS(y);
+    f32 cosY = OoT_Math_CosS(y);
     f32 zx;
     f32 sin;
     f32 zy;
@@ -403,8 +403,8 @@ void SkinMatrix_SetRotateYXZ(MtxF* mf, s16 x, s16 y, s16 z) {
     mf->ww = 1;
 
     if (x != 0) {
-        sin = Math_SinS(x);
-        cos = Math_CosS(x);
+        sin = OoT_Math_SinS(x);
+        cos = OoT_Math_CosS(x);
 
         mf->zz = cosY * cos;
         mf->zy = cosY * sin;
@@ -423,8 +423,8 @@ void SkinMatrix_SetRotateYXZ(MtxF* mf, s16 x, s16 y, s16 z) {
     }
 
     if (z != 0) {
-        sin = Math_SinS(z);
-        cos = Math_CosS(z);
+        sin = OoT_Math_SinS(z);
+        cos = OoT_Math_CosS(z);
         xx = mf->xx;
         xy = mf->xy;
         mf->xx = (xx * cos) + (xy * sin);
@@ -444,7 +444,7 @@ void SkinMatrix_SetRotateYXZ(MtxF* mf, s16 x, s16 y, s16 z) {
 /**
  * Produces a matrix which translates a vector by amounts in the x, y and z directions
  */
-void SkinMatrix_SetTranslate(MtxF* mf, f32 x, f32 y, f32 z) {
+void OoT_SkinMatrix_SetTranslate(MtxF* mf, f32 x, f32 y, f32 z) {
     mf->yx = 0.0f;
     mf->zx = 0.0f;
     mf->wx = 0.0f;
@@ -471,11 +471,11 @@ void SkinMatrix_SetTranslateRotateZYXScale(MtxF* dest, f32 scaleX, f32 scaleY, f
     MtxF mft1;
     MtxF mft2;
 
-    SkinMatrix_SetTranslate(dest, translateX, translateY, translateZ);
+    OoT_SkinMatrix_SetTranslate(dest, translateX, translateY, translateZ);
     SkinMatrix_SetRotateZYX(&mft1, rotX, rotY, rotZ);
-    SkinMatrix_MtxFMtxFMult(dest, &mft1, &mft2);
-    SkinMatrix_SetScale(&mft1, scaleX, scaleY, scaleZ);
-    SkinMatrix_MtxFMtxFMult(&mft2, &mft1, dest);
+    OoT_SkinMatrix_MtxFMtxFMult(dest, &mft1, &mft2);
+    OoT_SkinMatrix_SetScale(&mft1, scaleX, scaleY, scaleZ);
+    OoT_SkinMatrix_MtxFMtxFMult(&mft2, &mft1, dest);
 }
 
 /**
@@ -486,11 +486,11 @@ void SkinMatrix_SetTranslateRotateYXZScale(MtxF* dest, f32 scaleX, f32 scaleY, f
     MtxF mft1;
     MtxF mft2;
 
-    SkinMatrix_SetTranslate(dest, translateX, translateY, translateZ);
+    OoT_SkinMatrix_SetTranslate(dest, translateX, translateY, translateZ);
     SkinMatrix_SetRotateYXZ(&mft1, rotX, rotY, rotZ);
-    SkinMatrix_MtxFMtxFMult(dest, &mft1, &mft2);
-    SkinMatrix_SetScale(&mft1, scaleX, scaleY, scaleZ);
-    SkinMatrix_MtxFMtxFMult(&mft2, &mft1, dest);
+    OoT_SkinMatrix_MtxFMtxFMult(dest, &mft1, &mft2);
+    OoT_SkinMatrix_SetScale(&mft1, scaleX, scaleY, scaleZ);
+    OoT_SkinMatrix_MtxFMtxFMult(&mft2, &mft1, dest);
 }
 
 /**
@@ -501,36 +501,36 @@ void SkinMatrix_SetTranslateRotateZYX(MtxF* dest, s16 rotX, s16 rotY, s16 rotZ, 
     MtxF rotation;
     MtxF translation;
 
-    SkinMatrix_SetTranslate(&translation, translateX, translateY, translateZ);
+    OoT_SkinMatrix_SetTranslate(&translation, translateX, translateY, translateZ);
     SkinMatrix_SetRotateZYX(&rotation, rotX, rotY, rotZ);
-    SkinMatrix_MtxFMtxFMult(&translation, &rotation, dest);
+    OoT_SkinMatrix_MtxFMtxFMult(&translation, &rotation, dest);
 }
 
-void SkinMatrix_Vec3fToVec3s(Vec3f* src, Vec3s* dest) {
+void OoT_SkinMatrix_Vec3fToVec3s(Vec3f* src, Vec3s* dest) {
     dest->x = src->x;
     dest->y = src->y;
     dest->z = src->z;
 }
 
-void SkinMatrix_Vec3sToVec3f(Vec3s* src, Vec3f* dest) {
+void OoT_SkinMatrix_Vec3sToVec3f(Vec3s* src, Vec3f* dest) {
     dest->x = src->x;
     dest->y = src->y;
     dest->z = src->z;
 }
 
-void SkinMatrix_MtxFToMtx(MtxF* src, Mtx* dest) {
+void OoT_SkinMatrix_MtxFToMtx(MtxF* src, Mtx* dest) {
     FrameInterpolation_RecordSkinMatrixMtxFToMtx(src, dest);
     guMtxF2L(src, dest);
 }
 
-Mtx* SkinMatrix_MtxFToNewMtx(GraphicsContext* gfxCtx, MtxF* src) {
+Mtx* OoT_SkinMatrix_MtxFToNewMtx(GraphicsContext* gfxCtx, MtxF* src) {
     Mtx* mtx = Graph_Alloc(gfxCtx, sizeof(Mtx));
 
     if (mtx == NULL) {
         osSyncPrintf("Skin_Matrix_to_Mtx_new() 確保失敗:NULLを返して終了\n", mtx);
         return NULL;
     }
-    SkinMatrix_MtxFToMtx(src, mtx);
+    OoT_SkinMatrix_MtxFToMtx(src, mtx);
     return mtx;
 }
 
@@ -549,8 +549,8 @@ void SkinMatrix_SetRotateAxis(MtxF* mf, s16 angle, f32 axisX, f32 axisY, f32 axi
     f32 xz;
     f32 pad;
 
-    sinA = Math_SinS(angle);
-    cosA = Math_CosS(angle);
+    sinA = OoT_Math_SinS(angle);
+    cosA = OoT_Math_CosS(angle);
 
     xx = axisX * axisX;
     yy = axisY * axisY;

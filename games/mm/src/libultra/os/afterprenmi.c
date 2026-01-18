@@ -1,5 +1,5 @@
 #include "ultra64.h"
 
-s32 osAfterPreNMI(void) {
+s32 MM_osAfterPreNMI(void) {
     return __osSpSetPc(0);
 }

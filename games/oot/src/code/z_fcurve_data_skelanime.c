@@ -2,7 +2,7 @@
 #include <assert.h>
 #include "soh/ResourceManagerHelpers.h"
 
-void SkelCurve_Clear(SkelAnimeCurve* skelCurve) {
+void OoT_SkelCurve_Clear(SkelAnimeCurve* skelCurve) {
     skelCurve->limbCount = 0;
     skelCurve->limbList = NULL;
     skelCurve->transUpdIdx = NULL;
@@ -13,7 +13,7 @@ void SkelCurve_Clear(SkelAnimeCurve* skelCurve) {
     skelCurve->unk_0C = 0.0f;
 }
 
-s32 SkelCurve_Init(PlayState* play, SkelAnimeCurve* skelCurve, SkelCurveLimbList* limbListSeg,
+s32 OoT_SkelCurve_Init(PlayState* play, SkelAnimeCurve* skelCurve, SkelCurveLimbList* limbListSeg,
                    TransformUpdateIndex* transUpdIdx) {
 
     if (ResourceMgr_OTRSigCheck(limbListSeg))
@@ -31,13 +31,13 @@ s32 SkelCurve_Init(PlayState* play, SkelAnimeCurve* skelCurve, SkelCurveLimbList
     return 1;
 }
 
-void SkelCurve_Destroy(PlayState* play, SkelAnimeCurve* skelCurve) {
+void OoT_SkelCurve_Destroy(PlayState* play, SkelAnimeCurve* skelCurve) {
     if (skelCurve->transforms != NULL) {
         ZELDA_ARENA_FREE_DEBUG(skelCurve->transforms);
     }
 }
 
-void SkelCurve_SetAnim(SkelAnimeCurve* skelCurve, TransformUpdateIndex* transUpdIdx, f32 arg2, f32 animFinalFrame,
+void OoT_SkelCurve_SetAnim(SkelAnimeCurve* skelCurve, TransformUpdateIndex* transUpdIdx, f32 arg2, f32 animFinalFrame,
                        f32 animCurFrame, f32 animSpeed) {
     skelCurve->unk_0C = arg2 - skelCurve->animSpeed;
     skelCurve->animFinalFrame = animFinalFrame;
@@ -46,7 +46,7 @@ void SkelCurve_SetAnim(SkelAnimeCurve* skelCurve, TransformUpdateIndex* transUpd
     skelCurve->transUpdIdx = transUpdIdx;
 }
 
-s32 SkelCurve_Update(PlayState* play, SkelAnimeCurve* skelCurve) {
+s32 OoT_SkelCurve_Update(PlayState* play, SkelAnimeCurve* skelCurve) {
     s16* transforms;
     u8* transformRefIdx;
     TransformUpdateIndex* transformIndex;
@@ -101,13 +101,13 @@ s32 SkelCurve_Update(PlayState* play, SkelAnimeCurve* skelCurve) {
     return ret;
 }
 
-void SkelCurve_DrawLimb(PlayState* play, s32 limbIndex, SkelAnimeCurve* skelCurve,
+void OoT_SkelCurve_DrawLimb(PlayState* play, s32 limbIndex, SkelAnimeCurve* skelCurve,
                         OverrideCurveLimbDraw overrideLimbDraw, PostCurveLimbDraw postLimbDraw, s32 lod, void* data) {
     SkelCurveLimb* limb = SEGMENTED_TO_VIRTUAL(skelCurve->limbList[limbIndex]);
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    Matrix_Push();
+    OoT_Matrix_Push();
 
     if (overrideLimbDraw == NULL || (overrideLimbDraw != NULL && overrideLimbDraw(play, skelCurve, limbIndex, data))) {
         Vec3f scale;
@@ -128,8 +128,8 @@ void SkelCurve_DrawLimb(PlayState* play, s32 limbIndex, SkelAnimeCurve* skelCurv
         pos.y = transform->y;
         pos.z = transform->z;
 
-        Matrix_TranslateRotateZYX(&pos, &rot);
-        Matrix_Scale(scale.x, scale.y, scale.z, MTXMODE_APPLY);
+        OoT_Matrix_TranslateRotateZYX(&pos, &rot);
+        OoT_Matrix_Scale(scale.x, scale.y, scale.z, MTXMODE_APPLY);
 
         if (lod == 0) {
             s32 pad1;
@@ -166,21 +166,21 @@ void SkelCurve_DrawLimb(PlayState* play, s32 limbIndex, SkelAnimeCurve* skelCurv
     }
 
     if (limb->firstChildIdx != LIMB_DONE) {
-        SkelCurve_DrawLimb(play, limb->firstChildIdx, skelCurve, overrideLimbDraw, postLimbDraw, lod, data);
+        OoT_SkelCurve_DrawLimb(play, limb->firstChildIdx, skelCurve, overrideLimbDraw, postLimbDraw, lod, data);
     }
 
-    Matrix_Pop();
+    OoT_Matrix_Pop();
 
     if (limb->nextLimbIdx != LIMB_DONE) {
-        SkelCurve_DrawLimb(play, limb->nextLimbIdx, skelCurve, overrideLimbDraw, postLimbDraw, lod, data);
+        OoT_SkelCurve_DrawLimb(play, limb->nextLimbIdx, skelCurve, overrideLimbDraw, postLimbDraw, lod, data);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void SkelCurve_Draw(Actor* actor, PlayState* play, SkelAnimeCurve* skelCurve, OverrideCurveLimbDraw overrideLimbDraw,
+void OoT_SkelCurve_Draw(Actor* actor, PlayState* play, SkelAnimeCurve* skelCurve, OverrideCurveLimbDraw overrideLimbDraw,
                     PostCurveLimbDraw postLimbDraw, s32 lod, void* data) {
     if (skelCurve->transforms != NULL) {
-        SkelCurve_DrawLimb(play, 0, skelCurve, overrideLimbDraw, postLimbDraw, lod, data);
+        OoT_SkelCurve_DrawLimb(play, 0, skelCurve, overrideLimbDraw, postLimbDraw, lod, data);
     }
 }

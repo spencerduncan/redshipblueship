@@ -11,12 +11,12 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void EnBombf_Init(Actor* thisx, PlayState* play2);
-void EnBombf_Destroy(Actor* thisx, PlayState* play);
-void EnBombf_Update(Actor* thisx, PlayState* play);
-void EnBombf_Draw(Actor* thisx, PlayState* play);
+void MM_EnBombf_Init(Actor* thisx, PlayState* play2);
+void MM_EnBombf_Destroy(Actor* thisx, PlayState* play);
+void MM_EnBombf_Update(Actor* thisx, PlayState* play);
+void MM_EnBombf_Draw(Actor* thisx, PlayState* play);
 
-void EnBombf_SetupAction(EnBombf* this, EnBombfActionFunc actionFunc);
+void MM_EnBombf_SetupAction(EnBombf* this, EnBombfActionFunc actionFunc);
 void func_808AEAB8(EnBombf* this, s16 arg1);
 void func_808AEAE0(EnBombf* this, PlayState* play);
 void func_808AEE3C(EnBombf* this, PlayState* play);
@@ -29,13 +29,13 @@ ActorProfile En_Bombf_Profile = {
     /**/ FLAGS,
     /**/ OBJECT_BOMBF,
     /**/ sizeof(EnBombf),
-    /**/ EnBombf_Init,
-    /**/ EnBombf_Destroy,
-    /**/ EnBombf_Update,
-    /**/ EnBombf_Draw,
+    /**/ MM_EnBombf_Init,
+    /**/ MM_EnBombf_Destroy,
+    /**/ MM_EnBombf_Update,
+    /**/ MM_EnBombf_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -55,7 +55,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 9, 18, 10, { 0, 0, 0 } },
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[1] = {
+static ColliderJntSphElementInit MM_sJntSphElementsInit[1] = {
     {
         {
             ELEM_MATERIAL_UNK0,
@@ -69,7 +69,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[1] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit MM_sJntSphInit = {
     {
         COL_MATERIAL_NONE,
         AT_ON | AT_TYPE_ALL,
@@ -78,32 +78,32 @@ static ColliderJntSphInit sJntSphInit = {
         OC2_NONE,
         COLSHAPE_JNTSPH,
     },
-    ARRAY_COUNT(sJntSphElementsInit),
-    sJntSphElementsInit,
+    ARRAY_COUNT(MM_sJntSphElementsInit),
+    MM_sJntSphElementsInit,
 };
 
-void EnBombf_SetupAction(EnBombf* this, EnBombfActionFunc actionFunc) {
+void MM_EnBombf_SetupAction(EnBombf* this, EnBombfActionFunc actionFunc) {
     this->actionFunc = actionFunc;
 }
 
-void EnBombf_Init(Actor* thisx, PlayState* play2) {
+void MM_EnBombf_Init(Actor* thisx, PlayState* play2) {
     f32 yOffset = 0.0f;
     PlayState* play = play2;
     EnBombf* this = (EnBombf*)thisx;
 
-    Actor_SetScale(thisx, 0.01f);
+    MM_Actor_SetScale(thisx, 0.01f);
     this->unk_1F8 = 1;
 
-    Collider_InitCylinder(play, &this->colliderCylinder);
-    Collider_InitJntSph(play, &this->colliderJntSph);
-    Collider_SetCylinder(play, &this->colliderCylinder, thisx, &sCylinderInit);
-    Collider_SetJntSph(play, &this->colliderJntSph, thisx, &sJntSphInit, this->colliderJntSphElements);
+    MM_Collider_InitCylinder(play, &this->colliderCylinder);
+    MM_Collider_InitJntSph(play, &this->colliderJntSph);
+    MM_Collider_SetCylinder(play, &this->colliderCylinder, thisx, &MM_sCylinderInit);
+    MM_Collider_SetJntSph(play, &this->colliderJntSph, thisx, &MM_sJntSphInit, this->colliderJntSphElements);
 
     if (ENBOMBF_GET(thisx) == ENBOMBF_0) {
         yOffset = 1000.0f;
     }
 
-    ActorShape_Init(&thisx->shape, yOffset, ActorShadow_DrawCircle, 12.0f);
+    MM_ActorShape_Init(&thisx->shape, yOffset, MM_ActorShadow_DrawCircle, 12.0f);
 
     thisx->focus.pos = thisx->world.pos;
     thisx->colChkInfo.cylRadius = 10;
@@ -114,10 +114,10 @@ void EnBombf_Init(Actor* thisx, PlayState* play2) {
         this->timer = 140;
         this->unk_1FE = 15;
         thisx->gravity = -1.5f;
-        Actor_ChangeCategory(play, &play->actorCtx, thisx, ACTORCAT_EXPLOSIVES);
+        MM_Actor_ChangeCategory(play, &play->actorCtx, thisx, ACTORCAT_EXPLOSIVES);
         thisx->colChkInfo.mass = 200;
         thisx->flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
-        EnBombf_SetupAction(this, func_808AEE3C);
+        MM_EnBombf_SetupAction(this, func_808AEE3C);
     } else {
         thisx->colChkInfo.mass = MASS_IMMOVABLE;
         this->unk_1FC = 1;
@@ -129,15 +129,15 @@ void EnBombf_Init(Actor* thisx, PlayState* play2) {
     thisx->cullingVolumeDistance += 31000.0f;
 }
 
-void EnBombf_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnBombf_Destroy(Actor* thisx, PlayState* play) {
     EnBombf* this = (EnBombf*)thisx;
 
-    Collider_DestroyCylinder(play, &this->colliderCylinder);
-    Collider_DestroyJntSph(play, &this->colliderJntSph);
+    MM_Collider_DestroyCylinder(play, &this->colliderCylinder);
+    MM_Collider_DestroyJntSph(play, &this->colliderJntSph);
 }
 
 void func_808AEAB8(EnBombf* this, s16 arg1) {
-    EnBombf_SetupAction(this, func_808AEAE0);
+    MM_EnBombf_SetupAction(this, func_808AEAE0);
 }
 
 void func_808AEAE0(EnBombf* this, PlayState* play) {
@@ -148,8 +148,8 @@ void func_808AEAE0(EnBombf* this, PlayState* play) {
     s32 pad3;
 
     if (this->unk_204 >= 1.0f) {
-        if (Actor_HasParent(&this->actor, play)) {
-            bombf = (EnBombf*)Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BOMBF, this->actor.world.pos.x,
+        if (MM_Actor_HasParent(&this->actor, play)) {
+            bombf = (EnBombf*)MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BOMBF, this->actor.world.pos.x,
                                           this->actor.world.pos.y, this->actor.world.pos.z, 0, 0, 0, ENBOMBF_0);
             if (bombf != NULL) {
                 func_800B8C20(&this->actor, &bombf->actor, play);
@@ -170,7 +170,7 @@ void func_808AEAE0(EnBombf* this, PlayState* play) {
                      (player->transformation == PLAYER_FORM_GORON) && (player->actor.speed > 15.0f)))) {
             this->colliderCylinder.base.acFlags &= ~AC_HIT;
             if (this->colliderCylinder.base.ac->category != ACTORCAT_BOSS) {
-                bombf = (EnBombf*)Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BOMBF, this->actor.world.pos.x,
+                bombf = (EnBombf*)MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BOMBF, this->actor.world.pos.x,
                                               this->actor.world.pos.y, this->actor.world.pos.z, 0, 0, 0, ENBOMBF_0);
                 if (bombf != NULL) {
                     bombf->unk_1F8 = 1;
@@ -181,8 +181,8 @@ void func_808AEAE0(EnBombf* this, PlayState* play) {
                 }
             }
         } else {
-            if (Player_IsBurningStickInRange(play, &this->actor.world.pos, 30.0f, 50.0f)) {
-                bombf = (EnBombf*)Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BOMBF, this->actor.world.pos.x,
+            if (MM_Player_IsBurningStickInRange(play, &this->actor.world.pos, 30.0f, 50.0f)) {
+                bombf = (EnBombf*)MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BOMBF, this->actor.world.pos.x,
                                               this->actor.world.pos.y, this->actor.world.pos.z, 0, 0, 0, ENBOMBF_0);
                 if (bombf != NULL) {
                     bombf->timer = 100;
@@ -191,8 +191,8 @@ void func_808AEAE0(EnBombf* this, PlayState* play) {
                     this->unk_204 = 0.0f;
                 }
             } else {
-                if (!Actor_HasParent(&this->actor, play)) {
-                    Actor_OfferCarry(&this->actor, play);
+                if (!MM_Actor_HasParent(&this->actor, play)) {
+                    MM_Actor_OfferCarry(&this->actor, play);
                     return;
                 }
                 player->actor.child = NULL;
@@ -211,7 +211,7 @@ void func_808AEAE0(EnBombf* this, PlayState* play) {
             }
         }
 
-        if (Actor_HasParent(&this->actor, play)) {
+        if (MM_Actor_HasParent(&this->actor, play)) {
             player->actor.child = NULL;
             player->heldActor = NULL;
             player->interactRangeActor = NULL;
@@ -223,20 +223,20 @@ void func_808AEAE0(EnBombf* this, PlayState* play) {
 }
 
 void func_808AEE3C(EnBombf* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play)) {
+    if (MM_Actor_HasParent(&this->actor, play)) {
         this->unk_204 = 0.0f;
-        EnBombf_SetupAction(this, func_808AEF68);
+        MM_EnBombf_SetupAction(this, func_808AEF68);
         this->actor.room = -1;
         return;
     }
 
     this->unk_204 = 1.0f;
     if (!(this->actor.bgCheckFlags & BGCHECKFLAG_GROUND)) {
-        Math_SmoothStepToF(&this->actor.speed, 0.0f, 1.0f, 0.025f, 0.0f);
+        MM_Math_SmoothStepToF(&this->actor.speed, 0.0f, 1.0f, 0.025f, 0.0f);
         return;
     }
 
-    Math_SmoothStepToF(&this->actor.speed, 0.0f, 1.0f, 1.5f, 0.0f);
+    MM_Math_SmoothStepToF(&this->actor.speed, 0.0f, 1.0f, 1.5f, 0.0f);
     if (this->actor.bgCheckFlags & BGCHECKFLAG_GROUND_TOUCH) {
         Actor_PlaySfx_SurfaceBomb(play, &this->actor);
         if (this->actor.velocity.y < -6.0f) {
@@ -244,13 +244,13 @@ void func_808AEE3C(EnBombf* this, PlayState* play) {
             this->actor.bgCheckFlags &= ~BGCHECKFLAG_GROUND;
         }
     } else if (this->timer >= 4) {
-        Actor_OfferCarry(&this->actor, play);
+        MM_Actor_OfferCarry(&this->actor, play);
     }
 }
 
 void func_808AEF68(EnBombf* this, PlayState* play) {
-    if (Actor_HasNoParent(&this->actor, play)) {
-        EnBombf_SetupAction(this, func_808AEE3C);
+    if (MM_Actor_HasNoParent(&this->actor, play)) {
+        MM_EnBombf_SetupAction(this, func_808AEE3C);
         this->actor.bgCheckFlags &= ~BGCHECKFLAG_GROUND;
         func_808AEE3C(this, play);
     } else {
@@ -268,7 +268,7 @@ void func_808AEFD4(EnBombf* this, PlayState* play) {
     this->colliderJntSph.elements[0].dim.worldSphere.radius = 100;
 
     if (ENBOMBF_GET(&this->actor) == ENBOMBF_1) {
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderJntSph.base);
+        MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderJntSph.base);
     }
 
     if (play->envCtx.adjLightSettings.light1Color[0] != 0) {
@@ -304,11 +304,11 @@ void func_808AEFD4(EnBombf* this, PlayState* play) {
             player->interactRangeActor = NULL;
             player->stateFlags1 &= ~PLAYER_STATE1_CARRYING_ACTOR;
         }
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
-void EnBombf_Update(Actor* thisx, PlayState* play) {
+void MM_EnBombf_Update(Actor* thisx, PlayState* play) {
     Vec3f sp8C = { 0.0f, 0.0f, 0.0f };
     Vec3f sp80 = { 0.0f, 0.1f, 0.0f };
     Vec3f sp74 = { 0.0f, 0.0f, 0.0f };
@@ -322,7 +322,7 @@ void EnBombf_Update(Actor* thisx, PlayState* play) {
         this->timer--;
     }
 
-    if ((this->unk_1FC == 0) && !Actor_HasParent(&this->actor, play) &&
+    if ((this->unk_1FC == 0) && !MM_Actor_HasParent(&this->actor, play) &&
         ((this->actor.xzDistToPlayer >= 20.0f) || (fabsf(this->actor.playerHeightRel) >= 80.0f))) {
         this->unk_1FC = 1;
     }
@@ -335,7 +335,7 @@ void EnBombf_Update(Actor* thisx, PlayState* play) {
 
     if (this->actor.gravity != 0.0f) {
         DREG(6) = 1;
-        Actor_UpdateBgCheckInfo(play, &this->actor, 5.0f, 10.0f, 0.0f,
+        MM_Actor_UpdateBgCheckInfo(play, &this->actor, 5.0f, 10.0f, 0.0f,
                                 UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_2 | UPDBGCHECKINFO_FLAG_4 |
                                     UPDBGCHECKINFO_FLAG_8 | UPDBGCHECKINFO_FLAG_10);
         DREG(6) = 0;
@@ -356,7 +356,7 @@ void EnBombf_Update(Actor* thisx, PlayState* play) {
             Actor_PlaySfx(&this->actor, NA_SE_EV_BOMB_BOUND);
             Actor_MoveWithGravity(&this->actor);
             DREG(6) = 1;
-            Actor_UpdateBgCheckInfo(play, &this->actor, 5.0f, 10.0f, 0.0f,
+            MM_Actor_UpdateBgCheckInfo(play, &this->actor, 5.0f, 10.0f, 0.0f,
                                     UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_2 | UPDBGCHECKINFO_FLAG_4 |
                                         UPDBGCHECKINFO_FLAG_8 | UPDBGCHECKINFO_FLAG_10);
             DREG(6) = 0;
@@ -368,7 +368,7 @@ void EnBombf_Update(Actor* thisx, PlayState* play) {
             ((this->colliderCylinder.base.ocFlags1 & OC1_HIT) && (this->colliderCylinder.base.oc->category == 5))) {
             this->unk_1F8 = 1;
             this->timer = 0;
-        } else if ((this->timer > 100) && Player_IsBurningStickInRange(play, &this->actor.world.pos, 30.0f, 50.0f)) {
+        } else if ((this->timer > 100) && MM_Player_IsBurningStickInRange(play, &this->actor.world.pos, 30.0f, 50.0f)) {
             this->timer = 100;
         }
 
@@ -379,7 +379,7 @@ void EnBombf_Update(Actor* thisx, PlayState* play) {
 
             if (this->timer < 127) {
                 if ((play->gameplayFrames % 2) == 0) {
-                    EffectSsGSpk_SpawnFuse(play, &this->actor, &effPos, &sp8C, &sp74);
+                    MM_EffectSsGSpk_SpawnFuse(play, &this->actor, &effPos, &sp8C, &sp74);
                 }
                 Actor_PlaySfx(&this->actor, NA_SE_IT_BOMB_IGNIT - SFX_FLAG);
                 effPos.y += 3.0f;
@@ -391,24 +391,24 @@ void EnBombf_Update(Actor* thisx, PlayState* play) {
             }
 
             if ((this->timer < 100) && (this->timer & (this->unk_1FE + 1))) {
-                Math_SmoothStepToF(&this->unk_200, 150.0f, 1.0f, 150.0f / this->unk_1FE, 0.0f);
+                MM_Math_SmoothStepToF(&this->unk_200, 150.0f, 1.0f, 150.0f / this->unk_1FE, 0.0f);
             } else {
-                Math_SmoothStepToF(&this->unk_200, 0.0f, 1.0f, 150.0f / this->unk_1FE, 0.0f);
+                MM_Math_SmoothStepToF(&this->unk_200, 0.0f, 1.0f, 150.0f / this->unk_1FE, 0.0f);
             }
 
             if (this->timer < 3) {
-                Actor_SetScale(&this->actor, this->actor.scale.x + 0.002f);
+                MM_Actor_SetScale(&this->actor, this->actor.scale.x + 0.002f);
             }
 
             if (this->timer == 0) {
                 effPos = this->actor.world.pos;
                 effPos.y += 10.0f;
 
-                if (Actor_HasParent(&this->actor, play)) {
+                if (MM_Actor_HasParent(&this->actor, play)) {
                     effPos.y += 30.0f;
                 }
 
-                Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, effPos.x, effPos.y, effPos.z, 0, 0, 0,
+                MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, effPos.x, effPos.y, effPos.z, 0, 0, 0,
                             CLEAR_TAG_PARAMS(CLEAR_TAG_SMALL_EXPLOSION));
                 Actor_PlaySfx(&this->actor, NA_SE_IT_BOMB_EXPLOSION);
 
@@ -417,13 +417,13 @@ void EnBombf_Update(Actor* thisx, PlayState* play) {
                 play->envCtx.adjLightSettings.ambientColor[0] = play->envCtx.adjLightSettings.ambientColor[1] =
                     play->envCtx.adjLightSettings.ambientColor[2] = 250;
 
-                Camera_AddQuake(&play->mainCamera, 2, 11, 8);
+                MM_Camera_AddQuake(&play->mainCamera, 2, 11, 8);
 
                 this->actor.params = ENBOMBF_1;
                 this->timer = 10;
                 this->actor.flags |= ACTOR_FLAG_DRAW_CULLING_DISABLED;
 
-                EnBombf_SetupAction(this, func_808AEFD4);
+                MM_EnBombf_SetupAction(this, func_808AEFD4);
             }
         }
     }
@@ -432,17 +432,17 @@ void EnBombf_Update(Actor* thisx, PlayState* play) {
     this->actor.focus.pos.y += 10.0f;
 
     if (ENBOMBF_GET(&this->actor) <= ENBOMBF_0) {
-        Collider_UpdateCylinder(&this->actor, &this->colliderCylinder);
+        MM_Collider_UpdateCylinder(&this->actor, &this->colliderCylinder);
         if ((this->unk_204 >= 1.0f) && (this->unk_1FC != 0)) {
-            CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliderCylinder.base);
+            MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliderCylinder.base);
         }
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderCylinder.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderCylinder.base);
     }
 
     if ((this->actor.scale.x >= 0.01f) && (ENBOMBF_GET(&this->actor) != ENBOMBF_1)) {
         if (this->actor.depthInWater >= 20.0f) {
-            SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 30, NA_SE_IT_BOMB_UNEXPLOSION);
-            Actor_Kill(&this->actor);
+            MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 30, NA_SE_IT_BOMB_UNEXPLOSION);
+            MM_Actor_Kill(&this->actor);
             return;
         }
 
@@ -457,7 +457,7 @@ Gfx* func_808AF86C(GraphicsContext* gfxCtx, PlayState* play) {
     Gfx* gfxHead = GRAPH_ALLOC(gfxCtx, 5 * sizeof(Gfx));
     Gfx* gfx = gfxHead;
 
-    Matrix_ReplaceRotation(&play->billboardMtxF);
+    MM_Matrix_ReplaceRotation(&play->billboardMtxF);
 
     MATRIX_FINALIZE_AND_LOAD(gfx++, gfxCtx);
     gSPEndDisplayList(gfx++);
@@ -465,7 +465,7 @@ Gfx* func_808AF86C(GraphicsContext* gfxCtx, PlayState* play) {
     return gfxHead;
 }
 
-void EnBombf_Draw(Actor* thisx, PlayState* play) {
+void MM_EnBombf_Draw(Actor* thisx, PlayState* play) {
     s32 pad;
     EnBombf* this = (EnBombf*)thisx;
 
@@ -479,8 +479,8 @@ void EnBombf_Draw(Actor* thisx, PlayState* play) {
             gSPDisplayList(POLY_OPA_DISP++, gBombFlowerLeavesDL);
             gSPDisplayList(POLY_OPA_DISP++, gBombFlowerBaseLeavesDL);
 
-            Matrix_Translate(0.0f, 1000.0f, 0.0f, MTXMODE_APPLY);
-            Matrix_Scale(this->unk_204, this->unk_204, this->unk_204, MTXMODE_APPLY);
+            MM_Matrix_Translate(0.0f, 1000.0f, 0.0f, MTXMODE_APPLY);
+            MM_Matrix_Scale(this->unk_204, this->unk_204, this->unk_204, MTXMODE_APPLY);
         }
 
         gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 200, 255, 200, 255);
@@ -496,7 +496,7 @@ void EnBombf_Draw(Actor* thisx, PlayState* play) {
 
         gSPDisplayList(POLY_OPA_DISP++, gBombFlowerBombAndSparkDL);
     } else {
-        Collider_UpdateSpheres(0, &this->colliderJntSph);
+        MM_Collider_UpdateSpheres(0, &this->colliderJntSph);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

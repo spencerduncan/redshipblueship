@@ -42,7 +42,7 @@ static Vec3f sEnterSplashOffsets[] = {
     { 85.0f, -60.0f, -26.2f },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 400, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 400, ICHAIN_STOP),
@@ -60,7 +60,7 @@ static InitChainEntry sInitChainOrgan[] = {
     ICHAIN_F32(cullingVolumeDownward, 570, ICHAIN_STOP),
 };
 
-static Gfx* sDLists[] = { gClockTowerCeilingCogDL, gClockTowerCenterCogDL, gClockTowerWaterWheelDL };
+static Gfx* MM_sDLists[] = { gClockTowerCeilingCogDL, gClockTowerCenterCogDL, gClockTowerWaterWheelDL };
 
 void BgCtowerGear_Splash(BgCtowerGear* this, PlayState* play) {
     s32 i;
@@ -76,15 +76,15 @@ void BgCtowerGear_Splash(BgCtowerGear* this, PlayState* play) {
         Matrix_RotateXS(this->dyna.actor.home.rot.x, MTXMODE_APPLY);
         Matrix_RotateZS(this->dyna.actor.home.rot.z, MTXMODE_APPLY);
         for (i = 0; i < 4; i++) {
-            if (Rand_Next() >= 0x40000000) {
-                splashOffset.x = sExitSplashOffsets[i].x - (Rand_ZeroOne() * 30.0f);
+            if (MM_Rand_Next() >= 0x40000000) {
+                splashOffset.x = sExitSplashOffsets[i].x - (MM_Rand_ZeroOne() * 30.0f);
                 splashOffset.y = sExitSplashOffsets[i].y;
                 splashOffset.z = sExitSplashOffsets[i].z;
-                Matrix_MultVec3f(&splashOffset, &splashSpawnPos);
-                splashSpawnPos.x += this->dyna.actor.world.pos.x + ((Rand_ZeroOne() * 20.0f) - 10.0f);
+                MM_Matrix_MultVec3f(&splashOffset, &splashSpawnPos);
+                splashSpawnPos.x += this->dyna.actor.world.pos.x + ((MM_Rand_ZeroOne() * 20.0f) - 10.0f);
                 splashSpawnPos.y += this->dyna.actor.world.pos.y;
-                splashSpawnPos.z += this->dyna.actor.world.pos.z + ((Rand_ZeroOne() * 20.0f) - 10.0f);
-                EffectSsGSplash_Spawn(play, &splashSpawnPos, NULL, NULL, 0, (Rand_Next() >> 25) + 340);
+                splashSpawnPos.z += this->dyna.actor.world.pos.z + ((MM_Rand_ZeroOne() * 20.0f) - 10.0f);
+                MM_EffectSsGSplash_Spawn(play, &splashSpawnPos, NULL, NULL, 0, (MM_Rand_Next() >> 25) + 340);
             }
         }
     }
@@ -95,14 +95,14 @@ void BgCtowerGear_Splash(BgCtowerGear* this, PlayState* play) {
             Matrix_RotateZS(this->dyna.actor.home.rot.z, MTXMODE_APPLY);
             for (i = 0; i < 3; i++) {
                 for (j = 0; j < 2; j++) {
-                    splashOffset.x = sEnterSplashOffsets[i].x + (Rand_ZeroOne() * 10.0f);
+                    splashOffset.x = sEnterSplashOffsets[i].x + (MM_Rand_ZeroOne() * 10.0f);
                     splashOffset.y = sEnterSplashOffsets[i].y;
                     splashOffset.z = sEnterSplashOffsets[i].z;
-                    Matrix_MultVec3f(&splashOffset, &splashSpawnPos);
-                    splashSpawnPos.x += this->dyna.actor.world.pos.x + ((Rand_ZeroOne() * 20.0f) - 10.0f);
+                    MM_Matrix_MultVec3f(&splashOffset, &splashSpawnPos);
+                    splashSpawnPos.x += this->dyna.actor.world.pos.x + ((MM_Rand_ZeroOne() * 20.0f) - 10.0f);
                     splashSpawnPos.y += this->dyna.actor.world.pos.y;
-                    splashSpawnPos.z += this->dyna.actor.world.pos.z + ((Rand_ZeroOne() * 20.0f) - 10.0f);
-                    EffectSsGSplash_Spawn(play, &splashSpawnPos, NULL, NULL, 0, (Rand_Next() >> 25) + 280);
+                    splashSpawnPos.z += this->dyna.actor.world.pos.z + ((MM_Rand_ZeroOne() * 20.0f) - 10.0f);
+                    MM_EffectSsGSplash_Spawn(play, &splashSpawnPos, NULL, NULL, 0, (MM_Rand_Next() >> 25) + 280);
                 }
             }
         }
@@ -114,21 +114,21 @@ void BgCtowerGear_Init(Actor* thisx, PlayState* play) {
     BgCtowerGear* this = (BgCtowerGear*)thisx;
     s32 type = BGCTOWERGEAR_GET_TYPE(&this->dyna.actor);
 
-    Actor_SetScale(&this->dyna.actor, 0.1f);
+    MM_Actor_SetScale(&this->dyna.actor, 0.1f);
     if (type == BGCTOWERGEAR_CENTER_COG) {
-        Actor_ProcessInitChain(&this->dyna.actor, sInitChainCenterCog);
+        MM_Actor_ProcessInitChain(&this->dyna.actor, sInitChainCenterCog);
     } else if (type == BGCTOWERGEAR_ORGAN) {
-        Actor_ProcessInitChain(&this->dyna.actor, sInitChainOrgan);
+        MM_Actor_ProcessInitChain(&this->dyna.actor, sInitChainOrgan);
         this->dyna.actor.draw = NULL;
         this->dyna.actor.update = BgCtowerGear_UpdateOrgan;
     } else {
-        Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+        MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
     }
     if (type == BGCTOWERGEAR_WATER_WHEEL) {
-        DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS | DYNA_TRANSFORM_ROT_Y);
+        MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS | DYNA_TRANSFORM_ROT_Y);
         DynaPolyActor_LoadMesh(play, &this->dyna, &gClockTowerWaterWheelCol);
     } else if (type == BGCTOWERGEAR_ORGAN) {
-        DynaPolyActor_Init(&this->dyna, 0);
+        MM_DynaPolyActor_Init(&this->dyna, 0);
         DynaPolyActor_LoadMesh(play, &this->dyna, &gClockTowerOrganCol);
         DynaPoly_DisableCollision(play, &play->colCtx.dyna, this->dyna.bgId);
     }
@@ -139,7 +139,7 @@ void BgCtowerGear_Destroy(Actor* thisx, PlayState* play) {
     s32 type = BGCTOWERGEAR_GET_TYPE(&this->dyna.actor);
 
     if ((type == BGCTOWERGEAR_WATER_WHEEL) || (type == BGCTOWERGEAR_ORGAN)) {
-        DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+        MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
     }
 }
 
@@ -174,7 +174,7 @@ void BgCtowerGear_UpdateOrgan(Actor* thisx, PlayState* play) {
                 break;
 
             case 3:
-                Actor_Kill(&this->dyna.actor);
+                MM_Actor_Kill(&this->dyna.actor);
                 break;
 
             default:
@@ -184,7 +184,7 @@ void BgCtowerGear_UpdateOrgan(Actor* thisx, PlayState* play) {
 }
 
 void BgCtowerGear_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, sDLists[BGCTOWERGEAR_GET_TYPE(thisx)]);
+    MM_Gfx_DrawDListOpa(play, MM_sDLists[BGCTOWERGEAR_GET_TYPE(thisx)]);
 }
 
 void BgCtowerGear_DrawOrgan(Actor* thisx, PlayState* play) {

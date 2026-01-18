@@ -18,12 +18,12 @@ void func_800AE930(CollisionContext* colCtx, EffectTireMark* this, Vec3f* pos, f
         return;
     }
 
-    spB8.x = (Math_SinS(angle - 0x4000) * arg3) + pos->x;
-    spB8.z = (Math_CosS(angle - 0x4000) * arg3) + pos->z;
+    spB8.x = (MM_Math_SinS(angle - 0x4000) * arg3) + pos->x;
+    spB8.z = (MM_Math_CosS(angle - 0x4000) * arg3) + pos->z;
     spB8.y = func_800BFD84(colPoly, spB8.x, spB8.z) + 2.0f;
 
-    spB0.x = (Math_SinS(angle + 0x4000) * arg3) + pos->x;
-    spB0.z = (Math_CosS(angle + 0x4000) * arg3) + pos->z;
+    spB0.x = (MM_Math_SinS(angle + 0x4000) * arg3) + pos->x;
+    spB0.z = (MM_Math_CosS(angle + 0x4000) * arg3) + pos->z;
     spB0.y = func_800BFD84(colPoly, spB0.x, spB0.z) + 2.0f;
 
     spAC = &this->elements[this->numElements - 1];
@@ -235,7 +235,7 @@ void EffectTireMark_Draw(void* thisx, GraphicsContext* gfxCtx) {
         if (vtx != NULL) {
             gSPMatrix(POLY_OPA_DISP++, &gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
-            POLY_OPA_DISP = Gfx_SetupDL(POLY_OPA_DISP++, SETUPDL_44);
+            POLY_OPA_DISP = MM_Gfx_SetupDL(POLY_OPA_DISP++, SETUPDL_44);
             gDPSetRenderMode(POLY_OPA_DISP++, G_RM_PASS, G_RM_ZB_CLD_SURF2);
 
             gDPLoadTextureBlock(POLY_OPA_DISP++, gameplay_keep_Tex_014570, G_IM_FMT_I, G_IM_SIZ_8b, 64, 32, 0,

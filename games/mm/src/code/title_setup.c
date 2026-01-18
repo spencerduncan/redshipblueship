@@ -49,7 +49,7 @@ void Setup_InitRegs(void) {
 
 void Setup_InitImpl(SetupState* this) {
     SysFlashrom_InitFlash();
-    SaveContext_Init();
+    MM_SaveContext_Init();
     Setup_InitRegs();
 
     STOP_GAMESTATE(&this->state);

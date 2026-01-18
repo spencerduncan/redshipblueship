@@ -9,10 +9,10 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void EnJs_Init(Actor* thisx, PlayState* play);
-void EnJs_Destroy(Actor* thisx, PlayState* play);
-void EnJs_Update(Actor* thisx, PlayState* play);
-void EnJs_Draw(Actor* thisx, PlayState* play);
+void MM_EnJs_Init(Actor* thisx, PlayState* play);
+void MM_EnJs_Destroy(Actor* thisx, PlayState* play);
+void MM_EnJs_Update(Actor* thisx, PlayState* play);
+void MM_EnJs_Draw(Actor* thisx, PlayState* play);
 
 s32 func_80968B8C(EnJs* this, PlayState* play);
 s32 func_809692A8(s32 arg0);
@@ -32,13 +32,13 @@ ActorProfile En_Js_Profile = {
     /**/ FLAGS,
     /**/ OBJECT_OB,
     /**/ sizeof(EnJs),
-    /**/ EnJs_Init,
-    /**/ EnJs_Destroy,
-    /**/ EnJs_Update,
-    /**/ EnJs_Draw,
+    /**/ MM_EnJs_Init,
+    /**/ MM_EnJs_Destroy,
+    /**/ MM_EnJs_Update,
+    /**/ MM_EnJs_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -73,18 +73,18 @@ f32 D_8096AC1C[] = { 0.0f, 700.0f, 900.0f, 900.0f, 900.0f };
 
 Vec3f D_8096AC30 = { 500.0f, -500.0f, 0.0f };
 
-void EnJs_Init(Actor* thisx, PlayState* play) {
+void MM_EnJs_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     s16 csId;
     s32 i;
     EnJs* this = (EnJs*)thisx;
 
-    Actor_SetScale(&this->actor, 0.01f);
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 20.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gMoonChildSkel, &gMoonChildStandingAnim, this->jointTable,
+    MM_Actor_SetScale(&this->actor, 0.01f);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 20.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gMoonChildSkel, &gMoonChildStandingAnim, this->jointTable,
                        this->morphTable, MOONCHILD_LIMB_MAX);
-    Animation_PlayLoop(&this->skelAnime, &gMoonChildStandingAnim);
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    MM_Animation_PlayLoop(&this->skelAnime, &gMoonChildStandingAnim);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
 
     this->actionFunc = func_8096971C;
     this->maskType = 0;
@@ -108,11 +108,11 @@ void EnJs_Init(Actor* thisx, PlayState* play) {
             this->maskType = 0;
             this->actionFunc = func_8096A6F4;
 
-            Animation_PlayLoop(&this->skelAnime, &gMoonChildSittingAnim);
+            MM_Animation_PlayLoop(&this->skelAnime, &gMoonChildSittingAnim);
             Play_EnableMotionBlur(60);
 
             if (CHECK_WEEKEVENTREG(WEEKEVENTREG_84_20)) {
-                Inventory_DeleteItem(ITEM_MASK_FIERCE_DEITY, SLOT(ITEM_MASK_FIERCE_DEITY));
+                MM_Inventory_DeleteItem(ITEM_MASK_FIERCE_DEITY, SLOT(ITEM_MASK_FIERCE_DEITY));
                 CLEAR_WEEKEVENTREG(WEEKEVENTREG_84_20);
             }
             break;
@@ -126,7 +126,7 @@ void EnJs_Init(Actor* thisx, PlayState* play) {
             this->actionFunc = func_80969B5C;
             func_80968A5C(this);
             if (func_809692A8(ENJS_GET_TYPE(&this->actor) + 4)) {
-                Actor_Kill(&this->actor);
+                MM_Actor_Kill(&this->actor);
                 return;
             }
             break;
@@ -144,11 +144,11 @@ void EnJs_Init(Actor* thisx, PlayState* play) {
     }
 }
 
-void EnJs_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnJs_Destroy(Actor* thisx, PlayState* play) {
     u32 paramsF;
     EnJs* this = (EnJs*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 
     paramsF = ENJS_GET_TYPE(&this->actor);
     switch (paramsF) {
@@ -171,21 +171,21 @@ void EnJs_Destroy(Actor* thisx, PlayState* play) {
 }
 
 void func_80968A5C(EnJs* this) {
-    if (Rand_ZeroOne() < 0.5f) {
-        Animation_MorphToLoop(&this->skelAnime, &gMoonChildRunningAnim, -10.0f);
+    if (MM_Rand_ZeroOne() < 0.5f) {
+        MM_Animation_MorphToLoop(&this->skelAnime, &gMoonChildRunningAnim, -10.0f);
         this->unk_2B4 = 5.0f;
     } else {
-        Animation_MorphToLoop(&this->skelAnime, &gMoonChildWalkingAnim, -10.0f);
+        MM_Animation_MorphToLoop(&this->skelAnime, &gMoonChildWalkingAnim, -10.0f);
         this->unk_2B4 = 2.5f;
     }
     this->unk_2B8 &= ~4;
-    this->unk_2BC = Rand_ZeroFloat(40.0f) + 80.0f;
+    this->unk_2BC = MM_Rand_ZeroFloat(40.0f) + 80.0f;
 }
 
 void func_80968B18(EnJs* this) {
-    Animation_MorphToLoop(&this->skelAnime, &gMoonChildStandingAnim, -10.0f);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gMoonChildStandingAnim, -10.0f);
     this->unk_2B4 = 0.0f;
-    this->unk_2BC = Rand_ZeroFloat(20.0f) + 40.0f;
+    this->unk_2BC = MM_Rand_ZeroFloat(20.0f) + 40.0f;
     this->unk_2B8 |= 4;
 }
 
@@ -246,9 +246,9 @@ s32 func_80968CB8(EnJs* this) {
     temp_v1 = &((Vec3s*)Lib_SegmentedToVirtual(path->points))[this->unk_2B0];
     temp_fa0 = temp_v1->x - this->actor.world.pos.x;
     temp_fa1 = temp_v1->z - this->actor.world.pos.z;
-    this->actor.world.rot.y = Math_Atan2S(temp_fa0, temp_fa1);
+    this->actor.world.rot.y = MM_Math_Atan2S(temp_fa0, temp_fa1);
 
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.world.rot.y, 2, 0x7D0, 0xC8);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.world.rot.y, 2, 0x7D0, 0xC8);
 
     if ((SQ(temp_fa0) + SQ(temp_fa1)) < SQ(10.0f)) {
         this->unk_2B0++;
@@ -258,14 +258,14 @@ s32 func_80968CB8(EnJs* this) {
         return true;
     }
 
-    Math_StepToF(&this->actor.speed, this->unk_2B4, 0.5f);
+    MM_Math_StepToF(&this->actor.speed, this->unk_2B4, 0.5f);
 
     return false;
 }
 
 s32 func_80968DD0(EnJs* this, PlayState* play) {
-    if ((this->actor.xzDistToPlayer < 100.0f) && Player_IsFacingActor(&this->actor, 0x3000, play) &&
-        Actor_IsFacingPlayer(&this->actor, 0x3000)) {
+    if ((this->actor.xzDistToPlayer < 100.0f) && MM_Player_IsFacingActor(&this->actor, 0x3000, play) &&
+        MM_Actor_IsFacingPlayer(&this->actor, 0x3000)) {
         return true;
     }
 
@@ -491,24 +491,24 @@ void func_80969400(s32 arg0) {
 
 void func_80969494(EnJs* this, PlayState* play) {
     func_80968A5C(this);
-    Message_CloseTextbox(play);
+    MM_Message_CloseTextbox(play);
     this->actor.flags &= ~ACTOR_FLAG_TALK;
     this->actionFunc = func_80969B5C;
 }
 
 void func_809694E8(EnJs* this, PlayState* play) {
-    Message_CloseTextbox(play);
+    MM_Message_CloseTextbox(play);
     this->actor.flags &= ~ACTOR_FLAG_TALK;
     this->actionFunc = func_8096A104;
 }
 
 void func_80969530(EnJs* this, PlayState* play) {
-    Message_CloseTextbox(play);
+    MM_Message_CloseTextbox(play);
     this->actor.flags &= ~ACTOR_FLAG_TALK;
     this->actionFunc = func_8096A6F4;
     if ((this->actor.home.rot.y == this->actor.shape.rot.y) && (this->unk_2B8 & 0x10)) {
-        Animation_Change(&this->skelAnime, &gMoonChildGettingUpAnim, -1.0f,
-                         Animation_GetLastFrame(&gMoonChildGettingUpAnim) - 1.0f, 0.0f, ANIMMODE_ONCE, -10.0f);
+        MM_Animation_Change(&this->skelAnime, &gMoonChildGettingUpAnim, -1.0f,
+                         MM_Animation_GetLastFrame(&gMoonChildGettingUpAnim) - 1.0f, 0.0f, ANIMMODE_ONCE, -10.0f);
         this->unk_2B8 &= ~0x10;
         this->unk_2B8 |= 8;
     }
@@ -541,24 +541,24 @@ void func_809696EC(EnJs* this, s16 csIdIndex) {
 }
 
 void func_8096971C(EnJs* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 }
 
 void func_80969748(EnJs* this, PlayState* play) {
     PlayerItemAction itemAction;
     Player* player = GET_PLAYER(play);
 
-    SkelAnime_Update(&this->skelAnime);
-    Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 6, 0x1838, 0x64);
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 6, 0x1838, 0x64);
     this->actor.shape.rot.y = this->actor.world.rot.y;
-    if (Message_GetState(&play->msgCtx) == TEXT_STATE_PAUSE_MENU) {
+    if (MM_Message_GetState(&play->msgCtx) == TEXT_STATE_PAUSE_MENU) {
         itemAction = func_80123810(play);
 
         if (itemAction != PLAYER_IA_NONE) {
             this->actionFunc = func_80969898;
         }
         if (itemAction > PLAYER_IA_NONE) {
-            Message_CloseTextbox(play);
+            MM_Message_CloseTextbox(play);
             if ((itemAction >= PLAYER_IA_MASK_MIN) && (itemAction < PLAYER_IA_MASK_TRANSFORMATION_MIN)) {
                 EnJs_TakeMask(itemAction, ENJS_GET_TYPE(&this->actor));
                 Inventory_UnequipItem(itemAction - 4);
@@ -575,7 +575,7 @@ void func_80969748(EnJs* this, PlayState* play) {
         }
 
         if (itemAction <= PLAYER_IA_MINUS1) {
-            Message_ContinueTextbox(play, 0x2216);
+            MM_Message_ContinueTextbox(play, 0x2216);
         }
     }
 }
@@ -584,21 +584,21 @@ void func_80969898(EnJs* this, PlayState* play) {
     s32 pad;
     Player* player = GET_PLAYER(play);
 
-    SkelAnime_Update(&this->skelAnime);
-    Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 6, 0x1838, 0x64);
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 6, 0x1838, 0x64);
     this->actor.shape.rot.y = this->actor.world.rot.y;
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_CHOICE:
-            if (Message_ShouldAdvance(play) && (play->msgCtx.currentTextId == 0x2215)) {
+            if (MM_Message_ShouldAdvance(play) && (play->msgCtx.currentTextId == 0x2215)) {
                 switch (play->msgCtx.choiceIndex) {
                     case 0:
                         Audio_PlaySfx_MessageDecide();
-                        Message_ContinueTextbox(play, 0x2217);
+                        MM_Message_ContinueTextbox(play, 0x2217);
                         break;
 
                     case 1:
                         Audio_PlaySfx_MessageCancel();
-                        Message_ContinueTextbox(play, 0x2216);
+                        MM_Message_ContinueTextbox(play, 0x2216);
                         break;
 
                     default:
@@ -608,24 +608,24 @@ void func_80969898(EnJs* this, PlayState* play) {
             break;
 
         case TEXT_STATE_EVENT:
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 switch (play->msgCtx.currentTextId) {
                     case 0x220C:
                         this->unk_2B8 |= 1;
                         if (!func_8096933C(ENJS_GET_TYPE(&this->actor))) {
-                            Message_ContinueTextbox(play, 0x220F);
+                            MM_Message_ContinueTextbox(play, 0x220F);
                         } else {
-                            Message_ContinueTextbox(play, 0x220D);
+                            MM_Message_ContinueTextbox(play, 0x220D);
                         }
                         break;
 
                     case 0x220D:
                     case 0x2213:
-                        Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                        MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                         break;
 
                     case 0x220E:
-                        Message_ContinueTextbox(play, 0xFF);
+                        MM_Message_ContinueTextbox(play, 0xFF);
                         this->actionFunc = func_80969748;
                         break;
 
@@ -633,7 +633,7 @@ void func_80969898(EnJs* this, PlayState* play) {
                     case 0x2211:
                     case 0x2212:
                         player->exchangeItemAction = PLAYER_IA_NONE;
-                        Message_ContinueTextbox(play, 0xFF);
+                        MM_Message_ContinueTextbox(play, 0xFF);
                         this->actionFunc = func_80969748;
                         break;
 
@@ -677,12 +677,12 @@ void func_80969AA0(EnJs* this, PlayState* play) {
             textId = 0x2215;
         }
     }
-    Animation_MorphToLoop(&this->skelAnime, &gMoonChildStandingAnim, -10.0f);
-    Message_StartTextbox(play, textId, &this->actor);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gMoonChildStandingAnim, -10.0f);
+    MM_Message_StartTextbox(play, textId, &this->actor);
 }
 
 void func_80969B5C(EnJs* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     if (this->unk_2BC > 0) {
         this->unk_2BC--;
         if (this->unk_2BC == 0) {
@@ -698,7 +698,7 @@ void func_80969B5C(EnJs* this, PlayState* play) {
         this->actor.speed = 0.0f;
         this->unk_2B4 = 0.0f;
         func_80969AA0(this, play);
-    } else if ((this->actor.xzDistToPlayer < 100.0f) && Player_IsFacingActor(&this->actor, 0x3000, play)) {
+    } else if ((this->actor.xzDistToPlayer < 100.0f) && MM_Player_IsFacingActor(&this->actor, 0x3000, play)) {
         Actor_OfferTalk(&this->actor, play, 120.0f);
     }
     func_80968CB8(this);
@@ -708,10 +708,10 @@ void func_80969C54(EnJs* this, PlayState* play) {
     PlayerItemAction itemAction;
     Player* player = GET_PLAYER(play);
 
-    SkelAnime_Update(&this->skelAnime);
-    Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 6, 0x1838, 0x64);
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 6, 0x1838, 0x64);
     this->actor.shape.rot.y = this->actor.world.rot.y;
-    if (Message_GetState(&play->msgCtx) == TEXT_STATE_PAUSE_MENU) {
+    if (MM_Message_GetState(&play->msgCtx) == TEXT_STATE_PAUSE_MENU) {
         itemAction = func_80123810(play);
 
         if (itemAction != PLAYER_IA_NONE) {
@@ -719,7 +719,7 @@ void func_80969C54(EnJs* this, PlayState* play) {
         }
 
         if (itemAction > PLAYER_IA_NONE) {
-            Message_CloseTextbox(play);
+            MM_Message_CloseTextbox(play);
             if ((itemAction >= PLAYER_IA_MASK_MIN) && (itemAction < PLAYER_IA_MASK_TRANSFORMATION_MIN)) {
                 EnJs_TakeMask(itemAction, ENJS_GET_TYPE(&this->actor));
                 Inventory_UnequipItem(itemAction - 4);
@@ -736,7 +736,7 @@ void func_80969C54(EnJs* this, PlayState* play) {
         }
 
         if (itemAction <= PLAYER_IA_MINUS1) {
-            Message_ContinueTextbox(play, 0x221E);
+            MM_Message_ContinueTextbox(play, 0x221E);
         }
     }
 }
@@ -745,12 +745,12 @@ void func_80969DA4(EnJs* this, PlayState* play) {
     s32 pad;
     Player* player = GET_PLAYER(play);
 
-    SkelAnime_Update(&this->skelAnime);
-    Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 6, 0x1838, 0x64);
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 6, 0x1838, 0x64);
     this->actor.shape.rot.y = this->actor.world.rot.y;
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_CHOICE:
-            if (Message_ShouldAdvance(play) &&
+            if (MM_Message_ShouldAdvance(play) &&
                 ((play->msgCtx.currentTextId == 0x2219) || (play->msgCtx.currentTextId == 0x221E))) {
                 switch (play->msgCtx.choiceIndex) {
                     case 0:
@@ -762,7 +762,7 @@ void func_80969DA4(EnJs* this, PlayState* play) {
 
                     case 1:
                         Audio_PlaySfx_MessageCancel();
-                        Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                        MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                         break;
 
                     default:
@@ -771,13 +771,13 @@ void func_80969DA4(EnJs* this, PlayState* play) {
             }
             break;
         case TEXT_STATE_EVENT:
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 switch (play->msgCtx.currentTextId) {
                     case 0x221B:
                         if (!func_8096933C(ENJS_GET_TYPE(&this->actor))) {
-                            Message_ContinueTextbox(play, 0x2219);
+                            MM_Message_ContinueTextbox(play, 0x2219);
                         } else {
-                            Message_ContinueTextbox(play, 0x221C);
+                            MM_Message_ContinueTextbox(play, 0x221C);
                         }
                         break;
 
@@ -785,7 +785,7 @@ void func_80969DA4(EnJs* this, PlayState* play) {
                     case 0x2226:
                     case 0x2228:
                     case 0x222A:
-                        Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                        MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                         break;
 
                     case 0x2225:
@@ -799,25 +799,25 @@ void func_80969DA4(EnJs* this, PlayState* play) {
 
                     case 0x2222:
                         player->exchangeItemAction = PLAYER_IA_NONE;
-                        Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                        MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                         break;
 
                     case 0x2223:
                         switch (ENJS_GET_TYPE(&this->actor)) {
                             case 5:
-                                Message_ContinueTextbox(play, 0x2224);
+                                MM_Message_ContinueTextbox(play, 0x2224);
                                 break;
 
                             case 6:
-                                Message_ContinueTextbox(play, 0x2226);
+                                MM_Message_ContinueTextbox(play, 0x2226);
                                 break;
 
                             case 7:
-                                Message_ContinueTextbox(play, 0x2228);
+                                MM_Message_ContinueTextbox(play, 0x2228);
                                 break;
 
                             case 8:
-                                Message_ContinueTextbox(play, 0x222A);
+                                MM_Message_ContinueTextbox(play, 0x222A);
                                 break;
 
                             default:
@@ -826,7 +826,7 @@ void func_80969DA4(EnJs* this, PlayState* play) {
                         break;
 
                     case 0x221C:
-                        Message_ContinueTextbox(play, 0xFF);
+                        MM_Message_ContinueTextbox(play, 0xFF);
                         this->actionFunc = func_80969C54;
                         break;
 
@@ -834,7 +834,7 @@ void func_80969DA4(EnJs* this, PlayState* play) {
                     case 0x2220:
                     case 0x2221:
                         player->exchangeItemAction = PLAYER_IA_NONE;
-                        Message_ContinueTextbox(play, 0xFF);
+                        MM_Message_ContinueTextbox(play, 0xFF);
                         this->actionFunc = func_80969C54;
                         break;
 
@@ -867,11 +867,11 @@ void func_8096A080(EnJs* this, PlayState* play) {
             this->unk_2B8 |= 1;
         }
     }
-    Message_StartTextbox(play, textId, &this->actor);
+    MM_Message_StartTextbox(play, textId, &this->actor);
 }
 
 void func_8096A104(EnJs* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         this->actionFunc = func_80969DA4;
         func_8096A080(this, play);
@@ -890,17 +890,17 @@ void func_8096A184(EnJs* this, PlayState* play) {
     } else {
         textId = 0x21FC;
     }
-    Message_StartTextbox(play, textId, &this->actor);
+    MM_Message_StartTextbox(play, textId, &this->actor);
 }
 
 void func_8096A1E8(EnJs* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skelAnime)) {
-        Animation_MorphToLoop(&this->skelAnime, &gMoonChildStandingAnim, 0.0f);
+    if (MM_SkelAnime_Update(&this->skelAnime)) {
+        MM_Animation_MorphToLoop(&this->skelAnime, &gMoonChildStandingAnim, 0.0f);
     }
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
         this->actionFunc = func_8096A38C;
-        Message_StartTextbox(play, 0x2208, &this->actor);
+        MM_Message_StartTextbox(play, 0x2208, &this->actor);
         SET_WEEKEVENTREG(WEEKEVENTREG_84_20);
         func_809696EC(this, 0);
     } else {
@@ -909,27 +909,27 @@ void func_8096A1E8(EnJs* this, PlayState* play) {
 }
 
 void func_8096A2C0(EnJs* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skelAnime)) {
-        Animation_MorphToLoop(&this->skelAnime, &gMoonChildStandingAnim, 0.0f);
+    if (MM_SkelAnime_Update(&this->skelAnime)) {
+        MM_Animation_MorphToLoop(&this->skelAnime, &gMoonChildStandingAnim, 0.0f);
     }
-    if (Actor_HasParent(&this->actor, play)) {
+    if (MM_Actor_HasParent(&this->actor, play)) {
         this->actor.parent = NULL;
         this->actor.flags |= ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
         this->actionFunc = func_8096A1E8;
         Actor_OfferTalkExchange(&this->actor, play, 1000.0f, 1000.0f, PLAYER_IA_MINUS1);
     } else {
-        Actor_OfferGetItem(&this->actor, play, GI_MASK_FIERCE_DEITY, 10000.0f, 1000.0f);
+        MM_Actor_OfferGetItem(&this->actor, play, GI_MASK_FIERCE_DEITY, 10000.0f, 1000.0f);
     }
 }
 
 void func_8096A38C(EnJs* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skelAnime)) {
-        Animation_MorphToLoop(&this->skelAnime, &gMoonChildStandingAnim, 0.0f);
+    if (MM_SkelAnime_Update(&this->skelAnime)) {
+        MM_Animation_MorphToLoop(&this->skelAnime, &gMoonChildStandingAnim, 0.0f);
         this->unk_2B8 |= 2;
     }
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_CHOICE:
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 switch (play->msgCtx.choiceIndex) {
                     case 0:
                         Audio_PlaySfx_MessageDecide();
@@ -947,13 +947,13 @@ void func_8096A38C(EnJs* this, PlayState* play) {
                     case 0x21FC:
                         switch (play->msgCtx.choiceIndex) {
                             case 0:
-                                Message_ContinueTextbox(play, 0x21FE);
-                                Animation_MorphToPlayOnce(&this->skelAnime, &gMoonChildGettingUpAnim, -5.0f);
+                                MM_Message_ContinueTextbox(play, 0x21FE);
+                                MM_Animation_MorphToPlayOnce(&this->skelAnime, &gMoonChildGettingUpAnim, -5.0f);
                                 this->unk_2B8 |= 0x10;
                                 break;
 
                             case 1:
-                                Message_ContinueTextbox(play, 0x21FD);
+                                MM_Message_ContinueTextbox(play, 0x21FD);
                                 break;
 
                             default:
@@ -964,12 +964,12 @@ void func_8096A38C(EnJs* this, PlayState* play) {
                     case 0x21FE:
                         switch (play->msgCtx.choiceIndex) {
                             case 0:
-                                Message_ContinueTextbox(play, 0x2200);
+                                MM_Message_ContinueTextbox(play, 0x2200);
                                 func_809696EC(this, 0);
                                 break;
 
                             case 1:
-                                Message_ContinueTextbox(play, 0x21FF);
+                                MM_Message_ContinueTextbox(play, 0x21FF);
                                 break;
 
                             default:
@@ -980,13 +980,13 @@ void func_8096A38C(EnJs* this, PlayState* play) {
                     case 0x2203:
                         switch (play->msgCtx.choiceIndex) {
                             case 0:
-                                Message_ContinueTextbox(play, 0x2205);
-                                Animation_MorphToPlayOnce(&this->skelAnime, &gMoonChildGettingUpAnim, -5.0f);
+                                MM_Message_ContinueTextbox(play, 0x2205);
+                                MM_Animation_MorphToPlayOnce(&this->skelAnime, &gMoonChildGettingUpAnim, -5.0f);
                                 this->unk_2B8 |= 0x10;
                                 break;
 
                             case 1:
-                                Message_ContinueTextbox(play, 0x2204);
+                                MM_Message_ContinueTextbox(play, 0x2204);
                                 break;
 
                             default:
@@ -1000,27 +1000,27 @@ void func_8096A38C(EnJs* this, PlayState* play) {
             break;
 
         case TEXT_STATE_EVENT:
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 switch (play->msgCtx.currentTextId) {
                     case 0x2202:
                     case 0x2205:
                     case 0x2206:
                     case 0x2209:
-                        Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                        MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                         break;
 
                     case 0x2200:
                     case 0x2208:
                         func_809696EC(this, 1);
-                        Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                        MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                         break;
 
                     case 0x2207:
                         if (INV_CONTENT(ITEM_MASK_FIERCE_DEITY) == ITEM_MASK_FIERCE_DEITY) {
-                            Message_ContinueTextbox(play, 0x2208);
+                            MM_Message_ContinueTextbox(play, 0x2208);
                             func_809696EC(this, 0);
                         } else {
-                            Message_CloseTextbox(play);
+                            MM_Message_CloseTextbox(play);
                             this->actionFunc = func_8096A2C0;
                             func_8096A2C0(this, play);
                         }
@@ -1049,17 +1049,17 @@ void func_8096A6F4(EnJs* this, PlayState* play) {
     s32 pad;
 
     if (this->actor.home.rot.y != this->actor.shape.rot.y) {
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 2, 0x400, 0x100);
+        MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 2, 0x400, 0x100);
         if ((this->actor.home.rot.y == this->actor.shape.rot.y) && (this->unk_2B8 & 0x10)) {
-            Animation_Change(&this->skelAnime, &gMoonChildGettingUpAnim, -1.0f,
-                             Animation_GetLastFrame(&gMoonChildGettingUpAnim) - 1.0f, 0.0f, ANIMMODE_ONCE, -10.0f);
+            MM_Animation_Change(&this->skelAnime, &gMoonChildGettingUpAnim, -1.0f,
+                             MM_Animation_GetLastFrame(&gMoonChildGettingUpAnim) - 1.0f, 0.0f, ANIMMODE_ONCE, -10.0f);
             this->unk_2B8 &= ~0x10;
             this->unk_2B8 |= 8;
         }
         this->actor.world.rot.y = this->actor.shape.rot.y;
     }
-    if (SkelAnime_Update(&this->skelAnime)) {
-        Animation_MorphToLoop(&this->skelAnime, &gMoonChildSittingAnim, -10.0f);
+    if (MM_SkelAnime_Update(&this->skelAnime)) {
+        MM_Animation_MorphToLoop(&this->skelAnime, &gMoonChildSittingAnim, -10.0f);
         this->unk_2B8 &= ~8;
     }
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
@@ -1069,20 +1069,20 @@ void func_8096A6F4(EnJs* this, PlayState* play) {
         return;
     }
     if (!(this->unk_2B8 & 8) && (this->actor.xzDistToPlayer < 100.0f) &&
-        Player_IsFacingActor(&this->actor, 0x3000, play) && Actor_IsFacingPlayer(&this->actor, 0x1000)) {
+        MM_Player_IsFacingActor(&this->actor, 0x3000, play) && MM_Actor_IsFacingPlayer(&this->actor, 0x1000)) {
         Actor_OfferTalk(&this->actor, play, 120.0f);
     }
 }
 
-void EnJs_Update(Actor* thisx, PlayState* play) {
+void MM_EnJs_Update(Actor* thisx, PlayState* play) {
     s32 pad;
     EnJs* this = (EnJs*)thisx;
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 
     Actor_MoveWithGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 40.0f, 25.0f, 40.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 40.0f, 25.0f, 40.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
 
     this->actionFunc(this, play);
 
@@ -1098,21 +1098,21 @@ void EnJs_Update(Actor* thisx, PlayState* play) {
     }
 }
 
-void EnJs_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* thisx) {
+void MM_EnJs_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* thisx) {
     s32 pad;
     EnJs* this = (EnJs*)thisx;
 
     if (limbIndex == MOONCHILD_LIMB_HEAD) {
-        Matrix_MultVec3f(&D_8096AC30, &thisx->focus.pos);
+        MM_Matrix_MultVec3f(&D_8096AC30, &thisx->focus.pos);
         if ((this->maskType >= 0) && (this->maskType < 5)) {
             OPEN_DISPS(play->state.gfxCtx);
 
             if (this->maskType != 0) {
-                Matrix_Scale(D_8096ABE0[this->maskType], D_8096ABE0[this->maskType], D_8096ABE0[this->maskType],
+                MM_Matrix_Scale(D_8096ABE0[this->maskType], D_8096ABE0[this->maskType], D_8096ABE0[this->maskType],
                              MTXMODE_APPLY);
-                Matrix_RotateZYX(0, -0x4000, -0x36B0, MTXMODE_APPLY);
+                MM_Matrix_RotateZYX(0, -0x4000, -0x36B0, MTXMODE_APPLY);
             }
-            Matrix_Translate(D_8096ABF4[this->maskType], D_8096AC08[this->maskType], D_8096AC1C[this->maskType],
+            MM_Matrix_Translate(D_8096ABF4[this->maskType], D_8096AC08[this->maskType], D_8096AC1C[this->maskType],
                              MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
             gSPDisplayList(POLY_OPA_DISP++, D_8096ABCC[this->maskType]);
@@ -1122,10 +1122,10 @@ void EnJs_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
     }
 }
 
-void EnJs_Draw(Actor* thisx, PlayState* play) {
+void MM_EnJs_Draw(Actor* thisx, PlayState* play) {
     EnJs* this = (EnJs*)thisx;
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount, NULL,
-                          EnJs_PostLimbDraw, &this->actor);
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount, NULL,
+                          MM_EnJs_PostLimbDraw, &this->actor);
 }

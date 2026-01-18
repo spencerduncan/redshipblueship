@@ -392,7 +392,7 @@ ActorProfile En_Pst_Profile = {
     /**/ EnPst_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HIT1,
         AT_NONE,
@@ -412,20 +412,20 @@ static ColliderCylinderInit sCylinderInit = {
     { 28, 72, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 1, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 MM_sColChkInfoInit = { 1, 0, 0, 0, MASS_IMMOVABLE };
 
 typedef enum PostboxAnimation {
     /* 0 */ POSTBOX_ANIM_IDLE,
     /* 1 */ POSTBOX_ANIM_MAX
 } PostboxAnimation;
 
-static AnimationInfoS sAnimationInfo[POSTBOX_ANIM_MAX] = {
+static AnimationInfoS MM_sAnimationInfo[POSTBOX_ANIM_MAX] = {
     { &gPostboxIdleAnim, 1.0f, 0, -1, ANIMMODE_ONCE, 0 }, // POSTBOX_ANIM_IDLE
 };
 
 void EnPst_UpdateCollision(EnPst* this, PlayState* play) {
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 s32 EnPst_HandleLetterDay1(EnPst* this) {
@@ -479,10 +479,10 @@ s32 EnPst_ChooseBehaviour(Actor* thisx, PlayState* play) {
 
     switch (this->behaviour) {
         case POSTBOX_BEHAVIOUR_WAIT_FOR_ITEM:
-            switch (Message_GetState(&play->msgCtx)) {
+            switch (MM_Message_GetState(&play->msgCtx)) {
                 case TEXT_STATE_CHOICE:
                 case TEXT_STATE_EVENT:
-                    if (Message_ShouldAdvance(play)) {
+                    if (MM_Message_ShouldAdvance(play)) {
                         case TEXT_STATE_PAUSE_MENU:
                             itemAction = func_80123810(play);
                             scriptBranch = 0;
@@ -518,7 +518,7 @@ s32 EnPst_ChooseBehaviour(Actor* thisx, PlayState* play) {
 }
 
 MsgScript* EnPst_GetMsgScript(EnPst* this, PlayState* play) {
-    if (Player_GetMask(play) == PLAYER_MASK_POSTMAN) {
+    if (MM_Player_GetMask(play) == PLAYER_MASK_POSTMAN) {
         return D_80B2C3B8;
     }
 
@@ -647,7 +647,7 @@ void EnPst_FollowSchedule(EnPst* this, PlayState* play) {
         this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
         scheduleOutput.result = POSTBOX_SCH_NONE;
     } else {
-        this->actor.shape.shadowDraw = ActorShadow_DrawCircle;
+        this->actor.shape.shadowDraw = MM_ActorShadow_DrawCircle;
         this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
     }
     this->scheduleResult = scheduleOutput.result;
@@ -685,23 +685,23 @@ void EnPst_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     EnPst* this = (EnPst*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 18.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gPostboxSkel, NULL, this->jointTable, this->morphTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 18.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gPostboxSkel, NULL, this->jointTable, this->morphTable,
                        POSTBOX_LIMB_MAX);
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, DamageTable_Get(0x16), &sColChkInfoInit);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, MM_DamageTable_Get(0x16), &MM_sColChkInfoInit);
     SubS_SetOfferMode(&this->stateFlags, SUBS_OFFER_MODE_ONSCREEN, SUBS_OFFER_MODE_MASK);
-    SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, POSTBOX_ANIM_IDLE);
+    SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, POSTBOX_ANIM_IDLE);
     this->actor.attentionRangeType = ATTENTION_RANGE_0;
-    Actor_SetScale(&this->actor, 0.02f);
+    MM_Actor_SetScale(&this->actor, 0.02f);
     this->actionFunc = EnPst_FollowSchedule;
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
 }
 
 void EnPst_Destroy(Actor* thisx, PlayState* play) {
     EnPst* this = (EnPst*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnPst_Update(Actor* thisx, PlayState* play) {
@@ -710,11 +710,11 @@ void EnPst_Update(Actor* thisx, PlayState* play) {
     EnPst_CheckTalk(this, play);
     this->actionFunc(this, play);
     if (this->scheduleResult != POSTBOX_SCH_NONE) {
-        if (Actor_IsFacingPlayer(&this->actor, 0x1FFE)) {
+        if (MM_Actor_IsFacingPlayer(&this->actor, 0x1FFE)) {
             this->unk214 = 0;
             SubS_Offer(&this->actor, play, 60.0f, 20.0f, PLAYER_IA_NONE, this->stateFlags & SUBS_OFFER_MODE_MASK);
         }
-        Actor_SetFocus(&this->actor, 20.0f);
+        MM_Actor_SetFocus(&this->actor, 20.0f);
         EnPst_UpdateCollision(this, play);
     }
 }
@@ -729,7 +729,7 @@ s32 EnPst_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* p
         } else {
             yTranslation = 0.0f;
         }
-        Matrix_Translate(0.0f, yTranslation, 0.0f, MTXMODE_APPLY);
+        MM_Matrix_Translate(0.0f, yTranslation, 0.0f, MTXMODE_APPLY);
     }
     return false;
 }
@@ -739,7 +739,7 @@ void EnPst_Draw(Actor* thisx, PlayState* play) {
 
     if (this->scheduleResult != POSTBOX_SCH_NONE) {
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
-        SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+        MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                               EnPst_OverrideLimbDraw, NULL, &this->actor);
     }
 }

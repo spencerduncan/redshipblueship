@@ -79,7 +79,7 @@ typedef enum {
     /* 0xF */ EN_PP_DMGEFF_DAMAGE                // Deals regular damage
 } EnPpDamageEffect;
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(0, EN_PP_DMGEFF_STUN),
     /* Deku Stick     */ DMG_ENTRY(1, EN_PP_DMGEFF_DAMAGE),
     /* Horse trample  */ DMG_ENTRY(0, EN_PP_DMGEFF_JUMP),
@@ -180,7 +180,7 @@ static ColliderJntSphInit sBodyColliderJntSphInit = {
     sBodyColliderJntSphElementsInit,
 };
 
-static ColliderQuadInit sQuadInit = {
+static ColliderQuadInit MM_sQuadInit = {
     {
         COL_MATERIAL_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -200,9 +200,9 @@ static ColliderQuadInit sQuadInit = {
     { { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f } } },
 };
 
-static Color_RGBA8 sDustPrimColor = { 60, 50, 20, 255 };
+static Color_RGBA8 MM_sDustPrimColor = { 60, 50, 20, 255 };
 
-static Color_RGBA8 sDustEnvColor = { 40, 30, 30, 255 };
+static Color_RGBA8 MM_sDustEnvColor = { 40, 30, 30, 255 };
 
 void EnPp_Init(Actor* thisx, PlayState* play) {
     EnPp* this = (EnPp*)thisx;
@@ -211,8 +211,8 @@ void EnPp_Init(Actor* thisx, PlayState* play) {
     this->actor.attentionRangeType = ATTENTION_RANGE_4;
     this->actor.colChkInfo.mass = 60;
     this->actor.colChkInfo.health = 3;
-    this->actor.colChkInfo.damageTable = &sDamageTable;
-    SkelAnime_InitFlex(play, &this->skelAnime, &gHiploopSkel, &gHiploopIdleAnim, this->jointTable, this->morphTable,
+    this->actor.colChkInfo.damageTable = &MM_sDamageTable;
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gHiploopSkel, &gHiploopIdleAnim, this->jointTable, this->morphTable,
                        HIPLOOP_LIMB_MAX);
 
     if (EN_PP_GET_ATTACK_RANGE(&this->actor) == 0) {
@@ -235,7 +235,7 @@ void EnPp_Init(Actor* thisx, PlayState* play) {
         this->fragmentIndex = sCurrentFragmentIndex;
         sCurrentFragmentIndex++;
         this->actor.shape.rot.y = this->actor.world.rot.y;
-        Actor_SetScale(&this->actor, 0.03f);
+        MM_Actor_SetScale(&this->actor, 0.03f);
         EnPp_Fragment_SetupMove(this);
     } else {
         Collider_InitAndSetJntSph(play, &this->maskCollider, &this->actor, &sMaskColliderJntSphInit,
@@ -272,8 +272,8 @@ void EnPp_Init(Actor* thisx, PlayState* play) {
             this->maskCollider.elements[0].base.atDmgInfo.damage = 0x10;
         }
 
-        Collider_InitQuad(play, &this->hornCollider);
-        Collider_SetQuad(play, &this->hornCollider, &this->actor, &sQuadInit);
+        MM_Collider_InitQuad(play, &this->hornCollider);
+        MM_Collider_SetQuad(play, &this->hornCollider, &this->actor, &MM_sQuadInit);
 
         blureInit.p1StartColor[0] = blureInit.p1StartColor[1] = blureInit.p1StartColor[2] = blureInit.p1StartColor[3] =
             blureInit.p2StartColor[0] = blureInit.p2StartColor[1] = blureInit.p2StartColor[2] =
@@ -284,9 +284,9 @@ void EnPp_Init(Actor* thisx, PlayState* play) {
         blureInit.elemDuration = 8;
         blureInit.unkFlag = false;
         blureInit.calcMode = 2;
-        Effect_Add(play, &this->blureIndex, EFFECT_BLURE1, 0, 0, &blureInit);
+        MM_Effect_Add(play, &this->blureIndex, EFFECT_BLURE1, 0, 0, &blureInit);
 
-        Actor_SetScale(&this->actor, 0.03f);
+        MM_Actor_SetScale(&this->actor, 0.03f);
         this->floorPolyForCircleShadow = NULL;
         this->actor.gravity = -3.0f;
 
@@ -303,9 +303,9 @@ void EnPp_Destroy(Actor* thisx, PlayState* play) {
     EnPp* this = (EnPp*)thisx;
 
     if (EN_PP_GET_TYPE(&this->actor) < EN_PP_TYPE_FRAGMENT_BASE) {
-        Collider_DestroyJntSph(play, &this->maskCollider);
-        Collider_DestroyJntSph(play, &this->bodyCollider);
-        Collider_DestroyQuad(play, &this->hornCollider);
+        MM_Collider_DestroyJntSph(play, &this->maskCollider);
+        MM_Collider_DestroyJntSph(play, &this->bodyCollider);
+        MM_Collider_DestroyQuad(play, &this->hornCollider);
     }
 
     Effect_Destroy(play, this->blureIndex);
@@ -328,18 +328,18 @@ s32 EnPp_PointlessPosCheck(EnPp* this) {
     // This converts the vector between the Hiploop's home and world positions into polar
     // coordinates. In other words, if the home position is at the origin, then the world
     // position can be found at (radius, angle).
-    radius = sqrtf(SQ(diffX) + SQ(diffZ));
-    angle = Math_Vec3f_Yaw(&this->actor.home.pos, &this->actor.world.pos);
+    radius = MM_sqrtf(SQ(diffX) + SQ(diffZ));
+    angle = MM_Math_Vec3f_Yaw(&this->actor.home.pos, &this->actor.world.pos);
 
     // This takes the polar coordinates we found earlier and converts them *back* into
     // Cartesian coordinates by adding them back to the home position. This ends up creating
     // a near-duplicate of the Hiploop's original world position.
-    Math_Vec3f_Copy(&nearDuplicateWorldPos, &this->actor.home.pos);
-    nearDuplicateWorldPos.x += Math_SinS(angle) * radius;
-    nearDuplicateWorldPos.z += Math_CosS(angle) * radius;
+    MM_Math_Vec3f_Copy(&nearDuplicateWorldPos, &this->actor.home.pos);
+    nearDuplicateWorldPos.x += MM_Math_SinS(angle) * radius;
+    nearDuplicateWorldPos.z += MM_Math_CosS(angle) * radius;
 
-    Math_ApproachF(&this->actor.world.pos.x, nearDuplicateWorldPos.x, 0.3f, 2.0f);
-    Math_ApproachF(&this->actor.world.pos.z, nearDuplicateWorldPos.z, 0.3f, 2.0f);
+    MM_Math_ApproachF(&this->actor.world.pos.x, nearDuplicateWorldPos.x, 0.3f, 2.0f);
+    MM_Math_ApproachF(&this->actor.world.pos.z, nearDuplicateWorldPos.z, 0.3f, 2.0f);
 
     // This computes the difference between the Hiploop's original world position and the
     // near-duplicate position created earlier. Since the two positions are almost identical,
@@ -348,7 +348,7 @@ s32 EnPp_PointlessPosCheck(EnPp* this) {
     diffZ = this->actor.world.pos.z - nearDuplicateWorldPos.z;
 
     // Since the two differences are always tiny, this is always true.
-    if (sqrtf(SQ(diffX) + SQ(diffZ)) < 2.0f) {
+    if (MM_sqrtf(SQ(diffX) + SQ(diffZ)) < 2.0f) {
         this->actor.world.pos.x = nearDuplicateWorldPos.x;
         this->actor.world.pos.z = nearDuplicateWorldPos.z;
         return true;
@@ -367,20 +367,20 @@ void EnPp_SpawnDust(EnPp* this, PlayState* play) {
     Vec3f accel;
 
     for (i = 0; i < ARRAY_COUNT(this->backFootPos); i++) {
-        velocity.x = Rand_CenteredFloat(2.0f);
-        velocity.y = Rand_ZeroFloat(2.0f) + 1.0f;
-        velocity.z = Rand_CenteredFloat(2.0f);
+        velocity.x = MM_Rand_CenteredFloat(2.0f);
+        velocity.y = MM_Rand_ZeroFloat(2.0f) + 1.0f;
+        velocity.z = MM_Rand_CenteredFloat(2.0f);
 
         accel.y = -0.1f;
         accel.z = 0.0f;
         accel.x = 0.0f;
 
-        pos.x = this->backFootPos[i].x + Rand_CenteredFloat(10.0f);
-        pos.y = Rand_ZeroFloat(3.0f) + this->actor.floorHeight + 1.0f;
-        pos.z = this->backFootPos[i].z + Rand_CenteredFloat(10.0f);
+        pos.x = this->backFootPos[i].x + MM_Rand_CenteredFloat(10.0f);
+        pos.y = MM_Rand_ZeroFloat(3.0f) + this->actor.floorHeight + 1.0f;
+        pos.z = this->backFootPos[i].z + MM_Rand_CenteredFloat(10.0f);
 
-        func_800B0EB0(play, &pos, &velocity, &accel, &sDustPrimColor, &sDustEnvColor, (Rand_ZeroFloat(50.0f) + 60.0f),
-                      30, (Rand_ZeroFloat(5.0f) + 20.0f));
+        func_800B0EB0(play, &pos, &velocity, &accel, &MM_sDustPrimColor, &MM_sDustEnvColor, (MM_Rand_ZeroFloat(50.0f) + 60.0f),
+                      30, (MM_Rand_ZeroFloat(5.0f) + 20.0f));
     }
 }
 
@@ -398,7 +398,7 @@ typedef enum {
     /* 10 */ EN_PP_ANIM_MAX
 } EnPpAnimation;
 
-static AnimationHeader* sAnimations[EN_PP_ANIM_MAX] = {
+static AnimationHeader* MM_sAnimations[EN_PP_ANIM_MAX] = {
     &gHiploopIdleAnim,   // EN_PP_ANIM_IDLE
     &gHiploopWalkAnim,   // EN_PP_ANIM_WALK
     &gHiploopWindUpAnim, // EN_PP_ANIM_WIND_UP
@@ -411,7 +411,7 @@ static AnimationHeader* sAnimations[EN_PP_ANIM_MAX] = {
     &gHiploopWalkAnim,   // EN_PP_ANIM_LAND
 };
 
-static u8 sAnimationModes[EN_PP_ANIM_MAX] = {
+static u8 MM_sAnimationModes[EN_PP_ANIM_MAX] = {
     ANIMMODE_LOOP, // EN_PP_ANIM_IDLE
     ANIMMODE_LOOP, // EN_PP_ANIM_WALK
     ANIMMODE_ONCE, // EN_PP_ANIM_WIND_UP
@@ -430,7 +430,7 @@ void EnPp_ChangeAnim(EnPp* this, s32 animIndex) {
     f32 startFrame;
 
     this->animIndex = animIndex;
-    this->animEndFrame = Animation_GetLastFrame(sAnimations[this->animIndex]);
+    this->animEndFrame = MM_Animation_GetLastFrame(MM_sAnimations[this->animIndex]);
 
     if (this->animIndex >= EN_PP_ANIM_WIND_UP) {
         morphFrames = 0.0f;
@@ -446,8 +446,8 @@ void EnPp_ChangeAnim(EnPp* this, s32 animIndex) {
         startFrame = this->animEndFrame;
     }
 
-    Animation_Change(&this->skelAnime, sAnimations[this->animIndex], playSpeed, startFrame, this->animEndFrame,
-                     sAnimationModes[this->animIndex], morphFrames);
+    MM_Animation_Change(&this->skelAnime, MM_sAnimations[this->animIndex], playSpeed, startFrame, this->animEndFrame,
+                     MM_sAnimationModes[this->animIndex], morphFrames);
 }
 
 void EnPp_PlaySfxForAnimation(EnPp* this) {
@@ -455,7 +455,7 @@ void EnPp_PlaySfxForAnimation(EnPp* this) {
         switch (this->animIndex) {
             case EN_PP_ANIM_WALK:
             case EN_PP_ANIM_TURN_TO_FACE_PLAYER:
-                if (Animation_OnFrame(&this->skelAnime, 0.0f)) {
+                if (MM_Animation_OnFrame(&this->skelAnime, 0.0f)) {
                     Actor_PlaySfx(&this->actor, NA_SE_EN_HIPLOOP_FOOTSTEP);
                 }
                 break;
@@ -469,13 +469,13 @@ void EnPp_PlaySfxForAnimation(EnPp* this) {
                 break;
 
             case EN_PP_ANIM_ATTACK:
-                if (Animation_OnFrame(&this->skelAnime, 0.0f)) {
+                if (MM_Animation_OnFrame(&this->skelAnime, 0.0f)) {
                     Actor_PlaySfx(&this->actor, NA_SE_EN_HIPLOOP_PAUSE);
                 }
                 break;
 
             case EN_PP_ANIM_ROAR:
-                if (Animation_OnFrame(&this->skelAnime, 6.0f)) {
+                if (MM_Animation_OnFrame(&this->skelAnime, 6.0f)) {
                     Actor_PlaySfx(&this->actor, NA_SE_EN_HIPLOOP_PAUSE);
                 }
                 break;
@@ -499,18 +499,18 @@ s32 EnPp_CheckCollision(EnPp* this, PlayState* play) {
         angle = this->targetRotY;
     }
 
-    Math_Vec3f_Copy(&this->wallCheckPos, &this->actor.world.pos);
+    MM_Math_Vec3f_Copy(&this->wallCheckPos, &this->actor.world.pos);
     for (i = 0; i < ARRAY_COUNT(this->ledgeCheckPos); i++) {
-        Math_Vec3f_Copy(&this->ledgeCheckPos[i], &this->actor.world.pos);
-        this->ledgeCheckPos[i].x += Math_SinS(sLedgeCheckAngles[i] + angle) * 70.0f;
+        MM_Math_Vec3f_Copy(&this->ledgeCheckPos[i], &this->actor.world.pos);
+        this->ledgeCheckPos[i].x += MM_Math_SinS(sLedgeCheckAngles[i] + angle) * 70.0f;
         this->ledgeCheckPos[i].y = this->actor.floorHeight - 10.0f;
-        this->ledgeCheckPos[i].z += Math_CosS(sLedgeCheckAngles[i] + angle) * 70.0f;
-        if (!BgCheck_SphVsFirstPoly(&play->colCtx, &this->ledgeCheckPos[i], 20.0f)) {
+        this->ledgeCheckPos[i].z += MM_Math_CosS(sLedgeCheckAngles[i] + angle) * 70.0f;
+        if (!MM_BgCheck_SphVsFirstPoly(&play->colCtx, &this->ledgeCheckPos[i], 20.0f)) {
             return EN_PP_COLLISION_RESULT_ABOUT_TO_RUN_OFF_LEDGE;
         }
     }
 
-    this->wallCheckPos.x += Math_SinS(angle) * 40.0f;
+    this->wallCheckPos.x += MM_Math_SinS(angle) * 40.0f;
     this->wallCheckPos.y = this->actor.world.pos.y + 20.0f;
     if (this->chargesInStraightLines) {
         // This prevents the Hiploops in Woodfall from acting strangely when they move from
@@ -519,8 +519,8 @@ s32 EnPp_CheckCollision(EnPp* this, PlayState* play) {
         this->wallCheckPos.y += 20.0f;
     }
 
-    this->wallCheckPos.z += Math_CosS(angle) * 40.0f;
-    if (BgCheck_SphVsFirstWall(&play->colCtx, &this->wallCheckPos, 10.0f)) {
+    this->wallCheckPos.z += MM_Math_CosS(angle) * 40.0f;
+    if (MM_BgCheck_SphVsFirstWall(&play->colCtx, &this->wallCheckPos, 10.0f)) {
         return EN_PP_COLLISION_RESULT_ABOUT_TO_RUN_INTO_WALL;
     }
 
@@ -538,16 +538,16 @@ void EnPp_SetupIdle(EnPp* this) {
 void EnPp_Idle(EnPp* this, PlayState* play) {
     Vec3f posToLookAt;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     if (this->hasBeenDamaged || (this->actor.xzDistToPlayer < this->attackRange)) {
         EnPp_SetupCharge(this);
     } else {
         if ((this->timer == 0) && (this->secondaryTimer == 0)) {
-            this->secondaryTimer = Rand_ZeroFloat(20.0f) + 20.0f;
-            Math_Vec3f_Copy(&posToLookAt, &this->actor.home.pos);
-            posToLookAt.x += Rand_CenteredFloat(50.0f);
-            posToLookAt.z += Rand_CenteredFloat(50.0f);
-            this->targetRotY = Math_Vec3f_Yaw(&this->actor.world.pos, &posToLookAt);
+            this->secondaryTimer = MM_Rand_ZeroFloat(20.0f) + 20.0f;
+            MM_Math_Vec3f_Copy(&posToLookAt, &this->actor.home.pos);
+            posToLookAt.x += MM_Rand_CenteredFloat(50.0f);
+            posToLookAt.z += MM_Rand_CenteredFloat(50.0f);
+            this->targetRotY = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &posToLookAt);
             this->actor.speed = 0.0f;
             if (this->animIndex != EN_PP_ANIM_IDLE) {
                 EnPp_ChangeAnim(this, EN_PP_ANIM_IDLE);
@@ -555,7 +555,7 @@ void EnPp_Idle(EnPp* this, PlayState* play) {
         }
 
         if (this->secondaryTimer == 1) {
-            this->timer = Rand_ZeroFloat(40.0f) + 40.0f;
+            this->timer = MM_Rand_ZeroFloat(40.0f) + 40.0f;
         }
 
         if (EnPp_CheckCollision(this, play) != EN_PP_COLLISION_RESULT_OK) {
@@ -564,7 +564,7 @@ void EnPp_Idle(EnPp* this, PlayState* play) {
                 EnPp_ChangeAnim(this, EN_PP_ANIM_WALK);
             }
 
-            Math_SmoothStepToS(&this->actor.world.rot.y, this->targetRotY, 1, 0x258, 0);
+            MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->targetRotY, 1, 0x258, 0);
         } else if ((this->secondaryTimer == 0) && (this->timer != 0)) {
             if (this->animIndex == EN_PP_ANIM_IDLE) {
                 EnPp_ChangeAnim(this, EN_PP_ANIM_WALK);
@@ -572,12 +572,12 @@ void EnPp_Idle(EnPp* this, PlayState* play) {
 
             if ((this->maskBounceAngularVelocity < 0x64) &&
                 (fabsf(this->actor.world.rot.y - this->targetRotY) < 100.0f)) {
-                Math_ApproachF(&this->actor.speed, 1.0f, 0.3f, 1.0f);
+                MM_Math_ApproachF(&this->actor.speed, 1.0f, 0.3f, 1.0f);
             }
 
-            Math_SmoothStepToS(&this->actor.world.rot.y, this->targetRotY, 1, this->maskBounceAngularVelocity + 0x258,
+            MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->targetRotY, 1, this->maskBounceAngularVelocity + 0x258,
                                0);
-            Math_SmoothStepToS(&this->maskBounceAngularVelocity, 0, 1, 0x1F4, 0);
+            MM_Math_SmoothStepToS(&this->maskBounceAngularVelocity, 0, 1, 0x1F4, 0);
         }
     }
 }
@@ -598,7 +598,7 @@ void EnPp_Charge(EnPp* this, PlayState* play) {
     s32 yawDiff;
     Vec3f distanceFromWorldPos;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     if (!this->actionVar.isCharging || (this->animIndex == EN_PP_ANIM_WIND_UP)) {
         this->targetRotY = this->actor.yawTowardsPlayer;
@@ -609,19 +609,19 @@ void EnPp_Charge(EnPp* this, PlayState* play) {
                 this->targetRotY = this->actor.home.rot.y;
             }
 
-            Math_Vec3f_Copy(&this->targetPos, &this->actor.world.pos);
+            MM_Math_Vec3f_Copy(&this->targetPos, &this->actor.world.pos);
             Matrix_RotateYS(this->targetRotY, MTXMODE_NEW);
             Matrix_MultVecZ(300.0f, &distanceFromWorldPos);
             this->targetPos.x += distanceFromWorldPos.x;
             this->targetPos.z += distanceFromWorldPos.z;
         }
 
-        Math_SmoothStepToS(&this->actor.world.rot.y, this->targetRotY, 1, this->maskBounceAngularVelocity + 0x7D0, 0);
+        MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->targetRotY, 1, this->maskBounceAngularVelocity + 0x7D0, 0);
     }
 
-    Math_SmoothStepToS(&this->maskBounceAngularVelocity, 0, 1, 0x1F4, 0);
+    MM_Math_SmoothStepToS(&this->maskBounceAngularVelocity, 0, 1, 0x1F4, 0);
     if (!this->actionVar.isCharging) {
-        Math_ApproachZeroF(&this->actor.speed, 0.5f, 1.0f);
+        MM_Math_ApproachZeroF(&this->actor.speed, 0.5f, 1.0f);
         if (fabsf(this->actor.world.rot.y - this->targetRotY) < 100.0f) {
             if (this->chargesInStraightLines) {
                 this->actor.world.rot.y = this->targetRotY;
@@ -645,14 +645,14 @@ void EnPp_Charge(EnPp* this, PlayState* play) {
         }
 
         if (!this->chargesInStraightLines) {
-            Math_ApproachF(&this->actor.speed, 10.0f, 0.3f, 1.0f);
+            MM_Math_ApproachF(&this->actor.speed, 10.0f, 0.3f, 1.0f);
         } else {
-            Math_ApproachF(&this->actor.world.pos.x, this->targetPos.x, 0.5f,
-                           fabsf(Math_SinS(this->targetRotY) * this->chargeAndBounceSpeed));
-            Math_ApproachF(&this->actor.world.pos.z, this->targetPos.z, 0.5f,
-                           fabsf(Math_CosS(this->targetRotY) * this->chargeAndBounceSpeed));
+            MM_Math_ApproachF(&this->actor.world.pos.x, this->targetPos.x, 0.5f,
+                           fabsf(MM_Math_SinS(this->targetRotY) * this->chargeAndBounceSpeed));
+            MM_Math_ApproachF(&this->actor.world.pos.z, this->targetPos.z, 0.5f,
+                           fabsf(MM_Math_CosS(this->targetRotY) * this->chargeAndBounceSpeed));
             if (this->timer < 10) {
-                Math_ApproachZeroF(&this->chargeAndBounceSpeed, 0.3f, 0.2f);
+                MM_Math_ApproachZeroF(&this->chargeAndBounceSpeed, 0.3f, 0.2f);
             }
         }
 
@@ -699,7 +699,7 @@ void EnPp_SetupAttack(EnPp* this) {
 void EnPp_Attack(EnPp* this, PlayState* play) {
     f32 curFrame = this->skelAnime.curFrame;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     if (curFrame >= this->animEndFrame) {
         EnPp_SetupCharge(this);
     }
@@ -714,7 +714,7 @@ void EnPp_SetupBounced(EnPp* this) {
         this->targetRotY = this->actor.home.rot.y;
     }
 
-    Math_Vec3f_Copy(&this->targetPos, &this->actor.world.pos);
+    MM_Math_Vec3f_Copy(&this->targetPos, &this->actor.world.pos);
     Matrix_RotateYS(this->targetRotY, MTXMODE_NEW);
     Matrix_MultVecZ(-200.0f, &distanceFromWorldPos);
     this->timer = 10;
@@ -731,11 +731,11 @@ void EnPp_SetupBounced(EnPp* this) {
  * Pushes the Hiploop back for a half-second, then forces it to charge again.
  */
 void EnPp_Bounced(EnPp* this, PlayState* play) {
-    Math_ApproachF(&this->actor.world.pos.x, this->targetPos.x, 0.5f,
-                   fabsf(Math_SinS(this->targetRotY) * this->chargeAndBounceSpeed));
-    Math_ApproachF(&this->actor.world.pos.z, this->targetPos.z, 0.5f,
-                   fabsf(Math_CosS(this->targetRotY) * this->chargeAndBounceSpeed));
-    Math_ApproachZeroF(&this->chargeAndBounceSpeed, 0.3f, 0.2f);
+    MM_Math_ApproachF(&this->actor.world.pos.x, this->targetPos.x, 0.5f,
+                   fabsf(MM_Math_SinS(this->targetRotY) * this->chargeAndBounceSpeed));
+    MM_Math_ApproachF(&this->actor.world.pos.z, this->targetPos.z, 0.5f,
+                   fabsf(MM_Math_CosS(this->targetRotY) * this->chargeAndBounceSpeed));
+    MM_Math_ApproachZeroF(&this->chargeAndBounceSpeed, 0.3f, 0.2f);
     if ((this->timer == 0) && (EnPp_PointlessPosCheck(this))) {
         EnPp_SetupCharge(this);
     }
@@ -758,7 +758,7 @@ void EnPp_Roar(EnPp* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
     f32 curFrame = this->skelAnime.curFrame;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     if (EnPp_CheckCollision(this, play) == EN_PP_COLLISION_RESULT_ABOUT_TO_RUN_OFF_LEDGE) {
         this->actor.speed = 0.0f;
@@ -772,16 +772,16 @@ void EnPp_Roar(EnPp* this, PlayState* play) {
             return;
         }
     } else if (this->chargeAndBounceSpeed) {
-        Math_ApproachF(&this->actor.world.pos.x, this->targetPos.x, 0.5f,
-                       fabsf(Math_SinS(this->targetRotY) * this->chargeAndBounceSpeed));
-        Math_ApproachF(&this->actor.world.pos.z, this->targetPos.z, 0.5f,
-                       fabsf(Math_CosS(this->targetRotY) * this->chargeAndBounceSpeed));
+        MM_Math_ApproachF(&this->actor.world.pos.x, this->targetPos.x, 0.5f,
+                       fabsf(MM_Math_SinS(this->targetRotY) * this->chargeAndBounceSpeed));
+        MM_Math_ApproachF(&this->actor.world.pos.z, this->targetPos.z, 0.5f,
+                       fabsf(MM_Math_CosS(this->targetRotY) * this->chargeAndBounceSpeed));
         if (this->timer < 10) {
-            Math_ApproachZeroF(&this->chargeAndBounceSpeed, 0.3f, 0.2f);
+            MM_Math_ApproachZeroF(&this->chargeAndBounceSpeed, 0.3f, 0.2f);
         }
     }
 
-    Math_ApproachZeroF(&this->actor.speed, 0.5f, 1.0f);
+    MM_Math_ApproachZeroF(&this->actor.speed, 0.5f, 1.0f);
     if ((this->actor.speed > 0.3f) && (this->secondaryTimer == 0)) {
         EnPp_SpawnDust(this, play);
         this->secondaryTimer = 3;
@@ -830,7 +830,7 @@ void EnPp_Jump(EnPp* this, PlayState* play) {
     f32 curFrame = this->skelAnime.curFrame;
     s32 yawDiff;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     if (this->chargesInStraightLines) {
         yawDiff = ABS_ALT(BINANG_SUB(this->actor.yawTowardsPlayer, this->actor.home.rot.y));
@@ -844,7 +844,7 @@ void EnPp_Jump(EnPp* this, PlayState* play) {
         this->targetRotY = this->actor.yawTowardsPlayer;
     }
 
-    Math_SmoothStepToS(&this->actor.world.rot.y, this->targetRotY, 1, 0x1388, 0);
+    MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->targetRotY, 1, 0x1388, 0);
     if (!this->actionVar.hasLandedFromJump) {
         if (this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) {
             this->actionVar.hasLandedFromJump = true;
@@ -899,7 +899,7 @@ void EnPp_SetupDamaged(EnPp* this, PlayState* play) {
     if (!this->chargesInStraightLines) {
         Matrix_RotateYS(this->actor.yawTowardsPlayer, MTXMODE_NEW);
         Matrix_MultVecZ(-30.0f, &temp);
-        Math_Vec3f_Copy(&this->damagedVelocity, &temp);
+        MM_Math_Vec3f_Copy(&this->damagedVelocity, &temp);
     } else {
         yawDiff = ABS_ALT(BINANG_SUB(this->actor.yawTowardsPlayer, this->actor.home.rot.y));
         this->targetRotY = this->actor.home.rot.y + 0x8000;
@@ -907,7 +907,7 @@ void EnPp_SetupDamaged(EnPp* this, PlayState* play) {
             this->targetRotY = this->actor.home.rot.y;
         }
 
-        Math_Vec3f_Copy(&this->targetPos, &this->actor.world.pos);
+        MM_Math_Vec3f_Copy(&this->targetPos, &this->actor.world.pos);
         Matrix_RotateYS(this->targetRotY, MTXMODE_NEW);
         Matrix_MultVecZ(-200.0f, &temp);
         this->timer = 10;
@@ -923,7 +923,7 @@ void EnPp_SetupDamaged(EnPp* this, PlayState* play) {
         this->drawDmgEffType = ACTOR_DRAW_DMGEFF_FIRE;
     }
 
-    Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 8);
+    MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 8);
     this->secondaryTimer = 0;
     EnPp_ChangeAnim(this, EN_PP_ANIM_DAMAGE);
     this->targetRotY = this->actor.yawTowardsPlayer + 0x8000;
@@ -944,7 +944,7 @@ void EnPp_SetupDamaged(EnPp* this, PlayState* play) {
 void EnPp_Damaged(EnPp* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     this->actor.world.rot.y += 0x1000;
     if (this->secondaryTimer == 0) {
         EnPp_SpawnDust(this, play);
@@ -952,8 +952,8 @@ void EnPp_Damaged(EnPp* this, PlayState* play) {
     }
 
     if (this->chargesInStraightLines) {
-        Math_ApproachF(&this->actor.world.pos.x, this->targetPos.x, 0.5f, 25.0f);
-        Math_ApproachF(&this->actor.world.pos.z, this->targetPos.z, 0.5f, 25.0f);
+        MM_Math_ApproachF(&this->actor.world.pos.x, this->targetPos.x, 0.5f, 25.0f);
+        MM_Math_ApproachF(&this->actor.world.pos.z, this->targetPos.z, 0.5f, 25.0f);
         this->actor.world.rot.y += 0x1000;
         if ((this->timer == 0) && (EnPp_PointlessPosCheck(this))) {
             EnPp_SetupCharge(this);
@@ -983,7 +983,7 @@ void EnPp_SetupDead(EnPp* this, PlayState* play) {
     if (!this->chargesInStraightLines) {
         Matrix_RotateYS(this->actor.yawTowardsPlayer, MTXMODE_NEW);
         Matrix_MultVecZ(-30.0f, &deadVelocity);
-        Math_Vec3f_Copy(&this->damagedVelocity, &deadVelocity);
+        MM_Math_Vec3f_Copy(&this->damagedVelocity, &deadVelocity);
     } else {
         yawDiff = ABS_ALT(BINANG_SUB(this->actor.yawTowardsPlayer, this->actor.home.rot.y));
         this->targetRotY = this->actor.home.rot.y + 0x8000;
@@ -991,7 +991,7 @@ void EnPp_SetupDead(EnPp* this, PlayState* play) {
             this->targetRotY = this->actor.home.rot.y;
         }
 
-        Math_Vec3f_Copy(&this->targetPos, &this->actor.world.pos);
+        MM_Math_Vec3f_Copy(&this->targetPos, &this->actor.world.pos);
         Matrix_RotateYS(this->targetRotY, MTXMODE_NEW);
         Matrix_MultVecZ(-200.0f, &deadVelocity);
         this->targetPos.x += deadVelocity.x;
@@ -1007,9 +1007,9 @@ void EnPp_SetupDead(EnPp* this, PlayState* play) {
         this->drawDmgEffType = ACTOR_DRAW_DMGEFF_FIRE;
     }
 
-    Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 25);
-    Enemy_StartFinishingBlow(play, &this->actor);
-    SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 30, NA_SE_EN_HIPLOOP_DEAD);
+    MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 25);
+    MM_Enemy_StartFinishingBlow(play, &this->actor);
+    MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 30, NA_SE_EN_HIPLOOP_DEAD);
     this->actor.flags |= ACTOR_FLAG_LOCK_ON_DISABLED;
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
     this->action = EN_PP_ACTION_DEAD;
@@ -1029,7 +1029,7 @@ void EnPp_Dead(EnPp* this, PlayState* play) {
     s32 isUnderWater;
     s32 i;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     this->actor.world.rot.y += 0x3000;
     waterSurface = this->actor.world.pos.y - 30.0f;
     if ((this->drawDmgEffType == ACTOR_DRAW_DMGEFF_FROZEN_SFX) ||
@@ -1050,24 +1050,24 @@ void EnPp_Dead(EnPp* this, PlayState* play) {
 
     isUnderWater = false;
     if ((this->action == EN_PP_ACTION_DEAD) &&
-        (WaterBox_GetSurface1(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &waterSurface,
+        (MM_WaterBox_GetSurface1(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &waterSurface,
                               &waterBox))) {
         if (this->actor.world.pos.y < waterSurface) {
             for (i = 0; i < 5; i++) {
-                Math_Vec3f_Copy(&splashPos, &this->actor.world.pos);
-                splashPos.x += Rand_CenteredFloat(10 + (5 * i));
-                splashPos.z += Rand_CenteredFloat(40 + (5 * i));
-                EffectSsGSplash_Spawn(play, &splashPos, NULL, NULL, 0, (Rand_ZeroOne() * 100.0f) + 400.0f);
+                MM_Math_Vec3f_Copy(&splashPos, &this->actor.world.pos);
+                splashPos.x += MM_Rand_CenteredFloat(10 + (5 * i));
+                splashPos.z += MM_Rand_CenteredFloat(40 + (5 * i));
+                MM_EffectSsGSplash_Spawn(play, &splashPos, NULL, NULL, 0, (MM_Rand_ZeroOne() * 100.0f) + 400.0f);
             }
 
-            SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 50, NA_SE_EV_BOMB_DROP_WATER);
+            MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 50, NA_SE_EV_BOMB_DROP_WATER);
             isUnderWater = true;
         }
     }
 
     if (this->chargesInStraightLines) {
-        Math_ApproachF(&this->actor.world.pos.x, this->targetPos.x, 0.5f, 25.0f);
-        Math_ApproachF(&this->actor.world.pos.z, this->targetPos.z, 0.5f, 25.0f);
+        MM_Math_ApproachF(&this->actor.world.pos.x, this->targetPos.x, 0.5f, 25.0f);
+        MM_Math_ApproachF(&this->actor.world.pos.z, this->targetPos.z, 0.5f, 25.0f);
     }
 
     if ((this->action == EN_PP_ACTION_DEAD) && (isUnderWater || (this->timer == 1))) {
@@ -1076,12 +1076,12 @@ void EnPp_Dead(EnPp* this, PlayState* play) {
 
     if (this->action == EN_PP_ACTION_DONE_SPAWNING_BODY_PARTS) {
         if (EN_PP_GET_TYPE(&this->actor) == EN_PP_TYPE_UNMASKED) {
-            Item_DropCollectibleRandom(play, NULL, &this->actor.world.pos, 0x70);
+            MM_Item_DropCollectibleRandom(play, NULL, &this->actor.world.pos, 0x70);
         } else {
-            Item_DropCollectibleRandom(play, NULL, &this->actor.world.pos, 0xE0);
+            MM_Item_DropCollectibleRandom(play, NULL, &this->actor.world.pos, 0xE0);
         }
 
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -1090,7 +1090,7 @@ void EnPp_Dead(EnPp* this, PlayState* play) {
  */
 void EnPp_Mask_SetupDetach(EnPp* this, PlayState* play) {
     s32 yawDiff;
-    EnPp* pp = (EnPp*)Actor_Spawn(&play->actorCtx, play, ACTOR_EN_PP, this->actor.world.pos.x, this->actor.world.pos.y,
+    EnPp* pp = (EnPp*)MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_PP, this->actor.world.pos.x, this->actor.world.pos.y,
                                   this->actor.world.pos.z, this->actor.world.rot.x, this->actor.shape.rot.y,
                                   this->actor.world.rot.z, EN_PP_TYPE_UNMASKED);
 
@@ -1109,7 +1109,7 @@ void EnPp_Mask_SetupDetach(EnPp* this, PlayState* play) {
         this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
         this->actionVar.maskDetachState = EN_PP_MASK_DETACH_STATE_START;
         EnPp_ChangeAnim(this, EN_PP_ANIM_IDLE);
-        SkelAnime_Update(&this->skelAnime);
+        MM_SkelAnime_Update(&this->skelAnime);
         this->action = EN_PP_ACTION_MASK_DETACH;
         this->actionFunc = EnPp_Mask_Detach;
     }
@@ -1151,15 +1151,15 @@ void EnPp_Mask_Detach(EnPp* this, PlayState* play) {
                         s32 i;
 
                         for (i = 0; i < ARRAY_COUNT(sMaskFireVelocityAndAccel); i++) {
-                            Math_Vec3f_Copy(&maskFirePos, &this->maskFlamesBasePos);
-                            maskFirePos.x += Rand_CenteredFloat(20.0f);
+                            MM_Math_Vec3f_Copy(&maskFirePos, &this->maskFlamesBasePos);
+                            maskFirePos.x += MM_Rand_CenteredFloat(20.0f);
                             maskFirePos.y = this->actor.floorHeight;
-                            maskFirePos.z += Rand_CenteredFloat(20.0f);
+                            maskFirePos.z += MM_Rand_CenteredFloat(20.0f);
                             func_800B3030(play, &maskFirePos, &sMaskFireVelocityAndAccel[i],
                                           &sMaskFireVelocityAndAccel[i], 70, 0, 2);
                         }
 
-                        Actor_Kill(&this->actor);
+                        MM_Actor_Kill(&this->actor);
                     }
                 }
                 break;
@@ -1175,14 +1175,14 @@ void EnPp_Mask_Detach(EnPp* this, PlayState* play) {
 
 void EnPp_Fragment_SetupMove(EnPp* this) {
     EnPp_ChangeAnim(this, EN_PP_ANIM_DAMAGE);
-    this->actor.velocity.y = Rand_ZeroFloat(5.0f) + 13.0f;
+    this->actor.velocity.y = MM_Rand_ZeroFloat(5.0f) + 13.0f;
     this->actor.gravity = -2.0f;
-    this->timer = Rand_S16Offset(30, 30);
+    this->timer = MM_Rand_S16Offset(30, 30);
     this->fragmentAngularVelocity.x = (this->fragmentIndex * 0x2E) + 0xFF00;
     this->fragmentAngularVelocity.z = (this->fragmentIndex * 0x2E) + 0xFF00;
     if (EN_PP_GET_TYPE(&this->actor) != EN_PP_TYPE_FRAGMENT_BODY) {
-        this->actor.speed = Rand_ZeroFloat(4.0f) + 4.0f;
-        this->actor.world.rot.y = ((s32)Rand_CenteredFloat(223.0f) + 0x1999) * this->fragmentIndex;
+        this->actor.speed = MM_Rand_ZeroFloat(4.0f) + 4.0f;
+        this->actor.world.rot.y = ((s32)MM_Rand_CenteredFloat(223.0f) + 0x1999) * this->fragmentIndex;
     }
 
     this->action = EN_PP_ACTION_BODY_PART_MOVE;
@@ -1199,45 +1199,45 @@ void EnPp_Fragment_Move(EnPp* this, PlayState* play) {
     f32 waterSurface;
     s32 i;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     // Updates the positions of the blue flames for this fragment. The body fragment has 10 flames, while all other
     // fragments only have a single flame.
     if (EN_PP_GET_TYPE(&this->actor) == EN_PP_TYPE_FRAGMENT_BODY) {
         this->fragmentFlameCount = ARRAY_COUNT(this->fragmentFlamesPos);
         for (i = 0; i < ARRAY_COUNT(this->fragmentFlamesPos); i++) {
-            Math_Vec3f_Copy(&this->fragmentFlamesPos[i], &this->fragmentPos);
-            this->fragmentFlamesPos[i].x += Math_SinS(0xCCC * i) * 15.0f;
+            MM_Math_Vec3f_Copy(&this->fragmentFlamesPos[i], &this->fragmentPos);
+            this->fragmentFlamesPos[i].x += MM_Math_SinS(0xCCC * i) * 15.0f;
             this->fragmentFlamesPos[i].y += -5.0f;
-            this->fragmentFlamesPos[i].z += Math_CosS(0xCCC * i) * 15.0f;
+            this->fragmentFlamesPos[i].z += MM_Math_CosS(0xCCC * i) * 15.0f;
         }
     } else {
-        Math_Vec3f_Copy(&this->fragmentFlamesPos[0], &this->fragmentPos);
+        MM_Math_Vec3f_Copy(&this->fragmentFlamesPos[0], &this->fragmentPos);
         this->fragmentFlameCount = 1;
         this->actor.shape.rot.x += this->fragmentAngularVelocity.x;
         this->actor.shape.rot.z += this->fragmentAngularVelocity.z;
     }
 
-    if (WaterBox_GetSurface1(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &waterSurface,
+    if (MM_WaterBox_GetSurface1(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &waterSurface,
                              &waterBox) &&
         (this->actor.world.pos.y < (waterSurface + 5.0f))) {
         this->timer = 0;
         if (EN_PP_GET_TYPE(&this->actor) == EN_PP_TYPE_FRAGMENT_BODY) {
             for (i = 0; i < 6; i++) {
-                Math_Vec3f_Copy(&splashPos, &this->actor.world.pos);
-                splashPos.x += Rand_CenteredFloat(10 + (5 * i));
-                splashPos.z += Rand_CenteredFloat(40 + (5 * i));
-                EffectSsGSplash_Spawn(play, &splashPos, NULL, NULL, 0, (Rand_ZeroOne() * 100.0f) + 400.0f);
+                MM_Math_Vec3f_Copy(&splashPos, &this->actor.world.pos);
+                splashPos.x += MM_Rand_CenteredFloat(10 + (5 * i));
+                splashPos.z += MM_Rand_CenteredFloat(40 + (5 * i));
+                MM_EffectSsGSplash_Spawn(play, &splashPos, NULL, NULL, 0, (MM_Rand_ZeroOne() * 100.0f) + 400.0f);
             }
         } else {
-            EffectSsGSplash_Spawn(play, &this->actor.world.pos, NULL, NULL, 0, 400);
+            MM_EffectSsGSplash_Spawn(play, &this->actor.world.pos, NULL, NULL, 0, 400);
         }
 
-        SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 50, NA_SE_EV_BOMB_DROP_WATER);
+        MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 50, NA_SE_EV_BOMB_DROP_WATER);
     }
 
     if ((this->timer == 0) || (this->actor.bgCheckFlags & BGCHECKFLAG_GROUND)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -1289,7 +1289,7 @@ void EnPp_UpdateDamage(EnPp* this, PlayState* play) {
                         this->drawDmgEffTimer = 40;
                         this->drawDmgEffType = ACTOR_DRAW_DMGEFF_ELECTRIC_SPARKS_SMALL;
                         Actor_PlaySfx(&this->actor, NA_SE_EN_COMMON_FREEZE);
-                        Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_BLUE, 255, COLORFILTER_BUFFLAG_OPA,
+                        MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_BLUE, 255, COLORFILTER_BUFFLAG_OPA,
                                              40);
                         EnPp_SetupStunnedOrFrozen(this);
                     }
@@ -1299,7 +1299,7 @@ void EnPp_UpdateDamage(EnPp* this, PlayState* play) {
                          (this->drawDmgEffType != ACTOR_DRAW_DMGEFF_FROZEN_NO_SFX)) ||
                         (this->drawDmgEffTimer == 0)) {
                         Actor_PlaySfx(&this->actor, NA_SE_EN_COMMON_FREEZE);
-                        Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_BLUE, 255, COLORFILTER_BUFFLAG_OPA,
+                        MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_BLUE, 255, COLORFILTER_BUFFLAG_OPA,
                                              40);
                         this->secondaryTimer = 40;
                         EnPp_SetupStunnedOrFrozen(this);
@@ -1317,7 +1317,7 @@ void EnPp_UpdateDamage(EnPp* this, PlayState* play) {
                         if (((this->drawDmgEffType != ACTOR_DRAW_DMGEFF_FROZEN_SFX) &&
                              (this->drawDmgEffType != ACTOR_DRAW_DMGEFF_FROZEN_NO_SFX)) ||
                             (this->drawDmgEffTimer == 0)) {
-                            Actor_ApplyDamage(&this->actor);
+                            MM_Actor_ApplyDamage(&this->actor);
                             this->drawDmgEffTimer = 80;
                             this->drawDmgEffType = ACTOR_DRAW_DMGEFF_FROZEN_SFX;
                             this->drawDmgEffScale = 0.0f;
@@ -1334,10 +1334,10 @@ void EnPp_UpdateDamage(EnPp* this, PlayState* play) {
                                ((((this->drawDmgEffType != ACTOR_DRAW_DMGEFF_FROZEN_SFX)) &&
                                  (this->drawDmgEffType != ACTOR_DRAW_DMGEFF_FROZEN_NO_SFX)) ||
                                 (this->drawDmgEffTimer == 0))) {
-                        Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->actor.focus.pos.x,
+                        MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->actor.focus.pos.x,
                                     this->actor.focus.pos.y, this->actor.focus.pos.z, 0, 0, 0,
                                     CLEAR_TAG_PARAMS(CLEAR_TAG_LARGE_LIGHT_RAYS));
-                        Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_GRAY, 255, COLORFILTER_BUFFLAG_OPA,
+                        MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_GRAY, 255, COLORFILTER_BUFFLAG_OPA,
                                              25);
                         this->drawDmgEffTimer = 20;
                         this->drawDmgEffType = ACTOR_DRAW_DMGEFF_LIGHT_ORBS;
@@ -1348,7 +1348,7 @@ void EnPp_UpdateDamage(EnPp* this, PlayState* play) {
             }
 
             if (attackDealsDamage) {
-                Actor_ApplyDamage(&this->actor);
+                MM_Actor_ApplyDamage(&this->actor);
                 if (this->actor.colChkInfo.health > 0) {
                     EnPp_SetupDamaged(this, play);
                 } else {
@@ -1418,7 +1418,7 @@ void EnPp_Update(Actor* thisx, PlayState* play) {
     }
 
     if ((this->action < EN_PP_ACTION_DEAD) &&
-        (WaterBox_GetSurface1(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &waterSurface,
+        (MM_WaterBox_GetSurface1(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &waterSurface,
                               &waterBox)) &&
         (this->actor.world.pos.y < waterSurface)) {
         EnPp_SetupDead(this, play);
@@ -1427,16 +1427,16 @@ void EnPp_Update(Actor* thisx, PlayState* play) {
 
     if (this->action != EN_PP_ACTION_BODY_PART_MOVE) {
         EnPp_UpdateDamage(this, play);
-        Actor_SetFocus(&this->actor, 40.0f);
+        MM_Actor_SetFocus(&this->actor, 40.0f);
         if ((this->action == EN_PP_ACTION_DEAD) || (this->actor.bgCheckFlags & BGCHECKFLAG_GROUND)) {
             this->actor.world.pos.x += this->damagedVelocity.x;
             this->actor.world.pos.z += this->damagedVelocity.z;
-            Math_ApproachZeroF(&this->damagedVelocity.x, 1.0f, 2.0f);
-            Math_ApproachZeroF(&this->damagedVelocity.z, 1.0f, 2.0f);
+            MM_Math_ApproachZeroF(&this->damagedVelocity.x, 1.0f, 2.0f);
+            MM_Math_ApproachZeroF(&this->damagedVelocity.z, 1.0f, 2.0f);
         }
     }
 
-    Actor_UpdateBgCheckInfo(play, &this->actor, 35.0f, 40.0f, 40.0f,
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 35.0f, 40.0f, 40.0f,
                             UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_2 | UPDBGCHECKINFO_FLAG_4 |
                                 UPDBGCHECKINFO_FLAG_8 | UPDBGCHECKINFO_FLAG_10);
     if (this->action != EN_PP_ACTION_BODY_PART_MOVE) {
@@ -1449,18 +1449,18 @@ void EnPp_Update(Actor* thisx, PlayState* play) {
         }
 
         if ((this->action < EN_PP_ACTION_DEAD) || (this->action == EN_PP_ACTION_JUMP)) {
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->maskCollider.base);
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->bodyCollider.base);
+            MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->maskCollider.base);
+            MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->bodyCollider.base);
         }
 
         if ((this->action < EN_PP_ACTION_MASK_DETACH) && (this->action != EN_PP_ACTION_STUNNED_OR_FROZEN)) {
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->maskCollider.base);
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->bodyCollider.base);
+            MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->maskCollider.base);
+            MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->bodyCollider.base);
         }
 
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->bodyCollider.base);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->bodyCollider.base);
         if (this->hornColliderOn) {
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->hornCollider.base);
+            MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->hornCollider.base);
         }
     }
 }
@@ -1500,56 +1500,56 @@ void EnPp_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
     Vec3f blureVertex1;
     Vec3f blureVertex2;
 
-    Matrix_Push();
+    MM_Matrix_Push();
 
     if (this->action != EN_PP_ACTION_BODY_PART_MOVE) {
         if (limbIndex == HIPLOOP_LIMB_BACK_RIGHT_FOOT) {
-            Matrix_MultVec3f(&gZeroVec3f, &this->backFootPos[0]);
+            MM_Matrix_MultVec3f(&gZeroVec3f, &this->backFootPos[0]);
         }
 
         if (limbIndex == HIPLOOP_LIMB_BACK_LEFT_FOOT) {
-            Matrix_MultVec3f(&gZeroVec3f, &this->backFootPos[1]);
+            MM_Matrix_MultVec3f(&gZeroVec3f, &this->backFootPos[1]);
         }
 
         if ((limbIndex == HIPLOOP_LIMB_MASK) && (EN_PP_GET_TYPE(&this->actor) == EN_PP_TYPE_MASKED)) {
-            Matrix_MultVec3f(&gZeroVec3f, &this->maskFlamesBasePos);
+            MM_Matrix_MultVec3f(&gZeroVec3f, &this->maskFlamesBasePos);
             if (this->hornColliderOn) {
                 if ((this->skelAnime.curFrame > 26.0f) || (this->action >= EN_PP_ACTION_MASK_DETACH)) {
                     this->hornColliderOn = false;
-                    EffectBlure_AddSpace(Effect_GetByIndex(this->blureIndex));
+                    MM_EffectBlure_AddSpace(MM_Effect_GetByIndex(this->blureIndex));
                 } else if ((this->skelAnime.curFrame > 0.0f) && (this->skelAnime.curFrame < 10.0f)) {
-                    Matrix_Translate(0.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+                    MM_Matrix_Translate(0.0f, 0.0f, 0.0f, MTXMODE_APPLY);
                     sVertexOffset1.x = 1160.0f;
                     sVertexOffset1.y = -900.0f;
                     sVertexOffset1.z = 0.0f;
                     sVertexOffset2.x = 100.0f;
                     sVertexOffset2.y = 300.0f;
                     sVertexOffset2.z = 0.0f;
-                    Math_Vec3f_Copy(&this->hornCollider.dim.quad[3], &this->hornCollider.dim.quad[1]);
-                    Math_Vec3f_Copy(&this->hornCollider.dim.quad[2], &this->hornCollider.dim.quad[0]);
-                    Matrix_MultVec3f(&sVertexOffset1, &this->hornCollider.dim.quad[1]);
-                    Matrix_MultVec3f(&sVertexOffset2, &this->hornCollider.dim.quad[0]);
-                    Collider_SetQuadVertices(&this->hornCollider, &this->hornCollider.dim.quad[0],
+                    MM_Math_Vec3f_Copy(&this->hornCollider.dim.quad[3], &this->hornCollider.dim.quad[1]);
+                    MM_Math_Vec3f_Copy(&this->hornCollider.dim.quad[2], &this->hornCollider.dim.quad[0]);
+                    MM_Matrix_MultVec3f(&sVertexOffset1, &this->hornCollider.dim.quad[1]);
+                    MM_Matrix_MultVec3f(&sVertexOffset2, &this->hornCollider.dim.quad[0]);
+                    MM_Collider_SetQuadVertices(&this->hornCollider, &this->hornCollider.dim.quad[0],
                                              &this->hornCollider.dim.quad[1], &this->hornCollider.dim.quad[2],
                                              &this->hornCollider.dim.quad[3]);
-                    Matrix_MultVec3f(&sVertexOffset1, &blureVertex1);
-                    Matrix_MultVec3f(&sVertexOffset2, &blureVertex2);
-                    EffectBlure_AddVertex(Effect_GetByIndex(this->blureIndex), &blureVertex1, &blureVertex2);
+                    MM_Matrix_MultVec3f(&sVertexOffset1, &blureVertex1);
+                    MM_Matrix_MultVec3f(&sVertexOffset2, &blureVertex2);
+                    MM_EffectBlure_AddVertex(MM_Effect_GetByIndex(this->blureIndex), &blureVertex1, &blureVertex2);
                 }
             }
         }
     } else {
         if ((EN_PP_GET_TYPE(&this->actor) >= EN_PP_TYPE_FRAGMENT_BASE) &&
             ((limbIndex + EN_PP_TYPE_FRAGMENT_BASE) == EN_PP_GET_TYPE(&this->actor))) {
-            Matrix_MultVec3f(&gZeroVec3f, &this->fragmentPos);
+            MM_Matrix_MultVec3f(&gZeroVec3f, &this->fragmentPos);
         }
     }
 
-    Matrix_Pop();
+    MM_Matrix_Pop();
 
     if (this->action != EN_PP_ACTION_BODY_PART_MOVE) {
-        Collider_UpdateSpheres(limbIndex, &this->maskCollider);
-        Collider_UpdateSpheres(limbIndex, &this->bodyCollider);
+        MM_Collider_UpdateSpheres(limbIndex, &this->maskCollider);
+        MM_Collider_UpdateSpheres(limbIndex, &this->bodyCollider);
         if ((limbIndex == HIPLOOP_LIMB_BODY) || (limbIndex == HIPLOOP_LIMB_FRONT_LEFT_LOWER_LEG) ||
             (limbIndex == HIPLOOP_LIMB_FRONT_RIGHT_LOWER_LEG) || (limbIndex == HIPLOOP_LIMB_LEFT_WING_MIDDLE) ||
             (limbIndex == HIPLOOP_LIMB_BACK_RIGHT_LOWER_LEG) || (limbIndex == HIPLOOP_LIMB_RIGHT_WING_MIDDLE) ||
@@ -1566,7 +1566,7 @@ void EnPp_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
                 ((limbIndex == HIPLOOP_LIMB_BODY) || (limbIndex == HIPLOOP_LIMB_FRONT_LEFT_LOWER_LEG) ||
                  (limbIndex == HIPLOOP_LIMB_FRONT_RIGHT_LOWER_LEG) || (limbIndex == HIPLOOP_LIMB_LEFT_WING_MIDDLE) ||
                  (limbIndex == HIPLOOP_LIMB_RIGHT_WING_MIDDLE) || (limbIndex == HIPLOOP_LIMB_CENTER_WING_MIDDLE))) {
-                Actor_Spawn(&play->actorCtx, play, ACTOR_EN_PP, this->actor.world.pos.x, this->actor.world.pos.y,
+                MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_PP, this->actor.world.pos.x, this->actor.world.pos.y,
                             this->actor.world.pos.z, this->actor.world.rot.x, this->actor.world.rot.y,
                             this->actor.world.rot.z, limbIndex + EN_PP_TYPE_FRAGMENT_BASE);
 
@@ -1588,7 +1588,7 @@ void EnPp_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnPp_OverrideLimbDraw, EnPp_PostLimbDraw, &this->actor);
 
     if (this->fragmentFlameCount != 0) {
@@ -1610,7 +1610,7 @@ void EnPp_Draw(Actor* thisx, PlayState* play) {
                 this->drawDmgEffScale = 0.5f;
             }
 
-            Math_ApproachF(&this->drawDmgEffFrozenSteamScale, this->drawDmgEffScale, 0.1f, 0.04f);
+            MM_Math_ApproachF(&this->drawDmgEffFrozenSteamScale, this->drawDmgEffScale, 0.1f, 0.04f);
         } else {
             this->drawDmgEffScale = 0.8f;
             this->drawDmgEffFrozenSteamScale = 0.8f;
@@ -1627,14 +1627,14 @@ void EnPp_Draw(Actor* thisx, PlayState* play) {
             Gfx_SetupDL44_Xlu(play->state.gfxCtx);
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 0, 0, 0, 255);
 
-            Math_Vec3f_Copy(&pos, &this->actor.world.pos);
-            pos.x += (Math_SinS(this->actor.world.rot.y) * -13.0f);
+            MM_Math_Vec3f_Copy(&pos, &this->actor.world.pos);
+            pos.x += (MM_Math_SinS(this->actor.world.rot.y) * -13.0f);
             pos.y = this->actor.floorHeight;
-            pos.z += (Math_CosS(this->actor.world.rot.y) * -13.0f);
+            pos.z += (MM_Math_CosS(this->actor.world.rot.y) * -13.0f);
             func_800C0094(this->actor.floorPoly, pos.x, pos.y, pos.z, &mtxF);
 
-            Matrix_Mult(&mtxF, MTXMODE_NEW);
-            Matrix_Scale(0.5f, 1.0f, 0.5f, MTXMODE_APPLY);
+            MM_Matrix_Mult(&mtxF, MTXMODE_NEW);
+            MM_Matrix_Scale(0.5f, 1.0f, 0.5f, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
             gSPDisplayList(POLY_XLU_DISP++, gCircleShadowDL);
 

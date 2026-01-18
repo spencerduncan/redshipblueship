@@ -53,15 +53,15 @@ void ActorOverlayTable_FaultClient(void* arg0, void* arg1) {
     u32 overlaySize;
     ActorId actorId;
 
-    FaultDrawer_SetCharPad(-2, 0);
+    MM_FaultDrawer_SetCharPad(-2, 0);
 
-    FaultDrawer_Printf("actor_dlftbls %u\n", gMaxActorId);
-    FaultDrawer_Printf("No. RamStart- RamEnd cn  Name\n");
+    MM_FaultDrawer_Printf("actor_dlftbls %u\n", gMaxActorId);
+    MM_FaultDrawer_Printf("No. RamStart- RamEnd cn  Name\n");
 
     for (actorId = 0, overlayEntry = &gActorOverlayTable[0]; actorId < gMaxActorId; actorId++, overlayEntry++) {
         overlaySize = (uintptr_t)overlayEntry->vramEnd - (uintptr_t)overlayEntry->vramStart;
         if (overlayEntry->loadedRamAddr != NULL) {
-            FaultDrawer_Printf("%3d %08x-%08x %3d %s\n", actorId, overlayEntry->loadedRamAddr,
+            MM_FaultDrawer_Printf("%3d %08x-%08x %3d %s\n", actorId, overlayEntry->loadedRamAddr,
                                (uintptr_t)overlayEntry->loadedRamAddr + overlaySize, overlayEntry->numLoaded, "");
         }
     }
@@ -92,12 +92,12 @@ uintptr_t ActorOverlayTable_FaultAddrConv(uintptr_t address, void* param) {
 
 void ActorOverlayTable_Init(void) {
     gMaxActorId = ACTOR_ID_MAX;
-    Fault_AddClient(&sActorOverlayTableFaultClient, ActorOverlayTable_FaultClient, NULL, NULL);
-    Fault_AddAddrConvClient(&sActorOverlayTableFaultAddrConvClient, ActorOverlayTable_FaultAddrConv, NULL);
+    MM_Fault_AddClient(&sActorOverlayTableFaultClient, ActorOverlayTable_FaultClient, NULL, NULL);
+    MM_Fault_AddAddrConvClient(&sActorOverlayTableFaultAddrConvClient, ActorOverlayTable_FaultAddrConv, NULL);
 }
 
 void ActorOverlayTable_Cleanup(void) {
-    Fault_RemoveClient(&sActorOverlayTableFaultClient);
-    Fault_RemoveAddrConvClient(&sActorOverlayTableFaultAddrConvClient);
+    MM_Fault_RemoveClient(&sActorOverlayTableFaultClient);
+    MM_Fault_RemoveAddrConvClient(&sActorOverlayTableFaultAddrConvClient);
     gMaxActorId = 0;
 }

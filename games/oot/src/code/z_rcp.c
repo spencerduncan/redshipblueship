@@ -810,7 +810,7 @@ Gfx sSetupDL[SETUPDL_MAX][6] = {
     },
 };
 
-Gfx sFillSetupDL[] = {
+Gfx OoT_sFillSetupDL[] = {
     gsDPPipeSync(),
     gsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_OFF),
     gsDPSetCombineMode(G_CC_SHADE, G_CC_SHADE),
@@ -845,11 +845,11 @@ Gfx D_80127060[] = {
     gsSPEndDisplayList(),
 };
 
-Gfx gEmptyDL[] = {
+Gfx OoT_gEmptyDL[] = {
     gsSPEndDisplayList(),
 };
 
-Gfx* Gfx_SetFog(Gfx* gfx, s32 r, s32 g, s32 b, s32 a, s32 near, s32 far) {
+Gfx* OoT_Gfx_SetFog(Gfx* gfx, s32 r, s32 g, s32 b, s32 a, s32 near, s32 far) {
     if (far == near) {
         far++;
     }
@@ -871,7 +871,7 @@ Gfx* Gfx_SetFog(Gfx* gfx, s32 r, s32 g, s32 b, s32 a, s32 near, s32 far) {
     return gfx;
 }
 
-Gfx* Gfx_SetFogWithSync(Gfx* gfx, s32 r, s32 g, s32 b, s32 a, s32 near, s32 far) {
+Gfx* OoT_Gfx_SetFogWithSync(Gfx* gfx, s32 r, s32 g, s32 b, s32 a, s32 near, s32 far) {
     if (far == near) {
         far++;
     }
@@ -893,11 +893,11 @@ Gfx* Gfx_SetFogWithSync(Gfx* gfx, s32 r, s32 g, s32 b, s32 a, s32 near, s32 far)
     return gfx;
 }
 
-Gfx* Gfx_SetFog2(Gfx* gfx, s32 r, s32 g, s32 b, s32 a, s32 near, s32 far) {
-    return Gfx_SetFog(gfx, r, g, b, a, near, far);
+Gfx* OoT_Gfx_SetFog2(Gfx* gfx, s32 r, s32 g, s32 b, s32 a, s32 near, s32 far) {
+    return OoT_Gfx_SetFog(gfx, r, g, b, a, near, far);
 }
 
-Gfx* Gfx_SetupDLImpl(Gfx* gfx, u32 i) {
+Gfx* OoT_Gfx_SetupDLImpl(Gfx* gfx, u32 i) {
     s32 dListIndex = 6 * i;
 
     gSPDisplayList(gfx++, &((Gfx*)sSetupDL)[dListIndex]);
@@ -905,12 +905,12 @@ Gfx* Gfx_SetupDLImpl(Gfx* gfx, u32 i) {
     return gfx;
 }
 
-Gfx* Gfx_SetupDL(Gfx* gfx, u32 i) {
-    return Gfx_SetupDLImpl(gfx, i);
+Gfx* OoT_Gfx_SetupDL(Gfx* gfx, u32 i) {
+    return OoT_Gfx_SetupDLImpl(gfx, i);
 }
 
-void Gfx_SetupDLAtPtr(Gfx** gfxp, u32 i) {
-    *gfxp = Gfx_SetupDL(*gfxp, i);
+void OoT_Gfx_SetupDLAtPtr(Gfx** gfxp, u32 i) {
+    *gfxp = OoT_Gfx_SetupDL(*gfxp, i);
 }
 
 Gfx* Gfx_SetupDL_57(Gfx* gfx) {
@@ -1363,8 +1363,8 @@ void Gfx_SetupDL_59Opa(GraphicsContext* gfxCtx) {
     CLOSE_DISPS(gfxCtx);
 }
 
-Gfx* Gfx_BranchTexScroll(Gfx** gfxp, u32 x, u32 y, s32 width, s32 height) {
-    Gfx* displayList = Graph_DlistAlloc(gfxp, 3 * sizeof(Gfx));
+Gfx* OoT_Gfx_BranchTexScroll(Gfx** gfxp, u32 x, u32 y, s32 width, s32 height) {
+    Gfx* displayList = OoT_Graph_DlistAlloc(gfxp, 3 * sizeof(Gfx));
 
     gDPTileSync(displayList);
     gDPSetTileSize(displayList + 1, G_TX_RENDERTILE, x, y, x + ((width - 1) << 2), y + ((height - 1) << 2));
@@ -1374,14 +1374,14 @@ Gfx* Gfx_BranchTexScroll(Gfx** gfxp, u32 x, u32 y, s32 width, s32 height) {
 }
 
 Gfx* func_80094E54(Gfx** gfxp, u32 x, u32 y) {
-    return Gfx_BranchTexScroll(gfxp, x, y, 0, 0);
+    return OoT_Gfx_BranchTexScroll(gfxp, x, y, 0, 0);
 }
 
 Gfx* func_80094E78(GraphicsContext* gfxCtx, u32 x, u32 y) {
-    return Gfx_TexScroll(gfxCtx, x, y, 0, 0);
+    return OoT_Gfx_TexScroll(gfxCtx, x, y, 0, 0);
 }
 
-Gfx* Gfx_TexScroll(GraphicsContext* gfxCtx, u32 x, u32 y, s32 width, s32 height) {
+Gfx* OoT_Gfx_TexScroll(GraphicsContext* gfxCtx, u32 x, u32 y, s32 width, s32 height) {
     Gfx* displayList = Graph_Alloc(gfxCtx, 3 * sizeof(Gfx));
 
     x %= 512 << 2;
@@ -1394,7 +1394,7 @@ Gfx* Gfx_TexScroll(GraphicsContext* gfxCtx, u32 x, u32 y, s32 width, s32 height)
     return displayList;
 }
 
-Gfx* Gfx_TwoTexScroll(GraphicsContext* gfxCtx, s32 tile1, u32 x1, u32 y1, s32 width1, s32 height1, s32 tile2, u32 x2,
+Gfx* OoT_Gfx_TwoTexScroll(GraphicsContext* gfxCtx, s32 tile1, u32 x1, u32 y1, s32 width1, s32 height1, s32 tile2, u32 x2,
                       u32 y2, s32 width2, s32 height2) {
     Gfx* displayList = Graph_Alloc(gfxCtx, 5 * sizeof(Gfx));
 
@@ -1412,7 +1412,7 @@ Gfx* Gfx_TwoTexScroll(GraphicsContext* gfxCtx, s32 tile1, u32 x1, u32 y1, s32 wi
     return displayList;
 }
 
-Gfx* Gfx_TwoTexScrollEnvColor(GraphicsContext* gfxCtx, s32 tile1, u32 x1, u32 y1, s32 width1, s32 height1, s32 tile2,
+Gfx* OoT_Gfx_TwoTexScrollEnvColor(GraphicsContext* gfxCtx, s32 tile1, u32 x1, u32 y1, s32 width1, s32 height1, s32 tile2,
                               u32 x2, u32 y2, s32 width2, s32 height2, s32 r, s32 g, s32 b, s32 a) {
     Gfx* displayList = Graph_Alloc(gfxCtx, 6 * sizeof(Gfx));
 
@@ -1431,7 +1431,7 @@ Gfx* Gfx_TwoTexScrollEnvColor(GraphicsContext* gfxCtx, s32 tile1, u32 x1, u32 y1
     return displayList;
 }
 
-Gfx* Gfx_EnvColor(GraphicsContext* gfxCtx, s32 r, s32 g, s32 b, s32 a) {
+Gfx* OoT_Gfx_EnvColor(GraphicsContext* gfxCtx, s32 r, s32 g, s32 b, s32 a) {
     Gfx* displayList = Graph_Alloc(gfxCtx, 2 * sizeof(Gfx));
 
     gDPSetEnvColor(displayList, r, g, b, a);
@@ -1451,20 +1451,20 @@ void Gfx_SetupFrame(GraphicsContext* gfxCtx, u8 r, u8 g, u8 b) {
     OPEN_DISPS(gfxCtx);
 
     // Set up the RDP render state for rectangles in FILL mode
-    gSPDisplayList(POLY_OPA_DISP++, sFillSetupDL);
-    gSPDisplayList(POLY_XLU_DISP++, sFillSetupDL);
-    gSPDisplayList(OVERLAY_DISP++, sFillSetupDL);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sFillSetupDL);
+    gSPDisplayList(POLY_XLU_DISP++, OoT_sFillSetupDL);
+    gSPDisplayList(OVERLAY_DISP++, OoT_sFillSetupDL);
 
     // Set the scissor region to the full screen
-    gDPSetScissor(POLY_OPA_DISP++, G_SC_NON_INTERLACE, 0, 0, gScreenWidth, gScreenHeight);
-    gDPSetScissor(POLY_XLU_DISP++, G_SC_NON_INTERLACE, 0, 0, gScreenWidth, gScreenHeight);
-    gDPSetScissor(OVERLAY_DISP++, G_SC_NON_INTERLACE, 0, 0, gScreenWidth, gScreenHeight);
+    gDPSetScissor(POLY_OPA_DISP++, G_SC_NON_INTERLACE, 0, 0, OoT_gScreenWidth, OoT_gScreenHeight);
+    gDPSetScissor(POLY_XLU_DISP++, G_SC_NON_INTERLACE, 0, 0, OoT_gScreenWidth, OoT_gScreenHeight);
+    gDPSetScissor(OVERLAY_DISP++, G_SC_NON_INTERLACE, 0, 0, OoT_gScreenWidth, OoT_gScreenHeight);
 
     // Set up the framebuffer, primitives will be drawn here
-    gDPSetColorImage(POLY_OPA_DISP++, G_IM_FMT_RGBA, G_IM_SIZ_16b, gScreenWidth, gfxCtx->curFrameBuffer);
-    gDPSetColorImage(POLY_OPA_DISP++, G_IM_FMT_RGBA, G_IM_SIZ_16b, gScreenWidth, gfxCtx->curFrameBuffer);
-    gDPSetColorImage(POLY_XLU_DISP++, G_IM_FMT_RGBA, G_IM_SIZ_16b, gScreenWidth, gfxCtx->curFrameBuffer);
-    gDPSetColorImage(OVERLAY_DISP++, G_IM_FMT_RGBA, G_IM_SIZ_16b, gScreenWidth, gfxCtx->curFrameBuffer);
+    gDPSetColorImage(POLY_OPA_DISP++, G_IM_FMT_RGBA, G_IM_SIZ_16b, OoT_gScreenWidth, gfxCtx->curFrameBuffer);
+    gDPSetColorImage(POLY_OPA_DISP++, G_IM_FMT_RGBA, G_IM_SIZ_16b, OoT_gScreenWidth, gfxCtx->curFrameBuffer);
+    gDPSetColorImage(POLY_XLU_DISP++, G_IM_FMT_RGBA, G_IM_SIZ_16b, OoT_gScreenWidth, gfxCtx->curFrameBuffer);
+    gDPSetColorImage(OVERLAY_DISP++, G_IM_FMT_RGBA, G_IM_SIZ_16b, OoT_gScreenWidth, gfxCtx->curFrameBuffer);
 
     // Set up the z-buffer
     gDPSetDepthImage(POLY_OPA_DISP++, gZBuffer);
@@ -1516,22 +1516,22 @@ void Gfx_SetupFrame(GraphicsContext* gfxCtx, u8 r, u8 g, u8 b) {
 
         // Set the whole z buffer to maximum depth
         // Don't bother with pixels that are being covered by the letterbox
-        gDPSetColorImage(POLY_OPA_DISP++, G_IM_FMT_RGBA, G_IM_SIZ_16b, gScreenWidth, gZBuffer);
+        gDPSetColorImage(POLY_OPA_DISP++, G_IM_FMT_RGBA, G_IM_SIZ_16b, OoT_gScreenWidth, gZBuffer);
         gDPSetCycleType(POLY_OPA_DISP++, G_CYC_FILL);
         gDPSetRenderMode(POLY_OPA_DISP++, G_RM_NOOP, G_RM_NOOP2);
         gDPSetFillColor(POLY_OPA_DISP++, (GPACK_ZDZ(G_MAXFBZ, 0) << 16) | GPACK_ZDZ(G_MAXFBZ, 0));
         gDPFillWideRectangle(POLY_OPA_DISP++, OTRGetRectDimensionFromLeftEdge(0), letterboxSize,
-                             OTRGetRectDimensionFromRightEdge(gScreenWidth - 1), gScreenHeight - letterboxSize - 1);
+                             OTRGetRectDimensionFromRightEdge(OoT_gScreenWidth - 1), OoT_gScreenHeight - letterboxSize - 1);
         gDPPipeSync(POLY_OPA_DISP++);
 
         // Fill the whole screen with the base color
         // Don't bother with pixels that are being covered by the letterbox
-        gDPSetColorImage(POLY_OPA_DISP++, G_IM_FMT_RGBA, G_IM_SIZ_16b, gScreenWidth, gfxCtx->curFrameBuffer);
+        gDPSetColorImage(POLY_OPA_DISP++, G_IM_FMT_RGBA, G_IM_SIZ_16b, OoT_gScreenWidth, gfxCtx->curFrameBuffer);
         gDPSetCycleType(POLY_OPA_DISP++, G_CYC_FILL);
         gDPSetRenderMode(POLY_OPA_DISP++, G_RM_NOOP, G_RM_NOOP2);
         gDPSetFillColor(POLY_OPA_DISP++, (GPACK_RGBA5551(r, g, b, 1) << 16) | GPACK_RGBA5551(r, g, b, 1));
         gDPFillWideRectangle(POLY_OPA_DISP++, OTRGetRectDimensionFromLeftEdge(0), letterboxSize,
-                             OTRGetRectDimensionFromRightEdge(gScreenWidth - 1), gScreenHeight - letterboxSize - 1);
+                             OTRGetRectDimensionFromRightEdge(OoT_gScreenWidth - 1), OoT_gScreenHeight - letterboxSize - 1);
         gDPPipeSync(POLY_OPA_DISP++);
 
         // Draw the letterbox if applicable (uses the same color as the screen base)
@@ -1541,9 +1541,9 @@ void Gfx_SetupFrame(GraphicsContext* gfxCtx, u8 r, u8 g, u8 b) {
             gDPSetRenderMode(OVERLAY_DISP++, G_RM_NOOP, G_RM_NOOP2);
             gDPSetFillColor(OVERLAY_DISP++, (GPACK_RGBA5551(r, g, b, 1) << 16) | GPACK_RGBA5551(r, g, b, 1));
             gDPFillWideRectangle(OVERLAY_DISP++, OTRGetRectDimensionFromLeftEdge(0), 0,
-                                 OTRGetRectDimensionFromRightEdge(gScreenWidth - 1), letterboxSize - 1);
-            gDPFillWideRectangle(OVERLAY_DISP++, OTRGetRectDimensionFromLeftEdge(0), gScreenHeight - letterboxSize,
-                                 OTRGetRectDimensionFromRightEdge(gScreenWidth - 1), gScreenHeight - 1);
+                                 OTRGetRectDimensionFromRightEdge(OoT_gScreenWidth - 1), letterboxSize - 1);
+            gDPFillWideRectangle(OVERLAY_DISP++, OTRGetRectDimensionFromLeftEdge(0), OoT_gScreenHeight - letterboxSize,
+                                 OTRGetRectDimensionFromRightEdge(OoT_gScreenWidth - 1), OoT_gScreenHeight - 1);
             gDPPipeSync(OVERLAY_DISP++);
         }
     }
@@ -1554,10 +1554,10 @@ void Gfx_SetupFrame(GraphicsContext* gfxCtx, u8 r, u8 g, u8 b) {
 void func_80095974(GraphicsContext* gfxCtx) {
     OPEN_DISPS(gfxCtx);
 
-    gSPDisplayList(POLY_OPA_DISP++, sFillSetupDL);
-    gDPSetScissor(POLY_OPA_DISP++, G_SC_NON_INTERLACE, 0, 0, gScreenWidth, gScreenHeight);
+    gSPDisplayList(POLY_OPA_DISP++, OoT_sFillSetupDL);
+    gDPSetScissor(POLY_OPA_DISP++, G_SC_NON_INTERLACE, 0, 0, OoT_gScreenWidth, OoT_gScreenHeight);
     gDPSetDepthImage(POLY_OPA_DISP++, gZBuffer);
-    gDPSetColorImage(POLY_OPA_DISP++, G_IM_FMT_RGBA, G_IM_SIZ_16b, gScreenWidth, gfxCtx->curFrameBuffer);
+    gDPSetColorImage(POLY_OPA_DISP++, G_IM_FMT_RGBA, G_IM_SIZ_16b, OoT_gScreenWidth, gfxCtx->curFrameBuffer);
 
     CLOSE_DISPS(gfxCtx);
 }

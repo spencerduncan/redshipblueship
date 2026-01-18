@@ -28,14 +28,14 @@ const ActorInit Bg_Spot17_Funen_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
 
 void BgSpot17Funen_Init(Actor* thisx, PlayState* play) {
     BgSpot17Funen* this = (BgSpot17Funen*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
     osSyncPrintf("spot17 obj. 噴煙 (arg_data 0x%04x)\n", this->actor.params);
 }
 
@@ -58,12 +58,12 @@ void func_808B7478(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
-    Matrix_RotateY((s16)(Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) - thisx->shape.rot.y + 0x8000) * 9.58738019108e-05f,
+    Matrix_RotateY((s16)(OoT_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) - thisx->shape.rot.y + 0x8000) * 9.58738019108e-05f,
                    MTXMODE_APPLY);
 
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, (0 - play->gameplayFrames) & 0x7F, 0x20, 0x20, 1, 0,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, (0 - play->gameplayFrames) & 0x7F, 0x20, 0x20, 1, 0,
                                 (0 - play->gameplayFrames) & 0x7F, 0x20, 0x20));
     gSPDisplayList(POLY_XLU_DISP++, gCraterSmokeConeDL);
 

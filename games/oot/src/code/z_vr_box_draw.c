@@ -2,15 +2,15 @@
 
 #include "soh/frame_interpolation.h"
 
-Mtx* sSkyboxDrawMatrix;
+Mtx* OoT_sSkyboxDrawMatrix;
 
 Mtx* SkyboxDraw_UpdateMatrix(SkyboxContext* skyboxCtx, f32 x, f32 y, f32 z) {
-    Matrix_Translate(x, y, z, MTXMODE_NEW);
-    Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(x, y, z, MTXMODE_NEW);
+    OoT_Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
     Matrix_RotateX(skyboxCtx->rot.x, MTXMODE_APPLY);
     Matrix_RotateY(skyboxCtx->rot.y, MTXMODE_APPLY);
     Matrix_RotateZ(skyboxCtx->rot.z, MTXMODE_APPLY);
-    return MATRIX_TOMTX(sSkyboxDrawMatrix);
+    return MATRIX_TOMTX(OoT_sSkyboxDrawMatrix);
 }
 
 void SkyboxDraw_Draw(SkyboxContext* skyboxCtx, GraphicsContext* gfxCtx, s16 skyboxId, s16 blend, f32 x, f32 y, f32 z) {
@@ -28,15 +28,15 @@ void SkyboxDraw_Draw(SkyboxContext* skyboxCtx, GraphicsContext* gfxCtx, s16 skyb
     gDPSetPrimColor(POLY_OPA_DISP++, 0x00, 0x00, 0, 0, 0, blend);
     gSPTexture(POLY_OPA_DISP++, 0x8000, 0x8000, 0, G_TX_RENDERTILE, G_ON);
 
-    sSkyboxDrawMatrix = Graph_Alloc(gfxCtx, sizeof(Mtx));
+    OoT_sSkyboxDrawMatrix = Graph_Alloc(gfxCtx, sizeof(Mtx));
 
-    Matrix_Translate(x, y, z, MTXMODE_NEW);
-    Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(x, y, z, MTXMODE_NEW);
+    OoT_Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
     Matrix_RotateX(skyboxCtx->rot.x, MTXMODE_APPLY);
     Matrix_RotateY(skyboxCtx->rot.y, MTXMODE_APPLY);
     Matrix_RotateZ(skyboxCtx->rot.z, MTXMODE_APPLY);
-    MATRIX_TOMTX(sSkyboxDrawMatrix);
-    gSPMatrix(POLY_OPA_DISP++, sSkyboxDrawMatrix, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+    MATRIX_TOMTX(OoT_sSkyboxDrawMatrix);
+    gSPMatrix(POLY_OPA_DISP++, OoT_sSkyboxDrawMatrix, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
     gDPSetColorDither(POLY_OPA_DISP++, G_CD_MAGICSQ);
     gDPSetTextureFilter(POLY_OPA_DISP++, G_TF_BILERP);

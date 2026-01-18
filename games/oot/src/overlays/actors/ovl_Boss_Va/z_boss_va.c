@@ -213,7 +213,7 @@ const ActorInit Boss_Va_InitVars = {
     (ActorResetFunc)BossVa_Reset,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -287,7 +287,7 @@ static ColliderJntSphInit sJntSphInitBari = {
     sJntSphElementsInitBari,
 };
 
-static ColliderQuadInit sQuadInit = {
+static ColliderQuadInit OoT_sQuadInit = {
     {
         COLTYPE_METAL,
         AT_ON | AT_TYPE_ENEMY,
@@ -349,7 +349,7 @@ static Vec3f sWarpPos[] = {
     { -240.0f, 0.0f, -470.0f },
 };
 
-static DamageTable sDamageTable[] = {
+static DamageTable OoT_sDamageTable[] = {
     /* Deku nut      */ DMG_ENTRY(0, 0x1),
     /* Deku stick    */ DMG_ENTRY(2, 0x0),
     /* Slingshot     */ DMG_ENTRY(1, 0x0),
@@ -384,7 +384,7 @@ static DamageTable sDamageTable[] = {
     /* Unknown 2     */ DMG_ENTRY(0, 0x0),
 };
 
-static Vec3f sZeroVec = { 0.0f, 0.0f, 0.0f };
+static Vec3f OoT_sZeroVec = { 0.0f, 0.0f, 0.0f };
 static u8 sKillBari = 0;
 static u8 sBodyBari[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 static s16 sCsCamera = 0;
@@ -412,9 +412,9 @@ void BossVa_SetupAction(BossVa* this, BossVaActionFunc func) {
 void BossVa_AttachToBody(BossVa* this) {
     BossVa* vaBody = GET_BODY(this);
 
-    Matrix_Translate(vaBody->actor.world.pos.x, vaBody->actor.world.pos.y, vaBody->actor.world.pos.z, MTXMODE_NEW);
-    Matrix_RotateZYX(vaBody->actor.shape.rot.x, 0, vaBody->actor.shape.rot.z, MTXMODE_APPLY);
-    Matrix_MultVec3f(&sInitPosOffsets[this->actor.params], &this->actor.world.pos);
+    OoT_Matrix_Translate(vaBody->actor.world.pos.x, vaBody->actor.world.pos.y, vaBody->actor.world.pos.z, MTXMODE_NEW);
+    OoT_Matrix_RotateZYX(vaBody->actor.shape.rot.x, 0, vaBody->actor.shape.rot.z, MTXMODE_APPLY);
+    OoT_Matrix_MultVec3f(&sInitPosOffsets[this->actor.params], &this->actor.world.pos);
 
     switch (this->actor.params) {
         case BOSSVA_SUPPORT_1:
@@ -432,11 +432,11 @@ void BossVa_AttachToBody(BossVa* this) {
         case BOSSVA_ZAPPER_3:
             this->actor.shape.rot.y = sInitRot[this->actor.params].y;
             this->actor.shape.rot.x = (sInitRot[this->actor.params].x +
-                                       (s16)(Math_CosS(sInitRot[this->actor.params].y) * vaBody->actor.shape.rot.x)) -
-                                      (s16)(Math_SinS(sInitRot[this->actor.params].y) * vaBody->actor.shape.rot.z);
-            this->actor.shape.rot.z = (s16)(Math_CosS(sInitRot[this->actor.params].y) * vaBody->actor.shape.rot.z) +
+                                       (s16)(OoT_Math_CosS(sInitRot[this->actor.params].y) * vaBody->actor.shape.rot.x)) -
+                                      (s16)(OoT_Math_SinS(sInitRot[this->actor.params].y) * vaBody->actor.shape.rot.z);
+            this->actor.shape.rot.z = (s16)(OoT_Math_CosS(sInitRot[this->actor.params].y) * vaBody->actor.shape.rot.z) +
                                       (sInitRot[this->actor.params].z +
-                                       (s16)(Math_SinS(sInitRot[this->actor.params].y) * vaBody->actor.shape.rot.x));
+                                       (s16)(OoT_Math_SinS(sInitRot[this->actor.params].y) * vaBody->actor.shape.rot.x));
             break;
     }
 
@@ -449,9 +449,9 @@ void BossVa_BloodDroplets(PlayState* play, Vec3f* pos, s16 phase, s16 yaw) {
     Vec3f spawnPos;
 
     for (i = 2; i > 0; i--) {
-        spawnPos.x = Rand_CenteredFloat(10.0f) + pos->x;
-        spawnPos.y = pos->y - (Rand_ZeroOne() * 15.0f);
-        spawnPos.z = Rand_CenteredFloat(10.0f) + pos->z;
+        spawnPos.x = OoT_Rand_CenteredFloat(10.0f) + pos->x;
+        spawnPos.y = pos->y - (OoT_Rand_ZeroOne() * 15.0f);
+        spawnPos.z = OoT_Rand_CenteredFloat(10.0f) + pos->z;
         BossVa_SpawnBloodDroplets(play, sVaEffects, &spawnPos, 65, phase, yaw);
     }
 }
@@ -461,10 +461,10 @@ void BossVa_BloodSplatter(PlayState* play, BossVaEffect* src, s16 yaw, s16 scale
     Vec3f pos;
 
     for (i = count; i > 0; i--) {
-        pos.x = Rand_CenteredFloat(10.0f) + src->pos.x;
-        pos.y = src->pos.y - (Rand_ZeroOne() * 15.0f);
-        pos.z = Rand_CenteredFloat(10.0f) + src->pos.z;
-        BossVa_SpawnBloodSplatter(play, sVaEffects, &pos, (s16)Rand_CenteredFloat(0x6590) + yaw, scale);
+        pos.x = OoT_Rand_CenteredFloat(10.0f) + src->pos.x;
+        pos.y = src->pos.y - (OoT_Rand_ZeroOne() * 15.0f);
+        pos.z = OoT_Rand_CenteredFloat(10.0f) + src->pos.z;
+        BossVa_SpawnBloodSplatter(play, sVaEffects, &pos, (s16)OoT_Rand_CenteredFloat(0x6590) + yaw, scale);
     }
 }
 
@@ -473,10 +473,10 @@ void BossVa_Gore(PlayState* play, BossVaEffect* src, s16 yaw, s16 scale) {
     Vec3f pos;
 
     for (i = (sCsState <= DEATH_SHELL_BURST) ? 2 : 1; i > 0; i--) {
-        pos.x = Rand_CenteredFloat(10.0f) + src->pos.x;
-        pos.y = Rand_CenteredFloat(10.0f) + src->pos.y;
-        pos.z = Rand_CenteredFloat(10.0f) + src->pos.z;
-        BossVa_SpawnGore(play, sVaEffects, &pos, (s16)Rand_CenteredFloat(0x6590) + yaw, scale);
+        pos.x = OoT_Rand_CenteredFloat(10.0f) + src->pos.x;
+        pos.y = OoT_Rand_CenteredFloat(10.0f) + src->pos.y;
+        pos.z = OoT_Rand_CenteredFloat(10.0f) + src->pos.z;
+        BossVa_SpawnGore(play, sVaEffects, &pos, (s16)OoT_Rand_CenteredFloat(0x6590) + yaw, scale);
     }
 }
 
@@ -488,13 +488,13 @@ void BossVa_Spark(PlayState* play, BossVa* this, s32 count, s16 scale, f32 xzSpr
 
     for (i = count; i > 0; i--) {
         if (!fixed) {
-            index = Rand_ZeroOne() * (range - 0.6f);
+            index = OoT_Rand_ZeroOne() * (range - 0.6f);
         } else {
             index = range - 0.6f;
         }
-        offset.x = Rand_CenteredFloat(xzSpread) + this->effectPos[index].x - this->actor.world.pos.x;
-        offset.y = Rand_CenteredFloat(ySpread) + this->effectPos[index].y - this->actor.world.pos.y;
-        offset.z = Rand_CenteredFloat(xzSpread) + this->effectPos[index].z - this->actor.world.pos.z;
+        offset.x = OoT_Rand_CenteredFloat(xzSpread) + this->effectPos[index].x - this->actor.world.pos.x;
+        offset.y = OoT_Rand_CenteredFloat(ySpread) + this->effectPos[index].y - this->actor.world.pos.y;
+        offset.z = OoT_Rand_CenteredFloat(xzSpread) + this->effectPos[index].z - this->actor.world.pos.z;
         BossVa_SpawnSpark(play, sVaEffects, this, &offset, scale, mode);
     }
 }
@@ -507,14 +507,14 @@ void BossVa_Tumor(PlayState* play, BossVa* this, s32 count, s16 scale, f32 xzSpr
 
     for (i = count; i > 0; i--) {
         if (!fixed) {
-            index = Rand_ZeroOne() * (range - 0.6f);
+            index = OoT_Rand_ZeroOne() * (range - 0.6f);
         } else {
             index = range - 0.6f;
         }
 
-        offset.x = Rand_CenteredFloat(xzSpread) + this->effectPos[index].x - this->actor.world.pos.x;
-        offset.y = Rand_CenteredFloat(ySpread) + this->effectPos[index].y - this->actor.world.pos.y;
-        offset.z = Rand_CenteredFloat(xzSpread) + this->effectPos[index].z - this->actor.world.pos.z;
+        offset.x = OoT_Rand_CenteredFloat(xzSpread) + this->effectPos[index].x - this->actor.world.pos.x;
+        offset.y = OoT_Rand_CenteredFloat(ySpread) + this->effectPos[index].y - this->actor.world.pos.y;
+        offset.z = OoT_Rand_CenteredFloat(xzSpread) + this->effectPos[index].z - this->actor.world.pos.z;
         BossVa_SpawnTumor(play, sVaEffects, this, &offset, scale, mode);
     }
 }
@@ -570,16 +570,16 @@ void BossVa_KillBari(BossVa* this, PlayState* play) {
     Vec3f accel = { 0.0f, 0.0f, 0.0f };
 
     for (i = 7; i >= 0; i--) {
-        pos.x = Rand_CenteredFloat(60.0f) + this->actor.world.pos.x;
+        pos.x = OoT_Rand_CenteredFloat(60.0f) + this->actor.world.pos.x;
         pos.y =
-            Rand_CenteredFloat(50.0f) + (this->actor.world.pos.y + (this->actor.shape.yOffset * this->actor.scale.y));
-        pos.z = Rand_CenteredFloat(60.0f) + this->actor.world.pos.z;
-        velocity.y = Rand_ZeroOne() + 1.0f;
-        scale = Rand_S16Offset(80, 100);
-        if (Rand_ZeroOne() < 0.7f) {
-            EffectSsDtBubble_SpawnColorProfile(play, &pos, &velocity, &accel, scale, 25, 2, 1);
+            OoT_Rand_CenteredFloat(50.0f) + (this->actor.world.pos.y + (this->actor.shape.yOffset * this->actor.scale.y));
+        pos.z = OoT_Rand_CenteredFloat(60.0f) + this->actor.world.pos.z;
+        velocity.y = OoT_Rand_ZeroOne() + 1.0f;
+        scale = OoT_Rand_S16Offset(80, 100);
+        if (OoT_Rand_ZeroOne() < 0.7f) {
+            OoT_EffectSsDtBubble_SpawnColorProfile(play, &pos, &velocity, &accel, scale, 25, 2, 1);
         } else {
-            EffectSsDtBubble_SpawnColorProfile(play, &pos, &velocity, &accel, scale, 25, 0, 1);
+            OoT_EffectSsDtBubble_SpawnColorProfile(play, &pos, &velocity, &accel, scale, 25, 0, 1);
         }
     }
 
@@ -593,7 +593,7 @@ void BossVa_Init(Actor* thisx, PlayState* play2) {
     s32 i;
     s16 warpId;
 
-    Actor_SetScale(&this->actor, 0.1f);
+    OoT_Actor_SetScale(&this->actor, 0.1f);
     this->actor.targetMode = 5;
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
 
@@ -601,28 +601,28 @@ void BossVa_Init(Actor* thisx, PlayState* play2) {
         case BOSSVA_BODY:
             // sFightPhase = 0;
             // sBodyState = 1;
-            SkelAnime_Init(play, &this->skelAnime, &gBarinadeBodySkel, &gBarinadeBodyAnim, NULL, NULL, 0);
+            OoT_SkelAnime_Init(play, &this->skelAnime, &gBarinadeBodySkel, &gBarinadeBodyAnim, NULL, NULL, 0);
             this->actor.flags |= ACTOR_FLAG_SFX_FOR_PLAYER_BODY_HIT;
             break;
         case BOSSVA_SUPPORT_1:
         case BOSSVA_SUPPORT_2:
         case BOSSVA_SUPPORT_3:
-            SkelAnime_InitFlex(play, &this->skelAnime, &gBarinadeSupportSkel, &gBarinadeSupportAttachedAnim, NULL, NULL,
+            OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gBarinadeSupportSkel, &gBarinadeSupportAttachedAnim, NULL, NULL,
                                0);
             break;
         case BOSSVA_ZAPPER_1:
         case BOSSVA_ZAPPER_2:
         case BOSSVA_ZAPPER_3:
-            SkelAnime_InitFlex(play, &this->skelAnime, &gBarinadeZapperSkel, &gBarinadeZapperIdleAnim, NULL, NULL, 0);
+            OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gBarinadeZapperSkel, &gBarinadeZapperIdleAnim, NULL, NULL, 0);
             break;
         case BOSSVA_STUMP_1:
         case BOSSVA_STUMP_2:
         case BOSSVA_STUMP_3:
-            SkelAnime_InitFlex(play, &this->skelAnime, &gBarinadeStumpSkel, &gBarinadeStumpAnim, NULL, NULL, 0);
+            OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gBarinadeStumpSkel, &gBarinadeStumpAnim, NULL, NULL, 0);
             break;
         default:
             this->actor.flags |= ACTOR_FLAG_SFX_FOR_PLAYER_BODY_HIT;
-            SkelAnime_Init(play, &this->skelAnime, &gBarinadeBariSkel, &gBarinadeBariAnim, NULL, NULL, 0);
+            OoT_SkelAnime_Init(play, &this->skelAnime, &gBarinadeBariSkel, &gBarinadeBariAnim, NULL, NULL, 0);
             this->actor.shape.yOffset = 400.0f;
             break;
         case BOSSVA_DOOR:
@@ -635,44 +635,44 @@ void BossVa_Init(Actor* thisx, PlayState* play2) {
 
     switch (this->actor.params) {
         case BOSSVA_BODY:
-            Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_BOSS_VA, 0.0f, 80.0f, 400.0f, 0, 0, 0,
+            OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_BOSS_VA, 0.0f, 80.0f, 400.0f, 0, 0, 0,
                                BOSSVA_DOOR);
-            if (Flags_GetClear(play, play->roomCtx.curRoom.num)) {
+            if (OoT_Flags_GetClear(play, play->roomCtx.curRoom.num)) {
                 warpId = ACTOR_EN_RU1;
-                if (Flags_GetEventChkInf(EVENTCHKINF_USED_JABU_JABUS_BELLY_BLUE_WARP)) {
+                if (OoT_Flags_GetEventChkInf(EVENTCHKINF_USED_JABU_JABUS_BELLY_BLUE_WARP)) {
                     warpId = ACTOR_DOOR_WARP1;
                 }
                 if (GameInteractor_Should(VB_SPAWN_BLUE_WARP, true, this)) {
-                    Actor_Spawn(&play->actorCtx, play, warpId, this->actor.world.pos.x, this->actor.world.pos.y,
+                    OoT_Actor_Spawn(&play->actorCtx, play, warpId, this->actor.world.pos.x, this->actor.world.pos.y,
                                 this->actor.world.pos.z, 0, 0, 0, 0,
                                 true); //! params could be WARP_DUNGEON_CHILD however this can also spawn Ru1
                 }
 
                 if (GameInteractor_Should(VB_SPAWN_HEART_CONTAINER, true)) {
-                    Actor_Spawn(&play->actorCtx, play, ACTOR_ITEM_B_HEART, this->actor.world.pos.x + 160.0f,
+                    OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_ITEM_B_HEART, this->actor.world.pos.x + 160.0f,
                                 this->actor.world.pos.y, this->actor.world.pos.z, 0, 0, 0, 0, true);
                 }
                 sDoorState = 100;
-                Actor_Kill(&this->actor);
+                OoT_Actor_Kill(&this->actor);
             } else {
-                this->actor.colChkInfo.damageTable = sDamageTable;
+                this->actor.colChkInfo.damageTable = OoT_sDamageTable;
                 sPhase2Timer = 0xFFFF;
-                if (Flags_GetEventChkInf(EVENTCHKINF_BEGAN_BARINA_BATTLE)) {
+                if (OoT_Flags_GetEventChkInf(EVENTCHKINF_BEGAN_BARINA_BATTLE)) {
                     if (Randomizer_GetSettingValue(RSK_SHUFFLE_BOSS_SOULS) &&
                         !Flags_GetRandomizerInf(RAND_INF_BARINADE_SOUL)) {
                         sCsState = BOSSVA_BATTLE;
                     } else {
                         sCsState = INTRO_CALL_BARI;
                         sDoorState = 100;
-                        Player_SetCsActionWithHaltedActors(play, &this->actor, 1);
+                        OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 1);
                         play->envCtx.screenFillColor[0] = 0xDC;
                         play->envCtx.screenFillColor[1] = 0xDC;
                         play->envCtx.screenFillColor[2] = 0xBE;
                         play->envCtx.screenFillColor[3] = 0xD2;
                         func_80064520(play, &play->csCtx);
-                        sCsCamera = Play_CreateSubCamera(play);
-                        Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_WAIT);
-                        Play_ChangeCameraStatus(play, sCsCamera, CAM_STAT_ACTIVE);
+                        sCsCamera = OoT_Play_CreateSubCamera(play);
+                        OoT_Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_WAIT);
+                        OoT_Play_ChangeCameraStatus(play, sCsCamera, CAM_STAT_ACTIVE);
                         sCameraNextEye.x = sCameraEye.x = 140.0f;
                         sCameraNextEye.y = sCameraEye.y = 205.0f;
                         sCameraNextEye.z = sCameraEye.z = -20.0f;
@@ -683,7 +683,7 @@ void BossVa_Init(Actor* thisx, PlayState* play2) {
                         this->timer = 20;
 
                         for (i = BOSSVA_BARI_LOWER_5; i >= BOSSVA_BARI_UPPER_1; i--) {
-                            Actor_SpawnAsChild(
+                            OoT_Actor_SpawnAsChild(
                                 &play->actorCtx, &this->actor, play, ACTOR_BOSS_VA,
                                 sInitPosOffsets[i].x + this->actor.world.pos.x,
                                 sInitPosOffsets[i].y + this->actor.world.pos.y,
@@ -691,7 +691,7 @@ void BossVa_Init(Actor* thisx, PlayState* play2) {
                                 sInitRot[i].y + this->actor.world.rot.y, sInitRot[i].z + this->actor.world.rot.z, i);
                         }
 
-                        sCameraAtMaxVel = sCameraEyeMaxVel = sZeroVec;
+                        sCameraAtMaxVel = sCameraEyeMaxVel = OoT_sZeroVec;
                     }
 
                 } else {
@@ -700,11 +700,11 @@ void BossVa_Init(Actor* thisx, PlayState* play2) {
                 }
 
                 this->zapHeadPos.x = 1.0f;
-                Collider_InitCylinder(play, &this->colliderBody);
-                Collider_SetCylinder(play, &this->colliderBody, &this->actor, &sCylinderInit);
+                OoT_Collider_InitCylinder(play, &this->colliderBody);
+                OoT_Collider_SetCylinder(play, &this->colliderBody, &this->actor, &OoT_sCylinderInit);
 
                 for (i = BOSSVA_ZAPPER_3; i >= BOSSVA_SUPPORT_1; i--) {
-                    Actor_SpawnAsChild(
+                    OoT_Actor_SpawnAsChild(
                         &play->actorCtx, &this->actor, play, ACTOR_BOSS_VA,
                         sInitPosOffsets[i].x + this->actor.world.pos.x, sInitPosOffsets[i].y + this->actor.world.pos.y,
                         sInitPosOffsets[i].z + this->actor.world.pos.z, sInitRot[i].x + this->actor.world.rot.x,
@@ -722,8 +722,8 @@ void BossVa_Init(Actor* thisx, PlayState* play2) {
         case BOSSVA_SUPPORT_1:
         case BOSSVA_SUPPORT_2:
         case BOSSVA_SUPPORT_3:
-            Collider_InitJntSph(play, &this->colliderSph);
-            Collider_SetJntSph(play, &this->colliderSph, &this->actor, &sJntSphInitSupport, this->elements);
+            OoT_Collider_InitJntSph(play, &this->colliderSph);
+            OoT_Collider_SetJntSph(play, &this->colliderSph, &this->actor, &sJntSphInitSupport, this->elements);
             if (sCsState < BOSSVA_BATTLE) {
                 BossVa_SetupSupportIntro(this, play);
             } else {
@@ -734,8 +734,8 @@ void BossVa_Init(Actor* thisx, PlayState* play2) {
         case BOSSVA_ZAPPER_1:
         case BOSSVA_ZAPPER_2:
         case BOSSVA_ZAPPER_3:
-            Collider_InitQuad(play, &this->colliderLightning);
-            Collider_SetQuad(play, &this->colliderLightning, &this->actor, &sQuadInit);
+            OoT_Collider_InitQuad(play, &this->colliderLightning);
+            OoT_Collider_SetQuad(play, &this->colliderLightning, &this->actor, &OoT_sQuadInit);
             if (sCsState < BOSSVA_BATTLE) {
                 BossVa_SetupZapperIntro(this, play);
             } else {
@@ -751,10 +751,10 @@ void BossVa_Init(Actor* thisx, PlayState* play2) {
             BossVa_SetupDoor(this, play);
             break;
         default:
-            Collider_InitJntSph(play, &this->colliderSph);
-            Collider_SetJntSph(play, &this->colliderSph, &this->actor, &sJntSphInitBari, this->elements);
-            Collider_InitQuad(play, &this->colliderLightning);
-            Collider_SetQuad(play, &this->colliderLightning, &this->actor, &sQuadInit);
+            OoT_Collider_InitJntSph(play, &this->colliderSph);
+            OoT_Collider_SetJntSph(play, &this->colliderSph, &this->actor, &sJntSphInitBari, this->elements);
+            OoT_Collider_InitQuad(play, &this->colliderLightning);
+            OoT_Collider_SetQuad(play, &this->colliderLightning, &this->actor, &OoT_sQuadInit);
             this->unk_1D8.x = 1.0f;
             this->unk_1D8.y = 1.0f;
             if (sCsState < BOSSVA_BATTLE) {
@@ -771,15 +771,15 @@ void BossVa_Init(Actor* thisx, PlayState* play2) {
 void BossVa_Destroy(Actor* thisx, PlayState* play) {
     BossVa* this = (BossVa*)thisx;
 
-    SkelAnime_Free(&this->skelAnime, play);
-    Collider_DestroyJntSph(play, &this->colliderSph);
-    Collider_DestroyCylinder(play, &this->colliderBody);
+    OoT_SkelAnime_Free(&this->skelAnime, play);
+    OoT_Collider_DestroyJntSph(play, &this->colliderSph);
+    OoT_Collider_DestroyCylinder(play, &this->colliderBody);
 }
 
 void BossVa_SetupIntro(BossVa* this) {
-    f32 lastFrame = Animation_GetLastFrame(&gBarinadeBodyAnim);
+    f32 lastFrame = OoT_Animation_GetLastFrame(&gBarinadeBodyAnim);
 
-    Animation_Change(&this->skelAnime, &gBarinadeBodyAnim, 1.0f, lastFrame, lastFrame, ANIMMODE_ONCE, 0.0f);
+    OoT_Animation_Change(&this->skelAnime, &gBarinadeBodyAnim, 1.0f, lastFrame, lastFrame, ANIMMODE_ONCE, 0.0f);
     this->actor.shape.yOffset = -450.0f;
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
     BossVa_SetupAction(this, BossVa_BodyIntro);
@@ -790,8 +790,8 @@ void BossVa_BodyIntro(BossVa* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
     this->unk_1AC += 0xC31;
-    this->unk_1A0 = (Math_CosS(this->unk_1AC) * 0.1f) + 1.0f;
-    this->unk_1A4 = (Math_SinS(this->unk_1AC) * 0.05f) + 1.0f;
+    this->unk_1A0 = (OoT_Math_CosS(this->unk_1AC) * 0.1f) + 1.0f;
+    this->unk_1A4 = (OoT_Math_SinS(this->unk_1AC) * 0.05f) + 1.0f;
 
     switch (sCsState) {
         case INTRO_UNUSED_START:
@@ -806,17 +806,17 @@ void BossVa_BodyIntro(BossVa* this, PlayState* play) {
             play->envCtx.screenFillColor[1] = 0xDC;
             play->envCtx.screenFillColor[2] = 0xBE;
             play->envCtx.screenFillColor[3] = 0xD2;
-            Player_SetCsActionWithHaltedActors(play, &this->actor, 8);
+            OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 8);
             player->actor.world.rot.y = player->actor.shape.rot.y = 0x7FFF;
             sCsState++;
             break;
         case INTRO_LOOK_DOOR:
             func_80064520(play, &play->csCtx);
             if (sCsCamera == SUBCAM_FREE) {
-                sCsCamera = Play_CreateSubCamera(play);
+                sCsCamera = OoT_Play_CreateSubCamera(play);
             }
-            Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_WAIT);
-            Play_ChangeCameraStatus(play, sCsCamera, CAM_STAT_ACTIVE);
+            OoT_Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_WAIT);
+            OoT_Play_ChangeCameraStatus(play, sCsCamera, CAM_STAT_ACTIVE);
 
             sCameraNextEye.x = sCameraEye.x = 13.0f;
             sCameraNextEye.y = sCameraEye.y = 124.0f;
@@ -826,7 +826,7 @@ void BossVa_BodyIntro(BossVa* this, PlayState* play) {
             sCameraNextAt.y = sCameraAt.y = player->actor.world.pos.y;
             sCameraNextAt.z = sCameraAt.z = player->actor.world.pos.z;
 
-            sCameraAtMaxVel = sCameraEyeMaxVel = sZeroVec;
+            sCameraAtMaxVel = sCameraEyeMaxVel = OoT_sZeroVec;
 
             this->timer = 10;
             sCsState++;
@@ -834,7 +834,7 @@ void BossVa_BodyIntro(BossVa* this, PlayState* play) {
         case INTRO_CLOSE_DOOR:
             this->timer--;
             if (this->timer == 0) {
-                Player_SetCsActionWithHaltedActors(play, &this->actor, 2);
+                OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 2);
                 sCsState++;
                 this->timer = 30;
             }
@@ -844,21 +844,21 @@ void BossVa_BodyIntro(BossVa* this, PlayState* play) {
             if (this->timer == 0) {
                 sCsState++;
             }
-            if (Rand_ZeroOne() < 0.1f) {
+            if (OoT_Rand_ZeroOne() < 0.1f) {
                 Audio_PlayActorSound2(&this->actor, NA_SE_EN_BALINADE_BL_SPARK - SFX_FLAG);
             }
             break;
         case INTRO_CRACKLE:
-            Player_SetCsActionWithHaltedActors(play, &this->actor, 1);
+            OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 1);
             sCsState++;
             break;
         case INTRO_SPAWN_BARI:
             func_80064520(play, &play->csCtx);
             if (sCsCamera == SUBCAM_FREE) {
-                sCsCamera = Play_CreateSubCamera(play);
+                sCsCamera = OoT_Play_CreateSubCamera(play);
             }
-            Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_WAIT);
-            Play_ChangeCameraStatus(play, sCsCamera, CAM_STAT_ACTIVE);
+            OoT_Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_WAIT);
+            OoT_Play_ChangeCameraStatus(play, sCsCamera, CAM_STAT_ACTIVE);
 
             sCameraNextEye.x = sCameraEye.x = 13.0f;
             sCameraNextEye.y = sCameraEye.y = 124.0f;
@@ -868,10 +868,10 @@ void BossVa_BodyIntro(BossVa* this, PlayState* play) {
             sCameraNextAt.y = sCameraAt.y = player->actor.world.pos.y;
             sCameraNextAt.z = sCameraAt.z = player->actor.world.pos.z;
 
-            sCameraAtMaxVel = sCameraEyeMaxVel = sZeroVec;
+            sCameraAtMaxVel = sCameraEyeMaxVel = OoT_sZeroVec;
 
             for (i = BOSSVA_BARI_LOWER_5; i >= BOSSVA_BARI_UPPER_1; i--) {
-                Actor_SpawnAsChild(
+                OoT_Actor_SpawnAsChild(
                     &play->actorCtx, &this->actor, play, ACTOR_BOSS_VA, sInitPosOffsets[i].x + this->actor.world.pos.x,
                     sInitPosOffsets[i].y + this->actor.world.pos.y, sInitPosOffsets[i].z + this->actor.world.pos.z,
                     sInitRot[i].x + this->actor.world.rot.x, sInitRot[i].y + this->actor.world.rot.y,
@@ -888,7 +888,7 @@ void BossVa_BodyIntro(BossVa* this, PlayState* play) {
             sCameraNextAt.x = 63.0f;
             sCameraNextAt.y = 104.0f;
             sCameraNextAt.z = 248.0f;
-            Math_SmoothStepToF(&sCameraEyeMaxVel.x, 7.0f, 0.3f, 0.7f, 0.05f);
+            OoT_Math_SmoothStepToF(&sCameraEyeMaxVel.x, 7.0f, 0.3f, 0.7f, 0.05f);
             sCameraEyeMaxVel.z = sCameraEyeMaxVel.x;
             sCameraEyeMaxVel.y = sCameraEyeMaxVel.z;
             sCameraAtMaxVel = sCameraEyeMaxVel;
@@ -915,7 +915,7 @@ void BossVa_BodyIntro(BossVa* this, PlayState* play) {
             sCameraNextAt.x = 10.0f;
             sCameraNextAt.y = 247.0f;
             sCameraNextAt.z = -220.0f;
-            Math_SmoothStepToF(&sCameraEyeMaxVel.x, 7.0f, 0.3f, 0.7f, 0.05f);
+            OoT_Math_SmoothStepToF(&sCameraEyeMaxVel.x, 7.0f, 0.3f, 0.7f, 0.05f);
             sCameraEyeMaxVel.z = sCameraEyeMaxVel.x;
             sCameraEyeMaxVel.y = sCameraEyeMaxVel.z;
             sCameraAtMaxVel = sCameraEyeMaxVel;
@@ -933,7 +933,7 @@ void BossVa_BodyIntro(BossVa* this, PlayState* play) {
                 sCameraNextAt.y = 50.0f;
                 sCameraNextAt.z = -220.0f;
 
-                sCameraAtMaxVel = sCameraEyeMaxVel = sZeroVec;
+                sCameraAtMaxVel = sCameraEyeMaxVel = OoT_sZeroVec;
 
                 sCsState++;
                 sCsState++;
@@ -941,7 +941,7 @@ void BossVa_BodyIntro(BossVa* this, PlayState* play) {
             }
             break;
         case INTRO_CALL_BARI:
-            Math_SmoothStepToF(&sCameraEyeMaxVel.x, 14.0f, 0.3f, 1.0f, 0.25f);
+            OoT_Math_SmoothStepToF(&sCameraEyeMaxVel.x, 14.0f, 0.3f, 1.0f, 0.25f);
 
             sCameraEyeMaxVel.y = sCameraEyeMaxVel.x * 0.7f;
             sCameraEyeMaxVel.z = sCameraEyeMaxVel.x;
@@ -974,13 +974,13 @@ void BossVa_BodyIntro(BossVa* this, PlayState* play) {
                     }
                 }
             }
-            Math_SmoothStepToS(&this->unk_1F2, 0x280, 1, 0x32, 0);
-            Math_SmoothStepToF(&sCameraEyeMaxVel.x, 14.0f, 0.3f, 1.0f, 0.25f);
+            OoT_Math_SmoothStepToS(&this->unk_1F2, 0x280, 1, 0x32, 0);
+            OoT_Math_SmoothStepToF(&sCameraEyeMaxVel.x, 14.0f, 0.3f, 1.0f, 0.25f);
             sCameraEyeMaxVel.z = sCameraEyeMaxVel.x;
             sCameraAtMaxVel = sCameraEyeMaxVel;
             if (this->timer >= 45000) {
                 play->envCtx.unk_BF = 1;
-                Player_SetCsActionWithHaltedActors(play, &this->actor, 8);
+                OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 8);
             } else if (this->timer >= 35000) {
                 Audio_QueueSeqCmd(SEQ_PLAYER_BGM_MAIN << 24 | NA_BGM_BOSS);
             }
@@ -997,12 +997,12 @@ void BossVa_BodyIntro(BossVa* this, PlayState* play) {
                 sCameraNextAt.y = 140.0f;
                 sCameraNextAt.z = -200.0f;
 
-                if (!Flags_GetEventChkInf(EVENTCHKINF_BEGAN_BARINA_BATTLE)) {
-                    TitleCard_InitBossName(play, &play->actorCtx.titleCtx,
+                if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_BEGAN_BARINA_BATTLE)) {
+                    OoT_TitleCard_InitBossName(play, &play->actorCtx.titleCtx,
                                            SEGMENTED_TO_VIRTUAL(gBarinadeTitleCardENGTex), 160, 180, 128, 40, true);
                 }
 
-                if (Rand_ZeroOne() < 0.1f) {
+                if (OoT_Rand_ZeroOne() < 0.1f) {
                     Audio_PlayActorSound2(&this->actor, NA_SE_EN_BALINADE_BL_SPARK - SFX_FLAG);
                 }
 
@@ -1010,8 +1010,8 @@ void BossVa_BodyIntro(BossVa* this, PlayState* play) {
             } else {
                 sCameraEyeMaxVel.y = 1.6f;
                 sCameraNextEye.y = 5.0f;
-                sCameraNextEye.x = Math_SinS(this->timer) * 200.0f;
-                sCameraNextEye.z = (Math_CosS(this->timer) * 200.0f) + -200.0f;
+                sCameraNextEye.x = OoT_Math_SinS(this->timer) * 200.0f;
+                sCameraNextEye.z = (OoT_Math_CosS(this->timer) * 200.0f) + -200.0f;
             }
             break;
         case INTRO_TITLE:
@@ -1033,13 +1033,13 @@ void BossVa_BodyIntro(BossVa* this, PlayState* play) {
         case INTRO_FINISH:
             this->timer--;
             if (this->timer == 0) {
-                Play_ClearCamera(play, sCsCamera);
+                OoT_Play_ClearCamera(play, sCsCamera);
                 sCsCamera = 0;
                 func_80064534(play, &play->csCtx);
-                Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_ACTIVE);
-                Player_SetCsActionWithHaltedActors(play, &this->actor, 7);
+                OoT_Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_ACTIVE);
+                OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 7);
                 sCsState++;
-                Flags_SetEventChkInf(EVENTCHKINF_BEGAN_BARINA_BATTLE);
+                OoT_Flags_SetEventChkInf(EVENTCHKINF_BEGAN_BARINA_BATTLE);
                 player->actor.shape.rot.y = player->actor.world.rot.y = this->actor.yawTowardsPlayer + 0x8000;
             }
             break;
@@ -1056,22 +1056,22 @@ void BossVa_BodyIntro(BossVa* this, PlayState* play) {
     }
 
     this->unk_1B0 += 0xCE4;
-    this->bodyGlow = (s16)(Math_SinS(this->unk_1B0) * 50.0f) + 150;
+    this->bodyGlow = (s16)(OoT_Math_SinS(this->unk_1B0) * 50.0f) + 150;
     if ((sCsCamera != 0) && (sCsState <= INTRO_TITLE)) {
-        Math_SmoothStepToF(&sCameraEye.x, sCameraNextEye.x, 0.3f, sCameraEyeMaxVel.x, 0.075f);
-        Math_SmoothStepToF(&sCameraEye.y, sCameraNextEye.y, 0.3f, sCameraEyeMaxVel.y, 0.075f);
-        Math_SmoothStepToF(&sCameraEye.z, sCameraNextEye.z, 0.3f, sCameraEyeMaxVel.z, 0.075f);
-        Math_SmoothStepToF(&sCameraAt.x, sCameraNextAt.x, 0.3f, sCameraAtMaxVel.x, 0.075f);
-        Math_SmoothStepToF(&sCameraAt.y, sCameraNextAt.y, 0.3f, sCameraAtMaxVel.y, 0.075f);
-        Math_SmoothStepToF(&sCameraAt.z, sCameraNextAt.z, 0.3f, sCameraAtMaxVel.z, 0.075f);
+        OoT_Math_SmoothStepToF(&sCameraEye.x, sCameraNextEye.x, 0.3f, sCameraEyeMaxVel.x, 0.075f);
+        OoT_Math_SmoothStepToF(&sCameraEye.y, sCameraNextEye.y, 0.3f, sCameraEyeMaxVel.y, 0.075f);
+        OoT_Math_SmoothStepToF(&sCameraEye.z, sCameraNextEye.z, 0.3f, sCameraEyeMaxVel.z, 0.075f);
+        OoT_Math_SmoothStepToF(&sCameraAt.x, sCameraNextAt.x, 0.3f, sCameraAtMaxVel.x, 0.075f);
+        OoT_Math_SmoothStepToF(&sCameraAt.y, sCameraNextAt.y, 0.3f, sCameraAtMaxVel.y, 0.075f);
+        OoT_Math_SmoothStepToF(&sCameraAt.z, sCameraNextAt.z, 0.3f, sCameraAtMaxVel.z, 0.075f);
         Play_CameraSetAtEye(play, sCsCamera, &sCameraAt, &sCameraEye);
     }
 }
 
 void BossVa_SetupBodyPhase1(BossVa* this) {
-    f32 lastFrame = Animation_GetLastFrame(&gBarinadeBodyAnim);
+    f32 lastFrame = OoT_Animation_GetLastFrame(&gBarinadeBodyAnim);
 
-    Animation_Change(&this->skelAnime, &gBarinadeBodyAnim, 1.0f, lastFrame, lastFrame, ANIMMODE_ONCE, 0.0f);
+    OoT_Animation_Change(&this->skelAnime, &gBarinadeBodyAnim, 1.0f, lastFrame, lastFrame, ANIMMODE_ONCE, 0.0f);
     this->actor.shape.yOffset = -450.0f;
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
     this->timer = 25;
@@ -1083,7 +1083,7 @@ void BossVa_BodyPhase1(BossVa* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
     this->unk_1B0 += 0xCE4;
-    this->bodyGlow = (s16)(Math_SinS(this->unk_1B0) * 50.0f) + 150;
+    this->bodyGlow = (s16)(OoT_Math_SinS(this->unk_1B0) * 50.0f) + 150;
     if (this->timer != 0) {
         this->timer--;
         if (this->timer == 0) {
@@ -1100,30 +1100,30 @@ void BossVa_BodyPhase1(BossVa* this, PlayState* play) {
 
     if (sBodyState & 0x7F) {
         this->skelAnime.curFrame = 0.0f;
-        Actor_SetColorFilter(&this->actor, 0, 255, 0, 12);
+        OoT_Actor_SetColorFilter(&this->actor, 0, 255, 0, 12);
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_BALINADE_DAMAGE);
     }
 
-    if (SkelAnime_Update(&this->skelAnime) && (sFightPhase >= PHASE_2)) {
+    if (OoT_SkelAnime_Update(&this->skelAnime) && (sFightPhase >= PHASE_2)) {
         BossVa_SetupBodyPhase2(this, play);
     }
 
-    Math_SmoothStepToS(&this->actor.shape.rot.x, this->actor.world.rot.x, 1, 0xC8, 0);
-    Math_SmoothStepToS(&this->actor.shape.rot.z, this->actor.world.rot.z, 1, 0xC8, 0);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.x, this->actor.world.rot.x, 1, 0xC8, 0);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.z, this->actor.world.rot.z, 1, 0xC8, 0);
     this->unk_1AC += 0xC31;
-    this->unk_1A0 = (Math_CosS(this->unk_1AC) * 0.1f) + 1.0f;
-    this->unk_1A4 = (Math_SinS(this->unk_1AC) * 0.05f) + 1.0f;
+    this->unk_1A0 = (OoT_Math_CosS(this->unk_1AC) * 0.1f) + 1.0f;
+    this->unk_1A4 = (OoT_Math_SinS(this->unk_1AC) * 0.05f) + 1.0f;
     if ((play->gameplayFrames % 4) == 0) {
         BossVa_Spark(play, this, 1, 100, 50.0f, 10.0f, SPARK_BARI, 10.0f, false);
     }
 
-    if (Rand_ZeroOne() < 0.1f) {
+    if (OoT_Rand_ZeroOne() < 0.1f) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_BALINADE_BL_SPARK - SFX_FLAG);
     }
 
-    Collider_UpdateCylinder(&this->actor, &this->colliderBody);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliderBody.base);
-    CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderBody.base);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->colliderBody);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliderBody.base);
+    OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderBody.base);
     func_800F436C(&this->actor.projectedPos, NA_SE_EN_BALINADE_LEVEL - SFX_FLAG, 1.0f);
 }
 
@@ -1132,7 +1132,7 @@ void BossVa_SetupBodyPhase2(BossVa* this, PlayState* play) {
 
     sFightPhase++;
     for (i = BOSSVA_BARI_UPPER_5; i >= BOSSVA_BARI_UPPER_1; i--) {
-        Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_BOSS_VA,
+        OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_BOSS_VA,
                            sInitPosOffsets[i].x + this->actor.world.pos.x,
                            sInitPosOffsets[i].y + this->actor.world.pos.y,
                            sInitPosOffsets[i].z + this->actor.world.pos.z, sInitRot[i].x + this->actor.world.rot.x,
@@ -1151,7 +1151,7 @@ void BossVa_BodyPhase2(BossVa* this, PlayState* play) {
     if (this->actor.colorFilterTimer == 0) {
         sPhase2Timer++;
         if ((this->invincibilityTimer != 0) && (this->actor.colorFilterParams & 0x4000)) {
-            Actor_SetColorFilter(&this->actor, 0, 255, 0, 160);
+            OoT_Actor_SetColorFilter(&this->actor, 0, 255, 0, 160);
             this->actor.colorFilterTimer = this->invincibilityTimer;
         } else {
             this->colliderBody.info.bumper.dmgFlags = 0x10;
@@ -1163,7 +1163,7 @@ void BossVa_BodyPhase2(BossVa* this, PlayState* play) {
 
         if (this->colliderBody.base.ac->id == ACTOR_EN_BOOM) {
             sPhase2Timer &= 0xFE00;
-            Actor_SetColorFilter(&this->actor, 0, 255, 0, 160);
+            OoT_Actor_SetColorFilter(&this->actor, 0, 255, 0, 160);
             this->colliderBody.info.bumper.dmgFlags = 0xFC00712;
         } else {
             sKillBari++;
@@ -1174,7 +1174,7 @@ void BossVa_BodyPhase2(BossVa* this, PlayState* play) {
                 }
             }
 
-            Actor_SetColorFilter(&this->actor, 0x4000, 255, 0, 12);
+            OoT_Actor_SetColorFilter(&this->actor, 0x4000, 255, 0, 12);
         }
 
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_BALINADE_FAINT);
@@ -1198,13 +1198,13 @@ void BossVa_BodyPhase2(BossVa* this, PlayState* play) {
         BossVa_SpawnSparkBall(play, sVaEffects, this, &sp48, 4, 0);
     }
 
-    if (Rand_ZeroOne() < 0.1f) {
+    if (OoT_Rand_ZeroOne() < 0.1f) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_BALINADE_BL_SPARK - SFX_FLAG);
     }
 
-    Math_SmoothStepToS(&this->actor.shape.rot.x, this->actor.world.rot.x, 1, 0xC8, 0);
-    Math_SmoothStepToS(&this->actor.shape.rot.z, this->actor.world.rot.z, 1, 0xC8, 0);
-    Math_SmoothStepToF(&this->actor.shape.yOffset, -1000.0f, 1.0f, 20.0f, 0.0f);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.x, this->actor.world.rot.x, 1, 0xC8, 0);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.z, this->actor.world.rot.z, 1, 0xC8, 0);
+    OoT_Math_SmoothStepToF(&this->actor.shape.yOffset, -1000.0f, 1.0f, 20.0f, 0.0f);
     if (!(sPhase2Timer & 0x100)) {
         this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
         this->actor.speedXZ = 1.0f;
@@ -1213,13 +1213,13 @@ void BossVa_BodyPhase2(BossVa* this, PlayState* play) {
         this->actor.speedXZ = 0.0f;
     }
 
-    if (SkelAnime_Update(&this->skelAnime) && (sFightPhase >= PHASE_3)) {
+    if (OoT_SkelAnime_Update(&this->skelAnime) && (sFightPhase >= PHASE_3)) {
         BossVa_SetupBodyPhase3(this);
     }
 
     this->unk_1AC += 0xC31;
-    this->unk_1A0 = (Math_CosS(this->unk_1AC) * 0.1f) + 1.0f;
-    this->unk_1A4 = (Math_SinS(this->unk_1AC) * 0.05f) + 1.0f;
+    this->unk_1A0 = (OoT_Math_CosS(this->unk_1AC) * 0.1f) + 1.0f;
+    this->unk_1A4 = (OoT_Math_SinS(this->unk_1AC) * 0.05f) + 1.0f;
     if ((play->gameplayFrames % 4) == 0) {
         BossVa_Spark(play, this, 1, 100, 50.0f, 10.0f, SPARK_BODY, 10.0f, false);
     }
@@ -1227,14 +1227,14 @@ void BossVa_BodyPhase2(BossVa* this, PlayState* play) {
     this->actor.focus.pos = this->actor.world.pos;
     this->actor.focus.pos.y += 45.0f;
 
-    Collider_UpdateCylinder(&this->actor, &this->colliderBody);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliderBody.base);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->colliderBody);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliderBody.base);
     if (this->actor.colorFilterTimer == 0) {
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderBody.base);
+        OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderBody.base);
     }
 
     if ((this->actor.colorFilterTimer == 0) || !(this->actor.colorFilterParams & 0x4000)) {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderBody.base);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderBody.base);
     }
 
     func_800F436C(&this->actor.projectedPos, NA_SE_EN_BALINADE_LEVEL - SFX_FLAG,
@@ -1254,21 +1254,21 @@ void BossVa_BodyPhase3(BossVa* this, PlayState* play) {
     s32 i;
     s16 sp62;
 
-    sp62 = Math_Vec3f_Yaw(&this->actor.world.pos, &this->actor.home.pos);
+    sp62 = OoT_Math_Vec3f_Yaw(&this->actor.world.pos, &this->actor.home.pos);
     this->unk_1B0 += 0xCE4;
-    this->bodyGlow = (s16)(Math_SinS(this->unk_1B0) * 50.0f) + 150;
+    this->bodyGlow = (s16)(OoT_Math_SinS(this->unk_1B0) * 50.0f) + 150;
     if (this->colliderBody.base.atFlags & AT_HIT) {
         this->colliderBody.base.atFlags &= ~AT_HIT;
         if (this->colliderBody.base.at == &player->actor) {
             func_8002F71C(play, &this->actor, 8.0f, this->actor.yawTowardsPlayer, 8.0f);
-            this->actor.world.rot.y += (s16)Rand_CenteredFloat(0x2EE0) + 0x8000;
+            this->actor.world.rot.y += (s16)OoT_Rand_CenteredFloat(0x2EE0) + 0x8000;
             Audio_PlayActorSound2(&player->actor, NA_SE_PL_BODY_HIT);
         }
     }
 
     if (this->colliderBody.base.acFlags & AC_HIT) {
         this->skelAnime.curFrame = 0.0f;
-        Actor_SetColorFilter(&this->actor, 0, 255, 0, 12);
+        OoT_Actor_SetColorFilter(&this->actor, 0, 255, 0, 12);
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_BALINADE_FAINT);
         sBodyState = 1;
         this->timer = 131;
@@ -1276,11 +1276,11 @@ void BossVa_BodyPhase3(BossVa* this, PlayState* play) {
     } else {
         sBodyState = 0;
         if (this->timer == 0) {
-            if (Math_SmoothStepToS(&this->vaBodySpinRate, 0xFA0, 1, 0x12C, 0) == 0) {
+            if (OoT_Math_SmoothStepToS(&this->vaBodySpinRate, 0xFA0, 1, 0x12C, 0) == 0) {
                 if (this->actor.speedXZ == 0.0f) {
                     this->actor.world.rot.y = this->actor.yawTowardsPlayer;
                 }
-                Math_SmoothStepToF(&this->actor.speedXZ, 3.0f, 1.0f, 0.15f, 0.0f);
+                OoT_Math_SmoothStepToF(&this->actor.speedXZ, 3.0f, 1.0f, 0.15f, 0.0f);
             }
             this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
         } else {
@@ -1288,20 +1288,20 @@ void BossVa_BodyPhase3(BossVa* this, PlayState* play) {
             if (this->timer < 35) {
                 sBodyState = 0x80;
             }
-            Math_SmoothStepToS(&this->vaBodySpinRate, 0, 1, 0x12C, 0);
-            Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 0.2f, 0.0f);
-            Math_SmoothStepToF(&this->actor.shape.yOffset, -1420.0f, 1.0f, 30.0f, 0.0f);
+            OoT_Math_SmoothStepToS(&this->vaBodySpinRate, 0, 1, 0x12C, 0);
+            OoT_Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 0.2f, 0.0f);
+            OoT_Math_SmoothStepToF(&this->actor.shape.yOffset, -1420.0f, 1.0f, 30.0f, 0.0f);
         }
     }
 
-    if (Math_Vec3f_DistXZ(&this->actor.world.pos, &this->actor.home.pos) >= 400.0f) {
-        Math_SmoothStepToS(&this->actor.world.rot.y, sp62, 1, 0x3E8, 0);
+    if (OoT_Math_Vec3f_DistXZ(&this->actor.world.pos, &this->actor.home.pos) >= 400.0f) {
+        OoT_Math_SmoothStepToS(&this->actor.world.rot.y, sp62, 1, 0x3E8, 0);
     } else if (player->invincibilityTimer != 0) {
-        Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer + 0x8000, 1, 0x12C, 0);
+        OoT_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer + 0x8000, 1, 0x12C, 0);
     } else if ((play->gameplayFrames & 0x80) == 0) {
-        Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 1, 0x12C, 0);
+        OoT_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 1, 0x12C, 0);
     } else {
-        Math_SmoothStepToS(&this->actor.world.rot.y, sp62, 1, 0x258, 0);
+        OoT_Math_SmoothStepToS(&this->actor.world.rot.y, sp62, 1, 0x258, 0);
     }
 
     if (sPhase3StopMoving) {
@@ -1309,20 +1309,20 @@ void BossVa_BodyPhase3(BossVa* this, PlayState* play) {
     }
 
     Actor_MoveXZGravity(&this->actor);
-    if (SkelAnime_Update(&this->skelAnime) && (sFightPhase >= PHASE_4)) {
+    if (OoT_SkelAnime_Update(&this->skelAnime) && (sFightPhase >= PHASE_4)) {
         BossVa_SetupBodyPhase4(this, play);
     }
 
     this->actor.shape.rot.y += this->vaBodySpinRate;
     if (sFightPhase == PHASE_3) {
-        Math_SmoothStepToF(&this->actor.shape.yOffset, -450.0f, 1.0f, 15.0f, 0.0f);
+        OoT_Math_SmoothStepToF(&this->actor.shape.yOffset, -450.0f, 1.0f, 15.0f, 0.0f);
     } else {
-        Math_SmoothStepToF(&this->actor.shape.yOffset, -810.0f, 1.0f, 15.0f, 0.0f);
+        OoT_Math_SmoothStepToF(&this->actor.shape.yOffset, -810.0f, 1.0f, 15.0f, 0.0f);
     }
 
     if ((this->actor.shape.yOffset >= -500.0f) && (sFightPhase == PHASE_3)) {
         for (i = BOSSVA_BARI_LOWER_5; i >= BOSSVA_BARI_LOWER_1; i--) {
-            Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_BOSS_VA,
+            OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_BOSS_VA,
                                sInitPosOffsets[i].x + this->actor.world.pos.x,
                                sInitPosOffsets[i].y + this->actor.world.pos.y,
                                sInitPosOffsets[i].z + this->actor.world.pos.z, sInitRot[i].x + this->actor.world.rot.x,
@@ -1332,23 +1332,23 @@ void BossVa_BodyPhase3(BossVa* this, PlayState* play) {
     }
 
     this->unk_1AC += 0xC31;
-    this->unk_1A0 = (Math_CosS(this->unk_1AC) * 0.1f) + 1.0f;
-    this->unk_1A4 = (Math_SinS(this->unk_1AC) * 0.05f) + 1.0f;
+    this->unk_1A0 = (OoT_Math_CosS(this->unk_1AC) * 0.1f) + 1.0f;
+    this->unk_1A4 = (OoT_Math_SinS(this->unk_1AC) * 0.05f) + 1.0f;
     if ((play->gameplayFrames % 4) == 0) {
         BossVa_Spark(play, this, 1, 0x64, 50.0f, 10.0f, SPARK_BODY, 10.0f, false);
     }
 
     this->actor.focus.pos = this->actor.world.pos;
     this->actor.focus.pos.y += 20.0f;
-    if (Rand_ZeroOne() < 0.1f) {
+    if (OoT_Rand_ZeroOne() < 0.1f) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_BALINADE_BL_SPARK - SFX_FLAG);
     }
 
-    Collider_UpdateCylinder(&this->actor, &this->colliderBody);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliderBody.base);
-    CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderBody.base);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->colliderBody);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliderBody.base);
+    OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderBody.base);
     if (this->timer == 0) {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderBody.base);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderBody.base);
     }
 
     func_800F436C(&this->actor.projectedPos, NA_SE_EN_BALINADE_LEVEL - SFX_FLAG,
@@ -1360,7 +1360,7 @@ void BossVa_SetupBodyPhase4(BossVa* this, PlayState* play) {
     this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
     this->vaBodySpinRate = this->unk_1AC;
     this->actor.world.rot.y = this->actor.yawTowardsPlayer;
-    this->timer2 = (s16)(Rand_ZeroOne() * 150.0f) + 300;
+    this->timer2 = (s16)(OoT_Rand_ZeroOne() * 150.0f) + 300;
     sBodyState = 1;
     sPhase4HP = 4;
     if (this->actor.shape.yOffset != 0.0f) {
@@ -1377,16 +1377,16 @@ void BossVa_BodyPhase4(BossVa* this, PlayState* play) {
     EnBoom* boomerang;
 
     this->unk_1B0 = (this->unk_1B0 + (s16)((sFightPhase - PHASE_4 + 1) * 1000.0f)) + 0xCE4;
-    this->bodyGlow = (s16)(Math_SinS(this->unk_1B0) * 50.0f) + 150;
+    this->bodyGlow = (s16)(OoT_Math_SinS(this->unk_1B0) * 50.0f) + 150;
     if (this->colliderBody.base.atFlags & AT_HIT) {
         this->colliderBody.base.atFlags &= ~AT_HIT;
         if (this->colliderBody.base.at == &player->actor) {
             func_8002F71C(play, &this->actor, 8.0f, this->actor.yawTowardsPlayer, 8.0f);
-            this->actor.world.rot.y += (s16)Rand_CenteredFloat(0x2EE0) + 0x8000;
+            this->actor.world.rot.y += (s16)OoT_Rand_CenteredFloat(0x2EE0) + 0x8000;
             Audio_PlayActorSound2(&player->actor, NA_SE_PL_BODY_HIT);
         }
     }
-    if (Rand_ZeroOne() < 0.1f) {
+    if (OoT_Rand_ZeroOne() < 0.1f) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_BALINADE_BL_SPARK - SFX_FLAG);
     }
 
@@ -1399,7 +1399,7 @@ void BossVa_BodyPhase4(BossVa* this, PlayState* play) {
                 if (this->actor.colChkInfo.damageEffect != 1) {
                     this->actor.world.rot.y = this->actor.yawTowardsPlayer;
                     Audio_PlayActorSound2(&this->actor, NA_SE_EN_BALINADE_DAMAGE);
-                    Actor_SetColorFilter(&this->actor, 0x4000, 255, 0, 12);
+                    OoT_Actor_SetColorFilter(&this->actor, 0x4000, 255, 0, 12);
                     sPhase4HP -= this->actor.colChkInfo.damage;
                     if (sPhase4HP <= 0) {
                         this->timer = 0;
@@ -1407,18 +1407,18 @@ void BossVa_BodyPhase4(BossVa* this, PlayState* play) {
                         sPhase4HP += 3;
                         if (sFightPhase >= PHASE_DEATH) {
                             BossVa_SetupBodyDeath(this, play);
-                            Enemy_StartFinishingBlow(play, &this->actor);
+                            OoT_Enemy_StartFinishingBlow(play, &this->actor);
                             GameInteractor_ExecuteOnBossDefeat(&this->actor);
                             return;
                         }
                         this->actor.speedXZ = -10.0f;
-                        this->timer = -170 - (s16)(Rand_ZeroOne() * 150.0f);
+                        this->timer = -170 - (s16)(OoT_Rand_ZeroOne() * 150.0f);
                     }
                 } else {
-                    this->timer = (s16)Rand_CenteredFloat(40.0f) + 160;
+                    this->timer = (s16)OoT_Rand_CenteredFloat(40.0f) + 160;
                     this->vaBodySpinRate = 0;
                     this->actor.speedXZ = 0.0f;
-                    Actor_SetColorFilter(&this->actor, 0, 125, 0, 255);
+                    OoT_Actor_SetColorFilter(&this->actor, 0, 125, 0, 255);
                     Audio_PlayActorSound2(&this->actor, NA_SE_EN_BALINADE_FAINT);
                 }
             }
@@ -1430,31 +1430,31 @@ void BossVa_BodyPhase4(BossVa* this, PlayState* play) {
             Audio_PlayActorSound2(&this->actor, NA_SE_IT_SHIELD_REFLECT_SW);
         }
     } else if ((this->timer2 == 0) && (this->actor.shape.yOffset == 0.0f)) {
-        this->timer = -220 - (s16)(Rand_ZeroOne() * 200.0f);
+        this->timer = -220 - (s16)(OoT_Rand_ZeroOne() * 200.0f);
     } else if (this->timer2 != 0) {
         this->timer2--;
     }
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if (this->timer == 0) {
-        Math_SmoothStepToF(&this->actor.shape.yOffset, 0.0f, 1.0f, ((sFightPhase - PHASE_4 + 1) * 5.0f) + 10.0f, 0.0f);
-        if (Math_SmoothStepToS(&this->vaBodySpinRate, (s16)((sFightPhase - PHASE_4 + 1) * 500.0f) + 0xFA0, 1, 0x12C,
+        OoT_Math_SmoothStepToF(&this->actor.shape.yOffset, 0.0f, 1.0f, ((sFightPhase - PHASE_4 + 1) * 5.0f) + 10.0f, 0.0f);
+        if (OoT_Math_SmoothStepToS(&this->vaBodySpinRate, (s16)((sFightPhase - PHASE_4 + 1) * 500.0f) + 0xFA0, 1, 0x12C,
                                0) == 0) {
             if (this->actor.speedXZ == 0.0f) {
                 this->actor.colorFilterTimer = 0;
                 this->actor.world.rot.y = this->actor.yawTowardsPlayer;
-                this->timer2 = (s16)(Rand_ZeroOne() * 150.0f) + 300;
+                this->timer2 = (s16)(OoT_Rand_ZeroOne() * 150.0f) + 300;
             }
-            Math_SmoothStepToF(&this->actor.speedXZ, ((sFightPhase - PHASE_4 + 1) * 1.5f) + 4.0f, 1.0f, 0.25f, 0.0f);
+            OoT_Math_SmoothStepToF(&this->actor.speedXZ, ((sFightPhase - PHASE_4 + 1) * 1.5f) + 4.0f, 1.0f, 0.25f, 0.0f);
         }
         this->colliderBody.info.bumper.dmgFlags = 0x10;
     } else {
-        Math_SmoothStepToS(&this->vaBodySpinRate, 0, 1, 0x96, 0);
+        OoT_Math_SmoothStepToS(&this->vaBodySpinRate, 0, 1, 0x96, 0);
         if (this->timer > 0) {
             if ((player->stateFlags1 & PLAYER_STATE1_DAMAGED) && (this->timer > 35)) {
                 this->timer = 35;
             }
-            Math_SmoothStepToF(&this->actor.shape.yOffset, -480.0f, 1.0f, 30.0f, 0.0f);
+            OoT_Math_SmoothStepToF(&this->actor.shape.yOffset, -480.0f, 1.0f, 30.0f, 0.0f);
             this->colliderBody.info.bumper.dmgFlags = 0xFC00712;
             this->timer--;
         } else {
@@ -1466,18 +1466,18 @@ void BossVa_BodyPhase4(BossVa* this, PlayState* play) {
             }
             if (this->timer < -30) {
                 if (this->actor.speedXZ > 0.0f) {
-                    Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 0.5f, 0.0f);
+                    OoT_Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 0.5f, 0.0f);
                 }
-                Math_SmoothStepToF(&this->actor.shape.yOffset, -1400.0f, 1.0f, 60.0f, 0.0f);
+                OoT_Math_SmoothStepToF(&this->actor.shape.yOffset, -1400.0f, 1.0f, 60.0f, 0.0f);
             } else {
                 if (this->actor.speedXZ == 0.0f) {
                     this->actor.world.rot.y = this->actor.yawTowardsPlayer + 0x8000;
-                    this->timer2 = (s16)(Rand_ZeroOne() * 150.0f) + 330;
+                    this->timer2 = (s16)(OoT_Rand_ZeroOne() * 150.0f) + 330;
                 }
-                Math_SmoothStepToS(&this->vaBodySpinRate, 0xFA0, 1, 0x1F4, 0);
+                OoT_Math_SmoothStepToS(&this->vaBodySpinRate, 0xFA0, 1, 0x1F4, 0);
                 tmpf1 = sFightPhase - PHASE_4 + 1;
-                Math_SmoothStepToF(&this->actor.speedXZ, (tmpf1 + tmpf1) + 4.0f, 1.0f, 0.25f, 0.0f);
-                Math_SmoothStepToF(&this->actor.shape.yOffset, 0.0f, 1.0f, 20.0f, 0.0f);
+                OoT_Math_SmoothStepToF(&this->actor.speedXZ, (tmpf1 + tmpf1) + 4.0f, 1.0f, 0.25f, 0.0f);
+                OoT_Math_SmoothStepToF(&this->actor.shape.yOffset, 0.0f, 1.0f, 20.0f, 0.0f);
             }
             this->timer++;
         }
@@ -1485,25 +1485,25 @@ void BossVa_BodyPhase4(BossVa* this, PlayState* play) {
 
     this->actor.shape.rot.y += this->vaBodySpinRate;
     if (this->actor.speedXZ < 0.0f) {
-        Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 0.5f, 0.0f);
+        OoT_Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 0.5f, 0.0f);
     }
 
     this->unk_1AC += 0xC31;
-    this->unk_1A0 = (Math_CosS(this->unk_1AC) * 0.1f) + 1.0f;
-    this->unk_1A4 = (Math_SinS(this->unk_1AC) * 0.05f) + 1.0f;
+    this->unk_1A0 = (OoT_Math_CosS(this->unk_1AC) * 0.1f) + 1.0f;
+    this->unk_1A4 = (OoT_Math_SinS(this->unk_1AC) * 0.05f) + 1.0f;
     if (this->actor.bgCheckFlags & 8) {
         this->actor.bgCheckFlags &= ~8;
-        this->actor.world.rot.y = (s16)Rand_CenteredFloat(30 * (0x10000 / 360)) + this->actor.wallYaw;
+        this->actor.world.rot.y = (s16)OoT_Rand_CenteredFloat(30 * (0x10000 / 360)) + this->actor.wallYaw;
     }
 
     if (sFightPhase <= PHASE_4) {
-        if (Math_Vec3f_DistXZ(&this->actor.world.pos, &this->actor.home.pos) >= 400.0f) {
-            Math_SmoothStepToS(&this->actor.world.rot.y, Math_Vec3f_Yaw(&this->actor.world.pos, &this->actor.home.pos),
+        if (OoT_Math_Vec3f_DistXZ(&this->actor.world.pos, &this->actor.home.pos) >= 400.0f) {
+            OoT_Math_SmoothStepToS(&this->actor.world.rot.y, OoT_Math_Vec3f_Yaw(&this->actor.world.pos, &this->actor.home.pos),
                                1, 0x5DC, 0);
         } else if (player->invincibilityTimer != 0) {
-            Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer + 0x8000, 1, 0x12C, 0);
+            OoT_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer + 0x8000, 1, 0x12C, 0);
         } else if ((play->gameplayFrames & 0x80) == 0) {
-            Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 1,
+            OoT_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 1,
                                (s16)((sFightPhase - PHASE_4 + 1) * 100.0f) + 0x64, 0);
         }
     }
@@ -1516,14 +1516,14 @@ void BossVa_BodyPhase4(BossVa* this, PlayState* play) {
         BossVa_Spark(play, this, 1, 100, 15.0f, 10.0f, SPARK_BARI, 11.0f, true);
     }
 
-    Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 70.0f, 0.0f, 1);
-    Collider_UpdateCylinder(&this->actor, &this->colliderBody);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliderBody.base);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 70.0f, 0.0f, 1);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->colliderBody);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->colliderBody.base);
     if (this->invincibilityTimer == 0) {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderBody.base);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderBody.base);
     }
     if ((this->vaBodySpinRate > 0x3E8) || (this->actor.shape.yOffset < -1200.0f)) {
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderBody.base);
+        OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderBody.base);
     }
     func_800F436C(&this->actor.projectedPos, NA_SE_EN_BALINADE_LEVEL - SFX_FLAG,
                   (this->vaBodySpinRate * 0.00025f) + 1.0f);
@@ -1543,24 +1543,24 @@ void BossVa_SetupBodyDeath(BossVa* this, PlayState* play) {
     sCsState = DEATH_START;
     this->actor.speedXZ = 0.0f;
     this->unk_1A8 = 0.0f;
-    Flags_SetClear(play, play->roomCtx.curRoom.num);
+    OoT_Flags_SetClear(play, play->roomCtx.curRoom.num);
     BossVa_SetupAction(this, BossVa_BodyDeath);
 }
 
 void BossVa_BodyDeath(BossVa* this, PlayState* play) {
     s32 i;
-    Camera* camera = Play_GetCamera(play, 0);
+    Camera* camera = OoT_Play_GetCamera(play, 0);
     s32 sp7C;
     Player* player = GET_PLAYER(play);
     s16 tmp16;
 
     switch (sCsState) {
         case DEATH_START:
-            Player_SetCsActionWithHaltedActors(play, &this->actor, 1);
+            OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 1);
             func_80064520(play, &play->csCtx);
-            sCsCamera = Play_CreateSubCamera(play);
-            Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_WAIT);
-            Play_ChangeCameraStatus(play, sCsCamera, CAM_STAT_ACTIVE);
+            sCsCamera = OoT_Play_CreateSubCamera(play);
+            OoT_Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_WAIT);
+            OoT_Play_ChangeCameraStatus(play, sCsCamera, CAM_STAT_ACTIVE);
 
             sCameraNextAt.x = this->actor.world.pos.x;
             sCameraNextAt.y = this->actor.world.pos.y;
@@ -1573,9 +1573,9 @@ void BossVa_BodyDeath(BossVa* this, PlayState* play) {
             sCameraNextEye.y = 40.0f;
             sCameraNextAt.y = 140.0f;
 
-            sCameraAtMaxVel = sCameraEyeMaxVel = sZeroVec;
+            sCameraAtMaxVel = sCameraEyeMaxVel = OoT_sZeroVec;
 
-            this->unk_1AC = Math_Vec3f_Yaw(&sCameraEye, &sCameraNextAt) - 0x100;
+            this->unk_1AC = OoT_Math_Vec3f_Yaw(&sCameraEye, &sCameraNextAt) - 0x100;
             this->unk_1B0 = 15;
             play->envCtx.screenFillColor[0] = play->envCtx.screenFillColor[1] = play->envCtx.screenFillColor[2] = 0xFF;
             play->envCtx.screenFillColor[3] = 0;
@@ -1583,13 +1583,13 @@ void BossVa_BodyDeath(BossVa* this, PlayState* play) {
             sCsState++;
         case DEATH_BODY_TUMORS:
             this->unk_1AC += 0x100;
-            sCameraNextEye.x = (Math_SinS(this->unk_1AC) * (160.0f + this->unk_1A8)) + sCameraNextAt.x;
-            sCameraNextEye.z = (Math_CosS(this->unk_1AC) * (160.0f + this->unk_1A8)) + sCameraNextAt.z;
-            Math_SmoothStepToF(&sCameraEyeMaxVel.x, 16.0f, 0.4f, 1.5f, 0.5f);
+            sCameraNextEye.x = (OoT_Math_SinS(this->unk_1AC) * (160.0f + this->unk_1A8)) + sCameraNextAt.x;
+            sCameraNextEye.z = (OoT_Math_CosS(this->unk_1AC) * (160.0f + this->unk_1A8)) + sCameraNextAt.z;
+            OoT_Math_SmoothStepToF(&sCameraEyeMaxVel.x, 16.0f, 0.4f, 1.5f, 0.5f);
             sCameraEyeMaxVel.z = sCameraEyeMaxVel.x;
             sCameraEyeMaxVel.y = sCameraEyeMaxVel.x * 0.5f;
             sCameraAtMaxVel = sCameraEyeMaxVel;
-            tmp16 = Rand_CenteredFloat(0.5f) + ((sCameraEyeMaxVel.x * 0.5f) + 0.6f);
+            tmp16 = OoT_Rand_CenteredFloat(0.5f) + ((sCameraEyeMaxVel.x * 0.5f) + 0.6f);
             if (((play->gameplayFrames % 4) == 0) && (this->unk_1B0 != 0)) {
                 for (i = 6; i > 1; i--) {
                     BossVa_Tumor(play, this, 1, tmp16, 0.0f, 0.0f, TUMOR_BODY, i, true);
@@ -1602,13 +1602,13 @@ void BossVa_BodyDeath(BossVa* this, PlayState* play) {
             if (this->unk_1B0 == 0) {
                 sCsState++;
 
-                sCameraAtMaxVel = sCameraEyeMaxVel = sZeroVec;
+                sCameraAtMaxVel = sCameraEyeMaxVel = OoT_sZeroVec;
             }
             break;
         case DEATH_CORE_DEAD:
             this->unk_1AC += 0x1862;
-            this->unk_1A0 = (Math_CosS(this->unk_1AC) * 0.12f) + 1.0f;
-            this->unk_1A4 = (Math_SinS(this->unk_1AC) * 0.075f) + 1.0f;
+            this->unk_1A0 = (OoT_Math_CosS(this->unk_1AC) * 0.12f) + 1.0f;
+            this->unk_1A4 = (OoT_Math_SinS(this->unk_1AC) * 0.075f) + 1.0f;
             if (!this->isDead) {
                 this->burst++;
                 this->isDead++;
@@ -1617,7 +1617,7 @@ void BossVa_BodyDeath(BossVa* this, PlayState* play) {
                 EffectSsDeadSound_SpawnStationary(play, &this->actor.projectedPos, NA_SE_EN_BALINADE_DEAD, 1, 1, 0x28);
                 this->onCeiling = 2; // Not used by body
                 BossVa_SetDeathEnv(play);
-                Player_SetCsActionWithHaltedActors(play, &this->actor, 8);
+                OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 8);
             }
             break;
         case DEATH_CORE_BURST:
@@ -1631,89 +1631,89 @@ void BossVa_BodyDeath(BossVa* this, PlayState* play) {
                 sCameraNextAt.y = this->actor.world.pos.y + 30.0f;
                 sCameraNextAt.z = this->actor.world.pos.z;
 
-                sCameraNextEye.x = (Math_SinS(player->actor.shape.rot.y) * -130.0f) + player->actor.world.pos.x;
-                sCameraNextEye.z = (Math_CosS(player->actor.shape.rot.y) * -130.0f) + player->actor.world.pos.z;
+                sCameraNextEye.x = (OoT_Math_SinS(player->actor.shape.rot.y) * -130.0f) + player->actor.world.pos.x;
+                sCameraNextEye.z = (OoT_Math_CosS(player->actor.shape.rot.y) * -130.0f) + player->actor.world.pos.z;
                 sCameraNextEye.y = player->actor.world.pos.y + 55.0f;
 
-                sCameraAtMaxVel = sCameraEyeMaxVel = sZeroVec;
+                sCameraAtMaxVel = sCameraEyeMaxVel = OoT_sZeroVec;
 
                 sCsState++;
                 this->timer = 133;
             }
             break;
         case DEATH_MUSIC:
-            Math_SmoothStepToF(&sCameraEyeMaxVel.x, 1.5f, 0.3f, 0.05f, 0.015f);
+            OoT_Math_SmoothStepToF(&sCameraEyeMaxVel.x, 1.5f, 0.3f, 0.05f, 0.015f);
             sCameraEyeMaxVel.z = sCameraEyeMaxVel.x;
             sCameraEyeMaxVel.y = sCameraEyeMaxVel.z;
             sCameraAtMaxVel = sCameraEyeMaxVel;
 
             this->timer--;
             if (this->timer == 0) {
-                Play_ClearCamera(play, sCsCamera);
+                OoT_Play_ClearCamera(play, sCsCamera);
                 sCsCamera = 0;
                 func_80064534(play, &play->csCtx);
-                Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_ACTIVE);
+                OoT_Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_ACTIVE);
 
                 camera->eyeNext = camera->eye = sCameraEye;
 
                 camera->at = sCameraAt;
 
-                Player_SetCsActionWithHaltedActors(play, &this->actor, 7);
+                OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 7);
                 sCsState++;
 
                 if (GameInteractor_Should(VB_SPAWN_HEART_CONTAINER, true)) {
-                    Actor_Spawn(&play->actorCtx, play, ACTOR_ITEM_B_HEART, this->actor.world.pos.x,
+                    OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_ITEM_B_HEART, this->actor.world.pos.x,
                                 this->actor.world.pos.y, this->actor.world.pos.z, 0, 0, 0, 0, true);
                 }
 
                 for (i = 2, sp7C = 2; i > 0; i--) {
-                    if (Math_Vec3f_DistXYZ(&sWarpPos[i], &player->actor.world.pos) <
-                        Math_Vec3f_DistXYZ(&sWarpPos[i - 1], &player->actor.world.pos)) {
+                    if (OoT_Math_Vec3f_DistXYZ(&sWarpPos[i], &player->actor.world.pos) <
+                        OoT_Math_Vec3f_DistXYZ(&sWarpPos[i - 1], &player->actor.world.pos)) {
                         sp7C = i - 1;
                     }
                 }
 
                 if (GameInteractor_Should(VB_SPAWN_BLUE_WARP, true, this)) {
-                    Actor_Spawn(&play->actorCtx, play, ACTOR_EN_RU1, sWarpPos[sp7C].x, sWarpPos[sp7C].y,
+                    OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_RU1, sWarpPos[sp7C].x, sWarpPos[sp7C].y,
                                 sWarpPos[sp7C].z, 0, 0, 0, 0, true);
                 }
             }
         case DEATH_FINISH:
-            Rand_CenteredFloat(0.5f);
+            OoT_Rand_CenteredFloat(0.5f);
             play->envCtx.fillScreen = false;
             break;
     }
 
     if (sCsCamera != 0) {
-        Math_SmoothStepToF(&sCameraEye.x, sCameraNextEye.x, 0.3f, sCameraEyeMaxVel.x, 0.15f);
-        Math_SmoothStepToF(&sCameraEye.y, sCameraNextEye.y, 0.3f, sCameraEyeMaxVel.y, 0.15f);
-        Math_SmoothStepToF(&sCameraEye.z, sCameraNextEye.z, 0.3f, sCameraEyeMaxVel.z, 0.15f);
-        Math_SmoothStepToF(&sCameraAt.x, sCameraNextAt.x, 0.3f, sCameraAtMaxVel.x, 0.15f);
-        Math_SmoothStepToF(&sCameraAt.y, sCameraNextAt.y, 0.3f, sCameraAtMaxVel.y, 0.15f);
-        Math_SmoothStepToF(&sCameraAt.z, sCameraNextAt.z, 0.3f, sCameraAtMaxVel.z, 0.15f);
+        OoT_Math_SmoothStepToF(&sCameraEye.x, sCameraNextEye.x, 0.3f, sCameraEyeMaxVel.x, 0.15f);
+        OoT_Math_SmoothStepToF(&sCameraEye.y, sCameraNextEye.y, 0.3f, sCameraEyeMaxVel.y, 0.15f);
+        OoT_Math_SmoothStepToF(&sCameraEye.z, sCameraNextEye.z, 0.3f, sCameraEyeMaxVel.z, 0.15f);
+        OoT_Math_SmoothStepToF(&sCameraAt.x, sCameraNextAt.x, 0.3f, sCameraAtMaxVel.x, 0.15f);
+        OoT_Math_SmoothStepToF(&sCameraAt.y, sCameraNextAt.y, 0.3f, sCameraAtMaxVel.y, 0.15f);
+        OoT_Math_SmoothStepToF(&sCameraAt.z, sCameraNextAt.z, 0.3f, sCameraAtMaxVel.z, 0.15f);
         Play_CameraSetAtEye(play, sCsCamera, &sCameraAt, &sCameraEye);
     }
 
-    SkelAnime_Update(&this->skelAnime);
-    Math_SmoothStepToF(&this->actor.shape.yOffset, -480.0f, 1.0f, 30.0f, 0.0f);
-    Math_SmoothStepToS(&this->vaBodySpinRate, 0, 1, 0xC8, 0);
-    Math_SmoothStepToS(&this->vaCamRotMod, 0, 1, 0xC8, 0);
-    Math_SmoothStepToS(&this->bodyGlow, 200, 1, 10, 0);
+    OoT_SkelAnime_Update(&this->skelAnime);
+    OoT_Math_SmoothStepToF(&this->actor.shape.yOffset, -480.0f, 1.0f, 30.0f, 0.0f);
+    OoT_Math_SmoothStepToS(&this->vaBodySpinRate, 0, 1, 0xC8, 0);
+    OoT_Math_SmoothStepToS(&this->vaCamRotMod, 0, 1, 0xC8, 0);
+    OoT_Math_SmoothStepToS(&this->bodyGlow, 200, 1, 10, 0);
     if (play->envCtx.screenFillColor[3] != 0) {
         play->envCtx.screenFillColor[3] -= 50;
     }
 
-    Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 0.5f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 0.5f, 0.0f);
     this->actor.shape.rot.y += this->vaBodySpinRate;
     this->unk_1AC += this->vaCamRotMod;
 
-    this->unk_1A0 = (Math_CosS(this->unk_1AC) * 0.1f) + 1.0f;
-    this->unk_1A4 = (Math_SinS(this->unk_1AC) * 0.05f) + 1.0f;
+    this->unk_1A0 = (OoT_Math_CosS(this->unk_1AC) * 0.1f) + 1.0f;
+    this->unk_1A4 = (OoT_Math_SinS(this->unk_1AC) * 0.05f) + 1.0f;
 }
 
 void BossVa_SetupSupportIntro(BossVa* this, PlayState* play) {
-    Animation_Change(&this->skelAnime, &gBarinadeSupportAttachedAnim, 0.0f, 0.0f,
-                     Animation_GetLastFrame(&gBarinadeSupportAttachedAnim), ANIMMODE_LOOP_INTERP, 0.0f);
+    OoT_Animation_Change(&this->skelAnime, &gBarinadeSupportAttachedAnim, 0.0f, 0.0f,
+                     OoT_Animation_GetLastFrame(&gBarinadeSupportAttachedAnim), ANIMMODE_LOOP_INTERP, 0.0f);
     this->timer = 0;
     BossVa_SetupAction(this, BossVa_SupportIntro);
 }
@@ -1728,17 +1728,17 @@ void BossVa_SupportIntro(BossVa* this, PlayState* play) {
             BossVa_Spark(play, this, 2, 90, 5.0f, 0.0f, SPARK_BODY, ((this->timer & 0x20) >> 5) + 1, true);
         }
 
-        SkelAnime_Update(&this->skelAnime);
-        Math_SmoothStepToF(&this->skelAnime.playSpeed, 1.0f, 1.0f, 0.05f, 0.0f);
-        if (Rand_ZeroOne() < 0.1f) {
+        OoT_SkelAnime_Update(&this->skelAnime);
+        OoT_Math_SmoothStepToF(&this->skelAnime.playSpeed, 1.0f, 1.0f, 0.05f, 0.0f);
+        if (OoT_Rand_ZeroOne() < 0.1f) {
             Audio_PlayActorSound2(&this->actor, NA_SE_EN_BALINADE_BL_SPARK - SFX_FLAG);
         }
     }
 }
 
 void BossVa_SetupSupportAttached(BossVa* this, PlayState* play) {
-    Animation_Change(&this->skelAnime, &gBarinadeSupportAttachedAnim, 1.0f, 0.0f,
-                     Animation_GetLastFrame(&gBarinadeSupportAttachedAnim), ANIMMODE_LOOP, 0.0f);
+    OoT_Animation_Change(&this->skelAnime, &gBarinadeSupportAttachedAnim, 1.0f, 0.0f,
+                     OoT_Animation_GetLastFrame(&gBarinadeSupportAttachedAnim), ANIMMODE_LOOP, 0.0f);
     this->timer = this->actor.params * 10;
     BossVa_SetupAction(this, BossVa_SupportAttached);
 }
@@ -1746,23 +1746,23 @@ void BossVa_SetupSupportAttached(BossVa* this, PlayState* play) {
 void BossVa_SupportAttached(BossVa* this, PlayState* play) {
     this->timer++;
     if (sBodyState & 0x7F) {
-        Actor_SetColorFilter(&this->actor, 0, 255, 0, 12);
-        if (Rand_ZeroOne() > 0.5f) {
-            Animation_Change(&this->skelAnime, &gBarinadeSupportDamage1Anim, 1.0f, 0.0f,
-                             Animation_GetLastFrame(&gBarinadeSupportDamage1Anim), ANIMMODE_ONCE, 0.0f);
+        OoT_Actor_SetColorFilter(&this->actor, 0, 255, 0, 12);
+        if (OoT_Rand_ZeroOne() > 0.5f) {
+            OoT_Animation_Change(&this->skelAnime, &gBarinadeSupportDamage1Anim, 1.0f, 0.0f,
+                             OoT_Animation_GetLastFrame(&gBarinadeSupportDamage1Anim), ANIMMODE_ONCE, 0.0f);
         } else {
-            Animation_Change(&this->skelAnime, &gBarinadeSupportDamage2Anim, 1.0f, 0.0f,
-                             Animation_GetLastFrame(&gBarinadeSupportDamage2Anim), ANIMMODE_ONCE, 0.0f);
+            OoT_Animation_Change(&this->skelAnime, &gBarinadeSupportDamage2Anim, 1.0f, 0.0f,
+                             OoT_Animation_GetLastFrame(&gBarinadeSupportDamage2Anim), ANIMMODE_ONCE, 0.0f);
         }
     }
 
-    if (SkelAnime_Update(&this->skelAnime)) {
-        Animation_Change(&this->skelAnime, &gBarinadeSupportAttachedAnim, 1.0f, 0.0f,
-                         Animation_GetLastFrame(&gBarinadeSupportAttachedAnim), ANIMMODE_LOOP, 0.0f);
+    if (OoT_SkelAnime_Update(&this->skelAnime)) {
+        OoT_Animation_Change(&this->skelAnime, &gBarinadeSupportAttachedAnim, 1.0f, 0.0f,
+                         OoT_Animation_GetLastFrame(&gBarinadeSupportAttachedAnim), ANIMMODE_LOOP, 0.0f);
     }
 
     BossVa_AttachToBody(this);
-    if (Rand_ZeroOne() < 0.1f) {
+    if (OoT_Rand_ZeroOne() < 0.1f) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_BALINADE_BL_SPARK - SFX_FLAG);
     }
 
@@ -1770,7 +1770,7 @@ void BossVa_SupportAttached(BossVa* this, PlayState* play) {
         BossVa_SetupSupportCut(this, play);
     } else {
         if (this->actor.colorFilterTimer == 0) {
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderSph.base);
+            OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderSph.base);
         }
 
         if ((this->timer % 2) == 0) {
@@ -1784,9 +1784,9 @@ void BossVa_SetupSupportCut(BossVa* this, PlayState* play) {
 
     sBodyState++;
     sFightPhase++;
-    Actor_Spawn(&play->actorCtx, play, ACTOR_BOSS_VA, this->armTip.x, this->armTip.y + 20.0f, this->armTip.z, 0,
+    OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_BOSS_VA, this->armTip.x, this->armTip.y + 20.0f, this->armTip.z, 0,
                 this->actor.shape.rot.y, 0, stumpParams, true);
-    Camera_AddQuake(&play->mainCamera, 2, 11, 8);
+    OoT_Camera_AddQuake(&play->mainCamera, 2, 11, 8);
     this->burst = false;
     this->timer2 = 0;
     BossVa_SetupAction(this, BossVa_SupportCut);
@@ -1799,12 +1799,12 @@ void BossVa_SupportCut(BossVa* this, PlayState* play) {
     BossVa_AttachToBody(this);
 
     if (this->onCeiling) {
-        lastFrame = Animation_GetLastFrame(&gBarinadeSupportCutAnim);
+        lastFrame = OoT_Animation_GetLastFrame(&gBarinadeSupportCutAnim);
         this->onCeiling = false;
-        this->timer = (s32)(Rand_ZeroOne() * 10.0f) + 5;
-        SkelAnime_Free(&this->skelAnime, play);
-        SkelAnime_InitFlex(play, &this->skelAnime, &gBarinadeCutSupportSkel, &gBarinadeSupportCutAnim, NULL, NULL, 0);
-        Animation_Change(&this->skelAnime, &gBarinadeSupportCutAnim, 1.0f, 0.0f, lastFrame, ANIMMODE_ONCE, 0.0f);
+        this->timer = (s32)(OoT_Rand_ZeroOne() * 10.0f) + 5;
+        OoT_SkelAnime_Free(&this->skelAnime, play);
+        OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gBarinadeCutSupportSkel, &gBarinadeSupportCutAnim, NULL, NULL, 0);
+        OoT_Animation_Change(&this->skelAnime, &gBarinadeSupportCutAnim, 1.0f, 0.0f, lastFrame, ANIMMODE_ONCE, 0.0f);
         sBodyState = 0;
         GET_BODY(this)->actor.shape.yOffset -= 60.0f;
 
@@ -1823,29 +1823,29 @@ void BossVa_SupportCut(BossVa* this, PlayState* play) {
         }
     }
 
-    Math_SmoothStepToS(&this->headRot.x, vaBody->vaBodySpinRate * -3, 1, 0x4B0, 0);
-    if (SkelAnime_Update(&this->skelAnime)) {
-        lastFrame = Animation_GetLastFrame(&gBarinadeSupportDetachedAnim);
-        Animation_Change(&this->skelAnime, &gBarinadeSupportDetachedAnim, 1.0f, 0.0f, lastFrame, ANIMMODE_LOOP_INTERP,
+    OoT_Math_SmoothStepToS(&this->headRot.x, vaBody->vaBodySpinRate * -3, 1, 0x4B0, 0);
+    if (OoT_SkelAnime_Update(&this->skelAnime)) {
+        lastFrame = OoT_Animation_GetLastFrame(&gBarinadeSupportDetachedAnim);
+        OoT_Animation_Change(&this->skelAnime, &gBarinadeSupportDetachedAnim, 1.0f, 0.0f, lastFrame, ANIMMODE_LOOP_INTERP,
                          0.0f);
         this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
     }
 
     if ((this->timer == 0) && (sCsState < DEATH_START)) {
-        this->timer = (s32)(Rand_ZeroOne() * 10.0f) + 10;
+        this->timer = (s32)(OoT_Rand_ZeroOne() * 10.0f) + 10;
         BossVa_BloodDroplets(play, &this->armTip, this->headRot.x, this->actor.shape.rot.y);
     }
 
     if (sCsState >= DEATH_START) {
-        Math_SmoothStepToF(&this->skelAnime.playSpeed, 0.0f, 0.3f, 0.25f, 0.125f);
+        OoT_Math_SmoothStepToF(&this->skelAnime.playSpeed, 0.0f, 0.3f, 0.25f, 0.125f);
     }
 
     switch (sCsState) {
         case DEATH_SHELL_BURST:
             sCameraEye = sCameraNextEye;
             sCameraAt = sCameraNextAt;
-            Math_SmoothStepToF(&sCameraEye.x, sCameraNextAt.x, 1.0f, 10.0f, 0.0f);
-            Math_SmoothStepToF(&sCameraEye.z, sCameraNextAt.z, 1.0f, 10.0f, 0.0f);
+            OoT_Math_SmoothStepToF(&sCameraEye.x, sCameraNextAt.x, 1.0f, 10.0f, 0.0f);
+            OoT_Math_SmoothStepToF(&sCameraEye.z, sCameraNextAt.z, 1.0f, 10.0f, 0.0f);
             sCameraEye.y += 20.0f;
             sCsState++;
 
@@ -1854,7 +1854,7 @@ void BossVa_SupportCut(BossVa* this, PlayState* play) {
         case DEATH_CORE_BURST:
             if (!this->burst) {
                 if ((play->gameplayFrames % 2) != 0) {
-                    BossVa_Tumor(play, this, 1, (s16)Rand_CenteredFloat(5.0f) + 6, 7.0f, 5.0f, TUMOR_ARM,
+                    BossVa_Tumor(play, this, 1, (s16)OoT_Rand_CenteredFloat(5.0f) + 6, 7.0f, 5.0f, TUMOR_ARM,
                                  (this->timer2 >> 3) + 1, true);
                 }
 
@@ -1870,7 +1870,7 @@ void BossVa_SupportCut(BossVa* this, PlayState* play) {
             } else {
                 this->timer2--;
                 if (this->timer2 == 0) {
-                    Actor_Kill(&this->actor);
+                    OoT_Actor_Kill(&this->actor);
                 }
             }
             break;
@@ -1880,26 +1880,26 @@ void BossVa_SupportCut(BossVa* this, PlayState* play) {
 }
 
 void BossVa_SetupStump(BossVa* this, PlayState* play) {
-    Animation_Change(&this->skelAnime, &gBarinadeStumpAnim, 1.0f, 0.0f, Animation_GetLastFrame(&gBarinadeStumpAnim),
+    OoT_Animation_Change(&this->skelAnime, &gBarinadeStumpAnim, 1.0f, 0.0f, OoT_Animation_GetLastFrame(&gBarinadeStumpAnim),
                      ANIMMODE_ONCE, 0.0f);
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
     BossVa_SetupAction(this, BossVa_Stump);
 }
 
 void BossVa_Stump(BossVa* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skelAnime) && (Rand_ZeroOne() < 0.3f)) {
-        this->skelAnime.curFrame -= Rand_ZeroOne() * 3.0f;
+    if (OoT_SkelAnime_Update(&this->skelAnime) && (OoT_Rand_ZeroOne() < 0.3f)) {
+        this->skelAnime.curFrame -= OoT_Rand_ZeroOne() * 3.0f;
     }
 
     if (sCsState >= DEATH_START) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
 void BossVa_SetupZapperIntro(BossVa* this, PlayState* play) {
-    f32 lastFrame = Animation_GetLastFrame(&gBarinadeZapperIdleAnim);
+    f32 lastFrame = OoT_Animation_GetLastFrame(&gBarinadeZapperIdleAnim);
 
-    Animation_Change(&this->skelAnime, &gBarinadeZapperIdleAnim, 1.0f, lastFrame - 1.0f, lastFrame,
+    OoT_Animation_Change(&this->skelAnime, &gBarinadeZapperIdleAnim, 1.0f, lastFrame - 1.0f, lastFrame,
                      ANIMMODE_LOOP_INTERP, -6.0f);
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
     BossVa_SetupAction(this, BossVa_ZapperIntro);
@@ -1912,21 +1912,21 @@ void BossVa_ZapperIntro(BossVa* this, PlayState* play) {
         case INTRO_TITLE:
         case INTRO_BRIGHTEN:
         case INTRO_FINISH:
-            SkelAnime_Update(&this->skelAnime);
+            OoT_SkelAnime_Update(&this->skelAnime);
             break;
         case BOSSVA_BATTLE:
             BossVa_SetupZapperAttack(this, play);
             break;
     }
 
-    Math_SmoothStepToS(&this->unk_1F2, this->actor.shape.rot.y - this->actor.shape.rot.x, 1, 0x2EE, 0);
-    Math_SmoothStepToS(&this->unk_1F0, this->skelAnime.jointTable[7].z, 1, 0x2EE, 0);
+    OoT_Math_SmoothStepToS(&this->unk_1F2, this->actor.shape.rot.y - this->actor.shape.rot.x, 1, 0x2EE, 0);
+    OoT_Math_SmoothStepToS(&this->unk_1F0, this->skelAnime.jointTable[7].z, 1, 0x2EE, 0);
 }
 
 void BossVa_SetupZapperAttack(BossVa* this, PlayState* play) {
-    f32 lastFrame = Animation_GetLastFrame(&gBarinadeZapperIdleAnim);
+    f32 lastFrame = OoT_Animation_GetLastFrame(&gBarinadeZapperIdleAnim);
 
-    Animation_Change(&this->skelAnime, &gBarinadeZapperIdleAnim, 1.0f, lastFrame - 1.0f, lastFrame,
+    OoT_Animation_Change(&this->skelAnime, &gBarinadeZapperIdleAnim, 1.0f, lastFrame - 1.0f, lastFrame,
                      ANIMMODE_LOOP_INTERP, -6.0f);
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
     BossVa_SetupAction(this, BossVa_ZapperAttack);
@@ -1976,12 +1976,12 @@ void BossVa_ZapperAttack(BossVa* this, PlayState* play) {
         sp56 = boomerang->actor.world.rot.x;
 
         for (i = boomerang->returnTimer; i >= 3; i--) {
-            sp6E = Math_Vec3f_Yaw(&sp7C, &boomTarget->focus.pos);
+            sp6E = OoT_Math_Vec3f_Yaw(&sp7C, &boomTarget->focus.pos);
             sp5A = sp6C - sp6E;
-            sp58 = Math_Vec3f_Pitch(&sp7C, &boomTarget->focus.pos);
+            sp58 = OoT_Math_Vec3f_Pitch(&sp7C, &boomTarget->focus.pos);
             sp54 = sp56 - sp58;
 
-            sp50 = (200.0f - Math_Vec3f_DistXYZ(&sp7C, &boomTarget->focus.pos)) * 0.005f;
+            sp50 = (200.0f - OoT_Math_Vec3f_DistXYZ(&sp7C, &boomTarget->focus.pos)) * 0.005f;
             if (sp50 < 0.12f) {
                 sp50 = 0.12f;
             }
@@ -1994,13 +1994,13 @@ void BossVa_ZapperAttack(BossVa* this, PlayState* play) {
                 sp54 = -sp54;
             }
 
-            Math_ScaledStepToS(&sp6C, sp6E, sp5A * sp50);
-            Math_ScaledStepToS(&sp56, sp58, sp54 * sp50);
+            OoT_Math_ScaledStepToS(&sp6C, sp6E, sp5A * sp50);
+            OoT_Math_ScaledStepToS(&sp56, sp58, sp54 * sp50);
 
-            sp68 = -Math_SinS(sp56) * 12.0f;
-            sp5C = Math_CosS(sp56) * 12.0f;
-            sp64 = Math_SinS(sp6C) * sp5C;
-            sp60 = Math_CosS(sp6C);
+            sp68 = -OoT_Math_SinS(sp56) * 12.0f;
+            sp5C = OoT_Math_CosS(sp56) * 12.0f;
+            sp64 = OoT_Math_SinS(sp6C) * sp5C;
+            sp60 = OoT_Math_CosS(sp6C);
             sp7C.x += sp64 * sp74;
             sp7C.y += sp68 * sp74;
             sp7C.z += sp60 * sp5C * sp74;
@@ -2008,7 +2008,7 @@ void BossVa_ZapperAttack(BossVa* this, PlayState* play) {
         sp90 = 0x3E80;
     }
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     BossVa_AttachToBody(this);
     if (sFightPhase >= PHASE_4) {
         BossVa_SetupZapperEnraged(this, play);
@@ -2025,7 +2025,7 @@ void BossVa_ZapperAttack(BossVa* this, PlayState* play) {
         return;
     }
 
-    sp98 = Math_Vec3f_Yaw(&sp7C, &this->armTip);
+    sp98 = OoT_Math_Vec3f_Yaw(&sp7C, &this->armTip);
     tmp17 = sp98 - this->actor.shape.rot.y;
 
     if ((sp8E >= ABS(tmp17) || this->burst) && !(sBodyState & 0x80) && !(player->stateFlags1 & PLAYER_STATE1_DAMAGED)) {
@@ -2037,7 +2037,7 @@ void BossVa_ZapperAttack(BossVa* this, PlayState* play) {
                 sp94 = (sp94 > 0) ? 0x1770 : -0x1770;
             }
 
-            tmp17 = Math_SmoothStepToS(&this->unk_1E6, sp94, 1, 0x6D6, 0);
+            tmp17 = OoT_Math_SmoothStepToS(&this->unk_1E6, sp94, 1, 0x6D6, 0);
             sp88 = ABS(tmp17);
 
             sp94 = sp98 - sp94;
@@ -2046,33 +2046,33 @@ void BossVa_ZapperAttack(BossVa* this, PlayState* play) {
                 sp94 = (sp94 > 0) ? 0x1770 : -0x1770;
             }
 
-            tmp17 = Math_SmoothStepToS(&this->unk_1EC, sp94, 1, 0x6D6, 0);
+            tmp17 = OoT_Math_SmoothStepToS(&this->unk_1EC, sp94, 1, 0x6D6, 0);
             sp88 += ABS(tmp17);
 
-            yaw = Math_Vec3f_Yaw(&this->zapHeadPos, &sp7C);
-            tmp17 = Math_SmoothStepToS(&this->unk_1F2, yaw - 0x4000, 1, 0x9C4, 0);
+            yaw = OoT_Math_Vec3f_Yaw(&this->zapHeadPos, &sp7C);
+            tmp17 = OoT_Math_SmoothStepToS(&this->unk_1F2, yaw - 0x4000, 1, 0x9C4, 0);
             sp88 += ABS(tmp17);
 
             sp96 = this->actor.shape.rot.x + this->skelAnime.jointTable[1].z + this->skelAnime.jointTable[2].z +
                    this->skelAnime.jointTable[3].z + this->skelAnime.jointTable[4].z + this->skelAnime.jointTable[5].z;
 
-            yaw = Math_Vec3f_Pitch(&sp7C, &this->zapNeckPos);
-            tmp17 = Math_SmoothStepToS(&this->unk_1EA, yaw - sp96, 1, 0xFA0, 0);
+            yaw = OoT_Math_Vec3f_Pitch(&sp7C, &this->zapNeckPos);
+            tmp17 = OoT_Math_SmoothStepToS(&this->unk_1EA, yaw - sp96, 1, 0xFA0, 0);
             sp88 += ABS(tmp17);
 
-            yaw = Math_Vec3f_Pitch(&this->zapHeadPos, &sp7C);
-            tmp17 = Math_SmoothStepToS(&this->unk_1F0, -yaw, 1, 0xFA0, 0);
+            yaw = OoT_Math_Vec3f_Pitch(&this->zapHeadPos, &sp7C);
+            tmp17 = OoT_Math_SmoothStepToS(&this->unk_1F0, -yaw, 1, 0xFA0, 0);
             sp88 += ABS(tmp17);
 
             this->skelAnime.playSpeed = 0.0f;
-            if (Math_SmoothStepToF(&this->skelAnime.curFrame, 0.0f, 1.0f, 2.0f, 0.0f) == 0.0f) {
+            if (OoT_Math_SmoothStepToF(&this->skelAnime.curFrame, 0.0f, 1.0f, 2.0f, 0.0f) == 0.0f) {
                 if (sp88 < sp90) {
                     this->timer2 = 0;
                     this->burst++;
                     this->unk_1D8 = sp7C;
                 }
 
-                if (Rand_ZeroOne() < 0.1f) {
+                if (OoT_Rand_ZeroOne() < 0.1f) {
                     Audio_PlayActorSound2(&this->actor, NA_SE_EN_BALINADE_BL_SPARK - SFX_FLAG);
                 }
             }
@@ -2095,12 +2095,12 @@ void BossVa_ZapperAttack(BossVa* this, PlayState* play) {
             }
         }
 
-        Math_SmoothStepToS(&this->unk_1E6, 0, 1, 0x6D6, 0);
-        Math_SmoothStepToS(&this->unk_1EC, 0, 1, 0x6D6, 0);
-        Math_SmoothStepToS(&this->unk_1EA, 0, 1, 0x6D6, 0);
-        Math_SmoothStepToS(&this->unk_1F2, this->actor.shape.rot.y - this->actor.shape.rot.x, 1, 0x6D6, 0);
-        Math_SmoothStepToS(&this->unk_1F0, this->skelAnime.jointTable[7].z, 1, 0x6D6, 0);
-        Math_SmoothStepToF(&this->skelAnime.playSpeed, 1.0f, 1.0f, 0.05f, 0.0f);
+        OoT_Math_SmoothStepToS(&this->unk_1E6, 0, 1, 0x6D6, 0);
+        OoT_Math_SmoothStepToS(&this->unk_1EC, 0, 1, 0x6D6, 0);
+        OoT_Math_SmoothStepToS(&this->unk_1EA, 0, 1, 0x6D6, 0);
+        OoT_Math_SmoothStepToS(&this->unk_1F2, this->actor.shape.rot.y - this->actor.shape.rot.x, 1, 0x6D6, 0);
+        OoT_Math_SmoothStepToS(&this->unk_1F0, this->skelAnime.jointTable[7].z, 1, 0x6D6, 0);
+        OoT_Math_SmoothStepToF(&this->skelAnime.playSpeed, 1.0f, 1.0f, 0.05f, 0.0f);
         this->burst = false;
     }
 
@@ -2112,8 +2112,8 @@ void BossVa_ZapperAttack(BossVa* this, PlayState* play) {
             BossVa_Spark(play, this, 2, 110, 15.0f, 15.0f, SPARK_BLAST, 5.0f, true);
             BossVa_Spark(play, this, 2, 110, 15.0f, 15.0f, SPARK_BLAST, 6.0f, true);
             BossVa_Spark(play, this, 2, 110, 15.0f, 15.0f, SPARK_BLAST, 7.0f, true);
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderLightning.base);
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderLightning.base);
+            OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderLightning.base);
+            OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderLightning.base);
         } else {
             BossVa_Spark(play, this, 2, 50, 15.0f, 0.0f, SPARK_BODY, (this->timer2 >> 3) + 1, true);
             if (this->timer2 == 30) {
@@ -2134,28 +2134,28 @@ void BossVa_ZapperAttack(BossVa* this, PlayState* play) {
 }
 
 void BossVa_SetupZapperDamaged(BossVa* this, PlayState* play) {
-    if (Rand_ZeroOne() > 0.5f) {
-        Animation_Change(&this->skelAnime, &gBarinadeZapperDamage1Anim, 0.5f, 0.0f,
-                         Animation_GetLastFrame(&gBarinadeZapperDamage1Anim), ANIMMODE_ONCE_INTERP, 4.0f);
+    if (OoT_Rand_ZeroOne() > 0.5f) {
+        OoT_Animation_Change(&this->skelAnime, &gBarinadeZapperDamage1Anim, 0.5f, 0.0f,
+                         OoT_Animation_GetLastFrame(&gBarinadeZapperDamage1Anim), ANIMMODE_ONCE_INTERP, 4.0f);
     } else {
-        Animation_Change(&this->skelAnime, &gBarinadeZapperDamage2Anim, 0.5f, 0.0f,
-                         Animation_GetLastFrame(&gBarinadeZapperDamage2Anim), ANIMMODE_ONCE_INTERP, 4.0f);
+        OoT_Animation_Change(&this->skelAnime, &gBarinadeZapperDamage2Anim, 0.5f, 0.0f,
+                         OoT_Animation_GetLastFrame(&gBarinadeZapperDamage2Anim), ANIMMODE_ONCE_INTERP, 4.0f);
     }
 
-    Actor_SetColorFilter(&this->actor, 0, 255, 0, 12);
+    OoT_Actor_SetColorFilter(&this->actor, 0, 255, 0, 12);
     this->burst = false;
     BossVa_SetupAction(this, BossVa_ZapperDamaged);
 }
 
 void BossVa_ZapperDamaged(BossVa* this, PlayState* play) {
     BossVa_AttachToBody(this);
-    Math_SmoothStepToS(&this->unk_1E6, 0, 1, 0xFA0, 0);
-    Math_SmoothStepToS(&this->unk_1E4, 0, 1, 0xFA0, 0);
-    Math_SmoothStepToS(&this->unk_1EC, 0, 1, 0xFA0, 0);
-    Math_SmoothStepToS(&this->unk_1EA, 0, 1, 0xFA0, 0);
-    Math_SmoothStepToS(&this->unk_1F2, this->actor.shape.rot.y - this->actor.shape.rot.x, 1, 0x2EE, 0);
-    Math_SmoothStepToS(&this->unk_1F0, this->skelAnime.jointTable[7].z, 1, 0x2EE, 0);
-    if (SkelAnime_Update(&this->skelAnime)) {
+    OoT_Math_SmoothStepToS(&this->unk_1E6, 0, 1, 0xFA0, 0);
+    OoT_Math_SmoothStepToS(&this->unk_1E4, 0, 1, 0xFA0, 0);
+    OoT_Math_SmoothStepToS(&this->unk_1EC, 0, 1, 0xFA0, 0);
+    OoT_Math_SmoothStepToS(&this->unk_1EA, 0, 1, 0xFA0, 0);
+    OoT_Math_SmoothStepToS(&this->unk_1F2, this->actor.shape.rot.y - this->actor.shape.rot.x, 1, 0x2EE, 0);
+    OoT_Math_SmoothStepToS(&this->unk_1F0, this->skelAnime.jointTable[7].z, 1, 0x2EE, 0);
+    if (OoT_SkelAnime_Update(&this->skelAnime)) {
         if (sFightPhase >= PHASE_4) {
             BossVa_SetupZapperEnraged(this, play);
         } else {
@@ -2165,9 +2165,9 @@ void BossVa_ZapperDamaged(BossVa* this, PlayState* play) {
 }
 
 void BossVa_SetupZapperDeath(BossVa* this, PlayState* play) {
-    f32 lastFrame = Animation_GetLastFrame(&gBarinadeZapperIdleAnim);
+    f32 lastFrame = OoT_Animation_GetLastFrame(&gBarinadeZapperIdleAnim);
 
-    Animation_Change(&this->skelAnime, &gBarinadeZapperIdleAnim, Rand_ZeroOne() + 0.25f, Rand_ZeroOne() * 3.0f,
+    OoT_Animation_Change(&this->skelAnime, &gBarinadeZapperIdleAnim, OoT_Rand_ZeroOne() + 0.25f, OoT_Rand_ZeroOne() * 3.0f,
                      lastFrame, ANIMMODE_LOOP_INTERP, -6.0f);
     this->burst = false;
     this->timer2 = (this->actor.params * -6) + 18;
@@ -2182,19 +2182,19 @@ void BossVa_ZapperDeath(BossVa* this, PlayState* play) {
 
     BossVa_AttachToBody(this);
     if (((play->gameplayFrames % 32) == 0) && (sCsState <= DEATH_BODY_TUMORS)) {
-        this->unk_1E8 = Rand_CenteredFloat(0x4000);
-        this->unk_1EE = Rand_CenteredFloat(0x4000);
-        this->unk_1F4 = (s16)Rand_CenteredFloat(0x4000) + this->actor.shape.rot.y - this->actor.shape.rot.x;
+        this->unk_1E8 = OoT_Rand_CenteredFloat(0x4000);
+        this->unk_1EE = OoT_Rand_CenteredFloat(0x4000);
+        this->unk_1F4 = (s16)OoT_Rand_CenteredFloat(0x4000) + this->actor.shape.rot.y - this->actor.shape.rot.x;
     } else {
-        Math_SmoothStepToF(&this->skelAnime.playSpeed, 0.0f, 1.0f, 0.025f, 0.0f);
+        OoT_Math_SmoothStepToF(&this->skelAnime.playSpeed, 0.0f, 1.0f, 0.025f, 0.0f);
     }
 
-    SkelAnime_Update(&this->skelAnime);
-    Math_SmoothStepToS(&this->unk_1E6, this->unk_1E8, 1, (s16)Rand_CenteredFloat(500.0f) + 0x1F4, 0);
-    Math_SmoothStepToS(&this->unk_1E4, 0, 1, 0x1F4, 0);
-    Math_SmoothStepToS(&this->unk_1EC, this->unk_1EE, 1, (s16)Rand_CenteredFloat(500.0f) + 0x1F4, 0);
-    Math_SmoothStepToS(&this->unk_1EA, 0, 1, 0x1F4, 0);
-    Math_SmoothStepToS(&this->unk_1F2, this->unk_1F4, 1, (s16)Rand_CenteredFloat(500.0f) + 0x1F4, 0);
+    OoT_SkelAnime_Update(&this->skelAnime);
+    OoT_Math_SmoothStepToS(&this->unk_1E6, this->unk_1E8, 1, (s16)OoT_Rand_CenteredFloat(500.0f) + 0x1F4, 0);
+    OoT_Math_SmoothStepToS(&this->unk_1E4, 0, 1, 0x1F4, 0);
+    OoT_Math_SmoothStepToS(&this->unk_1EC, this->unk_1EE, 1, (s16)OoT_Rand_CenteredFloat(500.0f) + 0x1F4, 0);
+    OoT_Math_SmoothStepToS(&this->unk_1EA, 0, 1, 0x1F4, 0);
+    OoT_Math_SmoothStepToS(&this->unk_1F2, this->unk_1F4, 1, (s16)OoT_Rand_CenteredFloat(500.0f) + 0x1F4, 0);
 
     switch (sCsState) {
         case DEATH_ZAPPER_2:
@@ -2208,10 +2208,10 @@ void BossVa_ZapperDeath(BossVa* this, PlayState* play) {
 
                     if ((this->timer2 % 2) == 0 && (this->timer2 >= 0)) {
                         if (this->timer2 < 8) {
-                            BossVa_Tumor(play, this, 1, (s16)Rand_CenteredFloat(5.0f) + 0xD, 0.0f, 0.0f, TUMOR_ARM,
+                            BossVa_Tumor(play, this, 1, (s16)OoT_Rand_CenteredFloat(5.0f) + 0xD, 0.0f, 0.0f, TUMOR_ARM,
                                          0.6f, true);
                         } else {
-                            BossVa_Tumor(play, this, 1, (s16)Rand_CenteredFloat(5.0f) + 6, 0.0f, 7.0f, TUMOR_ARM,
+                            BossVa_Tumor(play, this, 1, (s16)OoT_Rand_CenteredFloat(5.0f) + 6, 0.0f, 7.0f, TUMOR_ARM,
                                          (this->timer2 >> 3) + 1, true);
                         }
 
@@ -2236,8 +2236,8 @@ void BossVa_ZapperDeath(BossVa* this, PlayState* play) {
                     sCameraAt.x = this->zapNeckPos.x;
                     sCameraEye.y = sCameraAt.y = this->zapNeckPos.y;
                     sCameraAt.z = this->zapNeckPos.z;
-                    sCameraEye.x = (Math_CosS(-(this->actor.shape.rot.y + this->unk_1B0)) * sp3C) + this->zapNeckPos.x;
-                    sCameraEye.z = (Math_SinS(-(this->actor.shape.rot.y + this->unk_1B0)) * sp3C) + this->zapNeckPos.z;
+                    sCameraEye.x = (OoT_Math_CosS(-(this->actor.shape.rot.y + this->unk_1B0)) * sp3C) + this->zapNeckPos.x;
+                    sCameraEye.z = (OoT_Math_SinS(-(this->actor.shape.rot.y + this->unk_1B0)) * sp3C) + this->zapNeckPos.z;
                     this->unk_1B0 += 0x15E;
                 }
             } else {
@@ -2246,7 +2246,7 @@ void BossVa_ZapperDeath(BossVa* this, PlayState* play) {
                     if (this->actor.params == BOSSVA_ZAPPER_3) {
                         sCsState++;
                     }
-                    Actor_Kill(&this->actor);
+                    OoT_Actor_Kill(&this->actor);
                 }
             }
             break;
@@ -2254,9 +2254,9 @@ void BossVa_ZapperDeath(BossVa* this, PlayState* play) {
 }
 
 void BossVa_SetupZapperEnraged(BossVa* this, PlayState* play) {
-    f32 lastFrame = Animation_GetLastFrame(&gBarinadeZapperIdleAnim);
+    f32 lastFrame = OoT_Animation_GetLastFrame(&gBarinadeZapperIdleAnim);
 
-    Animation_Change(&this->skelAnime, &gBarinadeZapperIdleAnim, 1.0f, lastFrame - 1.0f, lastFrame,
+    OoT_Animation_Change(&this->skelAnime, &gBarinadeZapperIdleAnim, 1.0f, lastFrame - 1.0f, lastFrame,
                      ANIMMODE_LOOP_INTERP, -6.0f);
     this->burst = false;
     BossVa_SetupAction(this, BossVa_ZapperEnraged);
@@ -2274,7 +2274,7 @@ void BossVa_ZapperEnraged(BossVa* this, PlayState* play) {
     Vec3f sp54 = player->actor.world.pos;
 
     sp54.y += 10.0f;
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     BossVa_AttachToBody(this);
     if (sFightPhase >= PHASE_DEATH) {
         BossVa_SetupZapperDeath(this, play);
@@ -2288,7 +2288,7 @@ void BossVa_ZapperEnraged(BossVa* this, PlayState* play) {
 
     sp54.y += 25.0;
 
-    sp6C = Math_Vec3f_Yaw(&sp54, &this->armTip);
+    sp6C = OoT_Math_Vec3f_Yaw(&sp54, &this->armTip);
     tmp16 = sp6C - this->actor.shape.rot.y;
 
     if ((ABS(tmp16) <= 0x4650 || this->burst) && !(sBodyState & 0x80) &&
@@ -2300,7 +2300,7 @@ void BossVa_ZapperEnraged(BossVa* this, PlayState* play) {
                 sp68 = (sp68 > 0) ? 0x1770 : -0x1770;
             }
 
-            tmp16 = Math_SmoothStepToS(&this->unk_1E6, sp68, 1, 0xDAC, 0);
+            tmp16 = OoT_Math_SmoothStepToS(&this->unk_1E6, sp68, 1, 0xDAC, 0);
             sp60 = ABS(tmp16);
 
             sp68 = sp6C - sp68;
@@ -2308,30 +2308,30 @@ void BossVa_ZapperEnraged(BossVa* this, PlayState* play) {
                 sp68 = sp68 > 0 ? 0x1770 : -0x1770;
             }
 
-            tmp16 = Math_SmoothStepToS(&this->unk_1EC, sp68, 1, 0xDAC, 0);
+            tmp16 = OoT_Math_SmoothStepToS(&this->unk_1EC, sp68, 1, 0xDAC, 0);
             sp60 += ABS(tmp16);
 
-            yaw = Math_Vec3f_Yaw(&this->zapHeadPos, &sp54);
-            tmp16 = Math_SmoothStepToS(&this->unk_1F2, yaw - 0x4000, 1, 0xEA6, 0);
+            yaw = OoT_Math_Vec3f_Yaw(&this->zapHeadPos, &sp54);
+            tmp16 = OoT_Math_SmoothStepToS(&this->unk_1F2, yaw - 0x4000, 1, 0xEA6, 0);
             sp60 += ABS(tmp16);
 
             sp6A = this->actor.shape.rot.x + this->skelAnime.jointTable[1].x + this->skelAnime.jointTable[2].x +
                    this->skelAnime.jointTable[3].x + this->skelAnime.jointTable[4].x + this->skelAnime.jointTable[5].x;
 
-            yaw = Math_Vec3f_Pitch(&sp54, &this->zapNeckPos);
-            tmp16 = Math_SmoothStepToS(&this->unk_1EA, yaw - sp6A, 1, 0x1B58, 0);
+            yaw = OoT_Math_Vec3f_Pitch(&sp54, &this->zapNeckPos);
+            tmp16 = OoT_Math_SmoothStepToS(&this->unk_1EA, yaw - sp6A, 1, 0x1B58, 0);
             sp60 += ABS(tmp16);
 
-            yaw = Math_Vec3f_Pitch(&this->zapHeadPos, &sp54);
-            tmp16 = Math_SmoothStepToS(&this->unk_1F0, -yaw, 1, 0x1B58, 0);
+            yaw = OoT_Math_Vec3f_Pitch(&this->zapHeadPos, &sp54);
+            tmp16 = OoT_Math_SmoothStepToS(&this->unk_1F0, -yaw, 1, 0x1B58, 0);
             sp60 += ABS(tmp16);
 
             this->skelAnime.playSpeed = 0.0f;
-            if ((Math_SmoothStepToF(&this->skelAnime.curFrame, 0.0f, 1.0f, 3.0f, 0.0f) == 0.0f) && (sp60 < 0x258)) {
+            if ((OoT_Math_SmoothStepToF(&this->skelAnime.curFrame, 0.0f, 1.0f, 3.0f, 0.0f) == 0.0f) && (sp60 < 0x258)) {
                 this->timer2 = 0;
                 this->burst++;
                 this->unk_1D8 = sp54;
-                if (Rand_ZeroOne() < 0.1f) {
+                if (OoT_Rand_ZeroOne() < 0.1f) {
                     Audio_PlayActorSound2(&this->actor, NA_SE_EN_BALINADE_BL_SPARK - SFX_FLAG);
                 }
             }
@@ -2354,12 +2354,12 @@ void BossVa_ZapperEnraged(BossVa* this, PlayState* play) {
             }
         }
 
-        Math_SmoothStepToS(&this->unk_1E6, 0, 1, 0xEA6, 0);
-        Math_SmoothStepToS(&this->unk_1EC, 0, 1, 0xEA6, 0);
-        Math_SmoothStepToS(&this->unk_1EA, 0, 1, 0xEA6, 0);
-        Math_SmoothStepToS(&this->unk_1F2, this->actor.shape.rot.y - this->actor.shape.rot.x, 1, 0xEA6, 0);
-        Math_SmoothStepToS(&this->unk_1F0, this->skelAnime.jointTable[7].z, 1, 0xEA6, 0);
-        Math_SmoothStepToF(&this->skelAnime.playSpeed, 1.0f, 1.0f, 0.05f, 0.0f);
+        OoT_Math_SmoothStepToS(&this->unk_1E6, 0, 1, 0xEA6, 0);
+        OoT_Math_SmoothStepToS(&this->unk_1EC, 0, 1, 0xEA6, 0);
+        OoT_Math_SmoothStepToS(&this->unk_1EA, 0, 1, 0xEA6, 0);
+        OoT_Math_SmoothStepToS(&this->unk_1F2, this->actor.shape.rot.y - this->actor.shape.rot.x, 1, 0xEA6, 0);
+        OoT_Math_SmoothStepToS(&this->unk_1F0, this->skelAnime.jointTable[7].z, 1, 0xEA6, 0);
+        OoT_Math_SmoothStepToF(&this->skelAnime.playSpeed, 1.0f, 1.0f, 0.05f, 0.0f);
         this->burst = false;
     }
 
@@ -2372,8 +2372,8 @@ void BossVa_ZapperEnraged(BossVa* this, PlayState* play) {
             BossVa_Spark(play, this, 2, 110, 15.0f, 15.0f, SPARK_BLAST, 5.0f, true);
             BossVa_Spark(play, this, 2, 110, 15.0f, 15.0f, SPARK_BLAST, 6.0f, true);
             BossVa_Spark(play, this, 2, 110, 15.0f, 15.0f, SPARK_BLAST, 7.0f, true);
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderLightning.base);
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderLightning.base);
+            OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderLightning.base);
+            OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderLightning.base);
         } else {
             BossVa_Spark(play, this, 2, 50, 15.0f, 0.0f, SPARK_BODY, (this->timer2 >> 1) + 1, true);
             if (this->timer2 == 14) {
@@ -2394,31 +2394,31 @@ void BossVa_ZapperEnraged(BossVa* this, PlayState* play) {
 }
 
 void BossVa_SetupZapperHold(BossVa* this, PlayState* play) {
-    Animation_Change(&this->skelAnime, &gBarinadeZapperDamage2Anim, 0.0f, 0.0f,
-                     Animation_GetLastFrame(&gBarinadeZapperDamage2Anim), ANIMMODE_ONCE_INTERP, -6.0f);
+    OoT_Animation_Change(&this->skelAnime, &gBarinadeZapperDamage2Anim, 0.0f, 0.0f,
+                     OoT_Animation_GetLastFrame(&gBarinadeZapperDamage2Anim), ANIMMODE_ONCE_INTERP, -6.0f);
     this->burst = false;
     BossVa_SetupAction(this, BossVa_ZapperHold);
 }
 
 void BossVa_ZapperHold(BossVa* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     BossVa_AttachToBody(this);
-    Math_SmoothStepToS(&this->unk_1E6, 0, 1, 0x1770, 0);
-    Math_SmoothStepToS(&this->unk_1E4, 0, 1, 0x1770, 0);
-    Math_SmoothStepToS(&this->unk_1EC, 0, 1, 0x1770, 0);
-    Math_SmoothStepToS(&this->unk_1EA, 0, 1, 0x1770, 0);
-    Math_SmoothStepToS(&this->unk_1F2, this->actor.shape.rot.y - 0x4000, 1, 0x2710, 0);
-    Math_SmoothStepToS(&this->unk_1F0, this->skelAnime.jointTable[7].z - 0x1388, 1, 0x1770, 0);
+    OoT_Math_SmoothStepToS(&this->unk_1E6, 0, 1, 0x1770, 0);
+    OoT_Math_SmoothStepToS(&this->unk_1E4, 0, 1, 0x1770, 0);
+    OoT_Math_SmoothStepToS(&this->unk_1EC, 0, 1, 0x1770, 0);
+    OoT_Math_SmoothStepToS(&this->unk_1EA, 0, 1, 0x1770, 0);
+    OoT_Math_SmoothStepToS(&this->unk_1F2, this->actor.shape.rot.y - 0x4000, 1, 0x2710, 0);
+    OoT_Math_SmoothStepToS(&this->unk_1F0, this->skelAnime.jointTable[7].z - 0x1388, 1, 0x1770, 0);
     if (GET_BODY(this)->actor.speedXZ == 0.0f) {
         BossVa_SetupZapperAttack(this, play);
     }
 }
 
 void BossVa_SetupBariIntro(BossVa* this, PlayState* play) {
-    Animation_Change(&this->skelAnime, &gBarinadeBariAnim, 1.0f, 0.0f, Animation_GetLastFrame(&gBarinadeBariAnim),
+    OoT_Animation_Change(&this->skelAnime, &gBarinadeBariAnim, 1.0f, 0.0f, OoT_Animation_GetLastFrame(&gBarinadeBariAnim),
                      ANIMMODE_LOOP, 0.0f);
     this->unk_1A0 = 60.0f;
-    this->unk_1A4 = Rand_ZeroOne() * 360.0f;
+    this->unk_1A4 = OoT_Rand_ZeroOne() * 360.0f;
     this->timer2 = 64;
     this->unk_1F0 = 120;
     this->unk_1A8 = 0.0f;
@@ -2440,13 +2440,13 @@ void BossVa_BariIntro(BossVa* this, PlayState* play) {
         sp54.y += 25.0f;
     }
 
-    this->unk_1A4 += Rand_ZeroOne() * 0.25f;
+    this->unk_1A4 += OoT_Rand_ZeroOne() * 0.25f;
 
     switch (sCsState) {
         case INTRO_LOOK_BARI:
             if (this->actor.params == BOSSVA_BARI_UPPER_1) {
-                Player_SetCsActionWithHaltedActors(play, &this->actor, 1);
-                if (Math_SmoothStepToF(&this->actor.world.pos.y, 60.0f, 0.3f, 1.0f, 0.15f) == 0.0f) {
+                OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 1);
+                if (OoT_Math_SmoothStepToF(&this->actor.world.pos.y, 60.0f, 0.3f, 1.0f, 0.15f) == 0.0f) {
                     this->timer--;
                     if (this->timer == 0) {
                         sCsState++;
@@ -2460,28 +2460,28 @@ void BossVa_BariIntro(BossVa* this, PlayState* play) {
         case INTRO_BODY_SOUND:
         case INTRO_LOOK_SUPPORT:
             if (this->actor.params != BOSSVA_BARI_UPPER_1) {
-                Math_SmoothStepToF(&this->actor.world.pos.y,
+                OoT_Math_SmoothStepToF(&this->actor.world.pos.y,
                                    sInitPosOffsets[this->actor.params + 10].y + this->actor.home.pos.y, 0.3f, 1.0f,
                                    0.15f);
-                this->actor.world.pos.x += (Math_SinF(this->unk_1A4 * 0.25f) * 0.5f);
+                this->actor.world.pos.x += (OoT_Math_SinF(this->unk_1A4 * 0.25f) * 0.5f);
             } else {
-                Math_SmoothStepToF(&this->actor.world.pos.y, 60.0f, 0.3f, 1.0f, 0.15f);
+                OoT_Math_SmoothStepToF(&this->actor.world.pos.y, 60.0f, 0.3f, 1.0f, 0.15f);
             }
-            this->actor.world.pos.y += Math_SinF(this->unk_1A4) * (2.0f - Math_SinF(this->unk_1A4));
+            this->actor.world.pos.y += OoT_Math_SinF(this->unk_1A4) * (2.0f - OoT_Math_SinF(this->unk_1A4));
             break;
         case INTRO_CALL_BARI:
         case INTRO_ATTACH_BARI:
             if ((this->timer2 > 15) && (this->timer < 0)) {
-                Math_SmoothStepToF(&this->actor.world.pos.x, sp54.x, 1.0f, 6.5f, 0.0f);
-                Math_SmoothStepToF(&this->actor.world.pos.y, sp54.y, 1.0f, 6.5f, 0.0f);
-                Math_SmoothStepToF(&this->actor.world.pos.z, sp54.z, 1.0f, 6.5f, 0.0f);
+                OoT_Math_SmoothStepToF(&this->actor.world.pos.x, sp54.x, 1.0f, 6.5f, 0.0f);
+                OoT_Math_SmoothStepToF(&this->actor.world.pos.y, sp54.y, 1.0f, 6.5f, 0.0f);
+                OoT_Math_SmoothStepToF(&this->actor.world.pos.z, sp54.z, 1.0f, 6.5f, 0.0f);
 
-                sp50 = Math_Vec3f_DistXYZ(&sp54, &this->actor.world.pos);
+                sp50 = OoT_Math_Vec3f_DistXYZ(&sp54, &this->actor.world.pos);
                 if (sp50 <= 60.0f) {
-                    tmp = Math_SmoothStepToS(&this->actor.shape.rot.x, this->actor.home.rot.x, 1, 0x7D0, 0);
+                    tmp = OoT_Math_SmoothStepToS(&this->actor.shape.rot.x, this->actor.home.rot.x, 1, 0x7D0, 0);
                     sp4E = ABS(tmp);
 
-                    tmp = Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 1, 0x7D0, 0);
+                    tmp = OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 1, 0x7D0, 0);
                     sp4E += ABS(tmp);
 
                     if ((sp50 == 0.0f) && (sp4E == 0)) {
@@ -2500,7 +2500,7 @@ void BossVa_BariIntro(BossVa* this, PlayState* play) {
                         } else {
                             this->timer++;
                             if (this->timer == 0) {
-                                Actor_Kill(&this->actor);
+                                OoT_Actor_Kill(&this->actor);
                             }
                         }
                         return;
@@ -2513,7 +2513,7 @@ void BossVa_BariIntro(BossVa* this, PlayState* play) {
                 this->timer2 = 0;
             } else {
                 func_80035844(&GET_BODY(this)->actor.world.pos, &this->actor.world.pos, &this->actor.world.rot, false);
-                this->unk_1A0 = Math_Vec3f_DistXYZ(&GET_BODY(this)->actor.world.pos, &this->actor.world.pos);
+                this->unk_1A0 = OoT_Math_Vec3f_DistXYZ(&GET_BODY(this)->actor.world.pos, &this->actor.world.pos);
                 if (sp50 > 30.0f) {
                     BossVa_Spark(play, this, 1, 80, 15.0f, 0.0f, SPARK_BARI, 1.0f, true);
                 }
@@ -2522,7 +2522,7 @@ void BossVa_BariIntro(BossVa* this, PlayState* play) {
         case BOSSVA_BATTLE:
             this->timer++;
             if (this->timer == 0) {
-                Actor_Kill(&this->actor);
+                OoT_Actor_Kill(&this->actor);
             }
             return;
         case INTRO_TITLE:
@@ -2535,13 +2535,13 @@ void BossVa_BariIntro(BossVa* this, PlayState* play) {
         BossVa_Spark(play, this, 1, 70, 25.0f, 20.0f, SPARK_BARI, 2.0f, true);
     }
 
-    if (Rand_ZeroOne() < 0.1f) {
+    if (OoT_Rand_ZeroOne() < 0.1f) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_BALINADE_BL_SPARK - SFX_FLAG);
     }
 }
 
 void BossVa_SetupBariPhase3Attack(BossVa* this, PlayState* play) {
-    Animation_Change(&this->skelAnime, &gBarinadeBariAnim, 1.0f, 0.0f, Animation_GetLastFrame(&gBarinadeBariAnim),
+    OoT_Animation_Change(&this->skelAnime, &gBarinadeBariAnim, 1.0f, 0.0f, OoT_Animation_GetLastFrame(&gBarinadeBariAnim),
                      ANIMMODE_LOOP, 0.0f);
     this->timer2 = 0x80;
     this->unk_1F0 = 0x78;
@@ -2558,14 +2558,14 @@ void BossVa_BariPhase3Attack(BossVa* this, PlayState* play) {
     s16 sp52;
     s32 pad;
 
-    this->unk_1A4 += Rand_ZeroOne() * 0.5f;
+    this->unk_1A4 += OoT_Rand_ZeroOne() * 0.5f;
     sp52 = this->timer2 & 0x1FF;
 
     if ((play->gameplayFrames % 128) == 0) {
-        this->vaBariUnused.x = (s16)(Rand_ZeroOne() * 100.0f) + 100;
+        this->vaBariUnused.x = (s16)(OoT_Rand_ZeroOne() * 100.0f) + 100;
     }
 
-    Math_SmoothStepToS(&this->vaBariUnused.z, this->vaBariUnused.x, 1, 0x1E, 0);
+    OoT_Math_SmoothStepToS(&this->vaBariUnused.z, this->vaBariUnused.x, 1, 0x1E, 0);
     this->vaBariUnused.y += this->vaBariUnused.z;
     if ((this->colliderLightning.base.atFlags & AT_HIT) || (this->colliderSph.base.atFlags & AT_HIT)) {
         if ((this->colliderLightning.base.at == &player->actor) || (this->colliderSph.base.at == &player->actor)) {
@@ -2590,13 +2590,13 @@ void BossVa_BariPhase3Attack(BossVa* this, PlayState* play) {
         }
     }
 
-    this->actor.world.pos.x = (Math_SinS(this->actor.world.rot.y) * this->unk_1A0) + sp54.x;
-    this->actor.world.pos.z = (Math_CosS(this->actor.world.rot.y) * this->unk_1A0) + sp54.z;
-    Math_SmoothStepToF(&this->actor.world.pos.y, 4.0f, 1.0f, 2.0f, 0.0f);
-    this->actor.world.pos.y += 2.0f * Math_SinF(this->unk_1A4);
-    this->actor.world.rot.x = Math_Vec3f_Pitch(&sp54, &this->actor.world.pos);
-    Math_SmoothStepToF(&this->unk_1A0, 160.0f, 1.0f, 2.0f, 0.0f);
-    Math_SmoothStepToS(&this->actor.shape.rot.x, 0, 1, 0x5DC, 0);
+    this->actor.world.pos.x = (OoT_Math_SinS(this->actor.world.rot.y) * this->unk_1A0) + sp54.x;
+    this->actor.world.pos.z = (OoT_Math_CosS(this->actor.world.rot.y) * this->unk_1A0) + sp54.z;
+    OoT_Math_SmoothStepToF(&this->actor.world.pos.y, 4.0f, 1.0f, 2.0f, 0.0f);
+    this->actor.world.pos.y += 2.0f * OoT_Math_SinF(this->unk_1A4);
+    this->actor.world.rot.x = OoT_Math_Vec3f_Pitch(&sp54, &this->actor.world.pos);
+    OoT_Math_SmoothStepToF(&this->unk_1A0, 160.0f, 1.0f, 2.0f, 0.0f);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.x, 0, 1, 0x5DC, 0);
     if (!(this->timer2 & 0x200)) {
         this->unk_1AC = 0xBB8;
     } else {
@@ -2605,19 +2605,19 @@ void BossVa_BariPhase3Attack(BossVa* this, PlayState* play) {
 
     if (sp52 >= 128) {
         BossVa_Spark(play, this, 1, 75, 15.0f, 7.0f, SPARK_TETHER, 1.0f, true);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderSph.base);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderSph.base);
         sPhase3StopMoving = false;
     } else {
         sPhase3StopMoving = true;
     }
 
-    CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderLightning.base);
-    CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderSph.base);
+    OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderLightning.base);
+    OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderSph.base);
     if ((play->gameplayFrames % 4) == 0) {
-        Math_SmoothStepToS(&this->unk_1F0, 0x78, 1, 0xA, 0);
+        OoT_Math_SmoothStepToS(&this->unk_1F0, 0x78, 1, 0xA, 0);
     }
 
-    if (Rand_ZeroOne() < 0.1f) {
+    if (OoT_Rand_ZeroOne() < 0.1f) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_BALINADE_BL_SPARK - SFX_FLAG);
     }
 
@@ -2628,7 +2628,7 @@ void BossVa_BariPhase3Attack(BossVa* this, PlayState* play) {
 }
 
 void BossVa_SetupBariPhase2Attack(BossVa* this, PlayState* play) {
-    Animation_Change(&this->skelAnime, &gBarinadeBariAnim, 1.0f, 0.0f, Animation_GetLastFrame(&gBarinadeBariAnim),
+    OoT_Animation_Change(&this->skelAnime, &gBarinadeBariAnim, 1.0f, 0.0f, OoT_Animation_GetLastFrame(&gBarinadeBariAnim),
                      ANIMMODE_LOOP, 0.0f);
     this->timer2 = 0x40;
     this->unk_1F0 = 0x78;
@@ -2647,14 +2647,14 @@ void BossVa_BariPhase2Attack(BossVa* this, PlayState* play) {
     f32 sp4C;
     s32 pad;
 
-    this->unk_1A4 += Rand_ZeroOne() * 0.5f;
+    this->unk_1A4 += OoT_Rand_ZeroOne() * 0.5f;
     sp52 = this->timer2 & 0x1FF;
     if ((play->gameplayFrames % 128) == 0) {
-        this->vaBariUnused.x = (s16)(Rand_ZeroOne() * 100.0f) + 100;
+        this->vaBariUnused.x = (s16)(OoT_Rand_ZeroOne() * 100.0f) + 100;
     }
 
     sp50 = (sFightPhase * 70) - 280;
-    Math_SmoothStepToS(&this->vaBariUnused.z, this->vaBariUnused.x, 1, 0x1E, 0);
+    OoT_Math_SmoothStepToS(&this->vaBariUnused.z, this->vaBariUnused.x, 1, 0x1E, 0);
     this->vaBariUnused.y += this->vaBariUnused.z;
     if (sKillBari != 0) {
         sKillBari--;
@@ -2674,10 +2674,10 @@ void BossVa_BariPhase2Attack(BossVa* this, PlayState* play) {
         this->colliderSph.base.atFlags &= ~AT_HIT;
     }
 
-    Math_SmoothStepToF(&this->actor.world.pos.y, 4.0f, 1.0f, 2.0f, 0.0f);
-    this->actor.world.rot.x = Math_Vec3f_Pitch(&sp54, &this->actor.world.pos);
+    OoT_Math_SmoothStepToF(&this->actor.world.pos.y, 4.0f, 1.0f, 2.0f, 0.0f);
+    this->actor.world.rot.x = OoT_Math_Vec3f_Pitch(&sp54, &this->actor.world.pos);
     if ((play->gameplayFrames % 8) == 0) {
-        Math_SmoothStepToS(&this->unk_1F0, 0x28, 1, 0xA, 0);
+        OoT_Math_SmoothStepToS(&this->unk_1F0, 0x28, 1, 0xA, 0);
         BossVa_Spark(play, this, 1, this->unk_1F0, 25.0f, 20.0f, 2, 2.0f, true);
     }
 
@@ -2689,9 +2689,9 @@ void BossVa_BariPhase2Attack(BossVa* this, PlayState* play) {
             sp4C = -200.0f;
         }
 
-        Math_SmoothStepToF(&this->unk_1A0, (Math_SinS(sPhase2Timer * 0x190) * sp4C) + 320.0f, 1.0f, 10.0f, 0.0f);
-        Math_SmoothStepToS(&this->unk_1AC, sp50 + 0x1F4, 1, 0x3C, 0);
-        this->actor.world.pos.y += 2.0f * Math_SinF(this->unk_1A4);
+        OoT_Math_SmoothStepToF(&this->unk_1A0, (OoT_Math_SinS(sPhase2Timer * 0x190) * sp4C) + 320.0f, 1.0f, 10.0f, 0.0f);
+        OoT_Math_SmoothStepToS(&this->unk_1AC, sp50 + 0x1F4, 1, 0x3C, 0);
+        this->actor.world.pos.y += 2.0f * OoT_Math_SinF(this->unk_1A4);
         if (this->colliderSph.base.acFlags & AC_HIT) {
             this->colliderSph.base.acFlags &= ~AC_HIT;
 
@@ -2704,33 +2704,33 @@ void BossVa_BariPhase2Attack(BossVa* this, PlayState* play) {
             }
         }
 
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderLightning.base);
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderSph.base);
+        OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderLightning.base);
+        OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->colliderSph.base);
     } else {
         this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
-        Math_SmoothStepToS(&this->unk_1AC, sp50 + 150, 1, 0x3C, 0);
+        OoT_Math_SmoothStepToS(&this->unk_1AC, sp50 + 150, 1, 0x3C, 0);
         if (GET_BODY(this)->actor.colorFilterTimer == 0) {
-            Math_SmoothStepToF(&this->unk_1A0, 180.0f, 1.0f, 1.5f, 0.0f);
+            OoT_Math_SmoothStepToF(&this->unk_1A0, 180.0f, 1.0f, 1.5f, 0.0f);
         } else {
             this->unk_1AC = 0;
             if (this->actor.colorFilterTimer == 0) {
-                Actor_SetColorFilter(&this->actor, 0, 255, 0x2000, GET_BODY(this)->actor.colorFilterTimer);
+                OoT_Actor_SetColorFilter(&this->actor, 0, 255, 0x2000, GET_BODY(this)->actor.colorFilterTimer);
             }
         }
 
-        this->actor.world.pos.y += Math_SinF(this->unk_1A4) * 4.0f;
+        this->actor.world.pos.y += OoT_Math_SinF(this->unk_1A4) * 4.0f;
         if (this->colliderSph.base.acFlags & AC_HIT) {
             BossVa_KillBari(this, play);
         }
     }
 
-    Math_SmoothStepToS(&this->actor.shape.rot.x, 0, 1, 0x5DC, 0);
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderSph.base);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.x, 0, 1, 0x5DC, 0);
+    OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderSph.base);
     if ((play->gameplayFrames % 4) == 0) {
-        Math_SmoothStepToS(&this->unk_1F0, 0x78, 1, 0xA, 0);
+        OoT_Math_SmoothStepToS(&this->unk_1F0, 0x78, 1, 0xA, 0);
     }
 
-    if (Rand_ZeroOne() < 0.1f) {
+    if (OoT_Rand_ZeroOne() < 0.1f) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_BALINADE_BL_SPARK - SFX_FLAG);
     }
 
@@ -2741,15 +2741,15 @@ void BossVa_BariPhase2Attack(BossVa* this, PlayState* play) {
             this->actor.world.rot.y -= this->unk_1AC;
         }
 
-        this->actor.world.pos.x = (Math_SinS(this->actor.world.rot.y) * this->unk_1A0) + sp54.x;
-        this->actor.world.pos.z = (Math_CosS(this->actor.world.rot.y) * this->unk_1A0) + sp54.z;
+        this->actor.world.pos.x = (OoT_Math_SinS(this->actor.world.rot.y) * this->unk_1A0) + sp54.x;
+        this->actor.world.pos.z = (OoT_Math_CosS(this->actor.world.rot.y) * this->unk_1A0) + sp54.z;
     }
 }
 
 void BossVa_SetupBariPhase3Stunned(BossVa* this, PlayState* play) {
     this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
     this->timer = GET_BODY(this)->timer;
-    Actor_SetColorFilter(&this->actor, 0, 255, 0x2000, this->timer);
+    OoT_Actor_SetColorFilter(&this->actor, 0, 255, 0x2000, this->timer);
     BossVa_SetupAction(this, BossVa_BariPhase3Stunned);
 }
 
@@ -2757,23 +2757,23 @@ void BossVa_BariPhase3Stunned(BossVa* this, PlayState* play) {
     s32 sp44_pad;
     Vec3f sp40 = GET_BODY(this)->unk_1D8;
 
-    this->actor.world.rot.x = Math_Vec3f_Pitch(&GET_BODY(this)->actor.world.pos, &this->actor.world.pos);
+    this->actor.world.rot.x = OoT_Math_Vec3f_Pitch(&GET_BODY(this)->actor.world.pos, &this->actor.world.pos);
     if (this->colliderSph.base.acFlags & AC_HIT) {
         BossVa_KillBari(this, play);
         return;
     }
 
-    this->unk_1A4 += Rand_ZeroOne() * 0.5f;
-    Math_SmoothStepToF(&this->actor.world.pos.y, 4.0f, 1.0f, 2.0f, 0.0f);
-    this->actor.world.pos.y += Math_SinF(this->unk_1A4) * 3.0f;
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderSph.base);
+    this->unk_1A4 += OoT_Rand_ZeroOne() * 0.5f;
+    OoT_Math_SmoothStepToF(&this->actor.world.pos.y, 4.0f, 1.0f, 2.0f, 0.0f);
+    this->actor.world.pos.y += OoT_Math_SinF(this->unk_1A4) * 3.0f;
+    OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->colliderSph.base);
     if ((play->gameplayFrames % 4) == 0) {
-        Math_SmoothStepToS(&this->unk_1F0, 0x28, 1, 0xA, 0);
+        OoT_Math_SmoothStepToS(&this->unk_1F0, 0x28, 1, 0xA, 0);
         BossVa_Spark(play, this, 1, this->unk_1F0, 25.0f, 20.0f, SPARK_BARI, 2.0f, true);
     }
 
     this->timer--;
-    this->actor.world.rot.x = Math_Vec3f_Pitch(&sp40, &this->actor.world.pos);
+    this->actor.world.rot.x = OoT_Math_Vec3f_Pitch(&sp40, &this->actor.world.pos);
     if (this->timer <= 0) {
         if (this->timer == 0) {
             this->timer2 = 0;
@@ -2799,7 +2799,7 @@ void BossVa_SetupBariDeath(BossVa* this) {
 void BossVa_BariDeath(BossVa* this, PlayState* play) {
     this->timer--;
     if (this->timer == 0) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
@@ -2874,8 +2874,8 @@ void BossVa_Update(Actor* thisx, PlayState* play2) {
             this->timer2++;
             this->actor.focus.pos = this->actor.world.pos;
             this->actor.focus.pos.y += 45.0f;
-            this->unk_1D8.y = (Math_CosS(this->timer2 * 0xFA4) * 0.24f) + 0.76f;
-            this->unk_1D8.x = (Math_SinS(this->timer2 * 0xFA4) * 0.2f) + 1.0f;
+            this->unk_1D8.y = (OoT_Math_CosS(this->timer2 * 0xFA4) * 0.24f) + 0.76f;
+            this->unk_1D8.x = (OoT_Math_SinS(this->timer2 * 0xFA4) * 0.2f) + 1.0f;
             break;
 
         case BOSSVA_SUPPORT_1:
@@ -2899,16 +2899,16 @@ s32 BossVa_BodyOverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec
         gDPPipeSync(POLY_OPA_DISP++);
         gSPSegment(
             POLY_OPA_DISP++, 0x08,
-            Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 8, 16, 1, 0, (play->gameplayFrames * -2) % 64, 16, 16));
+            OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 8, 16, 1, 0, (play->gameplayFrames * -2) % 64, 16, 16));
         gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, this->bodyGlow);
         Matrix_RotateX(-M_PI / 2, MTXMODE_APPLY);
     } else if ((limbIndex >= 10) && (limbIndex < 20)) {
         rot->x -= 0x4000;
         *dList = NULL;
     } else if (limbIndex == 6) {
-        Matrix_Scale(this->unk_1A4, this->unk_1A4, this->unk_1A4, MTXMODE_APPLY);
+        OoT_Matrix_Scale(this->unk_1A4, this->unk_1A4, this->unk_1A4, MTXMODE_APPLY);
     } else if (limbIndex == 61) {
-        Matrix_Scale(this->unk_1A0, this->unk_1A0, this->unk_1A0, MTXMODE_APPLY);
+        OoT_Matrix_Scale(this->unk_1A0, this->unk_1A0, this->unk_1A0, MTXMODE_APPLY);
     } else if (limbIndex == 7) {
         rot->x -= 0xCCC;
     }
@@ -2930,7 +2930,7 @@ void BossVa_BodyPostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s*
         } else {
             sp78.x = 200.0f;
         }
-        Matrix_MultVec3f(&sp78, &this->unk_1D8);
+        OoT_Matrix_MultVec3f(&sp78, &this->unk_1D8);
     } else if ((limbIndex >= 10) && (limbIndex < 20) && (sBodyBari[limbIndex - 10] != 0)) {
         if (((limbIndex >= 16) || (limbIndex == 10)) && (sFightPhase <= PHASE_3)) {
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -2941,14 +2941,14 @@ void BossVa_BodyPostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s*
         }
 
         if (sCsState >= DEATH_START) {
-            sp78.x = Rand_CenteredFloat(530.0f);
-            sp78.y = Rand_CenteredFloat(530.0f);
+            sp78.x = OoT_Rand_CenteredFloat(530.0f);
+            sp78.y = OoT_Rand_CenteredFloat(530.0f);
             sp78.z = -60.0f;
         }
-        Matrix_MultVec3f(&sp78, &this->effectPos[limbIndex - 10]);
+        OoT_Matrix_MultVec3f(&sp78, &this->effectPos[limbIndex - 10]);
     } else if (limbIndex == 25) {
         gSPSegment(POLY_XLU_DISP++, 0x09,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, (play->gameplayFrames * 10) % 128, 16, 32, 1, 0,
+                   OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, (play->gameplayFrames * 10) % 128, 16, 32, 1, 0,
                                     (play->gameplayFrames * 5) % 128, 16, 32));
         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPDisplayList(POLY_XLU_DISP++, gBarinadeDL_008D70);
@@ -2957,15 +2957,15 @@ void BossVa_BodyPostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s*
         gSPDisplayList(POLY_XLU_DISP++, *dList);
     } else if ((limbIndex == 24) && (sCsState < DEATH_START)) {
         sp78.x = (this->actor.shape.yOffset + 450.0f) + -140.0f;
-        Matrix_MultVec3f(&sp78, &this->unk_280);
+        OoT_Matrix_MultVec3f(&sp78, &this->unk_280);
         sp78.x = 200.0f;
-        Matrix_MultVec3f(&sp78, &this->unk_274);
+        OoT_Matrix_MultVec3f(&sp78, &this->unk_274);
     }
 
     if ((limbIndex == 7) && (sCsState >= DEATH_START)) {
-        sp78.x = Rand_CenteredFloat(320.0f) + -250.0f;
-        sp78.y = Rand_CenteredFloat(320.0f);
-        sp78.z = Rand_CenteredFloat(320.0f);
+        sp78.x = OoT_Rand_CenteredFloat(320.0f) + -250.0f;
+        sp78.y = OoT_Rand_CenteredFloat(320.0f);
+        sp78.z = OoT_Rand_CenteredFloat(320.0f);
 
         if (sp78.y < 0.0f) {
             sp78.y -= 150.0f;
@@ -2978,7 +2978,7 @@ void BossVa_BodyPostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s*
         } else {
             sp78.z += 150.0f;
         }
-        Matrix_MultVec3f(&sp78, &this->unk_274);
+        OoT_Matrix_MultVec3f(&sp78, &this->unk_274);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -3001,37 +3001,37 @@ void BossVa_SupportPostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec
     if (this->onCeiling) {
         switch (limbIndex) {
             case 4:
-                Matrix_MultVec3f(&sZeroVec, &this->actor.focus.pos);
-                Collider_UpdateSpheres(0, &this->colliderSph);
+                OoT_Matrix_MultVec3f(&OoT_sZeroVec, &this->actor.focus.pos);
+                OoT_Collider_UpdateSpheres(0, &this->colliderSph);
                 break;
             case 7:
-                Matrix_MultVec3f(&sZeroVec, &this->armTip);
+                OoT_Matrix_MultVec3f(&OoT_sZeroVec, &this->armTip);
                 sp20.x = ((this->timer & 0x1F) >> 1) * -40.0f;
                 sp20.y = ((this->timer & 0x1F) >> 1) * -7.0f;
-                Matrix_MultVec3f(&sp20, &this->effectPos[0]);
+                OoT_Matrix_MultVec3f(&sp20, &this->effectPos[0]);
                 break;
             case 9:
                 sp20.x = ((this->timer & 0x1F) >> 1) * -60.0f;
                 sp20.y = ((this->timer & 0x1F) >> 1) * -45.0f;
-                Matrix_MultVec3f(&sp20, &this->effectPos[1]);
+                OoT_Matrix_MultVec3f(&sp20, &this->effectPos[1]);
                 break;
         }
     } else {
         switch (limbIndex) {
             case 5:
-                Matrix_MultVec3f(&sZeroVec, &this->armTip);
+                OoT_Matrix_MultVec3f(&OoT_sZeroVec, &this->armTip);
                 break;
             case 8:
                 sp20.x = (this->timer2 & 7) * 90.0f;
-                Matrix_MultVec3f(&sp20, &this->effectPos[2]);
+                OoT_Matrix_MultVec3f(&sp20, &this->effectPos[2]);
                 break;
             case 9:
                 sp20.x = (this->timer2 & 7) * 50.0f;
-                Matrix_MultVec3f(&sp20, &this->effectPos[1]);
+                OoT_Matrix_MultVec3f(&sp20, &this->effectPos[1]);
                 break;
             case 10:
                 sp20.x = (this->timer2 & 7) * 46.0f;
-                Matrix_MultVec3f(&sp20, &this->effectPos[0]);
+                OoT_Matrix_MultVec3f(&sp20, &this->effectPos[0]);
                 break;
         }
     }
@@ -3051,8 +3051,8 @@ s32 BossVa_ZapperOverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, V
             rot->z += this->unk_1EA;
             break;
         case 7:
-            Matrix_Translate(pos->x, pos->y, pos->z, MTXMODE_APPLY);
-            Matrix_Get(&zapperMtx);
+            OoT_Matrix_Translate(pos->x, pos->y, pos->z, MTXMODE_APPLY);
+            OoT_Matrix_Get(&zapperMtx);
             Matrix_MtxFToZYXRotS(&zapperMtx, &sZapperRot, false);
             Matrix_RotateX(-sZapperRot.x * (M_PI / 0x8000), MTXMODE_APPLY);
             Matrix_RotateY(-sZapperRot.y * (M_PI / 0x8000), MTXMODE_APPLY);
@@ -3079,33 +3079,33 @@ void BossVa_ZapperPostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3
     switch (limbIndex) {
         case 3:
             sp70.x = (this->timer2 & 7) * 30.0f;
-            Matrix_MultVec3f(&sp70, &this->effectPos[0]);
+            OoT_Matrix_MultVec3f(&sp70, &this->effectPos[0]);
             break;
 
         case 4:
-            Matrix_MultVec3f(&sZeroVec, &this->armTip);
+            OoT_Matrix_MultVec3f(&OoT_sZeroVec, &this->armTip);
             sp70.x = (this->timer2 & 7) * 30.0f;
-            Matrix_MultVec3f(&sp70, &this->effectPos[1]);
+            OoT_Matrix_MultVec3f(&sp70, &this->effectPos[1]);
             break;
 
         case 5:
-            Matrix_MultVec3f(&sZeroVec, &this->zapNeckPos);
+            OoT_Matrix_MultVec3f(&OoT_sZeroVec, &this->zapNeckPos);
             sp70.x = (this->timer2 & 7) * 46.0f;
-            Matrix_MultVec3f(&sp70, &this->effectPos[2]);
+            OoT_Matrix_MultVec3f(&sp70, &this->effectPos[2]);
             break;
 
         case 7:
-            Matrix_MultVec3f(&sZeroVec, &this->zapHeadPos);
+            OoT_Matrix_MultVec3f(&OoT_sZeroVec, &this->zapHeadPos);
             sp70.x = (this->timer2 & 7) * 46.0f;
-            Matrix_MultVec3f(&sp70, &this->effectPos[3]);
+            OoT_Matrix_MultVec3f(&sp70, &this->effectPos[3]);
             sp70.x = 20.0f;
-            Matrix_MultVec3f(&sp70, &this->effectPos[9]);
+            OoT_Matrix_MultVec3f(&sp70, &this->effectPos[9]);
             func_80035844(&this->effectPos[9], &this->unk_1D8, &this->headRot, false);
             sp3E = this->headRot.x;
             sp3C = this->headRot.y;
-            Matrix_Push();
-            Matrix_Translate(this->effectPos[9].x, this->effectPos[9].y, this->effectPos[9].z, MTXMODE_NEW);
-            Matrix_RotateZYX(sp3E, sp3C, 0, MTXMODE_APPLY);
+            OoT_Matrix_Push();
+            OoT_Matrix_Translate(this->effectPos[9].x, this->effectPos[9].y, this->effectPos[9].z, MTXMODE_NEW);
+            OoT_Matrix_RotateZYX(sp3E, sp3C, 0, MTXMODE_APPLY);
             sp70.x = 0.0f;
             if (sFightPhase >= PHASE_4) {
                 sp70.z = ((this->timer2 - 16) & 7) * 120.0f;
@@ -3114,13 +3114,13 @@ void BossVa_ZapperPostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3
             }
             sp4C.z = sp40.z = sp70.z += 40.0f;
             sp70.z += 50.0f;
-            Matrix_MultVec3f(&sp70, &this->effectPos[4]);
+            OoT_Matrix_MultVec3f(&sp70, &this->effectPos[4]);
             if (sFightPhase >= PHASE_4) {
                 sp70.z -= 33.0f;
                 if (sp70.z < 0.0f) {
                     sp70.z = 0.0f;
                 }
-                Matrix_MultVec3f(&sp70, &this->effectPos[6]);
+                OoT_Matrix_MultVec3f(&sp70, &this->effectPos[6]);
                 sp70.z -= 33.0f;
                 if (sp70.z < 0.0f) {
                     sp70.z = 0.0f;
@@ -3130,21 +3130,21 @@ void BossVa_ZapperPostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3
                 if (sp70.z < 0.0f) {
                     sp70.z = 0.0f;
                 }
-                Matrix_MultVec3f(&sp70, &this->effectPos[6]);
+                OoT_Matrix_MultVec3f(&sp70, &this->effectPos[6]);
                 sp70.z -= 22.0f;
                 if (sp70.z < 0.0f) {
                     sp70.z = 0.0f;
                 }
             }
-            Matrix_MultVec3f(&sp70, &this->effectPos[5]);
-            Matrix_MultVec3f(&sp64, &this->colliderLightning.dim.quad[1]);
-            Matrix_MultVec3f(&sp58, &this->colliderLightning.dim.quad[0]);
-            Matrix_MultVec3f(&sp4C, &this->colliderLightning.dim.quad[3]);
-            Matrix_MultVec3f(&sp40, &this->colliderLightning.dim.quad[2]);
-            Collider_SetQuadVertices(&this->colliderLightning, &this->colliderLightning.dim.quad[0],
+            OoT_Matrix_MultVec3f(&sp70, &this->effectPos[5]);
+            OoT_Matrix_MultVec3f(&sp64, &this->colliderLightning.dim.quad[1]);
+            OoT_Matrix_MultVec3f(&sp58, &this->colliderLightning.dim.quad[0]);
+            OoT_Matrix_MultVec3f(&sp4C, &this->colliderLightning.dim.quad[3]);
+            OoT_Matrix_MultVec3f(&sp40, &this->colliderLightning.dim.quad[2]);
+            OoT_Collider_SetQuadVertices(&this->colliderLightning, &this->colliderLightning.dim.quad[0],
                                      &this->colliderLightning.dim.quad[1], &this->colliderLightning.dim.quad[2],
                                      &this->colliderLightning.dim.quad[3]);
-            Matrix_Pop();
+            OoT_Matrix_Pop();
             break;
     }
 }
@@ -3157,10 +3157,10 @@ s32 BossVa_BariOverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec
             *dList = NULL;
             break;
         case 3:
-            Matrix_Scale(this->unk_1D8.x, 1.0f, this->unk_1D8.x, MTXMODE_APPLY);
+            OoT_Matrix_Scale(this->unk_1D8.x, 1.0f, this->unk_1D8.x, MTXMODE_APPLY);
             break;
         case 4:
-            Matrix_Scale(1.0f, this->unk_1D8.y, 1.0f, MTXMODE_APPLY);
+            OoT_Matrix_Scale(1.0f, this->unk_1D8.y, 1.0f, MTXMODE_APPLY);
             break;
     }
     return false;
@@ -3173,7 +3173,7 @@ void BossVa_BariPostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s*
 
     if (limbIndex == 2) {
         gSPSegment(POLY_XLU_DISP++, 0x0A,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, (play->gameplayFrames * 10) % 32, 16, 32, 1, 0,
+                   OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, (play->gameplayFrames * 10) % 32, 16, 32, 1, 0,
                                     (play->gameplayFrames * -5) % 32, 16, 32));
         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPDisplayList(POLY_XLU_DISP++, gBarinadeDL_000FA0);
@@ -3221,10 +3221,10 @@ void BossVa_Draw(Actor* thisx, PlayState* play) {
 
             if (!this->isDead) {
                 gSPSegment(POLY_OPA_DISP++, 0x08,
-                           Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 8, 16, 1, 0, (play->gameplayFrames * -10) % 16,
+                           OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 8, 16, 1, 0, (play->gameplayFrames * -10) % 16,
                                             16, 16));
                 gSPSegment(POLY_OPA_DISP++, 0x09,
-                           Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, (play->gameplayFrames * -10) % 32, 16, 0x20, 1, 0,
+                           OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, (play->gameplayFrames * -10) % 32, 16, 0x20, 1, 0,
                                             (play->gameplayFrames * -5) % 32, 16, 32));
                 SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, BossVa_BodyOverrideLimbDraw, BossVa_BodyPostLimbDraw,
                                           this);
@@ -3255,27 +3255,27 @@ void BossVa_Draw(Actor* thisx, PlayState* play) {
             if (!this->isDead) {
                 SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, BossVa_BariOverrideLimbDraw, BossVa_BariPostLimbDraw,
                                           this);
-                Collider_UpdateSpheres(0, &this->colliderSph);
+                OoT_Collider_UpdateSpheres(0, &this->colliderSph);
                 if (sCsState < BOSSVA_BATTLE) {
                     spBC = GET_BODY(this)->actor.world.pos;
                 } else {
                     spBC = GET_BODY(this)->unk_1D8;
                 }
-                Matrix_MultVec3f(&sZeroVec, &this->effectPos[1]);
-                Matrix_Push();
-                Matrix_Translate(spBC.x, spBC.y, spBC.z, MTXMODE_NEW);
-                Matrix_RotateZYX(this->actor.world.rot.x, this->actor.world.rot.y, 0, MTXMODE_APPLY);
+                OoT_Matrix_MultVec3f(&OoT_sZeroVec, &this->effectPos[1]);
+                OoT_Matrix_Push();
+                OoT_Matrix_Translate(spBC.x, spBC.y, spBC.z, MTXMODE_NEW);
+                OoT_Matrix_RotateZYX(this->actor.world.rot.x, this->actor.world.rot.y, 0, MTXMODE_APPLY);
                 sp80.z = sp74.z = this->unk_1A0;
                 spB0.z = (this->timer2 & 0xF) * (this->unk_1A0 * 0.0625f);
-                Matrix_MultVec3f(&spB0, &this->effectPos[0]);
-                Matrix_MultVec3f(&sp98, &this->colliderLightning.dim.quad[1]);
-                Matrix_MultVec3f(&sp8C, &this->colliderLightning.dim.quad[0]);
-                Matrix_MultVec3f(&sp80, &this->colliderLightning.dim.quad[3]);
-                Matrix_MultVec3f(&sp74, &this->colliderLightning.dim.quad[2]);
-                Collider_SetQuadVertices(&this->colliderLightning, &this->colliderLightning.dim.quad[0],
+                OoT_Matrix_MultVec3f(&spB0, &this->effectPos[0]);
+                OoT_Matrix_MultVec3f(&sp98, &this->colliderLightning.dim.quad[1]);
+                OoT_Matrix_MultVec3f(&sp8C, &this->colliderLightning.dim.quad[0]);
+                OoT_Matrix_MultVec3f(&sp80, &this->colliderLightning.dim.quad[3]);
+                OoT_Matrix_MultVec3f(&sp74, &this->colliderLightning.dim.quad[2]);
+                OoT_Collider_SetQuadVertices(&this->colliderLightning, &this->colliderLightning.dim.quad[0],
                                          &this->colliderLightning.dim.quad[1], &this->colliderLightning.dim.quad[2],
                                          &this->colliderLightning.dim.quad[3]);
-                Matrix_Pop();
+                OoT_Matrix_Pop();
                 spBC = this->actor.world.pos;
                 spBC.y += 9.0f;
                 if (this->actor.colorFilterTimer != 0) {
@@ -3338,26 +3338,26 @@ void BossVa_UpdateEffects(PlayState* play) {
             if ((effect->type == VA_LARGE_SPARK) || (effect->type == VA_SMALL_SPARK)) {
                 refActor = effect->parent;
 
-                effect->rot.z += (s16)(Rand_ZeroOne() * 0x4E20) + 0x2000;
-                effect->rot.y += (s16)(Rand_ZeroOne() * 0x2710) + 0x2000;
+                effect->rot.z += (s16)(OoT_Rand_ZeroOne() * 0x4E20) + 0x2000;
+                effect->rot.y += (s16)(OoT_Rand_ZeroOne() * 0x2710) + 0x2000;
 
                 if ((effect->mode == SPARK_TETHER) || (effect->mode == SPARK_UNUSED)) {
-                    pitch = effect->rot.x - Math_Vec3f_Pitch(&refActor->actor.world.pos, &GET_BODY(refActor)->unk_1D8);
-                    pad8C = Math_SinS(refActor->actor.world.rot.y);
+                    pitch = effect->rot.x - OoT_Math_Vec3f_Pitch(&refActor->actor.world.pos, &GET_BODY(refActor)->unk_1D8);
+                    pad8C = OoT_Math_SinS(refActor->actor.world.rot.y);
                     effect->pos.x = refActor->actor.world.pos.x - (effect->offset.x * pad8C);
-                    pad74 = Math_CosS(refActor->actor.world.rot.y);
+                    pad74 = OoT_Math_CosS(refActor->actor.world.rot.y);
                     effect->pos.z = refActor->actor.world.pos.z - (effect->offset.x * pad74);
-                    pad78 = Math_CosS(-pitch);
+                    pad78 = OoT_Math_CosS(-pitch);
                     effect->pos.y = (effect->offset.y * pad78) + refActor->actor.world.pos.y;
                 } else if ((effect->mode == SPARK_BARI) || (effect->mode == SPARK_BODY)) {
                     effect->pos.x = effect->offset.x + refActor->actor.world.pos.x;
                     effect->pos.y = effect->offset.y + refActor->actor.world.pos.y;
                     effect->pos.z = effect->offset.z + refActor->actor.world.pos.z;
                 } else {
-                    spB6 = Rand_ZeroFloat(ARRAY_COUNT(player->bodyPartsPos) - 0.1f);
-                    effect->pos.x = player->bodyPartsPos[spB6].x + Rand_CenteredFloat(10.0f);
-                    effect->pos.y = player->bodyPartsPos[spB6].y + Rand_CenteredFloat(15.0f);
-                    effect->pos.z = player->bodyPartsPos[spB6].z + Rand_CenteredFloat(10.0f);
+                    spB6 = OoT_Rand_ZeroFloat(ARRAY_COUNT(player->bodyPartsPos) - 0.1f);
+                    effect->pos.x = player->bodyPartsPos[spB6].x + OoT_Rand_CenteredFloat(10.0f);
+                    effect->pos.y = player->bodyPartsPos[spB6].y + OoT_Rand_CenteredFloat(15.0f);
+                    effect->pos.z = player->bodyPartsPos[spB6].z + OoT_Rand_CenteredFloat(10.0f);
                 }
 
                 if (effect->timer < 100) {
@@ -3371,7 +3371,7 @@ void BossVa_UpdateEffects(PlayState* play) {
             }
 
             if (effect->type == VA_BLAST_SPARK) {
-                effect->rot.z += (s16)(Rand_ZeroOne() * 0x4E20) + 0x4000;
+                effect->rot.z += (s16)(OoT_Rand_ZeroOne() * 0x4E20) + 0x4000;
                 if (effect->timer < 100) {
                     effect->primColor[3] -= 50;
                     if (effect->primColor[3] < 0) {
@@ -3385,7 +3385,7 @@ void BossVa_UpdateEffects(PlayState* play) {
             if (effect->type == VA_SPARK_BALL) {
                 refActor2 = effect->parent;
 
-                effect->rot.z += (s16)(Rand_ZeroOne() * 0x2710) + 0x24A8;
+                effect->rot.z += (s16)(OoT_Rand_ZeroOne() * 0x2710) + 0x24A8;
                 effect->pos.x = effect->offset.x + refActor2->actor.world.pos.x;
                 effect->pos.y =
                     refActor2->actor.world.pos.y + 310.0f + (refActor2->actor.shape.yOffset * refActor2->actor.scale.y);
@@ -3416,7 +3416,7 @@ void BossVa_UpdateEffects(PlayState* play) {
                 if (effect->mode < BLOOD_SPOT) {
                     sp94 = effect->pos;
                     sp94.y -= effect->velocity.y + 4.0f;
-                    floorY = BgCheck_EntityRaycastFloor1(&play->colCtx, &sp90, &sp94);
+                    floorY = OoT_BgCheck_EntityRaycastFloor1(&play->colCtx, &sp90, &sp94);
                     if ((sp90 != NULL) && (effect->pos.y <= floorY)) {
                         effect->mode = BLOOD_SPOT;
                         effect->pos.y = floorY + 1.0f;
@@ -3426,7 +3426,7 @@ void BossVa_UpdateEffects(PlayState* play) {
                             effect->timer = 60000;
                         }
 
-                        effect->accel = effect->velocity = sZeroVec;
+                        effect->accel = effect->velocity = OoT_sZeroVec;
                     }
                     if (!effect->timer) {
                         effect->type = VA_NONE;
@@ -3450,12 +3450,12 @@ void BossVa_UpdateEffects(PlayState* play) {
                     sp80 = effect->pos;
                     sp80.y -= effect->velocity.y + 4.0f;
                     effect->rot.x += 0x1770;
-                    floorY = BgCheck_EntityRaycastFloor1(&play->colCtx, &sp7C, &sp80);
+                    floorY = OoT_BgCheck_EntityRaycastFloor1(&play->colCtx, &sp7C, &sp80);
                     if ((sp7C != NULL) && (effect->pos.y <= floorY)) {
                         effect->mode = GORE_FLOOR;
                         effect->timer = 30;
                         effect->pos.y = floorY + 1.0f;
-                        effect->accel = effect->velocity = sZeroVec;
+                        effect->accel = effect->velocity = OoT_sZeroVec;
                         effect->rot.x = -0x4000;
                     }
 
@@ -3469,10 +3469,10 @@ void BossVa_UpdateEffects(PlayState* play) {
                     }
 
                 } else {
-                    Math_SmoothStepToF(&effect->scaleMod, 0.075f, 1.0f, 0.005f, 0.0f);
-                    Math_SmoothStepToF(&effect->vaGorePulseRate, 0.0f, 0.6f, 0.005f, 0.0013f);
+                    OoT_Math_SmoothStepToF(&effect->scaleMod, 0.075f, 1.0f, 0.005f, 0.0f);
+                    OoT_Math_SmoothStepToF(&effect->vaGorePulseRate, 0.0f, 0.6f, 0.005f, 0.0013f);
                     if ((play->gameplayFrames % 4) == 0) {
-                        Math_SmoothStepToS(&effect->primColor[0], 95, 1, 1, 0);
+                        OoT_Math_SmoothStepToS(&effect->primColor[0], 95, 1, 1, 0);
                     }
                 }
                 effect->vaGorePulse += effect->vaGorePulseRate;
@@ -3482,8 +3482,8 @@ void BossVa_UpdateEffects(PlayState* play) {
                 refActor = effect->parent;
 
                 effect->rot.z += 0x157C;
-                effect->envColor[3] = (s16)(Math_SinS(effect->rot.z) * 50.0f) + 80;
-                Math_SmoothStepToF(&effect->scale, effect->scaleMod, 1.0f, 0.01f, 0.005f);
+                effect->envColor[3] = (s16)(OoT_Math_SinS(effect->rot.z) * 50.0f) + 80;
+                OoT_Math_SmoothStepToF(&effect->scale, effect->scaleMod, 1.0f, 0.01f, 0.005f);
                 effect->pos.x = effect->offset.x + refActor->actor.world.pos.x;
                 effect->pos.y = effect->offset.y + refActor->actor.world.pos.y;
                 effect->pos.z = effect->offset.z + refActor->actor.world.pos.z;
@@ -3491,7 +3491,7 @@ void BossVa_UpdateEffects(PlayState* play) {
                 switch (effect->mode) {
                     case TUMOR_UNUSED:
                         if (effect->timer == 0) {
-                            yaw = Math_Vec3f_Yaw(&refActor->actor.world.pos, &effect->pos);
+                            yaw = OoT_Math_Vec3f_Yaw(&refActor->actor.world.pos, &effect->pos);
                             effect->type = VA_NONE;
                             BossVa_BloodSplatter(play, effect, yaw, effect->scale * 4500.0f, 1);
                             BossVa_Gore(play, effect, yaw, effect->scale * 1.2f);
@@ -3501,7 +3501,7 @@ void BossVa_UpdateEffects(PlayState* play) {
                     case TUMOR_ARM:
                         if (refActor->burst) {
                             effect->type = VA_NONE;
-                            yaw = Math_Vec3f_Yaw(&refActor->actor.world.pos, &effect->pos);
+                            yaw = OoT_Math_Vec3f_Yaw(&refActor->actor.world.pos, &effect->pos);
                             BossVa_BloodSplatter(play, effect, yaw, effect->scale * 4500.0f, 1);
                             BossVa_Gore(play, effect, yaw, effect->scale * 1.2f);
                         }
@@ -3521,7 +3521,7 @@ void BossVa_DrawEffects(BossVaEffect* effect, PlayState* play) {
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     u8 flag = 0;
     BossVaEffect* effectHead = effect;
-    Camera* camera = Play_GetCamera(play, sCsCamera);
+    Camera* camera = OoT_Play_GetCamera(play, sCsCamera);
 
     OPEN_DISPS(gfxCtx);
 
@@ -3536,10 +3536,10 @@ void BossVa_DrawEffects(BossVaEffect* effect, PlayState* play) {
             }
 
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 230, 230, 230, effect->primColor[3]);
-            Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
+            OoT_Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
+            OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
             Matrix_RotateZ((effect->rot.z / (f32)0x8000) * 3.1416f, MTXMODE_APPLY);
-            Matrix_Scale(effect->scale * 0.0185f, effect->scale * 0.0185f, 1.0f, MTXMODE_APPLY);
+            OoT_Matrix_Scale(effect->scale * 0.0185f, effect->scale * 0.0185f, 1.0f, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(POLY_XLU_DISP++, gBarinadeDL_015710);
             FrameInterpolation_RecordCloseChild();
@@ -3555,9 +3555,9 @@ void BossVa_DrawEffects(BossVaEffect* effect, PlayState* play) {
                 gSPDisplayList(POLY_XLU_DISP++, gBarinadeDL_011738);
                 flag++;
             }
-            Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
-            Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
+            OoT_Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
+            OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
+            OoT_Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
             Matrix_RotateZ((effect->rot.z / (f32)0x8000) * 3.1416f, MTXMODE_APPLY);
 
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -3588,14 +3588,14 @@ void BossVa_DrawEffects(BossVaEffect* effect, PlayState* play) {
             gDPSetEnvColor(POLY_XLU_DISP++, 0, 100, 0, effect->envColor[3]);
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 0, 150, 0, effect->primColor[3]);
 
-            Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
+            OoT_Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
             if (effect->mode == BLOOD_SPOT) {
                 Matrix_RotateX(M_PI / 2, MTXMODE_APPLY);
             } else {
-                Matrix_ReplaceRotation(&play->billboardMtxF);
+                OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
             }
 
-            Matrix_Scale(effect->scale, effect->scale, 1.0f, MTXMODE_APPLY);
+            OoT_Matrix_Scale(effect->scale, effect->scale, 1.0f, MTXMODE_APPLY);
 
             gDPPipeSync(POLY_XLU_DISP++);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -3617,10 +3617,10 @@ void BossVa_DrawEffects(BossVaEffect* effect, PlayState* play) {
                 flag++;
             }
 
-            if ((effect->mode != TUMOR_BODY) || ((Math_Vec3f_DistXZ(&camera->eye, &effect->pos) -
-                                                  Math_Vec3f_DistXZ(&camera->eye, &parent->actor.world.pos)) < 10.0f)) {
-                Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
-                Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
+            if ((effect->mode != TUMOR_BODY) || ((OoT_Math_Vec3f_DistXZ(&camera->eye, &effect->pos) -
+                                                  OoT_Math_Vec3f_DistXZ(&camera->eye, &parent->actor.world.pos)) < 10.0f)) {
+                OoT_Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
+                OoT_Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
 
                 gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
                 gSPDisplayList(POLY_OPA_DISP++, gBarinadeDL_012948);
@@ -3644,13 +3644,13 @@ void BossVa_DrawEffects(BossVaEffect* effect, PlayState* play) {
             gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, effect->primColor[0], effect->primColor[1], effect->primColor[2],
                             effect->primColor[3]);
 
-            Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
-            Matrix_RotateZYX(effect->rot.x, effect->rot.y, 0, MTXMODE_APPLY);
-            Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
+            OoT_Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
+            OoT_Matrix_RotateZYX(effect->rot.x, effect->rot.y, 0, MTXMODE_APPLY);
+            OoT_Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
             Matrix_RotateX(effect->offset.x * 0.115f, MTXMODE_APPLY);
             Matrix_RotateY(effect->offset.x * 0.13f, MTXMODE_APPLY);
             Matrix_RotateZ(effect->offset.x * 0.1f, MTXMODE_APPLY);
-            Matrix_Scale(1.0f - effect->scaleMod, effect->scaleMod + 1.0f, 1.0f - effect->scaleMod, MTXMODE_APPLY);
+            OoT_Matrix_Scale(1.0f - effect->scaleMod, effect->scaleMod + 1.0f, 1.0f - effect->scaleMod, MTXMODE_APPLY);
             Matrix_RotateZ(-(effect->offset.x * 0.1f), MTXMODE_APPLY);
             Matrix_RotateY(-(effect->offset.x * 0.13f), MTXMODE_APPLY);
             Matrix_RotateX(-(effect->offset.x * 0.115f), MTXMODE_APPLY);
@@ -3675,9 +3675,9 @@ void BossVa_DrawEffects(BossVaEffect* effect, PlayState* play) {
             gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, 50, effect->primColor[3]);
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, effect->primColor[3]);
 
-            Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
-            Matrix_RotateZYX(effect->rot.x, effect->rot.y, 0, MTXMODE_APPLY);
-            Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
+            OoT_Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
+            OoT_Matrix_RotateZYX(effect->rot.x, effect->rot.y, 0, MTXMODE_APPLY);
+            OoT_Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
 
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(POLY_XLU_DISP++, gBarinadeDL_013638);
@@ -3697,10 +3697,10 @@ void BossVa_DrawEffects(BossVaEffect* effect, PlayState* play) {
             }
 
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 230, 230, 230, effect->primColor[3]);
-            Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
+            OoT_Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
+            OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
             Matrix_RotateZ((effect->rot.z / (f32)0x8000) * 3.1416f, MTXMODE_APPLY);
-            Matrix_Scale(effect->scale * 0.02f, effect->scale * 0.02f, 1.0f, MTXMODE_APPLY);
+            OoT_Matrix_Scale(effect->scale * 0.02f, effect->scale * 0.02f, 1.0f, MTXMODE_APPLY);
 
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(POLY_XLU_DISP++, gBarinadeDL_015710);
@@ -3720,10 +3720,10 @@ void BossVa_DrawEffects(BossVaEffect* effect, PlayState* play) {
             }
 
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, effect->primColor[3]);
-            Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
+            OoT_Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
             Matrix_RotateZ((effect->rot.z / (f32)0x8000) * 3.1416f, MTXMODE_APPLY);
             Matrix_RotateY((effect->rot.y / (f32)0x8000) * 3.1416f, MTXMODE_APPLY);
-            Matrix_Scale(effect->scale, effect->scale, 1.0f, MTXMODE_APPLY);
+            OoT_Matrix_Scale(effect->scale, effect->scale, 1.0f, MTXMODE_APPLY);
 
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(POLY_XLU_DISP++, gBarinadeDL_008F70);
@@ -3746,8 +3746,8 @@ void BossVa_SpawnSpark(PlayState* play, BossVaEffect* effect, BossVa* this, Vec3
             effect->type = VA_LARGE_SPARK;
             effect->parent = this;
             effect->pos = pos;
-            effect->timer = (s16)(Rand_ZeroOne() * 10.0f) + 111;
-            effect->velocity = effect->accel = sZeroVec;
+            effect->timer = (s16)(OoT_Rand_ZeroOne() * 10.0f) + 111;
+            effect->velocity = effect->accel = OoT_sZeroVec;
             effect->mode = mode;
             effect->epoch++;
 
@@ -3758,8 +3758,8 @@ void BossVa_SpawnSpark(PlayState* play, BossVaEffect* effect, BossVa* this, Vec3
                     tempVec = *offset;
                     tempVec.x += this->actor.world.pos.x;
                     tempVec.z += this->actor.world.pos.z;
-                    effect->offset.x = Math_Vec3f_DistXZ(&this->actor.world.pos, &tempVec);
-                    effect->rot.x = Math_Vec3f_Pitch(&this->actor.world.pos, &GET_BODY(this)->unk_1D8);
+                    effect->offset.x = OoT_Math_Vec3f_DistXZ(&this->actor.world.pos, &tempVec);
+                    effect->rot.x = OoT_Math_Vec3f_Pitch(&this->actor.world.pos, &GET_BODY(this)->unk_1D8);
                     break;
 
                 case SPARK_BODY:
@@ -3779,15 +3779,15 @@ void BossVa_SpawnSpark(PlayState* play, BossVaEffect* effect, BossVa* this, Vec3
 
                 case SPARK_LINK:
                     effect->type = VA_SMALL_SPARK;
-                    index = Rand_ZeroFloat(ARRAY_COUNT(player->bodyPartsPos) - 0.1f);
-                    effect->pos.x = player->bodyPartsPos[index].x + Rand_CenteredFloat(10.0f);
-                    effect->pos.y = player->bodyPartsPos[index].y + Rand_CenteredFloat(15.0f);
-                    effect->pos.z = player->bodyPartsPos[index].z + Rand_CenteredFloat(10.0f);
+                    index = OoT_Rand_ZeroFloat(ARRAY_COUNT(player->bodyPartsPos) - 0.1f);
+                    effect->pos.x = player->bodyPartsPos[index].x + OoT_Rand_CenteredFloat(10.0f);
+                    effect->pos.y = player->bodyPartsPos[index].y + OoT_Rand_CenteredFloat(15.0f);
+                    effect->pos.z = player->bodyPartsPos[index].z + OoT_Rand_CenteredFloat(10.0f);
                     break;
             }
 
             effect->offset.y = offset->y;
-            effect->scale = (Rand_ZeroFloat(scale) + scale) * 0.01f;
+            effect->scale = (OoT_Rand_ZeroFloat(scale) + scale) * 0.01f;
             effect->primColor[3] = 255;
             break;
         }
@@ -3805,20 +3805,20 @@ void BossVa_SpawnSparkBall(PlayState* play, BossVaEffect* effect, BossVa* this, 
 
             effect->pos = pos;
 
-            effect->velocity = effect->accel = sZeroVec;
+            effect->velocity = effect->accel = OoT_sZeroVec;
 
             effect->mode = 0;
             effect->offset.x = offset->x;
             effect->offset.z = offset->z;
             effect->offset.y = offset->y;
-            effect->timer = (s16)(Rand_ZeroOne() * 10.0f) + 111;
+            effect->timer = (s16)(OoT_Rand_ZeroOne() * 10.0f) + 111;
             effect->primColor[0] = effect->primColor[1] = effect->primColor[2] = effect->primColor[3] = 230;
             effect->envColor[0] = 0;
             effect->envColor[1] = 100;
             effect->envColor[2] = 220;
             effect->envColor[3] = 160;
 
-            effect->scale = (Rand_ZeroFloat(scale) + scale) * 0.01f;
+            effect->scale = (OoT_Rand_ZeroFloat(scale) + scale) * 0.01f;
             return;
         }
     }
@@ -3836,19 +3836,19 @@ void BossVa_SpawnBloodDroplets(PlayState* play, BossVaEffect* effect, Vec3f* pos
             effect->pos = *pos;
             effect->mode = BLOOD_DROPLET;
 
-            xzVel = Math_SinS(phase) * 6.0f;
-            velocity.x = Rand_CenteredFloat(1.0f) + (-Math_SinS(yaw) * xzVel);
-            velocity.z = Rand_CenteredFloat(1.0f) + (-Math_CosS(yaw) * xzVel);
+            xzVel = OoT_Math_SinS(phase) * 6.0f;
+            velocity.x = OoT_Rand_CenteredFloat(1.0f) + (-OoT_Math_SinS(yaw) * xzVel);
+            velocity.z = OoT_Rand_CenteredFloat(1.0f) + (-OoT_Math_CosS(yaw) * xzVel);
 
             effect->velocity = velocity;
 
-            accel.y = Rand_CenteredFloat(0.3f) - 1.0f;
+            accel.y = OoT_Rand_CenteredFloat(0.3f) - 1.0f;
             effect->accel = accel;
 
             effect->timer = 20;
             effect->envColor[3] = 100;
             effect->primColor[3] = 200;
-            effect->scale = (Rand_ZeroFloat(scale) + scale) * 0.01f;
+            effect->scale = (OoT_Rand_ZeroFloat(scale) + scale) * 0.01f;
             break;
         }
     }
@@ -3867,13 +3867,13 @@ void BossVa_SpawnBloodSplatter(PlayState* play, BossVaEffect* effect, Vec3f* pos
 
             effect->mode = BLOOD_SPLATTER;
 
-            xzVel = Rand_ZeroOne() * 7.0f;
-            velocity.x = Math_SinS(yaw) * xzVel;
-            velocity.y = Rand_CenteredFloat(4.0f) + 4.0f;
-            velocity.z = Math_CosS(yaw) * xzVel;
+            xzVel = OoT_Rand_ZeroOne() * 7.0f;
+            velocity.x = OoT_Math_SinS(yaw) * xzVel;
+            velocity.y = OoT_Rand_CenteredFloat(4.0f) + 4.0f;
+            velocity.z = OoT_Math_CosS(yaw) * xzVel;
             effect->velocity = velocity;
 
-            accel.y = Rand_CenteredFloat(0.3f) - 1.0f;
+            accel.y = OoT_Rand_CenteredFloat(0.3f) - 1.0f;
             effect->accel = accel;
 
             if (sCsState <= DEATH_SHELL_BURST) {
@@ -3899,7 +3899,7 @@ void BossVa_SpawnTumor(PlayState* play, BossVaEffect* effect, BossVa* this, Vec3
             effect->parent = this;
             effect->pos = pos;
 
-            effect->velocity = effect->accel = sZeroVec;
+            effect->velocity = effect->accel = OoT_sZeroVec;
 
             effect->mode = mode;
             effect->rot.z = 0;
@@ -3908,14 +3908,14 @@ void BossVa_SpawnTumor(PlayState* play, BossVaEffect* effect, BossVa* this, Vec3
             effect->offset.z = offset->z;
             effect->offset.y = offset->y;
 
-            effect->timer = (s16)(Rand_ZeroOne() * 10.0f) + 10;
+            effect->timer = (s16)(OoT_Rand_ZeroOne() * 10.0f) + 10;
             effect->envColor[3] = 100;
             effect->scaleMod = scale * 0.01f;
             effect->scale = 0.0f;
 
             if (((i % 4) == 0) || (mode == 2)) {
-                Audio_PlaySoundGeneral(NA_SE_EN_BALINADE_BREAK, &effect->pos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_EN_BALINADE_BREAK, &effect->pos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             }
             break;
         }
@@ -3934,13 +3934,13 @@ void BossVa_SpawnGore(PlayState* play, BossVaEffect* effect, Vec3f* pos, s16 yaw
             effect->pos = *pos;
             effect->scaleMod = 0.0f;
 
-            xzVel = (Rand_ZeroOne() * 4.0f) + 4.0f;
-            velocity.x = Math_SinS(yaw) * xzVel;
-            velocity.y = Rand_CenteredFloat(8.0f);
-            velocity.z = Math_CosS(yaw) * xzVel;
+            xzVel = (OoT_Rand_ZeroOne() * 4.0f) + 4.0f;
+            velocity.x = OoT_Math_SinS(yaw) * xzVel;
+            velocity.y = OoT_Rand_CenteredFloat(8.0f);
+            velocity.z = OoT_Math_CosS(yaw) * xzVel;
             effect->velocity = velocity;
 
-            accel.y = Rand_CenteredFloat(0.3f) - 1.0f;
+            accel.y = OoT_Rand_CenteredFloat(0.3f) - 1.0f;
             effect->accel = accel;
 
             effect->timer = 20;
@@ -3956,10 +3956,10 @@ void BossVa_SpawnGore(PlayState* play, BossVaEffect* effect, Vec3f* pos, s16 yaw
             effect->primColor[0] = 155;
             effect->primColor[1] = effect->primColor[2] = 55;
 
-            effect->rot.x = Rand_CenteredFloat(0x10000);
-            effect->rot.y = Rand_CenteredFloat(0x10000);
-            effect->scale = (Rand_ZeroFloat(scale) + scale) * 0.01f;
-            effect->vaGorePulseRate = (Rand_ZeroOne() * 0.25f) + 0.9f;
+            effect->rot.x = OoT_Rand_CenteredFloat(0x10000);
+            effect->rot.y = OoT_Rand_CenteredFloat(0x10000);
+            effect->scale = (OoT_Rand_ZeroFloat(scale) + scale) * 0.01f;
+            effect->vaGorePulseRate = (OoT_Rand_ZeroOne() * 0.25f) + 0.9f;
             break;
         }
     }
@@ -3976,12 +3976,12 @@ void BossVa_SpawnZapperCharge(PlayState* play, BossVaEffect* effect, BossVa* thi
             effect->parent = this;
             effect->pos = *pos;
 
-            effect->velocity = effect->accel = sZeroVec;
+            effect->velocity = effect->accel = OoT_sZeroVec;
 
             effect->mode = mode;
             effect->rot.x = rot->x + 0x4000;
             effect->rot.y = rot->y;
-            effect->timer = (s16)(Rand_ZeroOne() * 10.0f) + 10;
+            effect->timer = (s16)(OoT_Rand_ZeroOne() * 10.0f) + 10;
             effect->primColor[3] = 240;
             effect->scale = scale * 0.01f;
             break;
@@ -4002,10 +4002,10 @@ void BossVa_DrawDoor(PlayState* play, s16 scale) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    Matrix_Translate(0.0f, 80.0f, 400.0f, MTXMODE_NEW);
+    OoT_Matrix_Translate(0.0f, 80.0f, 400.0f, MTXMODE_NEW);
     Matrix_RotateY(M_PI, MTXMODE_APPLY);
     yScale = (scale * 0.01f) * 0.1f;
-    Matrix_Scale(0.1f, yScale, 0.1f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(0.1f, yScale, 0.1f, MTXMODE_APPLY);
 
     if (yScale != 0.0f) {
         yScale = 0.1f / yScale;
@@ -4013,14 +4013,14 @@ void BossVa_DrawDoor(PlayState* play, s16 scale) {
         yScale = 0.0f;
     }
 
-    Matrix_Get(&doorMtx);
+    OoT_Matrix_Get(&doorMtx);
 
     for (i = 0; i < 8; i++, segAngle -= M_PI / 4) {
         FrameInterpolation_RecordOpenChild("Barinade Door", i);
 
-        Matrix_Put(&doorMtx);
+        OoT_Matrix_Put(&doorMtx);
         Matrix_RotateZ(segAngle, MTXMODE_APPLY);
-        Matrix_Translate(0.0f, doorPieceLength[i] * yScale, 0.0f, MTXMODE_APPLY);
+        OoT_Matrix_Translate(0.0f, doorPieceLength[i] * yScale, 0.0f, MTXMODE_APPLY);
 
         gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPDisplayList(POLY_OPA_DISP++, doorPieceDispList[i]);

@@ -77,17 +77,17 @@ u8 sBankSizes[ARRAY_COUNT(gSoundBanks)] = {
     ARRAY_COUNT(D_8016C6A0), ARRAY_COUNT(D_8016C820), ARRAY_COUNT(D_8016C8B0),
 };
 
-u8 gSfxChannelLayout = 0;
+u8 OoT_gSfxChannelLayout = 0;
 
 u16 D_801333D0 = 0;
 
-Vec3f gSfxDefaultPos = { 0.0f, 0.0f, 0.0f }; // default pos
+Vec3f OoT_gSfxDefaultPos = { 0.0f, 0.0f, 0.0f }; // default pos
 
-f32 gSfxDefaultFreqAndVolScale = 1.0f; // default freqScale
+f32 OoT_gSfxDefaultFreqAndVolScale = 1.0f; // default freqScale
 
 s32 D_801333E4 = 0; // unused
 
-s8 gSfxDefaultReverb = 0; // default reverbAdd
+s8 OoT_gSfxDefaultReverb = 0; // default reverbAdd
 
 s32 D_801333EC = 0; // unused
 
@@ -241,7 +241,7 @@ void Audio_ProcessSoundRequest(void) {
                 return;
             }
             if (gSoundBanks[bankId][index].sfxId == req->sfxId) {
-                count = gUsedChannelsPerBank[gSfxChannelLayout][bankId];
+                count = OoT_gUsedChannelsPerBank[OoT_gSfxChannelLayout][bankId];
             } else {
                 if (count == 0) {
                     evictIndex = index;
@@ -253,7 +253,7 @@ void Audio_ProcessSoundRequest(void) {
                     evictImportance = gSoundParams[SFX_BANK_SHIFT(sfxId)][SFX_INDEX(sfxId)].importance;
                 }
                 count++;
-                if (count == gUsedChannelsPerBank[gSfxChannelLayout][bankId]) {
+                if (count == OoT_gUsedChannelsPerBank[OoT_gSfxChannelLayout][bankId]) {
                     if (gSoundParams[SFX_BANK_SHIFT(req->sfxId)][SFX_INDEX(req->sfxId)].importance >= evictImportance) {
                         index = evictIndex;
                     } else {
@@ -261,7 +261,7 @@ void Audio_ProcessSoundRequest(void) {
                     }
                 }
             }
-            if (count == gUsedChannelsPerBank[gSfxChannelLayout][bankId]) {
+            if (count == OoT_gUsedChannelsPerBank[OoT_gSfxChannelLayout][bankId]) {
                 soundParams = &gSoundParams[SFX_BANK_SHIFT(req->sfxId)][SFX_INDEX(req->sfxId)];
                 if ((req->sfxId & 0xC00) || (soundParams->params & 4) || (index == evictIndex)) {
                     if ((gSoundBanks[bankId][index].sfxParams & 8) &&
@@ -331,10 +331,10 @@ void Audio_RemoveSoundBankEntry(u8 bankId, u8 entryIndex) {
     sSoundBankFreeListStart[bankId] = entryIndex;
     entry->state = SFX_STATE_EMPTY;
 
-    for (i = 0; i < gChannelsPerBank[gSfxChannelLayout][bankId]; i++) {
+    for (i = 0; i < OoT_gChannelsPerBank[OoT_gSfxChannelLayout][bankId]; i++) {
         if (gActiveSounds[bankId][i].entryIndex == entryIndex) {
             gActiveSounds[bankId][i].entryIndex = 0xFF;
-            i = gChannelsPerBank[gSfxChannelLayout][bankId];
+            i = OoT_gChannelsPerBank[OoT_gSfxChannelLayout][bankId];
         }
     }
 }
@@ -377,7 +377,7 @@ void Audio_ChooseActiveSounds(u8 bankId) {
         } else if (gSoundBanks[bankId][entryIndex].state != SFX_STATE_EMPTY) {
             entry = &gSoundBanks[bankId][entryIndex];
 
-            if (&gSfxDefaultPos.x == entry[0].posX) {
+            if (&OoT_gSfxDefaultPos.x == entry[0].posX) {
                 entry->dist = 0.0f;
             } else {
                 tempf1 = *entry->posY * 1;
@@ -407,10 +407,10 @@ void Audio_ChooseActiveSounds(u8 bankId) {
                     }
                 }
             } else {
-                numChannels = gChannelsPerBank[gSfxChannelLayout][bankId];
+                numChannels = OoT_gChannelsPerBank[OoT_gSfxChannelLayout][bankId];
                 for (i = 0; i < numChannels; i++) {
                     if (chosenSounds[i].priority >= entry->priority) {
-                        if (numChosenSounds < gChannelsPerBank[gSfxChannelLayout][bankId]) {
+                        if (numChosenSounds < OoT_gChannelsPerBank[OoT_gSfxChannelLayout][bankId]) {
                             numChosenSounds++;
                         }
                         for (j = numChannels - 1; j > i; j--) {
@@ -437,7 +437,7 @@ void Audio_ChooseActiveSounds(u8 bankId) {
     }
 
     // Pick something to play for all channels.
-    numChannels = gChannelsPerBank[gSfxChannelLayout][bankId];
+    numChannels = OoT_gChannelsPerBank[OoT_gSfxChannelLayout][bankId];
     for (i = 0; i < numChannels; i++) {
         needNewSound = false;
         activeSound = &gActiveSounds[bankId][i];
@@ -501,7 +501,7 @@ void Audio_PlayActiveSounds(u8 bankId) {
     SoundBankEntry* entry;
     u8 i;
 
-    for (i = 0; i < gChannelsPerBank[gSfxChannelLayout][bankId]; i++) {
+    for (i = 0; i < OoT_gChannelsPerBank[OoT_gSfxChannelLayout][bankId]; i++) {
         entryIndex = gActiveSounds[bankId][i].entryIndex;
         if (entryIndex != 0xFF) {
             entry = &gSoundBanks[bankId][entryIndex];

@@ -49,12 +49,12 @@ void BgSinkaiKabe_Init(Actor* thisx, PlayState* play) {
     s32 csId;
     s32 i;
 
-    DynaPolyActor_Init(&this->dyna, 0);
-    CollisionHeader_GetVirtual(&gPinnacleRockPythonDenCol, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
-    Math_Vec3f_Copy(&pos, &this->dyna.actor.world.pos);
-    pos.x += Math_SinS(this->dyna.actor.world.rot.y + 0x8000) * 3000.0f;
-    pos.z += Math_CosS(this->dyna.actor.world.rot.y + 0x8000) * 3000.0f;
+    MM_DynaPolyActor_Init(&this->dyna, 0);
+    MM_CollisionHeader_GetVirtual(&gPinnacleRockPythonDenCol, &colHeader);
+    this->dyna.bgId = MM_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    MM_Math_Vec3f_Copy(&pos, &this->dyna.actor.world.pos);
+    pos.x += MM_Math_SinS(this->dyna.actor.world.rot.y + 0x8000) * 3000.0f;
+    pos.z += MM_Math_CosS(this->dyna.actor.world.rot.y + 0x8000) * 3000.0f;
     csId = this->dyna.actor.csId;
     i = 0;
 
@@ -69,7 +69,7 @@ void BgSinkaiKabe_Init(Actor* thisx, PlayState* play) {
     sCurrentPythonIndex++;
 
     if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_13_01)) {
-        this->deepPython = Actor_SpawnAsChild(&play->actorCtx, &this->dyna.actor, play, ACTOR_EN_DRAGON, pos.x, pos.y,
+        this->deepPython = MM_Actor_SpawnAsChild(&play->actorCtx, &this->dyna.actor, play, ACTOR_EN_DRAGON, pos.x, pos.y,
                                               pos.z, 0, this->dyna.actor.world.rot.y, 1, this->dyna.actor.params);
 
         if (this->deepPython != NULL) {
@@ -78,7 +78,7 @@ void BgSinkaiKabe_Init(Actor* thisx, PlayState* play) {
             dragon->grabCsId = this->csIdList[0];
             dragon->deathCsId = this->csIdList[1];
             dragon->actor.csId = this->dyna.actor.csId;
-            Math_Vec3f_Copy(&dragon->burrowEntrancePos, &this->dyna.actor.world.pos);
+            MM_Math_Vec3f_Copy(&dragon->burrowEntrancePos, &this->dyna.actor.world.pos);
             dragon->pythonIndex = this->pythonIndex;
         }
     } else {
@@ -94,17 +94,17 @@ void BgSinkaiKabe_Init(Actor* thisx, PlayState* play) {
             shouldSpawnSeahorse = true;
         }
 
-        Math_Vec3f_Copy(&pos, &this->dyna.actor.home.pos);
-        pos.x += (Math_SinS(this->dyna.actor.world.rot.y + 0x8000) * 500.0f);
+        MM_Math_Vec3f_Copy(&pos, &this->dyna.actor.home.pos);
+        pos.x += (MM_Math_SinS(this->dyna.actor.world.rot.y + 0x8000) * 500.0f);
         pos.y += -100.0f;
-        pos.z += (Math_CosS(this->dyna.actor.world.rot.y + 0x8000) * 500.0f);
+        pos.z += (MM_Math_CosS(this->dyna.actor.world.rot.y + 0x8000) * 500.0f);
         if (shouldSpawnSeahorse) {
             Actor_SpawnAsChildAndCutscene(&play->actorCtx, play, ACTOR_EN_OT, pos.x, pos.y, pos.z, 0,
                                           this->dyna.actor.shape.rot.y, 0, SEAHORSE_PARAMS(SEAHORSE_TYPE_1, 0, 0),
                                           this->dyna.actor.csId, this->dyna.actor.halfDaysBits, NULL);
         }
 
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
     }
 
     this->actionFunc = BgSinkaiKabe_WaitForPlayer;
@@ -113,7 +113,7 @@ void BgSinkaiKabe_Init(Actor* thisx, PlayState* play) {
 void BgSinkaiKabe_Destroy(Actor* thisx, PlayState* play) {
     BgSinkaiKabe* this = (BgSinkaiKabe*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 /**
@@ -141,7 +141,7 @@ void BgSinkaiKabe_WaitForPlayer(BgSinkaiKabe* this, PlayState* play) {
     }
 
     if (this->deepPython == NULL) {
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
     }
 }
 

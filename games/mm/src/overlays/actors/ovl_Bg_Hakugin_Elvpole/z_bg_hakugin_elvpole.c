@@ -33,15 +33,15 @@ void BgHakuginElvpole_Init(Actor* thisx, PlayState* play) {
     CollisionHeader* colHeader = NULL;
     BgHakuginElvpole* this = (BgHakuginElvpole*)thisx;
 
-    Actor_SetScale(&this->dyna.actor, 0.1f);
+    MM_Actor_SetScale(&this->dyna.actor, 0.1f);
     this->actionFunc = func_80ABD92C;
-    DynaPolyActor_Init(&this->dyna, 0);
-    CollisionHeader_GetVirtual(&object_hakugin_obj_Colheader_00BF40, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    MM_DynaPolyActor_Init(&this->dyna, 0);
+    MM_CollisionHeader_GetVirtual(&object_hakugin_obj_Colheader_00BF40, &colHeader);
+    this->dyna.bgId = MM_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
     this->unk_15C = 0;
     this->unk_160 = false;
     if ((BGHAKUGINELVPOLE_GET_SWITCH_FLAG(&this->dyna.actor) != 0x7F) &&
-        Flags_GetSwitch(play, BGHAKUGINELVPOLE_GET_SWITCH_FLAG(&this->dyna.actor))) {
+        MM_Flags_GetSwitch(play, BGHAKUGINELVPOLE_GET_SWITCH_FLAG(&this->dyna.actor))) {
         this->unk_15E = 0x64;
     } else {
         this->unk_15E = -1;
@@ -52,7 +52,7 @@ void BgHakuginElvpole_Init(Actor* thisx, PlayState* play) {
 void BgHakuginElvpole_Destroy(Actor* thisx, PlayState* play) {
     BgHakuginElvpole* this = (BgHakuginElvpole*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_80ABD92C(BgHakuginElvpole* this, PlayState* play) {
@@ -78,12 +78,12 @@ void func_80ABD92C(BgHakuginElvpole* this, PlayState* play) {
             sp28 = true;
         } else {
             thisx->world.pos.y = thisx->home.pos.y - 320.0f;
-            Flags_UnsetSwitch(play, BGHAKUGINELVPOLE_GET_SWITCH_FLAG(thisx));
+            MM_Flags_UnsetSwitch(play, BGHAKUGINELVPOLE_GET_SWITCH_FLAG(thisx));
             this->unk_15E = -1;
             Actor_PlaySfx(thisx, NA_SE_EV_STONEDOOR_STOP);
         }
     } else if ((BGHAKUGINELVPOLE_GET_SWITCH_FLAG(thisx) != 0x7F) &&
-               Flags_GetSwitch(play, BGHAKUGINELVPOLE_GET_SWITCH_FLAG(thisx))) {
+               MM_Flags_GetSwitch(play, BGHAKUGINELVPOLE_GET_SWITCH_FLAG(thisx))) {
         this->unk_15E = 0x64;
         this->unk_160 = true;
     }
@@ -95,8 +95,8 @@ void func_80ABD92C(BgHakuginElvpole* this, PlayState* play) {
             var_fv1 = -1.0f;
         }
         this->unk_15C++;
-        thisx->world.pos.x = (Math_SinS(this->unk_15C * 0x2000) * var_fv1) + thisx->home.pos.x;
-        thisx->world.pos.z = (Math_CosS(this->unk_15C * 0x2000) * var_fv1) + thisx->home.pos.z;
+        thisx->world.pos.x = (MM_Math_SinS(this->unk_15C * 0x2000) * var_fv1) + thisx->home.pos.x;
+        thisx->world.pos.z = (MM_Math_CosS(this->unk_15C * 0x2000) * var_fv1) + thisx->home.pos.z;
         Actor_PlaySfx_Flagged(thisx, NA_SE_EV_PLATE_LIFT_LEVEL - SFX_FLAG);
     } else {
         this->unk_15C = 0;

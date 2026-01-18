@@ -8,10 +8,10 @@
     (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE | ACTOR_FLAG_UPDATE_CULLING_DISABLED | \
      ACTOR_FLAG_HOOKSHOT_PULLS_PLAYER)
 
-void EnFz_Init(Actor* thisx, PlayState* play);
-void EnFz_Destroy(Actor* thisx, PlayState* play);
-void EnFz_Update(Actor* thisx, PlayState* play);
-void EnFz_Draw(Actor* thisx, PlayState* play);
+void OoT_EnFz_Init(Actor* thisx, PlayState* play);
+void OoT_EnFz_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnFz_Update(Actor* thisx, PlayState* play);
+void OoT_EnFz_Draw(Actor* thisx, PlayState* play);
 
 void EnFz_UpdateTargetPos(EnFz* this, PlayState* play);
 
@@ -56,14 +56,14 @@ const ActorInit En_Fz_InitVars = {
     FLAGS,
     OBJECT_FZ,
     sizeof(EnFz),
-    (ActorFunc)EnFz_Init,
-    (ActorFunc)EnFz_Destroy,
-    (ActorFunc)EnFz_Update,
-    (ActorFunc)EnFz_Draw,
+    (ActorFunc)OoT_EnFz_Init,
+    (ActorFunc)OoT_EnFz_Destroy,
+    (ActorFunc)OoT_EnFz_Update,
+    (ActorFunc)OoT_EnFz_Draw,
     NULL,
 };
 
-static ColliderCylinderInitType1 sCylinderInit1 = {
+static ColliderCylinderInitType1 OoT_sCylinderInit1 = {
     {
         COLTYPE_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -82,7 +82,7 @@ static ColliderCylinderInitType1 sCylinderInit1 = {
     { 30, 80, 0, { 0, 0, 0 } },
 };
 
-static ColliderCylinderInitType1 sCylinderInit2 = {
+static ColliderCylinderInitType1 OoT_sCylinderInit2 = {
     {
         COLTYPE_METAL,
         AT_NONE,
@@ -101,7 +101,7 @@ static ColliderCylinderInitType1 sCylinderInit2 = {
     { 35, 80, 0, { 0, 0, 0 } },
 };
 
-static ColliderCylinderInitType1 sCylinderInit3 = {
+static ColliderCylinderInitType1 OoT_sCylinderInit3 = {
     {
         COLTYPE_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -120,7 +120,7 @@ static ColliderCylinderInitType1 sCylinderInit3 = {
     { 20, 30, -15, { 0, 0, 0 } },
 };
 
-static DamageTable sDamageTable = {
+static DamageTable OoT_sDamageTable = {
     /* Deku nut      */ DMG_ENTRY(0, 0x0),
     /* Deku stick    */ DMG_ENTRY(0, 0xF),
     /* Slingshot     */ DMG_ENTRY(0, 0xF),
@@ -155,29 +155,29 @@ static DamageTable sDamageTable = {
     /* Unknown 2     */ DMG_ENTRY(0, 0x0),
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_S8(naviEnemyId, 0x3B, ICHAIN_CONTINUE),
     ICHAIN_U8(targetMode, 2, ICHAIN_CONTINUE),
     ICHAIN_F32(targetArrowOffset, 30, ICHAIN_STOP),
 };
 
-void EnFz_Init(Actor* thisx, PlayState* play) {
+void OoT_EnFz_Init(Actor* thisx, PlayState* play) {
     EnFz* this = (EnFz*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    this->actor.colChkInfo.damageTable = &sDamageTable;
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
+    this->actor.colChkInfo.damageTable = &OoT_sDamageTable;
     this->actor.colChkInfo.health = 6;
 
-    Collider_InitCylinder(play, &this->collider1);
-    Collider_SetCylinderType1(play, &this->collider1, &this->actor, &sCylinderInit1);
+    OoT_Collider_InitCylinder(play, &this->collider1);
+    OoT_Collider_SetCylinderType1(play, &this->collider1, &this->actor, &OoT_sCylinderInit1);
 
-    Collider_InitCylinder(play, &this->collider2);
-    Collider_SetCylinderType1(play, &this->collider2, &this->actor, &sCylinderInit2);
+    OoT_Collider_InitCylinder(play, &this->collider2);
+    OoT_Collider_SetCylinderType1(play, &this->collider2, &this->actor, &OoT_sCylinderInit2);
 
-    Collider_InitCylinder(play, &this->collider3);
-    Collider_SetCylinderType1(play, &this->collider3, &this->actor, &sCylinderInit3);
+    OoT_Collider_InitCylinder(play, &this->collider3);
+    OoT_Collider_SetCylinderType1(play, &this->collider3, &this->actor, &OoT_sCylinderInit3);
 
-    Actor_SetScale(&this->actor, 0.008f);
+    OoT_Actor_SetScale(&this->actor, 0.008f);
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
     this->unusedTimer1 = 0;
@@ -208,12 +208,12 @@ void EnFz_Init(Actor* thisx, PlayState* play) {
     EnFz_UpdateTargetPos(this, play);
 }
 
-void EnFz_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnFz_Destroy(Actor* thisx, PlayState* play) {
     EnFz* this = (EnFz*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider1);
-    Collider_DestroyCylinder(play, &this->collider2);
-    Collider_DestroyCylinder(play, &this->collider3);
+    OoT_Collider_DestroyCylinder(play, &this->collider1);
+    OoT_Collider_DestroyCylinder(play, &this->collider2);
+    OoT_Collider_DestroyCylinder(play, &this->collider3);
 }
 
 void EnFz_UpdateTargetPos(EnFz* this, PlayState* play) {
@@ -227,15 +227,15 @@ void EnFz_UpdateTargetPos(EnFz* this, PlayState* play) {
     pos.y = this->actor.world.pos.y + 20.0f;
     pos.z = this->actor.world.pos.z;
 
-    Matrix_Translate(pos.x, pos.y, pos.z, MTXMODE_NEW);
-    Matrix_RotateZYX(this->actor.shape.rot.x, this->actor.shape.rot.y, this->actor.shape.rot.z, MTXMODE_APPLY);
+    OoT_Matrix_Translate(pos.x, pos.y, pos.z, MTXMODE_NEW);
+    OoT_Matrix_RotateZYX(this->actor.shape.rot.x, this->actor.shape.rot.y, this->actor.shape.rot.z, MTXMODE_APPLY);
     vec1.x = vec1.y = 0.0f;
     vec1.z = 220.0f;
-    Matrix_MultVec3f(&vec1, &this->wallHitPos);
+    OoT_Matrix_MultVec3f(&vec1, &this->wallHitPos);
 
-    if (BgCheck_EntityLineTest1(&play->colCtx, &pos, &this->wallHitPos, &hitPos, &hitPoly, true, false, false, true,
+    if (OoT_BgCheck_EntityLineTest1(&play->colCtx, &pos, &this->wallHitPos, &hitPos, &hitPoly, true, false, false, true,
                                 &bgId)) {
-        Math_Vec3f_Copy(&this->wallHitPos, &hitPos);
+        OoT_Math_Vec3f_Copy(&this->wallHitPos, &hitPos);
     }
 
     pos.x = this->actor.world.pos.x - this->wallHitPos.x;
@@ -273,18 +273,18 @@ void EnFz_Damaged(EnFz* this, PlayState* play, Vec3f* vec, s32 numEffects, f32 u
     accel.y = -1.0f;
 
     for (i = 0; i < numEffects; i++) {
-        scale = Rand_CenteredFloat(0.3f) + 0.6f;
-        life = (s32)Rand_CenteredFloat(5.0f) + 12;
-        pos.x = Rand_CenteredFloat(unkFloat) + vec->x;
-        pos.y = Rand_ZeroFloat(unkFloat) + vec->y;
-        pos.z = Rand_CenteredFloat(unkFloat) + vec->z;
-        vel.x = Rand_CenteredFloat(10.0f);
-        vel.y = Rand_ZeroFloat(10.0f) + 2.0f;
-        vel.z = Rand_CenteredFloat(10.0f);
-        EffectSsEnIce_Spawn(play, &pos, scale, &vel, &accel, &primColor, &envColor, life);
+        scale = OoT_Rand_CenteredFloat(0.3f) + 0.6f;
+        life = (s32)OoT_Rand_CenteredFloat(5.0f) + 12;
+        pos.x = OoT_Rand_CenteredFloat(unkFloat) + vec->x;
+        pos.y = OoT_Rand_ZeroFloat(unkFloat) + vec->y;
+        pos.z = OoT_Rand_CenteredFloat(unkFloat) + vec->z;
+        vel.x = OoT_Rand_CenteredFloat(10.0f);
+        vel.y = OoT_Rand_ZeroFloat(10.0f) + 2.0f;
+        vel.z = OoT_Rand_CenteredFloat(10.0f);
+        OoT_EffectSsEnIce_Spawn(play, &pos, scale, &vel, &accel, &primColor, &envColor, life);
     }
 
-    CollisionCheck_SpawnShieldParticles(play, vec);
+    OoT_CollisionCheck_SpawnShieldParticles(play, vec);
 }
 
 void EnFz_SpawnIceSmokeHiddenState(EnFz* this) {
@@ -297,13 +297,13 @@ void EnFz_SpawnIceSmokeGrowingState(EnFz* this) {
     Vec3f accel;
 
     if ((this->counter % 16) == 0) {
-        pos.x = Rand_CenteredFloat(40.0f) + this->actor.world.pos.x;
-        pos.y = Rand_CenteredFloat(40.0f) + this->actor.world.pos.y + 30.0f;
-        pos.z = Rand_CenteredFloat(40.0f) + this->actor.world.pos.z;
+        pos.x = OoT_Rand_CenteredFloat(40.0f) + this->actor.world.pos.x;
+        pos.y = OoT_Rand_CenteredFloat(40.0f) + this->actor.world.pos.y + 30.0f;
+        pos.z = OoT_Rand_CenteredFloat(40.0f) + this->actor.world.pos.z;
         accel.x = accel.z = 0.0f;
         accel.y = 0.1f;
         velocity.x = velocity.y = velocity.z = 0.0f;
-        EnFz_SpawnIceSmokeNoFreeze(this, &pos, &velocity, &accel, Rand_ZeroFloat(7.5f) + 15.0f);
+        EnFz_SpawnIceSmokeNoFreeze(this, &pos, &velocity, &accel, OoT_Rand_ZeroFloat(7.5f) + 15.0f);
     }
 }
 
@@ -314,13 +314,13 @@ void EnFz_SpawnIceSmokeActiveState(EnFz* this) {
     Vec3f accel;
 
     if ((this->counter % 4) == 0) {
-        pos.x = Rand_CenteredFloat(40.0f) + this->actor.world.pos.x;
+        pos.x = OoT_Rand_CenteredFloat(40.0f) + this->actor.world.pos.x;
         pos.y = this->iceSmokeFreezingSpawnHeight;
-        pos.z = Rand_CenteredFloat(40.0f) + this->actor.world.pos.z;
+        pos.z = OoT_Rand_CenteredFloat(40.0f) + this->actor.world.pos.z;
         accel.x = accel.z = 0.0f;
         accel.y = 0.1f;
         velocity.x = velocity.y = velocity.z = 0.0f;
-        EnFz_SpawnIceSmokeNoFreeze(this, &pos, &velocity, &accel, Rand_ZeroFloat(7.5f) + 15.0f);
+        EnFz_SpawnIceSmokeNoFreeze(this, &pos, &velocity, &accel, OoT_Rand_ZeroFloat(7.5f) + 15.0f);
     }
 }
 
@@ -328,7 +328,7 @@ void EnFz_ApplyDamage(EnFz* this, PlayState* play) {
     Vec3f vec;
 
     if (this->isMoving && ((this->actor.bgCheckFlags & 8) ||
-                           (Actor_TestFloorInDirection(&this->actor, play, 60.0f, this->actor.world.rot.y) == 0))) {
+                           (OoT_Actor_TestFloorInDirection(&this->actor, play, 60.0f, this->actor.world.rot.y) == 0))) {
         this->actor.bgCheckFlags &= ~8;
         this->isMoving = false;
         this->speedXZ = 0.0f;
@@ -349,8 +349,8 @@ void EnFz_ApplyDamage(EnFz* this, PlayState* play) {
             this->collider1.base.acFlags &= ~2;
             if (this->actor.colChkInfo.damageEffect != 2) {
                 if (this->actor.colChkInfo.damageEffect == 0xF) {
-                    Actor_ApplyDamage(&this->actor);
-                    Actor_SetColorFilter(&this->actor, 0x4000, 0xFF, 0x2000, 8);
+                    OoT_Actor_ApplyDamage(&this->actor);
+                    OoT_Actor_SetColorFilter(&this->actor, 0x4000, 0xFF, 0x2000, 8);
                     if (this->actor.colChkInfo.health) {
                         Audio_PlayActorSound2(&this->actor, NA_SE_EN_FREEZAD_DAMAGE);
                         vec.x = this->actor.world.pos.x;
@@ -370,8 +370,8 @@ void EnFz_ApplyDamage(EnFz* this, PlayState* play) {
                     }
                 }
             } else {
-                Actor_ApplyDamage(&this->actor);
-                Actor_SetColorFilter(&this->actor, 0x4000, 0xFF, 0x2000, 8);
+                OoT_Actor_ApplyDamage(&this->actor);
+                OoT_Actor_SetColorFilter(&this->actor, 0x4000, 0xFF, 0x2000, 8);
                 if (this->actor.colChkInfo.health == 0) {
                     Audio_PlayActorSound2(&this->actor, NA_SE_EN_FREEZAD_DEAD);
                     EnFz_SetupMelt(this);
@@ -384,7 +384,7 @@ void EnFz_ApplyDamage(EnFz* this, PlayState* play) {
 }
 
 void EnFz_SetYawTowardsPlayer(EnFz* this) {
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 10, 2000, 0);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 10, 2000, 0);
     this->actor.world.rot.y = this->actor.shape.rot.y;
 }
 
@@ -402,7 +402,7 @@ void EnFz_Disappear(EnFz* this, PlayState* play) {
         this->envAlpha = 0;
     }
 
-    if (Math_SmoothStepToF(&this->actor.scale.y, 0.0f, 1.0f, 0.0005f, 0) == 0.0f) {
+    if (OoT_Math_SmoothStepToF(&this->actor.scale.y, 0.0f, 1.0f, 0.0005f, 0) == 0.0f) {
         EnFz_SetupWait(this);
     }
 }
@@ -438,7 +438,7 @@ void EnFz_Appear(EnFz* this, PlayState* play) {
             this->envAlpha = 255;
         }
 
-        if (Math_SmoothStepToF(&this->actor.scale.y, 0.008f, 1.0f, 0.0005f, 0.0f) == 0.0f) {
+        if (OoT_Math_SmoothStepToF(&this->actor.scale.y, 0.008f, 1.0f, 0.0005f, 0.0f) == 0.0f) {
             EnFz_SetupAimForMove(this);
         }
     }
@@ -531,7 +531,7 @@ void EnFz_BlowSmoke(EnFz* this, PlayState* play) {
         vec1.y = -2.0f;
         vec1.z = 20.0f; // xz velocity
 
-        Matrix_MultVec3f(&vec1, &velocity);
+        OoT_Matrix_MultVec3f(&vec1, &velocity);
 
         if ((this->timer % 8) == 0) {
             isTimerMod8 = true;
@@ -559,14 +559,14 @@ void EnFz_SetupDespawn(EnFz* this, PlayState* play) {
     this->actor.gravity = 0.0f;
     this->actor.velocity.y = 0.0f;
     this->actor.speedXZ = 0.0f;
-    Actor_ChangeCategory(play, &play->actorCtx, &this->actor, ACTORCAT_PROP);
-    Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos, 0x60);
+    OoT_Actor_ChangeCategory(play, &play->actorCtx, &this->actor, ACTORCAT_PROP);
+    OoT_Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos, 0x60);
     this->actionFunc = EnFz_Despawn;
 }
 
 void EnFz_Despawn(EnFz* this, PlayState* play) {
     if (this->timer == 0) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
@@ -581,7 +581,7 @@ void EnFz_SetupMelt(EnFz* this) {
 }
 
 void EnFz_Melt(EnFz* this, PlayState* play) {
-    Math_StepToF(&this->actor.scale.y, 0.0006f, 0.0002f);
+    OoT_Math_StepToF(&this->actor.scale.y, 0.0006f, 0.0002f);
 
     if (this->actor.scale.y < 0.006f) {
         this->actor.scale.x += 0.0004f;
@@ -643,7 +643,7 @@ void EnFz_BlowSmokeStationary(EnFz* this, PlayState* play) {
         vec1.y = -2.0f;
         vec1.z = 20.0f;
 
-        Matrix_MultVec3f(&vec1, &velocity);
+        OoT_Matrix_MultVec3f(&vec1, &velocity);
 
         if ((this->counter % 8) == 0) {
             isTimerMod8 = true;
@@ -666,7 +666,7 @@ static EnFzSpawnIceSmokeFunc iceSmokeSpawnFuncs[] = {
     EnFz_SpawnIceSmokeActiveState,
 };
 
-void EnFz_Update(Actor* thisx, PlayState* play) {
+void OoT_EnFz_Update(Actor* thisx, PlayState* play) {
     EnFz* this = (EnFz*)thisx;
     s32 pad;
 
@@ -684,33 +684,33 @@ void EnFz_Update(Actor* thisx, PlayState* play) {
         this->unusedTimer2--;
     }
 
-    Actor_SetFocus(&this->actor, 50.0f);
+    OoT_Actor_SetFocus(&this->actor, 50.0f);
     EnFz_ApplyDamage(this, play);
     this->actionFunc(this, play);
     if (this->isDespawning == false) {
-        Collider_UpdateCylinder(&this->actor, &this->collider1);
-        Collider_UpdateCylinder(&this->actor, &this->collider2);
+        OoT_Collider_UpdateCylinder(&this->actor, &this->collider1);
+        OoT_Collider_UpdateCylinder(&this->actor, &this->collider2);
         if (this->isFreezing) {
             if (this->actor.colorFilterTimer == 0) {
-                CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider1.base);
-                CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider2.base);
+                OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider1.base);
+                OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider2.base);
             }
-            CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider1.base);
+            OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider1.base);
         }
     }
 
-    Math_StepToF(&this->actor.speedXZ, this->speedXZ, 0.2f);
+    OoT_Math_StepToF(&this->actor.speedXZ, this->speedXZ, 0.2f);
     Actor_MoveXZGravity(&this->actor);
 
     if (this->updateBgInfo) {
-        Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 20.0f, 5);
+        OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 20.0f, 5);
     }
 
     iceSmokeSpawnFuncs[this->state](this);
     EnFz_UpdateIceSmoke(this, play);
 }
 
-void EnFz_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnFz_Draw(Actor* thisx, PlayState* play) {
     static Gfx* displayLists[] = {
         gFreezardIntactDL,              // Body fully intact           (5 or 6 health)
         gFreezardTopRightHornChippedDL, // Top right horn chipped off  (from Freezards perspective)   (3 or 4 health)
@@ -741,7 +741,7 @@ void EnFz_Draw(Actor* thisx, PlayState* play) {
         func_8002ED80(&this->actor, play, 0);
         Gfx_SetupDL_25Xlu(play->state.gfxCtx);
         gSPSegment(POLY_XLU_DISP++, 0x08,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, play->state.frames & 0x7F, 32, 32, 1, 0,
+                   OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, play->state.frames & 0x7F, 32, 32, 1, 0,
                                     (2 * play->state.frames) & 0x7F, 32, 32));
         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gDPSetCombineLERP(POLY_XLU_DISP++, TEXEL1, PRIMITIVE, PRIM_LOD_FRAC, TEXEL0, TEXEL1, TEXEL0, PRIMITIVE, TEXEL0,
@@ -830,7 +830,7 @@ void EnFz_UpdateIceSmoke(EnFz* this, PlayState* play) {
                     }
                 }
             } else if (iceSmoke->type == 2) { // Freezing
-                Math_ApproachF(&iceSmoke->xyScale, iceSmoke->xyScaleTarget, 0.1f, iceSmoke->xyScaleTarget / 10.0f);
+                OoT_Math_ApproachF(&iceSmoke->xyScale, iceSmoke->xyScaleTarget, 0.1f, iceSmoke->xyScaleTarget / 10.0f);
                 if (iceSmoke->primAlphaState == 0) { // Becoming more opaque
                     if (iceSmoke->timer >= 7) {
                         iceSmoke->primAlphaState++;
@@ -850,7 +850,7 @@ void EnFz_UpdateIceSmoke(EnFz* this, PlayState* play) {
                     this->collider3.dim.pos.x = (s16)iceSmoke->pos.x;
                     this->collider3.dim.pos.y = (s16)iceSmoke->pos.y;
                     this->collider3.dim.pos.z = (s16)iceSmoke->pos.z;
-                    CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider3.base);
+                    OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider3.base);
                 }
 
                 pos.x = iceSmoke->pos.x;
@@ -891,11 +891,11 @@ void EnFz_DrawIceSmoke(EnFz* this, PlayState* play) {
 
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 195, 225, 235, iceSmoke->primAlpha);
             gSPSegment(POLY_XLU_DISP++, 0x08,
-                       Gfx_TwoTexScroll(play->state.gfxCtx, 0, 3 * (iceSmoke->timer + (3 * i)),
+                       OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 3 * (iceSmoke->timer + (3 * i)),
                                         15 * (iceSmoke->timer + (3 * i)), 32, 64, 1, 0, 0, 32, 32));
-            Matrix_Translate(iceSmoke->pos.x, iceSmoke->pos.y, iceSmoke->pos.z, MTXMODE_NEW);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
-            Matrix_Scale(iceSmoke->xyScale, iceSmoke->xyScale, 1.0f, MTXMODE_APPLY);
+            OoT_Matrix_Translate(iceSmoke->pos.x, iceSmoke->pos.y, iceSmoke->pos.z, MTXMODE_NEW);
+            OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
+            OoT_Matrix_Scale(iceSmoke->xyScale, iceSmoke->xyScale, 1.0f, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(POLY_XLU_DISP++, SEGMENTED_TO_VIRTUAL(gFreezardSteamDL));
         }

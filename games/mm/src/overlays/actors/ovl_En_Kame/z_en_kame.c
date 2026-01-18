@@ -67,7 +67,7 @@ ActorProfile En_Kame_Profile = {
     /**/ EnKame_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HARD,
         AT_NONE | AT_TYPE_ENEMY,
@@ -87,7 +87,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 35, 40, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit sColChkInfoInit = { 3, 15, 30, 80 };
+static CollisionCheckInfoInit MM_sColChkInfoInit = { 3, 15, 30, 80 };
 
 typedef enum {
     /* 0x0 */ EN_KAME_DMGEFF_NONE,           // Has no special effect
@@ -101,7 +101,7 @@ typedef enum {
     /* 0xF */ EN_KAME_DMGEFF_FLIP_OVER       // Flips over Snappers if they are rightside-up
 } EnKameDamageEffect;
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(0, EN_KAME_DMGEFF_STUN),
     /* Deku Stick     */ DMG_ENTRY(1, EN_KAME_DMGEFF_NONE),
     /* Horse trample  */ DMG_ENTRY(1, EN_KAME_DMGEFF_NONE),
@@ -136,9 +136,9 @@ static DamageTable sDamageTable = {
     /* Powder Keg     */ DMG_ENTRY(1, EN_KAME_DMGEFF_FLIP_OVER),
 };
 
-static TexturePtr sEyeTextures[] = { gSnapperEyeOpenTex, gSnapperEyeHalfTex, gSnapperEyeClosedTex, gSnapperEyeHalfTex };
+static TexturePtr MM_sEyeTextures[] = { gSnapperEyeOpenTex, gSnapperEyeHalfTex, gSnapperEyeClosedTex, gSnapperEyeHalfTex };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_S8(hintId, TATL_HINT_ID_SNAPPER, ICHAIN_CONTINUE),
     ICHAIN_F32(gravity, -1, ICHAIN_CONTINUE),
     ICHAIN_F32(lockOnArrowOffset, 3500, ICHAIN_STOP),
@@ -149,20 +149,20 @@ static s32 sTexturesDesegmented = false;
 void EnKame_Init(Actor* thisx, PlayState* play) {
     EnKame* this = (EnKame*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    SkelAnime_InitFlex(play, &this->snapperSkelAnime, &gSnapperSkel, &gSnapperIdleAnim, this->snapperJointTable,
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
+    MM_SkelAnime_InitFlex(play, &this->snapperSkelAnime, &gSnapperSkel, &gSnapperIdleAnim, this->snapperJointTable,
                        this->snapperMorphTable, SNAPPER_LIMB_MAX);
-    SkelAnime_InitFlex(play, &this->spikedSnapperSkelAnime, &gSpikedSnapperSkel, &gSpikedSnapperIdleAnim,
+    MM_SkelAnime_InitFlex(play, &this->spikedSnapperSkelAnime, &gSpikedSnapperSkel, &gSpikedSnapperIdleAnim,
                        this->spikedSnapperJointTable, this->spikedSnapperMorphTable, SPIKED_SNAPPER_LIMB_MAX);
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 55.0f);
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo(&this->actor.colChkInfo, &sDamageTable, &sColChkInfoInit);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 55.0f);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo(&this->actor.colChkInfo, &MM_sDamageTable, &MM_sColChkInfoInit);
 
     if (!sTexturesDesegmented) {
         s32 i;
 
-        for (i = 0; i < ARRAY_COUNT(sEyeTextures); i++) {
-            sEyeTextures[i] = Lib_SegmentedToVirtual(sEyeTextures[i]);
+        for (i = 0; i < ARRAY_COUNT(MM_sEyeTextures); i++) {
+            MM_sEyeTextures[i] = Lib_SegmentedToVirtual(MM_sEyeTextures[i]);
         }
 
         sTexturesDesegmented = true;
@@ -174,7 +174,7 @@ void EnKame_Init(Actor* thisx, PlayState* play) {
 void EnKame_Destroy(Actor* thisx, PlayState* play) {
     EnKame* this = (EnKame*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnKame_Blink(EnKame* this) {
@@ -183,7 +183,7 @@ void EnKame_Blink(EnKame* this) {
         if (this->eyeIndex == EN_KAME_EYE_MAX) {
             this->eyeIndex = EN_KAME_EYE_OPEN;
         }
-    } else if (Rand_ZeroOne() < 0.05f) {
+    } else if (MM_Rand_ZeroOne() < 0.05f) {
         this->eyeIndex = EN_KAME_EYE_HALF_CLOSING;
     }
 }
@@ -196,7 +196,7 @@ void EnKame_Freeze(EnKame* this) {
     this->collider.base.colMaterial = COL_MATERIAL_HIT3;
     this->stunTimer = 80;
     this->actor.flags &= ~ACTOR_FLAG_HOOKSHOT_PULLS_PLAYER;
-    Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 80);
+    MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 80);
 }
 
 void EnKame_Thaw(EnKame* this, PlayState* play) {
@@ -210,7 +210,7 @@ void EnKame_Thaw(EnKame* this, PlayState* play) {
 }
 
 void EnKame_SetupIdle(EnKame* this) {
-    Animation_MorphToPlayOnce(&this->snapperSkelAnime, &gSnapperIdleAnim, -5.0f);
+    MM_Animation_MorphToPlayOnce(&this->snapperSkelAnime, &gSnapperIdleAnim, -5.0f);
     this->actor.speed = 0.0f;
     this->actionFunc = EnKame_Idle;
 }
@@ -222,23 +222,23 @@ void EnKame_SetupIdle(EnKame* this) {
 void EnKame_Idle(EnKame* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    if (Animation_OnFrame(&this->snapperSkelAnime, 10.0f)) {
+    if (MM_Animation_OnFrame(&this->snapperSkelAnime, 10.0f)) {
         Actor_PlaySfx(&this->actor, NA_SE_EN_PAMET_VOICE);
         this->voiceTimer = 40;
     }
 
-    if ((Player_GetMask(play) != PLAYER_MASK_STONE) && !(player->stateFlags1 & PLAYER_STATE1_800000) &&
+    if ((MM_Player_GetMask(play) != PLAYER_MASK_STONE) && !(player->stateFlags1 & PLAYER_STATE1_800000) &&
         (this->actor.xzDistToPlayer < 240.0f)) {
         EnKame_SetupRetreatIntoShell(this);
-    } else if (SkelAnime_Update(&this->snapperSkelAnime)) {
+    } else if (MM_SkelAnime_Update(&this->snapperSkelAnime)) {
         EnKame_SetupWalk(this);
     }
 }
 
 void EnKame_SetupWalk(EnKame* this) {
-    Animation_MorphToLoop(&this->snapperSkelAnime, &gSnapperWalkAnim, -5.0f);
+    MM_Animation_MorphToLoop(&this->snapperSkelAnime, &gSnapperWalkAnim, -5.0f);
     this->actor.speed = 0.5f;
-    this->timer = Animation_GetLastFrame(&gSnapperWalkAnim) * ((s32)Rand_ZeroFloat(5.0f) + 3);
+    this->timer = MM_Animation_GetLastFrame(&gSnapperWalkAnim) * ((s32)MM_Rand_ZeroFloat(5.0f) + 3);
     this->targetRotY = this->actor.shape.rot.y;
     this->collider.base.acFlags |= (AC_HARD | AC_ON);
     this->collider.base.colMaterial = COL_MATERIAL_HARD;
@@ -253,31 +253,31 @@ void EnKame_SetupWalk(EnKame* this) {
 void EnKame_Walk(EnKame* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    if ((Player_GetMask(play) != PLAYER_MASK_STONE) && !(player->stateFlags1 & PLAYER_STATE1_800000) &&
+    if ((MM_Player_GetMask(play) != PLAYER_MASK_STONE) && !(player->stateFlags1 & PLAYER_STATE1_800000) &&
         (this->actor.xzDistToPlayer < 240.0f)) {
         EnKame_SetupRetreatIntoShell(this);
         return;
     }
 
-    SkelAnime_Update(&this->snapperSkelAnime);
+    MM_SkelAnime_Update(&this->snapperSkelAnime);
 
     if (this->targetRotY != this->actor.shape.rot.y) {
-        Math_ScaledStepToS(&this->actor.shape.rot.y, this->targetRotY, 0x100);
+        MM_Math_ScaledStepToS(&this->actor.shape.rot.y, this->targetRotY, 0x100);
         this->actor.world.rot.y = this->actor.shape.rot.y;
-    } else if (Actor_WorldDistXZToPoint(&this->actor, &this->actor.home.pos) > 40.0f) {
-        this->targetRotY = Actor_WorldYawTowardPoint(&this->actor, &this->actor.home.pos) + ((s32)Rand_Next() >> 0x14);
+    } else if (MM_Actor_WorldDistXZToPoint(&this->actor, &this->actor.home.pos) > 40.0f) {
+        this->targetRotY = MM_Actor_WorldYawTowardPoint(&this->actor, &this->actor.home.pos) + ((s32)MM_Rand_Next() >> 0x14);
     }
 
     this->timer--;
     if (this->timer == 0) {
         EnKame_SetupIdle(this);
-    } else if (Animation_OnFrame(&this->snapperSkelAnime, 0.0f) || Animation_OnFrame(&this->snapperSkelAnime, 15.0f)) {
+    } else if (MM_Animation_OnFrame(&this->snapperSkelAnime, 0.0f) || MM_Animation_OnFrame(&this->snapperSkelAnime, 15.0f)) {
         Actor_PlaySfx(&this->actor, NA_SE_EN_PAMET_WALK);
     }
 }
 
 void EnKame_SetupRetreatIntoShell(EnKame* this) {
-    Animation_MorphToPlayOnce(&this->snapperSkelAnime, &gSnapperRetreatIntoShellAnim, -3.0f);
+    MM_Animation_MorphToPlayOnce(&this->snapperSkelAnime, &gSnapperRetreatIntoShellAnim, -3.0f);
     this->timer = 0;
     this->limbScaleY = 1.0f;
     this->limbScaleXZ = 1.0f;
@@ -300,8 +300,8 @@ void EnKame_SetupRetreatIntoShell(EnKame* this) {
 void EnKame_RetreatIntoShell(EnKame* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    if (SkelAnime_Update(&this->snapperSkelAnime)) {
-        if ((Player_GetMask(play) != PLAYER_MASK_STONE) && !(player->stateFlags1 & PLAYER_STATE1_800000) &&
+    if (MM_SkelAnime_Update(&this->snapperSkelAnime)) {
+        if ((MM_Player_GetMask(play) != PLAYER_MASK_STONE) && !(player->stateFlags1 & PLAYER_STATE1_800000) &&
             ((this->timer == 0) || (this->actor.xzDistToPlayer < 120.0f))) {
             EnKame_SetupPrepareToAttack(this);
         } else {
@@ -340,7 +340,7 @@ void EnKame_SetAttackSpeed(EnKame* this) {
 void EnKame_ProcessAttackEffects(EnKame* this, PlayState* play) {
     static Color_RGBA8 sSnowPrimColor = { 250, 250, 250, 255 };
     static Color_RGBA8 sSnowEnvColor = { 180, 180, 180, 255 };
-    static Vec3f sVelocity = { 0.0f, 0.75f, 0.0f };
+    static Vec3f MM_sVelocity = { 0.0f, 0.75f, 0.0f };
 
     if ((this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) && (this->actor.speed >= 3.0f)) {
         if ((play->gameplayFrames % 2) == 0) {
@@ -348,9 +348,9 @@ void EnKame_ProcessAttackEffects(EnKame* this, PlayState* play) {
                 SurfaceType_GetMaterial(&play->colCtx, this->actor.floorPoly, this->actor.floorBgId);
 
             if ((surfaceMaterial == SURFACE_MATERIAL_DIRT) || (surfaceMaterial == SURFACE_MATERIAL_SAND)) {
-                func_800B1210(play, &this->actor.world.pos, &sVelocity, &gZeroVec3f, 550, 100);
+                func_800B1210(play, &this->actor.world.pos, &MM_sVelocity, &gZeroVec3f, 550, 100);
             } else if (surfaceMaterial == SURFACE_MATERIAL_SNOW) {
-                func_800B0DE0(play, &this->actor.world.pos, &sVelocity, &gZeroVec3f, &sSnowPrimColor, &sSnowEnvColor,
+                func_800B0DE0(play, &this->actor.world.pos, &MM_sVelocity, &gZeroVec3f, &sSnowPrimColor, &sSnowEnvColor,
                               550, 100);
             }
         }
@@ -387,8 +387,8 @@ void EnKame_SetupPrepareToAttack(EnKame* this) {
         // during the first phase of the attack due to the code below.
         this->targetPos.y = this->actor.home.pos.y - 100.0f;
     } else {
-        this->actor.world.rot.y = Actor_WorldYawTowardPoint(&this->actor, &this->actor.home.pos);
-        Math_Vec3f_Copy(&this->targetPos, &this->actor.home.pos);
+        this->actor.world.rot.y = MM_Actor_WorldYawTowardPoint(&this->actor, &this->actor.home.pos);
+        MM_Math_Vec3f_Copy(&this->targetPos, &this->actor.home.pos);
         this->timer = 0;
     }
 
@@ -413,13 +413,13 @@ void EnKame_PrepareToAttack(EnKame* this, PlayState* play) {
         }
     } else if (this->timer > 0) {
         this->timer--;
-    } else if (Math_ScaledStepToS(&this->angularVelocityY, 0x3B00, (s32)(this->angularVelocityY * 0.09f) + 45)) {
+    } else if (MM_Math_ScaledStepToS(&this->angularVelocityY, 0x3B00, (s32)(this->angularVelocityY * 0.09f) + 45)) {
         // If it's the first phase of the attack, rotate the Snapper to face the player and set the targetPos to a
         // fixed position in that direction. This will make them charge towards the player once they start moving.
         if (this->targetPos.y < this->actor.home.pos.y) {
             this->actor.world.rot.y = this->actor.yawTowardsPlayer;
-            this->targetPos.x = (Math_SinS(this->actor.world.rot.y) * 360.0f) + this->actor.world.pos.x;
-            this->targetPos.z = (Math_CosS(this->actor.world.rot.y) * 360.0f) + this->actor.world.pos.z;
+            this->targetPos.x = (MM_Math_SinS(this->actor.world.rot.y) * 360.0f) + this->actor.world.pos.x;
+            this->targetPos.z = (MM_Math_CosS(this->actor.world.rot.y) * 360.0f) + this->actor.world.pos.z;
         }
 
         EnKame_SetupAttack(this);
@@ -455,14 +455,14 @@ void EnKame_Attack(EnKame* this, PlayState* play) {
 
     if (this->targetAngularVelocityY == -1) {
         s32 absYawToTarget;
-        s16 yawToTarget = Actor_WorldYawTowardPoint(&this->actor, &this->targetPos) - this->actor.world.rot.y;
+        s16 yawToTarget = MM_Actor_WorldYawTowardPoint(&this->actor, &this->targetPos) - this->actor.world.rot.y;
 
         absYawToTarget = ABS_ALT(yawToTarget);
 
         // If the yaw toward the targetPos is too large, that indicates the Snapper probably moved
         // beyond its target (in other words, the target is now "behind" the Snapper).
         if ((this->actor.bgCheckFlags & BGCHECKFLAG_WALL) || (absYawToTarget > 0x3000) ||
-            (Actor_WorldDistXZToPoint(&this->actor, &this->targetPos) < 50.0f)) {
+            (MM_Actor_WorldDistXZToPoint(&this->actor, &this->targetPos) < 50.0f)) {
             s8 pad;
 
             if (this->targetPos.y < this->actor.home.pos.y) {
@@ -474,7 +474,7 @@ void EnKame_Attack(EnKame* this, PlayState* play) {
         return;
     }
 
-    if (Math_ScaledStepToS(&this->angularVelocityY, this->targetAngularVelocityY,
+    if (MM_Math_ScaledStepToS(&this->angularVelocityY, this->targetAngularVelocityY,
                            (s32)(this->angularVelocityY * 0.09f) + 45)) {
         if (this->targetAngularVelocityY == 0) {
             if (this->spikesScale >= 1.0f) {
@@ -497,7 +497,7 @@ void EnKame_Attack(EnKame* this, PlayState* play) {
 
 void EnKame_SetupEmergeFromShell(EnKame* this) {
     this->actor.draw = EnKame_Draw;
-    Animation_MorphToPlayOnce(&this->snapperSkelAnime, &gSnapperEmergeFromShellAnim, -3.0f);
+    MM_Animation_MorphToPlayOnce(&this->snapperSkelAnime, &gSnapperEmergeFromShellAnim, -3.0f);
     this->actor.speed = 0.0f;
     this->limbScaleY = 0.1f;
     this->limbScaleXZ = 1.0f;
@@ -511,7 +511,7 @@ void EnKame_SetupEmergeFromShell(EnKame* this) {
  * will make the Snapper start walking again.
  */
 void EnKame_EmergeFromShell(EnKame* this, PlayState* play) {
-    if (SkelAnime_Update(&this->snapperSkelAnime)) {
+    if (MM_SkelAnime_Update(&this->snapperSkelAnime)) {
         EnKame_SetupWalk(this);
     } else if (this->snapperSkelAnime.curFrame > 7.0f) {
         this->limbScaleY = 1.5f - ((this->snapperSkelAnime.curFrame - 7.0f) * (1.0f / 6));
@@ -526,11 +526,11 @@ void EnKame_EmergeFromShell(EnKame* this, PlayState* play) {
 
 void EnKame_SetupFlip(EnKame* this) {
     if (this->actionFunc == EnKame_Struggle) {
-        Animation_MorphToPlayOnce(&this->snapperSkelAnime, &gSnapperBouncedUprightAnim, -3.0f);
+        MM_Animation_MorphToPlayOnce(&this->snapperSkelAnime, &gSnapperBouncedUprightAnim, -3.0f);
         this->flipType = EN_KAME_FLIP_TYPE_RIGHTSIDE_UP;
         this->collider.elem.acDmgInfo.dmgFlags &= ~0x8000;
     } else {
-        Animation_MorphToPlayOnce(&this->snapperSkelAnime, &gSnapperFlipOverAnim, -3.0f);
+        MM_Animation_MorphToPlayOnce(&this->snapperSkelAnime, &gSnapperFlipOverAnim, -3.0f);
         this->flipType = EN_KAME_FLIP_TYPE_UPSIDE_DOWN;
         this->collider.elem.acDmgInfo.dmgFlags |= 0x8000;
     }
@@ -551,7 +551,7 @@ void EnKame_SetupFlip(EnKame* this) {
  * If the Snapper is flipped rightside-up, this will make it start walking once the flip animation ends.
  */
 void EnKame_Flip(EnKame* this, PlayState* play) {
-    if (SkelAnime_Update(&this->snapperSkelAnime)) {
+    if (MM_SkelAnime_Update(&this->snapperSkelAnime)) {
         if (this->flipType == EN_KAME_FLIP_TYPE_RIGHTSIDE_UP) {
             EnKame_SetupWalk(this);
         } else {
@@ -562,7 +562,7 @@ void EnKame_Flip(EnKame* this, PlayState* play) {
 }
 
 void EnKame_SetupStruggle(EnKame* this) {
-    Animation_MorphToPlayOnce(&this->snapperSkelAnime, &gSnapperWiggleLegsAnim, -3.0f);
+    MM_Animation_MorphToPlayOnce(&this->snapperSkelAnime, &gSnapperWiggleLegsAnim, -3.0f);
     this->collider.base.acFlags |= AC_ON;
     this->collider.base.acFlags &= ~AC_HARD;
     this->collider.base.colMaterial = COL_MATERIAL_HIT6;
@@ -576,11 +576,11 @@ void EnKame_SetupStruggle(EnKame* this) {
 void EnKame_Struggle(EnKame* this, PlayState* play) {
     if (this->timer > 0) {
         this->timer--;
-        if (SkelAnime_Update(&this->snapperSkelAnime)) {
-            if (Rand_ZeroOne() > 0.5f) {
-                Animation_PlayOnce(&this->snapperSkelAnime, &gSnapperWiggleLegsAnim);
+        if (MM_SkelAnime_Update(&this->snapperSkelAnime)) {
+            if (MM_Rand_ZeroOne() > 0.5f) {
+                MM_Animation_PlayOnce(&this->snapperSkelAnime, &gSnapperWiggleLegsAnim);
             } else {
-                Animation_PlayOnce(&this->snapperSkelAnime, &gSnapperFailToFlipUprightAnim);
+                MM_Animation_PlayOnce(&this->snapperSkelAnime, &gSnapperFailToFlipUprightAnim);
                 Actor_PlaySfx(&this->actor, NA_SE_EN_PAMET_ROAR);
             }
         }
@@ -590,7 +590,7 @@ void EnKame_Struggle(EnKame* this, PlayState* play) {
 }
 
 void EnKame_SetupFlipUpright(EnKame* this) {
-    Animation_MorphToPlayOnce(&this->snapperSkelAnime, &gSnapperFlipUprightAnim, -3.0f);
+    MM_Animation_MorphToPlayOnce(&this->snapperSkelAnime, &gSnapperFlipUprightAnim, -3.0f);
     Actor_PlaySfx(&this->actor, NA_SE_EN_PAMET_WAKEUP);
     this->actionFunc = EnKame_FlipUpright;
 }
@@ -599,13 +599,13 @@ void EnKame_SetupFlipUpright(EnKame* this) {
  * Plays the animation of the Snapper flipping itself upright, then transitions back to walking.
  */
 void EnKame_FlipUpright(EnKame* this, PlayState* play) {
-    if (SkelAnime_Update(&this->snapperSkelAnime)) {
-        this->actor.shape.shadowDraw = ActorShadow_DrawCircle;
+    if (MM_SkelAnime_Update(&this->snapperSkelAnime)) {
+        this->actor.shape.shadowDraw = MM_ActorShadow_DrawCircle;
         EnKame_SetupWalk(this);
     } else if (this->snapperSkelAnime.curFrame >= 10.0f) {
         // This is the part of the animation where the Snapper starts to flip itself
         // upright. During this flip, this actor needs to manually control when
-        // ActorShadow_DrawCircle is called, so the shadowDraw pointer is set to NULL.
+        // MM_ActorShadow_DrawCircle is called, so the shadowDraw pointer is set to NULL.
         // See EnKame_PostLimbDraw and EnKame_Draw for more information.
         this->actor.shape.shadowDraw = NULL;
         this->collider.base.acFlags &= ~AC_ON;
@@ -624,7 +624,7 @@ void EnKame_SetupStunned(EnKame* this) {
 }
 
 /**
- * Stops the Snapper's animation and locks it in place until the stun timer reaches zero. After that, the
+ * Stops the Snapper's animation and locks it in place until the stun timer reaches MM_zero. After that, the
  * Snapper either dies (if the attack that stunned it reduced its health to 0) or goes back to struggling.
  * If the Snapper dies in this state, it skips the "finishing blow" screen flash and game freeze.
  */
@@ -645,10 +645,10 @@ void EnKame_Stunned(EnKame* this, PlayState* play) {
 }
 
 void EnKame_SetupDamaged(EnKame* this) {
-    s16 endFrame = Animation_GetLastFrame(&gSnapperDamageAnim);
+    s16 endFrame = MM_Animation_GetLastFrame(&gSnapperDamageAnim);
 
-    Animation_Change(&this->snapperSkelAnime, &gSnapperDamageAnim, 1.0f, 0.0f, endFrame, ANIMMODE_ONCE, -3.0f);
-    Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, endFrame);
+    MM_Animation_Change(&this->snapperSkelAnime, &gSnapperDamageAnim, 1.0f, 0.0f, endFrame, ANIMMODE_ONCE, -3.0f);
+    MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, endFrame);
     Actor_PlaySfx(&this->actor, NA_SE_EN_PAMET_DAMAGE);
     this->collider.base.acFlags &= ~AC_ON;
     this->actionFunc = EnKame_Damaged;
@@ -658,14 +658,14 @@ void EnKame_SetupDamaged(EnKame* this) {
  * Plays the damaged animation, then goes back to struggling to flip itself upright.
  */
 void EnKame_Damaged(EnKame* this, PlayState* play) {
-    if (SkelAnime_Update(&this->snapperSkelAnime)) {
+    if (MM_SkelAnime_Update(&this->snapperSkelAnime)) {
         EnKame_SetupStruggle(this);
     }
 }
 
 void EnKame_SetupDead(EnKame* this, PlayState* play) {
-    Animation_PlayLoop(&this->snapperSkelAnime, &gSnapperDeathAnim);
-    Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 20);
+    MM_Animation_PlayLoop(&this->snapperSkelAnime, &gSnapperDeathAnim);
+    MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 20);
     this->collider.base.acFlags &= ~AC_ON;
     this->collider.base.atFlags &= ~AT_ON;
     this->collider.base.atFlags &= ~(AC_HARD | AC_HIT);
@@ -677,7 +677,7 @@ void EnKame_SetupDead(EnKame* this, PlayState* play) {
     // while passing NULL instead of play; in practice, this means that the only way to skip this code is to
     // kill the Snapper with an Ice Arrow, since that's the only attack that both stuns it and deals damage.
     if (play != NULL) {
-        Enemy_StartFinishingBlow(play, &this->actor);
+        MM_Enemy_StartFinishingBlow(play, &this->actor);
         if (this->actor.draw == EnKame_DrawSpikedSnapper) {
             this->actor.draw = EnKame_Draw;
         } else {
@@ -698,7 +698,7 @@ void EnKame_SetupDead(EnKame* this, PlayState* play) {
  * burst into flames once it touches the ground.
  */
 void EnKame_Dead(EnKame* this, PlayState* play) {
-    SkelAnime_Update(&this->snapperSkelAnime);
+    MM_SkelAnime_Update(&this->snapperSkelAnime);
     if ((this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) && (this->actor.velocity.y < 0.0f)) {
         Actor_PlaySfx(&this->actor, NA_SE_EN_HIPLOOP_LAND);
         EnKame_SetupBurstIntoFlames(this);
@@ -708,12 +708,12 @@ void EnKame_Dead(EnKame* this, PlayState* play) {
         if (this->timer == 1) {
             this->actor.colorFilterTimer = 100;
         } else if (this->actor.colorFilterTimer == 0) {
-            Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_NONE, 255, COLORFILTER_BUFFLAG_OPA, 100);
+            MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_NONE, 255, COLORFILTER_BUFFLAG_OPA, 100);
         }
 
-        this->actor.shape.rot.x += Rand_S16Offset(0x700, 0x1400);
-        this->actor.shape.rot.y += TRUNCF_BINANG(Rand_ZeroFloat(0x1400));
-        this->actor.shape.rot.z += Rand_S16Offset(0x700, 0x1400);
+        this->actor.shape.rot.x += MM_Rand_S16Offset(0x700, 0x1400);
+        this->actor.shape.rot.y += TRUNCF_BINANG(MM_Rand_ZeroFloat(0x1400));
+        this->actor.shape.rot.z += MM_Rand_S16Offset(0x700, 0x1400);
     }
 }
 
@@ -731,7 +731,7 @@ void EnKame_SetupBurstIntoFlames(EnKame* this) {
 void EnKame_BurstIntoFlames(EnKame* this, PlayState* play) {
     Vec3f flamePos;
 
-    SkelAnime_Update(&this->snapperSkelAnime);
+    MM_SkelAnime_Update(&this->snapperSkelAnime);
     this->actor.colorFilterTimer = 100;
     if (this->timer > 0) {
         this->timer--;
@@ -742,16 +742,16 @@ void EnKame_BurstIntoFlames(EnKame* this, PlayState* play) {
     } else {
         this->actor.scale.x -= 0.001f;
         if (this->actor.scale.x <= 0.0f) {
-            Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos, 0x60);
-            Actor_Kill(&this->actor);
+            MM_Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos, 0x60);
+            MM_Actor_Kill(&this->actor);
         } else {
             this->actor.scale.y = this->actor.scale.x;
             this->actor.scale.z = this->actor.scale.x;
         }
 
-        flamePos.x = Rand_CenteredFloat(40.0f) + this->actor.world.pos.x;
+        flamePos.x = MM_Rand_CenteredFloat(40.0f) + this->actor.world.pos.x;
         flamePos.y = this->actor.world.pos.y + 15.0f;
-        flamePos.z = Rand_CenteredFloat(40.0f) + this->actor.world.pos.z;
+        flamePos.z = MM_Rand_CenteredFloat(40.0f) + this->actor.world.pos.z;
         func_800B3030(play, &flamePos, &gZeroVec3f, &gZeroVec3f, 100, 0, 2);
     }
 }
@@ -760,7 +760,7 @@ void EnKame_UpdateDamage(EnKame* this, PlayState* play) {
     if (this->collider.base.acFlags & AC_HIT) {
         this->collider.base.acFlags &= ~AC_HIT;
 
-        Actor_SetDropFlag(&this->actor, &this->collider.elem);
+        MM_Actor_SetDropFlag(&this->actor, &this->collider.elem);
         if ((this->drawDmgEffType == ACTOR_DRAW_DMGEFF_FROZEN_NO_SFX) &&
             (this->collider.elem.acHitElem->atDmgInfo.dmgFlags & 0xDB0B3)) {
             return;
@@ -776,7 +776,7 @@ void EnKame_UpdateDamage(EnKame* this, PlayState* play) {
         } else if (this->actor.colChkInfo.damageEffect == EN_KAME_DMGEFF_FLIP_OVER) {
             if (this->collider.base.acFlags & AC_HARD) {
                 EnKame_SetupFlip(this);
-            } else if (!Actor_ApplyDamage(&this->actor)) {
+            } else if (!MM_Actor_ApplyDamage(&this->actor)) {
                 EnKame_SetupDead(this, play);
             } else {
                 EnKame_SetupDamaged(this);
@@ -787,7 +787,7 @@ void EnKame_UpdateDamage(EnKame* this, PlayState* play) {
         } else if (!(this->collider.base.acFlags & AC_HARD)) {
             if (this->actor.colChkInfo.damageEffect == EN_KAME_DMGEFF_ELECTRIC_STUN) {
                 this->stunTimer = 40;
-                Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_BLUE, 255, COLORFILTER_BUFFLAG_OPA, 40);
+                MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_BLUE, 255, COLORFILTER_BUFFLAG_OPA, 40);
                 Actor_PlaySfx(&this->actor, NA_SE_EN_COMMON_FREEZE);
                 this->drawDmgEffScale = 0.6f;
                 this->drawDmgEffAlpha = 2.0f;
@@ -795,12 +795,12 @@ void EnKame_UpdateDamage(EnKame* this, PlayState* play) {
                 EnKame_SetupStunned(this);
             } else if (this->actor.colChkInfo.damageEffect == EN_KAME_DMGEFF_STUN) {
                 this->stunTimer = 40;
-                Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_BLUE, 255, COLORFILTER_BUFFLAG_OPA, 40);
+                MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_BLUE, 255, COLORFILTER_BUFFLAG_OPA, 40);
                 Actor_PlaySfx(&this->actor, NA_SE_EN_COMMON_FREEZE);
                 EnKame_SetupStunned(this);
             } else if (this->actor.colChkInfo.damageEffect == EN_KAME_DMGEFF_FREEZE) {
                 EnKame_Freeze(this);
-                if (!Actor_ApplyDamage(&this->actor)) {
+                if (!MM_Actor_ApplyDamage(&this->actor)) {
                     this->stunTimer = 3;
                     this->collider.base.acFlags &= ~AC_ON;
                 }
@@ -815,12 +815,12 @@ void EnKame_UpdateDamage(EnKame* this, PlayState* play) {
                     this->drawDmgEffScale = 0.6f;
                     this->drawDmgEffAlpha = 4.0f;
                     this->drawDmgEffType = ACTOR_DRAW_DMGEFF_LIGHT_ORBS;
-                    Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->collider.elem.acDmgInfo.hitPos.x,
+                    MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->collider.elem.acDmgInfo.hitPos.x,
                                 this->collider.elem.acDmgInfo.hitPos.y, this->collider.elem.acDmgInfo.hitPos.z, 0, 0, 0,
                                 CLEAR_TAG_PARAMS(CLEAR_TAG_LARGE_LIGHT_RAYS));
                 }
 
-                if (!Actor_ApplyDamage(&this->actor)) {
+                if (!MM_Actor_ApplyDamage(&this->actor)) {
                     EnKame_SetupDead(this, play);
                 } else {
                     EnKame_SetupDamaged(this);
@@ -849,7 +849,7 @@ void EnKame_Update(Actor* thisx, PlayState* play) {
     if ((this->collider.base.atFlags & AT_HIT) && (this->collider.base.atFlags & AT_BOUNCED)) {
         this->collider.base.atFlags &= ~(AT_BOUNCED | AT_HIT);
         EnKame_SetupPrepareToAttack(this);
-        if (Actor_WorldDistXZToPoint(&this->actor, &this->targetPos) < 50.0f) {
+        if (MM_Actor_WorldDistXZToPoint(&this->actor, &this->targetPos) < 50.0f) {
             this->collider.base.atFlags &= ~AT_ON;
         }
 
@@ -860,33 +860,33 @@ void EnKame_Update(Actor* thisx, PlayState* play) {
     this->actionFunc(this, play);
 
     Actor_MoveWithGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 40.0f, 60.0f, 40.0f,
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 40.0f, 60.0f, 40.0f,
                             UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_2 | UPDBGCHECKINFO_FLAG_4 |
                                 UPDBGCHECKINFO_FLAG_8 | UPDBGCHECKINFO_FLAG_10);
 
     // When the Snapper is in the middle of the animation where it's flipping upright,
     // setting the focus and updating the collider is handled in EnKame_Draw instead.
     if (this->actor.shape.shadowDraw != NULL) {
-        Actor_SetFocus(&this->actor, 25.0f);
-        Collider_UpdateCylinder(&this->actor, &this->collider);
+        MM_Actor_SetFocus(&this->actor, 25.0f);
+        MM_Collider_UpdateCylinder(&this->actor, &this->collider);
     }
 
     if (this->collider.base.atFlags & AT_ON) {
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
     }
 
     if (this->collider.base.acFlags & AC_ON) {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 
     if (this->drawDmgEffAlpha > 0.0f) {
         if (this->drawDmgEffType != ACTOR_DRAW_DMGEFF_FROZEN_NO_SFX) {
-            Math_StepToF(&this->drawDmgEffAlpha, 0.0f, 0.05f);
+            MM_Math_StepToF(&this->drawDmgEffAlpha, 0.0f, 0.05f);
             this->drawDmgEffScale = (this->drawDmgEffAlpha + 1.0f) * 0.3f;
             this->drawDmgEffScale = CLAMP_MAX(this->drawDmgEffScale, 0.6f);
-        } else if (!Math_StepToF(&this->drawDmgEffFrozenSteamScale, 0.6f, 15.0f * 0.001f)) {
+        } else if (!MM_Math_StepToF(&this->drawDmgEffFrozenSteamScale, 0.6f, 15.0f * 0.001f)) {
             Actor_PlaySfx_Flagged(&this->actor, NA_SE_EV_ICE_FREEZE - SFX_FLAG);
         }
     }
@@ -897,10 +897,10 @@ s32 EnKame_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* 
 
     if ((this->actionFunc == EnKame_RetreatIntoShell) || (this->actionFunc == EnKame_EmergeFromShell)) {
         if (limbIndex == SNAPPER_LIMB_HEAD) {
-            Matrix_Scale(this->limbScaleXZ, this->limbScaleY, this->limbScaleXZ, MTXMODE_APPLY);
+            MM_Matrix_Scale(this->limbScaleXZ, this->limbScaleY, this->limbScaleXZ, MTXMODE_APPLY);
         } else if ((limbIndex == SNAPPER_LIMB_BACK_RIGHT_LEG) || (limbIndex == SNAPPER_LIMB_BACK_LEFT_LEG) ||
                    (limbIndex == SNAPPER_LIMB_FRONT_RIGHT_LEG) || (limbIndex == SNAPPER_LIMB_FRONT_LEFT_LEG)) {
-            Matrix_Scale(this->limbScaleXZ, this->limbScaleY, this->limbScaleY, MTXMODE_APPLY);
+            MM_Matrix_Scale(this->limbScaleXZ, this->limbScaleY, this->limbScaleY, MTXMODE_APPLY);
         }
     }
 
@@ -963,7 +963,7 @@ void EnKame_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot
         bodyLimbOffsetsPtr = sBodyLimbBodyPartOffsets;
         bodyPartsPosPtr = &this->bodyPartsPos[SNAPPER_BODYPART_BODY_1];
         for (i = 0; i < ARRAY_COUNT(sBodyLimbBodyPartOffsets); i++) {
-            Matrix_MultVec3f(bodyLimbOffsetsPtr, bodyPartsPosPtr);
+            MM_Matrix_MultVec3f(bodyLimbOffsetsPtr, bodyPartsPosPtr);
             bodyLimbOffsetsPtr++;
             bodyPartsPosPtr++;
         }
@@ -979,16 +979,16 @@ void EnKame_Draw(Actor* thisx, PlayState* play) {
     // original position is restored before we exit this function, however, so we save it here before
     // we ever call EnKame_PostLimbDraw.
     if (this->actor.shape.shadowDraw == NULL) {
-        Math_Vec3f_Copy(&originalPos, &this->actor.world.pos);
+        MM_Math_Vec3f_Copy(&originalPos, &this->actor.world.pos);
     }
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, sEyeTextures[this->eyeIndex]);
+    gSPSegment(POLY_OPA_DISP++, 0x08, MM_sEyeTextures[this->eyeIndex]);
 
-    SkelAnime_DrawFlexOpa(play, this->snapperSkelAnime.skeleton, this->snapperSkelAnime.jointTable,
+    MM_SkelAnime_DrawFlexOpa(play, this->snapperSkelAnime.skeleton, this->snapperSkelAnime.jointTable,
                           this->snapperSkelAnime.dListCount, EnKame_OverrideLimbDraw, EnKame_PostLimbDraw,
                           &this->actor);
     Actor_DrawDamageEffects(play, &this->actor, this->bodyPartsPos, SNAPPER_BODYPART_MAX, this->drawDmgEffScale,
@@ -1000,10 +1000,10 @@ void EnKame_Draw(Actor* thisx, PlayState* play) {
     // does in its animation. Once we're done, we restore the Snappper's position back to what it was before
     // because we want other functions to act like the position never changed.
     if (this->actor.shape.shadowDraw == NULL) {
-        ActorShadow_DrawCircle(&this->actor, NULL, play);
-        Actor_SetFocus(&this->actor, 25.0f);
-        Collider_UpdateCylinder(&this->actor, &this->collider);
-        Math_Vec3f_Copy(&this->actor.world.pos, &originalPos);
+        MM_ActorShadow_DrawCircle(&this->actor, NULL, play);
+        MM_Actor_SetFocus(&this->actor, 25.0f);
+        MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+        MM_Math_Vec3f_Copy(&this->actor.world.pos, &originalPos);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -1018,7 +1018,7 @@ s32 EnKame_SpikedSnapperOverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** d
     }
 
     if ((this->spikesScale != 1.0f) && (limbIndex == SPIKED_SNAPPER_LIMB_SPIKES)) {
-        Matrix_Scale(1.0f, this->spikesScale, this->spikesScale, MTXMODE_APPLY);
+        MM_Matrix_Scale(1.0f, this->spikesScale, this->spikesScale, MTXMODE_APPLY);
     }
 
     return false;
@@ -1028,7 +1028,7 @@ void EnKame_DrawSpikedSnapper(Actor* thisx, PlayState* play) {
     EnKame* this = (EnKame*)thisx;
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    SkelAnime_DrawFlexOpa(play, this->spikedSnapperSkelAnime.skeleton, this->spikedSnapperSkelAnime.jointTable,
+    MM_SkelAnime_DrawFlexOpa(play, this->spikedSnapperSkelAnime.skeleton, this->spikedSnapperSkelAnime.jointTable,
                           this->spikedSnapperSkelAnime.dListCount, EnKame_SpikedSnapperOverrideLimbDraw, NULL,
                           &this->actor);
 }

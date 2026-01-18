@@ -50,7 +50,7 @@ ActorProfile Obj_Takaraya_Wall_Profile = {
     /**/ ObjTakarayaWall_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -70,7 +70,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 40, 120, 0, { 0, 0, 0 } },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
 
@@ -129,7 +129,7 @@ typedef enum TakarayaWallDirection {
 } TakarayaWallDirection;
 
 /**
- * Checks nearby spaces if the adjacent space or any of the three adjacent spaces to that
+ * Checks nearby MM_spaces if the adjacent space or any of the three adjacent MM_spaces to that
  * space are closed (i.e the wall rises up).
  */
 s32 ObjTakarayaWall_CanCarvePath(s32 row, s32 column, TakarayaWallDirection direction) {
@@ -219,7 +219,7 @@ void ObjTakarayaWall_CarvePath(s32 row, s32 column) {
     }
 
     // Randomly select direction to carve, each possible direction has an equal probability of getting carved out
-    randMode = (s32)Rand_ZeroFloat(carveDirectionNum) % carveDirectionNum;
+    randMode = (s32)MM_Rand_ZeroFloat(carveDirectionNum) % carveDirectionNum;
 
     if (randMode == 0) {
         direction = TAKARAYA_WALL_DIRECTION_BACK;
@@ -281,7 +281,7 @@ void ObjTakarayaWall_Init(Actor* thisx, PlayState* play) {
     s32 i;
     s32 j;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
 
     for (i = 0; i < TAKARAYA_WALL_ROWS; i++) {
         for (j = 0; j < TAKARAYA_WALL_COLUMNS; j++) {
@@ -289,15 +289,15 @@ void ObjTakarayaWall_Init(Actor* thisx, PlayState* play) {
         }
     }
 
-    Collider_InitAndSetCylinder(play, &this->columnCollider, &this->actor, &sCylinderInit);
-    Collider_InitAndSetCylinder(play, &this->rowCollider, &this->actor, &sCylinderInit);
+    Collider_InitAndSetCylinder(play, &this->columnCollider, &this->actor, &MM_sCylinderInit);
+    Collider_InitAndSetCylinder(play, &this->rowCollider, &this->actor, &MM_sCylinderInit);
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
 
-    column = (s32)Rand_ZeroFloat(TAKARAYA_WALL_COLUMNS) % TAKARAYA_WALL_COLUMNS;
+    column = (s32)MM_Rand_ZeroFloat(TAKARAYA_WALL_COLUMNS) % TAKARAYA_WALL_COLUMNS;
     chest = Actor_SpawnAsChildAndCutscene(&play->actorCtx, play, ACTOR_EN_BOX, -1635.0f, 0.0f, (column * 120) + 60, 0,
                                           0x4000, this->actor.shape.rot.z, this->actor.params, this->actor.csId,
                                           HALFDAYBIT_ALL, NULL);
-    Flags_SetSwitch(play, TAKARAYA_WALL_GET_SWTICH_FLAG(&this->actor));
+    MM_Flags_SetSwitch(play, TAKARAYA_WALL_GET_SWTICH_FLAG(&this->actor));
     this->actor.shape.rot.z = 0;
 
     if (chest != NULL) {
@@ -340,8 +340,8 @@ void ObjTakarayaWall_Destroy(Actor* thisx, PlayState* play) {
     s32 i;
     s32 j;
 
-    Collider_DestroyCylinder(play, &this->columnCollider);
-    Collider_DestroyCylinder(play, &this->rowCollider);
+    MM_Collider_DestroyCylinder(play, &this->columnCollider);
+    MM_Collider_DestroyCylinder(play, &this->rowCollider);
 
     for (i = 0; i < TAKARAYA_WALL_ROWS; i++) {
         for (j = 0; j < TAKARAYA_WALL_COLUMNS; j++) {
@@ -392,7 +392,7 @@ void ObjTakarayaWall_Manage(ObjTakarayaWall* this, PlayState* play) {
             if (sTakarayaWallHeights[i][j] >= 0.0f) {
                 if (((j == playerColumn) && ((i == playerRowInFront) || (i == playerRowBehind))) ||
                     ((i == playerRow) && ((j == playerColumnRight) || (j == playerColumnLeft)))) {
-                    if (Math_StepToF(&sTakarayaWallHeights[i][j], 120.0f, 15.0f)) {
+                    if (MM_Math_StepToF(&sTakarayaWallHeights[i][j], 120.0f, 15.0f)) {
                         sTakarayaWallStates[i][j] = TAKARAYA_WALL_INACTIVE;
                     } else {
                         sTakarayaWallStates[i][j] = TAKARAYA_WALL_RISING;
@@ -403,7 +403,7 @@ void ObjTakarayaWall_Manage(ObjTakarayaWall* this, PlayState* play) {
                         rowColliderActive = true;
                     }
                 } else if ((i != playerRow) || (j != playerColumn)) {
-                    Math_SmoothStepToF(&sTakarayaWallHeights[i][j], 0.0f, 0.2f, 5.0f, 1.0f);
+                    MM_Math_SmoothStepToF(&sTakarayaWallHeights[i][j], 0.0f, 0.2f, 5.0f, 1.0f);
                     sTakarayaWallStates[i][j] = TAKARAYA_WALL_FALLING;
                 }
             }
@@ -445,8 +445,8 @@ void ObjTakarayaWall_Update(Actor* thisx, PlayState* play2) {
 
     this->actionFunc(this, play);
 
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->columnCollider.base);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->rowCollider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->columnCollider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->rowCollider.base);
 }
 
 void ObjTakarayaWall_Draw(Actor* thisx, PlayState* play) {
@@ -459,7 +459,7 @@ void ObjTakarayaWall_Draw(Actor* thisx, PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    mtx = Matrix_GetCurrent();
+    mtx = MM_Matrix_GetCurrent();
 
     gfx = POLY_OPA_DISP;
     gSPDisplayList(gfx++, gSetupDLs[SETUPDL_25]);
@@ -486,7 +486,7 @@ void ObjTakarayaWall_Draw(Actor* thisx, PlayState* play) {
                     audioPos.y = mtx->yw;
                     audioPos.z = mtx->zw;
 
-                    SkinMatrix_Vec3fMtxFMultXYZ(&play->viewProjectionMtxF, &audioPos,
+                    MM_SkinMatrix_Vec3fMtxFMultXYZ(&play->viewProjectionMtxF, &audioPos,
                                                 &sTakarayaWallAudioPositions[i][j]);
 
                     if (sTakarayaWallStates[i][j] == TAKARAYA_WALL_RISING) {

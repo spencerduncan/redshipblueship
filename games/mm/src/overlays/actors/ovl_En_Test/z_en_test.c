@@ -9,10 +9,10 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void EnTest_Init(Actor* thisx, PlayState* play2);
-void EnTest_Destroy(Actor* thisx, PlayState* play);
-void EnTest_Update(Actor* thisx, PlayState* play);
-void EnTest_Draw(Actor* thisx, PlayState* play);
+void MM_EnTest_Init(Actor* thisx, PlayState* play2);
+void MM_EnTest_Destroy(Actor* thisx, PlayState* play);
+void MM_EnTest_Update(Actor* thisx, PlayState* play);
+void MM_EnTest_Draw(Actor* thisx, PlayState* play);
 
 ActorProfile En_Test_Profile = {
     /**/ ACTOR_EN_TEST,
@@ -20,10 +20,10 @@ ActorProfile En_Test_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(EnTest),
-    /**/ EnTest_Init,
-    /**/ EnTest_Destroy,
-    /**/ EnTest_Update,
-    /**/ EnTest_Draw,
+    /**/ MM_EnTest_Init,
+    /**/ MM_EnTest_Destroy,
+    /**/ MM_EnTest_Update,
+    /**/ MM_EnTest_Draw,
 };
 
 void func_80862B70(EnTestStruct* arg0) {
@@ -61,34 +61,34 @@ void func_80862CBC(EnTestStruct* arg0, Vec3f* arg1) {
         ptr = &arg0[i];
 
         if (!ptr->unk_00) {
-            s16 sp26 = Rand_ZeroOne() * 0xFFFF;
+            s16 sp26 = MM_Rand_ZeroOne() * 0xFFFF;
             f32 sp20;
 
             ptr->unk_00 = true;
 
-            ptr->unk_08.x = (Math_CosS(sp26) * 20.0f) + arg1->x;
+            ptr->unk_08.x = (MM_Math_CosS(sp26) * 20.0f) + arg1->x;
             ptr->unk_08.y = arg1->y;
-            ptr->unk_08.z = (Math_SinS(sp26) * 20.0f) + arg1->z;
+            ptr->unk_08.z = (MM_Math_SinS(sp26) * 20.0f) + arg1->z;
 
-            sp20 = Rand_ZeroOne();
+            sp20 = MM_Rand_ZeroOne();
 
-            ptr->unk_14.x = Math_CosS(sp26) * 13.0f * sp20;
-            ptr->unk_14.y = (Rand_ZeroOne() * 5.0f) + 8.0f;
-            ptr->unk_14.z = (Math_SinS(sp26) * 13.0f) * sp20;
+            ptr->unk_14.x = MM_Math_CosS(sp26) * 13.0f * sp20;
+            ptr->unk_14.y = (MM_Rand_ZeroOne() * 5.0f) + 8.0f;
+            ptr->unk_14.z = (MM_Math_SinS(sp26) * 13.0f) * sp20;
 
             ptr->unk_20.x = 0.0f;
             ptr->unk_20.z = 0.0f;
             ptr->unk_20.y = -2.0f;
 
-            ptr->unk_2C = (Rand_ZeroOne() * 0.0004f) + 0.0004f;
+            ptr->unk_2C = (MM_Rand_ZeroOne() * 0.0004f) + 0.0004f;
 
-            ptr->unk_30.x = Rand_ZeroOne() * 0x7FFE;
-            ptr->unk_30.y = Rand_ZeroOne() * 0x7FFE;
-            ptr->unk_30.z = Rand_ZeroOne() * 0x7FFE;
+            ptr->unk_30.x = MM_Rand_ZeroOne() * 0x7FFE;
+            ptr->unk_30.y = MM_Rand_ZeroOne() * 0x7FFE;
+            ptr->unk_30.z = MM_Rand_ZeroOne() * 0x7FFE;
 
-            ptr->unk_36.x = Rand_ZeroOne() * 0x2000;
-            ptr->unk_36.y = Rand_ZeroOne() * 0x2000;
-            ptr->unk_36.z = Rand_ZeroOne() * 0x2000;
+            ptr->unk_36.x = MM_Rand_ZeroOne() * 0x2000;
+            ptr->unk_36.y = MM_Rand_ZeroOne() * 0x2000;
+            ptr->unk_36.z = MM_Rand_ZeroOne() * 0x2000;
 
             ptr->unk_04 = 10;
             break;
@@ -143,9 +143,9 @@ void func_80863048(PlayState* play, EnTestStruct* arg1) {
             continue;
         }
 
-        Matrix_Translate(ptr->unk_08.x, ptr->unk_08.y, ptr->unk_08.z, MTXMODE_NEW);
-        Matrix_RotateZYX(ptr->unk_30.x, ptr->unk_30.y, ptr->unk_30.z, MTXMODE_APPLY);
-        Matrix_Scale(ptr->unk_2C, ptr->unk_2C, ptr->unk_2C, MTXMODE_APPLY);
+        MM_Matrix_Translate(ptr->unk_08.x, ptr->unk_08.y, ptr->unk_08.z, MTXMODE_NEW);
+        MM_Matrix_RotateZYX(ptr->unk_30.x, ptr->unk_30.y, ptr->unk_30.z, MTXMODE_APPLY);
+        MM_Matrix_Scale(ptr->unk_2C, ptr->unk_2C, ptr->unk_2C, MTXMODE_APPLY);
 
         mtx = Matrix_Finalize(play->state.gfxCtx);
         gSPMatrix(POLY_OPA_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -155,7 +155,7 @@ void func_80863048(PlayState* play, EnTestStruct* arg1) {
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void EnTest_Init(Actor* thisx, PlayState* play2) {
+void MM_EnTest_Init(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     EnTest* this = (EnTest*)thisx;
     MtxF sp38;
@@ -165,15 +165,15 @@ void EnTest_Init(Actor* thisx, PlayState* play2) {
     this->unk_174 = 0;
 
     if (thisx->params > 0) {
-        Actor_SetScale(thisx, thisx->params / 100000.0f);
+        MM_Actor_SetScale(thisx, thisx->params / 100000.0f);
         this->surfaceMaterial = SURFACE_MATERIAL_DIRT;
     } else {
         thisx->floorPoly = NULL;
         thisx->world.pos.y += 10.0f;
-        thisx->floorHeight = BgCheck_EntityRaycastFloor3(&play->colCtx, &thisx->floorPoly, &bgId, &thisx->world.pos);
+        thisx->floorHeight = MM_BgCheck_EntityRaycastFloor3(&play->colCtx, &thisx->floorPoly, &bgId, &thisx->world.pos);
 
         if ((thisx->floorPoly == NULL) || (thisx->floorHeight == BGCHECK_Y_MIN)) {
-            Actor_Kill(thisx);
+            MM_Actor_Kill(thisx);
             return;
         }
 
@@ -191,13 +191,13 @@ void EnTest_Init(Actor* thisx, PlayState* play2) {
     func_80862B70(this->unk_20C);
 }
 
-void EnTest_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnTest_Destroy(Actor* thisx, PlayState* play) {
     EnTest* this = (EnTest*)thisx;
 
     Keyframe_DestroyFlex(&this->kfSkelAnime);
 }
 
-void EnTest_Update(Actor* thisx, PlayState* play) {
+void MM_EnTest_Update(Actor* thisx, PlayState* play) {
     EnTest* this = (EnTest*)thisx;
     s32 i;
 
@@ -206,7 +206,7 @@ void EnTest_Update(Actor* thisx, PlayState* play) {
     if (Keyframe_UpdateFlex(&this->kfSkelAnime) && (this->actor.parent == NULL) && (this->actor.params != -1)) {
         this->unk_209++;
         if (this->unk_209 > 20) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
     }
 
@@ -222,7 +222,7 @@ void EnTest_Update(Actor* thisx, PlayState* play) {
     func_80862EDC(this->unk_20C);
 }
 
-s32 EnTest_OverrideLimbDraw(PlayState* play, KFSkelAnimeFlex* kfSkelAnime, s32 limbIndex, Gfx** dList, u8* flags,
+s32 MM_EnTest_OverrideLimbDraw(PlayState* play, KFSkelAnimeFlex* kfSkelAnime, s32 limbIndex, Gfx** dList, u8* flags,
                             void* thisx, Vec3f* scale, Vec3s* rot, Vec3f* pos) {
     EnTest* this = (EnTest*)thisx;
 
@@ -246,7 +246,7 @@ s32 EnTest_OverrideLimbDraw(PlayState* play, KFSkelAnimeFlex* kfSkelAnime, s32 l
     return true;
 }
 
-void EnTest_Draw(Actor* thisx, PlayState* play) {
+void MM_EnTest_Draw(Actor* thisx, PlayState* play) {
     EnTest* this = (EnTest*)thisx;
     Mtx* mtxStack;
     s32 sp2C = this->unk_208 - 1;
@@ -266,7 +266,7 @@ void EnTest_Draw(Actor* thisx, PlayState* play) {
 
     if (mtxStack != NULL) {
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-        Keyframe_DrawFlex(play, &this->kfSkelAnime, mtxStack, EnTest_OverrideLimbDraw, NULL, thisx);
+        Keyframe_DrawFlex(play, &this->kfSkelAnime, mtxStack, MM_EnTest_OverrideLimbDraw, NULL, thisx);
         func_80863048(play, this->unk_20C);
     }
 }

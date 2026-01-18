@@ -9,10 +9,10 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY)
 
-void EnTg_Init(Actor* thisx, PlayState* play);
-void EnTg_Destroy(Actor* thisx, PlayState* play);
-void EnTg_Update(Actor* thisx, PlayState* play);
-void EnTg_Draw(Actor* thisx, PlayState* play);
+void MM_EnTg_Init(Actor* thisx, PlayState* play);
+void MM_EnTg_Destroy(Actor* thisx, PlayState* play);
+void MM_EnTg_Update(Actor* thisx, PlayState* play);
+void MM_EnTg_Draw(Actor* thisx, PlayState* play);
 
 void EnTg_Idle(EnTg* this, PlayState* play);
 void EnTg_UpdateHearts(PlayState* play, EnTgHeartEffect* effect, s32 numEffects);
@@ -25,13 +25,13 @@ ActorProfile En_Tg_Profile = {
     /**/ FLAGS,
     /**/ OBJECT_MU,
     /**/ sizeof(EnTg),
-    /**/ EnTg_Init,
-    /**/ EnTg_Destroy,
-    /**/ EnTg_Update,
-    /**/ EnTg_Draw,
+    /**/ MM_EnTg_Init,
+    /**/ MM_EnTg_Destroy,
+    /**/ MM_EnTg_Update,
+    /**/ MM_EnTg_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HIT0,
         AT_NONE,
@@ -51,9 +51,9 @@ static ColliderCylinderInit sCylinderInit = {
     { 18, 64, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 MM_sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(0, 0x0),
     /* Deku Stick     */ DMG_ENTRY(0, 0x0),
     /* Horse trample  */ DMG_ENTRY(0, 0x0),
@@ -93,7 +93,7 @@ typedef enum EnTgAnimation {
     /* 1 */ ENTG_ANIM_MAX
 } EnTgAnimation;
 
-static AnimationInfoS sAnimationInfo[ENTG_ANIM_MAX] = {
+static AnimationInfoS MM_sAnimationInfo[ENTG_ANIM_MAX] = {
     { &gHoneyAndDarlingIdleAnim, 1.0f, 0, -1, ANIMMODE_LOOP, 0 }, // ENTG_ANIM_IDLE
 };
 
@@ -103,11 +103,11 @@ void EnTg_ChangeAnim(SkelAnime* skelAnime, AnimationInfoS* animationInfo, s16 an
     animationInfo += animIndex;
 
     if (animationInfo->frameCount < 0) {
-        endFrame = Animation_GetLastFrame(animationInfo->animation);
+        endFrame = MM_Animation_GetLastFrame(animationInfo->animation);
     } else {
         endFrame = animationInfo->frameCount;
     }
-    Animation_Change(skelAnime, animationInfo->animation, animationInfo->playSpeed, animationInfo->startFrame, endFrame,
+    MM_Animation_Change(skelAnime, animationInfo->animation, animationInfo->playSpeed, animationInfo->startFrame, endFrame,
                      animationInfo->mode, animationInfo->morphFrames);
 }
 
@@ -115,33 +115,33 @@ void EnTg_UpdateCollider(EnTg* this, PlayState* play) {
     this->collider.dim.pos.x = this->actor.world.pos.x;
     this->collider.dim.pos.y = this->actor.world.pos.y;
     this->collider.dim.pos.z = this->actor.world.pos.z;
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void EnTg_UpdateSkelAnime(EnTg* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 }
 
-void EnTg_Init(Actor* thisx, PlayState* play) {
+void MM_EnTg_Init(Actor* thisx, PlayState* play) {
     EnTg* this = (EnTg*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gHoneyAndDarlingSkel, NULL, this->jointTable, this->morphTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gHoneyAndDarlingSkel, NULL, this->jointTable, this->morphTable,
                        HONEY_AND_DARLING_LIMB_MAX);
-    EnTg_ChangeAnim(&this->skelAnime, sAnimationInfo, ENTG_ANIM_IDLE);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, &sDamageTable, &sColChkInfoInit);
-    Actor_SetScale(&this->actor, 0.01f);
+    EnTg_ChangeAnim(&this->skelAnime, MM_sAnimationInfo, ENTG_ANIM_IDLE);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, &MM_sDamageTable, &MM_sColChkInfoInit);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->actionFunc = EnTg_Idle;
     this->actor.gravity = -4.0f;
 }
 
-void EnTg_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnTg_Destroy(Actor* thisx, PlayState* play) {
     EnTg* this = (EnTg*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 /**
@@ -161,47 +161,47 @@ void EnTg_Idle(EnTg* this, PlayState* play) {
     }
 }
 
-void EnTg_Update(Actor* thisx, PlayState* play) {
+void MM_EnTg_Update(Actor* thisx, PlayState* play) {
     EnTg* this = (EnTg*)thisx;
 
     this->actionFunc(this, play);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
     EnTg_UpdateSkelAnime(this, play);
     EnTg_UpdateHearts(play, this->effects, ARRAY_COUNT(this->effects));
     EnTg_UpdateCollider(this, play);
 }
 
-s32 EnTg_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx) {
+s32 MM_EnTg_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx) {
     return false;
 }
 
-void EnTg_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* thisx) {
+void MM_EnTg_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* thisx) {
     EnTg* this = (EnTg*)thisx;
     Vec3f zeroVec = { 0.0f, 0.0f, 0.0f };
 
     if (limbIndex == HONEY_AND_DARLING_LIMB_MAN_HEAD) {
-        Matrix_MultVec3f(&zeroVec, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&zeroVec, &this->actor.focus.pos);
     }
 }
 
-void EnTg_Draw(Actor* thisx, PlayState* play) {
+void MM_EnTg_Draw(Actor* thisx, PlayState* play) {
     s32 pad;
     EnTg* this = (EnTg*)thisx;
 
-    Matrix_Push();
+    MM_Matrix_Push();
     EnTg_DrawHearts(play, this->effects, ARRAY_COUNT(this->effects));
-    Matrix_Pop();
+    MM_Matrix_Pop();
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     gDPPipeSync(POLY_OPA_DISP++);
-    gSPSegment(POLY_OPA_DISP++, 0x08, Gfx_EnvColor(play->state.gfxCtx, 0, 50, 160, 0));
-    gSPSegment(POLY_OPA_DISP++, 0x09, Gfx_EnvColor(play->state.gfxCtx, 255, 255, 255, 0));
+    gSPSegment(POLY_OPA_DISP++, 0x08, MM_Gfx_EnvColor(play->state.gfxCtx, 0, 50, 160, 0));
+    gSPSegment(POLY_OPA_DISP++, 0x09, MM_Gfx_EnvColor(play->state.gfxCtx, 255, 255, 255, 0));
 
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
-                          EnTg_OverrideLimbDraw, EnTg_PostLimbDraw, &this->actor);
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+                          MM_EnTg_OverrideLimbDraw, MM_EnTg_PostLimbDraw, &this->actor);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -223,18 +223,18 @@ void EnTg_SpawnHeart(EnTg* this, EnTgHeartEffect* effect, Vec3f* heartStartPos, 
         effect->velocity = heartVelocity;
         effect->unusedZeroVec = zeroVec;
         effect->scale = 0.01f;
-        effect->pos.x += 4.0f * Math_SinS(this->actor.shape.rot.y);
-        effect->pos.z += 4.0f * Math_CosS(this->actor.shape.rot.y);
+        effect->pos.x += 4.0f * MM_Math_SinS(this->actor.shape.rot.y);
+        effect->pos.z += 4.0f * MM_Math_CosS(this->actor.shape.rot.y);
         effect->timer = 16;
     }
 }
 
 /**
- * The heart path is curvy as it floats up because of the use of Math_SinS and Math_CosS.
+ * The heart path is curvy as it floats up because of the use of MM_Math_SinS and MM_Math_CosS.
  */
 void EnTg_UpdateHearts(PlayState* play, EnTgHeartEffect* effect, s32 numEffects) {
     Vec3f zeroVec = { 0.0f, 0.0f, 0.0f };
-    s16 yaw = Camera_GetInputDirYaw(GET_ACTIVE_CAM(play));
+    s16 yaw = MM_Camera_GetInputDirYaw(GET_ACTIVE_CAM(play));
     s32 i;
 
     for (i = 0; i < numEffects; i++, effect++) {
@@ -243,14 +243,14 @@ void EnTg_UpdateHearts(PlayState* play, EnTgHeartEffect* effect, s32 numEffects)
                 effect->isEnabled = false;
             }
             effect->pos.y += effect->velocity.y;
-            effect->pos.x += 2.0f * Math_SinS(effect->angle);
-            effect->pos.z += 2.0f * Math_CosS(effect->angle);
+            effect->pos.x += 2.0f * MM_Math_SinS(effect->angle);
+            effect->pos.z += 2.0f * MM_Math_CosS(effect->angle);
 
-            Matrix_Push();
-            Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
+            MM_Matrix_Push();
+            MM_Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
             Matrix_RotateYS(yaw, MTXMODE_APPLY);
-            Matrix_MultVec3f(&zeroVec, &effect->pos);
-            Matrix_Pop();
+            MM_Matrix_MultVec3f(&zeroVec, &effect->pos);
+            MM_Matrix_Pop();
 
             effect->angle += 0x1770;
         }
@@ -263,7 +263,7 @@ void EnTg_DrawHearts(PlayState* play, EnTgHeartEffect* effect, s32 numEffects) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    POLY_OPA_DISP = Play_SetFog(play, POLY_OPA_DISP);
+    POLY_OPA_DISP = MM_Play_SetFog(play, POLY_OPA_DISP);
     POLY_OPA_DISP = Gfx_SetupDL66(POLY_OPA_DISP);
 
     for (i = 0; i < numEffects; i++, effect++) {
@@ -272,9 +272,9 @@ void EnTg_DrawHearts(PlayState* play, EnTgHeartEffect* effect, s32 numEffects) {
                 gSPDisplayList(POLY_OPA_DISP++, gHoneyAndDarlingHeartMaterialDL);
                 isMaterialApplied = true;
             }
-            Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
-            Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
+            MM_Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
+            MM_Matrix_ReplaceRotation(&play->billboardMtxF);
+            MM_Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
 
             gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(gDropRecoveryHeartTex));
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);

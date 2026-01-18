@@ -66,13 +66,13 @@ typedef struct EnFr {
     /* 0x0388 */ s32 reward; // Prize for completing a song
     /* 0x038C */ Vec3f posLogSpot; // Where the frog goes when activated
     /* 0x0398 */ f32 xzDistToLogSpot; // z position or axis
-    /* 0x039C */ f32 unusedFloat; // Unused float, only set to zero.
+    /* 0x039C */ f32 unusedFloat; // Unused float, only set to OoT_zero.
     /* 0x03A0 */ f32 scale; //scale
     /* 0x03A4 */ Actor* unusedButterflyActor; // unused pointer to Actor. Likely intended for butterfly
     /* 0x03A8 */ u8 isButterflyDrawn; // isButterflyDrawn
     /* 0x03AA */ s16 xyAngleButterfly; // Butterfly Travels along random angles in the x-y plane
     /* 0x03AC */ Vec3f posButterfly; // Position/Coordinates of the Butterfly
-    /* 0x03B8 */ Vec3f posButterflyLight; // Used in Lights_PointNoGlowSetInfo()
+    /* 0x03B8 */ Vec3f posButterflyLight; // Used in OoT_Lights_PointNoGlowSetInfo()
 } EnFr; // size = 0x03C4
 
 typedef struct {

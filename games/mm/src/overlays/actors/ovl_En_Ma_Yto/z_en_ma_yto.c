@@ -82,7 +82,7 @@ ActorProfile En_Ma_Yto_Profile = {
     /**/ EnMaYto_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -102,7 +102,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 18, 46, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit2 = {
+static CollisionCheckInfoInit2 MM_sColChkInfoInit2 = {
     0, 0, 0, 0, MASS_IMMOVABLE,
 };
 
@@ -162,14 +162,14 @@ static AnimationSpeedInfo sAnimationSpeedInfo[CREMIA_ANIM_MAX] = {
     { &gCremiaClapAnim, 1.0f, ANIMMODE_LOOP, -8.0f },            // CREMIA_ANIM_23
 };
 
-static TexturePtr sMouthTextures[] = {
+static TexturePtr MM_sMouthTextures[] = {
     gCremiaMouthNormalTex,
     gCremiaMouthSlightSmileTex,
     gCremiaMouthFrownTex,
     gCremiaMouthHangingOpenTex,
 };
 
-static TexturePtr sEyeTextures[] = {
+static TexturePtr MM_sEyeTextures[] = {
     gCremiaEyeOpenTex, gCremiaEyeHalfTex, gCremiaEyeClosedTex, gCremiaEyeHappyTex, gCremiaEyeAngryTex, gCremiaEyeSadTex,
 };
 
@@ -193,18 +193,18 @@ void EnMaYto_Init(Actor* thisx, PlayState* play) {
     this->blinkTimer = 100;
     this->type = EN_MA_YTO_GET_TYPE(&this->actor);
     if (!EnMaYto_CheckValidSpawn(this, play)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 18.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gCremiaSkel, NULL, this->jointTable, this->morphTable, CREMIA_LIMB_MAX);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 18.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gCremiaSkel, NULL, this->jointTable, this->morphTable, CREMIA_LIMB_MAX);
     EnMaYto_InitAnimation(this, play);
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, DamageTable_Get(0x16), &sColChkInfoInit2);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, MM_DamageTable_Get(0x16), &MM_sColChkInfoInit2);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
 
     if (EnMaYto_TryFindRomani(this, play) == 1) {
         EnMaYto_SetupKeepLookingForRomani(this);
@@ -310,7 +310,7 @@ void EnMaYto_ChooseAction(EnMaYto* this, PlayState* play) {
             this->unk310 = 0;
             if (GameInteractor_Should(VB_HAVE_ROMANI_MASK, (INV_CONTENT(ITEM_MASK_ROMANI) == ITEM_MASK_ROMANI)) &&
                 CHECK_WEEKEVENTREG(WEEKEVENTREG_ESCORTED_CREMIA) &&
-                (GameInteractor_Should(VB_PLAY_CREMIA_HUG_CUTSCENE, Rand_Next() & 0x80))) {
+                (GameInteractor_Should(VB_PLAY_CREMIA_HUG_CUTSCENE, MM_Rand_Next() & 0x80))) {
                 EnMaYto_SetupBeginWarmFuzzyFeelingCs(this);
             } else {
                 EnMaYto_SetupAfterMilkRunInit(this);
@@ -395,7 +395,7 @@ s32 EnMaYto_TryFindRomani(EnMaYto* this, PlayState* play) {
 void EnMaYto_Destroy(Actor* thisx, PlayState* play) {
     EnMaYto* this = (EnMaYto*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnMaYto_SetupKeepLookingForRomani(EnMaYto* this) {
@@ -427,7 +427,7 @@ void EnMaYto_DefaultWait(EnMaYto* this, PlayState* play) {
     s16 direction;
 
     direction = rotY - this->actor.yawTowardsPlayer;
-    if (!Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 5, 0x3000, 0x100) &&
+    if (!MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 5, 0x3000, 0x100) &&
         (this->animIndex == CREMIA_ANIM_1)) {
         this->animIndex = CREMIA_ANIM_11;
         EnMaYto_ChangeAnim(this, CREMIA_ANIM_11);
@@ -448,7 +448,7 @@ void EnMaYto_SetupDefaultDialogueHandler(EnMaYto* this) {
 }
 
 void EnMaYto_DefaultDialogueHandler(EnMaYto* this, PlayState* play) {
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_CHOICE:
             EnMaYto_DefaultHandlePlayerChoice(this, play);
             break;
@@ -458,7 +458,7 @@ void EnMaYto_DefaultDialogueHandler(EnMaYto* this, PlayState* play) {
             break;
 
         case TEXT_STATE_DONE:
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 this->unk31E = 0;
                 EnMaYto_SetupDefaultWait(this);
             }
@@ -472,53 +472,53 @@ void EnMaYto_DefaultDialogueHandler(EnMaYto* this, PlayState* play) {
             break;
     }
 
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x3000, 0x100);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x3000, 0x100);
     if ((this->textId == 0x3395) && (this->skelAnime.animation == &gCremiaSpreadArmsStartAnim) &&
-        Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+        MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         EnMaYto_ChangeAnim(this, CREMIA_ANIM_4);
     }
 }
 
 void EnMaYto_DefaultHandlePlayerChoice(EnMaYto* this, PlayState* play) {
-    if (Message_ShouldAdvance(play)) {
+    if (MM_Message_ShouldAdvance(play)) {
         if (play->msgCtx.choiceIndex == 0) { // Yes
             Audio_PlaySfx_MessageDecide();
             EnMaYto_SetFaceExpression(this, 0, 3);
-            Message_StartTextbox(play, 0x3392, &this->actor);
+            MM_Message_StartTextbox(play, 0x3392, &this->actor);
             this->textId = 0x3392;
         } else { // No
             Audio_PlaySfx_MessageCancel();
-            Message_StartTextbox(play, 0x3391, &this->actor);
+            MM_Message_StartTextbox(play, 0x3391, &this->actor);
             this->textId = 0x3391;
         }
     }
 }
 
 void EnMaYto_DefaultChooseNextDialogue(EnMaYto* this, PlayState* play) {
-    if (Message_ShouldAdvance(play)) {
+    if (MM_Message_ShouldAdvance(play)) {
         switch (this->textId) {
             case 0x3391:
                 EnMaYto_SetFaceExpression(this, 0, 3);
-                Message_StartTextbox(play, 0x3392, &this->actor);
+                MM_Message_StartTextbox(play, 0x3392, &this->actor);
                 this->textId = 0x3392;
                 break;
 
             case 0x3392:
                 EnMaYto_SetFaceExpression(this, 3, 1);
-                Message_StartTextbox(play, 0x3393, &this->actor);
+                MM_Message_StartTextbox(play, 0x3393, &this->actor);
                 this->textId = 0x3393;
                 Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_CREMIA);
                 break;
 
             case 0x3394:
                 EnMaYto_ChangeAnim(this, CREMIA_ANIM_2);
-                Message_StartTextbox(play, 0x3395, &this->actor);
+                MM_Message_StartTextbox(play, 0x3395, &this->actor);
                 this->textId = 0x3395;
                 break;
 
             case 0x3395:
                 EnMaYto_ChangeAnim(this, CREMIA_ANIM_1);
-                Message_StartTextbox(play, 0x3396, &this->actor);
+                MM_Message_StartTextbox(play, 0x3396, &this->actor);
                 this->textId = 0x3396;
                 Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_CREMIA);
                 break;
@@ -582,7 +582,7 @@ void EnMaYto_SetupDinnerDialogueHandler(EnMaYto* this) {
 }
 
 void EnMaYto_DinnerDialogueHandler(EnMaYto* this, PlayState* play) {
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_CHOICE:
             EnMaYto_DinnerHandlePlayerChoice(this, play);
             break;
@@ -592,7 +592,7 @@ void EnMaYto_DinnerDialogueHandler(EnMaYto* this, PlayState* play) {
             break;
 
         case TEXT_STATE_DONE:
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 EnMaYto_SetupDinnerWait(this);
             }
             break;
@@ -607,39 +607,39 @@ void EnMaYto_DinnerDialogueHandler(EnMaYto* this, PlayState* play) {
 }
 
 void EnMaYto_DinnerHandlePlayerChoice(EnMaYto* this, PlayState* play) {
-    if (Message_ShouldAdvance(play)) {
+    if (MM_Message_ShouldAdvance(play)) {
         if (play->msgCtx.choiceIndex == 0) { // Yes
             Audio_PlaySfx_MessageDecide();
             EnMaYto_SetFaceExpression(this, 0, 3);
-            Message_StartTextbox(play, 0x3399, &this->actor);
+            MM_Message_StartTextbox(play, 0x3399, &this->actor);
             this->textId = 0x3399;
         } else { // No
             Audio_PlaySfx_MessageCancel();
-            Message_StartTextbox(play, 0x3398, &this->actor);
+            MM_Message_StartTextbox(play, 0x3398, &this->actor);
             this->textId = 0x3398;
         }
     }
 }
 
 void EnMaYto_DinnerChooseNextDialogue(EnMaYto* this, PlayState* play) {
-    if (Message_ShouldAdvance(play)) {
+    if (MM_Message_ShouldAdvance(play)) {
         switch (this->textId) {
             case 0x3398:
                 EnMaYto_SetFaceExpression(this, 0, 3);
-                Message_StartTextbox(play, 0x3399, &this->actor);
+                MM_Message_StartTextbox(play, 0x3399, &this->actor);
                 this->textId = 0x3399;
                 break;
 
             case 0x3399:
                 EnMaYto_SetFaceExpression(this, 3, 1);
-                Message_StartTextbox(play, 0x339A, &this->actor);
+                MM_Message_StartTextbox(play, 0x339A, &this->actor);
                 this->textId = 0x339A;
                 break;
 
             case 0x339A:
                 this->unk31E = 1;
                 EnMaYto_SetFaceExpression(this, 0, 1);
-                Message_StartTextbox(play, 0x339B, &this->actor);
+                MM_Message_StartTextbox(play, 0x339B, &this->actor);
                 this->textId = 0x339B;
                 break;
 
@@ -647,7 +647,7 @@ void EnMaYto_DinnerChooseNextDialogue(EnMaYto* this, PlayState* play) {
                 Actor_ChangeFocus(&this->actor, play, this->actor.child);
                 func_80B90E50(this, 0);
                 EnMaYto_SetRomaniFaceExpression(this, 3, 3);
-                Message_StartTextbox(play, 0x339C, &this->actor);
+                MM_Message_StartTextbox(play, 0x339C, &this->actor);
                 this->textId = 0x339C;
                 break;
 
@@ -655,7 +655,7 @@ void EnMaYto_DinnerChooseNextDialogue(EnMaYto* this, PlayState* play) {
                 this->unk31E = 1;
                 Actor_ChangeFocus(&this->actor, play, &this->actor);
                 EnMaYto_SetFaceExpression(this, 0, 2);
-                Message_StartTextbox(play, 0x339D, &this->actor);
+                MM_Message_StartTextbox(play, 0x339D, &this->actor);
                 this->textId = 0x339D;
                 break;
 
@@ -663,7 +663,7 @@ void EnMaYto_DinnerChooseNextDialogue(EnMaYto* this, PlayState* play) {
                 func_80B90E50(this, 1);
                 Actor_ChangeFocus(&this->actor, play, this->actor.child);
                 EnMaYto_SetRomaniFaceExpression(this, 0, 1);
-                Message_StartTextbox(play, 0x339E, &this->actor);
+                MM_Message_StartTextbox(play, 0x339E, &this->actor);
                 this->textId = 0x339E;
                 Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_CREMIA);
                 Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_ROMANI);
@@ -671,12 +671,12 @@ void EnMaYto_DinnerChooseNextDialogue(EnMaYto* this, PlayState* play) {
 
             case 0x339F:
                 this->unk31E = 0;
-                Message_StartTextbox(play, 0x33A0, &this->actor);
+                MM_Message_StartTextbox(play, 0x33A0, &this->actor);
                 this->textId = 0x33A0;
                 break;
 
             case 0x33A0:
-                Message_StartTextbox(play, 0x33A1, &this->actor);
+                MM_Message_StartTextbox(play, 0x33A1, &this->actor);
                 this->textId = 0x33A1;
                 break;
 
@@ -684,7 +684,7 @@ void EnMaYto_DinnerChooseNextDialogue(EnMaYto* this, PlayState* play) {
                 func_80B90E50(this, 1);
                 Actor_ChangeFocus(&this->actor, play, this->actor.child);
                 EnMaYto_SetRomaniFaceExpression(this, 0, 2);
-                Message_StartTextbox(play, 0x33A2, &this->actor);
+                MM_Message_StartTextbox(play, 0x33A2, &this->actor);
                 this->textId = 0x33A2;
                 break;
 
@@ -692,27 +692,27 @@ void EnMaYto_DinnerChooseNextDialogue(EnMaYto* this, PlayState* play) {
                 this->unk31E = 1;
                 Actor_ChangeFocus(&this->actor, play, &this->actor);
                 EnMaYto_SetFaceExpression(this, 4, 3);
-                Message_StartTextbox(play, 0x33A3, &this->actor);
+                MM_Message_StartTextbox(play, 0x33A3, &this->actor);
                 this->textId = 0x33A3;
                 break;
 
             case 0x33A3:
                 this->unk31E = 0;
                 EnMaYto_SetFaceExpression(this, 3, 3);
-                Message_StartTextbox(play, 0x33A4, &this->actor);
+                MM_Message_StartTextbox(play, 0x33A4, &this->actor);
                 this->textId = 0x33A4;
                 Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_CREMIA);
                 Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_ROMANI);
                 break;
 
             case 0x33A5:
-                Message_StartTextbox(play, 0x33A6, &this->actor);
+                MM_Message_StartTextbox(play, 0x33A6, &this->actor);
                 this->textId = 0x33A6;
                 Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_CREMIA);
                 break;
 
             case 0x33A7:
-                Message_StartTextbox(play, 0x33A8, &this->actor);
+                MM_Message_StartTextbox(play, 0x33A8, &this->actor);
                 this->textId = 0x33A8;
                 Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_CREMIA);
                 break;
@@ -774,13 +774,13 @@ void EnMaYto_SetupBarnDialogueHandler(EnMaYto* this) {
 }
 
 void EnMaYto_BarnDialogueHandler(EnMaYto* this, PlayState* play) {
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_EVENT:
             EnMaYto_BarnChooseNextDialogue(this, play);
             break;
 
         case TEXT_STATE_DONE:
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 this->unk31E = 0;
                 EnMaYto_SetupBarnWait(this);
             }
@@ -797,20 +797,20 @@ void EnMaYto_BarnDialogueHandler(EnMaYto* this, PlayState* play) {
 }
 
 void EnMaYto_BarnChooseNextDialogue(EnMaYto* this, PlayState* play) {
-    if (Message_ShouldAdvance(play)) {
+    if (MM_Message_ShouldAdvance(play)) {
         switch (this->textId) {
             case 0x33A9:
                 func_80B90E50(this, 0);
                 Actor_ChangeFocus(&this->actor, play, this->actor.child);
                 EnMaYto_SetRomaniFaceExpression(this, 0, 3);
-                Message_StartTextbox(play, 0x33AA, &this->actor);
+                MM_Message_StartTextbox(play, 0x33AA, &this->actor);
                 this->textId = 0x33AA;
                 break;
 
             case 0x33AA:
                 Actor_ChangeFocus(&this->actor, play, &this->actor);
                 this->unk31E = 1;
-                Message_StartTextbox(play, 0x33AB, &this->actor);
+                MM_Message_StartTextbox(play, 0x33AB, &this->actor);
                 this->textId = 0x33AB;
                 break;
 
@@ -818,14 +818,14 @@ void EnMaYto_BarnChooseNextDialogue(EnMaYto* this, PlayState* play) {
                 func_80B90E50(this, 1);
                 Actor_ChangeFocus(&this->actor, play, this->actor.child);
                 EnMaYto_SetRomaniFaceExpression(this, 0, 1);
-                Message_StartTextbox(play, 0x33AC, &this->actor);
+                MM_Message_StartTextbox(play, 0x33AC, &this->actor);
                 this->textId = 0x33AC;
                 break;
 
             case 0x33AC:
                 this->unk31E = 0;
                 Actor_ChangeFocus(&this->actor, play, &this->actor);
-                Message_StartTextbox(play, 0x33AD, &this->actor);
+                MM_Message_StartTextbox(play, 0x33AD, &this->actor);
                 this->textId = 0x33AD;
                 Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_CREMIA);
                 Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_ROMANI);
@@ -835,7 +835,7 @@ void EnMaYto_BarnChooseNextDialogue(EnMaYto* this, PlayState* play) {
                 func_80B90E50(this, 1);
                 Actor_ChangeFocus(&this->actor, play, this->actor.child);
                 EnMaYto_SetRomaniFaceExpression(this, 4, 2);
-                Message_StartTextbox(play, 0x33AF, &this->actor);
+                MM_Message_StartTextbox(play, 0x33AF, &this->actor);
                 this->textId = 0x33AF;
                 break;
 
@@ -843,7 +843,7 @@ void EnMaYto_BarnChooseNextDialogue(EnMaYto* this, PlayState* play) {
                 this->unk31E = 1;
                 Actor_ChangeFocus(&this->actor, play, &this->actor);
                 EnMaYto_SetFaceExpression(this, 4, 2);
-                Message_StartTextbox(play, 0x33B0, &this->actor);
+                MM_Message_StartTextbox(play, 0x33B0, &this->actor);
                 this->textId = 0x33B0;
                 Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_CREMIA);
                 Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_ROMANI);
@@ -852,7 +852,7 @@ void EnMaYto_BarnChooseNextDialogue(EnMaYto* this, PlayState* play) {
             case 0x33B1:
                 this->unk31E = 2;
                 EnMaYto_SetFaceExpression(this, 5, 3);
-                Message_StartTextbox(play, 0x33B2, &this->actor);
+                MM_Message_StartTextbox(play, 0x33B2, &this->actor);
                 this->textId = 0x33B2;
                 Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_CREMIA);
                 break;
@@ -861,7 +861,7 @@ void EnMaYto_BarnChooseNextDialogue(EnMaYto* this, PlayState* play) {
                 Actor_ChangeFocus(&this->actor, play, this->actor.child);
                 this->unk31E = 0;
                 EnMaYto_SetFaceExpression(this, 0, 1);
-                Message_StartTextbox(play, 0x33C7, &this->actor);
+                MM_Message_StartTextbox(play, 0x33C7, &this->actor);
                 this->textId = 0x33C7;
                 break;
 
@@ -869,7 +869,7 @@ void EnMaYto_BarnChooseNextDialogue(EnMaYto* this, PlayState* play) {
                 Actor_ChangeFocus(&this->actor, play, &this->actor);
                 this->unk31E = 1;
                 EnMaYto_SetFaceExpression(this, 0, 1);
-                Message_StartTextbox(play, 0x33C8, &this->actor);
+                MM_Message_StartTextbox(play, 0x33C8, &this->actor);
                 this->textId = 0x33C8;
                 break;
 
@@ -877,7 +877,7 @@ void EnMaYto_BarnChooseNextDialogue(EnMaYto* this, PlayState* play) {
                 Actor_ChangeFocus(&this->actor, play, this->actor.child);
                 func_80B90E50(this, 1);
                 EnMaYto_SetRomaniFaceExpression(this, 0, 2);
-                Message_StartTextbox(play, 0x33C9, &this->actor);
+                MM_Message_StartTextbox(play, 0x33C9, &this->actor);
                 this->textId = 0x33C9;
                 break;
 
@@ -885,13 +885,13 @@ void EnMaYto_BarnChooseNextDialogue(EnMaYto* this, PlayState* play) {
                 Actor_ChangeFocus(&this->actor, play, &this->actor);
                 this->unk31E = 1;
                 EnMaYto_SetFaceExpression(this, 3, 1);
-                Message_StartTextbox(play, 0x33CA, &this->actor);
+                MM_Message_StartTextbox(play, 0x33CA, &this->actor);
                 this->textId = 0x33CA;
                 break;
 
             case 0x33CA:
                 this->unk31E = 1;
-                Message_StartTextbox(play, 0x33CB, &this->actor);
+                MM_Message_StartTextbox(play, 0x33CB, &this->actor);
                 this->textId = 0x33CB;
                 break;
 
@@ -899,7 +899,7 @@ void EnMaYto_BarnChooseNextDialogue(EnMaYto* this, PlayState* play) {
                 Actor_ChangeFocus(&this->actor, play, this->actor.child);
                 func_80B90E50(this, 1);
                 EnMaYto_SetRomaniFaceExpression(this, 3, 3);
-                Message_StartTextbox(play, 0x33CC, &this->actor);
+                MM_Message_StartTextbox(play, 0x33CC, &this->actor);
                 this->textId = 0x33CC;
                 Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_CREMIA);
                 Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_ROMANI);
@@ -915,7 +915,7 @@ void EnMaYto_SetupAfterMilkRunInit(EnMaYto* this) {
     if (CHECK_WEEKEVENTREG(WEEKEVENTREG_ESCORTED_CREMIA)) {
         EnMaYto_SetFaceExpression(this, 3, 1);
     } else {
-        Audio_PlayFanfare(NA_BGM_FAILURE_1);
+        MM_Audio_PlayFanfare(NA_BGM_FAILURE_1);
         EnMaYto_SetFaceExpression(this, 5, 2);
     }
     this->actionFunc = EnMaYto_AfterMilkRunInit;
@@ -928,12 +928,12 @@ void EnMaYto_AfterMilkRunInit(EnMaYto* this, PlayState* play) {
         this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
 
         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_ESCORTED_CREMIA)) {
-            Message_StartTextbox(play, 0x33C1, &this->actor);
+            MM_Message_StartTextbox(play, 0x33C1, &this->actor);
             this->textId = 0x33C1;
         } else {
             // Failed milk minigame
             EnMaYto_SetFaceExpression(this, 5, 2);
-            Message_StartTextbox(play, 0x33C0, &this->actor);
+            MM_Message_StartTextbox(play, 0x33C0, &this->actor);
             this->textId = 0x33C0;
             SET_WEEKEVENTREG(WEEKEVENTREG_14_01);
             this->unk310 = 4;
@@ -953,7 +953,7 @@ void EnMaYto_SetupAfterMilkRunDialogueHandler(EnMaYto* this) {
 }
 
 void EnMaYto_AfterMilkRunDialogueHandler(EnMaYto* this, PlayState* play) {
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_NONE:
         case TEXT_STATE_NEXT:
         case TEXT_STATE_CLOSING:
@@ -970,20 +970,20 @@ void EnMaYto_AfterMilkRunDialogueHandler(EnMaYto* this, PlayState* play) {
             break;
     }
 
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x71C, 0xB6);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x71C, 0xB6);
 }
 
 void EnMaYto_AfterMilkRunChooseNextDialogue(EnMaYto* this, PlayState* play) {
-    if (Message_ShouldAdvance(play)) {
+    if (MM_Message_ShouldAdvance(play)) {
         switch (this->textId) {
             case 0x33C1:
                 EnMaYto_SetFaceExpression(this, 3, 1);
-                Message_StartTextbox(play, 0x33C2, &this->actor);
+                MM_Message_StartTextbox(play, 0x33C2, &this->actor);
                 this->textId = 0x33C2;
                 break;
 
             case 0x33C2:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 EnMaYto_SetupPostMilkRunGiveReward(this);
                 EnMaYto_PostMilkRunGiveReward(this, play);
                 break;
@@ -999,14 +999,14 @@ void EnMaYto_SetupPostMilkRunGiveReward(EnMaYto* this) {
 }
 
 void EnMaYto_PostMilkRunGiveReward(EnMaYto* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play)) {
+    if (MM_Actor_HasParent(&this->actor, play)) {
         EnMaYto_SetupPostMilkRunExplainReward(this);
     } else if (GameInteractor_Should(VB_HAVE_ROMANI_MASK, (INV_CONTENT(ITEM_MASK_ROMANI) == ITEM_MASK_ROMANI))) {
-        Actor_OfferGetItem(&this->actor, play, GI_RUPEE_HUGE, 500.0f, 100.0f);
+        MM_Actor_OfferGetItem(&this->actor, play, GI_RUPEE_HUGE, 500.0f, 100.0f);
         this->unk310 = 2;
     } else {
         if (GameInteractor_Should(VB_GIVE_ROMANI_MASK, true, this)) {
-            Actor_OfferGetItem(&this->actor, play, GI_MASK_ROMANI, 500.0f, 100.0f);
+            MM_Actor_OfferGetItem(&this->actor, play, GI_MASK_ROMANI, 500.0f, 100.0f);
             this->unk310 = 1;
         }
     }
@@ -1021,7 +1021,7 @@ void EnMaYto_PostMilkRunExplainReward(EnMaYto* this, PlayState* play) {
         if (this->unk310 == 1) {
             // Romani's mask explanation
             EnMaYto_SetFaceExpression(this, 0, 1);
-            Message_StartTextbox(play, 0x33C3, &this->actor);
+            MM_Message_StartTextbox(play, 0x33C3, &this->actor);
             this->textId = 0x33C3;
             SET_WEEKEVENTREG(WEEKEVENTREG_14_01);
             this->unk310 = 3;
@@ -1032,7 +1032,7 @@ void EnMaYto_PostMilkRunExplainReward(EnMaYto* this, PlayState* play) {
         } else {
             // You already have the mask
             EnMaYto_SetFaceExpression(this, 0, 1);
-            Message_StartTextbox(play, 0x33D0, &this->actor);
+            MM_Message_StartTextbox(play, 0x33D0, &this->actor);
             this->textId = 0x33D0;
             SET_WEEKEVENTREG(WEEKEVENTREG_14_01);
             this->unk310 = 3;
@@ -1101,7 +1101,7 @@ void EnMaYto_WarmFuzzyFeelingCs(EnMaYto* this, PlayState* play) {
 
         Cutscene_ActorTranslateAndYaw(&this->actor, play, cueChannel);
         if ((sCueId == 2) && (this->skelAnime.animation == &gCremiaHugStartAnim) &&
-            Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+            MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
             EnMaYto_ChangeAnim(this, CREMIA_ANIM_20);
         }
     } else {
@@ -1114,14 +1114,14 @@ void EnMaYto_SetupPostMilkRunWaitDialogueEnd(EnMaYto* this) {
 }
 
 void EnMaYto_PostMilkRunWaitDialogueEnd(EnMaYto* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) || (Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT)) {
-        if (Message_ShouldAdvance(play) && (Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT)) {
-            Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
-            Message_CloseTextbox(play);
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) || (MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT)) {
+        if (MM_Message_ShouldAdvance(play) && (MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT)) {
+            MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
+            MM_Message_CloseTextbox(play);
         }
     }
 
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_NONE) && (play->msgCtx.bombersNotebookEventQueueCount == 0)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_NONE) && (play->msgCtx.bombersNotebookEventQueueCount == 0)) {
         EnMaYto_SetupPostMilkRunEnd(this);
     }
 }
@@ -1144,56 +1144,56 @@ void EnMaYto_PostMilkRunEnd(EnMaYto* this, PlayState* play) {
 
 void EnMaYto_DefaultStartDialogue(EnMaYto* this, PlayState* play) {
     if (CURRENT_DAY == 1) {
-        if ((Player_GetMask(play) != PLAYER_MASK_NONE) && (GET_PLAYER_FORM == PLAYER_FORM_HUMAN)) {
-            switch (Player_GetMask(play)) {
+        if ((MM_Player_GetMask(play) != PLAYER_MASK_NONE) && (GET_PLAYER_FORM == PLAYER_FORM_HUMAN)) {
+            switch (MM_Player_GetMask(play)) {
                 case PLAYER_MASK_ROMANI:
-                    Message_StartTextbox(play, 0x235D, &this->actor);
+                    MM_Message_StartTextbox(play, 0x235D, &this->actor);
                     this->textId = 0x235D;
                     break;
 
                 case PLAYER_MASK_CIRCUS_LEADER:
                     EnMaYto_SetFaceExpression(this, 1, 3);
-                    Message_StartTextbox(play, 0x235E, &this->actor);
+                    MM_Message_StartTextbox(play, 0x235E, &this->actor);
                     this->textId = 0x235E;
                     break;
 
                 case PLAYER_MASK_KAFEIS_MASK:
                     EnMaYto_SetFaceExpression(this, 1, 2);
-                    Message_StartTextbox(play, 0x235F, &this->actor);
+                    MM_Message_StartTextbox(play, 0x235F, &this->actor);
                     this->textId = 0x235F;
                     break;
 
                 case PLAYER_MASK_COUPLE:
-                    Message_StartTextbox(play, 0x2360, &this->actor);
+                    MM_Message_StartTextbox(play, 0x2360, &this->actor);
                     this->textId = 0x2360;
                     break;
 
                 default:
-                    Message_StartTextbox(play, 0x2361, &this->actor);
+                    MM_Message_StartTextbox(play, 0x2361, &this->actor);
                     this->textId = 0x2361;
                     break;
             }
         } else {
             if (EnMaYto_HasSpokenToPlayer()) {
-                Message_StartTextbox(play, 0x3394, &this->actor);
+                MM_Message_StartTextbox(play, 0x3394, &this->actor);
                 this->textId = 0x3394;
             } else {
                 EnMaYto_SetTalkedFlag();
                 // Asks the player if he came from town.
-                Message_StartTextbox(play, 0x3390, &this->actor);
+                MM_Message_StartTextbox(play, 0x3390, &this->actor);
                 this->textId = 0x3390;
             }
         }
     } else if (CURRENT_DAY == 3) {
         if (EnMaYto_HasSpokenToPlayerToday()) {
             EnMaYto_SetFaceExpression(this, 0, 3);
-            Message_StartTextbox(play, 0x33C5, &this->actor);
+            MM_Message_StartTextbox(play, 0x33C5, &this->actor);
             this->textId = 0x33C5;
             Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_CREMIA);
         } else {
             EnMaYto_SetTalkedFlag();
             EnMaYto_SetFaceExpression(this, 0, 3);
-            Message_StartTextbox(play, 0x33C4, &this->actor);
+            MM_Message_StartTextbox(play, 0x33C4, &this->actor);
             this->textId = 0x33C4;
             Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_CREMIA);
         }
@@ -1203,40 +1203,40 @@ void EnMaYto_DefaultStartDialogue(EnMaYto* this, PlayState* play) {
 void EnMaYto_DinnerStartDialogue(EnMaYto* this, PlayState* play) {
     switch (CURRENT_DAY) {
         case 1:
-            if ((Player_GetMask(play) != PLAYER_MASK_NONE) && (GET_PLAYER_FORM == PLAYER_FORM_HUMAN)) {
-                switch (Player_GetMask(play)) {
+            if ((MM_Player_GetMask(play) != PLAYER_MASK_NONE) && (GET_PLAYER_FORM == PLAYER_FORM_HUMAN)) {
+                switch (MM_Player_GetMask(play)) {
                     case PLAYER_MASK_ROMANI:
-                        Message_StartTextbox(play, 0x235D, &this->actor);
+                        MM_Message_StartTextbox(play, 0x235D, &this->actor);
                         this->textId = 0x235D;
                         break;
 
                     case PLAYER_MASK_CIRCUS_LEADER:
-                        Message_StartTextbox(play, 0x235E, &this->actor);
+                        MM_Message_StartTextbox(play, 0x235E, &this->actor);
                         this->textId = 0x235E;
                         break;
 
                     case PLAYER_MASK_KAFEIS_MASK:
-                        Message_StartTextbox(play, 0x235F, &this->actor);
+                        MM_Message_StartTextbox(play, 0x235F, &this->actor);
                         this->textId = 0x235F;
                         break;
 
                     case PLAYER_MASK_COUPLE:
-                        Message_StartTextbox(play, 0x2360, &this->actor);
+                        MM_Message_StartTextbox(play, 0x2360, &this->actor);
                         this->textId = 0x2360;
                         break;
 
                     default:
-                        Message_StartTextbox(play, 0x2361, &this->actor);
+                        MM_Message_StartTextbox(play, 0x2361, &this->actor);
                         this->textId = 0x2361;
                         break;
                 }
             } else {
                 if (EnMaYto_HasSpokenToPlayer()) {
-                    Message_StartTextbox(play, 0x339F, &this->actor);
+                    MM_Message_StartTextbox(play, 0x339F, &this->actor);
                     this->textId = 0x339F;
                 } else {
                     EnMaYto_SetTalkedFlag();
-                    Message_StartTextbox(play, 0x3397, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3397, &this->actor);
                     this->textId = 0x3397;
                 }
             }
@@ -1244,24 +1244,24 @@ void EnMaYto_DinnerStartDialogue(EnMaYto* this, PlayState* play) {
 
         case 2:
             if (EnMaYto_HasSpokenToPlayer()) {
-                Message_StartTextbox(play, 0x33A6, &this->actor);
+                MM_Message_StartTextbox(play, 0x33A6, &this->actor);
                 this->textId = 0x33A6;
                 Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_CREMIA);
             } else {
                 EnMaYto_SetTalkedFlag();
-                Message_StartTextbox(play, 0x33A5, &this->actor);
+                MM_Message_StartTextbox(play, 0x33A5, &this->actor);
                 this->textId = 0x33A5;
             }
             break;
 
         case 3:
             if (EnMaYto_HasSpokenToPlayer()) {
-                Message_StartTextbox(play, 0x33A8, &this->actor);
+                MM_Message_StartTextbox(play, 0x33A8, &this->actor);
                 this->textId = 0x33A8;
                 Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_CREMIA);
             } else {
                 EnMaYto_SetTalkedFlag();
-                Message_StartTextbox(play, 0x33A7, &this->actor);
+                MM_Message_StartTextbox(play, 0x33A7, &this->actor);
                 this->textId = 0x33A7;
             }
             break;
@@ -1275,23 +1275,23 @@ void EnMaYto_BarnStartDialogue(EnMaYto* this, PlayState* play) {
     if (CHECK_WEEKEVENTREG(WEEKEVENTREG_DEFENDED_AGAINST_ALIENS)) {
         if (CURRENT_DAY == 2) {
             if (this->unk310 == 1) {
-                Message_StartTextbox(play, 0x33AE, &this->actor);
+                MM_Message_StartTextbox(play, 0x33AE, &this->actor);
                 this->textId = 0x33AE;
             } else {
                 this->unk310 = 1;
                 EnMaYto_SetTalkedFlag();
-                Message_StartTextbox(play, 0x33A9, &this->actor);
+                MM_Message_StartTextbox(play, 0x33A9, &this->actor);
                 this->textId = 0x33A9;
             }
         } else if (CURRENT_DAY == 3) {
             if (this->unk310 == 1) {
-                Message_StartTextbox(play, 0x33CB, &this->actor);
+                MM_Message_StartTextbox(play, 0x33CB, &this->actor);
                 this->textId = 0x33CB;
             } else {
                 this->unk310 = 1;
                 EnMaYto_SetTalkedFlag();
                 EnMaYto_SetFaceExpression(this, 0, 1);
-                Message_StartTextbox(play, 0x33C6, &this->actor);
+                MM_Message_StartTextbox(play, 0x33C6, &this->actor);
                 this->textId = 0x33C6;
             }
         }
@@ -1299,21 +1299,21 @@ void EnMaYto_BarnStartDialogue(EnMaYto* this, PlayState* play) {
         if (EnMaYto_HasSpokenToPlayer()) {
             this->unk31E = 2;
             EnMaYto_SetFaceExpression(this, 5, 3);
-            Message_StartTextbox(play, 0x33B3, &this->actor);
+            MM_Message_StartTextbox(play, 0x33B3, &this->actor);
             this->textId = 0x33B3;
             Message_BombersNotebookQueueEvent(play, BOMBERS_NOTEBOOK_EVENT_MET_CREMIA);
         } else {
             EnMaYto_SetTalkedFlag();
             EnMaYto_SetFaceExpression(this, 5, 3);
-            Message_StartTextbox(play, 0x33B1, &this->actor);
+            MM_Message_StartTextbox(play, 0x33B1, &this->actor);
             this->textId = 0x33B1;
         }
     }
 }
 
 void EnMaYto_ChangeAnim(EnMaYto* this, s32 animIndex) {
-    Animation_Change(&this->skelAnime, sAnimationSpeedInfo[animIndex].animation, 1.0f, 0.0f,
-                     Animation_GetLastFrame(sAnimationSpeedInfo[animIndex].animation),
+    MM_Animation_Change(&this->skelAnime, sAnimationSpeedInfo[animIndex].animation, 1.0f, 0.0f,
+                     MM_Animation_GetLastFrame(sAnimationSpeedInfo[animIndex].animation),
                      sAnimationSpeedInfo[animIndex].mode, sAnimationSpeedInfo[animIndex].morphFrames);
 }
 
@@ -1321,7 +1321,7 @@ void func_80B90C78(EnMaYto* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
     s16 trackingMode;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     trackingMode = (this->unk31E == 2) ? NPC_TRACKING_NONE : NPC_TRACKING_PLAYER_AUTO_TURN;
 
     if (this->unk31E == 0) {
@@ -1337,11 +1337,11 @@ void func_80B90C78(EnMaYto* this, PlayState* play) {
             this->interactInfo.headRot.y = 0;
             this->interactInfo.headRot.x = 0;
         } else {
-            Npc_TrackPoint(&this->actor, &this->interactInfo, 13, trackingMode);
+            MM_Npc_TrackPoint(&this->actor, &this->interactInfo, 13, trackingMode);
         }
     } else {
-        Math_SmoothStepToS(&this->interactInfo.headRot.y, 0, 3, 0x71C, 0xB6);
-        Math_SmoothStepToS(&this->interactInfo.headRot.x, 0x18E3, 5, 0x71C, 0xB6);
+        MM_Math_SmoothStepToS(&this->interactInfo.headRot.y, 0, 3, 0x71C, 0xB6);
+        MM_Math_SmoothStepToS(&this->interactInfo.headRot.x, 0x18E3, 5, 0x71C, 0xB6);
     }
 
     EnMaYto_UpdateEyes(this);
@@ -1349,8 +1349,8 @@ void func_80B90C78(EnMaYto* this, PlayState* play) {
 
 void EnMaYto_UpdateCollision(EnMaYto* this, PlayState* play) {
     if (this->actionFunc != EnMaYto_WarmFuzzyFeelingCs) {
-        Collider_UpdateCylinder(&this->actor, &this->collider);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -1525,10 +1525,10 @@ void EnMaYto_Draw(Actor* thisx, PlayState* play) {
     }
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(sMouthTextures[this->mouthTexIndex]));
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sEyeTextures[this->eyeTexIndex]));
+    gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sMouthTextures[this->mouthTexIndex]));
+    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
 
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnMaYto_OverrideLimbDraw, EnMaYto_PostLimbDraw, &this->actor);
 
     CLOSE_DISPS(play->state.gfxCtx);

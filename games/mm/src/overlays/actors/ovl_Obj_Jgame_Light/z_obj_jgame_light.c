@@ -37,7 +37,7 @@ ActorProfile Obj_Jgame_Light_Profile = {
     /**/ ObjJgameLight_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_METAL,
         AT_NONE,
@@ -63,15 +63,15 @@ void ObjJgameLight_Init(Actor* thisx, PlayState* play) {
     ObjJgameLight* this = (ObjJgameLight*)thisx;
     LightInfo* lights = &this->lightInfo;
 
-    Actor_SetScale(&this->actor, 1.0f);
+    MM_Actor_SetScale(&this->actor, 1.0f);
     func_800B4AEC(play, &this->actor, 50.0f);
-    ActorShape_Init(&this->actor.shape, 0.0f, func_800B4B50, 1.0f);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    Lights_PointGlowSetInfo(lights, this->actor.world.pos.x, (this->actor.world.pos.y + 70.0f), this->actor.world.pos.z,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, func_800B4B50, 1.0f);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_Lights_PointGlowSetInfo(lights, this->actor.world.pos.x, (this->actor.world.pos.y + 70.0f), this->actor.world.pos.z,
                             255, 255, 180, -1);
-    this->lightNode = LightContext_InsertLight(play, &play->lightCtx, &this->lightInfo);
-    Actor_SetFocus(&this->actor, 60.0f);
+    this->lightNode = MM_LightContext_InsertLight(play, &play->lightCtx, &this->lightInfo);
+    MM_Actor_SetFocus(&this->actor, 60.0f);
     this->actor.colChkInfo.health = 0;
     this->prevHealth = 0;
     this->isOn = false;
@@ -84,8 +84,8 @@ void ObjJgameLight_Init(Actor* thisx, PlayState* play) {
 void ObjJgameLight_Destroy(Actor* thisx, PlayState* play) {
     ObjJgameLight* this = (ObjJgameLight*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
-    LightContext_RemoveLight(play, &play->lightCtx, this->lightNode);
+    MM_Collider_DestroyCylinder(play, &this->collider);
+    MM_LightContext_RemoveLight(play, &play->lightCtx, this->lightNode);
 }
 
 void func_80C15474(ObjJgameLight* this, PlayState* play) {
@@ -123,14 +123,14 @@ void func_80C15474(ObjJgameLight* this, PlayState* play) {
     if (this->flameScaleProportion > 0.1f) {
         Actor_PlaySfx_Flagged(&this->actor, NA_SE_EV_TORCH - SFX_FLAG);
     }
-    temp_a1 = (s32)(Rand_ZeroOne() * 127.0f) + 128;
-    Lights_PointSetColorAndRadius(&this->lightInfo, temp_a1, temp_a1 * 0.7f, 0, this->lightRadius);
+    temp_a1 = (s32)(MM_Rand_ZeroOne() * 127.0f) + 128;
+    MM_Lights_PointSetColorAndRadius(&this->lightInfo, temp_a1, temp_a1 * 0.7f, 0, this->lightRadius);
 }
 
 void ObjJgameLight_UpdateCollision(ObjJgameLight* this, PlayState* play) {
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void func_80C15718(ObjJgameLight* this, PlayState* play) {
@@ -193,14 +193,14 @@ void ObjJgameLight_Draw(Actor* thisx, PlayState* play) {
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
         scale = (this->flameScaleProportion * 27.0f) / 10000.0f;
         gSPSegment(POLY_XLU_DISP++, 0x08,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, (this->flameScroll * -20) & 0x1FF,
+                   MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, (this->flameScroll * -20) & 0x1FF,
                                     0x20, 0x80));
         gDPSetPrimColor(POLY_XLU_DISP++, 0x80, 0x80, 255, 255, 0, 255);
         gDPSetEnvColor(POLY_XLU_DISP++, 255, 0, 0, 0);
-        Matrix_Translate(0.0f, 52.0f, 0.0f, MTXMODE_APPLY);
-        Matrix_RotateYS(((Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) - this->actor.shape.rot.y) + 0x8000),
+        MM_Matrix_Translate(0.0f, 52.0f, 0.0f, MTXMODE_APPLY);
+        Matrix_RotateYS(((MM_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) - this->actor.shape.rot.y) + 0x8000),
                         MTXMODE_APPLY);
-        Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+        MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
     }

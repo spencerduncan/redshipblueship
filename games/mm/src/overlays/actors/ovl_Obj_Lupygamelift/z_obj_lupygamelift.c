@@ -31,7 +31,7 @@ ActorProfile Obj_Lupygamelift_Profile = {
     /**/ ObjLupygamelift_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 200, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 400, ICHAIN_CONTINUE),
@@ -44,16 +44,16 @@ void ObjLupygamelift_Init(Actor* thisx, PlayState* play) {
     Path* path;
     s32 params;
 
-    Actor_ProcessInitChain(thisx, sInitChain);
+    MM_Actor_ProcessInitChain(thisx, MM_sInitChain);
     this->dyna.actor.scale.y = 0.15f;
     this->dyna.actor.shape.rot.x = 0;
     this->dyna.actor.world.rot.x = 0;
     this->dyna.actor.shape.rot.z = 0;
     this->dyna.actor.world.rot.z = 0;
     this->timer = 0;
-    Actor_UpdateBgCheckInfo(play, thisx, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
-    ActorShape_Init(&thisx->shape, 0.0f, ActorShadow_DrawSquare, 0.0f);
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_Actor_UpdateBgCheckInfo(play, thisx, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_ActorShape_Init(&thisx->shape, 0.0f, ActorShadow_DrawSquare, 0.0f);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
     DynaPolyActor_LoadMesh(play, &this->dyna, &object_raillift_Colheader_0048D0);
     this->targetSpeedXZ = thisx->home.rot.z * 0.1f;
     if (this->targetSpeedXZ < 0.0f) {
@@ -70,7 +70,7 @@ void ObjLupygamelift_Init(Actor* thisx, PlayState* play) {
         this->pointIndex = 0;
     }
     this->pathPoints = Lib_SegmentedToVirtual(path->points);
-    Actor_SpawnAsChild(&play->actorCtx, &this->dyna.actor, play, ACTOR_OBJ_ETCETERA, this->dyna.actor.world.pos.x,
+    MM_Actor_SpawnAsChild(&play->actorCtx, &this->dyna.actor, play, ACTOR_OBJ_ETCETERA, this->dyna.actor.world.pos.x,
                        this->dyna.actor.world.pos.y, this->dyna.actor.world.pos.z, this->dyna.actor.shape.rot.x,
                        this->dyna.actor.shape.rot.y, this->dyna.actor.shape.rot.z, 0);
     if (OBJLUPYGAMELIFT_GET_C(thisx) != 0) {
@@ -78,7 +78,7 @@ void ObjLupygamelift_Init(Actor* thisx, PlayState* play) {
     } else {
         params = 0;
     }
-    Actor_Spawn(&play->actorCtx, play, ACTOR_EN_GAMELUPY, this->dyna.actor.home.pos.x, this->dyna.actor.home.pos.y,
+    MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_GAMELUPY, this->dyna.actor.home.pos.x, this->dyna.actor.home.pos.y,
                 this->dyna.actor.home.pos.z, 0, 0, 0, params);
     func_80AF04BC(this);
 }
@@ -86,7 +86,7 @@ void ObjLupygamelift_Init(Actor* thisx, PlayState* play) {
 void ObjLupygamelift_Destroy(Actor* thisx, PlayState* play) {
     ObjLupygamelift* this = (ObjLupygamelift*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_80AF0394(ObjLupygamelift* this) {
@@ -141,9 +141,9 @@ void func_80AF0530(ObjLupygamelift* this, PlayState* play) {
     target.z = this->pathPoints[this->pointIndex].z;
     distRemaining = Math_Vec3f_StepTo(&this->dyna.actor.world.pos, &target, this->dyna.actor.speed);
     if (distRemaining > 30.0f) {
-        Math_SmoothStepToF(&this->dyna.actor.speed, this->targetSpeedXZ, 0.5f, 5.0f, 0.1f);
+        MM_Math_SmoothStepToF(&this->dyna.actor.speed, this->targetSpeedXZ, 0.5f, 5.0f, 0.1f);
     } else if (distRemaining > 0.0f) {
-        Math_SmoothStepToF(&this->dyna.actor.speed, 5.0f, 0.5f, 5.0f, 1.0f);
+        MM_Math_SmoothStepToF(&this->dyna.actor.speed, 5.0f, 0.5f, 5.0f, 1.0f);
     } else {
         if (this->pointIndex < (this->count - 1)) {
             this->pointIndex++;
@@ -168,5 +168,5 @@ void ObjLupygamelift_Update(Actor* thisx, PlayState* play) {
 }
 
 void ObjLupygamelift_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, object_raillift_DL_0071B8);
+    MM_Gfx_DrawDListOpa(play, object_raillift_DL_0071B8);
 }

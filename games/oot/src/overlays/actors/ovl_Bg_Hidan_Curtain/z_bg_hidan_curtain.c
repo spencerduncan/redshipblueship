@@ -30,7 +30,7 @@ typedef struct {
     /* 0x0C */ f32 riseSpeed;
 } BgHidanCurtainParams; // size = 0x10
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -73,13 +73,13 @@ void BgHidanCurtain_Init(Actor* thisx, PlayState* play) {
     BgHidanCurtainParams* hcParams;
 
     osSyncPrintf("Curtain (arg_data 0x%04x)\n", this->actor.params);
-    Actor_SetFocus(&this->actor, 20.0f);
+    OoT_Actor_SetFocus(&this->actor, 20.0f);
     this->type = (thisx->params >> 0xC) & 0xF;
     if (this->type > 6) {
         // "Type is not set"
         osSyncPrintf("Error : object のタイプが設定されていない(%s %d)(arg_data 0x%04x)\n", __FILE__, __LINE__,
                      this->actor.params);
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
 
@@ -93,16 +93,16 @@ void BgHidanCurtain_Init(Actor* thisx, PlayState* play) {
         osSyncPrintf("Warning : object のセーブビットが設定されていない(%s %d)(arg_data 0x%04x)\n", __FILE__, __LINE__,
                      this->actor.params);
     }
-    Actor_SetScale(&this->actor, hcParams->scale);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    OoT_Actor_SetScale(&this->actor, hcParams->scale);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
     this->collider.dim.pos.x = this->actor.world.pos.x;
     this->collider.dim.pos.y = this->actor.world.pos.y;
     this->collider.dim.pos.z = this->actor.world.pos.z;
     this->collider.dim.radius = hcParams->radius;
     this->collider.dim.height = hcParams->height;
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetInfo(&thisx->colChkInfo, NULL, &sCcInfoInit);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetInfo(&thisx->colChkInfo, NULL, &sCcInfoInit);
     if (this->type == 0) {
         this->actionFunc = BgHidanCurtain_WaitForClear;
     } else {
@@ -111,22 +111,22 @@ void BgHidanCurtain_Init(Actor* thisx, PlayState* play) {
             this->actor.world.pos.y = this->actor.home.pos.y - hcParams->riseDist;
         }
     }
-    if (((this->type == 1) && Flags_GetTreasure(play, this->treasureFlag)) ||
-        (((this->type == 0) || (this->type == 6)) && Flags_GetClear(play, this->actor.room))) {
-        Actor_Kill(&this->actor);
+    if (((this->type == 1) && OoT_Flags_GetTreasure(play, this->treasureFlag)) ||
+        (((this->type == 0) || (this->type == 6)) && OoT_Flags_GetClear(play, this->actor.room))) {
+        OoT_Actor_Kill(&this->actor);
     }
-    this->texScroll = Rand_ZeroOne() * 15.0f;
+    this->texScroll = OoT_Rand_ZeroOne() * 15.0f;
 }
 
 void BgHidanCurtain_Destroy(Actor* thisx, PlayState* play) {
     s32 pad;
     BgHidanCurtain* this = (BgHidanCurtain*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void BgHidanCurtain_WaitForSwitchOn(BgHidanCurtain* this, PlayState* play) {
-    if (Flags_GetSwitch(play, this->actor.params)) {
+    if (OoT_Flags_GetSwitch(play, this->actor.params)) {
         if (this->type == 1) {
             this->actionFunc = BgHidanCurtain_WaitForCutscene;
             OnePointCutscene_Init(play, 3350, -99, &this->actor, MAIN_CAM);
@@ -148,13 +148,13 @@ void BgHidanCurtain_WaitForCutscene(BgHidanCurtain* this, PlayState* play) {
 }
 
 void BgHidanCurtain_WaitForClear(BgHidanCurtain* this, PlayState* play) {
-    if (Flags_GetClear(play, this->actor.room)) {
+    if (OoT_Flags_GetClear(play, this->actor.room)) {
         this->actionFunc = BgHidanCurtain_TurnOff;
     }
 }
 
 void BgHidanCurtain_WaitForSwitchOff(BgHidanCurtain* this, PlayState* play) {
-    if (!Flags_GetSwitch(play, this->actor.params)) {
+    if (!OoT_Flags_GetSwitch(play, this->actor.params)) {
         this->actionFunc = BgHidanCurtain_TurnOn;
     }
 }
@@ -162,8 +162,8 @@ void BgHidanCurtain_WaitForSwitchOff(BgHidanCurtain* this, PlayState* play) {
 void BgHidanCurtain_TurnOn(BgHidanCurtain* this, PlayState* play) {
     f32 riseSpeed = sHCParams[this->size].riseSpeed;
 
-    if (Math_StepToF(&this->actor.world.pos.y, this->actor.home.pos.y, riseSpeed)) {
-        Flags_UnsetSwitch(play, this->actor.params);
+    if (OoT_Math_StepToF(&this->actor.world.pos.y, this->actor.home.pos.y, riseSpeed)) {
+        OoT_Flags_UnsetSwitch(play, this->actor.params);
         this->actionFunc = BgHidanCurtain_WaitForSwitchOn;
     }
 }
@@ -171,9 +171,9 @@ void BgHidanCurtain_TurnOn(BgHidanCurtain* this, PlayState* play) {
 void BgHidanCurtain_TurnOff(BgHidanCurtain* this, PlayState* play) {
     BgHidanCurtainParams* hcParams = &sHCParams[this->size];
 
-    if (Math_StepToF(&this->actor.world.pos.y, this->actor.home.pos.y - hcParams->riseDist, hcParams->riseSpeed)) {
+    if (OoT_Math_StepToF(&this->actor.world.pos.y, this->actor.home.pos.y - hcParams->riseDist, hcParams->riseSpeed)) {
         if ((this->type == 0) || (this->type == 6)) {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
         } else if (this->type == 5) {
             this->actionFunc = BgHidanCurtain_WaitForSwitchOff;
         } else {
@@ -231,13 +231,13 @@ void BgHidanCurtain_Update(Actor* thisx, PlayState* play2) {
         this->alpha = 255.0f * riseProgress;
         if (this->alpha > 50) {
             this->collider.dim.height = hcParams->height * riseProgress;
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
-            CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+            OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+            OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
             if (gSaveContext.sceneSetupIndex <= 3) {
                 func_8002F974(&this->actor, NA_SE_EV_FIRE_PILLAR_S - SFX_FLAG);
             }
-        } else if ((this->type == 1) && Flags_GetTreasure(play, this->treasureFlag)) {
-            Actor_Kill(&this->actor);
+        } else if ((this->type == 1) && OoT_Flags_GetTreasure(play, this->treasureFlag)) {
+            OoT_Actor_Kill(&this->actor);
         }
         this->texScroll++;
     }
@@ -254,7 +254,7 @@ void BgHidanCurtain_Draw(Actor* thisx, PlayState* play) {
     gDPSetEnvColor(POLY_XLU_DISP++, 255, 0, 0, 0);
 
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, this->texScroll & 0x7F, 0, 0x20, 0x40, 1, 0,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, this->texScroll & 0x7F, 0, 0x20, 0x40, 1, 0,
                                 (this->texScroll * -0xF) & 0xFF, 0x20, 0x40));
 
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);

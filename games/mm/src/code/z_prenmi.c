@@ -6,16 +6,16 @@ void PreNMI_Stop(PreNMIState* this) {
     SET_NEXT_GAMESTATE(&this->state, NULL, 0);
 }
 
-void PreNMI_Update(PreNMIState* this) {
+void MM_PreNMI_Update(PreNMIState* this) {
     if (this->timer == 0) {
-        ViConfig_UpdateVi(true);
+        MM_ViConfig_UpdateVi(true);
         PreNMI_Stop(this);
     } else {
         this->timer--;
     }
 }
 
-void PreNMI_Draw(PreNMIState* this) {
+void MM_PreNMI_Draw(PreNMIState* this) {
     GraphicsContext* gfxCtx = this->state.gfxCtx;
 
     func_8012CF0C(gfxCtx, true, true, 0, 0, 0);
@@ -30,23 +30,23 @@ void PreNMI_Draw(PreNMIState* this) {
     CLOSE_DISPS(gfxCtx);
 }
 
-void PreNMI_Main(GameState* thisx) {
+void MM_PreNMI_Main(GameState* thisx) {
     PreNMIState* this = (PreNMIState*)thisx;
 
-    PreNMI_Update(this);
-    PreNMI_Draw(this);
+    MM_PreNMI_Update(this);
+    MM_PreNMI_Draw(this);
 
     this->state.unk_A3 = 1;
 }
 
-void PreNMI_Destroy(GameState* thisx) {
+void MM_PreNMI_Destroy(GameState* thisx) {
 }
 
-void PreNMI_Init(GameState* thisx) {
+void MM_PreNMI_Init(GameState* thisx) {
     PreNMIState* this = (PreNMIState*)thisx;
 
-    this->state.main = PreNMI_Main;
-    this->state.destroy = PreNMI_Destroy;
+    this->state.main = MM_PreNMI_Main;
+    this->state.destroy = MM_PreNMI_Destroy;
     this->timer = 30;
     this->unk_A8 = 10;
 

@@ -40,7 +40,7 @@ ActorProfile Obj_Grass_Carry_Profile = {
     /**/ NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_ON | AT_TYPE_PLAYER,
@@ -65,16 +65,16 @@ static s16 sRotSpeedX = 0;
 static s16 sRotSpeedYTarget = 0;
 static s16 sRotSpeedY = 0;
 
-static Vec3f sUnitDirections[] = {
+static Vec3f MM_sUnitDirections[] = {
     { 0.0f, 0.7071f, 0.7071f },
     { 0.7071f, 0.7071f, 0.0f },
     { 0.0f, 0.7071f, -0.7071f },
     { -0.7071f, 0.7071f, 0.0f },
 };
 
-static s16 sFragmentScales[] = { 108, 102, 96, 84, 66, 55, 42, 38 };
+static s16 MM_sFragmentScales[] = { 108, 102, 96, 84, 66, 55, 42, 38 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32_DIV1000(gravity, -3200, ICHAIN_CONTINUE),
     ICHAIN_F32_DIV1000(terminalVelocity, -17000, ICHAIN_CONTINUE),
     ICHAIN_VEC3F_DIV1000(scale, 400, ICHAIN_STOP),
@@ -88,7 +88,7 @@ void ObjGrassCarry_UpdateVelY(ObjGrassCarry* this) {
 }
 
 void ObjGrassCarry_RandScaleVecToZero(Vec3f* velocity, f32 scale) {
-    scale += ((Rand_ZeroOne() * 0.2f) - 0.1f) * scale;
+    scale += ((MM_Rand_ZeroOne() * 0.2f) - 0.1f) * scale;
 
     velocity->x -= velocity->x * scale;
     velocity->y -= velocity->y * scale;
@@ -98,18 +98,18 @@ void ObjGrassCarry_RandScaleVecToZero(Vec3f* velocity, f32 scale) {
 void ObjGrassCarry_UpdatePos(ObjGrassCarry* this) {
     ObjGrassCarry_UpdateVelY(this);
     ObjGrassCarry_RandScaleVecToZero(&this->actor.velocity, 0.05f);
-    Actor_UpdatePos(&this->actor);
+    MM_Actor_UpdatePos(&this->actor);
 }
 
 void ObjGrassCarry_UpdateBgCheckInfo(ObjGrassCarry* this, PlayState* play) {
-    Actor_UpdateBgCheckInfo(play, &this->actor, 7.5f, 35.0f, 0.0f,
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 7.5f, 35.0f, 0.0f,
                             UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4 | UPDBGCHECKINFO_FLAG_40 |
                                 UPDBGCHECKINFO_FLAG_80);
 }
 
 void ObjGrassCarry_DropCollectible(Vec3f* pos, s16 dropTable, PlayState* play) {
     if ((dropTable & 0x10) == 0) {
-        Item_DropCollectibleRandom(play, NULL, pos, dropTable * 0x10);
+        MM_Item_DropCollectibleRandom(play, NULL, pos, dropTable * 0x10);
     }
 }
 
@@ -119,31 +119,31 @@ void ObjGrassCarry_SpawnFragments(Vec3f* basePos, PlayState* play) {
     s32 i;
     Vec3f* dir;
 
-    for (i = 0; i < ARRAY_COUNT(sUnitDirections); i++) {
-        dir = &sUnitDirections[i];
+    for (i = 0; i < ARRAY_COUNT(MM_sUnitDirections); i++) {
+        dir = &MM_sUnitDirections[i];
 
         pos.x = basePos->x + (dir->x * 8.0f);
         pos.y = basePos->y + (dir->y * 8.0f) + 10.0f;
         pos.z = basePos->z + (dir->z * 8.0f);
 
-        velocity.x = (Rand_ZeroOne() - 0.5f) * 8.0f;
-        velocity.y = Rand_ZeroOne() * 10.0f;
-        velocity.z = (Rand_ZeroOne() - 0.5f) * 8.0f;
+        velocity.x = (MM_Rand_ZeroOne() - 0.5f) * 8.0f;
+        velocity.y = MM_Rand_ZeroOne() * 10.0f;
+        velocity.z = (MM_Rand_ZeroOne() - 0.5f) * 8.0f;
 
-        EffectSsKakera_Spawn(play, &pos, &velocity, &pos, -100, 64, 40, 3, 0,
-                             sFragmentScales[(s32)(Rand_ZeroOne() * 111.1f) & 7], 0, 0, 80, -1, GAMEPLAY_KEEP,
+        MM_EffectSsKakera_Spawn(play, &pos, &velocity, &pos, -100, 64, 40, 3, 0,
+                             MM_sFragmentScales[(s32)(MM_Rand_ZeroOne() * 111.1f) & 7], 0, 0, 80, -1, GAMEPLAY_KEEP,
                              gKakeraLeafMiddleDL);
 
         pos.x = basePos->x + (dir->x * 16.0f);
         pos.y = basePos->y + (dir->y * 16.0f) + 10.0f;
         pos.z = basePos->z + (dir->z * 16.0f);
 
-        velocity.x = (Rand_ZeroOne() - 0.5f) * 6.0f;
-        velocity.y = Rand_ZeroOne() * 10.0f;
-        velocity.z = (Rand_ZeroOne() - 0.5f) * 6.0f;
+        velocity.x = (MM_Rand_ZeroOne() - 0.5f) * 6.0f;
+        velocity.y = MM_Rand_ZeroOne() * 10.0f;
+        velocity.z = (MM_Rand_ZeroOne() - 0.5f) * 6.0f;
 
-        EffectSsKakera_Spawn(play, &pos, &velocity, &pos, -100, 64, 40, 3, 0,
-                             sFragmentScales[(s32)(Rand_ZeroOne() * 111.1f) % 7], 0, 0, 80, -1, GAMEPLAY_KEEP,
+        MM_EffectSsKakera_Spawn(play, &pos, &velocity, &pos, -100, 64, 40, 3, 0,
+                             MM_sFragmentScales[(s32)(MM_Rand_ZeroOne() * 111.1f) % 7], 0, 0, 80, -1, GAMEPLAY_KEEP,
                              gKakeraLeafTipDL);
     }
 }
@@ -151,9 +151,9 @@ void ObjGrassCarry_SpawnFragments(Vec3f* basePos, PlayState* play) {
 void ObjGrassCarry_Init(Actor* thisx, PlayState* play) {
     ObjGrassCarry* this = (ObjGrassCarry*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
     this->actor.colChkInfo.mass = 80;
     ObjGrassCarry_SetupAwaitSpawnManager(this);
 }
@@ -161,7 +161,7 @@ void ObjGrassCarry_Init(Actor* thisx, PlayState* play) {
 void ObjGrassCarry_Destroy(Actor* thisx, PlayState* play) {
     ObjGrassCarry* this = (ObjGrassCarry*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 
     if (this->grassManager != NULL) {
         ObjGrassCarry** carry = &this->grassManager->grassCarry[this->actor.params];
@@ -207,7 +207,7 @@ void ObjGrassCarry_Reset(ObjGrassCarry* this) {
 void ObjGrassCarry_Main(ObjGrassCarry* this, PlayState* play) {
     Actor* thisx = &this->actor;
 
-    if (Actor_HasParent(thisx, play)) {
+    if (MM_Actor_HasParent(thisx, play)) {
         ObjGrassCarry_SetupLiftedUp(this);
         if (this->grassElem != NULL) {
             this->grassElem->flags |= OBJ_GRASS_ELEM_REMOVED;
@@ -215,24 +215,24 @@ void ObjGrassCarry_Main(ObjGrassCarry* this, PlayState* play) {
         if (GameInteractor_Should(VB_CARRY_GRASS_DRAW_BE_OVERRIDDEN, true, this)) {
             thisx->draw = ObjGrassCarry_Draw;
         }
-        thisx->shape.shadowDraw = ActorShadow_DrawCircle;
+        thisx->shape.shadowDraw = MM_ActorShadow_DrawCircle;
         thisx->shape.shadowAlpha = 60;
         thisx->shape.shadowScale = 1.0f;
         this->grassManager->activeGrassCarry ^= 1;
         thisx->room = -1;
-        SoundSource_PlaySfxAtFixedWorldPos(play, &thisx->world.pos, 20, NA_SE_PL_PULL_UP_PLANT);
+        MM_SoundSource_PlaySfxAtFixedWorldPos(play, &thisx->world.pos, 20, NA_SE_PL_PULL_UP_PLANT);
     } else if (this->grassManager->carryGrassElem != NULL) {
         Player* player = GET_PLAYER(play);
 
         this->grassElem = this->grassManager->carryGrassElem;
-        Math_Vec3f_Copy(&thisx->world.pos, &this->grassElem->pos);
+        MM_Math_Vec3f_Copy(&thisx->world.pos, &this->grassElem->pos);
         thisx->shape.rot.y = thisx->world.rot.y = this->grassElem->rotY;
         this->dropTable = this->grassElem->dropTable;
-        thisx->xzDistToPlayer = Actor_WorldDistXZToActor(&this->actor, &player->actor);
-        thisx->playerHeightRel = Actor_HeightDiff(&this->actor, &player->actor);
+        thisx->xzDistToPlayer = MM_Actor_WorldDistXZToActor(&this->actor, &player->actor);
+        thisx->playerHeightRel = MM_Actor_HeightDiff(&this->actor, &player->actor);
         thisx->xyzDistToPlayerSq = SQ(thisx->xzDistToPlayer) + SQ(thisx->playerHeightRel);
-        thisx->yawTowardsPlayer = Actor_WorldYawTowardActor(&this->actor, &player->actor);
-        Actor_OfferCarry(&this->actor, play);
+        thisx->yawTowardsPlayer = MM_Actor_WorldYawTowardActor(&this->actor, &player->actor);
+        MM_Actor_OfferCarry(&this->actor, play);
     }
 }
 
@@ -243,10 +243,10 @@ void ObjGrassCarry_SetupLiftedUp(ObjGrassCarry* this) {
 void ObjGrassCarry_LiftedUp(ObjGrassCarry* this, PlayState* play) {
     s32 pad;
 
-    if (Actor_HasNoParent(&this->actor, play)) {
+    if (MM_Actor_HasNoParent(&this->actor, play)) {
         ObjGrassCarry_SetupFall(this);
-        this->actor.velocity.x = Math_SinS(this->actor.world.rot.y) * this->actor.speed;
-        this->actor.velocity.z = Math_CosS(this->actor.world.rot.y) * this->actor.speed;
+        this->actor.velocity.x = MM_Math_SinS(this->actor.world.rot.y) * this->actor.speed;
+        this->actor.velocity.z = MM_Math_CosS(this->actor.world.rot.y) * this->actor.speed;
         this->actor.gravity = -0.1f;
         this->actor.terminalVelocity = -17.0f;
         ObjGrassCarry_UpdatePos(this);
@@ -260,14 +260,14 @@ void ObjGrassCarry_LiftedUp(ObjGrassCarry* this, PlayState* play) {
         pos.y = this->actor.world.pos.y + 20.0f;
         pos.z = this->actor.world.pos.z;
         this->actor.floorHeight =
-            BgCheck_EntityRaycastFloor5(&play->colCtx, &this->actor.floorPoly, &bgId, &this->actor, &pos);
+            MM_BgCheck_EntityRaycastFloor5(&play->colCtx, &this->actor.floorPoly, &bgId, &this->actor, &pos);
     }
 }
 
 void ObjGrassCarry_SetupFall(ObjGrassCarry* this) {
     this->actionFunc = ObjGrassCarry_Fall;
     sRotSpeedXTarget = -0xBB8;
-    sRotSpeedYTarget = (Rand_ZeroOne() - 0.5f) * 1600.0f;
+    sRotSpeedYTarget = (MM_Rand_ZeroOne() - 0.5f) * 1600.0f;
     sRotSpeedX = 0;
     sRotSpeedY = 0;
     this->fallTimer = 60;
@@ -300,7 +300,7 @@ void ObjGrassCarry_Fall(ObjGrassCarry* this, PlayState* play) {
         }
 
         if (!(this->actor.bgCheckFlags & BGCHECKFLAG_WATER)) {
-            SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 20, NA_SE_EV_PLANT_BROKEN);
+            MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 20, NA_SE_EV_PLANT_BROKEN);
         }
         ObjGrassCarry_SetupIdle(this);
         return;
@@ -310,16 +310,16 @@ void ObjGrassCarry_Fall(ObjGrassCarry* this, PlayState* play) {
         pos.y = this->actor.world.pos.y + this->actor.depthInWater;
 
         for (angle = 0, i = 0; i < 4; i++, angle += 0x4000) {
-            pos.x = this->actor.world.pos.x + (Math_SinS((s32)(Rand_ZeroOne() * 7200.0f) + angle) * 15.0f);
-            pos.z = this->actor.world.pos.z + (Math_CosS((s32)(Rand_ZeroOne() * 7200.0f) + angle) * 15.0f);
-            EffectSsGSplash_Spawn(play, &pos, NULL, NULL, 0, 190);
+            pos.x = this->actor.world.pos.x + (MM_Math_SinS((s32)(MM_Rand_ZeroOne() * 7200.0f) + angle) * 15.0f);
+            pos.z = this->actor.world.pos.z + (MM_Math_CosS((s32)(MM_Rand_ZeroOne() * 7200.0f) + angle) * 15.0f);
+            MM_EffectSsGSplash_Spawn(play, &pos, NULL, NULL, 0, 190);
         }
 
         pos.x = this->actor.world.pos.x;
         pos.z = this->actor.world.pos.z;
 
-        EffectSsGSplash_Spawn(play, &pos, NULL, NULL, 0, 280);
-        EffectSsGRipple_Spawn(play, &pos, 300, 700, 0);
+        MM_EffectSsGSplash_Spawn(play, &pos, NULL, NULL, 0, 280);
+        MM_EffectSsGRipple_Spawn(play, &pos, 300, 700, 0);
 
         this->actor.terminalVelocity = -3.0f;
         this->actor.velocity.x *= 0.1f;
@@ -332,19 +332,19 @@ void ObjGrassCarry_Fall(ObjGrassCarry* this, PlayState* play) {
         sRotSpeedY >>= 1;
         sRotSpeedYTarget >>= 1;
         this->actor.bgCheckFlags &= ~BGCHECKFLAG_WATER_TOUCH;
-        SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40, NA_SE_EV_DIVE_INTO_WATER_L);
+        MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40, NA_SE_EV_DIVE_INTO_WATER_L);
     }
 
-    Math_StepToS(&sRotSpeedX, sRotSpeedXTarget, 0x1F4);
-    Math_StepToS(&sRotSpeedY, sRotSpeedYTarget, 0xAA);
+    MM_Math_StepToS(&sRotSpeedX, sRotSpeedXTarget, 0x1F4);
+    MM_Math_StepToS(&sRotSpeedY, sRotSpeedYTarget, 0xAA);
     this->actor.shape.rot.x += sRotSpeedX;
     this->actor.shape.rot.y += sRotSpeedY;
     ObjGrassCarry_UpdatePos(this);
     ObjGrassCarry_UpdateBgCheckInfo(this, play);
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void ObjGrassCarry_Update(Actor* thisx, PlayState* play) {
@@ -352,7 +352,7 @@ void ObjGrassCarry_Update(Actor* thisx, PlayState* play) {
 
     if (this->grassManager == NULL) {
         if ((this->actionFunc != ObjGrassCarry_LiftedUp) && (this->actionFunc != ObjGrassCarry_Fall)) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
             return;
         }
     }
@@ -361,5 +361,5 @@ void ObjGrassCarry_Update(Actor* thisx, PlayState* play) {
 }
 
 void ObjGrassCarry_Draw(Actor* this, PlayState* play) {
-    Gfx_DrawDListOpa(play, gKusaBushType1DL);
+    MM_Gfx_DrawDListOpa(play, gKusaBushType1DL);
 }

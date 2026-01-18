@@ -34,7 +34,7 @@ void _Litob(_Pft* args, u8 type) {
     args->v.ll = num / base;
 
     while (args->v.ll > 0 && idx > 0) {
-        quotrem = lldiv(args->v.ll, base);
+        quotrem = OoT_lldiv(args->v.ll, base);
         args->v.ll = quotrem.quot;
         buff[--idx] = numMap[quotrem.rem];
     }

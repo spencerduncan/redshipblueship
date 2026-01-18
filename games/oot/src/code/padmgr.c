@@ -16,15 +16,15 @@ OSMesgQueue* PadMgr_LockSerialMesgQueue(PadMgr* padMgr) {
 
     if (D_8012D280 > 2) {
         // "serialMsgQ Waiting for lock"
-        osSyncPrintf("%2d %d serialMsgQロック待ち         %08x %08x          %08x\n", osGetThreadId(NULL),
+        osSyncPrintf("%2d %d serialMsgQロック待ち         %08x %08x          %08x\n", OoT_osGetThreadId(NULL),
                      padMgr->serialMsgQ.validCount, padMgr, &padMgr->serialMsgQ, &ctrlrQ);
     }
 
-    osRecvMesg(&padMgr->serialMsgQ, (OSMesg*)&ctrlrQ, OS_MESG_BLOCK);
+    OoT_osRecvMesg(&padMgr->serialMsgQ, (OSMesg*)&ctrlrQ, OS_MESG_BLOCK);
 
     if (D_8012D280 > 2) {
         // "serialMsgQ Locked"
-        osSyncPrintf("%2d %d serialMsgQをロックしました                     %08x\n", osGetThreadId(NULL),
+        osSyncPrintf("%2d %d serialMsgQをロックしました                     %08x\n", OoT_osGetThreadId(NULL),
                      padMgr->serialMsgQ.validCount, ctrlrQ);
     }
 
@@ -34,7 +34,7 @@ OSMesgQueue* PadMgr_LockSerialMesgQueue(PadMgr* padMgr) {
 void PadMgr_UnlockSerialMesgQueue(PadMgr* padMgr, OSMesgQueue* ctrlrQ) {
     if (D_8012D280 > 2) {
         // "serialMsgQ Unlock"
-        osSyncPrintf("%2d %d serialMsgQロック解除します   %08x %08x %08x\n", osGetThreadId(NULL),
+        osSyncPrintf("%2d %d serialMsgQロック解除します   %08x %08x %08x\n", OoT_osGetThreadId(NULL),
                      padMgr->serialMsgQ.validCount, padMgr, &padMgr->serialMsgQ, ctrlrQ);
     }
 
@@ -42,16 +42,16 @@ void PadMgr_UnlockSerialMesgQueue(PadMgr* padMgr, OSMesgQueue* ctrlrQ) {
 
     if (D_8012D280 > 2) {
         // "serialMsgQ Unlocked"
-        osSyncPrintf("%2d %d serialMsgQロック解除しました %08x %08x %08x\n", osGetThreadId(NULL),
+        osSyncPrintf("%2d %d serialMsgQロック解除しました %08x %08x %08x\n", OoT_osGetThreadId(NULL),
                      padMgr->serialMsgQ.validCount, padMgr, &padMgr->serialMsgQ, ctrlrQ);
     }
 }
 
-void PadMgr_LockPadData(PadMgr* padMgr) {
-    osRecvMesg(&padMgr->lockMsgQ, NULL, OS_MESG_BLOCK);
+void OoT_PadMgr_LockPadData(PadMgr* padMgr) {
+    OoT_osRecvMesg(&padMgr->lockMsgQ, NULL, OS_MESG_BLOCK);
 }
 
-void PadMgr_UnlockPadData(PadMgr* padMgr) {
+void OoT_PadMgr_UnlockPadData(PadMgr* padMgr) {
     osSendMesgPtr(&padMgr->lockMsgQ, NULL, OS_MESG_BLOCK);
 }
 
@@ -141,7 +141,7 @@ void PadMgr_RumbleControl(PadMgr* padMgr) {
         i = frame % 4;
 
         if (padMgr->ctrlrIsConnected[i] && (padMgr->padStatus[i].status & 1) && (padMgr->pakType[i] != 1)) {
-            var4 = osMotorInit(ctrlrQ, &padMgr->pfs[i], i);
+            var4 = OoT_osMotorInit(ctrlrQ, &padMgr->pfs[i], i);
 
             if (var4 == 0) {
                 padMgr->pakType[i] = 1;
@@ -167,12 +167,12 @@ void PadMgr_RumbleControl(PadMgr* padMgr) {
     PadMgr_UnlockSerialMesgQueue(padMgr, ctrlrQ);
 }
 
-void PadMgr_RumbleStop(PadMgr* padMgr) {
+void OoT_PadMgr_RumbleStop(PadMgr* padMgr) {
     s32 i;
     OSMesgQueue* ctrlrQ = PadMgr_LockSerialMesgQueue(padMgr);
 
     for (i = 0; i < 4; i++) {
-        if (osMotorInit(ctrlrQ, &padMgr->pfs[i], i) == 0) {
+        if (OoT_osMotorInit(ctrlrQ, &padMgr->pfs[i], i) == 0) {
 #if 0
             if ((gFaultStruct.msgId == 0) && (padMgr->rumbleOnFrames != 0))
             {
@@ -194,12 +194,12 @@ void PadMgr_RumbleReset(PadMgr* padMgr) {
     padMgr->rumbleOffFrames = 3;
 }
 
-void PadMgr_RumbleSetSingle(PadMgr* padMgr, u32 ctrlr, u32 rumble) {
+void OoT_PadMgr_RumbleSetSingle(PadMgr* padMgr, u32 ctrlr, u32 rumble) {
     padMgr->rumbleEnable[ctrlr] = rumble;
     padMgr->rumbleOnFrames = 240;
 }
 
-void PadMgr_RumbleSet(PadMgr* padMgr, u8* ctrlrRumbles) {
+void OoT_PadMgr_RumbleSet(PadMgr* padMgr, u8* ctrlrRumbles) {
     s32 i;
 
     for (i = 0; i < 4; i++) {
@@ -216,7 +216,7 @@ void PadMgr_ProcessInputs(PadMgr* padMgr) {
     OSContPad* padnow1; // original name
     s32 buttonDiff;
 
-    PadMgr_LockPadData(padMgr);
+    OoT_PadMgr_LockPadData(padMgr);
 
     input = &padMgr->inputs[0];
     padnow1 = &padMgr->pads[0];
@@ -284,13 +284,13 @@ void PadMgr_ProcessInputs(PadMgr* padMgr) {
                 break;
             default:
                 LOG_HEX("padnow1->errno", padnow1->err_no);
-                Fault_AddHungupAndCrash(__FILE__, __LINE__);
+                OoT_Fault_AddHungupAndCrash(__FILE__, __LINE__);
         }
 
         buttonDiff = input->prev.button ^ input->cur.button;
         input->press.button |= (u16)(buttonDiff & input->cur.button);
         input->rel.button |= (u16)(buttonDiff & input->prev.button);
-        PadUtils_UpdateRelXY(input);
+        OoT_PadUtils_UpdateRelXY(input);
         input->press.stick_x += (s8)(input->cur.stick_x - input->prev.stick_x);
         input->press.stick_y += (s8)(input->cur.stick_y - input->prev.stick_y);
         // #region SOH [Enhancement]
@@ -303,7 +303,7 @@ void PadMgr_ProcessInputs(PadMgr* padMgr) {
     uint8_t rumble = (padMgr->rumbleEnable[0] > 0);
     OTRControllerCallback(rumble);
 
-    PadMgr_UnlockPadData(padMgr);
+    OoT_PadMgr_UnlockPadData(padMgr);
 }
 
 void PadMgr_HandleRetraceMsg(PadMgr* padMgr) {
@@ -311,12 +311,12 @@ void PadMgr_HandleRetraceMsg(PadMgr* padMgr) {
     OSMesgQueue* queue = PadMgr_LockSerialMesgQueue(padMgr);
     u32 mask;
 
-    osContStartReadData(queue);
+    OoT_osContStartReadData(queue);
     if (padMgr->retraceCallback) {
         padMgr->retraceCallback(padMgr, padMgr->retraceCallbackValue);
     }
-    osRecvMesg(queue, NULL, OS_MESG_BLOCK);
-    osContGetReadData(padMgr->pads);
+    OoT_osRecvMesg(queue, NULL, OS_MESG_BLOCK);
+    OoT_osContGetReadData(padMgr->pads);
 
     Mouse_UpdateAll();
 
@@ -328,9 +328,9 @@ void PadMgr_HandleRetraceMsg(PadMgr* padMgr) {
         memset(padMgr->pads, 0, sizeof(padMgr->pads));
     }
     PadMgr_ProcessInputs(padMgr);
-    osContStartQuery(queue);
-    osRecvMesg(queue, NULL, OS_MESG_BLOCK);
-    osContGetQuery(padMgr->padStatus);
+    OoT_osContStartQuery(queue);
+    OoT_osRecvMesg(queue, NULL, OS_MESG_BLOCK);
+    OoT_osContGetQuery(padMgr->padStatus);
     PadMgr_UnlockSerialMesgQueue(padMgr, queue);
 
     mask = 0;
@@ -348,20 +348,20 @@ void PadMgr_HandleRetraceMsg(PadMgr* padMgr) {
     padMgr->validCtrlrsMask = mask;
 
     /* if (gFaultStruct.msgId) {
-        PadMgr_RumbleStop(padMgr);
+        OoT_PadMgr_RumbleStop(padMgr);
     } else */
     if (padMgr->rumbleOffFrames > 0) {
         --padMgr->rumbleOffFrames;
-        PadMgr_RumbleStop(padMgr);
+        OoT_PadMgr_RumbleStop(padMgr);
     } else if (padMgr->rumbleOnFrames == 0) {
-        PadMgr_RumbleStop(padMgr);
+        OoT_PadMgr_RumbleStop(padMgr);
     } else if (!padMgr->preNMIShutdown) {
         PadMgr_RumbleControl(padMgr);
         --padMgr->rumbleOnFrames;
     }
 }
 
-void PadMgr_HandlePreNMI(PadMgr* padMgr) {
+void OoT_PadMgr_HandlePreNMI(PadMgr* padMgr) {
     osSyncPrintf("padmgr_HandlePreNMI()\n");
     padMgr->preNMIShutdown = true;
     PadMgr_RumbleReset(padMgr);
@@ -373,7 +373,7 @@ void PadMgr_RequestPadData(PadMgr* padMgr, Input* inputs, s32 mode) {
     Input* newInput;
     s32 buttonDiff;
 
-    PadMgr_LockPadData(padMgr);
+    OoT_PadMgr_LockPadData(padMgr);
 
     ogInput = &padMgr->inputs[0];
     newInput = &inputs[0];
@@ -390,7 +390,7 @@ void PadMgr_RequestPadData(PadMgr* padMgr, Input* inputs, s32 mode) {
             buttonDiff = newInput->prev.button ^ newInput->cur.button;
             newInput->press.button = newInput->cur.button & buttonDiff;
             newInput->rel.button = newInput->prev.button & buttonDiff;
-            PadUtils_UpdateRelXY(newInput);
+            OoT_PadUtils_UpdateRelXY(newInput);
             newInput->press.stick_x += (s8)(newInput->cur.stick_x - newInput->prev.stick_x);
             newInput->press.stick_y += (s8)(newInput->cur.stick_y - newInput->prev.stick_y);
             // #region SOH [Enhancement]
@@ -403,10 +403,10 @@ void PadMgr_RequestPadData(PadMgr* padMgr, Input* inputs, s32 mode) {
         newInput++;
     }
 
-    PadMgr_UnlockPadData(padMgr);
+    OoT_PadMgr_UnlockPadData(padMgr);
 }
 
-void PadMgr_ThreadEntry(PadMgr* padMgr) {
+void OoT_PadMgr_ThreadEntry(PadMgr* padMgr) {
     s16* mesg = NULL;
     s32 exit;
 
@@ -416,10 +416,10 @@ void PadMgr_ThreadEntry(PadMgr* padMgr) {
     while (!exit) {
         if ((D_8012D280 > 2) && (padMgr->interruptMsgQ.validCount == 0)) {
             // "Waiting for controller thread event"
-            osSyncPrintf("コントローラスレッドイベント待ち %lld\n", OS_CYCLES_TO_USEC(osGetTime()));
+            osSyncPrintf("コントローラスレッドイベント待ち %lld\n", OS_CYCLES_TO_USEC(OoT_osGetTime()));
         }
 
-        osRecvMesg(&padMgr->interruptMsgQ, (OSMesg*)&mesg, OS_MESG_BLOCK);
+        OoT_osRecvMesg(&padMgr->interruptMsgQ, (OSMesg*)&mesg, OS_MESG_BLOCK);
         // LOG_CHECK_NULL_POINTER("msg", mesg);
 
         PadMgr_HandleRetraceMsg(padMgr);
@@ -429,18 +429,18 @@ void PadMgr_ThreadEntry(PadMgr* padMgr) {
         switch (*mesg) {
             case OS_SC_RETRACE_MSG:
                 if (D_8012D280 > 2) {
-                    osSyncPrintf("padmgr_HandleRetraceMsg START %lld\n", OS_CYCLES_TO_USEC(osGetTime()));
+                    osSyncPrintf("padmgr_HandleRetraceMsg START %lld\n", OS_CYCLES_TO_USEC(OoT_osGetTime()));
                 }
 
                 PadMgr_HandleRetraceMsg(padMgr);
 
                 if (D_8012D280 > 2) {
-                    osSyncPrintf("padmgr_HandleRetraceMsg END   %lld\n", OS_CYCLES_TO_USEC(osGetTime()));
+                    osSyncPrintf("padmgr_HandleRetraceMsg END   %lld\n", OS_CYCLES_TO_USEC(OoT_osGetTime()));
                 }
 
                 break;
             case OS_SC_PRE_NMI_MSG:
-                PadMgr_HandlePreNMI(padMgr);
+                OoT_PadMgr_HandlePreNMI(padMgr);
                 break;
             case OS_SC_NMI_MSG:
                 exit = true;
@@ -450,29 +450,29 @@ void PadMgr_ThreadEntry(PadMgr* padMgr) {
     }
 
     // OTRTODO: Removed due to crash
-    // IrqMgr_RemoveClient(padMgr->irqMgr, &padMgr->irqClient);
+    // OoT_IrqMgr_RemoveClient(padMgr->irqMgr, &padMgr->irqClient);
 
     // osSyncPrintf("コントローラスレッド実行終了\n"); // "Controller thread execution end"
 }
 
-void PadMgr_Init(PadMgr* padMgr, OSMesgQueue* siIntMsgQ, IrqMgr* irqMgr, OSId id, OSPri priority, void* stack) {
+void OoT_PadMgr_Init(PadMgr* padMgr, OSMesgQueue* siIntMsgQ, IrqMgr* irqMgr, OSId id, OSPri priority, void* stack) {
     osSyncPrintf("パッドマネージャ作成 padmgr_Create()\n"); // "Pad Manager creation"
 
     memset(padMgr, 0, sizeof(PadMgr));
     padMgr->irqMgr = irqMgr;
 
-    osCreateMesgQueue(&padMgr->interruptMsgQ, padMgr->interruptMsgBuf, 4);
+    OoT_osCreateMesgQueue(&padMgr->interruptMsgQ, padMgr->interruptMsgBuf, 4);
     // OTRTODO: Removed due to crash
-    // IrqMgr_AddClient(padMgr->irqMgr, &padMgr->irqClient, &padMgr->interruptMsgQ);
-    osCreateMesgQueue(&padMgr->serialMsgQ, padMgr->serialMsgBuf, 1);
+    // OoT_IrqMgr_AddClient(padMgr->irqMgr, &padMgr->irqClient, &padMgr->interruptMsgQ);
+    OoT_osCreateMesgQueue(&padMgr->serialMsgQ, padMgr->serialMsgBuf, 1);
     PadMgr_UnlockSerialMesgQueue(padMgr, siIntMsgQ);
-    osCreateMesgQueue(&padMgr->lockMsgQ, padMgr->lockMsgBuf, 1);
-    PadMgr_UnlockPadData(padMgr);
-    PadSetup_Init(siIntMsgQ, (u8*)&padMgr->validCtrlrsMask, padMgr->padStatus);
+    OoT_osCreateMesgQueue(&padMgr->lockMsgQ, padMgr->lockMsgBuf, 1);
+    OoT_PadMgr_UnlockPadData(padMgr);
+    OoT_PadSetup_Init(siIntMsgQ, (u8*)&padMgr->validCtrlrsMask, padMgr->padStatus);
 
     padMgr->nControllers = 4;
-    osContSetCh(padMgr->nControllers);
+    OoT_osContSetCh(padMgr->nControllers);
 
-    osCreateThread(&padMgr->thread, id, (void (*)(void*))PadMgr_ThreadEntry, padMgr, stack, priority);
-    osStartThread(&padMgr->thread);
+    osCreateThread(&padMgr->thread, id, (void (*)(void*))OoT_PadMgr_ThreadEntry, padMgr, stack, priority);
+    OoT_osStartThread(&padMgr->thread);
 }

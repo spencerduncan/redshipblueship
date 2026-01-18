@@ -1,6 +1,6 @@
 #include "global.h"
 
-void GameAlloc_Log(GameAlloc* this) {
+void OoT_GameAlloc_Log(GameAlloc* this) {
     GameAllocEntry* iter;
 
     osSyncPrintf("this = %08x\n", this);
@@ -28,7 +28,7 @@ void* GameAlloc_MallocDebug(GameAlloc* this, size_t size, const char* file, s32 
     }
 }
 
-void* GameAlloc_Malloc(GameAlloc* this, size_t size) {
+void* OoT_GameAlloc_Malloc(GameAlloc* this, size_t size) {
     GameAllocEntry* ptr = SYSTEM_ARENA_MALLOC_DEBUG(size + sizeof(GameAllocEntry));
 
     if (ptr != NULL) {
@@ -44,7 +44,7 @@ void* GameAlloc_Malloc(GameAlloc* this, size_t size) {
     }
 }
 
-void GameAlloc_Free(GameAlloc* this, void* data) {
+void OoT_GameAlloc_Free(GameAlloc* this, void* data) {
     GameAllocEntry* ptr;
 
     if (data != NULL) {
@@ -58,7 +58,7 @@ void GameAlloc_Free(GameAlloc* this, void* data) {
     }
 }
 
-void GameAlloc_Cleanup(GameAlloc* this) {
+void OoT_GameAlloc_Cleanup(GameAlloc* this) {
     GameAllocEntry* next = this->base.next;
     GameAllocEntry* cur;
 
@@ -73,7 +73,7 @@ void GameAlloc_Cleanup(GameAlloc* this) {
     this->base.prev = &this->base;
 }
 
-void GameAlloc_Init(GameAlloc* this) {
+void OoT_GameAlloc_Init(GameAlloc* this) {
     this->head = &this->base;
     this->base.next = &this->base;
     this->base.prev = &this->base;

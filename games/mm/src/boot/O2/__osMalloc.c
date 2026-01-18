@@ -18,23 +18,23 @@
 #define BLOCK_FREE_MAGIC (0xEF)
 #define BLOCK_FREE_MAGIC_32 (0xEFEFEFEF)
 
-OSMesg sArenaLockMsg[1];
+OSMesg MM_sArenaLockMsg[1];
 
 void __osMallocAddHeap(Arena* arena, void* heap, size_t size);
 
-void ArenaImpl_LockInit(Arena* arena) {
-    osCreateMesgQueue(&arena->lock, sArenaLockMsg, ARRAY_COUNT(sArenaLockMsg));
+void MM_ArenaImpl_LockInit(Arena* arena) {
+    MM_osCreateMesgQueue(&arena->lock, MM_sArenaLockMsg, ARRAY_COUNT(MM_sArenaLockMsg));
 }
 
-void ArenaImpl_Lock(Arena* arena) {
-    // osSendMesg(&arena->lock, NULL, OS_MESG_BLOCK);
+void MM_ArenaImpl_Lock(Arena* arena) {
+    // MM_osSendMesg(&arena->lock, NULL, OS_MESG_BLOCK);
 }
 
-void ArenaImpl_Unlock(Arena* arena) {
-    // osRecvMesg(&arena->lock, NULL, OS_MESG_BLOCK);
+void MM_ArenaImpl_Unlock(Arena* arena) {
+    // MM_osRecvMesg(&arena->lock, NULL, OS_MESG_BLOCK);
 }
 
-ArenaNode* ArenaImpl_GetLastBlock(Arena* arena) {
+ArenaNode* MM_ArenaImpl_GetLastBlock(Arena* arena) {
     ArenaNode* last;
     ArenaNode* iter;
 
@@ -60,7 +60,7 @@ ArenaNode* ArenaImpl_GetLastBlock(Arena* arena) {
 void __osMallocInit(Arena* arena, void* heap, size_t size) {
     memset(arena, 0, sizeof(Arena));
 
-    ArenaImpl_LockInit(arena);
+    MM_ArenaImpl_LockInit(arena);
 
     __osMallocAddHeap(arena, heap, size);
     arena->isInit = true;
@@ -89,9 +89,9 @@ void __osMallocAddHeap(Arena* arena, void* heap, size_t size) {
         firstNode->isFree = true;
         firstNode->magic = NODE_MAGIC;
 
-        ArenaImpl_Lock(arena);
+        MM_ArenaImpl_Lock(arena);
 
-        lastNode = ArenaImpl_GetLastBlock(arena);
+        lastNode = MM_ArenaImpl_GetLastBlock(arena);
 
         // Checks if there's already a block
         if (lastNode == NULL) {
@@ -103,7 +103,7 @@ void __osMallocAddHeap(Arena* arena, void* heap, size_t size) {
             lastNode->next = firstNode;
         }
 
-        ArenaImpl_Unlock(arena);
+        MM_ArenaImpl_Unlock(arena);
     }
 }
 
@@ -131,7 +131,7 @@ u8 __osMallocIsInitalized(Arena* arena) {
  * The block of memory will be allocated at the start of the first sufficiently large free block.
  *
  *  - If there's not enough space in the given \p arena, this function will fail, returning `NULL`.
- *  - If \p size is zero, then an empty region of memory is returned.
+ *  - If \p size is MM_zero, then an empty region of memory is returned.
  *
  * To avoid memory leaks, the returned pointer should be eventually deallocated using either `__osFree` or
  * `__osRealloc`.
@@ -147,7 +147,7 @@ void* __osMalloc(Arena* arena, size_t size) {
 
     size = ALIGN16(size);
 
-    ArenaImpl_Lock(arena);
+    MM_ArenaImpl_Lock(arena);
 
     // Start iterating from the head of the arena.
     iter = arena->head;
@@ -186,7 +186,7 @@ void* __osMalloc(Arena* arena, size_t size) {
         iter = iter->next;
     }
 
-    ArenaImpl_Unlock(arena);
+    MM_ArenaImpl_Unlock(arena);
 
     return alloc;
 }
@@ -196,7 +196,7 @@ void* __osMalloc(Arena* arena, size_t size) {
  * Unlike __osMalloc, the block of memory will be allocated from the end of the \p arena.
  *
  * - If there's not enough space in the given \p arena, this function will fail, returning `NULL`.
- * - If \p size is zero, then an empty region of memory is returned.
+ * - If \p size is MM_zero, then an empty region of memory is returned.
  *
  * To avoid memory leaks, the returned pointer should be eventually deallocated using `__osFree` or `__osRealloc`.
  *
@@ -212,10 +212,10 @@ void* __osMallocR(Arena* arena, size_t size) {
 
     size = ALIGN16(size);
 
-    ArenaImpl_Lock(arena);
+    MM_ArenaImpl_Lock(arena);
 
     // Start iterating from the last block of the arena.
-    iter = ArenaImpl_GetLastBlock(arena);
+    iter = MM_ArenaImpl_GetLastBlock(arena);
 
     // Iterate in reverse the arena looking for a big enough space of memory.
     while (iter != NULL) {
@@ -250,7 +250,7 @@ void* __osMallocR(Arena* arena, size_t size) {
         iter = iter->prev;
     }
 
-    ArenaImpl_Unlock(arena);
+    MM_ArenaImpl_Unlock(arena);
 
     return alloc;
 }
@@ -272,7 +272,7 @@ void __osFree(Arena* arena, void* ptr) {
     ArenaNode* next;
     ArenaNode* prev;
 
-    ArenaImpl_Lock(arena);
+    MM_ArenaImpl_Lock(arena);
 
     node = (ArenaNode*)((uintptr_t)ptr - sizeof(ArenaNode));
 
@@ -308,7 +308,7 @@ void __osFree(Arena* arena, void* ptr) {
         }
     }
 
-    ArenaImpl_Unlock(arena);
+    MM_ArenaImpl_Unlock(arena);
 }
 
 /**
@@ -333,7 +333,7 @@ void __osFree(Arena* arena, void* ptr) {
  * and the original parameter \p ptr remains valid.
  */
 void* __osRealloc(Arena* arena, void* ptr, size_t newSize) {
-    ArenaImpl_Lock(arena);
+    MM_ArenaImpl_Lock(arena);
 
     (void)"__osRealloc(%08x, %d)\n";
 
@@ -342,7 +342,7 @@ void* __osRealloc(Arena* arena, void* ptr, size_t newSize) {
         // if newSize is 0, then __osMalloc would return a NULL pointer
         ptr = __osMalloc(arena, newSize);
     } else if (newSize == 0) {
-        // if the requested size is zero, then free the pointer
+        // if the requested size is MM_zero, then free the pointer
         __osFree(arena, ptr);
         ptr = NULL;
     } else {
@@ -386,7 +386,7 @@ void* __osRealloc(Arena* arena, void* ptr, size_t newSize) {
         }
     }
 
-    ArenaImpl_Unlock(arena);
+    MM_ArenaImpl_Unlock(arena);
 
     return ptr;
 }
@@ -402,7 +402,7 @@ void* __osRealloc(Arena* arena, void* ptr, size_t newSize) {
 void __osGetSizes(Arena* arena, size_t* outMaxFree, size_t* outFree, size_t* outAlloc) {
     ArenaNode* iter;
 
-    ArenaImpl_Lock(arena);
+    MM_ArenaImpl_Lock(arena);
 
     *outMaxFree = 0;
     *outFree = 0;
@@ -422,7 +422,7 @@ void __osGetSizes(Arena* arena, size_t* outMaxFree, size_t* outFree, size_t* out
         iter = iter->next;
     }
 
-    ArenaImpl_Unlock(arena);
+    MM_ArenaImpl_Unlock(arena);
 }
 
 /**
@@ -435,7 +435,7 @@ s32 __osCheckArena(Arena* arena) {
     ArenaNode* iter;
     s32 err = 0;
 
-    ArenaImpl_Lock(arena);
+    MM_ArenaImpl_Lock(arena);
 
     // "Checking the contents of the arena..."
     (void)"アリーナの内容をチェックしています．．． (%08x)\n";
@@ -453,7 +453,7 @@ s32 __osCheckArena(Arena* arena) {
     // "The arena still looks good"
     (void)"アリーナはまだ、いけそうです\n";
 
-    ArenaImpl_Unlock(arena);
+    MM_ArenaImpl_Unlock(arena);
 
     return err;
 }

@@ -28,7 +28,7 @@ const ActorInit En_Arow_Trap_InitVars = {
 void EnArowTrap_Init(Actor* thisx, PlayState* play) {
     EnArowTrap* this = (EnArowTrap*)thisx;
 
-    Actor_SetScale(&this->actor, 0.01);
+    OoT_Actor_SetScale(&this->actor, 0.01);
     this->unk_14C = 0;
     this->attackTimer = 80;
     this->actor.focus.pos = this->actor.world.pos;
@@ -44,7 +44,7 @@ void EnArowTrap_Update(Actor* thisx, PlayState* play) {
         this->attackTimer--;
 
         if (this->attackTimer == 0) {
-            Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ARROW, this->actor.world.pos.x, this->actor.world.pos.y,
+            OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ARROW, this->actor.world.pos.x, this->actor.world.pos.y,
                         this->actor.world.pos.z, this->actor.shape.rot.x, this->actor.shape.rot.y,
                         this->actor.shape.rot.z, ARROW_NORMAL_SILENT, true);
             this->attackTimer = 80;
