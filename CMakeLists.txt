@@ -15,6 +15,7 @@ set(SPDLOG_MIN_CUTOFF SPDLOG_LEVEL_TRACE CACHE STRING "cutoff at trace")
 
 option(SUPPRESS_WARNINGS "Suppress warnings in LUS and src (decomp)" ON)
 option(REDSHIP_BUILD_SHARED "Build games as shared libraries for combo launcher" OFF)
+option(REDSHIP_UNIFIED_BUILD "Build single executable with both games statically linked" OFF)
 
 # Enable position-independent code for all targets when building shared libraries
 # This is required for static libraries that will be linked into shared libraries

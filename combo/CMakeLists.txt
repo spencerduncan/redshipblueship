@@ -1,32 +1,33 @@
 cmake_minimum_required(VERSION 3.14)
 
+# Build mode options:
+# - REDSHIP_BUILD_SHARED: Build games as DLLs, combo as shared library
+# - REDSHIP_UNIFIED_BUILD: Build single executable with both games statically linked
+#
+# After symbol namespacing (issue #29), unified build is now possible.
+
+# Common source files for the combo library
+set(COMBO_SOURCES
+    src/placeholder.cpp
+    src/GameArchives.cpp
+    src/DynamicLibrary.cpp
+    src/ComboContextBridge.cpp
+    src/ComboContext.cpp
+    src/CrossGameEntrance.cpp
+    src/FrozenState.cpp
+    src/SharedGraphics.cpp
+    src/test/TestRunner.cpp
+)
+
 # On Windows with shared game builds, combo must be a DLL so both the launcher
 # and game DLLs can link against it. On other platforms, static is fine since
 # -rdynamic exports symbols from the executable.
 if(WIN32 AND REDSHIP_BUILD_SHARED)
-    add_library(combo SHARED
-        src/placeholder.cpp
-        src/GameArchives.cpp
-        src/DynamicLibrary.cpp
-        src/ComboContextBridge.cpp
-        src/CrossGameEntrance.cpp
-        src/FrozenState.cpp
-        src/SharedGraphics.cpp
-        src/test/TestRunner.cpp
-    )
+    add_library(combo SHARED ${COMBO_SOURCES})
     # Export symbols from this DLL
     target_compile_definitions(combo PRIVATE COMBO_BUILDING_DLL)
 else()
-    add_library(combo STATIC
-        src/placeholder.cpp
-        src/GameArchives.cpp
-        src/DynamicLibrary.cpp
-        src/ComboContextBridge.cpp
-        src/CrossGameEntrance.cpp
-        src/FrozenState.cpp
-        src/SharedGraphics.cpp
-        src/test/TestRunner.cpp
-    )
+    add_library(combo STATIC ${COMBO_SOURCES})
 endif()
 
 target_include_directories(combo PUBLIC
@@ -152,4 +153,67 @@ if(BUILD_TESTING AND REDSHIP_BUILD_SHARED)
         WILL_FAIL TRUE
         TIMEOUT ${REDSHIP_TEST_TIMEOUT}
     )
+endif()
+
+# =============================================================================
+# Unified Build (issue #30)
+# =============================================================================
+# Single executable containing both OoT and MM, enabled by REDSHIP_UNIFIED_BUILD.
+# This is possible after symbol namespacing (issue #29) resolved all collisions.
+#
+# The unified build:
+# - Compiles both games' decomp sources as object libraries
+# - Links them into a single executable with the combo infrastructure
+# - Provides seamless switching without DLL loading overhead
+
+if(REDSHIP_UNIFIED_BUILD)
+    message(STATUS "Unified build enabled - building single executable with both games")
+
+    # Add unified build compile definition to combo library
+    target_compile_definitions(combo PRIVATE COMBO_UNIFIED_BUILD)
+
+    # Unified executable entry point
+    add_executable(redship_unified
+        src/unified_main.cpp
+    )
+
+    target_link_libraries(redship_unified PRIVATE
+        combo
+    )
+
+    target_compile_definitions(redship_unified PRIVATE COMBO_UNIFIED_BUILD)
+
+    set_target_properties(redship_unified PROPERTIES
+        CXX_STANDARD 20
+        CXX_STANDARD_REQUIRED ON
+        OUTPUT_NAME "redship"
+    )
+
+    # TODO(#30): Link against game object libraries once they're available
+    # target_link_libraries(redship_unified PRIVATE
+    #     $<TARGET_OBJECTS:oot_decomp>
+    #     $<TARGET_OBJECTS:mm_decomp>
+    # )
+
+    # CTest for unified build
+    if(BUILD_TESTING)
+        enable_testing()
+
+        set(REDSHIP_TEST_TIMEOUT 60 CACHE STRING "Test timeout in seconds")
+
+        add_test(NAME UnifiedBootOoT COMMAND redship --game oot --test boot-oot)
+        add_test(NAME UnifiedBootMM COMMAND redship --game mm --test boot-mm)
+        add_test(NAME UnifiedSwitch COMMAND redship --test switch-oot-mm)
+        add_test(NAME UnifiedRoundTrip COMMAND redship --test roundtrip)
+
+        # Mark as WILL_FAIL until full game integration is complete
+        set_tests_properties(
+            UnifiedBootOoT UnifiedBootMM UnifiedSwitch UnifiedRoundTrip
+            PROPERTIES
+            WILL_FAIL TRUE
+            TIMEOUT ${REDSHIP_TEST_TIMEOUT}
+        )
+    endif()
+
+    install(TARGETS redship_unified RUNTIME DESTINATION bin)
 endif()
