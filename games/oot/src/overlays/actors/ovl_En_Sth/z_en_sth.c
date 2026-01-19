@@ -15,11 +15,11 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void EnSth_Init(Actor* thisx, PlayState* play);
-void EnSth_Destroy(Actor* thisx, PlayState* play);
-void EnSth_Update(Actor* thisx, PlayState* play);
+void OoT_EnSth_Init(Actor* thisx, PlayState* play);
+void OoT_EnSth_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnSth_Update(Actor* thisx, PlayState* play);
 void EnSth_Update2(Actor* thisx, PlayState* play);
-void EnSth_Draw(Actor* thisx, PlayState* play);
+void OoT_EnSth_Draw(Actor* thisx, PlayState* play);
 
 void EnSth_WaitForObjectLoaded(EnSth* this, PlayState* play);
 void EnSth_ParentRewardObtainedWait(EnSth* this, PlayState* play);
@@ -32,16 +32,16 @@ const ActorInit En_Sth_InitVars = {
     FLAGS,
     OBJECT_GAMEPLAY_KEEP,
     sizeof(EnSth),
-    (ActorFunc)EnSth_Init,
-    (ActorFunc)EnSth_Destroy,
-    (ActorFunc)EnSth_Update,
+    (ActorFunc)OoT_EnSth_Init,
+    (ActorFunc)OoT_EnSth_Destroy,
+    (ActorFunc)OoT_EnSth_Update,
     NULL,
     NULL,
 };
 
 #include "overlays/ovl_En_Sth/ovl_En_Sth.h"
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -61,16 +61,16 @@ static ColliderCylinderInit sCylinderInit = {
     { 30, 40, 0, { 0, 0, 0 } },
 };
 
-static s16 sObjectIds[6] = {
+static s16 OoT_sObjectIds[6] = {
     OBJECT_AHG, OBJECT_BOJ, OBJECT_BOJ, OBJECT_BOJ, OBJECT_BOJ, OBJECT_BOJ,
 };
 
-static FlexSkeletonHeader* sSkeletons[6] = {
+static FlexSkeletonHeader* OoT_sSkeletons[6] = {
     &object_ahg_Skel_0000F0, &object_boj_Skel_0000F0, &object_boj_Skel_0000F0,
     &object_boj_Skel_0000F0, &object_boj_Skel_0000F0, &object_boj_Skel_0000F0,
 };
 
-static AnimationHeader* sAnimations[6] = {
+static AnimationHeader* OoT_sAnimations[6] = {
     &sParentDanceAnim, &sChildDanceAnim, &sChildDanceAnim, &sChildDanceAnim, &sChildDanceAnim, &sChildDanceAnim,
 };
 
@@ -97,7 +97,7 @@ static u16 sEventFlagsShift[6] = {
     EVENTCHKINF_SKULLTULA_REWARD_50_SHIFT,
 };
 
-static s16 sGetItemIds[6] = {
+static s16 OoT_sGetItemIds[6] = {
     GI_RUPEE_GOLD, GI_WALLET_ADULT, GI_STONE_OF_AGONY, GI_WALLET_GIANT, GI_BOMBCHUS_10, GI_HEART_PIECE,
 };
 
@@ -111,7 +111,7 @@ void EnSth_SetupAction(EnSth* this, EnSthActionFunc actionFunc) {
     this->actionFunc = actionFunc;
 }
 
-void EnSth_Init(Actor* thisx, PlayState* play) {
+void OoT_EnSth_Init(Actor* thisx, PlayState* play) {
     EnSth* this = (EnSth*)thisx;
 
     s16 objectId;
@@ -121,19 +121,19 @@ void EnSth_Init(Actor* thisx, PlayState* play) {
     osSyncPrintf(VT_FGCOL(BLUE) "金スタル屋 no = %d\n" VT_RST, params); // "Gold Skulltula Shop"
     if (this->actor.params == 0) {
         if (gSaveContext.inventory.gsTokens < 100) {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
             // "Gold Skulltula Shop I still can't be a human"
             osSyncPrintf("金スタル屋 まだ 人間に戻れない \n");
             return;
         }
     } else if (gSaveContext.inventory.gsTokens < (this->actor.params * 10)) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         // "Gold Skulltula Shop I still can't be a human"
         osSyncPrintf(VT_FGCOL(BLUE) "金スタル屋 まだ 人間に戻れない \n" VT_RST);
         return;
     }
 
-    objectId = sObjectIds[params];
+    objectId = OoT_sObjectIds[params];
     if (objectId != 1) {
         objectBankIdx = Object_GetIndex(&play->objectCtx, objectId);
     } else {
@@ -145,8 +145,8 @@ void EnSth_Init(Actor* thisx, PlayState* play) {
         assert(objectBankIdx < 0);
     }
     this->objectBankIdx = objectBankIdx;
-    this->drawFunc = EnSth_Draw;
-    Actor_SetScale(&this->actor, 0.01f);
+    this->drawFunc = OoT_EnSth_Draw;
+    OoT_Actor_SetScale(&this->actor, 0.01f);
     EnSth_SetupAction(this, EnSth_WaitForObjectLoaded);
     this->actor.draw = NULL;
     this->unk_2B2 = 0;
@@ -156,9 +156,9 @@ void EnSth_Init(Actor* thisx, PlayState* play) {
 void EnSth_SetupShapeColliderUpdate2AndDraw(EnSth* this, PlayState* play) {
     s32 pad;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 36.0f);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 36.0f);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
     this->actor.update = EnSth_Update2;
     this->actor.draw = this->drawFunc;
@@ -169,10 +169,10 @@ void EnSth_SetupAfterObjectLoaded(EnSth* this, PlayState* play) {
     s16* params;
 
     EnSth_SetupShapeColliderUpdate2AndDraw(this, play);
-    gSegments[6] = PHYSICAL_TO_VIRTUAL(play->objectCtx.status[this->objectBankIdx].segment);
-    SkelAnime_InitFlex(play, &this->skelAnime, sSkeletons[this->actor.params], NULL, this->jointTable, this->morphTable,
+    OoT_gSegments[6] = PHYSICAL_TO_VIRTUAL(play->objectCtx.status[this->objectBankIdx].segment);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, OoT_sSkeletons[this->actor.params], NULL, this->jointTable, this->morphTable,
                        16);
-    Animation_PlayLoop(&this->skelAnime, sAnimations[this->actor.params]);
+    OoT_Animation_PlayLoop(&this->skelAnime, OoT_sAnimations[this->actor.params]);
 
     this->eventFlag = sEventFlags[this->actor.params];
     params = &this->actor.params;
@@ -183,16 +183,16 @@ void EnSth_SetupAfterObjectLoaded(EnSth* this, PlayState* play) {
     }
 }
 
-void EnSth_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnSth_Destroy(Actor* thisx, PlayState* play) {
     EnSth* this = (EnSth*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
 
 void EnSth_WaitForObjectLoaded(EnSth* this, PlayState* play) {
-    if (Object_IsLoaded(&play->objectCtx, this->objectBankIdx)) {
+    if (OoT_Object_IsLoaded(&play->objectCtx, this->objectBankIdx)) {
         this->actor.objBankIndex = this->objectBankIdx;
         this->actionFunc = EnSth_SetupAfterObjectLoaded;
     }
@@ -203,16 +203,16 @@ void EnSth_FacePlayer(EnSth* this, PlayState* play) {
     s16 diffRot = this->actor.yawTowardsPlayer - this->actor.shape.rot.y;
 
     if (ABS(diffRot) <= 0x4000) {
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 6, 0xFA0, 0x64);
+        OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 6, 0xFA0, 0x64);
         this->actor.world.rot.y = this->actor.shape.rot.y;
         func_80038290(play, &this->actor, &this->headRot, &this->unk_2AC, this->actor.focus.pos);
     } else {
         if (diffRot < 0) {
-            Math_SmoothStepToS(&this->headRot.y, -0x2000, 6, 0x1838, 0x100);
+            OoT_Math_SmoothStepToS(&this->headRot.y, -0x2000, 6, 0x1838, 0x100);
         } else {
-            Math_SmoothStepToS(&this->headRot.y, 0x2000, 6, 0x1838, 0x100);
+            OoT_Math_SmoothStepToS(&this->headRot.y, 0x2000, 6, 0x1838, 0x100);
         }
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 0xC, 0x3E8, 0x64);
+        OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 0xC, 0x3E8, 0x64);
         this->actor.world.rot.y = this->actor.shape.rot.y;
     }
 }
@@ -223,15 +223,15 @@ void EnSth_LookAtPlayer(EnSth* this, PlayState* play) {
     if ((ABS(diffRot) <= 0x4300) && (this->actor.xzDistToPlayer < 100.0f)) {
         func_80038290(play, &this->actor, &this->headRot, &this->unk_2AC, this->actor.focus.pos);
     } else {
-        Math_SmoothStepToS(&this->headRot.x, 0, 6, 0x1838, 0x64);
-        Math_SmoothStepToS(&this->headRot.y, 0, 6, 0x1838, 0x64);
-        Math_SmoothStepToS(&this->unk_2AC.x, 0, 6, 0x1838, 0x64);
-        Math_SmoothStepToS(&this->unk_2AC.y, 0, 6, 0x1838, 0x64);
+        OoT_Math_SmoothStepToS(&this->headRot.x, 0, 6, 0x1838, 0x64);
+        OoT_Math_SmoothStepToS(&this->headRot.y, 0, 6, 0x1838, 0x64);
+        OoT_Math_SmoothStepToS(&this->unk_2AC.x, 0, 6, 0x1838, 0x64);
+        OoT_Math_SmoothStepToS(&this->unk_2AC.y, 0, 6, 0x1838, 0x64);
     }
 }
 
 void EnSth_RewardObtainedTalk(EnSth* this, PlayState* play) {
-    if (Actor_TextboxIsClosing(&this->actor, play)) {
+    if (OoT_Actor_TextboxIsClosing(&this->actor, play)) {
         if (this->actor.params == 0) {
             EnSth_SetupAction(this, EnSth_ParentRewardObtainedWait);
         } else {
@@ -254,7 +254,7 @@ void EnSth_ParentRewardObtainedWait(EnSth* this, PlayState* play) {
 }
 
 void EnSth_GivePlayerItem(EnSth* this, PlayState* play) {
-    u16 getItemId = sGetItemIds[this->actor.params];
+    u16 getItemId = OoT_sGetItemIds[this->actor.params];
 
     switch (this->actor.params) {
         case 1:
@@ -271,11 +271,11 @@ void EnSth_GivePlayerItem(EnSth* this, PlayState* play) {
             break;
     }
 
-    Actor_OfferGetItem(&this->actor, play, getItemId, 10000.0f, 50.0f);
+    OoT_Actor_OfferGetItem(&this->actor, play, getItemId, 10000.0f, 50.0f);
 }
 
 void EnSth_GiveReward(EnSth* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play) || !GameInteractor_Should(VB_GIVE_ITEM_FROM_SKULLTULA_REWARD, true, this)) {
+    if (OoT_Actor_HasParent(&this->actor, play) || !GameInteractor_Should(VB_GIVE_ITEM_FROM_SKULLTULA_REWARD, true, this)) {
         this->actor.parent = NULL;
         EnSth_SetupAction(this, EnSth_RewardObtainedTalk);
         gSaveContext.eventChkInf[EVENTCHKINF_SKULLTULA_REWARD_INDEX] |= this->eventFlag;
@@ -290,8 +290,8 @@ void EnSth_GiveReward(EnSth* this, PlayState* play) {
 }
 
 void EnSth_RewardUnobtainedTalk(EnSth* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
-        Message_CloseTextbox(play);
+    if ((OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && OoT_Message_ShouldAdvance(play)) {
+        OoT_Message_CloseTextbox(play);
         EnSth_SetupAction(this, EnSth_GiveReward);
         if (GameInteractor_Should(VB_GIVE_ITEM_FROM_SKULLTULA_REWARD, true, this)) {
             EnSth_GivePlayerItem(this, play);
@@ -332,7 +332,7 @@ void EnSth_ChildRewardObtainedWait(EnSth* this, PlayState* play) {
     EnSth_LookAtPlayer(this, play);
 }
 
-void EnSth_Update(Actor* thisx, PlayState* play) {
+void OoT_EnSth_Update(Actor* thisx, PlayState* play) {
     EnSth* this = (EnSth*)thisx;
 
     this->actionFunc(this, play);
@@ -342,18 +342,18 @@ void EnSth_Update2(Actor* thisx, PlayState* play) {
     EnSth* this = (EnSth*)thisx;
     s32 pad;
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     Actor_MoveXZGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
-    if (SkelAnime_Update(&this->skelAnime)) {
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
+    if (OoT_SkelAnime_Update(&this->skelAnime)) {
         this->skelAnime.curFrame = 0.0f;
     }
     this->actionFunc(this, play);
 
     // Likely an unused blink timer and eye index
     if (DECR(this->unk_2B6) == 0) {
-        this->unk_2B6 = Rand_S16Offset(0x3C, 0x3C);
+        this->unk_2B6 = OoT_Rand_S16Offset(0x3C, 0x3C);
     }
     this->unk_2B4 = this->unk_2B6;
     if (this->unk_2B4 >= 3) {
@@ -361,7 +361,7 @@ void EnSth_Update2(Actor* thisx, PlayState* play) {
     }
 }
 
-s32 EnSth_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
+s32 OoT_EnSth_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
     EnSth* this = (EnSth*)thisx;
 
     s32 temp_v1;
@@ -379,17 +379,17 @@ s32 EnSth_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* p
 
     if ((limbIndex == 8) || (limbIndex == 10) || (limbIndex == 13)) {
         temp_v1 = limbIndex * 0x32;
-        rot->y += (Math_SinS(play->state.frames * (temp_v1 + 0x814)) * 200.0f);
-        rot->z += (Math_CosS(play->state.frames * (temp_v1 + 0x940)) * 200.0f);
+        rot->y += (OoT_Math_SinS(play->state.frames * (temp_v1 + 0x814)) * 200.0f);
+        rot->z += (OoT_Math_CosS(play->state.frames * (temp_v1 + 0x940)) * 200.0f);
     }
     return 0;
 }
 
-void EnSth_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
+void OoT_EnSth_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
     EnSth* this = (EnSth*)thisx;
 
     if (limbIndex == 15) {
-        Matrix_MultVec3f(&D_80B0B49C, &this->actor.focus.pos);
+        OoT_Matrix_MultVec3f(&D_80B0B49C, &this->actor.focus.pos);
         if (this->actor.params != 0) { // Children
             OPEN_DISPS(play->state.gfxCtx);
 
@@ -410,13 +410,13 @@ Gfx* EnSth_AllocColorDList(GraphicsContext* play, u8 envR, u8 envG, u8 envB, u8 
     return dList;
 }
 
-void EnSth_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnSth_Draw(Actor* thisx, PlayState* play) {
     EnSth* this = (EnSth*)thisx;
     Color_RGB8* envColor1;
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    gSegments[6] = PHYSICAL_TO_VIRTUAL(play->objectCtx.status[this->objectBankIdx].segment);
+    OoT_gSegments[6] = PHYSICAL_TO_VIRTUAL(play->objectCtx.status[this->objectBankIdx].segment);
     Gfx_SetupDL_37Opa(play->state.gfxCtx);
 
     gSPSegment(POLY_OPA_DISP++, 0x08,
@@ -428,7 +428,7 @@ void EnSth_Draw(Actor* thisx, PlayState* play) {
     } else {
         gSPSegment(POLY_OPA_DISP++, 0x09, EnSth_AllocColorDList(play->state.gfxCtx, 90, 110, 130, 255));
     }
-    SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, EnSth_OverrideLimbDraw, EnSth_PostLimbDraw, &this->actor);
+    SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, OoT_EnSth_OverrideLimbDraw, OoT_EnSth_PostLimbDraw, &this->actor);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

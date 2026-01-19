@@ -32,7 +32,7 @@ ActorProfile Bg_Kin2_Bombwall_Profile = {
     /**/ BgKin2Bombwall_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -59,7 +59,7 @@ s32 BgKin2Bombwall_IsHitFromNearby(BgKin2Bombwall* this, PlayState* play) {
         bombwallCollider = this->collider.base.ac;
         // Distance check required to only react to sufficiently close explosions.
         if ((bombwallCollider != NULL) &&
-            (Math3D_Vec3fDistSq(&this->dyna.actor.world.pos, &bombwallCollider->world.pos) < 6400.0f)) {
+            (MM_Math3D_Vec3fDistSq(&this->dyna.actor.world.pos, &bombwallCollider->world.pos) < 6400.0f)) {
             return true;
         }
     }
@@ -70,7 +70,7 @@ static Color_RGBA8 sPrimColor = { 210, 210, 210, 255 };
 static Color_RGBA8 sEnvColor = { 140, 140, 140, 255 };
 static Vec3f sDustAccel = { 0.0f, 0.33f, 0.0f };
 static s8 sRandomYOffsets[] = { -60, -34, -8, 18, 44 };
-static s16 sScales[] = { 25, 23, 21, 19, 17, 15, 13, 10 }; // Scales for random explosion debris.
+static s16 MM_sScales[] = { 25, 23, 21, 19, 17, 15, 13, 10 }; // Scales for random explosion debris.
 
 void BgKin2Bombwall_SpawnEffects(BgKin2Bombwall* this, PlayState* play) {
     s32 i;
@@ -93,42 +93,42 @@ void BgKin2Bombwall_SpawnEffects(BgKin2Bombwall* this, PlayState* play) {
             k++;
             k &= 7;
 
-            spD8.x = sRandomYOffsets[j] + (s32)(Rand_Next() >> 0x1C);
-            spD8.y = ((Rand_ZeroOne() - 0.5f) * 15.0f) + temp_a0;
-            spD8.z = (Rand_ZeroOne() * 20.0f) - 10.0f;
+            spD8.x = sRandomYOffsets[j] + (s32)(MM_Rand_Next() >> 0x1C);
+            spD8.y = ((MM_Rand_ZeroOne() - 0.5f) * 15.0f) + temp_a0;
+            spD8.z = (MM_Rand_ZeroOne() * 20.0f) - 10.0f;
 
-            spCC.x = (2.0f * (Rand_ZeroOne() - 0.5f)) + (spD8.x * (6.0f / 325.0f));
-            spCC.y = (Rand_ZeroOne() * 7.0f) + 4.0f;
+            spCC.x = (2.0f * (MM_Rand_ZeroOne() - 0.5f)) + (spD8.x * (6.0f / 325.0f));
+            spCC.y = (MM_Rand_ZeroOne() * 7.0f) + 4.0f;
             spCC.z = spD8.z * 0.3f;
 
-            Matrix_MultVec3f(&spD8, &pos);
-            Matrix_MultVec3f(&spCC, &velocity);
+            MM_Matrix_MultVec3f(&spD8, &pos);
+            MM_Matrix_MultVec3f(&spCC, &velocity);
 
             pos.x += this->dyna.actor.world.pos.x;
             pos.y += this->dyna.actor.world.pos.y;
             pos.z += this->dyna.actor.world.pos.z;
 
-            if (Rand_Next() % 4 == 0) {
+            if (MM_Rand_Next() % 4 == 0) {
                 phi_s0 = 0x20;
             } else {
                 phi_s0 = 0x40;
             }
 
-            if (k < 2 || (s32)Rand_Next() > 0) {
+            if (k < 2 || (s32)MM_Rand_Next() > 0) {
                 phi_s0 |= 1;
                 phi_s1 = 1;
-                func_800B0E48(play, &pos, &gZeroVec3f, &sDustAccel, &sPrimColor, &sEnvColor, (Rand_Next() >> 0x1B) + 70,
-                              (Rand_Next() >> 0x1A) + 60); // for dust spawn
+                func_800B0E48(play, &pos, &gZeroVec3f, &sDustAccel, &sPrimColor, &sEnvColor, (MM_Rand_Next() >> 0x1B) + 70,
+                              (MM_Rand_Next() >> 0x1A) + 60); // for dust spawn
             } else {
                 phi_s1 = 0;
             }
-            EffectSsKakera_Spawn(play, &pos, &velocity, &pos, -550, phi_s0, 30, 0, 0, sScales[k], phi_s1, 0, 50, -1,
+            MM_EffectSsKakera_Spawn(play, &pos, &velocity, &pos, -550, phi_s0, 30, 0, 0, MM_sScales[k], phi_s1, 0, 50, -1,
                                  OBJECT_KIN2_OBJ, gOceanSpiderHouseBombableWallDebrisDL);
         }
     }
 }
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 200, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 300, ICHAIN_CONTINUE),
@@ -139,27 +139,27 @@ void BgKin2Bombwall_Init(Actor* thisx, PlayState* play) {
     BgKin2Bombwall* this = (BgKin2Bombwall*)thisx;
     ColliderCylinder* bombwallCollider;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, 0);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
+    MM_DynaPolyActor_Init(&this->dyna, 0);
     bombwallCollider = &this->collider;
-    Collider_InitCylinder(play, bombwallCollider);
-    if (Flags_GetSwitch(play, BG_KIN2_BOMBWALL_GET_SWITCH_FLAG(&this->dyna.actor))) {
-        Actor_Kill(&this->dyna.actor);
+    MM_Collider_InitCylinder(play, bombwallCollider);
+    if (MM_Flags_GetSwitch(play, BG_KIN2_BOMBWALL_GET_SWITCH_FLAG(&this->dyna.actor))) {
+        MM_Actor_Kill(&this->dyna.actor);
         return;
     }
 
     DynaPolyActor_LoadMesh(play, &this->dyna, &gOceanSpiderHouseBombableWallCol);
-    Collider_SetCylinder(play, bombwallCollider, &this->dyna.actor, &sCylinderInit);
-    Collider_UpdateCylinder(&this->dyna.actor, bombwallCollider);
-    Actor_SetFocus(&this->dyna.actor, 60.0f);
+    MM_Collider_SetCylinder(play, bombwallCollider, &this->dyna.actor, &MM_sCylinderInit);
+    MM_Collider_UpdateCylinder(&this->dyna.actor, bombwallCollider);
+    MM_Actor_SetFocus(&this->dyna.actor, 60.0f);
     BgKin2Bombwall_SetupWait(this);
 }
 
 void BgKin2Bombwall_Destroy(Actor* thisx, PlayState* play) {
     BgKin2Bombwall* this = (BgKin2Bombwall*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void BgKin2Bombwall_SetupWait(BgKin2Bombwall* this) {
@@ -172,7 +172,7 @@ void BgKin2Bombwall_Wait(BgKin2Bombwall* this, PlayState* play) {
         CutsceneManager_Queue(this->dyna.actor.csId);
         BgKin2Bombwall_SetupPlayCutscene(this);
     } else {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -183,8 +183,8 @@ void BgKin2Bombwall_SetupPlayCutscene(BgKin2Bombwall* this) {
 void BgKin2Bombwall_PlayCutscene(BgKin2Bombwall* this, PlayState* play) {
     if (CutsceneManager_IsNext(this->dyna.actor.csId)) {
         CutsceneManager_StartWithPlayerCs(this->dyna.actor.csId, &this->dyna.actor);
-        Flags_SetSwitch(play, BG_KIN2_BOMBWALL_GET_SWITCH_FLAG(&this->dyna.actor));
-        SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 60, NA_SE_EV_WALL_BROKEN);
+        MM_Flags_SetSwitch(play, BG_KIN2_BOMBWALL_GET_SWITCH_FLAG(&this->dyna.actor));
+        MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 60, NA_SE_EV_WALL_BROKEN);
         DynaPoly_DisableCollision(play, &play->colCtx.dyna, this->dyna.bgId);
         this->dyna.actor.draw = NULL;
         BgKin2Bombwall_SpawnEffects(this, play);
@@ -204,7 +204,7 @@ void BgKin2Bombwall_EndCutscene(BgKin2Bombwall* this, PlayState* play) {
     this->timer--;
     if (this->timer <= 0) {
         CutsceneManager_Stop(this->dyna.actor.csId);
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
     }
 }
 
@@ -217,6 +217,6 @@ void BgKin2Bombwall_Update(Actor* thisx, PlayState* play) {
 void BgKin2Bombwall_Draw(Actor* thisx, PlayState* play) {
     BgKin2Bombwall* this = (BgKin2Bombwall*)thisx;
 
-    Gfx_DrawDListOpa(play, gOceanSpiderHouseBombableWallDL);
-    Gfx_DrawDListXlu(play, gOceanSpiderHouseBombableWallCrackDL);
+    MM_Gfx_DrawDListOpa(play, gOceanSpiderHouseBombableWallDL);
+    MM_Gfx_DrawDListXlu(play, gOceanSpiderHouseBombableWallCrackDL);
 }

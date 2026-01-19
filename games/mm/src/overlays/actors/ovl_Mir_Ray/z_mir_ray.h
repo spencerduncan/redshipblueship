@@ -7,7 +7,7 @@ struct MirRay;
 
 #define MIRRAY_LOCATION(thisx) ((thisx)->params)
 
-// Locations of light beams in sMirRayData
+// Locations of light beams in MM_sMirRayData
 typedef enum {
     /* 0x0 */ MIRRAY_SPIRIT_BOMBCHUIWAROOM_DOWNLIGHT,
     /* 0x1 */ MIRRAY_SPIRIT_SUNBLOCKROOM_DOWNLIGHT,

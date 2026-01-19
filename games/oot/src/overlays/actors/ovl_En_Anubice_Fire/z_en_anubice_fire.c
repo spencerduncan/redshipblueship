@@ -33,7 +33,7 @@ const ActorInit En_Anubice_Fire_InitVars = {
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -57,8 +57,8 @@ void EnAnubiceFire_Init(Actor* thisx, PlayState* play) {
     EnAnubiceFire* this = (EnAnubiceFire*)thisx;
     s32 i;
 
-    Collider_InitCylinder(play, &this->cylinder);
-    Collider_SetCylinder(play, &this->cylinder, &this->actor, &sCylinderInit);
+    OoT_Collider_InitCylinder(play, &this->cylinder);
+    OoT_Collider_SetCylinder(play, &this->cylinder, &this->actor, &OoT_sCylinderInit);
 
     this->unk_15A = 30;
     this->unk_154 = 2.0f;
@@ -76,18 +76,18 @@ void EnAnubiceFire_Init(Actor* thisx, PlayState* play) {
 void EnAnubiceFire_Destroy(Actor* thisx, PlayState* play) {
     EnAnubiceFire* this = (EnAnubiceFire*)thisx;
 
-    Collider_DestroyCylinder(play, &this->cylinder);
+    OoT_Collider_DestroyCylinder(play, &this->cylinder);
 }
 
 void func_809B26EC(EnAnubiceFire* this, PlayState* play) {
     Vec3f velocity = { 0.0f, 0.0f, 0.0f };
 
-    Matrix_Push();
+    OoT_Matrix_Push();
     Matrix_RotateY(BINANG_TO_RAD(this->actor.world.rot.y), MTXMODE_NEW);
     Matrix_RotateX(BINANG_TO_RAD(this->actor.world.rot.x), MTXMODE_APPLY);
     velocity.z = 15.0f;
-    Matrix_MultVec3f(&velocity, &this->actor.velocity);
-    Matrix_Pop();
+    OoT_Matrix_MultVec3f(&velocity, &this->actor.velocity);
+    OoT_Matrix_Pop();
 
     this->actionFunc = func_809B27D8;
     this->actor.world.rot.x = this->actor.world.rot.y = this->actor.world.rot.z = 0;
@@ -108,11 +108,11 @@ void func_809B27D8(EnAnubiceFire* this, PlayState* play) {
         this->unk_154 = 0.0f;
     }
 
-    Math_ApproachF(&this->scale, this->unk_154, 0.2f, 0.4f);
+    OoT_Math_ApproachF(&this->scale, this->unk_154, 0.2f, 0.4f);
     if ((this->unk_15A == 0) && (this->scale < 0.1f)) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     } else if ((this->actor.params == 0) && (this->cylinder.base.atFlags & 4)) {
-        if (Player_HasMirrorShieldEquipped(play)) {
+        if (OoT_Player_HasMirrorShieldEquipped(play)) {
             Audio_PlayActorSound2(&this->actor, NA_SE_IT_SHIELD_REFLECT_SW);
             this->cylinder.base.atFlags &= 0xFFE9;
             this->cylinder.base.atFlags |= 8;
@@ -124,7 +124,7 @@ void func_809B27D8(EnAnubiceFire* this, PlayState* play) {
             this->actor.velocity.z *= -1.0f;
         } else {
             this->unk_15A = 0;
-            EffectSsBomb2_SpawnLayered(play, &this->actor.world.pos, &sp78, &sp84, 10, 5);
+            OoT_EffectSsBomb2_SpawnLayered(play, &this->actor.world.pos, &sp78, &sp84, 10, 5);
             this->actor.velocity.x = this->actor.velocity.y = this->actor.velocity.z = 0.0f;
             Audio_PlayActorSound2(&this->actor, NA_SE_EN_ANUBIS_FIREBOMB);
             this->actionFunc = func_809B2B48;
@@ -135,8 +135,8 @@ void func_809B27D8(EnAnubiceFire* this, PlayState* play) {
         s32 i;
 
         for (i = 0; i < 10; i++) {
-            pos.x = this->actor.world.pos.x + (Rand_ZeroOne() - 0.5f) * (this->scale * 20.0f);
-            pos.y = this->actor.world.pos.y + (Rand_ZeroOne() - 0.5f) * (this->scale * 20.0f);
+            pos.x = this->actor.world.pos.x + (OoT_Rand_ZeroOne() - 0.5f) * (this->scale * 20.0f);
+            pos.y = this->actor.world.pos.y + (OoT_Rand_ZeroOne() - 0.5f) * (this->scale * 20.0f);
             pos.z = this->actor.world.pos.z;
             EffectSsKiraKira_SpawnDispersed(play, &pos, &velocity, &accel, &primColor, &envColor, scale, life);
         }
@@ -158,16 +158,16 @@ void func_809B2B48(EnAnubiceFire* this, PlayState* play) {
             pos.x = this->actor.world.pos.x;
             pos.y = this->actor.world.pos.y;
             pos.z = this->actor.world.pos.z;
-            accel.x = Rand_CenteredFloat(8.0f);
-            accel.y = Rand_CenteredFloat(2.0f);
-            accel.z = Rand_CenteredFloat(8.0f);
+            accel.x = OoT_Rand_CenteredFloat(8.0f);
+            accel.y = OoT_Rand_CenteredFloat(2.0f);
+            accel.z = OoT_Rand_CenteredFloat(8.0f);
             EffectSsKiraKira_SpawnDispersed(play, &pos, &velocity, &accel, &primColor, &envColor, 2000, 10);
         }
 
         this->unk_15C = 2;
         this->unk_15E++;
         if (this->unk_15E >= 6) {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
         }
     }
 }
@@ -177,9 +177,9 @@ void EnAnubiceFire_Update(Actor* thisx, PlayState* play) {
     s32 pad;
     s32 i;
 
-    Actor_SetScale(&this->actor, this->scale);
+    OoT_Actor_SetScale(&this->actor, this->scale);
     this->actionFunc(this, play);
-    Actor_UpdatePos(&this->actor);
+    OoT_Actor_UpdatePos(&this->actor);
     this->unk_160[0] = this->actor.world.pos;
 
     for (i = 4; i >= 0; i--) {
@@ -194,19 +194,19 @@ void EnAnubiceFire_Update(Actor* thisx, PlayState* play) {
         this->unk_15C--;
     }
 
-    Actor_UpdateBgCheckInfo(play, &this->actor, 5.0f, 5.0f, 10.0f, 0x1D);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 5.0f, 5.0f, 10.0f, 0x1D);
     if (!(this->scale < 0.6f || this->actionFunc == func_809B2B48)) {
         this->cylinder.dim.radius = this->scale * 15.0f + 5.0f;
         this->cylinder.dim.height = this->scale * 15.0f + 5.0f;
         this->cylinder.dim.yShift = this->scale * -0.75f + -15.0f;
 
         if (this->unk_15A != 0) {
-            Collider_UpdateCylinder(&this->actor, &this->cylinder);
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->cylinder.base);
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->cylinder.base);
+            OoT_Collider_UpdateCylinder(&this->actor, &this->cylinder);
+            OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->cylinder.base);
+            OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->cylinder.base);
         }
 
-        if (BgCheck_SphVsFirstPoly(&play->colCtx, &this->actor.world.pos, 30.0f)) {
+        if (OoT_BgCheck_SphVsFirstPoly(&play->colCtx, &this->actor.world.pos, 30.0f)) {
             this->actor.velocity.x = this->actor.velocity.y = this->actor.velocity.z = 0.0f;
             Audio_PlayActorSound2(&this->actor, NA_SE_EN_ANUBIS_FIREBOMB);
             this->actionFunc = func_809B2B48;
@@ -230,7 +230,7 @@ void EnAnubiceFire_Draw(Actor* thisx, PlayState* play) {
     gDPPipeSync(POLY_XLU_DISP++);
     gSPSegment(POLY_XLU_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(D_809B3270[0]));
 
-    Matrix_Push();
+    OoT_Matrix_Push();
     for (i = this->unk_15E; i < 6; ++i) {
         FrameInterpolation_RecordOpenChild(this, this->epoch + i * 25);
 
@@ -241,9 +241,9 @@ void EnAnubiceFire_Draw(Actor* thisx, PlayState* play) {
         }
 
         if (scale >= 0.1f) {
-            Matrix_Translate(this->unk_160[i].x, this->unk_160[i].y, this->unk_160[i].z, MTXMODE_NEW);
-            Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
+            OoT_Matrix_Translate(this->unk_160[i].x, this->unk_160[i].y, this->unk_160[i].z, MTXMODE_NEW);
+            OoT_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+            OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
             Matrix_RotateZ(this->actor.world.rot.z + i * 1000.0f, MTXMODE_APPLY);
 
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -257,7 +257,7 @@ void EnAnubiceFire_Draw(Actor* thisx, PlayState* play) {
             break;
         }
     }
-    Matrix_Pop();
+    OoT_Matrix_Pop();
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

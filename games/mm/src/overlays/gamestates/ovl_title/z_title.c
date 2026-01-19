@@ -44,31 +44,31 @@ void ConsoleLogo_PrintBuildInfo(ConsoleLogoState* this) {
 
     Gfx_SetupDL28_Opa(gfxCtx);
 
-    GfxPrint_Init(&printer);
-    GfxPrint_Open(&printer, POLY_OPA_DISP);
-    GfxPrint_SetColor(&printer, 131, 154, 255, 255);
+    MM_GfxPrint_Init(&printer);
+    MM_GfxPrint_Open(&printer, POLY_OPA_DISP);
+    MM_GfxPrint_SetColor(&printer, 131, 154, 255, 255);
 
     // if tag is empty (not a release build)
-    bool showGitInfo = gGitCommitTag[0] == 0;
+    bool showGitInfo = MM_gGitCommitTag[0] == 0;
 
     if (showGitInfo) {
-        GfxPrint_SetPos(&printer, 1, 24);
-        GfxPrint_Printf(&printer, "Git Branch: %s", gGitBranch);
+        MM_GfxPrint_SetPos(&printer, 1, 24);
+        MM_GfxPrint_Printf(&printer, "Git Branch: %s", MM_gGitBranch);
 
-        GfxPrint_SetPos(&printer, 1, 25);
-        GfxPrint_Printf(&printer, "Git Commit: %s", gGitCommitHash);
+        MM_GfxPrint_SetPos(&printer, 1, 25);
+        MM_GfxPrint_Printf(&printer, "Git Commit: %s", MM_gGitCommitHash);
     } else {
-        GfxPrint_SetPos(&printer, 1, 25);
-        GfxPrint_Printf(&printer, "%s", gBuildVersion);
+        MM_GfxPrint_SetPos(&printer, 1, 25);
+        MM_GfxPrint_Printf(&printer, "%s", MM_gBuildVersion);
     }
-    GfxPrint_SetPos(&printer, 1, 26);
-    GfxPrint_Printf(&printer, "%s", gBuildDate);
+    MM_GfxPrint_SetPos(&printer, 1, 26);
+    MM_GfxPrint_Printf(&printer, "%s", MM_gBuildDate);
 
-    GfxPrint_SetPos(&printer, 29, 26);
-    GfxPrint_Printf(&printer, "%s", GetGameVersionString());
+    MM_GfxPrint_SetPos(&printer, 29, 26);
+    MM_GfxPrint_Printf(&printer, "%s", GetGameVersionString());
 
-    POLY_OPA_DISP = GfxPrint_Close(&printer);
-    GfxPrint_Destroy(&printer);
+    POLY_OPA_DISP = MM_GfxPrint_Close(&printer);
+    MM_GfxPrint_Destroy(&printer);
 
     CLOSE_DISPS(gfxCtx);
 }
@@ -153,9 +153,9 @@ void ConsoleLogo_Draw(GameState* thisx) {
 
     ConsoleLogo_RenderView(this, 0.0f, 150.0f, 300.0f);
     Gfx_SetupDL25_Opa(this->state.gfxCtx);
-    Matrix_Translate(-53.0f, -5.0f, 0.0f, MTXMODE_NEW);
-    Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
-    Matrix_RotateZYX(0, sTitleRotation, 0, MTXMODE_APPLY);
+    MM_Matrix_Translate(-53.0f, -5.0f, 0.0f, MTXMODE_NEW);
+    MM_Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
+    MM_Matrix_RotateZYX(0, sTitleRotation, 0, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, this->state.gfxCtx);
     gSPDisplayList(POLY_OPA_DISP++, gNintendo64LogoNDL);
@@ -189,7 +189,7 @@ void ConsoleLogo_Draw(GameState* thisx) {
         ConsoleLogo_PrintBuildInfo(this);
     }
 
-    Environment_FillScreen(this->state.gfxCtx, 0, 0, 0, this->coverAlpha, FILL_SCREEN_XLU);
+    MM_Environment_FillScreen(this->state.gfxCtx, 0, 0, 0, this->coverAlpha, FILL_SCREEN_XLU);
 
     sTitleRotation += 300;
 
@@ -216,7 +216,7 @@ void ConsoleLogo_Main(GameState* thisx) {
         gSaveContext.gameMode = GAMEMODE_TITLE_SCREEN;
 
         STOP_GAMESTATE(&this->state);
-        SET_NEXT_GAMESTATE(&this->state, TitleSetup_Init, sizeof(TitleSetupState));
+        SET_NEXT_GAMESTATE(&this->state, MM_TitleSetup_Init, sizeof(TitleSetupState));
     }
 
     GameInteractor_ExecuteOnConsoleLogoUpdate();
@@ -227,8 +227,8 @@ void ConsoleLogo_Main(GameState* thisx) {
 void ConsoleLogo_Destroy(GameState* thisx) {
     ConsoleLogoState* this = (ConsoleLogoState*)thisx;
 
-    Sram_InitSram(&this->state, &this->sramCtx);
-    ShrinkWindow_Destroy();
+    MM_Sram_InitSram(&this->state, &this->sramCtx);
+    MM_ShrinkWindow_Destroy();
     CIC6105_Noop2();
 }
 
@@ -237,12 +237,12 @@ void ConsoleLogo_Init(GameState* thisx) {
     uintptr_t segmentSize = SEGMENT_ROM_SIZE(nintendo_rogo_static);
 
     this->staticSegment = THA_AllocTailAlign16(&this->state.tha, segmentSize);
-    DmaMgr_SendRequest0(this->staticSegment, SEGMENT_ROM_START(nintendo_rogo_static), segmentSize);
+    MM_DmaMgr_SendRequest0(this->staticSegment, SEGMENT_ROM_START(nintendo_rogo_static), segmentSize);
 
     GameState_SetFramerateDivisor(&this->state, 1);
-    Matrix_Init(&this->state);
-    ShrinkWindow_Init();
-    View_Init(&this->view, this->state.gfxCtx);
+    MM_Matrix_Init(&this->state);
+    MM_ShrinkWindow_Init();
+    MM_View_Init(&this->view, this->state.gfxCtx);
 
     this->state.main = ConsoleLogo_Main;
     this->state.destroy = ConsoleLogo_Destroy;

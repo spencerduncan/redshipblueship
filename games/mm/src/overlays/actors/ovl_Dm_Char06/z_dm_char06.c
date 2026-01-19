@@ -36,7 +36,7 @@ void DmChar06_Init(Actor* thisx, PlayState* play) {
     DmChar06* this = (DmChar06*)thisx;
 
     SET_WEEKEVENTREG(WEEKEVENTREG_CLEARED_SNOWHEAD_TEMPLE);
-    Actor_SetScale(&this->actor, 1.0f);
+    MM_Actor_SetScale(&this->actor, 1.0f);
     this->alpha = 255;
     DmChar06_SetupAction(this, DmChar06_HandleCutscene);
 }
@@ -54,7 +54,7 @@ void DmChar06_HandleCutscene(DmChar06* this, PlayState* play) {
                 this->alpha = 255;
             } else if (play->csCtx.actorCues[cueChannel]->id == 2) {
                 f32 lerp =
-                    1.0f - Environment_LerpWeight(play->csCtx.actorCues[cueChannel]->endFrame,
+                    1.0f - MM_Environment_LerpWeight(play->csCtx.actorCues[cueChannel]->endFrame,
                                                   play->csCtx.actorCues[cueChannel]->startFrame, play->csCtx.curFrame);
                 this->alpha = 255 * lerp;
             }

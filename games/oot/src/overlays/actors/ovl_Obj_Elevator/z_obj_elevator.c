@@ -32,13 +32,13 @@ const ActorInit Obj_Elevator_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(uncullZoneForward, 2000, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 600, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneDownward, 2000, ICHAIN_STOP),
 };
 
-static f32 sScales[] = { 0.1f, 0.05f };
+static f32 OoT_sScales[] = { 0.1f, 0.05f };
 
 void ObjElevator_SetupAction(ObjElevator* this, ObjElevatorActionFunc actionFunc) {
     this->actionFunc = actionFunc;
@@ -50,9 +50,9 @@ void func_80B92B08(ObjElevator* this, PlayState* play, CollisionHeader* collisio
     s16 pad2;
     Actor* thisx = &this->dyna.actor;
 
-    DynaPolyActor_Init(&this->dyna, flag);
-    CollisionHeader_GetVirtual(collision, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
+    OoT_DynaPolyActor_Init(&this->dyna, flag);
+    OoT_CollisionHeader_GetVirtual(collision, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
     if (this->dyna.bgId == BG_ACTOR_MAX) {
         osSyncPrintf("Warning : move BG 登録失敗(%s %d)(name %d)(arg_data 0x%04x)\n", __FILE__, __LINE__, thisx->id,
                      thisx->params);
@@ -64,8 +64,8 @@ void ObjElevator_Init(Actor* thisx, PlayState* play) {
     f32 temp_f0;
 
     func_80B92B08(this, play, &object_d_elevator_Col_000360, DPM_PLAYER);
-    Actor_SetScale(thisx, sScales[thisx->params & 1]);
-    Actor_ProcessInitChain(thisx, sInitChain);
+    OoT_Actor_SetScale(thisx, OoT_sScales[thisx->params & 1]);
+    OoT_Actor_ProcessInitChain(thisx, OoT_sInitChain);
     temp_f0 = (thisx->params >> 8) & 0xF;
     this->unk_16C = temp_f0 + temp_f0;
     func_80B92C5C(this);
@@ -75,7 +75,7 @@ void ObjElevator_Init(Actor* thisx, PlayState* play) {
 void ObjElevator_Destroy(Actor* thisx, PlayState* play) {
     ObjElevator* this = (ObjElevator*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_80B92C5C(ObjElevator* this) {
@@ -104,7 +104,7 @@ void func_80B92D20(ObjElevator* this) {
 void func_80B92D44(ObjElevator* this, PlayState* play) {
     Actor* thisx = &this->dyna.actor;
 
-    if (fabsf(Math_SmoothStepToF(&thisx->world.pos.y, this->unk_168, 1.0f, this->unk_16C, 0.0f)) < 0.001f) {
+    if (fabsf(OoT_Math_SmoothStepToF(&thisx->world.pos.y, this->unk_168, 1.0f, this->unk_16C, 0.0f)) < 0.001f) {
         Audio_PlayActorSound2(thisx, NA_SE_EV_FOOT_SWITCH);
         func_80B92C5C(this);
     } else {
@@ -122,5 +122,5 @@ void ObjElevator_Update(Actor* thisx, PlayState* play) {
 }
 
 void ObjElevator_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, object_d_elevator_DL_000180);
+    OoT_Gfx_DrawDListOpa(play, object_d_elevator_DL_000180);
 }

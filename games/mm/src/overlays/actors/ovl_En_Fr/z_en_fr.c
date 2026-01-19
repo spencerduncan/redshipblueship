@@ -9,9 +9,9 @@
 
 #define FLAGS (ACTOR_FLAG_CAMERA_DRIFT_ENABLED)
 
-void EnFr_Init(Actor* thisx, PlayState* play);
-void EnFr_Destroy(Actor* thisx, PlayState* play);
-void EnFr_Update(Actor* thisx, PlayState* play);
+void MM_EnFr_Init(Actor* thisx, PlayState* play);
+void MM_EnFr_Destroy(Actor* thisx, PlayState* play);
+void MM_EnFr_Update(Actor* thisx, PlayState* play);
 
 ActorProfile En_Fr_Profile = {
     /**/ ACTOR_EN_FR,
@@ -19,31 +19,31 @@ ActorProfile En_Fr_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(EnFr),
-    /**/ EnFr_Init,
-    /**/ EnFr_Destroy,
-    /**/ EnFr_Update,
+    /**/ MM_EnFr_Init,
+    /**/ MM_EnFr_Destroy,
+    /**/ MM_EnFr_Update,
     /**/ NULL,
 };
 
-void EnFr_Init(Actor* thisx, PlayState* play) {
+void MM_EnFr_Init(Actor* thisx, PlayState* play) {
     EnFr* this = (EnFr*)thisx;
 
-    if (Flags_GetSwitch(play, ENFR_GET_SWITCH_FLAG(&this->actor))) {
-        Actor_Kill(&this->actor);
+    if (MM_Flags_GetSwitch(play, ENFR_GET_SWITCH_FLAG(&this->actor))) {
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
     this->actor.attentionRangeType = ENFR_GET_ATTENTION_RANGE_TYPE(&this->actor);
 }
 
-void EnFr_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnFr_Destroy(Actor* thisx, PlayState* play) {
 }
 
-void EnFr_Update(Actor* thisx, PlayState* play) {
+void MM_EnFr_Update(Actor* thisx, PlayState* play) {
     EnFr* this = (EnFr*)thisx;
 
-    if (Flags_GetSwitch(play, ENFR_GET_SWITCH_FLAG(&this->actor))) {
-        Actor_Kill(&this->actor);
+    if (MM_Flags_GetSwitch(play, ENFR_GET_SWITCH_FLAG(&this->actor))) {
+        MM_Actor_Kill(&this->actor);
         return;
     }
 

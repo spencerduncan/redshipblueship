@@ -9,10 +9,10 @@
 
 #define FLAGS 0x00000000
 
-void ObjComb_Init(Actor* thisx, PlayState* play);
-void ObjComb_Destroy(Actor* thisx, PlayState* play2);
-void ObjComb_Update(Actor* thisx, PlayState* play);
-void ObjComb_Draw(Actor* thisx, PlayState* play);
+void MM_ObjComb_Init(Actor* thisx, PlayState* play);
+void MM_ObjComb_Destroy(Actor* thisx, PlayState* play2);
+void MM_ObjComb_Update(Actor* thisx, PlayState* play);
+void MM_ObjComb_Draw(Actor* thisx, PlayState* play);
 
 void func_8098DC44(ObjComb* this);
 void func_8098DC60(ObjComb* this, PlayState* play);
@@ -26,13 +26,13 @@ ActorProfile Obj_Comb_Profile = {
     /**/ FLAGS,
     /**/ OBJECT_COMB,
     /**/ sizeof(ObjComb),
-    /**/ ObjComb_Init,
-    /**/ ObjComb_Destroy,
-    /**/ ObjComb_Update,
-    /**/ ObjComb_Draw,
+    /**/ MM_ObjComb_Init,
+    /**/ MM_ObjComb_Destroy,
+    /**/ MM_ObjComb_Update,
+    /**/ MM_ObjComb_Draw,
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[1] = {
+static ColliderJntSphElementInit MM_sJntSphElementsInit[1] = {
     {
         {
             ELEM_MATERIAL_UNK0,
@@ -46,7 +46,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[1] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit MM_sJntSphInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -55,11 +55,11 @@ static ColliderJntSphInit sJntSphInit = {
         OC2_TYPE_2,
         COLSHAPE_JNTSPH,
     },
-    ARRAY_COUNT(sJntSphElementsInit),
-    sJntSphElementsInit,
+    ARRAY_COUNT(MM_sJntSphElementsInit),
+    MM_sJntSphElementsInit,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 1200, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 100, ICHAIN_CONTINUE),
@@ -74,7 +74,7 @@ bool func_8098CE40(ObjComb* this, PlayState* play) {
         phi_a2 = ((temp_v0 & 0x3FC) >> 2) & 0xFF;
     }
 
-    return ((phi_a2 < 0) == 1) || !Flags_GetTreasure(play, phi_a2);
+    return ((phi_a2 < 0) == 1) || !MM_Flags_GetTreasure(play, phi_a2);
 }
 
 void func_8098CEAC(ObjComb* this, PlayState* play) {
@@ -91,19 +91,19 @@ void func_8098CEAC(ObjComb* this, PlayState* play) {
 
     for (i = 0; i < 31; i++) {
         temp_s2 += 0x4E20;
-        temp_f20 = Rand_ZeroOne() * 10.0f;
+        temp_f20 = MM_Rand_ZeroOne() * 10.0f;
 
-        spDC.x = Math_SinS(temp_s2) * temp_f20;
+        spDC.x = MM_Math_SinS(temp_s2) * temp_f20;
         spDC.y = (i - 15) * 0.7f;
-        spDC.z = Math_CosS(temp_s2) * temp_f20;
+        spDC.z = MM_Math_CosS(temp_s2) * temp_f20;
 
-        Math_Vec3f_Sum(&spDC, &this->actor.world.pos, &spD0);
+        MM_Math_Vec3f_Sum(&spDC, &this->actor.world.pos, &spD0);
 
-        spC4.x = (Rand_ZeroOne() - 0.5f) + (spDC.x * 0.5f);
-        spC4.y = (Rand_ZeroOne() - 0.5f) + (spDC.y * 0.6f);
-        spC4.z = (Rand_ZeroOne() - 0.5f) + (spDC.z * 0.5f);
+        spC4.x = (MM_Rand_ZeroOne() - 0.5f) + (spDC.x * 0.5f);
+        spC4.y = (MM_Rand_ZeroOne() - 0.5f) + (spDC.y * 0.6f);
+        spC4.z = (MM_Rand_ZeroOne() - 0.5f) + (spDC.z * 0.5f);
 
-        temp_f10 = (Rand_ZeroOne() * 72.0f) + 25.0f;
+        temp_f10 = (MM_Rand_ZeroOne() * 72.0f) + 25.0f;
 
         if (temp_f10 < 40) {
             phi_s0 = -200;
@@ -116,7 +116,7 @@ void func_8098CEAC(ObjComb* this, PlayState* play) {
             phi_s1 = 20;
         }
 
-        temp_f20 = Rand_ZeroOne();
+        temp_f20 = MM_Rand_ZeroOne();
         if (temp_f20 < 0.1f) {
             phi_v0 = 0x60;
         } else if (temp_f20 < 0.8f) {
@@ -124,7 +124,7 @@ void func_8098CEAC(ObjComb* this, PlayState* play) {
         } else {
             phi_v0 = 0x20;
         }
-        EffectSsKakera_Spawn(play, &spD0, &spC4, &spD0, phi_s0, phi_v0, phi_s1, 4, 0, temp_f10, 0, 0, 60, -1,
+        MM_EffectSsKakera_Spawn(play, &spD0, &spC4, &spD0, phi_s0, phi_v0, phi_s1, 4, 0, temp_f10, 0, 0, 60, -1,
                              OBJECT_COMB, gBeehiveFragmentDL);
     }
 
@@ -149,19 +149,19 @@ void func_8098D19C(ObjComb* this, PlayState* play) {
 
     for (i = 0; i < 31; i++) {
         temp_s2 += 0x4E20;
-        temp_f20 = Rand_ZeroOne() * 10.0f;
+        temp_f20 = MM_Rand_ZeroOne() * 10.0f;
 
-        spDC.x = Math_SinS(temp_s2) * temp_f20;
+        spDC.x = MM_Math_SinS(temp_s2) * temp_f20;
         spDC.y = i * 0.7f;
-        spDC.z = Math_CosS(temp_s2) * temp_f20;
+        spDC.z = MM_Math_CosS(temp_s2) * temp_f20;
 
-        Math_Vec3f_Sum(&spDC, &this->actor.world.pos, &spD0);
+        MM_Math_Vec3f_Sum(&spDC, &this->actor.world.pos, &spD0);
 
-        spC4.x = (Rand_ZeroOne() - 0.5f) + (spDC.x * 0.5f);
-        spC4.y = (Rand_ZeroOne() * 0.5f) + (spDC.y * 0.5f);
-        spC4.z = (Rand_ZeroOne() - 0.5f) + (spDC.z * 0.5f);
+        spC4.x = (MM_Rand_ZeroOne() - 0.5f) + (spDC.x * 0.5f);
+        spC4.y = (MM_Rand_ZeroOne() * 0.5f) + (spDC.y * 0.5f);
+        spC4.z = (MM_Rand_ZeroOne() - 0.5f) + (spDC.z * 0.5f);
 
-        temp_f8 = (Rand_ZeroOne() * 72.0f) + 25.0f;
+        temp_f8 = (MM_Rand_ZeroOne() * 72.0f) + 25.0f;
         if (temp_f8 < 40) {
             phi_s0 = -200;
             phi_s1 = 40;
@@ -173,7 +173,7 @@ void func_8098D19C(ObjComb* this, PlayState* play) {
             phi_s1 = 20;
         }
 
-        temp_f20 = Rand_ZeroOne();
+        temp_f20 = MM_Rand_ZeroOne();
         if (temp_f20 < 0.1f) {
             phi_v0 = 0x60;
         } else if (temp_f20 < 0.8f) {
@@ -182,7 +182,7 @@ void func_8098D19C(ObjComb* this, PlayState* play) {
             phi_v0 = 0x20;
         }
 
-        EffectSsKakera_Spawn(play, &spD0, &spC4, &spD0, phi_s0, phi_v0, phi_s1, 4, 0, temp_f8, 0, 0, 60, -1,
+        MM_EffectSsKakera_Spawn(play, &spD0, &spC4, &spD0, phi_s0, phi_v0, phi_s1, 4, 0, temp_f8, 0, 0, 60, -1,
                              OBJECT_COMB, gBeehiveFragmentDL);
     }
 
@@ -206,19 +206,19 @@ void func_8098D47C(ObjComb* this, PlayState* play) {
 
     for (i = 0; i < 21; i++) {
         temp_s1 += 0x4E20;
-        temp_f20 = Rand_ZeroOne() * 10.0f;
+        temp_f20 = MM_Rand_ZeroOne() * 10.0f;
 
-        spD4.x = Math_SinS(temp_s1) * temp_f20;
+        spD4.x = MM_Math_SinS(temp_s1) * temp_f20;
         spD4.y = i * 0.25f;
-        spD4.z = Math_CosS(temp_s1) * temp_f20;
+        spD4.z = MM_Math_CosS(temp_s1) * temp_f20;
 
-        Math_Vec3f_Sum(&spD4, &this->actor.world.pos, &spC8);
+        MM_Math_Vec3f_Sum(&spD4, &this->actor.world.pos, &spC8);
 
-        spBC.x = (Rand_ZeroOne() - 0.5f) + (spD4.x * 0.5f);
-        spBC.y = Rand_ZeroOne() + (spD4.y * 0.6f) + 6.0f;
-        spBC.z = (Rand_ZeroOne() - 0.5f) + (spD4.z * 0.5f);
+        spBC.x = (MM_Rand_ZeroOne() - 0.5f) + (spD4.x * 0.5f);
+        spBC.y = MM_Rand_ZeroOne() + (spD4.y * 0.6f) + 6.0f;
+        spBC.z = (MM_Rand_ZeroOne() - 0.5f) + (spD4.z * 0.5f);
 
-        temp_f10 = (Rand_ZeroOne() * 72.0f) + 25.0f;
+        temp_f10 = (MM_Rand_ZeroOne() * 72.0f) + 25.0f;
         if (temp_f10 < 40) {
             phi_s0 = -100;
         } else if (temp_f10 < 70) {
@@ -227,13 +227,13 @@ void func_8098D47C(ObjComb* this, PlayState* play) {
             phi_s0 = -240;
         }
 
-        if (Rand_ZeroOne() < 0.2f) {
+        if (MM_Rand_ZeroOne() < 0.2f) {
             phi_v0 = 0x40;
         } else {
             phi_v0 = 0x20;
         }
 
-        EffectSsKakera_Spawn(play, &spC8, &spBC, &spC8, phi_s0, phi_v0, 40, 0, 0, temp_f10, 0, 0, 80, -1, OBJECT_COMB,
+        MM_EffectSsKakera_Spawn(play, &spC8, &spBC, &spC8, phi_s0, phi_v0, 40, 0, 0, temp_f10, 0, 0, 80, -1, OBJECT_COMB,
                              gBeehiveFragmentDL);
     }
 }
@@ -248,23 +248,23 @@ void func_8098D6E0(ObjComb* this, PlayState* play) {
     sp70.y = this->actor.world.pos.y + this->actor.depthInWater;
 
     for (temp = 0, i = 0; i < 8; i++, temp += 0x2000) {
-        temp_f0 = Rand_ZeroOne();
+        temp_f0 = MM_Rand_ZeroOne();
         temp_f20 = ((1.0f - SQ(temp_f0)) * 14.0f) + 4.0f;
-        sp70.x = this->actor.world.pos.x + (Math_SinS((s32)(Rand_ZeroOne() * 8000.0f) + temp) * temp_f20);
-        sp70.z = this->actor.world.pos.z + (Math_CosS((s32)(Rand_ZeroOne() * 8000.0f) + temp) * temp_f20);
-        EffectSsGSplash_Spawn(play, &sp70, NULL, NULL, 0, 200);
+        sp70.x = this->actor.world.pos.x + (MM_Math_SinS((s32)(MM_Rand_ZeroOne() * 8000.0f) + temp) * temp_f20);
+        sp70.z = this->actor.world.pos.z + (MM_Math_CosS((s32)(MM_Rand_ZeroOne() * 8000.0f) + temp) * temp_f20);
+        MM_EffectSsGSplash_Spawn(play, &sp70, NULL, NULL, 0, 200);
     }
 
     sp70.x = this->actor.world.pos.x;
     sp70.z = this->actor.world.pos.z;
-    EffectSsGSplash_Spawn(play, &sp70, NULL, NULL, 0, 300);
+    MM_EffectSsGSplash_Spawn(play, &sp70, NULL, NULL, 0, 300);
 }
 
 void func_8098D870(ObjComb* this, PlayState* play) {
     s32 temp_v0 = func_800A8150(OBJCOMB_GET_3F(&this->actor));
 
     if (temp_v0 >= 0) {
-        Item_DropCollectible(play, &this->actor.world.pos, ((OBJCOMB_GET_7F00(&this->actor)) << 8) | temp_v0);
+        MM_Item_DropCollectible(play, &this->actor.world.pos, ((OBJCOMB_GET_7F00(&this->actor)) << 8) | temp_v0);
     }
 }
 
@@ -281,7 +281,7 @@ void func_8098D8C8(ObjComb* this, PlayState* play) {
     this->unk_1B6 = 0;
 
     for (i = 0; i < params; i++) {
-        if (Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BEE, this->actor.world.pos.x, this->actor.world.pos.y,
+        if (MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BEE, this->actor.world.pos.x, this->actor.world.pos.y,
                         this->actor.world.pos.z, 0, 0, 0, phi_s5)) {
             this->unk_1B6 = 1;
         }
@@ -294,7 +294,7 @@ void func_8098D99C(ObjComb* this, PlayState* play) {
 
     if (func_8098CE40(this, play)) {
         params = (OBJCOMB_GET_1F(&this->actor) << 2) | 0xFF01;
-        temp_v0 = Actor_Spawn(&play->actorCtx, play, ACTOR_EN_SW, this->actor.world.pos.x, this->actor.world.pos.y,
+        temp_v0 = MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_SW, this->actor.world.pos.x, this->actor.world.pos.y,
                               this->actor.world.pos.z, 0, this->actor.home.rot.y, 0, params);
 
         if (temp_v0 != NULL) {
@@ -324,20 +324,20 @@ void func_8098DA74(ObjComb* this, PlayState* play) {
     }
 }
 
-void ObjComb_Init(Actor* thisx, PlayState* play) {
+void MM_ObjComb_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     ObjComb* this = (ObjComb*)thisx;
     s32 sp2C = OBJCOMB_GET_8000(&this->actor) | OBJCOMB_GET_80(&this->actor);
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    Collider_InitJntSph(play, &this->collider);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
+    MM_Collider_InitJntSph(play, &this->collider);
 
     if ((sp2C == 1) && OBJCOMB_GET_10(&this->actor) && CHECK_WEEKEVENTREG(WEEKEVENTREG_83_02)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
-    Collider_SetJntSph(play, &this->collider, &this->actor, &sJntSphInit, this->colliderElements);
+    MM_Collider_SetJntSph(play, &this->collider, &this->actor, &MM_sJntSphInit, this->colliderElements);
 
     if ((sp2C == 0) && Item_CanDropBigFairy(play, OBJCOMB_GET_3F(&this->actor), OBJCOMB_GET_7F00(&this->actor))) {
         this->unk_1B7 = 1;
@@ -350,11 +350,11 @@ void ObjComb_Init(Actor* thisx, PlayState* play) {
     func_8098DC44(this);
 }
 
-void ObjComb_Destroy(Actor* thisx, PlayState* play2) {
+void MM_ObjComb_Destroy(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     ObjComb* this = (ObjComb*)thisx;
 
-    Collider_DestroyJntSph(play, &this->collider);
+    MM_Collider_DestroyJntSph(play, &this->collider);
 }
 
 void func_8098DC44(ObjComb* this) {
@@ -381,7 +381,7 @@ void func_8098DC60(ObjComb* this, PlayState* play) {
         if (this->collider.elements[0].base.acHitElem->atDmgInfo.dmgFlags & 0x0182C29C) {
             func_8098CEAC(this, play);
             func_8098DA74(this, play);
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         } else {
             s32 dmgFlags = this->collider.elements[0].base.acHitElem->atDmgInfo.dmgFlags;
 
@@ -405,8 +405,8 @@ void func_8098DC60(ObjComb* this, PlayState* play) {
         if (this->unk_1B8 >= 0) {
             if (this->unk_1B8 == 0) {
                 Actor_PlaySfx(&this->actor, NA_SE_EN_STALGOLD_ROLL);
-                if (Rand_ZeroOne() < 0.1f) {
-                    this->unk_1B8 = Rand_S16Offset(40, 80);
+                if (MM_Rand_ZeroOne() < 0.1f) {
+                    this->unk_1B8 = MM_Rand_S16Offset(40, 80);
                 } else {
                     this->unk_1B8 = 8;
                 }
@@ -414,14 +414,14 @@ void func_8098DC60(ObjComb* this, PlayState* play) {
                 this->unk_1B8--;
             }
         }
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 
     if (this->actor.update != NULL) {
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
 
-    this->actor.shape.rot.x = (s32)(Math_SinS(this->unk_1AA) * this->unk_1A8) + this->actor.home.rot.x;
+    this->actor.shape.rot.x = (s32)(MM_Math_SinS(this->unk_1AA) * this->unk_1A8) + this->actor.home.rot.x;
 }
 
 void func_8098DE58(ObjComb* this) {
@@ -442,7 +442,7 @@ void func_8098DEA0(ObjComb* this, PlayState* play) {
         } else {
             func_8098D19C(this, play);
         }
-        SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40, NA_SE_EV_HONEYCOMB_BROKEN);
+        MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40, NA_SE_EV_HONEYCOMB_BROKEN);
         func_8098E098(this);
     } else {
         if (this->actor.bgCheckFlags & BGCHECKFLAG_WATER_TOUCH) {
@@ -473,8 +473,8 @@ void func_8098DEA0(ObjComb* this, PlayState* play) {
         Actor_MoveWithGravity(&this->actor);
         this->actor.shape.rot.x += this->unk_1AE;
         this->actor.shape.rot.y += this->unk_1B0;
-        Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 12.0f, 0.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 12.0f, 0.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -487,18 +487,18 @@ void func_8098E098(ObjComb* this) {
 void func_8098E0B8(ObjComb* this, PlayState* play) {
     this->unk_1B4--;
     if (this->unk_1B4 <= 0) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
     if ((this->unk_1B4 == 10) && (this->unk_1B6 != 0) && (this->unk_1B5 == 2) && (this->actor.csId > CS_ID_NONE)) {
         if (CutsceneManager_GetCurrentCsId() == this->actor.csId) {
-            Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_4);
+            MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_4);
         }
     }
 }
 
-void ObjComb_Update(Actor* thisx, PlayState* play) {
+void MM_ObjComb_Update(Actor* thisx, PlayState* play) {
     ObjComb* this = (ObjComb*)thisx;
 
     this->unk_1B3 = (this->collider.base.acFlags & AC_HIT) != 0;
@@ -522,12 +522,12 @@ void ObjComb_Update(Actor* thisx, PlayState* play) {
         }
     } else {
         if (this->unk_1B5 != 0) {
-            Actor_SetFocus(&this->actor, 0.0f);
+            MM_Actor_SetFocus(&this->actor, 0.0f);
             if (this->unk_1B5 == 1) {
                 if (CutsceneManager_IsNext(this->actor.csId)) {
                     CutsceneManager_StartWithPlayerCs(this->actor.csId, &this->actor);
                     if (this->actor.csId > CS_ID_NONE) {
-                        Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_1);
+                        MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_1);
                     }
 
                     if (((OBJCOMB_GET_8000(&this->actor) | OBJCOMB_GET_80(&this->actor)) == 1) &&
@@ -549,24 +549,24 @@ void ObjComb_Update(Actor* thisx, PlayState* play) {
     }
 }
 
-void ObjComb_Draw(Actor* thisx, PlayState* play) {
+void MM_ObjComb_Draw(Actor* thisx, PlayState* play) {
     ObjComb* this = (ObjComb*)thisx;
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y + (118.0f * this->actor.scale.y),
+    MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y + (118.0f * this->actor.scale.y),
                      this->actor.world.pos.z, MTXMODE_NEW);
     Matrix_RotateYS(this->actor.shape.rot.y, MTXMODE_APPLY);
     Matrix_RotateXS(this->actor.shape.rot.x, MTXMODE_APPLY);
     Matrix_RotateZS(this->actor.shape.rot.z, MTXMODE_APPLY);
-    Matrix_Translate(0.0f, -(this->actor.scale.y * 118.0f), 0.0f, MTXMODE_APPLY);
-    Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, -(this->actor.scale.y * 118.0f), 0.0f, MTXMODE_APPLY);
+    MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     gSPDisplayList(POLY_OPA_DISP++, gBeehiveDL);
 
-    Collider_UpdateSpheres(0, &this->collider);
+    MM_Collider_UpdateSpheres(0, &this->collider);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

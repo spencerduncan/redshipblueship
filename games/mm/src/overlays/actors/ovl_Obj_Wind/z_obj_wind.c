@@ -26,7 +26,7 @@ ActorProfile Obj_Wind_Profile = {
     /**/ ObjWind_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 4000, ICHAIN_STOP),
@@ -38,8 +38,8 @@ void ObjWind_Init(Actor* thisx, PlayState* play) {
     WaterBox* waterbox;
     f32 ySurface;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    if (WaterBox_GetSurface1(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &ySurface,
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
+    if (MM_WaterBox_GetSurface1(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &ySurface,
                              &waterbox) &&
         (this->actor.world.pos.y < ySurface)) {
         this->isUnderWater = true;
@@ -100,16 +100,16 @@ void ObjWind_Update(Actor* thisx, PlayState* play) {
         D_80B2448C[DREG(85)].unk_8 = DREG(84);
     }
 
-    if ((OBJ_WIND_GET_SWITCH_FLAG(thisx) == 0x7F) || !Flags_GetSwitch(play, OBJ_WIND_GET_SWITCH_FLAG(thisx))) {
+    if ((OBJ_WIND_GET_SWITCH_FLAG(thisx) == 0x7F) || !MM_Flags_GetSwitch(play, OBJ_WIND_GET_SWITCH_FLAG(thisx))) {
         player = GET_PLAYER(play);
-        Math_Vec3f_Copy(&line.point, &this->actor.world.pos);
-        line.dir.y = Math_CosS(this->actor.shape.rot.x);
-        upXZ = Math_SinS(this->actor.shape.rot.x);
-        line.dir.x = Math_SinS(this->actor.shape.rot.y) * upXZ;
-        line.dir.z = Math_CosS(this->actor.shape.rot.y) * upXZ;
-        distToNearestPoint = Math3D_LineClosestToPoint(&line, &player->actor.world.pos, &nearestPoint);
+        MM_Math_Vec3f_Copy(&line.point, &this->actor.world.pos);
+        line.dir.y = MM_Math_CosS(this->actor.shape.rot.x);
+        upXZ = MM_Math_SinS(this->actor.shape.rot.x);
+        line.dir.x = MM_Math_SinS(this->actor.shape.rot.y) * upXZ;
+        line.dir.z = MM_Math_CosS(this->actor.shape.rot.y) * upXZ;
+        distToNearestPoint = MM_Math3D_LineClosestToPoint(&line, &player->actor.world.pos, &nearestPoint);
         if ((distToNearestPoint >= 0.0f) && (distToNearestPoint < entry->unk_0)) {
-            upXZ = Math_Vec3f_DistXYZAndStoreDiff(&player->actor.world.pos, &nearestPoint, &sp54);
+            upXZ = MM_Math_Vec3f_DistXYZAndStoreDiff(&player->actor.world.pos, &nearestPoint, &sp54);
             if (upXZ < entry->unk_2) {
                 f32 var_fa0;
                 f32 windSpeedXZ = 1.0f; // reused temp
@@ -135,10 +135,10 @@ void ObjWind_Update(Actor* thisx, PlayState* play) {
                 windSpeedX = (line.dir.x * windMagnitude) + (sp54.x * temp_ft0);
                 windSpeedY = (line.dir.y * windMagnitude) + (sp54.y * temp_ft0);
                 windSpeedZ = (line.dir.z * windMagnitude) + (sp54.z * temp_ft0);
-                player->windSpeed = sqrtf(SQ(windSpeedX) + SQ(windSpeedY) + SQ(windSpeedZ));
+                player->windSpeed = MM_sqrtf(SQ(windSpeedX) + SQ(windSpeedY) + SQ(windSpeedZ));
                 player->windAngleY = Math_Atan2S_XY(windSpeedZ, windSpeedX);
 
-                windSpeedXZ = sqrtf(SQ(windSpeedX) + SQ(windSpeedZ));
+                windSpeedXZ = MM_sqrtf(SQ(windSpeedX) + SQ(windSpeedZ));
                 player->windAngleX = Math_Atan2S_XY(windSpeedXZ, windSpeedY);
             }
         }

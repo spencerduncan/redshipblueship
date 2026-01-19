@@ -10,10 +10,10 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_DURING_OCARINA)
 
-void EnKakasi_Init(Actor* thisx, PlayState* play);
-void EnKakasi_Destroy(Actor* thisx, PlayState* play);
-void EnKakasi_Update(Actor* thisx, PlayState* play);
-void EnKakasi_Draw(Actor* thisx, PlayState* play);
+void OoT_EnKakasi_Init(Actor* thisx, PlayState* play);
+void OoT_EnKakasi_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnKakasi_Update(Actor* thisx, PlayState* play);
+void OoT_EnKakasi_Draw(Actor* thisx, PlayState* play);
 
 void func_80A8F660(EnKakasi* this, PlayState* play);
 void func_80A8F75C(EnKakasi* this, PlayState* play);
@@ -22,7 +22,7 @@ void func_80A8F9C8(EnKakasi* this, PlayState* play);
 void func_80A8FBB8(EnKakasi* this, PlayState* play);
 void func_80A8FAA4(EnKakasi* this, PlayState* play);
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -48,36 +48,36 @@ const ActorInit En_Kakasi_InitVars = {
     FLAGS,
     OBJECT_KA,
     sizeof(EnKakasi),
-    (ActorFunc)EnKakasi_Init,
-    (ActorFunc)EnKakasi_Destroy,
-    (ActorFunc)EnKakasi_Update,
-    (ActorFunc)EnKakasi_Draw,
+    (ActorFunc)OoT_EnKakasi_Init,
+    (ActorFunc)OoT_EnKakasi_Destroy,
+    (ActorFunc)OoT_EnKakasi_Update,
+    (ActorFunc)OoT_EnKakasi_Draw,
     NULL,
 };
 
-void EnKakasi_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnKakasi_Destroy(Actor* thisx, PlayState* play) {
     EnKakasi* this = (EnKakasi*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
-    SkelAnime_Free(&this->skelanime, play);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
+    OoT_SkelAnime_Free(&this->skelanime, play);
 }
 
-void EnKakasi_Init(Actor* thisx, PlayState* play) {
+void OoT_EnKakasi_Init(Actor* thisx, PlayState* play) {
     EnKakasi* this = (EnKakasi*)thisx;
 
     osSyncPrintf("\n\n");
     osSyncPrintf(VT_FGCOL(YELLOW) "☆☆☆☆☆ Ｌｅｔ’ｓ ＤＡＮＣＥ！ ☆☆☆☆☆ %f\n" VT_RST, this->actor.world.pos.y);
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
     this->actor.targetMode = 6;
-    SkelAnime_InitFlex(play, &this->skelanime, &object_ka_Skel_0065B0, &object_ka_Anim_000214, NULL, NULL, 0);
+    OoT_SkelAnime_InitFlex(play, &this->skelanime, &object_ka_Skel_0065B0, &object_ka_Anim_000214, NULL, NULL, 0);
 
     this->rot = this->actor.world.rot;
     this->actor.flags |= ACTOR_FLAG_HOOKSHOT_PULLS_PLAYER;
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
 
-    Actor_SetScale(&this->actor, 0.01f);
+    OoT_Actor_SetScale(&this->actor, 0.01f);
     this->actionFunc = func_80A8F660;
 }
 
@@ -86,10 +86,10 @@ void func_80A8F28C(EnKakasi* this) {
     this->skelanime.playSpeed = 0.0f;
     this->unk_1A8 = this->unk_1AC = 0;
 
-    Math_ApproachZeroF(&this->skelanime.curFrame, 0.5f, 1.0f);
-    Math_SmoothStepToS(&this->actor.shape.rot.x, this->rot.x, 5, 0x2710, 0);
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->rot.y, 5, 0x2710, 0);
-    Math_SmoothStepToS(&this->actor.shape.rot.z, this->rot.z, 5, 0x2710, 0);
+    OoT_Math_ApproachZeroF(&this->skelanime.curFrame, 0.5f, 1.0f);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.x, this->rot.x, 5, 0x2710, 0);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->rot.y, 5, 0x2710, 0);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.z, this->rot.z, 5, 0x2710, 0);
 }
 
 void func_80A8F320(EnKakasi* this, PlayState* play, s16 arg) {
@@ -98,11 +98,11 @@ void func_80A8F320(EnKakasi* this, PlayState* play, s16 arg) {
 
     if (arg != 0) {
         if (this->unk_19C[3] == 0) {
-            this->unk_19C[3] = (s16)Rand_ZeroFloat(10.99f) + 30;
-            this->unk_1A6 = (s16)Rand_ZeroFloat(4.99f);
+            this->unk_19C[3] = (s16)OoT_Rand_ZeroFloat(10.99f) + 30;
+            this->unk_1A6 = (s16)OoT_Rand_ZeroFloat(4.99f);
         }
 
-        this->unk_19A = (s16)Rand_ZeroFloat(2.99f) + 5;
+        this->unk_19A = (s16)OoT_Rand_ZeroFloat(2.99f) + 5;
         ocarinaNote = this->unk_1A6;
     }
     switch (ocarinaNote) {
@@ -145,9 +145,9 @@ void func_80A8F320(EnKakasi* this, PlayState* play, s16 arg) {
             this->actor.velocity.y = 3.0f;
             Audio_PlayActorSound2(&this->actor, NA_SE_IT_KAKASHI_JUMP);
         }
-        Math_ApproachF(&this->skelanime.playSpeed, this->unk_1B8, 0.1f, 0.2f);
-        Math_SmoothStepToS(&this->actor.shape.rot.x, this->unk_1A8, 5, 0x3E8, 0);
-        Math_SmoothStepToS(&this->actor.shape.rot.z, this->unk_1AC, 5, 0x3E8, 0);
+        OoT_Math_ApproachF(&this->skelanime.playSpeed, this->unk_1B8, 0.1f, 0.2f);
+        OoT_Math_SmoothStepToS(&this->actor.shape.rot.x, this->unk_1A8, 5, 0x3E8, 0);
+        OoT_Math_SmoothStepToS(&this->actor.shape.rot.z, this->unk_1AC, 5, 0x3E8, 0);
 
         if (this->unk_1A8 != 0 && fabsf(this->actor.shape.rot.x - this->unk_1A8) < 50.0f) {
             this->unk_1A8 *= -1.0f;
@@ -166,14 +166,14 @@ void func_80A8F320(EnKakasi* this, PlayState* play, s16 arg) {
         if (currentFrame == 11 || currentFrame == 17) {
             Audio_PlayActorSound2(&this->actor, NA_SE_EV_KAKASHI_SWING);
         }
-        SkelAnime_Update(&this->skelanime);
+        OoT_SkelAnime_Update(&this->skelanime);
     }
 }
 
 void func_80A8F660(EnKakasi* this, PlayState* play) {
-    f32 frameCount = Animation_GetLastFrame(&object_ka_Anim_000214);
+    f32 frameCount = OoT_Animation_GetLastFrame(&object_ka_Anim_000214);
 
-    Animation_Change(&this->skelanime, &object_ka_Anim_000214, 1.0f, 0.0f, (s16)frameCount, ANIMMODE_LOOP, -10.0f);
+    OoT_Animation_Change(&this->skelanime, &object_ka_Anim_000214, 1.0f, 0.0f, (s16)frameCount, ANIMMODE_LOOP, -10.0f);
 
     this->actor.textId = 0x4076;
     this->unk_196 = TEXT_STATE_DONE;
@@ -197,7 +197,7 @@ void func_80A8F75C(EnKakasi* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
     func_80A8F28C(this);
-    SkelAnime_Update(&this->skelanime);
+    OoT_SkelAnime_Update(&this->skelanime);
     this->camId = SUBCAM_NONE;
     if (Actor_ProcessTalkRequest(&this->actor, play)) {
         if (this->unk_196 == TEXT_STATE_EVENT) {
@@ -241,10 +241,10 @@ void func_80A8F8D0(EnKakasi* this, PlayState* play) {
         osSyncPrintf(VT_FGCOL(BLUE) "☆☆☆☆☆ 終り？ ☆☆☆☆☆ \n" VT_RST);
 
         if (this->unk_19A != 0) {
-            Message_CloseTextbox(play);
+            OoT_Message_CloseTextbox(play);
             this->actor.textId = 0x4077;
             this->unk_196 = TEXT_STATE_EVENT;
-            Message_StartTextbox(play, this->actor.textId, NULL);
+            OoT_Message_StartTextbox(play, this->actor.textId, NULL);
             this->actionFunc = func_80A8F9C8;
         } else {
             OnePointCutscene_EndCutscene(play, this->camId);
@@ -259,17 +259,17 @@ void func_80A8F8D0(EnKakasi* this, PlayState* play) {
 
 void func_80A8F9C8(EnKakasi* this, PlayState* play) {
     func_80A8F28C(this);
-    SkelAnime_Update(&this->skelanime);
-    Player_SetCsActionWithHaltedActors(play, NULL, 8);
+    OoT_SkelAnime_Update(&this->skelanime);
+    OoT_Player_SetCsActionWithHaltedActors(play, NULL, 8);
 
-    if (this->unk_196 == Message_GetState(&play->msgCtx) && Message_ShouldAdvance(play)) {
+    if (this->unk_196 == OoT_Message_GetState(&play->msgCtx) && OoT_Message_ShouldAdvance(play)) {
 
         if (this->camId != SUBCAM_NONE) {
             func_8005B1A4(play->cameraPtrs[this->camId]);
         }
         this->camId = OnePointCutscene_Init(play, 2270, -99, &this->actor, MAIN_CAM);
         play->msgCtx.msgMode = MSGMODE_PAUSED;
-        Player_SetCsActionWithHaltedActors(play, NULL, 8);
+        OoT_Player_SetCsActionWithHaltedActors(play, NULL, 8);
         func_8010BD58(play, OCARINA_ACTION_SCARECROW_LONG_PLAYBACK);
         this->actionFunc = func_80A8FAA4;
     }
@@ -287,11 +287,11 @@ void func_80A8FAA4(EnKakasi* this, PlayState* play) {
         if (this->unk_194) {
             this->actor.textId = 0x4077;
             this->unk_196 = TEXT_STATE_EVENT;
-            Message_StartTextbox(play, this->actor.textId, NULL);
+            OoT_Message_StartTextbox(play, this->actor.textId, NULL);
         } else {
             this->actor.textId = 0x4078;
             this->unk_196 = TEXT_STATE_EVENT;
-            Message_StartTextbox(play, this->actor.textId, NULL);
+            OoT_Message_StartTextbox(play, this->actor.textId, NULL);
         }
         this->actionFunc = func_80A8FBB8;
         OnePointCutscene_EndCutscene(play, this->camId);
@@ -303,17 +303,17 @@ void func_80A8FAA4(EnKakasi* this, PlayState* play) {
 
 void func_80A8FBB8(EnKakasi* this, PlayState* play) {
     func_80A8F28C(this);
-    SkelAnime_Update(&this->skelanime);
+    OoT_SkelAnime_Update(&this->skelanime);
 
-    if (this->unk_196 == Message_GetState(&play->msgCtx) && Message_ShouldAdvance(play)) {
+    if (this->unk_196 == OoT_Message_GetState(&play->msgCtx) && OoT_Message_ShouldAdvance(play)) {
         func_8005B1A4(play->cameraPtrs[this->camId]);
-        Message_CloseTextbox(play);
-        Player_SetCsActionWithHaltedActors(play, NULL, 7);
+        OoT_Message_CloseTextbox(play);
+        OoT_Player_SetCsActionWithHaltedActors(play, NULL, 7);
         this->actionFunc = func_80A8F660;
     }
 }
 
-void EnKakasi_Update(Actor* thisx, PlayState* play) {
+void OoT_EnKakasi_Update(Actor* thisx, PlayState* play) {
     EnKakasi* this = (EnKakasi*)thisx;
     s32 pad;
     s32 i;
@@ -327,15 +327,15 @@ void EnKakasi_Update(Actor* thisx, PlayState* play) {
     }
 
     this->height = 60.0f;
-    Actor_SetFocus(&this->actor, this->height);
+    OoT_Actor_SetFocus(&this->actor, this->height);
     this->actionFunc(this, play);
     Actor_MoveXZGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 50.0f, 50.0f, 100.0f, 28);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 50.0f, 50.0f, 100.0f, 28);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
-void EnKakasi_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnKakasi_Draw(Actor* thisx, PlayState* play) {
     EnKakasi* this = (EnKakasi*)thisx;
 
     if (BREG(3) != 0) {

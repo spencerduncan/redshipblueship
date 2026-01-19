@@ -146,7 +146,7 @@ Vec3f D_80B38A9C[] = {
     { 90.0f, 20.0f, -78.0f },  { -90.0f, 20.0f, -78.0f },  { -90.0f, 20.0f, 78.0f },  { 90.0f, 20.0f, 78.0f },
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -166,7 +166,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 12, 65, 0, { 0, 0, 0 } },
 };
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(0, 0x0),
     /* Deku Stick     */ DMG_ENTRY(0, 0xF),
     /* Horse trample  */ DMG_ENTRY(0, 0x0),
@@ -201,7 +201,7 @@ static DamageTable sDamageTable = {
     /* Powder Keg     */ DMG_ENTRY(0, 0x0),
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 8, 0, 0, 0, MASS_HEAVY };
+static CollisionCheckInfoInit2 MM_sColChkInfoInit = { 8, 0, 0, 0, MASS_HEAVY };
 
 Vec3f D_80B38B54 = { 0.0f, 0.0f, 0.0f };
 
@@ -210,7 +210,7 @@ void EnMaruta_Init(Actor* thisx, PlayState* play) {
     EnMaruta* this = (EnMaruta*)thisx;
     s32 i;
 
-    Actor_SetScale(&this->actor, 0.1f);
+    MM_Actor_SetScale(&this->actor, 0.1f);
 
     this->actor.attentionRangeType = ATTENTION_RANGE_6;
 
@@ -239,9 +239,9 @@ void EnMaruta_Init(Actor* thisx, PlayState* play) {
     this->unk_220 = 0;
 
     if (this->unk_210 == 0) {
-        Collider_InitCylinder(play, &this->collider);
-        Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-        CollisionCheck_SetInfo2(&this->actor.colChkInfo, &sDamageTable, &sColChkInfoInit);
+        MM_Collider_InitCylinder(play, &this->collider);
+        MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+        MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, &MM_sDamageTable, &MM_sColChkInfoInit);
     }
 
     if (this->unk_210 == 0) {
@@ -259,7 +259,7 @@ void EnMaruta_Destroy(Actor* thisx, PlayState* play) {
     EnMaruta* this = (EnMaruta*)thisx;
 
     if (this->unk_210 == 0) {
-        Collider_DestroyCylinder(play, &this->collider);
+        MM_Collider_DestroyCylinder(play, &this->collider);
     }
 }
 
@@ -293,7 +293,7 @@ void func_80B37364(EnMaruta* this) {
 }
 
 void func_80B3738C(EnMaruta* this, PlayState* play) {
-    if (Math_SmoothStepToF(&this->actor.world.pos.y, this->actor.home.pos.y, 0.4f, 100.0f, 10.0f) == 0.0f) {
+    if (MM_Math_SmoothStepToF(&this->actor.world.pos.y, this->actor.home.pos.y, 0.4f, 100.0f, 10.0f) == 0.0f) {
         func_80B372B8(this);
     }
 }
@@ -315,7 +315,7 @@ void func_80B37428(EnMaruta* this, PlayState* play) {
 
             kendoJs->unk_28C--;
         }
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -330,7 +330,7 @@ void func_80B374B8(EnMaruta* this) {
 
 void func_80B374FC(EnMaruta* this, PlayState* play) {
     if (this->unk_21E == 40) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -405,14 +405,14 @@ void func_80B37590(EnMaruta* this, PlayState* play) {
     }
 
     sp46 = this->actor.shape.rot.y;
-    this->actor.velocity.x = (sp48.x * Math_CosS(sp46) + (Math_SinS(sp46) * sp48.z));
+    this->actor.velocity.x = (sp48.x * MM_Math_CosS(sp46) + (MM_Math_SinS(sp46) * sp48.z));
     this->actor.velocity.y = sp48.y;
-    this->actor.velocity.z = (-sp48.x * Math_SinS(sp46) + (Math_CosS(sp46) * sp48.z));
+    this->actor.velocity.z = (-sp48.x * MM_Math_SinS(sp46) + (MM_Math_CosS(sp46) * sp48.z));
 
     sp38 = D_80B38850[this->unk_210];
 
-    func_80B3828C(&sp38, &this->unk_194, Rand_Next() & 0xFFF, Rand_Next() & 0xFFF, 0);
-    this->unk_21A = Rand_Next() & 0x7FF;
+    func_80B3828C(&sp38, &this->unk_194, MM_Rand_Next() & 0xFFF, MM_Rand_Next() & 0xFFF, 0);
+    this->unk_21A = MM_Rand_Next() & 0x7FF;
 
     if (this->unk_210 == 7) {
         this->unk_21A |= 0x3F;
@@ -428,7 +428,7 @@ void func_80B37950(EnMaruta* this, PlayState* play) {
     this->unk_218 += this->unk_21A;
     this->actor.velocity.y += this->actor.gravity;
     func_80B37EC0(this, play);
-    Actor_UpdatePos(&this->actor);
+    MM_Actor_UpdatePos(&this->actor);
 }
 
 void func_80B37998(EnMaruta* this) {
@@ -474,13 +474,13 @@ void func_80B37A8C(EnMaruta* this) {
 void func_80B37AA0(EnMaruta* this, PlayState* play) {
     if (this->actor.scale.y == 0.0f) {
         if (this->actor.scale.x == 0.0f) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
             return;
         }
-        Math_SmoothStepToF(&this->actor.scale.x, 0.0f, 0.2f, 0.01f, 0.001f);
-        Math_SmoothStepToF(&this->actor.scale.z, 0.0f, 0.2f, 0.01f, 0.001f);
+        MM_Math_SmoothStepToF(&this->actor.scale.x, 0.0f, 0.2f, 0.01f, 0.001f);
+        MM_Math_SmoothStepToF(&this->actor.scale.z, 0.0f, 0.2f, 0.01f, 0.001f);
     } else {
-        Math_SmoothStepToF(&this->actor.scale.y, 0.0f, 0.2f, 0.003f, 0.001f);
+        MM_Math_SmoothStepToF(&this->actor.scale.y, 0.0f, 0.2f, 0.003f, 0.001f);
     }
 }
 
@@ -506,7 +506,7 @@ void func_80B37C04(s16* arg0) {
     if (temp > 0x2000) {
         temp_a1 += 0x4000;
     }
-    Math_SmoothStepToS(arg0, temp_a1, 1, 0xAAA, 0xB6);
+    MM_Math_SmoothStepToS(arg0, temp_a1, 1, 0xAAA, 0xB6);
 }
 
 void func_80B37C60(EnMaruta* this) {
@@ -530,7 +530,7 @@ void func_80B37CA0(EnMaruta* this, PlayState* play) {
 
                 temp = (temp << 8) & 0xFF00;
                 this->unk_210 = D_80B386CC[player->meleeWeaponAnimation];
-                Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_MARUTA, this->actor.world.pos.x,
+                MM_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_MARUTA, this->actor.world.pos.x,
                                    this->actor.world.pos.y, this->actor.world.pos.z, 0, this->actor.shape.rot.y, 0,
                                    temp);
                 this->actor.world.rot.y = this->actor.shape.rot.y;
@@ -551,11 +551,11 @@ void func_80B37CA0(EnMaruta* this, PlayState* play) {
             }
         }
 
-        Collider_UpdateCylinder(&this->actor, &this->collider);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 
         if (func_80B37B78(this, play) && (this->actionFunc == func_80B372CC)) {
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+            MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
         }
     }
 }
@@ -655,10 +655,10 @@ void func_80B38060(EnMaruta* this, Vec3f* arg1) {
 }
 
 void func_80B3828C(Vec3f* arg0, Vec3f* arg1, s16 arg2, s16 arg3, s32 arg4) {
-    Matrix_Push();
-    Matrix_RotateZYX(arg2, arg3, arg4, MTXMODE_NEW);
-    Matrix_MultVec3f(arg0, arg1);
-    Matrix_Pop();
+    MM_Matrix_Push();
+    MM_Matrix_RotateZYX(arg2, arg3, arg4, MTXMODE_NEW);
+    MM_Matrix_MultVec3f(arg0, arg1);
+    MM_Matrix_Pop();
 }
 
 void func_80B382E4(PlayState* play, Vec3f arg1) {
@@ -673,9 +673,9 @@ void func_80B382E4(PlayState* play, Vec3f arg1) {
     pos.y += 15.0f;
 
     for (i = 0; i < 10; i++) {
-        velocity.x = Rand_Centered() * 10.0f;
-        velocity.y = 2.0f * Rand_ZeroOne();
-        velocity.z = Rand_Centered() * 10.0f;
+        velocity.x = MM_Rand_Centered() * 10.0f;
+        velocity.y = 2.0f * MM_Rand_ZeroOne();
+        velocity.z = MM_Rand_Centered() * 10.0f;
         accel.x = -0.2f * velocity.x;
         accel.z = -0.2f * velocity.z;
         func_800B0EB0(play, &pos, &velocity, &accel, &primColor, &envColor, 60, 20, 10);
@@ -706,10 +706,10 @@ void EnMaruta_Draw(Actor* thisx, PlayState* play) {
     } else {
         sp50 = D_80B387E4[this->unk_210];
 
-        Matrix_Push();
-        Matrix_Translate(sp50.x, sp50.y, sp50.z, MTXMODE_APPLY);
+        MM_Matrix_Push();
+        MM_Matrix_Translate(sp50.x, sp50.y, sp50.z, MTXMODE_APPLY);
         Matrix_RotateAxisS(this->unk_218, &this->unk_194, MTXMODE_APPLY);
-        Matrix_Translate(-sp50.x, -sp50.y, -sp50.z, MTXMODE_APPLY);
+        MM_Matrix_Translate(-sp50.x, -sp50.y, -sp50.z, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
 
@@ -721,12 +721,12 @@ void EnMaruta_Draw(Actor* thisx, PlayState* play) {
 
         if (this->unk_1A0 != NULL) {
             for (i = 0; i < ARRAY_COUNT(this->unk_1A4); i++) {
-                Matrix_MultVec3f(&this->unk_1A0[i], &this->unk_1A4[i]);
+                MM_Matrix_MultVec3f(&this->unk_1A0[i], &this->unk_1A4[i]);
             }
-            Matrix_MultVec3f(&sp50, &this->unk_204);
+            MM_Matrix_MultVec3f(&sp50, &this->unk_204);
         }
 
-        Matrix_Pop();
+        MM_Matrix_Pop();
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

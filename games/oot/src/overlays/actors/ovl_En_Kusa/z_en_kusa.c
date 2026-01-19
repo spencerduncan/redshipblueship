@@ -14,32 +14,32 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_THROW_ONLY)
 
-void EnKusa_Init(Actor* thisx, PlayState* play);
-void EnKusa_Destroy(Actor* thisx, PlayState* play);
-void EnKusa_Update(Actor* thisx, PlayState* play);
+void OoT_EnKusa_Init(Actor* thisx, PlayState* play);
+void OoT_EnKusa_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnKusa_Update(Actor* thisx, PlayState* play);
 void EnKusa_Draw(Actor* thisx, PlayState* play);
 
-void EnKusa_SetupLiftedUp(EnKusa* this);
-void EnKusa_SetupWaitObject(EnKusa* this);
+void OoT_EnKusa_SetupLiftedUp(EnKusa* this);
+void OoT_EnKusa_SetupWaitObject(EnKusa* this);
 void EnKusa_SetupMain(EnKusa* this);
-void EnKusa_SetupFall(EnKusa* this);
-void EnKusa_SetupCut(EnKusa* this);
-void EnKusa_SetupUprootedWaitRegrow(EnKusa* this);
-void EnKusa_SetupRegrow(EnKusa* this);
+void OoT_EnKusa_SetupFall(EnKusa* this);
+void OoT_EnKusa_SetupCut(EnKusa* this);
+void OoT_EnKusa_SetupUprootedWaitRegrow(EnKusa* this);
+void OoT_EnKusa_SetupRegrow(EnKusa* this);
 
-void EnKusa_Fall(EnKusa* this, PlayState* play);
-void EnKusa_WaitObject(EnKusa* this, PlayState* play);
+void OoT_EnKusa_Fall(EnKusa* this, PlayState* play);
+void OoT_EnKusa_WaitObject(EnKusa* this, PlayState* play);
 void EnKusa_Main(EnKusa* this, PlayState* play);
-void EnKusa_LiftedUp(EnKusa* this, PlayState* play);
-void EnKusa_CutWaitRegrow(EnKusa* this, PlayState* play);
-void EnKusa_DoNothing(EnKusa* this, PlayState* play);
-void EnKusa_UprootedWaitRegrow(EnKusa* this, PlayState* play);
-void EnKusa_Regrow(EnKusa* this, PlayState* play);
+void OoT_EnKusa_LiftedUp(EnKusa* this, PlayState* play);
+void OoT_EnKusa_CutWaitRegrow(EnKusa* this, PlayState* play);
+void OoT_EnKusa_DoNothing(EnKusa* this, PlayState* play);
+void OoT_EnKusa_UprootedWaitRegrow(EnKusa* this, PlayState* play);
+void OoT_EnKusa_Regrow(EnKusa* this, PlayState* play);
 
-static s16 rotSpeedXtarget = 0;
-static s16 rotSpeedX = 0;
-static s16 rotSpeedYtarget = 0;
-static s16 rotSpeedY = 0;
+static s16 OoT_rotSpeedXtarget = 0;
+static s16 OoT_rotSpeedX = 0;
+static s16 OoT_rotSpeedYtarget = 0;
+static s16 OoT_rotSpeedY = 0;
 
 const ActorInit En_Kusa_InitVars = {
     ACTOR_EN_KUSA,
@@ -47,16 +47,16 @@ const ActorInit En_Kusa_InitVars = {
     FLAGS,
     OBJECT_GAMEPLAY_KEEP,
     sizeof(EnKusa),
-    (ActorFunc)EnKusa_Init,
-    (ActorFunc)EnKusa_Destroy,
-    (ActorFunc)EnKusa_Update,
+    (ActorFunc)OoT_EnKusa_Init,
+    (ActorFunc)OoT_EnKusa_Destroy,
+    (ActorFunc)OoT_EnKusa_Update,
     NULL,
     NULL,
 };
 
-static s16 sObjectIds[] = { OBJECT_GAMEPLAY_FIELD_KEEP, OBJECT_KUSA, OBJECT_KUSA };
+static s16 OoT_sObjectIds[] = { OBJECT_GAMEPLAY_FIELD_KEEP, OBJECT_KUSA, OBJECT_KUSA };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -76,18 +76,18 @@ static ColliderCylinderInit sCylinderInit = {
     { 12, 44, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit sColChkInfoInit = { 0, 12, 30, MASS_IMMOVABLE };
+static CollisionCheckInfoInit OoT_sColChkInfoInit = { 0, 12, 30, MASS_IMMOVABLE };
 
-static Vec3f sUnitDirections[] = {
+static Vec3f OoT_sUnitDirections[] = {
     { 0.0f, 0.7071f, 0.7071f },
     { 0.7071f, 0.7071f, 0.0f },
     { 0.0f, 0.7071f, -0.7071f },
     { -0.7071f, 0.7071f, 0.0f },
 };
 
-static s16 sFragmentScales[] = { 108, 102, 96, 84, 66, 55, 42, 38 };
+static s16 OoT_sFragmentScales[] = { 108, 102, 96, 84, 66, 55, 42, 38 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 400, ICHAIN_CONTINUE),         ICHAIN_F32_DIV1000(gravity, -3200, ICHAIN_CONTINUE),
     ICHAIN_F32_DIV1000(minVelocityY, -17000, ICHAIN_CONTINUE), ICHAIN_F32(uncullZoneForward, 1200, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 100, ICHAIN_CONTINUE),         ICHAIN_F32(uncullZoneDownward, 120, ICHAIN_STOP),
@@ -98,7 +98,7 @@ void EnKusa_SetupAction(EnKusa* this, EnKusaActionFunc actionFunc) {
     this->actionFunc = actionFunc;
 }
 
-s32 EnKusa_SnapToFloor(EnKusa* this, PlayState* play, f32 yOffset) {
+s32 OoT_EnKusa_SnapToFloor(EnKusa* this, PlayState* play, f32 yOffset) {
     s32 pad;
     CollisionPoly* poly;
     Vec3f pos;
@@ -113,7 +113,7 @@ s32 EnKusa_SnapToFloor(EnKusa* this, PlayState* play, f32 yOffset) {
 
     if (floorY > BGCHECK_Y_MIN) {
         this->actor.world.pos.y = floorY + yOffset;
-        Math_Vec3f_Copy(&this->actor.home.pos, &this->actor.world.pos);
+        OoT_Math_Vec3f_Copy(&this->actor.home.pos, &this->actor.world.pos);
         return true;
     } else {
         osSyncPrintf(VT_COL(YELLOW, BLACK));
@@ -124,7 +124,7 @@ s32 EnKusa_SnapToFloor(EnKusa* this, PlayState* play, f32 yOffset) {
     }
 }
 
-void EnKusa_DropCollectible(EnKusa* this, PlayState* play) {
+void OoT_EnKusa_DropCollectible(EnKusa* this, PlayState* play) {
     s16 dropParams;
 
     if (!GameInteractor_Should(VB_GRASS_DROP_ITEM, true, this)) {
@@ -139,22 +139,22 @@ void EnKusa_DropCollectible(EnKusa* this, PlayState* play) {
             if (dropParams >= 0xD) {
                 dropParams = 0;
             }
-            Item_DropCollectibleRandom(play, NULL, &this->actor.world.pos, dropParams << 4);
+            OoT_Item_DropCollectibleRandom(play, NULL, &this->actor.world.pos, dropParams << 4);
             break;
         case ENKUSA_TYPE_1:
             if (CVarGetInteger(CVAR_ENHANCEMENT("NoRandomDrops"), 0)) {
             } else if (CVarGetInteger(CVAR_ENHANCEMENT("NoHeartDrops"), 0)) {
-                Item_DropCollectible(play, &this->actor.world.pos, ITEM00_SEEDS);
-            } else if (Rand_ZeroOne() < 0.5f) {
-                Item_DropCollectible(play, &this->actor.world.pos, ITEM00_SEEDS);
+                OoT_Item_DropCollectible(play, &this->actor.world.pos, ITEM00_SEEDS);
+            } else if (OoT_Rand_ZeroOne() < 0.5f) {
+                OoT_Item_DropCollectible(play, &this->actor.world.pos, ITEM00_SEEDS);
             } else {
-                Item_DropCollectible(play, &this->actor.world.pos, ITEM00_HEART);
+                OoT_Item_DropCollectible(play, &this->actor.world.pos, ITEM00_HEART);
             }
             break;
     }
 }
 
-void EnKusa_UpdateVelY(EnKusa* this) {
+void OoT_EnKusa_UpdateVelY(EnKusa* this) {
     this->actor.velocity.y += this->actor.gravity;
 
     if (this->actor.velocity.y < this->actor.minVelocityY) {
@@ -162,20 +162,20 @@ void EnKusa_UpdateVelY(EnKusa* this) {
     }
 }
 
-void EnKusa_RandScaleVecToZero(Vec3f* vec, f32 scale) {
-    scale += ((Rand_ZeroOne() * 0.2f) - 0.1f) * scale;
+void OoT_EnKusa_RandScaleVecToZero(Vec3f* vec, f32 scale) {
+    scale += ((OoT_Rand_ZeroOne() * 0.2f) - 0.1f) * scale;
     vec->x -= vec->x * scale;
     vec->y -= vec->y * scale;
     vec->z -= vec->z * scale;
 }
 
-void EnKusa_SetScaleSmall(EnKusa* this) {
+void OoT_EnKusa_SetScaleSmall(EnKusa* this) {
     this->actor.scale.y = 0.16000001f;
     this->actor.scale.x = 0.120000005f;
     this->actor.scale.z = 0.120000005f;
 }
 
-void EnKusa_SpawnFragments(EnKusa* this, PlayState* play) {
+void OoT_EnKusa_SpawnFragments(EnKusa* this, PlayState* play) {
     Vec3f velocity;
     Vec3f pos;
     s32 i;
@@ -183,44 +183,44 @@ void EnKusa_SpawnFragments(EnKusa* this, PlayState* play) {
     Vec3f* dir;
     s32 pad;
 
-    for (i = 0; i < ARRAY_COUNT(sUnitDirections); i++) {
-        dir = &sUnitDirections[i];
+    for (i = 0; i < ARRAY_COUNT(OoT_sUnitDirections); i++) {
+        dir = &OoT_sUnitDirections[i];
 
         pos.x = this->actor.world.pos.x + (dir->x * this->actor.scale.x * 20.0f);
         pos.y = this->actor.world.pos.y + (dir->y * this->actor.scale.y * 20.0f) + 10.0f;
         pos.z = this->actor.world.pos.z + (dir->z * this->actor.scale.z * 20.0f);
 
-        velocity.x = (Rand_ZeroOne() - 0.5f) * 8.0f;
-        velocity.y = Rand_ZeroOne() * 10.0f;
-        velocity.z = (Rand_ZeroOne() - 0.5f) * 8.0f;
+        velocity.x = (OoT_Rand_ZeroOne() - 0.5f) * 8.0f;
+        velocity.y = OoT_Rand_ZeroOne() * 10.0f;
+        velocity.z = (OoT_Rand_ZeroOne() - 0.5f) * 8.0f;
 
-        scaleIndex = (s32)(Rand_ZeroOne() * 111.1f) & 7;
+        scaleIndex = (s32)(OoT_Rand_ZeroOne() * 111.1f) & 7;
 
-        EffectSsKakera_Spawn(play, &pos, &velocity, &pos, -100, 64, 40, 3, 0, sFragmentScales[scaleIndex], 0, 0, 80,
+        OoT_EffectSsKakera_Spawn(play, &pos, &velocity, &pos, -100, 64, 40, 3, 0, OoT_sFragmentScales[scaleIndex], 0, 0, 80,
                              KAKERA_COLOR_NONE, OBJECT_GAMEPLAY_KEEP, gCuttableShrubStalkDL);
 
         pos.x = this->actor.world.pos.x + (dir->x * this->actor.scale.x * 40.0f);
         pos.y = this->actor.world.pos.y + (dir->y * this->actor.scale.y * 40.0f) + 10.0f;
         pos.z = this->actor.world.pos.z + (dir->z * this->actor.scale.z * 40.0f);
 
-        velocity.x = (Rand_ZeroOne() - 0.5f) * 6.0f;
-        velocity.y = Rand_ZeroOne() * 10.0f;
-        velocity.z = (Rand_ZeroOne() - 0.5f) * 6.0f;
+        velocity.x = (OoT_Rand_ZeroOne() - 0.5f) * 6.0f;
+        velocity.y = OoT_Rand_ZeroOne() * 10.0f;
+        velocity.z = (OoT_Rand_ZeroOne() - 0.5f) * 6.0f;
 
-        scaleIndex = (s32)(Rand_ZeroOne() * 111.1f) % 7;
+        scaleIndex = (s32)(OoT_Rand_ZeroOne() * 111.1f) % 7;
 
-        EffectSsKakera_Spawn(play, &pos, &velocity, &pos, -100, 64, 40, 3, 0, sFragmentScales[scaleIndex], 0, 0, 80,
+        OoT_EffectSsKakera_Spawn(play, &pos, &velocity, &pos, -100, 64, 40, 3, 0, OoT_sFragmentScales[scaleIndex], 0, 0, 80,
                              KAKERA_COLOR_NONE, OBJECT_GAMEPLAY_KEEP, gCuttableShrubTipDL);
     }
 }
 
-void EnKusa_SpawnBugs(EnKusa* this, PlayState* play) {
+void OoT_EnKusa_SpawnBugs(EnKusa* this, PlayState* play) {
     s32 i;
 
     for (i = 0; i < 3; i++) {
         Actor* bug =
-            Actor_Spawn(&play->actorCtx, play, ACTOR_EN_INSECT, this->actor.world.pos.x, this->actor.world.pos.y,
-                        this->actor.world.pos.z, 0, Rand_ZeroOne() * 0xFFFF, 0, 1, true);
+            OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_INSECT, this->actor.world.pos.x, this->actor.world.pos.y,
+                        this->actor.world.pos.z, 0, OoT_Rand_ZeroOne() * 0xFFFF, 0, 1, true);
 
         if (bug == NULL) {
             break;
@@ -228,66 +228,66 @@ void EnKusa_SpawnBugs(EnKusa* this, PlayState* play) {
     }
 }
 
-void EnKusa_InitCollider(Actor* thisx, PlayState* play) {
+void OoT_EnKusa_InitCollider(Actor* thisx, PlayState* play) {
     EnKusa* this = (EnKusa*)thisx;
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
 }
 
-void EnKusa_Init(Actor* thisx, PlayState* play) {
+void OoT_EnKusa_Init(Actor* thisx, PlayState* play) {
     EnKusa* this = (EnKusa*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
 
     if (play->csCtx.state != CS_STATE_IDLE) {
         this->actor.uncullZoneForward += 1000.0f;
     }
 
-    EnKusa_InitCollider(thisx, play);
-    CollisionCheck_SetInfo(&this->actor.colChkInfo, NULL, &sColChkInfoInit);
+    OoT_EnKusa_InitCollider(thisx, play);
+    OoT_CollisionCheck_SetInfo(&this->actor.colChkInfo, NULL, &OoT_sColChkInfoInit);
 
     if (this->actor.shape.rot.y == 0) {
-        s16 rand = Rand_ZeroFloat(0x10000);
+        s16 rand = OoT_Rand_ZeroFloat(0x10000);
 
         this->actor.world.rot.y = rand;
         this->actor.home.rot.y = rand;
         this->actor.shape.rot.y = rand;
     }
 
-    if (!EnKusa_SnapToFloor(this, play, 0.0f)) {
-        Actor_Kill(&this->actor);
+    if (!OoT_EnKusa_SnapToFloor(this, play, 0.0f)) {
+        OoT_Actor_Kill(&this->actor);
         return;
     }
 
-    this->objBankIndex = Object_GetIndex(&play->objectCtx, sObjectIds[thisx->params & 3]);
+    this->objBankIndex = Object_GetIndex(&play->objectCtx, OoT_sObjectIds[thisx->params & 3]);
 
     if (this->objBankIndex < 0) {
         // "Bank danger!"
         osSyncPrintf("Error : バンク危険！ (arg_data 0x%04x)(%s %d)\n", thisx->params, __FILE__, __LINE__);
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
 
-    EnKusa_SetupWaitObject(this);
+    OoT_EnKusa_SetupWaitObject(this);
 }
 
-void EnKusa_Destroy(Actor* thisx, PlayState* play2) {
+void OoT_EnKusa_Destroy(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     EnKusa* this = (EnKusa*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 }
 
-void EnKusa_SetupWaitObject(EnKusa* this) {
-    EnKusa_SetupAction(this, EnKusa_WaitObject);
+void OoT_EnKusa_SetupWaitObject(EnKusa* this) {
+    EnKusa_SetupAction(this, OoT_EnKusa_WaitObject);
 }
 
-void EnKusa_WaitObject(EnKusa* this, PlayState* play) {
-    if (Object_IsLoaded(&play->objectCtx, this->objBankIndex)) {
+void OoT_EnKusa_WaitObject(EnKusa* this, PlayState* play) {
+    if (OoT_Object_IsLoaded(&play->objectCtx, this->objBankIndex)) {
         if (this->actor.flags & ACTOR_FLAG_GRASS_DESTROYED) {
-            EnKusa_SetupCut(this);
+            OoT_EnKusa_SetupCut(this);
         } else {
             EnKusa_SetupMain(this);
         }
@@ -310,26 +310,26 @@ void EnKusa_SetupMain(EnKusa* this) {
 void EnKusa_Main(EnKusa* this, PlayState* play) {
     s32 pad;
 
-    if (Actor_HasParent(&this->actor, play)) {
-        EnKusa_SetupLiftedUp(this);
-        SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 20, NA_SE_PL_PULL_UP_PLANT);
-    } else if (this->collider.base.acFlags & AC_HIT && gPlayState->csCtx.state == 0) {
+    if (OoT_Actor_HasParent(&this->actor, play)) {
+        OoT_EnKusa_SetupLiftedUp(this);
+        OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 20, NA_SE_PL_PULL_UP_PLANT);
+    } else if (this->collider.base.acFlags & AC_HIT && OoT_gPlayState->csCtx.state == 0) {
         this->collider.base.acFlags &= ~AC_HIT;
-        EnKusa_SpawnFragments(this, play);
-        EnKusa_DropCollectible(this, play);
-        SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 20, NA_SE_EV_PLANT_BROKEN);
+        OoT_EnKusa_SpawnFragments(this, play);
+        OoT_EnKusa_DropCollectible(this, play);
+        OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 20, NA_SE_EV_PLANT_BROKEN);
         gSaveContext.ship.stats.count[COUNT_BUSHES_CUT]++;
 
         if ((this->actor.params >> 4) & 1) {
-            EnKusa_SpawnBugs(this, play);
+            OoT_EnKusa_SpawnBugs(this, play);
         }
 
         if ((this->actor.params & 3) == ENKUSA_TYPE_0) {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
             return;
         }
 
-        EnKusa_SetupCut(this);
+        OoT_EnKusa_SetupCut(this);
         this->actor.flags |= ACTOR_FLAG_GRASS_DESTROYED;
     } else {
         if (!(this->collider.base.ocFlags1 & OC1_TYPE_PLAYER) && (this->actor.xzDistToPlayer > 12.0f)) {
@@ -337,68 +337,68 @@ void EnKusa_Main(EnKusa* this, PlayState* play) {
         }
 
         if (this->actor.xzDistToPlayer < 600.0f) {
-            Collider_UpdateCylinder(&this->actor, &this->collider);
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+            OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+            OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
 
             if (this->actor.xzDistToPlayer < 400.0f) {
-                CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+                OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
                 if (this->actor.xzDistToPlayer < 100.0f) {
-                    Actor_OfferCarry(&this->actor, play);
+                    OoT_Actor_OfferCarry(&this->actor, play);
                 }
             }
         }
     }
 }
 
-void EnKusa_SetupLiftedUp(EnKusa* this) {
-    EnKusa_SetupAction(this, EnKusa_LiftedUp);
+void OoT_EnKusa_SetupLiftedUp(EnKusa* this) {
+    EnKusa_SetupAction(this, OoT_EnKusa_LiftedUp);
     this->actor.room = -1;
     this->actor.flags |= ACTOR_FLAG_UPDATE_CULLING_DISABLED;
 }
 
-void EnKusa_LiftedUp(EnKusa* this, PlayState* play) {
-    if (Actor_HasNoParent(&this->actor, play)) {
+void OoT_EnKusa_LiftedUp(EnKusa* this, PlayState* play) {
+    if (OoT_Actor_HasNoParent(&this->actor, play)) {
         this->actor.room = play->roomCtx.curRoom.num;
-        EnKusa_SetupFall(this);
-        this->actor.velocity.x = this->actor.speedXZ * Math_SinS(this->actor.world.rot.y);
-        this->actor.velocity.z = this->actor.speedXZ * Math_CosS(this->actor.world.rot.y);
+        OoT_EnKusa_SetupFall(this);
+        this->actor.velocity.x = this->actor.speedXZ * OoT_Math_SinS(this->actor.world.rot.y);
+        this->actor.velocity.z = this->actor.speedXZ * OoT_Math_CosS(this->actor.world.rot.y);
         this->actor.colChkInfo.mass = 240;
         this->actor.gravity = -0.1f;
-        EnKusa_UpdateVelY(this);
-        EnKusa_RandScaleVecToZero(&this->actor.velocity, 0.005f);
-        Actor_UpdatePos(&this->actor);
-        Actor_UpdateBgCheckInfo(play, &this->actor, 7.5f, 35.0f, 0.0f, 0xC5);
+        OoT_EnKusa_UpdateVelY(this);
+        OoT_EnKusa_RandScaleVecToZero(&this->actor.velocity, 0.005f);
+        OoT_Actor_UpdatePos(&this->actor);
+        OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 7.5f, 35.0f, 0.0f, 0xC5);
         this->actor.gravity = -3.2f;
     }
 }
 
-void EnKusa_SetupFall(EnKusa* this) {
-    EnKusa_SetupAction(this, EnKusa_Fall);
-    rotSpeedXtarget = -0xBB8;
-    rotSpeedYtarget = (Rand_ZeroOne() - 0.5f) * 1600.0f;
-    rotSpeedX = 0;
-    rotSpeedY = 0;
+void OoT_EnKusa_SetupFall(EnKusa* this) {
+    EnKusa_SetupAction(this, OoT_EnKusa_Fall);
+    OoT_rotSpeedXtarget = -0xBB8;
+    OoT_rotSpeedYtarget = (OoT_Rand_ZeroOne() - 0.5f) * 1600.0f;
+    OoT_rotSpeedX = 0;
+    OoT_rotSpeedY = 0;
 }
 
-void EnKusa_Fall(EnKusa* this, PlayState* play) {
+void OoT_EnKusa_Fall(EnKusa* this, PlayState* play) {
     s32 pad;
     Vec3f contactPos;
 
     if (this->actor.bgCheckFlags & 0xB) {
         if (!(this->actor.bgCheckFlags & 0x20)) {
-            SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 20, NA_SE_EV_PLANT_BROKEN);
+            OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 20, NA_SE_EV_PLANT_BROKEN);
             gSaveContext.ship.stats.count[COUNT_BUSHES_CUT]++;
         }
-        EnKusa_SpawnFragments(this, play);
-        EnKusa_DropCollectible(this, play);
+        OoT_EnKusa_SpawnFragments(this, play);
+        OoT_EnKusa_DropCollectible(this, play);
         switch (this->actor.params & 3) {
             case ENKUSA_TYPE_0:
             case ENKUSA_TYPE_2:
-                Actor_Kill(&this->actor);
+                OoT_Actor_Kill(&this->actor);
                 break;
 
             case ENKUSA_TYPE_1:
-                EnKusa_SetupUprootedWaitRegrow(this);
+                OoT_EnKusa_SetupUprootedWaitRegrow(this);
                 break;
         }
         return;
@@ -408,92 +408,92 @@ void EnKusa_Fall(EnKusa* this, PlayState* play) {
         contactPos.x = this->actor.world.pos.x;
         contactPos.y = this->actor.world.pos.y + this->actor.yDistToWater;
         contactPos.z = this->actor.world.pos.z;
-        EffectSsGSplash_Spawn(play, &contactPos, NULL, NULL, 0, 400);
-        EffectSsGRipple_Spawn(play, &contactPos, 150, 650, 0);
-        EffectSsGRipple_Spawn(play, &contactPos, 400, 800, 4);
-        EffectSsGRipple_Spawn(play, &contactPos, 500, 1100, 8);
+        OoT_EffectSsGSplash_Spawn(play, &contactPos, NULL, NULL, 0, 400);
+        OoT_EffectSsGRipple_Spawn(play, &contactPos, 150, 650, 0);
+        OoT_EffectSsGRipple_Spawn(play, &contactPos, 400, 800, 4);
+        OoT_EffectSsGRipple_Spawn(play, &contactPos, 500, 1100, 8);
         this->actor.minVelocityY = -3.0f;
-        rotSpeedX >>= 1;
-        rotSpeedXtarget >>= 1;
-        rotSpeedY >>= 1;
-        rotSpeedYtarget >>= 1;
+        OoT_rotSpeedX >>= 1;
+        OoT_rotSpeedXtarget >>= 1;
+        OoT_rotSpeedY >>= 1;
+        OoT_rotSpeedYtarget >>= 1;
         this->actor.bgCheckFlags &= ~0x40;
-        SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40, NA_SE_EV_DIVE_INTO_WATER_L);
+        OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40, NA_SE_EV_DIVE_INTO_WATER_L);
     }
 
-    EnKusa_UpdateVelY(this);
-    Math_StepToS(&rotSpeedX, rotSpeedXtarget, 0x1F4);
-    Math_StepToS(&rotSpeedY, rotSpeedYtarget, 0xAA);
-    this->actor.shape.rot.x += rotSpeedX;
-    this->actor.shape.rot.y += rotSpeedY;
-    EnKusa_RandScaleVecToZero(&this->actor.velocity, 0.05f);
-    Actor_UpdatePos(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 7.5f, 35.0f, 0.0f, 0xC5);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_EnKusa_UpdateVelY(this);
+    OoT_Math_StepToS(&OoT_rotSpeedX, OoT_rotSpeedXtarget, 0x1F4);
+    OoT_Math_StepToS(&OoT_rotSpeedY, OoT_rotSpeedYtarget, 0xAA);
+    this->actor.shape.rot.x += OoT_rotSpeedX;
+    this->actor.shape.rot.y += OoT_rotSpeedY;
+    OoT_EnKusa_RandScaleVecToZero(&this->actor.velocity, 0.05f);
+    OoT_Actor_UpdatePos(&this->actor);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 7.5f, 35.0f, 0.0f, 0xC5);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
-void EnKusa_SetupCut(EnKusa* this) {
+void OoT_EnKusa_SetupCut(EnKusa* this) {
     switch (this->actor.params & 3) {
         case ENKUSA_TYPE_2:
-            EnKusa_SetupAction(this, EnKusa_DoNothing);
+            EnKusa_SetupAction(this, OoT_EnKusa_DoNothing);
             break;
         case ENKUSA_TYPE_1:
-            EnKusa_SetupAction(this, EnKusa_CutWaitRegrow);
+            EnKusa_SetupAction(this, OoT_EnKusa_CutWaitRegrow);
             break;
     }
 }
 
-void EnKusa_CutWaitRegrow(EnKusa* this, PlayState* play) {
+void OoT_EnKusa_CutWaitRegrow(EnKusa* this, PlayState* play) {
     if (this->timer >= 120) {
-        EnKusa_SetupRegrow(this);
+        OoT_EnKusa_SetupRegrow(this);
     }
 }
 
-void EnKusa_DoNothing(EnKusa* this, PlayState* play) {
+void OoT_EnKusa_DoNothing(EnKusa* this, PlayState* play) {
 }
 
-void EnKusa_SetupUprootedWaitRegrow(EnKusa* this) {
+void OoT_EnKusa_SetupUprootedWaitRegrow(EnKusa* this) {
     this->actor.world.pos.x = this->actor.home.pos.x;
     this->actor.world.pos.y = this->actor.home.pos.y - 9.0f;
     this->actor.world.pos.z = this->actor.home.pos.z;
-    EnKusa_SetScaleSmall(this);
+    OoT_EnKusa_SetScaleSmall(this);
     this->actor.shape.rot = this->actor.home.rot;
-    EnKusa_SetupAction(this, EnKusa_UprootedWaitRegrow);
+    EnKusa_SetupAction(this, OoT_EnKusa_UprootedWaitRegrow);
 }
 
-void EnKusa_UprootedWaitRegrow(EnKusa* this, PlayState* play) {
+void OoT_EnKusa_UprootedWaitRegrow(EnKusa* this, PlayState* play) {
     if (this->timer > 120) {
-        if (Math_StepToF(&this->actor.world.pos.y, this->actor.home.pos.y, 0.6f)) {
+        if (OoT_Math_StepToF(&this->actor.world.pos.y, this->actor.home.pos.y, 0.6f)) {
             if (this->timer >= 170) {
-                EnKusa_SetupRegrow(this);
+                OoT_EnKusa_SetupRegrow(this);
             }
         }
     }
 }
 
-void EnKusa_SetupRegrow(EnKusa* this) {
-    EnKusa_SetupAction(this, EnKusa_Regrow);
-    EnKusa_SetScaleSmall(this);
+void OoT_EnKusa_SetupRegrow(EnKusa* this) {
+    EnKusa_SetupAction(this, OoT_EnKusa_Regrow);
+    OoT_EnKusa_SetScaleSmall(this);
     this->actor.shape.rot = this->actor.home.rot;
     this->actor.flags &= ~ACTOR_FLAG_GRASS_DESTROYED;
 }
 
-void EnKusa_Regrow(EnKusa* this, PlayState* play) {
+void OoT_EnKusa_Regrow(EnKusa* this, PlayState* play) {
     s32 isFullyGrown = true;
 
-    isFullyGrown &= Math_StepToF(&this->actor.scale.y, 0.4f, 0.014f);
-    isFullyGrown &= Math_StepToF(&this->actor.scale.x, 0.4f, 0.011f);
+    isFullyGrown &= OoT_Math_StepToF(&this->actor.scale.y, 0.4f, 0.014f);
+    isFullyGrown &= OoT_Math_StepToF(&this->actor.scale.x, 0.4f, 0.011f);
     this->actor.scale.z = this->actor.scale.x;
 
     if (isFullyGrown) {
-        Actor_SetScale(&this->actor, 0.4f);
+        OoT_Actor_SetScale(&this->actor, 0.4f);
         EnKusa_SetupMain(this);
         this->collider.base.ocFlags1 &= ~OC1_TYPE_PLAYER;
     }
 }
 
-void EnKusa_Update(Actor* thisx, PlayState* play) {
+void OoT_EnKusa_Update(Actor* thisx, PlayState* play) {
     EnKusa* this = (EnKusa*)thisx;
 
     this->timer++;
@@ -512,8 +512,8 @@ void EnKusa_Draw(Actor* thisx, PlayState* play) {
     EnKusa* this = (EnKusa*)thisx;
 
     if (this->actor.flags & ACTOR_FLAG_GRASS_DESTROYED) {
-        Gfx_DrawDListOpa(play, object_kusa_DL_0002E0);
+        OoT_Gfx_DrawDListOpa(play, object_kusa_DL_0002E0);
     } else {
-        Gfx_DrawDListOpa(play, dLists[thisx->params & 3]);
+        OoT_Gfx_DrawDListOpa(play, dLists[thisx->params & 3]);
     }
 }

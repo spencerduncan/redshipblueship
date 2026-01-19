@@ -25,22 +25,22 @@ void EnPartner_Draw(Actor* thisx, PlayState* play);
 void EnPartner_SpawnSparkles(EnPartner* this, PlayState* play, s32 sparkleLife);
 
 void func_808328EC(Player* this, u16 sfxId);
-void Player_RequestQuake(PlayState* play, s32 speed, s32 y, s32 countdown);
+void OoT_Player_RequestQuake(PlayState* play, s32 speed, s32 y, s32 countdown);
 s32 spawn_boomerang_ivan(EnPartner* this, PlayState* play);
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 8, ICHAIN_STOP),
 };
 
-static Color_RGBAf sInnerColors[] = {
+static Color_RGBAf OoT_sInnerColors[] = {
     { 255.0f, 255.0f, 255.0f, 255.0f },
 };
 
-static Color_RGBAf sOuterColors[] = {
+static Color_RGBAf OoT_sOuterColors[] = {
     { 0.0f, 255.0f, 0.0f, 255.0f },
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_ON | AT_TYPE_PLAYER,
@@ -86,27 +86,27 @@ void EnPartner_Init(Actor* thisx, PlayState* play) {
 
     this->usedItemButton = 0xFF;
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetInfo(&this->actor.colChkInfo, NULL, &sCCInfoInit);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetInfo(&this->actor.colChkInfo, NULL, &sCCInfoInit);
     this->actor.colChkInfo.mass = MASS_HEAVY;
     this->collider.base.ocFlags1 |= OC1_TYPE_PLAYER;
     this->collider.info.toucher.damage = 1;
     GET_PLAYER(play)->ivanDamageMultiplier = 1;
 
-    Actor_ProcessInitChain(thisx, sInitChain);
-    SkelAnime_Init(play, &this->skelAnime, &gFairySkel, &gFairyAnim, this->jointTable, this->morphTable, 15);
-    ActorShape_Init(&thisx->shape, 1000.0f, ActorShadow_DrawCircle, 15.0f);
+    OoT_Actor_ProcessInitChain(thisx, OoT_sInitChain);
+    OoT_SkelAnime_Init(play, &this->skelAnime, &gFairySkel, &gFairyAnim, this->jointTable, this->morphTable, 15);
+    OoT_ActorShape_Init(&thisx->shape, 1000.0f, OoT_ActorShadow_DrawCircle, 15.0f);
     thisx->shape.shadowAlpha = 0xFF;
 
-    Lights_PointGlowSetInfo(&this->lightInfoGlow, thisx->world.pos.x, thisx->world.pos.y, thisx->world.pos.z, 200, 255,
+    OoT_Lights_PointGlowSetInfo(&this->lightInfoGlow, thisx->world.pos.x, thisx->world.pos.y, thisx->world.pos.z, 200, 255,
                             200, 0);
-    this->lightNodeGlow = LightContext_InsertLight(play, &play->lightCtx, &this->lightInfoGlow);
+    this->lightNodeGlow = OoT_LightContext_InsertLight(play, &play->lightCtx, &this->lightInfoGlow);
 
-    Lights_PointNoGlowSetInfo(&this->lightInfoNoGlow, thisx->world.pos.x, thisx->world.pos.y, thisx->world.pos.z, 200,
+    OoT_Lights_PointNoGlowSetInfo(&this->lightInfoNoGlow, thisx->world.pos.x, thisx->world.pos.y, thisx->world.pos.z, 200,
                               255, 200, 0);
-    this->lightNodeNoGlow = LightContext_InsertLight(play, &play->lightCtx, &this->lightInfoNoGlow);
+    this->lightNodeNoGlow = OoT_LightContext_InsertLight(play, &play->lightCtx, &this->lightInfoNoGlow);
 
     thisx->room = -1;
 }
@@ -115,10 +115,10 @@ void EnPartner_Destroy(Actor* thisx, PlayState* play) {
     s32 pad;
     EnPartner* this = (EnPartner*)thisx;
 
-    LightContext_RemoveLight(play, &play->lightCtx, this->lightNodeGlow);
-    LightContext_RemoveLight(play, &play->lightCtx, this->lightNodeNoGlow);
+    OoT_LightContext_RemoveLight(play, &play->lightCtx, this->lightNodeGlow);
+    OoT_LightContext_RemoveLight(play, &play->lightCtx, this->lightNodeNoGlow);
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
@@ -135,13 +135,13 @@ void EnPartner_UpdateLights(EnPartner* this, PlayState* play) {
     Player* player;
 
     player = GET_PLAYER(play);
-    Lights_PointNoGlowSetInfo(&this->lightInfoNoGlow, player->actor.world.pos.x, (s16)(player->actor.world.pos.y) + 69,
+    OoT_Lights_PointNoGlowSetInfo(&this->lightInfoNoGlow, player->actor.world.pos.x, (s16)(player->actor.world.pos.y) + 69,
                               player->actor.world.pos.z, 200, 255, 200, lightRadius);
 
-    Lights_PointGlowSetInfo(&this->lightInfoGlow, this->actor.world.pos.x, this->actor.world.pos.y + 9,
+    OoT_Lights_PointGlowSetInfo(&this->lightInfoGlow, this->actor.world.pos.x, this->actor.world.pos.y + 9,
                             this->actor.world.pos.z, 200, 255, 200, glowLightRadius);
 
-    Actor_SetScale(&this->actor, this->actor.scale.x);
+    OoT_Actor_SetScale(&this->actor, this->actor.scale.x);
 }
 
 void EnPartner_SpawnSparkles(EnPartner* this, PlayState* play, s32 sparkleLife) {
@@ -152,9 +152,9 @@ void EnPartner_SpawnSparkles(EnPartner* this, PlayState* play, s32 sparkleLife) 
     Color_RGBA8 primColor;
     Color_RGBA8 envColor;
 
-    sparklePos.x = Rand_CenteredFloat(6.0f) + this->actor.world.pos.x;
-    sparklePos.y = (Rand_ZeroOne() * 6.0f) + this->actor.world.pos.y + 5;
-    sparklePos.z = Rand_CenteredFloat(6.0f) + this->actor.world.pos.z;
+    sparklePos.x = OoT_Rand_CenteredFloat(6.0f) + this->actor.world.pos.x;
+    sparklePos.y = (OoT_Rand_ZeroOne() * 6.0f) + this->actor.world.pos.y + 5;
+    sparklePos.z = OoT_Rand_CenteredFloat(6.0f) + this->actor.world.pos.z;
 
     primColor.r = this->innerColor.r;
     primColor.g = this->innerColor.g;
@@ -185,7 +185,7 @@ Vec3f Vec3fNormalize(Vec3f vec) {
 void CenterIvanOnLink(Actor* thisx, PlayState* play) {
     EnPartner* this = (EnPartner*)thisx;
     this->actor.world.pos = GET_PLAYER(play)->actor.world.pos;
-    this->actor.world.pos.y += Player_GetHeight(GET_PLAYER(play)) + 5.0f;
+    this->actor.world.pos.y += OoT_Player_GetHeight(GET_PLAYER(play)) + 5.0f;
 }
 
 static u8 magicArrowCosts[] = { 0, 4, 4, 8 };
@@ -207,7 +207,7 @@ void UseBow(Actor* thisx, PlayState* play, u8 started, u8 arrowType) {
 
                 this->itemTimer = 10;
 
-                Actor* newarrow = Actor_SpawnAsChild(
+                Actor* newarrow = OoT_Actor_SpawnAsChild(
                     &play->actorCtx, &this->actor, play, ACTOR_EN_ARROW, this->actor.world.pos.x,
                     this->actor.world.pos.y + 7, this->actor.world.pos.z, 0, this->actor.world.rot.y, 0, ARROW_NORMAL);
 
@@ -225,7 +225,7 @@ void UseBow(Actor* thisx, PlayState* play, u8 started, u8 arrowType) {
 
                 GET_PLAYER(play)->unk_A73 = 4;
                 newarrow->parent = NULL;
-                Inventory_ChangeAmmo(ITEM_BOW, -1);
+                OoT_Inventory_ChangeAmmo(ITEM_BOW, -1);
             }
         }
     }
@@ -241,12 +241,12 @@ void UseSlingshot(Actor* thisx, PlayState* play, u8 started) {
         if (this->itemTimer <= 0) {
             if (AMMO(ITEM_SLINGSHOT) > 0) {
                 this->itemTimer = 10;
-                Actor* newarrow = Actor_SpawnAsChild(
+                Actor* newarrow = OoT_Actor_SpawnAsChild(
                     &play->actorCtx, &this->actor, play, ACTOR_EN_ARROW, this->actor.world.pos.x,
                     this->actor.world.pos.y + 7, this->actor.world.pos.z, 0, this->actor.world.rot.y, 0, ARROW_SEED);
                 GET_PLAYER(play)->unk_A73 = 4;
                 newarrow->parent = NULL;
-                Inventory_ChangeAmmo(ITEM_SLINGSHOT, -1);
+                OoT_Inventory_ChangeAmmo(ITEM_SLINGSHOT, -1);
             } else {
                 Sfx_PlaySfxCentered(NA_SE_SY_ERROR);
             }
@@ -261,9 +261,9 @@ void UseBombs(Actor* thisx, PlayState* play, u8 started) {
         if (started == 1) {
             if (AMMO(ITEM_BOMB) > 0 && play->actorCtx.actorLists[ACTORCAT_EXPLOSIVE].length < 3) {
                 this->itemTimer = 10;
-                Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BOM, this->actor.world.pos.x, this->actor.world.pos.y + 7,
+                OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BOM, this->actor.world.pos.x, this->actor.world.pos.y + 7,
                             this->actor.world.pos.z, 0, 0, 0, 0, false);
-                Inventory_ChangeAmmo(ITEM_BOMB, -1);
+                OoT_Inventory_ChangeAmmo(ITEM_BOMB, -1);
             } else {
                 Sfx_PlaySfxCentered(NA_SE_SY_ERROR);
             }
@@ -282,10 +282,10 @@ void UseHammer(Actor* thisx, PlayState* play, u8 started) {
             static Vec3f zeroVec = { 0.0f, 0.0f, 0.0f };
             Vec3f shockwavePos = this->actor.world.pos;
 
-            Player_RequestQuake(play, 27767, 7, 20);
-            Player_PlaySfx(&this->actor, NA_SE_IT_HAMMER_HIT);
+            OoT_Player_RequestQuake(play, 27767, 7, 20);
+            OoT_Player_PlaySfx(&this->actor, NA_SE_IT_HAMMER_HIT);
 
-            EffectSsBlast_SpawnWhiteShockwave(play, &shockwavePos, &zeroVec, &zeroVec);
+            OoT_EffectSsBlast_SpawnWhiteShockwave(play, &shockwavePos, &zeroVec, &zeroVec);
 
             if (this->actor.xzDistToPlayer < 100.0f && this->actor.yDistToPlayer < 35.0f) {
                 func_8002F71C(play, &this->actor, 8.0f, this->actor.yawTowardsPlayer, 8.0f);
@@ -301,10 +301,10 @@ void UseBombchus(Actor* thisx, PlayState* play, u8 started) {
         if (started == 1) {
             if (AMMO(ITEM_BOMBCHU) > 0) {
                 this->itemTimer = 10;
-                EnBom* bomb = Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BOM, this->actor.world.pos.x,
+                EnBom* bomb = OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BOM, this->actor.world.pos.x,
                                           this->actor.world.pos.y + 7, this->actor.world.pos.z, 0, 0, 0, 0, false);
                 bomb->timer = 0;
-                Inventory_ChangeAmmo(ITEM_BOMBCHU, -1);
+                OoT_Inventory_ChangeAmmo(ITEM_BOMBCHU, -1);
             } else {
                 Sfx_PlaySfxCentered(NA_SE_SY_ERROR);
             }
@@ -338,10 +338,10 @@ void UseDekuStick(Actor* thisx, PlayState* play, u8 started) {
                 func_8002836C(play, &this->stickWeaponInfo.tip, &D_808547A4, &D_808547B0, &D_808547BC, &D_808547C0,
                               200.0f, 0, 8);
 
-                CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+                OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
 
                 if (this->damageTimer <= 0) {
-                    Inventory_ChangeAmmo(ITEM_STICK, -1);
+                    OoT_Inventory_ChangeAmmo(ITEM_STICK, -1);
                     this->damageTimer = 20;
                 } else {
                     this->damageTimer--;
@@ -358,9 +358,9 @@ void UseNuts(Actor* thisx, PlayState* play, u8 started) {
         if (started == 1) {
             if (AMMO(ITEM_NUT) > 0) {
                 this->itemTimer = 10;
-                Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ARROW, this->actor.world.pos.x, this->actor.world.pos.y + 7,
+                OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ARROW, this->actor.world.pos.x, this->actor.world.pos.y + 7,
                             this->actor.world.pos.z, 0x1000, this->actor.world.rot.y, 0, ARROW_NUT, false);
-                Inventory_ChangeAmmo(ITEM_NUT, -1);
+                OoT_Inventory_ChangeAmmo(ITEM_NUT, -1);
             } else {
                 Sfx_PlaySfxCentered(NA_SE_SY_ERROR);
             }
@@ -376,14 +376,14 @@ void UseHookshot(Actor* thisx, PlayState* play, u8 started) {
             func_808328EC(this, NA_SE_PL_CHANGE_ARMS);
             this->canMove = 0;
             this->hookshotTarget =
-                Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_OBJ_HSBLOCK, this->actor.world.pos.x,
+                OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_OBJ_HSBLOCK, this->actor.world.pos.x,
                                    this->actor.world.pos.y + 7.5f, this->actor.world.pos.z, this->actor.world.rot.x,
                                    this->actor.world.rot.y, this->actor.world.rot.z, 2);
             this->hookshotTarget->scale.x = 0.05f;
             this->hookshotTarget->scale.y = 0.05f;
             this->hookshotTarget->scale.z = 0.05f;
         } else if (started == 0) {
-            Actor_Kill(this->hookshotTarget);
+            OoT_Actor_Kill(this->hookshotTarget);
             this->hookshotTarget = NULL;
             func_808328EC(this, NA_SE_PL_CHANGE_ARMS);
             this->canMove = 1;
@@ -438,7 +438,7 @@ void UseBeans(Actor* thisx, PlayState* play, u8 started) {
             this->entry = ItemTable_Retrieve(GI_BEAN);
             if (play->actorCtx.titleCtx.alpha <= 0) {
                 if (gSaveContext.rupees >= 100 && GiveItemEntryWithoutActor(play, this->entry)) {
-                    Rupees_ChangeBy(-100);
+                    OoT_Rupees_ChangeBy(-100);
                 } else {
                     Sfx_PlaySfxCentered(NA_SE_SY_ERROR);
                 }
@@ -603,9 +603,9 @@ void EnPartner_Update(Actor* thisx, PlayState* play) {
     this->actor.velocity.z += camForward.z * relY;
 
     if (this->actor.velocity.x != 0 || this->actor.velocity.z != 0) {
-        int16_t finalDir = Math_Atan2S(-this->actor.velocity.x, this->actor.velocity.z) - 0x4000;
-        Math_SmoothStepToS(&this->actor.world.rot.y, finalDir, 2, 10000, 0);
-        Math_SmoothStepToS(&this->actor.shape.rot.y, finalDir, 2, 10000, 0);
+        int16_t finalDir = OoT_Math_Atan2S(-this->actor.velocity.x, this->actor.velocity.z) - 0x4000;
+        OoT_Math_SmoothStepToS(&this->actor.world.rot.y, finalDir, 2, 10000, 0);
+        OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, finalDir, 2, 10000, 0);
     }
 
     if (!this->canMove) {
@@ -613,7 +613,7 @@ void EnPartner_Update(Actor* thisx, PlayState* play) {
         relY = 0;
     }
 
-    Math_SmoothStepToF(&this->actor.speedXZ, sqrtf(SQ(relX) + SQ(relY)), 1.0f, 1.3f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->actor.speedXZ, OoT_sqrtf(SQ(relX) + SQ(relY)), 1.0f, 1.3f, 0.0f);
 
     if (this->shouldDraw == 1) {
         thisx->shape.shadowAlpha = 0xFF;
@@ -623,25 +623,25 @@ void EnPartner_Update(Actor* thisx, PlayState* play) {
     }
 
     if (CHECK_BTN_ALL(sControlInput.cur.button, BTN_A) && this->canMove) {
-        Math_SmoothStepToF(&this->yVelocity, 6.0f, 1.0f, 1.5f, 0.0f);
+        OoT_Math_SmoothStepToF(&this->yVelocity, 6.0f, 1.0f, 1.5f, 0.0f);
     } else if (CHECK_BTN_ALL(sControlInput.cur.button, BTN_B) && this->canMove) {
-        Math_SmoothStepToF(&this->yVelocity, -6.0f, 1.0f, 1.5f, 0.0f);
+        OoT_Math_SmoothStepToF(&this->yVelocity, -6.0f, 1.0f, 1.5f, 0.0f);
     } else {
-        Math_SmoothStepToF(&this->yVelocity, 0.0f, 1.0f, 1.5f, 0.0f);
+        OoT_Math_SmoothStepToF(&this->yVelocity, 0.0f, 1.0f, 1.5f, 0.0f);
     }
 
     this->actor.gravity = this->yVelocity;
 
     if (this->canMove == 1) {
         Actor_MoveXZGravity(&this->actor);
-        Actor_UpdateBgCheckInfo(play, &this->actor, 19.0f, 20.0f, 0.0f, 5);
+        OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 19.0f, 20.0f, 0.0f, 5);
     }
 
     if (this->usedSpell != 0) {
         func_8002F974(thisx, NA_SE_PL_MAGIC_SOUL_NORMAL - SFX_FLAG);
     }
 
-    if (!Player_InCsMode(play)) {
+    if (!OoT_Player_InCsMode(play)) {
         // Collect drops & rupees
         Actor* itemActor = play->actorCtx.actorLists[ACTORCAT_MISC].head;
         while (itemActor != NULL) {
@@ -655,7 +655,7 @@ void EnPartner_Update(Actor* thisx, PlayState* play) {
                     itemActor->params == ITEM00_BOMBCHU || itemActor->params == ITEM00_MAGIC_SMALL ||
                     itemActor->params == ITEM00_MAGIC_LARGE || itemActor->params == ITEM00_NUTS ||
                     itemActor->params == ITEM00_STICK || itemActor->params == ITEM00_SEEDS) {
-                    f32 distanceToObject = Actor_WorldDistXYZToActor(&this->actor, itemActor);
+                    f32 distanceToObject = OoT_Actor_WorldDistXYZToActor(&this->actor, itemActor);
                     if (distanceToObject <= 20.0f) {
                         itemActor->world.pos = GET_PLAYER(play)->actor.world.pos;
                         break;
@@ -668,7 +668,7 @@ void EnPartner_Update(Actor* thisx, PlayState* play) {
         itemActor = play->actorCtx.actorLists[ACTORCAT_ITEMACTION].head;
         while (itemActor != NULL) {
             if (itemActor->id == ACTOR_EN_SI) {
-                f32 distanceToObject = Actor_WorldDistXYZToActor(&this->actor, itemActor);
+                f32 distanceToObject = OoT_Actor_WorldDistXYZToActor(&this->actor, itemActor);
                 if (distanceToObject <= 20.0f) {
                     EnSi* ensi = (EnSi*)itemActor;
                     ensi->collider.base.ocFlags2 = OC2_HIT_PLAYER;
@@ -686,7 +686,7 @@ void EnPartner_Update(Actor* thisx, PlayState* play) {
         }
     }
 
-    if (!Player_InCsMode(play)) {
+    if (!OoT_Player_InCsMode(play)) {
         uint8_t pressed = 0;
         uint8_t released = 0;
         uint8_t current = 0;
@@ -744,9 +744,9 @@ void EnPartner_Update(Actor* thisx, PlayState* play) {
     if (CHECK_BTN_ALL(sControlInput.cur.button, BTN_Z) && this->canMove) {
         CenterIvanOnLink(this, play);
     } else if (this->canMove == 1 && this->hookshotTarget == NULL) {
-        Collider_UpdateCylinder(&this->actor, &this->collider);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
 
     if (CVarGetInteger(CVAR_COSMETIC("Ivan.IdlePrimary.Changed"), 0)) {
@@ -771,7 +771,7 @@ void EnPartner_Update(Actor* thisx, PlayState* play) {
         this->outerColor.b = 0;
     }
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
     EnPartner_UpdateLights(this, play);
 }
@@ -785,11 +785,11 @@ s32 EnPartner_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3
     EnPartner* this = (EnPartner*)thisx;
 
     if (limbIndex == 8) {
-        scale = ((Math_SinS(4096) * 0.1f) + 1.0f) * 0.012f;
+        scale = ((OoT_Math_SinS(4096) * 0.1f) + 1.0f) * 0.012f;
         scale *= (this->actor.scale.x * 124.99999f);
-        Matrix_MultVec3f(&zeroVec, &mtxMult);
-        Matrix_Translate(mtxMult.x, mtxMult.y, mtxMult.z, MTXMODE_NEW);
-        Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+        OoT_Matrix_MultVec3f(&zeroVec, &mtxMult);
+        OoT_Matrix_Translate(mtxMult.x, mtxMult.y, mtxMult.z, MTXMODE_NEW);
+        OoT_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
     }
 
     return false;
@@ -805,11 +805,11 @@ void DrawOrb(Actor* thisx, PlayState* play, u8 color) {
     pos = this->actor.world.pos;
     pos.y += 5.0f;
 
-    pos.x -= (this->actor.scale.x * 300.0f * Math_SinS(Camera_GetCamDirYaw(GET_ACTIVE_CAM(play))) *
-              Math_CosS(Camera_GetCamDirPitch(GET_ACTIVE_CAM(play))));
-    pos.y -= (this->actor.scale.x * 300.0f * Math_SinS(Camera_GetCamDirPitch(GET_ACTIVE_CAM(play))));
-    pos.z -= (this->actor.scale.x * 300.0f * Math_CosS(Camera_GetCamDirYaw(GET_ACTIVE_CAM(play))) *
-              Math_CosS(Camera_GetCamDirPitch(GET_ACTIVE_CAM(play))));
+    pos.x -= (this->actor.scale.x * 300.0f * OoT_Math_SinS(OoT_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play))) *
+              OoT_Math_CosS(OoT_Camera_GetCamDirPitch(GET_ACTIVE_CAM(play))));
+    pos.y -= (this->actor.scale.x * 300.0f * OoT_Math_SinS(OoT_Camera_GetCamDirPitch(GET_ACTIVE_CAM(play))));
+    pos.z -= (this->actor.scale.x * 300.0f * OoT_Math_CosS(OoT_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play))) *
+              OoT_Math_CosS(OoT_Camera_GetCamDirPitch(GET_ACTIVE_CAM(play))));
 
     OPEN_DISPS(play->state.gfxCtx);
 
@@ -829,14 +829,14 @@ void DrawOrb(Actor* thisx, PlayState* play, u8 color) {
             break;
     }
 
-    Matrix_Translate(pos.x, pos.y, pos.z, MTXMODE_NEW);
-    Matrix_Scale(this->actor.scale.x * 3.0f, this->actor.scale.y * 3.0f, this->actor.scale.z * 3.0f, MTXMODE_APPLY);
-    Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
-    Matrix_Push();
+    OoT_Matrix_Translate(pos.x, pos.y, pos.z, MTXMODE_NEW);
+    OoT_Matrix_Scale(this->actor.scale.x * 3.0f, this->actor.scale.y * 3.0f, this->actor.scale.z * 3.0f, MTXMODE_APPLY);
+    OoT_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
+    OoT_Matrix_Push();
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     Matrix_RotateZ(sp6C * (M_PI / 32), MTXMODE_APPLY);
     gSPDisplayList(POLY_XLU_DISP++, gEffFlash1DL);
-    Matrix_Pop();
+    OoT_Matrix_Pop();
     Matrix_RotateZ(-sp6C * (M_PI / 32), MTXMODE_APPLY);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_XLU_DISP++, gEffFlash1DL);

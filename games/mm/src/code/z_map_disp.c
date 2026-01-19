@@ -460,7 +460,7 @@ void MapDisp_Minimap_DrawActorIcon(PlayState* play, Actor* actor) {
             gDPSetCombineMode(OVERLAY_DISP++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
             gDPSetRenderMode(OVERLAY_DISP++, G_RM_AA_DEC_LINE, G_RM_NOOP2);
 
-            Matrix_Translate(posX - 160.0f, 120.0f - posY, 0.0f, MTXMODE_NEW);
+            MM_Matrix_Translate(posX - 160.0f, 120.0f - posY, 0.0f, MTXMODE_NEW);
             Matrix_RotateXFApply(-1.6f);
             compassRot = (s32)(0x7FFF - actor->focus.rot.y) / 1024;
             if (MapDisp_IsDataRotated(play)) {
@@ -470,17 +470,17 @@ void MapDisp_Minimap_DrawActorIcon(PlayState* play, Actor* actor) {
                 compassRot *= -1;
             }
             Matrix_RotateYF(compassRot / 10.0f, MTXMODE_APPLY);
-            Matrix_Scale(0.4f, 0.4f, 0.4f, MTXMODE_APPLY);
+            MM_Matrix_Scale(0.4f, 0.4f, 0.4f, MTXMODE_APPLY);
             // #region 2S2H [Cosmetic] Hud Editor yellow compass matrix scale on x and z
             if (HudEditor_ShouldOverrideDraw()) {
                 f32 elemScale = HudEditor_GetActiveElementScale();
-                Matrix_Scale(elemScale, 1.0f, elemScale, MTXMODE_APPLY);
+                MM_Matrix_Scale(elemScale, 1.0f, elemScale, MTXMODE_APPLY);
             }
             // #endregion
             MATRIX_FINALIZE_AND_LOAD(OVERLAY_DISP++, play->state.gfxCtx);
             gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 200, 255, 0, play->interfaceCtx.minimapAlpha);
             gSPDisplayList(OVERLAY_DISP++, gCompassArrowDL);
-        } else if ((actor->id == ACTOR_EN_BOX) && !Flags_GetTreasure(play, actor->params & 0x1F) &&
+        } else if ((actor->id == ACTOR_EN_BOX) && !MM_Flags_GetTreasure(play, actor->params & 0x1F) &&
                    (MapDisp_GetStoreyY(player->actor.world.pos.y) == MapDisp_GetStoreyY(actor->world.pos.y))) {
             Gfx_SetupDL39_Overlay(play->state.gfxCtx);
             gDPPipeSync(OVERLAY_DISP++);
@@ -541,7 +541,7 @@ void MapDisp_Minimap_DrawActors(PlayState* play) {
 
             while (actor != NULL) {
                 if ((actor->update != NULL) && (actor->init == NULL) &&
-                    Object_IsLoaded(&play->objectCtx, actor->objectSlot) &&
+                    MM_Object_IsLoaded(&play->objectCtx, actor->objectSlot) &&
                     ((actor->id == ACTOR_EN_BOX) || (i == ACTORCAT_PLAYER) ||
                      (actor->flags & ACTOR_FLAG_MINIMAP_ICON_ENABLED)) &&
                     ((sMapDisp.curRoom == actor->room) || (actor->room == -1))) {
@@ -682,7 +682,7 @@ void MapDisp_Minimap_DrawDoorActors(PlayState* play) {
         actor = play->actorCtx.actorLists[ACTORCAT_DOOR].first;
         while (actor != NULL) {
             if ((actor->update != NULL) && (actor->init == NULL) &&
-                Object_IsLoaded(&play->objectCtx, actor->objectSlot) &&
+                MM_Object_IsLoaded(&play->objectCtx, actor->objectSlot) &&
                 ((sMapDisp.curRoom == actor->room) || (actor->room == -1))) {
                 MapDisp_Minimap_DrawDoorActor(play, actor);
             }
@@ -707,7 +707,7 @@ void MapDisp_AwaitGameplayDangeonKeep(PlayState* play) {
     }
 
     while (true) {
-        if (Object_IsLoaded(&play->objectCtx, objectSlot)) {
+        if (MM_Object_IsLoaded(&play->objectCtx, objectSlot)) {
             break;
         }
     }
@@ -1298,7 +1298,7 @@ void MapDisp_Minimap_DrawRedCompassIcon(PlayState* play, s32 x, s32 z, s32 rot) 
         gDPSetEnvColor(OVERLAY_DISP++, 0, 0, 0, 255);
         gDPSetCombineMode(OVERLAY_DISP++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
         gDPSetRenderMode(OVERLAY_DISP++, G_RM_AA_DEC_LINE, G_RM_NOOP2);
-        Matrix_Translate(posX - 160.0f, 120.0f - posY, 0.0f, MTXMODE_NEW);
+        MM_Matrix_Translate(posX - 160.0f, 120.0f - posY, 0.0f, MTXMODE_NEW);
         Matrix_RotateXFApply(-1.6f);
         if (MapDisp_IsDataRotated(play)) {
             rot += 0x7FFF;
@@ -1307,11 +1307,11 @@ void MapDisp_Minimap_DrawRedCompassIcon(PlayState* play, s32 x, s32 z, s32 rot) 
             rot *= -1;
         }
         Matrix_RotateYF(rot / 10.0f, MTXMODE_APPLY);
-        Matrix_Scale(0.4f, 0.4f, 0.4f, MTXMODE_APPLY);
+        MM_Matrix_Scale(0.4f, 0.4f, 0.4f, MTXMODE_APPLY);
         // #region 2S2H [Cosmetic] Hud Editor red compass scale the matrix in x and z
         if (HudEditor_ShouldOverrideDraw()) {
             f32 elemScale = HudEditor_GetActiveElementScale();
-            Matrix_Scale(elemScale, 1.0f, elemScale, MTXMODE_APPLY);
+            MM_Matrix_Scale(elemScale, 1.0f, elemScale, MTXMODE_APPLY);
         }
         // #endregion
         MATRIX_FINALIZE_AND_LOAD(OVERLAY_DISP++, play->state.gfxCtx);
@@ -1808,7 +1808,7 @@ void MapDisp_DrawChests(PlayState* play, s32 viewX, s32 viewY, s32 viewWidth, s3
                 break;
 
             default:
-                isChestOpen = Flags_GetTreasure(play, mapDataChests[i].chestFlagId);
+                isChestOpen = MM_Flags_GetTreasure(play, mapDataChests[i].chestFlagId);
                 break;
         }
 

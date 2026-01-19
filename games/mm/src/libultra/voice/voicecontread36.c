@@ -45,9 +45,9 @@ s32 __osVoiceContRead36(OSMesgQueue* mq, s32 channel, u16 address, u8 dst[36]) {
         READ36FORMAT(ptr)->addrl = (address << 5) | __osContAddressCrc(address);
 
         __osSiRawStartDma(OS_WRITE, &__osPfsPifRam);
-        osRecvMesg(mq, NULL, OS_MESG_BLOCK);
+        MM_osRecvMesg(mq, NULL, OS_MESG_BLOCK);
         __osSiRawStartDma(OS_READ, &__osPfsPifRam);
-        osRecvMesg(mq, NULL, OS_MESG_BLOCK);
+        MM_osRecvMesg(mq, NULL, OS_MESG_BLOCK);
 
         errorCode = CHNL_ERR(*READ36FORMAT(ptr));
 

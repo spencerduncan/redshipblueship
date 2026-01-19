@@ -7,8 +7,8 @@ typedef struct {
     u32 ins_0C; // nop
 } struct_exceptionPreamble;
 
-u64 osClockRate = OS_CLOCK_RATE;
-s32 osViClock = VI_NTSC_CLOCK;
+u64 OoT_osClockRate = OS_CLOCK_RATE;
+s32 OoT_osViClock = VI_NTSC_CLOCK;
 u32 __osShutdown = 0;
 OSHWIntr __OSGlobalIntMask = OS_IM_ALL;
 
@@ -55,18 +55,18 @@ void __osInitialize_common(void) {
     osUnmapTLBAll();
     osMapTLBRdb();
 
-    osClockRate = (u64)((osClockRate * 3ll) / 4ull);
+    OoT_osClockRate = (u64)((OoT_osClockRate * 3ll) / 4ull);
 
     if (!osResetType) {
         bzero(osAppNmiBuffer, sizeof(osAppNmiBuffer));
     }
 
     if (osTvType == OS_TV_PAL) {
-        osViClock = VI_PAL_CLOCK;
+        OoT_osViClock = VI_PAL_CLOCK;
     } else if (osTvType == OS_TV_MPAL) {
-        osViClock = VI_MPAL_CLOCK;
+        OoT_osViClock = VI_MPAL_CLOCK;
     } else {
-        osViClock = VI_NTSC_CLOCK;
+        OoT_osViClock = VI_NTSC_CLOCK;
     }
 
     // Wait until there are no RCP interrupts

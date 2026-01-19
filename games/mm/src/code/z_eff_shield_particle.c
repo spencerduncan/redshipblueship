@@ -8,7 +8,7 @@
 #include "objects/gameplay_keep/gameplay_keep.h"
 #include "2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h"
 
-void EffectShieldParticle_Init(void* thisx, void* initParamsx) {
+void MM_EffectShieldParticle_Init(void* thisx, void* initParamsx) {
     EffectShieldParticle* this = (EffectShieldParticle*)thisx;
     EffectShieldParticleInit* initParams = (EffectShieldParticleInit*)initParamsx;
     EffectShieldParticleElement* elem;
@@ -33,13 +33,13 @@ void EffectShieldParticle_Init(void* thisx, void* initParamsx) {
         this->timer = 0;
 
         for (elem = &this->elements[0]; elem < &this->elements[this->numElements]; elem++) {
-            elem->initialSpeed = (Rand_ZeroOne() * (this->maxInitialSpeed * 0.5f)) + (this->maxInitialSpeed * 0.5f);
+            elem->initialSpeed = (MM_Rand_ZeroOne() * (this->maxInitialSpeed * 0.5f)) + (this->maxInitialSpeed * 0.5f);
             elem->endX = 0.0f;
             elem->startXChange = 0.0f;
             elem->startX = 0.0f;
             elem->endXChange = elem->initialSpeed;
-            elem->yaw = Rand_ZeroOne() * 65534.0f;
-            elem->pitch = Rand_ZeroOne() * 65534.0f;
+            elem->yaw = MM_Rand_ZeroOne() * 65534.0f;
+            elem->pitch = MM_Rand_ZeroOne() * 65534.0f;
         }
 
         this->lightDecay = initParams->lightDecay;
@@ -47,25 +47,25 @@ void EffectShieldParticle_Init(void* thisx, void* initParamsx) {
             this->lightInfo.type = LIGHT_POINT_NOGLOW;
             this->lightInfo.params.point = initParams->lightPoint;
             this->lightNode =
-                LightContext_InsertLight(Effect_GetPlayState(), &Effect_GetPlayState()->lightCtx, &this->lightInfo);
+                MM_LightContext_InsertLight(MM_Effect_GetPlayState(), &MM_Effect_GetPlayState()->lightCtx, &this->lightInfo);
         } else {
             this->lightNode = NULL;
         }
     }
 }
 
-void EffectShieldParticle_Destroy(void* thisx) {
+void MM_EffectShieldParticle_Destroy(void* thisx) {
     EffectShieldParticle* this = (EffectShieldParticle*)thisx;
 
     if ((this != NULL) && (this->lightDecay == true)) {
-        if (this->lightNode == Effect_GetPlayState()->lightCtx.listHead) {
-            Effect_GetPlayState()->lightCtx.listHead = this->lightNode->next;
+        if (this->lightNode == MM_Effect_GetPlayState()->lightCtx.listHead) {
+            MM_Effect_GetPlayState()->lightCtx.listHead = this->lightNode->next;
         }
-        LightContext_RemoveLight(Effect_GetPlayState(), &Effect_GetPlayState()->lightCtx, this->lightNode);
+        MM_LightContext_RemoveLight(MM_Effect_GetPlayState(), &MM_Effect_GetPlayState()->lightCtx, this->lightNode);
     }
 }
 
-s32 EffectShieldParticle_Update(void* thisx) {
+s32 MM_EffectShieldParticle_Update(void* thisx) {
     EffectShieldParticle* this = (EffectShieldParticle*)thisx;
     EffectShieldParticleElement* elem;
 
@@ -107,7 +107,7 @@ s32 EffectShieldParticle_Update(void* thisx) {
     return 0;
 }
 
-void EffectShieldParticle_GetColors(EffectShieldParticle* this, Color_RGBA8* primColor, Color_RGBA8* envColor) {
+void MM_EffectShieldParticle_GetColors(EffectShieldParticle* this, Color_RGBA8* primColor, Color_RGBA8* envColor) {
     s32 halfDuration = this->duration * 0.5f;
 
     if (halfDuration == 0) {
@@ -144,7 +144,7 @@ void EffectShieldParticle_GetColors(EffectShieldParticle* this, Color_RGBA8* pri
     }
 }
 
-void EffectShieldParticle_Draw(void* thisx, GraphicsContext* gfxCtx) {
+void MM_EffectShieldParticle_Draw(void* thisx, GraphicsContext* gfxCtx) {
     EffectShieldParticle* this = (EffectShieldParticle*)thisx;
     EffectShieldParticleElement* elem;
     Color_RGBA8 primColor;
@@ -155,7 +155,7 @@ void EffectShieldParticle_Draw(void* thisx, GraphicsContext* gfxCtx) {
     OPEN_DISPS(gfxCtx);
 
     if (this != NULL) {
-        POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_38);
+        POLY_XLU_DISP = MM_Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_38);
 
         gDPSetCycleType(POLY_XLU_DISP++, G_CYC_2CYCLE);
         gDPPipeSync(POLY_XLU_DISP++);
@@ -170,7 +170,7 @@ void EffectShieldParticle_Draw(void* thisx, GraphicsContext* gfxCtx) {
         gSPClearGeometryMode(POLY_XLU_DISP++, G_CULL_BOTH | G_FOG | G_LIGHTING | G_TEXTURE_GEN | G_TEXTURE_GEN_LINEAR);
         gSPSetGeometryMode(POLY_XLU_DISP++, G_ZBUFFER | G_SHADE | G_SHADING_SMOOTH);
 
-        EffectShieldParticle_GetColors(this, &primColor, &envColor);
+        MM_EffectShieldParticle_GetColors(this, &primColor, &envColor);
 
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, primColor.r, primColor.g, primColor.b, primColor.a);
         gDPSetEnvColor(POLY_XLU_DISP++, envColor.r, envColor.g, envColor.b, envColor.a);
@@ -189,17 +189,17 @@ void EffectShieldParticle_Draw(void* thisx, GraphicsContext* gfxCtx) {
                 temp3 = 1.0f;
             }
 
-            SkinMatrix_SetTranslate(&spC4, this->position.x, this->position.y, this->position.z);
+            MM_SkinMatrix_SetTranslate(&spC4, this->position.x, this->position.y, this->position.z);
             SkinMatrix_SetRotateRPY(&sp104, 0, elem->yaw, MTXMODE_NEW);
-            SkinMatrix_MtxFMtxFMult(&spC4, &sp104, &sp84);
+            MM_SkinMatrix_MtxFMtxFMult(&spC4, &sp104, &sp84);
             SkinMatrix_SetRotateRPY(&sp104, 0, 0, elem->pitch);
-            SkinMatrix_MtxFMtxFMult(&sp84, &sp104, &spC4);
-            SkinMatrix_SetTranslate(&sp104, temp1, 0.0f, 0.0f);
-            SkinMatrix_MtxFMtxFMult(&spC4, &sp104, &sp84);
-            SkinMatrix_SetScale(&sp104, temp3 * 0.02f, 0.02f, 0.02f);
-            SkinMatrix_MtxFMtxFMult(&sp84, &sp104, &spC4);
+            MM_SkinMatrix_MtxFMtxFMult(&sp84, &sp104, &spC4);
+            MM_SkinMatrix_SetTranslate(&sp104, temp1, 0.0f, 0.0f);
+            MM_SkinMatrix_MtxFMtxFMult(&spC4, &sp104, &sp84);
+            MM_SkinMatrix_SetScale(&sp104, temp3 * 0.02f, 0.02f, 0.02f);
+            MM_SkinMatrix_MtxFMtxFMult(&sp84, &sp104, &spC4);
 
-            mtx = SkinMatrix_MtxFToNewMtx(gfxCtx, &spC4);
+            mtx = MM_SkinMatrix_MtxFToNewMtx(gfxCtx, &spC4);
             if (mtx == NULL) {
                 break;
             }

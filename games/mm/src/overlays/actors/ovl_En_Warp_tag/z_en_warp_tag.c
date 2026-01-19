@@ -42,7 +42,7 @@ u8 D_809C1000[] = {
     OCARINA_ACTION_CHECK_SOARING, OCARINA_ACTION_CHECK_SUNS,    OCARINA_ACTION_CHECK_STORMS,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F(scale, 1, ICHAIN_CONTINUE),
     ICHAIN_VEC3S(shape.rot, 0, ICHAIN_STOP),
 };
@@ -50,8 +50,8 @@ static InitChainEntry sInitChain[] = {
 void EnWarptag_Init(Actor* thisx, PlayState* play) {
     EnWarptag* this = (EnWarptag*)thisx;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    Actor_SetFocus(&this->dyna.actor, 0.0f);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
+    MM_Actor_SetFocus(&this->dyna.actor, 0.0f);
 
     if (WARPTAG_GET_3C0_MAX(thisx) == WARPTAG_3C0_MAX) {
         this->dyna.actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
@@ -62,7 +62,7 @@ void EnWarptag_Init(Actor* thisx, PlayState* play) {
         } else {
             if ((this->dangeonKeepObjectSlot = Object_GetSlot(&play->objectCtx, GAMEPLAY_DANGEON_KEEP)) <=
                 OBJECT_SLOT_NONE) {
-                Actor_Kill(&this->dyna.actor);
+                MM_Actor_Kill(&this->dyna.actor);
             }
 
             this->actionFunc = EnWarpTag_CheckDungeonKeepObject;
@@ -76,7 +76,7 @@ void EnWarptag_Init(Actor* thisx, PlayState* play) {
 void EnWarptag_Destroy(Actor* thisx, PlayState* play) {
     EnWarptag* this = (EnWarptag*)thisx;
     if (this->dyna.actor.draw != NULL) {
-        DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+        MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
     }
 }
 
@@ -84,9 +84,9 @@ void EnWarptag_Destroy(Actor* thisx, PlayState* play) {
  * Loads DynaPoly from GAMEPLAY_DANGEON_KEEP.
  */
 void EnWarpTag_CheckDungeonKeepObject(EnWarptag* this, PlayState* play) {
-    if (Object_IsLoaded(&play->objectCtx, this->dangeonKeepObjectSlot)) {
+    if (MM_Object_IsLoaded(&play->objectCtx, this->dangeonKeepObjectSlot)) {
         this->actionFunc = EnWarpTag_WaitForPlayer;
-        DynaPolyActor_Init(&this->dyna, 0x1);
+        MM_DynaPolyActor_Init(&this->dyna, 0x1);
         DynaPolyActor_LoadMesh(play, &this->dyna, &gWarpTagGoronTrialBaseCol);
         this->dyna.actor.objectSlot = this->dangeonKeepObjectSlot;
         this->dyna.actor.draw = EnWarpTag_Draw;
@@ -94,13 +94,13 @@ void EnWarpTag_CheckDungeonKeepObject(EnWarptag* this, PlayState* play) {
 }
 
 void EnWarpTag_WaitForPlayer(EnWarptag* this, PlayState* play) {
-    if (!Player_InCsMode(play) && (this->dyna.actor.xzDistToPlayer <= 30.0f) &&
+    if (!MM_Player_InCsMode(play) && (this->dyna.actor.xzDistToPlayer <= 30.0f) &&
         (this->dyna.actor.playerHeightRel <= 10.0f)) {
         if (WARPTAG_GET_INVISIBLE(&this->dyna.actor)) {
-            Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_81);
+            MM_Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_81);
             this->actionFunc = EnWarpTag_GrottoReturn;
         } else {
-            Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_15);
+            MM_Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_15);
             this->actionFunc = EnWarpTag_RespawnPlayer;
         }
     }
@@ -124,7 +124,7 @@ void EnWarpTag_Unused809C09A0(EnWarptag* this, PlayState* play) {
  */
 void EnWarpTag_Unused809C0A20(EnWarptag* this, PlayState* play) {
     if (play->msgCtx.ocarinaMode == OCARINA_MODE_PLAYED_STORMS) {
-        Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_WAIT);
+        MM_Player_SetCsActionWithHaltedActors(play, NULL, PLAYER_CSACTION_WAIT);
         this->actionFunc = EnWarpTag_RespawnPlayer;
         CutsceneManager_Stop(CutsceneManager_GetCurrentCsId());
 
@@ -154,7 +154,7 @@ void EnWarpTag_RespawnPlayer(EnWarptag* this, PlayState* play) {
 
         } else {
             CutsceneManager_StartWithPlayerCs(play->playerCsIds[PLAYER_CS_ID_WARP_PAD_MOON], &this->dyna.actor);
-            Player_PlaySfx(player, NA_SE_PL_WARP_PLATE);
+            MM_Player_PlaySfx(player, NA_SE_PL_WARP_PLATE);
             Play_EnableMotionBlur(0);
         }
 
@@ -162,7 +162,7 @@ void EnWarpTag_RespawnPlayer(EnWarptag* this, PlayState* play) {
         f32 diffX = player->actor.world.pos.x - this->dyna.actor.world.pos.x;
         Vec3f newRespawnPos;
         f32 diffZ = player->actor.world.pos.z - this->dyna.actor.world.pos.z;
-        f32 distance = sqrtf(SQ(diffX) + SQ(diffZ));
+        f32 distance = MM_sqrtf(SQ(diffX) + SQ(diffZ));
 
         // some weird float behavior prevention?
         if (distance != 0.0f) {
@@ -173,7 +173,7 @@ void EnWarpTag_RespawnPlayer(EnWarptag* this, PlayState* play) {
         player->actor.world.pos.x = this->dyna.actor.world.pos.x + (diffX * distance);
         player->actor.world.pos.z = this->dyna.actor.world.pos.z + (diffZ * distance);
 
-        if (Math_StepToS(&this->unkValue15E, 0x2710, 0xC8)) {
+        if (MM_Math_StepToS(&this->unkValue15E, 0x2710, 0xC8)) {
             player->stateFlags3 |= PLAYER_STATE3_1;
             player->actor.gravity = -0.5f;
 
@@ -206,7 +206,7 @@ void EnWarpTag_RespawnPlayer(EnWarptag* this, PlayState* play) {
 
                 // why are we getting player home rotation from the room data? doesnt player have home.rot.y?
                 // especially because we are converting from deg to binang, but isnt home.rot.y already in binang??
-                Play_SetRespawnData(play, RESPAWN_MODE_DOWN, entrance, play->setupEntranceList[playerSpawnIndex].room,
+                MM_Play_SetRespawnData(play, RESPAWN_MODE_DOWN, entrance, play->setupEntranceList[playerSpawnIndex].room,
                                     playerParams, &newRespawnPos,
                                     DEG_TO_BINANG_ALT((playerActorEntry->rot.y >> 7) & 0x1FF));
 

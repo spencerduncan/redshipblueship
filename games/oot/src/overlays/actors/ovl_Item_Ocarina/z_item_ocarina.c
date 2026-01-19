@@ -45,8 +45,8 @@ void ItemOcarina_Init(Actor* thisx, PlayState* play) {
     ItemOcarina* this = (ItemOcarina*)thisx;
     s32 params = thisx->params;
 
-    ActorShape_Init(&this->actor.shape, 0, 0, 0);
-    Actor_SetScale(&this->actor, 0.1f);
+    OoT_ActorShape_Init(&this->actor.shape, 0, 0, 0);
+    OoT_Actor_SetScale(&this->actor, 0.1f);
 
     switch (params) {
         case 0:
@@ -60,16 +60,16 @@ void ItemOcarina_Init(Actor* thisx, PlayState* play) {
             break;
         case 3:
             ItemOcarina_SetupAction(this, ItemOcarina_WaitInWater);
-            if (!Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE) ||
-                (Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_OCARINA_OF_TIME))) {
-                Actor_Kill(thisx);
+            if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE) ||
+                (OoT_Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_OCARINA_OF_TIME))) {
+                OoT_Actor_Kill(thisx);
                 return;
             }
-            Actor_Spawn(&play->actorCtx, play, ACTOR_ELF_MSG2, 299.0f, -140.0f, 884.0f, 0, 4, 1, 0x3800, true);
-            Actor_SetScale(thisx, 0.2f);
+            OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_ELF_MSG2, 299.0f, -140.0f, 884.0f, 0, 4, 1, 0x3800, true);
+            OoT_Actor_SetScale(thisx, 0.2f);
             break;
         default:
-            Actor_Kill(thisx);
+            OoT_Actor_Kill(thisx);
             return;
     }
 
@@ -83,7 +83,7 @@ void ItemOcarina_Destroy(Actor* thisx, PlayState* play) {
 void ItemOcarina_Fly(ItemOcarina* this, PlayState* play) {
     Vec3f ripplePos;
 
-    Actor_UpdatePos(&this->actor);
+    OoT_Actor_UpdatePos(&this->actor);
     this->actor.shape.rot.x += this->spinRotOffset * 2;
     this->actor.shape.rot.y += this->spinRotOffset * 3;
 
@@ -104,8 +104,8 @@ void ItemOcarina_Fly(ItemOcarina* this, PlayState* play) {
     }
 
     if (play->csCtx.frames == 897) {
-        EffectSsGRipple_Spawn(play, &this->actor.world.pos, 100, 500, 0);
-        EffectSsGSplash_Spawn(play, &this->actor.world.pos, 0, 0, 1, 0);
+        OoT_EffectSsGRipple_Spawn(play, &this->actor.world.pos, 100, 500, 0);
+        OoT_EffectSsGSplash_Spawn(play, &this->actor.world.pos, 0, 0, 1, 0);
         this->actor.velocity.x = 0.0f;
         this->actor.velocity.y = 0.0f;
         this->actor.velocity.z = 0.0f;
@@ -120,7 +120,7 @@ void ItemOcarina_Fly(ItemOcarina* this, PlayState* play) {
         ripplePos.x = 274.0f;
         ripplePos.y = -60.0f;
         ripplePos.z = 907.0f;
-        EffectSsGRipple_Spawn(play, &ripplePos, 100, 500, 0);
+        OoT_EffectSsGRipple_Spawn(play, &ripplePos, 100, 500, 0);
     }
 }
 
@@ -134,7 +134,7 @@ void ItemOcarina_GetThrown(ItemOcarina* this, PlayState* play) {
 }
 
 void func_80B864EC(ItemOcarina* this, PlayState* play) {
-    Actor_UpdatePos(&this->actor);
+    OoT_Actor_UpdatePos(&this->actor);
     this->actor.shape.rot.x += this->spinRotOffset * 2;
     this->actor.shape.rot.y += this->spinRotOffset * 3;
 
@@ -171,27 +171,27 @@ void ItemOcarina_DoNothing(ItemOcarina* this, PlayState* play) {
 }
 
 void ItemOcarina_StartSoTCutscene(ItemOcarina* this, PlayState* play) {
-    if (Actor_TextboxIsClosing(&this->actor, play)) {
+    if (OoT_Actor_TextboxIsClosing(&this->actor, play)) {
         play->csCtx.segment = SEGMENTED_TO_VIRTUAL(gHyruleFieldZeldaSongOfTimeCs);
         gSaveContext.cutsceneTrigger = 1;
     }
 }
 
 void ItemOcarina_WaitInWater(ItemOcarina* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play) ||
+    if (OoT_Actor_HasParent(&this->actor, play) ||
         (!GameInteractor_Should(VB_GIVE_ITEM_OCARINA_OF_TIME, true) && (this->actor.xzDistToPlayer < 20.0f) &&
          (fabsf(this->actor.yDistToPlayer) < 10.0f) && GET_PLAYER(play)->stateFlags2 & PLAYER_STATE2_DIVING)) {
-        Flags_SetEventChkInf(EVENTCHKINF_OBTAINED_OCARINA_OF_TIME);
-        Flags_SetSwitch(play, 3);
+        OoT_Flags_SetEventChkInf(EVENTCHKINF_OBTAINED_OCARINA_OF_TIME);
+        OoT_Flags_SetSwitch(play, 3);
         this->actionFunc = ItemOcarina_StartSoTCutscene;
         this->actor.draw = NULL;
     } else {
         if (GameInteractor_Should(VB_GIVE_ITEM_OCARINA_OF_TIME, true)) {
-            Actor_OfferGetItem(&this->actor, play, GI_OCARINA_OOT, 30.0f, 50.0f);
+            OoT_Actor_OfferGetItem(&this->actor, play, GI_OCARINA_OOT, 30.0f, 50.0f);
         }
 
         if ((play->gameplayFrames & 13) == 0) {
-            EffectSsBubble_Spawn(play, &this->actor.world.pos, 0.0f, 0.0f, 10.0f, 0.13f);
+            OoT_EffectSsBubble_Spawn(play, &this->actor.world.pos, 0.0f, 0.0f, 10.0f, 0.13f);
         }
     }
 }
@@ -218,5 +218,5 @@ void ItemOcarina_Draw(Actor* thisx, PlayState* play) {
         return;
     }
 
-    GetItem_Draw(play, GID_OCARINA_TIME);
+    OoT_GetItem_Draw(play, GID_OCARINA_TIME);
 }

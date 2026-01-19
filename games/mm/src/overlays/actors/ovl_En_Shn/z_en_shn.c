@@ -404,7 +404,7 @@ ActorProfile En_Shn_Profile = {
 
 void EnShn_UpdateSkelAnime(EnShn* this) {
     this->skelAnime.playSpeed = this->animPlaySpeed;
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 }
 
 typedef enum EnShnAnimation {
@@ -416,7 +416,7 @@ typedef enum EnShnAnimation {
     /*  4 */ ENSHN_ANIM_MAX
 } EnShnAnimation;
 
-static AnimationInfoS sAnimationInfo[ENSHN_ANIM_MAX] = {
+static AnimationInfoS MM_sAnimationInfo[ENSHN_ANIM_MAX] = {
     { &gBurlyGuyHandsOnTableAnim, 1.0f, 0, -1, ANIMMODE_LOOP, 0 },  // ENSHN_ANIM_0
     { &gBurlyGuyHandsOnTableAnim, 1.0f, 0, -1, ANIMMODE_LOOP, -4 }, // ENSHN_ANIM_1
     { &gBurlyGuyChinScratchAnim, 1.0f, 0, -1, ANIMMODE_LOOP, 0 },   // ENSHN_ANIM_2
@@ -433,7 +433,7 @@ s32 EnShn_ChangeAnim(EnShn* this, s32 animIndex) {
 
     if (changeAnim) {
         this->animIndex = animIndex;
-        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, animIndex);
+        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, animIndex);
         this->animPlaySpeed = this->skelAnime.playSpeed;
     }
     return didAnimChange;
@@ -451,14 +451,14 @@ s32 EnShn_IsFacingPlayer(EnShn* this) {
     }
     if (phi_v1 == 0) {
         this->unk_2EC ^= 1;
-        this->unk_2C8 = Rand_S16Offset(30, 30);
+        this->unk_2C8 = MM_Rand_S16Offset(30, 30);
     }
     if (this->unk_2EC != 0) {
         range = 120.0f;
     } else {
         range = 80.0f;
     }
-    return Actor_IsFacingAndNearPlayer(&this->actor, range, 0x238C);
+    return MM_Actor_IsFacingAndNearPlayer(&this->actor, range, 0x238C);
 }
 
 Player* EnShn_GetPlayer(EnShn* this, PlayState* play) {
@@ -471,17 +471,17 @@ void func_80AE626C(EnShn* this) {
     Vec3f shnPos;
     s32 bottomPad;
 
-    Math_Vec3f_Copy(&playerPos, &this->shnPlayerRef->actor.world.pos);
-    Math_Vec3f_Copy(&shnPos, &this->actor.world.pos);
-    Math_ApproachS(&this->unk_2BC, (Math_Vec3f_Yaw(&shnPos, &playerPos) - this->actor.shape.rot.y), 4, 0x2AA8);
+    MM_Math_Vec3f_Copy(&playerPos, &this->shnPlayerRef->actor.world.pos);
+    MM_Math_Vec3f_Copy(&shnPos, &this->actor.world.pos);
+    MM_Math_ApproachS(&this->unk_2BC, (MM_Math_Vec3f_Yaw(&shnPos, &playerPos) - this->actor.shape.rot.y), 4, 0x2AA8);
     this->unk_2BC = CLAMP(this->unk_2BC, -0x1FFE, 0x1FFE);
-    Math_Vec3f_Copy(&shnPos, &this->actor.focus.pos);
+    MM_Math_Vec3f_Copy(&shnPos, &this->actor.focus.pos);
     if (this->shnPlayerRef->actor.id == ACTOR_PLAYER) {
         playerPos.y = this->shnPlayerRef->bodyPartsPos[PLAYER_BODYPART_HEAD].y + 3.0f;
     } else {
-        Math_Vec3f_Copy(&playerPos, &this->shnPlayerRef->actor.focus.pos);
+        MM_Math_Vec3f_Copy(&playerPos, &this->shnPlayerRef->actor.focus.pos);
     }
-    Math_ApproachS(&this->unk_2BA, Math_Vec3f_Pitch(&shnPos, &playerPos), 4, 0x2AA8);
+    MM_Math_ApproachS(&this->unk_2BA, MM_Math_Vec3f_Pitch(&shnPos, &playerPos), 4, 0x2AA8);
     this->unk_2BA = CLAMP(this->unk_2BA, -0x1554, 0x1554);
 }
 
@@ -524,13 +524,13 @@ void func_80AE63A8(EnShn* this, PlayState* play) {
 
 void func_80AE6488(EnShn* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
-    s32 talkState = Message_GetState(&play->msgCtx);
+    s32 talkState = MM_Message_GetState(&play->msgCtx);
     f32 phi_f0_2;
     f32 phi_f0;
 
     this->unk_2D4 += (this->unk_2D0 != 0.0f) ? 40.0f : -40.0f;
     this->unk_2D4 = CLAMP(this->unk_2D4, 0.0f, 80.0f);
-    Matrix_Translate(this->unk_2D4, 0.0f, 0.0f, MTXMODE_APPLY);
+    MM_Matrix_Translate(this->unk_2D4, 0.0f, 0.0f, MTXMODE_APPLY);
     if ((&this->actor == player->talkActor) &&
         ((play->msgCtx.currentTextId < 0xFF) || (play->msgCtx.currentTextId >= 0x201)) &&
         (talkState == TEXT_STATE_FADING) && (this->prevTalkState == TEXT_STATE_FADING)) {
@@ -611,7 +611,7 @@ s32 func_80AE6704(Actor* thisx, PlayState* play) {
 
         case 6:
             CLEAR_WEEKEVENTREG(WEEKEVENTREG_90_40);
-            Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
+            MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
             play->nextEntrance = ENTRANCE(SOUTHERN_SWAMP_POISONED, 6);
             gSaveContext.nextCutsceneIndex = 0;
             play->transitionTrigger = TRANS_TRIGGER_START;
@@ -668,7 +668,7 @@ s32 func_80AE68F0(EnShn* this, PlayState* play) {
 }
 
 void func_80AE69E8(EnShn* this, PlayState* play) {
-    Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 3, 0x2AA8);
+    MM_Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 3, 0x2AA8);
     if (CHECK_WEEKEVENTREG(WEEKEVENTREG_23_08) && EnShn_IsFacingPlayer(this)) {
         this->unk_1D8 |= 8;
     } else {
@@ -690,18 +690,18 @@ void func_80AE6A64(EnShn* this, PlayState* play) {
         this->unk_2BE = 0;
         this->actionFunc = func_80AE69E8;
     } else if (this->shnPlayerRef != 0) {
-        Math_Vec3f_Copy(&playerPos, &this->shnPlayerRef->actor.world.pos);
-        Math_Vec3f_Copy(&shnPos, &this->actor.world.pos);
-        yawBetweenActors = Math_Vec3f_Yaw(&shnPos, &playerPos);
-        Math_ApproachS(&this->actor.shape.rot.y, yawBetweenActors, 4, 0x2AA8);
+        MM_Math_Vec3f_Copy(&playerPos, &this->shnPlayerRef->actor.world.pos);
+        MM_Math_Vec3f_Copy(&shnPos, &this->actor.world.pos);
+        yawBetweenActors = MM_Math_Vec3f_Yaw(&shnPos, &playerPos);
+        MM_Math_ApproachS(&this->actor.shape.rot.y, yawBetweenActors, 4, 0x2AA8);
     }
 }
 
 void EnShn_Init(Actor* thisx, PlayState* play) {
     EnShn* this = (EnShn*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gBurlyGuySkel, NULL, this->jointTable, this->morphTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gBurlyGuySkel, NULL, this->jointTable, this->morphTable,
                        BURLY_GUY_LIMB_MAX);
     this->animIndex = ENSHN_ANIM_NONE;
 
@@ -712,7 +712,7 @@ void EnShn_Init(Actor* thisx, PlayState* play) {
     }
 
     this->actor.attentionRangeType = ATTENTION_RANGE_6;
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->unk_2E0 = 0;
     this->msgScriptCallback = NULL;
     this->unk_1D8 = 0;
@@ -754,7 +754,7 @@ s32 EnShn_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* p
 Vec3f D_80AE7270 = { 1200.0f, 0.0f, 0.0f };
 void EnShn_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* thisx) {
     if (limbIndex == BURLY_GUY_LIMB_HEAD) {
-        Matrix_MultVec3f(&D_80AE7270, &thisx->focus.pos);
+        MM_Matrix_MultVec3f(&D_80AE7270, &thisx->focus.pos);
         Math_Vec3s_Copy(&thisx->focus.rot, &thisx->world.rot);
     }
 }
@@ -779,13 +779,13 @@ void EnShn_TransformLimbDraw(PlayState* play, s32 limbIndex, Actor* thisx) {
     if (limbIndex == BURLY_GUY_LIMB_HEAD) {
         SubS_UpdateLimb(this->unk_2BA + 0x4000, this->unk_2BC + this->actor.shape.rot.y + 0x4000, &this->unk_1E8,
                         &this->unk_1F4, stepRot, overrideRot);
-        Matrix_Pop();
-        Matrix_Translate(this->unk_1E8.x, this->unk_1E8.y, this->unk_1E8.z, MTXMODE_NEW);
-        Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+        MM_Matrix_Pop();
+        MM_Matrix_Translate(this->unk_1E8.x, this->unk_1E8.y, this->unk_1E8.z, MTXMODE_NEW);
+        MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
         Matrix_RotateYS(this->unk_1F4.y, MTXMODE_APPLY);
         Matrix_RotateXS(this->unk_1F4.x, MTXMODE_APPLY);
         Matrix_RotateZS(this->unk_1F4.z, MTXMODE_APPLY);
-        Matrix_Push();
+        MM_Matrix_Push();
     }
 }
 

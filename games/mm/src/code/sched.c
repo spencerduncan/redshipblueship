@@ -6,10 +6,10 @@
 // Variables are put before most headers as a hacky way to bypass bss reordering
 FaultClient sSchedFaultClient;
 
-OSTime sRSPGFXStartTime;
-OSTime sRSPAudioStartTime;
-OSTime sRSPOtherStartTime;
-OSTime sRDPStartTime;
+OSTime MM_sRSPGFXStartTime;
+OSTime MM_sRSPAudioStartTime;
+OSTime MM_sRSPOtherStartTime;
+OSTime MM_sRDPStartTime;
 
 u64* gAudioSPDataPtr;
 u32 gAudioSPDataSize;
@@ -29,15 +29,15 @@ u32 gAudioSPDataSize;
 
 void Sched_SwapFramebuffer(CfbInfo* cfbInfo) {
     if (cfbInfo->swapBuffer != NULL) {
-        osViSwapBuffer(cfbInfo->swapBuffer);
+        MM_osViSwapBuffer(cfbInfo->swapBuffer);
         cfbInfo->updateRate2 = cfbInfo->updateRate;
 
         if ((SREG(62) == 0) && (cfbInfo->viMode != NULL)) {
             D_80096B20 = 1;
-            osViSetMode(cfbInfo->viMode);
-            osViSetSpecialFeatures(cfbInfo->features);
-            osViSetXScale(cfbInfo->xScale);
-            osViSetYScale(cfbInfo->yScale);
+            MM_osViSetMode(cfbInfo->viMode);
+            MM_osViSetSpecialFeatures(cfbInfo->features);
+            MM_osViSetXScale(cfbInfo->xScale);
+            MM_osViSetYScale(cfbInfo->yScale);
             cfbInfo->viMode = NULL;
         }
     }
@@ -48,18 +48,18 @@ void Sched_RetraceUpdateFramebuffer(SchedContext* sched, CfbInfo* cfbInfo) {
     if (sched->shouldUpdateVi) {
         sched->shouldUpdateVi = false;
 
-        if (gIrqMgrResetStatus == 0) {
-            ViConfig_UpdateVi(false);
+        if (MM_gIrqMgrResetStatus == 0) {
+            MM_ViConfig_UpdateVi(false);
         }
     }
     Sched_SwapFramebuffer(cfbInfo);
 }
 
-void Sched_HandleReset(SchedContext* sched) {
+void MM_Sched_HandleReset(SchedContext* sched) {
 }
 
 void Sched_HandleStop(SchedContext* sched) {
-    ViConfig_UpdateVi(true);
+    MM_ViConfig_UpdateVi(true);
 }
 
 /**
@@ -89,7 +89,7 @@ void Sched_HandleAudioCancel(SchedContext* sched) {
                     osSyncPrintf("AUDIO SP止まりませんでした(10msタイムアウト)\n");
                     goto send_mesg;
                 }
-                Sleep_Usec(100);
+                MM_Sleep_Usec(100);
             }
             // AUDIO SP stopped (% d * 100us)
             osSyncPrintf("AUDIO SP止まりました(%d * 100us)\n", i);
@@ -99,7 +99,7 @@ void Sched_HandleAudioCancel(SchedContext* sched) {
         }
 
     send_mesg:
-        osSendMesg(&sched->interruptQ, OS_MESG_32(RSP_DONE_MSG), OS_MESG_NOBLOCK);
+        MM_osSendMesg(&sched->interruptQ, OS_MESG_32(RSP_DONE_MSG), OS_MESG_NOBLOCK);
         return;
     }
 
@@ -112,7 +112,7 @@ void Sched_HandleAudioCancel(SchedContext* sched) {
             sched->audioListTail = NULL;
         }
         if (cur->msgQ != NULL) {
-            osSendMesg(cur->msgQ, cur->msg, OS_MESG_BLOCK);
+            MM_osSendMesg(cur->msgQ, cur->msg, OS_MESG_BLOCK);
         }
         // Removed AUDIO SP task from pending list
         osSyncPrintf("AUDIO SP タスクを実行待ちリストから削除しました\n");
@@ -153,7 +153,7 @@ void Sched_HandleGfxCancel(SchedContext* sched) {
                     osSyncPrintf("GRAPH SP止まりませんでした(10msタイムアウト)\n");
                     goto send_mesg;
                 }
-                Sleep_Usec(100);
+                MM_Sleep_Usec(100);
             }
             // GRAPH SP stopped (%d * 100us)
             osSyncPrintf("GRAPH SP止まりました(%d * 100us)\n", i);
@@ -163,7 +163,7 @@ void Sched_HandleGfxCancel(SchedContext* sched) {
         }
 
     send_mesg:
-        osSendMesg(&sched->interruptQ, OS_MESG_PTR(RSP_DONE_MSG), OS_MESG_NOBLOCK);
+        MM_osSendMesg(&sched->interruptQ, OS_MESG_PTR(RSP_DONE_MSG), OS_MESG_NOBLOCK);
         goto halt_rdp;
     }
 
@@ -176,7 +176,7 @@ void Sched_HandleGfxCancel(SchedContext* sched) {
             sched->gfxListTail = NULL;
         }
         if (cur->msgQ != NULL) {
-            osSendMesg(cur->msgQ, cur->msg, OS_MESG_BLOCK);
+            MM_osSendMesg(cur->msgQ, cur->msg, OS_MESG_BLOCK);
         }
         goto halt_rdp;
     }
@@ -192,7 +192,7 @@ halt_rdp:
             // Try to stop DP
             osSyncPrintf("DP止めようとします\n");
             bzero(dpTask->outputBuff, (uintptr_t)dpTask->outputBuffSize - (uintptr_t)dpTask->outputBuff);
-            osSendMesg(&sched->interruptQ, (OSMesg)RDP_DONE_MSG, OS_MESG_NOBLOCK);
+            MM_osSendMesg(&sched->interruptQ, (OSMesg)RDP_DONE_MSG, OS_MESG_NOBLOCK);
         }
     }
 #endif
@@ -201,7 +201,7 @@ halt_rdp:
 /**
  * Adds a scheduler task to the appropriate linked list.
  */
-void Sched_QueueTask(SchedContext* sched, OSScTask* task) {
+void MM_Sched_QueueTask(SchedContext* sched, OSScTask* task) {
     s32 type = task->list.t.type;
 
     if (type == M_AUDTASK) {
@@ -223,20 +223,20 @@ void Sched_QueueTask(SchedContext* sched, OSScTask* task) {
     task->state = task->flags & OS_SC_RCP_MASK;
 }
 
-void Sched_Yield(SchedContext* sched) {
+void MM_Sched_Yield(SchedContext* sched) {
     // Don't yield audio tasks
     if (sched->curRSPTask->list.t.type == M_AUDTASK) {
         // A new audio task has been entered even though the previous audio task has not been completed yet
         osSyncPrintf("まだ前回のオーディオタスクが完了していないのに新たなオーディオタスクがエントリされた\n");
     } else if (!(sched->curRSPTask->state & OS_SC_YIELD)) {
         sched->curRSPTask->state |= OS_SC_YIELD;
-        osSpTaskYield();
+        MM_osSpTaskYield();
     }
 }
 
 s32 Sched_TaskCheckFramebuffers(SchedContext* sched, OSScTask* task) {
-    void* nextFB = osViGetNextFramebuffer();
-    void* curFB = osViGetCurrentFramebuffer();
+    void* nextFB = MM_osViGetNextFramebuffer();
+    void* curFB = MM_osViGetCurrentFramebuffer();
 
     if ((task == NULL) || (sched->pendingSwapBuf1 != NULL) ||
         ((curFB == TASK_FRAMEBUFFER(task)->fb1) && (curFB != nextFB))) {
@@ -248,7 +248,7 @@ s32 Sched_TaskCheckFramebuffers(SchedContext* sched, OSScTask* task) {
 /**
  * Pops the next task from the appropriate linked list and returns it through spTask and dpTask.
  */
-s32 Sched_Schedule(SchedContext* sched, OSScTask** spTask, OSScTask** dpTask, s32 state) {
+s32 MM_Sched_Schedule(SchedContext* sched, OSScTask** spTask, OSScTask** dpTask, s32 state) {
     s32 ret = state;
     OSScTask* gfxTask = sched->gfxListHead;
     OSScTask* audioTask = sched->audioListHead;
@@ -301,7 +301,7 @@ void Sched_TaskUpdateFramebuffer(SchedContext* sched, OSScTask* task) {
 void Sched_NotifyDone(SchedContext* sched, OSScTask* task) {
     if (!(task->state & (OS_SC_DP | OS_SC_SP))) {
         if (task->msgQ != NULL) {
-            osSendMesg(task->msgQ, task->msg, OS_MESG_BLOCK);
+            MM_osSendMesg(task->msgQ, task->msg, OS_MESG_BLOCK);
         }
         if (task->flags & OS_SC_SWAPBUFFER) {
             Sched_TaskUpdateFramebuffer(sched, task);
@@ -309,7 +309,7 @@ void Sched_NotifyDone(SchedContext* sched, OSScTask* task) {
     }
 }
 
-void Sched_RunTask(SchedContext* sched, OSScTask* spTask, OSScTask* dpTask) {
+void MM_Sched_RunTask(SchedContext* sched, OSScTask* spTask, OSScTask* dpTask) {
     u64 time;
 
     if (spTask != NULL) {
@@ -331,22 +331,22 @@ void Sched_RunTask(SchedContext* sched, OSScTask* spTask, OSScTask* dpTask) {
         }
         spTask->state &= ~(OS_SC_YIELD | OS_SC_YIELDED);
         // Have the RSP download the task and prepare the RSP program counter
-        osSpTaskLoad(&spTask->list);
+        MM_osSpTaskLoad(&spTask->list);
 
         // Log the start time based on the type of task
-        time = osGetTime();
+        time = MM_osGetTime();
         switch (spTask->list.t.type) {
             case M_AUDTASK:
-                sRSPAudioStartTime = time;
+                MM_sRSPAudioStartTime = time;
                 break;
 
             case M_GFXTASK:
-                sRSPGFXStartTime = time;
+                MM_sRSPGFXStartTime = time;
                 break;
 
             default:
                 if (1) {}
-                sRSPOtherStartTime = time;
+                MM_sRSPOtherStartTime = time;
                 break;
         }
 
@@ -357,11 +357,11 @@ void Sched_RunTask(SchedContext* sched, OSScTask* spTask, OSScTask* dpTask) {
         }
 
         // Begin task execution
-        osSpTaskStartGo(&spTask->list);
+        MM_osSpTaskStartGo(&spTask->list);
         sched->curRSPTask = spTask;
         if (spTask == dpTask && sched->curRDPTask == NULL) {
             sched->curRDPTask = dpTask;
-            sRDPStartTime = sRSPGFXStartTime;
+            MM_sRDPStartTime = MM_sRSPGFXStartTime;
         }
     }
 }
@@ -369,7 +369,7 @@ void Sched_RunTask(SchedContext* sched, OSScTask* spTask, OSScTask* dpTask) {
 /**
  * Enqueues any tasks that have been sent to the scheduler down the command queue.
  */
-void Sched_HandleEntry(SchedContext* sched) {
+void MM_Sched_HandleEntry(SchedContext* sched) {
 #if 0
     OSScTask* spTask = NULL;
     OSScTask* dpTask = NULL;
@@ -377,27 +377,27 @@ void Sched_HandleEntry(SchedContext* sched) {
     s32 state;
 
     // Fetch and enqueue waiting tasks
-    while (osRecvMesg(&sched->cmdQ, &msg, OS_MESG_NOBLOCK) != -1) {
-        Sched_QueueTask(sched, msg);
+    while (MM_osRecvMesg(&sched->cmdQ, &msg, OS_MESG_NOBLOCK) != -1) {
+        MM_Sched_QueueTask(sched, msg);
     }
     // If there is an audio task pending and an RSP task is running, yield the current task.
     if ((sched->audioListHead != NULL) && (sched->curRSPTask != NULL)) {
-        Sched_Yield(sched);
+        MM_Sched_Yield(sched);
         return;
     }
     // Schedule and run the next task
     state = ((sched->curRSPTask == NULL) << 1) | (sched->curRDPTask == NULL);
-    if (Sched_Schedule(sched, &spTask, &dpTask, state) != state) {
-        Sched_RunTask(sched, spTask, dpTask);
+    if (MM_Sched_Schedule(sched, &spTask, &dpTask, state) != state) {
+        MM_Sched_RunTask(sched, spTask, dpTask);
     }
 #endif
 }
 
-void Sched_HandleRetrace(SchedContext* sched) {
-    ViConfig_UpdateBlack();
+void MM_Sched_HandleRetrace(SchedContext* sched) {
+    MM_ViConfig_UpdateBlack();
     sched->retraceCount++;
 
-    if (osViGetCurrentFramebuffer() ==
+    if (MM_osViGetCurrentFramebuffer() ==
         (void*)((sched->pendingSwapBuf1 != NULL) ? sched->pendingSwapBuf1->swapBuffer : NULL)) {
         if (sched->curBuf != NULL) {
             sched->curBuf->unk_10 = 0;
@@ -416,10 +416,10 @@ void Sched_HandleRetrace(SchedContext* sched) {
             Sched_RetraceUpdateFramebuffer(sched, sched->pendingSwapBuf1);
         }
     }
-    Sched_HandleEntry(sched);
+    MM_Sched_HandleEntry(sched);
 }
 
-void Sched_HandleRSPDone(SchedContext* sched) {
+void MM_Sched_HandleRSPDone(SchedContext* sched) {
     OSScTask* curRSP;
     OSScTask* nextRSP = NULL;
     OSScTask* nextRDP = NULL;
@@ -432,19 +432,19 @@ void Sched_HandleRSPDone(SchedContext* sched) {
     }
 
     // Log the time based on the type of task
-    time = osGetTime();
+    time = MM_osGetTime();
     switch (sched->curRSPTask->list.t.type) {
         case M_AUDTASK:
-            gRSPAudioTimeAcc += time - sRSPAudioStartTime;
+            gRSPAudioTimeAcc += time - MM_sRSPAudioStartTime;
             break;
 
         case M_GFXTASK:
-            gRSPGfxTimeAcc += time - sRSPGFXStartTime;
+            gRSPGfxTimeAcc += time - MM_sRSPGFXStartTime;
             break;
 
         default:
             if (1) {}
-            gRSPOtherTimeAcc += time - sRSPOtherStartTime;
+            gRSPOtherTimeAcc += time - MM_sRSPOtherStartTime;
             break;
     }
 
@@ -457,7 +457,7 @@ void Sched_HandleRSPDone(SchedContext* sched) {
         gAudioSPDataSize = 0;
     }
 
-    if ((curRSP->state & OS_SC_YIELD) && osSpTaskYielded(&curRSP->list)) {
+    if ((curRSP->state & OS_SC_YIELD) && MM_osSpTaskYielded(&curRSP->list)) {
         // If the task was yielded, re-queue the task
         curRSP->state |= OS_SC_YIELDED;
         curRSP->next = sched->gfxListHead;
@@ -473,12 +473,12 @@ void Sched_HandleRSPDone(SchedContext* sched) {
 
     // Schedule and run next task
     state = ((sched->curRSPTask == NULL) << 1) | (sched->curRDPTask == NULL);
-    if (Sched_Schedule(sched, &nextRSP, &nextRDP, state) != state) {
-        Sched_RunTask(sched, nextRSP, nextRDP);
+    if (MM_Sched_Schedule(sched, &nextRSP, &nextRDP, state) != state) {
+        MM_Sched_RunTask(sched, nextRSP, nextRDP);
     }
 }
 
-void Sched_HandleRDPDone(SchedContext* sched) {
+void MM_Sched_HandleRDPDone(SchedContext* sched) {
     OSScTask* curRDP;
     OSScTask* nextRSP = NULL;
     OSScTask* nextRDP = NULL;
@@ -490,7 +490,7 @@ void Sched_HandleRDPDone(SchedContext* sched) {
     }
 
     // Log run time
-    gRDPTimeAcc = osGetTime() - sRDPStartTime;
+    gRDPTimeAcc = MM_osGetTime() - MM_sRDPStartTime;
 
     // Mark task done
     curRDP = sched->curRDPTask;
@@ -501,8 +501,8 @@ void Sched_HandleRDPDone(SchedContext* sched) {
 
     // Schedule and run next task
     state = ((sched->curRSPTask == NULL) << 1) | (sched->curRDPTask == NULL);
-    if (Sched_Schedule(sched, &nextRSP, &nextRDP, state) != state) {
-        Sched_RunTask(sched, nextRSP, nextRDP);
+    if (MM_Sched_Schedule(sched, &nextRSP, &nextRDP, state) != state) {
+        MM_Sched_RunTask(sched, nextRSP, nextRDP);
     }
 }
 
@@ -510,8 +510,8 @@ void Sched_HandleRDPDone(SchedContext* sched) {
  * Sends a message to the scheduler to inform it that a new task has
  * been sent down the command queue.
  */
-void Sched_SendEntryMsg(SchedContext* sched) {
-    osSendMesg(&sched->interruptQ, OS_MESG_32(ENTRY_MSG), OS_MESG_BLOCK);
+void MM_Sched_SendEntryMsg(SchedContext* sched) {
+    MM_osSendMesg(&sched->interruptQ, OS_MESG_32(ENTRY_MSG), OS_MESG_BLOCK);
 }
 
 /**
@@ -519,7 +519,7 @@ void Sched_SendEntryMsg(SchedContext* sched) {
  * to stop the last dispatched audio task.
  */
 void Sched_SendAudioCancelMsg(SchedContext* sched) {
-    osSendMesg(&sched->interruptQ, OS_MESG_32(RDP_AUDIO_CANCEL_MSG), OS_MESG_BLOCK);
+    MM_osSendMesg(&sched->interruptQ, OS_MESG_32(RDP_AUDIO_CANCEL_MSG), OS_MESG_BLOCK);
 }
 
 /**
@@ -527,7 +527,7 @@ void Sched_SendAudioCancelMsg(SchedContext* sched) {
  * to stop the last dispatched gfx task.
  */
 void Sched_SendGfxCancelMsg(SchedContext* sched) {
-    osSendMesg(&sched->interruptQ, OS_MESG_32(RSP_GFX_CANCEL_MSG), OS_MESG_BLOCK);
+    MM_osSendMesg(&sched->interruptQ, OS_MESG_32(RSP_GFX_CANCEL_MSG), OS_MESG_BLOCK);
 }
 
 /**
@@ -539,20 +539,20 @@ void Sched_FaultClient(void* param1, void* param2) {
     OSScTask* spTask;
     OSScTask* dpTask;
 
-    FaultDrawer_Printf("sched info\n", sched->gfxListHead, sched->gfxListTail, sched->audioListHead,
+    MM_FaultDrawer_Printf("sched info\n", sched->gfxListHead, sched->gfxListTail, sched->audioListHead,
                        sched->audioListTail);
-    FaultDrawer_Printf("GRAPH %08x %08x\n", sched->gfxListHead, sched->gfxListTail);
-    FaultDrawer_Printf("AUDIO %08x %08x\n\n", sched->audioListHead, sched->audioListTail);
+    MM_FaultDrawer_Printf("GRAPH %08x %08x\n", sched->gfxListHead, sched->gfxListTail);
+    MM_FaultDrawer_Printf("AUDIO %08x %08x\n\n", sched->audioListHead, sched->audioListTail);
 
     spTask = sched->curRSPTask;
     if (spTask != NULL) {
-        FaultDrawer_Printf("RSPTask %08x %08x %02x %02x\n%01x %08x %08x\n", spTask, spTask->next, spTask->state,
+        MM_FaultDrawer_Printf("RSPTask %08x %08x %02x %02x\n%01x %08x %08x\n", spTask, spTask->next, spTask->state,
                            spTask->flags, spTask->list.t.type, spTask->list.t.data_ptr, spTask->list.t.data_size);
     }
 
     dpTask = sched->curRDPTask;
     if (dpTask != NULL) {
-        FaultDrawer_Printf("RDPTask %08x %08x %02x %02x\n", dpTask, dpTask->next, dpTask->state, dpTask->flags);
+        MM_FaultDrawer_Printf("RDPTask %08x %08x %02x %02x\n", dpTask, dpTask->next, dpTask->state, dpTask->flags);
     }
 }
 
@@ -561,13 +561,13 @@ void Sched_FaultClient(void* param1, void* param2) {
  * the IrqMgr received through its IrqClient and messages sent to it from other
  * threads or the OS.
  */
-void Sched_ThreadEntry(void* arg) {
+void MM_Sched_ThreadEntry(void* arg) {
     OSMesg msg = OS_MESG_PTR(NULL);
     ;
     SchedContext* sched = (SchedContext*)arg;
 
     while (true) {
-        osRecvMesg(&sched->interruptQ, &msg, OS_MESG_BLOCK);
+        MM_osRecvMesg(&sched->interruptQ, &msg, OS_MESG_BLOCK);
 
         // Check if it's a message from another thread or the OS
         switch ((s32)msg.data32) {
@@ -580,25 +580,25 @@ void Sched_ThreadEntry(void* arg) {
                 continue;
 
             case ENTRY_MSG:
-                Sched_HandleEntry(sched);
+                MM_Sched_HandleEntry(sched);
                 continue;
 
             case RSP_DONE_MSG:
-                Sched_HandleRSPDone(sched);
+                MM_Sched_HandleRSPDone(sched);
                 continue;
 
             case RDP_DONE_MSG:
-                Sched_HandleRDPDone(sched);
+                MM_Sched_HandleRDPDone(sched);
                 continue;
         }
         // Check if it's a message from the IrqMgr
         switch (((OSScMsg*)msg.data32)->type) {
             case OS_SC_RETRACE_MSG:
-                Sched_HandleRetrace(sched);
+                MM_Sched_HandleRetrace(sched);
                 continue;
 
             case OS_SC_PRE_NMI_MSG:
-                Sched_HandleReset(sched);
+                MM_Sched_HandleReset(sched);
                 continue;
 
             case OS_SC_NMI_MSG:
@@ -613,17 +613,17 @@ void Sched_ThreadEntry(void* arg) {
  * Registers an IrqClient for the thread and fault client for the SchedContext.
  * Directs the OS to send SP and DP OS messages to interruptQ when the RSP or RDP signal task completion.
  */
-void Sched_Init(SchedContext* sched, void* stack, OSPri pri, u8 viModeType, UNK_TYPE arg4, IrqMgr* irqMgr) {
+void MM_Sched_Init(SchedContext* sched, void* stack, OSPri pri, u8 viModeType, UNK_TYPE arg4, IrqMgr* irqMgr) {
     memset(sched, 0, sizeof(SchedContext));
 
     sched->shouldUpdateVi = true;
 
-    osCreateMesgQueue(&sched->interruptQ, sched->intBuf, ARRAY_COUNT(sched->intBuf));
-    osCreateMesgQueue(&sched->cmdQ, sched->cmdMsgBuf, ARRAY_COUNT(sched->cmdMsgBuf));
-    osSetEventMesg(OS_EVENT_SP, &sched->interruptQ, OS_MESG_32(RSP_DONE_MSG));
-    osSetEventMesg(OS_EVENT_DP, &sched->interruptQ, OS_MESG_32(RDP_DONE_MSG));
-    IrqMgr_AddClient(irqMgr, &sched->irqClient, &sched->interruptQ);
-    Fault_AddClient(&sSchedFaultClient, Sched_FaultClient, sched, NULL);
-    osCreateThread(&sched->thread, Z_THREAD_ID_SCHED, Sched_ThreadEntry, sched, stack, pri);
-    osStartThread(&sched->thread);
+    MM_osCreateMesgQueue(&sched->interruptQ, sched->intBuf, ARRAY_COUNT(sched->intBuf));
+    MM_osCreateMesgQueue(&sched->cmdQ, sched->cmdMsgBuf, ARRAY_COUNT(sched->cmdMsgBuf));
+    MM_osSetEventMesg(OS_EVENT_SP, &sched->interruptQ, OS_MESG_32(RSP_DONE_MSG));
+    MM_osSetEventMesg(OS_EVENT_DP, &sched->interruptQ, OS_MESG_32(RDP_DONE_MSG));
+    MM_IrqMgr_AddClient(irqMgr, &sched->irqClient, &sched->interruptQ);
+    MM_Fault_AddClient(&sSchedFaultClient, Sched_FaultClient, sched, NULL);
+    osCreateThread(&sched->thread, Z_THREAD_ID_SCHED, MM_Sched_ThreadEntry, sched, stack, pri);
+    MM_osStartThread(&sched->thread);
 }

@@ -67,7 +67,7 @@ static ColliderSphereInit sSphereInit = {
     { 0, { { 0, 0, 0 }, 0 }, 100 },
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HIT1,
         AT_NONE,
@@ -87,9 +87,9 @@ static ColliderCylinderInit sCylinderInit = {
     { 0, 0, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 MM_sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(1, 0x0),
     /* Deku Stick     */ DMG_ENTRY(1, 0x0),
     /* Horse trample  */ DMG_ENTRY(1, 0x0),
@@ -150,7 +150,7 @@ typedef enum {
     /* 0x15 */ ENGEG_ANIM_MAX
 } EnGegAnimation;
 
-static AnimationInfoS sAnimationInfo[ENGEG_ANIM_MAX] = {
+static AnimationInfoS MM_sAnimationInfo[ENGEG_ANIM_MAX] = {
     { &gGoronLyingDownIdleAnim, 1.0f, 0, -1, ANIMMODE_LOOP, 0 },                     // ENGEG_ANIM_0
     { &gGoronLyingDownIdleAnim, 1.0f, 0, -1, ANIMMODE_LOOP, -4 },                    // ENGEG_ANIM_1
     { &gGoronUnrollAnim, 2.0f, 0, -1, ANIMMODE_ONCE, 0 },                            // ENGEG_ANIM_2
@@ -258,15 +258,15 @@ void func_80BB178C(EnGeg* this, PlayState* play) {
     }
 
     if (collider != NULL) {
-        CollisionCheck_SetOC(play, &play->colChkCtx, collider);
-        Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 12.0f, 0.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, collider);
+        MM_Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 12.0f, 0.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
     }
 }
 
 s32 func_80BB18FC(EnGeg* this, Actor* actor) {
     if (actor->bgCheckFlags & BGCHECKFLAG_GROUND) {
-        f32 sp24 = Math_Vec3f_DistXZ(&this->actor.world.pos, &actor->world.pos);
-        f32 sp20 = Math_Vec3f_DiffY(&this->actor.world.pos, &actor->world.pos);
+        f32 sp24 = MM_Math_Vec3f_DistXZ(&this->actor.world.pos, &actor->world.pos);
+        f32 sp20 = MM_Math_Vec3f_DiffY(&this->actor.world.pos, &actor->world.pos);
 
         if ((sp24 < 150.0f) && (fabsf(sp20) < 5.0f)) {
             this->unk_230 |= 0x20;
@@ -289,18 +289,18 @@ Vec3f func_80BB19C0(EnGeg* this, PlayState* play) {
     f32 sp2C;
     f32 sp28;
 
-    sp40.x = (Math_SinS(sp32) * 50.0f) + player->actor.world.pos.x;
+    sp40.x = (MM_Math_SinS(sp32) * 50.0f) + player->actor.world.pos.x;
     sp40.y = player->actor.world.pos.y;
-    sp40.z = (Math_CosS(sp32) * 50.0f) + player->actor.world.pos.z;
+    sp40.z = (MM_Math_CosS(sp32) * 50.0f) + player->actor.world.pos.z;
 
-    sp2C = Math_Vec3f_DistXZ(&this->actor.world.pos, &sp40);
+    sp2C = MM_Math_Vec3f_DistXZ(&this->actor.world.pos, &sp40);
     sp30 = player->actor.world.rot.y - 0x4000;
 
-    sp34.x = (Math_SinS(sp30) * 50.0f) + player->actor.world.pos.x;
+    sp34.x = (MM_Math_SinS(sp30) * 50.0f) + player->actor.world.pos.x;
     sp34.y = player->actor.world.pos.y;
-    sp34.z = (Math_CosS(sp30) * 50.0f) + player->actor.world.pos.z;
+    sp34.z = (MM_Math_CosS(sp30) * 50.0f) + player->actor.world.pos.z;
 
-    if (Math_Vec3f_DistXZ(&this->actor.world.pos, &sp34) < sp2C) {
+    if (MM_Math_Vec3f_DistXZ(&this->actor.world.pos, &sp34) < sp2C) {
         return sp40;
     } else {
         return sp34;
@@ -312,7 +312,7 @@ u8 func_80BB1B14(EnGeg* this, PlayState* play) {
     Actor* mm = SubS_FindActor(play, NULL, ACTORCAT_ITEMACTION, ACTOR_EN_MM);
 
     if (mm != NULL) {
-        this->unk_4B0 = Math_Vec3f_Yaw(&this->actor.world.pos, &mm->world.pos);
+        this->unk_4B0 = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &mm->world.pos);
         if (func_80BB18FC(this, mm)) {
             return 1;
         }
@@ -322,7 +322,7 @@ u8 func_80BB1B14(EnGeg* this, PlayState* play) {
 
     while (explosive != NULL) {
         if ((explosive->id == ACTOR_EN_BOM) && func_80BB18FC(this, explosive)) {
-            this->unk_4B0 = Math_Vec3f_Yaw(&this->actor.world.pos, &explosive->world.pos);
+            this->unk_4B0 = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &explosive->world.pos);
             if (this->unk_230 & 0x200) {
                 return 0;
             }
@@ -354,7 +354,7 @@ void func_80BB1C8C(EnGeg* this) {
     if (DECR(this->unk_240) == 0) {
         this->unk_23E++;
         if (this->unk_23E >= 3) {
-            this->unk_240 = Rand_S16Offset(30, 30);
+            this->unk_240 = MM_Rand_S16Offset(30, 30);
             this->unk_23E = 0;
         }
     }
@@ -383,11 +383,11 @@ s32 func_80BB1D64(EnGeg* this, PlayState* play) {
     Vec3f sp34;
     s16 yaw = (this->actor.yawTowardsPlayer - this->unk_46E) - this->actor.shape.rot.y;
 
-    Math_SmoothStepToS(&this->unk_46A, yaw, 4, 0x2AA8, 1);
+    MM_Math_SmoothStepToS(&this->unk_46A, yaw, 4, 0x2AA8, 1);
     this->unk_46A = CLAMP(this->unk_46A, -0x1FFE, 0x1FFE);
 
     yaw = (this->actor.yawTowardsPlayer - this->unk_46A) - this->actor.shape.rot.y;
-    Math_SmoothStepToS(&this->unk_46E, yaw, 4, 0x2AA8, 1);
+    MM_Math_SmoothStepToS(&this->unk_46E, yaw, 4, 0x2AA8, 1);
     this->unk_46E = CLAMP(this->unk_46E, -0x1C70, 0x1C70);
 
     if (this->unk_230 & 0x20) {
@@ -400,25 +400,25 @@ s32 func_80BB1D64(EnGeg* this, PlayState* play) {
     sp34 = this->actor.world.pos;
     sp34.y += 70.0f;
 
-    yaw = Math_Vec3f_Pitch(&sp34, &sp40);
-    Math_SmoothStepToS(&this->unk_468, yaw - this->unk_46C, 4, 0x2AA8, 1);
+    yaw = MM_Math_Vec3f_Pitch(&sp34, &sp40);
+    MM_Math_SmoothStepToS(&this->unk_468, yaw - this->unk_46C, 4, 0x2AA8, 1);
     this->unk_468 = CLAMP(this->unk_468, -0x1C70, 0x1C70);
 
-    yaw = Math_Vec3f_Pitch(&sp34, &sp40);
-    Math_SmoothStepToS(&this->unk_46C, yaw - this->unk_468, 4, 0x2AA8, 1);
+    yaw = MM_Math_Vec3f_Pitch(&sp34, &sp40);
+    MM_Math_SmoothStepToS(&this->unk_46C, yaw - this->unk_468, 4, 0x2AA8, 1);
     this->unk_46C = CLAMP(this->unk_46C, -0x1C70, 0x1C70);
 
     return true;
 }
 
 void EnGeg_UpdateSkelAnime(EnGeg* this, PlayState* play) {
-    gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->objectSlot].segment);
-    SkelAnime_Update(&this->skelAnime);
+    MM_gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->objectSlot].segment);
+    MM_SkelAnime_Update(&this->skelAnime);
 }
 
 void EnGeg_ChangeAnim(EnGeg* this, PlayState* play) {
-    gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->objectSlot].segment);
-    SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+    MM_gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->objectSlot].segment);
+    SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
 }
 
 s32 func_80BB2088(EnGeg* this, PlayState* play) {
@@ -431,7 +431,7 @@ s32 func_80BB2088(EnGeg* this, PlayState* play) {
         return true;
     }
 
-    if (Actor_IsFacingAndNearPlayer(&this->actor, 300.0f, 0x7FF8) &&
+    if (MM_Actor_IsFacingAndNearPlayer(&this->actor, 300.0f, 0x7FF8) &&
         ((this->animIndex == ENGEG_ANIM_5) || ((this->animIndex == ENGEG_ANIM_13) && (this->unk_496 == 0xD69)))) {
         this->unk_230 |= 2;
         func_80BB1D64(this, play);
@@ -450,10 +450,10 @@ s32 func_80BB2088(EnGeg* this, PlayState* play) {
 }
 
 void func_80BB217C(EnGeg* this, PlayState* play) {
-    if (Object_IsLoaded(&play->objectCtx, this->objectSlot)) {
+    if (MM_Object_IsLoaded(&play->objectCtx, this->objectSlot)) {
         this->animIndex = ENGEG_ANIM_5;
         EnGeg_ChangeAnim(this, play);
-        Actor_SetScale(&this->actor, 0.01f);
+        MM_Actor_SetScale(&this->actor, 0.01f);
         this->unk_230 = 0;
         this->actor.shape.shadowScale = 20.0f;
         this->actor.gravity = -1.0f;
@@ -482,7 +482,7 @@ void func_80BB221C(EnGeg* this, PlayState* play) {
                 this->nextCsId = this->csIdList[2];
                 this->unk_230 &= ~4;
             }
-            Message_StartTextbox(play, this->unk_496, &this->actor);
+            MM_Message_StartTextbox(play, this->unk_496, &this->actor);
             this->actionFunc = func_80BB2520;
             this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
         } else if (this->actor.xzDistToPlayer < 300.0f) {
@@ -495,7 +495,7 @@ void func_80BB221C(EnGeg* this, PlayState* play) {
         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_35_40)) {
             if (Actor_TalkOfferAccepted(&this->actor, &play->state) && (this->unk_230 & 8)) {
                 this->unk_496 = 0xD62;
-                Message_StartTextbox(play, this->unk_496, &this->actor);
+                MM_Message_StartTextbox(play, this->unk_496, &this->actor);
                 this->unk_230 &= ~8;
                 this->actionFunc = func_80BB27D4;
             } else if ((this->actor.xzDistToPlayer < 300.0f) && this->actor.isLockedOn) {
@@ -506,7 +506,7 @@ void func_80BB221C(EnGeg* this, PlayState* play) {
             SET_WEEKEVENTREG(WEEKEVENTREG_35_40);
             this->unk_496 = 0xD5E;
             this->nextCsId = this->csIdList[0];
-            Message_StartTextbox(play, this->unk_496, &this->actor);
+            MM_Message_StartTextbox(play, this->unk_496, &this->actor);
             this->actionFunc = func_80BB2520;
             this->unk_230 &= ~8;
             this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
@@ -585,7 +585,7 @@ void func_80BB2520(EnGeg* this, PlayState* play) {
 }
 
 void func_80BB26EC(EnGeg* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         switch (this->unk_496) {
             case 0xD5E:
                 this->nextCsId = this->csIdList[1];
@@ -605,12 +605,12 @@ void func_80BB26EC(EnGeg* this, PlayState* play) {
         }
 
         this->unk_496 = func_80BB16D0(this);
-        Message_StartTextbox(play, this->unk_496, &this->actor);
+        MM_Message_StartTextbox(play, this->unk_496, &this->actor);
     }
 }
 
 void func_80BB27D4(EnGeg* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         switch (this->unk_496) {
             case 0xD63:
                 play->msgCtx.msgMode = MSGMODE_TEXT_CLOSING;
@@ -647,23 +647,23 @@ void func_80BB27D4(EnGeg* this, PlayState* play) {
 
             default:
                 this->unk_496 = func_80BB16D0(this);
-                Message_StartTextbox(play, this->unk_496, &this->actor);
+                MM_Message_StartTextbox(play, this->unk_496, &this->actor);
                 break;
         }
     }
 }
 
 void func_80BB2944(EnGeg* this, PlayState* play) {
-    u8 talkState = Message_GetState(&play->msgCtx);
+    u8 talkState = MM_Message_GetState(&play->msgCtx);
     s16 curFrame = this->skelAnime.curFrame;
-    s16 endFrame = Animation_GetLastFrame(sAnimationInfo[this->animIndex].animation);
+    s16 endFrame = MM_Animation_GetLastFrame(MM_sAnimationInfo[this->animIndex].animation);
 
     if (this->animIndex == ENGEG_ANIM_19) {
         if (curFrame == endFrame) {
             this->animIndex = ENGEG_ANIM_6;
             EnGeg_ChangeAnim(this, play);
         }
-    } else if ((talkState == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    } else if ((talkState == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         if (this->unk_496 == 0xD67) {
             play->msgCtx.msgMode = MSGMODE_TEXT_CLOSING;
             play->msgCtx.stateTimer = 4;
@@ -671,13 +671,13 @@ void func_80BB2944(EnGeg* this, PlayState* play) {
             this->actionFunc = func_80BB2520;
         } else {
             this->unk_496 = func_80BB16D0(this);
-            Message_ContinueTextbox(play, this->unk_496);
+            MM_Message_ContinueTextbox(play, this->unk_496);
         }
     }
 }
 
 void func_80BB2A54(EnGeg* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         if (this->unk_496 == 0xD65) {
             CutsceneManager_Stop(this->csId);
             this->unk_230 &= ~0x10;
@@ -687,7 +687,7 @@ void func_80BB2A54(EnGeg* this, PlayState* play) {
             this->actionFunc = func_80BB347C;
         } else {
             this->unk_496 = func_80BB16D0(this);
-            Message_StartTextbox(play, this->unk_496, &this->actor);
+            MM_Message_StartTextbox(play, this->unk_496, &this->actor);
         }
     }
 }
@@ -705,12 +705,12 @@ void func_80BB2B1C(EnGeg* this, PlayState* play) {
         if (CutsceneManager_IsNext(this->csId)) {
             SET_WEEKEVENTREG(WEEKEVENTREG_37_08);
             if (this->actor.child != NULL) {
-                Actor_Kill(this->actor.child);
+                MM_Actor_Kill(this->actor.child);
             }
             this->unk_230 |= 0x10;
             CutsceneManager_StartWithPlayerCsAndSetFlag(this->csId, &this->actor);
             this->unk_496 = 0xD68;
-            Message_ContinueTextbox(play, this->unk_496);
+            MM_Message_ContinueTextbox(play, this->unk_496);
             this->objectSlot = Object_GetSlot(&play->objectCtx, OBJECT_TAISOU);
             if (this->objectSlot > OBJECT_SLOT_NONE) {
                 this->animIndex = ENGEG_ANIM_13;
@@ -727,9 +727,9 @@ void func_80BB2B1C(EnGeg* this, PlayState* play) {
         temp_f20 = this->unk_4E0 * 0.005f;
         sp68 = this->unk_4E0 * 0.07f;
 
-        sp74.x = Rand_Centered() * temp_f20;
-        sp74.y = Rand_Centered() * temp_f20;
-        sp74.z = Rand_Centered() * temp_f20;
+        sp74.x = MM_Rand_Centered() * temp_f20;
+        sp74.y = MM_Rand_Centered() * temp_f20;
+        sp74.z = MM_Rand_Centered() * temp_f20;
 
         this->actor.child->scale.x *= 0.98f;
         this->actor.child->scale.y *= 0.98f;
@@ -740,7 +740,7 @@ void func_80BB2B1C(EnGeg* this, PlayState* play) {
                 this->unk_4C0[i].x *= temp_f20;
                 this->unk_4C0[i].y *= temp_f20;
                 this->unk_4C0[i].z *= temp_f20;
-                EffectSsHahen_Spawn(play, &this->unk_4B4, &this->unk_4C0[i], &sp74, HAHEN_SMALL, sp68, GAMEPLAY_KEEP,
+                MM_EffectSsHahen_Spawn(play, &this->unk_4B4, &this->unk_4C0[i], &sp74, HAHEN_SMALL, sp68, GAMEPLAY_KEEP,
                                     15, gameplay_keep_DL_06AB30);
             }
         }
@@ -752,21 +752,21 @@ void func_80BB2B1C(EnGeg* this, PlayState* play) {
 
 void func_80BB2E00(EnGeg* this, PlayState* play) {
     s16 curFrame = this->skelAnime.curFrame;
-    s16 endFrame = Animation_GetLastFrame(sAnimationInfo[this->animIndex].animation);
+    s16 endFrame = MM_Animation_GetLastFrame(MM_sAnimationInfo[this->animIndex].animation);
 
     if (this->animIndex == ENGEG_ANIM_2) {
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x1000, 0x100);
+        MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x1000, 0x100);
         this->actor.world.rot.y = this->actor.shape.rot.y;
         if (curFrame == endFrame) {
             CutsceneManager_Stop(this->csId);
             this->animIndex = ENGEG_ANIM_20;
             EnGeg_ChangeAnim(this, play);
             this->actionFunc = func_80BB30B4;
-        } else if (Animation_OnFrame(&this->skelAnime, 24.0f)) {
+        } else if (MM_Animation_OnFrame(&this->skelAnime, 24.0f)) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_GOLON_STAND_IMT);
         }
     } else if (this->animIndex == ENGEG_ANIM_4) {
-        if (Animation_OnFrame(&this->skelAnime, 0.0f)) {
+        if (MM_Animation_OnFrame(&this->skelAnime, 0.0f)) {
             this->unk_230 |= 1;
             this->actor.shape.yOffset = 14.0f;
             if (this->unk_496 == 0xD69) {
@@ -775,14 +775,14 @@ void func_80BB2E00(EnGeg* this, PlayState* play) {
             } else {
                 this->actionFunc = func_80BB3318;
             }
-        } else if (Animation_OnFrame(&this->skelAnime, 24.0f)) {
+        } else if (MM_Animation_OnFrame(&this->skelAnime, 24.0f)) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_GOLON_SIT_IMT);
         }
     }
 }
 
 void func_80BB2F7C(EnGeg* this, PlayState* play) {
-    Math_SmoothStepToS(&this->actor.world.rot.y, Math_Vec3f_Yaw(&this->actor.world.pos, &this->unk_4E4), 4, 0x3E8, 1);
+    MM_Math_SmoothStepToS(&this->actor.world.rot.y, MM_Math_Vec3f_Yaw(&this->actor.world.pos, &this->unk_4E4), 4, 0x3E8, 1);
     this->actor.shape.rot.y = this->actor.world.rot.y;
 
     if ((this->actor.xzDistToPlayer < 150.0f) && (fabsf(this->actor.playerHeightRel) < 10.0f) &&
@@ -814,12 +814,12 @@ void func_80BB30B4(EnGeg* this, PlayState* play) {
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         if (player->transformation == PLAYER_FORM_GORON) {
             this->unk_496 = 0xD6A;
-        } else if (Player_GetMask(play) == PLAYER_MASK_DON_GERO) {
+        } else if (MM_Player_GetMask(play) == PLAYER_MASK_DON_GERO) {
             this->unk_496 = 0xD89;
         } else {
             this->unk_496 = 0xD6E;
         }
-        Message_StartTextbox(play, this->unk_496, &this->actor);
+        MM_Message_StartTextbox(play, this->unk_496, &this->actor);
         this->actionFunc = func_80BB27D4;
         this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
     } else if (this->actor.xzDistToPlayer < 150.0f) {
@@ -832,7 +832,7 @@ void func_80BB31B8(EnGeg* this, PlayState* play) {
     s32 getItemId = GI_MASK_DON_GERO;
 
     if (INV_CONTENT(ITEM_MASK_DON_GERO) == ITEM_MASK_DON_GERO) {
-        if (Player_GetMask(play) == PLAYER_MASK_DON_GERO) {
+        if (MM_Player_GetMask(play) == PLAYER_MASK_DON_GERO) {
             this->unk_496 = 0xD8B;
             getItemId = GI_RUPEE_PURPLE;
         } else {
@@ -843,7 +843,7 @@ void func_80BB31B8(EnGeg* this, PlayState* play) {
         this->unk_496 = 0xD70;
     }
 
-    if (Actor_HasParent(&this->actor, play)) {
+    if (MM_Actor_HasParent(&this->actor, play)) {
         this->actor.parent = NULL;
         SET_WEEKEVENTREG(WEEKEVENTREG_61_01);
         if (getItemId == GI_MASK_DON_GERO) {
@@ -851,13 +851,13 @@ void func_80BB31B8(EnGeg* this, PlayState* play) {
         }
         this->actionFunc = func_80BB32AC;
     } else {
-        Actor_OfferGetItem(&this->actor, play, getItemId, 300.0f, 300.0f);
+        MM_Actor_OfferGetItem(&this->actor, play, getItemId, 300.0f, 300.0f);
     }
 }
 
 void func_80BB32AC(EnGeg* this, PlayState* play) {
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
-        Message_StartTextbox(play, this->unk_496, &this->actor);
+        MM_Message_StartTextbox(play, this->unk_496, &this->actor);
         this->actionFunc = func_80BB27D4;
     } else {
         Actor_OfferTalkExchangeEquiCylinder(&this->actor, play, 400.0f, PLAYER_IA_MINUS1);
@@ -873,22 +873,22 @@ void func_80BB3318(EnGeg* this, PlayState* play) {
     f32 sp40;
 
     if (this->unk_4D8 < 2) {
-        sp46 = Math_Vec3f_Yaw(&this->actor.world.pos, &D_80BB4044[this->unk_4D8]);
-        sp40 = Math_Vec3f_DistXZ(&this->actor.world.pos, &D_80BB4044[this->unk_4D8]);
-        Math_SmoothStepToS(&this->actor.world.rot.y, sp46, 4, 0x3E8, 1);
+        sp46 = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &D_80BB4044[this->unk_4D8]);
+        sp40 = MM_Math_Vec3f_DistXZ(&this->actor.world.pos, &D_80BB4044[this->unk_4D8]);
+        MM_Math_SmoothStepToS(&this->actor.world.rot.y, sp46, 4, 0x3E8, 1);
         if (sp40 < 20.0f) {
             this->unk_4D8++;
         }
         this->actor.shape.rot.y = this->actor.world.rot.y;
-        func_800AE930(&play->colCtx, Effect_GetByIndex(this->unk_4DC), &this->actor.world.pos, 18.0f,
+        func_800AE930(&play->colCtx, MM_Effect_GetByIndex(this->unk_4DC), &this->actor.world.pos, 18.0f,
                       this->actor.shape.rot.y, this->actor.floorPoly, this->actor.floorBgId);
     }
 
     if (CutsceneManager_GetCurrentCsId() != this->csIdList[7]) {
-        func_800AEF44(Effect_GetByIndex(this->unk_4DC));
-        Actor_Kill(&this->actor);
+        func_800AEF44(MM_Effect_GetByIndex(this->unk_4DC));
+        MM_Actor_Kill(&this->actor);
     } else {
-        Math_ApproachF(&this->actor.speed, 10.0f, 0.2f, 1.0f);
+        MM_Math_ApproachF(&this->actor.speed, 10.0f, 0.2f, 1.0f);
         Actor_MoveWithGravity(&this->actor);
     }
 
@@ -909,28 +909,28 @@ void EnGeg_Init(Actor* thisx, PlayState* play) {
     s32 sp34[] = { 0x3E, 0xF64 };
 
     if (CHECK_WEEKEVENTREG(WEEKEVENTREG_61_01)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 0.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gGoronSkel, &gGoronUnrollAnim, this->jointTable, this->morphTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 0.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gGoronSkel, &gGoronUnrollAnim, this->jointTable, this->morphTable,
                        GORON_LIMB_MAX);
 
-    Collider_InitCylinder(play, &this->colliderCylinder);
-    Collider_SetCylinder(play, &this->colliderCylinder, &this->actor, &sCylinderInit);
+    MM_Collider_InitCylinder(play, &this->colliderCylinder);
+    MM_Collider_SetCylinder(play, &this->colliderCylinder, &this->actor, &MM_sCylinderInit);
     Collider_InitSphere(play, &this->colliderSphere);
     Collider_SetSphere(play, &this->colliderSphere, &this->actor, &sSphereInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, &sDamageTable, &sColChkInfoInit);
+    MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, &MM_sDamageTable, &MM_sColChkInfoInit);
 
     if (this->actor.update != NULL) {
         this->objectSlot = Object_GetSlot(&play->objectCtx, OBJECT_OF1D_MAP);
         if (this->objectSlot <= OBJECT_SLOT_NONE) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
     }
 
-    Effect_Add(play, &this->unk_4DC, EFFECT_TIRE_MARK, 0, 0, &sp34);
+    MM_Effect_Add(play, &this->unk_4DC, EFFECT_TIRE_MARK, 0, 0, &sp34);
     thisx->draw = NULL;
     this->unk_4E0 = 100;
     this->actor.draw = EnGeg_Draw;
@@ -940,7 +940,7 @@ void EnGeg_Init(Actor* thisx, PlayState* play) {
 void EnGeg_Destroy(Actor* thisx, PlayState* play) {
     EnGeg* this = (EnGeg*)thisx;
 
-    Collider_DestroyCylinder(play, &this->colliderCylinder);
+    MM_Collider_DestroyCylinder(play, &this->colliderCylinder);
     Collider_DestroySphere(play, &this->colliderSphere);
     Effect_Destroy(play, this->unk_4DC);
 }
@@ -963,8 +963,8 @@ s32 func_80BB3728(s16 arg0, s16 arg1, Vec3f* arg2, Vec3s* arg3, s32 arg4, s32 ar
     Vec3s sp68;
     MtxF sp28;
 
-    Matrix_MultVec3f(&sp70, &sp7C);
-    Matrix_Get(&sp28);
+    MM_Matrix_MultVec3f(&sp70, &sp7C);
+    MM_Matrix_Get(&sp28);
     Matrix_MtxFToYXZRot(&sp28, &sp68, false);
     *arg2 = sp7C;
 
@@ -979,9 +979,9 @@ s32 func_80BB3728(s16 arg0, s16 arg1, Vec3f* arg2, Vec3s* arg3, s32 arg4, s32 ar
         sp68.z = arg0;
         sp68.y = arg1;
     }
-    Math_SmoothStepToS(&arg3->x, sp68.x, 3, 0x2AA8, 0xB6);
-    Math_SmoothStepToS(&arg3->y, sp68.y, 3, 0x2AA8, 0xB6);
-    Math_SmoothStepToS(&arg3->z, sp68.z, 3, 0x2AA8, 0xB6);
+    MM_Math_SmoothStepToS(&arg3->x, sp68.x, 3, 0x2AA8, 0xB6);
+    MM_Math_SmoothStepToS(&arg3->y, sp68.y, 3, 0x2AA8, 0xB6);
+    MM_Math_SmoothStepToS(&arg3->z, sp68.z, 3, 0x2AA8, 0xB6);
 
     return true;
 }
@@ -1007,20 +1007,20 @@ void EnGeg_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot,
             CLOSE_DISPS(play->state.gfxCtx);
         }
 
-        sp38.x += Rand_Centered();
-        sp38.y += 2.0f * Rand_Centered();
-        sp38.z += Rand_Centered();
+        sp38.x += MM_Rand_Centered();
+        sp38.y += 2.0f * MM_Rand_Centered();
+        sp38.z += MM_Rand_Centered();
 
-        sp2C.x += Rand_Centered();
-        sp2C.y += 2.0f * Rand_Centered();
-        sp2C.z += Rand_Centered();
+        sp2C.x += MM_Rand_Centered();
+        sp2C.y += 2.0f * MM_Rand_Centered();
+        sp2C.z += MM_Rand_Centered();
 
-        Matrix_MultVec3f(&D_80BB407C, &this->unk_4B4);
-        Matrix_Push();
+        MM_Matrix_MultVec3f(&D_80BB407C, &this->unk_4B4);
+        MM_Matrix_Push();
         Matrix_RotateYS(this->actor.shape.rot.y, MTXMODE_NEW);
-        Matrix_MultVec3f(&sp38, &this->unk_4C0[0]);
-        Matrix_MultVec3f(&sp2C, &this->unk_4C0[1]);
-        Matrix_Pop();
+        MM_Matrix_MultVec3f(&sp38, &this->unk_4C0[0]);
+        MM_Matrix_MultVec3f(&sp2C, &this->unk_4C0[1]);
+        MM_Matrix_Pop();
     }
 }
 
@@ -1046,13 +1046,13 @@ void EnGeg_TransformLimbDraw(PlayState* play, s32 limbIndex, Actor* thisx) {
             func_80BB3728(this->unk_468 + this->unk_46C + 0x4000,
                           this->unk_46A + this->unk_46E + this->actor.shape.rot.y + 0x4000, &this->unk_470,
                           &this->unk_47C, phi_v0, phi_v1);
-            Matrix_Pop();
-            Matrix_Translate(this->unk_470.x, this->unk_470.y, this->unk_470.z, MTXMODE_NEW);
-            Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+            MM_Matrix_Pop();
+            MM_Matrix_Translate(this->unk_470.x, this->unk_470.y, this->unk_470.z, MTXMODE_NEW);
+            MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
             Matrix_RotateYS(this->unk_47C.y, MTXMODE_APPLY);
             Matrix_RotateXS(this->unk_47C.x, MTXMODE_APPLY);
             Matrix_RotateZS(this->unk_47C.z, MTXMODE_APPLY);
-            Matrix_Push();
+            MM_Matrix_Push();
             break;
 
         case GORON_LIMB_BODY:
@@ -1070,13 +1070,13 @@ void EnGeg_TransformLimbDraw(PlayState* play, s32 limbIndex, Actor* thisx) {
 
             func_80BB3728(this->unk_46C + 0x4000, this->unk_46E + this->actor.shape.rot.y + 0x4000, &this->unk_484,
                           &this->unk_490, phi_v0, phi_v1);
-            Matrix_Pop();
-            Matrix_Translate(this->unk_484.x, this->unk_484.y, this->unk_484.z, MTXMODE_NEW);
-            Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+            MM_Matrix_Pop();
+            MM_Matrix_Translate(this->unk_484.x, this->unk_484.y, this->unk_484.z, MTXMODE_NEW);
+            MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
             Matrix_RotateYS(this->unk_490.y, MTXMODE_APPLY);
             Matrix_RotateXS(this->unk_490.x, MTXMODE_APPLY);
             Matrix_RotateZS(this->unk_490.z, MTXMODE_APPLY);
-            Matrix_Push();
+            MM_Matrix_Push();
             break;
 
         default:
@@ -1113,13 +1113,13 @@ void func_80BB3CB4(EnGeg* this, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y + this->actor.shape.yOffset,
+    MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y + this->actor.shape.yOffset,
                      this->actor.world.pos.z, MTXMODE_NEW);
     Matrix_RotateYS(this->actor.shape.rot.y, MTXMODE_APPLY);
-    Matrix_Translate(0.0f, -this->actor.shape.yOffset, 0.0f, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, -this->actor.shape.yOffset, 0.0f, MTXMODE_APPLY);
     Matrix_RotateZS(this->actor.shape.rot.z, MTXMODE_APPLY);
-    Matrix_Translate(0.0f, this->actor.shape.yOffset, 0.0f, MTXMODE_APPLY);
-    Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, this->actor.shape.yOffset, 0.0f, MTXMODE_APPLY);
+    MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
     Matrix_RotateXS(sp24, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);

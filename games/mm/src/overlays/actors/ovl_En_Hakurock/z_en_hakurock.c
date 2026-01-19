@@ -68,7 +68,7 @@ ActorProfile En_Hakurock_Profile = {
     /**/ NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HARD,
         AT_ON | AT_TYPE_ENEMY,
@@ -88,14 +88,14 @@ static ColliderCylinderInit sCylinderInit = {
     { 60, 60, -30, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit sColChkInfoInit = { 0, 60, 60, MASS_IMMOVABLE };
+static CollisionCheckInfoInit MM_sColChkInfoInit = { 0, 60, 60, MASS_IMMOVABLE };
 
 void EnHakurock_Init(Actor* thisx, PlayState* play) {
     EnHakurock* this = (EnHakurock*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 52.0f);
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo(&this->actor.colChkInfo, NULL, &sColChkInfoInit);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 52.0f);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo(&this->actor.colChkInfo, NULL, &MM_sColChkInfoInit);
 
     if (EN_HAKUROCK_GET_TYPE(&this->actor) == EN_HAKUROCK_TYPE_BOULDER) {
         this->actor.gravity = -1.5f;
@@ -111,7 +111,7 @@ void EnHakurock_Init(Actor* thisx, PlayState* play) {
 void EnHakurock_Destroy(Actor* thisx, PlayState* play) {
     EnHakurock* this = (EnHakurock*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 /**
@@ -128,33 +128,33 @@ void EnHakurock_AddRockEffect(BossHakugin* parent, Vec3f* pos, s32 type) {
         if (rockEffect->timer < 0) {
             VecGeo velocityGeo;
 
-            Math_Vec3f_Copy(&rockEffect->pos, pos);
+            MM_Math_Vec3f_Copy(&rockEffect->pos, pos);
 
-            velocityGeo.pitch = Rand_S16Offset(0x1000, 0x3000);
-            velocityGeo.yaw = Rand_Next() >> 0x10;
-            velocityGeo.r = Rand_ZeroFloat(5.0f) + 10.0f;
-            rockEffect->velocity.x = velocityGeo.r * Math_CosS(velocityGeo.pitch) * Math_SinS(velocityGeo.yaw);
-            rockEffect->velocity.y = velocityGeo.r * Math_SinS(velocityGeo.pitch);
-            rockEffect->velocity.z = velocityGeo.r * Math_CosS(velocityGeo.pitch) * Math_CosS(velocityGeo.yaw);
+            velocityGeo.pitch = MM_Rand_S16Offset(0x1000, 0x3000);
+            velocityGeo.yaw = MM_Rand_Next() >> 0x10;
+            velocityGeo.r = MM_Rand_ZeroFloat(5.0f) + 10.0f;
+            rockEffect->velocity.x = velocityGeo.r * MM_Math_CosS(velocityGeo.pitch) * MM_Math_SinS(velocityGeo.yaw);
+            rockEffect->velocity.y = velocityGeo.r * MM_Math_SinS(velocityGeo.pitch);
+            rockEffect->velocity.z = velocityGeo.r * MM_Math_CosS(velocityGeo.pitch) * MM_Math_CosS(velocityGeo.yaw);
 
             if ((type == EN_HAKUROCK_EFFECT_TYPE_FALLING_STALACTITE_DESTROYED) ||
                 (type == EN_HAKUROCK_EFFECT_TYPE_STALACTITE_DESTROYED)) {
-                rockEffect->scale = ((Rand_ZeroFloat(5.0f) + 25.0f) * 0.0012f);
-                rockEffect->pos.x = pos->x + ((Rand_ZeroFloat(2.0f) + 9.0f) * rockEffect->velocity.x);
-                rockEffect->pos.y = pos->y + ((Rand_ZeroFloat(2.0f) + 3.0f) * rockEffect->velocity.y);
-                rockEffect->pos.z = pos->z + ((Rand_ZeroFloat(2.0f) + 9.0f) * rockEffect->velocity.z);
+                rockEffect->scale = ((MM_Rand_ZeroFloat(5.0f) + 25.0f) * 0.0012f);
+                rockEffect->pos.x = pos->x + ((MM_Rand_ZeroFloat(2.0f) + 9.0f) * rockEffect->velocity.x);
+                rockEffect->pos.y = pos->y + ((MM_Rand_ZeroFloat(2.0f) + 3.0f) * rockEffect->velocity.y);
+                rockEffect->pos.z = pos->z + ((MM_Rand_ZeroFloat(2.0f) + 9.0f) * rockEffect->velocity.z);
                 rockEffect->type = GOHT_ROCK_EFFECT_TYPE_STALACTITE;
             } else {
-                rockEffect->scale = ((Rand_ZeroFloat(5.0f) + 18.0f) * 0.0001f);
-                rockEffect->pos.x = pos->x + ((Rand_ZeroFloat(2.0f) + 3.0f) * rockEffect->velocity.x);
-                rockEffect->pos.y = pos->y + ((Rand_ZeroFloat(3.0f) + 1.0f) * rockEffect->velocity.y);
-                rockEffect->pos.z = pos->z + ((Rand_ZeroFloat(2.0f) + 3.0f) * rockEffect->velocity.z);
+                rockEffect->scale = ((MM_Rand_ZeroFloat(5.0f) + 18.0f) * 0.0001f);
+                rockEffect->pos.x = pos->x + ((MM_Rand_ZeroFloat(2.0f) + 3.0f) * rockEffect->velocity.x);
+                rockEffect->pos.y = pos->y + ((MM_Rand_ZeroFloat(3.0f) + 1.0f) * rockEffect->velocity.y);
+                rockEffect->pos.z = pos->z + ((MM_Rand_ZeroFloat(2.0f) + 3.0f) * rockEffect->velocity.z);
                 rockEffect->type = GOHT_ROCK_EFFECT_TYPE_BOULDER;
             }
 
-            rockEffect->rot.x = (s32)Rand_Next() >> 0x10;
-            rockEffect->rot.y = (s32)Rand_Next() >> 0x10;
-            rockEffect->rot.z = (s32)Rand_Next() >> 0x10;
+            rockEffect->rot.x = (s32)MM_Rand_Next() >> 0x10;
+            rockEffect->rot.y = (s32)MM_Rand_Next() >> 0x10;
+            rockEffect->rot.z = (s32)MM_Rand_Next() >> 0x10;
             rockEffect->timer = 40;
             return;
         }
@@ -181,7 +181,7 @@ void EnHakurock_SpawnEffect(EnHakurock* this, s32 type) {
             EnHakurock_AddRockEffect((BossHakugin*)this->actor.parent, &this->actor.world.pos, type);
         }
     } else {
-        Math_Vec3f_Copy(&pos, &this->actor.world.pos);
+        MM_Math_Vec3f_Copy(&pos, &this->actor.world.pos);
         offset = this->actor.scale.x * 600.0f;
         if (type == EN_HAKUROCK_EFFECT_TYPE_FALLING_STALACTITE_DESTROYED) {
             pos.y -= offset;
@@ -229,18 +229,18 @@ void EnHakurock_WaitForSignal(EnHakurock* this, PlayState* play) {
 void EnHakurock_Boulder_SetupMove(EnHakurock* this) {
     this->actor.params = EN_HAKUROCK_TYPE_BOULDER;
     this->actor.draw = EnHakurock_DrawBoulder;
-    this->actor.speed = Rand_ZeroFloat(3.5f) + 2.5f;
-    this->actor.velocity.y = Rand_ZeroFloat(4.5f) + 18.0f;
-    Actor_SetScale(&this->actor, (Rand_ZeroFloat(5.0f) + 15.0f) * 0.001f);
-    this->actor.world.rot.y = ((s32)Rand_Next() >> 0x12) + this->actor.parent->shape.rot.y + 0x8000;
-    this->actor.shape.rot.x = (s32)Rand_Next() >> 0x10;
-    this->actor.shape.rot.y = (s32)Rand_Next() >> 0x10;
-    this->actor.shape.rot.z = (s32)Rand_Next() >> 0x10;
+    this->actor.speed = MM_Rand_ZeroFloat(3.5f) + 2.5f;
+    this->actor.velocity.y = MM_Rand_ZeroFloat(4.5f) + 18.0f;
+    MM_Actor_SetScale(&this->actor, (MM_Rand_ZeroFloat(5.0f) + 15.0f) * 0.001f);
+    this->actor.world.rot.y = ((s32)MM_Rand_Next() >> 0x12) + this->actor.parent->shape.rot.y + 0x8000;
+    this->actor.shape.rot.x = (s32)MM_Rand_Next() >> 0x10;
+    this->actor.shape.rot.y = (s32)MM_Rand_Next() >> 0x10;
+    this->actor.shape.rot.z = (s32)MM_Rand_Next() >> 0x10;
     this->collider.dim.radius = (this->actor.scale.x * 2500.0f);
     this->collider.dim.yShift = -this->collider.dim.radius;
     this->collider.dim.height = this->collider.dim.radius * 2;
     this->timer = 10;
-    Math_Vec3f_Copy(&this->actor.prevPos, &this->actor.world.pos);
+    MM_Math_Vec3f_Copy(&this->actor.prevPos, &this->actor.world.pos);
     this->actionFunc = EnHakurock_Boulder_Move;
 }
 
@@ -269,20 +269,20 @@ void EnHakurock_Stalactite_SetupFall(EnHakurock* this, PlayState* play) {
     s16 angle;
 
     this->actor.draw = EnHakurock_DrawStalactite;
-    angle = ((s32)Rand_Next() >> 0x13) + player->actor.shape.rot.y;
-    this->actor.shape.rot.y = (s32)Rand_Next() >> 0x10;
-    this->actor.world.pos.x = (Math_SinS(angle) * 600.0f) + player->actor.world.pos.x;
+    angle = ((s32)MM_Rand_Next() >> 0x13) + player->actor.shape.rot.y;
+    this->actor.shape.rot.y = (s32)MM_Rand_Next() >> 0x10;
+    this->actor.world.pos.x = (MM_Math_SinS(angle) * 600.0f) + player->actor.world.pos.x;
     this->actor.world.pos.y = player->actor.world.pos.y + 700.0f;
-    this->actor.world.pos.z = (Math_CosS(angle) * 600.0f) + player->actor.world.pos.z;
+    this->actor.world.pos.z = (MM_Math_CosS(angle) * 600.0f) + player->actor.world.pos.z;
     this->actor.shape.shadowScale = 5.0f;
     this->actor.velocity.y = -10.0f;
-    Actor_SetScale(&this->actor, (Rand_ZeroFloat(5.0f) + 17.0f) * 0.01f);
+    MM_Actor_SetScale(&this->actor, (MM_Rand_ZeroFloat(5.0f) + 17.0f) * 0.01f);
     this->actor.scale.x *= 0.6f;
     this->actor.scale.z *= 0.6f;
     this->collider.dim.radius = (this->actor.scale.x * 150.0f);
     this->collider.dim.yShift = (this->actor.scale.y * -750.0f);
     this->collider.dim.height = this->collider.dim.yShift * -2;
-    Math_Vec3f_Copy(&this->actor.prevPos, &this->actor.world.pos);
+    MM_Math_Vec3f_Copy(&this->actor.prevPos, &this->actor.world.pos);
     this->actor.params = EN_HAKUROCK_TYPE_FALLING_STALACTITE;
     this->actionFunc = EnHakurock_Stalactite_Fall;
 }
@@ -323,7 +323,7 @@ void EnHakurock_Stalactite_StuckInGround(EnHakurock* this, PlayState* play) {
     if (this->timer > 0) {
         this->timer--;
         if ((this->timer % 2) == 0) {
-            this->actor.world.pos.y = (Math_SinF(this->timer * (M_PIf / 20)) * 4.0f) + this->actor.floorHeight;
+            this->actor.world.pos.y = (MM_Math_SinF(this->timer * (M_PIf / 20)) * 4.0f) + this->actor.floorHeight;
         } else {
             this->actor.world.pos.y = this->actor.floorHeight;
         }
@@ -354,7 +354,7 @@ void EnHakurock_LargeStalactite_SetupWait(EnHakurock* this) {
     f32 shiftFactor;
 
     this->actor.draw = EnHakurock_DrawStalactite;
-    Actor_SetScale(&this->actor, 0.35f);
+    MM_Actor_SetScale(&this->actor, 0.35f);
     this->actor.scale.y = 0.5f;
     this->collider.dim.radius = this->actor.scale.x * 270.0f;
     shiftFactor = -750.0f;
@@ -385,22 +385,22 @@ void EnHakurock_Update(Actor* thisx, PlayState* play) {
     if ((EN_HAKUROCK_GET_TYPE(thisx) == EN_HAKUROCK_TYPE_BOULDER) ||
         (EN_HAKUROCK_GET_TYPE(thisx) == EN_HAKUROCK_TYPE_FALLING_STALACTITE)) {
         Actor_MoveWithGravity(thisx);
-        Actor_UpdateBgCheckInfo(play, thisx, 30.0f, this->collider.dim.radius, 0.0f,
+        MM_Actor_UpdateBgCheckInfo(play, thisx, 30.0f, this->collider.dim.radius, 0.0f,
                                 UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4 | UPDBGCHECKINFO_FLAG_80);
 
         if (thisx->floorHeight == BGCHECK_Y_MIN) {
             EnHakurock_SetupWaitForSignal(this);
         } else {
-            Collider_UpdateCylinder(thisx, &this->collider);
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-            CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+            MM_Collider_UpdateCylinder(thisx, &this->collider);
+            MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+            MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+            MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
         }
     } else if ((EN_HAKUROCK_GET_TYPE(thisx) == EN_HAKUROCK_TYPE_STUCK_STALACTITE) ||
                (EN_HAKUROCK_GET_TYPE(thisx) == EN_HAKUROCK_TYPE_LARGE_STALACTITE)) {
-        Collider_UpdateCylinder(thisx, &this->collider);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_Collider_UpdateCylinder(thisx, &this->collider);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -419,7 +419,7 @@ void EnHakurock_DrawStalactite(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    Matrix_Translate(-100.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+    MM_Matrix_Translate(-100.0f, 0.0f, 0.0f, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     gSPDisplayList(POLY_OPA_DISP++, gGohtStalactiteMaterialDL);
     gSPDisplayList(POLY_OPA_DISP++, gGohtStalactiteModelDL);

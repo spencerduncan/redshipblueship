@@ -1,6 +1,6 @@
 #include "global.h"
 
-s32 osRecvMesg(OSMesgQueue* mq, OSMesg* msg, s32 flag) {
+s32 OoT_osRecvMesg(OSMesgQueue* mq, OSMesg* msg, s32 flag) {
     register u32 prevInt = __osDisableInt();
 
     while (mq->validCount == 0) {
@@ -20,7 +20,7 @@ s32 osRecvMesg(OSMesgQueue* mq, OSMesg* msg, s32 flag) {
     mq->validCount--;
 
     if (mq->fullqueue->next != NULL) {
-        osStartThread(__osPopThread(&mq->fullqueue));
+        OoT_osStartThread(__osPopThread(&mq->fullqueue));
     }
 
     __osRestoreInt(prevInt);

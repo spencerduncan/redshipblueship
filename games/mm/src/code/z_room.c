@@ -10,7 +10,7 @@ void Room_Noop(PlayState* play, Room* room, Input* input, s32 arg3) {
 void Room_DrawNone(PlayState* play, Room* room, u32 flags) {
 }
 
-static Vec3f sZeroVec = { 0.0f, 0.0f, 0.0f };
+static Vec3f MM_sZeroVec = { 0.0f, 0.0f, 0.0f };
 
 void Room_DrawNormal(PlayState* play, Room* room, u32 flags) {
     RoomShapeNormal* roomShape;
@@ -20,14 +20,14 @@ void Room_DrawNormal(PlayState* play, Room* room, u32 flags) {
     OPEN_DISPS(play->state.gfxCtx);
 
     if (flags & ROOM_DRAW_OPA) {
-        func_800BCBF4(&sZeroVec, play);
+        func_800BCBF4(&MM_sZeroVec, play);
         gSPSegment(POLY_OPA_DISP++, 0x03, room->segment);
         func_8012C268(&play->state);
         gSPMatrix(POLY_OPA_DISP++, &gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     }
 
     if (flags & ROOM_DRAW_XLU) {
-        func_800BCC68(&sZeroVec, play);
+        func_800BCC68(&MM_sZeroVec, play);
         gSPSegment(POLY_XLU_DISP++, 0x03, room->segment);
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
         gSPMatrix(POLY_XLU_DISP++, &gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -83,7 +83,7 @@ void Room_DrawCullable(PlayState* play, Room* room, u32 flags) {
     OPEN_DISPS(play->state.gfxCtx);
 
     if (flags & ROOM_DRAW_OPA) {
-        func_800BCBF4(&sZeroVec, play);
+        func_800BCBF4(&MM_sZeroVec, play);
 
         gSPSegment(POLY_OPA_DISP++, 0x03, room->segment);
         if (play->roomCtx.unk74 != NULL) {
@@ -94,7 +94,7 @@ void Room_DrawCullable(PlayState* play, Room* room, u32 flags) {
     }
 
     if (flags & ROOM_DRAW_XLU) {
-        func_800BCC68(&sZeroVec, play);
+        func_800BCC68(&MM_sZeroVec, play);
         gSPSegment(POLY_XLU_DISP++, 0x03, room->segment);
         if (play->roomCtx.unk74 != NULL) {
             gSPSegment(POLY_XLU_DISP++, 0x06, play->roomCtx.unk74);
@@ -162,7 +162,7 @@ void Room_DrawCullable(PlayState* play, Room* room, u32 flags) {
             pos.x = roomShapeCullableEntry->boundsSphereCenter.x;
             pos.y = roomShapeCullableEntry->boundsSphereCenter.y;
             pos.z = roomShapeCullableEntry->boundsSphereCenter.z;
-            SkinMatrix_Vec3fMtxFMultXYZ(&play->viewProjectionMtxF, &pos, &projectedPos);
+            MM_SkinMatrix_Vec3fMtxFMultXYZ(&play->viewProjectionMtxF, &pos, &projectedPos);
 
             projectedPos.z *= var_fa1;
 
@@ -345,7 +345,7 @@ void Room_DrawImageSingle(PlayState* play, Room* room, u32 flags) {
 
             POLY_OPA_DISP = gfx;
 
-            gSPLoadUcode(POLY_OPA_DISP++, SysUcode_GetUCode());
+            gSPLoadUcode(POLY_OPA_DISP++, MM_SysUcode_GetUCode());
         }
     }
 
@@ -444,7 +444,7 @@ void Room_DrawImageMulti(PlayState* play, Room* room, u32 flags) {
 
             POLY_OPA_DISP = gfx;
 
-            gSPLoadUcode(POLY_OPA_DISP++, SysUcode_GetUCode());
+            gSPLoadUcode(POLY_OPA_DISP++, MM_SysUcode_GetUCode());
         }
     }
 
@@ -551,7 +551,7 @@ size_t Room_SetupFirstRoom(PlayState* play, RoomContext* roomCtx) {
     }
 
     // Load into a room for the first time.
-    // Since curRoom was initialized to `room` = -1 and `segment` = NULL in Play_InitScene, the previous room
+    // Since curRoom was initialized to `room` = -1 and `segment` = NULL in MM_Play_InitScene, the previous room
     // will also be initialized to the nulled state when this function completes.
     Room_RequestNewRoom(play, roomCtx, frontRoom);
 
@@ -591,7 +591,7 @@ s32 Room_RequestNewRoom(PlayState* play, RoomContext* roomCtx, s32 index) {
         roomCtx->roomRequestAddr = (void*)(ALIGN16((uintptr_t)roomCtx->bufPtrs[roomCtx->activeBufPage] -
                                                    (size + 8) * roomCtx->activeBufPage - 7));
 
-        osCreateMesgQueue(&roomCtx->loadQueue, roomCtx->loadMsg, ARRAY_COUNT(roomCtx->loadMsg));
+        MM_osCreateMesgQueue(&roomCtx->loadQueue, roomCtx->loadMsg, ARRAY_COUNT(roomCtx->loadMsg));
         DmaMgr_RequestAsync(&roomCtx->dmaRequest, roomCtx->roomRequestAddr, play->roomList.romFiles[index].vromStart,
                             size, 0, &roomCtx->loadQueue, NULL);
         roomCtx->activeBufPage ^= 1;
@@ -616,14 +616,14 @@ s32 Room_ProcessRoomRequest(PlayState* play, RoomContext* roomCtx) {
     return OTRfunc_800973FC(play, roomCtx);
 #if 0
     if (roomCtx->status == 1) {
-        if (osRecvMesg(&roomCtx->loadQueue, NULL, OS_MESG_NOBLOCK) == 0) {
+        if (MM_osRecvMesg(&roomCtx->loadQueue, NULL, OS_MESG_NOBLOCK) == 0) {
             roomCtx->status = 0;
             roomCtx->curRoom.segment = roomCtx->roomRequestAddr;
-            gSegments[0x03] = OS_K0_TO_PHYSICAL(roomCtx->curRoom.segment);
+            MM_gSegments[0x03] = OS_K0_TO_PHYSICAL(roomCtx->curRoom.segment);
 
-            Scene_ExecuteCommands(play, roomCtx->curRoom.segment);
+            MM_Scene_ExecuteCommands(play, roomCtx->curRoom.segment);
             func_80123140(play, GET_PLAYER(play));
-            Actor_SpawnTransitionActors(play, &play->actorCtx);
+            MM_Actor_SpawnTransitionActors(play, &play->actorCtx);
 
             if (!(((play->sceneId == SCENE_IKANA) && (roomCtx->curRoom.num == 1)) ||
                   (play->sceneId == SCENE_IKNINSIDE))) {
@@ -632,7 +632,7 @@ s32 Room_ProcessRoomRequest(PlayState* play, RoomContext* roomCtx) {
             }
             func_800FEAB0();
             if (Environment_GetStormState(play) == STORM_STATE_OFF) {
-                Environment_StopStormNatureAmbience(play);
+                MM_Environment_StopStormNatureAmbience(play);
             }
         } else {
             return false;
@@ -650,9 +650,9 @@ RoomDrawHandler sRoomDrawHandlers[] = {
     Room_DrawNone,     // ROOM_SHAPE_TYPE_NONE
 };
 
-void Room_Draw(PlayState* play, Room* room, u32 flags) {
+void MM_Room_Draw(PlayState* play, Room* room, u32 flags) {
     if (room->segment != NULL) {
-        gSegments[3] = OS_K0_TO_PHYSICAL(room->segment);
+        MM_gSegments[3] = OS_K0_TO_PHYSICAL(room->segment);
         sRoomDrawHandlers[room->roomShape->base.type](play, room, flags);
     }
     return;
@@ -670,10 +670,10 @@ void Room_FinishRoomChange(PlayState* play, RoomContext* roomCtx) {
     roomCtx->prevRoom.segment = NULL;
 
     func_800BA798(play, &play->actorCtx);
-    Actor_SpawnTransitionActors(play, &play->actorCtx);
+    MM_Actor_SpawnTransitionActors(play, &play->actorCtx);
     if (roomCtx->curRoom.num > -1) {
-        Map_InitRoomData(play, roomCtx->curRoom.num);
+        MM_Map_InitRoomData(play, roomCtx->curRoom.num);
         Map_SetAreaEntrypoint(play);
     }
-    Audio_SetEnvReverb(play->roomCtx.curRoom.echo);
+    MM_Audio_SetEnvReverb(play->roomCtx.curRoom.echo);
 }

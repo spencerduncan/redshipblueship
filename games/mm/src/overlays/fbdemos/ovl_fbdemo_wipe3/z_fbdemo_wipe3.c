@@ -77,8 +77,8 @@ void TransitionWipe3_Start(void* thisx) {
             Audio_PlaySfx_2(NA_SE_OC_SECRET_WARP_OUT);
         }
     }
-    guPerspective(&this->projection, &this->normal, 60.0f, 4.0f / 3.0f, 10.0f, 12800.0f, 1.0f);
-    guLookAt(&this->lookAt, 0.0f, 0.0f, 400.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+    MM_guPerspective(&this->projection, &this->normal, 60.0f, 4.0f / 3.0f, 10.0f, 12800.0f, 1.0f);
+    MM_guLookAt(&this->lookAt, 0.0f, 0.0f, 400.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 }
 
 void* TransitionWipe3_Init(void* thisx) {
@@ -135,7 +135,7 @@ void TransitionWipe3_Draw(void* thisx, Gfx** gfxP) {
     ((TransitionWipe3*)thisx)->frame ^= 1;
     gDPPipeSync(gfx++);
     texScroll =
-        Gfx_BranchTexScroll(&gfx, ((TransitionWipe3*)thisx)->scrollX, ((TransitionWipe3*)thisx)->scrollY, 16, 64);
+        MM_Gfx_BranchTexScroll(&gfx, ((TransitionWipe3*)thisx)->scrollX, ((TransitionWipe3*)thisx)->scrollY, 16, 64);
     gSPSegment(gfx++, 0x09, texScroll);
     gSPSegment(gfx++, 0x08, ((TransitionWipe3*)thisx)->curTexture);
     gDPSetColor(gfx++, G_SETPRIMCOLOR, ((TransitionWipe3*)thisx)->color.rgba);

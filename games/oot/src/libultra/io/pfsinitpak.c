@@ -1,7 +1,7 @@
 #include <libultraship/libultra.h>
 #include "global.h"
 
-s32 osPfsInitPak(OSMesgQueue* queue, OSPfs* pfs, s32 channel) {
+s32 OoT_osPfsInitPak(OSMesgQueue* queue, OSPfs* pfs, s32 channel) {
     s32 ret;
     u16 sum;
     u16 isum;
@@ -70,7 +70,7 @@ s32 osPfsInitPak(OSMesgQueue* queue, OSPfs* pfs, s32 channel) {
         return ret;
     }
 
-    ret = osPfsChecker(pfs);
+    ret = OoT_osPfsChecker(pfs);
     pfs->status |= PFS_INITIALIZED;
 
     return ret;

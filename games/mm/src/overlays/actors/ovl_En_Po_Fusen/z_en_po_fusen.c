@@ -61,7 +61,7 @@ typedef enum {
     /* 0xF */ POE_BALLOON_DMGEFF_POP = 0xF
 } PoeBalloonDamageEffect;
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(0, POE_BALLOON_DMGEFF_NONE),
     /* Deku Stick     */ DMG_ENTRY(0, POE_BALLOON_DMGEFF_NONE),
     /* Horse trample  */ DMG_ENTRY(0, POE_BALLOON_DMGEFF_NONE),
@@ -102,19 +102,19 @@ void EnPoFusen_Init(Actor* thisx, PlayState* play) {
 
     this->actor.scale.x = this->actor.scale.y = this->actor.scale.z = 0.007f;
     this->actor.attentionRangeType = ATTENTION_RANGE_6;
-    this->actor.colChkInfo.damageTable = &sDamageTable;
+    this->actor.colChkInfo.damageTable = &MM_sDamageTable;
 
     Collider_InitSphere(play, &this->collider);
     Collider_SetSphere(play, &this->collider, &this->actor, &sSphereInit);
 
     this->collider.dim.worldSphere.radius = 40;
-    SkelAnime_InitFlex(play, &this->anime, &gPoeBalloonSkel, &gPoeBalloonEmptyAnim, this->jointTable, this->morphTable,
+    MM_SkelAnime_InitFlex(play, &this->anime, &gPoeBalloonSkel, &gPoeBalloonEmptyAnim, this->jointTable, this->morphTable,
                        POE_BALLOON_LIMB_MAX);
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 25.0f);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 25.0f);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
 
     if (!EnPoFusen_CheckParent(this, play)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 
     flyingHeightMin = this->actor.floorHeight + 90.0f;
@@ -122,8 +122,8 @@ void EnPoFusen_Init(Actor* thisx, PlayState* play) {
         this->actor.home.pos.y = flyingHeightMin;
     }
 
-    this->randScaleChange = (Rand_Next() % 0xFFFE) - 0x7FFF;
-    this->randYRotChange = (Rand_Next() % 0x4B0) - 0x258;
+    this->randScaleChange = (MM_Rand_Next() % 0xFFFE) - 0x7FFF;
+    this->randYRotChange = (MM_Rand_Next() % 0x4B0) - 0x258;
     this->avgBaseRotation = 0x10000 / 12;
     this->limbRotYRightUpperArm = 0;
     this->limb46Rot = 0;
@@ -180,8 +180,8 @@ s32 EnPoFusen_CheckCollision(EnPoFusen* this, PlayState* play) {
         return true;
     }
 
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
 
     return false;
 }
@@ -200,26 +200,26 @@ void EnPoFusen_Idle(EnPoFusen* this, PlayState* play) {
     this->randScaleChange += 0x190;
     this->randXZRotChange += 0x5DC;
     this->randBaseRotChange += 0x9C4;
-    heightOffset = Math_SinS(this->randScaleChange);
+    heightOffset = MM_Math_SinS(this->randScaleChange);
     heightOffset = 50.0f * heightOffset;
     this->actor.shape.rot.y += this->randYRotChange;
     this->actor.world.pos.y += heightOffset;
-    this->actor.shape.rot.z = (Math_SinS(this->randBaseRotChange) * 910.0f);
+    this->actor.shape.rot.z = (MM_Math_SinS(this->randBaseRotChange) * 910.0f);
 
     if ((this->randScaleChange < 0x4000) && (this->randScaleChange > -0x4000)) {
-        Math_SmoothStepToS(&this->limbRotChainAndLantern, 0x38E, 0x14, 0xBB8, 0x64);
+        MM_Math_SmoothStepToS(&this->limbRotChainAndLantern, 0x38E, 0x14, 0xBB8, 0x64);
     } else {
-        Math_SmoothStepToS(&this->limbRotChainAndLantern, 0x71C, 0x8, 0xBB8, 0x64);
+        MM_Math_SmoothStepToS(&this->limbRotChainAndLantern, 0x71C, 0x8, 0xBB8, 0x64);
     }
 
     this->avgBaseRotation = this->limbRotChainAndLantern * 3;
-    this->limbRotYRightUpperArm = (Math_SinS(this->randBaseRotChange + 0x38E3) * this->avgBaseRotation);
-    this->limb46Rot = (Math_SinS(this->randBaseRotChange) * this->avgBaseRotation);
-    this->limb57Rot = (Math_SinS(this->randBaseRotChange - 0x38E3) * this->avgBaseRotation);
-    this->limbRotLeftHand = (Math_SinS(this->randBaseRotChange - 0x71C6) * this->avgBaseRotation);
+    this->limbRotYRightUpperArm = (MM_Math_SinS(this->randBaseRotChange + 0x38E3) * this->avgBaseRotation);
+    this->limb46Rot = (MM_Math_SinS(this->randBaseRotChange) * this->avgBaseRotation);
+    this->limb57Rot = (MM_Math_SinS(this->randBaseRotChange - 0x38E3) * this->avgBaseRotation);
+    this->limbRotLeftHand = (MM_Math_SinS(this->randBaseRotChange - 0x71C6) * this->avgBaseRotation);
 
-    shadowScaleTmp = ((1.0f - Math_SinS(this->randScaleChange)) * 10.0f) + 50.0f;
-    shadowAlphaTmp = ((1.0f - Math_SinS(this->randScaleChange)) * 75.0f) + 100.0f;
+    shadowScaleTmp = ((1.0f - MM_Math_SinS(this->randScaleChange)) * 10.0f) + 50.0f;
+    shadowAlphaTmp = ((1.0f - MM_Math_SinS(this->randScaleChange)) * 75.0f) + 100.0f;
     this->actor.shape.shadowScale = shadowScaleTmp;
     this->actor.shape.shadowAlpha = CLAMP_MAX(shadowAlphaTmp, 255.0f);
 }
@@ -238,10 +238,10 @@ void EnPoFusen_IncrementRomaniPop(EnPoFusen* this) {
 }
 
 void EnPoFusen_Pop(EnPoFusen* this, PlayState* play) {
-    Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->actor.world.pos.x, this->actor.world.pos.y + 20.0f,
+    MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->actor.world.pos.x, this->actor.world.pos.y + 20.0f,
                 this->actor.world.pos.z, 255, 255, 200, CLEAR_TAG_PARAMS(CLEAR_TAG_POP));
     Actor_PlaySfx(&this->actor, NA_SE_IT_BOMB_EXPLOSION);
-    Actor_Kill(&this->actor);
+    MM_Actor_Kill(&this->actor);
 }
 
 void EnPoFusen_InitFuse(EnPoFusen* this) {
@@ -273,7 +273,7 @@ s32 EnPoFusen_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3
     EnPoFusen* this = (EnPoFusen*)thisx;
 
     if (limbIndex == POE_BALLOON_LIMB_BODY) {
-        f32 zScale = (Math_CosS(this->randScaleChange) * 0.08f) + 1.0f;
+        f32 zScale = (MM_Math_CosS(this->randScaleChange) * 0.08f) + 1.0f;
         f32 yScale;
         f32 xScale = zScale;
         s16 pad;
@@ -281,12 +281,12 @@ s32 EnPoFusen_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3
         s16 pad2;
         s16 xRot;
 
-        yScale = (Math_SinS(this->randScaleChange) * 0.08f) + 1.0f;
+        yScale = (MM_Math_SinS(this->randScaleChange) * 0.08f) + 1.0f;
         yScale = SQ(yScale);
-        xRot = ((Math_SinS(this->randXZRotChange) * 2730.0f));
-        zRot = ((Math_CosS(this->randXZRotChange) * 2730.0f));
-        Matrix_RotateZYX(xRot, 0, zRot, MTXMODE_APPLY);
-        Matrix_Scale(xScale, yScale, zScale, MTXMODE_APPLY);
+        xRot = ((MM_Math_SinS(this->randXZRotChange) * 2730.0f));
+        zRot = ((MM_Math_CosS(this->randXZRotChange) * 2730.0f));
+        MM_Matrix_RotateZYX(xRot, 0, zRot, MTXMODE_APPLY);
+        MM_Matrix_Scale(xScale, yScale, zScale, MTXMODE_APPLY);
         Matrix_RotateZS(-zRot, MTXMODE_APPLY);
         Matrix_RotateXS(-xRot, MTXMODE_APPLY);
 
@@ -301,8 +301,8 @@ s32 EnPoFusen_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3
     } else if (limbIndex == POE_BALLOON_LEFT_HAND) {
         rot->z += this->limbRotLeftHand;
     } else if (limbIndex == POE_BALLOON_LIMB_CHAIN_AND_LANTERN) {
-        rot->y += TRUNCF_BINANG(this->limbRotChainAndLantern * Math_SinS(this->randBaseRotChange));
-        rot->z += TRUNCF_BINANG(this->limbRotChainAndLantern * Math_CosS(this->randBaseRotChange));
+        rot->y += TRUNCF_BINANG(this->limbRotChainAndLantern * MM_Math_SinS(this->randBaseRotChange));
+        rot->z += TRUNCF_BINANG(this->limbRotChainAndLantern * MM_Math_CosS(this->randBaseRotChange));
     }
     return false;
 }

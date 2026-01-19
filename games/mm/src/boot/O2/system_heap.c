@@ -2,7 +2,7 @@
  * @file system_heap.c
  *
  * @note:
- *  Only SystemHeap_Init() is used, and is essentially just a wrapper for SystemArena_Init().
+ *  Only MM_SystemHeap_Init() is used, and is essentially just a wrapper for MM_SystemArena_Init().
  *
  */
 #include "global.h"
@@ -17,21 +17,21 @@ typedef struct InitFunc {
     /* 0x4 */ void (*func)(void);
 } InitFunc; // size = 0x8
 
-void* sInitFuncs = NULL;
+void* MM_sInitFuncs = NULL;
 
-char sNew[] = "";
+char MM_sNew[] = "";
 
 void* SystemHeap_Malloc(size_t size) {
     if (size == 0) {
         size = 1;
     }
 
-    return __osMalloc(&gSystemArena, size);
+    return __osMalloc(&MM_gSystemArena, size);
 }
 
 void SystemHeap_Free(void* ptr) {
     if (ptr != NULL) {
-        __osFree(&gSystemArena, ptr);
+        __osFree(&MM_gSystemArena, ptr);
     }
 }
 
@@ -93,7 +93,7 @@ void SystemHeap_RunBlockFunc1Reverse(void* blk, size_t nBlk, size_t blkSize, Blo
 }
 
 void SystemHeap_RunInits(void) {
-    InitFunc* initFunc = (InitFunc*)&sInitFuncs;
+    InitFunc* initFunc = (InitFunc*)&MM_sInitFuncs;
     u32 nextOffset = initFunc->nextOffset;
     InitFunc* prev = NULL;
 
@@ -109,10 +109,10 @@ void SystemHeap_RunInits(void) {
         prev = initFunc;
     }
 
-    sInitFuncs = prev;
+    MM_sInitFuncs = prev;
 }
 
-void SystemHeap_Init(void* start, size_t size) {
-    SystemArena_Init(start, size);
+void MM_SystemHeap_Init(void* start, size_t size) {
+    MM_SystemArena_Init(start, size);
     SystemHeap_RunInits();
 }

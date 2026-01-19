@@ -31,7 +31,7 @@ ActorProfile En_Nnh_Profile = {
     /**/ EnNnh_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_TREE,
         AT_NONE,
@@ -54,9 +54,9 @@ static ColliderCylinderInit sCylinderInit = {
 void EnNnh_Init(Actor* thisx, PlayState* play) {
     EnNnh* this = (EnNnh*)thisx;
 
-    Actor_SetScale(&this->actor, 0.01f);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    MM_Actor_SetScale(&this->actor, 0.01f);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
     this->actor.attentionRangeType = ATTENTION_RANGE_1;
     this->actor.focus.pos = this->actor.world.pos;
     this->actor.focus.pos.y += 30.0f;
@@ -66,7 +66,7 @@ void EnNnh_Init(Actor* thisx, PlayState* play) {
 void EnNnh_Destroy(Actor* thisx, PlayState* play) {
     EnNnh* this = (EnNnh*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnNnh_SetupWaitForDialogue(EnNnh* this) {
@@ -75,7 +75,7 @@ void EnNnh_SetupWaitForDialogue(EnNnh* this) {
 
 void EnNnh_WaitForDialogue(EnNnh* this, PlayState* play) {
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
-        Message_StartTextbox(play, 0x228, &this->actor);
+        MM_Message_StartTextbox(play, 0x228, &this->actor);
         EnNnh_SetupDialogue(this);
     } else {
         Actor_OfferTalk(&this->actor, play, 100.0f);
@@ -87,7 +87,7 @@ void EnNnh_SetupDialogue(EnNnh* this) {
 }
 
 void EnNnh_Dialogue(EnNnh* this, PlayState* play) {
-    if (Actor_TextboxIsClosing(&this->actor, play)) {
+    if (MM_Actor_TextboxIsClosing(&this->actor, play)) {
         EnNnh_SetupWaitForDialogue(this);
     }
 }
@@ -97,8 +97,8 @@ void EnNnh_Update(Actor* thisx, PlayState* play) {
     s32 pad;
 
     this->actionFunc(this, play);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void EnNnh_Draw(Actor* thisx, PlayState* play) {

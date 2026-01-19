@@ -42,7 +42,7 @@ ActorProfile En_Tsn_Profile = {
     /**/ EnTsn_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -85,7 +85,7 @@ void func_80ADFCEC(EnTsn* this, PlayState* play) {
     switch (ENTSN_GET_F(&this->actor)) {
         case ENTSN_F_0:
             if (CHECK_WEEKEVENTREG(WEEKEVENTREG_26_08)) {
-                Actor_Kill(&this->actor);
+                MM_Actor_Kill(&this->actor);
                 return;
             }
             this->actor.textId = 0x106E;
@@ -107,7 +107,7 @@ void func_80ADFCEC(EnTsn* this, PlayState* play) {
         if ((ENTSN_GET_F(&this->actor)) == ENTSN_F_0) {
             this->actionFunc = func_80AE0D78;
         } else {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
         return;
     }
@@ -116,12 +116,12 @@ void func_80ADFCEC(EnTsn* this, PlayState* play) {
     this->unk_220 = 0;
 
     if (this->unk_1D8 == NULL) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
     if ((ENTSN_GET_F(&this->actor)) == ENTSN_F_1) {
-        Actor_ChangeCategory(play, &play->actorCtx, &this->actor, ACTORCAT_PROP);
+        MM_Actor_ChangeCategory(play, &play->actorCtx, &this->actor, ACTORCAT_PROP);
     }
 }
 
@@ -133,11 +133,11 @@ void EnTsn_Init(Actor* thisx, PlayState* play) {
         return;
     }
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 20.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &object_tsn_Skel_008AB8, &object_tsn_Anim_0092FC, NULL, NULL, 0);
-    Animation_PlayLoop(&this->skelAnime, &object_tsn_Anim_0092FC);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 20.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &object_tsn_Skel_008AB8, &object_tsn_Anim_0092FC, NULL, NULL, 0);
+    MM_Animation_PlayLoop(&this->skelAnime, &object_tsn_Anim_0092FC);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
 
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
     this->unk_220 = 0;
@@ -148,14 +148,14 @@ void EnTsn_Init(Actor* thisx, PlayState* play) {
     this->actor.gravity = -1.0f;
 
     if (CHECK_WEEKEVENTREG(WEEKEVENTREG_CLEARED_GREAT_BAY_TEMPLE)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
 void EnTsn_Destroy(Actor* thisx, PlayState* play) {
     EnTsn* this = (EnTsn*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void func_80ADFF84(EnTsn* this, PlayState* play) {
@@ -175,7 +175,7 @@ void func_80ADFF84(EnTsn* this, PlayState* play) {
         textId = 0x1084;
     }
 
-    Message_StartTextbox(play, textId, &this->actor);
+    MM_Message_StartTextbox(play, textId, &this->actor);
 }
 
 void func_80AE0010(EnTsn* this, PlayState* play) {
@@ -192,79 +192,79 @@ void func_80AE0010(EnTsn* this, PlayState* play) {
         case 0x1088:
         case 0x1089:
         case 0x1093:
-            Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 6, 0x1838, 0x64);
+            MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 6, 0x1838, 0x64);
             this->actor.shape.rot.y = this->actor.world.rot.y;
             break;
     }
 
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         switch (play->msgCtx.currentTextId) {
             case 0x107F:
             case 0x1081:
-                Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                 break;
 
             case 0x1080:
-                Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
-                Animation_MorphToLoop(&this->skelAnime, &object_tsn_Anim_001198, -10.0f);
+                MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                MM_Animation_MorphToLoop(&this->skelAnime, &object_tsn_Anim_001198, -10.0f);
                 break;
 
             case 0x1082:
-                Animation_MorphToLoop(&this->skelAnime, &object_tsn_Anim_0092FC, -10.0f);
+                MM_Animation_MorphToLoop(&this->skelAnime, &object_tsn_Anim_0092FC, -10.0f);
                 SET_WEEKEVENTREG(WEEKEVENTREG_25_80);
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 this->actionFunc = func_80AE0304;
                 this->actor.textId = 0;
                 break;
 
             case 0x1083:
                 SET_WEEKEVENTREG(WEEKEVENTREG_25_80);
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 this->actionFunc = func_80AE0304;
                 this->actor.textId = 0;
                 break;
 
             case 0x1084:
-                Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
-                Animation_MorphToLoop(&this->skelAnime, &object_tsn_Anim_000964, -10.0f);
+                MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                MM_Animation_MorphToLoop(&this->skelAnime, &object_tsn_Anim_000964, -10.0f);
                 break;
 
             case 0x1085:
             case 0x1086:
-                Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                 break;
 
             case 0x1089:
             case 0x1093:
                 SET_WEEKEVENTREG(WEEKEVENTREG_26_01);
-                Message_CloseTextbox(play);
-                Animation_MorphToLoop(&this->skelAnime, &object_tsn_Anim_0092FC, -10.0f);
+                MM_Message_CloseTextbox(play);
+                MM_Animation_MorphToLoop(&this->skelAnime, &object_tsn_Anim_0092FC, -10.0f);
                 this->actionFunc = func_80AE0304;
                 this->actor.textId = 0;
                 break;
 
             case 0x1087:
-                Animation_MorphToLoop(&this->skelAnime, &object_tsn_Anim_001198, -10.0f);
-                Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                MM_Animation_MorphToLoop(&this->skelAnime, &object_tsn_Anim_001198, -10.0f);
+                MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                 break;
 
             case 0x1088:
                 SET_WEEKEVENTREG(WEEKEVENTREG_26_01);
                 if (GameInteractor_Should(VB_CONSIDER_MIKAU_HEALED, INV_CONTENT(ITEM_MASK_ZORA) == ITEM_MASK_ZORA,
                                           true)) {
-                    Message_CloseTextbox(play);
-                    Animation_MorphToLoop(&this->skelAnime, &object_tsn_Anim_0092FC, -10.0f);
+                    MM_Message_CloseTextbox(play);
+                    MM_Animation_MorphToLoop(&this->skelAnime, &object_tsn_Anim_0092FC, -10.0f);
                     this->actionFunc = func_80AE0304;
                     this->actor.textId = 0;
                 } else {
                     // "Come to think of it, there was a Zora floating lifelessly out in the bay..."
-                    Message_ContinueTextbox(play, 0x1093);
-                    Animation_MorphToLoop(&this->skelAnime, &object_tsn_Anim_0092FC, -10.0f);
+                    MM_Message_ContinueTextbox(play, 0x1093);
+                    MM_Animation_MorphToLoop(&this->skelAnime, &object_tsn_Anim_0092FC, -10.0f);
                 }
                 break;
 
             case 0x107E:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 this->actionFunc = func_80AE0304;
                 this->actor.textId = 0;
                 break;
@@ -279,38 +279,38 @@ void func_80AE0304(EnTsn* this, PlayState* play) {
         if (this->actor.textId == 0) {
             func_80ADFF84(this, play);
         }
-    } else if ((this->actor.xzDistToPlayer < 150.0f) && Player_IsFacingActor(&this->actor, 0x3000, play)) {
+    } else if ((this->actor.xzDistToPlayer < 150.0f) && MM_Player_IsFacingActor(&this->actor, 0x3000, play)) {
         Actor_OfferTalk(&this->actor, play, 160.0f);
         this->unk_220 |= 1;
     } else {
         this->unk_220 &= ~1;
     }
     if (ENTSN_GET_Z(&this->actor)) {
-        Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 6, 0x1838, 0x64);
+        MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 6, 0x1838, 0x64);
     } else {
-        Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.home.rot.y, 6, 0x1838, 0x64);
+        MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.home.rot.y, 6, 0x1838, 0x64);
     }
     this->actor.shape.rot.y = this->actor.world.rot.y;
 }
 
 void func_80AE0418(EnTsn* this, PlayState* play) {
-    if (Actor_TextboxIsClosing(&this->actor, play)) {
-        Message_StartTextbox(play, 0x107D, NULL);
-        Actor_Kill(&this->actor);
+    if (MM_Actor_TextboxIsClosing(&this->actor, play)) {
+        MM_Message_StartTextbox(play, 0x107D, NULL);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
 void func_80AE0460(EnTsn* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play)) {
+    if (MM_Actor_HasParent(&this->actor, play)) {
         ENTSN_SET_Z(&this->unk_1D8->actor, false);
         this->actionFunc = func_80AE0418;
     } else {
-        Actor_OfferGetItem(&this->actor, play, GI_SEAHORSE_CAUGHT, 2000.0f, 1000.0f);
+        MM_Actor_OfferGetItem(&this->actor, play, GI_SEAHORSE_CAUGHT, 2000.0f, 1000.0f);
     }
 }
 
 void func_80AE04C4(EnTsn* this, PlayState* play) {
-    if (Actor_TextboxIsClosing(&this->actor, play)) {
+    if (MM_Actor_TextboxIsClosing(&this->actor, play)) {
         this->actionFunc = func_80AE0C88;
     }
 }
@@ -319,7 +319,7 @@ void func_80AE04FC(EnTsn* this, PlayState* play) {
     PlayerItemAction itemAction;
     Player* player = GET_PLAYER(play);
 
-    if (Message_GetState(&play->msgCtx) == TEXT_STATE_PAUSE_MENU) {
+    if (MM_Message_GetState(&play->msgCtx) == TEXT_STATE_PAUSE_MENU) {
         itemAction = func_80123810(play);
 
         if (itemAction != PLAYER_IA_NONE) {
@@ -327,7 +327,7 @@ void func_80AE04FC(EnTsn* this, PlayState* play) {
         }
 
         if (itemAction > PLAYER_IA_NONE) {
-            Message_CloseTextbox(play);
+            MM_Message_CloseTextbox(play);
             this->actionFunc = func_80AE0704;
             if (itemAction == PLAYER_IA_PICTOGRAPH_BOX) {
                 if (CHECK_QUEST_ITEM(QUEST_PICTOGRAPH)) {
@@ -362,15 +362,15 @@ void func_80AE04FC(EnTsn* this, PlayState* play) {
         }
 
         if (itemAction <= PLAYER_IA_MINUS1) {
-            Message_ContinueTextbox(play, 0x1078);
-            Animation_MorphToLoop(&this->unk_1D8->skelAnime, &object_tsn_Anim_001198, -10.0f);
+            MM_Message_ContinueTextbox(play, 0x1078);
+            MM_Animation_MorphToLoop(&this->unk_1D8->skelAnime, &object_tsn_Anim_001198, -10.0f);
             this->actionFunc = func_80AE0704;
         }
     }
 }
 
 void func_80AE0698(EnTsn* this, PlayState* play) {
-    Message_CloseTextbox(play);
+    MM_Message_CloseTextbox(play);
     this->actionFunc = func_80AE0C88;
     this->unk_220 &= ~2;
     this->actor.focus.pos = this->actor.world.pos;
@@ -384,21 +384,21 @@ void func_80AE0704(EnTsn* this, PlayState* play) {
 
     if ((this->unk_220 & 8) && (play->msgCtx.currentTextId == 0x1078)) {
         this->unk_220 &= ~8;
-        Animation_MorphToLoop(&this->unk_1D8->skelAnime, &object_tsn_Anim_001198, -10.0f);
+        MM_Animation_MorphToLoop(&this->unk_1D8->skelAnime, &object_tsn_Anim_001198, -10.0f);
     }
 
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_CLOSING:
             break;
 
         case TEXT_STATE_EVENT:
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 switch (play->msgCtx.currentTextId) {
                     case 0x106E:
                         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_25_40)) {
-                            Message_ContinueTextbox(play, 0x1074);
+                            MM_Message_ContinueTextbox(play, 0x1074);
                         } else {
-                            Message_ContinueTextbox(play, 0x106F);
+                            MM_Message_ContinueTextbox(play, 0x106F);
                         }
                         this->unk_220 |= 2;
                         SET_WEEKEVENTREG(WEEKEVENTREG_25_40);
@@ -410,30 +410,30 @@ void func_80AE0704(EnTsn* this, PlayState* play) {
                     case 0x1070:
                     case 0x1071:
                     case 0x1072:
-                        Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                        MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                         break;
 
                     case 0x1076:
                     case 0x1079:
-                        Animation_MorphToLoop(&this->unk_1D8->skelAnime, &object_tsn_Anim_000964, -10.0f);
-                        Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                        MM_Animation_MorphToLoop(&this->unk_1D8->skelAnime, &object_tsn_Anim_000964, -10.0f);
+                        MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                         break;
 
                     case 0x107A:
-                        Message_ContinueTextbox(play, 0x10A6);
+                        MM_Message_ContinueTextbox(play, 0x10A6);
                         break;
 
                     case 0x1075:
                     case 0x1078:
                         player->exchangeItemAction = PLAYER_IA_NONE;
-                        Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
-                        Animation_MorphToLoop(&this->unk_1D8->skelAnime, &object_tsn_Anim_0092FC, -10.0f);
+                        MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                        MM_Animation_MorphToLoop(&this->unk_1D8->skelAnime, &object_tsn_Anim_0092FC, -10.0f);
                         break;
 
                     case 0x107C:
-                        if (Inventory_HasEmptyBottle()) {
+                        if (MM_Inventory_HasEmptyBottle()) {
                             SET_WEEKEVENTREG(WEEKEVENTREG_26_08);
-                            Message_CloseTextbox(play);
+                            MM_Message_CloseTextbox(play);
                             this->actionFunc = func_80AE0460;
                             func_80AE0460(this, play);
                             this->unk_220 &= ~2;
@@ -442,26 +442,26 @@ void func_80AE0704(EnTsn* this, PlayState* play) {
                             this->actor.flags &= ~ACTOR_FLAG_TALK;
                             REMOVE_QUEST_ITEM(QUEST_PICTOGRAPH);
                         } else {
-                            Message_ContinueTextbox(play, 0x10A8);
+                            MM_Message_ContinueTextbox(play, 0x10A8);
                         }
                         break;
 
                     case 0x1073:
                     case 0x1074:
-                        Message_ContinueTextbox(play, 0xFF);
+                        MM_Message_ContinueTextbox(play, 0xFF);
                         this->actionFunc = func_80AE04FC;
                         break;
 
                     case 0x107B:
                         player->exchangeItemAction = PLAYER_IA_NONE;
-                        Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
-                        Animation_MorphToLoop(&this->unk_1D8->skelAnime, &object_tsn_Anim_0092FC, -10.0f);
+                        MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                        MM_Animation_MorphToLoop(&this->unk_1D8->skelAnime, &object_tsn_Anim_0092FC, -10.0f);
                         break;
 
                     case 0x1077:
                     case 0x10A6:
                     case 0x10A8:
-                        Animation_MorphToLoop(&this->unk_1D8->skelAnime, &object_tsn_Anim_0092FC, -10.0f);
+                        MM_Animation_MorphToLoop(&this->unk_1D8->skelAnime, &object_tsn_Anim_0092FC, -10.0f);
                         func_80AE0698(this, play);
                         this->actor.flags &= ~ACTOR_FLAG_TALK;
                         this->actionFunc = func_80AE04C4;
@@ -470,7 +470,7 @@ void func_80AE0704(EnTsn* this, PlayState* play) {
                     case 0x108A:
                     case 0x1091:
                         SET_WEEKEVENTREG(WEEKEVENTREG_26_04);
-                        Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                        MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                         this->unk_220 |= 2;
                         this->actor.textId = 0x1091;
                         break;
@@ -480,20 +480,20 @@ void func_80AE0704(EnTsn* this, PlayState* play) {
                     case 0x108D:
                     case 0x108E:
                     case 0x108F:
-                        Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                        MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                         break;
 
                     case 0x1092:
                         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_26_08)) {
                             func_80AE0698(this, play);
                         } else {
-                            Message_ContinueTextbox(play, 0x10A7);
-                            Animation_MorphToLoop(&this->unk_1D8->skelAnime, &object_tsn_Anim_000964, -10.0f);
+                            MM_Message_ContinueTextbox(play, 0x10A7);
+                            MM_Animation_MorphToLoop(&this->unk_1D8->skelAnime, &object_tsn_Anim_000964, -10.0f);
                         }
                         break;
 
                     case 0x10A7:
-                        Animation_MorphToLoop(&this->unk_1D8->skelAnime, &object_tsn_Anim_0092FC, -10.0f);
+                        MM_Animation_MorphToLoop(&this->unk_1D8->skelAnime, &object_tsn_Anim_0092FC, -10.0f);
                         func_80AE0698(this, play);
                         break;
 
@@ -519,9 +519,9 @@ void func_80AE0704(EnTsn* this, PlayState* play) {
 
     if (this->unk_220 & 2) {
         if (this->unk_1D8 != NULL) {
-            Math_SmoothStepToF(&this->actor.focus.pos.x, this->unk_1D8->actor.focus.pos.x, 0.8f, 100.0f, 5.0f);
-            Math_SmoothStepToF(&this->actor.focus.pos.y, this->unk_1D8->actor.focus.pos.y, 0.8f, 100.0f, 5.0f);
-            Math_SmoothStepToF(&this->actor.focus.pos.z, this->unk_1D8->actor.focus.pos.z, 0.8f, 100.0f, 5.0f);
+            MM_Math_SmoothStepToF(&this->actor.focus.pos.x, this->unk_1D8->actor.focus.pos.x, 0.8f, 100.0f, 5.0f);
+            MM_Math_SmoothStepToF(&this->actor.focus.pos.y, this->unk_1D8->actor.focus.pos.y, 0.8f, 100.0f, 5.0f);
+            MM_Math_SmoothStepToF(&this->actor.focus.pos.z, this->unk_1D8->actor.focus.pos.z, 0.8f, 100.0f, 5.0f);
         }
     }
 
@@ -553,8 +553,8 @@ void func_80AE0C88(EnTsn* this, PlayState* play) {
 }
 
 void func_80AE0D10(EnTsn* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
-        Message_CloseTextbox(play);
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
+        MM_Message_CloseTextbox(play);
         this->actionFunc = func_80AE0D78;
         CutsceneManager_Stop(this->actor.csId);
     }
@@ -575,23 +575,23 @@ void EnTsn_Update(Actor* thisx, PlayState* play) {
 
     this->actionFunc(this, play);
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     Actor_MoveWithGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 25.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
-    SkelAnime_Update(&this->skelAnime);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 25.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     if (this->unk_220 & 1) {
         Actor_TrackPlayer(play, &this->actor, &this->headRot, &this->torsoRot, this->actor.focus.pos);
     } else {
-        Math_SmoothStepToS(&this->headRot.x, 0, 6, 0x1838, 0x64);
-        Math_SmoothStepToS(&this->headRot.y, 0, 6, 0x1838, 0x64);
-        Math_SmoothStepToS(&this->torsoRot.x, 0, 6, 0x1838, 0x64);
-        Math_SmoothStepToS(&this->torsoRot.y, 0, 6, 0x1838, 0x64);
+        MM_Math_SmoothStepToS(&this->headRot.x, 0, 6, 0x1838, 0x64);
+        MM_Math_SmoothStepToS(&this->headRot.y, 0, 6, 0x1838, 0x64);
+        MM_Math_SmoothStepToS(&this->torsoRot.x, 0, 6, 0x1838, 0x64);
+        MM_Math_SmoothStepToS(&this->torsoRot.y, 0, 6, 0x1838, 0x64);
     }
 
     if (DECR(this->unk_230) == 0) {
-        this->unk_230 = Rand_S16Offset(60, 60);
+        this->unk_230 = MM_Rand_S16Offset(60, 60);
     }
 
     if ((this->unk_230 == 1) || (this->unk_230 == 3)) {
@@ -628,7 +628,7 @@ void EnTsn_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot,
     Vec3f zeroVec = { 0.0f, 0.0f, 0.0f };
 
     if (limbIndex == OBJECT_TSN_LIMB_0F) {
-        Matrix_MultVec3f(&zeroVec, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&zeroVec, &this->actor.focus.pos);
     }
 }
 
@@ -644,7 +644,7 @@ void EnTsn_Draw(Actor* thisx, PlayState* play) {
     gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80AE11C8[this->unk_22E]));
     gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(D_80AE11C8[this->unk_22E]));
 
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnTsn_OverrideLimbDraw, EnTsn_PostLimbDraw, &this->actor);
 
     CLOSE_DISPS(play->state.gfxCtx);

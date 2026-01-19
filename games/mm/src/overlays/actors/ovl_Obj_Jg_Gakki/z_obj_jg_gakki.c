@@ -29,35 +29,35 @@ ActorProfile Obj_Jg_Gakki_Profile = {
 void ObjJgGakki_Init(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     ObjJgGakki* this = (ObjJgGakki*)thisx;
-    f32 endFrame = Animation_GetLastFrame(&gGoronElderDrumTakeOutAnim);
+    f32 endFrame = MM_Animation_GetLastFrame(&gGoronElderDrumTakeOutAnim);
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 24.0f);
-    SkelAnime_Init(play, &this->skelAnime, &gGoronElderDrumSkel, NULL, NULL, NULL, 0);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 24.0f);
+    MM_SkelAnime_Init(play, &this->skelAnime, &gGoronElderDrumSkel, NULL, NULL, NULL, 0);
 
     if (((play->sceneId == SCENE_SPOT00) && (gSaveContext.sceneLayer == 7)) && (play->csCtx.scriptIndex == 0)) {
-        Animation_Change(&this->skelAnime, &gGoronElderDrumTakeOutAnim, 1.0f, endFrame, endFrame, ANIMMODE_ONCE, 0.0f);
+        MM_Animation_Change(&this->skelAnime, &gGoronElderDrumTakeOutAnim, 1.0f, endFrame, endFrame, ANIMMODE_ONCE, 0.0f);
     } else if ((play->sceneId == SCENE_17SETUGEN) || (play->sceneId == SCENE_10YUKIYAMANOMURA)) {
-        Animation_Change(&this->skelAnime, &gGoronElderDrumTakeOutAnim, 1.0f, 0.0f, endFrame, ANIMMODE_ONCE, 0.0f);
+        MM_Animation_Change(&this->skelAnime, &gGoronElderDrumTakeOutAnim, 1.0f, 0.0f, endFrame, ANIMMODE_ONCE, 0.0f);
     } else {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
 }
 
 void ObjJgGakki_Destroy(Actor* thisx, PlayState* play) {
     ObjJgGakki* this = (ObjJgGakki*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void ObjJgGakki_Update(Actor* thisx, PlayState* play) {
     ObjJgGakki* this = (ObjJgGakki*)thisx;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 }
 
 void ObjJgGakki_Draw(Actor* thisx, PlayState* play) {
     ObjJgGakki* this = (ObjJgGakki*)thisx;
 
-    SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, NULL, NULL, &this->actor);
+    MM_SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, NULL, NULL, &this->actor);
 }

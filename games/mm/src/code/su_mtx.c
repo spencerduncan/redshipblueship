@@ -121,8 +121,8 @@ void Mtx_SetRotationMtx(Mtx* mtx, s32 angle, f32 axisX, f32 axisY, f32 axisZ) {
     f32 tempX;
     f32 tempZ;
     f32 tempY;
-    f32 sin = Math_SinS(angle);
-    f32 cos = Math_CosS(angle);
+    f32 sin = MM_Math_SinS(angle);
+    f32 cos = MM_Math_CosS(angle);
     f32 tempXX;
     f32 tempYY;
     f32 tempZZ;
@@ -237,8 +237,8 @@ void Mtx_SetTranslationRotationScaleMtx(Mtx* mtx, f32 scaleX, f32 scaleY, f32 sc
     f32 tempX;
     f32 tempY;
     f32 tempZ;
-    f32 sin = Math_SinS(angle);
-    f32 cos = Math_CosS(angle);
+    f32 sin = MM_Math_SinS(angle);
+    f32 cos = MM_Math_CosS(angle);
     f32 tempXX = axisX * axisX;
     f32 tempYY = axisY * axisY;
     f32 tempZZ = axisZ * axisZ;

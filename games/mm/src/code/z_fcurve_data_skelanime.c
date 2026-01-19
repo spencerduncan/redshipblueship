@@ -36,7 +36,7 @@
 
 #include "2s2h/BenPort.h"
 
-void SkelCurve_Clear(SkelCurve* skelCurve) {
+void MM_SkelCurve_Clear(SkelCurve* skelCurve) {
     skelCurve->limbCount = 0;
     skelCurve->skeleton = NULL;
     skelCurve->animation = NULL;
@@ -52,7 +52,7 @@ void SkelCurve_Clear(SkelCurve* skelCurve) {
  *
  * @return bool always true
  */
-s32 SkelCurve_Init(PlayState* play, SkelCurve* skelCurve, CurveSkeletonHeader* skeletonHeaderSeg,
+s32 MM_SkelCurve_Init(PlayState* play, SkelCurve* skelCurve, CurveSkeletonHeader* skeletonHeaderSeg,
                    CurveAnimationHeader* animation) {
     if (ResourceMgr_OTRSigCheck(skeletonHeaderSeg)) {
         skeletonHeaderSeg = ResourceMgr_LoadSkeletonByName(skeletonHeaderSeg, NULL);
@@ -64,7 +64,7 @@ s32 SkelCurve_Init(PlayState* play, SkelCurve* skelCurve, CurveSkeletonHeader* s
     skelCurve->limbCount = skeletonHeader->limbCount;
     skelCurve->skeleton = Lib_SegmentedToVirtual(skeletonHeader->limbs);
 
-    skelCurve->jointTable = ZeldaArena_Malloc(sizeof(*skelCurve->jointTable) * skelCurve->limbCount);
+    skelCurve->jointTable = MM_ZeldaArena_Malloc(sizeof(*skelCurve->jointTable) * skelCurve->limbCount);
 
     skelCurve->curFrame = 0.0f;
     return true;
@@ -73,13 +73,13 @@ s32 SkelCurve_Init(PlayState* play, SkelCurve* skelCurve, CurveSkeletonHeader* s
 /**
  * Frees the joint table.
  */
-void SkelCurve_Destroy(PlayState* play, SkelCurve* skelCurve) {
+void MM_SkelCurve_Destroy(PlayState* play, SkelCurve* skelCurve) {
     if (skelCurve->jointTable != NULL) {
-        ZeldaArena_Free(skelCurve->jointTable);
+        MM_ZeldaArena_Free(skelCurve->jointTable);
     }
 }
 
-void SkelCurve_SetAnim(SkelCurve* skelCurve, CurveAnimationHeader* animation, f32 arg2, f32 endFrame, f32 curFrame,
+void MM_SkelCurve_SetAnim(SkelCurve* skelCurve, CurveAnimationHeader* animation, f32 arg2, f32 endFrame, f32 curFrame,
                        f32 playSpeed) {
     skelCurve->unk_0C = arg2 - skelCurve->playSpeed;
     skelCurve->endFrame = endFrame;
@@ -103,7 +103,7 @@ typedef enum SkelCurveVecType {
  *
  * @return bool true when the animation has finished.
  */
-s32 SkelCurve_Update(PlayState* play, SkelCurve* skelCurve) {
+s32 MM_SkelCurve_Update(PlayState* play, SkelCurve* skelCurve) {
     s16* jointData;
     u8* knotCounts;
     CurveAnimationHeader* animation;
@@ -172,13 +172,13 @@ s32 SkelCurve_Update(PlayState* play, SkelCurve* skelCurve) {
 /**
  * Recursively draws limbs with appropriate properties.
  */
-void SkelCurve_DrawLimb(PlayState* play, s32 limbIndex, SkelCurve* skelCurve, OverrideCurveLimbDraw overrideLimbDraw,
+void MM_SkelCurve_DrawLimb(PlayState* play, s32 limbIndex, SkelCurve* skelCurve, OverrideCurveLimbDraw overrideLimbDraw,
                         PostCurveLimbDraw postLimbDraw, s32 lod, Actor* thisx) {
     SkelCurveLimb* limb = Lib_SegmentedToVirtual(skelCurve->skeleton[limbIndex]);
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    Matrix_Push();
+    MM_Matrix_Push();
 
     if ((overrideLimbDraw == NULL) ||
         ((overrideLimbDraw != NULL) && overrideLimbDraw(play, skelCurve, limbIndex, thisx))) {
@@ -200,8 +200,8 @@ void SkelCurve_DrawLimb(PlayState* play, s32 limbIndex, SkelCurve* skelCurve, Ov
         pos.y = jointData[1];
         pos.z = jointData[2];
 
-        Matrix_TranslateRotateZYX(&pos, &rot);
-        Matrix_Scale(scale.x, scale.y, scale.z, MTXMODE_APPLY);
+        MM_Matrix_TranslateRotateZYX(&pos, &rot);
+        MM_Matrix_Scale(scale.x, scale.y, scale.z, MTXMODE_APPLY);
 
         if (lod == 0) {
             s32 pad1;
@@ -232,21 +232,21 @@ void SkelCurve_DrawLimb(PlayState* play, s32 limbIndex, SkelCurve* skelCurve, Ov
     }
 
     if (limb->child != LIMB_DONE) {
-        SkelCurve_DrawLimb(play, limb->child, skelCurve, overrideLimbDraw, postLimbDraw, lod, thisx);
+        MM_SkelCurve_DrawLimb(play, limb->child, skelCurve, overrideLimbDraw, postLimbDraw, lod, thisx);
     }
 
-    Matrix_Pop();
+    MM_Matrix_Pop();
 
     if (limb->sibling != LIMB_DONE) {
-        SkelCurve_DrawLimb(play, limb->sibling, skelCurve, overrideLimbDraw, postLimbDraw, lod, thisx);
+        MM_SkelCurve_DrawLimb(play, limb->sibling, skelCurve, overrideLimbDraw, postLimbDraw, lod, thisx);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void SkelCurve_Draw(Actor* actor, PlayState* play, SkelCurve* skelCurve, OverrideCurveLimbDraw overrideLimbDraw,
+void MM_SkelCurve_Draw(Actor* actor, PlayState* play, SkelCurve* skelCurve, OverrideCurveLimbDraw overrideLimbDraw,
                     PostCurveLimbDraw postLimbDraw, s32 lod, Actor* thisx) {
     if (skelCurve->jointTable != NULL) {
-        SkelCurve_DrawLimb(play, 0, skelCurve, overrideLimbDraw, postLimbDraw, lod, thisx);
+        MM_SkelCurve_DrawLimb(play, 0, skelCurve, overrideLimbDraw, postLimbDraw, lod, thisx);
     }
 }

@@ -57,10 +57,10 @@ typedef enum {
 
 // Main functions
 
-void EnBb_Init(Actor* thisx, PlayState* play);
-void EnBb_Destroy(Actor* thisx, PlayState* play);
-void EnBb_Update(Actor* this, PlayState* play);
-void EnBb_Draw(Actor* this, PlayState* play);
+void OoT_EnBb_Init(Actor* thisx, PlayState* play);
+void OoT_EnBb_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnBb_Update(Actor* this, PlayState* play);
+void OoT_EnBb_Draw(Actor* this, PlayState* play);
 
 // Helper functions
 
@@ -75,13 +75,13 @@ void EnBb_FlameTrail(EnBb* this, PlayState* play);
 void EnBb_SetupDeath(EnBb* this, PlayState* play);
 void EnBb_Death(EnBb* this, PlayState* play);
 
-void EnBb_Damage(EnBb* this, PlayState* play);
+void OoT_EnBb_Damage(EnBb* this, PlayState* play);
 
 void EnBb_SetupBlue(EnBb* this);
 void EnBb_Blue(EnBb* this, PlayState* play);
 
-void EnBb_SetupDown(EnBb* this);
-void EnBb_Down(EnBb* this, PlayState* play);
+void OoT_EnBb_SetupDown(EnBb* this);
+void OoT_EnBb_Down(EnBb* this, PlayState* play);
 
 void EnBb_SetupRed(PlayState* play, EnBb* this);
 void EnBb_Red(EnBb* this, PlayState* play);
@@ -205,10 +205,10 @@ const ActorInit En_Bb_InitVars = {
     FLAGS,
     OBJECT_BB,
     sizeof(EnBb),
-    (ActorFunc)EnBb_Init,
-    (ActorFunc)EnBb_Destroy,
-    (ActorFunc)EnBb_Update,
-    (ActorFunc)EnBb_Draw,
+    (ActorFunc)OoT_EnBb_Init,
+    (ActorFunc)OoT_EnBb_Destroy,
+    (ActorFunc)OoT_EnBb_Update,
+    (ActorFunc)OoT_EnBb_Draw,
     NULL,
 };
 
@@ -226,7 +226,7 @@ static ColliderJntSphElementInit sJntSphElementInit[1] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit OoT_sJntSphInit = {
     {
         COLTYPE_HIT3,
         AT_ON | AT_TYPE_ENEMY,
@@ -239,7 +239,7 @@ static ColliderJntSphInit sJntSphInit = {
     sJntSphElementInit,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(targetArrowOffset, 10, ICHAIN_STOP),
 };
 
@@ -256,7 +256,7 @@ Actor* EnBb_FindExplosive(PlayState* play, EnBb* this, f32 range) {
             explosive = explosive->next;
             continue;
         }
-        dist = Actor_WorldDistXYZToActor(&this->actor, explosive);
+        dist = OoT_Actor_WorldDistXYZToActor(&this->actor, explosive);
         if ((explosive->params == 0) && (dist <= range)) {
             return explosive;
         }
@@ -271,7 +271,7 @@ void EnBb_SpawnFlameTrail(PlayState* play, EnBb* this, s16 startAtZero) {
     s32 i;
 
     for (i = 0; i < 5; i++) {
-        next = (EnBb*)Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BB, this->actor.world.pos.x, this->actor.world.pos.y,
+        next = (EnBb*)OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BB, this->actor.world.pos.x, this->actor.world.pos.y,
                                   this->actor.world.pos.z, 0, 0, 0, 0, true);
         if (next != NULL) {
             now->actor.child = &next->actor;
@@ -310,18 +310,18 @@ void EnBb_KillFlameTrail(EnBb* this) {
     this->actor.child = NULL;
 }
 
-void EnBb_Init(Actor* thisx, PlayState* play) {
+void OoT_EnBb_Init(Actor* thisx, PlayState* play) {
     EffectBlureInit1 blureInit;
     s32 pad;
     EnBb* this = (EnBb*)thisx;
 
-    Actor_ProcessInitChain(thisx, sInitChain);
-    SkelAnime_Init(play, &this->skelAnime, &object_Bb_Skel_001A30, &object_Bb_Anim_000444, this->jointTable,
+    OoT_Actor_ProcessInitChain(thisx, OoT_sInitChain);
+    OoT_SkelAnime_Init(play, &this->skelAnime, &object_Bb_Skel_001A30, &object_Bb_Anim_000444, this->jointTable,
                    this->morphTable, 16);
     this->unk_254 = 0;
     thisx->colChkInfo.health = 4;
-    Collider_InitJntSph(play, &this->collider);
-    Collider_SetJntSph(play, &this->collider, thisx, &sJntSphInit, this->elements);
+    OoT_Collider_InitJntSph(play, &this->collider);
+    OoT_Collider_SetJntSph(play, &this->collider, thisx, &OoT_sJntSphInit, this->elements);
 
     this->actionState = thisx->params >> 8;
 
@@ -329,7 +329,7 @@ void EnBb_Init(Actor* thisx, PlayState* play) {
         thisx->params |= 0xFF00;
     }
     if (thisx->params <= ENBB_BLUE) {
-        ActorShape_Init(&thisx->shape, 200.0f, ActorShadow_DrawCircle, 35.0f);
+        OoT_ActorShape_Init(&thisx->shape, 200.0f, OoT_ActorShadow_DrawCircle, 35.0f);
     }
     if (thisx->params & 0xFF00) {
         this->timer = 0;
@@ -341,7 +341,7 @@ void EnBb_Init(Actor* thisx, PlayState* play) {
         this->bobSize = this->actionState * 20.0f;
         this->flamePrimAlpha = 255;
         this->moveMode = BBMOVE_NORMAL;
-        Actor_SetScale(thisx, 0.01f);
+        OoT_Actor_SetScale(thisx, 0.01f);
         switch (thisx->params) {
             case ENBB_BLUE:
                 thisx->naviEnemyId = 0x1C;
@@ -374,7 +374,7 @@ void EnBb_Init(Actor* thisx, PlayState* play) {
                 blureInit.unkFlag = 0;
                 blureInit.calcMode = 2;
 
-                Effect_Add(play, &this->blureIdx, EFFECT_BLURE1, 0, 0, &blureInit);
+                OoT_Effect_Add(play, &this->blureIdx, EFFECT_BLURE1, 0, 0, &blureInit);
                 EnBb_SetupWhite(play, this);
                 EnBb_SetWaypoint(this, play);
                 EnBb_FaceWaypoint(this);
@@ -383,7 +383,7 @@ void EnBb_Init(Actor* thisx, PlayState* play) {
             case ENBB_GREEN_BIG:
                 this->path = this->actionState >> 4;
                 this->collider.elements[0].dim.modelSphere.radius = 0x16;
-                Actor_SetScale(thisx, 0.03f);
+                OoT_Actor_SetScale(thisx, 0.03f);
             case ENBB_GREEN:
                 thisx->naviEnemyId = 0x1E;
                 this->bobSize = (this->actionState & 0xF) * 20.0f;
@@ -402,11 +402,11 @@ void EnBb_Init(Actor* thisx, PlayState* play) {
         this->collider.elements[0].dim.modelSphere.radius * this->collider.elements[0].dim.scale;
 }
 
-void EnBb_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnBb_Destroy(Actor* thisx, PlayState* play) {
     s32 pad;
     EnBb* this = (EnBb*)thisx;
 
-    Collider_DestroyJntSph(play, &this->collider);
+    OoT_Collider_DestroyJntSph(play, &this->collider);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
@@ -429,8 +429,8 @@ void EnBb_FlameTrail(EnBb* this, PlayState* play) {
     } else {
         if (this->timer == 0) {
             if (((EnBb*)this->targetActor)->flameScaleY != 0.0f) {
-                Math_SmoothStepToF(&this->flameScaleY, this->actor.scale.y, 1.0f, this->actor.scale.y * 0.1f, 0.0f);
-                Math_SmoothStepToF(&this->flameScaleX, this->actor.scale.z, 1.0f, this->actor.scale.z * 0.1f, 0.0f);
+                OoT_Math_SmoothStepToF(&this->flameScaleY, this->actor.scale.y, 1.0f, this->actor.scale.y * 0.1f, 0.0f);
+                OoT_Math_SmoothStepToF(&this->flameScaleX, this->actor.scale.z, 1.0f, this->actor.scale.z * 0.1f, 0.0f);
                 if (this->flamePrimAlpha != this->vTrailMaxAlpha) {
                     this->flamePrimAlpha += 10;
                     if (this->vTrailMaxAlpha < this->flamePrimAlpha) {
@@ -439,7 +439,7 @@ void EnBb_FlameTrail(EnBb* this, PlayState* play) {
                 }
             } else {
                 if (!this->flamePrimAlpha) {
-                    Actor_Kill(&this->actor);
+                    OoT_Actor_Kill(&this->actor);
                     return;
                 } else if (this->flamePrimAlpha <= 20) {
                     this->flamePrimAlpha = 0;
@@ -478,8 +478,8 @@ void EnBb_Death(EnBb* this, PlayState* play) {
     Vec3f sp34 = { 0.0f, 0.0f, 0.0f };
 
     if (this->actor.params <= ENBB_BLUE) {
-        Math_SmoothStepToF(&this->flameScaleY, 0.0f, 1.0f, 30.0f, 0.0f);
-        Math_SmoothStepToF(&this->flameScaleX, 0.0f, 1.0f, 30.0f, 0.0f);
+        OoT_Math_SmoothStepToF(&this->flameScaleY, 0.0f, 1.0f, 30.0f, 0.0f);
+        OoT_Math_SmoothStepToF(&this->flameScaleX, 0.0f, 1.0f, 30.0f, 0.0f);
         if (this->timer != 0) {
             this->timer--;
             this->actor.shape.rot.x -= 0x4E20;
@@ -497,7 +497,7 @@ void EnBb_Death(EnBb* this, PlayState* play) {
         if (!BodyBreak_SpawnParts(&this->actor, &this->bodyBreak, play, enpartType)) {
             return;
         }
-        Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos, 0xD0);
+        OoT_Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos, 0xD0);
     } else {
         if (this->flamePrimAlpha) {
             if (this->flamePrimAlpha <= 20) {
@@ -508,10 +508,10 @@ void EnBb_Death(EnBb* this, PlayState* play) {
             return;
         }
     }
-    Actor_Kill(&this->actor);
+    OoT_Actor_Kill(&this->actor);
 }
 
-void EnBb_SetupDamage(EnBb* this) {
+void OoT_EnBb_SetupDamage(EnBb* this) {
     this->action = BB_DAMAGE;
     Audio_PlayActorSound2(&this->actor, NA_SE_EN_BUBLE_DAMAGE);
     if (this->actor.params > ENBB_GREEN) {
@@ -524,24 +524,24 @@ void EnBb_SetupDamage(EnBb* this) {
     if (this->actor.params == ENBB_RED) {
         EnBb_KillFlameTrail(this);
     }
-    Actor_SetColorFilter(&this->actor, 0x4000, 0xFF, 0, 0xC);
+    OoT_Actor_SetColorFilter(&this->actor, 0x4000, 0xFF, 0, 0xC);
     this->timer = 5;
-    EnBb_SetupAction(this, EnBb_Damage);
+    EnBb_SetupAction(this, OoT_EnBb_Damage);
 }
 
-void EnBb_Damage(EnBb* this, PlayState* play) {
-    Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 0.5f, 0.0f);
+void OoT_EnBb_Damage(EnBb* this, PlayState* play) {
+    OoT_Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 0.5f, 0.0f);
     if (this->actor.speedXZ == 0.0f) {
         this->actor.shape.yOffset = 200.0f;
-        EnBb_SetupDown(this);
+        OoT_EnBb_SetupDown(this);
     }
 }
 
 void EnBb_SetupBlue(EnBb* this) {
-    Animation_PlayLoop(&this->skelAnime, &object_Bb_Anim_000444);
-    this->actor.speedXZ = (Rand_ZeroOne() * 0.5f) + 0.5f;
-    this->timer = (Rand_ZeroOne() * 20.0f) + 40.0f;
-    this->unk_264 = (Rand_ZeroOne() * 30.0f) + 180.0f;
+    OoT_Animation_PlayLoop(&this->skelAnime, &object_Bb_Anim_000444);
+    this->actor.speedXZ = (OoT_Rand_ZeroOne() * 0.5f) + 0.5f;
+    this->timer = (OoT_Rand_ZeroOne() * 20.0f) + 40.0f;
+    this->unk_264 = (OoT_Rand_ZeroOne() * 30.0f) + 180.0f;
     this->targetActor = NULL;
     this->action = BB_BLUE;
     EnBb_SetupAction(this, EnBb_Blue);
@@ -553,54 +553,54 @@ void EnBb_Blue(EnBb* this, PlayState* play) {
     s16 thisYawToWall;
     s16 afterHitAngle;
 
-    Math_SmoothStepToF(&this->flameScaleY, 80.0f, 1.0f, 10.0f, 0.0f);
-    Math_SmoothStepToF(&this->flameScaleX, 100.0f, 1.0f, 10.0f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->flameScaleY, 80.0f, 1.0f, 10.0f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->flameScaleX, 100.0f, 1.0f, 10.0f, 0.0f);
     if (this->actor.floorHeight > BGCHECK_Y_MIN) {
-        Math_SmoothStepToF(&this->actor.world.pos.y, this->actor.floorHeight + 50.0f + this->flyHeightMod, 1.0f, 0.5f,
+        OoT_Math_SmoothStepToF(&this->actor.world.pos.y, this->actor.floorHeight + 50.0f + this->flyHeightMod, 1.0f, 0.5f,
                            0.0f);
     }
-    SkelAnime_Update(&this->skelAnime);
-    if (Math_CosF(this->bobPhase) == 0.0f) {
+    OoT_SkelAnime_Update(&this->skelAnime);
+    if (OoT_Math_CosF(this->bobPhase) == 0.0f) {
         if (this->charge) {
-            this->bobSpeedMod = Rand_ZeroOne() * 2.0f;
+            this->bobSpeedMod = OoT_Rand_ZeroOne() * 2.0f;
         } else {
-            this->bobSpeedMod = Rand_ZeroOne() * 4.0f;
+            this->bobSpeedMod = OoT_Rand_ZeroOne() * 4.0f;
         }
     }
-    this->actor.world.pos.y += Math_CosF(this->bobPhase) * (1.0f + this->bobSpeedMod);
+    this->actor.world.pos.y += OoT_Math_CosF(this->bobPhase) * (1.0f + this->bobSpeedMod);
     this->bobPhase += 0.2f;
-    Math_SmoothStepToF(&this->actor.speedXZ, this->maxSpeed, 1.0f, 0.5f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->actor.speedXZ, this->maxSpeed, 1.0f, 0.5f, 0.0f);
 
-    if (Math_Vec3f_DistXZ(&this->actor.world.pos, &this->actor.home.pos) > 300.0f) {
-        this->vMoveAngleY = Math_Vec3f_Yaw(&this->actor.world.pos, &this->actor.home.pos);
-        Math_SmoothStepToS(&this->actor.world.rot.y, this->vMoveAngleY, 1, 0x7D0, 0);
+    if (OoT_Math_Vec3f_DistXZ(&this->actor.world.pos, &this->actor.home.pos) > 300.0f) {
+        this->vMoveAngleY = OoT_Math_Vec3f_Yaw(&this->actor.world.pos, &this->actor.home.pos);
+        OoT_Math_SmoothStepToS(&this->actor.world.rot.y, this->vMoveAngleY, 1, 0x7D0, 0);
     } else {
         this->timer--;
         if (this->timer <= 0) {
             this->charge ^= true;
-            this->flyHeightMod = (s16)(Math_CosF(this->bobPhase) * 10.0f);
+            this->flyHeightMod = (s16)(OoT_Math_CosF(this->bobPhase) * 10.0f);
             this->actor.speedXZ = 0.0f;
             if (this->charge && (this->targetActor == NULL)) {
                 this->vMoveAngleY = this->actor.world.rot.y;
                 if (this->actor.xzDistToPlayer < 200.0f) {
-                    Animation_PlayLoop(&this->skelAnime, &object_Bb_Anim_000184);
+                    OoT_Animation_PlayLoop(&this->skelAnime, &object_Bb_Anim_000184);
                     this->vMoveAngleY = this->actor.yawTowardsPlayer;
                 }
-                this->maxSpeed = (Rand_ZeroOne() * 1.5f) + 6.0f;
-                this->timer = (Rand_ZeroOne() * 5.0f) + 20.0f;
+                this->maxSpeed = (OoT_Rand_ZeroOne() * 1.5f) + 6.0f;
+                this->timer = (OoT_Rand_ZeroOne() * 5.0f) + 20.0f;
                 this->actionState = BBBLUE_NORMAL;
             } else {
-                Animation_PlayLoop(&this->skelAnime, &object_Bb_Anim_000444);
-                this->maxSpeed = (Rand_ZeroOne() * 1.5f) + 1.0f;
-                this->timer = (Rand_ZeroOne() * 20.0f) + 40.0f;
-                this->vMoveAngleY = Math_SinF(this->bobPhase) * 65535.0f;
+                OoT_Animation_PlayLoop(&this->skelAnime, &object_Bb_Anim_000444);
+                this->maxSpeed = (OoT_Rand_ZeroOne() * 1.5f) + 1.0f;
+                this->timer = (OoT_Rand_ZeroOne() * 20.0f) + 40.0f;
+                this->vMoveAngleY = OoT_Math_SinF(this->bobPhase) * 65535.0f;
             }
         }
         if ((this->actor.xzDistToPlayer < 150.0f) && (this->actionState != BBBLUE_NORMAL)) {
             if (!this->charge) {
-                Animation_PlayLoop(&this->skelAnime, &object_Bb_Anim_000184);
-                this->maxSpeed = (Rand_ZeroOne() * 1.5f) + 6.0f;
-                this->timer = (Rand_ZeroOne() * 5.0f) + 20.0f;
+                OoT_Animation_PlayLoop(&this->skelAnime, &object_Bb_Anim_000184);
+                this->maxSpeed = (OoT_Rand_ZeroOne() * 1.5f) + 6.0f;
+                this->timer = (OoT_Rand_ZeroOne() * 5.0f) + 20.0f;
                 this->vMoveAngleY = this->actor.yawTowardsPlayer;
                 this->actionState = this->charge = true; // Sets actionState to BBBLUE_AGGRO
             }
@@ -615,33 +615,33 @@ void EnBb_Blue(EnBb* this, PlayState* play) {
             explosive = NULL;
         }
         if (explosive != NULL) {
-            this->vMoveAngleY = Actor_WorldYawTowardActor(&this->actor, explosive);
+            this->vMoveAngleY = OoT_Actor_WorldYawTowardActor(&this->actor, explosive);
             if ((this->vBombHopPhase == 0) && (explosive != this->targetActor)) {
                 this->vBombHopPhase = -0x8000;
                 this->targetActor = explosive;
                 this->actor.speedXZ *= 0.5f;
             }
-            Math_SmoothStepToS(&this->actor.world.rot.y, this->vMoveAngleY, 1, 0x1388, 0);
-            Math_SmoothStepToF(&this->actor.world.pos.x, explosive->world.pos.x, 1.0f, 1.5f, 0.0f);
-            Math_SmoothStepToF(&this->actor.world.pos.y, explosive->world.pos.y + 40.0f, 1.0f, 1.5f, 0.0f);
-            Math_SmoothStepToF(&this->actor.world.pos.z, explosive->world.pos.z, 1.0f, 1.5f, 0.0f);
+            OoT_Math_SmoothStepToS(&this->actor.world.rot.y, this->vMoveAngleY, 1, 0x1388, 0);
+            OoT_Math_SmoothStepToF(&this->actor.world.pos.x, explosive->world.pos.x, 1.0f, 1.5f, 0.0f);
+            OoT_Math_SmoothStepToF(&this->actor.world.pos.y, explosive->world.pos.y + 40.0f, 1.0f, 1.5f, 0.0f);
+            OoT_Math_SmoothStepToF(&this->actor.world.pos.z, explosive->world.pos.z, 1.0f, 1.5f, 0.0f);
         } else {
             this->targetActor = NULL;
         }
         if (this->vBombHopPhase != 0) {
-            this->actor.world.pos.y += -Math_CosS(this->vBombHopPhase) * 10.0f;
+            this->actor.world.pos.y += -OoT_Math_CosS(this->vBombHopPhase) * 10.0f;
             this->vBombHopPhase += 0x1000;
-            Math_SmoothStepToS(&this->actor.world.rot.y, this->vMoveAngleY, 1, 0x7D0, 0);
+            OoT_Math_SmoothStepToS(&this->actor.world.rot.y, this->vMoveAngleY, 1, 0x7D0, 0);
         }
         thisYawToWall = this->actor.wallYaw - this->actor.world.rot.y;
         moveYawToWall = this->actor.wallYaw - this->vMoveAngleY;
         if ((this->targetActor == NULL) && (this->actor.bgCheckFlags & 8) &&
             (ABS(thisYawToWall) > 0x4000 || ABS(moveYawToWall) > 0x4000)) {
             this->vMoveAngleY = this->actor.wallYaw + this->actor.wallYaw - this->actor.world.rot.y - 0x8000;
-            Math_SmoothStepToS(&this->actor.world.rot.y, this->vMoveAngleY, 1, 0xBB8, 0);
+            OoT_Math_SmoothStepToS(&this->actor.world.rot.y, this->vMoveAngleY, 1, 0xBB8, 0);
         }
     }
-    Math_SmoothStepToS(&this->actor.world.rot.y, this->vMoveAngleY, 1, 0x3E8, 0);
+    OoT_Math_SmoothStepToS(&this->actor.world.rot.y, this->vMoveAngleY, 1, 0x3E8, 0);
     if ((this->collider.base.acFlags & AC_HIT) || (this->collider.base.atFlags & AT_HIT)) {
         this->vMoveAngleY = this->actor.yawTowardsPlayer + 0x8000;
         if (this->collider.base.acFlags & AC_HIT) {
@@ -669,14 +669,14 @@ void EnBb_Blue(EnBb* this, PlayState* play) {
             Audio_PlayActorSound2(&this->actor, NA_SE_EN_BUBLE_WING);
         }
     }
-    if (((s32)this->skelAnime.curFrame == 0) && (Rand_ZeroOne() < 0.1f)) {
+    if (((s32)this->skelAnime.curFrame == 0) && (OoT_Rand_ZeroOne() < 0.1f)) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_BUBLE_LAUGH);
     }
     this->actor.shape.rot.y = this->actor.world.rot.y;
 }
 
-void EnBb_SetupDown(EnBb* this) {
-    Animation_PlayLoop(&this->skelAnime, &object_Bb_Anim_000444);
+void OoT_EnBb_SetupDown(EnBb* this) {
+    OoT_Animation_PlayLoop(&this->skelAnime, &object_Bb_Anim_000444);
     this->action = BB_DOWN;
     this->timer = 200;
     this->actor.colorFilterTimer = 0;
@@ -686,13 +686,13 @@ void EnBb_SetupDown(EnBb* this) {
     this->flameScaleY = 0.0f;
     this->actor.gravity = -2.0f;
     Audio_PlayActorSound2(&this->actor, NA_SE_EN_BUBLE_DOWN);
-    EnBb_SetupAction(this, EnBb_Down);
+    EnBb_SetupAction(this, OoT_EnBb_Down);
 }
 
-void EnBb_Down(EnBb* this, PlayState* play) {
+void OoT_EnBb_Down(EnBb* this, PlayState* play) {
     s16 yawDiff = this->actor.world.rot.y - this->actor.wallYaw;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if (this->actor.bgCheckFlags & 8) {
         if (ABS(yawDiff) > 0x4000) {
             this->actor.world.rot.y = this->actor.wallYaw + this->actor.wallYaw - this->actor.world.rot.y - 0x8000;
@@ -720,8 +720,8 @@ void EnBb_Down(EnBb* this, PlayState* play) {
             this->actor.velocity.y = 10.0f;
         }
         this->actor.bgCheckFlags &= ~1;
-        Actor_SpawnFloorDustRing(play, &this->actor, &this->actor.world.pos, 7.0f, 2, 2.0f, 0, 0, false);
-        Math_SmoothStepToS(&this->actor.world.rot.y, -this->actor.yawTowardsPlayer, 1, 0xBB8, 0);
+        OoT_Actor_SpawnFloorDustRing(play, &this->actor, &this->actor.world.pos, 7.0f, 2, 2.0f, 0, 0, false);
+        OoT_Math_SmoothStepToS(&this->actor.world.rot.y, -this->actor.yawTowardsPlayer, 1, 0xBB8, 0);
     }
     this->actor.shape.rot.y = this->actor.world.rot.y;
     if ((s32)this->skelAnime.curFrame == 5) {
@@ -754,7 +754,7 @@ void EnBb_Down(EnBb* this, PlayState* play) {
 }
 
 void EnBb_SetupRed(PlayState* play, EnBb* this) {
-    Animation_PlayLoop(&this->skelAnime, &object_Bb_Anim_000184);
+    OoT_Animation_PlayLoop(&this->skelAnime, &object_Bb_Anim_000184);
     if (this->action == BB_DOWN) {
         this->actor.speedXZ = 5.0f;
         this->actor.gravity = -1.0f;
@@ -783,7 +783,7 @@ void EnBb_Red(EnBb* this, PlayState* play) {
     s32 floorType;
     s16 yawDiff;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if (this->timer != 0) {
         this->timer--;
     }
@@ -791,7 +791,7 @@ void EnBb_Red(EnBb* this, PlayState* play) {
     yawDiff = this->actor.yawTowardsPlayer - this->actor.shape.rot.y;
     switch (this->actionState) {
         case BBRED_WAIT:
-            if ((Actor_WorldDistXYZToActor(&this->actor, &player->actor) <= 250.0f) && (ABS(yawDiff) <= 0x4000) &&
+            if ((OoT_Actor_WorldDistXYZToActor(&this->actor, &player->actor) <= 250.0f) && (ABS(yawDiff) <= 0x4000) &&
                 (this->timer == 0)) {
                 this->actor.speedXZ = 5.0f;
                 this->actor.gravity = -1.0f;
@@ -808,9 +808,9 @@ void EnBb_Red(EnBb* this, PlayState* play) {
                 this->moveMode = BBMOVE_NORMAL;
                 this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
             }
-            this->bobPhase += Rand_ZeroOne();
-            Math_SmoothStepToF(&this->flameScaleY, 80.0f, 1.0f, 10.0f, 0.0f);
-            Math_SmoothStepToF(&this->flameScaleX, 100.0f, 1.0f, 10.0f, 0.0f);
+            this->bobPhase += OoT_Rand_ZeroOne();
+            OoT_Math_SmoothStepToF(&this->flameScaleY, 80.0f, 1.0f, 10.0f, 0.0f);
+            OoT_Math_SmoothStepToF(&this->flameScaleX, 100.0f, 1.0f, 10.0f, 0.0f);
             if (this->actor.bgCheckFlags & 8) {
                 yawDiff = this->actor.world.rot.y - this->actor.wallYaw;
                 if (ABS(yawDiff) > 0x4000) {
@@ -831,13 +831,13 @@ void EnBb_Red(EnBb* this, PlayState* play) {
                     if (this->actor.velocity.y > 13.0f) {
                         this->actor.velocity.y = 13.0f;
                     }
-                    this->actor.world.rot.y = Math_SinF(this->bobPhase) * 65535.0f;
+                    this->actor.world.rot.y = OoT_Math_SinF(this->bobPhase) * 65535.0f;
                 }
                 this->actor.bgCheckFlags &= ~1;
             }
             this->actor.shape.rot.y = this->actor.world.rot.y;
             if (Actor_GetCollidedExplosive(play, &this->collider.base) != NULL) {
-                EnBb_SetupDown(this);
+                OoT_EnBb_SetupDown(this);
             }
             break;
         case BBRED_HIDE:
@@ -862,7 +862,7 @@ void EnBb_Red(EnBb* this, PlayState* play) {
 }
 
 void EnBb_FaceWaypoint(EnBb* this) {
-    this->actor.world.rot.y = this->actor.shape.rot.y = Math_Vec3f_Yaw(&this->actor.world.pos, &this->waypointPos);
+    this->actor.world.rot.y = this->actor.shape.rot.y = OoT_Math_Vec3f_Yaw(&this->actor.world.pos, &this->waypointPos);
 }
 
 void EnBb_SetWaypoint(EnBb* this, PlayState* play) {
@@ -881,13 +881,13 @@ void EnBb_SetWaypoint(EnBb* this, PlayState* play) {
 }
 
 void EnBb_SetupWhite(PlayState* play, EnBb* this) {
-    Animation_PlayLoop(&this->skelAnime, &object_Bb_Anim_000444);
+    OoT_Animation_PlayLoop(&this->skelAnime, &object_Bb_Anim_000444);
     this->actor.speedXZ = 0.0f;
     this->actor.world.pos.y += 60.0f;
     this->flameScaleX = 100.0f;
     this->action = BB_WHITE;
     this->waypoint = 0;
-    this->timer = (Rand_ZeroOne() * 30.0f) + 40.0f;
+    this->timer = (OoT_Rand_ZeroOne() * 30.0f) + 40.0f;
     this->maxSpeed = 7.0f;
     EnBb_SetupAction(this, EnBb_White);
 }
@@ -897,26 +897,26 @@ void EnBb_White(EnBb* this, PlayState* play) {
         f32 distL1;
         f32 vx;
         f32 vz;
-        s16 pitch = Math_Vec3f_Pitch(&this->actor.world.pos, &this->waypointPos);
-        f32 vy = Math_SinS(pitch) * this->maxSpeed;
-        f32 vxz = Math_CosS(pitch) * this->maxSpeed;
+        s16 pitch = OoT_Math_Vec3f_Pitch(&this->actor.world.pos, &this->waypointPos);
+        f32 vy = OoT_Math_SinS(pitch) * this->maxSpeed;
+        f32 vxz = OoT_Math_CosS(pitch) * this->maxSpeed;
 
-        vx = Math_SinS(this->actor.shape.rot.y) * vxz;
-        vz = Math_CosS(this->actor.shape.rot.y) * vxz;
-        distL1 = Math_SmoothStepToF(&this->actor.world.pos.x, this->waypointPos.x, 1.0f, ABS(vx), 0.0f);
-        distL1 += Math_SmoothStepToF(&this->actor.world.pos.y, this->waypointPos.y, 1.0f, ABS(vy), 0.0f);
-        distL1 += Math_SmoothStepToF(&this->actor.world.pos.z, this->waypointPos.z, 1.0f, ABS(vz), 0.0f);
-        this->bobPhase += (0.05f + (Rand_ZeroOne() * 0.01f));
+        vx = OoT_Math_SinS(this->actor.shape.rot.y) * vxz;
+        vz = OoT_Math_CosS(this->actor.shape.rot.y) * vxz;
+        distL1 = OoT_Math_SmoothStepToF(&this->actor.world.pos.x, this->waypointPos.x, 1.0f, ABS(vx), 0.0f);
+        distL1 += OoT_Math_SmoothStepToF(&this->actor.world.pos.y, this->waypointPos.y, 1.0f, ABS(vy), 0.0f);
+        distL1 += OoT_Math_SmoothStepToF(&this->actor.world.pos.z, this->waypointPos.z, 1.0f, ABS(vz), 0.0f);
+        this->bobPhase += (0.05f + (OoT_Rand_ZeroOne() * 0.01f));
         if (distL1 == 0.0f) {
             this->timer--;
             if (this->timer == 0) {
                 EnBb_SetWaypoint(this, play);
                 EnBb_FaceWaypoint(this);
-                Animation_PlayLoop(&this->skelAnime, &object_Bb_Anim_000184);
-                this->timer = Rand_ZeroOne() * 30.0f + 40.0f;
+                OoT_Animation_PlayLoop(&this->skelAnime, &object_Bb_Anim_000184);
+                this->timer = OoT_Rand_ZeroOne() * 30.0f + 40.0f;
             } else {
                 if (this->moveMode != BBMOVE_NORMAL) {
-                    Animation_PlayLoop(&this->skelAnime, &object_Bb_Anim_000444);
+                    OoT_Animation_PlayLoop(&this->skelAnime, &object_Bb_Anim_000444);
                 }
                 this->actor.world.rot.y += 0x1F40;
             }
@@ -931,11 +931,11 @@ void EnBb_White(EnBb* this, PlayState* play) {
             this->collider.base.atFlags &= ~AT_HIT;
         }
         this->actor.shape.rot.y = this->actor.world.rot.y;
-    } else if (Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 0.5f, 0.0f) == 0.0f) {
+    } else if (OoT_Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 0.5f, 0.0f) == 0.0f) {
         EnBb_FaceWaypoint(this);
     }
-    SkelAnime_Update(&this->skelAnime);
-    if (((s32)this->skelAnime.curFrame == 0) && (Rand_ZeroOne() <= 0.1f)) {
+    OoT_SkelAnime_Update(&this->skelAnime);
+    if (((s32)this->skelAnime.curFrame == 0) && (OoT_Rand_ZeroOne() <= 0.1f)) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_BUBLE_LAUGH);
     }
 
@@ -949,36 +949,36 @@ void EnBb_White(EnBb* this, PlayState* play) {
 void EnBb_InitGreen(EnBb* this, PlayState* play) {
     Vec3f bobOffset = { 0.0f, 0.0f, 0.0f };
 
-    Animation_PlayLoop(&this->skelAnime, &object_Bb_Anim_000444);
+    OoT_Animation_PlayLoop(&this->skelAnime, &object_Bb_Anim_000444);
     this->moveMode = BBMOVE_NOCLIP;
     this->actionState = BBGREEN_FLAME_ON;
-    this->bobPhase = Rand_ZeroOne();
+    this->bobPhase = OoT_Rand_ZeroOne();
     this->actor.shape.rot.x = this->actor.shape.rot.z = 0;
     this->actor.shape.rot.y = this->actor.yawTowardsPlayer;
     if (this->actor.params == ENBB_GREEN_BIG) {
         EnBb_SetWaypoint(this, play);
         EnBb_FaceWaypoint(this);
     }
-    Matrix_Translate(this->actor.home.pos.x, this->actor.home.pos.y, this->actor.home.pos.z, MTXMODE_NEW);
-    Matrix_RotateZYX(this->actor.world.rot.x, this->actor.world.rot.y, 0, MTXMODE_APPLY);
+    OoT_Matrix_Translate(this->actor.home.pos.x, this->actor.home.pos.y, this->actor.home.pos.z, MTXMODE_NEW);
+    OoT_Matrix_RotateZYX(this->actor.world.rot.x, this->actor.world.rot.y, 0, MTXMODE_APPLY);
     Matrix_RotateZ(this->bobPhase, MTXMODE_APPLY);
     bobOffset.y = this->bobSize;
-    Matrix_MultVec3f(&bobOffset, &this->actor.world.pos);
+    OoT_Matrix_MultVec3f(&bobOffset, &this->actor.world.pos);
     this->targetActor = NULL;
     this->action = BB_GREEN;
     this->actor.speedXZ = 0.0f;
-    this->vFlameTimer = (Rand_ZeroOne() * 30.0f) + 180.0f;
+    this->vFlameTimer = (OoT_Rand_ZeroOne() * 30.0f) + 180.0f;
     EnBb_SetupAction(this, EnBb_Green);
 }
 
 void EnBb_SetupGreen(EnBb* this) {
-    Animation_PlayLoop(&this->skelAnime, &object_Bb_Anim_000444);
+    OoT_Animation_PlayLoop(&this->skelAnime, &object_Bb_Anim_000444);
     this->moveMode = BBMOVE_NOCLIP;
     this->actionState = BBGREEN_FLAME_ON;
     this->targetActor = NULL;
     this->action = BB_GREEN;
     this->actor.speedXZ = 0.0f;
-    this->vFlameTimer = (Rand_ZeroOne() * 30.0f) + 180.0f;
+    this->vFlameTimer = (OoT_Rand_ZeroOne() * 30.0f) + 180.0f;
     this->actor.shape.rot.z = 0;
     this->actor.shape.rot.y = this->actor.yawTowardsPlayer;
     EnBb_SetupAction(this, EnBb_Green);
@@ -992,21 +992,21 @@ void EnBb_Green(EnBb* this, PlayState* play) {
     nextPos.y += 30.0f;
     if (this->actor.params == ENBB_GREEN_BIG) {
         if (this->actor.speedXZ == 0.0f) {
-            s16 pitch = Math_Vec3f_Pitch(&this->actor.home.pos, &this->waypointPos);
-            s16 yaw = Math_Vec3f_Yaw(&this->actor.home.pos, &this->waypointPos);
-            f32 vy = Math_SinS(pitch) * this->maxSpeed;
-            f32 vxz = Math_CosS(pitch) * this->maxSpeed;
+            s16 pitch = OoT_Math_Vec3f_Pitch(&this->actor.home.pos, &this->waypointPos);
+            s16 yaw = OoT_Math_Vec3f_Yaw(&this->actor.home.pos, &this->waypointPos);
+            f32 vy = OoT_Math_SinS(pitch) * this->maxSpeed;
+            f32 vxz = OoT_Math_CosS(pitch) * this->maxSpeed;
             f32 vz;
             f32 vx;
             f32 distL1;
 
-            Math_SmoothStepToS(&this->actor.world.rot.y, yaw, 1, 0x3E8, 0);
-            vx = Math_SinS(this->actor.world.rot.y) * vxz;
-            distL1 = Math_CosS(this->actor.world.rot.y) * vxz;
-            vz = Math_SmoothStepToF(&this->actor.home.pos.x, this->waypointPos.x, 1.0f, ABS(vx), 0.0f);
-            vz += Math_SmoothStepToF(&this->actor.home.pos.y, this->waypointPos.y, 1.0f, ABS(vy), 0.0f);
-            vz += Math_SmoothStepToF(&this->actor.home.pos.z, this->waypointPos.z, 1.0f, ABS(distL1), 0.0f);
-            this->bobPhase += (0.05f + (Rand_ZeroOne() * 0.01f));
+            OoT_Math_SmoothStepToS(&this->actor.world.rot.y, yaw, 1, 0x3E8, 0);
+            vx = OoT_Math_SinS(this->actor.world.rot.y) * vxz;
+            distL1 = OoT_Math_CosS(this->actor.world.rot.y) * vxz;
+            vz = OoT_Math_SmoothStepToF(&this->actor.home.pos.x, this->waypointPos.x, 1.0f, ABS(vx), 0.0f);
+            vz += OoT_Math_SmoothStepToF(&this->actor.home.pos.y, this->waypointPos.y, 1.0f, ABS(vy), 0.0f);
+            vz += OoT_Math_SmoothStepToF(&this->actor.home.pos.z, this->waypointPos.z, 1.0f, ABS(distL1), 0.0f);
+            this->bobPhase += (0.05f + (OoT_Rand_ZeroOne() * 0.01f));
             if (vz == 0.0f) {
                 EnBb_SetWaypoint(this, play);
             }
@@ -1016,38 +1016,38 @@ void EnBb_Green(EnBb* this, PlayState* play) {
                 Audio_PlayActorSound2(&this->actor, NA_SE_EN_BUBLE_BITE);
                 this->collider.base.atFlags &= ~AT_HIT;
             }
-            if (Math_CosF(this->bobPhase) == 0.0f) {
+            if (OoT_Math_CosF(this->bobPhase) == 0.0f) {
                 if (this->charge) {
-                    this->bobSpeedMod = Rand_ZeroOne();
+                    this->bobSpeedMod = OoT_Rand_ZeroOne();
                 } else {
-                    this->bobSpeedMod = Rand_ZeroOne() * 3.0f;
+                    this->bobSpeedMod = OoT_Rand_ZeroOne() * 3.0f;
                     Audio_PlayActorSound2(&this->actor, NA_SE_EN_BUBLE_LAUGH);
                 }
             }
             this->actor.shape.rot.y = this->actor.world.rot.y;
-        } else if (Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 0.5f, 0.0f) == 0.0f) {
+        } else if (OoT_Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 0.5f, 0.0f) == 0.0f) {
             EnBb_FaceWaypoint(this);
         }
     } else {
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 1, 0xFA0, 0);
-        Math_SmoothStepToS(&this->actor.shape.rot.x, Math_Vec3f_Pitch(&this->actor.world.pos, &nextPos), 1, 0xFA0, 0);
+        OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 1, 0xFA0, 0);
+        OoT_Math_SmoothStepToS(&this->actor.shape.rot.x, OoT_Math_Vec3f_Pitch(&this->actor.world.pos, &nextPos), 1, 0xFA0, 0);
     }
-    SkelAnime_Update(&this->skelAnime);
-    if (Math_CosF(this->bobPhase) <= 0.002f) {
-        this->bobSpeedMod = Rand_ZeroOne() * 0.05f;
+    OoT_SkelAnime_Update(&this->skelAnime);
+    if (OoT_Math_CosF(this->bobPhase) <= 0.002f) {
+        this->bobSpeedMod = OoT_Rand_ZeroOne() * 0.05f;
     }
-    Matrix_Translate(this->actor.home.pos.x, this->actor.home.pos.y, this->actor.home.pos.z, MTXMODE_NEW);
-    Matrix_RotateZYX(this->actor.world.rot.x, this->actor.world.rot.y, 0, MTXMODE_APPLY);
+    OoT_Matrix_Translate(this->actor.home.pos.x, this->actor.home.pos.y, this->actor.home.pos.z, MTXMODE_NEW);
+    OoT_Matrix_RotateZYX(this->actor.world.rot.x, this->actor.world.rot.y, 0, MTXMODE_APPLY);
     Matrix_RotateZ(this->bobPhase, MTXMODE_APPLY);
     bobOffset.y = this->bobSize;
-    Matrix_MultVec3f(&bobOffset, &nextPos);
-    Math_SmoothStepToF(&this->actor.world.pos.x, nextPos.x, 1.0f, this->bobPhase * 0.75f, 0.0f);
-    Math_SmoothStepToF(&this->actor.world.pos.y, nextPos.y, 1.0f, this->bobPhase * 0.75f, 0.0f);
-    Math_SmoothStepToF(&this->actor.world.pos.z, nextPos.z, 1.0f, this->bobPhase * 0.75f, 0.0f);
+    OoT_Matrix_MultVec3f(&bobOffset, &nextPos);
+    OoT_Math_SmoothStepToF(&this->actor.world.pos.x, nextPos.x, 1.0f, this->bobPhase * 0.75f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->actor.world.pos.y, nextPos.y, 1.0f, this->bobPhase * 0.75f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->actor.world.pos.z, nextPos.z, 1.0f, this->bobPhase * 0.75f, 0.0f);
     this->bobPhase += 0.1f + this->bobSpeedMod;
     if (Actor_GetCollidedExplosive(play, &this->collider.base) || (--this->vFlameTimer == 0)) {
         this->actionState++;
-        this->timer = (Rand_ZeroOne() * 30.0f) + 60.0f;
+        this->timer = (OoT_Rand_ZeroOne() * 30.0f) + 60.0f;
         if (this->vFlameTimer != 0) {
             this->collider.base.acFlags &= ~AC_HIT;
         }
@@ -1057,19 +1057,19 @@ void EnBb_Green(EnBb* this, PlayState* play) {
         this->timer--;
         if (this->timer == 0) {
             this->actionState = BBGREEN_FLAME_ON;
-            this->vFlameTimer = (Rand_ZeroOne() * 30.0f) + 180.0f;
+            this->vFlameTimer = (OoT_Rand_ZeroOne() * 30.0f) + 180.0f;
             Audio_PlayActorSound2(&this->actor, NA_SE_EN_BUBLE_UP);
         }
-        Math_SmoothStepToF(&this->flameScaleY, 0.0f, 1.0f, 10.0f, 0.0f);
-        Math_SmoothStepToF(&this->flameScaleX, 0.0f, 1.0f, 10.0f, 0.0f);
+        OoT_Math_SmoothStepToF(&this->flameScaleY, 0.0f, 1.0f, 10.0f, 0.0f);
+        OoT_Math_SmoothStepToF(&this->flameScaleX, 0.0f, 1.0f, 10.0f, 0.0f);
     } else {
-        Math_SmoothStepToF(&this->flameScaleY, 80.0f, 1.0f, 10.0f, 0.0f);
-        Math_SmoothStepToF(&this->flameScaleX, 100.0f, 1.0f, 10.0f, 0.0f);
+        OoT_Math_SmoothStepToF(&this->flameScaleY, 80.0f, 1.0f, 10.0f, 0.0f);
+        OoT_Math_SmoothStepToF(&this->flameScaleX, 100.0f, 1.0f, 10.0f, 0.0f);
     }
     if ((s32)this->skelAnime.curFrame == 5) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_BUBLE_WING);
     }
-    if (((s32)this->skelAnime.curFrame == 0) && (Rand_ZeroOne() < 0.1f)) {
+    if (((s32)this->skelAnime.curFrame == 0) && (OoT_Rand_ZeroOne() < 0.1f)) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_BUBLE_LAUGH);
     }
 }
@@ -1091,13 +1091,13 @@ void EnBb_SetupStunned(EnBb* this) {
     }
     switch (this->dmgEffect) {
         case 8:
-            Actor_SetColorFilter(&this->actor, -0x8000, 0xC8, 0, 0x50);
+            OoT_Actor_SetColorFilter(&this->actor, -0x8000, 0xC8, 0, 0x50);
             break;
         case 9:
             this->fireIceTimer = 0x30;
         case 15:
             Audio_PlayActorSound2(&this->actor, NA_SE_EN_GOMA_JR_FREEZE);
-            Actor_SetColorFilter(&this->actor, 0, 0xB4, 0, 0x50);
+            OoT_Actor_SetColorFilter(&this->actor, 0, 0xB4, 0, 0x50);
             break;
     }
     this->actor.bgCheckFlags &= ~1;
@@ -1120,7 +1120,7 @@ void EnBb_Stunned(EnBb* this, PlayState* play) {
         } else {
             this->actor.velocity.y = 0.0f;
         }
-        Actor_SpawnFloorDustRing(play, &this->actor, &this->actor.world.pos, 7.0f, 2, 2.0f, 0, 0, false);
+        OoT_Actor_SpawnFloorDustRing(play, &this->actor, &this->actor.world.pos, 7.0f, 2, 2.0f, 0, 0, false);
     }
     if (this->actor.colorFilterTimer == 0) {
         this->actor.shape.yOffset = 200.0f;
@@ -1131,7 +1131,7 @@ void EnBb_Stunned(EnBb* this, PlayState* play) {
                 this->action = BB_WHITE;
                 EnBb_SetupAction(this, EnBb_White);
             } else {
-                EnBb_SetupDown(this);
+                OoT_EnBb_SetupDown(this);
             }
         } else {
             this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
@@ -1149,7 +1149,7 @@ void EnBb_CollisionCheck(EnBb* this, PlayState* play) {
                 if (this->actor.params == ENBB_RED) {
                     EnBb_KillFlameTrail(this);
                 }
-                EnBb_SetupDown(this);
+                OoT_EnBb_SetupDown(this);
                 return;
             }
             this->actionVar2 = 1;
@@ -1158,14 +1158,14 @@ void EnBb_CollisionCheck(EnBb* this, PlayState* play) {
     if (this->collider.base.acFlags & AC_HIT) {
         this->collider.base.acFlags &= ~AC_HIT;
         this->dmgEffect = this->actor.colChkInfo.damageEffect;
-        Actor_SetDropFlag(&this->actor, &this->collider.elements[0].info, 0);
+        OoT_Actor_SetDropFlag(&this->actor, &this->collider.elements[0].info, 0);
         switch (this->dmgEffect) {
             case 7:
                 this->actor.freezeTimer = this->collider.elements[0].info.acHitInfo->toucher.damage;
             case 5:
                 this->fireIceTimer = 0x30;
                 //! @bug
-                //! Setting fireIceTimer here without calling Actor_SetColorFilter causes a crash if the bubble is
+                //! Setting fireIceTimer here without calling OoT_Actor_SetColorFilter causes a crash if the bubble is
                 //! killed in a single hit by an attack with damage effect 5 or 7 while actor updating is halted. Using
                 //! Din's Fire on a white bubble will do just that. The mechanism is complex and described below.
                 goto block_15;
@@ -1176,7 +1176,7 @@ void EnBb_CollisionCheck(EnBb* this, PlayState* play) {
             case 9:
             case 15:
                 if (this->action != BB_STUNNED) {
-                    Actor_ApplyDamage(&this->actor);
+                    OoT_Actor_ApplyDamage(&this->actor);
                     EnBb_SetupStunned(this);
                 }
                 break;
@@ -1185,15 +1185,15 @@ void EnBb_CollisionCheck(EnBb* this, PlayState* play) {
                 if ((this->dmgEffect == 14) || (this->dmgEffect == 12) || (this->dmgEffect == 11) ||
                     (this->dmgEffect == 10) || (this->dmgEffect == 7) || (this->dmgEffect == 5)) {
                     if ((this->action != BB_DOWN) || (this->timer < 190)) {
-                        Actor_ApplyDamage(&this->actor);
+                        OoT_Actor_ApplyDamage(&this->actor);
                     }
                     if ((this->action != BB_DOWN) && (this->actor.params != ENBB_WHITE)) {
-                        EnBb_SetupDown(this);
+                        OoT_EnBb_SetupDown(this);
                     }
                 } else {
                     if (((this->action == BB_DOWN) && (this->timer < 190)) ||
                         ((this->actor.params != ENBB_WHITE) && (this->flameScaleX < 20.0f))) {
-                        Actor_ApplyDamage(&this->actor);
+                        OoT_Actor_ApplyDamage(&this->actor);
                     } else {
                         this->collider.base.acFlags |= AC_HIT;
                     }
@@ -1205,20 +1205,20 @@ void EnBb_CollisionCheck(EnBb* this, PlayState* play) {
                     }
                     EnBb_SetupDeath(this, play);
                     //! @bug
-                    //! Because Din's Fire kills the bubble in a single hit, Actor_SetColorFilter is never called and
+                    //! Because Din's Fire kills the bubble in a single hit, OoT_Actor_SetColorFilter is never called and
                     //! colorFilterParams is never set. And because Din's Fire halts updating during its cutscene,
                     //! EnBb_Death doesn't kill the bubble on the next frame like it should. This combines with
-                    //! the bug in EnBb_Draw below to crash the game.
+                    //! the bug in OoT_EnBb_Draw below to crash the game.
                 } else if ((this->actor.params == ENBB_WHITE) &&
                            ((this->action == BB_WHITE) || (this->action == BB_STUNNED))) {
-                    Actor_SetColorFilter(&this->actor, 0x4000, 0xFF, 0, 0xC);
+                    OoT_Actor_SetColorFilter(&this->actor, 0x4000, 0xFF, 0, 0xC);
                     this->actor.speedXZ = -8.0f;
                     this->maxSpeed = 0.0f;
                     this->actor.world.rot.y = this->actor.yawTowardsPlayer;
                     Audio_PlayActorSound2(&this->actor, NA_SE_EN_BUBLE_DAMAGE);
                 } else if (((this->action == BB_DOWN) && (this->timer < 190)) ||
                            ((this->actor.params != ENBB_WHITE) && (this->flameScaleX < 20.0f))) {
-                    EnBb_SetupDamage(this);
+                    OoT_EnBb_SetupDamage(this);
                 }
             case 13:
                 break;
@@ -1226,7 +1226,7 @@ void EnBb_CollisionCheck(EnBb* this, PlayState* play) {
     }
 }
 
-void EnBb_Update(Actor* thisx, PlayState* play2) {
+void OoT_EnBb_Update(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     EnBb* this = (EnBb*)thisx;
     Vec3f sp4C = { 0.0f, 0.0f, 0.0f };
@@ -1248,7 +1248,7 @@ void EnBb_Update(Actor* thisx, PlayState* play2) {
             if ((this->actor.world.pos.y - 20.0f) <= this->actor.floorHeight) {
                 sp34 = 20.0f;
             }
-            Actor_UpdateBgCheckInfo(play, &this->actor, sp34, 25.0f, 20.0f, 5);
+            OoT_Actor_UpdateBgCheckInfo(play, &this->actor, sp34, 25.0f, 20.0f, 5);
         }
         this->actor.focus.pos = this->actor.world.pos;
         this->collider.elements->dim.worldSphere.center.x = this->actor.world.pos.x;
@@ -1257,18 +1257,18 @@ void EnBb_Update(Actor* thisx, PlayState* play2) {
         this->collider.elements->dim.worldSphere.center.z = this->actor.world.pos.z;
 
         if ((this->action > BB_KILL) && ((this->actor.speedXZ != 0.0f) || (this->action == BB_GREEN))) {
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+            OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
         }
         if ((this->action > BB_FLAME_TRAIL) &&
             ((this->actor.colorFilterTimer == 0) || !(this->actor.colorFilterParams & 0x4000)) &&
             (this->moveMode != BBMOVE_HIDDEN)) {
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-            CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+            OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+            OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
         }
     }
 }
 
-void EnBb_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
+void OoT_EnBb_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
     EnBb* this = (EnBb*)thisx;
 
     BodyBreak_SetInfo(&this->bodyBreak, limbIndex, 4, 15, 15, dList, BODYBREAK_OBJECT_DEFAULT);
@@ -1280,7 +1280,7 @@ static Vec3f sFireIceOffsets[] = {
     { 5.0f, 0.0f, -5.0f },  { 0.0f, 10.0f, 13.0f },  { -5.0f, 0.0f, 5.0f },   { -5.0f, 0.0f, -5.0f },
 };
 
-void EnBb_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnBb_Draw(Actor* thisx, PlayState* play) {
     s32 pad;
     EnBb* this = (EnBb*)thisx;
     Vec3f blureBase1 = { 0.0f, 5000.0f, 0.0f };
@@ -1295,15 +1295,15 @@ void EnBb_Draw(Actor* thisx, PlayState* play) {
     if (this->moveMode != BBMOVE_HIDDEN) {
         if (this->actor.params <= ENBB_BLUE) {
             Gfx_SetupDL_25Opa(play->state.gfxCtx);
-            SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, NULL, EnBb_PostLimbDraw, this);
+            SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, NULL, OoT_EnBb_PostLimbDraw, this);
 
             if (this->fireIceTimer != 0) {
                 this->actor.colorFilterTimer++;
                 //! @bug:
-                //! The purpose of this is to counteract Actor_UpdateAll decrementing colorFilterTimer. However,
+                //! The purpose of this is to counteract OoT_Actor_UpdateAll decrementing colorFilterTimer. However,
                 //! the above bugs mean unk_2A8 can be nonzero without damage effects ever having been set.
-                //! This routine will then increment colorFilterTimer, and on the next frame Actor_Draw will try
-                //! to draw the unset colorFilterParams. This causes a divide-by-zero error, crashing the game.
+                //! This routine will then increment colorFilterTimer, and on the next frame OoT_Actor_Draw will try
+                //! to draw the unset colorFilterParams. This causes a divide-by-OoT_zero error, crashing the game.
                 this->fireIceTimer--;
                 if ((this->fireIceTimer % 4) == 0) {
                     Vec3f sp70;
@@ -1318,38 +1318,38 @@ void EnBb_Draw(Actor* thisx, PlayState* play) {
                                                        0xFF, 0.8f);
                     } else {
                         sp70.y -= 17.0f;
-                        EffectSsEnFire_SpawnVec3f(play, &this->actor, &sp70, 0x28, 1, 0, -1);
+                        OoT_EffectSsEnFire_SpawnVec3f(play, &this->actor, &sp70, 0x28, 1, 0, -1);
                     }
                 }
             }
-            Matrix_Translate(0.0f, this->flameScaleX * -40.0f, 0.0f, MTXMODE_APPLY);
+            OoT_Matrix_Translate(0.0f, this->flameScaleX * -40.0f, 0.0f, MTXMODE_APPLY);
         } else {
-            Matrix_Translate(0.0f, -40.0f, 0.0f, MTXMODE_APPLY);
+            OoT_Matrix_Translate(0.0f, -40.0f, 0.0f, MTXMODE_APPLY);
         }
         if (this->actor.params != ENBB_WHITE) {
             Gfx_SetupDL_25Xlu(play->state.gfxCtx);
             gSPSegment(POLY_XLU_DISP++, 0x08,
-                       Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0,
+                       OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0,
                                         ((play->gameplayFrames + (this->flameScrollMod * 10)) *
                                          (-20 - (this->flameScrollMod * -2))) %
                                             0x200,
                                         0x20, 0x80));
             gDPSetPrimColor(POLY_XLU_DISP++, 0x80, 0x80, 255, 255, this->flamePrimBlue, this->flamePrimAlpha);
             gDPSetEnvColor(POLY_XLU_DISP++, this->flameEnvColor.r, this->flameEnvColor.g, this->flameEnvColor.b, 0);
-            Matrix_RotateY(((s16)(Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) - this->actor.shape.rot.y + 0x8000)) *
+            Matrix_RotateY(((s16)(OoT_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) - this->actor.shape.rot.y + 0x8000)) *
                                (M_PI / 0x8000),
                            MTXMODE_APPLY);
-            Matrix_Scale(this->flameScaleX * 0.01f, this->flameScaleY * 0.01f, 1.0f, MTXMODE_APPLY);
+            OoT_Matrix_Scale(this->flameScaleX * 0.01f, this->flameScaleY * 0.01f, 1.0f, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
         } else {
-            Matrix_MultVec3f(&blureBase1, &blureVtx1);
-            Matrix_MultVec3f(&blureBase2, &blureVtx2);
+            OoT_Matrix_MultVec3f(&blureBase1, &blureVtx1);
+            OoT_Matrix_MultVec3f(&blureBase2, &blureVtx2);
             if ((this->maxSpeed != 0.0f) && (this->action == BB_WHITE) && !(play->gameplayFrames & 1) &&
                 (this->actor.colChkInfo.health != 0)) {
-                EffectBlure_AddVertex(Effect_GetByIndex(this->blureIdx), &blureVtx1, &blureVtx2);
+                OoT_EffectBlure_AddVertex(OoT_Effect_GetByIndex(this->blureIdx), &blureVtx1, &blureVtx2);
             } else if (this->action != BB_WHITE) {
-                EffectBlure_AddSpace(Effect_GetByIndex(this->blureIdx));
+                OoT_EffectBlure_AddSpace(OoT_Effect_GetByIndex(this->blureIdx));
             }
         }
     }

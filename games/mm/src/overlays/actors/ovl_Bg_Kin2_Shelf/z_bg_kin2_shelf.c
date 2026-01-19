@@ -45,7 +45,7 @@ f32 D_80B70770[] = { 10.0f, 15.0f };
 
 u8 D_80B70778[] = { 0x0F, 0x0A };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_STOP),
 };
 
@@ -75,24 +75,24 @@ s32 func_80B6FB30(BgKin2Shelf* this, PlayState* play) {
 
     spA4 = D_80B70750[temp_v1] + ((this->dyna.pushForce < 0.0f) ? 28.0f : -2.0f) + D_80B70768[temp_v1];
 
-    Matrix_Translate(0.0f, 10.0f, D_80B70760[temp_v1], MTXMODE_NEW);
+    MM_Matrix_Translate(0.0f, 10.0f, D_80B70760[temp_v1], MTXMODE_NEW);
     Matrix_RotateYS(spA2, MTXMODE_APPLY);
 
     sp58.x = 0.0f;
     sp58.y = 0.0f;
     sp58.z = 0.0f;
 
-    Matrix_MultVec3f(&sp58, &sp94);
+    MM_Matrix_MultVec3f(&sp58, &sp94);
 
     sp58.z = spA4;
 
-    Matrix_MultVec3f(&sp58, &sp88);
-    Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
+    MM_Matrix_MultVec3f(&sp58, &sp88);
+    MM_Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
                                  this->dyna.actor.world.pos.z, &this->dyna.actor.shape.rot);
-    Matrix_MultVec3f(&sp94, &sp7C);
-    Matrix_MultVec3f(&sp88, &sp70);
+    MM_Matrix_MultVec3f(&sp94, &sp7C);
+    MM_Matrix_MultVec3f(&sp88, &sp70);
 
-    return BgCheck_EntityLineTest3(&play->colCtx, &sp7C, &sp70, &sp64, &sp54, true, false, false, true, &bgId,
+    return MM_BgCheck_EntityLineTest3(&play->colCtx, &sp7C, &sp70, &sp64, &sp54, true, false, false, true, &bgId,
                                    &this->dyna.actor, 0.0f);
 }
 
@@ -117,24 +117,24 @@ s32 func_80B6FCA4(BgKin2Shelf* this, PlayState* play) {
 
     spA0 = D_80B70758[0] + ((this->dyna.pushForce < 0.0f) ? 28.0f : -2.0f) + D_80B70770[0];
 
-    Matrix_Translate(0.0f, 10.0f, *D_80B70760, MTXMODE_NEW);
+    MM_Matrix_Translate(0.0f, 10.0f, *D_80B70760, MTXMODE_NEW);
     Matrix_RotateYS(sp9E, MTXMODE_APPLY);
 
     sp54.x = 0.0f;
     sp54.y = 0.0f;
     sp54.z = 0.0f;
 
-    Matrix_MultVec3f(&sp54, &sp90);
+    MM_Matrix_MultVec3f(&sp54, &sp90);
 
     sp54.z = spA0;
 
-    Matrix_MultVec3f(&sp54, &sp84);
-    Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
+    MM_Matrix_MultVec3f(&sp54, &sp84);
+    MM_Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
                                  this->dyna.actor.world.pos.z, &this->dyna.actor.shape.rot);
-    Matrix_MultVec3f(&sp90, &sp78);
-    Matrix_MultVec3f(&sp84, &sp6C);
+    MM_Matrix_MultVec3f(&sp90, &sp78);
+    MM_Matrix_MultVec3f(&sp84, &sp6C);
 
-    return BgCheck_EntityLineTest3(&play->colCtx, &sp78, &sp6C, &sp60, &sp50, true, false, false, true, &bgId,
+    return MM_BgCheck_EntityLineTest3(&play->colCtx, &sp78, &sp6C, &sp60, &sp50, true, false, false, true, &bgId,
                                    &this->dyna.actor, 0.0f);
 }
 
@@ -192,20 +192,20 @@ void BgKin2Shelf_Init(Actor* thisx, PlayState* play) {
     BgKin2Shelf* this = (BgKin2Shelf*)thisx;
     s32 sp24 = BGKIN2SHELF_GET_1(&this->dyna.actor);
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
 
     if (sp24 == 0) {
         this->dyna.actor.cullingVolumeScale = 150.0f;
         this->dyna.actor.cullingVolumeDownward = 140.0f;
-        Actor_SetScale(&this->dyna.actor, 0.1f);
+        MM_Actor_SetScale(&this->dyna.actor, 0.1f);
     } else {
         this->dyna.actor.cullingVolumeScale = 250.0f;
         this->dyna.actor.cullingVolumeDownward = 300.0f;
-        Actor_SetScale(&this->dyna.actor, 1.0f);
+        MM_Actor_SetScale(&this->dyna.actor, 1.0f);
         this->dyna.actor.flags |= ACTOR_FLAG_UCODE_POINT_LIGHT_ENABLED;
     }
 
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
     DynaPolyActor_LoadMesh(play, &this->dyna, D_80B70780[sp24]);
     func_80B700A8(this);
 }
@@ -213,7 +213,7 @@ void BgKin2Shelf_Init(Actor* thisx, PlayState* play) {
 void BgKin2Shelf_Destroy(Actor* thisx, PlayState* play) {
     BgKin2Shelf* this = (BgKin2Shelf*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_80B700A8(BgKin2Shelf* this) {
@@ -280,9 +280,9 @@ void func_80B70230(BgKin2Shelf* this, PlayState* play) {
     s16 sp36 = BINANG_ADD(this->dyna.actor.shape.rot.y, 0x4000);
 
     if ((BGKIN2SHELF_GET_1(&this->dyna.actor)) == 0) {
-        phi_f2 = (Math_SinS(this->unk_160 * 0x8000) * 0.012f) + 0.014f;
+        phi_f2 = (MM_Math_SinS(this->unk_160 * 0x8000) * 0.012f) + 0.014f;
     } else {
-        phi_f2 = (Math_SinS(this->unk_160 * 0x8000) * 0.003f) + 0.009f;
+        phi_f2 = (MM_Math_SinS(this->unk_160 * 0x8000) * 0.003f) + 0.009f;
     }
     this->unk_160 += phi_f2;
 
@@ -301,8 +301,8 @@ void func_80B70230(BgKin2Shelf* this, PlayState* play) {
 
         phi_f20 = this->unk_166;
 
-        this->dyna.actor.world.pos.x = ((Math_SinS(sp36) * phi_f20) * D_80B70750[sp40]) + this->dyna.actor.home.pos.x;
-        this->dyna.actor.world.pos.z = ((Math_CosS(sp36) * phi_f20) * D_80B70750[sp40]) + this->dyna.actor.home.pos.z;
+        this->dyna.actor.world.pos.x = ((MM_Math_SinS(sp36) * phi_f20) * D_80B70750[sp40]) + this->dyna.actor.home.pos.x;
+        this->dyna.actor.world.pos.z = ((MM_Math_CosS(sp36) * phi_f20) * D_80B70750[sp40]) + this->dyna.actor.home.pos.z;
 
         if (this->unk_166 != 0) {
             Audio_PlaySfx(NA_SE_SY_TRE_BOX_APPEAR);
@@ -314,8 +314,8 @@ void func_80B70230(BgKin2Shelf* this, PlayState* play) {
         } else {
             phi_f20 = this->unk_166 + this->unk_160;
         }
-        this->dyna.actor.world.pos.x = ((Math_SinS(sp36) * phi_f20) * D_80B70750[sp40]) + this->dyna.actor.home.pos.x;
-        this->dyna.actor.world.pos.z = ((Math_CosS(sp36) * phi_f20) * D_80B70750[sp40]) + this->dyna.actor.home.pos.z;
+        this->dyna.actor.world.pos.x = ((MM_Math_SinS(sp36) * phi_f20) * D_80B70750[sp40]) + this->dyna.actor.home.pos.x;
+        this->dyna.actor.world.pos.z = ((MM_Math_CosS(sp36) * phi_f20) * D_80B70750[sp40]) + this->dyna.actor.home.pos.z;
     }
 }
 
@@ -331,7 +331,7 @@ void func_80B704B4(BgKin2Shelf* this, PlayState* play) {
     s32 pad;
     s16 sp36 = this->dyna.actor.shape.rot.y;
 
-    this->unk_160 += (Math_SinS(this->unk_160 * 0x8000) * 0.022f) + 0.022f;
+    this->unk_160 += (MM_Math_SinS(this->unk_160 * 0x8000) * 0.022f) + 0.022f;
 
     if (this->unk_160 >= 1.0f) {
         Player* player = GET_PLAYER(play);
@@ -347,8 +347,8 @@ void func_80B704B4(BgKin2Shelf* this, PlayState* play) {
         }
 
         temp_f20 = this->unk_167;
-        this->dyna.actor.world.pos.x = ((Math_SinS(sp36) * temp_f20) * D_80B70758[sp40]) + this->dyna.actor.home.pos.x;
-        this->dyna.actor.world.pos.z = ((Math_CosS(sp36) * temp_f20) * D_80B70758[sp40]) + this->dyna.actor.home.pos.z;
+        this->dyna.actor.world.pos.x = ((MM_Math_SinS(sp36) * temp_f20) * D_80B70758[sp40]) + this->dyna.actor.home.pos.x;
+        this->dyna.actor.world.pos.z = ((MM_Math_CosS(sp36) * temp_f20) * D_80B70758[sp40]) + this->dyna.actor.home.pos.z;
 
         if (this->unk_167 != 0) {
             Audio_PlaySfx(NA_SE_SY_TRE_BOX_APPEAR);
@@ -360,8 +360,8 @@ void func_80B704B4(BgKin2Shelf* this, PlayState* play) {
         } else {
             temp_f20 = this->unk_167 + this->unk_160;
         }
-        this->dyna.actor.world.pos.x = ((Math_SinS(sp36) * temp_f20) * D_80B70758[sp40]) + this->dyna.actor.home.pos.x;
-        this->dyna.actor.world.pos.z = ((Math_CosS(sp36) * temp_f20) * D_80B70758[sp40]) + this->dyna.actor.home.pos.z;
+        this->dyna.actor.world.pos.x = ((MM_Math_SinS(sp36) * temp_f20) * D_80B70758[sp40]) + this->dyna.actor.home.pos.x;
+        this->dyna.actor.world.pos.z = ((MM_Math_CosS(sp36) * temp_f20) * D_80B70758[sp40]) + this->dyna.actor.home.pos.z;
     }
 }
 
@@ -372,5 +372,5 @@ void BgKin2Shelf_Update(Actor* thisx, PlayState* play) {
 }
 
 void BgKin2Shelf_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, D_80B70788[BGKIN2SHELF_GET_1(thisx)]);
+    MM_Gfx_DrawDListOpa(play, D_80B70788[BGKIN2SHELF_GET_1(thisx)]);
 }

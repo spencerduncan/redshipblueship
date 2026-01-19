@@ -39,7 +39,7 @@ ActorProfile Obj_Hugebombiwa_Profile = {
     /**/ ObjHugebombiwa_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HARD,
         AT_NONE,
@@ -71,13 +71,13 @@ void func_80A53BE0(PlayState* play, Vec3f* arg1) {
     s16 phi_v1;
 
     for (i = 0, gravity = -300; i < 16; i++, gravity -= 30) {
-        pos.x = (Rand_ZeroOne() - 0.5f) * 260.0f;
+        pos.x = (MM_Rand_ZeroOne() - 0.5f) * 260.0f;
         pos.y = i * (40.0f / 3);
-        pos.z = (Rand_ZeroOne() - 0.5f) * 260.0f;
+        pos.z = (MM_Rand_ZeroOne() - 0.5f) * 260.0f;
 
-        velocity.x = ((Rand_ZeroOne() - 0.5f) * 5.7f) + (pos.x * 0.035f);
-        velocity.y = (Rand_ZeroOne() * 16.0f) + 5.0f + ((16 - i) * 0.25f);
-        velocity.z = ((Rand_ZeroOne() - 0.5f) * 5.7f) + (pos.z * 0.035f);
+        velocity.x = ((MM_Rand_ZeroOne() - 0.5f) * 5.7f) + (pos.x * 0.035f);
+        velocity.y = (MM_Rand_ZeroOne() * 16.0f) + 5.0f + ((16 - i) * 0.25f);
+        velocity.z = ((MM_Rand_ZeroOne() - 0.5f) * 5.7f) + (pos.z * 0.035f);
 
         pos.x += arg1->x;
         pos.y += arg1->y;
@@ -92,7 +92,7 @@ void func_80A53BE0(PlayState* play, Vec3f* arg1) {
                 life = 70;
             } else {
                 life = 40;
-                if (Rand_ZeroOne() < 0.7f) {
+                if (MM_Rand_ZeroOne() < 0.7f) {
                     phi_v0 = 64;
                 } else {
                     phi_v0 = 32;
@@ -106,7 +106,7 @@ void func_80A53BE0(PlayState* play, Vec3f* arg1) {
             if (1) {}
         }
 
-        EffectSsKakera_Spawn(play, &pos, &velocity, &pos, gravity, phi_v0, 15, 0, 0, phi_v1, 1, 0, life, -1,
+        MM_EffectSsKakera_Spawn(play, &pos, &velocity, &pos, gravity, phi_v0, 15, 0, 0, phi_v1, 1, 0, life, -1,
                              OBJECT_BOMBIWA, object_bombiwa_DL_001990);
     }
 }
@@ -127,14 +127,14 @@ void func_80A53E60(PlayState* play, Vec3f* arg1, f32 arg2, f32 arg3) {
     s32 pad;
 
     for (phi_s2 = -300, i = 0; phi_s2 > -540; phi_s2 -= 60, i++) {
-        spDC.x = (Rand_ZeroOne() - 0.5f) * 11.0f;
-        spDC.y = (Rand_ZeroOne() - 0.2f) * 8.0f;
-        spDC.z = (Rand_ZeroOne() - 0.5f) * 11.0f;
+        spDC.x = (MM_Rand_ZeroOne() - 0.5f) * 11.0f;
+        spDC.y = (MM_Rand_ZeroOne() - 0.2f) * 8.0f;
+        spDC.z = (MM_Rand_ZeroOne() - 0.5f) * 11.0f;
 
-        spD0.x = ((Rand_ZeroOne() - 0.5f) * 5.0f) + (spDC.x * 1.4f);
-        spD0.y = (Rand_ZeroOne() * 13.0f) + 8.2f + (arg2 * -0.26f);
+        spD0.x = ((MM_Rand_ZeroOne() - 0.5f) * 5.0f) + (spDC.x * 1.4f);
+        spD0.y = (MM_Rand_ZeroOne() * 13.0f) + 8.2f + (arg2 * -0.26f);
         if (1) {}
-        spD0.z = ((Rand_ZeroOne() - 0.5f) * 5.0f) + (spDC.z * 1.4f);
+        spD0.z = ((MM_Rand_ZeroOne() - 0.5f) * 5.0f) + (spDC.z * 1.4f);
 
         spDC.x += arg1->x;
         spDC.y += arg1->y;
@@ -149,7 +149,7 @@ void func_80A53E60(PlayState* play, Vec3f* arg1, f32 arg2, f32 arg3) {
                 phi_s0 = 70;
             } else {
                 phi_s0 = 40;
-                if (Rand_ZeroOne() < 0.7f) {
+                if (MM_Rand_ZeroOne() < 0.7f) {
                     phi_v0 = 64;
                 } else {
                     phi_v0 = 32;
@@ -164,15 +164,15 @@ void func_80A53E60(PlayState* play, Vec3f* arg1, f32 arg2, f32 arg3) {
             phi_v1 = temp_f0;
         }
 
-        EffectSsKakera_Spawn(play, &spDC, &spD0, &spDC, phi_s2, phi_v0, 15, 0, 0, phi_v1, 1, 0, phi_s0, -1,
+        MM_EffectSsKakera_Spawn(play, &spDC, &spD0, &spDC, phi_s2, phi_v0, 15, 0, 0, phi_v1, 1, 0, phi_s0, -1,
                              OBJECT_BOMBIWA, object_bombiwa_DL_001990);
 
-        spDC.x += (Rand_ZeroOne() - 0.5f) * 270.0f;
-        spDC.y += (Rand_ZeroOne() - 0.1f) * 150.0f;
-        spDC.z += (Rand_ZeroOne() - 0.5f) * 270.0f;
+        spDC.x += (MM_Rand_ZeroOne() - 0.5f) * 270.0f;
+        spDC.y += (MM_Rand_ZeroOne() - 0.1f) * 150.0f;
+        spDC.z += (MM_Rand_ZeroOne() - 0.5f) * 270.0f;
 
-        phi_s0 = (Rand_ZeroOne() * 160.0f) + 140.0f;
-        phi_s1 = (Rand_ZeroOne() * 180.0f) + 120.0f;
+        phi_s0 = (MM_Rand_ZeroOne() * 160.0f) + 140.0f;
+        phi_s1 = (MM_Rand_ZeroOne() * 180.0f) + 120.0f;
         func_800B0E48(play, &spDC, &gZeroVec3f, &D_80A55D2C, &D_80A55D38, &D_80A55D3C, phi_s0, phi_s1);
     }
 }
@@ -195,25 +195,25 @@ void func_80A541F4(ObjHugebombiwa* this, PlayState* play) {
     f32 phi_f30;
 
     for (i = 0, phi_s2 = 0, phi_f30 = 0.0f; i < 13; i++, phi_s2 += 0x4E20, phi_f30 += (230.0f / 13)) {
-        temp_f0 = Rand_ZeroOne();
+        temp_f0 = MM_Rand_ZeroOne();
         temp_f22 = (1.0f - SQ(temp_f0)) * 120.0f;
-        temp_f20 = Math_SinS(phi_s2 & 0xFFFF);
-        temp_f24 = Math_CosS(phi_s2 & 0xFFFF);
+        temp_f20 = MM_Math_SinS(phi_s2 & 0xFFFF);
+        temp_f24 = MM_Math_CosS(phi_s2 & 0xFFFF);
 
         spF4.x = (temp_f20 * temp_f22) + this->actor.world.pos.x;
         spF4.y = this->actor.world.pos.y + phi_f30;
         spF4.z = (temp_f24 * temp_f22) + this->actor.world.pos.z;
 
         spE8.x = temp_f20 * 10.0f;
-        spE8.y = (Rand_ZeroOne() * 18.0f) + 10.0f;
+        spE8.y = (MM_Rand_ZeroOne() * 18.0f) + 10.0f;
         spE8.z = temp_f24 * 10.0f;
 
-        EffectSsKakera_Spawn(play, &spF4, &spE8, &spF4, -650, 37, 15, 0, 0, D_80A55D50[i & 7], 1, 0, 60, -1,
+        MM_EffectSsKakera_Spawn(play, &spF4, &spE8, &spF4, -650, 37, 15, 0, 0, D_80A55D50[i & 7], 1, 0, 60, -1,
                              OBJECT_BOMBIWA, object_bombiwa_DL_0009E0);
 
-        spDC.x = ((Rand_ZeroOne() - 0.5f) * 230.0f) + spF4.x;
-        spDC.y = ((Rand_ZeroOne() - 0.2f) * 200.0f) + spF4.y;
-        spDC.z = ((Rand_ZeroOne() - 0.5f) * 230.0f) + spF4.z;
+        spDC.x = ((MM_Rand_ZeroOne() - 0.5f) * 230.0f) + spF4.x;
+        spDC.y = ((MM_Rand_ZeroOne() - 0.2f) * 200.0f) + spF4.y;
+        spDC.z = ((MM_Rand_ZeroOne() - 0.5f) * 230.0f) + spF4.z;
 
         spD0.x = temp_f20 * 7.0f;
         spD0.y = -7.0f;
@@ -223,11 +223,11 @@ void func_80A541F4(ObjHugebombiwa* this, PlayState* play) {
         spC4.y = 0.24f;
         spC4.z = temp_f24 * -0.07f;
 
-        func_800B12F0(play, &spDC, &spD0, &spC4, (s32)(Rand_ZeroOne() * 800.0f) + 1000, -49, 20);
+        func_800B12F0(play, &spDC, &spD0, &spC4, (s32)(MM_Rand_ZeroOne() * 800.0f) + 1000, -49, 20);
 
-        spDC.x = ((Rand_ZeroOne() - 0.5f) * 160.0f) + spF4.x;
-        spDC.y = ((Rand_ZeroOne() - 0.2f) * 140.0f) + spF4.y;
-        spDC.z = ((Rand_ZeroOne() - 0.5f) * 160.0f) + spF4.z;
+        spDC.x = ((MM_Rand_ZeroOne() - 0.5f) * 160.0f) + spF4.x;
+        spDC.y = ((MM_Rand_ZeroOne() - 0.2f) * 140.0f) + spF4.y;
+        spDC.z = ((MM_Rand_ZeroOne() - 0.5f) * 160.0f) + spF4.z;
 
         spD0.x = temp_f20 * 15.0f;
         spD0.y = 0.0f;
@@ -237,8 +237,8 @@ void func_80A541F4(ObjHugebombiwa* this, PlayState* play) {
         spC4.y = 0.3f;
         spC4.z = temp_f24 * -0.09f;
 
-        func_800B12F0(play, &spDC, &spD0, &spC4, (s32)(Rand_ZeroOne() * 100.0f) + 40,
-                      (s32)(Rand_ZeroOne() * 200.0f) + 20, 10);
+        func_800B12F0(play, &spDC, &spD0, &spC4, (s32)(MM_Rand_ZeroOne() * 100.0f) + 40,
+                      (s32)(MM_Rand_ZeroOne() * 200.0f) + 20, 10);
     }
 }
 
@@ -256,13 +256,13 @@ void func_80A54600(PlayState* play, Vec3f* arg1, f32 arg2, f32 arg3) {
     f32 temp;
 
     for (i = 0; i < 2; i++) {
-        spCC.x = (Rand_ZeroOne() - 0.5f) * 11.0f;
-        spCC.y = (Rand_ZeroOne() - 0.2f) * 8.0f;
-        spCC.z = (Rand_ZeroOne() - 0.5f) * 11.0f;
+        spCC.x = (MM_Rand_ZeroOne() - 0.5f) * 11.0f;
+        spCC.y = (MM_Rand_ZeroOne() - 0.2f) * 8.0f;
+        spCC.z = (MM_Rand_ZeroOne() - 0.5f) * 11.0f;
 
-        spC0.x = ((Rand_ZeroOne() - 0.5f) * 5.0f) + (spCC.x * 1.4f);
-        spC0.y = (Rand_ZeroOne() * 13.0f) + 8.2f + (arg2 * -0.38f);
-        spC0.z = ((Rand_ZeroOne() - 0.5f) * 5.0f) + (spCC.z * 1.4f);
+        spC0.x = ((MM_Rand_ZeroOne() - 0.5f) * 5.0f) + (spCC.x * 1.4f);
+        spC0.y = (MM_Rand_ZeroOne() * 13.0f) + 8.2f + (arg2 * -0.38f);
+        spC0.z = ((MM_Rand_ZeroOne() - 0.5f) * 5.0f) + (spCC.z * 1.4f);
 
         spCC.x += arg1->x;
         spCC.y += arg1->y;
@@ -279,15 +279,15 @@ void func_80A54600(PlayState* play, Vec3f* arg1, f32 arg2, f32 arg3) {
             phi_v0 = temp;
         }
 
-        EffectSsKakera_Spawn(play, &spCC, &spC0, &spCC, phi_v1, 33, 15, 0, 0, phi_v0, 1, 0, 70, -1, OBJECT_BOMBIWA,
+        MM_EffectSsKakera_Spawn(play, &spCC, &spC0, &spCC, phi_v1, 33, 15, 0, 0, phi_v0, 1, 0, 70, -1, OBJECT_BOMBIWA,
                              object_bombiwa_DL_0009E0);
 
-        spCC.x += (Rand_ZeroOne() - 0.5f) * 270.0f;
-        spCC.y += (Rand_ZeroOne() - 0.1f) * 150.0f;
-        spCC.z += (Rand_ZeroOne() - 0.5f) * 270.0f;
+        spCC.x += (MM_Rand_ZeroOne() - 0.5f) * 270.0f;
+        spCC.y += (MM_Rand_ZeroOne() - 0.1f) * 150.0f;
+        spCC.z += (MM_Rand_ZeroOne() - 0.5f) * 270.0f;
 
-        temp_s0 = (Rand_ZeroOne() * 160.0f) + 140.0f;
-        temp_s1 = (Rand_ZeroOne() * 180.0f) + 120.0f;
+        temp_s0 = (MM_Rand_ZeroOne() * 160.0f) + 140.0f;
+        temp_s1 = (MM_Rand_ZeroOne() * 180.0f) + 120.0f;
         func_800B1210(play, &spCC, &gZeroVec3f, &D_80A55D2C, temp_s0, temp_s1);
     }
 }
@@ -296,7 +296,7 @@ void ObjHugebombiwa_RequestQuakeAndRumble(ObjHugebombiwa* this, PlayState* play,
     s32 pad[2];
     s16 quakeIndex = Quake_Request(GET_ACTIVE_CAM(play), QUAKE_TYPE_3);
 
-    Quake_SetSpeed(quakeIndex, 20000);
+    MM_Quake_SetSpeed(quakeIndex, 20000);
     Quake_SetPerturbations(quakeIndex, quakeVerticalMag, 0, 0, 0);
     Quake_SetDuration(quakeIndex, 7);
 
@@ -318,7 +318,7 @@ s32 func_80A54A0C(ObjHugebombiwa* this) {
         sp20.y = this->actor.world.pos.y + 50.0f;
         sp20.z = this->actor.world.pos.z;
         if (ac != NULL) {
-            if (Math3D_Vec3fDistSq(&sp20, &ac->world.pos) < D_80A55D74[params]) {
+            if (MM_Math3D_Vec3fDistSq(&sp20, &ac->world.pos) < D_80A55D74[params]) {
                 return true;
             }
         }
@@ -326,7 +326,7 @@ s32 func_80A54A0C(ObjHugebombiwa* this) {
     return false;
 }
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 3700, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 900, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 900, ICHAIN_STOP),
@@ -336,24 +336,24 @@ void ObjHugebombiwa_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     ObjHugebombiwa* this = (ObjHugebombiwa*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    Collider_InitCylinder(play, &this->collider);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
+    MM_Collider_InitCylinder(play, &this->collider);
 
-    if (Flags_GetSwitch(play, ENHUGEBOMBIWA_GET_SWITCH_FLAG(&this->actor))) {
-        Actor_Kill(&this->actor);
+    if (MM_Flags_GetSwitch(play, ENHUGEBOMBIWA_GET_SWITCH_FLAG(&this->actor))) {
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
     if ((ENHUGEBOMBIWA_GET_100(&this->actor)) == 1) {
         this->actor.draw = func_80A55B34;
-        Actor_SetScale(&this->actor, 0.74f);
+        MM_Actor_SetScale(&this->actor, 0.74f);
         this->collider.dim.radius = 204;
         this->collider.dim.height = 230;
     } else {
-        Actor_SetScale(&this->actor, 0.067f);
+        MM_Actor_SetScale(&this->actor, 0.067f);
         this->collider.dim.radius = 120;
         this->collider.dim.height = 151;
     }
@@ -364,7 +364,7 @@ void ObjHugebombiwa_Destroy(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     ObjHugebombiwa* this = (ObjHugebombiwa*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void func_80A54BF0(ObjHugebombiwa* this) {
@@ -395,8 +395,8 @@ void func_80A54C04(ObjHugebombiwa* this, PlayState* play) {
         }
     }
 
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void func_80A54CD8(ObjHugebombiwa* this) {
@@ -408,16 +408,16 @@ void func_80A54CEC(ObjHugebombiwa* this, PlayState* play) {
 
     if (CutsceneManager_IsNext(this->actor.csId)) {
         CutsceneManager_StartWithPlayerCs(this->actor.csId, &this->actor);
-        Flags_SetSwitch(play, ENHUGEBOMBIWA_GET_SWITCH_FLAG(&this->actor));
+        MM_Flags_SetSwitch(play, ENHUGEBOMBIWA_GET_SWITCH_FLAG(&this->actor));
         if (!ENHUGEBOMBIWA_GET_100(&this->actor) &&
             ((play->sceneId == SCENE_17SETUGEN) || (play->sceneId == SCENE_17SETUGEN2))) {
             SET_WEEKEVENTREG(WEEKEVENTREG_19_02);
         }
 
         if (!ENHUGEBOMBIWA_GET_100(&this->actor)) {
-            SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 80, NA_SE_EV_WALL_BROKEN);
+            MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 80, NA_SE_EV_WALL_BROKEN);
         } else {
-            SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 80, NA_SE_EV_SNOWBALL_BROKEN);
+            MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 80, NA_SE_EV_SNOWBALL_BROKEN);
         }
 
         if (!ENHUGEBOMBIWA_GET_100(&this->actor)) {
@@ -441,23 +441,23 @@ void func_80A54E10(ObjHugebombiwa* this) {
     s32 pad;
     Vec3f sp84;
 
-    Matrix_Push();
+    MM_Matrix_Push();
     Matrix_RotateYS(this->actor.shape.rot.y, MTXMODE_NEW);
 
     for (i = 0, phi_s2 = 0x1000; i < 20; i++, phi_s2 += 0x4000) {
         ptr = &this->unk_190[i];
 
-        temp_f20 = (Rand_ZeroOne() * 0.06f) + 0.013f;
-        ptr->unk_00.x = ((Rand_ZeroOne() * 0.6f) + 0.6f) * temp_f20;
-        ptr->unk_00.y = ((Rand_ZeroOne() * 0.6f) + 0.4f) * temp_f20;
-        ptr->unk_00.z = ((Rand_ZeroOne() * 0.6f) + 0.6f) * temp_f20;
+        temp_f20 = (MM_Rand_ZeroOne() * 0.06f) + 0.013f;
+        ptr->unk_00.x = ((MM_Rand_ZeroOne() * 0.6f) + 0.6f) * temp_f20;
+        ptr->unk_00.y = ((MM_Rand_ZeroOne() * 0.6f) + 0.4f) * temp_f20;
+        ptr->unk_00.z = ((MM_Rand_ZeroOne() * 0.6f) + 0.6f) * temp_f20;
 
-        temp_f20_2 = (Rand_ZeroOne() * 55.0f) + 47.0f;
-        sp84.x = Math_SinS(phi_s2) * temp_f20_2;
+        temp_f20_2 = (MM_Rand_ZeroOne() * 55.0f) + 47.0f;
+        sp84.x = MM_Math_SinS(phi_s2) * temp_f20_2;
         sp84.y = (i + 1) * 10.0f;
-        sp84.z = fabsf(Math_CosS(phi_s2)) * temp_f20_2;
+        sp84.z = fabsf(MM_Math_CosS(phi_s2)) * temp_f20_2;
 
-        Matrix_MultVec3f(&sp84, &ptr->unk_0C);
+        MM_Matrix_MultVec3f(&sp84, &ptr->unk_0C);
 
         ptr->unk_0C.x += this->actor.world.pos.x;
         ptr->unk_0C.y += this->actor.world.pos.y;
@@ -465,15 +465,15 @@ void func_80A54E10(ObjHugebombiwa* this) {
 
         ptr->unk_18 = (i * 1.04f) + 2.4f;
         ptr->unk_1C.x = phi_s2;
-        ptr->unk_1C.y = Rand_Next() >> 0x10;
+        ptr->unk_1C.y = MM_Rand_Next() >> 0x10;
         ptr->unk_1C.z = 0;
-        ptr->unk_22 = Rand_ZeroFloat(5000.0f);
+        ptr->unk_22 = MM_Rand_ZeroFloat(5000.0f);
         ptr->unk_24 = 0;
     }
 
     this->unk_4B0 = 0;
     this->unk_4B2 = 100;
-    Matrix_Pop();
+    MM_Matrix_Pop();
     this->actionFunc = func_80A55064;
 }
 
@@ -499,9 +499,9 @@ void func_80A55064(ObjHugebombiwa* this, PlayState* play) {
             ptr->unk_18 = -30.0f;
         }
 
-        ptr->unk_0C.x += Math_SinS(phi_s3) * 4.0f;
+        ptr->unk_0C.x += MM_Math_SinS(phi_s3) * 4.0f;
         ptr->unk_0C.y += ptr->unk_18;
-        ptr->unk_0C.z += Math_CosS(phi_s3) * 4.0f;
+        ptr->unk_0C.z += MM_Math_CosS(phi_s3) * 4.0f;
 
         ptr->unk_1C.x += ptr->unk_22;
 
@@ -509,13 +509,13 @@ void func_80A55064(ObjHugebombiwa* this, PlayState* play) {
         spA4.y = ptr->unk_0C.y + 60.0f;
         spA4.z = ptr->unk_0C.z;
 
-        temp_f0 = BgCheck_EntityRaycastFloor5(&play->colCtx, &sp9C, &bgId, &this->actor, &spA4);
+        temp_f0 = MM_BgCheck_EntityRaycastFloor5(&play->colCtx, &sp9C, &bgId, &this->actor, &spA4);
         if ((temp_f0 <= BGCHECK_Y_MIN + 10.0f) || ((ptr->unk_0C.y - (350.0f * ptr->unk_00.y)) < temp_f0)) {
             this->unk_4B0++;
             ptr->unk_24 = 1;
             func_80A53E60(play, &ptr->unk_0C, ptr->unk_18, ptr->unk_00.y * 9.8f);
             if ((play->gameplayFrames % 4) == 0) {
-                ObjHugebombiwa_RequestQuakeAndRumble(this, play, (s32)(Rand_ZeroOne() * 5.5f) + 1);
+                ObjHugebombiwa_RequestQuakeAndRumble(this, play, (s32)(MM_Rand_ZeroOne() * 5.5f) + 1);
             }
         }
     }
@@ -523,7 +523,7 @@ void func_80A55064(ObjHugebombiwa* this, PlayState* play) {
     this->unk_4B2--;
     if ((this->unk_4B0 >= 20) || (this->unk_4B2 <= 0)) {
         CutsceneManager_Stop(this->actor.csId);
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -536,22 +536,22 @@ void func_80A55310(ObjHugebombiwa* this) {
     s16 phi_s2;
     Vec3f sp84;
 
-    Matrix_Push();
+    MM_Matrix_Push();
     Matrix_RotateYS(this->actor.shape.rot.y, MTXMODE_NEW);
 
     for (i = 0, phi_s2 = 0x1000; i < ARRAY_COUNT(this->unk_190); i++, phi_s2 += 0x4000) {
         ptr = &this->unk_190[i];
 
-        temp_f20 = (Rand_ZeroOne() * 0.09f) + 0.016f;
-        ptr->unk_00.x = ((Rand_ZeroOne() * 0.1f) + 0.95f) * temp_f20;
-        ptr->unk_00.y = ((Rand_ZeroOne() * 0.1f) + 0.95f) * temp_f20;
-        ptr->unk_00.z = ((Rand_ZeroOne() * 0.1f) + 0.95f) * temp_f20;
+        temp_f20 = (MM_Rand_ZeroOne() * 0.09f) + 0.016f;
+        ptr->unk_00.x = ((MM_Rand_ZeroOne() * 0.1f) + 0.95f) * temp_f20;
+        ptr->unk_00.y = ((MM_Rand_ZeroOne() * 0.1f) + 0.95f) * temp_f20;
+        ptr->unk_00.z = ((MM_Rand_ZeroOne() * 0.1f) + 0.95f) * temp_f20;
 
-        temp_f20_2 = (Rand_ZeroOne() * 85.0f) + 77.0f;
-        sp84.x = Math_SinS(phi_s2) * temp_f20_2;
+        temp_f20_2 = (MM_Rand_ZeroOne() * 85.0f) + 77.0f;
+        sp84.x = MM_Math_SinS(phi_s2) * temp_f20_2;
         sp84.y = (i + 1) * 14.0f;
-        sp84.z = fabsf(Math_CosS(phi_s2)) * temp_f20_2;
-        Matrix_MultVec3f(&sp84, &ptr->unk_0C);
+        sp84.z = fabsf(MM_Math_CosS(phi_s2)) * temp_f20_2;
+        MM_Matrix_MultVec3f(&sp84, &ptr->unk_0C);
 
         ptr->unk_0C.x += this->actor.world.pos.x;
         ptr->unk_0C.y += this->actor.world.pos.y;
@@ -560,16 +560,16 @@ void func_80A55310(ObjHugebombiwa* this) {
         ptr->unk_18 = (i * 1.04f) + 2.4f;
 
         ptr->unk_1C.x = phi_s2;
-        ptr->unk_1C.y = Rand_Next() >> 0x10;
+        ptr->unk_1C.y = MM_Rand_Next() >> 0x10;
         ptr->unk_1C.z = 0;
 
-        ptr->unk_22 = Rand_ZeroFloat(5000.0f);
+        ptr->unk_22 = MM_Rand_ZeroFloat(5000.0f);
         ptr->unk_24 = 0;
     }
 
     this->unk_4B0 = 0;
     this->unk_4B2 = 100;
-    Matrix_Pop();
+    MM_Matrix_Pop();
     this->actionFunc = func_80A55564;
 }
 
@@ -595,9 +595,9 @@ void func_80A55564(ObjHugebombiwa* this, PlayState* play) {
             ptr->unk_18 = -30.0f;
         }
 
-        ptr->unk_0C.x += (Math_SinS(phi_s3) * 4.0f);
+        ptr->unk_0C.x += (MM_Math_SinS(phi_s3) * 4.0f);
         ptr->unk_0C.y += ptr->unk_18;
-        ptr->unk_0C.z += (Math_CosS(phi_s3) * 4.0f);
+        ptr->unk_0C.z += (MM_Math_CosS(phi_s3) * 4.0f);
 
         ptr->unk_1C.x += ptr->unk_22;
 
@@ -605,13 +605,13 @@ void func_80A55564(ObjHugebombiwa* this, PlayState* play) {
         spA4.y = ptr->unk_0C.y + 60.0f;
         spA4.z = ptr->unk_0C.z;
 
-        temp_f0 = BgCheck_EntityRaycastFloor5(&play->colCtx, &sp9C, &bgId, &this->actor, &spA4);
+        temp_f0 = MM_BgCheck_EntityRaycastFloor5(&play->colCtx, &sp9C, &bgId, &this->actor, &spA4);
         if ((temp_f0 <= BGCHECK_Y_MIN + 10.0f) || (ptr->unk_0C.y < temp_f0)) {
             this->unk_4B0++;
             ptr->unk_24 = 1;
             func_80A54600(play, &ptr->unk_0C, ptr->unk_18, ptr->unk_00.y * 10.1f);
             if ((play->gameplayFrames % 4) == 0) {
-                ObjHugebombiwa_RequestQuakeAndRumble(this, play, (s32)(Rand_ZeroOne() * 5.5f) + 1);
+                ObjHugebombiwa_RequestQuakeAndRumble(this, play, (s32)(MM_Rand_ZeroOne() * 5.5f) + 1);
             }
         }
     }
@@ -619,7 +619,7 @@ void func_80A55564(ObjHugebombiwa* this, PlayState* play) {
     this->unk_4B2--;
     if ((this->unk_4B0 >= 20) || (this->unk_4B2 <= 0)) {
         CutsceneManager_Stop(this->actor.csId);
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -671,8 +671,8 @@ void ObjHugebombiwa_Draw(Actor* thisx, PlayState* play) {
 
             if (ptr->unk_24 == 0) {
                 FrameInterpolation_RecordOpenChild(ptr, i);
-                Matrix_SetTranslateRotateYXZ(ptr->unk_0C.x, ptr->unk_0C.y, ptr->unk_0C.z, &ptr->unk_1C);
-                Matrix_Scale(ptr->unk_00.x, ptr->unk_00.x, ptr->unk_00.x, MTXMODE_APPLY);
+                MM_Matrix_SetTranslateRotateYXZ(ptr->unk_0C.x, ptr->unk_0C.y, ptr->unk_0C.z, &ptr->unk_1C);
+                MM_Matrix_Scale(ptr->unk_00.x, ptr->unk_00.x, ptr->unk_00.x, MTXMODE_APPLY);
 
                 MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
                 gSPDisplayList(gfx++, object_bombiwa_DL_001990);
@@ -693,7 +693,7 @@ void func_80A55B34(Actor* thisx, PlayState* play) {
     EnHugebombiwaStruct* ptr;
 
     if ((this->actionFunc == func_80A54C04) || (this->actionFunc == func_80A54CEC)) {
-        Gfx_DrawDListOpa(play, object_bombiwa_DL_001820);
+        MM_Gfx_DrawDListOpa(play, object_bombiwa_DL_001820);
         return;
     }
 
@@ -711,10 +711,10 @@ void func_80A55B34(Actor* thisx, PlayState* play) {
         }
 
         FrameInterpolation_RecordOpenChild(ptr, i);
-        Matrix_SetTranslateRotateYXZ(ptr->unk_0C.x, ptr->unk_0C.y + (325.0f * ptr->unk_00.y), ptr->unk_0C.z,
+        MM_Matrix_SetTranslateRotateYXZ(ptr->unk_0C.x, ptr->unk_0C.y + (325.0f * ptr->unk_00.y), ptr->unk_0C.z,
                                      &ptr->unk_1C);
-        Matrix_Scale(ptr->unk_00.x, ptr->unk_00.y, ptr->unk_00.z, MTXMODE_APPLY);
-        Matrix_Translate(0.0f, -325.0f, 0.0f, MTXMODE_APPLY);
+        MM_Matrix_Scale(ptr->unk_00.x, ptr->unk_00.y, ptr->unk_00.z, MTXMODE_APPLY);
+        MM_Matrix_Translate(0.0f, -325.0f, 0.0f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
         gSPDisplayList(gfx++, object_bombiwa_DL_0009E0);

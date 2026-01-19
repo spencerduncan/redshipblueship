@@ -14,10 +14,10 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void EnMThunder_Init(Actor* thisx, PlayState* play);
-void EnMThunder_Destroy(Actor* thisx, PlayState* play);
-void EnMThunder_Update(Actor* thisx, PlayState* play);
-void EnMThunder_Draw(Actor* thisx, PlayState* play2);
+void MM_EnMThunder_Init(Actor* thisx, PlayState* play);
+void MM_EnMThunder_Destroy(Actor* thisx, PlayState* play);
+void MM_EnMThunder_Update(Actor* thisx, PlayState* play);
+void MM_EnMThunder_Draw(Actor* thisx, PlayState* play2);
 
 void EnMThunder_UnkType_Update(Actor* thisx, PlayState* play);
 
@@ -36,13 +36,13 @@ ActorProfile En_M_Thunder_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(EnMThunder),
-    /**/ EnMThunder_Init,
-    /**/ EnMThunder_Destroy,
-    /**/ EnMThunder_Update,
-    /**/ EnMThunder_Draw,
+    /**/ MM_EnMThunder_Init,
+    /**/ MM_EnMThunder_Destroy,
+    /**/ MM_EnMThunder_Update,
+    /**/ MM_EnMThunder_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_ON | AT_TYPE_PLAYER,
@@ -82,7 +82,7 @@ static u16 sChargingSfxIds[ENMTHUNDER_SUBTYPE_MAX] = {
     NA_SE_IT_ROLLING_CUT_LV1, // ENMTHUNDER_SUBTYPE_SWORDBEAM_REGULAR
 };
 
-static f32 sScales[] = { 0.1f, 0.15f, 0.2f, 0.25f, 0.3f, 0.25f, 0.2f, 0.15f, 0.0f };
+static f32 MM_sScales[] = { 0.1f, 0.15f, 0.2f, 0.25f, 0.3f, 0.25f, 0.2f, 0.15f, 0.0f };
 
 void EnMThunder_UnkType_Setup(EnMThunder* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
@@ -94,22 +94,22 @@ void EnMThunder_UnkType_Setup(EnMThunder* this, PlayState* play) {
     this->actionFunc = EnMThunder_UnkType_Attack;
     this->timer = 8;
     this->lightColorFrac = 1.0f;
-    AudioSfx_PlaySfx(NA_SE_IT_ROLLING_CUT_LV1, &player->actor.projectedPos, 4, &gSfxDefaultFreqAndVolScale,
-                     &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+    AudioSfx_PlaySfx(NA_SE_IT_ROLLING_CUT_LV1, &player->actor.projectedPos, 4, &MM_gSfxDefaultFreqAndVolScale,
+                     &MM_gSfxDefaultFreqAndVolScale, &MM_gSfxDefaultReverb);
     this->actor.child = NULL;
 }
 
-void EnMThunder_Init(Actor* thisx, PlayState* play) {
+void MM_EnMThunder_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     EnMThunder* this = (EnMThunder*)thisx;
     Player* player = GET_PLAYER(play);
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
     this->type = ENMTHUNDER_GET_TYPE(&this->actor);
-    Lights_PointNoGlowSetInfo(&this->lightInfo, this->actor.world.pos.x, this->actor.world.pos.y,
+    MM_Lights_PointNoGlowSetInfo(&this->lightInfo, this->actor.world.pos.x, this->actor.world.pos.y,
                               this->actor.world.pos.z, 255, 255, 255, 0);
-    this->lightNode = LightContext_InsertLight(play, &play->lightCtx, &this->lightInfo);
+    this->lightNode = MM_LightContext_InsertLight(play, &play->lightCtx, &this->lightInfo);
 
     if (this->type == ENMTHUNDER_TYPE_UNK) {
         EnMThunder_UnkType_Setup(this, play);
@@ -127,18 +127,18 @@ void EnMThunder_Init(Actor* thisx, PlayState* play) {
     this->actor.shape.rot.y = player->actor.shape.rot.y + 0x8000;
     this->actor.shape.rot.x = -this->actor.world.rot.x;
     this->actor.room = -1;
-    Actor_SetScale(&this->actor, 0.1f);
+    MM_Actor_SetScale(&this->actor, 0.1f);
     this->isCharging = false;
 
     if (player->stateFlags2 & PLAYER_STATE2_20000) {
         if (!gSaveContext.save.saveInfo.playerData.isMagicAcquired || (gSaveContext.magicState != MAGIC_STATE_IDLE) ||
             ((ENMTHUNDER_GET_MAGIC_COST(&this->actor) != 0) &&
              !Magic_Consume(play, ENMTHUNDER_GET_MAGIC_COST(&this->actor), MAGIC_CONSUME_NOW))) {
-            AudioSfx_PlaySfx(NA_SE_IT_ROLLING_CUT, &player->actor.projectedPos, 4, &gSfxDefaultFreqAndVolScale,
-                             &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
-            AudioSfx_PlaySfx(NA_SE_IT_SWORD_SWING_HARD, &player->actor.projectedPos, 4, &gSfxDefaultFreqAndVolScale,
-                             &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
-            Actor_Kill(&this->actor);
+            AudioSfx_PlaySfx(NA_SE_IT_ROLLING_CUT, &player->actor.projectedPos, 4, &MM_gSfxDefaultFreqAndVolScale,
+                             &MM_gSfxDefaultFreqAndVolScale, &MM_gSfxDefaultReverb);
+            AudioSfx_PlaySfx(NA_SE_IT_SWORD_SWING_HARD, &player->actor.projectedPos, 4, &MM_gSfxDefaultFreqAndVolScale,
+                             &MM_gSfxDefaultFreqAndVolScale, &MM_gSfxDefaultReverb);
+            MM_Actor_Kill(&this->actor);
             return;
         }
 
@@ -181,8 +181,8 @@ void EnMThunder_Init(Actor* thisx, PlayState* play) {
             this->timer = 8;
         }
 
-        AudioSfx_PlaySfx(NA_SE_IT_ROLLING_CUT_LV1, &player->actor.projectedPos, 4, &gSfxDefaultFreqAndVolScale,
-                         &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        AudioSfx_PlaySfx(NA_SE_IT_ROLLING_CUT_LV1, &player->actor.projectedPos, 4, &MM_gSfxDefaultFreqAndVolScale,
+                         &MM_gSfxDefaultFreqAndVolScale, &MM_gSfxDefaultReverb);
 
         this->lightColorFrac = 1.0f;
     } else {
@@ -192,20 +192,20 @@ void EnMThunder_Init(Actor* thisx, PlayState* play) {
     this->actor.child = NULL;
 }
 
-void EnMThunder_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnMThunder_Destroy(Actor* thisx, PlayState* play) {
     EnMThunder* this = (EnMThunder*)thisx;
 
     if (this->isCharging) {
-        Magic_Reset(play);
+        MM_Magic_Reset(play);
     }
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
     EnMThunder_AdjustLights(play, 0.0f);
-    LightContext_RemoveLight(play, &play->lightCtx, this->lightNode);
+    MM_LightContext_RemoveLight(play, &play->lightCtx, this->lightNode);
 }
 
 void EnMThunder_AdjustLights(PlayState* play, f32 arg1) {
-    Environment_AdjustLights(play, arg1, 850.0f, 0.2f, 0.0f);
+    MM_Environment_AdjustLights(play, arg1, 850.0f, 0.2f, 0.0f);
 }
 
 void EnMThunder_Spin_AttackNoMagic(EnMThunder* this, PlayState* play) {
@@ -213,17 +213,17 @@ void EnMThunder_Spin_AttackNoMagic(EnMThunder* this, PlayState* play) {
 
     if (player->stateFlags2 & PLAYER_STATE2_20000) {
         if (player->meleeWeaponAnimation >= PLAYER_MWA_SPIN_ATTACK_1H) {
-            AudioSfx_PlaySfx(NA_SE_IT_ROLLING_CUT, &player->actor.projectedPos, 4, &gSfxDefaultFreqAndVolScale,
-                             &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
-            AudioSfx_PlaySfx(NA_SE_IT_SWORD_SWING_HARD, &player->actor.projectedPos, 4, &gSfxDefaultFreqAndVolScale,
-                             &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            AudioSfx_PlaySfx(NA_SE_IT_ROLLING_CUT, &player->actor.projectedPos, 4, &MM_gSfxDefaultFreqAndVolScale,
+                             &MM_gSfxDefaultFreqAndVolScale, &MM_gSfxDefaultReverb);
+            AudioSfx_PlaySfx(NA_SE_IT_SWORD_SWING_HARD, &player->actor.projectedPos, 4, &MM_gSfxDefaultFreqAndVolScale,
+                             &MM_gSfxDefaultFreqAndVolScale, &MM_gSfxDefaultReverb);
         }
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
     if (!(player->stateFlags1 & PLAYER_STATE1_CHARGING_SPIN_ATTACK)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -260,12 +260,12 @@ void EnMThunder_Charge(EnMThunder* this, PlayState* play) {
 
         if (player->unk_B08 <= 0.15f) {
             if ((player->unk_B08 >= 0.1f) && (player->meleeWeaponAnimation >= PLAYER_MWA_SPIN_ATTACK_1H)) {
-                AudioSfx_PlaySfx(NA_SE_IT_ROLLING_CUT, &player->actor.projectedPos, 4, &gSfxDefaultFreqAndVolScale,
-                                 &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
-                AudioSfx_PlaySfx(NA_SE_IT_SWORD_SWING_HARD, &player->actor.projectedPos, 4, &gSfxDefaultFreqAndVolScale,
-                                 &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                AudioSfx_PlaySfx(NA_SE_IT_ROLLING_CUT, &player->actor.projectedPos, 4, &MM_gSfxDefaultFreqAndVolScale,
+                                 &MM_gSfxDefaultFreqAndVolScale, &MM_gSfxDefaultReverb);
+                AudioSfx_PlaySfx(NA_SE_IT_SWORD_SWING_HARD, &player->actor.projectedPos, 4, &MM_gSfxDefaultFreqAndVolScale,
+                                 &MM_gSfxDefaultFreqAndVolScale, &MM_gSfxDefaultReverb);
             }
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
             return;
         }
 
@@ -306,8 +306,8 @@ void EnMThunder_Charge(EnMThunder* this, PlayState* play) {
             this->timer = 8;
         }
 
-        AudioSfx_PlaySfx(sChargingSfxIds[this->subtype], &player->actor.projectedPos, 4, &gSfxDefaultFreqAndVolScale,
-                         &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        AudioSfx_PlaySfx(sChargingSfxIds[this->subtype], &player->actor.projectedPos, 4, &MM_gSfxDefaultFreqAndVolScale,
+                         &MM_gSfxDefaultFreqAndVolScale, &MM_gSfxDefaultReverb);
 
         this->lightColorFrac = 1.0f;
 
@@ -318,14 +318,14 @@ void EnMThunder_Charge(EnMThunder* this, PlayState* play) {
         if (this->actor.child != NULL) {
             this->actor.child->parent = NULL;
         }
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
     if (player->unk_B08 > 0.15f) {
         this->chargingAlpha = 255;
         if (this->actor.child == NULL) {
-            Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EFF_DUST, this->actor.world.pos.x,
+            MM_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EFF_DUST, this->actor.world.pos.x,
                                this->actor.world.pos.y, this->actor.world.pos.z, 0, this->actor.shape.rot.y, 0,
                                EFF_DUST_TYPE_SPIN_ATTACK_CHARGE);
         }
@@ -345,8 +345,8 @@ void EnMThunder_Charge(EnMThunder* this, PlayState* play) {
         Audio_PlaySfx_SwordCharge(&player->actor.projectedPos, 0);
     }
 
-    if (Play_InCsMode(play)) {
-        Actor_Kill(&this->actor);
+    if (MM_Play_InCsMode(play)) {
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -371,14 +371,14 @@ void func_808B5EEC(EnMThunder* this, PlayState* play) {
 void EnMThunder_Spin_Attack(EnMThunder* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    if (Math_StepToF(&this->lightColorFrac, 0.0f, 0.0625f)) {
-        Actor_Kill(&this->actor);
+    if (MM_Math_StepToF(&this->lightColorFrac, 0.0f, 0.0625f)) {
+        MM_Actor_Kill(&this->actor);
     } else {
-        Math_SmoothStepToF(&this->actor.scale.x, (s32)this->scaleTarget, 0.6f, 0.8f, 0.0f);
-        Actor_SetScale(&this->actor, this->actor.scale.x);
+        MM_Math_SmoothStepToF(&this->actor.scale.x, (s32)this->scaleTarget, 0.6f, 0.8f, 0.0f);
+        MM_Actor_SetScale(&this->actor, this->actor.scale.x);
         this->collider.dim.radius = this->actor.scale.x * 30.0f;
-        Collider_UpdateCylinder(&this->actor, &this->collider);
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+        MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+        MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
     }
 
     if (this->timer > 0) {
@@ -395,8 +395,8 @@ void EnMThunder_Spin_Attack(EnMThunder* this, PlayState* play) {
 
     func_808B5EEC(this, play);
 
-    if (Play_InCsMode(play)) {
-        Actor_Kill(&this->actor);
+    if (MM_Play_InCsMode(play)) {
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -410,17 +410,17 @@ void EnMThunder_SwordBeam_Attack(EnMThunder* this, PlayState* play) {
         this->alphaFrac = this->lightColorFrac * (10.0f / 9.0f);
     }
 
-    if (Math_StepToF(&this->lightColorFrac, 0.0f, 0.05f)) {
-        Actor_Kill(&this->actor);
+    if (MM_Math_StepToF(&this->lightColorFrac, 0.0f, 0.05f)) {
+        MM_Actor_Kill(&this->actor);
     } else {
-        sp2C = -80.0f * Math_CosS(this->actor.world.rot.x);
+        sp2C = -80.0f * MM_Math_CosS(this->actor.world.rot.x);
 
-        this->actor.world.pos.x += sp2C * Math_SinS(this->actor.shape.rot.y);
-        this->actor.world.pos.z += sp2C * Math_CosS(this->actor.shape.rot.y);
-        this->actor.world.pos.y += -80.0f * Math_SinS(this->actor.world.rot.x);
+        this->actor.world.pos.x += sp2C * MM_Math_SinS(this->actor.shape.rot.y);
+        this->actor.world.pos.z += sp2C * MM_Math_CosS(this->actor.shape.rot.y);
+        this->actor.world.pos.y += -80.0f * MM_Math_SinS(this->actor.world.rot.x);
 
-        Math_SmoothStepToF(&this->actor.scale.x, this->scaleTarget, 0.6f, 2.0f, 0.0f);
-        Actor_SetScale(&this->actor, this->actor.scale.x);
+        MM_Math_SmoothStepToF(&this->actor.scale.x, this->scaleTarget, 0.6f, 2.0f, 0.0f);
+        MM_Actor_SetScale(&this->actor, this->actor.scale.x);
 
         this->collider.dim.radius = this->actor.scale.x * 5.0f;
 
@@ -429,12 +429,12 @@ void EnMThunder_SwordBeam_Attack(EnMThunder* this, PlayState* play) {
         this->collider.dim.pos.z = this->actor.world.pos.z;
 
         this->collider.dim.pos.x =
-            (Math_SinS(this->actor.shape.rot.y) * -5.0f * this->actor.scale.x) + this->actor.world.pos.x;
+            (MM_Math_SinS(this->actor.shape.rot.y) * -5.0f * this->actor.scale.x) + this->actor.world.pos.x;
         this->collider.dim.pos.y = this->actor.world.pos.y;
         this->collider.dim.pos.z =
-            (Math_CosS(this->actor.shape.rot.y) * -5.0f * this->actor.scale.z) + this->actor.world.pos.z;
+            (MM_Math_CosS(this->actor.shape.rot.y) * -5.0f * this->actor.scale.z) + this->actor.world.pos.z;
 
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
     }
 
     if (this->timer > 0) {
@@ -445,11 +445,11 @@ void EnMThunder_SwordBeam_Attack(EnMThunder* this, PlayState* play) {
 }
 
 void EnMThunder_UnkType_Attack(EnMThunder* this, PlayState* play) {
-    if (Math_StepToF(&this->lightColorFrac, 0.0f, 0.0625f)) {
-        Actor_Kill(&this->actor);
+    if (MM_Math_StepToF(&this->lightColorFrac, 0.0f, 0.0625f)) {
+        MM_Actor_Kill(&this->actor);
     } else {
-        Math_SmoothStepToF(&this->actor.scale.x, (s32)this->scaleTarget, 0.6f, 0.8f, 0.0f);
-        Actor_SetScale(&this->actor, this->actor.scale.x);
+        MM_Math_SmoothStepToF(&this->actor.scale.x, (s32)this->scaleTarget, 0.6f, 0.8f, 0.0f);
+        MM_Actor_SetScale(&this->actor, this->actor.scale.x);
     }
 
     if (this->lightColorFrac > (6.0f / 10.0f)) {
@@ -461,12 +461,12 @@ void EnMThunder_UnkType_Attack(EnMThunder* this, PlayState* play) {
     func_808B5EEC(this, play);
 }
 
-void EnMThunder_Update(Actor* thisx, PlayState* play) {
+void MM_EnMThunder_Update(Actor* thisx, PlayState* play) {
     EnMThunder* this = (EnMThunder*)thisx;
 
     this->actionFunc(this, play);
     EnMThunder_AdjustLights(play, this->adjustLightsArg1);
-    Lights_PointNoGlowSetInfo(&this->lightInfo, this->actor.world.pos.x, this->actor.world.pos.y,
+    MM_Lights_PointNoGlowSetInfo(&this->lightInfo, this->actor.world.pos.x, this->actor.world.pos.y,
                               this->actor.world.pos.z, this->lightColorFrac * 255.0f, this->lightColorFrac * 255.0f,
                               this->lightColorFrac * 100.0f, this->lightColorFrac * 800.0f);
 }
@@ -475,12 +475,12 @@ void EnMThunder_UnkType_Update(Actor* thisx, PlayState* play) {
     EnMThunder* this = (EnMThunder*)thisx;
 
     this->actionFunc(this, play);
-    Lights_PointNoGlowSetInfo(&this->lightInfo, this->actor.world.pos.x, this->actor.world.pos.y,
+    MM_Lights_PointNoGlowSetInfo(&this->lightInfo, this->actor.world.pos.x, this->actor.world.pos.y,
                               this->actor.world.pos.z, this->lightColorFrac * 255.0f, this->lightColorFrac * 255.0f,
                               this->lightColorFrac * 100.0f, this->lightColorFrac * 800.0f);
 }
 
-void EnMThunder_Draw(Actor* thisx, PlayState* play2) {
+void MM_EnMThunder_Draw(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     EnMThunder* this = (EnMThunder*)thisx;
     Player* player = GET_PLAYER(play);
@@ -490,7 +490,7 @@ void EnMThunder_Draw(Actor* thisx, PlayState* play2) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-    Matrix_Scale(0.02f, 0.02f, 0.02f, MTXMODE_APPLY);
+    MM_Matrix_Scale(0.02f, 0.02f, 0.02f, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
@@ -498,14 +498,14 @@ void EnMThunder_Draw(Actor* thisx, PlayState* play2) {
         case ENMTHUNDER_SUBTYPE_SPIN_GREAT:
         case ENMTHUNDER_SUBTYPE_SPIN_REGULAR:
             gSPSegment(POLY_XLU_DISP++, 0x08,
-                       Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0xFF - ((u16)(s32)(this->scroll * 30.0f) & 0xFF), 0, 64,
+                       MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0xFF - ((u16)(s32)(this->scroll * 30.0f) & 0xFF), 0, 64,
                                         32, 1, 0xFF - ((u16)(s32)(this->scroll * 20.0f) & 0xFF), 0, 8, 8));
             break;
 
         case ENMTHUNDER_SUBTYPE_SWORDBEAM_GREAT:
         case ENMTHUNDER_SUBTYPE_SWORDBEAM_REGULAR:
             gSPSegment(POLY_XLU_DISP++, 0x08,
-                       Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 16, 64, 1, 0,
+                       MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 16, 64, 1, 0,
                                         0x1FF - ((u16)(s32)(this->scroll * 10.0f) & 0x1FF), 32, 128));
             break;
 
@@ -544,39 +544,39 @@ void EnMThunder_Draw(Actor* thisx, PlayState* play2) {
             break;
     }
 
-    Matrix_Mult(&player->leftHandMf, MTXMODE_NEW);
+    MM_Matrix_Mult(&player->leftHandMf, MTXMODE_NEW);
 
     if (GameInteractor_Should(VB_TRANSFORM_THUNDER_MATRIX, true, this)) {
         if (this->type == ENMTHUNDER_TYPE_GILDED_SWORD) {
-            Matrix_Translate(0.0f, 220.0f, 0.0f, MTXMODE_APPLY);
-            Matrix_Scale(-1.2f, -0.8f, -0.6f, MTXMODE_APPLY);
+            MM_Matrix_Translate(0.0f, 220.0f, 0.0f, MTXMODE_APPLY);
+            MM_Matrix_Scale(-1.2f, -0.8f, -0.6f, MTXMODE_APPLY);
             Matrix_RotateXS(0x4000, MTXMODE_APPLY);
         } else {
-            Matrix_Translate(0.0f, 220.0f, 0.0f, MTXMODE_APPLY);
-            Matrix_Scale(-0.7f, -0.6f, -0.4f, MTXMODE_APPLY);
+            MM_Matrix_Translate(0.0f, 220.0f, 0.0f, MTXMODE_APPLY);
+            MM_Matrix_Scale(-0.7f, -0.6f, -0.4f, MTXMODE_APPLY);
             Matrix_RotateXS(0x4000, MTXMODE_APPLY);
         }
     }
 
     if (this->unk1B0 >= 0.85f) {
-        scale = (sScales[play->gameplayFrames & 7] * 6.0f) + 1.0f;
+        scale = (MM_sScales[play->gameplayFrames & 7] * 6.0f) + 1.0f;
         gDPSetPrimColorOverride(POLY_XLU_DISP++, 0, 0x80, 255, 255, 170, this->chargingAlpha,
                                 COSMETIC_ELEMENT_GREAT_SPIN_CHARGE);
         gDPSetEnvColor(POLY_XLU_DISP++, 255, 100, 0, 128);
         y2Scroll = 40;
     } else {
-        scale = (sScales[play->gameplayFrames & 7] * 2.0f) + 1.0f;
+        scale = (MM_sScales[play->gameplayFrames & 7] * 2.0f) + 1.0f;
         gDPSetPrimColorOverride(POLY_XLU_DISP++, 0, 0x80, 170, 255, 255, this->chargingAlpha,
                                 COSMETIC_ELEMENT_SPIN_SLASH_CHARGE);
         gDPSetEnvColor(POLY_XLU_DISP++, 0, 100, 255, 128);
         y2Scroll = 20;
     }
 
-    Matrix_Scale(1.0f, scale, scale, MTXMODE_APPLY);
+    MM_Matrix_Scale(1.0f, scale, scale, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
     gSPSegment(POLY_XLU_DISP++, 0x09,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, (play->gameplayFrames * 5) & 0xFF, 0, 32, 32, 1,
+               MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, (play->gameplayFrames * 5) & 0xFF, 0, 32, 32, 1,
                                 (play->gameplayFrames * 20) & 0xFF, (play->gameplayFrames * y2Scroll) & 0xFF, 8, 8));
     gSPDisplayList(POLY_XLU_DISP++, gSpinAttackChargingDL);
 

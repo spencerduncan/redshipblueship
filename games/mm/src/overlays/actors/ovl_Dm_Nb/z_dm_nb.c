@@ -31,7 +31,7 @@ typedef enum {
     /*  1 */ DMNB_ANIM_MAX
 } DmNbAnimation;
 
-static AnimationInfoS sAnimationInfo[DMNB_ANIM_MAX] = {
+static AnimationInfoS MM_sAnimationInfo[DMNB_ANIM_MAX] = {
     { &gNbIdleAnim, 1.0f, 0, -1, ANIMMODE_LOOP, 0 }, // DMNB_ANIM_0
 };
 
@@ -40,7 +40,7 @@ s32 DmNb_ChangeAnim(DmNb* this, s32 animIndex) {
 
     if (this->animIndex != animIndex) {
         this->animIndex = animIndex;
-        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, animIndex);
+        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, animIndex);
     }
 
     return didAnimChange;
@@ -77,12 +77,12 @@ void DmNb_HandleCutscene(DmNb* this, PlayState* play) {
 void DmNb_Init(Actor* thisx, PlayState* play) {
     DmNb* this = (DmNb*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gNbSkel, NULL, this->jointTable, this->morphTable, NB_LIMB_MAX);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gNbSkel, NULL, this->jointTable, this->morphTable, NB_LIMB_MAX);
     this->animIndex = DMNB_ANIM_NONE;
     DmNb_ChangeAnim(this, DMNB_ANIM_0);
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->actionFunc = DmNb_HandleCutscene;
 }
 
@@ -93,8 +93,8 @@ void DmNb_Update(Actor* thisx, PlayState* play) {
     DmNb* this = (DmNb*)thisx;
 
     this->actionFunc(this, play);
-    SkelAnime_Update(&this->skelAnime);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 12.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 12.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
 }
 
 void DmNb_TransformLimbDraw(PlayState* play, s32 limbIndex, Actor* thisx) {

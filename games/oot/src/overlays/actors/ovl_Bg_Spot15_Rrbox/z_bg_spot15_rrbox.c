@@ -38,7 +38,7 @@ const ActorInit Bg_Spot15_Rrbox_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 1000, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 500, ICHAIN_CONTINUE),
@@ -60,10 +60,10 @@ void func_808B3960(BgSpot15Rrbox* this, PlayState* play, CollisionHeader* collis
     CollisionHeader* colHeader = NULL;
     u32 pad2;
 
-    DynaPolyActor_Init(&this->dyna, flags);
-    CollisionHeader_GetVirtual(collision, &colHeader);
+    OoT_DynaPolyActor_Init(&this->dyna, flags);
+    OoT_CollisionHeader_GetVirtual(collision, &colHeader);
 
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
 
     if (this->dyna.bgId == BG_ACTOR_MAX) {
         osSyncPrintf("Warning : move BG 登録失敗(%s %d)(name %d)(arg_data 0x%04x)\n", __FILE__, __LINE__,
@@ -82,10 +82,10 @@ void func_808B3A34(BgSpot15Rrbox* this) {
 }
 
 s32 func_808B3A40(BgSpot15Rrbox* this, PlayState* play) {
-    DynaPolyActor* dynaPolyActor = DynaPoly_GetActor(&play->colCtx, this->bgId);
+    DynaPolyActor* dynaPolyActor = OoT_DynaPoly_GetActor(&play->colCtx, this->bgId);
 
     if ((dynaPolyActor != NULL) &&
-        Math3D_Dist2DSq(dynaPolyActor->actor.world.pos.x, dynaPolyActor->actor.world.pos.z,
+        OoT_Math3D_Dist2DSq(dynaPolyActor->actor.world.pos.x, dynaPolyActor->actor.world.pos.z,
                         this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.z) < 0.01f) {
         return true;
     }
@@ -110,7 +110,7 @@ s32 func_808B3AAC(BgSpot15Rrbox* this, PlayState* play) {
         }
 
         if (rotY < 0x2000 && rotY > -0x6000) {
-            return Flags_GetEventChkInf(EVENTCHKINF_TALON_RETURNED_FROM_CASTLE);
+            return OoT_Flags_GetEventChkInf(EVENTCHKINF_TALON_RETURNED_FROM_CASTLE);
         }
         return true;
     }
@@ -122,9 +122,9 @@ void BgSpot15Rrbox_Init(Actor* thisx, PlayState* play) {
     BgSpot15Rrbox* this = (BgSpot15Rrbox*)thisx;
 
     func_808B3960(this, play, &gLonLonMilkCrateCol, DPM_UNK);
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
     func_808B3A34(this);
-    if (Flags_GetSwitch(play, (this->dyna.actor.params & 0x3F))) {
+    if (OoT_Flags_GetSwitch(play, (this->dyna.actor.params & 0x3F))) {
         func_808B44B8(this, play);
         this->dyna.actor.world.pos = D_808B45C4[D_808B4590];
         D_808B4590++;
@@ -137,7 +137,7 @@ void BgSpot15Rrbox_Init(Actor* thisx, PlayState* play) {
 void BgSpot15Rrbox_Destroy(Actor* thisx, PlayState* play) {
     BgSpot15Rrbox* this = (BgSpot15Rrbox*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
     D_808B4590 = 0;
 }
 
@@ -158,7 +158,7 @@ s32 func_808B3CA0(BgSpot15Rrbox* this, PlayState* play, s32 arg2) {
     actorPosition.y += this->dyna.actor.prevPos.y;
     actorPosition.z += this->dyna.actor.world.pos.z;
 
-    this->dyna.actor.floorHeight = BgCheck_EntityRaycastFloor6(&play->colCtx, &this->dyna.actor.floorPoly, &this->bgId,
+    this->dyna.actor.floorHeight = OoT_BgCheck_EntityRaycastFloor6(&play->colCtx, &this->dyna.actor.floorPoly, &this->bgId,
                                                                &this->dyna.actor, &actorPosition, chkDist);
 
     if ((this->dyna.actor.floorHeight - this->dyna.actor.world.pos.y) >= -0.001f) {
@@ -189,7 +189,7 @@ f32 func_808B3DDC(BgSpot15Rrbox* this, PlayState* play) {
         position.y += actor->prevPos.y;
         position.z += actor->world.pos.z;
 
-        yIntersect = BgCheck_EntityRaycastFloor6(&play->colCtx, &actor->floorPoly, &bgId, actor, &position, 0);
+        yIntersect = OoT_BgCheck_EntityRaycastFloor6(&play->colCtx, &actor->floorPoly, &bgId, actor, &position, 0);
 
         if (returnValue < yIntersect) {
             returnValue = yIntersect;
@@ -264,7 +264,7 @@ void func_808B4194(BgSpot15Rrbox* this, PlayState* play) {
 
     this->unk_174 = CLAMP_MAX(this->unk_174, 2.0f + (CVarGetInteger(CVAR_ENHANCEMENT("FasterBlockPush"), 0) * 0.5));
 
-    approxFResult = Math_StepToF(&this->unk_178, 20.0f, this->unk_174);
+    approxFResult = OoT_Math_StepToF(&this->unk_178, 20.0f, this->unk_174);
 
     sign = this->unk_17C >= 0.0f ? 1.0f : -1.0f;
 
@@ -325,7 +325,7 @@ void func_808B43D0(BgSpot15Rrbox* this, PlayState* play) {
         // "Lon Lon wooden crate fell too much"
         osSyncPrintf("Warning : ロンロン木箱落ちすぎた(%s %d)(arg_data 0x%04x)\n", __FILE__, __LINE__, actor->params);
 
-        Actor_Kill(actor);
+        OoT_Actor_Kill(actor);
 
         return;
     }
@@ -357,11 +357,11 @@ void BgSpot15Rrbox_Update(Actor* thisx, PlayState* play) {
         this->unk_168--;
     }
     this->dyna.actor.world.rot.y = this->dyna.unk_158;
-    this->unk_16C = Math_SinS(this->dyna.actor.world.rot.y);
-    this->unk_170 = Math_CosS(this->dyna.actor.world.rot.y);
+    this->unk_16C = OoT_Math_SinS(this->dyna.actor.world.rot.y);
+    this->unk_170 = OoT_Math_CosS(this->dyna.actor.world.rot.y);
     this->actionFunc(this, play);
 }
 
 void BgSpot15Rrbox_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, gLonLonMilkCrateDL);
+    OoT_Gfx_DrawDListOpa(play, gLonLonMilkCrateDL);
 }

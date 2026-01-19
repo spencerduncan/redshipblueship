@@ -42,7 +42,7 @@ ActorProfile En_Dnp_Profile = {
     /**/ EnDnp_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HIT1,
         AT_NONE,
@@ -62,7 +62,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 14, 38, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 MM_sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
 
 typedef enum {
     /* -1 */ DEKU_PRINCESS_ANIM_NONE = -1,
@@ -95,7 +95,7 @@ typedef enum {
     /* 26 */ DEKU_PRINCESS_ANIM_MAX
 } DekuPrincessAnimation;
 
-static AnimationInfoS sAnimationInfo[DEKU_PRINCESS_ANIM_MAX] = {
+static AnimationInfoS MM_sAnimationInfo[DEKU_PRINCESS_ANIM_MAX] = {
     { &gDekuPrincessJumpKickAnim, 1.0f, 0, -1, ANIMMODE_ONCE, -4 },          // DEKU_PRINCESS_ANIM_JUMP_KICK
     { &gDekuPrincessHurryAnim, 1.0f, 0, -1, ANIMMODE_LOOP, 0 },              // DEKU_PRINCESS_ANIM_HURRY
     { &gDekuPrincessHurryAnim, 1.0f, 0, -1, ANIMMODE_LOOP, -4 },             // DEKU_PRINCESS_ANIM_CUTSCENE_HURRY
@@ -144,40 +144,40 @@ static MsgScript sMsgScript[] = {
 
 s32 func_80B3CA20(EnDnp* this) {
     if ((this->animIndex == DEKU_PRINCESS_ANIM_CUTSCENE_HURRY) || (this->animIndex == DEKU_PRINCESS_ANIM_RUN)) {
-        if (Animation_OnFrame(&this->skelAnime, 1.0f) || Animation_OnFrame(&this->skelAnime, 5.0f) ||
-            Animation_OnFrame(&this->skelAnime, 9.0f) || Animation_OnFrame(&this->skelAnime, 13.0f)) {
+        if (MM_Animation_OnFrame(&this->skelAnime, 1.0f) || MM_Animation_OnFrame(&this->skelAnime, 5.0f) ||
+            MM_Animation_OnFrame(&this->skelAnime, 9.0f) || MM_Animation_OnFrame(&this->skelAnime, 13.0f)) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_DEKUHIME_TURN);
         }
     } else if ((this->animIndex == DEKU_PRINCESS_ANIM_GLARE_START) ||
                (this->animIndex == DEKU_PRINCESS_ANIM_TURN_AROUND)) {
-        if (Animation_OnFrame(&this->skelAnime, 1.0f)) {
+        if (MM_Animation_OnFrame(&this->skelAnime, 1.0f)) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_DEKUHIME_TURN);
         }
     } else if (this->animIndex == DEKU_PRINCESS_ANIM_GREETING) {
-        if (Animation_OnFrame(&this->skelAnime, 7.0f)) {
+        if (MM_Animation_OnFrame(&this->skelAnime, 7.0f)) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_DEKUHIME_GREET);
         }
-        if (Animation_OnFrame(&this->skelAnime, 22.0f)) {
+        if (MM_Animation_OnFrame(&this->skelAnime, 22.0f)) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_DEKUHIME_GREET2);
         }
     } else if (this->animIndex == DEKU_PRINCESS_ANIM_BOW) {
-        if (Animation_OnFrame(&this->skelAnime, 9.0f)) {
+        if (MM_Animation_OnFrame(&this->skelAnime, 9.0f)) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_DEKUHIME_GREET);
         }
-        if (Animation_OnFrame(&this->skelAnime, 18.0f)) {
+        if (MM_Animation_OnFrame(&this->skelAnime, 18.0f)) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_DEKUHIME_GREET2);
         }
     } else if ((this->animIndex == DEKU_PRINCESS_ANIM_UNUSED_WALK) && (this->animIndex == DEKU_PRINCESS_ANIM_WALK)) {
         //! @bug: Impossible to reach, && should be an ||
-        if (Animation_OnFrame(&this->skelAnime, 7.0f) || Animation_OnFrame(&this->skelAnime, 15.0f)) {
+        if (MM_Animation_OnFrame(&this->skelAnime, 7.0f) || MM_Animation_OnFrame(&this->skelAnime, 15.0f)) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_DEKUHIME_WALK);
         }
     } else if (this->animIndex == DEKU_PRINCESS_ANIM_JUMP) {
-        if (Animation_OnFrame(&this->skelAnime, 17.0f)) {
+        if (MM_Animation_OnFrame(&this->skelAnime, 17.0f)) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_DEKUHIME_WALK);
         }
     } else if (this->animIndex == DEKU_PRINCESS_ANIM_BOUNCE_LOOP) {
-        if (Animation_OnFrame(&this->skelAnime, 3.0f)) {
+        if (MM_Animation_OnFrame(&this->skelAnime, 3.0f)) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_DEKUHIME_WALK);
         }
     }
@@ -190,7 +190,7 @@ s32 EnDnp_ChangeAnim(EnDnp* this, s32 animIndex) {
 
     if (this->animIndex != animIndex) {
         this->animIndex = animIndex;
-        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, animIndex);
+        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, animIndex);
     }
 
     return didAnimChange;
@@ -199,17 +199,17 @@ s32 EnDnp_ChangeAnim(EnDnp* this, s32 animIndex) {
 void func_80B3CC80(EnDnp* this, PlayState* play) {
     f32 temp_f0 = this->actor.scale.x / 0.0085f;
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
     this->collider.dim.radius = 14.0f * temp_f0;
     this->collider.dim.height = 38.0f * temp_f0;
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void func_80B3CD1C(EnDnp* this) {
     if ((this->unk_322 & 0x80) && (DECR(this->blinkTimer) == 0)) {
         this->eyeIndex++;
         if (this->eyeIndex >= DEKU_PRINCESS_EYE_MAX) {
-            this->blinkTimer = Rand_S16Offset(30, 30);
+            this->blinkTimer = MM_Rand_S16Offset(30, 30);
             this->eyeIndex = DEKU_PRINCESS_EYE_OPEN;
         }
     }
@@ -224,17 +224,17 @@ s32 func_80B3CDA4(EnDnp* this, PlayState* play) {
 
     temp_s0 = CLAMP(temp_s0, -0x3FFC, 0x3FFC);
 
-    Math_SmoothStepToS(&this->unk_332, temp_s0, 3, 0x2AA8, 1);
+    MM_Math_SmoothStepToS(&this->unk_332, temp_s0, 3, 0x2AA8, 1);
     sp30 = player->actor.world.pos;
     sp30.y = player->bodyPartsPos[PLAYER_BODYPART_HEAD].y + 3.0f;
     sp3C = this->actor.world.pos;
     sp3C.y += 10.0f;
-    pitch = Math_Vec3f_Pitch(&sp3C, &sp30);
+    pitch = MM_Math_Vec3f_Pitch(&sp3C, &sp30);
 
     //! FAKE
     if (1) {}
 
-    Math_SmoothStepToS(&this->unk_330, pitch, 3, 0x2AA8, 1);
+    MM_Math_SmoothStepToS(&this->unk_330, pitch, 3, 0x2AA8, 1);
 
     return 1;
 }
@@ -265,7 +265,7 @@ s32 func_80B3CF60(EnDnp* this, PlayState* play) {
         this->unk_322 |= 8;
         this->actionFunc = func_80B3D3F8;
         ret = true;
-    } else if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_23_20) && Actor_HasParent(&this->actor, play)) {
+    } else if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_23_20) && MM_Actor_HasParent(&this->actor, play)) {
         SubS_SetOfferMode(&this->unk_322, SUBS_OFFER_MODE_NONE, SUBS_OFFER_MODE_MASK);
         this->unk_322 &= ~0x500;
         this->actor.parent = NULL;
@@ -344,7 +344,7 @@ void func_80B3D11C(EnDnp* this, PlayState* play) {
              (this->animIndex == DEKU_PRINCESS_ANIM_ANGRY_START) ||
              (this->animIndex == DEKU_PRINCESS_ANIM_BOUNCE_START) ||
              (this->animIndex == DEKU_PRINCESS_ANIM_GLARE_START)) &&
-            Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+            MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
             EnDnp_ChangeAnim(this, this->animIndex + 1);
         }
         Cutscene_ActorTranslateAndYaw(&this->actor, play, cueChannel);
@@ -353,17 +353,17 @@ void func_80B3D11C(EnDnp* this, PlayState* play) {
 
 void func_80B3D2D4(EnDnp* this, PlayState* play) {
     if (this->unk_322 & 0x20) {
-        Math_ApproachS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 0x3, 0x2AA8);
+        MM_Math_ApproachS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 0x3, 0x2AA8);
     } else {
-        Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 0x3, 0x2AA8);
+        MM_Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 0x3, 0x2AA8);
     }
 }
 
 void func_80B3D338(EnDnp* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    if ((this->unk_32E != 0) && (Message_GetState(&play->msgCtx) == TEXT_STATE_CLOSING)) {
-        Actor_Kill(&this->actor);
+    if ((this->unk_32E != 0) && (MM_Message_GetState(&play->msgCtx) == TEXT_STATE_CLOSING)) {
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -384,13 +384,13 @@ void func_80B3D3F8(EnDnp* this, PlayState* play) {
         this->unk_322 &= ~8;
         this->actionFunc = func_80B3D2D4;
     } else {
-        Math_ApproachS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 0x3, 0x2AA8);
+        MM_Math_ApproachS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 0x3, 0x2AA8);
     }
 }
 
 void func_80B3D47C(EnDnp* this, PlayState* play) {
     if (this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) {
-        Math_SmoothStepToF(&this->actor.scale.x, 0.0085f, 0.1f, 0.01f, 0.001f);
+        MM_Math_SmoothStepToF(&this->actor.scale.x, 0.0085f, 0.1f, 0.01f, 0.001f);
         if ((s32)(this->actor.scale.x * 10000.0f) >= 85) {
             this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
             SubS_SetOfferMode(&this->unk_322, SUBS_OFFER_MODE_ONSCREEN, SUBS_OFFER_MODE_MASK);
@@ -400,7 +400,7 @@ void func_80B3D47C(EnDnp* this, PlayState* play) {
             this->actionFunc = func_80B3D558;
         }
     }
-    Actor_SetScale(&this->actor, this->actor.scale.x);
+    MM_Actor_SetScale(&this->actor, this->actor.scale.x);
 }
 
 void func_80B3D558(EnDnp* this, PlayState* play) {
@@ -415,20 +415,20 @@ void func_80B3D558(EnDnp* this, PlayState* play) {
 void EnDnp_Init(Actor* thisx, PlayState* play) {
     EnDnp* this = (EnDnp*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 16.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gDekuPrincessSkel, NULL, this->jointTable, this->morphTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 16.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gDekuPrincessSkel, NULL, this->jointTable, this->morphTable,
                        DEKU_PRINCESS_LIMB_MAX);
     this->animIndex = DEKU_PRINCESS_ANIM_NONE;
     EnDnp_ChangeAnim(this, DEKU_PRINCESS_ANIM_IDLE);
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, DamageTable_Get(0x16), &sColChkInfoInit);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, MM_DamageTable_Get(0x16), &MM_sColChkInfoInit);
     this->unk_322 = 0;
     this->actor.attentionRangeType = ATTENTION_RANGE_0;
     this->unk_322 |= (0x100 | 0x80 | 0x10);
     this->actor.gravity = -1.0f;
     if (DEKU_PRINCESS_GET_TYPE(&this->actor) == DEKU_PRINCESS_TYPE_RELEASED_FROM_BOTTLE) {
         this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
-        Actor_SetScale(&this->actor, 0.85f * 0.001f);
+        MM_Actor_SetScale(&this->actor, 0.85f * 0.001f);
         SubS_SetOfferMode(&this->unk_322, SUBS_OFFER_MODE_NONE, SUBS_OFFER_MODE_MASK);
         this->actor.shape.rot.x = 0;
         this->actor.world.rot.x = this->actor.shape.rot.x;
@@ -438,7 +438,7 @@ void EnDnp_Init(Actor* thisx, PlayState* play) {
                 !Inventory_HasItemInBottle(ITEM_DEKU_PRINCESS) && !CHECK_WEEKEVENTREG(WEEKEVENTREG_23_20)) ||
                ((DEKU_PRINCESS_GET_TYPE(&this->actor) == DEKU_PRINCESS_TYPE_DEKU_KINGS_CHAMBER) &&
                 CHECK_WEEKEVENTREG(WEEKEVENTREG_23_20))) {
-        Actor_SetScale(&this->actor, 0.0085f);
+        MM_Actor_SetScale(&this->actor, 0.0085f);
         SubS_SetOfferMode(&this->unk_322, SUBS_OFFER_MODE_ONSCREEN, SUBS_OFFER_MODE_MASK);
         this->unk_322 |= 0x400;
         if ((play->sceneId == SCENE_MITURIN) && CHECK_WEEKEVENTREG(WEEKEVENTREG_29_40)) {
@@ -447,14 +447,14 @@ void EnDnp_Init(Actor* thisx, PlayState* play) {
         }
         this->actionFunc = func_80B3D2D4;
     } else {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
 void EnDnp_Destroy(Actor* thisx, PlayState* play) {
     EnDnp* this = (EnDnp*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnDnp_Update(Actor* thisx, PlayState* play) {
@@ -465,23 +465,23 @@ void EnDnp_Update(Actor* thisx, PlayState* play) {
 
     if (!func_80B3CF60(this, play) && func_80B3D044(this, play)) {
         func_80B3D11C(this, play);
-        SkelAnime_Update(&this->skelAnime);
+        MM_SkelAnime_Update(&this->skelAnime);
         func_80B3CD1C(this);
         func_80B3CEC0(this, play);
     } else {
         this->actionFunc(this, play);
-        SkelAnime_Update(&this->skelAnime);
+        MM_SkelAnime_Update(&this->skelAnime);
         func_80B3CD1C(this);
         func_80B3CEC0(this, play);
         Actor_MoveWithGravity(&this->actor);
-        Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 12.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+        MM_Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 12.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
         sp2C = this->collider.dim.radius + 50;
         sp28 = this->collider.dim.height + 30;
         if ((this->unk_322 & 0x400) && !CHECK_WEEKEVENTREG(WEEKEVENTREG_23_20)) {
-            Actor_OfferGetItem(&this->actor, play, GI_MAX, sp2C, sp28);
+            MM_Actor_OfferGetItem(&this->actor, play, GI_MAX, sp2C, sp28);
         }
         SubS_Offer(&this->actor, play, sp2C, sp28, PLAYER_IA_NONE, this->unk_322 & SUBS_OFFER_MODE_MASK);
-        Actor_SetFocus(&this->actor, 30.0f);
+        MM_Actor_SetFocus(&this->actor, 30.0f);
         func_80B3CC80(this, play);
     }
 
@@ -495,8 +495,8 @@ s32 func_80B3D974(s16 arg0, s16 arg1, Vec3f* arg2, Vec3s* arg3, s32 arg4, s32 ar
     Vec3s sp6C;
     MtxF sp2C;
 
-    Matrix_MultVec3f(&gZeroVec3f, &sp74);
-    Matrix_Get(&sp2C);
+    MM_Matrix_MultVec3f(&gZeroVec3f, &sp74);
+    MM_Matrix_Get(&sp2C);
     Matrix_MtxFToYXZRot(&sp2C, &sp6C, false);
     *arg2 = sp74;
     if (!arg4) {
@@ -504,9 +504,9 @@ s32 func_80B3D974(s16 arg0, s16 arg1, Vec3f* arg2, Vec3s* arg3, s32 arg4, s32 ar
             sp6C.z = arg0;
             sp6C.y = arg1;
         }
-        Math_SmoothStepToS(&arg3->x, sp6C.x, 3, 0x2AA8, 0xB6);
-        Math_SmoothStepToS(&arg3->y, sp6C.y, 3, 0x2AA8, 0xB6);
-        Math_SmoothStepToS(&arg3->z, sp6C.z, 3, 0x2AA8, 0xB6);
+        MM_Math_SmoothStepToS(&arg3->x, sp6C.x, 3, 0x2AA8, 0xB6);
+        MM_Math_SmoothStepToS(&arg3->y, sp6C.y, 3, 0x2AA8, 0xB6);
+        MM_Math_SmoothStepToS(&arg3->z, sp6C.z, 3, 0x2AA8, 0xB6);
     } else {
         arg3->x = sp6C.x;
         arg3->y = sp6C.y;
@@ -539,18 +539,18 @@ void EnDnp_TransformLimbDraw(PlayState* play, s32 limbIndex, Actor* thisx) {
     if (limbIndex == DEKU_PRINCESS_LIMB_HEAD) {
         func_80B3D974(this->unk_330 + 0x4000, this->unk_332 + this->actor.shape.rot.y + 0x4000, &this->unk_1D8,
                       &this->unk_1E4, phi_v1, phi_v0);
-        Matrix_Pop();
-        Matrix_Translate(this->unk_1D8.x, this->unk_1D8.y, this->unk_1D8.z, MTXMODE_NEW);
-        Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+        MM_Matrix_Pop();
+        MM_Matrix_Translate(this->unk_1D8.x, this->unk_1D8.y, this->unk_1D8.z, MTXMODE_NEW);
+        MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
         Matrix_RotateYS(this->unk_1E4.y, MTXMODE_APPLY);
         Matrix_RotateXS(this->unk_1E4.x, MTXMODE_APPLY);
         Matrix_RotateZS(this->unk_1E4.z, MTXMODE_APPLY);
-        Matrix_Push();
+        MM_Matrix_Push();
     }
 }
 
 void EnDnp_Draw(Actor* thisx, PlayState* play) {
-    static TexturePtr sEyeTextures[] = {
+    static TexturePtr MM_sEyeTextures[] = {
         gDekuPrincessEyeOpenTex,
         gDekuPrincessEyeHalfTex,
         gDekuPrincessEyeClosedTex,
@@ -563,7 +563,7 @@ void EnDnp_Draw(Actor* thisx, PlayState* play) {
 
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-        gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sEyeTextures[this->eyeIndex]));
+        gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeIndex]));
 
         SkelAnime_DrawTransformFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                        this->skelAnime.dListCount, NULL, EnDnp_PostLimbDraw, EnDnp_TransformLimbDraw,

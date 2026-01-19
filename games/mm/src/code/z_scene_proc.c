@@ -9,13 +9,13 @@ f32 sMatAnimAlphaRatio;
 
 // Default displaylist that sets a valid displaylist into all of the segments.
 static Gfx sSceneDrawDefaultDL[] = {
-    gsSPSegment(0x08, gEmptyDL),
-    gsSPSegment(0x09, gEmptyDL),
-    gsSPSegment(0x0A, gEmptyDL),
-    gsSPSegment(0x0B, gEmptyDL),
-    gsSPSegment(0x0C, gEmptyDL),
-    gsSPSegment(0x0D, gEmptyDL),
-    gsSPSegment(0x06, gEmptyDL),
+    gsSPSegment(0x08, MM_gEmptyDL),
+    gsSPSegment(0x09, MM_gEmptyDL),
+    gsSPSegment(0x0A, MM_gEmptyDL),
+    gsSPSegment(0x0B, MM_gEmptyDL),
+    gsSPSegment(0x0C, MM_gEmptyDL),
+    gsSPSegment(0x0D, MM_gEmptyDL),
+    gsSPSegment(0x06, MM_gEmptyDL),
     gsDPPipeSync(),
     gsDPSetPrimColor(0, 0, 128, 128, 128, 128),
     gsDPSetEnvColor(128, 128, 128, 128),
@@ -25,7 +25,7 @@ static Gfx sSceneDrawDefaultDL[] = {
 /**
  * Executes the current scene draw config handler.
  */
-void Scene_Draw(PlayState* play) {
+void MM_Scene_Draw(PlayState* play) {
     static void (*sceneDrawConfigHandlers[])(PlayState*) = {
         Scene_DrawConfigDefault,
         Scene_DrawConfigMatAnim,
@@ -57,7 +57,7 @@ void Scene_DrawConfigDefault(PlayState* play) {
  * Returns a pointer to a single layer texture scroll displaylist.
  */
 Gfx* AnimatedMat_TexScroll(PlayState* play, AnimatedMatTexScrollParams* params) {
-    return Gfx_TexScroll(play->state.gfxCtx, params->xStep * sMatAnimStep, -(params->yStep * sMatAnimStep),
+    return MM_Gfx_TexScroll(play->state.gfxCtx, params->xStep * sMatAnimStep, -(params->yStep * sMatAnimStep),
                          params->width, params->height);
 }
 
@@ -86,7 +86,7 @@ void AnimatedMat_DrawTexScroll(PlayState* play, s32 segment, void* params) {
  * Returns a pointer to a two layer texture scroll displaylist.
  */
 Gfx* AnimatedMat_TwoLayerTexScroll(PlayState* play, AnimatedMatTexScrollParams* params) {
-    return Gfx_TwoTexScroll(play->state.gfxCtx, 0, params[0].xStep * sMatAnimStep, -(params[0].yStep * sMatAnimStep),
+    return MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, params[0].xStep * sMatAnimStep, -(params[0].yStep * sMatAnimStep),
                             params[0].width, params[0].height, 1, params[1].xStep * sMatAnimStep,
                             -(params[1].yStep * sMatAnimStep), params[1].width, params[1].height);
 }
@@ -515,23 +515,23 @@ void Scene_DrawConfig3(PlayState* play) {
 
     frames = play->gameplayFrames;
 
-    gSPSegment(POLY_XLU_DISP++, 0x08, Gfx_TexScroll(play->state.gfxCtx, 0, (frames * 1) % 64, 256, 16));
+    gSPSegment(POLY_XLU_DISP++, 0x08, MM_Gfx_TexScroll(play->state.gfxCtx, 0, (frames * 1) % 64, 256, 16));
 
     gSPSegment(POLY_XLU_DISP++, 0x09,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 127 - (frames % 128), (frames * 1) % 128, 32, 32, 1,
+               MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 127 - (frames % 128), (frames * 1) % 128, 32, 32, 1,
                                 frames % 128, (frames * 1) % 128, 32, 32));
 
     gSPSegment(POLY_OPA_DISP++, 0x0A,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 32, 1, 0, 127 - (frames * 1) % 128, 32, 32));
+               MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 32, 1, 0, 127 - (frames * 1) % 128, 32, 32));
 
-    gSPSegment(POLY_OPA_DISP++, 0x0B, Gfx_TexScroll(play->state.gfxCtx, 0, (frames * 1) % 128, 32, 32));
+    gSPSegment(POLY_OPA_DISP++, 0x0B, MM_Gfx_TexScroll(play->state.gfxCtx, 0, (frames * 1) % 128, 32, 32));
 
     gSPSegment(
         POLY_XLU_DISP++, 0x0C,
-        Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, (frames * 50) % 2048, 8, 512, 1, 0, (frames * 60) % 2048, 8, 512));
+        MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, (frames * 50) % 2048, 8, 512, 1, 0, (frames * 60) % 2048, 8, 512));
 
     gSPSegment(POLY_OPA_DISP++, 0x0D,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0, (frames * 1) % 128, 32, 32));
+               MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0, (frames * 1) % 128, 32, 32));
 
     gDPPipeSync(POLY_XLU_DISP++);
     gDPSetEnvColor(POLY_XLU_DISP++, 128, 128, 128, 128);
@@ -555,7 +555,7 @@ void Scene_DrawConfig4(PlayState* play) {
     frames = play->gameplayFrames;
 
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 127 - frames % 128, (frames * 1) % 128, 32, 32, 1, frames % 128,
+               MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 127 - frames % 128, (frames * 1) % 128, 32, 32, 1, frames % 128,
                                 (frames * 1) % 128, 32, 32));
 
     gDPPipeSync(POLY_OPA_DISP++);
@@ -717,8 +717,8 @@ void Scene_DrawConfigGreatBayTemple(PlayState* play) {
     Gfx* gfx;
     Gfx* gfxHead;
 
-    if (Flags_GetSwitch(play, 0x33) && Flags_GetSwitch(play, 0x34) && Flags_GetSwitch(play, 0x35) &&
-        Flags_GetSwitch(play, 0x36)) {
+    if (MM_Flags_GetSwitch(play, 0x33) && MM_Flags_GetSwitch(play, 0x34) && MM_Flags_GetSwitch(play, 0x35) &&
+        MM_Flags_GetSwitch(play, 0x36)) {
         BgCheck_SetContextFlags(&play->colCtx, BGCHECK_FLAG_REVERSE_CONVEYOR_FLOW);
     } else {
         BgCheck_UnsetContextFlags(&play->colCtx, BGCHECK_FLAG_REVERSE_CONVEYOR_FLOW);
@@ -737,48 +737,48 @@ void Scene_DrawConfigGreatBayTemple(PlayState* play) {
 
         switch (i) {
             case 0:
-                if (Flags_GetSwitch(play, 0x33) && Flags_GetSwitch(play, 0x34) && Flags_GetSwitch(play, 0x35) &&
-                    Flags_GetSwitch(play, 0x36)) {
+                if (MM_Flags_GetSwitch(play, 0x33) && MM_Flags_GetSwitch(play, 0x34) && MM_Flags_GetSwitch(play, 0x35) &&
+                    MM_Flags_GetSwitch(play, 0x36)) {
                     lodFrac = 255;
                 }
                 break;
             case 1:
-                if (Flags_GetSwitch(play, 0x37)) {
+                if (MM_Flags_GetSwitch(play, 0x37)) {
                     lodFrac = 68;
                 }
                 break;
             case 2:
-                if (Flags_GetSwitch(play, 0x37) && Flags_GetSwitch(play, 0x38)) {
+                if (MM_Flags_GetSwitch(play, 0x37) && MM_Flags_GetSwitch(play, 0x38)) {
                     lodFrac = 68;
                 }
                 break;
             case 3:
-                if (Flags_GetSwitch(play, 0x37) && Flags_GetSwitch(play, 0x38) && Flags_GetSwitch(play, 0x39)) {
+                if (MM_Flags_GetSwitch(play, 0x37) && MM_Flags_GetSwitch(play, 0x38) && MM_Flags_GetSwitch(play, 0x39)) {
                     lodFrac = 68;
                 }
                 break;
             case 4:
-                if (!(Flags_GetSwitch(play, 0x33))) {
+                if (!(MM_Flags_GetSwitch(play, 0x33))) {
                     lodFrac = 68;
                 }
                 break;
             case 5:
-                if (Flags_GetSwitch(play, 0x34)) {
+                if (MM_Flags_GetSwitch(play, 0x34)) {
                     lodFrac = 68;
                 }
                 break;
             case 6:
-                if (Flags_GetSwitch(play, 0x34) && Flags_GetSwitch(play, 0x35)) {
+                if (MM_Flags_GetSwitch(play, 0x34) && MM_Flags_GetSwitch(play, 0x35)) {
                     lodFrac = 68;
                 }
                 break;
             case 7:
-                if (Flags_GetSwitch(play, 0x34) && Flags_GetSwitch(play, 0x35) && Flags_GetSwitch(play, 0x36)) {
+                if (MM_Flags_GetSwitch(play, 0x34) && MM_Flags_GetSwitch(play, 0x35) && MM_Flags_GetSwitch(play, 0x36)) {
                     lodFrac = 68;
                 }
                 break;
             case 8:
-                if (Flags_GetSwitch(play, 0x3A)) {
+                if (MM_Flags_GetSwitch(play, 0x3A)) {
                     lodFrac = 68;
                 }
                 break;

@@ -31,7 +31,7 @@ const ActorInit Bg_Hidan_Fslift_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 300, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneDownward, 350, ICHAIN_CONTINUE),
@@ -44,14 +44,14 @@ void BgHidanFslift_Init(Actor* thisx, PlayState* play) {
     CollisionHeader* colHeader = NULL;
     s32 pad2;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
-    CollisionHeader_GetVirtual(&gFireTempleHookshotElevatorCol, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
-    if (Actor_SpawnAsChild(&play->actorCtx, &this->dyna.actor, play, ACTOR_OBJ_HSBLOCK, this->dyna.actor.world.pos.x,
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
+    OoT_CollisionHeader_GetVirtual(&gFireTempleHookshotElevatorCol, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
+    if (OoT_Actor_SpawnAsChild(&play->actorCtx, &this->dyna.actor, play, ACTOR_OBJ_HSBLOCK, this->dyna.actor.world.pos.x,
                            this->dyna.actor.world.pos.y + 40.0f, this->dyna.actor.world.pos.z + -28.0f, 0, 0, 0,
                            2) == NULL) {
-        Actor_Kill(&this->dyna.actor);
+        OoT_Actor_Kill(&this->dyna.actor);
         return;
     }
     this->actionFunc = func_80886FCC;
@@ -70,7 +70,7 @@ void func_80886F24(BgHidanFslift* this) {
 void BgHidanFslift_Destroy(Actor* thisx, PlayState* play) {
     BgHidanFslift* this = (BgHidanFslift*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_80886FB4(BgHidanFslift* this) {
@@ -90,7 +90,7 @@ void func_80886FCC(BgHidanFslift* this, PlayState* play) {
         if ((this->dyna.actor.world.pos.y - this->dyna.actor.home.pos.y) < 0.5f) {
             heightBool = true;
         }
-        if (DynaPolyActor_IsPlayerAbove(&this->dyna) && (heightBool)) {
+        if (OoT_DynaPolyActor_IsPlayerAbove(&this->dyna) && (heightBool)) {
             this->actionFunc = func_808870D8;
         } else if (!heightBool) {
             this->actionFunc = func_8088706C;
@@ -99,7 +99,7 @@ void func_80886FCC(BgHidanFslift* this, PlayState* play) {
 }
 
 void func_8088706C(BgHidanFslift* this, PlayState* play) {
-    if (Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y, 4.0f)) {
+    if (OoT_Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y, 4.0f)) {
         Audio_PlayActorSound2(&this->dyna.actor, NA_SE_EV_BLOCK_BOUND);
         func_80886FB4(this);
     } else {
@@ -109,8 +109,8 @@ void func_8088706C(BgHidanFslift* this, PlayState* play) {
 }
 
 void func_808870D8(BgHidanFslift* this, PlayState* play) {
-    if (DynaPolyActor_IsPlayerAbove(&this->dyna)) {
-        if (Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y + 790.0f, 4.0f)) {
+    if (OoT_DynaPolyActor_IsPlayerAbove(&this->dyna)) {
+        if (OoT_Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y + 790.0f, 4.0f)) {
             Audio_PlayActorSound2(&this->dyna.actor, NA_SE_EV_BLOCK_BOUND);
             func_80886FB4(this);
         } else {
@@ -126,19 +126,19 @@ void BgHidanFslift_Update(Actor* thisx, PlayState* play) {
     BgHidanFslift* this = (BgHidanFslift*)thisx;
 
     this->actionFunc(this, play);
-    if (DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
+    if (OoT_DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
         if (this->unk_16A == 0) {
             this->unk_16A = 3;
         }
-        Camera_ChangeSetting(play->cameraPtrs[MAIN_CAM], CAM_SET_FIRE_PLATFORM);
-    } else if (!DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
+        OoT_Camera_ChangeSetting(play->cameraPtrs[MAIN_CAM], CAM_SET_FIRE_PLATFORM);
+    } else if (!OoT_DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
         if (this->unk_16A != 0) {
-            Camera_ChangeSetting(play->cameraPtrs[MAIN_CAM], CAM_SET_DUNGEON0);
+            OoT_Camera_ChangeSetting(play->cameraPtrs[MAIN_CAM], CAM_SET_DUNGEON0);
         }
         this->unk_16A = 0;
     }
 }
 
 void BgHidanFslift_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, gFireTempleHookshotElevatorDL);
+    OoT_Gfx_DrawDListOpa(play, gFireTempleHookshotElevatorDL);
 }

@@ -9,8 +9,8 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void ObjBlockstop_Init(Actor* thisx, PlayState* play);
-void ObjBlockstop_Update(Actor* thisx, PlayState* play);
+void MM_ObjBlockstop_Init(Actor* thisx, PlayState* play);
+void MM_ObjBlockstop_Update(Actor* thisx, PlayState* play);
 
 void ObjBlockstop_CheckForBlock(ObjBlockstop* this, PlayState* play);
 void ObjBlockstop_TryPlayCutscene(ObjBlockstop* this, PlayState* play);
@@ -21,17 +21,17 @@ ActorProfile Obj_Blockstop_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(ObjBlockstop),
-    /**/ ObjBlockstop_Init,
-    /**/ Actor_Noop,
-    /**/ ObjBlockstop_Update,
+    /**/ MM_ObjBlockstop_Init,
+    /**/ MM_Actor_Noop,
+    /**/ MM_ObjBlockstop_Update,
     /**/ NULL,
 };
 
-void ObjBlockstop_Init(Actor* thisx, PlayState* play) {
+void MM_ObjBlockstop_Init(Actor* thisx, PlayState* play) {
     ObjBlockstop* this = (ObjBlockstop*)thisx;
 
-    if (Flags_GetSwitch(play, OBJBLOCKSTOP_GET_SWITCH_FLAG(&this->actor))) {
-        Actor_Kill(&this->actor);
+    if (MM_Flags_GetSwitch(play, OBJBLOCKSTOP_GET_SWITCH_FLAG(&this->actor))) {
+        MM_Actor_Kill(&this->actor);
     }
     this->actionFunc = ObjBlockstop_CheckForBlock;
 }
@@ -56,17 +56,17 @@ void ObjBlockstop_CheckForBlock(ObjBlockstop* this, PlayState* play) {
 
 void ObjBlockstop_TryPlayCutscene(ObjBlockstop* this, PlayState* play) {
     if (CutsceneManager_IsNext(this->actor.csId)) {
-        Flags_SetSwitch(play, OBJBLOCKSTOP_GET_SWITCH_FLAG(&this->actor));
+        MM_Flags_SetSwitch(play, OBJBLOCKSTOP_GET_SWITCH_FLAG(&this->actor));
         if (CutsceneManager_GetLength(this->actor.csId) != -1) {
             CutsceneManager_StartWithPlayerCs(this->actor.csId, &this->actor);
         }
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
     CutsceneManager_Queue(this->actor.csId);
 }
 
-void ObjBlockstop_Update(Actor* thisx, PlayState* play) {
+void MM_ObjBlockstop_Update(Actor* thisx, PlayState* play) {
     ObjBlockstop* this = (ObjBlockstop*)thisx;
 
     this->actionFunc(this, play);

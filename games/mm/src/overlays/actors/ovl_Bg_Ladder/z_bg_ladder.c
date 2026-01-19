@@ -30,7 +30,7 @@ ActorProfile Bg_Ladder_Profile = {
     /**/ BgLadder_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
 
@@ -45,11 +45,11 @@ void BgLadder_Init(Actor* thisx, PlayState* play) {
     BgLadder* this = (BgLadder*)thisx;
     BgLadderSize size;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
 
     this->switchFlag = BGLADDER_GET_SWITCH_FLAG(thisx);
     thisx->params = BGLADDER_GET_SIZE(thisx);
-    DynaPolyActor_Init(&this->dyna, 0);
+    MM_DynaPolyActor_Init(&this->dyna, 0);
     size = thisx->params;
 
     if (size == LADDER_SIZE_12RUNG) {
@@ -61,11 +61,11 @@ void BgLadder_Init(Actor* thisx, PlayState* play) {
     } else if (size == LADDER_SIZE_24RUNG) {
         DynaPolyActor_LoadMesh(play, &this->dyna, &gWoodenLadder24RungCol);
     } else {
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
         return;
     }
 
-    if (Flags_GetSwitch(play, this->switchFlag)) {
+    if (MM_Flags_GetSwitch(play, this->switchFlag)) {
         // If the flag is set, then the ladder draws immediately
         this->alpha = 255;
         this->dyna.actor.flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED; // always update = off
@@ -82,12 +82,12 @@ void BgLadder_Init(Actor* thisx, PlayState* play) {
 void BgLadder_Destroy(Actor* thisx, PlayState* play) {
     BgLadder* this = (BgLadder*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void BgLadder_Wait(BgLadder* this, PlayState* play) {
     // Wait for the flag to be set, then trigger the cutscene
-    if (Flags_GetSwitch(play, this->switchFlag)) {
+    if (MM_Flags_GetSwitch(play, this->switchFlag)) {
         CutsceneManager_Queue(this->dyna.actor.csId);
         this->action = BgLadder_StartCutscene;
     }

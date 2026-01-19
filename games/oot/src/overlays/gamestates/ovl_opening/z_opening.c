@@ -6,7 +6,7 @@
 
 #include "global.h"
 
-void Sram_InitDebugSave(void);
+void OoT_Sram_InitDebugSave(void);
 
 void Opening_SetupTitleScreen(OpeningContext* this) {
     gSaveContext.gameMode = GAMEMODE_TITLE_SCREEN;
@@ -15,10 +15,10 @@ void Opening_SetupTitleScreen(OpeningContext* this) {
     gSaveContext.fileNum = 0xFF;
     gWalkSpeedToggle1 = 0;
     gWalkSpeedToggle2 = 0;
-    Sram_InitDebugSave();
+    OoT_Sram_InitDebugSave();
     gSaveContext.cutsceneIndex = 0xFFF3;
     gSaveContext.sceneSetupIndex = 7;
-    SET_NEXT_GAMESTATE(&this->state, Play_Init, PlayState);
+    SET_NEXT_GAMESTATE(&this->state, OoT_Play_Init, PlayState);
 }
 
 void func_80803C5C(OpeningContext* this) {
@@ -39,8 +39,8 @@ void Opening_Init(GameState* thisx) {
     OpeningContext* this = (OpeningContext*)thisx;
 
     R_UPDATE_RATE = 1;
-    Matrix_Init(&this->state);
-    View_Init(&this->view, this->state.gfxCtx);
+    OoT_Matrix_Init(&this->state);
+    OoT_View_Init(&this->view, this->state.gfxCtx);
     this->state.main = Opening_Main;
     this->state.destroy = Opening_Destroy;
 }

@@ -20,7 +20,7 @@ void TitleSetup_SetupTitleScreen(TitleSetupState* this) {
     CLEAR_EVENTINF(EVENTINF_17);
     gSaveContext.gameMode = GAMEMODE_TITLE_SCREEN;
 
-    Sram_InitNewSave();
+    MM_Sram_InitNewSave();
 
     gSaveContext.save.entrance = sOpeningEntrances[gOpeningEntranceIndex];
     gSaveContext.nextCutsceneIndex = gSaveContext.save.cutsceneIndex = sOpeningCutscenes[gOpeningEntranceIndex];
@@ -32,7 +32,7 @@ void TitleSetup_SetupTitleScreen(TitleSetupState* this) {
     GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
 
     STOP_GAMESTATE(&this->state);
-    SET_NEXT_GAMESTATE(&this->state, Play_Init, sizeof(PlayState));
+    SET_NEXT_GAMESTATE(&this->state, MM_Play_Init, sizeof(PlayState));
 
     gSaveContext.save.playerForm = PLAYER_FORM_HUMAN;
 }
@@ -49,19 +49,19 @@ void TitleSetup_Main(GameState* thisx) {
     func_80803EA0(this);
 }
 
-void TitleSetup_Destroy(GameState* thisx) {
-    ShrinkWindow_Destroy();
+void MM_TitleSetup_Destroy(GameState* thisx) {
+    MM_ShrinkWindow_Destroy();
 }
 
-void TitleSetup_Init(GameState* thisx) {
+void MM_TitleSetup_Init(GameState* thisx) {
     TitleSetupState* this = (TitleSetupState*)thisx;
 
     GameState_SetFramerateDivisor(&this->state, 1);
-    Matrix_Init(&this->state);
-    ShrinkWindow_Init();
-    View_Init(&this->view, this->state.gfxCtx);
+    MM_Matrix_Init(&this->state);
+    MM_ShrinkWindow_Init();
+    MM_View_Init(&this->view, this->state.gfxCtx);
     this->state.main = TitleSetup_Main;
-    this->state.destroy = TitleSetup_Destroy;
+    this->state.destroy = MM_TitleSetup_Destroy;
 
     gSaveContext.respawnFlag = 0;
     gSaveContext.respawn[RESPAWN_MODE_GORON].entrance = 0xFF;

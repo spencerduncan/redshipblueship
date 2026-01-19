@@ -28,7 +28,7 @@ ActorProfile Bg_Botihasira_Profile = {
     /**/ BgBotihasira_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_METAL,
         AT_NONE,
@@ -54,11 +54,11 @@ void BgBotihasira_Init(Actor* thisx, PlayState* play) {
     CollisionHeader* colHeader = NULL;
 
     if (this->dyna.actor.params == 0) {
-        DynaPolyActor_Init(&this->dyna, 0);
-        CollisionHeader_GetVirtual(&object_botihasira_Colheader_001BD8, &colHeader);
-        this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+        MM_DynaPolyActor_Init(&this->dyna, 0);
+        MM_CollisionHeader_GetVirtual(&object_botihasira_Colheader_001BD8, &colHeader);
+        this->dyna.bgId = MM_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
     } else {
-        Collider_InitAndSetCylinder(play, &this->collider, &this->dyna.actor, &sCylinderInit);
+        Collider_InitAndSetCylinder(play, &this->collider, &this->dyna.actor, &MM_sCylinderInit);
     }
     this->actionFunc = BgBotihasira_DoNothing;
     this->dyna.actor.scale.z = this->dyna.actor.scale.y = this->dyna.actor.scale.x = 0.1f;
@@ -68,7 +68,7 @@ void BgBotihasira_Destroy(Actor* thisx, PlayState* play) {
     BgBotihasira* this = (BgBotihasira*)thisx;
 
     if (this->dyna.actor.params == 0) {
-        DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+        MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
     }
 }
 
@@ -81,12 +81,12 @@ void BgBotihasira_Update(Actor* thisx, PlayState* play2) {
 
     this->actionFunc(this, play);
     if (this->dyna.actor.params != 0) {
-        this->dyna.actor.world.pos.x = this->dyna.actor.home.pos.x + (Math_SinS(this->dyna.actor.world.rot.y) * -27.0f);
-        this->dyna.actor.world.pos.z = this->dyna.actor.home.pos.z + (Math_CosS(this->dyna.actor.world.rot.y) * 7.0f);
-        Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-        Math_Vec3f_Copy(&this->dyna.actor.world.pos, &this->dyna.actor.home.pos);
+        this->dyna.actor.world.pos.x = this->dyna.actor.home.pos.x + (MM_Math_SinS(this->dyna.actor.world.rot.y) * -27.0f);
+        this->dyna.actor.world.pos.z = this->dyna.actor.home.pos.z + (MM_Math_CosS(this->dyna.actor.world.rot.y) * 7.0f);
+        MM_Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_Math_Vec3f_Copy(&this->dyna.actor.world.pos, &this->dyna.actor.home.pos);
     }
 }
 

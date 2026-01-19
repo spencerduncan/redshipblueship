@@ -25,7 +25,7 @@ const ActorInit En_Fd_Fire_InitVars = {
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -45,9 +45,9 @@ static ColliderCylinderInit sCylinderInit = {
     { 12, 46, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInit = { 1, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 OoT_sColChkInit = { 1, 0, 0, 0, MASS_IMMOVABLE };
 
-static DamageTable sDamageTable = {
+static DamageTable OoT_sDamageTable = {
     /* Deku nut      */ DMG_ENTRY(0, 0x0),
     /* Deku stick    */ DMG_ENTRY(0, 0x0),
     /* Slingshot     */ DMG_ENTRY(0, 0x0),
@@ -88,7 +88,7 @@ void EnFdFire_UpdatePos(EnFdFire* this, Vec3f* targetPos) {
     f32 yDiff = targetPos->y - this->actor.world.pos.y;
     f32 zDiff = targetPos->z - this->actor.world.pos.z;
 
-    dist = sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff));
+    dist = OoT_sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff));
     if (fabsf(dist) > fabsf(this->actor.speedXZ)) {
         this->actor.velocity.x = (xDiff / dist) * this->actor.speedXZ;
         this->actor.velocity.z = (zDiff / dist) * this->actor.speedXZ;
@@ -125,32 +125,32 @@ void EnFdFire_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     Player* player = GET_PLAYER(play);
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 20.0f);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, &sDamageTable, &sColChkInit);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 20.0f);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
+    OoT_CollisionCheck_SetInfo2(&this->actor.colChkInfo, &OoT_sDamageTable, &OoT_sColChkInit);
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
     this->actor.gravity = -0.6f;
     this->actor.speedXZ = 5.0f;
     this->actor.velocity.y = 12.0f;
-    this->spawnRadius = Math_Vec3f_DistXYZ(&this->actor.world.pos, &player->actor.world.pos);
+    this->spawnRadius = OoT_Math_Vec3f_DistXYZ(&this->actor.world.pos, &player->actor.world.pos);
     this->scale = 3.0f;
-    this->tile2Y = (s16)Rand_ZeroFloat(5.0f) - 25;
+    this->tile2Y = (s16)OoT_Rand_ZeroFloat(5.0f) - 25;
     this->actionFunc = func_80A0E70C;
 }
 
 void EnFdFire_Destroy(Actor* thisx, PlayState* play) {
     EnFdFire* this = (EnFdFire*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void func_80A0E70C(EnFdFire* this, PlayState* play) {
     Vec3f velocity = { 0.0f, 0.0f, 0.0f };
     Vec3f targetPos = this->actor.parent->world.pos;
 
-    targetPos.x += this->spawnRadius * Math_SinS(this->actor.world.rot.y);
-    targetPos.z += this->spawnRadius * Math_CosS(this->actor.world.rot.y);
+    targetPos.x += this->spawnRadius * OoT_Math_SinS(this->actor.world.rot.y);
+    targetPos.z += this->spawnRadius * OoT_Math_CosS(this->actor.world.rot.y);
     EnFdFire_UpdatePos(this, &targetPos);
     if (this->actor.bgCheckFlags & 1 && (!(this->actor.velocity.y > 0.0f))) {
         this->actor.velocity = velocity;
@@ -188,8 +188,8 @@ void EnFdFire_DanceTowardsPlayer(EnFdFire* this, PlayState* play) {
     if (DECR(this->deathTimer) == 0) {
         this->actionFunc = EnFdFire_Disappear;
     } else {
-        Math_SmoothStepToS(&this->actor.world.rot.y, Math_Vec3f_Yaw(&this->actor.world.pos, &pos), 8, 0xFA0, 1);
-        Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 0.4f, 1.0f, 0.0f);
+        OoT_Math_SmoothStepToS(&this->actor.world.rot.y, OoT_Math_Vec3f_Yaw(&this->actor.world.pos, &pos), 8, 0xFA0, 1);
+        OoT_Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 0.4f, 1.0f, 0.0f);
         if (this->actor.speedXZ < 0.1f) {
             this->actor.speedXZ = 5.0f;
         }
@@ -198,13 +198,13 @@ void EnFdFire_DanceTowardsPlayer(EnFdFire* this, PlayState* play) {
 }
 
 void EnFdFire_Disappear(EnFdFire* this, PlayState* play) {
-    Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 0.6f, 9.0f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 0.6f, 9.0f, 0.0f);
     Actor_UpdateVelocityXZGravity(&this->actor);
-    Math_SmoothStepToF(&this->scale, 0.0f, 0.3f, 0.1f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->scale, 0.0f, 0.3f, 0.1f, 0.0f);
     this->actor.shape.shadowScale = 20.0f;
     this->actor.shape.shadowScale *= (this->scale / 3.0f);
     if (!(this->scale > 0.01f)) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
@@ -218,14 +218,14 @@ void EnFdFire_Update(Actor* thisx, PlayState* play) {
         }
     }
 
-    Actor_UpdatePos(&this->actor);
+    OoT_Actor_UpdatePos(&this->actor);
     this->actionFunc(this, play);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 12.0f, 10.0f, 0.0f, 5);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 12.0f, 10.0f, 0.0f, 5);
 
     if (this->actionFunc != EnFdFire_Disappear) {
-        Collider_UpdateCylinder(&this->actor, &this->collider);
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+        OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -249,25 +249,25 @@ void EnFdFire_Draw(Actor* thisx, PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
-    sp8E = Math_Vec3f_Yaw(&scale, &this->actor.velocity) - Camera_GetCamDirYaw(GET_ACTIVE_CAM(play));
-    sp84 = fabsf(Math_CosS(sp8E));
-    sp88 = Math_SinS(sp8E);
-    sp80 = Math_Vec3f_DistXZ(&scale, &this->actor.velocity) / 1.5f;
-    Matrix_RotateY((s16)(Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) + 0x8000) * (M_PI / 0x8000), MTXMODE_APPLY);
+    OoT_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
+    sp8E = OoT_Math_Vec3f_Yaw(&scale, &this->actor.velocity) - OoT_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play));
+    sp84 = fabsf(OoT_Math_CosS(sp8E));
+    sp88 = OoT_Math_SinS(sp8E);
+    sp80 = OoT_Math_Vec3f_DistXZ(&scale, &this->actor.velocity) / 1.5f;
+    Matrix_RotateY((s16)(OoT_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) + 0x8000) * (M_PI / 0x8000), MTXMODE_APPLY);
     Matrix_RotateZ(((sp88 * -10.0f) * sp80) * (M_PI / 180.0f), MTXMODE_APPLY);
     scale.x = scale.y = scale.z = this->scale * 0.001f;
-    Matrix_Scale(scale.x, scale.y, scale.z, MTXMODE_APPLY);
+    OoT_Matrix_Scale(scale.x, scale.y, scale.z, MTXMODE_APPLY);
     sp84 = sp80 * ((0.01f * -15.0f) * sp84) + 1.0f;
     if (sp84 < 0.1f) {
         sp84 = 0.1f;
     }
-    Matrix_Scale(1.0f, sp84, 1.0f / sp84, MTXMODE_APPLY);
+    OoT_Matrix_Scale(1.0f, sp84, 1.0f / sp84, MTXMODE_APPLY);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     gSPSegment(
         POLY_XLU_DISP++, 0x8,
-        Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, play->state.frames * this->tile2Y, 0x20, 0x80));
+        OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, play->state.frames * this->tile2Y, 0x20, 0x80));
     gDPSetPrimColor(POLY_XLU_DISP++, 128, 128, primColors[((this->actor.params & 0x8000) >> 0xF)].r,
                     primColors[((this->actor.params & 0x8000) >> 0xF)].g,
                     primColors[((this->actor.params & 0x8000) >> 0xF)].b,

@@ -51,17 +51,17 @@ void EnExRuppy_Init(Actor* thisx, PlayState* play) {
     this->type = this->actor.params;
     // "Index"
     osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ インデックス ☆☆☆☆☆ %x\n" VT_RST, this->type);
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 25.0f);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 25.0f);
 
     switch (this->type) {
         case 0:
             this->unk_160 = 0.01f;
-            Actor_SetScale(&this->actor, this->unk_160);
+            OoT_Actor_SetScale(&this->actor, this->unk_160);
             this->actor.room = -1;
             this->actor.gravity = 0.0f;
 
             // If you haven't won the diving game before, you will always get 5 rupees
-            if (!Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_SILVER_SCALE)) {
+            if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_SILVER_SCALE)) {
                 this->rupeeValue = 5;
                 this->colorIdx = 1;
             } else {
@@ -74,7 +74,7 @@ void EnExRuppy_Init(Actor* thisx, PlayState* play) {
                     }
                 }
 
-                temp3 = Rand_ZeroFloat(temp1);
+                temp3 = OoT_Rand_ZeroFloat(temp1);
                 if ((temp3 >= 0) && (temp3 < 40)) {
                     this->rupeeValue = 1;
                     this->colorIdx = 0;
@@ -89,7 +89,7 @@ void EnExRuppy_Init(Actor* thisx, PlayState* play) {
                     this->colorIdx = 4;
                 } else {
                     this->unk_160 = 0.02f;
-                    Actor_SetScale(&this->actor, this->unk_160);
+                    OoT_Actor_SetScale(&this->actor, this->unk_160);
                     this->rupeeValue = 500;
                     this->colorIdx = 3;
                     if (this->actor.parent != NULL) {
@@ -113,11 +113,11 @@ void EnExRuppy_Init(Actor* thisx, PlayState* play) {
         case 1:
         case 2: // Giant pink ruppe that explodes when you touch it
             if (this->type == 1) {
-                Actor_SetScale(&this->actor, 0.1f);
+                OoT_Actor_SetScale(&this->actor, 0.1f);
                 this->colorIdx = 4;
             } else {
-                Actor_SetScale(thisx, 0.02f);
-                this->colorIdx = (s16)Rand_ZeroFloat(3.99f) + 1;
+                OoT_Actor_SetScale(thisx, 0.02f);
+                this->colorIdx = (s16)OoT_Rand_ZeroFloat(3.99f) + 1;
             }
             this->actor.gravity = -3.0f;
             // "Wow Coin"
@@ -129,9 +129,9 @@ void EnExRuppy_Init(Actor* thisx, PlayState* play) {
             break;
 
         case 3: // Spawned by the guard in Hyrule courtyard
-            Actor_SetScale(&this->actor, 0.02f);
+            OoT_Actor_SetScale(&this->actor, 0.02f);
             this->colorIdx = 0;
-            switch ((s16)Rand_ZeroFloat(30.99f)) {
+            switch ((s16)OoT_Rand_ZeroFloat(30.99f)) {
                 case 0:
                     this->colorIdx = 2;
                     break;
@@ -153,7 +153,7 @@ void EnExRuppy_Init(Actor* thisx, PlayState* play) {
         case 4: // Progress markers in the shooting gallery
             this->actor.gravity = -3.0f;
             this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
-            Actor_SetScale(&this->actor, 0.01f);
+            OoT_Actor_SetScale(&this->actor, 0.01f);
             this->actor.shape.shadowScale = 6.0f;
             this->actor.shape.yOffset = -700.0f;
             this->actionFunc = EnExRuppy_GalleryTarget;
@@ -193,14 +193,14 @@ void EnExRuppy_SpawnSparkles(EnExRuppy* this, PlayState* play, s16 numSparkles, 
 
     for (i = 0; i < numSparkles; i++) {
         if (movementType == 1) {
-            accel.x = Rand_CenteredFloat(20.0f);
-            accel.z = Rand_CenteredFloat(20.0f);
+            accel.x = OoT_Rand_CenteredFloat(20.0f);
+            accel.z = OoT_Rand_CenteredFloat(20.0f);
             scale = 5000;
             life = 20;
         }
-        pos.x = (Rand_ZeroOne() - 0.5f) * 10.0f + this->actor.world.pos.x;
-        pos.y = (Rand_ZeroOne() - 0.5f) * 10.0f + (this->actor.world.pos.y + this->unk_160 * 600.0f);
-        pos.z = (Rand_ZeroOne() - 0.5f) * 10.0f + this->actor.world.pos.z;
+        pos.x = (OoT_Rand_ZeroOne() - 0.5f) * 10.0f + this->actor.world.pos.x;
+        pos.y = (OoT_Rand_ZeroOne() - 0.5f) * 10.0f + (this->actor.world.pos.y + this->unk_160 * 600.0f);
+        pos.z = (OoT_Rand_ZeroOne() - 0.5f) * 10.0f + this->actor.world.pos.z;
         EffectSsKiraKira_SpawnDispersed(play, &pos, &velocity, &accel, &primColor, &envColor, scale, life);
     }
 }
@@ -209,7 +209,7 @@ void EnExRuppy_DropIntoWater(EnExRuppy* this, PlayState* play) {
     EnDivingGame* divingGame;
 
     this->actor.shape.rot.y += 0x7A8;
-    Math_ApproachF(&this->actor.gravity, -2.0f, 0.3f, 1.0f);
+    OoT_Math_ApproachF(&this->actor.gravity, -2.0f, 0.3f, 1.0f);
     EnExRuppy_SpawnSparkles(this, play, 2, 0);
     Sfx_PlaySfxCentered(NA_SE_EV_RAINBOW_SHOWER - SFX_FLAG);
     divingGame = (EnDivingGame*)this->actor.parent;
@@ -230,15 +230,15 @@ void EnExRuppy_EnterWater(EnExRuppy* this, PlayState* play) {
 
     if ((divingGame != NULL) && (divingGame->actor.update != NULL) && (divingGame->unk_2A2 == 2)) {
         this->invisible = false;
-        this->actor.world.pos.x = ((Rand_ZeroOne() - 0.5f) * 300.0f) + -260.0f;
-        this->actor.world.pos.y = ((Rand_ZeroOne() - 0.5f) * 200.0f) + 370.0f;
+        this->actor.world.pos.x = ((OoT_Rand_ZeroOne() - 0.5f) * 300.0f) + -260.0f;
+        this->actor.world.pos.y = ((OoT_Rand_ZeroOne() - 0.5f) * 200.0f) + 370.0f;
         temp_f2 = this->unk_15A * -50.0f;
-        if (!Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_SILVER_SCALE)) {
+        if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_SILVER_SCALE)) {
             temp_f2 += -500.0f;
-            this->actor.world.pos.z = ((Rand_ZeroOne() - 0.5f) * 80.0f) + temp_f2;
+            this->actor.world.pos.z = ((OoT_Rand_ZeroOne() - 0.5f) * 80.0f) + temp_f2;
         } else {
             temp_f2 += -300.0f;
-            this->actor.world.pos.z = ((Rand_ZeroOne() - 0.5f) * 60.0f) + temp_f2;
+            this->actor.world.pos.z = ((OoT_Rand_ZeroOne() - 0.5f) * 60.0f) + temp_f2;
         }
         this->actionFunc = EnExRuppy_Sink;
         this->actor.gravity = -1.0f;
@@ -255,7 +255,7 @@ void EnExRuppy_Sink(EnExRuppy* this, PlayState* play) {
         pos.y += this->actor.yDistToWater;
         this->actor.velocity.y = -1.0f;
         this->actor.gravity = -0.2f;
-        EffectSsGSplash_Spawn(play, &pos, 0, 0, 0, 800);
+        OoT_EffectSsGSplash_Spawn(play, &pos, 0, 0, 0, 800);
         Sfx_PlaySfxAtPos(&this->actor.projectedPos, NA_SE_EV_BOMB_DROP_WATER);
         this->actionFunc = EnExRuppy_WaitInGame;
     }
@@ -274,7 +274,7 @@ void EnExRuppy_WaitInGame(EnExRuppy* this, PlayState* play) {
 
     if (this->timer == 0) {
         this->timer = 10;
-        EffectSsBubble_Spawn(play, &this->actor.world.pos, 0.0f, 5.0f, 5.0f, Rand_ZeroFloat(0.03f) + 0.07f);
+        OoT_EffectSsBubble_Spawn(play, &this->actor.world.pos, 0.0f, 5.0f, 5.0f, OoT_Rand_ZeroFloat(0.03f) + 0.07f);
     }
     if (this->actor.parent != NULL) {
         divingGame = (EnDivingGame*)this->actor.parent;
@@ -283,13 +283,13 @@ void EnExRuppy_WaitInGame(EnExRuppy* this, PlayState* play) {
                 this->timer = 20;
                 this->actionFunc = EnExRuppy_Kill;
             } else if (this->actor.xyzDistToPlayerSq < SQ(localConst)) {
-                Rupees_ChangeBy(this->rupeeValue);
+                OoT_Rupees_ChangeBy(this->rupeeValue);
                 Sfx_PlaySfxCentered(NA_SE_SY_GET_RUPY);
                 divingGame->grabbedRupeesCounter++;
-                Actor_Kill(&this->actor);
+                OoT_Actor_Kill(&this->actor);
             }
         } else {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
         }
     }
 }
@@ -298,7 +298,7 @@ void EnExRuppy_Kill(EnExRuppy* this, PlayState* play) {
     this->invisible += 1;
     this->invisible &= 1; // Net effect is this->invisible = !this->invisible;
     if (this->timer == 0) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
@@ -336,10 +336,10 @@ void EnExRuppy_WaitToBlowUp(EnExRuppy* this, PlayState* play) {
             explosionScale = 20;
             explosionScaleStep = 6;
         }
-        EffectSsBomb2_SpawnLayered(play, &this->actor.world.pos, &velocity, &accel, explosionScale, explosionScaleStep);
+        OoT_EffectSsBomb2_SpawnLayered(play, &this->actor.world.pos, &velocity, &accel, explosionScale, explosionScaleStep);
         func_8002F71C(play, &this->actor, 2.0f, this->actor.yawTowardsPlayer, 0.0f);
         Audio_PlayActorSound2(&this->actor, NA_SE_IT_BOMB_EXPLOSION);
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
@@ -348,16 +348,16 @@ void EnExRuppy_WaitAsCollectible(EnExRuppy* this, PlayState* play) {
 
     if (this->actor.xyzDistToPlayerSq < SQ(localConst)) {
         Sfx_PlaySfxCentered(NA_SE_SY_GET_RUPY);
-        Item_DropCollectible(play, &this->actor.world.pos, (sEnExRuppyCollectibleTypes[this->colorIdx] | 0x8000));
-        Actor_Kill(&this->actor);
+        OoT_Item_DropCollectible(play, &this->actor.world.pos, (sEnExRuppyCollectibleTypes[this->colorIdx] | 0x8000));
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
 void EnExRuppy_GalleryTarget(EnExRuppy* this, PlayState* play) {
     if (this->galleryFlag) {
-        Math_ApproachF(&this->actor.shape.yOffset, 700.0f, 0.5f, 200.0f);
+        OoT_Math_ApproachF(&this->actor.shape.yOffset, 700.0f, 0.5f, 200.0f);
     } else {
-        Math_ApproachF(&this->actor.shape.yOffset, -700.0f, 0.5f, 200.0f);
+        OoT_Math_ApproachF(&this->actor.shape.yOffset, -700.0f, 0.5f, 200.0f);
     }
 }
 
@@ -370,7 +370,7 @@ void EnExRuppy_Update(Actor* thisx, PlayState* play) {
         this->timer--;
     }
     Actor_MoveXZGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 50.0f, 0x1C);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 50.0f, 0x1C);
 }
 
 void EnExRuppy_Draw(Actor* thisx, PlayState* play) {
@@ -393,8 +393,8 @@ void EnExRuppy_Draw(Actor* thisx, PlayState* play) {
 
             // purple/gold rupees need less scaling
             f32 mtxScale = this->colorIdx >= 3 ? 17.5f : 25.0f;
-            Matrix_Scale(mtxScale, mtxScale, mtxScale, MTXMODE_APPLY);
-            GetItem_Draw(play, rupeeTexturesNew[this->colorIdx]);
+            OoT_Matrix_Scale(mtxScale, mtxScale, mtxScale, MTXMODE_APPLY);
+            OoT_GetItem_Draw(play, rupeeTexturesNew[this->colorIdx]);
         } else {
             Color_RGB8 rupeeColor;
             u8 shouldColor = 0;

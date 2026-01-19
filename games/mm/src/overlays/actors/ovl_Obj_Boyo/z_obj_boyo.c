@@ -34,7 +34,7 @@ typedef struct ObjBoyoUnkStruct {
     /* 0x4 */ ObjBoyoCollisionHandler colHandler;
 } ObjBoyoUnkStruct; // size = 0x8
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -59,7 +59,7 @@ static ColliderCylinderInit sCylinderInit = {
     },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 300, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 300, ICHAIN_CONTINUE),
@@ -75,10 +75,10 @@ static ObjBoyoUnkStruct sCollisionHandlers[] = {
 void ObjBoyo_Init(Actor* thisx, PlayState* play) {
     ObjBoyo* this = (ObjBoyo*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
     this->animatedMaterial = Lib_SegmentedToVirtual(&object_boyo_Matanimheader_000E88);
 }
@@ -87,7 +87,7 @@ void ObjBoyo_Destroy(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     ObjBoyo* this = (ObjBoyo*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void ObjBoyo_PushPlayer(ObjBoyo* this, Actor* actor) {
@@ -101,7 +101,7 @@ void ObjBoyo_PushPirate(ObjBoyo* this, Actor* actor) {
     EnKaizoku* kaizoku = (EnKaizoku*)actor;
 
     kaizoku->boyoBounceVelocity = 30.0f;
-    kaizoku->boyoBounceAngle = Actor_WorldYawTowardActor(&this->actor, &kaizoku->picto.actor);
+    kaizoku->boyoBounceAngle = MM_Actor_WorldYawTowardActor(&this->actor, &kaizoku->picto.actor);
 }
 
 void ObjBoyo_ExplodeBomb(ObjBoyo* this, Actor* actor) {
@@ -169,12 +169,12 @@ void ObjBoyo_Update(Actor* thisx, PlayState* play2) {
         this->unk1A8 += this->unk1AA;
 
         this->actor.scale.x = this->actor.scale.z =
-            (Math_CosS(this->unk1A8 + this->unk1A4) * (f32)this->unk194 * this->unk19C * this->unk198) + 0.1f;
+            (MM_Math_CosS(this->unk1A8 + this->unk1A4) * (f32)this->unk194 * this->unk19C * this->unk198) + 0.1f;
 
         this->actor.scale.y =
-            (Math_CosS(this->unk1A8 + this->unk1A6) * (f32)this->unk194 * this->unk1A0 * this->unk198) + 0.1f;
+            (MM_Math_CosS(this->unk1A8 + this->unk1A6) * (f32)this->unk194 * this->unk1A0 * this->unk198) + 0.1f;
     } else {
-        Actor_SetScale(&this->actor, 0.1f);
+        MM_Actor_SetScale(&this->actor, 0.1f);
         if (this->collider.base.acFlags & AC_HIT) {
             // TODO: find out what all of these are.
 
@@ -193,9 +193,9 @@ void ObjBoyo_Update(Actor* thisx, PlayState* play2) {
     this->collider.base.acFlags &= ~AC_HIT;
     this->collider.base.ocFlags1 &= ~OC1_HIT;
     this->collider.base.ocFlags2 &= ~OC2_HIT_PLAYER;
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     if (this->actor.xzDistToPlayer < 2000.0f) {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -203,5 +203,5 @@ void ObjBoyo_Draw(Actor* thisx, PlayState* play) {
     ObjBoyo* this = (ObjBoyo*)thisx;
 
     AnimatedMat_Draw(play, this->animatedMaterial);
-    Gfx_DrawDListOpa(play, object_boyo_DL_000300);
+    MM_Gfx_DrawDListOpa(play, object_boyo_DL_000300);
 }

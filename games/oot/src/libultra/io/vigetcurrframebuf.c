@@ -1,6 +1,6 @@
 #include "global.h"
 
-u32* osViGetCurrentFramebuffer(void) {
+u32* OoT_osViGetCurrentFramebuffer(void) {
     register u32 prevInt = __osDisableInt();
     u32* var1 = __osViCurr->buffer;
 

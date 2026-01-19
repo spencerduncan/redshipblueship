@@ -8,10 +8,10 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void EnHs_Init(Actor* thisx, PlayState* play);
-void EnHs_Destroy(Actor* thisx, PlayState* play);
-void EnHs_Update(Actor* thisx, PlayState* play);
-void EnHs_Draw(Actor* thisx, PlayState* play);
+void MM_EnHs_Init(Actor* thisx, PlayState* play);
+void MM_EnHs_Destroy(Actor* thisx, PlayState* play);
+void MM_EnHs_Update(Actor* thisx, PlayState* play);
+void MM_EnHs_Draw(Actor* thisx, PlayState* play);
 
 void func_80952FE0(EnHs* this, PlayState* play);
 void func_80953098(EnHs* this, PlayState* play);
@@ -27,13 +27,13 @@ ActorProfile En_Hs_Profile = {
     /**/ FLAGS,
     /**/ OBJECT_HS,
     /**/ sizeof(EnHs),
-    /**/ EnHs_Init,
-    /**/ EnHs_Destroy,
-    /**/ EnHs_Update,
-    /**/ EnHs_Draw,
+    /**/ MM_EnHs_Init,
+    /**/ MM_EnHs_Destroy,
+    /**/ MM_EnHs_Update,
+    /**/ MM_EnHs_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -60,24 +60,24 @@ void func_80952C50(EnHs* this, PlayState* play) {
     s32 i;
 
     for (i = 0; i < ARRAY_COUNT(this->nwcPos); i++) {
-        Math_Vec3f_Copy(&this->nwcPos[i], &player->actor.world.pos);
+        MM_Math_Vec3f_Copy(&this->nwcPos[i], &player->actor.world.pos);
     }
 
     this->actor.home.rot.x = 0; // reset adult transformed count
     this->actor.home.rot.z = 0; // reset chick count
 }
 
-void EnHs_Init(Actor* thisx, PlayState* play) {
+void MM_EnHs_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     EnHs* this = (EnHs*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 36.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gHsSkel, &gHsIdleAnim, this->jointTable, this->morphTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 36.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gHsSkel, &gHsIdleAnim, this->jointTable, this->morphTable,
                        OBJECT_HS_LIMB_MAX);
-    Animation_PlayLoop(&this->skelAnime, &gHsIdleAnim);
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    MM_Animation_PlayLoop(&this->skelAnime, &gHsIdleAnim);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->actionFunc = func_8095345C;
 
     if (play->curSpawn == 1) {
@@ -89,10 +89,10 @@ void EnHs_Init(Actor* thisx, PlayState* play) {
     func_80952C50(this, play);
 }
 
-void EnHs_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnHs_Destroy(Actor* thisx, PlayState* play) {
     EnHs* this = (EnHs*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void func_80952DFC(PlayState* play) {
@@ -106,7 +106,7 @@ void EnHs_UpdateChickPos(Vec3f* dst, Vec3f src, f32 offset) {
     Vec3f diff;
     f32 distance;
 
-    Math_Vec3f_Diff(&src, dst, &diff);
+    MM_Math_Vec3f_Diff(&src, dst, &diff);
 
     distance = SQXZ(diff); // gets un-squared after we check if we are too close
 
@@ -114,7 +114,7 @@ void EnHs_UpdateChickPos(Vec3f* dst, Vec3f src, f32 offset) {
         return;
     }
 
-    distance = sqrtf(distance);
+    distance = MM_sqrtf(distance);
     diff.x *= (distance - offset) / distance;
     diff.z *= (distance - offset) / distance;
 
@@ -142,20 +142,20 @@ void func_80952F00(EnHs* this, PlayState* play) {
 
 void func_80952FE0(EnHs* this, PlayState* play) {
     if (this->stateTimer < 40) {
-        Math_SmoothStepToS(&this->headRot.y, 0x1F40, 6, 0x1838, 0x64);
+        MM_Math_SmoothStepToS(&this->headRot.y, 0x1F40, 6, 0x1838, 0x64);
     } else if (this->stateTimer < 80) {
-        Math_SmoothStepToS(&this->headRot.y, -0x1F40, 6, 0x1838, 0x64);
+        MM_Math_SmoothStepToS(&this->headRot.y, -0x1F40, 6, 0x1838, 0x64);
     } else {
         this->actionFunc = func_80953180;
         this->stateFlags &= ~4;
-        Message_ContinueTextbox(play, 0x33F6);
+        MM_Message_ContinueTextbox(play, 0x33F6);
         func_80952DFC(play);
     }
     this->stateTimer++;
 }
 
 void func_80953098(EnHs* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play)) {
+    if (MM_Actor_HasParent(&this->actor, play)) {
         this->actor.parent = NULL;
         this->actionFunc = func_8095345C;
         this->actor.flags |= ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
@@ -164,32 +164,32 @@ void func_80953098(EnHs* this, PlayState* play) {
     } else {
         this->stateFlags |= 8;
         if (INV_CONTENT(ITEM_MASK_BUNNY) == ITEM_MASK_BUNNY) {
-            Actor_OfferGetItem(&this->actor, play, GI_RUPEE_RED, 10000.0f, 50.0f);
+            MM_Actor_OfferGetItem(&this->actor, play, GI_RUPEE_RED, 10000.0f, 50.0f);
         } else {
-            Actor_OfferGetItem(&this->actor, play, GI_MASK_BUNNY, 10000.0f, 50.0f);
+            MM_Actor_OfferGetItem(&this->actor, play, GI_MASK_BUNNY, 10000.0f, 50.0f);
         }
     }
 }
 
 void func_80953180(EnHs* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         switch (play->msgCtx.currentTextId) {
             case 0x33F4: // laughing that they are all roosters (!)
             case 0x33F6: // Grog regrets not being able to see his chicks reach adult hood
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 this->actionFunc = func_8095345C;
                 break;
 
             case 0x33F7: // notice his chicks are grown up, happy, wants to give you bunny hood
                 this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 this->actionFunc = func_80953098;
                 func_80953098(this, play);
                 break;
 
             case 0x33F9: // laughing that they are all roosters (.)
                 this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 this->actionFunc = func_8095345C;
                 break;
 
@@ -202,7 +202,7 @@ void func_80953180(EnHs* this, PlayState* play) {
                 break;
 
             default:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 this->actionFunc = func_8095345C;
                 break;
         }
@@ -222,8 +222,8 @@ void EnHs_SceneTransitToBunnyHoodDialogue(EnHs* this, PlayState* play) {
 }
 
 void func_80953354(EnHs* this, PlayState* play) {
-    if (!Play_InCsMode(play)) {
-        Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
+    if (!MM_Play_InCsMode(play)) {
+        MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
         this->actionFunc = EnHs_SceneTransitToBunnyHoodDialogue;
     }
 }
@@ -243,7 +243,7 @@ void func_809533A0(EnHs* this, PlayState* play) {
         sp1E = 0x33F5;
     }
 
-    Message_StartTextbox(play, sp1E, &this->actor);
+    MM_Message_StartTextbox(play, sp1E, &this->actor);
 
     if (sp1E == 0x33F4) {
         func_80952DFC(play);
@@ -264,7 +264,7 @@ void func_8095345C(EnHs* this, PlayState* play) {
     } else if (CHECK_FLAG_ALL(this->actor.flags, ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED)) {
         Actor_OfferTalkExchange(&this->actor, play, 1000.0f, 1000.0f, PLAYER_IA_MINUS1);
         this->stateFlags |= 1;
-    } else if ((this->actor.xzDistToPlayer < 120.0f) && Player_IsFacingActor(&this->actor, 0x2000, play)) {
+    } else if ((this->actor.xzDistToPlayer < 120.0f) && MM_Player_IsFacingActor(&this->actor, 0x2000, play)) {
         Actor_OfferTalk(&this->actor, play, 130.0f);
         this->stateFlags |= 1;
     } else {
@@ -272,17 +272,17 @@ void func_8095345C(EnHs* this, PlayState* play) {
     }
 }
 
-void EnHs_Update(Actor* thisx, PlayState* play) {
+void MM_EnHs_Update(Actor* thisx, PlayState* play) {
     s32 pad;
     EnHs* this = (EnHs*)thisx;
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 
     Actor_MoveWithGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
 
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (MM_SkelAnime_Update(&this->skelAnime)) {
         this->skelAnime.curFrame = 0.0f;
     }
 
@@ -291,20 +291,20 @@ void EnHs_Update(Actor* thisx, PlayState* play) {
     func_80952F00(this, play);
 
     if (this->stateFlags & 4) {
-        Math_SmoothStepToS(&this->headRot.x, 0, 6, 0x1838, 0x64);
-        Math_SmoothStepToS(&this->torsoRot.x, 0, 6, 0x1838, 0x64);
-        Math_SmoothStepToS(&this->torsoRot.y, 0, 6, 0x1838, 0x64);
+        MM_Math_SmoothStepToS(&this->headRot.x, 0, 6, 0x1838, 0x64);
+        MM_Math_SmoothStepToS(&this->torsoRot.x, 0, 6, 0x1838, 0x64);
+        MM_Math_SmoothStepToS(&this->torsoRot.y, 0, 6, 0x1838, 0x64);
     } else if (this->stateFlags & 1) {
         Actor_TrackPlayer(play, &this->actor, &this->headRot, &this->torsoRot, this->actor.focus.pos);
     } else {
-        Math_SmoothStepToS(&this->headRot.x, 0x3200, 6, 0x1838, 0x64);
-        Math_SmoothStepToS(&this->headRot.y, 0, 6, 0x1838, 0x64);
-        Math_SmoothStepToS(&this->torsoRot.x, 0, 6, 0x1838, 0x64);
-        Math_SmoothStepToS(&this->torsoRot.y, 0, 6, 0x1838, 0x64);
+        MM_Math_SmoothStepToS(&this->headRot.x, 0x3200, 6, 0x1838, 0x64);
+        MM_Math_SmoothStepToS(&this->headRot.y, 0, 6, 0x1838, 0x64);
+        MM_Math_SmoothStepToS(&this->torsoRot.x, 0, 6, 0x1838, 0x64);
+        MM_Math_SmoothStepToS(&this->torsoRot.y, 0, 6, 0x1838, 0x64);
     }
 }
 
-s32 EnHs_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx) {
+s32 MM_EnHs_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx) {
     EnHs* this = (EnHs*)thisx;
 
     switch (limbIndex) {
@@ -346,18 +346,18 @@ s32 EnHs_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* po
     return false;
 }
 
-void EnHs_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* thisx) {
+void MM_EnHs_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* thisx) {
     EnHs* this = (EnHs*)thisx;
 
     if (limbIndex == HS_LIMB_HEAD) {
-        Matrix_MultVec3f(&D_8095393C, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&D_8095393C, &this->actor.focus.pos);
     }
 }
 
-void EnHs_Draw(Actor* thisx, PlayState* play) {
+void MM_EnHs_Draw(Actor* thisx, PlayState* play) {
     EnHs* this = (EnHs*)thisx;
 
     Gfx_SetupDL37_Opa(play->state.gfxCtx);
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
-                          EnHs_OverrideLimbDraw, EnHs_PostLimbDraw, &this->actor);
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+                          MM_EnHs_OverrideLimbDraw, MM_EnHs_PostLimbDraw, &this->actor);
 }

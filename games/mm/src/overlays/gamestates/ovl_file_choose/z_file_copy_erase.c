@@ -9,7 +9,7 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 
 // When choosing a file to copy or erase, the 6 main menu buttons are placed at these offsets
-s16 sChooseFileYOffsets[] = { -48, -48, -48, -24, -24, 0 };
+s16 MM_sChooseFileYOffsets[] = { -48, -48, -48, -24, -24, 0 };
 
 s16 D_8081424C[3][3] = {
     { 0, -48, -48 },
@@ -17,7 +17,7 @@ s16 D_8081424C[3][3] = {
     { -64, -64, 32 },
 };
 
-s16 sEraseDelayTimer = 15;
+s16 MM_sEraseDelayTimer = 15;
 
 /**
  * Move buttons into place for the select source screen and fade in the proper labels.
@@ -29,9 +29,9 @@ void FileSelect_SetupCopySource(GameState* thisx) {
     s16 i;
 
     for (i = 0; i < 5; i++) {
-        yStep = ABS_ALT(this->buttonYOffsets[i] - sChooseFileYOffsets[i]) / this->actionTimer;
+        yStep = ABS_ALT(this->buttonYOffsets[i] - MM_sChooseFileYOffsets[i]) / this->actionTimer;
 
-        if (this->buttonYOffsets[i] >= sChooseFileYOffsets[i]) {
+        if (this->buttonYOffsets[i] >= MM_sChooseFileYOffsets[i]) {
             this->buttonYOffsets[i] -= yStep;
         } else {
             this->buttonYOffsets[i] += yStep;
@@ -324,9 +324,9 @@ void FileSelect_ExitToCopySource2(GameState* thisx) {
     s32 yStep;
 
     for (i = 0; i < 3; i++) {
-        yStep = ABS_ALT(this->buttonYOffsets[i] - sChooseFileYOffsets[i]) / this->actionTimer;
+        yStep = ABS_ALT(this->buttonYOffsets[i] - MM_sChooseFileYOffsets[i]) / this->actionTimer;
 
-        if (this->buttonYOffsets[i] >= sChooseFileYOffsets[i]) {
+        if (this->buttonYOffsets[i] >= MM_sChooseFileYOffsets[i]) {
             this->buttonYOffsets[i] -= yStep;
         } else {
             this->buttonYOffsets[i] += yStep;
@@ -746,9 +746,9 @@ void FileSelect_SetupEraseSelect(GameState* thisx) {
     s32 yStep;
 
     for (i = 0; i < 5; i++) {
-        yStep = ABS_ALT(this->buttonYOffsets[i] - sChooseFileYOffsets[i]) / this->actionTimer;
+        yStep = ABS_ALT(this->buttonYOffsets[i] - MM_sChooseFileYOffsets[i]) / this->actionTimer;
 
-        if (this->buttonYOffsets[i] >= sChooseFileYOffsets[i]) {
+        if (this->buttonYOffsets[i] >= MM_sChooseFileYOffsets[i]) {
             this->buttonYOffsets[i] -= yStep;
         } else {
             this->buttonYOffsets[i] += yStep;
@@ -991,7 +991,7 @@ void FileSelect_EraseConfirm(GameState* thisx) {
         this->actionTimer = 4;
         this->nextTitleLabel = FS_TITLE_ERASE_COMPLETE;
         Rumble_Request(200.0f, 255, 20, 150);
-        sEraseDelayTimer = 15;
+        MM_sEraseDelayTimer = 15;
     } else if (ABS_ALT(this->stickAdjY) >= 30) {
         Audio_PlaySfx(NA_SE_SY_FSEL_CURSOR);
         this->buttonIndex ^= 1;
@@ -1028,9 +1028,9 @@ void FileSelect_ExitToEraseSelect2(GameState* thisx) {
     s32 yStep;
 
     yStep =
-        ABS_ALT(this->buttonYOffsets[this->buttonIndex] - sChooseFileYOffsets[this->buttonIndex]) / this->actionTimer;
+        ABS_ALT(this->buttonYOffsets[this->buttonIndex] - MM_sChooseFileYOffsets[this->buttonIndex]) / this->actionTimer;
 
-    if (this->buttonYOffsets[this->buttonIndex] >= sChooseFileYOffsets[this->buttonIndex]) {
+    if (this->buttonYOffsets[this->buttonIndex] >= MM_sChooseFileYOffsets[this->buttonIndex]) {
         this->buttonYOffsets[this->buttonIndex] -= yStep;
     } else {
         this->buttonYOffsets[this->buttonIndex] += yStep;
@@ -1057,7 +1057,7 @@ void FileSelect_ExitToEraseSelect2(GameState* thisx) {
     this->actionTimer--;
 
     if (this->actionTimer == 0) {
-        this->buttonYOffsets[this->buttonIndex] = sChooseFileYOffsets[this->buttonIndex];
+        this->buttonYOffsets[this->buttonIndex] = MM_sChooseFileYOffsets[this->buttonIndex];
         this->actionTimer = 4;
         this->buttonIndex = FS_BTN_ERASE_QUIT;
         this->titleLabel = this->nextTitleLabel;
@@ -1077,7 +1077,7 @@ void FileSelect_EraseAnim1(GameState* thisx) {
     FileSelectState* this = (FileSelectState*)thisx;
     SramContext* sramCtx = &this->sramCtx;
 
-    if (sEraseDelayTimer == 0) {
+    if (MM_sEraseDelayTimer == 0) {
         if (this->actionTimer == 4) {
             D_80814E80 = 1;
         }
@@ -1110,9 +1110,9 @@ void FileSelect_EraseAnim1(GameState* thisx) {
             this->actionTimer = 45;
         }
     } else {
-        sEraseDelayTimer--;
+        MM_sEraseDelayTimer--;
 
-        if (sEraseDelayTimer == 0) {
+        if (MM_sEraseDelayTimer == 0) {
             Audio_PlaySfx(NA_SE_OC_ABYSS);
         }
     }

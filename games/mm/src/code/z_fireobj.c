@@ -41,7 +41,7 @@ void FireObj_InitWithParams(PlayState* play, FireObj* fire, FireObjInitParams* i
     fire->xScale = 0.0f;
     fire->yScale = 0.0f;
     fire->dynamicSize = 0.0f;
-    fire->timer = Rand_ZeroOne() * 20.0f;
+    fire->timer = MM_Rand_ZeroOne() * 20.0f;
     fire->ignitionDelay = -1;
 }
 
@@ -59,20 +59,20 @@ void FireObj_SetState(FireObj* fire, f32 dynamicSizeStep, u8 newState) {
 }
 
 void FireObj_SetPosition(FireObj* fire, Vec3f* pos) {
-    Math_Vec3f_Copy(&fire->position, pos);
+    MM_Math_Vec3f_Copy(&fire->position, pos);
 }
 
 void FireObj_StepSize(FireObj* fire) {
     if (fire->state == FIRE_STATE_GROWING) {
-        if (Math_StepToF(&fire->dynamicSize, 1.0f, fire->dynamicSizeStep)) {
+        if (MM_Math_StepToF(&fire->dynamicSize, 1.0f, fire->dynamicSizeStep)) {
             FireObj_SetState(fire, fire->dynamicSizeStep, FIRE_STATE_FULLY_LIT);
         }
-    } else if ((fire->state == FIRE_STATE_SHRINKING) && Math_StepToF(&fire->dynamicSize, 0.0f, fire->dynamicSizeStep)) {
+    } else if ((fire->state == FIRE_STATE_SHRINKING) && MM_Math_StepToF(&fire->dynamicSize, 0.0f, fire->dynamicSizeStep)) {
         FireObj_SetState(fire, fire->dynamicSizeStep, FIRE_STATE_NOT_LIT);
     }
     if (fire->sizeGrowsCos2 == 1) {
         if ((fire->state == FIRE_STATE_GROWING) || (fire->state == FIRE_STATE_SHRINKING)) {
-            fire->xScale = (1.0f - Math_CosS(SQ(fire->dynamicSize) * 0x4000)) * fire->size;
+            fire->xScale = (1.0f - MM_Math_CosS(SQ(fire->dynamicSize) * 0x4000)) * fire->size;
             fire->yScale = fire->dynamicSize * fire->size;
         } else {
             fire->yScale = fire->dynamicSize * fire->size;
@@ -113,8 +113,8 @@ void FireObj_UpdateStateTransitions(PlayState* play, FireObj* fire) {
         FireObj_SetState(fire, fire->dynamicSizeStep, FIRE_STATE_NOT_LIT);
     }
     if ((fire->flags & FIRE_FLAG_INTERACT_STICK) && (player->heldItemAction == PLAYER_IA_DEKU_STICK)) {
-        Math_Vec3f_Diff(&player->meleeWeaponInfo[0].tip, &fire->position, &dist);
-        if (Math3D_Vec3fMagnitudeSq(&dist) < SQ(20.0f)) {
+        MM_Math_Vec3f_Diff(&player->meleeWeaponInfo[0].tip, &fire->position, &dist);
+        if (MM_Math3D_Vec3fMagnitudeSq(&dist) < SQ(20.0f)) {
             sp40 = true;
         }
     }
@@ -126,7 +126,7 @@ void FireObj_UpdateStateTransitions(PlayState* play, FireObj* fire) {
             }
         } else if (player->unk_B28 == 0) {
             player->unk_B28 = 210;
-            SoundSource_PlaySfxAtFixedWorldPos(play, &fire->position, 20, NA_SE_EV_FLAME_IGNITION);
+            MM_SoundSource_PlaySfxAtFixedWorldPos(play, &fire->position, 20, NA_SE_EV_FLAME_IGNITION);
         } else if (player->unk_B28 < 200) {
             player->unk_B28 = 200;
         }
@@ -144,7 +144,7 @@ void FireObj_Draw(PlayState* play, FireObj* fire) {
 
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
         gSPSegment(POLY_XLU_DISP++, 0x08,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0, (fire->timer * -20) % 512U, 32, 128));
+                   MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0, (fire->timer * -20) % 512U, 32, 128));
 
         gDPSetPrimColor(POLY_XLU_DISP++, 0, fireColors->lod, fireColors->primColor.r, fireColors->primColor.g,
                         fireColors->primColor.b, fireColors->primColor.a);
@@ -152,10 +152,10 @@ void FireObj_Draw(PlayState* play, FireObj* fire) {
         gDPSetEnvColor(POLY_XLU_DISP++, fireColors->envColor.r, fireColors->envColor.g, fireColors->envColor.b, 0);
 
         vec.x = 0;
-        vec.y = Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) + 0x8000;
+        vec.y = MM_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) + 0x8000;
         vec.z = 0;
-        Matrix_SetTranslateRotateYXZ(fire->position.x, fire->position.y, fire->position.z, &vec);
-        Matrix_Scale(fire->xScale, fire->yScale, 1.0f, MTXMODE_APPLY);
+        MM_Matrix_SetTranslateRotateYXZ(fire->position.x, fire->position.y, fire->position.z, &vec);
+        MM_Matrix_Scale(fire->xScale, fire->yScale, 1.0f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
@@ -167,14 +167,14 @@ void FireObj_Draw(PlayState* play, FireObj* fire) {
 void FireObj_InitLight(PlayState* play, FireObjLight* light, u8* paramsIndex, Vec3f* pos) {
     FireObjLightParams* objectParams = &sFireObjLightParams[*paramsIndex];
 
-    Lights_PointGlowSetInfo(&light->lightInfo, pos->x, pos->y, pos->z, objectParams->color.r, objectParams->color.g,
+    MM_Lights_PointGlowSetInfo(&light->lightInfo, pos->x, pos->y, pos->z, objectParams->color.r, objectParams->color.g,
                             objectParams->color.b, objectParams->radius);
-    light->light = LightContext_InsertLight(play, &play->lightCtx, &light->lightInfo);
+    light->light = MM_LightContext_InsertLight(play, &play->lightCtx, &light->lightInfo);
     light->lightParamsIndex = *paramsIndex;
 }
 
 void FireObj_DestroyLight(PlayState* play, FireObjLight* light) {
-    LightContext_RemoveLight(play, &play->lightCtx, light->light);
+    MM_LightContext_RemoveLight(play, &play->lightCtx, light->light);
 }
 
 void FireObj_UpdateLight(PlayState* play, FireObjLight* light, FireObj* fire) {
@@ -182,15 +182,15 @@ void FireObj_UpdateLight(PlayState* play, FireObjLight* light, FireObj* fire) {
     s16 radius;
 
     if (fire->state == FIRE_STATE_NOT_LIT) {
-        Lights_PointSetColorAndRadius(&light->lightInfo, 0, 0, 0, -1);
+        MM_Lights_PointSetColorAndRadius(&light->lightInfo, 0, 0, 0, -1);
     } else {
         radius = (fire->yScale * 140.0f * fire->sizeInv) + 60.0f;
 
-        Lights_PointGlowSetInfo(&light->lightInfo, fire->position.x, (fire->position.y + (fire->yScale * 6500.0f)),
+        MM_Lights_PointGlowSetInfo(&light->lightInfo, fire->position.x, (fire->position.y + (fire->yScale * 6500.0f)),
                                 fire->position.z,
-                                ((s32)(Rand_ZeroOne() * lightParams->maxColorAdj.r) + lightParams->color.r),
-                                ((s32)(Rand_ZeroOne() * lightParams->maxColorAdj.g) + lightParams->color.g),
-                                ((s32)(Rand_ZeroOne() * lightParams->maxColorAdj.b) + lightParams->color.b), radius);
+                                ((s32)(MM_Rand_ZeroOne() * lightParams->maxColorAdj.r) + lightParams->color.r),
+                                ((s32)(MM_Rand_ZeroOne() * lightParams->maxColorAdj.g) + lightParams->color.g),
+                                ((s32)(MM_Rand_ZeroOne() * lightParams->maxColorAdj.b) + lightParams->color.b), radius);
     }
 }
 
@@ -198,8 +198,8 @@ void FireObj_Init(PlayState* play, FireObj* fire, FireObjInitParams* init, Actor
     FireObj* fire2 = fire;
 
     FireObj_InitWithParams(play, fire, init);
-    Collider_InitCylinder(play, &fire->collision);
-    Collider_SetCylinder(play, &fire->collision, actor, &sFireObjCollisionInit);
+    MM_Collider_InitCylinder(play, &fire->collision);
+    MM_Collider_SetCylinder(play, &fire->collision, actor, &sFireObjCollisionInit);
 
     fire2->collision.dim.radius = (fire->size * 4000.0f) + 2.5f;
     fire2->collision.dim.height = fire->size * 16000.0f;
@@ -208,7 +208,7 @@ void FireObj_Init(PlayState* play, FireObj* fire, FireObjInitParams* init, Actor
 }
 
 void FireObj_Destroy(PlayState* play, FireObj* fire) {
-    Collider_DestroyCylinder(play, &fire->collision);
+    MM_Collider_DestroyCylinder(play, &fire->collision);
     FireObj_DestroyLight(play, &fire->light);
 }
 
@@ -234,6 +234,6 @@ void FireObj_Update(PlayState* play, FireObj* fire, Actor* actor) {
     fire->collision.dim.pos.x = fire->position.x;
     fire->collision.dim.pos.y = fire->position.y;
     fire->collision.dim.pos.z = fire->position.z;
-    CollisionCheck_SetAC(play, &play->colChkCtx, &fire->collision.base);
+    MM_CollisionCheck_SetAC(play, &play->colChkCtx, &fire->collision.base);
     FireObj_UpdateLight(play, &fire->light, fire);
 }

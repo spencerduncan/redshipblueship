@@ -27,7 +27,7 @@ void EnTanron3_SetupLive(EnTanron3* this, PlayState* play);
 void EnTanron3_Live(EnTanron3* this, PlayState* play);
 void EnTanron3_Die(EnTanron3* this, PlayState* play);
 
-static Vec3f sZeroVec[] = { 0.0f, 0.0f, 0.0f };
+static Vec3f MM_sZeroVec[] = { 0.0f, 0.0f, 0.0f };
 
 static Boss03* sGyorg = NULL;
 
@@ -43,7 +43,7 @@ ActorProfile En_Tanron3_Profile = {
     /**/ EnTanron3_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HIT3,
         AT_ON | AT_TYPE_ENEMY,
@@ -93,15 +93,15 @@ void EnTanron3_CreateEffect(PlayState* play, Vec3f* effectPos) {
         if ((effectPtr->type == GYORG_EFFECT_NONE) || (effectPtr->type == GYORG_EFFECT_BUBBLE)) {
             effectPtr->type = GYORG_EFFECT_DROPLET;
             effectPtr->pos = *effectPos;
-            effectPtr->velocity = *sZeroVec;
-            effectPtr->accel = *sZeroVec;
+            effectPtr->velocity = *MM_sZeroVec;
+            effectPtr->accel = *MM_sZeroVec;
             effectPtr->accel.y = -2.0f;
             effectPtr->unk_34.x = 0.1f;
             effectPtr->unk_34.y = 0.0f;
-            effectPtr->unk_34.z = Rand_ZeroFloat(2 * M_PIf);
-            effectPtr->unk_02 = Rand_ZeroFloat(100.0f);
-            effectPtr->velocity.x = Rand_CenteredFloat(25.0f);
-            effectPtr->velocity.z = Rand_CenteredFloat(25.0f);
+            effectPtr->unk_34.z = MM_Rand_ZeroFloat(2 * M_PIf);
+            effectPtr->unk_02 = MM_Rand_ZeroFloat(100.0f);
+            effectPtr->velocity.x = MM_Rand_CenteredFloat(25.0f);
+            effectPtr->velocity.z = MM_Rand_CenteredFloat(25.0f);
             break;
         }
     }
@@ -111,14 +111,14 @@ void EnTanron3_Init(Actor* thisx, PlayState* play) {
     EnTanron3* this = (EnTanron3*)thisx;
 
     this->actor.gravity = -1.0f;
-    Collider_InitAndSetCylinder(play, &this->atCollider, &this->actor, &sCylinderInit);
-    Collider_InitAndSetCylinder(play, &this->acCollider, &this->actor, &sCylinderInit);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gGyorgSmallFishSkel, &gGyorgSmallFishSwimAnim, this->jointTable,
+    Collider_InitAndSetCylinder(play, &this->atCollider, &this->actor, &MM_sCylinderInit);
+    Collider_InitAndSetCylinder(play, &this->acCollider, &this->actor, &MM_sCylinderInit);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gGyorgSmallFishSkel, &gGyorgSmallFishSwimAnim, this->jointTable,
                        this->morphTable, GYORG_SMALL_FISH_LIMB_MAX);
-    Actor_SetScale(&this->actor, 0.02f);
+    MM_Actor_SetScale(&this->actor, 0.02f);
     EnTanron3_SetupLive(this, play);
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
-    this->currentRotationAngle = Rand_ZeroFloat(500000.0f);
+    this->currentRotationAngle = MM_Rand_ZeroFloat(500000.0f);
     this->waterSurfaceYPos = 430.0f;
     sGyorg = (Boss03*)this->actor.parent;
 }
@@ -135,30 +135,30 @@ void EnTanron3_SpawnBubbles(EnTanron3* this, PlayState* play) {
     Vec3f accel;
 
     for (i = 0; i < 20; i++) {
-        Matrix_RotateYF(Rand_ZeroFloat(2 * M_PIf), MTXMODE_NEW);
-        Matrix_RotateXFApply(Rand_ZeroFloat(2 * M_PIf));
-        Matrix_MultVecZ(Rand_ZeroFloat(3.0f) + 2.0f, &velocity);
+        Matrix_RotateYF(MM_Rand_ZeroFloat(2 * M_PIf), MTXMODE_NEW);
+        Matrix_RotateXFApply(MM_Rand_ZeroFloat(2 * M_PIf));
+        Matrix_MultVecZ(MM_Rand_ZeroFloat(3.0f) + 2.0f, &velocity);
         accel.x = velocity.x * -0.05f;
         accel.y = velocity.y * -0.05f;
         accel.z = velocity.z * -0.05f;
-        EffectSsDtBubble_SpawnCustomColor(play, &this->actor.world.pos, &velocity, &accel, &sPrimColor, &sEnvColor,
-                                          Rand_ZeroFloat(30.0f) + 70.0f, Rand_ZeroFloat(5.0f) + 15.0f, false);
+        MM_EffectSsDtBubble_SpawnCustomColor(play, &this->actor.world.pos, &velocity, &accel, &sPrimColor, &sEnvColor,
+                                          MM_Rand_ZeroFloat(30.0f) + 70.0f, MM_Rand_ZeroFloat(5.0f) + 15.0f, false);
     }
 }
 
 void EnTanron3_SetupLive(EnTanron3* this, PlayState* play) {
     this->actionFunc = EnTanron3_Live;
-    Animation_MorphToLoop(&this->skelAnime, &gGyorgSmallFishSwimAnim, -10.0f);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gGyorgSmallFishSwimAnim, -10.0f);
     this->rotationStep = 0;
     this->rotationScale = 5;
     this->workTimer[WORK_TIMER_PICK_NEW_DEVIATION] = 50;
     this->actor.speed = 5.0f;
     this->speedMaxStep = 0.5f;
-    this->deviation.x = Rand_CenteredFloat(500.0f);
-    this->deviation.y = Rand_CenteredFloat(100.0f);
-    this->deviation.z = Rand_CenteredFloat(500.0f);
-    Math_Vec3f_Copy(&this->targetPos, &this->actor.world.pos);
-    this->timer = Rand_ZeroFloat(100.0f);
+    this->deviation.x = MM_Rand_CenteredFloat(500.0f);
+    this->deviation.y = MM_Rand_CenteredFloat(100.0f);
+    this->deviation.z = MM_Rand_CenteredFloat(500.0f);
+    MM_Math_Vec3f_Copy(&this->targetPos, &this->actor.world.pos);
+    this->timer = MM_Rand_ZeroFloat(100.0f);
 }
 
 /**
@@ -185,7 +185,7 @@ void EnTanron3_Live(EnTanron3* this, PlayState* play) {
     } else if (this->isNonHostile && (this->workTimer[WORK_TIMER_WAIT] == 0) && !(this->timer & 0x1F)) {
         xDistance = this->targetPos.x - player->actor.world.pos.x;
         zDistance = this->targetPos.z - player->actor.world.pos.z;
-        if (sqrtf(SQ(xDistance) + SQ(zDistance)) < 500.0f) {
+        if (MM_sqrtf(SQ(xDistance) + SQ(zDistance)) < 500.0f) {
             // Player is in the water and close enough, so start chasing them
             this->isNonHostile = false;
             this->workTimer[WORK_TIMER_ATTACK] = 150;
@@ -201,9 +201,9 @@ void EnTanron3_Live(EnTanron3* this, PlayState* play) {
                 this->targetRotationStep = 0x1000;
                 this->nextRotationAngle = 0x3A98;
 
-                Math_Vec3f_Copy(&this->targetPos, &player->actor.world.pos);
+                MM_Math_Vec3f_Copy(&this->targetPos, &player->actor.world.pos);
                 if (!(this->timer & 0xF)) {
-                    if ((Rand_ZeroOne() < 0.5f) && (this->actor.xzDistToPlayer <= 200.0f)) {
+                    if ((MM_Rand_ZeroOne() < 0.5f) && (this->actor.xzDistToPlayer <= 200.0f)) {
                         Actor_PlaySfx(&this->actor, NA_SE_EN_PIRANHA_ATTACK);
                     }
                 }
@@ -246,10 +246,10 @@ void EnTanron3_Live(EnTanron3* this, PlayState* play) {
 
         if (this->workTimer[WORK_TIMER_OUT_OF_WATER] == 0) {
             if ((this->workTimer[WORK_TIMER_PICK_NEW_DEVIATION] == 0) && (this->actor.speed > 1.0f)) {
-                this->workTimer[WORK_TIMER_PICK_NEW_DEVIATION] = Rand_ZeroFloat(20.0f);
-                this->deviation.x = Rand_CenteredFloat(100.0f);
-                this->deviation.y = Rand_CenteredFloat(50.0f + extraScaleY);
-                this->deviation.z = Rand_CenteredFloat(100.0f);
+                this->workTimer[WORK_TIMER_PICK_NEW_DEVIATION] = MM_Rand_ZeroFloat(20.0f);
+                this->deviation.x = MM_Rand_CenteredFloat(100.0f);
+                this->deviation.y = MM_Rand_CenteredFloat(50.0f + extraScaleY);
+                this->deviation.z = MM_Rand_CenteredFloat(100.0f);
             }
             this->targetPosWithDeviation.y = this->targetPos.y + this->deviation.y + 50.0f;
         }
@@ -261,14 +261,14 @@ void EnTanron3_Live(EnTanron3* this, PlayState* play) {
         zDistance = this->targetPosWithDeviation.z - this->actor.world.pos.z;
 
         // Rotate the fish to look towards its target
-        xzDistance = sqrtf(SQ(xDistance) + SQ(zDistance));
+        xzDistance = MM_sqrtf(SQ(xDistance) + SQ(zDistance));
         atanTemp = Math_Atan2S_XY(xzDistance, -yDistance);
-        Math_ApproachS(&this->actor.world.rot.x, atanTemp, this->rotationScale, this->rotationStep);
+        MM_Math_ApproachS(&this->actor.world.rot.x, atanTemp, this->rotationScale, this->rotationStep);
         atanTemp = Math_Atan2S_XY(zDistance, xDistance);
-        Math_SmoothStepToS(&this->actor.world.rot.y, atanTemp, this->rotationScale, this->rotationStep, 0);
-        Math_ApproachS(&this->rotationStep, this->targetRotationStep, 1, 0x100);
+        MM_Math_SmoothStepToS(&this->actor.world.rot.y, atanTemp, this->rotationScale, this->rotationStep, 0);
+        MM_Math_ApproachS(&this->rotationStep, this->targetRotationStep, 1, 0x100);
 
-        Math_ApproachF(&this->actor.speed, this->targetSpeedXZ, 1.0f, this->speedMaxStep);
+        MM_Math_ApproachF(&this->actor.speed, this->targetSpeedXZ, 1.0f, this->speedMaxStep);
         Actor_MoveWithoutGravityReverse(&this->actor);
     } else {
         switch (this->isBeached) {
@@ -277,7 +277,7 @@ void EnTanron3_Live(EnTanron3* this, PlayState* play) {
                 this->actor.gravity = -1.0f;
                 this->targetPosWithDeviation.y = this->waterSurfaceYPos - 50.0f;
                 this->workTimer[WORK_TIMER_OUT_OF_WATER] = 25;
-                Math_ApproachS(&this->actor.world.rot.x, 0x3000, 5, 0xBD0);
+                MM_Math_ApproachS(&this->actor.world.rot.x, 0x3000, 5, 0xBD0);
                 if (this->actor.bgCheckFlags & BGCHECKFLAG_WALL) {
                     this->actor.speed = 0.0f;
                     if (this->actor.velocity.y > 0.0f) {
@@ -295,32 +295,32 @@ void EnTanron3_Live(EnTanron3* this, PlayState* play) {
                 this->actor.gravity = -1.5f;
                 if (this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) {
                     // Fish is still touching land, so it's still beached. Randomly flop around
-                    this->actor.velocity.y = Rand_ZeroFloat(5.0f) + 5.0f;
-                    this->actor.speed = Rand_ZeroFloat(2.0f) + 2.0f;
-                    if (Rand_ZeroOne() < 0.5f) {
+                    this->actor.velocity.y = MM_Rand_ZeroFloat(5.0f) + 5.0f;
+                    this->actor.speed = MM_Rand_ZeroFloat(2.0f) + 2.0f;
+                    if (MM_Rand_ZeroOne() < 0.5f) {
                         this->targetShapeRotation.x =
-                            TRUNCF_BINANG(Rand_CenteredFloat(0x1F4)) + this->targetShapeRotation.x + 0x8000;
+                            TRUNCF_BINANG(MM_Rand_CenteredFloat(0x1F4)) + this->targetShapeRotation.x + 0x8000;
                     }
-                    if (Rand_ZeroOne() < 0.5f) {
+                    if (MM_Rand_ZeroOne() < 0.5f) {
                         this->targetShapeRotation.z =
-                            TRUNCF_BINANG(Rand_CenteredFloat(0x1F4)) + this->targetShapeRotation.z + 0x8000;
+                            TRUNCF_BINANG(MM_Rand_CenteredFloat(0x1F4)) + this->targetShapeRotation.z + 0x8000;
                     }
-                    if (Rand_ZeroOne() < 0.5f) {
-                        this->targetShapeRotation.y = TRUNCF_BINANG(Rand_ZeroFloat(0x10000));
+                    if (MM_Rand_ZeroOne() < 0.5f) {
+                        this->targetShapeRotation.y = TRUNCF_BINANG(MM_Rand_ZeroFloat(0x10000));
                     }
                     this->actor.world.rot.y = Math_Atan2S_XY(this->actor.world.pos.z, this->actor.world.pos.x) +
-                                              TRUNCF_BINANG(Rand_CenteredFloat(0xCE20));
+                                              TRUNCF_BINANG(MM_Rand_CenteredFloat(0xCE20));
                 }
 
-                Math_ApproachS(&this->actor.shape.rot.y, this->targetShapeRotation.y, 3, 0x500);
-                Math_ApproachS(&this->actor.shape.rot.x, this->targetShapeRotation.x, 3, 0xC00);
-                Math_ApproachS(&this->actor.shape.rot.z, this->targetShapeRotation.z, 3, 0xC00);
-                if ((Rand_ZeroOne() < 0.5f) & !(this->timer & 0x3)) {
+                MM_Math_ApproachS(&this->actor.shape.rot.y, this->targetShapeRotation.y, 3, 0x500);
+                MM_Math_ApproachS(&this->actor.shape.rot.x, this->targetShapeRotation.x, 3, 0xC00);
+                MM_Math_ApproachS(&this->actor.shape.rot.z, this->targetShapeRotation.z, 3, 0xC00);
+                if ((MM_Rand_ZeroOne() < 0.5f) & !(this->timer & 0x3)) {
                     Vec3f effectPos;
 
-                    effectPos.x = Rand_CenteredFloat(30.0f) + this->actor.world.pos.x;
+                    effectPos.x = MM_Rand_CenteredFloat(30.0f) + this->actor.world.pos.x;
                     effectPos.y = this->actor.world.pos.y;
-                    effectPos.z = Rand_CenteredFloat(30.0f) + this->actor.world.pos.z;
+                    effectPos.z = MM_Rand_CenteredFloat(30.0f) + this->actor.world.pos.z;
                     EnTanron3_CreateEffect(play, &effectPos);
                 }
                 break;
@@ -332,9 +332,9 @@ void EnTanron3_Live(EnTanron3* this, PlayState* play) {
     }
 
     this->currentRotationAngle += this->nextRotationAngle;
-    this->tailRotation = Math_SinS(this->currentRotationAngle) * 5000.0f;
-    this->bodyRotation = Math_SinS(this->currentRotationAngle + 0x6978) * 5000.0f;
-    this->trunkRotation = Math_SinS(this->currentRotationAngle) * 5000.0f;
+    this->tailRotation = MM_Math_SinS(this->currentRotationAngle) * 5000.0f;
+    this->bodyRotation = MM_Math_SinS(this->currentRotationAngle + 0x6978) * 5000.0f;
+    this->trunkRotation = MM_Math_SinS(this->currentRotationAngle) * 5000.0f;
     if (!this->isBeached) {
         this->actor.shape.rot = this->actor.world.rot;
     }
@@ -350,7 +350,7 @@ void EnTanron3_SetupDie(EnTanron3* this, PlayState* play) {
     xDistance = this->actor.world.pos.x - player->actor.world.pos.x;
     yDistance = this->actor.world.pos.y - player->actor.world.pos.y + 30.0f;
     zDistance = this->actor.world.pos.z - player->actor.world.pos.z;
-    this->actor.world.rot.x = Math_Atan2S_XY(sqrtf(SQ(xDistance) + SQ(zDistance)), -yDistance);
+    this->actor.world.rot.x = Math_Atan2S_XY(MM_sqrtf(SQ(xDistance) + SQ(zDistance)), -yDistance);
     this->actor.world.rot.y = Math_Atan2S_XY(zDistance, xDistance);
     this->workTimer[WORK_TIMER_DIE] = 6;
     this->actor.speed = 10.0f;
@@ -361,9 +361,9 @@ void EnTanron3_Die(EnTanron3* this, PlayState* play) {
     Actor_MoveWithoutGravityReverse(&this->actor);
     if (this->workTimer[WORK_TIMER_DIE] == 0) {
         EnTanron3_SpawnBubbles(this, play);
-        Actor_Kill(&this->actor);
-        if (Rand_ZeroOne() < 0.3f) {
-            Item_DropCollectibleRandom(play, NULL, &this->actor.world.pos, 0x60);
+        MM_Actor_Kill(&this->actor);
+        if (MM_Rand_ZeroOne() < 0.3f) {
+            MM_Item_DropCollectibleRandom(play, NULL, &this->actor.world.pos, 0x60);
         }
     }
 }
@@ -411,7 +411,7 @@ void EnTanron3_Update(Actor* thisx, PlayState* play) {
         }
 
         this->actionFunc(this, play);
-        Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 10.0f, 20.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
+        MM_Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 10.0f, 20.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
 
         // The fish has either just entered or just exited the water, so create a splash effect
         if (((this->actor.prevPos.y < this->waterSurfaceYPos) && (this->waterSurfaceYPos <= this->actor.world.pos.y)) ||
@@ -419,16 +419,16 @@ void EnTanron3_Update(Actor* thisx, PlayState* play) {
             splashPos.x = this->actor.world.pos.x;
             splashPos.y = this->waterSurfaceYPos + 10.0f;
             splashPos.z = this->actor.world.pos.z;
-            EffectSsGSplash_Spawn(play, &splashPos, NULL, NULL, 1, 500);
+            MM_EffectSsGSplash_Spawn(play, &splashPos, NULL, NULL, 1, 500);
             Actor_PlaySfx(&this->actor, NA_SE_EV_OUT_OF_WATER);
         }
     }
 
     EnTanron3_CheckCollisions(this, play);
-    Collider_UpdateCylinder(&this->actor, &this->atCollider);
-    Collider_UpdateCylinder(&this->actor, &this->acCollider);
-    CollisionCheck_SetAT(play, &play->colChkCtx, &this->atCollider.base);
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->acCollider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->atCollider);
+    MM_Collider_UpdateCylinder(&this->actor, &this->acCollider);
+    MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->atCollider.base);
+    MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->acCollider.base);
 
     if (((s8)sGyorg->actor.colChkInfo.health <= 0) && (this->actionFunc != EnTanron3_Die)) {
         EnTanron3_SetupDie(this, play);
@@ -461,11 +461,11 @@ void EnTanron3_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     if ((this->fogTimer % 2) != 0) {
-        POLY_OPA_DISP = Gfx_SetFog(POLY_OPA_DISP, 255, 0, 0, 255, 900, 1099);
+        POLY_OPA_DISP = MM_Gfx_SetFog(POLY_OPA_DISP, 255, 0, 0, 255, 900, 1099);
     }
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnTanron3_OverrideLimbDraw, NULL, &this->actor);
-    POLY_OPA_DISP = Play_SetFog(play, POLY_OPA_DISP);
+    POLY_OPA_DISP = MM_Play_SetFog(play, POLY_OPA_DISP);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

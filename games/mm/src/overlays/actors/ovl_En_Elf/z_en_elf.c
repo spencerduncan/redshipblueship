@@ -8,12 +8,12 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED | ACTOR_FLAG_UPDATE_DURING_OCARINA)
 
-void EnElf_Init(Actor* thisx, PlayState* play2);
-void EnElf_Destroy(Actor* thisx, PlayState* play);
-void EnElf_Update(Actor* thisx, PlayState* play);
-void EnElf_Draw(Actor* thisx, PlayState* play);
+void MM_EnElf_Init(Actor* thisx, PlayState* play2);
+void MM_EnElf_Destroy(Actor* thisx, PlayState* play);
+void MM_EnElf_Update(Actor* thisx, PlayState* play);
+void MM_EnElf_Draw(Actor* thisx, PlayState* play);
 
-void EnElf_SetupAction(EnElf* this, EnElfActionFunc actionFunc);
+void MM_EnElf_SetupAction(EnElf* this, EnElfActionFunc actionFunc);
 void func_8088C9CC(EnElf* this, PlayState* play);
 void func_8088D3EC(EnElf* this, PlayState* play);
 void func_8088D470(EnElf* this, PlayState* play);
@@ -36,23 +36,23 @@ ActorProfile En_Elf_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(EnElf),
-    /**/ EnElf_Init,
-    /**/ EnElf_Destroy,
-    /**/ EnElf_Update,
-    /**/ EnElf_Draw,
+    /**/ MM_EnElf_Init,
+    /**/ MM_EnElf_Destroy,
+    /**/ MM_EnElf_Update,
+    /**/ MM_EnElf_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 8, ICHAIN_STOP),
 };
 
-static Color_RGBAf sInnerColors[] = {
+static Color_RGBAf MM_sInnerColors[] = {
     { 255.0f, 255.0f, 230.0f, 255.0f },
     { 255.0f, 220.0f, 220.0f, 255.0f },
     { 255.0f, 235.0f, 220.0f, 255.0f },
 };
 
-static Color_RGBAf sOuterColors[] = {
+static Color_RGBAf MM_sOuterColors[] = {
     { 220.0f, 160.0f, 80.0f, 255.0f },
     { 255.0f, 50.0f, 100.0f, 255.0f },
     { 255.0f, 150.0f, 0.0f, 255.0f },
@@ -64,12 +64,12 @@ typedef struct {
     /* 0x2 */ u8 b;
 } FairyColorFlags; // size = 0x3
 
-static FairyColorFlags sColorFlags[] = {
+static FairyColorFlags MM_sColorFlags[] = {
     { 0, 0, 0 }, { 1, 0, 0 }, { 1, 2, 0 }, { 1, 0, 2 }, { 0, 1, 0 }, { 2, 1, 0 }, { 0, 1, 2 },
     { 0, 0, 1 }, { 2, 0, 1 }, { 0, 2, 1 }, { 1, 1, 0 }, { 1, 0, 1 }, { 0, 1, 1 },
 };
 
-void EnElf_SetupAction(EnElf* this, EnElfActionFunc actionFunc) {
+void MM_EnElf_SetupAction(EnElf* this, EnElfActionFunc actionFunc) {
     this->actionFunc = actionFunc;
 }
 
@@ -197,8 +197,8 @@ void func_8088C858(EnElf* this, PlayState* play) {
     } else {
         this->unk_244 = 1;
         this->unk_248 = 128;
-        this->unk_254 = Rand_ZeroFloat(1.0f) + 0.5f;
-        this->unk_24C = Rand_CenteredFloat(0x7FFF);
+        this->unk_254 = MM_Rand_ZeroFloat(1.0f) + 0.5f;
+        this->unk_24C = MM_Rand_CenteredFloat(0x7FFF);
         this->unk_26C = func_8088C9CC;
     }
 }
@@ -212,8 +212,8 @@ void func_8088C920(EnElf* this, PlayState* play) {
         } else {
             this->unk_244 = 1;
             this->unk_248 = 128;
-            this->unk_254 = Rand_ZeroFloat(1.0f) + 0.5f;
-            this->unk_24C = Rand_CenteredFloat(0x7FFF);
+            this->unk_254 = MM_Rand_ZeroFloat(1.0f) + 0.5f;
+            this->unk_24C = MM_Rand_CenteredFloat(0x7FFF);
             this->unk_26C = func_8088C9CC;
         }
     }
@@ -228,13 +228,13 @@ void func_8088C9CC(EnElf* this, PlayState* play) {
         xzDistToPlayer = this->actor.xzDistToPlayer;
 
         if (xzDistToPlayer < 50.0f) {
-            if (Rand_ZeroOne() < 0.2f) {
+            if (MM_Rand_ZeroOne() < 0.2f) {
                 this->unk_244 = 2;
                 this->unk_248 = 0x400;
                 this->unk_254 = 2.0f;
                 this->actor.speed = 1.5f;
                 this->unk_26C = func_8088C920;
-                this->unk_25C = (s32)Rand_ZeroFloat(8.0f) + 4;
+                this->unk_25C = (s32)MM_Rand_ZeroFloat(8.0f) + 4;
             } else {
                 this->unk_25C = 10;
             }
@@ -245,23 +245,23 @@ void func_8088C9CC(EnElf* this, PlayState* play) {
 
             xzDistToPlayer = ((xzDistToPlayer - 50.0f) * 0.95f) + 0.05f;
 
-            if (Rand_ZeroOne() < xzDistToPlayer) {
+            if (MM_Rand_ZeroOne() < xzDistToPlayer) {
                 this->unk_244 = 3;
                 this->unk_248 = 0x200;
                 this->unk_254 = (2.0f * xzDistToPlayer) + 1.0f;
                 this->unk_26C = func_8088C858;
-                this->unk_25C = (s32)Rand_ZeroFloat(16.0f) + 16;
+                this->unk_25C = (s32)MM_Rand_ZeroFloat(16.0f) + 16;
             } else {
                 this->unk_25C = 10;
             }
         }
     }
 
-    if (Rand_ZeroOne() < 0.1f) {
+    if (MM_Rand_ZeroOne() < 0.1f) {
         this->unk_244 = 1;
         this->unk_248 = 128;
-        this->unk_254 = Rand_ZeroFloat(0.5f) + 0.5f;
-        this->unk_24C = Rand_CenteredFloat(0x7FFF);
+        this->unk_254 = MM_Rand_ZeroFloat(0.5f) + 0.5f;
+        this->unk_24C = MM_Rand_CenteredFloat(0x7FFF);
     }
 }
 
@@ -285,52 +285,52 @@ void func_8088CBAC(EnElf* this, PlayState* play) {
 }
 
 void func_8088CC48(EnElf* this, PlayState* play) {
-    EnElf_SetupAction(this, func_8088DD34);
-    this->unk_250 = Rand_ZeroFloat(10.0f) + 10.0f;
+    MM_EnElf_SetupAction(this, func_8088DD34);
+    this->unk_250 = MM_Rand_ZeroFloat(10.0f) + 10.0f;
     this->unk_246 = 0;
-    this->unk_24A = (s32)Rand_ZeroFloat(1048.0f) + 0x200;
+    this->unk_24A = (s32)MM_Rand_ZeroFloat(1048.0f) + 0x200;
     this->unk_224 = this->actor.world.pos;
-    this->unk_258 = Rand_CenteredFloat(0x7FFF);
+    this->unk_258 = MM_Rand_CenteredFloat(0x7FFF);
     this->unk_26C = func_8088C9CC;
     func_8088CBAC(this, play);
     this->unk_25C = 0;
     this->disappearTimer = 240;
-    if ((this->fairyFlags & 0x400) && Flags_GetCollectible(play, this->collectibleFlag)) {
-        Actor_Kill(&this->actor);
+    if ((this->fairyFlags & 0x400) && MM_Flags_GetCollectible(play, this->collectibleFlag)) {
+        MM_Actor_Kill(&this->actor);
     }
 }
 
 f32 func_8088CD3C(s32 colorFlag) {
     switch (colorFlag) {
         case 1:
-            return Rand_ZeroFloat(55.0f) + 200.0f;
+            return MM_Rand_ZeroFloat(55.0f) + 200.0f;
 
         case 2:
-            return Rand_ZeroFloat(255.0f);
+            return MM_Rand_ZeroFloat(255.0f);
     }
 
     return 0.0f;
 }
 
-void EnElf_Init(Actor* thisx, PlayState* play2) {
+void MM_EnElf_Init(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     EnElf* this = (EnElf*)thisx;
     Player* player = GET_PLAYER(play);
     s32 colorConfig;
     s32 fairyType;
 
-    Actor_ProcessInitChain(thisx, sInitChain);
-    SkelAnime_Init(play, &this->skelAnime, &gameplay_keep_Skel_02AF58, &gameplay_keep_Anim_029140, this->jointTable,
+    MM_Actor_ProcessInitChain(thisx, MM_sInitChain);
+    MM_SkelAnime_Init(play, &this->skelAnime, &gameplay_keep_Skel_02AF58, &gameplay_keep_Anim_029140, this->jointTable,
                    this->morphTable, FAIRY_LIMB_MAX);
-    ActorShape_Init(&thisx->shape, 0.0f, NULL, 15.0f);
+    MM_ActorShape_Init(&thisx->shape, 0.0f, NULL, 15.0f);
     thisx->shape.shadowAlpha = 255;
 
-    Lights_PointGlowSetInfo(&this->lightInfoGlow, thisx->world.pos.x, thisx->world.pos.y, thisx->world.pos.z, 255, 255,
+    MM_Lights_PointGlowSetInfo(&this->lightInfoGlow, thisx->world.pos.x, thisx->world.pos.y, thisx->world.pos.z, 255, 255,
                             255, 0);
-    this->lightNodeGlow = LightContext_InsertLight(play, &play->lightCtx, &this->lightInfoGlow);
-    Lights_PointNoGlowSetInfo(&this->lightInfoNoGlow, thisx->world.pos.x, thisx->world.pos.y, thisx->world.pos.z, 255,
+    this->lightNodeGlow = MM_LightContext_InsertLight(play, &play->lightCtx, &this->lightInfoGlow);
+    MM_Lights_PointNoGlowSetInfo(&this->lightInfoNoGlow, thisx->world.pos.x, thisx->world.pos.y, thisx->world.pos.z, 255,
                               255, 255, 0);
-    this->lightNodeNoGlow = LightContext_InsertLight(play, &play->lightCtx, &this->lightInfoNoGlow);
+    this->lightNodeNoGlow = MM_LightContext_InsertLight(play, &play->lightCtx, &this->lightInfoNoGlow);
 
     this->fairyFlags = 0;
     this->disappearTimer = 600;
@@ -347,7 +347,7 @@ void EnElf_Init(Actor* thisx, PlayState* play2) {
     switch (fairyType) {
         case FAIRY_TYPE_0:
             thisx->room = -1;
-            EnElf_SetupAction(this, func_8088E850);
+            MM_EnElf_SetupAction(this, func_8088E850);
             func_8088C51C(this, 0);
             this->fairyFlags |= 4;
             thisx->update = func_8089010C;
@@ -364,8 +364,8 @@ void EnElf_Init(Actor* thisx, PlayState* play2) {
         case FAIRY_TYPE_1:
             colorConfig = -1;
             gSaveContext.jinxTimer = 0;
-            EnElf_SetupAction(this, func_8088E0F0);
-            this->unk_254 = Math_Vec3f_DistXZ(&thisx->world.pos, &player->actor.world.pos);
+            MM_EnElf_SetupAction(this, func_8088E0F0);
+            this->unk_254 = MM_Math_Vec3f_DistXZ(&thisx->world.pos, &player->actor.world.pos);
             this->unk_248 = player->actor.shape.rot.y;
             this->unk_24C = -0x1000;
             this->unk_224.y = thisx->world.pos.y - player->actor.world.pos.y;
@@ -375,7 +375,7 @@ void EnElf_Init(Actor* thisx, PlayState* play2) {
 
         case FAIRY_TYPE_5:
             colorConfig = -1;
-            EnElf_SetupAction(this, func_8088E484);
+            MM_EnElf_SetupAction(this, func_8088E484);
             this->unk_254 = 0.0f;
             this->unk_248 = player->actor.shape.rot.y;
             this->unk_24C = 0;
@@ -386,7 +386,7 @@ void EnElf_Init(Actor* thisx, PlayState* play2) {
 
         case FAIRY_TYPE_7:
             this->fairyFlags |= 0x200;
-            thisx->shape.shadowDraw = ActorShadow_DrawWhiteCircle;
+            thisx->shape.shadowDraw = MM_ActorShadow_DrawWhiteCircle;
             this->fairyFlags |= 0x100;
             colorConfig = -1;
             this->fairyFlags |= 0x800;
@@ -420,24 +420,24 @@ void EnElf_Init(Actor* thisx, PlayState* play2) {
             break;
 
         case FAIRY_TYPE_8:
-            Actor_Kill(thisx);
+            MM_Actor_Kill(thisx);
             return;
 
         case FAIRY_TYPE_3:
-            colorConfig = Rand_ZeroFloat(11.99f) + 1.0f;
-            EnElf_SetupAction(this, func_8088E018);
+            colorConfig = MM_Rand_ZeroFloat(11.99f) + 1.0f;
+            MM_EnElf_SetupAction(this, func_8088E018);
             func_8088C51C(this, 0);
             break;
 
         case FAIRY_TYPE_4:
-            EnElf_SetupAction(this, func_8088E0E0);
+            MM_EnElf_SetupAction(this, func_8088E0E0);
             func_8088C51C(this, 6);
             this->fairyFlags |= 8;
             {
                 s32 i;
 
                 for (i = 0; i < 8; i++) {
-                    Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ELF, thisx->world.pos.x, thisx->world.pos.y - 30.0f,
+                    MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ELF, thisx->world.pos.x, thisx->world.pos.y - 30.0f,
                                 thisx->world.pos.z, 0, 0, 0, FAIRY_PARAMS(FAIRY_TYPE_6, false, 0));
                 }
             }
@@ -448,40 +448,40 @@ void EnElf_Init(Actor* thisx, PlayState* play2) {
     }
 
     this->unk_23C = 3.0f;
-    this->innerColor = sInnerColors[0];
+    this->innerColor = MM_sInnerColors[0];
     if (colorConfig > 0) {
-        this->outerColor.r = func_8088CD3C(sColorFlags[colorConfig].r);
-        this->outerColor.g = func_8088CD3C(sColorFlags[colorConfig].g);
-        this->outerColor.b = func_8088CD3C(sColorFlags[colorConfig].b);
+        this->outerColor.r = func_8088CD3C(MM_sColorFlags[colorConfig].r);
+        this->outerColor.g = func_8088CD3C(MM_sColorFlags[colorConfig].g);
+        this->outerColor.b = func_8088CD3C(MM_sColorFlags[colorConfig].b);
         this->outerColor.a = 0;
     } else {
-        this->innerColor = sInnerColors[-colorConfig];
-        this->outerColor = sOuterColors[-colorConfig];
+        this->innerColor = MM_sInnerColors[-colorConfig];
+        this->outerColor = MM_sOuterColors[-colorConfig];
     }
 }
 
-void EnElf_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnElf_Destroy(Actor* thisx, PlayState* play) {
     s32 pad;
     EnElf* this = (EnElf*)thisx;
 
-    LightContext_RemoveLight(play, &play->lightCtx, this->lightNodeGlow);
-    LightContext_RemoveLight(play, &play->lightCtx, this->lightNodeNoGlow);
+    MM_LightContext_RemoveLight(play, &play->lightCtx, this->lightNodeGlow);
+    MM_LightContext_RemoveLight(play, &play->lightCtx, this->lightNodeNoGlow);
 }
 
 void func_8088D3EC(EnElf* this, PlayState* play) {
-    this->unk_224.x = Math_SinS(this->unk_248) * this->unk_254;
-    this->unk_224.y = Math_SinS(this->unk_246) * this->unk_250;
-    this->unk_224.z = Math_CosS(this->unk_248) * this->unk_254;
+    this->unk_224.x = MM_Math_SinS(this->unk_248) * this->unk_254;
+    this->unk_224.y = MM_Math_SinS(this->unk_246) * this->unk_250;
+    this->unk_224.z = MM_Math_CosS(this->unk_248) * this->unk_254;
     this->unk_248 += this->unk_24C;
     this->unk_246 += this->unk_24A;
 }
 
 void func_8088D470(EnElf* this, PlayState* play) {
-    f32 xzScale = (Math_CosS(this->unk_246) * this->unk_250) + this->unk_254;
+    f32 xzScale = (MM_Math_CosS(this->unk_246) * this->unk_250) + this->unk_254;
 
-    this->unk_224.x = Math_SinS(this->unk_248) * xzScale;
+    this->unk_224.x = MM_Math_SinS(this->unk_248) * xzScale;
     this->unk_224.y = 0.0f;
-    this->unk_224.z = Math_CosS(this->unk_248) * xzScale;
+    this->unk_224.z = MM_Math_CosS(this->unk_248) * xzScale;
 
     this->unk_248 += this->unk_24C;
     this->unk_246 += this->unk_24A;
@@ -491,10 +491,10 @@ void func_8088D504(EnElf* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
     this->unk_246 = (this->unk_248 * 2) & 0xFFFF;
-    this->unk_224.x = Math_SinS(this->unk_248) * this->unk_254;
-    this->unk_224.y = Math_SinS(this->unk_246) * this->unk_250;
-    this->unk_224.z = -Math_SinS(player->actor.shape.rot.y) * this->unk_224.x;
-    this->unk_224.x = Math_CosS(player->actor.shape.rot.y) * this->unk_224.x;
+    this->unk_224.x = MM_Math_SinS(this->unk_248) * this->unk_254;
+    this->unk_224.y = MM_Math_SinS(this->unk_246) * this->unk_250;
+    this->unk_224.z = -MM_Math_SinS(player->actor.shape.rot.y) * this->unk_224.x;
+    this->unk_224.x = MM_Math_CosS(player->actor.shape.rot.y) * this->unk_224.x;
     this->unk_248 += this->unk_24C;
 }
 
@@ -504,7 +504,7 @@ void func_8088D5A0(EnElf* this, Vec3f* arg1, f32 arg2) {
     f32 yVelDirection = (yVelTarget >= 0.0f) ? 1.0f : -1.0f;
 
     yVelAbs = CLAMP(yVelAbs, 0.0f, 30.0f);
-    Math_StepToF(&this->actor.velocity.y, yVelAbs * yVelDirection, 32.0f);
+    MM_Math_StepToF(&this->actor.velocity.y, yVelAbs * yVelDirection, 32.0f);
 }
 
 void func_8088D660(EnElf* this, Vec3f* targetPos, f32 arg2) {
@@ -520,16 +520,16 @@ void func_8088D660(EnElf* this, Vec3f* targetPos, f32 arg2) {
     zVelTarget = CLAMP(zVelTarget, 0.0f, 30.0f) * zVelDirection;
 
     func_8088D5A0(this, targetPos, arg2);
-    Math_StepToF(&this->actor.velocity.x, xVelTarget, 1.5f);
-    Math_StepToF(&this->actor.velocity.z, zVelTarget, 1.5f);
-    Actor_UpdatePos(&this->actor);
+    MM_Math_StepToF(&this->actor.velocity.x, xVelTarget, 1.5f);
+    MM_Math_StepToF(&this->actor.velocity.z, zVelTarget, 1.5f);
+    MM_Actor_UpdatePos(&this->actor);
 }
 
 void func_8088D7F8(EnElf* this, Vec3f* targetPos) {
     func_8088D5A0(this, targetPos, 0.2f);
     this->actor.velocity.x = 0.0f;
     this->actor.velocity.z = 0.0f;
-    Actor_UpdatePos(&this->actor);
+    MM_Actor_UpdatePos(&this->actor);
     this->actor.world.pos.x = targetPos->x + this->unk_224.x;
     this->actor.world.pos.z = targetPos->z + this->unk_224.z;
 }
@@ -538,20 +538,20 @@ void func_8088D864(EnElf* this, Vec3f* targetPos) {
     func_8088D5A0(this, targetPos, 0.2f);
     this->actor.velocity.z = 0.0f;
     this->actor.velocity.x = 0.0f;
-    Actor_UpdatePos(&this->actor);
+    MM_Actor_UpdatePos(&this->actor);
     this->actor.world.pos.x = targetPos->x + this->unk_224.x;
     this->actor.world.pos.z = targetPos->z + this->unk_224.z;
 }
 
 void func_8088D8D0(EnElf* this, Vec3f* arg1) {
-    f32 yVelTarget = (((Math_SinS(this->unk_246) * this->unk_250) + arg1->y) - this->actor.world.pos.y) * 0.2f;
+    f32 yVelTarget = (((MM_Math_SinS(this->unk_246) * this->unk_250) + arg1->y) - this->actor.world.pos.y) * 0.2f;
     f32 yVelAbs = fabsf(yVelTarget);
     f32 yVelDirection = (yVelTarget >= 0.0f) ? 1.0f : -1.0f;
 
     this->unk_246 += this->unk_24A;
     yVelAbs = CLAMP(yVelAbs, 0.0f, 30.0f);
 
-    Math_StepToF(&this->actor.velocity.y, yVelAbs * yVelDirection, 1.5f);
+    MM_Math_StepToF(&this->actor.velocity.y, yVelAbs * yVelDirection, 1.5f);
 }
 
 void func_8088D9BC(EnElf* this, PlayState* play) {
@@ -561,9 +561,9 @@ void func_8088D9BC(EnElf* this, PlayState* play) {
     Vec3f* vec = &this->unk_224;
 
     if (this->fairyFlags & 0x4000) {
-        Math_SmoothStepToF(&this->actor.speed, 5.0f, 0.5f, 1.0f, 0.01f);
+        MM_Math_SmoothStepToF(&this->actor.speed, 5.0f, 0.5f, 1.0f, 0.01f);
     } else {
-        Math_SmoothStepToF(&this->actor.speed, this->unk_254, 0.2f, 0.5f, 0.01f);
+        MM_Math_SmoothStepToF(&this->actor.speed, this->unk_254, 0.2f, 0.5f, 0.01f);
     }
 
     switch (this->unk_244) {
@@ -587,9 +587,9 @@ void func_8088D9BC(EnElf* this, PlayState* play) {
     }
 
     if (this->fairyFlags & 0x4000) {
-        Math_SmoothStepToS(&this->unk_258, targetYaw, 10, this->unk_248, 0x1000);
+        MM_Math_SmoothStepToS(&this->unk_258, targetYaw, 10, this->unk_248, 0x1000);
     } else {
-        Math_SmoothStepToS(&this->unk_258, targetYaw, 10, this->unk_248, 0x20);
+        MM_Math_SmoothStepToS(&this->unk_258, targetYaw, 10, this->unk_248, 0x20);
     }
 
     this->actor.world.rot.y = this->unk_258;
@@ -607,7 +607,7 @@ void func_8088DB4C(EnElf* this, Vec3f* arg1, f32 arg2, f32 arg3, f32 arg4) {
 
     func_8088D5A0(this, arg1, arg4);
 
-    xzVelocity = sqrtf(SQ(xVelTarget) + SQ(zVelTarget));
+    xzVelocity = MM_sqrtf(SQ(xVelTarget) + SQ(zVelTarget));
     clampedXZ = CLAMP(xzVelocity, arg2, arg3);
     this->actor.speed = clampedXZ;
 
@@ -617,9 +617,9 @@ void func_8088DB4C(EnElf* this, Vec3f* arg1, f32 arg2, f32 arg3, f32 arg4) {
         zVelTarget *= xzVelocity;
     }
 
-    Math_StepToF(&this->actor.velocity.x, xVelTarget, 5.0f);
-    Math_StepToF(&this->actor.velocity.z, zVelTarget, 5.0f);
-    Actor_UpdatePos(&this->actor);
+    MM_Math_StepToF(&this->actor.velocity.x, xVelTarget, 5.0f);
+    MM_Math_StepToF(&this->actor.velocity.z, zVelTarget, 5.0f);
+    MM_Actor_UpdatePos(&this->actor);
 }
 
 s32 func_8088DCA4(EnElf* this) {
@@ -628,9 +628,9 @@ s32 func_8088DCA4(EnElf* this) {
     } else {
         this->disappearTimer--;
         if (this->disappearTimer > -10) {
-            Actor_SetScale(&this->actor, (this->disappearTimer + 10) * 0.008f * 0.1f);
+            MM_Actor_SetScale(&this->actor, (this->disappearTimer + 10) * 0.008f * 0.1f);
         } else {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
             return true;
         }
     }
@@ -643,11 +643,11 @@ void func_8088DD34(EnElf* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
     f32 heightDiff;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
-    if (Rand_ZeroOne() < 0.05f) {
-        this->unk_250 = Rand_ZeroFloat(10.0f) + 10.0f;
-        this->unk_24A = (s32)Rand_ZeroFloat(0x400) + 0x200;
+    if (MM_Rand_ZeroOne() < 0.05f) {
+        this->unk_250 = MM_Rand_ZeroFloat(10.0f) + 10.0f;
+        this->unk_24A = (s32)MM_Rand_ZeroFloat(0x400) + 0x200;
     }
 
     func_8088CBAC(this, play);
@@ -657,15 +657,15 @@ void func_8088DD34(EnElf* this, PlayState* play) {
 
     func_8088D8D0(this, &this->unk_224);
     func_8088D9BC(this, play);
-    if (Actor_HasParent(&this->actor, play)) {
+    if (MM_Actor_HasParent(&this->actor, play)) {
         if (this->fairyFlags & 0x400) {
-            Flags_SetCollectible(play, this->collectibleFlag);
+            MM_Flags_SetCollectible(play, this->collectibleFlag);
         }
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
-    if (Player_InCsMode(play)) {
+    if (MM_Player_InCsMode(play)) {
         if ((this->fairyFlags & 0x4000) && (this->fairyFlags & 0x100) && func_8088DCA4(this)) {
             return;
         }
@@ -676,7 +676,7 @@ void func_8088DD34(EnElf* this, PlayState* play) {
 
     if ((this->fairyFlags & 0x1000) && (heightDiff > 0.0f) && (heightDiff < 60.0f) &&
         !func_8088C804(&this->actor.world.pos, &playerActor->world.pos, 10.0f)) {
-        Health_ChangeBy(play, 0x80);
+        MM_Health_ChangeBy(play, 0x80);
         if (this->fairyFlags & 0x200) {
             Magic_Add(play, MAGIC_FILL_TO_CAPACITY);
         }
@@ -687,9 +687,9 @@ void func_8088DD34(EnElf* this, PlayState* play) {
         this->unk_224.y = 30.0f;
         this->unk_250 = 0.0f;
         this->unk_246 = 0;
-        EnElf_SetupAction(this, func_8088E0F0);
+        MM_EnElf_SetupAction(this, func_8088E0F0);
         if (this->fairyFlags & 0x400) {
-            Flags_SetCollectible(play, this->collectibleFlag);
+            MM_Flags_SetCollectible(play, this->collectibleFlag);
         }
         return;
     }
@@ -699,11 +699,11 @@ void func_8088DD34(EnElf* this, PlayState* play) {
             return;
         }
     } else {
-        Actor_SetScale(&this->actor, 0.008f);
+        MM_Actor_SetScale(&this->actor, 0.008f);
     }
 
     if (this->fairyFlags & 0x2000) {
-        Actor_OfferGetItem(&this->actor, play, GI_MAX, 80.0f, 60.0f);
+        MM_Actor_OfferGetItem(&this->actor, play, GI_MAX, 80.0f, 60.0f);
     }
 }
 
@@ -711,7 +711,7 @@ void func_8088E018(EnElf* this, PlayState* play) {
     Vec3f parentPos;
     Actor* parent;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     func_8088D3EC(this, play);
     parent = this->actor.parent;
 
@@ -720,7 +720,7 @@ void func_8088E018(EnElf* this, PlayState* play) {
         parentPos.y += (1500.0f * this->actor.scale.y) + 40.0f;
         func_8088D660(this, &parentPos, 0.2f);
     } else {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
     this->unk_258 = Math_Atan2S_XY(this->actor.velocity.z, this->actor.velocity.x);
 }
@@ -731,10 +731,10 @@ void func_8088E0E0(EnElf* this, PlayState* play) {
 void func_8088E0F0(EnElf* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    SkelAnime_Update(&this->skelAnime);
-    Math_SmoothStepToF(&this->unk_254, 30.0f, 0.1f, 4.0f, 1.0f);
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Math_SmoothStepToF(&this->unk_254, 30.0f, 0.1f, 4.0f, 1.0f);
 
-    this->unk_224.x = Math_CosS(this->unk_248) * this->unk_254;
+    this->unk_224.x = MM_Math_CosS(this->unk_248) * this->unk_254;
     this->unk_224.y += this->unk_250;
 
     switch (this->unk_246) {
@@ -754,18 +754,18 @@ void func_8088E0F0(EnElf* this, PlayState* play) {
             break;
     }
 
-    this->unk_224.z = Math_SinS(this->unk_248) * -this->unk_254;
+    this->unk_224.z = MM_Math_SinS(this->unk_248) * -this->unk_254;
     this->unk_248 += this->unk_24C;
     func_8088D660(this, &player->actor.world.pos, 0.2f);
 
     if (this->unk_250 < 0.0f) {
         if ((this->unk_224.y < 20.0f) && (this->unk_224.y > 0.0f)) {
-            Actor_SetScale(&this->actor, this->unk_224.y * 0.008f * 0.05f);
+            MM_Actor_SetScale(&this->actor, this->unk_224.y * 0.008f * 0.05f);
         }
     }
 
     if (this->unk_224.y < -10.0f) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -777,9 +777,9 @@ void func_8088E0F0(EnElf* this, PlayState* play) {
 void func_8088E304(EnElf* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     if (this->unk_224.y > 200.0f) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -798,8 +798,8 @@ void func_8088E304(EnElf* this, PlayState* play) {
         }
     }
 
-    this->unk_224.x = Math_CosS(this->unk_248) * this->unk_254;
-    this->unk_224.z = Math_SinS(this->unk_248) * -this->unk_254;
+    this->unk_224.x = MM_Math_CosS(this->unk_248) * this->unk_254;
+    this->unk_224.z = MM_Math_SinS(this->unk_248) * -this->unk_254;
     this->unk_248 += this->unk_24C;
 
     func_8088D7F8(this, &player->bodyPartsPos[PLAYER_BODYPART_WAIST]);
@@ -811,7 +811,7 @@ void func_8088E304(EnElf* this, PlayState* play) {
 void func_8088E484(EnElf* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     this->unk_224.z = 0.0f;
     this->unk_224.x = 0.0f;
@@ -819,7 +819,7 @@ void func_8088E484(EnElf* this, PlayState* play) {
     this->unk_250 -= 0.35f;
 
     if (this->unk_250 <= 0.0f) {
-        EnElf_SetupAction(this, func_8088E304);
+        MM_EnElf_SetupAction(this, func_8088E304);
         this->unk_24C = 0x800;
         this->unk_24A = 0;
         this->unk_250 = 0.0f;
@@ -827,7 +827,7 @@ void func_8088E484(EnElf* this, PlayState* play) {
     }
 
     func_8088D7F8(this, &player->bodyPartsPos[PLAYER_BODYPART_WAIST]);
-    Actor_SetScale(&this->actor, (1.0f - (SQ(this->unk_250) * SQ(1.0f / 9.0f))) * 0.008f);
+    MM_Actor_SetScale(&this->actor, (1.0f - (SQ(this->unk_250) * SQ(1.0f / 9.0f))) * 0.008f);
     this->unk_258 = Math_Atan2S_XY(this->actor.velocity.z, this->actor.velocity.x);
     func_8088F5F4(this, play, 32);
     Actor_PlaySfx(&this->actor, NA_SE_EV_FIATY_HEAL - SFX_FLAG);
@@ -838,7 +838,7 @@ void func_8088E5A8(EnElf* this, PlayState* play) {
         func_8088EFA4(this, play);
     }
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     this->unk_26C(this, play);
 }
@@ -866,17 +866,17 @@ void func_8088E60C(EnElf* this, PlayState* play) {
     if (this->fairyFlags & 0x20) {
         Player* player = GET_PLAYER(play);
 
-        Lights_PointNoGlowSetInfo(&this->lightInfoNoGlow, player->actor.world.pos.x, player->actor.world.pos.y + 60.0f,
+        MM_Lights_PointNoGlowSetInfo(&this->lightInfoNoGlow, player->actor.world.pos.x, player->actor.world.pos.y + 60.0f,
                                   player->actor.world.pos.z, 255, 255, 255, 200);
     } else {
-        Lights_PointNoGlowSetInfo(&this->lightInfoNoGlow, this->actor.world.pos.x, this->actor.world.pos.y,
+        MM_Lights_PointNoGlowSetInfo(&this->lightInfoNoGlow, this->actor.world.pos.x, this->actor.world.pos.y,
                                   this->actor.world.pos.z, 255, 255, 255, -1);
     }
 
-    Lights_PointGlowSetInfo(&this->lightInfoGlow, this->actor.world.pos.x, this->actor.world.pos.y,
+    MM_Lights_PointGlowSetInfo(&this->lightInfoGlow, this->actor.world.pos.x, this->actor.world.pos.y,
                             this->actor.world.pos.z, 255, 255, 255, glowLightRadius);
     this->unk_258 = Math_Atan2S_XY(this->actor.velocity.z, this->actor.velocity.x);
-    Actor_SetScale(&this->actor, this->actor.scale.x);
+    MM_Actor_SetScale(&this->actor, this->actor.scale.x);
 }
 
 void func_8088E850(EnElf* this, PlayState* play) {
@@ -917,11 +917,11 @@ void func_8088E850(EnElf* this, PlayState* play) {
         }
     } else {
         this->actor.shape.rot.x = 0;
-        distFromLinksHead = Math_Vec3f_DistXYZ(&player->bodyPartsPos[PLAYER_BODYPART_HAT], &this->actor.world.pos);
+        distFromLinksHead = MM_Math_Vec3f_DistXYZ(&player->bodyPartsPos[PLAYER_BODYPART_HAT], &this->actor.world.pos);
         switch (this->unk_244) {
             case 5:
                 func_8088D660(this, &player->bodyPartsPos[PLAYER_BODYPART_HAT], 1.0f - (this->unk_24A * 0.033333335f));
-                xScale = Math_Vec3f_DistXYZ(&player->bodyPartsPos[PLAYER_BODYPART_HAT], &this->actor.world.pos);
+                xScale = MM_Math_Vec3f_DistXYZ(&player->bodyPartsPos[PLAYER_BODYPART_HAT], &this->actor.world.pos);
 
                 if (distFromLinksHead < 7.0f) {
                     this->unk_25C = 0;
@@ -970,9 +970,9 @@ void func_8088E850(EnElf* this, PlayState* play) {
             default:
                 tatlHoverActor = play->actorCtx.attention.tatlHoverActor;
                 if ((player->stateFlags1 & PLAYER_STATE1_TALKING) && (player->talkActor != NULL)) {
-                    Math_Vec3f_Copy(&nextPos, &player->talkActor->focus.pos);
+                    MM_Math_Vec3f_Copy(&nextPos, &player->talkActor->focus.pos);
                 } else {
-                    Math_Vec3f_Copy(&nextPos, &play->actorCtx.attention.tatlHoverPos);
+                    MM_Math_Vec3f_Copy(&nextPos, &play->actorCtx.attention.tatlHoverPos);
                 }
                 nextPos.y += 1500.0f * this->actor.scale.y;
 
@@ -983,7 +983,7 @@ void func_8088E850(EnElf* this, PlayState* play) {
                     }
                 } else {
                     if ((this->timer % 32) == 0) {
-                        this->unk_23C = Rand_ZeroFloat(7.0f) + 3.0f;
+                        this->unk_23C = MM_Rand_ZeroFloat(7.0f) + 3.0f;
                     }
 
                     if (this->fairyFlags & 2) {
@@ -1012,7 +1012,7 @@ void func_8088E850(EnElf* this, PlayState* play) {
     } else if (this->unk_244 == 6) {
         this->actor.scale.x = 0.0f;
     } else {
-        Math_SmoothStepToF(&this->actor.scale.x, 0.008f, 0.3f, 0.00080000004f, 0.000080000005f);
+        MM_Math_SmoothStepToF(&this->actor.scale.x, 0.008f, 0.3f, 0.00080000004f, 0.000080000005f);
     }
 
     func_8088E60C(this, play);
@@ -1070,11 +1070,11 @@ void func_8088EFA4(EnElf* this, PlayState* play) {
         }
     } else if (this->unk_268 == 0) {
         if ((tatlHoverActor == NULL) ||
-            (Math_Vec3f_DistXYZ(&this->actor.world.pos, &play->actorCtx.attention.tatlHoverPos) < 50.0f)) {
+            (MM_Math_Vec3f_DistXYZ(&this->actor.world.pos, &play->actorCtx.attention.tatlHoverPos) < 50.0f)) {
             this->unk_268 = 1;
         }
     } else if (this->unk_238 != 0.0f) {
-        if (Math_StepToF(&this->unk_238, 0.0f, 0.25f)) {
+        if (MM_Math_StepToF(&this->unk_238, 0.0f, 0.25f)) {
             this->innerColor = play->actorCtx.attention.tatlInnerColor;
             this->outerColor = play->actorCtx.attention.tatlOuterColor;
         } else {
@@ -1232,8 +1232,8 @@ void func_8088F214(EnElf* this, PlayState* play) {
     if (sp34 != this->unk_244) {
         func_8088C51C(this, sp34);
         if (sp34 == 9) {
-            this->unk_254 = Math_Vec3f_DistXZ(&player->bodyPartsPos[PLAYER_BODYPART_HAT], &this->actor.world.pos);
-            this->unk_248 = Math_Vec3f_Yaw(&this->actor.world.pos, &player->bodyPartsPos[PLAYER_BODYPART_HAT]);
+            this->unk_254 = MM_Math_Vec3f_DistXZ(&player->bodyPartsPos[PLAYER_BODYPART_HAT], &this->actor.world.pos);
+            this->unk_248 = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &player->bodyPartsPos[PLAYER_BODYPART_HAT]);
         }
     }
 }
@@ -1247,9 +1247,9 @@ void func_8088F5F4(EnElf* this, PlayState* play, s32 sparkleLife) {
     Color_RGBA8 envColor;
 
     if (!(this->fairyFlags & 8)) {
-        sparklePos.x = Rand_CenteredFloat(6.0f) + this->actor.world.pos.x;
-        sparklePos.y = (Rand_ZeroOne() * 6.0f) + this->actor.world.pos.y;
-        sparklePos.z = Rand_CenteredFloat(6.0f) + this->actor.world.pos.z;
+        sparklePos.x = MM_Rand_CenteredFloat(6.0f) + this->actor.world.pos.x;
+        sparklePos.y = (MM_Rand_ZeroOne() * 6.0f) + this->actor.world.pos.y;
+        sparklePos.z = MM_Rand_CenteredFloat(6.0f) + this->actor.world.pos.z;
 
         primColor.r = this->innerColor.r;
         primColor.g = this->innerColor.g;
@@ -1286,10 +1286,10 @@ void func_8088FA38(EnElf* this, PlayState* play) {
             if ((player->focusActor == NULL) || (&player->actor == player->focusActor) ||
                 (&this->actor == player->focusActor) || (this->unk_264 & 4)) {
                 refPos.x =
-                    player->bodyPartsPos[PLAYER_BODYPART_HEAD].x + (Math_SinS(player->actor.shape.rot.y) * 20.0f);
+                    player->bodyPartsPos[PLAYER_BODYPART_HEAD].x + (MM_Math_SinS(player->actor.shape.rot.y) * 20.0f);
                 refPos.y = player->bodyPartsPos[PLAYER_BODYPART_HEAD].y + 5.0f;
                 refPos.z =
-                    player->bodyPartsPos[PLAYER_BODYPART_HEAD].z + (Math_CosS(player->actor.shape.rot.y) * 20.0f);
+                    player->bodyPartsPos[PLAYER_BODYPART_HEAD].z + (MM_Math_CosS(player->actor.shape.rot.y) * 20.0f);
                 this->unk_264 &= ~4;
             }
         }
@@ -1305,23 +1305,23 @@ void func_8088FA38(EnElf* this, PlayState* play) {
         func_8088F5F4(this, play, 0x10);
     }
 
-    Math_SmoothStepToF(&this->actor.scale.x, 0.008f, 0.3f, 0.00080000004f, 0.000080000005f);
+    MM_Math_SmoothStepToF(&this->actor.scale.x, 0.008f, 0.3f, 0.00080000004f, 0.000080000005f);
     func_8088E60C(this, play);
 }
 
 void func_8088FC34(EnElf* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->unk_258, 5, 0x1000, 0x400);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->unk_258, 5, 0x1000, 0x400);
     this->timer++;
 
     if (this->unk_234 == NULL) {
         if (this->unk_264 & 0x20) {
             this->unk_240 = 0.0f;
         } else {
-            Math_StepToF(&this->unk_240, 1.0f, 0.05f);
+            MM_Math_StepToF(&this->unk_240, 1.0f, 0.05f);
         }
-        Environment_AdjustLights(play, SQ(this->unk_240), player->actor.projectedPos.z + 780.0f, 0.2f, 0.5f);
+        MM_Environment_AdjustLights(play, SQ(this->unk_240), player->actor.projectedPos.z + 780.0f, 0.2f, 0.5f);
     }
 }
 
@@ -1361,9 +1361,9 @@ void func_8088FE64(Actor* thisx, PlayState* play2) {
 
     func_8088FA38(this, play);
 
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_CHOICE:
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 if (play->msgCtx.currentTextId == 0x202) {
                     switch (play->msgCtx.choiceIndex) {
                         case 0:
@@ -1378,21 +1378,21 @@ void func_8088FE64(Actor* thisx, PlayState* play2) {
 
                 switch (play->msgCtx.choiceIndex) {
                     case 0:
-                        Message_ContinueTextbox(play, play->msgCtx.currentTextId - 1);
+                        MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId - 1);
                         break;
 
                     case 1:
-                        Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                        MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                         break;
                 }
             }
             break;
 
         case TEXT_STATE_EVENT:
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 switch (play->msgCtx.currentTextId) {
                     case 0x240:
-                        Message_ContinueTextbox(play, 0x245);
+                        MM_Message_ContinueTextbox(play, 0x245);
                         break;
 
                     case 0x21D:
@@ -1409,28 +1409,28 @@ void func_8088FE64(Actor* thisx, PlayState* play2) {
                     case 0x244:
                         switch (CURRENT_DAY) {
                             case 1:
-                                Message_ContinueTextbox(play, 0x246);
+                                MM_Message_ContinueTextbox(play, 0x246);
                                 break;
 
                             case 2:
-                                Message_ContinueTextbox(play, 0x247);
+                                MM_Message_ContinueTextbox(play, 0x247);
                                 break;
 
                             case 3:
                                 if (!gSaveContext.save.isNight) {
-                                    Message_ContinueTextbox(play, 0x248);
+                                    MM_Message_ContinueTextbox(play, 0x248);
                                 } else if ((CURRENT_TIME < CLOCK_TIME(6, 0)) &&
                                            CHECK_WEEKEVENTREG(WEEKEVENTREG_74_20)) {
-                                    Message_ContinueTextbox(play, 0x225);
+                                    MM_Message_ContinueTextbox(play, 0x225);
                                 } else {
-                                    Message_ContinueTextbox(play, 0x249);
+                                    MM_Message_ContinueTextbox(play, 0x249);
                                 }
                                 break;
                         }
                         break;
 
                     default:
-                        Message_CloseTextbox(play);
+                        MM_Message_CloseTextbox(play);
                         func_8088FDCC(this);
                         break;
                 }
@@ -1472,7 +1472,7 @@ void func_8089010C(Actor* thisx, PlayState* play) {
     }
 
     if (Actor_TalkOfferAccepted(thisx, &play->state)) {
-        Audio_PlaySfx_AtPosWithReverb(&gSfxDefaultPos, NA_SE_VO_NA_LISTEN, 0x20);
+        Audio_PlaySfx_AtPosWithReverb(&MM_gSfxDefaultPos, NA_SE_VO_NA_LISTEN, 0x20);
         thisx->focus.pos = thisx->world.pos;
 
         if (thisx->textId == QuestHint_GetTatlTextId(play)) {
@@ -1507,7 +1507,7 @@ void func_8089010C(Actor* thisx, PlayState* play) {
     } else {
         this->actionFunc(this, play);
 
-        if (!Play_InCsMode(play)) {
+        if (!MM_Play_InCsMode(play)) {
             if (gSaveContext.save.saveInfo.playerData.tatlTimer < 25800) {
                 gSaveContext.save.saveInfo.playerData.tatlTimer++;
             } else if (!(this->fairyFlags & 0x80)) {
@@ -1519,9 +1519,9 @@ void func_8089010C(Actor* thisx, PlayState* play) {
     this->elfMsg = NULL;
     this->timer++;
 
-    if ((this->unk_240 >= 0.0f) && Environment_AdjustLights(play, SQ(this->unk_240) * this->unk_240,
+    if ((this->unk_240 >= 0.0f) && MM_Environment_AdjustLights(play, SQ(this->unk_240) * this->unk_240,
                                                             player->actor.projectedPos.z + 780.0f, 0.2f, 0.5f)) {
-        Math_StepToF(&this->unk_240, -0.05f, 0.05f);
+        MM_Math_StepToF(&this->unk_240, -0.05f, 0.05f);
     }
 
     if (this->unk_269 > 0) {
@@ -1533,7 +1533,7 @@ void func_8089010C(Actor* thisx, PlayState* play) {
     }
 }
 
-void EnElf_Update(Actor* thisx, PlayState* play) {
+void MM_EnElf_Update(Actor* thisx, PlayState* play) {
     EnElf* this = (EnElf*)thisx;
 
     this->actionFunc(this, play);
@@ -1546,24 +1546,24 @@ void EnElf_Update(Actor* thisx, PlayState* play) {
     }
 }
 
-s32 EnElf_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx,
+s32 MM_EnElf_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx,
                            Gfx** gfx) {
-    static Vec3f sZeroVec = { 0.0f, 0.0f, 0.0f };
+    static Vec3f MM_sZeroVec = { 0.0f, 0.0f, 0.0f };
     s32 pad;
     EnElf* this = (EnElf*)thisx;
     Vec3f sp34;
     f32 scale;
 
     if (limbIndex == FAIRY_LIMB_6) {
-        scale = ((Math_SinS(this->timer * 4096) * 0.1f) + 1.0f) * 0.012f;
+        scale = ((MM_Math_SinS(this->timer * 4096) * 0.1f) + 1.0f) * 0.012f;
         if (this->fairyFlags & 0x200) {
             scale *= 2.0f;
         }
         scale *= this->actor.scale.x * (1.0f / 0.008f);
 
-        Matrix_MultVec3f(&sZeroVec, &sp34);
-        Matrix_Translate(sp34.x, sp34.y, sp34.z, MTXMODE_NEW);
-        Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+        MM_Matrix_MultVec3f(&MM_sZeroVec, &sp34);
+        MM_Matrix_Translate(sp34.x, sp34.y, sp34.z, MTXMODE_NEW);
+        MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
     }
 
     //! @note: `limbIndex` extends past `FAIRY_LIMB_MAX`.
@@ -1576,7 +1576,7 @@ s32 EnElf_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* p
     return false;
 }
 
-void EnElf_Draw(Actor* thisx, PlayState* play) {
+void MM_EnElf_Draw(Actor* thisx, PlayState* play) {
     EnElf* this = (EnElf*)thisx;
     Player* player = GET_PLAYER(play);
     s32 pad;
@@ -1617,8 +1617,8 @@ void EnElf_Draw(Actor* thisx, PlayState* play) {
             gDPSetEnvColor(POLY_XLU_DISP++, (u8)(s8)this->outerColor.r, (u8)(s8)this->outerColor.g,
                            (u8)(s8)this->outerColor.b, (u8)(s8)(envAlpha * alphaScale));
 
-            POLY_XLU_DISP = SkelAnime_Draw(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
-                                           EnElf_OverrideLimbDraw, NULL, &this->actor, POLY_XLU_DISP);
+            POLY_XLU_DISP = MM_SkelAnime_Draw(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
+                                           MM_EnElf_OverrideLimbDraw, NULL, &this->actor, POLY_XLU_DISP);
 
             CLOSE_DISPS(play->state.gfxCtx);
         }
@@ -1639,6 +1639,6 @@ void func_808908D0(Vec3f* vec, PlayState* play, u32 action) {
     endPos.y = cue->endPos.y;
     endPos.z = cue->endPos.z;
 
-    lerp = Environment_LerpWeight(cue->endFrame, cue->startFrame, play->csCtx.curFrame);
+    lerp = MM_Environment_LerpWeight(cue->endFrame, cue->startFrame, play->csCtx.curFrame);
     VEC3F_LERPIMPDST(vec, &startPos, &endPos, lerp);
 }

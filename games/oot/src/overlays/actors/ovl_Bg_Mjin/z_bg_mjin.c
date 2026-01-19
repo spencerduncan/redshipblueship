@@ -39,7 +39,7 @@ const ActorInit Bg_Mjin_InitVars = {
 
 extern UNK_TYPE D_06000000;
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 1000, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 400, ICHAIN_CONTINUE),
@@ -60,11 +60,11 @@ void BgMjin_Init(Actor* thisx, PlayState* play) {
     BgMjin* this = (BgMjin*)thisx;
     s8 objBankIndex;
 
-    Actor_ProcessInitChain(thisx, sInitChain);
+    OoT_Actor_ProcessInitChain(thisx, OoT_sInitChain);
     objBankIndex = Object_GetIndex(&play->objectCtx, (thisx->params != 0 ? OBJECT_MJIN : OBJECT_MJIN_OKA));
     this->objBankIndex = objBankIndex;
     if (objBankIndex < 0) {
-        Actor_Kill(thisx);
+        OoT_Actor_Kill(thisx);
     } else {
         BgMjin_SetupAction(this, func_808A0850);
     }
@@ -73,22 +73,22 @@ void BgMjin_Init(Actor* thisx, PlayState* play) {
 void BgMjin_Destroy(Actor* thisx, PlayState* play) {
     BgMjin* this = (BgMjin*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_808A0850(BgMjin* this, PlayState* play) {
     CollisionHeader* colHeader;
     CollisionHeader* collision;
 
-    if (Object_IsLoaded(&play->objectCtx, this->objBankIndex)) {
+    if (OoT_Object_IsLoaded(&play->objectCtx, this->objBankIndex)) {
         colHeader = NULL;
         this->dyna.actor.flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
         this->dyna.actor.objBankIndex = this->objBankIndex;
-        Actor_SetObjectDependency(play, &this->dyna.actor);
-        DynaPolyActor_Init(&this->dyna, 0);
+        OoT_Actor_SetObjectDependency(play, &this->dyna.actor);
+        OoT_DynaPolyActor_Init(&this->dyna, 0);
         collision = this->dyna.actor.params != 0 ? &gWarpPadCol : &gOcarinaWarpPadCol;
-        CollisionHeader_GetVirtual(collision, &colHeader);
-        this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+        OoT_CollisionHeader_GetVirtual(collision, &colHeader);
+        this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
         BgMjin_SetupAction(this, BgMjin_DoNothing);
         this->dyna.actor.draw = BgMjin_Draw;
     }
@@ -113,7 +113,7 @@ void BgMjin_Draw(Actor* thisx, PlayState* play) {
         s32 objBankIndex = Object_GetIndex(&play->objectCtx, sObjectIDs[thisx->params - 1]);
 
         if (objBankIndex >= 0) {
-            gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[objBankIndex].segment);
+            OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[objBankIndex].segment);
         }
 
         gSPSegment(POLY_OPA_DISP++, 0x08, gPedestalEmblems[thisx->params - 1]);

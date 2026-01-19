@@ -46,7 +46,7 @@ static Gfx* D_80AF7534[] = { gDampeGraveBrownElevatorDL };
 
 static CollisionHeader* D_80AF7538[] = { &gDampeGraveBrownElevatorCol };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeScale, 1500, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 1100, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 1000, ICHAIN_CONTINUE),
@@ -69,11 +69,11 @@ s32 func_80AF6DE0(PlayState* this, ActorPathing* actorPathing) {
 void BgDanpeiMovebg_Init(Actor* thisx, PlayState* play) {
     BgDanpeiMovebg* this = (BgDanpeiMovebg*)thisx;
 
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
 
     this->objectSlot = SubS_GetObjectSlot(D_80AF7530[BGDANPEIMOVEBG_GET_TYPE(thisx)], play);
     if (this->objectSlot <= OBJECT_SLOT_NONE) {
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
     }
 
     this->actionFunc = func_80AF6EA8;
@@ -83,10 +83,10 @@ void func_80AF6EA8(BgDanpeiMovebg* this, PlayState* play) {
     Actor* thisx = &this->dyna.actor;
 
     if (SubS_IsObjectLoaded(this->objectSlot, play)) {
-        gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->objectSlot].segment);
+        MM_gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->objectSlot].segment);
         this->dyna.actor.objectSlot = this->objectSlot;
         this->dyna.actor.draw = func_80AF74CC;
-        Actor_ProcessInitChain(thisx, sInitChain);
+        MM_Actor_ProcessInitChain(thisx, MM_sInitChain);
         DynaPolyActor_LoadMesh(play, &this->dyna, D_80AF7538[BGDANPEIMOVEBG_GET_TYPE(thisx)]);
         this->dList = D_80AF7534[BGDANPEIMOVEBG_GET_TYPE(thisx)];
 
@@ -104,7 +104,7 @@ void func_80AF6EA8(BgDanpeiMovebg* this, PlayState* play) {
 void BgDanpeiMovebg_Destroy(Actor* thisx, PlayState* play) {
     BgDanpeiMovebg* this = (BgDanpeiMovebg*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void BgDanpeiMovebg_Update(Actor* thisx, PlayState* play) {
@@ -118,10 +118,10 @@ void BgDanpeiMovebg_Update(Actor* thisx, PlayState* play) {
 u16 func_80AF705C(BgDanpeiMovebg* this, u16 flags) {
     u16 newFlags = flags & ~(DANPEI_MOVEBG_FLAG_4 | DANPEI_MOVEBG_FLAG_8 | DANPEI_MOVEBG_FLAG_10);
 
-    if (DynaPolyActor_IsActorOnTop(&this->dyna) && (this->flags & DANPEI_MOVEBG_FLAG_1)) {
+    if (MM_DynaPolyActor_IsActorOnTop(&this->dyna) && (this->flags & DANPEI_MOVEBG_FLAG_1)) {
         newFlags |= DANPEI_MOVEBG_FLAG_4;
     }
-    if (DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
+    if (MM_DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
         if (gSaveContext.save.playerForm == PLAYER_FORM_DEKU) {
             newFlags |= DANPEI_MOVEBG_FLAG_8;
         } else {
@@ -142,12 +142,12 @@ void func_80AF70FC(BgDanpeiMovebg* this, PlayState* play) {
         if (!(this->prevFlags & DANPEI_MOVEBG_FLAG_10)) {
             Actor_PlaySfx(&this->dyna.actor, NA_SE_EV_SINK_WOOD_FLOOR);
         }
-        Math_SmoothStepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y - 8.0f, 1.0f, 2.0f, 0.01f);
+        MM_Math_SmoothStepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y - 8.0f, 1.0f, 2.0f, 0.01f);
     } else {
         if (this->prevFlags & DANPEI_MOVEBG_FLAG_10) {
             Actor_PlaySfx(&this->dyna.actor, NA_SE_EV_REBOUND_WOOD_FLOOR);
         }
-        Math_SmoothStepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y, 1.0f, 2.0f, 0.01f);
+        MM_Math_SmoothStepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y, 1.0f, 2.0f, 0.01f);
     }
 }
 
@@ -225,6 +225,6 @@ void func_80AF74CC(Actor* thisx, PlayState* play) {
     BgDanpeiMovebg* this = (BgDanpeiMovebg*)thisx;
 
     if (this->dList != NULL) {
-        Gfx_DrawDListOpa(play, this->dList);
+        MM_Gfx_DrawDListOpa(play, this->dList);
     }
 }

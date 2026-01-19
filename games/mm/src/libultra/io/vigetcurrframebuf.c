@@ -1,6 +1,6 @@
 #include "ultra64.h"
 
-void* osViGetCurrentFramebuffer(void) {
+void* MM_osViGetCurrentFramebuffer(void) {
     register u32 prevInt = __osDisableInt();
     void* curBuf = __osViCurr->buffer;
 

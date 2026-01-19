@@ -83,7 +83,7 @@ ActorProfile En_S_Goro_Profile = {
     /**/ EnSGoro_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HIT1,
         AT_NONE,
@@ -103,9 +103,9 @@ static ColliderCylinderInit sCylinderInit = {
     { 0, 0, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 MM_sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(1, 0x0),
     /* Deku Stick     */ DMG_ENTRY(1, 0x0),
     /* Horse trample  */ DMG_ENTRY(1, 0x0),
@@ -160,7 +160,7 @@ typedef enum EnSGoroAnimation {
     /* 0x10 */ EN_S_GORO_ANIM_MAX
 } EnSGoroAnimation;
 
-static AnimationInfoS sAnimationInfo[EN_S_GORO_ANIM_MAX] = {
+static AnimationInfoS MM_sAnimationInfo[EN_S_GORO_ANIM_MAX] = {
     { &gGoronLyingDownIdleAnim, 1.0f, 0, -1, ANIMMODE_LOOP, 0 },                     // EN_S_GORO_ANIM_IDLE_LIEDOWN_A
     { &gGoronLyingDownIdleAnim, 1.0f, 0, -1, ANIMMODE_LOOP, -4 },                    // EN_S_GORO_ANIM_IDLE_LIEDOWN_B
     { &gGoronUnrollAnim, 2.0f, 0, -1, ANIMMODE_ONCE, 0 },                            // EN_S_GORO_ANIM_UNROLL_A
@@ -187,7 +187,7 @@ typedef enum EnSGoroEyeTexture {
     /* 0x4 */ EN_S_GORO_EYETEX_MAX
 } EnSGoroEyeTexture;
 
-static TexturePtr sEyeTextures[EN_S_GORO_EYETEX_MAX] = {
+static TexturePtr MM_sEyeTextures[EN_S_GORO_EYETEX_MAX] = {
     gGoronEyeOpenTex,
     gGoronEyeHalfTex,
     gGoronEyeClosedTex,
@@ -243,7 +243,7 @@ u16 EnSGoro_ShrineGoron_NextTextId(EnSGoro* this, PlayState* play) {
                 }
             } else {
                 // Scene flag - Checks whether the chandelier has been lit
-                if (!Flags_GetSwitch(play, EN_S_GORO_GET_SWITCH_FLAG(&this->actor))) {
+                if (!MM_Flags_GetSwitch(play, EN_S_GORO_GET_SWITCH_FLAG(&this->actor))) {
                     if (player->transformation == PLAYER_FORM_GORON) {
                         if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_36_08)) {
                             if (this->textId == 0xD02) {
@@ -735,7 +735,7 @@ void EnSGoro_UpdateSleeping(EnSGoro* this, PlayState* play) {
     s16 curFrame = this->skelAnime.curFrame;
 
     this->snorePhase += 0x400;
-    this->scaleFactor = Math_SinS(this->snorePhase) * 0.01f * 0.1f;
+    this->scaleFactor = MM_Math_SinS(this->snorePhase) * 0.01f * 0.1f;
     this->actor.scale.y = 0.01f - this->scaleFactor;
     this->actor.scale.z = 0.01f - this->scaleFactor;
     this->actor.scale.x = 0.01f + this->scaleFactor;
@@ -767,18 +767,18 @@ s32 EnSGoro_UpdateCheerAnimation(EnSGoro* this, PlayState* play) {
         if (((EnJg*)this->otherGoron)->flags & 1) {
             this->objectSlot = Object_GetSlot(&play->objectCtx, OBJECT_TAISOU);
             if (this->objectSlot > OBJECT_SLOT_NONE) {
-                gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->objectSlot].segment);
+                MM_gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->objectSlot].segment);
                 this->animIndex = EN_S_GORO_ANIM_TAISOU_CHEER;
-                SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+                SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
                 return true;
             }
         }
     } else if ((this->animIndex == EN_S_GORO_ANIM_TAISOU_CHEER) && !(((EnJg*)this->otherGoron)->flags & 1)) {
         this->objectSlot = Object_GetSlot(&play->objectCtx, OBJECT_OF1D_MAP);
         if (this->objectSlot > OBJECT_SLOT_NONE) {
-            gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->objectSlot].segment);
+            MM_gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->objectSlot].segment);
             this->animIndex = EN_S_GORO_ANIM_IDLE_STAND;
-            SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+            SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
             this->skelAnime.curFrame = this->skelAnime.endFrame;
             return true;
         }
@@ -793,7 +793,7 @@ s32 EnSGoro_CheckLullaby(EnSGoro* this, PlayState* play) {
     if ((player->transformation == PLAYER_FORM_GORON) && (play->msgCtx.ocarinaMode == OCARINA_MODE_EVENT)) {
         if (play->msgCtx.lastPlayedSong == OCARINA_SONG_GORON_LULLABY) {
             this->animIndex = EN_S_GORO_ANIM_ROLLUP;
-            SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+            SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
 
             actorType = EN_S_GORO_GET_MAIN_TYPE(&this->actor);
             this->snorePhase = 0x400 << (actorType + 1);
@@ -825,7 +825,7 @@ s32 EnSGoro_CheckGKBehavior(EnSGoro* this, PlayState* play) {
 
         this->actionFlags |= EN_S_GORO_ACTIONFLAG_GKQUIET_ACKNOWLEDGED;
         this->animIndex = EN_S_GORO_ANIM_ROLLUP;
-        SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+        SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
 
         actorType = EN_S_GORO_GET_MAIN_TYPE(&this->actor);
         this->snorePhase = 0x400 << (actorType + 1);
@@ -848,37 +848,37 @@ s32 EnSGoro_CheckGKBehavior(EnSGoro* this, PlayState* play) {
 
 void EnSGoro_UpdateToHandtapAnimation(EnSGoro* this) {
     s16 curFrame = this->skelAnime.curFrame;
-    s16 endFrame = Animation_GetLastFrame(sAnimationInfo[this->animIndex].animation);
+    s16 endFrame = MM_Animation_GetLastFrame(MM_sAnimationInfo[this->animIndex].animation);
 
     if ((this->animIndex != EN_S_GORO_ANIM_STAND_HANDTAP) && (curFrame == endFrame)) {
         this->animIndex = EN_S_GORO_ANIM_STAND_HANDTAP;
-        SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+        SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
     }
 }
 
 void EnSGoro_UpdateSleepyAnimation(EnSGoro* this) {
     s16 curFrame = this->skelAnime.curFrame;
-    s16 endFrame = Animation_GetLastFrame(sAnimationInfo[this->animIndex].animation);
+    s16 endFrame = MM_Animation_GetLastFrame(MM_sAnimationInfo[this->animIndex].animation);
 
     if (this->animIndex != EN_S_GORO_ANIM_SLEEPY) {
         if (curFrame == endFrame) {
             this->animIndex = EN_S_GORO_ANIM_SLEEPY;
-            SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+            SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
         }
     } else if (curFrame == endFrame) {
         this->actionFlags &= ~EN_S_GORO_ACTIONFLAG_TIRED;
         this->animIndex = EN_S_GORO_ANIM_IDLE_STAND;
-        SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+        SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
     }
 }
 
 void EnSGoro_UpdateToIdleAnimation(EnSGoro* this) {
     s16 curFrame = this->skelAnime.curFrame;
-    s16 endFrame = Animation_GetLastFrame(sAnimationInfo[this->animIndex].animation);
+    s16 endFrame = MM_Animation_GetLastFrame(MM_sAnimationInfo[this->animIndex].animation);
 
     if ((this->animIndex != EN_S_GORO_ANIM_IDLE_STAND) && (curFrame == endFrame)) {
         this->animIndex = EN_S_GORO_ANIM_IDLE_STAND;
-        SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+        SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
     }
 }
 
@@ -896,7 +896,7 @@ void EnSGoro_UpdateCollider(EnSGoro* this, PlayState* play) {
     //! @bug: The check is useless. If &this->collider somehow was NULL the above code would have already dereferenced
     //! it. Cast to `intptr_t` to suppress address comparision to NULL warning.
     if ((intptr_t)(&this->collider) != (intptr_t)NULL) {
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -905,7 +905,7 @@ void EnSGoro_UpdateEyes(EnSGoro* this) {
         if (DECR(this->eyeTimer) == 0) {
             this->eyeTexIndex++;
             if (this->eyeTexIndex > EN_S_GORO_EYETEX_CLOSED) {
-                this->eyeTimer = Rand_S16Offset(30, 30);
+                this->eyeTimer = MM_Rand_S16Offset(30, 30);
                 this->eyeTexIndex = EN_S_GORO_EYETEX_OPEN;
             }
         }
@@ -935,11 +935,11 @@ s32 EnSGoro_UpdateRotationToPlayer(EnSGoro* this, PlayState* play) {
     Vec3f thisPos;
     s16 target = (this->actor.yawTowardsPlayer - this->bodyRotY) - this->actor.shape.rot.y;
 
-    Math_SmoothStepToS(&this->headRotY, target, 4, 0x2AA8, 1);
+    MM_Math_SmoothStepToS(&this->headRotY, target, 4, 0x2AA8, 1);
     this->headRotY = CLAMP(this->headRotY, -0x1FFE, 0x1FFE);
 
     target = (this->actor.yawTowardsPlayer - this->headRotY) - this->actor.shape.rot.y;
-    Math_SmoothStepToS(&this->bodyRotY, target, 4, 0x2AA8, 1);
+    MM_Math_SmoothStepToS(&this->bodyRotY, target, 4, 0x2AA8, 1);
     this->bodyRotY = CLAMP(this->bodyRotY, -0x1C70, 0x1C70);
 
     playerPos = player->actor.world.pos;
@@ -947,12 +947,12 @@ s32 EnSGoro_UpdateRotationToPlayer(EnSGoro* this, PlayState* play) {
     thisPos = this->actor.world.pos;
     thisPos.y += 70.0f;
 
-    target = Math_Vec3f_Pitch(&thisPos, &playerPos) - this->bodyRotZ;
-    Math_SmoothStepToS(&this->headRotZ, target, 4, 0x2AA8, 1);
+    target = MM_Math_Vec3f_Pitch(&thisPos, &playerPos) - this->bodyRotZ;
+    MM_Math_SmoothStepToS(&this->headRotZ, target, 4, 0x2AA8, 1);
     this->headRotZ = CLAMP(this->headRotZ, -0x1C70, 0x1C70);
 
-    target = Math_Vec3f_Pitch(&thisPos, &playerPos) - this->headRotZ;
-    Math_SmoothStepToS(&this->bodyRotZ, target, 4, 0x2AA8, 1);
+    target = MM_Math_Vec3f_Pitch(&thisPos, &playerPos) - this->headRotZ;
+    MM_Math_SmoothStepToS(&this->bodyRotZ, target, 4, 0x2AA8, 1);
     this->bodyRotZ = CLAMP(this->bodyRotZ, -0x1C70, 0x1C70);
 
     return true;
@@ -982,7 +982,7 @@ s32 EnSGoro_UpdateAttentionTarget(EnSGoro* this, PlayState* play) {
         this->actionFlags |= EN_S_GORO_ACTIONFLAG_FACEPLAYER;
         EnSGoro_UpdateRotationToPlayer(this, play);
     } else if (!(this->actionFlags & EN_S_GORO_ACTIONFLAG_EARSCOVERED) &&
-               Actor_IsFacingAndNearPlayer(&this->actor, 120.0f, 0x3FFC)) {
+               MM_Actor_IsFacingAndNearPlayer(&this->actor, 120.0f, 0x3FFC)) {
         this->actionFlags |= EN_S_GORO_ACTIONFLAG_FACEPLAYER;
         EnSGoro_UpdateRotationToPlayer(this, play);
     } else {
@@ -1003,28 +1003,28 @@ s32 EnSGoro_UpdateAttentionTarget(EnSGoro* this, PlayState* play) {
 }
 
 void EnSGoro_SetupAction(EnSGoro* this, PlayState* play) {
-    if (Object_IsLoaded(&play->objectCtx, this->objectSlot)) {
+    if (MM_Object_IsLoaded(&play->objectCtx, this->objectSlot)) {
         this->actionFlags = 0;
         if (EN_S_GORO_OFTYPE_WSHRINE) {
             if (CHECK_WEEKEVENTREG(WEEKEVENTREG_CALMED_GORON_ELDERS_SON)) {
                 this->actionFlags |= EN_S_GORO_ACTIONFLAG_GKQUIET_ACKNOWLEDGED;
                 this->actionFlags |= EN_S_GORO_ACTIONFLAG_EYESOPEN;
                 this->animIndex = EN_S_GORO_ANIM_SHIVER_A;
-                SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+                SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
             } else {
                 this->eyeTexIndex = EN_S_GORO_EYETEX_CLOSED2;
                 this->actionFlags |= EN_S_GORO_ACTIONFLAG_EARSCOVERED;
                 this->animIndex = EN_S_GORO_ANIM_COVEREARS;
-                SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+                SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
             }
         } else {
             this->actionFlags |= EN_S_GORO_ACTIONFLAG_EYESOPEN;
             this->animIndex = EN_S_GORO_ANIM_IDLE_STAND;
-            SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+            SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
         }
 
         this->scaleFactor = 0.01f;
-        Actor_SetScale(&this->actor, 0.01f);
+        MM_Actor_SetScale(&this->actor, 0.01f);
         this->actor.gravity = -1.0f;
         this->actor.flags |= ACTOR_FLAG_UPDATE_CULLING_DISABLED;
         this->actor.flags |= ACTOR_FLAG_UPDATE_DURING_OCARINA;
@@ -1076,7 +1076,7 @@ void EnSGoro_SetupAction(EnSGoro* this, PlayState* play) {
                 this->actor.shape.yOffset = EN_S_GORO_ROLLEDUP_YOFFSET;
                 break;
             default:
-                Actor_Kill(&this->actor);
+                MM_Actor_Kill(&this->actor);
                 break;
         }
     }
@@ -1091,18 +1091,18 @@ void EnSGoro_WinterShrineGoron_Idle(EnSGoro* this, PlayState* play) {
                 this->eyeTexIndex = EN_S_GORO_EYETEX_OPEN;
             }
             this->textId = EnSGoro_ShrineGoron_NextTextId(this, play);
-            Message_StartTextbox(play, this->textId, &this->actor);
+            MM_Message_StartTextbox(play, this->textId, &this->actor);
             this->actionFunc = EnSGoro_WinterShrineGoron_Talk;
         } else if ((this->actor.xzDistToPlayer < 250.0f) || this->actor.isLockedOn) {
             Actor_OfferTalkNearColChkInfoCylinder(&this->actor, play);
         }
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 5, 0x1000, 0x100);
+        MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 5, 0x1000, 0x100);
         this->actor.world.rot.y = this->actor.shape.rot.y;
     }
 }
 
 void EnSGoro_WinterShrineGoron_Talk(EnSGoro* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && MM_Message_ShouldAdvance(play)) {
         if (this->actionFlags & EN_S_GORO_ACTIONFLAG_LASTMESSAGE) {
             this->actionFlags &= ~EN_S_GORO_ACTIONFLAG_LASTMESSAGE;
             this->actionFlags &= ~EN_S_GORO_ACTIONFLAG_ENGAGED;
@@ -1110,9 +1110,9 @@ void EnSGoro_WinterShrineGoron_Talk(EnSGoro* this, PlayState* play) {
             return;
         }
         this->textId = EnSGoro_ShrineGoron_NextTextId(this, play);
-        Message_StartTextbox(play, this->textId, &this->actor);
+        MM_Message_StartTextbox(play, this->textId, &this->actor);
     }
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x1000, 0x100);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x1000, 0x100);
     this->actor.world.rot.y = this->actor.shape.rot.y;
 }
 
@@ -1122,18 +1122,18 @@ void EnSGoro_SpringShrineGoron_Idle(EnSGoro* this, PlayState* play) {
         if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
             this->actionFlags |= EN_S_GORO_ACTIONFLAG_ENGAGED;
             this->textId = EnSGoro_ShrineGoron_NextTextId(this, play);
-            Message_StartTextbox(play, this->textId, &this->actor);
+            MM_Message_StartTextbox(play, this->textId, &this->actor);
             this->actionFunc = EnSGoro_SpringShrineGoron_Talk;
         } else if ((this->actor.xzDistToPlayer < 250.0f) || this->actor.isLockedOn) {
             Actor_OfferTalkNearColChkInfoCylinder(&this->actor, play);
         }
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 5, 0x1000, 0x100);
+        MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 5, 0x1000, 0x100);
         this->actor.world.rot.y = this->actor.shape.rot.y;
     }
 }
 
 void EnSGoro_SpringShrineGoron_Talk(EnSGoro* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         if (this->actionFlags & EN_S_GORO_ACTIONFLAG_LASTMESSAGE) {
             this->actionFlags &= ~EN_S_GORO_ACTIONFLAG_LASTMESSAGE;
             this->actionFlags &= ~EN_S_GORO_ACTIONFLAG_ENGAGED;
@@ -1143,9 +1143,9 @@ void EnSGoro_SpringShrineGoron_Talk(EnSGoro* this, PlayState* play) {
             return;
         }
         this->textId = EnSGoro_ShrineGoron_NextTextId(this, play);
-        Message_StartTextbox(play, this->textId, &this->actor);
+        MM_Message_StartTextbox(play, this->textId, &this->actor);
     }
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x1000, 0x100);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x1000, 0x100);
     this->actor.world.rot.y = this->actor.shape.rot.y;
 }
 
@@ -1159,36 +1159,36 @@ void EnSGoro_ShopGoron_Idle(EnSGoro* this, PlayState* play) {
         if (this->actionFlags & EN_S_GORO_ACTIONFLAG_ROLLEDUP) {
             this->actionFlags &= ~EN_S_GORO_ACTIONFLAG_ROLLEDUP;
             this->animIndex = EN_S_GORO_ANIM_UNROLL_A;
-            SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+            SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
             this->actionFunc = EnSGoro_ShopGoron_FinishUnroll;
         } else {
-            Message_StartTextbox(play, this->textId, &this->actor);
+            MM_Message_StartTextbox(play, this->textId, &this->actor);
             this->actionFunc = EnSGoro_ShopGoron_Talk;
         }
     } else if ((this->actor.xzDistToPlayer < 250.0f) || this->actor.isLockedOn) {
         Actor_OfferTalkNearColChkInfoCylinder(&this->actor, play);
     }
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 5, 0x1000, 0x100);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 5, 0x1000, 0x100);
     this->actor.world.rot.y = this->actor.shape.rot.y;
 }
 
 void EnSGoro_ShopGoron_FinishUnroll(EnSGoro* this, PlayState* play) {
     s16 curFrame = this->skelAnime.curFrame;
-    s16 endFrame = Animation_GetLastFrame(sAnimationInfo[this->animIndex].animation);
+    s16 endFrame = MM_Animation_GetLastFrame(MM_sAnimationInfo[this->animIndex].animation);
 
     if ((this->animIndex == EN_S_GORO_ANIM_UNROLL_A) && (curFrame == endFrame)) {
         this->animIndex = EN_S_GORO_ANIM_IDLE_STAND;
-        SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
-        Message_StartTextbox(play, this->textId, &this->actor);
+        SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
+        MM_Message_StartTextbox(play, this->textId, &this->actor);
         this->actionFunc = EnSGoro_ShopGoron_Talk;
     }
 
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x1000, 0x100);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x1000, 0x100);
     this->actor.world.rot.y = this->actor.shape.rot.y;
 }
 
 void EnSGoro_ShopGoron_Talk(EnSGoro* this, PlayState* play) {
-    u8 talkState = Message_GetState(&play->msgCtx);
+    u8 talkState = MM_Message_GetState(&play->msgCtx);
 
     if (this->actionFlags & EN_S_GORO_ACTIONFLAG_HANDTAP) {
         EnSGoro_UpdateToHandtapAnimation(this);
@@ -1199,7 +1199,7 @@ void EnSGoro_ShopGoron_Talk(EnSGoro* this, PlayState* play) {
     }
 
     if (talkState == TEXT_STATE_DONE) {
-        if (Message_ShouldAdvance(play)) {
+        if (MM_Message_ShouldAdvance(play)) {
             if (this->actionFlags & EN_S_GORO_ACTIONFLAG_LASTMESSAGE) {
                 this->actionFlags &= ~EN_S_GORO_ACTIONFLAG_LASTMESSAGE;
                 this->actionFlags &= ~EN_S_GORO_ACTIONFLAG_ENGAGED;
@@ -1208,9 +1208,9 @@ void EnSGoro_ShopGoron_Talk(EnSGoro* this, PlayState* play) {
                 return;
             }
             this->textId = EnSGoro_BombshopGoron_NextTextId(this, play);
-            Message_StartTextbox(play, this->textId, &this->actor);
+            MM_Message_StartTextbox(play, this->textId, &this->actor);
         }
-    } else if ((talkState == TEXT_STATE_CHOICE) && Message_ShouldAdvance(play)) {
+    } else if ((talkState == TEXT_STATE_CHOICE) && MM_Message_ShouldAdvance(play)) {
         switch (play->msgCtx.choiceIndex) {
             case 0:
                 this->bombbuyFlags |= EN_S_GORO_BOMBBUYFLAG_YESBUY;
@@ -1225,30 +1225,30 @@ void EnSGoro_ShopGoron_Talk(EnSGoro* this, PlayState* play) {
         if ((this->textId == 0x675) || (this->textId == 0x676)) {
             play->msgCtx.msgMode = MSGMODE_TEXT_CLOSING;
             play->msgCtx.stateTimer = 4;
-            Actor_OfferGetItem(&this->actor, play, GI_POWDER_KEG, 300.0f, 300.0f);
+            MM_Actor_OfferGetItem(&this->actor, play, GI_POWDER_KEG, 300.0f, 300.0f);
             this->actionFunc = EnSGoro_ShopGoron_TakePayment;
         } else {
-            Message_StartTextbox(play, this->textId, &this->actor);
+            MM_Message_StartTextbox(play, this->textId, &this->actor);
         }
     }
 
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x1000, 0x100);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x1000, 0x100);
     this->actor.world.rot.y = this->actor.shape.rot.y;
 }
 
 void EnSGoro_ShopGoron_TakePayment(EnSGoro* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play)) {
+    if (MM_Actor_HasParent(&this->actor, play)) {
         this->actor.parent = NULL;
-        Rupees_ChangeBy(-this->powderKegPrice);
+        MM_Rupees_ChangeBy(-this->powderKegPrice);
         this->actionFunc = EnSGoro_ShopGoron_FinishTransaction;
     } else {
-        Actor_OfferGetItem(&this->actor, play, GI_POWDER_KEG, 300.0f, 300.0f);
+        MM_Actor_OfferGetItem(&this->actor, play, GI_POWDER_KEG, 300.0f, 300.0f);
     }
 }
 
 void EnSGoro_ShopGoron_FinishTransaction(EnSGoro* this, PlayState* play) {
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
-        Message_StartTextbox(play, this->textId, &this->actor);
+        MM_Message_StartTextbox(play, this->textId, &this->actor);
         this->actionFunc = EnSGoro_ShopGoron_Talk;
     } else {
         Actor_OfferTalkExchangeEquiCylinder(&this->actor, play, 400.0f, PLAYER_IA_MINUS1);
@@ -1257,7 +1257,7 @@ void EnSGoro_ShopGoron_FinishTransaction(EnSGoro* this, PlayState* play) {
 
 void EnSGoro_Sleep(EnSGoro* this, PlayState* play) {
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
-        Message_StartTextbox(play, 0x23A, &this->actor);
+        MM_Message_StartTextbox(play, 0x23A, &this->actor);
         this->actionFunc = EnSGoro_SleepTalk;
     } else if (this->actor.isLockedOn) {
         Actor_OfferTalkNearColChkInfoCylinder(&this->actor, play);
@@ -1266,8 +1266,8 @@ void EnSGoro_Sleep(EnSGoro* this, PlayState* play) {
 }
 
 void EnSGoro_SleepTalk(EnSGoro* this, PlayState* play) {
-    if (Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) {
-        if (Message_ShouldAdvance(play)) {
+    if (MM_Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) {
+        if (MM_Message_ShouldAdvance(play)) {
             play->msgCtx.msgMode = MSGMODE_TEXT_CLOSING;
             play->msgCtx.stateTimer = 4;
             this->actionFunc = EnSGoro_Sleep;
@@ -1280,18 +1280,18 @@ void EnSGoro_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     EnSGoro* this = (EnSGoro*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 20.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gGoronSkel, &gGoronUnrollAnim, this->jointTable, this->morphTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 20.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gGoronSkel, &gGoronUnrollAnim, this->jointTable, this->morphTable,
                        GORON_LIMB_MAX);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, &sDamageTable, &sColChkInfoInit);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, &MM_sDamageTable, &MM_sColChkInfoInit);
     if (this->actor.update != NULL) {
         s32 objectSlot = Object_GetSlot(&play->objectCtx, OBJECT_OF1D_MAP);
 
         this->objectSlot = objectSlot;
         if (objectSlot <= OBJECT_SLOT_NONE) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
     }
     this->actor.draw = EnSGoro_Draw;
@@ -1301,16 +1301,16 @@ void EnSGoro_Init(Actor* thisx, PlayState* play) {
 void EnSGoro_Destroy(Actor* thisx, PlayState* play) {
     EnSGoro* this = (EnSGoro*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnSGoro_Update(Actor* thisx, PlayState* play) {
     EnSGoro* this = (EnSGoro*)thisx;
 
     this->actionFunc(this, play);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 12.0f, 0.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
-    gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->objectSlot].segment);
-    SkelAnime_Update(&this->skelAnime);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 12.0f, 0.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
+    MM_gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->objectSlot].segment);
+    MM_SkelAnime_Update(&this->skelAnime);
     if (this->animIndex != EN_S_GORO_ANIM_SLEEPY) {
         EnSGoro_UpdateAttentionTarget(this, play);
     }
@@ -1328,8 +1328,8 @@ s32 EnSGoro_UpdateLimb(s16 newRotZ, s16 newRotY, Vec3f* pos, Vec3s* rot, s32 ste
     Vec3s newRot;
     MtxF curState;
 
-    Matrix_MultVec3f(&zeroVec, &newPos);
-    Matrix_Get(&curState);
+    MM_Matrix_MultVec3f(&zeroVec, &newPos);
+    MM_Matrix_Get(&curState);
     Matrix_MtxFToYXZRot(&curState, &newRot, false);
 
     *pos = newPos;
@@ -1346,9 +1346,9 @@ s32 EnSGoro_UpdateLimb(s16 newRotZ, s16 newRotY, Vec3f* pos, Vec3s* rot, s32 ste
         newRot.y = newRotY;
     }
 
-    Math_SmoothStepToS(&rot->x, newRot.x, 3, 0x2AA8, 0xB6);
-    Math_SmoothStepToS(&rot->y, newRot.y, 3, 0x2AA8, 0xB6);
-    Math_SmoothStepToS(&rot->z, newRot.z, 3, 0x2AA8, 0xB6);
+    MM_Math_SmoothStepToS(&rot->x, newRot.x, 3, 0x2AA8, 0xB6);
+    MM_Math_SmoothStepToS(&rot->y, newRot.y, 3, 0x2AA8, 0xB6);
+    MM_Math_SmoothStepToS(&rot->z, newRot.z, 3, 0x2AA8, 0xB6);
     return true;
 }
 
@@ -1379,13 +1379,13 @@ void EnSGoro_TransformLimbDraw(PlayState* play, s32 limbIndex, Actor* thisx) {
                                    this->headRotY + this->bodyRotY + this->actor.shape.rot.y + 0x4000,
                                    &this->headTranslate, &this->headRotate, stepRot, overrideRot);
 
-                Matrix_Pop();
-                Matrix_Translate(this->headTranslate.x, this->headTranslate.y, this->headTranslate.z, MTXMODE_NEW);
-                Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+                MM_Matrix_Pop();
+                MM_Matrix_Translate(this->headTranslate.x, this->headTranslate.y, this->headTranslate.z, MTXMODE_NEW);
+                MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
                 Matrix_RotateYS(this->headRotate.y, MTXMODE_APPLY);
                 Matrix_RotateXS(this->headRotate.x, MTXMODE_APPLY);
                 Matrix_RotateZS(this->headRotate.z, MTXMODE_APPLY);
-                Matrix_Push();
+                MM_Matrix_Push();
             }
             break;
 
@@ -1405,13 +1405,13 @@ void EnSGoro_TransformLimbDraw(PlayState* play, s32 limbIndex, Actor* thisx) {
                 EnSGoro_UpdateLimb(this->bodyRotZ + 0x4000, this->bodyRotY + this->actor.shape.rot.y + 0x4000,
                                    &this->bodyTranslate, &this->bodyRotate, stepRot, overrideRot);
 
-                Matrix_Pop();
-                Matrix_Translate(this->bodyTranslate.x, this->bodyTranslate.y, this->bodyTranslate.z, MTXMODE_NEW);
-                Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+                MM_Matrix_Pop();
+                MM_Matrix_Translate(this->bodyTranslate.x, this->bodyTranslate.y, this->bodyTranslate.z, MTXMODE_NEW);
+                MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
                 Matrix_RotateYS(this->bodyRotate.y, MTXMODE_APPLY);
                 Matrix_RotateXS(this->bodyRotate.x, MTXMODE_APPLY);
                 Matrix_RotateZS(this->bodyRotate.z, MTXMODE_APPLY);
-                Matrix_Push();
+                MM_Matrix_Push();
             }
             break;
 
@@ -1427,7 +1427,7 @@ void EnSGoro_DrawUnrolled(EnSGoro* this, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sEyeTextures[this->eyeTexIndex]));
+    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
     gDPPipeSync(POLY_OPA_DISP++);
 
     SkelAnime_DrawTransformFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
@@ -1442,13 +1442,13 @@ void EnSGoro_DrawRolledUp(EnSGoro* this, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y + this->actor.shape.yOffset,
+    MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y + this->actor.shape.yOffset,
                      this->actor.world.pos.z, MTXMODE_NEW);
     Matrix_RotateYS(this->actor.shape.rot.y, MTXMODE_APPLY);
-    Matrix_Translate(0.0f, -this->actor.shape.yOffset, 0.0f, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, -this->actor.shape.yOffset, 0.0f, MTXMODE_APPLY);
     Matrix_RotateZS(this->actor.shape.rot.z, MTXMODE_APPLY);
-    Matrix_Translate(0.0f, this->actor.shape.yOffset, 0.0f, MTXMODE_APPLY);
-    Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, this->actor.shape.yOffset, 0.0f, MTXMODE_APPLY);
+    MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     gSPDisplayList(POLY_OPA_DISP++, gGoronRolledUpDL);

@@ -3,38 +3,38 @@
 /**
  * Calculates the distances between `a` and `b`
  */
-f32 OLib_Vec3fDist(Vec3f* a, Vec3f* b) {
+f32 MM_OLib_Vec3fDist(Vec3f* a, Vec3f* b) {
     f32 dx = a->x - b->x;
     f32 dy = a->y - b->y;
     f32 dz = a->z - b->z;
 
-    return sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
+    return MM_sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
 }
 
 /**
  * Calculates the distances between `a` and `b`, and outputs the vector
  * created by the difference into `dest`
  */
-f32 OLib_Vec3fDistOutDiff(Vec3f* a, Vec3f* b, Vec3f* dest) {
+f32 MM_OLib_Vec3fDistOutDiff(Vec3f* a, Vec3f* b, Vec3f* dest) {
     dest->x = a->x - b->x;
     dest->y = a->y - b->y;
     dest->z = a->z - b->z;
 
-    return sqrtf(SQ(dest->x) + SQ(dest->y) + SQ(dest->z));
+    return MM_sqrtf(SQ(dest->x) + SQ(dest->y) + SQ(dest->z));
 }
 
 /**
  * Calculates the distances on the xz plane between `a` and `b`
  */
-f32 OLib_Vec3fDistXZ(Vec3f* a, Vec3f* b) {
-    return sqrtf(SQ(a->x - b->x) + SQ(a->z - b->z));
+f32 MM_OLib_Vec3fDistXZ(Vec3f* a, Vec3f* b) {
+    return MM_sqrtf(SQ(a->x - b->x) + SQ(a->z - b->z));
 }
 
 /**
- * Clamps `val` to a maximum of -`min` as `val` approaches zero, and a minimum of
- * `min` as `val` approaches zero
+ * Clamps `val` to a maximum of -`min` as `val` approaches MM_zero, and a minimum of
+ * `min` as `val` approaches MM_zero
  */
-f32 OLib_ClampMinDist(f32 val, f32 min) {
+f32 MM_OLib_ClampMinDist(f32 val, f32 min) {
     if (val < 0.0f) {
         return CLAMP_MAX(val, -min);
     } else {
@@ -46,7 +46,7 @@ f32 OLib_ClampMinDist(f32 val, f32 min) {
  * Clamps `val` to a minimum of -`max` as `val` approaches -`max`, and a maximum of `max`
  * as `val` approaches `max`
  */
-f32 OLib_ClampMaxDist(f32 val, f32 max) {
+f32 MM_OLib_ClampMaxDist(f32 val, f32 max) {
     if (val < 0.0f) {
         return CLAMP_MIN(val, -max);
     } else {
@@ -57,7 +57,7 @@ f32 OLib_ClampMaxDist(f32 val, f32 max) {
 /**
  * Takes the difference of points b and a, and creates a normal vector
  */
-Vec3f OLib_Vec3fDistNormalize(Vec3f* a, Vec3f* b) {
+Vec3f MM_OLib_Vec3fDistNormalize(Vec3f* a, Vec3f* b) {
     Vec3f v1;
     Vec3f v2;
     f32 dist;
@@ -66,7 +66,7 @@ Vec3f OLib_Vec3fDistNormalize(Vec3f* a, Vec3f* b) {
     v1.y = b->y - a->y;
     v1.z = b->z - a->z;
 
-    dist = OLib_ClampMinDist(sqrtf(SQXYZ(v1)), 0.01f);
+    dist = MM_OLib_ClampMinDist(MM_sqrtf(SQXYZ(v1)), 0.01f);
 
     v2.x = v1.x / dist;
     v2.y = v1.y / dist;
@@ -78,15 +78,15 @@ Vec3f OLib_Vec3fDistNormalize(Vec3f* a, Vec3f* b) {
 /**
  * Takes the spherical coordinate `sph`, and converts it into a x,y,z position
  */
-Vec3f OLib_VecSphToVec3f(VecSph* sph) {
+Vec3f MM_OLib_VecSphToVec3f(VecSph* sph) {
     Vec3f v;
     f32 sinPitch;
-    f32 cosPitch = Math_CosS(sph->pitch);
+    f32 cosPitch = MM_Math_CosS(sph->pitch);
     f32 sinYaw;
-    f32 cosYaw = Math_CosS(sph->yaw);
+    f32 cosYaw = MM_Math_CosS(sph->yaw);
 
-    sinPitch = Math_SinS(sph->pitch);
-    sinYaw = Math_SinS(sph->yaw);
+    sinPitch = MM_Math_SinS(sph->pitch);
+    sinYaw = MM_Math_SinS(sph->yaw);
 
     v.x = sph->r * sinPitch * sinYaw;
     v.y = sph->r * cosPitch;
@@ -105,28 +105,28 @@ Vec3f OLib_VecGeoToVec3f(VecGeo* geo) {
     sph.pitch = 0x4000 - geo->pitch;
     sph.yaw = geo->yaw;
 
-    return OLib_VecSphToVec3f(&sph);
+    return MM_OLib_VecSphToVec3f(&sph);
 }
 
 /**
  * Takes the point `vec`, and converts it into a spherical coordinate
  */
-VecSph OLib_Vec3fToVecSph(Vec3f* vec) {
+VecSph MM_OLib_Vec3fToVecSph(Vec3f* vec) {
     VecSph sph;
     f32 distXZSq = SQ(vec->x) + SQ(vec->z);
-    f32 distXZ = sqrtf(distXZSq);
+    f32 distXZ = MM_sqrtf(distXZSq);
 
     if ((distXZ == 0.0f) && (vec->y == 0.0f)) {
         sph.pitch = 0;
     } else {
-        sph.pitch = CAM_DEG_TO_BINANG(RAD_TO_DEG(Math_FAtan2F(distXZ, vec->y)));
+        sph.pitch = CAM_DEG_TO_BINANG(RAD_TO_DEG(MM_Math_FAtan2F(distXZ, vec->y)));
     }
 
-    sph.r = sqrtf(SQ(vec->y) + distXZSq);
+    sph.r = MM_sqrtf(SQ(vec->y) + distXZSq);
     if ((vec->x == 0.0f) && (vec->z == 0.0f)) {
         sph.yaw = 0;
     } else {
-        sph.yaw = CAM_DEG_TO_BINANG(RAD_TO_DEG(Math_FAtan2F(vec->x, vec->z)));
+        sph.yaw = CAM_DEG_TO_BINANG(RAD_TO_DEG(MM_Math_FAtan2F(vec->x, vec->z)));
     }
 
     return sph;
@@ -136,7 +136,7 @@ VecSph OLib_Vec3fToVecSph(Vec3f* vec) {
  * Takes the point `vec`, and converts it to a geographic coordinate
  */
 VecGeo OLib_Vec3fToVecGeo(Vec3f* vec) {
-    VecSph sph = OLib_Vec3fToVecSph(vec);
+    VecSph sph = MM_OLib_Vec3fToVecSph(vec);
 
     sph.pitch = 0x4000 - sph.pitch;
 
@@ -146,14 +146,14 @@ VecGeo OLib_Vec3fToVecGeo(Vec3f* vec) {
 /**
  * Takes the differences of positions `a` and `b`, and converts them to spherical coordinates
  */
-VecSph OLib_Vec3fDiffToVecSph(Vec3f* a, Vec3f* b) {
+VecSph MM_OLib_Vec3fDiffToVecSph(Vec3f* a, Vec3f* b) {
     Vec3f diff;
 
     diff.x = b->x - a->x;
     diff.y = b->y - a->y;
     diff.z = b->z - a->z;
 
-    return OLib_Vec3fToVecSph(&diff);
+    return MM_OLib_Vec3fToVecSph(&diff);
 }
 
 /**
@@ -187,11 +187,11 @@ Vec3f OLib_AddVecGeoToVec3f(Vec3f* a, VecGeo* geo) {
 /**
  * Gets the pitch/yaw of the vector formed from `b`-`a`, result is in radians
  */
-Vec3f OLib_Vec3fDiffRad(Vec3f* a, Vec3f* b) {
+Vec3f MM_OLib_Vec3fDiffRad(Vec3f* a, Vec3f* b) {
     Vec3f anglesRad;
 
-    anglesRad.x = Math_FAtan2F(b->z - a->z, b->y - a->y);
-    anglesRad.y = Math_FAtan2F(b->x - a->x, b->z - a->z);
+    anglesRad.x = MM_Math_FAtan2F(b->z - a->z, b->y - a->y);
+    anglesRad.y = MM_Math_FAtan2F(b->x - a->x, b->z - a->z);
     anglesRad.z = 0;
 
     return anglesRad;
@@ -200,8 +200,8 @@ Vec3f OLib_Vec3fDiffRad(Vec3f* a, Vec3f* b) {
 /**
  * Gets the pitch/yaw of the vector formed from `b`-`a`, result is in degrees
  */
-Vec3f OLib_Vec3fDiffDegF(Vec3f* a, Vec3f* b) {
-    Vec3f anglesRad = OLib_Vec3fDiffRad(a, b);
+Vec3f MM_OLib_Vec3fDiffDegF(Vec3f* a, Vec3f* b) {
+    Vec3f anglesRad = MM_OLib_Vec3fDiffRad(a, b);
     Vec3f anglesDegrees;
 
     anglesDegrees.x = RAD_TO_DEG(anglesRad.x);
@@ -214,8 +214,8 @@ Vec3f OLib_Vec3fDiffDegF(Vec3f* a, Vec3f* b) {
 /**
  * Gets the pitch/yaw of the vector formed from `b`-`a`, result is in binary degrees
  */
-Vec3s OLib_Vec3fDiffBinAng(Vec3f* a, Vec3f* b) {
-    Vec3f anglesRad = OLib_Vec3fDiffRad(a, b);
+Vec3s MM_OLib_Vec3fDiffBinAng(Vec3f* a, Vec3f* b) {
+    Vec3f anglesRad = MM_OLib_Vec3fDiffRad(a, b);
     Vec3s anglesBinAng;
 
     anglesBinAng.x = CAM_DEG_TO_BINANG(RAD_TO_DEG(anglesRad.x));

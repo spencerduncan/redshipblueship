@@ -82,7 +82,7 @@ void EnDntDemo_Init(Actor* thisx, PlayState* play2) {
     osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ デグナッツお面品評会開始 ☆☆☆☆☆ \n" VT_RST);
     for (i = 0; i < 9; i++) {
         this->scrubPos[i] = sScrubPos[i];
-        this->scrubs[i] = (EnDntNomal*)Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_DNT_NOMAL,
+        this->scrubs[i] = (EnDntNomal*)OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_DNT_NOMAL,
                                                           this->scrubPos[i].x, this->scrubPos[i].y, this->scrubPos[i].z,
                                                           0, 0, 0, i + ENDNTNOMAL_STAGE);
         if (this->scrubs[i] != NULL) {
@@ -94,7 +94,7 @@ void EnDntDemo_Init(Actor* thisx, PlayState* play2) {
     this->leaderPos.x = 4050.0f;
     this->leaderPos.y = -20.0f;
     this->leaderPos.z = 1000.0f;
-    this->leader = (EnDntJiji*)Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_DNT_JIJI,
+    this->leader = (EnDntJiji*)OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_DNT_JIJI,
                                                   this->leaderPos.x, this->leaderPos.y, this->leaderPos.z, 0, 0, 0, 0);
     if (this->leader != NULL) {
         // "jiji jiji jiji jiji jiji" [onomatopoeia for the scrub sound?]
@@ -125,7 +125,7 @@ void EnDntDemo_Judge(EnDntDemo* this, PlayState* play) {
         }
         this->leaderSignal = DNT_SIGNAL_NONE;
         this->actionFunc = EnDntDemo_Results;
-    } else if ((this->actor.xzDistToPlayer > 30.0f) || (Player_GetMask(play) == 0)) {
+    } else if ((this->actor.xzDistToPlayer > 30.0f) || (OoT_Player_GetMask(play) == 0)) {
         this->debugArrowTimer++;
         if (this->subCamera != SUBCAM_FREE) {
             this->subCamera = SUBCAM_FREE;
@@ -137,7 +137,7 @@ void EnDntDemo_Judge(EnDntDemo* this, PlayState* play) {
             this->judgeTimer = 0;
         }
     } else {
-        if ((Player_GetMask(play) != 0) && (this->subCamera == SUBCAM_FREE)) {
+        if ((OoT_Player_GetMask(play) != 0) && (this->subCamera == SUBCAM_FREE)) {
             this->subCamera = OnePointCutscene_Init(play, 2220, -99, &this->scrubs[3]->actor, MAIN_CAM);
         }
         this->debugArrowTimer = 0;
@@ -157,7 +157,7 @@ void EnDntDemo_Judge(EnDntDemo* this, PlayState* play) {
             ignore = false;
             reaction = DNT_SIGNAL_NONE;
             delay = 0;
-            switch (Player_GetMask(play)) {
+            switch (OoT_Player_GetMask(play)) {
                 case PLAYER_MASK_SKULL:
                     if (!Flags_GetItemGetInf(ITEMGETINF_OBTAINED_STICK_UPGRADE_FROM_STAGE)) {
                         reaction = DNT_SIGNAL_CELEBRATE;
@@ -168,9 +168,9 @@ void EnDntDemo_Judge(EnDntDemo* this, PlayState* play) {
                 case PLAYER_MASK_TRUTH:
                     if (GameInteractor_Should(VB_DEKU_SCRUBS_REACT_TO_MASK_OF_TRUTH,
                                               !Flags_GetItemGetInf(ITEMGETINF_OBTAINED_NUT_UPGRADE_FROM_STAGE) &&
-                                                  (Player_GetMask(play) != PLAYER_MASK_SKULL))) {
-                        Audio_PlaySoundGeneral(NA_SE_SY_TRE_BOX_APPEAR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                                                  (OoT_Player_GetMask(play) != PLAYER_MASK_SKULL))) {
+                        Audio_PlaySoundGeneral(NA_SE_SY_TRE_BOX_APPEAR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                         this->prize = DNT_PRIZE_NUTS;
                         this->leader->stageSignal = DNT_LEADER_SIGNAL_UP;
                         reaction = DNT_SIGNAL_LOOK;
@@ -187,8 +187,8 @@ void EnDntDemo_Judge(EnDntDemo* this, PlayState* play) {
                 case PLAYER_MASK_GORON:
                 case PLAYER_MASK_ZORA:
                 case PLAYER_MASK_GERUDO:
-                    rand9 = Rand_ZeroFloat(8.99f);
-                    maskIdx = Player_GetMask(play);
+                    rand9 = OoT_Rand_ZeroFloat(8.99f);
+                    maskIdx = OoT_Player_GetMask(play);
                     maskIdx--;
                     if (rand9 == 8) {
                         ignore = true;
@@ -203,7 +203,7 @@ void EnDntDemo_Judge(EnDntDemo* this, PlayState* play) {
                             osSyncPrintf(VT_FGCOL(YELLOW) "☆☆☆☆☆ ヤバいよこれ！ ☆☆☆☆☆ \n" VT_RST);
                             osSyncPrintf(VT_FGCOL(PURPLE) "☆☆☆☆☆ ヤバいよこれ！ ☆☆☆☆☆ \n" VT_RST);
                             osSyncPrintf(VT_FGCOL(CYAN) "☆☆☆☆☆ ヤバいよこれ！ ☆☆☆☆☆ \n" VT_RST);
-                            maskIdx = Rand_ZeroFloat(7.99f);
+                            maskIdx = OoT_Rand_ZeroFloat(7.99f);
                         }
 
                         resultIdx = sResultTable[rand9][maskIdx];
@@ -296,9 +296,9 @@ void EnDntDemo_Results(EnDntDemo* this, PlayState* play) {
             }
             offsetDist = ((i + 1) * 20.0f) + 20.0f;
             this->scrubs[i]->timer2 = 10;
-            this->scrubs[i]->targetPos.x = leaderPos.x + Math_SinS(offsetAngle) * offsetDist;
+            this->scrubs[i]->targetPos.x = leaderPos.x + OoT_Math_SinS(offsetAngle) * offsetDist;
             this->scrubs[i]->targetPos.y = leaderPos.y;
-            this->scrubs[i]->targetPos.z = leaderPos.z + Math_CosS(offsetAngle) * offsetDist;
+            this->scrubs[i]->targetPos.z = leaderPos.z + OoT_Math_CosS(offsetAngle) * offsetDist;
         }
     }
 }
@@ -330,12 +330,12 @@ void EnDntDemo_Update(Actor* thisx, PlayState* play) {
     if (BREG(0)) {
         if (this->debugArrowTimer != 0) {
             if (!(this->debugArrowTimer & 1)) {
-                DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
+                OoT_DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
                                        this->actor.world.rot.x, this->actor.world.rot.y, this->actor.world.rot.z, 1.0f,
                                        1.0f, 1.0f, 120, 120, 0, 255, 4, play->state.gfxCtx);
             }
         } else {
-            DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
+            OoT_DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
                                    this->actor.world.rot.x, this->actor.world.rot.y, this->actor.world.rot.z, 1.0f,
                                    1.0f, 1.0f, 255, 255, 255, 255, 4, play->state.gfxCtx);
         }

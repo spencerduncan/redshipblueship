@@ -116,9 +116,9 @@ void func_80063828(GfxPrint* printer) {
             text = buffer->text;
 
             color = &printTextColors[buffer->colorId];
-            GfxPrint_SetColor(printer, color->r, color->g, color->b, color->a);
-            GfxPrint_SetPos(printer, buffer->x, buffer->y);
-            GfxPrint_Printf(printer, "%s", text);
+            OoT_GfxPrint_SetColor(printer, color->r, color->g, color->b, color->a);
+            OoT_GfxPrint_SetPos(printer, buffer->x, buffer->y);
+            OoT_GfxPrint_Printf(printer, "%s", text);
             i += 1;
         } while (i < D_8011E0B0);
     }
@@ -223,16 +223,16 @@ void func_80063C04(GfxPrint* printer) {
     name[0] = 'R';
     name[1] = regChar[gGameInfo->regGroup]; // r_group type char
     name[2] = '\0';
-    GfxPrint_SetColor(printer, 0, 128, 128, 128);
+    OoT_GfxPrint_SetColor(printer, 0, 128, 128, 128);
 
     for (i = 0; i != REG_PER_PAGE; i++) {
         if (i == gGameInfo->regCur) {
-            GfxPrint_SetColor(printer, 0, 255, 255, 255);
+            OoT_GfxPrint_SetColor(printer, 0, 255, 255, 255);
         }
-        GfxPrint_SetPos(printer, 3, i + 5);
-        GfxPrint_Printf(printer, "%s%02d%6d", &name, page + i, gGameInfo->data[i + regGroup]);
+        OoT_GfxPrint_SetPos(printer, 3, i + 5);
+        OoT_GfxPrint_Printf(printer, "%s%02d%6d", &name, page + i, gGameInfo->data[i + regGroup]);
         if (i == gGameInfo->regCur) {
-            GfxPrint_SetColor(printer, 0, 128, 128, 128);
+            OoT_GfxPrint_SetColor(printer, 0, 128, 128, 128);
         }
     }
 }
@@ -249,11 +249,11 @@ void func_80063D7C(GraphicsContext* gfxCtx) {
 
     OPEN_DISPS(gfxCtx);
 
-    GfxPrint_Init(&printer);
+    OoT_GfxPrint_Init(&printer);
     sp78 = POLY_OPA_DISP;
-    tempRet = Graph_GfxPlusOne(POLY_OPA_DISP);
+    tempRet = OoT_Graph_GfxPlusOne(POLY_OPA_DISP);
     gSPDisplayList(OVERLAY_DISP++, tempRet);
-    GfxPrint_Open(&printer, tempRet);
+    OoT_GfxPrint_Open(&printer, tempRet);
 
     if ((OREG(0) == 1) || (OREG(0) == 8)) {
         func_80063828(&printer);
@@ -264,12 +264,12 @@ void func_80063D7C(GraphicsContext* gfxCtx) {
     }
 
     D_8011E0B0 = 0;
-    sp7C = GfxPrint_Close(&printer);
+    sp7C = OoT_GfxPrint_Close(&printer);
     gSPEndDisplayList(sp7C++);
-    Graph_BranchDlist(sp78, sp7C);
+    OoT_Graph_BranchDlist(sp78, sp7C);
     POLY_OPA_DISP = sp7C;
 
     CLOSE_DISPS(gfxCtx);
 
-    GfxPrint_Destroy(&printer);
+    OoT_GfxPrint_Destroy(&printer);
 }

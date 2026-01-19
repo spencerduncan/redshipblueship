@@ -10,10 +10,10 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_UPDATE_DURING_OCARINA)
 
-void OceffWipe4_Init(Actor* thisx, PlayState* play);
-void OceffWipe4_Destroy(Actor* thisx, PlayState* play);
-void OceffWipe4_Update(Actor* thisx, PlayState* play);
-void OceffWipe4_Draw(Actor* thisx, PlayState* play);
+void OoT_OceffWipe4_Init(Actor* thisx, PlayState* play);
+void OoT_OceffWipe4_Destroy(Actor* thisx, PlayState* play);
+void OoT_OceffWipe4_Update(Actor* thisx, PlayState* play);
+void OoT_OceffWipe4_Draw(Actor* thisx, PlayState* play);
 
 const ActorInit Oceff_Wipe4_InitVars = {
     ACTOR_OCEFF_WIPE4,
@@ -21,42 +21,42 @@ const ActorInit Oceff_Wipe4_InitVars = {
     FLAGS,
     OBJECT_GAMEPLAY_KEEP,
     sizeof(OceffWipe4),
-    (ActorFunc)OceffWipe4_Init,
-    (ActorFunc)OceffWipe4_Destroy,
-    (ActorFunc)OceffWipe4_Update,
-    (ActorFunc)OceffWipe4_Draw,
+    (ActorFunc)OoT_OceffWipe4_Init,
+    (ActorFunc)OoT_OceffWipe4_Destroy,
+    (ActorFunc)OoT_OceffWipe4_Update,
+    (ActorFunc)OoT_OceffWipe4_Draw,
     NULL,
 };
 
-void OceffWipe4_Init(Actor* thisx, PlayState* play) {
+void OoT_OceffWipe4_Init(Actor* thisx, PlayState* play) {
     OceffWipe4* this = (OceffWipe4*)thisx;
 
-    Actor_SetScale(&this->actor, 0.1f);
+    OoT_Actor_SetScale(&this->actor, 0.1f);
     this->timer = 0;
     this->actor.world.pos = GET_ACTIVE_CAM(play)->eye;
     osSyncPrintf(VT_FGCOL(CYAN) " WIPE4 arg_data = %d\n" VT_RST, this->actor.params);
 }
 
-void OceffWipe4_Destroy(Actor* thisx, PlayState* play) {
+void OoT_OceffWipe4_Destroy(Actor* thisx, PlayState* play) {
     OceffWipe4* this = (OceffWipe4*)thisx;
 
-    Magic_Reset(play);
+    OoT_Magic_Reset(play);
 }
 
-void OceffWipe4_Update(Actor* thisx, PlayState* play) {
+void OoT_OceffWipe4_Update(Actor* thisx, PlayState* play) {
     OceffWipe4* this = (OceffWipe4*)thisx;
 
     this->actor.world.pos = GET_ACTIVE_CAM(play)->eye;
     if (this->timer < 50) {
         this->timer++;
     } else {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
 #include "overlays/ovl_Oceff_Wipe4/ovl_Oceff_Wipe4.h"
 
-void OceffWipe4_Draw(Actor* thisx, PlayState* play) {
+void OoT_OceffWipe4_Draw(Actor* thisx, PlayState* play) {
     u32 scroll = play->state.frames & 0xFFF;
     OceffWipe4* this = (OceffWipe4*)thisx;
     f32 z;
@@ -71,7 +71,7 @@ void OceffWipe4_Draw(Actor* thisx, PlayState* play) {
 
     int fastOcarinaPlayback = (CVarGetInteger(CVAR_ENHANCEMENT("FastOcarinaPlayback"), 0) != 0);
     if (this->timer < 16) {
-        z = Math_SinS(this->timer * 1024) * (fastOcarinaPlayback ? 1200.0f : 1330.0f);
+        z = OoT_Math_SinS(this->timer * 1024) * (fastOcarinaPlayback ? 1200.0f : 1330.0f);
     } else {
         z = fastOcarinaPlayback ? 1200.0f : 1330.0f;
     }
@@ -91,10 +91,10 @@ void OceffWipe4_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
 
-    Matrix_Translate(eye.x + vec.x, eye.y + vec.y, eye.z + vec.z, MTXMODE_NEW);
-    Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
-    Matrix_ReplaceRotation(&play->billboardMtxF);
-    Matrix_Translate(0.0f, 0.0f, -z, MTXMODE_APPLY);
+    OoT_Matrix_Translate(eye.x + vec.x, eye.y + vec.y, eye.z + vec.z, MTXMODE_NEW);
+    OoT_Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
+    OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
+    OoT_Matrix_Translate(0.0f, 0.0f, -z, MTXMODE_APPLY);
 
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
@@ -105,7 +105,7 @@ void OceffWipe4_Draw(Actor* thisx, PlayState* play) {
     }
 
     gSPDisplayList(POLY_XLU_DISP++, sMaterial2DL);
-    gSPDisplayList(POLY_XLU_DISP++, Gfx_TwoTexScroll(play->state.gfxCtx, 0, scroll * 2, scroll * (-2), 32, 64, 1,
+    gSPDisplayList(POLY_XLU_DISP++, OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, scroll * 2, scroll * (-2), 32, 64, 1,
                                                      scroll * (-1), scroll, 32, 32));
     // SOH [Port] Index adjust 11 -> 14 (for LUS marker and load texture) to account for our extraction size changes
     gSPDisplayListOffset(POLY_XLU_DISP++, sMaterial2DL, 11 + 2 + 1);

@@ -36,7 +36,7 @@ const ActorInit Bg_Hidan_Kousi_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
 
@@ -68,20 +68,20 @@ void BgHidanKousi_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     CollisionHeader* colHeader = NULL;
 
-    DynaPolyActor_Init(&this->dyna, DPM_UNK);
-    Actor_SetFocus(thisx, 50.0f);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
+    OoT_Actor_SetFocus(thisx, 50.0f);
     osSyncPrintf("◯◯◯炎の神殿オブジェクト【格子(arg_data : %0x)】出現 (%d %d)\n", thisx->params, thisx->params & 0xFF,
                  ((s32)thisx->params >> 8) & 0xFF);
 
-    Actor_ProcessInitChain(thisx, sInitChain);
+    OoT_Actor_ProcessInitChain(thisx, OoT_sInitChain);
     if (((thisx->params & 0xFF) < 0) || ((thisx->params & 0xFF) >= 3)) {
         osSyncPrintf("arg_data おかしい 【格子】\n");
     }
 
-    CollisionHeader_GetVirtual(sMetalFencesCollisions[thisx->params & 0xFF], &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
+    OoT_CollisionHeader_GetVirtual(sMetalFencesCollisions[thisx->params & 0xFF], &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
     thisx->world.rot.y = D_80889E7C[this->dyna.actor.params & 0xFF] + thisx->shape.rot.y;
-    if (Flags_GetSwitch(play, (thisx->params >> 8) & 0xFF)) {
+    if (OoT_Flags_GetSwitch(play, (thisx->params >> 8) & 0xFF)) {
         func_80889ACC(this);
         BgHidanKousi_SetupAction(this, func_80889D28);
     } else {
@@ -91,21 +91,21 @@ void BgHidanKousi_Init(Actor* thisx, PlayState* play) {
 
 void BgHidanKousi_Destroy(Actor* thisx, PlayState* play) {
     BgHidanKousi* this = (BgHidanKousi*)thisx;
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_80889ACC(BgHidanKousi* this) {
     s32 pad[2];
     Vec3s* rot = &this->dyna.actor.world.rot;
-    f32 temp1 = D_80889E40[this->dyna.actor.params & 0xFF] * Math_SinS(rot->y);
-    f32 temp2 = D_80889E40[this->dyna.actor.params & 0xFF] * Math_CosS(rot->y);
+    f32 temp1 = D_80889E40[this->dyna.actor.params & 0xFF] * OoT_Math_SinS(rot->y);
+    f32 temp2 = D_80889E40[this->dyna.actor.params & 0xFF] * OoT_Math_CosS(rot->y);
 
     this->dyna.actor.world.pos.x = this->dyna.actor.home.pos.x + temp1;
     this->dyna.actor.world.pos.z = this->dyna.actor.home.pos.z + temp2;
 }
 
 void func_80889B5C(BgHidanKousi* this, PlayState* play) {
-    if (Flags_GetSwitch(play, (this->dyna.actor.params >> 8) & 0xFF)) {
+    if (OoT_Flags_GetSwitch(play, (this->dyna.actor.params >> 8) & 0xFF)) {
         BgHidanKousi_SetupAction(this, func_80889BC0);
         OnePointCutscene_Attention(play, &this->dyna.actor);
         this->unk_168 = 0xC8;
@@ -130,9 +130,9 @@ void func_80889C18(BgHidanKousi* this, PlayState* play) {
 }
 
 void func_80889C90(BgHidanKousi* this, PlayState* play) {
-    Actor_UpdatePos(&this->dyna.actor);
+    OoT_Actor_UpdatePos(&this->dyna.actor);
     if (D_80889E40[this->dyna.actor.params & 0xFF] <
-        Math_Vec3f_DistXYZ(&this->dyna.actor.home.pos, &this->dyna.actor.world.pos)) {
+        OoT_Math_Vec3f_DistXYZ(&this->dyna.actor.home.pos, &this->dyna.actor.world.pos)) {
         func_80889ACC(this);
         BgHidanKousi_SetupAction(this, func_80889D28);
         Audio_PlayActorSound2(&this->dyna.actor, NA_SE_EV_METALDOOR_STOP);

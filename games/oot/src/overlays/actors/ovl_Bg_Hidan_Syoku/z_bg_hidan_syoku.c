@@ -31,7 +31,7 @@ const ActorInit Bg_Hidan_Syoku_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
 
@@ -40,10 +40,10 @@ void BgHidanSyoku_Init(Actor* thisx, PlayState* play) {
     BgHidanSyoku* this = (BgHidanSyoku*)thisx;
     CollisionHeader* colHeader = NULL;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
-    CollisionHeader_GetVirtual(&gFireTempleFlareDancerPlatformCol, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
+    OoT_CollisionHeader_GetVirtual(&gFireTempleFlareDancerPlatformCol, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
     this->actionFunc = func_8088F4B8;
     this->dyna.actor.home.pos.y += 540.0f;
 }
@@ -51,7 +51,7 @@ void BgHidanSyoku_Init(Actor* thisx, PlayState* play) {
 void BgHidanSyoku_Destroy(Actor* thisx, PlayState* play) {
     BgHidanSyoku* this = (BgHidanSyoku*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_8088F47C(BgHidanSyoku* this) {
@@ -61,7 +61,7 @@ void func_8088F47C(BgHidanSyoku* this) {
 }
 
 void func_8088F4B8(BgHidanSyoku* this, PlayState* play) {
-    if (Flags_GetClear(play, this->dyna.actor.room) && DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
+    if (OoT_Flags_GetClear(play, this->dyna.actor.room) && OoT_DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
         this->timer = 140;
         this->actionFunc = func_8088F514;
     }
@@ -109,19 +109,19 @@ void BgHidanSyoku_Update(Actor* thisx, PlayState* play) {
     BgHidanSyoku* this = (BgHidanSyoku*)thisx;
 
     this->actionFunc(this, play);
-    if (DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
+    if (OoT_DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
         if (this->unk_168 == 0) {
             this->unk_168 = 3;
         }
-        Camera_ChangeSetting(play->cameraPtrs[MAIN_CAM], CAM_SET_FIRE_PLATFORM);
-    } else if (!DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
+        OoT_Camera_ChangeSetting(play->cameraPtrs[MAIN_CAM], CAM_SET_FIRE_PLATFORM);
+    } else if (!OoT_DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
         if (this->unk_168 != 0) {
-            Camera_ChangeSetting(play->cameraPtrs[MAIN_CAM], CAM_SET_DUNGEON0);
+            OoT_Camera_ChangeSetting(play->cameraPtrs[MAIN_CAM], CAM_SET_DUNGEON0);
         }
         this->unk_168 = 0;
     }
 }
 
 void BgHidanSyoku_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, gFireTempleFlareDancerPlatformDL);
+    OoT_Gfx_DrawDListOpa(play, gFireTempleFlareDancerPlatformDL);
 }

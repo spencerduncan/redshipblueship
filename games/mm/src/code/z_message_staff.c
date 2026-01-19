@@ -3,7 +3,7 @@
 #include "message_data_static.h"
 #include "assets/interface/message_texture_static/message_texture_static.h"
 
-void Message_FindCreditsMessage(PlayState* play, u16 textId) {
+void MM_Message_FindCreditsMessage(PlayState* play, u16 textId) {
     MessageContext* msgCtx = &play->msgCtx;
     Font* font = &msgCtx->font;
     MessageTableEntry* msgEntry = msgCtx->messageTableCredits;
@@ -266,7 +266,7 @@ void Message_DrawTextCredits(PlayState* play, Gfx** gfxP) {
 
             case MESSAGE_OCARINA:
                 if ((i + 1) == msgCtx->textDrawPos) {
-                    Message_HandleOcarina(play);
+                    MM_Message_HandleOcarina(play);
                     *gfxP = gfx;
                     return;
                 }
@@ -309,7 +309,7 @@ void Message_DrawTextCredits(PlayState* play, Gfx** gfxP) {
                     (msgCtx->textDelayTimer == msgCtx->textDelay)) {
                     Audio_PlaySfx(NA_SE_NONE);
                 }
-                Message_DrawTextChar(play, &font->charBuf[font->unk_11D88][charTexIndex], &gfx);
+                MM_Message_DrawTextChar(play, &font->charBuf[font->unk_11D88][charTexIndex], &gfx);
                 charTexIndex += FONT_CHAR_TEX_SIZE;
 
                 msgCtx->textPosX += (s32)(sCreditsFontWidths[character - ' '] * msgCtx->textCharScale);
@@ -627,12 +627,12 @@ void Message_DecodeCredits(PlayState* play) {
                 decodedBufPos--;
             } else if (curChar == MESSAGE_ITEM_ICON) {
                 msgCtx->decodedBuffer.schar[++decodedBufPos] = font->msgBuf.schar[msgCtx->msgBufPos + 1];
-                Message_LoadItemIcon(play, font->msgBuf.schar[msgCtx->msgBufPos + 1], msgCtx->textboxY + 10);
+                MM_Message_LoadItemIcon(play, font->msgBuf.schar[msgCtx->msgBufPos + 1], msgCtx->textboxY + 10);
             } else if (curChar == MESSAGE_BACKGROUND) {
                 // #region 2S2H [Port]
-                // DmaMgr_SendRequest0(msgCtx->textboxSegment + 0x1000,
+                // MM_DmaMgr_SendRequest0(msgCtx->textboxSegment + 0x1000,
                 //                     (uintptr_t)SEGMENT_ROM_START(message_texture_static) + 0x900, 0x900);
-                // DmaMgr_SendRequest0(msgCtx->textboxSegment + 0x1900,
+                // MM_DmaMgr_SendRequest0(msgCtx->textboxSegment + 0x1900,
                 //                     (uintptr_t)SEGMENT_ROM_START(message_texture_static) + 0x900, 0x900);
                 msgCtx->textboxSegment[TEXTBOX_SEG_BG_1] = gMessageXLeftTex;
                 msgCtx->textboxSegment[TEXTBOX_SEG_BG_2] = gMessageXRightTex;

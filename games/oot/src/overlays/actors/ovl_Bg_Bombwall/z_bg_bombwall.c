@@ -20,7 +20,7 @@ void func_8086EDFC(BgBombwall* this, PlayState* play);
 void func_8086EE40(BgBombwall* this, PlayState* play);
 void func_8086EE94(BgBombwall* this, PlayState* play);
 
-static ColliderTrisElementInit sTrisElementsInit[3] = {
+static ColliderTrisElementInit OoT_sTrisElementsInit[3] = {
     {
         {
             ELEMTYPE_UNK0,
@@ -56,7 +56,7 @@ static ColliderTrisElementInit sTrisElementsInit[3] = {
     },
 };
 
-static ColliderTrisInit sTrisInit = {
+static ColliderTrisInit OoT_sTrisInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -66,7 +66,7 @@ static ColliderTrisInit sTrisInit = {
         COLSHAPE_TRIS,
     },
     3,
-    sTrisElementsInit,
+    OoT_sTrisElementsInit,
 };
 
 const ActorInit Bg_Bombwall_InitVars = {
@@ -87,9 +87,9 @@ void BgBombwall_InitDynapoly(BgBombwall* this, PlayState* play) {
     s32 pad2;
     CollisionHeader* colHeader = NULL;
 
-    DynaPolyActor_Init(&this->dyna, DPM_UNK);
-    CollisionHeader_GetVirtual(&gBgBombwallCol, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
+    OoT_CollisionHeader_GetVirtual(&gBgBombwallCol, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
 
     if (this->dyna.bgId == BG_ACTOR_MAX) {
         // "Warning : move BG login failed"
@@ -104,7 +104,7 @@ void BgBombwall_RotateVec(Vec3f* arg0, Vec3f* arg1, f32 arg2, f32 arg3) {
     arg0->z = (arg1->z * arg3) - (arg1->x * arg2);
 }
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(uncullZoneForward, 1800, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 300, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneDownward, 1000, ICHAIN_STOP),
@@ -117,25 +117,25 @@ void BgBombwall_Init(Actor* thisx, PlayState* play) {
     Vec3f sp80;
     s32 pad;
     BgBombwall* this = (BgBombwall*)thisx;
-    f32 sin = Math_SinS(this->dyna.actor.shape.rot.y);
-    f32 cos = Math_CosS(this->dyna.actor.shape.rot.y);
+    f32 sin = OoT_Math_SinS(this->dyna.actor.shape.rot.y);
+    f32 cos = OoT_Math_CosS(this->dyna.actor.shape.rot.y);
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    Actor_SetScale(&this->dyna.actor, 0.1f);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+    OoT_Actor_SetScale(&this->dyna.actor, 0.1f);
 
-    if (Flags_GetSwitch(play, this->dyna.actor.params & 0x3F)) {
+    if (OoT_Flags_GetSwitch(play, this->dyna.actor.params & 0x3F)) {
         func_8086EE94(this, play);
     } else {
         BgBombwall_InitDynapoly(this, play);
         this->unk_2A2 |= 2;
-        Collider_InitTris(play, &this->collider);
-        Collider_SetTris(play, &this->collider, &this->dyna.actor, &sTrisInit, this->colliderItems);
+        OoT_Collider_InitTris(play, &this->collider);
+        OoT_Collider_SetTris(play, &this->collider, &this->dyna.actor, &OoT_sTrisInit, this->colliderItems);
 
         for (i = 0; i <= 2; i++) {
             for (j = 0; j <= 2; j++) {
-                sp80.x = sTrisInit.elements[i].dim.vtx[j].x;
-                sp80.y = sTrisInit.elements[i].dim.vtx[j].y;
-                sp80.z = sTrisInit.elements[i].dim.vtx[j].z + 2.0f;
+                sp80.x = OoT_sTrisInit.elements[i].dim.vtx[j].x;
+                sp80.y = OoT_sTrisInit.elements[i].dim.vtx[j].y;
+                sp80.z = OoT_sTrisInit.elements[i].dim.vtx[j].z + 2.0f;
 
                 BgBombwall_RotateVec(&vecs[j], &sp80, sin, cos);
 
@@ -143,7 +143,7 @@ void BgBombwall_Init(Actor* thisx, PlayState* play) {
                 vecs[j].y += this->dyna.actor.world.pos.y;
                 vecs[j].z += this->dyna.actor.world.pos.z;
             }
-            Collider_SetTrisVertices(&this->collider, i, &vecs[0], &vecs[1], &vecs[2]);
+            OoT_Collider_SetTrisVertices(&this->collider, i, &vecs[0], &vecs[1], &vecs[2]);
         }
 
         this->unk_2A2 |= 1;
@@ -156,12 +156,12 @@ void BgBombwall_Init(Actor* thisx, PlayState* play) {
 
 void BgBombwall_DestroyCollision(BgBombwall* this, PlayState* play) {
     if (this->unk_2A2 & 2) {
-        DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+        OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
         this->unk_2A2 &= ~2;
     }
 
     if (this->unk_2A2 & 1) {
-        Collider_DestroyTris(play, &this->collider);
+        OoT_Collider_DestroyTris(play, &this->collider);
         this->unk_2A2 &= ~1;
     }
 }
@@ -181,8 +181,8 @@ void func_8086EB5C(BgBombwall* this, PlayState* play) {
     s16 rand2;
     Vec3f sp88;
     s32 i;
-    f32 sin = Math_SinS(this->dyna.actor.shape.rot.y);
-    f32 cos = Math_CosS(this->dyna.actor.shape.rot.y);
+    f32 sin = OoT_Math_SinS(this->dyna.actor.shape.rot.y);
+    f32 cos = OoT_Math_CosS(this->dyna.actor.shape.rot.y);
     Vec3f* pos = &this->dyna.actor.world.pos;
     f32 temp;
     f32 new_var;
@@ -193,8 +193,8 @@ void func_8086EB5C(BgBombwall* this, PlayState* play) {
         sp88.x = ((sin * D_8086F010[i].z) + ((f32)temp)) + pos->x;
         sp88.y = pos->y + D_8086F010[i].y;
         sp88.z = ((D_8086F010[i].z * cos) - (sin * D_8086F010[i].x)) + pos->z;
-        rand = ((s16)(Rand_ZeroOne() * 120.0f)) + 0x14;
-        rand2 = ((s16)(Rand_ZeroOne() * 240.0f)) + 0x14;
+        rand = ((s16)(OoT_Rand_ZeroOne() * 120.0f)) + 0x14;
+        rand2 = ((s16)(OoT_Rand_ZeroOne() * 240.0f)) + 0x14;
         func_80033480(play, &sp88, 50.0f, 2, rand, rand2, 1);
     }
 
@@ -214,9 +214,9 @@ void func_8086ED70(BgBombwall* this, PlayState* play) {
     if (this->collider.base.acFlags & AC_HIT) {
         this->collider.base.acFlags &= ~AC_HIT;
         func_8086EDFC(this, play);
-        Flags_SetSwitch(play, this->dyna.actor.params & 0x3F);
+        OoT_Flags_SetSwitch(play, this->dyna.actor.params & 0x3F);
     } else if (this->dyna.actor.xzDistToPlayer < 600.0f) {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -256,5 +256,5 @@ void BgBombwall_Update(Actor* thisx, PlayState* play) {
 void BgBombwall_Draw(Actor* thisx, PlayState* play) {
     BgBombwall* this = (BgBombwall*)thisx;
 
-    Gfx_DrawDListOpa(play, this->dList);
+    OoT_Gfx_DrawDListOpa(play, this->dList);
 }

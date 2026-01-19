@@ -9,7 +9,7 @@
 
 SaveContext gSaveContext ALIGNED(16);
 
-void SaveContext_Init(void) {
+void MM_SaveContext_Init(void) {
     memset(&gSaveContext, 0, sizeof(SaveContext));
 
     gSaveContext.save.playerForm = 0;

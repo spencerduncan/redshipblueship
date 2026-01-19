@@ -21,7 +21,7 @@ const ActorInit En_Vase_InitVars = {
     sizeof(EnVase),
     (ActorFunc)EnVase_Init,
     (ActorFunc)EnVase_Destroy,
-    (ActorFunc)Actor_Noop,
+    (ActorFunc)OoT_Actor_Noop,
     (ActorFunc)EnVase_Draw,
     NULL,
 };
@@ -29,14 +29,14 @@ const ActorInit En_Vase_InitVars = {
 void EnVase_Init(Actor* thisx, PlayState* play) {
     EnVase* this = (EnVase*)thisx;
 
-    Actor_SetScale(&this->actor, 0.01f);
+    OoT_Actor_SetScale(&this->actor, 0.01f);
     this->actor.focus.pos = this->actor.world.pos;
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 6.0f);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 6.0f);
 }
 
 void EnVase_Destroy(Actor* thisx, PlayState* play) {
 }
 
 void EnVase_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, gUnusedVaseDL);
+    OoT_Gfx_DrawDListOpa(play, gUnusedVaseDL);
 }

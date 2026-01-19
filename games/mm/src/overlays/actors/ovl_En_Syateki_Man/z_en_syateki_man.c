@@ -18,12 +18,12 @@
     (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED | \
      ACTOR_FLAG_LOCK_ON_DISABLED)
 
-void EnSyatekiMan_Init(Actor* thisx, PlayState* play);
-void EnSyatekiMan_Destroy(Actor* thisx, PlayState* play);
-void EnSyatekiMan_Update(Actor* thisx, PlayState* play);
-void EnSyatekiMan_Draw(Actor* thisx, PlayState* play);
+void MM_EnSyatekiMan_Init(Actor* thisx, PlayState* play);
+void MM_EnSyatekiMan_Destroy(Actor* thisx, PlayState* play);
+void MM_EnSyatekiMan_Update(Actor* thisx, PlayState* play);
+void MM_EnSyatekiMan_Draw(Actor* thisx, PlayState* play);
 
-void EnSyatekiMan_SetupIdle(EnSyatekiMan* this, PlayState* play);
+void MM_EnSyatekiMan_SetupIdle(EnSyatekiMan* this, PlayState* play);
 void EnSyatekiMan_Swamp_Idle(EnSyatekiMan* this, PlayState* play);
 void EnSyatekiMan_Swamp_Talk(EnSyatekiMan* this, PlayState* play);
 void EnSyatekiMan_Town_Idle(EnSyatekiMan* this, PlayState* play);
@@ -93,10 +93,10 @@ ActorProfile En_Syateki_Man_Profile = {
     /**/ FLAGS,
     /**/ OBJECT_SHN,
     /**/ sizeof(EnSyatekiMan),
-    /**/ EnSyatekiMan_Init,
-    /**/ EnSyatekiMan_Destroy,
-    /**/ EnSyatekiMan_Update,
-    /**/ EnSyatekiMan_Draw,
+    /**/ MM_EnSyatekiMan_Init,
+    /**/ MM_EnSyatekiMan_Destroy,
+    /**/ MM_EnSyatekiMan_Update,
+    /**/ MM_EnSyatekiMan_Draw,
 };
 
 typedef enum ShootingGalleryManAnimation {
@@ -106,7 +106,7 @@ typedef enum ShootingGalleryManAnimation {
     /* 3 */ SG_MAN_ANIM_MAX
 } ShootingGalleryManAnimation;
 
-static AnimationInfo sAnimationInfo[SG_MAN_ANIM_MAX] = {
+static AnimationInfo MM_sAnimationInfo[SG_MAN_ANIM_MAX] = {
     { &gBurlyGuyHandsOnTableAnim, 1.0f, 0.0f, 0.0f, ANIMMODE_LOOP, -8.0f },    // SG_MAN_ANIM_HANDS_ON_TABLE
     { &gBurlyGuyHeadScratchLoopAnim, 1.0f, 0.0f, 0.0f, ANIMMODE_LOOP, -8.0f }, // SG_MAN_ANIM_HEAD_SCRATCH_LOOP
     { &gBurlyGuyHeadScratchEndAnim, 1.0f, 0.0f, 0.0f, ANIMMODE_ONCE, -8.0f },  // SG_MAN_ANIM_HEAD_SCRATCH_END
@@ -196,29 +196,29 @@ void EnSyatekiMan_Swamp_SpawnTargetActors(EnSyatekiMan* this, PlayState* play2, 
     s32 i;
 
     for (i = 0; i < actorListLength; i++) {
-        Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, actorList[i].actorId, actorList[i].pos.x,
+        MM_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, actorList[i].actorId, actorList[i].pos.x,
                            actorList[i].pos.y, actorList[i].pos.z, 0, 0, 0, actorList[i].params);
     }
 }
 
-void EnSyatekiMan_Init(Actor* thisx, PlayState* play) {
+void MM_EnSyatekiMan_Init(Actor* thisx, PlayState* play) {
     EnSyatekiMan* this = (EnSyatekiMan*)thisx;
     s32 pad;
     Path* path = &play->setupPathList[SG_MAN_GET_PATH_INDEX(&this->actor)];
     s32 actorListLength = sSwampTargetActorListLengths[this->swampTargetActorListIndex];
 
     this->actor.attentionRangeType = ATTENTION_RANGE_1;
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     if (play->sceneId == SCENE_SYATEKI_MORI) {
-        SkelAnime_InitFlex(play, &this->skelAnime, &gBurlyGuySkel, &gBurlyGuyHeadScratchLoopAnim, this->jointTable,
+        MM_SkelAnime_InitFlex(play, &this->skelAnime, &gBurlyGuySkel, &gBurlyGuyHeadScratchLoopAnim, this->jointTable,
                            this->morphTable, BURLY_GUY_LIMB_MAX);
     } else {
-        SkelAnime_InitFlex(play, &this->skelAnime, &gBurlyGuySkel, &gBurlyGuyHandsOnTableAnim, this->jointTable,
+        MM_SkelAnime_InitFlex(play, &this->skelAnime, &gBurlyGuySkel, &gBurlyGuyHandsOnTableAnim, this->jointTable,
                            this->morphTable, BURLY_GUY_LIMB_MAX);
     }
 
     this->actor.colChkInfo.cylRadius = 100;
-    this->actionFunc = EnSyatekiMan_SetupIdle;
+    this->actionFunc = MM_EnSyatekiMan_SetupIdle;
     this->shootingGameState = SG_GAME_STATE_NONE;
     this->talkWaitTimer = 15;
     this->flagsIndex = 0;
@@ -242,7 +242,7 @@ void EnSyatekiMan_Init(Actor* thisx, PlayState* play) {
     }
 }
 
-void EnSyatekiMan_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnSyatekiMan_Destroy(Actor* thisx, PlayState* play) {
     CLEAR_WEEKEVENTREG(WEEKEVENTREG_KICKOUT_WAIT);
 }
 
@@ -256,8 +256,8 @@ s32 EnSyatekiMan_MovePlayerToPos(PlayState* play, Vec3f targetPos) {
     f32 controlStickMagnitude;
     s16 controlStickAngle;
 
-    controlStickAngle = Math_Vec3f_Yaw(&player->actor.world.pos, &targetPos);
-    distXZ = Math_Vec3f_DistXZ(&player->actor.world.pos, &targetPos);
+    controlStickAngle = MM_Math_Vec3f_Yaw(&player->actor.world.pos, &targetPos);
+    distXZ = MM_Math_Vec3f_DistXZ(&player->actor.world.pos, &targetPos);
 
     if (distXZ < 5.0f) {
         controlStickMagnitude = 10.0f;
@@ -277,7 +277,7 @@ s32 EnSyatekiMan_MovePlayerToPos(PlayState* play, Vec3f targetPos) {
     return false;
 }
 
-void EnSyatekiMan_SetupIdle(EnSyatekiMan* this, PlayState* play) {
+void MM_EnSyatekiMan_SetupIdle(EnSyatekiMan* this, PlayState* play) {
     if (play->sceneId == SCENE_SYATEKI_MORI) {
         this->actionFunc = EnSyatekiMan_Swamp_Idle;
     } else if (play->sceneId == SCENE_SYATEKI_MIZU) {
@@ -291,39 +291,39 @@ void EnSyatekiMan_Swamp_Idle(EnSyatekiMan* this, PlayState* play) {
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         u16 faceReactionTextId;
 
-        Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, SG_MAN_ANIM_HEAD_SCRATCH_END);
-        faceReactionTextId = Text_GetFaceReaction(play, FACE_REACTION_SET_SWAMP_SHOOTING_GALLERY_MAN);
+        Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, SG_MAN_ANIM_HEAD_SCRATCH_END);
+        faceReactionTextId = MM_Text_GetFaceReaction(play, FACE_REACTION_SET_SWAMP_SHOOTING_GALLERY_MAN);
         if (faceReactionTextId != 0) {
-            Message_StartTextbox(play, faceReactionTextId, &this->actor);
+            MM_Message_StartTextbox(play, faceReactionTextId, &this->actor);
             this->prevTextId = faceReactionTextId;
         } else if (player->transformation == PLAYER_FORM_HUMAN) {
             if (this->talkFlags == TALK_FLAG_NONE) {
                 this->talkFlags = TALK_FLAG_SWAMP_HAS_SPOKEN_WITH_HUMAN;
                 // How are you? Wanna play?
-                Message_StartTextbox(play, 0xA28, &this->actor);
+                MM_Message_StartTextbox(play, 0xA28, &this->actor);
                 this->prevTextId = 0xA28;
             } else {
                 // Won't you play?
-                Message_StartTextbox(play, 0xA29, &this->actor);
+                MM_Message_StartTextbox(play, 0xA29, &this->actor);
                 this->prevTextId = 0xA29;
             }
         } else {
             switch (CURRENT_DAY) {
                 case 1:
                     // You can't play if you don't have a bow! (Day 1)
-                    Message_StartTextbox(play, 0xA38, &this->actor);
+                    MM_Message_StartTextbox(play, 0xA38, &this->actor);
                     this->prevTextId = 0xA38;
                     break;
 
                 case 2:
                     // You can't play if you don't have a bow! (Day 2)
-                    Message_StartTextbox(play, 0xA39, &this->actor);
+                    MM_Message_StartTextbox(play, 0xA39, &this->actor);
                     this->prevTextId = 0xA39;
                     break;
 
                 case 3:
                     // You can't play if you don't have a bow! (Day 3)
-                    Message_StartTextbox(play, 0xA3A, &this->actor);
+                    MM_Message_StartTextbox(play, 0xA3A, &this->actor);
                     this->prevTextId = 0xA3A;
                     break;
             }
@@ -341,19 +341,19 @@ void EnSyatekiMan_Swamp_Idle(EnSyatekiMan* this, PlayState* play) {
 void EnSyatekiMan_Swamp_HandleChoice(EnSyatekiMan* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    if (Message_ShouldAdvance(play)) {
+    if (MM_Message_ShouldAdvance(play)) {
         if (play->msgCtx.choiceIndex == 0) {
             if (CUR_UPG_VALUE(UPG_QUIVER) == 0) {
                 Audio_PlaySfx(NA_SE_SY_ERROR);
 
                 // You don't have a bow!
-                Message_StartTextbox(play, 0xA30, &this->actor);
+                MM_Message_StartTextbox(play, 0xA30, &this->actor);
                 this->prevTextId = 0xA30;
             } else if (gSaveContext.save.saveInfo.playerData.rupees < 20) {
                 Audio_PlaySfx(NA_SE_SY_ERROR);
 
                 // You don't have enough rupees!
-                Message_StartTextbox(play, 0xA31, &this->actor);
+                MM_Message_StartTextbox(play, 0xA31, &this->actor);
                 this->prevTextId = 0xA31;
                 if (this->shootingGameState == SG_GAME_STATE_ONE_MORE_GAME) {
                     gSaveContext.minigameStatus = MINIGAME_STATUS_END;
@@ -362,7 +362,7 @@ void EnSyatekiMan_Swamp_HandleChoice(EnSyatekiMan* this, PlayState* play) {
                 this->shootingGameState = SG_GAME_STATE_NOT_PLAYING;
             } else {
                 Audio_PlaySfx_MessageDecide();
-                Rupees_ChangeBy(-20);
+                MM_Rupees_ChangeBy(-20);
                 SET_WEEKEVENTREG(WEEKEVENTREG_KICKOUT_WAIT);
                 CLEAR_WEEKEVENTREG(WEEKEVENTREG_KICKOUT_TIME_PASSED);
                 play->msgCtx.msgMode = MSGMODE_TEXT_CLOSING;
@@ -377,19 +377,19 @@ void EnSyatekiMan_Swamp_HandleChoice(EnSyatekiMan* this, PlayState* play) {
             switch (CURRENT_DAY) {
                 case 1:
                     // You're not playing? Please come again.
-                    Message_StartTextbox(play, 0xA2D, &this->actor);
+                    MM_Message_StartTextbox(play, 0xA2D, &this->actor);
                     this->prevTextId = 0xA2D;
                     break;
 
                 case 2:
                     // You're not playing? Day after tomorrow is the carnival.
-                    Message_StartTextbox(play, 0xA2E, &this->actor);
+                    MM_Message_StartTextbox(play, 0xA2E, &this->actor);
                     this->prevTextId = 0xA2E;
                     break;
 
                 case 3:
                     // You're not playing? Is something happening outside?
-                    Message_StartTextbox(play, 0xA2F, &this->actor);
+                    MM_Message_StartTextbox(play, 0xA2F, &this->actor);
                     this->prevTextId = 0xA2F;
                     break;
             }
@@ -406,12 +406,12 @@ void EnSyatekiMan_Swamp_HandleChoice(EnSyatekiMan* this, PlayState* play) {
 void EnSyatekiMan_Swamp_HandleNormalMessage(EnSyatekiMan* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    if (Message_ShouldAdvance(play)) {
+    if (MM_Message_ShouldAdvance(play)) {
         switch (this->prevTextId) {
             case 0xA28: // How are you? Wanna play?
             case 0xA29: // Won't you play?
                 // It costs 20 rupees to play.
-                Message_StartTextbox(play, 0xA2A, &this->actor);
+                MM_Message_StartTextbox(play, 0xA2A, &this->actor);
                 this->prevTextId = 0xA2A;
                 break;
 
@@ -431,7 +431,7 @@ void EnSyatekiMan_Swamp_HandleNormalMessage(EnSyatekiMan* this, PlayState* play)
 
             case 0xA32: // You have to try harder!
                 if (CHECK_WEEKEVENTREG(WEEKEVENTREG_KICKOUT_TIME_PASSED)) {
-                    Message_CloseTextbox(play);
+                    MM_Message_CloseTextbox(play);
                     player->stateFlags1 &= ~PLAYER_STATE1_20;
                     CLEAR_WEEKEVENTREG(WEEKEVENTREG_KICKOUT_WAIT);
                     CLEAR_WEEKEVENTREG(WEEKEVENTREG_KICKOUT_TIME_PASSED);
@@ -440,14 +440,14 @@ void EnSyatekiMan_Swamp_HandleNormalMessage(EnSyatekiMan* this, PlayState* play)
                     this->shootingGameState = SG_GAME_STATE_NONE;
                 } else {
                     // Wanna play again?
-                    Message_StartTextbox(play, 0xA33, &this->actor);
+                    MM_Message_StartTextbox(play, 0xA33, &this->actor);
                     this->prevTextId = 0xA33;
                 }
                 break;
 
             case 0xA33: // Wanna play again?
                 // It costs 20 rupees to play.
-                Message_StartTextbox(play, 0xA2A, &this->actor);
+                MM_Message_StartTextbox(play, 0xA2A, &this->actor);
                 this->prevTextId = 0xA2A;
                 this->shootingGameState = SG_GAME_STATE_ONE_MORE_GAME;
                 break;
@@ -472,7 +472,7 @@ void EnSyatekiMan_Swamp_Talk(EnSyatekiMan* this, PlayState* play) {
         player->stateFlags1 |= PLAYER_STATE1_20;
     }
 
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_CLOSING:
             this->actionFunc = EnSyatekiMan_Swamp_Idle;
             this->shootingGameState = SG_GAME_STATE_NONE;
@@ -487,7 +487,7 @@ void EnSyatekiMan_Swamp_Talk(EnSyatekiMan* this, PlayState* play) {
             break;
 
         case TEXT_STATE_DONE:
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 play->msgCtx.msgMode = MSGMODE_TEXT_CLOSING;
                 play->msgCtx.stateTimer = 4;
                 player->stateFlags1 &= ~PLAYER_STATE1_20;
@@ -509,8 +509,8 @@ void EnSyatekiMan_Swamp_Talk(EnSyatekiMan* this, PlayState* play) {
     }
 
     if (this->skelAnime.animation == &gBurlyGuyHeadScratchEndAnim) {
-        if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
-            Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, SG_MAN_ANIM_HANDS_ON_TABLE);
+        if (MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+            Actor_ChangeAnimationByInfo(&this->skelAnime, MM_sAnimationInfo, SG_MAN_ANIM_HANDS_ON_TABLE);
         }
     }
 }
@@ -523,21 +523,21 @@ void EnSyatekiMan_Town_StartIntroTextbox(EnSyatekiMan* this, PlayState* play) {
                 if (!(this->talkFlags & TALK_FLAG_TOWN_HAS_SPOKEN_WITH_HUMAN)) {
                     this->talkFlags |= TALK_FLAG_TOWN_HAS_SPOKEN_WITH_HUMAN;
                     // Why don't you give it a try?
-                    Message_StartTextbox(play, 0x3E8, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3E8, &this->actor);
                     this->prevTextId = 0x3E8;
                 } else {
                     // Wanna try?
-                    Message_StartTextbox(play, 0x3E9, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3E9, &this->actor);
                     this->prevTextId = 0x3E9;
                 }
             } else if (!(this->talkFlags & TALK_FLAG_TOWN_HAS_SPOKEN_WITH_HUMAN)) {
                 this->talkFlags |= TALK_FLAG_TOWN_HAS_SPOKEN_WITH_HUMAN;
                 // If you still have time, why don't you try it?
-                Message_StartTextbox(play, 0x3EA, &this->actor);
+                MM_Message_StartTextbox(play, 0x3EA, &this->actor);
                 this->prevTextId = 0x3EA;
             } else {
                 // How about it? Wanna try?
-                Message_StartTextbox(play, 0x3EB, &this->actor);
+                MM_Message_StartTextbox(play, 0x3EB, &this->actor);
                 this->prevTextId = 0x3EB;
             }
             break;
@@ -547,21 +547,21 @@ void EnSyatekiMan_Town_StartIntroTextbox(EnSyatekiMan* this, PlayState* play) {
                 if (!(this->talkFlags & TALK_FLAG_TOWN_HAS_SPOKEN_WITH_DEKU)) {
                     this->talkFlags |= TALK_FLAG_TOWN_HAS_SPOKEN_WITH_DEKU;
                     // When I saw your fairy, I thought you were that masked troublemaker.
-                    Message_StartTextbox(play, 0x3EC, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3EC, &this->actor);
                     this->prevTextId = 0x3EC;
                 } else {
                     // You can't play because you don't have a bow.
-                    Message_StartTextbox(play, 0x3ED, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3ED, &this->actor);
                     this->prevTextId = 0x3ED;
                 }
             } else if (!(this->talkFlags & TALK_FLAG_TOWN_HAS_SPOKEN_WITH_DEKU)) {
                 this->talkFlags |= TALK_FLAG_TOWN_HAS_SPOKEN_WITH_DEKU;
                 // I thought you were a customer, but I guess I can't expect any...
-                Message_StartTextbox(play, 0x3EE, &this->actor);
+                MM_Message_StartTextbox(play, 0x3EE, &this->actor);
                 this->prevTextId = 0x3EE;
             } else {
                 // Stop hanging around and go home!
-                Message_StartTextbox(play, 0x3EF, &this->actor);
+                MM_Message_StartTextbox(play, 0x3EF, &this->actor);
                 this->prevTextId = 0x3EF;
             }
             break;
@@ -571,21 +571,21 @@ void EnSyatekiMan_Town_StartIntroTextbox(EnSyatekiMan* this, PlayState* play) {
                 if (!(this->talkFlags & TALK_FLAG_TOWN_HAS_SPOKEN_WITH_ZORA)) {
                     this->talkFlags |= TALK_FLAG_TOWN_HAS_SPOKEN_WITH_ZORA;
                     // I swear I've seen you before...
-                    Message_StartTextbox(play, 0x3F0, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3F0, &this->actor);
                     this->prevTextId = 0x3F0;
                 } else {
                     // If you don't have a bow, you can't play.
-                    Message_StartTextbox(play, 0x3F1, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3F1, &this->actor);
                     this->prevTextId = 0x3F1;
                 }
             } else if (!(this->talkFlags & TALK_FLAG_TOWN_HAS_SPOKEN_WITH_ZORA)) {
                 this->talkFlags |= TALK_FLAG_TOWN_HAS_SPOKEN_WITH_ZORA;
                 // Huh? You're still here?
-                Message_StartTextbox(play, 0x3F4, &this->actor);
+                MM_Message_StartTextbox(play, 0x3F4, &this->actor);
                 this->prevTextId = 0x3F4;
             } else {
                 // Haven't you heard the news?
-                Message_StartTextbox(play, 0x3F5, &this->actor);
+                MM_Message_StartTextbox(play, 0x3F5, &this->actor);
                 this->prevTextId = 0x3F5;
             }
             break;
@@ -598,21 +598,21 @@ void EnSyatekiMan_Town_StartIntroTextbox(EnSyatekiMan* this, PlayState* play) {
                 if (!(this->talkFlags & TALK_FLAG_TOWN_HAS_SPOKEN_WITH_GORON)) {
                     this->talkFlags |= TALK_FLAG_TOWN_HAS_SPOKEN_WITH_GORON;
                     // You have quite the build!
-                    Message_StartTextbox(play, 0x3F2, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3F2, &this->actor);
                     this->prevTextId = 0x3F2;
                 } else {
                     // Sorry...you don't have a bow.
-                    Message_StartTextbox(play, 0x3F3, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3F3, &this->actor);
                     this->prevTextId = 0x3F3;
                 }
             } else if (!(this->talkFlags & TALK_FLAG_TOWN_HAS_SPOKEN_WITH_GORON)) {
                 this->talkFlags |= TALK_FLAG_TOWN_HAS_SPOKEN_WITH_GORON;
                 // Huh? You're still here?
-                Message_StartTextbox(play, 0x3F4, &this->actor);
+                MM_Message_StartTextbox(play, 0x3F4, &this->actor);
                 this->prevTextId = 0x3F4;
             } else {
                 // Haven't you heard the news?
-                Message_StartTextbox(play, 0x3F5, &this->actor);
+                MM_Message_StartTextbox(play, 0x3F5, &this->actor);
                 this->prevTextId = 0x3F5;
             }
             break;
@@ -624,10 +624,10 @@ void EnSyatekiMan_Town_StartIntroTextbox(EnSyatekiMan* this, PlayState* play) {
 
 void EnSyatekiMan_Town_Idle(EnSyatekiMan* this, PlayState* play) {
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
-        u16 faceReactionTextId = Text_GetFaceReaction(play, FACE_REACTION_SET_TOWN_SHOOTING_GALLERY_MAN);
+        u16 faceReactionTextId = MM_Text_GetFaceReaction(play, FACE_REACTION_SET_TOWN_SHOOTING_GALLERY_MAN);
 
         if (faceReactionTextId != 0) {
-            Message_StartTextbox(play, faceReactionTextId, &this->actor);
+            MM_Message_StartTextbox(play, faceReactionTextId, &this->actor);
             this->prevTextId = faceReactionTextId;
         } else {
             EnSyatekiMan_Town_StartIntroTextbox(this, play);
@@ -642,28 +642,28 @@ void EnSyatekiMan_Town_Idle(EnSyatekiMan* this, PlayState* play) {
 void EnSyatekiMan_Town_HandleChoice(EnSyatekiMan* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    if (Message_ShouldAdvance(play)) {
+    if (MM_Message_ShouldAdvance(play)) {
         if (play->msgCtx.choiceIndex == 0) {
             if (CUR_UPG_VALUE(UPG_QUIVER) == 0) {
                 Audio_PlaySfx(NA_SE_SY_ERROR);
                 if (CURRENT_DAY != 3) {
                     // You don't have a bow? Then you can't play.
-                    Message_StartTextbox(play, 0x3F9, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3F9, &this->actor);
                     this->prevTextId = 0x3F9;
                 } else {
                     // You don't have a bow? That's too bad.
-                    Message_StartTextbox(play, 0x3FA, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3FA, &this->actor);
                     this->prevTextId = 0x3FA;
                 }
             } else if (gSaveContext.save.saveInfo.playerData.rupees < 20) {
                 Audio_PlaySfx(NA_SE_SY_ERROR);
                 if (CURRENT_DAY != 3) {
                     // You don't have a enough rupees!
-                    Message_StartTextbox(play, 0x3FB, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3FB, &this->actor);
                     this->prevTextId = 0x3FB;
                 } else {
                     // You don't have enough rupees? That's too bad.
-                    Message_StartTextbox(play, 0x3FC, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3FC, &this->actor);
                     this->prevTextId = 0x3FC;
                 }
 
@@ -675,16 +675,16 @@ void EnSyatekiMan_Town_HandleChoice(EnSyatekiMan* this, PlayState* play) {
                 this->shootingGameState = SG_GAME_STATE_NOT_PLAYING;
             } else {
                 Audio_PlaySfx_MessageDecide();
-                Rupees_ChangeBy(-20);
+                MM_Rupees_ChangeBy(-20);
                 this->shootingGameState = SG_GAME_STATE_EXPLAINING_RULES;
                 if (!(this->talkFlags & TALK_FLAG_TOWN_HAS_EXPLAINED_THE_RULES)) {
                     this->talkFlags |= TALK_FLAG_TOWN_HAS_EXPLAINED_THE_RULES;
                     // The rules are simple.
-                    Message_StartTextbox(play, 0x3FD, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3FD, &this->actor);
                     this->prevTextId = 0x3FD;
                 } else {
                     // Aim for the red ones.
-                    Message_StartTextbox(play, 0x3FF, &this->actor);
+                    MM_Message_StartTextbox(play, 0x3FF, &this->actor);
                     this->prevTextId = 0x3FF;
                 }
 
@@ -695,11 +695,11 @@ void EnSyatekiMan_Town_HandleChoice(EnSyatekiMan* this, PlayState* play) {
             Audio_PlaySfx_MessageCancel();
             if (CURRENT_DAY != 3) {
                 // Well, be that way!
-                Message_StartTextbox(play, 0x3F7, &this->actor);
+                MM_Message_StartTextbox(play, 0x3F7, &this->actor);
                 this->prevTextId = 0x3F7;
             } else {
                 // Usually this place is packed...
-                Message_StartTextbox(play, 0x3F8, &this->actor);
+                MM_Message_StartTextbox(play, 0x3F8, &this->actor);
                 this->prevTextId = 0x3F8;
             }
 
@@ -716,44 +716,44 @@ void EnSyatekiMan_Town_HandleChoice(EnSyatekiMan* this, PlayState* play) {
 void EnSyatekiMan_Town_HandleNormalMessage(EnSyatekiMan* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    if (Message_ShouldAdvance(play)) {
+    if (MM_Message_ShouldAdvance(play)) {
         switch (this->prevTextId) {
             case 0x3E8: // Why don't you give it a try?
             case 0x3E9: // Wanna try?
             case 0x3EA: // If you still have time, why don't you try it?
             case 0x3EB: // How about it? Wanna try?
                 // One game is 20 rupees.
-                Message_StartTextbox(play, 0x3F6, &this->actor);
+                MM_Message_StartTextbox(play, 0x3F6, &this->actor);
                 this->prevTextId = 0x3F6;
                 break;
 
             case 0x3EC: // When I saw your fairy, I thought you were that masked troublemaker.
                 // You can't play because you don't have a bow.
-                Message_StartTextbox(play, 0x3ED, &this->actor);
+                MM_Message_StartTextbox(play, 0x3ED, &this->actor);
                 this->prevTextId = 0x3ED;
                 break;
 
             case 0x3EE: // I thought you were a customer, but I guess I can't expect any...
                 // Stop hanging around and go home!
-                Message_StartTextbox(play, 0x3EF, &this->actor);
+                MM_Message_StartTextbox(play, 0x3EF, &this->actor);
                 this->prevTextId = 0x3EF;
                 break;
 
             case 0x3F0: // I swear I've seen you before...
                 // If you don't have a bow, you can't play.
-                Message_StartTextbox(play, 0x3F1, &this->actor);
+                MM_Message_StartTextbox(play, 0x3F1, &this->actor);
                 this->prevTextId = 0x3F1;
                 break;
 
             case 0x3F2: // You have quite the build!
                 // Sorry...you don't have a bow.
-                Message_StartTextbox(play, 0x3F3, &this->actor);
+                MM_Message_StartTextbox(play, 0x3F3, &this->actor);
                 this->prevTextId = 0x3F3;
                 break;
 
             case 0x3F4: // Huh? You're still here?
                 // Haven't you heard the news?
-                Message_StartTextbox(play, 0x3F5, &this->actor);
+                MM_Message_StartTextbox(play, 0x3F5, &this->actor);
                 this->prevTextId = 0x3F5;
                 break;
 
@@ -762,11 +762,11 @@ void EnSyatekiMan_Town_HandleNormalMessage(EnSyatekiMan* this, PlayState* play) 
                 if (this->shootingGameState == SG_GAME_STATE_ONE_MORE_GAME) {
                     if (this->prevTextId == 0x3FD) {
                         // Our highest score is [score]. If you break the record, you'll win a prize!
-                        Message_StartTextbox(play, 0x3FE, &this->actor);
+                        MM_Message_StartTextbox(play, 0x3FE, &this->actor);
                         this->prevTextId = 0x3FE;
                     } else {
                         // Our highest score is [score]. Good luck!
-                        Message_StartTextbox(play, 0x400, &this->actor);
+                        MM_Message_StartTextbox(play, 0x400, &this->actor);
                         this->prevTextId = 0x400;
                     }
                 } else {
@@ -796,28 +796,28 @@ void EnSyatekiMan_Town_HandleNormalMessage(EnSyatekiMan* this, PlayState* play) 
 
             case 0x401: // You got [score]? Oh, that's too bad...
                 if (CHECK_WEEKEVENTREG(WEEKEVENTREG_KICKOUT_TIME_PASSED)) {
-                    Message_CloseTextbox(play);
+                    MM_Message_CloseTextbox(play);
                     CLEAR_WEEKEVENTREG(WEEKEVENTREG_KICKOUT_WAIT);
                     CLEAR_WEEKEVENTREG(WEEKEVENTREG_KICKOUT_TIME_PASSED);
                     this->shootingGameState = SG_GAME_STATE_NONE;
                     this->actionFunc = EnSyatekiMan_Town_Idle;
                 } else {
                     // You can't stop, can you? You can play as long as you have rupees.
-                    Message_StartTextbox(play, 0x402, &this->actor);
+                    MM_Message_StartTextbox(play, 0x402, &this->actor);
                     this->prevTextId = 0x402;
                 }
                 break;
 
             case 0x403: // You got [score]? Too bad...
                 if (CHECK_WEEKEVENTREG(WEEKEVENTREG_KICKOUT_TIME_PASSED)) {
-                    Message_CloseTextbox(play);
+                    MM_Message_CloseTextbox(play);
                     CLEAR_WEEKEVENTREG(WEEKEVENTREG_KICKOUT_WAIT);
                     CLEAR_WEEKEVENTREG(WEEKEVENTREG_KICKOUT_TIME_PASSED);
                     this->shootingGameState = SG_GAME_STATE_NONE;
                     this->actionFunc = EnSyatekiMan_Town_Idle;
                 } else {
                     // Frustrating, right? Wanna try again?
-                    Message_StartTextbox(play, 0x404, &this->actor);
+                    MM_Message_StartTextbox(play, 0x404, &this->actor);
                     this->prevTextId = 0x404;
                 }
                 break;
@@ -825,7 +825,7 @@ void EnSyatekiMan_Town_HandleNormalMessage(EnSyatekiMan* this, PlayState* play) 
             case 0x402: // You can't stop, can you? You can play as long as you have rupees.
             case 0x404: // Frustrating, right? Wanna try again?
                 // One game is 20 rupees.
-                Message_StartTextbox(play, 0x3F6, &this->actor);
+                MM_Message_StartTextbox(play, 0x3F6, &this->actor);
                 this->prevTextId = 0x3F6;
                 this->shootingGameState = SG_GAME_STATE_ONE_MORE_GAME;
                 break;
@@ -851,7 +851,7 @@ void EnSyatekiMan_Town_Talk(EnSyatekiMan* this, PlayState* play) {
         player->stateFlags1 |= PLAYER_STATE1_20;
     }
 
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_CLOSING:
             this->actionFunc = EnSyatekiMan_Town_Idle;
             this->shootingGameState = SG_GAME_STATE_NONE;
@@ -866,7 +866,7 @@ void EnSyatekiMan_Town_Talk(EnSyatekiMan* this, PlayState* play) {
             break;
 
         case TEXT_STATE_DONE:
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 CLEAR_WEEKEVENTREG(WEEKEVENTREG_KICKOUT_WAIT);
                 CLEAR_WEEKEVENTREG(WEEKEVENTREG_KICKOUT_TIME_PASSED);
                 player->stateFlags1 &= ~PLAYER_STATE1_20;
@@ -889,7 +889,7 @@ void EnSyatekiMan_Town_Talk(EnSyatekiMan* this, PlayState* play) {
 void EnSyatekiMan_Swamp_SetupGiveReward(EnSyatekiMan* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    if (Actor_HasParent(&this->actor, play)) {
+    if (MM_Actor_HasParent(&this->actor, play)) {
         if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_SWAMP_SHOOTING_GALLERY_QUIVER_UPGRADE)) {
             SET_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_SWAMP_SHOOTING_GALLERY_QUIVER_UPGRADE);
         } else if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_SWAMP_SHOOTING_GALLERY_HEART_PIECE) &&
@@ -902,13 +902,13 @@ void EnSyatekiMan_Swamp_SetupGiveReward(EnSyatekiMan* this, PlayState* play) {
     } else {
         if ((CUR_UPG_VALUE(UPG_QUIVER) < 3) &&
             !CHECK_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_SWAMP_SHOOTING_GALLERY_QUIVER_UPGRADE)) {
-            Actor_OfferGetItem(&this->actor, play, GI_QUIVER_30 + CUR_UPG_VALUE(UPG_QUIVER), 500.0f, 100.0f);
+            MM_Actor_OfferGetItem(&this->actor, play, GI_QUIVER_30 + CUR_UPG_VALUE(UPG_QUIVER), 500.0f, 100.0f);
         } else if (this->score < SG_SWAMP_HEART_PIECE_SCORE) {
-            Actor_OfferGetItem(&this->actor, play, GI_RUPEE_RED, 500.0f, 100.0f);
+            MM_Actor_OfferGetItem(&this->actor, play, GI_RUPEE_RED, 500.0f, 100.0f);
         } else if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_SWAMP_SHOOTING_GALLERY_HEART_PIECE)) {
-            Actor_OfferGetItem(&this->actor, play, GI_HEART_PIECE, 500.0f, 100.0f);
+            MM_Actor_OfferGetItem(&this->actor, play, GI_HEART_PIECE, 500.0f, 100.0f);
         } else {
-            Actor_OfferGetItem(&this->actor, play, GI_RUPEE_PURPLE, 500.0f, 100.0f);
+            MM_Actor_OfferGetItem(&this->actor, play, GI_RUPEE_PURPLE, 500.0f, 100.0f);
         }
 
         player->actor.shape.rot.y = -0x8000;
@@ -924,11 +924,11 @@ void EnSyatekiMan_Swamp_GiveReward(EnSyatekiMan* this, PlayState* play) {
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         if ((CURRENT_DAY == 3) && (CURRENT_TIME > CLOCK_TIME(12, 0))) {
             // We've been having a lot of earthquakes lately.
-            Message_StartTextbox(play, 0xA36, &this->actor);
+            MM_Message_StartTextbox(play, 0xA36, &this->actor);
             this->prevTextId = 0xA36;
         } else {
             // Tell your friends about us.
-            Message_StartTextbox(play, 0xA37, &this->actor);
+            MM_Message_StartTextbox(play, 0xA37, &this->actor);
             this->prevTextId = 0xA37;
         }
 
@@ -945,7 +945,7 @@ void EnSyatekiMan_Swamp_GiveReward(EnSyatekiMan* this, PlayState* play) {
 void EnSyatekiMan_Town_SetupGiveReward(EnSyatekiMan* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    if (Actor_HasParent(&this->actor, play)) {
+    if (MM_Actor_HasParent(&this->actor, play)) {
         if (this->prevTextId == 0x407) {
             if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_TOWN_SHOOTING_GALLERY_QUIVER_UPGRADE)) {
                 SET_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_TOWN_SHOOTING_GALLERY_QUIVER_UPGRADE);
@@ -964,14 +964,14 @@ void EnSyatekiMan_Town_SetupGiveReward(EnSyatekiMan* this, PlayState* play) {
         if (this->prevTextId == 0x407) {
             if ((CUR_UPG_VALUE(UPG_QUIVER) < 3) &&
                 !CHECK_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_TOWN_SHOOTING_GALLERY_QUIVER_UPGRADE)) {
-                Actor_OfferGetItem(&this->actor, play, GI_QUIVER_30 + CUR_UPG_VALUE(UPG_QUIVER), 500.0f, 100.0f);
+                MM_Actor_OfferGetItem(&this->actor, play, GI_QUIVER_30 + CUR_UPG_VALUE(UPG_QUIVER), 500.0f, 100.0f);
             } else {
-                Actor_OfferGetItem(&this->actor, play, GI_RUPEE_PURPLE, 500.0f, 100.0f);
+                MM_Actor_OfferGetItem(&this->actor, play, GI_RUPEE_PURPLE, 500.0f, 100.0f);
             }
         } else if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_TOWN_SHOOTING_GALLERY_HEART_PIECE)) {
-            Actor_OfferGetItem(&this->actor, play, GI_HEART_PIECE, 500.0f, 100.0f);
+            MM_Actor_OfferGetItem(&this->actor, play, GI_HEART_PIECE, 500.0f, 100.0f);
         } else {
-            Actor_OfferGetItem(&this->actor, play, GI_RUPEE_HUGE, 500.0f, 100.0f);
+            MM_Actor_OfferGetItem(&this->actor, play, GI_RUPEE_HUGE, 500.0f, 100.0f);
         }
 
         player->actor.shape.rot.y = -0x8000;
@@ -985,17 +985,17 @@ void EnSyatekiMan_Town_GiveReward(EnSyatekiMan* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
     if (CURRENT_DAY != 3) {
-        if ((Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && Message_ShouldAdvance(play)) {
+        if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && MM_Message_ShouldAdvance(play)) {
             player->stateFlags1 &= ~PLAYER_STATE1_20;
             this->score = 0;
             this->shootingGameState = SG_GAME_STATE_NONE;
             CLEAR_WEEKEVENTREG(WEEKEVENTREG_KICKOUT_WAIT);
             CLEAR_WEEKEVENTREG(WEEKEVENTREG_KICKOUT_TIME_PASSED);
-            this->actionFunc = EnSyatekiMan_SetupIdle;
+            this->actionFunc = MM_EnSyatekiMan_SetupIdle;
         }
     } else if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         // This may be our last day in business...
-        Message_StartTextbox(play, 0x408, &this->actor);
+        MM_Message_StartTextbox(play, 0x408, &this->actor);
         this->prevTextId = 0x408;
         player->stateFlags1 &= ~PLAYER_STATE1_20;
         this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
@@ -1016,11 +1016,11 @@ void EnSyatekiMan_Swamp_MovePlayerAndExplainRules(EnSyatekiMan* this, PlayState*
         if (this->talkFlags != TALK_FLAG_SWAMP_HAS_EXPLAINED_THE_RULES) {
             this->talkFlags = TALK_FLAG_SWAMP_HAS_EXPLAINED_THE_RULES;
             // The rules of the game are a piece of cake!
-            Message_StartTextbox(play, 0xA2B, &this->actor);
+            MM_Message_StartTextbox(play, 0xA2B, &this->actor);
             this->prevTextId = 0xA2B;
         } else {
             // I keep saying - you have to aim with [Control Stick]!
-            Message_StartTextbox(play, 0xA2C, &this->actor);
+            MM_Message_StartTextbox(play, 0xA2C, &this->actor);
             this->prevTextId = 0xA2C;
         }
 
@@ -1107,7 +1107,7 @@ void EnSyatekiMan_Swamp_RunGame(EnSyatekiMan* this, PlayState* play) {
         // End the game because the timer ran out.
         gSaveContext.timerCurTimes[TIMER_ID_MINIGAME_1] = SECONDS_TO_TIMER(0);
         gSaveContext.timerStates[TIMER_ID_MINIGAME_1] = TIMER_STATE_STOP;
-        this->actor.draw = EnSyatekiMan_Draw;
+        this->actor.draw = MM_EnSyatekiMan_Draw;
         this->flagsIndex = 0;
         this->currentWave = 0;
         player->stateFlags1 |= PLAYER_STATE1_20;
@@ -1118,7 +1118,7 @@ void EnSyatekiMan_Swamp_RunGame(EnSyatekiMan* this, PlayState* play) {
                (this->bonusDekuScrubHitCounter == SG_SWAMP_BONUS_DEKU_COUNT)) {
         // End the game because the player has nothing left to shoot. This doesn't mean the
         // player actually hit everything, since Guays and Wolfos can escape.
-        this->actor.draw = EnSyatekiMan_Draw;
+        this->actor.draw = MM_EnSyatekiMan_Draw;
         this->flagsIndex = 0;
         this->currentWave = 0;
         player->stateFlags1 |= PLAYER_STATE1_20;
@@ -1153,7 +1153,7 @@ void EnSyatekiMan_Swamp_EndGame(EnSyatekiMan* this, PlayState* play) {
             this->talkWaitTimer = 15;
             if (this->score >= SG_SWAMP_PERFECT_SCORE_WITHOUT_BONUS) {
                 // Perfect! Take this!
-                Message_StartTextbox(play, 0xA34, &this->actor);
+                MM_Message_StartTextbox(play, 0xA34, &this->actor);
                 this->prevTextId = 0xA34;
                 this->shootingGameState = SG_GAME_STATE_ENDED;
             } else if (this->score >= 2000) {
@@ -1168,13 +1168,13 @@ void EnSyatekiMan_Swamp_EndGame(EnSyatekiMan* this, PlayState* play) {
 
                 // You almost had it! Well...just this once...here you go!
                 // Setting prevTextId to this is what triggers a free replay in EnSyatekiMan_Swamp_HandleNormalMessage.
-                Message_StartTextbox(play, 0xA35, &this->actor);
+                MM_Message_StartTextbox(play, 0xA35, &this->actor);
                 this->prevTextId = 0xA35;
                 this->shootingGameState = SG_GAME_STATE_ONE_MORE_GAME;
                 this->score = 0;
             } else {
                 // You have to try harder!
-                Message_StartTextbox(play, 0xA32, &this->actor);
+                MM_Message_StartTextbox(play, 0xA32, &this->actor);
                 this->prevTextId = 0xA32;
                 this->shootingGameState = SG_GAME_STATE_ENDED;
             }
@@ -1227,11 +1227,11 @@ void EnSyatekiMan_Town_MovePlayerAndSayHighScore(EnSyatekiMan* this, PlayState* 
     if (EnSyatekiMan_MovePlayerToPos(play, targetPlayerPos)) {
         if (this->prevTextId == 0x3FD) {
             // Our highest score is [score]. If you break the record, you'll win a prize!
-            Message_StartTextbox(play, 0x3FE, &this->actor);
+            MM_Message_StartTextbox(play, 0x3FE, &this->actor);
             this->prevTextId = 0x3FE;
         } else {
             // Our highest score is [score]. Good luck!
-            Message_StartTextbox(play, 0x400, &this->actor);
+            MM_Message_StartTextbox(play, 0x400, &this->actor);
             this->prevTextId = 0x400;
         }
 
@@ -1398,13 +1398,13 @@ void EnSyatekiMan_Town_RunGame(EnSyatekiMan* this, PlayState* play) {
             gSaveContext.timerStates[TIMER_ID_MINIGAME_1] = TIMER_STATE_STOP;
             player->stateFlags1 |= PLAYER_STATE1_20;
             sModFromLosingTime = 0;
-            this->actor.draw = EnSyatekiMan_Draw;
+            this->actor.draw = MM_EnSyatekiMan_Draw;
             Audio_StopSubBgm();
             this->actionFunc = EnSyatekiMan_Town_EndGame;
             if (this->score == 50) {
                 // BENTODO This had | 0x900 which interfered with the 16 bit sequence IDs. Removing it doesn't seem to
                 // anything bad.
-                Audio_PlayFanfare(NA_BGM_GET_ITEM);
+                MM_Audio_PlayFanfare(NA_BGM_GET_ITEM);
                 Interface_SetPerfectLetters(play, PERFECT_LETTERS_TYPE_1);
             }
         }
@@ -1421,20 +1421,20 @@ void EnSyatekiMan_Town_EndGame(EnSyatekiMan* this, PlayState* play) {
                 if (HS_GET_TOWN_SHOOTING_GALLERY_HIGH_SCORE() < this->score) {
                     if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_TOWN_SHOOTING_GALLERY_QUIVER_UPGRADE)) {
                         // You got a new record!
-                        Message_StartTextbox(play, 0x407, &this->actor);
+                        MM_Message_StartTextbox(play, 0x407, &this->actor);
                         this->prevTextId = 0x407;
                     } else if (this->score == 50) {
                         // No way! That was perfect!
-                        Message_StartTextbox(play, 0x405, &this->actor);
+                        MM_Message_StartTextbox(play, 0x405, &this->actor);
                         this->prevTextId = 0x405;
                     } else {
                         // You got a new record!
-                        Message_StartTextbox(play, 0x407, &this->actor);
+                        MM_Message_StartTextbox(play, 0x407, &this->actor);
                         this->prevTextId = 0x407;
                     }
                 } else if (this->score == 50) {
                     // That was perfect!
-                    Message_StartTextbox(play, 0x406, &this->actor);
+                    MM_Message_StartTextbox(play, 0x406, &this->actor);
                     this->prevTextId = 0x406;
                 }
 
@@ -1443,11 +1443,11 @@ void EnSyatekiMan_Town_EndGame(EnSyatekiMan* this, PlayState* play) {
             } else {
                 if (CURRENT_DAY != 3) {
                     // You got [score]? Oh, that's too bad...
-                    Message_StartTextbox(play, 0x401, &this->actor);
+                    MM_Message_StartTextbox(play, 0x401, &this->actor);
                     this->prevTextId = 0x401;
                 } else {
                     // You got [score]? Too bad...
-                    Message_StartTextbox(play, 0x403, &this->actor);
+                    MM_Message_StartTextbox(play, 0x403, &this->actor);
                     this->prevTextId = 0x403;
                 }
 
@@ -1465,7 +1465,7 @@ void EnSyatekiMan_Town_EndGame(EnSyatekiMan* this, PlayState* play) {
     }
 }
 
-void EnSyatekiMan_Blink(EnSyatekiMan* this) {
+void MM_EnSyatekiMan_Blink(EnSyatekiMan* this) {
     switch (this->blinkTimer) {
         case 1:
             this->eyeIndex = 2;
@@ -1486,20 +1486,20 @@ void EnSyatekiMan_Blink(EnSyatekiMan* this) {
     this->blinkTimer++;
 }
 
-void EnSyatekiMan_Update(Actor* thisx, PlayState* play) {
+void MM_EnSyatekiMan_Update(Actor* thisx, PlayState* play) {
     EnSyatekiMan* this = (EnSyatekiMan*)thisx;
 
     this->actionFunc(this, play);
-    EnSyatekiMan_Blink(this);
+    MM_EnSyatekiMan_Blink(this);
     this->actor.focus.pos.y = 70.0f;
-    Actor_SetFocus(&this->actor, 70.0f);
+    MM_Actor_SetFocus(&this->actor, 70.0f);
     if (this->shootingGameState != SG_GAME_STATE_RUNNING) {
-        SkelAnime_Update(&this->skelAnime);
+        MM_SkelAnime_Update(&this->skelAnime);
         Actor_TrackPlayer(play, &this->actor, &this->headRot, &this->torsoRot, this->actor.focus.pos);
     }
 }
 
-s32 EnSyatekiMan_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx) {
+s32 MM_EnSyatekiMan_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx) {
     EnSyatekiMan* this = (EnSyatekiMan*)thisx;
 
     if ((play->sceneId == SCENE_SYATEKI_MIZU) && (limbIndex == BURLY_GUY_LIMB_HEAD)) {
@@ -1507,10 +1507,10 @@ s32 EnSyatekiMan_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, V
     }
 
     if (limbIndex == BURLY_GUY_LIMB_HEAD) {
-        Matrix_Translate(3000.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+        MM_Matrix_Translate(3000.0f, 0.0f, 0.0f, MTXMODE_APPLY);
         Matrix_RotateZS(this->headRot.x, MTXMODE_APPLY);
         Matrix_RotateXS(this->headRot.y, MTXMODE_APPLY);
-        Matrix_Translate(-3000.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+        MM_Matrix_Translate(-3000.0f, 0.0f, 0.0f, MTXMODE_APPLY);
     } else if (limbIndex == BURLY_GUY_LIMB_TORSO) {
         Matrix_RotateXS(-this->torsoRot.y, MTXMODE_APPLY);
     }
@@ -1523,12 +1523,12 @@ void EnSyatekiMan_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3
     Vec3f sFocusOffset = { 1600.0f, 0.0f, 0.0f };
 
     if (limbIndex == BURLY_GUY_LIMB_HEAD) {
-        Matrix_MultVec3f(&sFocusOffset, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&sFocusOffset, &this->actor.focus.pos);
     }
 }
 
-void EnSyatekiMan_Draw(Actor* thisx, PlayState* play) {
-    static TexturePtr sEyeTextures[] = {
+void MM_EnSyatekiMan_Draw(Actor* thisx, PlayState* play) {
+    static TexturePtr MM_sEyeTextures[] = {
         gSwampShootingGalleryManEyeOpenTex,
         gSwampShootingGalleryManEyeHalfTex,
         gSwampShootingGalleryManEyeHalfTex,
@@ -1537,24 +1537,24 @@ void EnSyatekiMan_Draw(Actor* thisx, PlayState* play) {
     s32 pad;
 
     if (play->sceneId == SCENE_SYATEKI_MIZU) {
-        sEyeTextures[0] = gTownShootingGalleryManEyeOpenTex;
-        sEyeTextures[1] = gTownShootingGalleryManEyeClosedTex;
-        sEyeTextures[2] = gTownShootingGalleryManEyeClosedTex;
+        MM_sEyeTextures[0] = gTownShootingGalleryManEyeOpenTex;
+        MM_sEyeTextures[1] = gTownShootingGalleryManEyeClosedTex;
+        MM_sEyeTextures[2] = gTownShootingGalleryManEyeClosedTex;
     } else {
-        sEyeTextures[0] = gSwampShootingGalleryManEyeOpenTex;
-        sEyeTextures[1] = gSwampShootingGalleryManEyeHalfTex;
-        sEyeTextures[2] = gSwampShootingGalleryManEyeHalfTex;
+        MM_sEyeTextures[0] = gSwampShootingGalleryManEyeOpenTex;
+        MM_sEyeTextures[1] = gSwampShootingGalleryManEyeHalfTex;
+        MM_sEyeTextures[2] = gSwampShootingGalleryManEyeHalfTex;
     }
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL37_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sEyeTextures[this->eyeIndex]));
-    gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(sEyeTextures[this->eyeIndex]));
+    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeIndex]));
+    gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeIndex]));
 
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
-                          EnSyatekiMan_OverrideLimbDraw, EnSyatekiMan_PostLimbDraw, &this->actor);
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+                          MM_EnSyatekiMan_OverrideLimbDraw, EnSyatekiMan_PostLimbDraw, &this->actor);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

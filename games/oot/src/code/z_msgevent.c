@@ -1,6 +1,6 @@
 #include "global.h"
 
-void MsgEvent_SendNullTask(void) {
+void OoT_MsgEvent_SendNullTask(void) {
     s32 pad[4];
     OSScTask task;
     OSMesgQueue queue;
@@ -13,8 +13,8 @@ void MsgEvent_SendNullTask(void) {
     task.msg.ptr = NULL;
     task.framebuffer = NULL;
     task.list.t.type = M_NULTASK;
-    osCreateMesgQueue(task.msgQ, &msg, 1);
-    osSendMesgPtr(&gSchedContext.cmdQ, &task, OS_MESG_BLOCK);
-    Sched_SendEntryMsg(&gSchedContext);
-    osRecvMesg(&queue, NULL, OS_MESG_BLOCK);
+    OoT_osCreateMesgQueue(task.msgQ, &msg, 1);
+    osSendMesgPtr(&OoT_gSchedContext.cmdQ, &task, OS_MESG_BLOCK);
+    OoT_Sched_SendEntryMsg(&OoT_gSchedContext);
+    OoT_osRecvMesg(&queue, NULL, OS_MESG_BLOCK);
 }

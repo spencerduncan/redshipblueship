@@ -42,13 +42,13 @@ const ActorInit En_Jj_InitVars = {
     NULL,
 };
 
-static s32 sUnused = 0;
+static s32 OoT_sUnused = 0;
 
 #include "z_en_jj_cutscene_data.c" EARLY
 
 static s32 sUnused2[] = { 0, 0 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -68,7 +68,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 170, 150, 0, { 0, 0, 0 } },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 87, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 3300, ICHAIN_CONTINUE),
@@ -84,55 +84,55 @@ void EnJj_Init(Actor* thisx, PlayState* play2) {
     EnJj* this = (EnJj*)thisx;
     CollisionHeader* colHeader = NULL;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    ActorShape_Init(&this->dyna.actor.shape, 0.0f, NULL, 0.0f);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+    OoT_ActorShape_Init(&this->dyna.actor.shape, 0.0f, NULL, 0.0f);
 
     switch (this->dyna.actor.params) {
         case JABUJABU_MAIN:
-            SkelAnime_InitFlex(play, &this->skelAnime, &gJabuJabuSkel, &gJabuJabuAnim, this->jointTable,
+            OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gJabuJabuSkel, &gJabuJabuAnim, this->jointTable,
                                this->morphTable, 22);
-            Animation_PlayLoop(&this->skelAnime, &gJabuJabuAnim);
+            OoT_Animation_PlayLoop(&this->skelAnime, &gJabuJabuAnim);
             this->unk_30A = 0;
             this->eyeIndex = 0;
             this->blinkTimer = 0;
             this->extraBlinkCounter = 0;
             this->extraBlinkTotal = 0;
 
-            if (Flags_GetEventChkInf(EVENTCHKINF_OFFERED_FISH_TO_JABU_JABU)) { // Fish given
+            if (OoT_Flags_GetEventChkInf(EVENTCHKINF_OFFERED_FISH_TO_JABU_JABU)) { // Fish given
                 EnJj_SetupAction(this, EnJj_WaitToOpenMouth);
             } else {
                 EnJj_SetupAction(this, EnJj_WaitForFish);
             }
 
-            this->bodyCollisionActor = (DynaPolyActor*)Actor_SpawnAsChild(
+            this->bodyCollisionActor = (DynaPolyActor*)OoT_Actor_SpawnAsChild(
                 &play->actorCtx, &this->dyna.actor, play, ACTOR_EN_JJ, this->dyna.actor.world.pos.x - 10.0f,
                 this->dyna.actor.world.pos.y, this->dyna.actor.world.pos.z, 0, this->dyna.actor.world.rot.y, 0,
                 JABUJABU_COLLISION);
-            DynaPolyActor_Init(&this->dyna, 0);
-            CollisionHeader_GetVirtual(&gJabuJabuHeadCol, &colHeader);
-            this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
-            Collider_InitCylinder(play, &this->collider);
-            Collider_SetCylinder(play, &this->collider, &this->dyna.actor, &sCylinderInit);
+            OoT_DynaPolyActor_Init(&this->dyna, 0);
+            OoT_CollisionHeader_GetVirtual(&gJabuJabuHeadCol, &colHeader);
+            this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+            OoT_Collider_InitCylinder(play, &this->collider);
+            OoT_Collider_SetCylinder(play, &this->collider, &this->dyna.actor, &OoT_sCylinderInit);
             this->dyna.actor.colChkInfo.mass = MASS_IMMOVABLE;
             break;
 
         case JABUJABU_COLLISION:
-            DynaPolyActor_Init(&this->dyna, 0);
-            CollisionHeader_GetVirtual(&gJabuJabuBodyCol, &colHeader);
-            this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+            OoT_DynaPolyActor_Init(&this->dyna, 0);
+            OoT_CollisionHeader_GetVirtual(&gJabuJabuBodyCol, &colHeader);
+            this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
             func_8003ECA8(play, &play->colCtx.dyna, this->dyna.bgId);
             this->dyna.actor.update = EnJj_UpdateStaticCollision;
             this->dyna.actor.draw = NULL;
-            Actor_SetScale(&this->dyna.actor, 0.087f);
+            OoT_Actor_SetScale(&this->dyna.actor, 0.087f);
             break;
 
         case JABUJABU_UNUSED_COLLISION:
-            DynaPolyActor_Init(&this->dyna, 0);
-            CollisionHeader_GetVirtual(&gJabuJabuUnusedCol, &colHeader);
-            this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+            OoT_DynaPolyActor_Init(&this->dyna, 0);
+            OoT_CollisionHeader_GetVirtual(&gJabuJabuUnusedCol, &colHeader);
+            this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
             this->dyna.actor.update = EnJj_UpdateStaticCollision;
             this->dyna.actor.draw = NULL;
-            Actor_SetScale(&this->dyna.actor, 0.087f);
+            OoT_Actor_SetScale(&this->dyna.actor, 0.087f);
             break;
     }
 }
@@ -142,23 +142,23 @@ void EnJj_Destroy(Actor* thisx, PlayState* play) {
 
     switch (this->dyna.actor.params) {
         case JABUJABU_MAIN:
-            DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
-            Collider_DestroyCylinder(play, &this->collider);
+            OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+            OoT_Collider_DestroyCylinder(play, &this->collider);
 
             ResourceMgr_UnregisterSkeleton(&this->skelAnime);
             break;
 
         case JABUJABU_COLLISION:
         case JABUJABU_UNUSED_COLLISION:
-            DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+            OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
             break;
     }
 }
 
 /**
- * Blink routine. Blinks at the end of each randomised blinkTimer cycle. If extraBlinkCounter is not zero, blink that
+ * Blink routine. Blinks at the end of each randomised blinkTimer cycle. If extraBlinkCounter is not OoT_zero, blink that
  * many more times before resuming random blinkTimer cycles. extraBlinkTotal can be set to a positive number to blink
- * that many extra times at the end of every blinkTimer cycle, but the actor always sets it to zero, so only one
+ * that many extra times at the end of every blinkTimer cycle, but the actor always sets it to OoT_zero, so only one
  * multiblink happens when extraBlinkCounter is nonzero.
  */
 void EnJj_Blink(EnJj* this) {
@@ -171,7 +171,7 @@ void EnJj_Blink(EnJj* this) {
             if (this->extraBlinkCounter > 0) {
                 this->extraBlinkCounter--;
             } else {
-                this->blinkTimer = Rand_S16Offset(20, 20);
+                this->blinkTimer = OoT_Rand_S16Offset(20, 20);
                 this->extraBlinkCounter = this->extraBlinkTotal;
             }
         }
@@ -200,7 +200,7 @@ void EnJj_WaitForFish(EnJj* this, PlayState* play) {
     static Vec3f feedingSpot = { -1589.0f, 53.0f, -43.0f };
     Player* player = GET_PLAYER(play);
 
-    if ((Math_Vec3f_DistXZ(&feedingSpot, &player->actor.world.pos) < 300.0f) && play->isPlayerDroppingFish(play)) {
+    if ((OoT_Math_Vec3f_DistXZ(&feedingSpot, &player->actor.world.pos) < 300.0f) && play->isPlayerDroppingFish(play)) {
         this->cutsceneCountdownTimer = 100;
         EnJj_SetupAction(this, EnJj_BeginCutscene);
     }
@@ -208,7 +208,7 @@ void EnJj_WaitForFish(EnJj* this, PlayState* play) {
     this->collider.dim.pos.x = -1245;
     this->collider.dim.pos.y = 20;
     this->collider.dim.pos.z = -48;
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void EnJj_BeginCutscene(EnJj* this, PlayState* play) {
@@ -222,7 +222,7 @@ void EnJj_BeginCutscene(EnJj* this, PlayState* play) {
         gSaveContext.cutsceneTrigger = 1;
         func_8003EBF8(play, &play->colCtx.dyna, bodyCollisionActor->bgId);
         func_8005B1A4(GET_ACTIVE_CAM(play));
-        Flags_SetEventChkInf(EVENTCHKINF_OFFERED_FISH_TO_JABU_JABU);
+        OoT_Flags_SetEventChkInf(EVENTCHKINF_OFFERED_FISH_TO_JABU_JABU);
         Sfx_PlaySfxCentered(NA_SE_SY_CORRECT_CHIME);
     }
 }
@@ -232,7 +232,7 @@ void EnJj_CutsceneUpdate(EnJj* this, PlayState* play) {
         case 1:
             if (this->unk_30A & 2) {
                 this->eyeIndex = 0;
-                this->blinkTimer = Rand_S16Offset(20, 20);
+                this->blinkTimer = OoT_Rand_S16Offset(20, 20);
                 this->extraBlinkCounter = 0;
                 this->extraBlinkTotal = 0;
                 this->unk_30A ^= 2;
@@ -243,7 +243,7 @@ void EnJj_CutsceneUpdate(EnJj* this, PlayState* play) {
             this->unk_30A |= 1;
 
             if (!(this->unk_30A & 8)) {
-                this->dust = Actor_SpawnAsChild(&play->actorCtx, &this->dyna.actor, play, ACTOR_EFF_DUST, -1100.0f,
+                this->dust = OoT_Actor_SpawnAsChild(&play->actorCtx, &this->dyna.actor, play, ACTOR_EFF_DUST, -1100.0f,
                                                 105.0f, -27.0f, 0, 0, 0, EFF_DUST_TYPE_0);
                 this->unk_30A |= 8;
             }
@@ -277,7 +277,7 @@ void EnJj_RemoveDust(EnJj* this, PlayState* play) {
         dust = this->dust;
 
         if (dust != NULL) {
-            Actor_Kill(dust);
+            OoT_Actor_Kill(dust);
             this->dyna.actor.child = NULL;
         }
     }
@@ -300,8 +300,8 @@ void EnJj_Update(Actor* thisx, PlayState* play) {
     }
 
     EnJj_Blink(this);
-    SkelAnime_Update(&this->skelAnime);
-    Actor_SetScale(&this->dyna.actor, 0.087f);
+    OoT_SkelAnime_Update(&this->skelAnime);
+    OoT_Actor_SetScale(&this->dyna.actor, 0.087f);
 
     // Head
     this->skelAnime.jointTable[10].z = this->mouthOpenAngle;
@@ -315,8 +315,8 @@ void EnJj_Draw(Actor* thisx, PlayState* play2) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_37Opa(play->state.gfxCtx);
-    Matrix_Translate(0.0f, (cosf(this->skelAnime.curFrame * (M_PI / 41.0f)) * 10.0f) - 10.0f, 0.0f, MTXMODE_APPLY);
-    Matrix_Scale(10.0f, 10.0f, 10.0f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(0.0f, (cosf(this->skelAnime.curFrame * (M_PI / 41.0f)) * 10.0f) - 10.0f, 0.0f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(10.0f, 10.0f, 10.0f, MTXMODE_APPLY);
     gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(eyeTextures[this->eyeIndex]));
     SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, NULL, NULL, this);
 

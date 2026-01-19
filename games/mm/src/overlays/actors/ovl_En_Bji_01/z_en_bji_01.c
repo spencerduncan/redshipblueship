@@ -17,7 +17,7 @@ void EnBji01_Draw(Actor* thisx, PlayState* play);
 void func_809CCEE8(EnBji01* this, PlayState* play);
 void func_809CD028(EnBji01* this, PlayState* play);
 void EnBji01_DialogueHandler(EnBji01* this, PlayState* play);
-void func_809CD634(EnBji01* this, PlayState* play);
+void MM_func_809CD634(EnBji01* this, PlayState* play);
 void EnBji01_DoNothing(EnBji01* this, PlayState* play);
 void func_809CD6C0(EnBji01* this, PlayState* play);
 void func_809CD70C(EnBji01* this, PlayState* play);
@@ -35,7 +35,7 @@ ActorProfile En_Bji_01_Profile = {
     /**/ EnBji01_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HIT0,
         AT_NONE,
@@ -76,7 +76,7 @@ void func_809CCDE0(EnBji01* this, PlayState* play) {
     Vec3f pitchTarget;
     s32 pad[2];
 
-    Math_Vec3f_Copy(&pitchTarget, &player->actor.world.pos);
+    MM_Math_Vec3f_Copy(&pitchTarget, &player->actor.world.pos);
     pitchTarget.y = player->bodyPartsPos[PLAYER_BODYPART_HEAD].y + 3.0f;
     SubS_TrackPointStep(&this->actor.world.pos, &this->actor.focus.pos, this->actor.shape.rot.y,
                         &player->actor.world.pos, &pitchTarget, &this->headZRotStep, &this->headXRotStep,
@@ -91,7 +91,7 @@ void func_809CCE98(EnBji01* this, PlayState* play) {
 }
 
 void func_809CCEE8(EnBji01* this, PlayState* play) {
-    Math_ScaledStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 0x444);
+    MM_Math_ScaledStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 0x444);
     if (this->actor.params == SHIKASHI_TYPE_DEFAULT) {
         if ((this->actor.xzDistToPlayer <= 60.0f) && (this->actor.playerHeightRel <= 10.0f)) {
             this->actor.flags |= ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
@@ -137,7 +137,7 @@ void func_809CD028(EnBji01* this, PlayState* play) {
                     break;
 
                 case PLAYER_FORM_HUMAN:
-                    if (Player_GetMask(play) == PLAYER_MASK_KAFEIS_MASK) {
+                    if (MM_Player_GetMask(play) == PLAYER_MASK_KAFEIS_MASK) {
                         this->textId = 0x236A;
                     } else if (CHECK_WEEKEVENTREG(WEEKEVENTREG_74_10)) {
                         this->textId = 0x5F6;
@@ -219,40 +219,40 @@ void func_809CD028(EnBji01* this, PlayState* play) {
 }
 
 void EnBji01_DialogueHandler(EnBji01* this, PlayState* play) {
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_NONE:
-            Math_ScaledStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 0x444);
+            MM_Math_ScaledStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 0x444);
             func_809CCDE0(this, play);
             if (this->actor.shape.rot.y == this->actor.yawTowardsPlayer) {
-                Message_StartTextbox(play, this->textId, &this->actor);
+                MM_Message_StartTextbox(play, this->textId, &this->actor);
             }
             break;
 
         case TEXT_STATE_CHOICE:
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
                 this->actor.params = SHIKASHI_TYPE_FINISHED_CONVERSATION;
                 switch (play->msgCtx.choiceIndex) {
                     case 0:
                         Audio_PlaySfx_MessageDecide();
-                        Message_CloseTextbox(play);
-                        func_809CD634(this, play);
+                        MM_Message_CloseTextbox(play);
+                        MM_func_809CD634(this, play);
                         break;
 
                     case 1:
                         Audio_PlaySfx_MessageCancel();
                         switch (GET_PLAYER_FORM) {
                             case PLAYER_FORM_DEKU:
-                                Message_ContinueTextbox(play, 0x5F0);
+                                MM_Message_ContinueTextbox(play, 0x5F0);
                                 break;
 
                             case PLAYER_FORM_HUMAN:
-                                Message_ContinueTextbox(play, 0x5F8);
+                                MM_Message_ContinueTextbox(play, 0x5F8);
                                 break;
 
                             case PLAYER_FORM_GORON:
                             case PLAYER_FORM_ZORA:
-                                Message_ContinueTextbox(play, 0x5E1);
+                                MM_Message_ContinueTextbox(play, 0x5E1);
                                 break;
 
                             default:
@@ -267,25 +267,25 @@ void EnBji01_DialogueHandler(EnBji01* this, PlayState* play) {
             break;
 
         case TEXT_STATE_EVENT:
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
                 switch (play->msgCtx.currentTextId) {
                     case 0x5DE:
                         SubS_ChangeAnimationBySpeedInfo(&this->skelAnime, sAnimationSpeedInfo,
                                                         SHIKASHI_ANIM_SCRATCH_CHIN, &this->animIndex);
-                        Message_ContinueTextbox(play, 0x5DF);
+                        MM_Message_ContinueTextbox(play, 0x5DF);
                         break;
 
                     case 0x5E4:
-                        Message_ContinueTextbox(play, 0x5E7);
+                        MM_Message_ContinueTextbox(play, 0x5E7);
                         break;
 
                     case 0x5E5:
-                        Message_ContinueTextbox(play, 0x5E0);
+                        MM_Message_ContinueTextbox(play, 0x5E0);
                         break;
 
                     case 0x5E7:
-                        Message_ContinueTextbox(play, 0x5E5);
+                        MM_Message_ContinueTextbox(play, 0x5E5);
                         break;
 
                     case 0x5DC:
@@ -296,12 +296,12 @@ void EnBji01_DialogueHandler(EnBji01* this, PlayState* play) {
                     case 0x5EE:
                     case 0x5F2:
                     case 0x5F5:
-                        Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                        MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                         break;
 
                     case 0x5F0:
                     case 0x5F6:
-                        Message_ContinueTextbox(play, 0x5EF);
+                        MM_Message_ContinueTextbox(play, 0x5EF);
                         break;
 
                     case 0x5E1:
@@ -314,7 +314,7 @@ void EnBji01_DialogueHandler(EnBji01* this, PlayState* play) {
                     case 0x5F4:
                     case 0x5F7:
                     case 0x5F8:
-                        Message_CloseTextbox(play);
+                        MM_Message_CloseTextbox(play);
                         this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
                         this->actor.params = SHIKASHI_TYPE_FINISHED_CONVERSATION;
                         func_809CCE98(this, play);
@@ -340,7 +340,7 @@ void EnBji01_DialogueHandler(EnBji01* this, PlayState* play) {
     }
 }
 
-void func_809CD634(EnBji01* this, PlayState* play) {
+void MM_func_809CD634(EnBji01* this, PlayState* play) {
     AudioSfx_MuteBanks((1 << BANK_PLAYER) | (1 << BANK_ITEM) | (1 << BANK_ENV) | (1 << BANK_ENEMY) |
                        (1 << BANK_OCARINA) | (1 << BANK_VOICE));
     SEQCMD_DISABLE_PLAY_SEQUENCES(true);
@@ -360,7 +360,7 @@ void func_809CD6C0(EnBji01* this, PlayState* play) {
 }
 
 void func_809CD70C(EnBji01* this, PlayState* play) {
-    Math_ScaledStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 0x444);
+    MM_Math_ScaledStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 0x444);
     func_809CCDE0(this, play);
     if (this->actor.shape.rot.y == this->actor.yawTowardsPlayer) {
         Actor_ChangeFocus(&this->moonsTear->actor, play, &this->actor); /* Z-Target the Moon's Tear? */
@@ -377,17 +377,17 @@ void func_809CD77C(EnBji01* this, PlayState* play) {
 void EnBji01_Init(Actor* thisx, PlayState* play) {
     EnBji01* this = (EnBji01*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 30.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gShikashiSkel, &object_bji_Anim_000FDC, this->jointTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 30.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gShikashiSkel, &object_bji_Anim_000FDC, this->jointTable,
                        this->morphTable, SHIKASHI_LIMB_MAX);
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
 
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
     this->actor.attentionRangeType = ATTENTION_RANGE_0;
     this->actor.child = NULL;
     this->animIndex = SHIKASHI_ANIM_NONE;
 
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     SubS_FillCutscenesList(&this->actor, this->csIdList, ARRAY_COUNT(this->csIdList));
     this->moonsTear = (ObjMoonStone*)SubS_FindActor(play, NULL, ACTORCAT_PROP, ACTOR_OBJ_MOON_STONE);
 
@@ -407,7 +407,7 @@ void EnBji01_Init(Actor* thisx, PlayState* play) {
             break;
 
         default:
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
             break;
     }
 }
@@ -415,7 +415,7 @@ void EnBji01_Init(Actor* thisx, PlayState* play) {
 void EnBji01_Destroy(Actor* thisx, PlayState* play) {
     EnBji01* this = (EnBji01*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnBji01_Update(Actor* thisx, PlayState* play) {
@@ -424,22 +424,22 @@ void EnBji01_Update(Actor* thisx, PlayState* play) {
     s32 pad;
 
     this->actionFunc(this, play);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
-    SkelAnime_Update(&this->skelAnime);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     if (this->blinkTimer-- <= 0) {
         this->blinkSeqIndex--;
         if (this->blinkSeqIndex < 0) {
             this->blinkSeqIndex = 4;
-            this->blinkTimer = (Rand_ZeroOne() * 60.0f) + 20.0f;
+            this->blinkTimer = (MM_Rand_ZeroOne() * 60.0f) + 20.0f;
         } else {
             this->eyeTexIndex = sBlinkSequence[this->blinkSeqIndex];
         }
     }
 
-    Actor_SetFocus(&this->actor, 40.0f);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Actor_SetFocus(&this->actor, 40.0f);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 s32 EnBji01_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx) {
@@ -479,23 +479,23 @@ void EnBji01_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* ro
     s32 temp_f4 = 0;
 
     if (limbIndex == SHIKASHI_LIMB_HEAD) {
-        Math_Vec3f_Copy(&sp20, &D_809CDCC8);
+        MM_Math_Vec3f_Copy(&sp20, &D_809CDCC8);
         sp20.x += temp_f4 * 0.1f;
         sp20.y += temp_f4 * 0.1f;
         sp20.z += temp_f4 * 0.1f;
-        Matrix_MultVec3f(&sp20, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&sp20, &this->actor.focus.pos);
     }
 }
 
 void EnBji01_Draw(Actor* thisx, PlayState* play) {
-    static TexturePtr sEyeTextures[] = { object_bji_Tex_0049F0, object_bji_Tex_004E70, object_bji_Tex_005270 };
+    static TexturePtr MM_sEyeTextures[] = { object_bji_Tex_0049F0, object_bji_Tex_004E70, object_bji_Tex_005270 };
     EnBji01* this = (EnBji01*)thisx;
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sEyeTextures[this->eyeTexIndex]));
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnBji01_OverrideLimbDraw, EnBji01_PostLimbDraw, &this->actor);
 
     CLOSE_DISPS(play->state.gfxCtx);

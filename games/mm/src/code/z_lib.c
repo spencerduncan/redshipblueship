@@ -8,12 +8,12 @@
 #include "BenPort.h"
 #include "2s2h/GameInteractor/GameInteractor.h"
 
-f32 Math_CosS(s16 angle) {
-    return coss(angle) * SHT_MINV;
+f32 MM_Math_CosS(s16 angle) {
+    return MM_coss(angle) * SHT_MINV;
 }
 
-f32 Math_SinS(s16 angle) {
-    return sins(angle) * SHT_MINV;
+f32 MM_Math_SinS(s16 angle) {
+    return MM_sins(angle) * SHT_MINV;
 }
 
 s32 Math_StepToIImpl(s32 start, s32 target, s32 step) {
@@ -43,7 +43,7 @@ s32 Math_StepToI(s32* pValue, s32 target, s32 step) {
     return target == *pValue;
 }
 
-s32 Math_ScaledStepToS(s16* pValue, s16 target, s16 step) {
+s32 MM_Math_ScaledStepToS(s16* pValue, s16 target, s16 step) {
     f32 f0;
 
     if (step != 0) {
@@ -67,7 +67,7 @@ s32 Math_ScaledStepToS(s16* pValue, s16 target, s16 step) {
     return false;
 }
 
-s32 Math_StepToS(s16* pValue, s16 target, s16 step) {
+s32 MM_Math_StepToS(s16* pValue, s16 target, s16 step) {
     if (step != 0) {
         if (target < *pValue) {
             step = -step;
@@ -107,7 +107,7 @@ s32 Math_StepToC(s8* pValue, s8 target, s8 step) {
     return false;
 }
 
-s32 Math_StepToF(f32* pValue, f32 target, f32 step) {
+s32 MM_Math_StepToF(f32* pValue, f32 target, f32 step) {
     if (step != 0.0f) {
         if (target < *pValue) {
             step = -step;
@@ -127,7 +127,7 @@ s32 Math_StepToF(f32* pValue, f32 target, f32 step) {
     return false;
 }
 
-s32 Math_StepUntilAngleS(s16* pValue, s16 target, s16 step) {
+s32 MM_Math_StepUntilAngleS(s16* pValue, s16 target, s16 step) {
     s16 orig = *pValue;
 
     *pValue += step;
@@ -141,7 +141,7 @@ s32 Math_StepUntilAngleS(s16* pValue, s16 target, s16 step) {
     return false;
 }
 
-s32 Math_StepToAngleS(s16* pValue, s16 target, s16 step) {
+s32 MM_Math_StepToAngleS(s16* pValue, s16 target, s16 step) {
     s32 diff = target - *pValue;
 
     if (diff < 0) {
@@ -191,7 +191,7 @@ s32 Math_AsymStepToS(s16* pValue, s16 target, s16 incrStep, s16 decrStep) {
     return false;
 }
 
-s32 Math_StepUntilF(f32* pValue, f32 limit, f32 step) {
+s32 MM_Math_StepUntilF(f32* pValue, f32 limit, f32 step) {
     f32 orig = *pValue;
 
     *pValue += step;
@@ -204,7 +204,7 @@ s32 Math_StepUntilF(f32* pValue, f32 limit, f32 step) {
     return false;
 }
 
-s32 Math_AsymStepToF(f32* pValue, f32 target, f32 incrStep, f32 decrStep) {
+s32 MM_Math_AsymStepToF(f32* pValue, f32 target, f32 incrStep, f32 decrStep) {
     f32 step = (target >= *pValue) ? incrStep : decrStep;
 
     if (step != 0) {
@@ -231,7 +231,7 @@ void Lib_GetControlStickData(f32* outMagnitude, s16* outAngle, Input* input) {
     f32 magnitude;
 
     x *= GameInteractor_InvertControl(GI_INVERT_MOVEMENT_X);
-    magnitude = sqrtf(SQ(x) + SQ(y));
+    magnitude = MM_sqrtf(SQ(x) + SQ(y));
     *outMagnitude = (60.0f < magnitude) ? 60.0f : magnitude;
 
     if (magnitude > 0.0f) {
@@ -244,15 +244,15 @@ void Lib_GetControlStickData(f32* outMagnitude, s16* outAngle, Input* input) {
     }
 }
 
-s16 Rand_S16Offset(s16 base, s16 range) {
-    return (s16)(Rand_ZeroOne() * range) + base;
+s16 MM_Rand_S16Offset(s16 base, s16 range) {
+    return (s16)(MM_Rand_ZeroOne() * range) + base;
 }
 
-s16 Rand_S16OffsetStride(s16 base, s16 stride, s16 range) {
-    return (s16)(Rand_ZeroOne() * range) * stride + base;
+s16 MM_Rand_S16OffsetStride(s16 base, s16 stride, s16 range) {
+    return (s16)(MM_Rand_ZeroOne() * range) * stride + base;
 }
 
-void Math_Vec3f_Copy(Vec3f* dest, Vec3f* src) {
+void MM_Math_Vec3f_Copy(Vec3f* dest, Vec3f* src) {
     f32 x = src->x;
     f32 y = src->y;
     f32 z = src->z;
@@ -272,7 +272,7 @@ void Math_Vec3s_Copy(Vec3s* dest, Vec3s* src) {
     dest->z = z;
 }
 
-void Math_Vec3s_ToVec3f(Vec3f* dest, Vec3s* src) {
+void MM_Math_Vec3s_ToVec3f(Vec3f* dest, Vec3s* src) {
     f32 x = src->x;
     f32 y = src->y;
     f32 z = src->z;
@@ -292,25 +292,25 @@ void Math_Vec3f_ToVec3s(Vec3s* dest, Vec3f* src) {
     dest->z = z;
 }
 
-void Math_Vec3f_Sum(Vec3f* l, Vec3f* r, Vec3f* dest) {
+void MM_Math_Vec3f_Sum(Vec3f* l, Vec3f* r, Vec3f* dest) {
     dest->x = l->x + r->x;
     dest->y = l->y + r->y;
     dest->z = l->z + r->z;
 }
 
-void Math_Vec3f_Diff(Vec3f* l, Vec3f* r, Vec3f* dest) {
+void MM_Math_Vec3f_Diff(Vec3f* l, Vec3f* r, Vec3f* dest) {
     dest->x = l->x - r->x;
     dest->y = l->y - r->y;
     dest->z = l->z - r->z;
 }
 
-void Math_Vec3s_DiffToVec3f(Vec3f* dest, Vec3s* l, Vec3s* r) {
+void MM_Math_Vec3s_DiffToVec3f(Vec3f* dest, Vec3s* l, Vec3s* r) {
     dest->x = l->x - r->x;
     dest->y = l->y - r->y;
     dest->z = l->z - r->z;
 }
 
-void Math_Vec3f_Scale(Vec3f* vec, f32 scale) {
+void MM_Math_Vec3f_Scale(Vec3f* vec, f32 scale) {
     vec->x *= scale;
     vec->y *= scale;
     vec->z *= scale;
@@ -335,13 +335,13 @@ void Math_Vec3f_SumScaled(Vec3f* a, Vec3f* b, f32 scale, Vec3f* dest) {
 }
 
 void Math_Vec3f_AddRand(Vec3f* orig, f32 scale, Vec3f* dest) {
-    dest->x = Rand_CenteredFloat(scale) + orig->x;
-    dest->y = Rand_CenteredFloat(scale) + orig->y;
-    dest->z = Rand_CenteredFloat(scale) + orig->z;
+    dest->x = MM_Rand_CenteredFloat(scale) + orig->x;
+    dest->y = MM_Rand_CenteredFloat(scale) + orig->y;
+    dest->z = MM_Rand_CenteredFloat(scale) + orig->z;
 }
 
 void Math_Vec3f_DistXYZAndStoreNormDiff(Vec3f* a, Vec3f* b, f32 scale, Vec3f* dest) {
-    f32 diff = Math_Vec3f_DistXYZAndStoreDiff(a, b, dest);
+    f32 diff = MM_Math_Vec3f_DistXYZAndStoreDiff(a, b, dest);
     f32 normScale;
 
     if (diff == 0) {
@@ -355,27 +355,27 @@ void Math_Vec3f_DistXYZAndStoreNormDiff(Vec3f* a, Vec3f* b, f32 scale, Vec3f* de
     dest->z *= normScale;
 }
 
-f32 Math_Vec3f_DistXYZ(Vec3f* a, Vec3f* b) {
+f32 MM_Math_Vec3f_DistXYZ(Vec3f* a, Vec3f* b) {
     Vec3f diff;
-    Math_Vec3f_Diff(b, a, &diff);
-    return sqrtf(SQXYZ(diff));
+    MM_Math_Vec3f_Diff(b, a, &diff);
+    return MM_sqrtf(SQXYZ(diff));
 }
 
-f32 Math_Vec3f_DistXYZAndStoreDiff(Vec3f* a, Vec3f* b, Vec3f* dest) {
-    Math_Vec3f_Diff(b, a, dest);
-    return sqrtf(SQ(dest->x) + SQ(dest->y) + SQ(dest->z));
+f32 MM_Math_Vec3f_DistXYZAndStoreDiff(Vec3f* a, Vec3f* b, Vec3f* dest) {
+    MM_Math_Vec3f_Diff(b, a, dest);
+    return MM_sqrtf(SQ(dest->x) + SQ(dest->y) + SQ(dest->z));
 }
 
-f32 Math_Vec3f_DistXZ(Vec3f* a, Vec3f* b) {
+f32 MM_Math_Vec3f_DistXZ(Vec3f* a, Vec3f* b) {
     f32 dx = b->x - a->x;
     f32 dz = b->z - a->z;
-    return sqrtf(SQ(dx) + SQ(dz));
+    return MM_sqrtf(SQ(dx) + SQ(dz));
 }
 
 f32 Math_Vec3f_DistXZAndStore(Vec3f* a, Vec3f* b, f32* dx, f32* dz) {
     *dx = b->x - a->x;
     *dz = b->z - a->z;
-    return sqrtf(SQ(*dx) + SQ(*dz));
+    return MM_sqrtf(SQ(*dx) + SQ(*dz));
 }
 
 f32 Math_Vec3f_StepToXZ(Vec3f* start, Vec3f* target, f32 speed) {
@@ -400,77 +400,77 @@ f32 Math_Vec3f_StepToXZ(Vec3f* start, Vec3f* target, f32 speed) {
     return f2;
 }
 
-f32 Math_Vec3f_DiffY(Vec3f* a, Vec3f* b) {
+f32 MM_Math_Vec3f_DiffY(Vec3f* a, Vec3f* b) {
     return b->y - a->y;
 }
 
-s16 Math_Vec3f_Yaw(Vec3f* a, Vec3f* b) {
+s16 MM_Math_Vec3f_Yaw(Vec3f* a, Vec3f* b) {
     f32 f14 = b->x - a->x;
     f32 f12 = b->z - a->z;
     return Math_Atan2S_XY(f12, f14);
 }
 
-s16 Math_Vec3f_Pitch(Vec3f* a, Vec3f* b) {
-    return Math_Atan2S_XY(Math_Vec3f_DistXZ(a, b), a->y - b->y);
+s16 MM_Math_Vec3f_Pitch(Vec3f* a, Vec3f* b) {
+    return Math_Atan2S_XY(MM_Math_Vec3f_DistXZ(a, b), a->y - b->y);
 }
 
-void IChain_Apply_u8(u8* ptr, InitChainEntry* ichain);
-void IChain_Apply_s8(u8* ptr, InitChainEntry* ichain);
-void IChain_Apply_u16(u8* ptr, InitChainEntry* ichain);
-void IChain_Apply_s16(u8* ptr, InitChainEntry* ichain);
-void IChain_Apply_u32(u8* ptr, InitChainEntry* ichain);
-void IChain_Apply_s32(u8* ptr, InitChainEntry* ichain);
-void IChain_Apply_f32(u8* ptr, InitChainEntry* ichain);
-void IChain_Apply_f32div1000(u8* ptr, InitChainEntry* ichain);
-void IChain_Apply_Vec3f(u8* ptr, InitChainEntry* ichain);
-void IChain_Apply_Vec3fdiv1000(u8* ptr, InitChainEntry* ichain);
-void IChain_Apply_Vec3s(u8* ptr, InitChainEntry* ichain);
+void MM_IChain_Apply_u8(u8* ptr, InitChainEntry* ichain);
+void MM_IChain_Apply_s8(u8* ptr, InitChainEntry* ichain);
+void MM_IChain_Apply_u16(u8* ptr, InitChainEntry* ichain);
+void MM_IChain_Apply_s16(u8* ptr, InitChainEntry* ichain);
+void MM_IChain_Apply_u32(u8* ptr, InitChainEntry* ichain);
+void MM_IChain_Apply_s32(u8* ptr, InitChainEntry* ichain);
+void MM_IChain_Apply_f32(u8* ptr, InitChainEntry* ichain);
+void MM_IChain_Apply_f32div1000(u8* ptr, InitChainEntry* ichain);
+void MM_IChain_Apply_Vec3f(u8* ptr, InitChainEntry* ichain);
+void MM_IChain_Apply_Vec3fdiv1000(u8* ptr, InitChainEntry* ichain);
+void MM_IChain_Apply_Vec3s(u8* ptr, InitChainEntry* ichain);
 
 void (*sInitChainHandlers[])(u8* ptr, InitChainEntry* ichain) = {
-    IChain_Apply_u8,    IChain_Apply_s8,           IChain_Apply_u16,   IChain_Apply_s16,
-    IChain_Apply_u32,   IChain_Apply_s32,          IChain_Apply_f32,   IChain_Apply_f32div1000,
-    IChain_Apply_Vec3f, IChain_Apply_Vec3fdiv1000, IChain_Apply_Vec3s,
+    MM_IChain_Apply_u8,    MM_IChain_Apply_s8,           MM_IChain_Apply_u16,   MM_IChain_Apply_s16,
+    MM_IChain_Apply_u32,   MM_IChain_Apply_s32,          MM_IChain_Apply_f32,   MM_IChain_Apply_f32div1000,
+    MM_IChain_Apply_Vec3f, MM_IChain_Apply_Vec3fdiv1000, MM_IChain_Apply_Vec3s,
 };
 
-void Actor_ProcessInitChain(struct Actor* actor, InitChainEntry* ichain) {
+void MM_Actor_ProcessInitChain(struct Actor* actor, InitChainEntry* ichain) {
     do {
         sInitChainHandlers[ichain->type]((u8*)actor, ichain);
     } while ((ichain++)->cont);
 }
 
-void IChain_Apply_u8(u8* ptr, InitChainEntry* ichain) {
+void MM_IChain_Apply_u8(u8* ptr, InitChainEntry* ichain) {
     *(u8*)(ptr + ichain->offset) = (u8)(ichain->value);
 }
 
-void IChain_Apply_s8(u8* ptr, InitChainEntry* ichain) {
+void MM_IChain_Apply_s8(u8* ptr, InitChainEntry* ichain) {
     *(u8*)(ptr + ichain->offset) = (u8)(ichain->value);
 }
 
-void IChain_Apply_u16(u8* ptr, InitChainEntry* ichain) {
+void MM_IChain_Apply_u16(u8* ptr, InitChainEntry* ichain) {
     *(u16*)(ptr + ichain->offset) = (u16)(ichain->value);
 }
 
-void IChain_Apply_s16(u8* ptr, InitChainEntry* ichain) {
+void MM_IChain_Apply_s16(u8* ptr, InitChainEntry* ichain) {
     *(u16*)(ptr + ichain->offset) = (u16)(ichain->value);
 }
 
-void IChain_Apply_u32(u8* ptr, InitChainEntry* ichain) {
+void MM_IChain_Apply_u32(u8* ptr, InitChainEntry* ichain) {
     *(u32*)(ptr + ichain->offset) = (u32)(ichain->value);
 }
 
-void IChain_Apply_s32(u8* ptr, InitChainEntry* ichain) {
+void MM_IChain_Apply_s32(u8* ptr, InitChainEntry* ichain) {
     *(u32*)(ptr + ichain->offset) = (u32)(ichain->value);
 }
 
-void IChain_Apply_f32(u8* ptr, InitChainEntry* ichain) {
+void MM_IChain_Apply_f32(u8* ptr, InitChainEntry* ichain) {
     *(f32*)(ptr + ichain->offset) = (f32)(ichain->value);
 }
 
-void IChain_Apply_f32div1000(u8* ptr, InitChainEntry* ichain) {
+void MM_IChain_Apply_f32div1000(u8* ptr, InitChainEntry* ichain) {
     *(f32*)(ptr + ichain->offset) = (f32)(ichain->value) / 1000;
 }
 
-void IChain_Apply_Vec3f(u8* ptr, InitChainEntry* ichain) {
+void MM_IChain_Apply_Vec3f(u8* ptr, InitChainEntry* ichain) {
     Vec3f* v0 = (Vec3f*)(ptr + ichain->offset);
     f32 f0 = (f32)(ichain->value);
 
@@ -479,7 +479,7 @@ void IChain_Apply_Vec3f(u8* ptr, InitChainEntry* ichain) {
     v0->x = f0;
 }
 
-void IChain_Apply_Vec3fdiv1000(u8* ptr, InitChainEntry* ichain) {
+void MM_IChain_Apply_Vec3fdiv1000(u8* ptr, InitChainEntry* ichain) {
     Vec3f* v0 = (Vec3f*)(ptr + ichain->offset);
     f32 f0 = (f32)(ichain->value) / 1000;
 
@@ -488,7 +488,7 @@ void IChain_Apply_Vec3fdiv1000(u8* ptr, InitChainEntry* ichain) {
     v0->x = f0;
 }
 
-void IChain_Apply_Vec3s(u8* ptr, InitChainEntry* ichain) {
+void MM_IChain_Apply_Vec3s(u8* ptr, InitChainEntry* ichain) {
     Vec3s* v0 = (Vec3s*)(ptr + ichain->offset);
     s16 v1 = (s16)(ichain->value);
 
@@ -497,7 +497,7 @@ void IChain_Apply_Vec3s(u8* ptr, InitChainEntry* ichain) {
     v0->x = v1;
 }
 
-f32 Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minStep) {
+f32 MM_Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minStep) {
     f32 stepSize;
 
     if (*pValue != target) {
@@ -537,7 +537,7 @@ f32 Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minS
     return fabsf(target - *pValue);
 }
 
-void Math_ApproachF(f32* pValue, f32 target, f32 scale, f32 maxStep) {
+void MM_Math_ApproachF(f32* pValue, f32 target, f32 scale, f32 maxStep) {
     f32 f2;
 
     if (*pValue != target) {
@@ -553,7 +553,7 @@ void Math_ApproachF(f32* pValue, f32 target, f32 scale, f32 maxStep) {
     }
 }
 
-void Math_ApproachZeroF(f32* pValue, f32 scale, f32 maxStep) {
+void MM_Math_ApproachZeroF(f32* pValue, f32 scale, f32 maxStep) {
     f32 f0 = *pValue * scale;
 
     if (maxStep < f0) {
@@ -565,7 +565,7 @@ void Math_ApproachZeroF(f32* pValue, f32 scale, f32 maxStep) {
     *pValue = *pValue - f0;
 }
 
-s16 Math_SmoothStepToS(s16* pValue, s16 target, s16 scale, s16 step, s16 minStep) {
+s16 MM_Math_SmoothStepToS(s16* pValue, s16 target, s16 scale, s16 step, s16 minStep) {
     s16 stepSize = 0;
     s16 diff = target - *pValue;
 
@@ -602,7 +602,7 @@ s16 Math_SmoothStepToS(s16* pValue, s16 target, s16 scale, s16 step, s16 minStep
     return diff;
 }
 
-void Math_ApproachS(s16* pValue, s16 target, s16 scale, s16 maxStep) {
+void MM_Math_ApproachS(s16* pValue, s16 target, s16 scale, s16 maxStep) {
     s16 diff = target - *pValue;
     diff /= scale;
 
@@ -619,7 +619,7 @@ void Math_ApproachS(s16* pValue, s16 target, s16 scale, s16 maxStep) {
     *pValue += diff;
 }
 
-void Color_RGBA8_Copy(Color_RGBA8* dst, Color_RGBA8* src) {
+void MM_Color_RGBA8_Copy(Color_RGBA8* dst, Color_RGBA8* src) {
     dst->r = src->r;
     dst->g = src->g;
     dst->b = src->b;
@@ -643,8 +643,8 @@ void Lib_Vec3f_TranslateAndRotateY(Vec3f* translation, s16 rotAngle, Vec3f* src,
     f32 cos;
     f32 sin;
 
-    cos = Math_CosS(rotAngle);
-    sin = Math_SinS(rotAngle);
+    cos = MM_Math_CosS(rotAngle);
+    sin = MM_Math_SinS(rotAngle);
     dst->x = translation->x + (src->x * cos + src->z * sin);
     dst->y = translation->y + src->y;
     dst->z = translation->z + (src->z * cos - src->x * sin);
@@ -666,8 +666,8 @@ f32 Math_Vec3f_StepTo(Vec3f* start, Vec3f* target, f32 speed) {
     f32 f2;
     f32 f0;
 
-    Math_Vec3f_Diff(target, start, &diff);
-    f0 = Math3D_Vec3fMagnitude(&diff);
+    MM_Math_Vec3f_Diff(target, start, &diff);
+    f0 = MM_Math3D_Vec3fMagnitude(&diff);
     if (speed < f0) {
         f2 = speed / f0;
         f0 -= speed;
@@ -675,7 +675,7 @@ f32 Math_Vec3f_StepTo(Vec3f* start, Vec3f* target, f32 speed) {
         start->y += f2 * diff.y;
         start->z += f2 * diff.z;
     } else {
-        Math_Vec3f_Copy(start, target);
+        MM_Math_Vec3f_Copy(start, target);
         f0 = 0.0f;
     }
 

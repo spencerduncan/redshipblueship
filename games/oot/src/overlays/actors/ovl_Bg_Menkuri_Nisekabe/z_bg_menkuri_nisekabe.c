@@ -27,12 +27,12 @@ const ActorInit Bg_Menkuri_Nisekabe_InitVars = {
     NULL,
 };
 
-static Gfx* sDLists[] = { gGTGFakeWallDL, gGTGFakeCeilingDL };
+static Gfx* OoT_sDLists[] = { gGTGFakeWallDL, gGTGFakeCeilingDL };
 
 void BgMenkuriNisekabe_Init(Actor* thisx, PlayState* play) {
     BgMenkuriNisekabe* this = (BgMenkuriNisekabe*)thisx;
 
-    Actor_SetScale(&this->actor, 0.1f);
+    OoT_Actor_SetScale(&this->actor, 0.1f);
 }
 
 void BgMenkuriNisekabe_Destroy(Actor* thisx, PlayState* play) {
@@ -53,8 +53,8 @@ void BgMenkuriNisekabe_Draw(Actor* thisx, PlayState* play) {
     u32 index = this->actor.params & 0xFF;
 
     if (CHECK_FLAG_ALL(this->actor.flags, ACTOR_FLAG_REACT_TO_LENS)) {
-        Gfx_DrawDListXlu(play, sDLists[index]);
+        OoT_Gfx_DrawDListXlu(play, OoT_sDLists[index]);
     } else {
-        Gfx_DrawDListOpa(play, sDLists[index]);
+        OoT_Gfx_DrawDListOpa(play, OoT_sDLists[index]);
     }
 }

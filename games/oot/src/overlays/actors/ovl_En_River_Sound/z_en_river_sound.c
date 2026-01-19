@@ -8,10 +8,10 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED)
 
-void EnRiverSound_Init(Actor* thisx, PlayState* play);
+void OoT_EnRiverSound_Init(Actor* thisx, PlayState* play);
 void EnRiverSound_Destroy(Actor* thisx, PlayState* play);
-void EnRiverSound_Update(Actor* thisx, PlayState* play);
-void EnRiverSound_Draw(Actor* thisx, PlayState* play);
+void OoT_EnRiverSound_Update(Actor* thisx, PlayState* play);
+void OoT_EnRiverSound_Draw(Actor* thisx, PlayState* play);
 
 const ActorInit En_River_Sound_InitVars = {
     ACTOR_EN_RIVER_SOUND,
@@ -19,14 +19,14 @@ const ActorInit En_River_Sound_InitVars = {
     FLAGS,
     OBJECT_GAMEPLAY_KEEP,
     sizeof(EnRiverSound),
-    (ActorFunc)EnRiverSound_Init,
+    (ActorFunc)OoT_EnRiverSound_Init,
     (ActorFunc)EnRiverSound_Destroy,
-    (ActorFunc)EnRiverSound_Update,
-    (ActorFunc)EnRiverSound_Draw,
+    (ActorFunc)OoT_EnRiverSound_Update,
+    (ActorFunc)OoT_EnRiverSound_Draw,
     NULL,
 };
 
-void EnRiverSound_Init(Actor* thisx, PlayState* play) {
+void OoT_EnRiverSound_Init(Actor* thisx, PlayState* play) {
     EnRiverSound* this = (EnRiverSound*)thisx;
 
     this->playSound = 0;
@@ -35,15 +35,15 @@ void EnRiverSound_Init(Actor* thisx, PlayState* play) {
 
     if (this->actor.params >= RS_MAX) { // used for ganon and ganon_boss scenes
         func_800F4870(this->actor.params - RS_MAX);
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     } else if (this->actor.params == RS_UNK_F7) {
         Audio_PlayNatureAmbienceSequence(NATURE_ID_KOKIRI_REGION);
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     } else if (this->actor.params == RS_SARIAS_SONG) {
         // Always have leading music in rando
         if (CVarGetInteger(CVAR_AUDIO("LostWoodsConsistentVolume"), 0) ||
             ((!CHECK_QUEST_ITEM(QUEST_SONG_LULLABY) || CHECK_QUEST_ITEM(QUEST_SONG_SARIA)) && !IS_RANDO)) {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
         }
     }
 }
@@ -52,9 +52,9 @@ void EnRiverSound_Destroy(Actor* thisx, PlayState* play) {
     EnRiverSound* this = (EnRiverSound*)thisx;
 
     if (this->actor.params == RS_SARIAS_SONG) {
-        Audio_ClearSariaBgmAtPos(&this->actor.projectedPos);
+        OoT_Audio_ClearSariaBgmAtPos(&this->actor.projectedPos);
     } else if (this->actor.params == RS_UNK_13) {
-        Audio_ClearSariaBgm2();
+        OoT_Audio_ClearSariaBgm2();
     }
 }
 
@@ -111,7 +111,7 @@ s32 EnRiverSound_GetSoundPos(Vec3s* points, s32 numPoints, Vec3f* hearPos, Vec3f
         vec.x = points[i].x;
         vec.y = points[i].y;
         vec.z = points[i].z;
-        dist = Math_Vec3f_DistXYZ(hearPos, &vec);
+        dist = OoT_Math_Vec3f_DistXYZ(hearPos, &vec);
 
         if (dist < pointDist) {
             pointDist = dist;
@@ -165,7 +165,7 @@ s32 EnRiverSound_GetSoundPos(Vec3s* points, s32 numPoints, Vec3f* hearPos, Vec3f
     return true;
 }
 
-void EnRiverSound_Update(Actor* thisx, PlayState* play) {
+void OoT_EnRiverSound_Update(Actor* thisx, PlayState* play) {
     Path* path;
     Vec3f* pos;
     Player* player = GET_PLAYER(play);
@@ -179,7 +179,7 @@ void EnRiverSound_Update(Actor* thisx, PlayState* play) {
         if (EnRiverSound_GetSoundPos(SEGMENTED_TO_VIRTUAL(path->points), path->count, &player->actor.world.pos, pos)) {
             if (BgCheck_EntityRaycastFloor4(&play->colCtx, &thisx->floorPoly, &sp34, thisx, pos) != BGCHECK_Y_MIN) {
                 // Get the sound volume pitch based on the speed of the river current under the actor
-                this->soundPitchIndex = SurfaceType_GetConveyorSpeed(&play->colCtx, thisx->floorPoly, sp34);
+                this->soundPitchIndex = OoT_SurfaceType_GetConveyorSpeed(&play->colCtx, thisx->floorPoly, sp34);
             } else {
                 this->soundPitchIndex = 0;
             }
@@ -198,13 +198,13 @@ void EnRiverSound_Update(Actor* thisx, PlayState* play) {
             }
         }
     } else if ((thisx->params == RS_UNK_13) || (thisx->params == RS_UNK_19)) {
-        Actor_WorldToActorCoords(&player->actor, &thisx->home.pos, &thisx->world.pos);
-    } else if (play->sceneNum == SCENE_DODONGOS_CAVERN_BOSS && Flags_GetClear(play, thisx->room)) {
-        Actor_Kill(thisx);
+        OoT_Actor_WorldToActorCoords(&player->actor, &thisx->home.pos, &thisx->world.pos);
+    } else if (play->sceneNum == SCENE_DODONGOS_CAVERN_BOSS && OoT_Flags_GetClear(play, thisx->room)) {
+        OoT_Actor_Kill(thisx);
     }
 }
 
-void EnRiverSound_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnRiverSound_Draw(Actor* thisx, PlayState* play) {
     static s16 soundEffects[] = {
         0,
         NA_SE_EV_WATER_WALL - SFX_FLAG,
@@ -242,9 +242,9 @@ void EnRiverSound_Draw(Actor* thisx, PlayState* play) {
     } else if (this->actor.params == RS_SARIAS_SONG) {
         func_800F4E30(&this->actor.projectedPos, this->actor.xzDistToPlayer);
     } else if (this->actor.params == RS_UNK_13) {
-        Audio_PlaySariaBgm(&this->actor.home.pos, NA_BGM_SARIA_THEME, 1000);
+        OoT_Audio_PlaySariaBgm(&this->actor.home.pos, NA_BGM_SARIA_THEME, 1000);
     } else if (this->actor.params == RS_UNK_19) {
-        Audio_PlaySariaBgm(&this->actor.home.pos, NA_BGM_GREAT_FAIRY, 800);
+        OoT_Audio_PlaySariaBgm(&this->actor.home.pos, NA_BGM_GREAT_FAIRY, 800);
     } else if ((this->actor.params == RS_SANDSTORM) || (this->actor.params == RS_CHAMBER_OF_SAGES_1) ||
                (this->actor.params == RS_CHAMBER_OF_SAGES_2) || (this->actor.params == RS_RUMBLING)) {
         Sfx_PlaySfxCentered2(soundEffects[this->actor.params]);

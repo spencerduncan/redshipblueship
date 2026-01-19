@@ -32,7 +32,7 @@ ActorProfile Bg_Spout_Fire_Profile = {
     /**/ NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -52,7 +52,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 30, 83, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit sColChkInfoInit = { 1, 80, 100, MASS_IMMOVABLE };
+static CollisionCheckInfoInit MM_sColChkInfoInit = { 1, 80, 100, MASS_IMMOVABLE };
 
 static TexturePtr sFlameTextures[] = {
     gFwallFireball0Tex, gFwallFireball1Tex, gFwallFireball2Tex, gFwallFireball3Tex,
@@ -69,9 +69,9 @@ void BgSpoutFire_Init(Actor* thisx, PlayState* play) {
     this->actor.scale.x = 1350.0f * 0.0001f;
     this->actor.scale.y = 0.01f;
     this->flameTexIndex = 0;
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
     this->collider.dim.pos.y = this->actor.world.pos.y;
-    CollisionCheck_SetInfo(&this->actor.colChkInfo, NULL, &sColChkInfoInit);
+    MM_CollisionCheck_SetInfo(&this->actor.colChkInfo, NULL, &MM_sColChkInfoInit);
 
     if (!sTexturesDesegmented) {
         for (i = 0; i < ARRAY_COUNT(sFlameTextures); i++) {
@@ -85,14 +85,14 @@ void BgSpoutFire_Init(Actor* thisx, PlayState* play) {
 void BgSpoutFire_Destroy(Actor* thisx, PlayState* play) {
     BgSpoutFire* this = (BgSpoutFire*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 s32 func_80A60C24(BgSpoutFire* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
     Vec3f sp18;
 
-    Actor_WorldToActorCoords(&this->actor, &sp18, &player->actor.world.pos);
+    MM_Actor_WorldToActorCoords(&this->actor, &sp18, &player->actor.world.pos);
     if ((fabsf(sp18.x) < 100.0f) && (fabsf(sp18.z) < 120.0f)) {
         return true;
     } else {
@@ -119,8 +119,8 @@ void func_80A60CDC(BgSpoutFire* this, PlayState* play) {
 
 void func_80A60D10(BgSpoutFire* this, PlayState* play) {
     if (func_80A60C24(this, play)) {
-        Math_StepToF(&this->actor.scale.y, 0.1f, 2.5f * 0.01f);
-    } else if (Math_StepToF(&this->actor.scale.y, 0.01f, 0.01f)) {
+        MM_Math_StepToF(&this->actor.scale.y, 0.1f, 2.5f * 0.01f);
+    } else if (MM_Math_StepToF(&this->actor.scale.y, 0.01f, 0.01f)) {
         this->actor.draw = NULL;
         this->actionFunc = func_80A60C94;
     } else {
@@ -131,7 +131,7 @@ void func_80A60D10(BgSpoutFire* this, PlayState* play) {
 void func_80A60DA0(BgSpoutFire* this, PlayState* play) {
     s16 phi_a3;
 
-    if (Actor_IsFacingPlayer(&this->actor, 0x4000)) {
+    if (MM_Actor_IsFacingPlayer(&this->actor, 0x4000)) {
         phi_a3 = this->actor.shape.rot.y;
     } else {
         phi_a3 = (this->actor.shape.rot.y + 0x8000);
@@ -145,7 +145,7 @@ void func_80A60E08(BgSpoutFire* this, PlayState* play) {
     f32 cos;
     f32 sin;
 
-    Actor_WorldToActorCoords(&this->actor, &sp30, &player->actor.world.pos);
+    MM_Actor_WorldToActorCoords(&this->actor, &sp30, &player->actor.world.pos);
     sp30.x = CLAMP(sp30.x, -74.25f, 74.25f);
     if (this->timer == 0) {
         if (sp30.z > 0.0f) {
@@ -158,8 +158,8 @@ void func_80A60E08(BgSpoutFire* this, PlayState* play) {
     } else {
         sp30.z = this->timer * 25.0f;
     }
-    sin = Math_SinS(this->actor.shape.rot.y);
-    cos = Math_CosS(this->actor.shape.rot.y);
+    sin = MM_Math_SinS(this->actor.shape.rot.y);
+    cos = MM_Math_CosS(this->actor.shape.rot.y);
     this->collider.dim.pos.x = this->actor.world.pos.x + (sp30.x * cos) + (sp30.z * sin);
     this->collider.dim.pos.z = this->actor.world.pos.z - (sp30.x * sin) + (sp30.z * cos);
 }
@@ -176,8 +176,8 @@ void BgSpoutFire_Update(Actor* thisx, PlayState* play) {
     this->actionFunc(this, play);
     if (this->actionFunc == func_80A60D10) {
         func_80A60E08(this, play);
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
         Actor_PlaySfx_Flagged(&this->actor, NA_SE_EV_FIRE_PLATE - SFX_FLAG);
     }
 }
@@ -188,12 +188,12 @@ void BgSpoutFire_Draw(Actor* thisx, PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    gfx = Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_20);
+    gfx = MM_Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_20);
     POLY_XLU_DISP = gfx;
     gSPSegment(&gfx[0], 0x08, sFlameTextures[this->flameTexIndex]);
     gDPSetPrimColor(&gfx[1], 0, 1, 255, 255, 0, 150);
     gDPSetEnvColor(&gfx[2], 255, 0, 0, 255);
-    Matrix_Translate(-55.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+    MM_Matrix_Translate(-55.0f, 0.0f, 0.0f, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(&gfx[3], play->state.gfxCtx);
     gSPDisplayList(&gfx[4], object_fwall_DL_000040);
     POLY_XLU_DISP = &gfx[5];

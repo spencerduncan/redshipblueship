@@ -53,7 +53,7 @@ ActorProfile En_Jg_Profile = {
     /**/ EnJg_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -73,9 +73,9 @@ static ColliderCylinderInit sCylinderInit = {
     { 60, 80, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 0, 50, 80, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 MM_sColChkInfoInit = { 0, 50, 80, 0, MASS_IMMOVABLE };
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(0, 0x0),
     /* Deku Stick     */ DMG_ENTRY(0, 0x0),
     /* Horse trample  */ DMG_ENTRY(0, 0x0),
@@ -133,7 +133,7 @@ typedef enum EnJgAnimation {
     /* 19 */ EN_JG_ANIM_MAX
 } EnJgAnimation;
 
-static AnimationInfoS sAnimationInfo[EN_JG_ANIM_MAX] = {
+static AnimationInfoS MM_sAnimationInfo[EN_JG_ANIM_MAX] = {
     { &gGoronElderIdleAnim, 1.0f, 0, -1, ANIMMODE_LOOP, -10 },            // EN_JG_ANIM_IDLE
     { &gGoronElderWalkAnim, 1.0f, 0, -1, ANIMMODE_LOOP, -10 },            // EN_JG_ANIM_WALK
     { &gGoronElderWavingAnim, 1.0f, 0, -1, ANIMMODE_LOOP, -10 },          // EN_JG_ANIM_WAVING
@@ -192,9 +192,9 @@ void EnJg_UpdateCollision(EnJg* this, PlayState* play) {
     this->collider.dim.pos.y = this->actor.world.pos.y;
     this->collider.dim.pos.z = this->actor.world.pos.z;
 
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 30.0f, 30.0f,
+    MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 30.0f, 30.0f,
                             UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_2 | UPDBGCHECKINFO_FLAG_4);
 }
 
@@ -230,7 +230,7 @@ s32 EnJg_HasReachedPoint(EnJg* this, Path* path, s32 pointIndex) {
     f32 d;
     Vec3f point;
 
-    Math_Vec3s_ToVec3f(&point, &points[index]);
+    MM_Math_Vec3s_ToVec3f(&point, &points[index]);
 
     if (index == 0) {
         diffX = points[1].x - points[0].x;
@@ -243,7 +243,7 @@ s32 EnJg_HasReachedPoint(EnJg* this, Path* path, s32 pointIndex) {
         diffZ = points[index + 1].z - points[index - 1].z;
     }
 
-    Math3D_RotateXZPlane(&point, RAD_TO_BINANG(Math_FAtan2F(diffX, diffZ)), &px, &pz, &d);
+    MM_Math3D_RotateXZPlane(&point, RAD_TO_BINANG(MM_Math_FAtan2F(diffX, diffZ)), &px, &pz, &d);
 
     if (((px * this->actor.world.pos.x) + (pz * this->actor.world.pos.z) + d) > 0.0f) {
         reached = true;
@@ -299,19 +299,19 @@ void EnJg_SetupTalk(EnJg* this, PlayState* play) {
     switch (this->textId) {
         case 0xDAC: // What was I doing?
             this->animIndex = EN_JG_ANIM_SHAKING_HEAD;
-            SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+            SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
             this->actionFunc = EnJg_Talk;
             break;
 
         case 0xDAD: // I must hurry!
             this->animIndex = EN_JG_ANIM_SURPRISE_START;
-            SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+            SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
             this->actionFunc = EnJg_AlternateTalkOrWalkInPlace;
             break;
 
         case 0xDB7: // You're Darmani!
             this->animIndex = EN_JG_ANIM_SURPRISE_START;
-            SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+            SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
             this->actionFunc = EnJg_Talk;
             break;
 
@@ -322,7 +322,7 @@ void EnJg_SetupTalk(EnJg* this, PlayState* play) {
         case 0xDBD: // "...What?"
         case 0xDC4: // It's so cold I can't play
             this->animIndex = EN_JG_ANIM_IDLE;
-            SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+            SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
             this->actionFunc = EnJg_Talk;
             break;
 
@@ -331,14 +331,14 @@ void EnJg_SetupTalk(EnJg* this, PlayState* play) {
         case 0xDBC: // Following me won't do you any good
         case 0xDC6: // I am counting on you
             this->animIndex = EN_JG_ANIM_ANGRY;
-            SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+            SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
             this->actionFunc = EnJg_Talk;
             break;
 
         case 0xDB4: // This is our problem (first)
         case 0xDB5: // This is our problem (repeat)
             this->animIndex = EN_JG_ANIM_WAVING;
-            SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+            SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
             this->actionFunc = EnJg_Talk;
             break;
 
@@ -354,7 +354,7 @@ void EnJg_Idle(EnJg* this, PlayState* play) {
 void EnJg_GoronShrineIdle(EnJg* this, PlayState* play) {
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         this->flags |= FLAG_LOOKING_AT_PLAYER;
-        Message_StartTextbox(play, this->textId, &this->actor);
+        MM_Message_StartTextbox(play, this->textId, &this->actor);
         this->actionFunc = EnJg_GoronShrineTalk;
     } else if ((this->actor.xzDistToPlayer < 100.0f) || this->actor.isLockedOn) {
         Actor_OfferTalkNearColChkInfoCylinder(&this->actor, play);
@@ -363,7 +363,7 @@ void EnJg_GoronShrineIdle(EnJg* this, PlayState* play) {
 }
 
 void EnJg_GoronShrineTalk(EnJg* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         if ((this->textId == 0xDCC) || (this->textId == 0xDDD) || (this->textId == 0xDE0)) {
             // There is nothing more to say after these lines, so end the current conversation.
             play->msgCtx.msgMode = MSGMODE_TEXT_CLOSING;
@@ -372,7 +372,7 @@ void EnJg_GoronShrineTalk(EnJg* this, PlayState* play) {
             this->actionFunc = EnJg_GoronShrineIdle;
         } else {
             this->textId = EnJg_GetNextTextId(this);
-            Message_StartTextbox(play, this->textId, &this->actor);
+            MM_Message_StartTextbox(play, this->textId, &this->actor);
         }
     }
 }
@@ -420,26 +420,26 @@ void EnJg_GoronShrineCheer(EnJg* this, PlayState* play) {
  * set his speed to 0, causing him to walk in place.
  */
 void EnJg_AlternateTalkOrWalkInPlace(EnJg* this, PlayState* play) {
-    u8 talkState = Message_GetState(&play->msgCtx);
+    u8 talkState = MM_Message_GetState(&play->msgCtx);
     s16 curFrame = this->skelAnime.curFrame;
-    s16 endFrame = Animation_GetLastFrame(sAnimationInfo[this->animIndex].animation);
+    s16 endFrame = MM_Animation_GetLastFrame(MM_sAnimationInfo[this->animIndex].animation);
 
     if (this->animIndex == EN_JG_ANIM_SURPRISE_START) {
         if (curFrame == endFrame) {
             this->animIndex = EN_JG_ANIM_SURPRISE_LOOP;
-            SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+            SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
         }
     } else if (this->animIndex == EN_JG_ANIM_SURPRISE_LOOP) {
-        if ((talkState == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+        if ((talkState == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
             play->msgCtx.msgMode = MSGMODE_TEXT_CLOSING;
             play->msgCtx.stateTimer = 4;
             this->flags &= ~FLAG_LOOKING_AT_PLAYER;
             this->animIndex = EN_JG_ANIM_WALK;
-            SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+            SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
             this->actionFunc = EnJg_Walk;
         }
     } else if (this->animIndex == EN_JG_ANIM_WALK) {
-        Math_ApproachF(&this->actor.speed, 0.0f, 0.2f, 1.0f);
+        MM_Math_ApproachF(&this->actor.speed, 0.0f, 0.2f, 1.0f);
         EnJg_CheckIfTalkingToPlayerAndHandleFreezeTimer(this, play);
     }
 }
@@ -454,7 +454,7 @@ void EnJg_Walk(EnJg* this, PlayState* play) {
             yRotation = this->actor.wallYaw;
         }
 
-        Math_SmoothStepToS(&this->actor.world.rot.y, yRotation, 4, 0x3E8, 1);
+        MM_Math_SmoothStepToS(&this->actor.world.rot.y, yRotation, 4, 0x3E8, 1);
         this->actor.shape.rot.y = this->actor.world.rot.y;
 
         if (EnJg_HasReachedPoint(this, this->path, this->currentPoint)) {
@@ -464,10 +464,10 @@ void EnJg_Walk(EnJg* this, PlayState* play) {
                 this->actionFunc = EnJg_AlternateTalkOrWalkInPlace;
             } else {
                 this->currentPoint++;
-                Math_ApproachF(&this->actor.speed, 0.5f, 0.2f, 1.0f);
+                MM_Math_ApproachF(&this->actor.speed, 0.5f, 0.2f, 1.0f);
             }
         } else {
-            Math_ApproachF(&this->actor.speed, 0.5f, 0.2f, 1.0f);
+            MM_Math_ApproachF(&this->actor.speed, 0.5f, 0.2f, 1.0f);
         }
     }
 
@@ -475,17 +475,17 @@ void EnJg_Walk(EnJg* this, PlayState* play) {
 }
 
 void EnJg_Talk(EnJg* this, PlayState* play) {
-    u8 talkState = Message_GetState(&play->msgCtx);
+    u8 talkState = MM_Message_GetState(&play->msgCtx);
     s16 curFrame = this->skelAnime.curFrame;
-    s16 endFrame = Animation_GetLastFrame(sAnimationInfo[this->animIndex].animation);
+    s16 endFrame = MM_Animation_GetLastFrame(MM_sAnimationInfo[this->animIndex].animation);
     u16 temp;
 
     if ((this->animIndex == EN_JG_ANIM_SURPRISE_START) && (curFrame == endFrame)) {
         this->animIndex = EN_JG_ANIM_SURPRISE_LOOP;
-        SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+        SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
     }
 
-    if ((talkState == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((talkState == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         temp = this->textId;
         if ((temp == 0xDB4) || (temp == 0xDB5) || (temp == 0xDC4) || (temp == 0xDC6)) {
             // There is nothing more to say after these lines, so end the current conversation.
@@ -512,7 +512,7 @@ void EnJg_Talk(EnJg* this, PlayState* play) {
                                              this)) {
                 // The player already has the Lullaby or Lullaby Intro, so say "I'm counting on you"
                 this->textId = EnJg_GetNextTextId(this);
-                Message_StartTextbox(play, this->textId, &this->actor);
+                MM_Message_StartTextbox(play, this->textId, &this->actor);
                 this->actionFunc = EnJg_SetupTalk;
             } else {
                 // To get to this point, the player *has* talked to the Goron Child, but doesn't
@@ -530,7 +530,7 @@ void EnJg_Talk(EnJg* this, PlayState* play) {
             }
         } else {
             this->textId = EnJg_GetNextTextId(this);
-            Message_StartTextbox(play, this->textId, &this->actor);
+            MM_Message_StartTextbox(play, this->textId, &this->actor);
             this->actionFunc = EnJg_SetupTalk;
         }
     }
@@ -540,7 +540,7 @@ void EnJg_SetupWalk(EnJg* this, PlayState* play) {
     if (this->animIndex != EN_JG_ANIM_WALK) {
         this->animIndex = EN_JG_ANIM_WALK;
         this->freezeTimer = 1000;
-        SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+        SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
         this->actionFunc = EnJg_Walk;
     } else {
         this->freezeTimer = 1000;
@@ -550,29 +550,29 @@ void EnJg_SetupWalk(EnJg* this, PlayState* play) {
 
 void EnJg_Freeze(EnJg* this, PlayState* play) {
     s16 curFrame = this->skelAnime.curFrame;
-    s16 endFrame = Animation_GetLastFrame(sAnimationInfo[this->animIndex].animation);
+    s16 endFrame = MM_Animation_GetLastFrame(MM_sAnimationInfo[this->animIndex].animation);
 
     if (this->action == EN_JG_ACTION_SPAWNING) {
         this->action = EN_JG_ACTION_FROZEN_OR_NON_FIRST_THAW;
         this->freezeTimer = 1000;
         this->skelAnime.curFrame = endFrame;
         this->icePoly =
-            Actor_Spawn(&play->actorCtx, play, ACTOR_OBJ_ICE_POLY, this->actor.world.pos.x, this->actor.world.pos.y,
+            MM_Actor_Spawn(&play->actorCtx, play, ACTOR_OBJ_ICE_POLY, this->actor.world.pos.x, this->actor.world.pos.y,
                         this->actor.world.pos.z, this->actor.world.rot.x, this->actor.world.rot.y,
                         this->actor.world.rot.z, OBJICEPOLY_PARAMS(80, OBJICEPOLY_SWITCH_FLAG_NONE));
         this->animIndex = EN_JG_ANIM_FROZEN_LOOP;
-        SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+        SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
         this->actionFunc = EnJg_FrozenIdle;
     } else if (this->animIndex == EN_JG_ANIM_FROZEN_START) {
         this->action = EN_JG_ACTION_FROZEN_OR_NON_FIRST_THAW;
         if (curFrame == endFrame) {
             this->freezeTimer = 1000;
             this->icePoly =
-                Actor_Spawn(&play->actorCtx, play, ACTOR_OBJ_ICE_POLY, this->actor.world.pos.x, this->actor.world.pos.y,
+                MM_Actor_Spawn(&play->actorCtx, play, ACTOR_OBJ_ICE_POLY, this->actor.world.pos.x, this->actor.world.pos.y,
                             this->actor.world.pos.z, this->actor.world.rot.x, this->actor.world.rot.y,
                             this->actor.world.rot.z, OBJICEPOLY_PARAMS(80, OBJICEPOLY_SWITCH_FLAG_NONE));
             this->animIndex = EN_JG_ANIM_FROZEN_LOOP;
-            SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+            SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
             this->actionFunc = EnJg_FrozenIdle;
         }
     }
@@ -582,7 +582,7 @@ void EnJg_FrozenIdle(EnJg* this, PlayState* play) {
     if (this->icePoly->update == NULL) {
         this->icePoly = NULL;
         if (this->animIndex == EN_JG_ANIM_FROZEN_LOOP) {
-            if (Animation_OnFrame(&this->skelAnime, 0.0f)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, 0.0f)) {
                 this->animIndex = EN_JG_ANIM_IDLE;
 
                 // If you've never talked to the elder before, he stands
@@ -590,18 +590,18 @@ void EnJg_FrozenIdle(EnJg* this, PlayState* play) {
                 // Otherwise, he immediately begins walking after being
                 // thawed out.
                 if (this->textId == 0xDAC) {
-                    SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+                    SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
                     this->actionFunc = EnJg_Idle;
                 } else {
                     this->freezeTimer = 1000;
-                    SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+                    SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
                     this->actionFunc = EnJg_Walk;
                 }
             }
         }
     } else {
         if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
-            Message_StartTextbox(play, 0x236, &this->actor); // The old Goron is frozen solid!
+            MM_Message_StartTextbox(play, 0x236, &this->actor); // The old Goron is frozen solid!
             this->actionFunc = EnJg_EndFrozenInteraction;
         } else if (this->actor.isLockedOn) {
             Actor_OfferTalkNearColChkInfoCylinder(&this->actor, play);
@@ -610,7 +610,7 @@ void EnJg_FrozenIdle(EnJg* this, PlayState* play) {
 }
 
 void EnJg_EndFrozenInteraction(EnJg* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && MM_Message_ShouldAdvance(play)) {
         play->msgCtx.msgMode = MSGMODE_TEXT_CLOSING;
         play->msgCtx.stateTimer = 4;
         this->actionFunc = EnJg_FrozenIdle;
@@ -642,7 +642,7 @@ void EnJg_LullabyIntroCutsceneAction(EnJg* this, PlayState* play) {
                 case 1:
                     this->csAnimIndex = EN_JG_ANIM_CUTSCENE_IDLE;
                     if (this->drum != NULL) {
-                        Actor_Kill(this->drum);
+                        MM_Actor_Kill(this->drum);
                         this->drum = NULL;
                     }
                     break;
@@ -684,11 +684,11 @@ void EnJg_LullabyIntroCutsceneAction(EnJg* this, PlayState* play) {
                     break;
             }
 
-            SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->csAnimIndex);
+            SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->csAnimIndex);
         }
 
         if (!(this->flags & FLAG_DRUM_SPAWNED) &&
-            (((this->csAnimIndex == EN_JG_ANIM_TAKING_OUT_DRUM) && Animation_OnFrame(&this->skelAnime, 14.0f) &&
+            (((this->csAnimIndex == EN_JG_ANIM_TAKING_OUT_DRUM) && MM_Animation_OnFrame(&this->skelAnime, 14.0f) &&
               (this->action != EN_JG_ACTION_LULLABY_INTRO_CS)) ||
              (((this->csAnimIndex == EN_JG_ANIM_DRUM_IDLE) || (this->csAnimIndex == EN_JG_ANIM_PLAYING_DRUM)) &&
               (this->action == EN_JG_ACTION_LULLABY_INTRO_CS)))) {
@@ -700,9 +700,9 @@ void EnJg_LullabyIntroCutsceneAction(EnJg* this, PlayState* play) {
         }
 
         if (this->csAnimIndex == EN_JG_ANIM_TAKING_OUT_DRUM) {
-            if (Animation_OnFrame(&this->skelAnime, 23.0f)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, 23.0f)) {
                 Audio_PlaySfx_AtPos(&sSfxPos, NA_SE_EV_WOOD_BOUND_S);
-            } else if (Animation_OnFrame(&this->skelAnime, 38.0f)) {
+            } else if (MM_Animation_OnFrame(&this->skelAnime, 38.0f)) {
                 Audio_PlaySfx_AtPos(&sSfxPos, NA_SE_EV_OBJECT_SLIDE);
             }
         }
@@ -891,10 +891,10 @@ s32 EnJg_GetStartingConversationTextId(EnJg* this, PlayState* play) {
 }
 
 void EnJg_SpawnBreath(EnJg* this, PlayState* play) {
-    s16 scale = (Rand_ZeroOne() * 20.0f) + 30.0f;
+    s16 scale = (MM_Rand_ZeroOne() * 20.0f) + 30.0f;
 
     if (play->state.frames % 8 == 0) {
-        EffectSsIceSmoke_Spawn(play, &this->breathPos, &this->breathVelocity, &this->breathAccel, scale);
+        MM_EffectSsIceSmoke_Spawn(play, &this->breathPos, &this->breathVelocity, &this->breathAccel, scale);
     }
 }
 
@@ -908,7 +908,7 @@ void EnJg_SpawnBreath(EnJg* this, PlayState* play) {
  */
 void EnJg_CheckIfTalkingToPlayerAndHandleFreezeTimer(EnJg* this, PlayState* play) {
     s16 curFrame = this->skelAnime.curFrame;
-    s16 endFrame = Animation_GetLastFrame(sAnimationInfo[this->animIndex].animation);
+    s16 endFrame = MM_Animation_GetLastFrame(MM_sAnimationInfo[this->animIndex].animation);
 
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         this->flags |= FLAG_LOOKING_AT_PLAYER;
@@ -922,7 +922,7 @@ void EnJg_CheckIfTalkingToPlayerAndHandleFreezeTimer(EnJg* this, PlayState* play
             SET_WEEKEVENTREG(WEEKEVENTREG_24_10);
         }
 
-        Message_StartTextbox(play, this->textId, &this->actor);
+        MM_Message_StartTextbox(play, this->textId, &this->actor);
         this->actionFunc = EnJg_SetupTalk;
     } else {
         if ((this->actor.xzDistToPlayer < 100.0f) || this->actor.isLockedOn) {
@@ -935,7 +935,7 @@ void EnJg_CheckIfTalkingToPlayerAndHandleFreezeTimer(EnJg* this, PlayState* play
         this->freezeTimer--;
         if ((this->freezeTimer <= 0) && (curFrame == endFrame)) {
             this->animIndex = EN_JG_ANIM_FROZEN_START;
-            SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+            SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
             Audio_PlaySfx_AtPos(&sSfxPos, NA_SE_EV_FREEZE_S);
             this->actionFunc = EnJg_Freeze;
         }
@@ -946,22 +946,22 @@ void EnJg_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     EnJg* this = (EnJg*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 20.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gGoronElderSkel, &gGoronElderIdleAnim, this->jointTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 20.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gGoronElderSkel, &gGoronElderIdleAnim, this->jointTable,
                        this->morphTable, GORON_ELDER_LIMB_MAX);
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, &sDamageTable, &sColChkInfoInit);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, &MM_sDamageTable, &MM_sColChkInfoInit);
 
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
 
     if (!EN_JG_IS_IN_GORON_SHRINE(thisx)) {
         if ((play->sceneId == SCENE_SPOT00) && (gSaveContext.sceneLayer == 7) && (play->csCtx.scriptIndex == 0)) {
             // This is the elder that appears in the cutscene for learning the full Goron Lullaby.
             this->animIndex = EN_JG_ANIM_IDLE;
             this->action = EN_JG_ACTION_LULLABY_INTRO_CS;
-            SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+            SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
             this->actionFunc = EnJg_LullabyIntroCutsceneAction;
         } else {
             // This is the elder that appears in Mountain Village or the Path to Goron Village in winter.
@@ -970,14 +970,14 @@ void EnJg_Init(Actor* thisx, PlayState* play) {
             this->action = EN_JG_ACTION_SPAWNING;
             this->freezeTimer = 1000;
             this->textId = 0xDAC; // What was I doing?
-            SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+            SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
             this->actionFunc = EnJg_Freeze;
         }
     } else {
         // This is the elder that appears in Goron Shrine in spring.
         this->animIndex = EN_JG_ANIM_IDLE;
         this->csId = this->actor.csId;
-        SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, this->animIndex);
+        SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, this->animIndex);
         this->actionFunc = EnJg_GoronShrineIdle;
     }
 }
@@ -985,7 +985,7 @@ void EnJg_Init(Actor* thisx, PlayState* play) {
 void EnJg_Destroy(Actor* thisx, PlayState* play) {
     EnJg* this = (EnJg*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnJg_Update(Actor* thisx, PlayState* play) {
@@ -994,7 +994,7 @@ void EnJg_Update(Actor* thisx, PlayState* play) {
     if ((this->actionFunc != EnJg_FrozenIdle) && (this->actionFunc != EnJg_EndFrozenInteraction)) {
         EnJg_UpdateCollision(this, play);
         Actor_MoveWithGravity(&this->actor);
-        SkelAnime_Update(&this->skelAnime);
+        MM_SkelAnime_Update(&this->skelAnime);
 
         if ((this->action != EN_JG_ACTION_LULLABY_INTRO_CS) && (!EN_JG_IS_IN_GORON_SHRINE(&this->actor))) {
             EnJg_SpawnBreath(this, play);
@@ -1010,11 +1010,11 @@ s32 EnJg_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* po
 
     if (limbIndex == GORON_ELDER_LIMB_ROOT) {
         if (this->flags & FLAG_LOOKING_AT_PLAYER) {
-            Math_SmoothStepToS(&this->rootRotationWhenTalking, this->actor.yawTowardsPlayer - this->actor.shape.rot.y,
+            MM_Math_SmoothStepToS(&this->rootRotationWhenTalking, this->actor.yawTowardsPlayer - this->actor.shape.rot.y,
                                5, 0x1000, 0x100);
             Matrix_RotateYS(this->rootRotationWhenTalking, MTXMODE_APPLY);
         } else {
-            Math_SmoothStepToS(&this->rootRotationWhenTalking, 0, 5, 0x1000, 0x100);
+            MM_Math_SmoothStepToS(&this->rootRotationWhenTalking, 0, 5, 0x1000, 0x100);
             Matrix_RotateYS(this->rootRotationWhenTalking, MTXMODE_APPLY);
         }
     }
@@ -1026,20 +1026,20 @@ void EnJg_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
     EnJg* this = (EnJg*)thisx;
 
     if (limbIndex == GORON_ELDER_LIMB_HEAD) {
-        Matrix_MultVec3f(&sFocusOffset, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&sFocusOffset, &this->actor.focus.pos);
     }
 
     if (limbIndex == GORON_ELDER_LIMB_LOWER_LIP) {
-        Matrix_MultVec3f(&sBreathPosOffset, &this->breathPos);
+        MM_Matrix_MultVec3f(&sBreathPosOffset, &this->breathPos);
         Matrix_RotateYS(this->actor.shape.rot.y, MTXMODE_NEW);
-        Matrix_MultVec3f(&sBreathVelOffset, &this->breathVelocity);
-        Matrix_MultVec3f(&sBreathAccelOffset, &this->breathAccel);
+        MM_Matrix_MultVec3f(&sBreathVelOffset, &this->breathVelocity);
+        MM_Matrix_MultVec3f(&sBreathAccelOffset, &this->breathAccel);
     }
 }
 
 void EnJg_Draw(Actor* thisx, PlayState* play) {
     EnJg* this = (EnJg*)thisx;
 
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnJg_OverrideLimbDraw, EnJg_PostLimbDraw, &this->actor);
 }

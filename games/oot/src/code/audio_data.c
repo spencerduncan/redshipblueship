@@ -1,7 +1,7 @@
 #include "global.h"
 
 // clang-format off
-s16 gSawtoothWaveSample[] = {
+s16 OoT_gSawtoothWaveSample[] = {
     // Frequency of 1
     0,      1023,   2047,   3071,   4095,   5119,   6143,   7167,
     8191,   9215,   10239,  11263,  12287,  13311,  14335,  15359,
@@ -43,7 +43,7 @@ s16 gSawtoothWaveSample[] = {
     0,      8191,   16383,  24575,  -32767, -24575, -16383, -8191,
 };
 
-s16 gTriangleWaveSample[] = {
+s16 OoT_gTriangleWaveSample[] = {
     // Frequency of 1
     0,      2047,   4095,   6143,   8191,   10239,  12287,  14335,
     16383,  18431,  20479,  22527,  24575,  26623,  28671,  30719,
@@ -85,7 +85,7 @@ s16 gTriangleWaveSample[] = {
     0,      16383,  32767,  16383,  0,      -16383, -32767, -16383,
 };
 
-s16 gSineWaveSample[] = {
+s16 OoT_gSineWaveSample[] = {
     // Frequency of 1
     0,      3211,   6392,   9511,   12539,  15446,  18204,  20787,
     23169,  25329,  27244,  28897,  30272,  31356,  32137,  32609,
@@ -127,7 +127,7 @@ s16 gSineWaveSample[] = {
     0,      23169,  32767,  23169,  0,      -23169, -32767, -23169,
 };
 
-s16 gSquareWaveSample[] = {
+s16 OoT_gSquareWaveSample[] = {
     // Frequency of 1
     0,      0,      0,      0,      0,      0,      0,      0,
     0,      0,      0,      0,      0,      0,      0,      0,
@@ -169,7 +169,7 @@ s16 gSquareWaveSample[] = {
     0,      0,      32767,  32767,  0,      0,      -32767, -32767,
 };
 
-s16 gWhiteNoiseSample[] = {
+s16 OoT_gWhiteNoiseSample[] = {
     // Frequency of 1
     0,      -25689, -25791, 27803,  -27568, -21030, 22174,  6298,
     27071,  -18531, 28649,  2284,   3380,   6890,   -12682, -21114,
@@ -255,7 +255,7 @@ s16 D_8012EA90[] = {
 };
 
 // Pulse Wave (duty cycle = 12.5%)
-s16 gEighthPulseWaveSample[] = {
+s16 OoT_gEighthPulseWaveSample[] = {
     // Frequency of 1
     0,      0,      0,      0,      0,      0, 0,      0,
     0,      0,      0,      0,      0,      0, 0,      0,
@@ -298,7 +298,7 @@ s16 gEighthPulseWaveSample[] = {
 };
 
 // Pulse Wave (duty cycle = 25%)
-s16 gQuarterPulseWaveSample[] = {
+s16 OoT_gQuarterPulseWaveSample[] = {
     // Frequency of 1
     0,      0,      0,      0,      0,      0,      0,      0,
     0,      0,      0,      0,      0,      0,      0,      0,
@@ -341,12 +341,12 @@ s16 gQuarterPulseWaveSample[] = {
 };
 // clang-format on
 
-s16* gWaveSamples[] = {
-    gSawtoothWaveSample, gTriangleWaveSample,    gSineWaveSample,         gSquareWaveSample,       gWhiteNoiseSample,
-    D_8012EA90,          gEighthPulseWaveSample, gQuarterPulseWaveSample, gQuarterPulseWaveSample,
+s16* OoT_gWaveSamples[] = {
+    OoT_gSawtoothWaveSample, OoT_gTriangleWaveSample,    OoT_gSineWaveSample,         OoT_gSquareWaveSample,       OoT_gWhiteNoiseSample,
+    D_8012EA90,          OoT_gEighthPulseWaveSample, OoT_gQuarterPulseWaveSample, OoT_gQuarterPulseWaveSample,
 };
 
-f32 gBendPitchOneOctaveFrequencies[] = {
+f32 OoT_gBendPitchOneOctaveFrequencies[] = {
     0.5f,      0.5f,      0.502736f, 0.505488f, 0.508254f, 0.511036f, 0.513833f, 0.516645f, 0.519472f, 0.522315f,
     0.525174f, 0.528048f, 0.530938f, 0.533843f, 0.536765f, 0.539702f, 0.542656f, 0.545626f, 0.548612f, 0.551614f,
     0.554633f, 0.557669f, 0.560721f, 0.563789f, 0.566875f, 0.569977f, 0.573097f, 0.576233f, 0.579387f, 0.582558f,
@@ -375,7 +375,7 @@ f32 gBendPitchOneOctaveFrequencies[] = {
     1.946159f, 1.95681f,  1.96752f,  1.978287f, 1.989114f, 2.0f,
 };
 
-f32 gBendPitchTwoSemitonesFrequencies[] = {
+f32 OoT_gBendPitchTwoSemitonesFrequencies[] = {
     0.890899f, 0.890899f, 0.89171f,  0.892521f, 0.893333f, 0.894146f, 0.89496f,  0.895774f, 0.89659f,  0.897406f,
     0.898222f, 0.89904f,  0.899858f, 0.900677f, 0.901496f, 0.902317f, 0.903138f, 0.90396f,  0.904783f, 0.905606f,
     0.90643f,  0.907255f, 0.908081f, 0.908907f, 0.909734f, 0.910562f, 0.911391f, 0.91222f,  0.91305f,  0.913881f,
@@ -535,15 +535,15 @@ f32 gNoteFrequencies[] = {
     /* 0x7F */ 0.099213f,   // NOTE_AFLAT0
 };
 
-u8 gDefaultShortNoteVelocityTable[] = {
+u8 OoT_gDefaultShortNoteVelocityTable[] = {
     12, 25, 38, 51, 57, 64, 71, 76, 83, 89, 96, 102, 109, 115, 121, 127,
 };
 
-u8 gDefaultShortNoteGateTimeTable[] = {
+u8 OoT_gDefaultShortNoteGateTimeTable[] = {
     229, 203, 177, 151, 139, 126, 113, 100, 87, 74, 61, 48, 36, 23, 10, 0,
 };
 
-AdsrEnvelope gDefaultEnvelope[] = {
+AdsrEnvelope OoT_gDefaultEnvelope[] = {
     { BE16SWAP_CONST(1), BE16SWAP_CONST(32000) },
     { BE16SWAP_CONST(1000), BE16SWAP_CONST(32000) },
     { BE16SWAP_CONST(-1), BE16SWAP_CONST(0) },
@@ -577,7 +577,7 @@ s16 D_8012FBA8[] = {
 };
 // clang-format on
 
-f32 gHeadsetPanVolume[] = {
+f32 OoT_gHeadsetPanVolume[] = {
     1.0f,      0.995386f, 0.990772f, 0.986157f, 0.981543f, 0.976929f, 0.972315f, 0.967701f, 0.963087f, 0.958472f,
     0.953858f, 0.949244f, 0.94463f,  0.940016f, 0.935402f, 0.930787f, 0.926173f, 0.921559f, 0.916945f, 0.912331f,
     0.907717f, 0.903102f, 0.898488f, 0.893874f, 0.88926f,  0.884646f, 0.880031f, 0.875417f, 0.870803f, 0.866189f,
@@ -593,7 +593,7 @@ f32 gHeadsetPanVolume[] = {
     0.522819f, 0.519559f, 0.516299f, 0.513039f, 0.50978f,  0.50652f,  0.50326f,  0.5f,
 };
 
-f32 gStereoPanVolume[] = {
+f32 OoT_gStereoPanVolume[] = {
     0.707f,    0.716228f, 0.725457f, 0.734685f, 0.743913f, 0.753142f, 0.76237f,  0.771598f, 0.780827f, 0.790055f,
     0.799283f, 0.808512f, 0.81774f,  0.826968f, 0.836197f, 0.845425f, 0.854654f, 0.863882f, 0.87311f,  0.882339f,
     0.891567f, 0.900795f, 0.910024f, 0.919252f, 0.92848f,  0.937709f, 0.946937f, 0.956165f, 0.965394f, 0.974622f,
@@ -609,7 +609,7 @@ f32 gStereoPanVolume[] = {
     0.275563f, 0.286697f, 0.297831f, 0.308965f, 0.320098f, 0.331232f, 0.342366f, 0.3535f,
 };
 
-f32 gDefaultPanVolume[] = {
+f32 OoT_gDefaultPanVolume[] = {
     1.0f,      0.999924f, 0.999694f, 0.999312f, 0.998776f, 0.998088f, 0.997248f, 0.996254f, 0.995109f, 0.993811f,
     0.992361f, 0.990759f, 0.989006f, 0.987101f, 0.985045f, 0.982839f, 0.980482f, 0.977976f, 0.97532f,  0.972514f,
     0.96956f,  0.966457f, 0.963207f, 0.959809f, 0.956265f, 0.952574f, 0.948737f, 0.944755f, 0.940629f, 0.936359f,

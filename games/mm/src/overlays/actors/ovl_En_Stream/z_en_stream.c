@@ -9,12 +9,12 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void EnStream_Init(Actor* thisx, PlayState* play);
-void EnStream_Destroy(Actor* thisx, PlayState* play);
-void EnStream_Update(Actor* thisx, PlayState* play);
-void EnStream_Draw(Actor* thisx, PlayState* play);
+void MM_EnStream_Init(Actor* thisx, PlayState* play);
+void MM_EnStream_Destroy(Actor* thisx, PlayState* play);
+void MM_EnStream_Update(Actor* thisx, PlayState* play);
+void MM_EnStream_Draw(Actor* thisx, PlayState* play);
 
-void EnStream_WaitForPlayer(EnStream* this, PlayState* play);
+void MM_EnStream_WaitForPlayer(EnStream* this, PlayState* play);
 
 ActorProfile En_Stream_Profile = {
     /**/ ACTOR_EN_STREAM,
@@ -22,32 +22,32 @@ ActorProfile En_Stream_Profile = {
     /**/ FLAGS,
     /**/ OBJECT_STREAM,
     /**/ sizeof(EnStream),
-    /**/ EnStream_Init,
-    /**/ EnStream_Destroy,
-    /**/ EnStream_Update,
-    /**/ EnStream_Draw,
+    /**/ MM_EnStream_Init,
+    /**/ MM_EnStream_Destroy,
+    /**/ MM_EnStream_Update,
+    /**/ MM_EnStream_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 20, ICHAIN_STOP),
 };
 
-void EnStream_SetupAction(EnStream* this, EnStreamActionFunc actionFunc) {
+void MM_EnStream_SetupAction(EnStream* this, EnStreamActionFunc actionFunc) {
     this->actionFunc = actionFunc;
 }
 
-void EnStream_Init(Actor* thisx, PlayState* play) {
+void MM_EnStream_Init(Actor* thisx, PlayState* play) {
     EnStream* this = (EnStream*)thisx;
 
     this->size = EN_STREAM_SIZE(&this->actor);
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
     if (this->size != EN_STREAM_SIZE_NORMAL && this->size == EN_STREAM_SIZE_SMALL) {
         this->actor.scale.y = 0.01f;
     }
-    EnStream_SetupAction(this, EnStream_WaitForPlayer);
+    MM_EnStream_SetupAction(this, MM_EnStream_WaitForPlayer);
 }
 
-void EnStream_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnStream_Destroy(Actor* thisx, PlayState* play) {
 }
 
 s32 EnStream_PlayerIsInRange(Vec3f* vortexWorldPos, Vec3f* playerWorldPos, Vec3f* posDifference, f32 vortexYScale) {
@@ -61,7 +61,7 @@ s32 EnStream_PlayerIsInRange(Vec3f* vortexWorldPos, Vec3f* playerWorldPos, Vec3f
     posDifference->x = playerWorldPos->x - vortexWorldPos->x;
     posDifference->y = playerWorldPos->y - vortexWorldPos->y;
     posDifference->z = playerWorldPos->z - vortexWorldPos->z;
-    xzDist = sqrtf(SQ(posDifference->x) + SQ(posDifference->z));
+    xzDist = MM_sqrtf(SQ(posDifference->x) + SQ(posDifference->z));
 
     if (lowerBounds <= posDifference->y && posDifference->y <= upperBounds) {
         posDifference->y -= lowerBounds;
@@ -79,7 +79,7 @@ s32 EnStream_PlayerIsInRange(Vec3f* vortexWorldPos, Vec3f* playerWorldPos, Vec3f
     return ret;
 }
 
-void EnStream_SuckPlayer(EnStream* this, PlayState* play) {
+void MM_EnStream_SuckPlayer(EnStream* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
     s32 pad48;
     Vec3f posDifference;
@@ -89,46 +89,46 @@ void EnStream_SuckPlayer(EnStream* this, PlayState* play) {
 
     if (EnStream_PlayerIsInRange(&this->actor.world.pos, &player->actor.world.pos, &posDifference,
                                  this->actor.scale.y) != EN_STREAM_PLAYER_OUTSIDE_RANGE) {
-        xzDist = sqrtf(SQ(posDifference.x) + SQ(posDifference.z));
+        xzDist = MM_sqrtf(SQ(posDifference.x) + SQ(posDifference.z));
         yDistWithOffset = player->actor.world.pos.y - (this->actor.world.pos.y - 90.0f);
-        player->pushedYaw = Math_Atan2S(-posDifference.x, -posDifference.z);
+        player->pushedYaw = MM_Math_Atan2S(-posDifference.x, -posDifference.z);
         if (xzDist > 3.0f) {
-            Math_SmoothStepToF(&player->pushedSpeed, 3.0f, 0.5f, xzDist, 0.0f);
+            MM_Math_SmoothStepToF(&player->pushedSpeed, 3.0f, 0.5f, xzDist, 0.0f);
         } else {
             player->pushedSpeed = 0.0f;
-            Math_SmoothStepToF(&player->actor.world.pos.x, this->actor.world.pos.x, 0.5f, 3.0f, 0.0f);
-            Math_SmoothStepToF(&player->actor.world.pos.z, this->actor.world.pos.z, 0.5f, 3.0f, 0.0f);
+            MM_Math_SmoothStepToF(&player->actor.world.pos.x, this->actor.world.pos.x, 0.5f, 3.0f, 0.0f);
+            MM_Math_SmoothStepToF(&player->actor.world.pos.z, this->actor.world.pos.z, 0.5f, 3.0f, 0.0f);
         }
         if (yDistWithOffset > 0.0f) {
-            Math_SmoothStepToF(&player->actor.velocity.y, -3.0f, 0.7f, yDistWithOffset, 0.0f);
+            MM_Math_SmoothStepToF(&player->actor.velocity.y, -3.0f, 0.7f, yDistWithOffset, 0.0f);
             if (posDifference.y < -70.0f) {
                 player->stateFlags2 |= PLAYER_STATE2_80000000;
             }
         }
     } else {
-        EnStream_SetupAction(this, EnStream_WaitForPlayer);
+        MM_EnStream_SetupAction(this, MM_EnStream_WaitForPlayer);
     }
 }
 
-void EnStream_WaitForPlayer(EnStream* this, PlayState* play) {
+void MM_EnStream_WaitForPlayer(EnStream* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
     s32 pad;
     Vec3f temp;
 
     if (EnStream_PlayerIsInRange(&this->actor.world.pos, &player->actor.world.pos, &temp, this->actor.scale.y) !=
         EN_STREAM_PLAYER_OUTSIDE_RANGE) {
-        EnStream_SetupAction(this, EnStream_SuckPlayer);
+        MM_EnStream_SetupAction(this, MM_EnStream_SuckPlayer);
     }
 }
 
-void EnStream_Update(Actor* thisx, PlayState* play) {
+void MM_EnStream_Update(Actor* thisx, PlayState* play) {
     EnStream* this = (EnStream*)thisx;
 
     this->actionFunc(this, play);
     Actor_PlaySfx_FlaggedCentered2(&this->actor, NA_SE_EV_WHIRLPOOL - SFX_FLAG);
 }
 
-void EnStream_Draw(Actor* thisx, PlayState* play) {
+void MM_EnStream_Draw(Actor* thisx, PlayState* play) {
     u32 multipliedFrames;
     u32 frames = play->gameplayFrames;
     Gfx* gfx;
@@ -140,7 +140,7 @@ void EnStream_Draw(Actor* thisx, PlayState* play) {
     MATRIX_FINALIZE_AND_LOAD(&gfx[0], play->state.gfxCtx);
     multipliedFrames = frames * 20;
     gSPSegment(&gfx[1], 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, frames * 30, -multipliedFrames, 64, 64, 1, multipliedFrames,
+               MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, frames * 30, -multipliedFrames, 64, 64, 1, multipliedFrames,
                                 -multipliedFrames, 64, 64));
     gSPDisplayList(&gfx[2], gWaterVortexDL);
     POLY_XLU_DISP = &gfx[3];

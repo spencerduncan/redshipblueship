@@ -19,8 +19,8 @@
 // Variables are put before most headers as a hacky way to bypass bss reordering
 OSMesgQueue sSerialEventQueue;
 OSMesg sSerialMsgBuf[1];
-uintptr_t gSegments[NUM_SEGMENTS];
-SchedContext gSchedContext;
+uintptr_t MM_gSegments[NUM_SEGMENTS];
+SchedContext MM_gSchedContext;
 IrqMgrClient sIrqClient;
 OSMesgQueue sIrqMgrMsgQueue;
 OSMesg sIrqMgrMsgBuf[60];
@@ -29,13 +29,13 @@ STACK(sGraphStack, 0x1800);
 STACK(sSchedStack, 0x600);
 STACK(sAudioStack, 0x800);
 STACK(sPadMgrStack, 0x500);
-StackEntry sGraphStackInfo;
-StackEntry sSchedStackInfo;
-StackEntry sAudioStackInfo;
-StackEntry sPadMgrStackInfo;
+StackEntry MM_sGraphStackInfo;
+StackEntry MM_sSchedStackInfo;
+StackEntry MM_sAudioStackInfo;
+StackEntry MM_sPadMgrStackInfo;
 AudioMgr sAudioMgr;
 static s32 sBssPad;
-PadMgr gPadMgr;
+PadMgr MM_gPadMgr;
 
 #include "main.h"
 #include "buffers.h"
@@ -43,17 +43,17 @@ PadMgr gPadMgr;
 #include "system_heap.h"
 #include "z64thread.h"
 
-s32 gScreenWidth = SCREEN_WIDTH;
-s32 gScreenHeight = SCREEN_HEIGHT;
-size_t gSystemHeapSize = 0;
+s32 MM_gScreenWidth = SCREEN_WIDTH;
+s32 MM_gScreenHeight = SCREEN_HEIGHT;
+size_t MM_gSystemHeapSize = 0;
 
 void InitOTR();
-void Heaps_Free(void);
+void MM_Heaps_Free(void);
 #ifdef __GNUC__
-#define SDL_main main
+#define MM_SDL_main main
 #endif
 
-void SDL_main(int argc, char** argv /* void* arg*/) {
+void MM_SDL_main(int argc, char** argv /* void* arg*/) {
     intptr_t fb;
     intptr_t sysHeap;
     s32 exit;
@@ -74,59 +74,59 @@ void SDL_main(int argc, char** argv /* void* arg*/) {
 
     InitOTR();
     CrashHandlerRegisterCallback(CrashHandler_PrintExt);
-    Heaps_Alloc();
+    MM_Heaps_Alloc();
 
-    gScreenWidth = SCREEN_WIDTH;
-    gScreenHeight = SCREEN_HEIGHT;
+    MM_gScreenWidth = SCREEN_WIDTH;
+    MM_gScreenHeight = SCREEN_HEIGHT;
 
     Nmi_Init();
-    Fault_Init();
+    MM_Fault_Init();
     Check_RegionIsSupported();
     Check_ExpansionPak();
-    sysHeap = gSystemHeap;
+    sysHeap = MM_gSystemHeap;
     // fb = FRAMEBUFFERS_START_ADDR;
-    // gSystemHeapSize = fb - sysHeap;
-    SystemHeap_Init(sysHeap, SYSTEM_HEAP_SIZE);
+    // MM_gSystemHeapSize = fb - sysHeap;
+    MM_SystemHeap_Init(sysHeap, SYSTEM_HEAP_SIZE);
 
     Regs_Init();
 
     R_ENABLE_ARENA_DBG = 0;
 
-    osCreateMesgQueue(&sSerialEventQueue, sSerialMsgBuf, ARRAY_COUNT(sSerialMsgBuf));
-    osSetEventMesg(OS_EVENT_SI, &sSerialEventQueue, OS_MESG_PTR(NULL));
+    MM_osCreateMesgQueue(&sSerialEventQueue, sSerialMsgBuf, ARRAY_COUNT(sSerialMsgBuf));
+    MM_osSetEventMesg(OS_EVENT_SI, &sSerialEventQueue, OS_MESG_PTR(NULL));
 
-    osCreateMesgQueue(&sIrqMgrMsgQueue, sIrqMgrMsgBuf, ARRAY_COUNT(sIrqMgrMsgBuf));
-    PadMgr_Init(&sSerialEventQueue, &gIrqMgr, Z_THREAD_ID_PADMGR, Z_PRIORITY_PADMGR, STACK_TOP(sPadMgrStack));
+    MM_osCreateMesgQueue(&sIrqMgrMsgQueue, sIrqMgrMsgBuf, ARRAY_COUNT(sIrqMgrMsgBuf));
+    MM_PadMgr_Init(&sSerialEventQueue, &MM_gIrqMgr, Z_THREAD_ID_PADMGR, Z_PRIORITY_PADMGR, STACK_TOP(sPadMgrStack));
 
-    AudioMgr_Init(&sAudioMgr, STACK_TOP(sAudioStack), Z_PRIORITY_AUDIOMGR, Z_THREAD_ID_AUDIOMGR, &gSchedContext,
-                  &gIrqMgr);
+    MM_AudioMgr_Init(&sAudioMgr, STACK_TOP(sAudioStack), Z_PRIORITY_AUDIOMGR, Z_THREAD_ID_AUDIOMGR, &MM_gSchedContext,
+                  &MM_gIrqMgr);
 #if 0
-    StackCheck_Init(&sSchedStackInfo, sSchedStack, STACK_TOP(sSchedStack), 0, 0x100, "sched");
-    Sched_Init(&gSchedContext, STACK_TOP(sSchedStack), Z_PRIORITY_SCHED, gViConfigModeType, 1, &gIrqMgr);
+    MM_StackCheck_Init(&MM_sSchedStackInfo, sSchedStack, STACK_TOP(sSchedStack), 0, 0x100, "sched");
+    MM_Sched_Init(&MM_gSchedContext, STACK_TOP(sSchedStack), Z_PRIORITY_SCHED, gViConfigModeType, 1, &MM_gIrqMgr);
 
     CIC6105_AddRomInfoFaultPage();
 
-    IrqMgr_AddClient(&gIrqMgr, &sIrqClient, &sIrqMgrMsgQueue);
+    MM_IrqMgr_AddClient(&MM_gIrqMgr, &sIrqClient, &sIrqMgrMsgQueue);
 
-    StackCheck_Init(&sAudioStackInfo, sAudioStack, STACK_TOP(sAudioStack), 0, 0x100, "audio");
-    AudioMgr_Init(&sAudioMgr, STACK_TOP(sAudioStack), Z_PRIORITY_AUDIOMGR, Z_THREAD_ID_AUDIOMGR, &gSchedContext,
-                  &gIrqMgr);
+    MM_StackCheck_Init(&MM_sAudioStackInfo, sAudioStack, STACK_TOP(sAudioStack), 0, 0x100, "audio");
+    MM_AudioMgr_Init(&sAudioMgr, STACK_TOP(sAudioStack), Z_PRIORITY_AUDIOMGR, Z_THREAD_ID_AUDIOMGR, &MM_gSchedContext,
+                  &MM_gIrqMgr);
 
-    StackCheck_Init(&sPadMgrStackInfo, sPadMgrStack, STACK_TOP(sPadMgrStack), 0, 0x100, "padmgr");
+    MM_StackCheck_Init(&MM_sPadMgrStackInfo, sPadMgrStack, STACK_TOP(sPadMgrStack), 0, 0x100, "padmgr");
 
-    AudioMgr_Unlock(&sAudioMgr);
-    StackCheck_Init(&sGraphStackInfo, sGraphStack, STACK_TOP(sGraphStack), 0, 0x100, "graph");
-    osCreateThread(&gGraphThread, Z_THREAD_ID_GRAPH, Graph_ThreadEntry, NULL, STACK_TOP(sGraphStack), Z_PRIORITY_GRAPH);
-    osStartThread(&gGraphThread);
+    MM_AudioMgr_Unlock(&sAudioMgr);
+    MM_StackCheck_Init(&MM_sGraphStackInfo, sGraphStack, STACK_TOP(sGraphStack), 0, 0x100, "graph");
+    osCreateThread(&gGraphThread, Z_THREAD_ID_GRAPH, MM_Graph_ThreadEntry, NULL, STACK_TOP(sGraphStack), Z_PRIORITY_GRAPH);
+    MM_osStartThread(&gGraphThread);
 #endif
 
-    Graph_ThreadEntry(0);
+    MM_Graph_ThreadEntry(0);
 
     exit = false;
 
     while (!exit) {
         msg = NULL;
-        osRecvMesg(&sIrqMgrMsgQueue, (OSMesg*)&msg, OS_MESG_BLOCK);
+        MM_osRecvMesg(&sIrqMgrMsgQueue, (OSMesg*)&msg, OS_MESG_BLOCK);
         if (msg == NULL) {
             break;
         }
@@ -142,13 +142,13 @@ void SDL_main(int argc, char** argv /* void* arg*/) {
         }
     }
 
-    IrqMgr_RemoveClient(&gIrqMgr, &sIrqClient);
-    osDestroyThread(&gGraphThread);
+    MM_IrqMgr_RemoveClient(&MM_gIrqMgr, &sIrqClient);
+    MM_osDestroyThread(&gGraphThread);
 
     DeinitOTR();
 
 #ifdef _WIN32
     FreeConsole();
 #endif
-    Heaps_Free();
+    MM_Heaps_Free();
 }

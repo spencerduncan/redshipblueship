@@ -15,7 +15,7 @@ void BgSstFloor_Destroy(BgSstFloor* this, PlayState* play);
 void BgSstFloor_Update(BgSstFloor* this, PlayState* play);
 void BgSstFloor_Draw(BgSstFloor* this, PlayState* play);
 
-static s32 sUnkValues[] = { 0, 0, 0 }; // Unused, probably a zero vector
+static s32 sUnkValues[] = { 0, 0, 0 }; // Unused, probably a OoT_zero vector
 
 const ActorInit Bg_Sst_Floor_InitVars = {
     ACTOR_BG_SST_FLOOR,
@@ -30,7 +30,7 @@ const ActorInit Bg_Sst_Floor_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale.x, 100, ICHAIN_STOP),
 };
 
@@ -39,17 +39,17 @@ void BgSstFloor_Init(BgSstFloor* thisx, PlayState* play) {
     BgSstFloor* this = (BgSstFloor*)thisx;
     CollisionHeader* colHeader = NULL;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
-    CollisionHeader_GetVirtual(&gBongoDrumCol, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
+    OoT_CollisionHeader_GetVirtual(&gBongoDrumCol, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
 }
 
 void BgSstFloor_Destroy(BgSstFloor* thisx, PlayState* play) {
     s32 pad;
     BgSstFloor* this = (BgSstFloor*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void BgSstFloor_Update(BgSstFloor* thisx, PlayState* play) {
@@ -62,13 +62,13 @@ void BgSstFloor_Update(BgSstFloor* thisx, PlayState* play) {
 
     colHeader->vtxList = SEGMENTED_TO_VIRTUAL(colHeader->vtxList);
 
-    if (DynaPolyActor_IsPlayerAbove(&this->dyna) && (this->dyna.actor.yDistToPlayer < 1000.0f)) {
-        Camera_ChangeSetting(play->cameraPtrs[MAIN_CAM], CAM_SET_BOSS_BONGO);
+    if (OoT_DynaPolyActor_IsPlayerAbove(&this->dyna) && (this->dyna.actor.yDistToPlayer < 1000.0f)) {
+        OoT_Camera_ChangeSetting(play->cameraPtrs[MAIN_CAM], CAM_SET_BOSS_BONGO);
     } else {
-        Camera_ChangeSetting(play->cameraPtrs[MAIN_CAM], CAM_SET_DUNGEON0);
+        OoT_Camera_ChangeSetting(play->cameraPtrs[MAIN_CAM], CAM_SET_DUNGEON0);
     }
 
-    if (DynaPolyActor_IsPlayerOnTop(&this->dyna) && (player->fallDistance > 1000.0f)) {
+    if (OoT_DynaPolyActor_IsPlayerOnTop(&this->dyna) && (player->fallDistance > 1000.0f)) {
         this->dyna.actor.params = 1;
         Audio_PlayActorSound2(&this->dyna.actor, NA_SE_EN_SHADEST_TAIKO_HIGH);
     }
@@ -82,7 +82,7 @@ void BgSstFloor_Update(BgSstFloor* thisx, PlayState* play) {
         this->dyna.actor.params = BONGOFLOOR_REST;
         this->drumPhase = 28;
 
-        if (DynaPolyActor_IsPlayerOnTop(&this->dyna) &&
+        if (OoT_DynaPolyActor_IsPlayerOnTop(&this->dyna) &&
             !(player->stateFlags1 & (PLAYER_STATE1_HANGING_OFF_LEDGE | PLAYER_STATE1_CLIMBING_LEDGE))) {
             distFromRim = 600.0f - this->dyna.actor.xzDistToPlayer;
             if (distFromRim > 0.0f) {
@@ -96,7 +96,7 @@ void BgSstFloor_Update(BgSstFloor* thisx, PlayState* play) {
 
         while (item00 != NULL) {
             if ((item00->id == ACTOR_EN_ITEM00) && (item00->world.pos.y == 0.0f)) {
-                xzDist = Actor_WorldDistXZToActor(&this->dyna.actor, item00);
+                xzDist = OoT_Actor_WorldDistXZToActor(&this->dyna.actor, item00);
                 distFromRim = 600.0f - xzDist;
                 if (xzDist < 600.0f) {
                     if (distFromRim > 350.0f) {
@@ -110,7 +110,7 @@ void BgSstFloor_Update(BgSstFloor* thisx, PlayState* play) {
         }
     }
     this->drumHeight = sinf(this->drumPhase * (M_PI / 2)) * (-this->drumAmp);
-    Math_StepToS(&this->drumAmp, 0, 5);
+    OoT_Math_StepToS(&this->drumAmp, 0, 5);
 
     colHeader->vtxList[1].y = colHeader->vtxList[0].y = colHeader->vtxList[2].y = colHeader->vtxList[3].y =
         colHeader->vtxList[4].y = colHeader->vtxList[7].y = colHeader->vtxList[9].y = colHeader->vtxList[11].y =
@@ -127,7 +127,7 @@ void BgSstFloor_Draw(BgSstFloor* thisx, PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
-    Matrix_Scale(1.0f, this->drumHeight * -0.0025f, 1.0f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(1.0f, this->drumHeight * -0.0025f, 1.0f, MTXMODE_APPLY);
 
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 

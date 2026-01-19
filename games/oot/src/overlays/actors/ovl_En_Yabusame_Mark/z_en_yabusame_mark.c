@@ -14,7 +14,7 @@ void EnYabusameMark_Destroy(Actor* thisx, PlayState* play);
 void EnYabusameMark_Update(Actor* thisx, PlayState* play);
 void func_80B42F74(EnYabusameMark* this, PlayState* play);
 
-static ColliderQuadInit sQuadInit = {
+static ColliderQuadInit OoT_sQuadInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -73,7 +73,7 @@ static f32 sRingDistance[] = {
 void EnYabusameMark_Destroy(Actor* thisx, PlayState* play) {
     EnYabusameMark* this = (EnYabusameMark*)thisx;
 
-    Collider_DestroyQuad(play, &this->collider);
+    OoT_Collider_DestroyQuad(play, &this->collider);
 }
 
 void EnYabusameMark_Init(Actor* thisx, PlayState* play) {
@@ -102,12 +102,12 @@ void EnYabusameMark_Init(Actor* thisx, PlayState* play) {
             this->subTypeIndex = 4;
             break;
     }
-    Collider_InitQuad(play, &this->collider);
-    Collider_SetQuad(play, &this->collider, &this->actor, &sQuadInit);
+    OoT_Collider_InitQuad(play, &this->collider);
+    OoT_Collider_SetQuad(play, &this->collider, &this->actor, &OoT_sQuadInit);
     this->worldPos = this->actor.world.pos;
     this->actor.flags |= ACTOR_FLAG_UPDATE_CULLING_DISABLED;
     if (gSaveContext.sceneSetupIndex != 4) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
     osSyncPrintf(VT_FGCOL(PURPLE) "☆☆☆☆☆ 種類       ☆☆☆☆☆ %d\n" VT_RST, this->typeIndex);
@@ -173,7 +173,7 @@ void func_80B42F74(EnYabusameMark* this, PlayState* play) {
         osSyncPrintf("\n\n");
 
         if (scoreIndex == 2) {
-            Audio_PlayFanfare(NA_BGM_ITEM_GET | 0x900);
+            OoT_Audio_PlayFanfare(NA_BGM_ITEM_GET | 0x900);
         }
         if (scoreIndex == 1) {
             Audio_StopSfxById(NA_SE_SY_TRE_BOX_APPEAR);
@@ -182,7 +182,7 @@ void func_80B42F74(EnYabusameMark* this, PlayState* play) {
         if (scoreIndex == 0) {
             Sfx_PlaySfxCentered(NA_SE_SY_DECIDE);
         }
-        EffectSsExtra_Spawn(play, &arrowHitPos, &effectVelocity, &effectAccel, 5, scoreIndex);
+        OoT_EffectSsExtra_Spawn(play, &arrowHitPos, &effectVelocity, &effectAccel, 5, scoreIndex);
     }
 }
 
@@ -211,10 +211,10 @@ void EnYabusameMark_Update(Actor* thisx, PlayState* play) {
     this->vertexD.y = vertexArray[3].y + this->actor.world.pos.y;
     this->vertexD.z = vertexArray[3].z + this->actor.world.pos.z;
 
-    Collider_SetQuadVertices(&this->collider, &this->vertexA, &this->vertexB, &this->vertexC, &this->vertexD);
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    OoT_Collider_SetQuadVertices(&this->collider, &this->vertexA, &this->vertexB, &this->vertexC, &this->vertexD);
+    OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     if (BREG(0)) {
-        DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
+        OoT_DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
                                this->actor.world.rot.x, this->actor.world.rot.y, this->actor.world.rot.z, 1.0f, 1.0f,
                                1.0f, 0, 0xFF, 0, 0xFF, 4, play->state.gfxCtx);
     }

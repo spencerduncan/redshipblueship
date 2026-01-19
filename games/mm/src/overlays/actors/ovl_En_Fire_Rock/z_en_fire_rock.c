@@ -8,10 +8,10 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED)
 
-void EnFireRock_Init(Actor* thisx, PlayState* play);
-void EnFireRock_Destroy(Actor* thisx, PlayState* play);
-void EnFireRock_Update(Actor* thisx, PlayState* play);
-void EnFireRock_Draw(Actor* thisx, PlayState* play);
+void MM_EnFireRock_Init(Actor* thisx, PlayState* play);
+void MM_EnFireRock_Destroy(Actor* thisx, PlayState* play);
+void MM_EnFireRock_Update(Actor* thisx, PlayState* play);
+void MM_EnFireRock_Draw(Actor* thisx, PlayState* play);
 
 ActorProfile En_Fire_Rock_Profile = {
     /**/ ACTOR_EN_FIRE_ROCK,
@@ -19,20 +19,20 @@ ActorProfile En_Fire_Rock_Profile = {
     /**/ FLAGS,
     /**/ OBJECT_EFC_STAR_FIELD,
     /**/ sizeof(EnFireRock),
-    /**/ EnFireRock_Init,
-    /**/ EnFireRock_Destroy,
-    /**/ EnFireRock_Update,
-    /**/ EnFireRock_Draw,
+    /**/ MM_EnFireRock_Init,
+    /**/ MM_EnFireRock_Destroy,
+    /**/ MM_EnFireRock_Update,
+    /**/ MM_EnFireRock_Draw,
 };
 
-void EnFireRock_Init(Actor* thisx, PlayState* play) {
+void MM_EnFireRock_Init(Actor* thisx, PlayState* play) {
 }
 
-void EnFireRock_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnFireRock_Destroy(Actor* thisx, PlayState* play) {
 }
 
-void EnFireRock_Update(Actor* thisx, PlayState* play) {
+void MM_EnFireRock_Update(Actor* thisx, PlayState* play) {
 }
 
-void EnFireRock_Draw(Actor* thisx, PlayState* play) {
+void MM_EnFireRock_Draw(Actor* thisx, PlayState* play) {
 }

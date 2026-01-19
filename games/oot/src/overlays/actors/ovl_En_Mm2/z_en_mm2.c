@@ -26,10 +26,10 @@ typedef enum {
     /* 1 */ RM2_MOUTH_OPEN
 } RunningManMouthTex;
 
-void EnMm2_Init(Actor* thisx, PlayState* play);
-void EnMm2_Destroy(Actor* thisx, PlayState* play);
-void EnMm2_Update(Actor* thisx, PlayState* play);
-void EnMm2_Draw(Actor* thisx, PlayState* play);
+void OoT_EnMm2_Init(Actor* thisx, PlayState* play);
+void OoT_EnMm2_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnMm2_Update(Actor* thisx, PlayState* play);
+void OoT_EnMm2_Draw(Actor* thisx, PlayState* play);
 void func_80AAF3C0(EnMm2* this, PlayState* play);
 void func_80AAF57C(EnMm2* this, PlayState* play);
 void func_80AAF668(EnMm2* this, PlayState* play);
@@ -42,14 +42,14 @@ const ActorInit En_Mm2_InitVars = {
     FLAGS,
     OBJECT_MM,
     sizeof(EnMm2),
-    (ActorFunc)EnMm2_Init,
-    (ActorFunc)EnMm2_Destroy,
-    (ActorFunc)EnMm2_Update,
-    (ActorFunc)EnMm2_Draw,
+    (ActorFunc)OoT_EnMm2_Init,
+    (ActorFunc)OoT_EnMm2_Destroy,
+    (ActorFunc)OoT_EnMm2_Update,
+    (ActorFunc)OoT_EnMm2_Draw,
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -69,14 +69,14 @@ static ColliderCylinderInit sCylinderInit = {
     { 18, 63, 0, { 0, 0, 0 } },
 };
 
-static AnimationSpeedInfo sAnimationInfo[] = {
+static AnimationSpeedInfo OoT_sAnimationInfo[] = {
     { &gRunningManRunAnim, 1.0f, ANIMMODE_LOOP, -7.0f },     { &gRunningManSitStandAnim, -1.0f, ANIMMODE_ONCE, -7.0f },
     { &gRunningManSitWaitAnim, 1.0f, ANIMMODE_LOOP, -7.0f }, { &gRunningManSitStandAnim, 1.0f, ANIMMODE_ONCE, -7.0f },
     { &gRunningManSprintAnim, 1.0f, ANIMMODE_LOOP, -7.0f },  { &gRunningManExcitedAnim, 1.0f, ANIMMODE_LOOP, -12.0f },
     { &gRunningManHappyAnim, 1.0f, ANIMMODE_LOOP, -12.0f },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(uncullZoneForward, 4000, ICHAIN_STOP),
 };
 
@@ -86,16 +86,16 @@ void EnMm2_ChangeAnim(EnMm2* this, s32 index, s32* currentIndex) {
     if ((*currentIndex < 0) || (index == *currentIndex)) {
         phi_f0 = 0.0f;
     } else {
-        phi_f0 = sAnimationInfo[index].morphFrames;
+        phi_f0 = OoT_sAnimationInfo[index].morphFrames;
     }
 
-    if (sAnimationInfo[index].playSpeed >= 0.0f) {
-        Animation_Change(&this->skelAnime, sAnimationInfo[index].animation, sAnimationInfo[index].playSpeed, 0.0f,
-                         (f32)Animation_GetLastFrame(sAnimationInfo[index].animation), sAnimationInfo[index].mode,
+    if (OoT_sAnimationInfo[index].playSpeed >= 0.0f) {
+        OoT_Animation_Change(&this->skelAnime, OoT_sAnimationInfo[index].animation, OoT_sAnimationInfo[index].playSpeed, 0.0f,
+                         (f32)OoT_Animation_GetLastFrame(OoT_sAnimationInfo[index].animation), OoT_sAnimationInfo[index].mode,
                          phi_f0);
     } else {
-        Animation_Change(&this->skelAnime, sAnimationInfo[index].animation, sAnimationInfo[index].playSpeed,
-                         (f32)Animation_GetLastFrame(sAnimationInfo[index].animation), 0.0f, sAnimationInfo[index].mode,
+        OoT_Animation_Change(&this->skelAnime, OoT_sAnimationInfo[index].animation, OoT_sAnimationInfo[index].playSpeed,
+                         (f32)OoT_Animation_GetLastFrame(OoT_sAnimationInfo[index].animation), 0.0f, OoT_sAnimationInfo[index].mode,
                          phi_f0);
     }
     *currentIndex = index;
@@ -104,7 +104,7 @@ void EnMm2_ChangeAnim(EnMm2* this, s32 index, s32* currentIndex) {
 void func_80AAEF70(EnMm2* this, PlayState* play) {
     if (!GET_EVENTCHKINF_CARPENTERS_FREE_ALL()) {
         this->actor.textId = 0x6086;
-    } else if (Flags_GetInfTable(INFTABLE_17F)) {
+    } else if (OoT_Flags_GetInfTable(INFTABLE_17F)) {
         if (gSaveContext.eventInf[1] & 1) {
             this->actor.textId = 0x6082;
         } else if (gSaveContext.subTimerState != SUBTIMER_STATE_OFF) {
@@ -123,19 +123,19 @@ void func_80AAEF70(EnMm2* this, PlayState* play) {
     }
 }
 
-void EnMm2_Init(Actor* thisx, PlayState* play2) {
+void OoT_EnMm2_Init(Actor* thisx, PlayState* play2) {
     EnMm2* this = (EnMm2*)thisx;
     PlayState* play = play2;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 21.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gRunningManSkel, NULL, this->jointTable, this->morphTable, 16);
-    Animation_Change(&this->skelAnime, sAnimationInfo[RM2_ANIM_SIT_WAIT].animation, 1.0f, 0.0f,
-                     Animation_GetLastFrame(sAnimationInfo[RM2_ANIM_SIT_WAIT].animation),
-                     sAnimationInfo[RM2_ANIM_SIT_WAIT].mode, sAnimationInfo[RM2_ANIM_SIT_WAIT].morphFrames);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 21.0f);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gRunningManSkel, NULL, this->jointTable, this->morphTable, 16);
+    OoT_Animation_Change(&this->skelAnime, OoT_sAnimationInfo[RM2_ANIM_SIT_WAIT].animation, 1.0f, 0.0f,
+                     OoT_Animation_GetLastFrame(OoT_sAnimationInfo[RM2_ANIM_SIT_WAIT].animation),
+                     OoT_sAnimationInfo[RM2_ANIM_SIT_WAIT].mode, OoT_sAnimationInfo[RM2_ANIM_SIT_WAIT].morphFrames);
     this->previousAnimation = RM2_ANIM_SIT_WAIT;
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
     this->mouthTexIndex = RM2_MOUTH_CLOSED;
     this->actor.targetMode = 6;
@@ -148,20 +148,20 @@ void EnMm2_Init(Actor* thisx, PlayState* play2) {
         this->actionFunc = func_80AAF57C;
     }
     if (!LINK_IS_ADULT) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
     if (this->actor.params == 1) {
-        if (!Flags_GetInfTable(INFTABLE_17F) || !(gSaveContext.eventInf[1] & 1)) {
+        if (!OoT_Flags_GetInfTable(INFTABLE_17F) || !(gSaveContext.eventInf[1] & 1)) {
             osSyncPrintf(VT_FGCOL(CYAN) " マラソン 開始されていない \n" VT_RST "\n");
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
         }
     }
 }
 
-void EnMm2_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnMm2_Destroy(Actor* thisx, PlayState* play) {
     EnMm2* this = (EnMm2*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
@@ -182,20 +182,20 @@ s32 func_80AAF224(EnMm2* this, PlayState* play, EnMm2ActionFunc actionFunc) {
 
 void func_80AAF2BC(EnMm2* this, PlayState* play) {
     if (this->unk_1F6 > 60) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     this->unk_1F6++;
-    Math_SmoothStepToF(&this->actor.speedXZ, 10.0f, 0.6f, 2.0f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->actor.speedXZ, 10.0f, 0.6f, 2.0f, 0.0f);
 }
 
 void func_80AAF330(EnMm2* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (OoT_SkelAnime_Update(&this->skelAnime)) {
         this->actionFunc = func_80AAF2BC;
         EnMm2_ChangeAnim(this, RM2_ANIM_RUN, &this->previousAnimation);
         this->mouthTexIndex = RM2_MOUTH_OPEN;
         if (!(this->unk_1F4 & 2)) {
-            Message_CloseTextbox(play);
+            OoT_Message_CloseTextbox(play);
         }
         gSaveContext.subTimerState = SUBTIMER_STATE_OFF;
         gSaveContext.eventInf[1] &= ~1;
@@ -203,20 +203,20 @@ void func_80AAF330(EnMm2* this, PlayState* play) {
 }
 
 void func_80AAF3C0(EnMm2* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
 
     switch (this->actor.textId) {
         case 0x607D:
         case 0x607E:
-            if ((Message_GetState(&play->msgCtx) == TEXT_STATE_CHOICE) && Message_ShouldAdvance(play)) {
+            if ((OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_CHOICE) && OoT_Message_ShouldAdvance(play)) {
                 switch (play->msgCtx.choiceIndex) {
                     case 0:
-                        Message_ContinueTextbox(play, 0x607F);
+                        OoT_Message_ContinueTextbox(play, 0x607F);
                         this->actor.textId = 0x607F;
                         gSaveContext.eventInf[1] |= 1;
                         break;
                     case 1:
-                        Message_ContinueTextbox(play, 0x6080);
+                        OoT_Message_ContinueTextbox(play, 0x6080);
                         this->actor.textId = 0x6080;
                         break;
                 };
@@ -227,16 +227,16 @@ void func_80AAF3C0(EnMm2* this, PlayState* play) {
             }
             return;
         case 0x6081:
-            if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+            if ((OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && OoT_Message_ShouldAdvance(play)) {
                 this->unk_1F4 |= 4;
                 HIGH_SCORE(HS_MARATHON) -= 1;
-                Message_ContinueTextbox(play, 0x607E);
+                OoT_Message_ContinueTextbox(play, 0x607E);
                 this->actor.textId = 0x607E;
             }
             return;
     }
 
-    if (Actor_TextboxIsClosing(&this->actor, play)) {
+    if (OoT_Actor_TextboxIsClosing(&this->actor, play)) {
         if (this->actor.textId == 0x607F) {
             Interface_SetSubTimer(0);
             this->actionFunc = func_80AAF57C;
@@ -249,16 +249,16 @@ void func_80AAF3C0(EnMm2* this, PlayState* play) {
 }
 
 void func_80AAF57C(EnMm2* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     func_80AAEF70(this, play);
     if ((func_80AAF224(this, play, func_80AAF3C0)) && (this->actor.textId == 0x607D)) {
-        Flags_SetInfTable(INFTABLE_17F);
+        OoT_Flags_SetInfTable(INFTABLE_17F);
     }
 }
 
 void func_80AAF5EC(EnMm2* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    OoT_SkelAnime_Update(&this->skelAnime);
+    if ((OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && OoT_Message_ShouldAdvance(play)) {
         this->unk_1F4 &= ~1;
         EnMm2_ChangeAnim(this, RM2_ANIM_STAND, &this->previousAnimation);
         this->actionFunc = func_80AAF330;
@@ -268,7 +268,7 @@ void func_80AAF5EC(EnMm2* this, PlayState* play) {
 void func_80AAF668(EnMm2* this, PlayState* play) {
     this->actor.world.rot.y = -0x3E80;
     this->actor.shape.rot.y = this->actor.world.rot.y;
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     if (((void)0, gSaveContext.subTimerSeconds) < HIGH_SCORE(HS_MARATHON)) {
         this->actor.textId = 0x6085;
     } else {
@@ -290,26 +290,26 @@ void func_80AAF668(EnMm2* this, PlayState* play) {
     }
 }
 
-void EnMm2_Update(Actor* thisx, PlayState* play) {
+void OoT_EnMm2_Update(Actor* thisx, PlayState* play) {
     EnMm2* this = (EnMm2*)thisx;
     s32 pad;
 
     if (this->unk_1F4 & 1) {
         func_80038290(play, &this->actor, &this->unk_1E8, &this->unk_1EE, this->actor.focus.pos);
     } else {
-        Math_SmoothStepToS(&this->unk_1E8.x, 0, 6, 6200, 100);
-        Math_SmoothStepToS(&this->unk_1E8.y, 0, 6, 6200, 100);
-        Math_SmoothStepToS(&this->unk_1EE.x, 0, 6, 6200, 100);
-        Math_SmoothStepToS(&this->unk_1EE.y, 0, 6, 6200, 100);
+        OoT_Math_SmoothStepToS(&this->unk_1E8.x, 0, 6, 6200, 100);
+        OoT_Math_SmoothStepToS(&this->unk_1E8.y, 0, 6, 6200, 100);
+        OoT_Math_SmoothStepToS(&this->unk_1EE.x, 0, 6, 6200, 100);
+        OoT_Math_SmoothStepToS(&this->unk_1EE.y, 0, 6, 6200, 100);
     }
     this->actionFunc(this, play);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     Actor_MoveXZGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
 }
 
-void EnMm2_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnMm2_Draw(Actor* thisx, PlayState* play) {
     static void* mouthTextures[] = { gRunningManMouthOpenTex, gRunningManMouthClosedTex };
     EnMm2* this = (EnMm2*)thisx;
 
@@ -342,6 +342,6 @@ void EnMm2_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot,
     EnMm2* this = (EnMm2*)thisx;
 
     if (limbIndex == 15) {
-        Matrix_MultVec3f(&headOffset, &this->actor.focus.pos);
+        OoT_Matrix_MultVec3f(&headOffset, &this->actor.focus.pos);
     }
 }

@@ -85,38 +85,38 @@ void EnTest7_InitFeathers(OwlWarpFeather* feathers) {
 }
 
 void EnTest7_AddFeather(OwlWarpFeather* feather, Vec3f* pos, s32 isPosYRand) {
-    s16 yaw = Rand_ZeroOne() * 0xFFFF;
+    s16 yaw = MM_Rand_ZeroOne() * 0xFFFF;
     f32 velocityXZ;
 
     feather->pos = *pos;
 
     if (isPosYRand) {
-        feather->pos.x += Math_CosS(yaw) * 0.0f;
-        feather->pos.y += (Rand_ZeroOne() * 100.0f) - 20.0f;
-        feather->pos.z += Math_SinS(yaw) * 0.0f;
+        feather->pos.x += MM_Math_CosS(yaw) * 0.0f;
+        feather->pos.y += (MM_Rand_ZeroOne() * 100.0f) - 20.0f;
+        feather->pos.z += MM_Math_SinS(yaw) * 0.0f;
     }
 
-    velocityXZ = (Rand_ZeroOne() * 4.0f) + 2.0f;
+    velocityXZ = (MM_Rand_ZeroOne() * 4.0f) + 2.0f;
 
-    feather->velocity.x = Math_CosS(yaw) * velocityXZ;
-    feather->velocity.y = Rand_ZeroOne();
-    feather->velocity.z = Math_SinS(yaw) * velocityXZ;
+    feather->velocity.x = MM_Math_CosS(yaw) * velocityXZ;
+    feather->velocity.y = MM_Rand_ZeroOne();
+    feather->velocity.z = MM_Math_SinS(yaw) * velocityXZ;
 
     feather->accel.x = 0.0f;
     feather->accel.y = 0.0f;
     feather->accel.z = 0.0f;
 
     feather->scale = 0.25f;
-    feather->rot.x = Rand_ZeroOne() * 0x10000;
-    feather->rot.y = Rand_ZeroOne() * 0x10000;
-    feather->rot.z = Rand_ZeroOne() * 0x10000;
+    feather->rot.x = MM_Rand_ZeroOne() * 0x10000;
+    feather->rot.y = MM_Rand_ZeroOne() * 0x10000;
+    feather->rot.z = MM_Rand_ZeroOne() * 0x10000;
     feather->unk_04 = 60;
 
-    if (Rand_ZeroOne() < 0.9f) {
+    if (MM_Rand_ZeroOne() < 0.9f) {
         feather->type = OWL_WARP_FEATHER_TYPE_1;
-        feather->rot.x = Rand_ZeroOne() * 0x10000;
-        feather->rot.y = Rand_ZeroOne() * 0x10000;
-        feather->rot.z = Rand_ZeroOne() * 0x10000;
+        feather->rot.x = MM_Rand_ZeroOne() * 0x10000;
+        feather->rot.y = MM_Rand_ZeroOne() * 0x10000;
+        feather->rot.z = MM_Rand_ZeroOne() * 0x10000;
         feather->angularVelocity.x = 0;
         feather->angularVelocity.y = 0;
         feather->angularVelocity.z = 0;
@@ -124,10 +124,10 @@ void EnTest7_AddFeather(OwlWarpFeather* feather, Vec3f* pos, s32 isPosYRand) {
         feather->type = OWL_WARP_FEATHER_TYPE_2;
         feather->rot.x = 0;
         feather->rot.y = 0;
-        feather->rot.z = Rand_ZeroOne() * 5000.0f;
+        feather->rot.z = MM_Rand_ZeroOne() * 5000.0f;
         feather->angularVelocity.x = 0;
-        feather->angularVelocity.y = (Rand_ZeroOne() * 8000.0f) + 2000.0f;
-        if (Rand_ZeroOne() > 0.5f) {
+        feather->angularVelocity.y = (MM_Rand_ZeroOne() * 8000.0f) + 2000.0f;
+        if (MM_Rand_ZeroOne() > 0.5f) {
             feather->angularVelocity.y = -feather->angularVelocity.y;
         }
         feather->angularVelocity.z = 0;
@@ -171,15 +171,15 @@ void EnTest7_UpdateFeatherType1(PlayState* play, OwlWarpFeather* feather) {
     s32 sp24 = false;
 
     SkinMatrix_SetRotateRPY(&sFeatherRotMf, feather->rot.x, feather->rot.y, feather->rot.z);
-    SkinMatrix_Vec3fMtxFMultXYZ(&sFeatherRotMf, &sUnitVecY, &sFeatherAccel);
-    SkinMatrix_Vec3fMtxFMultXYZ(&sFeatherRotMf, &sUnitVecZ, &sFeatherUnused);
+    MM_SkinMatrix_Vec3fMtxFMultXYZ(&sFeatherRotMf, &sUnitVecY, &sFeatherAccel);
+    MM_SkinMatrix_Vec3fMtxFMultXYZ(&sFeatherRotMf, &sUnitVecZ, &sFeatherUnused);
 
     if (feather->rot.x < 0x3448) {
         feather->rot.x += 0x384;
     } else if (feather->rot.x >= 0x4BB9) {
         feather->rot.x -= 0x384;
     } else {
-        feather->rot.x = (Math_SinS(((f32)swayAngleX * 0xFFFF) / 41.0f) * 2000.0f) + 0x4000;
+        feather->rot.x = (MM_Math_SinS(((f32)swayAngleX * 0xFFFF) / 41.0f) * 2000.0f) + 0x4000;
     }
 
     if (feather->rot.y < -0xBB8) {
@@ -188,7 +188,7 @@ void EnTest7_UpdateFeatherType1(PlayState* play, OwlWarpFeather* feather) {
         feather->rot.y -= 0x384;
     } else {
         sp24 = true;
-        feather->rot.y = Math_SinS(((f32)swayAngleY * 0xFFFF) / 41.0f) * 2000.0f;
+        feather->rot.y = MM_Math_SinS(((f32)swayAngleY * 0xFFFF) / 41.0f) * 2000.0f;
     }
 
     if (sp24 == true) {
@@ -219,9 +219,9 @@ void EnTest7_UpdateFeatherType1(PlayState* play, OwlWarpFeather* feather) {
 void EnTest7_UpdateFeatherType2(PlayState* play, OwlWarpFeather* feather) {
     feather->rot.y += feather->angularVelocity.y;
 
-    feather->accel.x = Rand_Centered();
-    feather->accel.y = Rand_Centered() + -0.01f;
-    feather->accel.z = Rand_Centered();
+    feather->accel.x = MM_Rand_Centered();
+    feather->accel.y = MM_Rand_Centered() + -0.01f;
+    feather->accel.z = MM_Rand_Centered();
 
     feather->velocity.x += feather->accel.x;
     feather->velocity.y += feather->accel.y;
@@ -268,8 +268,8 @@ void EnTest7_UpdateFeathers(PlayState* play, OwlWarpFeather* feathers, EnTest7* 
                 phi_s1 /= ((temp_f0 - SQ(20.0f)) * 0.00125f) + 1.0f;
             }
 
-            temp_f26 = (temp_f22 * Math_CosS(phi_s1)) - (temp_f24 * Math_SinS(phi_s1));
-            temp_f28 = (temp_f22 * Math_SinS(phi_s1)) + (temp_f24 * Math_CosS(phi_s1));
+            temp_f26 = (temp_f22 * MM_Math_CosS(phi_s1)) - (temp_f24 * MM_Math_SinS(phi_s1));
+            temp_f28 = (temp_f22 * MM_Math_SinS(phi_s1)) + (temp_f24 * MM_Math_CosS(phi_s1));
 
             feather->pos.x = this->actor.world.pos.x + temp_f26;
             feather->pos.z = this->actor.world.pos.z + temp_f28;
@@ -277,14 +277,14 @@ void EnTest7_UpdateFeathers(PlayState* play, OwlWarpFeather* feathers, EnTest7* 
             temp_f22 = feather->velocity.x;
             temp_f24 = feather->velocity.z;
 
-            feather->velocity.x = (temp_f22 * Math_CosS(phi_s1)) - (temp_f24 * Math_SinS(phi_s1));
-            feather->velocity.z = (temp_f22 * Math_SinS(phi_s1)) + (temp_f24 * Math_CosS(phi_s1));
+            feather->velocity.x = (temp_f22 * MM_Math_CosS(phi_s1)) - (temp_f24 * MM_Math_SinS(phi_s1));
+            feather->velocity.z = (temp_f22 * MM_Math_SinS(phi_s1)) + (temp_f24 * MM_Math_CosS(phi_s1));
 
             temp_f22 = feather->accel.x;
             temp_f24 = feather->accel.z;
 
-            feather->accel.x = (temp_f22 * Math_CosS(phi_s1)) - (temp_f24 * Math_SinS(phi_s1));
-            feather->accel.z = (temp_f22 * Math_SinS(phi_s1)) + (temp_f24 * Math_CosS(phi_s1));
+            feather->accel.x = (temp_f22 * MM_Math_CosS(phi_s1)) - (temp_f24 * MM_Math_SinS(phi_s1));
+            feather->accel.z = (temp_f22 * MM_Math_SinS(phi_s1)) + (temp_f24 * MM_Math_CosS(phi_s1));
         }
 
         if (arg4) {
@@ -292,7 +292,7 @@ void EnTest7_UpdateFeathers(PlayState* play, OwlWarpFeather* feathers, EnTest7* 
             sp8C.y = feather->pos.y - (this->actor.world.pos.y + 40.0f);
             sp8C.z = feather->pos.z - this->actor.world.pos.z;
 
-            temp_f2 = 1.0f - (0.5f / ((Math3D_Vec3fMagnitude(&sp8C) / 500.0f) + 1.0f));
+            temp_f2 = 1.0f - (0.5f / ((MM_Math3D_Vec3fMagnitude(&sp8C) / 500.0f) + 1.0f));
 
             sp8C.x *= temp_f2;
             sp8C.y *= temp_f2;
@@ -313,7 +313,7 @@ void EnTest7_DrawFeathers(PlayState* play2, OwlWarpFeather* feathers) {
 
     Gfx_SetupDL26_Opa(play->state.gfxCtx);
 
-    Matrix_Push();
+    MM_Matrix_Push();
 
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0x80, 255, 255, 255, 255);
     gDPSetEnvColor(POLY_OPA_DISP++, 255, 255, 255, 255);
@@ -333,18 +333,18 @@ void EnTest7_DrawFeathers(PlayState* play2, OwlWarpFeather* feathers) {
             continue;
         }
 
-        Matrix_Translate(feather->pos.x, feather->pos.y, feather->pos.z, MTXMODE_NEW);
+        MM_Matrix_Translate(feather->pos.x, feather->pos.y, feather->pos.z, MTXMODE_NEW);
 
         if (feather->type == OWL_WARP_FEATHER_TYPE_1) {
-            Matrix_RotateZYX(feather->rot.x, feather->rot.y, feather->rot.z, MTXMODE_APPLY);
+            MM_Matrix_RotateZYX(feather->rot.x, feather->rot.y, feather->rot.z, MTXMODE_APPLY);
         } else {
             SkinMatrix_SetRotateYRP(&sp6C, feather->rot.x, feather->rot.y, feather->rot.z);
-            Matrix_Mult(&sp6C, MTXMODE_APPLY);
+            MM_Matrix_Mult(&sp6C, MTXMODE_APPLY);
         }
 
-        Matrix_Scale(feather->scale, feather->scale, feather->scale, MTXMODE_APPLY);
+        MM_Matrix_Scale(feather->scale, feather->scale, feather->scale, MTXMODE_APPLY);
         if (feather->type == OWL_WARP_FEATHER_TYPE_2) {
-            Matrix_Translate(0.0f, 30.0f, 0.0f, MTXMODE_APPLY);
+            MM_Matrix_Translate(0.0f, 30.0f, 0.0f, MTXMODE_APPLY);
         }
 
         mtx = Matrix_Finalize(play->state.gfxCtx);
@@ -355,7 +355,7 @@ void EnTest7_DrawFeathers(PlayState* play2, OwlWarpFeather* feathers) {
         gSPDisplayList(POLY_OPA_DISP++, gSoaringWarpCsFeatherDL);
     }
 
-    Matrix_Pop();
+    MM_Matrix_Pop();
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -398,23 +398,23 @@ void EnTest7_Init(Actor* thisx, PlayState* play2) {
     }
 
     if (play->playerCsIds[PLAYER_CS_ID_SONG_WARP] == CS_ID_NONE) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
     CutsceneManager_Queue(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]);
     player2->stateFlags1 |= PLAYER_STATE1_20;
-    Lights_PointNoGlowSetInfo(&this->lightInfo, (Math_SinS(this->playerYaw) * 90.0f) + player->actor.world.pos.x,
+    MM_Lights_PointNoGlowSetInfo(&this->lightInfo, (MM_Math_SinS(this->playerYaw) * 90.0f) + player->actor.world.pos.x,
                               player->actor.world.pos.y + 10.0f,
-                              (Math_CosS(this->playerYaw) * 90.0f) + player->actor.world.pos.z, 255, 255, 255, 255);
-    this->lightNode = LightContext_InsertLight(play, &play->lightCtx, &this->lightInfo);
+                              (MM_Math_CosS(this->playerYaw) * 90.0f) + player->actor.world.pos.z, 255, 255, 255, 255);
+    this->lightNode = MM_LightContext_InsertLight(play, &play->lightCtx, &this->lightInfo);
 }
 
 void EnTest7_Destroy(Actor* thisx, PlayState* play) {
     EnTest7* this = (EnTest7*)thisx;
 
     CutsceneManager_Stop(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]);
-    LightContext_RemoveLight(play, &play->lightCtx, this->lightNode);
+    MM_LightContext_RemoveLight(play, &play->lightCtx, this->lightNode);
 }
 
 void EnTest7_StartWarpCs(EnTest7* this, PlayState* play) {
@@ -438,7 +438,7 @@ void EnTest7_WarpCsPart1(EnTest7* this, PlayState* play) {
 
     if (this->timer >= 10) {
         Camera* subCam =
-            Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]));
+            MM_Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]));
 
         this->subCamEye = subCam->eye;
         this->subCamAt = subCam->at;
@@ -499,10 +499,10 @@ void EnTest7_WarpCsPart2(EnTest7* this, PlayState* play) {
             Audio_PlaySfx_AtPos(&this->actor.projectedPos, NA_SE_PL_WARP_WING_ROLL);
         }
 
-        if (Rand_ZeroOne() < 0.3f) {
+        if (MM_Rand_ZeroOne() < 0.3f) {
             Camera* subCam =
-                Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]));
-            f32 randLerp = Rand_ZeroOne();
+                MM_Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]));
+            f32 randLerp = MM_Rand_ZeroOne();
 
             featherPos.x = LERPIMP_ALT(this->actor.world.pos.x, subCam->eye.x, randLerp);
             featherPos.y = LERPIMP_ALT(this->actor.world.pos.y, subCam->eye.y, randLerp);
@@ -523,9 +523,9 @@ void EnTest7_WarpCsPart3(EnTest7* this, PlayState* play) {
 
     EnTest7_UpdateGrowingWindCapsule(this, play);
 
-    if (Rand_ZeroOne() < 0.3f) {
-        subCam = Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]));
-        randLerp = Rand_ZeroOne();
+    if (MM_Rand_ZeroOne() < 0.3f) {
+        subCam = MM_Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]));
+        randLerp = MM_Rand_ZeroOne();
 
         featherPos.x = LERPIMP_ALT(this->actor.world.pos.x, subCam->eye.x, randLerp);
         featherPos.y = LERPIMP_ALT(this->actor.world.pos.y, subCam->eye.y, randLerp);
@@ -534,7 +534,7 @@ void EnTest7_WarpCsPart3(EnTest7* this, PlayState* play) {
         EnTest7_AddAndChooseFeather(this->feathers, &featherPos, true);
     }
 
-    Math_Vec3f_Copy(&featherPos, &this->actor.world.pos);
+    MM_Math_Vec3f_Copy(&featherPos, &this->actor.world.pos);
     EnTest7_AddAndChooseFeather(this->feathers, &featherPos, true);
     this->jointTable[1].y += 0x2EE0;
 }
@@ -557,7 +557,7 @@ void EnTest7_WarpCsPart4(EnTest7* this, PlayState* play) {
         EnTest7_SetupAction(this, EnTest7_WarpCsPart5);
         this->flags &= ~OWL_WARP_FLAGS_10;
     }
-    Math_Vec3f_Copy(&featherPos, &this->actor.world.pos);
+    MM_Math_Vec3f_Copy(&featherPos, &this->actor.world.pos);
     EnTest7_AddAndChooseFeather(this->feathers, &featherPos, true);
 }
 
@@ -575,7 +575,7 @@ void EnTest7_WarpCsPart5(EnTest7* this, PlayState* play) {
 
     this->actor.world.pos.y += 100.0f;
 
-    subCam = Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]));
+    subCam = MM_Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]));
     subCam->focalActor = NULL;
 
     subCam->eye.x = LERPIMP_ALT(this->subCamEye.x, subCam->eye.x, lerp);
@@ -647,9 +647,9 @@ void EnTest7_WarpCsWarp(EnTest7* this, PlayState* play) {
     //! FAKE:
     if (1) {}
 
-    Math_Vec3f_Copy(&featherPos, &this->actor.world.pos);
+    MM_Math_Vec3f_Copy(&featherPos, &this->actor.world.pos);
 
-    if (Rand_ZeroOne() < 0.1f) {
+    if (MM_Rand_ZeroOne() < 0.1f) {
         EnTest7_AddAndChooseFeather(this->feathers, &featherPos, true);
     }
 
@@ -685,14 +685,14 @@ void EnTest7_UpdateSubCamWarpCs2(EnTest7* this, PlayState* play, f32 lerp) {
     Vec3f* playerPos;
     Player* player = GET_PLAYER(play);
     Camera* subCam =
-        Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]));
+        MM_Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]));
 
     playerPos = &player->actor.world.pos;
     subCam->focalActor = NULL;
 
-    eyeNext.x = playerPos->x + 180.0f * Math_SinS(this->playerYaw) * Math_CosS(0xFA0);
-    eyeNext.y = playerPos->y + 180.0f * Math_SinS(0xFA0);
-    eyeNext.z = playerPos->z + 180.0f * Math_CosS(this->playerYaw) * Math_CosS(0xFA0);
+    eyeNext.x = playerPos->x + 180.0f * MM_Math_SinS(this->playerYaw) * MM_Math_CosS(0xFA0);
+    eyeNext.y = playerPos->y + 180.0f * MM_Math_SinS(0xFA0);
+    eyeNext.z = playerPos->z + 180.0f * MM_Math_CosS(this->playerYaw) * MM_Math_CosS(0xFA0);
 
     subCam->eye.x = LERPIMP_ALT(subCam->eye.x, eyeNext.x, lerp);
     subCam->eye.y = LERPIMP_ALT(subCam->eye.y, eyeNext.y, lerp);
@@ -707,16 +707,16 @@ void EnTest7_UpdateSubCamWarpCs1(EnTest7* this, PlayState* play, f32 lerp) {
     Vec3f* playerPos;
     Player* player = GET_PLAYER(play);
     Camera* subCam =
-        Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]));
+        MM_Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]));
     Vec3f eyeNext;
 
     subCam->focalActor = NULL;
 
     playerPos = &player->actor.world.pos;
 
-    eyeNext.x = playerPos->x + 80.0f * Math_SinS(this->playerYaw) * Math_CosS(0xBB8);
-    eyeNext.y = playerPos->y + 80.0f * Math_SinS(0xBB8);
-    eyeNext.z = playerPos->z + 80.0f * Math_CosS(this->playerYaw) * Math_CosS(0xBB8);
+    eyeNext.x = playerPos->x + 80.0f * MM_Math_SinS(this->playerYaw) * MM_Math_CosS(0xBB8);
+    eyeNext.y = playerPos->y + 80.0f * MM_Math_SinS(0xBB8);
+    eyeNext.z = playerPos->z + 80.0f * MM_Math_CosS(this->playerYaw) * MM_Math_CosS(0xBB8);
 
     subCam->eye.x = LERPIMP_ALT(subCam->eye.x, eyeNext.x, lerp);
     subCam->eye.y = LERPIMP_ALT(subCam->eye.y, eyeNext.y, lerp);
@@ -785,11 +785,11 @@ void EnTest7_UpdateSubCamArrivalCs1(EnTest7* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
     Vec3f* pos = &player->actor.world.pos;
     Camera* subCam =
-        Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]));
+        MM_Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]));
 
-    subCam->at.x = pos->x + (sSubCamAtOffset.r * Math_SinS(sSubCamAtOffset.yaw) * Math_CosS(sSubCamAtOffset.pitch));
-    subCam->at.y = pos->y + (sSubCamAtOffset.r * Math_SinS(sSubCamAtOffset.pitch));
-    subCam->at.z = pos->z + (sSubCamAtOffset.r * Math_CosS(sSubCamAtOffset.yaw)) * Math_CosS(sSubCamAtOffset.pitch);
+    subCam->at.x = pos->x + (sSubCamAtOffset.r * MM_Math_SinS(sSubCamAtOffset.yaw) * MM_Math_CosS(sSubCamAtOffset.pitch));
+    subCam->at.y = pos->y + (sSubCamAtOffset.r * MM_Math_SinS(sSubCamAtOffset.pitch));
+    subCam->at.z = pos->z + (sSubCamAtOffset.r * MM_Math_CosS(sSubCamAtOffset.yaw)) * MM_Math_CosS(sSubCamAtOffset.pitch);
 
     this->actor.world.pos.x = subCam->at.x;
     this->actor.world.pos.y = subCam->at.y - 40.0f;
@@ -807,7 +807,7 @@ void EnTest7_StartArriveCs(EnTest7* this, PlayState* play) {
     CutsceneManager_Start(play->playerCsIds[PLAYER_CS_ID_SONG_WARP], NULL);
     EnTest7_SetupAction(this, EnTest7_ArriveCsPart1);
 
-    subCam = Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]));
+    subCam = MM_Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]));
     this->subCamEye = subCam->eye;
     this->subCamAt = subCam->at;
 
@@ -817,7 +817,7 @@ void EnTest7_StartArriveCs(EnTest7* this, PlayState* play) {
 void EnTest7_UpdateSubCamArrivalCs2(EnTest7* this, PlayState* play, Vec3f* atNext, f32 lerp) {
     Vec3f subCamAt;
     Camera* subCam =
-        Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]));
+        MM_Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]));
 
     subCam->focalActor = NULL;
 
@@ -845,7 +845,7 @@ void EnTest7_ArriveCsPart1(EnTest7* this, PlayState* play) {
     this->actor.world.pos.y = LERPIMP_ALT(this->actor.home.pos.y, this->actor.world.pos.y, lerp);
     this->actor.world.pos.z = LERPIMP_ALT(this->actor.home.pos.z, this->actor.world.pos.z, lerp);
 
-    subCam = Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]));
+    subCam = MM_Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]));
     EnTest7_UpdateSubCamArrivalCs2(this, play, &this->actor.home.pos, lerp);
 
     subCam->at.x = this->actor.world.pos.x;
@@ -864,12 +864,12 @@ void EnTest7_UpdateSubCamArrivalCs3(EnTest7* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
     Vec3f* pos = &player->actor.world.pos;
 
-    subCam = Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]));
+    subCam = MM_Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]));
 
     // pitch is 147.042044 degrees
-    subCam->eye.x = pos->x + 200.0f * Math_SinS(-player->actor.shape.rot.y) * -0.83907f;
+    subCam->eye.x = pos->x + 200.0f * MM_Math_SinS(-player->actor.shape.rot.y) * -0.83907f;
     subCam->eye.y = pos->y + 200.0f * 0.544021f;
-    subCam->eye.z = pos->z + 200.0f * Math_CosS(-player->actor.shape.rot.y) * -0.83907f;
+    subCam->eye.z = pos->z + 200.0f * MM_Math_CosS(-player->actor.shape.rot.y) * -0.83907f;
 
     subCam->at.x = pos->x;
     subCam->at.y = pos->y + 40.0f;
@@ -885,7 +885,7 @@ void EnTest7_StartArriveCsSkip(EnTest7* this, PlayState* play) {
         CutsceneManager_Start(play->playerCsIds[PLAYER_CS_ID_SONG_WARP], NULL);
         EnTest7_SetupAction(this, EnTest7_ArriveCsPart2);
 
-        subCam = Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]));
+        subCam = MM_Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(play->playerCsIds[PLAYER_CS_ID_SONG_WARP]));
         this->subCamEye = subCam->eye;
         this->subCamAt = subCam->at;
         this->timer = 40;
@@ -932,7 +932,7 @@ void EnTest7_ArriveCsPart3(EnTest7* this, PlayState* play) {
     if (this->timer > 90) {
         player->stateFlags1 &= ~PLAYER_STATE1_20;
         player->stateFlags1 &= ~PLAYER_STATE1_20000000;
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -956,8 +956,8 @@ s32 EnTest7_OverrideLimbDraw(PlayState* play, KFSkelAnimeFlex* kfSkelAnime, s32 
     EnTest7* this = (EnTest7*)thisx;
     Vec3f featherPos;
 
-    if ((*dList != NULL) && (Rand_ZeroOne() < 0.03f)) {
-        Matrix_MultVec3f(&gZeroVec3f, &featherPos);
+    if ((*dList != NULL) && (MM_Rand_ZeroOne() < 0.03f)) {
+        MM_Matrix_MultVec3f(&gZeroVec3f, &featherPos);
         EnTest7_AddAndChooseFeather(this->feathers, &featherPos, false);
     }
     return true;
@@ -980,21 +980,21 @@ void EnTest7_Draw(Actor* thisx, PlayState* play) {
 
     // Draw windCapsule encasing that surrounds player after wings
     if (this->flags & OWL_WARP_FLAGS_DRAW_WIND_CAPSULE) {
-        Matrix_Push();
-        Matrix_Translate(0.0f, 4000.0f, 0.0f, MTXMODE_APPLY);
-        Matrix_RotateZYX(0, this->windCapsule.yaw, 0, MTXMODE_APPLY);
-        Matrix_Scale(this->windCapsule.xzScale * 100.0f, this->windCapsule.yScale * 100.0f,
+        MM_Matrix_Push();
+        MM_Matrix_Translate(0.0f, 4000.0f, 0.0f, MTXMODE_APPLY);
+        MM_Matrix_RotateZYX(0, this->windCapsule.yaw, 0, MTXMODE_APPLY);
+        MM_Matrix_Scale(this->windCapsule.xzScale * 100.0f, this->windCapsule.yScale * 100.0f,
                      this->windCapsule.xzScale * 100.0f, MTXMODE_APPLY);
         sp40 = this->windCapsule.unk_00;
         AnimatedMat_DrawStep(play, Lib_SegmentedToVirtual(&gSoaringWarpCsWindCapsuleTexAnim), sp40);
-        Gfx_DrawDListXlu(play, gSoaringWarpCsWindCapsuleDL);
-        Matrix_Pop();
+        MM_Gfx_DrawDListXlu(play, gSoaringWarpCsWindCapsuleDL);
+        MM_Matrix_Pop();
     }
 
     EnTest7_DrawFeathers(play, this->feathers);
 
     if (this->flags & OWL_WARP_FLAGS_DRAW_LENS_FLARE) {
-        Environment_DrawLensFlare(play, &play->envCtx, &play->view, play->state.gfxCtx, this->actor.world.pos, 70.0f,
+        MM_Environment_DrawLensFlare(play, &play->envCtx, &play->view, play->state.gfxCtx, this->actor.world.pos, 70.0f,
                                   5.0f, 0, false);
     }
 }

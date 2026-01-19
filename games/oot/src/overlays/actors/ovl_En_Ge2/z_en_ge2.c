@@ -38,19 +38,19 @@ typedef enum {
     /* 8 */ GE2_ACTION_WAITLOOKATPLAYER
 } EnGe2Action;
 
-void EnGe2_Init(Actor* thisx, PlayState* play);
-void EnGe2_Destroy(Actor* thisx, PlayState* play);
-void EnGe2_Update(Actor* thisx, PlayState* play);
-void EnGe2_Draw(Actor* thisx, PlayState* play);
+void OoT_EnGe2_Init(Actor* thisx, PlayState* play);
+void OoT_EnGe2_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnGe2_Update(Actor* thisx, PlayState* play);
+void OoT_EnGe2_Draw(Actor* thisx, PlayState* play);
 
 s32 EnGe2_CheckCarpentersFreed(void);
 void EnGe2_CaptureClose(EnGe2* this, PlayState* play);
 void EnGe2_CaptureCharge(EnGe2* this, PlayState* play);
 void EnGe2_CaptureTurn(EnGe2* this, PlayState* play);
-void EnGe2_KnockedOut(EnGe2* this, PlayState* play);
+void OoT_EnGe2_KnockedOut(EnGe2* this, PlayState* play);
 void EnGe2_TurnPlayerSpotted(EnGe2* this, PlayState* play);
 void EnGe2_AboutTurn(EnGe2* this, PlayState* play);
-void EnGe2_Walk(EnGe2* this, PlayState* play);
+void OoT_EnGe2_Walk(EnGe2* this, PlayState* play);
 void EnGe2_Stand(EnGe2* this, PlayState* play);
 void EnGe2_WaitLookAtPlayer(EnGe2* this, PlayState* play);
 void EnGe2_ForceTalk(EnGe2* this, PlayState* play);
@@ -66,14 +66,14 @@ const ActorInit En_Ge2_InitVars = {
     FLAGS,
     OBJECT_GLA,
     sizeof(EnGe2),
-    (ActorFunc)EnGe2_Init,
-    (ActorFunc)EnGe2_Destroy,
-    (ActorFunc)EnGe2_Update,
-    (ActorFunc)EnGe2_Draw,
+    (ActorFunc)OoT_EnGe2_Init,
+    (ActorFunc)OoT_EnGe2_Destroy,
+    (ActorFunc)OoT_EnGe2_Update,
+    (ActorFunc)OoT_EnGe2_Draw,
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -93,13 +93,13 @@ static ColliderCylinderInit sCylinderInit = {
     { 20, 60, 0, { 0, 0, 0 } },
 };
 
-static EnGe2ActionFunc sActionFuncs[] = {
-    EnGe2_Walk,         EnGe2_AboutTurn,   EnGe2_TurnPlayerSpotted,
-    EnGe2_KnockedOut,   EnGe2_CaptureTurn, EnGe2_CaptureCharge,
+static EnGe2ActionFunc OoT_sActionFuncs[] = {
+    OoT_EnGe2_Walk,         EnGe2_AboutTurn,   EnGe2_TurnPlayerSpotted,
+    OoT_EnGe2_KnockedOut,   EnGe2_CaptureTurn, EnGe2_CaptureCharge,
     EnGe2_CaptureClose, EnGe2_Stand,       EnGe2_WaitLookAtPlayer,
 };
 
-static AnimationHeader* sAnimations[] = {
+static AnimationHeader* OoT_sAnimations[] = {
     &gGerudoPurpleWalkingAnim,         &gGerudoPurpleLookingAboutAnim, &gGerudoPurpleLookingAboutAnim,
     &gGerudoPurpleFallingToGroundAnim, &gGerudoPurpleLookingAboutAnim, &gGerudoPurpleChargingAnim,
     &gGerudoPurpleLookingAboutAnim,    &gGerudoPurpleLookingAboutAnim, &gGerudoPurpleLookingAboutAnim,
@@ -111,23 +111,23 @@ static u8 sAnimModes[] = {
 };
 
 void EnGe2_ChangeAction(EnGe2* this, s32 i) {
-    this->actionFunc = sActionFuncs[i];
-    Animation_Change(&this->skelAnime, sAnimations[i], 1.0f, 0.0f, Animation_GetLastFrame(sAnimations[i]),
+    this->actionFunc = OoT_sActionFuncs[i];
+    OoT_Animation_Change(&this->skelAnime, OoT_sAnimations[i], 1.0f, 0.0f, OoT_Animation_GetLastFrame(OoT_sAnimations[i]),
                      sAnimModes[i], -8.0f);
     this->stateFlags &= ~GE2_STATE_ANIMCOMPLETE;
 }
 
-void EnGe2_Init(Actor* thisx, PlayState* play) {
+void OoT_EnGe2_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     EnGe2* this = (EnGe2*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 36.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gGerudoPurpleSkel, NULL, this->jointTable, this->morphTable, 22);
-    Animation_PlayLoop(&this->skelAnime, &gGerudoPurpleWalkingAnim);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 36.0f);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gGerudoPurpleSkel, NULL, this->jointTable, this->morphTable, 22);
+    OoT_Animation_PlayLoop(&this->skelAnime, &gGerudoPurpleWalkingAnim);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
-    Actor_SetScale(&this->actor, 0.01f);
+    OoT_Actor_SetScale(&this->actor, 0.01f);
 
     if (play->sceneNum == SCENE_GERUDO_VALLEY) {
         this->actor.uncullZoneForward = 1000.0f;
@@ -174,10 +174,10 @@ void EnGe2_Init(Actor* thisx, PlayState* play) {
     this->walkDuration = ((this->actor.params & 0xFF00) >> 8) * 10;
 }
 
-void EnGe2_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnGe2_Destroy(Actor* thisx, PlayState* play) {
     EnGe2* this = (EnGe2*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
@@ -223,7 +223,7 @@ s32 Ge2_DetectPlayerInUpdate(PlayState* play, EnGe2* this, Vec3f* pos, s16 yRot,
         return 0;
     }
 
-    if (BgCheck_AnyLineTest1(&play->colCtx, pos, &player->bodyPartsPos[7], &posResult, &outPoly, 0)) {
+    if (OoT_BgCheck_AnyLineTest1(&play->colCtx, pos, &player->bodyPartsPos[7], &posResult, &outPoly, 0)) {
         return 0;
     }
     return 1;
@@ -248,7 +248,7 @@ void EnGe2_CaptureClose(EnGe2* this, PlayState* play) {
 
         if ((INV_CONTENT(ITEM_HOOKSHOT) == ITEM_NONE) || (INV_CONTENT(ITEM_LONGSHOT) == ITEM_NONE)) {
             play->nextEntranceIndex = ENTR_GERUDO_VALLEY_1;
-        } else if (Flags_GetEventChkInf(EVENTCHKINF_WATCHED_GANONS_CASTLE_COLLAPSE_CAUGHT_BY_GERUDO)) {
+        } else if (OoT_Flags_GetEventChkInf(EVENTCHKINF_WATCHED_GANONS_CASTLE_COLLAPSE_CAUGHT_BY_GERUDO)) {
             play->nextEntranceIndex = ENTR_GERUDOS_FORTRESS_18;
         } else {
             play->nextEntranceIndex = ENTR_GERUDOS_FORTRESS_17;
@@ -264,7 +264,7 @@ void EnGe2_CaptureClose(EnGe2* this, PlayState* play) {
 }
 
 void EnGe2_CaptureCharge(EnGe2* this, PlayState* play) {
-    Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 2, 0x400, 0x100);
+    OoT_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 2, 0x400, 0x100);
     this->actor.shape.rot.y = this->actor.world.rot.y;
     if (this->actor.xzDistToPlayer < 50.0f) {
         EnGe2_ChangeAction(this, GE2_ACTION_CAPTURECLOSE);
@@ -278,7 +278,7 @@ void EnGe2_CaptureCharge(EnGe2* this, PlayState* play) {
 
         if ((INV_CONTENT(ITEM_HOOKSHOT) == ITEM_NONE) || (INV_CONTENT(ITEM_LONGSHOT) == ITEM_NONE)) {
             play->nextEntranceIndex = ENTR_GERUDO_VALLEY_1;
-        } else if (Flags_GetEventChkInf(EVENTCHKINF_WATCHED_GANONS_CASTLE_COLLAPSE_CAUGHT_BY_GERUDO)) {
+        } else if (OoT_Flags_GetEventChkInf(EVENTCHKINF_WATCHED_GANONS_CASTLE_COLLAPSE_CAUGHT_BY_GERUDO)) {
             play->nextEntranceIndex = ENTR_GERUDOS_FORTRESS_18;
         } else {
             play->nextEntranceIndex = ENTR_GERUDOS_FORTRESS_17;
@@ -294,7 +294,7 @@ void EnGe2_CaptureCharge(EnGe2* this, PlayState* play) {
 }
 
 void EnGe2_CaptureTurn(EnGe2* this, PlayState* play) {
-    Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 2, 0x400, 0x100);
+    OoT_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 2, 0x400, 0x100);
     this->actor.shape.rot.y = this->actor.world.rot.y;
 
     if (this->actor.world.rot.y == this->actor.yawTowardsPlayer) {
@@ -304,7 +304,7 @@ void EnGe2_CaptureTurn(EnGe2* this, PlayState* play) {
     }
 }
 
-void EnGe2_KnockedOut(EnGe2* this, PlayState* play) {
+void OoT_EnGe2_KnockedOut(EnGe2* this, PlayState* play) {
     static Vec3f effectVelocity = { 0.0f, -0.05f, 0.0f };
     static Vec3f effectAccel = { 0.0f, -0.025f, 0.0f };
     static Color_RGBA8 effectPrimColor = { 255, 255, 255, 0 };
@@ -315,9 +315,9 @@ void EnGe2_KnockedOut(EnGe2* this, PlayState* play) {
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
     if (this->stateFlags & GE2_STATE_ANIMCOMPLETE) {
         effectAngle = (play->state.frames) * 0x2800;
-        effectPos.x = this->actor.focus.pos.x + (Math_CosS(effectAngle) * 5.0f);
+        effectPos.x = this->actor.focus.pos.x + (OoT_Math_CosS(effectAngle) * 5.0f);
         effectPos.y = this->actor.focus.pos.y + 10.0f;
-        effectPos.z = this->actor.focus.pos.z + (Math_SinS(effectAngle) * 5.0f);
+        effectPos.z = this->actor.focus.pos.z + (OoT_Math_SinS(effectAngle) * 5.0f);
         EffectSsKiraKira_SpawnDispersed(play, &effectPos, &effectVelocity, &effectAccel, &effectPrimColor,
                                         &effectEnvColor, 1000, 16);
     }
@@ -349,10 +349,10 @@ void EnGe2_TurnPlayerSpotted(EnGe2* this, PlayState* play) {
 
     switch (this->playerSpottedParam) {
         case 1:
-            Math_SmoothStepToS(&this->actor.world.rot.y, this->yawTowardsPlayer, 2, 0x200, 0x100);
+            OoT_Math_SmoothStepToS(&this->actor.world.rot.y, this->yawTowardsPlayer, 2, 0x200, 0x100);
             break;
         case 2:
-            Math_SmoothStepToS(&this->actor.world.rot.y, this->yawTowardsPlayer, 2, 0x600, 0x180);
+            OoT_Math_SmoothStepToS(&this->actor.world.rot.y, this->yawTowardsPlayer, 2, 0x600, 0x180);
             break;
     }
 
@@ -371,7 +371,7 @@ void EnGe2_AboutTurn(EnGe2* this, PlayState* play) {
         this->playerSpottedParam = playerSpotted;
         this->yawTowardsPlayer = this->actor.yawTowardsPlayer;
     } else if (this->stateFlags & GE2_STATE_ANIMCOMPLETE) {
-        Math_SmoothStepToS(&this->actor.world.rot.y, this->walkDirection, 2, 0x400, 0x200);
+        OoT_Math_SmoothStepToS(&this->actor.world.rot.y, this->walkDirection, 2, 0x400, 0x200);
         this->actor.shape.rot.y = this->actor.world.rot.y;
     }
 
@@ -380,7 +380,7 @@ void EnGe2_AboutTurn(EnGe2* this, PlayState* play) {
     }
 }
 
-void EnGe2_Walk(EnGe2* this, PlayState* play) {
+void OoT_EnGe2_Walk(EnGe2* this, PlayState* play) {
     u8 playerSpotted;
 
     playerSpotted = Ge2_DetectPlayerInAction(play, this);
@@ -402,7 +402,7 @@ void EnGe2_Walk(EnGe2* this, PlayState* play) {
 }
 
 void EnGe2_Stand(EnGe2* this, PlayState* play) {
-    Math_SmoothStepToS(&this->actor.world.rot.y, this->walkDirection, 2, 0x400, 0x200);
+    OoT_Math_SmoothStepToS(&this->actor.world.rot.y, this->walkDirection, 2, 0x400, 0x200);
 }
 
 void EnGe2_TurnToFacePlayer(EnGe2* this, PlayState* play) {
@@ -410,17 +410,17 @@ void EnGe2_TurnToFacePlayer(EnGe2* this, PlayState* play) {
     s16 angleDiff = this->actor.yawTowardsPlayer - this->actor.shape.rot.y;
 
     if (ABS(angleDiff) <= 0x4000) {
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 6, 4000, 100);
+        OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 6, 4000, 100);
         this->actor.world.rot.y = this->actor.shape.rot.y;
         func_80038290(play, &this->actor, &this->headRot, &this->unk_2EE, this->actor.focus.pos);
     } else {
         if (angleDiff < 0) {
-            Math_SmoothStepToS(&this->headRot.y, -0x2000, 6, 6200, 0x100);
+            OoT_Math_SmoothStepToS(&this->headRot.y, -0x2000, 6, 6200, 0x100);
         } else {
-            Math_SmoothStepToS(&this->headRot.y, 0x2000, 6, 6200, 0x100);
+            OoT_Math_SmoothStepToS(&this->headRot.y, 0x2000, 6, 6200, 0x100);
         }
 
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 12, 1000, 100);
+        OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 12, 1000, 100);
         this->actor.world.rot.y = this->actor.shape.rot.y;
     }
 }
@@ -430,15 +430,15 @@ void EnGe2_LookAtPlayer(EnGe2* this, PlayState* play) {
         (this->actor.xzDistToPlayer < 200.0f)) {
         func_80038290(play, &this->actor, &this->headRot, &this->unk_2EE, this->actor.focus.pos);
     } else {
-        Math_SmoothStepToS(&this->headRot.x, 0, 6, 6200, 100);
-        Math_SmoothStepToS(&this->headRot.y, 0, 6, 6200, 100);
-        Math_SmoothStepToS(&this->unk_2EE.x, 0, 6, 6200, 100);
-        Math_SmoothStepToS(&this->unk_2EE.y, 0, 6, 6200, 100);
+        OoT_Math_SmoothStepToS(&this->headRot.x, 0, 6, 6200, 100);
+        OoT_Math_SmoothStepToS(&this->headRot.y, 0, 6, 6200, 100);
+        OoT_Math_SmoothStepToS(&this->unk_2EE.x, 0, 6, 6200, 100);
+        OoT_Math_SmoothStepToS(&this->unk_2EE.y, 0, 6, 6200, 100);
     }
 }
 
 void EnGe2_SetActionAfterTalk(EnGe2* this, PlayState* play) {
-    if (Actor_TextboxIsClosing(&this->actor, play)) {
+    if (OoT_Actor_TextboxIsClosing(&this->actor, play)) {
         if (GameInteractor_Should(VB_GERUDO_GUARD_SET_ACTION_AFTER_TALK, true, this)) {
             switch (this->actor.params & 0xFF) {
                 case GE2_TYPE_PATROLLING:
@@ -463,21 +463,21 @@ void EnGe2_WaitLookAtPlayer(EnGe2* this, PlayState* play) {
 }
 
 void EnGe2_WaitTillCardGiven(EnGe2* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play) || !GameInteractor_Should(VB_GIVE_ITEM_GERUDO_MEMBERSHIP_CARD, true)) {
+    if (OoT_Actor_HasParent(&this->actor, play) || !GameInteractor_Should(VB_GIVE_ITEM_GERUDO_MEMBERSHIP_CARD, true)) {
         this->actor.parent = NULL;
         this->actionFunc = EnGe2_SetActionAfterTalk;
     } else {
-        Actor_OfferGetItem(&this->actor, play, GI_GERUDO_CARD, 10000.0f, 50.0f);
+        OoT_Actor_OfferGetItem(&this->actor, play, GI_GERUDO_CARD, 10000.0f, 50.0f);
     }
 }
 
 void EnGe2_GiveCard(EnGe2* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
-        Message_CloseTextbox(play);
+    if ((OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && OoT_Message_ShouldAdvance(play)) {
+        OoT_Message_CloseTextbox(play);
         this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
         this->actionFunc = EnGe2_WaitTillCardGiven;
         if (GameInteractor_Should(VB_GIVE_ITEM_GERUDO_MEMBERSHIP_CARD, true)) {
-            Actor_OfferGetItem(&this->actor, play, GI_GERUDO_CARD, 10000.0f, 50.0f);
+            OoT_Actor_OfferGetItem(&this->actor, play, GI_GERUDO_CARD, 10000.0f, 50.0f);
         }
     }
 }
@@ -494,24 +494,24 @@ void EnGe2_ForceTalk(EnGe2* this, PlayState* play) {
     EnGe2_LookAtPlayer(this, play);
 }
 
-void EnGe2_SetupCapturePlayer(EnGe2* this, PlayState* play) {
+void OoT_EnGe2_SetupCapturePlayer(EnGe2* this, PlayState* play) {
     this->stateFlags |= GE2_STATE_CAPTURING;
     this->actor.speedXZ = 0.0f;
     EnGe2_ChangeAction(this, GE2_ACTION_CAPTURETURN);
-    Player_SetCsActionWithHaltedActors(play, &this->actor, 95);
+    OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 95);
     Sfx_PlaySfxCentered(NA_SE_SY_FOUND);
-    Message_StartTextbox(play, 0x6000, &this->actor);
+    OoT_Message_StartTextbox(play, 0x6000, &this->actor);
 }
 
 void EnGe2_MaintainColliderAndSetAnimState(EnGe2* this, PlayState* play) {
     s32 pad;
     s32 pad2;
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 40.0f, 25.0f, 40.0f, 5);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 40.0f, 25.0f, 40.0f, 5);
 
-    if (!(this->stateFlags & GE2_STATE_ANIMCOMPLETE) && SkelAnime_Update(&this->skelAnime)) {
+    if (!(this->stateFlags & GE2_STATE_ANIMCOMPLETE) && OoT_SkelAnime_Update(&this->skelAnime)) {
         this->stateFlags |= GE2_STATE_ANIMCOMPLETE;
     }
 }
@@ -520,7 +520,7 @@ void EnGe2_MoveAndBlink(EnGe2* this, PlayState* play) {
     Actor_MoveXZGravity(&this->actor);
 
     if (DECR(this->blinkTimer) == 0) {
-        this->blinkTimer = Rand_S16Offset(60, 60);
+        this->blinkTimer = OoT_Rand_S16Offset(60, 60);
     }
     this->eyeIndex = this->blinkTimer;
 
@@ -563,7 +563,7 @@ void EnGe2_UpdateAfterTalk(Actor* thisx, PlayState* play) {
     EnGe2_MoveAndBlink(this, play);
 }
 
-void EnGe2_Update(Actor* thisx, PlayState* play) {
+void OoT_EnGe2_Update(Actor* thisx, PlayState* play) {
     EnGe2* this = (EnGe2*)thisx;
     s32 paramsType;
 
@@ -573,7 +573,7 @@ void EnGe2_Update(Actor* thisx, PlayState* play) {
         this->actionFunc(this, play);
     } else if (this->collider.base.acFlags & 2) {
         if ((this->collider.info.acHitInfo != NULL) && (this->collider.info.acHitInfo->toucher.dmgFlags & 0x80)) {
-            Actor_SetColorFilter(&this->actor, 0, 120, 0, 400);
+            OoT_Actor_SetColorFilter(&this->actor, 0, 120, 0, 400);
             this->actor.update = EnGe2_UpdateStunned;
             return;
         }
@@ -589,20 +589,20 @@ void EnGe2_Update(Actor* thisx, PlayState* play) {
         if (Ge2_DetectPlayerInUpdate(play, this, &this->actor.focus.pos, this->actor.shape.rot.y, this->yDetectRange)) {
             // "Discovered!"
             osSyncPrintf(VT_FGCOL(GREEN) "発見!!!!!!!!!!!!\n" VT_RST);
-            EnGe2_SetupCapturePlayer(this, play);
+            OoT_EnGe2_SetupCapturePlayer(this, play);
         }
 
         if (((this->actor.params & 0xFF) == GE2_TYPE_STATIONARY) && (this->actor.xzDistToPlayer < 100.0f)) {
             // "Discovered!"
             osSyncPrintf(VT_FGCOL(GREEN) "発見!!!!!!!!!!!!\n" VT_RST);
-            EnGe2_SetupCapturePlayer(this, play);
+            OoT_EnGe2_SetupCapturePlayer(this, play);
         }
     }
 
     if (!(this->stateFlags & GE2_STATE_KO)) {
         paramsType = this->actor.params & 0xFF; // Not necessary, but looks a bit nicer
         if ((paramsType == GE2_TYPE_PATROLLING) || (paramsType == GE2_TYPE_STATIONARY)) {
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+            OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
         }
     }
     EnGe2_MoveAndBlink(this, play);
@@ -618,9 +618,9 @@ void EnGe2_UpdateStunned(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     EnGe2* this = (EnGe2*)thisx;
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 40.0f, 25.0f, 40.0f, 5);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 40.0f, 25.0f, 40.0f, 5);
 
     if ((this->collider.base.acFlags & 2) &&
         ((this->collider.info.acHitInfo == NULL) || !(this->collider.info.acHitInfo->toucher.dmgFlags & 0x80))) {
@@ -631,18 +631,18 @@ void EnGe2_UpdateStunned(Actor* thisx, PlayState* play2) {
         this->actor.speedXZ = 0.0f;
         Audio_PlayActorSound2(&this->actor, NA_SE_VO_SK_CRASH);
     }
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
 
     if (GameInteractor_Should(VB_GERUDOS_BE_FRIENDLY, EnGe2_CheckCarpentersFreed())) {
         this->actor.update = EnGe2_UpdateFriendly;
         this->actor.targetMode = 6;
         this->actor.colorFilterTimer = 0;
     } else if (this->actor.colorFilterTimer == 0) {
-        this->actor.update = EnGe2_Update;
+        this->actor.update = OoT_EnGe2_Update;
     }
 }
 
-s32 EnGe2_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
+s32 OoT_EnGe2_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
     EnGe2* this = (EnGe2*)thisx;
 
     if (limbIndex == 3) {
@@ -652,16 +652,16 @@ s32 EnGe2_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* p
     return 0;
 }
 
-void EnGe2_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
+void OoT_EnGe2_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
     static Vec3f D_80A343B0 = { 600.0f, 700.0f, 0.0f };
     EnGe2* this = (EnGe2*)thisx;
 
     if (limbIndex == 6) {
-        Matrix_MultVec3f(&D_80A343B0, &this->actor.focus.pos);
+        OoT_Matrix_MultVec3f(&D_80A343B0, &this->actor.focus.pos);
     }
 }
 
-void EnGe2_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnGe2_Draw(Actor* thisx, PlayState* play) {
     static void* eyeTextures[] = { gGerudoPurpleEyeOpenTex, gGerudoPurpleEyeHalfTex, gGerudoPurpleEyeClosedTex };
     s32 pad;
     EnGe2* this = (EnGe2*)thisx;
@@ -671,7 +671,7 @@ void EnGe2_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL_37Opa(play->state.gfxCtx);
     gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(eyeTextures[this->eyeIndex]));
     func_8002EBCC(&this->actor, play, 0);
-    SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, EnGe2_OverrideLimbDraw, EnGe2_PostLimbDraw, this);
+    SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, OoT_EnGe2_OverrideLimbDraw, OoT_EnGe2_PostLimbDraw, this);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

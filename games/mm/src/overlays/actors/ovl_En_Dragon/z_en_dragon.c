@@ -63,7 +63,7 @@ typedef enum {
     /* 0xF */ DEEP_PYTHON_DMGEFF_DAMAGE = 0xF
 } DeepPythonDamageEffect;
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(0, DEEP_PYTHON_DMGEFF_NONE),
     /* Deku Stick     */ DMG_ENTRY(0, DEEP_PYTHON_DMGEFF_NONE),
     /* Horse trample  */ DMG_ENTRY(0, DEEP_PYTHON_DMGEFF_NONE),
@@ -98,7 +98,7 @@ static DamageTable sDamageTable = {
     /* Powder Keg     */ DMG_ENTRY(1, DEEP_PYTHON_DMGEFF_DAMAGE),
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[8] = {
+static ColliderJntSphElementInit MM_sJntSphElementsInit[8] = {
     {
         {
             ELEM_MATERIAL_UNK1,
@@ -189,7 +189,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[8] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit MM_sJntSphInit = {
     {
         COL_MATERIAL_HIT6,
         AT_NONE,
@@ -198,20 +198,20 @@ static ColliderJntSphInit sJntSphInit = {
         OC2_TYPE_1,
         COLSHAPE_JNTSPH,
     },
-    ARRAY_COUNT(sJntSphElementsInit),
-    sJntSphElementsInit,
+    ARRAY_COUNT(MM_sJntSphElementsInit),
+    MM_sJntSphElementsInit,
 };
 
 void EnDragon_Init(Actor* thisx, PlayState* play) {
     EnDragon* this = (EnDragon*)thisx;
 
-    SkelAnime_InitFlex(play, &this->skelAnime, &gDeepPythonSkel, &gDeepPythonSmallSideSwayAnim, this->jointTable,
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gDeepPythonSkel, &gDeepPythonSmallSideSwayAnim, this->jointTable,
                        this->morphTable, DEEP_PYTHON_LIMB_MAX);
 
     this->actor.colChkInfo.health = 4;
-    this->actor.colChkInfo.damageTable = &sDamageTable;
+    this->actor.colChkInfo.damageTable = &MM_sDamageTable;
     this->actor.attentionRangeType = ATTENTION_RANGE_10;
-    Collider_InitAndSetJntSph(play, &this->collider, &this->actor, &sJntSphInit, this->colliderElements);
+    Collider_InitAndSetJntSph(play, &this->collider, &this->actor, &MM_sJntSphInit, this->colliderElements);
 
     this->collider.elements[0].dim.scale = this->collider.elements[1].dim.scale = this->collider.elements[2].dim.scale =
         this->collider.elements[3].dim.scale = this->collider.elements[4].dim.scale =
@@ -248,7 +248,7 @@ void EnDragon_Init(Actor* thisx, PlayState* play) {
 void EnDragon_Destroy(Actor* thisx, PlayState* play) {
     EnDragon* this = (EnDragon*)thisx;
 
-    Collider_DestroyJntSph(play, &this->collider);
+    MM_Collider_DestroyJntSph(play, &this->collider);
 }
 
 typedef enum {
@@ -259,14 +259,14 @@ typedef enum {
     /* 4 */ DEEP_PYTHON_ANIM_MAX
 } DeepPythonAnimation;
 
-static AnimationHeader* sAnimations[DEEP_PYTHON_ANIM_MAX] = {
+static AnimationHeader* MM_sAnimations[DEEP_PYTHON_ANIM_MAX] = {
     &gDeepPythonSmallSideSwayAnim, // DEEP_PYTHON_ANIM_SMALL_SIDE_SWAY
     &gDeepPythonLargeSideSwayAnim, // DEEP_PYTHON_ANIM_LARGE_SIDE_SWAY
     &gDeepPythonVerticalSwayAnim,  // DEEP_PYTHON_ANIM_VERTICAL_SWAY
     &gDeepPythonSmallSideSwayAnim, // DEEP_PYTHON_ANIM_IDLE
 };
 
-static u8 sAnimationModes[DEEP_PYTHON_ANIM_MAX] = {
+static u8 MM_sAnimationModes[DEEP_PYTHON_ANIM_MAX] = {
     ANIMMODE_LOOP, // DEEP_PYTHON_ANIM_SMALL_SIDE_SWAY
     ANIMMODE_LOOP, // DEEP_PYTHON_ANIM_LARGE_SIDE_SWAY
     ANIMMODE_ONCE, // DEEP_PYTHON_ANIM_VERTICAL_SWAY
@@ -277,14 +277,14 @@ void EnDragon_ChangeAnim(EnDragon* this, s32 animIndex) {
     f32 startFrame;
 
     this->animIndex = animIndex;
-    this->animEndFrame = Animation_GetLastFrame(sAnimations[animIndex]);
+    this->animEndFrame = MM_Animation_GetLastFrame(MM_sAnimations[animIndex]);
     startFrame = 0.0f;
     if (this->animIndex == DEEP_PYTHON_ANIM_IDLE) {
         startFrame = this->animEndFrame;
     }
 
-    Animation_Change(&this->skelAnime, sAnimations[animIndex], 1.0f, startFrame, this->animEndFrame,
-                     sAnimationModes[this->animIndex], -4.0f);
+    MM_Animation_Change(&this->skelAnime, MM_sAnimations[animIndex], 1.0f, startFrame, this->animEndFrame,
+                     MM_sAnimationModes[this->animIndex], -4.0f);
 }
 
 static Color_RGBA8 sBubblePrimColors[] = {
@@ -308,24 +308,24 @@ void EnDragon_SpawnBubbles(EnDragon* this, PlayState* play, Vec3f basePos) {
     Vec3f bubblePos;
     s32 i;
 
-    bubbleCount = (s32)Rand_CenteredFloat(5.0f) + 10;
+    bubbleCount = (s32)MM_Rand_CenteredFloat(5.0f) + 10;
     colorIndex = 0;
     if (this->action == DEEP_PYTHON_ACTION_DEAD) {
         colorIndex = 1;
-        bubbleCount = (s32)Rand_CenteredFloat(5.0f) + 10;
+        bubbleCount = (s32)MM_Rand_CenteredFloat(5.0f) + 10;
     }
 
     for (i = 0; i < bubbleCount; i++) {
-        Math_Vec3f_Copy(&bubblePos, &basePos);
-        sBubbleVelocity.x = Rand_ZeroFloat(1.0f) * 23.0f;
-        sBubbleVelocity.y = Rand_ZeroFloat(1.0f) * 10.0f;
-        sBubbleVelocity.z = Rand_ZeroFloat(1.0f) * 23.0f;
-        bubblePos.x += Rand_CenteredFloat(i * 30.0f);
-        bubblePos.y += Rand_CenteredFloat(5.0f);
-        bubblePos.z += Rand_CenteredFloat(i * 30.0f);
-        sBubbleAccel.y = Rand_ZeroFloat(1.0f) * 20.0f * 3.0f;
-        scale = Rand_S16Offset(380, 240);
-        EffectSsDtBubble_SpawnCustomColor(play, &bubblePos, &sBubbleVelocity, &sBubbleAccel,
+        MM_Math_Vec3f_Copy(&bubblePos, &basePos);
+        sBubbleVelocity.x = MM_Rand_ZeroFloat(1.0f) * 23.0f;
+        sBubbleVelocity.y = MM_Rand_ZeroFloat(1.0f) * 10.0f;
+        sBubbleVelocity.z = MM_Rand_ZeroFloat(1.0f) * 23.0f;
+        bubblePos.x += MM_Rand_CenteredFloat(i * 30.0f);
+        bubblePos.y += MM_Rand_CenteredFloat(5.0f);
+        bubblePos.z += MM_Rand_CenteredFloat(i * 30.0f);
+        sBubbleAccel.y = MM_Rand_ZeroFloat(1.0f) * 20.0f * 3.0f;
+        scale = MM_Rand_S16Offset(380, 240);
+        MM_EffectSsDtBubble_SpawnCustomColor(play, &bubblePos, &sBubbleVelocity, &sBubbleAccel,
                                           &sBubblePrimColors[colorIndex], &sBubbleEnvColors[colorIndex], scale, 30,
                                           false);
     }
@@ -349,7 +349,7 @@ void EnDragon_SetupRetreatOrIdle(EnDragon* this) {
 }
 
 void EnDragon_RetreatOrIdle(EnDragon* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     if (this->action == DEEP_PYTHON_ACTION_EXTEND) {
         EnDragon_SetupExtend(this);
     } else if ((this->timer != 0) && (fabsf(this->actor.world.pos.x - this->actor.home.pos.x) > 101.0f) &&
@@ -360,8 +360,8 @@ void EnDragon_RetreatOrIdle(EnDragon* this, PlayState* play) {
 
         if ((fabsf(this->actor.world.pos.x - this->actor.home.pos.x) > 4.0f) &&
             (fabsf(this->actor.world.pos.z - this->actor.home.pos.z) > 4.0f)) {
-            Math_ApproachF(&this->actor.world.pos.x, this->actor.home.pos.x, 0.3f, 200.0f);
-            Math_ApproachF(&this->actor.world.pos.z, this->actor.home.pos.z, 0.3f, 200.0f);
+            MM_Math_ApproachF(&this->actor.world.pos.x, this->actor.home.pos.x, 0.3f, 200.0f);
+            MM_Math_ApproachF(&this->actor.world.pos.z, this->actor.home.pos.z, 0.3f, 200.0f);
         } else if (this->action != DEEP_PYTHON_ACTION_IDLE) {
             this->action = DEEP_PYTHON_ACTION_IDLE;
         }
@@ -393,18 +393,18 @@ void EnDragon_Extend(EnDragon* this, PlayState* play) {
     } else if (this->state == DEEP_PYTHON_EXTEND_STATE_NOT_FULLY_EXTENDED) {
         Vec3f extendedPos;
 
-        Math_Vec3f_Copy(&extendedPos, &this->burrowEntrancePos);
+        MM_Math_Vec3f_Copy(&extendedPos, &this->burrowEntrancePos);
         Actor_PlaySfx(&this->actor, NA_SE_EN_UTSUBO_APPEAR - SFX_FLAG);
-        extendedPos.x += Math_SinS(this->actor.world.rot.y) * -530.0f;
-        extendedPos.z += Math_CosS(this->actor.world.rot.y) * -530.0f;
+        extendedPos.x += MM_Math_SinS(this->actor.world.rot.y) * -530.0f;
+        extendedPos.z += MM_Math_CosS(this->actor.world.rot.y) * -530.0f;
         this->actor.speed = 40.0f;
-        Math_SmoothStepToS(&this->jawZRotation, 0xFA0, 5, 0xBB8, 0x14);
+        MM_Math_SmoothStepToS(&this->jawZRotation, 0xFA0, 5, 0xBB8, 0x14);
 
         if ((fabsf(this->actor.world.pos.x - extendedPos.x) < 51.0f) &&
             (fabsf(this->actor.world.pos.z - extendedPos.z) < 51.0f)) {
             this->actor.speed = 0.0f;
-            Math_ApproachF(&this->actor.world.pos.x, extendedPos.x, 0.3f, 50.0f);
-            Math_ApproachF(&this->actor.world.pos.z, extendedPos.z, 0.3f, 50.0f);
+            MM_Math_ApproachF(&this->actor.world.pos.x, extendedPos.x, 0.3f, 50.0f);
+            MM_Math_ApproachF(&this->actor.world.pos.z, extendedPos.z, 0.3f, 50.0f);
             if ((fabsf(this->actor.world.pos.x - extendedPos.x) < 4.0f) &&
                 (fabsf(this->actor.world.pos.z - extendedPos.z) < 4.0f)) {
                 if (this->animIndex != DEEP_PYTHON_ANIM_LARGE_SIDE_SWAY) {
@@ -415,8 +415,8 @@ void EnDragon_Extend(EnDragon* this, PlayState* play) {
             }
         }
     } else {
-        Math_SmoothStepToS(&this->jawZRotation, 0, 5, 0xBB8, 0x14);
-        SkelAnime_Update(&this->skelAnime);
+        MM_Math_SmoothStepToS(&this->jawZRotation, 0, 5, 0xBB8, 0x14);
+        MM_SkelAnime_Update(&this->skelAnime);
         if (this->state == DEEP_PYTHON_EXTEND_STATE_FULLY_EXTENDED) {
             if (curFrame < this->animEndFrame) {
                 return;
@@ -425,7 +425,7 @@ void EnDragon_Extend(EnDragon* this, PlayState* play) {
             this->state = DEEP_PYTHON_EXTEND_STATE_REPEAT_LARGE_SWAY;
         }
 
-        yaw = ABS_ALT(BINANG_SUB(Math_Vec3f_Yaw(&this->jawPos, &player->actor.world.pos), this->actor.shape.rot.y));
+        yaw = ABS_ALT(BINANG_SUB(MM_Math_Vec3f_Yaw(&this->jawPos, &player->actor.world.pos), this->actor.shape.rot.y));
         if (yaw < 0x5000) {
             // Player is in front of the jaw
             if ((curFrame >= this->animEndFrame) && (this->largeSwayWaitTimer == 0)) {
@@ -441,7 +441,7 @@ void EnDragon_Extend(EnDragon* this, PlayState* play) {
             // Player is in behind the jaw
             if (this->state == DEEP_PYTHON_EXTEND_STATE_REPEAT_LARGE_SWAY) {
                 EnDragon_ChangeAnim(this, DEEP_PYTHON_ANIM_SMALL_SIDE_SWAY);
-                this->largeSwayWaitTimer = Rand_ZeroFloat(20.0f) + this->animEndFrame;
+                this->largeSwayWaitTimer = MM_Rand_ZeroFloat(20.0f) + this->animEndFrame;
                 this->state = DEEP_PYTHON_EXTEND_STATE_REPEAT_SMALL_SWAY;
             }
 
@@ -457,8 +457,8 @@ void EnDragon_Extend(EnDragon* this, PlayState* play) {
 
 void EnDragon_SetSubCamEyeAt(EnDragon* this, PlayState* play, Vec3f subCamEye, Vec3f subCamAt) {
     this->subCamId = CutsceneManager_GetCurrentSubCamId(this->actor.csId);
-    Math_Vec3f_Copy(&this->subCamEye, &subCamEye);
-    Math_Vec3f_Copy(&this->subCamAt, &subCamAt);
+    MM_Math_Vec3f_Copy(&this->subCamEye, &subCamEye);
+    MM_Math_Vec3f_Copy(&this->subCamAt, &subCamAt);
     Play_SetCameraAtEye(play, this->subCamId, &this->subCamAt, &this->subCamEye);
 }
 
@@ -471,11 +471,11 @@ void EnDragon_SetupGrab(EnDragon* this, PlayState* play) {
         CutsceneManager_Queue(this->grabCsId);
     } else {
         CutsceneManager_StartWithPlayerCs(this->grabCsId, &this->actor);
-        Math_Vec3f_Copy(&extendedPos, &this->burrowEntrancePos);
-        extendedPos.x += Math_SinS(this->actor.world.rot.y) * -530.0f;
-        extendedPos.z += Math_CosS(this->actor.world.rot.y) * -530.0f;
-        Math_Vec3f_Copy(&this->actor.world.pos, &extendedPos);
-        yaw = Math_Vec3f_Yaw(&player->actor.world.pos, &this->jawPos);
+        MM_Math_Vec3f_Copy(&extendedPos, &this->burrowEntrancePos);
+        extendedPos.x += MM_Math_SinS(this->actor.world.rot.y) * -530.0f;
+        extendedPos.z += MM_Math_CosS(this->actor.world.rot.y) * -530.0f;
+        MM_Math_Vec3f_Copy(&this->actor.world.pos, &extendedPos);
+        yaw = MM_Math_Vec3f_Yaw(&player->actor.world.pos, &this->jawPos);
         player->actor.shape.rot.y = yaw;
         player->actor.world.rot.y = yaw;
         this->state = DEEP_PYTHON_GRAB_STATE_START;
@@ -506,45 +506,45 @@ void EnDragon_Grab(EnDragon* this, PlayState* play) {
     Vec3f subCamAt;
 
     this->subCamId = CutsceneManager_GetCurrentSubCamId(this->actor.csId);
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     if (this->grabTimer == 0) {
         if (!this->hasGrabbedPlayer) {
-            Math_Vec3f_Copy(&player->actor.world.pos, &this->playerGrabPosition);
-            Math_Vec3f_Copy(&this->playerGrabPositionTemp, &this->playerGrabPosition);
+            MM_Math_Vec3f_Copy(&player->actor.world.pos, &this->playerGrabPosition);
+            MM_Math_Vec3f_Copy(&this->playerGrabPositionTemp, &this->playerGrabPosition);
             this->hasGrabbedPlayer = true;
         } else {
-            Math_Vec3f_Copy(&player->actor.world.pos, &this->playerGrabPositionTemp);
+            MM_Math_Vec3f_Copy(&player->actor.world.pos, &this->playerGrabPositionTemp);
         }
 
-        Math_Vec3f_Copy(&pos, &this->burrowEntrancePos);
-        pos.x += Math_SinS(this->actor.world.rot.y) * -930.0f;
-        pos.z += Math_CosS(this->actor.world.rot.y) * -930.0f;
-        Math_Vec3f_Copy(&this->actor.world.pos, &pos);
+        MM_Math_Vec3f_Copy(&pos, &this->burrowEntrancePos);
+        pos.x += MM_Math_SinS(this->actor.world.rot.y) * -930.0f;
+        pos.z += MM_Math_CosS(this->actor.world.rot.y) * -930.0f;
+        MM_Math_Vec3f_Copy(&this->actor.world.pos, &pos);
         this->jawZRotation = 0x1450;
         this->actor.speed = 60.0f;
     }
 
     this->grabTimer++;
-    Math_SmoothStepToS(&this->actor.shape.rot.z, sZRotPerPython[this->pythonIndex], 0xA, 0x1F4, 0x14);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.z, sZRotPerPython[this->pythonIndex], 0xA, 0x1F4, 0x14);
     EnDragon_SpawnBubbles(this, play, this->jawPos);
 
-    Math_Vec3f_Copy(&pos, &this->burrowEntrancePos);
+    MM_Math_Vec3f_Copy(&pos, &this->burrowEntrancePos);
 
-    pos.x += Math_SinS(this->actor.world.rot.y) * sSubCamEyePerPython[this->pythonIndex].x;
+    pos.x += MM_Math_SinS(this->actor.world.rot.y) * sSubCamEyePerPython[this->pythonIndex].x;
     pos.y += sSubCamEyePerPython[this->pythonIndex].y;
-    pos.z += Math_CosS(this->actor.world.rot.y) * sSubCamEyePerPython[this->pythonIndex].z;
+    pos.z += MM_Math_CosS(this->actor.world.rot.y) * sSubCamEyePerPython[this->pythonIndex].z;
 
-    Math_Vec3f_Copy(&subCamAt, &this->actor.world.pos);
-    subCamAt.x += Math_SinS(this->actor.world.rot.y) * sSubCamAtPerPython[this->pythonIndex].x;
+    MM_Math_Vec3f_Copy(&subCamAt, &this->actor.world.pos);
+    subCamAt.x += MM_Math_SinS(this->actor.world.rot.y) * sSubCamAtPerPython[this->pythonIndex].x;
     subCamAt.y += sSubCamAtPerPython[this->pythonIndex].y;
-    subCamAt.z += Math_CosS(this->actor.world.rot.y) * sSubCamAtPerPython[this->pythonIndex].z;
+    subCamAt.z += MM_Math_CosS(this->actor.world.rot.y) * sSubCamAtPerPython[this->pythonIndex].z;
 
     EnDragon_SetSubCamEyeAt(this, play, pos, subCamAt);
 
     if (this->grabTimer > sMaxGrabTimerPerPython[this->pythonIndex]) {
         if (this->state == DEEP_PYTHON_GRAB_STATE_START) {
-            Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
+            MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
             this->state = DEEP_PYTHON_GRAB_STATE_GRABBED;
         }
 
@@ -574,42 +574,42 @@ void EnDragon_Attack(EnDragon* this, PlayState* play) {
     Vec3f pos; // used as both the extended position and the camera eye
     Vec3f subCamAt;
 
-    SkelAnime_Update(&this->skelAnime);
-    Math_SmoothStepToS(&this->actor.shape.rot.z, 0, 0xA, 0x1388, 0);
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.z, 0, 0xA, 0x1388, 0);
     if ((play->gameplayFrames % 16) == 0) {
         play->damagePlayer(play, -2);
 
         //! @bug: This function should only pass Player*: it uses *(this + 0x153), which is meant to be
         //! player->currentMask, but in this case is garbage in the skelAnime
-        Player_PlaySfx((Player*)&this->actor, player->ageProperties->voiceSfxIdOffset + NA_SE_VO_LI_DAMAGE_S);
+        MM_Player_PlaySfx((Player*)&this->actor, player->ageProperties->voiceSfxIdOffset + NA_SE_VO_LI_DAMAGE_S);
         Actor_PlaySfx(&this->actor, NA_SE_EN_UTSUBO_BITE);
-        CollisionCheck_GreenBlood(play, NULL, &player->actor.world.pos);
+        MM_CollisionCheck_GreenBlood(play, NULL, &player->actor.world.pos);
     }
 
-    Math_Vec3f_Copy(&pos, &this->actor.world.pos);
-    pos.x += Math_SinS(this->actor.world.rot.y) * 3000.0f;
+    MM_Math_Vec3f_Copy(&pos, &this->actor.world.pos);
+    pos.x += MM_Math_SinS(this->actor.world.rot.y) * 3000.0f;
     pos.y += 600.0f;
-    pos.z += Math_CosS(this->actor.world.rot.y) * 3000.0f;
+    pos.z += MM_Math_CosS(this->actor.world.rot.y) * 3000.0f;
 
-    Math_Vec3f_Copy(&subCamAt, &this->actor.world.pos);
-    subCamAt.x += Math_SinS(this->actor.world.rot.y) * 1200.0f;
+    MM_Math_Vec3f_Copy(&subCamAt, &this->actor.world.pos);
+    subCamAt.x += MM_Math_SinS(this->actor.world.rot.y) * 1200.0f;
     subCamAt.y += -100.0f;
-    subCamAt.z += Math_CosS(this->actor.world.rot.y) * 1200.0f;
+    subCamAt.z += MM_Math_CosS(this->actor.world.rot.y) * 1200.0f;
 
     EnDragon_SetSubCamEyeAt(this, play, pos, subCamAt);
 
     player->actor.world.rot.y = player->actor.shape.rot.y = this->actor.world.rot.y;
     player->actor.world.rot.x = player->actor.shape.rot.x = this->actor.world.rot.x;
     player->actor.world.rot.z = player->actor.shape.rot.z = this->actor.world.rot.z - 0x36B0;
-    Math_Vec3f_Copy(&player->actor.world.pos, &this->playerGrabPosition);
+    MM_Math_Vec3f_Copy(&player->actor.world.pos, &this->playerGrabPosition);
     this->jawZRotation = 0xC8;
 
-    Math_Vec3f_Copy(&pos, &this->burrowEntrancePos);
-    pos.x += Math_SinS(this->actor.world.rot.y) * -530.0f;
-    pos.z += Math_CosS(this->actor.world.rot.y) * -530.0f;
-    Math_ApproachF(&this->actor.world.pos.x, pos.x, 0.3f, 200.0f);
-    Math_ApproachF(&this->actor.world.pos.y, pos.y, 0.3f, 200.0f);
-    Math_ApproachF(&this->actor.world.pos.z, pos.z, 0.3f, 200.0f);
+    MM_Math_Vec3f_Copy(&pos, &this->burrowEntrancePos);
+    pos.x += MM_Math_SinS(this->actor.world.rot.y) * -530.0f;
+    pos.z += MM_Math_CosS(this->actor.world.rot.y) * -530.0f;
+    MM_Math_ApproachF(&this->actor.world.pos.x, pos.x, 0.3f, 200.0f);
+    MM_Math_ApproachF(&this->actor.world.pos.y, pos.y, 0.3f, 200.0f);
+    MM_Math_ApproachF(&this->actor.world.pos.z, pos.z, 0.3f, 200.0f);
 
     if ((this->state <= DEEP_PYTHON_ATTACK_STATE_START) && (curFrame >= this->animEndFrame)) {
         Actor_PlaySfx(&this->actor, NA_SE_EN_UTSUBO_BITE);
@@ -647,8 +647,8 @@ void EnDragon_SetupDead(EnDragon* this, PlayState* play) {
         CutsceneManager_Queue(this->deathCsId);
     } else {
         CutsceneManager_StartWithPlayerCs(this->deathCsId, &this->actor);
-        this->animEndFrame = Animation_GetLastFrame(&gDeepPythonSmallSideSwayAnim);
-        Animation_Change(&this->skelAnime, &gDeepPythonSmallSideSwayAnim, 1.0f, 0.0f, 0.0f, ANIMMODE_ONCE, 0.0f);
+        this->animEndFrame = MM_Animation_GetLastFrame(&gDeepPythonSmallSideSwayAnim);
+        MM_Animation_Change(&this->skelAnime, &gDeepPythonSmallSideSwayAnim, 1.0f, 0.0f, 0.0f, ANIMMODE_ONCE, 0.0f);
         this->timer = 20;
         this->actionFunc = EnDragon_Dead;
     }
@@ -657,7 +657,7 @@ void EnDragon_SetupDead(EnDragon* this, PlayState* play) {
 void EnDragon_Dead(EnDragon* this, PlayState* play) {
     Vec3f seahorsePos;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     this->actor.shape.rot.z += 0x1000;
     this->jawZRotation = 0xFA0;
     EnDragon_SpawnBubbles(this, play, this->jawPos);
@@ -665,10 +665,10 @@ void EnDragon_Dead(EnDragon* this, PlayState* play) {
     if ((this->timer != 0) && (fabsf(this->actor.world.pos.x - this->actor.home.pos.x) > 121.0f) &&
         (fabsf(this->actor.world.pos.z - this->actor.home.pos.z) > 121.0f)) {
         this->actor.speed = -120.0f;
-        if (((this->pythonIndex & 1) == 0) && (Rand_ZeroOne() < 0.5f)) {
+        if (((this->pythonIndex & 1) == 0) && (MM_Rand_ZeroOne() < 0.5f)) {
             //! @bug: !play->gameplayFrames is 0 essentially all the time, so this code never runs.
             if (((!play->gameplayFrames) & 0x1F)) {
-                Item_DropCollectibleRandom(play, NULL, &this->jawPos, 0x90);
+                MM_Item_DropCollectibleRandom(play, NULL, &this->jawPos, 0x90);
             }
         }
 
@@ -679,17 +679,17 @@ void EnDragon_Dead(EnDragon* this, PlayState* play) {
     this->actor.speed = 0.0f;
     if ((fabsf(this->actor.world.pos.x - this->actor.home.pos.x) > 20.0f) &&
         (fabsf(this->actor.world.pos.z - this->actor.home.pos.z) > 20.0f)) {
-        Math_ApproachF(&this->actor.world.pos.x, this->actor.home.pos.x, 0.3f, 300.0f);
-        Math_ApproachF(&this->actor.world.pos.z, this->actor.home.pos.z, 0.3f, 300.0f);
+        MM_Math_ApproachF(&this->actor.world.pos.x, this->actor.home.pos.x, 0.3f, 300.0f);
+        MM_Math_ApproachF(&this->actor.world.pos.z, this->actor.home.pos.z, 0.3f, 300.0f);
         return;
     }
 
     sNumPythonsDead++;
     if (sNumPythonsDead >= (BREG(39) + 8)) {
-        Math_Vec3f_Copy(&seahorsePos, &this->actor.parent->world.pos);
-        seahorsePos.x += Math_SinS(this->actor.parent->world.rot.y + 0x8000) * (500.0f + BREG(38));
+        MM_Math_Vec3f_Copy(&seahorsePos, &this->actor.parent->world.pos);
+        seahorsePos.x += MM_Math_SinS(this->actor.parent->world.rot.y + 0x8000) * (500.0f + BREG(38));
         seahorsePos.y += -100.0f + BREG(33);
-        seahorsePos.z += Math_CosS(this->actor.parent->world.rot.y + 0x8000) * (500.0f + BREG(38));
+        seahorsePos.z += MM_Math_CosS(this->actor.parent->world.rot.y + 0x8000) * (500.0f + BREG(38));
         if (Actor_SpawnAsChildAndCutscene(&play->actorCtx, play, ACTOR_EN_OT, seahorsePos.x, seahorsePos.y,
                                           seahorsePos.z, 0, this->actor.shape.rot.y, 0,
                                           SEAHORSE_PARAMS(SEAHORSE_TYPE_1, 0, 0), this->actor.csId,
@@ -730,7 +730,7 @@ void EnDragon_Dead(EnDragon* this, PlayState* play) {
         }
     }
 
-    Actor_Kill(&this->actor);
+    MM_Actor_Kill(&this->actor);
 }
 
 void EnDragon_UpdateDamage(EnDragon* this, PlayState* play) {
@@ -744,13 +744,13 @@ void EnDragon_UpdateDamage(EnDragon* this, PlayState* play) {
             (this->collider.elements[5].base.acElemFlags & ACELEM_HIT) ||
             (this->collider.elements[6].base.acElemFlags & ACELEM_HIT) ||
             (this->collider.elements[7].base.acElemFlags & ACELEM_HIT)) {
-            Actor_ApplyDamage(&this->actor);
-            Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 25);
+            MM_Actor_ApplyDamage(&this->actor);
+            MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 25);
             if (this->actor.colChkInfo.health > 0) {
                 Actor_PlaySfx(&this->actor, NA_SE_EN_UTSUBO_DAMAGE);
                 this->action = DEEP_PYTHON_ACTION_DAMAGE;
             } else {
-                Enemy_StartFinishingBlow(play, &this->actor);
+                MM_Enemy_StartFinishingBlow(play, &this->actor);
                 Actor_PlaySfx(&this->actor, NA_SE_EN_UTSUBO_DEAD);
                 this->actor.flags |= ACTOR_FLAG_LOCK_ON_DISABLED;
                 this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
@@ -794,20 +794,20 @@ void EnDragon_Update(Actor* thisx, PlayState* play) {
 
     EnDragon_UpdateDamage(this, play);
     this->actor.shape.rot.y = this->actor.world.rot.y;
-    Math_Vec3f_Copy(&this->actor.focus.pos, &this->focusPos);
+    MM_Math_Vec3f_Copy(&this->actor.focus.pos, &this->focusPos);
     Math_Vec3s_Copy(&this->actor.focus.rot, &this->actor.world.rot);
-    Actor_SetScale(&this->actor, this->scale);
+    MM_Actor_SetScale(&this->actor, this->scale);
 
     this->actionFunc(this, play);
     Actor_MoveWithGravity(&this->actor);
 
     if (this->action != DEEP_PYTHON_ACTION_GRAB) {
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
 
     if (this->action < DEEP_PYTHON_ACTION_DAMAGE) {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -828,18 +828,18 @@ void EnDragon_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* r
     Vec3f playerGrabOffsetFromJawPos = { 350.0f, -120.0f, -60.0f };
 
     if (limbIndex == DEEP_PYTHON_LIMB_JAW) {
-        Matrix_MultVec3f(&gZeroVec3f, &this->jawPos);
+        MM_Matrix_MultVec3f(&gZeroVec3f, &this->jawPos);
         playerGrabOffsetFromJawPos.x = 350.0f;
         playerGrabOffsetFromJawPos.y = -120.0f;
         playerGrabOffsetFromJawPos.z = -60.0f;
-        Matrix_MultVec3f(&playerGrabOffsetFromJawPos, &this->playerGrabPosition);
+        MM_Matrix_MultVec3f(&playerGrabOffsetFromJawPos, &this->playerGrabPosition);
     }
 
     if (limbIndex == DEEP_PYTHON_LIMB_HEAD_AND_COLLAR_ROOT) {
-        Matrix_MultVec3f(&gZeroVec3f, &this->focusPos);
+        MM_Matrix_MultVec3f(&gZeroVec3f, &this->focusPos);
     }
 
-    Collider_UpdateSpheres(limbIndex, &this->collider);
+    MM_Collider_UpdateSpheres(limbIndex, &this->collider);
 }
 
 void EnDragon_Draw(Actor* thisx, PlayState* play) {
@@ -847,7 +847,7 @@ void EnDragon_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnDragon_OverrideLimbDraw, EnDragon_PostLimbDraw, &this->actor);
 }
 

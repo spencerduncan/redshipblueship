@@ -1,20 +1,20 @@
 #include "global.h"
 
-s32 PadSetup_Init(OSMesgQueue* mq, u8* outMask, OSContStatus* status) {
+s32 MM_PadSetup_Init(OSMesgQueue* mq, u8* outMask, OSContStatus* status) {
     s32 ret;
     s32 i;
 
     *outMask = 0xFF;
-    ret = osContInit(mq, outMask, status);
+    ret = MM_osContInit(mq, outMask, status);
     if (ret != 0) {
         return ret;
     }
     if (*outMask == 0xFF) {
-        if (osContStartQuery(mq) != 0) {
+        if (MM_osContStartQuery(mq) != 0) {
             return 1;
         }
-        osRecvMesg(mq, NULL, OS_MESG_BLOCK);
-        osContGetQuery(status);
+        MM_osRecvMesg(mq, NULL, OS_MESG_BLOCK);
+        MM_osContGetQuery(status);
 
         *outMask = 0;
 

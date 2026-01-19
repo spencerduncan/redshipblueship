@@ -214,8 +214,8 @@ static Vec3f sFallingBlockSfxPos = { 0.0f, 1000.0f, 0.0f };
 static f32 sSwordTrailAngularRangeDivisor = 10.0f;
 
 typedef enum {
-    // Named based on the fact that everything with this damage effect deals zero damage. If this effect is given to an
-    // attack that deals non-zero damage, it will behave exactly like ODOLWA_DMGEFF_DAMAGE.
+    // Named based on the fact that everything with this damage effect deals MM_zero damage. If this effect is given to an
+    // attack that deals non-MM_zero damage, it will behave exactly like ODOLWA_DMGEFF_DAMAGE.
     /* 0x0 */ ODOLWA_DMGEFF_IMMUNE,
 
     // Deals no damage, but turns Odolwa blue, stops all animations, and makes him wait in place for 40 frames.
@@ -284,8 +284,8 @@ static DamageTable sOdolwaDamageTable = {
 };
 
 typedef enum {
-    // Named based on the fact that everything with this damage effect deals zero damage. If this effect is given to an
-    // attack that deals non-zero damage, it will behave exactly like BUG_DMGEFF_DAMAGE.
+    // Named based on the fact that everything with this damage effect deals MM_zero damage. If this effect is given to an
+    // attack that deals non-MM_zero damage, it will behave exactly like BUG_DMGEFF_DAMAGE.
     /* 0x0 */ BUG_DMGEFF_IMMUNE,
 
     // Deals no damage, but turns the bug blue, stops all animations, and makes it wait in place for 40 frames.
@@ -653,9 +653,9 @@ ActorProfile Boss_01_Profile = {
     /**/ Boss01_Reset,
 };
 
-static Color_RGBA8 sDustPrimColor = { 60, 50, 20, 255 };
+static Color_RGBA8 MM_sDustPrimColor = { 60, 50, 20, 255 };
 
-static Color_RGBA8 sDustEnvColor = { 40, 30, 30, 255 };
+static Color_RGBA8 MM_sDustEnvColor = { 40, 30, 30, 255 };
 
 typedef struct {
     /* 0x00 */ Vec3f pos;
@@ -756,23 +756,23 @@ void Boss01_SpawnEffectFallingBlock(OdolwaEffect* effect, Vec3f* pos, s16 isFrag
             effect->type = ODOLWA_EFFECT_FALLING_BLOCK;
             effect->pos = *pos;
             effect->timer = 0;
-            effect->rotX = Rand_ZeroFloat(0x10000);
-            effect->rotY = Rand_ZeroFloat(0x10000);
+            effect->rotX = MM_Rand_ZeroFloat(0x10000);
+            effect->rotY = MM_Rand_ZeroFloat(0x10000);
             effect->isFallingBlockFragment = isFragment;
             effect->gravity = -1.0f;
 
             if (!isFragment) {
-                effect->angularVelocityY = Rand_CenteredFloat(0x320);
-                effect->angularVelocityX = Rand_CenteredFloat(0x320);
+                effect->angularVelocityY = MM_Rand_CenteredFloat(0x320);
+                effect->angularVelocityX = MM_Rand_CenteredFloat(0x320);
                 effect->scale = 8.0f * 0.001f;
                 effect->velocity = gZeroVec3f;
             } else {
-                effect->angularVelocityY = Rand_CenteredFloat(0x1F40);
-                effect->angularVelocityX = Rand_CenteredFloat(0x1F40);
-                effect->scale = Rand_CenteredFloat(1.6f * 0.001f) + (3.2f * 0.001f);
-                effect->velocity.x = Rand_CenteredFloat(13.0f);
-                effect->velocity.y = Rand_ZeroFloat(4.0f) + 7.0f;
-                effect->velocity.z = Rand_CenteredFloat(13.0f);
+                effect->angularVelocityY = MM_Rand_CenteredFloat(0x1F40);
+                effect->angularVelocityX = MM_Rand_CenteredFloat(0x1F40);
+                effect->scale = MM_Rand_CenteredFloat(1.6f * 0.001f) + (3.2f * 0.001f);
+                effect->velocity.x = MM_Rand_CenteredFloat(13.0f);
+                effect->velocity.y = MM_Rand_ZeroFloat(4.0f) + 7.0f;
+                effect->velocity.z = MM_Rand_CenteredFloat(13.0f);
             }
 
             break;
@@ -818,13 +818,13 @@ void Boss01_SelectAttack(Boss01* this, PlayState* play, u8 mustAttack) {
 
     if (player->actor.world.pos.y > 200.0f) {
         Boss01_SetupWait(this, play, ODOLWA_WAIT_RANDOM);
-    } else if ((Rand_ZeroOne() < 0.2f) && !mustAttack) {
+    } else if ((MM_Rand_ZeroOne() < 0.2f) && !mustAttack) {
         // When Odolwa is done dancing, this function calls Boss01_SelectAttack with mustAttack set to true, so he will
         // be guaranteed to choose an attack later, so long as the player isn't too far off the ground.
         Boss01_SetupDanceBeforeAttack(this, play);
     } else if (this->actor.xzDistToPlayer <= 250.0f) {
         if (this->actor.xzDistToPlayer <= 150.0f) {
-            if (Rand_ZeroOne() < 0.5f) {
+            if (MM_Rand_ZeroOne() < 0.5f) {
                 Boss01_SetupKick(this, play);
             } else {
                 Boss01_SetupShieldBash(this, play);
@@ -832,7 +832,7 @@ void Boss01_SelectAttack(Boss01* this, PlayState* play, u8 mustAttack) {
         } else {
             Boss01_SetupHorizontalSlash(this, play);
         }
-    } else if (((s8)this->actor.colChkInfo.health < 8) && (Rand_ZeroOne() < 0.75f)) {
+    } else if (((s8)this->actor.colChkInfo.health < 8) && (MM_Rand_ZeroOne() < 0.75f)) {
         Boss01_SetupSpinAttack(this, play);
     } else {
         Boss01_SetupVerticalSlash(this, play);
@@ -856,16 +856,16 @@ void Boss01_SpawnDustAtFeet(Boss01* this, PlayState* play, u8 dustSpawnFrameMask
         ((this->additionalVelocityX > 1.0f) || (this->additionalVelocityZ > 1.0f) || (dustSpawnFrameMask == 0) ||
          (this->actor.speed > 1.0f))) {
         for (i = 0; i < ARRAY_COUNT(this->feetPos); i++) {
-            velocity.x = Rand_CenteredFloat(5.0f);
-            velocity.y = Rand_ZeroFloat(2.0f) + 1.0f;
-            velocity.z = Rand_CenteredFloat(5.0f);
+            velocity.x = MM_Rand_CenteredFloat(5.0f);
+            velocity.y = MM_Rand_ZeroFloat(2.0f) + 1.0f;
+            velocity.z = MM_Rand_CenteredFloat(5.0f);
             accel.y = -0.1f;
             accel.x = accel.z = 0.0f;
-            pos.x = this->feetPos[i].x + Rand_CenteredFloat(20.0f);
-            pos.y = Rand_ZeroFloat(10.0f) + 3.0f;
-            pos.z = this->feetPos[i].z + Rand_CenteredFloat(20.0f);
-            func_800B0EB0(play, &pos, &velocity, &accel, &sDustPrimColor, &sDustEnvColor,
-                          Rand_ZeroFloat(150.0f) + 350.0f, 10, Rand_ZeroFloat(5.0f) + 14.0f);
+            pos.x = this->feetPos[i].x + MM_Rand_CenteredFloat(20.0f);
+            pos.y = MM_Rand_ZeroFloat(10.0f) + 3.0f;
+            pos.z = this->feetPos[i].z + MM_Rand_CenteredFloat(20.0f);
+            func_800B0EB0(play, &pos, &velocity, &accel, &MM_sDustPrimColor, &MM_sDustEnvColor,
+                          MM_Rand_ZeroFloat(150.0f) + 350.0f, 10, MM_Rand_ZeroFloat(5.0f) + 14.0f);
         }
     }
 }
@@ -875,9 +875,9 @@ void Boss01_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     s16 i;
 
-    Actor_SetScale(&this->actor, 0.015f);
+    MM_Actor_SetScale(&this->actor, 0.015f);
     if (ODOLWA_GET_TYPE(&this->actor) == ODOLWA_TYPE_BUG) {
-        SkelAnime_InitFlex(play, &this->skelAnime, &gOdolwaBugSkel, &gOdolwaBugCrawlAnim, this->jointTable,
+        MM_SkelAnime_InitFlex(play, &this->skelAnime, &gOdolwaBugSkel, &gOdolwaBugCrawlAnim, this->jointTable,
                            this->morphTable, ODOLWA_BUG_LIMB_MAX);
         this->actor.update = Boss01_Bug_Update;
         this->actor.draw = Boss01_Bug_Draw;
@@ -886,15 +886,15 @@ void Boss01_Init(Actor* thisx, PlayState* play) {
         this->actor.gravity = -2.0f;
         Collider_InitAndSetCylinder(play, &this->bugACCollider, &this->actor, &sBugACColliderCylinderInit);
         Collider_InitAndSetCylinder(play, &this->bugATCollider, &this->actor, &sBugATColliderCylinderInit);
-        ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 12.0f);
-        Actor_SetScale(&this->actor, 0.025f);
+        MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 12.0f);
+        MM_Actor_SetScale(&this->actor, 0.025f);
         this->actor.colChkInfo.health = 2;
         sOdolwaBugCount++;
         Actor_PlaySfx(&this->actor, NA_SE_EV_ROCK_FALL);
         this->actor.colChkInfo.damageTable = &sBugDamageTable;
         sOdolwa->actor.hintId = TATL_HINT_ID_ODOLWA_PHASE_TWO;
     } else if (ODOLWA_GET_TYPE(&this->actor) == ODOLWA_TYPE_AFTERIMAGE) {
-        SkelAnime_InitFlex(play, &this->skelAnime, &gOdolwaSkel, &gOdolwaReadyAnim, this->jointTable, this->morphTable,
+        MM_SkelAnime_InitFlex(play, &this->skelAnime, &gOdolwaSkel, &gOdolwaReadyAnim, this->jointTable, this->morphTable,
                            ODOLWA_LIMB_MAX);
         Boss01_Afterimage_SetupWaitToDespawn(this, play);
         this->timers[TIMER_AFTERIMAGE_DESPAWN] = ODOLWA_GET_AFTERIMAGE_DESPAWN_TIMER(&this->actor);
@@ -903,10 +903,10 @@ void Boss01_Init(Actor* thisx, PlayState* play) {
         this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
     } else {
         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_CLEARED_WOODFALL_TEMPLE)) {
-            Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DOOR_WARP1, 0.0f, 0.0f, 0.0f, 0, 0, 0,
+            MM_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DOOR_WARP1, 0.0f, 0.0f, 0.0f, 0, 0, 0,
                                ENDOORWARP1_FF_1);
-            Actor_Spawn(&play->actorCtx, play, ACTOR_ITEM_B_HEART, 0.0f, 0.0f, 250.0f, 0, 0, 0, BHEART_PARAM_NORMAL);
-            Actor_Kill(&this->actor);
+            MM_Actor_Spawn(&play->actorCtx, play, ACTOR_ITEM_B_HEART, 0.0f, 0.0f, 250.0f, 0, 0, 0, BHEART_PARAM_NORMAL);
+            MM_Actor_Kill(&this->actor);
             return;
         }
 
@@ -927,7 +927,7 @@ void Boss01_Init(Actor* thisx, PlayState* play) {
         this->actor.colChkInfo.damageTable = &sOdolwaDamageTable;
         this->actor.colChkInfo.health = 20;
 
-        ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
+        MM_ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
         Collider_InitAndSetJntSph(play, &this->swordCollider, &this->actor, &sSwordColliderJntSphInit,
                                   this->swordColliderElements);
         Collider_InitAndSetJntSph(play, &this->shieldCollider, &this->actor, &sShieldColliderJntSphInit,
@@ -936,7 +936,7 @@ void Boss01_Init(Actor* thisx, PlayState* play) {
                                   this->bodyColliderElements);
         Collider_InitAndSetJntSph(play, &this->kickAndShieldBashCollider, &this->actor,
                                   &sKickAndShieldBashColliderJntSphInit, this->kickAndShieldBashColliderElements);
-        SkelAnime_InitFlex(play, &this->skelAnime, &gOdolwaSkel, &gOdolwaReadyAnim, this->jointTable, this->morphTable,
+        MM_SkelAnime_InitFlex(play, &this->skelAnime, &gOdolwaSkel, &gOdolwaReadyAnim, this->jointTable, this->morphTable,
                            ODOLWA_LIMB_MAX);
 
         if ((KREG(64) != 0) || CHECK_EVENTINF(EVENTINF_INTRO_CS_WATCHED_ODOLWA)) {
@@ -947,7 +947,7 @@ void Boss01_Init(Actor* thisx, PlayState* play) {
             Boss01_SetupIntroCutscene(this, play);
         }
 
-        sMothSwarm = (EnTanron1*)Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_TANRON1, 0.0f, 437.0f,
+        sMothSwarm = (EnTanron1*)MM_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_TANRON1, 0.0f, 437.0f,
                                                     -750.0f, 0, 0, 0, 0x100);
     }
 
@@ -966,7 +966,7 @@ void Boss01_JumpAwayFromExplosive(Boss01* this, PlayState* play) {
 
     for (explosive = play->actorCtx.actorLists[ACTORCAT_EXPLOSIVES].first; explosive != NULL;
          explosive = explosive->next) {
-        if (sqrtf(SQ(explosive->world.pos.x - this->actor.world.pos.x) +
+        if (MM_sqrtf(SQ(explosive->world.pos.x - this->actor.world.pos.x) +
                   SQ(explosive->world.pos.y - this->actor.world.pos.y) +
                   SQ(explosive->world.pos.z - this->actor.world.pos.z)) < 150.0f) {
             Boss01_SetupJump(this, play, false);
@@ -984,7 +984,7 @@ void Boss01_SetupIntroCutscene(Boss01* this, PlayState* play) {
     this->actor.world.pos.z = 0.0f;
     this->actor.gravity = 0.0f;
     this->actor.world.pos.y = 2400.0f;
-    Animation_MorphToLoop(&this->skelAnime, &gOdolwaCrouchAnim, 0.0f);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gOdolwaCrouchAnim, 0.0f);
 }
 
 /**
@@ -996,7 +996,7 @@ void Boss01_IntroCutscene(Boss01* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
     this->cutsceneTimer++;
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     switch (this->cutsceneState) {
         case ODOLWA_INTRO_CS_STATE_WAITING_FOR_PLAYER_OR_DONE:
@@ -1005,10 +1005,10 @@ void Boss01_IntroCutscene(Boss01* this, PlayState* play) {
             }
 
             Cutscene_StartManual(play, &play->csCtx);
-            Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
-            this->subCamId = Play_CreateSubCamera(play);
-            Play_ChangeCameraStatus(play, CAM_ID_MAIN, CAM_STATUS_WAIT);
-            Play_ChangeCameraStatus(play, this->subCamId, CAM_STATUS_ACTIVE);
+            MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
+            this->subCamId = MM_Play_CreateSubCamera(play);
+            MM_Play_ChangeCameraStatus(play, CAM_ID_MAIN, CAM_STATUS_WAIT);
+            MM_Play_ChangeCameraStatus(play, this->subCamId, CAM_STATUS_ACTIVE);
             this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
             this->cutsceneTimer = 0;
             this->cutsceneState = ODOLWA_INTRO_CS_STATE_LOOK_AT_PLAYER;
@@ -1023,11 +1023,11 @@ void Boss01_IntroCutscene(Boss01* this, PlayState* play) {
             player->actor.world.pos.z = 587.0f;
 
             this->subCamEye.x = -9.0f;
-            this->subCamEye.y = (Player_GetHeight(player) + player->actor.world.pos.y) - 24.0f;
+            this->subCamEye.y = (MM_Player_GetHeight(player) + player->actor.world.pos.y) - 24.0f;
             this->subCamEye.z = (player->actor.world.pos.z - 200.0f) + 110.0f;
 
             this->subCamAt.x = player->actor.world.pos.x;
-            this->subCamAt.y = (Player_GetHeight(player) + player->actor.world.pos.y) - 14.0f;
+            this->subCamAt.y = (MM_Player_GetHeight(player) + player->actor.world.pos.y) - 14.0f;
             this->subCamAt.z = player->actor.world.pos.z;
 
             if (player->transformation == PLAYER_FORM_FIERCE_DEITY) {
@@ -1040,11 +1040,11 @@ void Boss01_IntroCutscene(Boss01* this, PlayState* play) {
             }
 
             if (this->cutsceneTimer == 40) {
-                Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_21);
+                MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_21);
             }
 
             if (this->cutsceneTimer == 100) {
-                Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_4);
+                MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_4);
             }
 
             if (this->cutsceneTimer >= 90) {
@@ -1056,7 +1056,7 @@ void Boss01_IntroCutscene(Boss01* this, PlayState* play) {
                 this->actor.gravity = -2.5f;
                 this->cutsceneState = ODOLWA_INTRO_CS_STATE_ODOLWA_FALLING;
                 this->cutsceneTimer = 0;
-                Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaJumpAnim, 0.0f);
+                MM_Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaJumpAnim, 0.0f);
                 this->subCamEye.x = this->actor.world.pos.x;
                 this->subCamAt.x = this->actor.world.pos.x;
                 this->subCamAt.y = 80.0f;
@@ -1069,12 +1069,12 @@ void Boss01_IntroCutscene(Boss01* this, PlayState* play) {
 
         case ODOLWA_INTRO_CS_STATE_ODOLWA_FALLING:
             Actor_PlaySfx(&this->actor, NA_SE_EN_MIBOSS_RHYTHM_OLD - SFX_FLAG);
-            Math_ApproachZeroF(&this->subCamUp.x, 0.1f, 0.1f);
+            MM_Math_ApproachZeroF(&this->subCamUp.x, 0.1f, 0.1f);
             Audio_PlaySfx(NA_SE_EN_MIBOSS_FALL_OLD_OLD - SFX_FLAG);
             this->afterimageSpawnFrameMask = 2;
-            Math_ApproachF(&this->subCamAt.y, this->actor.world.pos.y + 80.0f, 0.25f, 30.0f);
+            MM_Math_ApproachF(&this->subCamAt.y, this->actor.world.pos.y + 80.0f, 0.25f, 30.0f);
             if (this->actor.world.pos.y < 40.0f) {
-                Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaCrouchAnim, -2.0f);
+                MM_Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaCrouchAnim, -2.0f);
                 this->cutsceneState = ODOLWA_INTRO_CS_STATE_ODOLWA_LANDED;
                 this->cutsceneTimer = 0;
             }
@@ -1098,25 +1098,25 @@ void Boss01_IntroCutscene(Boss01* this, PlayState* play) {
             }
 
             if (this->cutsceneTimer == 5) {
-                Animation_MorphToLoop(&this->skelAnime, &gOdolwaIntroSlashAnim, -20.0f);
+                MM_Animation_MorphToLoop(&this->skelAnime, &gOdolwaIntroSlashAnim, -20.0f);
             }
 
             if ((this->cutsceneTimer >= 6) &&
-                (Animation_OnFrame(&this->skelAnime, 30.0f) || Animation_OnFrame(&this->skelAnime, 54.0f))) {
+                (MM_Animation_OnFrame(&this->skelAnime, 30.0f) || MM_Animation_OnFrame(&this->skelAnime, 54.0f))) {
                 Actor_PlaySfx(&this->actor, NA_SE_EN_MIBOSS_SWORD_OLD);
             }
 
             if (this->cutsceneTimer < 30) {
-                Math_ApproachF(&this->subCamAt.y, this->actor.world.pos.y + 80.0f, 0.25f, 1000.0f);
+                MM_Math_ApproachF(&this->subCamAt.y, this->actor.world.pos.y + 80.0f, 0.25f, 1000.0f);
             } else {
-                Math_ApproachF(&this->subCamEye.x, this->actor.world.pos.x + 70.0f, 0.05f,
+                MM_Math_ApproachF(&this->subCamEye.x, this->actor.world.pos.x + 70.0f, 0.05f,
                                this->subCamVelocity * 70.0f);
-                Math_ApproachF(&this->subCamEye.y, 200.0f, 0.05f, this->subCamVelocity * 170.0f);
-                Math_ApproachF(&this->subCamEye.z, (this->actor.world.pos.z + 200.0f + 50.0f) - 30.0f, 0.05f,
+                MM_Math_ApproachF(&this->subCamEye.y, 200.0f, 0.05f, this->subCamVelocity * 170.0f);
+                MM_Math_ApproachF(&this->subCamEye.z, (this->actor.world.pos.z + 200.0f + 50.0f) - 30.0f, 0.05f,
                                this->subCamVelocity * 120.0f);
-                Math_ApproachF(&this->subCamAt.y, this->actor.world.pos.y + 80.0f + 20.0f, 0.05f,
+                MM_Math_ApproachF(&this->subCamAt.y, this->actor.world.pos.y + 80.0f + 20.0f, 0.05f,
                                this->subCamVelocity * 20.0f);
-                Math_ApproachF(&this->subCamVelocity, 1.0f, 1.0f, 0.001f);
+                MM_Math_ApproachF(&this->subCamVelocity, 1.0f, 1.0f, 0.001f);
             }
 
             if (this->cutsceneTimer == 20) {
@@ -1124,12 +1124,12 @@ void Boss01_IntroCutscene(Boss01* this, PlayState* play) {
             }
 
             if (this->cutsceneTimer == 50) {
-                TitleCard_InitBossName(&play->state, &play->actorCtx.titleCtx,
+                MM_TitleCard_InitBossName(&play->state, &play->actorCtx.titleCtx,
                                        Lib_SegmentedToVirtual(&gOdolwaTitleCardTex), 160, 180, 128, 40);
             }
 
             if (this->cutsceneTimer == 140) {
-                Camera* mainCam = Play_GetCamera(play, CAM_ID_MAIN);
+                Camera* mainCam = MM_Play_GetCamera(play, CAM_ID_MAIN);
 
                 this->cutsceneState = ODOLWA_INTRO_CS_STATE_WAITING_FOR_PLAYER_OR_DONE;
                 this->phaseFrameCounter = 0;
@@ -1140,7 +1140,7 @@ void Boss01_IntroCutscene(Boss01* this, PlayState* play) {
                 func_80169AFC(play, this->subCamId, 0);
                 this->subCamId = SUB_CAM_ID_DONE;
                 Cutscene_StopManual(play, &play->csCtx);
-                Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
+                MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
                 this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
                 SET_EVENTINF(EVENTINF_INTRO_CS_WATCHED_ODOLWA);
             }
@@ -1154,8 +1154,8 @@ void Boss01_IntroCutscene(Boss01* this, PlayState* play) {
         Vec3f at;
 
         ShrinkWindow_Letterbox_SetSizeTarget(27);
-        this->screenShakeOffsetY = Math_CosS(play->gameplayFrames * 0x8000) * this->screenShakeMagnitude;
-        Math_ApproachZeroF(&this->screenShakeMagnitude, 1.0f, 0.75f);
+        this->screenShakeOffsetY = MM_Math_CosS(play->gameplayFrames * 0x8000) * this->screenShakeMagnitude;
+        MM_Math_ApproachZeroF(&this->screenShakeMagnitude, 1.0f, 0.75f);
         at = this->subCamAt;
         at.y += this->screenShakeOffsetY;
         Play_SetCameraAtEyeUp(play, this->subCamId, &at, &this->subCamEye, &this->subCamUp);
@@ -1164,7 +1164,7 @@ void Boss01_IntroCutscene(Boss01* this, PlayState* play) {
 
 void Boss01_SetupSummonBugsCutscene(Boss01* this, PlayState* play) {
     this->actionFunc = Boss01_SummonBugsCutscene;
-    Animation_MorphToLoop(&this->skelAnime, &gOdolwaSideToSideDanceAnim, -10.0f);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gOdolwaSideToSideDanceAnim, -10.0f);
     this->cutsceneState = ODOLWA_BUG_SUMMONING_CS_STATE_STARTED;
     this->cutsceneTimer = 0;
     this->hasPlayedSummonBugCs++;
@@ -1184,7 +1184,7 @@ void Boss01_SummonBugsCutscene(Boss01* this, PlayState* play) {
 
     this->cutsceneTimer++;
     this->disableCollisionTimer = 30;
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     switch (this->cutsceneState) {
         case ODOLWA_BUG_SUMMONING_CS_STATE_STARTED:
@@ -1193,10 +1193,10 @@ void Boss01_SummonBugsCutscene(Boss01* this, PlayState* play) {
             }
 
             Cutscene_StartManual(play, &play->csCtx);
-            Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
-            this->subCamId = Play_CreateSubCamera(play);
-            Play_ChangeCameraStatus(play, CAM_ID_MAIN, CAM_STATUS_WAIT);
-            Play_ChangeCameraStatus(play, this->subCamId, CAM_STATUS_ACTIVE);
+            MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
+            this->subCamId = MM_Play_CreateSubCamera(play);
+            MM_Play_ChangeCameraStatus(play, CAM_ID_MAIN, CAM_STATUS_WAIT);
+            MM_Play_ChangeCameraStatus(play, this->subCamId, CAM_STATUS_ACTIVE);
             this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
             this->cutsceneState = ODOLWA_BUG_SUMMONING_CS_STATE_PLAYING_OR_DONE;
             this->actor.shape.rot.y = 0;
@@ -1219,14 +1219,14 @@ void Boss01_SummonBugsCutscene(Boss01* this, PlayState* play) {
             this->subCamAt.z = this->actor.world.pos.z;
 
             if (this->cutsceneTimer > 40) {
-                Math_ApproachF(&this->subCamEyeNext.y, 800.0f, 0.1f, this->subCamVelocity);
-                Math_ApproachF(&this->subCamVelocity, 100.0f, 1.0f, 1.0f);
+                MM_Math_ApproachF(&this->subCamEyeNext.y, 800.0f, 0.1f, this->subCamVelocity);
+                MM_Math_ApproachF(&this->subCamVelocity, 100.0f, 1.0f, 1.0f);
                 if ((this->cutsceneTimer > 80) && ((this->cutsceneTimer % 16) == 0)) {
                     Matrix_MultVecZ(100.0f, &offset);
-                    pos.x = Rand_CenteredFloat(200.0f) + (this->actor.world.pos.x + offset.x);
-                    pos.z = Rand_CenteredFloat(200.0f) + (this->actor.world.pos.z + offset.z);
+                    pos.x = MM_Rand_CenteredFloat(200.0f) + (this->actor.world.pos.x + offset.x);
+                    pos.z = MM_Rand_CenteredFloat(200.0f) + (this->actor.world.pos.z + offset.z);
                     Audio_PlaySfx(NA_SE_PL_DEKUNUTS_DROP_BOMB);
-                    Actor_Spawn(&play->actorCtx, play, ACTOR_BOSS_01, pos.x, 1200.0f, pos.z, 0, Rand_ZeroFloat(0x10000),
+                    MM_Actor_Spawn(&play->actorCtx, play, ACTOR_BOSS_01, pos.x, 1200.0f, pos.z, 0, MM_Rand_ZeroFloat(0x10000),
                                 0, ODOLWA_PARAMS(ODOLWA_TYPE_BUG));
                 }
             }
@@ -1236,7 +1236,7 @@ void Boss01_SummonBugsCutscene(Boss01* this, PlayState* play) {
                 func_80169AFC(play, this->subCamId, 0);
                 this->subCamId = SUB_CAM_ID_DONE;
                 Cutscene_StopManual(play, &play->csCtx);
-                Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
+                MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
                 this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
                 player->actor.world.rot.y = player->actor.shape.rot.y = -0x8000;
                 player->actor.world.pos.x = 0.0f;
@@ -1260,7 +1260,7 @@ void Boss01_Afterimage_SetupWaitToDespawn(Boss01* this, PlayState* play) {
  */
 void Boss01_Afterimage_WaitToDespawn(Boss01* this, PlayState* play) {
     if (this->timers[TIMER_AFTERIMAGE_DESPAWN] == 0) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -1297,12 +1297,12 @@ void Boss01_SetupWait(Boss01* this, PlayState* play, u8 waitType) {
         }
 
         if (waitType == ODOLWA_WAIT_RANDOM) {
-            if (Rand_ZeroOne() < 0.3f) {
+            if (MM_Rand_ZeroOne() < 0.3f) {
                 Boss01_SetupSummonMoths(this, play);
                 return;
             }
 
-            this->waitType = Rand_ZeroFloat(ODOLWA_WAIT_MAX - 0.001f);
+            this->waitType = MM_Rand_ZeroFloat(ODOLWA_WAIT_MAX - 0.001f);
         } else {
             this->waitType = waitType;
         }
@@ -1310,11 +1310,11 @@ void Boss01_SetupWait(Boss01* this, PlayState* play, u8 waitType) {
         this->waitType = ODOLWA_WAIT_READY;
     }
 
-    Animation_MorphToLoop(&this->skelAnime, sWaitAnimations[this->waitType], 2.0f * this->animMorphFrames2);
-    this->animEndFrame = Animation_GetLastFrame(sWaitAnimations[this->waitType]);
+    MM_Animation_MorphToLoop(&this->skelAnime, sWaitAnimations[this->waitType], 2.0f * this->animMorphFrames2);
+    this->animEndFrame = MM_Animation_GetLastFrame(sWaitAnimations[this->waitType]);
     this->actionFunc = Boss01_Wait;
     this->timers[TIMER_CURRENT_ACTION] = 80;
-    this->jumpIfPlayerIsClose = Rand_ZeroFloat(1.999f);
+    this->jumpIfPlayerIsClose = MM_Rand_ZeroFloat(1.999f);
     this->waitTimer = 0;
 }
 
@@ -1344,7 +1344,7 @@ void Boss01_Wait(Boss01* this, PlayState* play) {
 
     if (((this->waitType == ODOLWA_WAIT_VERTICAL_HOP) || (this->waitType == ODOLWA_WAIT_SIDE_TO_SIDE_HOP) ||
          (this->waitType == ODOLWA_WAIT_SIDE_TO_SIDE_DANCE)) &&
-        Animation_OnFrame(&this->skelAnime, 6.0f)) {
+        MM_Animation_OnFrame(&this->skelAnime, 6.0f)) {
         Actor_PlaySfx(&this->actor, NA_SE_EN_MIBOSS_GND1_OLD);
         for (i = 0; i < 3; i++) {
             Boss01_SpawnDustAtFeet(this, play, 0);
@@ -1368,9 +1368,9 @@ void Boss01_Wait(Boss01* this, PlayState* play) {
         Actor_PlaySfx(&this->actor, NA_SE_EN_ANSATSUSYA_ENTRY);
     }
 
-    SkelAnime_Update(&this->skelAnime);
-    Math_ApproachS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 0xA, 0x800);
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.5f);
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Math_ApproachS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 0xA, 0x800);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.5f);
 
     // Whether or not Odolwa should jump if the player gets close was randomly decided earlier in Boss01_SetupWait, and
     // if it was decided that he *should* jump, this can interrupt any wait action.
@@ -1384,11 +1384,11 @@ void Boss01_Wait(Boss01* this, PlayState* play) {
     // here, though, which may cause some unintended behavior in Boss01_HorizontalSlash.
     if (((this->timers[TIMER_CURRENT_ACTION] == 0) && (this->waitType != ODOLWA_WAIT_THRUST_ATTACK) &&
          (this->waitType != ODOLWA_WAIT_DOUBLE_SLASH)) ||
-        (Animation_OnFrame(&this->skelAnime, this->animEndFrame) &&
+        (MM_Animation_OnFrame(&this->skelAnime, this->animEndFrame) &&
          ((this->waitType == ODOLWA_WAIT_THRUST_ATTACK) || (this->waitType == ODOLWA_WAIT_DOUBLE_SLASH)))) {
         if (this->actor.xzDistToPlayer <= 450.0f) {
             Boss01_SelectAttack(this, play, false);
-        } else if (Rand_ZeroOne() < 0.5f) {
+        } else if (MM_Rand_ZeroOne() < 0.5f) {
             Boss01_SetupJump(this, play, true);
         } else {
             Boss01_SetupRun(this, play);
@@ -1412,11 +1412,11 @@ void Boss01_Wait(Boss01* this, PlayState* play) {
         Player* player2 = GET_PLAYER(play);
         s32 pad;
 
-        if (Rand_ZeroOne() < 0.2f) {
+        if (MM_Rand_ZeroOne() < 0.2f) {
             pos = player2->actor.world.pos;
         } else {
-            pos.x = Rand_CenteredFloat(1200.0f);
-            pos.z = Rand_CenteredFloat(1200.0f);
+            pos.x = MM_Rand_CenteredFloat(1200.0f);
+            pos.z = MM_Rand_CenteredFloat(1200.0f);
         }
 
         pos.y = 1200.0f;
@@ -1426,7 +1426,7 @@ void Boss01_Wait(Boss01* this, PlayState* play) {
             case ODOLWA_WAIT_VERTICAL_HOP:
             case ODOLWA_WAIT_ARM_SWING_DANCE:
             case ODOLWA_WAIT_THRUST_ATTACK:
-                Actor_Spawn(&play->actorCtx, play, ACTOR_BOSS_01, pos.x, pos.y, pos.z, 0, Rand_ZeroFloat(0x10000), 0,
+                MM_Actor_Spawn(&play->actorCtx, play, ACTOR_BOSS_01, pos.x, pos.y, pos.z, 0, MM_Rand_ZeroFloat(0x10000), 0,
                             ODOLWA_PARAMS(ODOLWA_TYPE_BUG));
                 break;
 
@@ -1444,7 +1444,7 @@ void Boss01_Wait(Boss01* this, PlayState* play) {
 }
 
 void Boss01_SetupDazed(Boss01* this, PlayState* play) {
-    Animation_MorphToLoop(&this->skelAnime, &gOdolwaStunAnim, this->animMorphFrames2);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gOdolwaStunAnim, this->animMorphFrames2);
     if (this->actionFunc != Boss01_Dazed) {
         this->timers[TIMER_CURRENT_ACTION] = 70;
         this->actionFunc = Boss01_Dazed;
@@ -1461,9 +1461,9 @@ void Boss01_SetupDazed(Boss01* this, PlayState* play) {
  * signify it does something else.
  */
 void Boss01_Dazed(Boss01* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     Actor_PlaySfx(&this->actor, NA_SE_EN_COMMON_WEAKENED - SFX_FLAG);
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.5f);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.5f);
     if (this->timers[TIMER_CURRENT_ACTION] == 0) {
         Boss01_SetupWait(this, play, ODOLWA_WAIT_RANDOM);
     }
@@ -1473,7 +1473,7 @@ void Boss01_Dazed(Boss01* this, PlayState* play) {
 }
 
 void Boss01_SetupSpinAttack(Boss01* this, PlayState* play) {
-    Animation_MorphToLoop(&this->skelAnime, &gOdolwaSpinAttackAnim, this->animMorphFrames2);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gOdolwaSpinAttackAnim, this->animMorphFrames2);
     this->timers[TIMER_CURRENT_ACTION] = 120;
     this->actionFunc = Boss01_SpinAttack;
     this->canGuardOrEvade = false;
@@ -1484,11 +1484,11 @@ void Boss01_SetupSpinAttack(Boss01* this, PlayState* play) {
  * Transitions back to waiting once the attack completes.
  */
 void Boss01_SpinAttack(Boss01* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    Math_ApproachF(&this->actor.speed, 7.0f, 1.0f, 1.5f);
-    Math_ApproachS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 4, 0x1000);
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Math_ApproachF(&this->actor.speed, 7.0f, 1.0f, 1.5f);
+    MM_Math_ApproachS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 4, 0x1000);
 
-    if (Animation_OnFrame(&this->skelAnime, 5.0f)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, 5.0f)) {
         Actor_PlaySfx(&this->actor, NA_SE_EN_MIBOSS_SWORD_OLD);
         Actor_PlaySfx(&this->actor, NA_SE_EN_MIBOSS_ROLLING_OLD);
     }
@@ -1505,7 +1505,7 @@ void Boss01_SpinAttack(Boss01* this, PlayState* play) {
 }
 
 void Boss01_SetupDanceBeforeAttack(Boss01* this, PlayState* play) {
-    Animation_MorphToLoop(&this->skelAnime, &gOdolwaJumpDanceAnim, this->animMorphFrames2);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gOdolwaJumpDanceAnim, this->animMorphFrames2);
     this->timers[TIMER_CURRENT_ACTION] = 40;
     this->actionFunc = Boss01_DanceBeforeAttack;
     this->canGuardOrEvade = false;
@@ -1517,8 +1517,8 @@ void Boss01_SetupDanceBeforeAttack(Boss01* this, PlayState* play) {
  * mustAttack parameter set to true, ensuring that he will not dance again immediately after this.
  */
 void Boss01_DanceBeforeAttack(Boss01* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.5f);
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.5f);
     Actor_PlaySfx(&this->actor, NA_SE_EN_MIBOSS_VOICE2_OLD - SFX_FLAG);
 
     if (this->timers[TIMER_CURRENT_ACTION] == 0) {
@@ -1531,12 +1531,12 @@ void Boss01_DanceBeforeAttack(Boss01* this, PlayState* play) {
 }
 
 void Boss01_SetupRun(Boss01* this, PlayState* play) {
-    Animation_MorphToLoop(&this->skelAnime, &gOdolwaRunAnim, this->animMorphFrames2);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gOdolwaRunAnim, this->animMorphFrames2);
     this->actionFunc = Boss01_Run;
-    this->timers[TIMER_CURRENT_ACTION] = Rand_ZeroFloat(100.0f) + 50.0f;
+    this->timers[TIMER_CURRENT_ACTION] = MM_Rand_ZeroFloat(100.0f) + 50.0f;
     this->runTargetPosAngularVelocityY = 0.07f;
 
-    if (Rand_ZeroOne() < 0.5f) {
+    if (MM_Rand_ZeroOne() < 0.5f) {
         this->runTargetPosAngularVelocityY *= -1.0f;
     }
 
@@ -1552,10 +1552,10 @@ void Boss01_Run(Boss01* this, PlayState* play) {
     f32 diffZ;
 
     this->lookAtPlayer = true;
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     if ((this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) &&
-        (Animation_OnFrame(&this->skelAnime, 6.0f) || Animation_OnFrame(&this->skelAnime, 16.0f))) {
+        (MM_Animation_OnFrame(&this->skelAnime, 6.0f) || MM_Animation_OnFrame(&this->skelAnime, 16.0f))) {
         this->actor.velocity.y = 10.0f;
         Actor_PlaySfx(&this->actor, NA_SE_EN_MIBOSS_GND1_OLD);
     }
@@ -1565,8 +1565,8 @@ void Boss01_Run(Boss01* this, PlayState* play) {
     Matrix_MultVecZ(450.0f, &targetPos);
     diffX = targetPos.x - this->actor.world.pos.x;
     diffZ = targetPos.z - this->actor.world.pos.z;
-    Math_ApproachS(&this->actor.world.rot.y, Math_Atan2S_XY(diffZ, diffX), 0xA, 0x1000);
-    Math_ApproachF(&this->actor.speed, 12.0f, 1.0f, 3.0f);
+    MM_Math_ApproachS(&this->actor.world.rot.y, Math_Atan2S_XY(diffZ, diffX), 0xA, 0x1000);
+    MM_Math_ApproachF(&this->actor.speed, 12.0f, 1.0f, 3.0f);
 
     if (this->timers[TIMER_CURRENT_ACTION] == 0) {
         Boss01_SetupWait(this, play, ODOLWA_WAIT_RANDOM);
@@ -1584,7 +1584,7 @@ void Boss01_Run(Boss01* this, PlayState* play) {
  */
 void Boss01_SetupJump(Boss01* this, PlayState* play, u8 shouldPerformFallingSlash) {
     this->shouldPerformFallingSlash = shouldPerformFallingSlash;
-    Animation_MorphToLoop(&this->skelAnime, &gOdolwaCrouchAnim, this->animMorphFrames2);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gOdolwaCrouchAnim, this->animMorphFrames2);
     this->actionFunc = Boss01_JumpSquat;
     this->timers[TIMER_CURRENT_ACTION] = 5;
 }
@@ -1598,17 +1598,17 @@ void Boss01_JumpSquat(Boss01* this, PlayState* play) {
     Vec3f additionalVelocity;
     f32 magnitude;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     if (this->timers[TIMER_CURRENT_ACTION] == 0) {
         this->actionFunc = Boss01_Jump;
-        Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaJumpAnim, this->animMorphFrames1);
+        MM_Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaJumpAnim, this->animMorphFrames1);
         this->actor.velocity.y = 35.0f;
         this->actor.gravity = -2.5f;
         Matrix_RotateYS(this->actor.world.rot.y, MTXMODE_NEW);
 
         if (!this->shouldPerformFallingSlash) {
-            magnitude = Rand_ZeroFloat(10.0f) + 10.0f;
+            magnitude = MM_Rand_ZeroFloat(10.0f) + 10.0f;
         } else {
             magnitude = 12.0f;
         }
@@ -1636,19 +1636,19 @@ void Boss01_JumpSquat(Boss01* this, PlayState* play) {
  * action once he gets close enough to the ground.
  */
 void Boss01_Jump(Boss01* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     Actor_PlaySfx(&this->actor, NA_SE_EN_MIBOSS_JUMP2 - SFX_FLAG);
 
     if (!this->shouldPerformFallingSlash) {
-        Math_ApproachS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 5, 0x1000);
+        MM_Math_ApproachS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 5, 0x1000);
     } else if ((this->actor.velocity.y < -5.0f) && (this->prevJumpVelocityY >= -5.0f)) {
-        Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaFallingSlashAnim, this->animMorphFrames1);
+        MM_Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaFallingSlashAnim, this->animMorphFrames1);
         Actor_PlaySfx(&this->actor, NA_SE_EN_MIBOSS_SWORD_OLD);
     }
 
     if (this->actor.world.pos.y < 40.0f) {
         this->actionFunc = Boss01_JumpLand;
-        Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaCrouchAnim, this->animMorphFrames1);
+        MM_Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaCrouchAnim, this->animMorphFrames1);
         this->timers[TIMER_CURRENT_ACTION] = 5;
         this->landedFromJump = false;
     }
@@ -1666,7 +1666,7 @@ void Boss01_Jump(Boss01* this, PlayState* play) {
 void Boss01_JumpLand(Boss01* this, PlayState* play) {
     u8 i;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     if (!this->landedFromJump) {
         if (this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) {
@@ -1680,7 +1680,7 @@ void Boss01_JumpLand(Boss01* this, PlayState* play) {
     }
 
     if (!this->shouldPerformFallingSlash) {
-        Math_ApproachS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 4, 0x2800);
+        MM_Math_ApproachS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 4, 0x2800);
     }
 
     if (this->timers[TIMER_CURRENT_ACTION] == 0) {
@@ -1696,8 +1696,8 @@ void Boss01_JumpLand(Boss01* this, PlayState* play) {
 }
 
 void Boss01_SetupVerticalSlash(Boss01* this, PlayState* play) {
-    Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaVerticalSlashAnim, this->animMorphFrames2);
-    this->animEndFrame = Animation_GetLastFrame(&gOdolwaVerticalSlashAnim);
+    MM_Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaVerticalSlashAnim, this->animMorphFrames2);
+    this->animEndFrame = MM_Animation_GetLastFrame(&gOdolwaVerticalSlashAnim);
     this->actionFunc = Boss01_VerticalSlash;
     this->timers[TIMER_CURRENT_ACTION] = 20;
 }
@@ -1708,7 +1708,7 @@ void Boss01_SetupVerticalSlash(Boss01* this, PlayState* play) {
 void Boss01_VerticalSlash(Boss01* this, PlayState* play) {
     Vec3f additionalVelocity;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     if ((this->skelAnime.curFrame >= 10.0f) && (this->skelAnime.curFrame <= 15.0f)) {
         this->isPerformingVerticalSlash = true;
@@ -1729,28 +1729,28 @@ void Boss01_VerticalSlash(Boss01* this, PlayState* play) {
     sOdolwaSwordTrailRotY = M_PIf;
     sOdolwaSwordTrailRotZ = 1.7278761f;
 
-    if (Animation_OnFrame(&this->skelAnime, 12.0f)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, 12.0f)) {
         sOdolwaSwordTrailAlpha = 255.0f;
         sSwordTrailAngularRangeDivisor = 100.0f;
     }
 
-    if (Animation_OnFrame(&this->skelAnime, 13.0f)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, 13.0f)) {
         sSwordTrailAngularRangeDivisor = 20.0f;
     }
 
-    if (Animation_OnFrame(&this->skelAnime, 14.0f)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, 14.0f)) {
         sSwordTrailAngularRangeDivisor = 7.0f;
     }
 
-    if (Animation_OnFrame(&this->skelAnime, 7.0f)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, 7.0f)) {
         Actor_PlaySfx(&this->actor, NA_SE_EN_MIBOSS_DASH_OLD);
     }
 
-    if (Animation_OnFrame(&this->skelAnime, 10.0f)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, 10.0f)) {
         Actor_PlaySfx(&this->actor, NA_SE_EN_MIBOSS_SWORD_OLD);
     }
 
-    if (Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
         Boss01_SetupWait(this, play, ODOLWA_WAIT_RANDOM);
         this->additionalVelocityZ = 0.0f;
         this->additionalVelocityX = 0.0f;
@@ -1761,8 +1761,8 @@ void Boss01_VerticalSlash(Boss01* this, PlayState* play) {
 }
 
 void Boss01_SetupHorizontalSlash(Boss01* this, PlayState* play) {
-    Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaHorizontalSlashAnim, this->animMorphFrames2);
-    this->animEndFrame = Animation_GetLastFrame(&gOdolwaHorizontalSlashAnim);
+    MM_Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaHorizontalSlashAnim, this->animMorphFrames2);
+    this->animEndFrame = MM_Animation_GetLastFrame(&gOdolwaHorizontalSlashAnim);
     this->actionFunc = Boss01_HorizontalSlash;
 }
 
@@ -1772,7 +1772,7 @@ void Boss01_SetupHorizontalSlash(Boss01* this, PlayState* play) {
 void Boss01_HorizontalSlash(Boss01* this, PlayState* play) {
     Vec3f additionalVelocity;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     if ((this->skelAnime.curFrame >= 10.0f) && (this->skelAnime.curFrame <= 15.0f)) {
         this->swordState = ODOLWA_SWORD_STATE_HORIZONTAL_SLASH;
@@ -1781,12 +1781,12 @@ void Boss01_HorizontalSlash(Boss01* this, PlayState* play) {
     // This code is written very strangely and might never have been intended to run. The timer values checked here seem
     // copied from Boss01_VerticalSlash, and they make sense there to control when Odolwa should dash forward. Unlike
     // Boss01_VerticalSlash, however, this function uses Matrix_MultZero to initialize additionalVelocity; in other
-    // words, the additional velocity in all directions will be zero, and Odolwa will stay in place.
+    // words, the additional velocity in all directions will be MM_zero, and Odolwa will stay in place.
     //
     // Additionally, Boss01_SetupHorizontalSlash doesn't initialize this->timers[TIMER_CURRENT_ACTION] to anything, so
-    // most of the time, the timer will just be zero, and this code will never run in the first place. However, if
+    // most of the time, the timer will just be MM_zero, and this code will never run in the first place. However, if
     // Odolwa did a double slash or thrust attack wait action in Boss01_Wait, it is possible to enter this function with
-    // a non-zero current action timer, potentially allowing this code to run. The only consequence of this is that
+    // a non-MM_zero current action timer, potentially allowing this code to run. The only consequence of this is that
     // Odolwa will sometimes spawn dust at his feet during a horizontal slash when he was probably never supposed to.
     if ((this->timers[TIMER_CURRENT_ACTION] >= 7) && (this->timers[TIMER_CURRENT_ACTION] < 13)) {
         Matrix_RotateYF(BINANG_TO_RAD_ALT(this->actor.world.rot.y), MTXMODE_NEW);
@@ -1803,24 +1803,24 @@ void Boss01_HorizontalSlash(Boss01* this, PlayState* play) {
     sOdolwaSwordTrailRotY = 0.0f;
     sOdolwaSwordTrailRotZ = 0.0f;
 
-    if (Animation_OnFrame(&this->skelAnime, 12.0f)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, 12.0f)) {
         sOdolwaSwordTrailAlpha = 255.0f;
         sSwordTrailAngularRangeDivisor = 100.0f;
     }
 
-    if (Animation_OnFrame(&this->skelAnime, 13.0f)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, 13.0f)) {
         sSwordTrailAngularRangeDivisor = 20.0f;
     }
 
-    if (Animation_OnFrame(&this->skelAnime, 14.0f)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, 14.0f)) {
         sSwordTrailAngularRangeDivisor = 7.0f;
     }
 
-    if (Animation_OnFrame(&this->skelAnime, 10.0f)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, 10.0f)) {
         Actor_PlaySfx(&this->actor, NA_SE_EN_MIBOSS_SWORD_OLD);
     }
 
-    if (Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
         Boss01_SetupWait(this, play, ODOLWA_WAIT_RANDOM);
         this->additionalVelocityZ = 0.0f;
         this->additionalVelocityX = 0.0f;
@@ -1836,11 +1836,11 @@ void Boss01_HorizontalSlash(Boss01* this, PlayState* play) {
 void Boss01_SetupGuard(Boss01* this, PlayState* play, u8 guardUsingSword) {
     if (this->actionFunc != Boss01_Guard) {
         if (!guardUsingSword) {
-            Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaShieldGuardAnim, this->animMorphFrames1);
-            this->animEndFrame = Animation_GetLastFrame(&gOdolwaShieldGuardAnim);
+            MM_Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaShieldGuardAnim, this->animMorphFrames1);
+            this->animEndFrame = MM_Animation_GetLastFrame(&gOdolwaShieldGuardAnim);
         } else {
-            Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaSwordGuardAnim, this->animMorphFrames1);
-            this->animEndFrame = Animation_GetLastFrame(&gOdolwaSwordGuardAnim);
+            MM_Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaSwordGuardAnim, this->animMorphFrames1);
+            this->animEndFrame = MM_Animation_GetLastFrame(&gOdolwaSwordGuardAnim);
         }
 
         this->actionFunc = Boss01_Guard;
@@ -1854,9 +1854,9 @@ void Boss01_SetupGuard(Boss01* this, PlayState* play, u8 guardUsingSword) {
  * waiting.
  */
 void Boss01_Guard(Boss01* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    Math_ApproachS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 2, 0x500);
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Math_ApproachS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 2, 0x500);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
     if (this->timers[TIMER_CURRENT_ACTION] != 0) {
         this->swordAndShieldCollisionEnabled = true;
     } else {
@@ -1867,8 +1867,8 @@ void Boss01_Guard(Boss01* this, PlayState* play) {
 }
 
 void Boss01_SetupKick(Boss01* this, PlayState* play) {
-    Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaKickAnim, this->animMorphFrames2);
-    this->animEndFrame = Animation_GetLastFrame(&gOdolwaKickAnim);
+    MM_Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaKickAnim, this->animMorphFrames2);
+    this->animEndFrame = MM_Animation_GetLastFrame(&gOdolwaKickAnim);
     this->actionFunc = Boss01_Kick;
 }
 
@@ -1876,9 +1876,9 @@ void Boss01_SetupKick(Boss01* this, PlayState* play) {
  * Plays the kick animation to completion, then transitions back to waiting.
  */
 void Boss01_Kick(Boss01* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
-    if (Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+    if (MM_Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
         Boss01_SetupWait(this, play, ODOLWA_WAIT_RANDOM);
     }
 
@@ -1886,8 +1886,8 @@ void Boss01_Kick(Boss01* this, PlayState* play) {
 }
 
 void Boss01_SetupShieldBash(Boss01* this, PlayState* play) {
-    Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaShieldBashAnim, this->animMorphFrames2);
-    this->animEndFrame = Animation_GetLastFrame(&gOdolwaShieldBashAnim);
+    MM_Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaShieldBashAnim, this->animMorphFrames2);
+    this->animEndFrame = MM_Animation_GetLastFrame(&gOdolwaShieldBashAnim);
     this->actionFunc = Boss01_ShieldBash;
 }
 
@@ -1895,9 +1895,9 @@ void Boss01_SetupShieldBash(Boss01* this, PlayState* play) {
  * Plays the shield bash animation to completion, then transitions back to waiting.
  */
 void Boss01_ShieldBash(Boss01* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
-    if (Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+    if (MM_Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
         Boss01_SetupWait(this, play, ODOLWA_WAIT_RANDOM);
     }
 
@@ -1917,8 +1917,8 @@ void Boss01_ShieldBash(Boss01* this, PlayState* play) {
 void Boss01_SetupDamaged(Boss01* this, PlayState* play, u8 damageEffect) {
     if (this->actionFunc != Boss01_Damaged) {
         this->timers[TIMER_CURRENT_ACTION] = 20;
-        Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaDamagedStartAnim, 0.0f);
-        this->animEndFrame = Animation_GetLastFrame(&gOdolwaDamagedStartAnim);
+        MM_Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaDamagedStartAnim, 0.0f);
+        this->animEndFrame = MM_Animation_GetLastFrame(&gOdolwaDamagedStartAnim);
         this->actionFunc = Boss01_Damaged;
     } else if (damageEffect == ODOLWA_DMGEFF_DAMAGE_TIMER_CHECK) {
         if (this->timers[TIMER_CURRENT_ACTION] > 5) {
@@ -1935,11 +1935,11 @@ void Boss01_SetupDamaged(Boss01* this, PlayState* play, u8 damageEffect) {
  * so it's possible for Odolwa to stay in this state for a long time with well-timed attacks.
  */
 void Boss01_Damaged(Boss01* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
 
-    if (Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
-        Animation_MorphToLoop(&this->skelAnime, &gOdolwaDamagedLoopAnim, this->animMorphFrames2);
+    if (MM_Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
+        MM_Animation_MorphToLoop(&this->skelAnime, &gOdolwaDamagedLoopAnim, this->animMorphFrames2);
         this->animEndFrame = 1000.0f;
     }
 
@@ -1961,7 +1961,7 @@ void Boss01_UpdateDamage(Boss01* this, PlayState* play) {
             ColliderElement* acHitElem = this->shieldCollider.elements[ODOLWA_SHIELD_COLLIDER_SHIELD].base.acHitElem;
 
             if (acHitElem->atDmgInfo.dmgFlags == DMG_SWORD_BEAM) {
-                Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->actor.focus.pos.x, this->actor.focus.pos.y,
+                MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->actor.focus.pos.x, this->actor.focus.pos.y,
                             this->actor.focus.pos.z, 0, 0, 3, CLEAR_TAG_PARAMS(CLEAR_TAG_LARGE_LIGHT_RAYS));
                 Actor_PlaySfx(&this->actor, NA_SE_IT_SHIELD_BOUND);
                 this->damagedTimer = 5;
@@ -1999,7 +1999,7 @@ void Boss01_UpdateDamage(Boss01* this, PlayState* play) {
 
                     case ODOLWA_DMGEFF_LIGHT_ORB:
                         this->drawDmgEffState = ODOLWA_DRAW_DMGEFF_STATE_LIGHT_ORB_INIT;
-                        Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->actor.focus.pos.x,
+                        MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->actor.focus.pos.x,
                                     this->actor.focus.pos.y, this->actor.focus.pos.z, 0, 0, 0,
                                     CLEAR_TAG_PARAMS(CLEAR_TAG_LARGE_LIGHT_RAYS));
                         break;
@@ -2010,7 +2010,7 @@ void Boss01_UpdateDamage(Boss01* this, PlayState* play) {
 
                     case ODOLWA_DMGEFF_BLUE_LIGHT_ORB:
                         this->drawDmgEffState = ODOLWA_DRAW_DMGEFF_STATE_BLUE_LIGHT_ORB_INIT;
-                        Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->actor.focus.pos.x,
+                        MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->actor.focus.pos.x,
                                     this->actor.focus.pos.y, this->actor.focus.pos.z, 0, 0, 3,
                                     CLEAR_TAG_PARAMS(CLEAR_TAG_LARGE_LIGHT_RAYS));
                         break;
@@ -2046,7 +2046,7 @@ void Boss01_UpdateDamage(Boss01* this, PlayState* play) {
                     if ((s8)this->actor.colChkInfo.health <= 0) {
                         Boss01_SetupDeathCutscene(this, play);
                         Actor_PlaySfx(&this->actor, NA_SE_EN_MIBOSS_DEAD_OLD);
-                        Enemy_StartFinishingBlow(play, &this->actor);
+                        MM_Enemy_StartFinishingBlow(play, &this->actor);
                         GameInteractor_ExecuteOnBossDefeated(this->actor.id); // 2S2H Time Splits
                     } else {
                         Boss01_SetupDamaged(this, play, this->actor.colChkInfo.damageEffect);
@@ -2062,8 +2062,8 @@ void Boss01_UpdateDamage(Boss01* this, PlayState* play) {
 }
 
 void Boss01_SetupSummonMoths(Boss01* this, PlayState* play) {
-    Animation_MorphToLoop(&this->skelAnime, &gOdolwaMothSummonDanceAnim, -5.0f);
-    this->animEndFrame = Animation_GetLastFrame(&gOdolwaMothSummonDanceAnim);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gOdolwaMothSummonDanceAnim, -5.0f);
+    this->animEndFrame = MM_Animation_GetLastFrame(&gOdolwaMothSummonDanceAnim);
     this->actionFunc = Boss01_SummonMoths;
     this->summonMothsTimer = 0;
 }
@@ -2075,10 +2075,10 @@ void Boss01_SetupSummonMoths(Boss01* this, PlayState* play) {
  */
 void Boss01_SummonMoths(Boss01* this, PlayState* play) {
     this->summonMothsTimer++;
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     Actor_PlaySfx(&this->actor, NA_SE_EN_MIBOSS_VOICE3_OLD - SFX_FLAG);
 
-    if (Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
         this->skelAnime.curFrame = this->animEndFrame - 20.0f;
     }
 
@@ -2094,16 +2094,16 @@ void Boss01_SummonMoths(Boss01* this, PlayState* play) {
         }
     }
 
-    Math_ApproachS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 5, 0x500);
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+    MM_Math_ApproachS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 5, 0x500);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
     if (this->summonMothsTimer >= 131) {
         Boss01_SetupWait(this, play, ODOLWA_WAIT_SPIN_DANCE);
     }
 }
 
 void Boss01_SetupDeathCutscene(Boss01* this, PlayState* play) {
-    Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaDeathAnim, this->animMorphFrames1);
-    this->animEndFrame = Animation_GetLastFrame(&gOdolwaDeathAnim);
+    MM_Animation_MorphToPlayOnce(&this->skelAnime, &gOdolwaDeathAnim, this->animMorphFrames1);
+    this->animEndFrame = MM_Animation_GetLastFrame(&gOdolwaDeathAnim);
     this->actionFunc = Boss01_DeathCutscene;
     Actor_PlaySfx(&this->actor, NA_SE_EN_DAIOCTA_DAMAGE);
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
@@ -2112,7 +2112,7 @@ void Boss01_SetupDeathCutscene(Boss01* this, PlayState* play) {
     this->cutsceneState = ODOLWA_DEATH_CS_STATE_STARTED;
     SEQCMD_STOP_SEQUENCE(SEQ_PLAYER_BGM_MAIN, 1);
     sMothSwarm->unk_144 = 250;
-    Actor_ChangeCategory(play, &play->actorCtx, &sMothSwarm->actor, ACTORCAT_BOSS);
+    MM_Actor_ChangeCategory(play, &play->actorCtx, &sMothSwarm->actor, ACTORCAT_BOSS);
 }
 
 /**
@@ -2125,13 +2125,13 @@ void Boss01_DeathCutscene(Boss01* this, PlayState* play) {
     Vec3f subCamOffset;
     f32 diffX;
     f32 diffZ;
-    Camera* mainCam = Play_GetCamera(play, CAM_ID_MAIN);
+    Camera* mainCam = MM_Play_GetCamera(play, CAM_ID_MAIN);
 
     this->disableCollisionTimer = 1000;
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     this->cutsceneTimer++;
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
 
     switch (this->cutsceneState) {
         case ODOLWA_DEATH_CS_STATE_STARTED:
@@ -2140,10 +2140,10 @@ void Boss01_DeathCutscene(Boss01* this, PlayState* play) {
             }
 
             Cutscene_StartManual(play, &play->csCtx);
-            Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_1);
-            this->subCamId = Play_CreateSubCamera(play);
-            Play_ChangeCameraStatus(play, CAM_ID_MAIN, CAM_STATUS_WAIT);
-            Play_ChangeCameraStatus(play, this->subCamId, CAM_STATUS_ACTIVE);
+            MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_1);
+            this->subCamId = MM_Play_CreateSubCamera(play);
+            MM_Play_ChangeCameraStatus(play, CAM_ID_MAIN, CAM_STATUS_WAIT);
+            MM_Play_ChangeCameraStatus(play, this->subCamId, CAM_STATUS_ACTIVE);
             this->cutsceneTimer = 0;
             this->cutsceneState = ODOLWA_DEATH_CS_STATE_PLAY_ANIM_AND_FALL_FORWARD;
             this->subCamEye.x = mainCam->eye.x;
@@ -2159,8 +2159,8 @@ void Boss01_DeathCutscene(Boss01* this, PlayState* play) {
             // fallthrough
         case ODOLWA_DEATH_CS_STATE_PLAY_ANIM_AND_FALL_FORWARD:
             if (this->cutsceneTimer < 15) {
-                Math_ApproachF(&this->actor.world.pos.x, 0.0f, 0.1f, 5.0f);
-                Math_ApproachF(&this->actor.world.pos.z, 0.0f, 0.1f, 5.0f);
+                MM_Math_ApproachF(&this->actor.world.pos.x, 0.0f, 0.1f, 5.0f);
+                MM_Math_ApproachF(&this->actor.world.pos.z, 0.0f, 0.1f, 5.0f);
             }
 
             if (this->cutsceneTimer == 70) {
@@ -2174,21 +2174,21 @@ void Boss01_DeathCutscene(Boss01* this, PlayState* play) {
             }
             // fallthrough
         case ODOLWA_DEATH_CS_STATE_BURST_INTO_FLAMES_AND_SHRINK:
-            Math_ApproachF(&this->deathCsSubCamRotY, 1.3f, 0.1f, 0.008f);
+            MM_Math_ApproachF(&this->deathCsSubCamRotY, 1.3f, 0.1f, 0.008f);
             subCamOffset.x = 0.0f;
             subCamOffset.y = 30.0f;
             subCamOffset.z = 300.0f;
             Matrix_RotateYF(this->deathCsInitialSubCamRotY + this->deathCsSubCamRotY, MTXMODE_NEW);
-            Matrix_MultVec3f(&subCamOffset, &this->subCamEyeNext);
+            MM_Matrix_MultVec3f(&subCamOffset, &this->subCamEyeNext);
             this->subCamEyeNext.x += this->pelvisPos.x;
             this->subCamEyeNext.y += this->pelvisPos.y;
             this->subCamEyeNext.z += this->pelvisPos.z;
-            Math_ApproachF(&this->subCamEye.x, this->subCamEyeNext.x, 0.1f, 40.0f);
-            Math_ApproachF(&this->subCamEye.y, this->subCamEyeNext.y, 0.1f, 40.0f);
-            Math_ApproachF(&this->subCamEye.z, this->subCamEyeNext.z, 0.1f, 40.0f);
-            Math_ApproachF(&this->subCamAt.x, this->pelvisPos.x, 0.1f, 70.0f);
-            Math_ApproachF(&this->subCamAt.y, this->pelvisPos.y + 50.0f, 0.1f, 70.0f);
-            Math_ApproachF(&this->subCamAt.z, this->pelvisPos.z, 0.1f, 70.0f);
+            MM_Math_ApproachF(&this->subCamEye.x, this->subCamEyeNext.x, 0.1f, 40.0f);
+            MM_Math_ApproachF(&this->subCamEye.y, this->subCamEyeNext.y, 0.1f, 40.0f);
+            MM_Math_ApproachF(&this->subCamEye.z, this->subCamEyeNext.z, 0.1f, 40.0f);
+            MM_Math_ApproachF(&this->subCamAt.x, this->pelvisPos.x, 0.1f, 70.0f);
+            MM_Math_ApproachF(&this->subCamAt.y, this->pelvisPos.y + 50.0f, 0.1f, 70.0f);
+            MM_Math_ApproachF(&this->subCamAt.z, this->pelvisPos.z, 0.1f, 70.0f);
 
             if (this->cutsceneTimer >= 71) {
                 s16 i;
@@ -2201,8 +2201,8 @@ void Boss01_DeathCutscene(Boss01* this, PlayState* play) {
                 fireAccel.y = 0.03f;
 
                 if (this->cutsceneTimer > 80) {
-                    Math_ApproachZeroF(&this->actor.scale.y, 0.1f, this->deathShrinkSpeed * 0.00075f);
-                    Math_ApproachF(&this->deathShrinkSpeed, 1.0f, 1.0f, 0.01f);
+                    MM_Math_ApproachZeroF(&this->actor.scale.y, 0.1f, this->deathShrinkSpeed * 0.00075f);
+                    MM_Math_ApproachF(&this->deathShrinkSpeed, 1.0f, 1.0f, 0.01f);
                 }
 
                 if (this->cutsceneTimer > 120) {
@@ -2212,18 +2212,18 @@ void Boss01_DeathCutscene(Boss01* this, PlayState* play) {
                 }
 
                 for (i = 0; i < fireCount; i++) {
-                    bodyPartIndex = Rand_ZeroFloat(14.9f);
-                    firePos.x = this->bodyPartsPos[bodyPartIndex].x + Rand_CenteredFloat(40.0f);
+                    bodyPartIndex = MM_Rand_ZeroFloat(14.9f);
+                    firePos.x = this->bodyPartsPos[bodyPartIndex].x + MM_Rand_CenteredFloat(40.0f);
                     firePos.y = this->bodyPartsPos[bodyPartIndex].y - 10.0f;
-                    firePos.z = this->bodyPartsPos[bodyPartIndex].z + Rand_CenteredFloat(40.0f);
-                    EffectSsKFire_Spawn(play, &firePos, &gZeroVec3f, &fireAccel, Rand_ZeroFloat(30.0f) + 30.0f, 0);
+                    firePos.z = this->bodyPartsPos[bodyPartIndex].z + MM_Rand_CenteredFloat(40.0f);
+                    MM_EffectSsKFire_Spawn(play, &firePos, &gZeroVec3f, &fireAccel, MM_Rand_ZeroFloat(30.0f) + 30.0f, 0);
                 }
 
                 Actor_PlaySfx(&this->actor, NA_SE_EN_COMMON_EXTINCT_LEV - SFX_FLAG);
             }
 
             if (this->cutsceneTimer == 71) {
-                Actor_Spawn(&play->actorCtx, play, ACTOR_ITEM_B_HEART, this->actor.focus.pos.x, this->actor.focus.pos.y,
+                MM_Actor_Spawn(&play->actorCtx, play, ACTOR_ITEM_B_HEART, this->actor.focus.pos.x, this->actor.focus.pos.y,
                             this->actor.focus.pos.z, 0, 0, 0, BHEART_PARAM_NORMAL);
             }
 
@@ -2248,7 +2248,7 @@ void Boss01_DeathCutscene(Boss01* this, PlayState* play) {
                     }
                 }
 
-                Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DOOR_WARP1, warpX, 0.0f, warpZ, 0, 0, 0,
+                MM_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DOOR_WARP1, warpX, 0.0f, warpZ, 0, 0, 0,
                                    ENDOORWARP1_FF_1);
                 this->cutsceneState = ODOLWA_DEATH_CS_STATE_DONE;
                 mainCam->eye = this->subCamEye;
@@ -2257,7 +2257,7 @@ void Boss01_DeathCutscene(Boss01* this, PlayState* play) {
                 func_80169AFC(play, this->subCamId, 0);
                 this->subCamId = SUB_CAM_ID_DONE;
                 Cutscene_StopManual(play, &play->csCtx);
-                Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
+                MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
                 this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
             }
             break;
@@ -2273,8 +2273,8 @@ void Boss01_DeathCutscene(Boss01* this, PlayState* play) {
         // It seems like this code was copied from Boss01_IntroCutscene, since this function doesn't set
         // screenShakeMagnitude to anything, and thus it is always 0.0f; all of the code involving screen
         // shake here could be removed, since it is effectively useless.
-        this->screenShakeOffsetY = Math_CosS(play->gameplayFrames * 0x8000) * this->screenShakeMagnitude;
-        Math_ApproachZeroF(&this->screenShakeMagnitude, 1.0f, 0.75f);
+        this->screenShakeOffsetY = MM_Math_CosS(play->gameplayFrames * 0x8000) * this->screenShakeMagnitude;
+        MM_Math_ApproachZeroF(&this->screenShakeMagnitude, 1.0f, 0.75f);
         at = this->subCamAt;
         at.y += this->screenShakeOffsetY;
         Play_SetCameraAtEye(play, this->subCamId, &at, &this->subCamEye);
@@ -2284,7 +2284,7 @@ void Boss01_DeathCutscene(Boss01* this, PlayState* play) {
 void Boss01_SetupStunned(Boss01* this, PlayState* play) {
     this->actionFunc = Boss01_Stunned;
     this->timers[TIMER_CURRENT_ACTION] = 40;
-    Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_BLUE, 120, COLORFILTER_BUFFLAG_OPA, 40);
+    MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_BLUE, 120, COLORFILTER_BUFFLAG_OPA, 40);
 }
 
 /**
@@ -2294,7 +2294,7 @@ void Boss01_SetupStunned(Boss01* this, PlayState* play) {
  * enemies, but it's very rare to see on a boss, so the term "stunned" was used here for consistency with other enemies.
  */
 void Boss01_Stunned(Boss01* this, PlayState* play) {
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
     if (this->timers[TIMER_CURRENT_ACTION] == 0) {
         Boss01_SetupWait(this, play, ODOLWA_WAIT_RANDOM);
     }
@@ -2311,18 +2311,18 @@ void Boss01_Thaw(Boss01* this, PlayState* play) {
     Vec3f velocity;
     s32 i;
 
-    SoundSource_PlaySfxAtFixedWorldPos(play, this->bodyPartsPos, 30, NA_SE_EV_ICE_BROKEN);
+    MM_SoundSource_PlaySfxAtFixedWorldPos(play, this->bodyPartsPos, 30, NA_SE_EV_ICE_BROKEN);
 
     for (i = 0; i < ODOLWA_BODYPART_MAX * 2; i++) {
-        velocity.x = Rand_CenteredFloat(7.0f);
-        velocity.z = Rand_CenteredFloat(7.0f);
-        velocity.y = Rand_ZeroFloat(6.0f) + 4.0f;
+        velocity.x = MM_Rand_CenteredFloat(7.0f);
+        velocity.z = MM_Rand_CenteredFloat(7.0f);
+        velocity.y = MM_Rand_ZeroFloat(6.0f) + 4.0f;
 
         pos.x = this->bodyPartsPos[i / 2].x + velocity.x;
         pos.y = this->bodyPartsPos[i / 2].y + velocity.y;
         pos.z = this->bodyPartsPos[i / 2].z + velocity.z;
 
-        EffectSsEnIce_Spawn(play, &pos, Rand_ZeroFloat(1.0f) + 1.5f, &velocity, &sIceAccel, &sIcePrimColor,
+        MM_EffectSsEnIce_Spawn(play, &pos, MM_Rand_ZeroFloat(1.0f) + 1.5f, &velocity, &sIceAccel, &sIcePrimColor,
                             &sIceEnvColor, 30);
     }
 }
@@ -2362,11 +2362,11 @@ void Boss01_Update(Actor* thisx, PlayState* play2) {
         return;
     }
 
-    Math_Vec3f_Copy(&sOdolwaDamageSfxPos, &this->actor.projectedPos);
+    MM_Math_Vec3f_Copy(&sOdolwaDamageSfxPos, &this->actor.projectedPos);
 
     play->envCtx.lightSetting = 0;
     play->envCtx.prevLightSetting = 1;
-    Math_ApproachZeroF(&play->envCtx.lightBlend, 1.0f, 0.03f);
+    MM_Math_ApproachZeroF(&play->envCtx.lightBlend, 1.0f, 0.03f);
 
     this->frameCounter++;
 
@@ -2397,10 +2397,10 @@ void Boss01_Update(Actor* thisx, PlayState* play2) {
         this->actor.world.pos.z += this->additionalVelocityZ;
     }
 
-    Actor_UpdateBgCheckInfo(play, &this->actor, 50.0f, 150.0f, 100.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 50.0f, 150.0f, 100.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
     if (this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) {
-        Math_ApproachZeroF(&this->additionalVelocityX, 1.0f, 1.0f);
-        Math_ApproachZeroF(&this->additionalVelocityZ, 1.0f, 1.0f);
+        MM_Math_ApproachZeroF(&this->additionalVelocityX, 1.0f, 1.0f);
+        MM_Math_ApproachZeroF(&this->additionalVelocityZ, 1.0f, 1.0f);
     }
 
     this->actor.shape.rot = this->actor.world.rot;
@@ -2409,7 +2409,7 @@ void Boss01_Update(Actor* thisx, PlayState* play2) {
         Boss01_UpdateDamage(this, play);
 
         if (this->bodyInvincibilityTimer == 0) {
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->bodyCollider.base);
+            MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->bodyCollider.base);
         } else {
             this->bodyInvincibilityTimer--;
             for (i = 0; i < ODOLWA_COLLIDER_BODYPART_MAX; i++) {
@@ -2418,17 +2418,17 @@ void Boss01_Update(Actor* thisx, PlayState* play2) {
         }
 
         if (this->swordAndShieldCollisionEnabled) {
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->shieldCollider.base);
-            CollisionCheck_SetOC(play, &play->colChkCtx, &this->shieldCollider.base);
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->swordCollider.base);
+            MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->shieldCollider.base);
+            MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->shieldCollider.base);
+            MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->swordCollider.base);
         }
 
         if (this->swordState != ODOLWA_SWORD_STATE_INACTIVE) {
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->swordCollider.base);
+            MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->swordCollider.base);
         }
 
         if (this->kickAndShieldBashCollisionEnabled) {
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->kickAndShieldBashCollider.base);
+            MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->kickAndShieldBashCollider.base);
         }
     } else {
         this->disableCollisionTimer--;
@@ -2437,7 +2437,7 @@ void Boss01_Update(Actor* thisx, PlayState* play2) {
         }
     }
 
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->bodyCollider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->bodyCollider.base);
 
     // If Odolwa and the player are *not* facing each other, Odolwa will *not* block or jump away from the player's
     // attacks, even if canGuardOrEvade is set to true. This allows the player to hit Odolwa even during states where he
@@ -2445,7 +2445,7 @@ void Boss01_Update(Actor* thisx, PlayState* play2) {
     if (this->canGuardOrEvade &&
         ((player->unk_D57 != 0) || ((player->unk_ADC != 0) && (this->actor.xzDistToPlayer <= 120.0f))) &&
         Boss01_ArePlayerAndActorFacing(this, play)) {
-        if ((Rand_ZeroOne() < 0.25f) && (this->actionFunc != Boss01_Guard)) {
+        if ((MM_Rand_ZeroOne() < 0.25f) && (this->actionFunc != Boss01_Guard)) {
             Boss01_SetupJump(this, play, false);
             this->disableCollisionTimer = 10;
         } else if ((player->unk_ADC != 0) && (this->actor.xzDistToPlayer <= 120.0f)) {
@@ -2462,7 +2462,7 @@ void Boss01_Update(Actor* thisx, PlayState* play2) {
     if (((this->frameCounter & (this->afterimageSpawnFrameMask - 1)) == 0) && (this->afterimageSpawnFrameMask != 0)) {
         s16 afterimageTimer = (this->actionFunc == Boss01_SpinAttack) ? 4 : 10;
         s32 pad;
-        Boss01* child = (Boss01*)Actor_SpawnAsChild(
+        Boss01* child = (Boss01*)MM_Actor_SpawnAsChild(
             &play->actorCtx, &this->actor, play, ACTOR_BOSS_01, this->actor.world.pos.x, this->actor.world.pos.y,
             this->actor.world.pos.z, this->actor.world.rot.x, this->actor.world.rot.y, afterimageTimer,
             ODOLWA_PARAMS(ODOLWA_TYPE_AFTERIMAGE));
@@ -2492,7 +2492,7 @@ void Boss01_Update(Actor* thisx, PlayState* play2) {
         diffX = player->actor.world.pos.x - this->actor.focus.pos.x;
         diffY = KREG(36) + ((player->actor.world.pos.y + 25.0f) - this->actor.focus.pos.y);
         diffZ = player->actor.world.pos.z - this->actor.focus.pos.z;
-        targetHeadRotX = Math_Atan2S(diffY, sqrtf(SQ(diffX) + SQ(diffZ)));
+        targetHeadRotX = MM_Math_Atan2S(diffY, MM_sqrtf(SQ(diffX) + SQ(diffZ)));
 
         // This line of code ensures that *not* following the player is the default behavior; if you want Odolwa's head
         // to track the player, you'll need to set this variable to true for every single frame you want this behavior.
@@ -2502,8 +2502,8 @@ void Boss01_Update(Actor* thisx, PlayState* play2) {
         targetHeadRotY = 0;
     }
 
-    Math_ApproachS(&this->headRotY, targetHeadRotY, 3, 0x2000);
-    Math_ApproachS(&this->headRotX, targetHeadRotX, 3, 0x2000);
+    MM_Math_ApproachS(&this->headRotY, targetHeadRotY, 3, 0x2000);
+    MM_Math_ApproachS(&this->headRotX, targetHeadRotX, 3, 0x2000);
 
     DECR(this->drawDmgEffTimer);
 
@@ -2520,16 +2520,16 @@ void Boss01_Update(Actor* thisx, PlayState* play2) {
             this->drawDmgEffType = ACTOR_DRAW_DMGEFF_FIRE;
             this->drawDmgEffTimer = 40;
             this->drawDmgEffState++;
-            Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 120, COLORFILTER_BUFFLAG_OPA, 60);
+            MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 120, COLORFILTER_BUFFLAG_OPA, 60);
             // fallthrough
         case ODOLWA_DRAW_DMGEFF_STATE_FIRE_ACTIVE:
             if (this->drawDmgEffTimer == 0) {
-                Math_ApproachZeroF(&this->drawDmgEffAlpha, 1.0f, 0.02f);
+                MM_Math_ApproachZeroF(&this->drawDmgEffAlpha, 1.0f, 0.02f);
                 if (this->drawDmgEffAlpha == 0.0f) {
                     this->drawDmgEffState = ODOLWA_DRAW_DMGEFF_STATE_NONE;
                 }
             } else {
-                Math_ApproachF(&this->drawDmgEffScale, 1.0f, 0.1f, 0.5f);
+                MM_Math_ApproachF(&this->drawDmgEffScale, 1.0f, 0.1f, 0.5f);
             }
             break;
 
@@ -2552,8 +2552,8 @@ void Boss01_Update(Actor* thisx, PlayState* play2) {
                 this->drawDmgEffType = ACTOR_DRAW_DMGEFF_FROZEN_NO_SFX;
             }
 
-            Math_ApproachF(&this->drawDmgEffScale, 1.0f, 1.0f, 0.08f);
-            Math_ApproachF(&this->drawDmgEffFrozenSteamScale, 1.0f, 0.05f, 0.05f);
+            MM_Math_ApproachF(&this->drawDmgEffScale, 1.0f, 1.0f, 0.08f);
+            MM_Math_ApproachF(&this->drawDmgEffFrozenSteamScale, 1.0f, 0.05f, 0.05f);
             break;
 
         case ODOLWA_DRAW_DMGEFF_STATE_LIGHT_ORB_INIT:
@@ -2572,13 +2572,13 @@ void Boss01_Update(Actor* thisx, PlayState* play2) {
             // fallthrough
         case ODOLWA_DRAW_DMGEFF_STATE_LIGHT_ORB_ACTIVE:
             if (this->drawDmgEffTimer == 0) {
-                Math_ApproachZeroF(&this->drawDmgEffScale, 1.0f, 0.03f);
+                MM_Math_ApproachZeroF(&this->drawDmgEffScale, 1.0f, 0.03f);
                 if (this->drawDmgEffScale == 0.0f) {
                     this->drawDmgEffState = ODOLWA_DRAW_DMGEFF_STATE_NONE;
                     this->drawDmgEffAlpha = 0.0f;
                 }
             } else {
-                Math_ApproachF(&this->drawDmgEffScale, 1.5f, 0.5f, 0.5f);
+                MM_Math_ApproachF(&this->drawDmgEffScale, 1.5f, 0.5f, 0.5f);
             }
             break;
 
@@ -2591,7 +2591,7 @@ void Boss01_Update(Actor* thisx, PlayState* play2) {
             // fallthrough
         case ODOLWA_DRAW_DMGEFF_STATE_ELECTRIC_SPARKS_ACTIVE:
             if (this->drawDmgEffTimer == 0) {
-                Math_ApproachZeroF(&this->drawDmgEffScale, 1.0f, 0.05f);
+                MM_Math_ApproachZeroF(&this->drawDmgEffScale, 1.0f, 0.05f);
                 if (this->drawDmgEffScale == 0.0f) {
                     this->drawDmgEffState = ODOLWA_DRAW_DMGEFF_STATE_NONE;
                     this->drawDmgEffAlpha = 0.0f;
@@ -2629,11 +2629,11 @@ void Boss01_DrawSwordTrail(Boss01* this, PlayState* play) {
 
     gSPSegment(
         POLY_XLU_DISP++, 0x08,
-        Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, 0, 0, 32, 32, 1, play->gameplayFrames * 18, 0, 32, 32));
+        MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, 0, 0, 32, 32, 1, play->gameplayFrames * 18, 0, 32, 32));
     gDPPipeSync(POLY_XLU_DISP++);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, (u8)sOdolwaSwordTrailAlpha);
 
-    Matrix_Translate(this->actor.world.pos.x + sOdolwaSwordTrailPosX, this->actor.world.pos.y + sOdolwaSwordTrailPosY,
+    MM_Matrix_Translate(this->actor.world.pos.x + sOdolwaSwordTrailPosX, this->actor.world.pos.y + sOdolwaSwordTrailPosY,
                      this->actor.world.pos.z + sOdolwaSwordTrailPosZ, MTXMODE_NEW);
     Matrix_RotateYF(BINANG_TO_RAD(this->actor.shape.rot.y), MTXMODE_APPLY);
     Matrix_RotateXFApply(sOdolwaSwordTrailRotX);
@@ -2822,27 +2822,27 @@ void Boss01_PostLimbDraw(PlayState* play2, s32 limbIndex, Gfx** dList, Vec3s* ro
 
     bodyPartIndex = sLimbToColliderBodyParts[limbIndex];
     if (bodyPartIndex > BODYPART_NONE) {
-        Matrix_MultVec3f(&sLimbColliderOffsets[bodyPartIndex], &pos);
+        MM_Matrix_MultVec3f(&sLimbColliderOffsets[bodyPartIndex], &pos);
         Boss01_SetColliderSphere(bodyPartIndex, &this->bodyCollider, &pos);
     }
 
     if (limbIndex == ODOLWA_LIMB_PELVIS) {
         Matrix_MultZero(&this->pelvisPos);
         if (this->swordState == ODOLWA_SWORD_STATE_HORIZONTAL_SLASH) {
-            Matrix_MultVec3f(&sHorizontalSlashPelvisColliderOffset, &pos);
+            MM_Matrix_MultVec3f(&sHorizontalSlashPelvisColliderOffset, &pos);
             Boss01_SetColliderSphere(ODOLWA_SWORD_COLLIDER_PELVIS, &this->swordCollider, &pos);
         }
     }
 
     if (limbIndex == ODOLWA_LIMB_SWORD) {
-        Matrix_MultVec3f(&sSwordBaseColliderOffset, &pos);
+        MM_Matrix_MultVec3f(&sSwordBaseColliderOffset, &pos);
         Boss01_SetColliderSphere(ODOLWA_SWORD_COLLIDER_SWORD_BASE, &this->swordCollider, &pos);
-        Matrix_MultVec3f(&sSwordTipColliderOffset, &pos);
+        MM_Matrix_MultVec3f(&sSwordTipColliderOffset, &pos);
         Boss01_SetColliderSphere(ODOLWA_SWORD_COLLIDER_SWORD_TIP, &this->swordCollider, &pos);
     }
 
     if (limbIndex == ODOLWA_LIMB_SHIELD) {
-        Matrix_MultVec3f(&sShieldColliderOffset, &pos);
+        MM_Matrix_MultVec3f(&sShieldColliderOffset, &pos);
         Boss01_SetColliderSphere(ODOLWA_SHIELD_COLLIDER_SHIELD, &this->shieldCollider, &pos);
         Boss01_SetColliderSphere(ODOLWA_KICK_AND_SHIELD_BASH_COLLIDER_SHIELD, &this->kickAndShieldBashCollider, &pos);
     }
@@ -2864,21 +2864,21 @@ void Boss01_PostLimbDraw(PlayState* play2, s32 limbIndex, Gfx** dList, Vec3s* ro
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 0, 0, 255);
         gDPSetEnvColor(POLY_XLU_DISP++, 255, 0, 0, 0);
 
-        Matrix_Push();
-        Matrix_Translate(1470.0f, 400.0f, 450.0f, MTXMODE_APPLY);
-        Matrix_Scale(0.35f, 0.35f, 0.35f, MTXMODE_APPLY);
-        Matrix_ReplaceRotation(&play->billboardMtxF);
+        MM_Matrix_Push();
+        MM_Matrix_Translate(1470.0f, 400.0f, 450.0f, MTXMODE_APPLY);
+        MM_Matrix_Scale(0.35f, 0.35f, 0.35f, MTXMODE_APPLY);
+        MM_Matrix_ReplaceRotation(&play->billboardMtxF);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_XLU_DISP++, gOdolwaEyeDL);
-        Matrix_Pop();
+        MM_Matrix_Pop();
 
-        Matrix_Push();
-        Matrix_Translate(1470.0f, -360.0f, 450.0f, MTXMODE_APPLY);
-        Matrix_Scale(0.35f, 0.35f, 0.35f, MTXMODE_APPLY);
-        Matrix_ReplaceRotation(&play->billboardMtxF);
+        MM_Matrix_Push();
+        MM_Matrix_Translate(1470.0f, -360.0f, 450.0f, MTXMODE_APPLY);
+        MM_Matrix_Scale(0.35f, 0.35f, 0.35f, MTXMODE_APPLY);
+        MM_Matrix_ReplaceRotation(&play->billboardMtxF);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_XLU_DISP++, gOdolwaEyeDL);
-        Matrix_Pop();
+        MM_Matrix_Pop();
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -2902,20 +2902,20 @@ void Boss01_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
     if ((this->damagedFlashTimer % 2) != 0) {
-        POLY_OPA_DISP = Gfx_SetFog(POLY_OPA_DISP, 255, 0, 0, 255, 900, 1099);
+        POLY_OPA_DISP = MM_Gfx_SetFog(POLY_OPA_DISP, 255, 0, 0, 255, 900, 1099);
     }
 
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           Boss01_OverrideLimbDraw, Boss01_PostLimbDraw, &this->actor);
 
-    POLY_OPA_DISP = Play_SetFog(play, POLY_OPA_DISP);
+    POLY_OPA_DISP = MM_Play_SetFog(play, POLY_OPA_DISP);
 
     Boss01_GenShadowTex(tex, this, play);
     Boss01_DrawShadowTex(tex, this, play);
 
     if (sOdolwaSwordTrailAlpha > 0.0f) {
         Boss01_DrawSwordTrail(this, play);
-        Math_ApproachZeroF(&sOdolwaSwordTrailAlpha, 1.0f, 50.0f);
+        MM_Math_ApproachZeroF(&sOdolwaSwordTrailAlpha, 1.0f, 50.0f);
     }
 
     Actor_DrawDamageEffects(play, &this->actor, this->bodyPartsPos, ODOLWA_BODYPART_MAX, this->drawDmgEffScale,
@@ -2935,10 +2935,10 @@ void Boss01_Afterimage_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-    POLY_OPA_DISP = Gfx_SetFog(POLY_OPA_DISP, 50, 0, 40, 255, 900, 1099);
-    SkelAnime_DrawFlexOpa(play, parent->skelAnime.skeleton, this->skelAnime.jointTable, parent->skelAnime.dListCount,
+    POLY_OPA_DISP = MM_Gfx_SetFog(POLY_OPA_DISP, 50, 0, 40, 255, 900, 1099);
+    MM_SkelAnime_DrawFlexOpa(play, parent->skelAnime.skeleton, this->skelAnime.jointTable, parent->skelAnime.dListCount,
                           NULL, NULL, &this->actor);
-    POLY_OPA_DISP = Play_SetFog(play, POLY_OPA_DISP);
+    POLY_OPA_DISP = MM_Play_SetFog(play, POLY_OPA_DISP);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -3036,7 +3036,7 @@ void Boss01_FillShadowTex(Boss01* this, u8* tex, f32 weight) {
                 pos.z = this->bodyPartsPos[i].z - this->actor.world.pos.z;
             }
 
-            Matrix_MultVec3f(&pos, &startVec);
+            MM_Matrix_MultVec3f(&pos, &startVec);
 
             startVec.x *= 0.2f;
             startVec.y *= 0.2f;
@@ -3120,8 +3120,8 @@ void Boss01_DrawShadowTex(u8* tex, Boss01* this, PlayState* play) {
 
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 0, 0, 0, (s8)(alpha * 80.0f));
     gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 0);
-    Matrix_Translate(this->actor.world.pos.x, this->actor.floorHeight, this->actor.world.pos.z - 20.0f, MTXMODE_NEW);
-    Matrix_Scale(1.65f, 1.0f, 1.65f, MTXMODE_APPLY);
+    MM_Matrix_Translate(this->actor.world.pos.x, this->actor.floorHeight, this->actor.world.pos.z - 20.0f, MTXMODE_NEW);
+    MM_Matrix_Scale(1.65f, 1.0f, 1.65f, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     gSPDisplayList(POLY_OPA_DISP++, gOdolwaShadowMaterialDL);
     gDPLoadTextureBlock(POLY_OPA_DISP++, tex, G_IM_FMT_I, G_IM_SIZ_8b, ODOLWA_SHADOW_TEX_WIDTH,
@@ -3134,7 +3134,7 @@ void Boss01_DrawShadowTex(u8* tex, Boss01* this, PlayState* play) {
 
 void Boss01_Bug_SetupCrawl(Boss01* this, PlayState* play) {
     this->actionFunc = Boss01_Bug_Crawl;
-    Animation_MorphToLoop(&this->skelAnime, &gOdolwaBugCrawlAnim, -5.0f);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gOdolwaBugCrawlAnim, -5.0f);
 }
 
 /**
@@ -3164,11 +3164,11 @@ void Boss01_Bug_Crawl(Boss01* this, PlayState* play) {
             }
         }
 
-        SkelAnime_Update(&this->skelAnime);
+        MM_SkelAnime_Update(&this->skelAnime);
         Actor_PlaySfx(&this->actor, NA_SE_EN_MB_INSECT_WALK - SFX_FLAG);
-        Math_ApproachF(&this->actor.speed, targetSpeed, 1.0f, 1.0f);
-        Math_ApproachS(&this->actor.world.rot.y,
-                       Math_Atan2S(targetActor->world.pos.x - this->actor.world.pos.x,
+        MM_Math_ApproachF(&this->actor.speed, targetSpeed, 1.0f, 1.0f);
+        MM_Math_ApproachS(&this->actor.world.rot.y,
+                       MM_Math_Atan2S(targetActor->world.pos.x - this->actor.world.pos.x,
                                    targetActor->world.pos.z - this->actor.world.pos.z),
                        5, maxStep);
     }
@@ -3180,7 +3180,7 @@ void Boss01_Bug_SetupDamaged(Boss01* this, PlayState* play) {
         this->timers[TIMER_BUG_CURRENT_ACTION] = 30;
     } else {
         this->timers[TIMER_BUG_CURRENT_ACTION] = 15;
-        Enemy_StartFinishingBlow(play, &this->actor);
+        MM_Enemy_StartFinishingBlow(play, &this->actor);
         Boss01_Bug_SetupDead(this, play);
     }
 }
@@ -3189,7 +3189,7 @@ void Boss01_Bug_SetupDamaged(Boss01* this, PlayState* play) {
  * Stops the bug's animations and makes it wait in place for 30 frames, then it starts crawling again.
  */
 void Boss01_Bug_Damaged(Boss01* this, PlayState* play) {
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
     if (this->timers[TIMER_BUG_CURRENT_ACTION] == 0) {
         Boss01_Bug_SetupCrawl(this, play);
     }
@@ -3209,14 +3209,14 @@ void Boss01_Bug_SetupDead(Boss01* this, PlayState* play) {
 void Boss01_Bug_SetupStunned(Boss01* this, PlayState* play) {
     this->actionFunc = Boss01_Bug_Stunned;
     this->timers[TIMER_BUG_CURRENT_ACTION] = 40;
-    Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_BLUE, 120, COLORFILTER_BUFFLAG_OPA, 40);
+    MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_BLUE, 120, COLORFILTER_BUFFLAG_OPA, 40);
 }
 
 /**
  * Turns the bug blue, stops its animations, and makes it wait in place for 40 frames, then it starts crawling again.
  */
 void Boss01_Bug_Stunned(Boss01* this, PlayState* play) {
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
     if (this->timers[TIMER_BUG_CURRENT_ACTION] == 0) {
         Boss01_Bug_SetupCrawl(this, play);
     }
@@ -3229,20 +3229,20 @@ void Boss01_Bug_Stunned(Boss01* this, PlayState* play) {
 void Boss01_Bug_Dead(Boss01* this, PlayState* play) {
     if (this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) {
         Actor_PlaySfx(&this->actor, NA_SE_EN_COMMON_EXTINCT_LEV - SFX_FLAG);
-        Math_ApproachZeroF(&this->actor.speed, 1.0f, 2.0f);
-        Math_ApproachZeroF(&this->actor.scale.y, 1.0f, 0.00075f);
-        Math_ApproachF(&this->bugDrawDmgEffScale, 1.0f, 0.5f, 0.15f);
+        MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 2.0f);
+        MM_Math_ApproachZeroF(&this->actor.scale.y, 1.0f, 0.00075f);
+        MM_Math_ApproachF(&this->bugDrawDmgEffScale, 1.0f, 0.5f, 0.15f);
 
         if (this->actor.scale.y < 0.001f) {
-            Math_ApproachZeroF(&this->bugDrawDmgEffAlpha, 1.0f, 0.05f);
+            MM_Math_ApproachZeroF(&this->bugDrawDmgEffAlpha, 1.0f, 0.05f);
             if (this->bugDrawDmgEffAlpha < 0.01f) {
-                Actor_Kill(&this->actor);
-                Item_DropCollectibleRandom(play, NULL, &this->actor.world.pos, 0x60);
+                MM_Actor_Kill(&this->actor);
+                MM_Item_DropCollectibleRandom(play, NULL, &this->actor.world.pos, 0x60);
                 sOdolwaBugCount--;
             }
         }
 
-        Math_ApproachS(&this->actor.shape.rot.x, 0, 1, 0x800);
+        MM_Math_ApproachS(&this->actor.shape.rot.x, 0, 1, 0x800);
     } else {
         this->actor.shape.rot.x -= 0x2000;
         this->actor.shape.rot.z += 0x1000;
@@ -3295,9 +3295,9 @@ void Boss01_Bug_UpdateDamage(Boss01* this, PlayState* play) {
     }
 
     if ((effect->type == ODOLWA_EFFECT_RING_OF_FIRE) && (effect->timer < 150)) {
-        f32 distXZ = sqrtf(SQ(effect->pos.x - this->actor.world.pos.x) + SQ(effect->pos.z - this->actor.world.pos.z));
+        f32 distXZ = MM_sqrtf(SQ(effect->pos.x - this->actor.world.pos.x) + SQ(effect->pos.z - this->actor.world.pos.z));
 
-        // If the bugs touch the ring of fire, it will instantly kill them. Like before, setting the y-velocity to zero
+        // If the bugs touch the ring of fire, it will instantly kill them. Like before, setting the y-velocity to MM_zero
         // here will immediately make the bug shrink and burst into a single red flame.
         if ((distXZ < (KREG(49) + 210.0f)) && (distXZ > (KREG(49) + 190.0f))) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_MIZUBABA2_DAMAGE);
@@ -3329,19 +3329,19 @@ void Boss01_Bug_Update(Actor* thisx, PlayState* play) {
     Actor_MoveWithGravity(&this->actor);
     this->actor.world.pos.x += this->additionalVelocityX;
     this->actor.world.pos.z += this->additionalVelocityZ;
-    Actor_SetFocus(&this->actor, 10.0f);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 50.0f, 21.0f, 100.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_SetFocus(&this->actor, 10.0f);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 50.0f, 21.0f, 100.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
     if (this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) {
-        Math_ApproachZeroF(&this->additionalVelocityX, 1.0f, 1.0f);
-        Math_ApproachZeroF(&this->additionalVelocityZ, 1.0f, 1.0f);
+        MM_Math_ApproachZeroF(&this->additionalVelocityX, 1.0f, 1.0f);
+        MM_Math_ApproachZeroF(&this->additionalVelocityZ, 1.0f, 1.0f);
     }
 
     if (this->actionFunc != Boss01_Bug_Dead) {
         Boss01_Bug_UpdateDamage(this, play);
-        Collider_UpdateCylinder(&this->actor, &this->bugACCollider);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->bugACCollider.base);
-        Collider_UpdateCylinder(&this->actor, &this->bugATCollider);
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->bugATCollider.base);
+        MM_Collider_UpdateCylinder(&this->actor, &this->bugACCollider);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->bugACCollider.base);
+        MM_Collider_UpdateCylinder(&this->actor, &this->bugATCollider);
+        MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->bugATCollider.base);
         this->actor.shape.rot = this->actor.world.rot;
     }
 }
@@ -3375,13 +3375,13 @@ void Boss01_Bug_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     if ((this->damagedFlashTimer % 2) != 0) {
-        POLY_OPA_DISP = Gfx_SetFog(POLY_OPA_DISP, 255, 0, 0, 255, 900, 1099);
+        POLY_OPA_DISP = MM_Gfx_SetFog(POLY_OPA_DISP, 255, 0, 0, 255, 900, 1099);
     }
 
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           Boss01_Bug_OverrideLimbDraw, NULL, &this->actor);
 
-    POLY_OPA_DISP = Play_SetFog(play, POLY_OPA_DISP);
+    POLY_OPA_DISP = MM_Play_SetFog(play, POLY_OPA_DISP);
 
     Actor_DrawDamageEffects(play, &this->actor, &this->actor.world.pos, 1, this->bugDrawDmgEffScale, 0.0f,
                             this->bugDrawDmgEffAlpha, this->bugDrawDmgEffType);
@@ -3399,16 +3399,16 @@ void Boss01_SpawnDustForFallingBlock(PlayState* play, Vec3f* blockPos, f32 scale
     Vec3f pos;
 
     for (i = 0; i < 5; i++) {
-        velocity.x = Rand_CenteredFloat(5.0f);
-        velocity.y = Rand_ZeroFloat(2.0f) + 1.0f;
-        velocity.z = Rand_CenteredFloat(5.0f);
+        velocity.x = MM_Rand_CenteredFloat(5.0f);
+        velocity.y = MM_Rand_ZeroFloat(2.0f) + 1.0f;
+        velocity.z = MM_Rand_CenteredFloat(5.0f);
         accel.x = accel.z = 0.0f;
         accel.y = -0.1f;
-        pos.x = (Rand_CenteredFloat(70.0f) * scale) + blockPos->x;
-        pos.y = (Rand_ZeroFloat(10.0f) * scale) + blockPos->y;
-        pos.z = (Rand_CenteredFloat(70.0f) * scale) + blockPos->z;
-        func_800B0EB0(play, &pos, &velocity, &accel, &sDustPrimColor, &sDustEnvColor,
-                      (Rand_ZeroFloat(150.0f) + 350.0f) * scale, 10, Rand_ZeroFloat(5.0f) + 14.0f);
+        pos.x = (MM_Rand_CenteredFloat(70.0f) * scale) + blockPos->x;
+        pos.y = (MM_Rand_ZeroFloat(10.0f) * scale) + blockPos->y;
+        pos.z = (MM_Rand_CenteredFloat(70.0f) * scale) + blockPos->z;
+        func_800B0EB0(play, &pos, &velocity, &accel, &MM_sDustPrimColor, &MM_sDustEnvColor,
+                      (MM_Rand_ZeroFloat(150.0f) + 350.0f) * scale, 10, MM_Rand_ZeroFloat(5.0f) + 14.0f);
     }
 }
 
@@ -3433,7 +3433,7 @@ void Boss01_UpdateEffects(Boss01* this, PlayState* play) {
             type = effect->type;
             if (type == ODOLWA_EFFECT_RING_OF_FIRE) {
                 if (effect->timer < 150) {
-                    Math_ApproachF(&play->envCtx.lightBlend, (Math_SinS(effect->timer * 0x1000) * 0.1f) + 0.9f, 1.0f,
+                    MM_Math_ApproachF(&play->envCtx.lightBlend, (MM_Math_SinS(effect->timer * 0x1000) * 0.1f) + 0.9f, 1.0f,
                                    0.2f);
                     sMothSwarm->unk_144 = 250;
 
@@ -3443,19 +3443,19 @@ void Boss01_UpdateEffects(Boss01* this, PlayState* play) {
                     }
 
                     Audio_PlaySfx(NA_SE_EV_FIRE_PLATE - SFX_FLAG);
-                    Math_ApproachF(&effect->scale, 1.0f, 0.1f, 0.3f);
+                    MM_Math_ApproachF(&effect->scale, 1.0f, 0.1f, 0.3f);
 
                     // The ring of fire has no collision, so this code is responsible for checking to see if the player
                     // is touching it. If they are, then it will set them on fire and damage them manually.
                     if (!(player->stateFlags3 & PLAYER_STATE3_1000) && (player->actor.world.pos.y < 70.0f)) {
                         diffX = effect->pos.x - player->actor.world.pos.x;
                         diffZ = effect->pos.z - player->actor.world.pos.z;
-                        temp2 = sqrtf(SQ(diffX) + SQ(diffZ));
+                        temp2 = MM_sqrtf(SQ(diffX) + SQ(diffZ));
 
                         if (player->invincibilityTimer == 0) {
                             if ((temp2 < (KREG(49) + 210.0f)) && ((KREG(49) + 190.0f) < temp2)) {
                                 for (j = 0; j < PLAYER_BODYPART_MAX; j++) {
-                                    player->bodyFlameTimers[j] = Rand_S16Offset(0, 200);
+                                    player->bodyFlameTimers[j] = MM_Rand_S16Offset(0, 200);
                                 }
 
                                 player->bodyIsBurning = true;
@@ -3469,7 +3469,7 @@ void Boss01_UpdateEffects(Boss01* this, PlayState* play) {
                         }
                     }
                 } else {
-                    Math_ApproachZeroF(&effect->alpha, 1.0f, 10.0f);
+                    MM_Math_ApproachZeroF(&effect->alpha, 1.0f, 10.0f);
                     if (effect->alpha < 0.1f) {
                         effect->type = ODOLWA_EFFECT_NONE;
                     }
@@ -3492,20 +3492,20 @@ void Boss01_UpdateEffects(Boss01* this, PlayState* play) {
                         diffZ = player->actor.world.pos.z - effect->pos.z;
 
                         if ((SQ(diffX) + SQ(diffZ) + SQ(temp2)) < SQ(50.0f)) {
-                            func_800B8D50(play, NULL, 0.0f, Rand_ZeroFloat(65526.0f), 0.0f, 8);
+                            func_800B8D50(play, NULL, 0.0f, MM_Rand_ZeroFloat(65526.0f), 0.0f, 8);
                         }
 
                         if (effect->pos.y < 10.0f) {
                             effect->pos.y = 10.0f;
-                            temp = (Rand_ZeroFloat(2.0f) + 4.0f);
+                            temp = (MM_Rand_ZeroFloat(2.0f) + 4.0f);
                             for (j = 0; j < temp; j++) {
                                 Boss01_SpawnEffectFallingBlock((OdolwaEffect*)play->specialEffects, &effect->pos, true);
                             }
 
                             effect->type = ODOLWA_EFFECT_NONE;
-                            SoundSource_PlaySfxAtFixedWorldPos(play, &effect->pos, 40, NA_SE_EV_WALL_BROKEN);
+                            MM_SoundSource_PlaySfxAtFixedWorldPos(play, &effect->pos, 40, NA_SE_EV_WALL_BROKEN);
                             Boss01_SpawnDustForFallingBlock(play, &effect->pos, 1.0f);
-                            CollisionCheck_SpawnShieldParticles(play, &effect->pos);
+                            MM_CollisionCheck_SpawnShieldParticles(play, &effect->pos);
                             Actor_RequestQuakeAndRumble(&this->actor, play, 3, 10);
                         }
                     } else if ((effect->pos.y < 10.0f) && (effect->velocity.y < 0.0f)) {
@@ -3535,10 +3535,10 @@ void Boss01_DrawEffects(PlayState* play) {
 
     for (i = 1; i < ODOLWA_EFFECT_COUNT; i++, effect++) {
         if (effect->type == ODOLWA_EFFECT_FALLING_BLOCK) {
-            Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
+            MM_Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
             Matrix_RotateYS(effect->rotY, MTXMODE_APPLY);
             Matrix_RotateXS(effect->rotX, MTXMODE_APPLY);
-            Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
+            MM_Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
             gSPDisplayList(POLY_OPA_DISP++, gOdolwaFallingBlockDL);
         }
@@ -3550,8 +3550,8 @@ void Boss01_DrawEffects(PlayState* play) {
 
     for (i = 1; i < ODOLWA_EFFECT_COUNT; i++, effect++) {
         if (effect->type == ODOLWA_EFFECT_FALLING_BLOCK) {
-            Matrix_Translate(effect->pos.x, 0.0f, effect->pos.z, MTXMODE_NEW);
-            Matrix_Scale(effect->scale * 50.0f, 1.0f, effect->scale * 50.0f, MTXMODE_APPLY);
+            MM_Matrix_Translate(effect->pos.x, 0.0f, effect->pos.z, MTXMODE_NEW);
+            MM_Matrix_Scale(effect->scale * 50.0f, 1.0f, effect->scale * 50.0f, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
             gSPDisplayList(POLY_XLU_DISP++, SEGMENTED_TO_K0(gCircleShadowDL));
         }
@@ -3563,10 +3563,10 @@ void Boss01_DrawEffects(PlayState* play) {
 
     if (effect->type == ODOLWA_EFFECT_RING_OF_FIRE) {
         gDPSetEnvColor(POLY_XLU_DISP++, 255, 10, 0, 0);
-        Matrix_Translate(effect->pos.x, 0.0f, effect->pos.z, MTXMODE_NEW);
+        MM_Matrix_Translate(effect->pos.x, 0.0f, effect->pos.z, MTXMODE_NEW);
 
         for (i = 0; i < 32; i++) {
-            Matrix_Push();
+            MM_Matrix_Push();
             alpha = effect->alpha - (Boss01_RandZeroOne() * 50.0f);
             if (alpha < 0.0f) {
                 alpha = 0.0f;
@@ -3574,23 +3574,23 @@ void Boss01_DrawEffects(PlayState* play) {
 
             gDPSetPrimColor(POLY_XLU_DISP++, 0x80, 0x80, 255, 255, 0, (u8)alpha);
             gSPSegment(POLY_XLU_DISP++, 0x08,
-                       Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, 0, 0, 32, 64, 1, 0,
+                       MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, 0, 0, 32, 64, 1, 0,
                                         ((effect->timer + (i * 10)) * -20) & 0x1FF, 32, 128));
 
             Matrix_RotateYF(i * (M_PIf / 16.0f), MTXMODE_APPLY);
-            Matrix_Translate(0.0f, 0.0f, KREG(49) + 200.0f, MTXMODE_APPLY);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
+            MM_Matrix_Translate(0.0f, 0.0f, KREG(49) + 200.0f, MTXMODE_APPLY);
+            MM_Matrix_ReplaceRotation(&play->billboardMtxF);
             if (Boss01_RandZeroOne() < 0.5f) {
                 Matrix_RotateYF(M_PIf, MTXMODE_APPLY);
             }
 
-            Matrix_Scale(KREG(48) * 0.0001f + 0.018f,
+            MM_Matrix_Scale(KREG(48) * 0.0001f + 0.018f,
                          ((0.007f + KREG(54) * 0.0001f) + (Boss01_RandZeroOne() * 30.0f * 0.0001f)) * effect->scale,
                          1.0f, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
             gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
-            Matrix_Pop();
+            MM_Matrix_Pop();
         }
     }
 

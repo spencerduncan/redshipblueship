@@ -102,7 +102,7 @@ ActorProfile En_Bjt_Profile = {
     /**/ EnBjt_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HIT1,
         AT_NONE,
@@ -122,7 +122,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 10, 68, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 MM_sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
 
 typedef enum {
     /* -1 */ TOILET_HAND_ANIM_NONE = -1,
@@ -135,7 +135,7 @@ typedef enum {
     /*  6 */ TOILET_HAND_ANIM_MAX
 } ToiletHandAnimation;
 
-static AnimationInfoS sAnimationInfo[TOILET_HAND_ANIM_MAX] = {
+static AnimationInfoS MM_sAnimationInfo[TOILET_HAND_ANIM_MAX] = {
     { &gToiletHandWaitingAnim, 1.0f, 0, -1, ANIMMODE_LOOP, 0 },        // TOILET_HAND_ANIM_WAITING
     { &gToiletHandWaitingAnim, 1.0f, 0, -1, ANIMMODE_LOOP, -4 },       // TOILET_HAND_ANIM_WAITING_MORPH
     { &gToiletHandWaggingFingerAnim, 1.0f, 0, -1, ANIMMODE_LOOP, -4 }, // TOILET_HAND_ANIM_WAGGING_FINGER
@@ -146,7 +146,7 @@ static AnimationInfoS sAnimationInfo[TOILET_HAND_ANIM_MAX] = {
 
 void EnBjt_UpdateSkelAnime(EnBjt* this) {
     this->skelAnime.playSpeed = this->animPlaySpeed;
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 }
 
 s32 EnBjt_ChangeAnim(EnBjt* this, s32 animIndex) {
@@ -163,7 +163,7 @@ s32 EnBjt_ChangeAnim(EnBjt* this, s32 animIndex) {
 
     if (changeAnim) {
         this->animIndex = animIndex;
-        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, animIndex);
+        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, animIndex);
         this->animPlaySpeed = this->skelAnime.playSpeed;
     }
 
@@ -182,34 +182,34 @@ void EnBjt_UpdateCollision(EnBjt* this, PlayState* play) {
         height = this->actor.focus.pos.y - this->actor.world.pos.y;
         this->collider.dim.height = height;
         this->collider.dim.radius = 32;
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
 s32 EnBjt_TakeItem(s32 exchangeItem) {
     switch (exchangeItem) {
         case PLAYER_IA_LETTER_TO_KAFEI:
-            Inventory_DeleteItem(ITEM_LETTER_TO_KAFEI, SLOT(ITEM_LETTER_TO_KAFEI));
+            MM_Inventory_DeleteItem(ITEM_LETTER_TO_KAFEI, SLOT(ITEM_LETTER_TO_KAFEI));
             break;
 
         case PLAYER_IA_DEED_SWAMP:
-            Inventory_DeleteItem(ITEM_DEED_SWAMP, SLOT(ITEM_DEED_SWAMP));
+            MM_Inventory_DeleteItem(ITEM_DEED_SWAMP, SLOT(ITEM_DEED_SWAMP));
             break;
 
         case PLAYER_IA_DEED_MOUNTAIN:
-            Inventory_DeleteItem(ITEM_DEED_MOUNTAIN, SLOT(ITEM_DEED_MOUNTAIN));
+            MM_Inventory_DeleteItem(ITEM_DEED_MOUNTAIN, SLOT(ITEM_DEED_MOUNTAIN));
             break;
 
         case PLAYER_IA_DEED_OCEAN:
-            Inventory_DeleteItem(ITEM_DEED_OCEAN, SLOT(ITEM_DEED_OCEAN));
+            MM_Inventory_DeleteItem(ITEM_DEED_OCEAN, SLOT(ITEM_DEED_OCEAN));
             break;
 
         case PLAYER_IA_DEED_LAND:
-            Inventory_DeleteItem(ITEM_DEED_LAND, SLOT(ITEM_DEED_LAND));
+            MM_Inventory_DeleteItem(ITEM_DEED_LAND, SLOT(ITEM_DEED_LAND));
             break;
 
         case PLAYER_IA_LETTER_MAMA:
-            Inventory_DeleteItem(ITEM_LETTER_MAMA, SLOT(ITEM_LETTER_MAMA));
+            MM_Inventory_DeleteItem(ITEM_LETTER_MAMA, SLOT(ITEM_LETTER_MAMA));
             break;
 
         default:
@@ -231,7 +231,7 @@ s32 EnBjt_Appear(EnBjt* this) {
         this->playedSfx = true;
     }
 
-    Math_ApproachF(&this->actor.scale.x, FULLY_GROWN_SCALE, 0.21f, 0.3f);
+    MM_Math_ApproachF(&this->actor.scale.x, FULLY_GROWN_SCALE, 0.21f, 0.3f);
     if ((FULLY_GROWN_SCALE - this->actor.scale.x) < FULLY_GROWN_SCALE / 100.0f) {
         this->actor.scale.x = FULLY_GROWN_SCALE;
         this->stateFlags |= TOILET_HAND_STATE_VISIBLE;
@@ -240,7 +240,7 @@ s32 EnBjt_Appear(EnBjt* this) {
     }
     this->heightOffset = (this->actor.scale.x / FULLY_GROWN_SCALE) * 4.0f;
     this->actor.world.pos.y = this->actor.home.pos.y + this->heightOffset;
-    Actor_SetScale(&this->actor, this->actor.scale.x);
+    MM_Actor_SetScale(&this->actor, this->actor.scale.x);
 
     return finished;
 }
@@ -256,7 +256,7 @@ s32 EnBjt_Vanish(EnBjt* this) {
         this->playedSfx = true;
     }
 
-    Math_ApproachF(&this->actor.scale.x, 0.0f, 0.21f, 0.3f);
+    MM_Math_ApproachF(&this->actor.scale.x, 0.0f, 0.21f, 0.3f);
     if (this->actor.scale.x < FULLY_GROWN_SCALE / 100.0f) {
         this->actor.scale.x = 0.0f;
         this->stateFlags &= ~TOILET_HAND_STATE_VANISHING;
@@ -264,7 +264,7 @@ s32 EnBjt_Vanish(EnBjt* this) {
     }
     this->heightOffset = (this->actor.scale.x / FULLY_GROWN_SCALE) * 4.0f;
     this->actor.world.pos.y = this->actor.home.pos.y + this->heightOffset;
-    Actor_SetScale(&this->actor, this->actor.scale.x);
+    MM_Actor_SetScale(&this->actor, this->actor.scale.x);
 
     return finished;
 }
@@ -286,10 +286,10 @@ s32 EnBjt_ChooseBehaviour(Actor* thisx, PlayState* play) {
 
     switch (this->behaviour) {
         case TOILET_HAND_BEHAVIOUR_WAIT_FOR_ITEM:
-            switch (Message_GetState(&play->msgCtx)) {
+            switch (MM_Message_GetState(&play->msgCtx)) {
                 case TEXT_STATE_CHOICE:
                 case TEXT_STATE_EVENT:
-                    if (!Message_ShouldAdvance(play)) {
+                    if (!MM_Message_ShouldAdvance(play)) {
                         break;
                     }
                     // Fallthrough
@@ -417,7 +417,7 @@ void EnBjt_Talk(EnBjt* this, PlayState* play) {
         this->msgScriptPos = 0;
         this->actionFunc = EnBjt_FollowSchedule;
     } else {
-        Math_ApproachS(&this->actor.shape.rot.y, yaw, 4, 0x2AA8);
+        MM_Math_ApproachS(&this->actor.shape.rot.y, yaw, 4, 0x2AA8);
     }
 }
 
@@ -455,7 +455,7 @@ void EnBjt_FollowSchedule(EnBjt* this, PlayState* play) {
         this->scheduleResult = scheduleOutput.result;
     } else {
         this->actor.flags |= ACTOR_FLAG_LOCK_ON_DISABLED;
-        Actor_SetScale(&this->actor, 0.0f);
+        MM_Actor_SetScale(&this->actor, 0.0f);
         this->stateFlags = 0;
         this->msgScriptCallback = NULL;
         this->scheduleResult = TOILET_HAND_SCH_NONE;
@@ -465,17 +465,17 @@ void EnBjt_FollowSchedule(EnBjt* this, PlayState* play) {
 void EnBjt_Init(Actor* thisx, PlayState* play) {
     EnBjt* this = (EnBjt*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gToiletHandSkel, NULL, this->jointTable, this->morphTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gToiletHandSkel, NULL, this->jointTable, this->morphTable,
                        TOILET_HAND_LIMB_MAX);
 
     this->animIndex = TOILET_HAND_ANIM_NONE;
     EnBjt_ChangeAnim(this, TOILET_HAND_ANIM_WAITING);
 
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, DamageTable_Get(0x16), &sColChkInfoInit);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, MM_DamageTable_Get(0x16), &MM_sColChkInfoInit);
     this->actor.flags |= ACTOR_FLAG_LOCK_ON_DISABLED;
-    Actor_SetScale(&this->actor, 0.0f);
+    MM_Actor_SetScale(&this->actor, 0.0f);
 
     this->scheduleResult = TOILET_HAND_SCH_NONE;
     this->stateFlags = 0;
@@ -495,7 +495,7 @@ void EnBjt_Update(Actor* thisx, PlayState* play) {
     if (this->scheduleResult != TOILET_HAND_SCH_NONE) {
         EnBjt_UpdateSkelAnime(this);
         SubS_Offer(&this->actor, play, 60.0f, 10.0f, PLAYER_IA_NONE, this->stateFlags & SUBS_OFFER_MODE_MASK);
-        Actor_SetFocus(&this->actor, 26.0f);
+        MM_Actor_SetFocus(&this->actor, 26.0f);
         EnBjt_UpdateCollision(this, play);
     }
 }
@@ -505,7 +505,7 @@ void EnBjt_Draw(Actor* thisx, PlayState* play) {
 
     if (this->scheduleResult != TOILET_HAND_SCH_NONE) {
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
-        SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+        MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                               NULL, NULL, &this->actor);
     }
 }

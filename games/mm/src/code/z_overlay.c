@@ -37,13 +37,13 @@ TransitionOverlayStatus TransitionOverlay_Load(TransitionOverlay* overlayEntry) 
     }
 
     if (Lib_PhysicalToVirtual(overlayEntry->loadInfo.addr) == NULL) {
-        loadedRamAddr = ZeldaArena_Malloc((uintptr_t)overlayEntry->vramEnd - (uintptr_t)overlayEntry->vramStart);
+        loadedRamAddr = MM_ZeldaArena_Malloc((uintptr_t)overlayEntry->vramEnd - (uintptr_t)overlayEntry->vramStart);
 
         if (loadedRamAddr == NULL) {
             return TRANSITION_OVERLAY_STATUS_FAILED;
         }
 
-        Overlay_Load(overlayEntry->vromStart, overlayEntry->vromEnd, overlayEntry->vramStart, overlayEntry->vramEnd,
+        MM_Overlay_Load(overlayEntry->vromStart, overlayEntry->vromEnd, overlayEntry->vramStart, overlayEntry->vramEnd,
                      loadedRamAddr);
         overlayEntry->loadInfo.addr = Lib_VirtualToPhysical(loadedRamAddr);
         overlayEntry->loadInfo.count = 1;
@@ -81,7 +81,7 @@ TransitionOverlayStatus TransitionOverlay_Free(TransitionOverlay* overlayEntry) 
             count--;
             overlayEntry->loadInfo.count = count;
             if (count == 0) {
-                ZeldaArena_Free(loadedRamAddr);
+                MM_ZeldaArena_Free(loadedRamAddr);
                 overlayEntry->loadInfo.addr = Lib_VirtualToPhysical(NULL);
                 return TRANSITION_OVERLAY_STATUS_LOAD_FREE;
             }

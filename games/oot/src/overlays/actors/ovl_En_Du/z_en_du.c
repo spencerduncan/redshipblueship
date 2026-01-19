@@ -37,7 +37,7 @@ const ActorInit En_Du_InitVars = {
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -57,7 +57,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 20, 46, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = {
+static CollisionCheckInfoInit2 OoT_sColChkInfoInit = {
     0, 0, 0, 0, MASS_IMMOVABLE,
 };
 
@@ -79,7 +79,7 @@ typedef enum {
     /* 14 */ ENDU_ANIM_14
 } EnDuAnimation;
 
-static AnimationInfo sAnimationInfo[] = {
+static AnimationInfo OoT_sAnimationInfo[] = {
     { &gDaruniaIdleAnim, 1.0f, 0.0f, -1.0f, ANIMMODE_LOOP, 0.0f },
     { &gDaruniaIdleAnim, 1.0f, 0.0f, -1.0f, ANIMMODE_LOOP, -10.0f },
     { &gDaruniaItemGiveAnim, 1.0f, 0.0f, -1.0f, ANIMMODE_LOOP, -10.0f },
@@ -122,7 +122,7 @@ void EnDu_SetupAction(EnDu* this, EnDuActionFunc actionFunc) {
 }
 
 u16 func_809FDC38(PlayState* play, Actor* actor) {
-    u16 reaction = Text_GetFaceReaction(play, 0x21);
+    u16 reaction = OoT_Text_GetFaceReaction(play, 0x21);
 
     if (reaction != 0) {
         return reaction;
@@ -134,7 +134,7 @@ u16 func_809FDC38(PlayState* play, Actor* actor) {
             return 0x301D;
         }
     }
-    if (Flags_GetInfTable(INFTABLE_113)) {
+    if (OoT_Flags_GetInfTable(INFTABLE_113)) {
         return 0x301B;
     } else {
         return 0x301A;
@@ -142,20 +142,20 @@ u16 func_809FDC38(PlayState* play, Actor* actor) {
 }
 
 s16 func_809FDCDC(PlayState* play, Actor* actor) {
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (OoT_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_NONE:
         case TEXT_STATE_DONE_HAS_NEXT:
             break;
         case TEXT_STATE_CLOSING:
             switch (actor->textId) {
                 case 0x301A:
-                    Flags_SetInfTable(INFTABLE_113);
+                    OoT_Flags_SetInfTable(INFTABLE_113);
                     break;
                 case 0x301C:
                 case 0x301F:
                     return NPC_TALK_STATE_ACTION;
                 case 0x3020:
-                    Flags_SetEventChkInf(EVENTCHKINF_22);
+                    OoT_Flags_SetEventChkInf(EVENTCHKINF_22);
                     break;
             }
             return 0;
@@ -164,7 +164,7 @@ s16 func_809FDCDC(PlayState* play, Actor* actor) {
         case TEXT_STATE_EVENT:
             break;
         case TEXT_STATE_DONE:
-            if (Message_ShouldAdvance(play)) {
+            if (OoT_Message_ShouldAdvance(play)) {
                 return NPC_TALK_STATE_ITEM_GIVEN;
             }
             break;
@@ -179,7 +179,7 @@ s16 func_809FDCDC(PlayState* play, Actor* actor) {
 s32 func_809FDDB4(EnDu* this, PlayState* play) {
     if (play->sceneNum == SCENE_GORON_CITY && LINK_IS_CHILD) {
         return 1;
-    } else if (play->sceneNum == SCENE_FIRE_TEMPLE && !Flags_GetInfTable(INFTABLE_SPOKE_TO_DARUNIA_IN_FIRE_TEMPLE) &&
+    } else if (play->sceneNum == SCENE_FIRE_TEMPLE && !OoT_Flags_GetInfTable(INFTABLE_SPOKE_TO_DARUNIA_IN_FIRE_TEMPLE) &&
                LINK_IS_ADULT) {
         return 1;
     }
@@ -198,7 +198,7 @@ void func_809FDE24(EnDu* this, PlayState* play) {
     }
     this->interactInfo.trackPos = player->actor.world.pos;
     this->interactInfo.yOffset = 10.0f;
-    Npc_TrackPoint(&this->actor, &this->interactInfo, 3, trackingMode);
+    OoT_Npc_TrackPoint(&this->actor, &this->interactInfo, 3, trackingMode);
 }
 
 void func_809FDE9C(EnDu* this) {
@@ -214,7 +214,7 @@ void func_809FDE9C(EnDu* this) {
     switch (this->unk_1EC) {
         case 0:
             if (this->blinkTimer == 0) {
-                this->blinkTimer = Rand_S16Offset(30, 30);
+                this->blinkTimer = OoT_Rand_S16Offset(30, 30);
             }
             break;
         case 1:
@@ -273,7 +273,7 @@ void func_809FE040(EnDu* this) {
         ENDU_ANIM_8, ENDU_ANIM_8, ENDU_ANIM_8, ENDU_ANIM_8, ENDU_ANIM_9, ENDU_ANIM_10, ENDU_ANIM_10, ENDU_ANIM_13,
     };
 
-    if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    if (OoT_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         this->unk_1E6++;
         if (this->unk_1E6 >= 8) {
             this->unk_1E6 = 0;
@@ -283,7 +283,7 @@ void func_809FE040(EnDu* this) {
             Animation_ChangeByInfo(&this->skelAnime, sAnimationInfoFix, animationIndices[this->unk_1E6]);
             // #endregion
         } else {
-            Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, animationIndices[this->unk_1E6]);
+            Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, animationIndices[this->unk_1E6]);
         }
     }
 }
@@ -297,7 +297,7 @@ void func_809FE104(EnDu* this) {
     };
 
     if (this->unk_1E6 < 4) {
-        if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+        if (OoT_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
             this->unk_1E6++;
             if (this->unk_1E6 < 4) {
                 // #region SOH[Enhancement]
@@ -305,7 +305,7 @@ void func_809FE104(EnDu* this) {
                     Animation_ChangeByInfo(&this->skelAnime, sAnimationInfoFix, animationIndices[this->unk_1E6]);
                     // #endregion
                 } else {
-                    Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, animationIndices[this->unk_1E6]);
+                    Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, animationIndices[this->unk_1E6]);
                 }
             }
         }
@@ -316,17 +316,17 @@ void EnDu_Init(Actor* thisx, PlayState* play) {
     EnDu* this = (EnDu*)thisx;
     s32 pad;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 30.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gDaruniaSkel, NULL, 0, 0, 0);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, DamageTable_Get(0x16), &sColChkInfoInit);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 30.0f);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gDaruniaSkel, NULL, 0, 0, 0);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
+    OoT_CollisionCheck_SetInfo2(&this->actor.colChkInfo, OoT_DamageTable_Get(0x16), &OoT_sColChkInfoInit);
     if (func_809FDDB4(this, play) == 0) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
-    Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENDU_ANIM_0);
-    Actor_SetScale(&this->actor, 0.01f);
+    Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENDU_ANIM_0);
+    OoT_Actor_SetScale(&this->actor, 0.01f);
     this->actor.targetMode = 1;
     this->interactInfo.talkState = NPC_TALK_STATE_IDLE;
 
@@ -346,8 +346,8 @@ void EnDu_Init(Actor* thisx, PlayState* play) {
 void EnDu_Destroy(Actor* thisx, PlayState* play) {
     EnDu* this = (EnDu*)thisx;
 
-    SkelAnime_Free(&this->skelAnime, play);
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_SkelAnime_Free(&this->skelAnime, play);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void func_809FE3B4(EnDu* this, PlayState* play) {
@@ -364,7 +364,7 @@ void func_809FE3C0(EnDu* this, PlayState* play) {
         return;
     }
     if (this->interactInfo.talkState == NPC_TALK_STATE_ACTION) {
-        Player_SetCsActionWithHaltedActors(play, &this->actor, 7);
+        OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 7);
         this->interactInfo.talkState = NPC_TALK_STATE_IDLE;
     }
     if (this->actor.xzDistToPlayer < 116.0f + this->collider.dim.radius) {
@@ -387,8 +387,8 @@ void func_809FE4A4(EnDu* this, PlayState* play) {
         EnDu_SetupAction(this, func_809FE890);
         play->msgCtx.ocarinaMode = OCARINA_MODE_04;
     } else if (play->msgCtx.ocarinaMode == OCARINA_MODE_03) {
-        Audio_PlaySoundGeneral(NA_SE_SY_CORRECT_CHIME, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_SY_CORRECT_CHIME, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         if (GameInteractor_Should(VB_PLAY_DARUNIAS_JOY_CS, true)) {
             play->csCtx.segment = SEGMENTED_TO_VIRTUAL(gGoronCityDaruniaCorrectCs);
             gSaveContext.cutsceneTrigger = 1;
@@ -407,7 +407,7 @@ void func_809FE638(EnDu* this, PlayState* play) {
     if (!(player->stateFlags1 & PLAYER_STATE1_IN_CUTSCENE)) {
         OnePointCutscene_Init(play, 3330, -99, &this->actor, MAIN_CAM);
         player->actor.shape.rot.y = player->actor.world.rot.y = this->actor.world.rot.y + 0x7FFF;
-        Audio_PlayFanfare(NA_BGM_APPEAR);
+        OoT_Audio_PlayFanfare(NA_BGM_APPEAR);
         EnDu_SetupAction(this, func_809FE6CC);
         this->unk_1E2 = 0x32;
     }
@@ -424,7 +424,7 @@ void func_809FE6CC(EnDu* this, PlayState* play) {
     }
     if (phi_v1 == 0) {
         this->actor.textId = 0x3039;
-        Message_StartTextbox(play, this->actor.textId, NULL);
+        OoT_Message_StartTextbox(play, this->actor.textId, NULL);
         this->interactInfo.talkState = NPC_TALK_STATE_TALKING;
         EnDu_SetupAction(this, func_809FE740);
     }
@@ -466,8 +466,8 @@ void func_809FE798(EnDu* this, PlayState* play) {
             this->actor.world.pos.x -= 10.0f;
         }
     } else {
-        Actor_Kill(&this->actor);
-        Flags_SetInfTable(INFTABLE_SPOKE_TO_DARUNIA_IN_FIRE_TEMPLE);
+        OoT_Actor_Kill(&this->actor);
+        OoT_Flags_SetInfTable(INFTABLE_SPOKE_TO_DARUNIA_IN_FIRE_TEMPLE);
     }
 }
 
@@ -479,7 +479,7 @@ void func_809FE890(EnDu* this, PlayState* play) {
     CsCmdActorCue* csAction;
 
     if (play->csCtx.state == CS_STATE_IDLE) {
-        Player_SetCsActionWithHaltedActors(play, &this->actor, 1);
+        OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 1);
         EnDu_SetupAction(this, func_809FEB08);
         return;
     }
@@ -494,7 +494,7 @@ void func_809FE890(EnDu* this, PlayState* play) {
         }
         if (this->unk_1EA != csAction->action) {
             if (csAction->action == 1) {
-                Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENDU_ANIM_1);
+                Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENDU_ANIM_1);
             }
             if (csAction->action == 7 || csAction->action == 8) {
                 this->unk_1E6 = 0;
@@ -503,7 +503,7 @@ void func_809FE890(EnDu* this, PlayState* play) {
                     Animation_ChangeByInfo(&this->skelAnime, sAnimationInfoFix, ENDU_ANIM_7);
                     // #endregion
                 } else {
-                    Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENDU_ANIM_7);
+                    Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENDU_ANIM_7);
                 }
             }
             this->unk_1EA = csAction->action;
@@ -552,8 +552,8 @@ void func_809FEB08(EnDu* this, PlayState* play) {
     this->unk_1EE = 0;
 
     if (this->unk_1E8 == 1) {
-        Player_SetCsActionWithHaltedActors(play, &this->actor, 7);
-        Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENDU_ANIM_1);
+        OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 7);
+        Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENDU_ANIM_1);
         EnDu_SetupAction(this, func_809FE3C0);
         return;
     }
@@ -565,27 +565,27 @@ void func_809FEB08(EnDu* this, PlayState* play) {
         this->actor.textId = 0x301F;
         EnDu_SetupAction(this, func_809FE3C0);
     }
-    Message_StartTextbox(play, this->actor.textId, NULL);
-    Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENDU_ANIM_14);
+    OoT_Message_StartTextbox(play, this->actor.textId, NULL);
+    Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENDU_ANIM_14);
     this->interactInfo.talkState = NPC_TALK_STATE_TALKING;
 }
 
 void func_809FEC14(EnDu* this, PlayState* play) {
     if (this->interactInfo.talkState == NPC_TALK_STATE_ACTION) {
-        Player_SetCsActionWithHaltedActors(play, &this->actor, 7);
+        OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 7);
         EnDu_SetupAction(this, func_809FEC70);
         func_809FEC70(this, play);
     }
 }
 
 void func_809FEC70(EnDu* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play) || !GameInteractor_Should(VB_GIVE_ITEM_STRENGTH_1, true)) {
+    if (OoT_Actor_HasParent(&this->actor, play) || !GameInteractor_Should(VB_GIVE_ITEM_STRENGTH_1, true)) {
         this->actor.parent = NULL;
         EnDu_SetupAction(this, func_809FECE4);
     } else {
         f32 xzRange = this->actor.xzDistToPlayer + 1.0f;
 
-        Actor_OfferGetItem(&this->actor, play, GI_BRACELET, xzRange, fabsf(this->actor.yDistToPlayer) + 1.0f);
+        OoT_Actor_OfferGetItem(&this->actor, play, GI_BRACELET, xzRange, fabsf(this->actor.yDistToPlayer) + 1.0f);
     }
 }
 
@@ -600,15 +600,15 @@ void EnDu_Update(Actor* thisx, PlayState* play) {
     EnDu* this = (EnDu*)thisx;
     s32 pad;
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 
     if (this->skelAnime.animation == &gDaruniaDancingEndAnim &&
-        Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
-        Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENDU_ANIM_1);
+        OoT_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+        Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENDU_ANIM_1);
     }
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     func_809FDE9C(this);
     func_809FDE24(this, play);
 
@@ -617,13 +617,13 @@ void EnDu_Update(Actor* thisx, PlayState* play) {
         this->actor.world.pos.y += this->actor.velocity.y;
         this->actor.world.pos.z += this->actor.velocity.z;
     } else {
-        Actor_UpdatePos(&this->actor);
+        OoT_Actor_UpdatePos(&this->actor);
     }
 
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 4);
 
     if (this->actionFunc != func_809FE4A4) {
-        Npc_UpdateTalking(play, &this->actor, &this->interactInfo.talkState, this->collider.dim.radius + 116.0f,
+        OoT_Npc_UpdateTalking(play, &this->actor, &this->interactInfo.talkState, this->collider.dim.radius + 116.0f,
                           func_809FDC38, func_809FDCDC);
     }
     this->actionFunc(this, play);
@@ -634,11 +634,11 @@ s32 EnDu_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* po
     Vec3s sp1C;
 
     if (limbIndex == 16) {
-        Matrix_Translate(2400.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+        OoT_Matrix_Translate(2400.0f, 0.0f, 0.0f, MTXMODE_APPLY);
         sp1C = this->interactInfo.headRot;
         Matrix_RotateX(BINANG_TO_RAD(sp1C.y), MTXMODE_APPLY);
         Matrix_RotateZ(BINANG_TO_RAD(sp1C.x), MTXMODE_APPLY);
-        Matrix_Translate(-2400.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+        OoT_Matrix_Translate(-2400.0f, 0.0f, 0.0f, MTXMODE_APPLY);
     }
     if (limbIndex == 8) {
         sp1C = this->interactInfo.torsoRot;
@@ -653,7 +653,7 @@ void EnDu_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
     Vec3f D_809FF40C = { 0.0f, -1000.0f, 0.0f };
 
     if (limbIndex == 16) {
-        Matrix_MultVec3f(&D_809FF40C, &this->actor.focus.pos);
+        OoT_Matrix_MultVec3f(&D_809FF40C, &this->actor.focus.pos);
     }
 }
 

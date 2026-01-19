@@ -93,7 +93,7 @@ typedef struct {
     /* 0x38 */ f32 scaleTarget;
 } EnKnightEffect; // size = 0x3C
 
-static Vec3f sZeroVec = { 0.0f, 0.0f, 0.0f };
+static Vec3f MM_sZeroVec = { 0.0f, 0.0f, 0.0f };
 
 u8 sSpawnIndex = 0;
 
@@ -365,9 +365,9 @@ static ColliderCylinderInit sHeadColliderCylinderInit = {
     { 20, 40, 0, { 0, 0, 0 } },
 };
 
-static Color_RGBA8 sDustPrimColor = { 60, 50, 20, 255 };
+static Color_RGBA8 MM_sDustPrimColor = { 60, 50, 20, 255 };
 
-static Color_RGBA8 sDustEnvColor = { 40, 30, 30, 255 };
+static Color_RGBA8 MM_sDustEnvColor = { 40, 30, 30, 255 };
 
 const ActorProfile En_Knight_Profile = {
     /**/ ACTOR_EN_KNIGHT,
@@ -534,16 +534,16 @@ void EnKnight_SpawnDustAtFeet(EnKnight* this, PlayState* play, u8 timerMask) {
         ((this->animMovementX > 1.0f) || (this->animMovementZ > 1.0f) || (timerMask == 0) ||
          (this->actor.speed > 1.0f))) {
         for (i = 0; i < ARRAY_COUNT(this->feetPositions); i++) {
-            velocity.x = Rand_CenteredFloat(3.0f);
-            velocity.y = Rand_ZeroFloat(1.0f);
-            velocity.z = Rand_CenteredFloat(3.0f);
+            velocity.x = MM_Rand_CenteredFloat(3.0f);
+            velocity.y = MM_Rand_ZeroFloat(1.0f);
+            velocity.z = MM_Rand_CenteredFloat(3.0f);
             accel.y = -0.1f;
             accel.x = accel.z = 0.0f;
-            pos.x = this->feetPositions[i].x + Rand_CenteredFloat(10.0f);
-            pos.y = (Rand_ZeroFloat(5.0f) + this->actor.floorHeight) - 5.0f;
-            pos.z = this->feetPositions[i].z + Rand_CenteredFloat(10.0f);
-            func_800B0EB0(play, &pos, &velocity, &accel, &sDustPrimColor, &sDustEnvColor,
-                          Rand_ZeroFloat(80.0f) + 150.0f, 10, Rand_ZeroFloat(5.0f) + 14.0f);
+            pos.x = this->feetPositions[i].x + MM_Rand_CenteredFloat(10.0f);
+            pos.y = (MM_Rand_ZeroFloat(5.0f) + this->actor.floorHeight) - 5.0f;
+            pos.z = this->feetPositions[i].z + MM_Rand_CenteredFloat(10.0f);
+            func_800B0EB0(play, &pos, &velocity, &accel, &MM_sDustPrimColor, &MM_sDustEnvColor,
+                          MM_Rand_ZeroFloat(80.0f) + 150.0f, 10, MM_Rand_ZeroFloat(5.0f) + 14.0f);
         }
     }
 }
@@ -559,16 +559,16 @@ void EnKnight_Init(Actor* thisx, PlayState* play) {
     this->actor.colChkInfo.mass = MASS_HEAVY;
     this->actor.colChkInfo.damageTable = &sDamageTableStanding;
     this->bodyAlpha = 255.0f;
-    this->randTimer = Rand_ZeroFloat(1000.0f);
+    this->randTimer = MM_Rand_ZeroFloat(1000.0f);
     this->actor.flags |= ACTOR_FLAG_HOOKSHOT_PULLS_PLAYER;
 
     if (this->actor.params == EN_KNIGHT_PARAM_IGOS_HEAD) {
         // Flying head init
 
-        ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 12.0f);
-        SkelAnime_InitFlex(play, &this->skelAnime, &gIgosSkel, &gKnightIgosRemoveHeadAnim, this->jointTable,
+        MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 12.0f);
+        MM_SkelAnime_InitFlex(play, &this->skelAnime, &gIgosSkel, &gKnightIgosRemoveHeadAnim, this->jointTable,
                            this->morphTable, IGOS_LIMB_MAX);
-        Actor_SetScale(&this->actor, KREG(12) * 0.001f + 0.017f);
+        MM_Actor_SetScale(&this->actor, KREG(12) * 0.001f + 0.017f);
         EnKnight_SetupFlyingHead(this, play);
         Collider_InitAndSetCylinder(play, &this->headAttackCollider, &this->actor, &sHeadAttackColliderCylinderInit);
         Collider_InitAndSetCylinder(play, &this->headCollider, &this->actor, &sHeadColliderCylinderInit);
@@ -586,13 +586,13 @@ void EnKnight_Init(Actor* thisx, PlayState* play) {
         if (1) {} //! FAKE:
 
         if (this->actor.params == EN_KNIGHT_PARAM_KNIGHT_BODY_AFTERIMAGE) {
-            SkelAnime_InitFlex(play, &this->skelAnime, &gKnightSkel, &gKnightIdleAnim, this->jointTable,
+            MM_SkelAnime_InitFlex(play, &this->skelAnime, &gKnightSkel, &gKnightIdleAnim, this->jointTable,
                                this->morphTable, KNIGHT_LIMB_MAX);
-            Actor_SetScale(&this->actor, KREG(13) * 0.001f + 0.013f);
+            MM_Actor_SetScale(&this->actor, KREG(13) * 0.001f + 0.013f);
         } else {
-            SkelAnime_InitFlex(play, &this->skelAnime, &gIgosSkel, &gKnightIdleAnim, this->jointTable, this->morphTable,
+            MM_SkelAnime_InitFlex(play, &this->skelAnime, &gIgosSkel, &gKnightIdleAnim, this->jointTable, this->morphTable,
                                IGOS_LIMB_MAX);
-            Actor_SetScale(&this->actor, KREG(13) * 0.001f + 0.017f);
+            MM_Actor_SetScale(&this->actor, KREG(13) * 0.001f + 0.017f);
         }
 
         if (this->actor.params == EN_KNIGHT_PARAM_IGOS_HEAD_AFTERIMAGE) {
@@ -606,7 +606,7 @@ void EnKnight_Init(Actor* thisx, PlayState* play) {
     // Igos + Others main init
 
     this->actor.hintId = TATL_HINT_ID_IGOS_DU_IKANA;
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 40.0f);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 40.0f);
     Collider_InitAndSetJntSph(play, &this->shieldCollider, &this->actor, &sShieldColliderJntSphInit,
                               this->shieldColliderElements);
     Collider_InitAndSetJntSph(play, &this->bodyCollider, &this->actor, &sBodyColliderJntSphInit,
@@ -617,20 +617,20 @@ void EnKnight_Init(Actor* thisx, PlayState* play) {
 
         Collider_InitAndSetJntSph(play, &this->swordCollider, &this->actor, &sKnightSwordColliderJntSphInit,
                                   this->swordColliderElements);
-        SkelAnime_InitFlex(play, &this->skelAnime, &gKnightSkel, &gKnightIdleAnim, this->jointTable, this->morphTable,
+        MM_SkelAnime_InitFlex(play, &this->skelAnime, &gKnightSkel, &gKnightIdleAnim, this->jointTable, this->morphTable,
                            KNIGHT_LIMB_MAX);
         this->actor.colChkInfo.health = 6 - BREG(40);
-        Actor_SetScale(&this->actor, KREG(13) * 0.001f + 0.013f);
+        MM_Actor_SetScale(&this->actor, KREG(13) * 0.001f + 0.013f);
     } else {
         // Igos
 
         Collider_InitAndSetJntSph(play, &this->swordCollider, &this->actor, &sIgosSwordColliderJntSphInit,
                                   this->swordColliderElements);
-        SkelAnime_InitFlex(play, &this->skelAnime, &gIgosSkel, &gKnightIdleAnim, this->jointTable, this->morphTable,
+        MM_SkelAnime_InitFlex(play, &this->skelAnime, &gIgosSkel, &gKnightIdleAnim, this->jointTable, this->morphTable,
                            IGOS_LIMB_MAX);
         this->actor.colChkInfo.health = 14 - BREG(41);
-        Actor_SetScale(&this->actor, KREG(12) * 0.001f + 0.017f);
-        this->igosCurtainReaction = Rand_ZeroFloat(1.9999f); // random 0 or 1
+        MM_Actor_SetScale(&this->actor, KREG(12) * 0.001f + 0.017f);
+        this->igosCurtainReaction = MM_Rand_ZeroFloat(1.9999f); // random 0 or 1
     }
 
     this->neckRotationStepScale = 3;
@@ -659,19 +659,19 @@ void EnKnight_Init(Actor* thisx, PlayState* play) {
         sTargetKnight = NULL;
         sIgosHeadInstance = NULL;
         this->actor.shape.rot.y = -0x4000;
-        sThinKnightInstance = (EnKnight*)Actor_Spawn(&play->actorCtx, play, ACTOR_EN_KNIGHT, 1398.0f, 66.0f, 2730.0f,
+        sThinKnightInstance = (EnKnight*)MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_KNIGHT, 1398.0f, 66.0f, 2730.0f,
                                                      this->actor.shape.rot.x, this->actor.shape.rot.y,
                                                      this->actor.shape.rot.z, EN_KNIGHT_PARAM_OTHERS);
-        sWideKnightInstance = (EnKnight*)Actor_Spawn(&play->actorCtx, play, ACTOR_EN_KNIGHT, 1398.0f, 66.0f, 2969.0f,
+        sWideKnightInstance = (EnKnight*)MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_KNIGHT, 1398.0f, 66.0f, 2969.0f,
                                                      this->actor.shape.rot.x, this->actor.shape.rot.y,
                                                      this->actor.shape.rot.z, EN_KNIGHT_PARAM_OTHERS);
 
         // Spawn curtains
-        Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_BOSS_06, 0.0f, 0.0f, 0.0f, 0, 0, 0, 0);
-        Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_BOSS_06, 0.0f, 0.0f, 0.0f, 0, 0, 0, 1);
+        MM_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_BOSS_06, 0.0f, 0.0f, 0.0f, 0, 0, 0, 0);
+        MM_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_BOSS_06, 0.0f, 0.0f, 0.0f, 0, 0, 0, 1);
     }
 
-    if (CHECK_EVENTINF(EVENTINF_INTRO_CS_WATCHED_IGOS_DU_IKANA) && !Flags_GetClear(play, play->roomCtx.curRoom.num)) {
+    if (CHECK_EVENTINF(EVENTINF_INTRO_CS_WATCHED_IGOS_DU_IKANA) && !MM_Flags_GetClear(play, play->roomCtx.curRoom.num)) {
         if (this == sIgosInstance) {
             this->actor.world.pos.x = BREG(27) + 1376.0f;
             this->actor.world.pos.y = 45.0f;
@@ -718,7 +718,7 @@ void EnKnight_CheckRetreat(EnKnight* this, PlayState* play) {
         pz = this->actor.world.pos.z;
         dx = explosive->world.pos.x - px;
         dz = explosive->world.pos.z - pz;
-        if (sqrtf(SQ(dx) + SQ(dz)) < 100.0f) {
+        if (MM_sqrtf(SQ(dx) + SQ(dz)) < 100.0f) {
             this->retreatTowards.x = px - dx * 100.0f;
             this->retreatTowards.z = pz - dz * 100.0f;
             EnKnight_SetupRetreat(this, play, false);
@@ -745,9 +745,9 @@ s32 EnKnight_SelectAttack(EnKnight* this, PlayState* play) {
     scale = (this == sIgosInstance) ? 1.3076924f : 1.0f;
 
     if ((this->actor.xzDistToPlayer <= 90.0f * scale) && (this->randTimer % 8 == 0)) {
-        if ((Rand_ZeroOne() < 0.5f) && (sIgosHeadInstance != (EnKnight*)player->actor.parent)) {
+        if ((MM_Rand_ZeroOne() < 0.5f) && (sIgosHeadInstance != (EnKnight*)player->actor.parent)) {
             EnKnight_SetupBasicSwing(this, play);
-        } else if (Rand_ZeroOne() < 0.5f) {
+        } else if (MM_Rand_ZeroOne() < 0.5f) {
             EnKnight_SetupTelegraphHeavyAttack(this, play, false);
         } else {
             EnKnight_SetupLowSwing(this, play);
@@ -760,7 +760,7 @@ s32 EnKnight_SelectAttack(EnKnight* this, PlayState* play) {
         actionChanged = true;
 
         if (this->actor.xzDistToPlayer < KREG(72) + 300.0f) {
-            if (Rand_ZeroOne() > 0.5f) {
+            if (MM_Rand_ZeroOne() > 0.5f) {
                 EnKnight_SetupBreathAttack(this, play);
             } else {
                 EnKnight_SetupDetachHead(this, play);
@@ -804,7 +804,7 @@ s32 EnKnight_IsFacingPlayerFocus(EnKnight* this, PlayState* play) {
 }
 
 void EnKnight_SetupTelegraphHeavyAttack(EnKnight* this, PlayState* play, s32 noTelegraph) {
-    Animation_MorphToLoop(&this->skelAnime, &gKnightTelegraphHeavyAttackAnim, -5.0f);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gKnightTelegraphHeavyAttackAnim, -5.0f);
     this->actionFunc = EnKnight_TelegraphHeavyAttack;
 
     if (this == sIgosInstance) {
@@ -819,17 +819,17 @@ void EnKnight_SetupTelegraphHeavyAttack(EnKnight* this, PlayState* play, s32 noT
 }
 
 void EnKnight_TelegraphHeavyAttack(EnKnight* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    Math_ApproachS(&this->actor.world.rot.y, this->yawToPlayer, 2, 0x500);
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Math_ApproachS(&this->actor.world.rot.y, this->yawToPlayer, 2, 0x500);
     if (this->timers[0] == 0) {
         EnKnight_SetupHeavyAttack(this, play);
     }
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
 }
 
 void EnKnight_SetupHeavyAttack(EnKnight* this, PlayState* play) {
-    Animation_MorphToPlayOnce(&this->skelAnime, &gKnightHeavyAttackAnim, 0.0f);
-    this->animEndFrame = Animation_GetLastFrame(&gKnightHeavyAttackAnim);
+    MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightHeavyAttackAnim, 0.0f);
+    this->animEndFrame = MM_Animation_GetLastFrame(&gKnightHeavyAttackAnim);
     this->actionFunc = EnKnight_HeavyAttack;
 }
 
@@ -847,8 +847,8 @@ void EnKnight_HeavyAttack(EnKnight* this, PlayState* play) {
         this->blureRotation.z = -1.1780972f;
     }
 
-    SkelAnime_Update(&this->skelAnime);
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
 
     if ((this->skelAnime.curFrame >= 2.0f) && (this->skelAnime.curFrame <= 5.0f)) {
         Matrix_RotateYS(this->actor.world.rot.y, MTXMODE_NEW);
@@ -857,12 +857,12 @@ void EnKnight_HeavyAttack(EnKnight* this, PlayState* play) {
         this->animMovementZ = translation.z;
     }
 
-    if (Animation_OnFrame(&this->skelAnime, 1.0f)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, 1.0f)) {
         Actor_PlaySfx(&this->actor, this->attackSfx);
     }
 
-    if (Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
-        if ((Rand_ZeroOne() < 0.5f) && (this->actor.xzDistToPlayer <= 100.0f)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
+        if ((MM_Rand_ZeroOne() < 0.5f) && (this->actor.xzDistToPlayer <= 100.0f)) {
             EnKnight_SetupLowSwing(this, play);
         } else {
             EnKnight_SetupWait(this, play);
@@ -873,8 +873,8 @@ void EnKnight_HeavyAttack(EnKnight* this, PlayState* play) {
 }
 
 void EnKnight_SetupLowSwing(EnKnight* this, PlayState* play) {
-    Animation_MorphToPlayOnce(&this->skelAnime, &gKnightLowSwingAnim, -5.0f);
-    this->animEndFrame = Animation_GetLastFrame(&gKnightLowSwingAnim);
+    MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightLowSwingAnim, -5.0f);
+    this->animEndFrame = MM_Animation_GetLastFrame(&gKnightLowSwingAnim);
     this->actionFunc = EnKnight_LowSwing;
 }
 
@@ -884,7 +884,7 @@ void EnKnight_LowSwing(EnKnight* this, PlayState* play) {
     this->neckYawTarget = 0;
 
     if (this == sIgosInstance) {
-        Math_ApproachS(&this->actor.world.rot.y, this->yawToPlayer, 2, 0x800);
+        MM_Math_ApproachS(&this->actor.world.rot.y, this->yawToPlayer, 2, 0x800);
     }
 
     if ((this->skelAnime.curFrame >= 12.0f) && (this->skelAnime.curFrame <= 15.0f)) {
@@ -897,8 +897,8 @@ void EnKnight_LowSwing(EnKnight* this, PlayState* play) {
         this->blureRotation.z = 0.47123894f; // 3 * pi / 20
     }
 
-    SkelAnime_Update(&this->skelAnime);
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
 
     if ((this->skelAnime.curFrame >= 12.0f) && (this->skelAnime.curFrame <= 15.0f)) {
         Matrix_RotateYS(this->actor.world.rot.y, MTXMODE_NEW);
@@ -907,11 +907,11 @@ void EnKnight_LowSwing(EnKnight* this, PlayState* play) {
         this->animMovementZ = translation.z;
     }
 
-    if (Animation_OnFrame(&this->skelAnime, 12.0f)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, 12.0f)) {
         Actor_PlaySfx(&this->actor, this->attackSfx);
     }
 
-    if (Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
         EnKnight_SetupLowSwingEnd(this, play);
     }
 
@@ -921,7 +921,7 @@ void EnKnight_LowSwing(EnKnight* this, PlayState* play) {
 }
 
 void EnKnight_SetupLowSwingEnd(EnKnight* this, PlayState* play) {
-    Animation_MorphToLoop(&this->skelAnime, &gKnightLowSwingEndAnim, 0.0f);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gKnightLowSwingEndAnim, 0.0f);
     this->actionFunc = EnKnight_LowSwingEnd;
 
     if (this == sIgosInstance) {
@@ -932,22 +932,22 @@ void EnKnight_SetupLowSwingEnd(EnKnight* this, PlayState* play) {
 }
 
 void EnKnight_LowSwingEnd(EnKnight* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     if (this->timers[0] == 0) {
         EnKnight_SetupWait(this, play);
     }
 
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
 }
 
 void EnKnight_SetupBasicSwing(EnKnight* this, PlayState* play) {
-    if (Rand_ZeroOne() < 0.5f) {
-        Animation_MorphToPlayOnce(&this->skelAnime, &gKnightRightSwingAnim, -2.0f);
-        this->animEndFrame = Animation_GetLastFrame(&gKnightRightSwingAnim);
+    if (MM_Rand_ZeroOne() < 0.5f) {
+        MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightRightSwingAnim, -2.0f);
+        this->animEndFrame = MM_Animation_GetLastFrame(&gKnightRightSwingAnim);
     } else {
-        Animation_MorphToPlayOnce(&this->skelAnime, &gKnightLeftSwingAnim, -2.0f);
-        this->animEndFrame = Animation_GetLastFrame(&gKnightLeftSwingAnim);
+        MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightLeftSwingAnim, -2.0f);
+        this->animEndFrame = MM_Animation_GetLastFrame(&gKnightLeftSwingAnim);
     }
 
     this->actionFunc = EnKnight_BasicSwing;
@@ -955,11 +955,11 @@ void EnKnight_SetupBasicSwing(EnKnight* this, PlayState* play) {
 }
 
 void EnKnight_BasicSwing(EnKnight* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
-    if (Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
-        if ((Rand_ZeroOne() < 0.6f) && (this->actor.xzDistToPlayer <= 100.0f)) {
-            if (Rand_ZeroOne() < 0.5f) {
+    if (MM_Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
+        if ((MM_Rand_ZeroOne() < 0.6f) && (this->actor.xzDistToPlayer <= 100.0f)) {
+            if (MM_Rand_ZeroOne() < 0.5f) {
                 EnKnight_SetupBasicSwing(this, play);
             } else {
                 EnKnight_SetupTelegraphHeavyAttack(this, play, false);
@@ -969,8 +969,8 @@ void EnKnight_BasicSwing(EnKnight* this, PlayState* play) {
         }
     }
 
-    Math_ApproachS(&this->actor.world.rot.y, this->yawToPlayer, 5, 0x500);
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+    MM_Math_ApproachS(&this->actor.world.rot.y, this->yawToPlayer, 5, 0x500);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
 
     if (this->timers[0] == 16) {
         this->swordColliderActive = true;
@@ -982,8 +982,8 @@ void EnKnight_SetupJumpAttack(EnKnight* this, PlayState* play) {
     Vec3f translation;
 
     if (this->actor.xzDistToPlayer <= 200.0f) {
-        Animation_MorphToPlayOnce(&this->skelAnime, &gKnightJumpAttackBeginAnim, -3.0f);
-        this->animEndFrame = Animation_GetLastFrame(&gKnightJumpAttackBeginAnim);
+        MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightJumpAttackBeginAnim, -3.0f);
+        this->animEndFrame = MM_Animation_GetLastFrame(&gKnightJumpAttackBeginAnim);
         this->actionFunc = EnKnight_JumpAttack;
         Matrix_RotateYS(this->yawToPlayer, MTXMODE_NEW);
         Matrix_MultVecZ(KREG(49) + 7.0f, &translation);
@@ -1010,9 +1010,9 @@ void EnKnight_JumpAttack(EnKnight* this, PlayState* play) {
         this->blureRotation.z = -1.1780972f;
     }
 
-    SkelAnime_Update(&this->skelAnime);
-    if (Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
-        Animation_MorphToPlayOnce(&this->skelAnime, &gKnightJumpAttackEndAnim, 0.0f);
+    MM_SkelAnime_Update(&this->skelAnime);
+    if (MM_Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
+        MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightJumpAttackEndAnim, 0.0f);
         Actor_PlaySfx(&this->actor, this->attackSfx);
         this->animEndFrame = 1000.0f;
     }
@@ -1032,24 +1032,24 @@ void EnKnight_JumpAttack(EnKnight* this, PlayState* play) {
 }
 
 void EnKnight_SetupBlocking(EnKnight* this, PlayState* play) {
-    if ((this == sIgosInstance) && (this->actor.xzDistToPlayer <= 120.0f) && (Rand_ZeroOne() < 0.1f)) {
+    if ((this == sIgosInstance) && (this->actor.xzDistToPlayer <= 120.0f) && (MM_Rand_ZeroOne() < 0.1f)) {
         EnKnight_SetupJumpBackwardsIgos(this, play);
         return;
     }
 
     if (this->actionFunc != EnKnight_Blocking) {
         this->prevActionFunc = this->actionFunc;
-        Animation_MorphToPlayOnce(&this->skelAnime, &gKnightFastBlockStandingAnim, -2.0f);
-        this->animEndFrame = Animation_GetLastFrame(&gKnightFastBlockStandingAnim);
+        MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightFastBlockStandingAnim, -2.0f);
+        this->animEndFrame = MM_Animation_GetLastFrame(&gKnightFastBlockStandingAnim);
         this->actionFunc = EnKnight_Blocking;
     }
     this->timers[0] = 5;
 }
 
 void EnKnight_Blocking(EnKnight* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    Math_ApproachS(&this->actor.world.rot.y, this->yawToPlayer, 2, 0x800);
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Math_ApproachS(&this->actor.world.rot.y, this->yawToPlayer, 2, 0x800);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
 
     if (this->timers[0] != 0) {
         this->shieldColliderActive = true;
@@ -1057,7 +1057,7 @@ void EnKnight_Blocking(EnKnight* this, PlayState* play) {
         EnKnight_SetupRetreat(this, play, true);
     } else {
         EnKnight_SetupWait(this, play);
-        if ((this == sIgosInstance) && (Rand_ZeroOne() < 0.4f)) {
+        if ((this == sIgosInstance) && (MM_Rand_ZeroOne() < 0.4f)) {
             Actor_PlaySfx(&this->actor, NA_SE_EN_BOSU_CYNICAL);
         }
     }
@@ -1066,39 +1066,39 @@ void EnKnight_Blocking(EnKnight* this, PlayState* play) {
 }
 
 void EnKnight_SetupWait(EnKnight* this, PlayState* play) {
-    Animation_MorphToLoop(&this->skelAnime, &gKnightIdleAnim, -5.0f);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gKnightIdleAnim, -5.0f);
     this->actionFunc = EnKnight_Wait;
-    this->timers[0] = Rand_ZeroFloat(50.0f) + 20.0f;
+    this->timers[0] = MM_Rand_ZeroFloat(50.0f) + 20.0f;
 }
 
 void EnKnight_Wait(EnKnight* this, PlayState* play) {
     s16 yawDiff;
     s32 yawCap;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     yawDiff = this->yawToPlayer - this->actor.shape.rot.y;
     yawCap = (this == sIgosInstance) ? 0x7FFF : 0x6000;
     if (ABS_ALT(yawDiff) < yawCap) {
         EnKnight_SetupTurnToPlayer(this, play);
     } else {
-        if ((this->randTimer % 8 == 0) && (Rand_ZeroOne() < 0.75f)) {
-            this->neckYawTarget = Rand_CenteredFloat(28672.0f);
+        if ((this->randTimer % 8 == 0) && (MM_Rand_ZeroOne() < 0.75f)) {
+            this->neckYawTarget = MM_Rand_CenteredFloat(28672.0f);
         }
         if (this->timers[0] == 0) {
             EnKnight_SetupStrafe(this, play, 0x4000);
         }
     }
 
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
     this->canRetreat = true;
 }
 
 void EnKnight_SetupStrafe(EnKnight* this, PlayState* play, s16 strafeAngle) {
     this->actionFunc = EnKnight_Strafe;
-    Animation_MorphToPlayOnce(&this->skelAnime, &gKnightStrafeAnim, -2.0f);
+    MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightStrafeAnim, -2.0f);
 
-    if (Rand_ZeroOne() < 0.5f) {
+    if (MM_Rand_ZeroOne() < 0.5f) {
         this->strafeTarget = this->actor.shape.rot.y + strafeAngle;
         this->neckYawTarget = 0x3800;
     } else {
@@ -1113,12 +1113,12 @@ void EnKnight_SetupStrafe(EnKnight* this, PlayState* play, s16 strafeAngle) {
 void EnKnight_Strafe(EnKnight* this, PlayState* play) {
     s16 yawDiff;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
     if (this->timers[0] < 15) {
-        Math_ApproachS(&this->actor.world.rot.y, this->strafeTarget, 2, this->strafeMaxStep);
-        Math_ApproachS(&this->strafeMaxStep, 0x800, 1, 0x200);
+        MM_Math_ApproachS(&this->actor.world.rot.y, this->strafeTarget, 2, this->strafeMaxStep);
+        MM_Math_ApproachS(&this->strafeMaxStep, 0x800, 1, 0x200);
     }
 
     yawDiff = this->yawToPlayer - this->actor.shape.rot.y;
@@ -1140,7 +1140,7 @@ void EnKnight_SetupTurnToPlayer(EnKnight* this, PlayState* play) {
 void EnKnight_TurnToPlayer(EnKnight* this, PlayState* play) {
     s16 yawDiff;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     yawDiff = this->yawToPlayer - this->actor.shape.rot.y;
     if (yawDiff > 0x3800) {
@@ -1155,14 +1155,14 @@ void EnKnight_TurnToPlayer(EnKnight* this, PlayState* play) {
         EnKnight_SetupApproachPlayer(this, play);
     }
 
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
     this->neckRotationMaxStep = 0x3000;
     this->neckRotationStepScale = 2;
     this->canRetreat = true;
 }
 
 void EnKnight_SetupApproachPlayer(EnKnight* this, PlayState* play) {
-    Animation_MorphToLoop(&this->skelAnime, &gKnightSlowWalkShieldingAnim, -5.0f);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gKnightSlowWalkShieldingAnim, -5.0f);
     this->actionFunc = EnKnight_ApproachPlayer;
     this->actor.speed = 0.0f;
 }
@@ -1178,10 +1178,10 @@ void EnKnight_ApproachPlayer(EnKnight* this, PlayState* play) {
     s16 yaw;
     Player* player = GET_PLAYER(play);
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
-    if ((this->randTimer % 64 == 0) && (Rand_ZeroOne() < 0.5f)) {
-        if (Rand_ZeroOne() < 0.6666f) {
+    if ((this->randTimer % 64 == 0) && (MM_Rand_ZeroOne() < 0.5f)) {
+        if (MM_Rand_ZeroOne() < 0.6666f) {
             Actor_PlaySfx(&this->actor, this->pauseSfx);
         } else {
             Actor_PlaySfx(&this->actor, this->laughSfx);
@@ -1198,7 +1198,7 @@ void EnKnight_ApproachPlayer(EnKnight* this, PlayState* play) {
         }
         moveOffsetLocal.y = 0.0f;
         moveOffsetLocal.z = 100.0f;
-        Matrix_MultVec3f(&moveOffsetLocal, &moveOffset);
+        MM_Matrix_MultVec3f(&moveOffsetLocal, &moveOffset);
         this->retreatTowards.x = player->actor.world.pos.x + moveOffset.x;
         this->retreatTowards.z = player->actor.world.pos.z + moveOffset.z;
         dx = this->retreatTowards.x - this->actor.world.pos.x;
@@ -1208,8 +1208,8 @@ void EnKnight_ApproachPlayer(EnKnight* this, PlayState* play) {
         yaw = this->yawToPlayer;
     }
 
-    Math_ApproachS(&this->actor.world.rot.y, yaw, 5, 0xA00);
-    Math_ApproachS(&this->actor.shape.rot.y, this->yawToPlayer, 5, 0x500);
+    MM_Math_ApproachS(&this->actor.world.rot.y, yaw, 5, 0xA00);
+    MM_Math_ApproachS(&this->actor.shape.rot.y, this->yawToPlayer, 5, 0x500);
 
     speed = this->actor.speed;
     scale = (this == sIgosInstance) ? 1.3076924f : 1.0f;
@@ -1217,40 +1217,40 @@ void EnKnight_ApproachPlayer(EnKnight* this, PlayState* play) {
     if (this->actor.xzDistToPlayer <= (150.0f * scale)) {
         if (this->actor.xzDistToPlayer <= (80.0f * scale)) {
             if (this->actor.xzDistToPlayer <= (40.0f * scale)) {
-                Math_ApproachF(&this->actor.speed, -2.5f, 1.0f, 1.0f);
+                MM_Math_ApproachF(&this->actor.speed, -2.5f, 1.0f, 1.0f);
             } else {
-                Math_ApproachF(&this->actor.speed, 0.0f, 1.0f, 1.0f);
+                MM_Math_ApproachF(&this->actor.speed, 0.0f, 1.0f, 1.0f);
             }
         } else {
-            Math_ApproachF(&this->actor.speed, 2.5f, 1.0f, 1.0f);
+            MM_Math_ApproachF(&this->actor.speed, 2.5f, 1.0f, 1.0f);
         }
     } else {
-        Math_ApproachF(&this->actor.speed, 5.0f, 1.0f, 1.0f);
-        if (Animation_OnFrame(&this->skelAnime, 0.0f) || Animation_OnFrame(&this->skelAnime, 5.0f)) {
+        MM_Math_ApproachF(&this->actor.speed, 5.0f, 1.0f, 1.0f);
+        if (MM_Animation_OnFrame(&this->skelAnime, 0.0f) || MM_Animation_OnFrame(&this->skelAnime, 5.0f)) {
             Actor_PlaySfx(&this->actor, this->walkSfx);
         }
         EnKnight_SpawnDustAtFeet(this, play, 3);
     }
 
     if ((this->actor.speed > 3.0f) && (speed <= 3.0f)) {
-        Animation_MorphToLoop(&this->skelAnime, &gKnightFastWalkShieldingAnim, -3.0f);
-        if (Rand_ZeroOne() < 0.25f) {
+        MM_Animation_MorphToLoop(&this->skelAnime, &gKnightFastWalkShieldingAnim, -3.0f);
+        if (MM_Rand_ZeroOne() < 0.25f) {
             EnKnight_SetupJumpAttack(this, play);
         }
     }
 
     if (this->actionFunc == EnKnight_ApproachPlayer) {
         if ((this->actor.speed < 4.0f) && (speed >= 4.0f)) {
-            Animation_MorphToLoop(&this->skelAnime, &gKnightSlowWalkShieldingAnim, -5.0f);
-            if (Rand_ZeroOne() < 0.25f) {
+            MM_Animation_MorphToLoop(&this->skelAnime, &gKnightSlowWalkShieldingAnim, -5.0f);
+            if (MM_Rand_ZeroOne() < 0.25f) {
                 EnKnight_SetupJumpAttack(this, play);
             }
         }
         if ((this->actor.speed < 1.0f) && (speed >= 1.0f)) {
-            Animation_MorphToLoop(&this->skelAnime, &gKnightIdleAnim, -10.0f);
+            MM_Animation_MorphToLoop(&this->skelAnime, &gKnightIdleAnim, -10.0f);
         }
         if ((this->actor.speed >= 1.0f) && (speed < 1.0f)) {
-            Animation_MorphToLoop(&this->skelAnime, &gKnightSlowWalkShieldingAnim, -5.0f);
+            MM_Animation_MorphToLoop(&this->skelAnime, &gKnightSlowWalkShieldingAnim, -5.0f);
         }
     }
 
@@ -1275,12 +1275,12 @@ void EnKnight_ApproachPlayer(EnKnight* this, PlayState* play) {
 
 void EnKnight_SetupRetreat(EnKnight* this, PlayState* play, u8 shielding) {
     if (this->actionFunc != EnKnight_Retreat) {
-        Animation_MorphToLoop(&this->skelAnime, &gKnightFastWalkShieldingAnim, -5.0f);
+        MM_Animation_MorphToLoop(&this->skelAnime, &gKnightFastWalkShieldingAnim, -5.0f);
         this->subAction = KNIGHT_SUB_ACTION_RETREAT_0;
         this->actionFunc = EnKnight_Retreat;
     }
 
-    this->timers[0] = Rand_ZeroFloat(15.0f) + 10.0f;
+    this->timers[0] = MM_Rand_ZeroFloat(15.0f) + 10.0f;
     this->retreatWhileShielding = shielding;
 }
 
@@ -1288,17 +1288,17 @@ void EnKnight_Retreat(EnKnight* this, PlayState* play) {
     f32 dx;
     f32 dz;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     this->neckYawTarget = 0;
 
     switch (this->subAction) {
         case KNIGHT_SUB_ACTION_RETREAT_0:
-            Math_ApproachF(&this->actor.speed, 5.0f, 1.0f, 1.0f);
+            MM_Math_ApproachF(&this->actor.speed, 5.0f, 1.0f, 1.0f);
             dx = this->retreatTowards.x - this->actor.world.pos.x;
             dz = this->retreatTowards.z - this->actor.world.pos.z;
-            Math_ApproachS(&this->actor.world.rot.y, Math_Atan2S_XY(dz, dx), 5, 0xA00);
+            MM_Math_ApproachS(&this->actor.world.rot.y, Math_Atan2S_XY(dz, dx), 5, 0xA00);
 
-            if (Animation_OnFrame(&this->skelAnime, 0.0f) || Animation_OnFrame(&this->skelAnime, 5.0f)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, 0.0f) || MM_Animation_OnFrame(&this->skelAnime, 5.0f)) {
                 Actor_PlaySfx(&this->actor, this->walkSfx);
             }
 
@@ -1310,12 +1310,12 @@ void EnKnight_Retreat(EnKnight* this, PlayState* play) {
                 if (this->lightRayDamageTimer != 0) {
                     this->subAction = KNIGHT_SUB_ACTION_RETREAT_3;
                     this->drawDmgEffState = KNIGHT_DMGEFF_STATE_30;
-                    Animation_MorphToLoop(&this->skelAnime, &gKnightStruckByLightRayAnim, -2.0f);
-                    this->animEndFrame = Animation_GetLastFrame(&gKnightStruckByLightRayAnim);
+                    MM_Animation_MorphToLoop(&this->skelAnime, &gKnightStruckByLightRayAnim, -2.0f);
+                    this->animEndFrame = MM_Animation_GetLastFrame(&gKnightStruckByLightRayAnim);
                     Actor_PlaySfx(&this->actor, NA_SE_EN_STAL_FREEZE_LIGHTS);
                 } else {
                     this->subAction = KNIGHT_SUB_ACTION_RETREAT_1;
-                    Animation_MorphToLoop(&this->skelAnime, &gKnightIdleAnim, -5.0f);
+                    MM_Animation_MorphToLoop(&this->skelAnime, &gKnightIdleAnim, -5.0f);
                     this->animEndFrame = 1000.0f;
                 }
             }
@@ -1324,7 +1324,7 @@ void EnKnight_Retreat(EnKnight* this, PlayState* play) {
         case KNIGHT_SUB_ACTION_RETREAT_1:
             if (this->lightRayDamageTimer != 0) {
                 this->subAction = KNIGHT_SUB_ACTION_RETREAT_2;
-                Animation_MorphToPlayOnce(&this->skelAnime, &gKnightFastBlockStandingAnim, -2.0f);
+                MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightFastBlockStandingAnim, -2.0f);
                 Actor_PlaySfx(&this->actor, this->pauseSfx);
             }
             goto common_case;
@@ -1332,32 +1332,32 @@ void EnKnight_Retreat(EnKnight* this, PlayState* play) {
         case KNIGHT_SUB_ACTION_RETREAT_2:
             if (this->lightRayDamageTimer == 0) {
                 this->subAction = KNIGHT_SUB_ACTION_RETREAT_1;
-                Animation_MorphToLoop(&this->skelAnime, &gKnightIdleAnim, -5.0f);
+                MM_Animation_MorphToLoop(&this->skelAnime, &gKnightIdleAnim, -5.0f);
             }
 
             if (this->lightRayDamageTimer > 7) {
-                Math_ApproachF(&this->shieldLightReflectionScale, 1.0f, 1.0f, 0.5f);
+                MM_Math_ApproachF(&this->shieldLightReflectionScale, 1.0f, 1.0f, 0.5f);
             }
             goto common_case;
 
         case KNIGHT_SUB_ACTION_RETREAT_3:
-            if (Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
                 this->subAction = KNIGHT_SUB_ACTION_RETREAT_2;
-                Animation_MorphToPlayOnce(&this->skelAnime, &gKnightFastBlockStandingAnim, -2.0f);
+                MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightFastBlockStandingAnim, -2.0f);
                 this->animEndFrame = 1000.0f;
             }
             goto common_case;
 
         common_case:
             this->bodyCollider.base.colMaterial = COL_MATERIAL_NONE;
-            Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+            MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
 
             if (this->animEndFrame > 10.0f) {
-                Math_ApproachS(&this->actor.world.rot.y, this->yawToPlayer, 2, 0xE00);
+                MM_Math_ApproachS(&this->actor.world.rot.y, this->yawToPlayer, 2, 0xE00);
             }
 
             if ((sMirRayInstance != NULL) && (sMirRayInstance->unk_214 > 0.1f)) {
-                this->timers[0] = Rand_ZeroFloat(15.0f) + 10.0f;
+                this->timers[0] = MM_Rand_ZeroFloat(15.0f) + 10.0f;
             }
 
             this->canRetreat = true;
@@ -1370,23 +1370,23 @@ void EnKnight_Retreat(EnKnight* this, PlayState* play) {
 }
 
 void EnKnight_SetupGetBackUp(EnKnight* this, PlayState* play) {
-    Animation_MorphToLoop(&this->skelAnime, &gKnightLaugh1Anim, -25.0f);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gKnightLaugh1Anim, -25.0f);
     Actor_PlaySfx(&this->actor, this->pauseSfx);
     this->actionFunc = EnKnight_GetBackUp;
     this->timers[0] = 35;
 }
 
 void EnKnight_GetBackUp(EnKnight* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     this->neckYawTarget = 0;
-    Math_ApproachF(&this->shadowAlphaFactor, 180.0f, 1.0f, 10.0f);
+    MM_Math_ApproachF(&this->shadowAlphaFactor, 180.0f, 1.0f, 10.0f);
 
     if (this->timers[0] == 0) {
         EnKnight_SetupWait(this, play);
     }
 
     if ((this->timers[0] > (s16)(BREG(74) + 10)) && !(this->randTimer & (BREG(76) + 3))) {
-        EnKnight* afterImage = (EnKnight*)Actor_SpawnAsChild(
+        EnKnight* afterImage = (EnKnight*)MM_Actor_SpawnAsChild(
             &play->actorCtx, &this->actor, play, ACTOR_EN_KNIGHT, this->actor.world.pos.x, this->actor.world.pos.y,
             this->actor.world.pos.z, this->actor.world.rot.x, this->actor.world.rot.y, this->actor.world.rot.z,
             (this == sIgosInstance) ? EN_KNIGHT_PARAM_IGOS_BODY_AFTERIMAGE : EN_KNIGHT_PARAM_KNIGHT_BODY_AFTERIMAGE);
@@ -1407,7 +1407,7 @@ void EnKnight_SetupStunned(EnKnight* this, PlayState* play, u16 duration) {
     this->actionFunc = EnKnight_Stunned;
     this->timers[0] = duration;
     this->timers[1] = 30;
-    Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_BLUE, 120, 0, duration);
+    MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_BLUE, 120, 0, duration);
 }
 
 void EnKnight_Stunned(EnKnight* this, PlayState* play) {
@@ -1419,7 +1419,7 @@ void EnKnight_Stunned(EnKnight* this, PlayState* play) {
         }
     }
 
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
 
     if (this->timers[0] < 20) {
         if (this->timers[0] % 2 != 0) {
@@ -1444,10 +1444,10 @@ void EnKnight_SetupRecoilFromDamage(EnKnight* this, PlayState* play) {
 
     yawDiff = this->yawToPlayer - this->actor.shape.rot.y;
     if (ABS_ALT(yawDiff) < 0x4000) {
-        Animation_MorphToPlayOnce(&this->skelAnime, &gKnightDamagedFrontAnim, 0.0f);
+        MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightDamagedFrontAnim, 0.0f);
         this->subAction = KNIGHT_SUB_ACTION_RECOIL_0;
     } else {
-        Animation_MorphToPlayOnce(&this->skelAnime, &gKnightDamagedBackAnim, 0.0f);
+        MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightDamagedBackAnim, 0.0f);
         this->subAction = KNIGHT_SUB_ACTION_RECOIL_1;
     }
 
@@ -1459,11 +1459,11 @@ void EnKnight_SetupRecoilFromDamage(EnKnight* this, PlayState* play) {
 }
 
 void EnKnight_RecoilFromDamage(EnKnight* this, PlayState* play) {
-    f32 rand = Rand_ZeroOne();
+    f32 rand = MM_Rand_ZeroOne();
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
 
     if (this->timers[0] == 0) {
         if ((this == sIgosInstance) && (this->actor.xzDistToPlayer < 150.0f)) {
@@ -1497,11 +1497,11 @@ void EnKnight_SetupFallOver(EnKnight* this, PlayState* play) {
     yawDiff = this->yawToPlayer - this->actor.shape.rot.y;
     if (ABS_ALT(yawDiff) < 0x4000) {
         // Fall over backwards
-        Animation_MorphToPlayOnce(&this->skelAnime, &gKnightFallBackwardsAnim, 0.0f);
+        MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightFallBackwardsAnim, 0.0f);
         this->animEndFrame = 1.0f;
     } else {
         // Fall over forwards
-        Animation_MorphToPlayOnce(&this->skelAnime, &gKnightFallForwardsAnim, 0.0f);
+        MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightFallForwardsAnim, 0.0f);
         this->animEndFrame = -1.0f;
     }
 
@@ -1538,16 +1538,16 @@ void EnKnight_FallOver(EnKnight* this, PlayState* play) {
         raycastPos.x += this->actor.world.pos.x;
         raycastPos.y += this->actor.world.pos.y + 300.0f;
         raycastPos.z += this->actor.world.pos.z;
-        floorHeight = BgCheck_EntityRaycastFloor1(&play->colCtx, &collisionPoly, &raycastPos);
+        floorHeight = MM_BgCheck_EntityRaycastFloor1(&play->colCtx, &collisionPoly, &raycastPos);
 
         if ((floorHeight > -10.0f) && (floorHeight != this->actor.floorHeight)) {
             dx = raycastPos.x - this->actor.world.pos.x;
             dy = floorHeight - this->actor.world.pos.y;
             dz = raycastPos.z - this->actor.world.pos.z;
-            Math_ApproachS(&this->actor.shape.rot.x, Math_Atan2S(dy, sqrtf(SQ(dx) + SQ(dz))) * (s32)this->animEndFrame,
+            MM_Math_ApproachS(&this->actor.shape.rot.x, MM_Math_Atan2S(dy, MM_sqrtf(SQ(dx) + SQ(dz))) * (s32)this->animEndFrame,
                            1, 0x800);
         } else {
-            Math_ApproachS(&this->actor.shape.rot.x, 0, 1, 0x800);
+            MM_Math_ApproachS(&this->actor.shape.rot.x, 0, 1, 0x800);
         }
     }
 
@@ -1559,10 +1559,10 @@ void EnKnight_FallOver(EnKnight* this, PlayState* play) {
         }
     }
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
-    Math_ApproachZeroF(&this->shadowAlphaFactor, 1.0f, 10.0f);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+    MM_Math_ApproachZeroF(&this->shadowAlphaFactor, 1.0f, 10.0f);
     if (this->animEndFrame > 0.0f) {
         timerTarget = 20;
     } else {
@@ -1627,16 +1627,16 @@ void EnKnight_Die(EnKnight* this, PlayState* play) {
         this->actor.gravity = 0.0f;
     }
 
-    Math_ApproachZeroF(&this->actor.scale.y, 0.1f, 0.0015f);
+    MM_Math_ApproachZeroF(&this->actor.scale.y, 0.1f, 0.0015f);
 
     if (this->timers[2] != 0) {
-        bodyPartIndex = (s32)Rand_ZeroFloat(ARRAY_COUNT(this->bodyPartsPos) - 0.1f);
-        accel = sZeroVec;
+        bodyPartIndex = (s32)MM_Rand_ZeroFloat(ARRAY_COUNT(this->bodyPartsPos) - 0.1f);
+        accel = MM_sZeroVec;
         accel.y = 0.03f;
-        pos.x = this->bodyPartsPos[bodyPartIndex].x + Rand_CenteredFloat(20.0f);
+        pos.x = this->bodyPartsPos[bodyPartIndex].x + MM_Rand_CenteredFloat(20.0f);
         pos.y = this->bodyPartsPos[bodyPartIndex].y - 5.0f;
-        pos.z = this->bodyPartsPos[bodyPartIndex].z + Rand_CenteredFloat(20.0f);
-        EffectSsKFire_Spawn(play, &pos, &sZeroVec, &accel, Rand_ZeroFloat(20.0f) + 20.0f, 0);
+        pos.z = this->bodyPartsPos[bodyPartIndex].z + MM_Rand_CenteredFloat(20.0f);
+        MM_EffectSsKFire_Spawn(play, &pos, &MM_sZeroVec, &accel, MM_Rand_ZeroFloat(20.0f) + 20.0f, 0);
         Actor_PlaySfx(&this->actor, NA_SE_EN_COMMON_EXTINCT_LEV - SFX_FLAG);
     }
 
@@ -1654,16 +1654,16 @@ void EnKnight_Die(EnKnight* this, PlayState* play) {
             this->actionFunc = EnKnight_Dead;
         }
 
-        Actor_ChangeCategory(play, &play->actorCtx, &this->actor, ACTORCAT_ENEMY);
+        MM_Actor_ChangeCategory(play, &play->actorCtx, &this->actor, ACTORCAT_ENEMY);
         this->timers[0] = 30;
     }
 }
 
 void EnKnight_Dead(EnKnight* this, PlayState* play) {
     if ((this == sIgosInstance) && (this->timers[0] == 0)) {
-        Actor_Kill(&this->actor);
-        Actor_Kill(&sThinKnightInstance->actor);
-        Actor_Kill(&sWideKnightInstance->actor);
+        MM_Actor_Kill(&this->actor);
+        MM_Actor_Kill(&sThinKnightInstance->actor);
+        MM_Actor_Kill(&sWideKnightInstance->actor);
     }
 }
 
@@ -1672,7 +1672,7 @@ void EnKnight_SetupJumpBackwardsKnight(EnKnight* this, PlayState* play) {
     Vec3f translation;
 
     this->actionFunc = EnKnight_JumpBackwards;
-    Animation_MorphToPlayOnce(&this->skelAnime, &gKnightJumpBackAnim, 0.0f);
+    MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightJumpBackAnim, 0.0f);
     Matrix_RotateYS(this->yawToPlayer, MTXMODE_NEW);
     Matrix_MultVecZ(-15.0f, &translation);
     this->animMovementX = translation.x;
@@ -1693,7 +1693,7 @@ void EnKnight_SetupJumpBackwardsIgos(EnKnight* this, PlayState* play) {
     Vec3f translation;
 
     this->actionFunc = EnKnight_JumpBackwards;
-    Animation_MorphToPlayOnce(&this->skelAnime, &gKnightJumpBackAnim, 0.0f);
+    MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightJumpBackAnim, 0.0f);
     Matrix_RotateYS(this->yawToPlayer, MTXMODE_NEW);
     Matrix_MultVecZ(KREG(90) + 14.0f, &translation);
     this->animMovementX = translation.x;
@@ -1714,11 +1714,11 @@ void EnKnight_JumpBackwards(EnKnight* this, PlayState* play) {
         Actor_PlaySfx(&this->actor, NA_SE_EN_MIBOSS_JUMP2 - SFX_FLAG);
     }
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     this->actor.speed = 0.0f;
 
     if (this == sIgosInstance) {
-        Math_ApproachS(&this->actor.world.rot.y, this->yawToPlayer, 2, 0x1000);
+        MM_Math_ApproachS(&this->actor.world.rot.y, this->yawToPlayer, 2, 0x1000);
 
         if (this->invincibilityTimer == 13) {
             if (this->subAction == KNIGHT_SUB_ACTION_JUMP_BACKWARDS_1) {
@@ -1735,18 +1735,18 @@ void EnKnight_JumpBackwards(EnKnight* this, PlayState* play) {
 
         if (this->subAction == KNIGHT_SUB_ACTION_JUMP_BACKWARDS_1) {
             if (this->isHeadless) {
-                if (Rand_ZeroOne() < 0.5f) {
+                if (MM_Rand_ZeroOne() < 0.5f) {
                     EnKnight_SetupJumpAttack(this, play);
                 } else {
                     EnKnight_SetupTelegraphHeavyAttack(this, play, false);
                 }
-            } else if (Rand_ZeroOne() < 0.5f) {
+            } else if (MM_Rand_ZeroOne() < 0.5f) {
                 EnKnight_SetupJumpAttack(this, play);
             } else {
                 EnKnight_SetupBreathAttack(this, play);
             }
-        } else if ((this == sIgosInstance) && (Rand_ZeroOne() < 0.3f)) {
-            if ((Rand_ZeroOne() < 0.5f) || this->isHeadless) {
+        } else if ((this == sIgosInstance) && (MM_Rand_ZeroOne() < 0.3f)) {
+            if ((MM_Rand_ZeroOne() < 0.5f) || this->isHeadless) {
                 EnKnight_SetupJumpAttack(this, play);
             } else {
                 EnKnight_SetupBreathAttack(this, play);
@@ -1766,7 +1766,7 @@ void EnKnight_IgosReactToCurtains(EnKnight* this, PlayState* play) {
     this->inCurtainReaction = true;
 
     if (this->subAction != KNIGHT_SUB_ACTION_CURTAIN_REACT_WAIT) {
-        SkelAnime_Update(&this->skelAnime);
+        MM_SkelAnime_Update(&this->skelAnime);
     }
 
     switch (this->subAction) {
@@ -1780,10 +1780,10 @@ void EnKnight_IgosReactToCurtains(EnKnight* this, PlayState* play) {
 
             if (this->igosCurtainReaction == 0) {
                 // Mad
-                Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosCurtainReactionAngryAnim, 0.0f);
+                MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosCurtainReactionAngryAnim, 0.0f);
             } else {
                 // Shocked
-                Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosCurtainReactionShockedAnim, 0.0f);
+                MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosCurtainReactionShockedAnim, 0.0f);
             }
 
             Actor_PlaySfx(&this->actor, NA_SE_EN_BOSU_STAND);
@@ -1818,12 +1818,12 @@ void EnKnight_IgosReactToCurtains(EnKnight* this, PlayState* play) {
 
 void EnKnight_SetupLookAtOther(EnKnight* this, PlayState* play) {
     this->actionFunc = EnKnight_LookAtOther;
-    Animation_MorphToLoop(&this->skelAnime, &gKnightIdleAnim, -5.0f);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gKnightIdleAnim, -5.0f);
 }
 
 void EnKnight_LookAtOther(EnKnight* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
 
     if (sTargetKnight == NULL) {
         EnKnight_SetupWait(this, play);
@@ -1847,9 +1847,9 @@ void EnKnight_LookAtOther(EnKnight* this, PlayState* play) {
 
 void EnKnight_SetupMarch(EnKnight* this, PlayState* play) {
     this->actionFunc = EnKnight_March;
-    Animation_MorphToLoop(&this->skelAnime, &gKnightIdleAnim, -5.0f);
+    MM_Animation_MorphToLoop(&this->skelAnime, &gKnightIdleAnim, -5.0f);
     this->subAction = KNIGHT_SUB_ACTION_MARCH_0;
-    this->timers[0] = Rand_ZeroFloat(10.0f) + 65.0f;
+    this->timers[0] = MM_Rand_ZeroFloat(10.0f) + 65.0f;
 }
 
 void EnKnight_March(EnKnight* this, PlayState* play) {
@@ -1859,14 +1859,14 @@ void EnKnight_March(EnKnight* this, PlayState* play) {
     EnKnight* otherKnight;
     Player* player = GET_PLAYER(play);
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     otherKnight = (this == sThinKnightInstance) ? sWideKnightInstance : sThinKnightInstance;
 
     switch (this->subAction) {
         case KNIGHT_SUB_ACTION_MARCH_0:
-            Math_ApproachS(&this->actor.world.rot.y, this->yawToPlayer, 2, 0x500);
-            Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+            MM_Math_ApproachS(&this->actor.world.rot.y, this->yawToPlayer, 2, 0x500);
+            MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
 
             if ((this->timers[0] < 40) && (this->timers[0] >= 16)) {
                 dx = otherKnight->actor.focus.pos.x - this->actor.world.pos.x;
@@ -1888,7 +1888,7 @@ void EnKnight_March(EnKnight* this, PlayState* play) {
             }
 
             if ((this->timers[0] == 0) && (func_801A46F8() == true)) {
-                Animation_MorphToLoop(&this->skelAnime, &gKnightMarchAnim, -3.0f);
+                MM_Animation_MorphToLoop(&this->skelAnime, &gKnightMarchAnim, -3.0f);
                 this->subAction = KNIGHT_SUB_ACTION_MARCH_1;
                 this->timers[0] = 200;
             }
@@ -1921,19 +1921,19 @@ void EnKnight_March(EnKnight* this, PlayState* play) {
             goto handle_walk_sfx;
 
         handle_walk_sfx:
-            if (Animation_OnFrame(&this->skelAnime, KREG(53) + 1.0f) ||
-                Animation_OnFrame(&this->skelAnime, KREG(54) + 11.0f)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, KREG(53) + 1.0f) ||
+                MM_Animation_OnFrame(&this->skelAnime, KREG(54) + 11.0f)) {
                 Actor_PlaySfx(&this->actor, this->walkSfx);
             }
             break;
     }
-    Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 5, 0x500);
+    MM_Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 5, 0x500);
 }
 
 void EnKnight_SetupIntroCutscene(EnKnight* this, PlayState* play) {
     if (this == sIgosInstance) {
         this->actionFunc = EnKnight_IntroCutscene;
-        Animation_MorphToLoop(&this->skelAnime, &gKnightIdleAnim, -5.0f);
+        MM_Animation_MorphToLoop(&this->skelAnime, &gKnightIdleAnim, -5.0f);
     } else {
         this->actionFunc = EnKnight_WaitIntroCutscene;
     }
@@ -1946,13 +1946,13 @@ void EnKnight_SpawnBreathEffects(EnKnight* this, PlayState* play, s16 pitchOffse
     Vec3f accel;
     s16 breathAlphaTarget;
 
-    Math_Vec3f_Copy(&pos, &this->breathBasePos);
+    MM_Math_Vec3f_Copy(&pos, &this->breathBasePos);
     Matrix_RotateYS(this->neckYaw + this->actor.shape.rot.y, MTXMODE_NEW);
     Matrix_RotateXS(this->actor.shape.rot.x + pitchOffset, MTXMODE_APPLY);
     Matrix_MultVecZ(BREG(48) + 20.0f, &velocity);
 
     breathAlphaTarget = (this->timers[0] < 40) ? 0 : 200;
-    Math_ApproachS(&this->breathAlpha, breathAlphaTarget, 1, 5);
+    MM_Math_ApproachS(&this->breathAlpha, breathAlphaTarget, 1, 5);
 
     if (this->breathAlpha > 60) {
         Actor_PlaySfx_Flagged(&this->actor, NA_SE_EN_FREEZAD_BREATH - SFX_FLAG);
@@ -1968,7 +1968,7 @@ void EnKnight_SpawnBreathEffects(EnKnight* this, PlayState* play, s16 pitchOffse
 }
 
 void EnKnight_SetupIgosSitting(EnKnight* this, PlayState* play) {
-    Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosSitDownAnim, -5.0f);
+    MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosSitDownAnim, -5.0f);
     this->actionFunc = EnKnight_IgosSitting;
     this->subAction = KNIGHT_SUB_ACTION_IGOS_SITTING_0;
 }
@@ -1983,16 +1983,16 @@ void EnKnight_SpawnDust(PlayState* play, u8 numEffects) {
     u8 i;
 
     for (i = 0; i < numEffects; i++) {
-        velocity.x = Rand_CenteredFloat(3.0f);
-        velocity.y = Rand_ZeroFloat(2.0f) + 1.0f;
-        velocity.z = Rand_CenteredFloat(3.0f);
+        velocity.x = MM_Rand_CenteredFloat(3.0f);
+        velocity.y = MM_Rand_ZeroFloat(2.0f) + 1.0f;
+        velocity.z = MM_Rand_CenteredFloat(3.0f);
         accel.x = accel.z = 0.0f;
         accel.y = -0.1f;
-        pos.x = player->actor.world.pos.x + Rand_CenteredFloat(30.0f);
-        pos.y = player->actor.world.pos.y + 20.0f + Rand_CenteredFloat(30.0f);
-        pos.z = player->actor.world.pos.z + Rand_CenteredFloat(30.0f);
-        func_800B0EB0(play, &pos, &velocity, &accel, &sPrimColor, &sEnvColor, Rand_ZeroFloat(50.0f) + 100.0f, 10,
-                      Rand_ZeroFloat(5.0f) + 14.0f);
+        pos.x = player->actor.world.pos.x + MM_Rand_CenteredFloat(30.0f);
+        pos.y = player->actor.world.pos.y + 20.0f + MM_Rand_CenteredFloat(30.0f);
+        pos.z = player->actor.world.pos.z + MM_Rand_CenteredFloat(30.0f);
+        func_800B0EB0(play, &pos, &velocity, &accel, &sPrimColor, &sEnvColor, MM_Rand_ZeroFloat(50.0f) + 100.0f, 10,
+                      MM_Rand_ZeroFloat(5.0f) + 14.0f);
     }
 }
 
@@ -2001,7 +2001,7 @@ void EnKnight_IgosSitting(EnKnight* this, PlayState* play) {
     s16 yaw = 0;
     Player* player = GET_PLAYER(play);
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     yawDiff = this->yawToPlayer - this->actor.shape.rot.y;
     if (yawDiff > 0x3800) {
@@ -2027,8 +2027,8 @@ void EnKnight_IgosSitting(EnKnight* this, PlayState* play) {
             if ((player->unk_D57 == 4) && EnKnight_IsFacingPlayerFocus(this, play)) {
                 // fast block
                 this->subAction = KNIGHT_SUB_ACTION_IGOS_SITTING_10;
-                Animation_MorphToPlayOnce(&this->skelAnime, &gKnightFastBlockSittingAnim, 0.0f);
-                this->animEndFrame = Animation_GetLastFrame(&gKnightFastBlockSittingAnim);
+                MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightFastBlockSittingAnim, 0.0f);
+                this->animEndFrame = MM_Animation_GetLastFrame(&gKnightFastBlockSittingAnim);
             }
             break;
 
@@ -2037,8 +2037,8 @@ void EnKnight_IgosSitting(EnKnight* this, PlayState* play) {
                 this->subAction++; // = KNIGHT_SUB_ACTION_IGOS_SITTING_2
                 this->timers[0] = 20;
             } else {
-                Math_ApproachS(&this->rightLegLowerRotation, 0x3C00, 1, 0x1770);
-                Math_ApproachS(&this->rightLegUpperRotation, 0x1400, 1, 0x1770);
+                MM_Math_ApproachS(&this->rightLegLowerRotation, 0x3C00, 1, 0x1770);
+                MM_Math_ApproachS(&this->rightLegUpperRotation, 0x1400, 1, 0x1770);
 
                 if (this->timers[0] == 7) {
                     yaw = -0x2000;
@@ -2047,8 +2047,8 @@ void EnKnight_IgosSitting(EnKnight* this, PlayState* play) {
             }
             FALLTHROUGH;
         case KNIGHT_SUB_ACTION_IGOS_SITTING_2:
-            Math_ApproachS(&this->rightLegLowerRotation, 0, 1, 0xBB8);
-            Math_ApproachS(&this->rightLegUpperRotation, 0, 1, 0xBB8);
+            MM_Math_ApproachS(&this->rightLegLowerRotation, 0, 1, 0xBB8);
+            MM_Math_ApproachS(&this->rightLegUpperRotation, 0, 1, 0xBB8);
 
             if (this->timers[0] == 0) {
                 this->subAction = KNIGHT_SUB_ACTION_IGOS_SITTING_0;
@@ -2060,8 +2060,8 @@ void EnKnight_IgosSitting(EnKnight* this, PlayState* play) {
                 this->subAction++; // = KNIGHT_SUB_ACTION_IGOS_SITTING_5
                 this->timers[0] = 20;
             } else {
-                Math_ApproachS(&this->leftLegLowerRotation, 0x3C00, 1, 0x1770);
-                Math_ApproachS(&this->leftLegUpperRotation, 0x1400, 1, 0x1770);
+                MM_Math_ApproachS(&this->leftLegLowerRotation, 0x3C00, 1, 0x1770);
+                MM_Math_ApproachS(&this->leftLegUpperRotation, 0x1400, 1, 0x1770);
 
                 if (this->timers[0] == 7) {
                     yaw = 0x2000;
@@ -2070,8 +2070,8 @@ void EnKnight_IgosSitting(EnKnight* this, PlayState* play) {
             }
             FALLTHROUGH;
         case KNIGHT_SUB_ACTION_IGOS_SITTING_6:
-            Math_ApproachS(&this->leftLegLowerRotation, 0, 1, 0xBB8);
-            Math_ApproachS(&this->leftLegUpperRotation, 0, 1, 0xBB8);
+            MM_Math_ApproachS(&this->leftLegLowerRotation, 0, 1, 0xBB8);
+            MM_Math_ApproachS(&this->leftLegUpperRotation, 0, 1, 0xBB8);
 
             if (this->timers[0] == 0) {
                 this->subAction = KNIGHT_SUB_ACTION_IGOS_SITTING_0;
@@ -2079,17 +2079,17 @@ void EnKnight_IgosSitting(EnKnight* this, PlayState* play) {
             break;
 
         case KNIGHT_SUB_ACTION_IGOS_SITTING_10:
-            if (Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
                 // return to idle
                 this->subAction = KNIGHT_SUB_ACTION_IGOS_SITTING_11;
-                Animation_MorphToPlayOnce(&this->skelAnime, &gKnightEndBlockAndSitAnim, 0.0f);
-                this->animEndFrame = Animation_GetLastFrame(&gKnightEndBlockAndSitAnim);
+                MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightEndBlockAndSitAnim, 0.0f);
+                this->animEndFrame = MM_Animation_GetLastFrame(&gKnightEndBlockAndSitAnim);
             }
             break;
 
         case KNIGHT_SUB_ACTION_IGOS_SITTING_11:
-            if (Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
-                Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosSitDownAnim, -15.0f);
+            if (MM_Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
+                MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosSitDownAnim, -15.0f);
                 this->subAction = KNIGHT_SUB_ACTION_IGOS_SITTING_0;
             }
             break;
@@ -2102,7 +2102,7 @@ void EnKnight_IgosSitting(EnKnight* this, PlayState* play) {
         colliderPos.y = this->actor.world.pos.y + 70.0f;
         colliderPos.z = this->actor.world.pos.z;
         EnKnight_SetColliderSphere(this, 0, &this->shieldCollider, &colliderPos);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->shieldCollider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->shieldCollider.base);
     }
 
     if ((sThinKnightInstance->actor.draw == NULL) && (sWideKnightInstance->actor.draw == NULL)) {
@@ -2115,7 +2115,7 @@ void EnKnight_IgosSitting(EnKnight* this, PlayState* play) {
     if (yaw != 0) {
         Vec3f hitmarkPos;
 
-        Math_Vec3f_Copy(&hitmarkPos, &player->actor.world.pos);
+        MM_Math_Vec3f_Copy(&hitmarkPos, &player->actor.world.pos);
         hitmarkPos.y += 25.0f;
         EffectSsHitmark_SpawnFixedScale(play, EFFECT_HITMARK_WHITE, &hitmarkPos);
 
@@ -2126,24 +2126,24 @@ void EnKnight_IgosSitting(EnKnight* this, PlayState* play) {
 }
 
 void EnKnight_SetupDetachHead(EnKnight* this, PlayState* play) {
-    Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosRemoveHeadAnim, -5.0f);
+    MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosRemoveHeadAnim, -5.0f);
     this->actionFunc = EnKnight_DetachHead;
     this->timers[0] = 50;
 }
 
 void EnKnight_DetachHead(EnKnight* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
-    if (Animation_OnFrame(&this->skelAnime, 19.0f)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, 19.0f)) {
         this->isHeadless = true;
         sIgosHeadInstance =
-            (EnKnight*)Actor_Spawn(&play->actorCtx, play, ACTOR_EN_KNIGHT, this->actor.world.pos.x,
+            (EnKnight*)MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_KNIGHT, this->actor.world.pos.x,
                                    this->actor.world.pos.y, this->actor.world.pos.z, this->actor.shape.rot.x,
                                    this->actor.shape.rot.y, this->actor.shape.rot.z, EN_KNIGHT_PARAM_IGOS_HEAD);
         Actor_PlaySfx(&this->actor, NA_SE_EN_BOSU_HEAD_SHORT);
     }
 
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
 
     if (this->timers[0] == 0) {
         EnKnight_SetupWait(this, play);
@@ -2152,7 +2152,7 @@ void EnKnight_DetachHead(EnKnight* this, PlayState* play) {
 }
 
 void EnKnight_SetupFlyingHeadDone(EnKnight* this, PlayState* play) {
-    Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosPutHeadBackOnAnim, -10.0f);
+    MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosPutHeadBackOnAnim, -10.0f);
     this->actionFunc = EnKnight_FlyingHeadDone;
     this->subAction = KNIGHT_SUB_ACTION_FLYING_HEAD_DONE_0;
     this->timers[0] = 60;
@@ -2163,8 +2163,8 @@ void EnKnight_FlyingHeadDone(EnKnight* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
     this->invincibilityTimer = 5;
-    SkelAnime_Update(&this->skelAnime);
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
 
     switch (this->subAction) {
         case KNIGHT_SUB_ACTION_FLYING_HEAD_DONE_1:
@@ -2175,7 +2175,7 @@ void EnKnight_FlyingHeadDone(EnKnight* this, PlayState* play) {
         case KNIGHT_SUB_ACTION_FLYING_HEAD_DONE_2:
             if (this->timers[0] == 34) {
                 this->isHeadless = false;
-                Actor_Kill(&sIgosHeadInstance->actor);
+                MM_Actor_Kill(&sIgosHeadInstance->actor);
                 sIgosHeadInstance = NULL;
                 this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
                 player->focusActor = &this->actor;
@@ -2185,7 +2185,7 @@ void EnKnight_FlyingHeadDone(EnKnight* this, PlayState* play) {
 
             if (this->timers[0] == 15) {
                 EnKnight_SetupWait(this, play);
-                this->timers[2] = Rand_ZeroFloat(100.0f) + 150.0f;
+                this->timers[2] = MM_Rand_ZeroFloat(100.0f) + 150.0f;
             }
             FALLTHROUGH;
         case KNIGHT_SUB_ACTION_FLYING_HEAD_DONE_0:
@@ -2195,8 +2195,8 @@ void EnKnight_FlyingHeadDone(EnKnight* this, PlayState* play) {
 }
 
 void EnKnight_SetupBreathAttack(EnKnight* this, PlayState* play) {
-    Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosBreathAttackStartAnim, -5.0f);
-    this->animEndFrame = Animation_GetLastFrame(&gKnightIgosBreathAttackStartAnim);
+    MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosBreathAttackStartAnim, -5.0f);
+    this->animEndFrame = MM_Animation_GetLastFrame(&gKnightIgosBreathAttackStartAnim);
     this->actionFunc = EnKnight_BreathAttack;
     this->subAction = KNIGHT_SUB_ACTION_BREATH_ATTACK_0;
     this->timers[0] = KREG(57) + 150;
@@ -2206,9 +2206,9 @@ void EnKnight_SetupBreathAttack(EnKnight* this, PlayState* play) {
 void EnKnight_BreathAttack(EnKnight* this, PlayState* play) {
     s16 yawDiff;
 
-    SkelAnime_Update(&this->skelAnime);
-    Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
-    Math_ApproachS(&this->actor.world.rot.y, this->yawToPlayer, 5, 0x500);
+    MM_SkelAnime_Update(&this->skelAnime);
+    MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+    MM_Math_ApproachS(&this->actor.world.rot.y, this->yawToPlayer, 5, 0x500);
 
     yawDiff = this->yawToPlayer - this->actor.shape.rot.y;
     if (ABS_ALT(yawDiff) < 0x6000) {
@@ -2223,9 +2223,9 @@ void EnKnight_BreathAttack(EnKnight* this, PlayState* play) {
 
     switch (this->subAction) {
         case KNIGHT_SUB_ACTION_BREATH_ATTACK_0:
-            if (Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
                 this->subAction = KNIGHT_SUB_ACTION_BREATH_ATTACK_1;
-                Animation_MorphToLoop(&this->skelAnime, &gKnightIgosBreathAttackAnim, 0.0f);
+                MM_Animation_MorphToLoop(&this->skelAnime, &gKnightIgosBreathAttackAnim, 0.0f);
             }
 
             EnKnight_SpawnBreathEffects(this, play, 0x1600);
@@ -2235,23 +2235,23 @@ void EnKnight_BreathAttack(EnKnight* this, PlayState* play) {
             EnKnight_SpawnBreathEffects(this, play, 0x1600);
 
             if (KREG(21) == 0) {
-                this->neckYawTarget = Math_SinS((KREG(84) + 0x11DC) * this->randTimer) * (KREG(85) * 0x800 + 0x1800) +
+                this->neckYawTarget = MM_Math_SinS((KREG(84) + 0x11DC) * this->randTimer) * (KREG(85) * 0x800 + 0x1800) +
                                       this->neckYawTarget;
             }
 
             if (this->timers[0] == 0) {
                 this->subAction = KNIGHT_SUB_ACTION_BREATH_ATTACK_2;
-                Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosBreathAttackStopAnim, -5.0f);
-                this->animEndFrame = Animation_GetLastFrame(&gKnightIgosBreathAttackStopAnim);
+                MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosBreathAttackStopAnim, -5.0f);
+                this->animEndFrame = MM_Animation_GetLastFrame(&gKnightIgosBreathAttackStopAnim);
             }
             break;
 
         case KNIGHT_SUB_ACTION_BREATH_ATTACK_2:
             EnKnight_SpawnBreathEffects(this, play, 0x1600);
 
-            if (Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
                 EnKnight_SetupWait(this, play);
-                this->timers[2] = Rand_ZeroFloat(150.0f) + 150.0f;
+                this->timers[2] = MM_Rand_ZeroFloat(150.0f) + 150.0f;
             }
             break;
     }
@@ -2269,7 +2269,7 @@ void EnKnight_SetupIgosStandCS(EnKnight* this, PlayState* play) {
 
 void EnKnight_IgosStandCS(EnKnight* this, PlayState* play) {
     this->csTimer++;
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     switch (this->csState) {
         case KNIGHT_CS_1_STATE_0:
@@ -2278,10 +2278,10 @@ void EnKnight_IgosStandCS(EnKnight* this, PlayState* play) {
             }
 
             Cutscene_StartManual(play, &play->csCtx);
-            Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
-            this->subCamId = Play_CreateSubCamera(play);
-            Play_ChangeCameraStatus(play, CAM_ID_MAIN, CAM_STATUS_WAIT);
-            Play_ChangeCameraStatus(play, this->subCamId, CAM_STATUS_ACTIVE);
+            MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
+            this->subCamId = MM_Play_CreateSubCamera(play);
+            MM_Play_ChangeCameraStatus(play, CAM_ID_MAIN, CAM_STATUS_WAIT);
+            MM_Play_ChangeCameraStatus(play, this->subCamId, CAM_STATUS_ACTIVE);
             this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
             this->csTimer = 0;
             this->csState = KNIGHT_CS_1_STATE_1;
@@ -2295,7 +2295,7 @@ void EnKnight_IgosStandCS(EnKnight* this, PlayState* play) {
             FALLTHROUGH;
         case KNIGHT_CS_1_STATE_1:
             if (this->csTimer == (u32)(sREG(64) + 13)) {
-                Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosStandAndDrawAnim, sREG(65));
+                MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosStandAndDrawAnim, sREG(65));
                 Actor_PlaySfx(&this->actor, NA_SE_EN_BOSU_STAND);
             }
 
@@ -2309,13 +2309,13 @@ void EnKnight_IgosStandCS(EnKnight* this, PlayState* play) {
             this->subCamAt.x = 1354.0f;
             this->subCamAt.y = 83.0f;
             this->subCamAt.z = 2865.0f;
-            Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosStandAndDrawAnim, 0.0f);
+            MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosStandAndDrawAnim, 0.0f);
             this->csTimer = 0;
             this->csState = KNIGHT_CS_1_STATE_2;
             FALLTHROUGH;
         case KNIGHT_CS_1_STATE_2:
             this->csStepValue = sREG(67) * 0.001f + 0.05f;
-            Math_ApproachF(&this->subCamAt.y, 119.0f, 0.2f, this->csStepValue * 36.0f);
+            MM_Math_ApproachF(&this->subCamAt.y, 119.0f, 0.2f, this->csStepValue * 36.0f);
             if (this->csTimer >= (u32)(sREG(68) + 10)) {
                 f32 weaponsScale;
 
@@ -2324,24 +2324,24 @@ void EnKnight_IgosStandCS(EnKnight* this, PlayState* play) {
                     Actor_PlaySfx(&this->actor, NA_SE_EN_BOSU_SWORD);
                 }
 
-                weaponsScale = Math_SinS(this->timers[1] * 0x6000);
+                weaponsScale = MM_Math_SinS(this->timers[1] * 0x6000);
                 weaponsScale = (weaponsScale * this->timers[1] * 0.0175f) + (this->timers[1] * 0.0175f) + 1.0f;
 
-                Math_ApproachF(&this->swordScale, weaponsScale, 1.0f, 0.5f);
-                Math_ApproachF(&this->shieldScale, weaponsScale, 1.0f, 0.5f);
+                MM_Math_ApproachF(&this->swordScale, weaponsScale, 1.0f, 0.5f);
+                MM_Math_ApproachF(&this->shieldScale, weaponsScale, 1.0f, 0.5f);
             }
 
             if (this->csTimer == (u32)(sREG(69) + 50)) {
-                Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosLaughAnim, sREG(65) + -10.0f);
+                MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosLaughAnim, sREG(65) + -10.0f);
                 Actor_PlaySfx(&this->actor, NA_SE_EN_BOSU_ATTACK_K);
             }
 
             if (this->csTimer >= (u32)(sREG(69) + 50)) {
-                Math_ApproachF(&this->subCamFov, sREG(70) + 40.0f, 0.2f, sREG(71) * 0.1f + 3.0f);
+                MM_Math_ApproachF(&this->subCamFov, sREG(70) + 40.0f, 0.2f, sREG(71) * 0.1f + 3.0f);
             }
 
             if (this->csTimer >= (u32)(sREG(72) + 90)) {
-                Camera* mainCam = Play_GetCamera(play, CAM_ID_MAIN);
+                Camera* mainCam = MM_Play_GetCamera(play, CAM_ID_MAIN);
                 s32 pad;
 
                 this->csState = KNIGHT_CS_1_STATE_0;
@@ -2358,7 +2358,7 @@ void EnKnight_IgosStandCS(EnKnight* this, PlayState* play) {
                 func_80169AFC(play, this->subCamId, 0);
                 this->subCamId = SUB_CAM_ID_DONE;
                 Cutscene_StopManual(play, &play->csCtx);
-                Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
+                MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
                 sKnightMusicStartTimer = 1;
             }
             break;
@@ -2374,7 +2374,7 @@ void EnKnight_IgosStandCS(EnKnight* this, PlayState* play) {
 void EnKnight_SetupKnightCaptainsHatCS(EnKnight* this, PlayState* play) {
     if ((this->actionFunc != EnKnight_FallOver) && (this->actionFunc != EnKnight_Die) &&
         (this->actionFunc != EnKnight_Dead)) {
-        Animation_MorphToLoop(&this->skelAnime, &gKnightIdleAnim, -5.0f);
+        MM_Animation_MorphToLoop(&this->skelAnime, &gKnightIdleAnim, -5.0f);
         this->actionFunc = EnKnight_KnightCaptainsHatCS;
     }
 }
@@ -2383,7 +2383,7 @@ void EnKnight_KnightCaptainsHatCS(EnKnight* this, PlayState* play) {
     Vec3f offsetFromPlayer;
     Player* player = GET_PLAYER(play);
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     this->neckYawTarget = 0;
     this->actor.shape.rot.y = this->actor.yawTowardsPlayer;
     this->actor.world.rot.y = this->actor.yawTowardsPlayer;
@@ -2438,7 +2438,7 @@ void EnKnight_CaptainsHatCS(EnKnight* this, PlayState* play) {
     this->animMovementX = 0.0f;
     this->animMovementZ = 0.0f;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     switch (this->csState) {
         case KNIGHT_CS_2_STATE_0:
@@ -2447,19 +2447,19 @@ void EnKnight_CaptainsHatCS(EnKnight* this, PlayState* play) {
             }
 
             Cutscene_StartManual(play, &play->csCtx);
-            Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
-            this->subCamId = Play_CreateSubCamera(play);
-            Play_ChangeCameraStatus(play, CAM_ID_MAIN, CAM_STATUS_WAIT);
-            Play_ChangeCameraStatus(play, this->subCamId, CAM_STATUS_ACTIVE);
+            MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
+            this->subCamId = MM_Play_CreateSubCamera(play);
+            MM_Play_ChangeCameraStatus(play, CAM_ID_MAIN, CAM_STATUS_WAIT);
+            MM_Play_ChangeCameraStatus(play, this->subCamId, CAM_STATUS_ACTIVE);
             this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
             this->csTimer = 0;
             this->csState = KNIGHT_CS_2_STATE_1;
             this->subCamFov = 60.0f;
 
             if (this->prevActionFunc == EnKnight_IgosSitting) {
-                Animation_MorphToPlayOnce(&this->skelAnime, &gKnightCaptainsHatCSBeginSittingAnim, 0.0f);
+                MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightCaptainsHatCSBeginSittingAnim, 0.0f);
             } else {
-                Animation_MorphToPlayOnce(&this->skelAnime, &gKnightCaptainsHatCSBeginStandingAnim, 0.0f);
+                MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightCaptainsHatCSBeginStandingAnim, 0.0f);
             }
 
             Actor_PlaySfx(&this->actor, NA_SE_EN_BOSU_STAND);
@@ -2498,7 +2498,7 @@ void EnKnight_CaptainsHatCS(EnKnight* this, PlayState* play) {
             Matrix_MultVecZ(this->csStepValue, &posOffset);
 
             if (this->csTimer > 25) {
-                Math_ApproachF(&this->csStepValue, 40.0f, 0.2f, 2.0f);
+                MM_Math_ApproachF(&this->csStepValue, 40.0f, 0.2f, 2.0f);
             }
 
             this->subCamEye.x = player->actor.world.pos.x + posOffset.x;
@@ -2519,14 +2519,14 @@ void EnKnight_CaptainsHatCS(EnKnight* this, PlayState* play) {
         case KNIGHT_CS_2_STATE_3:
             if (this->csTimer == 7) {
                 if (this->prevActionFunc == EnKnight_IgosSitting) {
-                    Animation_MorphToPlayOnce(&this->skelAnime, &gKnightCaptainsHatCSIgosShockedSittingAnim, 0.0f);
-                    this->animEndFrame = Animation_GetLastFrame(&gKnightCaptainsHatCSIgosShockedSittingAnim);
+                    MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightCaptainsHatCSIgosShockedSittingAnim, 0.0f);
+                    this->animEndFrame = MM_Animation_GetLastFrame(&gKnightCaptainsHatCSIgosShockedSittingAnim);
                     Actor_PlaySfx(&this->actor, NA_SE_EN_BOSU_STAND_RAPID);
                 } else {
-                    Animation_MorphToPlayOnce(&this->skelAnime, &gKnightCaptainsHatCSIgosShockedStandingAnim, 0.0f);
-                    this->animEndFrame = Animation_GetLastFrame(&gKnightCaptainsHatCSIgosShockedStandingAnim);
+                    MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightCaptainsHatCSIgosShockedStandingAnim, 0.0f);
+                    this->animEndFrame = MM_Animation_GetLastFrame(&gKnightCaptainsHatCSIgosShockedStandingAnim);
                 }
-                Message_StartTextbox(play, 0x153E, NULL);
+                MM_Message_StartTextbox(play, 0x153E, NULL);
             }
 
             Matrix_RotateYS(KREG(29) + this->actor.shape.rot.y + 0x1B58, MTXMODE_NEW);
@@ -2542,8 +2542,8 @@ void EnKnight_CaptainsHatCS(EnKnight* this, PlayState* play) {
                 this->subCamAt.z = this->actor.focus.pos.z;
             }
 
-            if (Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
-                Animation_MorphToLoop(&this->skelAnime, &gKnightCaptainsHatCSIgosShockedAnim, 0.0f);
+            if (MM_Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
+                MM_Animation_MorphToLoop(&this->skelAnime, &gKnightCaptainsHatCSIgosShockedAnim, 0.0f);
                 this->animEndFrame = 1000.0f;
                 Actor_PlaySfx(&this->actor, NA_SE_EN_BOSU_HAND);
             }
@@ -2551,7 +2551,7 @@ void EnKnight_CaptainsHatCS(EnKnight* this, PlayState* play) {
             if (this->csTimer == (u32)(KREG(25) + 120)) {
                 this->csState = KNIGHT_CS_2_STATE_4;
                 this->csTimer = 0;
-                Animation_MorphToPlayOnce(&this->skelAnime, &gKnightCaptainsHatCSIgosShockedAnim, 0.0f);
+                MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightCaptainsHatCSIgosShockedAnim, 0.0f);
             }
             break;
 
@@ -2571,20 +2571,20 @@ void EnKnight_CaptainsHatCS(EnKnight* this, PlayState* play) {
             this->subCamAt.z = this->actor.world.pos.z + posOffset.z;
 
             if (this->csTimer == 60) {
-                Message_StartTextbox(play, 0x153F, NULL);
+                MM_Message_StartTextbox(play, 0x153F, NULL);
             }
 
             if (this->csTimer == (u32)(BREG(16) + 120)) {
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
             }
 
             if (this->csTimer == (u32)(BREG(17) + 160)) {
-                Message_StartTextbox(play, 0x1542, NULL);
-                Animation_MorphToLoop(&this->skelAnime, &gKnightCaptainsHatCSIgosSteppingAnim, 0.0f);
+                MM_Message_StartTextbox(play, 0x1542, NULL);
+                MM_Animation_MorphToLoop(&this->skelAnime, &gKnightCaptainsHatCSIgosSteppingAnim, 0.0f);
             }
 
             if (this->csTimer == (u32)(BREG(18) + 170)) {
-                Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_4);
+                MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_4);
             }
 
             if ((this->csTimer > 156) && (this->csTimer <= 220)) {
@@ -2597,29 +2597,29 @@ void EnKnight_CaptainsHatCS(EnKnight* this, PlayState* play) {
             }
 
             if (this->csTimer == (u32)(BREG(19) + 220)) {
-                Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosShrugStartAnim, -3.0f);
+                MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosShrugStartAnim, -3.0f);
             }
 
             if (this->csTimer == (u32)(BREG(20) + 230)) {
-                Message_StartTextbox(play, 0x1540, NULL);
+                MM_Message_StartTextbox(play, 0x1540, NULL);
             }
 
             if (this->csTimer == (u32)(BREG(20) + 240)) {
-                Animation_MorphToLoop(&this->skelAnime, &gKnightIgosShrugAnim, 0.0f);
+                MM_Animation_MorphToLoop(&this->skelAnime, &gKnightIgosShrugAnim, 0.0f);
             }
 
             if (this->csTimer == (u32)(BREG(21) + 320)) {
                 if (this->prevActionFunc == EnKnight_IgosSitting) {
-                    Animation_MorphToPlayOnce(&this->skelAnime, &gKnightCaptainsHatCSSitBackDownAnim, 0.0f);
+                    MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightCaptainsHatCSSitBackDownAnim, 0.0f);
                     Actor_PlaySfx(&this->actor, NA_SE_EN_BOSU_SIT);
                 } else {
-                    Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosShrugStopAnim, 0.0f);
+                    MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosShrugStopAnim, 0.0f);
                 }
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
             }
 
             if (this->csTimer >= (u32)(BREG(22) + 340)) {
-                Camera* mainCam = Play_GetCamera(play, CAM_ID_MAIN);
+                Camera* mainCam = MM_Play_GetCamera(play, CAM_ID_MAIN);
                 s32 pad;
 
                 this->csState = KNIGHT_CS_2_STATE_0;
@@ -2638,7 +2638,7 @@ void EnKnight_CaptainsHatCS(EnKnight* this, PlayState* play) {
                 func_80169AFC(play, this->subCamId, 0);
                 this->subCamId = SUB_CAM_ID_DONE;
                 Cutscene_StopManual(play, &play->csCtx);
-                Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
+                MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
                 sKnightMusicStartTimer = 5;
             }
             break;
@@ -2652,7 +2652,7 @@ void EnKnight_CaptainsHatCS(EnKnight* this, PlayState* play) {
 }
 
 void EnKnight_WaitIntroCutscene(EnKnight* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 }
 
 void EnKnight_IntroCutscene(EnKnight* this, PlayState* play) {
@@ -2660,21 +2660,21 @@ void EnKnight_IntroCutscene(EnKnight* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
     this->csTimer++;
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     switch (this->csState) {
         case KNIGHT_INTRO_CS_STATE_0:
             // If the room clear flag is set, or there is a cs playing, or the player is too far away, don't play the cs
-            if (Flags_GetClear(play, play->roomCtx.curRoom.num) || (CutsceneManager_GetCurrentCsId() != CS_ID_NONE) ||
+            if (MM_Flags_GetClear(play, play->roomCtx.curRoom.num) || (CutsceneManager_GetCurrentCsId() != CS_ID_NONE) ||
                 !(player->actor.world.pos.x >= 870.0f)) {
                 break;
             }
 
             Cutscene_StartManual(play, &play->csCtx);
-            Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
-            this->subCamId = Play_CreateSubCamera(play);
-            Play_ChangeCameraStatus(play, CAM_ID_MAIN, CAM_STATUS_WAIT);
-            Play_ChangeCameraStatus(play, this->subCamId, CAM_STATUS_ACTIVE);
+            MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
+            this->subCamId = MM_Play_CreateSubCamera(play);
+            MM_Play_ChangeCameraStatus(play, CAM_ID_MAIN, CAM_STATUS_WAIT);
+            MM_Play_ChangeCameraStatus(play, this->subCamId, CAM_STATUS_ACTIVE);
             this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
             this->csTimer = 0;
             this->csState = KNIGHT_INTRO_CS_STATE_1;
@@ -2705,18 +2705,18 @@ void EnKnight_IntroCutscene(EnKnight* this, PlayState* play) {
             }
 
             if (this->csTimer == (u32)(BREG(22) + 30)) {
-                Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_21);
+                MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_21);
             }
 
             if (this->csTimer == (u32)(BREG(22) + 50)) {
-                Message_StartTextbox(play, 0x1518, NULL);
+                MM_Message_StartTextbox(play, 0x1518, NULL);
             }
 
             if (this->csTimer != (u32)(BREG(23) + 150)) {
                 break;
             }
 
-            Message_CloseTextbox(play);
+            MM_Message_CloseTextbox(play);
 
             this->csState = KNIGHT_INTRO_CS_STATE_2;
             this->csTimer = 0;
@@ -2729,11 +2729,11 @@ void EnKnight_IntroCutscene(EnKnight* this, PlayState* play) {
             this->curtainsLightRayAngle = 0x8000;
 
             if (this->csTimer == 10) {
-                Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_4);
+                MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_4);
             }
 
             if (this->csTimer >= 10) {
-                Math_ApproachS(&this->csPlayerYaw, 0, 2, 0x1000);
+                MM_Math_ApproachS(&this->csPlayerYaw, 0, 2, 0x1000);
             }
 
             this->subCamEye.x = 896.0f;
@@ -2744,7 +2744,7 @@ void EnKnight_IntroCutscene(EnKnight* this, PlayState* play) {
             this->subCamAt.z = 2860.0f;
 
             if (this->csTimer == (u32)(BREG(65) + 40)) {
-                Message_StartTextbox(play, 0x1519, NULL);
+                MM_Message_StartTextbox(play, 0x1519, NULL);
             }
 
             if ((u32)(BREG(94) + 130) >= this->csTimer) {
@@ -2753,11 +2753,11 @@ void EnKnight_IntroCutscene(EnKnight* this, PlayState* play) {
             }
 
             if (this->csTimer == (u32)(BREG(65) + 140)) {
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
             }
 
             if (this->csTimer == (u32)(BREG(65) + 170)) {
-                Message_StartTextbox(play, 0x151A, NULL);
+                MM_Message_StartTextbox(play, 0x151A, NULL);
             }
 
             if ((this->csTimer >= 170) && (this->csTimer <= 190)) {
@@ -2774,10 +2774,10 @@ void EnKnight_IntroCutscene(EnKnight* this, PlayState* play) {
 
             this->csState = KNIGHT_INTRO_CS_STATE_3;
             this->csTimer = 0;
-            Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_133);
+            MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_133);
             FALLTHROUGH;
         case KNIGHT_INTRO_CS_STATE_3:
-            Math_ApproachS(&this->csPlayerYaw, 0x4000, 2, 0x1000);
+            MM_Math_ApproachS(&this->csPlayerYaw, 0x4000, 2, 0x1000);
 
             if (this->csTimer != (u32)(BREG(26) + 15)) {
                 break;
@@ -2785,18 +2785,18 @@ void EnKnight_IntroCutscene(EnKnight* this, PlayState* play) {
 
             this->csState = KNIGHT_INTRO_CS_STATE_4;
             this->csTimer = 0;
-            Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIntroSitDownAnim, 0.0f);
-            this->animEndFrame = Animation_GetLastFrame(&gKnightIntroSitDownAnim);
+            MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIntroSitDownAnim, 0.0f);
+            this->animEndFrame = MM_Animation_GetLastFrame(&gKnightIntroSitDownAnim);
 
             FALLTHROUGH;
         case KNIGHT_INTRO_CS_STATE_4:
             this->csStepValue = BREG(29) * 0.01f + 0.1f;
-            Math_ApproachF(&this->subCamEye.x, 1076.0f, 0.5f, this->csStepValue * 180.0f);
-            Math_ApproachF(&this->subCamEye.y, 20.0f, 0.5f, this->csStepValue * 16.0f);
-            Math_ApproachF(&this->subCamEye.z, 2741.0f, 0.5f, this->csStepValue * 11.0f);
-            Math_ApproachF(&this->subCamAt.x, 1155.0f, 0.5f, this->csStepValue * 261.0f);
-            Math_ApproachF(&this->subCamAt.y, 50.0f, 0.5f, this->csStepValue * 4.0f);
-            Math_ApproachF(&this->subCamAt.z, 2822.0f, 0.5f, this->csStepValue * 38.0f);
+            MM_Math_ApproachF(&this->subCamEye.x, 1076.0f, 0.5f, this->csStepValue * 180.0f);
+            MM_Math_ApproachF(&this->subCamEye.y, 20.0f, 0.5f, this->csStepValue * 16.0f);
+            MM_Math_ApproachF(&this->subCamEye.z, 2741.0f, 0.5f, this->csStepValue * 11.0f);
+            MM_Math_ApproachF(&this->subCamAt.x, 1155.0f, 0.5f, this->csStepValue * 261.0f);
+            MM_Math_ApproachF(&this->subCamAt.y, 50.0f, 0.5f, this->csStepValue * 4.0f);
+            MM_Math_ApproachF(&this->subCamAt.z, 2822.0f, 0.5f, this->csStepValue * 38.0f);
 
             this->actor.world.pos.x = BREG(27) + 1376.0f;
             this->actor.world.pos.y = 45.0f;
@@ -2808,9 +2808,9 @@ void EnKnight_IntroCutscene(EnKnight* this, PlayState* play) {
 
             this->csState = KNIGHT_INTRO_CS_STATE_5;
             this->csTimer = 0;
-            Animation_MorphToLoop(&sWideKnightInstance->skelAnime, &gKnightIntroWalkAnim, 0.0f);
+            MM_Animation_MorphToLoop(&sWideKnightInstance->skelAnime, &gKnightIntroWalkAnim, 0.0f);
             sWideKnightInstance->actor.world.pos.x = BREG(30) + 1363.0f + 120.0f;
-            Message_StartTextbox(play, 0x1533, NULL);
+            MM_Message_StartTextbox(play, 0x1533, NULL);
             this->subCamFov = 30.0f;
             play->envCtx.lightSettingOverride = 2;
             FALLTHROUGH;
@@ -2828,8 +2828,8 @@ void EnKnight_IntroCutscene(EnKnight* this, PlayState* play) {
                 this->jawRotationAmplitudeTarget = KREG(42) + 200.0f;
             }
 
-            if (Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
-                Animation_MorphToLoop(&this->skelAnime, &gKnightIgosSittingAnim, 0.0f);
+            if (MM_Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
+                MM_Animation_MorphToLoop(&this->skelAnime, &gKnightIgosSittingAnim, 0.0f);
                 this->animEndFrame = 1000.0f;
             }
 
@@ -2839,12 +2839,12 @@ void EnKnight_IntroCutscene(EnKnight* this, PlayState* play) {
             this->subCamAt.x = 1377.0f;
             this->subCamAt.y = 121.0f;
             this->subCamAt.z = 2851.0f;
-            Math_ApproachF(&sWideKnightInstance->actor.world.pos.x, BREG(30) + 1363.0f + 30.0f, 1.0f, BREG(32) + 2.0f);
+            MM_Math_ApproachF(&sWideKnightInstance->actor.world.pos.x, BREG(30) + 1363.0f + 30.0f, 1.0f, BREG(32) + 2.0f);
             sWideKnightInstance->actor.world.pos.y = 45.0f;
             sWideKnightInstance->actor.world.pos.z = BREG(31) + 2864.0f + 60.0f;
 
             if (this->csTimer == (u32)(BREG(35) + 45)) {
-                Animation_MorphToPlayOnce(&sWideKnightInstance->skelAnime, &gKnightLaugh2Anim, -10.0f);
+                MM_Animation_MorphToPlayOnce(&sWideKnightInstance->skelAnime, &gKnightLaugh2Anim, -10.0f);
                 Actor_PlaySfx(&sWideKnightInstance->actor, NA_SE_EN_DEBU_PAUSE_K);
             }
 
@@ -2854,10 +2854,10 @@ void EnKnight_IntroCutscene(EnKnight* this, PlayState* play) {
 
             this->csState = KNIGHT_INTRO_CS_STATE_6;
             this->csTimer = 0;
-            Animation_MorphToLoop(&sThinKnightInstance->skelAnime, &gKnightIntroWalkAnim, 0.0f);
+            MM_Animation_MorphToLoop(&sThinKnightInstance->skelAnime, &gKnightIntroWalkAnim, 0.0f);
             sThinKnightInstance->actor.world.pos.x = BREG(30) + 1363.0f + 120.0f;
             sWideKnightInstance->actor.world.pos.z = 3164.0f;
-            Message_StartTextbox(play, 0x151B, NULL);
+            MM_Message_StartTextbox(play, 0x151B, NULL);
             play->envCtx.lightSettingOverride = 3;
             FALLTHROUGH;
         case KNIGHT_INTRO_CS_STATE_6:
@@ -2876,12 +2876,12 @@ void EnKnight_IntroCutscene(EnKnight* this, PlayState* play) {
             this->subCamAt.x = 1372.0f;
             this->subCamAt.y = 122.0f;
             this->subCamAt.z = 2867.0f;
-            Math_ApproachF(&sThinKnightInstance->actor.world.pos.x, BREG(30) + 1363.0f + 30.0f, 1.0f, BREG(32) + 2.0f);
+            MM_Math_ApproachF(&sThinKnightInstance->actor.world.pos.x, BREG(30) + 1363.0f + 30.0f, 1.0f, BREG(32) + 2.0f);
             sThinKnightInstance->actor.world.pos.y = 45.0f;
             sThinKnightInstance->actor.world.pos.z = (BREG(31) + 2864.0f) - 60.0f;
 
             if (this->csTimer == (u32)(BREG(35) + 45)) {
-                Animation_MorphToPlayOnce(&sThinKnightInstance->skelAnime, &gKnightLaugh2Anim, -10.0f);
+                MM_Animation_MorphToPlayOnce(&sThinKnightInstance->skelAnime, &gKnightLaugh2Anim, -10.0f);
                 Actor_PlaySfx(&sThinKnightInstance->actor, NA_SE_EN_YASE_PAUSE_K);
             }
 
@@ -2902,20 +2902,20 @@ void EnKnight_IntroCutscene(EnKnight* this, PlayState* play) {
             this->subCamAt.y = 120.0f;
             this->subCamAt.z = 2864.0f;
             this->csStepValue = 0.0f;
-            Message_StartTextbox(play, 0x1534, NULL);
+            MM_Message_StartTextbox(play, 0x1534, NULL);
             this->subCamFov = 60.0f;
             play->envCtx.lightSettingOverride = 4;
             FALLTHROUGH;
         case KNIGHT_INTRO_CS_STATE_7:
             if (this->csTimer >= (u32)(BREG(37) + 20)) {
                 if (this->csTimer == (u32)(BREG(37) + 20)) {
-                    Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosStandAndDrawAnim, 0.0f);
-                    this->animEndFrame = Animation_GetLastFrame(&gKnightIgosStandAndDrawAnim);
+                    MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosStandAndDrawAnim, 0.0f);
+                    this->animEndFrame = MM_Animation_GetLastFrame(&gKnightIgosStandAndDrawAnim);
                     Actor_PlaySfx(&this->actor, NA_SE_EN_BOSU_STAND);
                 }
 
-                if (Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
-                    Animation_MorphToLoop(&this->skelAnime, &gKnightIgosLaughAnim, 0.0f);
+                if (MM_Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
+                    MM_Animation_MorphToLoop(&this->skelAnime, &gKnightIgosLaughAnim, 0.0f);
                     this->animEndFrame = 1000.0f;
                 }
             }
@@ -2930,8 +2930,8 @@ void EnKnight_IntroCutscene(EnKnight* this, PlayState* play) {
             }
 
             if (this->csTimer == (u32)(BREG(44) + 40)) {
-                Animation_MorphToLoop(&sThinKnightInstance->skelAnime, &gKnightLaugh1Anim, -5.0f);
-                Animation_MorphToLoop(&sWideKnightInstance->skelAnime, &gKnightLaugh1Anim, -5.0f);
+                MM_Animation_MorphToLoop(&sThinKnightInstance->skelAnime, &gKnightLaugh1Anim, -5.0f);
+                MM_Animation_MorphToLoop(&sWideKnightInstance->skelAnime, &gKnightLaugh1Anim, -5.0f);
             }
 
             if (this->csTimer == 40) {
@@ -2946,11 +2946,11 @@ void EnKnight_IntroCutscene(EnKnight* this, PlayState* play) {
                 Actor_PlaySfx(&sThinKnightInstance->actor, NA_SE_EN_YASE_LAUGH_K);
             }
 
-            Math_ApproachF(&this->subCamEye.x, 1196.0f, 0.1f, this->csStepValue * 143.0f);
-            Math_ApproachF(&this->subCamEye.y, 52.0f, 0.1f, this->csStepValue * 65.0f);
-            Math_ApproachF(&this->subCamAt.x, 1302.0f, 0.1f, this->csStepValue * 150.0f);
-            Math_ApproachF(&this->subCamAt.y, 90.0f, 0.1f, this->csStepValue * 30.0f);
-            Math_ApproachF(&this->csStepValue, BREG(45) * 0.01f + 0.1f, 1.0f, BREG(45) * 0.0001f + 0.01f);
+            MM_Math_ApproachF(&this->subCamEye.x, 1196.0f, 0.1f, this->csStepValue * 143.0f);
+            MM_Math_ApproachF(&this->subCamEye.y, 52.0f, 0.1f, this->csStepValue * 65.0f);
+            MM_Math_ApproachF(&this->subCamAt.x, 1302.0f, 0.1f, this->csStepValue * 150.0f);
+            MM_Math_ApproachF(&this->subCamAt.y, 90.0f, 0.1f, this->csStepValue * 30.0f);
+            MM_Math_ApproachF(&this->csStepValue, BREG(45) * 0.01f + 0.1f, 1.0f, BREG(45) * 0.0001f + 0.01f);
 
             if (this->csTimer != (u32)(BREG(18) + 60)) {
                 break;
@@ -2996,7 +2996,7 @@ void EnKnight_IntroCutscene(EnKnight* this, PlayState* play) {
             }
 
             if (this->csTimer == (u32)(BREG(19) + 55)) {
-                Camera* mainCam = Play_GetCamera(play, CAM_ID_MAIN);
+                Camera* mainCam = MM_Play_GetCamera(play, CAM_ID_MAIN);
 
                 this->csState = KNIGHT_INTRO_CS_STATE_0;
 
@@ -3014,10 +3014,10 @@ void EnKnight_IntroCutscene(EnKnight* this, PlayState* play) {
                 func_80169AFC(play, this->subCamId, 0);
                 this->subCamId = SUB_CAM_ID_DONE;
                 Cutscene_StopManual(play, &play->csCtx);
-                Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
+                MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
                 sKnightMusicStartTimer = 1;
                 this->closeCurtainAction = KNIGHT_CLOSE_CURTAIN_ACTION_2;
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 play->envCtx.lightSettingOverride = 7;
                 SET_EVENTINF(EVENTINF_INTRO_CS_WATCHED_IGOS_DU_IKANA);
             }
@@ -3030,7 +3030,7 @@ void EnKnight_IntroCutscene(EnKnight* this, PlayState* play) {
         f32 yOffset;
 
         ShrinkWindow_Letterbox_SetSizeTarget(27);
-        yOffset = Math_SinS(this->randTimer * 0x6000) * 0.5f * scale;
+        yOffset = MM_Math_SinS(this->randTimer * 0x6000) * 0.5f * scale;
 
         eye.x = this->subCamEye.x;
         eye.y = this->subCamEye.y + yOffset;
@@ -3043,12 +3043,12 @@ void EnKnight_IntroCutscene(EnKnight* this, PlayState* play) {
         player->actor.world.rot.y = player->actor.shape.rot.y = this->csPlayerYaw;
     }
 
-    Math_ApproachF(&this->jawRotationAmplitude, this->jawRotationAmplitudeTarget, 1.0f, 2.0f * KREG(41) + 200.0f);
-    this->jawRotation = Math_SinS((KREG(40) * 0x100 + 0x3F00) * this->randTimer) * this->jawRotationAmplitude +
+    MM_Math_ApproachF(&this->jawRotationAmplitude, this->jawRotationAmplitudeTarget, 1.0f, 2.0f * KREG(41) + 200.0f);
+    this->jawRotation = MM_Math_SinS((KREG(40) * 0x100 + 0x3F00) * this->randTimer) * this->jawRotationAmplitude +
                         this->jawRotationAmplitude;
-    Math_ApproachZeroF(&this->jawRotationAmplitude, 1.0f, KREG(41) + 100.0f);
+    MM_Math_ApproachZeroF(&this->jawRotationAmplitude, 1.0f, KREG(41) + 100.0f);
 
-    if ((this->jawRotationAmplitudeTarget >= 50.0f) && (this->randTimer % 2 == 0) && (Rand_ZeroOne() < 0.5f)) {
+    if ((this->jawRotationAmplitudeTarget >= 50.0f) && (this->randTimer % 2 == 0) && (MM_Rand_ZeroOne() < 0.5f)) {
         Actor_PlaySfx(&this->actor, NA_SE_EN_BOSU_TALK);
     }
 }
@@ -3066,7 +3066,7 @@ void EnKnight_UpdateDamage(EnKnight* this, PlayState* play) {
         if ((player->meleeWeaponState != PLAYER_MWA_FORWARD_SLASH_1H) &&
             (player->meleeWeaponAnimation >= PLAYER_MWA_SPIN_ATTACK_1H) && (this->shieldHitTimer == 0)) {
             Audio_PlaySfx(NA_SE_IT_SHIELD_REFLECT_SW);
-            CollisionCheck_SpawnShieldParticlesMetal(play, &this->shieldParticlesPos);
+            MM_CollisionCheck_SpawnShieldParticlesMetal(play, &this->shieldParticlesPos);
             this->shieldHitTimer = 5;
         }
         Matrix_RotateYS(this->yawToPlayer, MTXMODE_NEW);
@@ -3137,7 +3137,7 @@ void EnKnight_UpdateDamage(EnKnight* this, PlayState* play) {
 
                 if ((s8)this->actor.colChkInfo.health <= 0) {
                     EnKnight_SetupFallOver(this, play);
-                    Enemy_StartFinishingBlow(play, &this->actor);
+                    MM_Enemy_StartFinishingBlow(play, &this->actor);
                     Actor_PlaySfx(&this->actor, this->defeatedSfx);
                 } else if (this->actor.colChkInfo.damageEffect != KNIGHT_DMGEFF_ICE) {
                     EnKnight_SetupRecoilFromDamage(this, play);
@@ -3180,21 +3180,21 @@ void EnKnight_UpdateDamageFallenOver(EnKnight* this, PlayState* play) {
 void EnKnight_SpawnIceShards(EnKnight* this, PlayState* play) {
     static Color_RGBA8 sPrimColor = { 170, 255, 255, 255 };
     static Color_RGBA8 sEnvColor = { 200, 200, 255, 255 };
-    static Vec3f sAccel = { 0.0f, -1.0f, 0.0f };
+    static Vec3f MM_sAccel = { 0.0f, -1.0f, 0.0f };
     Vec3f pos;
     Vec3f velocity;
     s32 i;
 
-    SoundSource_PlaySfxAtFixedWorldPos(play, &this->bodyPartsPos[KNIGHT_BODYPART_JAW], 30, NA_SE_EV_ICE_BROKEN);
+    MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->bodyPartsPos[KNIGHT_BODYPART_JAW], 30, NA_SE_EV_ICE_BROKEN);
 
     for (i = 0; i < ARRAY_COUNT(this->bodyPartsPos); i++) {
-        velocity.x = Rand_CenteredFloat(7.0f);
-        velocity.z = Rand_CenteredFloat(7.0f);
-        velocity.y = Rand_ZeroFloat(6.0f) + 4.0f;
+        velocity.x = MM_Rand_CenteredFloat(7.0f);
+        velocity.z = MM_Rand_CenteredFloat(7.0f);
+        velocity.y = MM_Rand_ZeroFloat(6.0f) + 4.0f;
         pos.x = velocity.x + this->bodyPartsPos[i].x;
         pos.y = velocity.y + this->bodyPartsPos[i].y;
         pos.z = velocity.z + this->bodyPartsPos[i].z;
-        EffectSsEnIce_Spawn(play, &pos, Rand_ZeroFloat(0.5f) + 0.7f, &velocity, &sAccel, &sPrimColor, &sEnvColor, 30);
+        MM_EffectSsEnIce_Spawn(play, &pos, MM_Rand_ZeroFloat(0.5f) + 0.7f, &velocity, &MM_sAccel, &sPrimColor, &sEnvColor, 30);
     }
 }
 
@@ -3224,7 +3224,7 @@ void EnKnight_UpdateDamageFlyingHead(EnKnight* this, PlayState* play) {
 }
 
 void EnKnight_SetupFlyingHead(EnKnight* this, PlayState* play) {
-    Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosRemoveHeadAnim, 0.0f);
+    MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosRemoveHeadAnim, 0.0f);
     this->skelAnime.curFrame = 19.0f;
     this->actionFunc = EnKnight_FlyingHead;
     this->subAction = KNIGHT_SUB_ACTION_FLYING_HEAD_0;
@@ -3242,7 +3242,7 @@ void EnKnight_FlyingHead(EnKnight* this, PlayState* play) {
     s16 yaw;
     Player* player = GET_PLAYER(play);
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     Actor_PlaySfx(&this->actor, NA_SE_EN_BOSU_HEAD_FLOAT - SFX_FLAG);
 
     switch (this->subAction) {
@@ -3259,7 +3259,7 @@ void EnKnight_FlyingHead(EnKnight* this, PlayState* play) {
             player->focusActor = &this->actor;
             play->actorCtx.attention.tatlHoverActor = &this->actor;
             play->actorCtx.attention.reticleActor = &this->actor;
-            Math_Vec3f_Copy(&this->actor.world.pos, &sIgosInstance->actor.world.pos);
+            MM_Math_Vec3f_Copy(&this->actor.world.pos, &sIgosInstance->actor.world.pos);
             Math_Vec3s_Copy(&this->actor.world.rot, &sIgosInstance->actor.world.rot);
             Math_Vec3s_Copy(&this->actor.shape.rot, &sIgosInstance->actor.world.rot);
             this->invincibilityTimer = 10;
@@ -3267,18 +3267,18 @@ void EnKnight_FlyingHead(EnKnight* this, PlayState* play) {
             break;
 
         case KNIGHT_SUB_ACTION_FLYING_HEAD_1:
-            this->jawRotation = Math_SinS((KREG(40) * 0x100 + 0x1200) * this->randTimer) * 1000.0f + 1000.0f;
+            this->jawRotation = MM_Math_SinS((KREG(40) * 0x100 + 0x1200) * this->randTimer) * 1000.0f + 1000.0f;
             dx = this->retreatTowards.x - this->actor.world.pos.x;
             dy = this->retreatTowards.y - this->actor.world.pos.y;
             dz = this->retreatTowards.z - this->actor.world.pos.z;
-            dist = sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
+            dist = MM_sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
 
             if ((this->timers[1] == 1) || (KREG(5) != 0)) {
                 KREG(5) = 0;
                 if ((sIgosInstance->actionFunc != EnKnight_FallOver) && (sIgosInstance->actionFunc != EnKnight_Die)) {
                     this->timers[1] = 0;
                     EnKnight_SetupFlyingHeadDone(sIgosInstance, play);
-                    Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosPutHeadBackOnAnim, -10.0f);
+                    MM_Animation_MorphToPlayOnce(&this->skelAnime, &gKnightIgosPutHeadBackOnAnim, -10.0f);
                     this->doBgChecks = false;
                     this->skelAnime.playSpeed = 0.0f;
                 } else {
@@ -3287,11 +3287,11 @@ void EnKnight_FlyingHead(EnKnight* this, PlayState* play) {
             }
 
             if (this->timers[1] == 0) {
-                Math_Vec3f_Copy(&this->retreatTowards, &sIgosInstance->actor.world.pos);
+                MM_Math_Vec3f_Copy(&this->retreatTowards, &sIgosInstance->actor.world.pos);
                 this->retreatTowards.y += 100.0f;
 
                 if (dist < 100.0f) {
-                    Math_ApproachF(&this->actor.speed, (f32)sREG(48) + 1.5f, 1.0f, 0.3f);
+                    MM_Math_ApproachF(&this->actor.speed, (f32)sREG(48) + 1.5f, 1.0f, 0.3f);
                 }
                 if (dist < 30.0f) {
                     this->subAction = KNIGHT_SUB_ACTION_FLYING_HEAD_2;
@@ -3300,31 +3300,31 @@ void EnKnight_FlyingHead(EnKnight* this, PlayState* play) {
                     break;
                 }
             } else {
-                Math_ApproachF(&this->actor.speed, sREG(48) + 5.0f, 1.0f, 5.0f);
+                MM_Math_ApproachF(&this->actor.speed, sREG(48) + 5.0f, 1.0f, 5.0f);
 
                 if ((this->timers[0] == 0) || (dist < 50.0f)) {
-                    this->timers[0] = Rand_ZeroFloat(50.0f) + 50.0f;
+                    this->timers[0] = MM_Rand_ZeroFloat(50.0f) + 50.0f;
 
-                    if (Rand_ZeroOne() < 0.2f) {
-                        Math_Vec3f_Copy(&this->retreatTowards, &player->actor.world.pos);
+                    if (MM_Rand_ZeroOne() < 0.2f) {
+                        MM_Math_Vec3f_Copy(&this->retreatTowards, &player->actor.world.pos);
                         this->retreatTowards.y += 25.0f;
                     } else {
-                        this->retreatTowards.x = Rand_CenteredFloat(500.0f) + player->actor.world.pos.x;
-                        this->retreatTowards.y = Rand_ZeroFloat(100.0f) + player->actor.world.pos.y + 50.0f;
-                        this->retreatTowards.z = Rand_CenteredFloat(500.0f) + player->actor.world.pos.z;
+                        this->retreatTowards.x = MM_Rand_CenteredFloat(500.0f) + player->actor.world.pos.x;
+                        this->retreatTowards.y = MM_Rand_ZeroFloat(100.0f) + player->actor.world.pos.y + 50.0f;
+                        this->retreatTowards.z = MM_Rand_CenteredFloat(500.0f) + player->actor.world.pos.z;
                     }
                 }
             }
 
-            yaw = Math_Atan2S(dx, dz);
-            pitch = Math_Atan2S(dy, sqrtf(SQ(dx) + SQ(dz)));
-            Math_ApproachS(&this->actor.world.rot.y, yaw, 0xA, 0x800);
-            Math_ApproachS(&this->actor.world.rot.x, pitch, 0xA, 0x800);
-            Math_ApproachF(&this->afterImageOffset.x, 300.0f, 0.1f, 3.0f);
-            Math_ApproachF(&this->afterImageOffset.y, -3800.0f, 0.1f, 38.0f);
-            Math_ApproachF(&this->afterImageOffset.z, -900.0f, 0.1f, 9.0f);
-            Math_ApproachS(&this->actor.shape.rot.y, this->yawToPlayer, 0xA, 0x200);
-            Math_ApproachS(&this->actor.shape.rot.x, this->pitchToPlayer, 0xA, 0x200);
+            yaw = MM_Math_Atan2S(dx, dz);
+            pitch = MM_Math_Atan2S(dy, MM_sqrtf(SQ(dx) + SQ(dz)));
+            MM_Math_ApproachS(&this->actor.world.rot.y, yaw, 0xA, 0x800);
+            MM_Math_ApproachS(&this->actor.world.rot.x, pitch, 0xA, 0x800);
+            MM_Math_ApproachF(&this->afterImageOffset.x, 300.0f, 0.1f, 3.0f);
+            MM_Math_ApproachF(&this->afterImageOffset.y, -3800.0f, 0.1f, 38.0f);
+            MM_Math_ApproachF(&this->afterImageOffset.z, -900.0f, 0.1f, 9.0f);
+            MM_Math_ApproachS(&this->actor.shape.rot.y, this->yawToPlayer, 0xA, 0x200);
+            MM_Math_ApproachS(&this->actor.shape.rot.x, this->pitchToPlayer, 0xA, 0x200);
 
             if (this->timers[1] == 40) {
                 EnKnight_SetupFlyingHeadAttack(this, play);
@@ -3335,15 +3335,15 @@ void EnKnight_FlyingHead(EnKnight* this, PlayState* play) {
         case KNIGHT_SUB_ACTION_FLYING_HEAD_2:
         case KNIGHT_SUB_ACTION_FLYING_HEAD_3:
             this->invincibilityTimer = 10;
-            Math_ApproachZeroF(&this->actor.speed, 1.0f, 0.1f);
-            Math_ApproachS(&this->actor.shape.rot.y, sIgosInstance->actor.world.rot.y, 5, 0x800);
-            Math_ApproachS(&this->actor.shape.rot.x, 0, 5, 0x800);
-            Math_ApproachZeroF(&this->afterImageOffset.x, 0.5f, (sREG(73) * 0.01f + 0.05f) * 300.0f);
-            Math_ApproachZeroF(&this->afterImageOffset.y, 0.5f, (sREG(73) * 0.01f + 0.05f) * 3800.0f);
-            Math_ApproachZeroF(&this->afterImageOffset.z, 0.5f, (sREG(73) * 0.01f + 0.05f) * 900.0f);
-            Math_ApproachF(&this->actor.world.pos.x, sIgosInstance->actor.world.pos.x, 0.5f, sREG(74) * 0.1f + 4.0f);
-            Math_ApproachF(&this->actor.world.pos.y, sIgosInstance->actor.world.pos.y, 0.5f, sREG(74) * 0.1f + 4.0f);
-            Math_ApproachF(&this->actor.world.pos.z, sIgosInstance->actor.world.pos.z, 0.5f, sREG(74) * 0.1f + 4.0f);
+            MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 0.1f);
+            MM_Math_ApproachS(&this->actor.shape.rot.y, sIgosInstance->actor.world.rot.y, 5, 0x800);
+            MM_Math_ApproachS(&this->actor.shape.rot.x, 0, 5, 0x800);
+            MM_Math_ApproachZeroF(&this->afterImageOffset.x, 0.5f, (sREG(73) * 0.01f + 0.05f) * 300.0f);
+            MM_Math_ApproachZeroF(&this->afterImageOffset.y, 0.5f, (sREG(73) * 0.01f + 0.05f) * 3800.0f);
+            MM_Math_ApproachZeroF(&this->afterImageOffset.z, 0.5f, (sREG(73) * 0.01f + 0.05f) * 900.0f);
+            MM_Math_ApproachF(&this->actor.world.pos.x, sIgosInstance->actor.world.pos.x, 0.5f, sREG(74) * 0.1f + 4.0f);
+            MM_Math_ApproachF(&this->actor.world.pos.y, sIgosInstance->actor.world.pos.y, 0.5f, sREG(74) * 0.1f + 4.0f);
+            MM_Math_ApproachF(&this->actor.world.pos.z, sIgosInstance->actor.world.pos.z, 0.5f, sREG(74) * 0.1f + 4.0f);
 
             if (this->subAction == KNIGHT_SUB_ACTION_FLYING_HEAD_2) {
                 if ((fabsf(this->actor.world.pos.x - sIgosInstance->actor.world.pos.x) < 30.0f) &&
@@ -3398,18 +3398,18 @@ void EnKnight_FlyingHeadAttack(EnKnight* this, PlayState* play) {
     if (this->subAction != KNIGHT_SUB_ACTION_FLYING_HEAD_ATTACK_1) {
         f32 jawRotationAdd = (this->subAction == KNIGHT_SUB_ACTION_FLYING_HEAD_ATTACK_2) ? 3000.0f : 1000.0f;
 
-        this->jawRotation = Math_SinS((KREG(40) * 0x100 + 0x1200) * this->randTimer) * 1000.0f + jawRotationAdd;
+        this->jawRotation = MM_Math_SinS((KREG(40) * 0x100 + 0x1200) * this->randTimer) * 1000.0f + jawRotationAdd;
     }
 
-    dxz = sqrtf(SQ(dx) + SQ(dz));
+    dxz = MM_sqrtf(SQ(dx) + SQ(dz));
 
     switch (this->subAction) {
         case KNIGHT_SUB_ACTION_FLYING_HEAD_ATTACK_0:
-            Math_ApproachF(&this->actor.speed, BREG(18) + 10.0f, 1.0f, 1.0f);
-            yaw = Math_Atan2S(dx, dz);
-            pitch = Math_Atan2S(dy, dxz);
-            Math_ApproachS(&this->actor.world.rot.y, yaw, 0xA, 0x800);
-            Math_ApproachS(&this->actor.world.rot.x, pitch, 0xA, 0x800);
+            MM_Math_ApproachF(&this->actor.speed, BREG(18) + 10.0f, 1.0f, 1.0f);
+            yaw = MM_Math_Atan2S(dx, dz);
+            pitch = MM_Math_Atan2S(dy, dxz);
+            MM_Math_ApproachS(&this->actor.world.rot.y, yaw, 0xA, 0x800);
+            MM_Math_ApproachS(&this->actor.world.rot.x, pitch, 0xA, 0x800);
 
             if (this->timers[2] == 0) {
                 EnKnight_SetupFlyingHead(this, play);
@@ -3427,15 +3427,15 @@ void EnKnight_FlyingHeadAttack(EnKnight* this, PlayState* play) {
 
         case KNIGHT_SUB_ACTION_FLYING_HEAD_ATTACK_1:
             this->doBgChecks = false;
-            Math_ApproachS(&this->jawRotation, 0xFA0, 5, 0x1000);
-            Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
-            Math_ApproachF(&this->actor.world.pos.x, player->actor.world.pos.x + targetHeight.x, 1.0f,
+            MM_Math_ApproachS(&this->jawRotation, 0xFA0, 5, 0x1000);
+            MM_Math_ApproachZeroF(&this->actor.speed, 1.0f, 1.0f);
+            MM_Math_ApproachF(&this->actor.world.pos.x, player->actor.world.pos.x + targetHeight.x, 1.0f,
                            this->csStepValue);
-            Math_ApproachF(&this->actor.world.pos.y, player->actor.world.pos.y + targetHeight.y, 1.0f,
+            MM_Math_ApproachF(&this->actor.world.pos.y, player->actor.world.pos.y + targetHeight.y, 1.0f,
                            this->csStepValue);
-            Math_ApproachF(&this->actor.world.pos.z, player->actor.world.pos.z + targetHeight.z, 1.0f,
+            MM_Math_ApproachF(&this->actor.world.pos.z, player->actor.world.pos.z + targetHeight.z, 1.0f,
                            this->csStepValue);
-            Math_ApproachF(&this->csStepValue, BREG(20) + 20.0f, 1.0f, BREG(21) + 0.5f);
+            MM_Math_ApproachF(&this->csStepValue, BREG(20) + 20.0f, 1.0f, BREG(21) + 0.5f);
 
             if ((this->timers[2] == 0) || (player->stateFlags3 & PLAYER_STATE3_1000)) {
                 EnKnight_SetupFlyingHead(this, play);
@@ -3448,8 +3448,8 @@ void EnKnight_FlyingHeadAttack(EnKnight* this, PlayState* play) {
                 if (play->grabPlayer(play, player)) {
                     Play_EnableMotionBlur(150);
                     player->actor.parent = &this->actor;
-                    AudioSfx_PlaySfx(NA_SE_VO_LI_DAMAGE_S, &player->actor.projectedPos, 4, &gSfxDefaultFreqAndVolScale,
-                                     &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                    AudioSfx_PlaySfx(NA_SE_VO_LI_DAMAGE_S, &player->actor.projectedPos, 4, &MM_gSfxDefaultFreqAndVolScale,
+                                     &MM_gSfxDefaultFreqAndVolScale, &MM_gSfxDefaultReverb);
                     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
                     this->subAction = KNIGHT_SUB_ACTION_FLYING_HEAD_ATTACK_2;
                     this->timers[0] = 80;
@@ -3470,15 +3470,15 @@ void EnKnight_FlyingHeadAttack(EnKnight* this, PlayState* play) {
                 DECR(this->timers[0]);
             }
 
-            Math_ApproachF(&this->actor.world.pos.x, player->actor.world.pos.x + targetHeight.x, 1.0f,
+            MM_Math_ApproachF(&this->actor.world.pos.x, player->actor.world.pos.x + targetHeight.x, 1.0f,
                            this->csStepValue);
-            Math_ApproachF(&this->actor.world.pos.y, player->actor.world.pos.y + targetHeight.y, 1.0f,
+            MM_Math_ApproachF(&this->actor.world.pos.y, player->actor.world.pos.y + targetHeight.y, 1.0f,
                            this->csStepValue);
-            Math_ApproachF(&this->actor.world.pos.z, player->actor.world.pos.z + targetHeight.z, 1.0f,
+            MM_Math_ApproachF(&this->actor.world.pos.z, player->actor.world.pos.z + targetHeight.z, 1.0f,
                            this->csStepValue);
-            Math_ApproachF(&this->csStepValue, BREG(20) + 20.0f, 1.0f, BREG(21) + 0.5f);
-            Math_ApproachS(&this->actor.shape.rot.y, player->actor.shape.rot.y + 0x8000, 2, 0x1000);
-            Math_ApproachS(&this->actor.shape.rot.x, BREG(83) * 0x800 + 0x4000, 2, 0x1000);
+            MM_Math_ApproachF(&this->csStepValue, BREG(20) + 20.0f, 1.0f, BREG(21) + 0.5f);
+            MM_Math_ApproachS(&this->actor.shape.rot.y, player->actor.shape.rot.y + 0x8000, 2, 0x1000);
+            MM_Math_ApproachS(&this->actor.shape.rot.x, BREG(83) * 0x800 + 0x4000, 2, 0x1000);
             player->av2.actionVar2 = 90;
             Actor_PlaySfx(&this->actor, NA_SE_EN_BOSU_HEAD_BITE - SFX_FLAG);
 
@@ -3496,8 +3496,8 @@ void EnKnight_FlyingHeadAttack(EnKnight* this, PlayState* play) {
     }
 
     if (this->subAction != KNIGHT_SUB_ACTION_FLYING_HEAD_ATTACK_2) {
-        Math_ApproachS(&this->actor.shape.rot.y, this->yawToPlayer, 0xA, 0x200);
-        Math_ApproachS(&this->actor.shape.rot.x, this->pitchToPlayer, 0xA, 0x200);
+        MM_Math_ApproachS(&this->actor.shape.rot.y, this->yawToPlayer, 0xA, 0x200);
+        MM_Math_ApproachS(&this->actor.shape.rot.x, this->pitchToPlayer, 0xA, 0x200);
         Actor_PlaySfx(&this->actor, NA_SE_EN_BOSU_HEAD_FLOAT - SFX_FLAG);
     }
 }
@@ -3513,14 +3513,14 @@ void EnKnight_Update(Actor* thisx, PlayState* play) {
     u8 i;
     s32 limbIndex;
 
-    Math_Vec3f_Copy(&this->projectedPos, &this->actor.projectedPos);
+    MM_Math_Vec3f_Copy(&this->projectedPos, &this->actor.projectedPos);
 
     dx = player->actor.world.pos.x - this->actor.focus.pos.x;
     dy = KREG(93) + ((player->actor.world.pos.y + 34.0f) - this->actor.focus.pos.y);
     dz = player->actor.world.pos.z - this->actor.focus.pos.z;
 
     this->yawToPlayer = Math_Atan2S_XY(dz, dx);
-    this->pitchToPlayer = Math_Atan2S(-dy, sqrtf(SQ(dx) + SQ(dz)));
+    this->pitchToPlayer = MM_Math_Atan2S(-dy, MM_sqrtf(SQ(dx) + SQ(dz)));
 
     this->randTimer++;
 
@@ -3541,17 +3541,17 @@ void EnKnight_Update(Actor* thisx, PlayState* play) {
 
         this->actionFunc(this, play);
 
-        Math_ApproachS(&this->neckYaw, this->neckYawTarget, 5, 0x2000);
+        MM_Math_ApproachS(&this->neckYaw, this->neckYawTarget, 5, 0x2000);
         this->neckYawTarget = 0;
         Actor_UpdateVelocityWithoutGravity(&this->actor);
-        Actor_UpdatePos(&this->actor);
+        MM_Actor_UpdatePos(&this->actor);
         this->actor.world.pos.x += this->animMovementX;
         this->actor.world.pos.z += this->animMovementZ;
-        Math_ApproachZeroF(&this->animMovementX, 1.0f, KREG(86) + 2.0f);
-        Math_ApproachZeroF(&this->animMovementZ, 1.0f, KREG(86) + 2.0f);
+        MM_Math_ApproachZeroF(&this->animMovementX, 1.0f, KREG(86) + 2.0f);
+        MM_Math_ApproachZeroF(&this->animMovementZ, 1.0f, KREG(86) + 2.0f);
 
         if (this->doBgChecks) {
-            Actor_UpdateBgCheckInfo(play, &this->actor, 50.0f, 20.0f, 100.0f,
+            MM_Actor_UpdateBgCheckInfo(play, &this->actor, 50.0f, 20.0f, 100.0f,
                                     UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
         }
 
@@ -3564,9 +3564,9 @@ void EnKnight_Update(Actor* thisx, PlayState* play) {
         if (this->actionFunc == EnKnight_FlyingHeadAttack) {
             if (this->subAction < KNIGHT_SUB_ACTION_FLYING_HEAD_ATTACK_2) {
                 if (this->subAction == KNIGHT_SUB_ACTION_FLYING_HEAD_ATTACK_0) {
-                    CollisionCheck_SetAT(play, &play->colChkCtx, &this->headAttackCollider.base);
+                    MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->headAttackCollider.base);
                 }
-                CollisionCheck_SetAC(play, &play->colChkCtx, &this->headAttackCollider.base);
+                MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->headAttackCollider.base);
             } else {
                 this->headCollider.dim.radius = KREG(34) + 20;
                 this->headCollider.dim.height = KREG(35) + 40;
@@ -3574,17 +3574,17 @@ void EnKnight_Update(Actor* thisx, PlayState* play) {
                 this->headCollider.dim.pos.x = (s32)player->actor.world.pos.x;
                 this->headCollider.dim.pos.y = (s32)player->actor.world.pos.y;
                 this->headCollider.dim.pos.z = (s32)player->actor.world.pos.z;
-                CollisionCheck_SetAC(play, &play->colChkCtx, &this->headCollider.base);
+                MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->headCollider.base);
             }
         } else {
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->headAttackCollider.base);
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->headAttackCollider.base);
+            MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->headAttackCollider.base);
+            MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->headAttackCollider.base);
         }
 
         if (((this->actionFunc != EnKnight_FlyingHeadAttack) ||
              (this->subAction != KNIGHT_SUB_ACTION_FLYING_HEAD_ATTACK_2)) &&
             !(this->randTimer & BREG(76))) {
-            EnKnight* afterImage = (EnKnight*)Actor_SpawnAsChild(
+            EnKnight* afterImage = (EnKnight*)MM_Actor_SpawnAsChild(
                 &play->actorCtx, &this->actor, play, ACTOR_EN_KNIGHT, this->actor.world.pos.x, this->actor.world.pos.y,
                 this->actor.world.pos.z, this->actor.shape.rot.x, this->actor.shape.rot.y, this->actor.shape.rot.z,
                 EN_KNIGHT_PARAM_IGOS_HEAD_AFTERIMAGE);
@@ -3594,7 +3594,7 @@ void EnKnight_Update(Actor* thisx, PlayState* play) {
                     afterImage->skelAnime.skeleton = this->skelAnime.skeleton;
                     afterImage->skelAnime.dListCount = this->skelAnime.dListCount;
                 }
-                Math_Vec3f_Copy(&afterImage->afterImageOffset, &this->afterImageOffset);
+                MM_Math_Vec3f_Copy(&afterImage->afterImageOffset, &this->afterImageOffset);
             }
         }
         return;
@@ -3616,7 +3616,7 @@ void EnKnight_Update(Actor* thisx, PlayState* play) {
         }
 
         this->curtainsLightRayAngle = CURRENT_TIME;
-        Math_ApproachS(&this->jawRotation, 0, 2, 0x200);
+        MM_Math_ApproachS(&this->jawRotation, 0, 2, 0x200);
     } else if (sIgosInstance->roomLightingState == 0) {
         this->actor.hintId = TATL_HINT_ID_KINGS_LACKEYS_DARK_ROOM;
     } else {
@@ -3673,10 +3673,10 @@ void EnKnight_Update(Actor* thisx, PlayState* play) {
             this->lightRayDamageTimer--;
         }
 
-        Math_ApproachZeroF(&this->shieldLightReflectionScale, 1.0f, 0.2f);
+        MM_Math_ApproachZeroF(&this->shieldLightReflectionScale, 1.0f, 0.2f);
 
         if ((this->actionFunc != EnKnight_FallOver) && (this->actionFunc != EnKnight_Die)) {
-            Math_ApproachS(&this->actor.shape.rot.x, 0, 10, 0x200);
+            MM_Math_ApproachS(&this->actor.shape.rot.x, 0, 10, 0x200);
         }
 
         this->actionFunc(this, play);
@@ -3697,7 +3697,7 @@ void EnKnight_Update(Actor* thisx, PlayState* play) {
     }
 
     if (this->doBgChecks) {
-        Actor_UpdateBgCheckInfo(play, &this->actor, 100.0f, 50.0f, 150.0f,
+        MM_Actor_UpdateBgCheckInfo(play, &this->actor, 100.0f, 50.0f, 150.0f,
                                 UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
     }
 
@@ -3706,51 +3706,51 @@ void EnKnight_Update(Actor* thisx, PlayState* play) {
             this->actor.velocity.y = -2.0f;
         }
 
-        Math_ApproachZeroF(&this->animMovementX, 1.0f, 1.0f);
-        Math_ApproachZeroF(&this->animMovementZ, 1.0f, 1.0f);
+        MM_Math_ApproachZeroF(&this->animMovementX, 1.0f, 1.0f);
+        MM_Math_ApproachZeroF(&this->animMovementZ, 1.0f, 1.0f);
     }
 
-    Math_ApproachS(&this->neckYaw, this->neckYawTarget, this->neckRotationStepScale, this->neckRotationMaxStep);
+    MM_Math_ApproachS(&this->neckYaw, this->neckYawTarget, this->neckRotationStepScale, this->neckRotationMaxStep);
     this->neckRotationMaxStep = 0x1000;
     this->neckRotationStepScale = 3;
-    Math_ApproachS(&this->neckRoll, this->neckRollTarget, this->neckRotationStepScale, this->neckRotationMaxStep);
+    MM_Math_ApproachS(&this->neckRoll, this->neckRollTarget, this->neckRotationStepScale, this->neckRotationMaxStep);
     this->neckRollTarget = 0;
 
     if (this->actionFunc != EnKnight_ApproachPlayer) {
-        Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 3, 0xA00);
+        MM_Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 3, 0xA00);
     }
 
     if ((this->actionFunc != EnKnight_WaitIntroCutscene) && (this->actionFunc != EnKnight_Die) &&
         (this->actionFunc != EnKnight_Dead) && (this->actionFunc != EnKnight_IgosSitting) &&
         (this->actionFunc != EnKnight_DetachHead) && (this->actionFunc != EnKnight_FlyingHeadDone) &&
-        !Play_InCsMode(play)) {
+        !MM_Play_InCsMode(play)) {
 
         if (this->actionFunc != EnKnight_FallOver) {
             EnKnight_UpdateDamage(this, play);
 
             if (this->swordColliderActive) {
-                CollisionCheck_SetAC(play, &play->colChkCtx, &this->swordCollider.base);
-                CollisionCheck_SetAT(play, &play2->colChkCtx, &this->swordCollider.base);
+                MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->swordCollider.base);
+                MM_CollisionCheck_SetAT(play, &play2->colChkCtx, &this->swordCollider.base);
             }
 
             if (this->shieldColliderActive) {
-                CollisionCheck_SetAC(play, &play->colChkCtx, &this->shieldCollider.base);
+                MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->shieldCollider.base);
             }
 
             if (!this->isHeadless) {
                 if (this->shieldingInvulnerabilityTimer == 0) {
-                    CollisionCheck_SetAC(play, &play->colChkCtx, &this->bodyCollider.base);
+                    MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->bodyCollider.base);
                 } else {
                     this->shieldingInvulnerabilityTimer--;
                 }
-                CollisionCheck_SetOC(play, &play->colChkCtx, &this->bodyCollider.base);
+                MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->bodyCollider.base);
 
                 if (this->canRetreat &&
                     ((player->unk_D57 != 0) || ((player->unk_ADC != 0) && (this->actor.xzDistToPlayer <= 120.0f))) &&
                     EnKnight_IsFacingPlayer(this, play)) {
                     f32 randThreshold = (this == sIgosInstance) ? 0.65f : 0.25f;
 
-                    if ((Rand_ZeroOne() < randThreshold) && (player->unk_ADC != 0) &&
+                    if ((MM_Rand_ZeroOne() < randThreshold) && (player->unk_ADC != 0) &&
                         (this->actionFunc != EnKnight_Blocking) && !(this->actor.bgCheckFlags & BGCHECKFLAG_WALL)) {
                         EnKnight_SetupJumpBackwardsKnight(this, play);
                     } else {
@@ -3760,8 +3760,8 @@ void EnKnight_Update(Actor* thisx, PlayState* play) {
             }
         } else {
             EnKnight_UpdateDamageFallenOver(this, play);
-            CollisionCheck_SetOC(play, &play->colChkCtx, &this->bodyCollider.base);
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->bodyCollider.base);
+            MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->bodyCollider.base);
+            MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->bodyCollider.base);
         }
     }
 
@@ -3790,16 +3790,16 @@ void EnKnight_Update(Actor* thisx, PlayState* play) {
             this->drawDmgEffState++; // = KNIGHT_DMGEFF_STATE_2
             this->drawDmgEffAlpha = 1.0f;
             this->drawDmgEffScale = 0.0f;
-            Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 120, 0, 60);
+            MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 120, 0, 60);
             FALLTHROUGH;
         case KNIGHT_DMGEFF_STATE_2:
             if (this->drawDmgEffDuration == 0) {
-                Math_ApproachZeroF(&this->drawDmgEffAlpha, 1.0f, 0.02f);
+                MM_Math_ApproachZeroF(&this->drawDmgEffAlpha, 1.0f, 0.02f);
                 if (this->drawDmgEffAlpha == 0.0f) {
                     this->drawDmgEffState = KNIGHT_DMGEFF_STATE_0;
                 }
             } else {
-                Math_ApproachF(&this->drawDmgEffScale, 0.5f, 0.1f, 0.5f);
+                MM_Math_ApproachF(&this->drawDmgEffScale, 0.5f, 0.1f, 0.5f);
             }
             break;
 
@@ -3819,8 +3819,8 @@ void EnKnight_Update(Actor* thisx, PlayState* play) {
                 if (this->drawDmgEffDuration == 50) {
                     this->drawDmgEffType = ACTOR_DRAW_DMGEFF_FROZEN_NO_SFX;
                 }
-                Math_ApproachF(&this->drawDmgEffScale, 0.5f, 1.0f, 0.08f);
-                Math_ApproachF(&this->drawDmgEffIceMeltingScale, 0.5f, 0.05f, 0.05f);
+                MM_Math_ApproachF(&this->drawDmgEffScale, 0.5f, 1.0f, 0.08f);
+                MM_Math_ApproachF(&this->drawDmgEffIceMeltingScale, 0.5f, 0.05f, 0.05f);
             }
             break;
 
@@ -3833,13 +3833,13 @@ void EnKnight_Update(Actor* thisx, PlayState* play) {
             FALLTHROUGH;
         case KNIGHT_DMGEFF_STATE_21:
             if (this->drawDmgEffDuration == 0) {
-                Math_ApproachZeroF(&this->drawDmgEffScale, 1.0f, 0.03f);
+                MM_Math_ApproachZeroF(&this->drawDmgEffScale, 1.0f, 0.03f);
                 if (this->drawDmgEffScale == 0.0f) {
                     this->drawDmgEffState = KNIGHT_DMGEFF_STATE_0;
                     this->drawDmgEffAlpha = 0.0f;
                 }
             } else {
-                Math_ApproachF(&this->drawDmgEffScale, 0.75f, 0.5f, 0.5f);
+                MM_Math_ApproachF(&this->drawDmgEffScale, 0.75f, 0.5f, 0.5f);
             }
             break;
 
@@ -3851,13 +3851,13 @@ void EnKnight_Update(Actor* thisx, PlayState* play) {
             FALLTHROUGH;
         case KNIGHT_DMGEFF_STATE_31:
             if (this->drawDmgEffDuration == 0) {
-                Math_ApproachZeroF(&this->drawDmgEffScale, 1.0f, 0.03f);
+                MM_Math_ApproachZeroF(&this->drawDmgEffScale, 1.0f, 0.03f);
                 if (this->drawDmgEffScale == 0.0f) {
                     this->drawDmgEffState = KNIGHT_DMGEFF_STATE_0;
                     this->drawDmgEffAlpha = 0.0f;
                 }
             } else {
-                Math_ApproachF(&this->drawDmgEffScale, 0.5f, 0.5f, 0.3f);
+                MM_Math_ApproachF(&this->drawDmgEffScale, 0.5f, 0.5f, 0.3f);
             }
             break;
 
@@ -3870,7 +3870,7 @@ void EnKnight_Update(Actor* thisx, PlayState* play) {
             FALLTHROUGH;
         case KNIGHT_DMGEFF_STATE_41:
             if (this->drawDmgEffDuration == 0) {
-                Math_ApproachZeroF(&this->drawDmgEffScale, 1.0f, 0.05f);
+                MM_Math_ApproachZeroF(&this->drawDmgEffScale, 1.0f, 0.05f);
                 if (this->drawDmgEffScale == 0.0f) {
                     this->drawDmgEffState = KNIGHT_DMGEFF_STATE_0;
                     this->drawDmgEffAlpha = 0.0f;
@@ -3890,9 +3890,9 @@ void EnKnight_Update(Actor* thisx, PlayState* play) {
         }
 
         if (this->isHeadless) {
-            Math_ApproachF(&this->bodyAlpha, 60.0f, 1.0f, 8.0f);
+            MM_Math_ApproachF(&this->bodyAlpha, 60.0f, 1.0f, 8.0f);
         } else {
-            Math_ApproachF(&this->bodyAlpha, 255.0f, 1.0f, 8.0f);
+            MM_Math_ApproachF(&this->bodyAlpha, 255.0f, 1.0f, 8.0f);
         }
 
         EnKnight_UpdateEffects(this, play);
@@ -3918,7 +3918,7 @@ void EnKnight_Update(Actor* thisx, PlayState* play) {
         }
 
         // Captain's Hat easter egg
-        if (!this->seenCaptainsHat && !this->isHeadless && (Player_GetMask(play) == PLAYER_MASK_CAPTAIN) &&
+        if (!this->seenCaptainsHat && !this->isHeadless && (MM_Player_GetMask(play) == PLAYER_MASK_CAPTAIN) &&
             ((this->actionFunc == EnKnight_IgosSitting) || this->canRetreat) &&
             (this->actor.xzDistToPlayer < (KREG(82) + 130.0f)) && EnKnight_IsFacingPlayer(this, play)) {
             this->seenCaptainsHat = true;
@@ -3947,15 +3947,15 @@ void EnKnight_DrawEffectBlure(EnKnight* this, PlayState* play) {
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 200, (u8)((sREG(14) * 0.1f + 1.0f) * this->blureAlpha));
     }
 
-    Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
+    MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
     Matrix_RotateYS(this->actor.shape.rot.y, MTXMODE_APPLY);
-    Matrix_Translate(this->blureTranslation.x, this->blureTranslation.y, this->blureTranslation.z, MTXMODE_APPLY);
+    MM_Matrix_Translate(this->blureTranslation.x, this->blureTranslation.y, this->blureTranslation.z, MTXMODE_APPLY);
     Matrix_RotateXFApply(this->blureRotation.x);
     Matrix_RotateZF(this->blureRotation.z, MTXMODE_APPLY);
     Matrix_RotateYF(this->blureRotation.y, MTXMODE_APPLY);
 
     scale = (this == sIgosInstance) ? (17.0f / 13) : 1.0f;
-    Matrix_Scale(0.021f * scale, 0.021f * scale, 0.021f * scale, MTXMODE_APPLY);
+    MM_Matrix_Scale(0.021f * scale, 0.021f * scale, 0.021f * scale, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
@@ -4094,28 +4094,28 @@ void EnKnight_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* r
     }
 
     if (limbIndex == KNIGHT_LIMB_NECK) {
-        Matrix_MultVec3f(&sFocusPosModelOffset, &this->actor.focus.pos);
-        Matrix_MultVec3f(&sBreathBaseModelOffset, &this->breathBasePos);
+        MM_Matrix_MultVec3f(&sFocusPosModelOffset, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&sBreathBaseModelOffset, &this->breathBasePos);
     }
 
     if (limbIndex == KNIGHT_LIMB_TORSO) {
-        Matrix_MultVec3f(&sBodyCollider0ModelOffset, &colliderPos);
+        MM_Matrix_MultVec3f(&sBodyCollider0ModelOffset, &colliderPos);
         EnKnight_SetColliderSphere(this, 0, &this->bodyCollider, &colliderPos);
     }
 
     if (limbIndex == KNIGHT_LIMB_PELVIS) {
-        Matrix_MultVec3f(&sBodyCollider1ModelOffset, &colliderPos);
+        MM_Matrix_MultVec3f(&sBodyCollider1ModelOffset, &colliderPos);
         EnKnight_SetColliderSphere(this, 1, &this->bodyCollider, &colliderPos);
     }
 
     if ((limbIndex == KNIGHT_LIMB_SHIELD) && (this->actionFunc != EnKnight_IgosSitting)) {
-        Matrix_MultVec3f(&sShieldColliderModelOffset, &colliderPos);
+        MM_Matrix_MultVec3f(&sShieldColliderModelOffset, &colliderPos);
         EnKnight_SetColliderSphere(this, 0, &this->shieldCollider, &colliderPos);
-        Matrix_MultVec3f(&sShieldParticlesModelOffset, &this->shieldParticlesPos);
+        MM_Matrix_MultVec3f(&sShieldParticlesModelOffset, &this->shieldParticlesPos);
     }
 
     if (limbIndex == KNIGHT_LIMB_SWORD) {
-        Matrix_MultVec3f(&sSwordColliderModelOffset, &colliderPos);
+        MM_Matrix_MultVec3f(&sSwordColliderModelOffset, &colliderPos);
         EnKnight_SetColliderSphere(this, 0, &this->swordCollider, &colliderPos);
     }
 
@@ -4133,8 +4133,8 @@ void EnKnight_PostLimbDrawHead(PlayState* play, s32 limbIndex, Gfx** dList, Vec3
     EnKnight* this = (EnKnight*)thisx;
 
     if (limbIndex == KNIGHT_LIMB_NECK) {
-        Matrix_MultVec3f(&sFocusPosModelOffset, &this->actor.focus.pos);
-        Math_Vec3f_Copy(&this->breathBasePos, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&sFocusPosModelOffset, &this->actor.focus.pos);
+        MM_Math_Vec3f_Copy(&this->breathBasePos, &this->actor.focus.pos);
     }
 }
 
@@ -4143,9 +4143,9 @@ void EnKnight_TransformLimbDraw(PlayState* play, s32 limbIndex, Actor* thisx, Gf
 
     if (this == sIgosInstance) {
         if (limbIndex == IGOS_LIMB_SHIELD) {
-            Matrix_Scale(this->shieldScale, this->shieldScale, this->shieldScale, MTXMODE_APPLY);
+            MM_Matrix_Scale(this->shieldScale, this->shieldScale, this->shieldScale, MTXMODE_APPLY);
         } else if (limbIndex == IGOS_LIMB_SWORD) {
-            Matrix_Scale(this->swordScale, this->swordScale, this->swordScale, MTXMODE_APPLY);
+            MM_Matrix_Scale(this->swordScale, this->swordScale, this->swordScale, MTXMODE_APPLY);
         }
     }
 }
@@ -4190,16 +4190,16 @@ void EnKnight_Draw(Actor* thisx, PlayState* play) {
     }
 
     if (this->damageFlashTimer % 2 != 0) {
-        POLY_OPA_DISP = Gfx_SetFog(POLY_OPA_DISP, 255, 0, 0, 255, 900, 1099);
+        POLY_OPA_DISP = MM_Gfx_SetFog(POLY_OPA_DISP, 255, 0, 0, 255, 900, 1099);
     }
 
     if (this->actionFunc == EnKnight_Die) {
-        POLY_OPA_DISP = Gfx_SetFog(POLY_OPA_DISP, 0, 0, 0, 255, 900, 1099);
+        POLY_OPA_DISP = MM_Gfx_SetFog(POLY_OPA_DISP, 0, 0, 0, 255, 900, 1099);
     }
 
     if (this == sIgosHeadInstance) {
-        Matrix_Translate(this->afterImageOffset.x, this->afterImageOffset.y, this->afterImageOffset.z, MTXMODE_APPLY);
-        SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+        MM_Matrix_Translate(this->afterImageOffset.x, this->afterImageOffset.y, this->afterImageOffset.z, MTXMODE_APPLY);
+        MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                               EnKnight_OverrideLimbDrawHead, EnKnight_PostLimbDrawHead, &this->actor);
     } else {
         if ((this == sIgosInstance) && drawXlu) {
@@ -4216,7 +4216,7 @@ void EnKnight_Draw(Actor* thisx, PlayState* play) {
 
         if (this->blureAlpha > 0.0f) {
             EnKnight_DrawEffectBlure(this, play);
-            Math_ApproachZeroF(&this->blureAlpha, 1.0f, 40.0f);
+            MM_Math_ApproachZeroF(&this->blureAlpha, 1.0f, 40.0f);
             this->blureState++;
             if (this->blureState >= 3) {
                 this->blureState = 2;
@@ -4237,20 +4237,20 @@ void EnKnight_Draw(Actor* thisx, PlayState* play) {
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, (u8)(sREG(18) + 220), (u8)(sREG(16) + 170));
             gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, (u8)(sREG(22) + 100), 128);
 
-            Matrix_Translate(this->shieldParticlesPos.x, this->shieldParticlesPos.y, this->shieldParticlesPos.z,
+            MM_Matrix_Translate(this->shieldParticlesPos.x, this->shieldParticlesPos.y, this->shieldParticlesPos.z,
                              MTXMODE_NEW);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
+            MM_Matrix_ReplaceRotation(&play->billboardMtxF);
             Matrix_RotateZS(play->gameplayFrames * 0x80, MTXMODE_APPLY);
 
             scale = (sREG(17) + 600) * 0.01f * this->shieldLightReflectionScale;
-            Matrix_Scale(scale, scale, 1.0f, MTXMODE_APPLY);
+            MM_Matrix_Scale(scale, scale, 1.0f, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
             gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
         }
     }
 
-    POLY_OPA_DISP = Play_SetFog(play, POLY_OPA_DISP);
+    POLY_OPA_DISP = MM_Play_SetFog(play, POLY_OPA_DISP);
 
     if (this == sIgosInstance) {
         EnKnight_DrawEffects(this, play);
@@ -4271,11 +4271,11 @@ void EnKnight_UpdateAfterImage(Actor* thisx, PlayState* play) {
     }
 
     // Step alpha towards 0
-    Math_ApproachZeroF(&this->bodyAlpha, 1.0f, maxStep);
+    MM_Math_ApproachZeroF(&this->bodyAlpha, 1.0f, maxStep);
 
     // Once alpha is sufficiently low, kill it
     if (this->bodyAlpha < 0.1f) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -4298,9 +4298,9 @@ void EnKnight_DrawAfterImage(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
     gSPSegment(POLY_XLU_DISP++, 0x09, EnKnight_BuildXluMaterialDL(play->state.gfxCtx, this->bodyAlpha));
     gSPSegment(POLY_XLU_DISP++, 0x0A, EnKnight_BuildXluMaterialDL(play->state.gfxCtx, this->bodyAlpha));
-    Matrix_Translate(this->afterImageOffset.x, this->afterImageOffset.y, this->afterImageOffset.z, MTXMODE_APPLY);
+    MM_Matrix_Translate(this->afterImageOffset.x, this->afterImageOffset.y, this->afterImageOffset.z, MTXMODE_APPLY);
     POLY_XLU_DISP =
-        SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+        MM_SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                            EnKnight_OverrideLimbDrawAfterImage, NULL, &this->actor, POLY_XLU_DISP);
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -4326,7 +4326,7 @@ void EnKnight_UpdateEffects(EnKnight* this, PlayState* play) {
             eff->accel.y = BREG(56) * 0.01f + 1.0f;
 
             if (eff->active == true) {
-                Math_ApproachF(&eff->scale, (KREG(59) * 0.01f + 1.0f) * eff->scaleTarget, 0.1f,
+                MM_Math_ApproachF(&eff->scale, (KREG(59) * 0.01f + 1.0f) * eff->scaleTarget, 0.1f,
                                eff->scaleTarget * 0.1f);
 
                 if (((s16)(BREG(60) + 110) >= eff->alpha) ||
@@ -4393,12 +4393,12 @@ void EnKnight_DrawEffects(EnKnight* this, PlayState* play) {
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 155, 155, 255, eff->alpha);
 
         gSPSegment(POLY_XLU_DISP++, 0x08,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, (eff->scrollTimer + i * 3) * 3,
+                   MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, (eff->scrollTimer + i * 3) * 3,
                                     (eff->scrollTimer + i * 3) * 15, 32, 64, 1, 0, 0, 32, 32));
 
-        Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
-        Matrix_ReplaceRotation(&play->billboardMtxF);
-        Matrix_Scale(eff->scale, eff->scale, 1.0f, MTXMODE_APPLY);
+        MM_Matrix_Translate(eff->pos.x, eff->pos.y, eff->pos.z, MTXMODE_NEW);
+        MM_Matrix_ReplaceRotation(&play->billboardMtxF);
+        MM_Matrix_Scale(eff->scale, eff->scale, 1.0f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
         gSPDisplayList(POLY_XLU_DISP++, gFrozenSteamModelDL);

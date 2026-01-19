@@ -30,7 +30,7 @@ ActorProfile En_Door_Etc_Profile = {
     /**/ NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -56,7 +56,7 @@ typedef struct {
     /* 0x4 */ s16 objectId;
 } EnDoorEtcInfo; // size = 0x6
 
-EnDoorEtcInfo sObjectInfo[] = {
+EnDoorEtcInfo MM_sObjectInfo[] = {
     { SCENE_MITURIN, 1, OBJECT_NUMA_OBJ },
     { -1, 0, GAMEPLAY_KEEP },
     { -1, 13, GAMEPLAY_FIELD_KEEP },
@@ -76,7 +76,7 @@ EnDoorEtcInfo sObjectInfo[] = {
     { 0, 0, OBJECT_UNSET_0 },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_U8(attentionRangeType, ATTENTION_RANGE_0, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_U16(shape.rot.x, 0, ICHAIN_CONTINUE),
@@ -86,12 +86,12 @@ static InitChainEntry sInitChain[] = {
 void EnDoorEtc_Init(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     s32 objectSlot;
-    EnDoorEtcInfo* objectInfo = sObjectInfo;
+    EnDoorEtcInfo* objectInfo = MM_sObjectInfo;
     s32 i;
     EnDoorEtc* this = (EnDoorEtc*)thisx;
 
-    Actor_ProcessInitChain(&this->knobDoor.dyna.actor, sInitChain);
-    Actor_SetScale(&this->knobDoor.dyna.actor, 0.01f);
+    MM_Actor_ProcessInitChain(&this->knobDoor.dyna.actor, MM_sInitChain);
+    MM_Actor_SetScale(&this->knobDoor.dyna.actor, 0.01f);
     this->knobDoor.dyna.actor.shape.rot.x = -0x4000;
     this->angle = 0;
     for (i = 0; i < 15; i++, objectInfo++) {
@@ -104,7 +104,7 @@ void EnDoorEtc_Init(Actor* thisx, PlayState* play2) {
     }
     objectSlot = Object_GetSlot(&play->objectCtx, objectInfo->objectId);
     if (objectSlot <= OBJECT_SLOT_NONE) {
-        Actor_Kill(&this->knobDoor.dyna.actor);
+        MM_Actor_Kill(&this->knobDoor.dyna.actor);
     } else {
         this->knobDoor.objectSlot = objectSlot;
         this->knobDoor.dlIndex = objectInfo->dListIndex;
@@ -114,15 +114,15 @@ void EnDoorEtc_Init(Actor* thisx, PlayState* play2) {
             this->actionFunc = EnDoorEtc_WaitForObject;
         }
     }
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->knobDoor.dyna.actor, &sCylinderInit);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->knobDoor.dyna.actor, &MM_sCylinderInit);
     this->knobDoor.dyna.actor.colChkInfo.mass = MASS_IMMOVABLE;
 }
 
 void EnDoorEtc_Destroy(Actor* thisx, PlayState* play) {
     EnDoorEtc* this = (EnDoorEtc*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 /**
@@ -137,7 +137,7 @@ s32 EnDoorEtc_IsDistanceGreater(Vec3f* a, Vec3f* b, f32 c) {
 }
 
 void EnDoorEtc_WaitForObject(EnDoorEtc* this, PlayState* play) {
-    if (Object_IsLoaded(&play->objectCtx, this->knobDoor.objectSlot)) {
+    if (MM_Object_IsLoaded(&play->objectCtx, this->knobDoor.objectSlot)) {
         this->knobDoor.dyna.actor.flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
         this->knobDoor.dyna.actor.objectSlot = this->knobDoor.objectSlot;
         this->actionFunc = func_80AC2354;
@@ -173,9 +173,9 @@ void func_80AC21A0(EnDoorEtc* this, PlayState* play) {
     s16 yawDiff;
     s32 yawDiffAbs;
 
-    Actor_WorldToActorCoords(&this->knobDoor.dyna.actor, &playerOffsetFromDoor, &player->actor.world.pos);
+    MM_Actor_WorldToActorCoords(&this->knobDoor.dyna.actor, &playerOffsetFromDoor, &player->actor.world.pos);
     if (!this->knobDoor.requestOpen) {
-        if ((!Player_InCsMode(play)) &&
+        if ((!MM_Player_InCsMode(play)) &&
             ((fabsf(playerOffsetFromDoor.y) < 20.0f) && fabsf(playerOffsetFromDoor.x) < 20.0f) &&
             (fabsf(playerOffsetFromDoor.z) < 50.0f)) {
             yawDiff = player->actor.shape.rot.y - this->knobDoor.dyna.actor.shape.rot.y;
@@ -191,8 +191,8 @@ void func_80AC21A0(EnDoorEtc* this, PlayState* play) {
         }
     }
     if ((this->knobDoor.dyna.actor.textId == 0x239B) &&
-        Flags_GetSwitch(play, ENDOORETC_GET_SWITCH_FLAG(&this->knobDoor.dyna.actor))) {
-        Flags_UnsetSwitch(play, ENDOORETC_GET_SWITCH_FLAG(&this->knobDoor.dyna.actor));
+        MM_Flags_GetSwitch(play, ENDOORETC_GET_SWITCH_FLAG(&this->knobDoor.dyna.actor))) {
+        MM_Flags_UnsetSwitch(play, ENDOORETC_GET_SWITCH_FLAG(&this->knobDoor.dyna.actor));
         this->actionFunc = func_80AC2154;
         this->knobDoor.dyna.actor.textId = 0x1800; // "It won't budge!"
         this->unk_1F4 |= 1;
@@ -213,10 +213,10 @@ void func_80AC2354(EnDoorEtc* this, PlayState* play) {
             this->knobDoor.dyna.actor.world.pos.z = door->world.pos.z;
             this->knobDoor.dyna.actor.shape.rot.y = door->shape.rot.y;
             this->knobDoor.dyna.actor.world.rot.y = door->world.rot.y;
-            Actor_Kill(door);
+            MM_Actor_Kill(door);
             this->actionFunc = func_80AC21A0;
             this->knobDoor.dyna.actor.textId = 0x239B;
-            Actor_SetFocus(&this->knobDoor.dyna.actor, 70.0f);
+            MM_Actor_SetFocus(&this->knobDoor.dyna.actor, 70.0f);
             break;
         }
     }
@@ -228,8 +228,8 @@ void EnDoorEtc_Update(Actor* thisx, PlayState* play) {
 
     this->actionFunc(this, play);
     if (this->unk_1F4 & 1) {
-        Collider_UpdateCylinder(&this->knobDoor.dyna.actor, &this->collider);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_Collider_UpdateCylinder(&this->knobDoor.dyna.actor, &this->collider);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -239,7 +239,7 @@ void EnDoorEtc_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    Matrix_Translate(-2900.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+    MM_Matrix_Translate(-2900.0f, 0.0f, 0.0f, MTXMODE_APPLY);
     Matrix_RotateZS(this->angle, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     gSPDisplayList(POLY_OPA_DISP++, gDoorLeftDL);

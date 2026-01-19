@@ -53,7 +53,7 @@ static s16 D_8089BA30[6] = {
     0, 0, 1, 2, 2, 3,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 1000, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 1200, ICHAIN_CONTINUE),
@@ -65,9 +65,9 @@ void BgJyaZurerukabe_InitDynaPoly(BgJyaZurerukabe* this, PlayState* play, Collis
     CollisionHeader* colHeader = NULL;
     s32 pad2;
 
-    DynaPolyActor_Init(&this->dyna, flag);
-    CollisionHeader_GetVirtual(collision, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_DynaPolyActor_Init(&this->dyna, flag);
+    OoT_CollisionHeader_GetVirtual(collision, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
     if (this->dyna.bgId == BG_ACTOR_MAX) {
         osSyncPrintf("Warning : move BG 登録失敗(%s %d)(name %d)(arg_data 0x%04x)\n", __FILE__, __LINE__,
                      this->dyna.actor.id, this->dyna.actor.params);
@@ -112,7 +112,7 @@ void BgJyaZurerukabe_Init(Actor* thisx, PlayState* play) {
     s32 i;
 
     BgJyaZurerukabe_InitDynaPoly(this, play, &gZurerukabeCol, DPM_UNK);
-    Actor_ProcessInitChain(thisx, sInitChain);
+    OoT_Actor_ProcessInitChain(thisx, OoT_sInitChain);
 
     for (i = 0; i < ARRAY_COUNT(D_8089B9F0); i++) {
         if (fabsf(D_8089B9F0[i] - this->dyna.actor.home.pos.y) < 1.0f) {
@@ -136,7 +136,7 @@ void BgJyaZurerukabe_Init(Actor* thisx, PlayState* play) {
 void BgJyaZurerukabe_Destroy(Actor* thisx, PlayState* play) {
     BgJyaZurerukabe* this = (BgJyaZurerukabe*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
     D_8089B9C0[this->unk_168] = 0.0f;
 }
 
@@ -161,7 +161,7 @@ void func_8089B80C(BgJyaZurerukabe* this) {
 }
 
 void func_8089B870(BgJyaZurerukabe* this, PlayState* play) {
-    if (Math_StepToF(&this->dyna.actor.world.pos.x, this->dyna.actor.home.pos.x + (this->unk_16C * 75),
+    if (OoT_Math_StepToF(&this->dyna.actor.world.pos.x, this->dyna.actor.home.pos.x + (this->unk_16C * 75),
                      D_8089BA08[this->unk_168])) {
         func_8089B7B4(this);
     }
@@ -185,5 +185,5 @@ void BgJyaZurerukabe_Update(Actor* thisx, PlayState* play) {
 }
 
 void BgJyaZurerukabe_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, gZurerukabeDL);
+    OoT_Gfx_DrawDListOpa(play, gZurerukabeDL);
 }

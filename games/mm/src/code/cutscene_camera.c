@@ -498,7 +498,7 @@ s16 CutsceneCamera_Interp_Geo(Vec3f* camPos, f32* camFov, s16* camRoll, CsCmdCam
         interpState->curFrame = 0;
         interpState->duration = 1;
         if (camPos != NULL) {
-            interpState->unk_20 = OLib_Vec3fDist(&interpState->curPos, camPos) * Math_FTanF(DEG_TO_RAD(*camFov));
+            interpState->unk_20 = MM_OLib_Vec3fDist(&interpState->curPos, camPos) * MM_Math_FTanF(DEG_TO_RAD(*camFov));
         }
         if (camFov != NULL) {
             interpState->initFov = *camFov;
@@ -521,7 +521,7 @@ s16 CutsceneCamera_Interp_Geo(Vec3f* camPos, f32* camFov, s16* camRoll, CsCmdCam
 
     if (camPos != NULL) {
         sp40 = OLib_Vec3fDiffToVecGeo(&interpState->curPos, camPos);
-        sp40.r = interpState->unk_20 / Math_FTanF(DEG_TO_RAD(*camFov));
+        sp40.r = interpState->unk_20 / MM_Math_FTanF(DEG_TO_RAD(*camFov));
         *camPos = OLib_AddVecGeoToVec3f(&interpState->curPos, &sp40);
     }
 

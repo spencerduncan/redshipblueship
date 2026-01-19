@@ -6,7 +6,7 @@
  * ObjGrassUnit instances are intended to be spawned from room data so that just one ObjGrass instance manages the grass
  * for that room. When a room with ObjGrassUnit spawns loads, it allocates ovl_Obj_Grass_Unit and creates N instances of
  * ObjGrassUnit. The first instance processed initializes sGrassManager, then all instances live on that cycle pass type
- * and position data to that ObjGrass instance before calling Actor_Kill. Since ovl_Obj_Grass_Unit uses
+ * and position data to that ObjGrass instance before calling MM_Actor_Kill. Since ovl_Obj_Grass_Unit uses
  * ALLOCTYPE_NORMAL, it is deleted and loses the reference to the newly created ObjGrass. This allows for ObjGrassUnit
  * spawned in a different room to be associated to a new ObjGrass instance.
  */
@@ -27,8 +27,8 @@ ActorProfile Obj_Grass_Unit_Profile = {
     /**/ GAMEPLAY_FIELD_KEEP,
     /**/ sizeof(ObjGrassUnit),
     /**/ ObjGrassUnit_Init,
-    /**/ Actor_Noop,
-    /**/ Actor_Noop,
+    /**/ MM_Actor_Noop,
+    /**/ MM_Actor_Noop,
     /**/ NULL,
     /**/ ObjGrassUnit_Reset,
 };
@@ -61,7 +61,7 @@ ObjGrassCarry* sGrassCarry1 = NULL;
 s32 sInitialized = false;
 
 s32 ObjGrassUnit_SpawnObjGrass(Actor* this, PlayState* play) {
-    sGrassManager = (ObjGrass*)Actor_Spawn(&play->actorCtx, play, ACTOR_OBJ_GRASS, 0.0f, 0.0f, 0.0f, 0, 0, 0, -1);
+    sGrassManager = (ObjGrass*)MM_Actor_Spawn(&play->actorCtx, play, ACTOR_OBJ_GRASS, 0.0f, 0.0f, 0.0f, 0, 0, 0, -1);
     if (sGrassManager != NULL) {
         sGrassManager->actor.room = this->room;
         return true;
@@ -71,7 +71,7 @@ s32 ObjGrassUnit_SpawnObjGrass(Actor* this, PlayState* play) {
 
 s32 ObjGrassUnit_SpawnObjGrassCarry0(Actor* this, PlayState* play) {
     sGrassCarry0 =
-        (ObjGrassCarry*)Actor_Spawn(&play->actorCtx, play, ACTOR_OBJ_GRASS_CARRY, 0.0f, 0.0f, 0.0f, 0, 0, 0, 0);
+        (ObjGrassCarry*)MM_Actor_Spawn(&play->actorCtx, play, ACTOR_OBJ_GRASS_CARRY, 0.0f, 0.0f, 0.0f, 0, 0, 0, 0);
     if (sGrassCarry0 != NULL) {
         sGrassCarry0->actor.room = this->room;
         return true;
@@ -81,7 +81,7 @@ s32 ObjGrassUnit_SpawnObjGrassCarry0(Actor* this, PlayState* play) {
 
 s32 ObjGrassUnit_SpawnObjGrassCarry1(Actor* this, PlayState* play) {
     sGrassCarry1 =
-        (ObjGrassCarry*)Actor_Spawn(&play->actorCtx, play, ACTOR_OBJ_GRASS_CARRY, 0.0f, 0.0f, 0.0f, 0, 0, 0, 1);
+        (ObjGrassCarry*)MM_Actor_Spawn(&play->actorCtx, play, ACTOR_OBJ_GRASS_CARRY, 0.0f, 0.0f, 0.0f, 0, 0, 0, 1);
     if (sGrassCarry1 != NULL) {
         sGrassCarry1->actor.room = this->room;
         return true;
@@ -94,7 +94,7 @@ s32 ObjGrassUnit_IsUnderwater(PlayState* play, Vec3f* pos) {
     f32 waterSurface;
     s32 bgId;
 
-    if (WaterBox_GetSurfaceImpl(play, &play->colCtx, pos->x, pos->z, &waterSurface, &waterBox, &bgId) &&
+    if (MM_WaterBox_GetSurfaceImpl(play, &play->colCtx, pos->x, pos->z, &waterSurface, &waterBox, &bgId) &&
         (pos->y < waterSurface)) {
         return true;
     }
@@ -116,7 +116,7 @@ void ObjGrassUnit_Init(Actor* this, PlayState* play2) {
     s8 dropTable = OBJGRASSUNIT_GET_DROPTABLE(this);
 
     if ((sGrassManager == NULL) && !ObjGrassUnit_SpawnObjGrass(this, play)) {
-        Actor_Kill(this);
+        MM_Actor_Kill(this);
         return;
     }
     if ((sGrassCarry0 == NULL) && ObjGrassUnit_SpawnObjGrassCarry0(this, play)) {
@@ -135,7 +135,7 @@ void ObjGrassUnit_Init(Actor* this, PlayState* play2) {
 
     grassManager = sGrassManager;
     if (sGrassManager->activeGrassGroups >= ARRAY_COUNT(sGrassManager->grassGroups)) {
-        Actor_Kill(this);
+        MM_Actor_Kill(this);
         return;
     }
 
@@ -148,15 +148,15 @@ void ObjGrassUnit_Init(Actor* this, PlayState* play2) {
         grassElem = &grassGroup->elements[grassGroup->count];
         grassPos = &grassPattern->positions[i];
 
-        grassElem->pos.x = this->home.pos.x + (Math_CosS(this->home.rot.y + grassPos->angle) * grassPos->distance);
+        grassElem->pos.x = this->home.pos.x + (MM_Math_CosS(this->home.rot.y + grassPos->angle) * grassPos->distance);
         grassElem->pos.y = this->home.pos.y + 100.0f;
-        grassElem->pos.z = this->home.pos.z + (Math_SinS(this->home.rot.y + grassPos->angle) * grassPos->distance);
+        grassElem->pos.z = this->home.pos.z + (MM_Math_SinS(this->home.rot.y + grassPos->angle) * grassPos->distance);
 
-        grassElem->pos.y = BgCheck_EntityRaycastFloor5(&play->colCtx, &poly, &bgId, this, &grassElem->pos);
+        grassElem->pos.y = MM_BgCheck_EntityRaycastFloor5(&play->colCtx, &poly, &bgId, this, &grassElem->pos);
         tmp = grassElem->pos.y - this->home.pos.y;
         if ((fabsf(tmp) < 80.0f) && (grassElem->pos.y > BGCHECK_Y_MIN)) {
             grassGroup->count++;
-            grassElem->rotY = (s16)(Rand_Next() >> 0x10);
+            grassElem->rotY = (s16)(MM_Rand_Next() >> 0x10);
             grassElem->dropTable = dropTable;
             if (ObjGrassUnit_IsUnderwater(play, &grassElem->pos)) {
                 grassElem->flags |= OBJ_GRASS_ELEM_UNDERWATER;
@@ -170,7 +170,7 @@ void ObjGrassUnit_Init(Actor* this, PlayState* play2) {
         grassGroup->homePos.y = (homePosYSum / grassGroup->count);
         grassGroup->homePos.z = this->home.pos.z;
     }
-    Actor_Kill(this);
+    MM_Actor_Kill(this);
 }
 
 void ObjGrassUnit_Reset(void) {

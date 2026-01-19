@@ -2,7 +2,7 @@
 
 OSPiHandle __CartRomHandle;
 
-OSPiHandle* osCartRomInit(void) {
+OSPiHandle* OoT_osCartRomInit(void) {
     register u32 a;
     register s32 status;
     register u32 prevInt;

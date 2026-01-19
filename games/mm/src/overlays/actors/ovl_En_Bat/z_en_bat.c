@@ -71,7 +71,7 @@ typedef enum {
     /* 5 */ BAD_BAT_DMGEFF_ELECTRIC
 } BatDamageEffect;
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(0, BAD_BAT_DMGEFF_STUN),
     /* Deku Stick     */ DMG_ENTRY(1, BAD_BAT_DMGEFF_NONE),
     /* Horse trample  */ DMG_ENTRY(1, BAD_BAT_DMGEFF_NONE),
@@ -106,9 +106,9 @@ static DamageTable sDamageTable = {
     /* Powder Keg     */ DMG_ENTRY(1, BAD_BAT_DMGEFF_NONE),
 };
 
-static CollisionCheckInfoInit sColChkInfoInit = { 1, 15, 30, 10 };
+static CollisionCheckInfoInit MM_sColChkInfoInit = { 1, 15, 30, 10 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_S8(hintId, TATL_HINT_ID_BAD_BAT, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 3000, ICHAIN_CONTINUE),
     ICHAIN_F32_DIV1000(gravity, -500, ICHAIN_CONTINUE),
@@ -128,26 +128,26 @@ s32 sAlreadySpawned;  //!< used for those spawned with room -1 in Graveyard to a
 void EnBat_Init(Actor* thisx, PlayState* play) {
     EnBat* this = (EnBat*)thisx;
 
-    Actor_ProcessInitChain(thisx, sInitChain);
+    MM_Actor_ProcessInitChain(thisx, MM_sInitChain);
     Collider_InitAndSetSphere(play, &this->collider, thisx, &sSphereInit);
     this->collider.dim.worldSphere.radius = sSphereInit.dim.modelSphere.radius;
-    CollisionCheck_SetInfo(&thisx->colChkInfo, &sDamageTable, &sColChkInfoInit);
-    ActorShape_Init(&thisx->shape, 2000.0f, ActorShadow_DrawCircle, 25.0f);
+    MM_CollisionCheck_SetInfo(&thisx->colChkInfo, &MM_sDamageTable, &MM_sColChkInfoInit);
+    MM_ActorShape_Init(&thisx->shape, 2000.0f, MM_ActorShadow_DrawCircle, 25.0f);
 
-    this->animationFrame = Rand_ZeroOne() * 9.0f;
+    this->animationFrame = MM_Rand_ZeroOne() * 9.0f;
 
     this->paramFlags = BAD_BAT_GET_PARAMFLAGS(thisx);
     this->switchFlag = BAD_BAT_GET_SWITCH_FLAG(thisx);
     thisx->params = BAD_BAT_GET_TYPE(thisx);
 
     thisx->depthInWater = BGCHECK_Y_MIN;
-    Actor_SetFocus(thisx, 20.0f);
+    MM_Actor_SetFocus(thisx, 20.0f);
 
     if (sAlreadySpawned) {
-        Actor_Kill(thisx);
+        MM_Actor_Kill(thisx);
     } else if (EnBat_IsGraveyardOnSecondDay(play)) {
-        if (Flags_GetSwitch(play, this->switchFlag)) {
-            Actor_Kill(thisx);
+        if (MM_Flags_GetSwitch(play, this->switchFlag)) {
+            MM_Actor_Kill(thisx);
         } else {
             this->actor.room = -1;
         }
@@ -163,9 +163,9 @@ void EnBat_Init(Actor* thisx, PlayState* play) {
         EnBat_SetupFlyIdle(this);
         while (BAD_BAT_GET_NUMBER_TO_SPAWN(thisx) > 1) {
             Actor_SpawnAsChildAndCutscene(
-                &play->actorCtx, play, ACTOR_EN_BAT, thisx->world.pos.x + Rand_CenteredFloat(200.0f),
-                thisx->world.pos.y + Rand_CenteredFloat(100.0f), thisx->world.pos.z + Rand_CenteredFloat(200.0f),
-                Rand_CenteredFloat(0x2000), 0xFFFF * Rand_ZeroOne(), 0,
+                &play->actorCtx, play, ACTOR_EN_BAT, thisx->world.pos.x + MM_Rand_CenteredFloat(200.0f),
+                thisx->world.pos.y + MM_Rand_CenteredFloat(100.0f), thisx->world.pos.z + MM_Rand_CenteredFloat(200.0f),
+                MM_Rand_CenteredFloat(0x2000), 0xFFFF * MM_Rand_ZeroOne(), 0,
                 BAD_BAT_PARAMS(this->switchFlag, this->paramFlags, 0), CS_ID_NONE, thisx->halfDaysBits, NULL);
             BAD_BAT_GET_NUMBER_TO_SPAWN(thisx)--;
         }
@@ -224,36 +224,36 @@ void EnBat_FlyIdle(EnBat* this, PlayState* play) {
 
     EnBat_StepAnimation(this, 1);
 
-    finishedRotStep = Math_ScaledStepToS(&this->actor.shape.rot.y, this->yawTarget, 0x300);
+    finishedRotStep = MM_Math_ScaledStepToS(&this->actor.shape.rot.y, this->yawTarget, 0x300);
 
     if (this->actor.bgCheckFlags & BGCHECKFLAG_WALL) {
         this->actor.bgCheckFlags &= ~BGCHECKFLAG_WALL;
         this->yawTarget = this->actor.wallYaw;
-    } else if (Math3D_Dist2DSq(this->actor.world.pos.x, this->actor.world.pos.z, this->actor.home.pos.x,
+    } else if (MM_Math3D_Dist2DSq(this->actor.world.pos.x, this->actor.world.pos.z, this->actor.home.pos.x,
                                this->actor.home.pos.z) > SQ(300.0f)) {
-        this->yawTarget = Actor_WorldYawTowardPoint(&this->actor, &this->actor.home.pos);
-    } else if (finishedRotStep && (Rand_ZeroOne() < 0.015f)) {
+        this->yawTarget = MM_Actor_WorldYawTowardPoint(&this->actor, &this->actor.home.pos);
+    } else if (finishedRotStep && (MM_Rand_ZeroOne() < 0.015f)) {
         this->yawTarget =
-            this->actor.shape.rot.y + (((s32)(0x1000 * Rand_ZeroOne()) + 0x1000) * ((Rand_ZeroOne() < 0.5f) ? -1 : 1));
+            this->actor.shape.rot.y + (((s32)(0x1000 * MM_Rand_ZeroOne()) + 0x1000) * ((MM_Rand_ZeroOne() < 0.5f) ? -1 : 1));
     }
 
-    finishedRotStep = Math_ScaledStepToS(&this->actor.shape.rot.x, this->pitchTarget, 0x100);
+    finishedRotStep = MM_Math_ScaledStepToS(&this->actor.shape.rot.x, this->pitchTarget, 0x100);
 
     if ((this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) || (this->actor.depthInWater > -40.0f)) {
         this->pitchTarget = -0x1000;
     } else if (this->actor.world.pos.y < (this->actor.home.pos.y - 100.0f)) {
-        this->pitchTarget = -((s32)(0x800 * Rand_ZeroOne()) + 0x800);
+        this->pitchTarget = -((s32)(0x800 * MM_Rand_ZeroOne()) + 0x800);
     } else if ((this->actor.home.pos.y + 100.0f) < this->actor.world.pos.y) {
-        this->pitchTarget = (s32)(0x800 * Rand_ZeroOne()) + 0x800;
-    } else if ((finishedRotStep) && (Rand_ZeroOne() < 0.015f)) {
-        this->pitchTarget += (s16)(((s32)(0x400 * Rand_ZeroOne()) + 0x400) * ((Rand_ZeroOne() < 0.5f) ? -1 : 1));
+        this->pitchTarget = (s32)(0x800 * MM_Rand_ZeroOne()) + 0x800;
+    } else if ((finishedRotStep) && (MM_Rand_ZeroOne() < 0.015f)) {
+        this->pitchTarget += (s16)(((s32)(0x400 * MM_Rand_ZeroOne()) + 0x400) * ((MM_Rand_ZeroOne() < 0.5f) ? -1 : 1));
         this->pitchTarget = CLAMP(this->pitchTarget, -0x1000, 0x1000);
     }
 
     if (this->timer != 0) {
         this->timer--;
     }
-    if ((this->actor.xzDistToPlayer < 300.0f) && (this->timer == 0) && (Player_GetMask(play) != PLAYER_MASK_STONE) &&
+    if ((this->actor.xzDistToPlayer < 300.0f) && (this->timer == 0) && (MM_Player_GetMask(play) != PLAYER_MASK_STONE) &&
         (sNumberAttacking < BAD_BAT_MAX_NUMBER_ATTACKING) &&
         (!(this->paramFlags & BAD_BAT_PARAMFLAG_CHECK_HEIGHTREL) || (fabsf(this->actor.playerHeightRel) < 150.0f))) {
         EnBat_SetupDiveAttack(this);
@@ -274,7 +274,7 @@ void EnBat_DiveAttack(EnBat* this, PlayState* play) {
     Vec3f preyPos;
 
     EnBat_StepAnimation(this, 2);
-    isFacingPlayer = Actor_IsFacingPlayer(&this->actor, 0x2800);
+    isFacingPlayer = MM_Actor_IsFacingPlayer(&this->actor, 0x2800);
 
     if (isFacingPlayer) {
         s16 pitchTarget;
@@ -283,19 +283,19 @@ void EnBat_DiveAttack(EnBat* this, PlayState* play) {
         preyPos.y = player->actor.world.pos.y + 20.0f;
         preyPos.z = player->actor.world.pos.z;
 
-        pitchTarget = Actor_WorldPitchTowardPoint(&this->actor, &preyPos);
+        pitchTarget = MM_Actor_WorldPitchTowardPoint(&this->actor, &preyPos);
         pitchTarget = CLAMP(pitchTarget, -0x3000, 0x3000);
-        Math_SmoothStepToS(&this->actor.shape.rot.x, pitchTarget, 2, 0x400, 0x40);
+        MM_Math_SmoothStepToS(&this->actor.shape.rot.x, pitchTarget, 2, 0x400, 0x40);
     } else {
-        Math_SmoothStepToS(&this->actor.shape.rot.x, -0x800, 2, 0x100, 0x10);
+        MM_Math_SmoothStepToS(&this->actor.shape.rot.x, -0x800, 2, 0x100, 0x10);
     }
     if (isFacingPlayer || (this->actor.xzDistToPlayer > 80.0f)) {
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 4, 0xC00, 0xC0);
+        MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 4, 0xC00, 0xC0);
     }
 
     this->timer--;
 
-    if ((this->timer == 0) || (this->collider.base.atFlags & AT_HIT) || (Player_GetMask(play) == PLAYER_MASK_STONE) ||
+    if ((this->timer == 0) || (this->collider.base.atFlags & AT_HIT) || (MM_Player_GetMask(play) == PLAYER_MASK_STONE) ||
         (this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) || (player->stateFlags1 & PLAYER_STATE1_800000) ||
         (this->actor.depthInWater > -40.0f)) {
         if (this->collider.base.atFlags & AT_HIT) {
@@ -317,8 +317,8 @@ void EnBat_DiveAttack(EnBat* this, PlayState* play) {
 
 void EnBat_SetupDie(EnBat* this, PlayState* play) {
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
-    Enemy_StartFinishingBlow(play, &this->actor);
-    this->actor.speed *= Math_CosS(this->actor.world.rot.x);
+    MM_Enemy_StartFinishingBlow(play, &this->actor);
+    this->actor.speed *= MM_Math_CosS(this->actor.world.rot.x);
     this->actor.bgCheckFlags &= ~BGCHECKFLAG_GROUND;
     this->actor.velocity.y = 0.0f;
     Actor_PlaySfx(&this->actor, NA_SE_EN_FFLY_DEAD);
@@ -332,7 +332,7 @@ void EnBat_SetupDie(EnBat* this, PlayState* play) {
         this->drawDmgEffType = ACTOR_DRAW_DMGEFF_LIGHT_ORBS;
         this->drawDmgEffAlpha = 4.0f;
         this->drawDmgEffScale = 0.45f;
-        Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->collider.elem.acDmgInfo.hitPos.x,
+        MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->collider.elem.acDmgInfo.hitPos.x,
                     this->collider.elem.acDmgInfo.hitPos.y, this->collider.elem.acDmgInfo.hitPos.z, 0, 0, 0,
                     CLEAR_TAG_PARAMS(CLEAR_TAG_SMALL_LIGHT_RAYS));
     } else if (this->actor.colChkInfo.damageEffect == BAD_BAT_DMGEFF_FIRE) {
@@ -341,7 +341,7 @@ void EnBat_SetupDie(EnBat* this, PlayState* play) {
         this->drawDmgEffScale = 0.45f;
     }
 
-    Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 40);
+    MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 40);
 
     if (this->actor.flags & ACTOR_FLAG_ATTACHED_TO_ARROW) {
         this->actor.speed = 0.0f;
@@ -353,12 +353,12 @@ void EnBat_SetupDie(EnBat* this, PlayState* play) {
 }
 
 void EnBat_Die(EnBat* this, PlayState* play) {
-    Math_StepToF(&this->actor.speed, 0.0f, 0.5f);
+    MM_Math_StepToF(&this->actor.speed, 0.0f, 0.5f);
     this->actor.colorFilterTimer = 40;
 
     if (!(this->actor.flags & ACTOR_FLAG_ATTACHED_TO_ARROW)) {
         if (this->drawDmgEffType != ACTOR_DRAW_DMGEFF_FROZEN_NO_SFX) {
-            Math_ScaledStepToS(&this->actor.shape.rot.x, 0x4000, 0x200);
+            MM_Math_ScaledStepToS(&this->actor.shape.rot.x, 0x4000, 0x200);
             this->actor.shape.rot.z += 0x1780;
         }
 
@@ -368,8 +368,8 @@ void EnBat_Die(EnBat* this, PlayState* play) {
             }
 
             func_800B3030(play, &this->actor.world.pos, &gZeroVec3f, &gZeroVec3f, 100, 0, 0);
-            SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 11, NA_SE_EN_EXTINCT);
-            Actor_Kill(&this->actor);
+            MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 11, NA_SE_EN_EXTINCT);
+            MM_Actor_Kill(&this->actor);
 
             if (this->actor.room == -1) {
                 Actor* enemy = NULL;
@@ -386,7 +386,7 @@ void EnBat_Die(EnBat* this, PlayState* play) {
                 } while (enemy != NULL);
 
                 if (enemy == NULL) {
-                    Flags_SetSwitch(play, this->switchFlag);
+                    MM_Flags_SetSwitch(play, this->switchFlag);
                 }
             }
         }
@@ -402,12 +402,12 @@ void EnBat_SetupStunned(EnBat* this) {
     }
 
     Actor_PlaySfx(&this->actor, NA_SE_EN_COMMON_FREEZE);
-    Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_BLUE, 255, COLORFILTER_BUFFLAG_OPA, this->timer);
+    MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_BLUE, 255, COLORFILTER_BUFFLAG_OPA, this->timer);
     this->actionFunc = EnBat_Stunned;
 }
 
 void EnBat_Stunned(EnBat* this, PlayState* play) {
-    Math_ScaledStepToS(&this->actor.shape.rot.x, 0, 0x100);
+    MM_Math_ScaledStepToS(&this->actor.shape.rot.x, 0, 0x100);
     if ((this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) || (this->actor.floorHeight == BGCHECK_Y_MIN)) {
         if (this->timer != 0) {
             this->timer--;
@@ -427,7 +427,7 @@ void EnBat_UpdateDamage(EnBat* this, PlayState* play) {
     if (this->collider.base.acFlags & AC_HIT) {
         this->collider.base.acFlags &= ~AC_HIT;
 
-        Actor_SetDropFlag(&this->actor, &this->collider.elem);
+        MM_Actor_SetDropFlag(&this->actor, &this->collider.elem);
         this->collider.base.atFlags &= ~AT_ON;
 
         if (this->actionFunc == EnBat_DiveAttack) {
@@ -444,7 +444,7 @@ void EnBat_UpdateDamage(EnBat* this, PlayState* play) {
             this->timer = 40;
             EnBat_SetupStunned(this);
         } else {
-            Actor_ApplyDamage(&this->actor);
+            MM_Actor_ApplyDamage(&this->actor);
             EnBat_SetupDie(this, play);
         }
     }
@@ -462,7 +462,7 @@ void EnBat_Update(Actor* thisx, PlayState* play) {
     this->actionFunc(this, play);
 
     if (this->actionFunc != EnBat_Stunned) {
-        Math_StepToF(&this->actor.shape.yOffset, 2000.0f, 200.0f);
+        MM_Math_StepToF(&this->actor.shape.yOffset, 2000.0f, 200.0f);
     }
 
     if (this->actionFunc != EnBat_Perch) {
@@ -470,7 +470,7 @@ void EnBat_Update(Actor* thisx, PlayState* play) {
 
         this->actor.world.rot.y = this->actor.shape.rot.y;
         this->actor.world.rot.x = -this->actor.shape.rot.x;
-        Math_Vec3f_Copy(&prevPos, &this->actor.prevPos);
+        MM_Math_Vec3f_Copy(&prevPos, &this->actor.prevPos);
 
         if ((this->actor.colChkInfo.health != 0) && (this->actionFunc != EnBat_Stunned)) {
             Actor_MoveWithoutGravity(&this->actor);
@@ -479,42 +479,42 @@ void EnBat_Update(Actor* thisx, PlayState* play) {
         }
 
         if (this->actionFunc == EnBat_DiveAttack) {
-            Actor_UpdateBgCheckInfo(play, &this->actor, 12.0f, 15.0f, 50.0f,
+            MM_Actor_UpdateBgCheckInfo(play, &this->actor, 12.0f, 15.0f, 50.0f,
                                     UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
         } else if ((this->actionFunc != EnBat_FlyIdle) ||
                    ((this->actor.xzDistToPlayer < 400.0f) && (this->actor.projectedPos.z > 0.0f))) {
             if (this->paramFlags & BAD_BAT_PARAMFLAG_0) {
-                Actor_UpdateBgCheckInfo(play, &this->actor, 12.0f, 15.0f, 50.0f,
+                MM_Actor_UpdateBgCheckInfo(play, &this->actor, 12.0f, 15.0f, 50.0f,
                                         UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
             } else {
-                Actor_UpdateBgCheckInfo(play, &this->actor, 12.0f, 15.0f, 50.0f, UPDBGCHECKINFO_FLAG_4);
+                MM_Actor_UpdateBgCheckInfo(play, &this->actor, 12.0f, 15.0f, 50.0f, UPDBGCHECKINFO_FLAG_4);
             }
         } else {
-            Math_Vec3f_Copy(&this->actor.prevPos, &prevPos);
+            MM_Math_Vec3f_Copy(&this->actor.prevPos, &prevPos);
         }
 
-        Actor_SetFocus(&this->actor, this->actor.shape.yOffset * 0.01f);
+        MM_Actor_SetFocus(&this->actor, this->actor.shape.yOffset * 0.01f);
         this->collider.dim.worldSphere.center.x = this->actor.focus.pos.x;
         this->collider.dim.worldSphere.center.y = this->actor.focus.pos.y;
         this->collider.dim.worldSphere.center.z = this->actor.focus.pos.z;
     }
 
     if (this->collider.base.atFlags & AT_ON) {
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
     }
     if (this->actionFunc == EnBat_DiveAttack) {
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
     if (this->collider.base.acFlags & AC_ON) {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 
     if (this->drawDmgEffAlpha > 0.0f) {
         if (this->drawDmgEffType != ACTOR_DRAW_DMGEFF_FROZEN_NO_SFX) {
-            Math_StepToF(&this->drawDmgEffAlpha, 0.0f, 0.05f);
+            MM_Math_StepToF(&this->drawDmgEffAlpha, 0.0f, 0.05f);
             this->drawDmgEffScale = (this->drawDmgEffAlpha + 1.0f) * 0.225f;
             this->drawDmgEffScale = CLAMP_MAX(this->drawDmgEffScale, 0.45f);
-        } else if (!Math_StepToF(&this->drawDmgEffFrozenSteamScale, 0.45f, 0.45f / 40.0f)) {
+        } else if (!MM_Math_StepToF(&this->drawDmgEffFrozenSteamScale, 0.45f, 0.45f / 40.0f)) {
             Actor_PlaySfx_Flagged(&this->actor, NA_SE_EV_ICE_FREEZE - SFX_FLAG);
         }
     }

@@ -33,7 +33,7 @@ ActorProfile Obj_Toge_Profile = {
     /**/ ObjToge_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_METAL,
         AT_NONE,
@@ -59,7 +59,7 @@ s16 D_809A4CFC[] = { 0, 10, 20, 30, 40, 50, 60, 70 };
 
 f32 D_809A4D0C[] = { 1.0f, 2.0f };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32_DIV1000(terminalVelocity, 0, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 150, ICHAIN_CONTINUE),
@@ -89,9 +89,9 @@ void func_809A42A0(ObjToge* this, PlayState* play) {
     sp54.y = this->actor.world.pos.y + 15.0f;
 
     for (i = 0, phi_s0 = 0; i < 5; i++, phi_s0 += 0x3333) {
-        sp54.x = (Math_SinS(phi_s0) * 15.0f) + this->actor.world.pos.x;
-        sp54.z = (Math_CosS(phi_s0) * 15.0f) + this->actor.world.pos.z;
-        func_800B2B44(play, &this->actor, &sp54, (Rand_ZeroOne() * 0.6f) + 2.8f);
+        sp54.x = (MM_Math_SinS(phi_s0) * 15.0f) + this->actor.world.pos.x;
+        sp54.z = (MM_Math_CosS(phi_s0) * 15.0f) + this->actor.world.pos.z;
+        func_800B2B44(play, &this->actor, &sp54, (MM_Rand_ZeroOne() * 0.6f) + 2.8f);
     }
 }
 
@@ -121,30 +121,30 @@ void ObjToge_Init(Actor* thisx, PlayState* play) {
     s16 sp3E;
     s32 sp38 = OBJTOGE_GET_4000(thisx);
 
-    Actor_ProcessInitChain(thisx, sInitChain);
-    Actor_SetScale(thisx, D_809A4D0C[sp38] * 0.1f);
+    MM_Actor_ProcessInitChain(thisx, MM_sInitChain);
+    MM_Actor_SetScale(thisx, D_809A4D0C[sp38] * 0.1f);
 
     sp3E = thisx->home.rot.z;
     thisx->home.rot.z = thisx->world.rot.z = thisx->shape.rot.z = 0;
 
-    Collider_InitCylinder(play, &this->collider);
+    MM_Collider_InitCylinder(play, &this->collider);
 
     if (OBJTOGE_GET_PATH_INDEX(thisx) == OBJTOGE_PATH_INDEX_NONE) {
-        Actor_Kill(thisx);
+        MM_Actor_Kill(thisx);
         return;
     }
 
     path = &play->setupPathList[OBJTOGE_GET_PATH_INDEX(thisx)];
     if (path->count != 2) {
-        Actor_Kill(thisx);
+        MM_Actor_Kill(thisx);
         return;
     }
 
     points = Lib_SegmentedToVirtual(path->points);
-    Math_Vec3s_ToVec3f(&this->unk_198[0], &points[0]);
-    Math_Vec3s_ToVec3f(&this->unk_198[1], &points[1]);
-    Math_Vec3f_Copy(&thisx->world.pos, &this->unk_198[0]);
-    thisx->world.rot.y = Math_Vec3f_Yaw(&this->unk_198[0], &this->unk_198[1]);
+    MM_Math_Vec3s_ToVec3f(&this->unk_198[0], &points[0]);
+    MM_Math_Vec3s_ToVec3f(&this->unk_198[1], &points[1]);
+    MM_Math_Vec3f_Copy(&thisx->world.pos, &this->unk_198[0]);
+    thisx->world.rot.y = MM_Math_Vec3f_Yaw(&this->unk_198[0], &this->unk_198[1]);
     this->unk_194 = 0;
     thisx->speed = 0.0f;
 
@@ -155,17 +155,17 @@ void ObjToge_Init(Actor* thisx, PlayState* play) {
         this->unk_1B8 = (this->unk_198[0].x + this->unk_198[1].x) * 0.5f;
         this->unk_1BC = (this->unk_198[0].z + this->unk_198[1].z) * 0.5f;
 
-        sp36 = Math_Vec3f_Yaw(&this->unk_198[0], &this->unk_198[1]);
-        this->unk_1C8 = Math_CosS(sp36);
-        this->unk_1CC = Math_SinS(sp36);
+        sp36 = MM_Math_Vec3f_Yaw(&this->unk_198[0], &this->unk_198[1]);
+        this->unk_1C8 = MM_Math_CosS(sp36);
+        this->unk_1CC = MM_Math_SinS(sp36);
         this->unk_1C0 = sp3E * 7.5f;
-        this->unk_1C4 = Math3D_Vec3f_DistXYZ(&this->unk_198[0], &this->unk_198[1]) * 0.5f;
+        this->unk_1C4 = MM_Math3D_Vec3f_DistXYZ(&this->unk_198[0], &this->unk_198[1]) * 0.5f;
     } else {
         this->unk_1B4 = false;
     }
 
-    Collider_SetCylinder(play, &this->collider, thisx, &sCylinderInit);
-    Collider_UpdateCylinder(thisx, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, thisx, &MM_sCylinderInit);
+    MM_Collider_UpdateCylinder(thisx, &this->collider);
     thisx->colChkInfo.mass = MASS_IMMOVABLE;
 
     if (sp38 == 1) {
@@ -184,7 +184,7 @@ void ObjToge_Destroy(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     ObjToge* this = (ObjToge*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void func_809A4744(ObjToge* this) {
@@ -235,18 +235,18 @@ void func_809A48AC(ObjToge* this, PlayState* play) {
     s32 sp30 = this->unk_194 ^ 1;
 
     if (this->unk_1B4 && (this->unk_194 == 1)) {
-        Math_StepToF(&this->actor.speed, 2.0f, 0.4f);
+        MM_Math_StepToF(&this->actor.speed, 2.0f, 0.4f);
     } else {
-        Math_StepToF(&this->actor.speed, D_809A4CDC[OBJTOGE_GET_700(&this->actor)], 1.5f);
+        MM_Math_StepToF(&this->actor.speed, D_809A4CDC[OBJTOGE_GET_700(&this->actor)], 1.5f);
         this->actor.shape.rot.y += 0x1770;
     }
 
     Actor_MoveWithGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, D_809A4D0C[OBJTOGE_GET_4000(&this->actor)] * 30.0f, 0.0f,
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, D_809A4D0C[OBJTOGE_GET_4000(&this->actor)] * 30.0f, 0.0f,
                             UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_80);
 
     if (this->actor.bgCheckFlags & BGCHECKFLAG_WALL) {
-        this->actor.world.rot.y = Math_Vec3f_Yaw(&this->actor.world.pos, &this->unk_198[this->unk_194]);
+        this->actor.world.rot.y = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &this->unk_198[this->unk_194]);
         this->unk_194 = sp30;
         if (this->unk_1B4 && (this->unk_194 == 0)) {
             func_809A4804(this);
@@ -255,11 +255,11 @@ void func_809A48AC(ObjToge* this, PlayState* play) {
         }
         Actor_PlaySfx(&this->actor, NA_SE_EV_SPINE_TRAP_MOVE);
     } else {
-        s16 yaw = Math_Vec3f_Yaw(&this->actor.world.pos, &this->unk_198[sp30]) - this->actor.world.rot.y;
+        s16 yaw = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &this->unk_198[sp30]) - this->actor.world.rot.y;
 
         yaw = ABS_ALT(yaw);
         if ((yaw > 0x4000) || (yaw == -0x8000)) {
-            this->actor.world.rot.y = Math_Vec3f_Yaw(&this->actor.world.pos, &this->unk_198[this->unk_194]);
+            this->actor.world.rot.y = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &this->unk_198[this->unk_194]);
             this->unk_194 = sp30;
             if (this->unk_1B4 && (this->unk_194 == 0)) {
                 func_809A4804(this);
@@ -278,7 +278,7 @@ void ObjToge_Update(Actor* thisx, PlayState* play) {
     if (this->collider.base.acFlags & AC_HIT) {
         if (this->collider.elem.acHitElem->atDmgInfo.dmgFlags & 0x1000) {
             func_809A43A8(this, play);
-            Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_BLUE, 250, COLORFILTER_BUFFLAG_OPA, 250);
+            MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_BLUE, 250, COLORFILTER_BUFFLAG_OPA, 250);
         }
         collider->base.acFlags &= ~AC_HIT;
     }
@@ -290,14 +290,14 @@ void ObjToge_Update(Actor* thisx, PlayState* play) {
 
         this->actionFunc(this, play);
 
-        Collider_UpdateCylinder(&this->actor, &this->collider);
+        MM_Collider_UpdateCylinder(&this->actor, &this->collider);
         if (this->actor.xzDistToPlayer < 1000.0f) {
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+            MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
         }
     }
 
     if ((this->actor.flags & ACTOR_FLAG_INSIDE_CULLING_VOLUME) || (this->actor.xzDistToPlayer < 300.0f)) {
-        CollisionCheck_SetOC(play, &play->colChkCtx, &collider->base);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &collider->base);
     } else {
         this->collider.base.ocFlags1 &= ~OC1_HIT;
         this->collider.base.ocFlags2 &= ~OC2_HIT_PLAYER;
@@ -308,5 +308,5 @@ void ObjToge_Draw(Actor* thisx, PlayState* play) {
     ObjToge* this = (ObjToge*)thisx;
 
     func_800B8050(&this->actor, play, 1);
-    Gfx_DrawDListOpa(play, object_trap_DL_001400);
+    MM_Gfx_DrawDListOpa(play, object_trap_DL_001400);
 }

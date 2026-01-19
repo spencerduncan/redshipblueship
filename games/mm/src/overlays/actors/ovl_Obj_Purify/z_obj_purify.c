@@ -100,7 +100,7 @@ ObjPurifyInfo sObjPurifyInfo[] = {
 };
 
 void ObjPurify_SetSysMatrix(f32 yPos) {
-    Matrix_GetCurrent()->yw = yPos;
+    MM_Matrix_GetCurrent()->yw = yPos;
 }
 
 s32 ObjPurify_IsPurified(ObjPurify* this) {
@@ -124,17 +124,17 @@ void ObjPurify_Init(Actor* thisx, PlayState* play) {
     ObjPurifyInfo* info = &sObjPurifyInfo[OBJPURIFY_GET_INFO_INDEX(&this->dyna.actor)];
     s32 sp20 = OBJPURIFY_GET_UNK_FLAG(thisx);
 
-    Actor_SetScale(&this->dyna.actor, info->scale);
+    MM_Actor_SetScale(&this->dyna.actor, info->scale);
     if (sp20 == 1) {
-        DynaPolyActor_Init(&this->dyna, 0);
+        MM_DynaPolyActor_Init(&this->dyna, 0);
     }
     this->objectSlot = Object_GetSlot(&play->objectCtx, info->objectId);
     if (this->objectSlot <= OBJECT_SLOT_NONE) {
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
     } else if (sp20 == 0) {
         func_80A84EAC(this);
     } else if (ObjPurify_IsPurified(this)) {
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
     } else {
         func_80A84EAC(this);
     }
@@ -143,7 +143,7 @@ void ObjPurify_Init(Actor* thisx, PlayState* play) {
 void ObjPurify_Destroy(Actor* thisx, PlayState* play) {
     ObjPurify* this = (ObjPurify*)thisx;
     if (OBJPURIFY_GET_UNK_FLAG(&this->dyna.actor) == 1) {
-        DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+        MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
     }
 }
 
@@ -156,11 +156,11 @@ void func_80A84EC0(ObjPurify* this, PlayState* play) {
     s32 sp28;
     s32 index;
 
-    if (Object_IsLoaded(&play->objectCtx, this->objectSlot)) {
+    if (MM_Object_IsLoaded(&play->objectCtx, this->objectSlot)) {
         sp28 = OBJPURIFY_GET_UNK_FLAG(&this->dyna.actor);
         index = OBJPURIFY_GET_INFO_INDEX(&this->dyna.actor);
         this->dyna.actor.objectSlot = this->objectSlot;
-        Actor_SetObjectDependency(play, &this->dyna.actor);
+        MM_Actor_SetObjectDependency(play, &this->dyna.actor);
         if (sp28 == 1) {
             DynaPolyActor_LoadMesh(play, &this->dyna, sObjPurifyInfo[index].colHeader);
             func_80A84FA0(this);
@@ -178,7 +178,7 @@ void func_80A84FA0(ObjPurify* this) {
 
 void func_80A84FB4(ObjPurify* this, PlayState* play) {
     if (ObjPurify_IsPurified(this)) {
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
     }
 }
 
@@ -217,8 +217,8 @@ void func_80A850B0(ObjPurify* this) {
 }
 
 void func_80A850E8(ObjPurify* this, PlayState* play) {
-    Math_StepToF(&this->unk168[0], this->dyna.actor.home.pos.y - 90.0f, 0.9f);
-    if (Math_StepToF(&this->unk168[1], this->dyna.actor.home.pos.y, 0.9f)) {
+    MM_Math_StepToF(&this->unk168[0], this->dyna.actor.home.pos.y - 90.0f, 0.9f);
+    if (MM_Math_StepToF(&this->unk168[1], this->dyna.actor.home.pos.y, 0.9f)) {
         func_80A8515C(this);
     }
 }

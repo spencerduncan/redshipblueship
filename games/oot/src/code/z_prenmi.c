@@ -7,7 +7,7 @@ void func_80092320(PreNMIContext* this) {
     this->state.size = 0;
 }
 
-void PreNMI_Update(PreNMIContext* this) {
+void OoT_PreNMI_Update(PreNMIContext* this) {
     osSyncPrintf(VT_COL(YELLOW, BLACK) "prenmi_move\n" VT_RST);
 
     // Strings existing only in rodata
@@ -17,7 +17,7 @@ void PreNMI_Update(PreNMIContext* this) {
     }
 
     if (this->timer == 0) {
-        ViConfig_UpdateVi(1);
+        OoT_ViConfig_UpdateVi(1);
         func_80092320(this);
         return;
     }
@@ -25,7 +25,7 @@ void PreNMI_Update(PreNMIContext* this) {
     this->timer--;
 }
 
-void PreNMI_Draw(PreNMIContext* this) {
+void OoT_PreNMI_Draw(PreNMIContext* this) {
     GraphicsContext* gfxCtx = this->state.gfxCtx;
 
     osSyncPrintf(VT_COL(YELLOW, BLACK) "prenmi_draw\n" VT_RST);
@@ -41,23 +41,23 @@ void PreNMI_Draw(PreNMIContext* this) {
     CLOSE_DISPS(gfxCtx);
 }
 
-void PreNMI_Main(GameState* thisx) {
+void OoT_PreNMI_Main(GameState* thisx) {
     PreNMIContext* this = (PreNMIContext*)thisx;
 
-    PreNMI_Update(this);
-    PreNMI_Draw(this);
+    OoT_PreNMI_Update(this);
+    OoT_PreNMI_Draw(this);
 
     this->state.unk_A0 = 1;
 }
 
-void PreNMI_Destroy(GameState* thisx) {
+void OoT_PreNMI_Destroy(GameState* thisx) {
 }
 
-void PreNMI_Init(GameState* thisx) {
+void OoT_PreNMI_Init(GameState* thisx) {
     PreNMIContext* this = (PreNMIContext*)thisx;
 
-    this->state.main = PreNMI_Main;
-    this->state.destroy = PreNMI_Destroy;
+    this->state.main = OoT_PreNMI_Main;
+    this->state.destroy = OoT_PreNMI_Destroy;
     this->timer = 30;
     this->unk_A8 = 10;
 

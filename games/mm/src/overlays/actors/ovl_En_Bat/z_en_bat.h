@@ -9,7 +9,7 @@
 #define BAD_BAT_PARAMS(switchFlag, paramflags, type) ((type) | ((paramflags) << 5) | ((switchFlag) << 8))
 
 //! PARAMFLAGS
-//! Affects which flags are used in Actor_UpdateBgCheckInfo in certain circumstances
+//! Affects which flags are used in MM_Actor_UpdateBgCheckInfo in certain circumstances
 #define BAD_BAT_PARAMFLAG_0 (1 << 0)
 //! Whether to apply a height range check to attack
 #define BAD_BAT_PARAMFLAG_CHECK_HEIGHTREL (1 << 1)

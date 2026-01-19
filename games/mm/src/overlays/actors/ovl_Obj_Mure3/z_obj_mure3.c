@@ -9,13 +9,13 @@
 
 #define FLAGS 0x00000000
 
-void ObjMure3_Init(Actor* thisx, PlayState* play);
-void ObjMure3_Destroy(Actor* thisx, PlayState* play);
-void ObjMure3_Update(Actor* thisx, PlayState* play);
+void MM_ObjMure3_Init(Actor* thisx, PlayState* play);
+void MM_ObjMure3_Destroy(Actor* thisx, PlayState* play);
+void MM_ObjMure3_Update(Actor* thisx, PlayState* play);
 
 void func_8098F598(ObjMure3* this);
 void func_8098F5AC(ObjMure3* this, PlayState* play);
-void func_8098F5D0(ObjMure3* this);
+void MM_func_8098F5D0(ObjMure3* this);
 void func_8098F5E4(ObjMure3* this, PlayState* play);
 void func_8098F66C(ObjMure3* this);
 void func_8098F680(ObjMure3* this, PlayState* play);
@@ -26,15 +26,15 @@ ActorProfile Obj_Mure3_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(ObjMure3),
-    /**/ ObjMure3_Init,
-    /**/ ObjMure3_Destroy,
-    /**/ ObjMure3_Update,
+    /**/ MM_ObjMure3_Init,
+    /**/ MM_ObjMure3_Destroy,
+    /**/ MM_ObjMure3_Update,
     /**/ NULL,
 };
 
-static s16 sRupeeCounts[] = { 5, 5, 7, 0 };
+static s16 MM_sRupeeCounts[] = { 5, 5, 7, 0 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 100, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 1800, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 100, ICHAIN_STOP),
@@ -44,10 +44,10 @@ void func_8098F040(ObjMure3* this, PlayState* play) {
     s32 i;
     Vec3f spawnPos;
 
-    Math_Vec3f_Copy(&spawnPos, &this->actor.world.pos);
+    MM_Math_Vec3f_Copy(&spawnPos, &this->actor.world.pos);
     for (i = 0; i < 5; i++, spawnPos.y += 20.0f) {
         if (!((this->unk164 >> i) & 1)) {
-            this->unk148[i] = (EnItem00*)Item_DropCollectible2(play, &spawnPos, 0x10001);
+            this->unk148[i] = (EnItem00*)MM_Item_DropCollectible2(play, &spawnPos, 0x10001);
             if (this->unk148[i] != NULL) {
                 this->unk148[i]->actor.room = this->actor.room;
             }
@@ -58,8 +58,8 @@ void func_8098F040(ObjMure3* this, PlayState* play) {
 void func_8098F110(ObjMure3* this, PlayState* play) {
     s32 i;
     Vec3f spawnPos;
-    f32 sin = Math_SinS(this->actor.world.rot.y);
-    f32 cos = Math_CosS(this->actor.world.rot.y);
+    f32 sin = MM_Math_SinS(this->actor.world.rot.y);
+    f32 cos = MM_Math_CosS(this->actor.world.rot.y);
     f32 dist;
 
     spawnPos.y = this->actor.world.pos.y;
@@ -68,7 +68,7 @@ void func_8098F110(ObjMure3* this, PlayState* play) {
         if (!((this->unk164 >> i) & 1)) {
             spawnPos.x = this->actor.world.pos.x + (sin * dist);
             spawnPos.z = this->actor.world.pos.z + (cos * dist);
-            this->unk148[i] = (EnItem00*)Item_DropCollectible2(play, &spawnPos, 0x4000);
+            this->unk148[i] = (EnItem00*)MM_Item_DropCollectible2(play, &spawnPos, 0x4000);
             if (this->unk148[i] != NULL) {
                 this->unk148[i]->actor.room = this->actor.room;
             }
@@ -86,9 +86,9 @@ void func_8098F220(ObjMure3* this, PlayState* play) {
 
     for (i = 0; i < 6; i++) {
         if (GameInteractor_Should(VB_OBJ_MURE3_DROP_COLLECTIBLE, !((this->unk164 >> i) & 1), this, i)) {
-            spawnPos.x = (Math_SinS(yRot) * 40.0f) + this->actor.world.pos.x;
-            spawnPos.z = (Math_CosS(yRot) * 40.0f) + this->actor.world.pos.z;
-            this->unk148[i] = (EnItem00*)Item_DropCollectible2(play, &spawnPos, 0x4000);
+            spawnPos.x = (MM_Math_SinS(yRot) * 40.0f) + this->actor.world.pos.x;
+            spawnPos.z = (MM_Math_CosS(yRot) * 40.0f) + this->actor.world.pos.z;
+            this->unk148[i] = (EnItem00*)MM_Item_DropCollectible2(play, &spawnPos, 0x4000);
             if (this->unk148[i] != NULL) {
                 this->unk148[i]->actor.room = this->actor.room;
             }
@@ -99,7 +99,7 @@ void func_8098F220(ObjMure3* this, PlayState* play) {
     if (GameInteractor_Should(VB_OBJ_MURE3_DROP_COLLECTIBLE, !((this->unk164 >> 6) & 1), this, 6)) {
         spawnPos.x = this->actor.world.pos.x;
         spawnPos.z = this->actor.world.pos.z;
-        this->unk160 = Item_DropCollectible2(play, &spawnPos, 0x4002);
+        this->unk160 = MM_Item_DropCollectible2(play, &spawnPos, 0x4002);
         if (this->unk160 != NULL) {
             this->unk160->room = this->actor.room;
         }
@@ -107,7 +107,7 @@ void func_8098F220(ObjMure3* this, PlayState* play) {
 }
 
 void func_8098F364(ObjMure3* this, PlayState* play) {
-    s16 count = sRupeeCounts[OBJMURE3_PARAM_RUPEEINDEX(&this->actor)];
+    s16 count = MM_sRupeeCounts[OBJMURE3_PARAM_RUPEEINDEX(&this->actor)];
     s32 i;
     EnItem00** collectible;
 
@@ -117,7 +117,7 @@ void func_8098F364(ObjMure3* this, PlayState* play) {
             if (((*collectible)->unk1A4 != 0) || ((*collectible)->actor.update == NULL)) {
                 this->unk164 |= (1 << i);
             } else {
-                Actor_Kill(&(*collectible)->actor);
+                MM_Actor_Kill(&(*collectible)->actor);
             }
         }
         *collectible = NULL;
@@ -125,7 +125,7 @@ void func_8098F364(ObjMure3* this, PlayState* play) {
 }
 
 void func_8098F438(ObjMure3* this, PlayState* play) {
-    s16 count = sRupeeCounts[OBJMURE3_PARAM_RUPEEINDEX(&this->actor)];
+    s16 count = MM_sRupeeCounts[OBJMURE3_PARAM_RUPEEINDEX(&this->actor)];
     s32 i;
 
     for (i = 0; i < count; i++) {
@@ -133,7 +133,7 @@ void func_8098F438(ObjMure3* this, PlayState* play) {
 
         if ((*collectible != NULL) && !((this->unk164 >> i) & 1)) {
             if ((*collectible)->unk1A4 != 0) {
-                Flags_SetSwitch(play, OBJMURE3_GET_SWITCH_FLAG(&this->actor));
+                MM_Flags_SetSwitch(play, OBJMURE3_GET_SWITCH_FLAG(&this->actor));
             }
             if ((*collectible)->actor.update == NULL) {
                 this->unk164 |= (1 << i);
@@ -143,18 +143,18 @@ void func_8098F438(ObjMure3* this, PlayState* play) {
     }
 }
 
-void ObjMure3_Init(Actor* thisx, PlayState* play) {
+void MM_ObjMure3_Init(Actor* thisx, PlayState* play) {
     ObjMure3* this = (ObjMure3*)thisx;
 
-    if (Flags_GetSwitch(play, OBJMURE3_GET_SWITCH_FLAG(&this->actor))) {
-        Actor_Kill(&this->actor);
+    if (MM_Flags_GetSwitch(play, OBJMURE3_GET_SWITCH_FLAG(&this->actor))) {
+        MM_Actor_Kill(&this->actor);
         return;
     }
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
     func_8098F598(this);
 }
 
-void ObjMure3_Destroy(Actor* thisx, PlayState* play) {
+void MM_ObjMure3_Destroy(Actor* thisx, PlayState* play) {
 }
 
 void func_8098F598(ObjMure3* this) {
@@ -162,17 +162,17 @@ void func_8098F598(ObjMure3* this) {
 }
 
 void func_8098F5AC(ObjMure3* this, PlayState* play) {
-    func_8098F5D0(this);
+    MM_func_8098F5D0(this);
 }
 
-void func_8098F5D0(ObjMure3* this) {
+void MM_func_8098F5D0(ObjMure3* this) {
     this->actionFunc = func_8098F5E4;
 }
 
 void func_8098F5E4(ObjMure3* this, PlayState* play) {
     static ObjMure3SpawnFunc sSpawnFuncs[] = { func_8098F040, func_8098F110, func_8098F220 };
 
-    if (Math3D_Dist1DSq(this->actor.projectedPos.x, this->actor.projectedPos.z) < SQ(1150.0f)) {
+    if (MM_Math3D_Dist1DSq(this->actor.projectedPos.x, this->actor.projectedPos.z) < SQ(1150.0f)) {
         this->actor.flags |= ACTOR_FLAG_UPDATE_CULLING_DISABLED;
         sSpawnFuncs[OBJMURE3_PARAM_RUPEEINDEX(&this->actor)](this, play);
         func_8098F66C(this);
@@ -185,14 +185,14 @@ void func_8098F66C(ObjMure3* this) {
 
 void func_8098F680(ObjMure3* this, PlayState* play) {
     func_8098F438(this, play);
-    if (Math3D_Dist1DSq(this->actor.projectedPos.x, this->actor.projectedPos.z) >= SQ(1450.0f)) {
+    if (MM_Math3D_Dist1DSq(this->actor.projectedPos.x, this->actor.projectedPos.z) >= SQ(1450.0f)) {
         this->actor.flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
         func_8098F364(this, play);
-        func_8098F5D0(this);
+        MM_func_8098F5D0(this);
     }
 }
 
-void ObjMure3_Update(Actor* thisx, PlayState* play) {
+void MM_ObjMure3_Update(Actor* thisx, PlayState* play) {
     ObjMure3* this = (ObjMure3*)thisx;
 
     this->actionFunc(this, play);

@@ -9,10 +9,10 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOOKSHOT_PULLS_ACTOR)
 
-void EnSi_Init(Actor* thisx, PlayState* play);
-void EnSi_Destroy(Actor* thisx, PlayState* play);
-void EnSi_Update(Actor* thisx, PlayState* play);
-void EnSi_Draw(Actor* thisx, PlayState* play);
+void MM_EnSi_Init(Actor* thisx, PlayState* play);
+void MM_EnSi_Destroy(Actor* thisx, PlayState* play);
+void MM_EnSi_Update(Actor* thisx, PlayState* play);
+void MM_EnSi_Draw(Actor* thisx, PlayState* play);
 
 void EnSi_DraggedByHookshot(EnSi* this, PlayState* play);
 
@@ -22,10 +22,10 @@ ActorProfile En_Si_Profile = {
     /**/ FLAGS,
     /**/ OBJECT_ST,
     /**/ sizeof(EnSi),
-    /**/ EnSi_Init,
-    /**/ EnSi_Destroy,
-    /**/ EnSi_Update,
-    /**/ EnSi_Draw,
+    /**/ MM_EnSi_Init,
+    /**/ MM_EnSi_Destroy,
+    /**/ MM_EnSi_Update,
+    /**/ MM_EnSi_Draw,
 };
 
 static ColliderSphereInit sSphereInit = {
@@ -48,9 +48,9 @@ static ColliderSphereInit sSphereInit = {
     { 0, { { 0, 0, 0 }, 10 }, 100 },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 1, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 MM_sColChkInfoInit = { 1, 0, 0, 0, MASS_IMMOVABLE };
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(1, 0x0),
     /* Deku Stick     */ DMG_ENTRY(1, 0x0),
     /* Horse trample  */ DMG_ENTRY(1, 0x0),
@@ -91,31 +91,31 @@ void EnSi_UpdateCollision(EnSi* this, PlayState* play) {
     this->collider.dim.worldSphere.center.z = this->actor.world.pos.z;
     this->collider.dim.worldSphere.radius = this->collider.dim.modelSphere.radius * this->collider.dim.scale;
     if (this->actor.colChkInfo.health > 0) {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void EnSi_GiveToken(EnSi* this, PlayState* play) {
     s32 chestFlag = ENSI_GET_CHEST_FLAG(&this->actor);
 
     if ((chestFlag < 0x20) && (chestFlag >= 0)) {
-        Flags_SetTreasure(play, chestFlag);
+        MM_Flags_SetTreasure(play, chestFlag);
     }
 
     if (!GameInteractor_Should(VB_GIVE_ITEM_FROM_SI, true, this)) {
         return;
     }
 
-    Item_Give(play, ITEM_SKULL_TOKEN);
+    MM_Item_Give(play, ITEM_SKULL_TOKEN);
     if (Inventory_GetSkullTokenCount(play->sceneId) >= SPIDER_HOUSE_TOKENS_REQUIRED) {
-        Message_StartTextbox(play, 0xFC, NULL); // You collected all tokens, curse lifted
+        MM_Message_StartTextbox(play, 0xFC, NULL); // You collected all tokens, curse lifted
         // BENTODO This had | 0x900 which interfered with the 16 bit sequence IDs. Removing it doesn't seem to
         // anything bad.
-        Audio_PlayFanfare(NA_BGM_GET_ITEM);
+        MM_Audio_PlayFanfare(NA_BGM_GET_ITEM);
     } else {
-        Message_StartTextbox(play, 0x52, NULL); // You got one more gold token, your [count] one!
-        Audio_PlayFanfare(NA_BGM_GET_SMALL_ITEM);
+        MM_Message_StartTextbox(play, 0x52, NULL); // You got one more gold token, your [count] one!
+        MM_Audio_PlayFanfare(NA_BGM_GET_SMALL_ITEM);
     }
 }
 
@@ -124,7 +124,7 @@ void EnSi_Wait(EnSi* this, PlayState* play) {
         this->actionFunc = EnSi_DraggedByHookshot;
     } else if (this->collider.base.ocFlags2 & OC2_HIT_PLAYER) {
         EnSi_GiveToken(this, play);
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
     this->actor.shape.rot.y += 0x38E;
@@ -133,38 +133,38 @@ void EnSi_Wait(EnSi* this, PlayState* play) {
 void EnSi_DraggedByHookshot(EnSi* this, PlayState* play) {
     if (!CHECK_FLAG_ALL(this->actor.flags, ACTOR_FLAG_HOOKSHOT_ATTACHED)) {
         EnSi_GiveToken(this, play);
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
-void EnSi_Init(Actor* thisx, PlayState* play) {
+void MM_EnSi_Init(Actor* thisx, PlayState* play) {
     EnSi* this = (EnSi*)thisx;
 
     Collider_InitSphere(play, &this->collider);
     Collider_SetSphere(play, &this->collider, &this->actor, &sSphereInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, &sDamageTable, &sColChkInfoInit);
-    Actor_SetScale(&this->actor, 0.25f);
+    MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, &MM_sDamageTable, &MM_sColChkInfoInit);
+    MM_Actor_SetScale(&this->actor, 0.25f);
     this->actionFunc = EnSi_Wait;
 }
 
-void EnSi_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnSi_Destroy(Actor* thisx, PlayState* play) {
     EnSi* this = (EnSi*)thisx;
 
     Collider_DestroySphere(play, &this->collider);
 }
 
-void EnSi_Update(Actor* thisx, PlayState* play) {
+void MM_EnSi_Update(Actor* thisx, PlayState* play) {
     EnSi* this = (EnSi*)thisx;
 
     this->actionFunc(this, play);
     EnSi_UpdateCollision(this, play);
-    Actor_SetFocus(&this->actor, 0.0f);
+    MM_Actor_SetFocus(&this->actor, 0.0f);
 }
 
-void EnSi_Draw(Actor* thisx, PlayState* play) {
+void MM_EnSi_Draw(Actor* thisx, PlayState* play) {
     EnSi* this = (EnSi*)thisx;
 
     func_800B8118(&this->actor, play, 0);
     func_800B8050(&this->actor, play, 0);
-    GetItem_Draw(play, GID_SKULL_TOKEN_2);
+    MM_GetItem_Draw(play, GID_SKULL_TOKEN_2);
 }

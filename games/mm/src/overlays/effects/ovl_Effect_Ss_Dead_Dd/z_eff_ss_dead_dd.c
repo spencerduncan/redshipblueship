@@ -21,16 +21,16 @@
 
 #define PARAMS ((EffectSsDeadDdInitParams*)initParamsx)
 
-u32 EffectSsDeadDd_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsDeadDd_Update(PlayState* play, u32 index, EffectSs* this);
-void EffectSsDeadDd_Draw(PlayState* play, u32 index, EffectSs* this);
+u32 MM_EffectSsDeadDd_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void MM_EffectSsDeadDd_Update(PlayState* play, u32 index, EffectSs* this);
+void MM_EffectSsDeadDd_Draw(PlayState* play, u32 index, EffectSs* this);
 
 EffectSsProfile Effect_Ss_Dead_Dd_Profile = {
     EFFECT_SS_DEAD_DD,
-    EffectSsDeadDd_Init,
+    MM_EffectSsDeadDd_Init,
 };
 
-u32 EffectSsDeadDd_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 MM_EffectSsDeadDd_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsDeadDdInitParams* initParams = PARAMS;
 
     if (initParams->type == DEADDD_TYPE_0) {
@@ -47,8 +47,8 @@ u32 EffectSsDeadDd_Init(PlayState* play, u32 index, EffectSs* this, void* initPa
             this->rAlphaStep = initParams->primColor.a / initParams->life;
         }
 
-        this->draw = EffectSsDeadDd_Draw;
-        this->update = EffectSsDeadDd_Update;
+        this->draw = MM_EffectSsDeadDd_Draw;
+        this->update = MM_EffectSsDeadDd_Update;
         this->rScale = initParams->scale;
         this->rPrimColorR = initParams->primColor.r;
         this->rPrimColorG = initParams->primColor.g;
@@ -73,16 +73,16 @@ u32 EffectSsDeadDd_Init(PlayState* play, u32 index, EffectSs* this, void* initPa
         this->rEnvColorR = 250;
         this->rEnvColorG = 180;
         this->rEnvColorB = 0;
-        this->draw = EffectSsDeadDd_Draw;
-        this->update = EffectSsDeadDd_Update;
+        this->draw = MM_EffectSsDeadDd_Draw;
+        this->update = MM_EffectSsDeadDd_Update;
 
         for (i = initParams->randIter; i > 0; i--) {
-            this->pos.x = ((Rand_ZeroOne() - 0.5f) * initParams->randPosScale) + initParams->pos.x;
-            this->pos.y = ((Rand_ZeroOne() - 0.5f) * initParams->randPosScale) + initParams->pos.y;
-            this->pos.z = ((Rand_ZeroOne() - 0.5f) * initParams->randPosScale) + initParams->pos.z;
-            this->accel.x = this->velocity.x = (Rand_ZeroOne() - 0.5f) * 2.0f;
-            this->accel.y = this->velocity.y = (Rand_ZeroOne() - 0.5f) * 2.0f;
-            this->accel.z = this->velocity.z = (Rand_ZeroOne() - 0.5f) * 2.0f;
+            this->pos.x = ((MM_Rand_ZeroOne() - 0.5f) * initParams->randPosScale) + initParams->pos.x;
+            this->pos.y = ((MM_Rand_ZeroOne() - 0.5f) * initParams->randPosScale) + initParams->pos.y;
+            this->pos.z = ((MM_Rand_ZeroOne() - 0.5f) * initParams->randPosScale) + initParams->pos.z;
+            this->accel.x = this->velocity.x = (MM_Rand_ZeroOne() - 0.5f) * 2.0f;
+            this->accel.y = this->velocity.y = (MM_Rand_ZeroOne() - 0.5f) * 2.0f;
+            this->accel.z = this->velocity.z = (MM_Rand_ZeroOne() - 0.5f) * 2.0f;
         }
     } else {
         return 0;
@@ -91,7 +91,7 @@ u32 EffectSsDeadDd_Init(PlayState* play, u32 index, EffectSs* this, void* initPa
     return 1;
 }
 
-void EffectSsDeadDd_Draw(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsDeadDd_Draw(PlayState* play, u32 index, EffectSs* this) {
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     MtxF mfTrans;
     MtxF mfScale;
@@ -102,11 +102,11 @@ void EffectSsDeadDd_Draw(PlayState* play, u32 index, EffectSs* this) {
     OPEN_DISPS(gfxCtx);
 
     scale = this->rScale * 0.01f;
-    SkinMatrix_SetTranslate(&mfTrans, this->pos.x, this->pos.y, this->pos.z);
-    SkinMatrix_SetScale(&mfScale, scale, scale, scale);
-    SkinMatrix_MtxFMtxFMult(&mfTrans, &mfScale, &mfResult);
+    MM_SkinMatrix_SetTranslate(&mfTrans, this->pos.x, this->pos.y, this->pos.z);
+    MM_SkinMatrix_SetScale(&mfScale, scale, scale, scale);
+    MM_SkinMatrix_MtxFMtxFMult(&mfTrans, &mfScale, &mfResult);
 
-    mtx = SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
+    mtx = MM_SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
 
     if (mtx != NULL) {
         Gfx_SetupDL60_XluNoCD(gfxCtx);
@@ -122,7 +122,7 @@ void EffectSsDeadDd_Draw(PlayState* play, u32 index, EffectSs* this) {
     CLOSE_DISPS(gfxCtx);
 }
 
-void EffectSsDeadDd_Update(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsDeadDd_Update(PlayState* play, u32 index, EffectSs* this) {
     this->rScale += this->rScaleStep;
 
     if (this->rScale < 0) {

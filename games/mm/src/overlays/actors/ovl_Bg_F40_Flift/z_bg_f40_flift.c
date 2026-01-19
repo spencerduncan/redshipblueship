@@ -29,7 +29,7 @@ ActorProfile Bg_F40_Flift_Profile = {
     /**/ BgF40Flift_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeScale, 400, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 5000, ICHAIN_CONTINUE),
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
@@ -38,8 +38,8 @@ static InitChainEntry sInitChain[] = {
 void BgF40Flift_Init(Actor* thisx, PlayState* play) {
     BgF40Flift* this = (BgF40Flift*)thisx;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
     DynaPolyActor_LoadMesh(play, &this->dyna, &gStoneTowerTempleSquareElevatorCol);
     this->dyna.actor.params = 1;
     this->actionFunc = func_808D75F0;
@@ -48,12 +48,12 @@ void BgF40Flift_Init(Actor* thisx, PlayState* play) {
 void BgF40Flift_Destroy(Actor* thisx, PlayState* play) {
     BgF40Flift* this = (BgF40Flift*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_808D75F0(BgF40Flift* this, PlayState* play) {
-    if (((this->dyna.actor.params == 1) && DynaPolyActor_IsPlayerOnTop(&this->dyna)) ||
-        ((this->dyna.actor.params == -1) && !DynaPolyActor_IsPlayerOnTop(&this->dyna))) {
+    if (((this->dyna.actor.params == 1) && MM_DynaPolyActor_IsPlayerOnTop(&this->dyna)) ||
+        ((this->dyna.actor.params == -1) && !MM_DynaPolyActor_IsPlayerOnTop(&this->dyna))) {
         this->timer = 96;
         this->actionFunc = func_808D7714;
     } else {
@@ -63,10 +63,10 @@ void func_808D75F0(BgF40Flift* this, PlayState* play) {
         this->timer--;
         if (this->dyna.actor.params == 1) {
             this->dyna.actor.world.pos.y =
-                (Math_SinF(this->timer * (M_PIf / 24.0f)) * 5.0f) + this->dyna.actor.home.pos.y;
+                (MM_Math_SinF(this->timer * (M_PIf / 24.0f)) * 5.0f) + this->dyna.actor.home.pos.y;
         } else {
             this->dyna.actor.world.pos.y =
-                (Math_SinF(this->timer * (M_PIf / 24.0f)) * 5.0f) + (926.8f + this->dyna.actor.home.pos.y);
+                (MM_Math_SinF(this->timer * (M_PIf / 24.0f)) * 5.0f) + (926.8f + this->dyna.actor.home.pos.y);
         }
     }
 }
@@ -75,7 +75,7 @@ void func_808D7714(BgF40Flift* this, PlayState* play) {
     if (this->timer != 0) {
         this->timer--;
         this->dyna.actor.world.pos.y =
-            (((Math_CosF(this->timer * (M_PIf / 96.0f)) * this->dyna.actor.params) + 1.0f) * 463.4f) +
+            (((MM_Math_CosF(this->timer * (M_PIf / 96.0f)) * this->dyna.actor.params) + 1.0f) * 463.4f) +
             this->dyna.actor.home.pos.y;
     } else {
         this->dyna.actor.params = -this->dyna.actor.params;
@@ -90,5 +90,5 @@ void BgF40Flift_Update(Actor* thisx, PlayState* play) {
 }
 
 void BgF40Flift_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, gStoneTowerTempleSquareElevatorDL);
+    MM_Gfx_DrawDListOpa(play, gStoneTowerTempleSquareElevatorDL);
 }

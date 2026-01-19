@@ -19,16 +19,16 @@
 #define rAlphaStep regs[10]
 #define rAlphaMode regs[11] // if mode is 0 alpha decreases over time, otherwise it increases
 
-u32 EffectSsDeadDd_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsDeadDd_Draw(PlayState* play, u32 index, EffectSs* this);
-void EffectSsDeadDd_Update(PlayState* play, u32 index, EffectSs* this);
+u32 OoT_EffectSsDeadDd_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void OoT_EffectSsDeadDd_Draw(PlayState* play, u32 index, EffectSs* this);
+void OoT_EffectSsDeadDd_Update(PlayState* play, u32 index, EffectSs* this);
 
 EffectSsInit Effect_Ss_Dead_Dd_InitVars = {
     EFFECT_SS_DEAD_DD,
-    EffectSsDeadDd_Init,
+    OoT_EffectSsDeadDd_Init,
 };
 
-u32 EffectSsDeadDd_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 OoT_EffectSsDeadDd_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     s32 i;
     EffectSsDeadDdInitParams* initParams = (EffectSsDeadDdInitParams*)initParamsx;
 
@@ -46,8 +46,8 @@ u32 EffectSsDeadDd_Init(PlayState* play, u32 index, EffectSs* this, void* initPa
             this->rAlphaStep = initParams->alpha / initParams->life;
         }
 
-        this->draw = EffectSsDeadDd_Draw;
-        this->update = EffectSsDeadDd_Update;
+        this->draw = OoT_EffectSsDeadDd_Draw;
+        this->update = OoT_EffectSsDeadDd_Update;
         this->rScale = initParams->scale;
         this->rPrimColorR = initParams->primColor.r;
         this->rPrimColorG = initParams->primColor.g;
@@ -70,16 +70,16 @@ u32 EffectSsDeadDd_Init(PlayState* play, u32 index, EffectSs* this, void* initPa
         this->rEnvColorR = 250;
         this->rEnvColorG = 180;
         this->rEnvColorB = 0;
-        this->draw = EffectSsDeadDd_Draw;
-        this->update = EffectSsDeadDd_Update;
+        this->draw = OoT_EffectSsDeadDd_Draw;
+        this->update = OoT_EffectSsDeadDd_Update;
 
         for (i = initParams->randIter; i > 0; i--) {
-            this->pos.x = ((Rand_ZeroOne() - 0.5f) * initParams->randPosScale) + initParams->pos.x;
-            this->pos.y = ((Rand_ZeroOne() - 0.5f) * initParams->randPosScale) + initParams->pos.y;
-            this->pos.z = ((Rand_ZeroOne() - 0.5f) * initParams->randPosScale) + initParams->pos.z;
-            this->accel.x = this->velocity.x = (Rand_ZeroOne() - 0.5f) * 2.0f;
-            this->accel.y = this->velocity.y = (Rand_ZeroOne() - 0.5f) * 2.0f;
-            this->accel.z = this->velocity.z = (Rand_ZeroOne() - 0.5f) * 2.0f;
+            this->pos.x = ((OoT_Rand_ZeroOne() - 0.5f) * initParams->randPosScale) + initParams->pos.x;
+            this->pos.y = ((OoT_Rand_ZeroOne() - 0.5f) * initParams->randPosScale) + initParams->pos.y;
+            this->pos.z = ((OoT_Rand_ZeroOne() - 0.5f) * initParams->randPosScale) + initParams->pos.z;
+            this->accel.x = this->velocity.x = (OoT_Rand_ZeroOne() - 0.5f) * 2.0f;
+            this->accel.y = this->velocity.y = (OoT_Rand_ZeroOne() - 0.5f) * 2.0f;
+            this->accel.z = this->velocity.z = (OoT_Rand_ZeroOne() - 0.5f) * 2.0f;
         }
     } else {
         osSyncPrintf("Effect_SS_Dd_disp_mode():mode_swが変です。\n");
@@ -89,7 +89,7 @@ u32 EffectSsDeadDd_Init(PlayState* play, u32 index, EffectSs* this, void* initPa
     return 1;
 }
 
-void EffectSsDeadDd_Draw(PlayState* play, u32 index, EffectSs* this) {
+void OoT_EffectSsDeadDd_Draw(PlayState* play, u32 index, EffectSs* this) {
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     MtxF mfTrans;
     MtxF mfScale;
@@ -100,11 +100,11 @@ void EffectSsDeadDd_Draw(PlayState* play, u32 index, EffectSs* this) {
     OPEN_DISPS(gfxCtx);
 
     scale = this->rScale * 0.01f;
-    SkinMatrix_SetTranslate(&mfTrans, this->pos.x, this->pos.y, this->pos.z);
-    SkinMatrix_SetScale(&mfScale, scale, scale, scale);
-    SkinMatrix_MtxFMtxFMult(&mfTrans, &mfScale, &mfResult);
+    OoT_SkinMatrix_SetTranslate(&mfTrans, this->pos.x, this->pos.y, this->pos.z);
+    OoT_SkinMatrix_SetScale(&mfScale, scale, scale, scale);
+    OoT_SkinMatrix_MtxFMtxFMult(&mfTrans, &mfScale, &mfResult);
 
-    mtx = SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
+    mtx = OoT_SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
 
     if (mtx != NULL) {
         Gfx_SetupDL_60NoCDXlu(gfxCtx);
@@ -120,7 +120,7 @@ void EffectSsDeadDd_Draw(PlayState* play, u32 index, EffectSs* this) {
     CLOSE_DISPS(gfxCtx);
 }
 
-void EffectSsDeadDd_Update(PlayState* play, u32 index, EffectSs* this) {
+void OoT_EffectSsDeadDd_Update(PlayState* play, u32 index, EffectSs* this) {
 
     this->rScale += this->rScaleStep;
 

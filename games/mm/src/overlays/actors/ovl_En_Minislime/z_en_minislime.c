@@ -53,7 +53,7 @@ ActorProfile En_Minislime_Profile = {
     /**/ NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE | AT_TYPE_ENEMY,
@@ -73,7 +73,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 54, 60, -30, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit sColChkInfoInit = { 4, 40, 40, 30 };
+static CollisionCheckInfoInit MM_sColChkInfoInit = { 4, 40, 40, 30 };
 
 typedef enum {
     /* 0x0 */ MINISLIME_DMGEFF_NONE,
@@ -83,7 +83,7 @@ typedef enum {
     /* 0xF */ MINISLIME_DMGEFF_BREAK_ICE
 } MinislimeDamageEffect;
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(0, MINISLIME_DMGEFF_NONE),
     /* Deku Stick     */ DMG_ENTRY(1, MINISLIME_DMGEFF_NONE),
     /* Horse trample  */ DMG_ENTRY(1, MINISLIME_DMGEFF_NONE),
@@ -122,8 +122,8 @@ void EnMinislime_Init(Actor* thisx, PlayState* play) {
     EnMinislime* this = (EnMinislime*)thisx;
 
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo(&this->actor.colChkInfo, &sDamageTable, &sColChkInfoInit);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo(&this->actor.colChkInfo, &MM_sDamageTable, &MM_sColChkInfoInit);
     this->id = this->actor.params;
     this->actor.shape.shadowAlpha = 255;
     EnMinislime_SetupDisappear(this);
@@ -132,7 +132,7 @@ void EnMinislime_Init(Actor* thisx, PlayState* play) {
 void EnMinislime_Destroy(Actor* thisx, PlayState* play) {
     EnMinislime* this = (EnMinislime*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnMinislime_CheckBackgroundCollision(EnMinislime* this) {
@@ -184,20 +184,20 @@ void EnMinislime_AddIceShardEffect(EnMinislime* this) {
 
     for (; i < i_end; i++) {
         iceShardEffect = &bigslime->iceShardEffect[i];
-        pitch = Rand_S16Offset(0x1000, 0x3000);
-        iceShardEffect->velocity.x = Math_CosS(pitch) * Math_SinS(yaw);
-        iceShardEffect->velocity.y = Math_SinS(pitch);
-        iceShardEffect->velocity.z = Math_CosS(pitch) * Math_CosS(yaw);
+        pitch = MM_Rand_S16Offset(0x1000, 0x3000);
+        iceShardEffect->velocity.x = MM_Math_CosS(pitch) * MM_Math_SinS(yaw);
+        iceShardEffect->velocity.y = MM_Math_SinS(pitch);
+        iceShardEffect->velocity.z = MM_Math_CosS(pitch) * MM_Math_CosS(yaw);
         iceShardEffect->pos.x = this->actor.world.pos.x + (400.0f * this->actor.scale.x) * iceShardEffect->velocity.x;
         iceShardEffect->pos.y =
             this->actor.world.pos.y + (((iceShardEffect->velocity.y * 2.0f) - 1.0f) * 400.0f * this->actor.scale.y);
         iceShardEffect->pos.z = this->actor.world.pos.z + (400.0f * this->actor.scale.z) * iceShardEffect->velocity.z;
-        iceShardEffect->rot.x = (s32)Rand_Next() >> 0x10;
-        iceShardEffect->rot.y = (s32)Rand_Next() >> 0x10;
-        iceShardEffect->rot.z = (s32)Rand_Next() >> 0x10;
+        iceShardEffect->rot.x = (s32)MM_Rand_Next() >> 0x10;
+        iceShardEffect->rot.y = (s32)MM_Rand_Next() >> 0x10;
+        iceShardEffect->rot.z = (s32)MM_Rand_Next() >> 0x10;
         iceShardEffect->isEnabled = true;
-        Math_Vec3f_ScaleAndStore(&iceShardEffect->velocity, Rand_ZeroFloat(3.0f) + 7.0f, &iceShardEffect->velocity);
-        iceShardEffect->scale = (Rand_ZeroFloat(6.0f) + 2.0f) * 0.001f;
+        Math_Vec3f_ScaleAndStore(&iceShardEffect->velocity, MM_Rand_ZeroFloat(3.0f) + 7.0f, &iceShardEffect->velocity);
+        iceShardEffect->scale = (MM_Rand_ZeroFloat(6.0f) + 2.0f) * 0.001f;
         yaw += 0x1999;
     }
 
@@ -209,13 +209,13 @@ void EnMinislime_AddIceSmokeEffect(EnMinislime* this, PlayState* play) {
     Vec3f pos;
     Vec3f velocity;
 
-    pos.x = (Rand_CenteredFloat(200.0f) * this->actor.scale.x) + this->actor.world.pos.x;
+    pos.x = (MM_Rand_CenteredFloat(200.0f) * this->actor.scale.x) + this->actor.world.pos.x;
     pos.y = CLAMP_MIN(this->actor.world.pos.y, GBT_ROOM_5_MIN_Y + 30.0f);
-    pos.z = (Rand_CenteredFloat(200.0f) * this->actor.scale.z) + this->actor.world.pos.z;
-    velocity.x = Rand_CenteredFloat(1.5f);
-    velocity.z = Rand_CenteredFloat(1.5f);
+    pos.z = (MM_Rand_CenteredFloat(200.0f) * this->actor.scale.z) + this->actor.world.pos.z;
+    velocity.x = MM_Rand_CenteredFloat(1.5f);
+    velocity.z = MM_Rand_CenteredFloat(1.5f);
     velocity.y = 2.0f;
-    EffectSsIceSmoke_Spawn(play, &pos, &velocity, &gZeroVec3f, 500);
+    MM_EffectSsIceSmoke_Spawn(play, &pos, &velocity, &gZeroVec3f, 500);
 }
 
 void EnMinislime_SetupDisappear(EnMinislime* this) {
@@ -246,18 +246,18 @@ void EnMinislime_SetupFall(EnMinislime* this, PlayState* play) {
         this->actor.scale.x = 0.095f;
         this->actor.scale.z = 0.095f;
         this->actor.scale.y = 0.10700001f;
-        if (Actor_WorldDistXZToActor(&this->actor, &player->actor) < 225.0f) {
-            yaw = Actor_WorldYawTowardActor(&player->actor, &this->actor);
-            this->actor.world.pos.x = Math_SinS(yaw) * 225.0f + player->actor.world.pos.x;
-            this->actor.world.pos.z = Math_CosS(yaw) * 225.0f + player->actor.world.pos.z;
+        if (MM_Actor_WorldDistXZToActor(&this->actor, &player->actor) < 225.0f) {
+            yaw = MM_Actor_WorldYawTowardActor(&player->actor, &this->actor);
+            this->actor.world.pos.x = MM_Math_SinS(yaw) * 225.0f + player->actor.world.pos.x;
+            this->actor.world.pos.z = MM_Math_CosS(yaw) * 225.0f + player->actor.world.pos.z;
         }
     }
     this->actionFunc = EnMinislime_Fall;
 }
 
 void EnMinislime_Fall(EnMinislime* this, PlayState* play) {
-    Math_StepToF(&this->actor.scale.x, 0.17999999f, 0.003f);
-    Math_StepToF(&this->actor.scale.y, 0.05f, 0.003f);
+    MM_Math_StepToF(&this->actor.scale.x, 0.17999999f, 0.003f);
+    MM_Math_StepToF(&this->actor.scale.y, 0.05f, 0.003f);
     this->actor.scale.z = this->actor.scale.x;
     if (this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) {
         EnMinislime_SetupGrowAndShrink(this);
@@ -267,17 +267,17 @@ void EnMinislime_Fall(EnMinislime* this, PlayState* play) {
 void EnMinislime_SetupBreakFromBigslime(EnMinislime* this) {
     f32 velY;
 
-    this->actor.world.rot.y = Actor_WorldYawTowardActor(this->actor.parent, &this->actor);
+    this->actor.world.rot.y = MM_Actor_WorldYawTowardActor(this->actor.parent, &this->actor);
     this->actor.shape.rot.y = this->actor.world.rot.y;
-    this->actor.speed = Math_CosS(this->actor.world.rot.x) * 15.0f;
-    velY = Math_SinS(this->actor.world.rot.x) * 15.0f;
+    this->actor.speed = MM_Math_CosS(this->actor.world.rot.x) * 15.0f;
+    velY = MM_Math_SinS(this->actor.world.rot.x) * 15.0f;
     this->actor.bgCheckFlags &= ~BGCHECKFLAG_GROUND;
     this->actor.velocity.y = velY + 2.0f;
     this->actor.gravity = -1.0f;
     this->frozenScale = 0.1f;
-    this->actor.world.rot.x = Rand_S16Offset(0x800, 0x800);
-    this->actor.shape.rot.x = (s32)Rand_Next() >> 0x10;
-    this->actor.shape.rot.z = (s32)Rand_Next() >> 0x10;
+    this->actor.world.rot.x = MM_Rand_S16Offset(0x800, 0x800);
+    this->actor.shape.rot.x = (s32)MM_Rand_Next() >> 0x10;
+    this->actor.shape.rot.z = (s32)MM_Rand_Next() >> 0x10;
     this->actor.scale.x = 0.15f;
     this->actor.scale.y = 0.075f;
     this->actor.scale.z = 0.15f;
@@ -316,17 +316,17 @@ void EnMinislime_IceArrowDamage(EnMinislime* this, PlayState* play) {
     } else if (this->frozenTimer > 0) {
         this->frozenTimer--;
         if (this->frozenTimer == 40) {
-            Math_Vec3f_Copy(&this->shakeRefPos, &this->actor.world.pos);
+            MM_Math_Vec3f_Copy(&this->shakeRefPos, &this->actor.world.pos);
         } else if (this->frozenTimer > 0) {
             if ((this->frozenTimer < 20) || ((this->frozenTimer < 40) && ((this->frozenTimer % 2) != 0))) {
                 f32 invFrozenTimer = 1.0f / this->frozenTimer;
                 s32 pad;
-                f32 randFloat = Rand_ZeroFloat(invFrozenTimer);
-                s32 randSign = Rand_ZeroOne() < 0.5f ? -1 : 1;
+                f32 randFloat = MM_Rand_ZeroFloat(invFrozenTimer);
+                s32 randSign = MM_Rand_ZeroOne() < 0.5f ? -1 : 1;
 
                 this->actor.world.pos.x = randSign * (invFrozenTimer + randFloat) + this->shakeRefPos.x;
-                randFloat = Rand_ZeroFloat(invFrozenTimer);
-                randSign = Rand_ZeroOne() < 0.5f ? -1 : 1;
+                randFloat = MM_Rand_ZeroFloat(invFrozenTimer);
+                randSign = MM_Rand_ZeroOne() < 0.5f ? -1 : 1;
                 this->actor.world.pos.z = randSign * (invFrozenTimer + randFloat) + this->shakeRefPos.z;
             }
         }
@@ -381,7 +381,7 @@ void EnMinislime_SetupGrowAndShrink(EnMinislime* this) {
     this->actor.shape.rot.z = 0;
     this->actor.world.rot.x = 0;
     this->actor.speed = 0.0f;
-    Math_Vec3f_Copy(&this->actor.home.pos, &this->actor.world.pos);
+    MM_Math_Vec3f_Copy(&this->actor.home.pos, &this->actor.world.pos);
     this->growShrinkTimer = 42;
     this->actor.scale.x = 0.19f;
     this->actor.scale.y = 0.044999998f;
@@ -396,8 +396,8 @@ void EnMinislime_GrowAndShrink(EnMinislime* this, PlayState* play) {
     this->growShrinkTimer--;
     scaleFactor = (this->growShrinkTimer / 6) + 1.0f;
     this->actor.scale.z = this->actor.scale.x =
-        ((Math_CosF(this->growShrinkTimer * (M_PIf / 3)) * (scaleFactor * (2.0f / 30.0f))) + 1.5f) * 0.1f;
-    this->actor.scale.y = ((Math_SinF(this->growShrinkTimer * (M_PIf / 3)) * (scaleFactor * 0.05f)) + 0.75f) * 0.1f;
+        ((MM_Math_CosF(this->growShrinkTimer * (M_PIf / 3)) * (scaleFactor * (2.0f / 30.0f))) + 1.5f) * 0.1f;
+    this->actor.scale.y = ((MM_Math_SinF(this->growShrinkTimer * (M_PIf / 3)) * (scaleFactor * 0.05f)) + 0.75f) * 0.1f;
     if (this->actor.params == MINISLIME_SETUP_GEKKO_THROW) {
         EnMinislime_SetupMoveToGekko(this);
     } else if ((this->actor.xzDistToPlayer < 150.0f) && (this->growShrinkTimer < 38)) {
@@ -419,20 +419,20 @@ void EnMinislime_Idle(EnMinislime* this, PlayState* play) {
     f32 speedXZ;
 
     this->idleTimer--;
-    speedXZ = Math_SinF(this->idleTimer * (M_PIf / 10));
+    speedXZ = MM_Math_SinF(this->idleTimer * (M_PIf / 10));
     this->actor.speed = speedXZ * 1.5f;
     this->actor.speed = CLAMP_MIN(this->actor.speed, 0.0f);
-    Math_StepToF(&this->actor.scale.x, ((0.14f * speedXZ) + 1.5f) * 0.1f, 0.010000001f);
-    Math_StepToF(&this->actor.scale.y, ((Math_CosF(this->idleTimer * (M_PIf / 10)) * 0.07f) + 0.75f) * 0.1f,
+    MM_Math_StepToF(&this->actor.scale.x, ((0.14f * speedXZ) + 1.5f) * 0.1f, 0.010000001f);
+    MM_Math_StepToF(&this->actor.scale.y, ((MM_Math_CosF(this->idleTimer * (M_PIf / 10)) * 0.07f) + 0.75f) * 0.1f,
                  0.010000001f);
-    Math_StepToF(&this->actor.scale.z, 0.3f - this->actor.scale.x, 0.010000001f);
+    MM_Math_StepToF(&this->actor.scale.z, 0.3f - this->actor.scale.x, 0.010000001f);
     if (this->idleTimer == 0) {
         if (this->actor.xzDistToPlayer < 300.0f) {
             this->actor.world.rot.y = this->actor.yawTowardsPlayer;
-        } else if (Actor_WorldDistXZToPoint(&this->actor, &this->actor.home.pos) < 200.0f) {
-            this->actor.world.rot.y = Actor_WorldYawTowardPoint(&this->actor, &this->actor.home.pos);
+        } else if (MM_Actor_WorldDistXZToPoint(&this->actor, &this->actor.home.pos) < 200.0f) {
+            this->actor.world.rot.y = MM_Actor_WorldYawTowardPoint(&this->actor, &this->actor.home.pos);
         } else {
-            this->actor.world.rot.y += (s16)((s32)Rand_Next() >> 0x13);
+            this->actor.world.rot.y += (s16)((s32)MM_Rand_Next() >> 0x13);
         }
         this->idleTimer = 20;
     }
@@ -464,14 +464,14 @@ void EnMinislime_Bounce(EnMinislime* this, PlayState* play) {
                 this->actor.velocity.y = 12.0f;
                 this->actor.shape.rot.y = this->actor.world.rot.y;
             }
-            Math_StepToF(&this->actor.scale.x, 0.17999999f, 0.010000001f);
-            Math_StepToF(&this->actor.scale.y, 0.05f, 0.010000001f);
+            MM_Math_StepToF(&this->actor.scale.x, 0.17999999f, 0.010000001f);
+            MM_Math_StepToF(&this->actor.scale.y, 0.05f, 0.010000001f);
         } else if (this->actor.velocity.y > 0.0f) {
-            Math_StepToF(&this->actor.scale.x, 0.095f, 0.020000001f);
-            Math_StepToF(&this->actor.scale.y, 0.10700001f, 0.020000001f);
+            MM_Math_StepToF(&this->actor.scale.x, 0.095f, 0.020000001f);
+            MM_Math_StepToF(&this->actor.scale.y, 0.10700001f, 0.020000001f);
         } else {
-            Math_StepToF(&this->actor.scale.x, 0.17999999f, 0.003f);
-            Math_StepToF(&this->actor.scale.y, 0.05f, 0.003f);
+            MM_Math_StepToF(&this->actor.scale.x, 0.17999999f, 0.003f);
+            MM_Math_StepToF(&this->actor.scale.y, 0.05f, 0.003f);
             if (this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) {
                 EnMinislime_SetupGrowAndShrink(this);
                 return;
@@ -485,8 +485,8 @@ void EnMinislime_Bounce(EnMinislime* this, PlayState* play) {
 void EnMinislime_SetupMoveToBigslime(EnMinislime* this) {
     this->actor.gravity = 0.0f;
     this->actor.speed = 15.0f;
-    this->actor.shape.rot.x = Actor_WorldPitchTowardPoint(&this->actor, &this->actor.parent->home.pos);
-    this->actor.shape.rot.y = Actor_WorldYawTowardPoint(&this->actor, &this->actor.parent->home.pos);
+    this->actor.shape.rot.x = MM_Actor_WorldPitchTowardPoint(&this->actor, &this->actor.parent->home.pos);
+    this->actor.shape.rot.y = MM_Actor_WorldYawTowardPoint(&this->actor, &this->actor.parent->home.pos);
     this->actor.world.rot.x = -this->actor.shape.rot.x;
     this->actor.world.rot.y = this->actor.shape.rot.y;
     this->collider.base.atFlags &= ~AT_ON;
@@ -512,7 +512,7 @@ void EnMinislime_MoveToBigslime(EnMinislime* this, PlayState* play) {
     } else if ((this->actor.scale.x > 0.0f) && (this->actor.world.pos.y > (GBT_ROOM_5_MAX_Y - 100.0f))) {
         this->actor.params = MINISLIME_SETUP_DISAPPEAR;
         this->actor.speed = 0.0f;
-        Actor_SetScale(&this->actor, 0.0f);
+        MM_Actor_SetScale(&this->actor, 0.0f);
     }
 }
 
@@ -529,15 +529,15 @@ void EnMinislime_Knockback(EnMinislime* this, PlayState* play) {
     f32 sqrtFrozenTimer;
 
     this->knockbackTimer--;
-    Math_StepToF(&this->actor.speed, 0.0f, 1.0f);
-    sqrtFrozenTimer = sqrtf(this->knockbackTimer);
-    this->actor.scale.x = ((Math_CosF(this->knockbackTimer * (M_PIf / 3)) * (0.05f * sqrtFrozenTimer)) + 1.0f) * 0.15f;
+    MM_Math_StepToF(&this->actor.speed, 0.0f, 1.0f);
+    sqrtFrozenTimer = MM_sqrtf(this->knockbackTimer);
+    this->actor.scale.x = ((MM_Math_CosF(this->knockbackTimer * (M_PIf / 3)) * (0.05f * sqrtFrozenTimer)) + 1.0f) * 0.15f;
     this->actor.scale.z = this->actor.scale.x;
     if (this->knockbackTimer == 15) {
         this->collider.base.acFlags |= AC_ON;
     }
 
-    this->actor.scale.y = ((Math_SinF(this->knockbackTimer * (M_PIf / 3)) * (0.05f * sqrtFrozenTimer)) + 1.0f) * 0.075f;
+    this->actor.scale.y = ((MM_Math_SinF(this->knockbackTimer * (M_PIf / 3)) * (0.05f * sqrtFrozenTimer)) + 1.0f) * 0.075f;
     if (this->actor.params == MINISLIME_SETUP_GEKKO_THROW) {
         EnMinislime_SetupMoveToGekko(this);
     } else if (this->knockbackTimer == 0) {
@@ -569,11 +569,11 @@ void EnMinislime_DefeatIdle(EnMinislime* this, PlayState* play) {
     f32 xzScale;
 
     this->idleTimer--;
-    xzScale = Math_SinF(this->idleTimer * (M_PIf / 10));
-    Math_StepToF(&this->actor.scale.x, ((0.14f * xzScale) + 1.5f) * 0.1f, 0.010000001f);
-    Math_StepToF(&this->actor.scale.y, ((0.07f * Math_CosF(this->idleTimer * (M_PIf / 10))) + 0.75f) * 0.1f,
+    xzScale = MM_Math_SinF(this->idleTimer * (M_PIf / 10));
+    MM_Math_StepToF(&this->actor.scale.x, ((0.14f * xzScale) + 1.5f) * 0.1f, 0.010000001f);
+    MM_Math_StepToF(&this->actor.scale.y, ((0.07f * MM_Math_CosF(this->idleTimer * (M_PIf / 10))) + 0.75f) * 0.1f,
                  0.010000001f);
-    Math_StepToF(&this->actor.scale.z, 0.3f - this->actor.scale.x, 0.010000001f);
+    MM_Math_StepToF(&this->actor.scale.z, 0.3f - this->actor.scale.x, 0.010000001f);
     if (this->idleTimer == 0) {
         this->idleTimer = 20;
     }
@@ -586,7 +586,7 @@ void EnMinislime_DefeatIdle(EnMinislime* this, PlayState* play) {
 void EnMinislime_SetupDefeatMelt(EnMinislime* this, PlayState* play) {
     this->actor.gravity = 0.0f;
     this->actor.velocity.y = -50.0f;
-    this->meltTimer = Rand_ZeroFloat(25.0f);
+    this->meltTimer = MM_Rand_ZeroFloat(25.0f);
     EnMinislime_AddIceSmokeEffect(this, play);
     this->actor.params = MINISLIME_DISAPPEAR;
     this->actionFunc = EnMinislime_DefeatMelt;
@@ -599,7 +599,7 @@ void EnMinislime_DefeatMelt(EnMinislime* this, PlayState* play) {
     }
 
     Actor_PlaySfx_Flagged(&this->actor, NA_SE_EV_ICE_MELT_LEVEL - SFX_FLAG);
-    if (Math_StepToF(&this->actor.scale.y, 0.001f, 0.00075f)) {
+    if (MM_Math_StepToF(&this->actor.scale.y, 0.001f, 0.00075f)) {
         if ((this->actor.shape.shadowAlpha - 4) <= 0) {
             this->actor.shape.shadowAlpha = 0;
             EnMinislime_SetupDisappear(this);
@@ -607,7 +607,7 @@ void EnMinislime_DefeatMelt(EnMinislime* this, PlayState* play) {
             this->actor.shape.shadowAlpha -= 4;
         }
     }
-    Math_StepToF(&this->actor.scale.x, 0.25f, 0.001f);
+    MM_Math_StepToF(&this->actor.scale.x, 0.25f, 0.001f);
     this->actor.scale.z = this->actor.scale.x;
 }
 
@@ -616,7 +616,7 @@ void EnMinislime_SetupDespawn(EnMinislime* this) {
 }
 
 void EnMinislime_Despawn(EnMinislime* this, PlayState* play) {
-    Actor_Kill(&this->actor);
+    MM_Actor_Kill(&this->actor);
 }
 
 void EnMinislime_SetupMoveToGekko(EnMinislime* this) {
@@ -633,12 +633,12 @@ void EnMinislime_SetupMoveToGekko(EnMinislime* this) {
 }
 
 void EnMinislime_MoveToGekko(EnMinislime* this, PlayState* play) {
-    Math_StepToF(&this->actor.world.pos.x, this->actor.parent->world.pos.x, 10.0f);
-    Math_StepToF(&this->actor.world.pos.z, this->actor.parent->world.pos.z, 10.0f);
-    Math_StepToF(&this->actor.world.pos.y, this->actor.parent->world.pos.y + 80.0f, 10.0f);
-    Math_StepToF(&this->actor.scale.x, 0.15f, 0.0075000003f);
-    Math_StepToF(&this->actor.scale.y, 0.075f, 0.0037500001f);
-    Math_StepToF(&this->actor.scale.z, 0.15f, 0.0075000003f);
+    MM_Math_StepToF(&this->actor.world.pos.x, this->actor.parent->world.pos.x, 10.0f);
+    MM_Math_StepToF(&this->actor.world.pos.z, this->actor.parent->world.pos.z, 10.0f);
+    MM_Math_StepToF(&this->actor.world.pos.y, this->actor.parent->world.pos.y + 80.0f, 10.0f);
+    MM_Math_StepToF(&this->actor.scale.x, 0.15f, 0.0075000003f);
+    MM_Math_StepToF(&this->actor.scale.y, 0.075f, 0.0037500001f);
+    MM_Math_StepToF(&this->actor.scale.z, 0.15f, 0.0075000003f);
     if (this->actor.params == MINISLIME_GEKKO_THROW) {
         EnMinislime_SetupGekkoThrow(this);
     } else if (this->actor.params == MINISLIME_IDLE) {
@@ -665,9 +665,9 @@ void EnMinislime_GekkoThrow(EnMinislime* this, PlayState* play) {
     f32 xzScale;
 
     this->throwTimer--;
-    xzScale = Math_SinF(this->throwTimer * (M_PIf / 5));
+    xzScale = MM_Math_SinF(this->throwTimer * (M_PIf / 5));
     this->actor.scale.x = ((0.3f * xzScale) + 1.5f) * 0.1f;
-    this->actor.scale.y = ((Math_CosF(this->throwTimer * (M_PIf / 5)) * 0.2f) + 0.75f) * 0.1f;
+    this->actor.scale.y = ((MM_Math_CosF(this->throwTimer * (M_PIf / 5)) * 0.2f) + 0.75f) * 0.1f;
     this->actor.scale.z = 0.3f - this->actor.scale.x;
     if (this->throwTimer == 0) {
         this->throwTimer = 10;
@@ -737,19 +737,19 @@ void EnMinislime_Update(Actor* thisx, PlayState* play) {
         }
 
         EnMinislime_CheckBackgroundCollision(this);
-        Collider_UpdateCylinder(&this->actor, &this->collider);
+        MM_Collider_UpdateCylinder(&this->actor, &this->collider);
         this->collider.dim.radius = this->actor.scale.x * 360.0f;
         this->collider.dim.height = this->actor.scale.y * 800.0f;
         this->collider.dim.yShift = ((EnMinislime*)thisx)->actor.scale.y * -400.0f;
 
         if ((this->attackTimer == 0) && (this->collider.base.atFlags & AT_ON)) {
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+            MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
         }
         if (this->collider.base.acFlags & AC_ON) {
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+            MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
         }
         if (this->collider.base.ocFlags1 & OC1_ON) {
-            CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+            MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
         }
 
         if (this->attackTimer != 0) {
@@ -761,7 +761,7 @@ void EnMinislime_Update(Actor* thisx, PlayState* play) {
             vec1.x = this->actor.world.pos.x;
             vec1.z = this->actor.world.pos.z;
             vec1.y = player->actor.world.pos.y + player->actor.depthInWater;
-            EffectSsGRipple_Spawn(play, &vec1, 500, 720, 0);
+            MM_EffectSsGRipple_Spawn(play, &vec1, 500, 720, 0);
         }
     }
 }

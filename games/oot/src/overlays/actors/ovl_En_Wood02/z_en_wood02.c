@@ -10,13 +10,13 @@
 
 #define FLAGS 0
 
-void EnWood02_Init(Actor* thisx, PlayState* play);
-void EnWood02_Destroy(Actor* thisx, PlayState* play);
-void EnWood02_Update(Actor* thisx, PlayState* play);
-void EnWood02_Draw(Actor* thisx, PlayState* play);
+void OoT_EnWood02_Init(Actor* thisx, PlayState* play);
+void OoT_EnWood02_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnWood02_Update(Actor* thisx, PlayState* play);
+void OoT_EnWood02_Draw(Actor* thisx, PlayState* play);
 
 /**
- * WOOD_SPAWN_SPAWNER is also used by some individual trees: EnWood02_Update also checks for parent before running any
+ * WOOD_SPAWN_SPAWNER is also used by some individual trees: OoT_EnWood02_Update also checks for parent before running any
  * despawning code.
  *  */
 typedef enum {
@@ -40,14 +40,14 @@ const ActorInit En_Wood02_InitVars = {
     FLAGS,
     OBJECT_WOOD02,
     sizeof(EnWood02),
-    (ActorFunc)EnWood02_Init,
-    (ActorFunc)EnWood02_Destroy,
-    (ActorFunc)EnWood02_Update,
-    (ActorFunc)EnWood02_Draw,
+    (ActorFunc)OoT_EnWood02_Init,
+    (ActorFunc)OoT_EnWood02_Destroy,
+    (ActorFunc)OoT_EnWood02_Update,
+    (ActorFunc)OoT_EnWood02_Draw,
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_TREE,
         AT_NONE,
@@ -71,7 +71,7 @@ static f32 sSpawnDistance[] = { 707.0f, 525.0f, 510.0f, 500.0f, 566.0f, 141.0f }
 
 static s16 sSpawnAngle[] = { 0x1FFF, 0x4C9E, 0x77F5, 0xA5C9, 0xD6C3, 0xA000 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(targetArrowOffset, 5600, ICHAIN_STOP),
 };
 
@@ -99,17 +99,17 @@ static f32 sSpawnCos;
 
 static f32 sSpawnSin;
 
-s32 EnWood02_SpawnZoneCheck(EnWood02* this, PlayState* play, Vec3f* pos) {
+s32 OoT_EnWood02_SpawnZoneCheck(EnWood02* this, PlayState* play, Vec3f* pos) {
     f32 phi_f12;
 
-    SkinMatrix_Vec3fMtxFMultXYZW(&play->viewProjectionMtxF, pos, &this->actor.projectedPos, &this->actor.projectedW);
+    OoT_SkinMatrix_Vec3fMtxFMultXYZW(&play->viewProjectionMtxF, pos, &this->actor.projectedPos, &this->actor.projectedW);
 
     // #region SOH [Enhancement] Use the extended culling calculation
     if (CVarGetInteger(CVAR_ENHANCEMENT("DisableDrawDistance"), 1) > 1 ||
         CVarGetInteger(CVAR_ENHANCEMENT("WidescreenActorCulling"), 0)) {
         bool shipShouldDraw = false;
         bool shipShouldUpdate = false;
-        return Ship_CalcShouldDrawAndUpdate(play, &this->actor, &this->actor.projectedPos, this->actor.projectedW,
+        return OoT_Ship_CalcShouldDrawAndUpdate(play, &this->actor, &this->actor.projectedPos, this->actor.projectedW,
                                             &shipShouldDraw, &shipShouldUpdate);
     }
     // #endregion
@@ -128,7 +128,7 @@ s32 EnWood02_SpawnZoneCheck(EnWood02* this, PlayState* play, Vec3f* pos) {
 
 /** Spawns similar-looking trees or bushes only when the player is sufficiently close. Presumably done this way to keep
  * memory usage down in Hyrule Field. */
-void EnWood02_SpawnOffspring(EnWood02* this, PlayState* play) {
+void OoT_EnWood02_SpawnOffspring(EnWood02* this, PlayState* play) {
     EnWood02* childWood;
     s16* childSpawnAngle;
     Vec3f childPos;
@@ -143,18 +143,18 @@ void EnWood02_SpawnOffspring(EnWood02* this, PlayState* play) {
                 extraRot = 0x4000;
             }
             childSpawnAngle = &sSpawnAngle[i];
-            sSpawnCos = Math_CosS(*childSpawnAngle + this->actor.world.rot.y + extraRot);
-            sSpawnSin = Math_SinS(*childSpawnAngle + this->actor.world.rot.y + extraRot);
+            sSpawnCos = OoT_Math_CosS(*childSpawnAngle + this->actor.world.rot.y + extraRot);
+            sSpawnSin = OoT_Math_SinS(*childSpawnAngle + this->actor.world.rot.y + extraRot);
             childPos.x = (sSpawnDistance[i] * sSpawnSin) + this->actor.home.pos.x;
             childPos.y = this->actor.home.pos.y;
             childPos.z = (sSpawnDistance[i] * sSpawnCos) + this->actor.home.pos.z;
-            if (EnWood02_SpawnZoneCheck(this, play, &childPos)) {
+            if (OoT_EnWood02_SpawnZoneCheck(this, play, &childPos)) {
                 if ((this->unk_14E[i] & 0x80) != 0) {
                     childParams = (0xFF00 | (this->actor.params + 1));
                 } else {
                     childParams = (((this->drawType & 0xF0) << 4) | (this->actor.params + 1));
                 }
-                childWood = (EnWood02*)Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_WOOD02,
+                childWood = (EnWood02*)OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_WOOD02,
                                                           childPos.x, childPos.y, childPos.z, this->actor.world.rot.x,
                                                           *childSpawnAngle, 0, childParams);
                 if (childWood != NULL) {
@@ -169,7 +169,7 @@ void EnWood02_SpawnOffspring(EnWood02* this, PlayState* play) {
     }
 }
 
-void EnWood02_Init(Actor* thisx, PlayState* play2) {
+void OoT_EnWood02_Init(Actor* thisx, PlayState* play2) {
     s16 spawnType;
     f32 actorScale;
     PlayState* play = play2;
@@ -201,11 +201,11 @@ void EnWood02_Init(Actor* thisx, PlayState* play2) {
     }
 
     this->actor.params &= 0xFF;
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
 
     if (this->actor.params <= WOOD_TREE_KAKARIKO_ADULT) {
-        Collider_InitCylinder(play, &this->collider);
-        Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+        OoT_Collider_InitCylinder(play, &this->collider);
+        OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
     }
 
     switch (this->actor.params) {
@@ -254,9 +254,9 @@ void EnWood02_Init(Actor* thisx, PlayState* play2) {
         case WOOD_LEAF_YELLOW:
             this->unk_14E[0] = 0x4B;
             actorScale = 0.02f;
-            this->actor.velocity.x = Rand_CenteredFloat(6.0f);
-            this->actor.velocity.z = Rand_CenteredFloat(6.0f);
-            this->actor.velocity.y = (Rand_ZeroOne() * 1.25f) + -3.1f;
+            this->actor.velocity.x = OoT_Rand_CenteredFloat(6.0f);
+            this->actor.velocity.z = OoT_Rand_CenteredFloat(6.0f);
+            this->actor.velocity.y = (OoT_Rand_ZeroOne() * 1.25f) + -3.1f;
     }
 
     if (this->actor.params <= WOOD_TREE_CONICAL_SPAWNED) {
@@ -273,7 +273,7 @@ void EnWood02_Init(Actor* thisx, PlayState* play2) {
         this->drawType = WOOD_DRAW_LEAF_YELLOW;
     }
 
-    Actor_SetScale(&this->actor, actorScale);
+    OoT_Actor_SetScale(&this->actor, actorScale);
     this->spawnType = spawnType;
 
     if (spawnType != WOOD_SPAWN_NORMAL) {
@@ -285,9 +285,9 @@ void EnWood02_Init(Actor* thisx, PlayState* play2) {
 
         if (spawnType == WOOD_SPAWN_SPAWNER) {
             this->drawType |= this->unk_14C << 4;
-            EnWood02_SpawnOffspring(this, play);
-            sSpawnCos = Math_CosS(sSpawnAngle[5] + this->actor.world.rot.y + extraRot);
-            sSpawnSin = Math_SinS(sSpawnAngle[5] + this->actor.world.rot.y + extraRot);
+            OoT_EnWood02_SpawnOffspring(this, play);
+            sSpawnCos = OoT_Math_CosS(sSpawnAngle[5] + this->actor.world.rot.y + extraRot);
+            sSpawnSin = OoT_Math_SinS(sSpawnAngle[5] + this->actor.world.rot.y + extraRot);
             this->actor.world.pos.x += (sSpawnSin * sSpawnDistance[5]);
             this->actor.world.pos.z += (sSpawnCos * sSpawnDistance[5]);
         } else {
@@ -301,24 +301,24 @@ void EnWood02_Init(Actor* thisx, PlayState* play2) {
         if (floorY > BGCHECK_Y_MIN) {
             this->actor.world.pos.y = floorY;
         } else {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
             return;
         }
     }
-    ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
     this->actor.home.rot.y = 0;
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
 }
 
-void EnWood02_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnWood02_Destroy(Actor* thisx, PlayState* play) {
     EnWood02* this = (EnWood02*)thisx;
 
     if (this->actor.params <= WOOD_TREE_KAKARIKO_ADULT) {
-        Collider_DestroyCylinder(play, &this->collider);
+        OoT_Collider_DestroyCylinder(play, &this->collider);
     }
 }
 
-void EnWood02_Update(Actor* thisx, PlayState* play2) {
+void OoT_EnWood02_Update(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     EnWood02* this = (EnWood02*)thisx;
     f32 wobbleAmplitude;
@@ -340,11 +340,11 @@ void EnWood02_Update(Actor* thisx, PlayState* play2) {
             }
 
             ((EnWood02*)this->actor.parent)->unk_14E[new_var] = phi_v0;
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
             return;
         }
     } else if (this->spawnType == WOOD_SPAWN_SPAWNER) {
-        EnWood02_SpawnOffspring(this, play);
+        OoT_EnWood02_SpawnOffspring(this, play);
     }
 
     if (this->actor.params <= WOOD_TREE_KAKARIKO_ADULT) {
@@ -360,12 +360,12 @@ void EnWood02_Update(Actor* thisx, PlayState* play2) {
             if (GameInteractor_Should(VB_TREE_DROP_ITEM, true, this)) {
                 if ((this->unk_14C >= 0) && (this->unk_14C < 0x64)) {
                     if (GameInteractor_Should(VB_TREE_DROP_COLLECTIBLE, true, this)) {
-                        Item_DropCollectibleRandom(play, &this->actor, &dropsSpawnPt, this->unk_14C << 4);
+                        OoT_Item_DropCollectibleRandom(play, &this->actor, &dropsSpawnPt, this->unk_14C << 4);
                     }
                 } else if (this->actor.home.rot.z != 0) {
                     this->actor.home.rot.z &= 0x1FFF;
                     this->actor.home.rot.z |= 0xE000;
-                    Actor_Spawn(&play->actorCtx, play, ACTOR_EN_SW, dropsSpawnPt.x, dropsSpawnPt.y, dropsSpawnPt.z, 0,
+                    OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_SW, dropsSpawnPt.x, dropsSpawnPt.y, dropsSpawnPt.z, 0,
                                 this->actor.world.rot.y, 0, this->actor.home.rot.z, true);
                     this->actor.home.rot.z = 0;
                 }
@@ -382,8 +382,8 @@ void EnWood02_Update(Actor* thisx, PlayState* play2) {
                 Audio_PlayActorSound2(&this->actor, NA_SE_EV_TREE_SWING);
 
                 for (i = 3; i >= 0; i--) {
-                    Actor_Spawn(&play->actorCtx, play, ACTOR_EN_WOOD02, dropsSpawnPt.x, dropsSpawnPt.y, dropsSpawnPt.z,
-                                0, Rand_CenteredFloat(65535.0f), 0, leavesParams, true);
+                    OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_WOOD02, dropsSpawnPt.x, dropsSpawnPt.y, dropsSpawnPt.z,
+                                0, OoT_Rand_CenteredFloat(65535.0f), 0, leavesParams, true);
                 }
             }
             this->unk_14C = -0x15;
@@ -391,9 +391,9 @@ void EnWood02_Update(Actor* thisx, PlayState* play2) {
         }
 
         if (this->actor.xzDistToPlayer < 600.0f) {
-            Collider_UpdateCylinder(&this->actor, &this->collider);
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-            CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+            OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+            OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+            OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
         }
     } else if (this->actor.params < 0x17) { // Bush
         Player* player = GET_PLAYER(play);
@@ -405,7 +405,7 @@ void EnWood02_Update(Actor* thisx, PlayState* play2) {
                  (player->rideActor->speedXZ != 0.0f))) {
                 if (GameInteractor_Should(VB_BUSH_DROP_ITEM, true, this)) {
                     if ((this->unk_14C >= 0) && (this->unk_14C < 0x64)) {
-                        Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos,
+                        OoT_Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos,
                                                    ((this->unk_14C << 4) | 0x8000));
                     }
                     this->unk_14C = -0x15;
@@ -415,27 +415,27 @@ void EnWood02_Update(Actor* thisx, PlayState* play2) {
         }
     } else { // Leaves
         this->unk_14C++;
-        Math_ApproachF(&this->actor.velocity.x, 0.0f, 1.0f, 5 * 0.01f);
-        Math_ApproachF(&this->actor.velocity.z, 0.0f, 1.0f, 5 * 0.01f);
-        Actor_UpdatePos(&this->actor);
-        this->actor.shape.rot.z = Math_SinS(3000 * this->unk_14C) * 0x4000;
+        OoT_Math_ApproachF(&this->actor.velocity.x, 0.0f, 1.0f, 5 * 0.01f);
+        OoT_Math_ApproachF(&this->actor.velocity.z, 0.0f, 1.0f, 5 * 0.01f);
+        OoT_Actor_UpdatePos(&this->actor);
+        this->actor.shape.rot.z = OoT_Math_SinS(3000 * this->unk_14C) * 0x4000;
         this->unk_14E[0]--;
 
         if (this->unk_14E[0] == 0) {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
         }
     }
 
     // Wobble from impact
     if (this->unk_14C < -1) {
         this->unk_14C++;
-        wobbleAmplitude = Math_SinS((this->unk_14C ^ 0xFFFF) * 0x3332) * 250.0f;
-        this->actor.shape.rot.x = (Math_CosS(this->actor.yawTowardsPlayer - this->actor.shape.rot.y) * wobbleAmplitude);
-        this->actor.shape.rot.z = (Math_SinS(this->actor.yawTowardsPlayer - this->actor.shape.rot.y) * wobbleAmplitude);
+        wobbleAmplitude = OoT_Math_SinS((this->unk_14C ^ 0xFFFF) * 0x3332) * 250.0f;
+        this->actor.shape.rot.x = (OoT_Math_CosS(this->actor.yawTowardsPlayer - this->actor.shape.rot.y) * wobbleAmplitude);
+        this->actor.shape.rot.z = (OoT_Math_SinS(this->actor.yawTowardsPlayer - this->actor.shape.rot.y) * wobbleAmplitude);
     }
 }
 
-void EnWood02_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnWood02_Draw(Actor* thisx, PlayState* play) {
     EnWood02* this = (EnWood02*)thisx;
     s16 type;
     GraphicsContext* gfxCtx = play->state.gfxCtx;
@@ -466,9 +466,9 @@ void EnWood02_Draw(Actor* thisx, PlayState* play) {
                               this)) {
         Gfx_SetupDL_25Opa(gfxCtx);
         gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, red, green, blue, 127);
-        Gfx_DrawDListOpa(play, object_wood02_DL_000700);
+        OoT_Gfx_DrawDListOpa(play, object_wood02_DL_000700);
     } else if (GameInteractor_Should(VB_TREE_SETUP_DRAW, D_80B3BF70[this->drawType & 0xF] != NULL, this)) {
-        Gfx_DrawDListOpa(play, D_80B3BF54[this->drawType & 0xF]);
+        OoT_Gfx_DrawDListOpa(play, D_80B3BF54[this->drawType & 0xF]);
         gDPSetEnvColor(POLY_XLU_DISP++, red, green, blue, 0);
         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPDisplayList(POLY_XLU_DISP++, D_80B3BF70[this->drawType & 0xF]);

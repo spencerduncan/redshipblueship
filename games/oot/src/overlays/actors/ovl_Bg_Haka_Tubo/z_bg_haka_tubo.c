@@ -73,7 +73,7 @@ static ColliderCylinderInit sFlamesColliderInit = {
 
 static s32 sPotsDestroyed = 0;
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
 
@@ -82,15 +82,15 @@ void BgHakaTubo_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     CollisionHeader* colHeader = NULL;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DPM_UNK3);
-    CollisionHeader_GetVirtual(&object_haka_objects_Col_0108B8, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
-    Collider_InitCylinder(play, &this->potCollider);
-    Collider_SetCylinder(play, &this->potCollider, &this->dyna.actor, &sPotColliderInit);
-    Collider_InitCylinder(play, &this->flamesCollider);
-    Collider_SetCylinder(play, &this->flamesCollider, &this->dyna.actor, &sFlamesColliderInit);
-    this->fireScroll = Rand_ZeroOne() * 15.0f;
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK3);
+    OoT_CollisionHeader_GetVirtual(&object_haka_objects_Col_0108B8, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_Collider_InitCylinder(play, &this->potCollider);
+    OoT_Collider_SetCylinder(play, &this->potCollider, &this->dyna.actor, &sPotColliderInit);
+    OoT_Collider_InitCylinder(play, &this->flamesCollider);
+    OoT_Collider_SetCylinder(play, &this->flamesCollider, &this->dyna.actor, &sFlamesColliderInit);
+    this->fireScroll = OoT_Rand_ZeroOne() * 15.0f;
     sPotsDestroyed = 0;
     this->actionFunc = BgHakaTubo_Idle;
 }
@@ -98,19 +98,19 @@ void BgHakaTubo_Init(Actor* thisx, PlayState* play) {
 void BgHakaTubo_Destroy(Actor* thisx, PlayState* play) {
     BgHakaTubo* this = (BgHakaTubo*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
-    Collider_DestroyCylinder(play, &this->potCollider);
-    Collider_DestroyCylinder(play, &this->flamesCollider);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_Collider_DestroyCylinder(play, &this->potCollider);
+    OoT_Collider_DestroyCylinder(play, &this->flamesCollider);
 }
 
 void BgHakaTubo_Idle(BgHakaTubo* this, PlayState* play) {
-    static Vec3f sZeroVector = { 0.0f, 0.0f, 0.0f };
+    static Vec3f OoT_sZeroVector = { 0.0f, 0.0f, 0.0f };
     Vec3f pos;
 
     if (this->dyna.actor.room == 12) { // 3 spinning pots room in Shadow Temple
         this->dyna.actor.shape.rot.y += 0x180;
-        this->dyna.actor.world.pos.x = Math_SinS(this->dyna.actor.shape.rot.y - 0x4000) * 145.0f + -5559.0f;
-        this->dyna.actor.world.pos.z = Math_CosS(this->dyna.actor.shape.rot.y - 0x4000) * 145.0f + -1587.0f;
+        this->dyna.actor.world.pos.x = OoT_Math_SinS(this->dyna.actor.shape.rot.y - 0x4000) * 145.0f + -5559.0f;
+        this->dyna.actor.world.pos.z = OoT_Math_CosS(this->dyna.actor.shape.rot.y - 0x4000) * 145.0f + -1587.0f;
     }
     // Colliding with flame circle
     if (this->flamesCollider.base.atFlags & AT_HIT) {
@@ -122,25 +122,25 @@ void BgHakaTubo_Idle(BgHakaTubo* this, PlayState* play) {
         this->potCollider.base.acFlags &= ~AC_HIT;
         // If the colliding actor is within a 50 unit radius and 50 unit height cylinder centered
         // on the actor's position, break the pot
-        if (Actor_WorldDistXZToPoint(&this->dyna.actor, &this->potCollider.base.ac->world.pos) < 50.0f &&
+        if (OoT_Actor_WorldDistXZToPoint(&this->dyna.actor, &this->potCollider.base.ac->world.pos) < 50.0f &&
             (this->potCollider.base.ac->world.pos.y - this->dyna.actor.world.pos.y) < 50.0f) {
             pos.x = this->dyna.actor.world.pos.x;
             pos.z = this->dyna.actor.world.pos.z;
             pos.y = this->dyna.actor.world.pos.y + 80.0f;
-            EffectSsBomb2_SpawnLayered(play, &pos, &sZeroVector, &sZeroVector, 100, 45);
-            SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 50, NA_SE_EV_BOX_BREAK);
-            EffectSsHahen_SpawnBurst(play, &pos, 20.0f, 0, 350, 100, 50, OBJECT_HAKA_OBJECTS, 40, gEffFragments2DL);
+            OoT_EffectSsBomb2_SpawnLayered(play, &pos, &OoT_sZeroVector, &OoT_sZeroVector, 100, 45);
+            OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 50, NA_SE_EV_BOX_BREAK);
+            OoT_EffectSsHahen_SpawnBurst(play, &pos, 20.0f, 0, 350, 100, 50, OBJECT_HAKA_OBJECTS, 40, gEffFragments2DL);
             this->dropTimer = 5;
             this->dyna.actor.draw = NULL;
-            Actor_SetScale(&this->dyna.actor, 0.0f);
+            OoT_Actor_SetScale(&this->dyna.actor, 0.0f);
             this->actionFunc = BgHakaTubo_DropCollectible;
         }
     } else {
-        Collider_UpdateCylinder(&this->dyna.actor, &this->flamesCollider);
-        Collider_UpdateCylinder(&this->dyna.actor, &this->potCollider);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->potCollider.base);
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->flamesCollider.base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->flamesCollider.base);
+        OoT_Collider_UpdateCylinder(&this->dyna.actor, &this->flamesCollider);
+        OoT_Collider_UpdateCylinder(&this->dyna.actor, &this->potCollider);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->potCollider.base);
+        OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->flamesCollider.base);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->flamesCollider.base);
     }
 }
 
@@ -157,7 +157,7 @@ void BgHakaTubo_DropCollectible(BgHakaTubo* this, PlayState* play) {
         spawnPos.y = this->dyna.actor.world.pos.y + 200.0f;
         spawnPos.z = this->dyna.actor.world.pos.z;
         if (this->dyna.actor.room == 12) { // 3 spinning pots room in Shadow Temple
-            rnd = Rand_ZeroOne();
+            rnd = OoT_Rand_ZeroOne();
             sPotsDestroyed++;
             if (sPotsDestroyed == 3) {
                 // All 3 pots destroyed
@@ -165,7 +165,7 @@ void BgHakaTubo_DropCollectible(BgHakaTubo* this, PlayState* play) {
                 Sfx_PlaySfxCentered(NA_SE_SY_CORRECT_CHIME);
                 // Drop rupees
                 for (i = 0; i < 9; i++) {
-                    collectible = Item_DropCollectible(play, &spawnPos, i % 3);
+                    collectible = OoT_Item_DropCollectible(play, &spawnPos, i % 3);
                     if (collectible != NULL) {
                         collectible->actor.velocity.y = 15.0f;
                         collectible->actor.world.rot.y = this->dyna.actor.shape.rot.y + (i * 0x1C71);
@@ -174,7 +174,7 @@ void BgHakaTubo_DropCollectible(BgHakaTubo* this, PlayState* play) {
             } else if (rnd < 0.2f) {
                 // Unlucky, no reward and spawn keese
                 collectibleParams = -1;
-                Actor_Spawn(&play->actorCtx, play, ACTOR_EN_FIREFLY, this->dyna.actor.world.pos.x,
+                OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_FIREFLY, this->dyna.actor.world.pos.x,
                             this->dyna.actor.world.pos.y + 80.0f, this->dyna.actor.world.pos.z, 0,
                             this->dyna.actor.shape.rot.y, 0, 2, true);
                 Sfx_PlaySfxCentered(NA_SE_SY_ERROR);
@@ -193,7 +193,7 @@ void BgHakaTubo_DropCollectible(BgHakaTubo* this, PlayState* play) {
                 }
                 Sfx_PlaySfxCentered(NA_SE_SY_TRE_BOX_APPEAR);
             }
-        } else if (Flags_GetCollectible(play, this->dyna.actor.params) != 0) {
+        } else if (OoT_Flags_GetCollectible(play, this->dyna.actor.params) != 0) {
             // If small key already collected, drop recovery heart instead
             if (CVarGetInteger(CVAR_ENHANCEMENT("NoHeartDrops"), 0)) {
                 collectibleParams = -1;
@@ -207,13 +207,13 @@ void BgHakaTubo_DropCollectible(BgHakaTubo* this, PlayState* play) {
             Sfx_PlaySfxCentered(NA_SE_SY_CORRECT_CHIME);
         }
         if (collectibleParams != -1) {
-            collectible = Item_DropCollectible(play, &spawnPos, collectibleParams);
+            collectible = OoT_Item_DropCollectible(play, &spawnPos, collectibleParams);
             if (collectible != NULL) {
                 collectible->actor.velocity.y = 15.0f;
                 collectible->actor.world.rot.y = this->dyna.actor.shape.rot.y;
             }
         }
-        Actor_Kill(&this->dyna.actor);
+        OoT_Actor_Kill(&this->dyna.actor);
     }
 }
 
@@ -230,14 +230,14 @@ void BgHakaTubo_DrawFlameCircle(BgHakaTubo* this, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
-    Matrix_Translate(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y + 235.0f, this->dyna.actor.world.pos.z,
+    OoT_Matrix_Translate(this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y + 235.0f, this->dyna.actor.world.pos.z,
                      MTXMODE_NEW);
     Matrix_RotateY(this->dyna.actor.shape.rot.y * (M_PI / 0x8000), MTXMODE_APPLY);
-    Matrix_Scale(0.07f, 0.04f, 0.07f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(0.07f, 0.04f, 0.07f, MTXMODE_APPLY);
     gDPSetPrimColor(POLY_XLU_DISP++, 0x80, 0x80, 0, 170, 255, 255);
     gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 255, 255);
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, this->fireScroll & 127, 0, 32, 64, 1, 0,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, this->fireScroll & 127, 0, 32, 64, 1, 0,
                                 (this->fireScroll * -15) & 0xFF, 32, 64));
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_XLU_DISP++, gEffFireCircleDL);
@@ -248,6 +248,6 @@ void BgHakaTubo_DrawFlameCircle(BgHakaTubo* this, PlayState* play) {
 void BgHakaTubo_Draw(Actor* thisx, PlayState* play) {
     BgHakaTubo* this = (BgHakaTubo*)thisx;
 
-    Gfx_DrawDListOpa(play, object_haka_objects_DL_00FE40);
+    OoT_Gfx_DrawDListOpa(play, object_haka_objects_DL_00FE40);
     BgHakaTubo_DrawFlameCircle(this, play);
 }

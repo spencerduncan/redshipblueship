@@ -13,10 +13,10 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE | ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void EnFz_Init(Actor* thisx, PlayState* play);
-void EnFz_Destroy(Actor* thisx, PlayState* play);
-void EnFz_Update(Actor* thisx, PlayState* play);
-void EnFz_Draw(Actor* thisx, PlayState* play);
+void MM_EnFz_Init(Actor* thisx, PlayState* play);
+void MM_EnFz_Destroy(Actor* thisx, PlayState* play);
+void MM_EnFz_Update(Actor* thisx, PlayState* play);
+void MM_EnFz_Draw(Actor* thisx, PlayState* play);
 
 void func_80932784(EnFz* this, PlayState* play);
 void func_80932AE8(EnFz* this);
@@ -55,15 +55,15 @@ ActorProfile En_Fz_Profile = {
     /**/ FLAGS,
     /**/ OBJECT_FZ,
     /**/ sizeof(EnFz),
-    /**/ EnFz_Init,
-    /**/ EnFz_Destroy,
-    /**/ EnFz_Update,
-    /**/ EnFz_Draw,
+    /**/ MM_EnFz_Init,
+    /**/ MM_EnFz_Destroy,
+    /**/ MM_EnFz_Update,
+    /**/ MM_EnFz_Draw,
 };
 
 static s16 D_809346F0[] = { 0, 0x2000, 0x4000, 0 };
 
-static ColliderCylinderInitType1 sCylinderInit1 = {
+static ColliderCylinderInitType1 MM_sCylinderInit1 = {
     {
         COL_MATERIAL_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -82,7 +82,7 @@ static ColliderCylinderInitType1 sCylinderInit1 = {
     { 30, 80, 0, { 0, 0, 0 } },
 };
 
-static ColliderCylinderInitType1 sCylinderInit2 = {
+static ColliderCylinderInitType1 MM_sCylinderInit2 = {
     {
         COL_MATERIAL_METAL,
         AT_NONE,
@@ -101,7 +101,7 @@ static ColliderCylinderInitType1 sCylinderInit2 = {
     { 35, 80, 0, { 0, 0, 0 } },
 };
 
-static ColliderCylinderInitType1 sCylinderInit3 = {
+static ColliderCylinderInitType1 MM_sCylinderInit3 = {
     {
         COL_MATERIAL_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -120,7 +120,7 @@ static ColliderCylinderInitType1 sCylinderInit3 = {
     { 20, 30, -15, { 0, 0, 0 } },
 };
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(0, 0x0),
     /* Deku Stick     */ DMG_ENTRY(0, 0xD),
     /* Horse trample  */ DMG_ENTRY(0, 0x0),
@@ -155,28 +155,28 @@ static DamageTable sDamageTable = {
     /* Powder Keg     */ DMG_ENTRY(1, 0xF),
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_S8(hintId, TATL_HINT_ID_FREEZARD, ICHAIN_CONTINUE),
     ICHAIN_U8(attentionRangeType, ATTENTION_RANGE_2, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 1400, ICHAIN_CONTINUE),
     ICHAIN_F32(lockOnArrowOffset, 30, ICHAIN_STOP),
 };
 
-void EnFz_Init(Actor* thisx, PlayState* play) {
+void MM_EnFz_Init(Actor* thisx, PlayState* play) {
     EnFz* this = (EnFz*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    this->actor.colChkInfo.damageTable = &sDamageTable;
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
+    this->actor.colChkInfo.damageTable = &MM_sDamageTable;
     this->actor.colChkInfo.health = 3;
 
-    Collider_InitCylinder(play, &this->collider1);
-    Collider_SetCylinderType1(play, &this->collider1, &this->actor, &sCylinderInit1);
-    Collider_InitCylinder(play, &this->collider2);
-    Collider_SetCylinderType1(play, &this->collider2, &this->actor, &sCylinderInit2);
-    Collider_InitCylinder(play, &this->collider3);
-    Collider_SetCylinderType1(play, &this->collider3, &this->actor, &sCylinderInit3);
+    MM_Collider_InitCylinder(play, &this->collider1);
+    MM_Collider_SetCylinderType1(play, &this->collider1, &this->actor, &MM_sCylinderInit1);
+    MM_Collider_InitCylinder(play, &this->collider2);
+    MM_Collider_SetCylinderType1(play, &this->collider2, &this->actor, &MM_sCylinderInit2);
+    MM_Collider_InitCylinder(play, &this->collider3);
+    MM_Collider_SetCylinderType1(play, &this->collider3, &this->actor, &MM_sCylinderInit3);
 
-    Actor_SetScale(&this->actor, 0.008f);
+    MM_Actor_SetScale(&this->actor, 0.008f);
     this->actor.gravity = 0.0f;
     this->actor.velocity.y = 0.0f;
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
@@ -204,7 +204,7 @@ void EnFz_Init(Actor* thisx, PlayState* play) {
     } else {
         this->unk_BC0 = 255;
         if (this->actor.shape.rot.z == 0) {
-            this->unk_BC6 = (s32)Rand_ZeroFloat(64.0f) + 192;
+            this->unk_BC6 = (s32)MM_Rand_ZeroFloat(64.0f) + 192;
         } else {
             if (this->actor.shape.rot.z < 0) {
                 this->actor.shape.rot.z = 1;
@@ -233,12 +233,12 @@ void EnFz_Init(Actor* thisx, PlayState* play) {
     func_80932784(this, play);
 }
 
-void EnFz_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnFz_Destroy(Actor* thisx, PlayState* play) {
     EnFz* this = (EnFz*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider1);
-    Collider_DestroyCylinder(play, &this->collider2);
-    Collider_DestroyCylinder(play, &this->collider3);
+    MM_Collider_DestroyCylinder(play, &this->collider1);
+    MM_Collider_DestroyCylinder(play, &this->collider2);
+    MM_Collider_DestroyCylinder(play, &this->collider3);
 
     if ((this->actor.parent != NULL) && (this->unk_BC4 == 0) && (this->actor.parent->id == ACTOR_EN_WIZ) &&
         (this->actor.parent->update != NULL) && (((EnWiz*)this->actor.parent)->freezard != NULL)) {
@@ -259,15 +259,15 @@ void func_80932784(EnFz* this, PlayState* play) {
     sp5C.y = this->actor.world.pos.y + 20.0f;
     sp5C.z = this->actor.world.pos.z;
 
-    Matrix_Translate(sp5C.x, sp5C.y, sp5C.z, MTXMODE_NEW);
-    Matrix_RotateZYX(this->actor.shape.rot.x, this->actor.shape.rot.y, this->actor.shape.rot.z, MTXMODE_APPLY);
+    MM_Matrix_Translate(sp5C.x, sp5C.y, sp5C.z, MTXMODE_NEW);
+    MM_Matrix_RotateZYX(this->actor.shape.rot.x, this->actor.shape.rot.y, this->actor.shape.rot.z, MTXMODE_APPLY);
 
     sp44.x = sp44.y = 0.0f;
     sp44.z = 440.0f;
 
-    Matrix_MultVec3f(&sp44, &this->unk_22C);
-    if (BgCheck_EntityLineTest1(&play->colCtx, &sp5C, &this->unk_22C, &sp50, &sp3C, true, false, false, true, &bgId)) {
-        Math_Vec3f_Copy(&this->unk_22C, &sp50);
+    MM_Matrix_MultVec3f(&sp44, &this->unk_22C);
+    if (MM_BgCheck_EntityLineTest1(&play->colCtx, &sp5C, &this->unk_22C, &sp50, &sp3C, true, false, false, true, &bgId)) {
+        MM_Math_Vec3f_Copy(&this->unk_22C, &sp50);
     }
 
     sp5C.x = this->actor.world.pos.x - this->unk_22C.x;
@@ -306,18 +306,18 @@ void func_809328F4(EnFz* this, PlayState* play, Vec3f* arg2, s32 arg3, f32 arg4)
     sp88.b = 200;
 
     for (i = 0; i < arg3; i++) {
-        temp_f24 = Rand_CenteredFloat(0.3f) + 0.6f;
-        temp_s1 = (s32)Rand_CenteredFloat(5.0f) + 12;
-        spA8.x = Rand_CenteredFloat(arg4) + arg2->x;
-        spA8.y = Rand_ZeroFloat(arg4) + arg2->y;
-        spA8.z = Rand_CenteredFloat(arg4) + arg2->z;
-        sp9C.x = Rand_CenteredFloat(10.0f);
-        sp9C.y = Rand_ZeroFloat(10.0f) + 2.0f;
-        sp9C.z = Rand_CenteredFloat(10.0f);
-        EffectSsEnIce_Spawn(play, &spA8, temp_f24, &sp9C, &sp90, &sp8C, &sp88, temp_s1);
+        temp_f24 = MM_Rand_CenteredFloat(0.3f) + 0.6f;
+        temp_s1 = (s32)MM_Rand_CenteredFloat(5.0f) + 12;
+        spA8.x = MM_Rand_CenteredFloat(arg4) + arg2->x;
+        spA8.y = MM_Rand_ZeroFloat(arg4) + arg2->y;
+        spA8.z = MM_Rand_CenteredFloat(arg4) + arg2->z;
+        sp9C.x = MM_Rand_CenteredFloat(10.0f);
+        sp9C.y = MM_Rand_ZeroFloat(10.0f) + 2.0f;
+        sp9C.z = MM_Rand_CenteredFloat(10.0f);
+        MM_EffectSsEnIce_Spawn(play, &spA8, temp_f24, &sp9C, &sp90, &sp8C, &sp88, temp_s1);
     }
 
-    CollisionCheck_SpawnShieldParticles(play, arg2);
+    MM_CollisionCheck_SpawnShieldParticles(play, arg2);
 }
 
 void func_80932AE8(EnFz* this) {
@@ -329,13 +329,13 @@ void func_80932AF4(EnFz* this) {
     Vec3f sp2C;
 
     if (!(this->unk_BC6 & 0xF)) {
-        sp44.x = Rand_CenteredFloat(40.0f) + this->actor.world.pos.x;
-        sp44.y = Rand_CenteredFloat(40.0f) + this->actor.world.pos.y + 30.0f;
-        sp44.z = Rand_CenteredFloat(40.0f) + this->actor.world.pos.z;
+        sp44.x = MM_Rand_CenteredFloat(40.0f) + this->actor.world.pos.x;
+        sp44.y = MM_Rand_CenteredFloat(40.0f) + this->actor.world.pos.y + 30.0f;
+        sp44.z = MM_Rand_CenteredFloat(40.0f) + this->actor.world.pos.z;
         sp2C.x = sp2C.z = 0.0f;
         sp2C.y = 0.1f;
         sp38.x = sp38.y = sp38.z = 0.0f;
-        func_80934018(this, &sp44, &sp38, &sp2C, Rand_ZeroFloat(7.5f) + 15.0f);
+        func_80934018(this, &sp44, &sp38, &sp2C, MM_Rand_ZeroFloat(7.5f) + 15.0f);
     }
 }
 
@@ -345,13 +345,13 @@ void func_80932BD4(EnFz* this) {
     Vec3f sp2C;
 
     if (!(this->unk_BC6 & 3)) {
-        sp44.x = Rand_CenteredFloat(40.0f) + this->actor.world.pos.x;
+        sp44.x = MM_Rand_CenteredFloat(40.0f) + this->actor.world.pos.x;
         sp44.y = this->unk_BB4;
-        sp44.z = Rand_CenteredFloat(40.0f) + this->actor.world.pos.z;
+        sp44.z = MM_Rand_CenteredFloat(40.0f) + this->actor.world.pos.z;
         sp2C.x = sp2C.z = 0.0f;
         sp2C.y = 0.1f;
         sp38.x = sp38.y = sp38.z = 0.0f;
-        func_80934018(this, &sp44, &sp38, &sp2C, Rand_ZeroFloat(7.5f) + 15.0f);
+        func_80934018(this, &sp44, &sp38, &sp2C, MM_Rand_ZeroFloat(7.5f) + 15.0f);
     }
 }
 
@@ -360,7 +360,7 @@ void func_80932C98(EnFz* this, PlayState* play) {
 
     if (this->unk_BCD != 0) {
         if ((this->actor.bgCheckFlags & BGCHECKFLAG_WALL) ||
-            !Actor_TestFloorInDirection(&this->actor, play, 60.0f, this->actor.world.rot.y)) {
+            !MM_Actor_TestFloorInDirection(&this->actor, play, 60.0f, this->actor.world.rot.y)) {
             this->actor.bgCheckFlags &= ~BGCHECKFLAG_WALL;
             this->unk_BCD = 0;
             this->unk_BBC = 0.0f;
@@ -419,8 +419,8 @@ void func_80932C98(EnFz* this, PlayState* play) {
                     this->drawDmgEffAlpha = 1.0f;
 
                 case 15:
-                    Actor_ApplyDamage(&this->actor);
-                    Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_XLU, 8);
+                    MM_Actor_ApplyDamage(&this->actor);
+                    MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_XLU, 8);
                     if (this->actor.colChkInfo.health != 0) {
                         Actor_PlaySfx(&this->actor, NA_SE_EN_FREEZAD_DAMAGE);
                         sp3C.x = this->actor.world.pos.x;
@@ -465,7 +465,7 @@ void func_80933014(EnFz* this) {
             }
         }
     }
-    Math_SmoothStepToS(&this->actor.shape.rot.y, temp_a1, 10, 0x7D0, 0);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, temp_a1, 10, 0x7D0, 0);
     this->actor.world.rot.y = this->actor.shape.rot.y;
 }
 
@@ -482,7 +482,7 @@ void func_80933104(EnFz* this, PlayState* play) {
         this->unk_BC0 = 0;
     }
 
-    if (Math_SmoothStepToF(&this->actor.scale.y, 0, 1.0f, 0.0005f, 0.0f) == 0.0f) {
+    if (MM_Math_SmoothStepToF(&this->actor.scale.y, 0, 1.0f, 0.0005f, 0.0f) == 0.0f) {
         func_80933184(this);
     }
 }
@@ -528,7 +528,7 @@ void func_80933274(EnFz* this, PlayState* play) {
             this->unk_BC0 = 255;
         }
 
-        if (Math_SmoothStepToF(&this->actor.scale.y, 0.008f, 1.0f, 0.0005f, 0.0f) == 0.0f) {
+        if (MM_Math_SmoothStepToF(&this->actor.scale.y, 0.008f, 1.0f, 0.0005f, 0.0f) == 0.0f) {
             if (ENFZ_GET_4000(&this->actor)) {
                 func_8093389C(this);
             } else {
@@ -628,7 +628,7 @@ void func_809334B8(EnFz* this, PlayState* play) {
                                                            : 0.0f) +
                  20;
 
-        Matrix_MultVec3f(&sp64, &sp4C);
+        MM_Matrix_MultVec3f(&sp64, &sp4C);
 
         if ((this->unk_BCA & 7) == 0) {
             sp3F = 1;
@@ -656,14 +656,14 @@ void func_809336C0(EnFz* this, PlayState* play) {
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
     this->unk_BD7 = 0;
     this->unk_BCA = 60;
-    Actor_ChangeCategory(play, &play->actorCtx, &this->actor, ACTORCAT_PROP);
-    Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos, 0xA0);
+    MM_Actor_ChangeCategory(play, &play->actorCtx, &this->actor, ACTORCAT_PROP);
+    MM_Item_DropCollectibleRandom(play, &this->actor, &this->actor.world.pos, 0xA0);
     this->actionFunc = func_80933760;
 }
 
 void func_80933760(EnFz* this, PlayState* play) {
     if (this->unk_BCA == 0) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -678,7 +678,7 @@ void func_80933790(EnFz* this) {
 }
 
 void func_809337D4(EnFz* this, PlayState* play) {
-    Math_StepToF(&this->actor.scale.y, 0.0006f, 0.0006f);
+    MM_Math_StepToF(&this->actor.scale.y, 0.0006f, 0.0006f);
 
     if (this->actor.scale.y < 0.006f) {
         this->actor.scale.x += 0.001f;
@@ -745,7 +745,7 @@ void func_809338E0(EnFz* this, PlayState* play) {
                                                        : 0.0f) +
              20;
 
-    Matrix_MultVec3f(&sp64, &sp4C);
+    MM_Matrix_MultVec3f(&sp64, &sp4C);
 
     if (!(this->unk_BC6 & 7)) {
         sp3F = 1;
@@ -778,15 +778,15 @@ void func_80933B48(EnFz* this, PlayState* play) {
         }
 
         if (this->drawDmgEffTimer < 20) {
-            Math_SmoothStepToF(&this->drawDmgEffScale, 0.0f, 0.5f, 0.03f, 0.0f);
+            MM_Math_SmoothStepToF(&this->drawDmgEffScale, 0.0f, 0.5f, 0.03f, 0.0f);
             this->drawDmgEffAlpha = this->drawDmgEffTimer * 0.05f;
         } else {
-            Math_SmoothStepToF(&this->drawDmgEffScale, 0.5f, 0.1f, 0.02f, 0.0f);
+            MM_Math_SmoothStepToF(&this->drawDmgEffScale, 0.5f, 0.1f, 0.02f, 0.0f);
         }
     }
 }
 
-void EnFz_Update(Actor* thisx, PlayState* play) {
+void MM_EnFz_Update(Actor* thisx, PlayState* play) {
     static EnFzUnkFunc D_809347AC[] = { func_80932AE8, func_80932AF4, func_80932BD4, func_80932BD4 };
     s32 pad;
     EnFz* this = (EnFz*)thisx;
@@ -804,27 +804,27 @@ void EnFz_Update(Actor* thisx, PlayState* play) {
         this->unk_BD9--;
     }
 
-    Actor_SetFocus(&this->actor, 50.0f);
+    MM_Actor_SetFocus(&this->actor, 50.0f);
     func_80932C98(this, play);
 
     this->actionFunc(this, play);
 
     if (this->unk_BD8 == 0) {
-        Collider_UpdateCylinder(&this->actor, &this->collider1);
-        Collider_UpdateCylinder(&this->actor, &this->collider2);
+        MM_Collider_UpdateCylinder(&this->actor, &this->collider1);
+        MM_Collider_UpdateCylinder(&this->actor, &this->collider2);
         if (this->unk_BCE != 0) {
             if (this->actor.colorFilterTimer == 0) {
-                CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider1.base);
-                CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider2.base);
+                MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider1.base);
+                MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider2.base);
             }
-            CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider1.base);
+            MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider1.base);
         }
     }
 
-    Math_StepToF(&this->actor.speed, this->unk_BBC, 0.2f);
+    MM_Math_StepToF(&this->actor.speed, this->unk_BBC, 0.2f);
     Actor_MoveWithGravity(&this->actor);
     if (this->unk_BCC != 0) {
-        Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 20.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
+        MM_Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 20.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
     }
 
     D_809347AC[this->unk_BD6](this);
@@ -832,7 +832,7 @@ void EnFz_Update(Actor* thisx, PlayState* play) {
     func_80934178(this, play);
 }
 
-void EnFz_Draw(Actor* thisx, PlayState* play) {
+void MM_EnFz_Draw(Actor* thisx, PlayState* play) {
     static Gfx* D_809347BC[] = { object_fz_DL_001130, object_fz_DL_0021A0, object_fz_DL_002CA0 };
     s32 pad;
     EnFz* this = (EnFz*)thisx;
@@ -849,7 +849,7 @@ void EnFz_Draw(Actor* thisx, PlayState* play) {
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
         gSPSegment(POLY_XLU_DISP++, 0x08,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, play->state.frames % 128, 0x20, 0x20, 1, 0,
+                   MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, play->state.frames % 128, 0x20, 0x20, 1, 0,
                                     (play->state.frames * 2) % 128, 0x20, 0x20));
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gDPSetCombineLERP(POLY_XLU_DISP++, TEXEL1, PRIMITIVE, PRIM_LOD_FRAC, TEXEL0, TEXEL1, TEXEL0, PRIMITIVE, TEXEL0,
@@ -951,7 +951,7 @@ void func_80934178(EnFz* this, PlayState* play) {
                     }
                 }
             } else if (ptr->unk_00 == 2) {
-                Math_ApproachF(&ptr->unk_30, ptr->unk_34, 0.1f, ptr->unk_34 / 10.0f);
+                MM_Math_ApproachF(&ptr->unk_30, ptr->unk_34, 0.1f, ptr->unk_34 / 10.0f);
                 if (ptr->unk_2E == 0) {
                     if (ptr->unk_01 >= 7) {
                         ptr->unk_2E++;
@@ -971,7 +971,7 @@ void func_80934178(EnFz* this, PlayState* play) {
                     this->collider3.dim.pos.x = ptr->unk_04.x;
                     this->collider3.dim.pos.y = ptr->unk_04.y;
                     this->collider3.dim.pos.z = ptr->unk_04.z;
-                    CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider3.base);
+                    MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider3.base);
                 }
 
                 sp64.x = ptr->unk_04.x;
@@ -1013,12 +1013,12 @@ void func_80934464(EnFz* this, PlayState* play) {
 
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 195, 225, 235, ptr->unk_2C);
             gSPSegment(POLY_XLU_DISP++, 0x08,
-                       Gfx_TwoTexScroll(play->state.gfxCtx, 0, (ptr->unk_01 + (i * 3)) * 3,
+                       MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, (ptr->unk_01 + (i * 3)) * 3,
                                         (ptr->unk_01 + (i * 3)) * 15, 0x20, 0x40, 1, 0, 0, 0x20, 0x20));
 
-            Matrix_Translate(ptr->unk_04.x, ptr->unk_04.y, ptr->unk_04.z, MTXMODE_NEW);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
-            Matrix_Scale(ptr->unk_30, ptr->unk_30, 1.0f, MTXMODE_APPLY);
+            MM_Matrix_Translate(ptr->unk_04.x, ptr->unk_04.y, ptr->unk_04.z, MTXMODE_NEW);
+            MM_Matrix_ReplaceRotation(&play->billboardMtxF);
+            MM_Matrix_Scale(ptr->unk_30, ptr->unk_30, 1.0f, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
             gSPDisplayList(POLY_XLU_DISP++, gFrozenSteamModelDL);

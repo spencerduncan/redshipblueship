@@ -454,7 +454,7 @@ void Message_DrawTextNES(PlayState* play, Gfx** gfxP, u16 textDrawPos) {
     }
 
     if (msgCtx->itemId != 0xFE) {
-        Message_DrawItemIcon(play, &gfx);
+        MM_Message_DrawItemIcon(play, &gfx);
     }
 
     msgCtx->textColorR = msgCtx->unk120C8;
@@ -840,7 +840,7 @@ void Message_DrawTextNES(PlayState* play, Gfx** gfxP, u16 textDrawPos) {
             case MESSAGE_END:
                 if (msgCtx->msgMode == MSGMODE_TEXT_DISPLAYING) {
                     if (msgCtx->textBoxType == TEXTBOX_TYPE_3) {
-                        Message_HandleOcarina(play);
+                        MM_Message_HandleOcarina(play);
                         *gfxP = gfx;
                         return;
                     }
@@ -927,16 +927,16 @@ void Message_DrawTextNES(PlayState* play, Gfx** gfxP, u16 textDrawPos) {
                         sColorsButtonsNES[(s16)sButtonColorIndicesNES[(u8)character - MESSAGE_BTN_A]].g;
                     msgCtx->textColorB =
                         sColorsButtonsNES[(s16)sButtonColorIndicesNES[(u8)character - MESSAGE_BTN_A]].b;
-                    Message_DrawTextChar(play, &font->charBuf[font->unk_11D88][charTexIndex], &gfx);
+                    MM_Message_DrawTextChar(play, &font->charBuf[font->unk_11D88][charTexIndex], &gfx);
                     msgCtx->textColorR = prevR;
                     msgCtx->textColorG = prevG;
                     msgCtx->textColorB = prevB;
                 } else if (msgCtx->msgMode >= MSGMODE_OWL_SAVE_0) {
                     if ((i < (msgCtx->decodedTextLen - 6)) || (i >= (msgCtx->decodedTextLen - 4))) {
-                        Message_DrawTextChar(play, &font->charBuf[font->unk_11D88][charTexIndex], &gfx);
+                        MM_Message_DrawTextChar(play, &font->charBuf[font->unk_11D88][charTexIndex], &gfx);
                     }
                 } else {
-                    Message_DrawTextChar(play, &font->charBuf[font->unk_11D88][charTexIndex], &gfx);
+                    MM_Message_DrawTextChar(play, &font->charBuf[font->unk_11D88][charTexIndex], &gfx);
                 }
                 charTexIndex += FONT_CHAR_TEX_SIZE;
 
@@ -1170,8 +1170,8 @@ void Message_DecodeNES(PlayState* play) {
             decodedBufPos--;
         } else if (curChar == MESSAGE_BACKGROUND) {
             // #region 2S2H [Port]
-            // DmaMgr_SendRequest0(msgCtx->textboxSegment + 0x1000, SEGMENT_ROM_START(message_texture_static), 0x900);
-            // DmaMgr_SendRequest0(msgCtx->textboxSegment + 0x1900, SEGMENT_ROM_START(message_texture_static) + 0x900,
+            // MM_DmaMgr_SendRequest0(msgCtx->textboxSegment + 0x1000, SEGMENT_ROM_START(message_texture_static), 0x900);
+            // MM_DmaMgr_SendRequest0(msgCtx->textboxSegment + 0x1900, SEGMENT_ROM_START(message_texture_static) + 0x900,
             //                    0x900);
             msgCtx->textboxSegment[TEXTBOX_SEG_BG_1] = gMessageXLeftTex;
             msgCtx->textboxSegment[TEXTBOX_SEG_BG_2] = gMessageXRightTex;

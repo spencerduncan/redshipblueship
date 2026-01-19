@@ -89,18 +89,18 @@ void func_80A349C0(ObjEntotu* this) {
 
     if (temp_v0 != temp2) {
         this->unk_1C4 = temp;
-        this->unk_1C6 = Rand_S16Offset(0, 59);
+        this->unk_1C6 = MM_Rand_S16Offset(0, 59);
     }
 
     temp2 = this->unk_1C4;
-    Math_ApproachF(&this->unk_1B8.x, (temp2 == 0) ? 0.0f : 1.0f, 0.02f, 1000.0f);
+    MM_Math_ApproachF(&this->unk_1B8.x, (temp2 == 0) ? 0.0f : 1.0f, 0.02f, 1000.0f);
 }
 
 void func_80A34A44(ObjEntotu* this, PlayState* play) {
-    Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
-    this->actor.shape.rot.y = BINANG_ROT180(Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)));
+    MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
+    this->actor.shape.rot.y = BINANG_ROT180(MM_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)));
     Matrix_RotateYS(this->actor.shape.rot.y, MTXMODE_APPLY);
-    Matrix_Scale(0.1f, 0.1f, 0.0f, MTXMODE_APPLY);
+    MM_Matrix_Scale(0.1f, 0.1f, 0.0f, MTXMODE_APPLY);
 
     OPEN_DISPS(play->state.gfxCtx);
 
@@ -131,10 +131,10 @@ void func_80A34B28(ObjEntotu* this, PlayState* play) {
     }
 
     if (this->unk_1B8.x > 0.0f) {
-        Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
-        this->actor.shape.rot.y = BINANG_ROT180(Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)));
+        MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
+        this->actor.shape.rot.y = BINANG_ROT180(MM_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)));
         Matrix_RotateYS(this->actor.shape.rot.y, MTXMODE_APPLY);
-        Matrix_Scale(0.1f, 0.1f, 0.0f, MTXMODE_APPLY);
+        MM_Matrix_Scale(0.1f, 0.1f, 0.0f, MTXMODE_APPLY);
 
         OPEN_DISPS(play->state.gfxCtx);
 
@@ -143,7 +143,7 @@ void func_80A34B28(ObjEntotu* this, PlayState* play) {
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
         gSPSegment(POLY_XLU_DISP++, 0x08,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, sp57, 0x20, 0x20, 1, 0, sp56, 0x20, 0x20));
+                   MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, sp57, 0x20, 0x20, 1, 0, sp56, 0x20, 0x20));
         gSPSegment(POLY_XLU_DISP++, 0x09, Lib_SegmentedToVirtual(this->unk_148));
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_XLU_DISP++, object_f53_obj_DL_001C00);
@@ -159,7 +159,7 @@ void ObjEntotu_Init(Actor* thisx, PlayState* play) {
 
     memcpy(this->unk_148, ovl_Obj_Entotu_Vtx_000D10Data,
            sizeof(Vtx) * ResourceMgr_GetVtxArraySizeByName(ovl_Obj_Entotu_Vtx_000D10));
-    this->unk_1C6 = Rand_S16Offset(0, 59);
+    this->unk_1C6 = MM_Rand_S16Offset(0, 59);
     this->unk_1C4 = 0;
 }
 

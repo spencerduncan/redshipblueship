@@ -55,7 +55,7 @@ Gfx* SubS_DrawTransformFlexLimb(PlayState* play, s32 limbIndex, void** skeleton,
     Vec3f pos;
     Vec3s rot;
 
-    Matrix_Push();
+    MM_Matrix_Push();
     limb = Lib_SegmentedToVirtual(skeleton[limbIndex]);
     limbIndex++;
     rot = jointTable[limbIndex];
@@ -65,21 +65,21 @@ Gfx* SubS_DrawTransformFlexLimb(PlayState* play, s32 limbIndex, void** skeleton,
     newDList = limbDList = limb->dList;
 
     if ((overrideLimbDraw == NULL) || !overrideLimbDraw(play, limbIndex, &newDList, &pos, &rot, actor, &gfx)) {
-        Matrix_TranslateRotateZYX(&pos, &rot);
-        Matrix_Push();
+        MM_Matrix_TranslateRotateZYX(&pos, &rot);
+        MM_Matrix_Push();
 
         transformLimbDraw(play, limbIndex, actor, &gfx);
 
         if (newDList != NULL) {
-            Matrix_ToMtx(*mtx);
+            MM_Matrix_ToMtx(*mtx);
             gSPMatrix(gfx++, *mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(gfx++, newDList);
             (*mtx)++;
         } else if (limbDList != NULL) {
-            Matrix_ToMtx(*mtx);
+            MM_Matrix_ToMtx(*mtx);
             (*mtx)++;
         }
-        Matrix_Pop();
+        MM_Matrix_Pop();
     }
     if (postLimbDraw != NULL) {
         postLimbDraw(play, limbIndex, &limbDList, &rot, actor, &gfx);
@@ -88,7 +88,7 @@ Gfx* SubS_DrawTransformFlexLimb(PlayState* play, s32 limbIndex, void** skeleton,
         gfx = SubS_DrawTransformFlexLimb(play, limb->child, skeleton, jointTable, overrideLimbDraw, postLimbDraw,
                                          transformLimbDraw, actor, mtx, gfx);
     }
-    Matrix_Pop();
+    MM_Matrix_Pop();
     if (limb->sibling != LIMB_DONE) {
         gfx = SubS_DrawTransformFlexLimb(play, limb->sibling, skeleton, jointTable, overrideLimbDraw, postLimbDraw,
                                          transformLimbDraw, actor, mtx, gfx);
@@ -121,7 +121,7 @@ Gfx* SubS_DrawTransformFlex(PlayState* play, void** skeleton, Vec3s* jointTable,
     }
 
     gSPSegment(gfx++, 0x0D, mtx);
-    Matrix_Push();
+    MM_Matrix_Push();
     rootLimb = Lib_SegmentedToVirtual(skeleton[0]);
     pos.x = jointTable[LIMB_ROOT_POS].x;
     pos.y = jointTable[LIMB_ROOT_POS].y;
@@ -131,21 +131,21 @@ Gfx* SubS_DrawTransformFlex(PlayState* play, void** skeleton, Vec3s* jointTable,
     limbDList = rootLimb->dList;
 
     if ((overrideLimbDraw == NULL) || !overrideLimbDraw(play, 1, &newDlist, &pos, &rot, actor, &gfx)) {
-        Matrix_TranslateRotateZYX(&pos, &rot);
-        Matrix_Push();
+        MM_Matrix_TranslateRotateZYX(&pos, &rot);
+        MM_Matrix_Push();
 
         transformLimbDraw(play, 1, actor, &gfx);
 
         if (newDlist != NULL) {
-            Matrix_ToMtx(mtx);
+            MM_Matrix_ToMtx(mtx);
             gSPMatrix(gfx++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(gfx++, newDlist);
             mtx++;
         } else if (limbDList != NULL) {
-            Matrix_ToMtx(mtx);
+            MM_Matrix_ToMtx(mtx);
             mtx++;
         }
-        Matrix_Pop();
+        MM_Matrix_Pop();
     }
 
     if (postLimbDraw != NULL) {
@@ -156,14 +156,14 @@ Gfx* SubS_DrawTransformFlex(PlayState* play, void** skeleton, Vec3s* jointTable,
         gfx = SubS_DrawTransformFlexLimb(play, rootLimb->child, skeleton, jointTable, overrideLimbDraw, postLimbDraw,
                                          transformLimbDraw, actor, &mtx, gfx);
     }
-    Matrix_Pop();
+    MM_Matrix_Pop();
     return gfx;
 }
 
 s32 SubS_InCsMode(PlayState* play) {
     s32 inCsMode = false;
 
-    if (Play_InCsMode(play)) {
+    if (MM_Play_InCsMode(play)) {
         inCsMode = true;
     }
 
@@ -188,8 +188,8 @@ s32 SubS_UpdateLimb(s16 newRotZ, s16 newRotY, Vec3f* pos, Vec3s* rot, s32 stepRo
     Vec3s newRot;
     MtxF curState;
 
-    Matrix_MultVec3f(&zeroVec, &newPos);
-    Matrix_Get(&curState);
+    MM_Matrix_MultVec3f(&zeroVec, &newPos);
+    MM_Matrix_Get(&curState);
     Matrix_MtxFToYXZRot(&curState, &newRot, false);
     *pos = newPos;
 
@@ -205,9 +205,9 @@ s32 SubS_UpdateLimb(s16 newRotZ, s16 newRotY, Vec3f* pos, Vec3s* rot, s32 stepRo
         newRot.y = newRotY;
     }
 
-    Math_SmoothStepToS(&rot->x, newRot.x, 3, 0x2AA8, 0xB6);
-    Math_SmoothStepToS(&rot->y, newRot.y, 3, 0x2AA8, 0xB6);
-    Math_SmoothStepToS(&rot->z, newRot.z, 3, 0x2AA8, 0xB6);
+    MM_Math_SmoothStepToS(&rot->x, newRot.x, 3, 0x2AA8, 0xB6);
+    MM_Math_SmoothStepToS(&rot->y, newRot.y, 3, 0x2AA8, 0xB6);
+    MM_Math_SmoothStepToS(&rot->z, newRot.z, 3, 0x2AA8, 0xB6);
     return true;
 }
 
@@ -477,7 +477,7 @@ void SubS_TimePathing_ComputeInitialY(PlayState* play, Path* path, s32 waypoint,
     posB = *targetPos;
     posA.y = max;
     posB.y = min;
-    if (BgCheck_EntityLineTest1(&play->colCtx, &posA, &posB, &posResult, &outPoly, true, true, true, true, &bgId)) {
+    if (MM_BgCheck_EntityLineTest1(&play->colCtx, &posA, &posB, &posResult, &outPoly, true, true, true, true, &bgId)) {
         targetPos->y = posResult.y;
     }
 }
@@ -519,7 +519,7 @@ Actor* SubS_FindNearestActor(Actor* actor, PlayState* play, u8 actorCategory, s1
         actorIter = actorTmp;
 
         if (actorIter != actor) {
-            dist = Actor_WorldDistXYZToActor(actor, actorIter);
+            dist = MM_Actor_WorldDistXYZToActor(actor, actorIter);
             if (!isSetup || dist < minDist) {
                 closestActor = actorIter;
                 minDist = dist;
@@ -546,7 +546,7 @@ s32 SubS_ChangeAnimationByInfoS(SkelAnime* skelAnime, AnimationInfoS* animationI
 
     endFrame = animationInfo->frameCount;
     if (animationInfo->frameCount < 0) {
-        endFrame = Animation_GetLastFrame(&anim->common);
+        endFrame = MM_Animation_GetLastFrame(&anim->common);
     }
     startFrame = animationInfo->startFrame;
     if ((startFrame >= endFrame) || (startFrame < 0)) {
@@ -555,7 +555,7 @@ s32 SubS_ChangeAnimationByInfoS(SkelAnime* skelAnime, AnimationInfoS* animationI
     if (animationInfo->playSpeed < 0.0f) {
         SWAP(s32, endFrame, startFrame);
     }
-    Animation_Change(skelAnime, ogAnim, animationInfo->playSpeed, startFrame, endFrame, animationInfo->mode,
+    MM_Animation_Change(skelAnime, ogAnim, animationInfo->playSpeed, startFrame, endFrame, animationInfo->mode,
                      animationInfo->morphFrames);
     return true;
 }
@@ -572,7 +572,7 @@ s32 SubS_HasReachedPoint(Actor* actor, Path* path, s32 pointIndex) {
     f32 d;
     Vec3f point;
 
-    Math_Vec3s_ToVec3f(&point, &points[index]);
+    MM_Math_Vec3s_ToVec3f(&point, &points[index]);
 
     if (index == 0) {
         diffX = points[1].x - points[0].x;
@@ -585,7 +585,7 @@ s32 SubS_HasReachedPoint(Actor* actor, Path* path, s32 pointIndex) {
         diffZ = points[index + 1].z - points[index - 1].z;
     }
 
-    Math3D_RotateXZPlane(&point, RAD_TO_BINANG(Math_FAtan2F(diffX, diffZ)), &px, &pz, &d);
+    MM_Math3D_RotateXZPlane(&point, RAD_TO_BINANG(MM_Math_FAtan2F(diffX, diffZ)), &px, &pz, &d);
     if (((px * actor->world.pos.x) + (pz * actor->world.pos.z) + d) > 0.0f) {
         reached = true;
     }
@@ -773,10 +773,10 @@ s32 SubS_WeightPathing_Move(Actor* actor, Path* path, s32* waypoint, f32* progre
             ((s32)(actor->speed * 10000.0f) == 0)) {
             return false;
         }
-        dist = Math_Vec3f_DistXZ(&actor->world.pos, &point);
-        actor->world.rot.y = Math_Vec3f_Yaw(&actor->world.pos, &point);
+        dist = MM_Math_Vec3f_DistXZ(&actor->world.pos, &point);
+        actor->world.rot.y = MM_Math_Vec3f_Yaw(&actor->world.pos, &point);
         Actor_MoveWithGravity(actor);
-        if (Math_Vec3f_DistXZ(&actor->world.pos, &point) < dist) {
+        if (MM_Math_Vec3f_DistXZ(&actor->world.pos, &point) < dist) {
             break;
         }
         *progress += 0.1f;
@@ -827,7 +827,7 @@ s32 SubS_CopyPointFromPathCheckBounds(Path* path, s32 pointIndex, Vec3f* dst) {
  * Attempt to extend different offers to the player based on different checks
  * and on the provided mode (see SubSOfferMode).
  *
- * The offer types are either GetItem (see Actor_OfferGetItem) or TalkExchange (see Actor_OfferTalkExchange),
+ * The offer types are either GetItem (see MM_Actor_OfferGetItem) or TalkExchange (see Actor_OfferTalkExchange),
  * with more check variants provided for TalkExchange offers.
  *
  * @return `true` if offer was extended and the player can accept it
@@ -838,13 +838,13 @@ s32 SubS_Offer(Actor* actor, PlayState* play, f32 xzRange, f32 yRange, s32 itemI
     s16 screenPosY;
     f32 xzDistToPlayerTemp;
 
-    Actor_GetScreenPos(play, actor, &screenPosX, &screenPosY);
+    MM_Actor_GetScreenPos(play, actor, &screenPosX, &screenPosY);
 
     switch (mode) {
         case SUBS_OFFER_MODE_GET_ITEM:
             yRange = fabsf(actor->playerHeightRel) + 1.0f;
             xzRange = actor->xzDistToPlayer + 1.0f;
-            canAccept = Actor_OfferGetItem(actor, play, itemId, xzRange, yRange);
+            canAccept = MM_Actor_OfferGetItem(actor, play, itemId, xzRange, yRange);
             break;
 
         case SUBS_OFFER_MODE_NEARBY:
@@ -1000,7 +1000,7 @@ void SubS_GenShadowTex(Vec3f bodyPartsPos[], Vec3f* worldPos, u8* tex, f32 weigh
             pos.z = bodyPartPos->z - worldPos->z;
         }
 
-        Matrix_MultVec3f(&pos, &startVec);
+        MM_Matrix_MultVec3f(&pos, &startVec);
         startCol = 64.0f + startVec.x;
         startRow = 64.0f - startVec.z;
         SubS_FillShadowTex(startCol >> 1, startRow >> 1, tex, sizes[i]);
@@ -1018,8 +1018,8 @@ void SubS_DrawShadowTex(Actor* actor, GameState* gameState, u8* tex) {
     Gfx_SetupDL25_Opa(gfxCtx);
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 0, 0, 0, 100);
     gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 0);
-    Matrix_Translate(actor->world.pos.x, 0.0f, actor->world.pos.z, MTXMODE_NEW);
-    Matrix_Scale(0.6f, 1.0f, 0.6f, MTXMODE_APPLY);
+    MM_Matrix_Translate(actor->world.pos.x, 0.0f, actor->world.pos.z, MTXMODE_NEW);
+    MM_Matrix_Scale(0.6f, 1.0f, 0.6f, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, gfxCtx);
     gSPDisplayList(POLY_OPA_DISP++, gShadowMaterialDL);
     gDPLoadTextureBlock(POLY_OPA_DISP++, tex, G_IM_FMT_I, G_IM_SIZ_8b, SUBS_SHADOW_TEX_WIDTH, SUBS_SHADOW_TEX_HEIGHT, 0,
@@ -1094,9 +1094,9 @@ s32 SubS_TrackPoint(Vec3f* target, Vec3f* focusPos, Vec3s* shapeRot, Vec3s* trac
     f32 diffZ = target->z - focusPos->z;
 
     yaw = Math_Atan2S_XY(diffZ, diffX);
-    pitch = Math_Atan2S_XY(sqrtf(SQ(diffX) + SQ(diffZ)), target->y - focusPos->y);
-    Math_SmoothStepToS(&trackTarget->x, pitch, 4, 0x2710, 0);
-    Math_SmoothStepToS(&trackTarget->y, yaw, 4, 0x2710, 0);
+    pitch = Math_Atan2S_XY(MM_sqrtf(SQ(diffX) + SQ(diffZ)), target->y - focusPos->y);
+    MM_Math_SmoothStepToS(&trackTarget->x, pitch, 4, 0x2710, 0);
+    MM_Math_SmoothStepToS(&trackTarget->y, yaw, 4, 0x2710, 0);
 
     targetX =
         SubS_ComputeTrackPointRot(&headRot->x, options->headRotX.rotMax, trackTarget->x, options->headRotX.slowness,
@@ -1144,7 +1144,7 @@ s16 SubS_GetDistSqAndOrientPoints(Vec3f* vecA, Vec3f* vecB, f32* distSq) {
     f32 diffZ = vecA->z - vecB->z;
 
     *distSq = SQ(diffX) + SQ(diffZ);
-    return Math_Atan2S(diffX, diffZ);
+    return MM_Math_Atan2S(diffX, diffZ);
 }
 
 /**
@@ -1156,12 +1156,12 @@ s32 SubS_MoveActorToPoint(Actor* actor, Vec3f* point, s16 rotStep) {
     f32 distSqBefore;
     f32 distSqAfter;
 
-    Actor_WorldToActorCoords(actor, &offsetBefore, point);
-    Math_SmoothStepToS(&actor->world.rot.y, SubS_GetDistSqAndOrientPoints(point, &actor->world.pos, &distSqBefore), 4,
+    MM_Actor_WorldToActorCoords(actor, &offsetBefore, point);
+    MM_Math_SmoothStepToS(&actor->world.rot.y, SubS_GetDistSqAndOrientPoints(point, &actor->world.pos, &distSqBefore), 4,
                        rotStep, 1);
     actor->shape.rot.y = actor->world.rot.y;
     Actor_MoveWithGravity(actor);
-    Actor_WorldToActorCoords(actor, &offsetAfter, point);
+    MM_Actor_WorldToActorCoords(actor, &offsetAfter, point);
     SubS_GetDistSqAndOrientPoints(point, &actor->world.pos, &distSqAfter);
     return ((offsetBefore.z > 0.0f) && (offsetAfter.z <= 0.0f)) ? true : false;
 }
@@ -1179,11 +1179,11 @@ s16 SubS_GetDistSqAndOrientPath(Path* path, s32 pointIndex, Vec3f* pos, f32* dis
     }
 
     *distSq = SQ(diffX) + SQ(diffZ);
-    return Math_Atan2S(diffX, diffZ);
+    return MM_Math_Atan2S(diffX, diffZ);
 }
 
 s8 SubS_IsObjectLoaded(s8 objectSlot, PlayState* play) {
-    return !Object_IsLoaded(&play->objectCtx, objectSlot) ? false : true;
+    return !MM_Object_IsLoaded(&play->objectCtx, objectSlot) ? false : true;
 }
 
 s8 SubS_GetObjectSlot(s16 objectId, PlayState* play) {
@@ -1239,7 +1239,7 @@ s32 SubS_IsFloorAbove(PlayState* play, Vec3f* pos, f32 distAbove) {
 
     posA = posB = *pos;
     posB.y += distAbove;
-    return BgCheck_EntityLineTest1(&play->colCtx, &posA, &posB, &posResult, &outPoly, false, true, false, true, &bgId);
+    return MM_BgCheck_EntityLineTest1(&play->colCtx, &posA, &posB, &posResult, &outPoly, false, true, false, true, &bgId);
 }
 
 s32 SubS_CopyPointFromPathList(Path* paths, s32 pathIndex, s32 pointIndex, Vec3f* dst) {
@@ -1281,7 +1281,7 @@ void SubS_ActorPathing_Init(PlayState* play, Vec3f* worldPos, Actor* actor, Acto
     actorPath->curPoint.x = actorPath->points[0].x;
     actorPath->curPoint.y = actorPath->points[0].y;
     actorPath->curPoint.z = actorPath->points[0].z;
-    Math_Vec3f_Copy(&actorPath->prevPoint, &actorPath->curPoint);
+    MM_Math_Vec3f_Copy(&actorPath->prevPoint, &actorPath->curPoint);
     actorPath->worldPos = worldPos;
     actorPath->actor = actor;
     actorPath->flags = flags;
@@ -1336,10 +1336,10 @@ void SubS_ActorPathing_ComputePointInfo(PlayState* play, ActorPathing* actorPath
     diff.x = actorPath->curPoint.x - actorPath->worldPos->x;
     diff.y = actorPath->curPoint.y - actorPath->worldPos->y;
     diff.z = actorPath->curPoint.z - actorPath->worldPos->z;
-    actorPath->distSqToCurPointXZ = Math3D_Dist1DSq(diff.x, diff.z);
-    actorPath->distSqToCurPoint = Math3D_Vec3fMagnitudeSq(&diff);
+    actorPath->distSqToCurPointXZ = MM_Math3D_Dist1DSq(diff.x, diff.z);
+    actorPath->distSqToCurPoint = MM_Math3D_Vec3fMagnitudeSq(&diff);
     actorPath->rotToCurPoint.y = Math_Atan2S_XY(diff.z, diff.x);
-    actorPath->rotToCurPoint.x = Math_Atan2S_XY(sqrtf(actorPath->distSqToCurPointXZ), -diff.y);
+    actorPath->rotToCurPoint.x = Math_Atan2S_XY(MM_sqrtf(actorPath->distSqToCurPointXZ), -diff.y);
     actorPath->rotToCurPoint.z = 0;
 }
 
@@ -1356,7 +1356,7 @@ s32 SubS_ActorPathing_MoveWithoutGravityReverse(PlayState* play, ActorPathing* a
 s32 SubS_ActorPathing_SetNextPoint(PlayState* play, ActorPathing* actorPath) {
     s32 reupdate = true;
 
-    Math_Vec3f_Copy(&actorPath->prevPoint, &actorPath->curPoint);
+    MM_Math_Vec3f_Copy(&actorPath->prevPoint, &actorPath->curPoint);
     if (!(actorPath->flags & ACTOR_PATHING_MOVE_BACKWARDS)) {
         if (actorPath->curPointIndex >= actorPath->endPointIndex) {
             if (actorPath->flags & ACTOR_PATHING_RETURN_TO_START) {
@@ -1414,12 +1414,12 @@ void SubS_ChangeAnimationBySpeedInfo(SkelAnime* skelAnime, AnimationSpeedInfo* a
         }
     }
     if (animation->playSpeed >= 0.0f) {
-        endFrame = Animation_GetLastFrame(&anim->common);
+        endFrame = MM_Animation_GetLastFrame(&anim->common);
     } else {
-        startFrame = Animation_GetLastFrame(&anim->common);
+        startFrame = MM_Animation_GetLastFrame(&anim->common);
         endFrame = 0.0f;
     }
-    Animation_Change(skelAnime, ogAnim, animation->playSpeed, startFrame, endFrame, animation->mode, morphFrames);
+    MM_Animation_Change(skelAnime, ogAnim, animation->playSpeed, startFrame, endFrame, animation->mode, morphFrames);
     *curAnimIndex = nextAnimIndex;
 }
 
@@ -1495,8 +1495,8 @@ void SubS_ConstructPlane(Vec3f* point, Vec3f* unitVec, Vec3s* rot, Plane* plane)
     f32 normY;
     f32 unitVecYX;
 
-    sin = Math_SinS(-rot->x);
-    cos = Math_CosS(-rot->x);
+    sin = MM_Math_SinS(-rot->x);
+    cos = MM_Math_CosS(-rot->x);
     unitVecZ = unitVec->z;
     unitVecYX = unitVec->y;
 
@@ -1504,8 +1504,8 @@ void SubS_ConstructPlane(Vec3f* point, Vec3f* unitVec, Vec3s* rot, Plane* plane)
     temp = (unitVecZ * cos) - (unitVecYX * sin);
     normY = (unitVecZ * sin) + (unitVecYX * cos);
 
-    sin = Math_SinS(rot->y);
-    cos = Math_CosS(rot->y);
+    sin = MM_Math_SinS(rot->y);
+    cos = MM_Math_CosS(rot->y);
     unitVecYX = unitVec->x;
     plane->normal.y = normY;
 
@@ -1522,7 +1522,7 @@ s32 SubS_LineSegVsPlane(Vec3f* point, Vec3s* rot, Vec3f* unitVec, Vec3f* linePoi
     Plane plane;
 
     SubS_ConstructPlane(point, unitVec, rot, &plane);
-    lineSegVsPlane = Math3D_LineSegVsPlane(plane.normal.x, plane.normal.y, plane.normal.z, plane.originDist, linePointA,
+    lineSegVsPlane = MM_Math3D_LineSegVsPlane(plane.normal.x, plane.normal.y, plane.normal.z, plane.originDist, linePointA,
                                            linePointB, intersect, false);
 
     return lineSegVsPlane ? true : false;
@@ -1568,7 +1568,7 @@ s32 SubS_OfferTalkExchangeCustom(Actor* actor, PlayState* play, f32 xzRange, f32
 s32 SubS_ArePlayerAndActorFacing(PlayState* play, Actor* actor, void* data) {
     Player* player = GET_PLAYER(play);
     Vec3s* yawRanges = (Vec3s*)data;
-    s16 playerYaw = ABS(BINANG_SUB(Actor_WorldYawTowardActor(&player->actor, actor), player->actor.shape.rot.y));
+    s16 playerYaw = ABS(BINANG_SUB(MM_Actor_WorldYawTowardActor(&player->actor, actor), player->actor.shape.rot.y));
     s16 actorYaw = ABS(BINANG_SUB(actor->yawTowardsPlayer, actor->shape.rot.y));
     s32 areFacing = false;
     s32 actorYawRange = ABS(yawRanges->y);
@@ -1615,29 +1615,29 @@ s32 SubS_OfferTalkExchangeFacing(Actor* actor, PlayState* play, f32 xzRange, f32
 s32 SubS_TrackPointStep(Vec3f* worldPos, Vec3f* focusPos, s16 shapeYRot, Vec3f* yawTarget, Vec3f* pitchTarget,
                         s16* headZRotStep, s16* headXRotStep, s16* torsoZRotStep, s16* torsoXRotStep,
                         u16 headZRotStepMax, u16 headXRotStepMax, u16 torsoZRotStepMax, u16 torsoXRotStepMax) {
-    s16 yaw = Math_Vec3f_Yaw(worldPos, yawTarget) - shapeYRot;
+    s16 yaw = MM_Math_Vec3f_Yaw(worldPos, yawTarget) - shapeYRot;
     s16 pad;
     s16 pad2;
-    s16 pitch = Math_Vec3f_Pitch(focusPos, pitchTarget);
+    s16 pitch = MM_Math_Vec3f_Pitch(focusPos, pitchTarget);
 
     if (BINANG_ADD(headXRotStepMax, torsoXRotStepMax) >= (s16)ABS(yaw)) {
-        Math_ApproachS(headXRotStep, yaw - *torsoXRotStep, 4, 0x2AA8);
+        MM_Math_ApproachS(headXRotStep, yaw - *torsoXRotStep, 4, 0x2AA8);
         *headXRotStep = CLAMP(*headXRotStep, -headXRotStepMax, headXRotStepMax);
-        Math_ApproachS(torsoXRotStep, yaw - *headXRotStep, 4, 0x2AA8);
+        MM_Math_ApproachS(torsoXRotStep, yaw - *headXRotStep, 4, 0x2AA8);
         *torsoXRotStep = CLAMP(*torsoXRotStep, -torsoXRotStepMax, torsoXRotStepMax);
     } else {
-        Math_ApproachS(headXRotStep, 0, 4, 0x2AA8);
-        Math_ApproachS(torsoXRotStep, 0, 4, 0x2AA8);
+        MM_Math_ApproachS(headXRotStep, 0, 4, 0x2AA8);
+        MM_Math_ApproachS(torsoXRotStep, 0, 4, 0x2AA8);
     }
 
     if (BINANG_ADD(headZRotStepMax, torsoZRotStepMax) >= (s16)ABS(pitch)) {
-        Math_ApproachS(headZRotStep, pitch - *torsoZRotStep, 4, 0x2AA8);
+        MM_Math_ApproachS(headZRotStep, pitch - *torsoZRotStep, 4, 0x2AA8);
         *headZRotStep = CLAMP(*headZRotStep, -headZRotStepMax, headZRotStepMax);
-        Math_ApproachS(torsoZRotStep, pitch - *headZRotStep, 4, 0x2AA8);
+        MM_Math_ApproachS(torsoZRotStep, pitch - *headZRotStep, 4, 0x2AA8);
         *torsoZRotStep = CLAMP(*torsoZRotStep, -torsoZRotStepMax, torsoZRotStepMax);
     } else {
-        Math_ApproachS(headZRotStep, 0, 4, 0x2AA8);
-        Math_ApproachS(torsoZRotStep, 0, 4, 0x2AA8);
+        MM_Math_ApproachS(headZRotStep, 0, 4, 0x2AA8);
+        MM_Math_ApproachS(torsoZRotStep, 0, 4, 0x2AA8);
     }
 
     return true;

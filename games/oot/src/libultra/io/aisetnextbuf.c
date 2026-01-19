@@ -1,9 +1,9 @@
 #include "global.h"
 
 //! Note that this is not the same as the original libultra
-//! osAiSetNextBuffer, see comments in the function
+//! OoT_osAiSetNextBuffer, see comments in the function
 
-s32 osAiSetNextBuffer(void* buf, size_t size) {
+s32 OoT_osAiSetNextBuffer(void* buf, size_t size) {
     static u8 D_80130500 = false;
     uintptr_t bufAdjusted = (uintptr_t)buf;
     s32 status;
@@ -23,7 +23,7 @@ s32 osAiSetNextBuffer(void* buf, size_t size) {
         return -1;
     }
 
-    // OS_K0_TO_PHYSICAL replaces osVirtualToPhysical, this replacement
+    // OS_K0_TO_PHYSICAL replaces OoT_osVirtualToPhysical, this replacement
     // assumes that only KSEG0 addresses are given
     HW_REG(AI_DRAM_ADDR_REG, u32) = OS_K0_TO_PHYSICAL(bufAdjusted);
     HW_REG(AI_LEN_REG, u32) = size;

@@ -10,28 +10,28 @@ void THGA_Dt(TwoHeadGfxArena* thga) {
     THA_Dt((TwoHeadArena*)thga);
 }
 
-u32 THGA_IsCrash(TwoHeadGfxArena* thga) {
-    return THA_IsCrash((TwoHeadArena*)thga);
+u32 OoT_THGA_IsCrash(TwoHeadGfxArena* thga) {
+    return OoT_THA_IsCrash((TwoHeadArena*)thga);
 }
 
-void THGA_Init(TwoHeadGfxArena* thga) {
-    THA_Init((TwoHeadArena*)thga);
+void OoT_THGA_Init(TwoHeadGfxArena* thga) {
+    OoT_THA_Init((TwoHeadArena*)thga);
 }
 
 s32 THGA_GetSize(TwoHeadGfxArena* thga) {
     return THA_GetSize((TwoHeadArena*)thga);
 }
 
-Gfx* THGA_GetHead(TwoHeadGfxArena* thga) {
-    return THA_GetHead((TwoHeadArena*)thga);
+Gfx* OoT_THGA_GetHead(TwoHeadGfxArena* thga) {
+    return OoT_THA_GetHead((TwoHeadArena*)thga);
 }
 
-void THGA_SetHead(TwoHeadGfxArena* thga, Gfx* start) {
-    THA_SetHead((TwoHeadArena*)thga, start);
+void OoT_THGA_SetHead(TwoHeadGfxArena* thga, Gfx* start) {
+    OoT_THA_SetHead((TwoHeadArena*)thga, start);
 }
 
-Gfx* THGA_GetTail(TwoHeadGfxArena* thga) {
-    return THA_GetTail((TwoHeadArena*)thga);
+Gfx* OoT_THGA_GetTail(TwoHeadGfxArena* thga) {
+    return OoT_THA_GetTail((TwoHeadArena*)thga);
 }
 
 Gfx* THGA_AllocStartArray8(TwoHeadGfxArena* thga, u32 count) {
@@ -66,15 +66,15 @@ Gfx* THGA_AllocEnd16(TwoHeadGfxArena* thga) {
     return THGA_AllocEnd(thga, 0x10);
 }
 
-void* THA_GetHead(TwoHeadArena* tha) {
+void* OoT_THA_GetHead(TwoHeadArena* tha) {
     return tha->head;
 }
 
-void THA_SetHead(TwoHeadArena* tha, void* start) {
+void OoT_THA_SetHead(TwoHeadArena* tha, void* start) {
     tha->head = start;
 }
 
-void* THA_GetTail(TwoHeadArena* tha) {
+void* OoT_THA_GetTail(TwoHeadArena* tha) {
     return tha->tail;
 }
 
@@ -122,11 +122,11 @@ s32 THA_GetSize(TwoHeadArena* tha) {
     return (uintptr_t)tha->tail - (uintptr_t)tha->head;
 }
 
-u32 THA_IsCrash(TwoHeadArena* tha) {
+u32 OoT_THA_IsCrash(TwoHeadArena* tha) {
     return THA_GetSize(tha) < 0;
 }
 
-void THA_Init(TwoHeadArena* tha) {
+void OoT_THA_Init(TwoHeadArena* tha) {
     tha->head = tha->bufp;
     tha->tail = (uintptr_t)tha->bufp + tha->size;
 }
@@ -134,7 +134,7 @@ void THA_Init(TwoHeadArena* tha) {
 void THA_Ct(TwoHeadArena* tha, void* ptr, size_t size) {
     tha->bufp = ptr;
     tha->size = size;
-    THA_Init(tha);
+    OoT_THA_Init(tha);
 }
 
 void THA_Dt(TwoHeadArena* tha) {

@@ -55,13 +55,13 @@ void EffectSsFcircle_Draw(PlayState* play, u32 index, EffectSs* this) {
     yScale = (this->rHeight * 0.001f) * scale;
     xzScale = (this->rRadius * 0.001f) * scale;
 
-    Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
-    Matrix_Scale(xzScale, yScale, xzScale, MTXMODE_APPLY);
+    OoT_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
+    OoT_Matrix_Scale(xzScale, yScale, xzScale, MTXMODE_APPLY);
     Matrix_RotateY(this->rYaw * (M_PI / 0x8000), MTXMODE_APPLY);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, play->gameplayFrames % 128, 0, 32, 64, 1, 0,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, play->gameplayFrames % 128, 0, 32, 64, 1, 0,
                                 ((play->gameplayFrames) * -0xF) % 256, 32, 64));
     gDPSetPrimColor(POLY_XLU_DISP++, 0x80, 0x80, 255, 220, 0, (this->life * 12.75f));
     gDPSetEnvColor(POLY_XLU_DISP++, 255, 0, 0, 0);
@@ -86,7 +86,7 @@ void EffectSsFcircle_Update(PlayState* play, u32 index, EffectSs* this) {
                 this->life = actor->colorFilterTimer;
             }
 
-            Math_StepToS(&this->rScale, 100, 20);
+            OoT_Math_StepToS(&this->rScale, 100, 20);
         } else {
             this->actor = NULL;
         }

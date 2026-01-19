@@ -56,7 +56,7 @@ ActorProfile En_Kbt_Profile = {
 static JointIndex* origIndicies_004274;
 
 // #region 2S2H [Port] This data originally stopped at the the entry { 0x000A, 0x000B, 0x000C }.
-// The next 3 entries are set to zero because using the data the original game would have read would also have caused an
+// The next 3 entries are set to MM_zero because using the data the original game would have read would also have caused an
 // OOB read
 static JointIndex object_kbt_Anim_004274JointIndicesFixed[] = {
     { 0x0000, 0x000D, 0x0002 }, { 0x0003, 0x002B, 0x0003 }, { 0x0049, 0x0067, 0x0085 }, { 0x0000, 0x0000, 0x00A3 },
@@ -70,21 +70,21 @@ static JointIndex object_kbt_Anim_004274JointIndicesFixed[] = {
 void EnKbt_Init(Actor* thisx, PlayState* play) {
     EnKbt* this = (EnKbt*)thisx;
 
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     // #region 2S2H [Port] The animation object_kbt_Anim_004274 has the wrong number of joint indicies. It should have
     // 20 but only has 17. We need to do the following steps to correct this. First we must tell the animation system to
     // not load the animation when it initializes the skeleton. Then we must manually load the animation and change the
     // joint index data see the static JointIndex data above for what we used for the data. Finally we manually set the
     // animation
 
-    SkelAnime_InitFlex(play, &this->skelAnime, &object_kbt_Skel_00DEE8, NULL, this->jointTable, this->morphTable,
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &object_kbt_Skel_00DEE8, NULL, this->jointTable, this->morphTable,
                        OBJECT_KBT_LIMB_MAX);
 
     AnimationHeader* anim = (AnimationHeader*)ResourceMgr_LoadAnimByName(object_kbt_Anim_004274);
 
     origIndicies_004274 = anim->jointIndices;
     anim->jointIndices = object_kbt_Anim_004274JointIndicesFixed;
-    Animation_PlayLoop(&this->skelAnime, object_kbt_Anim_004274);
+    MM_Animation_PlayLoop(&this->skelAnime, object_kbt_Anim_004274);
     // #endregion
 
     this->unk_27C = 0;
@@ -137,7 +137,7 @@ s32 func_80B33E8C(PlayState* play) {
 }
 
 void EnKbt_ChangeAnim(EnKbt* this, s16 animIndex) {
-    static AnimationHeader* sAnimations[ENKBT_ANIM_MAX] = {
+    static AnimationHeader* MM_sAnimations[ENKBT_ANIM_MAX] = {
         &object_kbt_Anim_000670, // ENKBT_ANIM_0
         &object_kbt_Anim_001674, // ENKBT_ANIM_1
         &object_kbt_Anim_002084, // ENKBT_ANIM_2
@@ -170,12 +170,12 @@ void EnKbt_ChangeAnim(EnKbt* this, s16 animIndex) {
 
     if (this->animIndex != animIndex) {
         if (animIndex >= ENKBT_ANIM_12) {
-            Animation_Change(&this->skelAnime, sAnimations[animIndex], -1.0f,
-                             Animation_GetLastFrame(sAnimations[animIndex]) - 1.0f, 0.0f, animationModes[animIndex],
+            MM_Animation_Change(&this->skelAnime, MM_sAnimations[animIndex], -1.0f,
+                             MM_Animation_GetLastFrame(MM_sAnimations[animIndex]) - 1.0f, 0.0f, animationModes[animIndex],
                              -5.0f);
         } else {
-            Animation_Change(&this->skelAnime, sAnimations[animIndex], 1.0f, 0.0f,
-                             Animation_GetLastFrame(sAnimations[animIndex]), animationModes[animIndex], -5.0f);
+            MM_Animation_Change(&this->skelAnime, MM_sAnimations[animIndex], 1.0f, 0.0f,
+                             MM_Animation_GetLastFrame(MM_sAnimations[animIndex]), animationModes[animIndex], -5.0f);
         }
         this->animIndex = animIndex;
     }
@@ -195,7 +195,7 @@ Actor* func_80B3403C(PlayState* play) {
 }
 
 void func_80B34078(EnKbt* this) {
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (MM_SkelAnime_Update(&this->skelAnime)) {
         if (this->unk_284 > 0) {
             this->unk_284--;
         } else {
@@ -630,7 +630,7 @@ void EnKbt_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot,
     EnKbt* this = (EnKbt*)thisx;
 
     if (limbIndex == OBJECT_KBT_LIMB_09) {
-        Matrix_MultVec3f(&D_80B34B84, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&D_80B34B84, &this->actor.focus.pos);
     }
 }
 
@@ -664,6 +664,6 @@ void EnKbt_Draw(Actor* thisx, PlayState* play) {
 
     CLOSE_DISPS(play->state.gfxCtx);
 
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnKbt_OverrideLimbDraw, EnKbt_PostLimbDraw, &this->actor);
 }

@@ -38,16 +38,16 @@ void ObjKzsaku_Init(Actor* thisx, PlayState* play) {
     ObjKzsaku* this = (ObjKzsaku*)thisx;
     CollisionHeader* col = NULL;
 
-    Actor_SetScale(&this->dyna.actor, 1.0f);
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
-    CollisionHeader_GetVirtual(&gUnderwaterGrateCol, &col);
+    MM_Actor_SetScale(&this->dyna.actor, 1.0f);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_CollisionHeader_GetVirtual(&gUnderwaterGrateCol, &col);
 
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, col);
+    this->dyna.bgId = MM_DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, col);
 
     this->switchFlag = KZSAKU_GET_SWITCH_FLAG(thisx);
     this->raisedAmount = 0.0f;
 
-    if (Flags_GetSwitch(play, this->switchFlag)) {
+    if (MM_Flags_GetSwitch(play, this->switchFlag)) {
         func_80C08C84(this);
     } else {
         ObjKzsaku_SetupIdle(this);
@@ -57,7 +57,7 @@ void ObjKzsaku_Init(Actor* thisx, PlayState* play) {
 void ObjKzsaku_Destroy(Actor* thisx, PlayState* play) {
     ObjKzsaku* this = (ObjKzsaku*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void ObjKzsaku_SetupIdle(ObjKzsaku* this) {
@@ -66,7 +66,7 @@ void ObjKzsaku_SetupIdle(ObjKzsaku* this) {
 }
 
 void ObjKzsaku_Idle(ObjKzsaku* this, PlayState* play) {
-    if (Flags_GetSwitch(play, this->switchFlag)) {
+    if (MM_Flags_GetSwitch(play, this->switchFlag)) {
         func_80C08BBC(this);
     }
 }

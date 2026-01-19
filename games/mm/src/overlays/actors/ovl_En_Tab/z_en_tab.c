@@ -239,7 +239,7 @@ ActorProfile En_Tab_Profile = {
     /**/ EnTab_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HIT1,
         AT_NONE,
@@ -259,7 +259,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 14, 62, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 MM_sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
 
 Actor* EnTab_FindActor(EnTab* this, PlayState* play, u8 actorCategory, s16 actorId) {
     Actor* actorIter = NULL;
@@ -287,7 +287,7 @@ Actor* EnTab_FindActor(EnTab* this, PlayState* play, u8 actorCategory, s16 actor
 
 void EnTab_UpdateSkelAnime(EnTab* this) {
     this->skelAnime.playSpeed = this->animPlaySpeed;
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 }
 
 typedef enum EnTabAnimation {
@@ -297,7 +297,7 @@ typedef enum EnTabAnimation {
     /*  2 */ ENTAB_ANIM_MAX
 } EnTabAnimation;
 
-static AnimationInfoS sAnimationInfo[ENTAB_ANIM_MAX] = {
+static AnimationInfoS MM_sAnimationInfo[ENTAB_ANIM_MAX] = {
     { &gBartenIdleAnim, 1.0f, 0, -1, ANIMMODE_LOOP, 0 },           // ENTAB_ANIM_0
     { &gBartenIdleBarCounterAnim, 1.0f, 0, -1, ANIMMODE_LOOP, 0 }, // ENTAB_ANIM_1
 };
@@ -312,7 +312,7 @@ s32 EnTab_ChangeAnim(EnTab* this, s32 animIndex) {
 
     if (changeAnim) {
         this->animIndex = animIndex;
-        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, animIndex);
+        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, animIndex);
         this->animPlaySpeed = this->skelAnime.playSpeed;
     }
     return didAnimChange;
@@ -321,15 +321,15 @@ s32 EnTab_ChangeAnim(EnTab* this, s32 animIndex) {
 void func_80BE0620(EnTab* this, PlayState* play) {
     s32 pad;
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void func_80BE0664(EnTab* this) {
     if (DECR(this->unk_31C) == 0) {
         this->unk_31E++;
         if (this->unk_31E > 3) {
-            this->unk_31C = Rand_S16Offset(30, 30);
+            this->unk_31C = MM_Rand_S16Offset(30, 30);
             this->unk_31E = 0;
         }
     }
@@ -368,27 +368,27 @@ void func_80BE07A0(EnTab* this) {
     Vec3f sp34;
     s16 sp32;
 
-    Math_Vec3f_Copy(&sp40, &this->unk_1E0->world.pos);
-    Math_Vec3f_Copy(&sp34, &this->actor.world.pos);
-    sp32 = Math_Vec3f_Yaw(&sp34, &sp40);
+    MM_Math_Vec3f_Copy(&sp40, &this->unk_1E0->world.pos);
+    MM_Math_Vec3f_Copy(&sp34, &this->actor.world.pos);
+    sp32 = MM_Math_Vec3f_Yaw(&sp34, &sp40);
 
-    Math_ApproachS(&this->unk_314, (sp32 - this->unk_318) - this->actor.shape.rot.y, 4, 0x2AA8);
+    MM_Math_ApproachS(&this->unk_314, (sp32 - this->unk_318) - this->actor.shape.rot.y, 4, 0x2AA8);
     this->unk_314 = CLAMP(this->unk_314, -0x1FFE, 0x1FFE);
 
-    Math_ApproachS(&this->unk_318, (sp32 - this->unk_314) - this->actor.shape.rot.y, 4, 0x2AA8);
+    MM_Math_ApproachS(&this->unk_318, (sp32 - this->unk_314) - this->actor.shape.rot.y, 4, 0x2AA8);
     this->unk_318 = CLAMP(this->unk_318, -0x1C70, 0x1C70);
 
-    Math_Vec3f_Copy(&sp34, &this->actor.focus.pos);
+    MM_Math_Vec3f_Copy(&sp34, &this->actor.focus.pos);
     if (this->unk_1E0->id == ACTOR_PLAYER) {
         sp40.y = ((Player*)this->unk_1E0)->bodyPartsPos[PLAYER_BODYPART_HEAD].y + 3.0f;
     } else {
-        Math_Vec3f_Copy(&sp40, &this->unk_1E0->focus.pos);
+        MM_Math_Vec3f_Copy(&sp40, &this->unk_1E0->focus.pos);
     }
 
-    Math_ApproachS(&this->unk_312, Math_Vec3f_Pitch(&sp34, &sp40) - this->unk_316, 4, 0x2AA8);
+    MM_Math_ApproachS(&this->unk_312, MM_Math_Vec3f_Pitch(&sp34, &sp40) - this->unk_316, 4, 0x2AA8);
     this->unk_312 = CLAMP(this->unk_312, -0x1554, 0x1554);
 
-    Math_ApproachS(&this->unk_316, Math_Vec3f_Pitch(&sp34, &sp40) - this->unk_312, 4, 0x2AA8);
+    MM_Math_ApproachS(&this->unk_316, MM_Math_Vec3f_Pitch(&sp34, &sp40) - this->unk_312, 4, 0x2AA8);
     this->unk_316 = CLAMP(this->unk_316, -0xE38, 0xE38);
 }
 
@@ -414,12 +414,12 @@ void func_80BE09A8(EnTab* this, PlayState* play) {
 
 void func_80BE0A98(EnTab* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
-    s32 talkState = Message_GetState(&play->msgCtx);
+    s32 talkState = MM_Message_GetState(&play->msgCtx);
 
     this->unk_308 += (this->unk_304 != 0.0f) ? 40.0f : -40.0f;
     this->unk_308 = CLAMP(this->unk_308, 0.0f, 80.0f);
 
-    Matrix_Translate(this->unk_308, 0.0f, 0.0f, MTXMODE_APPLY);
+    MM_Matrix_Translate(this->unk_308, 0.0f, 0.0f, MTXMODE_APPLY);
 
     if ((&this->actor == player->talkActor) &&
         ((play->msgCtx.currentTextId < 0xFF) || (play->msgCtx.currentTextId > 0x200)) &&
@@ -445,29 +445,29 @@ s32 func_80BE0C04(EnTab* this, Actor* actor, f32 arg2) {
     s16 sp2E;
 
     if (actor != NULL) {
-        Math_Vec3f_Copy(&sp38, &this->actor.world.pos);
-        Math_Vec3f_Copy(&sp44, &actor->world.pos);
-        sp2E = Math_Vec3f_Yaw(&sp38, &sp44);
+        MM_Math_Vec3f_Copy(&sp38, &this->actor.world.pos);
+        MM_Math_Vec3f_Copy(&sp44, &actor->world.pos);
+        sp2E = MM_Math_Vec3f_Yaw(&sp38, &sp44);
 
         if (this->unk_338) {
             sp30 = arg2;
         } else {
             sp30 = arg2 * 0.5f;
         }
-        if ((Math_Vec3f_DistXZ(&sp44, &sp38) < sp30) && (ABS_ALT(BINANG_SUB(sp2E, this->actor.shape.rot.y)) < 0x38E0)) {
+        if ((MM_Math_Vec3f_DistXZ(&sp44, &sp38) < sp30) && (ABS_ALT(BINANG_SUB(sp2E, this->actor.shape.rot.y)) < 0x38E0)) {
             ret = true;
         }
 
         if (DECR(this->unk_322) == 0) {
             this->unk_338 ^= true;
-            this->unk_322 = Rand_S16Offset(60, 60);
+            this->unk_322 = MM_Rand_S16Offset(60, 60);
         }
     }
     return ret;
 }
 
 s32 func_80BE0D38(Actor* thisx, PlayState* play) {
-    return Inventory_HasEmptyBottle();
+    return MM_Inventory_HasEmptyBottle();
 }
 
 s32 func_80BE0D60(Actor* thisx, PlayState* play) {
@@ -495,7 +495,7 @@ MsgScript* EnTab_GetMsgScript(EnTab* this, PlayState* play) {
     switch (this->scheduleResult) {
         case 2:
             this->msgScriptCallback = func_80BE0D38;
-            if (Player_GetMask(play) != PLAYER_MASK_ROMANI) {
+            if (MM_Player_GetMask(play) != PLAYER_MASK_ROMANI) {
                 return D_80BE1998;
             }
 
@@ -506,11 +506,11 @@ MsgScript* EnTab_GetMsgScript(EnTab* this, PlayState* play) {
 
         case 1:
             this->msgScriptCallback = func_80BE0D60;
-            if (Player_GetMask(play) == PLAYER_MASK_ROMANI) {
+            if (MM_Player_GetMask(play) == PLAYER_MASK_ROMANI) {
                 return D_80BE1940;
             }
 
-            if (Player_GetMask(play) == PLAYER_MASK_KAFEIS_MASK) {
+            if (MM_Player_GetMask(play) == PLAYER_MASK_KAFEIS_MASK) {
                 return D_80BE1970;
             }
             return D_80BE1914;
@@ -526,7 +526,7 @@ s32 func_80BE0F04(EnTab* this, PlayState* play, ScheduleOutput* scheduleOutput) 
     EnGm* sp28 = (EnGm*)EnTab_FindActor(this, play, ACTORCAT_NPC, ACTOR_EN_GM);
 
     if (sp28) {
-        Math_Vec3f_Copy(&this->actor.world.pos, &D_80BE1AF0);
+        MM_Math_Vec3f_Copy(&this->actor.world.pos, &D_80BE1AF0);
         Math_Vec3s_Copy(&this->actor.world.rot, &D_80BE1AFC);
         Math_Vec3s_Copy(&this->actor.shape.rot, &this->actor.world.rot);
         this->actor.attentionRangeType = ATTENTION_RANGE_0;
@@ -545,7 +545,7 @@ s32 func_80BE0FC4(EnTab* this, PlayState* play, ScheduleOutput* scheduleOutput) 
     static Vec3s D_80BE1B10 = { 0, 0xC000, 0 };
     s32 pad;
 
-    Math_Vec3f_Copy(&this->actor.world.pos, &D_80BE1B04);
+    MM_Math_Vec3f_Copy(&this->actor.world.pos, &D_80BE1B04);
     Math_Vec3s_Copy(&this->actor.world.rot, &D_80BE1B10);
     Math_Vec3s_Copy(&this->actor.shape.rot, &this->actor.world.rot);
     this->actor.attentionRangeType = ATTENTION_RANGE_6;
@@ -590,7 +590,7 @@ s32 func_80BE10BC(EnTab* this, PlayState* play) {
                 this->actor.child = &this->unk_1E4->actor;
                 this->unk_2FC |= 8;
             } else {
-                dist = Math_Vec3f_DistXYZ(&this->actor.world.pos, &this->unk_1E4->actor.world.pos);
+                dist = MM_Math_Vec3f_DistXYZ(&this->actor.world.pos, &this->unk_1E4->actor.world.pos);
 
                 if (CHECK_WEEKEVENTREG(WEEKEVENTREG_75_01) || (this->unk_1E4->actor.draw == NULL) || !(dist < 160.0f)) {
                     tempActor = &GET_PLAYER(play)->actor;
@@ -624,7 +624,7 @@ void func_80BE1224(EnTab* this, PlayState* play) {
     if ((this->scheduleResult == 1) || (this->scheduleResult == 2)) {
         func_80BE10BC(this, play);
     }
-    Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 3, 0x2AA8);
+    MM_Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 3, 0x2AA8);
 }
 
 void func_80BE127C(EnTab* this, PlayState* play) {
@@ -638,7 +638,7 @@ void func_80BE127C(EnTab* this, PlayState* play) {
         this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
         scheduleOutput.result = 0;
     } else {
-        this->actor.shape.shadowDraw = ActorShadow_DrawCircle;
+        this->actor.shape.shadowDraw = MM_ActorShadow_DrawCircle;
         this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
     }
     this->scheduleResult = scheduleOutput.result;
@@ -659,22 +659,22 @@ void func_80BE1348(EnTab* this, PlayState* play) {
         this->msgScriptPos = 0;
         this->actionFunc = func_80BE127C;
     } else if (this->unk_1E0 != 0) {
-        Math_Vec3f_Copy(&sp40, &this->unk_1E0->world.pos);
-        Math_Vec3f_Copy(&sp34, &this->actor.world.pos);
-        Math_ApproachS(&this->actor.shape.rot.y, Math_Vec3f_Yaw(&sp34, &sp40), 4, 0x2AA8);
+        MM_Math_Vec3f_Copy(&sp40, &this->unk_1E0->world.pos);
+        MM_Math_Vec3f_Copy(&sp34, &this->actor.world.pos);
+        MM_Math_ApproachS(&this->actor.shape.rot.y, MM_Math_Vec3f_Yaw(&sp34, &sp40), 4, 0x2AA8);
     }
 }
 
 void EnTab_Init(Actor* thisx, PlayState* play) {
     EnTab* this = (EnTab*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 14.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gBartenSkel, NULL, this->jointTable, this->morphTable, BARTEN_LIMB_MAX);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 14.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gBartenSkel, NULL, this->jointTable, this->morphTable, BARTEN_LIMB_MAX);
     this->animIndex = ENTAB_ANIM_NONE;
     EnTab_ChangeAnim(this, ENTAB_ANIM_0);
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, DamageTable_Get(0x16), &sColChkInfoInit);
-    Actor_SetScale(&this->actor, 0.01f);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, MM_DamageTable_Get(0x16), &MM_sColChkInfoInit);
+    MM_Actor_SetScale(&this->actor, 0.01f);
 
     this->scheduleResult = 0;
     this->msgScriptCallback = NULL;
@@ -689,7 +689,7 @@ void EnTab_Init(Actor* thisx, PlayState* play) {
 void EnTab_Destroy(Actor* thisx, PlayState* play) {
     EnTab* this = (EnTab*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnTab_Update(Actor* thisx, PlayState* play) {
@@ -711,7 +711,7 @@ void EnTab_Update(Actor* thisx, PlayState* play) {
 
         SubS_Offer(&this->actor, play, radius, height, PLAYER_IA_NONE, this->unk_2FC & SUBS_OFFER_MODE_MASK);
         Actor_MoveWithGravity(&this->actor);
-        Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 12.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+        MM_Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 12.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
         func_80BE0620(this, play);
     }
 }
@@ -734,7 +734,7 @@ void EnTab_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot,
     EnTab* this = (EnTab*)thisx;
 
     if (limbIndex == BARTEN_LIMB_HEAD) {
-        Matrix_MultVec3f(&D_80BE1B18, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&D_80BE1B18, &this->actor.focus.pos);
         Math_Vec3s_Copy(&this->actor.focus.rot, &this->actor.world.rot);
     }
 }
@@ -760,18 +760,18 @@ void EnTab_TransformLimbDraw(PlayState* play, s32 limbIndex, Actor* thisx) {
         SubS_UpdateLimb(BINANG_ADD(this->unk_312 + this->unk_316, 0x4000),
                         BINANG_ADD(this->unk_314 + this->unk_318 + this->actor.shape.rot.y, 0x4000), this->unk_1E8,
                         this->unk_200, rotStep, overrideStep);
-        Matrix_Pop();
-        Matrix_Translate(this->unk_1E8[0].x, this->unk_1E8[0].y, this->unk_1E8[0].z, MTXMODE_NEW);
-        Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+        MM_Matrix_Pop();
+        MM_Matrix_Translate(this->unk_1E8[0].x, this->unk_1E8[0].y, this->unk_1E8[0].z, MTXMODE_NEW);
+        MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
         Matrix_RotateYS(this->unk_200[0].y, MTXMODE_APPLY);
         Matrix_RotateXS(this->unk_200[0].x, MTXMODE_APPLY);
         Matrix_RotateZS(this->unk_200[0].z, MTXMODE_APPLY);
-        Matrix_Push();
+        MM_Matrix_Push();
     }
 }
 
 void EnTab_Draw(Actor* thisx, PlayState* play) {
-    static TexturePtr sEyeTextures[] = {
+    static TexturePtr MM_sEyeTextures[] = {
         gBartenEyeOpenTex,
         gBartenEyeHalfOpenTex,
         gBartenEyeClosedTex,
@@ -784,7 +784,7 @@ void EnTab_Draw(Actor* thisx, PlayState* play) {
 
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-        gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sEyeTextures[this->unk_31E]));
+        gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->unk_31E]));
 
         SkelAnime_DrawTransformFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                        this->skelAnime.dListCount, EnTab_OverrideLimbDraw, EnTab_PostLimbDraw,

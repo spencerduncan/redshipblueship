@@ -9,7 +9,7 @@
 s16 sPromptAlphaTargets[] = { 100, 255 };
 
 // Unused remnant of OoT
-void KaleidoScope_UpdatePrompt(PlayState* play) {
+void MM_KaleidoScope_UpdatePrompt(PlayState* play) {
     static s16 sPromptAlphaTargetIndex = 0;
     static s16 sPromptAlphaTimer = 10;
     PauseContext* pauseCtx = &play->pauseCtx;

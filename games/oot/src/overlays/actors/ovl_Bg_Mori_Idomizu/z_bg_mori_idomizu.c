@@ -51,7 +51,7 @@ void BgMoriIdomizu_Init(Actor* thisx, PlayState* play) {
     BgMoriIdomizu* this = (BgMoriIdomizu*)thisx;
 
     if (sKankyoIsSpawned) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
     this->actor.scale.x = 1.1f;
@@ -59,7 +59,7 @@ void BgMoriIdomizu_Init(Actor* thisx, PlayState* play) {
     this->actor.scale.z = 1.0f;
     this->actor.world.pos.x = 119.0f;
     this->actor.world.pos.z = -1820.0f;
-    this->prevSwitchFlagSet = Flags_GetSwitch(play, this->actor.params & 0x3F);
+    this->prevSwitchFlagSet = OoT_Flags_GetSwitch(play, this->actor.params & 0x3F);
     if (this->prevSwitchFlagSet != 0) {
         this->actor.world.pos.y = -282.0f;
         BgMoriIdomizu_SetWaterLevel(play, -282);
@@ -69,7 +69,7 @@ void BgMoriIdomizu_Init(Actor* thisx, PlayState* play) {
     }
     this->moriTexObjIndex = Object_GetIndex(&play->objectCtx, OBJECT_MORI_TEX);
     if (this->moriTexObjIndex < 0) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         // "Bank danger!"
         osSyncPrintf("Error : バンク危険！(arg_data 0x%04x)(%s %d)\n", this->actor.params, __FILE__, __LINE__);
         return;
@@ -96,7 +96,7 @@ void BgMoriIdomizu_SetupWaitForMoriTex(BgMoriIdomizu* this) {
 }
 
 void BgMoriIdomizu_WaitForMoriTex(BgMoriIdomizu* this, PlayState* play) {
-    if (Object_IsLoaded(&play->objectCtx, this->moriTexObjIndex)) {
+    if (OoT_Object_IsLoaded(&play->objectCtx, this->moriTexObjIndex)) {
         BgMoriIdomizu_SetupMain(this);
         this->actor.draw = BgMoriIdomizu_Draw;
     }
@@ -112,7 +112,7 @@ void BgMoriIdomizu_Main(BgMoriIdomizu* this, PlayState* play) {
     s32 switchFlagSet;
 
     roomNum = play->roomCtx.curRoom.num;
-    switchFlagSet = Flags_GetSwitch(play, thisx->params & 0x3F);
+    switchFlagSet = OoT_Flags_GetSwitch(play, thisx->params & 0x3F);
     if (switchFlagSet) {
         this->targetWaterLevel = -282.0f;
     } else {
@@ -129,7 +129,7 @@ void BgMoriIdomizu_Main(BgMoriIdomizu* this, PlayState* play) {
     this->drainTimer--;
     if ((roomNum == 7) || (roomNum == 8) || (roomNum == 9)) {
         if (this->drainTimer < 70) {
-            Math_StepToF(&thisx->world.pos.y, this->targetWaterLevel, 3.5f);
+            OoT_Math_StepToF(&thisx->world.pos.y, this->targetWaterLevel, 3.5f);
             BgMoriIdomizu_SetWaterLevel(play, thisx->world.pos.y);
             if (this->drainTimer > 0) {
                 if (switchFlagSet) {
@@ -142,7 +142,7 @@ void BgMoriIdomizu_Main(BgMoriIdomizu* this, PlayState* play) {
     } else {
         thisx->world.pos.y = this->targetWaterLevel;
         BgMoriIdomizu_SetWaterLevel(play, thisx->world.pos.y);
-        Actor_Kill(thisx);
+        OoT_Actor_Kill(thisx);
         return;
     }
     this->prevSwitchFlagSet = switchFlagSet;
@@ -173,7 +173,7 @@ void BgMoriIdomizu_Draw(Actor* thisx, PlayState* play) {
     gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 0, 128);
 
     gSPSegment(POLY_XLU_DISP++, 0x09,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0x7F - (gameplayFrames & 0x7F), gameplayFrames % 0x80, 0x20,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0x7F - (gameplayFrames & 0x7F), gameplayFrames % 0x80, 0x20,
                                 0x20, 1, gameplayFrames & 0x7F, gameplayFrames % 0x80, 0x20, 0x20));
 
     gSPDisplayList(POLY_XLU_DISP++, gMoriIdomizuWaterDL);

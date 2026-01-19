@@ -37,13 +37,13 @@ void EnTest5_Init(Actor* thisx, PlayState* play2) {
     f32 ySurface;
 
     // If not spawned above a water source, immediately despawn
-    if (!WaterBox_GetSurface1(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &ySurface,
+    if (!MM_WaterBox_GetSurface1(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &ySurface,
                               &waterBox)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
-    Math_Vec3s_ToVec3f(&this->minPos, &waterBox->minPos);
+    MM_Math_Vec3s_ToVec3f(&this->minPos, &waterBox->minPos);
     this->xLength = (f32)waterBox->xLength;
     this->zLength = (f32)waterBox->zLength;
 
@@ -57,7 +57,7 @@ void EnTest5_HandleBottleAction(EnTest5* this, PlayState* play) {
     Player* player;
     Vec3f playerPosRelativeToWater;
 
-    if (Actor_HasParent(&this->actor, play)) {
+    if (MM_Actor_HasParent(&this->actor, play)) {
         this->actor.parent = NULL;
         return;
     }
@@ -65,13 +65,13 @@ void EnTest5_HandleBottleAction(EnTest5* this, PlayState* play) {
     player = GET_PLAYER(play);
 
     if ((player->interactRangeActor == NULL) || (player->getItemId != GI_MAX)) {
-        Math_Vec3f_DistXYZAndStoreDiff(&this->minPos, &player->actor.world.pos, &playerPosRelativeToWater);
+        MM_Math_Vec3f_DistXYZAndStoreDiff(&this->minPos, &player->actor.world.pos, &playerPosRelativeToWater);
 
         // Make sure that the player is within the bounds of the water and deep enough to grab some
         if ((playerPosRelativeToWater.x >= 0.0f) && (playerPosRelativeToWater.x <= this->xLength) &&
             (playerPosRelativeToWater.z >= 0.0f) && (playerPosRelativeToWater.z <= this->zLength) &&
             (fabsf(playerPosRelativeToWater.y) < 100.0f) && (player->actor.depthInWater > 12.0f)) {
-            Actor_OfferGetItem(&this->actor, play, GI_MAX, this->actor.xzDistToPlayer,
+            MM_Actor_OfferGetItem(&this->actor, play, GI_MAX, this->actor.xzDistToPlayer,
                                fabsf(this->actor.playerHeightRel));
         }
     }
@@ -88,11 +88,11 @@ void EnTest5_Update(Actor* thisx, PlayState* play2) {
 
     // If it's the hot spring variant, generate steam clouds
     if (ENTEST5_IS_HOT_SPRING(&this->actor) && ((play->state.frames % 4) == 0)) {
-        steamPos.x = this->minPos.x + (Rand_ZeroOne() * this->xLength);
+        steamPos.x = this->minPos.x + (MM_Rand_ZeroOne() * this->xLength);
         steamPos.y = this->minPos.y + 100.0f;
-        steamPos.z = this->minPos.z + (Rand_ZeroOne() * this->zLength);
+        steamPos.z = this->minPos.z + (MM_Rand_ZeroOne() * this->zLength);
 
-        if ((BgCheck_EntityRaycastFloor2(play, &play->colCtx, &poly, &steamPos) + 10.0f) < this->minPos.y) {
+        if ((MM_BgCheck_EntityRaycastFloor2(play, &play->colCtx, &poly, &steamPos) + 10.0f) < this->minPos.y) {
             Vec3f steamVel;
 
             steamPos.y = this->minPos.y + 10.0f;
@@ -100,7 +100,7 @@ void EnTest5_Update(Actor* thisx, PlayState* play2) {
             steamVel.x = 0.0f;
             steamVel.z = 0.0f;
 
-            EffectSsIceSmoke_Spawn(play, &steamPos, &steamVel, &gZeroVec3f, -200 - (s32)(Rand_ZeroOne() * 50.0f));
+            MM_EffectSsIceSmoke_Spawn(play, &steamPos, &steamVel, &gZeroVec3f, -200 - (s32)(MM_Rand_ZeroOne() * 50.0f));
         }
     }
 }

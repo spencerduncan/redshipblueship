@@ -1,7 +1,7 @@
 #include "global.h"
 #include "soh/Enhancements/enhancementTypes.h"
 
-u16 sReactionTextIds[][PLAYER_MASK_MAX] = {
+u16 OoT_sReactionTextIds[][PLAYER_MASK_MAX] = {
     { 0x0000, 0x7124, 0x7127, 0x7126, 0x7125, 0x7127, 0x7124, 0x7125, 0x7127 },
     { 0x0000, 0x7128, 0x7129, 0x7128, 0x7128, 0x7128, 0x7128, 0x712A, 0x712B },
     { 0x0000, 0x7128, 0x712B, 0x7128, 0x7128, 0x7129, 0x7128, 0x712B, 0x7128 },
@@ -64,13 +64,13 @@ u16 sReactionTextIds[][PLAYER_MASK_MAX] = {
     { 0x0000, 0x7104, 0x7105, 0x7107, 0x7105, 0x710C, 0x7105, 0x7107, 0x7107 },
 };
 
-u16 Text_GetFaceReaction(PlayState* play, u32 reactionSet) {
-    u8 currentMask = Player_GetMask(play);
+u16 OoT_Text_GetFaceReaction(PlayState* play, u32 reactionSet) {
+    u8 currentMask = OoT_Player_GetMask(play);
 
     if (CVarGetInteger(CVAR_ENHANCEMENT("MMBunnyHood"), BUNNY_HOOD_VANILLA) != BUNNY_HOOD_VANILLA &&
         currentMask == PLAYER_MASK_BUNNY) {
         return 0;
     } else {
-        return sReactionTextIds[reactionSet][currentMask];
+        return OoT_sReactionTextIds[reactionSet][currentMask];
     }
 }

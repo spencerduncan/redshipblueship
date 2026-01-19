@@ -50,14 +50,14 @@ void BgF40Switch_CheckAll(BgF40Switch* this, PlayState* play) {
         s32 isPressed;
         Actor* actor;
         BgF40Switch* actorAsSwitch;
-        u32 inCsMode = Player_InCsMode(play);
+        u32 inCsMode = MM_Player_InCsMode(play);
 
         for (actor = play->actorCtx.actorLists[ACTORCAT_SWITCH].first; actor != NULL; actor = actor->next) {
             if ((actor->id == ACTOR_BG_F40_SWITCH) && (actor->room == this->dyna.actor.room) &&
                 (actor->update != NULL)) {
                 actorAsSwitch = (BgF40Switch*)actor;
                 actorAsSwitch->wasPressed = actorAsSwitch->isPressed;
-                isPressed = DynaPolyActor_IsSwitchPressed(&actorAsSwitch->dyna);
+                isPressed = MM_DynaPolyActor_IsSwitchPressed(&actorAsSwitch->dyna);
                 if (actorAsSwitch->isPressed && (actorAsSwitch->actionFunc == BgF40Switch_IdlePressed)) {
                     // Switch is fully pressed - if there's nothing keeping it pressed, wait a short time before
                     // reverting to unpressed state.
@@ -77,7 +77,7 @@ void BgF40Switch_CheckAll(BgF40Switch* this, PlayState* play) {
                     if ((switchFlag > SWITCH_FLAG_NONE) && (switchFlag < 0x80)) {
                         pressedSwitchFlags[(switchFlag & ~0x1F) >> 5] |= 1 << (switchFlag & 0x1F);
                         if (!actorAsSwitch->wasPressed && (actorAsSwitch->actionFunc == BgF40Switch_IdleUnpressed) &&
-                            !Flags_GetSwitch(play, switchFlag)) {
+                            !MM_Flags_GetSwitch(play, switchFlag)) {
                             actorAsSwitch->isInitiator = true;
                         }
                     }
@@ -88,9 +88,9 @@ void BgF40Switch_CheckAll(BgF40Switch* this, PlayState* play) {
             if ((actor->id == ACTOR_BG_F40_SWITCH) && (actor->room == this->dyna.actor.room) &&
                 (actor->update != NULL)) {
                 switchFlag = BGF40SWITCH_GET_SWITCH_FLAG(actor);
-                if ((switchFlag > SWITCH_FLAG_NONE) && (switchFlag < 0x80) && Flags_GetSwitch(play, switchFlag) &&
+                if ((switchFlag > SWITCH_FLAG_NONE) && (switchFlag < 0x80) && MM_Flags_GetSwitch(play, switchFlag) &&
                     !(pressedSwitchFlags[(switchFlag & ~0x1F) >> 5] & (1 << (switchFlag & 0x1F)))) {
-                    Flags_UnsetSwitch(play, switchFlag);
+                    MM_Flags_UnsetSwitch(play, switchFlag);
                 }
             }
         }
@@ -98,7 +98,7 @@ void BgF40Switch_CheckAll(BgF40Switch* this, PlayState* play) {
     }
 }
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 200, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 200, ICHAIN_CONTINUE),
@@ -108,11 +108,11 @@ static InitChainEntry sInitChain[] = {
 void BgF40Switch_Init(Actor* thisx, PlayState* play) {
     BgF40Switch* this = (BgF40Switch*)thisx;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
     this->dyna.actor.scale.y = 0.165f;
     this->actionFunc = BgF40Switch_IdleUnpressed;
     this->dyna.actor.world.pos.y = this->dyna.actor.home.pos.y + 1.0f;
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
     DynaPolyActor_LoadMesh(play, &this->dyna, &gStoneTowerFloorSwitchCol);
     if (!sBgF40SwitchGlobalsInitialized) {
         sBgF40SwitchLastUpdateFrame = play->gameplayFrames;
@@ -123,7 +123,7 @@ void BgF40Switch_Init(Actor* thisx, PlayState* play) {
 void BgF40Switch_Destroy(Actor* thisx, PlayState* play) {
     BgF40Switch* this = (BgF40Switch*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void BgF40Switch_Unpress(BgF40Switch* this, PlayState* play) {
@@ -160,13 +160,13 @@ void BgF40Switch_WaitToPress(BgF40Switch* this, PlayState* play) {
     if (!this->isInitiator || (this->dyna.actor.csId == CS_ID_NONE)) {
         this->actionFunc = BgF40Switch_Press;
         if (this->isInitiator) {
-            Flags_SetSwitch(play, BGF40SWITCH_GET_SWITCH_FLAG(&this->dyna.actor));
+            MM_Flags_SetSwitch(play, BGF40SWITCH_GET_SWITCH_FLAG(&this->dyna.actor));
         }
     } else if (CutsceneManager_IsNext(this->dyna.actor.csId)) {
         CutsceneManager_StartWithPlayerCs(this->dyna.actor.csId, &this->dyna.actor);
         this->actionFunc = BgF40Switch_Press;
         if (this->isInitiator) {
-            Flags_SetSwitch(play, BGF40SWITCH_GET_SWITCH_FLAG(&this->dyna.actor));
+            MM_Flags_SetSwitch(play, BGF40SWITCH_GET_SWITCH_FLAG(&this->dyna.actor));
         }
     } else {
         CutsceneManager_Queue(this->dyna.actor.csId);
@@ -189,8 +189,8 @@ void BgF40Switch_Update(Actor* thisx, PlayState* play) {
 void BgF40Switch_Draw(Actor* thisx, PlayState* play) {
     BgF40Switch* this = (BgF40Switch*)thisx;
 
-    Gfx_DrawDListOpa(play, gStoneTowerFloorSwitchDL);
-    Gfx_DrawDListOpa(play, gStoneTowerFloorSwitchOutlineDL);
+    MM_Gfx_DrawDListOpa(play, gStoneTowerFloorSwitchDL);
+    MM_Gfx_DrawDListOpa(play, gStoneTowerFloorSwitchOutlineDL);
 }
 
 void BgF40Switch_Reset(void) {

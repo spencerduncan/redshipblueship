@@ -8,16 +8,16 @@ s16 sKaleidoSetupKscpPos1[] = { PAUSE_MAP, PAUSE_QUEST, PAUSE_EQUIP, PAUSE_ITEM 
 f32 sKaleidoSetupEyeX1[] = { -64.0f, 0.0f, 64.0f, 0.0f };
 f32 sKaleidoSetupEyeZ1[] = { 0.0f, -64.0f, 0.0f, 64.0f };
 
-void KaleidoSetup_Update(PlayState* play) {
+void OoT_KaleidoSetup_Update(PlayState* play) {
     PauseContext* pauseCtx = &play->pauseCtx;
     Input* input = &play->state.input[0];
 
     if (pauseCtx->state == 0 && pauseCtx->debugState == 0 && play->gameOverCtx.state == GAMEOVER_INACTIVE &&
         play->transitionTrigger == TRANS_TRIGGER_OFF && play->transitionMode == TRANS_MODE_OFF &&
-        gSaveContext.cutsceneIndex < 0xFFF0 && gSaveContext.nextCutsceneIndex < 0xFFF0 && !Play_InCsMode(play) &&
+        gSaveContext.cutsceneIndex < 0xFFF0 && gSaveContext.nextCutsceneIndex < 0xFFF0 && !OoT_Play_InCsMode(play) &&
         play->shootingGalleryStatus <= 1 && gSaveContext.magicState != MAGIC_STATE_STEP_CAPACITY &&
         gSaveContext.magicState != MAGIC_STATE_FILL &&
-        (play->sceneNum != SCENE_BOMBCHU_BOWLING_ALLEY || !Flags_GetSwitch(play, 0x38))) {
+        (play->sceneNum != SCENE_BOMBCHU_BOWLING_ALLEY || !OoT_Flags_GetSwitch(play, 0x38))) {
 
         if (CHECK_BTN_ALL(input->cur.button, BTN_L) && CHECK_BTN_ALL(input->press.button, BTN_CUP)) {
             if (BREG(0)) {
@@ -68,7 +68,7 @@ void KaleidoSetup_Update(PlayState* play) {
     }
 }
 
-void KaleidoSetup_Init(PlayState* play) {
+void OoT_KaleidoSetup_Init(PlayState* play) {
     PauseContext* pauseCtx = &play->pauseCtx;
     u64 temp = 0; // Necessary to match
 
@@ -123,8 +123,8 @@ void KaleidoSetup_Init(PlayState* play) {
 
     pauseCtx->randoQuestMode = 0;
 
-    View_Init(&pauseCtx->view, play->state.gfxCtx);
+    OoT_View_Init(&pauseCtx->view, play->state.gfxCtx);
 }
 
-void KaleidoSetup_Destroy(PlayState* play) {
+void OoT_KaleidoSetup_Destroy(PlayState* play) {
 }

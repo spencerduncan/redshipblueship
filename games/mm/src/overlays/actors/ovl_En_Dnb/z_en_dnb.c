@@ -40,7 +40,7 @@ void func_80A4FDD0(EnDnbEffect* effect, EnDnb* this, s16* alloc, s32 idx) {
     sp1C.z = alloc[idx2 + 2] + this->dyna.actor.world.pos.z;
     effect->unk_00 = sp1C;
     effect->unk_0C = sp1C;
-    effect->unk_24 = Math_Vec3f_Yaw(&this->dyna.actor.world.pos, &sp1C);
+    effect->unk_24 = MM_Math_Vec3f_Yaw(&this->dyna.actor.world.pos, &sp1C);
     effect->unk_18 = gZeroVec3s;
 }
 
@@ -48,10 +48,10 @@ s32 func_80A4FEBC(EnDnbEffect* effect, f32 arg1) {
     s32 ret = false;
 
     if ((DECR(effect->unk_26) == 0) && (arg1 < effect->unk_0C.y)) {
-        Math_ApproachF(&effect->unk_30, 1.0f, 0.4f, 1.0f);
+        MM_Math_ApproachF(&effect->unk_30, 1.0f, 0.4f, 1.0f);
         effect->unk_2C += effect->unk_34;
-        effect->unk_0C.x += effect->unk_30 * Math_SinS(effect->unk_24);
-        effect->unk_0C.z += effect->unk_30 * Math_CosS(effect->unk_24);
+        effect->unk_0C.x += effect->unk_30 * MM_Math_SinS(effect->unk_24);
+        effect->unk_0C.z += effect->unk_30 * MM_Math_CosS(effect->unk_24);
         effect->unk_0C.y += effect->unk_2C;
         if (effect->unk_0C.y <= arg1) {
             effect->unk_0C.y = arg1;
@@ -67,14 +67,14 @@ s32 func_80A4FEBC(EnDnbEffect* effect, f32 arg1) {
 
 void func_80A4FFE8(EnDnbEffect* effect, s16 arg1) {
     effect->unk_0C = effect->unk_00;
-    effect->unk_1E.x = (Rand_ZeroOne() - 0.5f) * 400.0f;
-    effect->unk_1E.y = (Rand_ZeroOne() - 0.5f) * 400.0f;
-    effect->unk_1E.z = (Rand_ZeroOne() - 0.5f) * 400.0f;
+    effect->unk_1E.x = (MM_Rand_ZeroOne() - 0.5f) * 400.0f;
+    effect->unk_1E.y = (MM_Rand_ZeroOne() - 0.5f) * 400.0f;
+    effect->unk_1E.z = (MM_Rand_ZeroOne() - 0.5f) * 400.0f;
     effect->unk_18 = gZeroVec3s;
     effect->unk_30 = 40.0f;
     effect->unk_2C = 0.0f;
     effect->unk_26 = arg1;
-    effect->unk_34 = (Rand_ZeroOne() * -2.0f) - 2.0f;
+    effect->unk_34 = (MM_Rand_ZeroOne() * -2.0f) - 2.0f;
 }
 
 s32 func_80A500F8(EnDnb* this) {
@@ -87,10 +87,10 @@ s32 func_80A500F8(EnDnb* this) {
 
     for (i = 0; i < 16; i++) {
         Lib_Vec3f_TranslateAndRotateY(&actor->world.pos, i * 4096, &D_80A50CB0, &spA8);
-        temp_f20 = Rand_ZeroOne() * 240.0f;
-        sp9C.x = Math_SinS(i * 4096) * temp_f20;
-        sp9C.z = Math_CosS(i * 4096) * temp_f20;
-        sp9C.y = Rand_ZeroOne() * 180.0f;
+        temp_f20 = MM_Rand_ZeroOne() * 240.0f;
+        sp9C.x = MM_Math_SinS(i * 4096) * temp_f20;
+        sp9C.z = MM_Math_CosS(i * 4096) * temp_f20;
+        sp9C.y = MM_Rand_ZeroOne() * 180.0f;
         func_80A507C0(this->unk_0D38, spA8, sp9C, 16, 50.0f, 30.0f);
     }
 
@@ -102,7 +102,7 @@ void EnDnb_Init(Actor* thisx, PlayState* play) {
     s32 i;
     s16* alloc;
 
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
     DynaPolyActor_LoadMesh(play, &this->dyna, &object_hanareyama_obj_Colheader_004D8C);
 
     alloc = Lib_SegmentedToVirtual(object_hanareyama_obj_Vec_004710);
@@ -110,13 +110,13 @@ void EnDnb_Init(Actor* thisx, PlayState* play) {
         func_80A4FDD0(&this->effects[i], this, alloc, i);
     }
 
-    Actor_SetScale(&this->dyna.actor, 1.0f);
+    MM_Actor_SetScale(&this->dyna.actor, 1.0f);
 }
 
 void EnDnb_Destroy(Actor* thisx, PlayState* play) {
     EnDnb* this = (EnDnb*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void EnDnb_Update(Actor* thisx, PlayState* play) {
@@ -157,8 +157,8 @@ void func_80A50510(EnDnb* this, PlayState* play) {
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
     for (i = 0; i < ARRAY_COUNT(this->effects); i++) {
-        Matrix_Push();
-        Matrix_Translate(this->effects[i].unk_0C.x, this->effects[i].unk_0C.y, this->effects[i].unk_0C.z, MTXMODE_NEW);
+        MM_Matrix_Push();
+        MM_Matrix_Translate(this->effects[i].unk_0C.x, this->effects[i].unk_0C.y, this->effects[i].unk_0C.z, MTXMODE_NEW);
         Matrix_RotateXS(this->effects[i].unk_18.x, MTXMODE_APPLY);
         Matrix_RotateYS(this->effects[i].unk_18.y, MTXMODE_APPLY);
         Matrix_RotateZS(this->effects[i].unk_18.z, MTXMODE_APPLY);
@@ -166,7 +166,7 @@ void func_80A50510(EnDnb* this, PlayState* play) {
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_XLU_DISP++, gfx[i]);
 
-        Matrix_Pop();
+        MM_Matrix_Pop();
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -181,8 +181,8 @@ void func_80A5063C(EnDnb* this, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     for (i = 0; i < ARRAY_COUNT(this->effects); i++) {
-        Matrix_Push();
-        Matrix_Translate(this->effects[i].unk_0C.x, this->effects[i].unk_0C.y, this->effects[i].unk_0C.z, MTXMODE_NEW);
+        MM_Matrix_Push();
+        MM_Matrix_Translate(this->effects[i].unk_0C.x, this->effects[i].unk_0C.y, this->effects[i].unk_0C.z, MTXMODE_NEW);
         Matrix_RotateXS(this->effects[i].unk_18.x, MTXMODE_APPLY);
         Matrix_RotateYS(this->effects[i].unk_18.y, MTXMODE_APPLY);
         Matrix_RotateZS(this->effects[i].unk_18.z, MTXMODE_APPLY);
@@ -190,7 +190,7 @@ void func_80A5063C(EnDnb* this, PlayState* play) {
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_OPA_DISP++, gfx[i]);
 
-        Matrix_Pop();
+        MM_Matrix_Pop();
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -250,7 +250,7 @@ s32 func_80A5086C(EnDnbUnkStruct* arg0) {
 }
 
 s32 func_80A50950(EnDnbUnkStruct* arg0, PlayState* play2) {
-    static TexturePtr sDustTextures[] = {
+    static TexturePtr MM_sDustTextures[] = {
         gEffDust8Tex, gEffDust7Tex, gEffDust6Tex, gEffDust5Tex, gEffDust4Tex, gEffDust3Tex, gEffDust2Tex, gEffDust1Tex,
     };
     PlayState* play = play2;
@@ -269,27 +269,27 @@ s32 func_80A50950(EnDnbUnkStruct* arg0, PlayState* play2) {
         }
 
         if (!isGfxSetup) {
-            POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_0);
+            POLY_XLU_DISP = MM_Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_0);
             gSPDisplayList(POLY_XLU_DISP++, object_hanareyama_obj_DL_000000);
             gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, 255, 0);
             isGfxSetup = true;
         }
-        Matrix_Push();
+        MM_Matrix_Push();
 
         arg0->unk_24 = (arg0->unk_01 / (f32)arg0->unk_02) * 255.0f;
 
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, (u8)arg0->unk_24);
 
-        Matrix_Translate(arg0->unk_0C.x, arg0->unk_0C.y, arg0->unk_0C.z, MTXMODE_NEW);
-        Matrix_Scale(arg0->unk_04, arg0->unk_04, 1.0f, MTXMODE_APPLY);
-        Matrix_ReplaceRotation(&play->billboardMtxF);
+        MM_Matrix_Translate(arg0->unk_0C.x, arg0->unk_0C.y, arg0->unk_0C.z, MTXMODE_NEW);
+        MM_Matrix_Scale(arg0->unk_04, arg0->unk_04, 1.0f, MTXMODE_APPLY);
+        MM_Matrix_ReplaceRotation(&play->billboardMtxF);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         idx = (arg0->unk_01 / (f32)arg0->unk_02) * 8.0f;
-        gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(sDustTextures[idx]));
+        gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sDustTextures[idx]));
         gSPDisplayList(POLY_XLU_DISP++, object_hanareyama_obj_DL_000020);
 
-        Matrix_Pop();
+        MM_Matrix_Pop();
         sp5C += 1;
     }
 

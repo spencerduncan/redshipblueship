@@ -16,10 +16,10 @@
     (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED | \
      ACTOR_FLAG_UPDATE_DURING_OCARINA)
 
-void EnGs_Init(Actor* thisx, PlayState* play);
-void EnGs_Destroy(Actor* thisx, PlayState* play);
-void EnGs_Update(Actor* thisx, PlayState* play);
-void EnGs_Draw(Actor* thisx, PlayState* play);
+void MM_EnGs_Init(Actor* thisx, PlayState* play);
+void MM_EnGs_Destroy(Actor* thisx, PlayState* play);
+void MM_EnGs_Update(Actor* thisx, PlayState* play);
+void MM_EnGs_Draw(Actor* thisx, PlayState* play);
 
 void func_80997D14(EnGs* this, PlayState* play);
 void func_80997D38(EnGs* this, PlayState* play);
@@ -47,13 +47,13 @@ ActorProfile En_Gs_Profile = {
     /**/ FLAGS,
     /**/ OBJECT_GS,
     /**/ sizeof(EnGs),
-    /**/ EnGs_Init,
-    /**/ EnGs_Destroy,
-    /**/ EnGs_Update,
-    /**/ EnGs_Draw,
+    /**/ MM_EnGs_Init,
+    /**/ MM_EnGs_Destroy,
+    /**/ MM_EnGs_Update,
+    /**/ MM_EnGs_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_METAL,
         AT_NONE,
@@ -73,9 +73,9 @@ static ColliderCylinderInit sCylinderInit = {
     { 21, 48, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 MM_sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(0, 0xE),
     /* Deku Stick     */ DMG_ENTRY(0, 0xF),
     /* Horse trample  */ DMG_ENTRY(0, 0x0),
@@ -132,15 +132,15 @@ void func_80997AFC(s32 idx, Color_RGB8* arg1) {
     *arg1 = D_8099A3F8[idx];
 }
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
 
-void EnGs_Init(Actor* thisx, PlayState* play) {
+void MM_EnGs_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     EnGs* this = (EnGs*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
     this->unk_208 = -1;
     this->unk_204 = 1;
     this->unk_198 = this->actor.world.rot.z;
@@ -148,8 +148,8 @@ void EnGs_Init(Actor* thisx, PlayState* play) {
     this->switchFlag = ENGS_GET_SWITCH_FLAG(thisx);
     this->actor.params = ENGS_GET_F000(thisx);
     this->actor.world.rot.z = 0;
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, &sDamageTable, &sColChkInfoInit);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, &MM_sDamageTable, &MM_sColChkInfoInit);
     this->actor.attentionRangeType = ATTENTION_RANGE_6;
     this->unk_216 = 0;
     this->unk_218 = 0;
@@ -158,22 +158,22 @@ void EnGs_Init(Actor* thisx, PlayState* play) {
 
     func_80997AFC(this->unk_194, &this->unk_1FA);
     this->unk_1F4 = this->unk_1FA;
-    Math_Vec3f_Copy(&this->unk_1B0[0], &gOneVec3f);
-    Math_Vec3f_Copy(&this->unk_1B0[1], &gOneVec3f);
+    MM_Math_Vec3f_Copy(&this->unk_1B0[0], &gOneVec3f);
+    MM_Math_Vec3f_Copy(&this->unk_1B0[1], &gOneVec3f);
     SubS_FillCutscenesList(&this->actor, this->csIdList, ARRAY_COUNT(this->csIdList));
     AudioVoice_InitWord(VOICE_WORD_ID_HOURS);
     if (this->actor.params == ENGS_1) {
-        Actor_SetScale(&this->actor, 0.15f);
+        MM_Actor_SetScale(&this->actor, 0.15f);
         this->collider.dim.radius *= 1.5f;
         this->collider.dim.height *= 1.5f;
     }
     func_80997D14(this, play);
 }
 
-void EnGs_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnGs_Destroy(Actor* thisx, PlayState* play) {
     EnGs* this = (EnGs*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
     Play_DisableMotionBlur();
 }
 
@@ -185,7 +185,7 @@ void func_80997D14(EnGs* this, PlayState* play) {
 void func_80997D38(EnGs* this, PlayState* play) {
     static f32 D_8099A408[] = { 40.0f, 60.0f, 40.0f, 40.0f };
 
-    if (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE) {
+    if (MM_Message_GetState(&play->msgCtx) == TEXT_STATE_NONE) {
         if (this->actor.xzDistToPlayer <= D_8099A408[this->actor.params]) {
             SubS_OfferTalkExchangeFacing(&this->actor, play, D_8099A408[this->actor.params],
                                          D_8099A408[this->actor.params], PLAYER_IA_NONE, 0x2000, 0x2000);
@@ -198,7 +198,7 @@ void func_80997D38(EnGs* this, PlayState* play) {
 }
 
 void func_80997DEC(EnGs* this, PlayState* play) {
-    if (GameInteractor_Should(VB_GS_CONSIDER_MASK_OF_TRUTH_EQUIPPED, Player_GetMask(play) == PLAYER_MASK_TRUTH, this)) {
+    if (GameInteractor_Should(VB_GS_CONSIDER_MASK_OF_TRUTH_EQUIPPED, MM_Player_GetMask(play) == PLAYER_MASK_TRUTH, this)) {
         this->unk_210 = 0x20D1;
     } else {
         this->unk_210 = 0x20D0;
@@ -208,9 +208,9 @@ void func_80997DEC(EnGs* this, PlayState* play) {
 }
 
 void func_80997E4C(EnGs* this, PlayState* play) {
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_NONE:
-            Message_StartTextbox(play, this->unk_210, &this->actor);
+            MM_Message_StartTextbox(play, this->unk_210, &this->actor);
             break;
 
         case TEXT_STATE_NEXT:
@@ -221,7 +221,7 @@ void func_80997E4C(EnGs* this, PlayState* play) {
         case TEXT_STATE_CHOICE:
         case TEXT_STATE_EVENT:
         case TEXT_STATE_DONE:
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 switch (play->msgCtx.currentTextId) {
                     case 0x20D0:
                         func_80997D14(this, play);
@@ -257,7 +257,7 @@ void func_80997E4C(EnGs* this, PlayState* play) {
                                 break;
                         }
                         if (GameInteractor_Should(VB_GS_CONTINUE_TEXTBOX, true, this)) {
-                            Message_ContinueTextbox(play, this->unk_210);
+                            MM_Message_ContinueTextbox(play, this->unk_210);
                         }
                         break;
 
@@ -291,22 +291,22 @@ void func_8099807C(EnGs* this, PlayState* play) {
             switch (play->msgCtx.lastPlayedSong) {
                 case OCARINA_SONG_HEALING:
                 case OCARINA_SONG_EPONAS:
-                    if (!Flags_GetSwitch(play, this->switchFlag)) {
-                        Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ELF, this->actor.world.pos.x,
+                    if (!MM_Flags_GetSwitch(play, this->switchFlag)) {
+                        MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ELF, this->actor.world.pos.x,
                                     this->actor.world.pos.y + 40.0f, this->actor.world.pos.z, 0, 0, 0,
                                     FAIRY_PARAMS(FAIRY_TYPE_2, false, 0));
                         Actor_PlaySfx(&this->actor, NA_SE_EV_BUTTERFRY_TO_FAIRY);
-                        Flags_SetSwitch(play, this->switchFlag);
+                        MM_Flags_SetSwitch(play, this->switchFlag);
                     }
                     break;
 
                 case OCARINA_SONG_STORMS:
-                    if (!Flags_GetSwitch(play, this->switchFlag)) {
-                        Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ELF, this->actor.world.pos.x,
+                    if (!MM_Flags_GetSwitch(play, this->switchFlag)) {
+                        MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ELF, this->actor.world.pos.x,
                                     this->actor.world.pos.y + 40.0f, this->actor.world.pos.z, 0, 0, 0,
                                     FAIRY_PARAMS(FAIRY_TYPE_7, false, 0));
                         Actor_PlaySfx(&this->actor, NA_SE_EV_BUTTERFRY_TO_FAIRY);
-                        Flags_SetSwitch(play, this->switchFlag);
+                        MM_Flags_SetSwitch(play, this->switchFlag);
                     }
                     break;
 
@@ -366,10 +366,10 @@ void func_80998300(EnGs* this, PlayState* play) {
 
 f32 func_80998334(EnGs* this, PlayState* play, f32* arg2, f32* arg3, s16* arg4, f32 arg5, f32 arg6, f32 arg7, s32 arg8,
                   s32 arg9) {
-    f32 sp2C = Math_SmoothStepToF(arg2, *arg3, arg5, arg6, arg7);
+    f32 sp2C = MM_Math_SmoothStepToF(arg2, *arg3, arg5, arg6, arg7);
 
     if (arg9 == 0) {
-        sp2C = Math_SmoothStepToF(arg2, *arg3, arg5, arg6, arg7);
+        sp2C = MM_Math_SmoothStepToF(arg2, *arg3, arg5, arg6, arg7);
         this->unk_1B0[0].x = (sinf(DEG_TO_RAD((*arg4 % arg8) * (1.0f / arg8) * 360.0f)) * *arg2) + 1.0f;
         this->unk_1B0[0].y = 1.0f - (sinf(DEG_TO_RAD((*arg4 % arg8) * (1.0f / arg8) * 360.0f)) * *arg2);
         (*arg4)++;
@@ -393,7 +393,7 @@ void func_809984F4(EnGs* this, PlayState* play) {
         }
     } while (gossipStone != NULL);
 
-    Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
+    MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
     this->actionFunc = func_809985B8;
 }
 
@@ -406,8 +406,8 @@ void func_809985B8(EnGs* this, PlayState* play) {
 
         Matrix_RotateYS(this->actor.shape.rot.y, MTXMODE_NEW);
         Matrix_MultVecZ(160.0f, &sp38);
-        Math_Vec3f_Sum(&player->actor.world.pos, &sp38, &player->actor.world.pos);
-        Math_Vec3f_Copy(&player->actor.prevPos, &player->actor.world.pos);
+        MM_Math_Vec3f_Sum(&player->actor.world.pos, &sp38, &player->actor.world.pos);
+        MM_Math_Vec3f_Copy(&player->actor.prevPos, &player->actor.world.pos);
         this->unk_200 = 0.0f;
         gSaveContext.save.saveInfo.unk_EA0 = ((u32)gSaveContext.save.saveInfo.unk_EA0 & ~(7 << (this->unk_198 * 3))) |
                                              ((this->unk_194 & 7) << (this->unk_198 * 3));
@@ -527,16 +527,16 @@ void func_8099874C(EnGs* this, PlayState* play) {
 }
 
 void func_809989B4(EnGs* this, PlayState* play) {
-    Actor_OfferGetItem(&this->actor, play, this->getItemId, this->actor.xzDistToPlayer, this->actor.playerHeightRel);
+    MM_Actor_OfferGetItem(&this->actor, play, this->getItemId, this->actor.xzDistToPlayer, this->actor.playerHeightRel);
     this->actionFunc = func_809989F4;
 }
 
 void func_809989F4(EnGs* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play)) {
+    if (MM_Actor_HasParent(&this->actor, play)) {
         this->actor.parent = NULL;
         func_80997D14(this, play);
     } else {
-        Actor_OfferGetItem(&this->actor, play, this->getItemId, this->actor.xzDistToPlayer,
+        MM_Actor_OfferGetItem(&this->actor, play, this->getItemId, this->actor.xzDistToPlayer,
                            this->actor.playerHeightRel);
     }
 }
@@ -561,11 +561,11 @@ s32 func_80998A48(EnGs* this, PlayState* play) {
     } else if (this->unk_19D == 1) {
         if (func_80998334(this, play, &this->unk_1DC, &this->unk_1E0, &this->unk_1D4, 0.8f, 0.007f, 0.001f, 7, 0) ==
             0.0f) {
-            if ((this->actor.params != ENGS_0) && !Play_InCsMode(play) &&
-                (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
+            if ((this->actor.params != ENGS_0) && !MM_Play_InCsMode(play) &&
+                (MM_Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
                 this->unk_216 = 0;
                 Actor_PlaySfx(&this->actor, NA_SE_EV_FAIVE_LUPY_COUNT);
-                Message_StartTextbox(play, 0x20D2, NULL);
+                MM_Message_StartTextbox(play, 0x20D2, NULL);
             }
             this->unk_19A &= ~1;
             sp3C = 0;
@@ -616,7 +616,7 @@ s32 func_80998D44(EnGs* this, PlayState* play) {
         this->quakeDuration = 11;
         this->unk_19D++;
     } else if (this->unk_19D == 1) {
-        step = Math_SmoothStepToF(&this->unk_1DC, this->unk_1E0, 1.0f, 0.4f, 0.001f);
+        step = MM_Math_SmoothStepToF(&this->unk_1DC, this->unk_1E0, 1.0f, 0.4f, 0.001f);
         this->unk_1B0[0].y = this->unk_1DC + 1.0f;
         if (step == 0.0f) {
             this->unk_216 = 0;
@@ -632,7 +632,7 @@ s32 func_80998D44(EnGs* this, PlayState* play) {
             this->unk_1E0 = 0.0f;
         }
     } else if (this->unk_19D == 3) {
-        step = Math_SmoothStepToF(&this->unk_1DC, this->unk_1E0, 1.0f, 0.5f, 0.001f);
+        step = MM_Math_SmoothStepToF(&this->unk_1DC, this->unk_1E0, 1.0f, 0.5f, 0.001f);
         this->unk_1B0[0].y = this->unk_1DC + 1.0f;
         if (step == 0.0f) {
             this->unk_216 = 0;
@@ -674,8 +674,8 @@ s32 func_80998F9C(EnGs* this, PlayState* play) {
     }
 
     if (this->unk_19D == 1) {
-        Math_SmoothStepToF(&this->unk_1E4, this->unk_1E8, 1.0f, 0.1f, 0.001f);
-        sp48 = Math_SmoothStepToF(&this->unk_1DC, this->unk_1E0, 1.0f, this->unk_1E4, 0.001f);
+        MM_Math_SmoothStepToF(&this->unk_1E4, this->unk_1E8, 1.0f, 0.1f, 0.001f);
+        sp48 = MM_Math_SmoothStepToF(&this->unk_1DC, this->unk_1E0, 1.0f, this->unk_1E4, 0.001f);
         this->unk_19E[0].y += (s32)DEG_TO_BINANG_ALT3(this->unk_1DC);
         if (sp48 == 0.0f) {
             this->unk_1D4 = 0;
@@ -697,8 +697,8 @@ s32 func_80998F9C(EnGs* this, PlayState* play) {
 
     if (this->unk_19D == 3) {
         this->unk_19E[0].y += 0x4000;
-        sp48 = Math_SmoothStepToF(&this->unk_1DC, this->unk_1E0, 0.8f, 0.2f, 0.001f);
-        Math_SmoothStepToF(&this->unk_1E4, this->unk_1E8, 0.8f, 0.2f, 0.001f);
+        sp48 = MM_Math_SmoothStepToF(&this->unk_1DC, this->unk_1E0, 0.8f, 0.2f, 0.001f);
+        MM_Math_SmoothStepToF(&this->unk_1E4, this->unk_1E8, 0.8f, 0.2f, 0.001f);
         this->unk_1B0[0].x = this->unk_1E4 + 1.0f;
         this->unk_1B0[0].y = this->unk_1DC + 1.0f;
         if (sp48 == 0.0f) {
@@ -709,7 +709,7 @@ s32 func_80998F9C(EnGs* this, PlayState* play) {
     }
 
     if (this->unk_19D == 4) {
-        sp48 = Math_SmoothStepToF(&this->unk_1DC, this->unk_1E0, 0.8f, 16384.0f, 3640.0f);
+        sp48 = MM_Math_SmoothStepToF(&this->unk_1DC, this->unk_1E0, 0.8f, 16384.0f, 3640.0f);
         this->unk_19E[0].y += TRUNCF_BINANG(this->unk_1DC);
         if (sp48 == 0.0f) {
             phi_v0_2 = this->unk_19E[0].y;
@@ -729,7 +729,7 @@ s32 func_80998F9C(EnGs* this, PlayState* play) {
         }
         this->unk_1DC = phi_v0_2;
 
-        sp48 = Math_SmoothStepToF(&this->unk_1DC, this->unk_1E0, 0.8f, 3640.0f, 0.001f);
+        sp48 = MM_Math_SmoothStepToF(&this->unk_1DC, this->unk_1E0, 0.8f, 3640.0f, 0.001f);
         this->unk_19E[0].y = (s32)this->unk_1DC;
         if (sp48 == 0.0f) {
             this->unk_19E[0].y = 0;
@@ -748,9 +748,9 @@ s32 func_80998F9C(EnGs* this, PlayState* play) {
     }
 
     if (this->unk_19D == 6) {
-        sp48 = Math_SmoothStepToF(&this->unk_1DC, this->unk_1E0, 0.8f, 0.1f, 0.001f);
-        sp44 = Math_SmoothStepToF(&this->unk_1E4, this->unk_1E8, 0.8f, 0.1f, 0.001f);
-        sp40 = Math_SmoothStepToF(&this->unk_1EC, this->unk_1F0, 0.8f, 0.02f, 0.001f);
+        sp48 = MM_Math_SmoothStepToF(&this->unk_1DC, this->unk_1E0, 0.8f, 0.1f, 0.001f);
+        sp44 = MM_Math_SmoothStepToF(&this->unk_1E4, this->unk_1E8, 0.8f, 0.1f, 0.001f);
+        sp40 = MM_Math_SmoothStepToF(&this->unk_1EC, this->unk_1F0, 0.8f, 0.02f, 0.001f);
         this->unk_1B0[0].x = this->unk_1E4 + 1.0f;
         this->unk_1B0[0].y = this->unk_1DC + 1.0f;
         this->unk_1B0[0].x += sinf(DEG_TO_RAD((this->unk_1D4 % 10) * 0.1f * 360.0f)) * this->unk_1EC;
@@ -782,8 +782,8 @@ s32 func_809995A4(EnGs* this, PlayState* play) {
         { 255, 255, 255 },
     };
     static Vec3f sDustAccel = { 0.0f, -0.3f, 0.0f };
-    static Color_RGBA8 sDustPrimColor = { 200, 200, 200, 128 };
-    static Color_RGBA8 sDustEnvColor = { 100, 100, 100, 0 };
+    static Color_RGBA8 MM_sDustPrimColor = { 200, 200, 200, 128 };
+    static Color_RGBA8 MM_sDustEnvColor = { 100, 100, 100, 0 };
     static Vec3f sBomb2Velocity = { 0.0f, 0.0f, 0.0f };
     static Vec3f sBomb2Accel = { 0.0f, 0.0f, 0.0f };
     s32 sp7C = -1;
@@ -840,16 +840,16 @@ s32 func_809995A4(EnGs* this, PlayState* play) {
         Vec3f sp60;
 
         for (i = 0; i < 3; i++) {
-            sp60.x = Rand_CenteredFloat(15.0f);
-            sp60.y = Rand_ZeroFloat(-1.0f);
-            sp60.z = Rand_CenteredFloat(15.0f);
+            sp60.x = MM_Rand_CenteredFloat(15.0f);
+            sp60.y = MM_Rand_ZeroFloat(-1.0f);
+            sp60.z = MM_Rand_CenteredFloat(15.0f);
 
             sp6C.x = this->actor.world.pos.x + (2.0f * sp60.x);
             sp6C.y = this->actor.world.pos.y + 7.0f;
             sp6C.z = this->actor.world.pos.z + (2.0f * sp60.z);
 
-            func_800B0EB0(play, &sp6C, &sp60, &sDustAccel, &sDustPrimColor, &sDustEnvColor,
-                          Rand_ZeroFloat(50.0f) + 200.0f, 40, 15);
+            func_800B0EB0(play, &sp6C, &sp60, &sDustAccel, &MM_sDustPrimColor, &MM_sDustEnvColor,
+                          MM_Rand_ZeroFloat(50.0f) + 200.0f, 40, 15);
         }
 
         Actor_PlaySfx_Flagged(&this->actor, NA_SE_EV_FIRE_PILLAR - SFX_FLAG);
@@ -871,7 +871,7 @@ s32 func_809995A4(EnGs* this, PlayState* play) {
     }
 
     if (this->unk_19D == 4) {
-        Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 60.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_2);
+        MM_Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 60.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_2);
         if (this->actor.bgCheckFlags & (BGCHECKFLAG_WALL | BGCHECKFLAG_CEILING)) {
             Vec3f sp54;
 
@@ -879,7 +879,7 @@ s32 func_809995A4(EnGs* this, PlayState* play) {
             sp54.y = this->actor.world.pos.y;
             sp54.z = this->actor.world.pos.z;
             Actor_PlaySfx(&this->actor, NA_SE_IT_BOMB_EXPLOSION);
-            EffectSsBomb2_SpawnLayered(play, &sp54, &sBomb2Velocity, &sBomb2Accel, 100, 20);
+            MM_EffectSsBomb2_SpawnLayered(play, &sp54, &sBomb2Velocity, &sBomb2Accel, 100, 20);
             this->unk_1D4 = 10;
             this->unk_19A |= 8;
             this->unk_216 = 0;
@@ -889,7 +889,7 @@ s32 func_809995A4(EnGs* this, PlayState* play) {
         }
 
         Actor_MoveWithGravity(&this->actor);
-        Math_SmoothStepToF(&this->unk_1DC, this->unk_1E0, 0.5f, 364.0f, 0.0f);
+        MM_Math_SmoothStepToF(&this->unk_1DC, this->unk_1E0, 0.5f, 364.0f, 0.0f);
 
         this->unk_19E[1].y += TRUNCF_BINANG(this->unk_1DC);
 
@@ -898,9 +898,9 @@ s32 func_809995A4(EnGs* this, PlayState* play) {
         }
 
         if (this->actor.playerHeightRel < -12000.0f) {
-            Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BOM, this->actor.world.pos.x, this->actor.world.pos.y,
+            MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_BOM, this->actor.world.pos.x, this->actor.world.pos.y,
                         this->actor.world.pos.z, BOMB_EXPLOSIVE_TYPE_BOMB, this->actor.world.rot.y, 0, BOMB_TYPE_BODY);
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
             sp7C = 0;
         }
     }
@@ -910,7 +910,7 @@ s32 func_809995A4(EnGs* this, PlayState* play) {
 
 void func_80999A8C(EnGs* this, PlayState* play) {
     if (this->unk_1D4-- <= 0) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -937,7 +937,7 @@ void func_80999B34(EnGs* this) {
             Play_SetMotionBlurAlpha(this->unk_218);
         }
     } else if (this->unk_218 > 0) {
-        Math_StepToS(&this->unk_218, this->unk_216, 20);
+        MM_Math_StepToS(&this->unk_218, this->unk_216, 20);
         Play_SetMotionBlurAlpha(this->unk_218);
         if (this->unk_218 <= 0) {
             Play_DisableMotionBlur();
@@ -960,9 +960,9 @@ void func_80999BC8(Actor* thisx, PlayState* play2) {
     }
 
     if (this->actor.params == ENGS_1) {
-        Actor_SetFocus(&this->actor, 34.5f);
+        MM_Actor_SetFocus(&this->actor, 34.5f);
     } else {
-        Actor_SetFocus(&this->actor, 23.0f);
+        MM_Actor_SetFocus(&this->actor, 23.0f);
     }
 
     if (this->unk_21A > 0) {
@@ -1019,9 +1019,9 @@ void func_80999BC8(Actor* thisx, PlayState* play2) {
             }
         }
 
-        Collider_UpdateCylinder(&this->actor, &this->collider);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     } else {
         this->collider.base.acFlags &= ~AC_HIT;
     }
@@ -1029,7 +1029,7 @@ void func_80999BC8(Actor* thisx, PlayState* play2) {
     this->actionFunc(this, play);
 }
 
-void EnGs_Update(Actor* thisx, PlayState* play) {
+void MM_EnGs_Update(Actor* thisx, PlayState* play) {
     s32 pad;
     EnGs* this = (EnGs*)thisx;
 
@@ -1053,7 +1053,7 @@ void EnGs_Update(Actor* thisx, PlayState* play) {
         if ((this->actor.flags & ACTOR_FLAG_INSIDE_CULLING_VOLUME) || (this->unk_19A & 0x100) ||
             (this->unk_19A & 0x200)) {
             func_80999BC8(&this->actor, play);
-            Actor_GetScreenPos(play, &this->actor, &screenPosX, &screenPosY);
+            MM_Actor_GetScreenPos(play, &this->actor, &screenPosX, &screenPosY);
             if ((this->actor.xyzDistToPlayerSq > SQ(400.0f)) || (screenPosX < 0) || (screenPosX > SCREEN_WIDTH) ||
                 (screenPosY < 0) || (screenPosY > SCREEN_HEIGHT)) {
                 this->unk_216 = 0;
@@ -1066,9 +1066,9 @@ void EnGs_Update(Actor* thisx, PlayState* play) {
 
         if (this->unk_200 < 1.0f) {
             if (this->unk_19A & 4) {
-                Math_StepToF(&this->unk_200, 1.0f, 0.06f);
+                MM_Math_StepToF(&this->unk_200, 1.0f, 0.06f);
             } else {
-                Math_StepToF(&this->unk_200, 1.0f, 0.02f);
+                MM_Math_StepToF(&this->unk_200, 1.0f, 0.02f);
             }
             func_80997AFC(this->unk_194, &this->unk_1F7);
             Color_RGB8_Lerp(&this->unk_1F4, &this->unk_1F7, this->unk_200, &this->unk_1FA);
@@ -1085,7 +1085,7 @@ void EnGs_Update(Actor* thisx, PlayState* play) {
     }
 }
 
-void EnGs_Draw(Actor* thisx, PlayState* play) {
+void MM_EnGs_Draw(Actor* thisx, PlayState* play) {
     s32 pad;
     EnGs* this = (EnGs*)thisx;
     u32 frames;
@@ -1099,13 +1099,13 @@ void EnGs_Draw(Actor* thisx, PlayState* play) {
     frames = play->gameplayFrames;
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    Matrix_Push();
+    MM_Matrix_Push();
 
     if (this->unk_19A & 1) {
         Matrix_RotateYS(this->unk_19E[0].y, MTXMODE_APPLY);
         Matrix_RotateXS(this->unk_19E[0].x, MTXMODE_APPLY);
         Matrix_RotateZS(this->unk_19E[0].z, MTXMODE_APPLY);
-        Matrix_Scale(this->unk_1B0[0].x, this->unk_1B0[0].y, this->unk_1B0[0].z, MTXMODE_APPLY);
+        MM_Matrix_Scale(this->unk_1B0[0].x, this->unk_1B0[0].y, this->unk_1B0[0].z, MTXMODE_APPLY);
         Matrix_RotateYS(this->unk_19E[1].y, MTXMODE_APPLY);
         Matrix_RotateXS(this->unk_19E[1].x, MTXMODE_APPLY);
         Matrix_RotateZS(this->unk_19E[1].z, MTXMODE_APPLY);
@@ -1117,16 +1117,16 @@ void EnGs_Draw(Actor* thisx, PlayState* play) {
     gSPDisplayList(POLY_OPA_DISP++, gGossipStoneDL);
     gSPDisplayList(POLY_OPA_DISP++, gGossipStoneBottomModelDL);
 
-    Matrix_Pop();
+    MM_Matrix_Pop();
 
     if (this->unk_19A & 2) {
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-        Matrix_ReplaceRotation(&play->billboardMtxF);
-        Matrix_Scale(0.05f, -0.05f, 1.0f, MTXMODE_APPLY);
+        MM_Matrix_ReplaceRotation(&play->billboardMtxF);
+        MM_Matrix_Scale(0.05f, -0.05f, 1.0f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gSPSegment(POLY_XLU_DISP++, 0x08,
-                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, -frames * 20, 0x20, 0x80));
+                   MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, -frames * 20, 0x20, 0x80));
         gDPSetPrimColor(POLY_XLU_DISP++, 0x80, 0x80, 255, 255, 0, 255);
         gDPSetEnvColor(POLY_XLU_DISP++, 255, 0, 0, 0);
         gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);

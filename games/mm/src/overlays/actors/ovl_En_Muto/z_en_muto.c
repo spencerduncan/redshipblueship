@@ -30,9 +30,9 @@ ActorProfile En_Muto_Profile = {
     /**/ EnMuto_Draw,
 };
 
-static u16 sTextIds[] = { 0x2ABD, 0x2ABB, 0x0624, 0x0623, 0x2AC6 };
+static u16 MM_sTextIds[] = { 0x2ABD, 0x2ABB, 0x0624, 0x0623, 0x2AC6 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -56,8 +56,8 @@ void EnMuto_Init(Actor* thisx, PlayState* play) {
     EnMuto* this = (EnMuto*)thisx;
 
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 40.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &object_toryo_Skel_007150, &object_toryo_Anim_000E50, this->jointTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 40.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &object_toryo_Skel_007150, &object_toryo_Anim_000E50, this->jointTable,
                        this->morphTable, OBJECT_TORYO_LIMB_MAX);
 
     this->isInMayorsRoom = this->actor.params;
@@ -69,7 +69,7 @@ void EnMuto_Init(Actor* thisx, PlayState* play) {
         }
 
         if ((gSaveContext.save.day != 3) || !gSaveContext.save.isNight) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
     } else {
         this->collider.dim.radius = 30;
@@ -78,20 +78,20 @@ void EnMuto_Init(Actor* thisx, PlayState* play) {
 
         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_RESOLVED_MAYOR_MEETING) ||
             ((gSaveContext.save.day == 3) && gSaveContext.save.isNight)) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         }
     }
 
     this->actor.attentionRangeType = ATTENTION_RANGE_6;
     this->actor.gravity = -3.0f;
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
     EnMuto_SetupIdle(this);
 }
 
 void EnMuto_Destroy(Actor* thisx, PlayState* play) {
     EnMuto* this = (EnMuto*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 typedef enum EnMutoAnimation {
@@ -101,22 +101,22 @@ typedef enum EnMutoAnimation {
     /*  2 */ ENMUTO_ANIM_MAX
 } EnMutoAnimation;
 
-static AnimationHeader* sAnimations[ENMUTO_ANIM_MAX] = {
+static AnimationHeader* MM_sAnimations[ENMUTO_ANIM_MAX] = {
     &object_toryo_Anim_000E50, // ENMUTO_ANIM_0
     &object_toryo_Anim_000E50, // ENMUTO_ANIM_1
 };
 
-static u8 sAnimationModes[ENMUTO_ANIM_MAX] = {
+static u8 MM_sAnimationModes[ENMUTO_ANIM_MAX] = {
     ANIMMODE_LOOP, // ENMUTO_ANIM_0
     ANIMMODE_ONCE, // ENMUTO_ANIM_1
 };
 
 void EnMuto_ChangeAnim(EnMuto* this, s32 animIndex) {
     this->animIndex = animIndex;
-    this->animEndFrame = Animation_GetLastFrame(&sAnimations[animIndex]->common);
+    this->animEndFrame = MM_Animation_GetLastFrame(&MM_sAnimations[animIndex]->common);
 
-    Animation_Change(&this->skelAnime, sAnimations[this->animIndex], 1.0f, 0.0f, this->animEndFrame,
-                     sAnimationModes[this->animIndex], -4.0f);
+    MM_Animation_Change(&this->skelAnime, MM_sAnimations[this->animIndex], 1.0f, 0.0f, this->animEndFrame,
+                     MM_sAnimationModes[this->animIndex], -4.0f);
 }
 
 void EnMuto_SetHeadRotation(EnMuto* this) {
@@ -140,7 +140,7 @@ void EnMuto_SetupIdle(EnMuto* this) {
 }
 
 void EnMuto_Idle(EnMuto* this, PlayState* play) {
-    this->actor.textId = sTextIds[this->textIdIndex];
+    this->actor.textId = MM_sTextIds[this->textIdIndex];
 
     if (!this->isInMayorsRoom) {
         Player* player = GET_PLAYER(play);
@@ -154,7 +154,7 @@ void EnMuto_Idle(EnMuto* this, PlayState* play) {
         }
     }
 
-    if (!this->isInMayorsRoom && (Player_GetMask(play) == PLAYER_MASK_KAFEIS_MASK)) {
+    if (!this->isInMayorsRoom && (MM_Player_GetMask(play) == PLAYER_MASK_KAFEIS_MASK)) {
         this->actor.textId = 0x2363;
     }
 
@@ -175,7 +175,7 @@ void EnMuto_Idle(EnMuto* this, PlayState* play) {
         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_ATTENDED_MAYOR_MEETING)) {
             this->textIdIndex = 1;
         }
-        if (Player_GetMask(play) == PLAYER_MASK_COUPLE) {
+        if (MM_Player_GetMask(play) == PLAYER_MASK_COUPLE) {
             this->textIdIndex = 4;
         }
 
@@ -206,8 +206,8 @@ void EnMuto_SetupDialogue(EnMuto* this, PlayState* play) {
 void EnMuto_InDialogue(EnMuto* this, PlayState* play) {
     if (!this->isInMayorsRoom) {
         this->yawTowardsTarget = this->actor.yawTowardsPlayer;
-        if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
-            Message_CloseTextbox(play);
+        if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
+            MM_Message_CloseTextbox(play);
 
             if (this->actor.textId == 0x62C) {
                 SET_WEEKEVENTREG(WEEKEVENTREG_88_08);
@@ -231,7 +231,7 @@ void EnMuto_InDialogue(EnMuto* this, PlayState* play) {
     } else {
         f32 curFrame = this->skelAnime.curFrame;
 
-        this->yawTowardsTarget = Math_Vec3f_Yaw(&this->actor.world.pos, &this->targetActor->world.pos);
+        this->yawTowardsTarget = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &this->targetActor->world.pos);
         if (curFrame >= this->animEndFrame) {
             this->skelAnime.playSpeed = 0.0f;
         }
@@ -256,14 +256,14 @@ void EnMuto_Update(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     EnMuto* this = (EnMuto*)thisx;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     if (this->shouldSetHeadRotation) {
         EnMuto_SetHeadRotation(this);
     }
 
     if (this->isInMayorsRoom && (gSaveContext.save.day == 3) && gSaveContext.save.isNight) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -271,23 +271,23 @@ void EnMuto_Update(Actor* thisx, PlayState* play2) {
 
     DECR(this->unusedCounter);
 
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->actor.shape.rot.y = this->actor.world.rot.y;
-    Actor_SetFocus(&this->actor, 60.0f);
+    MM_Actor_SetFocus(&this->actor, 60.0f);
     Actor_MoveWithGravity(&this->actor);
 
-    Math_SmoothStepToS(&this->headRot.y, this->headRotTarget.y, 1, 0xBB8, 0);
-    Math_SmoothStepToS(&this->headRot.x, this->headRotTarget.x, 1, 0x3E8, 0);
-    Math_SmoothStepToS(&this->waistRot.y, this->waistRotTarget.y, 1, 0xBB8, 0);
+    MM_Math_SmoothStepToS(&this->headRot.y, this->headRotTarget.y, 1, 0xBB8, 0);
+    MM_Math_SmoothStepToS(&this->headRot.x, this->headRotTarget.x, 1, 0x3E8, 0);
+    MM_Math_SmoothStepToS(&this->waistRot.y, this->waistRotTarget.y, 1, 0xBB8, 0);
 
-    Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 50.0f,
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 50.0f,
                             UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4 | UPDBGCHECKINFO_FLAG_8 |
                                 UPDBGCHECKINFO_FLAG_10);
 
     this->actor.cullingVolumeDistance = 500.0f;
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 s32 EnMuto_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx) {
@@ -309,6 +309,6 @@ void EnMuto_Draw(Actor* thisx, PlayState* play) {
     EnMuto* this = (EnMuto*)thisx;
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnMuto_OverrideLimbDraw, NULL, &this->actor);
 }

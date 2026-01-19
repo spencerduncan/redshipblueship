@@ -11,13 +11,13 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_UPDATE_DURING_OCARINA)
 
-void ArrowIce_Init(Actor* thisx, PlayState* play);
-void ArrowIce_Destroy(Actor* thisx, PlayState* play);
-void ArrowIce_Update(Actor* thisx, PlayState* play);
-void ArrowIce_Draw(Actor* thisx, PlayState* play);
+void MM_ArrowIce_Init(Actor* thisx, PlayState* play);
+void MM_ArrowIce_Destroy(Actor* thisx, PlayState* play);
+void MM_ArrowIce_Update(Actor* thisx, PlayState* play);
+void MM_ArrowIce_Draw(Actor* thisx, PlayState* play);
 
-void ArrowIce_Charge(ArrowIce* this, PlayState* play);
-void ArrowIce_Fly(ArrowIce* this, PlayState* play);
+void MM_ArrowIce_Charge(ArrowIce* this, PlayState* play);
+void MM_ArrowIce_Fly(ArrowIce* this, PlayState* play);
 
 #include "overlays/ovl_Arrow_Ice/ovl_Arrow_Ice.h"
 
@@ -27,43 +27,43 @@ ActorProfile Arrow_Ice_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(ArrowIce),
-    /**/ ArrowIce_Init,
-    /**/ ArrowIce_Destroy,
-    /**/ ArrowIce_Update,
-    /**/ ArrowIce_Draw,
+    /**/ MM_ArrowIce_Init,
+    /**/ MM_ArrowIce_Destroy,
+    /**/ MM_ArrowIce_Update,
+    /**/ MM_ArrowIce_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 2000, ICHAIN_STOP),
 };
 
-void ArrowIce_SetupAction(ArrowIce* this, ArrowIceActionFunc actionFunc) {
+void MM_ArrowIce_SetupAction(ArrowIce* this, ArrowIceActionFunc actionFunc) {
     this->actionFunc = actionFunc;
 }
 
-void ArrowIce_Init(Actor* thisx, PlayState* play) {
+void MM_ArrowIce_Init(Actor* thisx, PlayState* play) {
     ArrowIce* this = (ArrowIce*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
     this->radius = 0;
     this->height = 1.0f;
-    ArrowIce_SetupAction(this, ArrowIce_Charge);
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_ArrowIce_SetupAction(this, MM_ArrowIce_Charge);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->alpha = 100;
     this->timer = 0;
     this->blueingEffectMagnitude = 0.0f;
 }
 
-void ArrowIce_Destroy(Actor* thisx, PlayState* play) {
-    Magic_Reset(play);
+void MM_ArrowIce_Destroy(Actor* thisx, PlayState* play) {
+    MM_Magic_Reset(play);
     (void)"消滅"; // Unreferenced in retail, means "Disappearance"
 }
 
-void ArrowIce_Charge(ArrowIce* this, PlayState* play) {
+void MM_ArrowIce_Charge(ArrowIce* this, PlayState* play) {
     EnArrow* arrow = (EnArrow*)this->actor.parent;
 
     if ((arrow == NULL) || (arrow->actor.update == NULL)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -80,7 +80,7 @@ void ArrowIce_Charge(ArrowIce* this, PlayState* play) {
     if (arrow->actor.parent == NULL) {
         this->firedPos = this->actor.world.pos;
         this->radius = 10;
-        ArrowIce_SetupAction(this, ArrowIce_Fly);
+        MM_ArrowIce_SetupAction(this, MM_ArrowIce_Fly);
         this->alpha = 255;
     }
 }
@@ -89,7 +89,7 @@ void ArrowIce_LerpFiredPosition(Vec3f* firedPos, Vec3f* icePos, f32 scale) {
     VEC3F_LERPIMPDST(firedPos, firedPos, icePos, scale);
 }
 
-void ArrowIce_Hit(ArrowIce* this, PlayState* play) {
+void MM_ArrowIce_Hit(ArrowIce* this, PlayState* play) {
     f32 scale;
     u16 timer;
 
@@ -134,23 +134,23 @@ void ArrowIce_Hit(ArrowIce* this, PlayState* play) {
 
     if (this->timer == 0) {
         this->timer = 255;
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
-void ArrowIce_Fly(ArrowIce* this, PlayState* play) {
+void MM_ArrowIce_Fly(ArrowIce* this, PlayState* play) {
     EnArrow* arrow = (EnArrow*)this->actor.parent;
     f32 distanceScaled;
     s32 pad;
 
     if ((arrow == NULL) || (arrow->actor.update == NULL)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
     // copy position and rotation from arrow
     this->actor.world.pos = arrow->actor.world.pos;
     this->actor.shape.rot = arrow->actor.shape.rot;
-    distanceScaled = Math_Vec3f_DistXYZ(&this->firedPos, &this->actor.world.pos) * (1.0f / 24.0f);
+    distanceScaled = MM_Math_Vec3f_DistXYZ(&this->firedPos, &this->actor.world.pos) * (1.0f / 24.0f);
     this->height = distanceScaled;
     if (distanceScaled < 1.0f) {
         this->height = 1.0f;
@@ -159,30 +159,30 @@ void ArrowIce_Fly(ArrowIce* this, PlayState* play) {
 
     if (arrow->unk_261 & 1) {
         Actor_PlaySfx(&this->actor, NA_SE_IT_EXPLOSION_ICE);
-        ArrowIce_SetupAction(this, ArrowIce_Hit);
+        MM_ArrowIce_SetupAction(this, MM_ArrowIce_Hit);
         this->timer = 32;
         this->alpha = 255;
     } else if (arrow->unk_260 < 34) {
         if (this->alpha < 35) {
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
         } else {
             this->alpha -= 25;
         }
     }
 }
 
-void ArrowIce_Update(Actor* thisx, PlayState* play) {
+void MM_ArrowIce_Update(Actor* thisx, PlayState* play) {
     ArrowIce* this = (ArrowIce*)thisx;
 
     if ((play->msgCtx.msgMode == MSGMODE_E) || (play->msgCtx.msgMode == MSGMODE_SONG_PLAYED)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     } else {
         this->actionFunc(this, play);
     }
 }
 
-void ArrowIce_Draw(Actor* thisx, PlayState* play) {
+void MM_ArrowIce_Draw(Actor* thisx, PlayState* play) {
     s32 pad;
     ArrowIce* this = (ArrowIce*)thisx;
     Actor* transform;
@@ -194,11 +194,11 @@ void ArrowIce_Draw(Actor* thisx, PlayState* play) {
 
         OPEN_DISPS(play->state.gfxCtx);
 
-        Matrix_Translate(transform->world.pos.x, transform->world.pos.y, transform->world.pos.z, MTXMODE_NEW);
+        MM_Matrix_Translate(transform->world.pos.x, transform->world.pos.y, transform->world.pos.z, MTXMODE_NEW);
         Matrix_RotateYS(transform->shape.rot.y, MTXMODE_APPLY);
         Matrix_RotateXS(transform->shape.rot.x, MTXMODE_APPLY);
         Matrix_RotateZS(transform->shape.rot.z, MTXMODE_APPLY);
-        Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
+        MM_Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
 
         // Draw blue effect over the screen when arrow hits
         if (this->blueingEffectMagnitude > 0.0f) {
@@ -216,18 +216,18 @@ void ArrowIce_Draw(Actor* thisx, PlayState* play) {
         gDPSetPrimColorOverride(POLY_XLU_DISP++, 0x80, 0x80, 170, 255, 255, (s32)(this->alpha * 0.5f) & 0xFF,
                                 COSMETIC_ELEMENT_ICE_ARROW_PRIMARY);
         gDPSetEnvColorOverride(POLY_XLU_DISP++, 0, 0, 255, 128, COSMETIC_ELEMENT_ICE_ARROW_SECONDARY);
-        Matrix_RotateZYX(0x4000, 0, 0, MTXMODE_APPLY);
+        MM_Matrix_RotateZYX(0x4000, 0, 0, MTXMODE_APPLY);
         if (this->timer != 0) {
-            Matrix_Translate(0.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+            MM_Matrix_Translate(0.0f, 0.0f, 0.0f, MTXMODE_APPLY);
         } else {
-            Matrix_Translate(0.0f, 1500.0f, 0.0f, MTXMODE_APPLY);
+            MM_Matrix_Translate(0.0f, 1500.0f, 0.0f, MTXMODE_APPLY);
         }
-        Matrix_Scale(this->radius * 0.2f, this->height * 3.0f, this->radius * 0.2f, MTXMODE_APPLY);
-        Matrix_Translate(0.0f, -700.0f, 0.0f, MTXMODE_APPLY);
+        MM_Matrix_Scale(this->radius * 0.2f, this->height * 3.0f, this->radius * 0.2f, MTXMODE_APPLY);
+        MM_Matrix_Translate(0.0f, -700.0f, 0.0f, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_XLU_DISP++, gIceArrowMaterialDL);
         gSPDisplayList(POLY_XLU_DISP++,
-                       Gfx_TwoTexScroll(play->state.gfxCtx, 0, 511 - (stateFrames * 5) % 512, 0, 128, 32, 1,
+                       MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 511 - (stateFrames * 5) % 512, 0, 128, 32, 1,
                                         511 - (stateFrames * 10) % 512, 511 - (stateFrames * 10) % 512, 4, 16));
         gSPDisplayList(POLY_XLU_DISP++, gIceArrowModelDL);
 

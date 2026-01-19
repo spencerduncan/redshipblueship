@@ -154,15 +154,15 @@ s32 Snap_ValidatePictograph(PlayState* play, Actor* actor, s32 flag, Vec3f* pos,
     s32 bgId;
 
     // Check distance
-    distance = OLib_Vec3fDist(pos, &camera->eye);
+    distance = MM_OLib_Vec3fDist(pos, &camera->eye);
     if ((distance < distanceMin) || (distanceMax < distance)) {
         Snap_SetFlag(PICTO_VALID_BAD_DISTANCE);
         ret = PICTO_VALID_BAD_DISTANCE;
     }
 
     // Check rot is facing camera?
-    x = Snap_AbsS(Camera_GetCamDirPitch(camera) + rot->x);
-    y = Snap_AbsS(Camera_GetCamDirYaw(camera) - BINANG_SUB(rot->y, 0x7FFF));
+    x = Snap_AbsS(MM_Camera_GetCamDirPitch(camera) + rot->x);
+    y = Snap_AbsS(MM_Camera_GetCamDirYaw(camera) - BINANG_SUB(rot->y, 0x7FFF));
     if ((0 < angleRange) && ((angleRange < x) || (angleRange < y))) {
         Snap_SetFlag(PICTO_VALID_BAD_ANGLE);
         ret |= PICTO_VALID_BAD_ANGLE;
@@ -181,7 +181,7 @@ s32 Snap_ValidatePictograph(PlayState* play, Actor* actor, s32 flag, Vec3f* pos,
     }
 
     // Check not obscured by bg collision
-    if (BgCheck_ProjectileLineTest(&play->colCtx, pos, &camera->eye, &projectedPos, &poly, true, true, true, true,
+    if (MM_BgCheck_ProjectileLineTest(&play->colCtx, pos, &camera->eye, &projectedPos, &poly, true, true, true, true,
                                    &bgId)) {
         Snap_SetFlag(PICTO_VALID_BEHIND_BG);
         ret |= PICTO_VALID_BEHIND_BG;
@@ -190,7 +190,7 @@ s32 Snap_ValidatePictograph(PlayState* play, Actor* actor, s32 flag, Vec3f* pos,
     // Check not obscured by actor collision
     actors[0] = actor;
     actors[1] = &GET_PLAYER(play)->actor;
-    if (CollisionCheck_LineOCCheck(play, &play->colChkCtx, pos, &camera->eye, actors, 2)) {
+    if (MM_CollisionCheck_LineOCCheck(play, &play->colChkCtx, pos, &camera->eye, actors, 2)) {
         Snap_SetFlag(PICTO_VALID_BEHIND_COLLISION);
         ret |= PICTO_VALID_BEHIND_COLLISION;
     }

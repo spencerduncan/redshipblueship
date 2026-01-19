@@ -27,8 +27,8 @@ VisZbuf sGameVisZbuf;
 VisMono sGameVisMono;
 ViMode sGameViMode;
 
-// #region 2S2H [General] Making gGameState available
-GameState* gGameState;
+// #region 2S2H [General] Making MM_gGameState available
+GameState* MM_gGameState;
 // #endregion
 
 void GameState_UpdateFramerateDivisors(s32 divisor) {
@@ -44,7 +44,7 @@ void GameState_SetFramerateDivisor(GameState* gameState, s32 divisor) {
     GameState_UpdateFramerateDivisors(divisor);
 }
 
-void GameState_SetFBFilter(Gfx** gfxP, void* zbuffer) {
+void MM_GameState_SetFBFilter(Gfx** gfxP, void* zbuffer) {
     Gfx* gfx = *gfxP;
 
     if ((R_FB_FILTER_TYPE > 0) && (R_FB_FILTER_TYPE < 5)) {
@@ -53,7 +53,7 @@ void GameState_SetFBFilter(Gfx** gfxP, void* zbuffer) {
         sGameVisCvg.color.g = R_FB_FILTER_PRIM_COLOR(1);
         sGameVisCvg.color.b = R_FB_FILTER_PRIM_COLOR(2);
         sGameVisCvg.color.a = R_FB_FILTER_A;
-        VisCvg_Draw(&sGameVisCvg, &gfx);
+        MM_VisCvg_Draw(&sGameVisCvg, &gfx);
     } else if ((R_FB_FILTER_TYPE == 5) || (R_FB_FILTER_TYPE == 6)) {
         sGameVisZbuf.useRgba = (R_FB_FILTER_TYPE == 6);
         sGameVisZbuf.primColor.r = R_FB_FILTER_PRIM_COLOR(0);
@@ -75,7 +75,7 @@ void GameState_SetFBFilter(Gfx** gfxP, void* zbuffer) {
         sGameVisMono.envColor.g = R_FB_FILTER_ENV_COLOR(1);
         sGameVisMono.envColor.b = R_FB_FILTER_ENV_COLOR(2);
         sGameVisMono.envColor.a = R_FB_FILTER_A;
-        VisMono_Draw(&sGameVisMono, &gfx);
+        MM_VisMono_Draw(&sGameVisMono, &gfx);
     }
 
     *gfxP = gfx;
@@ -84,17 +84,17 @@ void GameState_SetFBFilter(Gfx** gfxP, void* zbuffer) {
 void GameState_Noop(GameState* gameState) {
 }
 
-void GameState_Draw(GameState* gameState, GraphicsContext* gfxCtx) {
+void MM_GameState_Draw(GameState* gameState, GraphicsContext* gfxCtx) {
     Gfx* gfx;
     Gfx* gfxHead;
 
     OPEN_DISPS(gfxCtx);
 
-    gfx = Graph_GfxPlusOne(gfxHead = POLY_OPA_DISP);
+    gfx = MM_Graph_GfxPlusOne(gfxHead = POLY_OPA_DISP);
     gSPDisplayList(OVERLAY_DISP++, gfx);
 
     if ((R_FB_FILTER_TYPE != 0) && (R_FB_FILTER_ENV_COLOR(3) == 0)) {
-        GameState_SetFBFilter(&gfx, gfxCtx->zbuffer);
+        MM_GameState_SetFBFilter(&gfx, gfxCtx->zbuffer);
     }
 
     if (R_ENABLE_ARENA_DBG < 0) {
@@ -102,7 +102,7 @@ void GameState_Draw(GameState* gameState, GraphicsContext* gfxCtx) {
     }
 
     gSPEndDisplayList(gfx++);
-    Graph_BranchDlist(gfxHead, gfx);
+    MM_Graph_BranchDlist(gfxHead, gfx);
     POLY_OPA_DISP = gfx;
 
     CLOSE_DISPS(gfxCtx);
@@ -110,12 +110,12 @@ void GameState_Draw(GameState* gameState, GraphicsContext* gfxCtx) {
     Debug_DrawText(gfxCtx);
 
     if (R_ENABLE_ARENA_DBG != 0) {
-        SpeedMeter_DrawTimeEntries(&sGameSpeedMeter, gfxCtx);
-        SpeedMeter_DrawAllocEntries(&sGameSpeedMeter, gfxCtx, gameState);
+        MM_SpeedMeter_DrawTimeEntries(&sGameSpeedMeter, gfxCtx);
+        MM_SpeedMeter_DrawAllocEntries(&sGameSpeedMeter, gfxCtx, gameState);
     }
 }
 
-void GameState_SetFrameBuffer(GraphicsContext* gfxCtx) {
+void MM_GameState_SetFrameBuffer(GraphicsContext* gfxCtx) {
     OPEN_DISPS(gfxCtx);
 
     gSPSegment(POLY_OPA_DISP++, 0x00, NULL);
@@ -134,10 +134,10 @@ void GameState_DrawEnd(GraphicsContext* gfxCtx) {
 
     OPEN_DISPS(gfxCtx);
 
-    gfx = Graph_GfxPlusOne(gfxHead = POLY_OPA_DISP);
+    gfx = MM_Graph_GfxPlusOne(gfxHead = POLY_OPA_DISP);
     gSPDisplayList(OVERLAY_DISP++, gfx);
     gSPEndDisplayList(gfx++);
-    Graph_BranchDlist(gfxHead, gfx);
+    MM_Graph_BranchDlist(gfxHead, gfx);
 
     POLY_OPA_DISP = gfx;
 
@@ -148,10 +148,10 @@ void GameState_GetInput(GameState* gameState) {
     PadMgr_GetInput(gameState->input, true);
 }
 
-void GameState_Update(GameState* gameState) {
+void MM_GameState_Update(GameState* gameState) {
     GraphicsContext* gfxCtx = gameState->gfxCtx;
 
-    GameState_SetFrameBuffer(gameState->gfxCtx);
+    MM_GameState_SetFrameBuffer(gameState->gfxCtx);
 
     GameInteractor_ExecuteOnGameStateMainStart();
 
@@ -160,7 +160,7 @@ void GameState_Update(GameState* gameState) {
     GameInteractor_ExecuteOnGameStateMainFinish();
 
     if (R_PAUSE_BG_PRERENDER_STATE != PAUSE_BG_PRERENDER_PROCESS) {
-        GameState_Draw(gameState, gfxCtx);
+        MM_GameState_Draw(gameState, gfxCtx);
         GameInteractor_ExecuteOnGameStateDrawFinish();
         GameState_DrawEnd(gfxCtx);
     }
@@ -173,20 +173,20 @@ void GameState_IncrementFrameCount(GameState* gameState) {
     gameState->frames++;
 }
 
-void GameState_InitArena(GameState* gameState, size_t size) {
+void MM_GameState_InitArena(GameState* gameState, size_t size) {
     GameAlloc* alloc = &gameState->alloc;
-    void* buf = GameAlloc_Malloc(alloc, size);
+    void* buf = MM_GameAlloc_Malloc(alloc, size);
 
     if (buf) {
-        THA_Init(&gameState->tha, buf, size);
+        MM_THA_Init(&gameState->tha, buf, size);
         return;
     }
 
-    THA_Init(&gameState->tha, NULL, 0);
+    MM_THA_Init(&gameState->tha, NULL, 0);
     _dbg_hungup("../game.c", 1035);
 }
 
-void GameState_Realloc(GameState* gameState, size_t size) {
+void MM_GameState_Realloc(GameState* gameState, size_t size) {
     GameAlloc* alloc = &gameState->alloc;
     void* gameArena;
     size_t systemMaxFree;
@@ -195,96 +195,96 @@ void GameState_Realloc(GameState* gameState, size_t size) {
     void* heapStart = gameState->tha.start;
 
     THA_Destroy(&gameState->tha);
-    GameAlloc_Free(alloc, heapStart);
-    SystemArena_GetSizes(&systemMaxFree, &bytesFree, &bytesAllocated);
+    MM_GameAlloc_Free(alloc, heapStart);
+    MM_SystemArena_GetSizes(&systemMaxFree, &bytesFree, &bytesAllocated);
     size = ((systemMaxFree - sizeof(ArenaNode)) < size) ? 0 : size;
     if (size == 0) {
         size = systemMaxFree - sizeof(ArenaNode);
     }
 
-    gameArena = GameAlloc_Malloc(alloc, size);
+    gameArena = MM_GameAlloc_Malloc(alloc, size);
     if (gameArena != NULL) {
-        THA_Init(&gameState->tha, gameArena, size);
+        MM_THA_Init(&gameState->tha, gameArena, size);
     } else {
-        THA_Init(&gameState->tha, NULL, 0);
+        MM_THA_Init(&gameState->tha, NULL, 0);
         _dbg_hungup("../game.c", 1074);
     }
 }
 
-void GameState_Init(GameState* gameState, GameStateFunc init, GraphicsContext* gfxCtx) {
-    gGameState = gameState;
+void MM_GameState_Init(GameState* gameState, GameStateFunc init, GraphicsContext* gfxCtx) {
+    MM_gGameState = gameState;
     gameState->gfxCtx = gfxCtx;
     gameState->frames = 0;
     gameState->main = NULL;
     gameState->destroy = NULL;
     gameState->running = true;
     gfxCtx->viMode = gActiveViMode;
-    gfxCtx->viConfigFeatures = gViConfigFeatures;
-    gfxCtx->xScale = gViConfigXScale;
-    gfxCtx->yScale = gViConfigYScale;
+    gfxCtx->viConfigFeatures = MM_gViConfigFeatures;
+    gfxCtx->xScale = MM_gViConfigXScale;
+    gfxCtx->yScale = MM_gViConfigYScale;
     gameState->init = NULL;
     gameState->size = 0;
 
     {
         s32 requiredScopeTemp;
 
-        GameAlloc_Init(&gameState->alloc);
+        MM_GameAlloc_Init(&gameState->alloc);
     }
 
-    GameState_InitArena(gameState, 0x100000);
+    MM_GameState_InitArena(gameState, 0x100000);
     GameState_SetFramerateDivisor(gameState, 3);
 
     init(gameState);
 
-    VisCvg_Init(&sGameVisCvg);
+    MM_VisCvg_Init(&sGameVisCvg);
     VisZbuf_Init(&sGameVisZbuf);
-    VisMono_Init(&sGameVisMono);
-    ViMode_Init(&sGameViMode);
-    SpeedMeter_Init(&sGameSpeedMeter);
+    MM_VisMono_Init(&sGameVisMono);
+    MM_ViMode_Init(&sGameViMode);
+    MM_SpeedMeter_Init(&sGameSpeedMeter);
     Rumble_Init();
 
-    osSendMesg(&gameState->gfxCtx->queue, OS_MESG_PTR(NULL), OS_MESG_BLOCK);
+    MM_osSendMesg(&gameState->gfxCtx->queue, OS_MESG_PTR(NULL), OS_MESG_BLOCK);
 }
 
-void GameState_Destroy(GameState* gameState) {
+void MM_GameState_Destroy(GameState* gameState) {
     // BENTODO
     AudioMgr_StopAllSfxExceptSystem();
     Audio_Update();
-    osRecvMesg(&gameState->gfxCtx->queue, NULL, OS_MESG_BLOCK);
+    MM_osRecvMesg(&gameState->gfxCtx->queue, NULL, OS_MESG_BLOCK);
 
     if (gameState->destroy != NULL) {
         gameState->destroy(gameState);
     }
 
     Rumble_Destroy();
-    SpeedMeter_Destroy(&sGameSpeedMeter);
-    VisCvg_Destroy(&sGameVisCvg);
+    MM_SpeedMeter_Destroy(&sGameSpeedMeter);
+    MM_VisCvg_Destroy(&sGameVisCvg);
     VisZbuf_Destroy(&sGameVisZbuf);
-    VisMono_Destroy(&sGameVisMono);
-    ViMode_Destroy(&sGameViMode);
+    MM_VisMono_Destroy(&sGameVisMono);
+    MM_ViMode_Destroy(&sGameViMode);
     THA_Destroy(&gameState->tha);
-    GameAlloc_Cleanup(&gameState->alloc);
-    gGameState = NULL;
+    MM_GameAlloc_Cleanup(&gameState->alloc);
+    MM_gGameState = NULL;
 }
 
-GameStateFunc GameState_GetInit(GameState* gameState) {
+GameStateFunc MM_GameState_GetInit(GameState* gameState) {
     return gameState->init;
 }
 
-size_t GameState_GetSize(GameState* gameState) {
+size_t MM_GameState_GetSize(GameState* gameState) {
     return gameState->size;
 }
 
-u32 GameState_IsRunning(GameState* gameState) {
+u32 MM_GameState_IsRunning(GameState* gameState) {
     return gameState->running;
 }
 
-s32 GameState_GetArenaSize(GameState* gameState) {
+s32 MM_GameState_GetArenaSize(GameState* gameState) {
     return THA_GetRemaining(&gameState->tha);
 }
 
 s32 func_80173B48(GameState* gameState) {
-    s32 result = OS_CYCLES_TO_NSEC(gameState->framerateDivisor * gIrqMgrRetraceTime) - OS_CYCLES_TO_NSEC(gRDPTimeTotal);
+    s32 result = OS_CYCLES_TO_NSEC(gameState->framerateDivisor * MM_gIrqMgrRetraceTime) - OS_CYCLES_TO_NSEC(gRDPTimeTotal);
 
     return result;
 }

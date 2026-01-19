@@ -11,12 +11,12 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED)
 
-void EnDyExtra_Init(Actor* thisx, PlayState* play);
-void EnDyExtra_Destroy(Actor* thisx, PlayState* play);
-void EnDyExtra_Update(Actor* thisx, PlayState* play);
-void EnDyExtra_Draw(Actor* thisx, PlayState* play);
+void OoT_EnDyExtra_Init(Actor* thisx, PlayState* play);
+void OoT_EnDyExtra_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnDyExtra_Update(Actor* thisx, PlayState* play);
+void OoT_EnDyExtra_Draw(Actor* thisx, PlayState* play);
 
-void EnDyExtra_WaitForTrigger(EnDyExtra* this, PlayState* play);
+void OoT_EnDyExtra_WaitForTrigger(EnDyExtra* this, PlayState* play);
 void EnDyExtra_FallAndKill(EnDyExtra* this, PlayState* play);
 
 const ActorInit En_Dy_Extra_InitVars = {
@@ -25,17 +25,17 @@ const ActorInit En_Dy_Extra_InitVars = {
     FLAGS,
     OBJECT_DY_OBJ,
     sizeof(EnDyExtra),
-    (ActorFunc)EnDyExtra_Init,
-    (ActorFunc)EnDyExtra_Destroy,
-    (ActorFunc)EnDyExtra_Update,
-    (ActorFunc)EnDyExtra_Draw,
+    (ActorFunc)OoT_EnDyExtra_Init,
+    (ActorFunc)OoT_EnDyExtra_Destroy,
+    (ActorFunc)OoT_EnDyExtra_Update,
+    (ActorFunc)OoT_EnDyExtra_Draw,
     NULL,
 };
 
-void EnDyExtra_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnDyExtra_Destroy(Actor* thisx, PlayState* play) {
 }
 
-void EnDyExtra_Init(Actor* thisx, PlayState* play) {
+void OoT_EnDyExtra_Init(Actor* thisx, PlayState* play) {
     EnDyExtra* this = (EnDyExtra*)thisx;
 
     osSyncPrintf("\n\n");
@@ -49,11 +49,11 @@ void EnDyExtra_Init(Actor* thisx, PlayState* play) {
     this->actor.gravity = -0.2f;
     this->unk_158 = 1.0f;
     this->timer = 60;
-    this->actionFunc = EnDyExtra_WaitForTrigger;
+    this->actionFunc = OoT_EnDyExtra_WaitForTrigger;
 }
 
-void EnDyExtra_WaitForTrigger(EnDyExtra* this, PlayState* play) {
-    Math_ApproachF(&this->actor.gravity, 0.0f, 0.1f, 0.005f);
+void OoT_EnDyExtra_WaitForTrigger(EnDyExtra* this, PlayState* play) {
+    OoT_Math_ApproachF(&this->actor.gravity, 0.0f, 0.1f, 0.005f);
     if (this->actor.world.pos.y < -55.0f) {
         this->actor.velocity.y = 0.0f;
     }
@@ -64,18 +64,18 @@ void EnDyExtra_WaitForTrigger(EnDyExtra* this, PlayState* play) {
 }
 
 void EnDyExtra_FallAndKill(EnDyExtra* this, PlayState* play) {
-    Math_ApproachF(&this->actor.gravity, 0.0f, 0.1f, 0.005f);
+    OoT_Math_ApproachF(&this->actor.gravity, 0.0f, 0.1f, 0.005f);
     if (this->timer == 0 || this->unk_158 < 0.02f) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
-    Math_ApproachZeroF(&this->unk_158, 0.03f, 0.05f);
+    OoT_Math_ApproachZeroF(&this->unk_158, 0.03f, 0.05f);
     if (this->actor.world.pos.y < -55.0f) {
         this->actor.velocity.y = 0.0f;
     }
 }
 
-void EnDyExtra_Update(Actor* thisx, PlayState* play) {
+void OoT_EnDyExtra_Update(Actor* thisx, PlayState* play) {
     EnDyExtra* this = (EnDyExtra*)thisx;
 
     if (this->timer != 0) {
@@ -89,7 +89,7 @@ void EnDyExtra_Update(Actor* thisx, PlayState* play) {
     Actor_MoveXZGravity(&this->actor);
 }
 
-void EnDyExtra_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnDyExtra_Draw(Actor* thisx, PlayState* play) {
     static Color_RGBA8 primColors[] = { { 255, 255, 170, 255 }, { 255, 255, 170, 255 } };
     static Color_RGBA8 envColors[] = { { 255, 100, 255, 255 }, { 100, 255, 255, 255 } };
     static u8 D_809FFC50[] = { 0x02, 0x01, 0x01, 0x02, 0x00, 0x00, 0x02, 0x01, 0x00, 0x02, 0x01, 0x00, 0x02, 0x01,
@@ -115,7 +115,7 @@ void EnDyExtra_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, play->state.frames * 2, 0, 0x20, 0x40, 1, play->state.frames,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, play->state.frames * 2, 0, 0x20, 0x40, 1, play->state.frames,
                                 play->state.frames * -8, 0x10, 0x10));
     gDPPipeSync(POLY_XLU_DISP++);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);

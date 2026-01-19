@@ -16,13 +16,13 @@ RumbleManager gRumbleMgr;
 
 void Rumble_Update(void* arg0) {
     // BENTODO: Workaround for rumble being too long.
-    // On hardware, PadMgr_ThreadEntry would run once per VI (60hertz),
+    // On hardware, MM_PadMgr_ThreadEntry would run once per VI (60hertz),
     // however we do not have OS Threads implemented, and instead opted to execute the PadMgr alongside
     // the Graph thread. This means it will run less often when the game is in 20fps or 30fps mode.
     // Here we call the rumble manager extra times to simulate updates happening at 60hertz.
     for (int i = 0; i < RUMBLE_FRAMES_PER_UPDATE; i++) {
         RumbleManager_Update(&gRumbleMgr);
-        PadMgr_RumbleSet(gRumbleMgr.rumbleEnabled);
+        MM_PadMgr_RumbleSet(gRumbleMgr.rumbleEnabled);
     }
 }
 
@@ -34,7 +34,7 @@ void Rumble_Override(f32 distSq, u8 sourceIntensity, u8 decayTimer, u8 decayStep
     if (SQ(1000.0f) < distSq) {
         distance = 1000;
     } else {
-        distance = sqrtf(distSq);
+        distance = MM_sqrtf(distSq);
     }
 
     if ((distance < 1000) && (sourceIntensity != 0) && (decayStep != 0)) {
@@ -56,7 +56,7 @@ void Rumble_Request(f32 distSq, u8 sourceIntensity, u8 decayTimer, u8 decayStep)
     if (SQ(1000.0f) < distSq) {
         distance = 1000;
     } else {
-        distance = sqrtf(distSq);
+        distance = MM_sqrtf(distSq);
     }
 
     if ((distance < 1000) && (sourceIntensity != 0) && (decayStep != 0)) {

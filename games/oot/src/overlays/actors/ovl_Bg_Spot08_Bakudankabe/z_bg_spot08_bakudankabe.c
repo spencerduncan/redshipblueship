@@ -32,7 +32,7 @@ const ActorInit Bg_Spot08_Bakudankabe_InitVars = {
     NULL,
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[] = {
+static ColliderJntSphElementInit OoT_sJntSphElementsInit[] = {
     {
         {
             ELEMTYPE_UNK0,
@@ -68,7 +68,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit OoT_sJntSphInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -78,7 +78,7 @@ static ColliderJntSphInit sJntSphInit = {
         COLSHAPE_JNTSPH,
     },
     3,
-    sJntSphElementsInit,
+    OoT_sJntSphElementsInit,
 };
 
 static Vec3f D_808B08AC[] = {
@@ -87,7 +87,7 @@ static Vec3f D_808B08AC[] = {
     { -115.0f, 95.0f, 10.0f },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F(scale, 1, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 3200, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 800, ICHAIN_CONTINUE),
@@ -97,8 +97,8 @@ static InitChainEntry sInitChain[] = {
 void func_808B02D0(BgSpot08Bakudankabe* this, PlayState* play) {
     s32 pad;
 
-    Collider_InitJntSph(play, &this->collider);
-    Collider_SetJntSph(play, &this->collider, &this->dyna.actor, &sJntSphInit, this->colliderItems);
+    OoT_Collider_InitJntSph(play, &this->collider);
+    OoT_Collider_SetJntSph(play, &this->collider, &this->dyna.actor, &OoT_sJntSphInit, this->colliderItems);
 }
 
 void func_808B0324(BgSpot08Bakudankabe* this, PlayState* play) {
@@ -109,8 +109,8 @@ void func_808B0324(BgSpot08Bakudankabe* this, PlayState* play) {
     f32 sinY;
     f32 cosY;
 
-    sinY = Math_SinS(this->dyna.actor.shape.rot.y);
-    cosY = Math_CosS(this->dyna.actor.shape.rot.y);
+    sinY = OoT_Math_SinS(this->dyna.actor.shape.rot.y);
+    cosY = OoT_Math_CosS(this->dyna.actor.shape.rot.y);
 
     burstDepthX.z = 0.0f;
     burstDepthX.x = 0.0f;
@@ -122,14 +122,14 @@ void func_808B0324(BgSpot08Bakudankabe* this, PlayState* play) {
         f32 temp2;
         s32 rotationSpeed;
 
-        temp1 = (Rand_ZeroOne() - 0.5f) * 440.0f;
-        temp2 = (Rand_ZeroOne() - 0.5f) * 20.0f;
+        temp1 = (OoT_Rand_ZeroOne() - 0.5f) * 440.0f;
+        temp2 = (OoT_Rand_ZeroOne() - 0.5f) * 20.0f;
         burstDepthY.x = this->dyna.actor.world.pos.x + temp2 * sinY + (temp1 * cosY);
         burstDepthY.y = (this->dyna.actor.world.pos.y + 20.0f) + (i * (65.0f / 12.0f));
         burstDepthY.z = this->dyna.actor.world.pos.z + temp2 * cosY - (temp1 * sinY);
 
-        burstDepthX.y = (Rand_ZeroOne() - 0.2f) * 12.0f;
-        scale = Rand_ZeroOne() * 75.0f + 10.0f;
+        burstDepthX.y = (OoT_Rand_ZeroOne() - 0.2f) * 12.0f;
+        scale = OoT_Rand_ZeroOne() * 75.0f + 10.0f;
 
         if (scale < 25) {
             gravityInfluence = -300;
@@ -139,13 +139,13 @@ void func_808B0324(BgSpot08Bakudankabe* this, PlayState* play) {
             gravityInfluence = -420;
         }
 
-        if (Rand_ZeroOne() < 0.4f) {
+        if (OoT_Rand_ZeroOne() < 0.4f) {
             rotationSpeed = 65;
         } else {
             rotationSpeed = 33;
         }
 
-        EffectSsKakera_Spawn(play, &burstDepthY, &burstDepthX, &burstDepthY, gravityInfluence, rotationSpeed, 0x1E, 4,
+        OoT_EffectSsKakera_Spawn(play, &burstDepthY, &burstDepthX, &burstDepthY, gravityInfluence, rotationSpeed, 0x1E, 4,
                              0, scale, 1, 3, 80, KAKERA_COLOR_NONE, OBJECT_GAMEPLAY_FIELD_KEEP, gFieldKakeraDL);
     }
 
@@ -162,22 +162,22 @@ void BgSpot08Bakudankabe_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     CollisionHeader* colHeader = NULL;
 
-    DynaPolyActor_Init(&this->dyna, DPM_UNK);
-    if (Flags_GetSwitch(play, (this->dyna.actor.params & 0x3F))) {
-        Actor_Kill(&this->dyna.actor);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
+    if (OoT_Flags_GetSwitch(play, (this->dyna.actor.params & 0x3F))) {
+        OoT_Actor_Kill(&this->dyna.actor);
         return;
     }
     func_808B02D0(this, play);
-    CollisionHeader_GetVirtual(&gZorasFountainBombableWallCol, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    OoT_CollisionHeader_GetVirtual(&gZorasFountainBombableWallCol, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
 }
 
 void BgSpot08Bakudankabe_Destroy(Actor* thisx, PlayState* play) {
     BgSpot08Bakudankabe* this = (BgSpot08Bakudankabe*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
-    Collider_DestroyJntSph(play, &this->collider);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_Collider_DestroyJntSph(play, &this->collider);
 }
 
 void BgSpot08Bakudankabe_Update(Actor* thisx, PlayState* play) {
@@ -185,20 +185,20 @@ void BgSpot08Bakudankabe_Update(Actor* thisx, PlayState* play) {
 
     if (this->collider.base.acFlags & AC_HIT) {
         func_808B0324(this, play);
-        Flags_SetSwitch(play, (this->dyna.actor.params & 0x3F));
-        SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 40, NA_SE_EV_WALL_BROKEN);
+        OoT_Flags_SetSwitch(play, (this->dyna.actor.params & 0x3F));
+        OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 40, NA_SE_EV_WALL_BROKEN);
         Sfx_PlaySfxCentered(NA_SE_SY_CORRECT_CHIME);
-        Actor_Kill(&this->dyna.actor);
+        OoT_Actor_Kill(&this->dyna.actor);
     } else if (this->dyna.actor.xzDistToPlayer < 800.0f) {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
 void BgSpot08Bakudankabe_Draw(Actor* thisx, PlayState* play) {
     BgSpot08Bakudankabe* this = (BgSpot08Bakudankabe*)thisx;
 
-    Collider_UpdateSpheres(0, &this->collider);
-    Collider_UpdateSpheres(1, &this->collider);
-    Collider_UpdateSpheres(2, &this->collider);
-    Gfx_DrawDListOpa(play, gZorasFountainBombableWallDL);
+    OoT_Collider_UpdateSpheres(0, &this->collider);
+    OoT_Collider_UpdateSpheres(1, &this->collider);
+    OoT_Collider_UpdateSpheres(2, &this->collider);
+    OoT_Gfx_DrawDListOpa(play, gZorasFountainBombableWallDL);
 }

@@ -32,7 +32,7 @@ ActorProfile En_Stop_heishi_Profile = {
     /**/ EnStopheishi_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -82,7 +82,7 @@ typedef enum {
     /* 8 */ SOLDIER_ANIM_MAX
 } SoldierAnimation;
 
-static AnimationHeader* sAnimations[SOLDIER_ANIM_MAX] = {
+static AnimationHeader* MM_sAnimations[SOLDIER_ANIM_MAX] = {
     &gSoldierLookDownAnim,             // SOLDIER_ANIM_LOOK_DOWN
     &gSoldierComeUpHereAnim,           // SOLDIER_ANIM_COME_UP_HERE
     &gSoldierStandHandOnHipAnim,       // SOLDIER_ANIM_STAND_HAND_ON_HIP
@@ -96,8 +96,8 @@ static AnimationHeader* sAnimations[SOLDIER_ANIM_MAX] = {
 void EnStopheishi_Init(Actor* thisx, PlayState* play) {
     EnStopheishi* this = (EnStopheishi*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 25.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gSoldierSkel, &gSoldierStandHandOnHipAnim, this->jointTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 25.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gSoldierSkel, &gSoldierStandHandOnHipAnim, this->jointTable,
                        this->morphTable, SOLDIER_LIMB_MAX);
 
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
@@ -108,13 +108,13 @@ void EnStopheishi_Init(Actor* thisx, PlayState* play) {
     if (this->switchFlag == ENSTOPHEISHI_SWITCH_FLAG_NONE) {
         this->switchFlag = SWITCH_FLAG_NONE;
     }
-    if ((this->switchFlag > SWITCH_FLAG_NONE) && Flags_GetSwitch(play, this->switchFlag)) {
-        Actor_Kill(&this->actor);
+    if ((this->switchFlag > SWITCH_FLAG_NONE) && MM_Flags_GetSwitch(play, this->switchFlag)) {
+        MM_Actor_Kill(&this->actor);
         return;
     }
     this->actor.attentionRangeType = ATTENTION_RANGE_0;
     this->actor.gravity = -3.0f;
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
     this->rotYTarget = this->actor.world.rot.y;
     this->headTurnTimer2 = 6;
     func_80AE7E9C(this);
@@ -123,7 +123,7 @@ void EnStopheishi_Init(Actor* thisx, PlayState* play) {
 void EnStopheishi_Destroy(Actor* thisx, PlayState* play) {
     EnStopheishi* this = (EnStopheishi*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnStopHeishi_ChangeAnim(EnStopheishi* this, s32 animIndex) {
@@ -131,7 +131,7 @@ void EnStopHeishi_ChangeAnim(EnStopheishi* this, s32 animIndex) {
     f32 morphFrames;
 
     this->animIndex = animIndex;
-    this->animEndFrame = Animation_GetLastFrame(sAnimations[animIndex]);
+    this->animEndFrame = MM_Animation_GetLastFrame(MM_sAnimations[animIndex]);
     animMode = ANIMMODE_ONCE;
     morphFrames = -10.0f;
     if ((animIndex >= SOLDIER_ANIM_STAND_HAND_ON_HIP) && (animIndex != SOLDIER_ANIM_4)) {
@@ -140,7 +140,7 @@ void EnStopHeishi_ChangeAnim(EnStopheishi* this, s32 animIndex) {
     if (animIndex == SOLDIER_ANIM_5) {
         morphFrames = 0.0f;
     }
-    Animation_Change(&this->skelAnime, sAnimations[animIndex], 1.0f, 0.0f, this->animEndFrame, animMode, morphFrames);
+    MM_Animation_Change(&this->skelAnime, MM_sAnimations[animIndex], 1.0f, 0.0f, this->animEndFrame, animMode, morphFrames);
 }
 
 void EnStopheishi_UpdateHeadNormal(EnStopheishi* this, PlayState* play) {
@@ -163,14 +163,14 @@ void EnStopheishi_UpdateHeadNormal(EnStopheishi* this, PlayState* play) {
             }
         }
 
-        Math_Vec3f_Copy(&playerPos, &player->actor.world.pos);
+        MM_Math_Vec3f_Copy(&playerPos, &player->actor.world.pos);
 
         if ((player->transformation == PLAYER_FORM_DEKU) || (player->transformation == PLAYER_FORM_HUMAN)) {
             playerPos.y += 57.0f + BREG(34);
         } else {
             playerPos.y += 70.0f + BREG(35);
         }
-        this->pitchToPlayer = Math_Vec3f_Pitch(&this->actor.focus.pos, &playerPos);
+        this->pitchToPlayer = MM_Math_Vec3f_Pitch(&this->actor.focus.pos, &playerPos);
     }
 }
 
@@ -209,8 +209,8 @@ void func_80AE77D4(EnStopheishi* this) {
         if ((fabsf(this->actor.world.pos.x - this->actor.home.pos.x) > 3.0f) ||
             (fabsf(this->actor.world.pos.z - this->actor.home.pos.z) > 3.0f)) {
             this->skelAnime.playSpeed = 3.0f;
-            Math_ApproachF(&this->actor.world.pos.x, this->actor.home.pos.x, 0.3f, 5.0f);
-            Math_ApproachF(&this->actor.world.pos.z, this->actor.home.pos.z, 0.3f, 5.0f);
+            MM_Math_ApproachF(&this->actor.world.pos.x, this->actor.home.pos.x, 0.3f, 5.0f);
+            MM_Math_ApproachF(&this->actor.world.pos.z, this->actor.home.pos.z, 0.3f, 5.0f);
         } else {
             this->unk_264 = 1;
         }
@@ -242,31 +242,31 @@ void func_80AE795C(EnStopheishi* this, PlayState* play) {
         this->rotYTarget = this->actor.yawTowardsPlayer;
     }
     playSpeed =
-        fabsf((f32)this->actor.yawTowardsPlayer - Math_Vec3f_Yaw(&this->actor.home.pos, &player->actor.world.pos)) *
+        fabsf((f32)this->actor.yawTowardsPlayer - MM_Math_Vec3f_Yaw(&this->actor.home.pos, &player->actor.world.pos)) *
         0.01f * 5.0f;
     if (this->unk_274 != 4) {
         this->skelAnime.playSpeed = CLAMP(playSpeed, 1.0f, 5.0f);
     }
-    yaw = Math_Vec3f_Yaw(&this->actor.home.pos, &player->actor.world.pos);
+    yaw = MM_Math_Vec3f_Yaw(&this->actor.home.pos, &player->actor.world.pos);
     xDiff = fabsf(this->actor.home.pos.x - player->actor.world.pos.x);
     zDiff = fabsf(this->actor.home.pos.z - player->actor.world.pos.z);
-    Math_Vec3f_Copy(&newPos, &this->actor.home.pos);
+    MM_Math_Vec3f_Copy(&newPos, &this->actor.home.pos);
     rotY = this->actor.home.rot.y;
 
     if (rotY == -0x8000) {
         if (yaw > 0) {
-            xDiff = Math_SinS(this->actor.home.rot.y + 0xC000) * xDiff;
-            zDiff = Math_CosS(this->actor.home.rot.y + 0xC000) * zDiff;
+            xDiff = MM_Math_SinS(this->actor.home.rot.y + 0xC000) * xDiff;
+            zDiff = MM_Math_CosS(this->actor.home.rot.y + 0xC000) * zDiff;
         } else {
-            xDiff = Math_SinS(this->actor.home.rot.y + 0x4000) * xDiff;
-            zDiff = Math_CosS(this->actor.home.rot.y + 0x4000) * zDiff;
+            xDiff = MM_Math_SinS(this->actor.home.rot.y + 0x4000) * xDiff;
+            zDiff = MM_Math_CosS(this->actor.home.rot.y + 0x4000) * zDiff;
         }
     } else if (yaw < rotY) {
-        xDiff = Math_SinS(this->actor.home.rot.y + 0xC000) * xDiff;
-        zDiff = Math_CosS(this->actor.home.rot.y + 0xC000) * zDiff;
+        xDiff = MM_Math_SinS(this->actor.home.rot.y + 0xC000) * xDiff;
+        zDiff = MM_Math_CosS(this->actor.home.rot.y + 0xC000) * zDiff;
     } else {
-        xDiff = Math_SinS(this->actor.home.rot.y + 0x4000) * xDiff;
-        zDiff = Math_CosS(this->actor.home.rot.y + 0x4000) * zDiff;
+        xDiff = MM_Math_SinS(this->actor.home.rot.y + 0x4000) * xDiff;
+        zDiff = MM_Math_CosS(this->actor.home.rot.y + 0x4000) * zDiff;
     }
 
     if (this->unk_288 < xDiff) {
@@ -281,9 +281,9 @@ void func_80AE795C(EnStopheishi* this, PlayState* play) {
     }
     newPos.x += xDiff;
     newPos.z += zDiff;
-    Math_ApproachF(&this->actor.world.pos.x, newPos.x, 0.5f, this->maxMoveStep);
-    Math_ApproachF(&this->actor.world.pos.z, newPos.z, 0.5f, this->maxMoveStep);
-    Math_ApproachF(&this->maxMoveStep, 50.0f, 0.3f, 1.0f);
+    MM_Math_ApproachF(&this->actor.world.pos.x, newPos.x, 0.5f, this->maxMoveStep);
+    MM_Math_ApproachF(&this->actor.world.pos.z, newPos.z, 0.5f, this->maxMoveStep);
+    MM_Math_ApproachF(&this->maxMoveStep, 50.0f, 0.3f, 1.0f);
 
     switch (this->unk_274) {
         case 0:
@@ -329,10 +329,10 @@ void func_80AE795C(EnStopheishi* this, PlayState* play) {
     this->timer = 20;
     this->pitchToPlayer = 0;
     if (this->unk_276 == 3) {
-        Math_Vec3f_Copy(&newPos, &player->actor.world.pos);
+        MM_Math_Vec3f_Copy(&newPos, &player->actor.world.pos);
         if ((player->transformation == PLAYER_FORM_DEKU) || (player->transformation == PLAYER_FORM_HUMAN)) {
             newPos.y += 77.0f + BREG(37);
-            this->pitchToPlayer = Math_Vec3f_Pitch(&this->actor.focus.pos, &newPos);
+            this->pitchToPlayer = MM_Math_Vec3f_Pitch(&this->actor.focus.pos, &newPos);
         }
     }
 }
@@ -360,7 +360,7 @@ void func_80AE7F34(EnStopheishi* this, PlayState* play) {
     f32 xDiff;
     f32 zDiff;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     if ((this->animIndex == SOLDIER_ANIM_5) && ((TRUNCF_BINANG(this->skelAnime.curFrame) % 2) != 0)) {
         Actor_PlaySfx(&this->actor, NA_SE_EV_SOLDIER_WALK);
     }
@@ -369,7 +369,7 @@ void func_80AE7F34(EnStopheishi* this, PlayState* play) {
     } else {
         EnStopHeishi_UpdateHeadThirdDay(this);
     }
-    Math_SmoothStepToS(&this->actor.world.rot.y, this->rotYTarget, 1, 0x1388, 0);
+    MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->rotYTarget, 1, 0x1388, 0);
 
     sp32 = 0;
     if (gSaveContext.save.isNight) {
@@ -426,7 +426,7 @@ void func_80AE7F34(EnStopheishi* this, PlayState* play) {
         zDiff = this->actor.home.pos.z - player->actor.world.pos.z;
         this->collider.dim.radius = 50;
         this->collider.dim.height = 260;
-        if (sqrtf(SQ(xDiff) + SQ(zDiff)) < 240.0f) {
+        if (MM_sqrtf(SQ(xDiff) + SQ(zDiff)) < 240.0f) {
             func_80AE795C(this, play);
         } else {
             func_80AE77D4(this);
@@ -518,18 +518,18 @@ void func_80AE854C(EnStopheishi* this, PlayState* play) {
 }
 
 void func_80AE85C4(EnStopheishi* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     EnStopheishi_UpdateHeadNormal(this, play);
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         if (this->unk_27E != 0) {
             this->actor.textId = this->unk_27E;
-            Message_ContinueTextbox(play, this->actor.textId);
+            MM_Message_ContinueTextbox(play, this->actor.textId);
             EnStopHeishi_ChangeAnim(this, SOLDIER_ANIM_STAND_HAND_ON_HIP);
             SET_WEEKEVENTREG(WEEKEVENTREG_12_20);
             this->unk_265 = 1;
             this->unk_27E = 0;
         } else {
-            Message_CloseTextbox(play);
+            MM_Message_CloseTextbox(play);
             func_80AE7E9C(this);
         }
     }
@@ -543,20 +543,20 @@ void EnStopheishi_Update(Actor* thisx, PlayState* play) {
         this->timer--;
     }
     this->actor.shape.rot.y = this->actor.world.rot.y;
-    Math_SmoothStepToS(&this->headRotX, this->headRotXTarget, 1, 0x7D0, 0);
-    Math_SmoothStepToS(&this->headRotZ, this->pitchToPlayer, 1, 0x7D0, 0);
+    MM_Math_SmoothStepToS(&this->headRotX, this->headRotXTarget, 1, 0x7D0, 0);
+    MM_Math_SmoothStepToS(&this->headRotZ, this->pitchToPlayer, 1, 0x7D0, 0);
     this->actionFunc(this, play);
     Actor_MoveWithGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 50.0f,
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 20.0f, 50.0f,
                             UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4 | UPDBGCHECKINFO_FLAG_8 |
                                 UPDBGCHECKINFO_FLAG_10);
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->actor.cullingVolumeDistance = 500.0f;
-    Math_Vec3f_Copy(&this->actor.focus.pos, &this->headWorldPos);
+    MM_Math_Vec3f_Copy(&this->actor.focus.pos, &this->headWorldPos);
     Math_Vec3s_Copy(&this->actor.focus.rot, &this->actor.world.rot);
     if (!this->disableCollider) {
-        Collider_UpdateCylinder(&this->actor, &this->collider);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -574,7 +574,7 @@ void EnStopheishi_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3
     EnStopheishi* this = (EnStopheishi*)thisx;
 
     if (limbIndex == SOLDIER_LIMB_HEAD) {
-        Matrix_MultVec3f(&gZeroVec3f, &this->headWorldPos);
+        MM_Matrix_MultVec3f(&gZeroVec3f, &this->headWorldPos);
     }
 }
 
@@ -582,6 +582,6 @@ void EnStopheishi_Draw(Actor* thisx, PlayState* play) {
     EnStopheishi* this = (EnStopheishi*)thisx;
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnStopheishi_OverrideLimbDraw, EnStopheishi_PostLimbDraw, &this->actor);
 }

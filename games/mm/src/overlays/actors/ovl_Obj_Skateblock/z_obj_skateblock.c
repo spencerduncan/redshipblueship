@@ -70,7 +70,7 @@ Color_RGBA8 D_80A22AD8 = { 250, 250, 250, 255 };
 
 Color_RGBA8 D_80A22ADC = { 180, 180, 180, 255 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32_DIV1000(gravity, -1700, ICHAIN_CONTINUE),  ICHAIN_F32_DIV1000(terminalVelocity, -20000, ICHAIN_CONTINUE),
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_CONTINUE),    ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 150, ICHAIN_CONTINUE), ICHAIN_F32(cullingVolumeDownward, 200, ICHAIN_STOP),
@@ -129,8 +129,8 @@ void func_80A211F4(ObjSkateblock* this, s32 arg1) {
 }
 
 void func_80A212F0(Vec3f* arg0, Vec3f* arg1, s16 arg2) {
-    f32 sp1C = Math_SinS(arg2);
-    f32 temp_f0 = Math_CosS(arg2);
+    f32 sp1C = MM_Math_SinS(arg2);
+    f32 temp_f0 = MM_Math_CosS(arg2);
 
     arg0->x = (arg1->z * sp1C) + (arg1->x * temp_f0);
     arg0->y = arg1->y;
@@ -161,7 +161,7 @@ s32 func_80A21370(ObjSkateblock* this, PlayState* play) {
         sp8C.z = this->dyna.actor.world.pos.z + ((D_80A22A1C[i].z * this->dyna.actor.scale.z) + D_80A22A44[i].z);
 
         floor->height =
-            BgCheck_EntityRaycastFloor6(&play->colCtx, &floor->poly, &floor->bgId, &this->dyna.actor, &sp8C, 0.0f);
+            MM_BgCheck_EntityRaycastFloor6(&play->colCtx, &floor->poly, &floor->bgId, &this->dyna.actor, &sp8C, 0.0f);
 
         if (floor->height > BGCHECK_Y_MIN + 1.0f) {
             sp88 = true;
@@ -230,10 +230,10 @@ s32 func_80A216D4(ObjSkateblock* this, PlayState* play, f32 arg2, Vec3f* arg3) {
     if (this->dyna.pushForce < 0.0f) {
         sp96 -= 0x8000;
     }
-    spE8 = Math_SinS(sp96);
-    spE4 = Math_CosS(sp96);
+    spE8 = MM_Math_SinS(sp96);
+    spE4 = MM_Math_CosS(sp96);
 
-    temp_f2 = Math3D_Vec3f_DistXYZ(&this->dyna.actor.world.pos, &this->dyna.actor.prevPos) +
+    temp_f2 = MM_Math3D_Vec3f_DistXYZ(&this->dyna.actor.world.pos, &this->dyna.actor.prevPos) +
               (300.0f * this->dyna.actor.scale.z) + arg2;
     temp_f24 = temp_f2 * spE8;
     temp_f26 = temp_f2 * spE4;
@@ -256,13 +256,13 @@ s32 func_80A216D4(ObjSkateblock* this, PlayState* play, f32 arg2, Vec3f* arg3) {
         spC8.y = spD4.y;
         spC8.z = temp_f26 + spD4.z;
 
-        if (BgCheck_EntityLineTest3(&play->colCtx, &spD4, &spC8, &spB0, &spA0, true, false, false, true, &bgId,
+        if (MM_BgCheck_EntityLineTest3(&play->colCtx, &spD4, &spC8, &spB0, &spA0, true, false, false, true, &bgId,
                                     &this->dyna.actor, 0.0f)) {
-            temp_f2 = Math3D_Vec3fDistSq(&spD4, &spB0);
+            temp_f2 = MM_Math3D_Vec3fDistSq(&spD4, &spB0);
             if (temp_f2 < temp_f20) {
                 temp_f20 = temp_f2;
                 ret = true;
-                Math_Vec3f_Diff(&spB0, &spC8, arg3);
+                MM_Math_Vec3f_Diff(&spB0, &spC8, arg3);
             }
         }
     }
@@ -302,11 +302,11 @@ s32 func_80A21990(ObjSkateblock* this, PlayState* play, Vec3f* arg2) {
         phi_s6 -= 0x8000;
     }
 
-    sp100 = Math_SinS(phi_s6);
-    temp_f26 = Math_CosS(phi_s6);
+    sp100 = MM_Math_SinS(phi_s6);
+    temp_f26 = MM_Math_CosS(phi_s6);
 
     temp_f12 = (300.0f * this->dyna.actor.scale.z +
-                Math3D_Vec3f_DistXYZ(&this->dyna.actor.world.pos, &this->dyna.actor.prevPos)) +
+                MM_Math3D_Vec3f_DistXYZ(&this->dyna.actor.world.pos, &this->dyna.actor.prevPos)) +
                2.0f;
     temp_f28 = -temp_f12 * sp100;
     temp_f30 = -temp_f12 * temp_f26;
@@ -329,9 +329,9 @@ s32 func_80A21990(ObjSkateblock* this, PlayState* play, Vec3f* arg2) {
         spE0.y = spEC.y;
         spE0.z = temp_f30 + spEC.z;
 
-        if (BgCheck_EntityLineTest3(&play->colCtx, &spEC, &spE0, &spC8, &spB8, true, false, false, true, &bgId,
+        if (MM_BgCheck_EntityLineTest3(&play->colCtx, &spEC, &spE0, &spC8, &spB8, true, false, false, true, &bgId,
                                     &this->dyna.actor, 0.0f)) {
-            temp_f0 = Math3D_Vec3fDistSq(&spEC, &spC8);
+            temp_f0 = MM_Math3D_Vec3fDistSq(&spEC, &spC8);
             if (temp_f0 < phi_f22) {
                 ret = true;
                 arg2->x = (spC8.x - spEC.x) + (300.0f * this->dyna.actor.scale.z * sp100);
@@ -418,7 +418,7 @@ void func_80A21E9C(ObjSkateblock* this, PlayState* play) {
     for (i = 0; i < ARRAY_COUNT(this->unk_184); i++) {
         ptr = &this->unk_184[i];
 
-        temp_v0 = DynaPoly_GetActor(&play->colCtx, ptr->bgId);
+        temp_v0 = MM_DynaPoly_GetActor(&play->colCtx, ptr->bgId);
         if ((temp_v0 != NULL) && (temp_v0->actor.id == ACTOR_OBJ_SKATEBLOCK)) {
             ObjSkateblock* skateBlock = (ObjSkateblock*)temp_v0;
             f32 height = this->dyna.actor.world.pos.y - ptr->height;
@@ -459,10 +459,10 @@ void func_80A21F74(ObjSkateblock* this, PlayState* play) {
         sp9C.y = 12.0f;
 
         for (i = 0; i < 2; i++) {
-            if (phi_f22 < (Rand_ZeroOne() * 1.2f)) {
+            if (phi_f22 < (MM_Rand_ZeroOne() * 1.2f)) {
                 continue;
             }
-            this->unk_180 += Rand_ZeroOne();
+            this->unk_180 += MM_Rand_ZeroOne();
 
             if (this->unk_180 > 1.0f) {
                 this->unk_180 -= 1.0f;
@@ -477,9 +477,9 @@ void func_80A21F74(ObjSkateblock* this, PlayState* play) {
             spA8.y += this->dyna.actor.world.pos.y;
             spA8.z += this->dyna.actor.world.pos.z;
 
-            temp = ((Rand_ZeroOne() * 800.0f) + (1600.0f * this->dyna.actor.scale.x)) * phi_f22;
+            temp = ((MM_Rand_ZeroOne() * 800.0f) + (1600.0f * this->dyna.actor.scale.x)) * phi_f22;
             func_800B0E48(play, &spA8, &gZeroVec3f, &D_80A22ACC, &D_80A22AD8, &D_80A22ADC, temp,
-                          (Rand_ZeroOne() * 20.0f) + 30.0f);
+                          (MM_Rand_ZeroOne() * 20.0f) + 30.0f);
         }
     }
 }
@@ -487,8 +487,8 @@ void func_80A21F74(ObjSkateblock* this, PlayState* play) {
 void ObjSkateblock_Init(Actor* thisx, PlayState* play) {
     ObjSkateblock* this = (ObjSkateblock*)thisx;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
     DynaPolyActor_LoadMesh(play, &this->dyna, &gameplay_dangeon_keep_Colheader_007498);
     if (D_80A22A18 == NULL) {
         D_80A22A18 = Lib_SegmentedToVirtual(gameplay_dangeon_keep_Matanimheader_01B370);
@@ -502,7 +502,7 @@ void ObjSkateblock_Init(Actor* thisx, PlayState* play) {
 void ObjSkateblock_Destroy(Actor* thisx, PlayState* play) {
     ObjSkateblock* this = (ObjSkateblock*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_80A22308(ObjSkateblock* this) {
@@ -531,11 +531,11 @@ void func_80A22334(ObjSkateblock* this, PlayState* play) {
         sp30 = false;
     } else if (!(this->unk_1C1 & 2) &&
                GameInteractor_Should(VB_SKATE_BLOCK_BEGIN_MOVE, (this->unk_172[sp2C] > 10), this, sp2C) &&
-               (D_80A22A10 == 0) && !func_80A216D4(this, play, 2.0f, &sp20) && !Player_InCsMode(play)) {
+               (D_80A22A10 == 0) && !func_80A216D4(this, play, 2.0f, &sp20) && !MM_Player_InCsMode(play)) {
         func_80A21C88(this, sp2C);
         func_80A2244C(this);
         sp30 = false;
-        Player_SetCsActionWithHaltedActors(play, &this->dyna.actor, PLAYER_CSACTION_WAIT);
+        MM_Player_SetCsActionWithHaltedActors(play, &this->dyna.actor, PLAYER_CSACTION_WAIT);
         this->unk_1C1 |= 1;
     }
 
@@ -558,7 +558,7 @@ void func_80A224A4(ObjSkateblock* this, PlayState* play) {
     s32 sp28 = false;
     s32 sp24 = false;
 
-    Math_StepToF(&this->unk_164, this->unk_168, 0.75f);
+    MM_Math_StepToF(&this->unk_164, this->unk_168, 0.75f);
 
     *this->unk_16C += this->unk_164;
 
@@ -591,7 +591,7 @@ void func_80A224A4(ObjSkateblock* this, PlayState* play) {
 
     if ((this->unk_1C1 & 1) && (sp24 || sp28 || (this->dyna.actor.xzDistToPlayer > 400.0f))) {
         this->unk_1C1 &= ~1;
-        Player_SetCsActionWithHaltedActors(play, &this->dyna.actor, PLAYER_CSACTION_END);
+        MM_Player_SetCsActionWithHaltedActors(play, &this->dyna.actor, PLAYER_CSACTION_END);
     }
 
     func_80A21F74(this, play);
@@ -633,7 +633,7 @@ void func_80A22728(ObjSkateblock* this) {
 }
 
 void func_80A2273C(ObjSkateblock* this, PlayState* play) {
-    if (!DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
+    if (!MM_DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
         this->dyna.actor.world.pos.x = this->dyna.actor.home.pos.x;
         this->dyna.actor.world.pos.y = (this->dyna.actor.home.pos.y - (600.0f * this->dyna.actor.scale.y)) - 10.0f;
         this->dyna.actor.world.pos.z = this->dyna.actor.home.pos.z;
@@ -660,11 +660,11 @@ void func_80A227C0(ObjSkateblock* this, PlayState* play) {
     DynaPoly_EnableCollision(play, &play->colCtx.dyna, this->dyna.bgId);
     this->dyna.actor.draw = ObjSkateblock_Draw;
 
-    if (Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y, 1.0f)) {
+    if (MM_Math_StepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y, 1.0f)) {
         func_80A22308(this);
     }
 
-    if (DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
+    if (MM_DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
         D_80A22A10 |= 1 << this->unk_1C0;
     }
 }

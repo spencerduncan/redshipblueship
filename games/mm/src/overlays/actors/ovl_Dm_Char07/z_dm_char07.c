@@ -36,16 +36,16 @@ void DmChar07_Init(Actor* thisx, PlayState* play) {
     DmChar07* this = (DmChar07*)thisx;
 
     this->isStage = 0;
-    Actor_SetScale(&this->dyna.actor, 1.0f);
+    MM_Actor_SetScale(&this->dyna.actor, 1.0f);
     this->spotlightFlags = DMCHAR07_GET_SPOTLIGHTFLAGS(thisx);
     thisx->params = DMCHAR07_GET_TYPE(thisx);
     if (this->dyna.actor.params == DMCHAR07_STAGE) {
-        Actor_SetScale(&this->dyna.actor, 0.1f);
+        MM_Actor_SetScale(&this->dyna.actor, 0.1f);
         this->isStage = 1;
-        DynaPolyActor_Init(&this->dyna, 0);
+        MM_DynaPolyActor_Init(&this->dyna, 0);
         DynaPolyActor_LoadMesh(play, &this->dyna, &object_milkbar_Colheader_006688);
     } else {
-        Actor_SetScale(&this->dyna.actor, 1.0f);
+        MM_Actor_SetScale(&this->dyna.actor, 1.0f);
     }
     DmChar07_SetupAction(this, DmChar07_DoNothing);
 }
@@ -54,7 +54,7 @@ void DmChar07_Destroy(Actor* thisx, PlayState* play) {
     DmChar07* this = (DmChar07*)thisx;
 
     if (this->isStage) {
-        DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+        MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
     }
 }
 

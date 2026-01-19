@@ -1,6 +1,6 @@
 #include "global.h"
 
-void guLookAtF(f32 mf[4][4], f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32 zAt, f32 xUp, f32 yUp, f32 zUp) {
+void OoT_guLookAtF(f32 mf[4][4], f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32 zAt, f32 xUp, f32 yUp, f32 zUp) {
     f32 length;
     f32 xLook;
     f32 yLook;
@@ -14,7 +14,7 @@ void guLookAtF(f32 mf[4][4], f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32
     xLook = xAt - xEye;
     yLook = yAt - yEye;
     zLook = zAt - zEye;
-    length = -1.0 / sqrtf(SQ(xLook) + SQ(yLook) + SQ(zLook));
+    length = -1.0 / OoT_sqrtf(SQ(xLook) + SQ(yLook) + SQ(zLook));
     xLook *= length;
     // xLook = 2.0f;
     yLook *= length;
@@ -23,7 +23,7 @@ void guLookAtF(f32 mf[4][4], f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32
     xRight = yUp * zLook - zUp * yLook;
     yRight = zUp * xLook - xUp * zLook;
     zRight = xUp * yLook - yUp * xLook;
-    length = 1.0 / sqrtf(SQ(xRight) + SQ(yRight) + SQ(zRight));
+    length = 1.0 / OoT_sqrtf(SQ(xRight) + SQ(yRight) + SQ(zRight));
     xRight *= length;
     yRight *= length;
     zRight *= length;
@@ -31,7 +31,7 @@ void guLookAtF(f32 mf[4][4], f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32
     xUp = yLook * zRight - zLook * yRight;
     yUp = zLook * xRight - xLook * zRight;
     zUp = xLook * yRight - yLook * xRight;
-    length = 1.0 / sqrtf(SQ(xUp) + SQ(yUp) + SQ(zUp));
+    length = 1.0 / OoT_sqrtf(SQ(xUp) + SQ(yUp) + SQ(zUp));
     xUp *= length;
     yUp *= length;
     zUp *= length;
@@ -57,11 +57,11 @@ void guLookAtF(f32 mf[4][4], f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32
     mf[3][3] = 1;
 }
 
-void guLookAt(Mtx* m, f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32 zAt, f32 xUp, f32 yUp, f32 zUp) {
+void OoT_guLookAt(Mtx* m, f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32 zAt, f32 xUp, f32 yUp, f32 zUp) {
     f32 mf[4][4];
 
-    guLookAtF(mf, xEye, yEye, zEye, xAt, yAt, zAt, xUp, yUp, zUp);
+    OoT_guLookAtF(mf, xEye, yEye, zEye, xAt, yAt, zAt, xUp, yUp, zUp);
 
     // guMtxF2L((MtxF*)mf, m);
-    Matrix_MtxFToMtx((MtxF*)mf, m);
+    OoT_Matrix_MtxFToMtx((MtxF*)mf, m);
 }

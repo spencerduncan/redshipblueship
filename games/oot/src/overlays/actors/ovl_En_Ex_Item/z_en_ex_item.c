@@ -109,7 +109,7 @@ void EnExItem_Init(Actor* thisx, PlayState* play) {
         this->objectIdx = Object_GetIndex(&play->objectCtx, this->getItemObjId);
         this->actor.draw = NULL;
         if (this->objectIdx < 0) {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
             // "What?"
             osSyncPrintf("なにみの？ %d\n", this->actor.params);
             // "bank is funny"
@@ -123,7 +123,7 @@ void EnExItem_Init(Actor* thisx, PlayState* play) {
 void EnExItem_WaitForObject(EnExItem* this, PlayState* play) {
     s32 onCounter;
 
-    if (Object_IsLoaded(&play->objectCtx, this->objectIdx)) {
+    if (OoT_Object_IsLoaded(&play->objectCtx, this->objectIdx)) {
         // "End of transfer"
         osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ 転送終了 ☆☆☆☆☆ %d\n" VT_RST, this->actor.params, this);
         osSyncPrintf(VT_FGCOL(YELLOW) "☆☆☆☆☆ 転送終了 ☆☆☆☆☆ %d\n" VT_RST, this->actor.params, this);
@@ -274,7 +274,7 @@ void EnExItem_BowlPrize(EnExItem* this, PlayState* play) {
             this->stopRotate++;
         }
     } else {
-        Math_SmoothStepToS(&this->actor.shape.rot.y, 0, 5, 0x1000, 0);
+        OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, 0, 5, 0x1000, 0);
     }
     if (this->timer != 0) {
         if (this->prizeRotateTimer != 0) {
@@ -285,7 +285,7 @@ void EnExItem_BowlPrize(EnExItem* this, PlayState* play) {
             tmpf1 = play->view.lookAt.x - play->view.eye.x;
             tmpf2 = play->view.lookAt.y - play->view.eye.y;
             tmpf3 = play->view.lookAt.z + sp3C - play->view.eye.z;
-            tmpf4 = sqrtf(SQ(tmpf1) + SQ(tmpf2) + SQ(tmpf3));
+            tmpf4 = OoT_sqrtf(SQ(tmpf1) + SQ(tmpf2) + SQ(tmpf3));
 
             tmpf5 = (tmpf1 / tmpf4) * 5.0f;
             tmpf6 = (tmpf2 / tmpf4) * 5.0f;
@@ -309,7 +309,7 @@ void EnExItem_BowlPrize(EnExItem* this, PlayState* play) {
             // "It can't move!"
             osSyncPrintf(VT_FGCOL(GREEN) " ☆☆☆☆☆ さぁきえるぞ！ ☆☆☆☆☆ \n" VT_RST);
         }
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
@@ -321,7 +321,7 @@ void EnExItem_SetupBowlCounter(EnExItem* this, PlayState* play) {
 void EnExItem_BowlCounter(EnExItem* this, PlayState* play) {
     this->actor.shape.rot.y += 0x800;
     if (this->killItem) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
@@ -334,7 +334,7 @@ void EnExItem_ExitChest(EnExItem* this, PlayState* play) {
     } else {
         this->actor.velocity.y = 0.0f;
         if (this->chestKillTimer == 0) {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
         }
     }
     Actor_MoveXZGravity(&this->actor);
@@ -353,14 +353,14 @@ void EnExItem_TargetPrizeApproach(EnExItem* this, PlayState* play) {
     f32 tmpf6;
     f32 tmpf7;
 
-    Math_ApproachF(&this->scale, 0.8f, 0.1f, 0.02f);
+    OoT_Math_ApproachF(&this->scale, 0.8f, 0.1f, 0.02f);
     if (!this->stopRotate) {
         this->actor.shape.rot.y += 0x1000;
         if ((this->prizeRotateTimer == 0) && ((this->actor.shape.rot.y & 0xFFFF) == 0x9000)) {
             this->stopRotate++;
         }
     } else {
-        Math_SmoothStepToS(&this->actor.shape.rot.y, -0x4000, 5, 0x1000, 0);
+        OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, -0x4000, 5, 0x1000, 0);
     }
 
     if (GameInteractor_Should(VB_PLAY_ONEPOINT_ACTOR_CS, true, &this->actor) && this->timer != 0) {
@@ -368,7 +368,7 @@ void EnExItem_TargetPrizeApproach(EnExItem* this, PlayState* play) {
             tmpf1 = play->view.lookAt.x - play->view.eye.x;
             tmpf2 = play->view.lookAt.y - 10.0f - play->view.eye.y;
             tmpf3 = play->view.lookAt.z + 10.0f - play->view.eye.z;
-            tmpf4 = sqrtf(SQ(tmpf1) + SQ(tmpf2) + SQ(tmpf3));
+            tmpf4 = OoT_sqrtf(SQ(tmpf1) + SQ(tmpf2) + SQ(tmpf3));
 
             tmpf5 = (tmpf1 / tmpf4) * 5.0f;
             tmpf6 = (tmpf2 / tmpf4) * 5.0f;
@@ -386,7 +386,7 @@ void EnExItem_TargetPrizeApproach(EnExItem* this, PlayState* play) {
         s32 getItemId;
 
         this->actor.draw = NULL;
-        Player_SetCsActionWithHaltedActors(play, NULL, 7);
+        OoT_Player_SetCsActionWithHaltedActors(play, NULL, 7);
         this->actor.parent = NULL;
 
         if (!GameInteractor_Should(VB_PLAY_ONEPOINT_ACTOR_CS, true, &this->actor)) {
@@ -400,7 +400,7 @@ void EnExItem_TargetPrizeApproach(EnExItem* this, PlayState* play) {
         }
 
         if (GameInteractor_Should(VB_GIVE_ITEM_FROM_TARGET_IN_WOODS, true, &this->actor)) {
-            Actor_OfferGetItem(&this->actor, play, getItemId, 2000.0f, 1000.0f);
+            OoT_Actor_OfferGetItem(&this->actor, play, getItemId, 2000.0f, 1000.0f);
         }
 
         this->actionFunc = EnExItem_TargetPrizeGive;
@@ -408,22 +408,22 @@ void EnExItem_TargetPrizeApproach(EnExItem* this, PlayState* play) {
 }
 
 void EnExItem_TargetPrizeGive(EnExItem* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play) ||
+    if (OoT_Actor_HasParent(&this->actor, play) ||
         !GameInteractor_Should(VB_GIVE_ITEM_FROM_TARGET_IN_WOODS, true, &this->actor)) {
         this->actionFunc = EnExItem_TargetPrizeFinish;
     } else {
         s32 getItemId = (CUR_UPG_VALUE(UPG_BULLET_BAG) == 2) ? GI_BULLET_BAG_50 : GI_BULLET_BAG_40;
-        Actor_OfferGetItem(&this->actor, play, getItemId, 2000.0f, 1000.0f);
+        OoT_Actor_OfferGetItem(&this->actor, play, getItemId, 2000.0f, 1000.0f);
     }
 }
 
 void EnExItem_TargetPrizeFinish(EnExItem* this, PlayState* play) {
     if (!GameInteractor_Should(VB_GIVE_ITEM_FROM_TARGET_IN_WOODS, true, &this->actor) ||
-        (Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && Message_ShouldAdvance(play)) {
+        (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && OoT_Message_ShouldAdvance(play)) {
         // "Successful completion"
         osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ 正常終了 ☆☆☆☆☆ \n" VT_RST);
         Flags_SetItemGetInf(ITEMGETINF_1D);
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
@@ -448,7 +448,7 @@ void EnExItem_Draw(Actor* thisx, PlayState* play) {
     EnExItem* this = (EnExItem*)thisx;
     s32 magicType;
 
-    Actor_SetScale(&this->actor, this->scale);
+    OoT_Actor_SetScale(&this->actor, this->scale);
     switch (this->type) {
         case EXITEM_BOMB_BAG_BOWLING:
         case EXITEM_BOMBCHUS_BOWLING:
@@ -491,19 +491,19 @@ void EnExItem_DrawItems(EnExItem* this, PlayState* play) {
     if (this) {}
     func_8002ED80(&this->actor, play, 0);
 
-    GetItem_Draw(play, this->giDrawId);
+    OoT_GetItem_Draw(play, this->giDrawId);
 }
 
 void EnExItem_DrawHeartPiece(EnExItem* this, PlayState* play) {
     func_8002ED80(&this->actor, play, 0);
-    GetItem_Draw(play, GID_HEART_PIECE);
+    OoT_GetItem_Draw(play, GID_HEART_PIECE);
 }
 
 void EnExItem_DrawMagic(EnExItem* this, PlayState* play, s16 magicIndex) {
     static s16 giDrawIds[] = { GID_DINS_FIRE, GID_FARORES_WIND, GID_NAYRUS_LOVE };
 
     func_8002ED80(&this->actor, play, 0);
-    GetItem_Draw(play, giDrawIds[magicIndex]);
+    OoT_GetItem_Draw(play, giDrawIds[magicIndex]);
 }
 
 void EnExItem_DrawKey(EnExItem* this, PlayState* play, s32 index) {
@@ -526,5 +526,5 @@ void EnExItem_DrawRupee(EnExItem* this, PlayState* play) {
     if (this->unk_180 != NULL) {
         this->unk_180(&this->actor, play, 0);
     }
-    GetItem_Draw(play, this->giDrawId);
+    OoT_GetItem_Draw(play, this->giDrawId);
 }

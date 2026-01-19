@@ -32,7 +32,7 @@ ActorProfile En_Bee_Profile = {
     /**/ EnBee_Draw,
 };
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(1, 0xF),
     /* Deku Stick     */ DMG_ENTRY(1, 0xF),
     /* Horse trample  */ DMG_ENTRY(1, 0xF),
@@ -67,7 +67,7 @@ static DamageTable sDamageTable = {
     /* Powder Keg     */ DMG_ENTRY(1, 0xF),
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_ON | AT_TYPE_ENEMY,
@@ -91,19 +91,19 @@ void EnBee_Init(Actor* thisx, PlayState* play) {
     EnBee* this = (EnBee*)thisx;
 
     this->actor.colChkInfo.mass = 10;
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 19.0f);
-    SkelAnime_Init(play, &this->skelAnime, &gBeeSkel, &gBeeFlyingAnim, this->jointTable, this->morphTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 19.0f);
+    MM_SkelAnime_Init(play, &this->skelAnime, &gBeeSkel, &gBeeFlyingAnim, this->jointTable, this->morphTable,
                    OBJECT_BEE_LIMB_MAX);
     this->actor.colChkInfo.health = 1;
-    this->actor.colChkInfo.damageTable = &sDamageTable;
+    this->actor.colChkInfo.damageTable = &MM_sDamageTable;
     this->actor.attentionRangeType = ATTENTION_RANGE_6;
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
     this->instanceId = sNumLoadedBees;
     sNumLoadedBees++;
     this->actor.shape.shadowScale = 12.0f;
 
     if (CutsceneManager_GetCurrentCsId() != CS_ID_NONE) {
-        Actor_ChangeCategory(play, &play->actorCtx, &this->actor, ACTORCAT_ITEMACTION);
+        MM_Actor_ChangeCategory(play, &play->actorCtx, &this->actor, ACTORCAT_ITEMACTION);
     }
 
     this->actor.hintId = TATL_HINT_ID_GIANT_BEE;
@@ -113,7 +113,7 @@ void EnBee_Init(Actor* thisx, PlayState* play) {
 void EnBee_Destroy(Actor* thisx, PlayState* play) {
     EnBee* this = (EnBee*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnBee_SetupFlyIdle(EnBee* this) {
@@ -121,25 +121,25 @@ void EnBee_SetupFlyIdle(EnBee* this) {
     Vec3f tempPos;
     s16 yawOffset;
 
-    Animation_Change(&this->skelAnime, &gBeeFlyingAnim, 1.0f, 0.0f, Animation_GetLastFrame(&gBeeFlyingAnim),
+    MM_Animation_Change(&this->skelAnime, &gBeeFlyingAnim, 1.0f, 0.0f, MM_Animation_GetLastFrame(&gBeeFlyingAnim),
                      ANIMMODE_LOOP, -10.0f);
-    Math_Vec3f_Copy(&tempPos, &this->actor.home.pos);
+    MM_Math_Vec3f_Copy(&tempPos, &this->actor.home.pos);
 
     yawOffset = (this->instanceId * 0x700) + 0x2000;
-    tempPos.x += Math_SinS(yawOffset) * 50.0f;
-    tempPos.y = Rand_ZeroFloat(50.0f) + (this->actor.floorHeight + 30.0f);
-    tempPos.z += Math_CosS(yawOffset) * 50.0f;
+    tempPos.x += MM_Math_SinS(yawOffset) * 50.0f;
+    tempPos.y = MM_Rand_ZeroFloat(50.0f) + (this->actor.floorHeight + 30.0f);
+    tempPos.z += MM_Math_CosS(yawOffset) * 50.0f;
 
-    Math_Vec3f_Copy(&this->targetPos[0], &tempPos);
-    Math_Vec3f_Copy(&tempPos, &this->actor.home.pos);
+    MM_Math_Vec3f_Copy(&this->targetPos[0], &tempPos);
+    MM_Math_Vec3f_Copy(&tempPos, &this->actor.home.pos);
 
-    tempPos.x += Math_SinS(yawOffset - 0x4000) * 50.0f;
-    tempPos.y = Rand_ZeroFloat(50.0f) + (this->actor.floorHeight + 30.0f);
-    tempPos.z += Math_CosS(yawOffset - 0x4000) * 50.0f;
+    tempPos.x += MM_Math_SinS(yawOffset - 0x4000) * 50.0f;
+    tempPos.y = MM_Rand_ZeroFloat(50.0f) + (this->actor.floorHeight + 30.0f);
+    tempPos.z += MM_Math_CosS(yawOffset - 0x4000) * 50.0f;
 
-    Math_Vec3f_Copy(&this->targetPos[1], &tempPos);
+    MM_Math_Vec3f_Copy(&this->targetPos[1], &tempPos);
 
-    this->attackDelayTimer = Rand_S16Offset(20, 30);
+    this->attackDelayTimer = MM_Rand_S16Offset(20, 30);
     this->isHostile = false;
     this->actionFunc = EnBee_FlyIdle;
 }
@@ -149,21 +149,21 @@ void EnBee_FlyIdle(EnBee* this, PlayState* play) {
     s32 pad[2];
 
     if ((this->actor.category != ACTORCAT_ENEMY) && (CutsceneManager_GetCurrentCsId() == CS_ID_NONE)) {
-        Actor_ChangeCategory(play, &play->actorCtx, &this->actor, ACTORCAT_ENEMY);
+        MM_Actor_ChangeCategory(play, &play->actorCtx, &this->actor, ACTORCAT_ENEMY);
     }
 
-    Math_Vec3f_Copy(&nextPos, &this->targetPos[this->posIndex]);
-    nextPos.x += Math_SinS(this->targetYaw) * 30.0f;
-    nextPos.z += Math_CosS(this->targetYaw) * 30.0f;
+    MM_Math_Vec3f_Copy(&nextPos, &this->targetPos[this->posIndex]);
+    nextPos.x += MM_Math_SinS(this->targetYaw) * 30.0f;
+    nextPos.z += MM_Math_CosS(this->targetYaw) * 30.0f;
 
     if ((this->instanceId % 2) == 0) {
-        this->targetYaw += (s16)((s32)Rand_CenteredFloat(1000.0f) + 4000);
+        this->targetYaw += (s16)((s32)MM_Rand_CenteredFloat(1000.0f) + 4000);
     } else {
-        this->targetYaw -= (s16)((s32)Rand_CenteredFloat(1000.0f) + 4000);
+        this->targetYaw -= (s16)((s32)MM_Rand_CenteredFloat(1000.0f) + 4000);
     }
 
     this->flightHoverOffset += 1000;
-    this->actor.velocity.y = Math_SinS(this->flightHoverOffset);
+    this->actor.velocity.y = MM_Math_SinS(this->flightHoverOffset);
 
     if (this->targetYaw > 0x10000) {
         this->targetYaw = 0;
@@ -171,8 +171,8 @@ void EnBee_FlyIdle(EnBee* this, PlayState* play) {
         this->posIndex &= 1;
     }
 
-    Math_SmoothStepToS(&this->actor.world.rot.y, Math_Vec3f_Yaw(&this->actor.world.pos, &nextPos), 1, 0x7D0, 0);
-    Math_ApproachF(&this->actor.speed, 3.0f, 0.3f, 1.0f);
+    MM_Math_SmoothStepToS(&this->actor.world.rot.y, MM_Math_Vec3f_Yaw(&this->actor.world.pos, &nextPos), 1, 0x7D0, 0);
+    MM_Math_ApproachF(&this->actor.speed, 3.0f, 0.3f, 1.0f);
 
     if ((this->attackDelayTimer == 0) && (this->actor.params != BEE_BEHAVIOR_IDLE)) {
         EnBee_SetupAttack(this);
@@ -180,7 +180,7 @@ void EnBee_FlyIdle(EnBee* this, PlayState* play) {
 }
 
 void EnBee_SetupAttack(EnBee* this) {
-    Animation_Change(&this->skelAnime, &gBeeFlyingAnim, 1.0f, 0.0f, Animation_GetLastFrame(&gBeeFlyingAnim),
+    MM_Animation_Change(&this->skelAnime, &gBeeFlyingAnim, 1.0f, 0.0f, MM_Animation_GetLastFrame(&gBeeFlyingAnim),
                      ANIMMODE_LOOP, -10.0f);
     this->isHostile = true;
     this->actionFunc = EnBee_Attack;
@@ -193,29 +193,29 @@ void EnBee_Attack(EnBee* this, PlayState* play) {
     f32 yawOffset;
     s32 i;
 
-    Math_Vec3f_Copy(&nextPos, &player->actor.world.pos);
+    MM_Math_Vec3f_Copy(&nextPos, &player->actor.world.pos);
     yawOffset = (this->instanceId * 0x700) + 0x2000;
 
     for (i = 0; i < 2; i++) {
-        rand = Rand_CenteredFloat(20.0f);
-        nextPos.x += Math_SinS((f32)this->actor.yawTowardsPlayer + this->targetYaw + yawOffset) * (rand + 30.0f);
-        nextPos.y = (Math_SinS(this->flightHoverOffset) * 10.0f) + (player->actor.floorHeight + 40.0f);
-        rand = Rand_CenteredFloat(20.0f);
+        rand = MM_Rand_CenteredFloat(20.0f);
+        nextPos.x += MM_Math_SinS((f32)this->actor.yawTowardsPlayer + this->targetYaw + yawOffset) * (rand + 30.0f);
+        nextPos.y = (MM_Math_SinS(this->flightHoverOffset) * 10.0f) + (player->actor.floorHeight + 40.0f);
+        rand = MM_Rand_CenteredFloat(20.0f);
 
-        nextPos.z += Math_CosS((f32)this->actor.yawTowardsPlayer + this->targetYaw + yawOffset) * (rand + 30.0f);
-        Math_Vec3f_Copy(&this->targetPos[i], &nextPos);
+        nextPos.z += MM_Math_CosS((f32)this->actor.yawTowardsPlayer + this->targetYaw + yawOffset) * (rand + 30.0f);
+        MM_Math_Vec3f_Copy(&this->targetPos[i], &nextPos);
         yawOffset -= 0x4000;
     }
 
-    Math_Vec3f_Copy(&nextPos, &this->targetPos[this->posIndex]);
+    MM_Math_Vec3f_Copy(&nextPos, &this->targetPos[this->posIndex]);
 
     if ((this->instanceId % 2) == 0) {
-        this->targetYaw += (this->instanceId * 0x700) + (s32)Rand_CenteredFloat((this->instanceId * 0x700) * 0.5f);
+        this->targetYaw += (this->instanceId * 0x700) + (s32)MM_Rand_CenteredFloat((this->instanceId * 0x700) * 0.5f);
     } else {
-        this->targetYaw -= (this->instanceId * 0x700) + (s32)Rand_CenteredFloat((this->instanceId * 0x700) * 0.5f);
+        this->targetYaw -= (this->instanceId * 0x700) + (s32)MM_Rand_CenteredFloat((this->instanceId * 0x700) * 0.5f);
     }
 
-    this->flightHoverOffset += (s32)Rand_CenteredFloat(500.0f) + 1000;
+    this->flightHoverOffset += (s32)MM_Rand_CenteredFloat(500.0f) + 1000;
 
     if (this->targetYaw > 0x10000) {
         this->targetYaw = 0;
@@ -223,9 +223,9 @@ void EnBee_Attack(EnBee* this, PlayState* play) {
         this->posIndex &= 1;
     }
 
-    Math_SmoothStepToS(&this->actor.world.rot.y, Math_Vec3f_Yaw(&this->actor.world.pos, &nextPos), 1, 0x1388, 0);
-    Math_ApproachF(&this->actor.world.pos.y, nextPos.y, 0.3f, 3.0f);
-    Math_ApproachF(&this->actor.speed, 5.0f, 0.3f, 1.0f);
+    MM_Math_SmoothStepToS(&this->actor.world.rot.y, MM_Math_Vec3f_Yaw(&this->actor.world.pos, &nextPos), 1, 0x1388, 0);
+    MM_Math_ApproachF(&this->actor.world.pos.y, nextPos.y, 0.3f, 3.0f);
+    MM_Math_ApproachF(&this->actor.speed, 5.0f, 0.3f, 1.0f);
 }
 
 void EnBee_UpdateDamage(EnBee* this, PlayState* play) {
@@ -235,13 +235,13 @@ void EnBee_UpdateDamage(EnBee* this, PlayState* play) {
     }
 
     if (this->collider.base.acFlags & AC_HIT) {
-        Enemy_StartFinishingBlow(play, &this->actor);
+        MM_Enemy_StartFinishingBlow(play, &this->actor);
         this->actor.speed = 0.0f;
-        SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 10, NA_SE_EN_CUTBODY);
+        MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 10, NA_SE_EN_CUTBODY);
         this->actor.colChkInfo.health = 0;
-        SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 50, NA_SE_EN_EXTINCT);
+        MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 50, NA_SE_EN_EXTINCT);
         func_800B3030(play, &this->actor.world.pos, &gZeroVec3f, &gZeroVec3f, 100, 0, 2);
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -249,7 +249,7 @@ void EnBee_Update(Actor* thisx, PlayState* play) {
     s32 pad;
     EnBee* this = (EnBee*)thisx;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
     if (this->actor.category == ACTORCAT_ENEMY) {
         if (this->attackDelayTimer != 0) {
@@ -263,20 +263,20 @@ void EnBee_Update(Actor* thisx, PlayState* play) {
     Actor_PlaySfx(&this->actor, NA_SE_EN_BEE_FLY - SFX_FLAG);
     EnBee_UpdateDamage(this, play);
     Math_Vec3s_Copy(&this->actor.shape.rot, &this->actor.world.rot);
-    Actor_SetFocus(&this->actor, 0.0f);
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetFocus(&this->actor, 0.0f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
 
     this->actionFunc(this, play);
 
     Actor_MoveWithGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 40.0f, 40.0f,
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 10.0f, 40.0f, 40.0f,
                             UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4 | UPDBGCHECKINFO_FLAG_8 |
                                 UPDBGCHECKINFO_FLAG_10);
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-    CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
 }
 
 void EnBee_Draw(Actor* thisx, PlayState* play) {
@@ -284,5 +284,5 @@ void EnBee_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-    SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, NULL, NULL, &this->actor);
+    MM_SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, NULL, NULL, &this->actor);
 }

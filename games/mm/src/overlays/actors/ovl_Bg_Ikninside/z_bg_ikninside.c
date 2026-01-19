@@ -30,7 +30,7 @@ ActorProfile Bg_Ikninside_Profile = {
 
 static Gfx* D_80C076A0[] = { object_ikninside_obj_DL_00A748, object_ikninside_obj_DL_00A5A8 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -55,23 +55,23 @@ void BgIkninside_Init(Actor* thisx, PlayState* play) {
     CollisionHeader* colHeader = NULL;
     s32 pad;
 
-    Actor_SetScale(&this->dyna.actor, 0.1f);
+    MM_Actor_SetScale(&this->dyna.actor, 0.1f);
     this->actionFunc = func_80C072D0;
-    DynaPolyActor_Init(&this->dyna, 0);
-    CollisionHeader_GetVirtual(&object_ikninside_obj_Colheader_00DE48, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
-    Collider_InitAndSetCylinder(play, &this->collider, &this->dyna.actor, &sCylinderInit);
-    Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
-    if (Flags_GetSwitch(play, DMIKNINSIDE_GET_SWITCH_FLAG(thisx))) {
-        Actor_Kill(&this->dyna.actor);
+    MM_DynaPolyActor_Init(&this->dyna, 0);
+    MM_CollisionHeader_GetVirtual(&object_ikninside_obj_Colheader_00DE48, &colHeader);
+    this->dyna.bgId = MM_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->dyna.actor, &MM_sCylinderInit);
+    MM_Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
+    if (MM_Flags_GetSwitch(play, DMIKNINSIDE_GET_SWITCH_FLAG(thisx))) {
+        MM_Actor_Kill(&this->dyna.actor);
     }
 }
 
 void BgIkninside_Destroy(Actor* thisx, PlayState* play) {
     BgIkninside* this = (BgIkninside*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_Collider_DestroyCylinder(play, &this->collider);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_80C07220(BgIkninside* this, PlayState* play) {
@@ -105,19 +105,19 @@ void func_80C072D0(BgIkninside* this, PlayState* play) {
         if ((this->collider.elem.acHitElem != NULL) &&
             (this->collider.elem.acHitElem->atDmgInfo.dmgFlags & 0x80000000)) {
             for (i = 0; i < 20; i++) {
-                altitude = Rand_S16Offset(0x1800, 0x2800);
-                azimuth = Rand_Next() >> 0x10;
-                speed = Rand_ZeroFloat(3.0f) + 8.0f;
-                velocity.x = speed * Math_CosS(altitude) * Math_SinS(azimuth);
-                velocity.y = speed * Math_SinS(altitude) + Rand_ZeroFloat(5.0f);
-                velocity.z = speed * Math_CosS(altitude) * Math_CosS(azimuth);
-                pos.x = Rand_ZeroFloat(10.0f) * velocity.x + this->dyna.actor.world.pos.x;
-                pos.y = Rand_ZeroFloat(1.0f) * velocity.y + this->dyna.actor.world.pos.y;
-                pos.z = Rand_ZeroFloat(10.0f) * velocity.z + this->dyna.actor.world.pos.z;
-                EffectSsHahen_Spawn(play, &pos, &velocity, &D_80C076D4, 0, 30, OBJECT_IKNINSIDE_OBJ, 25,
+                altitude = MM_Rand_S16Offset(0x1800, 0x2800);
+                azimuth = MM_Rand_Next() >> 0x10;
+                speed = MM_Rand_ZeroFloat(3.0f) + 8.0f;
+                velocity.x = speed * MM_Math_CosS(altitude) * MM_Math_SinS(azimuth);
+                velocity.y = speed * MM_Math_SinS(altitude) + MM_Rand_ZeroFloat(5.0f);
+                velocity.z = speed * MM_Math_CosS(altitude) * MM_Math_CosS(azimuth);
+                pos.x = MM_Rand_ZeroFloat(10.0f) * velocity.x + this->dyna.actor.world.pos.x;
+                pos.y = MM_Rand_ZeroFloat(1.0f) * velocity.y + this->dyna.actor.world.pos.y;
+                pos.z = MM_Rand_ZeroFloat(10.0f) * velocity.z + this->dyna.actor.world.pos.z;
+                MM_EffectSsHahen_Spawn(play, &pos, &velocity, &D_80C076D4, 0, 30, OBJECT_IKNINSIDE_OBJ, 25,
                                     D_80C076A0[i & 1]);
             }
-            Flags_SetSwitch(play, DMIKNINSIDE_GET_SWITCH_FLAG(&this->dyna.actor));
+            MM_Flags_SetSwitch(play, DMIKNINSIDE_GET_SWITCH_FLAG(&this->dyna.actor));
             this->actionFunc = func_80C07230;
             this->dyna.actor.draw = NULL;
             DynaPoly_DisableCollision(play, &play->colCtx.dyna, this->dyna.bgId);
@@ -136,7 +136,7 @@ void func_80C072D0(BgIkninside* this, PlayState* play) {
         this->timer = 0;
         this->dyna.actor.world.pos.y = this->dyna.actor.home.pos.y;
     }
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void BgIkninside_Update(Actor* thisx, PlayState* play) {

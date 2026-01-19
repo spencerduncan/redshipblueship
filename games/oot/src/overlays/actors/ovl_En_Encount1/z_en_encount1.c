@@ -4,8 +4,8 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_LOCK_ON_DISABLED)
 
-void EnEncount1_Init(Actor* thisx, PlayState* play);
-void EnEncount1_Update(Actor* thisx, PlayState* play);
+void OoT_EnEncount1_Init(Actor* thisx, PlayState* play);
+void OoT_EnEncount1_Update(Actor* thisx, PlayState* play);
 
 void EnEncount1_SpawnLeevers(EnEncount1* this, PlayState* play);
 void EnEncount1_SpawnTektites(EnEncount1* this, PlayState* play);
@@ -20,14 +20,14 @@ const ActorInit En_Encount1_InitVars = {
     FLAGS,
     OBJECT_GAMEPLAY_KEEP,
     sizeof(EnEncount1),
-    (ActorFunc)EnEncount1_Init,
+    (ActorFunc)OoT_EnEncount1_Init,
     NULL,
-    (ActorFunc)EnEncount1_Update,
+    (ActorFunc)OoT_EnEncount1_Update,
     NULL,
     NULL,
 };
 
-void EnEncount1_Init(Actor* thisx, PlayState* play) {
+void OoT_EnEncount1_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     EnEncount1* this = (EnEncount1*)thisx;
     f32 spawnRange;
@@ -41,7 +41,7 @@ void EnEncount1_Init(Actor* thisx, PlayState* play) {
         osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ 入力エラーデッス！ ☆☆☆☆☆ \n" VT_RST);
         osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ 入力エラーデッス！ ☆☆☆☆☆ \n" VT_RST);
         osSyncPrintf("\n\n");
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
 
@@ -128,9 +128,9 @@ void EnEncount1_SpawnLeevers(EnEncount1* this, PlayState* play) {
                     spawnParams = LEEVER_BIG;
                 }
 
-                spawnPos.x = player->actor.world.pos.x + Math_SinS(spawnAngle) * spawnDist;
+                spawnPos.x = player->actor.world.pos.x + OoT_Math_SinS(spawnAngle) * spawnDist;
                 spawnPos.y = player->actor.floorHeight + 120.0f;
-                spawnPos.z = player->actor.world.pos.z + Math_CosS(spawnAngle) * spawnDist;
+                spawnPos.z = player->actor.world.pos.z + OoT_Math_CosS(spawnAngle) * spawnDist;
 
                 floorY = BgCheck_EntityRaycastFloor4(&play->colCtx, &floorPoly, &bgId, &this->actor, &spawnPos);
                 if (floorY <= BGCHECK_Y_MIN) {
@@ -138,7 +138,7 @@ void EnEncount1_SpawnLeevers(EnEncount1* this, PlayState* play) {
                 }
                 spawnPos.y = floorY;
 
-                leever = (EnReeba*)Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_REEBA, spawnPos.x,
+                leever = (EnReeba*)OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_REEBA, spawnPos.x,
                                                       spawnPos.y, spawnPos.z, 0, 0, 0, spawnParams);
 
                 if (leever != NULL) {
@@ -157,9 +157,9 @@ void EnEncount1_SpawnLeevers(EnEncount1* this, PlayState* play) {
                         this->bigLeever = leever;
                     }
                     if (!this->reduceLeevers) {
-                        this->maxCurSpawns = (s16)Rand_ZeroFloat(3.99f) + 2;
+                        this->maxCurSpawns = (s16)OoT_Rand_ZeroFloat(3.99f) + 2;
                     } else {
-                        this->maxCurSpawns = (s16)Rand_ZeroFloat(2.99f) + 1;
+                        this->maxCurSpawns = (s16)OoT_Rand_ZeroFloat(2.99f) + 1;
                     }
                 } else {
                     // "Cannot spawn!"
@@ -192,15 +192,15 @@ void EnEncount1_SpawnTektites(EnEncount1* this, PlayState* play) {
         } else {
             this->outOfRangeTimer = 0;
             if ((this->curNumSpawn < this->maxCurSpawns) && (this->totalNumSpawn < this->maxTotalSpawns)) {
-                spawnPos.x = this->actor.world.pos.x + Rand_CenteredFloat(50.0f);
+                spawnPos.x = this->actor.world.pos.x + OoT_Rand_CenteredFloat(50.0f);
                 spawnPos.y = this->actor.world.pos.y + 120.0f;
-                spawnPos.z = this->actor.world.pos.z + Rand_CenteredFloat(50.0f);
+                spawnPos.z = this->actor.world.pos.z + OoT_Rand_CenteredFloat(50.0f);
                 floorY = BgCheck_EntityRaycastFloor4(&play->colCtx, &floorPoly, &bgId, &this->actor, &spawnPos);
                 if (floorY <= BGCHECK_Y_MIN) {
                     return;
                 }
                 spawnPos.y = floorY;
-                if (Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_TITE, spawnPos.x, spawnPos.y,
+                if (OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_TITE, spawnPos.x, spawnPos.y,
                                        spawnPos.z, 0, 0, 0, TEKTITE_RED) != NULL) { // Red tektite
                     this->curNumSpawn++;
                     this->totalNumSpawn++;
@@ -234,7 +234,7 @@ void EnEncount1_SpawnStalchildOrWolfos(EnEncount1* this, PlayState* play) {
             this->outOfRangeTimer++;
             return;
         }
-    } else if (IS_DAY || (Player_GetMask(play) == PLAYER_MASK_BUNNY)) {
+    } else if (IS_DAY || (OoT_Player_GetMask(play) == PLAYER_MASK_BUNNY)) {
         this->killCount = 0;
         return;
     }
@@ -266,17 +266,17 @@ void EnEncount1_SpawnStalchildOrWolfos(EnEncount1* this, PlayState* play) {
                     break;
                 }
 
-                spawnDist = Rand_CenteredFloat(40.0f) + 200.0f;
+                spawnDist = OoT_Rand_CenteredFloat(40.0f) + 200.0f;
                 spawnAngle = player->actor.shape.rot.y;
                 if (this->curNumSpawn != 0) {
                     spawnAngle = -spawnAngle;
-                    spawnDist = Rand_CenteredFloat(40.0f) + 100.0f;
+                    spawnDist = OoT_Rand_CenteredFloat(40.0f) + 100.0f;
                 }
                 spawnPos.x =
-                    player->actor.world.pos.x + (Math_SinS(spawnAngle) * spawnDist) + Rand_CenteredFloat(40.0f);
+                    player->actor.world.pos.x + (OoT_Math_SinS(spawnAngle) * spawnDist) + OoT_Rand_CenteredFloat(40.0f);
                 spawnPos.y = player->actor.floorHeight + 120.0f;
                 spawnPos.z =
-                    player->actor.world.pos.z + (Math_CosS(spawnAngle) * spawnDist) + Rand_CenteredFloat(40.0f);
+                    player->actor.world.pos.z + (OoT_Math_CosS(spawnAngle) * spawnDist) + OoT_Rand_CenteredFloat(40.0f);
                 floorY = BgCheck_EntityRaycastFloor4(&play->colCtx, &floorPoly, &bgId, &this->actor, &spawnPos);
                 if (floorY <= BGCHECK_Y_MIN) {
                     break;
@@ -305,7 +305,7 @@ void EnEncount1_SpawnStalchildOrWolfos(EnEncount1* this, PlayState* play) {
                 }
                 this->killCount++;
             }
-            if (Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, spawnId, spawnPos.x, spawnPos.y, spawnPos.z, 0,
+            if (OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, spawnId, spawnPos.x, spawnPos.y, spawnPos.z, 0,
                                    0, 0, spawnParams) != NULL) {
                 this->curNumSpawn++;
                 if (this->curNumSpawn >= this->maxCurSpawns) {
@@ -325,7 +325,7 @@ void EnEncount1_SpawnStalchildOrWolfos(EnEncount1* this, PlayState* play) {
     }
 }
 
-void EnEncount1_Update(Actor* thisx, PlayState* play) {
+void OoT_EnEncount1_Update(Actor* thisx, PlayState* play) {
     s32 pad;
     EnEncount1* this = (EnEncount1*)thisx;
 
@@ -338,12 +338,12 @@ void EnEncount1_Update(Actor* thisx, PlayState* play) {
     if (BREG(0) != 0) {
         if (this->outOfRangeTimer != 0) {
             if ((this->outOfRangeTimer & 1) == 0) {
-                DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
+                OoT_DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
                                        this->actor.world.rot.x, this->actor.world.rot.y, this->actor.world.rot.z, 1.0f,
                                        1.0f, 1.0f, 120, 120, 120, 255, 4, play->state.gfxCtx);
             }
         } else {
-            DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
+            OoT_DebugDisplay_AddObject(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z,
                                    this->actor.world.rot.x, this->actor.world.rot.y, this->actor.world.rot.z, 1.0f,
                                    1.0f, 1.0f, 255, 0, 255, 255, 4, play->state.gfxCtx);
         }

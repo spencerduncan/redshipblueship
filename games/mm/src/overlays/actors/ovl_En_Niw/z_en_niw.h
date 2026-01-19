@@ -80,7 +80,7 @@ typedef struct EnNiw {
     /* 0x2EA */ s16 headRotationToggle;
     /* 0x2EC */ s16 unk2EC;
     /* 0x2EE */ UNK_TYPE1 pad2EE[0x6];
-    /* 0x2F4 */ f32 unusedFloat2F4;             // set in EnNiw_Update if Cucco falls off map, never read
+    /* 0x2F4 */ f32 unusedFloat2F4;             // set in MM_EnNiw_Update if Cucco falls off map, never read
     /* 0x2F8 */ f32 unusedFloat2F8;
     /* 0x2FC */ f32 unusedFloat2FC;
     /* 0x300 */ f32 unk300;

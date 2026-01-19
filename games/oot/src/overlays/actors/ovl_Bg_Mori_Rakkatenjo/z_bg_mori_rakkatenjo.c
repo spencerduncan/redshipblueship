@@ -40,7 +40,7 @@ const ActorInit Bg_Mori_Rakkatenjo_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(gravity, -1, ICHAIN_CONTINUE),
     ICHAIN_F32(minVelocityY, -11, ICHAIN_CONTINUE),
     ICHAIN_VEC3F_DIV1000(scale, 1000, ICHAIN_STOP),
@@ -51,7 +51,7 @@ void BgMoriRakkatenjo_Init(Actor* thisx, PlayState* play) {
     BgMoriRakkatenjo* this = (BgMoriRakkatenjo*)thisx;
     CollisionHeader* colHeader = NULL;
 
-    DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
     // "Forest Temple obj. Falling Ceiling"
     osSyncPrintf("森の神殿 obj. 落下天井 (home posY %f)\n", this->dyna.actor.home.pos.y);
     if ((fabsf(1991.0f - this->dyna.actor.home.pos.x) > 0.001f) ||
@@ -68,12 +68,12 @@ void BgMoriRakkatenjo_Init(Actor* thisx, PlayState* play) {
     if (this->moriTexObjIndex < 0) {
         // "Forest Temple obj Falling Ceiling Bank Danger!"
         osSyncPrintf("Error : 森の神殿 obj 落下天井 バンク危険！(%s %d)\n", __FILE__, __LINE__);
-        Actor_Kill(&this->dyna.actor);
+        OoT_Actor_Kill(&this->dyna.actor);
         return;
     }
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    CollisionHeader_GetVirtual(&gMoriRakkatenjoCol, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+    OoT_CollisionHeader_GetVirtual(&gMoriRakkatenjoCol, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
     BgMoriRakkatenjo_SetupWaitForMoriTex(this);
     sCamSetting = 0;
 }
@@ -82,7 +82,7 @@ void BgMoriRakkatenjo_Destroy(Actor* thisx, PlayState* play) {
     s32 pad;
     BgMoriRakkatenjo* this = (BgMoriRakkatenjo*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 s32 BgMoriRakkatenjo_IsLinkUnder(BgMoriRakkatenjo* this, PlayState* play) {
@@ -102,7 +102,7 @@ void BgMoriRakkatenjo_SetupWaitForMoriTex(BgMoriRakkatenjo* this) {
 }
 
 void BgMoriRakkatenjo_WaitForMoriTex(BgMoriRakkatenjo* this, PlayState* play) {
-    if (Object_IsLoaded(&play->objectCtx, this->moriTexObjIndex)) {
+    if (OoT_Object_IsLoaded(&play->objectCtx, this->moriTexObjIndex)) {
         BgMoriRakkatenjo_SetupWait(this);
         this->dyna.actor.draw = BgMoriRakkatenjo_Draw;
     }
@@ -164,7 +164,7 @@ void BgMoriRakkatenjo_Fall(BgMoriRakkatenjo* this, PlayState* play) {
             thisx->velocity.y = bounceVel[this->bounceCount];
             this->bounceCount++;
             quake = Quake_Add(GET_ACTIVE_CAM(play), 3);
-            Quake_SetSpeed(quake, 50000);
+            OoT_Quake_SetSpeed(quake, 50000);
             Quake_SetQuakeValues(quake, 5, 0, 0, 0);
             Quake_SetCountdown(quake, 5);
         }
@@ -189,7 +189,7 @@ void BgMoriRakkatenjo_SetupRise(BgMoriRakkatenjo* this) {
 }
 
 void BgMoriRakkatenjo_Rise(BgMoriRakkatenjo* this, PlayState* play) {
-    Math_SmoothStepToF(&this->dyna.actor.velocity.y, 5.0f, 0.06f, 0.1f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->dyna.actor.velocity.y, 5.0f, 0.06f, 0.1f, 0.0f);
     this->dyna.actor.world.pos.y += this->dyna.actor.velocity.y;
     if (this->dyna.actor.world.pos.y >= 683.0f) {
         BgMoriRakkatenjo_SetupWait(this);
@@ -208,12 +208,12 @@ void BgMoriRakkatenjo_Update(Actor* thisx, PlayState* play) {
         if (sCamSetting == CAM_SET_NONE) {
             osSyncPrintf("camera changed (mori rakka tenjyo) ... \n");
             sCamSetting = play->cameraPtrs[MAIN_CAM]->setting;
-            Camera_SetCameraData(play->cameraPtrs[MAIN_CAM], 1, &this->dyna.actor, NULL, 0, 0, 0);
-            Camera_ChangeSetting(play->cameraPtrs[MAIN_CAM], CAM_SET_FOREST_BIRDS_EYE);
+            OoT_Camera_SetCameraData(play->cameraPtrs[MAIN_CAM], 1, &this->dyna.actor, NULL, 0, 0, 0);
+            OoT_Camera_ChangeSetting(play->cameraPtrs[MAIN_CAM], CAM_SET_FOREST_BIRDS_EYE);
         }
     } else if (sCamSetting != CAM_SET_NONE) {
         osSyncPrintf("camera changed (previous) ... \n");
-        Camera_ChangeSetting(play->cameraPtrs[MAIN_CAM], CAM_SET_DUNGEON1);
+        OoT_Camera_ChangeSetting(play->cameraPtrs[MAIN_CAM], CAM_SET_DUNGEON1);
         sCamSetting = 0;
     }
 }

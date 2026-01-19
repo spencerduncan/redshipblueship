@@ -47,7 +47,7 @@ typedef enum {
     /* 15 */ BOSS06_DMGEFF_F = 15
 } Boss06DamageEffect;
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(0, BOSS06_DMGEFF_F),
     /* Deku Stick     */ DMG_ENTRY(0, BOSS06_DMGEFF_F),
     /* Horse trample  */ DMG_ENTRY(0, BOSS06_DMGEFF_0),
@@ -95,7 +95,7 @@ ActorProfile Boss_06_Profile = {
     /**/ Boss06_Reset,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HIT3,
         AT_ON | AT_TYPE_ENEMY,
@@ -156,7 +156,7 @@ void Boss06_Init(Actor* thisx, PlayState* play) {
     s32 i;
 
     sIgosInstance = (EnKnight*)this->actor.parent;
-    this->actor.colChkInfo.damageTable = &sDamageTable;
+    this->actor.colChkInfo.damageTable = &MM_sDamageTable;
 
     if ((KREG(64) != 0) || CHECK_EVENTINF(EVENTINF_INTRO_CS_WATCHED_IGOS_DU_IKANA)) {
         this->actionFunc = Boss06_SetupCurtainClosed;
@@ -164,10 +164,10 @@ void Boss06_Init(Actor* thisx, PlayState* play) {
         this->actionFunc = Boss06_SetupCloseCurtain;
     }
 
-    Actor_SetScale(&this->actor, 0.1f);
-    Math_Vec3f_Copy(&this->actor.world.pos, &sCurtainLocations[ENBOSS06_GET_PARAMS(&this->actor)]);
+    MM_Actor_SetScale(&this->actor, 0.1f);
+    MM_Math_Vec3f_Copy(&this->actor.world.pos, &sCurtainLocations[ENBOSS06_GET_PARAMS(&this->actor)]);
     this->actor.shape.rot.y = -0x8000;
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
 
     curtainTexture = ResourceMgr_LoadTexOrDListByName(&gIkanaThroneRoomCurtainTex);
     for (i = 0; i < ARRAY_COUNT(this->curtainTexture); i++) {
@@ -221,10 +221,10 @@ void Boss06_CurtainBurningCutscene(Boss06* this, PlayState* play) {
             }
 
             Cutscene_StartManual(play, &play->csCtx);
-            Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
-            this->subCamId = Play_CreateSubCamera(play);
-            Play_ChangeCameraStatus(play, CAM_ID_MAIN, CAM_STATUS_WAIT);
-            Play_ChangeCameraStatus(play, this->subCamId, CAM_STATUS_ACTIVE);
+            MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
+            this->subCamId = MM_Play_CreateSubCamera(play);
+            MM_Play_ChangeCameraStatus(play, CAM_ID_MAIN, CAM_STATUS_WAIT);
+            MM_Play_ChangeCameraStatus(play, this->subCamId, CAM_STATUS_ACTIVE);
             sIgosInstance->inCurtainCutscene = true;
             this->csState = BOSS06_CS_STATE_SHOW_BURNING_AND_REACTIONS;
             this->updateFireEffects = true;
@@ -235,17 +235,17 @@ void Boss06_CurtainBurningCutscene(Boss06* this, PlayState* play) {
             for (searchArrow = play->actorCtx.actorLists[ACTORCAT_ITEMACTION].first; searchArrow != NULL;
                  searchArrow = searchArrow->next) {
                 if (searchArrow->id == ACTOR_EN_ARROW) {
-                    Actor_Kill(searchArrow);
+                    MM_Actor_Kill(searchArrow);
                 }
             }
 
         case BOSS06_CS_STATE_SHOW_BURNING_AND_REACTIONS:
             if (this->csFrameCount >= 10) {
-                Math_ApproachF(&this->lensFlareScale, 30.0f, 0.2f, 1.0f);
+                MM_Math_ApproachF(&this->lensFlareScale, 30.0f, 0.2f, 1.0f);
                 play->envCtx.fillScreen = true;
                 play->envCtx.screenFillColor[0] = play->envCtx.screenFillColor[1] = play->envCtx.screenFillColor[2] = 0;
                 play->envCtx.screenFillColor[3] = this->screenFillAlpha;
-                Math_ApproachF(&this->screenFillAlpha, 75.0f, 1.0f, 3.0f);
+                MM_Math_ApproachF(&this->screenFillAlpha, 75.0f, 1.0f, 3.0f);
             }
 
             if (this->csFrameCount >= 30) {
@@ -260,7 +260,7 @@ void Boss06_CurtainBurningCutscene(Boss06* this, PlayState* play) {
 
                 if (this->csFrameCount == 60) {
                     sIgosInstance->roomLightingState++;
-                    Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_132);
+                    MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_132);
                     player->actor.shape.rot.y = 0;
                     player->actor.world.rot.y = player->actor.shape.rot.y;
                 }
@@ -307,7 +307,7 @@ void Boss06_CurtainBurningCutscene(Boss06* this, PlayState* play) {
                     this->lightOrbAlphaFactor = 255.0f;
                     this->lightRayBrightness = 1.0f;
 
-                    Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_MIR_RAY2, this->actor.world.pos.x,
+                    MM_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_MIR_RAY2, this->actor.world.pos.x,
                                        this->actor.world.pos.y - 200.0f, this->actor.world.pos.z - 170.0f, 15, 0, 0, 1);
 
                     if (ENBOSS06_GET_PARAMS(&this->actor) == 0) {
@@ -342,17 +342,17 @@ void Boss06_CurtainBurningCutscene(Boss06* this, PlayState* play) {
                 this->subCamMaxStep.z = fabsf(this->subCamAt.z - child->world.pos.z);
             }
 
-            Math_ApproachF(&this->subCamAt.x, child->world.pos.x, 0.15f, this->subCamMaxStep.x * this->maxStepScale);
-            Math_ApproachF(&this->subCamAt.y, child->world.pos.y, 0.15f, this->subCamMaxStep.y * this->maxStepScale);
-            Math_ApproachF(&this->subCamAt.z, child->world.pos.z, 0.15f, this->subCamMaxStep.z * this->maxStepScale);
-            Math_ApproachF(&this->maxStepScale, 1.0f, 1.0f, 0.001f);
+            MM_Math_ApproachF(&this->subCamAt.x, child->world.pos.x, 0.15f, this->subCamMaxStep.x * this->maxStepScale);
+            MM_Math_ApproachF(&this->subCamAt.y, child->world.pos.y, 0.15f, this->subCamMaxStep.y * this->maxStepScale);
+            MM_Math_ApproachF(&this->subCamAt.z, child->world.pos.z, 0.15f, this->subCamMaxStep.z * this->maxStepScale);
+            MM_Math_ApproachF(&this->maxStepScale, 1.0f, 1.0f, 0.001f);
 
             if (this->csFrameCount > 80) {
                 Boss06_SetupCurtainDestroyed(this, play);
                 func_80169AFC(play, this->subCamId, 0);
                 this->subCamId = SUB_CAM_ID_DONE;
                 Cutscene_StopManual(play, &play->csCtx);
-                Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
+                MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
                 sIgosInstance->inCurtainCutscene = false;
             }
             break;
@@ -373,7 +373,7 @@ void Boss06_SetupCloseCurtain(Boss06* this, PlayState* play) {
     this->lensFlareScale = 30.0f;
     this->lensFlareYOffset = 0.0f;
     this->lightRayBrightness = 1.0f;
-    Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_MIR_RAY2, this->actor.world.pos.x,
+    MM_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_MIR_RAY2, this->actor.world.pos.x,
                        this->actor.world.pos.y - 200.0f, this->actor.world.pos.z - 170.0f, 15, 0, 0, 1);
     sIgosInstance->roomLightingState++;
 }
@@ -381,15 +381,15 @@ void Boss06_SetupCloseCurtain(Boss06* this, PlayState* play) {
 void Boss06_CloseCurtain(Boss06* this, PlayState* play) {
     if (sIgosInstance->closeCurtainAction != KNIGHT_CLOSE_CURTAIN_ACTION_0) {
         this->maxStepScale = 0.008f;
-        Math_ApproachF(&this->lensFlareScale, 0.0f, 0.2f, this->maxStepScale * 30.0f);
-        Math_ApproachF(&this->lensFlareYOffset, -70.0f, 0.2f, this->maxStepScale * 70.0f);
-        Math_ApproachF(&this->curtainHeight, 0.0f, 0.2f, this->maxStepScale * 110.0f);
-        Math_ApproachF(&this->lightRayTopVerticesOffset, -900.0f, 0.2f, this->maxStepScale * 900.0f);
-        Math_ApproachF(&this->lightRayBaseOffsetZ, 1350.0f, 0.2f, this->maxStepScale * 1350.0f);
-        Math_ApproachF(&this->lightOrbAlphaFactor, 100.0f, 0.2f, this->maxStepScale * 100.0f);
+        MM_Math_ApproachF(&this->lensFlareScale, 0.0f, 0.2f, this->maxStepScale * 30.0f);
+        MM_Math_ApproachF(&this->lensFlareYOffset, -70.0f, 0.2f, this->maxStepScale * 70.0f);
+        MM_Math_ApproachF(&this->curtainHeight, 0.0f, 0.2f, this->maxStepScale * 110.0f);
+        MM_Math_ApproachF(&this->lightRayTopVerticesOffset, -900.0f, 0.2f, this->maxStepScale * 900.0f);
+        MM_Math_ApproachF(&this->lightRayBaseOffsetZ, 1350.0f, 0.2f, this->maxStepScale * 1350.0f);
+        MM_Math_ApproachF(&this->lightOrbAlphaFactor, 100.0f, 0.2f, this->maxStepScale * 100.0f);
 
         if (this->lensFlareScale < 5.0f) {
-            Math_ApproachF(&this->lightRayBrightness, 0.0f, 1.0f, 0.03f);
+            MM_Math_ApproachF(&this->lightRayBrightness, 0.0f, 1.0f, 0.03f);
         }
 
         if ((this->lensFlareScale > 0.1f) && ENBOSS06_GET_PARAMS(&this->actor) == 0) {
@@ -399,7 +399,7 @@ void Boss06_CloseCurtain(Boss06* this, PlayState* play) {
     }
 
     if (sIgosInstance->closeCurtainAction == KNIGHT_CLOSE_CURTAIN_ACTION_2) {
-        Actor_Kill(this->actor.child);
+        MM_Actor_Kill(this->actor.child);
         this->actor.child = NULL;
         Boss06_SetupCurtainClosed(this, play);
     }
@@ -414,9 +414,9 @@ void Boss06_CurtainClosed(Boss06* this, PlayState* play) {
     this->lightOrbAlphaFactor = 200.0f;
     this->lightOrbScale = 15.0f;
     Boss06_UpdateDamage(this);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
     this->collider.dim.pos.z = (this->actor.world.pos.z - 50.0f) + 100.0f;
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void Boss06_SetupCurtainDestroyed(Boss06* this, PlayState* play) {
@@ -480,8 +480,8 @@ void Boss06_Update(Actor* thisx, PlayState* play) {
         this->fireEffectDistanceScale1 += 20.0f * 0.001f;
         this->fireEffectScale += 0.00016f;
         this->lightOrbScale += 0.4f;
-        Math_ApproachZeroF(&this->arrowHitPos.x, 1.0f, 0.7f);
-        Math_ApproachZeroF(&this->arrowHitPos.y, 1.0f, 0.7f);
+        MM_Math_ApproachZeroF(&this->arrowHitPos.x, 1.0f, 0.7f);
+        MM_Math_ApproachZeroF(&this->arrowHitPos.y, 1.0f, 0.7f);
 
         angle0 = 0.0f;
         angle1 = 0.0f;
@@ -501,7 +501,7 @@ void Boss06_Update(Actor* thisx, PlayState* play) {
             texCoords.y += (BOSS06_CURTAIN_TEX_HEIGHT / 2) + this->arrowHitPosScaled.y;
 
             if ((i % 8) == 0) {
-                Math_Vec3f_Copy(&sCurtainFireEffectPositions[i / 8], &texCoords);
+                MM_Math_Vec3f_Copy(&sCurtainFireEffectPositions[i / 8], &texCoords);
             }
 
             if ((texCoords.x >= 0.0f) && (texCoords.y >= 0.0f) && (texCoords.x < BOSS06_CURTAIN_TEX_WIDTH) &&
@@ -511,7 +511,7 @@ void Boss06_Update(Actor* thisx, PlayState* play) {
 
                 idx += (x / 2);
 
-                // The texture format is CI4, only zero one pixel
+                // The texture format is CI4, only MM_zero one pixel
                 if ((x % 2) != 0) {
                     this->curtainTexture[idx] &= 0xF0;
                 } else {
@@ -554,8 +554,8 @@ void Boss06_Draw(Actor* thisx, PlayState* play2) {
     floorLightAlpha = (40.0f * lightRayBlueFactor + 55.0f) * this->lightRayBrightness;
 
     if (this->drawFlags & BOSS06_DRAWFLAG_LIGHT_RAY) {
-        lightRayBaseX = Math_SinS(sIgosInstance->curtainsLightRayAngle) * 1000.0f;
-        lightRayBaseZ = Math_CosS(sIgosInstance->curtainsLightRayAngle) * -2000.0f - 2000.0f;
+        lightRayBaseX = MM_Math_SinS(sIgosInstance->curtainsLightRayAngle) * 1000.0f;
+        lightRayBaseZ = MM_Math_CosS(sIgosInstance->curtainsLightRayAngle) * -2000.0f - 2000.0f;
         // #region 2S2H fix a crash caused by modifying what would be a string. Load the verticies here so the correct
         // thing is modified.
         vertices = ResourceMgr_LoadVtxByName(gIkanaThroneRoomLightRayVtx);
@@ -678,10 +678,10 @@ void Boss06_Draw(Actor* thisx, PlayState* play2) {
         }
 
         AnimatedMat_Draw(play, Lib_SegmentedToVirtual(&gIkanaThroneRoomLightRayTexAnim));
-        Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y - 234.0f, this->actor.world.pos.z + 30.0f,
+        MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y - 234.0f, this->actor.world.pos.z + 30.0f,
                          MTXMODE_NEW);
-        Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
-        Matrix_Translate(0.0f, 0.0f, -1112.0f, MTXMODE_APPLY);
+        MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+        MM_Matrix_Translate(0.0f, 0.0f, -1112.0f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 155, 255, lightRayGreenFactor, (u8)(140.0f * lightRayBlueFactor + 115.0f),
@@ -710,16 +710,16 @@ void Boss06_Draw(Actor* thisx, PlayState* play2) {
             gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(&this->curtainTexture));
         }
 
-        Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y + this->curtainHeight,
+        MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y + this->curtainHeight,
                          this->actor.world.pos.z, MTXMODE_NEW);
-        Matrix_Scale(this->actor.scale.x, this->actor.scale.y, 0.0f, MTXMODE_APPLY);
+        MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, 0.0f, MTXMODE_APPLY);
         Matrix_RotateYS(this->actor.shape.rot.y, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_OPA_DISP++, gIkanaThroneRoomCurtainDL);
 
         if (this->fireEffectScale > 0.0f) {
-            Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y + 84.0f, this->actor.world.pos.z - 2.0f,
+            MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y + 84.0f, this->actor.world.pos.z - 2.0f,
                              MTXMODE_NEW);
             Matrix_RotateYS(this->actor.shape.rot.y, MTXMODE_APPLY);
             Boss06_InitRand(1, 29093, 9786);
@@ -731,13 +731,13 @@ void Boss06_Draw(Actor* thisx, PlayState* play2) {
                 if ((fabsf(sCurtainFireEffectPositions[i].x - 32.0f) < 30.0f) &&
                     (fabsf(sCurtainFireEffectPositions[i].y - 32.0f) < 30.0f)) {
                     FrameInterpolation_RecordOpenChild(this, i);
-                    Matrix_Push();
+                    MM_Matrix_Push();
 
                     gSPSegment(POLY_XLU_DISP++, 0x08,
-                               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0,
+                               MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0,
                                                 ((play->gameplayFrames + (i * 10)) * -20) % 512, 32, 128));
 
-                    Matrix_Translate((sCurtainFireEffectPositions[i].x - 32.0f) * -2.4f,
+                    MM_Matrix_Translate((sCurtainFireEffectPositions[i].x - 32.0f) * -2.4f,
                                      (sCurtainFireEffectPositions[i].y - 32.0f) * -2.4f, 0.0f, MTXMODE_APPLY);
                     Matrix_RotateZF(i * (M_PIf / 64), MTXMODE_APPLY);
 
@@ -745,12 +745,12 @@ void Boss06_Draw(Actor* thisx, PlayState* play2) {
                         Matrix_RotateYF(M_PIf, MTXMODE_APPLY);
                     }
 
-                    Matrix_Scale(-0.02f / 10.0f, -this->fireEffectScale, 1.0f, MTXMODE_APPLY);
+                    MM_Matrix_Scale(-0.02f / 10.0f, -this->fireEffectScale, 1.0f, MTXMODE_APPLY);
 
                     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
                     gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
 
-                    Matrix_Pop();
+                    MM_Matrix_Pop();
                     FrameInterpolation_RecordCloseChild();
                 }
             }
@@ -762,7 +762,7 @@ void Boss06_Draw(Actor* thisx, PlayState* play2) {
     if (this->lightOrbScale > 0.0f) {
         u8 lightOrbAlpha = (this->lightOrbAlphaFactor - 50.0f) + (50.0f * lightRayBlueFactor);
 
-        Matrix_Translate(this->actor.world.pos.x + this->arrowHitPos.x,
+        MM_Matrix_Translate(this->actor.world.pos.x + this->arrowHitPos.x,
                          this->actor.world.pos.y + 84.0f + this->arrowHitPos.y,
                          (this->actor.world.pos.z - 2.0f) + lightOrbOffsetZ, MTXMODE_NEW);
 
@@ -770,7 +770,7 @@ void Boss06_Draw(Actor* thisx, PlayState* play2) {
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, (u8)(140.0f * lightRayBlueFactor + 115.0f), lightOrbAlpha);
         gDPSetEnvColor(POLY_XLU_DISP++, 255, 205, (u8)(100.0f * lightRayBlueFactor + 65.0f), 128);
 
-        Matrix_Scale(this->lightOrbScale, this->lightOrbScale, 1.0f, MTXMODE_APPLY);
+        MM_Matrix_Scale(this->lightOrbScale, this->lightOrbScale, 1.0f, MTXMODE_APPLY);
         Matrix_RotateZS(play->gameplayFrames * 64, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);

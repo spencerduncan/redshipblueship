@@ -34,7 +34,7 @@ const ActorInit Bg_Gjyo_Bridge_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(uncullZoneScale, 800, ICHAIN_CONTINUE),
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
@@ -46,13 +46,13 @@ void BgGjyoBridge_Init(Actor* thisx, PlayState* play) {
 
     colHeader = NULL;
 
-    Actor_ProcessInitChain(thisx, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DPM_UNK);
-    CollisionHeader_GetVirtual(&gRainbowBridgeCol, &colHeader);
+    OoT_Actor_ProcessInitChain(thisx, OoT_sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
+    OoT_CollisionHeader_GetVirtual(&gRainbowBridgeCol, &colHeader);
 
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, colHeader);
 
-    if (Flags_GetEventChkInf(EVENTCHKINF_RAINBOW_BRIDGE_BUILT)) {
+    if (OoT_Flags_GetEventChkInf(EVENTCHKINF_RAINBOW_BRIDGE_BUILT)) {
         this->actionFunc = func_808787A4;
     } else {
         this->dyna.actor.draw = NULL;
@@ -64,7 +64,7 @@ void BgGjyoBridge_Init(Actor* thisx, PlayState* play) {
 void BgGjyoBridge_Destroy(Actor* thisx, PlayState* play) {
     BgGjyoBridge* this = (BgGjyoBridge*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_808787A4(BgGjyoBridge* this, PlayState* play) {
@@ -81,7 +81,7 @@ void LaunchBridgeCutscene(BgGjyoBridge* this, PlayState* play) {
 u8 CheckPlayerPosition(Player* player, PlayState* play) {
     return (player->actor.world.pos.x > -70.0f) && (player->actor.world.pos.x < 300.0f) &&
            (player->actor.world.pos.y > 1340.0f) && (player->actor.world.pos.z > 1340.0f) &&
-           (player->actor.world.pos.z < 1662.0f) && !Play_InCsMode(play);
+           (player->actor.world.pos.z < 1662.0f) && !OoT_Play_InCsMode(play);
 }
 
 void BgGjyoBridge_TriggerCutscene(BgGjyoBridge* this, PlayState* play) {
@@ -103,7 +103,7 @@ void BgGjyoBridge_SpawnBridge(BgGjyoBridge* this, PlayState* play) {
     if (!GameInteractor_Should(VB_PLAY_RAINBOW_BRIDGE_CS, true) || vanillaBridgeCondition) {
         this->dyna.actor.draw = BgGjyoBridge_Draw;
         func_8003EC50(play, &play->colCtx.dyna, this->dyna.bgId);
-        Flags_SetEventChkInf(EVENTCHKINF_RAINBOW_BRIDGE_BUILT);
+        OoT_Flags_SetEventChkInf(EVENTCHKINF_RAINBOW_BRIDGE_BUILT);
     }
 }
 
@@ -121,10 +121,10 @@ void BgGjyoBridge_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
 
     gSPSegment(POLY_XLU_DISP++, 8,
-               Gfx_TexScroll(play->state.gfxCtx, play->gameplayFrames & 127, play->gameplayFrames * -3 & 127, 32, 32));
+               OoT_Gfx_TexScroll(play->state.gfxCtx, play->gameplayFrames & 127, play->gameplayFrames * -3 & 127, 32, 32));
 
     gSPSegment(POLY_XLU_DISP++, 9,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, -play->gameplayFrames & 127, 32, 32, 1, 0,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, -play->gameplayFrames & 127, 32, 32, 1, 0,
                                 play->gameplayFrames & 127, 32, 32));
 
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);

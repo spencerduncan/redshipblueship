@@ -79,14 +79,14 @@ const char* sCpuExceptions[] = {
 };
 
 const char* sFpuExceptions[] = {
-    "Unimplemented operation", "Invalid operation", "Division by zero", "Overflow", "Underflow", "Inexact operation",
+    "Unimplemented operation", "Invalid operation", "Division by MM_zero", "Overflow", "Underflow", "Inexact operation",
 };
 #endif
 #include <assert.h>
-void Fault_SleepImpl(u32 duration) {
+void MM_Fault_SleepImpl(u32 duration) {
     // OSTime value = (duration * OS_CPU_COUNTER) / 1000ULL;
 
-    // Sleep_Cycles(value);
+    // MM_Sleep_Cycles(value);
 }
 
 /**
@@ -95,7 +95,7 @@ void Fault_SleepImpl(u32 duration) {
  * Clients contribute at least one page to the crash screen, drawn by `callback`.
  * Arguments are passed on to the callback through `arg0` and `arg1`.
  */
-void Fault_AddClient(FaultClient* client, FaultClientCallback callback, void* arg0, void* arg1) {
+void MM_Fault_AddClient(FaultClient* client, FaultClientCallback callback, void* arg0, void* arg1) {
 #if 0
     OSIntMask mask;
     u32 alreadyExists = false;
@@ -133,7 +133,7 @@ end:
 /**
  * Removes a fault client so that the page is no longer displayed if a crash occurs.
  */
-void Fault_RemoveClient(FaultClient* client) {
+void MM_Fault_RemoveClient(FaultClient* client) {
 #if 0
     FaultClient* iter = sFaultInstance->clients;
     FaultClient* lastIter = NULL;
@@ -179,7 +179,7 @@ void Fault_RemoveClient(FaultClient* client) {
  * `uintptr_t (*callback)(uintptr_t addr, void* arg)`
  * The callback may return 0 if it could not convert the address
  */
-void Fault_AddAddrConvClient(FaultAddrConvClient* client, FaultAddrConvClientCallback callback, void* arg) {
+void MM_Fault_AddAddrConvClient(FaultAddrConvClient* client, FaultAddrConvClientCallback callback, void* arg) {
 #if 0
     OSIntMask mask;
     s32 alreadyExists = false;
@@ -212,7 +212,7 @@ end:
 #endif
 }
 
-void Fault_RemoveAddrConvClient(FaultAddrConvClient* client) {
+void MM_Fault_RemoveAddrConvClient(FaultAddrConvClient* client) {
 #if 0
     FaultAddrConvClient* iter = sFaultInstance->addrConvClients;
     FaultAddrConvClient* lastIter = NULL;
@@ -253,7 +253,7 @@ void Fault_RemoveAddrConvClient(FaultAddrConvClient* client) {
  * Converts `addr` to a virtual address via the registered
  * address converter clients
  */
-uintptr_t Fault_ConvertAddress(uintptr_t addr) {
+uintptr_t MM_Fault_ConvertAddress(uintptr_t addr) {
 #if 0
     uintptr_t ret;
     FaultAddrConvClient* iter = sFaultInstance->addrConvClients;
@@ -272,15 +272,15 @@ uintptr_t Fault_ConvertAddress(uintptr_t addr) {
 #endif
 }
 
-void Fault_Sleep(u32 msec) {
-    // Fault_SleepImpl(msec);
+void MM_Fault_Sleep(u32 msec) {
+    // MM_Fault_SleepImpl(msec);
 }
 
-void Fault_PadCallback(Input* input) {
+void MM_Fault_PadCallback(Input* input) {
     // PadMgr_GetInput2(input, false);
 }
 
-void Fault_UpdatePadImpl(void) {
+void MM_Fault_UpdatePadImpl(void) {
     // sFaultInstance->padCallback(sFaultInstance->inputs);
 }
 
@@ -293,15 +293,15 @@ void Fault_UpdatePadImpl(void) {
  * A and DPad-Right continues and returns true
  * DPad-Left continues and returns false
  */
-u32 Fault_WaitForInputImpl(void) {
+u32 MM_Fault_WaitForInputImpl(void) {
 #if 0
     Input* input = &sFaultInstance->inputs[0];
     s32 count = 600;
     u32 pressedBtn;
 
     while (true) {
-        Fault_Sleep(1000 / 60);
-        Fault_UpdatePadImpl();
+        MM_Fault_Sleep(1000 / 60);
+        MM_Fault_UpdatePadImpl();
 
         pressedBtn = input->press.button;
 
@@ -323,58 +323,58 @@ u32 Fault_WaitForInputImpl(void) {
             }
 
             if (pressedBtn == BTN_DUP) {
-                FaultDrawer_SetOsSyncPrintfEnabled(true);
+                MM_FaultDrawer_SetOsSyncPrintfEnabled(true);
             }
 
             if (pressedBtn == BTN_DDOWN) {
-                FaultDrawer_SetOsSyncPrintfEnabled(false);
+                MM_FaultDrawer_SetOsSyncPrintfEnabled(false);
             }
         }
     }
 #endif
 }
 
-void Fault_WaitForInput(void) {
-    // Fault_WaitForInputImpl();
+void MM_Fault_WaitForInput(void) {
+    // MM_Fault_WaitForInputImpl();
 }
 
-void Fault_DrawRec(s32 x, s32 y, s32 w, s32 h, u16 color) {
-    // FaultDrawer_DrawRecImpl(x, y, x + w - 1, y + h - 1, color);
+void MM_Fault_DrawRec(s32 x, s32 y, s32 w, s32 h, u16 color) {
+    // MM_FaultDrawer_DrawRecImpl(x, y, x + w - 1, y + h - 1, color);
 }
 
-void Fault_FillScreenBlack(void) {
-    // FaultDrawer_SetForeColor(GPACK_RGBA5551(255, 255, 255, 1));
-    // FaultDrawer_SetBackColor(GPACK_RGBA5551(0, 0, 0, 1));
-    // FaultDrawer_FillScreen();
-    // FaultDrawer_SetBackColor(GPACK_RGBA5551(0, 0, 0, 0));
+void MM_Fault_FillScreenBlack(void) {
+    // MM_FaultDrawer_SetForeColor(GPACK_RGBA5551(255, 255, 255, 1));
+    // MM_FaultDrawer_SetBackColor(GPACK_RGBA5551(0, 0, 0, 1));
+    // MM_FaultDrawer_FillScreen();
+    // MM_FaultDrawer_SetBackColor(GPACK_RGBA5551(0, 0, 0, 0));
 }
 
-void Fault_FillScreenRed(void) {
-    // FaultDrawer_SetForeColor(GPACK_RGBA5551(255, 255, 255, 1));
-    // FaultDrawer_SetBackColor(GPACK_RGBA5551(240, 0, 0, 1));
-    // FaultDrawer_FillScreen();
-    // FaultDrawer_SetBackColor(GPACK_RGBA5551(0, 0, 0, 0));
+void MM_Fault_FillScreenRed(void) {
+    // MM_FaultDrawer_SetForeColor(GPACK_RGBA5551(255, 255, 255, 1));
+    // MM_FaultDrawer_SetBackColor(GPACK_RGBA5551(240, 0, 0, 1));
+    // MM_FaultDrawer_FillScreen();
+    // MM_FaultDrawer_SetBackColor(GPACK_RGBA5551(0, 0, 0, 0));
 }
 
-void Fault_DrawCornerRec(u16 color) {
-    // Fault_DrawRec(22, 16, 8, 1, color);
+void MM_Fault_DrawCornerRec(u16 color) {
+    // MM_Fault_DrawRec(22, 16, 8, 1, color);
 }
 
-void Fault_PrintFReg(s32 index, f32* value) {
+void MM_Fault_PrintFReg(s32 index, f32* value) {
 #if 0
     u32 raw = *(u32*)value;
     s32 exp = ((raw & 0x7F800000) >> 23) - 127;
 
     if (((exp > -127) && (exp <= 127)) || (raw == 0)) {
-        FaultDrawer_Printf("F%02d:%14.7e ", index, *value);
+        MM_FaultDrawer_Printf("F%02d:%14.7e ", index, *value);
     } else {
         // Print subnormal floats as their IEEE-754 hex representation
-        FaultDrawer_Printf("F%02d:  %08x(16) ", index, raw);
+        MM_FaultDrawer_Printf("F%02d:  %08x(16) ", index, raw);
     }
 #endif
 }
 
-void Fault_LogFReg(s32 idx, f32* value) {
+void MM_Fault_LogFReg(s32 idx, f32* value) {
 #if 0
     u32 raw = *(u32*)value;
     s32 exp = ((raw & 0x7F800000) >> 23) - 127;
@@ -387,23 +387,23 @@ void Fault_LogFReg(s32 idx, f32* value) {
 #endif
 }
 
-void Fault_PrintFPCR(u32 value) {
+void MM_Fault_PrintFPCR(u32 value) {
 #if 0
     s32 i;
     u32 flag = 0x20000;
 
-    FaultDrawer_Printf("FPCSR:%08xH ", value);
+    MM_FaultDrawer_Printf("FPCSR:%08xH ", value);
 
     // Go through each of the six causes and print the name of
     // the first cause that is set
     for (i = 0; i < ARRAY_COUNT(sFpuExceptions); i++) {
         if (value & flag) {
-            FaultDrawer_Printf("(%s)", sFpuExceptions[i]);
+            MM_FaultDrawer_Printf("(%s)", sFpuExceptions[i]);
             break;
         }
         flag >>= 1;
     }
-    FaultDrawer_Printf("\n");
+    MM_FaultDrawer_Printf("\n");
 #endif
 }
 
@@ -423,7 +423,7 @@ void Fault_LogFPCSR(u32 value) {
 #endif
 }
 
-void Fault_PrintThreadContext(OSThread* thread) {
+void MM_Fault_PrintThreadContext(OSThread* thread) {
 #if 0
     __OSThreadContext* threadCtx;
     s16 causeStrIdx = _SHIFTR((u32)thread->context.cause, 2, 5);
@@ -435,57 +435,57 @@ void Fault_PrintThreadContext(OSThread* thread) {
         causeStrIdx = 17;
     }
 
-    FaultDrawer_FillScreen();
-    FaultDrawer_SetCharPad(-2, 4);
-    FaultDrawer_SetCursor(22, 20);
+    MM_FaultDrawer_FillScreen();
+    MM_FaultDrawer_SetCharPad(-2, 4);
+    MM_FaultDrawer_SetCursor(22, 20);
 
     threadCtx = &thread->context;
-    FaultDrawer_Printf("THREAD:%d (%d:%s)\n", thread->id, causeStrIdx, sCpuExceptions[causeStrIdx]);
-    FaultDrawer_SetCharPad(-1, 0);
+    MM_FaultDrawer_Printf("THREAD:%d (%d:%s)\n", thread->id, causeStrIdx, sCpuExceptions[causeStrIdx]);
+    MM_FaultDrawer_SetCharPad(-1, 0);
 
-    FaultDrawer_Printf("PC:%08xH SR:%08xH VA:%08xH\n", (u32)threadCtx->pc, (u32)threadCtx->sr,
+    MM_FaultDrawer_Printf("PC:%08xH SR:%08xH VA:%08xH\n", (u32)threadCtx->pc, (u32)threadCtx->sr,
                        (u32)threadCtx->badvaddr);
-    FaultDrawer_Printf("AT:%08xH V0:%08xH V1:%08xH\n", (u32)threadCtx->at, (u32)threadCtx->v0, (u32)threadCtx->v1);
-    FaultDrawer_Printf("A0:%08xH A1:%08xH A2:%08xH\n", (u32)threadCtx->a0, (u32)threadCtx->a1, (u32)threadCtx->a2);
-    FaultDrawer_Printf("A3:%08xH T0:%08xH T1:%08xH\n", (u32)threadCtx->a3, (u32)threadCtx->t0, (u32)threadCtx->t1);
-    FaultDrawer_Printf("T2:%08xH T3:%08xH T4:%08xH\n", (u32)threadCtx->t2, (u32)threadCtx->t3, (u32)threadCtx->t4);
-    FaultDrawer_Printf("T5:%08xH T6:%08xH T7:%08xH\n", (u32)threadCtx->t5, (u32)threadCtx->t6, (u32)threadCtx->t7);
-    FaultDrawer_Printf("S0:%08xH S1:%08xH S2:%08xH\n", (u32)threadCtx->s0, (u32)threadCtx->s1, (u32)threadCtx->s2);
-    FaultDrawer_Printf("S3:%08xH S4:%08xH S5:%08xH\n", (u32)threadCtx->s3, (u32)threadCtx->s4, (u32)threadCtx->s5);
-    FaultDrawer_Printf("S6:%08xH S7:%08xH T8:%08xH\n", (u32)threadCtx->s6, (u32)threadCtx->s7, (u32)threadCtx->t8);
-    FaultDrawer_Printf("T9:%08xH GP:%08xH SP:%08xH\n", (u32)threadCtx->t9, (u32)threadCtx->gp, (u32)threadCtx->sp);
-    FaultDrawer_Printf("S8:%08xH RA:%08xH LO:%08xH\n\n", (u32)threadCtx->s8, (u32)threadCtx->ra, (u32)threadCtx->lo);
+    MM_FaultDrawer_Printf("AT:%08xH V0:%08xH V1:%08xH\n", (u32)threadCtx->at, (u32)threadCtx->v0, (u32)threadCtx->v1);
+    MM_FaultDrawer_Printf("A0:%08xH A1:%08xH A2:%08xH\n", (u32)threadCtx->a0, (u32)threadCtx->a1, (u32)threadCtx->a2);
+    MM_FaultDrawer_Printf("A3:%08xH T0:%08xH T1:%08xH\n", (u32)threadCtx->a3, (u32)threadCtx->t0, (u32)threadCtx->t1);
+    MM_FaultDrawer_Printf("T2:%08xH T3:%08xH T4:%08xH\n", (u32)threadCtx->t2, (u32)threadCtx->t3, (u32)threadCtx->t4);
+    MM_FaultDrawer_Printf("T5:%08xH T6:%08xH T7:%08xH\n", (u32)threadCtx->t5, (u32)threadCtx->t6, (u32)threadCtx->t7);
+    MM_FaultDrawer_Printf("S0:%08xH S1:%08xH S2:%08xH\n", (u32)threadCtx->s0, (u32)threadCtx->s1, (u32)threadCtx->s2);
+    MM_FaultDrawer_Printf("S3:%08xH S4:%08xH S5:%08xH\n", (u32)threadCtx->s3, (u32)threadCtx->s4, (u32)threadCtx->s5);
+    MM_FaultDrawer_Printf("S6:%08xH S7:%08xH T8:%08xH\n", (u32)threadCtx->s6, (u32)threadCtx->s7, (u32)threadCtx->t8);
+    MM_FaultDrawer_Printf("T9:%08xH GP:%08xH SP:%08xH\n", (u32)threadCtx->t9, (u32)threadCtx->gp, (u32)threadCtx->sp);
+    MM_FaultDrawer_Printf("S8:%08xH RA:%08xH LO:%08xH\n\n", (u32)threadCtx->s8, (u32)threadCtx->ra, (u32)threadCtx->lo);
 
-    Fault_PrintFPCR(threadCtx->fpcsr);
-    FaultDrawer_Printf("\n");
-    Fault_PrintFReg(0, &threadCtx->fp0.f.f_even);
-    Fault_PrintFReg(2, &threadCtx->fp2.f.f_even);
-    FaultDrawer_Printf("\n");
-    Fault_PrintFReg(4, &threadCtx->fp4.f.f_even);
-    Fault_PrintFReg(6, &threadCtx->fp6.f.f_even);
-    FaultDrawer_Printf("\n");
-    Fault_PrintFReg(8, &threadCtx->fp8.f.f_even);
-    Fault_PrintFReg(10, &threadCtx->fp10.f.f_even);
-    FaultDrawer_Printf("\n");
-    Fault_PrintFReg(12, &threadCtx->fp12.f.f_even);
-    Fault_PrintFReg(14, &threadCtx->fp14.f.f_even);
-    FaultDrawer_Printf("\n");
-    Fault_PrintFReg(16, &threadCtx->fp16.f.f_even);
-    Fault_PrintFReg(18, &threadCtx->fp18.f.f_even);
-    FaultDrawer_Printf("\n");
-    Fault_PrintFReg(20, &threadCtx->fp20.f.f_even);
-    Fault_PrintFReg(22, &threadCtx->fp22.f.f_even);
-    FaultDrawer_Printf("\n");
-    Fault_PrintFReg(24, &threadCtx->fp24.f.f_even);
-    Fault_PrintFReg(26, &threadCtx->fp26.f.f_even);
-    FaultDrawer_Printf("\n");
-    Fault_PrintFReg(28, &threadCtx->fp28.f.f_even);
-    Fault_PrintFReg(30, &threadCtx->fp30.f.f_even);
-    FaultDrawer_Printf("\n");
-    FaultDrawer_SetCharPad(0, 0);
+    MM_Fault_PrintFPCR(threadCtx->fpcsr);
+    MM_FaultDrawer_Printf("\n");
+    MM_Fault_PrintFReg(0, &threadCtx->fp0.f.f_even);
+    MM_Fault_PrintFReg(2, &threadCtx->fp2.f.f_even);
+    MM_FaultDrawer_Printf("\n");
+    MM_Fault_PrintFReg(4, &threadCtx->fp4.f.f_even);
+    MM_Fault_PrintFReg(6, &threadCtx->fp6.f.f_even);
+    MM_FaultDrawer_Printf("\n");
+    MM_Fault_PrintFReg(8, &threadCtx->fp8.f.f_even);
+    MM_Fault_PrintFReg(10, &threadCtx->fp10.f.f_even);
+    MM_FaultDrawer_Printf("\n");
+    MM_Fault_PrintFReg(12, &threadCtx->fp12.f.f_even);
+    MM_Fault_PrintFReg(14, &threadCtx->fp14.f.f_even);
+    MM_FaultDrawer_Printf("\n");
+    MM_Fault_PrintFReg(16, &threadCtx->fp16.f.f_even);
+    MM_Fault_PrintFReg(18, &threadCtx->fp18.f.f_even);
+    MM_FaultDrawer_Printf("\n");
+    MM_Fault_PrintFReg(20, &threadCtx->fp20.f.f_even);
+    MM_Fault_PrintFReg(22, &threadCtx->fp22.f.f_even);
+    MM_FaultDrawer_Printf("\n");
+    MM_Fault_PrintFReg(24, &threadCtx->fp24.f.f_even);
+    MM_Fault_PrintFReg(26, &threadCtx->fp26.f.f_even);
+    MM_FaultDrawer_Printf("\n");
+    MM_Fault_PrintFReg(28, &threadCtx->fp28.f.f_even);
+    MM_Fault_PrintFReg(30, &threadCtx->fp30.f.f_even);
+    MM_FaultDrawer_Printf("\n");
+    MM_FaultDrawer_SetCharPad(0, 0);
 
     if (sFaultTimeTotal != 0.0f) {
-        FaultDrawer_DrawText(160, 216, "%5.2f sec\n", sFaultTimeTotal);
+        MM_FaultDrawer_DrawText(160, 216, "%5.2f sec\n", sFaultTimeTotal);
     }
 #endif
 }
@@ -520,29 +520,29 @@ void osSyncPrintfThreadContext(OSThread* thread) {
     osSyncPrintf("\n");
     Fault_LogFPCSR(threadCtx->fpcsr);
     osSyncPrintf("\n");
-    Fault_LogFReg(0, &threadCtx->fp0.f.f_even);
-    Fault_LogFReg(2, &threadCtx->fp2.f.f_even);
+    MM_Fault_LogFReg(0, &threadCtx->fp0.f.f_even);
+    MM_Fault_LogFReg(2, &threadCtx->fp2.f.f_even);
     osSyncPrintf("\n");
-    Fault_LogFReg(4, &threadCtx->fp4.f.f_even);
-    Fault_LogFReg(6, &threadCtx->fp6.f.f_even);
+    MM_Fault_LogFReg(4, &threadCtx->fp4.f.f_even);
+    MM_Fault_LogFReg(6, &threadCtx->fp6.f.f_even);
     osSyncPrintf("\n");
-    Fault_LogFReg(8, &threadCtx->fp8.f.f_even);
-    Fault_LogFReg(10, &threadCtx->fp10.f.f_even);
+    MM_Fault_LogFReg(8, &threadCtx->fp8.f.f_even);
+    MM_Fault_LogFReg(10, &threadCtx->fp10.f.f_even);
     osSyncPrintf("\n");
-    Fault_LogFReg(12, &threadCtx->fp12.f.f_even);
-    Fault_LogFReg(14, &threadCtx->fp14.f.f_even);
+    MM_Fault_LogFReg(12, &threadCtx->fp12.f.f_even);
+    MM_Fault_LogFReg(14, &threadCtx->fp14.f.f_even);
     osSyncPrintf("\n");
-    Fault_LogFReg(16, &threadCtx->fp16.f.f_even);
-    Fault_LogFReg(18, &threadCtx->fp18.f.f_even);
+    MM_Fault_LogFReg(16, &threadCtx->fp16.f.f_even);
+    MM_Fault_LogFReg(18, &threadCtx->fp18.f.f_even);
     osSyncPrintf("\n");
-    Fault_LogFReg(20, &threadCtx->fp20.f.f_even);
-    Fault_LogFReg(22, &threadCtx->fp22.f.f_even);
+    MM_Fault_LogFReg(20, &threadCtx->fp20.f.f_even);
+    MM_Fault_LogFReg(22, &threadCtx->fp22.f.f_even);
     osSyncPrintf("\n");
-    Fault_LogFReg(24, &threadCtx->fp24.f.f_even);
-    Fault_LogFReg(26, &threadCtx->fp26.f.f_even);
+    MM_Fault_LogFReg(24, &threadCtx->fp24.f.f_even);
+    MM_Fault_LogFReg(26, &threadCtx->fp26.f.f_even);
     osSyncPrintf("\n");
-    Fault_LogFReg(28, &threadCtx->fp28.f.f_even);
-    Fault_LogFReg(30, &threadCtx->fp30.f.f_even);
+    MM_Fault_LogFReg(28, &threadCtx->fp28.f.f_even);
+    MM_Fault_LogFReg(30, &threadCtx->fp30.f.f_even);
     osSyncPrintf("\n");
 #endif
 }
@@ -551,7 +551,7 @@ void osSyncPrintfThreadContext(OSThread* thread) {
  * Iterates through the active thread queue for a user thread with either
  * the CPU break or Fault flag set.
  */
-OSThread* Fault_FindFaultedThread(void) {
+OSThread* MM_Fault_FindFaultedThread(void) {
 #if 0
     OSThread* iter = __osGetActiveQueue();
 
@@ -566,14 +566,14 @@ OSThread* Fault_FindFaultedThread(void) {
     return NULL;
 #endif
 }
-void Fault_Wait5Seconds(void) {
+void MM_Fault_Wait5Seconds(void) {
 #if 0
     s32 pad;
-    OSTime start = osGetTime();
+    OSTime start = MM_osGetTime();
 
     do {
-        Fault_Sleep(1000 / 60);
-    } while ((osGetTime() - start) <= OS_SEC_TO_CYCLES(5));
+        MM_Fault_Sleep(1000 / 60);
+    } while ((MM_osGetTime() - start) <= OS_SEC_TO_CYCLES(5));
 
     sFaultInstance->autoScroll = true;
 #endif
@@ -584,17 +584,17 @@ void Fault_Wait5Seconds(void) {
  *
  * (DPad-Left & L & R & C-Right) & Start
  */
-void Fault_WaitForButtonCombo(void) {
+void MM_Fault_WaitForButtonCombo(void) {
 #if 0
     Input* input = &sFaultInstance->inputs[0];
 
-    FaultDrawer_SetForeColor(GPACK_RGBA5551(255, 255, 255, 1));
-    FaultDrawer_SetBackColor(GPACK_RGBA5551(0, 0, 0, 1));
+    MM_FaultDrawer_SetForeColor(GPACK_RGBA5551(255, 255, 255, 1));
+    MM_FaultDrawer_SetBackColor(GPACK_RGBA5551(0, 0, 0, 1));
 
     do {
         do {
-            Fault_Sleep(1000 / 60);
-            Fault_UpdatePadImpl();
+            MM_Fault_Sleep(1000 / 60);
+            MM_Fault_UpdatePadImpl();
         } while (!CHECK_BTN_ALL(input->press.button, BTN_RESET));
     } while (!CHECK_BTN_ALL(input->cur.button, BTN_DLEFT | BTN_L | BTN_R | BTN_CRIGHT));
 #endif
@@ -607,7 +607,7 @@ void Fault_DrawMemDumpContents(const char* title, uintptr_t addr, u32 param_3) {
     s32 y;
     s32 x;
 
-    // Ensure address is within the bounds of RDRAM (Fault_DrawMemDump has already done this)
+    // Ensure address is within the bounds of RDRAM (MM_Fault_DrawMemDump has already done this)
     if (alignedAddr < K0BASE) {
         alignedAddr = K0BASE;
     }
@@ -623,21 +623,21 @@ void Fault_DrawMemDumpContents(const char* title, uintptr_t addr, u32 param_3) {
     alignedAddr &= ~3;
     writeAddr = (u32*)alignedAddr;
 
-    Fault_FillScreenBlack();
-    FaultDrawer_SetCharPad(-2, 0);
+    MM_Fault_FillScreenBlack();
+    MM_FaultDrawer_SetCharPad(-2, 0);
 
-    FaultDrawer_DrawText(36, 18, "%s %08x", title ? title : "PrintDump", alignedAddr);
+    MM_FaultDrawer_DrawText(36, 18, "%s %08x", title ? title : "PrintDump", alignedAddr);
 
     if (alignedAddr >= K0BASE && alignedAddr < K2BASE) {
         for (y = 0; y < 22; y++) {
-            FaultDrawer_DrawText(24, 28 + y * 9, "%06x", writeAddr);
+            MM_FaultDrawer_DrawText(24, 28 + y * 9, "%06x", writeAddr);
             for (x = 0; x < 4; x++) {
-                FaultDrawer_DrawText(82 + x * 52, 28 + y * 9, "%08x", *writeAddr++);
+                MM_FaultDrawer_DrawText(82 + x * 52, 28 + y * 9, "%08x", *writeAddr++);
             }
         }
     }
 
-    FaultDrawer_SetCharPad(0, 0);
+    MM_FaultDrawer_SetCharPad(0, 0);
 #endif
 }
 
@@ -657,7 +657,7 @@ void Fault_DrawMemDumpContents(const char* title, uintptr_t addr, u32 param_3) {
  * @param cLeftJump Unused parameter, pressing C-Left jumps to this address
  * @param cRightJump Unused parameter, pressing C-Right jumps to this address
  */
-void Fault_DrawMemDump(uintptr_t pc, uintptr_t sp, uintptr_t cLeftJump, uintptr_t cRightJump) {
+void MM_Fault_DrawMemDump(uintptr_t pc, uintptr_t sp, uintptr_t cLeftJump, uintptr_t cRightJump) {
 #if 0
     s32 scrollCountdown;
     s32 off;
@@ -688,8 +688,8 @@ void Fault_DrawMemDump(uintptr_t pc, uintptr_t sp, uintptr_t cLeftJump, uintptr_
 
             scrollCountdown--;
 
-            Fault_Sleep(1000 / 60);
-            Fault_UpdatePadImpl();
+            MM_Fault_Sleep(1000 / 60);
+            MM_Fault_UpdatePadImpl();
 
             if (CHECK_BTN_ALL(input->press.button, BTN_L)) {
                 sFaultInstance->autoScroll = false;
@@ -698,8 +698,8 @@ void Fault_DrawMemDump(uintptr_t pc, uintptr_t sp, uintptr_t cLeftJump, uintptr_
 
         // Wait for input
         do {
-            Fault_Sleep(1000 / 60);
-            Fault_UpdatePadImpl();
+            MM_Fault_Sleep(1000 / 60);
+            MM_Fault_UpdatePadImpl();
         } while (input->press.button == 0);
 
         // Move to next page
@@ -777,7 +777,7 @@ void Fault_DrawMemDump(uintptr_t pc, uintptr_t sp, uintptr_t cLeftJump, uintptr_
  * there is no choice but to give up here. For j instructions, they can be followed
  * and the backtrace may continue as normal.
  */
-void Fault_WalkStack(uintptr_t* spPtr, uintptr_t* pcPtr, uintptr_t* raPtr) {
+void MM_Fault_WalkStack(uintptr_t* spPtr, uintptr_t* pcPtr, uintptr_t* raPtr) {
 #if 0
     uintptr_t sp = *spPtr;
     uintptr_t pc = *pcPtr;
@@ -847,7 +847,7 @@ done:
 /**
  * Draws the stack trace page contents for the specified thread
  */
-void Fault_DrawStackTrace(OSThread* thread, u32 flags) {
+void MM_Fault_DrawStackTrace(OSThread* thread, u32 flags) {
 #if 0
     s32 line;
     uintptr_t sp = thread->context.sp;
@@ -856,29 +856,29 @@ void Fault_DrawStackTrace(OSThread* thread, u32 flags) {
     s32 pad;
     uintptr_t addr;
 
-    Fault_FillScreenBlack();
-    FaultDrawer_DrawText(120, 16, "STACK TRACE");
-    FaultDrawer_DrawText(36, 24, "SP       PC       (VPC)");
+    MM_Fault_FillScreenBlack();
+    MM_FaultDrawer_DrawText(120, 16, "STACK TRACE");
+    MM_FaultDrawer_DrawText(36, 24, "SP       PC       (VPC)");
 
     for (line = 1; (line < 22) && (((ra != 0) || (sp != 0)) && (pc != (uintptr_t)__osCleanupThread)); line++) {
-        FaultDrawer_DrawText(0x24, line * 8 + 24, "%08x %08x", sp, pc);
+        MM_FaultDrawer_DrawText(0x24, line * 8 + 24, "%08x %08x", sp, pc);
 
         if (flags & 1) {
             // Try to convert the relocated program counter to the corresponding unrelocated virtual address
-            addr = Fault_ConvertAddress(pc);
+            addr = MM_Fault_ConvertAddress(pc);
             if (addr != 0) {
-                FaultDrawer_Printf(" -> %08x", addr);
+                MM_FaultDrawer_Printf(" -> %08x", addr);
             }
         } else {
-            FaultDrawer_Printf(" -> ????????");
+            MM_FaultDrawer_Printf(" -> ????????");
         }
 
-        Fault_WalkStack(&sp, &pc, &ra);
+        MM_Fault_WalkStack(&sp, &pc, &ra);
     }
 #endif
 }
 
-void Fault_LogStackTrace(OSThread* thread, u32 flags) {
+void MM_Fault_LogStackTrace(OSThread* thread, u32 flags) {
 #if 0
     s32 line;
     uintptr_t sp = thread->context.sp;
@@ -894,7 +894,7 @@ void Fault_LogStackTrace(OSThread* thread, u32 flags) {
 
         if (flags & 1) {
             // Try to convert the relocated program counter to the corresponding unrelocated virtual address
-            addr = Fault_ConvertAddress(pc);
+            addr = MM_Fault_ConvertAddress(pc);
             if (addr != 0) {
                 osSyncPrintf(" -> %08x", addr);
             }
@@ -903,12 +903,12 @@ void Fault_LogStackTrace(OSThread* thread, u32 flags) {
         }
         osSyncPrintf("\n");
 
-        Fault_WalkStack(&sp, &pc, &ra);
+        MM_Fault_WalkStack(&sp, &pc, &ra);
     }
 #endif
 }
 
-void Fault_ResumeThread(OSThread* thread) {
+void MM_Fault_ResumeThread(OSThread* thread) {
 #if 0
     thread->context.cause = 0;
     thread->context.fpcsr = 0;
@@ -916,7 +916,7 @@ void Fault_ResumeThread(OSThread* thread) {
     *(u32*)thread->context.pc = 0x0000000D; // write in a break instruction
     osWritebackDCache((void*)thread->context.pc, 4);
     osInvalICache((void*)thread->context.pc, 4);
-    osStartThread(thread);
+    MM_osStartThread(thread);
 #endif
 }
 
@@ -924,21 +924,21 @@ void Fault_DisplayFrameBuffer(void) {
 #if 0
     void* fb;
 
-    osViSetYScale(1.0f);
-    osViSetMode(&osViModeNtscLan1);
-    osViSetSpecialFeatures(OS_VI_GAMMA_OFF | OS_VI_DITHER_FILTER_ON);
-    osViBlack(false);
+    MM_osViSetYScale(1.0f);
+    MM_osViSetMode(&MM_osViModeNtscLan1);
+    MM_osViSetSpecialFeatures(OS_VI_GAMMA_OFF | OS_VI_DITHER_FILTER_ON);
+    MM_osViBlack(false);
 
     if (sFaultInstance->fb) {
         fb = sFaultInstance->fb;
     } else {
-        fb = osViGetNextFramebuffer();
+        fb = MM_osViGetNextFramebuffer();
         if ((uintptr_t)fb == K0BASE) {
             fb = (void*)(PHYS_TO_K0(osMemSize) - SCREEN_HEIGHT * SCREEN_WIDTH * sizeof(u16));
         }
     }
 
-    osViSwapBuffer(fb);
+    MM_osViSwapBuffer(fb);
     FaultDrawer_SetDrawerFrameBuffer(fb, SCREEN_WIDTH, SCREEN_HEIGHT);
 #endif
 }
@@ -947,20 +947,20 @@ void Fault_DisplayFrameBuffer(void) {
  * Runs all registered fault clients. Each fault client displays a page
  * on the crash screen.
  */
-void Fault_ProcessClients(void) {
+void MM_Fault_ProcessClients(void) {
 #if 0
     FaultClient* client = sFaultInstance->clients;
     s32 idx = 0;
 
     while (client != NULL) {
         if (client->callback != NULL) {
-            Fault_FillScreenBlack();
-            FaultDrawer_SetCharPad(-2, 0);
-            FaultDrawer_Printf(FAULT_COLOR(DARK_GRAY) "CallBack (%d) %08x %08x %08x\n" FAULT_COLOR(WHITE), idx++,
+            MM_Fault_FillScreenBlack();
+            MM_FaultDrawer_SetCharPad(-2, 0);
+            MM_FaultDrawer_Printf(FAULT_COLOR(DARK_GRAY) "CallBack (%d) %08x %08x %08x\n" FAULT_COLOR(WHITE), idx++,
                                client, client->arg0, client->arg1);
-            FaultDrawer_SetCharPad(0, 0);
+            MM_FaultDrawer_SetCharPad(0, 0);
             client->callback(client->arg0, client->arg1);
-            Fault_WaitForInput();
+            MM_Fault_WaitForInput();
             Fault_DisplayFrameBuffer();
         }
         client = client->next;
@@ -990,23 +990,23 @@ void Fault_SetOptionsFromController3(void) {
             static u32 faultCopyToLog;
 
             faultCopyToLog = !faultCopyToLog;
-            FaultDrawer_SetOsSyncPrintfEnabled(faultCopyToLog);
+            MM_FaultDrawer_SetOsSyncPrintfEnabled(faultCopyToLog);
         }
         if (CHECK_BTN_ALL(input3->cur.button, BTN_A)) {
             osSyncPrintf("GRAPH PC=%08x RA=%08x STACK=%08x\n", pc, ra, sp);
         }
         if (CHECK_BTN_ALL(input3->cur.button, BTN_B)) {
-            FaultDrawer_SetDrawerFrameBuffer(osViGetNextFramebuffer(), 0x140, 0xF0);
-            Fault_DrawRec(0, 0xD7, 0x140, 9, 1);
-            FaultDrawer_SetCharPad(-2, 0);
-            FaultDrawer_DrawText(0x20, 0xD8, "GRAPH PC %08x RA %08x SP %08x", pc, ra, sp);
+            FaultDrawer_SetDrawerFrameBuffer(MM_osViGetNextFramebuffer(), 0x140, 0xF0);
+            MM_Fault_DrawRec(0, 0xD7, 0x140, 9, 1);
+            MM_FaultDrawer_SetCharPad(-2, 0);
+            MM_FaultDrawer_DrawText(0x20, 0xD8, "GRAPH PC %08x RA %08x SP %08x", pc, ra, sp);
         }
     }
 #endif
 }
 
-void Fault_UpdatePad(void) {
-    // Fault_UpdatePadImpl();
+void MM_Fault_UpdatePad(void) {
+    // MM_Fault_UpdatePadImpl();
     // Fault_SetOptionsFromController3();
 }
 
@@ -1014,20 +1014,20 @@ void Fault_UpdatePad(void) {
 //#define FAULT_MSG_FAULT ((OSMesg)2)
 //#define FAULT_MSG_UNK ((OSMesg)3)
 
-void Fault_ThreadEntry(void* arg) {
+void MM_Fault_ThreadEntry(void* arg) {
 #if 0
     OSMesg msg;
     u32 pad;
     OSThread* faultedThread;
 
     // Direct OS event messages to the fault event queue
-    osSetEventMesg(OS_EVENT_CPU_BREAK, &sFaultInstance->queue, FAULT_MSG_CPU_BREAK);
-    osSetEventMesg(OS_EVENT_FAULT, &sFaultInstance->queue, FAULT_MSG_FAULT);
+    MM_osSetEventMesg(OS_EVENT_CPU_BREAK, &sFaultInstance->queue, FAULT_MSG_CPU_BREAK);
+    MM_osSetEventMesg(OS_EVENT_FAULT, &sFaultInstance->queue, FAULT_MSG_FAULT);
 
     while (true) {
         do {
             // Wait for a thread to hit a fault
-            osRecvMesg(&sFaultInstance->queue, &msg, OS_MESG_BLOCK);
+            MM_osRecvMesg(&sFaultInstance->queue, &msg, OS_MESG_BLOCK);
 
             if (msg == FAULT_MSG_CPU_BREAK) {
                 sFaultInstance->msgId = (u32)FAULT_MSG_CPU_BREAK;
@@ -1038,7 +1038,7 @@ void Fault_ThreadEntry(void* arg) {
                 // "Fault manager: OS_EVENT_FAULT received"
                 osSyncPrintf("フォルトマネージャ:OS_EVENT_FAULTを受信しました\n");
             } else if (msg == FAULT_MSG_UNK) {
-                Fault_UpdatePad();
+                MM_Fault_UpdatePad();
                 faultedThread = NULL;
                 continue;
             } else {
@@ -1051,7 +1051,7 @@ void Fault_ThreadEntry(void* arg) {
             osSyncPrintf("__osGetCurrFaultedThread()=%08x\n", faultedThread);
 
             if (faultedThread == NULL) {
-                faultedThread = Fault_FindFaultedThread();
+                faultedThread = MM_Fault_FindFaultedThread();
                 osSyncPrintf("FindFaultedThread()=%08x\n", faultedThread);
             }
         } while (faultedThread == NULL);
@@ -1060,59 +1060,59 @@ void Fault_ThreadEntry(void* arg) {
         sFaultInstance->faultedThread = faultedThread;
 
         while (!sFaultInstance->faultHandlerEnabled) {
-            Fault_Sleep(1000);
+            MM_Fault_Sleep(1000);
         }
-        Fault_Sleep(1000 / 2);
+        MM_Fault_Sleep(1000 / 2);
 
         // Show fault framebuffer
         Fault_DisplayFrameBuffer();
 
         if (sFaultInstance->autoScroll) {
-            Fault_Wait5Seconds();
+            MM_Fault_Wait5Seconds();
         } else {
             // Draw error bar signifying the crash screen is available
-            Fault_DrawCornerRec(GPACK_RGBA5551(255, 0, 0, 1));
-            Fault_WaitForButtonCombo();
+            MM_Fault_DrawCornerRec(GPACK_RGBA5551(255, 0, 0, 1));
+            MM_Fault_WaitForButtonCombo();
         }
 
         // Set auto-scrolling and default colors
         sFaultInstance->autoScroll = true;
-        FaultDrawer_SetForeColor(GPACK_RGBA5551(255, 255, 255, 1));
-        FaultDrawer_SetBackColor(GPACK_RGBA5551(0, 0, 0, 0));
+        MM_FaultDrawer_SetForeColor(GPACK_RGBA5551(255, 255, 255, 1));
+        MM_FaultDrawer_SetBackColor(GPACK_RGBA5551(0, 0, 0, 0));
 
         // Draw pages
         do {
             // Thread context page
-            Fault_PrintThreadContext(faultedThread);
+            MM_Fault_PrintThreadContext(faultedThread);
             osSyncPrintfThreadContext(faultedThread);
-            Fault_WaitForInput();
+            MM_Fault_WaitForInput();
 
             // Stack trace page
-            Fault_DrawStackTrace(faultedThread, 0);
-            Fault_LogStackTrace(faultedThread, 0);
-            Fault_WaitForInput();
+            MM_Fault_DrawStackTrace(faultedThread, 0);
+            MM_Fault_LogStackTrace(faultedThread, 0);
+            MM_Fault_WaitForInput();
 
             // Client pages
-            Fault_ProcessClients();
+            MM_Fault_ProcessClients();
 
             // Memory dump page
-            Fault_DrawMemDump(faultedThread->context.pc - 0x100, faultedThread->context.sp, 0, 0);
-            Fault_DrawStackTrace(faultedThread, 1);
-            Fault_LogStackTrace(faultedThread, 1);
-            Fault_WaitForInput();
+            MM_Fault_DrawMemDump(faultedThread->context.pc - 0x100, faultedThread->context.sp, 0, 0);
+            MM_Fault_DrawStackTrace(faultedThread, 1);
+            MM_Fault_LogStackTrace(faultedThread, 1);
+            MM_Fault_WaitForInput();
 
             // End page
-            Fault_FillScreenRed();
-            FaultDrawer_DrawText(64, 80, "    CONGRATURATIONS!    ");
-            FaultDrawer_DrawText(64, 90, "All Pages are displayed.");
-            FaultDrawer_DrawText(64, 100, "       THANK YOU!       ");
-            FaultDrawer_DrawText(64, 110, " You are great debugger!");
-            Fault_WaitForInput();
+            MM_Fault_FillScreenRed();
+            MM_FaultDrawer_DrawText(64, 80, "    CONGRATURATIONS!    ");
+            MM_FaultDrawer_DrawText(64, 90, "All Pages are displayed.");
+            MM_FaultDrawer_DrawText(64, 100, "       THANK YOU!       ");
+            MM_FaultDrawer_DrawText(64, 110, " You are great debugger!");
+            MM_Fault_WaitForInput();
         } while (!sFaultInstance->exit);
 
         while (!sFaultInstance->exit) {}
 
-        Fault_ResumeThread(faultedThread);
+        MM_Fault_ResumeThread(faultedThread);
     }
 #endif
 }
@@ -1126,40 +1126,40 @@ void Fault_SetFrameBuffer(void* fb, u16 w, u16 h) {
 // StackEntry sFaultStackInfo;
 // FaultMgr gFaultMgr;
 
-void Fault_Init(void) {
+void MM_Fault_Init(void) {
 #if 0
     sFaultInstance = &gFaultMgr;
     bzero(sFaultInstance, sizeof(FaultMgr));
     FaultDrawer_Init();
-    FaultDrawer_SetInputCallback(Fault_WaitForInput);
+    FaultDrawer_SetInputCallback(MM_Fault_WaitForInput);
     sFaultInstance->exit = false;
     sFaultInstance->msgId = 0;
     sFaultInstance->faultHandlerEnabled = false;
     sFaultInstance->faultedThread = NULL;
-    sFaultInstance->padCallback = Fault_PadCallback;
+    sFaultInstance->padCallback = MM_Fault_PadCallback;
     sFaultInstance->clients = NULL;
     sFaultInstance->autoScroll = false;
     gFaultMgr.faultHandlerEnabled = true;
-    osCreateMesgQueue(&sFaultInstance->queue, sFaultInstance->msg, ARRAY_COUNT(sFaultInstance->msg));
-    StackCheck_Init(&sFaultStackInfo, sFaultStack, STACK_TOP(sFaultStack), 0, 0x100, "fault");
-    osCreateThread(&sFaultInstance->thread, Z_THREAD_ID_FAULT, Fault_ThreadEntry, NULL, STACK_TOP(sFaultStack),
+    MM_osCreateMesgQueue(&sFaultInstance->queue, sFaultInstance->msg, ARRAY_COUNT(sFaultInstance->msg));
+    MM_StackCheck_Init(&sFaultStackInfo, sFaultStack, STACK_TOP(sFaultStack), 0, 0x100, "fault");
+    osCreateThread(&sFaultInstance->thread, Z_THREAD_ID_FAULT, MM_Fault_ThreadEntry, NULL, STACK_TOP(sFaultStack),
                    Z_PRIORITY_FAULT);
-    osStartThread(&sFaultInstance->thread);
+    MM_osStartThread(&sFaultInstance->thread);
 #endif
 }
 
 /**
  * Fault page for Hungup crashes. Displays the thread id and two messages
- * specified in arguments to `Fault_AddHungupAndCrashImpl`.
+ * specified in arguments to `MM_Fault_AddHungupAndCrashImpl`.
  */
-void Fault_HangupFaultClient(const char* exp1, const char* exp2) {
+void MM_Fault_HangupFaultClient(const char* exp1, const char* exp2) {
 #if 0
-    osSyncPrintf("HungUp on Thread %d\n", osGetThreadId(NULL));
+    osSyncPrintf("HungUp on Thread %d\n", MM_osGetThreadId(NULL));
     osSyncPrintf("%s\n", exp1 != NULL ? exp1 : "(NULL)");
     osSyncPrintf("%s\n", exp2 != NULL ? exp2 : "(NULL)");
-    FaultDrawer_Printf("HungUp on Thread %d\n", osGetThreadId(NULL));
-    FaultDrawer_Printf("%s\n", exp1 != NULL ? exp1 : "(NULL)");
-    FaultDrawer_Printf("%s\n", exp2 != NULL ? exp2 : "(NULL)");
+    MM_FaultDrawer_Printf("HungUp on Thread %d\n", MM_osGetThreadId(NULL));
+    MM_FaultDrawer_Printf("%s\n", exp1 != NULL ? exp1 : "(NULL)");
+    MM_FaultDrawer_Printf("%s\n", exp2 != NULL ? exp2 : "(NULL)");
 #endif
 }
 
@@ -1168,22 +1168,22 @@ void Fault_HangupFaultClient(const char* exp1, const char* exp2) {
  * error occurs. The parameters specify two messages detailing the error, one
  * or both may be NULL.
  */
-void Fault_AddHungupAndCrashImpl(const char* exp1, const char* exp2) {
+void MM_Fault_AddHungupAndCrashImpl(const char* exp1, const char* exp2) {
     assert(0);
     // FaultClient client;
     // s32 pad;
     //
-    // Fault_AddClient(&client, (void*)Fault_HangupFaultClient, (void*)exp1, (void*)exp2);
+    // MM_Fault_AddClient(&client, (void*)MM_Fault_HangupFaultClient, (void*)exp1, (void*)exp2);
     //*(u32*)0x11111111 = 0; // trigger an exception via unaligned memory access
 }
 
 /**
- * Like `Fault_AddHungupAndCrashImpl`, however provides a fixed message containing
+ * Like `MM_Fault_AddHungupAndCrashImpl`, however provides a fixed message containing
  * file and line number
  */
-void Fault_AddHungupAndCrash(const char* file, s32 line) {
+void MM_Fault_AddHungupAndCrash(const char* file, s32 line) {
     char msg[0x100];
 
-    sprintf(msg, "HungUp %s:%d", file, line);
-    Fault_AddHungupAndCrashImpl(msg, NULL);
+    MM_sprintf(msg, "HungUp %s:%d", file, line);
+    MM_Fault_AddHungupAndCrashImpl(msg, NULL);
 }

@@ -14,9 +14,9 @@ volatile OSTime gRSPGFXTotalTime;
 volatile OSTime gRSPOtherTotalTime;
 volatile OSTime D_8016A578;
 volatile OSTime gRDPTotalTime;
-SpeedMeterTimeEntry* sSpeedMeterTimeEntryPtr;
+SpeedMeterTimeEntry* OoT_sSpeedMeterTimeEntryPtr;
 
-SpeedMeterTimeEntry sSpeedMeterTimeEntryArray[] = {
+SpeedMeterTimeEntry OoT_sSpeedMeterTimeEntryArray[] = {
     { &D_8016A520, 0, 0, GPACK_RGBA5551(255, 0, 0, 1) }, { &D_8016A528, 0, 2, GPACK_RGBA5551(255, 255, 0, 1) },
     { &D_8016A530, 0, 4, GPACK_RGBA5551(0, 0, 255, 1) }, { &D_8016A538, 0, 6, GPACK_RGBA5551(255, 128, 128, 1) },
     { &D_8016A540, 0, 8, GPACK_RGBA5551(0, 255, 0, 1) }, { &D_8016A548, 0, 10, GPACK_RGBA5551(255, 0, 255, 1) },
@@ -28,20 +28,20 @@ SpeedMeterTimeEntry sSpeedMeterTimeEntryArray[] = {
     gDPFillRectangle(gfx, (ulx), (uly), (lrx), (lry)); \
     gDPPipeSync(gfx);
 
-void SpeedMeter_InitImpl(SpeedMeter* this, u32 arg1, u32 y) {
+void OoT_SpeedMeter_InitImpl(SpeedMeter* this, u32 arg1, u32 y) {
     LOG_CHECK_NULL_POINTER("this", this);
     this->unk_18 = arg1;
     this->y = y;
 }
 
-void SpeedMeter_Init(SpeedMeter* this) {
-    SpeedMeter_InitImpl(this, 32, 22);
+void OoT_SpeedMeter_Init(SpeedMeter* this) {
+    OoT_SpeedMeter_InitImpl(this, 32, 22);
 }
 
-void SpeedMeter_Destroy(SpeedMeter* this) {
+void OoT_SpeedMeter_Destroy(SpeedMeter* this) {
 }
 
-void SpeedMeter_DrawTimeEntries(SpeedMeter* this, GraphicsContext* gfxCtx) {
+void OoT_SpeedMeter_DrawTimeEntries(SpeedMeter* this, GraphicsContext* gfxCtx) {
     s32 pad[2];
     u32 baseX = 32;
     s32 temp;
@@ -55,21 +55,21 @@ void SpeedMeter_DrawTimeEntries(SpeedMeter* this, GraphicsContext* gfxCtx) {
     uly = this->y;
     lry = this->y + 2;
 
-    /*! @bug if gIrqMgrRetraceTime is 0, CLOSE_DISPS will never be reached */
-    if (gIrqMgrRetraceTime == 0) {
+    /*! @bug if OoT_gIrqMgrRetraceTime is 0, CLOSE_DISPS will never be reached */
+    if (OoT_gIrqMgrRetraceTime == 0) {
         return;
     }
 
     OPEN_DISPS(gfxCtx);
 
-    sSpeedMeterTimeEntryPtr = &sSpeedMeterTimeEntryArray[0];
-    for (i = 0; i < ARRAY_COUNT(sSpeedMeterTimeEntryArray); i++) {
-        temp = ((f64) * (sSpeedMeterTimeEntryPtr->time) / gIrqMgrRetraceTime) * 64.0;
-        sSpeedMeterTimeEntryPtr->x = temp + baseX;
-        sSpeedMeterTimeEntryPtr++;
+    OoT_sSpeedMeterTimeEntryPtr = &OoT_sSpeedMeterTimeEntryArray[0];
+    for (i = 0; i < ARRAY_COUNT(OoT_sSpeedMeterTimeEntryArray); i++) {
+        temp = ((f64) * (OoT_sSpeedMeterTimeEntryPtr->time) / OoT_gIrqMgrRetraceTime) * 64.0;
+        OoT_sSpeedMeterTimeEntryPtr->x = temp + baseX;
+        OoT_sSpeedMeterTimeEntryPtr++;
     }
 
-    View_Init(&view, gfxCtx);
+    OoT_View_Init(&view, gfxCtx);
     view.flags = 0xA;
 
     SET_FULLSCREEN_VIEWPORT(&view);
@@ -88,11 +88,11 @@ void SpeedMeter_DrawTimeEntries(SpeedMeter* this, GraphicsContext* gfxCtx) {
     DrawRec(gfx++, GPACK_RGBA5551(255, 0, 0, 1), baseX + 64 * 2, uly, baseX + 64 * 3, lry);
     DrawRec(gfx++, GPACK_RGBA5551(255, 0, 255, 1), baseX + 64 * 3, uly, baseX + 64 * 4, lry);
 
-    sSpeedMeterTimeEntryPtr = &sSpeedMeterTimeEntryArray[0];
-    for (i = 0; i < ARRAY_COUNT(sSpeedMeterTimeEntryArray); i++) {
-        DrawRec(gfx++, sSpeedMeterTimeEntryPtr->color, baseX, lry + sSpeedMeterTimeEntryPtr->y,
-                sSpeedMeterTimeEntryPtr->x, lry + sSpeedMeterTimeEntryPtr->y + 1);
-        sSpeedMeterTimeEntryPtr++;
+    OoT_sSpeedMeterTimeEntryPtr = &OoT_sSpeedMeterTimeEntryArray[0];
+    for (i = 0; i < ARRAY_COUNT(OoT_sSpeedMeterTimeEntryArray); i++) {
+        DrawRec(gfx++, OoT_sSpeedMeterTimeEntryPtr->color, baseX, lry + OoT_sSpeedMeterTimeEntryPtr->y,
+                OoT_sSpeedMeterTimeEntryPtr->x, lry + OoT_sSpeedMeterTimeEntryPtr->y + 1);
+        OoT_sSpeedMeterTimeEntryPtr++;
     }
     gDPPipeSync(gfx++);
 
@@ -101,7 +101,7 @@ void SpeedMeter_DrawTimeEntries(SpeedMeter* this, GraphicsContext* gfxCtx) {
     CLOSE_DISPS(gfxCtx);
 }
 
-void SpeedMeter_InitAllocEntry(SpeedMeterAllocEntry* this, u32 maxval, u32 val, u16 backColor, u16 foreColor, u32 ulx,
+void OoT_SpeedMeter_InitAllocEntry(SpeedMeterAllocEntry* this, u32 maxval, u32 val, u16 backColor, u16 foreColor, u32 ulx,
                                u32 lrx, u32 uly, u32 lry) {
     this->maxval = maxval;
     this->val = val;
@@ -113,7 +113,7 @@ void SpeedMeter_InitAllocEntry(SpeedMeterAllocEntry* this, u32 maxval, u32 val, 
     this->lry = lry;
 }
 
-void SpeedMeter_DrawAllocEntry(SpeedMeterAllocEntry* this, GraphicsContext* gfxCtx) {
+void OoT_SpeedMeter_DrawAllocEntry(SpeedMeterAllocEntry* this, GraphicsContext* gfxCtx) {
     s32 usedOff;
     View view;
     Gfx* gfx;
@@ -125,7 +125,7 @@ void SpeedMeter_DrawAllocEntry(SpeedMeterAllocEntry* this, GraphicsContext* gfxC
     } else {
         OPEN_DISPS(gfxCtx);
 
-        View_Init(&view, gfxCtx);
+        OoT_View_Init(&view, gfxCtx);
         view.flags = 0xA;
 
         SET_FULLSCREEN_VIEWPORT(&view);
@@ -150,7 +150,7 @@ void SpeedMeter_DrawAllocEntry(SpeedMeterAllocEntry* this, GraphicsContext* gfxC
     }
 }
 
-void SpeedMeter_DrawAllocEntries(SpeedMeter* meter, GraphicsContext* gfxCtx, GameState* state) {
+void OoT_SpeedMeter_DrawAllocEntries(SpeedMeter* meter, GraphicsContext* gfxCtx, GameState* state) {
     s32 pad[2];
     u32 ulx = 30;
     u32 lrx = 290;
@@ -168,44 +168,44 @@ void SpeedMeter_DrawAllocEntries(SpeedMeter* meter, GraphicsContext* gfxCtx, Gam
     y = 212;
     if (SREG(0) > 2) {
         if (ZeldaArena_IsInitalized()) {
-            ZeldaArena_GetSizes(&zeldaFreeMax, &zeldaFree, &zeldaAlloc);
-            SpeedMeter_InitAllocEntry(&entry, zeldaFree + zeldaAlloc, zeldaAlloc, GPACK_RGBA5551(0, 0, 255, 1),
+            OoT_ZeldaArena_GetSizes(&zeldaFreeMax, &zeldaFree, &zeldaAlloc);
+            OoT_SpeedMeter_InitAllocEntry(&entry, zeldaFree + zeldaAlloc, zeldaAlloc, GPACK_RGBA5551(0, 0, 255, 1),
                                       GPACK_RGBA5551(255, 255, 255, 1), ulx, lrx, y, y + 1);
-            SpeedMeter_DrawAllocEntry(&entry, gfxCtx);
+            OoT_SpeedMeter_DrawAllocEntry(&entry, gfxCtx);
             y++;
             y++;
         }
     }
 
     if (SREG(0) > 1) {
-        SystemArena_GetSizes((u32*)&sysFreeMax, (u32*)&sysFree, (u32*)&sysAlloc);
-        SpeedMeter_InitAllocEntry(&entry, sysFree + sysAlloc - state->tha.size, sysAlloc - state->tha.size,
+        OoT_SystemArena_GetSizes((u32*)&sysFreeMax, (u32*)&sysFree, (u32*)&sysAlloc);
+        OoT_SpeedMeter_InitAllocEntry(&entry, sysFree + sysAlloc - state->tha.size, sysAlloc - state->tha.size,
                                   GPACK_RGBA5551(0, 0, 255, 1), GPACK_RGBA5551(255, 128, 128, 1), ulx, lrx, y, y);
-        SpeedMeter_DrawAllocEntry(&entry, gfxCtx);
+        OoT_SpeedMeter_DrawAllocEntry(&entry, gfxCtx);
         y++;
     }
 
     thga = (TwoHeadGfxArena*)&state->tha;
-    SpeedMeter_InitAllocEntry(&entry, thga->size, thga->size - THA_GetSize((TwoHeadArena*)thga),
+    OoT_SpeedMeter_InitAllocEntry(&entry, thga->size, thga->size - THA_GetSize((TwoHeadArena*)thga),
                               GPACK_RGBA5551(0, 0, 255, 1), GPACK_RGBA5551(0, 255, 0, 1), ulx, lrx, y, y);
-    SpeedMeter_DrawAllocEntry(&entry, gfxCtx);
+    OoT_SpeedMeter_DrawAllocEntry(&entry, gfxCtx);
     y++;
 
     thga = &gfxCtx->polyOpa;
-    SpeedMeter_InitAllocEntry(&entry, thga->size, thga->size - THGA_GetSize(thga), GPACK_RGBA5551(0, 0, 255, 1),
+    OoT_SpeedMeter_InitAllocEntry(&entry, thga->size, thga->size - THGA_GetSize(thga), GPACK_RGBA5551(0, 0, 255, 1),
                               GPACK_RGBA5551(255, 0, 255, 1), ulx, lrx, y, y);
-    SpeedMeter_DrawAllocEntry(&entry, gfxCtx);
+    OoT_SpeedMeter_DrawAllocEntry(&entry, gfxCtx);
     y++;
 
     thga = &gfxCtx->polyXlu;
-    SpeedMeter_InitAllocEntry(&entry, thga->size, thga->size - THGA_GetSize(thga), GPACK_RGBA5551(0, 0, 255, 1),
+    OoT_SpeedMeter_InitAllocEntry(&entry, thga->size, thga->size - THGA_GetSize(thga), GPACK_RGBA5551(0, 0, 255, 1),
                               GPACK_RGBA5551(255, 255, 0, 1), ulx, lrx, y, y);
-    SpeedMeter_DrawAllocEntry(&entry, gfxCtx);
+    OoT_SpeedMeter_DrawAllocEntry(&entry, gfxCtx);
     y++;
 
     thga = &gfxCtx->overlay;
-    SpeedMeter_InitAllocEntry(&entry, thga->size, thga->size - THGA_GetSize(thga), GPACK_RGBA5551(0, 0, 255, 1),
+    OoT_SpeedMeter_InitAllocEntry(&entry, thga->size, thga->size - THGA_GetSize(thga), GPACK_RGBA5551(0, 0, 255, 1),
                               GPACK_RGBA5551(255, 0, 0, 1), ulx, lrx, y, y);
-    SpeedMeter_DrawAllocEntry(&entry, gfxCtx);
+    OoT_SpeedMeter_DrawAllocEntry(&entry, gfxCtx);
     y++;
 }

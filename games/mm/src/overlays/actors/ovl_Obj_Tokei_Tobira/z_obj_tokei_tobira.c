@@ -27,7 +27,7 @@ ActorProfile Obj_Tokei_Tobira_Profile = {
     /**/ ObjTokeiTobira_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 300, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 300, ICHAIN_CONTINUE),
@@ -58,19 +58,19 @@ void ObjTokeiTobira_Init(Actor* thisx, PlayState* play) {
     s32 type = OBJTOKEITOBIRA_GET_TYPE(&this->dyna.actor);
     Vec3f posOffset;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS | DYNA_TRANSFORM_ROT_Y);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS | DYNA_TRANSFORM_ROT_Y);
     DynaPolyActor_LoadMesh(play, &this->dyna, D_80ABD770[type]);
 
     if (type == OBJTOKEITOBIRA_TYPE_0) {
-        Actor_SpawnAsChild(&play->actorCtx, &this->dyna.actor, play, ACTOR_OBJ_TOKEI_TOBIRA,
+        MM_Actor_SpawnAsChild(&play->actorCtx, &this->dyna.actor, play, ACTOR_OBJ_TOKEI_TOBIRA,
                            this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y, this->dyna.actor.world.pos.z,
                            this->dyna.actor.shape.rot.x, this->dyna.actor.shape.rot.y, this->dyna.actor.shape.rot.z,
                            OBJTOKEITOBIRA_PARAMS(OBJTOKEITOBIRA_TYPE_1));
     }
 
     Matrix_RotateYS(D_80ABD76C[type] + this->dyna.actor.shape.rot.y, MTXMODE_NEW);
-    Matrix_MultVec3f(&D_80ABD760, &posOffset);
+    MM_Matrix_MultVec3f(&D_80ABD760, &posOffset);
     this->dyna.actor.world.pos.x += posOffset.x;
     this->dyna.actor.world.pos.y += posOffset.y;
     this->dyna.actor.world.pos.z += posOffset.z;
@@ -85,7 +85,7 @@ void ObjTokeiTobira_Init(Actor* thisx, PlayState* play) {
 void ObjTokeiTobira_Destroy(Actor* thisx, PlayState* play) {
     ObjTokeiTobira* this = (ObjTokeiTobira*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void ObjTokeiTobira_StartCutscene(ObjTokeiTobira* this) {
@@ -109,11 +109,11 @@ void ObjTokeiTobira_Update(Actor* thisx, PlayState* play) {
     s32 pad3;
 
     if (player->actor.bgCheckFlags & BGCHECKFLAG_PLAYER_WALL_INTERACT) {
-        if (DynaPoly_GetActor(&play->colCtx, player->actor.wallBgId) == &this->dyna) {
+        if (MM_DynaPoly_GetActor(&play->colCtx, player->actor.wallBgId) == &this->dyna) {
             f32 sp40;
             Vec3f sp34;
 
-            Actor_WorldToActorCoords(&this->dyna.actor, &sp34, &player->actor.world.pos);
+            MM_Actor_WorldToActorCoords(&this->dyna.actor, &sp34, &player->actor.world.pos);
             sp40 = sp34.x * sp48;
 
             if (sp40 > 20.0f) {
@@ -144,7 +144,7 @@ void ObjTokeiTobira_Update(Actor* thisx, PlayState* play) {
     } else if (this->unk168 == 1) {
         Vec3f sp24;
 
-        Actor_WorldToActorCoords(&this->dyna.actor, &sp24, &player->actor.world.pos);
+        MM_Actor_WorldToActorCoords(&this->dyna.actor, &sp24, &player->actor.world.pos);
 
         if ((sp24.z > 0.0f) && (sp24.z < 30.0f)) {
             this->unk168 = 1;
@@ -175,5 +175,5 @@ void ObjTokeiTobira_Update(Actor* thisx, PlayState* play) {
 }
 
 void ObjTokeiTobira_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, D_80ABD780[OBJTOKEITOBIRA_GET_TYPE(thisx)]);
+    MM_Gfx_DrawDListOpa(play, D_80ABD780[OBJTOKEITOBIRA_GET_TYPE(thisx)]);
 }

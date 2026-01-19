@@ -21,7 +21,7 @@ void EnSyatekiCrow_WaitToMove(EnSyatekiCrow* this, PlayState* play);
 void EnSyatekiCrow_Fly(EnSyatekiCrow* this, PlayState* play);
 void EnSyatekiCrow_Dead(EnSyatekiCrow* this, PlayState* play);
 
-static Vec3f sZeroVec = { 0.0f, 0.0f, 0.0f };
+static Vec3f MM_sZeroVec = { 0.0f, 0.0f, 0.0f };
 
 ActorProfile En_Syateki_Crow_Profile = {
     /**/ ACTOR_EN_SYATEKI_CROW,
@@ -35,7 +35,7 @@ ActorProfile En_Syateki_Crow_Profile = {
     /**/ EnSyatekiCrow_Draw,
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[1] = {
+static ColliderJntSphElementInit MM_sJntSphElementsInit[1] = {
     {
         {
             ELEM_MATERIAL_UNK0,
@@ -49,7 +49,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[1] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit MM_sJntSphInit = {
     {
         COL_MATERIAL_HIT3,
         AT_ON | AT_TYPE_ENEMY,
@@ -58,11 +58,11 @@ static ColliderJntSphInit sJntSphInit = {
         OC2_TYPE_1,
         COLSHAPE_JNTSPH,
     },
-    ARRAY_COUNT(sJntSphElementsInit),
-    sJntSphElementsInit,
+    ARRAY_COUNT(MM_sJntSphElementsInit),
+    MM_sJntSphElementsInit,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeScale, 3000, ICHAIN_CONTINUE),
     ICHAIN_S8(hintId, TATL_HINT_ID_GUAY, ICHAIN_CONTINUE),
     ICHAIN_F32_DIV1000(gravity, -500, ICHAIN_CONTINUE),
@@ -85,16 +85,16 @@ void EnSyatekiCrow_Init(Actor* thisx, PlayState* play2) {
         path = &play->setupPathList[path->additionalPathIndex];
     }
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gGuaySkel, &gGuayFlyAnim, this->jointTable, this->morphTable,
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gGuaySkel, &gGuayFlyAnim, this->jointTable, this->morphTable,
                        OBJECT_CROW_LIMB_MAX);
-    Collider_InitJntSph(play, &this->collider);
-    Collider_SetJntSph(play, &this->collider, &this->actor, &sJntSphInit, this->colliderElements);
-    this->collider.elements[0].dim.worldSphere.radius = sJntSphInit.elements[0].dim.modelSphere.radius;
-    ActorShape_Init(&this->actor.shape, 2000.0f, ActorShadow_DrawCircle, 20.0f);
+    MM_Collider_InitJntSph(play, &this->collider);
+    MM_Collider_SetJntSph(play, &this->collider, &this->actor, &MM_sJntSphInit, this->colliderElements);
+    this->collider.elements[0].dim.worldSphere.radius = MM_sJntSphInit.elements[0].dim.modelSphere.radius;
+    MM_ActorShape_Init(&this->actor.shape, 2000.0f, MM_ActorShadow_DrawCircle, 20.0f);
 
     if ((path == NULL) || (SG_GUAY_GET_INDEX(&this->actor) >= 0x80)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -109,11 +109,11 @@ void EnSyatekiCrow_Init(Actor* thisx, PlayState* play2) {
 void EnSyatekiCrow_Destroy(Actor* thisx, PlayState* play) {
     EnSyatekiCrow* this = (EnSyatekiCrow*)thisx;
 
-    Collider_DestroyJntSph(play, &this->collider);
+    MM_Collider_DestroyJntSph(play, &this->collider);
 }
 
 void EnSyatekiCrow_SetupWaitForSignal(EnSyatekiCrow* this) {
-    Actor_SetScale(&this->actor, 0.03f);
+    MM_Actor_SetScale(&this->actor, 0.03f);
     this->actor.speed = 0.0f;
     this->actor.gravity = 0.0f;
     this->actor.world = this->actor.home;
@@ -155,8 +155,8 @@ void EnSyatekiCrow_SetupWaitToMove(EnSyatekiCrow* this) {
     targetPos.x = this->pathPoints[this->currentPointIndex].x;
     targetPos.y = this->pathPoints[this->currentPointIndex].y;
     targetPos.z = this->pathPoints[this->currentPointIndex].z;
-    this->actor.world.rot.y = this->actor.shape.rot.y = Math_Vec3f_Yaw(&this->actor.world.pos, &targetPos);
-    this->actor.world.rot.x = this->actor.shape.rot.x = Math_Vec3f_Pitch(&this->actor.world.pos, &targetPos);
+    this->actor.world.rot.y = this->actor.shape.rot.y = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &targetPos);
+    this->actor.world.rot.x = this->actor.shape.rot.x = MM_Math_Vec3f_Pitch(&this->actor.world.pos, &targetPos);
     this->actor.draw = EnSyatekiCrow_Draw;
     this->actionFunc = EnSyatekiCrow_WaitToMove;
 }
@@ -191,14 +191,14 @@ void EnSyatekiCrow_Fly(EnSyatekiCrow* this, PlayState* play) {
     targetPoint.y = this->pathPoints[this->currentPointIndex].y;
     targetPoint.z = this->pathPoints[this->currentPointIndex].z;
 
-    distToTarget = Math_Vec3f_DistXZ(&this->actor.world.pos, &targetPoint);
-    this->yawTarget = Math_Vec3f_Yaw(&this->actor.world.pos, &targetPoint);
-    this->pitchTarget = Math_Vec3f_Pitch(&this->actor.world.pos, &targetPoint);
+    distToTarget = MM_Math_Vec3f_DistXZ(&this->actor.world.pos, &targetPoint);
+    this->yawTarget = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &targetPoint);
+    this->pitchTarget = MM_Math_Vec3f_Pitch(&this->actor.world.pos, &targetPoint);
 
     if (distToTarget > 100.0f) {
-        Math_SmoothStepToS(&this->actor.world.rot.y, this->yawTarget, 5, 0x3000, 0x100);
+        MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->yawTarget, 5, 0x3000, 0x100);
         this->actor.shape.rot.y = this->actor.world.rot.y;
-        Math_SmoothStepToS(&this->actor.shape.rot.x, this->pitchTarget, 5, 0x3000, 0x100);
+        MM_Math_SmoothStepToS(&this->actor.shape.rot.x, this->pitchTarget, 5, 0x3000, 0x100);
         this->actor.world.rot.x = -this->actor.shape.rot.x;
     } else if (this->currentPointIndex < (this->maxPointIndex - 1)) {
         this->currentPointIndex++;
@@ -208,7 +208,7 @@ void EnSyatekiCrow_Fly(EnSyatekiCrow* this, PlayState* play) {
         EnSyatekiCrow_SetupWaitForSignal(this);
     }
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     this->actor.shape.yOffset = (fabsf(this->skelAnime.curFrame - 3.0f) * 150.0f) + 1700.0f;
     if ((syatekiMan->guayAppearTimer % 90) == 0) {
         Actor_PlaySfx(&this->actor, NA_SE_EN_KAICHO_CRY);
@@ -220,28 +220,28 @@ void EnSyatekiCrow_SetupDead(EnSyatekiCrow* this) {
 
     syatekiMan->score += SG_POINTS_GUAY;
     this->isActive = false;
-    this->actor.speed *= Math_CosS(this->actor.world.rot.x);
+    this->actor.speed *= MM_Math_CosS(this->actor.world.rot.x);
     this->actor.velocity.y = 0.0f;
-    Animation_Change(&this->skelAnime, &gGuayFlyAnim, 0.4f, 0.0f, 0.0f, ANIMMODE_LOOP_INTERP, -3.0f);
+    MM_Animation_Change(&this->skelAnime, &gGuayFlyAnim, 0.4f, 0.0f, 0.0f, ANIMMODE_LOOP_INTERP, -3.0f);
     this->actor.bgCheckFlags &= ~BGCHECKFLAG_GROUND;
     Actor_PlaySfx(&this->actor, NA_SE_EN_KAICHO_DEAD);
-    Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 40);
+    MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 40);
     this->actionFunc = EnSyatekiCrow_Dead;
 }
 
 void EnSyatekiCrow_Dead(EnSyatekiCrow* this, PlayState* play) {
     EnSyatekiMan* syatekiMan = (EnSyatekiMan*)this->actor.parent;
 
-    Math_StepToF(&this->actor.speed, 0.0f, 0.5f);
+    MM_Math_StepToF(&this->actor.speed, 0.0f, 0.5f);
     this->actor.colorFilterTimer = 40;
 
     if (this->actor.colorFilterParams & 0x4000) {
-        Math_ScaledStepToS(&this->actor.shape.rot.x, 0x4000, 0x200);
+        MM_Math_ScaledStepToS(&this->actor.shape.rot.x, 0x4000, 0x200);
         this->actor.shape.rot.z += 0x1780;
     }
 
     if (this->deathTimer > 20) {
-        func_800B3030(play, &this->actor.world.pos, &sZeroVec, &sZeroVec, this->actor.scale.x * 10000.0f, 0, 0);
+        func_800B3030(play, &this->actor.world.pos, &MM_sZeroVec, &MM_sZeroVec, this->actor.scale.x * 10000.0f, 0, 0);
         syatekiMan->guayHitCounter++;
         syatekiMan->guayFlags &= ~(1 << SG_GUAY_GET_INDEX(&this->actor));
         EnSyatekiCrow_SetupWaitForSignal(this);
@@ -250,9 +250,9 @@ void EnSyatekiCrow_Dead(EnSyatekiCrow* this, PlayState* play) {
     this->deathTimer++;
 }
 
-static Vec3f sVelocity = { 0.0f, 20.0f, 0.0f };
+static Vec3f MM_sVelocity = { 0.0f, 20.0f, 0.0f };
 
-static Vec3f sAccel = { 0.0f, 0.0f, 0.0f };
+static Vec3f MM_sAccel = { 0.0f, 0.0f, 0.0f };
 
 void EnSyatekiCrow_UpdateDamage(EnSyatekiCrow* this, PlayState* play) {
     if (this->actionFunc == EnSyatekiCrow_Fly) {
@@ -260,14 +260,14 @@ void EnSyatekiCrow_UpdateDamage(EnSyatekiCrow* this, PlayState* play) {
             Audio_PlaySfx(NA_SE_SY_TRE_BOX_APPEAR);
             this->deathTimer = 0;
             this->collider.base.acFlags &= ~AC_HIT;
-            EffectSsExtra_Spawn(play, &this->actor.world.pos, &sVelocity, &sAccel, 5, EXTRA_SCORE_INDEX_60);
+            MM_EffectSsExtra_Spawn(play, &this->actor.world.pos, &MM_sVelocity, &MM_sAccel, 5, EXTRA_SCORE_INDEX_60);
             EnSyatekiCrow_SetupDead(this);
         } else {
             this->collider.elements[0].dim.worldSphere.center.x = this->actor.world.pos.x;
             this->collider.elements[0].dim.worldSphere.center.y =
-                sJntSphInit.elements[0].dim.modelSphere.center.y + this->actor.world.pos.y;
+                MM_sJntSphInit.elements[0].dim.modelSphere.center.y + this->actor.world.pos.y;
             this->collider.elements[0].dim.worldSphere.center.z = this->actor.world.pos.z;
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+            MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
         }
     }
 }
@@ -290,9 +290,9 @@ s32 EnSyatekiCrow_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, 
     EnSyatekiCrow* this = (EnSyatekiCrow*)thisx;
 
     if (limbIndex == OBJECT_CROW_LIMB_UPPER_TAIL) {
-        rot->y += TRUNCF_BINANG(0xC00 * Math_SinF(this->skelAnime.curFrame * (M_PIf / 4)));
+        rot->y += TRUNCF_BINANG(0xC00 * MM_Math_SinF(this->skelAnime.curFrame * (M_PIf / 4)));
     } else if (limbIndex == OBJECT_CROW_LIMB_TAIL) {
-        rot->y += TRUNCF_BINANG(0x1400 * Math_SinF((this->skelAnime.curFrame + 2.5f) * (M_PIf / 4)));
+        rot->y += TRUNCF_BINANG(0x1400 * MM_Math_SinF((this->skelAnime.curFrame + 2.5f) * (M_PIf / 4)));
     }
 
     return false;
@@ -305,12 +305,12 @@ void EnSyatekiCrow_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec
     Vec3f* bodyPartPos;
 
     if (limbIndex == OBJECT_CROW_LIMB_BODY) {
-        Matrix_MultVec3f(&sBodyOffset, &this->bodyPartsPos[SG_GUAY_BODYPART_BODY]);
+        MM_Matrix_MultVec3f(&sBodyOffset, &this->bodyPartsPos[SG_GUAY_BODYPART_BODY]);
         this->bodyPartsPos[SG_GUAY_BODYPART_BODY].y -= 20.0f;
     } else if ((limbIndex == OBJECT_CROW_LIMB_RIGHT_WING_TIP) || (limbIndex == OBJECT_CROW_LIMB_LEFT_WING_TIP) ||
                (limbIndex == OBJECT_CROW_LIMB_TAIL)) {
         bodyPartPos = &this->bodyPartsPos[(limbIndex >> 1) - 1];
-        Matrix_MultVec3f(&sZeroVec, bodyPartPos);
+        MM_Matrix_MultVec3f(&MM_sZeroVec, bodyPartPos);
         bodyPartPos->y -= 20.0f;
     }
 }
@@ -319,6 +319,6 @@ void EnSyatekiCrow_Draw(Actor* thisx, PlayState* play) {
     EnSyatekiCrow* this = (EnSyatekiCrow*)thisx;
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnSyatekiCrow_OverrideLimbDraw, EnSyatekiCrow_PostLimbDraw, &this->actor);
 }

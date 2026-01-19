@@ -88,7 +88,7 @@ void VisFbuf_SetBg(Gfx** gfxP, void* source, void* img, s32 width, s32 height, f
 
     // Allocate for BG
     gfxTemp = gfx;
-    bg = Graph_DlistAlloc(&gfxTemp, sizeof(uObjBg));
+    bg = MM_Graph_DlistAlloc(&gfxTemp, sizeof(uObjBg));
     gfx = gfxTemp;
 
     // Set up BG
@@ -108,7 +108,7 @@ void VisFbuf_SetBg(Gfx** gfxP, void* source, void* img, s32 width, s32 height, f
     bg->b.imagePtr = source;
 
     if (!!(cycleMode & VIS_FBUF_BG_CYC_COPY) != 0) { //! FAKE: may possibly be a better way
-        guS2DInitBg(bg);
+        MM_guS2DInitBg(bg);
     } else {
         bg->s.scaleW = (s32)((1 << 10) / scaleX);
         bg->s.scaleH = (s32)((1 << 10) / scaleY);
@@ -192,7 +192,7 @@ void VisFbuf_ApplyEffects(VisFbuf* this, Gfx** gfxP, void* source, void* img, s3
     }
     //! @bug VisFbuf_SetBgSimple() sets the current color image back to the frame's default framebuffer at the end,
     //! so this will always fill in the default framebuffer, whatever are used as `source` and `img`. This does not
-    //! arise in-game since this function is always used with `source = D_0F000000`.
+    //! arise in-game since this function is always used with `source = MM_D_0F000000`.
 
     gSPLoadUcode(gfx++, ucode_f3dex2);
     gDPFillWideRectangle(gfx++, OTRGetRectDimensionFromLeftEdge(0), 0, OTRGetRectDimensionFromRightEdge(width - 1),
@@ -333,18 +333,18 @@ void VisFbuf_Draw(VisFbuf* this, Gfx** gfxP, void* img) {
 
     switch (this->mode) {
         case VIS_FBUF_MODE_GENERAL:
-            VisFbuf_DrawGeneral(this, &gfx, D_0F000000_TO_SEGMENTED, img, gScreenWidth, gScreenHeight);
+            VisFbuf_DrawGeneral(this, &gfx, D_0F000000_TO_SEGMENTED, img, MM_gScreenWidth, MM_gScreenHeight);
             break;
 
         case VIS_FBUF_MODE_INTERPOLATE:
-            VisFbuf_DrawInterpolate(this, &gfx, D_0F000000_TO_SEGMENTED, gScreenWidth, gScreenHeight);
+            VisFbuf_DrawInterpolate(this, &gfx, D_0F000000_TO_SEGMENTED, MM_gScreenWidth, MM_gScreenHeight);
             break;
 
         default:
             break;
     }
 
-    gSPLoadUcode(gfx++, SysUcode_GetUCode());
+    gSPLoadUcode(gfx++, MM_SysUcode_GetUCode());
 
     *gfxP = gfx;
 }

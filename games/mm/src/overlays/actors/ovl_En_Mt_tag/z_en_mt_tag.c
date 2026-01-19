@@ -68,7 +68,7 @@ static Vec3f sCheckpointPositions[] = {
  * The range extends a little bit beyond the finish line's in-game visual.
  */
 s32 EnMttag_IsInFinishLine(Vec3f* pos) {
-    return Math3D_PointInSquare2D(-1261.0f, -901.0f, -1600.0f, -1520.0f, pos->x, pos->z);
+    return MM_Math3D_PointInSquare2D(-1261.0f, -901.0f, -1600.0f, -1520.0f, pos->x, pos->z);
 }
 
 /**
@@ -77,11 +77,11 @@ s32 EnMttag_IsInFinishLine(Vec3f* pos) {
  */
 s32 EnMttag_CheckPlayerCheatStatus(Vec3f* pos) {
     if (!CHECK_EVENTINF(EVENTINF_10)) {
-        if (Math3D_PointInSquare2D(-466.0f, -386.0f, -687.0f, 193.0f, pos->x, pos->z)) {
+        if (MM_Math3D_PointInSquare2D(-466.0f, -386.0f, -687.0f, 193.0f, pos->x, pos->z)) {
             // The race hasn't started yet, but the player is beyond the starting line.
             return GORON_RACE_CHEAT_FALSE_START;
         }
-    } else if (Math3D_PointInSquare2D(-1127.0f, -1007.0f, -867.0f, -787.0f, pos->x, pos->z)) {
+    } else if (MM_Math3D_PointInSquare2D(-1127.0f, -1007.0f, -867.0f, -787.0f, pos->x, pos->z)) {
         // The goal is actually quite close to the start, just behind a large wall.
         // This checks if the player is in an area "behind" the goal that is not accessible
         // in normal play; it can only be reached by climbing the wall somehow. Perhaps they
@@ -143,7 +143,7 @@ s32 EnMttag_GetCurrentCheckpoint(Actor* actor, PlayState* play, s32* upcomingChe
 
     // The Goron Racetrack is configured such that the sceneExitIndex for any given floor polygon
     // gradually increases as you move forward through the racetrack.
-    sceneExitIndex = SurfaceType_GetSceneExitIndex(&play->colCtx, actor->floorPoly, actor->floorBgId);
+    sceneExitIndex = MM_SurfaceType_GetSceneExitIndex(&play->colCtx, actor->floorPoly, actor->floorBgId);
     //! @bug - sStartingCheckpointPerSceneExitIndex is indexed out of bounds when sceneExitIndex is 18, due to the
     //! `sceneExitIndex + 1` access.
     if ((sceneExitIndex < 4) || (sceneExitIndex >= 19)) {
@@ -247,7 +247,7 @@ s32 EnMttag_ExitRace(PlayState* play, s32 transitionType, s32 nextTransitionType
     play->transitionTrigger = TRANS_TRIGGER_START;
     play->transitionType = transitionType;
     gSaveContext.nextTransitionType = nextTransitionType;
-    Message_CloseTextbox(play);
+    MM_Message_CloseTextbox(play);
     return 1;
 }
 
@@ -256,8 +256,8 @@ s32 EnMttag_ExitRace(PlayState* play, s32 transitionType, s32 nextTransitionType
  */
 void EnMttag_ShowFalseStartMessage(EnMttag* this, PlayState* play) {
     gSaveContext.timerStates[TIMER_ID_MINIGAME_2] = TIMER_STATE_OFF;
-    Message_StartTextbox(play, 0xE95, NULL); // An entrant made a false start
-    Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
+    MM_Message_StartTextbox(play, 0xE95, NULL); // An entrant made a false start
+    MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
     SEQCMD_STOP_SEQUENCE(SEQ_PLAYER_BGM_MAIN, 20);
     this->actionFunc = EnMttag_PotentiallyRestartRace;
 }
@@ -267,8 +267,8 @@ void EnMttag_ShowFalseStartMessage(EnMttag* this, PlayState* play) {
  * they probably can't win the race.
  */
 void EnMttag_ShowCantWinMessage(EnMttag* this, PlayState* play) {
-    Message_StartTextbox(play, 0xE97, NULL); // You can't win now...
-    Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
+    MM_Message_StartTextbox(play, 0xE97, NULL); // You can't win now...
+    MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
     this->actionFunc = EnMttag_HandleCantWinChoice;
 }
 
@@ -402,7 +402,7 @@ void EnMttag_RaceFinish(EnMttag* this, PlayState* play) {
             EnMttag_ExitRace(play, TRANS_TYPE_FADE_BLACK, TRANS_TYPE_FADE_BLACK);
         }
 
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -412,9 +412,9 @@ void EnMttag_RaceFinish(EnMttag* this, PlayState* play) {
  * reaching the goal from behind.
  */
 void EnMttag_PotentiallyRestartRace(EnMttag* this, PlayState* play) {
-    u8 talkState = Message_GetState(&play->msgCtx);
+    u8 talkState = MM_Message_GetState(&play->msgCtx);
 
-    if (((talkState == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) || (talkState == TEXT_STATE_CLOSING)) {
+    if (((talkState == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) || (talkState == TEXT_STATE_CLOSING)) {
         if (this->shouldRestartRace) {
             play->nextEntrance = ENTRANCE(GORON_RACETRACK, 1);
 
@@ -429,8 +429,8 @@ void EnMttag_PotentiallyRestartRace(EnMttag* this, PlayState* play) {
             play->transitionTrigger = TRANS_TRIGGER_START;
             play->transitionType = TRANS_TYPE_FADE_BLACK;
             gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK;
-            Message_CloseTextbox(play);
-            Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
+            MM_Message_CloseTextbox(play);
+            MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
             Magic_Add(play, MAGIC_FILL_TO_CAPACITY);
 
             CLEAR_EVENTINF(EVENTINF_10);
@@ -441,7 +441,7 @@ void EnMttag_PotentiallyRestartRace(EnMttag* this, PlayState* play) {
         } else {
             EnMttag_ExitRace(play, TRANS_TYPE_FADE_BLACK, TRANS_TYPE_FADE_BLACK);
         }
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -450,7 +450,7 @@ void EnMttag_PotentiallyRestartRace(EnMttag* this, PlayState* play) {
  * responded to the Goron Elder's son's question.
  */
 void EnMttag_HandleCantWinChoice(EnMttag* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_CHOICE) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_CHOICE) && MM_Message_ShouldAdvance(play)) {
         if (play->msgCtx.choiceIndex != 0) {
             // Exit the race
             Audio_PlaySfx_MessageCancel();
@@ -458,14 +458,14 @@ void EnMttag_HandleCantWinChoice(EnMttag* this, PlayState* play) {
             EnMttag_ExitRace(play, TRANS_TYPE_FADE_BLACK, TRANS_TYPE_FADE_BLACK);
             CLEAR_EVENTINF(EVENTINF_13);
             SET_EVENTINF(EVENTINF_12);
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
             return;
         }
 
         // Keep racing
         Audio_PlaySfx_MessageDecide();
-        Message_CloseTextbox(play);
-        Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
+        MM_Message_CloseTextbox(play);
+        MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_END);
         CLEAR_EVENTINF(EVENTINF_13);
         this->timer = 100;
         this->actionFunc = EnMttag_Race;
@@ -495,7 +495,7 @@ void EnMttag_Init(Actor* thisx, PlayState* play) {
             this->actionFunc = EnMttag_RaceStart;
         }
     } else {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 

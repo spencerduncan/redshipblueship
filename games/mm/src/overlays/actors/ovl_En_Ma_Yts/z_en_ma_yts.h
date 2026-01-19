@@ -20,7 +20,7 @@ typedef struct EnMaYts {
     /* 0x294 */ Vec3s morphTable[ROMANI_LIMB_MAX];
     /* 0x31E */ UNK_TYPE1 unk_31E[0x8];
     /* 0x326 */ s16 blinkTimer;
-    /* 0x328 */ s16 overrideEyeTexIndex; // If non-zero, then this index will be used instead of eyeTexIndex
+    /* 0x328 */ s16 overrideEyeTexIndex; // If non-MM_zero, then this index will be used instead of eyeTexIndex
     /* 0x32A */ s16 eyeTexIndex;
     /* 0x32C */ s16 unk_32C; // flag?
     /* 0x32E */ s16 mouthTexIndex;

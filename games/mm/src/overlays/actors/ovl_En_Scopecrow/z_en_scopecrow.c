@@ -28,7 +28,7 @@ ActorProfile En_Scopecrow_Profile = {
     /**/ EnScopecrow_Draw,
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[] = {
+static ColliderJntSphElementInit MM_sJntSphElementsInit[] = {
     {
         {
             ELEM_MATERIAL_UNK0,
@@ -42,7 +42,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit MM_sJntSphInit = {
     {
         COL_MATERIAL_HIT3,
         AT_NONE,
@@ -51,17 +51,17 @@ static ColliderJntSphInit sJntSphInit = {
         OC2_TYPE_1,
         COLSHAPE_JNTSPH,
     },
-    ARRAY_COUNT(sJntSphElementsInit),
-    sJntSphElementsInit,
+    ARRAY_COUNT(MM_sJntSphElementsInit),
+    MM_sJntSphElementsInit,
 };
 
 void func_80BCD000(EnScopecrow* this, PlayState* play) {
     this->collider.elements[0].dim.worldSphere.center.x = this->actor.world.pos.x;
     this->collider.elements[0].dim.worldSphere.center.y =
-        sJntSphInit.elements[0].dim.modelSphere.center.y + this->actor.world.pos.y;
+        MM_sJntSphInit.elements[0].dim.modelSphere.center.y + this->actor.world.pos.y;
     this->collider.elements[0].dim.worldSphere.center.z = this->actor.world.pos.z;
 
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
 }
 
 s32 func_80BCD09C(s16 arg0) {
@@ -179,7 +179,7 @@ s32 EnScopecrow_HasReachedPoint(EnScopecrow* this, Path* path, s32 pointIndex) {
     f32 d;
     Vec3f point;
 
-    Math_Vec3s_ToVec3f(&point, &points[index]);
+    MM_Math_Vec3s_ToVec3f(&point, &points[index]);
 
     if (index == 0) {
         diffX = points[1].x - points[0].x;
@@ -192,7 +192,7 @@ s32 EnScopecrow_HasReachedPoint(EnScopecrow* this, Path* path, s32 pointIndex) {
         diffZ = points[index + 1].z - points[index - 1].z;
     }
 
-    Math3D_RotateXZPlane(&point, RAD_TO_BINANG(Math_FAtan2F(diffX, diffZ)), &px, &pz, &d);
+    MM_Math3D_RotateXZPlane(&point, RAD_TO_BINANG(MM_Math_FAtan2F(diffX, diffZ)), &px, &pz, &d);
 
     if (((px * this->actor.world.pos.x) + (pz * this->actor.world.pos.z) + d) > 0.0f) {
         reached = true;
@@ -215,8 +215,8 @@ f32 func_80BCD4D0(Path* path, s32 count, Vec3f* arg2, Vec3s* arg3) {
         sp20.z = points->z;
     }
 
-    arg3->y = Math_Vec3f_Yaw(arg2, &sp20);
-    arg3->x = Math_Vec3f_Pitch(arg2, &sp20);
+    arg3->y = MM_Math_Vec3f_Yaw(arg2, &sp20);
+    arg3->x = MM_Math_Vec3f_Pitch(arg2, &sp20);
     return sp20.y - arg2->y;
 }
 
@@ -241,9 +241,9 @@ void func_80BCD640(EnScopecrow* this, PlayState* play) {
             sp30.y = this->actor.wallYaw;
         }
 
-        Math_SmoothStepToS(&this->actor.world.rot.y, sp30.y, 4, 0x3E8, 1);
+        MM_Math_SmoothStepToS(&this->actor.world.rot.y, sp30.y, 4, 0x3E8, 1);
         this->actor.shape.rot.y = this->actor.world.rot.y;
-        Math_SmoothStepToS(&this->actor.world.rot.x, -sp30.x, 4, 0x3E8, 1);
+        MM_Math_SmoothStepToS(&this->actor.world.rot.x, -sp30.x, 4, 0x3E8, 1);
 
         if (EnScopecrow_HasReachedPoint(this, this->path, this->unk_1FC)) {
             if ((this->unk_1FC == this->unk_262) && func_80BCD1AC(this->unk_260)) {
@@ -251,17 +251,17 @@ void func_80BCD640(EnScopecrow* this, PlayState* play) {
             }
 
             if (this->unk_1FC >= (this->path->count - 1)) {
-                Actor_Kill(&this->actor);
+                MM_Actor_Kill(&this->actor);
             } else {
                 this->unk_1FC++;
             }
         }
     }
 
-    Math_ApproachF(&this->actor.speed, 6.0f, 0.2f, 1.0f);
+    MM_Math_ApproachF(&this->actor.speed, 6.0f, 0.2f, 1.0f);
     Actor_MoveWithoutGravity(&this->actor);
     this->unk_264 += 0x1000;
-    this->actor.shape.yOffset = Math_SinS(this->unk_264) * 500.0f;
+    this->actor.shape.yOffset = MM_Math_SinS(this->unk_264) * 500.0f;
 }
 
 void EnScopecrow_Init(Actor* thisx, PlayState* play) {
@@ -293,30 +293,30 @@ void EnScopecrow_Init(Actor* thisx, PlayState* play) {
             sp3C.z = points->z;
 
             this->actor.world.pos = sp3C;
-            this->actor.world.pos.y = BgCheck_EntityRaycastFloor1(&play->colCtx, &sp4C, &sp3C);
+            this->actor.world.pos.y = MM_BgCheck_EntityRaycastFloor1(&play->colCtx, &sp4C, &sp3C);
             if (this->actor.world.pos.y == BGCHECK_Y_MIN) {
-                Actor_Kill(&this->actor);
+                MM_Actor_Kill(&this->actor);
             }
 
             func_80BCD2BC(this, play);
-            Actor_Kill(&this->actor);
+            MM_Actor_Kill(&this->actor);
             return;
         }
 
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
     if (play->actorCtx.flags & ACTORCTX_FLAG_TELESCOPE_ON) {
-        SkelAnime_InitFlex(play, &this->skelAnime, &gGuaySkel, &gGuayFlyAnim, this->jointTable, this->morphTable,
+        MM_SkelAnime_InitFlex(play, &this->skelAnime, &gGuaySkel, &gGuayFlyAnim, this->jointTable, this->morphTable,
                            OBJECT_CROW_LIMB_MAX);
-        ActorShape_Init(&this->actor.shape, 2000.0f, ActorShadow_DrawCircle, 20.0f);
+        MM_ActorShape_Init(&this->actor.shape, 2000.0f, MM_ActorShadow_DrawCircle, 20.0f);
 
-        Collider_InitJntSph(play, &this->collider);
-        Collider_InitAndSetJntSph(play, &this->collider, &this->actor, &sJntSphInit, this->colliderElements);
-        this->collider.elements[0].dim.worldSphere.radius = sJntSphInit.elements[0].dim.modelSphere.radius;
+        MM_Collider_InitJntSph(play, &this->collider);
+        Collider_InitAndSetJntSph(play, &this->collider, &this->actor, &MM_sJntSphInit, this->colliderElements);
+        this->collider.elements[0].dim.worldSphere.radius = MM_sJntSphInit.elements[0].dim.modelSphere.radius;
 
-        Actor_SetScale(&this->actor, 0.03f);
+        MM_Actor_SetScale(&this->actor, 0.03f);
         this->path = SubS_GetPathByIndex(play, ENSCOPECROW_GET_PATH_INDEX(&this->actor), ENSCOPECROW_PATH_INDEX_NONE);
         this->unk_262 = ENSCOPECROW_GET_3E0(&this->actor);
 
@@ -330,17 +330,17 @@ void EnScopecrow_Init(Actor* thisx, PlayState* play) {
             return;
         }
 
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
-    Actor_Kill(&this->actor);
+    MM_Actor_Kill(&this->actor);
 }
 
 void EnScopecrow_Destroy(Actor* thisx, PlayState* play) {
     EnScopecrow* this = (EnScopecrow*)thisx;
 
-    Collider_DestroyJntSph(play, &this->collider);
+    MM_Collider_DestroyJntSph(play, &this->collider);
 }
 
 void EnScopecrow_Update(Actor* thisx, PlayState* play) {
@@ -348,7 +348,7 @@ void EnScopecrow_Update(Actor* thisx, PlayState* play) {
 
     this->actionFunc(this, play);
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     func_80BCD000(this, play);
 }
 
@@ -356,6 +356,6 @@ void EnScopecrow_Draw(Actor* thisx, PlayState* play) {
     EnScopecrow* this = (EnScopecrow*)thisx;
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount, NULL,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount, NULL,
                           NULL, &this->actor);
 }

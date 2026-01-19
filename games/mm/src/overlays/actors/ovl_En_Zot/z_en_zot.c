@@ -41,7 +41,7 @@ ActorProfile En_Zot_Profile = {
     /**/ EnZot_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -76,7 +76,7 @@ typedef enum EnZotAnimation {
     /* 10 */ ENZOT_ANIM_MAX,
 } EnZotAnimation;
 
-static AnimationHeader* sAnimations[ENZOT_ANIM_MAX] = {
+static AnimationHeader* MM_sAnimations[ENZOT_ANIM_MAX] = {
     &gZoraStandAnim,           // ENZOT_ANIM_0
     &gZoraWalkAnim,            // ENZOT_ANIM_1
     &gZoraSitAnim,             // ENZOT_ANIM_2
@@ -97,7 +97,7 @@ void func_80B965D0(EnZot* this, PlayState* play) {
 
         for (i = 0; i < ARRAY_COUNT(this->unk_2D8); i++, points++) {
             if (this->unk_2D8[i] == NULL) {
-                this->unk_2D8[i] = Actor_Spawn(&play->actorCtx, play, ACTOR_OBJ_TSUBO, points->x, points->y, points->z,
+                this->unk_2D8[i] = MM_Actor_Spawn(&play->actorCtx, play, ACTOR_OBJ_TSUBO, points->x, points->y, points->z,
                                                0, 0, 0, 0x13F);
             }
         }
@@ -109,14 +109,14 @@ void EnZot_Init(Actor* thisx, PlayState* play2) {
     EnZot* this = (EnZot*)thisx;
     s32 i;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 20.0f);
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 20.0f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->actionFunc = func_80B97100;
-    SkelAnime_InitFlex(play, &this->skelAnime, &gZoraSkel, &gZoraIdleAnim, this->jointTable, this->morphTable,
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gZoraSkel, &gZoraIdleAnim, this->jointTable, this->morphTable,
                        ZORA_LIMB_MAX);
-    Animation_PlayLoop(&this->skelAnime, &gZoraStandAnim);
+    MM_Animation_PlayLoop(&this->skelAnime, &gZoraStandAnim);
     this->animIndex = ENZOT_ANIM_0;
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
 
     this->unk_2F2 = 0;
     this->unk_2F4 = 0;
@@ -212,14 +212,14 @@ void EnZot_Init(Actor* thisx, PlayState* play2) {
             this->actor.colChkInfo.cylRadius = 0;
             this->actor.shape.yOffset = -1400.0f;
             if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_CLEARED_GREAT_BAY_TEMPLE)) {
-                Actor_Kill(&this->actor);
+                MM_Actor_Kill(&this->actor);
             }
             break;
 
         case 18:
             this->actionFunc = func_80B99384;
             if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_CLEARED_GREAT_BAY_TEMPLE)) {
-                Actor_Kill(&this->actor);
+                MM_Actor_Kill(&this->actor);
             }
             break;
 
@@ -248,14 +248,14 @@ void EnZot_Init(Actor* thisx, PlayState* play2) {
 
     if ((ENZOT_GET_1F(thisx) >= 2) && (ENZOT_GET_1F(thisx) < 11) &&
         CHECK_WEEKEVENTREG(WEEKEVENTREG_CLEARED_GREAT_BAY_TEMPLE)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
 void EnZot_Destroy(Actor* thisx, PlayState* play) {
     EnZot* this = (EnZot*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
     if (ENZOT_GET_1F(&this->actor) == 8) {
         CLEAR_WEEKEVENTREG(WEEKEVENTREG_41_20);
     }
@@ -265,11 +265,11 @@ void EnZot_ChangeAnim(EnZot* this, s16 animIndex, u8 animMode) {
 
     if ((animIndex > ENZOT_ANIM_NONE) && (animIndex < ENZOT_ANIM_MAX)) {
         if (animIndex >= ENZOT_ANIM_8) {
-            Animation_Change(&this->skelAnime, sAnimations[animIndex], 0.0f, animIndex - 8, animIndex - 8, animMode,
+            MM_Animation_Change(&this->skelAnime, MM_sAnimations[animIndex], 0.0f, animIndex - 8, animIndex - 8, animMode,
                              0.0f);
         } else {
-            Animation_Change(&this->skelAnime, sAnimations[animIndex], 1.0f, 0.0f,
-                             Animation_GetLastFrame(sAnimations[animIndex]), animMode, -5.0f);
+            MM_Animation_Change(&this->skelAnime, MM_sAnimations[animIndex], 1.0f, 0.0f,
+                             MM_Animation_GetLastFrame(MM_sAnimations[animIndex]), animMode, -5.0f);
         }
         this->animIndex = animIndex;
     }
@@ -299,7 +299,7 @@ void func_80B96D4C(EnZot* this) {
 }
 
 s32 func_80B96DF0(EnZot* this, PlayState* play) {
-    if (Player_IsFacingActor(&this->actor, 0x3000, play) && Actor_IsFacingPlayer(&this->actor, 0x3000) &&
+    if (MM_Player_IsFacingActor(&this->actor, 0x3000, play) && MM_Actor_IsFacingPlayer(&this->actor, 0x3000) &&
         (this->actor.xzDistToPlayer < 100.0f)) {
         return true;
     }
@@ -320,8 +320,8 @@ s32 func_80B96E5C(EnZot* this) {
     points = &((Vec3s*)Lib_SegmentedToVirtual(path->points))[this->unk_2D4];
     temp_f12 = points->x - this->actor.world.pos.x;
     temp_f14 = points->z - this->actor.world.pos.z;
-    this->actor.world.rot.y = Math_Atan2S(temp_f12, temp_f14);
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.world.rot.y, 2, 0x7D0, 0xC8);
+    this->actor.world.rot.y = MM_Math_Atan2S(temp_f12, temp_f14);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.world.rot.y, 2, 0x7D0, 0xC8);
     phi_f2 = SQ(this->actor.speed) * SQ(3.0f);
 
     if (this->unk_2D4 == 0) {
@@ -353,8 +353,8 @@ s32 func_80B96FB0(EnZot* this) {
     points = &((Vec3s*)Lib_SegmentedToVirtual(path->points))[this->unk_2D4];
     temp_f12 = points->x - this->actor.world.pos.x;
     temp_f14 = points->z - this->actor.world.pos.z;
-    this->actor.world.rot.y = Math_Atan2S(temp_f12, temp_f14);
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.world.rot.y, 2, 0x7D0, 0xC8);
+    this->actor.world.rot.y = MM_Math_Atan2S(temp_f12, temp_f14);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.world.rot.y, 2, 0x7D0, 0xC8);
 
     if ((SQ(temp_f12) + SQ(temp_f14)) < SQ(10.0f)) {
         if (this->unk_2F2 & 0x20) {
@@ -398,22 +398,22 @@ void func_80B97110(EnZot* this, PlayState* play) {
             SET_WEEKEVENTREG(WEEKEVENTREG_28_40);
         }
     }
-    Message_StartTextbox(play, textId, &this->actor);
+    MM_Message_StartTextbox(play, textId, &this->actor);
 }
 
 void func_80B97194(EnZot* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         switch (play->msgCtx.currentTextId) {
             case 0x125C:
             case 0x125F:
-                Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                 break;
 
             case 0x125D:
             case 0x125E:
             case 0x1260:
             case 0x1261:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 this->actionFunc = func_80B97240;
                 break;
         }
@@ -424,8 +424,8 @@ void func_80B97240(EnZot* this, PlayState* play) {
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         this->actionFunc = func_80B97194;
         func_80B97110(this, play);
-    } else if ((this->actor.xzDistToPlayer < 100.0f) && Player_IsFacingActor(&this->actor, 0x3000, play) &&
-               Actor_IsFacingPlayer(&this->actor, 0x3000)) {
+    } else if ((this->actor.xzDistToPlayer < 100.0f) && MM_Player_IsFacingActor(&this->actor, 0x3000, play) &&
+               MM_Actor_IsFacingPlayer(&this->actor, 0x3000)) {
         Actor_OfferTalk(&this->actor, play, 120.0f);
     }
 }
@@ -464,49 +464,49 @@ void func_80B972E8(EnZot* this, PlayState* play) {
             SET_WEEKEVENTREG(WEEKEVENTREG_29_08);
         }
     }
-    Message_StartTextbox(play, textId, &this->actor);
+    MM_Message_StartTextbox(play, textId, &this->actor);
 }
 
 void func_80B973BC(EnZot* this, PlayState* play) {
     func_80B96D4C(this);
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 2, 0x800, 0x100);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 2, 0x800, 0x100);
     this->actor.world.rot.y = this->actor.shape.rot.y;
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         switch (play->msgCtx.currentTextId) {
             case 0x126E:
             case 0x1270:
             case 0x1273:
             case 0x1274:
-                Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                 break;
 
             case 0x1272:
-                Message_ContinueTextbox(play, 0x126F);
+                MM_Message_ContinueTextbox(play, 0x126F);
                 break;
 
             case 0x126F:
-                Rupees_ChangeBy(90);
-                Message_ContinueTextbox(play, 0x1270);
+                MM_Rupees_ChangeBy(90);
+                MM_Message_ContinueTextbox(play, 0x1270);
                 break;
 
             case 0x1275:
                 if (gSaveContext.save.saveInfo.playerData.rupees < 10) {
-                    Message_ContinueTextbox(play, 0x1277);
+                    MM_Message_ContinueTextbox(play, 0x1277);
                 } else {
-                    Message_ContinueTextbox(play, 0x1278);
-                    Rupees_ChangeBy(-10);
+                    MM_Message_ContinueTextbox(play, 0x1278);
+                    MM_Rupees_ChangeBy(-10);
                 }
                 break;
 
             case 0x1276:
-                Message_ContinueTextbox(play, 0x1275);
+                MM_Message_ContinueTextbox(play, 0x1275);
                 break;
 
             case 0x1271:
             case 0x1277:
             case 0x1278:
             case 0x1279:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 func_80B965D0(this, play);
                 this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
                 this->actor.textId = 0;
@@ -545,7 +545,7 @@ void func_80B975F8(EnZot* this, PlayState* play) {
 
 void func_80B9765C(EnZot* this, PlayState* play) {
     func_80B96D4C(this);
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         s32 requiredScopeTemp;
 
         switch (play->msgCtx.currentTextId) {
@@ -553,11 +553,11 @@ void func_80B9765C(EnZot* this, PlayState* play) {
             case 0x1267:
             case 0x126A:
             case 0x126B:
-                Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                 break;
 
             default:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 this->actionFunc = func_80B97708;
                 break;
         }
@@ -569,7 +569,7 @@ void func_80B97708(EnZot* this, PlayState* play) {
     s32 phi_v1;
 
     func_80B96D4C(this);
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 2, 0x400, 0x100);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 2, 0x400, 0x100);
     this->actor.world.rot.y = this->actor.shape.rot.y;
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         this->actionFunc = func_80B9765C;
@@ -668,7 +668,7 @@ void func_80B9787C(EnZot* this, PlayState* play) {
                     break;
             }
         }
-        Message_StartTextbox(play, textId, &this->actor);
+        MM_Message_StartTextbox(play, textId, &this->actor);
     }
 }
 
@@ -683,7 +683,7 @@ void func_80B979DC(EnZot* this, PlayState* play) {
 }
 
 void func_80B97A44(EnZot* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         switch (play->msgCtx.currentTextId) {
             case 0x1279:
             case 0x127C:
@@ -691,7 +691,7 @@ void func_80B97A44(EnZot* this, PlayState* play) {
             case 0x1282:
             case 0x1285:
             case 0x1288:
-                Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                 break;
 
             case 0x127D:
@@ -700,7 +700,7 @@ void func_80B97A44(EnZot* this, PlayState* play) {
             case 0x1284:
             case 0x1289:
             case 0x128A:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 if (!(this->unk_2F2 & 2)) {
                     this->unk_2F2 |= 2;
                     this->actionFunc = func_80B979DC;
@@ -711,7 +711,7 @@ void func_80B97A44(EnZot* this, PlayState* play) {
                 break;
 
             default:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 this->actionFunc = func_80B97B5C;
                 break;
         }
@@ -719,7 +719,7 @@ void func_80B97A44(EnZot* this, PlayState* play) {
 }
 
 void func_80B97B5C(EnZot* this, PlayState* play) {
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 2, 0x400, 0x100);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 2, 0x400, 0x100);
     this->actor.world.rot.y = this->actor.shape.rot.y;
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         this->actionFunc = func_80B97A44;
@@ -737,14 +737,14 @@ void func_80B97BF8(EnZot* this, PlayState* play) {
     } else {
         textId = 0x128B;
     }
-    Message_StartTextbox(play, textId, &this->actor);
+    MM_Message_StartTextbox(play, textId, &this->actor);
 }
 
 void func_80B97C40(EnZot* this, PlayState* play) {
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 2, 0x800, 0x100);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 2, 0x800, 0x100);
     this->actor.world.rot.y = this->actor.shape.rot.y;
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
-        Message_CloseTextbox(play);
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
+        MM_Message_CloseTextbox(play);
         this->actionFunc = func_80B97CC8;
     }
 }
@@ -752,8 +752,8 @@ void func_80B97C40(EnZot* this, PlayState* play) {
 void func_80B97CC8(EnZot* this, PlayState* play) {
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         this->actionFunc = func_80B97C40;
-        Message_StartTextbox(play, 0x128B, &this->actor);
-    } else if (Player_IsFacingActor(&this->actor, 0x3000, play) && (this->actor.xzDistToPlayer < 100.0f)) {
+        MM_Message_StartTextbox(play, 0x128B, &this->actor);
+    } else if (MM_Player_IsFacingActor(&this->actor, 0x3000, play) && (this->actor.xzDistToPlayer < 100.0f)) {
         Actor_OfferTalk(&this->actor, play, 120.0f);
     }
 }
@@ -767,7 +767,7 @@ void func_80B97D6C(EnZot* this, PlayState* play) {
         this->actor.speed = 8.0f;
     }
 
-    if (Animation_OnFrame(&this->skelAnime, 0.0f) || Animation_OnFrame(&this->skelAnime, 5.0f)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, 0.0f) || MM_Animation_OnFrame(&this->skelAnime, 5.0f)) {
         Actor_PlaySfx(&this->actor, NA_SE_EV_ZORA_WALK);
     }
 }
@@ -785,11 +785,11 @@ void func_80B97E4C(EnZot* this, PlayState* play) {
     }
 
     if (!(this->unk_2F2 & 4)) {
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 2, 0x800, 0x100);
+        MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 2, 0x800, 0x100);
         this->actor.world.rot.y = this->actor.shape.rot.y;
     }
 
-    if ((Message_GetState(&play->msgCtx) != TEXT_STATE_EVENT) || !Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) != TEXT_STATE_EVENT) || !MM_Message_ShouldAdvance(play)) {
         return;
     }
 
@@ -797,17 +797,17 @@ void func_80B97E4C(EnZot* this, PlayState* play) {
         case 0x128C:
             this->unk_2F2 &= ~4;
             EnZot_ChangeAnim(this, ENZOT_ANIM_6, ANIMMODE_ONCE);
-            Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+            MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
             break;
 
         case 0x128D:
         case 0x128E:
         case 0x128F:
-            Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+            MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
             break;
 
         case 0x1290:
-            Message_CloseTextbox(play);
+            MM_Message_CloseTextbox(play);
             this->actionFunc = func_80B97D6C;
             this->unk_2F2 |= 4;
             EnZot_ChangeAnim(this, ENZOT_ANIM_3, ANIMMODE_LOOP);
@@ -815,7 +815,7 @@ void func_80B97E4C(EnZot* this, PlayState* play) {
             break;
 
         case 0x128B:
-            Message_CloseTextbox(play);
+            MM_Message_CloseTextbox(play);
             this->actionFunc = func_80B97FD0;
             break;
 
@@ -825,7 +825,7 @@ void func_80B97E4C(EnZot* this, PlayState* play) {
 }
 
 void func_80B97FD0(EnZot* this, PlayState* play) {
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 2, 0x800, 0x100);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 2, 0x800, 0x100);
     this->actor.world.rot.y = this->actor.shape.rot.y;
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         this->actionFunc = func_80B97E4C;
@@ -836,7 +836,7 @@ void func_80B97FD0(EnZot* this, PlayState* play) {
             this->actionFunc = func_80B97E0C;
             EnZot_ChangeAnim(this, ENZOT_ANIM_6, ANIMMODE_ONCE);
         }
-    } else if (Player_IsFacingActor(&this->actor, 0x3000, play) && (this->actor.xzDistToPlayer < 100.0f)) {
+    } else if (MM_Player_IsFacingActor(&this->actor, 0x3000, play) && (this->actor.xzDistToPlayer < 100.0f)) {
         Actor_OfferTalk(&this->actor, play, 120.0f);
     }
 }
@@ -886,7 +886,7 @@ void func_80B98178(EnZot* this, PlayState* play) {
                     textId = 0x12A6;
                     SET_WEEKEVENTREG(WEEKEVENTREG_39_04);
                 }
-            } else if (Flags_GetSwitch(play, ENZOT_GET_SWITCH_FLAG(&this->actor))) {
+            } else if (MM_Flags_GetSwitch(play, ENZOT_GET_SWITCH_FLAG(&this->actor))) {
                 textId = 0x12A0;
             } else if (CHECK_WEEKEVENTREG(WEEKEVENTREG_39_02)) {
                 textId = 0x12A5;
@@ -922,28 +922,28 @@ void func_80B98178(EnZot* this, PlayState* play) {
             }
             break;
     }
-    Message_StartTextbox(play, textId, &this->actor);
+    MM_Message_StartTextbox(play, textId, &this->actor);
 }
 
 void func_80B98348(EnZot* this, PlayState* play) {
     s16 y;
 
     if (ENZOT_GET_1F(&this->actor) == 7) {
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 2, 0x800, 0x100);
+        MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 2, 0x800, 0x100);
         this->actor.world.rot.y = this->actor.shape.rot.y;
-    } else if (Actor_IsFacingPlayer(&this->actor, 0x3000)) {
+    } else if (MM_Actor_IsFacingPlayer(&this->actor, 0x3000)) {
         this->unk_2F2 &= ~8;
     } else {
         this->unk_2F2 |= 8;
-        Math_SmoothStepToS(&this->headRot.x, 0, 6, 0x1838, 0x64);
-        Math_SmoothStepToS(&this->torsoRot.x, 0, 6, 0x1838, 0x64);
+        MM_Math_SmoothStepToS(&this->headRot.x, 0, 6, 0x1838, 0x64);
+        MM_Math_SmoothStepToS(&this->torsoRot.x, 0, 6, 0x1838, 0x64);
         y = this->actor.yawTowardsPlayer - this->actor.shape.rot.y;
         if (y > 0) {
-            Math_SmoothStepToS(&this->headRot.y, 0x3000, 6, 0x1838, 0x64);
-            Math_SmoothStepToS(&this->torsoRot.y, 0x1000, 6, 0x1838, 0x64);
+            MM_Math_SmoothStepToS(&this->headRot.y, 0x3000, 6, 0x1838, 0x64);
+            MM_Math_SmoothStepToS(&this->torsoRot.y, 0x1000, 6, 0x1838, 0x64);
         } else {
-            Math_SmoothStepToS(&this->headRot.y, -0x3000, 6, 0x1838, 0x64);
-            Math_SmoothStepToS(&this->torsoRot.y, -0x1000, 6, 0x1838, 0x64);
+            MM_Math_SmoothStepToS(&this->headRot.y, -0x3000, 6, 0x1838, 0x64);
+            MM_Math_SmoothStepToS(&this->torsoRot.y, -0x1000, 6, 0x1838, 0x64);
         }
     }
 }
@@ -952,9 +952,9 @@ void func_80B9849C(EnZot* this, PlayState* play) {
     func_80B98348(this, play);
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         if (this->unk_2D4 == 2) {
-            Message_StartTextbox(play, 0x12AD, &this->actor);
+            MM_Message_StartTextbox(play, 0x12AD, &this->actor);
         } else {
-            Message_StartTextbox(play, 0x12B0, &this->actor);
+            MM_Message_StartTextbox(play, 0x12B0, &this->actor);
         }
         this->actionFunc = func_80B98728;
     } else {
@@ -964,13 +964,13 @@ void func_80B9849C(EnZot* this, PlayState* play) {
 
 void func_80B9854C(EnZot* this, PlayState* play) {
     func_80B98348(this, play);
-    if (Actor_HasParent(&this->actor, play)) {
+    if (MM_Actor_HasParent(&this->actor, play)) {
         this->actor.parent = NULL;
         this->actionFunc = func_80B9849C;
         this->actor.flags |= ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
         Actor_OfferTalkExchange(&this->actor, play, 1000.0f, 1000.0f, PLAYER_IA_MINUS1);
     } else {
-        Actor_OfferGetItem(&this->actor, play, this->unk_2D4, 10000.0f, 50.0f);
+        MM_Actor_OfferGetItem(&this->actor, play, this->unk_2D4, 10000.0f, 50.0f);
     }
 }
 
@@ -979,11 +979,11 @@ void func_80B985EC(EnZot* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
     func_80B98348(this, play);
-    if (Message_GetState(&play->msgCtx) == TEXT_STATE_PAUSE_MENU) {
+    if (MM_Message_GetState(&play->msgCtx) == TEXT_STATE_PAUSE_MENU) {
         itemAction = func_80123810(play);
 
         if (itemAction > PLAYER_IA_NONE) {
-            Message_CloseTextbox(play);
+            MM_Message_CloseTextbox(play);
             if ((itemAction == PLAYER_IA_PICTOGRAPH_BOX) && CHECK_QUEST_ITEM(QUEST_PICTOGRAPH) &&
                 Snap_CheckFlag(PICTO_VALID_LULU_HEAD)) {
                 if (Snap_CheckFlag(PICTO_VALID_LULU_RIGHT_ARM) && Snap_CheckFlag(PICTO_VALID_LULU_LEFT_ARM)) {
@@ -997,7 +997,7 @@ void func_80B985EC(EnZot* this, PlayState* play) {
             }
             this->actionFunc = func_80B98728;
         } else if (itemAction <= PLAYER_IA_MINUS1) {
-            Message_ContinueTextbox(play, 0x12AB);
+            MM_Message_ContinueTextbox(play, 0x12AB);
             this->actionFunc = func_80B98728;
         }
     }
@@ -1006,25 +1006,25 @@ void func_80B985EC(EnZot* this, PlayState* play) {
 void func_80B98728(EnZot* this, PlayState* play) {
     func_80B98348(this, play);
 
-    switch (Message_GetState(&play->msgCtx)) {
+    switch (MM_Message_GetState(&play->msgCtx)) {
         case TEXT_STATE_CHOICE:
-            if (Message_ShouldAdvance(play) && (play->msgCtx.currentTextId == 0x1293)) {
+            if (MM_Message_ShouldAdvance(play) && (play->msgCtx.currentTextId == 0x1293)) {
                 switch (play->msgCtx.choiceIndex) {
                     case 0:
                         Audio_PlaySfx_MessageDecide();
-                        Message_ContinueTextbox(play, 0x1294);
+                        MM_Message_ContinueTextbox(play, 0x1294);
                         break;
 
                     case 1:
                         Audio_PlaySfx_MessageCancel();
-                        Message_ContinueTextbox(play, 0x1298);
+                        MM_Message_ContinueTextbox(play, 0x1298);
                         break;
                 }
             }
             break;
 
         case TEXT_STATE_EVENT:
-            if (Message_ShouldAdvance(play)) {
+            if (MM_Message_ShouldAdvance(play)) {
                 switch (play->msgCtx.currentTextId) {
                     case 0x1291:
                     case 0x1292:
@@ -1042,44 +1042,44 @@ void func_80B98728(EnZot* this, PlayState* play) {
                     case 0x12A7:
                     case 0x12A8:
                     case 0x12AE:
-                        Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                        MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                         break;
 
                     case 0x12A9:
                     case 0x12AA:
-                        Message_ContinueTextbox(play, 0xFF);
+                        MM_Message_ContinueTextbox(play, 0xFF);
                         this->actionFunc = func_80B985EC;
                         break;
 
                     case 0x1294:
                         if (CURRENT_DAY == 3) {
-                            Message_ContinueTextbox(play, 0x1296);
+                            MM_Message_ContinueTextbox(play, 0x1296);
                         } else {
-                            Message_ContinueTextbox(play, 0x1295);
+                            MM_Message_ContinueTextbox(play, 0x1295);
                         }
                         break;
 
                     case 0x12AB:
-                        Message_CloseTextbox(play);
+                        MM_Message_CloseTextbox(play);
                         this->actionFunc = func_80B98998;
                         break;
 
                     case 0x12AC:
-                        Message_CloseTextbox(play);
+                        MM_Message_CloseTextbox(play);
                         this->unk_2D4 = 2;
                         this->actionFunc = func_80B9854C;
                         func_80B9854C(this, play);
                         break;
 
                     case 0x12AF:
-                        Message_CloseTextbox(play);
+                        MM_Message_CloseTextbox(play);
                         this->unk_2D4 = 4;
                         this->actionFunc = func_80B9854C;
                         func_80B9854C(this, play);
                         break;
 
                     default:
-                        Message_CloseTextbox(play);
+                        MM_Message_CloseTextbox(play);
                         this->actionFunc = func_80B98998;
                         this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
                         break;
@@ -1094,8 +1094,8 @@ void func_80B98998(EnZot* this, PlayState* play) {
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         this->actionFunc = func_80B98728;
         func_80B98178(this, play);
-    } else if ((this->actor.xzDistToPlayer < 100.0f) && Player_IsFacingActor(&this->actor, 0x3000, play) &&
-               Actor_IsFacingPlayer(&this->actor, 0x7000)) {
+    } else if ((this->actor.xzDistToPlayer < 100.0f) && MM_Player_IsFacingActor(&this->actor, 0x3000, play) &&
+               MM_Actor_IsFacingPlayer(&this->actor, 0x7000)) {
         Actor_OfferTalk(&this->actor, play, 120.0f);
     }
 }
@@ -1116,35 +1116,35 @@ void func_80B98A4C(EnZot* this, PlayState* play) {
         textId = 0x12B1;
         SET_WEEKEVENTREG(WEEKEVENTREG_39_40);
     }
-    Message_StartTextbox(play, textId, &this->actor);
+    MM_Message_StartTextbox(play, textId, &this->actor);
 }
 
 void func_80B98AD0(EnZot* this, PlayState* play) {
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         switch (play->msgCtx.currentTextId) {
             case 0x12B1:
             case 0x12B4:
             case 0x12B7:
             case 0x12B9:
-                Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                 break;
 
             case 0x12B8:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 this->actionFunc = func_80B98CA8;
                 CLEAR_WEEKEVENTREG(WEEKEVENTREG_41_20);
                 AudioOcarina_SetInstrument(OCARINA_INSTRUMENT_OFF);
                 break;
 
             case 0x12BA:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 this->actionFunc = func_80B98CA8;
                 SET_WEEKEVENTREG(WEEKEVENTREG_41_20);
                 AudioOcarina_SetInstrument(OCARINA_INSTRUMENT_OFF);
                 break;
 
             default:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 this->actionFunc = func_80B98CA8;
                 break;
         }
@@ -1155,10 +1155,10 @@ void func_80B98BF4(EnZot* this, PlayState* play) {
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_41_20)) {
-            Message_StartTextbox(play, 0x12B7, &this->actor);
+            MM_Message_StartTextbox(play, 0x12B7, &this->actor);
             this->actionFunc = func_80B98AD0;
         } else {
-            Message_StartTextbox(play, 0x12B9, &this->actor);
+            MM_Message_StartTextbox(play, 0x12B9, &this->actor);
             this->actionFunc = func_80B98AD0;
         }
     } else {
@@ -1177,7 +1177,7 @@ void func_80B98CA8(EnZot* this, PlayState* play) {
         this->actionFunc = func_80B98AD0;
         func_80B98A4C(this, play);
     } else {
-        if ((this->actor.xzDistToPlayer < 100.0f) && Player_IsFacingActor(&this->actor, 0x3000, play)) {
+        if ((this->actor.xzDistToPlayer < 100.0f) && MM_Player_IsFacingActor(&this->actor, 0x3000, play)) {
             Actor_OfferTalk(&this->actor, play, 120.0f);
         }
 
@@ -1195,7 +1195,7 @@ void func_80B98E10(EnZot* this, PlayState* play) {
     u16 textId;
 
     if (GET_PLAYER_FORM == PLAYER_FORM_ZORA) {
-        if (Flags_GetSwitch(play, ENZOT_GET_SWITCH_FLAG(&this->actor))) {
+        if (MM_Flags_GetSwitch(play, ENZOT_GET_SWITCH_FLAG(&this->actor))) {
             if (CHECK_WEEKEVENTREG(WEEKEVENTREG_40_04)) {
                 textId = 0x12C5;
             } else {
@@ -1209,7 +1209,7 @@ void func_80B98E10(EnZot* this, PlayState* play) {
             SET_WEEKEVENTREG(WEEKEVENTREG_40_02);
         }
     } else {
-        if (Flags_GetSwitch(play, ENZOT_GET_SWITCH_FLAG(&this->actor))) {
+        if (MM_Flags_GetSwitch(play, ENZOT_GET_SWITCH_FLAG(&this->actor))) {
             if (this->unk_2F2 & 0x10) {
                 textId = 0x12BF;
             } else {
@@ -1224,25 +1224,25 @@ void func_80B98E10(EnZot* this, PlayState* play) {
             textId = 0x12BB;
         }
     }
-    Message_StartTextbox(play, textId, &this->actor);
+    MM_Message_StartTextbox(play, textId, &this->actor);
 }
 
 void func_80B98F30(EnZot* this, PlayState* play) {
-    if (Actor_HasParent(&this->actor, play)) {
+    if (MM_Actor_HasParent(&this->actor, play)) {
         this->actor.parent = NULL;
         this->actionFunc = func_80B990A4;
     } else {
-        Actor_OfferGetItem(&this->actor, play, GI_RUPEE_BLUE, 10000.0f, 50.0f);
+        MM_Actor_OfferGetItem(&this->actor, play, GI_RUPEE_BLUE, 10000.0f, 50.0f);
     }
 }
 
 void func_80B98F94(EnZot* this, PlayState* play) {
     if (!(this->unk_2F2 & 4)) {
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 2, 0x800, 0x100);
+        MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 2, 0x800, 0x100);
         this->actor.world.rot.y = this->actor.shape.rot.y;
     }
 
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         switch (play->msgCtx.currentTextId) {
             case 0x12BB:
                 this->unk_2F2 &= ~4;
@@ -1250,17 +1250,17 @@ void func_80B98F94(EnZot* this, PlayState* play) {
             case 0x12BC:
             case 0x12C0:
             case 0x12C3:
-                Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
+                MM_Message_ContinueTextbox(play, play->msgCtx.currentTextId + 1);
                 break;
 
             case 0x12BE:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 this->actionFunc = func_80B98F30;
                 func_80B98F30(this, play);
                 break;
 
             default:
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 this->actionFunc = func_80B990A4;
                 break;
         }
@@ -1268,12 +1268,12 @@ void func_80B98F94(EnZot* this, PlayState* play) {
 }
 
 void func_80B990A4(EnZot* this, PlayState* play) {
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 2, 0x400, 0x100);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 2, 0x400, 0x100);
     this->actor.world.rot.y = this->actor.shape.rot.y;
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         this->actionFunc = func_80B98F94;
         func_80B98E10(this, play);
-    } else if (Player_IsFacingActor(&this->actor, 0x3000, play) && (this->actor.xzDistToPlayer < 100.0f)) {
+    } else if (MM_Player_IsFacingActor(&this->actor, 0x3000, play) && (this->actor.xzDistToPlayer < 100.0f)) {
         Actor_OfferTalk(&this->actor, play, 120.0f);
     }
 }
@@ -1294,23 +1294,23 @@ void func_80B99160(EnZot* this, PlayState* play) {
         textId = 0x12C6;
         SET_WEEKEVENTREG(WEEKEVENTREG_40_08);
     }
-    Message_StartTextbox(play, textId, &this->actor);
+    MM_Message_StartTextbox(play, textId, &this->actor);
 }
 
 void func_80B991E4(EnZot* this, PlayState* play) {
     if (1) {}
 
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 2, 0x800, 0x100);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 2, 0x800, 0x100);
     this->actor.world.rot.y = this->actor.shape.rot.y;
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         u16 temp = play->msgCtx.currentTextId;
         u32 temp2;
 
         if ((temp == 0x12C6) || (temp == 0x12C7) || (temp == 0x12CA) || (temp == 0x12CB)) {
             temp2 = temp;
-            Message_ContinueTextbox(play, temp2 + 1);
+            MM_Message_ContinueTextbox(play, temp2 + 1);
         } else {
-            Message_CloseTextbox(play);
+            MM_Message_CloseTextbox(play);
             this->actionFunc = func_80B992C0;
             EnZot_ChangeAnim(this, ENZOT_ANIM_1, ANIMMODE_LOOP);
         }
@@ -1324,7 +1324,7 @@ void func_80B992C0(EnZot* this, PlayState* play) {
         this->actor.speed = 0.0f;
         EnZot_ChangeAnim(this, ENZOT_ANIM_0, ANIMMODE_LOOP);
     } else {
-        if (Player_IsFacingActor(&this->actor, 0x3000, play) && (this->actor.xzDistToPlayer < 100.0f)) {
+        if (MM_Player_IsFacingActor(&this->actor, 0x3000, play) && (this->actor.xzDistToPlayer < 100.0f)) {
             Actor_OfferTalk(&this->actor, play, 120.0f);
         }
         this->actor.speed = 1.5f;
@@ -1340,12 +1340,12 @@ void EnZot_Update(Actor* thisx, PlayState* play) {
     EnZot* this = (EnZot*)thisx;
 
     Actor_MoveWithGravity(&this->actor);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 15.0f, 30.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 15.0f, 30.0f, UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
 
     this->unk_2F2 &= ~0x40;
-    if (SkelAnime_Update(&this->skelAnime) && (this->animIndex != ENZOT_ANIM_0)) {
+    if (MM_SkelAnime_Update(&this->skelAnime) && (this->animIndex != ENZOT_ANIM_0)) {
         this->unk_2F2 |= 0x40;
     }
 
@@ -1354,15 +1354,15 @@ void EnZot_Update(Actor* thisx, PlayState* play) {
         if (!(this->unk_2F2 & 4) && func_80B96DF0(this, play)) {
             Actor_TrackPlayer(play, &this->actor, &this->headRot, &this->torsoRot, this->actor.focus.pos);
         } else {
-            Math_SmoothStepToS(&this->headRot.x, 0, 6, 0x1838, 0x64);
-            Math_SmoothStepToS(&this->headRot.y, 0, 6, 0x1838, 0x64);
-            Math_SmoothStepToS(&this->torsoRot.x, 0, 6, 0x1838, 0x64);
-            Math_SmoothStepToS(&this->torsoRot.y, 0, 6, 0x1838, 0x64);
+            MM_Math_SmoothStepToS(&this->headRot.x, 0, 6, 0x1838, 0x64);
+            MM_Math_SmoothStepToS(&this->headRot.y, 0, 6, 0x1838, 0x64);
+            MM_Math_SmoothStepToS(&this->torsoRot.x, 0, 6, 0x1838, 0x64);
+            MM_Math_SmoothStepToS(&this->torsoRot.y, 0, 6, 0x1838, 0x64);
         }
     }
 
     if (DECR(this->unk_2EE) == 0) {
-        this->unk_2EE = Rand_S16Offset(60, 60);
+        this->unk_2EE = MM_Rand_S16Offset(60, 60);
     }
 
     this->unk_2EC = this->unk_2EE;
@@ -1385,10 +1385,10 @@ s32 EnZot_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* p
     s32 pad;
 
     if (limbIndex == ZORA_LIMB_HEAD) {
-        Matrix_Translate(1500.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+        MM_Matrix_Translate(1500.0f, 0.0f, 0.0f, MTXMODE_APPLY);
         Matrix_RotateXS(this->headRot.y, MTXMODE_APPLY);
         Matrix_RotateZS(this->headRot.x, MTXMODE_APPLY);
-        Matrix_Translate(-1500.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+        MM_Matrix_Translate(-1500.0f, 0.0f, 0.0f, MTXMODE_APPLY);
     }
 
     if (limbIndex == ZORA_LIMB_TORSO) {
@@ -1399,8 +1399,8 @@ s32 EnZot_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* p
     if (((this->animIndex == ENZOT_ANIM_8) || (this->animIndex == ENZOT_ANIM_9)) &&
         ((limbIndex == ZORA_LIMB_TORSO) || (limbIndex == ZORA_LIMB_LEFT_FOREARM) ||
          (limbIndex == ZORA_LIMB_RIGHT_FOREARM))) {
-        rot->y += TRUNCF_BINANG(Math_SinS(play->state.frames * ((limbIndex * 50) + 0x814)) * 200.0f);
-        rot->z += TRUNCF_BINANG(Math_CosS(play->state.frames * ((limbIndex * 50) + 0x940)) * 200.0f);
+        rot->y += TRUNCF_BINANG(MM_Math_SinS(play->state.frames * ((limbIndex * 50) + 0x814)) * 200.0f);
+        rot->z += TRUNCF_BINANG(MM_Math_CosS(play->state.frames * ((limbIndex * 50) + 0x940)) * 200.0f);
     }
     return false;
 }
@@ -1410,7 +1410,7 @@ void EnZot_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot,
     EnZot* this = (EnZot*)thisx;
 
     if (limbIndex == ZORA_LIMB_HEAD) {
-        Matrix_MultVec3f(&D_80B99934, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&D_80B99934, &this->actor.focus.pos);
     }
 }
 
@@ -1430,7 +1430,7 @@ void EnZot_Draw(Actor* thisx, PlayState* play) {
     gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sp4C[this->unk_2EC]));
     gSPSegment(POLY_OPA_DISP++, 0x0C, func_80B99580(play->state.gfxCtx));
 
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnZot_OverrideLimbDraw, EnZot_PostLimbDraw, &this->actor);
 
     CLOSE_DISPS(play->state.gfxCtx);

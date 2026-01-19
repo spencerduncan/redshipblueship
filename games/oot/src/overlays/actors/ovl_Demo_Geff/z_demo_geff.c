@@ -27,17 +27,17 @@ static s16 sObjectIDs[] = {
     OBJECT_GEFF, OBJECT_GEFF, OBJECT_GEFF, OBJECT_GEFF, OBJECT_GEFF, OBJECT_GEFF, OBJECT_GEFF, OBJECT_GEFF, OBJECT_GEFF,
 };
 
-static DemoGeffInitFunc sInitFuncs[] = {
+static DemoGeffInitFunc OoT_sInitFuncs[] = {
     func_80978030, func_80978030, func_80978030, func_80978030, func_80978030,
     func_80978030, func_80978030, func_80978030, func_80978030,
 };
 
-static DemoGeffActionFunc sActionFuncs[] = {
+static DemoGeffActionFunc OoT_sActionFuncs[] = {
     func_809783D4,
     func_80978308,
 };
 
-static DemoGeffDrawFunc sDrawFuncs[] = {
+static DemoGeffDrawFunc OoT_sDrawFuncs[] = {
     func_809784D4,
     func_80978344,
 };
@@ -63,7 +63,7 @@ void DemoGeff_Init(Actor* thisx, PlayState* play) {
 
     if (this->actor.params < 0 || this->actor.params >= 9) {
         osSyncPrintf(VT_FGCOL(RED) "Demo_Geff_Actor_ct:arg_dataがおかしい!!!!!!!!!!!!\n" VT_RST);
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
     this->action = 0;
@@ -92,7 +92,7 @@ void func_80977F80(DemoGeff* this, PlayState* play) {
     OPEN_DISPS(gfxCtx);
 
     gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.status[objBankIndex].segment);
-    gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[objBankIndex].segment);
+    OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[objBankIndex].segment);
 
     CLOSE_DISPS(gfxCtx);
 }
@@ -172,10 +172,10 @@ void func_80978344(DemoGeff* this, PlayState* play) {
 
 void func_80978370(DemoGeff* this, PlayState* play) {
     s16 params = this->actor.params;
-    DemoGeffInitFunc initFunc = sInitFuncs[params];
+    DemoGeffInitFunc initFunc = OoT_sInitFuncs[params];
     if (initFunc == NULL) {
         osSyncPrintf(VT_FGCOL(RED) " Demo_Geff_main_init:初期化処理がおかしいarg_data = %d!\n" VT_RST, params);
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
     initFunc(this, play);
@@ -191,10 +191,10 @@ void func_809783D4(DemoGeff* this, PlayState* play) {
 
     if (objBankIndex < 0) {
         osSyncPrintf(VT_FGCOL(RED) "Demo_Geff_main_bank:バンクを読めない arg_data = %d!\n" VT_RST, params);
-        Actor_Kill(thisx);
+        OoT_Actor_Kill(thisx);
         return;
     }
-    if (Object_IsLoaded(objCtx, objBankIndex)) {
+    if (OoT_Object_IsLoaded(objCtx, objBankIndex)) {
         this->objBankIndex = objBankIndex;
         func_80978370(this, play);
     }
@@ -203,11 +203,11 @@ void func_809783D4(DemoGeff* this, PlayState* play) {
 void DemoGeff_Update(Actor* thisx, PlayState* play) {
     DemoGeff* this = (DemoGeff*)thisx;
 
-    if (this->action < 0 || this->action >= 2 || sActionFuncs[this->action] == NULL) {
+    if (this->action < 0 || this->action >= 2 || OoT_sActionFuncs[this->action] == NULL) {
         osSyncPrintf(VT_FGCOL(RED) "メインモードがおかしい!!!!!!!!!!!!!!!!!!!!!!!!!\n" VT_RST);
         return;
     }
-    sActionFuncs[this->action](this, play);
+    OoT_sActionFuncs[this->action](this, play);
 }
 
 void func_809784D4(DemoGeff* this, PlayState* play) {
@@ -217,12 +217,12 @@ void DemoGeff_Draw(Actor* thisx, PlayState* play) {
     DemoGeff* this = (DemoGeff*)thisx;
     s32 drawConfig = this->drawConfig;
 
-    if (drawConfig < 0 || drawConfig >= 2 || sDrawFuncs[drawConfig] == NULL) {
+    if (drawConfig < 0 || drawConfig >= 2 || OoT_sDrawFuncs[drawConfig] == NULL) {
         osSyncPrintf(VT_FGCOL(RED) "描画モードがおかしい!!!!!!!!!!!!!!!!!!!!!!!!!\n" VT_RST);
         return;
     }
     if (drawConfig != 0) {
         func_80977F80(this, play);
     }
-    sDrawFuncs[drawConfig](this, play);
+    OoT_sDrawFuncs[drawConfig](this, play);
 }

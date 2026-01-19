@@ -9,10 +9,10 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void EnZl1_Init(Actor* thisx, PlayState* play);
-void EnZl1_Destroy(Actor* thisx, PlayState* play);
-void EnZl1_Update(Actor* thisx, PlayState* play);
-void EnZl1_Draw(Actor* thisx, PlayState* play);
+void OoT_EnZl1_Init(Actor* thisx, PlayState* play);
+void OoT_EnZl1_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnZl1_Update(Actor* thisx, PlayState* play);
+void OoT_EnZl1_Draw(Actor* thisx, PlayState* play);
 
 void func_80B4AE18(EnZl1* this);
 void func_80B4AF18(EnZl1* this, PlayState* play);
@@ -33,14 +33,14 @@ const ActorInit En_Zl1_InitVars = {
     FLAGS,
     OBJECT_ZL1,
     sizeof(EnZl1),
-    (ActorFunc)EnZl1_Init,
-    (ActorFunc)EnZl1_Destroy,
-    (ActorFunc)EnZl1_Update,
-    (ActorFunc)EnZl1_Draw,
+    (ActorFunc)OoT_EnZl1_Init,
+    (ActorFunc)OoT_EnZl1_Destroy,
+    (ActorFunc)OoT_EnZl1_Update,
+    (ActorFunc)OoT_EnZl1_Draw,
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_HIT0,
         AT_NONE,
@@ -74,40 +74,40 @@ void func_80B4AB40(void) {
 void func_80B4AB48(void) {
 }
 
-void EnZl1_Init(Actor* thisx, PlayState* play) {
+void OoT_EnZl1_Init(Actor* thisx, PlayState* play) {
     f32 frameCount;
     EnZl1* this = (EnZl1*)thisx;
 
-    frameCount = Animation_GetLastFrame(&gChildZelda1Anim_12118);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gChildZelda1Skel, NULL, NULL, NULL, 0);
-    Animation_Change(&this->skelAnime, &gChildZelda1Anim_12118, 1.0f, 0.0f, frameCount, ANIMMODE_LOOP, 0.0f);
+    frameCount = OoT_Animation_GetLastFrame(&gChildZelda1Anim_12118);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gChildZelda1Skel, NULL, NULL, NULL, 0);
+    OoT_Animation_Change(&this->skelAnime, &gChildZelda1Anim_12118, 1.0f, 0.0f, frameCount, ANIMMODE_LOOP, 0.0f);
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    Actor_SetScale(&this->actor, 0.01f);
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 24.0f);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
+    OoT_Actor_SetScale(&this->actor, 0.01f);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 24.0f);
     this->actor.targetMode = 0;
 
     if (gSaveContext.sceneSetupIndex >= 4) {
-        frameCount = Animation_GetLastFrame(&gChildZelda1Anim_00438);
-        Animation_Change(&this->skelAnime, &gChildZelda1Anim_00438, 1.0f, 0.0f, frameCount, ANIMMODE_LOOP, 0.0f);
+        frameCount = OoT_Animation_GetLastFrame(&gChildZelda1Anim_00438);
+        OoT_Animation_Change(&this->skelAnime, &gChildZelda1Anim_00438, 1.0f, 0.0f, frameCount, ANIMMODE_LOOP, 0.0f);
         this->unk_1E6 = 0;
         this->actionFunc = func_80B4BC78;
-    } else if (Flags_GetEventChkInf(EVENTCHKINF_USED_DEKU_TREE_BLUE_WARP) &&
-               Flags_GetEventChkInf(EVENTCHKINF_USED_DODONGOS_CAVERN_BLUE_WARP) &&
-               Flags_GetEventChkInf(EVENTCHKINF_USED_JABU_JABUS_BELLY_BLUE_WARP)) {
-        Actor_Kill(&this->actor);
-    } else if ((Flags_GetEventChkInf(EVENTCHKINF_USED_DEKU_TREE_BLUE_WARP) &&
-                Flags_GetEventChkInf(EVENTCHKINF_USED_DODONGOS_CAVERN_BLUE_WARP)) ||
-               (Flags_GetEventChkInf(EVENTCHKINF_USED_DEKU_TREE_BLUE_WARP) &&
-                Flags_GetEventChkInf(EVENTCHKINF_USED_JABU_JABUS_BELLY_BLUE_WARP))) {
-        frameCount = Animation_GetLastFrame(&gChildZelda1Anim_00438);
-        Animation_Change(&this->skelAnime, &gChildZelda1Anim_00438, 1.0f, 0.0f, frameCount, ANIMMODE_LOOP, 0.0f);
+    } else if (OoT_Flags_GetEventChkInf(EVENTCHKINF_USED_DEKU_TREE_BLUE_WARP) &&
+               OoT_Flags_GetEventChkInf(EVENTCHKINF_USED_DODONGOS_CAVERN_BLUE_WARP) &&
+               OoT_Flags_GetEventChkInf(EVENTCHKINF_USED_JABU_JABUS_BELLY_BLUE_WARP)) {
+        OoT_Actor_Kill(&this->actor);
+    } else if ((OoT_Flags_GetEventChkInf(EVENTCHKINF_USED_DEKU_TREE_BLUE_WARP) &&
+                OoT_Flags_GetEventChkInf(EVENTCHKINF_USED_DODONGOS_CAVERN_BLUE_WARP)) ||
+               (OoT_Flags_GetEventChkInf(EVENTCHKINF_USED_DEKU_TREE_BLUE_WARP) &&
+                OoT_Flags_GetEventChkInf(EVENTCHKINF_USED_JABU_JABUS_BELLY_BLUE_WARP))) {
+        frameCount = OoT_Animation_GetLastFrame(&gChildZelda1Anim_00438);
+        OoT_Animation_Change(&this->skelAnime, &gChildZelda1Anim_00438, 1.0f, 0.0f, frameCount, ANIMMODE_LOOP, 0.0f);
         this->actor.textId = 0x703D;
         this->actionFunc = func_80B4AF18;
-    } else if (Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_ZELDAS_LETTER)) {
-        frameCount = Animation_GetLastFrame(&gChildZelda1Anim_00438);
-        Animation_Change(&this->skelAnime, &gChildZelda1Anim_00438, 1.0f, 0.0f, frameCount, ANIMMODE_LOOP, 0.0f);
+    } else if (OoT_Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_ZELDAS_LETTER)) {
+        frameCount = OoT_Animation_GetLastFrame(&gChildZelda1Anim_00438);
+        OoT_Animation_Change(&this->skelAnime, &gChildZelda1Anim_00438, 1.0f, 0.0f, frameCount, ANIMMODE_LOOP, 0.0f);
         this->actor.textId = 0x703C;
         this->actionFunc = func_80B4AF18;
     } else {
@@ -116,11 +116,11 @@ void EnZl1_Init(Actor* thisx, PlayState* play) {
     }
 }
 
-void EnZl1_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnZl1_Destroy(Actor* thisx, PlayState* play) {
     EnZl1* this = (EnZl1*)thisx;
 
-    SkelAnime_Free(&this->skelAnime, play);
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_SkelAnime_Free(&this->skelAnime, play);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void func_80B4AE18(EnZl1* this) {
@@ -130,7 +130,7 @@ void func_80B4AE18(EnZl1* this) {
         this->unk_1FC = 2;
     } else {
         if (DECR(this->unk_1FC) == 0) {
-            this->unk_1FC = Rand_S16Offset(0x1E, 0xA);
+            this->unk_1FC = OoT_Rand_S16Offset(0x1E, 0xA);
         }
         this->unk_1FE = (this->unk_1FC < 4) ? this->unk_1FC : 0;
 
@@ -147,7 +147,7 @@ void func_80B4AF18(EnZl1* this, PlayState* play) {
     func_80038290(play, &this->actor, &this->unk_200, &this->unk_206, this->actor.focus.pos);
 
     if (this->unk_1E6 != 0) {
-        if (Actor_TextboxIsClosing(&this->actor, play)) {
+        if (OoT_Actor_TextboxIsClosing(&this->actor, play)) {
             this->unk_1E6 = 0;
         }
     } else if (Actor_ProcessTalkRequest(&this->actor, play)) {
@@ -156,8 +156,8 @@ void func_80B4AF18(EnZl1* this, PlayState* play) {
         func_8002F2F4(&this->actor, play);
     }
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void func_80B4B010(EnZl1* this, PlayState* play) {
@@ -171,11 +171,11 @@ void func_80B4B010(EnZl1* this, PlayState* play) {
     s16 rotDiff;
 
     if (Actor_ProcessTalkRequest(&this->actor, play)) {
-        Animation_Change(&this->skelAnime, &gChildZelda1Anim_10B38, 1.0f, 0.0f,
-                         Animation_GetLastFrame(&gChildZelda1Anim_10B38), ANIMMODE_ONCE_INTERP, -10.0f);
-        this->unk_1E8 = Play_CreateSubCamera(play);
-        Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_WAIT);
-        Play_ChangeCameraStatus(play, this->unk_1E8, CAM_STAT_ACTIVE);
+        OoT_Animation_Change(&this->skelAnime, &gChildZelda1Anim_10B38, 1.0f, 0.0f,
+                         OoT_Animation_GetLastFrame(&gChildZelda1Anim_10B38), ANIMMODE_ONCE_INTERP, -10.0f);
+        this->unk_1E8 = OoT_Play_CreateSubCamera(play);
+        OoT_Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_WAIT);
+        OoT_Play_ChangeCameraStatus(play, this->unk_1E8, CAM_STAT_ACTIVE);
         func_800C0808(play, this->unk_1E8, player, CAM_SET_FREE0);
         play->envCtx.screenFillColor[0] = 255;
         play->envCtx.screenFillColor[1] = 255;
@@ -190,7 +190,7 @@ void func_80B4B010(EnZl1* this, PlayState* play) {
         player->actor.speedXZ = 0.0f;
         this->unk_1E2 = 0;
         this->actionFunc = func_80B4B240;
-        Audio_PlayFanfare(NA_BGM_APPEAR);
+        OoT_Audio_PlayFanfare(NA_BGM_APPEAR);
     } else {
         rotDiff = ABS(this->actor.yawTowardsPlayer - this->actor.shape.rot.y);
         if ((rotDiff < 0x238E) && !(player->actor.world.pos.y < this->actor.world.pos.y)) {
@@ -227,24 +227,24 @@ void func_80B4B240(EnZl1* this, PlayState* play) {
                     animHeaderSeg = &gChildZelda1Anim_11348;
                     sp3C = 1;
                     this->actor.textId = 0x702E;
-                    Message_StartTextbox(play, this->actor.textId, NULL);
+                    OoT_Message_StartTextbox(play, this->actor.textId, NULL);
                     this->unk_1E2++;
                     break;
             }
             break;
         case 1:
-            if ((Message_GetState(msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+            if ((OoT_Message_GetState(msgCtx) == TEXT_STATE_EVENT) && OoT_Message_ShouldAdvance(play)) {
                 play->envCtx.fillScreen = false;
                 Play_CameraSetAtEye(play, this->unk_1E8, &sp74, &sp68);
                 Play_CameraSetFov(play, this->unk_1E8, 25.0f);
                 player->actor.world.pos = sp58;
                 this->actor.textId = 0x702F;
-                Message_ContinueTextbox(play, this->actor.textId);
+                OoT_Message_ContinueTextbox(play, this->actor.textId);
                 this->unk_1E2++;
             }
             break;
         case 2:
-            if ((Message_GetState(msgCtx) == TEXT_STATE_CHOICE) && Message_ShouldAdvance(play)) {
+            if ((OoT_Message_GetState(msgCtx) == TEXT_STATE_CHOICE) && OoT_Message_ShouldAdvance(play)) {
                 if (msgCtx->choiceIndex == 0) {
                     animHeaderSeg = &gChildZelda1Anim_13F10;
                     sp3C = 2;
@@ -257,67 +257,67 @@ void func_80B4B240(EnZl1* this, PlayState* play) {
             }
             break;
         case 3:
-            frameCount = Animation_GetLastFrame(&gChildZelda1Anim_13F10);
+            frameCount = OoT_Animation_GetLastFrame(&gChildZelda1Anim_13F10);
             if (this->skelAnime.curFrame == frameCount) {
                 animHeaderSeg = &gChildZelda1Anim_143A8;
                 sp3C = 1;
                 this->actor.textId = 0x7032;
-                Message_ContinueTextbox(play, this->actor.textId);
+                OoT_Message_ContinueTextbox(play, this->actor.textId);
                 this->unk_1E2++;
             }
             break;
         case 4:
-            if ((Message_GetState(msgCtx) == TEXT_STATE_CHOICE) && Message_ShouldAdvance(play)) {
+            if ((OoT_Message_GetState(msgCtx) == TEXT_STATE_CHOICE) && OoT_Message_ShouldAdvance(play)) {
                 if (msgCtx->choiceIndex == 0) {
                     animHeaderSeg = &gChildZelda1Anim_132D8;
                     sp3C = 2;
                     this->unk_1E2 = 9;
                 } else {
                     this->actor.textId = 0x7034;
-                    Message_ContinueTextbox(play, this->actor.textId);
+                    OoT_Message_ContinueTextbox(play, this->actor.textId);
                     this->unk_1E2++;
                 }
             }
             break;
         case 5:
-            if ((Message_GetState(msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+            if ((OoT_Message_GetState(msgCtx) == TEXT_STATE_EVENT) && OoT_Message_ShouldAdvance(play)) {
                 this->actor.textId = 0x7033;
-                Message_ContinueTextbox(play, this->actor.textId);
+                OoT_Message_ContinueTextbox(play, this->actor.textId);
                 this->unk_1E2--;
             }
             break;
         case 6:
-            frameCount = Animation_GetLastFrame(&gChildZelda1Anim_116E4);
+            frameCount = OoT_Animation_GetLastFrame(&gChildZelda1Anim_116E4);
             if (this->skelAnime.curFrame == frameCount) {
                 animHeaderSeg = &gChildZelda1Anim_12B88;
                 sp3C = 1;
                 this->actor.textId = 0x7031;
-                Message_ContinueTextbox(play, this->actor.textId);
+                OoT_Message_ContinueTextbox(play, this->actor.textId);
                 this->unk_1E2++;
             }
             break;
         case 7:
-            if ((Message_GetState(msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+            if ((OoT_Message_GetState(msgCtx) == TEXT_STATE_EVENT) && OoT_Message_ShouldAdvance(play)) {
                 this->actor.textId = 0x7030;
-                Message_ContinueTextbox(play, this->actor.textId);
+                OoT_Message_ContinueTextbox(play, this->actor.textId);
                 this->unk_1E2++;
             }
             break;
         case 8:
-            if ((Message_GetState(msgCtx) == TEXT_STATE_CHOICE) && Message_ShouldAdvance(play)) {
+            if ((OoT_Message_GetState(msgCtx) == TEXT_STATE_CHOICE) && OoT_Message_ShouldAdvance(play)) {
                 if (msgCtx->choiceIndex == 0) {
                     animHeaderSeg = &gChildZelda1Anim_138E0;
                     sp3C = 2;
                     this->unk_1E2 = 3;
                 } else {
                     this->actor.textId = 0x7031;
-                    Message_ContinueTextbox(play, this->actor.textId);
+                    OoT_Message_ContinueTextbox(play, this->actor.textId);
                     this->unk_1E2--;
                 }
             }
             break;
         case 9:
-            frameCount = Animation_GetLastFrame(&gChildZelda1Anim_132D8);
+            frameCount = OoT_Animation_GetLastFrame(&gChildZelda1Anim_132D8);
             if (this->skelAnime.curFrame == frameCount) {
                 animHeaderSeg = &gChildZelda1Anim_00438;
                 sp3C = 1;
@@ -329,8 +329,8 @@ void func_80B4B240(EnZl1* this, PlayState* play) {
             break;
     }
     if (sp3C != 0) {
-        frameCount = Animation_GetLastFrame(animHeaderSeg);
-        Animation_Change(&this->skelAnime, animHeaderSeg, 1.0f, 0.0f, frameCount, sp54[sp3C], -10.0f);
+        frameCount = OoT_Animation_GetLastFrame(animHeaderSeg);
+        OoT_Animation_Change(&this->skelAnime, animHeaderSeg, 1.0f, 0.0f, frameCount, sp54[sp3C], -10.0f);
     }
     func_80038290(play, &this->actor, &this->unk_200, &this->unk_206, this->actor.focus.pos);
 }
@@ -380,7 +380,7 @@ void func_80B4B8B4(EnZl1* this, PlayState* play) {
     f32 frameCount;
     Vec3f sp48;
 
-    SkelAnime_Update(&this->skelAnime);
+    OoT_SkelAnime_Update(&this->skelAnime);
     func_80B4B874(this, play);
     if (play->csCtx.state == CS_STATE_IDLE) {
         this->actionFunc = func_80B4BBC4;
@@ -397,8 +397,8 @@ void func_80B4B8B4(EnZl1* this, PlayState* play) {
             this->actor.world.pos = sp48;
         }
         if (this->unk_1E6 != npcAction->action) {
-            frameCount = Animation_GetLastFrame(spB0[npcAction->action]);
-            Animation_Change(&this->skelAnime, spB0[npcAction->action], 1.0f, 0.0f, frameCount, spA4[npcAction->action],
+            frameCount = OoT_Animation_GetLastFrame(spB0[npcAction->action]);
+            OoT_Animation_Change(&this->skelAnime, spB0[npcAction->action], 1.0f, 0.0f, frameCount, spA4[npcAction->action],
                              -10.0f);
             this->unk_1E6 = npcAction->action;
         }
@@ -421,14 +421,14 @@ void func_80B4B8B4(EnZl1* this, PlayState* play) {
 
 void func_80B4BBC4(EnZl1* this, PlayState* play) {
     s32 pad;
-    f32 frameCount = Animation_GetLastFrame(&gChildZelda1Anim_00438);
+    f32 frameCount = OoT_Animation_GetLastFrame(&gChildZelda1Anim_00438);
     Player* player = GET_PLAYER(play);
 
-    Animation_Change(&this->skelAnime, &gChildZelda1Anim_00438, 1.0f, 0.0f, frameCount, ANIMMODE_LOOP, 0.0f);
-    Player_SetCsActionWithHaltedActors(play, &this->actor, 1);
-    Player_PlaySfx(&player->actor, NA_SE_VO_LI_SURPRISE_KID);
+    OoT_Animation_Change(&this->skelAnime, &gChildZelda1Anim_00438, 1.0f, 0.0f, frameCount, ANIMMODE_LOOP, 0.0f);
+    OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 1);
+    OoT_Player_PlaySfx(&player->actor, NA_SE_VO_LI_SURPRISE_KID);
     this->actor.textId = 0x7039;
-    Message_StartTextbox(play, this->actor.textId, NULL);
+    OoT_Message_StartTextbox(play, this->actor.textId, NULL);
     this->unk_1E2 = 0;
     this->actionFunc = func_80B4BF2C;
 }
@@ -458,9 +458,9 @@ void func_80B4BC78(EnZl1* this, PlayState* play) {
     s32 pad;
     f32 frameCount;
 
-    if (SkelAnime_Update(&this->skelAnime) && (this->skelAnime.animation == &gChildZelda1Anim_10B38)) {
-        frameCount = Animation_GetLastFrame(&gChildZelda1Anim_11348);
-        Animation_Change(&this->skelAnime, &gChildZelda1Anim_11348, 1.0f, 0.0f, frameCount, ANIMMODE_LOOP, -10.0f);
+    if (OoT_SkelAnime_Update(&this->skelAnime) && (this->skelAnime.animation == &gChildZelda1Anim_10B38)) {
+        frameCount = OoT_Animation_GetLastFrame(&gChildZelda1Anim_11348);
+        OoT_Animation_Change(&this->skelAnime, &gChildZelda1Anim_11348, 1.0f, 0.0f, frameCount, ANIMMODE_LOOP, -10.0f);
     }
     func_80B4B874(this, play);
     npcAction = play->csCtx.npcActions[0];
@@ -472,8 +472,8 @@ void func_80B4BC78(EnZl1* this, PlayState* play) {
         }
 
         if (this->unk_1E6 != npcAction->action) {
-            frameCount = Animation_GetLastFrame(sp90[npcAction->action]);
-            Animation_Change(&this->skelAnime, sp90[npcAction->action], 1.0f, 0.0f, frameCount, sp84[npcAction->action],
+            frameCount = OoT_Animation_GetLastFrame(sp90[npcAction->action]);
+            OoT_Animation_Change(&this->skelAnime, sp90[npcAction->action], 1.0f, 0.0f, frameCount, sp84[npcAction->action],
                              -10.0f);
             this->unk_1E6 = npcAction->action;
         }
@@ -498,23 +498,23 @@ void func_80B4BF2C(EnZl1* this, PlayState* play) {
 
     switch (this->unk_1E2) {
         case 0:
-            if ((Message_GetState(msgCtx) == TEXT_STATE_CHOICE) && Message_ShouldAdvance(play)) {
+            if ((OoT_Message_GetState(msgCtx) == TEXT_STATE_CHOICE) && OoT_Message_ShouldAdvance(play)) {
                 if (msgCtx->choiceIndex == 0) {
                     this->actor.textId = 0x703B;
-                    Message_ContinueTextbox(play, this->actor.textId);
+                    OoT_Message_ContinueTextbox(play, this->actor.textId);
                     this->unk_1E2++;
                 } else {
                     this->actor.textId = 0x703A;
-                    Message_ContinueTextbox(play, this->actor.textId);
+                    OoT_Message_ContinueTextbox(play, this->actor.textId);
                     this->unk_1E2 = 0;
                 }
             }
             break;
         case 1:
-            if ((Message_GetState(msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+            if ((OoT_Message_GetState(msgCtx) == TEXT_STATE_EVENT) && OoT_Message_ShouldAdvance(play)) {
                 this->actor.textId = 0xFFFF;
                 play->talkWithPlayer(play, &this->actor);
-                Actor_OfferGetItem(&this->actor, play, GI_LETTER_ZELDA, 120.0f, 10.0f);
+                OoT_Actor_OfferGetItem(&this->actor, play, GI_LETTER_ZELDA, 120.0f, 10.0f);
                 play->msgCtx.msgMode = MSGMODE_TEXT_CLOSING;
                 play->msgCtx.stateTimer = 4;
                 this->unk_1E2++;
@@ -522,21 +522,21 @@ void func_80B4BF2C(EnZl1* this, PlayState* play) {
                 break;
             }
         case 2:
-            if (Actor_HasParent(&this->actor, play)) {
-                Play_CopyCamera(play, MAIN_CAM, this->unk_1E8);
-                Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_ACTIVE);
-                Play_ClearCamera(play, this->unk_1E8);
+            if (OoT_Actor_HasParent(&this->actor, play)) {
+                OoT_Play_CopyCamera(play, MAIN_CAM, this->unk_1E8);
+                OoT_Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_ACTIVE);
+                OoT_Play_ClearCamera(play, this->unk_1E8);
                 this->actor.parent = NULL;
                 this->unk_1E2++;
             } else {
-                Actor_OfferGetItem(&this->actor, play, GI_LETTER_ZELDA, 120.0f, 10.0f);
+                OoT_Actor_OfferGetItem(&this->actor, play, GI_LETTER_ZELDA, 120.0f, 10.0f);
             }
             break;
         case 3:
-            if ((Message_GetState(msgCtx) == TEXT_STATE_DONE) && Message_ShouldAdvance(play)) {
+            if ((OoT_Message_GetState(msgCtx) == TEXT_STATE_DONE) && OoT_Message_ShouldAdvance(play)) {
                 this->actor.textId = 0x703C;
-                Message_ContinueTextbox(play, this->actor.textId);
-                Flags_SetEventChkInf(EVENTCHKINF_OBTAINED_ZELDAS_LETTER);
+                OoT_Message_ContinueTextbox(play, this->actor.textId);
+                OoT_Flags_SetEventChkInf(EVENTCHKINF_OBTAINED_ZELDAS_LETTER);
                 this->unk_1E2 = 6;
             }
             break;
@@ -552,13 +552,13 @@ void func_80B4BF2C(EnZl1* this, PlayState* play) {
             }
             break;
         case 5:
-            if (Actor_TextboxIsClosing(&this->actor, play)) {
+            if (OoT_Actor_TextboxIsClosing(&this->actor, play)) {
                 this->unk_1E2--;
             }
             break;
         case 6:
-            if (Actor_TextboxIsClosing(&this->actor, play)) {
-                Player_SetCsActionWithHaltedActors(play, &this->actor, 7);
+            if (OoT_Actor_TextboxIsClosing(&this->actor, play)) {
+                OoT_Player_SetCsActionWithHaltedActors(play, &this->actor, 7);
                 Interface_ChangeAlpha(50);
                 this->actor.flags &= ~ACTOR_FLAG_TALK;
                 this->unk_1E2 = 4;
@@ -568,22 +568,22 @@ void func_80B4BF2C(EnZl1* this, PlayState* play) {
     func_80038290(play, &this->actor, &this->unk_200, &this->unk_206, this->actor.focus.pos);
 }
 
-void EnZl1_Update(Actor* thisx, PlayState* play) {
+void OoT_EnZl1_Update(Actor* thisx, PlayState* play) {
     s32 pad;
     EnZl1* this = (EnZl1*)thisx;
 
     if ((this->actionFunc != func_80B4B8B4) && (this->actionFunc != func_80B4BC78)) {
-        SkelAnime_Update(&this->skelAnime);
+        OoT_SkelAnime_Update(&this->skelAnime);
     }
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 5);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, 5);
     this->actionFunc(this, play);
     if (this->actionFunc != func_80B4B8B4) {
-        Collider_UpdateCylinder(&this->actor, &this->collider);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
-    Math_SmoothStepToS(&this->actor.shape.rot.x, this->actor.world.rot.x, 0xA, 0x3E8, 1);
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.world.rot.y, 0xA, 0x3E8, 1);
-    Math_SmoothStepToS(&this->actor.shape.rot.z, this->actor.world.rot.z, 0xA, 0x3E8, 1);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.x, this->actor.world.rot.x, 0xA, 0x3E8, 1);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.world.rot.y, 0xA, 0x3E8, 1);
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.z, this->actor.world.rot.z, 0xA, 0x3E8, 1);
     func_80B4AE18(this);
 }
 
@@ -613,11 +613,11 @@ void EnZl1_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot,
     EnZl1* this = (EnZl1*)thisx;
 
     if (limbIndex == 17) {
-        Matrix_MultVec3f(&vec, &this->actor.focus.pos);
+        OoT_Matrix_MultVec3f(&vec, &this->actor.focus.pos);
     }
 }
 
-void EnZl1_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnZl1_Draw(Actor* thisx, PlayState* play) {
     EnZl1* this = (EnZl1*)thisx;
 
     OPEN_DISPS(play->state.gfxCtx);

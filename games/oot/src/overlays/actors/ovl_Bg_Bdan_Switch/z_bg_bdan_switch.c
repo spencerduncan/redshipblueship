@@ -56,7 +56,7 @@ const ActorInit Bg_Bdan_Switch_InitVars = {
     NULL,
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[] = {
+static ColliderJntSphElementInit OoT_sJntSphElementsInit[] = {
     {
         {
             ELEMTYPE_UNK0,
@@ -70,7 +70,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit OoT_sJntSphInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -80,10 +80,10 @@ static ColliderJntSphInit sJntSphInit = {
         COLSHAPE_JNTSPH,
     },
     1,
-    sJntSphElementsInit,
+    OoT_sJntSphElementsInit,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(uncullZoneForward, 1400, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 500, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneDownward, 1200, ICHAIN_STOP),
@@ -96,9 +96,9 @@ void BgBdanSwitch_InitDynaPoly(BgBdanSwitch* this, PlayState* play, CollisionHea
     CollisionHeader* colHeader = NULL;
     s16 pad2;
 
-    DynaPolyActor_Init(&this->dyna, flag);
-    CollisionHeader_GetVirtual(collision, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_DynaPolyActor_Init(&this->dyna, flag);
+    OoT_CollisionHeader_GetVirtual(collision, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
     if (this->dyna.bgId == BG_ACTOR_MAX) {
         osSyncPrintf("Warning : move BG 登録失敗(%s %d)(name %d)(arg_data 0x%04x)\n", __FILE__, __LINE__,
                      this->dyna.actor.id, this->dyna.actor.params);
@@ -107,8 +107,8 @@ void BgBdanSwitch_InitDynaPoly(BgBdanSwitch* this, PlayState* play, CollisionHea
 
 void BgBdanSwitch_InitCollision(BgBdanSwitch* this, PlayState* play) {
     Actor* actor = &this->dyna.actor;
-    Collider_InitJntSph(play, &this->collider);
-    Collider_SetJntSph(play, &this->collider, actor, &sJntSphInit, this->colliderItems);
+    OoT_Collider_InitJntSph(play, &this->collider);
+    OoT_Collider_SetJntSph(play, &this->collider, actor, &OoT_sJntSphInit, this->colliderItems);
 }
 
 void func_8086D0EC(BgBdanSwitch* this) {
@@ -122,14 +122,14 @@ void func_8086D0EC(BgBdanSwitch* this) {
         case BLUE:
         case YELLOW_HEAVY:
         case YELLOW:
-            this->unk_1D4 = ((Math_CosS(this->unk_1CC) * 0.5f) + (53.000004f / 6.0f)) * 0.012f;
-            this->unk_1D0 = ((Math_CosS(this->unk_1CC) * 0.5f) + 20.5f) * (this->unk_1C8 * 0.0050000004f);
+            this->unk_1D4 = ((OoT_Math_CosS(this->unk_1CC) * 0.5f) + (53.000004f / 6.0f)) * 0.012f;
+            this->unk_1D0 = ((OoT_Math_CosS(this->unk_1CC) * 0.5f) + 20.5f) * (this->unk_1C8 * 0.0050000004f);
             this->dyna.actor.scale.y = this->unk_1C8 * 0.1f;
             break;
         case YELLOW_TALL_1:
         case YELLOW_TALL_2:
-            this->unk_1D4 = ((Math_CosS(this->unk_1CC) * 0.5f) + (43.0f / 6.0f)) * 0.0075000003f;
-            this->unk_1D0 = ((Math_CosS(this->unk_1CC) * 0.5f) + 20.5f) * (this->unk_1C8 * 0.0050000004f);
+            this->unk_1D4 = ((OoT_Math_CosS(this->unk_1CC) * 0.5f) + (43.0f / 6.0f)) * 0.0075000003f;
+            this->unk_1D0 = ((OoT_Math_CosS(this->unk_1CC) * 0.5f) + 20.5f) * (this->unk_1C8 * 0.0050000004f);
             this->dyna.actor.scale.y = this->unk_1C8 * 0.1f;
     }
     this->dyna.actor.shape.yOffset = 1.2f / this->unk_1D0;
@@ -142,7 +142,7 @@ void BgBdanSwitch_Init(Actor* thisx, PlayState* play) {
     s32 flag;
 
     type = this->dyna.actor.params & 0xFF;
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
     if (type == YELLOW_TALL_1 || type == YELLOW_TALL_2) {
         this->dyna.actor.scale.z = 0.05f;
         this->dyna.actor.scale.x = 0.05f;
@@ -151,7 +151,7 @@ void BgBdanSwitch_Init(Actor* thisx, PlayState* play) {
         this->dyna.actor.scale.x = 0.1f;
     }
     this->dyna.actor.scale.y = 0.0f;
-    Actor_SetFocus(&this->dyna.actor, 10.0f);
+    OoT_Actor_SetFocus(&this->dyna.actor, 10.0f);
 
     switch (type) {
         case BLUE:
@@ -167,7 +167,7 @@ void BgBdanSwitch_Init(Actor* thisx, PlayState* play) {
             break;
     }
 
-    flag = Flags_GetSwitch(play, (this->dyna.actor.params >> 8) & 0x3F);
+    flag = OoT_Flags_GetSwitch(play, (this->dyna.actor.params >> 8) & 0x3F);
 
     switch (type) {
         case BLUE:
@@ -195,7 +195,7 @@ void BgBdanSwitch_Init(Actor* thisx, PlayState* play) {
             break;
         default:
             osSyncPrintf("不正な ARG_DATA(arg_data 0x%04x)(%s %d)\n", this->dyna.actor.params, __FILE__, __LINE__);
-            Actor_Kill(&this->dyna.actor);
+            OoT_Actor_Kill(&this->dyna.actor);
             return;
     }
     osSyncPrintf("(巨大魚ダンジョン 専用スイッチ)(arg_data 0x%04x)\n", this->dyna.actor.params);
@@ -208,11 +208,11 @@ void BgBdanSwitch_Destroy(Actor* thisx, PlayState* play) {
         case BLUE:
         case YELLOW_HEAVY:
         case YELLOW:
-            DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+            OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
             break;
         case YELLOW_TALL_1:
         case YELLOW_TALL_2:
-            Collider_DestroyJntSph(play, &this->collider);
+            OoT_Collider_DestroyJntSph(play, &this->collider);
             break;
     }
 }
@@ -221,9 +221,9 @@ void func_8086D4B4(BgBdanSwitch* this, PlayState* play) {
     s32 pad;
     s32 type;
 
-    if (!Flags_GetSwitch(play, (this->dyna.actor.params >> 8) & 0x3F)) {
+    if (!OoT_Flags_GetSwitch(play, (this->dyna.actor.params >> 8) & 0x3F)) {
         type = this->dyna.actor.params & 0xFF;
-        Flags_SetSwitch(play, (this->dyna.actor.params >> 8) & 0x3F);
+        OoT_Flags_SetSwitch(play, (this->dyna.actor.params >> 8) & 0x3F);
         if (GameInteractor_Should(VB_PLAY_ONEPOINT_ACTOR_CS, true, this)) {
             if (type == BLUE || type == YELLOW_TALL_2) {
                 OnePointCutscene_AttentionSetSfx(play, &this->dyna.actor, NA_SE_SY_TRE_BOX_APPEAR);
@@ -235,8 +235,8 @@ void func_8086D4B4(BgBdanSwitch* this, PlayState* play) {
 }
 
 void func_8086D548(BgBdanSwitch* this, PlayState* play) {
-    if (Flags_GetSwitch(play, (this->dyna.actor.params >> 8) & 0x3F)) {
-        Flags_UnsetSwitch(play, (this->dyna.actor.params >> 8) & 0x3F);
+    if (OoT_Flags_GetSwitch(play, (this->dyna.actor.params >> 8) & 0x3F)) {
+        OoT_Flags_UnsetSwitch(play, (this->dyna.actor.params >> 8) & 0x3F);
         if ((this->dyna.actor.params & 0xFF) == YELLOW_TALL_2) {
             if (GameInteractor_Should(VB_PLAY_ONEPOINT_ACTOR_CS, true, this)) {
                 OnePointCutscene_AttentionSetSfx(play, &this->dyna.actor, NA_SE_SY_TRE_BOX_APPEAR);
@@ -253,13 +253,13 @@ void func_8086D5C4(BgBdanSwitch* this) {
 void func_8086D5E0(BgBdanSwitch* this, PlayState* play) {
     switch (this->dyna.actor.params & 0xFF) {
         case BLUE:
-            if (DynaPolyActor_IsSwitchPressed(&this->dyna)) {
+            if (OoT_DynaPolyActor_IsSwitchPressed(&this->dyna)) {
                 func_8086D67C(this);
                 func_8086D4B4(this, play);
             }
             break;
         case YELLOW:
-            if (DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
+            if (OoT_DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
                 func_8086D67C(this);
                 func_8086D4B4(this, play);
             }
@@ -292,7 +292,7 @@ void func_8086D730(BgBdanSwitch* this) {
 void func_8086D754(BgBdanSwitch* this, PlayState* play) {
     switch (this->dyna.actor.params & 0xFF) {
         case BLUE:
-            if (!DynaPolyActor_IsSwitchPressed(&this->dyna)) {
+            if (!OoT_DynaPolyActor_IsSwitchPressed(&this->dyna)) {
                 if (this->unk_1D8 <= 0) {
                     func_8086D7FC(this);
                     func_8086D548(this, play);
@@ -302,7 +302,7 @@ void func_8086D754(BgBdanSwitch* this, PlayState* play) {
             }
             break;
         case YELLOW:
-            if (!Flags_GetSwitch(play, (this->dyna.actor.params >> 8) & 0x3F)) {
+            if (!OoT_Flags_GetSwitch(play, (this->dyna.actor.params >> 8) & 0x3F)) {
                 func_8086D7FC(this);
             }
             break;
@@ -327,7 +327,7 @@ void func_8086D86C(BgBdanSwitch* this) {
 }
 
 void func_8086D888(BgBdanSwitch* this, PlayState* play) {
-    if (DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
+    if (OoT_DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
         func_8086D8BC(this);
     }
 }
@@ -370,7 +370,7 @@ void func_8086D9F8(BgBdanSwitch* this) {
 void func_8086DA1C(BgBdanSwitch* this, PlayState* play) {
     Actor* heldActor = GET_PLAYER(play)->heldActor;
 
-    if (DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
+    if (OoT_DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
         if (heldActor != NULL && heldActor->id == ACTOR_EN_RU1) {
             if (this->unk_1D8 <= 0) {
                 func_8086D944(this);
@@ -455,7 +455,7 @@ void func_8086DCCC(BgBdanSwitch* this) {
 void func_8086DCE8(BgBdanSwitch* this, PlayState* play) {
     switch (this->dyna.actor.params & 0xFF) {
         case YELLOW_TALL_1:
-            if (!Flags_GetSwitch(play, (this->dyna.actor.params >> 8) & 0x3F)) {
+            if (!OoT_Flags_GetSwitch(play, (this->dyna.actor.params >> 8) & 0x3F)) {
                 func_8086DDA8(this);
             }
             break;
@@ -499,23 +499,23 @@ void BgBdanSwitch_Update(Actor* thisx, PlayState* play) {
     if (type != 3 && type != 4) {
         this->unk_1D8--;
     } else {
-        if (!Player_InCsMode(play) && this->unk_1D8 > 0) {
+        if (!OoT_Player_InCsMode(play) && this->unk_1D8 > 0) {
             this->unk_1D8--;
         }
         this->unk_1DC = this->collider.base.acFlags;
         this->collider.base.acFlags &= ~AC_HIT;
         this->collider.elements[0].dim.modelSphere.radius = this->unk_1D4 * 370.0f;
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
 void func_8086DF58(BgBdanSwitch* this, PlayState* play, Gfx* dlist) {
-    Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x,
+    OoT_Matrix_SetTranslateRotateYXZ(this->dyna.actor.world.pos.x,
                                  this->dyna.actor.world.pos.y + (this->dyna.actor.shape.yOffset * this->unk_1D0),
                                  this->dyna.actor.world.pos.z, &this->dyna.actor.shape.rot);
-    Matrix_Scale(this->unk_1D4, this->unk_1D0, this->unk_1D4, MTXMODE_APPLY);
-    Gfx_DrawDListOpa(play, dlist);
+    OoT_Matrix_Scale(this->unk_1D4, this->unk_1D0, this->unk_1D4, MTXMODE_APPLY);
+    OoT_Gfx_DrawDListOpa(play, dlist);
 }
 
 void BgBdanSwitch_Draw(Actor* thisx, PlayState* play) {
@@ -529,8 +529,8 @@ void BgBdanSwitch_Draw(Actor* thisx, PlayState* play) {
         case YELLOW_TALL_1:
         case YELLOW_TALL_2:
             func_8086DF58(this, play, gJabuYellowFloorSwitchDL);
-            Collider_UpdateSpheres(0, &this->collider);
-            Matrix_MultVec3f(&D_8086E0E0, &this->dyna.actor.focus.pos);
+            OoT_Collider_UpdateSpheres(0, &this->collider);
+            OoT_Matrix_MultVec3f(&D_8086E0E0, &this->dyna.actor.focus.pos);
             break;
         case BLUE:
             func_8086DF58(this, play, gJabuBlueFloorSwitchDL);

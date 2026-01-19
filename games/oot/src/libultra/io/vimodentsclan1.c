@@ -1,6 +1,6 @@
 #include "global.h"
 
-OSViMode osViModeNtscLan1 = {
+OSViMode OoT_osViModeNtscLan1 = {
     2, // type
     {
         // comRegs

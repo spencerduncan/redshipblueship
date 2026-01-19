@@ -13,16 +13,16 @@
 #define rRotSpeed regs[3]
 #define rScale regs[4]
 
-u32 EffectSsIcePiece_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsIcePiece_Draw(PlayState* play, u32 index, EffectSs* this);
-void EffectSsIcePiece_Update(PlayState* play, u32 index, EffectSs* this);
+u32 OoT_EffectSsIcePiece_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void OoT_EffectSsIcePiece_Draw(PlayState* play, u32 index, EffectSs* this);
+void OoT_EffectSsIcePiece_Update(PlayState* play, u32 index, EffectSs* this);
 
 EffectSsInit Effect_Ss_Ice_Piece_InitVars = {
     EFFECT_SS_ICE_PIECE,
-    EffectSsIcePiece_Init,
+    OoT_EffectSsIcePiece_Init,
 };
 
-u32 EffectSsIcePiece_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 OoT_EffectSsIcePiece_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsIcePieceInitParams* initParams = (EffectSsIcePieceInitParams*)initParamsx;
 
     this->pos = initParams->pos;
@@ -30,19 +30,19 @@ u32 EffectSsIcePiece_Init(PlayState* play, u32 index, EffectSs* this, void* init
     this->velocity = initParams->velocity;
     this->accel = initParams->accel;
     this->life = initParams->life;
-    this->draw = EffectSsIcePiece_Draw;
-    this->update = EffectSsIcePiece_Update;
+    this->draw = OoT_EffectSsIcePiece_Draw;
+    this->update = OoT_EffectSsIcePiece_Update;
     this->rLifespan = initParams->life;
     this->rScale = initParams->scale * 100.0f;
-    this->rYaw = Math_Atan2S(initParams->velocity.z, initParams->velocity.x);
+    this->rYaw = OoT_Math_Atan2S(initParams->velocity.z, initParams->velocity.x);
     this->rPitch = 0;
     this->rRotSpeed =
-        ((fabsf(initParams->velocity.x) + fabsf(initParams->velocity.y)) * 100.0f) * (Rand_ZeroFloat(1.0f) + 0.5f);
+        ((fabsf(initParams->velocity.x) + fabsf(initParams->velocity.y)) * 100.0f) * (OoT_Rand_ZeroFloat(1.0f) + 0.5f);
 
     return 1;
 }
 
-void EffectSsIcePiece_Draw(PlayState* play, u32 index, EffectSs* this) {
+void OoT_EffectSsIcePiece_Draw(PlayState* play, u32 index, EffectSs* this) {
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     s32 pad;
     f32 scale;
@@ -61,8 +61,8 @@ void EffectSsIcePiece_Draw(PlayState* play, u32 index, EffectSs* this) {
         alpha = 255.0f;
     }
 
-    Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
-    Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+    OoT_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
+    OoT_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
     Matrix_RotateY(this->rYaw * (M_PI / 0x8000), MTXMODE_APPLY);
     Matrix_RotateX(this->rPitch * (M_PI / 0x8000), MTXMODE_APPLY);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -70,14 +70,14 @@ void EffectSsIcePiece_Draw(PlayState* play, u32 index, EffectSs* this) {
     gDPSetEnvColor(POLY_XLU_DISP++, 0, 50, 100, (s32)alpha & 0xFF);
     func_8003435C(&this->pos, play);
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, (1 * frames) % 256, 0x20, 0x10, 1, 0, (2 * frames) % 256,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, (1 * frames) % 256, 0x20, 0x10, 1, 0, (2 * frames) % 256,
                                 0x40, 0x20));
     gSPDisplayList(POLY_XLU_DISP++, gEffIceFragment1DL);
 
     CLOSE_DISPS(gfxCtx);
 }
 
-void EffectSsIcePiece_Update(PlayState* play, u32 index, EffectSs* this) {
+void OoT_EffectSsIcePiece_Update(PlayState* play, u32 index, EffectSs* this) {
     this->rPitch += this->rRotSpeed;
     this->velocity.x = this->velocity.x * 0.85f;
     this->velocity.y = this->velocity.y * 0.85f;

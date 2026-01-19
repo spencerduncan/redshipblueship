@@ -1,13 +1,13 @@
 #include "global.h"
 
-OSViContext vi[2] = { 0 };
-OSViContext* __osViCurr = &vi[0];
-OSViContext* __osViNext = &vi[1];
+OSViContext OoT_vi[2] = { 0 };
+OSViContext* __osViCurr = &OoT_vi[0];
+OSViContext* __osViNext = &OoT_vi[1];
 
 void __osViInit(void) {
-    bzero(vi, sizeof(vi));
-    __osViCurr = &vi[0];
-    __osViNext = &vi[1];
+    bzero(OoT_vi, sizeof(OoT_vi));
+    __osViCurr = &OoT_vi[0];
+    __osViNext = &OoT_vi[1];
 
     __osViNext->retraceCount = 1;
     __osViCurr->retraceCount = 1;
@@ -15,11 +15,11 @@ void __osViInit(void) {
     __osViCurr->buffer = (void*)0x80000000;
 
     if (osTvType == OS_TV_PAL) {
-        __osViNext->modep = &osViModePalLan1;
+        __osViNext->modep = &OoT_osViModePalLan1;
     } else if (osTvType == OS_TV_MPAL) {
-        __osViNext->modep = &osViModeMpalLan1;
+        __osViNext->modep = &OoT_osViModeMpalLan1;
     } else {
-        __osViNext->modep = &osViModeNtscLan1;
+        __osViNext->modep = &OoT_osViModeNtscLan1;
     }
 
     __osViNext->state = 0x20;

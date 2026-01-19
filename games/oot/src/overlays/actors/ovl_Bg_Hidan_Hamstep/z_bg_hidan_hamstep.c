@@ -24,7 +24,7 @@ static f32 sYPosOffsets[] = {
     -20.0f, -120.0f, -220.0f, -320.0f, -420.0f,
 };
 
-static ColliderTrisElementInit sTrisElementsInit[2] = {
+static ColliderTrisElementInit OoT_sTrisElementsInit[2] = {
     {
         {
             ELEMTYPE_UNK0,
@@ -49,7 +49,7 @@ static ColliderTrisElementInit sTrisElementsInit[2] = {
     },
 };
 
-static ColliderTrisInit sTrisInit = {
+static ColliderTrisInit OoT_sTrisInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -59,7 +59,7 @@ static ColliderTrisInit sTrisInit = {
         COLSHAPE_TRIS,
     },
     2,
-    sTrisElementsInit,
+    OoT_sTrisElementsInit,
 };
 
 const ActorInit Bg_Hidan_Hamstep_InitVars = {
@@ -75,11 +75,11 @@ const ActorInit Bg_Hidan_Hamstep_InitVars = {
     NULL,
 };
 
-static BgHidanHamstepActionFunc sActionFuncs[] = {
+static BgHidanHamstepActionFunc OoT_sActionFuncs[] = {
     func_808887C4, func_80888860, func_808889B8, func_80888A58, BgHidanHamstep_DoNothing,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
 
@@ -91,7 +91,7 @@ static f32 sEffectPositions[][2] = {
 
 void BgHidanHamstep_SetupAction(BgHidanHamstep* this, s32 action) {
     this->action = action;
-    this->actionFunc = sActionFuncs[action];
+    this->actionFunc = OoT_sActionFuncs[action];
 }
 
 s32 BgHidanHamstep_SpawnChildren(BgHidanHamstep* this, PlayState* play2) {
@@ -105,8 +105,8 @@ s32 BgHidanHamstep_SpawnChildren(BgHidanHamstep* this, PlayState* play2) {
 
     pos = pos; // Required to match
     pos.y = this->dyna.actor.home.pos.y - 100.0f;
-    sin = Math_SinS(this->dyna.actor.shape.rot.y + 0x8000);
-    cos = Math_CosS(this->dyna.actor.shape.rot.y + 0x8000);
+    sin = OoT_Math_SinS(this->dyna.actor.shape.rot.y + 0x8000);
+    cos = OoT_Math_CosS(this->dyna.actor.shape.rot.y + 0x8000);
 
     for (i = 0; i < 5; i++) {
         pos.x = (((i * 160.0f) + 60.0f) * sin) + this->dyna.actor.home.pos.x;
@@ -115,7 +115,7 @@ s32 BgHidanHamstep_SpawnChildren(BgHidanHamstep* this, PlayState* play2) {
         params = (i + 1) & 0xFF;
         params |= (this->dyna.actor.params & 0xFF00);
 
-        step = (BgHidanHamstep*)Actor_SpawnAsChild(&play->actorCtx, &step->dyna.actor, play, ACTOR_BG_HIDAN_HAMSTEP,
+        step = (BgHidanHamstep*)OoT_Actor_SpawnAsChild(&play->actorCtx, &step->dyna.actor, play, ACTOR_BG_HIDAN_HAMSTEP,
                                                    pos.x, pos.y, pos.z, this->dyna.actor.world.rot.x,
                                                    this->dyna.actor.world.rot.y, this->dyna.actor.world.rot.z, params);
 
@@ -135,32 +135,32 @@ void BgHidanHamstep_Init(Actor* thisx, PlayState* play) {
     s32 i2;
     BgHidanHamstep* step;
 
-    DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    OoT_DynaPolyActor_Init(&this->dyna, DPM_PLAYER);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
 
     if ((this->dyna.actor.params & 0xFF) == 0) {
-        Collider_InitTris(play, &this->collider);
-        Collider_SetTris(play, &this->collider, &this->dyna.actor, &sTrisInit, this->colliderItems);
+        OoT_Collider_InitTris(play, &this->collider);
+        OoT_Collider_SetTris(play, &this->collider, &this->dyna.actor, &OoT_sTrisInit, this->colliderItems);
 
         for (i = 0; i < 2; i++) {
             for (i2 = 0; i2 < 3; i2++) {
-                sp48[i2].x = sTrisInit.elements[i].dim.vtx[i2].x + this->dyna.actor.home.pos.x;
-                sp48[i2].y = sTrisInit.elements[i].dim.vtx[i2].y + this->dyna.actor.home.pos.y;
-                sp48[i2].z = sTrisInit.elements[i].dim.vtx[i2].z + this->dyna.actor.home.pos.z;
+                sp48[i2].x = OoT_sTrisInit.elements[i].dim.vtx[i2].x + this->dyna.actor.home.pos.x;
+                sp48[i2].y = OoT_sTrisInit.elements[i].dim.vtx[i2].y + this->dyna.actor.home.pos.y;
+                sp48[i2].z = OoT_sTrisInit.elements[i].dim.vtx[i2].z + this->dyna.actor.home.pos.z;
             }
-            Collider_SetTrisVertices(&this->collider, i, &sp48[0], &sp48[1], &sp48[2]);
+            OoT_Collider_SetTrisVertices(&this->collider, i, &sp48[0], &sp48[1], &sp48[2]);
         }
     }
 
     if ((this->dyna.actor.params & 0xFF) == 0) {
-        CollisionHeader_GetVirtual(&gFireTempleStoneStep1Col, &colHeader);
+        OoT_CollisionHeader_GetVirtual(&gFireTempleStoneStep1Col, &colHeader);
     } else {
-        CollisionHeader_GetVirtual(&gFireTempleStoneStep2Col, &colHeader);
+        OoT_CollisionHeader_GetVirtual(&gFireTempleStoneStep2Col, &colHeader);
     }
 
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
 
-    if (Flags_GetSwitch(play, (this->dyna.actor.params >> 8) & 0xFF)) {
+    if (OoT_Flags_GetSwitch(play, (this->dyna.actor.params >> 8) & 0xFF)) {
         if ((this->dyna.actor.params & 0xFF) == 0) {
             this->dyna.actor.world.pos.y = this->dyna.actor.home.pos.y + (-20.0f);
             BgHidanHamstep_SetupAction(this, 4);
@@ -189,7 +189,7 @@ void BgHidanHamstep_Init(Actor* thisx, PlayState* play) {
             osSyncPrintf("%s %d\n", __FILE__, __LINE__);
 
             while (step != NULL) {
-                Actor_Kill(&step->dyna.actor);
+                OoT_Actor_Kill(&step->dyna.actor);
                 step = (BgHidanHamstep*)step->dyna.actor.child;
             }
         }
@@ -199,10 +199,10 @@ void BgHidanHamstep_Init(Actor* thisx, PlayState* play) {
 void BgHidanHamstep_Destroy(Actor* thisx, PlayState* play) {
     BgHidanHamstep* this = (BgHidanHamstep*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 
     if ((this->dyna.actor.params & 0xFF) == 0) {
-        Collider_DestroyTris(play, &this->collider);
+        OoT_Collider_DestroyTris(play, &this->collider);
     }
 }
 
@@ -216,8 +216,8 @@ void func_808884C8(BgHidanHamstep* step, PlayState* play) {
 
     func_80033480(play, &pos, 0.0f, 0, 600, 300, 0);
 
-    sin = Math_SinS(step->dyna.actor.shape.rot.y + 0x8000);
-    cos = Math_CosS(step->dyna.actor.shape.rot.y + 0x8000);
+    sin = OoT_Math_SinS(step->dyna.actor.shape.rot.y + 0x8000);
+    cos = OoT_Math_CosS(step->dyna.actor.shape.rot.y + 0x8000);
 
     pos.y = step->dyna.actor.world.pos.y;
 
@@ -283,9 +283,9 @@ void func_808887C4(BgHidanHamstep* this, PlayState* play) {
         Audio_PlayActorSound2(&this->dyna.actor, NA_SE_EV_HAMMER_SWITCH);
         this->collider.base.acFlags = AC_NONE;
         BgHidanHamstep_SetupAction(this, 1);
-        Flags_SetSwitch(play, (this->dyna.actor.params >> 8) & 0xFF);
+        OoT_Flags_SetSwitch(play, (this->dyna.actor.params >> 8) & 0xFF);
     } else {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -308,7 +308,7 @@ void func_80888860(BgHidanHamstep* this, PlayState* play) {
 
             if (this->unk_244 == 1) {
                 quakeIndex = Quake_Add(GET_ACTIVE_CAM(play), 3);
-                Quake_SetSpeed(quakeIndex, -15536);
+                OoT_Quake_SetSpeed(quakeIndex, -15536);
                 Quake_SetQuakeValues(quakeIndex, 0, 0, 500, 0);
                 Quake_SetCountdown(quakeIndex, 20);
                 Audio_PlayActorSound2(&this->dyna.actor, NA_SE_EV_BLOCK_BOUND);
@@ -365,7 +365,7 @@ void func_80888A58(BgHidanHamstep* this, PlayState* play) {
 
             if (this->unk_244 == 1) {
                 quakeIndex = Quake_Add(GET_ACTIVE_CAM(play), 3);
-                Quake_SetSpeed(quakeIndex, -15536);
+                OoT_Quake_SetSpeed(quakeIndex, -15536);
                 Quake_SetQuakeValues(quakeIndex, 20, 1, 0, 0);
                 Quake_SetCountdown(quakeIndex, 7);
 

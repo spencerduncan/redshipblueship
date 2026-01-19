@@ -1,6 +1,6 @@
 #include "global.h"
 
-s32 osStopTimer(OSTimer* timer) {
+s32 OoT_osStopTimer(OSTimer* timer) {
     register u32 prevInt;
     OSTimer* next;
 

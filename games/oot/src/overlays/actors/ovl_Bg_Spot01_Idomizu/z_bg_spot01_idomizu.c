@@ -29,15 +29,15 @@ const ActorInit Bg_Spot01_Idomizu_InitVars = {
     NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
 
 void BgSpot01Idomizu_Init(Actor* thisx, PlayState* play) {
     BgSpot01Idomizu* this = (BgSpot01Idomizu*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    if (Flags_GetEventChkInf(EVENTCHKINF_DRAINED_WELL_IN_KAKARIKO) || LINK_AGE_IN_YEARS == YEARS_ADULT) {
+    OoT_Actor_ProcessInitChain(&this->actor, OoT_sInitChain);
+    if (OoT_Flags_GetEventChkInf(EVENTCHKINF_DRAINED_WELL_IN_KAKARIKO) || LINK_AGE_IN_YEARS == YEARS_ADULT) {
         this->waterHeight = -550.0f;
     } else {
         this->waterHeight = 52.0f;
@@ -50,15 +50,15 @@ void BgSpot01Idomizu_Destroy(Actor* thisx, PlayState* play) {
 }
 
 void BgSpot01Idomizu_UpdateWaterLevel(BgSpot01Idomizu* this, PlayState* play) {
-    if (Flags_GetEventChkInf(EVENTCHKINF_DRAINED_WELL_IN_KAKARIKO)) {
+    if (OoT_Flags_GetEventChkInf(EVENTCHKINF_DRAINED_WELL_IN_KAKARIKO)) {
         this->waterHeight = -550.0f;
     }
     play->colCtx.colHeader->waterBoxes[0].ySurface = this->actor.world.pos.y;
     if (this->waterHeight < this->actor.world.pos.y) {
-        Audio_PlaySoundGeneral(NA_SE_EV_WATER_LEVEL_DOWN - SFX_FLAG, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_EV_WATER_LEVEL_DOWN - SFX_FLAG, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     }
-    Math_ApproachF(&this->actor.world.pos.y, this->waterHeight, 1.0f, 2.0f);
+    OoT_Math_ApproachF(&this->actor.world.pos.y, this->waterHeight, 1.0f, 2.0f);
 }
 
 void BgSpot01Idomizu_Update(Actor* thisx, PlayState* play) {
@@ -78,7 +78,7 @@ void BgSpot01Idomizu_Draw(Actor* thisx, PlayState* play) {
 
     frames = play->state.frames;
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               Gfx_TwoTexScroll(play->state.gfxCtx, 0, 127 - frames % 128, frames & 0x7F, 32, 32, 1, frames % 128,
+               OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 127 - frames % 128, frames & 0x7F, 32, 32, 1, frames % 128,
                                 frames & 0x7F, 32, 32));
 
     gSPDisplayList(POLY_XLU_DISP++, gKakarikoWellWaterDL);

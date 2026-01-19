@@ -1,6 +1,6 @@
 #include "ultra64.h"
 
-OSMesgQueue* osPiGetCmdQueue(void) {
+OSMesgQueue* MM_osPiGetCmdQueue(void) {
     if (!__osPiDevMgr.active) {
         return NULL;
     }

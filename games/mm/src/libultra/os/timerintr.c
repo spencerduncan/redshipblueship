@@ -48,7 +48,7 @@ void __osTimerInterrupt(void) {
             t->next = NULL;
             t->prev = NULL;
             if (t->mq != NULL) {
-                osSendMesg(t->mq, t->msg, OS_MESG_NOBLOCK);
+                MM_osSendMesg(t->mq, t->msg, OS_MESG_NOBLOCK);
             }
             if (t->interval != 0) {
                 t->value = t->interval;

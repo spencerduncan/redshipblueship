@@ -71,27 +71,27 @@ void Check_ClearRGBA16(u16* buffer) {
  * Draw error message textures directly to a screen buffer at the end of normal RDRAM
  */
 void Check_DrawExpansionPakErrorMessage(void) {
-    DmaMgr_SendRequest0(CHECK_ERRMSG_STATIC_SEGMENT, SEGMENT_ROM_START(memerrmsg), SEGMENT_SIZE(memerrmsg));
+    MM_DmaMgr_SendRequest0(CHECK_ERRMSG_STATIC_SEGMENT, SEGMENT_ROM_START(memerrmsg), SEGMENT_SIZE(memerrmsg));
     Check_ClearRGBA16((u16*)FAULT_FB_ADDRESS);
     Check_DrawI4Texture((u16*)FAULT_FB_ADDRESS, 96, 71, MEMERRMSG_WIDTH, MEMERRMSG_HEIGHT, CHECK_ERRMSG_STATIC_SEGMENT);
     Check_DrawI4Texture((u16*)FAULT_FB_ADDRESS, 96, 127, MEMERRMSG_WIDTH, MEMERRMSG_HEIGHT,
                         CHECK_ERRMSG_STATIC_SEGMENT + MEMERRMSG_WIDTH * MEMERRMSG_HEIGHT / 2);
     osWritebackDCacheAll();
-    osViSwapBuffer((u16*)FAULT_FB_ADDRESS);
-    osViBlack(false);
+    MM_osViSwapBuffer((u16*)FAULT_FB_ADDRESS);
+    MM_osViBlack(false);
 }
 
 /**
  * Draw error message texture directly to a screen buffer at the end of normal RDRAM
  */
 void Check_DrawRegionLockErrorMessage(void) {
-    DmaMgr_SendRequest0(CHECK_ERRMSG_STATIC_SEGMENT, SEGMENT_ROM_START(locerrmsg), SEGMENT_SIZE(locerrmsg));
+    MM_DmaMgr_SendRequest0(CHECK_ERRMSG_STATIC_SEGMENT, SEGMENT_ROM_START(locerrmsg), SEGMENT_SIZE(locerrmsg));
     Check_ClearRGBA16((u16*)FAULT_FB_ADDRESS);
     Check_DrawI4Texture((u16*)FAULT_FB_ADDRESS, 56, 112, LOCERRMSG_WIDTH, LOCERRMSG_HEIGHT,
                         CHECK_ERRMSG_STATIC_SEGMENT);
     osWritebackDCacheAll();
-    osViSwapBuffer((u16*)FAULT_FB_ADDRESS);
-    osViBlack(false);
+    MM_osViSwapBuffer((u16*)FAULT_FB_ADDRESS);
+    MM_osViBlack(false);
 }
 
 /**
@@ -104,7 +104,7 @@ void Check_ExpansionPak(void) {
     }
 
     Check_DrawExpansionPakErrorMessage();
-    osDestroyThread(NULL);
+    MM_osDestroyThread(NULL);
     while (true) {}
 }
 
@@ -120,7 +120,7 @@ void Check_RegionIsSupported(void) {
 
     if (!regionSupported) {
         Check_DrawRegionLockErrorMessage();
-        osDestroyThread(NULL);
+        MM_osDestroyThread(NULL);
         while (true) {}
     }
 }

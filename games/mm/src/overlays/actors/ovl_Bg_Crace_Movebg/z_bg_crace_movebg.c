@@ -56,7 +56,7 @@ ActorProfile Bg_Crace_Movebg_Profile = {
 static u8 sHasInitializedIsLoaded = 0;
 static u8 sLoadedDoorCount = 0;
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 1000, ICHAIN_STOP),
 };
 
@@ -67,7 +67,7 @@ void BgCraceMovebg_Init(Actor* thisx, PlayState* play) {
     s32 i;
     s32 j;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
     if (!sHasInitializedIsLoaded) {
         for (i = 0; i < ARRAY_COUNT(sIsLoaded); i++) {
             sIsLoaded[i] = 0;
@@ -75,7 +75,7 @@ void BgCraceMovebg_Init(Actor* thisx, PlayState* play) {
         sHasInitializedIsLoaded = true;
     }
 
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
     DynaPolyActor_LoadMesh(play, &this->dyna, &gDekuShrineSlidingDoorCol);
 
     this->index = BG_CRACE_MOVEBG_GET_INDEX(&this->dyna.actor);
@@ -92,7 +92,7 @@ void BgCraceMovebg_Init(Actor* thisx, PlayState* play) {
             for (j = 0; j < sLoadedDoorCount; j++) {
                 if (sIsLoaded[j] == this->index) {
                     this->stateFlags |= BG_CRACE_MOVEBG_FLAG_ALREADY_LOADED;
-                    Actor_Kill(&this->dyna.actor);
+                    MM_Actor_Kill(&this->dyna.actor);
                     return;
                 }
             }
@@ -114,7 +114,7 @@ void BgCraceMovebg_Init(Actor* thisx, PlayState* play) {
 
                 case BG_CRACE_MOVEBG_RACE_STATUS_SUBSEQUENT_RACE:
                     // Makes sure no lingering switch flags are set from the last time the player did a race.
-                    Flags_UnsetSwitch(play, BG_CRACE_MOVEBG_GET_SWITCH_FLAG(&this->dyna.actor) + 1);
+                    MM_Flags_UnsetSwitch(play, BG_CRACE_MOVEBG_GET_SWITCH_FLAG(&this->dyna.actor) + 1);
                     BgCraceMovebg_ClosingDoor_SetupIdle(this, play);
                     break;
             }
@@ -125,7 +125,7 @@ void BgCraceMovebg_Init(Actor* thisx, PlayState* play) {
             break;
 
         default:
-            Actor_Kill(&this->dyna.actor);
+            MM_Actor_Kill(&this->dyna.actor);
             break;
     }
 }
@@ -136,7 +136,7 @@ s32 BgCraceMovebg_GetRaceStatus(PlayState* play) {
     Actor* butler = SubS_FindActor(play, NULL, ACTORCAT_NPC, ACTOR_EN_DNO);
 
     if (butler != NULL) {
-        if (Flags_GetSwitch(play, EN_DNO_GET_RACE_STARTED_SWITCH_FLAG(butler))) {
+        if (MM_Flags_GetSwitch(play, EN_DNO_GET_RACE_STARTED_SWITCH_FLAG(butler))) {
             raceStatus = BG_CRACE_MOVEBG_RACE_STATUS_SUBSEQUENT_RACE;
         } else {
             raceStatus = BG_CRACE_MOVEBG_RACE_STATUS_FIRST_RACE;
@@ -157,7 +157,7 @@ void BgCraceMovebg_OpeningDoor_SetupIdle(BgCraceMovebg* this, PlayState* play) {
  * Wait for this door's switch flag to be set, then start opening.
  */
 void BgCraceMovebg_OpeningDoor_Idle(BgCraceMovebg* this, PlayState* play) {
-    if (Flags_GetSwitch(play, BG_CRACE_MOVEBG_GET_SWITCH_FLAG(&this->dyna.actor))) {
+    if (MM_Flags_GetSwitch(play, BG_CRACE_MOVEBG_GET_SWITCH_FLAG(&this->dyna.actor))) {
         BgCraceMovebg_OpeningDoor_SetupOpen(this, play);
     }
 }
@@ -172,7 +172,7 @@ void BgCraceMovebg_OpeningDoor_SetupOpen(BgCraceMovebg* this, PlayState* play) {
  */
 void BgCraceMovebg_OpeningDoor_Open(BgCraceMovebg* this, PlayState* play) {
     Actor_PlaySfx_Flagged(&this->dyna.actor, NA_SE_EV_STONEDOOR_OPEN_S - SFX_FLAG);
-    Math_SmoothStepToF(&this->doorHeight, this->targetDoorHeight, 2.0f, this->openSpeed, 0.01f);
+    MM_Math_SmoothStepToF(&this->doorHeight, this->targetDoorHeight, 2.0f, this->openSpeed, 0.01f);
     this->dyna.actor.world.pos.y = this->dyna.actor.home.pos.y + this->doorHeight;
     if (this->doorHeight == this->targetDoorHeight) {
         BgCraceMovebg_OpeningDoor_SetupDoNothing(this, play);
@@ -189,17 +189,17 @@ void BgCraceMovebg_OpeningDoor_DoNothing(BgCraceMovebg* this, PlayState* play) {
 void BgCraceMovebg_Destroy(Actor* thisx, PlayState* play) {
     BgCraceMovebg* this = (BgCraceMovebg*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
     if (!(this->stateFlags & BG_CRACE_MOVEBG_FLAG_ALREADY_LOADED)) {
         switch (BG_CRACE_MOVEBG_GET_TYPE(&this->dyna.actor)) {
             case BG_CRACE_MOVEBG_TYPE_CLOSING:
             case BG_CRACE_MOVEBG_TYPE_UNUSED_CLOSING:
-                Flags_UnsetSwitch(play, BG_CRACE_MOVEBG_GET_SWITCH_FLAG(thisx));
-                Flags_UnsetSwitch(play, BG_CRACE_MOVEBG_GET_SWITCH_FLAG(thisx) + 1);
+                MM_Flags_UnsetSwitch(play, BG_CRACE_MOVEBG_GET_SWITCH_FLAG(thisx));
+                MM_Flags_UnsetSwitch(play, BG_CRACE_MOVEBG_GET_SWITCH_FLAG(thisx) + 1);
                 break;
 
             case BG_CRACE_MOVEBG_TYPE_OPENING:
-                Flags_UnsetSwitch(play, BG_CRACE_MOVEBG_GET_SWITCH_FLAG(thisx));
+                MM_Flags_UnsetSwitch(play, BG_CRACE_MOVEBG_GET_SWITCH_FLAG(thisx));
                 break;
         }
     }
@@ -227,7 +227,7 @@ void BgCraceMovebg_Update(Actor* thisx, PlayState* play) {
     }
 
     this->actionFunc(this, play);
-    Math_Vec3f_Copy(&this->prevPlayerPos, &player->bodyPartsPos[PLAYER_BODYPART_WAIST]);
+    MM_Math_Vec3f_Copy(&this->prevPlayerPos, &player->bodyPartsPos[PLAYER_BODYPART_WAIST]);
 }
 
 /**
@@ -245,16 +245,16 @@ void BgCraceMovebg_ClosingDoor_CheckIfPlayerIsBeyondDoor(BgCraceMovebg* this, Pl
         SubS_LineSegVsPlane(&this->dyna.actor.home.pos, &this->dyna.actor.home.rot, &sUnitVecZ, &this->prevPlayerPos,
                             &player->bodyPartsPos[PLAYER_BODYPART_WAIST], &intersect)) {
         Matrix_RotateYS(-this->dyna.actor.home.rot.y, MTXMODE_NEW);
-        Math_Vec3f_Diff(&player->bodyPartsPos[PLAYER_BODYPART_WAIST], &this->dyna.actor.home.pos, &posDiff);
-        Matrix_MultVec3f(&posDiff, &this->intersectionOffsetFromHome);
+        MM_Math_Vec3f_Diff(&player->bodyPartsPos[PLAYER_BODYPART_WAIST], &this->dyna.actor.home.pos, &posDiff);
+        MM_Matrix_MultVec3f(&posDiff, &this->intersectionOffsetFromHome);
 
         if ((fabsf(this->intersectionOffsetFromHome.x) < 100.0f) && (this->intersectionOffsetFromHome.y >= -10.0f) &&
             (this->intersectionOffsetFromHome.y <= 180.0f)) {
             if (this->intersectionOffsetFromHome.z < 0.0f) {
-                Flags_SetSwitch(play, BG_CRACE_MOVEBG_GET_SWITCH_FLAG(&this->dyna.actor) + 1);
+                MM_Flags_SetSwitch(play, BG_CRACE_MOVEBG_GET_SWITCH_FLAG(&this->dyna.actor) + 1);
                 this->stateFlags |= BG_CRACE_MOVEBG_FLAG_PLAYER_IS_BEYOND_DOOR;
             } else {
-                Flags_UnsetSwitch(play, BG_CRACE_MOVEBG_GET_SWITCH_FLAG(&this->dyna.actor) + 1);
+                MM_Flags_UnsetSwitch(play, BG_CRACE_MOVEBG_GET_SWITCH_FLAG(&this->dyna.actor) + 1);
                 this->stateFlags &= ~BG_CRACE_MOVEBG_FLAG_PLAYER_IS_BEYOND_DOOR;
             }
         }
@@ -281,7 +281,7 @@ void BgCraceMovebg_ClosingDoor_Idle(BgCraceMovebg* this, PlayState* play) {
         BgCraceMovebg_ClosingDoor_SetupWaitToClose(this, play);
     }
 
-    if (Flags_GetSwitch(play, BG_CRACE_MOVEBG_GET_SWITCH_FLAG(&this->dyna.actor))) {
+    if (MM_Flags_GetSwitch(play, BG_CRACE_MOVEBG_GET_SWITCH_FLAG(&this->dyna.actor))) {
         BgCraceMovebg_ClosingDoor_SetupClose(this, play);
     }
 }
@@ -308,7 +308,7 @@ void BgCraceMovebg_ClosingDoor_WaitToClose(BgCraceMovebg* this, PlayState* play)
         this->doorHeight = 180.0f;
         this->targetDoorHeight = 0.0f;
         this->dyna.actor.world.pos.y = this->dyna.actor.home.pos.y + 180.0f;
-        Flags_SetSwitch(play, BG_CRACE_MOVEBG_GET_SWITCH_FLAG(&this->dyna.actor));
+        MM_Flags_SetSwitch(play, BG_CRACE_MOVEBG_GET_SWITCH_FLAG(&this->dyna.actor));
         BgCraceMovebg_ClosingDoor_SetupClose(this, play);
     }
 }
@@ -325,9 +325,9 @@ void BgCraceMovebg_ClosingDoor_Close(BgCraceMovebg* this, PlayState* play) {
     this->dyna.actor.world.pos.y = this->dyna.actor.home.pos.y + this->doorHeight;
     BgCraceMovebg_ClosingDoor_CheckIfPlayerIsBeyondDoor(this, play);
 
-    if (Math_StepToF(&this->doorHeight, 0.0f, 1.0f)) {
+    if (MM_Math_StepToF(&this->doorHeight, 0.0f, 1.0f)) {
         if (!(this->stateFlags & BG_CRACE_MOVEBG_FLAG_PLAYER_IS_BEYOND_DOOR) &&
-            !Flags_GetSwitch(play, BG_CRACE_MOVEBG_GET_SWITCH_FLAG(&this->dyna.actor) + 1)) {
+            !MM_Flags_GetSwitch(play, BG_CRACE_MOVEBG_GET_SWITCH_FLAG(&this->dyna.actor) + 1)) {
             play->haltAllActors = true;
             func_80169FDC(play);
             Audio_PlaySfx(NA_SE_OC_ABYSS);
@@ -351,7 +351,7 @@ void BgCraceMovebg_ClosingDoor_DoNothing(BgCraceMovebg* this, PlayState* play) {
 }
 
 void BgCraceMovebg_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, gDekuShrineSlidingDoorDL);
+    MM_Gfx_DrawDListOpa(play, gDekuShrineSlidingDoorDL);
 }
 
 void BgCraceMovebg_Reset(void) {

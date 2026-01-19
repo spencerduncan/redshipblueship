@@ -42,10 +42,10 @@ static Vec3f sUnitVecZ = { 0.0f, 0.0f, 1.0f };
 void EnPaper_Init(Actor* thisx, PlayState* play) {
     EnPaper* this = (EnPaper*)thisx;
 
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->timer = 70;
     this->windForce = sUnitVecZ;
-    Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4);
     EnPaper_SetupSpreadConfettiGroup(this);
 }
 
@@ -86,29 +86,29 @@ void EnPaper_FlyConfettiGroup(EnPaper* this, PlayState* play) {
 
 void EnPaper_InitConfettiPiece(EnPaper* this, EnPaperConfetto* piece) {
     // Pick rotation axis randomly (significantly biased towards the z = 0 plane)
-    Matrix_RotateZYX(Rand_Next(), Rand_Next(), Rand_Next(), MTXMODE_NEW);
-    Matrix_MultVec3f(&sUnitVecZ, &piece->rotAxis);
+    MM_Matrix_RotateZYX(MM_Rand_Next(), MM_Rand_Next(), MM_Rand_Next(), MTXMODE_NEW);
+    MM_Matrix_MultVec3f(&sUnitVecZ, &piece->rotAxis);
 
     // copy actor position and distribute uniformly in a cube of side 2 around it
     piece->pos = this->actor.world.pos;
-    piece->pos.x += Rand_Centered() * 4.0f;
-    piece->pos.y += Rand_Centered() * 4.0f;
-    piece->pos.z += Rand_Centered() * 4.0f;
+    piece->pos.x += MM_Rand_Centered() * 4.0f;
+    piece->pos.y += MM_Rand_Centered() * 4.0f;
+    piece->pos.z += MM_Rand_Centered() * 4.0f;
 
     // copy actor velocity and distrbute uniformly in a cuboid with sides 9, 6, 9 with actor.velocity in the middle
     // of the base.
     piece->velocity = this->actor.velocity;
-    piece->velocity.x += Rand_Centered() * 9.0f;
-    piece->velocity.y += Rand_ZeroOne() * 6.0f;
-    piece->velocity.z += Rand_Centered() * 9.0f;
+    piece->velocity.x += MM_Rand_Centered() * 9.0f;
+    piece->velocity.y += MM_Rand_ZeroOne() * 6.0f;
+    piece->velocity.z += MM_Rand_Centered() * 9.0f;
 
     // Choose random starting angle and angular velocity
-    piece->angle = Rand_Next();
-    piece->angVel = (Rand_Next() >> 4) + (0x10000 / 180);
+    piece->angle = MM_Rand_Next();
+    piece->angVel = (MM_Rand_Next() >> 4) + (0x10000 / 180);
 
     // Rotate the unit Z-vector by the random starting axis and angle
     Matrix_RotateAxisS(piece->angle, &piece->rotAxis, MTXMODE_NEW);
-    Matrix_MultVec3f(&sUnitVecZ, &piece->normal);
+    MM_Matrix_MultVec3f(&sUnitVecZ, &piece->normal);
 }
 
 /**
@@ -129,8 +129,8 @@ void EnPaper_InitConfettiPiece(EnPaper* this, EnPaperConfetto* piece) {
  * and the product is componentwise: the normal is being used as a cross-sectional area measure rather than vectorially.
  */
 void EnPaper_FlyConfettiPiece(EnPaper* this, EnPaperConfetto* piece) {
-    f32 cos = Math_CosS(piece->angle);
-    f32 sin = Math_SinS(piece->angle);
+    f32 cos = MM_Math_CosS(piece->angle);
+    f32 sin = MM_Math_SinS(piece->angle);
     f32 versin = 1.0f - cos;
 
     if (piece->pos.y < (this->actor.floorHeight - 40.0f)) {
@@ -167,18 +167,18 @@ void EnPaper_FlyConfettiPiece(EnPaper* this, EnPaperConfetto* piece) {
  * for the next frame.
  */
 void EnPaper_UpdateWind(EnPaper* this) {
-    f32 strength = (Rand_Centered() * 4.0f) + 6.0f;
+    f32 strength = (MM_Rand_Centered() * 4.0f) + 6.0f;
     f32 cosX;
 
-    this->windForce.y = Math_SinS(this->actor.shape.rot.x) * -strength;
-    cosX = Math_CosS(this->actor.shape.rot.x) * -strength;
-    this->windForce.x = Math_SinS(this->actor.shape.rot.y) * cosX;
-    this->windForce.z = Math_CosS(this->actor.shape.rot.y) * cosX;
+    this->windForce.y = MM_Math_SinS(this->actor.shape.rot.x) * -strength;
+    cosX = MM_Math_CosS(this->actor.shape.rot.x) * -strength;
+    this->windForce.x = MM_Math_SinS(this->actor.shape.rot.y) * cosX;
+    this->windForce.z = MM_Math_CosS(this->actor.shape.rot.y) * cosX;
 
     // New random wind direction. A uniform distribution of the angles in spherical coordinates is not uniformly
     // distributed on the sphere, so this is biased more towards up and down.
-    this->actor.shape.rot.x += (s16)(Rand_Next() >> 8);
-    this->actor.shape.rot.y += (s16)(Rand_Next() >> 6);
+    this->actor.shape.rot.x += (s16)(MM_Rand_Next() >> 8);
+    this->actor.shape.rot.y += (s16)(MM_Rand_Next() >> 6);
 
     // Essentially a clamp
     if (ABS_ALT(this->actor.shape.rot.x) > WIND_PITCH_BOUND) {
@@ -197,7 +197,7 @@ void EnPaper_Update(Actor* thisx, PlayState* play) {
     EnPaper_UpdateWind(this);
 
     if (this->timer == 0) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 

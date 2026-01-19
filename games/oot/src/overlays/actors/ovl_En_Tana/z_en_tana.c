@@ -37,7 +37,7 @@ static const char* sShelfTypes[] = {
     "石の棚", // "Stone Shelves"
 };
 
-static const ActorFunc sDrawFuncs[] = {
+static const ActorFunc OoT_sDrawFuncs[] = {
     EnTana_DrawWoodenShelves,
     EnTana_DrawStoneShelves,
     EnTana_DrawStoneShelves,
@@ -59,9 +59,9 @@ void EnTana_Init(Actor* thisx, PlayState* play) {
     EnTana* this = (EnTana*)thisx;
 
     osSyncPrintf("☆☆☆ %s ☆☆☆\n", sShelfTypes[thisx->params]);
-    Actor_SetScale(thisx, 1.0f);
+    OoT_Actor_SetScale(thisx, 1.0f);
     thisx->flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
-    thisx->draw = sDrawFuncs[thisx->params];
+    thisx->draw = OoT_sDrawFuncs[thisx->params];
 }
 
 void EnTana_Destroy(Actor* thisx, PlayState* play) {

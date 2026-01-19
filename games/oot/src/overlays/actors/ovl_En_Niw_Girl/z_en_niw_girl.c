@@ -33,7 +33,7 @@ const ActorInit En_Niw_Girl_InitVars = {
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -60,9 +60,9 @@ void EnNiwGirl_Init(Actor* thisx, PlayState* play) {
     Vec3f vec2;
     s32 pad2;
 
-    SkelAnime_InitFlex(play, &this->skelAnime, &gNiwGirlSkel, &gNiwGirlRunAnim, this->jointTable, this->morphTable, 17);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gNiwGirlSkel, &gNiwGirlRunAnim, this->jointTable, this->morphTable, 17);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
     this->actor.targetMode = 6;
     if (this->actor.params < 0) {
         this->actor.params = 0;
@@ -73,8 +73,8 @@ void EnNiwGirl_Init(Actor* thisx, PlayState* play) {
     vec2.x = vec2.y = vec2.z = 0.0f;
     vec1.x = vec1.y = 0.0f;
     vec1.z = 50.0;
-    Matrix_MultVec3f(&vec1, &vec2);
-    this->chasedEnNiw = (EnNiw*)Actor_SpawnAsChild(
+    OoT_Matrix_MultVec3f(&vec1, &vec2);
+    this->chasedEnNiw = (EnNiw*)OoT_Actor_SpawnAsChild(
         &play->actorCtx, &this->actor, play, ACTOR_EN_NIW, this->actor.world.pos.x + vec2.x,
         this->actor.world.pos.y + vec2.y, this->actor.world.pos.z + vec2.z, 0, this->actor.world.rot.y, 0, 0xA);
     if (this->chasedEnNiw != NULL) {
@@ -88,7 +88,7 @@ void EnNiwGirl_Init(Actor* thisx, PlayState* play) {
         osSyncPrintf(VT_FGCOL(GREEN) "☆☆☆☆☆ なぜか、セットできむぅあせん ☆☆☆☆☆ %d\n" VT_RST, this->actor.params);
         osSyncPrintf(VT_FGCOL(YELLOW) "☆☆☆☆☆ んんがくく ☆☆☆☆☆ %d\n" VT_RST, this->path);
         osSyncPrintf("\n\n");
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
@@ -99,8 +99,8 @@ void EnNiwGirl_Destroy(Actor* thisx, PlayState* play) {
 }
 
 void EnNiwGirl_Jump(EnNiwGirl* this, PlayState* play) {
-    f32 frameCount = Animation_GetLastFrame(&gNiwGirlRunAnim);
-    Animation_Change(&this->skelAnime, &gNiwGirlRunAnim, 1.0f, 0.0f, frameCount, 0, -10.0f);
+    f32 frameCount = OoT_Animation_GetLastFrame(&gNiwGirlRunAnim);
+    OoT_Animation_Change(&this->skelAnime, &gNiwGirlRunAnim, 1.0f, 0.0f, frameCount, 0, -10.0f);
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
     this->actionFunc = func_80AB9210;
 }
@@ -110,44 +110,44 @@ void func_80AB9210(EnNiwGirl* this, PlayState* play) {
     f32 xDistBetween;
     f32 zDistBetween;
 
-    SkelAnime_Update(&this->skelAnime);
-    Math_ApproachF(&this->actor.speedXZ, 3.0f, 0.2f, 0.4f);
+    OoT_SkelAnime_Update(&this->skelAnime);
+    OoT_Math_ApproachF(&this->actor.speedXZ, 3.0f, 0.2f, 0.4f);
 
     // Find the X and Z distance between the girl and the cuckoo she is chasing
     xDistBetween = this->chasedEnNiw->actor.world.pos.x - this->actor.world.pos.x;
     zDistBetween = this->chasedEnNiw->actor.world.pos.z - this->actor.world.pos.z;
-    if (Message_GetState(&play->msgCtx) != TEXT_STATE_NONE) {
+    if (OoT_Message_GetState(&play->msgCtx) != TEXT_STATE_NONE) {
         this->chasedEnNiw->path = 0;
     }
-    if (sqrtf(SQ(xDistBetween) + SQ(zDistBetween)) < 70.0f) {
+    if (OoT_sqrtf(SQ(xDistBetween) + SQ(zDistBetween)) < 70.0f) {
         this->chasedEnNiw->path = (this->path + 1);
         this->chasedEnNiw->unk_2EC = path->count;
-    } else if (sqrtf(SQ(xDistBetween) + SQ(zDistBetween)) > 150.0f) {
+    } else if (OoT_sqrtf(SQ(xDistBetween) + SQ(zDistBetween)) > 150.0f) {
         this->chasedEnNiw->path = 0;
     }
 
     // Change her angle so that she is always facing the cuckoo
-    Math_SmoothStepToS(&this->actor.shape.rot.y, Math_FAtan2F(xDistBetween, zDistBetween) * (0x8000 / M_PI), 3,
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, OoT_Math_FAtan2F(xDistBetween, zDistBetween) * (0x8000 / M_PI), 3,
                        this->unk_27C, 0);
-    Math_ApproachF(&this->unk_27C, 5000.0f, 30.0f, 150.0f);
+    OoT_Math_ApproachF(&this->unk_27C, 5000.0f, 30.0f, 150.0f);
     this->actor.world.rot.y = this->actor.shape.rot.y;
 
     // Only allow Link to talk to her when she is playing the jumping animation
-    if ((this->jumpTimer == 0) || (Player_GetMask(play) != PLAYER_MASK_NONE)) {
+    if ((this->jumpTimer == 0) || (OoT_Player_GetMask(play) != PLAYER_MASK_NONE)) {
         this->jumpTimer = 60;
         this->actionFunc = EnNiwGirl_Talk;
     }
 }
 
 void EnNiwGirl_Talk(EnNiwGirl* this, PlayState* play) {
-    Animation_Change(&this->skelAnime, &gNiwGirlJumpAnim, 1.0f, 0.0f, Animation_GetLastFrame(&gNiwGirlJumpAnim), 0,
+    OoT_Animation_Change(&this->skelAnime, &gNiwGirlJumpAnim, 1.0f, 0.0f, OoT_Animation_GetLastFrame(&gNiwGirlJumpAnim), 0,
                      -10.0f);
     this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
     this->actor.textId = 0x7000;
-    if ((Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE)) && (this->unk_27A == 0)) {
+    if ((OoT_Flags_GetEventChkInf(EVENTCHKINF_ZELDA_FLED_HYRULE_CASTLE)) && (this->unk_27A == 0)) {
         this->actor.textId = 0x70EA;
     }
-    switch (Player_GetMask(play)) {
+    switch (OoT_Player_GetMask(play)) {
         case PLAYER_MASK_KEATON:
             this->actor.textId = 0x7118;
             break;
@@ -170,18 +170,18 @@ void EnNiwGirl_Talk(EnNiwGirl* this, PlayState* play) {
 }
 
 void func_80AB94D0(EnNiwGirl* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    if (Message_GetState(&play->msgCtx) != TEXT_STATE_NONE) {
+    OoT_SkelAnime_Update(&this->skelAnime);
+    if (OoT_Message_GetState(&play->msgCtx) != TEXT_STATE_NONE) {
         this->chasedEnNiw->path = 0;
     }
-    Math_ApproachZeroF(&this->actor.speedXZ, 0.8f, 0.2f);
+    OoT_Math_ApproachZeroF(&this->actor.speedXZ, 0.8f, 0.2f);
     if (Actor_ProcessTalkRequest(&this->actor, play)) {
         if (this->actor.textId == 0x70EA) {
             this->unk_27A = 1;
         }
     } else {
-        if ((this->jumpTimer == 0) && Message_GetState(&play->msgCtx) == TEXT_STATE_NONE) {
-            this->jumpTimer = Rand_ZeroFloat(100.0f) + 250.0f;
+        if ((this->jumpTimer == 0) && OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_NONE) {
+            this->jumpTimer = OoT_Rand_ZeroFloat(100.0f) + 250.0f;
             this->actionFunc = EnNiwGirl_Jump;
         } else {
             func_8002F2CC(&this->actor, play, 100.0f);
@@ -194,30 +194,30 @@ void EnNiwGirl_Update(Actor* thisx, PlayState* play) {
     EnNiwGirlActionFunc tempActionFunc;
     Player* player = GET_PLAYER(play);
 
-    Actor_SetScale(&this->actor, 0.013f);
+    OoT_Actor_SetScale(&this->actor, 0.013f);
     this->unkUpTimer++;
     tempActionFunc = func_80AB94D0;
     if (this->blinkTimer == 0) {
         this->eyeIndex++;
         if (this->eyeIndex >= 3) {
             this->eyeIndex = 0;
-            this->blinkTimer = (s16)Rand_ZeroFloat(60.0f) + 20;
+            this->blinkTimer = (s16)OoT_Rand_ZeroFloat(60.0f) + 20;
         }
     }
     this->unk_280 = 30.0f;
-    Actor_SetFocus(&this->actor, 30.0f);
+    OoT_Actor_SetFocus(&this->actor, 30.0f);
     if (tempActionFunc == this->actionFunc) {
         this->interactInfo.trackPos = player->actor.world.pos;
         if (!LINK_IS_ADULT) {
             this->interactInfo.trackPos.y = player->actor.world.pos.y - 10.0f;
         }
-        Npc_TrackPoint(&this->actor, &this->interactInfo, 2, NPC_TRACKING_FULL_BODY);
+        OoT_Npc_TrackPoint(&this->actor, &this->interactInfo, 2, NPC_TRACKING_FULL_BODY);
         this->unk_260 = this->interactInfo.headRot;
         this->unk_266 = this->interactInfo.torsoRot;
     } else {
-        Math_SmoothStepToS(&this->unk_266.y, 0, 5, 3000, 0);
-        Math_SmoothStepToS(&this->unk_260.y, 0, 5, 3000, 0);
-        Math_SmoothStepToS(&this->unk_260.z, 0, 5, 3000, 0);
+        OoT_Math_SmoothStepToS(&this->unk_266.y, 0, 5, 3000, 0);
+        OoT_Math_SmoothStepToS(&this->unk_260.y, 0, 5, 3000, 0);
+        OoT_Math_SmoothStepToS(&this->unk_260.z, 0, 5, 3000, 0);
     }
     if (this->blinkTimer != 0) {
         this->blinkTimer--;
@@ -227,9 +227,9 @@ void EnNiwGirl_Update(Actor* thisx, PlayState* play) {
     }
     this->actionFunc(this, play);
     Actor_MoveXZGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 100.0f, 100.0f, 200.0f, 0x1C);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 100.0f, 100.0f, 200.0f, 0x1C);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 s32 EnNiwGirlOverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {

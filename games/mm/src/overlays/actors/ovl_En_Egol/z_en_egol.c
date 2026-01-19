@@ -172,7 +172,7 @@ static ColliderJntSphElementInit sBodySphElementsInit[6] = {
     },
 };
 
-static ColliderJntSphInit sBodyJntSphInit = {
+static ColliderJntSphInit MM_sBodyJntSphInit = {
     {
         COL_MATERIAL_METAL,
         AT_ON | AT_TYPE_ENEMY,
@@ -225,7 +225,7 @@ typedef enum {
     /* 0xF */ EYEGORE_DMGEFF_IMMUNE_F
 } EnEgolDamageEffect;
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(0, EYEGORE_DMGEFF_IMMUNE_F),
     /* Deku Stick     */ DMG_ENTRY(0, EYEGORE_DMGEFF_IMMUNE_F),
     /* Horse trample  */ DMG_ENTRY(0, EYEGORE_DMGEFF_IMMUNE_0),
@@ -308,7 +308,7 @@ typedef enum {
     /* 15 */ EYEGORE_ANIM_MAX
 } EnEgolAnimation;
 
-static AnimationHeader* sAnimations[EYEGORE_ANIM_MAX] = {
+static AnimationHeader* MM_sAnimations[EYEGORE_ANIM_MAX] = {
     &gEyegoreStandAnim,          // EYEGORE_ANIM_STAND
     &gEyegoreWalkAnim,           // EYEGORE_ANIM_WALK
     &gEyegoreSlamAnim,           // EYEGORE_ANIM_SLAM
@@ -326,7 +326,7 @@ static AnimationHeader* sAnimations[EYEGORE_ANIM_MAX] = {
     &gEyegoreRightPunchAnim,     // EYEGORE_ANIM_RIGHT_PUNCH
 };
 
-static u8 sAnimationModes[EYEGORE_ANIM_MAX] = {
+static u8 MM_sAnimationModes[EYEGORE_ANIM_MAX] = {
     ANIMMODE_ONCE, // EYEGORE_ANIM_STAND
     ANIMMODE_LOOP, // EYEGORE_ANIM_WALK
     ANIMMODE_ONCE, // EYEGORE_ANIM_SLAM
@@ -346,13 +346,13 @@ static u8 sAnimationModes[EYEGORE_ANIM_MAX] = {
 
 void EnEgol_ChangeAnim(EnEgol* this, s32 animIndex) {
     this->animIndex = animIndex;
-    this->animEndFrame = Animation_GetLastFrame(sAnimations[this->animIndex]);
-    Animation_Change(&this->skelAnime, sAnimations[this->animIndex], 1.0f, 0.0f, this->animEndFrame,
-                     sAnimationModes[this->animIndex], 0.0f);
+    this->animEndFrame = MM_Animation_GetLastFrame(MM_sAnimations[this->animIndex]);
+    MM_Animation_Change(&this->skelAnime, MM_sAnimations[this->animIndex], 1.0f, 0.0f, this->animEndFrame,
+                     MM_sAnimationModes[this->animIndex], 0.0f);
 }
 
 void EnEgol_FootstepEffects(EnEgol* this, PlayState* play, f32 leftFootFrame, f32 rightFootFrame) {
-    if (Animation_OnFrame(&this->skelAnime, leftFootFrame) || Animation_OnFrame(&this->skelAnime, rightFootFrame)) {
+    if (MM_Animation_OnFrame(&this->skelAnime, leftFootFrame) || MM_Animation_OnFrame(&this->skelAnime, rightFootFrame)) {
         Vec3f spawnPos;
         Player* player = GET_PLAYER(play);
         s32 quakeYOffset;
@@ -369,14 +369,14 @@ void EnEgol_FootstepEffects(EnEgol* this, PlayState* play, f32 leftFootFrame, f3
         if (player->stateFlags3 != PLAYER_STATE3_1000000) {
             Actor_RequestQuakeAndRumble(&this->actor, play, quakeYOffset, 2);
         }
-        if (Animation_OnFrame(&this->skelAnime, leftFootFrame)) {
-            Math_Vec3f_Copy(&spawnPos, &this->leftFootPos);
+        if (MM_Animation_OnFrame(&this->skelAnime, leftFootFrame)) {
+            MM_Math_Vec3f_Copy(&spawnPos, &this->leftFootPos);
             spawnPos.y = this->actor.floorHeight;
-            Actor_SpawnFloorDustRing(play, &this->actor, &spawnPos, 0.0f, 10, 6.0f, 50, 30, true);
+            MM_Actor_SpawnFloorDustRing(play, &this->actor, &spawnPos, 0.0f, 10, 6.0f, 50, 30, true);
         } else {
-            Math_Vec3f_Copy(&spawnPos, &this->rightFootPos);
+            MM_Math_Vec3f_Copy(&spawnPos, &this->rightFootPos);
             spawnPos.y = this->actor.floorHeight;
-            Actor_SpawnFloorDustRing(play, &this->actor, &spawnPos, 0.0f, 10, 6.0f, 50, 30, true);
+            MM_Actor_SpawnFloorDustRing(play, &this->actor, &spawnPos, 0.0f, 10, 6.0f, 50, 30, true);
         }
     }
 }
@@ -403,12 +403,12 @@ void EnEgol_DestroyBlocks(EnEgol* this, PlayState* play, Vec3f pos1, Vec3f pos2)
             blockTo2.y = pos2.y - prop->world.pos.y;
             blockTo2.z = pos2.z - prop->world.pos.z;
 
-            dist1 = sqrtf(SQXZ(blockTo1));
-            dist2 = sqrtf(SQXZ(blockTo2));
+            dist1 = MM_sqrtf(SQXZ(blockTo1));
+            dist2 = MM_sqrtf(SQXZ(blockTo2));
 
             if ((dist1 < 40.0f) || (dist2 < 40.0f)) {
-                dist1 = sqrtf(SQ(blockTo1.y));
-                dist2 = sqrtf(SQ(blockTo2.y));
+                dist1 = MM_sqrtf(SQ(blockTo1.y));
+                dist2 = MM_sqrtf(SQ(blockTo2.y));
                 if ((dist1 < 40.0f) || (dist2 < 40.0f)) {
                     prop->colChkInfo.health = 0;
                     Actor_PlaySfx(&this->actor, NA_SE_EV_WALL_BROKEN);
@@ -423,7 +423,7 @@ void EnEgol_DestroyBlocks(EnEgol* this, PlayState* play, Vec3f pos1, Vec3f pos2)
 void EnEgol_GetWaypoint(EnEgol* this) {
     if ((this->pathIndex != PATH_INDEX_NONE) && (this->path != NULL) &&
         !SubS_CopyPointFromPath(this->path, this->waypoint, &this->waypointPos)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -438,25 +438,25 @@ void EnEgol_Init(Actor* thisx, PlayState* play) {
     EnEgol* this = (EnEgol*)thisx;
 
     this->actor.gravity = -2.0f;
-    Actor_SetScale(&this->actor, 0.015f);
-    this->actor.colChkInfo.damageTable = &sDamageTable;
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 60.0f);
+    MM_Actor_SetScale(&this->actor, 0.015f);
+    this->actor.colChkInfo.damageTable = &MM_sDamageTable;
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 60.0f);
 
     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
     this->actor.hintId = TATL_HINT_ID_EYEGORE;
     this->actor.colChkInfo.health = 8;
 
-    SkelAnime_InitFlex(play, &this->skelAnime, &gEyegoreSkel, &gEyegoreStandAnim, this->jointTable, this->morphTable,
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gEyegoreSkel, &gEyegoreStandAnim, this->jointTable, this->morphTable,
                        EYEGORE_LIMB_MAX);
 
-    Collider_InitAndSetJntSph(play, &this->bodyCollider, &this->actor, &sBodyJntSphInit, this->bodyElements);
+    Collider_InitAndSetJntSph(play, &this->bodyCollider, &this->actor, &MM_sBodyJntSphInit, this->bodyElements);
     Collider_InitAndSetJntSph(play, &this->eyeCollider, &this->actor, &sEyeJntSphInit, this->eyeElements);
     Collider_InitAndSetQuad(play, &this->laserCollider, &this->actor, &sLaserQuadInit);
 
     this->pathIndex = EYEGORE_GET_PATH_INDEX(&this->actor);
     if (this->pathIndex == EYEGORE_PATH_INDEX_NONE) {
         this->pathIndex = PATH_INDEX_NONE;
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -487,8 +487,8 @@ void EnEgol_Init(Actor* thisx, PlayState* play) {
     if (this->switchFlag == EYEGORE_SWITCH_FLAG_NONE) {
         this->switchFlag = SWITCH_FLAG_NONE;
     }
-    if ((this->switchFlag > SWITCH_FLAG_NONE) && Flags_GetSwitch(play, this->switchFlag)) {
-        Actor_Kill(&this->actor);
+    if ((this->switchFlag > SWITCH_FLAG_NONE) && MM_Flags_GetSwitch(play, this->switchFlag)) {
+        MM_Actor_Kill(&this->actor);
         return;
     }
     EnEgol_SetupWait(this);
@@ -497,9 +497,9 @@ void EnEgol_Init(Actor* thisx, PlayState* play) {
 void EnEgol_Destroy(Actor* thisx, PlayState* play) {
     EnEgol* this = (EnEgol*)thisx;
 
-    Collider_DestroyJntSph(play, &this->bodyCollider);
-    Collider_DestroyJntSph(play, &this->eyeCollider);
-    Collider_DestroyQuad(play, &this->laserCollider);
+    MM_Collider_DestroyJntSph(play, &this->bodyCollider);
+    MM_Collider_DestroyJntSph(play, &this->eyeCollider);
+    MM_Collider_DestroyQuad(play, &this->laserCollider);
 }
 
 void EnEgol_SetupWait(EnEgol* this) {
@@ -548,8 +548,8 @@ void EnEgol_Walk(EnEgol* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
     Vec3f spawnPos;
 
-    Math_SmoothStepToS(&this->headRot, 0, 1, 0x3E8, 0);
-    Math_Vec3f_Copy(&spawnPos, &gZeroVec3f);
+    MM_Math_SmoothStepToS(&this->headRot, 0, 1, 0x3E8, 0);
+    MM_Math_Vec3f_Copy(&spawnPos, &gZeroVec3f);
     if (curFrame >= this->animEndFrame) {
         this->laserCount++;
         if (this->laserCount > 0) {
@@ -561,13 +561,13 @@ void EnEgol_Walk(EnEgol* this, PlayState* play) {
         }
     }
     if ((this->actor.world.pos.y - 50.0f) <= player->actor.world.pos.y) {
-        if (Animation_OnFrame(&this->skelAnime, 24.0f)) {
-            Math_Vec3f_Copy(&spawnPos, &this->rightFootPos);
+        if (MM_Animation_OnFrame(&this->skelAnime, 24.0f)) {
+            MM_Math_Vec3f_Copy(&spawnPos, &this->rightFootPos);
             spawnPos.y = this->actor.floorHeight + 2.0f;
             EnEgol_SpawnEffect(this, &spawnPos, &gZeroVec3s, 100, 0.005f, EYEGORE_EFFECT_IMPACT);
         }
-        if (Animation_OnFrame(&this->skelAnime, 9.0f)) {
-            Math_Vec3f_Copy(&spawnPos, &this->leftFootPos);
+        if (MM_Animation_OnFrame(&this->skelAnime, 9.0f)) {
+            MM_Math_Vec3f_Copy(&spawnPos, &this->leftFootPos);
             spawnPos.y = this->actor.floorHeight + 2.0f;
             EnEgol_SpawnEffect(this, &spawnPos, &gZeroVec3s, 100, 0.005f, EYEGORE_EFFECT_IMPACT);
         }
@@ -580,12 +580,12 @@ void EnEgol_Walk(EnEgol* this, PlayState* play) {
         if (!((this->skelAnime.curFrame == 0.0f) ||
               ((9.0f <= this->skelAnime.curFrame) && (this->skelAnime.curFrame <= 15.0f)) ||
               ((24.0f <= this->skelAnime.curFrame) && (this->skelAnime.curFrame <= 29.0f)))) {
-            Math_ApproachF(&this->actor.world.pos.x, this->waypointPos.x, 0.5f,
-                           fabsf(Math_SinS(this->actor.world.rot.y) * 4.0f));
-            Math_ApproachF(&this->actor.world.pos.z, this->waypointPos.z, 0.5f,
-                           fabsf(Math_CosS(this->actor.world.rot.y) * 4.0f));
+            MM_Math_ApproachF(&this->actor.world.pos.x, this->waypointPos.x, 0.5f,
+                           fabsf(MM_Math_SinS(this->actor.world.rot.y) * 4.0f));
+            MM_Math_ApproachF(&this->actor.world.pos.z, this->waypointPos.z, 0.5f,
+                           fabsf(MM_Math_CosS(this->actor.world.rot.y) * 4.0f));
         }
-        Math_SmoothStepToS(&this->actor.world.rot.y, Math_Vec3f_Yaw(&this->actor.world.pos, &this->waypointPos), 1,
+        MM_Math_SmoothStepToS(&this->actor.world.rot.y, MM_Math_Vec3f_Yaw(&this->actor.world.pos, &this->waypointPos), 1,
                            0x7D0, 0);
         EnEgol_FootstepEffects(this, play, 9.0f, 24.0f);
         angleBehind = this->actor.world.rot.y - this->actor.yawTowardsPlayer + 0x8000;
@@ -599,7 +599,7 @@ void EnEgol_Walk(EnEgol* this, PlayState* play) {
             f32 dx = this->actor.world.pos.x - this->waypointPos.x;
             f32 dz = this->actor.world.pos.z - this->waypointPos.z;
 
-            if (sqrtf(SQ(dx) + SQ(dz)) < 4.0f) {
+            if (MM_sqrtf(SQ(dx) + SQ(dz)) < 4.0f) {
                 if (this->path != NULL) {
                     this->waypoint++;
                     if (this->waypoint >= this->path->count) {
@@ -623,7 +623,7 @@ void EnEgol_SetupRetreat(EnEgol* this) {
     EnEgol_ChangeAnim(this, EYEGORE_ANIM_RETREAT);
     this->laserCount = 0;
     EnEgol_GetWaypoint(this);
-    this->actor.world.rot.y = Math_Vec3f_Yaw(&this->actor.world.pos, &this->waypointPos);
+    this->actor.world.rot.y = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &this->waypointPos);
     this->actor.shape.rot.y = this->actor.world.rot.y + 0x8000;
     this->action = EYEGORE_ACTION_RETREAT;
     this->actionFunc = EnEgol_Retreat;
@@ -637,32 +637,32 @@ void EnEgol_Retreat(EnEgol* this, PlayState* play) {
 
     if ((ABS_ALT(angleToFacing) < 0x3000) && (fabsf(this->actor.world.pos.y - player->actor.world.pos.y) < 50.0f) &&
         (this->actor.xzDistToPlayer < 100.0f) && (player->invincibilityTimer == 0)) {
-        func_800B8D50(play, &this->actor, 2.0f, (s32)Rand_CenteredFloat(0x2000) + this->actor.world.rot.y, 5.0f, 0x10);
+        func_800B8D50(play, &this->actor, 2.0f, (s32)MM_Rand_CenteredFloat(0x2000) + this->actor.world.rot.y, 5.0f, 0x10);
     }
-    Math_Vec3f_Copy(&spawnPos, &gZeroVec3f);
+    MM_Math_Vec3f_Copy(&spawnPos, &gZeroVec3f);
     if ((this->actor.world.pos.y - 50.0f) <= player->actor.world.pos.y) {
-        if (Animation_OnFrame(&this->skelAnime, 5.0f)) {
-            Math_Vec3f_Copy(&spawnPos, &this->rightFootPos);
+        if (MM_Animation_OnFrame(&this->skelAnime, 5.0f)) {
+            MM_Math_Vec3f_Copy(&spawnPos, &this->rightFootPos);
             spawnPos.y = this->actor.floorHeight + 2.0f;
             EnEgol_SpawnEffect(this, &spawnPos, &gZeroVec3s, 100, 0.005f, EYEGORE_EFFECT_IMPACT);
         }
-        if (Animation_OnFrame(&this->skelAnime, 0.0f)) {
-            Math_Vec3f_Copy(&spawnPos, &this->leftFootPos);
+        if (MM_Animation_OnFrame(&this->skelAnime, 0.0f)) {
+            MM_Math_Vec3f_Copy(&spawnPos, &this->leftFootPos);
             spawnPos.y = this->actor.floorHeight + 2.0f;
             EnEgol_SpawnEffect(this, &spawnPos, &gZeroVec3s, 100, 0.005f, EYEGORE_EFFECT_IMPACT);
         }
     }
-    Math_ApproachF(&this->actor.world.pos.x, this->waypointPos.x, 0.5f,
-                   fabsf(Math_SinS(this->actor.world.rot.y) * 10.0f));
-    Math_ApproachF(&this->actor.world.pos.z, this->waypointPos.z, 0.5f,
-                   fabsf(Math_CosS(this->actor.world.rot.y) * 10.0f));
-    Math_SmoothStepToS(&this->actor.world.rot.y, Math_Vec3f_Yaw(&this->actor.world.pos, &this->waypointPos), 1, 0x7D0,
+    MM_Math_ApproachF(&this->actor.world.pos.x, this->waypointPos.x, 0.5f,
+                   fabsf(MM_Math_SinS(this->actor.world.rot.y) * 10.0f));
+    MM_Math_ApproachF(&this->actor.world.pos.z, this->waypointPos.z, 0.5f,
+                   fabsf(MM_Math_CosS(this->actor.world.rot.y) * 10.0f));
+    MM_Math_SmoothStepToS(&this->actor.world.rot.y, MM_Math_Vec3f_Yaw(&this->actor.world.pos, &this->waypointPos), 1, 0x7D0,
                        0);
-    Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.world.rot.y + 0x8000, 1, 0x7D0, 0);
+    MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.world.rot.y + 0x8000, 1, 0x7D0, 0);
     EnEgol_FootstepEffects(this, play, 5.0f, 0.0f);
     toWaypoint.x = this->actor.world.pos.x - this->waypointPos.x;
     toWaypoint.z = this->actor.world.pos.z - this->waypointPos.z;
-    if (sqrtf(SQXZ(toWaypoint)) < 4.0f) {
+    if (MM_sqrtf(SQXZ(toWaypoint)) < 4.0f) {
         this->waypoint--;
         if (this->waypoint < 0) {
             this->waypoint = 0;
@@ -695,24 +695,24 @@ void EnEgol_Laser(EnEgol* this, PlayState* play) {
         this->chargeLevel = 0;
         this->actionTimer = 0;
         this->laserState = EYEGORE_LASER_OFF;
-        Math_Vec3f_Copy(&this->laserScale, &gZeroVec3f);
-        Math_Vec3f_Copy(&this->laserScaleTarget, &gZeroVec3f);
-        Math_Vec3f_Copy(&this->laserCollider.dim.quad[1], &this->laserBase);
-        Math_Vec3f_Copy(&this->laserCollider.dim.quad[3], &this->laserBase);
-        Math_Vec3f_Copy(&this->laserCollider.dim.quad[0], &this->laserBase);
-        Math_Vec3f_Copy(&this->laserCollider.dim.quad[2], &this->laserBase);
+        MM_Math_Vec3f_Copy(&this->laserScale, &gZeroVec3f);
+        MM_Math_Vec3f_Copy(&this->laserScaleTarget, &gZeroVec3f);
+        MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[1], &this->laserBase);
+        MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[3], &this->laserBase);
+        MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[0], &this->laserBase);
+        MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[2], &this->laserBase);
         EnEgol_SetupSlam(this);
     } else if (this->actor.xzDistToPlayer < this->minLaserRange) {
         this->chargingLaser = false;
         this->chargeLevel = 0;
         this->actionTimer = 0;
         this->laserState = EYEGORE_LASER_OFF;
-        Math_Vec3f_Copy(&this->laserScale, &gZeroVec3f);
-        Math_Vec3f_Copy(&this->laserScaleTarget, &gZeroVec3f);
-        Math_Vec3f_Copy(&this->laserCollider.dim.quad[1], &this->laserBase);
-        Math_Vec3f_Copy(&this->laserCollider.dim.quad[3], &this->laserBase);
-        Math_Vec3f_Copy(&this->laserCollider.dim.quad[0], &this->laserBase);
-        Math_Vec3f_Copy(&this->laserCollider.dim.quad[2], &this->laserBase);
+        MM_Math_Vec3f_Copy(&this->laserScale, &gZeroVec3f);
+        MM_Math_Vec3f_Copy(&this->laserScaleTarget, &gZeroVec3f);
+        MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[1], &this->laserBase);
+        MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[3], &this->laserBase);
+        MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[0], &this->laserBase);
+        MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[2], &this->laserBase);
         EnEgol_SetupWalk(this);
     } else {
         if (this->chargingLaser) {
@@ -723,7 +723,7 @@ void EnEgol_Laser(EnEgol* this, PlayState* play) {
                     break;
 
                 case 1:
-                    Math_ApproachF(&this->chargeLightScale, 8.0f, 0.5f, 2.5f);
+                    MM_Math_ApproachF(&this->chargeLightScale, 8.0f, 0.5f, 2.5f);
                     if (this->waitTimer == 0) {
                         this->waitTimer = 10;
                         this->chargeLevel++;
@@ -731,7 +731,7 @@ void EnEgol_Laser(EnEgol* this, PlayState* play) {
                     break;
 
                 case 2:
-                    Math_ApproachF(&this->chargeLightScale, 1.0f, 0.5f, 1.0f);
+                    MM_Math_ApproachF(&this->chargeLightScale, 1.0f, 0.5f, 1.0f);
                     if (this->waitTimer == 0) {
                         this->chargeLevel = 0;
                         this->laserState = EYEGORE_LASER_FIRE;
@@ -746,9 +746,9 @@ void EnEgol_Laser(EnEgol* this, PlayState* play) {
             this->chargeLightRot += 0x7D0;
         }
         if ((this->laserState != EYEGORE_LASER_OFF) || (this->laserCount != 0)) {
-            Math_SmoothStepToS(&this->headRot, -0x2710, 5, 0x1F4, 5);
+            MM_Math_SmoothStepToS(&this->headRot, -0x2710, 5, 0x1F4, 5);
         } else {
-            Math_SmoothStepToS(&this->headRot, 0, 5, 0x1F4, 5);
+            MM_Math_SmoothStepToS(&this->headRot, 0, 5, 0x1F4, 5);
         }
         if (this->laserState == EYEGORE_LASER_OFF) {
             if (this->laserCount >= 3) {
@@ -772,7 +772,7 @@ void EnEgol_Laser(EnEgol* this, PlayState* play) {
                 EnEgol_DestroyBlocks(this, play, this->laserCollider.dim.quad[0], this->laserCollider.dim.quad[1]);
             }
             //! @bug this should check walls, too
-            if ((this->actionTimer == 0) && BgCheck_EntityLineTest1(&play->colCtx, &this->laserCollider.dim.quad[3],
+            if ((this->actionTimer == 0) && MM_BgCheck_EntityLineTest1(&play->colCtx, &this->laserCollider.dim.quad[3],
                                                                     &this->laserCollider.dim.quad[1], &hitPos, &colPoly,
                                                                     false, true, false, true, &bgId)) {
                 Vec3s rotToNorm;
@@ -790,11 +790,11 @@ void EnEgol_Laser(EnEgol* this, PlayState* play) {
 
                 /*! @bug The following is supposed to calculate the rotation from vertical to the collision poly normal.
                  * However, the calculation is performed incorrectly. The correct calculation is
-                 * rotToNorm.x = Math_FAtan2F(nz, ny) * 0x8000 / M_PI;
-                 * rotToNorm.z = Math_FAtan2F(-nx, sqrtf(1.0f - SQ(nx))) * 0x8000 / M_PI;
+                 * rotToNorm.x = MM_Math_FAtan2F(nz, ny) * 0x8000 / M_PI;
+                 * rotToNorm.z = MM_Math_FAtan2F(-nx, MM_sqrtf(1.0f - SQ(nx))) * 0x8000 / M_PI;
                  */
-                rotToNorm.x = RAD_TO_BINANG_ALT2(-Math_FAtan2F(-nz * ny, 1.0f));
-                rotToNorm.z = RAD_TO_BINANG_ALT2(Math_FAtan2F(-nx * ny, 1.0f));
+                rotToNorm.x = RAD_TO_BINANG_ALT2(-MM_Math_FAtan2F(-nz * ny, 1.0f));
+                rotToNorm.z = RAD_TO_BINANG_ALT2(MM_Math_FAtan2F(-nx * ny, 1.0f));
 
                 if ((this->actor.world.pos.y - 50.0f) <= player->actor.world.pos.y) {
                     EnEgol_SpawnEffect(this, &hitPos, &rotToNorm, 100, 0.02f, EYEGORE_EFFECT_IMPACT);
@@ -814,17 +814,17 @@ void EnEgol_Laser(EnEgol* this, PlayState* play) {
 
                 if ((this->actor.world.pos.y - 50.0f <= player->actor.world.pos.y) &&
                     (this->actor.floorBgId == BGCHECK_SCENE)) {
-                    Math_Vec3f_Copy(&stonePos, &hitPos);
-                    stonePos.x += Math_SinS(this->actor.world.rot.y) * 60.0f;
-                    stonePos.z += Math_CosS(this->actor.world.rot.y) * 60.0f;
+                    MM_Math_Vec3f_Copy(&stonePos, &hitPos);
+                    stonePos.x += MM_Math_SinS(this->actor.world.rot.y) * 60.0f;
+                    stonePos.z += MM_Math_CosS(this->actor.world.rot.y) * 60.0f;
                     for (i = 0; i < 3; i++) {
-                        Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ESTONE, stonePos.x, stonePos.y, stonePos.z, 0,
+                        MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ESTONE, stonePos.x, stonePos.y, stonePos.z, 0,
                                     this->actor.world.rot.y, 0, ENESTONE_TYPE_SMALL);
                     }
                 }
                 if (this->actor.world.pos.y - 50.0f <= player->actor.world.pos.y) {
                     for (i = 0; i < 10; i++) {
-                        EnEgol_SpawnEffect(this, &hitPos, &gZeroVec3s, 30, (Rand_ZeroFloat(1.0f) * 0.1f) + 0.2f,
+                        EnEgol_SpawnEffect(this, &hitPos, &gZeroVec3s, 30, (MM_Rand_ZeroFloat(1.0f) * 0.1f) + 0.2f,
                                            EYEGORE_EFFECT_DEBRIS);
                     }
                 }
@@ -834,18 +834,18 @@ void EnEgol_Laser(EnEgol* this, PlayState* play) {
                 this->actionTimer++;
                 if (this->actionTimer >= 5) {
                     this->laserState = EYEGORE_LASER_OFF;
-                    Math_Vec3f_Copy(&this->laserScale, &gZeroVec3f);
-                    Math_Vec3f_Copy(&this->laserScaleTarget, &gZeroVec3f);
-                    Math_Vec3f_Copy(&this->laserCollider.dim.quad[1], &this->laserBase);
-                    Math_Vec3f_Copy(&this->laserCollider.dim.quad[3], &this->laserBase);
-                    Math_Vec3f_Copy(&this->laserCollider.dim.quad[0], &this->laserBase);
-                    Math_Vec3f_Copy(&this->laserCollider.dim.quad[2], &this->laserBase);
+                    MM_Math_Vec3f_Copy(&this->laserScale, &gZeroVec3f);
+                    MM_Math_Vec3f_Copy(&this->laserScaleTarget, &gZeroVec3f);
+                    MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[1], &this->laserBase);
+                    MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[3], &this->laserBase);
+                    MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[0], &this->laserBase);
+                    MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[2], &this->laserBase);
                     this->actionTimer = 0;
                 }
             }
-            Math_ApproachF(&this->laserScale.x, this->laserScaleTarget.x, 0.5f, 0.5f);
-            Math_ApproachF(&this->laserScale.y, this->laserScaleTarget.y, 0.5f, 0.5f);
-            Math_ApproachF(&this->laserScale.z, this->laserScaleTarget.z, 0.5f, 0.5f);
+            MM_Math_ApproachF(&this->laserScale.x, this->laserScaleTarget.x, 0.5f, 0.5f);
+            MM_Math_ApproachF(&this->laserScale.y, this->laserScaleTarget.y, 0.5f, 0.5f);
+            MM_Math_ApproachF(&this->laserScale.z, this->laserScaleTarget.z, 0.5f, 0.5f);
         }
     }
 }
@@ -867,7 +867,7 @@ void EnEgol_Stop(EnEgol* this, PlayState* play) {
 
     EnEgol_FootstepEffects(this, play, 28.0f, 13.0f);
     if (this->isRetreating) {
-        Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 5, 0xBB8, 5);
+        MM_Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.home.rot.y, 5, 0xBB8, 5);
         this->actor.world.rot.y = this->actor.shape.rot.y;
         angleToHome = this->actor.world.rot.y - this->actor.home.rot.y;
     }
@@ -899,8 +899,8 @@ void EnEgol_SetupSlam(EnEgol* this) {
 void EnEgol_Slam(EnEgol* this, PlayState* play) {
     f32 curFrame = this->skelAnime.curFrame;
 
-    Math_SmoothStepToS(&this->headRot, 0, 1, 0x3E8, 0);
-    if (Animation_OnFrame(&this->skelAnime, 17.0f)) {
+    MM_Math_SmoothStepToS(&this->headRot, 0, 1, 0x3E8, 0);
+    if (MM_Animation_OnFrame(&this->skelAnime, 17.0f)) {
         s32 i;
         s32 spawnCount;
         Player* player = GET_PLAYER(play);
@@ -917,20 +917,20 @@ void EnEgol_Slam(EnEgol* this, PlayState* play) {
         }
         Actor_RequestQuakeAndRumble(&this->actor, play, quakeYOffset, 2);
         if (this->actor.floorBgId == BGCHECK_SCENE) {
-            Math_Vec3f_Copy(&spawnPos, &this->actor.world.pos);
-            spawnPos.x += Math_SinS(this->actor.world.rot.y) * 60.0f;
+            MM_Math_Vec3f_Copy(&spawnPos, &this->actor.world.pos);
+            spawnPos.x += MM_Math_SinS(this->actor.world.rot.y) * 60.0f;
             spawnPos.y = this->actor.floorHeight;
-            spawnPos.z += Math_CosS(this->actor.world.rot.y) * 60.0f;
-            spawnCount = Rand_S16Offset(1, 3);
+            spawnPos.z += MM_Math_CosS(this->actor.world.rot.y) * 60.0f;
+            spawnCount = MM_Rand_S16Offset(1, 3);
             for (i = 0; i < spawnCount; i++) {
-                Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ESTONE, spawnPos.x, spawnPos.y, spawnPos.z, 0,
+                MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ESTONE, spawnPos.x, spawnPos.y, spawnPos.z, 0,
                             this->actor.world.rot.y, 0, ENESTONE_TYPE_LARGE);
             }
-            Actor_SpawnFloorDustRing(play, &this->actor, &spawnPos, 30.0f, 30, 10.0f, 100, 30, true);
-            Math_Vec3f_Copy(&spawnPos, &this->actor.world.pos);
-            spawnPos.x += Math_SinS(this->actor.world.rot.y) * 55.0f;
+            MM_Actor_SpawnFloorDustRing(play, &this->actor, &spawnPos, 30.0f, 30, 10.0f, 100, 30, true);
+            MM_Math_Vec3f_Copy(&spawnPos, &this->actor.world.pos);
+            spawnPos.x += MM_Math_SinS(this->actor.world.rot.y) * 55.0f;
             spawnPos.y = this->actor.floorHeight + 2.0f;
-            spawnPos.z += Math_CosS(this->actor.world.rot.y) * 55.0f;
+            spawnPos.z += MM_Math_CosS(this->actor.world.rot.y) * 55.0f;
             EnEgol_SpawnEffect(this, &spawnPos, &gZeroVec3s, 100, 0.03f, EYEGORE_EFFECT_IMPACT);
         }
         EnEgol_DestroyBlocks(this, play, this->rightHandPos, this->leftHandPos);
@@ -938,7 +938,7 @@ void EnEgol_Slam(EnEgol* this, PlayState* play) {
     if (curFrame >= this->animEndFrame) {
         EnEgol_SetupSlamWait(this);
     } else if ((this->skelAnime.curFrame <= 17.0f) && (this->skelAnime.curFrame >= 10.0f)) {
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->bodyCollider.base);
+        MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->bodyCollider.base);
     }
 }
 
@@ -953,7 +953,7 @@ void EnEgol_SetupPunch(EnEgol* this) {
 void EnEgol_Punch(EnEgol* this, PlayState* play) {
     f32 curFrame = this->skelAnime.curFrame;
 
-    Math_SmoothStepToS(&this->headRot, 0, 1, 0x3E8, 0);
+    MM_Math_SmoothStepToS(&this->headRot, 0, 1, 0x3E8, 0);
     if (curFrame >= this->animEndFrame) {
         this->bodyCollider.elements[0].dim.modelSphere.radius = 20;
         this->bodyCollider.elements[1].dim.modelSphere.radius = 20;
@@ -965,7 +965,7 @@ void EnEgol_Punch(EnEgol* this, PlayState* play) {
             func_800B8D50(play, &this->actor, 10.0f, this->actor.home.rot.y, 10.0f, 0);
         }
         if (!(this->bodyCollider.base.atFlags & AT_BOUNCED)) {
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->bodyCollider.base);
+            MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->bodyCollider.base);
         }
     }
 }
@@ -1058,7 +1058,7 @@ void EnEgol_Damaged(EnEgol* this, PlayState* play) {
         if (this->actor.colChkInfo.health > 0) {
             EnEgol_SetupWalk(this);
         } else {
-            Enemy_StartFinishingBlow(play, &this->actor);
+            MM_Enemy_StartFinishingBlow(play, &this->actor);
             Actor_PlaySfx(&this->actor, NA_SE_EN_EYEGOLE_DEAD);
             this->actor.flags |= ACTOR_FLAG_LOCK_ON_DISABLED;
             this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
@@ -1089,36 +1089,36 @@ void EnEgol_Death(EnEgol* this, PlayState* play) {
     this->subCamAt.x = 0.0f;
     this->subCamAt.y = 60.0f;
     this->subCamAt.z = 260.0f;
-    Math_Vec3f_Copy(&atOffset, &this->subCamAt);
+    MM_Math_Vec3f_Copy(&atOffset, &this->subCamAt);
     OLib_Vec3fAdd(&this->actor.world, &atOffset, &this->subCamAt, OLIB_ADD_OFFSET);
     this->subCamEye.x = this->actor.world.pos.x;
     this->subCamEye.y = this->actor.world.pos.y + 70.0f;
     this->subCamEye.z = this->actor.world.pos.z;
-    Math_ApproachF(&this->subCamFov, this->subCamFovTarget, 0.3f, 10.0f);
+    MM_Math_ApproachF(&this->subCamFov, this->subCamFovTarget, 0.3f, 10.0f);
     Play_SetCameraAtEye(play, this->subCamId, &this->subCamEye, &this->subCamAt);
     Play_SetCameraFov(play, this->subCamId, this->subCamFov);
     if ((this->action == EYEGORE_ACTION_DEAD) && (this->waitTimer == 1)) {
         if (this->switchFlag > SWITCH_FLAG_NONE) {
-            Flags_SetSwitch(play, this->switchFlag);
+            MM_Flags_SetSwitch(play, this->switchFlag);
         }
         CutsceneManager_Stop(this->actor.csId);
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     } else {
-        if (Animation_OnFrame(&this->skelAnime, 46.0f)) {
+        if (MM_Animation_OnFrame(&this->skelAnime, 46.0f)) {
             Actor_PlaySfx(&this->actor, NA_SE_EV_EXPLOSION);
             Actor_RequestQuakeAndRumble(&this->actor, play, 10, 5);
         }
         if ((curFrame >= this->animEndFrame) && (this->action != EYEGORE_ACTION_DEAD)) {
             s32 i;
 
-            Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->actor.world.pos.x, this->actor.world.pos.y,
+            MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->actor.world.pos.x, this->actor.world.pos.y,
                         this->actor.world.pos.z, 0, 0, 0, CLEAR_TAG_PARAMS(CLEAR_TAG_SMALL_EXPLOSION));
             this->waitTimer = 30;
             Actor_PlaySfx(&this->actor, NA_SE_IT_BOMB_EXPLOSION);
             this->action = EYEGORE_ACTION_DEAD;
             for (i = 0; i < 20; i++) {
-                EnEgol_SpawnEffect(this, &this->actor.world.pos, &gZeroVec3s, 10.0f + Rand_ZeroFloat(20.0f),
-                                   0.01f + (0.02f * Rand_ZeroFloat(1.0f)), (i & 1) + EYEGORE_EFFECT_PIECE_LARGE);
+                EnEgol_SpawnEffect(this, &this->actor.world.pos, &gZeroVec3s, 10.0f + MM_Rand_ZeroFloat(20.0f),
+                                   0.01f + (0.02f * MM_Rand_ZeroFloat(1.0f)), (i & 1) + EYEGORE_EFFECT_PIECE_LARGE);
             }
         }
     }
@@ -1139,12 +1139,12 @@ void EnEgol_CollisionCheck(EnEgol* this, PlayState* play) {
         this->laserCollider.base.atFlags &= ~AT_BOUNCED;
         this->actionTimer = 0;
         this->laserState = EYEGORE_LASER_OFF;
-        Math_Vec3f_Copy(&this->laserScale, &gZeroVec3f);
-        Math_Vec3f_Copy(&this->laserScaleTarget, &gZeroVec3f);
-        Math_Vec3f_Copy(&this->laserCollider.dim.quad[1], &this->laserBase);
-        Math_Vec3f_Copy(&this->laserCollider.dim.quad[3], &this->laserBase);
-        Math_Vec3f_Copy(&this->laserCollider.dim.quad[0], &this->laserBase);
-        Math_Vec3f_Copy(&this->laserCollider.dim.quad[2], &this->laserBase);
+        MM_Math_Vec3f_Copy(&this->laserScale, &gZeroVec3f);
+        MM_Math_Vec3f_Copy(&this->laserScaleTarget, &gZeroVec3f);
+        MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[1], &this->laserBase);
+        MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[3], &this->laserBase);
+        MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[0], &this->laserBase);
+        MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[2], &this->laserBase);
         EnEgol_SetupWalk(this);
     }
     if (this->eyeCollider.elements[0].base.acElemFlags & ACELEM_HIT) {
@@ -1153,7 +1153,7 @@ void EnEgol_CollisionCheck(EnEgol* this, PlayState* play) {
             case EYEGORE_DMGEFF_LIGHT_ARROW:
                 if (ABS_ALT(angleToFacing) < 0x3000) {
                     if ((this->action == EYEGORE_ACTION_STUNNED) || (this->action == EYEGORE_ACTION_SLAM_WAIT)) {
-                        Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->actor.focus.pos.x,
+                        MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->actor.focus.pos.x,
                                     this->actor.focus.pos.y, this->actor.focus.pos.z, 0, 0, 0,
                                     CLEAR_TAG_PARAMS(CLEAR_TAG_LARGE_LIGHT_RAYS));
                         this->dmgEffectTimer = 20;
@@ -1165,13 +1165,13 @@ void EnEgol_CollisionCheck(EnEgol* this, PlayState* play) {
                         this->chargeLevel = 0;
                         this->actionTimer = 0;
                         this->laserState = EYEGORE_LASER_OFF;
-                        Math_Vec3f_Copy(&this->laserScale, &gZeroVec3f);
-                        Math_Vec3f_Copy(&this->laserScaleTarget, &gZeroVec3f);
-                        Math_Vec3f_Copy(&this->laserCollider.dim.quad[1], &this->laserBase);
-                        Math_Vec3f_Copy(&this->laserCollider.dim.quad[3], &this->laserBase);
-                        Math_Vec3f_Copy(&this->laserCollider.dim.quad[0], &this->laserBase);
-                        Math_Vec3f_Copy(&this->laserCollider.dim.quad[2], &this->laserBase);
-                        Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_BLUE, 120, COLORFILTER_BUFFLAG_OPA,
+                        MM_Math_Vec3f_Copy(&this->laserScale, &gZeroVec3f);
+                        MM_Math_Vec3f_Copy(&this->laserScaleTarget, &gZeroVec3f);
+                        MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[1], &this->laserBase);
+                        MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[3], &this->laserBase);
+                        MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[0], &this->laserBase);
+                        MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[2], &this->laserBase);
+                        MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_BLUE, 120, COLORFILTER_BUFFLAG_OPA,
                                              40);
                         Actor_PlaySfx(&this->actor, NA_SE_EN_COMMON_FREEZE);
                         EnEgol_SetupStunned(this);
@@ -1190,11 +1190,11 @@ void EnEgol_CollisionCheck(EnEgol* this, PlayState* play) {
         }
     }
     if (reaction == EYEGORE_HIT_DAMAGE) {
-        Actor_ApplyDamage(&this->actor);
-        CollisionCheck_BlueBlood(play, NULL, &this->eyePos);
-        CollisionCheck_BlueBlood(play, NULL, &this->eyePos);
-        CollisionCheck_BlueBlood(play, NULL, &this->eyePos);
-        Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 25);
+        MM_Actor_ApplyDamage(&this->actor);
+        MM_CollisionCheck_BlueBlood(play, NULL, &this->eyePos);
+        MM_CollisionCheck_BlueBlood(play, NULL, &this->eyePos);
+        MM_CollisionCheck_BlueBlood(play, NULL, &this->eyePos);
+        MM_Actor_SetColorFilter(&this->actor, COLORFILTER_COLORFLAG_RED, 255, COLORFILTER_BUFFLAG_OPA, 25);
         Actor_PlaySfx(&this->actor, NA_SE_EN_EYEGOLE_DAMAGE);
         EnEgol_SetupDamaged(this);
     } else if (reaction == EYEGORE_HIT_IMMUNE) {
@@ -1205,7 +1205,7 @@ void EnEgol_CollisionCheck(EnEgol* this, PlayState* play) {
         hitPos.z = this->eyeCollider.elements[0].base.acDmgInfo.hitPos.z;
         Actor_PlaySfx(&this->actor, NA_SE_IT_SHIELD_BOUND);
         EffectSsHitmark_SpawnFixedScale(play, EFFECT_HITMARK_METAL, &hitPos);
-        CollisionCheck_SpawnShieldParticlesMetal(play, &hitPos);
+        MM_CollisionCheck_SpawnShieldParticlesMetal(play, &hitPos);
     }
 }
 
@@ -1232,24 +1232,24 @@ void EnEgol_Update(Actor* thisx, PlayState* play) {
             this->chargeLevel = 0;
             this->actionTimer = 0;
             this->laserState = EYEGORE_LASER_OFF;
-            Math_Vec3f_Copy(&this->laserScale, &gZeroVec3f);
-            Math_Vec3f_Copy(&this->laserScaleTarget, &gZeroVec3f);
-            Math_Vec3f_Copy(&this->laserCollider.dim.quad[1], &this->laserBase);
-            Math_Vec3f_Copy(&this->laserCollider.dim.quad[3], &this->laserBase);
-            Math_Vec3f_Copy(&this->laserCollider.dim.quad[0], &this->laserBase);
-            Math_Vec3f_Copy(&this->laserCollider.dim.quad[2], &this->laserBase);
+            MM_Math_Vec3f_Copy(&this->laserScale, &gZeroVec3f);
+            MM_Math_Vec3f_Copy(&this->laserScaleTarget, &gZeroVec3f);
+            MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[1], &this->laserBase);
+            MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[3], &this->laserBase);
+            MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[0], &this->laserBase);
+            MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[2], &this->laserBase);
             EnEgol_SetupPunch(this);
         }
     }
     if (this->action != EYEGORE_ACTION_WAIT) {
-        SkelAnime_Update(&this->skelAnime);
+        MM_SkelAnime_Update(&this->skelAnime);
     }
     if (this->laserState == EYEGORE_LASER_OFF) {
-        Math_ApproachZeroF(&this->laserLightScale, 0.5f, 0.5f);
+        MM_Math_ApproachZeroF(&this->laserLightScale, 0.5f, 0.5f);
     } else if (this->laserState >= EYEGORE_LASER_FIRE) {
-        Math_ApproachF(&this->laserLightScale, 1.0f, 0.5f, 0.5f);
+        MM_Math_ApproachF(&this->laserLightScale, 1.0f, 0.5f, 0.5f);
     }
-    Actor_SetScale(&this->actor, 0.015f);
+    MM_Actor_SetScale(&this->actor, 0.015f);
 
     if (!((this->action == EYEGORE_ACTION_STOP) || (this->action == EYEGORE_ACTION_RETREAT))) {
         this->actor.shape.rot.y = this->actor.world.rot.y;
@@ -1261,7 +1261,7 @@ void EnEgol_Update(Actor* thisx, PlayState* play) {
 
     EnEgol_UpdateEffects(this, play);
     this->actionFunc(this, play);
-    Math_Vec3f_Copy(&this->actor.focus.pos, &this->eyePos);
+    MM_Math_Vec3f_Copy(&this->actor.focus.pos, &this->eyePos);
     this->actor.focus.rot.x = this->actor.world.rot.x;
     this->actor.focus.rot.y = this->actor.world.rot.y;
     this->actor.focus.rot.z = this->actor.world.rot.z;
@@ -1270,8 +1270,8 @@ void EnEgol_Update(Actor* thisx, PlayState* play) {
           (this->action == EYEGORE_ACTION_LASER) || (this->action == EYEGORE_ACTION_STUNNED) ||
           (this->action == EYEGORE_ACTION_DAMAGED) || (this->action == EYEGORE_ACTION_DYING))) {
 
-        this->pupilRot.x = Math_Vec3f_Pitch(&this->eyePos, &player->actor.world.pos);
-        this->pupilRot.y = -Math_Vec3f_Yaw(&this->eyePos, &player->actor.world.pos);
+        this->pupilRot.x = MM_Math_Vec3f_Pitch(&this->eyePos, &player->actor.world.pos);
+        this->pupilRot.y = -MM_Math_Vec3f_Yaw(&this->eyePos, &player->actor.world.pos);
 
         this->pupilRot.y += this->actor.world.rot.y;
 
@@ -1303,12 +1303,12 @@ void EnEgol_Update(Actor* thisx, PlayState* play) {
                     this->chargeLevel = 0;
                     this->actionTimer = 0;
                     this->laserState = EYEGORE_LASER_OFF;
-                    Math_Vec3f_Copy(&this->laserScale, &gZeroVec3f);
-                    Math_Vec3f_Copy(&this->laserScaleTarget, &gZeroVec3f);
-                    Math_Vec3f_Copy(&this->laserCollider.dim.quad[1], &this->laserBase);
-                    Math_Vec3f_Copy(&this->laserCollider.dim.quad[3], &this->laserBase);
-                    Math_Vec3f_Copy(&this->laserCollider.dim.quad[0], &this->laserBase);
-                    Math_Vec3f_Copy(&this->laserCollider.dim.quad[2], &this->laserBase);
+                    MM_Math_Vec3f_Copy(&this->laserScale, &gZeroVec3f);
+                    MM_Math_Vec3f_Copy(&this->laserScaleTarget, &gZeroVec3f);
+                    MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[1], &this->laserBase);
+                    MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[3], &this->laserBase);
+                    MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[0], &this->laserBase);
+                    MM_Math_Vec3f_Copy(&this->laserCollider.dim.quad[2], &this->laserBase);
                     EnEgol_SetupWalk(this);
                 }
             }
@@ -1318,22 +1318,22 @@ void EnEgol_Update(Actor* thisx, PlayState* play) {
     } else if (this->eyeShutTimer == 1) {
         this->eyelidRotTarget = 0;
     }
-    Math_SmoothStepToS(&this->eyelidRot, this->eyelidRotTarget, 1, 0x7D0, 0);
+    MM_Math_SmoothStepToS(&this->eyelidRot, this->eyelidRotTarget, 1, 0x7D0, 0);
     EnEgol_CollisionCheck(this, play);
     Actor_MoveWithGravity(&this->actor);
-    Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 50.0f, 50.0f,
+    MM_Actor_UpdateBgCheckInfo(play, &this->actor, 20.0f, 50.0f, 50.0f,
                             UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4 | UPDBGCHECKINFO_FLAG_8 |
                                 UPDBGCHECKINFO_FLAG_10);
     if (this->action != EYEGORE_ACTION_DEAD) {
         //! @bug This should be ||, not &&. As is, the check always succeeds.
         if (!((this->action == EYEGORE_ACTION_DAMAGED) && (this->action == EYEGORE_ACTION_DYING))) {
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->eyeCollider.base);
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->bodyCollider.base);
+            MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->eyeCollider.base);
+            MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->bodyCollider.base);
         }
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->bodyCollider.base);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->bodyCollider.base);
     }
     if (this->laserState >= EYEGORE_LASER_ON) {
-        CollisionCheck_SetAT(play, &play->colChkCtx, &this->laserCollider.base);
+        MM_CollisionCheck_SetAT(play, &play->colChkCtx, &this->laserCollider.base);
     }
 }
 
@@ -1387,13 +1387,13 @@ void EnEgol_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot
     Vec3f zeroVec = { 0.0f, 0.0f, 0.0f };
 
     if (limbIndex == EYEGORE_LIMB_LEFT_HAND) {
-        Matrix_MultVec3f(&gZeroVec3f, &this->leftHandPos);
+        MM_Matrix_MultVec3f(&gZeroVec3f, &this->leftHandPos);
     }
     if (limbIndex == EYEGORE_LIMB_RIGHT_HAND) {
-        Matrix_MultVec3f(&gZeroVec3f, &this->rightHandPos);
+        MM_Matrix_MultVec3f(&gZeroVec3f, &this->rightHandPos);
     }
     if (limbIndex == EYEGORE_LIMB_LASER_ATTACH) {
-        Matrix_MultVec3f(&gZeroVec3f, &this->eyePos);
+        MM_Matrix_MultVec3f(&gZeroVec3f, &this->eyePos);
     }
     if ((limbIndex == EYEGORE_LIMB_LASER_ATTACH) && (this->laserState >= EYEGORE_LASER_FIRE)) {
         Vec3f laserLengthZ = { 0.0f, 0.0f, 0.0f };
@@ -1401,45 +1401,45 @@ void EnEgol_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot
         f32 targetScale;
         f32 targetHeight;
 
-        Matrix_MultVec3f(&zeroVec, &this->laserBase);
+        MM_Matrix_MultVec3f(&zeroVec, &this->laserBase);
         this->laserCollider.dim.quad[3].x =
-            this->laserBase.x + Math_SinS(this->actor.world.rot.y + 0x4000) * this->laserScale.x * 77.0f;
+            this->laserBase.x + MM_Math_SinS(this->actor.world.rot.y + 0x4000) * this->laserScale.x * 77.0f;
         this->laserCollider.dim.quad[3].y = this->laserBase.y;
         this->laserCollider.dim.quad[3].z =
-            this->laserBase.z + Math_CosS(this->actor.world.rot.y + 0x4000) * this->laserScale.x * 77.0f;
+            this->laserBase.z + MM_Math_CosS(this->actor.world.rot.y + 0x4000) * this->laserScale.x * 77.0f;
         this->laserCollider.dim.quad[2].x =
-            this->laserBase.x + Math_SinS(this->actor.world.rot.y + 0xC000) * this->laserScale.x * 77.0f;
+            this->laserBase.x + MM_Math_SinS(this->actor.world.rot.y + 0xC000) * this->laserScale.x * 77.0f;
         this->laserCollider.dim.quad[2].y = this->laserBase.y;
         this->laserCollider.dim.quad[2].z =
-            this->laserBase.z + Math_CosS(this->actor.world.rot.y + 0xC000) * this->laserScale.x * 77.0f;
+            this->laserBase.z + MM_Math_CosS(this->actor.world.rot.y + 0xC000) * this->laserScale.x * 77.0f;
 
         targetScale = this->laserScale.z;
         targetHeight = this->laserCollider.dim.quad[3].y;
 
         while ((targetHeight + 20.0f > this->actor.floorHeight) && (targetScale < 10.0f)) {
-            Matrix_Push();
+            MM_Matrix_Push();
             Matrix_RotateYS(this->actor.world.rot.y, MTXMODE_NEW);
             Matrix_RotateXS(this->laserRot.x, MTXMODE_APPLY);
             laserLengthZ.z = targetScale * 700.0f;
-            Matrix_MultVec3f(&laserLengthZ, &laserVec);
-            Matrix_Pop();
+            MM_Matrix_MultVec3f(&laserLengthZ, &laserVec);
+            MM_Matrix_Pop();
             targetHeight = this->laserCollider.dim.quad[3].y + laserVec.y;
             targetScale += 0.01f;
         }
         this->laserScaleTarget.z = targetScale;
-        Matrix_Push();
+        MM_Matrix_Push();
         Matrix_RotateYS(this->actor.world.rot.y, MTXMODE_NEW);
         Matrix_RotateXS(this->laserRot.x, MTXMODE_APPLY);
         laserLengthZ.z = this->laserScale.z * 700.0f;
-        Matrix_MultVec3f(&laserLengthZ, &laserVec);
-        Matrix_Pop();
+        MM_Matrix_MultVec3f(&laserLengthZ, &laserVec);
+        MM_Matrix_Pop();
         this->laserCollider.dim.quad[1].x = this->laserCollider.dim.quad[3].x + laserVec.x;
         this->laserCollider.dim.quad[1].y = this->laserCollider.dim.quad[3].y + laserVec.y;
         this->laserCollider.dim.quad[1].z = this->laserCollider.dim.quad[3].z + laserVec.z;
         this->laserCollider.dim.quad[0].x = this->laserCollider.dim.quad[2].x + laserVec.x;
         this->laserCollider.dim.quad[0].y = this->laserCollider.dim.quad[2].y + laserVec.y;
         this->laserCollider.dim.quad[0].z = this->laserCollider.dim.quad[2].z + laserVec.z;
-        Collider_SetQuadVertices(&this->laserCollider, &this->laserCollider.dim.quad[0],
+        MM_Collider_SetQuadVertices(&this->laserCollider, &this->laserCollider.dim.quad[0],
                                  &this->laserCollider.dim.quad[1], &this->laserCollider.dim.quad[2],
                                  &this->laserCollider.dim.quad[3]);
         this->laserState = EYEGORE_LASER_ON;
@@ -1451,10 +1451,10 @@ void EnEgol_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot
         this->laserScaleTarget.y = 0.03f;
     }
     if (limbIndex == EYEGORE_LIMB_LEFT_FOOT) {
-        Matrix_MultVec3f(&footOffset, &this->leftFootPos);
+        MM_Matrix_MultVec3f(&footOffset, &this->leftFootPos);
     }
     if (limbIndex == EYEGORE_LIMB_RIGHT_FOOT) {
-        Matrix_MultVec3f(&footOffset, &this->rightFootPos);
+        MM_Matrix_MultVec3f(&footOffset, &this->rightFootPos);
     }
     if ((limbIndex == EYEGORE_LIMB_HEAD) || (limbIndex == EYEGORE_LIMB_LEFT_SHOULDER) ||
         (limbIndex == EYEGORE_LIMB_LEFT_ARM) || (limbIndex == EYEGORE_LIMB_LEFT_HAND) ||
@@ -1468,8 +1468,8 @@ void EnEgol_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot
             this->bodyPartIndex = 0;
         }
     }
-    Collider_UpdateSpheres(limbIndex, &this->bodyCollider);
-    Collider_UpdateSpheres(limbIndex, &this->eyeCollider);
+    MM_Collider_UpdateSpheres(limbIndex, &this->bodyCollider);
+    MM_Collider_UpdateSpheres(limbIndex, &this->eyeCollider);
 }
 
 void EnEgol_Draw(Actor* thisx, PlayState* play2) {
@@ -1481,9 +1481,9 @@ void EnEgol_Draw(Actor* thisx, PlayState* play2) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     if (this->action != EYEGORE_ACTION_DEAD) {
         AnimatedMat_Draw(play, Lib_SegmentedToVirtual(gEyegoreEyeLaserTexAnim));
-        SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+        MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                               EnEgol_OverrideLimbDraw, EnEgol_PostLimbDraw, &this->actor);
-        POLY_OPA_DISP = Play_SetFog(play, POLY_OPA_DISP);
+        POLY_OPA_DISP = MM_Play_SetFog(play, POLY_OPA_DISP);
     }
     if (this->dmgEffectTimer != 0) {
         f32 drawDmgEffAlpha = 0.05f * this->dmgEffectTimer;
@@ -1496,9 +1496,9 @@ void EnEgol_Draw(Actor* thisx, PlayState* play2) {
         gSPSegment(POLY_OPA_DISP++, 0x08, func_8012CB28(play->state.gfxCtx, 0, this->texScroll));
         gDPPipeSync(POLY_OPA_DISP++);
         gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, 255);
-        Matrix_Translate(this->laserBase.x, this->laserBase.y, this->laserBase.z, MTXMODE_NEW);
-        Matrix_RotateZYX(this->laserRot.x, this->laserRot.y, 0, MTXMODE_APPLY);
-        Matrix_Scale(this->laserScale.x, this->laserScale.y, this->laserScale.z, MTXMODE_APPLY);
+        MM_Matrix_Translate(this->laserBase.x, this->laserBase.y, this->laserBase.z, MTXMODE_NEW);
+        MM_Matrix_RotateZYX(this->laserRot.x, this->laserRot.y, 0, MTXMODE_APPLY);
+        MM_Matrix_Scale(this->laserScale.x, this->laserScale.y, this->laserScale.z, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_OPA_DISP++, gEyegoreLaserDL);
     }
@@ -1511,37 +1511,37 @@ void EnEgol_Draw(Actor* thisx, PlayState* play2) {
             f32 laserLightAlpha;
 
             gDPSetEnvColor(POLY_XLU_DISP++, 155, 255, 255, 128);
-            Matrix_Translate(this->eyePos.x, this->eyePos.y, this->eyePos.z, MTXMODE_NEW);
-            Matrix_Scale(this->laserLightScale, this->laserLightScale, this->laserLightScale, MTXMODE_APPLY);
+            MM_Matrix_Translate(this->eyePos.x, this->eyePos.y, this->eyePos.z, MTXMODE_NEW);
+            MM_Matrix_Scale(this->laserLightScale, this->laserLightScale, this->laserLightScale, MTXMODE_APPLY);
 
             laserLightScaleMod = 10.0f;
             laserLightAlpha = 80.0f;
             for (i = 0; i < ARRAY_COUNT(sLightOrbColors); i++) {
                 FrameInterpolation_RecordOpenChild(&sLightOrbColors[i], i);
-                Matrix_Push();
-                Matrix_Scale(laserLightScaleMod, laserLightScaleMod, laserLightScaleMod, MTXMODE_APPLY);
-                Matrix_ReplaceRotation(&play->billboardMtxF);
+                MM_Matrix_Push();
+                MM_Matrix_Scale(laserLightScaleMod, laserLightScaleMod, laserLightScaleMod, MTXMODE_APPLY);
+                MM_Matrix_ReplaceRotation(&play->billboardMtxF);
                 gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, sLightOrbColors[i].r, sLightOrbColors[i].g, sLightOrbColors[i].b,
                                 laserLightAlpha);
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
                 gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
-                Matrix_Pop();
+                MM_Matrix_Pop();
                 laserLightScaleMod = 3.0f;
                 laserLightAlpha = 200.0f;
                 FrameInterpolation_RecordCloseChild();
             }
         } else {
             gDPSetEnvColor(POLY_XLU_DISP++, 155, 255, 255, 128);
-            Matrix_Translate(this->eyePos.x, this->eyePos.y, this->eyePos.z, MTXMODE_NEW);
-            Matrix_Scale(this->chargeLightScale, this->chargeLightScale, this->chargeLightScale, MTXMODE_APPLY);
-            Matrix_Push();
-            Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
+            MM_Matrix_Translate(this->eyePos.x, this->eyePos.y, this->eyePos.z, MTXMODE_NEW);
+            MM_Matrix_Scale(this->chargeLightScale, this->chargeLightScale, this->chargeLightScale, MTXMODE_APPLY);
+            MM_Matrix_Push();
+            MM_Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
+            MM_Matrix_ReplaceRotation(&play->billboardMtxF);
             Matrix_RotateZS(this->chargeLightRot, MTXMODE_APPLY);
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, 255);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
             gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
-            Matrix_Pop();
+            MM_Matrix_Pop();
         }
     }
     EnEgol_DrawEffects(this, play);
@@ -1561,21 +1561,21 @@ void EnEgol_SpawnEffect(EnEgol* this, Vec3f* pos, Vec3s* rot, s16 lifetime, f32 
             effect->timer = lifetime;
             effect->alpha = 255;
             effect->type = type;
-            effect->rot.x = Rand_CenteredFloat(0x7530);
-            effect->rot.y = Rand_CenteredFloat(0x7530);
-            effect->rot.z = Rand_CenteredFloat(0x7530);
+            effect->rot.x = MM_Rand_CenteredFloat(0x7530);
+            effect->rot.y = MM_Rand_CenteredFloat(0x7530);
+            effect->rot.z = MM_Rand_CenteredFloat(0x7530);
             if ((effect->type == EYEGORE_EFFECT_PIECE_LARGE) || (effect->type == EYEGORE_EFFECT_PIECE_SMALL)) {
                 effect->accel.y = -1.0f;
-                effect->velocity.x = 4.0f * (Rand_ZeroOne() - 0.5f);
-                effect->velocity.y = 10.0f + (10.0f * Rand_ZeroOne());
-                effect->velocity.z = 4.0f * (Rand_ZeroOne() - 0.5f);
+                effect->velocity.x = 4.0f * (MM_Rand_ZeroOne() - 0.5f);
+                effect->velocity.y = 10.0f + (10.0f * MM_Rand_ZeroOne());
+                effect->velocity.z = 4.0f * (MM_Rand_ZeroOne() - 0.5f);
                 break;
             } else if (effect->type == EYEGORE_EFFECT_DEBRIS) {
                 effect->accel.y = -1.0f;
-                effect->velocity.x = 0.5f * (Rand_ZeroOne() - 0.5f);
-                effect->velocity.y = 5.0f + (5.0f * Rand_ZeroOne());
-                effect->velocity.z = 0.5f * (Rand_ZeroOne() - 0.5f);
-                effect->timer = 20.0f + Rand_ZeroFloat(10.0f);
+                effect->velocity.x = 0.5f * (MM_Rand_ZeroOne() - 0.5f);
+                effect->velocity.y = 5.0f + (5.0f * MM_Rand_ZeroOne());
+                effect->velocity.z = 0.5f * (MM_Rand_ZeroOne() - 0.5f);
+                effect->timer = 20.0f + MM_Rand_ZeroFloat(10.0f);
                 break;
             } else if (effect->type == EYEGORE_EFFECT_IMPACT) {
                 effect->rot.x = rot->x;
@@ -1632,18 +1632,18 @@ void EnEgol_DrawEffects(EnEgol* this, PlayState* play) {
         if (effect->isActive) {
             FrameInterpolation_RecordOpenChild(effect, effect->type);
             FrameInterpolation_IgnoreActorMtx();
-            Matrix_Push();
+            MM_Matrix_Push();
 
-            Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
+            MM_Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
             Matrix_RotateXS(effect->rot.x, MTXMODE_APPLY);
             Matrix_RotateYS(effect->rot.y, MTXMODE_APPLY);
             Matrix_RotateZS(effect->rot.z, MTXMODE_APPLY);
-            Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
+            MM_Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
 
             switch (effect->type) {
                 case EYEGORE_EFFECT_IMPACT:
                     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0x80, 155, 155, 155, 255);
-                    Matrix_Translate(0.0f, 50.0f, 0.0f, MTXMODE_APPLY);
+                    MM_Matrix_Translate(0.0f, 50.0f, 0.0f, MTXMODE_APPLY);
                     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, gfxCtx);
                     gDPSetEnvColor(POLY_OPA_DISP++, 255, 255, 255, effect->alpha);
                     gSPDisplayList(POLY_OPA_DISP++, gEyegoreEffectImpactDL);
@@ -1674,7 +1674,7 @@ void EnEgol_DrawEffects(EnEgol* this, PlayState* play) {
                     break;
                     FrameInterpolation_RecordCloseChild();
             }
-            Matrix_Pop();
+            MM_Matrix_Pop();
         }
     }
 

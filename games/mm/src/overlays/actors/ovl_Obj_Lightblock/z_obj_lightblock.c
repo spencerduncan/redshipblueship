@@ -34,7 +34,7 @@ ActorProfile Obj_Lightblock_Profile = {
     /**/ ObjLightblock_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -67,7 +67,7 @@ static LightblockTypeVars sLightblockTypeVars[] = {
     { (1.0f / 6.0f), 126, 144, 19, DEMO_EFFECT_TIMEWARP_LIGHTBLOCK_VERY_LARGE },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 500, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 500, ICHAIN_STOP),
@@ -79,7 +79,7 @@ static InitChainEntry sInitChain[] = {
 void ObjLightblock_SpawnEffect(ObjLightblock* this, PlayState* play) {
     LightblockTypeVars* typeVars = &sLightblockTypeVars[LIGHTBLOCK_TYPE(&this->dyna.actor)];
 
-    Actor_Spawn(&play->actorCtx, play, ACTOR_DEMO_EFFECT, this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
+    MM_Actor_Spawn(&play->actorCtx, play, ACTOR_DEMO_EFFECT, this->dyna.actor.world.pos.x, this->dyna.actor.world.pos.y,
                 this->dyna.actor.world.pos.z, 0, 0, 0, typeVars->effectParams);
 }
 
@@ -88,18 +88,18 @@ void ObjLightblock_Init(Actor* thisx, PlayState* play) {
     ObjLightblock* this = (ObjLightblock*)thisx;
     LightblockTypeVars* typeVars = &sLightblockTypeVars[LIGHTBLOCK_TYPE(&this->dyna.actor)];
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    Actor_SetScale(&this->dyna.actor, typeVars->scale);
-    DynaPolyActor_Init(&this->dyna, 0);
-    Collider_InitCylinder(play, &this->collider);
-    if (Flags_GetSwitch(play, LIGHTBLOCK_GET_DESTROYED_SWITCH_FLAG(&this->dyna.actor))) {
-        Actor_Kill(&this->dyna.actor);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
+    MM_Actor_SetScale(&this->dyna.actor, typeVars->scale);
+    MM_DynaPolyActor_Init(&this->dyna, 0);
+    MM_Collider_InitCylinder(play, &this->collider);
+    if (MM_Flags_GetSwitch(play, LIGHTBLOCK_GET_DESTROYED_SWITCH_FLAG(&this->dyna.actor))) {
+        MM_Actor_Kill(&this->dyna.actor);
         return;
     }
 
     DynaPolyActor_LoadMesh(play, &this->dyna, &gSunBlockCol);
-    Collider_SetCylinder(play, &this->collider, &this->dyna.actor, &sCylinderInit);
-    Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->dyna.actor, &MM_sCylinderInit);
+    MM_Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
     this->collider.dim.radius = typeVars->radius;
     this->collider.dim.height = typeVars->height;
     this->collider.dim.yShift = typeVars->yShift;
@@ -110,8 +110,8 @@ void ObjLightblock_Init(Actor* thisx, PlayState* play) {
 void ObjLightblock_Destroy(Actor* thisx, PlayState* play) {
     ObjLightblock* this = (ObjLightblock*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void ObjLightblock_SetupWait(ObjLightblock* this) {
@@ -140,7 +140,7 @@ void ObjLightblock_Wait(ObjLightblock* this, PlayState* play) {
         CutsceneManager_Queue(this->dyna.actor.csId);
         ObjLightblock_SetupPlayCutscene(this);
     } else {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -151,7 +151,7 @@ void ObjLightblock_SetupPlayCutscene(ObjLightblock* this) {
 void ObjLightblock_PlayCutscene(ObjLightblock* this, PlayState* play) {
     if (CutsceneManager_IsNext(this->dyna.actor.csId)) {
         CutsceneManager_StartWithPlayerCs(this->dyna.actor.csId, &this->dyna.actor);
-        Flags_SetSwitch(play, LIGHTBLOCK_GET_DESTROYED_SWITCH_FLAG(&this->dyna.actor));
+        MM_Flags_SetSwitch(play, LIGHTBLOCK_GET_DESTROYED_SWITCH_FLAG(&this->dyna.actor));
         ObjLightblock_SpawnEffect(this, play);
         ObjLightblock_SetupFadeAway(this);
     } else {
@@ -168,7 +168,7 @@ void ObjLightblock_FadeAway(ObjLightblock* this, PlayState* play) {
     this->timer--;
     if (this->timer <= 0) {
         CutsceneManager_Stop(this->dyna.actor.csId);
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
         return;
     }
 

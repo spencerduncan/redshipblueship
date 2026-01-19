@@ -30,7 +30,7 @@ void Nmi_Init(void) {
 
 void Nmi_SetPrenmiStart(void) {
     gNMIBuffer->resetting = true;
-    gNMIBuffer->resetTime = osGetTime();
+    gNMIBuffer->resetTime = MM_osGetTime();
 }
 
 u32 Nmi_GetPrenmiHasStarted(void) {

@@ -35,13 +35,13 @@ void OceffWipe6_Init(Actor* thisx, PlayState* play) {
 
     gOceff6VtxData = ResourceMgr_LoadVtxByName(gOceff6Vtx);
 
-    Actor_SetScale(&this->actor, 1.0f);
+    MM_Actor_SetScale(&this->actor, 1.0f);
     this->counter = 0;
     this->actor.world.pos = GET_ACTIVE_CAM(play)->eye;
 }
 
 void OceffWipe6_Destroy(Actor* thisx, PlayState* play) {
-    Magic_Reset(play);
+    MM_Magic_Reset(play);
     play->msgCtx.ocarinaSongEffectActive = false;
 }
 
@@ -52,7 +52,7 @@ void OceffWipe6_Update(Actor* thisx, PlayState* play) {
     if (this->counter < 100) {
         this->counter++;
     } else {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     }
 }
 
@@ -81,7 +81,7 @@ void OceffWipe6_Draw(Actor* thisx, PlayState* play) {
 
     if (this->counter < 32) {
         counter = this->counter;
-        z = Math_SinS(counter * 0x200) * effectDistance;
+        z = MM_Math_SinS(counter * 0x200) * effectDistance;
     } else {
         z = effectDistance;
     }
@@ -99,12 +99,12 @@ void OceffWipe6_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-    Matrix_Translate(activeCamEye.x + quakeOffset.x, activeCamEye.y + quakeOffset.y, activeCamEye.z + quakeOffset.z,
+    MM_Matrix_Translate(activeCamEye.x + quakeOffset.x, activeCamEye.y + quakeOffset.y, activeCamEye.z + quakeOffset.z,
                      MTXMODE_NEW);
-    Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
-    Matrix_ReplaceRotation(&play->billboardMtxF);
+    MM_Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
+    MM_Matrix_ReplaceRotation(&play->billboardMtxF);
     Matrix_RotateXS(0x708, MTXMODE_APPLY);
-    Matrix_Translate(0.0f, 0.0f, -z, MTXMODE_APPLY);
+    MM_Matrix_Translate(0.0f, 0.0f, -z, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
     AnimatedMat_Draw(play, ovl_Oceff_Wipe6_Matanimheader_000338);
     gSPDisplayList(POLY_XLU_DISP++, gOceff6DL);

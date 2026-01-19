@@ -67,12 +67,12 @@ void PauseMapMark_DrawForDungeon(PlayState* play) {
         if ((mapMarkData->markType == PAUSE_MAP_MARK_BOSS) && (play->sceneNum >= SCENE_DEKU_TREE_BOSS) &&
             (play->sceneNum <= SCENE_GANONS_TOWER_COLLAPSE_EXTERIOR)) {
             if (gBossMarkState == 0) {
-                Math_ApproachF(&gBossMarkScale, 1.5f, 1.0f, 0.041f);
+                OoT_Math_ApproachF(&gBossMarkScale, 1.5f, 1.0f, 0.041f);
                 if (gBossMarkScale == 1.5f) {
                     gBossMarkState = 1;
                 }
             } else {
-                Math_ApproachF(&gBossMarkScale, 1.0f, 1.0f, 0.041f);
+                OoT_Math_ApproachF(&gBossMarkScale, 1.0f, 1.0f, 0.041f);
                 if (gBossMarkScale == 1.0f) {
                     gBossMarkState = 0;
                 }
@@ -82,12 +82,12 @@ void PauseMapMark_DrawForDungeon(PlayState* play) {
             scale = 1.0f;
         }
 
-        Matrix_Push();
+        OoT_Matrix_Push();
 
         if ((play->pauseCtx.state == 4) || (play->pauseCtx.state >= 0x12)) {
-            Matrix_Translate(-36.0f, 101.0f, 0.0f, MTXMODE_APPLY);
+            OoT_Matrix_Translate(-36.0f, 101.0f, 0.0f, MTXMODE_APPLY);
         } else {
-            Matrix_Translate(-36.0f, 21.0f, 0.0f, MTXMODE_APPLY);
+            OoT_Matrix_Translate(-36.0f, 21.0f, 0.0f, MTXMODE_APPLY);
         }
 
         gDPPipeSync(POLY_OPA_DISP++);
@@ -99,7 +99,7 @@ void PauseMapMark_DrawForDungeon(PlayState* play) {
             s32 display;
 
             if (mapMarkData->markType == PAUSE_MAP_MARK_CHEST) {
-                if (Flags_GetTreasure(play, markPoint->chestFlag)) {
+                if (OoT_Flags_GetTreasure(play, markPoint->chestFlag)) {
                     display = false;
                 } else {
                     switch (play->sceneNum) {
@@ -135,12 +135,12 @@ void PauseMapMark_DrawForDungeon(PlayState* play) {
                                        ? mirrorOffset = (48 - markPoint->x) * 2 + 1
                                        : 0;
 
-                Matrix_Push();
-                Matrix_Translate(GREG(92) + markPoint->x + mirrorOffset, GREG(93) + markPoint->y, 0.0f, MTXMODE_APPLY);
-                Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+                OoT_Matrix_Push();
+                OoT_Matrix_Translate(GREG(92) + markPoint->x + mirrorOffset, GREG(93) + markPoint->y, 0.0f, MTXMODE_APPLY);
+                OoT_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
                 gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx),
                           G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-                Matrix_Pop();
+                OoT_Matrix_Pop();
 
                 gSPVertex(POLY_OPA_DISP++, mapMarkData->vtx, mapMarkData->vtxCount, 0);
                 gSP1Quadrangle(POLY_OPA_DISP++, 1, 3, 2, 0, 0);
@@ -150,7 +150,7 @@ void PauseMapMark_DrawForDungeon(PlayState* play) {
         }
 
         mapMarkData++;
-        Matrix_Pop();
+        OoT_Matrix_Pop();
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

@@ -44,7 +44,7 @@ ActorProfile En_Fg_Profile = {
     /**/ EnFg_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HIT0,
         AT_NONE,
@@ -64,11 +64,11 @@ static ColliderCylinderInit sCylinderInit = {
     { 8, 10, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit2 = {
+static CollisionCheckInfoInit2 MM_sColChkInfoInit2 = {
     1, 0, 0, 0, MASS_IMMOVABLE,
 };
 
-static DamageTable sDamageTable = {
+static DamageTable MM_sDamageTable = {
     /* Deku Nut       */ DMG_ENTRY(0, 0x0),
     /* Deku Stick     */ DMG_ENTRY(1, 0x1),
     /* Horse trample  */ DMG_ENTRY(0, 0x0),
@@ -112,7 +112,7 @@ typedef enum {
     /*  4 */ BETAFROG_ANIM_MAX
 } BetaFrogAnimation;
 
-static AnimationInfoS sAnimationInfo[BETAFROG_ANIM_MAX] = {
+static AnimationInfoS MM_sAnimationInfo[BETAFROG_ANIM_MAX] = {
     { &gFrogIdleAnim, 1.0f, 0, -1, ANIMMODE_LOOP, 0 },   // BETAFROG_ANIM_IDLE
     { &gFrogIdleAnim, 1.0f, 0, -1, ANIMMODE_LOOP, -4 },  // BETAFROG_ANIM_IDLE_MORPH
     { &gFrogDanceAnim, 1.0f, 0, -1, ANIMMODE_LOOP, -4 }, // BETAFROG_ANIM_DANCE
@@ -125,13 +125,13 @@ s32 EnFg_ChangeAnim(SkelAnime* skelAnime, s16 animIndex) {
 
     if ((animIndex > BETAFROG_ANIM_NONE) && (animIndex < BETAFROG_ANIM_MAX)) {
         didAnimChange = true;
-        endFrame = sAnimationInfo[animIndex].frameCount;
+        endFrame = MM_sAnimationInfo[animIndex].frameCount;
         if (endFrame < 0) {
-            endFrame = Animation_GetLastFrame(sAnimationInfo[animIndex].animation);
+            endFrame = MM_Animation_GetLastFrame(MM_sAnimationInfo[animIndex].animation);
         }
-        Animation_Change(skelAnime, sAnimationInfo[animIndex].animation, sAnimationInfo[animIndex].playSpeed,
-                         sAnimationInfo[animIndex].startFrame, endFrame, sAnimationInfo[animIndex].mode,
-                         sAnimationInfo[animIndex].morphFrames);
+        MM_Animation_Change(skelAnime, MM_sAnimationInfo[animIndex].animation, MM_sAnimationInfo[animIndex].playSpeed,
+                         MM_sAnimationInfo[animIndex].startFrame, endFrame, MM_sAnimationInfo[animIndex].mode,
+                         MM_sAnimationInfo[animIndex].morphFrames);
     }
     return didAnimChange;
 }
@@ -141,13 +141,13 @@ void func_80A2D348(EnFg* this, PlayState* play) {
         this->collider.dim.pos.x = this->actor.world.pos.x;
         this->collider.dim.pos.y = this->actor.world.pos.y;
         this->collider.dim.pos.z = this->actor.world.pos.z;
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-        CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
 void EnFg_UpdateSkelAnime(EnFg* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 }
 
 u8 EnFg_UpdateHealth(EnFg* this) {
@@ -216,9 +216,9 @@ void EnFg_Idle(EnFg* this, PlayState* play) {
             this->skelAnime.playSpeed = 0.0f;
             rotY = this->collider.base.ac->world.rot.y;
             rotX = this->collider.base.ac->world.rot.x;
-            this->actor.scale.x = fabsf(0.01f * Math_CosS(rotY));
-            this->actor.scale.y = fabsf(0.01f * Math_CosS(rotX));
-            this->actor.scale.z = fabsf(0.01f * Math_SinS(rotY));
+            this->actor.scale.x = fabsf(0.01f * MM_Math_CosS(rotY));
+            this->actor.scale.y = fabsf(0.01f * MM_Math_CosS(rotX));
+            this->actor.scale.z = fabsf(0.01f * MM_Math_SinS(rotY));
             this->actor.scale.x = CLAMP_MIN(this->actor.scale.x, 0.001f);
             this->actor.scale.y = CLAMP_MIN(this->actor.scale.y, 0.001f);
             this->actor.scale.z = CLAMP_MIN(this->actor.scale.z, 0.001f);
@@ -231,7 +231,7 @@ void EnFg_Idle(EnFg* this, PlayState* play) {
             this->actor.params = BETAFROG_BLACK;
             this->skelAnime.playSpeed = 0.0f;
             ac = this->collider.base.ac;
-            this->actor.world.rot.y = Math_Vec3f_Yaw(&ac->world.pos, &this->actor.world.pos);
+            this->actor.world.rot.y = MM_Math_Vec3f_Yaw(&ac->world.pos, &this->actor.world.pos);
             this->actor.shape.rot = this->actor.world.rot;
             this->actor.velocity.y = 10.0f;
             this->actor.speed = 3.0f;
@@ -246,7 +246,7 @@ void EnFg_Idle(EnFg* this, PlayState* play) {
                 Actor_PlaySfx(&this->actor, NA_SE_EV_FROG_JUMP);
                 EnFg_ChangeAnim(&this->skelAnime, BETAFROG_ANIM_JUMP);
                 this->actor.velocity.y = 10.0f;
-                this->timer = Rand_S16Offset(30, 30);
+                this->timer = MM_Rand_S16Offset(30, 30);
                 this->actionFunc = EnFg_Jump;
             }
     }
@@ -266,9 +266,9 @@ void EnFg_Jump(EnFg* this, PlayState* play) {
             ac = this->collider.base.ac;
             rotY = ac->world.rot.y;
             rotX = ac->world.rot.x;
-            this->actor.scale.x = fabsf(Math_CosS(rotY) * 0.01f);
-            this->actor.scale.y = fabsf(Math_CosS(rotX) * 0.01f);
-            this->actor.scale.z = fabsf(Math_SinS(rotY) * 0.01f);
+            this->actor.scale.x = fabsf(MM_Math_CosS(rotY) * 0.01f);
+            this->actor.scale.y = fabsf(MM_Math_CosS(rotX) * 0.01f);
+            this->actor.scale.z = fabsf(MM_Math_SinS(rotY) * 0.01f);
             this->actor.scale.x = CLAMP_MIN(this->actor.scale.x, 0.001f);
             this->actor.scale.y = CLAMP_MIN(this->actor.scale.y, 0.001f);
             this->actor.scale.z = CLAMP_MIN(this->actor.scale.z, 0.001f);
@@ -285,7 +285,7 @@ void EnFg_Jump(EnFg* this, PlayState* play) {
             this->actor.params = BETAFROG_BLACK;
             this->skelAnime.playSpeed = 0.0f;
             ac = this->collider.base.ac;
-            this->actor.world.rot.y = Math_Vec3f_Yaw(&ac->world.pos, &this->actor.world.pos);
+            this->actor.world.rot.y = MM_Math_Vec3f_Yaw(&ac->world.pos, &this->actor.world.pos);
             this->actor.shape.rot = this->actor.world.rot;
             this->actor.velocity.y = 10.0f;
             this->actor.speed = 3.0f;
@@ -296,7 +296,7 @@ void EnFg_Jump(EnFg* this, PlayState* play) {
             break;
 
         default:
-            if (Animation_OnFrame(&this->skelAnime, 8.0f)) {
+            if (MM_Animation_OnFrame(&this->skelAnime, 8.0f)) {
                 this->skelAnime.curFrame = 8.0f;
                 this->skelAnime.playSpeed = 0.0f;
             }
@@ -340,14 +340,14 @@ void EnFg_Knockback(EnFg* this, PlayState* play) {
 void EnFg_Init(Actor* thisx, PlayState* play) {
     EnFg* this = (EnFg*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 10.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gFrogSkel, NULL, this->jointTable, this->morphTable, FROG_LIMB_MAX);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 10.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gFrogSkel, NULL, this->jointTable, this->morphTable, FROG_LIMB_MAX);
     EnFg_ChangeAnim(&this->skelAnime, BETAFROG_ANIM_IDLE);
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, &sDamageTable, &sColChkInfoInit2);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, &MM_sDamageTable, &MM_sColChkInfoInit2);
     this->actor.flags |= ACTOR_FLAG_CAN_ATTACH_TO_ARROW;
-    Actor_SetScale(&this->actor, 0.01f);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->actor.gravity = -1.6f;
     this->actionFunc = EnFg_Idle;
 }
@@ -355,7 +355,7 @@ void EnFg_Init(Actor* thisx, PlayState* play) {
 void EnFg_Destroy(Actor* thisx, PlayState* play) {
     EnFg* this = (EnFg*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void EnFg_Update(Actor* thisx, PlayState* play) {
@@ -364,7 +364,7 @@ void EnFg_Update(Actor* thisx, PlayState* play) {
     if ((CHECK_FLAG_ALL(this->actor.flags, ACTOR_FLAG_HOOKSHOT_ATTACHED) == 0) &&
         (CHECK_FLAG_ALL(this->actor.flags, ACTOR_FLAG_ATTACHED_TO_ARROW) == 0)) {
         this->actionFunc(this, play);
-        Actor_UpdateBgCheckInfo(play, &this->actor, sREG(0), sREG(1), 0.0f,
+        MM_Actor_UpdateBgCheckInfo(play, &this->actor, sREG(0), sREG(1), 0.0f,
                                 UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4);
     }
 
@@ -396,17 +396,17 @@ void EnFg_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
     if ((limbIndex == FROG_LIMB_RIGHT_EYE) || (limbIndex == FROG_LIMB_LEFT_EYE)) {
         OPEN_DISPS(play->state.gfxCtx);
 
-        Matrix_Push();
-        Matrix_ReplaceRotation(&play->billboardMtxF);
+        MM_Matrix_Push();
+        MM_Matrix_ReplaceRotation(&play->billboardMtxF);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
         gSPDisplayList(POLY_OPA_DISP++, *dList);
-        Matrix_Pop();
+        MM_Matrix_Pop();
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
 
     if (limbIndex == FROG_LIMB_HEAD) {
-        Matrix_MultVec3f(&zeroVec, &this->actor.focus.pos);
+        MM_Matrix_MultVec3f(&zeroVec, &this->actor.focus.pos);
     }
 }
 
@@ -422,9 +422,9 @@ void EnFg_Draw(Actor* thisx, PlayState* play) {
         { 0, 0, 0, 255 },       // BETAFROG_BLACK
     };
 
-    Matrix_Push();
+    MM_Matrix_Push();
     EnFg_DrawDust(play, &this->dustEffect[0]);
-    Matrix_Pop();
+    MM_Matrix_Pop();
 
     OPEN_DISPS(play->state.gfxCtx);
 
@@ -434,7 +434,7 @@ void EnFg_Draw(Actor* thisx, PlayState* play) {
                    envColor[this->actor.params].b, envColor[this->actor.params].a);
     gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(gFrogIrisOpenTex));
     gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(gFrogIrisOpenTex));
-    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+    MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnFg_OverrideLimbDraw, EnFg_PostLimbDraw, &this->actor);
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -471,7 +471,7 @@ void EnFg_UpdateDust(BetaFrogEffectDust* dustEffect) {
     }
 }
 
-static TexturePtr sDustTextures[] = {
+static TexturePtr MM_sDustTextures[] = {
     gEffDust8Tex, gEffDust7Tex, gEffDust6Tex, gEffDust5Tex, gEffDust4Tex, gEffDust3Tex, gEffDust2Tex, gEffDust1Tex,
 };
 
@@ -491,7 +491,7 @@ void EnFg_DrawDust(PlayState* play, BetaFrogEffectDust* dustEffect) {
         }
 
         if (!firstDone) {
-            POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_0);
+            POLY_XLU_DISP = MM_Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_0);
             gSPDisplayList(POLY_XLU_DISP++, gFrogDustMaterialDL);
             gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 0, 0);
             firstDone = true;
@@ -500,12 +500,12 @@ void EnFg_DrawDust(PlayState* play, BetaFrogEffectDust* dustEffect) {
         alpha = (255.0f / 16.0f) * dustEffect->timer;
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 0, 0, 0, alpha);
         gDPPipeSync(POLY_XLU_DISP++);
-        Matrix_Translate(dustEffect->pos.x, dustEffect->pos.y, dustEffect->pos.z, MTXMODE_NEW);
-        Matrix_ReplaceRotation(&play->billboardMtxF);
-        Matrix_Scale(dustEffect->xyScale, dustEffect->xyScale, 1.0f, MTXMODE_APPLY);
+        MM_Matrix_Translate(dustEffect->pos.x, dustEffect->pos.y, dustEffect->pos.z, MTXMODE_NEW);
+        MM_Matrix_ReplaceRotation(&play->billboardMtxF);
+        MM_Matrix_Scale(dustEffect->xyScale, dustEffect->xyScale, 1.0f, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         index = 0.5f * dustEffect->timer;
-        gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(sDustTextures[index]));
+        gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sDustTextures[index]));
         gSPDisplayList(POLY_XLU_DISP++, gFrogDustModelDL);
     }
 

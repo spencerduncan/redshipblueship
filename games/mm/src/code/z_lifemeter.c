@@ -7,28 +7,28 @@
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include <libultraship/bridge/consolevariablebridge.h>
 
-s16 sHeartsPrimColors[3][3] = { { 255, 70, 50 }, { 255, 190, 0 }, { 100, 100, 255 } };
-s16 sHeartsEnvColors[3][3] = { { 50, 40, 60 }, { 255, 0, 0 }, { 0, 0, 255 } };
-s16 sHeartsPrimFactors[3][3] = { { 0, 0, 0 }, { 0, 120, -50 }, { -155, 30, 205 } };
-s16 sHeartsEnvFactors[3][3] = { { 0, 0, 0 }, { 205, -40, -60 }, { -50, -40, 195 } };
-s16 sHeartsDDPrimColors[3][3] = { { 255, 255, 255 }, { 255, 190, 0 }, { 100, 100, 255 } };
-s16 sHeartsDDEnvColors[3][3] = { { 200, 0, 0 }, { 255, 0, 0 }, { 0, 0, 255 } };
-s16 sHeartsDDPrimFactors[3][3] = { { 0, 0, 0 }, { 0, -65, -255 }, { -155, -155, 0 } };
-s16 sHeartsDDEnvFactors[3][3] = { { 0, 0, 0 }, { 55, 0, 0 }, { -200, 0, 255 } };
+s16 MM_sHeartsPrimColors[3][3] = { { 255, 70, 50 }, { 255, 190, 0 }, { 100, 100, 255 } };
+s16 MM_sHeartsEnvColors[3][3] = { { 50, 40, 60 }, { 255, 0, 0 }, { 0, 0, 255 } };
+s16 MM_sHeartsPrimFactors[3][3] = { { 0, 0, 0 }, { 0, 120, -50 }, { -155, 30, 205 } };
+s16 MM_sHeartsEnvFactors[3][3] = { { 0, 0, 0 }, { 205, -40, -60 }, { -50, -40, 195 } };
+s16 MM_sHeartsDDPrimColors[3][3] = { { 255, 255, 255 }, { 255, 190, 0 }, { 100, 100, 255 } };
+s16 MM_sHeartsDDEnvColors[3][3] = { { 200, 0, 0 }, { 255, 0, 0 }, { 0, 0, 255 } };
+s16 MM_sHeartsDDPrimFactors[3][3] = { { 0, 0, 0 }, { 0, -65, -255 }, { -155, -155, 0 } };
+s16 MM_sHeartsDDEnvFactors[3][3] = { { 0, 0, 0 }, { 55, 0, 0 }, { -200, 0, 255 } };
 
-s16 sBeatingHeartsDDPrim[3];
-s16 sBeatingHeartsDDEnv[3];
-s16 sHeartsDDPrim[2][3];
-s16 sHeartsDDEnv[2][3];
+s16 MM_sBeatingHeartsDDPrim[3];
+s16 MM_sBeatingHeartsDDEnv[3];
+s16 MM_sHeartsDDPrim[2][3];
+s16 MM_sHeartsDDEnv[2][3];
 
-static TexturePtr sHeartTextures[] = {
+static TexturePtr MM_sHeartTextures[] = {
     gHeartFullTex,         gHeartQuarterTex,      gHeartQuarterTex,      gHeartQuarterTex,
     gHeartQuarterTex,      gHeartQuarterTex,      gHeartHalfTex,         gHeartHalfTex,
     gHeartHalfTex,         gHeartHalfTex,         gHeartHalfTex,         gHeartThreeQuarterTex,
     gHeartThreeQuarterTex, gHeartThreeQuarterTex, gHeartThreeQuarterTex, gHeartThreeQuarterTex,
 };
 
-static TexturePtr sHeartDDTextures[] = {
+static TexturePtr MM_sHeartDDTextures[] = {
     gDefenseHeartFullTex,         gDefenseHeartQuarterTex,      gDefenseHeartQuarterTex,
     gDefenseHeartQuarterTex,      gDefenseHeartQuarterTex,      gDefenseHeartQuarterTex,
     gDefenseHeartHalfTex,         gDefenseHeartHalfTex,         gDefenseHeartHalfTex,
@@ -66,13 +66,13 @@ void LifeMeter_Init(PlayState* play) {
     interfaceCtx->heartsEnvG[1] = 40;
     interfaceCtx->heartsEnvB[1] = 60;
 
-    sHeartsDDPrim[0][0] = sHeartsDDPrim[1][0] = 255;
-    sHeartsDDPrim[0][1] = sHeartsDDPrim[1][1] = 255;
-    sHeartsDDPrim[0][2] = sHeartsDDPrim[1][2] = 255;
+    MM_sHeartsDDPrim[0][0] = MM_sHeartsDDPrim[1][0] = 255;
+    MM_sHeartsDDPrim[0][1] = MM_sHeartsDDPrim[1][1] = 255;
+    MM_sHeartsDDPrim[0][2] = MM_sHeartsDDPrim[1][2] = 255;
 
-    sHeartsDDEnv[0][0] = sHeartsDDEnv[1][0] = 200;
-    sHeartsDDEnv[0][1] = sHeartsDDEnv[1][1] = 0;
-    sHeartsDDEnv[0][2] = sHeartsDDEnv[1][2] = 0;
+    MM_sHeartsDDEnv[0][0] = MM_sHeartsDDEnv[1][0] = 200;
+    MM_sHeartsDDEnv[0][1] = MM_sHeartsDDEnv[1][1] = 0;
+    MM_sHeartsDDEnv[0][2] = MM_sHeartsDDEnv[1][2] = 0;
 }
 
 void LifeMeter_UpdateColors(PlayState* play) {
@@ -111,25 +111,25 @@ void LifeMeter_UpdateColors(PlayState* play) {
     interfaceCtx->heartsEnvG[0] = 40;
     interfaceCtx->heartsEnvB[0] = 60;
 
-    interfaceCtx->heartsPrimR[1] = sHeartsPrimColors[type][0];
-    interfaceCtx->heartsPrimG[1] = sHeartsPrimColors[type][1];
-    interfaceCtx->heartsPrimB[1] = sHeartsPrimColors[type][2];
+    interfaceCtx->heartsPrimR[1] = MM_sHeartsPrimColors[type][0];
+    interfaceCtx->heartsPrimG[1] = MM_sHeartsPrimColors[type][1];
+    interfaceCtx->heartsPrimB[1] = MM_sHeartsPrimColors[type][2];
 
-    interfaceCtx->heartsEnvR[1] = sHeartsEnvColors[type][0];
-    interfaceCtx->heartsEnvG[1] = sHeartsEnvColors[type][1];
-    interfaceCtx->heartsEnvB[1] = sHeartsEnvColors[type][2];
+    interfaceCtx->heartsEnvR[1] = MM_sHeartsEnvColors[type][0];
+    interfaceCtx->heartsEnvG[1] = MM_sHeartsEnvColors[type][1];
+    interfaceCtx->heartsEnvB[1] = MM_sHeartsEnvColors[type][2];
 
-    rFactor = sHeartsPrimFactors[0][0] * factorBeating;
-    gFactor = sHeartsPrimFactors[0][1] * factorBeating;
-    bFactor = sHeartsPrimFactors[0][2] * factorBeating;
+    rFactor = MM_sHeartsPrimFactors[0][0] * factorBeating;
+    gFactor = MM_sHeartsPrimFactors[0][1] * factorBeating;
+    bFactor = MM_sHeartsPrimFactors[0][2] * factorBeating;
 
     interfaceCtx->beatingHeartPrim[0] = (u8)(rFactor + 255) & 0xFF;
     interfaceCtx->beatingHeartPrim[1] = (u8)(gFactor + 70) & 0xFF;
     interfaceCtx->beatingHeartPrim[2] = (u8)(bFactor + 50) & 0xFF;
 
-    rFactor = sHeartsEnvFactors[0][0] * factorBeating;
-    gFactor = sHeartsEnvFactors[0][1] * factorBeating;
-    bFactor = sHeartsEnvFactors[0][2] * factorBeating;
+    rFactor = MM_sHeartsEnvFactors[0][0] * factorBeating;
+    gFactor = MM_sHeartsEnvFactors[0][1] * factorBeating;
+    bFactor = MM_sHeartsEnvFactors[0][2] * factorBeating;
 
     if (1) {}
     ddType = type;
@@ -138,37 +138,37 @@ void LifeMeter_UpdateColors(PlayState* play) {
     interfaceCtx->beatingHeartEnv[1] = (u8)(gFactor + 40) & 0xFF;
     interfaceCtx->beatingHeartEnv[2] = (u8)(bFactor + 60) & 0xFF;
 
-    sHeartsDDPrim[0][0] = 255;
-    sHeartsDDPrim[0][1] = 255;
-    sHeartsDDPrim[0][2] = 255;
+    MM_sHeartsDDPrim[0][0] = 255;
+    MM_sHeartsDDPrim[0][1] = 255;
+    MM_sHeartsDDPrim[0][2] = 255;
 
-    sHeartsDDEnv[0][0] = 200;
-    sHeartsDDEnv[0][1] = 0;
-    sHeartsDDEnv[0][2] = 0;
+    MM_sHeartsDDEnv[0][0] = 200;
+    MM_sHeartsDDEnv[0][1] = 0;
+    MM_sHeartsDDEnv[0][2] = 0;
 
-    sHeartsDDPrim[1][0] = sHeartsDDPrimColors[ddType][0];
-    sHeartsDDPrim[1][1] = sHeartsDDPrimColors[ddType][1];
-    sHeartsDDPrim[1][2] = sHeartsDDPrimColors[ddType][2];
+    MM_sHeartsDDPrim[1][0] = MM_sHeartsDDPrimColors[ddType][0];
+    MM_sHeartsDDPrim[1][1] = MM_sHeartsDDPrimColors[ddType][1];
+    MM_sHeartsDDPrim[1][2] = MM_sHeartsDDPrimColors[ddType][2];
 
-    sHeartsDDEnv[1][0] = sHeartsDDEnvColors[ddType][0];
-    sHeartsDDEnv[1][1] = sHeartsDDEnvColors[ddType][1];
-    sHeartsDDEnv[1][2] = sHeartsDDEnvColors[ddType][2];
+    MM_sHeartsDDEnv[1][0] = MM_sHeartsDDEnvColors[ddType][0];
+    MM_sHeartsDDEnv[1][1] = MM_sHeartsDDEnvColors[ddType][1];
+    MM_sHeartsDDEnv[1][2] = MM_sHeartsDDEnvColors[ddType][2];
 
-    rFactor = sHeartsDDPrimFactors[ddType][0] * ddFactor;
-    gFactor = sHeartsDDPrimFactors[ddType][1] * ddFactor;
-    bFactor = sHeartsDDPrimFactors[ddType][2] * ddFactor;
+    rFactor = MM_sHeartsDDPrimFactors[ddType][0] * ddFactor;
+    gFactor = MM_sHeartsDDPrimFactors[ddType][1] * ddFactor;
+    bFactor = MM_sHeartsDDPrimFactors[ddType][2] * ddFactor;
 
-    sBeatingHeartsDDPrim[0] = (u8)(rFactor + 255) & 0xFF;
-    sBeatingHeartsDDPrim[1] = (u8)(gFactor + 255) & 0xFF;
-    sBeatingHeartsDDPrim[2] = (u8)(bFactor + 255) & 0xFF;
+    MM_sBeatingHeartsDDPrim[0] = (u8)(rFactor + 255) & 0xFF;
+    MM_sBeatingHeartsDDPrim[1] = (u8)(gFactor + 255) & 0xFF;
+    MM_sBeatingHeartsDDPrim[2] = (u8)(bFactor + 255) & 0xFF;
 
-    rFactor = sHeartsDDEnvFactors[ddType][0] * ddFactor;
-    gFactor = sHeartsDDEnvFactors[ddType][1] * ddFactor;
-    bFactor = sHeartsDDEnvFactors[ddType][2] * ddFactor;
+    rFactor = MM_sHeartsDDEnvFactors[ddType][0] * ddFactor;
+    gFactor = MM_sHeartsDDEnvFactors[ddType][1] * ddFactor;
+    bFactor = MM_sHeartsDDEnvFactors[ddType][2] * ddFactor;
 
-    sBeatingHeartsDDEnv[0] = (u8)(rFactor + 200) & 0xFF;
-    sBeatingHeartsDDEnv[1] = (u8)(gFactor + 0) & 0xFF;
-    sBeatingHeartsDDEnv[2] = (u8)(bFactor + 0) & 0xFF;
+    MM_sBeatingHeartsDDEnv[0] = (u8)(rFactor + 200) & 0xFF;
+    MM_sBeatingHeartsDDEnv[1] = (u8)(gFactor + 0) & 0xFF;
+    MM_sBeatingHeartsDDEnv[2] = (u8)(bFactor + 0) & 0xFF;
 }
 
 // Unused
@@ -295,7 +295,7 @@ void LifeMeter_Draw(PlayState* play) {
             if (i < fullHeartCount) {
                 heartTex = gHeartFullTex;
             } else if (i == fullHeartCount) {
-                heartTex = sHeartTextures[fractionHeartCount];
+                heartTex = MM_sHeartTextures[fractionHeartCount];
             } else {
                 heartTex = gHeartEmptyTex;
             }
@@ -305,11 +305,11 @@ void LifeMeter_Draw(PlayState* play) {
                     curColorSet = 4;
                     gDPPipeSync(OVERLAY_DISP++);
                     // Double Defense Heart Border
-                    gDPSetPrimColorOverride(OVERLAY_DISP++, 0, 0, sHeartsDDPrim[0][0], sHeartsDDPrim[0][1],
-                                            sHeartsDDPrim[0][2], interfaceCtx->healthAlpha,
+                    gDPSetPrimColorOverride(OVERLAY_DISP++, 0, 0, MM_sHeartsDDPrim[0][0], MM_sHeartsDDPrim[0][1],
+                                            MM_sHeartsDDPrim[0][2], interfaceCtx->healthAlpha,
                                             COSMETIC_ELEMENT_HEART_DD_BORDER);
                     // Double Defense Non Active Heart
-                    gDPSetEnvColorOverride(OVERLAY_DISP++, sHeartsDDEnv[0][0], sHeartsDDEnv[0][1], sHeartsDDEnv[0][2],
+                    gDPSetEnvColorOverride(OVERLAY_DISP++, MM_sHeartsDDEnv[0][0], MM_sHeartsDDEnv[0][1], MM_sHeartsDDEnv[0][2],
                                            255, COSMETIC_ELEMENT_HEART_DD);
                 }
             } else if (i == fullHeartCount) {
@@ -317,36 +317,36 @@ void LifeMeter_Draw(PlayState* play) {
                     curColorSet = 5;
                     gDPPipeSync(OVERLAY_DISP++);
                     // Double Defense Beating Heart Border
-                    gDPSetPrimColorOverride(OVERLAY_DISP++, 0, 0, sBeatingHeartsDDPrim[0], sBeatingHeartsDDPrim[1],
-                                            sBeatingHeartsDDPrim[2], interfaceCtx->healthAlpha,
+                    gDPSetPrimColorOverride(OVERLAY_DISP++, 0, 0, MM_sBeatingHeartsDDPrim[0], MM_sBeatingHeartsDDPrim[1],
+                                            MM_sBeatingHeartsDDPrim[2], interfaceCtx->healthAlpha,
                                             COSMETIC_ELEMENT_HEART_DD_BORDER);
                     // Double Defense Beating Heart
-                    gDPSetEnvColorOverride(OVERLAY_DISP++, sBeatingHeartsDDEnv[0], sBeatingHeartsDDEnv[1],
-                                           sBeatingHeartsDDEnv[2], 255, COSMETIC_ELEMENT_HEART_DD_BEATING);
+                    gDPSetEnvColorOverride(OVERLAY_DISP++, MM_sBeatingHeartsDDEnv[0], MM_sBeatingHeartsDDEnv[1],
+                                           MM_sBeatingHeartsDDEnv[2], 255, COSMETIC_ELEMENT_HEART_DD_BEATING);
                 }
             } else if (i > fullHeartCount) {
                 if (curColorSet != 6) {
                     curColorSet = 6;
                     gDPPipeSync(OVERLAY_DISP++);
                     // Double Defense Empty Heart Border
-                    gDPSetPrimColorOverride(OVERLAY_DISP++, 0, 0, sHeartsDDPrim[0][0], sHeartsDDPrim[0][1],
-                                            sHeartsDDPrim[0][2], interfaceCtx->healthAlpha,
+                    gDPSetPrimColorOverride(OVERLAY_DISP++, 0, 0, MM_sHeartsDDPrim[0][0], MM_sHeartsDDPrim[0][1],
+                                            MM_sHeartsDDPrim[0][2], interfaceCtx->healthAlpha,
                                             COSMETIC_ELEMENT_HEART_DD_BORDER);
                     // Double Defense Empty Heart
-                    gDPSetEnvColorOverride(OVERLAY_DISP++, sHeartsDDEnv[0][0], sHeartsDDEnv[0][1], sHeartsDDEnv[0][2],
+                    gDPSetEnvColorOverride(OVERLAY_DISP++, MM_sHeartsDDEnv[0][0], MM_sHeartsDDEnv[0][1], MM_sHeartsDDEnv[0][2],
                                            255, COSMETIC_ELEMENT_HEART_DD);
                 }
             } else if (curColorSet != 7) {
                 curColorSet = 7;
                 gDPPipeSync(OVERLAY_DISP++);
-                gDPSetPrimColor(OVERLAY_DISP++, 0, 0, sHeartsDDPrim[1][0], sHeartsDDPrim[1][1], sHeartsDDPrim[1][2],
+                gDPSetPrimColor(OVERLAY_DISP++, 0, 0, MM_sHeartsDDPrim[1][0], MM_sHeartsDDPrim[1][1], MM_sHeartsDDPrim[1][2],
                                 interfaceCtx->healthAlpha);
-                gDPSetEnvColor(OVERLAY_DISP++, sHeartsDDEnv[1][0], sHeartsDDEnv[1][1], sHeartsDDEnv[1][2], 255);
+                gDPSetEnvColor(OVERLAY_DISP++, MM_sHeartsDDEnv[1][0], MM_sHeartsDDEnv[1][1], MM_sHeartsDDEnv[1][2], 255);
             }
             if (i < fullHeartCount) {
                 heartTex = gDefenseHeartFullTex;
             } else if (i == fullHeartCount) {
-                heartTex = sHeartDDTextures[fractionHeartCount];
+                heartTex = MM_sHeartDDTextures[fractionHeartCount];
             } else {
                 heartTex = gDefenseHeartEmptyTex;
             }
@@ -476,8 +476,8 @@ void LifeMeter_UpdateSizeAndBeep(PlayState* play) {
         if (interfaceCtx->lifeSizeChange <= 0) {
             interfaceCtx->lifeSizeChange = 0;
             interfaceCtx->lifeSizeChangeDirection = 0;
-            if (!Player_InCsMode(play) && !IS_PAUSED(&play->pauseCtx) && LifeMeter_IsCritical() &&
-                !Play_InCsMode(play)) {
+            if (!MM_Player_InCsMode(play) && !IS_PAUSED(&play->pauseCtx) && LifeMeter_IsCritical() &&
+                !MM_Play_InCsMode(play)) {
                 if (GameInteractor_Should(VB_PLAY_LOW_HP_ALARM, true)) {
                     Audio_PlaySfx(NA_SE_SY_HITPOINT_ALARM);
                 }

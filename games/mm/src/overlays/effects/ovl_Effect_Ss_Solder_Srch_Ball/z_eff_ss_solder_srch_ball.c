@@ -11,24 +11,24 @@
 
 #define PARAMS ((EffectSsSolderSrchBallInitParams*)initParamsx)
 
-u32 EffectSsSolderSrchBall_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsSolderSrchBall_Update(PlayState* play, u32 index, EffectSs* this);
-void EffectSsSolderSrchBall_Draw(PlayState* play, u32 index, EffectSs* this);
+u32 MM_EffectSsSolderSrchBall_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void MM_EffectSsSolderSrchBall_Update(PlayState* play, u32 index, EffectSs* this);
+void MM_EffectSsSolderSrchBall_Draw(PlayState* play, u32 index, EffectSs* this);
 
 EffectSsProfile Effect_Ss_Solder_Srch_Ball_Profile = {
     EFFECT_SS_SOLDER_SRCH_BALL,
-    EffectSsSolderSrchBall_Init,
+    MM_EffectSsSolderSrchBall_Init,
 };
 
-u32 EffectSsSolderSrchBall_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 MM_EffectSsSolderSrchBall_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsSolderSrchBallInitParams* initParams = PARAMS;
 
     this->pos = initParams->pos;
     this->velocity = initParams->velocity;
     this->accel = initParams->accel;
-    this->update = EffectSsSolderSrchBall_Update;
+    this->update = MM_EffectSsSolderSrchBall_Update;
     if (!(initParams->flags & SOLDERSRCHBALL_INVISIBLE)) {
-        this->draw = EffectSsSolderSrchBall_Draw;
+        this->draw = MM_EffectSsSolderSrchBall_Draw;
     }
     this->life = 10;
     this->rgScale = initParams->scale;
@@ -41,7 +41,7 @@ u32 EffectSsSolderSrchBall_Init(PlayState* play, u32 index, EffectSs* this, void
     return 1;
 }
 
-void EffectSsSolderSrchBall_Draw(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsSolderSrchBall_Draw(PlayState* play, u32 index, EffectSs* this) {
     s32 pad;
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     f32 scale = this->rgScale / 100.0f;
@@ -51,15 +51,15 @@ void EffectSsSolderSrchBall_Draw(PlayState* play, u32 index, EffectSs* this) {
 
     OPEN_DISPS(gfxCtx);
 
-    Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
-    Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
-    POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_20);
+    MM_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
+    MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+    POLY_XLU_DISP = MM_Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_20);
     gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gSun1Tex));
     gSPDisplayList(POLY_XLU_DISP++, gSunSparkleMaterialDL);
     gDPPipeSync(POLY_XLU_DISP++);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, 255);
     gDPSetEnvColor(POLY_XLU_DISP++, 250, 180, 255, 255);
-    Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
+    MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
     Matrix_RotateZF(DEG_TO_RAD(20.0f * play->state.frames), MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
     gSPDisplayList(POLY_XLU_DISP++, gSunSparkleModelDL);
@@ -67,7 +67,7 @@ void EffectSsSolderSrchBall_Draw(PlayState* play, u32 index, EffectSs* this) {
     CLOSE_DISPS(gfxCtx);
 }
 
-void EffectSsSolderSrchBall_Update(PlayState* play, u32 index, EffectSs* this) {
+void MM_EffectSsSolderSrchBall_Update(PlayState* play, u32 index, EffectSs* this) {
     s32 pad;
     f32 diffX;
     f32 diffY;
@@ -80,11 +80,11 @@ void EffectSsSolderSrchBall_Update(PlayState* play, u32 index, EffectSs* this) {
     diffZ = player->actor.world.pos.z - this->pos.z;
 
     if (this->rFlags >= SOLDERSRCHBALL_SMALL_DETECT_RADIUS) {
-        if ((sqrtf(SQ(diffX) + SQ(diffZ)) < 10.0f) && (sqrtf(SQ(diffY)) < 10.0f)) {
+        if ((MM_sqrtf(SQ(diffX) + SQ(diffZ)) < 10.0f) && (MM_sqrtf(SQ(diffY)) < 10.0f)) {
             *playerDetected = true;
         }
-    } else if (!BgCheck_SphVsFirstWall(&play->colCtx, &this->pos, 30.0f)) {
-        if ((sqrtf(SQ(diffX) + SQ(diffZ)) < 40.0f) && (sqrtf(SQ(diffY)) < 80.0f)) {
+    } else if (!MM_BgCheck_SphVsFirstWall(&play->colCtx, &this->pos, 30.0f)) {
+        if ((MM_sqrtf(SQ(diffX) + SQ(diffZ)) < 40.0f) && (MM_sqrtf(SQ(diffY)) < 80.0f)) {
             *playerDetected = true;
         }
     } else if (this->life > 1) {

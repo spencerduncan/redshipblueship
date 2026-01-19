@@ -1,6 +1,6 @@
 #include "global.h"
 
-u16 sATan2Tbl[] = {
+u16 MM_sATan2Tbl[] = {
     0x0,    0xA,    0x14,   0x1F,   0x29,   0x33,   0x3D,   0x47,   0x51,   0x5C,   0x66,   0x70,   0x7A,   0x84,
     0x8F,   0x99,   0xA3,   0xAD,   0xB7,   0xC2,   0xCC,   0xD6,   0xE0,   0xEA,   0xF4,   0xFF,   0x109,  0x113,
     0x11D,  0x127,  0x131,  0x13C,  0x146,  0x150,  0x15A,  0x164,  0x16F,  0x179,  0x183,  0x18D,  0x197,  0x1A1,
@@ -77,11 +77,11 @@ u16 sATan2Tbl[] = {
     0x1FF6, 0x1FFB, 0x2000,
 };
 
-u16 Math_GetAtan2Tbl(f32 y, f32 x) {
-    return sATan2Tbl[(s32)((y / x) * 0x400)];
+u16 MM_Math_GetAtan2Tbl(f32 y, f32 x) {
+    return MM_sATan2Tbl[(s32)((y / x) * 0x400)];
 }
 
-s16 Math_Atan2S(f32 y, f32 x) {
+s16 MM_Math_Atan2S(f32 y, f32 x) {
     s32 angle;
 
     if (y == 0.0f) {
@@ -99,43 +99,43 @@ s16 Math_Atan2S(f32 y, f32 x) {
     } else if (y >= 0.0f) {
         if (x >= 0.0f) {
             if (y <= x) {
-                angle = Math_GetAtan2Tbl(y, x);
+                angle = MM_Math_GetAtan2Tbl(y, x);
             } else {
-                angle = 0x4000 - Math_GetAtan2Tbl(x, y);
+                angle = 0x4000 - MM_Math_GetAtan2Tbl(x, y);
             }
         } else {
             if (-x < y) {
-                angle = Math_GetAtan2Tbl(-x, y) + 0x4000;
+                angle = MM_Math_GetAtan2Tbl(-x, y) + 0x4000;
             } else {
-                angle = 0x8000 - Math_GetAtan2Tbl(y, -x);
+                angle = 0x8000 - MM_Math_GetAtan2Tbl(y, -x);
             }
         }
     } else if (x < 0.0f) {
         if (-y <= -x) {
-            angle = Math_GetAtan2Tbl(-y, -x) + 0x8000;
+            angle = MM_Math_GetAtan2Tbl(-y, -x) + 0x8000;
         } else {
-            angle = 0xC000 - Math_GetAtan2Tbl(-x, -y);
+            angle = 0xC000 - MM_Math_GetAtan2Tbl(-x, -y);
         }
     } else {
         if (x < -y) {
-            angle = Math_GetAtan2Tbl(x, -y) + 0xC000;
+            angle = MM_Math_GetAtan2Tbl(x, -y) + 0xC000;
         } else {
-            angle = -Math_GetAtan2Tbl(-y, x);
+            angle = -MM_Math_GetAtan2Tbl(-y, x);
         }
     }
     return angle;
 }
 
-f32 Math_Atan2F(f32 y, f32 x) {
-    return BINANG_TO_RAD(Math_Atan2S(y, x));
+f32 MM_Math_Atan2F(f32 y, f32 x) {
+    return BINANG_TO_RAD(MM_Math_Atan2S(y, x));
 }
 
-// Match the OoT implementation of Math_Atan2S
+// Match the OoT implementation of MM_Math_Atan2S
 s16 Math_Atan2S_XY(f32 x, f32 y) {
-    return Math_Atan2S(y, x);
+    return MM_Math_Atan2S(y, x);
 }
 
-// Match the OoT implementation of Math_Atan2F
+// Match the OoT implementation of MM_Math_Atan2F
 f32 Math_Atan2F_XY(f32 x, f32 y) {
-    return Math_Atan2F(y, x);
+    return MM_Math_Atan2F(y, x);
 }

@@ -11,10 +11,10 @@
     (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED | \
      ACTOR_FLAG_DRAW_CULLING_DISABLED)
 
-void EnNb_Init(Actor* thisx, PlayState* play);
-void EnNb_Destroy(Actor* thisx, PlayState* play);
-void EnNb_Update(Actor* thisx, PlayState* play);
-void EnNb_Draw(Actor* thisx, PlayState* play);
+void MM_EnNb_Init(Actor* thisx, PlayState* play);
+void MM_EnNb_Destroy(Actor* thisx, PlayState* play);
+void MM_EnNb_Update(Actor* thisx, PlayState* play);
+void MM_EnNb_Draw(Actor* thisx, PlayState* play);
 
 void func_80BC0EAC(EnNb* this, PlayState* play);
 
@@ -249,13 +249,13 @@ ActorProfile En_Nb_Profile = {
     /**/ FLAGS,
     /**/ OBJECT_NB,
     /**/ sizeof(EnNb),
-    /**/ EnNb_Init,
-    /**/ EnNb_Destroy,
-    /**/ EnNb_Update,
-    /**/ EnNb_Draw,
+    /**/ MM_EnNb_Init,
+    /**/ MM_EnNb_Destroy,
+    /**/ MM_EnNb_Update,
+    /**/ MM_EnNb_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HIT1,
         AT_NONE,
@@ -275,7 +275,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 10, 68, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
+static CollisionCheckInfoInit2 MM_sColChkInfoInit = { 0, 0, 0, 0, MASS_IMMOVABLE };
 
 Actor* EnNb_FindActor(EnNb* this, PlayState* play, u8 actorCategory, s16 actorId) {
     Actor* actorIter = NULL;
@@ -302,12 +302,12 @@ Actor* EnNb_FindActor(EnNb* this, PlayState* play, u8 actorCategory, s16 actorId
     return actorIter;
 }
 
-void EnNb_UpdateSkelAnime(EnNb* this) {
+void MM_EnNb_UpdateSkelAnime(EnNb* this) {
     this->skelAnime.playSpeed = this->animPlaySpeed;
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 }
 
-static AnimationInfoS sAnimationInfo[EN_NB_ANIM_MAX] = {
+static AnimationInfoS MM_sAnimationInfo[EN_NB_ANIM_MAX] = {
     { &gNbIdleAnim, 1.0f, 0, -1, ANIMMODE_LOOP, 0 },      // EN_NB_ANIM_0
     { &gNbIdleAnim, 1.0f, 0, -1, ANIMMODE_LOOP, -4 },     // EN_NB_ANIM_1
     { &gNbTalkAnim, 1.0f, 0, -1, ANIMMODE_ONCE, 0 },      // EN_NB_ANIM_TALK_ONCE
@@ -330,7 +330,7 @@ s32 EnNb_ChangeAnim(EnNb* this, EnNbAnimation animIndex) {
 
     if (changeAnim) {
         this->animIndex = animIndex;
-        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, animIndex);
+        didAnimChange = SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, animIndex);
         this->animPlaySpeed = this->skelAnime.playSpeed;
     }
 
@@ -341,11 +341,11 @@ void func_80BBFF24(EnNb* this, PlayState* play) {
     f32 yDiff;
     s32 pad;
 
-    Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
 
     yDiff = this->actor.focus.pos.y - this->actor.world.pos.y;
     this->collider.dim.height = yDiff;
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 Actor* func_80BBFF90(EnNb* this, PlayState* play) {
@@ -414,7 +414,7 @@ s32 func_80BC00AC(Actor* thisx, PlayState* play) {
         case ENNB_BEHAVIOUR_4:
         case ENNB_BEHAVIOUR_6:
         case ENNB_BEHAVIOUR_8:
-            Camera_SetTargetActor(Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(csId)), &this->actor);
+            Camera_SetTargetActor(MM_Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(csId)), &this->actor);
             this->behaviour++;
             ret = true;
             break;
@@ -424,7 +424,7 @@ s32 func_80BC00AC(Actor* thisx, PlayState* play) {
         case ENNB_BEHAVIOUR_5:
         case ENNB_BEHAVIOUR_7:
             if ((this->actor.child != NULL) && (this->actor.child->update != NULL)) {
-                Camera_SetTargetActor(Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(csId)),
+                Camera_SetTargetActor(MM_Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(csId)),
                                       this->actor.child);
             }
             this->behaviour++;
@@ -451,7 +451,7 @@ s32 func_80BC01DC(Actor* thisx, PlayState* play) {
 
     switch (this->behaviour) {
         case ENNB_BEHAVIOUR_0:
-            if (Player_GetMask(play) == PLAYER_MASK_ALL_NIGHT) {
+            if (MM_Player_GetMask(play) == PLAYER_MASK_ALL_NIGHT) {
                 this->behaviour = ENNB_BEHAVIOUR_1;
             } else {
                 this->behaviour = ENNB_BEHAVIOUR_5;
@@ -525,7 +525,7 @@ MsgScript* EnNb_GetMsgScript(EnNb* this, PlayState* play) {
     } else if (this->scheduleResult == EN_NB_SCH_2) {
         this->msgScriptCallback = func_80BC00AC;
         return D_80BC1574;
-    } else if (Player_GetMask(play) == PLAYER_MASK_KAFEIS_MASK) {
+    } else if (MM_Player_GetMask(play) == PLAYER_MASK_KAFEIS_MASK) {
         return D_80BC15C8;
     } else {
         this->msgScriptCallback = func_80BC01DC;
@@ -553,7 +553,7 @@ s32 func_80BC04FC(EnNb* this, PlayState* play) {
 
 void func_80BC05A8(EnNb* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
-    TextState talkState = Message_GetState(&play->msgCtx);
+    TextState talkState = MM_Message_GetState(&play->msgCtx);
     u16 textId = play->msgCtx.currentTextId;
 
     if ((&this->actor == player->talkActor) && ((textId < 0xFF) || (textId > 0x200)) &&
@@ -569,8 +569,8 @@ void func_80BC05A8(EnNb* this, PlayState* play) {
         this->unk_26C = 0.0f;
     }
 
-    Math_SmoothStepToF(&this->unk_270, this->unk_26C, 0.8f, 40.0f, 10.0f);
-    Matrix_Translate(this->unk_270, 0.0f, 0.0f, MTXMODE_APPLY);
+    MM_Math_SmoothStepToF(&this->unk_270, this->unk_26C, 0.8f, 40.0f, 10.0f);
+    MM_Matrix_Translate(this->unk_270, 0.0f, 0.0f, MTXMODE_APPLY);
     this->prevTalkState = talkState;
 }
 
@@ -580,23 +580,23 @@ void func_80BC06C4(EnNb* this) {
     Vec3f sp34;
     Player* player;
 
-    Math_Vec3f_Copy(&sp40, &this->unk_1E8->world.pos);
-    Math_Vec3f_Copy(&sp34, &this->actor.world.pos);
-    Math_ApproachS(&this->headRotY, Math_Vec3f_Yaw(&sp34, &sp40) - this->actor.shape.rot.y, 4, 0x2AA8);
+    MM_Math_Vec3f_Copy(&sp40, &this->unk_1E8->world.pos);
+    MM_Math_Vec3f_Copy(&sp34, &this->actor.world.pos);
+    MM_Math_ApproachS(&this->headRotY, MM_Math_Vec3f_Yaw(&sp34, &sp40) - this->actor.shape.rot.y, 4, 0x2AA8);
 
     this->headRotY = CLAMP(this->headRotY, -0x1FFE, 0x1FFE);
 
-    Math_Vec3f_Copy(&sp34, &this->actor.focus.pos);
+    MM_Math_Vec3f_Copy(&sp34, &this->actor.focus.pos);
 
     if (this->unk_1E8->id == ACTOR_PLAYER) {
         player = (Player*)this->unk_1E8;
 
         sp40.y = player->bodyPartsPos[PLAYER_BODYPART_HEAD].y + 3.0f;
     } else {
-        Math_Vec3f_Copy(&sp40, &this->unk_1E8->focus.pos);
+        MM_Math_Vec3f_Copy(&sp40, &this->unk_1E8->focus.pos);
     }
 
-    Math_ApproachS(&this->headRotZ, Math_Vec3f_Pitch(&sp34, &sp40), 4, 0x2AA8);
+    MM_Math_ApproachS(&this->headRotZ, MM_Math_Vec3f_Pitch(&sp34, &sp40), 4, 0x2AA8);
 
     this->headRotZ = CLAMP(this->headRotZ, -0x1554, 0x1554);
 }
@@ -629,7 +629,7 @@ void func_80BC08E0(EnNb* this, PlayState* play) {
         EnNb_ChangeAnim(this, EN_NB_ANIM_TALK_ONCE);
         this->stateFlags |= EN_NB_FLAG_400;
         this->unk_284++;
-    } else if ((this->unk_284 == 1) && Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    } else if ((this->unk_284 == 1) && MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         EnNb_ChangeAnim(this, EN_NB_ANIM_1);
         this->stateFlags &= ~EN_NB_FLAG_400;
         this->unk_284++;
@@ -642,7 +642,7 @@ void func_80BC0978(EnNb* this, PlayState* play) {
         this->stateFlags &= ~EN_NB_FLAG_20;
         this->stateFlags |= EN_NB_FLAG_400;
         this->unk_284++;
-    } else if ((this->unk_284 == 1) && Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+    } else if ((this->unk_284 == 1) && MM_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
         EnNb_ChangeAnim(this, EN_NB_ANIM_TALK_LOOP);
         this->stateFlags &= ~EN_NB_FLAG_400;
         this->unk_284++;
@@ -767,7 +767,7 @@ void EnNb_HandleSchedule(EnNb* this, PlayState* play) {
         func_80BC0D08(this, play);
     }
 
-    Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 3, 0x2AA8);
+    MM_Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 3, 0x2AA8);
 }
 
 void EnNb_FollowSchedule(EnNb* this, PlayState* play) {
@@ -778,7 +778,7 @@ void EnNb_FollowSchedule(EnNb* this, PlayState* play) {
     if (CHECK_EVENTINF(EVENTINF_43)) {
         scheduleOutput.result = EN_NB_SCH_1;
         EnNb_ProcessScheduleOutput(this, play, &scheduleOutput);
-        this->actor.shape.shadowDraw = ActorShadow_DrawCircle;
+        this->actor.shape.shadowDraw = MM_ActorShadow_DrawCircle;
         this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
     } else if (!Schedule_RunScript(play, sScheduleScript, &scheduleOutput) ||
                ((this->scheduleResult != scheduleOutput.result) &&
@@ -787,7 +787,7 @@ void EnNb_FollowSchedule(EnNb* this, PlayState* play) {
         this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
         scheduleOutput.result = EN_NB_SCH_NONE;
     } else {
-        this->actor.shape.shadowDraw = ActorShadow_DrawCircle;
+        this->actor.shape.shadowDraw = MM_ActorShadow_DrawCircle;
         this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
     }
 
@@ -816,18 +816,18 @@ void func_80BC0EAC(EnNb* this, PlayState* play) {
     }
 }
 
-void EnNb_Init(Actor* thisx, PlayState* play) {
+void MM_EnNb_Init(Actor* thisx, PlayState* play) {
     EnNb* this = (EnNb*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gNbSkel, NULL, this->jointTable, this->morphTable, NB_LIMB_MAX);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gNbSkel, NULL, this->jointTable, this->morphTable, NB_LIMB_MAX);
 
     this->animIndex = EN_NB_ANIM_INVALID;
     EnNb_ChangeAnim(this, EN_NB_ANIM_0);
 
-    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, DamageTable_Get(0x16), &sColChkInfoInit);
-    Actor_SetScale(&this->actor, 0.01f);
+    Collider_InitAndSetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_CollisionCheck_SetInfo2(&this->actor.colChkInfo, MM_DamageTable_Get(0x16), &MM_sColChkInfoInit);
+    MM_Actor_SetScale(&this->actor, 0.01f);
     this->stateFlags = EN_NB_FLAG_NONE;
 
     if (CHECK_EVENTINF(EVENTINF_43)) {
@@ -841,14 +841,14 @@ void EnNb_Init(Actor* thisx, PlayState* play) {
     this->actionFunc(this, play);
 }
 
-void EnNb_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnNb_Destroy(Actor* thisx, PlayState* play) {
     EnNb* this = (EnNb*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
     play->interfaceCtx.storyState = STORY_STATE_DESTROY;
 }
 
-void EnNb_Update(Actor* thisx, PlayState* play) {
+void MM_EnNb_Update(Actor* thisx, PlayState* play) {
     EnNb* this = (EnNb*)thisx;
 
     func_80BC04FC(this, play);
@@ -856,9 +856,9 @@ void EnNb_Update(Actor* thisx, PlayState* play) {
     func_80BC0A18(this, play);
 
     if (this->scheduleResult != EN_NB_SCH_NONE) {
-        EnNb_UpdateSkelAnime(this);
+        MM_EnNb_UpdateSkelAnime(this);
         func_80BC0800(this);
-        if (Actor_IsFacingPlayer(&this->actor, 0x38E0)) {
+        if (MM_Actor_IsFacingPlayer(&this->actor, 0x38E0)) {
             SubS_Offer(&this->actor, play, this->unk_274, 30.0f, PLAYER_IA_NONE,
                        this->stateFlags & SUBS_OFFER_MODE_MASK);
         }
@@ -866,7 +866,7 @@ void EnNb_Update(Actor* thisx, PlayState* play) {
     }
 }
 
-s32 EnNb_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx) {
+s32 MM_EnNb_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx) {
     EnNb* this = (EnNb*)thisx;
 
     if (limbIndex == NB_LIMB_HEAD) {
@@ -876,15 +876,15 @@ s32 EnNb_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* po
     return false;
 }
 
-void EnNb_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* thisx) {
+void MM_EnNb_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* thisx) {
     EnNb* this = (EnNb*)thisx;
     Vec3f focusTarget;
 
     if ((CutsceneManager_GetCurrentCsId() == CS_ID_NONE) && (limbIndex == NB_LIMB_HEAD)) {
-        Matrix_MultVec3f(&gZeroVec3f, &focusTarget);
-        Math_ApproachF(&thisx->focus.pos.x, focusTarget.x, 0.6f, 10000.0f);
-        Math_ApproachF(&thisx->focus.pos.y, focusTarget.y, 0.6f, 10000.0f);
-        Math_ApproachF(&thisx->focus.pos.z, focusTarget.z, 0.6f, 10000.0f);
+        MM_Matrix_MultVec3f(&gZeroVec3f, &focusTarget);
+        MM_Math_ApproachF(&thisx->focus.pos.x, focusTarget.x, 0.6f, 10000.0f);
+        MM_Math_ApproachF(&thisx->focus.pos.y, focusTarget.y, 0.6f, 10000.0f);
+        MM_Math_ApproachF(&thisx->focus.pos.z, focusTarget.z, 0.6f, 10000.0f);
         Math_Vec3s_Copy(&thisx->focus.rot, &thisx->world.rot);
     }
 }
@@ -910,23 +910,23 @@ void EnNb_TransformLimbDraw(PlayState* play, s32 limbIndex, Actor* thisx) {
     if (limbIndex == NB_LIMB_HEAD) {
         SubS_UpdateLimb(this->headRotZ + 0x4000, this->headRotY + this->actor.shape.rot.y + 0x4000,
                         &this->headComputedPos, &this->headComputedRot, stepRot, overrideRot);
-        Matrix_Pop();
-        Matrix_Translate(this->headComputedPos.x, this->headComputedPos.y, this->headComputedPos.z, MTXMODE_NEW);
-        Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+        MM_Matrix_Pop();
+        MM_Matrix_Translate(this->headComputedPos.x, this->headComputedPos.y, this->headComputedPos.z, MTXMODE_NEW);
+        MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
         Matrix_RotateYS(this->headComputedRot.y, MTXMODE_APPLY);
         Matrix_RotateXS(this->headComputedRot.x, MTXMODE_APPLY);
         Matrix_RotateZS(this->headComputedRot.z, MTXMODE_APPLY);
-        Matrix_Push();
+        MM_Matrix_Push();
     }
 }
 
-void EnNb_Draw(Actor* thisx, PlayState* play) {
+void MM_EnNb_Draw(Actor* thisx, PlayState* play) {
     EnNb* this = (EnNb*)thisx;
 
     if (this->scheduleResult != EN_NB_SCH_NONE) {
         Gfx_SetupDL37_Opa(play->state.gfxCtx);
         SkelAnime_DrawTransformFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
-                                       this->skelAnime.dListCount, EnNb_OverrideLimbDraw, EnNb_PostLimbDraw,
+                                       this->skelAnime.dListCount, MM_EnNb_OverrideLimbDraw, MM_EnNb_PostLimbDraw,
                                        EnNb_TransformLimbDraw, &this->actor);
     }
 }

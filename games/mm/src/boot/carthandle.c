@@ -1,3 +1,3 @@
 #include "carthandle.h"
 
-OSPiHandle* gCartHandle = NULL;
+OSPiHandle* MM_gCartHandle = NULL;

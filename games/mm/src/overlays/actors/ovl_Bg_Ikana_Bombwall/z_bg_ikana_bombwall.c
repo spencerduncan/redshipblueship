@@ -35,7 +35,7 @@ ActorProfile Bg_Ikana_Bombwall_Profile = {
     /**/ BgIkanaBombwall_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit1 = {
+static ColliderCylinderInit MM_sCylinderInit1 = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -55,7 +55,7 @@ static ColliderCylinderInit sCylinderInit1 = {
     { 80, 80, 0, { 0, 0, 0 } },
 };
 
-static ColliderCylinderInit sCylinderInit2 = {
+static ColliderCylinderInit MM_sCylinderInit2 = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -82,7 +82,7 @@ s16 D_80BD52C8[] = {
     8,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 500, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 500, ICHAIN_CONTINUE),
@@ -107,13 +107,13 @@ void func_80BD4720(BgIkanaBombwall* this, PlayState* play) {
     s16 phi_t0;
     s16 gravity;
 
-    Matrix_Push();
+    MM_Matrix_Push();
     Matrix_RotateYS(this->dyna.actor.shape.rot.y, MTXMODE_NEW);
     offsetPosX = 0.0f;
     offsetPosY = 0.0f;
 
     for (i = 0; i < 30; i++) {
-        offsetPosX += 60.0f + (Rand_ZeroOne() * 20.0f);
+        offsetPosX += 60.0f + (MM_Rand_ZeroOne() * 20.0f);
         if (offsetPosX > 75.0f) {
             offsetPosX -= 150.0f;
         }
@@ -122,14 +122,14 @@ void func_80BD4720(BgIkanaBombwall* this, PlayState* play) {
 
         posOffset.x = offsetPosX;
         posOffset.y = offsetPosY;
-        posOffset.z = (Rand_ZeroOne() * 20.0f) - 10.0f;
+        posOffset.z = (MM_Rand_ZeroOne() * 20.0f) - 10.0f;
 
-        velocityOffset.x = ((Rand_ZeroOne() - 0.5f) * 5.0f) + (offsetPosX * (4.0f / 75.0f));
-        velocityOffset.y = (Rand_ZeroOne() * 7.0f) - 2.0f;
-        velocityOffset.z = (Rand_ZeroOne() * 4.0f) - 2.0f;
+        velocityOffset.x = ((MM_Rand_ZeroOne() - 0.5f) * 5.0f) + (offsetPosX * (4.0f / 75.0f));
+        velocityOffset.y = (MM_Rand_ZeroOne() * 7.0f) - 2.0f;
+        velocityOffset.z = (MM_Rand_ZeroOne() * 4.0f) - 2.0f;
 
-        Matrix_MultVec3f(&posOffset, &pos);
-        Matrix_MultVec3f(&velocityOffset, &velocity);
+        MM_Matrix_MultVec3f(&posOffset, &pos);
+        MM_Matrix_MultVec3f(&velocityOffset, &velocity);
 
         pos.x += this->dyna.actor.world.pos.x;
         pos.y += this->dyna.actor.world.pos.y;
@@ -160,11 +160,11 @@ void func_80BD4720(BgIkanaBombwall* this, PlayState* play) {
             gravity = -450;
         }
 
-        EffectSsKakera_Spawn(play, &pos, &velocity, &pos, gravity, phi_s0, 30, 0, 0, scale, phi_t0, 0, 50, -1,
+        MM_EffectSsKakera_Spawn(play, &pos, &velocity, &pos, gravity, phi_s0, 30, 0, 0, scale, phi_t0, 0, 50, -1,
                              OBJECT_IKANA_OBJ, object_ikana_obj_DL_000288);
     }
 
-    Matrix_Pop();
+    MM_Matrix_Pop();
 }
 
 void func_80BD4A14(BgIkanaBombwall* this, PlayState* play) {
@@ -183,23 +183,23 @@ void func_80BD4A14(BgIkanaBombwall* this, PlayState* play) {
     temp_fs3 = 0.0f;
 
     for (i = 0, angle = 0; i < 28; i++, angle += 0x924) {
-        temp_fs3 += 20.0f + (Rand_ZeroOne() * 10.0f);
+        temp_fs3 += 20.0f + (MM_Rand_ZeroOne() * 10.0f);
         if (temp_fs3 > 60.0f) {
             temp_fs3 -= 60.0f;
         }
 
-        temp_fs0 = Math_SinS(angle);
-        temp_fs1 = Math_CosS(angle);
+        temp_fs0 = MM_Math_SinS(angle);
+        temp_fs1 = MM_Math_CosS(angle);
 
         pos.x = (temp_fs0 * temp_fs3) + this->dyna.actor.world.pos.x;
         pos.y = this->dyna.actor.world.pos.y;
         pos.z = (temp_fs1 * temp_fs3) + this->dyna.actor.world.pos.z;
 
-        velocity.x = ((Rand_ZeroOne() - 0.5f) * 3.0f * temp_fs0) + ((temp_fs0 * temp_fs3) * (1.0f / 30.0f));
-        velocity.y = (Rand_ZeroOne() * 18.0f) + 4.0f;
-        velocity.z = ((Rand_ZeroOne() - 0.5f) * 3.0f * temp_fs1) + ((temp_fs1 * temp_fs3) * (1.0f / 30.0f));
+        velocity.x = ((MM_Rand_ZeroOne() - 0.5f) * 3.0f * temp_fs0) + ((temp_fs0 * temp_fs3) * (1.0f / 30.0f));
+        velocity.y = (MM_Rand_ZeroOne() * 18.0f) + 4.0f;
+        velocity.z = ((MM_Rand_ZeroOne() - 0.5f) * 3.0f * temp_fs1) + ((temp_fs1 * temp_fs3) * (1.0f / 30.0f));
 
-        scale = (Rand_Next() & 3) + (i >> 1) + 6;
+        scale = (MM_Rand_Next() & 3) + (i >> 1) + 6;
 
         if ((i & 3) == 0) {
             phi_v0 = 32;
@@ -216,7 +216,7 @@ void func_80BD4A14(BgIkanaBombwall* this, PlayState* play) {
             gravity = -400;
         }
 
-        EffectSsKakera_Spawn(play, &pos, &velocity, &pos, gravity, phi_v0, 30, 0, 0, scale, phi_v1, 0, 50, -1,
+        MM_EffectSsKakera_Spawn(play, &pos, &velocity, &pos, gravity, phi_v0, 30, 0, 0, scale, phi_v1, 0, 50, -1,
                              OBJECT_IKANA_OBJ, object_ikana_obj_DL_000288);
 
         if ((i & 3) == 0) {
@@ -233,26 +233,26 @@ void BgIkanaBombwall_Init(Actor* thisx, PlayState* play) {
     CollisionHeader* colHeader;
     ColliderCylinderInit* cylinderInit;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, 0);
-    Collider_InitCylinder(play, &this->collider);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
+    MM_DynaPolyActor_Init(&this->dyna, 0);
+    MM_Collider_InitCylinder(play, &this->collider);
 
-    if (Flags_GetSwitch(play, BGIKANABOMBWALL_GET_SWITCH_FLAG(&this->dyna.actor))) {
-        Actor_Kill(&this->dyna.actor);
+    if (MM_Flags_GetSwitch(play, BGIKANABOMBWALL_GET_SWITCH_FLAG(&this->dyna.actor))) {
+        MM_Actor_Kill(&this->dyna.actor);
         return;
     }
 
     if (sp2C == 0) {
         colHeader = &object_ikana_obj_Colheader_000488;
-        cylinderInit = &sCylinderInit1;
+        cylinderInit = &MM_sCylinderInit1;
     } else {
         colHeader = &object_ikana_obj_Colheader_000128;
-        cylinderInit = &sCylinderInit2;
+        cylinderInit = &MM_sCylinderInit2;
     }
 
     DynaPolyActor_LoadMesh(play, &this->dyna, colHeader);
-    Collider_SetCylinder(play, &this->collider, &this->dyna.actor, cylinderInit);
-    Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->dyna.actor, cylinderInit);
+    MM_Collider_UpdateCylinder(&this->dyna.actor, &this->collider);
 
     if (sp2C == 0) {
         func_80BD4F18(this);
@@ -264,14 +264,14 @@ void BgIkanaBombwall_Init(Actor* thisx, PlayState* play) {
 void BgIkanaBombwall_Destroy(Actor* thisx, PlayState* play) {
     BgIkanaBombwall* this = (BgIkanaBombwall*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 s32 func_80BD4E44(BgIkanaBombwall* this) {
     if (this->collider.base.acFlags & AC_HIT) {
         if ((this->collider.base.ac != NULL) &&
-            (Math3D_Vec3fDistSq(&this->dyna.actor.world.pos, &this->collider.base.ac->world.pos) < SQ(75.0f))) {
+            (MM_Math3D_Vec3fDistSq(&this->dyna.actor.world.pos, &this->collider.base.ac->world.pos) < SQ(75.0f))) {
             return true;
         }
     }
@@ -281,7 +281,7 @@ s32 func_80BD4E44(BgIkanaBombwall* this) {
 s32 func_80BD4EAC(BgIkanaBombwall* this) {
     if (this->collider.base.acFlags & AC_HIT) {
         if ((this->collider.base.ac != NULL) &&
-            (Math3D_Vec3fDistSq(&this->dyna.actor.world.pos, &this->collider.base.ac->world.pos) < SQ(80.0f))) {
+            (MM_Math3D_Vec3fDistSq(&this->dyna.actor.world.pos, &this->collider.base.ac->world.pos) < SQ(80.0f))) {
             return true;
         }
     }
@@ -296,7 +296,7 @@ void func_80BD4F2C(BgIkanaBombwall* this, PlayState* play) {
     if (func_80BD4E44(this)) {
         func_80BD4FF8(this);
     } else {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -308,7 +308,7 @@ void func_80BD4F9C(BgIkanaBombwall* this, PlayState* play) {
     if (func_80BD4EAC(this)) {
         func_80BD4FF8(this);
     } else {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
     }
 }
 
@@ -327,8 +327,8 @@ void func_80BD503C(BgIkanaBombwall* this, PlayState* play) {
             func_80BD4A14(this, play);
         }
         this->dyna.actor.draw = NULL;
-        SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 60, NA_SE_EV_WALL_BROKEN);
-        Flags_SetSwitch(play, BGIKANABOMBWALL_GET_SWITCH_FLAG(&this->dyna.actor));
+        MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 60, NA_SE_EV_WALL_BROKEN);
+        MM_Flags_SetSwitch(play, BGIKANABOMBWALL_GET_SWITCH_FLAG(&this->dyna.actor));
         if (!BGIKANABOMBWALL_GET_100(&this->dyna.actor)) {
             DynaPoly_DisableCollision(play, &play->colCtx.dyna, this->dyna.bgId);
         }
@@ -348,14 +348,14 @@ void func_80BD5134(BgIkanaBombwall* this, PlayState* play) {
         this->unk_1AC--;
         if (this->unk_1AC <= 0) {
             CutsceneManager_Stop(this->dyna.actor.csId);
-            Actor_Kill(&this->dyna.actor);
+            MM_Actor_Kill(&this->dyna.actor);
         }
     } else if (this->dyna.actor.csId > CS_ID_NONE) {
         if (CutsceneManager_GetCurrentCsId() != this->dyna.actor.csId) {
-            Actor_Kill(&this->dyna.actor);
+            MM_Actor_Kill(&this->dyna.actor);
         }
     } else {
-        Actor_Kill(&this->dyna.actor);
+        MM_Actor_Kill(&this->dyna.actor);
     }
 }
 
@@ -366,5 +366,5 @@ void BgIkanaBombwall_Update(Actor* thisx, PlayState* play) {
 }
 
 void BgIkanaBombwall_Draw(Actor* thisx, PlayState* play) {
-    Gfx_DrawDListOpa(play, D_80BD52E0[BGIKANABOMBWALL_GET_100(thisx)]);
+    MM_Gfx_DrawDListOpa(play, D_80BD52E0[BGIKANABOMBWALL_GET_100(thisx)]);
 }

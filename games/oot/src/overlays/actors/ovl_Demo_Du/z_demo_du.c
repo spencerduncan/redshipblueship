@@ -16,12 +16,12 @@ void DemoDu_Update(Actor* thisx, PlayState* play);
 void DemoDu_Draw(Actor* thisx, PlayState* play);
 void DemoDu_Reset(void);
 
-// static s32 sUnused = 0;
+// static s32 OoT_sUnused = 0;
 
 #include "z_demo_du_cutscene_data.c" EARLY
 
-static void* sEyeTextures[] = { gDaruniaEyeOpenTex, gDaruniaEyeOpeningTex, gDaruniaEyeShutTex, gDaruniaEyeClosingTex };
-static void* sMouthTextures[] = { gDaruniaMouthSeriousTex, gDaruniaMouthGrinningTex, gDaruniaMouthOpenTex,
+static void* OoT_sEyeTextures[] = { gDaruniaEyeOpenTex, gDaruniaEyeOpeningTex, gDaruniaEyeShutTex, gDaruniaEyeClosingTex };
+static void* OoT_sMouthTextures[] = { gDaruniaMouthSeriousTex, gDaruniaMouthGrinningTex, gDaruniaMouthOpenTex,
                                   gDaruniaMouthHappyTex };
 
 /**
@@ -34,7 +34,7 @@ static void* sMouthTextures[] = { gDaruniaMouthSeriousTex, gDaruniaMouthGrinning
  *
  */
 
-// Each macro maps its argument to an index of sUpdateFuncs.
+// Each macro maps its argument to an index of OoT_sUpdateFuncs.
 #define CS_FIREMEDALLION_SUBSCENE(x) (0 + (x))      // DEMO_DU_CS_FIREMEDALLION
 #define CS_GORONSRUBY_SUBSCENE(x) (7 + (x))         // DEMO_DU_CS_GORONS_RUBY
 #define CS_CHAMBERAFTERGANON_SUBSCENE(x) (21 + (x)) // DEMO_DU_CS_CHAMBER_AFTER_GANON
@@ -43,7 +43,7 @@ static void* sMouthTextures[] = { gDaruniaMouthSeriousTex, gDaruniaMouthGrinning
 void DemoDu_Destroy(Actor* thisx, PlayState* play) {
     DemoDu* this = (DemoDu*)thisx;
 
-    SkelAnime_Free(&this->skelAnime, play);
+    OoT_SkelAnime_Free(&this->skelAnime, play);
 }
 
 void DemoDu_UpdateEyes(DemoDu* this) {
@@ -52,7 +52,7 @@ void DemoDu_UpdateEyes(DemoDu* this) {
     s32 pad[3];
 
     if (DECR(*blinkTimer) == 0) {
-        *blinkTimer = Rand_S16Offset(60, 60);
+        *blinkTimer = OoT_Rand_S16Offset(60, 60);
     }
 
     *eyeTexIndex = *blinkTimer;
@@ -96,11 +96,11 @@ void DemoDu_CsAfterGanon_CheckIfShouldReset(DemoDu* this, PlayState* play) {
 }
 
 s32 DemoDu_UpdateSkelAnime(DemoDu* this) {
-    return SkelAnime_Update(&this->skelAnime);
+    return OoT_SkelAnime_Update(&this->skelAnime);
 }
 
 void DemoDu_UpdateBgCheckInfo(DemoDu* this, PlayState* play) {
-    Actor_UpdateBgCheckInfo(play, &this->actor, 75.0f, 30.0f, 30.0f, 5);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 75.0f, 30.0f, 30.0f, 5);
 }
 
 CsCmdActorCue* DemoDu_GetNpcAction(PlayState* play, s32 idx) {
@@ -143,7 +143,7 @@ void DemoDu_MoveToNpcPos(DemoDu* this, PlayState* play, s32 idx) {
 
 void func_80969DDC(DemoDu* this, AnimationHeader* animation, u8 mode, f32 morphFrames, s32 arg4) {
     f32 startFrame;
-    s16 lastFrame = Animation_GetLastFrame(animation);
+    s16 lastFrame = OoT_Animation_GetLastFrame(animation);
     f32 endFrame;
     f32 playSpeed;
 
@@ -156,11 +156,11 @@ void func_80969DDC(DemoDu* this, AnimationHeader* animation, u8 mode, f32 morphF
         playSpeed = -1.0f;
         startFrame = lastFrame;
     }
-    Animation_Change(&this->skelAnime, animation, playSpeed, startFrame, endFrame, mode, morphFrames);
+    OoT_Animation_Change(&this->skelAnime, animation, playSpeed, startFrame, endFrame, mode, morphFrames);
 }
 
 void DemoDu_InitCs_FireMedallion(DemoDu* this, PlayState* play) {
-    SkelAnime_InitFlex(play, &this->skelAnime, &gDaruniaSkel, &gDaruniaIdleAnim, NULL, NULL, 0);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gDaruniaSkel, &gDaruniaIdleAnim, NULL, NULL, 0);
     this->actor.shape.yOffset = -10000.0f;
     DemoDu_SetEyeTexIndex(this, 1);
     DemoDu_SetMouthTexIndex(this, 3);
@@ -172,7 +172,7 @@ void DemoDu_CsFireMedallion_SpawnDoorWarp(DemoDu* this, PlayState* play) {
     f32 posY = this->actor.world.pos.y;
     f32 posZ = this->actor.world.pos.z;
 
-    Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DOOR_WARP1, posX, posY, posZ, 0, 0, 0, WARP_SAGES);
+    OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DOOR_WARP1, posX, posY, posZ, 0, 0, 0, WARP_SAGES);
 }
 
 // Gives the Fire Medallion to Link.
@@ -182,10 +182,10 @@ void func_80969F38(DemoDu* this, PlayState* play) {
     f32 posY = player->actor.world.pos.y + 80.0f;
     f32 posZ = player->actor.world.pos.z;
 
-    Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DEMO_EFFECT, posX, posY, posZ, 0, 0, 0,
+    OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DEMO_EFFECT, posX, posY, posZ, 0, 0, 0,
                        DEMO_EFFECT_MEDAL_FIRE);
     if (GameInteractor_Should(VB_GIVE_ITEM_FIRE_MEDALLION, true)) {
-        Item_Give(play, ITEM_MEDALLION_FIRE);
+        OoT_Item_Give(play, ITEM_MEDALLION_FIRE);
     }
 }
 
@@ -204,7 +204,7 @@ void DemoDu_CsFireMedallion_AdvanceTo01(DemoDu* this, PlayState* play) {
         play->csCtx.segment = D_8096C1A4;
         gSaveContext.cutsceneTrigger = 2;
         if (GameInteractor_Should(VB_GIVE_ITEM_FIRE_MEDALLION, true)) {
-            Item_Give(play, ITEM_MEDALLION_FIRE);
+            OoT_Item_Give(play, ITEM_MEDALLION_FIRE);
         }
 
         player->actor.world.rot.y = player->actor.shape.rot.y = this->actor.world.rot.y + 0x8000;
@@ -235,8 +235,8 @@ void DemoDu_CsFireMedallion_AdvanceTo04(DemoDu* this, PlayState* play) {
         CsCmdActorCue* npcAction = play->csCtx.npcActions[2];
 
         if ((npcAction != NULL) && (npcAction->action != 2)) {
-            Animation_Change(&this->skelAnime, &gDaruniaItemGiveAnim, 1.0f, 0.0f,
-                             Animation_GetLastFrame(&gDaruniaItemGiveAnim), 2, 0.0f);
+            OoT_Animation_Change(&this->skelAnime, &gDaruniaItemGiveAnim, 1.0f, 0.0f,
+                             OoT_Animation_GetLastFrame(&gDaruniaItemGiveAnim), 2, 0.0f);
             this->updateIndex = CS_FIREMEDALLION_SUBSCENE(4);
         }
     }
@@ -244,8 +244,8 @@ void DemoDu_CsFireMedallion_AdvanceTo04(DemoDu* this, PlayState* play) {
 
 void DemoDu_CsFireMedallion_AdvanceTo05(DemoDu* this, s32 animFinished) {
     if (animFinished) {
-        Animation_Change(&this->skelAnime, &gDaruniaItemGiveIdleAnim, 1.0f, 0.0f,
-                         Animation_GetLastFrame(&gDaruniaItemGiveIdleAnim), 0, 0.0f);
+        OoT_Animation_Change(&this->skelAnime, &gDaruniaItemGiveIdleAnim, 1.0f, 0.0f,
+                         OoT_Animation_GetLastFrame(&gDaruniaItemGiveIdleAnim), 0, 0.0f);
         this->updateIndex = CS_FIREMEDALLION_SUBSCENE(5);
     }
 }
@@ -301,7 +301,7 @@ void DemoDu_UpdateCs_FM_06(DemoDu* this, PlayState* play) {
 }
 
 void DemoDu_InitCs_GoronsRuby(DemoDu* this, PlayState* play) {
-    SkelAnime_InitFlex(play, &this->skelAnime, &gDaruniaSkel, NULL, NULL, NULL, 0);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gDaruniaSkel, NULL, NULL, NULL, 0);
     this->updateIndex = CS_GORONSRUBY_SUBSCENE(0);
 }
 
@@ -325,8 +325,8 @@ void DemoDu_CsPlaySfx_DaruniaHitsLink(PlayState* play) {
     s32 pad;
 
     Sfx_PlaySfxAtPos(&player->actor.projectedPos, NA_SE_EN_DARUNIA_HIT_LINK);
-    Audio_PlaySoundGeneral(NA_SE_VO_LI_DAMAGE_S_KID, &player->actor.projectedPos, 4, &gSfxDefaultFreqAndVolScale,
-                           &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+    Audio_PlaySoundGeneral(NA_SE_VO_LI_DAMAGE_S_KID, &player->actor.projectedPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                           &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
 }
 
 // Cutscene: Darunia gives Link the Goron's Ruby.
@@ -340,8 +340,8 @@ void DemoDu_CsPlaySfx_LinkEscapeFromGorons(PlayState* play) {
     if (play->csCtx.frames == 1400) {
         Player* player = GET_PLAYER(play);
 
-        Audio_PlaySoundGeneral(NA_SE_VO_LI_FALL_L_KID, &player->actor.projectedPos, 4, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_VO_LI_FALL_L_KID, &player->actor.projectedPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     }
 }
 
@@ -351,8 +351,8 @@ void DemoDu_CsPlaySfx_LinkSurprised(PlayState* play) {
     if (play->csCtx.frames == 174) {
         Player* player = GET_PLAYER(play);
 
-        Audio_PlaySoundGeneral(NA_SE_VO_LI_SURPRISE_KID, &player->actor.projectedPos, 4U, &gSfxDefaultFreqAndVolScale,
-                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        Audio_PlaySoundGeneral(NA_SE_VO_LI_SURPRISE_KID, &player->actor.projectedPos, 4U, &OoT_gSfxDefaultFreqAndVolScale,
+                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     }
 }
 
@@ -396,7 +396,7 @@ void DemoDu_CsGoronsRuby_SpawnDustWhenHittingLink(DemoDu* this, PlayState* play)
         { 11.0f, 6.0f, -7.0f },   { 14.0f, 14.0f, -14.0f },
     };
 
-    if (Animation_OnFrame(&this->skelAnime, 31.0f) || Animation_OnFrame(&this->skelAnime, 41.0f)) {
+    if (OoT_Animation_OnFrame(&this->skelAnime, 31.0f) || OoT_Animation_OnFrame(&this->skelAnime, 41.0f)) {
         s32 pad[2];
         s32 i;
         Player* player = GET_PLAYER(play);
@@ -411,7 +411,7 @@ void DemoDu_CsGoronsRuby_SpawnDustWhenHittingLink(DemoDu* this, PlayState* play)
             s32 colorDelta;
             Vec3f position;
 
-            if (Animation_OnFrame(&this->skelAnime, 31.0f)) {
+            if (OoT_Animation_OnFrame(&this->skelAnime, 31.0f)) {
                 position.x = dustPosOffsets[i + 5].x + headPos->x;
                 position.y = dustPosOffsets[i + 5].y + headPos->y;
                 position.z = dustPosOffsets[i + 5].z + headPos->z;
@@ -421,7 +421,7 @@ void DemoDu_CsGoronsRuby_SpawnDustWhenHittingLink(DemoDu* this, PlayState* play)
                 position.z = dustPosOffsets[i + 0].z + headPos->z;
             }
 
-            colorDelta = Rand_ZeroOne() * 20.0f - 10.0f;
+            colorDelta = OoT_Rand_ZeroOne() * 20.0f - 10.0f;
 
             primColor.r += colorDelta;
             primColor.g += colorDelta;
@@ -430,7 +430,7 @@ void DemoDu_CsGoronsRuby_SpawnDustWhenHittingLink(DemoDu* this, PlayState* play)
             envColor.g += colorDelta;
             envColor.b += colorDelta;
 
-            func_8002829C(play, &position, &velocity, &accel, &primColor, &envColor, Rand_ZeroOne() * 40.0f + 200.0f,
+            func_8002829C(play, &position, &velocity, &accel, &primColor, &envColor, OoT_Rand_ZeroOne() * 40.0f + 200.0f,
                           0);
         }
 
@@ -449,7 +449,7 @@ void DemoDu_CsGoronsRuby_DaruniaFalling(DemoDu* this, PlayState* play) {
         Vec3f* pos = &this->actor.world.pos;
 
         if (npcAction != NULL) {
-            f32 traveledPercent = Environment_LerpWeight(npcAction->endFrame, npcAction->startFrame, csCtx->frames);
+            f32 traveledPercent = OoT_Environment_LerpWeight(npcAction->endFrame, npcAction->startFrame, csCtx->frames);
 
             startPos.x = npcAction->startPos.x;
             startPos.y = npcAction->startPos.y;
@@ -475,8 +475,8 @@ void DemoDu_CsGoronsRuby_AdvanceTo02(DemoDu* this, PlayState* play) {
         CsCmdActorCue* npcAction = play->csCtx.npcActions[2];
 
         if ((npcAction != NULL) && (npcAction->action != 1)) {
-            Animation_Change(&this->skelAnime, &gDaruniaStandUpAfterFallingAnim, 1.0f, 0.0f,
-                             Animation_GetLastFrame(&gDaruniaStandUpAfterFallingAnim), 2, 0.0f);
+            OoT_Animation_Change(&this->skelAnime, &gDaruniaStandUpAfterFallingAnim, 1.0f, 0.0f,
+                             OoT_Animation_GetLastFrame(&gDaruniaStandUpAfterFallingAnim), 2, 0.0f);
             this->updateIndex = CS_GORONSRUBY_SUBSCENE(2);
             this->drawIndex = 1;
             DemoDu_CsGoronsRuby_DaruniaFalling(this, play);
@@ -509,7 +509,7 @@ void DemoDu_CsGoronsRuby_AdvanceTo04(DemoDu* this, PlayState* play) {
 
 void DemoDu_CsGoronsRuby_AdvanceTo05(DemoDu* this, s32 animFinished) {
     if (animFinished) {
-        Animation_Change(&this->skelAnime, &gDaruniaIdleAnim, 1.0f, 0.0f, Animation_GetLastFrame(&gDaruniaIdleAnim),
+        OoT_Animation_Change(&this->skelAnime, &gDaruniaIdleAnim, 1.0f, 0.0f, OoT_Animation_GetLastFrame(&gDaruniaIdleAnim),
                          ANIMMODE_LOOP, 0.0f);
         this->updateIndex = CS_GORONSRUBY_SUBSCENE(5);
     }
@@ -520,8 +520,8 @@ void DemoDu_CsGoronsRuby_AdvanceTo06(DemoDu* this, PlayState* play) {
         CsCmdActorCue* npcAction = play->csCtx.npcActions[2];
 
         if ((npcAction != NULL) && (npcAction->action != 3)) {
-            Animation_Change(&this->skelAnime, &gDaruniaHitBreastAnim, 1.0f, 0.0f,
-                             Animation_GetLastFrame(&gDaruniaHitBreastAnim), 2, -4.0f);
+            OoT_Animation_Change(&this->skelAnime, &gDaruniaHitBreastAnim, 1.0f, 0.0f,
+                             OoT_Animation_GetLastFrame(&gDaruniaHitBreastAnim), 2, -4.0f);
             this->updateIndex = CS_GORONSRUBY_SUBSCENE(6);
         }
     }
@@ -529,7 +529,7 @@ void DemoDu_CsGoronsRuby_AdvanceTo06(DemoDu* this, PlayState* play) {
 
 void DemoDu_CsGoronsRuby_AdvanceTo07(DemoDu* this, s32 animFinished) {
     if (animFinished) {
-        Animation_Change(&this->skelAnime, &gDaruniaIdleAnim, 1.0f, 0.0f, Animation_GetLastFrame(&gDaruniaIdleAnim),
+        OoT_Animation_Change(&this->skelAnime, &gDaruniaIdleAnim, 1.0f, 0.0f, OoT_Animation_GetLastFrame(&gDaruniaIdleAnim),
                          ANIMMODE_LOOP, 0.0f);
         this->updateIndex = CS_GORONSRUBY_SUBSCENE(7);
     }
@@ -540,8 +540,8 @@ void DemoDu_CsGoronsRuby_AdvanceTo08(DemoDu* this, PlayState* play) {
         CsCmdActorCue* npcAction = play->csCtx.npcActions[2];
 
         if ((npcAction != NULL) && (npcAction->action != 4)) {
-            Animation_Change(&this->skelAnime, &gDaruniaHitLinkAnim, 1.0f, 0.0f,
-                             Animation_GetLastFrame(&gDaruniaHitLinkAnim), 2, 0.0f);
+            OoT_Animation_Change(&this->skelAnime, &gDaruniaHitLinkAnim, 1.0f, 0.0f,
+                             OoT_Animation_GetLastFrame(&gDaruniaHitLinkAnim), 2, 0.0f);
             this->updateIndex = CS_GORONSRUBY_SUBSCENE(8);
         }
     }
@@ -549,15 +549,15 @@ void DemoDu_CsGoronsRuby_AdvanceTo08(DemoDu* this, PlayState* play) {
 
 void DemoDu_CsGoronsRuby_AdvanceTo09(DemoDu* this, s32 animFinished) {
     if (animFinished) {
-        Animation_Change(&this->skelAnime, &gDaruniaHitBreastAnim, 1.0f, 0.0f,
-                         Animation_GetLastFrame(&gDaruniaHitBreastAnim), 2, 0.0f);
+        OoT_Animation_Change(&this->skelAnime, &gDaruniaHitBreastAnim, 1.0f, 0.0f,
+                         OoT_Animation_GetLastFrame(&gDaruniaHitBreastAnim), 2, 0.0f);
         this->updateIndex = CS_GORONSRUBY_SUBSCENE(9);
     }
 }
 
 void DemoDu_CsGoronsRuby_AdvanceTo10(DemoDu* this, s32 animFinished) {
     if (animFinished) {
-        Animation_Change(&this->skelAnime, &gDaruniaIdleAnim, 1.0f, 0.0f, Animation_GetLastFrame(&gDaruniaIdleAnim),
+        OoT_Animation_Change(&this->skelAnime, &gDaruniaIdleAnim, 1.0f, 0.0f, OoT_Animation_GetLastFrame(&gDaruniaIdleAnim),
                          ANIMMODE_LOOP, 0.0f);
         this->updateIndex = CS_GORONSRUBY_SUBSCENE(10);
     }
@@ -568,8 +568,8 @@ void DemoDu_CsGoronsRuby_AdvanceTo11(DemoDu* this, PlayState* play) {
         CsCmdActorCue* npcAction = play->csCtx.npcActions[2];
 
         if ((npcAction != NULL) && (npcAction->action != 5)) {
-            Animation_Change(&this->skelAnime, &gDaruniaItemGiveAnim, 1.0f, 0.0f,
-                             Animation_GetLastFrame(&gDaruniaItemGiveAnim), 2, 0.0f);
+            OoT_Animation_Change(&this->skelAnime, &gDaruniaItemGiveAnim, 1.0f, 0.0f,
+                             OoT_Animation_GetLastFrame(&gDaruniaItemGiveAnim), 2, 0.0f);
             this->updateIndex = CS_GORONSRUBY_SUBSCENE(11);
         }
     }
@@ -577,8 +577,8 @@ void DemoDu_CsGoronsRuby_AdvanceTo11(DemoDu* this, PlayState* play) {
 
 void DemoDu_CsGoronsRuby_AdvanceTo12(DemoDu* this, s32 animFinished) {
     if (animFinished) {
-        Animation_Change(&this->skelAnime, &gDaruniaItemGiveIdleAnim, 1.0f, 0.0f,
-                         Animation_GetLastFrame(&gDaruniaItemGiveIdleAnim), 0, 0.0f);
+        OoT_Animation_Change(&this->skelAnime, &gDaruniaItemGiveIdleAnim, 1.0f, 0.0f,
+                         OoT_Animation_GetLastFrame(&gDaruniaItemGiveIdleAnim), 0, 0.0f);
         this->updateIndex = CS_GORONSRUBY_SUBSCENE(12);
     }
 }
@@ -588,7 +588,7 @@ void DemoDu_CsGoronsRuby_AdvanceTo13(DemoDu* this, PlayState* play) {
         CsCmdActorCue* npcAction = play->csCtx.npcActions[2];
 
         if ((npcAction != NULL) && (npcAction->action != 6)) {
-            Animation_Change(&this->skelAnime, &gDaruniaIdleAnim, 1.0f, 0.0f, Animation_GetLastFrame(&gDaruniaIdleAnim),
+            OoT_Animation_Change(&this->skelAnime, &gDaruniaIdleAnim, 1.0f, 0.0f, OoT_Animation_GetLastFrame(&gDaruniaIdleAnim),
                              ANIMMODE_LOOP, 0.0f);
             this->updateIndex = CS_GORONSRUBY_SUBSCENE(13);
         }
@@ -705,10 +705,10 @@ void DemoDu_UpdateCs_GR_13(DemoDu* this, PlayState* play) {
 
 void DemoDu_InitCs_AfterGanon(DemoDu* this, PlayState* play) {
     s32 pad[3];
-    f32 lastFrame = Animation_GetLastFrame(&gDaruniaSageFormationAnim);
+    f32 lastFrame = OoT_Animation_GetLastFrame(&gDaruniaSageFormationAnim);
 
-    SkelAnime_InitFlex(play, &this->skelAnime, &gDaruniaSkel, NULL, NULL, NULL, 0);
-    Animation_Change(&this->skelAnime, &gDaruniaSageFormationAnim, 1.0f, 0.0f, lastFrame, ANIMMODE_ONCE, 0.0f);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gDaruniaSkel, NULL, NULL, NULL, 0);
+    OoT_Animation_Change(&this->skelAnime, &gDaruniaSageFormationAnim, 1.0f, 0.0f, lastFrame, ANIMMODE_ONCE, 0.0f);
     this->updateIndex = CS_CHAMBERAFTERGANON_SUBSCENE(0);
     this->actor.shape.shadowAlpha = 0;
 }
@@ -718,7 +718,7 @@ void DemoDu_CsPlaySfx_WhiteOut() {
 }
 
 void DemoDu_CsAfterGanon_SpawnDemo6K(DemoDu* this, PlayState* play) {
-    Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DEMO_6K, this->actor.world.pos.x,
+    OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_DEMO_6K, this->actor.world.pos.x,
                        kREG(16) + 22.0f + this->actor.world.pos.y, this->actor.world.pos.z, 0, 0, 0, 3);
 }
 
@@ -803,10 +803,10 @@ void DemoDu_Draw_02(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     DemoDu* this = (DemoDu*)thisx;
     s16 eyeTexIndex = this->eyeTexIndex;
-    void* eyeTexture = sEyeTextures[eyeTexIndex];
+    void* eyeTexture = OoT_sEyeTextures[eyeTexIndex];
     s32 pad;
     s16 mouthTexIndex = this->mouthTexIndex;
-    void* mouthTexture = sMouthTextures[mouthTexIndex];
+    void* mouthTexture = OoT_sMouthTextures[mouthTexIndex];
     SkelAnime* skelAnime = &this->skelAnime;
 
     OPEN_DISPS(play->state.gfxCtx);
@@ -821,14 +821,14 @@ void DemoDu_Draw_02(Actor* thisx, PlayState* play2) {
 
     gSPSegment(POLY_XLU_DISP++, 0x0C, &D_80116280[0]);
 
-    POLY_XLU_DISP = SkelAnime_DrawFlex(play, skelAnime->skeleton, skelAnime->jointTable, skelAnime->dListCount, 0, 0, 0,
+    POLY_XLU_DISP = OoT_SkelAnime_DrawFlex(play, skelAnime->skeleton, skelAnime->jointTable, skelAnime->dListCount, 0, 0, 0,
                                        POLY_XLU_DISP);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
 void DemoDu_InitCs_Credits(DemoDu* this, PlayState* play) {
-    SkelAnime_InitFlex(play, &this->skelAnime, &gDaruniaSkel, &gDaruniaCreditsIdleAnim, NULL, NULL, 0);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gDaruniaSkel, &gDaruniaCreditsIdleAnim, NULL, NULL, 0);
     this->updateIndex = CS_CREDITS_SUBSCENE(0);
     this->drawIndex = 0;
     this->actor.shape.shadowAlpha = 0;
@@ -947,7 +947,7 @@ void DemoDu_UpdateCs_CR_04(DemoDu* this, PlayState* play) {
     DemoDu_CsCredits_BackTo02(this, animFinished);
 }
 
-static DemoDuActionFunc sUpdateFuncs[] = {
+static DemoDuActionFunc OoT_sUpdateFuncs[] = {
     DemoDu_UpdateCs_FM_00, DemoDu_UpdateCs_FM_01, DemoDu_UpdateCs_FM_02, DemoDu_UpdateCs_FM_03, DemoDu_UpdateCs_FM_04,
     DemoDu_UpdateCs_FM_05, DemoDu_UpdateCs_FM_06, DemoDu_UpdateCs_GR_00, DemoDu_UpdateCs_GR_01, DemoDu_UpdateCs_GR_02,
     DemoDu_UpdateCs_GR_03, DemoDu_UpdateCs_GR_04, DemoDu_UpdateCs_GR_05, DemoDu_UpdateCs_GR_06, DemoDu_UpdateCs_GR_07,
@@ -959,18 +959,18 @@ static DemoDuActionFunc sUpdateFuncs[] = {
 void DemoDu_Update(Actor* thisx, PlayState* play) {
     DemoDu* this = (DemoDu*)thisx;
 
-    if (this->updateIndex < 0 || this->updateIndex >= 29 || sUpdateFuncs[this->updateIndex] == NULL) {
+    if (this->updateIndex < 0 || this->updateIndex >= 29 || OoT_sUpdateFuncs[this->updateIndex] == NULL) {
         // "The main mode is abnormal!!!!!!!!!!!!!!!!!!!!!!!!!"
         osSyncPrintf(VT_FGCOL(RED) "メインモードがおかしい!!!!!!!!!!!!!!!!!!!!!!!!!\n" VT_RST);
         return;
     }
-    sUpdateFuncs[this->updateIndex](this, play);
+    OoT_sUpdateFuncs[this->updateIndex](this, play);
 }
 
 void DemoDu_Init(Actor* thisx, PlayState* play) {
     DemoDu* this = (DemoDu*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 30.0f);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 30.0f);
     switch (this->actor.params) {
         case DEMO_DU_CS_GORONS_RUBY:
             DemoDu_InitCs_GoronsRuby(this, play);
@@ -998,10 +998,10 @@ void DemoDu_Draw_01(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     DemoDu* this = (DemoDu*)thisx;
     s16 eyeTexIndex = this->eyeTexIndex;
-    void* eyeTexture = sEyeTextures[eyeTexIndex];
+    void* eyeTexture = OoT_sEyeTextures[eyeTexIndex];
     s32 pad;
     s16 mouthTexIndex = this->mouthTexIndex;
-    void* mouthTexture = sMouthTextures[mouthTexIndex];
+    void* mouthTexture = OoT_sMouthTextures[mouthTexIndex];
     SkelAnime* skelAnime = &this->skelAnime;
 
     OPEN_DISPS(play->state.gfxCtx);
@@ -1021,7 +1021,7 @@ void DemoDu_Draw_01(Actor* thisx, PlayState* play2) {
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-static DemoDuDrawFunc sDrawFuncs[] = {
+static DemoDuDrawFunc OoT_sDrawFuncs[] = {
     DemoDu_Draw_NoDraw,
     DemoDu_Draw_01,
     DemoDu_Draw_02,
@@ -1030,12 +1030,12 @@ static DemoDuDrawFunc sDrawFuncs[] = {
 void DemoDu_Draw(Actor* thisx, PlayState* play) {
     DemoDu* this = (DemoDu*)thisx;
 
-    if (this->drawIndex < 0 || this->drawIndex >= 3 || sDrawFuncs[this->drawIndex] == NULL) {
+    if (this->drawIndex < 0 || this->drawIndex >= 3 || OoT_sDrawFuncs[this->drawIndex] == NULL) {
         // "The drawing mode is abnormal!!!!!!!!!!!!!!!!!!!!!!!!!"
         osSyncPrintf(VT_FGCOL(RED) "描画モードがおかしい!!!!!!!!!!!!!!!!!!!!!!!!!\n" VT_RST);
         return;
     }
-    sDrawFuncs[this->drawIndex](thisx, play);
+    OoT_sDrawFuncs[this->drawIndex](thisx, play);
 }
 
 const ActorInit Demo_Du_InitVars = {

@@ -232,11 +232,11 @@ typedef enum {
     /* 1 */ ENDNH_ANIM_MAX
 } EnDnhAnimation;
 
-static AnimationInfoS sAnimationInfo[ENDNH_ANIM_MAX] = {
+static AnimationInfoS MM_sAnimationInfo[ENDNH_ANIM_MAX] = {
     { &gKoumeKioskHeadMovingAnim, 1.0f, 0, -1, ANIMMODE_LOOP, 0 }, // ENDNH_ANIM_HEAD_MOVING
 };
 
-static TexturePtr sEyeTextures[] = {
+static TexturePtr MM_sEyeTextures[] = {
     gKoumeKioskEyeOpenTex,
     gKoumeKioskEyeHalfTex,
     gKoumeKioskEyeClosedTex,
@@ -244,7 +244,7 @@ static TexturePtr sEyeTextures[] = {
 };
 
 s32 func_80A50D40(Actor* actor, PlayState* play) {
-    Player_SetCsActionWithHaltedActors(play, actor, PLAYER_CSACTION_WAIT);
+    MM_Player_SetCsActionWithHaltedActors(play, actor, PLAYER_CSACTION_WAIT);
     if (CHECK_EVENTINF(EVENTINF_35)) {
         play->nextEntrance = ENTRANCE(SOUTHERN_SWAMP_CLEARED, 6);
     } else {
@@ -286,8 +286,8 @@ s32 func_80A50E40(EnDnh* this, PlayState* play) {
 void func_80A50EC0(EnDnh* this) {
     if (DECR(this->blinkTimer) == 0) {
         this->eyeTexIndex++;
-        if (this->eyeTexIndex >= ARRAY_COUNT(sEyeTextures)) {
-            this->blinkTimer = Rand_S16Offset(30, 30);
+        if (this->eyeTexIndex >= ARRAY_COUNT(MM_sEyeTextures)) {
+            this->blinkTimer = MM_Rand_S16Offset(30, 30);
             this->eyeTexIndex = 0;
         }
     }
@@ -308,10 +308,10 @@ void EnDnh_DoNothing(EnDnh* this, PlayState* play) {
 void EnDnh_Init(Actor* thisx, PlayState* play) {
     EnDnh* this = (EnDnh*)thisx;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
-    SkelAnime_Init(play, &this->skelAnime, &gKoumeKioskSkel, NULL, this->jointTable, this->morphTable,
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, NULL, 0.0f);
+    MM_SkelAnime_Init(play, &this->skelAnime, &gKoumeKioskSkel, NULL, this->jointTable, this->morphTable,
                    KOUME_KIOSK_LIMB_MAX);
-    SubS_ChangeAnimationByInfoS(&this->skelAnime, sAnimationInfo, ENDNH_ANIM_HEAD_MOVING);
+    SubS_ChangeAnimationByInfoS(&this->skelAnime, MM_sAnimationInfo, ENDNH_ANIM_HEAD_MOVING);
     this->actor.shape.yOffset = 1100.0f;
 
     if (gSaveContext.save.entrance != ENTRANCE(TOURIST_INFORMATION, 1)) {
@@ -340,16 +340,16 @@ void EnDnh_Update(Actor* thisx, PlayState* play) {
     func_80A50E40(this, play);
     this->actionFunc(this, play);
     func_80A50EC0(this);
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     SubS_Offer(&this->actor, play, 60.0f, 30.0f, PLAYER_IA_NONE, this->unk18C & SUBS_OFFER_MODE_MASK);
-    Actor_SetFocus(&this->actor, 26.0f);
+    MM_Actor_SetFocus(&this->actor, 26.0f);
 }
 
 s32 EnDnh_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx) {
     EnDnh* this = (EnDnh*)thisx;
 
     if (limbIndex == KOUME_KIOSK_LIMB_HEAD) {
-        Matrix_Translate(0.0f, this->actor.shape.yOffset, 0.0f, MTXMODE_APPLY);
+        MM_Matrix_Translate(0.0f, this->actor.shape.yOffset, 0.0f, MTXMODE_APPLY);
     }
     return false;
 }
@@ -360,8 +360,8 @@ void EnDnh_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sEyeTextures[this->eyeTexIndex]));
-    SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, EnDnh_OverrideLimbDraw, NULL,
+    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
+    MM_SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, EnDnh_OverrideLimbDraw, NULL,
                       &this->actor);
 
     CLOSE_DISPS(play->state.gfxCtx);

@@ -1,6 +1,6 @@
 #include "global.h"
 
-OSViMode osViModePalLan1 = {
+OSViMode OoT_osViModePalLan1 = {
     0x10, // type
     {
         // comRegs

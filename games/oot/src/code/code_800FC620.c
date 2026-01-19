@@ -11,16 +11,16 @@ typedef struct InitFunc {
 } InitFunc;
 
 // .data
-void* sInitFuncs = NULL;
+void* OoT_sInitFuncs = NULL;
 
-char sNew[] = { 'n', 'e', 'w' };
+char OoT_sNew[] = { 'n', 'e', 'w' };
 
 char D_80134488[0x18] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7F, 0x80, 0x00, 0x00,
     0xFF, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00,
 };
 
-s32 Overlay_Load(uintptr_t vRomStart, uintptr_t vRomEnd, void* vRamStart, void* vRamEnd, void* allocatedVRamAddr) {
+s32 OoT_Overlay_Load(uintptr_t vRomStart, uintptr_t vRomEnd, void* vRamStart, void* vRamEnd, void* allocatedVRamAddr) {
     return 0;
 
 #if 0
@@ -32,12 +32,12 @@ s32 Overlay_Load(uintptr_t vRomStart, uintptr_t vRomEnd, void* vRamStart, void* 
     u32 ovlOffset;
     size_t size;
 
-    if (gOverlayLogSeverity >= 3) {
+    if (OoT_gOverlayLogSeverity >= 3) {
         // "Start loading dynamic link function"
         osSyncPrintf("\nダイナミックリンクファンクションのロードを開始します\n");
     }
 
-    if (gOverlayLogSeverity >= 3) {
+    if (OoT_gOverlayLogSeverity >= 3) {
         size = vRomEnd - vRomStart;
         // "DMA transfer of TEXT, DATA, RODATA + rel (%08x-%08x)"
         osSyncPrintf("TEXT,DATA,RODATA+relをＤＭＡ転送します(%08x-%08x)\n", allocatedVRamAddr,
@@ -46,25 +46,25 @@ s32 Overlay_Load(uintptr_t vRomStart, uintptr_t vRomEnd, void* vRamStart, void* 
 
     size = vRomEnd - vRomStart;
     end = (uintptr_t)allocatedVRamAddr + size;
-    DmaMgr_SendRequest0(allocatedVRamAddr, vRomStart, size);
+    OoT_DmaMgr_SendRequest0(allocatedVRamAddr, vRomStart, size);
 
     ovlOffset = ((s32*)end)[-1];
 
     ovl = (OverlayRelocationSection*)((uintptr_t)end - ovlOffset);
-    if (gOverlayLogSeverity >= 3) {
+    if (OoT_gOverlayLogSeverity >= 3) {
         osSyncPrintf("TEXT(%08x), DATA(%08x), RODATA(%08x), BSS(%08x)\n", ovl->textSize, ovl->dataSize, ovl->rodataSize,
                      ovl->bssSize);
     }
 
-    if (gOverlayLogSeverity >= 3) {
+    if (OoT_gOverlayLogSeverity >= 3) {
         osSyncPrintf("リロケーションします\n"); // "Relocate"
     }
 
-    Overlay_Relocate(allocatedVRamAddr, ovl, vRamStart);
+    OoT_Overlay_Relocate(allocatedVRamAddr, ovl, vRamStart);
 
     bssSize = ovl->bssSize;
     if (bssSize != 0) {
-        if (gOverlayLogSeverity >= 3) {
+        if (OoT_gOverlayLogSeverity >= 3) {
             // "Clear BSS area (% 08x-% 08x)"
             osSyncPrintf("BSS領域をクリアします(%08x-%08x)\n", end, end + ovl->bssSize);
         }
@@ -77,7 +77,7 @@ s32 Overlay_Load(uintptr_t vRomStart, uintptr_t vRomEnd, void* vRamStart, void* 
     }
 
     size = (uintptr_t)&ovl->relocations[ovl->nRelocations] - (uintptr_t)ovl;
-    if (gOverlayLogSeverity >= 3) {
+    if (OoT_gOverlayLogSeverity >= 3) {
         // "Clear REL area (%08x-%08x)"
         osSyncPrintf("REL領域をクリアします(%08x-%08x)\n", ovl, (uintptr_t)ovl + size);
     }
@@ -88,7 +88,7 @@ s32 Overlay_Load(uintptr_t vRomStart, uintptr_t vRomEnd, void* vRamStart, void* 
     osWritebackDCache(allocatedVRamAddr, size);
     osInvalICache(allocatedVRamAddr, size);
 
-    if (gOverlayLogSeverity >= 3) {
+    if (OoT_gOverlayLogSeverity >= 3) {
         // "Finish loading dynamic link function"
         osSyncPrintf("ダイナミックリンクファンクションのロードを終了します\n\n");
     }
@@ -102,13 +102,13 @@ void* func_800FC800(size_t size) {
         size = 1;
     }
 
-    return __osMallocDebug(&gSystemArena, size, sNew, 0);
+    return __osMallocDebug(&OoT_gSystemArena, size, OoT_sNew, 0);
 }
 
 // possible some kind of delete() function
 void func_800FC83C(void* ptr) {
     if (ptr != NULL) {
-        __osFree(&gSystemArena, ptr);
+        __osFree(&OoT_gSystemArena, ptr);
     }
 }
 
@@ -174,7 +174,7 @@ void func_800FCA18(void* blk, u32 nBlk, u32 blkSize, arg3_800FCA18 arg3, s32 arg
 }
 
 void func_800FCB34(void) {
-    InitFunc* initFunc = (InitFunc*)&sInitFuncs;
+    InitFunc* initFunc = (InitFunc*)&OoT_sInitFuncs;
     u32 nextOffset = initFunc->nextOffset;
     InitFunc* prev = NULL;
 
@@ -190,10 +190,10 @@ void func_800FCB34(void) {
         prev = initFunc;
     }
 
-    sInitFuncs = prev;
+    OoT_sInitFuncs = prev;
 }
 
-void SystemHeap_Init(void* start, size_t size) {
-    SystemArena_Init(start, size);
+void OoT_SystemHeap_Init(void* start, size_t size) {
+    OoT_SystemArena_Init(start, size);
     func_800FCB34();
 }

@@ -26,7 +26,7 @@ ActorProfile Bg_Open_Spot_Profile = {
     /**/ NULL,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 560, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 800, ICHAIN_CONTINUE),
@@ -36,7 +36,7 @@ static InitChainEntry sInitChain[] = {
 void BgOpenSpot_Init(Actor* thisx, PlayState* play) {
     BgOpenSpot* this = (BgOpenSpot*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
     this->texScrolls = Lib_SegmentedToVirtual(gSpotlightTexAnim);
 }
 

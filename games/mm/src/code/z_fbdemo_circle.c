@@ -26,22 +26,22 @@ Gfx sTransCircleSetupDL[] = {
     gsSPEndDisplayList(),
 };
 
-void TransitionCircle_Start(void* thisx);
-void* TransitionCircle_Init(void* thisx);
-void TransitionCircle_Destroy(void* thisx);
-void TransitionCircle_Update(void* thisx, s32 updateRate);
-void TransitionCircle_SetColor(void* thisx, u32 color);
-void TransitionCircle_SetType(void* thisx, s32 type);
-void TransitionCircle_Draw(void* thisx, Gfx** gfxP);
-s32 TransitionCircle_IsDone(void* thisx);
+void MM_TransitionCircle_Start(void* thisx);
+void* MM_TransitionCircle_Init(void* thisx);
+void MM_TransitionCircle_Destroy(void* thisx);
+void MM_TransitionCircle_Update(void* thisx, s32 updateRate);
+void MM_TransitionCircle_SetColor(void* thisx, u32 color);
+void MM_TransitionCircle_SetType(void* thisx, s32 type);
+void MM_TransitionCircle_Draw(void* thisx, Gfx** gfxP);
+s32 MM_TransitionCircle_IsDone(void* thisx);
 
 TransitionProfile TransitionCircle_Profile = {
-    TransitionCircle_Init,   TransitionCircle_Destroy, TransitionCircle_Update,   TransitionCircle_Draw,
-    TransitionCircle_Start,  TransitionCircle_SetType, TransitionCircle_SetColor, NULL,
-    TransitionCircle_IsDone,
+    MM_TransitionCircle_Init,   MM_TransitionCircle_Destroy, MM_TransitionCircle_Update,   MM_TransitionCircle_Draw,
+    MM_TransitionCircle_Start,  MM_TransitionCircle_SetType, MM_TransitionCircle_SetColor, NULL,
+    MM_TransitionCircle_IsDone,
 };
 
-void TransitionCircle_Start(void* thisx) {
+void MM_TransitionCircle_Start(void* thisx) {
     TransitionCircle* this = (TransitionCircle*)thisx;
 
     this->stepValue = 0.1f;
@@ -55,7 +55,7 @@ void TransitionCircle_Start(void* thisx) {
     this->referenceRadius = this->startingRadius;
 }
 
-void* TransitionCircle_Init(void* thisx) {
+void* MM_TransitionCircle_Init(void* thisx) {
     TransitionCircle* this = (TransitionCircle*)thisx;
 
     memset(this, 0, sizeof(TransitionCircle));
@@ -69,23 +69,23 @@ void* TransitionCircle_Init(void* thisx) {
     return this;
 }
 
-void TransitionCircle_Destroy(void* thisx) {
+void MM_TransitionCircle_Destroy(void* thisx) {
 }
 
-void TransitionCircle_Update(void* thisx, s32 updateRate) {
+void MM_TransitionCircle_Update(void* thisx, s32 updateRate) {
     TransitionCircle* this = (TransitionCircle*)thisx;
     s32 unused = updateRate ? 0 : 0;
 
-    this->isDone = Math_StepToF(&this->referenceRadius, this->targetRadius, this->stepValue);
+    this->isDone = MM_Math_StepToF(&this->referenceRadius, this->targetRadius, this->stepValue);
 }
 
-void TransitionCircle_SetColor(void* thisx, u32 color) {
+void MM_TransitionCircle_SetColor(void* thisx, u32 color) {
     TransitionCircle* this = (TransitionCircle*)thisx;
 
     this->color.rgba = color;
 }
 
-void TransitionCircle_SetType(void* thisx, s32 type) {
+void MM_TransitionCircle_SetType(void* thisx, s32 type) {
     TransitionCircle* this = (TransitionCircle*)thisx;
 
     if (type & TC_SET_PARAMS) {
@@ -128,8 +128,8 @@ void TransitionCircle_LoadAndSetTexture(Gfx** gfxP, void const* texture, s32 fmt
         dsdx = 0;
         dtdy = 0;
     } else {
-        dsdx = ((SCREEN_WIDTH - (2.0f * s)) / gScreenWidth) * (1 << 10);
-        dtdy = ((SCREEN_HEIGHT - (2.0f * t)) / gScreenHeight) * (1 << 10);
+        dsdx = ((SCREEN_WIDTH - (2.0f * s)) / MM_gScreenWidth) * (1 << 10);
+        dtdy = ((SCREEN_HEIGHT - (2.0f * t)) / MM_gScreenHeight) * (1 << 10);
     }
 
     // #region 2S2H [Cosmetic] Adjust circle overlay to support widescreen
@@ -148,7 +148,7 @@ void TransitionCircle_LoadAndSetTexture(Gfx** gfxP, void const* texture, s32 fmt
     *gfxP = gfx;
 }
 
-void TransitionCircle_Draw(void* thisx, Gfx** gfxP) {
+void MM_TransitionCircle_Draw(void* thisx, Gfx** gfxP) {
     Gfx* gfx = *gfxP;
     TransitionCircle* this = (TransitionCircle*)thisx;
 
@@ -172,7 +172,7 @@ void TransitionCircle_Draw(void* thisx, Gfx** gfxP) {
     *gfxP = gfx;
 }
 
-s32 TransitionCircle_IsDone(void* thisx) {
+s32 MM_TransitionCircle_IsDone(void* thisx) {
     TransitionCircle* this = (TransitionCircle*)thisx;
 
     return this->isDone;

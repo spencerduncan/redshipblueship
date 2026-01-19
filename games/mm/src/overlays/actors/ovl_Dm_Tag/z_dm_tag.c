@@ -130,7 +130,7 @@ s32 func_80C224D8(Actor* thisx, PlayState* play) {
         case 0:
             if (func_80C22400(this, csId)) {
                 if ((sp2C != NULL) && (sp2C->update != NULL)) {
-                    Camera_SetTargetActor(Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(csId)), sp2C);
+                    Camera_SetTargetActor(MM_Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(csId)), sp2C);
                 }
                 this->unk_1A4++;
                 ret = true;
@@ -139,7 +139,7 @@ s32 func_80C224D8(Actor* thisx, PlayState* play) {
 
         case 1:
             if ((sp30 != NULL) && (sp30->update != NULL)) {
-                Camera_SetTargetActor(Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(func_80C2247C(this, 0))),
+                Camera_SetTargetActor(MM_Play_GetCamera(play, CutsceneManager_GetCurrentSubCamId(func_80C2247C(this, 0))),
                                       sp30);
             }
             this->unk_1A4++;
@@ -179,7 +179,7 @@ s32 func_80C224D8(Actor* thisx, PlayState* play) {
             break;
 
         case 6:
-            Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
+            MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
             play->nextEntrance = ENTRANCE(STOCK_POT_INN, 5);
             gSaveContext.nextCutsceneIndex = 0;
             play->transitionTrigger = TRANS_TRIGGER_START;
@@ -198,7 +198,7 @@ s32 func_80C227E8(Actor* thisx, PlayState* play) {
     DmTag* this = (DmTag*)thisx;
 
     if (this->unk_1A4 == 0) {
-        Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
+        MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
         play->nextEntrance = ENTRANCE(STOCK_POT_INN, 4);
         gSaveContext.nextCutsceneIndex = 0;
         play->transitionTrigger = TRANS_TRIGGER_START;
@@ -267,7 +267,7 @@ void DmTag_Init(Actor* thisx, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
     if (CHECK_WEEKEVENTREG(WEEKEVENTREG_85_04)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -279,7 +279,7 @@ void DmTag_Init(Actor* thisx, PlayState* play) {
         this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
         this->actionFunc = DmTag_DoNothing;
     } else if (this->actor.room == 2) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
     } else {
         this->actor.attentionRangeType = ATTENTION_RANGE_1;
         this->unk_18E = 1;
@@ -298,5 +298,5 @@ void DmTag_Update(Actor* thisx, PlayState* play) {
     this->actionFunc(this, play);
     SubS_Offer(&this->actor, play, 40.0f, fabsf(this->actor.playerHeightRel) + 1.0f, PLAYER_IA_NONE,
                this->unk_18C & SUBS_OFFER_MODE_MASK);
-    Actor_SetFocus(&this->actor, 0.0f);
+    MM_Actor_SetFocus(&this->actor, 0.0f);
 }

@@ -19,7 +19,7 @@ void PreNmiBuff_Init(PreNmiBuff* this) {
 
 void PreNmiBuff_SetReset(PreNmiBuff* this) {
     this->resetting = true;
-    this->resetTime = osGetTime();
+    this->resetTime = OoT_osGetTime();
 }
 
 u32 PreNmiBuff_IsResetting(PreNmiBuff* this) {

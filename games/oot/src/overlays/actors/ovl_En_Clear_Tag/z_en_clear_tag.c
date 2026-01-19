@@ -9,20 +9,20 @@
     (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE | ACTOR_FLAG_UPDATE_CULLING_DISABLED | \
      ACTOR_FLAG_DRAW_CULLING_DISABLED)
 
-void EnClearTag_Init(Actor* thisx, PlayState* play);
-void EnClearTag_Destroy(Actor* thisx, PlayState* play);
-void EnClearTag_Update(Actor* thisx, PlayState* play);
-void EnClearTag_Draw(Actor* thisx, PlayState* play);
+void OoT_EnClearTag_Init(Actor* thisx, PlayState* play);
+void OoT_EnClearTag_Destroy(Actor* thisx, PlayState* play);
+void OoT_EnClearTag_Update(Actor* thisx, PlayState* play);
+void OoT_EnClearTag_Draw(Actor* thisx, PlayState* play);
 void EnClearTag_Reset(void);
 
-void EnClearTag_UpdateEffects(PlayState* play);
-void EnClearTag_DrawEffects(PlayState* play);
+void OoT_EnClearTag_UpdateEffects(PlayState* play);
+void OoT_EnClearTag_DrawEffects(PlayState* play);
 
-void EnClearTag_CreateDebrisEffect(PlayState* play, Vec3f* position, Vec3f* velocity, Vec3f* acceleration, f32 scale,
+void OoT_EnClearTag_CreateDebrisEffect(PlayState* play, Vec3f* position, Vec3f* velocity, Vec3f* acceleration, f32 scale,
                                    f32 floorHeight);
 void EnClearTag_CreateFireEffect(PlayState* play, Vec3f* pos, f32 scale);
-void EnClearTag_CreateSmokeEffect(PlayState* play, Vec3f* position, f32 scale);
-void EnClearTag_CreateFlashEffect(PlayState* play, Vec3f* position, f32 scale, f32 floorHeight, Vec3f* floorTangent);
+void OoT_EnClearTag_CreateSmokeEffect(PlayState* play, Vec3f* position, f32 scale);
+void OoT_EnClearTag_CreateFlashEffect(PlayState* play, Vec3f* position, f32 scale, f32 floorHeight, Vec3f* floorTangent);
 
 void EnClearTag_CalculateFloorTangent(EnClearTag* this);
 
@@ -32,16 +32,16 @@ const ActorInit En_Clear_Tag_InitVars = {
     FLAGS,
     OBJECT_GAMEPLAY_KEEP,
     sizeof(EnClearTag),
-    (ActorFunc)EnClearTag_Init,
-    (ActorFunc)EnClearTag_Destroy,
-    (ActorFunc)EnClearTag_Update,
-    (ActorFunc)EnClearTag_Draw,
+    (ActorFunc)OoT_EnClearTag_Init,
+    (ActorFunc)OoT_EnClearTag_Destroy,
+    (ActorFunc)OoT_EnClearTag_Update,
+    (ActorFunc)OoT_EnClearTag_Draw,
     (ActorResetFunc)EnClearTag_Reset,
 };
 
 u8 sClearTagIsEffectsInitialized = false;
 
-static Vec3f sZeroVector = { 0.0f, 0.0f, 0.0f };
+static Vec3f OoT_sZeroVector = { 0.0f, 0.0f, 0.0f };
 
 static ColliderCylinderInit sArwingCylinderInit = {
     {
@@ -94,7 +94,7 @@ EnClearTagEffect sClearTagEffects[CLEAR_TAG_EFFECT_MAX_COUNT];
  * Creates a debris effect.
  * Debris effects are spawned when the Arwing dies. It spawns fire effects.
  */
-void EnClearTag_CreateDebrisEffect(PlayState* play, Vec3f* position, Vec3f* velocity, Vec3f* acceleration, f32 scale,
+void OoT_EnClearTag_CreateDebrisEffect(PlayState* play, Vec3f* position, Vec3f* velocity, Vec3f* acceleration, f32 scale,
                                    f32 floorHeight) {
     s16 i;
     EnClearTagEffect* effect = (EnClearTagEffect*)play->specialEffects;
@@ -111,14 +111,14 @@ void EnClearTag_CreateDebrisEffect(PlayState* play, Vec3f* position, Vec3f* velo
             effect->scale = scale;
 
             // Set the debris effects to spawn in a circle.
-            effect->rotationY = Rand_ZeroFloat(M_PI * 2);
-            effect->rotationX = Rand_ZeroFloat(M_PI * 2);
+            effect->rotationY = OoT_Rand_ZeroFloat(M_PI * 2);
+            effect->rotationX = OoT_Rand_ZeroFloat(M_PI * 2);
 
             effect->timer = effect->bounces = 0;
 
             effect->floorHeight = floorHeight;
 
-            effect->random = (s16)Rand_ZeroFloat(10.0f);
+            effect->random = (s16)OoT_Rand_ZeroFloat(10.0f);
 
             return;
         }
@@ -136,12 +136,12 @@ void EnClearTag_CreateFireEffect(PlayState* play, Vec3f* pos, f32 scale) {
     // Look for an available effect to allocate a fire effect to.
     for (i = 0; i < CLEAR_TAG_EFFECT_MAX_COUNT; i++, effect++) {
         if (effect->type == CLEAR_TAG_EFFECT_AVAILABLE) {
-            effect->random = (s16)Rand_ZeroFloat(100.0f);
+            effect->random = (s16)OoT_Rand_ZeroFloat(100.0f);
             effect->type = CLEAR_TAG_EFFECT_FIRE;
 
             effect->position = *pos;
-            effect->velocity = sZeroVector;
-            effect->acceleration = sZeroVector;
+            effect->velocity = OoT_sZeroVector;
+            effect->acceleration = OoT_sZeroVector;
             effect->acceleration.y = 0.15f;
 
             effect->scale = scale;
@@ -157,19 +157,19 @@ void EnClearTag_CreateFireEffect(PlayState* play, Vec3f* pos, f32 scale) {
  * Creates a smoke effect.
  * Smoke effects are spawned by fire effects.
  */
-void EnClearTag_CreateSmokeEffect(PlayState* play, Vec3f* position, f32 scale) {
+void OoT_EnClearTag_CreateSmokeEffect(PlayState* play, Vec3f* position, f32 scale) {
     s16 i;
     EnClearTagEffect* effect = (EnClearTagEffect*)play->specialEffects;
 
     // Look for an available effect to allocate a smoke effect to.
     for (i = 0; i < CLEAR_TAG_EFFECT_MAX_COUNT; i++, effect++) {
         if (effect->type == CLEAR_TAG_EFFECT_AVAILABLE) {
-            effect->random = (s16)Rand_ZeroFloat(100.0f);
+            effect->random = (s16)OoT_Rand_ZeroFloat(100.0f);
             effect->type = CLEAR_TAG_EFFECT_SMOKE;
 
             effect->position = *position;
-            effect->velocity = sZeroVector;
-            effect->acceleration = sZeroVector;
+            effect->velocity = OoT_sZeroVector;
+            effect->acceleration = OoT_sZeroVector;
 
             effect->scale = scale;
             effect->maxScale = scale * 2.0f;
@@ -192,7 +192,7 @@ void EnClearTag_CreateSmokeEffect(PlayState* play, Vec3f* position, f32 scale) {
  * Flash effects are spawned when the Arwing dies.
  * Flash effects two components: 1) a billboard flash, and 2) a light effect on the ground.
  */
-void EnClearTag_CreateFlashEffect(PlayState* play, Vec3f* position, f32 scale, f32 floorHeight, Vec3f* floorTangent) {
+void OoT_EnClearTag_CreateFlashEffect(PlayState* play, Vec3f* position, f32 scale, f32 floorHeight, Vec3f* floorTangent) {
     s16 i;
     EnClearTagEffect* effect = (EnClearTagEffect*)play->specialEffects;
 
@@ -202,8 +202,8 @@ void EnClearTag_CreateFlashEffect(PlayState* play, Vec3f* position, f32 scale, f
             effect->type = CLEAR_TAG_EFFECT_FLASH;
 
             effect->position = *position;
-            effect->velocity = sZeroVector;
-            effect->acceleration = sZeroVector;
+            effect->velocity = OoT_sZeroVector;
+            effect->acceleration = OoT_sZeroVector;
 
             effect->scale = 0.0f;
             effect->maxScale = scale * 2.0f;
@@ -222,23 +222,23 @@ void EnClearTag_CreateFlashEffect(PlayState* play, Vec3f* position, f32 scale, f
  * EnClear_Tag destructor.
  * This just destroys the collider.
  */
-void EnClearTag_Destroy(Actor* thisx, PlayState* play) {
+void OoT_EnClearTag_Destroy(Actor* thisx, PlayState* play) {
     EnClearTag* this = (EnClearTag*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 }
 
 /**
  * EnClear_Tag constructor.
  * This allocates a collider, initializes effects, and sets up ClearTag instance data.
  */
-void EnClearTag_Init(Actor* thisx, PlayState* play) {
+void OoT_EnClearTag_Init(Actor* thisx, PlayState* play) {
     EnClearTag* this = (EnClearTag*)thisx;
     s32 defaultCutsceneTimer = 100;
     s16 i;
     s16 j;
 
-    Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_InitCylinder(play, &this->collider);
 
     // Initialize the Arwing laser.
     if (this->actor.params == CLEAR_TAG_LASER) {
@@ -247,7 +247,7 @@ void EnClearTag_Init(Actor* thisx, PlayState* play) {
         this->actor.speedXZ = 35.0f;
         Actor_UpdateVelocityXYZ(&this->actor);
         for (j = 0; j <= 0; j++) {
-            Actor_UpdatePos(&this->actor);
+            OoT_Actor_UpdatePos(&this->actor);
         }
         this->actor.scale.x = 0.4f;
         this->actor.scale.y = 0.4f;
@@ -256,7 +256,7 @@ void EnClearTag_Init(Actor* thisx, PlayState* play) {
         this->actor.shape.rot.x = -this->actor.shape.rot.x;
 
         Actor_UpdateVelocityXYZ(&this->actor);
-        Collider_SetCylinder(play, &this->collider, &this->actor, &sLaserCylinderInit);
+        OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &sLaserCylinderInit);
         Audio_PlayActorSound2(&this->actor, NA_SE_IT_SWORD_REFLECT_MG);
     } else { // Initialize the Arwing.
 
@@ -264,12 +264,12 @@ void EnClearTag_Init(Actor* thisx, PlayState* play) {
         // This way Arwings will be considered for "clear enemy" rooms properly.
         if (CVarGetInteger(CVAR_ENHANCEMENT("RandomizedEnemies"), 0) ||
             (CVarGetInteger(CVAR_REMOTE_CROWD_CONTROL("Enabled"), 0))) {
-            Actor_ChangeCategory(play, &play->actorCtx, thisx, ACTORCAT_ENEMY);
+            OoT_Actor_ChangeCategory(play, &play->actorCtx, thisx, ACTORCAT_ENEMY);
         }
 
         this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
         this->actor.targetMode = 5;
-        Collider_SetCylinder(play, &this->collider, &this->actor, &sArwingCylinderInit);
+        OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &sArwingCylinderInit);
         this->actor.colChkInfo.health = 3;
 
         // Update the Arwing to play the intro cutscene.
@@ -307,8 +307,8 @@ void EnClearTag_CalculateFloorTangent(EnClearTag* this) {
         f32 y = COLPOLY_GET_NORMAL(this->actor.floorPoly->normal.y);
         f32 z = COLPOLY_GET_NORMAL(this->actor.floorPoly->normal.z);
 
-        this->floorTangent.x = -Math_FAtan2F(-z * y, 1.0f);
-        this->floorTangent.z = Math_FAtan2F(-x * y, 1.0f);
+        this->floorTangent.x = -OoT_Math_FAtan2F(-z * y, 1.0f);
+        this->floorTangent.z = OoT_Math_FAtan2F(-x * y, 1.0f);
     }
 }
 
@@ -326,7 +326,7 @@ void EnClearTag_CalculateFloorTangent(EnClearTag* this) {
  * This function controls the cutscene that plays when the Arwing has params for
  * cutscene. The cutscene stops playing when the Arwing is a specified distance from the starting point.
  */
-void EnClearTag_Update(Actor* thisx, PlayState* play2) {
+void OoT_EnClearTag_Update(Actor* thisx, PlayState* play2) {
     u8 hasAtHit = false;
     s16 i;
     s16 xRotationTarget;
@@ -366,10 +366,10 @@ void EnClearTag_Update(Actor* thisx, PlayState* play2) {
 
                     this->collider.base.acFlags &= ~AC_HIT;
                     this->crashingTimer = 20;
-                    Actor_SetColorFilter(&this->actor, 0x4000, 255, 0, 5);
-                    this->acceleration.x = Rand_CenteredFloat(15.0f);
-                    this->acceleration.y = Rand_CenteredFloat(15.0f);
-                    this->acceleration.z = Rand_CenteredFloat(15.0f);
+                    OoT_Actor_SetColorFilter(&this->actor, 0x4000, 255, 0, 5);
+                    this->acceleration.x = OoT_Rand_CenteredFloat(15.0f);
+                    this->acceleration.y = OoT_Rand_CenteredFloat(15.0f);
+                    this->acceleration.z = OoT_Rand_CenteredFloat(15.0f);
 
                     Audio_PlayActorSound2(&this->actor, NA_SE_EN_FANTOM_THUNDER_GND);
                     this->actor.colChkInfo.health--;
@@ -380,7 +380,7 @@ void EnClearTag_Update(Actor* thisx, PlayState* play2) {
                         goto state_crashing;
                     }
                 }
-                Actor_SetScale(&this->actor, 0.2f);
+                OoT_Actor_SetScale(&this->actor, 0.2f);
                 this->actor.speedXZ = 7.0f;
 
                 if (this->timers[CLEAR_TAG_TIMER_ARWING_UPDATE_STATE] == 0) {
@@ -389,23 +389,23 @@ void EnClearTag_Update(Actor* thisx, PlayState* play2) {
                         this->timers[CLEAR_TAG_TIMER_ARWING_UPDATE_STATE] = 300;
                     } else {
                         this->state = CLEAR_TAG_STATE_FLYING;
-                        this->timers[CLEAR_TAG_TIMER_ARWING_UPDATE_STATE] = (s16)Rand_ZeroFloat(50.0f) + 20;
+                        this->timers[CLEAR_TAG_TIMER_ARWING_UPDATE_STATE] = (s16)OoT_Rand_ZeroFloat(50.0f) + 20;
 
                         if (this->actor.params == CLEAR_TAG_ARWING) {
                             // Set the Arwing to fly in a circle around the player.
-                            f32 targetCircleX = Math_SinS(player->actor.shape.rot.y) * 400.0f;
-                            f32 targetCircleZ = Math_CosS(player->actor.shape.rot.y) * 400.0f;
+                            f32 targetCircleX = OoT_Math_SinS(player->actor.shape.rot.y) * 400.0f;
+                            f32 targetCircleZ = OoT_Math_CosS(player->actor.shape.rot.y) * 400.0f;
 
                             this->targetPosition.x =
-                                Rand_CenteredFloat(700.0f) + (player->actor.world.pos.x + targetCircleX);
-                            this->targetPosition.y = Rand_ZeroFloat(200.0f) + player->actor.world.pos.y + 150.0f;
+                                OoT_Rand_CenteredFloat(700.0f) + (player->actor.world.pos.x + targetCircleX);
+                            this->targetPosition.y = OoT_Rand_ZeroFloat(200.0f) + player->actor.world.pos.y + 150.0f;
                             this->targetPosition.z =
-                                Rand_CenteredFloat(700.0f) + (player->actor.world.pos.z + targetCircleZ);
+                                OoT_Rand_CenteredFloat(700.0f) + (player->actor.world.pos.z + targetCircleZ);
                         } else {
                             // Set the Arwing to fly to a random position.
-                            this->targetPosition.x = Rand_CenteredFloat(700.0f);
-                            this->targetPosition.y = Rand_ZeroFloat(200.0f) + 150.0f;
-                            this->targetPosition.z = Rand_CenteredFloat(700.0f);
+                            this->targetPosition.x = OoT_Rand_CenteredFloat(700.0f);
+                            this->targetPosition.y = OoT_Rand_ZeroFloat(200.0f) + 150.0f;
+                            this->targetPosition.z = OoT_Rand_CenteredFloat(700.0f);
                         }
                     }
 
@@ -439,11 +439,11 @@ void EnClearTag_Update(Actor* thisx, PlayState* play2) {
                     loseTargetLockDistance = 100.0f;
                 }
 
-                // If the Arwing is not in cutscene state, smoothly update the roll to zero.
+                // If the Arwing is not in cutscene state, smoothly update the roll to OoT_zero.
                 // This will reset the Arwing to be right side up after the cutscene is done.
                 // The cutscene will set the Arwing to do a barrel roll and doesn't end on right side up.
                 if (this->state != CLEAR_TAG_STATE_DEMO) {
-                    Math_ApproachZeroF(&this->roll, 0.1f, 0.2f);
+                    OoT_Math_ApproachZeroF(&this->roll, 0.1f, 0.2f);
                 }
 
                 // Calculate a vector towards the targetted position.
@@ -452,30 +452,30 @@ void EnClearTag_Update(Actor* thisx, PlayState* play2) {
                 vectorToTargetZ = this->targetPosition.z - this->actor.world.pos.z;
 
                 // If the Arwing is within a certain distance to the target position, it will be updated to flymode
-                if (sqrtf(SQ(vectorToTargetX) + SQ(vectorToTargetY) + SQ(vectorToTargetZ)) < loseTargetLockDistance) {
+                if (OoT_sqrtf(SQ(vectorToTargetX) + SQ(vectorToTargetY) + SQ(vectorToTargetZ)) < loseTargetLockDistance) {
                     this->timers[CLEAR_TAG_TIMER_ARWING_UPDATE_STATE] = 0;
                     if (this->state == CLEAR_TAG_STATE_TARGET_LOCKED) {
-                        this->timers[CLEAR_TAG_TIMER_ARWING_ENTER_LOCKED_ON] = (s16)Rand_ZeroFloat(100.0f) + 100;
+                        this->timers[CLEAR_TAG_TIMER_ARWING_ENTER_LOCKED_ON] = (s16)OoT_Rand_ZeroFloat(100.0f) + 100;
                     }
                     this->state = CLEAR_TAG_STATE_FLYING;
                 }
 
                 // Calculate the direction for the Arwing to fly and the rotation for the Arwing
                 // based on the Arwing's direction, and current rotation.
-                worldRotationTargetY = Math_FAtan2F(vectorToTargetX, vectorToTargetZ) * (0x8000 / M_PI);
+                worldRotationTargetY = OoT_Math_FAtan2F(vectorToTargetX, vectorToTargetZ) * (0x8000 / M_PI);
                 worldRotationTargetX =
-                    Math_FAtan2F(vectorToTargetY, sqrtf(SQ(vectorToTargetX) + SQ(vectorToTargetZ))) * (0x8000 / M_PI);
+                    OoT_Math_FAtan2F(vectorToTargetY, OoT_sqrtf(SQ(vectorToTargetX) + SQ(vectorToTargetZ))) * (0x8000 / M_PI);
                 if ((worldRotationTargetX < 0) && (this->actor.world.pos.y < this->actor.floorHeight + 20.0f)) {
                     worldRotationTargetX = 0;
                 }
-                Math_ApproachS(&this->actor.world.rot.x, worldRotationTargetX, rotationScale, this->targetDirection.x);
-                worldRotationTargetZ = Math_SmoothStepToS(&this->actor.world.rot.y, worldRotationTargetY, rotationScale,
+                OoT_Math_ApproachS(&this->actor.world.rot.x, worldRotationTargetX, rotationScale, this->targetDirection.x);
+                worldRotationTargetZ = OoT_Math_SmoothStepToS(&this->actor.world.rot.y, worldRotationTargetY, rotationScale,
                                                           this->targetDirection.y, 0);
-                Math_ApproachF(&this->targetDirection.x, xRotationTarget, 1.0f, 0x100);
+                OoT_Math_ApproachF(&this->targetDirection.x, xRotationTarget, 1.0f, 0x100);
                 this->targetDirection.y = this->targetDirection.x;
                 if (ABS(worldRotationTargetZ) < 0x1000) {
-                    Math_ApproachS(&this->actor.world.rot.z, 0, 15, this->targetDirection.z);
-                    Math_ApproachF(&this->targetDirection.z, 0x500, 1.0f, 0x100);
+                    OoT_Math_ApproachS(&this->actor.world.rot.z, 0, 15, this->targetDirection.z);
+                    OoT_Math_ApproachF(&this->targetDirection.z, 0x500, 1.0f, 0x100);
 
                     // Introduce a range requirement in Enemy Rando so Arwings don't shoot the player from
                     // across the map. Especially noticeable in big maps like Lake Hylia and Hyrule Field.
@@ -483,15 +483,15 @@ void EnClearTag_Update(Actor* thisx, PlayState* play2) {
                                                    this->actor.xzDistToPlayer < 1000.0f;
 
                     // Check if the Arwing should fire its laser.
-                    if ((this->frameCounter % 4) == 0 && (Rand_ZeroOne() < 0.75f) &&
+                    if ((this->frameCounter % 4) == 0 && (OoT_Rand_ZeroOne() < 0.75f) &&
                         (this->state == CLEAR_TAG_STATE_TARGET_LOCKED) && enemyRandoShootLaser) {
                         this->shouldShootLaser = true;
                     }
                 } else {
                     worldRotationTargetZ = worldRotationTargetZ > 0 ? -0x2500 : 0x2500;
-                    Math_ApproachS(&this->actor.world.rot.z, worldRotationTargetZ, rotationScale,
+                    OoT_Math_ApproachS(&this->actor.world.rot.z, worldRotationTargetZ, rotationScale,
                                    this->targetDirection.z);
-                    Math_ApproachF(&this->targetDirection.z, 0x1000, 1.0f, 0x200);
+                    OoT_Math_ApproachF(&this->targetDirection.z, 0x1000, 1.0f, 0x200);
                 }
                 this->actor.shape.rot = this->actor.world.rot;
                 this->actor.shape.rot.x = -this->actor.shape.rot.x;
@@ -501,14 +501,14 @@ void EnClearTag_Update(Actor* thisx, PlayState* play2) {
                 this->actor.velocity.x += this->acceleration.x;
                 this->actor.velocity.y += this->acceleration.y;
                 this->actor.velocity.z += this->acceleration.z;
-                Math_ApproachZeroF(&this->acceleration.x, 1.0f, 1.0f);
-                Math_ApproachZeroF(&this->acceleration.y, 1.0f, 1.0f);
-                Math_ApproachZeroF(&this->acceleration.z, 1.0f, 1.0f);
+                OoT_Math_ApproachZeroF(&this->acceleration.x, 1.0f, 1.0f);
+                OoT_Math_ApproachZeroF(&this->acceleration.y, 1.0f, 1.0f);
+                OoT_Math_ApproachZeroF(&this->acceleration.z, 1.0f, 1.0f);
 
                 // Fire the Arwing laser.
                 if (this->shouldShootLaser) {
                     this->shouldShootLaser = false;
-                    Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->actor.world.pos.x,
+                    OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_CLEAR_TAG, this->actor.world.pos.x,
                                 this->actor.world.pos.y, this->actor.world.pos.z, this->actor.world.rot.x,
                                 this->actor.world.rot.y, this->actor.world.rot.z, CLEAR_TAG_STATE_LASER, true);
                 }
@@ -519,21 +519,21 @@ void EnClearTag_Update(Actor* thisx, PlayState* play2) {
                     this->crashingTimer--;
                 }
 
-                Actor_UpdatePos(&this->actor);
+                OoT_Actor_UpdatePos(&this->actor);
 
-                Actor_SetFocus(&this->actor, 0.0f);
+                OoT_Actor_SetFocus(&this->actor, 0.0f);
 
                 // Update Arwing collider to better match a ground collision.
                 this->collider.dim.radius = 20;
                 this->collider.dim.height = 15;
                 this->collider.dim.yShift = -5;
-                Collider_UpdateCylinder(&this->actor, &this->collider);
+                OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
 
-                CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-                CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+                OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+                OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
 
                 if (this->timers[CLEAR_TAG_TIMER_ARWING_UPDATE_BG_INFO] == 0) {
-                    Actor_UpdateBgCheckInfo(play, &this->actor, 50.0f, 30.0f, 100.0f, 5);
+                    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 50.0f, 30.0f, 100.0f, 5);
                     EnClearTag_CalculateFloorTangent(this);
                 }
 
@@ -557,14 +557,14 @@ void EnClearTag_Update(Actor* thisx, PlayState* play2) {
                             this->deathTimer = 70;
                             this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
                         } else {
-                            Actor_Kill(&this->actor);
+                            OoT_Actor_Kill(&this->actor);
                         }
                     }
                 }
                 break;
 
             case CLEAR_TAG_STATE_LASER:
-                Actor_UpdatePos(&this->actor);
+                OoT_Actor_UpdatePos(&this->actor);
 
                 // Check if the laser has hit a target.
                 if (this->collider.base.atFlags & AT_HIT) {
@@ -575,17 +575,17 @@ void EnClearTag_Update(Actor* thisx, PlayState* play2) {
                 this->collider.dim.radius = 23;
                 this->collider.dim.height = 25;
                 this->collider.dim.yShift = -10;
-                Collider_UpdateCylinder(&this->actor, &this->collider);
-                CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
-                Actor_UpdateBgCheckInfo(play, &this->actor, 50.0f, 80.0f, 100.0f, 5);
+                OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+                OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &this->collider.base);
+                OoT_Actor_UpdateBgCheckInfo(play, &this->actor, 50.0f, 80.0f, 100.0f, 5);
 
                 // Check if the laser has hit a target, timed out, or hit the ground.
                 if (this->actor.bgCheckFlags & 9 || hasAtHit || this->timers[CLEAR_TAG_TIMER_LASER_DEATH] == 0) {
                     // Kill the laser.
-                    Actor_Kill(&this->actor);
+                    OoT_Actor_Kill(&this->actor);
                     // Player laser sound effect if the laser did not time out.
                     if (this->timers[CLEAR_TAG_TIMER_LASER_DEATH] != 0) {
-                        SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 20,
+                        OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 20,
                                                            NA_SE_EN_FANTOM_THUNDER_GND);
                     }
                 }
@@ -609,14 +609,14 @@ void EnClearTag_Update(Actor* thisx, PlayState* play2) {
                         // Initializes Arwing cutscene camera data.
                         this->cutsceneMode = CLEAR_TAG_CUTSCENE_MODE_PLAY;
                         func_80064520(play, &play->csCtx);
-                        this->cameraId = Play_CreateSubCamera(play);
-                        Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_WAIT);
-                        Play_ChangeCameraStatus(play, this->cameraId, CAM_STAT_ACTIVE);
+                        this->cameraId = OoT_Play_CreateSubCamera(play);
+                        OoT_Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_WAIT);
+                        OoT_Play_ChangeCameraStatus(play, this->cameraId, CAM_STAT_ACTIVE);
                     case CLEAR_TAG_CUTSCENE_MODE_PLAY:
                         // Update the Arwing cutscene camera to spin around in a circle.
                         cutsceneTimer = this->frameCounter * 128;
-                        cutsceneCameraCircleX = Math_SinS(cutsceneTimer) * 200.0f;
-                        cutsceneCameraCircleZ = Math_CosS(cutsceneTimer) * 200.0f;
+                        cutsceneCameraCircleX = OoT_Math_SinS(cutsceneTimer) * 200.0f;
+                        cutsceneCameraCircleZ = OoT_Math_CosS(cutsceneTimer) * 200.0f;
                         cutsceneCameraAtTarget.x = this->actor.world.pos.x + cutsceneCameraCircleX;
                         cutsceneCameraAtTarget.y = 200.0f;
                         cutsceneCameraAtTarget.z = this->actor.world.pos.z + cutsceneCameraCircleZ;
@@ -626,12 +626,12 @@ void EnClearTag_Update(Actor* thisx, PlayState* play2) {
 
                 // Make the Arwing cutscene camera approach the target.
                 if (this->cameraId != SUBCAM_FREE) {
-                    Math_ApproachF(&this->cutsceneCameraAt.x, cutsceneCameraAtTarget.x, 0.1f, 500.0f);
-                    Math_ApproachF(&this->cutsceneCameraAt.y, cutsceneCameraAtTarget.y, 0.1f, 500.0f);
-                    Math_ApproachF(&this->cutsceneCameraAt.z, cutsceneCameraAtTarget.z, 0.1f, 500.0f);
-                    Math_ApproachF(&this->cutsceneCameraEye.x, cutsceneCameraEyeTarget.x, 0.2f, 500.0f);
-                    Math_ApproachF(&this->cutsceneCameraEye.y, cutsceneCameraEyeTarget.y, 0.2f, 500.0f);
-                    Math_ApproachF(&this->cutsceneCameraEye.z, cutsceneCameraEyeTarget.z, 0.2f, 500.0f);
+                    OoT_Math_ApproachF(&this->cutsceneCameraAt.x, cutsceneCameraAtTarget.x, 0.1f, 500.0f);
+                    OoT_Math_ApproachF(&this->cutsceneCameraAt.y, cutsceneCameraAtTarget.y, 0.1f, 500.0f);
+                    OoT_Math_ApproachF(&this->cutsceneCameraAt.z, cutsceneCameraAtTarget.z, 0.1f, 500.0f);
+                    OoT_Math_ApproachF(&this->cutsceneCameraEye.x, cutsceneCameraEyeTarget.x, 0.2f, 500.0f);
+                    OoT_Math_ApproachF(&this->cutsceneCameraEye.y, cutsceneCameraEyeTarget.y, 0.2f, 500.0f);
+                    OoT_Math_ApproachF(&this->cutsceneCameraEye.z, cutsceneCameraEyeTarget.z, 0.2f, 500.0f);
                     Play_CameraSetAtEye(play, this->cameraId, &this->cutsceneCameraEye, &this->cutsceneCameraAt);
                 }
 
@@ -652,43 +652,43 @@ void EnClearTag_Update(Actor* thisx, PlayState* play2) {
         Vec3f debrisEffectAcceleration;
 
         this->shouldExplode = false;
-        SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40, NA_SE_IT_BOMB_EXPLOSION);
+        OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40, NA_SE_IT_BOMB_EXPLOSION);
 
         // Spawn flash effect.
         crashEffectLocation.x = this->actor.world.pos.x;
         crashEffectLocation.y = (this->actor.world.pos.y + 40.0f) - 30.0f;
         crashEffectLocation.z = this->actor.world.pos.z;
-        EnClearTag_CreateFlashEffect(play, &crashEffectLocation, 6.0f, this->actor.floorHeight, &this->floorTangent);
+        OoT_EnClearTag_CreateFlashEffect(play, &crashEffectLocation, 6.0f, this->actor.floorHeight, &this->floorTangent);
 
         // Spawn smoke effect.
         crashEffectLocation.y = (this->actor.world.pos.y + 30.0f) - 50.0f;
-        EnClearTag_CreateSmokeEffect(play, &crashEffectLocation, 3.0f);
+        OoT_EnClearTag_CreateSmokeEffect(play, &crashEffectLocation, 3.0f);
         crashEffectLocation.y = this->actor.world.pos.y;
 
         // Spawn debris effects.
         for (i = 0; i < 15; i++) {
             crashEffectVelocity.x = sinf(i * 1.65f) * i * 0.3f;
             crashEffectVelocity.z = cosf(i * 1.65f) * i * 0.3f;
-            crashEffectVelocity.y = Rand_ZeroFloat(6.0f) + 5.0f;
-            crashEffectVelocity.x += Rand_CenteredFloat(0.5f);
-            crashEffectVelocity.z += Rand_CenteredFloat(0.5f);
+            crashEffectVelocity.y = OoT_Rand_ZeroFloat(6.0f) + 5.0f;
+            crashEffectVelocity.x += OoT_Rand_CenteredFloat(0.5f);
+            crashEffectVelocity.z += OoT_Rand_CenteredFloat(0.5f);
 
             debrisEffectAcceleration.x = 0.0f;
             debrisEffectAcceleration.y = -1.0f;
             debrisEffectAcceleration.z = 0.0f;
 
-            EnClearTag_CreateDebrisEffect(play, &crashEffectLocation, &crashEffectVelocity, &debrisEffectAcceleration,
-                                          Rand_ZeroFloat(0.15f) + 0.075f, this->actor.floorHeight);
+            OoT_EnClearTag_CreateDebrisEffect(play, &crashEffectLocation, &crashEffectVelocity, &debrisEffectAcceleration,
+                                          OoT_Rand_ZeroFloat(0.15f) + 0.075f, this->actor.floorHeight);
         }
     }
 
     if (this->drawMode != CLEAR_TAG_DRAW_MODE_ARWING) {
         // Check if the Arwing should be removed.
         if ((this->drawMode == CLEAR_TAG_DRAW_MODE_EFFECT) && (DECR(this->deathTimer) == 0)) {
-            Actor_Kill(&this->actor);
+            OoT_Actor_Kill(&this->actor);
         }
 
-        EnClearTag_UpdateEffects(play);
+        OoT_EnClearTag_UpdateEffects(play);
     }
 }
 
@@ -697,7 +697,7 @@ void EnClearTag_Update(Actor* thisx, PlayState* play2) {
  * Laser clear tag type will draw two lasers.
  * Arwing clear tage types will draw the Arwing, the backfire, and a shadow.
  */
-void EnClearTag_Draw(Actor* thisx, PlayState* play) {
+void OoT_EnClearTag_Draw(Actor* thisx, PlayState* play) {
     s32 pad;
     EnClearTag* this = (EnClearTag*)thisx;
 
@@ -709,11 +709,11 @@ void EnClearTag_Draw(Actor* thisx, PlayState* play) {
             // Draw Arwing lasers.
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 0, 255, 0, 255);
 
-            Matrix_Translate(25.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+            OoT_Matrix_Translate(25.0f, 0.0f, 0.0f, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(POLY_XLU_DISP++, gArwingLaserDL);
 
-            Matrix_Translate(-50.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+            OoT_Matrix_Translate(-50.0f, 0.0f, 0.0f, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(POLY_XLU_DISP++, gArwingLaserDL);
         } else {
@@ -725,8 +725,8 @@ void EnClearTag_Draw(Actor* thisx, PlayState* play) {
                 f32 yRotation;
                 f32 scaledCrashingTimer = this->crashingTimer * 0.05f;
 
-                xRotation = Math_SinS(this->frameCounter * 0x3000) * scaledCrashingTimer;
-                yRotation = Math_SinS(this->frameCounter * 0x3700) * scaledCrashingTimer;
+                xRotation = OoT_Math_SinS(this->frameCounter * 0x3000) * scaledCrashingTimer;
+                yRotation = OoT_Math_SinS(this->frameCounter * 0x3700) * scaledCrashingTimer;
                 Matrix_RotateX(xRotation, MTXMODE_APPLY);
                 Matrix_RotateY(yRotation, MTXMODE_APPLY);
             }
@@ -735,11 +735,11 @@ void EnClearTag_Draw(Actor* thisx, PlayState* play) {
             gSPDisplayList(POLY_OPA_DISP++, gArwingDL);
 
             // Draw the Arwing Backfire
-            Matrix_Translate(0.0f, 0.0f, -60.0f, MTXMODE_APPLY);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
-            Matrix_Scale(2.5f, 1.3f, 0.0f, MTXMODE_APPLY);
+            OoT_Matrix_Translate(0.0f, 0.0f, -60.0f, MTXMODE_APPLY);
+            OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
+            OoT_Matrix_Scale(2.5f, 1.3f, 0.0f, MTXMODE_APPLY);
             if ((this->frameCounter % 2) != 0) {
-                Matrix_Scale(1.15f, 1.15f, 1.15f, MTXMODE_APPLY);
+                OoT_Matrix_Scale(1.15f, 1.15f, 1.15f, MTXMODE_APPLY);
             }
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 200, 155);
             gDPPipeSync(POLY_XLU_DISP++);
@@ -749,10 +749,10 @@ void EnClearTag_Draw(Actor* thisx, PlayState* play) {
 
             // Draw the Arwing shadow.
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 0, 0, 0, 130);
-            Matrix_Translate(this->actor.world.pos.x, this->actor.floorHeight, this->actor.world.pos.z, MTXMODE_NEW);
+            OoT_Matrix_Translate(this->actor.world.pos.x, this->actor.floorHeight, this->actor.world.pos.z, MTXMODE_NEW);
             Matrix_RotateX(this->floorTangent.x, MTXMODE_APPLY);
             Matrix_RotateZ(this->floorTangent.z, MTXMODE_APPLY);
-            Matrix_Scale(this->actor.scale.x + 0.35f, 0.0f, this->actor.scale.z + 0.35f, MTXMODE_APPLY);
+            OoT_Matrix_Scale(this->actor.scale.x + 0.35f, 0.0f, this->actor.scale.z + 0.35f, MTXMODE_APPLY);
             Matrix_RotateY((this->actor.shape.rot.y / 32768.0f) * M_PI, MTXMODE_APPLY);
             Matrix_RotateX((this->actor.shape.rot.x / 32768.0f) * M_PI, MTXMODE_APPLY);
             Matrix_RotateZ((this->actor.shape.rot.z / 32768.0f) * M_PI, MTXMODE_APPLY);
@@ -761,8 +761,8 @@ void EnClearTag_Draw(Actor* thisx, PlayState* play) {
                 f32 yRotation;
                 f32 scaledCrashingTimer = this->crashingTimer * 0.05f;
 
-                xRotation = Math_SinS(this->frameCounter * 0x3000) * scaledCrashingTimer;
-                yRotation = Math_SinS(this->frameCounter * 0x3700) * scaledCrashingTimer;
+                xRotation = OoT_Math_SinS(this->frameCounter * 0x3000) * scaledCrashingTimer;
+                yRotation = OoT_Math_SinS(this->frameCounter * 0x3700) * scaledCrashingTimer;
                 Matrix_RotateX(xRotation, MTXMODE_APPLY);
                 Matrix_RotateY(yRotation, MTXMODE_APPLY);
             }
@@ -773,7 +773,7 @@ void EnClearTag_Draw(Actor* thisx, PlayState* play) {
     }
 
     if (this->drawMode != CLEAR_TAG_DRAW_MODE_ARWING) {
-        EnClearTag_DrawEffects(play);
+        OoT_EnClearTag_DrawEffects(play);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -785,7 +785,7 @@ void EnClearTag_Draw(Actor* thisx, PlayState* play) {
  * Moves and bounces debris effects.
  * Fades most effects out of view. When effects are completely faded away they are removed.
  */
-void EnClearTag_UpdateEffects(PlayState* play) {
+void OoT_EnClearTag_UpdateEffects(PlayState* play) {
     EnClearTagEffect* effect = (EnClearTagEffect*)play->specialEffects;
     s16 i;
     f32 originalYPosition;
@@ -816,14 +816,14 @@ void EnClearTag_UpdateEffects(PlayState* play) {
                     sphereCenter.y += 5.0f;
 
                     // Check if the debris has hit the ground.
-                    if (BgCheck_SphVsFirstPoly(&play->colCtx, &sphereCenter, 11.0f)) {
+                    if (OoT_BgCheck_SphVsFirstPoly(&play->colCtx, &sphereCenter, 11.0f)) {
                         effect->position.y = originalYPosition;
 
                         // Bounce the debris effect.
                         if (effect->bounces <= 0) {
                             effect->bounces++;
                             effect->velocity.y *= -0.5f;
-                            effect->timer = ((s16)Rand_ZeroFloat(20)) + 25;
+                            effect->timer = ((s16)OoT_Rand_ZeroFloat(20)) + 25;
                         } else {
                             // The Debris effect is done bouncing. Set its velocity and acceleration to 0.
                             effect->velocity.x = effect->velocity.z = effect->acceleration.y = effect->velocity.y =
@@ -850,25 +850,25 @@ void EnClearTag_UpdateEffects(PlayState* play) {
                 }
             } else if (effect->type == CLEAR_TAG_EFFECT_FIRE) {
                 // Fade the fire effect.
-                Math_ApproachZeroF(&effect->primColor.a, 1.0f, 15.0f);
+                OoT_Math_ApproachZeroF(&effect->primColor.a, 1.0f, 15.0f);
                 // If the fire effect is fully faded, unload it.
                 if (effect->primColor.a <= 0.0f) {
                     effect->type = CLEAR_TAG_EFFECT_AVAILABLE;
                 }
             } else if (effect->type == CLEAR_TAG_EFFECT_SMOKE) {
                 // Fade the smoke effects.
-                Math_ApproachZeroF(&effect->primColor.r, 1.0f, 20.0f);
-                Math_ApproachZeroF(&effect->primColor.g, 1.0f, 2.0f);
-                Math_ApproachZeroF(&effect->envColor.r, 1.0f, 25.5f);
-                Math_ApproachZeroF(&effect->envColor.g, 1.0f, 21.5f);
-                Math_ApproachZeroF(&effect->envColor.b, 1.0f, 25.5f);
+                OoT_Math_ApproachZeroF(&effect->primColor.r, 1.0f, 20.0f);
+                OoT_Math_ApproachZeroF(&effect->primColor.g, 1.0f, 2.0f);
+                OoT_Math_ApproachZeroF(&effect->envColor.r, 1.0f, 25.5f);
+                OoT_Math_ApproachZeroF(&effect->envColor.g, 1.0f, 21.5f);
+                OoT_Math_ApproachZeroF(&effect->envColor.b, 1.0f, 25.5f);
 
                 // Smooth scale the smoke effects.
-                Math_ApproachF(&effect->scale, effect->maxScale, 0.05f, 0.1f);
+                OoT_Math_ApproachF(&effect->scale, effect->maxScale, 0.05f, 0.1f);
 
                 if (effect->primColor.r == 0.0f) {
                     // Fade the smoke effects.
-                    Math_ApproachZeroF(&effect->primColor.a, 1.0f, 3.0f);
+                    OoT_Math_ApproachZeroF(&effect->primColor.a, 1.0f, 3.0f);
 
                     // If the smoke effect has fully faded, unload it.
                     if (effect->primColor.a <= 0.0f) {
@@ -877,9 +877,9 @@ void EnClearTag_UpdateEffects(PlayState* play) {
                 }
             } else if (effect->type == CLEAR_TAG_EFFECT_FLASH) {
                 // Smooth scale the flash effects.
-                Math_ApproachF(&effect->scale, effect->maxScale, 1.0f, 3.0f);
+                OoT_Math_ApproachF(&effect->scale, effect->maxScale, 1.0f, 3.0f);
                 // Fade the flash effects.
-                Math_ApproachZeroF(&effect->primColor.a, 1.0f, 10.0f);
+                OoT_Math_ApproachZeroF(&effect->primColor.a, 1.0f, 10.0f);
 
                 // If the flash effect has fully faded, unload it.
                 if (effect->primColor.a <= 0.0f) {
@@ -899,7 +899,7 @@ void EnClearTag_UpdateEffects(PlayState* play) {
  * Each effect type is drawn before the next. The function will apply a material that applies to all effects of that
  * type while drawing the first effect of that type.
  */
-void EnClearTag_DrawEffects(PlayState* play) {
+void OoT_EnClearTag_DrawEffects(PlayState* play) {
     s16 i;
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     u8 isMaterialApplied = false;
@@ -922,8 +922,8 @@ void EnClearTag_DrawEffects(PlayState* play) {
             }
 
             // Draw the debris effect.
-            Matrix_Translate(effect->position.x, effect->position.y, effect->position.z, MTXMODE_NEW);
-            Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
+            OoT_Matrix_Translate(effect->position.x, effect->position.y, effect->position.z, MTXMODE_NEW);
+            OoT_Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
             Matrix_RotateY(effect->rotationY, MTXMODE_APPLY);
             Matrix_RotateX(effect->rotationX, MTXMODE_APPLY);
             gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -949,10 +949,10 @@ void EnClearTag_DrawEffects(PlayState* play) {
 
             // Draw the ground flash effect.
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 200, (s8)effect->primColor.a);
-            Matrix_Translate(effect->position.x, effect->floorHeight, effect->position.z, MTXMODE_NEW);
+            OoT_Matrix_Translate(effect->position.x, effect->floorHeight, effect->position.z, MTXMODE_NEW);
             Matrix_RotateX(effect->floorTangent.x, MTXMODE_APPLY);
             Matrix_RotateZ(effect->floorTangent.z, MTXMODE_APPLY);
-            Matrix_Scale(effect->scale + effect->scale, 1.0f, effect->scale * 2.0f, MTXMODE_APPLY);
+            OoT_Matrix_Scale(effect->scale + effect->scale, 1.0f, effect->scale * 2.0f, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(POLY_XLU_DISP++, gArwingFlashEffectGroundDL);
 
@@ -980,11 +980,11 @@ void EnClearTag_DrawEffects(PlayState* play) {
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, (s8)effect->primColor.r, (s8)effect->primColor.g,
                             (s8)effect->primColor.b, (s8)effect->primColor.a);
             gSPSegment(POLY_XLU_DISP++, 8,
-                       Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, effect->random * -5, 32, 64, 1, 0, 0, 32, 32));
-            Matrix_Translate(effect->position.x, effect->position.y, effect->position.z, MTXMODE_NEW);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
-            Matrix_Scale(effect->scale, effect->scale, 1.0f, MTXMODE_APPLY);
-            Matrix_Translate(0.0f, 20.0f, 0.0f, MTXMODE_APPLY);
+                       OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, effect->random * -5, 32, 64, 1, 0, 0, 32, 32));
+            OoT_Matrix_Translate(effect->position.x, effect->position.y, effect->position.z, MTXMODE_NEW);
+            OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
+            OoT_Matrix_Scale(effect->scale, effect->scale, 1.0f, MTXMODE_APPLY);
+            OoT_Matrix_Translate(0.0f, 20.0f, 0.0f, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(POLY_XLU_DISP++, gArwingFireEffectDL);
 
@@ -1010,10 +1010,10 @@ void EnClearTag_DrawEffects(PlayState* play) {
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 200, 20, 0, (s8)effect->primColor.a);
             gSPSegment(
                 POLY_XLU_DISP++, 8,
-                Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, (effect->random * -15) & 0xFF, 32, 64, 1, 0, 0, 32, 32));
-            Matrix_Translate(effect->position.x, effect->position.y, effect->position.z, MTXMODE_NEW);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
-            Matrix_Scale(effect->scale, effect->scale, 1.0f, MTXMODE_APPLY);
+                OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, (effect->random * -15) & 0xFF, 32, 64, 1, 0, 0, 32, 32));
+            OoT_Matrix_Translate(effect->position.x, effect->position.y, effect->position.z, MTXMODE_NEW);
+            OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
+            OoT_Matrix_Scale(effect->scale, effect->scale, 1.0f, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(POLY_XLU_DISP++, gArwingFireEffectDL);
 
@@ -1037,9 +1037,9 @@ void EnClearTag_DrawEffects(PlayState* play) {
 
             // Draw the flash billboard effect.
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 200, (s8)effect->primColor.a);
-            Matrix_Translate(effect->position.x, effect->position.y, effect->position.z, MTXMODE_NEW);
-            Matrix_ReplaceRotation(&play->billboardMtxF);
-            Matrix_Scale(effect->scale, effect->scale, 1.0f, MTXMODE_APPLY);
+            OoT_Matrix_Translate(effect->position.x, effect->position.y, effect->position.z, MTXMODE_NEW);
+            OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
+            OoT_Matrix_Scale(effect->scale, effect->scale, 1.0f, MTXMODE_APPLY);
             gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             gSPDisplayList(POLY_XLU_DISP++, gArwingFlashEffectDL);
 

@@ -29,18 +29,18 @@
 #define DOOR_AJAR_SLAM_RANGE 120.0f
 #define DOOR_AJAR_OPEN_RANGE (2 * DOOR_AJAR_SLAM_RANGE)
 
-void EnDoor_Init(Actor* thisx, PlayState* play2);
-void EnDoor_Destroy(Actor* thisx, PlayState* play);
-void EnDoor_Update(Actor* thisx, PlayState* play);
-void EnDoor_Draw(Actor* thisx, PlayState* play);
+void MM_EnDoor_Init(Actor* thisx, PlayState* play2);
+void MM_EnDoor_Destroy(Actor* thisx, PlayState* play);
+void MM_EnDoor_Update(Actor* thisx, PlayState* play);
+void MM_EnDoor_Draw(Actor* thisx, PlayState* play);
 void EnDoor_Reset(void);
 
-void EnDoor_Idle(EnDoor* this, PlayState* play);
-void EnDoor_AjarWait(EnDoor* this, PlayState* play);
+void MM_EnDoor_Idle(EnDoor* this, PlayState* play);
+void MM_EnDoor_AjarWait(EnDoor* this, PlayState* play);
 void EnDoor_OpenScheduleActor(EnDoor* this, PlayState* play);
-void EnDoor_AjarOpen(EnDoor* this, PlayState* play);
-void EnDoor_Open(EnDoor* this, PlayState* play);
-void EnDoor_AjarClose(EnDoor* this, PlayState* play);
+void MM_EnDoor_AjarOpen(EnDoor* this, PlayState* play);
+void MM_EnDoor_Open(EnDoor* this, PlayState* play);
+void MM_EnDoor_AjarClose(EnDoor* this, PlayState* play);
 void EnDoor_WaitForObject(EnDoor* this, PlayState* play);
 
 u8 sDoorSch_SwordsmansSchool[] = {
@@ -323,10 +323,10 @@ ActorProfile En_Door_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(EnDoor),
-    /**/ EnDoor_Init,
-    /**/ EnDoor_Destroy,
-    /**/ EnDoor_Update,
-    /**/ EnDoor_Draw,
+    /**/ MM_EnDoor_Init,
+    /**/ MM_EnDoor_Destroy,
+    /**/ MM_EnDoor_Update,
+    /**/ MM_EnDoor_Draw,
     /**/ EnDoor_Reset,
 };
 
@@ -421,7 +421,7 @@ static_assert(ENDOOR_SCH_TYPE_MAX == DOOR_OBJINFO_MAX - DOOR_OBJKIND_SCHEDULE,
               "The enums values of `EnDoorScheduleType` and `EnDoorObjectInfoIndex` (from `DOOR_OBJKIND_SCHEDULE` "
               "onwards) must be synced.");
 
-static EnDoorInfo sObjectInfo[] = {
+static EnDoorInfo MM_sObjectInfo[] = {
     // DOOR_OBJKIND_DEFAULT
     { SCENE_MITURIN, DOOR_DL_WOODFALL, OBJECT_NUMA_OBJ },                  // DOOR_OBJINFO_0
     { SCENE_TENMON_DAI, DOOR_DL_OBSERVATORY_LAB, OBJECT_DOR01 },           // DOOR_OBJINFO_1
@@ -477,17 +477,17 @@ static EnDoorInfo sObjectInfo[] = {
     { -1, DOOR_DL_MILK_BAR, OBJECT_WDOR04 },                           // DOOR_OBJINFO_47
     { -1, DOOR_DL_SWAMP, OBJECT_DOR03 },                               // DOOR_OBJINFO_48
 };
-static_assert(ARRAY_COUNT(sObjectInfo) == DOOR_OBJINFO_MAX,
-              "The entry count of `sObjectInfo` should match the `EnDoorObjectInfoIndex` enum");
+static_assert(ARRAY_COUNT(MM_sObjectInfo) == DOOR_OBJINFO_MAX,
+              "The entry count of `MM_sObjectInfo` should match the `EnDoorObjectInfoIndex` enum");
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_U8(attentionRangeType, ATTENTION_RANGE_0, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_U16(shape.rot.x, 0, ICHAIN_CONTINUE),
     ICHAIN_U16(shape.rot.z, 0, ICHAIN_STOP),
 };
 
-static AnimationHeader* sAnimations[] = {
+static AnimationHeader* MM_sAnimations[] = {
     // left
     &gDoorFierceDeityZoraOpenLeftAnim, // PLAYER_FORM_FIERCE_DEITY
     &gDoorGoronOpenLeftAnim,           // PLAYER_FORM_GORON
@@ -501,8 +501,8 @@ static AnimationHeader* sAnimations[] = {
     &gDoorDekuOpenRightAnim,            // PLAYER_FORM_DEKU
     &gDoorHumanOpenRightAnim,           // PLAYER_FORM_HUMAN
 };
-static_assert(ARRAY_COUNT(sAnimations) == 2 * PLAYER_FORM_MAX,
-              "The entry count of `sAnimations` should be exactly twice as PLAYER_FORM_MAX");
+static_assert(ARRAY_COUNT(MM_sAnimations) == 2 * PLAYER_FORM_MAX,
+              "The entry count of `MM_sAnimations` should be exactly twice as PLAYER_FORM_MAX");
 
 static u8 sAnimOpenFrames[] = {
     // left
@@ -558,28 +558,28 @@ static Gfx* sDoorDLists[][2] = {
 static_assert(ARRAY_COUNT(sDoorDLists) == DOOR_DL_MAX,
               "The entry count of `sDoorDLists` should match the `EnDoorDListIndex` enum");
 
-void EnDoor_Init(Actor* thisx, PlayState* play2) {
+void MM_EnDoor_Init(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     s32 objectSlot;
-    EnDoorInfo* objectInfo = &sObjectInfo[0];
+    EnDoorInfo* objectInfo = &MM_sObjectInfo[0];
     EnDoor* this = (EnDoor*)thisx;
     s32 i;
 
-    Actor_ProcessInitChain(&this->knobDoor.dyna.actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->knobDoor.dyna.actor, MM_sInitChain);
 
     this->doorType = ENDOOR_GET_TYPE(thisx);
     this->typeVar.data = ENDOOR_GET_TYPE_VAR(thisx);
 
     if ((this->doorType == ENDOOR_TYPE_FRAMED) && (this->typeVar.frameType == ENDOOR_FRAMED_FRAME)) {
-        DynaPolyActor_Init(&this->knobDoor.dyna, 0);
+        MM_DynaPolyActor_Init(&this->knobDoor.dyna, 0);
         DynaPolyActor_LoadMesh(play, &this->knobDoor.dyna, &gFramedDoorCol);
     }
 
-    SkelAnime_Init(play, &this->knobDoor.skelAnime, &gDoorSkel, &gDoorFierceDeityZoraOpenLeftAnim, this->limbTable,
+    MM_SkelAnime_Init(play, &this->knobDoor.skelAnime, &gDoorSkel, &gDoorFierceDeityZoraOpenLeftAnim, this->limbTable,
                    this->limbTable, DOOR_LIMB_MAX);
 
     if (this->doorType == ENDOOR_TYPE_SCHEDULE) {
-        objectInfo = &sObjectInfo[DOOR_OBJKIND_SCHEDULE + this->typeVar.schType];
+        objectInfo = &MM_sObjectInfo[DOOR_OBJKIND_SCHEDULE + this->typeVar.schType];
     } else {
         // Look for the EnDoorInfo corresponding to the current scene.
         // If no EnDoorInfo matches the current scene then objectInfo will point to the GAMEPLAY_KEEP one
@@ -603,10 +603,10 @@ void EnDoor_Init(Actor* thisx, PlayState* play2) {
     // If it isn't, then fallback to GAMEPLAY_KEEP
     objectSlot = Object_GetSlot(&play->objectCtx, objectInfo->objectId);
     if (objectSlot <= OBJECT_SLOT_NONE) {
-        objectInfo = &sObjectInfo[DOOR_OBJINFO_15];
+        objectInfo = &MM_sObjectInfo[DOOR_OBJINFO_15];
         objectSlot = Object_GetSlot(&play->objectCtx, objectInfo->objectId);
         if (objectSlot != 0) {
-            Actor_Kill(&this->knobDoor.dyna.actor);
+            MM_Actor_Kill(&this->knobDoor.dyna.actor);
             return;
         }
     }
@@ -622,10 +622,10 @@ void EnDoor_Init(Actor* thisx, PlayState* play2) {
         this->actionFunc = EnDoor_WaitForObject;
     }
 
-    Actor_SetFocus(&this->knobDoor.dyna.actor, 35.0f);
+    MM_Actor_SetFocus(&this->knobDoor.dyna.actor, 35.0f);
 }
 
-void EnDoor_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnDoor_Destroy(Actor* thisx, PlayState* play) {
     EnDoor* this = (EnDoor*)thisx;
 
     if (this->doorType != ENDOOR_TYPE_FRAMED) {
@@ -635,27 +635,27 @@ void EnDoor_Destroy(Actor* thisx, PlayState* play) {
             transitionEntry->id = -transitionEntry->id;
         }
     } else if (this->typeVar.frameType == ENDOOR_FRAMED_FRAME) {
-        DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->knobDoor.dyna.bgId);
+        MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->knobDoor.dyna.bgId);
     }
 }
 
 void EnDoor_WaitForObject(EnDoor* this, PlayState* play) {
-    if (!Object_IsLoaded(&play->objectCtx, this->knobDoor.objectSlot)) {
+    if (!MM_Object_IsLoaded(&play->objectCtx, this->knobDoor.objectSlot)) {
         return;
     }
 
     this->knobDoor.dyna.actor.objectSlot = this->knobDoor.objectSlot;
-    this->actionFunc = EnDoor_Idle;
+    this->actionFunc = MM_EnDoor_Idle;
     this->knobDoor.dyna.actor.world.rot.y = 0;
 
     if (this->doorType == ENDOOR_TYPE_LOCKED) {
-        if (!Flags_GetSwitch(play, this->typeVar.switchFlag)) {
+        if (!MM_Flags_GetSwitch(play, this->typeVar.switchFlag)) {
             this->lockTimer = 10;
         }
     } else if ((this->doorType == ENDOOR_TYPE_AJAR) &&
-               (Actor_WorldDistXZToActor(&this->knobDoor.dyna.actor, &GET_PLAYER(play)->actor) >
+               (MM_Actor_WorldDistXZToActor(&this->knobDoor.dyna.actor, &GET_PLAYER(play)->actor) >
                 DOOR_AJAR_SLAM_RANGE)) {
-        this->actionFunc = EnDoor_AjarWait;
+        this->actionFunc = MM_EnDoor_AjarWait;
         this->knobDoor.dyna.actor.world.rot.y = -0x1800;
     }
 }
@@ -686,7 +686,7 @@ s32 sDoorIsMilkBarMember;
  *     - If player is further than DOOR_AJAR_OPEN_RANGE
  *       - Play Ajar's open/close loop
  */
-void EnDoor_Idle(EnDoor* this, PlayState* play) {
+void MM_EnDoor_Idle(EnDoor* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
     // 0x1821: Player is a member of the Milk bar
@@ -698,14 +698,14 @@ void EnDoor_Idle(EnDoor* this, PlayState* play) {
     if (this->knobDoor.requestOpen) {
         // Player or an NPC has requested this door to open
 
-        this->actionFunc = EnDoor_Open;
-        Animation_PlayOnceSetSpeed(&this->knobDoor.skelAnime, sAnimations[this->knobDoor.animIndex],
+        this->actionFunc = MM_EnDoor_Open;
+        MM_Animation_PlayOnceSetSpeed(&this->knobDoor.skelAnime, MM_sAnimations[this->knobDoor.animIndex],
                                    (player->stateFlags1 & PLAYER_STATE1_8000000) ? 0.75f : 1.5f);
 
         // If this is a locked door then handle small key counts, sfx and switch flag
         if (this->lockTimer != 0) {
             DUNGEON_KEY_COUNT(gSaveContext.mapIndex) = DUNGEON_KEY_COUNT(gSaveContext.mapIndex) - 1;
-            Flags_SetSwitch(play, this->typeVar.switchFlag);
+            MM_Flags_SetSwitch(play, this->typeVar.switchFlag);
             Actor_PlaySfx(&this->knobDoor.dyna.actor, NA_SE_EV_CHAIN_KEY_UNLOCK);
         }
     } else if (this->openTimer != 0) {
@@ -713,11 +713,11 @@ void EnDoor_Idle(EnDoor* this, PlayState* play) {
 
         this->actionFunc = EnDoor_OpenScheduleActor;
         Actor_PlaySfx(&this->knobDoor.dyna.actor, NA_SE_EV_DOOR_OPEN);
-    } else if (!Player_InCsMode(play)) {
+    } else if (!MM_Player_InCsMode(play)) {
         Vec3f playerPosRelToDoor;
 
         // Check if player is near this door and looking at it
-        Actor_WorldToActorCoords(&this->knobDoor.dyna.actor, &playerPosRelToDoor, &player->actor.world.pos);
+        MM_Actor_WorldToActorCoords(&this->knobDoor.dyna.actor, &playerPosRelToDoor, &player->actor.world.pos);
         if (sDoorIsMilkBarMember ||
             ((fabsf(playerPosRelToDoor.y) < 20.0f) && (fabsf(playerPosRelToDoor.x) < 20.0f) &&
              GameInteractor_Should(VB_BE_NEAR_DOOR, fabsf(playerPosRelToDoor.z) < 50.0f, &playerPosRelToDoor.z))) {
@@ -789,7 +789,7 @@ void EnDoor_Idle(EnDoor* this, PlayState* play) {
         } else if ((this->doorType == ENDOOR_TYPE_AJAR) &&
                    (this->knobDoor.dyna.actor.xzDistToPlayer > DOOR_AJAR_OPEN_RANGE)) {
             Actor_PlaySfx(&this->knobDoor.dyna.actor, NA_SE_EV_DOOR_OPEN);
-            this->actionFunc = EnDoor_AjarOpen;
+            this->actionFunc = MM_EnDoor_AjarOpen;
         }
     }
 }
@@ -811,67 +811,67 @@ void EnDoor_OpenScheduleActor(EnDoor* this, PlayState* play) {
         } else {
             direction = -1;
         }
-        if (Math_ScaledStepToS(&this->knobDoor.dyna.actor.world.rot.y, direction * 0x3E80, 0x7D0)) {
+        if (MM_Math_ScaledStepToS(&this->knobDoor.dyna.actor.world.rot.y, direction * 0x3E80, 0x7D0)) {
             Math_StepToC(&this->openTimer, 0, 1);
         }
     } else {
-        if (Math_ScaledStepToS(&this->knobDoor.dyna.actor.world.rot.y, 0, 0x7D0)) {
-            this->actionFunc = EnDoor_Idle;
+        if (MM_Math_ScaledStepToS(&this->knobDoor.dyna.actor.world.rot.y, 0, 0x7D0)) {
+            this->actionFunc = MM_EnDoor_Idle;
             Actor_PlaySfx(&this->knobDoor.dyna.actor, NA_SE_EV_AUTO_DOOR_CLOSE);
         }
     }
 }
 
-void EnDoor_AjarWait(EnDoor* this, PlayState* play) {
+void MM_EnDoor_AjarWait(EnDoor* this, PlayState* play) {
     if (this->knobDoor.dyna.actor.xzDistToPlayer < DOOR_AJAR_SLAM_RANGE) {
-        this->actionFunc = EnDoor_AjarClose;
+        this->actionFunc = MM_EnDoor_AjarClose;
     }
 }
 
-void EnDoor_AjarOpen(EnDoor* this, PlayState* play) {
+void MM_EnDoor_AjarOpen(EnDoor* this, PlayState* play) {
     if (this->knobDoor.dyna.actor.xzDistToPlayer < DOOR_AJAR_SLAM_RANGE) {
-        this->actionFunc = EnDoor_AjarClose;
-    } else if (Math_ScaledStepToS(&this->knobDoor.dyna.actor.world.rot.y, -0x1800, 0x100)) {
-        this->actionFunc = EnDoor_AjarWait;
+        this->actionFunc = MM_EnDoor_AjarClose;
+    } else if (MM_Math_ScaledStepToS(&this->knobDoor.dyna.actor.world.rot.y, -0x1800, 0x100)) {
+        this->actionFunc = MM_EnDoor_AjarWait;
     }
 }
 
-void EnDoor_AjarClose(EnDoor* this, PlayState* play) {
-    if (Math_ScaledStepToS(&this->knobDoor.dyna.actor.world.rot.y, 0, 0x700)) {
+void MM_EnDoor_AjarClose(EnDoor* this, PlayState* play) {
+    if (MM_Math_ScaledStepToS(&this->knobDoor.dyna.actor.world.rot.y, 0, 0x700)) {
         Actor_PlaySfx(&this->knobDoor.dyna.actor, NA_SE_EV_DOOR_CLOSE);
-        this->actionFunc = EnDoor_Idle;
+        this->actionFunc = MM_EnDoor_Idle;
     }
 }
 
-void EnDoor_Open(EnDoor* this, PlayState* play) {
+void MM_EnDoor_Open(EnDoor* this, PlayState* play) {
     s32 numEffects;
     s32 i;
 
     if (DECR(this->lockTimer) == 0) {
-        if (SkelAnime_Update(&this->knobDoor.skelAnime)) {
-            this->actionFunc = EnDoor_Idle;
+        if (MM_SkelAnime_Update(&this->knobDoor.skelAnime)) {
+            this->actionFunc = MM_EnDoor_Idle;
             this->knobDoor.requestOpen = false;
-        } else if (Animation_OnFrame(&this->knobDoor.skelAnime, sAnimOpenFrames[this->knobDoor.animIndex])) {
+        } else if (MM_Animation_OnFrame(&this->knobDoor.skelAnime, sAnimOpenFrames[this->knobDoor.animIndex])) {
             Actor_PlaySfx(&this->knobDoor.dyna.actor, NA_SE_OC_DOOR_OPEN);
             if (this->knobDoor.skelAnime.playSpeed < 1.5f) {
-                numEffects = (s32)(Rand_ZeroOne() * 30.0f) + 50;
+                numEffects = (s32)(MM_Rand_ZeroOne() * 30.0f) + 50;
                 for (i = 0; i < numEffects; i++) {
-                    EffectSsBubble_Spawn(play, &this->knobDoor.dyna.actor.world.pos, 60.0f, 100.0f, 50.0f, 0.15f);
+                    MM_EffectSsBubble_Spawn(play, &this->knobDoor.dyna.actor.world.pos, 60.0f, 100.0f, 50.0f, 0.15f);
                 }
             }
-        } else if (Animation_OnFrame(&this->knobDoor.skelAnime, sAnimCloseFrames[this->knobDoor.animIndex])) {
+        } else if (MM_Animation_OnFrame(&this->knobDoor.skelAnime, sAnimCloseFrames[this->knobDoor.animIndex])) {
             Actor_PlaySfx(&this->knobDoor.dyna.actor, NA_SE_EV_DOOR_CLOSE);
         }
     }
 }
 
-void EnDoor_Update(Actor* thisx, PlayState* play) {
+void MM_EnDoor_Update(Actor* thisx, PlayState* play) {
     EnDoor* this = (EnDoor*)thisx;
 
     this->actionFunc(this, play);
 }
 
-s32 EnDoor_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx) {
+s32 MM_EnDoor_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx) {
     TransitionActorEntry* transitionEntry;
     EnDoor* this = (EnDoor*)thisx;
 
@@ -893,7 +893,7 @@ s32 EnDoor_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* 
 
             temp =
                 (this->knobDoor.dyna.actor.shape.rot.y + this->knobDoor.skelAnime.jointTable[DOOR_LIMB_3].z + rot->z) -
-                Math_Vec3f_Yaw(&play->view.eye, &this->knobDoor.dyna.actor.world.pos);
+                MM_Math_Vec3f_Yaw(&play->view.eye, &this->knobDoor.dyna.actor.world.pos);
             *dList = (ABS_ALT(temp) < 0x4000) ? sideDLists[0] : sideDLists[1];
 
         } else {
@@ -908,7 +908,7 @@ s32 EnDoor_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* 
     return false;
 }
 
-void EnDoor_Draw(Actor* thisx, PlayState* play) {
+void MM_EnDoor_Draw(Actor* thisx, PlayState* play) {
     EnDoor* this = (EnDoor*)thisx;
 
     // Ensure the object that will be used is loaded
@@ -916,13 +916,13 @@ void EnDoor_Draw(Actor* thisx, PlayState* play) {
         OPEN_DISPS(play->state.gfxCtx);
 
         if ((this->doorType == ENDOOR_TYPE_FRAMED) && (this->typeVar.frameType == ENDOOR_FRAMED_FRAME)) {
-            Gfx_DrawDListOpa(play, gameplay_keep_DL_0221B8);
+            MM_Gfx_DrawDListOpa(play, gameplay_keep_DL_0221B8);
         } else {
             Gfx_SetupDL25_Opa(play->state.gfxCtx);
         }
 
-        SkelAnime_DrawOpa(play, this->knobDoor.skelAnime.skeleton, this->knobDoor.skelAnime.jointTable,
-                          EnDoor_OverrideLimbDraw, NULL, &this->knobDoor.dyna.actor);
+        MM_SkelAnime_DrawOpa(play, this->knobDoor.skelAnime.skeleton, this->knobDoor.skelAnime.jointTable,
+                          MM_EnDoor_OverrideLimbDraw, NULL, &this->knobDoor.dyna.actor);
 
         if (this->knobDoor.dyna.actor.world.rot.y != 0) {
             if (this->knobDoor.dyna.actor.world.rot.y > 0) {
@@ -932,7 +932,7 @@ void EnDoor_Draw(Actor* thisx, PlayState* play) {
             }
         }
         if (this->lockTimer) {
-            Actor_DrawDoorLock(play, this->lockTimer, DOORLOCK_NORMAL);
+            MM_Actor_DrawDoorLock(play, this->lockTimer, DOORLOCK_NORMAL);
         }
 
         CLOSE_DISPS(play->state.gfxCtx);

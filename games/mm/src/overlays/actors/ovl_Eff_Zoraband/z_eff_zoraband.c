@@ -31,7 +31,7 @@ ActorProfile Eff_Zoraband_Profile = {
 void EffZoraband_Init(Actor* thisx, PlayState* play) {
     EffZoraband* this = (EffZoraband*)thisx;
 
-    Actor_SetScale(&this->actor, 1.0f);
+    MM_Actor_SetScale(&this->actor, 1.0f);
     this->actionFunc = EffZoraband_MikauFadeOut;
     this->alpha = 0;
     this->actor.shape.rot.z = 0;
@@ -78,7 +78,7 @@ void EffZoraband_Draw(Actor* thisx, PlayState* play2) {
         OPEN_DISPS(play->state.gfxCtx);
 
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-        Matrix_RotateYS((Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) + 0x8000), MTXMODE_APPLY);
+        Matrix_RotateYS((MM_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) + 0x8000), MTXMODE_APPLY);
         AnimatedMat_DrawXlu(play, Lib_SegmentedToVirtual(object_zoraband_Matanimheader_000F38));
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         if (this->actor.home.rot.z != 0) {

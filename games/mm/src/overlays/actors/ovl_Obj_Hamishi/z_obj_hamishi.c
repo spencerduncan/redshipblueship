@@ -11,10 +11,10 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
-void ObjHamishi_Init(Actor* thisx, PlayState* play);
-void ObjHamishi_Destroy(Actor* thisx, PlayState* play2);
-void ObjHamishi_Update(Actor* thisx, PlayState* play);
-void ObjHamishi_Draw(Actor* thisx, PlayState* play);
+void MM_ObjHamishi_Init(Actor* thisx, PlayState* play);
+void MM_ObjHamishi_Destroy(Actor* thisx, PlayState* play2);
+void MM_ObjHamishi_Update(Actor* thisx, PlayState* play);
+void MM_ObjHamishi_Draw(Actor* thisx, PlayState* play);
 
 ActorProfile Obj_Hamishi_Profile = {
     /**/ ACTOR_OBJ_HAMISHI,
@@ -22,13 +22,13 @@ ActorProfile Obj_Hamishi_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_FIELD_KEEP,
     /**/ sizeof(ObjHamishi),
-    /**/ ObjHamishi_Init,
-    /**/ ObjHamishi_Destroy,
-    /**/ ObjHamishi_Update,
-    /**/ ObjHamishi_Draw,
+    /**/ MM_ObjHamishi_Init,
+    /**/ MM_ObjHamishi_Destroy,
+    /**/ MM_ObjHamishi_Update,
+    /**/ MM_ObjHamishi_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_HARD,
         AT_NONE,
@@ -48,13 +48,13 @@ static ColliderCylinderInit sCylinderInit = {
     { 50, 70, 0, { 0, 0, 0 } },
 };
 
-static CollisionCheckInfoInit sColChkInfoInit = { 0, 12, 60, MASS_IMMOVABLE };
+static CollisionCheckInfoInit MM_sColChkInfoInit = { 0, 12, 60, MASS_IMMOVABLE };
 
 s16 D_809A1AD4[] = {
     145, 135, 115, 85, 75, 53, 45, 40, 35,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 400, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDistance, 2000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 250, ICHAIN_CONTINUE),
@@ -64,9 +64,9 @@ static InitChainEntry sInitChain[] = {
 void func_809A0F20(Actor* thisx, PlayState* play) {
     ObjHamishi* this = (ObjHamishi*)thisx;
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
 }
 
 void func_809A0F78(ObjHamishi* this) {
@@ -75,19 +75,19 @@ void func_809A0F78(ObjHamishi* this) {
         this->unk_19A += 0x1388;
         this->unk_19C += 0xE10;
 
-        Math_StepToF(&this->unk_190, 0.0f, 0.15f);
-        Math_StepToF(&this->unk_194, 0.0f, 40.0f);
+        MM_Math_StepToF(&this->unk_190, 0.0f, 0.15f);
+        MM_Math_StepToF(&this->unk_194, 0.0f, 40.0f);
 
-        this->actor.world.pos.x = (Math_SinS(this->unk_19A * 4) * this->unk_190) + this->actor.home.pos.x;
-        this->actor.world.pos.z = (Math_CosS(this->unk_19A * 7) * this->unk_190) + this->actor.home.pos.z;
+        this->actor.world.pos.x = (MM_Math_SinS(this->unk_19A * 4) * this->unk_190) + this->actor.home.pos.x;
+        this->actor.world.pos.z = (MM_Math_CosS(this->unk_19A * 7) * this->unk_190) + this->actor.home.pos.z;
 
-        this->actor.shape.rot.x = (s32)(Math_SinS(this->unk_19C * 4) * this->unk_194) + this->actor.home.rot.x;
-        this->actor.shape.rot.z = (s32)(Math_CosS(this->unk_19C * 7) * this->unk_194) + this->actor.home.rot.z;
+        this->actor.shape.rot.x = (s32)(MM_Math_SinS(this->unk_19C * 4) * this->unk_194) + this->actor.home.rot.x;
+        this->actor.shape.rot.z = (s32)(MM_Math_CosS(this->unk_19C * 7) * this->unk_194) + this->actor.home.rot.z;
     } else {
-        Math_StepToF(&this->actor.world.pos.x, this->actor.home.pos.x, 1.0f);
-        Math_StepToF(&this->actor.world.pos.z, this->actor.home.pos.z, 1.0f);
-        Math_ScaledStepToS(&this->actor.shape.rot.x, this->actor.home.rot.x, 0xBB8);
-        Math_ScaledStepToS(&this->actor.shape.rot.z, this->actor.home.rot.z, 0xBB8);
+        MM_Math_StepToF(&this->actor.world.pos.x, this->actor.home.pos.x, 1.0f);
+        MM_Math_StepToF(&this->actor.world.pos.z, this->actor.home.pos.z, 1.0f);
+        MM_Math_ScaledStepToS(&this->actor.shape.rot.x, this->actor.home.rot.x, 0xBB8);
+        MM_Math_ScaledStepToS(&this->actor.shape.rot.z, this->actor.home.rot.z, 0xBB8);
     }
 }
 
@@ -102,17 +102,17 @@ void func_809A10F4(ObjHamishi* this, PlayState* play) {
 
     for (i = 0; i < ARRAY_COUNT(D_809A1AD4); i++) {
         temp_s0 += 0x4E20;
-        temp_f20 = Rand_ZeroOne() * 10.0f;
+        temp_f20 = MM_Rand_ZeroOne() * 10.0f;
 
-        spBC.x = (Math_SinS(temp_s0) * temp_f20) + this->actor.world.pos.x;
-        spBC.y = (Rand_ZeroOne() * 40.0f) + this->actor.world.pos.y + 5.0f;
-        spBC.z = (Math_CosS(temp_s0) * temp_f20) + this->actor.world.pos.z;
+        spBC.x = (MM_Math_SinS(temp_s0) * temp_f20) + this->actor.world.pos.x;
+        spBC.y = (MM_Rand_ZeroOne() * 40.0f) + this->actor.world.pos.y + 5.0f;
+        spBC.z = (MM_Math_CosS(temp_s0) * temp_f20) + this->actor.world.pos.z;
 
-        temp_f20 = (Rand_ZeroOne() * 10.0f) + 2.0f;
-        spC8.x = Math_SinS(temp_s0) * temp_f20;
+        temp_f20 = (MM_Rand_ZeroOne() * 10.0f) + 2.0f;
+        spC8.x = MM_Math_SinS(temp_s0) * temp_f20;
 
-        spC8.y = (Rand_ZeroOne() * 15.0f) + (Rand_ZeroOne() * i * 2.5f);
-        spC8.z = Math_CosS(temp_s0) * temp_f20;
+        spC8.y = (MM_Rand_ZeroOne() * 15.0f) + (MM_Rand_ZeroOne() * i * 2.5f);
+        spC8.z = MM_Math_CosS(temp_s0) * temp_f20;
 
         if (i == 0) {
             phi_v0 = 41;
@@ -125,7 +125,7 @@ void func_809A10F4(ObjHamishi* this, PlayState* play) {
             gravity = -320;
         }
 
-        EffectSsKakera_Spawn(play, &spBC, &spC8, &this->actor.world.pos, gravity, phi_v0, 30, 5, 0, D_809A1AD4[i], 3, 0,
+        MM_EffectSsKakera_Spawn(play, &spBC, &spC8, &this->actor.world.pos, gravity, phi_v0, 30, 5, 0, D_809A1AD4[i], 3, 0,
                              70, 1, GAMEPLAY_FIELD_KEEP, gFieldSilverBoulderDebrisDL);
     }
 
@@ -143,7 +143,7 @@ void func_809A13A0(ObjHamishi* this, PlayState* play) {
     sp28.z = this->actor.world.pos.z;
 
     this->actor.floorHeight =
-        BgCheck_EntityRaycastFloor5(&play->colCtx, &this->actor.floorPoly, &bgId, &this->actor, &sp28);
+        MM_BgCheck_EntityRaycastFloor5(&play->colCtx, &this->actor.floorPoly, &bgId, &this->actor, &sp28);
 }
 
 s32 ObjHamishi_IsUnderwater(ObjHamishi* this, PlayState* play) {
@@ -152,7 +152,7 @@ s32 ObjHamishi_IsUnderwater(ObjHamishi* this, PlayState* play) {
     f32 waterSurface;
     s32 bgId;
 
-    if (WaterBox_GetSurfaceImpl(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &waterSurface,
+    if (MM_WaterBox_GetSurfaceImpl(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &waterSurface,
                                 &waterBox, &bgId) &&
         (this->actor.world.pos.y < waterSurface)) {
         return true;
@@ -160,28 +160,28 @@ s32 ObjHamishi_IsUnderwater(ObjHamishi* this, PlayState* play) {
     return false;
 }
 
-void ObjHamishi_Init(Actor* thisx, PlayState* play) {
+void MM_ObjHamishi_Init(Actor* thisx, PlayState* play) {
     ObjHamishi* this = (ObjHamishi*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
 
     if (play->csCtx.state != CS_STATE_IDLE) {
         this->actor.cullingVolumeDistance += 1000.0f;
     }
 
     if (this->actor.shape.rot.y == 0) {
-        this->actor.shape.rot.y = Rand_Next() >> 0x10;
+        this->actor.shape.rot.y = MM_Rand_Next() >> 0x10;
         this->actor.world.rot.y = this->actor.shape.rot.y;
         this->actor.home.rot.y = this->actor.shape.rot.y;
     }
 
     func_809A0F20(&this->actor, play);
-    CollisionCheck_SetInfo(&this->actor.colChkInfo, NULL, &sColChkInfoInit);
+    MM_CollisionCheck_SetInfo(&this->actor.colChkInfo, NULL, &MM_sColChkInfoInit);
     func_809A13A0(this, play);
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 2.3f);
+    MM_ActorShape_Init(&this->actor.shape, 0.0f, MM_ActorShadow_DrawCircle, 2.3f);
 
-    if (Flags_GetSwitch(play, OBJHAMISHI_GET_SWITCH_FLAG(&this->actor))) {
-        Actor_Kill(&this->actor);
+    if (MM_Flags_GetSwitch(play, OBJHAMISHI_GET_SWITCH_FLAG(&this->actor))) {
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -192,14 +192,14 @@ void ObjHamishi_Init(Actor* thisx, PlayState* play) {
     }
 }
 
-void ObjHamishi_Destroy(Actor* thisx, PlayState* play2) {
+void MM_ObjHamishi_Destroy(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     ObjHamishi* this = (ObjHamishi*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
-void ObjHamishi_Update(Actor* thisx, PlayState* play) {
+void MM_ObjHamishi_Update(Actor* thisx, PlayState* play) {
     s32 pad;
     ObjHamishi* this = (ObjHamishi*)thisx;
     s32 sp24 = (this->collider.base.acFlags & AC_HIT) != 0;
@@ -231,9 +231,9 @@ void ObjHamishi_Update(Actor* thisx, PlayState* play) {
                 this->unk_194 = 400.0f;
             } else {
                 func_809A10F4(this, play);
-                SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40, NA_SE_EV_WALL_BROKEN);
-                Flags_SetSwitch(play, OBJHAMISHI_GET_SWITCH_FLAG(&this->actor));
-                Actor_Kill(&this->actor);
+                MM_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40, NA_SE_EV_WALL_BROKEN);
+                MM_Flags_SetSwitch(play, OBJHAMISHI_GET_SWITCH_FLAG(&this->actor));
+                MM_Actor_Kill(&this->actor);
             }
         }
     }
@@ -251,16 +251,16 @@ void ObjHamishi_Update(Actor* thisx, PlayState* play) {
         if (this->unk_1A0 > 0) {
             this->unk_1A0--;
         } else if ((this->actor.flags & ACTOR_FLAG_INSIDE_CULLING_VOLUME) && (this->actor.xzDistToPlayer < 1000.0f)) {
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+            MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
         }
 
         if (this->actor.xzDistToPlayer < 600.0f) {
-            CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+            MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
         }
     }
 }
 
-void ObjHamishi_Draw(Actor* thisx, PlayState* play) {
+void MM_ObjHamishi_Draw(Actor* thisx, PlayState* play) {
     ObjHamishi* this = (ObjHamishi*)thisx;
 
     OPEN_DISPS(play->state.gfxCtx);

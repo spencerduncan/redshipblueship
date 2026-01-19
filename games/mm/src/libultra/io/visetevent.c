@@ -1,6 +1,6 @@
 #include "ultra64.h"
 
-void osViSetEvent(OSMesgQueue* mq, OSMesg m, u32 retraceCount) {
+void MM_osViSetEvent(OSMesgQueue* mq, OSMesg m, u32 retraceCount) {
     register u32 saveMask = __osDisableInt();
 
     __osViNext->mq = mq;

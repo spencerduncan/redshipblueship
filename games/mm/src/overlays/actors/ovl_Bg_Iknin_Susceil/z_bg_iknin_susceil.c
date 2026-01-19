@@ -45,7 +45,7 @@ static Vec2f D_80C0B0E8 = { -320.0f, 0.0f };
 static s8 D_80C0B0F0[] = { 0x00, 0x00, 0x07, 0x0A, 0x0A, 0x0B, 0x0B, 0x00 };
 static s8 D_80C0B0F8[] = { 0x01, 0x02, 0x00, 0x01, 0x02, 0x01, 0x02, 0x00 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_STOP),
 };
 
@@ -54,7 +54,7 @@ bool func_80C0A740(BgIkninSusceil* this, PlayState* play) {
     Vec3f offset;
     Player* player = GET_PLAYER(play);
 
-    Actor_WorldToActorCoords(&this->dyna.actor, &offset, &player->actor.world.pos);
+    MM_Actor_WorldToActorCoords(&this->dyna.actor, &offset, &player->actor.world.pos);
 
     return (D_80C0B0E8.x < offset.z) && (offset.z < D_80C0B0E8.z) && (offset.x > -240.0f) && (offset.x < D_80C0B0E4);
 }
@@ -72,7 +72,7 @@ void BgIkninSusceil_RequestQuakeAndRumble(BgIkninSusceil* this, PlayState* play,
     s32 pad;
     s16 quakeIndex = Quake_Request(GET_ACTIVE_CAM(play), QUAKE_TYPE_3);
 
-    Quake_SetSpeed(quakeIndex, 31536);
+    MM_Quake_SetSpeed(quakeIndex, 31536);
     Quake_SetPerturbations(quakeIndex, quakeY, 0, 0, 0);
     Quake_SetDuration(quakeIndex, quakeDuration);
 
@@ -96,7 +96,7 @@ s32 func_80C0A95C(BgIkninSusceil* this, PlayState* play) {
     f32 temp3;
     f32 temp4;
 
-    Actor_WorldToActorCoords(&this->dyna.actor, &offset, &player->actor.world.pos);
+    MM_Actor_WorldToActorCoords(&this->dyna.actor, &offset, &player->actor.world.pos);
     for (i = 0; i < 7; i++) {
         temp3 = (D_80C0B0F0[i] * 80.0f) + 0.5f;
         temp4 = (D_80C0B0F0[i] * 80.0f) + 79.5f;
@@ -116,8 +116,8 @@ s32 func_80C0A95C(BgIkninSusceil* this, PlayState* play) {
 void BgIkninSusceil_Init(Actor* thisx, PlayState* play) {
     BgIkninSusceil* this = (BgIkninSusceil*)thisx;
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
+    MM_Actor_ProcessInitChain(&this->dyna.actor, MM_sInitChain);
+    MM_DynaPolyActor_Init(&this->dyna, DYNA_TRANSFORM_POS);
     DynaPolyActor_LoadMesh(play, &this->dyna, &object_ikninside_obj_Colheader_00CBAC);
     this->animatedTexture = Lib_SegmentedToVirtual(object_ikninside_obj_Matanimheader_00C670);
     func_80C0AC74(this);
@@ -126,7 +126,7 @@ void BgIkninSusceil_Init(Actor* thisx, PlayState* play) {
 void BgIkninSusceil_Destroy(Actor* thisx, PlayState* play) {
     BgIkninSusceil* this = (BgIkninSusceil*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    MM_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_80C0AB14(BgIkninSusceil* this) {
@@ -157,7 +157,7 @@ void func_80C0ABA8(BgIkninSusceil* this, PlayState* play) {
     this->dyna.actor.world.pos.y += this->dyna.actor.velocity.y;
     if (this->dyna.actor.world.pos.y <= this->dyna.actor.home.pos.y) {
         BgIkninSusceil_RequestQuakeAndRumble(this, play, 4, 14, 1);
-        Flags_UnsetSwitch(play, SUSCEIL_GET_SWITCH_FLAG(&this->dyna.actor));
+        MM_Flags_UnsetSwitch(play, SUSCEIL_GET_SWITCH_FLAG(&this->dyna.actor));
         Actor_PlaySfx(&this->dyna.actor, NA_SE_EV_BIGWALL_BOUND);
         func_80C0AC74(this);
     } else {
@@ -171,7 +171,7 @@ void func_80C0AC74(BgIkninSusceil* this) {
 }
 
 void func_80C0AC90(BgIkninSusceil* this, PlayState* play) {
-    if (Flags_GetSwitch(play, SUSCEIL_GET_SWITCH_FLAG(&this->dyna.actor))) {
+    if (MM_Flags_GetSwitch(play, SUSCEIL_GET_SWITCH_FLAG(&this->dyna.actor))) {
         func_80C0ACD4(this);
     }
 }
@@ -197,7 +197,7 @@ void func_80C0AD44(BgIkninSusceil* this) {
 void func_80C0AD64(BgIkninSusceil* this, PlayState* play) {
     this->dyna.actor.velocity.y += 0.46f;
     this->dyna.actor.velocity.y *= 0.98f;
-    if (Math_SmoothStepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y + 365.0f, 0.5f,
+    if (MM_Math_SmoothStepToF(&this->dyna.actor.world.pos.y, this->dyna.actor.home.pos.y + 365.0f, 0.5f,
                            this->dyna.actor.velocity.y, 1.0f) < 0.1f) {
         BgIkninSusceil_RequestQuakeAndRumble(this, play, 1, 14, 3);
         CutsceneManager_Stop(this->dyna.actor.csId);
@@ -232,7 +232,7 @@ void BgIkninSusceil_Update(Actor* thisx, PlayState* play) {
         (player->unk_B48 > 1000.0f)) {
         this->unk168 = 2;
         if ((func_80C0A95C(this, play) != 0) && (this->actionFunc != func_80C0AE5C)) {
-            Player_PlaySfx(player, NA_SE_PL_BODY_HIT);
+            MM_Player_PlaySfx(player, NA_SE_PL_BODY_HIT);
             func_80C0AE3C(this);
         }
     }
@@ -263,5 +263,5 @@ void BgIkninSusceil_Draw(Actor* thisx, PlayState* play) {
     BgIkninSusceil* this = (BgIkninSusceil*)thisx;
 
     AnimatedMat_Draw(play, this->animatedTexture);
-    Gfx_DrawDListOpa(play, object_ikninside_obj_DL_00C308);
+    MM_Gfx_DrawDListOpa(play, object_ikninside_obj_DL_00C308);
 }

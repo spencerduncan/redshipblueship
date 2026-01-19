@@ -3,11 +3,11 @@
 #include "z64skin.h"
 
 // 60 is an arbitrary number which specifies the max amount of limbs per skeleton this system supports
-MtxF gSkinLimbMatrices[60];
+MtxF MM_gSkinLimbMatrices[60];
 
 static s32 sBssPad;
 
-void Skin_UpdateVertices(MtxF* mtx, SkinVertex* skinVertices, SkinLimbModif* modifEntry, Vtx* vtxBuf, Vec3f* pos) {
+void MM_Skin_UpdateVertices(MtxF* mtx, SkinVertex* skinVertices, SkinLimbModif* modifEntry, Vtx* vtxBuf, Vec3f* pos) {
     SkinVertex* vertexEntry;
     Vtx* vtx;
     Vec3f wTemp;
@@ -33,7 +33,7 @@ void Skin_UpdateVertices(MtxF* mtx, SkinVertex* skinVertices, SkinLimbModif* mod
         sp44.y = vertexEntry->normY;
         sp44.z = vertexEntry->normZ;
 
-        SkinMatrix_Vec3fMtxFMultXYZ(mtx, &sp44, &normal);
+        MM_SkinMatrix_Vec3fMtxFMultXYZ(mtx, &sp44, &normal);
 
         vtx->n.n[0] = normal.x;
         vtx->n.n[1] = normal.y;
@@ -45,7 +45,7 @@ void Skin_UpdateVertices(MtxF* mtx, SkinVertex* skinVertices, SkinLimbModif* mod
     mtx->zw = wTemp.z;
 }
 
-void Skin_ApplyLimbModifications(GraphicsContext* gfxCtx, Skin* skin, s32 limbIndex, s32 arg3) {
+void MM_Skin_ApplyLimbModifications(GraphicsContext* gfxCtx, Skin* skin, s32 limbIndex, s32 arg3) {
     s32 modifCount;
     SkinLimb** skeleton;
     s32 pad;
@@ -91,14 +91,14 @@ void Skin_ApplyLimbModifications(GraphicsContext* gfxCtx, Skin* skin, s32 limbIn
             spAC.y = limbTransformations[0].y;
             spAC.z = limbTransformations[0].z;
 
-            SkinMatrix_Vec3fMtxFMultXYZ(&gSkinLimbMatrices[limbTransformations[0].limbIndex], &spAC, &spDC);
+            MM_SkinMatrix_Vec3fMtxFMultXYZ(&MM_gSkinLimbMatrices[limbTransformations[0].limbIndex], &spAC, &spDC);
         } else if (arg3) {
             transformationEntry = &limbTransformations[modif->unk_04];
 
             spA0.x = transformationEntry->x;
             spA0.y = transformationEntry->y;
             spA0.z = transformationEntry->z;
-            SkinMatrix_Vec3fMtxFMultXYZ(&gSkinLimbMatrices[transformationEntry->limbIndex], &spA0, &spDC);
+            MM_SkinMatrix_Vec3fMtxFMultXYZ(&MM_gSkinLimbMatrices[transformationEntry->limbIndex], &spA0, &spDC);
         } else {
             spDC.x = 0.0f;
             spDC.y = 0.0f;
@@ -112,7 +112,7 @@ void Skin_ApplyLimbModifications(GraphicsContext* gfxCtx, Skin* skin, s32 limbIn
                 sp88.y = transformationEntry->y;
                 sp88.z = transformationEntry->z;
 
-                SkinMatrix_Vec3fMtxFMultXYZ(&gSkinLimbMatrices[transformationEntry->limbIndex], &sp88, &spD0);
+                MM_SkinMatrix_Vec3fMtxFMultXYZ(&MM_gSkinLimbMatrices[transformationEntry->limbIndex], &sp88, &spD0);
 
                 spDC.x += spD0.x * scale;
                 spDC.y += spD0.y * scale;
@@ -120,7 +120,7 @@ void Skin_ApplyLimbModifications(GraphicsContext* gfxCtx, Skin* skin, s32 limbIn
             }
         }
 
-        Skin_UpdateVertices(&gSkinLimbMatrices[limbTransformations[modif->unk_04].limbIndex], skinVertices, modif,
+        MM_Skin_UpdateVertices(&MM_gSkinLimbMatrices[limbTransformations[modif->unk_04].limbIndex], skinVertices, modif,
                             vtxBuf, &spDC);
     }
 
@@ -135,7 +135,7 @@ void Skin_ApplyLimbModifications(GraphicsContext* gfxCtx, Skin* skin, s32 limbIn
  * Draw a limb of type SKIN_LIMB_TYPE_ANIMATED, of the skeleton `skin` at index `limbIndex`
  * The vertices of this limb are modified dynamically
  */
-void Skin_DrawAnimatedLimb(GraphicsContext* gfxCtx, Skin* skin, s32 limbIndex, s32 arg3, s32 drawFlags) {
+void MM_Skin_DrawAnimatedLimb(GraphicsContext* gfxCtx, Skin* skin, s32 limbIndex, s32 arg3, s32 drawFlags) {
     SkinLimb** skeleton;
     s32 pad[3];
     SkinAnimatedLimbData* data;
@@ -146,7 +146,7 @@ void Skin_DrawAnimatedLimb(GraphicsContext* gfxCtx, Skin* skin, s32 limbIndex, s
     data = Lib_SegmentedToVirtual(((SkinLimb*)Lib_SegmentedToVirtual(skeleton[limbIndex]))->segment);
 
     if (!(drawFlags & SKIN_DRAW_FLAG_CUSTOM_TRANSFORMS)) {
-        Skin_ApplyLimbModifications(gfxCtx, skin, limbIndex, arg3);
+        MM_Skin_ApplyLimbModifications(gfxCtx, skin, limbIndex, arg3);
     }
 
     gSPDisplayList(POLY_OPA_DISP++, data->dlist);
@@ -157,7 +157,7 @@ void Skin_DrawAnimatedLimb(GraphicsContext* gfxCtx, Skin* skin, s32 limbIndex, s
 /**
  * Draw a limb of type SKIN_LIMB_TYPE_NORMAL, of the skeleton `skin` at index `limbIndex`
  */
-void Skin_DrawLimb(GraphicsContext* gfxCtx, Skin* skin, s32 limbIndex, Gfx* dListOverride, s32 drawFlags) {
+void MM_Skin_DrawLimb(GraphicsContext* gfxCtx, Skin* skin, s32 limbIndex, Gfx* dListOverride, s32 drawFlags) {
     Gfx* gfx = dListOverride;
     SkinLimb** skeleton;
 
@@ -170,7 +170,7 @@ void Skin_DrawLimb(GraphicsContext* gfxCtx, Skin* skin, s32 limbIndex, Gfx* dLis
     }
 
     if (gfx != NULL) {
-        Mtx* mtx = SkinMatrix_MtxFToNewMtx(gfxCtx, &gSkinLimbMatrices[limbIndex]);
+        Mtx* mtx = MM_SkinMatrix_MtxFToNewMtx(gfxCtx, &MM_gSkinLimbMatrices[limbIndex]);
 
         if (mtx != NULL) {
             gSPMatrix(POLY_OPA_DISP++, mtx, G_MTX_PUSH | G_MTX_MUL | G_MTX_MODELVIEW);
@@ -183,7 +183,7 @@ void Skin_DrawLimb(GraphicsContext* gfxCtx, Skin* skin, s32 limbIndex, Gfx* dLis
     CLOSE_DISPS(gfxCtx);
 }
 
-void Skin_DrawImpl(Actor* actor, PlayState* play, Skin* skin, SkinPostDraw postDraw,
+void MM_Skin_DrawImpl(Actor* actor, PlayState* play, Skin* skin, SkinPostDraw postDraw,
                    SkinOverrideLimbDraw overrideLimbDraw, s32 setTranslation, s32 arg6, s32 drawFlags) {
     s32 i;
     SkinLimb** skeleton;
@@ -192,7 +192,7 @@ void Skin_DrawImpl(Actor* actor, PlayState* play, Skin* skin, SkinPostDraw postD
     OPEN_DISPS(gfxCtx);
 
     if (!(drawFlags & SKIN_DRAW_FLAG_CUSTOM_TRANSFORMS)) {
-        Skin_ApplyAnimTransformations(skin, gSkinLimbMatrices, actor, setTranslation);
+        MM_Skin_ApplyAnimTransformations(skin, MM_gSkinLimbMatrices, actor, setTranslation);
     }
 
     skeleton = Lib_SegmentedToVirtual(skin->skeletonHeader->segment);
@@ -201,7 +201,7 @@ void Skin_DrawImpl(Actor* actor, PlayState* play, Skin* skin, SkinPostDraw postD
         Mtx* mtx;
 
         gSPMatrix(POLY_OPA_DISP++, &gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-        mtx = SkinMatrix_MtxFToNewMtx(gfxCtx, &skin->mtx);
+        mtx = MM_SkinMatrix_MtxFToNewMtx(gfxCtx, &skin->mtx);
         if (mtx == NULL) {
             goto close_disps;
         }
@@ -219,9 +219,9 @@ void Skin_DrawImpl(Actor* actor, PlayState* play, Skin* skin, SkinPostDraw postD
         segmentType = ((SkinLimb*)Lib_SegmentedToVirtual(skeleton[i]))->segmentType;
 
         if (segmentType == SKIN_LIMB_TYPE_ANIMATED && shouldDraw) {
-            Skin_DrawAnimatedLimb(gfxCtx, skin, i, arg6, drawFlags);
+            MM_Skin_DrawAnimatedLimb(gfxCtx, skin, i, arg6, drawFlags);
         } else if (segmentType == SKIN_LIMB_TYPE_NORMAL && shouldDraw) {
-            Skin_DrawLimb(gfxCtx, skin, i, NULL, drawFlags);
+            MM_Skin_DrawLimb(gfxCtx, skin, i, NULL, drawFlags);
         }
     }
 
@@ -235,32 +235,32 @@ close_disps:;
 
 // allows specifying postDraw and setTranslation
 void func_80138228(Actor* actor, PlayState* play, Skin* skin, SkinPostDraw postDraw, s32 setTranslation) {
-    Skin_DrawImpl(actor, play, skin, postDraw, NULL, setTranslation, false, 0);
+    MM_Skin_DrawImpl(actor, play, skin, postDraw, NULL, setTranslation, false, 0);
 }
 
 // allows specifying OverrideLimbDraw, postDraw and setTranslation
 void func_80138258(Actor* actor, PlayState* play, Skin* skin, SkinPostDraw postDraw,
                    SkinOverrideLimbDraw overrideLimbDraw, s32 setTranslation) {
-    Skin_DrawImpl(actor, play, skin, postDraw, overrideLimbDraw, setTranslation, false, 0);
+    MM_Skin_DrawImpl(actor, play, skin, postDraw, overrideLimbDraw, setTranslation, false, 0);
 }
 
 // allows specifying OverrideLimbDraw, postDraw, setTranslation, and arg6
 void func_8013828C(Actor* actor, PlayState* play, Skin* skin, SkinPostDraw postDraw,
                    SkinOverrideLimbDraw overrideLimbDraw, s32 setTranslation, s32 arg6) {
-    Skin_DrawImpl(actor, play, skin, postDraw, overrideLimbDraw, setTranslation, arg6, 0);
+    MM_Skin_DrawImpl(actor, play, skin, postDraw, overrideLimbDraw, setTranslation, arg6, 0);
 }
 
 // allows specifying all variables
 void func_801382C4(Actor* actor, PlayState* play, Skin* skin, SkinPostDraw postDraw,
                    SkinOverrideLimbDraw overrideLimbDraw, s32 setTranslation, s32 arg6, s32 drawFlags) {
-    Skin_DrawImpl(actor, play, skin, postDraw, overrideLimbDraw, setTranslation, arg6, drawFlags);
+    MM_Skin_DrawImpl(actor, play, skin, postDraw, overrideLimbDraw, setTranslation, arg6, drawFlags);
 }
 
-void Skin_GetLimbPos(Skin* skin, s32 limbIndex, Vec3f* offset, Vec3f* dst) {
+void MM_Skin_GetLimbPos(Skin* skin, s32 limbIndex, Vec3f* offset, Vec3f* dst) {
     MtxF mtxf;
 
-    SkinMatrix_MtxFMtxFMult(&skin->mtx, &gSkinLimbMatrices[limbIndex], &mtxf);
-    SkinMatrix_Vec3fMtxFMultXYZ(&mtxf, offset, dst);
+    MM_SkinMatrix_MtxFMtxFMult(&skin->mtx, &MM_gSkinLimbMatrices[limbIndex], &mtxf);
+    MM_SkinMatrix_Vec3fMtxFMultXYZ(&mtxf, offset, dst);
 }
 
 void Skin_GetVertexPos(Skin* skin, s32 limbIndex, s32 vtxIndex, Vec3f* dst) {
@@ -270,5 +270,5 @@ void Skin_GetVertexPos(Skin* skin, s32 limbIndex, s32 vtxIndex, Vec3f* dst) {
     pos.x = vtx->n.ob[0];
     pos.y = vtx->n.ob[1];
     pos.z = vtx->n.ob[2];
-    SkinMatrix_Vec3fMtxFMultXYZ(&skin->mtx, &pos, dst);
+    MM_SkinMatrix_Vec3fMtxFMultXYZ(&skin->mtx, &pos, dst);
 }

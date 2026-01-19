@@ -4,7 +4,7 @@
  * This file implements an unused transition system that takes the current screen, partitions it into large tiles, and
  * can apply an effect to them.
  *
- * The screen is divided into 7 rows and 10 columns of tiles. (`gScreenWidth`/ 10 = `gScreenHeight` / 7 = 0x20)
+ * The screen is divided into 7 rows and 10 columns of tiles. (`MM_gScreenWidth`/ 10 = `MM_gScreenHeight` / 7 = 0x20)
  *
  * @note The only coded effect has a visual effect to blend the tiles to a single point, which looks like the screen
  * gets sucked into.
@@ -57,7 +57,7 @@ void TransitionTile_InitGraphics(TransitionTile* this) {
 
     guMtxIdent(&this->modelView);
     guMtxIdent(&this->unk_98);
-    guOrtho(&this->projection, 0.0f, SCREEN_WIDTH, SCREEN_HEIGHT, 0.0f, -1000.0f, 1000.0f, 1.0f);
+    MM_guOrtho(&this->projection, 0.0f, SCREEN_WIDTH, SCREEN_HEIGHT, 0.0f, -1000.0f, 1000.0f, 1.0f);
 
     for (frame = 0; frame < 2; frame++) {
         this->frame = frame;
@@ -112,22 +112,22 @@ void TransitionTile_InitVtxData(TransitionTile* this) {
 }
 
 void TransitionTile_Destroy(TransitionTile* this) {
-    Sleep_Msec(100);
+    MM_Sleep_Msec(100);
 
     if (this->vtxData != NULL) {
-        SystemArena_Free(this->vtxData);
+        MM_SystemArena_Free(this->vtxData);
         this->vtxData = NULL;
     }
     if (this->vtxFrame1 != NULL) {
-        SystemArena_Free(this->vtxFrame1);
+        MM_SystemArena_Free(this->vtxFrame1);
         this->vtxFrame1 = NULL;
     }
     if (this->vtxFrame2 != NULL) {
-        SystemArena_Free(this->vtxFrame2);
+        MM_SystemArena_Free(this->vtxFrame2);
         this->vtxFrame2 = NULL;
     }
     if (this->gfx != NULL) {
-        SystemArena_Free(this->gfx);
+        MM_SystemArena_Free(this->gfx);
         this->gfx = NULL;
     }
 }
@@ -140,26 +140,26 @@ TransitionTile* TransitionTile_Init(TransitionTile* this, s32 cols, s32 rows) {
     this->cols = cols;
     this->rows = rows;
     gridSize = (cols + 1) * (rows + 1);
-    this->vtxData = SystemArena_Malloc(gridSize * sizeof(TransitionTileVtxData));
-    this->vtxFrame1 = SystemArena_Malloc(gridSize * sizeof(Vtx));
-    this->vtxFrame2 = SystemArena_Malloc(gridSize * sizeof(Vtx));
-    this->gfx = SystemArena_Malloc(((cols * 9 + 1) * rows + 2) * sizeof(Gfx));
+    this->vtxData = MM_SystemArena_Malloc(gridSize * sizeof(TransitionTileVtxData));
+    this->vtxFrame1 = MM_SystemArena_Malloc(gridSize * sizeof(Vtx));
+    this->vtxFrame2 = MM_SystemArena_Malloc(gridSize * sizeof(Vtx));
+    this->gfx = MM_SystemArena_Malloc(((cols * 9 + 1) * rows + 2) * sizeof(Gfx));
 
     if ((this->vtxData == NULL) || (this->vtxFrame1 == NULL) || (this->vtxFrame2 == NULL) || (this->gfx == NULL)) {
         if (this->vtxData != NULL) {
-            SystemArena_Free(this->vtxData);
+            MM_SystemArena_Free(this->vtxData);
             this->vtxData = NULL;
         }
         if (this->vtxFrame1 != NULL) {
-            SystemArena_Free(this->vtxFrame1);
+            MM_SystemArena_Free(this->vtxFrame1);
             this->vtxFrame1 = NULL;
         }
         if (this->vtxFrame2 != NULL) {
-            SystemArena_Free(this->vtxFrame2);
+            MM_SystemArena_Free(this->vtxFrame2);
             this->vtxFrame2 = NULL;
         }
         if (this->gfx != NULL) {
-            SystemArena_Free(this->gfx);
+            MM_SystemArena_Free(this->gfx);
             this->gfx = NULL;
         }
         return NULL;

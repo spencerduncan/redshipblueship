@@ -8,9 +8,9 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_UPDATE_DURING_OCARINA | ACTOR_FLAG_LOCK_ON_DISABLED)
 
-void EnOkarinaTag_Init(Actor* thisx, PlayState* play);
-void EnOkarinaTag_Destroy(Actor* thisx, PlayState* play);
-void EnOkarinaTag_Update(Actor* thisx, PlayState* play);
+void MM_EnOkarinaTag_Init(Actor* thisx, PlayState* play);
+void MM_EnOkarinaTag_Destroy(Actor* thisx, PlayState* play);
+void MM_EnOkarinaTag_Update(Actor* thisx, PlayState* play);
 
 void func_8093E518(EnOkarinaTag* this, PlayState* play);
 void func_8093E68C(EnOkarinaTag* this, PlayState* play);
@@ -21,16 +21,16 @@ ActorProfile En_Okarina_Tag_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(EnOkarinaTag),
-    /**/ EnOkarinaTag_Init,
-    /**/ EnOkarinaTag_Destroy,
-    /**/ EnOkarinaTag_Update,
+    /**/ MM_EnOkarinaTag_Init,
+    /**/ MM_EnOkarinaTag_Destroy,
+    /**/ MM_EnOkarinaTag_Update,
     /**/ NULL,
 };
 
-void EnOkarinaTag_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnOkarinaTag_Destroy(Actor* thisx, PlayState* play) {
 }
 
-void EnOkarinaTag_Init(Actor* thisx, PlayState* play) {
+void MM_EnOkarinaTag_Init(Actor* thisx, PlayState* play) {
     EnOkarinaTag* this = (EnOkarinaTag*)thisx;
     f32 zRot = 0.0f;
     s32 i = 0;
@@ -66,12 +66,12 @@ void func_8093E518(EnOkarinaTag* this, PlayState* play) {
 
     if (this->switchFlag > SWITCH_FLAG_NONE) {
         if (this->unk148 == 0) {
-            if (Flags_GetSwitch(play, this->switchFlag)) {
+            if (MM_Flags_GetSwitch(play, this->switchFlag)) {
                 return;
             }
         }
         if (this->unk148 == 1) {
-            if (!Flags_GetSwitch(play, this->switchFlag)) {
+            if (!MM_Flags_GetSwitch(play, this->switchFlag)) {
                 return;
             }
         }
@@ -123,18 +123,18 @@ void func_8093E68C(EnOkarinaTag* this, PlayState* play) {
             if (this->switchFlag > SWITCH_FLAG_NONE) {
                 switch (this->unk148) {
                     case 0:
-                        Flags_SetSwitch(play, this->switchFlag);
+                        MM_Flags_SetSwitch(play, this->switchFlag);
                         break;
 
                     case 1:
-                        Flags_UnsetSwitch(play, this->switchFlag);
+                        MM_Flags_UnsetSwitch(play, this->switchFlag);
                         break;
 
                     case 2:
-                        if (Flags_GetSwitch(play, this->switchFlag)) {
-                            Flags_UnsetSwitch(play, this->switchFlag);
+                        if (MM_Flags_GetSwitch(play, this->switchFlag)) {
+                            MM_Flags_UnsetSwitch(play, this->switchFlag);
                         } else {
-                            Flags_SetSwitch(play, this->switchFlag);
+                            MM_Flags_SetSwitch(play, this->switchFlag);
                         }
                         break;
 
@@ -149,7 +149,7 @@ void func_8093E68C(EnOkarinaTag* this, PlayState* play) {
     }
 }
 
-void EnOkarinaTag_Update(Actor* thisx, PlayState* play) {
+void MM_EnOkarinaTag_Update(Actor* thisx, PlayState* play) {
     EnOkarinaTag* this = (EnOkarinaTag*)thisx;
 
     this->actionFunc(this, play);

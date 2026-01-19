@@ -10,10 +10,10 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_UPDATE_DURING_OCARINA)
 
-void OceffWipe3_Init(Actor* thisx, PlayState* play);
-void OceffWipe3_Destroy(Actor* thisx, PlayState* play);
-void OceffWipe3_Update(Actor* thisx, PlayState* play);
-void OceffWipe3_Draw(Actor* thisx, PlayState* play);
+void OoT_OceffWipe3_Init(Actor* thisx, PlayState* play);
+void OoT_OceffWipe3_Destroy(Actor* thisx, PlayState* play);
+void OoT_OceffWipe3_Update(Actor* thisx, PlayState* play);
+void OoT_OceffWipe3_Draw(Actor* thisx, PlayState* play);
 
 const ActorInit Oceff_Wipe3_InitVars = {
     ACTOR_OCEFF_WIPE3,
@@ -21,47 +21,47 @@ const ActorInit Oceff_Wipe3_InitVars = {
     FLAGS,
     OBJECT_GAMEPLAY_KEEP,
     sizeof(OceffWipe3),
-    (ActorFunc)OceffWipe3_Init,
-    (ActorFunc)OceffWipe3_Destroy,
-    (ActorFunc)OceffWipe3_Update,
-    (ActorFunc)OceffWipe3_Draw,
+    (ActorFunc)OoT_OceffWipe3_Init,
+    (ActorFunc)OoT_OceffWipe3_Destroy,
+    (ActorFunc)OoT_OceffWipe3_Update,
+    (ActorFunc)OoT_OceffWipe3_Draw,
     NULL,
 };
 
 #include "overlays/ovl_Oceff_Wipe3/ovl_Oceff_Wipe3.h"
 
-void OceffWipe3_Init(Actor* thisx, PlayState* play) {
+void OoT_OceffWipe3_Init(Actor* thisx, PlayState* play) {
     OceffWipe3* this = (OceffWipe3*)thisx;
 
-    Actor_SetScale(&this->actor, 0.1f);
+    OoT_Actor_SetScale(&this->actor, 0.1f);
     this->counter = 0;
     this->actor.world.pos = GET_ACTIVE_CAM(play)->eye;
     // it's actually WIPE3...
     osSyncPrintf(VT_FGCOL(CYAN) " WIPE2 arg_data = %d\n" VT_RST, this->actor.params);
 }
 
-void OceffWipe3_Destroy(Actor* thisx, PlayState* play) {
+void OoT_OceffWipe3_Destroy(Actor* thisx, PlayState* play) {
     OceffWipe3* this = (OceffWipe3*)thisx;
     Player* player = GET_PLAYER(play);
 
-    Magic_Reset(play);
+    OoT_Magic_Reset(play);
     if (gSaveContext.nayrusLoveTimer != 0) {
         player->stateFlags3 |= PLAYER_STATE3_RESTORE_NAYRUS_LOVE;
     }
 }
 
-void OceffWipe3_Update(Actor* thisx, PlayState* play) {
+void OoT_OceffWipe3_Update(Actor* thisx, PlayState* play) {
     OceffWipe3* this = (OceffWipe3*)thisx;
 
     this->actor.world.pos = GET_ACTIVE_CAM(play)->eye;
     if (this->counter < 100) {
         this->counter++;
     } else {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
     }
 }
 
-void OceffWipe3_Draw(Actor* thisx, PlayState* play) {
+void OoT_OceffWipe3_Draw(Actor* thisx, PlayState* play) {
     u32 scroll = play->state.frames & 0xFFF;
     OceffWipe3* this = (OceffWipe3*)thisx;
     f32 z;
@@ -76,7 +76,7 @@ void OceffWipe3_Draw(Actor* thisx, PlayState* play) {
 
     int fastOcarinaPlayback = (CVarGetInteger(CVAR_ENHANCEMENT("FastOcarinaPlayback"), 0) != 0);
     if (this->counter < 32) {
-        z = Math_SinS(this->counter << 9) * (fastOcarinaPlayback ? 1200.0f : 1330.0f);
+        z = OoT_Math_SinS(this->counter << 9) * (fastOcarinaPlayback ? 1200.0f : 1330.0f);
     } else {
         z = fastOcarinaPlayback ? 1200.0f : 1330.0f;
     }
@@ -96,17 +96,17 @@ void OceffWipe3_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
 
-    Matrix_Translate(eye.x + vec.x, eye.y + vec.y, eye.z + vec.z, MTXMODE_NEW);
-    Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
-    Matrix_ReplaceRotation(&play->billboardMtxF);
-    Matrix_Translate(0.0f, 0.0f, -z, MTXMODE_APPLY);
+    OoT_Matrix_Translate(eye.x + vec.x, eye.y + vec.y, eye.z + vec.z, MTXMODE_NEW);
+    OoT_Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
+    OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
+    OoT_Matrix_Translate(0.0f, 0.0f, -z, MTXMODE_APPLY);
 
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 170, 255);
     gDPSetEnvColor(POLY_XLU_DISP++, 100, 200, 0, 128);
     gSPDisplayList(POLY_XLU_DISP++, sMaterialDL);
-    gSPDisplayList(POLY_XLU_DISP++, Gfx_TwoTexScroll(play->state.gfxCtx, 0, scroll * 12, scroll * (-12), 64, 64, 1,
+    gSPDisplayList(POLY_XLU_DISP++, OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, scroll * 12, scroll * (-12), 64, 64, 1,
                                                      scroll * 8, scroll * (-8), 64, 64));
     gSPDisplayList(POLY_XLU_DISP++, sFrustumDL);
 

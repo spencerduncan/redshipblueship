@@ -19,12 +19,12 @@ ActorProfile Bg_Market_Step_Profile = {
     /**/ OBJECT_MARKET_OBJ,
     /**/ sizeof(BgMarketStep),
     /**/ BgMarketStep_Init,
-    /**/ Actor_Noop,
-    /**/ Actor_Noop,
+    /**/ MM_Actor_Noop,
+    /**/ MM_Actor_Noop,
     /**/ BgMarketStep_Draw,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 1, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 1, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 1, ICHAIN_CONTINUE),
@@ -44,12 +44,12 @@ Gfx* sBankAdvertisementsAndDoorDLs[] = {
 void BgMarketStep_Init(Actor* thisx, PlayState* play) {
     BgMarketStep* this = (BgMarketStep*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
 }
 
 void BgMarketStep_Draw(Actor* thisx, PlayState* play) {
     s32 timeOfDay = BG_MARKET_STEP_GET_TIME_OF_DAY(thisx);
 
-    Gfx_DrawDListOpa(play, sMarketDLs[timeOfDay]);
-    Gfx_DrawDListOpa(play, sBankAdvertisementsAndDoorDLs[timeOfDay]);
+    MM_Gfx_DrawDListOpa(play, sMarketDLs[timeOfDay]);
+    MM_Gfx_DrawDListOpa(play, sBankAdvertisementsAndDoorDLs[timeOfDay]);
 }

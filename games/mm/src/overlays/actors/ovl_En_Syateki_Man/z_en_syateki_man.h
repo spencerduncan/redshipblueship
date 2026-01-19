@@ -12,10 +12,10 @@ typedef void (*EnSyatekiManActionFunc)(struct EnSyatekiMan*, PlayState*);
 #define SG_MAN_GET_PATH_INDEX(thisx) (((thisx)->params & 0xFF00) >> 8)
 
 // These values are used to modify the shooting gallery man's internal score. They are
-// defined in terms of the scores used by EffectSsExtra because EffectSsExtra_Update
+// defined in terms of the scores used by EffectSsExtra because MM_EffectSsExtra_Update
 // updates the score displayed to the player, and defining them like this will prevent
 // these two different scores from becoming desynchronized. If you intend to modify these
-// values, then you'll also need to make sure that EffectSsExtra_Spawn in the appropriate
+// values, then you'll also need to make sure that MM_EffectSsExtra_Spawn in the appropriate
 // actor is called with the correct parameter for the index; failing to do this will
 // cause the two different score variables to fall out of sync.
 #define SG_POINTS_DEKU_NORMAL EXTRA_SCORE_30

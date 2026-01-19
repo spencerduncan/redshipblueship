@@ -30,7 +30,7 @@ const ActorInit Bg_Gnd_Nisekabe_InitVars = {
 void BgGndNisekabe_Init(Actor* thisx, PlayState* play) {
     BgGndNisekabe* this = (BgGndNisekabe*)thisx;
 
-    Actor_SetScale(&this->actor, 0.1);
+    OoT_Actor_SetScale(&this->actor, 0.1);
     this->actor.uncullZoneForward = 3000.0;
 }
 
@@ -57,8 +57,8 @@ void BgGndNisekabe_Draw(Actor* thisx, PlayState* play) {
     u32 index = this->actor.params & 0xFF;
 
     if (CHECK_FLAG_ALL(this->actor.flags, ACTOR_FLAG_REACT_TO_LENS)) {
-        Gfx_DrawDListXlu(play, dLists[index]);
+        OoT_Gfx_DrawDListXlu(play, dLists[index]);
     } else {
-        Gfx_DrawDListOpa(play, dLists[index]);
+        OoT_Gfx_DrawDListOpa(play, dLists[index]);
     }
 }

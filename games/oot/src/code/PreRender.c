@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-void PreRender_SetValuesSave(PreRender* this, u32 width, u32 height, void* fbuf, void* zbuf, void* cvg) {
+void OoT_PreRender_SetValuesSave(PreRender* this, u32 width, u32 height, void* fbuf, void* zbuf, void* cvg) {
     this->widthSave = width;
     this->heightSave = height;
     this->fbufSave = fbuf;
@@ -16,12 +16,12 @@ void PreRender_SetValuesSave(PreRender* this, u32 width, u32 height, void* fbuf,
     this->lrySave = height - 1;
 }
 
-void PreRender_Init(PreRender* this) {
+void OoT_PreRender_Init(PreRender* this) {
     memset(this, 0, sizeof(PreRender));
-    ListAlloc_Init(&this->alloc);
+    OoT_ListAlloc_Init(&this->alloc);
 }
 
-void PreRender_SetValues(PreRender* this, u32 width, u32 height, void* fbuf, void* zbuf) {
+void OoT_PreRender_SetValues(PreRender* this, u32 width, u32 height, void* fbuf, void* zbuf) {
     this->width = width;
     this->height = height;
     this->fbuf = fbuf;
@@ -32,8 +32,8 @@ void PreRender_SetValues(PreRender* this, u32 width, u32 height, void* fbuf, voi
     this->lry = height - 1;
 }
 
-void PreRender_Destroy(PreRender* this) {
-    ListAlloc_FreeAll(&this->alloc);
+void OoT_PreRender_Destroy(PreRender* this) {
+    OoT_ListAlloc_FreeAll(&this->alloc);
 }
 
 void func_800C0F28(PreRender* this, Gfx** gfxp, void* buf, void* bufSave) {

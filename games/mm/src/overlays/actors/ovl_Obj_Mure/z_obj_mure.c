@@ -14,15 +14,15 @@
 
 #define FLAGS 0x00000000
 
-void ObjMure_Init(Actor* thisx, PlayState* play);
-void ObjMure_Destroy(Actor* thisx, PlayState* play);
-void ObjMure_Update(Actor* thisx, PlayState* play);
+void MM_ObjMure_Init(Actor* thisx, PlayState* play);
+void MM_ObjMure_Destroy(Actor* thisx, PlayState* play);
+void MM_ObjMure_Update(Actor* thisx, PlayState* play);
 
-void ObjMure_InitialAction(ObjMure* this, PlayState* play);
-void ObjMure_CulledState(ObjMure* this, PlayState* play);
-void ObjMure_ActiveState(ObjMure* this, PlayState* play);
-void ObjMure_KillActors(ObjMure* this, PlayState* play);
-void ObjMure_CheckChildren(ObjMure* this, PlayState* play);
+void MM_ObjMure_InitialAction(ObjMure* this, PlayState* play);
+void MM_ObjMure_CulledState(ObjMure* this, PlayState* play);
+void MM_ObjMure_ActiveState(ObjMure* this, PlayState* play);
+void MM_ObjMure_KillActors(ObjMure* this, PlayState* play);
+void MM_ObjMure_CheckChildren(ObjMure* this, PlayState* play);
 
 ActorProfile Obj_Mure_Profile = {
     /**/ ACTOR_OBJ_MURE,
@@ -30,13 +30,13 @@ ActorProfile Obj_Mure_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(ObjMure),
-    /**/ ObjMure_Init,
-    /**/ ObjMure_Destroy,
-    /**/ ObjMure_Update,
+    /**/ MM_ObjMure_Init,
+    /**/ MM_ObjMure_Destroy,
+    /**/ MM_ObjMure_Update,
     /**/ NULL,
 };
 
-static f32 sZClip[OBJMURE_TYPE_MAX] = {
+static f32 MM_sZClip[OBJMURE_TYPE_MAX] = {
     1600.0f, // OBJMURE_TYPE_GRASS
     1600.0f, // OBJMURE_TYPE_UNDEFINED
     1000.0f, // OBJMURE_TYPE_FISH
@@ -44,14 +44,14 @@ static f32 sZClip[OBJMURE_TYPE_MAX] = {
     1000.0f, // OBJMURE_TYPE_BUTTERFLY
 };
 
-static s32 sMaxChildSpawns[] = {
+static s32 MM_sMaxChildSpawns[] = {
     12,
     9,
     8,
     0,
 };
 
-static s16 sSpawnActorIds[OBJMURE_TYPE_MAX] = {
+static s16 MM_sSpawnActorIds[OBJMURE_TYPE_MAX] = {
     ACTOR_EN_KUSA,   // OBJMURE_TYPE_GRASS
     ACTOR_PLAYER,    // OBJMURE_TYPE_UNDEFINED
     ACTOR_EN_FISH,   // OBJMURE_TYPE_FISH
@@ -59,7 +59,7 @@ static s16 sSpawnActorIds[OBJMURE_TYPE_MAX] = {
     ACTOR_EN_BUTTE,  // OBJMURE_TYPE_BUTTERFLY
 };
 
-static s16 sSpawnParams[OBJMURE_TYPE_MAX] = {
+static s16 MM_sSpawnParams[OBJMURE_TYPE_MAX] = {
     KUSA_BUSH_PARAMS(false, 0, false),           // OBJMURE_TYPE_GRASS
     PLAYER_PARAMS(2, PLAYER_START_MODE_NOTHING), // OBJMURE_TYPE_UNDEFINED
     FISH_PARAMS(ENFISH_MINUS1),                  // OBJMURE_TYPE_FISH
@@ -67,7 +67,7 @@ static s16 sSpawnParams[OBJMURE_TYPE_MAX] = {
     BUTTERFLY_PARAMS(BUTTERFLY_MINUS1),          // OBJMURE_TYPE_BUTTERFLY
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 1200, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 200, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 1200, ICHAIN_STOP),
@@ -82,7 +82,7 @@ typedef enum {
 s32 func_808D78D0(ObjMure* this, PlayState* play) {
     if ((this->type == OBJMURE_TYPE_FISH) || (this->type == OBJMURE_TYPE_BUGS) ||
         (this->type == OBJMURE_TYPE_BUTTERFLY)) {
-        Actor_ProcessInitChain(&this->actor, sInitChain);
+        MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
     } else {
         return false;
     }
@@ -96,7 +96,7 @@ s32 func_808D7928(ObjMure* this, PlayState* play) {
     return true;
 }
 
-void ObjMure_Init(Actor* thisx, PlayState* play) {
+void MM_ObjMure_Init(Actor* thisx, PlayState* play) {
     ObjMure* this = (ObjMure*)thisx;
 
     this->chNum = OBJ_MURE_GET_CHNUM(&this->actor);
@@ -104,40 +104,40 @@ void ObjMure_Init(Actor* thisx, PlayState* play) {
     this->svNum = OBJ_MURE_GET_SVNUM(&this->actor);
     this->type = OBJ_MURE_GET_TYPE(&this->actor);
     if (this->ptn >= 4) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
     if (this->type >= OBJMURE_TYPE_MAX) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
     if (!func_808D7928(this, play)) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
-    this->actionFunc = ObjMure_InitialAction;
+    this->actionFunc = MM_ObjMure_InitialAction;
 }
 
-void ObjMure_Destroy(Actor* thisx, PlayState* play) {
+void MM_ObjMure_Destroy(Actor* thisx, PlayState* play) {
 }
 
-s32 ObjMure_GetMaxChildSpawns(ObjMure* this) {
+s32 MM_ObjMure_GetMaxChildSpawns(ObjMure* this) {
     if (this->chNum == 0) {
-        return sMaxChildSpawns[this->ptn];
+        return MM_sMaxChildSpawns[this->ptn];
     }
     return this->chNum;
 }
 
-void ObjMure_GetSpawnPos(Vec3f* outPos, Vec3f* inPos, s32 ptn, s32 idx) {
+void MM_ObjMure_GetSpawnPos(Vec3f* outPos, Vec3f* inPos, s32 ptn, s32 idx) {
     *outPos = *inPos;
 }
 
-void ObjMure_SpawnActors0(Actor* thisx, PlayState* play) {
+void MM_ObjMure_SpawnActors0(Actor* thisx, PlayState* play) {
     ObjMure* this = (ObjMure*)thisx;
     s32 i;
     Vec3f pos;
     s32 pad;
-    s32 maxChildren = ObjMure_GetMaxChildSpawns(this);
+    s32 maxChildren = MM_ObjMure_GetMaxChildSpawns(this);
 
     for (i = 0; i < maxChildren; i++) {
         switch (this->childrenStates[i]) {
@@ -145,10 +145,10 @@ void ObjMure_SpawnActors0(Actor* thisx, PlayState* play) {
                 break;
 
             case OBJMURE_CHILD_STATE_2:
-                ObjMure_GetSpawnPos(&pos, &this->actor.world.pos, this->ptn, i);
+                MM_ObjMure_GetSpawnPos(&pos, &this->actor.world.pos, this->ptn, i);
                 this->children[i] = Actor_SpawnAsChildAndCutscene(
-                    &play->actorCtx, play, sSpawnActorIds[this->type], pos.x, pos.y, pos.z, this->actor.world.rot.x,
-                    this->actor.world.rot.y, this->actor.world.rot.z, sSpawnParams[this->type], this->actor.csId,
+                    &play->actorCtx, play, MM_sSpawnActorIds[this->type], pos.x, pos.y, pos.z, this->actor.world.rot.x,
+                    this->actor.world.rot.y, this->actor.world.rot.z, MM_sSpawnParams[this->type], this->actor.csId,
                     this->actor.halfDaysBits, NULL);
                 if (this->children[i] != NULL) {
                     if (this->type == 0x90) {
@@ -159,10 +159,10 @@ void ObjMure_SpawnActors0(Actor* thisx, PlayState* play) {
                 break;
 
             default:
-                ObjMure_GetSpawnPos(&pos, &this->actor.world.pos, this->ptn, i);
+                MM_ObjMure_GetSpawnPos(&pos, &this->actor.world.pos, this->ptn, i);
                 this->children[i] = Actor_SpawnAsChildAndCutscene(
-                    &play->actorCtx, play, sSpawnActorIds[this->type], pos.x, pos.y, pos.z, this->actor.world.rot.x,
-                    this->actor.world.rot.y, this->actor.world.rot.z, sSpawnParams[this->type], this->actor.csId,
+                    &play->actorCtx, play, MM_sSpawnActorIds[this->type], pos.x, pos.y, pos.z, this->actor.world.rot.x,
+                    this->actor.world.rot.y, this->actor.world.rot.z, MM_sSpawnParams[this->type], this->actor.csId,
                     this->actor.halfDaysBits, NULL);
                 if (this->children[i] != NULL) {
                     this->children[i]->room = this->actor.room;
@@ -172,19 +172,19 @@ void ObjMure_SpawnActors0(Actor* thisx, PlayState* play) {
     }
 }
 
-void ObjMure_SpawnActors1(ObjMure* this, PlayState* play2) {
+void MM_ObjMure_SpawnActors1(ObjMure* this, PlayState* play2) {
     PlayState* play = play2;
     Actor* actor = &this->actor;
     Vec3f spawnPos;
-    s32 maxChildren = ObjMure_GetMaxChildSpawns(this);
+    s32 maxChildren = MM_ObjMure_GetMaxChildSpawns(this);
     s32 i;
 
     for (i = 0; i < maxChildren; i++) {
-        ObjMure_GetSpawnPos(&spawnPos, &actor->world.pos, this->ptn, i);
+        MM_ObjMure_GetSpawnPos(&spawnPos, &actor->world.pos, this->ptn, i);
         this->children[i] = Actor_SpawnAsChildAndCutscene(
-            &play2->actorCtx, play, sSpawnActorIds[this->type], spawnPos.x, spawnPos.y, spawnPos.z, actor->world.rot.x,
+            &play2->actorCtx, play, MM_sSpawnActorIds[this->type], spawnPos.x, spawnPos.y, spawnPos.z, actor->world.rot.x,
             actor->world.rot.y, actor->world.rot.z,
-            (this->type == OBJMURE_TYPE_BUTTERFLY && i == 0) ? 1 : sSpawnParams[this->type], this->actor.csId,
+            (this->type == OBJMURE_TYPE_BUTTERFLY && i == 0) ? 1 : MM_sSpawnParams[this->type], this->actor.csId,
             this->actor.halfDaysBits, NULL);
         if (this->children[i] != NULL) {
             this->childrenStates[i] = OBJMURE_CHILD_STATE_0;
@@ -195,14 +195,14 @@ void ObjMure_SpawnActors1(ObjMure* this, PlayState* play2) {
     }
 }
 
-void ObjMure_SpawnActors(ObjMure* this, PlayState* play) {
+void MM_ObjMure_SpawnActors(ObjMure* this, PlayState* play) {
     switch (this->svNum) {
         case 0:
-            ObjMure_SpawnActors0(&this->actor, play);
+            MM_ObjMure_SpawnActors0(&this->actor, play);
             break;
 
         case 1:
-            ObjMure_SpawnActors1(this, play);
+            MM_ObjMure_SpawnActors1(this, play);
             break;
 
         default:
@@ -210,8 +210,8 @@ void ObjMure_SpawnActors(ObjMure* this, PlayState* play) {
     }
 }
 
-void ObjMure_KillActorsImpl(ObjMure* this, PlayState* play) {
-    s32 maxChildren = ObjMure_GetMaxChildSpawns(this);
+void MM_ObjMure_KillActorsImpl(ObjMure* this, PlayState* play) {
+    s32 maxChildren = MM_ObjMure_GetMaxChildSpawns(this);
     s32 i;
 
     for (i = 0; i < maxChildren; i++) {
@@ -222,17 +222,17 @@ void ObjMure_KillActorsImpl(ObjMure* this, PlayState* play) {
 
             case OBJMURE_CHILD_STATE_2:
                 if (this->children[i] != NULL) {
-                    Actor_Kill(this->children[i]);
+                    MM_Actor_Kill(this->children[i]);
                     this->children[i] = NULL;
                 }
                 break;
 
             default:
                 if (this->children[i] != NULL) {
-                    if (Actor_HasParent(this->children[i], play)) {
+                    if (MM_Actor_HasParent(this->children[i], play)) {
                         this->children[i] = NULL;
                     } else {
-                        Actor_Kill(this->children[i]);
+                        MM_Actor_Kill(this->children[i]);
                         this->children[i] = NULL;
                     }
                 }
@@ -241,12 +241,12 @@ void ObjMure_KillActorsImpl(ObjMure* this, PlayState* play) {
     }
 }
 
-void ObjMure_KillActors(ObjMure* this, PlayState* play) {
-    ObjMure_KillActorsImpl(this, play);
+void MM_ObjMure_KillActors(ObjMure* this, PlayState* play) {
+    MM_ObjMure_KillActorsImpl(this, play);
 }
 
-void ObjMure_CheckChildren(ObjMure* this, PlayState* play) {
-    s32 maxChildren = ObjMure_GetMaxChildSpawns(this);
+void MM_ObjMure_CheckChildren(ObjMure* this, PlayState* play) {
+    s32 maxChildren = MM_ObjMure_GetMaxChildSpawns(this);
     s32 i;
 
     for (i = 0; i < maxChildren; i++) {
@@ -268,32 +268,32 @@ void ObjMure_CheckChildren(ObjMure* this, PlayState* play) {
     }
 }
 
-void ObjMure_InitialAction(ObjMure* this, PlayState* play) {
-    this->actionFunc = ObjMure_CulledState;
+void MM_ObjMure_InitialAction(ObjMure* this, PlayState* play) {
+    this->actionFunc = MM_ObjMure_CulledState;
 }
 
-void ObjMure_CulledState(ObjMure* this, PlayState* play) {
+void MM_ObjMure_CulledState(ObjMure* this, PlayState* play) {
     Ship_ExtendedCullingActorAdjustProjectedZ(&this->actor);
 
-    if (fabsf(this->actor.projectedPos.z) < sZClip[this->type]) {
-        this->actionFunc = ObjMure_ActiveState;
+    if (fabsf(this->actor.projectedPos.z) < MM_sZClip[this->type]) {
+        this->actionFunc = MM_ObjMure_ActiveState;
         this->actor.flags |= ACTOR_FLAG_UPDATE_CULLING_DISABLED;
-        ObjMure_SpawnActors(this, play);
+        MM_ObjMure_SpawnActors(this, play);
     }
 
     Ship_ExtendedCullingActorRestoreProjectedPos(play, &this->actor);
 }
 
-void ObjMure_SetFollowTargets(ObjMure* this, f32 randMax) {
+void MM_ObjMure_SetFollowTargets(ObjMure* this, f32 randMax) {
     s32 index;
-    s32 maxChildren = ObjMure_GetMaxChildSpawns(this);
+    s32 maxChildren = MM_ObjMure_GetMaxChildSpawns(this);
     s32 i;
 
     for (i = 0; i < maxChildren; i++) {
         if (this->children[i] != NULL) {
             this->children[i]->child = NULL;
-            if (Rand_ZeroOne() <= randMax) {
-                index = Rand_ZeroOne() * (maxChildren - 0.5f);
+            if (MM_Rand_ZeroOne() <= randMax) {
+                index = MM_Rand_ZeroOne() * (maxChildren - 0.5f);
                 if (i != index) {
                     this->children[i]->child = this->children[index];
                 }
@@ -304,10 +304,10 @@ void ObjMure_SetFollowTargets(ObjMure* this, f32 randMax) {
 
 /**
  * Selects a child that will follow after the player
- * `idx1` is the index + 1 of the child that will follow the player. If `idx1` is zero, no actor will follow the player
+ * `idx1` is the index + 1 of the child that will follow the player. If `idx1` is MM_zero, no actor will follow the player
  */
-void ObjMure_SetChildToFollowPlayer(ObjMure* this, s32 idx1) {
-    s32 maxChildren = ObjMure_GetMaxChildSpawns(this);
+void MM_ObjMure_SetChildToFollowPlayer(ObjMure* this, s32 idx1) {
+    s32 maxChildren = MM_ObjMure_GetMaxChildSpawns(this);
     s32 i;
     s32 i2;
     s32 j;
@@ -330,24 +330,24 @@ void ObjMure_SetChildToFollowPlayer(ObjMure* this, s32 idx1) {
 }
 
 // Fish, Bugs
-void ObjMure_GroupBehavior0(ObjMure* this, PlayState* play) {
+void MM_ObjMure_GroupBehavior0(ObjMure* this, PlayState* play) {
     if (this->unk_19C <= 0) {
         if (this->unk_19E) {
             this->unk_19E = false;
-            ObjMure_SetFollowTargets(this, (Rand_ZeroOne() * 0.5f) + 0.1f);
+            MM_ObjMure_SetFollowTargets(this, (MM_Rand_ZeroOne() * 0.5f) + 0.1f);
             if (this->actor.xzDistToPlayer < 60.0f) {
-                this->unk_19C = (s32)(Rand_ZeroOne() * 5.5f) + 4;
+                this->unk_19C = (s32)(MM_Rand_ZeroOne() * 5.5f) + 4;
             } else {
-                this->unk_19C = (s32)(Rand_ZeroOne() * 40.5f) + 4;
+                this->unk_19C = (s32)(MM_Rand_ZeroOne() * 40.5f) + 4;
             }
         } else {
             this->unk_19E = true;
             if (this->actor.xzDistToPlayer < 60.0f) {
-                this->unk_19C = (s32)(Rand_ZeroOne() * 10.5f) + 4;
-                ObjMure_SetFollowTargets(this, (Rand_ZeroOne() * 0.2f) + 0.8f);
+                this->unk_19C = (s32)(MM_Rand_ZeroOne() * 10.5f) + 4;
+                MM_ObjMure_SetFollowTargets(this, (MM_Rand_ZeroOne() * 0.2f) + 0.8f);
             } else {
-                this->unk_19C = (s32)(Rand_ZeroOne() * 10.5f) + 4;
-                ObjMure_SetFollowTargets(this, (Rand_ZeroOne() * 0.2f) + 0.6f);
+                this->unk_19C = (s32)(MM_Rand_ZeroOne() * 10.5f) + 4;
+                MM_ObjMure_SetFollowTargets(this, (MM_Rand_ZeroOne() * 0.2f) + 0.6f);
             }
         }
     }
@@ -357,34 +357,34 @@ void ObjMure_GroupBehavior0(ObjMure* this, PlayState* play) {
         this->unk_1A0 = 0;
     }
     if (this->unk_1A0 >= 80) {
-        ObjMure_SetChildToFollowPlayer(this, 1);
+        MM_ObjMure_SetChildToFollowPlayer(this, 1);
     } else {
-        ObjMure_SetChildToFollowPlayer(this, 0);
+        MM_ObjMure_SetChildToFollowPlayer(this, 0);
     }
 }
 
 // Butterflies
-void ObjMure_GroupBehavior1(ObjMure* this, PlayState* play) {
+void MM_ObjMure_GroupBehavior1(ObjMure* this, PlayState* play) {
     s32 maxChildren;
     s32 i;
 
     if (this->unk_19C <= 0) {
         if (this->unk_19E) {
             this->unk_19E = false;
-            ObjMure_SetFollowTargets(this, Rand_ZeroOne() * 0.2f);
+            MM_ObjMure_SetFollowTargets(this, MM_Rand_ZeroOne() * 0.2f);
             if (this->actor.xzDistToPlayer < 60.0f) {
-                this->unk_19C = (s32)(Rand_ZeroOne() * 5.5f) + 4;
+                this->unk_19C = (s32)(MM_Rand_ZeroOne() * 5.5f) + 4;
             } else {
-                this->unk_19C = (s32)(Rand_ZeroOne() * 40.5f) + 4;
+                this->unk_19C = (s32)(MM_Rand_ZeroOne() * 40.5f) + 4;
             }
         } else {
             this->unk_19E = true;
-            ObjMure_SetFollowTargets(this, Rand_ZeroOne() * 0.7f);
-            this->unk_19C = (s32)(Rand_ZeroOne() * 10.5f) + 4;
+            MM_ObjMure_SetFollowTargets(this, MM_Rand_ZeroOne() * 0.7f);
+            this->unk_19C = (s32)(MM_Rand_ZeroOne() * 10.5f) + 4;
         }
     }
 
-    maxChildren = ObjMure_GetMaxChildSpawns(this);
+    maxChildren = MM_ObjMure_GetMaxChildSpawns(this);
     for (i = 0; i < maxChildren; i++) {
         if (this->children[i] != NULL) {
             if ((this->children[i]->child != NULL) && (this->children[i]->child->update == NULL)) {
@@ -394,26 +394,26 @@ void ObjMure_GroupBehavior1(ObjMure* this, PlayState* play) {
     }
 }
 
-static ObjMureActionFunc sTypeGroupBehaviorFunc[] = {
-    NULL, NULL, ObjMure_GroupBehavior0, ObjMure_GroupBehavior0, ObjMure_GroupBehavior1,
+static ObjMureActionFunc MM_sTypeGroupBehaviorFunc[] = {
+    NULL, NULL, MM_ObjMure_GroupBehavior0, MM_ObjMure_GroupBehavior0, MM_ObjMure_GroupBehavior1,
 };
 
-void ObjMure_ActiveState(ObjMure* this, PlayState* play) {
+void MM_ObjMure_ActiveState(ObjMure* this, PlayState* play) {
     Ship_ExtendedCullingActorAdjustProjectedZ(&this->actor);
 
-    ObjMure_CheckChildren(this, play);
-    if ((sZClip[this->type] + 40.0f) <= fabsf(this->actor.projectedPos.z)) {
-        this->actionFunc = ObjMure_CulledState;
+    MM_ObjMure_CheckChildren(this, play);
+    if ((MM_sZClip[this->type] + 40.0f) <= fabsf(this->actor.projectedPos.z)) {
+        this->actionFunc = MM_ObjMure_CulledState;
         this->actor.flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
-        ObjMure_KillActors(this, play);
-    } else if (sTypeGroupBehaviorFunc[this->type] != NULL) {
-        sTypeGroupBehaviorFunc[this->type](this, play);
+        MM_ObjMure_KillActors(this, play);
+    } else if (MM_sTypeGroupBehaviorFunc[this->type] != NULL) {
+        MM_sTypeGroupBehaviorFunc[this->type](this, play);
     }
 
     Ship_ExtendedCullingActorRestoreProjectedPos(play, &this->actor);
 }
 
-void ObjMure_Update(Actor* thisx, PlayState* play) {
+void MM_ObjMure_Update(Actor* thisx, PlayState* play) {
     ObjMure* this = (ObjMure*)thisx;
 
     if (this->unk_19C > 0) {

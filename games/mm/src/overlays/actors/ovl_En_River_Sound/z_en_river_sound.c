@@ -8,9 +8,9 @@
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED)
 
-void EnRiverSound_Init(Actor* thisx, PlayState* play);
-void EnRiverSound_Update(Actor* thisx, PlayState* play);
-void EnRiverSound_Draw(Actor* thisx, PlayState* play);
+void MM_EnRiverSound_Init(Actor* thisx, PlayState* play);
+void MM_EnRiverSound_Update(Actor* thisx, PlayState* play);
+void MM_EnRiverSound_Draw(Actor* thisx, PlayState* play);
 
 ActorProfile En_River_Sound_Profile = {
     /**/ ACTOR_EN_RIVER_SOUND,
@@ -18,13 +18,13 @@ ActorProfile En_River_Sound_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(EnRiverSound),
-    /**/ EnRiverSound_Init,
-    /**/ Actor_Noop,
-    /**/ EnRiverSound_Update,
-    /**/ EnRiverSound_Draw,
+    /**/ MM_EnRiverSound_Init,
+    /**/ MM_Actor_Noop,
+    /**/ MM_EnRiverSound_Update,
+    /**/ MM_EnRiverSound_Draw,
 };
 
-void EnRiverSound_Init(Actor* thisx, PlayState* play) {
+void MM_EnRiverSound_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     EnRiverSound* this = (EnRiverSound*)thisx;
     Path* path;
@@ -34,7 +34,7 @@ void EnRiverSound_Init(Actor* thisx, PlayState* play) {
     pathIndex = RS_GET_PATH_INDEX(&this->actor);
     this->actor.params = RS_GET_TYPE(&this->actor);
     if (pathIndex == RS_PATH_INDEX_NONE) {
-        Actor_Kill(&this->actor);
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
@@ -43,13 +43,13 @@ void EnRiverSound_Init(Actor* thisx, PlayState* play) {
     this->numPoints = path->count;
 }
 
-void EnRiverSound_Update(Actor* thisx, PlayState* play) {
+void MM_EnRiverSound_Update(Actor* thisx, PlayState* play) {
     EnRiverSound* this = (EnRiverSound*)thisx;
     Vec3f* worldPos = &this->actor.world.pos;
     Vec3f eye;
     s32 bgId;
 
-    Math_Vec3f_Copy(&eye, &play->view.eye);
+    MM_Math_Vec3f_Copy(&eye, &play->view.eye);
 
     if (this->actor.params < RS_RIVER_DEFAULT_LOW_FREQ) {
         // All sfx from river_sound that accesses gAudioEnvironmentalSfx is associated with a closed-loop
@@ -57,9 +57,9 @@ void EnRiverSound_Update(Actor* thisx, PlayState* play) {
         Actor_GetClosestPosOnPath(this->pathPoints, this->numPoints, &eye, worldPos, true);
     } else {
         Actor_GetClosestPosOnPath(this->pathPoints, this->numPoints, &eye, worldPos, false);
-        if (BgCheck_EntityRaycastFloor5(&play->colCtx, &this->actor.floorPoly, &bgId, &this->actor, worldPos) !=
+        if (MM_BgCheck_EntityRaycastFloor5(&play->colCtx, &this->actor.floorPoly, &bgId, &this->actor, worldPos) !=
             BGCHECK_Y_MIN) {
-            this->soundFreqIndex = SurfaceType_GetConveyorSpeed(&play->colCtx, this->actor.floorPoly, bgId);
+            this->soundFreqIndex = MM_SurfaceType_GetConveyorSpeed(&play->colCtx, this->actor.floorPoly, bgId);
         } else {
             this->soundFreqIndex = 0;
         }
@@ -74,7 +74,7 @@ void EnRiverSound_Update(Actor* thisx, PlayState* play) {
     }
 }
 
-void EnRiverSound_Draw(Actor* thisx, PlayState* play) {
+void MM_EnRiverSound_Draw(Actor* thisx, PlayState* play) {
     static f32 freqScale[] = {
         0.7f, // 1 / sqrt(2)
         1.0f, // 1

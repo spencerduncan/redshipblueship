@@ -163,7 +163,7 @@ size_t Fragment_Load(uintptr_t vromStart, uintptr_t vromEnd, void* vramStart, vo
     }
 
     end = (uintptr_t)allocatedRamAddr + size;
-    DmaMgr_SendRequest0(allocatedRamAddr, vromStart, size);
+    MM_DmaMgr_SendRequest0(allocatedRamAddr, vromStart, size);
 
     ovlRelocs = (OverlayRelocationSection*)(end - ((s32*)end)[-1]);
 
@@ -220,7 +220,7 @@ void* Fragment_AllocateAndLoad(uintptr_t vromStart, uintptr_t vromEnd, void* vra
         // "\nダイナミックリンクファンクションのロードを開始します\n"
     }
 
-    allocatedRamAddr = SystemArena_MallocR(size);
+    allocatedRamAddr = MM_SystemArena_MallocR(size);
     end = (uintptr_t)allocatedRamAddr + size;
 
     if (gFragmentLogSeverity >= 3) {
@@ -228,7 +228,7 @@ void* Fragment_AllocateAndLoad(uintptr_t vromStart, uintptr_t vromEnd, void* vra
         // "TEXT,DATA,RODATA+relをＤＭＡ転送します(%08x-%08x)\n"
     }
 
-    DmaMgr_SendRequest0(allocatedRamAddr, vromStart, size);
+    MM_DmaMgr_SendRequest0(allocatedRamAddr, vromStart, size);
 
     if (gFragmentLogSeverity >= 3) {
         // "TEXT(%08x), DATA(%08x), RODATA(%08x), BSS(%08x)\n"
@@ -241,7 +241,7 @@ void* Fragment_AllocateAndLoad(uintptr_t vromStart, uintptr_t vromEnd, void* vra
 
     allocatedBytes = ovlRelocs->bssSize + size;
 
-    allocatedRamAddr = SystemArena_Realloc(allocatedRamAddr, allocatedBytes);
+    allocatedRamAddr = MM_SystemArena_Realloc(allocatedRamAddr, allocatedBytes);
 
     if (gFragmentLogSeverity >= 3) {
         // No reallocation.

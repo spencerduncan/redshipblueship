@@ -35,7 +35,7 @@ const ActorInit En_Dog_InitVars = {
     NULL,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit OoT_sCylinderInit = {
     {
         COLTYPE_HIT6,
         AT_NONE,
@@ -55,7 +55,7 @@ static ColliderCylinderInit sCylinderInit = {
     { 16, 20, 0, { 0 } },
 };
 
-static CollisionCheckInfoInit2 sColChkInfoInit = { 0, 0, 0, 0, 50 };
+static CollisionCheckInfoInit2 OoT_sColChkInfoInit = { 0, 0, 0, 0, 50 };
 
 typedef enum {
     /* 0 */ ENDOG_ANIM_0,
@@ -68,7 +68,7 @@ typedef enum {
     /* 7 */ ENDOG_ANIM_7
 } EnDogAnimation;
 
-static AnimationInfo sAnimationInfo[] = {
+static AnimationInfo OoT_sAnimationInfo[] = {
     { &gDogWalkAnim, 1.0f, 0.0f, -1.0f, ANIMMODE_LOOP, 0.0f },
     { &gDogWalkAnim, 1.0f, 0.0f, -1.0f, ANIMMODE_LOOP, -6.0f },
     { &gDogRunAnim, 1.0f, 0.0f, -1.0f, ANIMMODE_LOOP, -6.0f },
@@ -148,19 +148,19 @@ s32 EnDog_PlayAnimAndSFX(EnDog* this) {
                 animation = ENDOG_ANIM_6;
                 break;
         }
-        Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, animation);
+        Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, animation);
     }
 
     switch (this->behavior) {
         case DOG_SIT:
-            if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
-                Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENDOG_ANIM_5);
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+                Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENDOG_ANIM_5);
                 this->behavior = this->nextBehavior = DOG_SIT_2;
             }
             break;
         case DOG_BOW:
-            if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
-                Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENDOG_ANIM_7);
+            if (OoT_Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+                Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENDOG_ANIM_7);
                 this->behavior = this->nextBehavior = DOG_BOW_2;
             }
             break;
@@ -231,8 +231,8 @@ s32 EnDog_Orient(EnDog* this, PlayState* play) {
     s16 targetYaw;
     f32 waypointDistSq;
 
-    waypointDistSq = Path_OrientAndGetDistSq(&this->actor, this->path, this->waypoint, &targetYaw);
-    Math_SmoothStepToS(&this->actor.world.rot.y, targetYaw, 10, 1000, 1);
+    waypointDistSq = OoT_Path_OrientAndGetDistSq(&this->actor, this->path, this->waypoint, &targetYaw);
+    OoT_Math_SmoothStepToS(&this->actor.world.rot.y, targetYaw, 10, 1000, 1);
 
     if ((waypointDistSq > 0.0f) && (waypointDistSq < 1000.0f)) {
         return EnDog_UpdateWaypoint(this, play);
@@ -246,9 +246,9 @@ void EnDog_Init(Actor* thisx, PlayState* play) {
     s16 followingDog;
     s32 pad;
 
-    ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 24.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gDogSkel, NULL, this->jointTable, this->morphTable, 13);
-    Animation_ChangeByInfo(&this->skelAnime, sAnimationInfo, ENDOG_ANIM_0);
+    OoT_ActorShape_Init(&this->actor.shape, 0.0f, OoT_ActorShadow_DrawCircle, 24.0f);
+    OoT_SkelAnime_InitFlex(play, &this->skelAnime, &gDogSkel, NULL, this->jointTable, this->morphTable, 13);
+    Animation_ChangeByInfo(&this->skelAnime, OoT_sAnimationInfo, ENDOG_ANIM_0);
 
     if ((this->actor.params & 0x8000) == 0) {
         this->actor.params = (this->actor.params & 0xF0FF) | ((((this->actor.params & 0x0F00) >> 8) + 1) << 8);
@@ -256,22 +256,22 @@ void EnDog_Init(Actor* thisx, PlayState* play) {
 
     followingDog = ((gSaveContext.dogParams & 0x0F00) >> 8);
     if (followingDog == ((this->actor.params & 0x0F00) >> 8) && ((this->actor.params & 0x8000) == 0)) {
-        Actor_Kill(&this->actor);
+        OoT_Actor_Kill(&this->actor);
         return;
     }
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    CollisionCheck_SetInfo2(&this->actor.colChkInfo, 0, &sColChkInfoInit);
-    Actor_SetScale(&this->actor, 0.0075f);
+    OoT_Collider_InitCylinder(play, &this->collider);
+    OoT_Collider_SetCylinder(play, &this->collider, &this->actor, &OoT_sCylinderInit);
+    OoT_CollisionCheck_SetInfo2(&this->actor.colChkInfo, 0, &OoT_sColChkInfoInit);
+    OoT_Actor_SetScale(&this->actor, 0.0075f);
     this->waypoint = 0;
     this->actor.gravity = -1.0f;
-    this->path = Path_GetByIndex(play, (this->actor.params & 0x00F0) >> 4, 0xF);
+    this->path = OoT_Path_GetByIndex(play, (this->actor.params & 0x00F0) >> 4, 0xF);
 
     switch (play->sceneNum) {
         case SCENE_MARKET_NIGHT:
             if ((!gSaveContext.dogIsLost) && (((this->actor.params & 0x0F00) >> 8) == 1)) {
-                Actor_Kill(&this->actor);
+                OoT_Actor_Kill(&this->actor);
             }
             break;
         case SCENE_DOG_LADY_HOUSE: // Richard's Home
@@ -282,7 +282,7 @@ void EnDog_Init(Actor* thisx, PlayState* play) {
                     this->actor.speedXZ = 0.0f;
                     return;
                 } else {
-                    Actor_Kill(&this->actor);
+                    OoT_Actor_Kill(&this->actor);
                     return;
                 }
             }
@@ -300,7 +300,7 @@ void EnDog_Init(Actor* thisx, PlayState* play) {
 
 void EnDog_Destroy(Actor* thisx, PlayState* play) {
     EnDog* this = (EnDog*)thisx;
-    Collider_DestroyCylinder(play, &this->collider);
+    OoT_Collider_DestroyCylinder(play, &this->collider);
 
     ResourceMgr_UnregisterSkeleton(&this->skelAnime);
 }
@@ -321,7 +321,7 @@ void EnDog_FollowPath(EnDog* this, PlayState* play) {
         } else {
             speed = 4.0f;
         }
-        Math_SmoothStepToF(&this->actor.speedXZ, speed, 0.4f, 1.0f, 0.0f);
+        OoT_Math_SmoothStepToF(&this->actor.speedXZ, speed, 0.4f, 1.0f, 0.0f);
         EnDog_Orient(this, play);
         this->actor.shape.rot = this->actor.world.rot;
 
@@ -338,7 +338,7 @@ void EnDog_FollowPath(EnDog* this, PlayState* play) {
         frame = play->state.frames % 3;
         this->nextBehavior = behaviors[frame];
         // no clue why they're using the behavior id to calculate timer. possibly meant to use the unused array?
-        this->behaviorTimer = Rand_S16Offset(60, behaviors[frame]);
+        this->behaviorTimer = OoT_Rand_S16Offset(60, behaviors[frame]);
         this->actionFunc = EnDog_ChooseMovement;
     }
 }
@@ -349,7 +349,7 @@ void EnDog_ChooseMovement(EnDog* this, PlayState* play) {
     }
 
     if (DECR(this->behaviorTimer) == 0) {
-        this->behaviorTimer = Rand_S16Offset(200, 100);
+        this->behaviorTimer = OoT_Rand_S16Offset(200, 100);
         if (play->state.frames % 2) {
             this->nextBehavior = DOG_WALK;
         } else {
@@ -361,7 +361,7 @@ void EnDog_ChooseMovement(EnDog* this, PlayState* play) {
         }
         this->actionFunc = EnDog_FollowPath;
     }
-    Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 0.4f, 1.0f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 0.4f, 1.0f, 0.0f);
 }
 
 void EnDog_FollowPlayer(EnDog* this, PlayState* play) {
@@ -420,18 +420,18 @@ void EnDog_FollowPlayer(EnDog* this, PlayState* play) {
         speed = 1.0f;
     }
 
-    Math_ApproachF(&this->actor.speedXZ, speed, 0.6f, 1.0f);
+    OoT_Math_ApproachF(&this->actor.speedXZ, speed, 0.6f, 1.0f);
 
     if (!(this->actor.xzDistToPlayer > 400.0f) || CVarGetInteger(CVAR_ENHANCEMENT("DogFollowsEverywhere"), 0)) {
-        Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 10, 1000, 1);
+        OoT_Math_SmoothStepToS(&this->actor.world.rot.y, this->actor.yawTowardsPlayer, 10, 1000, 1);
         this->actor.shape.rot = this->actor.world.rot;
     }
 }
 
 void EnDog_RunAway(EnDog* this, PlayState* play) {
     if (this->actor.xzDistToPlayer < 200.0f) {
-        Math_ApproachF(&this->actor.speedXZ, 4.0f, 0.6f, 1.0f);
-        Math_SmoothStepToS(&this->actor.world.rot.y, (this->actor.yawTowardsPlayer ^ 0x8000), 10, 1000, 1);
+        OoT_Math_ApproachF(&this->actor.speedXZ, 4.0f, 0.6f, 1.0f);
+        OoT_Math_SmoothStepToS(&this->actor.world.rot.y, (this->actor.yawTowardsPlayer ^ 0x8000), 10, 1000, 1);
     } else {
         this->actionFunc = EnDog_FaceLink;
     }
@@ -447,11 +447,11 @@ void EnDog_FaceLink(EnDog* this, PlayState* play) {
     if (200.0f <= this->actor.xzDistToPlayer) {
         this->nextBehavior = DOG_WALK;
 
-        Math_ApproachF(&this->actor.speedXZ, 1.0f, 0.6f, 1.0f);
+        OoT_Math_ApproachF(&this->actor.speedXZ, 1.0f, 0.6f, 1.0f);
 
         rotTowardLink = this->actor.yawTowardsPlayer;
         prevRotY = this->actor.world.rot.y;
-        Math_SmoothStepToS(&this->actor.world.rot.y, rotTowardLink, 10, 1000, 1);
+        OoT_Math_SmoothStepToS(&this->actor.world.rot.y, rotTowardLink, 10, 1000, 1);
 
         absAngleDiff = this->actor.world.rot.y;
         absAngleDiff -= prevRotY;
@@ -483,12 +483,12 @@ void EnDog_Update(Actor* thisx, PlayState* play) {
     s32 pad;
 
     EnDog_PlayAnimAndSFX(this);
-    SkelAnime_Update(&this->skelAnime);
-    Actor_UpdateBgCheckInfo(play, &this->actor, this->collider.dim.radius, this->collider.dim.height * 0.5f, 0.0f, 5);
+    OoT_SkelAnime_Update(&this->skelAnime);
+    OoT_Actor_UpdateBgCheckInfo(play, &this->actor, this->collider.dim.radius, this->collider.dim.height * 0.5f, 0.0f, 5);
     Actor_MoveXZGravity(&this->actor);
     this->actionFunc(this, play);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
-    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    OoT_Collider_UpdateCylinder(&this->actor, &this->collider);
+    OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
 s32 EnDog_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {

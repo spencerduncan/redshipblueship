@@ -29,7 +29,7 @@ ActorProfile Dm_Statue_Profile = {
 void DmStatue_Init(Actor* thisx, PlayState* play) {
     DmStatue* this = (DmStatue*)thisx;
 
-    Actor_SetScale(&this->actor, 10.0f);
+    MM_Actor_SetScale(&this->actor, 10.0f);
 }
 
 void DmStatue_Destroy(Actor* thisx, PlayState* play) {
@@ -40,5 +40,5 @@ void DmStatue_Update(Actor* thisx, PlayState* play) {
 
 void DmStatue_Draw(Actor* thisx, PlayState* play) {
     AnimatedMat_Draw(play, Lib_SegmentedToVirtual(object_smtower_Matanimheader_001788));
-    Gfx_DrawDListXlu(play, object_smtower_DL_000520);
+    MM_Gfx_DrawDListXlu(play, object_smtower_DL_000520);
 }

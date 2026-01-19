@@ -42,7 +42,7 @@ static Gfx* sBreakableWallDLists[] = {
     gFireTempleLargeBombableWallDL,
 };
 
-static ColliderJntSphElementInit sJntSphElementsInit[1] = {
+static ColliderJntSphElementInit OoT_sJntSphElementsInit[1] = {
     {
         {
             ELEMTYPE_UNK0,
@@ -56,7 +56,7 @@ static ColliderJntSphElementInit sJntSphElementsInit[1] = {
     },
 };
 
-static ColliderJntSphInit sJntSphInit = {
+static ColliderJntSphInit OoT_sJntSphInit = {
     {
         COLTYPE_NONE,
         AT_NONE,
@@ -66,7 +66,7 @@ static ColliderJntSphInit sJntSphInit = {
         COLSHAPE_JNTSPH,
     },
     1,
-    sJntSphElementsInit,
+    OoT_sJntSphElementsInit,
 };
 
 void BgHidanKowarerukabe_InitDynaPoly(BgHidanKowarerukabe* this, PlayState* play) {
@@ -80,9 +80,9 @@ void BgHidanKowarerukabe_InitDynaPoly(BgHidanKowarerukabe* this, PlayState* play
     s32 pad2;
 
     if (collisionHeaders[this->dyna.actor.params & 0xFF] != NULL) {
-        DynaPolyActor_Init(&this->dyna, DPM_UNK);
-        CollisionHeader_GetVirtual(collisionHeaders[this->dyna.actor.params & 0xFF], &colHeader);
-        this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+        OoT_DynaPolyActor_Init(&this->dyna, DPM_UNK);
+        OoT_CollisionHeader_GetVirtual(collisionHeaders[this->dyna.actor.params & 0xFF], &colHeader);
+        this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
     } else {
         this->dyna.bgId = BGACTOR_NEG_ONE;
     }
@@ -93,8 +93,8 @@ void BgHidanKowarerukabe_InitColliderSphere(BgHidanKowarerukabe* this, PlayState
     static s16 sphereYPositions[] = { 0, 500, 500 };
     s32 pad;
 
-    Collider_InitJntSph(play, &this->collider);
-    Collider_SetJntSph(play, &this->collider, &this->dyna.actor, &sJntSphInit, this->colliderItems);
+    OoT_Collider_InitJntSph(play, &this->collider);
+    OoT_Collider_SetJntSph(play, &this->collider, &this->dyna.actor, &OoT_sJntSphInit, this->colliderItems);
 
     this->collider.elements[0].dim.modelSphere.radius = sphereRadii[this->dyna.actor.params & 0xFF];
     this->collider.elements[0].dim.modelSphere.center.y = sphereYPositions[this->dyna.actor.params & 0xFF];
@@ -106,7 +106,7 @@ void BgHidanKowarerukabe_OffsetActorYPos(BgHidanKowarerukabe* this) {
     this->dyna.actor.world.pos.y = actorYPosOffsets[this->dyna.actor.params & 0xFF] + this->dyna.actor.home.pos.y;
 }
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_F32(uncullZoneForward, 2000, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 400, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneDownward, 1000, ICHAIN_STOP),
@@ -122,17 +122,17 @@ void BgHidanKowarerukabe_Init(Actor* thisx, PlayState* play) {
         // "Error: Fire Temple Breakable Walls. arg_data I can't determine the (%s %d)(arg_data 0x%04x)"
         osSyncPrintf("Error : 炎の神殿 壊れる壁 の arg_data が判別出来ない(%s %d)(arg_data 0x%04x)\n", __FILE__,
                      __LINE__, this->dyna.actor.params);
-        Actor_Kill(&this->dyna.actor);
+        OoT_Actor_Kill(&this->dyna.actor);
         return;
     }
 
-    if (Flags_GetSwitch(play, (this->dyna.actor.params >> 8) & 0x3F)) {
-        Actor_Kill(&this->dyna.actor);
+    if (OoT_Flags_GetSwitch(play, (this->dyna.actor.params >> 8) & 0x3F)) {
+        OoT_Actor_Kill(&this->dyna.actor);
         return;
     }
 
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    Actor_SetScale(&this->dyna.actor, 0.1f);
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+    OoT_Actor_SetScale(&this->dyna.actor, 0.1f);
     BgHidanKowarerukabe_InitColliderSphere(this, play);
     BgHidanKowarerukabe_OffsetActorYPos(this);
     // "(fire walls, floors, destroyed by bombs)(arg_data 0x%04x)"
@@ -142,8 +142,8 @@ void BgHidanKowarerukabe_Init(Actor* thisx, PlayState* play) {
 void BgHidanKowarerukabe_Destroy(Actor* thisx, PlayState* play) {
     BgHidanKowarerukabe* this = (BgHidanKowarerukabe*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
-    Collider_DestroyJntSph(play, &this->collider);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_Collider_DestroyJntSph(play, &this->collider);
 }
 
 void BgHidanKowarerukabe_SpawnDust(BgHidanKowarerukabe* this, PlayState* play) {
@@ -155,9 +155,9 @@ void BgHidanKowarerukabe_SpawnDust(BgHidanKowarerukabe* this, PlayState* play) {
 
     func_80033480(play, &pos, 0.0f, 0, 600, 300, 1);
 
-    pos.x = ((Rand_ZeroOne() - 0.5f) * 80.0f) + this->dyna.actor.world.pos.x;
-    pos.y = (Rand_ZeroOne() * 100.0f) + this->dyna.actor.world.pos.y;
-    pos.z = ((Rand_ZeroOne() - 0.5f) * 80.0f) + this->dyna.actor.world.pos.z;
+    pos.x = ((OoT_Rand_ZeroOne() - 0.5f) * 80.0f) + this->dyna.actor.world.pos.x;
+    pos.y = (OoT_Rand_ZeroOne() * 100.0f) + this->dyna.actor.world.pos.y;
+    pos.z = ((OoT_Rand_ZeroOne() - 0.5f) * 80.0f) + this->dyna.actor.world.pos.z;
 
     func_80033480(play, &pos, 100.0f, 4, 200, 250, 1);
 }
@@ -169,8 +169,8 @@ void BgHidanKowarerukabe_FloorBreak(BgHidanKowarerukabe* this, PlayState* play) 
     Vec3f pos;
     s16 arg5;
     Actor* thisx = &this->dyna.actor;
-    f32 sin = Math_SinS(thisx->shape.rot.y);
-    f32 cos = Math_CosS(thisx->shape.rot.y);
+    f32 sin = OoT_Math_SinS(thisx->shape.rot.y);
+    f32 cos = OoT_Math_CosS(thisx->shape.rot.y);
     f32 tmp1;
     f32 tmp2;
     s16 arg9;
@@ -185,18 +185,18 @@ void BgHidanKowarerukabe_FloorBreak(BgHidanKowarerukabe* this, PlayState* play) 
             pos.x = (tmp2 * sin) + (tmp1 * cos) + thisx->world.pos.x;
             pos.z = (tmp2 * cos) - (tmp1 * sin) + thisx->world.pos.z;
 
-            tmp1 = 8.0f * Rand_ZeroOne() * (i - 2);
-            tmp2 = 8.0f * Rand_ZeroOne() * (j - 2);
+            tmp1 = 8.0f * OoT_Rand_ZeroOne() * (i - 2);
+            tmp2 = 8.0f * OoT_Rand_ZeroOne() * (j - 2);
 
             velocity.x = (tmp2 * sin) + (tmp1 * cos);
-            velocity.y = 30.0f * Rand_ZeroOne();
+            velocity.y = 30.0f * OoT_Rand_ZeroOne();
             velocity.z = (tmp2 * cos) - (tmp1 * sin);
 
-            arg9 = ((Rand_ZeroOne() - 0.5f) * 11.0f * 1.4f) + 11.0f;
+            arg9 = ((OoT_Rand_ZeroOne() - 0.5f) * 11.0f * 1.4f) + 11.0f;
 
             arg5 = (((i == 0) || (i == 4)) && ((j == 0) || (j == 4))) ? 65 : 64;
 
-            EffectSsKakera_Spawn(play, &pos, &velocity, &thisx->world.pos, -550, arg5, 15, 15, 0, arg9, 2, 16, 100,
+            OoT_EffectSsKakera_Spawn(play, &pos, &velocity, &thisx->world.pos, -550, arg5, 15, 15, 0, arg9, 2, 16, 100,
                                  KAKERA_COLOR_NONE, OBJECT_GAMEPLAY_DANGEON_KEEP, gBrownFragmentDL);
         }
     }
@@ -209,8 +209,8 @@ void func_8088A67C(BgHidanKowarerukabe* this, PlayState* play) {
     Vec3f pos;
     s16 arg5;
     Actor* thisx = &this->dyna.actor;
-    f32 sin = Math_SinS(thisx->shape.rot.y);
-    f32 cos = Math_CosS(thisx->shape.rot.y);
+    f32 sin = OoT_Math_SinS(thisx->shape.rot.y);
+    f32 cos = OoT_Math_CosS(thisx->shape.rot.y);
     f32 tmp1;
     f32 tmp2;
     s16 arg9;
@@ -223,21 +223,21 @@ void func_8088A67C(BgHidanKowarerukabe* this, PlayState* play) {
             pos.x = (tmp1 * cos) + thisx->world.pos.x;
             pos.z = -(tmp1 * sin) + thisx->world.pos.z;
 
-            tmp1 = 3.0f * Rand_ZeroOne() * (j - 2);
-            tmp2 = 6.0f * Rand_ZeroOne();
+            tmp1 = 3.0f * OoT_Rand_ZeroOne() * (j - 2);
+            tmp2 = 6.0f * OoT_Rand_ZeroOne();
 
             velocity.x = (tmp2 * sin) + (tmp1 * cos);
-            velocity.y = 18.0f * Rand_ZeroOne();
+            velocity.y = 18.0f * OoT_Rand_ZeroOne();
             velocity.z = (tmp2 * cos) - (tmp1 * sin);
 
-            arg9 = ((Rand_ZeroOne() - 0.5f) * 11.0f * 1.4f) + 11.0f;
+            arg9 = ((OoT_Rand_ZeroOne() - 0.5f) * 11.0f * 1.4f) + 11.0f;
             arg5 = (arg9 >= 15) ? 32 : 64;
 
-            if (Rand_ZeroOne() < 5.0f) {
+            if (OoT_Rand_ZeroOne() < 5.0f) {
                 arg5 |= 1;
             }
 
-            EffectSsKakera_Spawn(play, &pos, &velocity, &thisx->world.pos, -540, arg5, 20, 20, 0, arg9, 2, 32, 100,
+            OoT_EffectSsKakera_Spawn(play, &pos, &velocity, &thisx->world.pos, -540, arg5, 20, 20, 0, arg9, 2, 32, 100,
                                  KAKERA_COLOR_NONE, OBJECT_GAMEPLAY_DANGEON_KEEP, gBrownFragmentDL);
         }
     }
@@ -250,8 +250,8 @@ void BgHidanKowarerukabe_LargeWallBreak(BgHidanKowarerukabe* this, PlayState* pl
     Vec3f pos;
     s16 arg5;
     Actor* thisx = &this->dyna.actor;
-    f32 sin = Math_SinS(thisx->shape.rot.y);
-    f32 cos = Math_CosS(thisx->shape.rot.y);
+    f32 sin = OoT_Math_SinS(thisx->shape.rot.y);
+    f32 cos = OoT_Math_CosS(thisx->shape.rot.y);
     f32 tmp1;
     f32 tmp2;
     s16 arg9;
@@ -264,21 +264,21 @@ void BgHidanKowarerukabe_LargeWallBreak(BgHidanKowarerukabe* this, PlayState* pl
             pos.x = (tmp1 * cos) + thisx->world.pos.x;
             pos.z = -(tmp1 * sin) + thisx->world.pos.z;
 
-            tmp1 = 6.0f * Rand_ZeroOne() * (j - 2);
-            tmp2 = 6.0f * Rand_ZeroOne();
+            tmp1 = 6.0f * OoT_Rand_ZeroOne() * (j - 2);
+            tmp2 = 6.0f * OoT_Rand_ZeroOne();
 
             velocity.x = (tmp2 * sin) + (tmp1 * cos);
-            velocity.y = 34.0f * Rand_ZeroOne();
+            velocity.y = 34.0f * OoT_Rand_ZeroOne();
             velocity.z = (tmp2 * cos) - (tmp1 * sin);
 
-            arg9 = ((Rand_ZeroOne() - 0.5f) * 14.0f * 1.6f) + 14.0f;
+            arg9 = ((OoT_Rand_ZeroOne() - 0.5f) * 14.0f * 1.6f) + 14.0f;
             arg5 = (arg9 > 20) ? 32 : 64;
 
-            if (Rand_ZeroOne() < 5.0f) {
+            if (OoT_Rand_ZeroOne() < 5.0f) {
                 arg5 |= 1;
             }
 
-            EffectSsKakera_Spawn(play, &pos, &velocity, &thisx->world.pos, -650, arg5, 20, 20, 0, arg9, 2, 32, 100,
+            OoT_EffectSsKakera_Spawn(play, &pos, &velocity, &thisx->world.pos, -650, arg5, 20, 20, 0, arg9, 2, 32, 100,
                                  KAKERA_COLOR_NONE, OBJECT_GAMEPLAY_DANGEON_KEEP, gBrownFragmentDL);
         }
     }
@@ -307,20 +307,20 @@ void BgHidanKowarerukabe_Update(Actor* thisx, PlayState* play) {
     if (GameInteractor_Should(VB_FIRE_TEMPLE_BOMBABLE_WALL_BREAK,
                               Actor_GetCollidedExplosive(play, &this->collider.base) != NULL, this)) {
         BgHidanKowarerukabe_Break(this, play);
-        Flags_SetSwitch(play, (this->dyna.actor.params >> 8) & 0x3F);
+        OoT_Flags_SetSwitch(play, (this->dyna.actor.params >> 8) & 0x3F);
 
         if ((this->dyna.actor.params & 0xFF) == 0) {
-            SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 40, NA_SE_EV_EXPLOSION);
+            OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 40, NA_SE_EV_EXPLOSION);
         } else {
-            SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 40, NA_SE_EV_WALL_BROKEN);
+            OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->dyna.actor.world.pos, 40, NA_SE_EV_WALL_BROKEN);
         }
 
         Sfx_PlaySfxCentered(NA_SE_SY_CORRECT_CHIME);
-        Actor_Kill(&this->dyna.actor);
+        OoT_Actor_Kill(&this->dyna.actor);
         return;
     }
 
-    CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
 }
 
 void BgHidanKowarerukabe_Draw(Actor* thisx, PlayState* play) {
@@ -333,7 +333,7 @@ void BgHidanKowarerukabe_Draw(Actor* thisx, PlayState* play) {
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_OPA_DISP++, sBreakableWallDLists[this->dyna.actor.params & 0xFF]);
 
-    Collider_UpdateSpheres(0, &this->collider);
+    OoT_Collider_UpdateSpheres(0, &this->collider);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

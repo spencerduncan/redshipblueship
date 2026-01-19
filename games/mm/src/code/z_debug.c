@@ -7,7 +7,7 @@ RegEditor* gRegEditor;
 void Regs_Init(void) {
     s32 i;
 
-    gRegEditor = SystemArena_Malloc(sizeof(RegEditor));
+    gRegEditor = MM_SystemArena_Malloc(sizeof(RegEditor));
     if (1) {}
     gRegEditor->regPage = 0;
     gRegEditor->regGroup = 0;

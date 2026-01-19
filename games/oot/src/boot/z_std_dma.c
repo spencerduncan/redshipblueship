@@ -12,7 +12,7 @@ const char* sDmaMgrCurFileName;
 s32 sDmaMgrCurFileLine;
 
 u32 D_80009460 = 0;
-u32 gDmaMgrDmaBuffSize = 0x2000;
+u32 OoT_gDmaMgrDmaBuffSize = 0x2000;
 u32 sDmaMgrIsRomCompressed = false;
 
 // dmadata filenames
@@ -45,12 +45,12 @@ s32 DmaMgr_CompareName(const char* name1, const char* name2) {
     return 0;
 }
 
-s32 DmaMgr_DmaRomToRam(uintptr_t rom, uintptr_t ram, size_t size) {
+s32 OoT_DmaMgr_DmaRomToRam(uintptr_t rom, uintptr_t ram, size_t size) {
     OSIoMesg ioMsg;
     OSMesgQueue queue;
     OSMesg msg;
     s32 ret;
-    u32 buffSize = gDmaMgrDmaBuffSize;
+    u32 buffSize = OoT_gDmaMgrDmaBuffSize;
     s32 pad[2];
 
     if (buffSize == 0) {
@@ -59,7 +59,7 @@ s32 DmaMgr_DmaRomToRam(uintptr_t rom, uintptr_t ram, size_t size) {
 
     osInvalICache((void*)ram, size);
     osInvalDCache((void*)ram, size);
-    osCreateMesgQueue(&queue, &msg, 1);
+    OoT_osCreateMesgQueue(&queue, &msg, 1);
 
     while (size > buffSize) {
 
@@ -70,22 +70,22 @@ s32 DmaMgr_DmaRomToRam(uintptr_t rom, uintptr_t ram, size_t size) {
         ioMsg.size = buffSize;
 
         if (D_80009460 == 10) {
-            osSyncPrintf("%10lld ノーマルＤＭＡ %08x %08x %08x (%d)\n", OS_CYCLES_TO_USEC(osGetTime()), ioMsg.dramAddr,
+            osSyncPrintf("%10lld ノーマルＤＭＡ %08x %08x %08x (%d)\n", OS_CYCLES_TO_USEC(OoT_osGetTime()), ioMsg.dramAddr,
                          ioMsg.devAddr, ioMsg.size, gPiMgrCmdQ.validCount);
         }
 
-        ret = osEPiStartDma(gCartHandle, &ioMsg, OS_READ);
+        ret = OoT_osEPiStartDma(OoT_gCartHandle, &ioMsg, OS_READ);
         if (ret) {
             goto end;
         }
 
         if (D_80009460 == 10) {
-            osSyncPrintf("%10lld ノーマルＤＭＡ START (%d)\n", OS_CYCLES_TO_USEC(osGetTime()), gPiMgrCmdQ.validCount);
+            osSyncPrintf("%10lld ノーマルＤＭＡ START (%d)\n", OS_CYCLES_TO_USEC(OoT_osGetTime()), gPiMgrCmdQ.validCount);
         }
 
-        osRecvMesg(&queue, NULL, OS_MESG_BLOCK);
+        OoT_osRecvMesg(&queue, NULL, OS_MESG_BLOCK);
         if (D_80009460 == 10) {
-            osSyncPrintf("%10lld ノーマルＤＭＡ END (%d)\n", OS_CYCLES_TO_USEC(osGetTime()), gPiMgrCmdQ.validCount);
+            osSyncPrintf("%10lld ノーマルＤＭＡ END (%d)\n", OS_CYCLES_TO_USEC(OoT_osGetTime()), gPiMgrCmdQ.validCount);
         }
 
         size -= buffSize;
@@ -100,18 +100,18 @@ s32 DmaMgr_DmaRomToRam(uintptr_t rom, uintptr_t ram, size_t size) {
     ioMsg.size = size;
 
     if (D_80009460 == 10) {
-        osSyncPrintf("%10lld ノーマルＤＭＡ %08x %08x %08x (%d)\n", OS_CYCLES_TO_USEC(osGetTime()), ioMsg.dramAddr,
+        osSyncPrintf("%10lld ノーマルＤＭＡ %08x %08x %08x (%d)\n", OS_CYCLES_TO_USEC(OoT_osGetTime()), ioMsg.dramAddr,
                      ioMsg.devAddr, ioMsg.size, gPiMgrCmdQ.validCount);
     }
 
-    ret = osEPiStartDma(gCartHandle, &ioMsg, OS_READ);
+    ret = OoT_osEPiStartDma(OoT_gCartHandle, &ioMsg, OS_READ);
     if (ret) {
         goto end;
     }
 
-    osRecvMesg(&queue, NULL, OS_MESG_BLOCK);
+    OoT_osRecvMesg(&queue, NULL, OS_MESG_BLOCK);
     if (D_80009460 == 10) {
-        osSyncPrintf("%10lld ノーマルＤＭＡ END (%d)\n", OS_CYCLES_TO_USEC(osGetTime()), gPiMgrCmdQ.validCount);
+        osSyncPrintf("%10lld ノーマルＤＭＡ END (%d)\n", OS_CYCLES_TO_USEC(OoT_osGetTime()), gPiMgrCmdQ.validCount);
     }
 
 end:
@@ -121,19 +121,19 @@ end:
     return ret;
 }
 
-s32 DmaMgr_DmaHandler(OSPiHandle* pihandle, OSIoMesg* mb, s32 direction) {
+s32 OoT_DmaMgr_DmaHandler(OSPiHandle* pihandle, OSIoMesg* mb, s32 direction) {
     s32 ret;
 
-    assert(pihandle == gCartHandle);
+    assert(pihandle == OoT_gCartHandle);
     assert(direction == OS_READ);
     assert(mb != NULL);
 
     if (D_80009460 == 10) {
-        osSyncPrintf("%10lld サウンドＤＭＡ %08x %08x %08x (%d)\n", OS_CYCLES_TO_USEC(osGetTime()), mb->dramAddr,
+        osSyncPrintf("%10lld サウンドＤＭＡ %08x %08x %08x (%d)\n", OS_CYCLES_TO_USEC(OoT_osGetTime()), mb->dramAddr,
                      mb->devAddr, mb->size, gPiMgrCmdQ.validCount);
     }
 
-    ret = osEPiStartDma(pihandle, mb, direction);
+    ret = OoT_osEPiStartDma(pihandle, mb, direction);
     if (ret) {
         osSyncPrintf("OOPS!!\n");
     }
@@ -141,14 +141,14 @@ s32 DmaMgr_DmaHandler(OSPiHandle* pihandle, OSIoMesg* mb, s32 direction) {
 }
 
 void DmaMgr_DmaFromDriveRom(uintptr_t ram, uintptr_t rom, size_t size) {
-    OSPiHandle* handle = osDriveRomInit();
+    OSPiHandle* handle = OoT_osDriveRomInit();
     OSMesgQueue queue;
     OSMesg msg;
     OSIoMesg ioMsg;
 
     osInvalICache((void*)ram, size);
     osInvalDCache((void*)ram, size);
-    osCreateMesgQueue(&queue, &msg, 1);
+    OoT_osCreateMesgQueue(&queue, &msg, 1);
 
     ioMsg.hdr.retQueue = &queue;
     ioMsg.hdr.pri = OS_MESG_PRI_NORMAL;
@@ -157,8 +157,8 @@ void DmaMgr_DmaFromDriveRom(uintptr_t ram, uintptr_t rom, size_t size) {
     ioMsg.size = size;
     handle->transferInfo.cmdType = 2;
 
-    osEPiStartDma(handle, &ioMsg, OS_READ);
-    osRecvMesg(&queue, NULL, OS_MESG_BLOCK);
+    OoT_osEPiStartDma(handle, &ioMsg, OS_READ);
+    OoT_osRecvMesg(&queue, NULL, OS_MESG_BLOCK);
     return;
 }
 
@@ -192,7 +192,7 @@ void DmaMgr_Error(DmaRequest* req, const char* file, const char* errorName, cons
     }
 
     snprintf(buff2, sizeof(buff1), "%07X %08X %X %s", vrom, ram, size, file != NULL ? file : "???");
-    Fault_AddHungupAndCrashImpl(buff1, buff2);
+    OoT_Fault_AddHungupAndCrashImpl(buff1, buff2);
 }
 
 const char* DmaMgr_GetFileNameImpl(uintptr_t vrom) {
@@ -225,7 +225,7 @@ const char* DmaMgr_GetFileName(uintptr_t vrom) {
     return ret;
 }
 
-void DmaMgr_ProcessMsg(DmaRequest* req) {
+void OoT_DmaMgr_ProcessMsg(DmaRequest* req) {
     uintptr_t vrom = req->vromAddr;
     void* ram = req->dramAddr;
     size_t size = req->size;
@@ -255,7 +255,7 @@ void DmaMgr_ProcessMsg(DmaRequest* req) {
                                  "セグメント境界をまたがってＤＭＡ転送することはできません");
                 }
 
-                DmaMgr_DmaRomToRam(iter->romStart + (vrom - iter->vromStart), ram, size);
+                OoT_DmaMgr_DmaRomToRam(iter->romStart + (vrom - iter->vromStart), ram, size);
                 found = true;
 
                 if (0) {
@@ -275,9 +275,9 @@ void DmaMgr_ProcessMsg(DmaRequest* req) {
                                  "圧縮されたセグメントの一部だけをＤＭＡ転送することはできません");
                 }
 
-                osSetThreadPri(NULL, Z_PRIORITY_MAIN);
-                Yaz0_Decompress(romStart, ram, romSize);
-                osSetThreadPri(NULL, Z_PRIORITY_DMAMGR);
+                OoT_osSetThreadPri(NULL, Z_PRIORITY_MAIN);
+                OoT_Yaz0_Decompress(romStart, ram, romSize);
+                OoT_osSetThreadPri(NULL, Z_PRIORITY_DMAMGR);
                 found = true;
 
                 if (0) {
@@ -295,7 +295,7 @@ void DmaMgr_ProcessMsg(DmaRequest* req) {
             return;
         }
 
-        DmaMgr_DmaRomToRam(vrom, (uintptr_t)ram, size);
+        OoT_DmaMgr_DmaRomToRam(vrom, (uintptr_t)ram, size);
 
         if (0) {
             osSyncPrintf("No Press ROM:%08X RAM:%08X SIZE:%08X (非公式)\n", vrom, ram, size);
@@ -303,13 +303,13 @@ void DmaMgr_ProcessMsg(DmaRequest* req) {
     }
 }
 
-void DmaMgr_ThreadEntry(void* arg0) {
+void OoT_DmaMgr_ThreadEntry(void* arg0) {
     OSMesg msg;
     DmaRequest* req;
 
     osSyncPrintf("ＤＭＡマネージャスレッド実行開始\n");
     while (true) {
-        osRecvMesg(&sDmaMgrMsgQueue, &msg, OS_MESG_BLOCK);
+        OoT_osRecvMesg(&sDmaMgrMsgQueue, &msg, OS_MESG_BLOCK);
         req = (DmaRequest*)msg.ptr;
         if (req == NULL) {
             break;
@@ -319,18 +319,18 @@ void DmaMgr_ThreadEntry(void* arg0) {
             osSyncPrintf("ＤＭＡ登録受付 dmap=%08x\n", req);
         }
 
-        DmaMgr_ProcessMsg(req);
+        OoT_DmaMgr_ProcessMsg(req);
         if (req->notifyQueue) {
-            osSendMesg(req->notifyQueue, req->notifyMsg, OS_MESG_NOBLOCK);
+            OoT_osSendMesg(req->notifyQueue, req->notifyMsg, OS_MESG_NOBLOCK);
             if (0) {
-                osSyncPrintf("osSendMesg: dmap=%08x, mq=%08x, m=%08x \n", req, req->notifyQueue, req->notifyMsg);
+                osSyncPrintf("OoT_osSendMesg: dmap=%08x, mq=%08x, m=%08x \n", req, req->notifyQueue, req->notifyMsg);
             }
         }
     }
     osSyncPrintf("ＤＭＡマネージャスレッド実行終了\n");
 }
 
-s32 DmaMgr_SendRequestImpl(DmaRequest* req, uintptr_t ram, uintptr_t vrom, size_t size, u32 unk, OSMesgQueue* queue,
+s32 OoT_DmaMgr_SendRequestImpl(DmaRequest* req, uintptr_t ram, uintptr_t vrom, size_t size, u32 unk, OSMesgQueue* queue,
                            OSMesg msg) {
     static s32 sDmaMgrQueueFullLogged = 0;
 
@@ -362,19 +362,19 @@ s32 DmaMgr_SendRequestImpl(DmaRequest* req, uintptr_t ram, uintptr_t vrom, size_
     return 0;
 }
 
-s32 DmaMgr_SendRequest0(uintptr_t ram, uintptr_t vrom, size_t size) {
+s32 OoT_DmaMgr_SendRequest0(uintptr_t ram, uintptr_t vrom, size_t size) {
     DmaRequest req;
     OSMesgQueue queue;
     OSMesg msg;
     s32 ret;
 
-    osCreateMesgQueue(&queue, &msg, 1);
-    ret = DmaMgr_SendRequestImpl(&req, ram, vrom, size, 0, &queue, OS_MESG_PTR(NULL));
+    OoT_osCreateMesgQueue(&queue, &msg, 1);
+    ret = OoT_DmaMgr_SendRequestImpl(&req, ram, vrom, size, 0, &queue, OS_MESG_PTR(NULL));
     if (ret == -1) {
         return ret;
     }
 
-    osRecvMesg(&queue, NULL, OS_MESG_BLOCK);
+    OoT_osRecvMesg(&queue, NULL, OS_MESG_BLOCK);
     return 0;
 }
 
@@ -383,7 +383,7 @@ void DmaMgr_Init(void) {
     s32 idx;
     DmaEntry* iter;
 
-    // DmaMgr_DmaRomToRam((uintptr_t)_dmadataSegmentRomStart, (uintptr_t)_dmadataSegmentStart,
+    // OoT_DmaMgr_DmaRomToRam((uintptr_t)_dmadataSegmentRomStart, (uintptr_t)_dmadataSegmentStart,
     //(uintptr_t)(_dmadataSegmentRomEnd - _dmadataSegmentRomStart));
     osSyncPrintf("dma_rom_ad[]\n");
 
@@ -415,14 +415,14 @@ void DmaMgr_Init(void) {
     {
         osSyncPrintf("_bootSegmentRomStart(%08x) != dma_rom_ad[0].rom_b(%08x)\n", _bootSegmentRomStart,
                      gDmaDataTable[0].vromEnd);
-        Fault_AddHungupAndCrash(__FILE__, __LINE__);
+        OoT_Fault_AddHungupAndCrash(__FILE__, __LINE__);
     }
 #endif
 
-    osCreateMesgQueue(&sDmaMgrMsgQueue, sDmaMgrMsgs, ARRAY_COUNT(sDmaMgrMsgs));
-    StackCheck_Init(&sDmaMgrStackInfo, sDmaMgrStack, sDmaMgrStack + sizeof(sDmaMgrStack), 0, 0x100, "dmamgr");
-    osCreateThread(&sDmaMgrThread, 0x12, DmaMgr_ThreadEntry, 0, sDmaMgrStack + sizeof(sDmaMgrStack), Z_PRIORITY_DMAMGR);
-    osStartThread(&sDmaMgrThread);
+    OoT_osCreateMesgQueue(&sDmaMgrMsgQueue, sDmaMgrMsgs, ARRAY_COUNT(sDmaMgrMsgs));
+    OoT_StackCheck_Init(&sDmaMgrStackInfo, sDmaMgrStack, sDmaMgrStack + sizeof(sDmaMgrStack), 0, 0x100, "dmamgr");
+    osCreateThread(&sDmaMgrThread, 0x12, OoT_DmaMgr_ThreadEntry, 0, sDmaMgrStack + sizeof(sDmaMgrStack), Z_PRIORITY_DMAMGR);
+    OoT_osStartThread(&sDmaMgrThread);
 }
 
 s32 DmaMgr_SendRequest2(DmaRequest* req, uintptr_t ram, uintptr_t vrom, size_t size, u32 unk5, OSMesgQueue* queue,
@@ -430,7 +430,7 @@ s32 DmaMgr_SendRequest2(DmaRequest* req, uintptr_t ram, uintptr_t vrom, size_t s
 #if 0
     req->filename = file;
     req->line = line;
-    DmaMgr_SendRequestImpl(req, ram, vrom, size, unk5, queue, msg);
+    OoT_DmaMgr_SendRequestImpl(req, ram, vrom, size, unk5, queue, msg);
 #endif
 }
 
@@ -447,13 +447,13 @@ s32 DmaMgr_SendRequest1(void* ram0, uintptr_t vrom, size_t size, const char* fil
 
     req.filename = file;
     req.line = line;
-    osCreateMesgQueue(&queue, &msg, 1);
-    ret = DmaMgr_SendRequestImpl(&req, ram, vrom, size, 0, &queue, 0);
+    OoT_osCreateMesgQueue(&queue, &msg, 1);
+    ret = OoT_DmaMgr_SendRequestImpl(&req, ram, vrom, size, 0, &queue, 0);
     if (ret == -1) {
         return ret;
     }
 
-    osRecvMesg(&queue, NULL, OS_MESG_BLOCK);
+    OoT_osRecvMesg(&queue, NULL, OS_MESG_BLOCK);
     return 0;
 #endif
 }

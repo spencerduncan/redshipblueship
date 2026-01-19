@@ -19,22 +19,22 @@
 #define rScale regs[9]
 #define rScaleStep regs[10]
 
-u32 EffectSsGSpk_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsGSpk_Update(PlayState* play, u32 index, EffectSs* this);
-void EffectSsGSpk_UpdateNoAccel(PlayState* play, u32 index, EffectSs* this);
-void EffectSsGSpk_Draw(PlayState* play, u32 index, EffectSs* this);
+u32 OoT_EffectSsGSpk_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void OoT_EffectSsGSpk_Update(PlayState* play, u32 index, EffectSs* this);
+void OoT_EffectSsGSpk_UpdateNoAccel(PlayState* play, u32 index, EffectSs* this);
+void OoT_EffectSsGSpk_Draw(PlayState* play, u32 index, EffectSs* this);
 
 EffectSsInit Effect_Ss_G_Spk_InitVars = {
     EFFECT_SS_G_SPK,
-    EffectSsGSpk_Init,
+    OoT_EffectSsGSpk_Init,
 };
 
-u32 EffectSsGSpk_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 OoT_EffectSsGSpk_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsGSpkInitParams* initParams = (EffectSsGSpkInitParams*)initParamsx;
 
-    Math_Vec3f_Copy(&this->pos, &initParams->pos);
-    Math_Vec3f_Copy(&this->velocity, &initParams->velocity);
-    Math_Vec3f_Copy(&this->accel, &initParams->accel);
+    OoT_Math_Vec3f_Copy(&this->pos, &initParams->pos);
+    OoT_Math_Vec3f_Copy(&this->velocity, &initParams->velocity);
+    OoT_Math_Vec3f_Copy(&this->accel, &initParams->accel);
     this->gfx = SEGMENTED_TO_VIRTUAL(gEffSparkDL);
 
     if (initParams->updateMode == 0) {
@@ -42,13 +42,13 @@ u32 EffectSsGSpk_Init(PlayState* play, u32 index, EffectSs* this, void* initPara
         this->vec.x = initParams->pos.x - initParams->actor->world.pos.x;
         this->vec.y = initParams->pos.y - initParams->actor->world.pos.y;
         this->vec.z = initParams->pos.z - initParams->actor->world.pos.z;
-        this->update = EffectSsGSpk_Update;
+        this->update = OoT_EffectSsGSpk_Update;
     } else {
         this->life = 5;
-        this->update = EffectSsGSpk_UpdateNoAccel;
+        this->update = OoT_EffectSsGSpk_UpdateNoAccel;
     }
 
-    this->draw = EffectSsGSpk_Draw;
+    this->draw = OoT_EffectSsGSpk_Draw;
     this->rPrimColorR = initParams->primColor.r;
     this->rPrimColorG = initParams->primColor.g;
     this->rPrimColorB = initParams->primColor.b;
@@ -65,7 +65,7 @@ u32 EffectSsGSpk_Init(PlayState* play, u32 index, EffectSs* this, void* initPara
     return 1;
 }
 
-void EffectSsGSpk_Draw(PlayState* play, u32 index, EffectSs* this) {
+void OoT_EffectSsGSpk_Draw(PlayState* play, u32 index, EffectSs* this) {
     static void* sparkTextures[] = {
         gEffSpark1Tex,
         gEffSpark2Tex,
@@ -84,12 +84,12 @@ void EffectSsGSpk_Draw(PlayState* play, u32 index, EffectSs* this) {
     OPEN_DISPS(gfxCtx);
 
     scale = this->rScale * 0.0025f;
-    SkinMatrix_SetTranslate(&mfTrans, this->pos.x, this->pos.y, this->pos.z);
-    SkinMatrix_SetScale(&mfScale, scale, scale, 1.0f);
-    SkinMatrix_MtxFMtxFMult(&mfTrans, &play->billboardMtxF, &mfTrans11DA0);
-    SkinMatrix_MtxFMtxFMult(&mfTrans11DA0, &mfScale, &mfResult);
+    OoT_SkinMatrix_SetTranslate(&mfTrans, this->pos.x, this->pos.y, this->pos.z);
+    OoT_SkinMatrix_SetScale(&mfScale, scale, scale, 1.0f);
+    OoT_SkinMatrix_MtxFMtxFMult(&mfTrans, &play->billboardMtxF, &mfTrans11DA0);
+    OoT_SkinMatrix_MtxFMtxFMult(&mfTrans11DA0, &mfScale, &mfResult);
 
-    mtx = SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
+    mtx = OoT_SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
 
     if (mtx != NULL) {
         gSPMatrix(POLY_XLU_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -103,10 +103,10 @@ void EffectSsGSpk_Draw(PlayState* play, u32 index, EffectSs* this) {
     CLOSE_DISPS(gfxCtx);
 }
 
-void EffectSsGSpk_Update(PlayState* play, u32 index, EffectSs* this) {
+void OoT_EffectSsGSpk_Update(PlayState* play, u32 index, EffectSs* this) {
 
-    this->accel.x = (Rand_ZeroOne() - 0.5f) * 3.0f;
-    this->accel.z = (Rand_ZeroOne() - 0.5f) * 3.0f;
+    this->accel.x = (OoT_Rand_ZeroOne() - 0.5f) * 3.0f;
+    this->accel.z = (OoT_Rand_ZeroOne() - 0.5f) * 3.0f;
 
     if (this->actor != NULL) {
         if ((this->actor->category == ACTORCAT_EXPLOSIVE) && (this->actor->update != NULL)) {
@@ -126,11 +126,11 @@ void EffectSsGSpk_Update(PlayState* play, u32 index, EffectSs* this) {
 
 // this update mode is unused in the original game
 // with this update mode, the sparks dont move randomly in the xz plane, appearing to be on top of each other
-void EffectSsGSpk_UpdateNoAccel(PlayState* play, u32 index, EffectSs* this) {
+void OoT_EffectSsGSpk_UpdateNoAccel(PlayState* play, u32 index, EffectSs* this) {
     if (this->actor != NULL) {
         if ((this->actor->category == ACTORCAT_EXPLOSIVE) && (this->actor->update != NULL)) {
-            this->pos.x += (Math_SinS(this->actor->world.rot.y) * this->actor->speedXZ);
-            this->pos.z += (Math_CosS(this->actor->world.rot.y) * this->actor->speedXZ);
+            this->pos.x += (OoT_Math_SinS(this->actor->world.rot.y) * this->actor->speedXZ);
+            this->pos.z += (OoT_Math_CosS(this->actor->world.rot.y) * this->actor->speedXZ);
         }
     }
 

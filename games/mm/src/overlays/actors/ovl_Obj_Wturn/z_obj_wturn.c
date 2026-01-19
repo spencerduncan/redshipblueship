@@ -27,7 +27,7 @@ ActorProfile Obj_Wturn_Profile = {
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(ObjWturn),
     /**/ ObjWturn_Init,
-    /**/ Actor_Noop,
+    /**/ MM_Actor_Noop,
     /**/ ObjWturn_Update,
     /**/ NULL,
 };
@@ -45,13 +45,13 @@ void func_808A7954(ObjWturn* this) {
 void func_808A7968(ObjWturn* this, PlayState* play) {
     if ((play->msgCtx.ocarinaMode >= OCARINA_MODE_WARP_TO_GREAT_BAY_COAST) &&
         (play->msgCtx.ocarinaMode <= OCARINA_MODE_WARP_TO_ENTRANCE)) {
-        Flags_UnsetSwitch(play, OBJWTURN_GET_SWITCH_FLAG(&this->actor));
-        Actor_Kill(&this->actor);
+        MM_Flags_UnsetSwitch(play, OBJWTURN_GET_SWITCH_FLAG(&this->actor));
+        MM_Actor_Kill(&this->actor);
         return;
     }
 
-    if ((Flags_GetSwitch(play, OBJWTURN_GET_SWITCH_FLAG(&this->actor)) && (play->sceneId == SCENE_F40)) ||
-        (!Flags_GetSwitch(play, OBJWTURN_GET_SWITCH_FLAG(&this->actor)) && (play->sceneId == SCENE_F41))) {
+    if ((MM_Flags_GetSwitch(play, OBJWTURN_GET_SWITCH_FLAG(&this->actor)) && (play->sceneId == SCENE_F40)) ||
+        (!MM_Flags_GetSwitch(play, OBJWTURN_GET_SWITCH_FLAG(&this->actor)) && (play->sceneId == SCENE_F41))) {
         func_808A7A24(this);
     }
 }
@@ -77,23 +77,23 @@ void func_808A7AAC(ObjWturn* this, PlayState* play) {
     CutsceneManager_StartWithPlayerCs(this->actor.csId, &this->actor);
     Play_EnableMotionBlur(140);
     this->subCamId = CutsceneManager_GetCurrentSubCamId(this->actor.csId);
-    Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_21);
+    MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_21);
     subCamAt.x = player->actor.focus.pos.x;
     subCamAt.z = player->actor.focus.pos.z;
     subCamAt.y = player->actor.focus.pos.y;
-    subCamEye.x = (Math_SinS(this->actor.shape.rot.y) * 150.0f) + subCamAt.x;
-    subCamEye.z = (Math_CosS(this->actor.shape.rot.y) * 150.0f) + subCamAt.z;
+    subCamEye.x = (MM_Math_SinS(this->actor.shape.rot.y) * 150.0f) + subCamAt.x;
+    subCamEye.z = (MM_Math_CosS(this->actor.shape.rot.y) * 150.0f) + subCamAt.z;
     subCamEye.y = subCamAt.y + 4.0f;
     Play_SetCameraAtEye(play, this->subCamId, &subCamAt, &subCamEye);
     this->actionFunc = func_808A7BA0;
 }
 
 void func_808A7BA0(ObjWturn* this, PlayState* play) {
-    if (Math_ScaledStepToS(&this->actor.shape.rot.z, -0x8000, 0x200)) {
+    if (MM_Math_ScaledStepToS(&this->actor.shape.rot.z, -0x8000, 0x200)) {
         func_808A7C04(this, play);
     }
     Actor_PlaySfx_FlaggedCentered2(&this->actor, NA_SE_EV_EARTHQUAKE - SFX_FLAG);
-    Play_SetCameraRoll(play, this->subCamId, this->actor.shape.rot.z);
+    MM_Play_SetCameraRoll(play, this->subCamId, this->actor.shape.rot.z);
 }
 
 void func_808A7C04(ObjWturn* this, PlayState* play) {
@@ -101,8 +101,8 @@ void func_808A7C04(ObjWturn* this, PlayState* play) {
 
     this->actor.world.pos.y += this->actor.playerHeightRel;
     player->actor.shape.shadowAlpha = 0;
-    Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_84);
-    Player_PlaySfx(player, NA_SE_VO_NAVY_ENEMY);
+    MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_84);
+    MM_Player_PlaySfx(player, NA_SE_VO_NAVY_ENEMY);
     this->unk_14A = 0;
     Play_DisableMotionBlur();
     this->actionFunc = func_808A7C78;
@@ -110,7 +110,7 @@ void func_808A7C04(ObjWturn* this, PlayState* play) {
 
 void func_808A7C78(ObjWturn* this, PlayState* play) {
     static Vec3f sSubCamUp = { 0.0f, -1.0f, 0.0f };
-    Camera* subCam = Play_GetCamera(play, this->subCamId);
+    Camera* subCam = MM_Play_GetCamera(play, this->subCamId);
     Player* player = GET_PLAYER(play);
 
     this->unk_14A++;

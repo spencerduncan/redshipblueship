@@ -57,7 +57,7 @@ TexturePtr sEyesDownTextures[] = {
     gTreasureChestShopGalEyeHalfDownTex,
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_U8(attentionRangeType, ATTENTION_RANGE_6, ICHAIN_CONTINUE),
     ICHAIN_F32(lockOnArrowOffset, 1000, ICHAIN_STOP),
 };
@@ -100,9 +100,9 @@ void EnTakaraya_Init(Actor* thisx, PlayState* play) {
     EnTakaraya* this = (EnTakaraya*)thisx;
     s32 i;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
-    ActorShape_Init(&this->actor.shape, -60.0f, NULL, 0.0f);
-    SkelAnime_InitFlex(play, &this->skelAnime, &gTreasureChestShopGalSkel, &object_bg_Anim_009890, this->jointTable,
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
+    MM_ActorShape_Init(&this->actor.shape, -60.0f, NULL, 0.0f);
+    MM_SkelAnime_InitFlex(play, &this->skelAnime, &gTreasureChestShopGalSkel, &object_bg_Anim_009890, this->jointTable,
                        this->morphTable, TREASURE_CHEST_SHOP_GAL_LIMB_MAX);
     this->switchFlag = EN_TAKARAYA_GET_SWITCH_FLAG(thisx);
     thisx->params &= 0xFF;
@@ -140,7 +140,7 @@ void EnTakaraya_Init(Actor* thisx, PlayState* play) {
 void EnTakaraya_Destroy(Actor* thisx, PlayState* play) {
     EnTakaraya* this = (EnTakaraya*)thisx;
 
-    Flags_UnsetSwitch(play, 5);
+    MM_Flags_UnsetSwitch(play, 5);
     if (!this->unk2AD) {
         CLEAR_WEEKEVENTREG(WEEKEVENTREG_KICKOUT_WAIT);
         gSaveContext.timerStates[TIMER_ID_MINIGAME_2] = TIMER_STATE_STOP;
@@ -153,33 +153,33 @@ void EnTakaraya_Blink(EnTakaraya* this) {
         if (this->eyeTexIndex == 4) {
             this->eyeTexIndex = 0;
         }
-    } else if (Rand_ZeroOne() < 0.02f) {
+    } else if (MM_Rand_ZeroOne() < 0.02f) {
         this->eyeTexIndex++;
     }
 }
 
 void EnTakaraya_SetupWait(EnTakaraya* this) {
     if (this->skelAnime.animation == &object_bg_Anim_001384) {
-        Animation_MorphToPlayOnce(&this->skelAnime, &object_bg_Anim_00AD98, 5.0f);
+        MM_Animation_MorphToPlayOnce(&this->skelAnime, &object_bg_Anim_00AD98, 5.0f);
     }
     this->actionFunc = EnTakaraya_Wait;
 }
 
 void EnTakaraya_Wait(EnTakaraya* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (MM_SkelAnime_Update(&this->skelAnime)) {
         if (this->skelAnime.animation == &object_bg_Anim_00A280) {
-            Animation_MorphToPlayOnce(&this->skelAnime, &object_bg_Anim_00AD98, 5.0f);
+            MM_Animation_MorphToPlayOnce(&this->skelAnime, &object_bg_Anim_00AD98, 5.0f);
         } else {
-            Animation_MorphToLoop(&this->skelAnime, &object_bg_Anim_009890, -4.0f);
+            MM_Animation_MorphToLoop(&this->skelAnime, &object_bg_Anim_009890, -4.0f);
         }
     }
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
-        if (Text_GetFaceReaction(play, FACE_REACTION_SET_TREASURE_CHEST_SHOP_GAL) == 0) {
-            Animation_MorphToPlayOnce(&this->skelAnime, &object_bg_Anim_00A280, -4.0f);
+        if (MM_Text_GetFaceReaction(play, FACE_REACTION_SET_TREASURE_CHEST_SHOP_GAL) == 0) {
+            MM_Animation_MorphToPlayOnce(&this->skelAnime, &object_bg_Anim_00A280, -4.0f);
         }
         EnTakaraya_SetupTalk(this);
-    } else if (Actor_IsFacingPlayer(&this->actor, 0x2000)) {
-        this->actor.textId = Text_GetFaceReaction(play, FACE_REACTION_SET_TREASURE_CHEST_SHOP_GAL);
+    } else if (MM_Actor_IsFacingPlayer(&this->actor, 0x2000)) {
+        this->actor.textId = MM_Text_GetFaceReaction(play, FACE_REACTION_SET_TREASURE_CHEST_SHOP_GAL);
         if (this->actor.textId == 0) {
             this->actor.textId = D_80ADFB2C[GET_PLAYER_FORM];
         }
@@ -191,7 +191,7 @@ void EnTakaraya_Wait(EnTakaraya* this, PlayState* play) {
 void EnTakaraya_SpawnWalls(EnTakaraya* this, PlayState* play) {
     u8 getItemId;
 
-    if (Flags_GetSwitch(play, this->formSwitchFlag)) {
+    if (MM_Flags_GetSwitch(play, this->formSwitchFlag)) {
         getItemId = D_80ADFB38[GET_PLAYER_FORM][1];
     } else {
         getItemId = D_80ADFB38[GET_PLAYER_FORM][0];
@@ -208,17 +208,17 @@ void EnTakaraya_SetupTalk(EnTakaraya* this) {
 void EnTakaraya_Talk(EnTakaraya* this, PlayState* play) {
     u8 talkState;
 
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (MM_SkelAnime_Update(&this->skelAnime)) {
         if (this->skelAnime.animation == &object_bg_Anim_00AD98) {
-            Animation_PlayOnce(&this->skelAnime, &object_bg_Anim_000968);
+            MM_Animation_PlayOnce(&this->skelAnime, &object_bg_Anim_000968);
         } else if (this->skelAnime.animation == &object_bg_Anim_00A280) {
-            Animation_PlayLoop(&this->skelAnime, &object_bg_Anim_001384);
+            MM_Animation_PlayLoop(&this->skelAnime, &object_bg_Anim_001384);
         } else {
-            Animation_PlayLoop(&this->skelAnime, &object_bg_Anim_009890);
+            MM_Animation_PlayLoop(&this->skelAnime, &object_bg_Anim_009890);
         }
     }
 
-    talkState = Message_GetState(&play->msgCtx);
+    talkState = MM_Message_GetState(&play->msgCtx);
 
     if ((talkState == TEXT_STATE_CLOSING) || (talkState == TEXT_STATE_DONE)) {
         if (this->actor.textId == 0x778) {
@@ -229,34 +229,34 @@ void EnTakaraya_Talk(EnTakaraya* this, PlayState* play) {
             EnTakaraya_SetupWait(this);
         }
     } else if ((talkState == TEXT_STATE_NEXT) && (this->actor.textId != 0x778)) {
-        if (Message_ShouldAdvance(play)) {
-            Animation_MorphToPlayOnce(&this->skelAnime, &object_bg_Anim_00AD98, 5.0f);
+        if (MM_Message_ShouldAdvance(play)) {
+            MM_Animation_MorphToPlayOnce(&this->skelAnime, &object_bg_Anim_00AD98, 5.0f);
         }
-    } else if ((talkState == TEXT_STATE_CHOICE) && Message_ShouldAdvance(play)) {
+    } else if ((talkState == TEXT_STATE_CHOICE) && MM_Message_ShouldAdvance(play)) {
         if (play->msgCtx.choiceIndex == 0) {
             if (gSaveContext.save.saveInfo.playerData.rupees < play->msgCtx.unk1206C) {
                 this->actor.textId = 0x77B;
                 if (this->skelAnime.animation == &object_bg_Anim_009890) {
-                    Animation_MorphToPlayOnce(&this->skelAnime, &object_bg_Anim_000968, 5.0f);
+                    MM_Animation_MorphToPlayOnce(&this->skelAnime, &object_bg_Anim_000968, 5.0f);
                 }
                 Audio_PlaySfx(NA_SE_SY_ERROR);
             } else {
                 Audio_PlaySfx_MessageDecide();
-                Rupees_ChangeBy(-play->msgCtx.unk1206C);
+                MM_Rupees_ChangeBy(-play->msgCtx.unk1206C);
                 EnTakaraya_SpawnWalls(this, play);
                 this->actor.textId = 0x778;
                 if (this->skelAnime.animation != &object_bg_Anim_009890) {
-                    Animation_MorphToLoop(&this->skelAnime, &object_bg_Anim_009890, 5.0f);
+                    MM_Animation_MorphToLoop(&this->skelAnime, &object_bg_Anim_009890, 5.0f);
                 }
             }
         } else {
             Audio_PlaySfx_MessageCancel();
             this->actor.textId = D_80ADFB44[GET_PLAYER_FORM];
             if (this->skelAnime.animation == &object_bg_Anim_009890) {
-                Animation_MorphToPlayOnce(&this->skelAnime, &object_bg_Anim_000968, 5.0f);
+                MM_Animation_MorphToPlayOnce(&this->skelAnime, &object_bg_Anim_000968, 5.0f);
             }
         }
-        Message_ContinueTextbox(play, this->actor.textId);
+        MM_Message_ContinueTextbox(play, this->actor.textId);
     }
 }
 
@@ -277,7 +277,7 @@ void func_80ADF338(EnTakaraya* this, PlayState* play) {
     f32 sp2C;
     s16 subCamId;
 
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     if ((CutsceneManager_GetCurrentCsId() == this->actor.csId) && (chest != NULL)) {
         this->timer--;
         subCamId = CutsceneManager_GetCurrentSubCamId(this->actor.csId);
@@ -286,12 +286,12 @@ void func_80ADF338(EnTakaraya* this, PlayState* play) {
         } else {
             sp2C = ((chest->xzDistToPlayer - 250.0f) * (25 - this->timer) * 0.04f) + 250.0f;
         }
-        subCamEye.x = chest->world.pos.x + (Math_SinS(chest->yawTowardsPlayer) * sp2C);
+        subCamEye.x = chest->world.pos.x + (MM_Math_SinS(chest->yawTowardsPlayer) * sp2C);
         subCamEye.y = player->actor.world.pos.y + 120.0f;
-        subCamEye.z = chest->world.pos.z + (Math_CosS(chest->yawTowardsPlayer) * sp2C);
-        subCamAt.x = subCamEye.x - (Math_SinS(chest->yawTowardsPlayer) * 250.0f);
+        subCamEye.z = chest->world.pos.z + (MM_Math_CosS(chest->yawTowardsPlayer) * sp2C);
+        subCamAt.x = subCamEye.x - (MM_Math_SinS(chest->yawTowardsPlayer) * 250.0f);
         subCamAt.y = subCamEye.y - 90.0f;
-        subCamAt.z = subCamEye.z - (Math_CosS(chest->yawTowardsPlayer) * 250.0f);
+        subCamAt.z = subCamEye.z - (MM_Math_CosS(chest->yawTowardsPlayer) * 250.0f);
         Play_SetCameraAtEye(play, subCamId, &subCamAt, &subCamEye);
     } else if (this->timer < 145) {
         func_80ADF4E0(this);
@@ -305,17 +305,17 @@ void func_80ADF4E0(EnTakaraya* this) {
 }
 
 void func_80ADF520(EnTakaraya* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
-    if (!Play_InCsMode(play)) {
-        if (Flags_GetTreasure(play, this->actor.params)) {
-            Flags_SetSwitch(play, this->formSwitchFlag);
+    MM_SkelAnime_Update(&this->skelAnime);
+    if (!MM_Play_InCsMode(play)) {
+        if (MM_Flags_GetTreasure(play, this->actor.params)) {
+            MM_Flags_SetSwitch(play, this->formSwitchFlag);
             play->actorCtx.sceneFlags.chest &= ~TAKARAYA_GET_TREASURE_FLAG(&this->actor);
             this->timer = 0;
             gSaveContext.timerStates[TIMER_ID_MINIGAME_2] = TIMER_STATE_6;
             func_80ADF608(this, play);
         } else if (gSaveContext.timerCurTimes[TIMER_ID_MINIGAME_2] == TIMER_STATE_OFF) {
             this->timer = 50;
-            Message_StartTextbox(play, 0x77D, &this->actor);
+            MM_Message_StartTextbox(play, 0x77D, &this->actor);
             gSaveContext.timerStates[TIMER_ID_MINIGAME_2] = TIMER_STATE_STOP;
             func_80ADF608(this, play);
         }
@@ -323,7 +323,7 @@ void func_80ADF520(EnTakaraya* this, PlayState* play) {
 }
 
 void func_80ADF608(EnTakaraya* this, PlayState* play) {
-    Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
+    MM_Player_SetCsActionWithHaltedActors(play, &this->actor, PLAYER_CSACTION_WAIT);
     this->unk2AD = true;
     this->actionFunc = func_80ADF654;
 }
@@ -346,14 +346,14 @@ void func_80ADF654(EnTakaraya* this, PlayState* play) {
 }
 
 void func_80ADF6DC(EnTakaraya* this) {
-    Animation_PlayLoop(&this->skelAnime, &object_bg_Anim_001384);
+    MM_Animation_PlayLoop(&this->skelAnime, &object_bg_Anim_001384);
     this->eyeTexIndex = 0;
     this->actor.flags |= ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
     this->actionFunc = func_80ADF730;
 }
 
 void func_80ADF730(EnTakaraya* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
         this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
         func_80ADF7B8(this);
@@ -368,23 +368,23 @@ void func_80ADF7B8(EnTakaraya* this) {
 }
 
 void func_80ADF7CC(EnTakaraya* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    MM_SkelAnime_Update(&this->skelAnime);
 
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && MM_Message_ShouldAdvance(play)) {
         if (this->actor.textId == 0x77A) {
             if (CHECK_WEEKEVENTREG(WEEKEVENTREG_KICKOUT_TIME_PASSED)) {
-                Message_CloseTextbox(play);
+                MM_Message_CloseTextbox(play);
                 CLEAR_WEEKEVENTREG(WEEKEVENTREG_KICKOUT_WAIT);
                 CLEAR_WEEKEVENTREG(WEEKEVENTREG_KICKOUT_TIME_PASSED);
                 EnTakaraya_SetupWait(this);
             } else {
                 this->actor.textId = 0x77C;
-                Message_ContinueTextbox(play, this->actor.textId);
+                MM_Message_ContinueTextbox(play, this->actor.textId);
             }
         } else {
             this->actor.textId = D_80ADFB50[GET_PLAYER_FORM];
-            Message_ContinueTextbox(play, this->actor.textId);
-            Animation_MorphToPlayOnce(&this->skelAnime, &object_bg_Anim_00AD98, 5.0f);
+            MM_Message_ContinueTextbox(play, this->actor.textId);
+            MM_Animation_MorphToPlayOnce(&this->skelAnime, &object_bg_Anim_00AD98, 5.0f);
             EnTakaraya_SetupTalk(this);
         }
     }

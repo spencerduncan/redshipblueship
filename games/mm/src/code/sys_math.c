@@ -1,11 +1,11 @@
 /**
- * Maths library: two factorials, integer power, wrappers for libultra's sins and coss (the main ones used), and some
+ * Maths library: two factorials, integer power, wrappers for libultra's MM_sins and MM_coss (the main ones used), and some
  * random functions moved from OoT's z_actor
  */
 
 #include "global.h"
 
-static f32 sFactorialTbl[] = {
+static f32 MM_sFactorialTbl[] = {
     1.0f, 1.0f, 2.0f, 6.0f, 24.0f, 120.0f, 720.0f, 5040.0f, 40320.0f, 362880.0f, 3628800.0f, 39916800.0f, 479001600.0f,
 };
 
@@ -15,7 +15,7 @@ static f32 sFactorialTbl[] = {
  *
  * @remark original name: "ffact"
  */
-f32 Math_FactorialF(f32 n) {
+f32 MM_Math_FactorialF(f32 n) {
     f32 ret = 1.0f;
     s32 i;
 
@@ -32,19 +32,19 @@ f32 Math_FactorialF(f32 n) {
  *
  * @remark original name: "ifact"
  */
-f32 Math_Factorial(s32 n) {
+f32 MM_Math_Factorial(s32 n) {
     f32 ret;
     s32 i;
 
     //! @bug No check for negative argument. Will read the array out-of-bounds if the argument is negative.
-    //! (The OoT version does an unsigned check instead, which will return sFactorialTbl[12] for a negative argument.)
-    if (n >= ARRAY_COUNT(sFactorialTbl)) {
-        ret = sFactorialTbl[12];
+    //! (The OoT version does an unsigned check instead, which will return MM_sFactorialTbl[12] for a negative argument.)
+    if (n >= ARRAY_COUNT(MM_sFactorialTbl)) {
+        ret = MM_sFactorialTbl[12];
         for (i = 13; i <= n; i++) {
             ret *= i;
         }
     } else {
-        ret = sFactorialTbl[n];
+        ret = MM_sFactorialTbl[n];
     }
     return ret;
 }
@@ -55,7 +55,7 @@ f32 Math_Factorial(s32 n) {
  *
  * @remark original name: "powi"
  */
-f32 Math_PowF(f32 base, s32 exp) {
+f32 MM_Math_PowF(f32 base, s32 exp) {
     f32 ret = 1.0f;
 
     while (exp > 0) {
@@ -71,8 +71,8 @@ f32 Math_PowF(f32 base, s32 exp) {
  *
  * @remark original name: "sinf_table"
  */
-f32 Math_SinF(f32 rad) {
-    return sins(RAD_TO_BINANG(rad)) * SHT_MINV;
+f32 MM_Math_SinF(f32 rad) {
+    return MM_sins(RAD_TO_BINANG(rad)) * SHT_MINV;
 }
 
 /**
@@ -80,20 +80,20 @@ f32 Math_SinF(f32 rad) {
  *
  * @remark original name: "cosf_table"
  */
-f32 Math_CosF(f32 rad) {
-    return coss(RAD_TO_BINANG(rad)) * SHT_MINV;
+f32 MM_Math_CosF(f32 rad) {
+    return MM_coss(RAD_TO_BINANG(rad)) * SHT_MINV;
 }
 
 /**
  * Returns a pseudo-random floating-point number between 0.0f and scale. Originally in z_actor in OoT.
  */
-f32 Rand_ZeroFloat(f32 scale) {
-    return Rand_ZeroOne() * scale;
+f32 MM_Rand_ZeroFloat(f32 scale) {
+    return MM_Rand_ZeroOne() * scale;
 }
 
 /**
  * Returns a pseudo-random floating-point number between (- scale / 2) and (scale / 2). Originally in z_actor in OoT.
  */
-f32 Rand_CenteredFloat(f32 scale) {
-    return Rand_Centered() * scale;
+f32 MM_Rand_CenteredFloat(f32 scale) {
+    return MM_Rand_Centered() * scale;
 }

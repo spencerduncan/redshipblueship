@@ -10,10 +10,10 @@
     (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED | \
      ACTOR_FLAG_UPDATE_DURING_SOARING_AND_SOT_CS)
 
-void EnViewer_Init(Actor* thisx, PlayState* play);
-void EnViewer_Destroy(Actor* thisx, PlayState* play);
-void EnViewer_Update(Actor* thisx, PlayState* play2);
-void EnViewer_Draw(Actor* thisx, PlayState* play);
+void MM_EnViewer_Init(Actor* thisx, PlayState* play);
+void MM_EnViewer_Destroy(Actor* thisx, PlayState* play);
+void MM_EnViewer_Update(Actor* thisx, PlayState* play2);
+void MM_EnViewer_Draw(Actor* thisx, PlayState* play);
 
 void func_8089F17C(EnViewer* this, PlayState* play);
 void func_8089F218(EnViewer* this, PlayState* play);
@@ -29,19 +29,19 @@ ActorProfile En_Viewer_Profile = {
     /**/ FLAGS,
     /**/ GAMEPLAY_KEEP,
     /**/ sizeof(EnViewer),
-    /**/ EnViewer_Init,
-    /**/ EnViewer_Destroy,
-    /**/ EnViewer_Update,
-    /**/ EnViewer_Draw,
+    /**/ MM_EnViewer_Init,
+    /**/ MM_EnViewer_Destroy,
+    /**/ MM_EnViewer_Update,
+    /**/ MM_EnViewer_Draw,
 };
 
 u32 D_8089F4D0;
 
-void EnViewer_SetupAction(EnViewer* this, EnViewerActionFunc actionFunc) {
+void MM_EnViewer_SetupAction(EnViewer* this, EnViewerActionFunc actionFunc) {
     this->actionFunc = actionFunc;
 }
 
-void EnViewer_Init(Actor* thisx, PlayState* play) {
+void MM_EnViewer_Init(Actor* thisx, PlayState* play) {
     EnViewer* this = (EnViewer*)thisx;
 
     this->unk_154 = D_8089F3E0;
@@ -50,20 +50,20 @@ void EnViewer_Init(Actor* thisx, PlayState* play) {
         case ENVIEWER_PARAM_0:
             this->unk_148 = ENVIEWER_GET_8000(&this->actor) * 40.0f;
             this->unk_150 = (u8)ENVIEWER_GET_1FC(&this->actor) * 40.0f;
-            EnViewer_SetupAction(this, func_8089F17C);
+            MM_EnViewer_SetupAction(this, func_8089F17C);
             break;
 
         case ENVIEWER_PARAM_1:
             this->unk_148 = (u16)ENVIEWER_GET_FE00(&this->actor) * 40.0f;
             this->unk_150 = (u8)ENVIEWER_GET_1FC(&this->actor) * 40.0f;
             this->unk_14C = (u16)(this->actor.world.rot.y) * 40.0f;
-            EnViewer_SetupAction(this, func_8089F218);
+            MM_EnViewer_SetupAction(this, func_8089F218);
             break;
 
         case ENVIEWER_PARAM_2:
             this->unk_148 = (u16)ENVIEWER_GET_FE00(&this->actor) * 40.0f;
             this->unk_14C = (u8)ENVIEWER_GET_1FC(&this->actor) * 40.0f;
-            EnViewer_SetupAction(this, func_8089F2C4);
+            MM_EnViewer_SetupAction(this, func_8089F2C4);
             break;
 
         default:
@@ -71,7 +71,7 @@ void EnViewer_Init(Actor* thisx, PlayState* play) {
     }
 }
 
-void EnViewer_Destroy(Actor* thisx, PlayState* play) {
+void MM_EnViewer_Destroy(Actor* thisx, PlayState* play) {
     D_8089F3E0--;
 }
 
@@ -98,7 +98,7 @@ void func_8089F0A0(EnViewer* this, PlayState* play) {
         play->envCtx.lightBlendOverride = LIGHT_BLEND_OVERRIDE_NONE;
         play->envCtx.lightBlend = 1.0f;
         Environment_ChangeLightSetting(
-            play, SurfaceType_GetLightSettingIndex(&play->colCtx, player->actor.floorPoly, player->actor.floorBgId));
+            play, MM_SurfaceType_GetLightSettingIndex(&play->colCtx, player->actor.floorPoly, player->actor.floorBgId));
         play->envCtx.lightBlend = 1.0f;
         play->envCtx.prevLightSetting = play->envCtx.lightSetting;
     }
@@ -137,7 +137,7 @@ void func_8089F2C4(EnViewer* this, PlayState* play) {
     Vec3f sp20;
     f32 temp;
 
-    Actor_WorldToActorCoords(&this->actor, &sp20, &player->actor.world.pos);
+    MM_Actor_WorldToActorCoords(&this->actor, &sp20, &player->actor.world.pos);
 
     if (this->unk_14C == 0.0f) {
         this->unk_14C = 0.1f;
@@ -151,7 +151,7 @@ void func_8089F2C4(EnViewer* this, PlayState* play) {
     }
 }
 
-void EnViewer_Update(Actor* thisx, PlayState* play2) {
+void MM_EnViewer_Update(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     EnViewer* this = (EnViewer*)thisx;
 
@@ -163,5 +163,5 @@ void EnViewer_Update(Actor* thisx, PlayState* play2) {
     this->actionFunc(this, play);
 }
 
-void EnViewer_Draw(Actor* thisx, PlayState* play) {
+void MM_EnViewer_Draw(Actor* thisx, PlayState* play) {
 }

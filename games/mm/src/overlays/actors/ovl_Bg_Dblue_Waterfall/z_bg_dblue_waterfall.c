@@ -35,7 +35,7 @@ ActorProfile Bg_Dblue_Waterfall_Profile = {
     /**/ BgDblueWaterfall_Draw,
 };
 
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -59,14 +59,14 @@ Color_RGBA8 D_80B8539C = { 200, 255, 255, 255 };
 Color_RGBA8 D_80B853A0 = { 200, 200, 200, 0 };
 
 s32 func_80B83C80(Vec3f* arg0, Vec3f* arg1) {
-    f32 temp_f0 = Math3D_Vec3fMagnitudeSq(arg0);
+    f32 temp_f0 = MM_Math3D_Vec3fMagnitudeSq(arg0);
     f32 temp_f2;
 
     if (temp_f0 < 0.0000010000001f) {
         return false;
     }
 
-    temp_f2 = 1.0f / sqrtf(temp_f0);
+    temp_f2 = 1.0f / MM_sqrtf(temp_f0);
     arg1->x = arg0->x * temp_f2;
     arg1->y = arg0->y * temp_f2;
     arg1->z = arg0->z * temp_f2;
@@ -78,7 +78,7 @@ s32 func_80B83D04(BgDblueWaterfall* this, PlayState* play) {
     s32 phi_v1;
     s32 sp18 = BGDBLUEWATERFALL_GET_100(&this->actor);
 
-    if (Flags_GetSwitch(play, BGDBLUEWATERFALL_GET_SWITCH_FLAG(&this->actor))) {
+    if (MM_Flags_GetSwitch(play, BGDBLUEWATERFALL_GET_SWITCH_FLAG(&this->actor))) {
         phi_v1 = true;
     } else {
         phi_v1 = false;
@@ -89,7 +89,7 @@ s32 func_80B83D04(BgDblueWaterfall* this, PlayState* play) {
 s32 func_80B83D58(Actor* thisx, PlayState* play) {
     BgDblueWaterfall* this = (BgDblueWaterfall*)thisx;
 
-    if (Flags_GetSwitch(play, BGDBLUEWATERFALL_GET_SWITCH_FLAG(&this->actor))) {
+    if (MM_Flags_GetSwitch(play, BGDBLUEWATERFALL_GET_SWITCH_FLAG(&this->actor))) {
         return false;
     }
     return true;
@@ -101,7 +101,7 @@ void func_80B83D94(BgDblueWaterfall* this, PlayState* play) {
     s32 sp1C = BGDBLUEWATERFALL_GET_100(&this->actor);
     s32 phi_v0;
 
-    if (Flags_GetSwitch(play, switchFlag)) {
+    if (MM_Flags_GetSwitch(play, switchFlag)) {
         phi_v0 = true;
     } else {
         phi_v0 = false;
@@ -109,9 +109,9 @@ void func_80B83D94(BgDblueWaterfall* this, PlayState* play) {
 
     if (phi_v0 != sp1C) {
         if (phi_v0) {
-            Flags_UnsetSwitch(play, switchFlag);
+            MM_Flags_UnsetSwitch(play, switchFlag);
         } else {
-            Flags_SetSwitch(play, switchFlag);
+            MM_Flags_SetSwitch(play, switchFlag);
         }
     }
 }
@@ -122,7 +122,7 @@ void func_80B83E1C(BgDblueWaterfall* this, PlayState* play) {
     s32 sp1C = BGDBLUEWATERFALL_GET_100(&this->actor);
     s32 phi_v0;
 
-    if (Flags_GetSwitch(play, switchFlag)) {
+    if (MM_Flags_GetSwitch(play, switchFlag)) {
         phi_v0 = true;
     } else {
         phi_v0 = false;
@@ -130,9 +130,9 @@ void func_80B83E1C(BgDblueWaterfall* this, PlayState* play) {
 
     if (phi_v0 == sp1C) {
         if (phi_v0) {
-            Flags_UnsetSwitch(play, switchFlag);
+            MM_Flags_UnsetSwitch(play, switchFlag);
         } else {
-            Flags_SetSwitch(play, switchFlag);
+            MM_Flags_SetSwitch(play, switchFlag);
         }
     }
 }
@@ -161,33 +161,33 @@ void func_80B83EA4(BgDblueWaterfall* this, PlayState* play) {
         sp98.z = spB0.z - this->actor.world.pos.z;
 
         if (!func_80B83C80(&sp98, &spA4)) {
-            Math_Vec3f_Copy(&spA4, &gZeroVec3f);
+            MM_Math_Vec3f_Copy(&spA4, &gZeroVec3f);
         }
 
         sp98.y = 0.0f;
         spBC.y = -1.4f;
 
         for (i = 0, phi_s3 = 0; i < 15; i++, phi_s3 += 0x1111) {
-            temp_s1 = (s32)(Rand_ZeroOne() * 4369.0f) + phi_s3;
-            temp_f0_2 = Rand_ZeroOne();
+            temp_s1 = (s32)(MM_Rand_ZeroOne() * 4369.0f) + phi_s3;
+            temp_f0_2 = MM_Rand_ZeroOne();
             temp_f20 = 1.0f - SQ(temp_f0_2);
 
-            sp98.x = Math_SinS(temp_s1) * temp_f20;
-            sp98.z = Math_CosS(temp_s1) * temp_f20;
+            sp98.x = MM_Math_SinS(temp_s1) * temp_f20;
+            sp98.z = MM_Math_CosS(temp_s1) * temp_f20;
             temp_f20 *= 5.0f;
 
             spD4.x = (sp98.x * temp_f20) + spB0.x;
-            spD4.y = ((Rand_ZeroOne() * 16.0f) - 8.0f) + spB0.y;
+            spD4.y = ((MM_Rand_ZeroOne() * 16.0f) - 8.0f) + spB0.y;
             spD4.z = (sp98.z * temp_f20) + spB0.z;
 
-            spC8.x = ((2.0f * Rand_ZeroOne()) - 1.0f) + ((spA4.x * 3.0f) + (sp98.x * 5.0f));
-            spC8.y = (Rand_ZeroOne() * 10.0f) + 5.0f;
-            spC8.z = ((2.0f * Rand_ZeroOne()) - 1.0f) + ((spA4.z * 3.0f) + (sp98.z * 5.0f));
+            spC8.x = ((2.0f * MM_Rand_ZeroOne()) - 1.0f) + ((spA4.x * 3.0f) + (sp98.x * 5.0f));
+            spC8.y = (MM_Rand_ZeroOne() * 10.0f) + 5.0f;
+            spC8.z = ((2.0f * MM_Rand_ZeroOne()) - 1.0f) + ((spA4.z * 3.0f) + (sp98.z * 5.0f));
 
             spBC.x = spC8.x * -0.02f;
             spBC.z = spC8.z * -0.02f;
 
-            EffectSsEnIce_Spawn(play, &spD4, (Rand_ZeroOne() * 0.3f) + 0.1f, &spC8, &spBC, &D_80B8539C, &D_80B853A0,
+            MM_EffectSsEnIce_Spawn(play, &spD4, (MM_Rand_ZeroOne() * 0.3f) + 0.1f, &spC8, &spBC, &D_80B8539C, &D_80B853A0,
                                 30);
         }
     }
@@ -210,15 +210,15 @@ void func_80B841A0(BgDblueWaterfall* this, PlayState* play) {
         temp_f26 = this->collider.elem.acDmgInfo.hitPos.z;
 
         for (i = 0, phi_s2 = 0; i < 10; i++, phi_s2 += 0x1999) {
-            temp_s3 = (s32)(Rand_ZeroOne() * 6553.0f) + phi_s2;
-            temp_f0 = Rand_ZeroOne();
+            temp_s3 = (s32)(MM_Rand_ZeroOne() * 6553.0f) + phi_s2;
+            temp_f0 = MM_Rand_ZeroOne();
             temp_f20 = (1.0f - SQ(temp_f0)) * 14.0f;
 
-            sp94.x = (Math_SinS(temp_s3) * temp_f20) + temp_f22;
-            sp94.y = ((Rand_ZeroOne() * 20.0f) - 10.0f) + temp_f24;
-            sp94.z = (Math_CosS(temp_s3) * temp_f20) + temp_f26;
+            sp94.x = (MM_Math_SinS(temp_s3) * temp_f20) + temp_f22;
+            sp94.y = ((MM_Rand_ZeroOne() * 20.0f) - 10.0f) + temp_f24;
+            sp94.z = (MM_Math_CosS(temp_s3) * temp_f20) + temp_f26;
 
-            EffectSsGSplash_Spawn(play, &sp94, NULL, NULL, 0, 250);
+            MM_EffectSsGSplash_Spawn(play, &sp94, NULL, NULL, 0, 250);
         }
 
         Actor_PlaySfx(&this->actor, NA_SE_IT_REFLECTION_WATER);
@@ -244,13 +244,13 @@ void func_80B84348(BgDblueWaterfall* this, PlayState* play, f32 arg2, f32 arg3, 
     for (i = 0; i < arg8; i++) {
         D_80B853A4 += 0x4E20;
 
-        temp_f20 = Math_SinS(D_80B853A4);
-        temp_f24 = (Rand_ZeroOne() * (arg2 - arg3)) + (spB8 * i);
-        temp_f22 = Math_CosS(D_80B853A4);
-        temp_f26 = ((Rand_ZeroOne() * 0.8f) + 0.2f) * arg4;
+        temp_f20 = MM_Math_SinS(D_80B853A4);
+        temp_f24 = (MM_Rand_ZeroOne() * (arg2 - arg3)) + (spB8 * i);
+        temp_f22 = MM_Math_CosS(D_80B853A4);
+        temp_f26 = ((MM_Rand_ZeroOne() * 0.8f) + 0.2f) * arg4;
 
         sp8C.x = temp_f20 * temp_f26;
-        sp8C.y = (Rand_ZeroOne() * 4.0f) + arg5;
+        sp8C.y = (MM_Rand_ZeroOne() * 4.0f) + arg5;
         sp8C.z = temp_f22 * temp_f26;
 
         sp80.x = sp8C.x * -0.016f;
@@ -261,7 +261,7 @@ void func_80B84348(BgDblueWaterfall* this, PlayState* play, f32 arg2, f32 arg3, 
         sp98.y = temp_f24 + spB0;
         sp98.z = (temp_f22 * 50.0f) + this->actor.world.pos.z;
 
-        EffectSsIceSmoke_Spawn(play, &sp98, &sp8C, &sp80, (Rand_ZeroOne() * arg7) + arg6);
+        MM_EffectSsIceSmoke_Spawn(play, &sp98, &sp8C, &sp80, (MM_Rand_ZeroOne() * arg7) + arg6);
     }
 }
 
@@ -270,7 +270,7 @@ void func_80B84568(BgDblueWaterfall* this, PlayState* play) {
     CollisionPoly* sp40;
     WaterBox* waterBox;
     s32 bgId;
-    f32 sp34 = BgCheck_EntityRaycastFloor5(&play->colCtx, &sp40, &bgId, &this->actor, &this->actor.world.pos);
+    f32 sp34 = MM_BgCheck_EntityRaycastFloor5(&play->colCtx, &sp40, &bgId, &this->actor, &this->actor.world.pos);
     f32 sp30;
 
     if (WaterBox_GetSurface1_2(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &sp30,
@@ -293,21 +293,21 @@ void func_80B84610(BgDblueWaterfall* this, PlayState* play) {
     if (this->unk_1A7 <= 0) {
         this->unk_1A7 = 16;
     } else {
-        this->unk_1A7 -= (s8)(Rand_Next() >> 0x1F);
+        this->unk_1A7 -= (s8)(MM_Rand_Next() >> 0x1F);
     }
 
     if (this->unk_1A7 >= 6) {
-        this->unk_1A8 += Rand_ZeroOne() * 0.1f;
+        this->unk_1A8 += MM_Rand_ZeroOne() * 0.1f;
         this->unk_1A8 = CLAMP_MAX(this->unk_1A8, 0.5f);
     } else {
-        this->unk_1A8 -= Rand_ZeroOne() * 0.2f;
+        this->unk_1A8 -= MM_Rand_ZeroOne() * 0.2f;
         this->unk_1A8 = CLAMP_MAX(this->unk_1A8, -0.5f);
     }
 
-    Matrix_Push();
+    MM_Matrix_Push();
     Matrix_RotateYS(BINANG_ADD(this->actor.yawTowardsPlayer, 0x4000), MTXMODE_NEW);
     Matrix_MultVecZ(this->unk_1A8, &sp34);
-    Matrix_Pop();
+    MM_Matrix_Pop();
 
     player->actor.world.pos.x += sp34.x;
     player->actor.world.pos.z += sp34.z;
@@ -320,7 +320,7 @@ void func_80B84610(BgDblueWaterfall* this, PlayState* play) {
     }
 }
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(cullingVolumeDistance, 4000, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeScale, 1500, ICHAIN_CONTINUE),
     ICHAIN_F32(cullingVolumeDownward, 1500, ICHAIN_CONTINUE),
@@ -331,17 +331,17 @@ void BgDblueWaterfall_Init(Actor* thisx, PlayState* play) {
     s32 pad;
     BgDblueWaterfall* this = (BgDblueWaterfall*)thisx;
 
-    Actor_ProcessInitChain(&this->actor, sInitChain);
+    MM_Actor_ProcessInitChain(&this->actor, MM_sInitChain);
     this->actor.shape.rot.z = 0;
     this->actor.world.rot.z = 0;
 
-    Collider_InitCylinder(play, &this->collider);
-    Collider_SetCylinder(play, &this->collider, &this->actor, &sCylinderInit);
-    Collider_UpdateCylinder(&this->actor, &this->collider);
+    MM_Collider_InitCylinder(play, &this->collider);
+    MM_Collider_SetCylinder(play, &this->collider, &this->actor, &MM_sCylinderInit);
+    MM_Collider_UpdateCylinder(&this->actor, &this->collider);
 
     this->unk_190 = Lib_SegmentedToVirtual(gGreatBayTempleObjectWaterfallTexAnim);
 
-    Actor_SetFocus(&this->actor, -100.0f);
+    MM_Actor_SetFocus(&this->actor, -100.0f);
     func_80B84568(this, play);
     func_80B8484C(this, play);
 }
@@ -349,7 +349,7 @@ void BgDblueWaterfall_Init(Actor* thisx, PlayState* play) {
 void BgDblueWaterfall_Destroy(Actor* thisx, PlayState* play) {
     BgDblueWaterfall* this = (BgDblueWaterfall*)thisx;
 
-    Collider_DestroyCylinder(play, &this->collider);
+    MM_Collider_DestroyCylinder(play, &this->collider);
 }
 
 void func_80B8484C(BgDblueWaterfall* this, PlayState* play) {
@@ -429,8 +429,8 @@ void func_80B84928(BgDblueWaterfall* this, PlayState* play) {
                 }
             }
         } else {
-            CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
-            CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+            MM_CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+            MM_CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
         }
     }
 }

@@ -10,7 +10,7 @@
 #include "system_malloc.h"
 #include "loadfragment.h"
 
-s32 gOverlayLogSeverity = 2;
+s32 MM_gOverlayLogSeverity = 2;
 
 // Extract MIPS register rs from an instruction word
 #define MIPS_REG_RS(insn) (((insn) >> 0x15) & 0x1F)
@@ -41,7 +41,7 @@ s32 gOverlayLogSeverity = 2;
  * @param ovlRelocs Overlay relocation section containing overlay section layout and runtime relocations.
  * @param vramStart Virtual RAM address that the overlay was compiled at.
  */
-void Overlay_Relocate(void* allocatedRamAddr, OverlayRelocationSection* ovlRelocs, uintptr_t vramStart) {
+void MM_Overlay_Relocate(void* allocatedRamAddr, OverlayRelocationSection* ovlRelocs, uintptr_t vramStart) {
     u32 sections[RELOC_SECTION_MAX];
     u32* relocDataP;
     u32 reloc;
@@ -61,7 +61,7 @@ void Overlay_Relocate(void* allocatedRamAddr, OverlayRelocationSection* ovlReloc
     uintptr_t allocu32 = (uintptr_t)allocatedRamAddr;
     uintptr_t vramu32 = (uintptr_t)vramStart;
 
-    if (gOverlayLogSeverity >= 3) {}
+    if (MM_gOverlayLogSeverity >= 3) {}
 
     sections[RELOC_SECTION_NULL] = 0;
     sections[RELOC_SECTION_TEXT] = allocu32;
@@ -84,7 +84,7 @@ void Overlay_Relocate(void* allocatedRamAddr, OverlayRelocationSection* ovlReloc
                 // Check address is valid for relocation
                 if ((*relocDataP & 0x0F000000) == 0) {
                     *relocDataP = *relocDataP - vramu32 + allocu32;
-                } else if (gOverlayLogSeverity >= 3) {
+                } else if (MM_gOverlayLogSeverity >= 3) {
                 }
                 break;
 
@@ -97,7 +97,7 @@ void Overlay_Relocate(void* allocatedRamAddr, OverlayRelocationSection* ovlReloc
                     *relocDataP =
                         (*relocDataP & 0xFC000000) |
                         (((PHYS_TO_K0(MIPS_JUMP_TARGET(*relocDataP)) - vramu32 + allocu32) & 0x0FFFFFFF) >> 2);
-                } else if (gOverlayLogSeverity >= 3) {
+                } else if (MM_gOverlayLogSeverity >= 3) {
                     // Segment pointer 26 %08x
                     // "セグメントポインタ26です %08x\n"
                 }
@@ -128,14 +128,14 @@ void Overlay_Relocate(void* allocatedRamAddr, OverlayRelocationSection* ovlReloc
                     isLoNeg = (relocatedAddress & 0x8000) ? 1 : 0;
                     *luiInstRef = (*luiInstRef & 0xFFFF0000) | (((relocatedAddress >> 0x10) & 0xFFFF) + isLoNeg);
                     *relocDataP = (*relocDataP & 0xFFFF0000) | (relocatedAddress & 0xFFFF);
-                } else if (gOverlayLogSeverity >= 3) {
+                } else if (MM_gOverlayLogSeverity >= 3) {
                 }
                 break;
         }
     }
 }
 
-size_t Overlay_Load(uintptr_t vromStart, uintptr_t vromEnd, void* ramStart, void* ramEnd, void* allocatedRamAddr) {
+size_t MM_Overlay_Load(uintptr_t vromStart, uintptr_t vromEnd, void* ramStart, void* ramEnd, void* allocatedRamAddr) {
     return 0;
 #if 0
     uintptr_t vramStart = (uintptr_t)ramStart;
@@ -144,21 +144,21 @@ size_t Overlay_Load(uintptr_t vromStart, uintptr_t vromEnd, void* ramStart, void
     uintptr_t end;
     OverlayRelocationSection* ovlRelocs;
 
-    if (gOverlayLogSeverity >= 3) {}
-    if (gOverlayLogSeverity >= 3) {}
+    if (MM_gOverlayLogSeverity >= 3) {}
+    if (MM_gOverlayLogSeverity >= 3) {}
 
     end = (uintptr_t)allocatedRamAddr + size;
-    DmaMgr_SendRequest0(allocatedRamAddr, vromStart, size);
+    MM_DmaMgr_SendRequest0(allocatedRamAddr, vromStart, size);
 
     ovlRelocs = (OverlayRelocationSection*)(end - ((s32*)end)[-1]);
 
-    if (gOverlayLogSeverity >= 3) {}
-    if (gOverlayLogSeverity >= 3) {}
+    if (MM_gOverlayLogSeverity >= 3) {}
+    if (MM_gOverlayLogSeverity >= 3) {}
 
-    Overlay_Relocate(allocatedRamAddr, ovlRelocs, vramStart);
+    MM_Overlay_Relocate(allocatedRamAddr, ovlRelocs, vramStart);
 
     if (ovlRelocs->bssSize != 0) {
-        if (gOverlayLogSeverity >= 3) {}
+        if (MM_gOverlayLogSeverity >= 3) {}
         bzero((void*)end, ovlRelocs->bssSize);
     }
 
@@ -167,17 +167,17 @@ size_t Overlay_Load(uintptr_t vromStart, uintptr_t vromEnd, void* ramStart, void
     osWritebackDCache(allocatedRamAddr, size);
     osInvalICache(allocatedRamAddr, size);
 
-    if (gOverlayLogSeverity >= 3) {}
+    if (MM_gOverlayLogSeverity >= 3) {}
 
     return size;
 #endif
 }
 
-void* Overlay_AllocateAndLoad(uintptr_t vromStart, uintptr_t vromEnd, void* vramStart, void* vramEnd) {
-    void* allocatedRamAddr = SystemArena_MallocR((uintptr_t)vramEnd - (uintptr_t)vramStart);
+void* MM_Overlay_AllocateAndLoad(uintptr_t vromStart, uintptr_t vromEnd, void* vramStart, void* vramEnd) {
+    void* allocatedRamAddr = MM_SystemArena_MallocR((uintptr_t)vramEnd - (uintptr_t)vramStart);
 
     if (allocatedRamAddr != NULL) {
-        Overlay_Load(vromStart, vromEnd, vramStart, vramEnd, allocatedRamAddr);
+        MM_Overlay_Load(vromStart, vromEnd, vramStart, vramEnd, allocatedRamAddr);
     }
 
     return allocatedRamAddr;

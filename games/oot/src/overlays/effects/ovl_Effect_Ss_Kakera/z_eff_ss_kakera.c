@@ -20,18 +20,18 @@
 #define rObjBankIdx regs[11]
 #define rColorIdx regs[12]
 
-u32 EffectSsKakera_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
-void EffectSsKakera_Draw(PlayState* play, u32 index, EffectSs* this);
-void EffectSsKakera_Update(PlayState* play, u32 index, EffectSs* this);
+u32 OoT_EffectSsKakera_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx);
+void OoT_EffectSsKakera_Draw(PlayState* play, u32 index, EffectSs* this);
+void OoT_EffectSsKakera_Update(PlayState* play, u32 index, EffectSs* this);
 
 void func_809A9BA8(EffectSs* this, PlayState* play);
 
 EffectSsInit Effect_Ss_Kakera_InitVars = {
     EFFECT_SS_KAKERA,
-    EffectSsKakera_Init,
+    OoT_EffectSsKakera_Init,
 };
 
-u32 EffectSsKakera_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
+u32 OoT_EffectSsKakera_Init(PlayState* play, u32 index, EffectSs* this, void* initParamsx) {
     EffectSsKakeraInitParams* initParams = (EffectSsKakeraInitParams*)initParamsx;
     s32 objId;
 
@@ -57,13 +57,13 @@ u32 EffectSsKakera_Init(PlayState* play, u32 index, EffectSs* this, void* initPa
         LOG_HUNGUP_THREAD();
     }
 
-    this->draw = EffectSsKakera_Draw;
-    this->update = EffectSsKakera_Update;
+    this->draw = OoT_EffectSsKakera_Draw;
+    this->update = OoT_EffectSsKakera_Update;
     this->vec = initParams->unk_18;
     this->rReg0 = initParams->unk_2C;
     this->rGravity = initParams->gravity;
-    this->rPitch = Rand_ZeroOne() * 32767.0f;
-    this->rYaw = Rand_ZeroOne() * 32767.0f;
+    this->rPitch = OoT_Rand_ZeroOne() * 32767.0f;
+    this->rYaw = OoT_Rand_ZeroOne() * 32767.0f;
     this->rReg4 = initParams->unk_26;
     this->rReg5 = initParams->unk_28;
     this->rReg6 = initParams->unk_2A;
@@ -82,11 +82,11 @@ f32 func_809A9818(f32 arg0, f32 arg1) {
         osSyncPrintf("範囲がマイナス！！(randomD_sectionUniformity)\n");
     }
 
-    temp_f2 = Rand_ZeroOne() * arg1;
+    temp_f2 = OoT_Rand_ZeroOne() * arg1;
     return ((temp_f2 * 2.0f) - arg1) + arg0;
 }
 
-void EffectSsKakera_Draw(PlayState* play, u32 index, EffectSs* this) {
+void OoT_EffectSsKakera_Draw(PlayState* play, u32 index, EffectSs* this) {
     static Color_RGB8 colors[] = { { 255, 255, 255 }, { 235, 170, 130 } };
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     s32 pad;
@@ -106,10 +106,10 @@ void EffectSsKakera_Draw(PlayState* play, u32 index, EffectSs* this) {
         }
     }
 
-    Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
+    OoT_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
     Matrix_RotateY(this->rYaw * 0.01f, MTXMODE_APPLY);
     Matrix_RotateX(this->rPitch * 0.01f, MTXMODE_APPLY);
-    Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+    OoT_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
 
     if ((((this->rReg4 >> 7) & 1) << 7) == 0x80) {
         gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -137,7 +137,7 @@ void EffectSsKakera_Draw(PlayState* play, u32 index, EffectSs* this) {
 void func_809A9BA8(EffectSs* this, PlayState* play) {
     this->rObjBankIdx = Object_GetIndex(&play->objectCtx, this->rObjId);
 
-    if ((this->rObjBankIdx < 0) || !Object_IsLoaded(&play->objectCtx, this->rObjBankIdx)) {
+    if ((this->rObjBankIdx < 0) || !OoT_Object_IsLoaded(&play->objectCtx, this->rObjBankIdx)) {
         this->life = 0;
         this->draw = NULL;
     }
@@ -313,7 +313,7 @@ s32 func_809AA0EC(EffectSs* this) {
     diff.y = this->pos.y - this->vec.y;
     diff.z = this->pos.z - this->vec.z;
 
-    dist = sqrtf(SQ(diff.x) + SQ(diff.y) + SQ(diff.z));
+    dist = OoT_sqrtf(SQ(diff.x) + SQ(diff.y) + SQ(diff.z));
 
     if (dist > 1000.0f) {
         return 0;
@@ -371,7 +371,7 @@ void func_809AA230(EffectSs* this, PlayState* play) {
                 break;
             case 1:
                 if (this->velocity.y < 0.0f) {
-                    if (BgCheck_SphVsFirstPoly(&play->colCtx, &this->pos, D_809AA5B0[(this->rReg4 >> 2) & 3])) {
+                    if (OoT_BgCheck_SphVsFirstPoly(&play->colCtx, &this->pos, D_809AA5B0[(this->rReg4 >> 2) & 3])) {
                         this->velocity.x *= func_809A9818(0.9f, 0.2f);
                         this->velocity.y *= -0.8f;
                         this->velocity.z *= func_809A9818(0.9f, 0.2f);
@@ -383,13 +383,13 @@ void func_809AA230(EffectSs* this, PlayState* play) {
                 }
                 break;
             case 2:
-                if (BgCheck_SphVsFirstPoly(&play->colCtx, &this->pos, D_809AA5B0[(this->rReg4 >> 2) & 3])) {}
+                if (OoT_BgCheck_SphVsFirstPoly(&play->colCtx, &this->pos, D_809AA5B0[(this->rReg4 >> 2) & 3])) {}
                 break;
         }
     }
 }
 
-void EffectSsKakera_Update(PlayState* play, u32 index, EffectSs* this) {
+void OoT_EffectSsKakera_Update(PlayState* play, u32 index, EffectSs* this) {
     switch (((this->rReg4 >> 5) & 3) << 5) {
         case 0x20:
             this->rPitch += 0xB;

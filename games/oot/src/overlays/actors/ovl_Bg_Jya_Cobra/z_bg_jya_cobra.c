@@ -96,7 +96,7 @@ static Vec3f D_808974DC[] = {
 
 static s32 D_80897518[] = { 0x80, 0xA0, 0xA0, 0x80 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry OoT_sInitChain[] = {
     ICHAIN_VEC3F_DIV1000(scale, 100, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneForward, 1000, ICHAIN_CONTINUE),
     ICHAIN_F32(uncullZoneScale, 800, ICHAIN_CONTINUE),
@@ -124,9 +124,9 @@ void BgJyaCobra_InitDynapoly(BgJyaCobra* this, PlayState* play, CollisionHeader*
     CollisionHeader* colHeader = NULL;
     s32 pad2;
 
-    DynaPolyActor_Init(&this->dyna, flags);
-    CollisionHeader_GetVirtual(collision, &colHeader);
-    this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
+    OoT_DynaPolyActor_Init(&this->dyna, flags);
+    OoT_CollisionHeader_GetVirtual(collision, &colHeader);
+    this->dyna.bgId = OoT_DynaPoly_SetBgActor(play, &play->colCtx.dyna, &this->dyna.actor, colHeader);
     if (this->dyna.bgId == BG_ACTOR_MAX) {
         // "Warning : move BG Registration Failure"
         osSyncPrintf("Warning : move BG 登録失敗(%s %d)(name %d)(arg_data 0x%04x)\n", __FILE__, __LINE__,
@@ -135,7 +135,7 @@ void BgJyaCobra_InitDynapoly(BgJyaCobra* this, PlayState* play, CollisionHeader*
 }
 
 void BgJyaCobra_SpawnRay(BgJyaCobra* this, PlayState* play) {
-    Actor_SpawnAsChild(&play->actorCtx, &this->dyna.actor, play, ACTOR_MIR_RAY, this->dyna.actor.world.pos.x,
+    OoT_Actor_SpawnAsChild(&play->actorCtx, &this->dyna.actor, play, ACTOR_MIR_RAY, this->dyna.actor.world.pos.x,
                        this->dyna.actor.world.pos.y + 57.0f, this->dyna.actor.world.pos.z, 0, 0, 0, 6);
     if (this->dyna.actor.child == NULL) {
         osSyncPrintf(VT_FGCOL(RED));
@@ -181,14 +181,14 @@ void func_80895A70(BgJyaCobra* this) {
         Vec3f sp28;
 
         mirRay->unLit = 0;
-        Math_Vec3f_Copy(&mirRay->sourcePt, &this->unk_180);
+        OoT_Math_Vec3f_Copy(&mirRay->sourcePt, &this->unk_180);
         Matrix_RotateY(this->dyna.actor.shape.rot.y * (M_PI / 0x8000), MTXMODE_NEW);
         Matrix_RotateX(D_80897308[this->dyna.actor.params & 3] * (M_PI / 0x8000), MTXMODE_APPLY);
         sp28.x = 0.0f;
         sp28.y = 0.0;
         sp28.z = this->unk_190 * 2800.0f;
-        Matrix_MultVec3f(&sp28, &mirRay->poolPt);
-        Math_Vec3f_Sum(&mirRay->sourcePt, &mirRay->poolPt, &mirRay->poolPt);
+        OoT_Matrix_MultVec3f(&sp28, &mirRay->poolPt);
+        OoT_Math_Vec3f_Sum(&mirRay->sourcePt, &mirRay->poolPt, &mirRay->poolPt);
     }
 }
 
@@ -197,7 +197,7 @@ void func_80895BEC(BgJyaCobra* this, PlayState* play) {
     s32 pad;
     Vec3f sp2C;
 
-    func_808958F0(&sp2C, &this->unk_174, Math_SinS(this->unk_170), Math_CosS(this->unk_170));
+    func_808958F0(&sp2C, &this->unk_174, OoT_Math_SinS(this->unk_170), OoT_Math_CosS(this->unk_170));
     player->actor.world.pos.x = this->dyna.actor.world.pos.x + sp2C.x;
     player->actor.world.pos.y = this->dyna.actor.world.pos.y + sp2C.y;
     player->actor.world.pos.z = this->dyna.actor.world.pos.z + sp2C.z;
@@ -212,7 +212,7 @@ void func_80895C74(BgJyaCobra* this, PlayState* play) {
     if ((params & 3) == 2 && mirror != NULL &&
         (!(mirror->puzzleFlags & BIGMIR_PUZZLE_BOMBIWA_DESTROYED) ||
          !(mirror->puzzleFlags & BIGMIR_PUZZLE_COBRA1_SOLVED))) {
-        Math_StepToF(&this->unk_18C, 0.0f, 0.05f);
+        OoT_Math_StepToF(&this->unk_18C, 0.0f, 0.05f);
     } else {
         this->unk_18C = 1.0f;
         if (D_80897310[params & 3]) {
@@ -245,7 +245,7 @@ void func_80895C74(BgJyaCobra* this, PlayState* play) {
                 phi_f0 = 0.34f;
             }
         }
-        Math_StepToF(&this->unk_190, phi_f0, 0.04f);
+        OoT_Math_StepToF(&this->unk_190, phi_f0, 0.04f);
     } else if ((params & 3) == 2) {
         phi_f0 = 0.1f;
         phi_v0 = this->dyna.actor.shape.rot.y - 0x8000;
@@ -257,7 +257,7 @@ void func_80895C74(BgJyaCobra* this, PlayState* play) {
                 phi_f0 = 0.34f;
             }
         }
-        Math_StepToF(&this->unk_190, phi_f0, 0.04f);
+        OoT_Math_StepToF(&this->unk_190, phi_f0, 0.04f);
     }
 }
 
@@ -286,10 +286,10 @@ void BgJyaCobra_UpdateShadowFromSide(BgJyaCobra* this) {
     rotY = !(this->dyna.actor.params & 3) ? (this->dyna.actor.shape.rot.y + 0x4000)
                                           : (this->dyna.actor.shape.rot.y - 0x4000);
     Matrix_RotateY(rotY * (M_PI / 0x8000), MTXMODE_APPLY);
-    Matrix_Scale(0.9f, 0.9f, 0.9f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(0.9f, 0.9f, 0.9f, MTXMODE_APPLY);
 
     for (i = 0; i < 25; i++) {
-        Math_Vec3f_Diff(&D_808973A4[i + 1], &D_808973A4[i], &spD4);
+        OoT_Math_Vec3f_Diff(&D_808973A4[i + 1], &D_808973A4[i], &spD4);
         spD4.x *= 1 / 2.0f;
         spD4.y *= 1 / 2.0f;
         spD4.z *= 1 / 2.0f;
@@ -297,7 +297,7 @@ void BgJyaCobra_UpdateShadowFromSide(BgJyaCobra* this) {
             spC8.x = D_808973A4[i].x + (spD4.x * j);
             spC8.y = D_808973A4[i].y + (spD4.y * j);
             spC8.z = D_808973A4[i].z + (spD4.z * j);
-            Matrix_MultVec3f(&spC8, &spBC);
+            OoT_Matrix_MultVec3f(&spC8, &spBC);
             x = (spBC.x + 50.0f) * 0.64f + 0.5f;
             z = (88.0f - spBC.z) * 0.64f + 0.5f;
             for (k = 0; k < 11; k++) {
@@ -316,7 +316,7 @@ void BgJyaCobra_UpdateShadowFromSide(BgJyaCobra* this) {
     }
 
     for (i = 0; i < 4; i++) {
-        Math_Vec3f_Diff(&D_808974DC[i + 1], &D_808974DC[i], &spD4);
+        OoT_Math_Vec3f_Diff(&D_808974DC[i + 1], &D_808974DC[i], &spD4);
         spD4.x *= 1 / 5.0f;
         spD4.y *= 1 / 5.0f;
         spD4.z *= 1 / 5.0f;
@@ -324,7 +324,7 @@ void BgJyaCobra_UpdateShadowFromSide(BgJyaCobra* this) {
             spC8.x = D_808974DC[i].x + (spD4.x * j);
             spC8.y = D_808974DC[i].y + (spD4.y * j);
             spC8.z = D_808974DC[i].z + (spD4.z * j);
-            Matrix_MultVec3f(&spC8, &spBC);
+            OoT_Matrix_MultVec3f(&spC8, &spBC);
             x = (s32)(((spBC.x + 50.0f) * 0.64f) + 0.5f);
             z = (s32)(((88.0f - spBC.z) * 0.64f) + 0.5f);
             for (k = 0; k < 3; k++) {
@@ -401,8 +401,8 @@ void BgJyaCobra_Init(Actor* thisx, PlayState* play) {
     BgJyaCobra* this = (BgJyaCobra*)thisx;
 
     BgJyaCobra_InitDynapoly(this, play, &gCobraCol, DPM_UNK);
-    Actor_ProcessInitChain(&this->dyna.actor, sInitChain);
-    if (!(this->dyna.actor.params & 3) && Flags_GetSwitch(play, ((s32)this->dyna.actor.params >> 8) & 0x3F)) {
+    OoT_Actor_ProcessInitChain(&this->dyna.actor, OoT_sInitChain);
+    if (!(this->dyna.actor.params & 3) && OoT_Flags_GetSwitch(play, ((s32)this->dyna.actor.params >> 8) & 0x3F)) {
         this->dyna.actor.world.rot.y = this->dyna.actor.home.rot.y = this->dyna.actor.shape.rot.y = 0;
     }
 
@@ -428,7 +428,7 @@ void BgJyaCobra_Init(Actor* thisx, PlayState* play) {
 void BgJyaCobra_Destroy(Actor* thisx, PlayState* play) {
     BgJyaCobra* this = (BgJyaCobra*)thisx;
 
-    DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    OoT_DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
 }
 
 void func_80896918(BgJyaCobra* this, PlayState* play) {
@@ -487,12 +487,12 @@ void func_80896ABC(BgJyaCobra* this, PlayState* play) {
 
     temp_v0 = (s16)((this->unk_16C * 0x2000) + this->dyna.actor.home.rot.y) - this->dyna.actor.world.rot.y;
     if (ABS(temp_v0) < 7424) {
-        Math_StepToS(&this->unk_16E, 106, 4);
+        OoT_Math_StepToS(&this->unk_16E, 106, 4);
     } else {
-        Math_StepToS(&this->unk_16E, 21, 10);
+        OoT_Math_StepToS(&this->unk_16E, 21, 10);
     }
 
-    if (Math_ScaledStepToS(&this->unk_170, this->unk_16A * 0x2000, this->unk_16E)) {
+    if (OoT_Math_ScaledStepToS(&this->unk_170, this->unk_16A * 0x2000, this->unk_16E)) {
         this->unk_16C = (this->unk_16C + this->unk_16A) & 7;
         player->stateFlags2 &= ~PLAYER_STATE2_MOVING_DYNAPOLY;
         this->dyna.unk_150 = 0.0f;
@@ -548,9 +548,9 @@ void func_80896D78(BgJyaCobra* this, PlayState* play) {
     sp44.x = D_80897308[this->dyna.actor.params & 3] + this->dyna.actor.shape.rot.x;
     sp44.y = this->dyna.actor.shape.rot.y;
     sp44.z = this->dyna.actor.shape.rot.z;
-    Matrix_SetTranslateRotateYXZ(this->unk_180.x, this->unk_180.y, this->unk_180.z, &sp44);
+    OoT_Matrix_SetTranslateRotateYXZ(this->unk_180.x, this->unk_180.y, this->unk_180.z, &sp44);
 
-    Matrix_Scale(0.1f, 0.1f, this->unk_190, MTXMODE_APPLY);
+    OoT_Matrix_Scale(0.1f, 0.1f, this->unk_190, MTXMODE_APPLY);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, (s32)(this->unk_18C * 140.0f));
     gSPDisplayList(POLY_XLU_DISP++, gCobra3DL);
@@ -580,7 +580,7 @@ void BgJyaCobra_DrawShadow(BgJyaCobra* this, PlayState* play) {
         phi_a3 = &D_80897540;
     } else { // params == 1
         phi_a3 = &this->dyna.actor.shape.rot;
-        Math_Vec3f_Copy(&sp64, &this->dyna.actor.world.pos);
+        OoT_Math_Vec3f_Copy(&sp64, &this->dyna.actor.world.pos);
     }
 
     // Fixes cobra statue shadow texture not updating when rotating it
@@ -588,10 +588,10 @@ void BgJyaCobra_DrawShadow(BgJyaCobra* this, PlayState* play) {
         gSPInvalidateTexCache(POLY_XLU_DISP++, COBRA_SHADOW_TEX_PTR(this));
     }
 
-    Matrix_SetTranslateRotateYXZ(sp64.x, sp64.y, sp64.z, phi_a3);
+    OoT_Matrix_SetTranslateRotateYXZ(sp64.x, sp64.y, sp64.z, phi_a3);
 
-    Matrix_Scale(D_80897548[params].x, D_80897548[params].y, D_80897548[params].z, MTXMODE_APPLY);
-    Matrix_Translate(0.0f, 0.0f, 40.0f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(D_80897548[params].x, D_80897548[params].y, D_80897548[params].z, MTXMODE_APPLY);
+    OoT_Matrix_Translate(0.0f, 0.0f, 40.0f, MTXMODE_APPLY);
 
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 0, 0, 0, 120);
     gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -609,7 +609,7 @@ void BgJyaCobra_Draw(Actor* thisx, PlayState* play) {
     BgJyaCobra* this = (BgJyaCobra*)thisx;
 
     func_80896CB4(play);
-    Gfx_DrawDListOpa(play, gCobra1DL);
+    OoT_Gfx_DrawDListOpa(play, gCobra1DL);
 
     if (this->unk_18C > 0.0f) {
         func_80896D78(this, play);

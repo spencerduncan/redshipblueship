@@ -147,7 +147,7 @@ void CutsceneManager_StoreCamera(Camera* camera) {
     if (camera != NULL) {
         memcpy(&sCutsceneMgr.play->subCameras[2], camera, sizeof(Camera));
         sCutsceneMgr.play->subCameras[2].camId = camera->camId;
-        Camera_ChangeStatus(&sCutsceneMgr.play->subCameras[2], CAM_STATUS_INACTIVE);
+        MM_Camera_ChangeStatus(&sCutsceneMgr.play->subCameras[2], CAM_STATUS_INACTIVE);
         sCutsceneMgr.isCameraStored = true;
     }
 }
@@ -214,7 +214,7 @@ void CutsceneManager_End(void) {
             sCutsceneMgr.targetActor->flags &= ~ACTOR_FLAG_FREEZE_EXCEPTION;
             // fallthrough
         case CS_START_1:
-            Player_SetCsActionWithHaltedActors(sCutsceneMgr.play, NULL, PLAYER_CSACTION_END);
+            MM_Player_SetCsActionWithHaltedActors(sCutsceneMgr.play, NULL, PLAYER_CSACTION_END);
             sCutsceneMgr.startMethod = CS_START_0;
             break;
 
@@ -239,7 +239,7 @@ void CutsceneManager_End(void) {
 
     switch (csEntry->endCam) {
         case CS_END_CAM_SMOOTH:
-            Play_CopyCamera(sCutsceneMgr.play, sCutsceneMgr.retCamId, sCutsceneMgr.subCamId);
+            MM_Play_CopyCamera(sCutsceneMgr.play, sCutsceneMgr.retCamId, sCutsceneMgr.subCamId);
             RET_CAM->stateFlags =
                 (RET_CAM->stateFlags & ~CAM_STATE_UNDERWATER) | (CUR_CAM->stateFlags & CAM_STATE_UNDERWATER);
             CutsceneManager_Queue(CS_ID_GLOBAL_RETURN_TO_CAM);
@@ -247,7 +247,7 @@ void CutsceneManager_End(void) {
 
         case CS_END_CAM_0:
         default:
-            Play_CopyCamera(sCutsceneMgr.play, sCutsceneMgr.retCamId, sCutsceneMgr.subCamId);
+            MM_Play_CopyCamera(sCutsceneMgr.play, sCutsceneMgr.retCamId, sCutsceneMgr.subCamId);
             RET_CAM->stateFlags =
                 (RET_CAM->stateFlags & ~CAM_STATE_UNDERWATER) | (CUR_CAM->stateFlags & CAM_STATE_UNDERWATER);
             break;
@@ -271,8 +271,8 @@ void CutsceneManager_End(void) {
     }
 
     if (sCutsceneMgr.subCamId != SUB_CAM_ID_DONE) {
-        Play_ClearCamera(sCutsceneMgr.play, sCutsceneMgr.subCamId);
-        Play_ChangeCameraStatus(sCutsceneMgr.play, sCutsceneMgr.retCamId, CAM_STATUS_ACTIVE);
+        MM_Play_ClearCamera(sCutsceneMgr.play, sCutsceneMgr.subCamId);
+        MM_Play_ChangeCameraStatus(sCutsceneMgr.play, sCutsceneMgr.retCamId, CAM_STATUS_ACTIVE);
     }
 
     sCutsceneMgr.csId = CS_ID_NONE;
@@ -312,7 +312,7 @@ s16 CutsceneManager_Update(void) {
         if ((CutsceneManager_MarkNextCutscenes() == 0) && (sp1E != 0)) {
             ShrinkWindow_Letterbox_SetSizeTarget(0);
         } else if (sp1E == 0) {
-            CutsceneManager_StoreCamera(Play_GetCamera(sCutsceneMgr.play, sCutsceneMgr.retCamId));
+            CutsceneManager_StoreCamera(MM_Play_GetCamera(sCutsceneMgr.play, sCutsceneMgr.retCamId));
         }
     }
     return sp1E;
@@ -348,7 +348,7 @@ s16 CutsceneManager_StartWithPlayerCs(s16 csId, Actor* actor) {
     s16 startCsId = CutsceneManager_Start(csId, actor);
 
     if (startCsId > CS_ID_NONE) {
-        Player_SetCsActionWithHaltedActors(sCutsceneMgr.play, NULL, PLAYER_CSACTION_WAIT);
+        MM_Player_SetCsActionWithHaltedActors(sCutsceneMgr.play, NULL, PLAYER_CSACTION_WAIT);
         if (sCutsceneMgr.length == 0) {
             CutsceneManager_Stop(sCutsceneMgr.csId);
         }
@@ -364,7 +364,7 @@ s16 CutsceneManager_StartWithPlayerCsAndSetFlag(s16 csId, Actor* actor) {
     s16 startCsId = CutsceneManager_Start(csId, actor);
 
     if (startCsId > CS_ID_NONE) {
-        Player_SetCsActionWithHaltedActors(sCutsceneMgr.play, NULL, PLAYER_CSACTION_WAIT);
+        MM_Player_SetCsActionWithHaltedActors(sCutsceneMgr.play, NULL, PLAYER_CSACTION_WAIT);
         if (sCutsceneMgr.length == 0) {
             CutsceneManager_Stop(sCutsceneMgr.csId);
         }
@@ -408,11 +408,11 @@ s16 CutsceneManager_Start(s16 csId, Actor* actor) {
     }
 
     if (csType != 0) {
-        sCutsceneMgr.retCamId = Play_GetActiveCamId(sCutsceneMgr.play);
-        sCutsceneMgr.subCamId = Play_CreateSubCamera(sCutsceneMgr.play);
+        sCutsceneMgr.retCamId = MM_Play_GetActiveCamId(sCutsceneMgr.play);
+        sCutsceneMgr.subCamId = MM_Play_CreateSubCamera(sCutsceneMgr.play);
 
-        subCam = Play_GetCamera(sCutsceneMgr.play, sCutsceneMgr.subCamId);
-        retCam = Play_GetCamera(sCutsceneMgr.play, sCutsceneMgr.retCamId);
+        subCam = MM_Play_GetCamera(sCutsceneMgr.play, sCutsceneMgr.subCamId);
+        retCam = MM_Play_GetCamera(sCutsceneMgr.play, sCutsceneMgr.retCamId);
 
         if ((retCam->setting == CAM_SET_START0) || (retCam->setting == CAM_SET_START2) ||
             (retCam->setting == CAM_SET_START1)) {
@@ -427,21 +427,21 @@ s16 CutsceneManager_Start(s16 csId, Actor* actor) {
         subCam->camId = sCutsceneMgr.subCamId;
         Camera_UnsetStateFlag(subCam, CAM_STATE_6 | CAM_STATE_0);
 
-        Play_ChangeCameraStatus(sCutsceneMgr.play, sCutsceneMgr.retCamId, CAM_STATUS_WAIT);
-        Play_ChangeCameraStatus(sCutsceneMgr.play, sCutsceneMgr.subCamId, CAM_STATUS_ACTIVE);
+        MM_Play_ChangeCameraStatus(sCutsceneMgr.play, sCutsceneMgr.retCamId, CAM_STATUS_WAIT);
+        MM_Play_ChangeCameraStatus(sCutsceneMgr.play, sCutsceneMgr.subCamId, CAM_STATUS_ACTIVE);
 
         subCam->target = sCutsceneMgr.targetActor = actor;
         subCam->behaviorFlags = 0;
 
         if (csType == 1) {
-            Camera_ChangeSetting(subCam, CAM_SET_FREE0);
+            MM_Camera_ChangeSetting(subCam, CAM_SET_FREE0);
             Cutscene_StartScripted(sCutsceneMgr.play, csEntry->scriptIndex);
             sCutsceneMgr.length = csEntry->length;
         } else {
             if (csEntry->csCamId != CS_CAM_ID_NONE) {
                 Camera_ChangeActorCsCamIndex(subCam, csEntry->csCamId);
             } else {
-                Camera_ChangeSetting(subCam, CAM_SET_FREE0);
+                MM_Camera_ChangeSetting(subCam, CAM_SET_FREE0);
             }
             sCutsceneMgr.length = csEntry->length;
         }
@@ -551,9 +551,9 @@ s32 func_800F22C4(s16 csId, Actor* actor) {
         return 4;
     }
 
-    Actor_GetScreenPos(sCutsceneMgr.play, actor, &screenPosX, &screenPosY);
+    MM_Actor_GetScreenPos(sCutsceneMgr.play, actor, &screenPosX, &screenPosY);
 
-    dist = OLib_Vec3fDist(&actor->focus.pos, &Play_GetCamera(sCutsceneMgr.play, sCutsceneMgr.subCamId)->eye);
+    dist = MM_OLib_Vec3fDist(&actor->focus.pos, &MM_Play_GetCamera(sCutsceneMgr.play, sCutsceneMgr.subCamId)->eye);
 
     if ((screenPosX > 40) && (screenPosX < SCREEN_WIDTH - 40) && (screenPosY > 40) &&
         (screenPosY < SCREEN_HEIGHT - 40) && (dist < 700.0f)) {

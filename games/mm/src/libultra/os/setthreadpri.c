@@ -1,6 +1,6 @@
 #include "ultra64.h"
 
-void osSetThreadPri(OSThread* thread, OSPri p) {
+void MM_osSetThreadPri(OSThread* thread, OSPri p) {
     register u32 saveMask = __osDisableInt();
 
     if (thread == NULL) {
