@@ -1,14 +1,15 @@
 #include <libultraship/libultra.h>
 
-const char gBuildVersion[] = "@PROJECT_BUILD_NAME@ (@CMAKE_PROJECT_VERSION_MAJOR@.@CMAKE_PROJECT_VERSION_MINOR@.@CMAKE_PROJECT_VERSION_PATCH@)";
-const u16 gBuildVersionMajor = @CMAKE_PROJECT_VERSION_MAJOR@;
-const u16 gBuildVersionMinor = @CMAKE_PROJECT_VERSION_MINOR@;
-const u16 gBuildVersionPatch = @CMAKE_PROJECT_VERSION_PATCH@;
+// OoT build info - prefixed to avoid collision with MM
+const char OoT_gBuildVersion[] = "@PROJECT_BUILD_NAME@ (@CMAKE_PROJECT_VERSION_MAJOR@.@CMAKE_PROJECT_VERSION_MINOR@.@CMAKE_PROJECT_VERSION_PATCH@)";
+const u16 OoT_gBuildVersionMajor = @CMAKE_PROJECT_VERSION_MAJOR@;
+const u16 OoT_gBuildVersionMinor = @CMAKE_PROJECT_VERSION_MINOR@;
+const u16 OoT_gBuildVersionPatch = @CMAKE_PROJECT_VERSION_PATCH@;
 
-const char gGitBranch[] = "@CMAKE_PROJECT_GIT_BRANCH@";
-const char gGitCommitHash[] = "@CMAKE_PROJECT_GIT_COMMIT_HASH@";
-const char gGitCommitTag[] = "@CMAKE_PROJECT_GIT_COMMIT_TAG@";
+const char OoT_gGitBranch[] = "@CMAKE_PROJECT_GIT_BRANCH@";
+const char OoT_gGitCommitHash[] = "@CMAKE_PROJECT_GIT_COMMIT_HASH@";
+const char OoT_gGitCommitTag[] = "@CMAKE_PROJECT_GIT_COMMIT_TAG@";
 
-const char gBuildTeam[] = "@PROJECT_TEAM@";
-const char gBuildDate[] = __DATE__ " " __TIME__;
-const char gBuildMakeOption[] = "";
+const char OoT_gBuildTeam[] = "@PROJECT_TEAM@";
+const char OoT_gBuildDate[] = __DATE__ " " __TIME__;
+const char OoT_gBuildMakeOption[] = "";
