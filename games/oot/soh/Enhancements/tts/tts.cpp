@@ -866,12 +866,12 @@ void RegisterOnUpdateMainMenuSelection() {
         std::string translation;
 
         if (charCode < 10) { // Digits
-            OoT_sprintf(charVal, "%c", charCode + 0x30);
+            sprintf(charVal, "%c", charCode + 0x30);
         } else if (charCode >= 10 && charCode < 36) { // Uppercase letters
-            OoT_sprintf(charVal, "%c", charCode + 0x37);
+            sprintf(charVal, "%c", charCode + 0x37);
             translation = GetParameritizedText("capital_letter", TEXT_BANK_FILECHOOSE, charVal);
         } else if (charCode >= 36 && charCode < 62) { // Lowercase letters
-            OoT_sprintf(charVal, "%c", charCode + 0x3D);
+            sprintf(charVal, "%c", charCode + 0x3D);
         } else if (charCode == 62) { // Space
             translation = GetParameritizedText("space", TEXT_BANK_FILECHOOSE, nullptr);
         } else if (charCode == 63) { // -
@@ -883,7 +883,7 @@ void RegisterOnUpdateMainMenuSelection() {
         } else if (charCode == 0xF0 + FS_KBD_BTN_END) {
             translation = GetParameritizedText("end", TEXT_BANK_FILECHOOSE, nullptr);
         } else {
-            OoT_sprintf(charVal, "%c", charCode);
+            sprintf(charVal, "%c", charCode);
         }
 
         if (translation.empty()) {

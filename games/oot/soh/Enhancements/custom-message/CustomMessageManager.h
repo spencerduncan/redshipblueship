@@ -323,7 +323,7 @@ class MessageNotFoundException : public std::exception {
     }
     virtual const char* what() const noexcept {
         static char message[500];
-        OoT_sprintf(message, "Message from table %s with textId %u was not found", messageTableId.c_str(), textId);
+        sprintf(message, "Message from table %s with textId %u was not found", messageTableId.c_str(), textId);
         return message;
     }
 };
