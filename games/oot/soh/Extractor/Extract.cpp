@@ -340,7 +340,7 @@ size_t Extractor::GetCurRomSize() const {
 bool Extractor::ValidateAndFixRom() {
     // The MQ debug rom sometimes has the header patched to look like a US rom. Change it back
     if (GetRomVerCrc() == OOT_PAL_GC_MQ_DBG) {
-        mRomData[0x3E] = 'OoT_P';
+        mRomData[0x3E] = 'P';
     }
 
     const uint32_t actualCrc = CRC32C(mRomData.get(), mCurRomSize);
@@ -356,7 +356,7 @@ bool Extractor::ValidateAndFixRom() {
 // The file box will only allow selecting an n64 rom but typing in the file name will allow selecting anything.
 bool Extractor::ValidateNotCompressed() const {
     // ZIP file header
-    if (mRomData[0] == 'OoT_P' && mRomData[1] == 'K' && mRomData[2] == 0x03 && mRomData[3] == 0x04) {
+    if (mRomData[0] == 'P' && mRomData[1] == 'K' && mRomData[2] == 0x03 && mRomData[3] == 0x04) {
         return false;
     }
     // RAR file header. Only the first 4 bytes.
