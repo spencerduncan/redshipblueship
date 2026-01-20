@@ -416,7 +416,7 @@ void OoT_PadMgr_ThreadEntry(PadMgr* padMgr) {
     while (!exit) {
         if ((D_8012D280 > 2) && (padMgr->interruptMsgQ.validCount == 0)) {
             // "Waiting for controller thread event"
-            osSyncPrintf("コントローラスレッドイベント待ち %lld\n", OS_CYCLES_TO_USEC(OoT_osGetTime()));
+            osSyncPrintf("コントローラスレッドイベント待ち %lld\n", OS_CYCLES_TO_USEC(osGetTime()));
         }
 
         OoT_osRecvMesg(&padMgr->interruptMsgQ, (OSMesg*)&mesg, OS_MESG_BLOCK);
@@ -429,13 +429,13 @@ void OoT_PadMgr_ThreadEntry(PadMgr* padMgr) {
         switch (*mesg) {
             case OS_SC_RETRACE_MSG:
                 if (D_8012D280 > 2) {
-                    osSyncPrintf("padmgr_HandleRetraceMsg START %lld\n", OS_CYCLES_TO_USEC(OoT_osGetTime()));
+                    osSyncPrintf("padmgr_HandleRetraceMsg START %lld\n", OS_CYCLES_TO_USEC(osGetTime()));
                 }
 
                 PadMgr_HandleRetraceMsg(padMgr);
 
                 if (D_8012D280 > 2) {
-                    osSyncPrintf("padmgr_HandleRetraceMsg END   %lld\n", OS_CYCLES_TO_USEC(OoT_osGetTime()));
+                    osSyncPrintf("padmgr_HandleRetraceMsg END   %lld\n", OS_CYCLES_TO_USEC(osGetTime()));
                 }
 
                 break;

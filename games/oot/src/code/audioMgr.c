@@ -30,13 +30,13 @@ void OoT_AudioMgr_HandleRetrace(AudioMgr* audioMgr) {
         OoT_Sched_SendEntryMsg(audioMgr->sched);
     }
 
-    D_8016A550 = OoT_osGetTime();
+    D_8016A550 = osGetTime();
     if (SREG(20) >= 2) {
         rspTask = NULL;
     } else {
         rspTask = func_800E4FE0();
     }
-    D_8016A558 += OoT_osGetTime() - D_8016A550;
+    D_8016A558 += osGetTime() - D_8016A550;
     D_8016A550 = 0;
     if (audioMgr->rspTask != NULL) {
         OoT_osRecvMesg(&audioMgr->unk_AC, NULL, OS_MESG_BLOCK);

@@ -492,7 +492,7 @@ f32 EnSkj_GetItemXzRange(EnSkj* this) {
     temp_v0 = sSmallStumpSkullKid.skullkid;
     xDiff = temp_v0->actor.world.pos.x - this->actor.world.pos.x;
     zDiff = temp_v0->actor.world.pos.z - this->actor.world.pos.z;
-    return OoT_sqrtf(SQ(xDiff) + SQ(zDiff)) + 26.0f;
+    return sqrtf(SQ(xDiff) + SQ(zDiff)) + 26.0f;
 }
 
 f32 EnSkj_GetItemYRange(EnSkj* this) {
@@ -842,7 +842,7 @@ void EnSkj_Fight(EnSkj* this, PlayState* play) {
         this->actor.world.pos.x = this->center.x + pos2.x;
         this->actor.world.pos.z = this->center.z + pos2.z;
 
-        phi_f14 = OoT_sqrtf(SQ(this->actor.world.pos.x - prevPosX) + SQ(this->actor.world.pos.z - prevPosZ));
+        phi_f14 = sqrtf(SQ(this->actor.world.pos.x - prevPosX) + SQ(this->actor.world.pos.z - prevPosZ));
         phi_f14 = CLAMP_MAX(phi_f14, 10.0f);
         phi_f14 /= 10.0f;
 

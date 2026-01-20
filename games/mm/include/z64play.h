@@ -126,6 +126,9 @@ typedef struct PlayState {
     /* 0x18E6C */ char unk_18E6C[0x3EC];
 } PlayState; // size = 0x19258
 
+// Alias for gamestate table macro (which generates MM_PlayState from MM_Play)
+typedef PlayState MM_PlayState;
+
 typedef enum PictoPhotoState {
     /* 0 */ PICTO_PHOTO_STATE_OFF,
     /* 1 */ PICTO_PHOTO_STATE_SETUP,

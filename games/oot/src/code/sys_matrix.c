@@ -659,7 +659,7 @@ void OoT_Matrix_ReplaceRotation(MtxF* mf) {
     acc += SQ(temp);
     temp = cmf->zx;
     acc += SQ(temp);
-    curColNorm = OoT_sqrtf(acc);
+    curColNorm = sqrtf(acc);
 
     cmf->xx = mf->xx * curColNorm;
     cmf->yx = mf->yx * curColNorm;
@@ -672,7 +672,7 @@ void OoT_Matrix_ReplaceRotation(MtxF* mf) {
     acc += SQ(temp);
     temp = cmf->zy;
     acc += SQ(temp);
-    curColNorm = OoT_sqrtf(acc);
+    curColNorm = sqrtf(acc);
 
     cmf->xy = mf->xy * curColNorm;
     cmf->yy = mf->yy * curColNorm;
@@ -685,7 +685,7 @@ void OoT_Matrix_ReplaceRotation(MtxF* mf) {
     acc += SQ(temp);
     temp = cmf->zz;
     acc += SQ(temp);
-    curColNorm = OoT_sqrtf(acc);
+    curColNorm = sqrtf(acc);
 
     cmf->xz = mf->xz * curColNorm;
     cmf->yz = mf->yz * curColNorm;
@@ -705,7 +705,7 @@ void Matrix_MtxFToYXZRotS(MtxF* mf, Vec3s* rotDest, s32 flag) {
     temp = mf->xz;
     temp *= temp;
     temp += SQ(mf->zz);
-    rotDest->x = OoT_Math_FAtan2F(-mf->yz, OoT_sqrtf(temp)) * (0x8000 / M_PI);
+    rotDest->x = OoT_Math_FAtan2F(-mf->yz, sqrtf(temp)) * (0x8000 / M_PI);
 
     if ((rotDest->x == 0x4000) || (rotDest->x == -0x4000)) {
         rotDest->z = 0;
@@ -726,7 +726,7 @@ void Matrix_MtxFToYXZRotS(MtxF* mf, Vec3s* rotDest, s32 flag) {
             temp2 = mf->yx;
             temp += SQ(temp2);
             /* temp = xx^2+zx^2+yx^2 == 1 for a rotation matrix */
-            temp = OoT_sqrtf(temp);
+            temp = sqrtf(temp);
             temp = temp2 / temp;
 
             temp2 = mf->xy;
@@ -735,7 +735,7 @@ void Matrix_MtxFToYXZRotS(MtxF* mf, Vec3s* rotDest, s32 flag) {
             temp3 = mf->yy;
             temp2 += SQ(temp3);
             /* temp2 = xy^2+zy^2+yy^2 == 1 for a rotation matrix */
-            temp2 = OoT_sqrtf(temp2);
+            temp2 = sqrtf(temp2);
             temp2 = temp3 / temp2;
 
             /* for a rotation matrix, temp == yx and temp2 == yy
@@ -758,7 +758,7 @@ void Matrix_MtxFToZYXRotS(MtxF* mf, Vec3s* rotDest, s32 flag) {
     temp = mf->xx;
     temp *= temp;
     temp += SQ(mf->yx);
-    rotDest->y = OoT_Math_FAtan2F(-mf->zx, OoT_sqrtf(temp)) * (0x8000 / M_PI);
+    rotDest->y = OoT_Math_FAtan2F(-mf->zx, sqrtf(temp)) * (0x8000 / M_PI);
 
     if ((rotDest->y == 0x4000) || (rotDest->y == -0x4000)) {
         rotDest->x = 0;
@@ -778,7 +778,7 @@ void Matrix_MtxFToZYXRotS(MtxF* mf, Vec3s* rotDest, s32 flag) {
             temp += SQ(temp2);
             temp2 = mf->zy;
             temp += SQ(temp2);
-            temp = OoT_sqrtf(temp);
+            temp = sqrtf(temp);
             temp = temp2 / temp;
 
             temp2 = mf->xz;
@@ -786,7 +786,7 @@ void Matrix_MtxFToZYXRotS(MtxF* mf, Vec3s* rotDest, s32 flag) {
             temp2 += SQ(temp3);
             temp3 = mf->zz;
             temp2 += SQ(temp3);
-            temp2 = OoT_sqrtf(temp2);
+            temp2 = sqrtf(temp2);
             temp2 = temp3 / temp2;
 
             rotDest->x = OoT_Math_FAtan2F(temp, temp2) * (0x8000 / M_PI);

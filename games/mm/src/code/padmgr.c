@@ -426,7 +426,7 @@ void PadMgr_AdjustInput(Input* input) {
     if (1) {
         s32 pad;
 
-        magnitude = MM_sqrtf(SQ(newX) + SQ(newY));
+        magnitude = sqrtf(SQ(newX) + SQ(newY));
         if (magnitude > 1.0f) {
             magnitude = 1.0f;
         }
@@ -586,7 +586,7 @@ void PadMgr_UpdateConnections(void) {
                     if (sPadMgrInstance->ctrlrType[i] == PADMGR_CONT_NONE) {
                         sPadMgrInstance->ctrlrType[i] = PADMGR_CONT_UNK;
                         // "Recognized an unknown type of controller (%04x)"
-                        MM_sprintf(msg, "知らない種類のコントローラ(%04x)を認識しました",
+                        sprintf(msg, "知らない種類のコントローラ(%04x)を認識しました",
                                 sPadMgrInstance->padStatus[i].type);
                     }
                     // Missing break required for matching

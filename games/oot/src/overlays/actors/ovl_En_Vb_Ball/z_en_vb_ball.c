@@ -226,7 +226,7 @@ void EnVbBall_Update(Actor* thisx, PlayState* play2) {
                         newActor->actor.parent = this->actor.parent;
                         newActor->actor.velocity = spawnOffset;
                         newActor->yRotVel = 0.0f;
-                        xRotVel = OoT_sqrtf(SQ(spawnOffset.x) + SQ(spawnOffset.z));
+                        xRotVel = sqrtf(SQ(spawnOffset.x) + SQ(spawnOffset.z));
                         newActor->xRotVel = 0x1000 / 10.0f * xRotVel;
                         newActor->actor.shape.rot.y = OoT_Math_FAtan2F(spawnOffset.x, spawnOffset.z) * ((f32)0x8000 / M_PI);
                         newActor->shadowOpacity = 200.0f;

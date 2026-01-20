@@ -208,7 +208,7 @@ void func_80A89A6C(EnJsjutan* this, PlayState* play) {
             // Linear distance from j-th wave to player, in XZ plane.
             dxVtx = carpetVtx->n.ob[0] - spB8;
             dzVtx = carpetVtx->n.ob[2] - spB0;
-            distVtx = OoT_sqrtf(SQ(dxVtx) + SQ(dzVtx));
+            distVtx = sqrtf(SQ(dxVtx) + SQ(dzVtx));
 
             // Distance percentage. 0.0f to 1.0f. 2500.0f is the max distance to an actor that this wave will consider.
             weight = (2500.0f - distVtx) / 2500.0f;
@@ -235,7 +235,7 @@ void func_80A89A6C(EnJsjutan* this, PlayState* play) {
                 dxVtx = carpetVtx->n.ob[0] - spD4[j];
                 dzVtx = carpetVtx->n.ob[2] - spBC[j];
                 // Linear distance from j-th wave to whatever actor is there, in XZ plane.
-                distVtx = OoT_sqrtf(SQ(dxVtx) + SQ(dzVtx));
+                distVtx = sqrtf(SQ(dxVtx) + SQ(dzVtx));
 
                 if ((j == 0) || isInCreditsScene) {
                     weight = (3000.0f - distVtx) / 3000.0f;

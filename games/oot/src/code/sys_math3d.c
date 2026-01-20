@@ -407,7 +407,7 @@ f32 OoT_Math3D_Dist1DSq(f32 a, f32 b) {
  * Returns the distance between `a` and `b` on a single axis
  */
 f32 OoT_Math3D_Dist1D(f32 a, f32 b) {
-    return OoT_sqrtf(OoT_Math3D_Dist1DSq(a, b));
+    return sqrtf(OoT_Math3D_Dist1DSq(a, b));
 }
 
 /**
@@ -421,7 +421,7 @@ f32 OoT_Math3D_Dist2DSq(f32 x0, f32 y0, f32 x1, f32 y1) {
  * Returns the distance between points (`x0`,`y0`) and (`x1`,`y1`)
  */
 f32 OoT_Math3D_Dist2D(f32 x0, f32 y0, f32 x1, f32 y1) {
-    return OoT_sqrtf(OoT_Math3D_Dist2DSq(x0, y0, x1, y1));
+    return sqrtf(OoT_Math3D_Dist2DSq(x0, y0, x1, y1));
 }
 
 /**
@@ -885,7 +885,7 @@ void OoT_Math3D_DefPlane(Vec3f* va, Vec3f* vb, Vec3f* vc, f32* nx, f32* ny, f32*
     f32 normMagInv;
 
     OoT_Math3D_SurfaceNorm(va, vb, vc, &normal);
-    normMagnitude = OoT_sqrtf(SQ(normal.x) + SQ(normal.y) + SQ(normal.z));
+    normMagnitude = sqrtf(SQ(normal.x) + SQ(normal.y) + SQ(normal.z));
     if (!IS_ZERO(normMagnitude)) {
         normMagInv = 1.0f / normMagnitude;
         *nx = normal.x * normMagInv;
@@ -921,7 +921,7 @@ f32 OoT_Math3D_Plane(Plane* plane, Vec3f* pointOnPlane) {
  */
 f32 OoT_Math3D_UDistPlaneToPos(f32 nx, f32 ny, f32 nz, f32 originDist, Vec3f* p) {
 
-    if (IS_ZERO(OoT_sqrtf(SQ(nx) + SQ(ny) + SQ(nz)))) {
+    if (IS_ZERO(sqrtf(SQ(nx) + SQ(ny) + SQ(nz)))) {
         osSyncPrintf(VT_COL(YELLOW, BLACK));
         // "Math3DLengthPlaneAndPos(): Normal size is near OoT_zero %f %f %f"
         osSyncPrintf("Math3DLengthPlaneAndPos():法線size がゼロ近いです%f %f %f\n", nx, ny, nz);
@@ -938,7 +938,7 @@ f32 OoT_Math3D_UDistPlaneToPos(f32 nx, f32 ny, f32 nz, f32 originDist, Vec3f* p)
 f32 OoT_Math3D_DistPlaneToPos(f32 nx, f32 ny, f32 nz, f32 originDist, Vec3f* p) {
     f32 normMagnitude;
 
-    normMagnitude = OoT_sqrtf(SQ(nx) + SQ(ny) + SQ(nz));
+    normMagnitude = sqrtf(SQ(nx) + SQ(ny) + SQ(nz));
     if (IS_ZERO(normMagnitude)) {
         osSyncPrintf(VT_COL(YELLOW, BLACK));
         // "Math3DSignedLengthPlaneAndPos(): Normal size is close to OoT_zero %f %f %f"
@@ -1712,7 +1712,7 @@ s32 OoT_Math3D_CylVsLineSeg(Cylinder16* cyl, Vec3f* linePointA, Vec3f* linePoint
             sideIntA = 1;
             sideIntB = 0;
         }
-        distCent2 = OoT_sqrtf(SQ(dot2AB) - (4.0f * SQXZ(ptAToPtB) * radSqDiff));
+        distCent2 = sqrtf(SQ(dot2AB) - (4.0f * SQXZ(ptAToPtB) * radSqDiff));
         if (sideIntA == 1) {
             // fraction of length along AB for side intersection closer to A
             fracA = (distCent2 - dot2AB) / (2.0f * SQXZ(ptAToPtB));
@@ -1874,7 +1874,7 @@ s32 OoT_Math3D_CylTriVsIntersect(Cylinder16* cyl, TriNorm* tri, Vec3f* intersect
         midpointv0v1.z = (tri->vtx[0].z + tri->vtx[1].z) * 0.5f;
 
         OoT_Math_Vec3f_Diff(&midpointv0v1, &cylIntersectCenter, &diffMidpointIntersect);
-        distFromCylYIntersectTov0v1 = OoT_sqrtf(SQ(diffMidpointIntersect.x) + SQ(diffMidpointIntersect.z));
+        distFromCylYIntersectTov0v1 = sqrtf(SQ(diffMidpointIntersect.x) + SQ(diffMidpointIntersect.z));
 
         if (IS_ZERO(distFromCylYIntersectTov0v1)) {
             OoT_Math_Vec3f_Copy(intersect, &midpointv0v1);
@@ -1986,7 +1986,7 @@ s32 OoT_Math3D_SphVsCylOverlapCenterDist(Sphere16* sph, Cylinder16* cyl, f32* ov
     x = (f32)sph->center.x - cyl->pos.x;
     z = (f32)sph->center.z - cyl->pos.z;
     combinedRadius = (f32)sph->radius + cyl->radius;
-    *centerDist = OoT_sqrtf(SQ(x) + SQ(z));
+    *centerDist = sqrtf(SQ(x) + SQ(z));
     if (combinedRadius < *centerDist) {
         // if the combined radii is less than the distance to the centers, they cannot be touching.
         return false;
@@ -2035,7 +2035,7 @@ s32 Math3D_CylOutsideCylDist(Cylinder16* ca, Cylinder16* cb, f32* deadSpace, f32
     cbf.yShift = cb->yShift;
     cbf.height = cb->height;
 
-    *xzDist = OoT_sqrtf(SQ(caf.pos.x - cbf.pos.x) + SQ(caf.pos.z - cbf.pos.z));
+    *xzDist = sqrtf(SQ(caf.pos.x - cbf.pos.x) + SQ(caf.pos.z - cbf.pos.z));
 
     // The combined radix are within the xz distance
     if ((caf.radius + cbf.radius) < *xzDist) {

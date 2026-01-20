@@ -14,7 +14,7 @@ void OoT_guLookAtF(f32 mf[4][4], f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt,
     xLook = xAt - xEye;
     yLook = yAt - yEye;
     zLook = zAt - zEye;
-    length = -1.0 / OoT_sqrtf(SQ(xLook) + SQ(yLook) + SQ(zLook));
+    length = -1.0 / sqrtf(SQ(xLook) + SQ(yLook) + SQ(zLook));
     xLook *= length;
     yLook *= length;
     zLook *= length;
@@ -22,7 +22,7 @@ void OoT_guLookAtF(f32 mf[4][4], f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt,
     xRight = yUp * zLook - zUp * yLook;
     yRight = zUp * xLook - xUp * zLook;
     zRight = xUp * yLook - yUp * xLook;
-    length = 1.0 / OoT_sqrtf(SQ(xRight) + SQ(yRight) + SQ(zRight));
+    length = 1.0 / sqrtf(SQ(xRight) + SQ(yRight) + SQ(zRight));
     xRight *= length;
     yRight *= length;
     zRight *= length;
@@ -30,7 +30,7 @@ void OoT_guLookAtF(f32 mf[4][4], f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt,
     xUp = yLook * zRight - zLook * yRight;
     yUp = zLook * xRight - xLook * zRight;
     zUp = xLook * yRight - yLook * xRight;
-    length = 1.0 / OoT_sqrtf(SQ(xUp) + SQ(yUp) + SQ(zUp));
+    length = 1.0 / sqrtf(SQ(xUp) + SQ(yUp) + SQ(zUp));
     xUp *= length;
     yUp *= length;
     zUp *= length;

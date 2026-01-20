@@ -3048,7 +3048,7 @@ void OoT_EnHorse_StickDirection(Vec2f* curStick, f32* stickMag, s16* angle) {
 
     x = curStick->x;
     y = curStick->y;
-    dist = OoT_sqrtf(SQ(x) + SQ(y));
+    dist = sqrtf(SQ(x) + SQ(y));
 
     *stickMag = dist;
     if (dist > 60.0f) {
@@ -3081,7 +3081,7 @@ void OoT_EnHorse_ResolveCollision(EnHorse* this, PlayState* play, CollisionPoly*
                     (s16)(OoT_Math_FAtan2F(colPoly->normal.x, colPoly->normal.z) * (0x8000 / M_PI)) - 0x7FFF) <
           0.7071f)) { // cos(45 degrees)
         dist = OoT_Math3D_DistPlaneToPos(nx, ny, nz, colPoly->dist, &this->actor.world.pos);
-        offset = (1.0f / OoT_sqrtf(SQ(nx) + SQ(nz)));
+        offset = (1.0f / sqrtf(SQ(nx) + SQ(nz)));
         offset = (30.0f - dist) * offset;
         this->actor.world.pos.x += offset * nx;
         this->actor.world.pos.z += offset * nz;

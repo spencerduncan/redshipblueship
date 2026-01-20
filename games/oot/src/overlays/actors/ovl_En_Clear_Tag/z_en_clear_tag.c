@@ -452,7 +452,7 @@ void OoT_EnClearTag_Update(Actor* thisx, PlayState* play2) {
                 vectorToTargetZ = this->targetPosition.z - this->actor.world.pos.z;
 
                 // If the Arwing is within a certain distance to the target position, it will be updated to flymode
-                if (OoT_sqrtf(SQ(vectorToTargetX) + SQ(vectorToTargetY) + SQ(vectorToTargetZ)) < loseTargetLockDistance) {
+                if (sqrtf(SQ(vectorToTargetX) + SQ(vectorToTargetY) + SQ(vectorToTargetZ)) < loseTargetLockDistance) {
                     this->timers[CLEAR_TAG_TIMER_ARWING_UPDATE_STATE] = 0;
                     if (this->state == CLEAR_TAG_STATE_TARGET_LOCKED) {
                         this->timers[CLEAR_TAG_TIMER_ARWING_ENTER_LOCKED_ON] = (s16)OoT_Rand_ZeroFloat(100.0f) + 100;
@@ -464,7 +464,7 @@ void OoT_EnClearTag_Update(Actor* thisx, PlayState* play2) {
                 // based on the Arwing's direction, and current rotation.
                 worldRotationTargetY = OoT_Math_FAtan2F(vectorToTargetX, vectorToTargetZ) * (0x8000 / M_PI);
                 worldRotationTargetX =
-                    OoT_Math_FAtan2F(vectorToTargetY, OoT_sqrtf(SQ(vectorToTargetX) + SQ(vectorToTargetZ))) * (0x8000 / M_PI);
+                    OoT_Math_FAtan2F(vectorToTargetY, sqrtf(SQ(vectorToTargetX) + SQ(vectorToTargetZ))) * (0x8000 / M_PI);
                 if ((worldRotationTargetX < 0) && (this->actor.world.pos.y < this->actor.floorHeight + 20.0f)) {
                     worldRotationTargetX = 0;
                 }

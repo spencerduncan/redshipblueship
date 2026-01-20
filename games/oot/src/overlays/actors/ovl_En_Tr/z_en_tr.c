@@ -482,7 +482,7 @@ void func_80B24038(EnTr* this, PlayState* play, s32 actionIndex) {
     endPos.y = (startPos.y - this->actor.world.pos.y) * 0.1f;
     endPos.z = (startPos.z - this->actor.world.pos.z) * 0.1f;
 
-    temp_f0_2 = OoT_sqrtf(SQ(endPos.x) + SQ(endPos.y) + SQ(endPos.z));
+    temp_f0_2 = sqrtf(SQ(endPos.x) + SQ(endPos.y) + SQ(endPos.z));
     phi_f12 = CLAMP(temp_f0_2, 0.0f, 20.0f);
 
     if ((temp_f0_2 != phi_f12) && (temp_f0_2 != 0.0f)) {

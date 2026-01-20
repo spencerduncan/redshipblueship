@@ -343,7 +343,7 @@ s32 func_800AAA9C(View* view) {
     float dirx = view->eye.x - view->lookAt.x;
     float diry = view->eye.y - view->lookAt.y;
     float dirz = view->eye.z - view->lookAt.z;
-    float dir_dist = OoT_sqrtf(OoT_sqr(dirx) + OoT_sqr(diry) + OoT_sqr(dirz));
+    float dir_dist = sqrtf(OoT_sqr(dirx) + OoT_sqr(diry) + OoT_sqr(dirz));
     dirx /= dir_dist;
     diry /= dir_dist;
     dirz /= dir_dist;
@@ -351,18 +351,18 @@ s32 func_800AAA9C(View* view) {
     float odirx = old_view.eye.x - old_view.lookAt.x;
     float odiry = old_view.eye.y - old_view.lookAt.y;
     float odirz = old_view.eye.z - old_view.lookAt.z;
-    float odir_dist = OoT_sqrtf(OoT_sqr(odirx) + OoT_sqr(odiry) + OoT_sqr(odirz));
+    float odir_dist = sqrtf(OoT_sqr(odirx) + OoT_sqr(odiry) + OoT_sqr(odirz));
     odirx /= odir_dist;
     odiry /= odir_dist;
     odirz /= odir_dist;
 
-    float eye_dist = OoT_sqrtf(OoT_sqr(view->eye.x - old_view.eye.x) + OoT_sqr(view->eye.y - old_view.eye.y) +
+    float eye_dist = sqrtf(OoT_sqr(view->eye.x - old_view.eye.x) + OoT_sqr(view->eye.y - old_view.eye.y) +
                            OoT_sqr(view->eye.z - old_view.eye.z));
-    float look_dist = OoT_sqrtf(OoT_sqr(view->lookAt.x - old_view.lookAt.x) + OoT_sqr(view->lookAt.y - old_view.lookAt.y) +
+    float look_dist = sqrtf(OoT_sqr(view->lookAt.x - old_view.lookAt.x) + OoT_sqr(view->lookAt.y - old_view.lookAt.y) +
                             OoT_sqr(view->lookAt.z - old_view.lookAt.z));
     float up_dist =
-        OoT_sqrtf(OoT_sqr(view->up.x - old_view.up.x) + OoT_sqr(view->up.y - old_view.up.y) + OoT_sqr(view->up.z - old_view.up.z));
-    float d_dist = OoT_sqrtf(OoT_sqr(dirx - odirx) + OoT_sqr(diry - odiry) + OoT_sqr(dirz - odirz));
+        sqrtf(OoT_sqr(view->up.x - old_view.up.x) + OoT_sqr(view->up.y - old_view.up.y) + OoT_sqr(view->up.z - old_view.up.z));
+    float d_dist = sqrtf(OoT_sqr(dirx - odirx) + OoT_sqr(diry - odiry) + OoT_sqr(dirz - odirz));
 
     bool dont_interpolate = false;
 

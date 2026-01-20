@@ -816,7 +816,7 @@ void MM_EnNiw_Update(Actor* thisx, PlayState* play2) {
         viewAtToEye.x = play->view.at.x - play->view.eye.x;
         viewAtToEye.y = play->view.at.y - play->view.eye.y;
         viewAtToEye.z = play->view.at.z - play->view.eye.z;
-        viewAtToEyeNormY = viewAtToEye.y / MM_sqrtf(SQXYZ(viewAtToEye));
+        viewAtToEyeNormY = viewAtToEye.y / sqrtf(SQXYZ(viewAtToEye));
 
         this->actor.world.pos.x = this->actor.home.pos.x;
         this->actor.world.pos.z = this->actor.home.pos.z;

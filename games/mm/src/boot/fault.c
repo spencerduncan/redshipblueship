@@ -569,11 +569,11 @@ OSThread* MM_Fault_FindFaultedThread(void) {
 void MM_Fault_Wait5Seconds(void) {
 #if 0
     s32 pad;
-    OSTime start = MM_osGetTime();
+    OSTime start = osGetTime();
 
     do {
         MM_Fault_Sleep(1000 / 60);
-    } while ((MM_osGetTime() - start) <= OS_SEC_TO_CYCLES(5));
+    } while ((osGetTime() - start) <= OS_SEC_TO_CYCLES(5));
 
     sFaultInstance->autoScroll = true;
 #endif
@@ -1184,6 +1184,6 @@ void MM_Fault_AddHungupAndCrashImpl(const char* exp1, const char* exp2) {
 void MM_Fault_AddHungupAndCrash(const char* file, s32 line) {
     char msg[0x100];
 
-    MM_sprintf(msg, "HungUp %s:%d", file, line);
+    sprintf(msg, "HungUp %s:%d", file, line);
     MM_Fault_AddHungupAndCrashImpl(msg, NULL);
 }

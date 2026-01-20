@@ -332,7 +332,7 @@ void Graph_ExecuteAndDraw(GraphicsContext* gfxCtx, GameState* gameState) {
     }
 
     {
-        OSTime time = MM_osGetTime();
+        OSTime time = osGetTime();
 
         gRSPGfxTimeTotal = gRSPGfxTimeAcc;
         gRSPAudioTimeTotal = gRSPAudioTimeAcc;

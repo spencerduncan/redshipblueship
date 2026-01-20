@@ -62,7 +62,7 @@ s32 func_80B0B81C(Vec3f* vortexPosRot, Vec3f* playerPosRot, Vec3f* posDifference
     posDifference->x = playerPosRot->x - vortexPosRot->x;
     posDifference->y = playerPosRot->y - vortexPosRot->y;
     posDifference->z = playerPosRot->z - vortexPosRot->z;
-    xzDist = OoT_sqrtf(SQ(posDifference->x) + SQ(posDifference->z));
+    xzDist = sqrtf(SQ(posDifference->x) + SQ(posDifference->z));
 
     if (lowerBounds <= posDifference->y && posDifference->y <= upperBounds) {
         posDifference->y -= lowerBounds;
@@ -90,7 +90,7 @@ void OoT_EnStream_SuckPlayer(EnStream* this, PlayState* play) {
     s32 pad2C;
 
     if (func_80B0B81C(&this->actor.world.pos, &player->actor.world.pos, &posDifference, this->actor.scale.y) != 0) {
-        xzDist = OoT_sqrtf(SQ(posDifference.x) + SQ(posDifference.z));
+        xzDist = sqrtf(SQ(posDifference.x) + SQ(posDifference.z));
         yDistWithOffset = player->actor.world.pos.y - (this->actor.world.pos.y - 90.0f);
         player->pushedYaw = OoT_Math_FAtan2F(-posDifference.x, -posDifference.z) * (0x8000 / M_PI);
         if (xzDist > 3.0f) {

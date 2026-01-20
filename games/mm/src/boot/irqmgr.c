@@ -85,7 +85,7 @@ void MM_IrqMgr_HandlePreNMI(IrqMgr* irqmgr) {
     MM_gIrqMgrResetStatus = 1;
     irqmgr->prenmiStage = 1;
 
-    MM_sIrqMgrResetTime = irqmgr->lastPrenmiTime = MM_osGetTime();
+    MM_sIrqMgrResetTime = irqmgr->lastPrenmiTime = osGetTime();
 
     // Wait .45 seconds then generate a stage 2 prenmi interrupt
     MM_osSetTimer(&irqmgr->prenmiTimer, OS_USEC_TO_CYCLES(450000), 0, &irqmgr->irqQueue, (OSMesg)0x29F);
@@ -124,9 +124,9 @@ void MM_IrqMgr_HandleRetrace(IrqMgr* irqmgr) {
 #if 0
     if (MM_gIrqMgrRetraceTime == 0) {
         if (irqmgr->lastFrameTime == 0) {
-            irqmgr->lastFrameTime = MM_osGetTime();
+            irqmgr->lastFrameTime = osGetTime();
         } else {
-            MM_gIrqMgrRetraceTime = MM_osGetTime() - irqmgr->lastFrameTime;
+            MM_gIrqMgrRetraceTime = osGetTime() - irqmgr->lastFrameTime;
         }
     }
 

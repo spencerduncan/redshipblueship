@@ -267,7 +267,7 @@ s32 func_80B288E8(EnFish2* this, Vec3f vec, s32 arg2) {
     f32 temp_f2 = this->unk_350->world.pos.x - vec.x;
     f32 temp_f12 = this->unk_350->world.pos.y - vec.y;
     f32 temp_f14 = this->unk_350->world.pos.z - vec.z;
-    f32 dist = MM_sqrtf(SQ(temp_f2) + SQ(temp_f12) + SQ(temp_f14));
+    f32 dist = sqrtf(SQ(temp_f2) + SQ(temp_f12) + SQ(temp_f14));
     f32 phi_f2;
 
     if (!arg2) {

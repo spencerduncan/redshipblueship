@@ -533,7 +533,7 @@ void DemoKankyo_DrawRain(Actor* thisx, PlayState* play) {
         dx = play->view.lookAt.x - play->view.eye.x;
         dy = play->view.lookAt.y - play->view.eye.y;
         dz = play->view.lookAt.z - play->view.eye.z;
-        norm = OoT_sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
+        norm = sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
 
         if (play->sceneNum != SCENE_TEMPLE_OF_TIME) {
             this->unk_150[i].unk_C.x = play->view.eye.x + (dx / norm) * 350.0f;

@@ -1209,22 +1209,22 @@ void func_8008F87C(PlayState* play, Player* this, SkelAnime* skelAnime, Vec3f* p
             sp6C = sp98.y - spA4.y;
             sp68 = sp98.z - spA4.z;
 
-            sp64 = OoT_sqrtf(SQ(sp70) + SQ(sp6C) + SQ(sp68));
+            sp64 = sqrtf(SQ(sp70) + SQ(sp6C) + SQ(sp68));
             sp60 = (SQ(sp64) + sp78) / (2.0f * sp64);
 
             sp58 = sp7C - SQ(sp60);
-            sp58 = (sp7C < SQ(sp60)) ? 0.0f : OoT_sqrtf(sp58);
+            sp58 = (sp7C < SQ(sp60)) ? 0.0f : sqrtf(sp58);
 
             sp54 = OoT_Math_FAtan2F(sp58, sp60);
 
             sp6C = sp80 - spA4.y;
 
-            sp64 = OoT_sqrtf(SQ(sp70) + SQ(sp6C) + SQ(sp68));
+            sp64 = sqrtf(SQ(sp70) + SQ(sp6C) + SQ(sp68));
             sp60 = (SQ(sp64) + sp78) / (2.0f * sp64);
             sp5C = sp64 - sp60;
 
             sp58 = sp7C - SQ(sp60);
-            sp58 = (sp7C < SQ(sp60)) ? 0.0f : OoT_sqrtf(sp58);
+            sp58 = (sp7C < SQ(sp60)) ? 0.0f : sqrtf(sp58);
 
             sp50 = OoT_Math_FAtan2F(sp58, sp60);
 

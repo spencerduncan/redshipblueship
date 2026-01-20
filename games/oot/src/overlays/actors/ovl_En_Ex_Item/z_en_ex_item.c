@@ -285,7 +285,7 @@ void EnExItem_BowlPrize(EnExItem* this, PlayState* play) {
             tmpf1 = play->view.lookAt.x - play->view.eye.x;
             tmpf2 = play->view.lookAt.y - play->view.eye.y;
             tmpf3 = play->view.lookAt.z + sp3C - play->view.eye.z;
-            tmpf4 = OoT_sqrtf(SQ(tmpf1) + SQ(tmpf2) + SQ(tmpf3));
+            tmpf4 = sqrtf(SQ(tmpf1) + SQ(tmpf2) + SQ(tmpf3));
 
             tmpf5 = (tmpf1 / tmpf4) * 5.0f;
             tmpf6 = (tmpf2 / tmpf4) * 5.0f;
@@ -368,7 +368,7 @@ void EnExItem_TargetPrizeApproach(EnExItem* this, PlayState* play) {
             tmpf1 = play->view.lookAt.x - play->view.eye.x;
             tmpf2 = play->view.lookAt.y - 10.0f - play->view.eye.y;
             tmpf3 = play->view.lookAt.z + 10.0f - play->view.eye.z;
-            tmpf4 = OoT_sqrtf(SQ(tmpf1) + SQ(tmpf2) + SQ(tmpf3));
+            tmpf4 = sqrtf(SQ(tmpf1) + SQ(tmpf2) + SQ(tmpf3));
 
             tmpf5 = (tmpf1 / tmpf4) * 5.0f;
             tmpf6 = (tmpf2 / tmpf4) * 5.0f;

@@ -1449,7 +1449,7 @@ void func_80900890(BossGanon2* this, PlayState* play) {
                 temp_f2 = -200.0f - player->actor.world.pos.x;
                 temp_f12 = -200.0f - player->actor.world.pos.z;
 
-                if (OoT_sqrtf(SQ(temp_f2) + SQ(temp_f12)) <= 784.0f) {
+                if (sqrtf(SQ(temp_f2) + SQ(temp_f12)) <= 784.0f) {
                     OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanonGetUpAnim, 0.0f);
                     this->unk_194 = OoT_Animation_GetLastFrame(&gGanonGetUpAnim);
                     this->unk_1AC = 2;
@@ -1688,7 +1688,7 @@ void func_8090120C(BossGanon2* this, PlayState* play) {
             temp_f14 = this->unk_1B8.x - player->actor.world.pos.x;
             temp_f12 = this->unk_1B8.z - player->actor.world.pos.z;
             temp_a0_2 = OoT_Math_Atan2S(temp_f12, temp_f14) - player->actor.shape.rot.y;
-            if ((ABS(temp_a0_2) < 0x2000) && (OoT_sqrtf(SQ(temp_f14) + SQ(temp_f12)) < 70.0f) &&
+            if ((ABS(temp_a0_2) < 0x2000) && (sqrtf(SQ(temp_f14) + SQ(temp_f12)) < 70.0f) &&
                 (player->meleeWeaponState != 0) && (player->heldItemAction == PLAYER_IA_SWORD_MASTER)) {
                 func_80064520(play, &play->csCtx);
                 GameInteractor_ExecuteOnBossDefeat(&this->actor);
@@ -1918,7 +1918,7 @@ void func_80902348(BossGanon2* this, PlayState* play) {
         temp_f2 = -200.0f - player->actor.world.pos.x;
         temp_f12 = -200.0f - player->actor.world.pos.z;
 
-        if (OoT_sqrtf(SQ(temp_f2) + SQ(temp_f12)) > 784.0f) {
+        if (sqrtf(SQ(temp_f2) + SQ(temp_f12)) > 784.0f) {
             for (j = 0; j < ARRAY_COUNT(player->bodyFlameTimers); j++) {
                 player->bodyFlameTimers[j] = OoT_Rand_S16Offset(0, 200);
             }
@@ -2286,7 +2286,7 @@ void func_809034E4(Vec3f* arg0, Vec3f* arg1) {
     temp_f20.z = D_809105D8[1].z - sp2D0.z;
 
     sp2CA = OoT_Math_Atan2S(temp_f20.z, temp_f20.x);
-    sp2C8 = OoT_Math_Atan2S(OoT_sqrtf(SQXZ(temp_f20)), temp_f20.y);
+    sp2C8 = OoT_Math_Atan2S(sqrtf(SQXZ(temp_f20)), temp_f20.y);
 
     temp_f2.x = D_809105D8[2].x - D_809105D8[1].x;
     temp_f2.y = D_809105D8[2].y - D_809105D8[1].y;
@@ -2296,14 +2296,14 @@ void func_809034E4(Vec3f* arg0, Vec3f* arg1) {
     temp_f22.y = D_809105D8[3].y - D_809105D8[2].y;
     temp_f22.z = D_809105D8[3].z - D_809105D8[2].z;
 
-    temp_f12 = OoT_sqrtf(SQXYZ(temp_f20)) + OoT_sqrtf(SQXYZ(temp_f2)) + OoT_sqrtf(SQXYZ(temp_f22));
+    temp_f12 = sqrtf(SQXYZ(temp_f20)) + sqrtf(SQXYZ(temp_f2)) + sqrtf(SQXYZ(temp_f22));
     if (temp_f12 <= 1.0f) {
         temp_f12 = 1.0f;
     }
 
     temp_f28 = temp_f12 * 0.083f;
-    phi_f30 = OoT_sqrtf(SQXYZ(temp_f20)) / 2.0f;
-    sp294 = OoT_sqrtf(SQXYZ(temp_f2)) / 2.0f;
+    phi_f30 = sqrtf(SQXYZ(temp_f20)) / 2.0f;
+    sp294 = sqrtf(SQXYZ(temp_f2)) / 2.0f;
 
     phi_s2 = 1;
 
@@ -2313,7 +2313,7 @@ void func_809034E4(Vec3f* arg0, Vec3f* arg1) {
         temp_f20.z = D_809105D8[phi_s2].z - sp2D0.z;
 
         temp_s1 = OoT_Math_Atan2S(temp_f20.z, temp_f20.x);
-        temp_a1 = OoT_Math_Atan2S(OoT_sqrtf(SQXZ(temp_f20)), temp_f20.y);
+        temp_a1 = OoT_Math_Atan2S(sqrtf(SQXZ(temp_f20)), temp_f20.y);
 
         OoT_Math_ApproachS(&sp2C8, temp_a1, 1, 0x1000);
         OoT_Math_ApproachS(&sp2CA, temp_s1, 1, 0x1000);
@@ -2331,12 +2331,12 @@ void func_809034E4(Vec3f* arg0, Vec3f* arg1) {
         temp_f20.z = D_809105D8[phi_s2].z - sp2D0.z;
 
         if (phi_s2 < 3) {
-            if (OoT_sqrtf(SQXYZ(temp_f20)) <= phi_f30) {
+            if (sqrtf(SQXYZ(temp_f20)) <= phi_f30) {
                 phi_f30 = sp294;
                 phi_s2++;
             }
         } else {
-            if (OoT_sqrtf(SQXYZ(temp_f20)) <= (temp_f28 + 1.0f)) {
+            if (sqrtf(SQXYZ(temp_f20)) <= (temp_f28 + 1.0f)) {
                 phi_s2++;
             }
         }
@@ -2362,7 +2362,7 @@ void func_809034E4(Vec3f* arg0, Vec3f* arg1) {
     temp_f20.z = D_80910608[1].z - sp2D0.z;
 
     sp2CA = OoT_Math_Atan2S(temp_f20.z, temp_f20.x);
-    sp2C8 = OoT_Math_Atan2S(OoT_sqrtf(SQXZ(temp_f20)), temp_f20.y);
+    sp2C8 = OoT_Math_Atan2S(sqrtf(SQXZ(temp_f20)), temp_f20.y);
 
     temp_f2.x = D_80910608[2].x - D_80910608[1].x;
     temp_f2.y = D_80910608[2].y - D_80910608[1].y;
@@ -2372,14 +2372,14 @@ void func_809034E4(Vec3f* arg0, Vec3f* arg1) {
     temp_f22.y = D_80910608[3].y - D_80910608[2].y;
     temp_f22.z = D_80910608[3].z - D_80910608[2].z;
 
-    temp_f12 = OoT_sqrtf(SQXYZ(temp_f20)) + OoT_sqrtf(SQXYZ(temp_f2)) + OoT_sqrtf(SQXYZ(temp_f22));
+    temp_f12 = sqrtf(SQXYZ(temp_f20)) + sqrtf(SQXYZ(temp_f2)) + sqrtf(SQXYZ(temp_f22));
     if (temp_f12 <= 1.0f) {
         temp_f12 = 1.0f;
     }
 
     temp_f28 = temp_f12 * 0.083f;
-    phi_f30 = OoT_sqrtf(SQXYZ(temp_f20)) / 2.0f;
-    sp294 = OoT_sqrtf(SQXYZ(temp_f2)) / 2.0f;
+    phi_f30 = sqrtf(SQXYZ(temp_f20)) / 2.0f;
+    sp294 = sqrtf(SQXYZ(temp_f2)) / 2.0f;
 
     phi_s2 = 1;
 
@@ -2389,7 +2389,7 @@ void func_809034E4(Vec3f* arg0, Vec3f* arg1) {
         temp_f20.z = D_80910608[phi_s2].z - sp2D0.z;
 
         temp_s1 = OoT_Math_Atan2S(temp_f20.z, temp_f20.x);
-        temp_a1 = OoT_Math_Atan2S(OoT_sqrtf(SQXZ(temp_f20)), temp_f20.y);
+        temp_a1 = OoT_Math_Atan2S(sqrtf(SQXZ(temp_f20)), temp_f20.y);
 
         OoT_Math_ApproachS(&sp2C8, temp_a1, 1, 0x1000);
         OoT_Math_ApproachS(&sp2CA, temp_s1, 1, 0x1000);
@@ -2407,12 +2407,12 @@ void func_809034E4(Vec3f* arg0, Vec3f* arg1) {
         temp_f20.z = D_80910608[phi_s2].z - sp2D0.z;
 
         if (phi_s2 < 3) {
-            if (OoT_sqrtf(SQXYZ(temp_f20)) <= phi_f30) {
+            if (sqrtf(SQXYZ(temp_f20)) <= phi_f30) {
                 phi_f30 = sp294;
                 phi_s2++;
             }
         } else {
-            if (OoT_sqrtf(SQXYZ(temp_f20)) <= (temp_f28 + 1.0f)) {
+            if (sqrtf(SQXYZ(temp_f20)) <= (temp_f28 + 1.0f)) {
                 phi_s2++;
             }
         }
@@ -2918,7 +2918,7 @@ void func_80905DA8(BossGanon2* this, PlayState* play) {
             } else if (effect->type == 2) {
                 effect->unk_38.x += 0.1f;
                 effect->unk_38.y += 0.4f;
-                if ((OoT_sqrtf(SQ(-200.0f - effect->position.x) + SQ(-200.0f - effect->position.z)) < 1000.0f)) {
+                if ((sqrtf(SQ(-200.0f - effect->position.x) + SQ(-200.0f - effect->position.z)) < 1000.0f)) {
                     if (effect->position.y < 1186.0f) {
                         if (effect->unk_2E == 0) {
                             effect->unk_2E++;

@@ -238,7 +238,7 @@ void func_809438F8(EnDaiku* this, PlayState* play) {
                        fabsf(2.0f * MM_Math_CosS(this->actor.world.rot.y)));
         MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->unk_282, 1, 0x7D0, 0xA);
 
-        xzDist = MM_sqrtf(SQ(this->actor.world.pos.x - this->unk_26C.x) + SQ(this->actor.world.pos.z - this->unk_26C.z));
+        xzDist = sqrtf(SQ(this->actor.world.pos.x - this->unk_26C.x) + SQ(this->actor.world.pos.z - this->unk_26C.z));
         yawDiff = fabsf(this->actor.world.rot.y - this->unk_282);
         if ((xzDist < 4.0f) && (this->path != NULL) && (yawDiff < 10.0f)) {
             this->unk_25C++;

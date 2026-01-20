@@ -2172,20 +2172,20 @@ void Player_AdjustSingleLeg(PlayState* play, Player* player, SkelAnime* skelAnim
         s32 temp_v0_4;
         s16 phi_t1;
 
-        distance = MM_sqrtf(SQ(diffX) + SQ(diffY) + SQ(diffZ));
+        distance = sqrtf(SQ(diffX) + SQ(diffY) + SQ(diffZ));
 
         sp58 = (SQ(distance) + sp70) / (2.0f * distance);
 
         temp_f20 = sp74 - SQ(sp58);
-        temp_f20 = (temp_f20 < 0.0f) ? 0.0f : MM_sqrtf(temp_f20);
+        temp_f20 = (temp_f20 < 0.0f) ? 0.0f : sqrtf(temp_f20);
 
         sp4C = MM_Math_FAtan2F(temp_f20, sp58);
-        distance = MM_sqrtf(SQ(diffX) + SQ(yIntersect - sp90.y) + SQ(diffZ));
+        distance = sqrtf(SQ(diffX) + SQ(yIntersect - sp90.y) + SQ(diffZ));
         sp58 = (SQ(distance) + sp70) / (2.0f * distance);
         sp54 = distance - sp58;
 
         temp_f20 = sp74 - SQ(sp58);
-        temp_f20 = (temp_f20 < 0.0f) ? 0.0f : MM_sqrtf(temp_f20);
+        temp_f20 = (temp_f20 < 0.0f) ? 0.0f : sqrtf(temp_f20);
 
         sp48 = MM_Math_FAtan2F(temp_f20, sp58);
         phi_t1 = (M_PIf - (MM_Math_FAtan2F(sp54, temp_f20) + ((M_PIf / 2.0f) - sp48))) * (0x8000 / M_PIf);
@@ -2292,7 +2292,7 @@ void func_80124FF0(f32 arg0, s16 arg1, Vec3f* arg2, s16 arg3, Vec3f* arg4, Vec3f
     arg5->z = (MM_Math_CosS(arg3) * sp30) + arg2->z;
 
     MM_Math_Vec3f_Diff(arg5, arg4, &sp44);
-    sp40 = MM_sqrtf(SQXZ(sp44));
+    sp40 = sqrtf(SQXZ(sp44));
 
     sp3C = (sp40 <= 1.0f) ? arg3 : Math_Atan2S_XY(sp44.z, sp44.x);
     sp40 = (MM_Math_CosS(sp3C - arg3) * sp40) + arg8;
@@ -3282,7 +3282,7 @@ void Player_DrawCircusLeadersMask(PlayState* play, Player* player) {
 
             gfx = &gfx[6];
         } else {
-            f32 speedXZ = MM_sqrtf(SQ(player->actor.velocity.x) + SQ(player->actor.velocity.z));
+            f32 speedXZ = sqrtf(SQ(player->actor.velocity.x) + SQ(player->actor.velocity.z));
             s16 phi_s0 = speedXZ * 2000.0f;
             f32 temp_f20;
 
@@ -3506,7 +3506,7 @@ void func_80127DA4(PlayState* play, struct_801F58B0 arg1[], struct_80128388_arg1
     MM_Math_Vec3f_Copy(&arg1->unk_00, arg4);
     MM_Math_Vec3f_Diff(arg5, arg4, &spB0);
     arg1->unk_18 = Math_Atan2S_XY(spB0.z, spB0.x);
-    arg1->unk_1A = Math_Atan2S_XY(MM_sqrtf(SQXZ(spB0)), spB0.y);
+    arg1->unk_1A = Math_Atan2S_XY(sqrtf(SQXZ(spB0)), spB0.y);
     i = 1;
     arg2++;
 
@@ -3532,7 +3532,7 @@ void func_80127DA4(PlayState* play, struct_801F58B0 arg1[], struct_80128388_arg1
             spB0.y = arg2->unk_00;
             spB0.z = 0.0f;
         }
-        f20 = MM_sqrtf(SQXZ(spB0));
+        f20 = sqrtf(SQXZ(spB0));
 
         if (f20 > 4.0f) {
             phi_s1->unk_18 = Math_Atan2S_XY(spB0.z, spB0.x);

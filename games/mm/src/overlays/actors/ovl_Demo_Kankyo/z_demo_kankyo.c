@@ -78,7 +78,7 @@ void DemoKakyo_LostWoodsSparkleActionFunc(DemoKankyo* this, PlayState* play) {
         eyeToAt.x = play->view.at.x - play->view.eye.x;
         eyeToAt.y = play->view.at.y - play->view.eye.y;
         eyeToAt.z = play->view.at.z - play->view.eye.z;
-        eyeToAtMag = MM_sqrtf(SQXYZ(eyeToAt));
+        eyeToAtMag = sqrtf(SQXYZ(eyeToAt));
         eyeToAtNormX = eyeToAt.x / eyeToAtMag;
         eyeToAtNormY = eyeToAt.y / eyeToAtMag;
         eyeToAtNormZ = eyeToAt.z / eyeToAtMag;
@@ -316,7 +316,7 @@ void DemoKakyo_MoonSparklesActionFunc(DemoKankyo* this, PlayState* play) {
     eyeToAt.x = play->view.at.x - play->view.eye.x;
     eyeToAt.y = play->view.at.y - play->view.eye.y;
     eyeToAt.z = play->view.at.z - play->view.eye.z;
-    eyeToAtMag = MM_sqrtf(SQXYZ(eyeToAt));
+    eyeToAtMag = sqrtf(SQXYZ(eyeToAt));
     eyeToAtNormX = eyeToAt.x / eyeToAtMag;
     eyeToAtNormY = eyeToAt.y / eyeToAtMag;
     eyeToAtNormZ = eyeToAt.z / eyeToAtMag;

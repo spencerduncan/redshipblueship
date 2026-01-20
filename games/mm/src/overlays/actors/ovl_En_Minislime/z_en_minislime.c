@@ -530,7 +530,7 @@ void EnMinislime_Knockback(EnMinislime* this, PlayState* play) {
 
     this->knockbackTimer--;
     MM_Math_StepToF(&this->actor.speed, 0.0f, 1.0f);
-    sqrtFrozenTimer = MM_sqrtf(this->knockbackTimer);
+    sqrtFrozenTimer = sqrtf(this->knockbackTimer);
     this->actor.scale.x = ((MM_Math_CosF(this->knockbackTimer * (M_PIf / 3)) * (0.05f * sqrtFrozenTimer)) + 1.0f) * 0.15f;
     this->actor.scale.z = this->actor.scale.x;
     if (this->knockbackTimer == 15) {

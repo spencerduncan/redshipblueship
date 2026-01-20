@@ -330,7 +330,7 @@ void func_80C03AF4(EnBombers* this, PlayState* play) {
             x = this->unk_294.x - this->actor.world.pos.x;
             z = this->unk_294.z - this->actor.world.pos.z;
 
-            if ((this->unk_2AA == 0) || (MM_sqrtf(SQ(x) + SQ(z)) < 4.0f)) {
+            if ((this->unk_2AA == 0) || (sqrtf(SQ(x) + SQ(z)) < 4.0f)) {
                 this->unk_2A8 = MM_Rand_S16Offset(20, 20);
                 if (!(this->unk_2A8 & 1)) {
                     EnBombers_ChangeAnim(this, ENBOMBERS_ANIM_16, 1.0f);

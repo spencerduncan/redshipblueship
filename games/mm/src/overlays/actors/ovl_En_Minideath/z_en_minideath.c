@@ -274,7 +274,7 @@ void EnMinideath_UpdateEffects(EnMinideath* this, PlayState* play) {
             }
 
             if (effect->vel.y < 0.0f || phi_fv0 < effect->vel.y || phi_fa0 < SQ(effect->vel.x) + SQ(effect->vel.z)) {
-                angle = Math_Atan2S_XY(MM_sqrtf(SQ(effect->vel.x) + SQ(effect->vel.z)), effect->vel.y);
+                angle = Math_Atan2S_XY(sqrtf(SQ(effect->vel.x) + SQ(effect->vel.z)), effect->vel.y);
                 effect->angle.x = -1 * angle + ((s32)MM_Rand_Next() >> 19);
                 angle = Math_Atan2S_XY(effect->vel.z, effect->vel.x);
                 effect->angle.y = 0x8000 + angle + ((s32)MM_Rand_Next() >> 19);

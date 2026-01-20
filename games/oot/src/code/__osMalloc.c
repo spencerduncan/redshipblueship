@@ -125,7 +125,7 @@ void ArenaImpl_SetDebugInfo(ArenaNode* node, const char* file, int line, Arena* 
     node->line = line;
     node->threadId = OoT_osGetThreadId(NULL);
     node->arena = arena;
-    node->time = OoT_osGetTime();
+    node->time = osGetTime();
     */
 }
 #endif

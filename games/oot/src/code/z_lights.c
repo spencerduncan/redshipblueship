@@ -118,7 +118,7 @@ void OoT_Lights_BindPoint(Lights* lights, LightParams* params, Vec3f* vec) {
             light = OoT_Lights_FindSlot(lights);
 
             if (light != NULL) {
-                posDiff = OoT_sqrtf(posDiff);
+                posDiff = sqrtf(posDiff);
                 scale = posDiff / scale;
                 scale = 1 - SQ(scale);
 

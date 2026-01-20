@@ -1389,7 +1389,7 @@ void func_80ACD220(EnOwl* this, Vec3f* arg1, f32 arg2) {
     rpy.z = (arg1->z - this->actor.world.pos.z) * arg2;
 
     OoT_Math_StepToF(&this->actor.velocity.y, rpy.y, 1.0f);
-    this->actor.speedXZ = OoT_sqrtf(SQ(rpy.x) + SQ(rpy.z));
+    this->actor.speedXZ = sqrtf(SQ(rpy.x) + SQ(rpy.z));
     this->actor.world.rot.y = OoT_Math_Vec3f_Yaw(&this->actor.world.pos, arg1);
     this->actor.shape.rot.y = this->actor.world.rot.y;
 }

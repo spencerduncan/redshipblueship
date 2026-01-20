@@ -193,7 +193,7 @@ void OoT_ArmsHook_Shoot(ArmsHook* this, PlayState* play) {
                 this->grabbed = NULL;
             } else if (this->actor.child != NULL) {
                 sp94 = OoT_Actor_WorldDistXYZToActor(&this->actor, grabbed);
-                sp90 = OoT_sqrtf(SQ(this->grabbedDistDiff.x) + SQ(this->grabbedDistDiff.y) + SQ(this->grabbedDistDiff.z));
+                sp90 = sqrtf(SQ(this->grabbedDistDiff.x) + SQ(this->grabbedDistDiff.y) + SQ(this->grabbedDistDiff.z));
                 OoT_Math_Vec3f_Diff(&grabbed->world.pos, &this->grabbedDistDiff, &this->actor.world.pos);
                 if (50.0f < (sp94 - sp90)) {
                     ArmsHook_DetachHookFromActor(this);
@@ -238,7 +238,7 @@ void OoT_ArmsHook_Shoot(ArmsHook* this, PlayState* play) {
         } else {
             OoT_Math_Vec3f_Diff(&bodyDistDiffVec, &newPos, &player->actor.velocity);
             player->actor.world.rot.x =
-                OoT_Math_Atan2S(OoT_sqrtf(SQ(bodyDistDiffVec.x) + SQ(bodyDistDiffVec.z)), -bodyDistDiffVec.y);
+                OoT_Math_Atan2S(sqrtf(SQ(bodyDistDiffVec.x) + SQ(bodyDistDiffVec.z)), -bodyDistDiffVec.y);
         }
 
         if (phi_f16 < 50.0f) {
@@ -335,14 +335,14 @@ void OoT_ArmsHook_Draw(Actor* thisx, PlayState* play) {
         OoT_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
         OoT_Math_Vec3f_Diff(&player->unk_3C8, &this->actor.world.pos, &sp78);
         sp58 = SQ(sp78.x) + SQ(sp78.z);
-        sp5C = OoT_sqrtf(sp58);
+        sp5C = sqrtf(sp58);
         Matrix_RotateY(OoT_Math_FAtan2F(sp78.x, sp78.z), MTXMODE_APPLY);
         Matrix_RotateX(OoT_Math_FAtan2F(-sp78.y, sp5C), MTXMODE_APPLY);
         if (CVarGetInteger(CVAR_ENHANCEMENT("EquipmentAlwaysVisible"), 0) &&
             CVarGetInteger(CVAR_ENHANCEMENT("ScaleAdultEquipmentAsChild"), 0) && LINK_IS_CHILD) {
-            OoT_Matrix_Scale(0.012f, 0.012f, OoT_sqrtf(SQ(sp78.y) + sp58) * 0.01f, MTXMODE_APPLY);
+            OoT_Matrix_Scale(0.012f, 0.012f, sqrtf(SQ(sp78.y) + sp58) * 0.01f, MTXMODE_APPLY);
         } else {
-            OoT_Matrix_Scale(0.015f, 0.015f, OoT_sqrtf(SQ(sp78.y) + sp58) * 0.01f, MTXMODE_APPLY);
+            OoT_Matrix_Scale(0.015f, 0.015f, sqrtf(SQ(sp78.y) + sp58) * 0.01f, MTXMODE_APPLY);
         }
         gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gSPDisplayList(POLY_OPA_DISP++, gLinkAdultHookshotChainDL);

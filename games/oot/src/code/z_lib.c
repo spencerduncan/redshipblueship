@@ -205,7 +205,7 @@ void func_80077D10(f32* arg0, s16* arg1, Input* input) {
         relX = -input->rel.stick_x;
     }
 
-    *arg0 = OoT_sqrtf(SQ(relX) + SQ(relY));
+    *arg0 = sqrtf(SQ(relX) + SQ(relY));
     *arg0 = (60.0f < *arg0) ? 60.0f : *arg0;
 
     *arg1 = OoT_Math_Atan2S(relY, -relX);
@@ -260,7 +260,7 @@ f32 OoT_Math_Vec3f_DistXYZ(Vec3f* a, Vec3f* b) {
     f32 dy = b->y - a->y;
     f32 dz = b->z - a->z;
 
-    return OoT_sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
+    return sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
 }
 
 f32 OoT_Math_Vec3f_DistXYZAndStoreDiff(Vec3f* a, Vec3f* b, Vec3f* dest) {
@@ -268,14 +268,14 @@ f32 OoT_Math_Vec3f_DistXYZAndStoreDiff(Vec3f* a, Vec3f* b, Vec3f* dest) {
     dest->y = b->y - a->y;
     dest->z = b->z - a->z;
 
-    return OoT_sqrtf(SQ(dest->x) + SQ(dest->y) + SQ(dest->z));
+    return sqrtf(SQ(dest->x) + SQ(dest->y) + SQ(dest->z));
 }
 
 f32 OoT_Math_Vec3f_DistXZ(Vec3f* a, Vec3f* b) {
     f32 dx = b->x - a->x;
     f32 dz = b->z - a->z;
 
-    return OoT_sqrtf(SQ(dx) + SQ(dz));
+    return sqrtf(SQ(dx) + SQ(dz));
 }
 
 f32 OoT_Math_Vec3f_DiffY(Vec3f* a, Vec3f* b) {

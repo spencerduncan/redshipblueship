@@ -12,7 +12,7 @@ s32 OoT_vsprintf(char* dst, const char* fmt, va_list args) {
     return ret;
 }
 
-s32 OoT_sprintf(char* dst, const char* fmt, ...) {
+s32 sprintf(char* dst, const char* fmt, ...) {
     s32 ret;
     va_list args;
     va_start(args, fmt);

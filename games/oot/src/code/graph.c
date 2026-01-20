@@ -178,7 +178,7 @@ void OoT_Graph_TaskSet00(GraphicsContext* gfxCtx) {
     CfbInfo* cfb;
     s32 pad1;
 
-    D_8016A528 = OoT_osGetTime() - sGraphSetTaskTime - D_8016A558;
+    D_8016A528 = osGetTime() - sGraphSetTaskTime - D_8016A558;
 
     OoT_osSetTimer(&timer, OS_USEC_TO_CYCLES(3000000), 0, &gfxCtx->queue, OS_MESG_32(666));
 
@@ -212,14 +212,14 @@ void OoT_Graph_TaskSet00(GraphicsContext* gfxCtx) {
         gfxCtx->callback(gfxCtx, gfxCtx->callbackParam);
     }
 
-    time = OoT_osGetTime();
+    time = osGetTime();
     if (D_8016A550 != 0) {
         D_8016A558 = (D_8016A558 + time) - D_8016A550;
         D_8016A550 = time;
     }
     D_8016A520 = D_8016A558;
     D_8016A558 = 0;
-    sGraphSetTaskTime = OoT_osGetTime();
+    sGraphSetTaskTime = osGetTime();
 
     task->type = M_GFXTASK;
     task->flags = OS_SC_DRAM_DLIST;
@@ -392,7 +392,7 @@ void OoT_Graph_Update(GraphicsContext* gfxCtx, GameState* gameState) {
     func_800F3054();
 
     {
-        OSTime time = OoT_osGetTime();
+        OSTime time = osGetTime();
         s32 pad[4];
 
         D_8016A538 = gRSPGFXTotalTime;

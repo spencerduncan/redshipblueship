@@ -212,7 +212,7 @@ void EnWonderItem_MultitagFree(EnWonderItem* this, PlayState* play) {
             f32 dy = player->actor.world.pos.y - sTagPointsFree[i].y;
             f32 dz = player->actor.world.pos.z - sTagPointsFree[i].z;
 
-            if (OoT_sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 50.0f) {
+            if (sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 50.0f) {
                 this->tagFlags |= mask;
                 this->tagCount++;
                 this->timer = this->timerMod + 81;
@@ -275,7 +275,7 @@ void EnWonderItem_MultitagOrdered(EnWonderItem* this, PlayState* play) {
             f32 dy = player->actor.world.pos.y - sTagPointsOrdered[i].y;
             f32 dz = player->actor.world.pos.z - sTagPointsOrdered[i].z;
 
-            if (OoT_sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 50.0f) {
+            if (sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 50.0f) {
                 if (prevTagFlags & mask) {
                     return;
                 } else if (i == this->nextTag) {

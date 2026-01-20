@@ -27,7 +27,7 @@ s32 MM_osContInit(OSMesgQueue* mq, u8* bitpattern, OSContStatus* data) {
 
     __osContinitialized = true;
 
-    t = MM_osGetTime();
+    t = osGetTime();
     if (t < OS_USEC_TO_CYCLES(500000)) {
         MM_osCreateMesgQueue(&timerMesgQueue, &dummy, 1);
         MM_osSetTimer(&mytimer, OS_USEC_TO_CYCLES(500000) - t, 0, &timerMesgQueue, &dummy);
