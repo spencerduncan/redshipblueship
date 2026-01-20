@@ -145,6 +145,11 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set_source_files_properties(soh/Enhancements/custom-message/CustomMessageManager.h PROPERTIES COMPILE_FLAGS "/utf-8")
 endif()
 
+# Exclude GameExports.cpp unless building as shared library (added conditionally later)
+if(NOT REDSHIP_BUILD_SHARED)
+    list(FILTER soh__ EXCLUDE REGEX "soh/GameExports\\.cpp")
+endif()
+
 # handle Network removals
 if (!BUILD_REMOTE_CONTROL)
     list(FILTER soh__ EXCLUDE REGEX "soh/Enhancements/crowd-control/")
