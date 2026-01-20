@@ -1290,7 +1290,7 @@ void RandomizerOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_l
                 BEANS_BOUGHT = 10;
                 // Only set inf for buying rando check
                 Flags_SetRandomizerInf(RAND_INF_MERCHANTS_MAGIC_BEAN_SALESMAN);
-                enMs->actionFunc = (EnMsActionFunc)EnMs_Wait;
+                enMs->actionFunc = (EnMsActionFunc)OoT_EnMs_Wait;
                 *should = false;
             } else if (RAND_GET_OPTION(RSK_SKIP_PLANTING_BEANS)) {
                 Rupees_ChangeBy(-60);
@@ -1311,7 +1311,7 @@ void RandomizerOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_l
                     Flags_SetSwitch(gPlayState, bean->dyna.actor.params & 0x3F);
                     func_80B8FE00(bean);
                 }
-                enMs->actionFunc = (EnMsActionFunc)EnMs_Wait;
+                enMs->actionFunc = (EnMsActionFunc)OoT_EnMs_Wait;
                 *should = false;
             }
             break;
@@ -1762,7 +1762,7 @@ void RandomizerOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_l
                             HIGH_SCORE(HS_FISHING) |= HS_FISH_PRIZE_ADULT;
                         }
                         *should = true;
-                        *fishData->sSinkingLureLocation = (u8)Rand_ZeroFloat(3.999f) + 1;
+                        *fishData->OoT_sSinkingLureLocation = (u8)Rand_ZeroFloat(3.999f) + 1;
                         fishData->actor->stateAndTimer = 0;
                     }
                 }
