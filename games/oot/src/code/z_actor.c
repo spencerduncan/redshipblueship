@@ -858,7 +858,7 @@ void OoT_TitleCard_InitBossName(PlayState* play, TitleCardContext* titleCtx, voi
             newName[length - 4] = 'R';
         } else if (gSaveContext.language == LANGUAGE_JPN) {
             newName[length - 6] = 'J';
-            newName[length - 5] = 'OoT_P';
+            newName[length - 5] = 'P';
             newName[length - 4] = 'N';
         }
         texture = newName;
@@ -1080,7 +1080,7 @@ void OoT_TitleCard_InitPlaceName(PlayState* play, TitleCardContext* titleCtx, vo
             newName[length - 4] = 'R';
         } else if (gSaveContext.language == LANGUAGE_JPN) {
             newName[length - 6] = 'J';
-            newName[length - 5] = 'OoT_P';
+            newName[length - 5] = 'P';
             newName[length - 4] = 'N';
         }
         texture = newName;
