@@ -89,11 +89,11 @@ ResourceFactoryBinaryCollisionHeaderV0::ReadResource(std::shared_ptr<Ship::File>
         collisionHeader->camPosData.push_back(pos);
     }
 
-    Vec3s zero;
-    zero.x = 0;
-    zero.y = 0;
-    zero.z = 0;
-    collisionHeader->camPosDataZero = zero;
+    Vec3s OoT_zero;
+    OoT_zero.x = 0;
+    OoT_zero.y = 0;
+    OoT_zero.z = 0;
+    collisionHeader->camPosDataZero = OoT_zero;
 
     for (size_t i = 0; i < collisionHeader->camDataCount; i++) {
         int32_t idx = collisionHeader->camPosDataIndices[i];
@@ -145,11 +145,11 @@ ResourceFactoryXMLCollisionHeaderV0::ReadResource(std::shared_ptr<Ship::File> fi
     collisionHeader->collisionHeaderData.maxBounds.y = reader->IntAttribute("MaxBoundsY");
     collisionHeader->collisionHeaderData.maxBounds.z = reader->IntAttribute("MaxBoundsZ");
 
-    Vec3s zero;
-    zero.x = 0;
-    zero.y = 0;
-    zero.z = 0;
-    collisionHeader->camPosDataZero = zero;
+    Vec3s OoT_zero;
+    OoT_zero.x = 0;
+    OoT_zero.y = 0;
+    OoT_zero.z = 0;
+    collisionHeader->camPosDataZero = OoT_zero;
 
     while (child != nullptr) {
         std::string childName = child->Name();

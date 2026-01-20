@@ -164,7 +164,7 @@ void DrawItemCycleExtras(PlayState* play, u8 slot, u8 canCycle, u8 leftItem, u8 
 
     // Render the extra cycle items if at least the left or right item are valid
     if (canCycle && (showLeftItem || showRightItem)) {
-        Matrix_Push();
+        MM_Matrix_Push();
 
         Vtx* itemTopLeft = &pauseCtx->itemVtx[slot * 4];
         Vtx* itemBottomRight = &itemTopLeft[3];
@@ -172,15 +172,15 @@ void DrawItemCycleExtras(PlayState* play, u8 slot, u8 canCycle, u8 leftItem, u8 
         s16 halfX = (itemBottomRight->v.ob[0] - itemTopLeft->v.ob[0]) / 2;
         s16 halfY = (itemBottomRight->v.ob[1] - itemTopLeft->v.ob[1]) / 2;
 
-        Matrix_Translate(itemTopLeft->v.ob[0] + halfX, itemTopLeft->v.ob[1] + halfY, 0, MTXMODE_APPLY);
+        MM_Matrix_Translate(itemTopLeft->v.ob[0] + halfX, itemTopLeft->v.ob[1] + halfY, 0, MTXMODE_APPLY);
 
         f32 animScale = (f32)(5 - (sCurrentAnimatingSlot == slot ? sCycleActiveAnimTimer : 0)) / 5;
 
         // When not cycling or actively animating, shrink and move the items under the main slot item
         if (!isCycling || sCycleActiveAnimTimer < 5) {
             f32 finalScale = 1.0f - (0.675f * animScale);
-            Matrix_Translate(0, -15.0f * animScale, 0, MTXMODE_APPLY);
-            Matrix_Scale(finalScale, finalScale, 1.0f, MTXMODE_APPLY);
+            MM_Matrix_Translate(0, -15.0f * animScale, 0, MTXMODE_APPLY);
+            MM_Matrix_Scale(finalScale, finalScale, 1.0f, MTXMODE_APPLY);
         }
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
@@ -218,13 +218,13 @@ void DrawItemCycleExtras(PlayState* play, u8 slot, u8 canCycle, u8 leftItem, u8 
         gSPVertex(POLY_OPA_DISP++, (uintptr_t)sCycleExtraItemVtx, 8, 0);
 
         if (showLeftItem) {
-            KaleidoScope_DrawTexQuadRGBA32(play->state.gfxCtx, gItemIcons[leftItem], 32, 32, 0);
+            KaleidoScope_DrawTexQuadRGBA32(play->state.gfxCtx, MM_gItemIcons[leftItem], 32, 32, 0);
         }
         if (showRightItem) {
-            KaleidoScope_DrawTexQuadRGBA32(play->state.gfxCtx, gItemIcons[rightItem], 32, 32, 4);
+            KaleidoScope_DrawTexQuadRGBA32(play->state.gfxCtx, MM_gItemIcons[rightItem], 32, 32, 4);
         }
 
-        Matrix_Pop();
+        MM_Matrix_Pop();
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -232,7 +232,7 @@ void DrawItemCycleExtras(PlayState* play, u8 slot, u8 canCycle, u8 leftItem, u8 
 
 void Rando::MiscBehavior::InitKaleidoItemPage() {
     COND_HOOK(OnKaleidoUpdate, IS_RANDO, [](PauseContext* pauseCtx) {
-        InterfaceContext* interfaceCtx = &gPlayState->interfaceCtx;
+        InterfaceContext* interfaceCtx = &MM_gPlayState->interfaceCtx;
 
         if ((pauseCtx->state != PAUSE_STATE_MAIN)) {
             sCycleActiveAnimTimer = 0;
@@ -263,7 +263,7 @@ void Rando::MiscBehavior::InitKaleidoItemPage() {
                 sPrevKaleidoCursorSlot == SLOT_TRADE_COUPLE) {
                 // Reset A button back to Info when going away from a cycle-able item
                 if (interfaceCtx->aButtonDoActionDelayed != DO_ACTION_INFO) {
-                    Interface_SetAButtonDoAction(gPlayState, DO_ACTION_INFO);
+                    Interface_SetAButtonDoAction(MM_gPlayState, DO_ACTION_INFO);
                 }
             }
 
@@ -278,14 +278,14 @@ void Rando::MiscBehavior::InitKaleidoItemPage() {
         if (availableItems.size() == 0) {
             // Nothing to cycle, switch back to Info on A button
             if (interfaceCtx->aButtonDoActionDelayed != DO_ACTION_INFO) {
-                Interface_SetAButtonDoAction(gPlayState, DO_ACTION_INFO);
+                Interface_SetAButtonDoAction(MM_gPlayState, DO_ACTION_INFO);
             }
 
             sPrevKaleidoCursorSlot = slot;
             return;
         }
 
-        if (CHECK_BTN_ALL(CONTROLLER1(&gPlayState->state)->press.button, BTN_A)) {
+        if (CHECK_BTN_ALL(CONTROLLER1(&MM_gPlayState->state)->press.button, BTN_A)) {
             if (slot == sCurrentItemCyclingSlot) {
                 Audio_PlaySfx(NA_SE_SY_CANCEL);
                 sCurrentItemCyclingSlot = SLOT_NONE;
@@ -312,7 +312,7 @@ void Rando::MiscBehavior::InitKaleidoItemPage() {
         if (sCurrentItemCyclingSlot != SLOT_NONE) {
             // Update HUD A button
             if (interfaceCtx->aButtonDoActionDelayed != DO_ACTION_STOP) {
-                Interface_SetAButtonDoAction(gPlayState, DO_ACTION_STOP);
+                Interface_SetAButtonDoAction(MM_gPlayState, DO_ACTION_STOP);
             }
             if (gSaveContext.buttonStatus[EQUIP_SLOT_A] != BTN_ENABLED) {
                 gSaveContext.buttonStatus[EQUIP_SLOT_A] = BTN_ENABLED;
@@ -321,25 +321,25 @@ void Rando::MiscBehavior::InitKaleidoItemPage() {
             }
 
             // Cancel cycling
-            if (CHECK_BTN_ANY(CONTROLLER1(&gPlayState->state)->press.button, BTN_B | BTN_START)) {
+            if (CHECK_BTN_ANY(CONTROLLER1(&MM_gPlayState->state)->press.button, BTN_B | BTN_START)) {
                 Audio_PlaySfx(NA_SE_SY_CANCEL);
                 sCurrentItemCyclingSlot = SLOT_NONE;
                 pauseCtx->itemDescriptionOn = false;
             }
 
             // Check for cycle switch
-            if (CHECK_BTN_ALL(CONTROLLER1(&gPlayState->state)->press.button, BTN_DLEFT) || pauseCtx->stickAdjX < -30) {
+            if (CHECK_BTN_ALL(CONTROLLER1(&MM_gPlayState->state)->press.button, BTN_DLEFT) || pauseCtx->stickAdjX < -30) {
                 Audio_PlaySfx(NA_SE_SY_CURSOR);
                 direction = CYCLE_LEFT;
             }
-            if (CHECK_BTN_ALL(CONTROLLER1(&gPlayState->state)->press.button, BTN_DRIGHT) || pauseCtx->stickAdjX > 30) {
+            if (CHECK_BTN_ALL(CONTROLLER1(&MM_gPlayState->state)->press.button, BTN_DRIGHT) || pauseCtx->stickAdjX > 30) {
                 Audio_PlaySfx(NA_SE_SY_CURSOR);
                 direction = CYCLE_RIGHT;
             }
         } else if (itemId == PAUSE_ITEM_NONE || availableItems.size() > 1) {
             // Update HUD A button
             if (interfaceCtx->aButtonDoActionDelayed != DO_ACTION_DECIDE) {
-                Interface_SetAButtonDoAction(gPlayState, DO_ACTION_DECIDE);
+                Interface_SetAButtonDoAction(MM_gPlayState, DO_ACTION_DECIDE);
             }
             if (gSaveContext.buttonStatus[EQUIP_SLOT_A] != BTN_ENABLED) {
                 gSaveContext.buttonStatus[EQUIP_SLOT_A] = BTN_ENABLED;
@@ -349,7 +349,7 @@ void Rando::MiscBehavior::InitKaleidoItemPage() {
         } else {
             // Nothing to cycle, switch back to Info on A button
             if (interfaceCtx->aButtonDoActionDelayed != DO_ACTION_INFO) {
-                Interface_SetAButtonDoAction(gPlayState, DO_ACTION_INFO);
+                Interface_SetAButtonDoAction(MM_gPlayState, DO_ACTION_INFO);
             }
         }
 
@@ -364,7 +364,7 @@ void Rando::MiscBehavior::InitKaleidoItemPage() {
             if (itemId == PAUSE_ITEM_NONE) {
                 INV_CONTENT(newItem) = newItem;
             } else {
-                Inventory_ReplaceItem(gPlayState, (u8)itemId, newItem);
+                MM_Inventory_ReplaceItem(MM_gPlayState, (u8)itemId, newItem);
             }
         }
 
@@ -372,7 +372,7 @@ void Rando::MiscBehavior::InitKaleidoItemPage() {
     });
 
     COND_VB_SHOULD(VB_KALEIDO_DISPLAY_ITEM_TEXT, IS_RANDO, {
-        PauseContext* pauseCtx = &gPlayState->pauseCtx;
+        PauseContext* pauseCtx = &MM_gPlayState->pauseCtx;
         u16 slot = pauseCtx->cursorSlot[PAUSE_ITEM];
 
         if (slot != SLOT_TRADE_COUPLE && slot != SLOT_TRADE_DEED && slot != SLOT_TRADE_KEY_MAMA) {
@@ -391,13 +391,13 @@ void Rando::MiscBehavior::InitKaleidoItemPage() {
         u8 currentKeyMamaItem = gSaveContext.save.saveInfo.inventory.items[SLOT_TRADE_KEY_MAMA];
         u8 currentCoupleItem = gSaveContext.save.saveInfo.inventory.items[SLOT_TRADE_COUPLE];
 
-        DrawItemCycleExtras(gPlayState, SLOT_TRADE_DEED, true,
+        DrawItemCycleExtras(MM_gPlayState, SLOT_TRADE_DEED, true,
                             GetPreviousListEntry(availableDeedItems, currentDeedItem),
                             GetNextListEntry(availableDeedItems, currentDeedItem));
-        DrawItemCycleExtras(gPlayState, SLOT_TRADE_KEY_MAMA, true,
+        DrawItemCycleExtras(MM_gPlayState, SLOT_TRADE_KEY_MAMA, true,
                             GetPreviousListEntry(availableKeyMamaItems, currentKeyMamaItem),
                             GetNextListEntry(availableKeyMamaItems, currentKeyMamaItem));
-        DrawItemCycleExtras(gPlayState, SLOT_TRADE_COUPLE, true,
+        DrawItemCycleExtras(MM_gPlayState, SLOT_TRADE_COUPLE, true,
                             GetPreviousListEntry(availableCoupleItems, currentCoupleItem),
                             GetNextListEntry(availableCoupleItems, currentCoupleItem));
     });

@@ -9,7 +9,7 @@
 #include "soh/OTRGlobals.h"
 #include "z64.h"
 
-extern "C" PlayState* gPlayState;
+extern "C" PlayState* OoT_gPlayState;
 struct SohModal {
     std::string title_;
     std::string message_;

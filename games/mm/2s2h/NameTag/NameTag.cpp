@@ -12,7 +12,7 @@ extern "C" {
 #include "functions.h"
 #include "variables.h"
 #include "interface/message_static/message_static.h"
-extern PlayState* gPlayState;
+extern PlayState* MM_gPlayState;
 }
 
 typedef struct {
@@ -93,11 +93,11 @@ void DrawNameTag(PlayState* play, const NameTag* nameTag) {
     posY += nameTag->yOffset + 16;
 
     // Set position, billboard effect, scale (with mirror mode), then center nametag
-    Matrix_Translate(nameTag->actor->world.pos.x, posY, nameTag->actor->world.pos.z, MTXMODE_NEW);
-    Matrix_ReplaceRotation(&play->billboardMtxF);
-    Matrix_Scale(scale * (sMirrorWorldActive ? -1.0f : 1.0f), -scale, 1.0f, MTXMODE_APPLY);
-    Matrix_Translate(-(float)nameTag->width / 2, -nameTag->height, 0, MTXMODE_APPLY);
-    Matrix_ToMtx(nameTag->mtx);
+    MM_Matrix_Translate(nameTag->actor->world.pos.x, posY, nameTag->actor->world.pos.z, MTXMODE_NEW);
+    MM_Matrix_ReplaceRotation(&play->billboardMtxF);
+    MM_Matrix_Scale(scale * (sMirrorWorldActive ? -1.0f : 1.0f), -scale, 1.0f, MTXMODE_APPLY);
+    MM_Matrix_Translate(-(float)nameTag->width / 2, -nameTag->height, 0, MTXMODE_APPLY);
+    MM_Matrix_ToMtx(nameTag->mtx);
 
     nameTagDl.push_back(gsSPMatrix(nameTag->mtx, G_MTX_PUSH | G_MTX_LOAD | G_MTX_MODELVIEW));
 
@@ -148,13 +148,13 @@ void DrawNameTag(PlayState* play, const NameTag* nameTag) {
 
 // Draw all the name tags by leveraging a system heap buffer for majority of the graphics commands
 void DrawNameTags() {
-    if (gPlayState == nullptr || nameTags.size() == 0) {
+    if (MM_gPlayState == nullptr || nameTags.size() == 0) {
         return;
     }
 
     nameTagDl.clear();
 
-    OPEN_DISPS(gPlayState->state.gfxCtx);
+    OPEN_DISPS(MM_gPlayState->state.gfxCtx);
 
     // Setup before rendering name tags
     POLY_XLU_DISP = Gfx_SetupDL39(POLY_XLU_DISP);
@@ -178,7 +178,7 @@ void DrawNameTags() {
             }
         }
 
-        DrawNameTag(gPlayState, &nameTag);
+        DrawNameTag(MM_gPlayState, &nameTag);
     }
 
     // End the display list buffer
@@ -186,7 +186,7 @@ void DrawNameTags() {
 
     gSPDisplayList(POLY_XLU_DISP++, nameTagDl.data());
 
-    CLOSE_DISPS(gPlayState->state.gfxCtx);
+    CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
 
 void UpdateNameTags() {
@@ -199,8 +199,8 @@ void UpdateNameTags() {
             return true;
         }
 
-        f32 aDistToCamera = Actor_WorldDistXZToPoint(a.actor, &gPlayState->mainCamera.eye);
-        f32 bDistToCamera = Actor_WorldDistXZToPoint(b.actor, &gPlayState->mainCamera.eye);
+        f32 aDistToCamera = MM_Actor_WorldDistXZToPoint(a.actor, &MM_gPlayState->mainCamera.eye);
+        f32 bDistToCamera = MM_Actor_WorldDistXZToPoint(b.actor, &MM_gPlayState->mainCamera.eye);
 
         return aDistToCamera > bDistToCamera;
     });

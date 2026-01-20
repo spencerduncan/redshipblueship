@@ -7,7 +7,7 @@ extern "C" {
 #include "macros.h"
 #include "functions.h"
 #include "variables.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 /**
@@ -28,7 +28,7 @@ void Anchor::SendPacket_PlayerSfx(u16 sfxId) {
     payload["quiet"] = true;
 
     for (auto& [clientId, client] : clients) {
-        if (client.sceneNum == gPlayState->sceneNum && client.online && client.isSaveLoaded && !client.self) {
+        if (client.sceneNum == OoT_gPlayState->sceneNum && client.online && client.isSaveLoaded && !client.self) {
             payload["targetClientId"] = clientId;
             SendJsonToRemote(payload);
         }
@@ -43,5 +43,5 @@ void Anchor::HandlePacket_PlayerSfx(nlohmann::json payload) {
         return;
     }
 
-    Player_PlaySfx((Actor*)clients[clientId].player, sfxId);
+    OoT_Player_PlaySfx((Actor*)clients[clientId].player, sfxId);
 }

@@ -2,7 +2,7 @@
 #include "soh/Enhancements/enhancementTypes.h"
 #include "soh/ShipInit.hpp"
 
-extern "C" PlayState* gPlayState;
+extern "C" PlayState* OoT_gPlayState;
 
 static constexpr ZFightingFixType CVAR_DIRT_PATH_DEFAULT = ZFIGHT_FIX_DISABLED;
 #define CVAR_DIRT_PATH_NAME CVAR_ENHANCEMENT("SceneSpecificDirtPathFix")
@@ -21,8 +21,8 @@ static void DirtPathFix_UpdateZFightingMode(int32_t sceneNum) {
 }
 
 static void RegisterDirtPathFix() {
-    if (gPlayState != NULL) {
-        DirtPathFix_UpdateZFightingMode(gPlayState->sceneNum);
+    if (OoT_gPlayState != NULL) {
+        DirtPathFix_UpdateZFightingMode(OoT_gPlayState->sceneNum);
     }
 
     COND_HOOK(OnTransitionEnd, CVAR_DIRT_PATH_VALUE, DirtPathFix_UpdateZFightingMode);

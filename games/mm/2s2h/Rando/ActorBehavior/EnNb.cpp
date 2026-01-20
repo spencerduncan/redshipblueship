@@ -2,8 +2,8 @@
 
 extern "C" {
 #include "variables.h"
-void Player_SetupTalk(PlayState* play, Player* player);
-s32 Player_SetupWaitForPutAway(PlayState* play, Player* player, AfterPutAwayFunc afterPutAwayFunc);
+void MM_Player_SetupTalk(PlayState* play, Player* player);
+s32 MM_Player_SetupWaitForPutAway(PlayState* play, Player* player, AfterPutAwayFunc afterPutAwayFunc);
 }
 
 void Rando::ActorBehavior::InitEnNbBehavior() {
@@ -12,16 +12,16 @@ void Rando::ActorBehavior::InitEnNbBehavior() {
         Actor* actor = va_arg(args, Actor*);
         if (actor->id == ACTOR_EN_NB) { // Anju's Grandmother
             MsgScript* script = va_arg(args, MsgScript*);
-            Player* player = GET_PLAYER(gPlayState);
+            Player* player = GET_PLAYER(MM_gPlayState);
             switch (cmdId) {
                 case MSCRIPT_CMD_ID_OFFER_ITEM:
                     // Lock the player into conversation because a notebook message might appear
-                    Player_SetupWaitForPutAway(gPlayState, player, Player_SetupTalk);
+                    MM_Player_SetupWaitForPutAway(MM_gPlayState, player, MM_Player_SetupTalk);
                     *should = false;
                     break;
                 case MSCRIPT_CMD_ID_DONE:
                     // Prevent softlocks in case a notebook message did not appear
-                    Message_CloseTextbox(gPlayState);
+                    MM_Message_CloseTextbox(MM_gPlayState);
                     break;
                 default:
                     break;

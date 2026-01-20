@@ -19,14 +19,14 @@ void RegisterMarkShootingGalleryOctoroks() {
         EnSyatekiOkuta* enSyatekiOkuta = (EnSyatekiOkuta*)actor;
 
         if (enSyatekiOkuta->actionFunc != EnSyatekiOkuta_Die) {
-            OPEN_DISPS(gPlayState->state.gfxCtx);
+            OPEN_DISPS(MM_gPlayState->state.gfxCtx);
 
-            Gfx_SetupDL25_Xlu(gPlayState->state.gfxCtx);
-            Matrix_Translate(enSyatekiOkuta->actor.world.pos.x, enSyatekiOkuta->actor.world.pos.y + 30.0f,
+            Gfx_SetupDL25_Xlu(MM_gPlayState->state.gfxCtx);
+            MM_Matrix_Translate(enSyatekiOkuta->actor.world.pos.x, enSyatekiOkuta->actor.world.pos.y + 30.0f,
                              enSyatekiOkuta->actor.world.pos.z + 20.0f, MTXMODE_NEW);
 
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, 192);
-            MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gPlayState->state.gfxCtx);
+            MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, MM_gPlayState->state.gfxCtx);
 
             if (enSyatekiOkuta->type == SG_OCTO_TYPE_BLUE) {
                 gSPDisplayList(POLY_XLU_DISP++, (Gfx*)&gShootingGalleryOctorokCrossDL);
@@ -34,7 +34,7 @@ void RegisterMarkShootingGalleryOctoroks() {
                 gSPDisplayList(POLY_XLU_DISP++, (Gfx*)&gShootingGalleryOctorokCircleDL);
             }
 
-            CLOSE_DISPS(gPlayState->state.gfxCtx);
+            CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
         }
     });
 }

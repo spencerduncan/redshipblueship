@@ -16,7 +16,7 @@ extern "C" {
 void RegisterSkipLearningNewWaveBossaNova() {
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR || IS_RANDO, {
         s16* csId = va_arg(args, s16*);
-        if (gPlayState->sceneId == SCENE_LABO && *csId == 11) {
+        if (MM_gPlayState->sceneId == SCENE_LABO && *csId == 11) {
             if (GameInteractor_Should(VB_GIVE_NEW_WAVE_BOSSA_NOVA, true)) {
                 GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
                     .showGetItemCutscene = !CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0),
@@ -29,11 +29,11 @@ void RegisterSkipLearningNewWaveBossaNova() {
                                 CustomMessage::StartTextbox("You learned the New Wave Bossa Nova!\x1C\x02\x10",
                                                             { .textboxType = 2 });
                             }
-                            Item_Give(gPlayState, ITEM_SONG_NOVA);
+                            MM_Item_Give(MM_gPlayState, ITEM_SONG_NOVA);
                         },
                     .drawItem =
                         [](Actor* actor, PlayState* play) {
-                            Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
+                            MM_Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
                             Rando::DrawItem(RI_SONG_NOVA);
                         } });
             }

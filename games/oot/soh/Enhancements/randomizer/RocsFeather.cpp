@@ -9,7 +9,7 @@ extern "C" {
 #include "variables.h"
 #include "macros.h"
 #include "objects/gameplay_keep/gameplay_keep.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 #define MAX_ROCS_USES 1
@@ -22,7 +22,7 @@ void RegisterRocsFeather() {
     bool shouldRegister = IS_RANDO && RAND_GET_OPTION(RSK_ROCS_FEATHER);
 
     COND_HOOK(OnPlayerUpdate, shouldRegister, []() {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(OoT_gPlayState);
 
         // Reset Rocs count when touching the ground for 3+ frames
         if (player->actor.bgCheckFlags & 1) {
@@ -48,9 +48,9 @@ void RegisterRocsFeather() {
             if (rocsUseCount < MAX_ROCS_USES) {
                 rocsUseCount++;
 
-                Player* player = GET_PLAYER(gPlayState);
+                Player* player = GET_PLAYER(OoT_gPlayState);
 
-                func_80838940(player, (LinkAnimationHeader*)&gPlayerAnim_link_rocs_feather_jump, 5.8f, gPlayState, 0);
+                func_80838940(player, (LinkAnimationHeader*)&gPlayerAnim_link_rocs_feather_jump, 5.8f, OoT_gPlayState, 0);
 
                 // Actionvar needed to prevent weird animation morph
                 player->av2.actionVar2 = 1;
@@ -70,13 +70,13 @@ void RegisterRocsFeather() {
                 Vec3f effectsPos = player->actor.home.pos;
                 effectsPos.y += 3;
 
-                EffectSsGRipple_Spawn(gPlayState, &effectsPos, 200 * effectsScale, 300 * effectsScale, 1);
-                EffectSsGSplash_Spawn(gPlayState, &effectsPos, NULL, NULL, 0, 150 * effectsScale);
+                OoT_EffectSsGRipple_Spawn(OoT_gPlayState, &effectsPos, 200 * effectsScale, 300 * effectsScale, 1);
+                OoT_EffectSsGSplash_Spawn(OoT_gPlayState, &effectsPos, NULL, NULL, 0, 150 * effectsScale);
 
                 // Remove hopping state when using Roc's after sidehop/backflip to allow grabbing ledges again
                 player->stateFlags2 &= ~(PLAYER_STATE2_HOPPING);
 
-                Player_PlaySfx(&player->actor, NA_SE_PL_SKIP);
+                OoT_Player_PlaySfx(&player->actor, NA_SE_PL_SKIP);
             }
         }
     });
@@ -93,7 +93,7 @@ void RegisterRocsFeather() {
                 textureName = gRocsFeatherItemNameFRATex;
             }
 
-            memcpy(gPlayState->pauseCtx.nameSegment, textureName, strlen(textureName) + 1);
+            memcpy(OoT_gPlayState->pauseCtx.nameSegment, textureName, strlen(textureName) + 1);
         }
     });
 }

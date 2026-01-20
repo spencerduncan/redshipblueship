@@ -14,17 +14,17 @@ extern "C" {
 void RegisterSwampBoatSpeed() {
     COND_ID_HOOK(OnActorUpdate, ACTOR_BG_INGATE, CVAR, [](Actor* actor) {
         BgIngate* boat = (BgIngate*)actor;
-        if (DynaPolyActor_IsPlayerOnTop(&boat->dyna)) {
+        if (MM_DynaPolyActor_IsPlayerOnTop(&boat->dyna)) {
             if (!CHECK_EVENTINF(EVENTINF_35)) {
                 // Pictograph Tour
-                if (CHECK_BTN_ALL(CONTROLLER1(&gPlayState->state)->cur.button, BTN_Z)) {
+                if (CHECK_BTN_ALL(CONTROLLER1(&MM_gPlayState->state)->cur.button, BTN_Z)) {
                     boat->timePathTimeSpeed = (s16)(4 * 5);
                 } else {
                     boat->timePathTimeSpeed = 4; // Default speed
                 }
             } else if (CHECK_EVENTINF(EVENTINF_35) && HS_GET_BOAT_ARCHERY_HIGH_SCORE() >= SCORE_CVAR) {
                 // Archery Minigame
-                if (CHECK_BTN_ALL(CONTROLLER1(&gPlayState->state)->cur.button, BTN_Z)) {
+                if (CHECK_BTN_ALL(CONTROLLER1(&MM_gPlayState->state)->cur.button, BTN_Z)) {
                     boat->timePathTimeSpeed = (s16)(1 * 5);
                 } else {
                     boat->timePathTimeSpeed = 1; // Default speed
@@ -38,10 +38,10 @@ void RegisterSwampBoatSpeed() {
                 }
 
                 // Leave the minigame
-                gPlayState->nextEntrance = ENTRANCE(TOURIST_INFORMATION, 1); // 1 = Koume
+                MM_gPlayState->nextEntrance = ENTRANCE(TOURIST_INFORMATION, 1); // 1 = Koume
                 gSaveContext.nextCutsceneIndex = 0;
-                gPlayState->transitionTrigger = TRANS_TRIGGER_START;
-                gPlayState->transitionType = TRANS_TYPE_FADE_WHITE;
+                MM_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
+                MM_gPlayState->transitionType = TRANS_TYPE_FADE_WHITE;
                 gSaveContext.nextTransitionType = TRANS_TYPE_FADE_WHITE;
                 return;
             }

@@ -24,8 +24,8 @@ extern "C" {
 extern float OTRGetAspectRatio();
 
 extern f32 sNESFontWidths[160];
-extern const char* fontTbl[156];
-extern TexturePtr gItemIcons[131];
+extern const char* MM_fontTbl[156];
+extern TexturePtr MM_gItemIcons[131];
 extern TexturePtr gQuestIcons[14];
 extern TexturePtr gBombersNotebookPhotos[24];
 }
@@ -405,7 +405,7 @@ extern "C" TexturePtr Ship_GetCharFontTextureNES(u8 character) {
         return (TexturePtr)gEmptyTexture;
     }
 
-    return (TexturePtr)fontTbl[adjustedChar];
+    return (TexturePtr)MM_fontTbl[adjustedChar];
 }
 
 static bool seeded = false;
@@ -456,7 +456,7 @@ extern uint32_t Ship_Hash(std::string str) {
 }
 
 void LoadGuiTextures() {
-    for (const TexturePtr entry : gItemIcons) {
+    for (const TexturePtr entry : MM_gItemIcons) {
         auto path = static_cast<const char*>(entry);
         Ship::Context::GetInstance()->GetWindow()->GetGui()->LoadGuiTexture(path, path, ImVec4(1, 1, 1, 1));
     }
@@ -506,7 +506,7 @@ std::string convertEnumToReadableName(const std::string& input) {
         }
     }
 
-    // Step 4: Join the words with spaces
+    // Step 4: Join the words with MM_spaces
     for (size_t i = 0; i < words.size(); ++i) {
         result += words[i];
         if (i < words.size() - 1) {

@@ -5,14 +5,14 @@ extern "C" {
 #include "variables.h"
 #include "overlays/actors/ovl_En_Gk/z_en_gk.h"
 
-void Player_StartTalking(PlayState* play, Actor* actor);
+void MM_Player_StartTalking(PlayState* play, Actor* actor);
 }
 
 void Rando::ActorBehavior::InitEnGKBehavior() {
     COND_VB_SHOULD(VB_GIVE_ITEM_FROM_OFFER, IS_RANDO, {
         GetItemId* item = va_arg(args, GetItemId*);
         Actor* actor = va_arg(args, Actor*);
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
 
         switch (actor->id) {
             case ACTOR_EN_GK:
@@ -25,7 +25,7 @@ void Rando::ActorBehavior::InitEnGKBehavior() {
                 player->talkActor = actor;
                 player->talkActorDistance = actor->xzDistToPlayer;
                 player->exchangeItemAction = PLAYER_IA_MINUS1;
-                Player_StartTalking(gPlayState, actor);
+                MM_Player_StartTalking(MM_gPlayState, actor);
                 break;
         }
     });

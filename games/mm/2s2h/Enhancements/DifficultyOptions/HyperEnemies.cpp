@@ -16,17 +16,17 @@ void RegisterHyperEnemies() {
             return;
         }
 
-        if (Player_InBlockingCsMode(gPlayState, GET_PLAYER(gPlayState))) {
+        if (MM_Player_InBlockingCsMode(MM_gPlayState, GET_PLAYER(MM_gPlayState))) {
             return;
         }
 
         if (actor->update != NULL) {
             // Everywhere we need to disable the collision checks already checks if frameAdvance is enabled, so we abuse
             // that temporarily. This doesn't have any _known_ side effects :)
-            bool prevFrameAdv = gPlayState->frameAdvCtx.enabled;
-            gPlayState->frameAdvCtx.enabled = true;
-            actor->update(actor, gPlayState);
-            gPlayState->frameAdvCtx.enabled = prevFrameAdv;
+            bool prevFrameAdv = MM_gPlayState->frameAdvCtx.enabled;
+            MM_gPlayState->frameAdvCtx.enabled = true;
+            actor->update(actor, MM_gPlayState);
+            MM_gPlayState->frameAdvCtx.enabled = prevFrameAdv;
         }
     });
 }

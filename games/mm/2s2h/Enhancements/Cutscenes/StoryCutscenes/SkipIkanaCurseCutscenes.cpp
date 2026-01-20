@@ -36,9 +36,9 @@ void RegisterSkipIkanaCurseCutscenes() {
     // Must use the queue hook for the skip. If the start hook is used, cutscene cues will mess up the curtain movement.
     COND_VB_SHOULD(VB_QUEUE_CUTSCENE, CVAR, {
         s16* csId = va_arg(args, s16*);
-        if (gPlayState->sceneId == SCENE_HAKASHITA && *csId == 16) { // Flat appears in his tomb Beneath the Graveyard
-            BgHakaCurtain* bgHakaCurtain = (BgHakaCurtain*)Actor_FindNearby(
-                gPlayState, &GET_PLAYER(gPlayState)->actor, ACTOR_BG_HAKA_CURTAIN, ACTORCAT_BG, 99999.9f);
+        if (MM_gPlayState->sceneId == SCENE_HAKASHITA && *csId == 16) { // Flat appears in his tomb Beneath the Graveyard
+            BgHakaCurtain* bgHakaCurtain = (BgHakaCurtain*)MM_Actor_FindNearby(
+                MM_gPlayState, &GET_PLAYER(MM_gPlayState)->actor, ACTOR_BG_HAKA_CURTAIN, ACTORCAT_BG, 99999.9f);
             if (bgHakaCurtain != nullptr) {
                 func_80B6DE80(bgHakaCurtain); // Raise the curtain
             }
@@ -49,7 +49,7 @@ void RegisterSkipIkanaCurseCutscenes() {
     // Pamela's Father
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
         s16* csId = va_arg(args, s16*);
-        if (gPlayState->sceneId == SCENE_MUSICHOUSE) { // Music Box House
+        if (MM_gPlayState->sceneId == SCENE_MUSICHOUSE) { // Music Box House
             if (*csId == 9) {                          // Gibdo dad busts out
                 ObjHgdoor* hgDoor = va_arg(args, ObjHgdoor*);
                 ObjHgdoor* otherDoor = (ObjHgdoor*)hgDoor->dyna.actor.child;
@@ -92,7 +92,7 @@ void RegisterSkipIkanaCurseCutscenes() {
                                     CustomMessage::StartTextbox("You received the Gibdo Mask!\x1C\x02\x10",
                                                                 { .textboxType = 2 });
                                 }
-                                Item_Give(gPlayState, ITEM_MASK_GIBDO);
+                                MM_Item_Give(MM_gPlayState, ITEM_MASK_GIBDO);
                             },
                     });
                 }
@@ -118,7 +118,7 @@ void RegisterSkipIkanaCurseCutscenes() {
     // Healing Sharp's curse
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
         s16* csId = va_arg(args, s16*);
-        if (gPlayState->sceneId == SCENE_IKANA && *csId == 20) { // Played Song of Storms for Sharp
+        if (MM_gPlayState->sceneId == SCENE_IKANA && *csId == 20) { // Played Song of Storms for Sharp
             // Reload the scene so that all actor states are appropriate
             GameInteractor::Instance->events.emplace_back(GIEventTransition{
                 .entrance = ENTRANCE(IKANA_CANYON, 14),

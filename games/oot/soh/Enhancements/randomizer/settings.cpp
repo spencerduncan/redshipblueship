@@ -551,7 +551,7 @@ void Settings::CreateOptions() {
     OPT_U8(RSK_SHUFFLE_SONGS, "Shuffle Songs", {"Off", "Song Locations", "Dungeon Rewards", "Anywhere"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("ShuffleSongs"), mOptionDescriptions[RSK_SHUFFLE_SONGS], WIDGET_CVAR_COMBOBOX, RO_SONG_SHUFFLE_SONG_LOCATIONS);
     OPT_U8(RSK_SHOPSANITY, "Shop Shuffle", {"Off", "Specific Count", "Random"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("Shopsanity"), mOptionDescriptions[RSK_SHOPSANITY], WIDGET_CVAR_COMBOBOX, RO_SHOPSANITY_OFF);
     OPT_CALLBACK(RSK_SHOPSANITY, {
-        // Hide shopsanity prices if shopsanity is off or zero
+        // Hide shopsanity prices if shopsanity is off or OoT_zero
         switch (CVarGetInteger(CVAR_RANDOMIZER_SETTING("Shopsanity"), RO_SHOPSANITY_OFF)) {
             case RO_SHOPSANITY_OFF:
                 mOptions[RSK_SHOPSANITY].AddFlag(IMFLAG_SEPARATOR_BOTTOM);
@@ -3066,7 +3066,7 @@ void Context::FinalizeSettings(const std::set<RandomizerCheck>& excludedLocation
                 for (auto dungeon : dungeons) {
                     mOptions[dungeon->GetMQSetting()].Set(RO_MQ_SET_MQ);
                 }
-                // if it's fixed to zero, set it to None instead. the rest is processed after
+                // if it's fixed to OoT_zero, set it to None instead. the rest is processed after
             } else if (mOptions[RSK_MQ_DUNGEON_RANDOM].Is(RO_MQ_DUNGEONS_SET_NUMBER) && mqCount == 0) {
                 mOptions[RSK_MQ_DUNGEON_RANDOM].Set(RO_MQ_DUNGEONS_NONE);
                 // otherwise, make everything a possibility and unknown

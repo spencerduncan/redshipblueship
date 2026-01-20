@@ -11,7 +11,7 @@ extern "C" {
 
 void RegisterFierceDeityPutaway() {
     COND_VB_SHOULD(VB_SHOULD_PUTAWAY, CVAR, {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         if (player->transformation == PLAYER_FORM_FIERCE_DEITY) {
             *should = true;
         }

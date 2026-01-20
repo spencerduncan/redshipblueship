@@ -5,7 +5,7 @@ extern "C" {
 #include "variables.h"
 #include "overlays/actors/ovl_En_Fsn/z_en_fsn.h"
 #include "overlays/actors/ovl_En_GirlA/z_en_girla.h"
-void Player_StartTalking(PlayState* play, Actor* actor);
+void MM_Player_StartTalking(PlayState* play, Actor* actor);
 void EnFsn_ResumeInteraction(EnFsn* enFsn, PlayState* play);
 }
 
@@ -14,12 +14,12 @@ void EnFsn_ResumeInteraction(EnFsn* enFsn, PlayState* play);
 #define ENFSN_GAVE_LETTER_TO_MAMA (1 << 3)
 
 void EndEnFsnDialogue(EnFsn* actor) {
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(MM_gPlayState);
 
     player->talkActor = &actor->actor;
     player->talkActorDistance = actor->actor.xzDistToPlayer;
     player->exchangeItemAction = PLAYER_IA_MINUS1;
-    Player_StartTalking(gPlayState, &actor->actor);
+    MM_Player_StartTalking(MM_gPlayState, &actor->actor);
     actor->flags |= ACTOR_FLAG_TALK;
     actor->actionFunc = EnFsn_ResumeInteraction;
 }
@@ -28,7 +28,7 @@ void Rando::ActorBehavior::InitEnFsnBehavior() {
     COND_VB_SHOULD(VB_GIVE_ITEM_FROM_OFFER, IS_RANDO, {
         GetItemId* item = va_arg(args, GetItemId*);
         Actor* actor = va_arg(args, Actor*);
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
 
         if (actor->id == ACTOR_EN_FSN) { // Curiosity Shop owner
             EnFsn* enFsn = (EnFsn*)actor;
@@ -46,7 +46,7 @@ void Rando::ActorBehavior::InitEnFsnBehavior() {
                     randoCheckId == RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM) {
                     *should = false;
                     EndEnFsnDialogue(enFsn);
-                    enGirlA->buyFunc(gPlayState, enGirlA);
+                    enGirlA->buyFunc(MM_gPlayState, enGirlA);
                     /*
                      * This notebook event must be faked because the randomized item probably won't be the All-Night
                      * Mask. There exists a minor bug where, if the player tries to sell something immediately after
@@ -55,7 +55,7 @@ void Rando::ActorBehavior::InitEnFsnBehavior() {
                      * note.
                      */
                     if (randoCheckId == RC_CURIOSITY_SHOP_SPECIAL_ITEM) {
-                        Message_BombersNotebookQueueEvent(gPlayState, BOMBERS_NOTEBOOK_EVENT_RECEIVED_ALL_NIGHT_MASK);
+                        Message_BombersNotebookQueueEvent(MM_gPlayState, BOMBERS_NOTEBOOK_EVENT_RECEIVED_ALL_NIGHT_MASK);
                     }
                 }
             }

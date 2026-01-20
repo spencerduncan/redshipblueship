@@ -43,9 +43,9 @@ void RegisterDampeDiggingSkip() {
                 EnBigpo_SetupSpawnCutscene(bigPo);
 
                 // Update Dampe if the enhancement was toggled after digging
-                EnTk* dampe = (EnTk*)SubS_FindActor(gPlayState, NULL, ACTORCAT_NPC, ACTOR_EN_TK);
+                EnTk* dampe = (EnTk*)SubS_FindActor(MM_gPlayState, NULL, ACTORCAT_NPC, ACTOR_EN_TK);
                 if (dampe != NULL && dampe->actor.params >= 0) {
-                    func_80AEDBEC(dampe, gPlayState);
+                    func_80AEDBEC(dampe, MM_gPlayState);
                 }
                 break;
             }

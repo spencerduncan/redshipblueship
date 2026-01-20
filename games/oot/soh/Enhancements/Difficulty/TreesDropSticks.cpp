@@ -5,7 +5,7 @@ extern "C" {
 #include "src/overlays/actors/ovl_En_Wood02/z_en_wood02.h"
 }
 
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 
 static constexpr int32_t CVAR_TREES_DROP_STICKS_DEFAULT = 0;
 #define CVAR_TREES_DROP_STICKS_NAME CVAR_ENHANCEMENT("TreesDropSticks")
@@ -19,8 +19,8 @@ static void RegisterTreesDropSticks() {
             dropsSpawnPt.y += 200.0f;
 
             *should = false;
-            for (s32 numDrops = Rand_Next() % 4; numDrops > 0; numDrops--) {
-                Item_DropCollectible(gPlayState, &dropsSpawnPt, ITEM00_STICK);
+            for (s32 numDrops = OoT_Rand_Next() % 4; numDrops > 0; numDrops--) {
+                OoT_Item_DropCollectible(OoT_gPlayState, &dropsSpawnPt, ITEM00_STICK);
             }
         }
     });

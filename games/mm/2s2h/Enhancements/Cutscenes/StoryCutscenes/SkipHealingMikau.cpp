@@ -14,7 +14,7 @@ extern "C" {
 void RegisterSkipHealingMikau() {
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
         s16* csId = va_arg(args, s16*);
-        if (gPlayState->sceneId == SCENE_30GYOSON) { // Great Bay Coast
+        if (MM_gPlayState->sceneId == SCENE_30GYOSON) { // Great Bay Coast
             if (*csId == 13) {                       // Played Song of Healing for Mikau
                 // Transition to Link bowing at Mikau's grave
                 GameInteractor::Instance->events.emplace_back(GIEventTransition{
@@ -44,7 +44,7 @@ void RegisterSkipHealingMikau() {
                             },
                     });
                     // Give item immediately instead of queuing it so that the gravestone and Mikau spawns behave
-                    Item_Give(gPlayState, ITEM_MASK_ZORA);
+                    MM_Item_Give(MM_gPlayState, ITEM_MASK_ZORA);
                 }
                 *should = false;
             } else if (*csId == 15) { // Link bows at Mikau's grave

@@ -27,7 +27,7 @@ void RegisterTimeMovesWhenYouMove() {
     //     static bool hookIsFiring = false;
     //     if (actor->id == ACTOR_ARMS_HOOK) {
     //         ArmsHook* hook = (ArmsHook*)actor;
-    //         if (hook->actionFunc == ArmsHook_Shoot) {
+    //         if (hook->actionFunc == MM_ArmsHook_Shoot) {
     //             hookIsFiring = true;
     //         } else {
     //             hookIsFiring = false;
@@ -40,7 +40,7 @@ void RegisterTimeMovesWhenYouMove() {
     //         return;
     //     }
 
-    //     Player* player = GET_PLAYER(gPlayState);
+    //     Player* player = GET_PLAYER(MM_gPlayState);
 
     //     static Actor* lastTalkActor = NULL;
     //     if (player->talkActor != NULL && player->talkActor != lastTalkActor) {
@@ -61,7 +61,7 @@ void RegisterTimeMovesWhenYouMove() {
     // });
 
     COND_ID_HOOK(OnActorUpdate, ACTOR_PLAYER, CVAR, [](Actor* actor) {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         bool timeShouldMove = (player->stateFlags2 & PLAYER_STATE2_USING_OCARINA) || player->speedXZ != 0.0f;
 
         if (timeShouldMove && sStoredTimeOffset != DEFAULT_TIME_OFFSET) {

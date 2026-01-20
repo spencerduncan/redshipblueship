@@ -11,7 +11,7 @@ extern "C" {
 extern float OTRGetAspectRatio();
 
 extern f32 sFontWidths[144];
-extern const char* fontTbl[140];
+extern const char* OoT_fontTbl[140];
 }
 
 constexpr f32 fourByThree = 4.0f / 3.0f;
@@ -91,11 +91,11 @@ extern "C" f32 Ship_GetCharFontWidth(u8 character) {
 extern "C" void* Ship_GetCharFontTexture(u8 character) {
     u8 adjustedChar = character - ' ';
 
-    if (adjustedChar >= ARRAY_COUNTU(fontTbl)) {
+    if (adjustedChar >= ARRAY_COUNTU(OoT_fontTbl)) {
         return (void*)gEmptyTexture;
     }
 
-    return (void*)fontTbl[adjustedChar];
+    return (void*)OoT_fontTbl[adjustedChar];
 }
 
 static bool default_init = false;

@@ -24,7 +24,7 @@ extern "C" {
 #include "variables.h"
 #include "functions.h"
 #include "macros.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 
 #include "textures/icon_item_static/icon_item_static.h"
 #include "textures/icon_item_24_static/icon_item_24_static.h"
@@ -1683,7 +1683,7 @@ void ItemTrackerWindow::DrawElement() {
     bool comboButtonsHeld = buttonsPressed != nullptr && buttonsPressed[0].button & comboButton1Mask &&
                             buttonsPressed[0].button & comboButton2Mask;
     bool isPaused = CVarGetInteger(CVAR_TRACKER_ITEM("ShowOnlyPaused"), 0) == 0 ||
-                    gPlayState != nullptr && gPlayState->pauseCtx.state > 0;
+                    OoT_gPlayState != nullptr && OoT_gPlayState->pauseCtx.state > 0;
 
     if (CVarGetInteger(CVAR_TRACKER_ITEM("WindowType"), TRACKER_WINDOW_FLOATING) == TRACKER_WINDOW_WINDOW ||
         isPaused &&

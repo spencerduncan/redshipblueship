@@ -10,10 +10,10 @@ extern "C" {
 #include "functions.h"
 #include "macros.h"
 #include "soh/cvar_prefixes.h"
-extern PlayState* gPlayState;
-void GfxPrint_SetColor(GfxPrint* printer, u32 r, u32 g, u32 b, u32 a);
-void GfxPrint_SetPos(GfxPrint* printer, s32 x, s32 y);
-s32 GfxPrint_Printf(GfxPrint* printer, const char* fmt, ...);
+extern PlayState* OoT_gPlayState;
+void OoT_GfxPrint_SetColor(GfxPrint* printer, u32 r, u32 g, u32 b, u32 a);
+void OoT_GfxPrint_SetPos(GfxPrint* printer, s32 x, s32 y);
+s32 OoT_GfxPrint_Printf(GfxPrint* printer, const char* fmt, ...);
 }
 
 #define CVAR_NAME CVAR_DEVELOPER_TOOLS("ValueViewerEnablePrinting")
@@ -28,23 +28,23 @@ std::vector<ValueTableElement> valueTable = {
     { "Age",                "gSaveContext.linkAge",                 "AGE:",    TYPE_S32,   false, []() -> void* { return &gSaveContext.linkAge; },                      WHITE },
     { "Health",             "gSaveContext.health",                  "HP:",     TYPE_S16,   false, []() -> void* { return &gSaveContext.health; },                       WHITE },
     { "Navi Timer",         "gSaveContext.naviTimer",               "NAVI:",   TYPE_U16,   false, []() -> void* { return &gSaveContext.naviTimer; },                    WHITE },
-    { "Scene ID",           "play->sceneNum",                       "SCENE:",  TYPE_S16,   true,  []() -> void* { return &gPlayState->sceneNum; },                      WHITE },
-    { "Room ID",            "play->roomCtx.curRoom.num",            "ROOM:",   TYPE_S8,    true,  []() -> void* { return &gPlayState->roomCtx.curRoom.num; },           WHITE },
+    { "Scene ID",           "play->sceneNum",                       "SCENE:",  TYPE_S16,   true,  []() -> void* { return &OoT_gPlayState->sceneNum; },                      WHITE },
+    { "Room ID",            "play->roomCtx.curRoom.num",            "ROOM:",   TYPE_S8,    true,  []() -> void* { return &OoT_gPlayState->roomCtx.curRoom.num; },           WHITE },
     { "Entrance ID",        "gSaveContext.entranceIndex",           "ENTR:",   TYPE_S32,   false, []() -> void* { return &gSaveContext.entranceIndex; },                WHITE },
     { "Cutscene ID",        "gSaveContext.cutsceneIndex",           "CUTS:",   TYPE_S32,   false, []() -> void* { return &gSaveContext.cutsceneIndex; },                WHITE },
-    { "Link X",             "Player->actor.world.pos.x",            "X:",      TYPE_FLOAT, true,  []() -> void* { return &GET_PLAYER(gPlayState)->actor.world.pos.x; }, WHITE },
-    { "Link Y",             "Player->actor.world.pos.y",            "Y:",      TYPE_FLOAT, true,  []() -> void* { return &GET_PLAYER(gPlayState)->actor.world.pos.y; }, WHITE },
-    { "Link Z",             "Player->actor.world.pos.z",            "Z:",      TYPE_FLOAT, true,  []() -> void* { return &GET_PLAYER(gPlayState)->actor.world.pos.z; }, WHITE },
-    { "Link Yaw",           "Player->actor.world.rot.y",            "ROT:",    TYPE_S16,   true,  []() -> void* { return &GET_PLAYER(gPlayState)->actor.world.rot.y; }, WHITE },
-    { "Link Velocity",      "Player->linearVelocity",               "V:",      TYPE_FLOAT, true,  []() -> void* { return &GET_PLAYER(gPlayState)->linearVelocity; },    WHITE },
-    { "Link X Velocity",    "Player->actor.velocity.x",             "XV:",     TYPE_FLOAT, true,  []() -> void* { return &GET_PLAYER(gPlayState)->actor.velocity.x; },  WHITE },
-    { "Link Y Velocity",    "Player->actor.velocity.y",             "YV:",     TYPE_FLOAT, true,  []() -> void* { return &GET_PLAYER(gPlayState)->actor.velocity.y; },  WHITE },
-    { "Link Z Velocity",    "Player->actor.velocity.z",             "ZV:",     TYPE_FLOAT, true,  []() -> void* { return &GET_PLAYER(gPlayState)->actor.velocity.z; },  WHITE },
-    { "Text ID",            "play->msgCtx.textId",                  "TEXTID:", TYPE_U16,   true,  []() -> void* { return &gPlayState->msgCtx.textId; },                 WHITE },
-    { "Analog Stick X",     "play->state.input->cur.stick_x",       "AX:",     TYPE_S8,    true,  []() -> void* { return &gPlayState->state.input->cur.stick_x; },      WHITE },
-    { "Analog Stick Y",     "play->state.input->cur.stick_y",       "AY:",     TYPE_S8,    true,  []() -> void* { return &gPlayState->state.input->cur.stick_y; },      WHITE },
-    { "getItemID",          "Player->getItemId",                    "ITEM:",   TYPE_S16,   true,  []() -> void* { return &GET_PLAYER(gPlayState)->getItemId; },         WHITE },
-    { "getItemEntry",       "Player->getItemEntry",                 "IE:",     TYPE_S16,   true,  []() -> void* { return &GET_PLAYER(gPlayState)->getItemEntry.itemId; }, WHITE },
+    { "Link X",             "Player->actor.world.pos.x",            "X:",      TYPE_FLOAT, true,  []() -> void* { return &GET_PLAYER(OoT_gPlayState)->actor.world.pos.x; }, WHITE },
+    { "Link Y",             "Player->actor.world.pos.y",            "Y:",      TYPE_FLOAT, true,  []() -> void* { return &GET_PLAYER(OoT_gPlayState)->actor.world.pos.y; }, WHITE },
+    { "Link Z",             "Player->actor.world.pos.z",            "Z:",      TYPE_FLOAT, true,  []() -> void* { return &GET_PLAYER(OoT_gPlayState)->actor.world.pos.z; }, WHITE },
+    { "Link Yaw",           "Player->actor.world.rot.y",            "ROT:",    TYPE_S16,   true,  []() -> void* { return &GET_PLAYER(OoT_gPlayState)->actor.world.rot.y; }, WHITE },
+    { "Link Velocity",      "Player->linearVelocity",               "V:",      TYPE_FLOAT, true,  []() -> void* { return &GET_PLAYER(OoT_gPlayState)->linearVelocity; },    WHITE },
+    { "Link X Velocity",    "Player->actor.velocity.x",             "XV:",     TYPE_FLOAT, true,  []() -> void* { return &GET_PLAYER(OoT_gPlayState)->actor.velocity.x; },  WHITE },
+    { "Link Y Velocity",    "Player->actor.velocity.y",             "YV:",     TYPE_FLOAT, true,  []() -> void* { return &GET_PLAYER(OoT_gPlayState)->actor.velocity.y; },  WHITE },
+    { "Link Z Velocity",    "Player->actor.velocity.z",             "ZV:",     TYPE_FLOAT, true,  []() -> void* { return &GET_PLAYER(OoT_gPlayState)->actor.velocity.z; },  WHITE },
+    { "Text ID",            "play->msgCtx.textId",                  "TEXTID:", TYPE_U16,   true,  []() -> void* { return &OoT_gPlayState->msgCtx.textId; },                 WHITE },
+    { "Analog Stick X",     "play->state.input->cur.stick_x",       "AX:",     TYPE_S8,    true,  []() -> void* { return &OoT_gPlayState->state.input->cur.stick_x; },      WHITE },
+    { "Analog Stick Y",     "play->state.input->cur.stick_y",       "AY:",     TYPE_S8,    true,  []() -> void* { return &OoT_gPlayState->state.input->cur.stick_y; },      WHITE },
+    { "getItemID",          "Player->getItemId",                    "ITEM:",   TYPE_S16,   true,  []() -> void* { return &GET_PLAYER(OoT_gPlayState)->getItemId; },         WHITE },
+    { "getItemEntry",       "Player->getItemEntry",                 "IE:",     TYPE_S16,   true,  []() -> void* { return &GET_PLAYER(OoT_gPlayState)->getItemEntry.itemId; }, WHITE },
     /* TODO: Find these (from GZ)
     "XZ Units Traveled (Camera based speed variable)" f32 0x801C9018
     "Movement Angle" x16 0x801DBB1C
@@ -77,44 +77,44 @@ std::vector<ValueTableElement> valueTable = {
 extern "C" void ValueViewer_Draw(GfxPrint* printer) {
     for (size_t i = 0; i < valueTable.size(); i++) {
         ValueTableElement& element = valueTable[i];
-        if (!element.isActive || !element.isPrinted || (gPlayState == NULL && element.requiresPlayState))
+        if (!element.isActive || !element.isPrinted || (OoT_gPlayState == NULL && element.requiresPlayState))
             continue;
-        GfxPrint_SetColor(printer, element.color.x * 255, element.color.y * 255, element.color.z * 255,
+        OoT_GfxPrint_SetColor(printer, element.color.x * 255, element.color.y * 255, element.color.z * 255,
                           element.color.w * 255);
-        GfxPrint_SetPos(printer, element.x, element.y);
+        OoT_GfxPrint_SetPos(printer, element.x, element.y);
         switch (element.type) {
             case TYPE_S8:
-                GfxPrint_Printf(printer, (element.typeFormat ? "%s0x%x" : "%s%d"), element.prefix.c_str(),
+                OoT_GfxPrint_Printf(printer, (element.typeFormat ? "%s0x%x" : "%s%d"), element.prefix.c_str(),
                                 *(s8*)element.valueFn());
                 break;
             case TYPE_U8:
-                GfxPrint_Printf(printer, (element.typeFormat ? "%s0x%x" : "%s%u"), element.prefix.c_str(),
+                OoT_GfxPrint_Printf(printer, (element.typeFormat ? "%s0x%x" : "%s%u"), element.prefix.c_str(),
                                 *(u8*)element.valueFn());
                 break;
             case TYPE_S16:
-                GfxPrint_Printf(printer, (element.typeFormat ? "%s0x%x" : "%s%d"), element.prefix.c_str(),
+                OoT_GfxPrint_Printf(printer, (element.typeFormat ? "%s0x%x" : "%s%d"), element.prefix.c_str(),
                                 *(s16*)element.valueFn());
                 break;
             case TYPE_U16:
-                GfxPrint_Printf(printer, (element.typeFormat ? "%s0x%x" : "%s%u"), element.prefix.c_str(),
+                OoT_GfxPrint_Printf(printer, (element.typeFormat ? "%s0x%x" : "%s%u"), element.prefix.c_str(),
                                 *(u16*)element.valueFn());
                 break;
             case TYPE_S32:
-                GfxPrint_Printf(printer, (element.typeFormat ? "%s0x%x" : "%s%d"), element.prefix.c_str(),
+                OoT_GfxPrint_Printf(printer, (element.typeFormat ? "%s0x%x" : "%s%d"), element.prefix.c_str(),
                                 *(s32*)element.valueFn());
                 break;
             case TYPE_U32:
-                GfxPrint_Printf(printer, (element.typeFormat ? "%s0x%x" : "%s%u"), element.prefix.c_str(),
+                OoT_GfxPrint_Printf(printer, (element.typeFormat ? "%s0x%x" : "%s%u"), element.prefix.c_str(),
                                 *(u32*)element.valueFn());
                 break;
             case TYPE_CHAR:
-                GfxPrint_Printf(printer, "%s%c", element.prefix.c_str(), *(char*)element.valueFn());
+                OoT_GfxPrint_Printf(printer, "%s%c", element.prefix.c_str(), *(char*)element.valueFn());
                 break;
             case TYPE_STRING:
-                GfxPrint_Printf(printer, "%s%s", element.prefix.c_str(), (char*)element.valueFn());
+                OoT_GfxPrint_Printf(printer, "%s%s", element.prefix.c_str(), (char*)element.valueFn());
                 break;
             case TYPE_FLOAT:
-                GfxPrint_Printf(printer, (element.typeFormat ? "%s%4.1f" : "%s%f"), element.prefix.c_str(),
+                OoT_GfxPrint_Printf(printer, (element.typeFormat ? "%s%4.1f" : "%s%f"), element.prefix.c_str(),
                                 *(float*)element.valueFn());
                 break;
         }
@@ -122,29 +122,29 @@ extern "C" void ValueViewer_Draw(GfxPrint* printer) {
 }
 
 extern "C" void ValueViewer_SetupDraw() {
-    OPEN_DISPS(gGameState->gfxCtx);
+    OPEN_DISPS(OoT_gGameState->gfxCtx);
 
     Gfx* gfx;
     Gfx* polyOpa;
     GfxPrint printer;
 
     polyOpa = POLY_OPA_DISP;
-    gfx = Graph_GfxPlusOne(polyOpa);
+    gfx = OoT_Graph_GfxPlusOne(polyOpa);
     gSPDisplayList(OVERLAY_DISP++, gfx);
 
-    GfxPrint_Init(&printer);
-    GfxPrint_Open(&printer, gfx);
+    OoT_GfxPrint_Init(&printer);
+    OoT_GfxPrint_Open(&printer, gfx);
 
     ValueViewer_Draw(&printer);
 
-    gfx = GfxPrint_Close(&printer);
-    GfxPrint_Destroy(&printer);
+    gfx = OoT_GfxPrint_Close(&printer);
+    OoT_GfxPrint_Destroy(&printer);
 
     gSPEndDisplayList(gfx++);
-    Graph_BranchDlist(polyOpa, gfx);
+    OoT_Graph_BranchDlist(polyOpa, gfx);
     POLY_OPA_DISP = gfx;
 
-    CLOSE_DISPS(gGameState->gfxCtx);
+    CLOSE_DISPS(OoT_gGameState->gfxCtx);
 }
 
 void RegisterValueViewerHooks() {
@@ -190,7 +190,7 @@ void ValueViewerWindow::DrawElement() {
 
     for (size_t i = 0; i < valueTable.size(); i++) {
         ValueTableElement& element = valueTable[i];
-        if (!element.isActive || (gPlayState == NULL && element.requiresPlayState))
+        if (!element.isActive || (OoT_gPlayState == NULL && element.requiresPlayState))
             continue;
         UIWidgets::PushStyleButton(THEME_COLOR);
         UIWidgets::PushStyleCheckbox(THEME_COLOR);

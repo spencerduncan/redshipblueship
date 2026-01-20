@@ -8,7 +8,7 @@
 extern "C" {
 #include "variables.h"
 
-extern PlayState* gPlayState;
+extern PlayState* MM_gPlayState;
 }
 
 #define CVAR_SEQOVERLAY_NAME "gAudioEditor.SeqNameNotification"
@@ -21,11 +21,11 @@ void NotifySequenceName(int32_t playerIdx, int32_t seqId) {
     static int16_t previousSceneNum = INT16_MAX;
 
     if (playerIdx == SEQ_PLAYER_BGM_MAIN &&
-        (seqId != previousSeqId || (gPlayState != NULL && gPlayState->sceneId != previousSceneNum))) {
+        (seqId != previousSeqId || (MM_gPlayState != NULL && MM_gPlayState->sceneId != previousSceneNum))) {
 
         previousSeqId = seqId;
-        if (gPlayState != NULL) {
-            previousSceneNum = gPlayState->sceneId;
+        if (MM_gPlayState != NULL) {
+            previousSceneNum = MM_gPlayState->sceneId;
         }
         const char* sequenceName = AudioCollection::Instance->GetSequenceName(seqId);
         if (sequenceName != NULL) {

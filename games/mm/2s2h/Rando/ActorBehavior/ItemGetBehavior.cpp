@@ -13,7 +13,7 @@ void Rando::ActorBehavior::InitItemGetBehavior() {
     COND_ID_HOOK(ShouldActorUpdate, ACTOR_OBJ_BEAN, IS_RANDO, [](Actor* actor, bool* should) {
         ObjBean* objBean = (ObjBean*)actor;
         // Bean is in moving state, and player is in Get Item state
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         if (objBean->actionFunc == func_809388A8 && PLAYER_IN_GET_ITEM_STATE(player)) {
             *should = false;
         }
@@ -23,7 +23,7 @@ void Rando::ActorBehavior::InitItemGetBehavior() {
     COND_ID_HOOK(ShouldActorUpdate, ACTOR_EN_DNO, IS_RANDO, [](Actor* actor, bool* should) {
         EnDno* enDno = (EnDno*)actor;
         // Deku Butler is in race state, and player is in Get Item state
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         if (enDno->actionFunc == func_80A730A0 && PLAYER_IN_GET_ITEM_STATE(player)) {
             *should = false;
         }
@@ -31,7 +31,7 @@ void Rando::ActorBehavior::InitItemGetBehavior() {
 
     // Deku Butler race moving platform
     COND_ID_HOOK(ShouldActorUpdate, ACTOR_OBJ_DANPEILIFT, IS_RANDO, [](Actor* actor, bool* should) {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         if (PLAYER_IN_GET_ITEM_STATE(player)) {
             *should = false;
         }
@@ -39,7 +39,7 @@ void Rando::ActorBehavior::InitItemGetBehavior() {
 
     // Deku Butler race door
     COND_ID_HOOK(ShouldActorUpdate, ACTOR_BG_CRACE_MOVEBG, IS_RANDO, [](Actor* actor, bool* should) {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         if (PLAYER_IN_GET_ITEM_STATE(player)) {
             *should = false;
         }
@@ -47,7 +47,7 @@ void Rando::ActorBehavior::InitItemGetBehavior() {
 
     // Deku Scrub Playground platform
     COND_ID_HOOK(ShouldActorUpdate, ACTOR_OBJ_LUPYGAMELIFT, IS_RANDO, [](Actor* actor, bool* should) {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         if (PLAYER_IN_GET_ITEM_STATE(player)) {
             *should = false;
         }
@@ -55,7 +55,7 @@ void Rando::ActorBehavior::InitItemGetBehavior() {
 
     // Deku Palace moving platform
     COND_ID_HOOK(ShouldActorUpdate, ACTOR_OBJ_RAILLIFT, IS_RANDO, [](Actor* actor, bool* should) {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         if (PLAYER_IN_GET_ITEM_STATE(player)) {
             *should = false;
         }

@@ -204,7 +204,7 @@ const char* constCameraStrings[] = {
     "E MODE ABS",
     GFXP_HIRAGANA "ｶﾞﾒﾝ" GFXP_KATAKANA "   ﾃﾞﾓ", // OTRTODO: Unused, get a translation! Number 15
     GFXP_HIRAGANA "ｶﾞﾒﾝ   ﾌﾂｳ",                  // OTRTODO: Unused, get a translation! Number 16
-    "P TIME  MAX",
+    "OoT_P TIME  MAX",
     GFXP_KATAKANA "ﾘﾝｸ" GFXP_HIRAGANA "    ｷｵｸ", // OTRTODO: Unused, get a translation! Number 18
     GFXP_KATAKANA "ﾘﾝｸ" GFXP_HIRAGANA "     ﾑｼ", // OTRTODO: Unused, get a translation! Number 19
     "*VIEWPT*",
@@ -344,8 +344,8 @@ void OTRGlobals::Initialize() {
 
     context->InitAudio({ .SampleRate = 32000, .SampleLength = 1024, .DesiredBuffered = 1680 });
 
-    SPDLOG_INFO("Starting Ship of Harkinian version {} (Branch: {} | Commit: {})", (char*)gBuildVersion,
-                (char*)gGitBranch, (char*)gGitCommitHash);
+    SPDLOG_INFO("Starting Ship of Harkinian version {} (Branch: {} | Commit: {})", (char*)OoT_gBuildVersion,
+                (char*)OoT_gGitBranch, (char*)OoT_gGitCommitHash);
 
     auto loader = context->GetResourceManager()->GetResourceLoader();
     loader->RegisterResourceFactory(std::make_shared<Fast::ResourceFactoryBinaryTextureV0>(), RESOURCE_FORMAT_BINARY,
@@ -552,7 +552,7 @@ uint32_t OTRGlobals::GetInterpolationFPS() {
 }
 
 extern "C" void OTRMessage_Init();
-extern "C" void AudioMgr_CreateNextAudioBuffer(s16* samples, u32 num_samples);
+extern "C" void OoT_AudioMgr_CreateNextAudioBuffer(s16* samples, u32 num_samples);
 extern "C" void AudioPlayer_Play(const uint8_t* buf, uint32_t len);
 extern "C" int AudioPlayer_Buffered(void);
 extern "C" int AudioPlayer_GetDesiredBuffered(void);
@@ -571,7 +571,7 @@ void OTRAudio_Thread() {
             }
         }
         std::unique_lock<std::mutex> Lock(audio.mutex);
-// AudioMgr_ThreadEntry(&gAudioMgr);
+// OoT_AudioMgr_ThreadEntry(&gAudioMgr);
 //  528 and 544 relate to 60 fps at 32 kHz 32000/60 = 533.333..
 //  in an ideal world, one third of the calls should use num_samples=544 and two thirds num_samples=528
 #define SAMPLES_HIGH 560
@@ -586,7 +586,7 @@ void OTRAudio_Thread() {
         // 3 is the maximum authentic frame divisor.
         s16 audio_buffer[SAMPLES_HIGH * NUM_AUDIO_CHANNELS * 3];
         for (int i = 0; i < AUDIO_FRAMES_PER_UPDATE; i++) {
-            AudioMgr_CreateNextAudioBuffer(audio_buffer + i * (num_audio_samples * NUM_AUDIO_CHANNELS),
+            OoT_AudioMgr_CreateNextAudioBuffer(audio_buffer + i * (num_audio_samples * NUM_AUDIO_CHANNELS),
                                            num_audio_samples);
         }
 
@@ -1017,8 +1017,8 @@ void CheckSoHOTRVersion(std::string otrPath) {
 
     OTRVersion otrVersion = ReadPortVersionFromOTR(otrPath);
 
-    if (otrVersion.major != gBuildVersionMajor || otrVersion.minor != gBuildVersionMinor ||
-        otrVersion.patch != gBuildVersionPatch) {
+    if (otrVersion.major != OoT_gBuildVersionMajor || otrVersion.minor != OoT_gBuildVersionMinor ||
+        otrVersion.patch != OoT_gBuildVersionPatch) {
 #if not defined(__SWITCH__) && not defined(__WIIU__)
         Extractor::ShowErrorBox("soh.o2r file version does not match", msg.c_str());
         exit(1);
@@ -1043,7 +1043,7 @@ void DetectOTRVersion(std::string fileName, bool isMQ) {
 
     OTRVersion otrVersion = ReadPortVersionFromOTR(otrPath);
 
-    if (otrVersion.major != gBuildVersionMajor) {
+    if (otrVersion.major != OoT_gBuildVersionMajor) {
         isOtrOld = true;
     }
 
@@ -1893,7 +1893,7 @@ Color_RGB8 GetColorForControllerLED() {
         LEDColorSource source =
             static_cast<LEDColorSource>(CVarGetInteger(CVAR_SETTING("LEDColorSource"), LED_SOURCE_TUNIC_ORIGINAL));
         bool criticalOverride = CVarGetInteger(CVAR_SETTING("LEDCriticalOverride"), 1);
-        if (gPlayState && (source == LED_SOURCE_TUNIC_ORIGINAL || source == LED_SOURCE_TUNIC_COSMETICS)) {
+        if (OoT_gPlayState && (source == LED_SOURCE_TUNIC_ORIGINAL || source == LED_SOURCE_TUNIC_COSMETICS)) {
             switch (CUR_EQUIP_VALUE(EQUIP_TYPE_TUNIC)) {
                 case EQUIP_VALUE_TUNIC_KOKIRI:
                     color = source == LED_SOURCE_TUNIC_COSMETICS
@@ -1912,8 +1912,8 @@ Color_RGB8 GetColorForControllerLED() {
                     break;
             }
         }
-        if (gPlayState && (source == LED_SOURCE_NAVI_ORIGINAL || source == LED_SOURCE_NAVI_COSMETICS)) {
-            Actor* arrowPointedActor = gPlayState->actorCtx.targetCtx.arrowPointedActor;
+        if (OoT_gPlayState && (source == LED_SOURCE_NAVI_ORIGINAL || source == LED_SOURCE_NAVI_COSMETICS)) {
+            Actor* arrowPointedActor = OoT_gPlayState->actorCtx.targetCtx.arrowPointedActor;
             if (arrowPointedActor) {
                 ActorCategory category = (ActorCategory)arrowPointedActor->category;
                 switch (category) {
@@ -1962,7 +1962,7 @@ Color_RGB8 GetColorForControllerLED() {
         if (source == LED_SOURCE_CUSTOM) {
             color = CVarGetColor24(CVAR_SETTING("LEDPort1Color"), { 255, 255, 255 });
         }
-        if (gPlayState && (criticalOverride || source == LED_SOURCE_HEALTH)) {
+        if (OoT_gPlayState && (criticalOverride || source == LED_SOURCE_HEALTH)) {
             if (HealthMeter_IsCritical()) {
                 color = { 0xFF, 0, 0 };
             } else if (gSaveContext.healthCapacity != 0 && source == LED_SOURCE_HEALTH) {
@@ -2275,11 +2275,11 @@ extern "C" int CustomMessage_RetrieveIfExists(PlayState* play) {
                     entrance = ENTR_FISHING_POND_0;
                     break;
                 case TEXT_HF_SIGN:
-                    if (gPlayState->sceneNum == SCENE_KAKARIKO_VILLAGE) {
+                    if (OoT_gPlayState->sceneNum == SCENE_KAKARIKO_VILLAGE) {
                         entrance = ENTR_HYRULE_FIELD_STAIRS_EXIT;
-                    } else if (gPlayState->sceneNum == SCENE_GERUDO_VALLEY) {
+                    } else if (OoT_gPlayState->sceneNum == SCENE_GERUDO_VALLEY) {
                         entrance = ENTR_HYRULE_FIELD_ROCKY_PATH;
-                    } else if (gPlayState->sceneNum == SCENE_LAKE_HYLIA) {
+                    } else if (OoT_gPlayState->sceneNum == SCENE_LAKE_HYLIA) {
                         entrance = ENTR_HYRULE_FIELD_FENCE_EXIT;
                     }
                     break;
@@ -2287,7 +2287,7 @@ extern "C" int CustomMessage_RetrieveIfExists(PlayState* play) {
                     entrance = ENTR_GREAT_FAIRYS_FOUNTAIN_SPELLS_DINS_HC;
                     break;
                 case TEXT_DMT_KAK_SIGN:
-                    if (gPlayState->sceneNum == SCENE_HYRULE_FIELD) {
+                    if (OoT_gPlayState->sceneNum == SCENE_HYRULE_FIELD) {
                         entrance = ENTR_KAKARIKO_VILLAGE_FRONT_GATE;
                     } else {
                         entrance = ENTR_KAKARIKO_VILLAGE_GUARD_GATE;
@@ -2312,7 +2312,7 @@ extern "C" int CustomMessage_RetrieveIfExists(PlayState* play) {
                     entrance = ENTR_GORON_CITY_UPPER_EXIT;
                     break;
                 case TEXT_GC_SIGN:
-                    if (gPlayState->sceneNum == SCENE_DEATH_MOUNTAIN_TRAIL) {
+                    if (OoT_gPlayState->sceneNum == SCENE_DEATH_MOUNTAIN_TRAIL) {
                         entrance = ENTR_GORON_CITY_UPPER_EXIT;
                     } else {
                         entrance = ENTR_GORON_CITY_DARUNIA_ROOM_EXIT;
@@ -2340,7 +2340,7 @@ extern "C" int CustomMessage_RetrieveIfExists(PlayState* play) {
                     entrance = ENTR_LOST_WOODS_BRIDGE_EAST_EXIT;
                     break;
                 case TEXT_ZD_SIGN:
-                    if (gPlayState->sceneNum == SCENE_ZORAS_DOMAIN) {
+                    if (OoT_gPlayState->sceneNum == SCENE_ZORAS_DOMAIN) {
                         entrance = ENTR_ZORAS_RIVER_WATERFALL_EXIT;
                     } else {
                         entrance = ENTR_ZORAS_DOMAIN_KING_ZORA_EXIT;
@@ -2362,7 +2362,7 @@ extern "C" int CustomMessage_RetrieveIfExists(PlayState* play) {
                     entrance = ENTR_LAKESIDE_LABORATORY_0;
                     break;
                 case TEXT_GV_SIGN:
-                    if (gPlayState->sceneNum == SCENE_HYRULE_FIELD) {
+                    if (OoT_gPlayState->sceneNum == SCENE_HYRULE_FIELD) {
                         entrance = ENTR_GERUDO_VALLEY_EAST_EXIT;
                     } else {
                         entrance = ENTR_GERUDO_VALLEY_WEST_EXIT;
@@ -2455,7 +2455,7 @@ extern "C" int CustomMessage_RetrieveIfExists(PlayState* play) {
             }
         } else if (textId == TEXT_NEED_SPECIAL_KEY && ctx->GetOption(RSK_BOSS_KEY_HINT)) {
             auto rh = RH_NONE;
-            switch (gPlayState->sceneNum) {
+            switch (OoT_gPlayState->sceneNum) {
                 case SCENE_FOREST_TEMPLE:
                     rh = RH_FOREST_BOSS_KEY_HINT;
                     break;
@@ -2482,7 +2482,7 @@ extern "C" int CustomMessage_RetrieveIfExists(PlayState* play) {
                    Randomizer_GetSettingValue(RSK_GOSSIP_STONE_HINTS) != RO_GOSSIP_STONES_NONE &&
                    (Randomizer_GetSettingValue(RSK_GOSSIP_STONE_HINTS) == RO_GOSSIP_STONES_NEED_NOTHING ||
                     (Randomizer_GetSettingValue(RSK_GOSSIP_STONE_HINTS) == RO_GOSSIP_STONES_NEED_TRUTH &&
-                     Player_GetMask(play) == PLAYER_MASK_TRUTH) ||
+                     OoT_Player_GetMask(play) == PLAYER_MASK_TRUTH) ||
                     (Randomizer_GetSettingValue(RSK_GOSSIP_STONE_HINTS) == RO_GOSSIP_STONES_NEED_STONE &&
                      CHECK_QUEST_ITEM(QUEST_STONE_OF_AGONY)))) {
 
@@ -2531,7 +2531,7 @@ extern "C" int CustomMessage_RetrieveIfExists(PlayState* play) {
                 }
             }
         } else if (textId == TEXT_SHEIK_NEED_HOOK || textId == TEXT_SHEIK_HAVE_HOOK) {
-            messageEntry = OTRGlobals::Instance->gRandomizer->GetSheikMessage(gPlayState->sceneNum, textId);
+            messageEntry = OTRGlobals::Instance->gRandomizer->GetSheikMessage(OoT_gPlayState->sceneNum, textId);
             // Shop items each have two message entries, second one offset by NUM_SHOP_ITEMS
             // textId: TEXT_SHOP_ITEM_RANDOM + (randomizerInf - RAND_INF_SHOP_ITEMS_KF_SHOP_ITEM_1)
             // textId: TEXT_SHOP_ITEM_RANDOM + ((randomizerInf - RAND_INF_SHOP_ITEMS_KF_SHOP_ITEM_1) + NUM_SHOP_ITEMS)
@@ -2658,7 +2658,7 @@ extern "C" int CustomMessage_RetrieveIfExists(PlayState* play) {
         } else if ((textId == TEXT_FISHING_POND_START || textId == TEXT_FISHING_POND_START_MET) &&
                    ctx->GetOption(RSK_SHUFFLE_FISHING_POLE) && !Flags_GetRandomizerInf(RAND_INF_FISHING_POLE_FOUND)) {
             messageEntry = OTRGlobals::Instance->gRandomizer->GetFishingPondOwnerMessage(textId);
-        } else if (textId == TEXT_SARIA_SFM && gPlayState->sceneNum == SCENE_SACRED_FOREST_MEADOW &&
+        } else if (textId == TEXT_SARIA_SFM && OoT_gPlayState->sceneNum == SCENE_SACRED_FOREST_MEADOW &&
                    ctx->GetOption(RSK_SARIA_HINT)) {
             messageEntry = ctx->GetHint(RH_SARIA_HINT)->GetHintMessage(MF_AUTO_FORMAT, 0);
         } else if ((textId >= TEXT_SARIAS_SONG_FACE_TO_FACE && textId <= TEXT_SARIAS_SONG_CHANNELING_POWER) &&
@@ -2706,7 +2706,7 @@ extern "C" int CustomMessage_RetrieveIfExists(PlayState* play) {
             messageEntry =
                 CustomMessageManager::Instance->RetrieveMessage(customMessageTableID, textId, MF_AUTO_FORMAT);
         } else if (textId == TEXT_GERUDO_GUARD_FRIENDLY && player->talkActor->id == ACTOR_EN_GE2 &&
-                   gPlayState->sceneNum == SCENE_GERUDOS_FORTRESS) {
+                   OoT_gPlayState->sceneNum == SCENE_GERUDOS_FORTRESS) {
             // TODO_TRANSLATE Translate into french and german
             messageEntry = CustomMessage("Want me to throw you in jail?&\x1B#Yes please&No thanks#", { QM_GREEN });
             messageEntry.AutoFormat();

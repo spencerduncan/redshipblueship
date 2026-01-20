@@ -14,18 +14,18 @@ void Rando::ActorBehavior::InitDmChar01Behavior() {
 
     COND_VB_SHOULD(VB_OPEN_WOODFALL_FROM_SONG, shouldRegisterVB, {
         DmChar01* dmChar01 = va_arg(args, DmChar01*);
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
 
         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_20_01)) {
             return;
         }
 
-        bool hasSongAccess = (gPlayState->msgCtx.ocarinaMode == OCARINA_MODE_EVENT &&
-                              gPlayState->msgCtx.lastPlayedSong == OCARINA_SONG_SONATA);
+        bool hasSongAccess = (MM_gPlayState->msgCtx.ocarinaMode == OCARINA_MODE_EVENT &&
+                              MM_gPlayState->msgCtx.lastPlayedSong == OCARINA_SONG_SONATA);
 
         bool hasFormAccess =
-            (player->transformation == PLAYER_FORM_DEKU && (gPlayState->msgCtx.ocarinaMode == OCARINA_MODE_EVENT ||
-                                                            gPlayState->msgCtx.ocarinaMode == OCARINA_MODE_ACTIVE));
+            (player->transformation == PLAYER_FORM_DEKU && (MM_gPlayState->msgCtx.ocarinaMode == OCARINA_MODE_EVENT ||
+                                                            MM_gPlayState->msgCtx.ocarinaMode == OCARINA_MODE_ACTIVE));
         switch (RANDO_SAVE_OPTIONS[RO_ACCESS_DUNGEONS]) {
             case RO_ACCESS_DUNGEONS_FORM_OR_SONG:
                 *should = hasSongAccess || hasFormAccess;
@@ -44,8 +44,8 @@ void Rando::ActorBehavior::InitDmChar01Behavior() {
     COND_HOOK(OnFlagSet, shouldRegisterVB, [](FlagType flagType, u32 flag) {
         if (flagType == FLAG_WEEK_EVENT_REG && flag == WEEKEVENTREG_20_01) {
             AudioOcarina_SetInstrument(OCARINA_INSTRUMENT_OFF);
-            gPlayState->msgCtx.ocarinaMode = OCARINA_MODE_END;
-            Message_CloseTextbox(gPlayState);
+            MM_gPlayState->msgCtx.ocarinaMode = OCARINA_MODE_END;
+            MM_Message_CloseTextbox(MM_gPlayState);
         }
     });
 

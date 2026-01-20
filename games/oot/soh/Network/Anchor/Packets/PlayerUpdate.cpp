@@ -6,7 +6,7 @@
 extern "C" {
 #include "macros.h"
 #include "variables.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 /**
@@ -26,7 +26,7 @@ void Anchor::SendPacket_PlayerUpdate() {
 
     uint32_t currentPlayerCount = 0;
     for (auto& [clientId, client] : clients) {
-        if (client.sceneNum == gPlayState->sceneNum && client.online && client.isSaveLoaded && !client.self) {
+        if (client.sceneNum == OoT_gPlayState->sceneNum && client.online && client.isSaveLoaded && !client.self) {
             currentPlayerCount++;
         }
     }
@@ -34,11 +34,11 @@ void Anchor::SendPacket_PlayerUpdate() {
         return;
     }
 
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
     nlohmann::json payload;
 
     payload["type"] = PLAYER_UPDATE;
-    payload["sceneNum"] = gPlayState->sceneNum;
+    payload["sceneNum"] = OoT_gPlayState->sceneNum;
     payload["entranceIndex"] = gSaveContext.entranceIndex;
     payload["linkAge"] = gSaveContext.linkAge;
     payload["posRot"]["pos"] = player->actor.world.pos;
@@ -70,7 +70,7 @@ void Anchor::SendPacket_PlayerUpdate() {
     payload["quiet"] = true;
 
     for (auto& [clientId, client] : clients) {
-        if (client.sceneNum == gPlayState->sceneNum && client.online && client.isSaveLoaded && !client.self) {
+        if (client.sceneNum == OoT_gPlayState->sceneNum && client.online && client.isSaveLoaded && !client.self) {
             payload["targetClientId"] = clientId;
             SendJsonToRemote(payload);
         }

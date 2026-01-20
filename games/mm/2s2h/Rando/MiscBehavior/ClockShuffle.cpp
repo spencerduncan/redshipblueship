@@ -296,15 +296,15 @@ bool SceneNeedsReloadForTimeSkip(s16 sceneId) {
 
 // Force a scene transition to reload the current area
 void ForceSceneReload() {
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(MM_gPlayState);
 
     // Set up the transition parameters
-    gPlayState->nextEntrance = gSaveContext.save.entrance;
-    gPlayState->transitionTrigger = TRANS_TRIGGER_START;
-    gPlayState->transitionType = TRANS_TYPE_FADE_BLACK_FAST;
+    MM_gPlayState->nextEntrance = gSaveContext.save.entrance;
+    MM_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
+    MM_gPlayState->transitionType = TRANS_TYPE_FADE_BLACK_FAST;
 
     // Set up respawn data to return to the same location
-    Play_SetRespawnData(gPlayState, RESPAWN_MODE_RETURN, gSaveContext.save.entrance, gPlayState->roomCtx.curRoom.num,
+    MM_Play_SetRespawnData(MM_gPlayState, RESPAWN_MODE_RETURN, gSaveContext.save.entrance, MM_gPlayState->roomCtx.curRoom.num,
                         PLAYER_PARAMS(0xFF, PLAYER_START_MODE_B), &player->actor.world.pos, player->actor.world.rot.y);
 
     // Configure the transition
@@ -335,7 +335,7 @@ void ForceSceneReload() {
 // Returns true if skip is needed, false otherwise
 bool ShouldSkipTime(s32 day, u16 time, int* outNextHalfDay) {
     // Early exits
-    if (gPlayState->envCtx.sceneTimeSpeed == 0 || Play_InCsMode(gPlayState) || day >= 4) {
+    if (MM_gPlayState->envCtx.sceneTimeSpeed == 0 || MM_Play_InCsMode(MM_gPlayState) || day >= 4) {
         return false;
     }
 
@@ -382,7 +382,7 @@ void ApplyTimeSkip(int nextHalfDay, EnTest4* enTest4) {
     enTest4->daytimeIndex = IsCurrentlyNightTime(time) ? 1 : 0;
 
     // Handle scene reload for time-sensitive scenes
-    if (SceneNeedsReloadForTimeSkip(gPlayState->sceneId)) {
+    if (SceneNeedsReloadForTimeSkip(MM_gPlayState->sceneId)) {
         ForceSceneReload();
         enTest4->prevTime = time - CLOCK_TIME(0, 1);
         return;
@@ -398,8 +398,8 @@ void ApplyTimeSkip(int nextHalfDay, EnTest4* enTest4) {
     if (time == GAME_TIME_DAY_START) {
         gSaveContext.save.day--;
     } else {
-        Interface_NewDay(gPlayState, gSaveContext.save.day);
-        Environment_NewDay(&gPlayState->envCtx);
+        Interface_NewDay(MM_gPlayState, gSaveContext.save.day);
+        Environment_NewDay(&MM_gPlayState->envCtx);
     }
 
     enTest4->prevTime = time - CLOCK_TIME(0, 1);
@@ -568,7 +568,7 @@ void OnFileLoad() {
     bool shouldRegister = IS_RANDO && RANDO_SAVE_OPTIONS[RO_CLOCK_SHUFFLE];
 
     // Correct Day 0 time on file load BEFORE scene initialization
-    // OnSaveLoad fires before Play_Init, ensuring time is correct before Environment_PlaySceneSequence processes audio
+    // OnSaveLoad fires before MM_Play_Init, ensuring time is correct before MM_Environment_PlaySceneSequence processes audio
     // This prevents bird chirps from playing when correcting to night half-days on initial spawn
     if (shouldRegister) {
         // Check if this is initial spawn (day=0) and needs correction

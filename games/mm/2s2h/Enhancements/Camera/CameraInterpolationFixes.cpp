@@ -6,7 +6,7 @@
 extern "C" {
 #include "macros.h"
 #include "functions.h"
-extern PlayState* gPlayState;
+extern PlayState* MM_gPlayState;
 extern SaveContext gSaveContext;
 extern CameraSetting sCameraSettings[];
 }
@@ -58,7 +58,7 @@ bool Camera_ShouldInterpolateDist(Camera* camera) {
     f32 yawVelocity = yaw - lastYaw;
     f32 pitch = BINANG_TO_DEG(eyeGeo.pitch);
     f32 pitchVelocity = pitch - lastPitch;
-    Math_Vec3f_Diff(eye, &lastEye, &eyeVelo);
+    MM_Math_Vec3f_Diff(eye, &lastEye, &eyeVelo);
 
     // Update static variables.
     lastYaw = yaw;
@@ -80,12 +80,12 @@ bool Camera_ShouldInterpolateDist(Camera* camera) {
         expectedYaw += 360.0f;
     }
     f32 expectedPitch = CLAMP(lastPitch + lastPitchVelocity, -180.0f, 180.0f);
-    Math_Vec3f_Sum(&lastEye, &lastEyeVelocity, &expectedEye);
+    MM_Math_Vec3f_Sum(&lastEye, &lastEyeVelocity, &expectedEye);
 
     // Check if changes are too great
     f32 diffYaw = fabsf(yaw - expectedYaw);
     f32 diffPitch = fabsf(pitch - expectedPitch);
-    f32 diffDistEye = Math_Vec3f_DistXYZ(eye, &expectedEye);
+    f32 diffDistEye = MM_Math_Vec3f_DistXYZ(eye, &expectedEye);
 
     if ((diffYaw > 90.0f && diffYaw < 270.0f) || diffPitch > 60.0f || diffDistEye > 200.0f) {
         shouldInterpolate = false;

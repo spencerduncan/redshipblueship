@@ -2,7 +2,7 @@
 #include "SohGui.hpp"
 
 extern "C" {
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 void WarpPointsWidget(WidgetInfo& info);
@@ -79,8 +79,8 @@ void SohMenu::AddMenuDevTools() {
         .PreFunc([](WidgetInfo& info) {
             info.isHidden = mSohMenu->disabledMap.at(DISABLE_FOR_NULL_PLAY_STATE).active ||
                             mSohMenu->disabledMap.at(DISABLE_FOR_DEBUG_MODE_OFF).active;
-            if (gPlayState != nullptr) {
-                info.valuePointer = (bool*)&gPlayState->frameAdvCtx.enabled;
+            if (OoT_gPlayState != nullptr) {
+                info.valuePointer = (bool*)&OoT_gPlayState->frameAdvCtx.enabled;
             } else {
                 info.valuePointer = (bool*)nullptr;
             }

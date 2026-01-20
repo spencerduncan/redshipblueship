@@ -35,7 +35,7 @@ extern "C" {
 #include "overlays/ovl_Boss_Sst/ovl_Boss_Sst.h"
 #include "objects/object_tw/object_tw.h"
 #include "objects/object_ganon2/object_ganon2.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 extern SaveContext gSaveContext;
 }
 
@@ -174,7 +174,7 @@ extern "C" void Randomizer_DrawCompass(PlayState* play, GetItemEntry* getItemEnt
 
     gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gGiCompassDL);
 
-    POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, 5);
+    POLY_XLU_DISP = OoT_Gfx_SetupDL(POLY_XLU_DISP, 5);
     gSPMatrix(POLY_XLU_DISP++, Matrix_NewMtx(play->state.gfxCtx, (char*)__FILE__, __LINE__),
               G_MTX_MODELVIEW | G_MTX_LOAD);
     gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gGiCompassGlassDL);
@@ -320,20 +320,20 @@ extern "C" void Randomizer_DrawKeyRing(PlayState* play, GetItemEntry* getItemEnt
     } else {
         gDPSetGrayscaleColor(POLY_OPA_DISP++, keyColor.r, keyColor.g, keyColor.b, 255);
         gSPGrayscale(POLY_OPA_DISP++, true);
-        Matrix_Scale(0.5f, 0.5f, 0.5f, MTXMODE_APPLY);
+        OoT_Matrix_Scale(0.5f, 0.5f, 0.5f, MTXMODE_APPLY);
         Matrix_RotateZ(0.8f, MTXMODE_APPLY);
         Matrix_RotateX(-2.16f, MTXMODE_APPLY);
         Matrix_RotateY(-0.56f, MTXMODE_APPLY);
         Matrix_RotateZ(-0.86f, MTXMODE_APPLY);
-        Matrix_Translate(28.29f, 0, 0, MTXMODE_APPLY);
-        Matrix_Translate(-(3.12f * 2), -(-0.34f * 2), -(17.53f * 2), MTXMODE_APPLY);
+        OoT_Matrix_Translate(28.29f, 0, 0, MTXMODE_APPLY);
+        OoT_Matrix_Translate(-(3.12f * 2), -(-0.34f * 2), -(17.53f * 2), MTXMODE_APPLY);
         Matrix_RotateX(-(-0.31f * 2), MTXMODE_APPLY);
         Matrix_RotateY(-(0.19f * 2), MTXMODE_APPLY);
         Matrix_RotateZ(-(0.20f * 2), MTXMODE_APPLY);
         for (int i = 0; i < 5; i++) {
             gSPMatrix(POLY_OPA_DISP++, Matrix_NewMtx(play->state.gfxCtx, (char*)__FILE__, __LINE__),
                       G_MTX_MODELVIEW | G_MTX_LOAD);
-            Matrix_Translate(3.12f, -0.34f, 17.53f, MTXMODE_APPLY);
+            OoT_Matrix_Translate(3.12f, -0.34f, 17.53f, MTXMODE_APPLY);
             Matrix_RotateX(-0.31f, MTXMODE_APPLY);
             Matrix_RotateY(0.19f, MTXMODE_APPLY);
             Matrix_RotateZ(0.20f, MTXMODE_APPLY);
@@ -371,11 +371,11 @@ extern "C" void Randomizer_DrawMasterSword(PlayState* play, GetItemEntry* getIte
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
 
     gSPSegment(POLY_OPA_DISP++, 0x08,
-               (uintptr_t)Gfx_TwoTexScroll(play->state.gfxCtx, 0, 1 * (play->state.frames * 1),
+               (uintptr_t)OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 1 * (play->state.frames * 1),
                                            0 * (play->state.frames * 1), 32, 32, 1, 0 * (play->state.frames * 1),
                                            0 * (play->state.frames * 1), 32, 32));
 
-    Matrix_Scale(0.05f, 0.05f, 0.05f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(0.05f, 0.05f, 0.05f, MTXMODE_APPLY);
     Matrix_RotateZ(2.1f, MTXMODE_APPLY);
 
     gSPMatrix(POLY_OPA_DISP++, Matrix_NewMtx(play->state.gfxCtx, (char*)__FILE__, __LINE__),
@@ -404,7 +404,7 @@ extern "C" void Randomizer_DrawTriforcePiece(PlayState* play, GetItemEntry getIt
 
     uint8_t current = gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected;
 
-    Matrix_Scale(0.035f, 0.035f, 0.035f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(0.035f, 0.035f, 0.035f, MTXMODE_APPLY);
 
     gSPMatrix(POLY_XLU_DISP++, Matrix_NewMtx(play->state.gfxCtx, (char*)__FILE__, __LINE__),
               G_MTX_MODELVIEW | G_MTX_LOAD);
@@ -429,7 +429,7 @@ extern "C" void Randomizer_DrawTriforcePieceGI(PlayState* play, GetItemEntry get
     uint8_t current = gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected;
     uint8_t required = OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_TRIFORCE_HUNT_PIECES_REQUIRED) + 1;
 
-    Matrix_Scale(triforcePieceScale, triforcePieceScale, triforcePieceScale, MTXMODE_APPLY);
+    OoT_Matrix_Scale(triforcePieceScale, triforcePieceScale, triforcePieceScale, MTXMODE_APPLY);
 
     // For creating a delay before showing the model so the model doesn't swap visually when the triforce piece
     // is given when the textbox just appears.
@@ -546,20 +546,20 @@ extern "C" void DrawGohma(PlayState* play) {
 
     if (!initialized) {
         initialized = true;
-        SkelAnime_Init(play, &skelAnime, (SkeletonHeader*)&gGohmaSkel, (AnimationHeader*)&gGohmaIdleCrouchedAnim,
+        OoT_SkelAnime_Init(play, &skelAnime, (SkeletonHeader*)&gGohmaSkel, (AnimationHeader*)&gGohmaIdleCrouchedAnim,
                        jointTable, otherTable, LIMB_COUNT_GOHMA);
     }
 
     if (lastUpdate != play->state.frames) {
         lastUpdate = play->state.frames;
-        SkelAnime_Update(&skelAnime);
+        OoT_SkelAnime_Update(&skelAnime);
     }
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
-    Matrix_Translate(0.0f, -20.0f, 0.0f, MTXMODE_APPLY);
-    Matrix_Scale(0.005f, 0.005f, 0.005f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(0.0f, -20.0f, 0.0f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(0.005f, 0.005f, 0.005f, MTXMODE_APPLY);
 
     gSPSegment(POLY_OPA_DISP++, 0x08, (uintptr_t)GetEmptyDlist(play->state.gfxCtx));
     SkelAnime_DrawSkeletonOpa(play, &skelAnime, OverrideLimbDrawGohma, NULL, NULL);
@@ -577,21 +577,21 @@ extern "C" void DrawKingDodongo(PlayState* play) {
 
     if (!initialized) {
         initialized = true;
-        SkelAnime_Init(play, &skelAnime, (SkeletonHeader*)&object_kingdodongo_Skel_01B310,
+        OoT_SkelAnime_Init(play, &skelAnime, (SkeletonHeader*)&object_kingdodongo_Skel_01B310,
                        (AnimationHeader*)&object_kingdodongo_Anim_00F0D8, jointTable, otherTable,
                        LIMB_COUNT_KING_DODONGO);
     }
 
     if (lastUpdate != play->state.frames) {
         lastUpdate = play->state.frames;
-        SkelAnime_Update(&skelAnime);
+        OoT_SkelAnime_Update(&skelAnime);
     }
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
-    Matrix_Translate(0.0f, -20.0f, 0.0f, MTXMODE_APPLY);
-    Matrix_Scale(0.003f, 0.003f, 0.003f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(0.0f, -20.0f, 0.0f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(0.003f, 0.003f, 0.003f, MTXMODE_APPLY);
 
     SkelAnime_DrawSkeletonOpa(play, &skelAnime, NULL, NULL, NULL);
 
@@ -609,7 +609,7 @@ extern "C" s32 OverrideLimbDrawBarinade(PlayState* play, s32 limbIndex, Gfx** dL
     if (limbIndex == 20) {
         gDPPipeSync(POLY_OPA_DISP++);
         gSPSegment(POLY_OPA_DISP++, 0x08,
-                   (uintptr_t)Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 8, 16, 1, 0,
+                   (uintptr_t)OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 8, 16, 1, 0,
                                                (play->gameplayFrames * -2) % 64, 16, 16));
         gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 200);
         Matrix_RotateX(-M_PIf / 2.0f, MTXMODE_APPLY);
@@ -617,11 +617,11 @@ extern "C" s32 OverrideLimbDrawBarinade(PlayState* play, s32 limbIndex, Gfx** dL
         rot->x -= 0x4000;
         *dList = NULL;
     } else if (limbIndex == 6) {
-        unk_1A4 = (Math_SinS(unk_1AC) * 0.05f) + 1.0f;
-        Matrix_Scale(unk_1A4, unk_1A4, unk_1A4, MTXMODE_APPLY);
+        unk_1A4 = (OoT_Math_SinS(unk_1AC) * 0.05f) + 1.0f;
+        OoT_Matrix_Scale(unk_1A4, unk_1A4, unk_1A4, MTXMODE_APPLY);
     } else if (limbIndex == 61) {
-        unk_1A0 = (Math_CosS(unk_1AC) * 0.1f) + 1.0f;
-        Matrix_Scale(unk_1A0, unk_1A0, unk_1A0, MTXMODE_APPLY);
+        unk_1A0 = (OoT_Math_CosS(unk_1AC) * 0.1f) + 1.0f;
+        OoT_Matrix_Scale(unk_1A0, unk_1A0, unk_1A0, MTXMODE_APPLY);
     } else if (limbIndex == 7) {
         rot->x -= 0xCCC;
     }
@@ -635,7 +635,7 @@ extern "C" void PostLimbDrawBarinade(PlayState* play, s32 limbIndex, Gfx** dList
 
     if (limbIndex == 25) {
         gSPSegment(POLY_XLU_DISP++, 0x09,
-                   (uintptr_t)Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, (play->gameplayFrames * 10) % 128, 16, 32, 1,
+                   (uintptr_t)OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, (play->gameplayFrames * 10) % 128, 16, 32, 1,
                                                0, (play->gameplayFrames * 5) % 128, 16, 32));
         gSPMatrix(POLY_XLU_DISP++, Matrix_NewMtx(play->state.gfxCtx, (char*)__FILE__, __LINE__),
                   G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -669,32 +669,32 @@ extern "C" void DrawBarinade(PlayState* play) {
 
     if (!initialized) {
         initialized = true;
-        SkelAnime_Init(play, &skelAnime, (SkeletonHeader*)&gBarinadeBodySkel, (AnimationHeader*)&gBarinadeBodyAnim,
+        OoT_SkelAnime_Init(play, &skelAnime, (SkeletonHeader*)&gBarinadeBodySkel, (AnimationHeader*)&gBarinadeBodyAnim,
                        jointTable, otherTable, LIMB_COUNT_BARINADE);
 
         // Freeze barniade on the last frame
-        f32 lastFrame = Animation_GetLastFrame((AnimationHeader*)&gBarinadeBodyAnim);
-        Animation_Change(&skelAnime, (AnimationHeader*)&gBarinadeBodyAnim, 1.0f, lastFrame, lastFrame, ANIMMODE_ONCE,
+        f32 lastFrame = OoT_Animation_GetLastFrame((AnimationHeader*)&gBarinadeBodyAnim);
+        OoT_Animation_Change(&skelAnime, (AnimationHeader*)&gBarinadeBodyAnim, 1.0f, lastFrame, lastFrame, ANIMMODE_ONCE,
                          0.0f);
     }
 
     if (lastUpdate != play->state.frames) {
         lastUpdate = play->state.frames;
-        SkelAnime_Update(&skelAnime);
+        OoT_SkelAnime_Update(&skelAnime);
     }
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
-    Matrix_Translate(0.0f, -25.0f, 0.0f, MTXMODE_APPLY);
-    Matrix_Scale(0.03f, 0.03f, 0.03f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(0.0f, -25.0f, 0.0f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(0.03f, 0.03f, 0.03f, MTXMODE_APPLY);
 
     gSPSegment(POLY_OPA_DISP++, 0x08,
-               (uintptr_t)Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 8, 16, 1, 0, (play->gameplayFrames * -10) % 16,
+               (uintptr_t)OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 8, 16, 1, 0, (play->gameplayFrames * -10) % 16,
                                            16, 16));
     gSPSegment(POLY_OPA_DISP++, 0x09,
-               (uintptr_t)Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, (play->gameplayFrames * -10) % 32, 16, 0x20, 1, 0,
+               (uintptr_t)OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, (play->gameplayFrames * -10) % 32, 16, 0x20, 1, 0,
                                            (play->gameplayFrames * -5) % 32, 16, 32));
 
     SkelAnime_DrawSkeletonOpa(play, &skelAnime, OverrideLimbDrawBarinade, PostLimbDrawBarinade, NULL);
@@ -712,20 +712,20 @@ extern "C" void DrawPhantomGanon(PlayState* play) {
 
     if (!initialized) {
         initialized = true;
-        SkelAnime_Init(play, &skelAnime, (SkeletonHeader*)&gPhantomGanonSkel,
+        OoT_SkelAnime_Init(play, &skelAnime, (SkeletonHeader*)&gPhantomGanonSkel,
                        (AnimationHeader*)&gPhantomGanonNeutralAnim, jointTable, otherTable, LIMB_COUNT_PHANTOM_GANON);
     }
 
     if (lastUpdate != play->state.frames) {
         lastUpdate = play->state.frames;
-        SkelAnime_Update(&skelAnime);
+        OoT_SkelAnime_Update(&skelAnime);
     }
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
-    Matrix_Translate(0.0f, 10.0f, 0.0f, MTXMODE_APPLY);
-    Matrix_Scale(0.007f, 0.007f, 0.007f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(0.0f, 10.0f, 0.0f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(0.007f, 0.007f, 0.007f, MTXMODE_APPLY);
 
     // Eye color
     gDPSetEnvColor(POLY_OPA_DISP++, 255, 255, 255, 255);
@@ -745,23 +745,23 @@ extern "C" void DrawVolvagia(PlayState* play) {
 
     if (!initialized) {
         initialized = true;
-        SkelAnime_Init(play, &skelAnime, (SkeletonHeader*)&gVolvagiaHeadSkel,
+        OoT_SkelAnime_Init(play, &skelAnime, (SkeletonHeader*)&gVolvagiaHeadSkel,
                        (AnimationHeader*)&gVolvagiaHeadEmergeAnim, jointTable, otherTable, LIMB_COUNT_VOLVAGIA);
     }
 
     if (lastUpdate != play->state.frames) {
         lastUpdate = play->state.frames;
-        SkelAnime_Update(&skelAnime);
+        OoT_SkelAnime_Update(&skelAnime);
     }
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
-    Matrix_Scale(0.007f, 0.007f, 0.007f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(0.007f, 0.007f, 0.007f, MTXMODE_APPLY);
 
     gSPSegment(POLY_OPA_DISP++, 0x09, (uintptr_t)gVolvagiaEyeOpenTex);
     gSPSegment(POLY_OPA_DISP++, 0x08,
-               (uintptr_t)Gfx_TwoTexScroll(play->state.gfxCtx, 0, play->state.frames * 4, 120, 0x20, 0x20, 1,
+               (uintptr_t)OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, play->state.frames * 4, 120, 0x20, 0x20, 1,
                                            play->state.frames * 3, play->state.frames * -2, 0x20, 0x20));
 
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, 255);
@@ -777,14 +777,14 @@ extern "C" void DrawMorpha(PlayState* play) {
 
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
 
-    Matrix_Scale(0.015f, 0.015f, 0.015f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(0.015f, 0.015f, 0.015f, MTXMODE_APPLY);
 
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               (uintptr_t)Gfx_TwoTexScroll(play->state.gfxCtx, 0, play->state.frames * 3, play->state.frames * 3, 32,
+               (uintptr_t)OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, play->state.frames * 3, play->state.frames * 3, 32,
                                            32, 1, play->state.frames * -3, play->state.frames * -3, 32, 32));
 
     gSPSegment(POLY_XLU_DISP++, 0x09,
-               (uintptr_t)Gfx_TwoTexScroll(play->state.gfxCtx, 0, play->state.frames * 3, 0, 32, 32, 1, 0,
+               (uintptr_t)OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, play->state.frames * 3, 0, 32, 32, 1, 0,
                                            play->state.frames * -5, 32, 32));
 
     Matrix_RotateX(play->state.frames * 0.1f, MTXMODE_APPLY);
@@ -817,20 +817,20 @@ extern "C" void DrawBongoBongo(PlayState* play) {
 
     if (!initialized) {
         initialized = true;
-        SkelAnime_InitFlex(play, &skelAnime, (FlexSkeletonHeader*)&gBongoLeftHandSkel,
+        OoT_SkelAnime_InitFlex(play, &skelAnime, (FlexSkeletonHeader*)&gBongoLeftHandSkel,
                            (AnimationHeader*)&gBongoLeftHandIdleAnim, jointTable, otherTable, LIMB_COUNT_BONGO_BONGO);
     }
 
     if (lastUpdate != play->state.frames) {
         lastUpdate = play->state.frames;
-        SkelAnime_Update(&skelAnime);
+        OoT_SkelAnime_Update(&skelAnime);
     }
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
-    Matrix_Translate(0.0f, -25.0f, 0.0f, MTXMODE_APPLY);
-    Matrix_Scale(0.006f, 0.006f, 0.006f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(0.0f, -25.0f, 0.0f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(0.006f, 0.006f, 0.006f, MTXMODE_APPLY);
 
     gSPSegment(POLY_OPA_DISP++, 0x08, (uintptr_t)GetEmptyDlist(play->state.gfxCtx));
 
@@ -871,30 +871,30 @@ extern "C" void DrawKotake(PlayState* play) {
 
     if (!initialized) {
         initialized = true;
-        SkelAnime_InitFlex(play, &skelAnime, (FlexSkeletonHeader*)&gTwinrovaKotakeSkel,
+        OoT_SkelAnime_InitFlex(play, &skelAnime, (FlexSkeletonHeader*)&gTwinrovaKotakeSkel,
                            (AnimationHeader*)&gTwinrovaKotakeKoumeFlyAnim, jointTable, otherTable, LIMB_COUNT_KOTAKE);
     }
 
     if (lastUpdate != play->state.frames) {
         lastUpdate = play->state.frames;
-        SkelAnime_Update(&skelAnime);
+        OoT_SkelAnime_Update(&skelAnime);
     }
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
-    Matrix_Translate(0.0f, -10.0f, 0.0f, MTXMODE_APPLY);
-    Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(0.0f, -10.0f, 0.0f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
 
     gSPSegment(POLY_OPA_DISP++, 10, (uintptr_t)gTwinrovaKotakeKoumeEyeOpenTex);
     gSPSegment(POLY_XLU_DISP++, 10, (uintptr_t)gTwinrovaKotakeKoumeEyeOpenTex);
     gSPSegment(POLY_XLU_DISP++, 8,
-               (uintptr_t)Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0 & 0x7F, 0 & 0x7F, 0x20, 0x20, 1,
+               (uintptr_t)OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0 & 0x7F, 0 & 0x7F, 0x20, 0x20, 1,
                                            play->state.frames & 0x7F, (play->state.frames * -7) & 0xFF, 0x20, 0x40));
 
     gSPSegment(POLY_XLU_DISP++, 9,
-               (uintptr_t)Gfx_TexScroll(play->state.gfxCtx, 0 & 0x7F, play->state.frames & 0xFF, 0x20, 0x40));
+               (uintptr_t)OoT_Gfx_TexScroll(play->state.gfxCtx, 0 & 0x7F, play->state.frames & 0xFF, 0x20, 0x40));
 
     SkelAnime_DrawSkeletonOpa(play, &skelAnime, OverrideLimbDrawKotake, PostLimbDrawKotake, NULL);
 
@@ -923,20 +923,20 @@ extern "C" void DrawGanon(PlayState* play) {
 
     if (!initialized) {
         initialized = true;
-        SkelAnime_InitFlex(play, &skelAnime, (FlexSkeletonHeader*)&gGanonSkel, (AnimationHeader*)&gGanonGuardIdleAnim,
+        OoT_SkelAnime_InitFlex(play, &skelAnime, (FlexSkeletonHeader*)&gGanonSkel, (AnimationHeader*)&gGanonGuardIdleAnim,
                            jointTable, otherTable, LIMB_COUNT_GANON);
     }
 
     if (lastUpdate != play->state.frames) {
         lastUpdate = play->state.frames;
-        SkelAnime_Update(&skelAnime);
+        OoT_SkelAnime_Update(&skelAnime);
     }
 
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
-    Matrix_Translate(0.0f, -33.0f, 0.0f, MTXMODE_APPLY);
-    Matrix_Scale(0.005f, 0.005f, 0.005f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(0.0f, -33.0f, 0.0f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(0.005f, 0.005f, 0.005f, MTXMODE_APPLY);
 
     gSPSegment(POLY_OPA_DISP++, 0x08, (uintptr_t)gGanonEyeOpenTex);
 
@@ -949,7 +949,7 @@ extern "C" void Randomizer_DrawBeanSprout(PlayState* play, GetItemEntry* getItem
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
-    Matrix_Scale(0.3f, 0.3f, 0.3f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(0.3f, 0.3f, 0.3f, MTXMODE_APPLY);
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
     gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gMagicBeanSeedlingDL);
 
@@ -980,20 +980,20 @@ extern "C" void Randomizer_DrawBossSoul(PlayState* play, GetItemEntry* getItemEn
     OPEN_DISPS(play->state.gfxCtx);
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
     gSPSegment(POLY_XLU_DISP++, 8,
-               (uintptr_t)Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0 * (play->state.frames * 0),
+               (uintptr_t)OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0 * (play->state.frames * 0),
                                            0 * (play->state.frames * 0), 16, 32, 1, 1 * (play->state.frames * 1),
                                            -1 * (play->state.frames * 8), 16, 32));
-    Matrix_Push();
-    Matrix_Translate(0.0f, -70.0f, 0.0f, MTXMODE_APPLY);
-    Matrix_Scale(5.0f, 5.0f, 5.0f, MTXMODE_APPLY);
-    Matrix_ReplaceRotation(&play->billboardMtxF);
+    OoT_Matrix_Push();
+    OoT_Matrix_Translate(0.0f, -70.0f, 0.0f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(5.0f, 5.0f, 5.0f, MTXMODE_APPLY);
+    OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
     gSPMatrix(POLY_XLU_DISP++, Matrix_NewMtx(play->state.gfxCtx, (char*)__FILE__, __LINE__),
               G_MTX_MODELVIEW | G_MTX_LOAD);
     gDPSetGrayscaleColor(POLY_XLU_DISP++, flameColors[slot][0], flameColors[slot][1], flameColors[slot][2], 255);
     gSPGrayscale(POLY_XLU_DISP++, true);
     gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gGiBlueFireFlameDL);
     gSPGrayscale(POLY_XLU_DISP++, false);
-    Matrix_Pop();
+    OoT_Matrix_Pop();
     CLOSE_DISPS(play->state.gfxCtx);
 
     // Draw the generic boss soul model
@@ -1121,7 +1121,7 @@ extern "C" void Randomizer_DrawBronzeScale(PlayState* play, GetItemEntry* getIte
     Gfx_SetupDL_25Xlu(play->state.gfxCtx);
 
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               (uintptr_t)Gfx_TwoTexScroll(play->state.gfxCtx, 0, 1 * (play->state.frames * 2),
+               (uintptr_t)OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 1 * (play->state.frames * 2),
                                            -1 * (play->state.frames * 2), 64, 64, 1, 1 * (play->state.frames * 4),
                                            -1 * (play->state.frames * 4), 32, 32));
 
@@ -1142,19 +1142,19 @@ extern "C" void Randomizer_DrawFishingPoleGI(PlayState* play, GetItemEntry* getI
 
     // Draw rod
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
-    Matrix_Scale(0.2f, 0.2f, 0.2f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(0.2f, 0.2f, 0.2f, MTXMODE_APPLY);
     gSPMatrix(POLY_OPA_DISP++, Matrix_NewMtx(play->state.gfxCtx, (char*)__FILE__, __LINE__),
               G_MTX_MODELVIEW | G_MTX_LOAD);
     gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gFishingPoleGiDL);
 
     // Draw lure
-    Matrix_Push();
-    Matrix_Scale(5.0f, 5.0f, 5.0f, MTXMODE_APPLY);
+    OoT_Matrix_Push();
+    OoT_Matrix_Scale(5.0f, 5.0f, 5.0f, MTXMODE_APPLY);
     pos = { 0.0f, -25.5f, -4.0f };
-    Matrix_Translate(pos.x, pos.y, pos.z, MTXMODE_APPLY);
+    OoT_Matrix_Translate(pos.x, pos.y, pos.z, MTXMODE_APPLY);
     Matrix_RotateZ(-M_PI_2f, MTXMODE_APPLY);
     Matrix_RotateY(-M_PI_2f - 0.2f, MTXMODE_APPLY);
-    Matrix_Scale(0.006f, 0.006f, 0.006f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(0.006f, 0.006f, 0.006f, MTXMODE_APPLY);
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
     gSPMatrix(POLY_OPA_DISP++, Matrix_NewMtx(play->state.gfxCtx, (char*)__FILE__, __LINE__),
               G_MTX_NOPUSH | G_MTX_MODELVIEW | G_MTX_LOAD);
@@ -1162,7 +1162,7 @@ extern "C" void Randomizer_DrawFishingPoleGI(PlayState* play, GetItemEntry* getI
 
     // Draw hooks
     Matrix_RotateY(0.2f, MTXMODE_APPLY);
-    Matrix_Translate(0.0f, 0.0f, -300.0f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(0.0f, 0.0f, -300.0f, MTXMODE_APPLY);
     gSPMatrix(POLY_OPA_DISP++, Matrix_NewMtx(play->state.gfxCtx, (char*)__FILE__, __LINE__),
               G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gFishingLureHookDL);
@@ -1171,7 +1171,7 @@ extern "C" void Randomizer_DrawFishingPoleGI(PlayState* play, GetItemEntry* getI
               G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gFishingLureHookDL);
 
-    Matrix_Translate(0.0f, -2200.0f, 700.0f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(0.0f, -2200.0f, 700.0f, MTXMODE_APPLY);
     gSPMatrix(POLY_OPA_DISP++, Matrix_NewMtx(play->state.gfxCtx, (char*)__FILE__, __LINE__),
               G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gFishingLureHookDL);
@@ -1180,7 +1180,7 @@ extern "C" void Randomizer_DrawFishingPoleGI(PlayState* play, GetItemEntry* getI
               G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gFishingLureHookDL);
 
-    Matrix_Pop();
+    OoT_Matrix_Pop();
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

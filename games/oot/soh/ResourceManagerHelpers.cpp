@@ -15,7 +15,7 @@
 #include <fast/resource/ResourceType.h>
 #include <fast/resource/type/DisplayList.h>
 
-extern "C" PlayState* gPlayState;
+extern "C" PlayState* OoT_gPlayState;
 
 extern "C" uint32_t ResourceMgr_GetNumGameVersions() {
     return Ship::Context::GetInstance()->GetResourceManager()->GetArchiveManager()->GetGameVersions().size();
@@ -123,7 +123,7 @@ extern "C" uint32_t ResourceMgr_IsSceneMasterQuest(s16 sceneNum) {
 }
 
 extern "C" uint32_t ResourceMgr_IsGameMasterQuest() {
-    return gPlayState != NULL ? IsSceneMasterQuest(gPlayState->sceneNum) : 0;
+    return OoT_gPlayState != NULL ? IsSceneMasterQuest(OoT_gPlayState->sceneNum) : 0;
 }
 
 extern "C" void ResourceMgr_LoadDirectory(const char* resName) {

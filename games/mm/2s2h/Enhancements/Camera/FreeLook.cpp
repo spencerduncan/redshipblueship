@@ -6,7 +6,7 @@
 extern "C" {
 #include "macros.h"
 #include "functions.h"
-extern PlayState* gPlayState;
+extern PlayState* MM_gPlayState;
 extern PlayState* sCamPlayState;
 extern f32 Camera_ScaledStepToCeilF(f32 target, f32 cur, f32 stepScale, f32 minDiff);
 extern s16 Camera_ScaledStepToCeilS(s16 target, s16 cur, f32 stepScale, s16 minDiff);
@@ -47,12 +47,12 @@ void UpdateFreeLookState(Camera* camera) {
     }
 }
 
-// Function based on several camera functions, including Camera_Parallel1
+// Function based on several camera functions, including MM_Camera_Parallel1
 bool Camera_FreeLook(Camera* camera) {
     Vec3f* eye = &camera->eye;
     Vec3f* at = &camera->at;
     Vec3f* eyeNext = &camera->eyeNext;
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(MM_gPlayState);
     VecGeo eyeAdjustment = OLib_Vec3fDiffToVecGeo(at, eye);
     Parallel1ReadOnlyData* roData = &camera->paramData.para1.roData;
     f32 playerHeight;
@@ -60,7 +60,7 @@ bool Camera_FreeLook(Camera* camera) {
     f32 yaw = eyeAdjustment.yaw;
 
     // Smooth step camera 'at' towards player
-    f32 playerYOffset = Player_GetHeight(player) / 1.2f;
+    f32 playerYOffset = MM_Player_GetHeight(player) / 1.2f;
     if (player->rideActor != NULL) {
         playerYOffset /= 2;
     }
@@ -69,9 +69,9 @@ bool Camera_FreeLook(Camera* camera) {
     at->z = Camera_ScaledStepToCeilF(player->actor.world.pos.z, at->z, 0.5f, 1.0f);
 
     // Equivalent to 'Camera_GetFocalActorHeight'
-    playerHeight = Player_GetHeight(player);
+    playerHeight = MM_Player_GetHeight(player);
 
-    // Camera param reloading based on Camera_Parallel1, only updating roData as only that seems necessary
+    // Camera param reloading based on MM_Camera_Parallel1, only updating roData as only that seems necessary
     if (RELOAD_PARAMS(camera)) {
         CameraModeValue* values = sCameraSettings[camera->setting].cameraModes[camera->mode].values;
         f32 yNormal = (0.8f - ((68.0f / playerHeight) * -0.2f));
@@ -151,7 +151,7 @@ bool Camera_CanFreeLook(Camera* camera) {
         sCanFreeLook = false;
     }
     // Reset camera during cutscenes
-    if (gPlayState != nullptr && Player_InCsMode(gPlayState)) {
+    if (MM_gPlayState != nullptr && MM_Player_InCsMode(MM_gPlayState)) {
         sCanFreeLook = false;
     }
     // Disable freecam during bombchu control

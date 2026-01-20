@@ -12,7 +12,7 @@ void EnFsn_MakeOffer(EnFsn* thisx, PlayState* play);
 void EnFsn_GiveItem(EnFsn* thisx, PlayState* play);
 void EnFsn_StartBuying(EnFsn* thisx, PlayState* play);
 void EnFsn_ResumeInteraction(EnFsn* enFsn, PlayState* play);
-void Player_StartTalking(PlayState* play, Actor* actor);
+void MM_Player_StartTalking(PlayState* play, Actor* actor);
 void Player_StopCutscene(Player* player);
 }
 
@@ -96,7 +96,7 @@ static bool IsItemAvailable(ItemId itemId) {
     if (itemId == ITEM_MAGIC_BEANS) {
         return INV_CONTENT(ITEM_MAGIC_BEANS) == ITEM_MAGIC_BEANS && AMMO(ITEM_MAGIC_BEANS) > 0;
     }
-    return Item_CheckObtainability(itemId) != ITEM_NONE;
+    return MM_Item_CheckObtainability(itemId) != ITEM_NONE;
 }
 
 static void UpdateDigits(PlayState* play, s16 value) {
@@ -254,13 +254,13 @@ static void HandleInput(EnFsn* enFsn, PlayState* play) {
         sAmmoSale.lastRupeesSelected = newQuantity * 10;
     }
 
-    if (Message_ShouldAdvance(play)) {
+    if (MM_Message_ShouldAdvance(play)) {
         sAmmoSale.quantity = newQuantity;
         sAmmoSale.price = GetSalePrice(sAmmoSale.itemId, newQuantity);
 
         enFsn->price = sAmmoSale.price;
         sAmmoSale.isInputActive = false;
-        Message_StartTextbox(play, TEXT_ID_FSN_OFFER, &enFsn->actor);
+        MM_Message_StartTextbox(play, TEXT_ID_FSN_OFFER, &enFsn->actor);
     }
 }
 
@@ -268,15 +268,15 @@ static void Resolve(EnFsn* enFsn, bool* shouldGiveItem) {
     if (enFsn->actionFunc == EnFsn_GiveItem) {
         *shouldGiveItem = false;
 
-        Inventory_ChangeAmmo(sAmmoSale.itemId, -sAmmoSale.quantity);
-        Rupees_ChangeBy(sAmmoSale.price);
+        MM_Inventory_ChangeAmmo(sAmmoSale.itemId, -sAmmoSale.quantity);
+        MM_Rupees_ChangeBy(sAmmoSale.price);
 
         enFsn->actor.parent = nullptr;
         enFsn->actor.flags |= ACTOR_FLAG_TALK;
         enFsn->actor.textId = 0;
         enFsn->actionFunc = EnFsn_ResumeInteraction;
 
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         player->talkActor = &enFsn->actor;
         player->talkActorDistance = enFsn->actor.xzDistToPlayer;
         player->exchangeItemAction = PLAYER_IA_MINUS1;
@@ -285,7 +285,7 @@ static void Resolve(EnFsn* enFsn, bool* shouldGiveItem) {
         player->interactRangeActor = nullptr;
 
         Player_StopCutscene(player);
-        Player_StartTalking(gPlayState, &enFsn->actor);
+        MM_Player_StartTalking(MM_gPlayState, &enFsn->actor);
 
         Reset();
     }
@@ -301,10 +301,10 @@ static void HandleOfferResponse(EnFsn* enFsn, PlayState* play) {
         return;
     }
 
-    u8 talkState = Message_GetState(&play->msgCtx);
+    u8 talkState = MM_Message_GetState(&play->msgCtx);
 
     // If choice was made (not 0/Yes), or text ended, reset
-    if ((talkState == TEXT_STATE_CHOICE && Message_ShouldAdvance(play) && play->msgCtx.choiceIndex != 0) ||
+    if ((talkState == TEXT_STATE_CHOICE && MM_Message_ShouldAdvance(play) && play->msgCtx.choiceIndex != 0) ||
         talkState == TEXT_STATE_NONE) {
         Reset();
     }
@@ -314,7 +314,7 @@ static void DrawAmmoSelectionDigits() {
     if (!sAmmoSale.isInputActive)
         return;
 
-    PlayState* play = gPlayState;
+    PlayState* play = MM_gPlayState;
     if (play->msgCtx.rupeesSelected < 10) {
         play->msgCtx.rupeesSelected = 10;
         sAmmoSale.lastRupeesSelected = 10;
@@ -352,7 +352,7 @@ static void GenerateBuybackDialogue(u16* textId, bool* loadFromMessageTable) {
 
 static void UpdateBuybackInteraction(Actor* actor) {
     EnFsn* enFsn = (EnFsn*)actor;
-    PlayState* play = gPlayState;
+    PlayState* play = MM_gPlayState;
 
     if (enFsn->actionFunc == EnFsn_StartBuying) {
         HandleStart(enFsn, play);
@@ -372,11 +372,11 @@ static void OnFsnDestroy(Actor* actor) {
 }
 
 static void BlockAmmoBuybackInput() {
-    if (!gPlayState || (GameState*)gPlayState != gGameState)
+    if (!MM_gPlayState || (GameState*)MM_gPlayState != MM_gGameState)
         return;
 
     if (sAmmoSale.isInputActive) {
-        Input* input = &gPlayState->state.input[0];
+        Input* input = &MM_gPlayState->state.input[0];
         input->press.button &= ~(BTN_B | BTN_CUP);
         input->cur.button &= ~(BTN_B | BTN_CUP);
     }

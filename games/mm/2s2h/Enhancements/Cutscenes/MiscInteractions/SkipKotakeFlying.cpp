@@ -16,12 +16,12 @@ extern "C" {
 void RegisterSkipKotakeFlying() {
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
         s16* csId = va_arg(args, s16*);
-        if (gPlayState->sceneId == SCENE_20SICHITAI) { // poison
+        if (MM_gPlayState->sceneId == SCENE_20SICHITAI) { // poison
             if (*csId == 20 || *csId == 21) {
                 *should = false;
             }
         }
-        if (gPlayState->sceneId == SCENE_20SICHITAI2) { // cleared
+        if (MM_gPlayState->sceneId == SCENE_20SICHITAI2) { // cleared
             if (*csId == 19 || *csId == 20) {
                 *should = false;
             }

@@ -10,9 +10,9 @@ extern "C" {
 #include "macros.h"
 #include "functions.h"
 #include "overlays/gamestates/ovl_select/z_select.h"
-extern PlayState* gPlayState;
+extern PlayState* MM_gPlayState;
 extern SaveContext gSaveContext;
-extern GameState* gGameState;
+extern GameState* MM_gGameState;
 }
 
 // 2S2H Added columns to scene table: entranceSceneId, betterMapSelectIndex, humanName
@@ -33,14 +33,14 @@ void Warp() {
                   CVarGetFloat(WARP_POINT_CVAR "Z", 0.0f) };
     s32 entrance = CVarGetInteger(WARP_POINT_CVAR "Entrance", ENTRANCE(SOUTH_CLOCK_TOWN, 0));
 
-    if (gPlayState == NULL) {
-        // If gPlayState is NULL, it means the the user opted into BootToWarpPoint and the game is starting up. This is
+    if (MM_gPlayState == NULL) {
+        // If MM_gPlayState is NULL, it means the the user opted into BootToWarpPoint and the game is starting up. This is
         // a hidden cvar for developers, while it is extremely useful for quick testing and debugging, I am not 100%
         // confident in it's stability and ability to initialize the game properly in all cases. So for now, I'm going
         // to leave it as a hidden cvar. This is incompatible with the SkipToFileSelect enhancement. To enable it open
         // the Console and type: `set gDeveloperTools.WarpPoint.BootToWarpPoint 1`
         gSaveContext.gameMode = GAMEMODE_NORMAL;
-        Sram_InitNewSave();
+        MM_Sram_InitNewSave();
         gSaveContext.sceneLayer = 0;
         gSaveContext.save.time = CLOCK_TIME(8, 0);
         gSaveContext.save.day = 1;
@@ -50,7 +50,7 @@ void Warp() {
 
         // Need to unset flag values that are outside of `.save`
         // Normally would happened in the MapSelect_LoadGame, but is skipped because of the dummy file num below
-        // This is mostly copied from Sram_OpenSave.
+        // This is mostly copied from MM_Sram_OpenSave.
         for (size_t i = 0; i < ARRAY_COUNT(gSaveContext.eventInf); i++) {
             gSaveContext.eventInf[i] = 0;
         }
@@ -64,7 +64,7 @@ void Warp() {
 
         // Using dummy file num to bypass debug save setup in map select and manually execute save init/load hooks after
         gSaveContext.fileNum = 0xFE;
-        MapSelect_LoadGame((MapSelectState*)gGameState, entrance, 0);
+        MapSelect_LoadGame((MapSelectState*)MM_gGameState, entrance, 0);
         // Then back to debug file num
         gSaveContext.fileNum = 0xFF;
         // These two lines allow randomizer to be used with BootToWarpPoint. Not sure how reliable this is, might remove
@@ -72,12 +72,12 @@ void Warp() {
         GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
         gSaveContext.save.entrance = entrance;
     } else {
-        // The else case, and the rest of this function is primarily relevant code copied from Play_SetRespawnData and
+        // The else case, and the rest of this function is primarily relevant code copied from MM_Play_SetRespawnData and
         // func_80169EFC, minus the parts that copy scene flags to scene we are warping to (this is obviously
         // undesirable)
-        gPlayState->nextEntrance = Entrance_Create(entrance >> 9, 0, entrance & 0xF);
-        gPlayState->transitionTrigger = TRANS_TRIGGER_START;
-        gPlayState->transitionType = TRANS_TYPE_INSTANT;
+        MM_gPlayState->nextEntrance = Entrance_Create(entrance >> 9, 0, entrance & 0xF);
+        MM_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
+        MM_gPlayState->transitionType = TRANS_TYPE_INSTANT;
     }
     gSaveContext.respawn[RESPAWN_MODE_DOWN].entrance = Entrance_Create(entrance >> 9, 0, entrance & 0xF);
     gSaveContext.respawn[RESPAWN_MODE_DOWN].roomIndex = CVarGetInteger(WARP_POINT_CVAR "Room", 0);
@@ -118,12 +118,12 @@ void RenderWarpPointSection() {
                 "If enabled, the game will boot directly to the saved warp point with the debug save when launching "
                 "the game. Make temporary changes to the debug save (in code) to speed up your debugging experience\n\n"
                 "Incompatible with Skip to File Select enhancement."));
-    if (UIWidgets::Button("Set Warp Point", { { .disabled = gPlayState == NULL,
+    if (UIWidgets::Button("Set Warp Point", { { .disabled = MM_gPlayState == NULL,
                                                 .disabledTooltip = "Cannot set warp points when not in-game" } })) {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
 
         CVarSetInteger(WARP_POINT_CVAR "Entrance", gSaveContext.save.entrance);
-        CVarSetInteger(WARP_POINT_CVAR "Room", gPlayState->roomCtx.curRoom.num);
+        CVarSetInteger(WARP_POINT_CVAR "Room", MM_gPlayState->roomCtx.curRoom.num);
         CVarSetFloat(WARP_POINT_CVAR "X", player->actor.world.pos.x);
         CVarSetFloat(WARP_POINT_CVAR "Y", player->actor.world.pos.y);
         CVarSetFloat(WARP_POINT_CVAR "Z", player->actor.world.pos.z);

@@ -17,7 +17,7 @@ void RegisterKeepExpressMail() {
         Actor* actor = va_arg(args, Actor*);
         ItemId itemId = (ItemId)va_arg(args, int);
 
-        if (gPlayState->sceneId != SCENE_MILK_BAR && gPlayState->sceneId != SCENE_POSTHOUSE) {
+        if (MM_gPlayState->sceneId != SCENE_MILK_BAR && MM_gPlayState->sceneId != SCENE_POSTHOUSE) {
             return;
         }
 

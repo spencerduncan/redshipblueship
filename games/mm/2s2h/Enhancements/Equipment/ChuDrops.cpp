@@ -14,13 +14,13 @@ extern "C" {
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 static void ChuDrop_Give(Actor* actor, PlayState* play) {
-    Item_Give(play, ITEM_BOMBCHUS_5);
+    MM_Item_Give(play, ITEM_BOMBCHUS_5);
 }
 
-static Color_RGBA8 sEffectPrimColor = { 255, 255, 127, 0 };
-static Color_RGBA8 sEffectEnvColor = { 255, 255, 255, 0 };
-static Vec3f sEffectVelocity = { 0.0f, 0.1f, 0.0f };
-static Vec3f sEffectAccel = { 0.0f, 0.01f, 0.0f };
+static Color_RGBA8 MM_sEffectPrimColor = { 255, 255, 127, 0 };
+static Color_RGBA8 MM_sEffectEnvColor = { 255, 255, 255, 0 };
+static Vec3f MM_sEffectVelocity = { 0.0f, 0.1f, 0.0f };
+static Vec3f MM_sEffectAccel = { 0.0f, 0.01f, 0.0f };
 
 static void ChuDrop_Draw(Actor* actor, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
@@ -31,11 +31,11 @@ static void ChuDrop_Draw(Actor* actor, PlayState* play) {
         !(actor->bgCheckFlags & (BGCHECKFLAG_GROUND | BGCHECKFLAG_GROUND_TOUCH))) {
         if ((play->gameplayFrames & 1) == 0) {
             Vec3f pos;
-            pos.x = actor->world.pos.x + ((Rand_ZeroOne() - 0.5f) * 10.0f);
-            pos.y = actor->world.pos.y + ((Rand_ZeroOne() - 0.5f) * 10.0f);
-            pos.z = actor->world.pos.z + ((Rand_ZeroOne() - 0.5f) * 10.0f);
-            EffectSsKirakira_SpawnSmall(play, &pos, &sEffectVelocity, &sEffectAccel, &sEffectPrimColor,
-                                        &sEffectEnvColor);
+            pos.x = actor->world.pos.x + ((MM_Rand_ZeroOne() - 0.5f) * 10.0f);
+            pos.y = actor->world.pos.y + ((MM_Rand_ZeroOne() - 0.5f) * 10.0f);
+            pos.z = actor->world.pos.z + ((MM_Rand_ZeroOne() - 0.5f) * 10.0f);
+            EffectSsKirakira_SpawnSmall(play, &pos, &MM_sEffectVelocity, &MM_sEffectAccel, &MM_sEffectPrimColor,
+                                        &MM_sEffectEnvColor);
         }
     }
 
@@ -46,19 +46,19 @@ static void ChuDrop_Draw(Actor* actor, PlayState* play) {
     if (CVarGetInteger("gEnhancements.Graphics.3DItemDrops", 0)) {
         CUSTOM_ITEM_FLAGS &= ~CustomItem::STOP_SPINNING;
 
-        Matrix_Scale(16.0f, 16.0f, 16.0f, MTXMODE_APPLY);
-        GetItem_Draw(play, GID_BOMBCHU);
+        MM_Matrix_Scale(16.0f, 16.0f, 16.0f, MTXMODE_APPLY);
+        MM_GetItem_Draw(play, GID_BOMBCHU);
     } else {
         // Ideally we would update spining flag and rotation in an Update func, but that is not convenient to do right
         // now so opting to change here in the draw instead (upon toggle, the item may look incorrect for 1 frame).
         CUSTOM_ITEM_FLAGS |= CustomItem::STOP_SPINNING;
         actor->shape.rot.y = 0;
 
-        POLY_OPA_DISP = Play_SetFog(play, POLY_OPA_DISP);
+        POLY_OPA_DISP = MM_Play_SetFog(play, POLY_OPA_DISP);
 
         POLY_OPA_DISP = Gfx_SetupDL66(POLY_OPA_DISP);
 
-        Matrix_Scale(2.0f, 2.0f, 2.0f, MTXMODE_APPLY);
+        MM_Matrix_Scale(2.0f, 2.0f, 2.0f, MTXMODE_APPLY);
 
         gSPSegment(POLY_OPA_DISP++, 0x08, (uintptr_t)gDropBombchuTex);
 
@@ -83,7 +83,7 @@ void RegisterChuDrops() {
                                       GID_BOMBCHU, ChuDrop_Give, ChuDrop_Draw);
 
                 // Set actor shadow and yOffset to match normal drops
-                ActorShape_Init(&newItem->actor.shape, 640.0f, ActorShadow_DrawCircle, 12.0f);
+                MM_ActorShape_Init(&newItem->actor.shape, 640.0f, MM_ActorShadow_DrawCircle, 12.0f);
                 newItem->actor.shape.shadowAlpha = 180;
                 // Default gravity in CustomItem is too heavy, using a smaller value here to align with item drops
                 newItem->actor.gravity = -1.0f;

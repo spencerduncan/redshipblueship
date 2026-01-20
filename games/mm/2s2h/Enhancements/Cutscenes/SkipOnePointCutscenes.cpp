@@ -37,7 +37,7 @@ void RegisterSkipOnePointCutscenes() {
 
                 // Set the flag if needed
                 if (torch->pendingAction >= OBJ_SYOKUDAI_PENDING_ACTION_CUTSCENE_AND_SWITCH) {
-                    Flags_SetSwitch(gPlayState, switchFlag);
+                    MM_Flags_SetSwitch(MM_gPlayState, switchFlag);
                 }
 
                 torch->pendingAction = OBJ_SYOKUDAI_PENDING_ACTION_NONE;
@@ -46,7 +46,7 @@ void RegisterSkipOnePointCutscenes() {
                 break;
             }
             case ACTOR_OBJ_COMB:
-                if (gPlayState->sceneId != SCENE_PIRATE) {
+                if (MM_gPlayState->sceneId != SCENE_PIRATE) {
                     actor->csId = -1;
                     *should = false;
                 }
@@ -59,7 +59,7 @@ void RegisterSkipOnePointCutscenes() {
                 break;
             case ACTOR_EN_BOX: // Chest
                 // Currently this breaks the treasure chest minigame, so we're not skipping there
-                if (gPlayState->sceneId != SCENE_TAKARAYA) {
+                if (MM_gPlayState->sceneId != SCENE_TAKARAYA) {
                     *should = false;
                 }
                 break;

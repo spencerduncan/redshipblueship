@@ -10,7 +10,7 @@ extern "C" {
 }
 
 // #region These were copied from z_en_item00.c
-static ColliderCylinderInit sCylinderInit = {
+static ColliderCylinderInit MM_sCylinderInit = {
     {
         COL_MATERIAL_NONE,
         AT_NONE,
@@ -30,18 +30,18 @@ static ColliderCylinderInit sCylinderInit = {
     { 10, 30, 0, { 0, 0, 0 } },
 };
 
-static InitChainEntry sInitChain[] = {
+static InitChainEntry MM_sInitChain[] = {
     ICHAIN_F32(lockOnArrowOffset, 2000, ICHAIN_STOP),
 };
 // #endregion
 
 EnItem00* CustomItem::Spawn(f32 posX, f32 posY, f32 posZ, s16 rot, s16 flags, s16 params, ActorFunc actionFunc,
                             ActorFunc drawFunc) {
-    if (!gPlayState) {
+    if (!MM_gPlayState) {
         return nullptr;
     }
 
-    Actor* actor = Actor_Spawn(&gPlayState->actorCtx, gPlayState, ACTOR_EN_ITEM00, posX, posY, posZ, flags, rot, params,
+    Actor* actor = MM_Actor_Spawn(&MM_gPlayState->actorCtx, MM_gPlayState, ACTOR_EN_ITEM00, posX, posY, posZ, flags, rot, params,
                                ITEM00_NOTHING);
     EnItem00* enItem00 = (EnItem00*)actor;
 
@@ -62,28 +62,28 @@ void CustomItem00_Init(Actor* actor, PlayState* play) {
     if (CUSTOM_ITEM_FLAGS & CustomItem::STOP_BOBBING) {
         actor->shape.yOffset = 1250.0f;
     } else {
-        actor->shape.yOffset = (Math_SinS(actor->shape.rot.y) * 150.0f) + 1250.0f;
+        actor->shape.yOffset = (MM_Math_SinS(actor->shape.rot.y) * 150.0f) + 1250.0f;
     }
 
     if (CUSTOM_ITEM_FLAGS & CustomItem::HIDE_TILL_OVERHEAD) {
-        Actor_SetScale(actor, 0.0f);
+        MM_Actor_SetScale(actor, 0.0f);
     } else {
-        Actor_SetScale(actor, 0.015f);
+        MM_Actor_SetScale(actor, 0.015f);
     }
 
     if (CUSTOM_ITEM_FLAGS & CustomItem::KEEP_ON_PLAYER) {
-        Math_Vec3f_Copy(&actor->world.pos, &GET_PLAYER(play)->actor.world.pos);
+        MM_Math_Vec3f_Copy(&actor->world.pos, &GET_PLAYER(play)->actor.world.pos);
     }
 
     if (CUSTOM_ITEM_FLAGS & CustomItem::TOSS_ON_SPAWN) {
         actor->velocity.y = 8.0f;
         actor->speed = 2.0f;
         actor->gravity = -1.4f;
-        actor->world.rot.y = Rand_ZeroOne() * 40000.0f;
+        actor->world.rot.y = MM_Rand_ZeroOne() * 40000.0f;
     }
 
-    Actor_ProcessInitChain(actor, sInitChain);
-    Collider_InitAndSetCylinder(play, &enItem00->collider, actor, &sCylinderInit);
+    MM_Actor_ProcessInitChain(actor, MM_sInitChain);
+    Collider_InitAndSetCylinder(play, &enItem00->collider, actor, &MM_sCylinderInit);
 
     enItem00->unk152 = -1;
 }
@@ -91,8 +91,8 @@ void CustomItem00_Init(Actor* actor, PlayState* play) {
 // By default this will just assume the GID was passed in as the rot z, if you want different functionality you should
 // override the draw
 void CustomItem00_Draw(Actor* actor, PlayState* play) {
-    Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
-    GetItem_Draw(play, CUSTOM_ITEM_PARAM);
+    MM_Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
+    MM_GetItem_Draw(play, CUSTOM_ITEM_PARAM);
 }
 
 // Once the item is touched we need to clear movement vars so the item doesn't sink in the players hands/above head
@@ -112,15 +112,15 @@ void CustomItem00_Update(Actor* actor, PlayState* play) {
     }
 
     if (!(CUSTOM_ITEM_FLAGS & CustomItem::STOP_BOBBING)) {
-        actor->shape.yOffset = (Math_SinS(actor->shape.rot.y) * 150.0f) + 1250.0f;
+        actor->shape.yOffset = (MM_Math_SinS(actor->shape.rot.y) * 150.0f) + 1250.0f;
     }
 
     if (CUSTOM_ITEM_FLAGS & CustomItem::HIDE_TILL_OVERHEAD) {
-        Actor_SetScale(actor, 0.0f);
+        MM_Actor_SetScale(actor, 0.0f);
     }
 
     if (CUSTOM_ITEM_FLAGS & CustomItem::KEEP_ON_PLAYER) {
-        Math_Vec3f_Copy(&actor->world.pos, &GET_PLAYER(play)->actor.world.pos);
+        MM_Math_Vec3f_Copy(&actor->world.pos, &GET_PLAYER(play)->actor.world.pos);
     }
 
     // Player range check accounting for goron rolling behavior. Matches EnItem00 range check.
@@ -136,7 +136,7 @@ void CustomItem00_Update(Actor* actor, PlayState* play) {
                 enItem00->actionFunc(enItem00, play);
                 CUSTOM_ITEM_FLAGS |= CustomItem::CALLED_ACTION;
             }
-            Actor_Kill(actor);
+            MM_Actor_Kill(actor);
         }
     } else if (CUSTOM_ITEM_FLAGS & CustomItem::GIVE_OVERHEAD) {
         // If the item hasn't been picked up (unk152 == -1) and the player is within range
@@ -153,13 +153,13 @@ void CustomItem00_Update(Actor* actor, PlayState* play) {
             CUSTOM_ITEM_FLAGS |= CustomItem::KEEP_ON_PLAYER;
             CustomItem00_ItemTouched(actor, play);
             // Move to player right away on this frame
-            Math_Vec3f_Copy(&actor->world.pos, &GET_PLAYER(play)->actor.world.pos);
+            MM_Math_Vec3f_Copy(&actor->world.pos, &GET_PLAYER(play)->actor.world.pos);
         }
 
         // If the item has been picked up
         if (enItem00->unk152 > 0) {
             // Reduce the size a bit, but also makes it visible for HIDE_TILL_OVERHEAD
-            Actor_SetScale(actor, 0.010f);
+            MM_Actor_SetScale(actor, 0.010f);
 
             // Decrement the unk152, which will be used to bob the item up and down
             enItem00->unk152--;
@@ -182,24 +182,24 @@ void CustomItem00_Update(Actor* actor, PlayState* play) {
             }
 
             // Bob the item up and down
-            actor->world.pos.y += (height + (Math_SinS(enItem00->unk152 * 15000) * (enItem00->unk152 * 0.3f)));
+            actor->world.pos.y += (height + (MM_Math_SinS(enItem00->unk152 * 15000) * (enItem00->unk152 * 0.3f)));
         }
 
         // Finally, once the bobbing animation is done, kill the actor
         if (enItem00->unk152 == 0) {
-            Actor_Kill(actor);
+            MM_Actor_Kill(actor);
         }
     } else if (CUSTOM_ITEM_FLAGS & CustomItem::GIVE_ITEM_CUTSCENE) {
         // If the item hasn't been picked up and the player is within range
-        if (!Actor_HasParent(actor, play) && enItem00->unk152 == -1) {
-            Actor_OfferGetItem(actor, play, GI_SHIP, 30.0f, 35.0f);
+        if (!MM_Actor_HasParent(actor, play) && enItem00->unk152 == -1) {
+            MM_Actor_OfferGetItem(actor, play, GI_SHIP, 30.0f, 35.0f);
         } else {
             if (enItem00->unk152 == -1) {
                 // actor->shape.yOffset = 1250.0f;
                 CUSTOM_ITEM_FLAGS |= CustomItem::STOP_BOBBING;
-                // Math_Vec3f_Copy(&actor->world.pos, &GET_PLAYER(play)->actor.world.pos);
+                // MM_Math_Vec3f_Copy(&actor->world.pos, &GET_PLAYER(play)->actor.world.pos);
                 CUSTOM_ITEM_FLAGS |= CustomItem::KEEP_ON_PLAYER;
-                // Actor_SetScale(actor, 0.0f);
+                // MM_Actor_SetScale(actor, 0.0f);
                 CUSTOM_ITEM_FLAGS |= CustomItem::HIDE_TILL_OVERHEAD;
                 CustomItem00_ItemTouched(actor, play);
             }
@@ -216,7 +216,7 @@ void CustomItem00_Update(Actor* actor, PlayState* play) {
                 }
                 // Override the bobbing animation to be a fixed height
                 actor->shape.yOffset = 900.0f;
-                Actor_SetScale(actor, 0.007f);
+                MM_Actor_SetScale(actor, 0.007f);
 
                 f32 height = 45.0f;
                 switch (GET_PLAYER_FORM) {
@@ -239,14 +239,14 @@ void CustomItem00_Update(Actor* actor, PlayState* play) {
 
             // Once the player is no longer in the "Give Item" state, kill the actor
             if (!(player->stateFlags1 & PLAYER_STATE1_400)) {
-                Actor_Kill(actor);
+                MM_Actor_Kill(actor);
             }
         }
     }
 
     if (actor->gravity != 0.0f) {
         Actor_MoveWithGravity(actor);
-        Actor_UpdateBgCheckInfo(play, actor, 20.0f, 15.0f, 15.0f,
+        MM_Actor_UpdateBgCheckInfo(play, actor, 20.0f, 15.0f, 15.0f,
                                 UPDBGCHECKINFO_FLAG_1 | UPDBGCHECKINFO_FLAG_4 | UPDBGCHECKINFO_FLAG_8 |
                                     UPDBGCHECKINFO_FLAG_10);
     }
@@ -256,15 +256,15 @@ void CustomItem00_Update(Actor* actor, PlayState* play) {
     }
 
     if (CUSTOM_ITEM_FLAGS & CustomItem::ABLE_TO_ZORA_RANG) {
-        Collider_UpdateCylinder(actor, &enItem00->collider);
-        CollisionCheck_SetAC(play, &play->colChkCtx, &enItem00->collider.base);
+        MM_Collider_UpdateCylinder(actor, &enItem00->collider);
+        MM_CollisionCheck_SetAC(play, &play->colChkCtx, &enItem00->collider.base);
     }
 }
 
 void CustomItem00_Destroy(Actor* actor, PlayState* play) {
     EnItem00* enItem00 = (EnItem00*)actor;
 
-    Collider_DestroyCylinder(play, &enItem00->collider);
+    MM_Collider_DestroyCylinder(play, &enItem00->collider);
 }
 
 void CustomItem::RegisterHooks() {

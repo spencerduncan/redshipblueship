@@ -3,10 +3,10 @@
 
 extern "C" {
 #include "variables.h"
-void Player_SetupTalk(PlayState* play, Player* player);
-s32 Player_SetupWaitForPutAway(PlayState* play, Player* player, AfterPutAwayFunc afterPutAwayFunc);
+void MM_Player_SetupTalk(PlayState* play, Player* player);
+s32 MM_Player_SetupWaitForPutAway(PlayState* play, Player* player, AfterPutAwayFunc afterPutAwayFunc);
 void func_80848250(PlayState* play, Player* player);
-void Player_StartTalking(PlayState* play, Actor* actor);
+void MM_Player_StartTalking(PlayState* play, Actor* actor);
 }
 
 static std::vector<u8> skipCmds = {};
@@ -19,8 +19,8 @@ void Rando::ActorBehavior::InitEnAlBehavior() {
                    { *should = !RANDO_SAVE_CHECKS[RC_MAYORS_OFFICE_KAFEIS_MASK].cycleObtained; });
     // "I'm counting on you"
     COND_ID_HOOK(OnOpenText, 0x2AA2, IS_RANDO, [](u16* textId, bool* loadFromMessageTable) {
-        Message_BombersNotebookQueueEvent(gPlayState, BOMBERS_NOTEBOOK_EVENT_MET_MADAME_AROMA);
-        Message_BombersNotebookQueueEvent(gPlayState, BOMBERS_NOTEBOOK_EVENT_RECEIVED_KAFEIS_MASK);
+        Message_BombersNotebookQueueEvent(MM_gPlayState, BOMBERS_NOTEBOOK_EVENT_MET_MADAME_AROMA);
+        Message_BombersNotebookQueueEvent(MM_gPlayState, BOMBERS_NOTEBOOK_EVENT_RECEIVED_KAFEIS_MASK);
     });
 
     COND_VB_SHOULD(VB_EXEC_MSG_EVENT, IS_RANDO, {
@@ -28,7 +28,7 @@ void Rando::ActorBehavior::InitEnAlBehavior() {
         Actor* actor = va_arg(args, Actor*);
 
         if (actor->id == ACTOR_EN_AL) { // Madame Aroma
-            Player* player = GET_PLAYER(gPlayState);
+            Player* player = GET_PLAYER(MM_gPlayState);
 
             if (cmdId == MSCRIPT_CMD_ID_OFFER_ITEM) {
                 *should = false;
@@ -47,9 +47,9 @@ void Rando::ActorBehavior::InitEnAlBehavior() {
                      * messages being eaten. The method below handles the intended behavior, both with or without
                      * notebook messages, even if it is a little counterintuitive.
                      */
-                    Message_StartTextbox(gPlayState, 0x2B20, actor);
-                    Player_StartTalking(gPlayState, actor);
-                    func_80848250(gPlayState, player); // End the giveItem animation, or the Express Mail will persist
+                    MM_Message_StartTextbox(MM_gPlayState, 0x2B20, actor);
+                    MM_Player_StartTalking(MM_gPlayState, actor);
+                    func_80848250(MM_gPlayState, player); // End the giveItem animation, or the Express Mail will persist
                     skipCmds.push_back(MSCRIPT_CMD_ID_BEGIN_TEXT); // The scripted text at textId 0x2B20
                     skipCmds.push_back(MSCRIPT_CMD_ID_AWAIT_TEXT);
                 }

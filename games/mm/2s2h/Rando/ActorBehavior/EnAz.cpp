@@ -3,7 +3,7 @@
 
 extern "C" {
 #include "variables.h"
-void Player_StartTalking(PlayState* play, Actor* actor);
+void MM_Player_StartTalking(PlayState* play, Actor* actor);
 }
 
 void Rando::ActorBehavior::InitEnAzBehavior() {
@@ -11,15 +11,15 @@ void Rando::ActorBehavior::InitEnAzBehavior() {
         GetItemId* getItemId = va_arg(args, GetItemId*);
         Actor* actor = va_arg(args, Actor*);
         if (actor->id == ACTOR_EN_AZ && *getItemId > GI_RUPEE_PURPLE) { // Beaver Bro non-repeat reward
-            Player* player = GET_PLAYER(gPlayState);
+            Player* player = GET_PLAYER(MM_gPlayState);
             *should = false;
             // Force advance textbox
-            Message_StartTextbox(gPlayState, ++actor->textId, actor);
+            MM_Message_StartTextbox(MM_gPlayState, ++actor->textId, actor);
             actor->parent = &player->actor;
             player->talkActor = actor;
             player->talkActorDistance = actor->xzDistToPlayer;
             player->exchangeItemAction = PLAYER_IA_MINUS1;
-            Player_StartTalking(gPlayState, actor);
+            MM_Player_StartTalking(MM_gPlayState, actor);
         }
     });
 }

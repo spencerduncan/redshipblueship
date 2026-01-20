@@ -6,7 +6,7 @@ extern "C" {
 #include "z64save.h"
 #include "functions.h"
 #include "soh/Enhancements/randomizer/randomizer_entrance.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 extern SaveContext gSaveContext;
 }
 

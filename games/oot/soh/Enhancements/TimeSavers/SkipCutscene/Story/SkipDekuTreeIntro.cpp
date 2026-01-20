@@ -12,9 +12,9 @@ void RegisterSkipDekuTreeIntro() {
     COND_VB_SHOULD(VB_PLAY_DEKU_TREE_INTRO_CS,
                    CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.Story"), IS_RANDO), {
                        BgTreemouth* treeMouth = va_arg(args, BgTreemouth*);
-                       Flags_SetEventChkInf(EVENTCHKINF_DEKU_TREE_OPENED_MOUTH);
-                       Audio_PlaySoundGeneral(NA_SE_EV_WOODDOOR_OPEN, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                              &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                       OoT_Flags_SetEventChkInf(EVENTCHKINF_DEKU_TREE_OPENED_MOUTH);
+                       Audio_PlaySoundGeneral(NA_SE_EV_WOODDOOR_OPEN, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                              &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                        BgTreemouth_SetupAction(treeMouth, func_808BC6F8);
                        *should = false;
                    });

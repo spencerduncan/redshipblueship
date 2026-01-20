@@ -19,7 +19,7 @@ void RegisterSkipTatlInterrupts() {
         if (gSaveContext.save.entrance == ENTRANCE(SOUTH_CLOCK_TOWN, 0) && gSaveContext.save.cutsceneIndex == 0 &&
             !CHECK_WEEKEVENTREG(WEEKEVENTREG_59_04)) {
             Flags_SetWeekEventReg(WEEKEVENTREG_59_04);
-            Sram_SaveSpecialEnterClockTown(gPlayState);
+            Sram_SaveSpecialEnterClockTown(MM_gPlayState);
         }
     });
 
@@ -29,9 +29,9 @@ void RegisterSkipTatlInterrupts() {
             Actor* actor = va_arg(args, Actor*);
             *should = false;
             if (ELFMSG_GET_SWITCH_FLAG(actor) != 0x7F) {
-                Flags_SetSwitch(gPlayState, ELFMSG_GET_SWITCH_FLAG(actor));
+                MM_Flags_SetSwitch(MM_gPlayState, ELFMSG_GET_SWITCH_FLAG(actor));
             }
-            Actor_Kill(actor);
+            MM_Actor_Kill(actor);
         }
     });
 
@@ -41,9 +41,9 @@ void RegisterSkipTatlInterrupts() {
             Actor* actor = va_arg(args, Actor*);
             *should = false;
             if (ELFMSG3_GET_SWITCH_FLAG(actor) != 0x7F) {
-                Flags_SetSwitch(gPlayState, ELFMSG3_GET_SWITCH_FLAG(actor));
+                MM_Flags_SetSwitch(MM_gPlayState, ELFMSG3_GET_SWITCH_FLAG(actor));
             }
-            Actor_Kill(actor);
+            MM_Actor_Kill(actor);
         }
     });
 
@@ -53,9 +53,9 @@ void RegisterSkipTatlInterrupts() {
             Actor* actor = va_arg(args, Actor*);
             *should = false;
             if (ELFMSG4_GET_SWITCH_FLAG(actor) != 0x7F) {
-                Flags_SetSwitch(gPlayState, ELFMSG4_GET_SWITCH_FLAG(actor));
+                MM_Flags_SetSwitch(MM_gPlayState, ELFMSG4_GET_SWITCH_FLAG(actor));
             }
-            Actor_Kill(actor);
+            MM_Actor_Kill(actor);
         }
     });
 
@@ -104,7 +104,7 @@ void RegisterSkipTatlInterrupts() {
             if (CHECK_QUEST_ITEM(QUEST_REMAINS_TWINMOLD)) {
                 SET_WEEKEVENTREG(WEEKEVENTREG_87_80);
             }
-            Actor_Kill(actor);
+            MM_Actor_Kill(actor);
         }
     });
 }

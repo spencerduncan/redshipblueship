@@ -13,7 +13,7 @@ extern "C" {
 #include "variables.h"
 #include <textures/message_static/message_static.h>
 #include <textures/parameter_static/parameter_static.h>
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 #include "soh/OTRGlobals.h"
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
@@ -25,7 +25,7 @@ extern PlayState* gPlayState;
 #include <sstream>
 
 extern "C" {
-void KaleidoScope_MoveCursorToSpecialPos(PlayState* play, u16 specialPos);
+void OoT_KaleidoScope_MoveCursorToSpecialPos(PlayState* play, u16 specialPos);
 }
 
 namespace Rando {
@@ -77,7 +77,7 @@ void KaleidoEntryIcon::Draw(PlayState* play, std::vector<Gfx>* mEntryDl) {
         textColor = { 0x98, 0xFF, 0x44, 255 };
     }
 
-    Matrix_Translate(mX, mY, 0.0f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(mX, mY, 0.0f, MTXMODE_APPLY);
 
     mEntryDl->push_back(gsSPMatrix(Matrix_NewMtx(play->state.gfxCtx, (char*)__FILE__, __LINE__),
                                    G_MTX_PUSH | G_MTX_LOAD | G_MTX_MODELVIEW));
@@ -200,9 +200,9 @@ void Kaleido::Draw(PlayState* play) {
     mEntryDl.push_back(gsDPSetCombineMode(G_CC_MODULATEIA_PRIM, G_CC_MODULATEIA_PRIM));
 
     // Move the matrix origin to the top-left corner of the kaleido page
-    Matrix_Translate(-108.f, 58.f, 0.0f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(-108.f, 58.f, 0.0f, MTXMODE_APPLY);
     // Invert the matrix to render vertices with positive going down
-    Matrix_Scale(1.0f, -1.0f, 1.0f, MTXMODE_APPLY);
+    OoT_Matrix_Scale(1.0f, -1.0f, 1.0f, MTXMODE_APPLY);
     bool dpad = CVarGetInteger(CVAR_SETTING("DPadOnPause"), 0);
     if (((pauseCtx->unk_1E4 == 0) || (pauseCtx->unk_1E4 == 5) || (pauseCtx->unk_1E4 == 8)) &&
         (pauseCtx->pageIndex == PAUSE_QUEST)) {
@@ -211,8 +211,8 @@ void Kaleido::Draw(PlayState* play) {
                 if ((pauseCtx->stickRelY > 30) || (dpad && CHECK_BTN_ALL(input->press.button, BTN_DUP))) {
                     if (mCursorPos > 0) {
                         mCursorPos--;
-                        Audio_PlaySoundGeneral(NA_SE_SY_CURSOR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                        Audio_PlaySoundGeneral(NA_SE_SY_CURSOR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                     }
                     if (mCursorPos < mTopIndex) {
                         mTopIndex = mCursorPos;
@@ -220,31 +220,31 @@ void Kaleido::Draw(PlayState* play) {
                 } else if ((pauseCtx->stickRelY < -30) || (dpad && CHECK_BTN_ALL(input->press.button, BTN_DDOWN))) {
                     if (mCursorPos < mEntries.size() - 1) {
                         mCursorPos++;
-                        Audio_PlaySoundGeneral(NA_SE_SY_CURSOR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                               &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                        Audio_PlaySoundGeneral(NA_SE_SY_CURSOR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                               &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                     }
                     if (mCursorPos >= mTopIndex + mNumVisible && mTopIndex + mNumVisible < mEntries.size()) {
                         mTopIndex = mCursorPos - mNumVisible + 1;
                     }
                 }
                 if ((pauseCtx->stickRelX < -30) || (dpad && CHECK_BTN_ALL(input->press.button, BTN_DLEFT))) {
-                    KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_LEFT);
+                    OoT_KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_LEFT);
                     pauseCtx->unk_1E4 = 0;
                 } else if ((pauseCtx->stickRelX > 30) || (dpad && CHECK_BTN_ALL(input->press.button, BTN_DRIGHT))) {
-                    KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_RIGHT);
+                    OoT_KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_RIGHT);
                     pauseCtx->unk_1E4 = 0;
                 }
             } else if (pauseCtx->cursorSpecialPos == PAUSE_CURSOR_PAGE_LEFT) {
                 if ((pauseCtx->stickRelX > 30) || (dpad && CHECK_BTN_ALL(input->press.button, BTN_DRIGHT))) {
                     pauseCtx->cursorSpecialPos = 0;
-                    Audio_PlaySoundGeneral(NA_SE_SY_CURSOR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                           &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                    Audio_PlaySoundGeneral(NA_SE_SY_CURSOR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                           &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                 }
             } else if (pauseCtx->cursorSpecialPos == PAUSE_CURSOR_PAGE_RIGHT) {
                 if ((pauseCtx->stickRelX < -30) || (dpad && CHECK_BTN_ALL(input->press.button, BTN_DLEFT))) {
                     pauseCtx->cursorSpecialPos = 0;
-                    Audio_PlaySoundGeneral(NA_SE_SY_CURSOR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                           &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                    Audio_PlaySoundGeneral(NA_SE_SY_CURSOR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                           &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                 }
             }
         } else if (pauseCtx->cursorSpecialPos != 0 && pauseCtx->state == 7) {
@@ -256,11 +256,11 @@ void Kaleido::Draw(PlayState* play) {
         auto& entry = mEntries[i];
         entry->SetYOffset(yOffset);
         yOffset += 9;
-        Matrix_Push();
+        OoT_Matrix_Push();
         entry->SetSelected((i == mCursorPos) && !(pauseCtx->cursorSpecialPos == PAUSE_CURSOR_PAGE_RIGHT ||
                                                   pauseCtx->cursorSpecialPos == PAUSE_CURSOR_PAGE_LEFT));
         entry->Draw(play, &mEntryDl);
-        Matrix_Pop();
+        OoT_Matrix_Pop();
     }
 
     mEntryDl.push_back(gsSPEndDisplayList());
@@ -280,9 +280,9 @@ extern "C" void RandoKaleido_DrawMiscCollectibles(PlayState* play) {
 }
 
 extern "C" void RandoKaleido_UpdateMiscCollectibles(int16_t inDungeonScene) {
-    PauseContext* pauseCtx = &gPlayState->pauseCtx;
+    PauseContext* pauseCtx = &OoT_gPlayState->pauseCtx;
     if (pauseCtx->randoQuestMode && pauseCtx->pageIndex == PAUSE_QUEST) {
-        OTRGlobals::Instance->gRandoContext->GetKaleido()->Update(gPlayState);
+        OTRGlobals::Instance->gRandoContext->GetKaleido()->Update(OoT_gPlayState);
     }
 }
 
@@ -458,8 +458,8 @@ void KaleidoEntryOcarinaButtons::Draw(PlayState* play, std::vector<Gfx>* mEntryD
         return;
     }
 
-    Matrix_Translate(mX, mY, 0.0f, MTXMODE_APPLY);
-    //        Matrix_Scale(0.75f, 0.75f, 0.75f, MTXMODE_APPLY);
+    OoT_Matrix_Translate(mX, mY, 0.0f, MTXMODE_APPLY);
+    //        OoT_Matrix_Scale(0.75f, 0.75f, 0.75f, MTXMODE_APPLY);
 
     mEntryDl->push_back(gsSPMatrix(Matrix_NewMtx(play->state.gfxCtx, (char*)__FILE__, __LINE__),
                                    G_MTX_PUSH | G_MTX_LOAD | G_MTX_MODELVIEW));

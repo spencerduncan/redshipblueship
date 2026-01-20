@@ -67,7 +67,7 @@ void RegisterLinkSpeedModifier() {
 
         *maxSpeed *= swimMod;
 
-        Math_AsymStepToF(speed, *speedTarget * 0.8f * swimMod, *incrStep, (fabsf(*speed) * 0.02f) + 0.05f);
+        MM_Math_AsymStepToF(speed, *speedTarget * 0.8f * swimMod, *incrStep, (fabsf(*speed) * 0.02f) + 0.05f);
     });
 
     COND_HOOK(OnPassPlayerInputs, CVAR_SPEED && (CVAR_WALK || CVAR_SWIM), [](Input* input) {

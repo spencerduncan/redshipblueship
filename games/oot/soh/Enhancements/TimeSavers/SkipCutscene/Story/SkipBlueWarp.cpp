@@ -12,7 +12,7 @@ extern "C" {
 }
 #define RAND_GET_OPTION(option) Rando::Context::GetInstance()->GetOption(option).Get()
 
-extern "C" PlayState* gPlayState;
+extern "C" PlayState* OoT_gPlayState;
 static bool sEnteredBlueWarp = false;
 
 extern void TimeSaverQueueItem(RandomizerGet randoGet);
@@ -30,7 +30,7 @@ void EnKo_MoveWhenReady(EnKo* enKo, PlayState* play) {
     if ((enKo->actor.params & 0xFF) == ENKO_TYPE_CHILD_3) {
         if (GameInteractor_Should(VB_OPEN_KOKIRI_FOREST, CHECK_QUEST_ITEM(QUEST_KOKIRI_EMERALD))) {
             enKo->collider.dim.height -= 200;
-            Path_CopyLastPoint(enKo->path, &enKo->actor.world.pos);
+            OoT_Path_CopyLastPoint(enKo->path, &enKo->actor.world.pos);
             enKo->actionFunc = func_80A99384;
         }
     }
@@ -58,21 +58,21 @@ void RegisterSkipBlueWarp() {
                    CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.Story"), IS_RANDO), {
                        if (gSaveContext.entranceIndex == ENTR_KOKIRI_FOREST_DEKU_TREE_BLUE_WARP &&
                            gSaveContext.cutsceneIndex == 0xFFF1) {
-                           *should = Flags_GetEventChkInf(EVENTCHKINF_USED_FOREST_TEMPLE_BLUE_WARP);
+                           *should = OoT_Flags_GetEventChkInf(EVENTCHKINF_USED_FOREST_TEMPLE_BLUE_WARP);
                        }
                    });
 
     /**
-     * While we could rely on the Item_Give that's normally called, it's not very clear to the player that they
+     * While we could rely on the OoT_Item_Give that's normally called, it's not very clear to the player that they
      * received the item when skipping the blue warp cutscene, so we'll prevent that and queue it up to be given
      * to the player instead.
      */
     COND_VB_SHOULD(VB_GIVE_ITEM_FROM_BLUE_WARP,
                    CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.Story"), IS_RANDO), {
                        if (IS_VANILLA) {
-                           if (gPlayState->sceneNum == SCENE_SHADOW_TEMPLE_BOSS) {
+                           if (OoT_gPlayState->sceneNum == SCENE_SHADOW_TEMPLE_BOSS) {
                                TimeSaverQueueItem(RG_SHADOW_MEDALLION);
-                           } else if (gPlayState->sceneNum == SCENE_SPIRIT_TEMPLE_BOSS) {
+                           } else if (OoT_gPlayState->sceneNum == SCENE_SPIRIT_TEMPLE_BOSS) {
                                TimeSaverQueueItem(RG_SPIRIT_MEDALLION);
                            }
                        }
@@ -120,7 +120,7 @@ void RegisterShouldPlayBlueWarp() {
             } else if (gSaveContext.entranceIndex == ENTR_CHAMBER_OF_THE_SAGES_0 && gSaveContext.cutsceneIndex == 0x0 &&
                        gSaveContext.chamberCutsceneNum == CHAMBER_CS_FOREST) {
                 // Normally set in the blue warp cutscene
-                Flags_SetEventChkInf(EVENTCHKINF_SPOKE_TO_DEKU_TREE_SPROUT);
+                OoT_Flags_SetEventChkInf(EVENTCHKINF_SPOKE_TO_DEKU_TREE_SPROUT);
 
                 if (IS_RANDO) {
                     gSaveContext.entranceIndex = ENTR_SACRED_FOREST_MEADOW_FOREST_TEMPLE_BLUE_WARP;
@@ -133,7 +133,7 @@ void RegisterShouldPlayBlueWarp() {
             } else if (gSaveContext.entranceIndex == ENTR_KAKARIKO_VILLAGE_FRONT_GATE &&
                        gSaveContext.cutsceneIndex == 0xFFF3) {
                 // Normally set in the blue warp cutscene
-                Flags_SetEventChkInf(EVENTCHKINF_DEATH_MOUNTAIN_ERUPTED);
+                OoT_Flags_SetEventChkInf(EVENTCHKINF_DEATH_MOUNTAIN_ERUPTED);
 
                 gSaveContext.entranceIndex = ENTR_DEATH_MOUNTAIN_CRATER_FIRE_TEMPLE_BLUE_WARP;
                 isBlueWarpCutscene = true;
@@ -142,7 +142,7 @@ void RegisterShouldPlayBlueWarp() {
                        gSaveContext.chamberCutsceneNum == CHAMBER_CS_WATER) {
                 // Normally set in the blue warp cutscene
                 gSaveContext.dayTime = gSaveContext.skyboxTime = 0x4800;
-                Flags_SetEventChkInf(EVENTCHKINF_RAISED_LAKE_HYLIA_WATER);
+                OoT_Flags_SetEventChkInf(EVENTCHKINF_RAISED_LAKE_HYLIA_WATER);
 
                 gSaveContext.entranceIndex = ENTR_LAKE_HYLIA_WATER_TEMPLE_BLUE_WARP;
                 isBlueWarpCutscene = true;

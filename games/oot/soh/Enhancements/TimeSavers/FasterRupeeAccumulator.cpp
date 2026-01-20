@@ -6,7 +6,7 @@ extern "C" {
 #include "macros.h"
 #include "variables.h"
 #include "functions.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 extern SaveContext gSaveContext;
 }
 

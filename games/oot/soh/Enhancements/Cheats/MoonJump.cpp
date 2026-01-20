@@ -3,7 +3,7 @@
 #include "soh/ShipInit.hpp"
 
 extern "C" {
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 #include "macros.h"
 }
 
@@ -12,9 +12,9 @@ extern PlayState* gPlayState;
 #define CVAR_MOON_JUMP_VALUE CVarGetInteger(CVAR_MOON_JUMP_NAME, CVAR_MOON_JUMP_DEFAULT)
 
 void OnPlayerUpdateMoonJump() {
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
 
-    if (player != nullptr && CHECK_BTN_ANY(gPlayState->state.input[0].cur.button, BTN_L)) {
+    if (player != nullptr && CHECK_BTN_ANY(OoT_gPlayState->state.input[0].cur.button, BTN_L)) {
         player->actor.velocity.y = 6.34375f;
     }
 }

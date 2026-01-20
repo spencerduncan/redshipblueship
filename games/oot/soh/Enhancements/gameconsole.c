@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 
 void GameConsole_Init() {
 }

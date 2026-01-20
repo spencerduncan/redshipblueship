@@ -6,7 +6,7 @@
 
 extern "C" {
 #include "variables.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 /**
@@ -32,7 +32,7 @@ nlohmann::json Anchor::PrepClientState() {
         payload["seed"] = IS_RANDO ? Rando::Context::GetInstance()->GetSeed() : 0;
         payload["isSaveLoaded"] = true;
         payload["isGameComplete"] = gSaveContext.ship.stats.gameComplete;
-        payload["sceneNum"] = gPlayState->sceneNum;
+        payload["sceneNum"] = OoT_gPlayState->sceneNum;
         payload["entranceIndex"] = gSaveContext.entranceIndex;
     } else {
         payload["seed"] = 0;

@@ -8,7 +8,7 @@
 #include <map>
 #include <string>
 #include "soh/Enhancements/randomizer/randomizerTypes.h"
-#include "variables.h" //only for gItemIcons
+#include "variables.h" //only for OoT_gItemIcons
 
 extern "C" {
 #include "textures/icon_item_static/icon_item_static.h"
@@ -29,7 +29,7 @@ typedef struct {
 #define ITEM_MAP_ENTRY(id)                                            \
     {                                                                 \
         id, {                                                         \
-            id, #id, #id "_Faded", static_cast<char*>(gItemIcons[id]) \
+            id, #id, #id "_Faded", static_cast<char*>(OoT_gItemIcons[id]) \
         }                                                             \
     }
 

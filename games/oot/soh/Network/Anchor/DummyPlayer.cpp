@@ -6,10 +6,10 @@ extern "C" {
 #include "macros.h"
 #include "variables.h"
 #include "functions.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 
-void Player_UseItem(PlayState* play, Player* player, s32 item);
-void Player_Draw(Actor* actor, PlayState* play);
+void OoT_Player_UseItem(PlayState* play, Player* player, s32 item);
+void OoT_Player_Draw(Actor* actor, PlayState* play);
 }
 
 static DamageTable DummyPlayerDamageTable = {
@@ -53,22 +53,22 @@ void DummyPlayer_Init(Actor* actor, PlayState* play) {
     uint32_t clientId = Anchor::Instance->GetDummyPlayerClientId(actor);
 
     if (!Anchor::Instance->clients.contains(clientId)) {
-        Actor_Kill(actor);
+        OoT_Actor_Kill(actor);
         return;
     }
 
     AnchorClient& client = Anchor::Instance->clients[clientId];
 
-    // Hack to account for usage of gSaveContext in Player_Init
+    // Hack to account for usage of gSaveContext in OoT_Player_Init
     s32 originalAge = gSaveContext.linkAge;
     gSaveContext.linkAge = client.linkAge;
 
-    // #region modeled after EnTorch2_Init and Player_Init
+    // #region modeled after OoT_EnTorch2_Init and OoT_Player_Init
     actor->room = -1;
     player->itemAction = player->heldItemAction = -1;
     player->heldItemId = ITEM_NONE;
-    Player_UseItem(play, player, ITEM_NONE);
-    Player_SetModelGroup(player, Player_ActionToModelGroup(player, player->heldItemAction));
+    OoT_Player_UseItem(play, player, ITEM_NONE);
+    OoT_Player_SetModelGroup(player, OoT_Player_ActionToModelGroup(player, player->heldItemAction));
     play->playerInit(player, play, gPlayerSkelHeaders[client.linkAge]);
 
     play->func_11D54(player, play);
@@ -103,13 +103,13 @@ void DummyPlayer_Update(Actor* actor, PlayState* play) {
     uint32_t clientId = Anchor::Instance->GetDummyPlayerClientId(actor);
 
     if (!Anchor::Instance->clients.contains(clientId)) {
-        Actor_Kill(actor);
+        OoT_Actor_Kill(actor);
         return;
     }
 
     AnchorClient& client = Anchor::Instance->clients[clientId];
 
-    if (client.sceneNum != gPlayState->sceneNum || !client.online || !client.isSaveLoaded) {
+    if (client.sceneNum != OoT_gPlayState->sceneNum || !client.online || !client.isSaveLoaded) {
         actor->world.pos.x = -9999.0f;
         actor->world.pos.y = -9999.0f;
         actor->world.pos.z = -9999.0f;
@@ -120,7 +120,7 @@ void DummyPlayer_Update(Actor* actor, PlayState* play) {
     actor->shape.shadowAlpha = 255;
     Math_Vec3s_Copy(&player->upperLimbRot, &client.upperLimbRot);
     Math_Vec3s_Copy(&actor->shape.rot, &client.posRot.rot);
-    Math_Vec3f_Copy(&actor->world.pos, &client.posRot.pos);
+    OoT_Math_Vec3f_Copy(&actor->world.pos, &client.posRot.pos);
     player->skelAnime.jointTable = client.jointTable;
     player->skelAnime.movementFlags = client.movementFlags;
     Math_Vec3s_Copy(&player->skelAnime.prevTransl, &client.prevTransl);
@@ -138,7 +138,7 @@ void DummyPlayer_Update(Actor* actor, PlayState* play) {
 
     // Apply animation movement (Copied from Player_ApplyAnimMovementScaledByAge)
     Vec3f diff;
-    SkelAnime_UpdateTranslation(&player->skelAnime, &diff, player->actor.shape.rot.y);
+    OoT_SkelAnime_UpdateTranslation(&player->skelAnime, &diff, player->actor.shape.rot.y);
 
     if (player->skelAnime.movementFlags & 1) {
         if (!LINK_IS_ADULT) {
@@ -164,7 +164,7 @@ void DummyPlayer_Update(Actor* actor, PlayState* play) {
         gSaveContext.linkAge = client.linkAge;
         u8 originalButtonItem0 = gSaveContext.equips.buttonItems[0];
         gSaveContext.equips.buttonItems[0] = client.buttonItem0;
-        Player_SetModelGroup(player, client.modelGroup);
+        OoT_Player_SetModelGroup(player, client.modelGroup);
         gSaveContext.linkAge = originalAge;
         gSaveContext.equips.buttonItems[0] = originalButtonItem0;
     }
@@ -182,26 +182,26 @@ void DummyPlayer_Update(Actor* actor, PlayState* play) {
         Anchor::Instance->SendPacket_DamagePlayer(client.clientId, player->actor.colChkInfo.damageEffect,
                                                   player->actor.colChkInfo.damage);
         if (player->actor.colChkInfo.damageEffect == DUMMY_PLAYER_HIT_RESPONSE_STUN) {
-            Actor_SetColorFilter(&player->actor, 0, 0xFF, 0, 24);
+            OoT_Actor_SetColorFilter(&player->actor, 0, 0xFF, 0, 24);
         } else {
             player->invincibilityTimer = 20;
         }
     }
 
-    Collider_UpdateCylinder(&player->actor, &player->cylinder);
+    OoT_Collider_UpdateCylinder(&player->actor, &player->cylinder);
 
     if (!(player->stateFlags2 & PLAYER_STATE2_FROZEN)) {
         if (!(player->stateFlags1 & (PLAYER_STATE1_DEAD | PLAYER_STATE1_HANGING_OFF_LEDGE |
                                      PLAYER_STATE1_CLIMBING_LEDGE | PLAYER_STATE1_ON_HORSE))) {
-            CollisionCheck_SetOC(play, &play->colChkCtx, &player->cylinder.base);
+            OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &player->cylinder.base);
         }
 
         if (!(player->stateFlags1 & (PLAYER_STATE1_DEAD | PLAYER_STATE1_DAMAGED)) &&
             (player->invincibilityTimer <= 0)) {
-            CollisionCheck_SetAC(play, &play->colChkCtx, &player->cylinder.base);
+            OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &player->cylinder.base);
 
             if (player->invincibilityTimer < 0) {
-                CollisionCheck_SetAT(play, &play->colChkCtx, &player->cylinder.base);
+                OoT_CollisionCheck_SetAT(play, &play->colChkCtx, &player->cylinder.base);
             }
         }
     }
@@ -212,7 +212,7 @@ void DummyPlayer_Update(Actor* actor, PlayState* play) {
         player->actor.colChkInfo.mass = 50;
     }
 
-    Collider_ResetCylinderAC(play, &player->cylinder.base);
+    OoT_Collider_ResetCylinderAC(play, &player->cylinder.base);
 }
 
 void DummyPlayer_Draw(Actor* actor, PlayState* play) {
@@ -221,23 +221,23 @@ void DummyPlayer_Draw(Actor* actor, PlayState* play) {
     uint32_t clientId = Anchor::Instance->GetDummyPlayerClientId(actor);
 
     if (!Anchor::Instance->clients.contains(clientId)) {
-        Actor_Kill(actor);
+        OoT_Actor_Kill(actor);
         return;
     }
 
     AnchorClient& client = Anchor::Instance->clients[clientId];
 
-    if (client.sceneNum != gPlayState->sceneNum || !client.online || !client.isSaveLoaded) {
+    if (client.sceneNum != OoT_gPlayState->sceneNum || !client.online || !client.isSaveLoaded) {
         return;
     }
 
-    // Hack to account for usage of gSaveContext in Player_Draw
+    // Hack to account for usage of gSaveContext in OoT_Player_Draw
     s32 originalAge = gSaveContext.linkAge;
     gSaveContext.linkAge = client.linkAge;
     u8 originalButtonItem0 = gSaveContext.equips.buttonItems[0];
     gSaveContext.equips.buttonItems[0] = client.buttonItem0;
 
-    Player_Draw((Actor*)player, play);
+    OoT_Player_Draw((Actor*)player, play);
     gSaveContext.linkAge = originalAge;
     gSaveContext.equips.buttonItems[0] = originalButtonItem0;
 }

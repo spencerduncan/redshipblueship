@@ -4,7 +4,7 @@
 extern "C" {
 #include "variables.h"
 #include "overlays/actors/ovl_En_Yb/z_en_yb.h"
-void Player_StartTalking(PlayState* play, Actor* actor);
+void MM_Player_StartTalking(PlayState* play, Actor* actor);
 }
 
 void Rando::ActorBehavior::InitEnYbBehavior() {
@@ -22,12 +22,12 @@ void Rando::ActorBehavior::InitEnYbBehavior() {
         Actor* actor = va_arg(args, Actor*);
         if (actor->id == ACTOR_EN_YB) {
             *should = false;
-            Player* player = GET_PLAYER(gPlayState);
+            Player* player = GET_PLAYER(MM_gPlayState);
             actor->parent = &player->actor;
             player->talkActor = actor;
             player->talkActorDistance = actor->xzDistToPlayer;
             player->exchangeItemAction = PLAYER_IA_MINUS1;
-            Player_StartTalking(gPlayState, actor);
+            MM_Player_StartTalking(MM_gPlayState, actor);
             RANDO_SAVE_CHECKS[RC_TERMINA_FIELD_KAMARO_MASK].eligible = true;
         }
     });

@@ -10,7 +10,7 @@ extern "C" {
 #include "z64.h"
 #include "overlays/gamestates/ovl_file_choose/file_choose.h"
 #include "soh/Enhancements/enhancementTypes.h"
-void Sram_InitDebugSave(void);
+void OoT_Sram_InitDebugSave(void);
 void Select_LoadGame(SelectContext* selectContext, s32 entranceIndex);
 }
 
@@ -45,11 +45,11 @@ void SaveConfig() {
 }
 
 void Warp(WarpPoint& warpPoint) {
-    if (gPlayState == NULL) {
-        // If gPlayState is NULL, it means the the user opted into BootToWarpPoint and the game is starting up.
+    if (OoT_gPlayState == NULL) {
+        // If OoT_gPlayState is NULL, it means the the user opted into BootToWarpPoint and the game is starting up.
         gSaveContext.gameMode = GAMEMODE_NORMAL;
         gSaveContext.fileNum = 0xFE; // temporary file so that this will respect debug save file option
-        Sram_InitDebugSave();
+        OoT_Sram_InitDebugSave();
         gSaveContext.magicFillTarget = gSaveContext.magic;
         gSaveContext.magic = 0;
         gSaveContext.magicCapacity = 0;
@@ -73,15 +73,15 @@ void Warp(WarpPoint& warpPoint) {
         gSaveContext.seqId = (u8)NA_BGM_DISABLED;
         gSaveContext.natureAmbienceId = 0xFF;
         gSaveContext.showTitleCard = true;
-        gWeatherMode = 0;
-        gGameState->running = false;
-        SET_NEXT_GAMESTATE(gGameState, Play_Init, PlayState);
+        OoT_gWeatherMode = 0;
+        OoT_gGameState->running = false;
+        SET_NEXT_GAMESTATE(OoT_gGameState, OoT_Play_Init, PlayState);
 
         GameInteractor_ExecuteOnLoadGame(gSaveContext.fileNum);
     } else {
-        gPlayState->nextEntranceIndex = warpPoint.entranceId;
-        gPlayState->transitionTrigger = TRANS_TRIGGER_START;
-        gPlayState->transitionType = TRANS_TYPE_INSTANT;
+        OoT_gPlayState->nextEntranceIndex = warpPoint.entranceId;
+        OoT_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
+        OoT_gPlayState->transitionType = TRANS_TYPE_INSTANT;
     }
     gSaveContext.respawn[RESPAWN_MODE_DOWN].entranceIndex = warpPoint.entranceId;
     gSaveContext.respawn[RESPAWN_MODE_DOWN].roomIndex = warpPoint.roomNum;
@@ -101,7 +101,7 @@ static std::string warpNameInput = "";
 
 void WarpPointsWidget(WidgetInfo& info) {
     ImGui::SeparatorText("Warp Points");
-    if (gPlayState != NULL && GET_PLAYER(gPlayState) != NULL) {
+    if (OoT_gPlayState != NULL && GET_PLAYER(OoT_gPlayState) != NULL) {
         UIWidgets::InputString("##WarpPointNameInput", &warpNameInput,
                                {
                                    .size = ImVec2(ImGui::GetContentRegionAvail().x - 50.0f, 0.0f),
@@ -115,16 +115,16 @@ void WarpPointsWidget(WidgetInfo& info) {
         }
 
         if (UIWidgets::Button(ICON_FA_PLUS)) {
-            Player* player = GET_PLAYER(gPlayState);
+            Player* player = GET_PLAYER(OoT_gPlayState);
 
-            std::string warpName = SohUtils::GetSceneName(gPlayState->sceneNum);
-            if (gPlayState->roomCtx.curRoom.num != 0) {
-                warpName += " (" + std::to_string(gPlayState->roomCtx.curRoom.num) + ")";
+            std::string warpName = SohUtils::GetSceneName(OoT_gPlayState->sceneNum);
+            if (OoT_gPlayState->roomCtx.curRoom.num != 0) {
+                warpName += " (" + std::to_string(OoT_gPlayState->roomCtx.curRoom.num) + ")";
             }
 
             warpPoints[warpNameInput] = WarpPoint{
                 .entranceId = gSaveContext.entranceIndex,
-                .roomNum = gPlayState->roomCtx.curRoom.num,
+                .roomNum = OoT_gPlayState->roomCtx.curRoom.num,
                 .pos = player->actor.world.pos,
                 .rotY = player->actor.shape.rot.y,
             };
@@ -146,13 +146,13 @@ void WarpPointsWidget(WidgetInfo& info) {
             ImGui::TextColored(ImVec4(0.85f, 0.55f, 0.0f, 1.0f), "[Boot]");
         }
         ImGui::SameLine(ImGui::GetContentRegionAvail().x - 115.0f);
-        if (gPlayState == NULL)
+        if (OoT_gPlayState == NULL)
             ImGui::BeginDisabled();
         if (UIWidgets::Button(ICON_FA_PLANE, { .size = UIWidgets::Sizes::Inline })) {
             // Warp to this point
             Warp(it->second);
         }
-        if (gPlayState == NULL)
+        if (OoT_gPlayState == NULL)
             ImGui::EndDisabled();
         ImGui::SameLine();
         if (UIWidgets::Button(ICON_FA_REFRESH,

@@ -17,20 +17,20 @@ static bool isSpawningJPGrottos = false;
 
 void RegisterJPGrottos() {
     COND_ID_HOOK(ShouldActorInit, ACTOR_DOOR_ANA, CVAR, [](Actor* actor, bool* should) {
-        if (gPlayState->sceneId == SCENE_22DEKUCITY && !isSpawningJPGrottos) {
+        if (MM_gPlayState->sceneId == SCENE_22DEKUCITY && !isSpawningJPGrottos) {
             *should = false;
         }
     });
 
     COND_ID_HOOK(ShouldActorInit, ACTOR_OBJ_SYOKUDAI, CVAR, [](Actor* actor, bool* should) {
-        if (gPlayState->sceneId == SCENE_22DEKUCITY && actor->world.rot.x == 0) {
+        if (MM_gPlayState->sceneId == SCENE_22DEKUCITY && actor->world.rot.x == 0) {
             *should = false;
         }
     });
 
     // Move circle of rupees in Deku Palace
     COND_ID_HOOK(ShouldActorInit, ACTOR_OBJ_MURE3, CVAR, [](Actor* actor, bool* should) {
-        if (gPlayState->sceneId == SCENE_22DEKUCITY && GetActorListIndex(actor) == 17) {
+        if (MM_gPlayState->sceneId == SCENE_22DEKUCITY && GetActorListIndex(actor) == 17) {
             actor->world.pos.x = 407.0f;
             actor->world.pos.z = 1569.0f;
         }
@@ -38,7 +38,7 @@ void RegisterJPGrottos() {
 
     // Move single freestanding rupee that's on top of the new grotto location
     COND_ID_HOOK(ShouldActorInit, ACTOR_EN_ITEM00, CVAR, [](Actor* actor, bool* should) {
-        if (gPlayState->sceneId == SCENE_22DEKUCITY) {
+        if (MM_gPlayState->sceneId == SCENE_22DEKUCITY) {
             if ((IS_RANDO && actor->params == ITEM00_NOTHING &&
                  CUSTOM_ITEM_PARAM == RC_DEKU_PALACE_FREESTANDING_RUPEE_07) ||
                 (!IS_RANDO && ENITEM00_GET_7F00(actor) == 0x11)) {
@@ -69,29 +69,29 @@ void RegisterJPGrottos() {
         bool lightTorches = (CURRENT_TIME > CLOCK_TIME(18, 0)) || (CURRENT_TIME < CLOCK_TIME(6, 0));
         u16 torchParams = lightTorches ? 10367 : 8319;
         if (roomNum == 1) {
-            Actor_Spawn(&gPlayState->actorCtx, gPlayState, ACTOR_DOOR_ANA, 0x01A7, 0x0000, 0x053C, 0x0007, 0x0011,
+            MM_Actor_Spawn(&MM_gPlayState->actorCtx, MM_gPlayState, ACTOR_DOOR_ANA, 0x01A7, 0x0000, 0x053C, 0x0007, 0x0011,
                         0x007F, 0x0304);
-            Actor_Spawn(&gPlayState->actorCtx, gPlayState, ACTOR_DOOR_ANA, 0x0162, 0x00A0, 0x02C8, 0x0007, 0x000F,
+            MM_Actor_Spawn(&MM_gPlayState->actorCtx, MM_gPlayState, ACTOR_DOOR_ANA, 0x0162, 0x00A0, 0x02C8, 0x0007, 0x000F,
                         0x007F, 0x0305);
-            Actor_Spawn(&gPlayState->actorCtx, gPlayState, ACTOR_DOOR_ANA, 0x01C3, 0x0050, 0x02D6, 0x0007, 0x0010,
+            MM_Actor_Spawn(&MM_gPlayState->actorCtx, MM_gPlayState, ACTOR_DOOR_ANA, 0x01C3, 0x0050, 0x02D6, 0x0007, 0x0010,
                         0x007F, 0x0306);
 
-            Actor_Spawn(&gPlayState->actorCtx, gPlayState, ACTOR_OBJ_SYOKUDAI, 448.0f, 80.0f, 675.0f, 1, 0, 0,
+            MM_Actor_Spawn(&MM_gPlayState->actorCtx, MM_gPlayState, ACTOR_OBJ_SYOKUDAI, 448.0f, 80.0f, 675.0f, 1, 0, 0,
                         torchParams);
-            Actor_Spawn(&gPlayState->actorCtx, gPlayState, ACTOR_OBJ_SYOKUDAI, 338.0f, 160.0f, 658.0f, 1, 0, 0,
+            MM_Actor_Spawn(&MM_gPlayState->actorCtx, MM_gPlayState, ACTOR_OBJ_SYOKUDAI, 338.0f, 160.0f, 658.0f, 1, 0, 0,
                         torchParams);
-            Actor_Spawn(&gPlayState->actorCtx, gPlayState, ACTOR_OBJ_SYOKUDAI, 426.0f, 0.0f, 1295.0f, 1, 0, 0,
+            MM_Actor_Spawn(&MM_gPlayState->actorCtx, MM_gPlayState, ACTOR_OBJ_SYOKUDAI, 426.0f, 0.0f, 1295.0f, 1, 0, 0,
                         torchParams);
         }
         if (roomNum == 2) {
-            Actor_Spawn(&gPlayState->actorCtx, gPlayState, ACTOR_DOOR_ANA, -0x1A4, 0x0000, 0x053C, 0x0007, 0x0012,
+            MM_Actor_Spawn(&MM_gPlayState->actorCtx, MM_gPlayState, ACTOR_DOOR_ANA, -0x1A4, 0x0000, 0x053C, 0x0007, 0x0012,
                         0x007F, 0x0307);
-            Actor_Spawn(&gPlayState->actorCtx, gPlayState, ACTOR_DOOR_ANA, -0x410, 0x0000, 0x02BD, 0x0007, 0x0013,
+            MM_Actor_Spawn(&MM_gPlayState->actorCtx, MM_gPlayState, ACTOR_DOOR_ANA, -0x410, 0x0000, 0x02BD, 0x0007, 0x0013,
                         0x007F, 0x0308);
 
-            Actor_Spawn(&gPlayState->actorCtx, gPlayState, ACTOR_OBJ_SYOKUDAI, -422.0f, 0.0f, 1297.0f, 1, 0, 0,
+            MM_Actor_Spawn(&MM_gPlayState->actorCtx, MM_gPlayState, ACTOR_OBJ_SYOKUDAI, -422.0f, 0.0f, 1297.0f, 1, 0, 0,
                         torchParams);
-            Actor_Spawn(&gPlayState->actorCtx, gPlayState, ACTOR_OBJ_SYOKUDAI, -1040.0f, 0.0f, 658.0f, 1, 0, 0,
+            MM_Actor_Spawn(&MM_gPlayState->actorCtx, MM_gPlayState, ACTOR_OBJ_SYOKUDAI, -1040.0f, 0.0f, 658.0f, 1, 0, 0,
                         torchParams);
         }
         isSpawningJPGrottos = false;

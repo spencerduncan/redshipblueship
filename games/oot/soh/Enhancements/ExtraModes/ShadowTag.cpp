@@ -3,7 +3,7 @@
 #include "soh/ShipInit.hpp"
 #include "functions.h"
 
-extern "C" PlayState* gPlayState;
+extern "C" PlayState* OoT_gPlayState;
 
 static constexpr int32_t CVAR_SHADOW_TAG_DEFAULT = 0;
 #define CVAR_SHADOW_TAG_NAME CVAR_ENHANCEMENT("ShadowTag")
@@ -17,8 +17,8 @@ static constexpr s8 ROOM_BLUE_POE = 13;
 static constexpr s8 ROOM_RED_POE = 12;
 
 static void OnPlayerUpdateShadowTag() {
-    if (gPlayState->sceneNum == SCENE_FOREST_TEMPLE) {
-        switch (gPlayState->roomCtx.curRoom.num) {
+    if (OoT_gPlayState->sceneNum == SCENE_FOREST_TEMPLE) {
+        switch (OoT_gPlayState->roomCtx.curRoom.num) {
             case ROOM_GREEN_POE:
             case ROOM_BLUE_POE:
             case ROOM_RED_POE:
@@ -29,7 +29,7 @@ static void OnPlayerUpdateShadowTag() {
     }
 
     if (shouldSpawn && (delayTimer <= 0)) {
-        Actor_Spawn(&gPlayState->actorCtx, gPlayState, ACTOR_EN_WALLMAS, 0, 0, 0, 0, 0, 0, 3, false);
+        OoT_Actor_Spawn(&OoT_gPlayState->actorCtx, OoT_gPlayState, ACTOR_EN_WALLMAS, 0, 0, 0, 0, 0, 0, 3, false);
         shouldSpawn = false;
     } else {
         delayTimer--;

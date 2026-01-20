@@ -10,7 +10,7 @@
 extern "C" {
 #include "functions.h"
 #include "variables.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 #define CVAR_INT_SHIP_INIT(cvar, val) \
@@ -1043,7 +1043,7 @@ void SohMenu::AddMenuEnhancements() {
             bool knifeIsBroken = gSaveContext.swordHealth == 0.0f;
 
             if (hasGiantsKnife && (hasBrokenKnife != knifeIsBroken)) {
-                func_800849EC(gPlayState);
+                func_800849EC(OoT_gPlayState);
             }
         })
         .Options(

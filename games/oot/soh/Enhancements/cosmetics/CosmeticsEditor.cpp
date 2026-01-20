@@ -50,7 +50,7 @@ extern "C" {
 #include "overlays/ovl_Magic_Wind/ovl_Magic_Wind.h"
 
 extern SaveContext gSaveContext;
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 void ResourceMgr_PatchGfxByName(const char* path, const char* patchName, int index, Gfx instruction);
 void ResourceMgr_PatchGfxCopyCommandByName(const char* path, const char* patchName, int destinationIndex,
                                            int sourceIndex);
@@ -160,7 +160,7 @@ Color_RGBA8 ColorRGBA8(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
     4. Color is embedded in the texture itself
 
     I would recommend first finding the draw function for whatever you are looking for. In most cases this will be an actor, and the actor's draw
-    func will be at the bottom of their overlay file, `EnCow_Draw` for ACTOR_EN_COW is one example. There can also be additional nested draw methods
+    func will be at the bottom of their overlay file, `OoT_EnCow_Draw` for ACTOR_EN_COW is one example. There can also be additional nested draw methods
     like drawing each limb of an actor for instance that you will also want to inspect. What you are looking for is any sort of RGB values, or calls
     directly to gDPSetPrimColor/gDPSetEnvColor in code. If you find one, try changing the arguments and see if that's what you are looking for.
 
@@ -1500,9 +1500,9 @@ void ApplyOrResetCustomGfxPatches(bool manualChange) {
                   gsDPSetEnvColor(color.r, color.g, color.b, 128));
     }
 
-    if (gPlayState != nullptr) {
+    if (OoT_gPlayState != nullptr) {
         if (CVarGetInteger(CVAR_COSMETIC("Link.BodySize.Changed"), 0)) {
-            static Player* player = GET_PLAYER(gPlayState);
+            static Player* player = GET_PLAYER(OoT_gPlayState);
             float scale = CVarGetFloat(CVAR_COSMETIC("Link.BodySize.Value"), 0.01f);
             player->actor.scale.x = scale;
             player->actor.scale.y = scale;
@@ -1914,8 +1914,8 @@ void DrawSillyTab() {
                           UIWidgets::ButtonOptions().Size(ImVec2(80, 36)).Padding(ImVec2(5.0f, 0.0f)))) {
         CVarClear(CVAR_COSMETIC("Link.BodySize.Value"));
         CVarClear(CVAR_COSMETIC("Link.BodySize.Changed"));
-        if (gPlayState != nullptr) {
-            static Player* player = GET_PLAYER(gPlayState);
+        if (OoT_gPlayState != nullptr) {
+            static Player* player = GET_PLAYER(OoT_gPlayState);
             player->actor.scale.x = 0.01f;
             player->actor.scale.y = 0.01f;
             player->actor.scale.z = 0.01f;

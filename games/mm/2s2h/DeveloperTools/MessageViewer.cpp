@@ -36,11 +36,11 @@ static std::string ParseEscapeSequences(const std::string& input) {
 }
 
 static bool ValidateTextIdExists(uint16_t textId) {
-    if (gPlayState == nullptr) {
+    if (MM_gPlayState == nullptr) {
         return false;
     }
 
-    MessageTableEntry* msgEntry = gPlayState->msgCtx.messageTableNES;
+    MessageTableEntry* msgEntry = MM_gPlayState->msgCtx.messageTableNES;
     if (msgEntry == nullptr) {
         return false;
     }
@@ -181,7 +181,7 @@ void MessageViewerWindow::LoadMessageToEditor() {
 
     // Message header format (11 bytes) - see: https://wiki.cloudmodding.com/mm/Text_Format
     // Bytes 0-1 are stored as raw bytes in segment[] (not packed)
-    // Game code reads bytes 0-1 as a 16-bit value and extracts fields using bit masks (see Message_OpenText() in
+    // Game code reads bytes 0-1 as a 16-bit value and extracts fields using bit masks (see MM_Message_OpenText() in
     // z_message.c:3396-3402) Message_DecodeHeader() reads bytes 2-10 (icon, nextTextId, costs, padding) - see
     // z_message.c:2131-2173 We store/load raw bytes directly to match CustomMessage system format
 
@@ -243,20 +243,20 @@ void MessageDebug_StartTextBox(const char* tableId, uint16_t textId, uint8_t lan
         return;
     }
 
-    const auto player = GET_PLAYER(gPlayState);
+    const auto player = GET_PLAYER(MM_gPlayState);
     if (player == nullptr) {
         return;
     }
 
-    Message_StartTextbox(gPlayState, textId, &player->actor);
+    MM_Message_StartTextbox(MM_gPlayState, textId, &player->actor);
 }
 
 void MessageDebug_DisplayCustomMessage(const char* customMessage) {
-    if (gPlayState == nullptr) {
+    if (MM_gPlayState == nullptr) {
         return;
     }
 
-    const auto player = GET_PLAYER(gPlayState);
+    const auto player = GET_PLAYER(MM_gPlayState);
     if (player == nullptr) {
         return;
     }
