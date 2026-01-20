@@ -1,5 +1,5 @@
 #include <libultraship/libultra.h>
-#include "OoT_sintable.c"
+#include "sintable.c"
 
 s16 OoT_sins(u16 x) {
     s16 value;

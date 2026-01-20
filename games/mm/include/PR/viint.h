@@ -1,7 +1,7 @@
 #ifndef PR_VIINT_H
 #define PR_VIINT_H
 
-#include <libultraship/libultra/MM_vi.h>
+#include <libultraship/libultra/vi.h>
 
 #if 0
 #include "ultratypes.h"
