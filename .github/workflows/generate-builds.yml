@@ -14,7 +14,14 @@ jobs:
       uses: actions/checkout@v4
       with:
         submodules: true
+    - name: Restore soh.o2r Cache
+      id: soh-otr-cache
+      uses: actions/cache@v4
+      with:
+        key: soh-otr-v1-${{ hashFiles('games/**/*.c', 'games/**/*.h', 'games/**/*.xml', 'OTRExporter/**/*.cpp', 'OTRExporter/**/*.h', 'ZAPDTR/**/*.cpp', 'ZAPDTR/**/*.h') }}
+        path: soh.o2r
     - name: Configure ccache
+      if: steps.soh-otr-cache.outputs.cache-hit != 'true'
       uses: hendrikmuhs/ccache-action@v1.2
       with:
         save: ${{ github.ref_name == github.event.repository.default_branch }}
@@ -23,10 +30,12 @@ jobs:
           ${{ runner.os }}-otr-ccache-${{ github.ref }}
           ${{ runner.os }}-otr-ccache
     - name: Install dependencies
+      if: steps.soh-otr-cache.outputs.cache-hit != 'true'
       run: |
         sudo apt-get update
         sudo apt-get install -y $(cat .github/workflows/apt-deps.txt) libzip-dev zipcmp zipmerge ziptool
     - name: Restore Cached deps folder
+      if: steps.soh-otr-cache.outputs.cache-hit != 'true'
       uses: actions/cache/restore@v4
       with:
         key: ${{ runner.os }}-deps-${{ github.ref }}-${{ github.sha }}
@@ -35,8 +44,10 @@ jobs:
           ${{ runner.os }}-deps-
         path: deps
     - name: Create deps folder
+      if: steps.soh-otr-cache.outputs.cache-hit != 'true'
       run: mkdir -p deps
     - name: Install latest SDL
+      if: steps.soh-otr-cache.outputs.cache-hit != 'true'
       run: |
         export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
         if [ ! -d "deps/SDL2-2.30.3" ]; then
@@ -49,6 +60,7 @@ jobs:
         sudo make install
         sudo cp -av /usr/local/lib/libSDL* /lib/x86_64-linux-gnu/
     - name: Install latest tinyxml2
+      if: steps.soh-otr-cache.outputs.cache-hit != 'true'
       run: |
         sudo apt-get remove libtinyxml2-dev
         export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
@@ -63,6 +75,7 @@ jobs:
         make
         sudo make install
     - name: Generate soh.o2r
+      if: steps.soh-otr-cache.outputs.cache-hit != 'true'
       run: |
         export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
         cmake --no-warn-unused-cli -H. -Bbuild-cmake -GNinja -DCMAKE_BUILD_TYPE:STRING=Release
