@@ -114,6 +114,11 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set_source_files_properties(2s2h/BenPort.cpp PROPERTIES COMPILE_FLAGS "/utf-8")
 endif()
 
+# Exclude GameExports.cpp unless building as shared library (added conditionally later)
+if(NOT REDSHIP_BUILD_SHARED)
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/GameExports\\.cpp")
+endif()
+
 list(FILTER ship__ EXCLUDE REGEX "2s2h/Extractor/*")
 
 if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
