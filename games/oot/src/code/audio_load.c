@@ -78,7 +78,7 @@ s32 OoT_sAudioLoadPad1[2]; // file padding
 s32 D_8016B780;
 s32 sAudioLoadPad2[4]; // double file padding?
 
-DmaHandler OoT_sDmaHandler = OoT_osEPiStartDma;
+DmaHandler OoT_sDmaHandler = osEPiStartDma;
 void* OoT_sUnusedHandler = NULL;
 
 s32 gAudioContextInitalized = false;
@@ -961,7 +961,7 @@ void OoT_AudioLoad_SyncDma(uintptr_t devAddr, u8* addr, size_t size, s32 medium)
             break;
         }
         OoT_AudioLoad_Dma(ioMesg, OS_MESG_PRI_HIGH, OS_READ, devAddr, addr, 0x400, msgQueue, medium, "FastCopy");
-        OoT_osRecvMesg(msgQueue, NULL, OS_MESG_BLOCK);
+        osRecvMesg(msgQueue, NULL, OS_MESG_BLOCK);
         size -= 0x400;
         devAddr += 0x400;
         addr += 0x400;
@@ -969,7 +969,7 @@ void OoT_AudioLoad_SyncDma(uintptr_t devAddr, u8* addr, size_t size, s32 medium)
 
     if (size != 0) {
         OoT_AudioLoad_Dma(ioMesg, OS_MESG_PRI_HIGH, OS_READ, devAddr, addr, size, msgQueue, medium, "FastCopy");
-        OoT_osRecvMesg(msgQueue, NULL, OS_MESG_BLOCK);
+        osRecvMesg(msgQueue, NULL, OS_MESG_BLOCK);
     }
 }
 
@@ -1286,16 +1286,16 @@ void OoT_AudioLoad_Init(void* heap, size_t heapSize) {
     gAudioContext.rspTask[0].task.t.data_size = 0;
     gAudioContext.rspTask[1].task.t.data_size = 0;
 
-    OoT_osCreateMesgQueue(&gAudioContext.syncDmaQueue, &gAudioContext.syncDmaMesg, 1);
-    OoT_osCreateMesgQueue(&gAudioContext.currAudioFrameDmaQueue, gAudioContext.currAudioFrameDmaMesgBuf,
+    osCreateMesgQueue(&gAudioContext.syncDmaQueue, &gAudioContext.syncDmaMesg, 1);
+    osCreateMesgQueue(&gAudioContext.currAudioFrameDmaQueue, gAudioContext.currAudioFrameDmaMesgBuf,
                       ARRAY_COUNT(gAudioContext.currAudioFrameDmaMesgBuf));
-    OoT_osCreateMesgQueue(&gAudioContext.externalLoadQueue, gAudioContext.externalLoadMesgBuf,
+    osCreateMesgQueue(&gAudioContext.externalLoadQueue, gAudioContext.externalLoadMesgBuf,
                       ARRAY_COUNT(gAudioContext.externalLoadMesgBuf));
-    OoT_osCreateMesgQueue(&gAudioContext.preloadSampleQueue, gAudioContext.preloadSampleMesgBuf,
+    osCreateMesgQueue(&gAudioContext.preloadSampleQueue, gAudioContext.preloadSampleMesgBuf,
                       ARRAY_COUNT(gAudioContext.preloadSampleMesgBuf));
     gAudioContext.curAudioFrameDmaCount = 0;
     gAudioContext.sampleDmaCount = 0;
-    gAudioContext.cartHandle = OoT_osCartRomInit();
+    gAudioContext.cartHandle = osCartRomInit();
 
     if (heap == NULL) {
         gAudioContext.audioHeap = OoT_gAudioHeap;
@@ -1458,7 +1458,7 @@ void OoT_AudioLoad_Init(void* heap, size_t heapSize) {
 
     AudioHeap_AllocPoolInit(&gAudioContext.permanentPool, addr, D_8014A6C4.permanentPoolSize);
     gAudioContextInitalized = true;
-    OoT_osSendMesg(gAudioContext.taskStartQueueP, OS_MESG_32(gAudioContext.totalTaskCnt), OS_MESG_NOBLOCK);
+    osSendMesg(gAudioContext.taskStartQueueP, OS_MESG_32(gAudioContext.totalTaskCnt), OS_MESG_NOBLOCK);
 }
 
 void AudioLoad_InitSlowLoads(void) {
@@ -1570,7 +1570,7 @@ void AudioLoad_ProcessSlowLoads(s32 resetStatus) {
         switch (gAudioContext.slowLoads[i].status) {
             case LOAD_STATUS_LOADING:
                 if (slowLoad->medium != MEDIUM_UNK) {
-                    OoT_osRecvMesg(&slowLoad->msgqueue, NULL, OS_MESG_BLOCK);
+                    osRecvMesg(&slowLoad->msgqueue, NULL, OS_MESG_BLOCK);
                 }
 
                 if (resetStatus != 0) {
@@ -1610,7 +1610,7 @@ void AudioLoad_ProcessSlowLoads(s32 resetStatus) {
 
 void AudioLoad_DmaSlowCopy(AudioSlowLoad* slowLoad, size_t size) {
     OoT_Audio_InvalDCache(slowLoad->curRamAddr, size);
-    OoT_osCreateMesgQueue(&slowLoad->msgqueue, &slowLoad->msg, 1);
+    osCreateMesgQueue(&slowLoad->msgqueue, &slowLoad->msg, 1);
     OoT_AudioLoad_Dma(&slowLoad->ioMesg, OS_MESG_PRI_NORMAL, 0, slowLoad->curDevAddr, slowLoad->curRamAddr, size,
                   &slowLoad->msgqueue, slowLoad->medium, "SLOWCOPY");
 }
@@ -1730,7 +1730,7 @@ AudioAsyncLoad* AudioLoad_StartAsyncLoad(uintptr_t devAddr, uintptr_t ramAddr, s
     asyncLoad->delay = 3;
     asyncLoad->medium = medium;
     asyncLoad->retMsg = retMsg;
-    OoT_osCreateMesgQueue(&asyncLoad->msgQueue, &asyncLoad->msg, 1);
+    osCreateMesgQueue(&asyncLoad->msgQueue, &asyncLoad->msg, 1);
     return asyncLoad;
 }
 
@@ -1746,8 +1746,8 @@ void AudioLoad_ProcessAsyncLoads(s32 resetStatus) {
         if (resetStatus != 0) {
             // Clear and ignore queue if resetting.
             do {
-            } while (OoT_osRecvMesg(&gAudioContext.asyncLoadUnkMediumQueue, (OSMesg*)&asyncLoad, OS_MESG_NOBLOCK) != -1);
-        } else if (OoT_osRecvMesg(&gAudioContext.asyncLoadUnkMediumQueue, (OSMesg*)&asyncLoad, OS_MESG_NOBLOCK) == -1) {
+            } while (osRecvMesg(&gAudioContext.asyncLoadUnkMediumQueue, (OSMesg*)&asyncLoad, OS_MESG_NOBLOCK) != -1);
+        } else if (osRecvMesg(&gAudioContext.asyncLoadUnkMediumQueue, (OSMesg*)&asyncLoad, OS_MESG_NOBLOCK) == -1) {
             gAudioContext.curUnkMediumLoad = NULL;
         } else {
             gAudioContext.curUnkMediumLoad = asyncLoad;
@@ -1804,7 +1804,7 @@ void AudioLoad_FinishAsyncLoad(AudioAsyncLoad* asyncLoad) {
 
     doneMsg.data32 = asyncLoad->retMsg;
     asyncLoad->status = LOAD_STATUS_WAITING;
-    OoT_osSendMesg(asyncLoad->retQueue, doneMsg, OS_MESG_NOBLOCK);
+    osSendMesg(asyncLoad->retQueue, doneMsg, OS_MESG_NOBLOCK);
 }
 
 void AudioLoad_ProcessAsyncLoad(AudioAsyncLoad* asyncLoad, s32 resetStatus) {
@@ -1819,10 +1819,10 @@ void AudioLoad_ProcessAsyncLoad(AudioAsyncLoad* asyncLoad, s32 resetStatus) {
         asyncLoad->delay = 0;
     } else if (resetStatus != 0) {
         // Await the previous DMA response synchronously, then return.
-        OoT_osRecvMesg(&asyncLoad->msgQueue, NULL, OS_MESG_BLOCK);
+        osRecvMesg(&asyncLoad->msgQueue, NULL, OS_MESG_BLOCK);
         asyncLoad->status = LOAD_STATUS_WAITING;
         return;
-    } else if (OoT_osRecvMesg(&asyncLoad->msgQueue, NULL, OS_MESG_NOBLOCK) == -1) {
+    } else if (osRecvMesg(&asyncLoad->msgQueue, NULL, OS_MESG_NOBLOCK) == -1) {
         // If the previous DMA step isn't done, return.
         return;
     }
@@ -1858,7 +1858,7 @@ void AudioLoad_ProcessAsyncLoad(AudioAsyncLoad* asyncLoad, s32 resetStatus) {
 void AudioLoad_AsyncDma(AudioAsyncLoad* asyncLoad, size_t size) {
     size = ALIGN16(size);
     OoT_Audio_InvalDCache(asyncLoad->curRamAddr, size);
-    OoT_osCreateMesgQueue(&asyncLoad->msgQueue, &asyncLoad->msg, 1);
+    osCreateMesgQueue(&asyncLoad->msgQueue, &asyncLoad->msg, 1);
     OoT_AudioLoad_Dma(&asyncLoad->ioMesg, 0, 0, asyncLoad->curDevAddr, asyncLoad->curRamAddr, size, &asyncLoad->msgQueue,
                   asyncLoad->medium, "BGCOPY");
 }
@@ -1981,11 +1981,11 @@ s32 AudioLoad_ProcessSamplePreloads(s32 resetStatus) {
     if (gAudioContext.preloadSampleStackTop > 0) {
         if (resetStatus != 0) {
             // Clear result queue and preload stack and return.
-            OoT_osRecvMesg(&gAudioContext.preloadSampleQueue, (OSMesg*)&preloadIndex, OS_MESG_NOBLOCK);
+            osRecvMesg(&gAudioContext.preloadSampleQueue, (OSMesg*)&preloadIndex, OS_MESG_NOBLOCK);
             gAudioContext.preloadSampleStackTop = 0;
             return 0;
         }
-        if (OoT_osRecvMesg(&gAudioContext.preloadSampleQueue, (OSMesg*)&preloadIndex, OS_MESG_NOBLOCK) == -1) {
+        if (osRecvMesg(&gAudioContext.preloadSampleQueue, (OSMesg*)&preloadIndex, OS_MESG_NOBLOCK) == -1) {
             // Previous preload is not done yet.
             return 0;
         }
@@ -2289,7 +2289,7 @@ void OoT_AudioLoad_ProcessScriptLoads(void) {
     u32 sp20;
     s8* isDone;
 
-    if (OoT_osRecvMesg(&OoT_sScriptLoadQueue, (OSMesg*)&sp20, OS_MESG_NOBLOCK) != -1) {
+    if (osRecvMesg(&OoT_sScriptLoadQueue, (OSMesg*)&sp20, OS_MESG_NOBLOCK) != -1) {
         temp = sp20 >> 24;
         isDone = OoT_sScriptLoadDonePointers[temp];
         if (isDone != NULL) {
@@ -2299,5 +2299,5 @@ void OoT_AudioLoad_ProcessScriptLoads(void) {
 }
 
 void OoT_AudioLoad_InitScriptLoads(void) {
-    OoT_osCreateMesgQueue(&OoT_sScriptLoadQueue, OoT_sScriptLoadMesgBuf, ARRAY_COUNT(OoT_sScriptLoadMesgBuf));
+    osCreateMesgQueue(&OoT_sScriptLoadQueue, OoT_sScriptLoadMesgBuf, ARRAY_COUNT(OoT_sScriptLoadMesgBuf));
 }

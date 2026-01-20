@@ -945,7 +945,7 @@ void MM_AudioHeap_Init(void) {
 
     // audio buffer parameters
     gAudioCtx.audioBufferParameters.samplingFreq = spec->samplingFreq;
-    gAudioCtx.audioBufferParameters.aiSamplingFreq = MM_osAiSetFrequency(gAudioCtx.audioBufferParameters.samplingFreq);
+    gAudioCtx.audioBufferParameters.aiSamplingFreq = osAiSetFrequency(gAudioCtx.audioBufferParameters.samplingFreq);
 
     gAudioCtx.audioBufferParameters.numSamplesPerFrameTarget =
         ALIGN16(gAudioCtx.audioBufferParameters.samplingFreq / gAudioCtx.refreshRate);

@@ -205,13 +205,13 @@ void func_801229FC(Player* player) {
         s16 objectId = sMaskObjectIds[(u8)player->maskId - 1];
 
         // #region 2S2H [Port] Consider the masks already loaded
-        // MM_osCreateMesgQueue(&player->maskObjectLoadQueue, &player->maskObjectLoadMsg, 1);
+        // osCreateMesgQueue(&player->maskObjectLoadQueue, &player->maskObjectLoadMsg, 1);
         // MM_DmaMgr_SendRequestImpl(&player->maskDmaRequest, player->maskObjectSegment, MM_gObjectTable[objectId].vromStart,
         //                        MM_gObjectTable[objectId].vromEnd - MM_gObjectTable[objectId].vromStart, 0,
         //                        &player->maskObjectLoadQueue, OS_MESG_PTR(NULL));
         player->maskObjectLoadState++;
     } else if (player->maskObjectLoadState == 2) {
-        // if (MM_osRecvMesg(&player->maskObjectLoadQueue, NULL, OS_MESG_NOBLOCK) == 0) {
+        // if (osRecvMesg(&player->maskObjectLoadQueue, NULL, OS_MESG_NOBLOCK) == 0) {
         if (true) {
             // #endregion
             player->maskObjectLoadState = 0;
@@ -2991,7 +2991,7 @@ void MM_Player_DrawGetItemImpl(PlayState* play, Player* player, Vec3f* refPos, s
 }
 
 void MM_Player_DrawGetItem(PlayState* play, Player* player) {
-    if (!player->giObjectLoading || (MM_osRecvMesg(&player->giObjectLoadQueue, NULL, OS_MESG_NOBLOCK) == 0)) {
+    if (!player->giObjectLoading || (osRecvMesg(&player->giObjectLoadQueue, NULL, OS_MESG_NOBLOCK) == 0)) {
         Vec3f refPos;
         s32 drawIdPlusOne;
 

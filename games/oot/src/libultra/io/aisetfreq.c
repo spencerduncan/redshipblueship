@@ -1,8 +1,8 @@
 #include "global.h"
 
-s32 OoT_osAiSetFrequency(u32 frequency) {
+s32 osAiSetFrequency(u32 frequency) {
     u8 bitrate;
-    f32 dacRateF = ((f32)OoT_osViClock / frequency) + 0.5f;
+    f32 dacRateF = ((f32)osViClock / frequency) + 0.5f;
     u32 dacRate = dacRateF;
 
     if (dacRate < 132) {
@@ -16,5 +16,5 @@ s32 OoT_osAiSetFrequency(u32 frequency) {
 
     HW_REG(AI_DACRATE_REG, u32) = dacRate - 1;
     HW_REG(AI_BITRATE_REG, u32) = bitrate - 1;
-    return OoT_osViClock / (s32)dacRate;
+    return osViClock / (s32)dacRate;
 }

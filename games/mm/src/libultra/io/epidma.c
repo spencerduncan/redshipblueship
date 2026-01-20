@@ -1,6 +1,6 @@
 #include "ultra64.h"
 
-s32 MM_osEPiStartDma(OSPiHandle* pihandle, OSIoMesg* mb, s32 direction) {
+s32 osEPiStartDma(OSPiHandle* pihandle, OSIoMesg* mb, s32 direction) {
     register s32 result;
 
     if (!__osPiDevMgr.active) {
@@ -16,9 +16,9 @@ s32 MM_osEPiStartDma(OSPiHandle* pihandle, OSIoMesg* mb, s32 direction) {
     }
 
     if (mb->hdr.pri == OS_MESG_PRI_HIGH) {
-        result = MM_osJamMesg(MM_osPiGetCmdQueue(), mb, OS_MESG_NOBLOCK);
+        result = osJamMesg(osPiGetCmdQueue(), mb, OS_MESG_NOBLOCK);
     } else {
-        result = MM_osSendMesg(MM_osPiGetCmdQueue(), mb, OS_MESG_NOBLOCK);
+        result = osSendMesg(osPiGetCmdQueue(), mb, OS_MESG_NOBLOCK);
     }
     return result;
 }

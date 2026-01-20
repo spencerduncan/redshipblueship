@@ -76,7 +76,7 @@ void OoT_IrqMgr_SendMesgForClient(IrqMgr* this, OSMesg msg) {
                 VT_COL(RED, WHITE) "irqmgr_SendMesgForClient:メッセージキューがあふれています mq=%08x cnt=%d\n" VT_RST,
                 iter->queue, iter->queue->validCount);
         } else {
-            OoT_osSendMesg(iter->queue, msg, OS_MESG_NOBLOCK);
+            osSendMesg(iter->queue, msg, OS_MESG_NOBLOCK);
         }
 
         iter = iter->prev;
@@ -93,8 +93,8 @@ void OoT_IrqMgr_JamMesgForClient(IrqMgr* this, OSMesg msg) {
                 VT_COL(RED, WHITE) "irqmgr_JamMesgForClient:メッセージキューがあふれています mq=%08x cnt=%d\n" VT_RST,
                 iter->queue, iter->queue->validCount);
         } else {
-            // mistake? the function's name suggests it would use OoT_osJamMesg
-            OoT_osSendMesg(iter->queue, msg, OS_MESG_NOBLOCK);
+            // mistake? the function's name suggests it would use osJamMesg
+            osSendMesg(iter->queue, msg, OS_MESG_NOBLOCK);
         }
         iter = iter->prev;
     }
@@ -107,7 +107,7 @@ void OoT_IrqMgr_HandlePreNMI(IrqMgr* this) {
     this->resetStatus = STATUS_PRENMI;
     OoT_sIrqMgrResetTime = this->resetTime = osGetTime();
 
-    OoT_osSetTimer(&this->timer, OS_USEC_TO_CYCLES(450000), 0ull, &this->queue, OS_MESG_32(PRENMI450_MSG));
+    osSetTimer(&this->timer, OS_USEC_TO_CYCLES(450000), 0ull, &this->queue, OS_MESG_32(PRENMI450_MSG));
     OoT_IrqMgr_JamMesgForClient(this, OS_MESG_PTR(&this->prenmiMsg));
 }
 
@@ -131,19 +131,19 @@ void OoT_IrqMgr_HandlePRENMI450(IrqMgr* this) {
     OoT_gIrqMgrResetStatus = temp;
     this->resetStatus = STATUS_NMI;
 
-    OoT_osSetTimer(&this->timer, OS_USEC_TO_CYCLES(30000), 0ull, &this->queue, OS_MESG_32(PRENMI480_MSG));
+    osSetTimer(&this->timer, OS_USEC_TO_CYCLES(30000), 0ull, &this->queue, OS_MESG_32(PRENMI480_MSG));
     OoT_IrqMgr_SendMesgForClient(this, OS_MESG_PTR(&this->nmiMsg));
 }
 
 void OoT_IrqMgr_HandlePRENMI480(IrqMgr* this) {
     u32 ret;
 
-    OoT_osSetTimer(&this->timer, OS_USEC_TO_CYCLES(20000), 0ull, &this->queue, OS_MESG_32(PRENMI500_MSG));
-    ret = OoT_osAfterPreNMI();
+    osSetTimer(&this->timer, OS_USEC_TO_CYCLES(20000), 0ull, &this->queue, OS_MESG_32(PRENMI500_MSG));
+    ret = osAfterPreNMI();
     if (ret) {
-        // "OoT_osAfterPreNMI returned %d !?"
+        // "osAfterPreNMI returned %d !?"
         osSyncPrintf("osAfterPreNMIが %d を返しました！？\n", ret);
-        OoT_osSetTimer(&this->timer, OS_USEC_TO_CYCLES(1000), 0ull, &this->queue, OS_MESG_32(PRENMI480_MSG));
+        osSetTimer(&this->timer, OS_USEC_TO_CYCLES(1000), 0ull, &this->queue, OS_MESG_32(PRENMI480_MSG));
     }
 }
 
@@ -173,7 +173,7 @@ void OoT_IrqMgr_ThreadEntry(void* arg0) {
     exit = false;
 
     while (!exit) {
-        OoT_osRecvMesg(&this->queue, &msg, OS_MESG_BLOCK);
+        osRecvMesg(&this->queue, &msg, OS_MESG_BLOCK);
         switch (msg.data32) {
             case RETRACE_MSG:
                 OoT_IrqMgr_HandleRetrace(this);
@@ -224,9 +224,9 @@ void OoT_IrqMgr_Init(IrqMgr* this, void* stack, OSPri pri, u8 retraceCount) {
     this->resetStatus = STATUS_IDLE;
     this->resetTime = 0;
 
-    OoT_osCreateMesgQueue(&this->queue, this->msgBuf, ARRAY_COUNT(this->msgBuf));
-    OoT_osSetEventMesg(OS_EVENT_PRENMI, &this->queue, OS_MESG_32(PRE_NMI_MSG));
-    OoT_osViSetEvent(&this->queue, OS_MESG_32(RETRACE_MSG), retraceCount);
+    osCreateMesgQueue(&this->queue, this->msgBuf, ARRAY_COUNT(this->msgBuf));
+    osSetEventMesg(OS_EVENT_PRENMI, &this->queue, OS_MESG_32(PRE_NMI_MSG));
+    osViSetEvent(&this->queue, OS_MESG_32(RETRACE_MSG), retraceCount);
     osCreateThread(&this->thread, 0x13, OoT_IrqMgr_ThreadEntry, this, stack, pri);
-    OoT_osStartThread(&this->thread);
+    osStartThread(&this->thread);
 }

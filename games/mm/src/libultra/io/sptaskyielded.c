@@ -1,6 +1,6 @@
 #include "ultra64.h"
 
-OSYieldResult MM_osSpTaskYielded(OSTask* task) {
+OSYieldResult osSpTaskYielded(OSTask* task) {
     s32 status = __osSpGetStatus();
     OSYieldResult result;
 

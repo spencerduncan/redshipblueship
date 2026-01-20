@@ -1,13 +1,13 @@
 #include "global.h"
 
-s32 OoT_osContStartReadData(OSMesgQueue* mq) {
+s32 osContStartReadData(OSMesgQueue* mq) {
     s32 ret;
 
     __osSiGetAccess();
     if (__osContLastPoll != 1) {
         __osPackReadData();
         __osSiRawStartDma(OS_WRITE, &__osPifInternalBuff);
-        OoT_osRecvMesg(mq, NULL, OS_MESG_BLOCK);
+        osRecvMesg(mq, NULL, OS_MESG_BLOCK);
     }
     ret = __osSiRawStartDma(OS_READ, &__osPifInternalBuff);
     __osContLastPoll = CONT_CMD_READ_BUTTON;
@@ -15,7 +15,7 @@ s32 OoT_osContStartReadData(OSMesgQueue* mq) {
     return ret;
 }
 
-void OoT_osContGetReadData(OSContPad* contData) {
+void osContGetReadData(OSContPad* contData) {
     u8* bufptr = (u8*)(&__osPifInternalBuff);
     __OSContReadHeader read;
     s32 i;

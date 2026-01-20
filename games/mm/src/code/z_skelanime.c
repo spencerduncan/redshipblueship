@@ -1047,7 +1047,7 @@ void AnimTaskQueue_AddLoadPlayerFrame(PlayState* play, PlayerAnimationHeader* an
         PlayerAnimationHeader* playerAnimHeader = Lib_SegmentedToVirtual(animation);
         Vec3s* ram = frameTable;
 
-        // MM_osCreateMesgQueue(&task->data.loadPlayerFrame.msgQueue, task->data.loadPlayerFrame.msg,
+        // osCreateMesgQueue(&task->data.loadPlayerFrame.msgQueue, task->data.loadPlayerFrame.msg,
         //                   ARRAY_COUNT(task->data.loadPlayerFrame.msg));
         //
         // char animPath[2048];
@@ -1164,7 +1164,7 @@ void AnimTaskQueue_AddActorMovement(PlayState* play, Actor* actor, SkelAnime* sk
 void AnimTask_LoadPlayerFrame(PlayState* play, AnimTaskData* data) {
     AnimTaskLoadPlayerFrame* task = &data->loadPlayerFrame;
 
-    // MM_osRecvMesg(&task->msgQueue, NULL, OS_MESG_BLOCK);
+    // osRecvMesg(&task->msgQueue, NULL, OS_MESG_BLOCK);
 }
 
 /**

@@ -98,11 +98,11 @@ void LogUtils_CheckValidPointer(const char* exp, void* ptr, const char* file, s3
 }
 
 void LogUtils_LogThreadId(const char* name, s32 line) {
-    osSyncPrintf("<%d %s %d>", OoT_osGetThreadId(NULL), name, line);
+    osSyncPrintf("<%d %s %d>", osGetThreadId(NULL), name, line);
 }
 
 void LogUtils_HungupThread(const char* name, s32 line) {
-    osSyncPrintf("*** HungUp in thread %d, [%s:%d] ***\n", OoT_osGetThreadId(NULL), name, line);
+    osSyncPrintf("*** HungUp in thread %d, [%s:%d] ***\n", osGetThreadId(NULL), name, line);
     OoT_Fault_AddHungupAndCrash(name, line);
 }
 

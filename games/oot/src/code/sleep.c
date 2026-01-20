@@ -5,9 +5,9 @@ void OoT_Sleep_Cycles(OSTime cycles) {
     OSMesg msg;
     OSTimer timer;
 
-    OoT_osCreateMesgQueue(&mq, &msg, OS_MESG_BLOCK);
-    OoT_osSetTimer(&timer, cycles, 0, &mq, OS_MESG_PTR(NULL));
-    OoT_osRecvMesg(&mq, NULL, OS_MESG_BLOCK);
+    osCreateMesgQueue(&mq, &msg, OS_MESG_BLOCK);
+    osSetTimer(&timer, cycles, 0, &mq, OS_MESG_PTR(NULL));
+    osRecvMesg(&mq, NULL, OS_MESG_BLOCK);
 }
 
 void OoT_Sleep_Nsec(u32 nsec) {

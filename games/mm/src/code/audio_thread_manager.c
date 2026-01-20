@@ -7,7 +7,7 @@ void AudioMgr_NotifyTaskDone(AudioMgr* audioMgr) {
     AudioTask* task = audioMgr->rspTask;
 
     if (audioMgr->rspTask->taskQueue != NULL) {
-        MM_osSendMesg(task->taskQueue, OS_MESG_PTR(NULL), OS_MESG_BLOCK);
+        osSendMesg(task->taskQueue, OS_MESG_PTR(NULL), OS_MESG_BLOCK);
     }
 }
 
@@ -24,7 +24,7 @@ void MM_AudioMgr_HandleRetrace(AudioMgr* audioMgr) {
     }
 
     while (!MQ_IS_EMPTY(&audioMgr->cmdQueue)) {
-        MM_osRecvMesg(&audioMgr->cmdQueue, NULL, OS_MESG_NOBLOCK);
+        osRecvMesg(&audioMgr->cmdQueue, NULL, OS_MESG_NOBLOCK);
     }
 
     if (audioMgr->rspTask != NULL) {
@@ -36,7 +36,7 @@ void MM_AudioMgr_HandleRetrace(AudioMgr* audioMgr) {
         audioMgr->audioTask.msgQ = &audioMgr->cmdQueue;
 
         audioMgr->audioTask.msg.ptr = NULL;
-        MM_osSendMesg(&audioMgr->sched->cmdQ, OS_MESG_PTR(&audioMgr->audioTask), OS_MESG_BLOCK);
+        osSendMesg(&audioMgr->sched->cmdQ, OS_MESG_PTR(&audioMgr->audioTask), OS_MESG_BLOCK);
         MM_Sched_SendEntryMsg(audioMgr->sched);
     }
 
@@ -64,17 +64,17 @@ void MM_AudioMgr_ThreadEntry(void* arg) {
     MM_Audio_Init();
     MM_AudioLoad_SetDmaHandler(MM_DmaMgr_DmaHandler);
     MM_Audio_InitSound();
-    MM_osSendMesg(&audioMgr->lockQueue, OS_MESG_PTR(NULL), OS_MESG_BLOCK);
+    osSendMesg(&audioMgr->lockQueue, OS_MESG_PTR(NULL), OS_MESG_BLOCK);
     MM_IrqMgr_AddClient(audioMgr->irqMgr, &irqClient, &audioMgr->interruptQueue);
 
     exit = false;
     while (!exit) {
-        MM_osRecvMesg(&audioMgr->interruptQueue, (OSMesg*)&msg, OS_MESG_BLOCK);
+        osRecvMesg(&audioMgr->interruptQueue, (OSMesg*)&msg, OS_MESG_BLOCK);
         switch (*msg) {
             case OS_SC_RETRACE_MSG:
                 MM_AudioMgr_HandleRetrace(audioMgr);
                 while (!MQ_IS_EMPTY(&audioMgr->interruptQueue)) {
-                    MM_osRecvMesg(&audioMgr->interruptQueue, (OSMesg*)&msg, OS_MESG_BLOCK);
+                    osRecvMesg(&audioMgr->interruptQueue, (OSMesg*)&msg, OS_MESG_BLOCK);
                     switch (*msg) {
                         case OS_SC_RETRACE_MSG:
                             break;
@@ -104,7 +104,7 @@ void MM_AudioMgr_ThreadEntry(void* arg) {
 }
 
 void MM_AudioMgr_Unlock(AudioMgr* audioMgr) {
-    MM_osRecvMesg(&audioMgr->lockQueue, NULL, OS_MESG_BLOCK);
+    osRecvMesg(&audioMgr->lockQueue, NULL, OS_MESG_BLOCK);
 }
 
 void MM_AudioMgr_Init(AudioMgr* audioMgr, void* stack, OSPri pri, OSId id, SchedContext* sched, IrqMgr* irqMgr) {
@@ -114,14 +114,14 @@ void MM_AudioMgr_Init(AudioMgr* audioMgr, void* stack, OSPri pri, OSId id, Sched
     audioMgr->irqMgr = irqMgr;
     audioMgr->rspTask = NULL;
 
-    MM_osCreateMesgQueue(&audioMgr->cmdQueue, audioMgr->cmdMsgBuf, ARRAY_COUNT(audioMgr->cmdMsgBuf));
-    MM_osCreateMesgQueue(&audioMgr->interruptQueue, audioMgr->interruptMsgBuf, ARRAY_COUNT(audioMgr->interruptMsgBuf));
-    MM_osCreateMesgQueue(&audioMgr->lockQueue, audioMgr->lockMsgBuf, ARRAY_COUNT(audioMgr->lockMsgBuf));
+    osCreateMesgQueue(&audioMgr->cmdQueue, audioMgr->cmdMsgBuf, ARRAY_COUNT(audioMgr->cmdMsgBuf));
+    osCreateMesgQueue(&audioMgr->interruptQueue, audioMgr->interruptMsgBuf, ARRAY_COUNT(audioMgr->interruptMsgBuf));
+    osCreateMesgQueue(&audioMgr->lockQueue, audioMgr->lockMsgBuf, ARRAY_COUNT(audioMgr->lockMsgBuf));
 
     MM_Audio_Init();
     MM_AudioLoad_SetDmaHandler(MM_DmaMgr_DmaHandler);
     MM_Audio_InitSound();
-    MM_osSendMesg(&audioMgr->lockQueue, OS_MESG_PTR(NULL), OS_MESG_BLOCK);
+    osSendMesg(&audioMgr->lockQueue, OS_MESG_PTR(NULL), OS_MESG_BLOCK);
 
     AudioSeq_SetPortVolumeScale(SEQ_PLAYER_BGM_MAIN, CVarGetFloat("gSettings.Audio.MainMusicVolume", 1.0f));
     AudioSeq_SetPortVolumeScale(SEQ_PLAYER_BGM_SUB, CVarGetFloat("gSettings.Audio.SubMusicVolume", 1.0f));
@@ -130,5 +130,5 @@ void MM_AudioMgr_Init(AudioMgr* audioMgr, void* stack, OSPri pri, OSId id, Sched
     AudioSeq_SetPortVolumeScale(SEQ_PLAYER_AMBIENCE, CVarGetFloat("gSettings.Audio.AmbienceVolume", 1.0f));
 
     // osCreateThread(&audioMgr->thread, id, MM_AudioMgr_ThreadEntry, audioMgr, stack, pri);
-    // MM_osStartThread(&audioMgr->thread);
+    // osStartThread(&audioMgr->thread);
 }

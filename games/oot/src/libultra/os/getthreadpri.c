@@ -1,6 +1,6 @@
 #include "global.h"
 
-OSPri OoT_osGetThreadPri(OSThread* thread) {
+OSPri osGetThreadPri(OSThread* thread) {
     if (thread == NULL) {
         thread = __osRunningThread;
     }

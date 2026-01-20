@@ -1,6 +1,6 @@
 #include "global.h"
 
-void OoT_osViSetMode(OSViMode* mode) {
+void osViSetMode(OSViMode* mode) {
     register u32 prevInt = __osDisableInt();
 
     __osViNext->modep = mode;

@@ -811,7 +811,7 @@ void OoT_AudioHeap_Init(void) {
     spec = &OoT_gAudioSpecs[gAudioContext.audioResetSpecIdToLoad];
     gAudioContext.sampleDmaCount = 0;
     gAudioContext.audioBufferParameters.frequency = spec->frequency;
-    gAudioContext.audioBufferParameters.aiFrequency = OoT_osAiSetFrequency(gAudioContext.audioBufferParameters.frequency);
+    gAudioContext.audioBufferParameters.aiFrequency = osAiSetFrequency(gAudioContext.audioBufferParameters.frequency);
     gAudioContext.audioBufferParameters.samplesPerFrameTarget =
         ((gAudioContext.audioBufferParameters.frequency / gAudioContext.refreshRate) + 0xF) & 0xFFF0;
     gAudioContext.audioBufferParameters.minAiBufferLength =

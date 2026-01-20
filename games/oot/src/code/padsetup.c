@@ -5,17 +5,17 @@ s32 OoT_PadSetup_Init(OSMesgQueue* mq, u8* outMask, OSContStatus* status) {
     s32 i;
 
     *outMask = 0xFF;
-    ret = OoT_osContInit(mq, outMask, status);
+    ret = osContInit(mq, outMask, status);
     if (ret != 0) {
         return ret;
     }
     if (*outMask == 0xFF) {
-        if (OoT_osContStartQuery(mq) != 0) {
+        if (osContStartQuery(mq) != 0) {
             return 1;
         }
 
-        OoT_osRecvMesg(mq, NULL, OS_MESG_BLOCK);
-        OoT_osContGetQuery(status);
+        osRecvMesg(mq, NULL, OS_MESG_BLOCK);
+        osContGetQuery(status);
 
         *outMask = 0;
         for (i = 0; i < 4; i++) {

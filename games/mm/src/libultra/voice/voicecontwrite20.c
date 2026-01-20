@@ -49,9 +49,9 @@ s32 __osVoiceContWrite20(OSMesgQueue* mq, s32 channel, u16 address, u8 dst[20]) 
 
         __osSiRawStartDma(OS_WRITE, &__osPfsPifRam);
         crc = __osVoiceContDataCrc(dst, ARRAY_COUNT(WRITE20FORMAT(ptr)->data));
-        MM_osRecvMesg(mq, NULL, OS_MESG_BLOCK);
+        osRecvMesg(mq, NULL, OS_MESG_BLOCK);
         __osSiRawStartDma(OS_READ, &__osPfsPifRam);
-        MM_osRecvMesg(mq, NULL, OS_MESG_BLOCK);
+        osRecvMesg(mq, NULL, OS_MESG_BLOCK);
 
         errorCode = CHNL_ERR(*WRITE20FORMAT(ptr));
 

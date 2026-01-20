@@ -7768,7 +7768,7 @@ void func_80838830(Player* this, s16 objectId) {
     if (objectId != OBJECT_UNSET_0) {
         // #region 2S2H [Port] We don't care to wait for the item to load, mark it as loaded immediately
         this->giObjectLoading = false;
-        // MM_osCreateMesgQueue(&this->giObjectLoadQueue, &this->giObjectLoadMsg, 1);
+        // osCreateMesgQueue(&this->giObjectLoadQueue, &this->giObjectLoadMsg, 1);
         // MM_DmaMgr_SendRequestImpl(&this->giObjectDmaRequest, this->giObjectSegment, MM_gObjectTable[objectId].vromStart,
         //                        MM_gObjectTable[objectId].vromEnd - MM_gObjectTable[objectId].vromStart, 0,
         //                        &this->giObjectLoadQueue, OS_MESG_PTR(NULL));

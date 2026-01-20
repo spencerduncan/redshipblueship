@@ -14,23 +14,23 @@ OSDevMgr __osPiDevMgr = { 0 };
 OSPiHandle* __osPiTable = NULL;
 OSPiHandle* __osCurrentHandle[2] ALIGNED(8) = { &__Dom1SpeedParam, &__Dom2SpeedParam };
 
-void MM_osCreatePiManager(OSPri pri, OSMesgQueue* cmdQ, OSMesg* cmdBuf, s32 cmdMsgCnt) {
+void osCreatePiManager(OSPri pri, OSMesgQueue* cmdQ, OSMesg* cmdBuf, s32 cmdMsgCnt) {
     u32 savedMask;
     OSPri oldPri;
     OSPri myPri;
 
     if (!__osPiDevMgr.active) {
-        MM_osCreateMesgQueue(cmdQ, cmdBuf, cmdMsgCnt);
-        MM_osCreateMesgQueue(&piEventQueue, MM_piEventBuf, ARRAY_COUNT(MM_piEventBuf));
+        osCreateMesgQueue(cmdQ, cmdBuf, cmdMsgCnt);
+        osCreateMesgQueue(&piEventQueue, MM_piEventBuf, ARRAY_COUNT(MM_piEventBuf));
         if (!__osPiAccessQueueEnabled) {
             __osPiCreateAccessQueue();
         }
-        MM_osSetEventMesg(OS_EVENT_PI, &piEventQueue, (OSMesg)0x22222222);
+        osSetEventMesg(OS_EVENT_PI, &piEventQueue, (OSMesg)0x22222222);
         oldPri = -1;
-        myPri = MM_osGetThreadPri(NULL);
+        myPri = osGetThreadPri(NULL);
         if (myPri < pri) {
             oldPri = myPri;
-            MM_osSetThreadPri(NULL, pri);
+            osSetThreadPri(NULL, pri);
         }
         savedMask = __osDisableInt();
         __osPiDevMgr.active = 1;
@@ -41,10 +41,10 @@ void MM_osCreatePiManager(OSPri pri, OSMesgQueue* cmdQ, OSMesg* cmdBuf, s32 cmdM
         __osPiDevMgr.piDmaCallback = __osPiRawStartDma;
         __osPiDevMgr.epiDmaCallback = __osEPiRawStartDma;
         osCreateThread(&sPiMgrThread, 0, __osDevMgrMain, &__osPiDevMgr, STACK_TOP(sPiMgrStack), pri);
-        MM_osStartThread(&sPiMgrThread);
+        osStartThread(&sPiMgrThread);
         __osRestoreInt(savedMask);
         if (oldPri != -1) {
-            MM_osSetThreadPri(NULL, oldPri);
+            osSetThreadPri(NULL, oldPri);
         }
     }
 }

@@ -1,6 +1,6 @@
 #include "ultra64.h"
 
-void MM_guOrthoF(float m[4][4], float l, float r, float b, float t, float n, float f, float scale) {
+void guOrthoF(float m[4][4], float l, float r, float b, float t, float n, float f, float scale) {
     int i;
     int j;
 
@@ -19,9 +19,9 @@ void MM_guOrthoF(float m[4][4], float l, float r, float b, float t, float n, flo
     }
 }
 
-void MM_guOrtho(Mtx* m, float l, float r, float b, float t, float n, float f, float scale) {
+void guOrtho(Mtx* m, float l, float r, float b, float t, float n, float f, float scale) {
     float mf[4][4];
 
-    MM_guOrthoF(mf, l, r, b, t, n, f, scale);
+    guOrthoF(mf, l, r, b, t, n, f, scale);
     guMtxF2L(mf, m);
 }

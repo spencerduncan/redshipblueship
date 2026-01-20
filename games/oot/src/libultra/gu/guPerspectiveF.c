@@ -1,6 +1,6 @@
 #include "global.h"
 
-void OoT_guPerspectiveF(f32 mf[4][4], u16* perspNorm, f32 fovy, f32 aspect, f32 near, f32 far, f32 scale) {
+void guPerspectiveF(f32 mf[4][4], u16* perspNorm, f32 fovy, f32 aspect, f32 near, f32 far, f32 scale) {
     f32 yscale;
     s32 row;
     s32 col;
@@ -33,10 +33,10 @@ void OoT_guPerspectiveF(f32 mf[4][4], u16* perspNorm, f32 fovy, f32 aspect, f32 
         }
     }
 }
-void OoT_guPerspective(Mtx* m, u16* perspNorm, f32 fovy, f32 aspect, f32 near, f32 far, f32 scale) {
+void guPerspective(Mtx* m, u16* perspNorm, f32 fovy, f32 aspect, f32 near, f32 far, f32 scale) {
     f32 mf[4][4];
 
-    OoT_guPerspectiveF(mf, perspNorm, fovy, aspect, near, far, scale);
+    guPerspectiveF(mf, perspNorm, fovy, aspect, near, far, scale);
     // guMtxF2L((MtxF*)mf, m);
     OoT_Matrix_MtxFToMtx((MtxF*)mf, m);
 }

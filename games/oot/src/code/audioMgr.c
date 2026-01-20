@@ -39,7 +39,7 @@ void OoT_AudioMgr_HandleRetrace(AudioMgr* audioMgr) {
     D_8016A558 += osGetTime() - D_8016A550;
     D_8016A550 = 0;
     if (audioMgr->rspTask != NULL) {
-        OoT_osRecvMesg(&audioMgr->unk_AC, NULL, OS_MESG_BLOCK);
+        osRecvMesg(&audioMgr->unk_AC, NULL, OS_MESG_BLOCK);
         func_800C3C80(audioMgr);
     }
     audioMgr->rspTask = rspTask;
@@ -56,13 +56,13 @@ void OoT_AudioMgr_ThreadEntry(void* arg0) {
     s16* msg = NULL;
 
     // while (true) {
-    OoT_osRecvMesg(&audioMgr->unk_74, (OSMesg*)&msg, OS_MESG_BLOCK);
+    osRecvMesg(&audioMgr->unk_74, (OSMesg*)&msg, OS_MESG_BLOCK);
     OoT_AudioMgr_HandleRetrace(audioMgr);
     /*switch (*msg) {
         case OS_SC_RETRACE_MSG:
             OoT_AudioMgr_HandleRetrace(audioMgr);
             while (audioMgr->unk_74.validCount != 0) {
-                OoT_osRecvMesg(&audioMgr->unk_74, (OSMesg*)&msg, OS_MESG_BLOCK);
+                osRecvMesg(&audioMgr->unk_74, (OSMesg*)&msg, OS_MESG_BLOCK);
                 switch (*msg) {
                     case OS_SC_RETRACE_MSG:
                         break;
@@ -80,7 +80,7 @@ void OoT_AudioMgr_ThreadEntry(void* arg0) {
 }
 
 void OoT_AudioMgr_Unlock(AudioMgr* audioMgr) {
-    OoT_osRecvMesg(&audioMgr->unk_C8, NULL, OS_MESG_BLOCK);
+    osRecvMesg(&audioMgr->unk_C8, NULL, OS_MESG_BLOCK);
 }
 
 void OoT_AudioMgr_Init(AudioMgr* audioMgr, void* stack, OSPri pri, OSId id, SchedContext* sched, IrqMgr* irqMgr) {
@@ -92,9 +92,9 @@ void OoT_AudioMgr_Init(AudioMgr* audioMgr, void* stack, OSPri pri, OSId id, Sche
     audioMgr->irqMgr = irqMgr;
     audioMgr->rspTask = NULL;
 
-    OoT_osCreateMesgQueue(&audioMgr->unk_AC, &audioMgr->unk_C4, 1);
-    OoT_osCreateMesgQueue(&audioMgr->unk_74, &audioMgr->unk_8C, 8);
-    OoT_osCreateMesgQueue(&audioMgr->unk_C8, &audioMgr->unk_E0, 1);
+    osCreateMesgQueue(&audioMgr->unk_AC, &audioMgr->unk_C4, 1);
+    osCreateMesgQueue(&audioMgr->unk_74, &audioMgr->unk_8C, 8);
+    osCreateMesgQueue(&audioMgr->unk_C8, &audioMgr->unk_E0, 1);
 
     osSendMesgPtr(&audioMgr->unk_AC, NULL, OS_MESG_BLOCK);
 
@@ -121,5 +121,5 @@ void OoT_AudioMgr_Init(AudioMgr* audioMgr, void* stack, OSPri pri, OSId id, Sche
     }
 
     // osCreateThread(&audioMgr->unk_E8, id, OoT_AudioMgr_ThreadEntry, audioMgr, stack, pri);
-    // OoT_osStartThread(&audioMgr->unk_E8);
+    // osStartThread(&audioMgr->unk_E8);
 }

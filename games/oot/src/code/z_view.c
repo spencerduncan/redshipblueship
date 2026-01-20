@@ -333,7 +333,7 @@ s32 func_800AAA9C(View* view) {
 
     func_800ABE74(view->eye.x, view->eye.y, view->eye.z);
     MtxF viewingF;
-    OoT_guLookAtF(viewingF.mf, view->eye.x, view->eye.y, view->eye.z, view->lookAt.x, view->lookAt.y, view->lookAt.z,
+    guLookAtF(viewingF.mf, view->eye.x, view->eye.y, view->eye.z, view->lookAt.x, view->lookAt.y, view->lookAt.z,
               view->up.x, view->up.y, view->up.z);
 
     // Some heuristics to identify instant camera movements and skip interpolation in that case
@@ -413,9 +413,9 @@ s32 func_800AAA9C(View* view) {
             HREG(86) = 12800;
             HREG(87) = 100;
         }
-        OoT_guPerspective(projection, &view->normal, HREG(83), HREG(84) / 10000.0f, HREG(85), HREG(86), HREG(87) / 100.0f);
+        guPerspective(projection, &view->normal, HREG(83), HREG(84) / 10000.0f, HREG(85), HREG(86), HREG(87) / 100.0f);
     } else {
-        OoT_guPerspective(projection, &view->normal, view->fovy, aspect, view->zNear, view->zFar, view->scale);
+        guPerspective(projection, &view->normal, view->fovy, aspect, view->zNear, view->zFar, view->scale);
     }
 
     if (QREG(88) & 1) {
@@ -504,7 +504,7 @@ s32 func_800AB0A8(View* view) {
     LOG_CHECK_NULL_POINTER("projection", projection);
     view->projectionPtr = projection;
 
-    OoT_guOrtho(projection, -(f32)OoT_gScreenWidth * 0.5f, (f32)OoT_gScreenWidth * 0.5f, -(f32)OoT_gScreenHeight * 0.5f,
+    guOrtho(projection, -(f32)OoT_gScreenWidth * 0.5f, (f32)OoT_gScreenWidth * 0.5f, -(f32)OoT_gScreenHeight * 0.5f,
             (f32)OoT_gScreenHeight * 0.5f, view->zNear, view->zFar, view->scale);
 
     view->projection = *projection;
@@ -544,7 +544,7 @@ s32 func_800AB2C4(View* view) {
     view->projectionPtr = projection;
     view->projectionFlippedPtr = projectionFlipped;
 
-    OoT_guOrtho(projection, -(f32)OoT_gScreenWidth * 0.5f, (f32)OoT_gScreenWidth * 0.5f, -(f32)OoT_gScreenHeight * 0.5f,
+    guOrtho(projection, -(f32)OoT_gScreenWidth * 0.5f, (f32)OoT_gScreenWidth * 0.5f, -(f32)OoT_gScreenHeight * 0.5f,
             (f32)OoT_gScreenHeight * 0.5f, -30, view->zFar, view->scale);
 
     // This is for z-targeting
@@ -597,7 +597,7 @@ s32 func_800AB560(View* view) {
     height = view->viewport.bottomY - view->viewport.topY;
 
     aspect = (f32)width / (f32)height;
-    OoT_guPerspective(projection, &view->normal, view->fovy, aspect, view->zNear, view->zFar, view->scale);
+    guPerspective(projection, &view->normal, view->fovy, aspect, view->zNear, view->zFar, view->scale);
 
     view->projection = *projection;
 
@@ -615,7 +615,7 @@ s32 func_800AB560(View* view) {
     }
 
     func_800ABE74(view->eye.x, view->eye.y, view->eye.z);
-    OoT_guLookAt(viewing, view->eye.x, view->eye.y, view->eye.z, view->lookAt.x, view->lookAt.y, view->lookAt.z, view->up.x,
+    guLookAt(viewing, view->eye.x, view->eye.y, view->eye.z, view->lookAt.x, view->lookAt.y, view->lookAt.z, view->up.x,
              view->up.y, view->up.z);
 
     view->viewing = *viewing;
@@ -631,7 +631,7 @@ s32 func_800AB944(View* view) {
     OPEN_DISPS(view->gfxCtx);
 
     func_800ABE74(view->eye.x, view->eye.y, view->eye.z);
-    OoT_guLookAt(view->viewingPtr, view->eye.x, view->eye.y, view->eye.z, view->lookAt.x, view->lookAt.y, view->lookAt.z,
+    guLookAt(view->viewingPtr, view->eye.x, view->eye.y, view->eye.z, view->lookAt.x, view->lookAt.y, view->lookAt.z,
              view->up.x, view->up.y, view->up.z);
 
     CLOSE_DISPS(view->gfxCtx);
@@ -668,7 +668,7 @@ s32 func_800AB9EC(View* view, s32 arg1, Gfx** gfxp) {
         LOG_CHECK_NULL_POINTER("projection", projection);
         view->projectionPtr = projection;
 
-        OoT_guOrtho(projection, -(f32)OoT_gScreenWidth * 0.5f, (f32)OoT_gScreenWidth * 0.5f, -(f32)OoT_gScreenHeight * 0.5f,
+        guOrtho(projection, -(f32)OoT_gScreenWidth * 0.5f, (f32)OoT_gScreenWidth * 0.5f, -(f32)OoT_gScreenHeight * 0.5f,
                 (f32)OoT_gScreenHeight * 0.5f, view->zNear, view->zFar, view->scale);
 
         view->projection = *projection;
@@ -682,7 +682,7 @@ s32 func_800AB9EC(View* view, s32 arg1, Gfx** gfxp) {
         width = view->viewport.rightX - view->viewport.leftX;
         height = view->viewport.bottomY - view->viewport.topY;
 
-        OoT_guPerspective(projection, &view->normal, view->fovy, (f32)width / (f32)height, view->zNear, view->zFar,
+        guPerspective(projection, &view->normal, view->fovy, (f32)width / (f32)height, view->zNear, view->zFar,
                       view->scale);
 
         view->projection = *projection;
@@ -697,7 +697,7 @@ s32 func_800AB9EC(View* view, s32 arg1, Gfx** gfxp) {
         view->viewingPtr = viewing;
 
         func_800ABE74(view->eye.x, view->eye.y, view->eye.z);
-        OoT_guLookAt(viewing, view->eye.x, view->eye.y, view->eye.z, view->lookAt.x, view->lookAt.y, view->lookAt.z,
+        guLookAt(viewing, view->eye.x, view->eye.y, view->eye.z, view->lookAt.x, view->lookAt.y, view->lookAt.z,
                  view->up.x, view->up.y, view->up.z);
 
         view->viewing = *viewing;

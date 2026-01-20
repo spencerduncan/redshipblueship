@@ -8,9 +8,9 @@
 #include "ultratypes.h"
 
 
-u32 MM_osAiGetLength(void);
-s32 MM_osAiSetFrequency(u32 frequency);
-s32 MM_osAiSetNextBuffer(void* buf, u32 size);
+u32 osAiGetLength(void);
+s32 osAiSetFrequency(u32 frequency);
+s32 osAiSetNextBuffer(void* buf, u32 size);
 
 #endif // 0
 

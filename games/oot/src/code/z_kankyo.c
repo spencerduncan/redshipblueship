@@ -698,7 +698,7 @@ void OoT_Environment_UpdateSkybox(PlayState* play, u8 skyboxId, EnvironmentConte
 
             // size = gSkyboxFiles[newSkybox1Index].file.vromEnd - gSkyboxFiles[newSkybox1Index].file.vromStart;
 
-            // OoT_osCreateMesgQueue(&envCtx->loadQueue, &envCtx->loadMsg, 1);
+            // osCreateMesgQueue(&envCtx->loadQueue, &envCtx->loadMsg, 1);
             // DmaMgr_SendRequest2(&envCtx->dmaRequest, (uintptr_t)skyboxCtx->staticSegments[0],
             // gSkyboxFiles[newSkybox1Index].file.vromStart, size, 0, &envCtx->loadQueue, NULL,
             //__FILE__, __LINE__);
@@ -717,7 +717,7 @@ void OoT_Environment_UpdateSkybox(PlayState* play, u8 skyboxId, EnvironmentConte
             envCtx->skybox2Index = newSkybox2Index;
 
             // size = gSkyboxFiles[newSkybox2Index].file.vromEnd - gSkyboxFiles[newSkybox2Index].file.vromStart;
-            // OoT_osCreateMesgQueue(&envCtx->loadQueue, &envCtx->loadMsg, 1);
+            // osCreateMesgQueue(&envCtx->loadQueue, &envCtx->loadMsg, 1);
             // DmaMgr_SendRequest2(&envCtx->dmaRequest, (uintptr_t)skyboxCtx->staticSegments[1],
             // gSkyboxFiles[newSkybox2Index].file.vromStart, size, 0, &envCtx->loadQueue, NULL,
             //__FILE__, __LINE__);
@@ -732,7 +732,7 @@ void OoT_Environment_UpdateSkybox(PlayState* play, u8 skyboxId, EnvironmentConte
                 LoadSkyboxPalette(skyboxCtx, 0, entryA.palettes[0], 16, 8);
 
                 // size = gSkyboxFiles[newSkybox1Index].palette.vromEnd -
-                // gSkyboxFiles[newSkybox1Index].palette.vromStart; OoT_osCreateMesgQueue(&envCtx->loadQueue,
+                // gSkyboxFiles[newSkybox1Index].palette.vromStart; osCreateMesgQueue(&envCtx->loadQueue,
                 // &envCtx->loadMsg, 1); DmaMgr_SendRequest2(&envCtx->dmaRequest, (uintptr_t)skyboxCtx->palettes,
                 // gSkyboxFiles[newSkybox1Index].palette.vromStart, size, 0, &envCtx->loadQueue, NULL,
                 //__FILE__, __LINE__);
@@ -741,7 +741,7 @@ void OoT_Environment_UpdateSkybox(PlayState* play, u8 skyboxId, EnvironmentConte
                 LoadSkyboxPalette(skyboxCtx, 1, entryA.palettes[0], 16, 8);
 
                 // size = gSkyboxFiles[newSkybox1Index].palette.vromEnd -
-                // gSkyboxFiles[newSkybox1Index].palette.vromStart; OoT_osCreateMesgQueue(&envCtx->loadQueue,
+                // gSkyboxFiles[newSkybox1Index].palette.vromStart; osCreateMesgQueue(&envCtx->loadQueue,
                 // &envCtx->loadMsg, 1); DmaMgr_SendRequest2(&envCtx->dmaRequest, (uintptr_t)skyboxCtx->palettes + size,
                 // gSkyboxFiles[newSkybox1Index].palette.vromStart, size, 0, &envCtx->loadQueue, NULL,
                 //__FILE__, __LINE__);
@@ -758,7 +758,7 @@ void OoT_Environment_UpdateSkybox(PlayState* play, u8 skyboxId, EnvironmentConte
                 LoadSkyboxPalette(skyboxCtx, 0, entryA.palettes[0], 16, 8);
 
                 /*size = gSkyboxFiles[newSkybox2Index].palette.vromEnd -
-                gSkyboxFiles[newSkybox2Index].palette.vromStart; OoT_osCreateMesgQueue(&envCtx->loadQueue, &envCtx->loadMsg,
+                gSkyboxFiles[newSkybox2Index].palette.vromStart; osCreateMesgQueue(&envCtx->loadQueue, &envCtx->loadMsg,
                 1); DmaMgr_SendRequest2(&envCtx->dmaRequest, (uintptr_t)skyboxCtx->palettes,
                                     gSkyboxFiles[newSkybox2Index].palette.vromStart, size, 0, &envCtx->loadQueue, NULL,
                                     __FILE__, __LINE__);*/
@@ -767,7 +767,7 @@ void OoT_Environment_UpdateSkybox(PlayState* play, u8 skyboxId, EnvironmentConte
                 LoadSkyboxPalette(skyboxCtx, 1, entryA.palettes[0], 16, 8);
 
                 /*size = gSkyboxFiles[newSkybox2Index].palette.vromEnd -
-                gSkyboxFiles[newSkybox2Index].palette.vromStart; OoT_osCreateMesgQueue(&envCtx->loadQueue, &envCtx->loadMsg,
+                gSkyboxFiles[newSkybox2Index].palette.vromStart; osCreateMesgQueue(&envCtx->loadQueue, &envCtx->loadMsg,
                 1); DmaMgr_SendRequest2(&envCtx->dmaRequest, (uintptr_t)skyboxCtx->palettes + size,
                                     gSkyboxFiles[newSkybox2Index].palette.vromStart, size, 0, &envCtx->loadQueue, NULL,
                                     __FILE__, __LINE__);*/
@@ -777,10 +777,10 @@ void OoT_Environment_UpdateSkybox(PlayState* play, u8 skyboxId, EnvironmentConte
         }
 
         if ((envCtx->skyboxDmaState == SKYBOX_DMA_FILE1_START) || (envCtx->skyboxDmaState == SKYBOX_DMA_FILE2_START)) {
-            // if (OoT_osRecvMesg(&envCtx->loadQueue, 0, OS_MESG_NOBLOCK) == 0)
+            // if (osRecvMesg(&envCtx->loadQueue, 0, OS_MESG_NOBLOCK) == 0)
             { envCtx->skyboxDmaState++; }
         } else if (envCtx->skyboxDmaState >= SKYBOX_DMA_FILE1_DONE) {
-            // if (OoT_osRecvMesg(&envCtx->loadQueue, 0, OS_MESG_NOBLOCK) == 0)
+            // if (osRecvMesg(&envCtx->loadQueue, 0, OS_MESG_NOBLOCK) == 0)
             { envCtx->skyboxDmaState = SKYBOX_DMA_INACTIVE; }
         }
 

@@ -1,6 +1,6 @@
 #include "ultra64.h"
 
-s32 MM_osJamMesg(OSMesgQueue* mq, OSMesg msg, s32 flag) {
+s32 osJamMesg(OSMesgQueue* mq, OSMesg msg, s32 flag) {
     register u32 saveMask = __osDisableInt();
 
     while (mq->validCount >= mq->msgCount) {
@@ -19,7 +19,7 @@ s32 MM_osJamMesg(OSMesgQueue* mq, OSMesg msg, s32 flag) {
     mq->validCount++;
 
     if (mq->mtQueue->next != NULL) {
-        MM_osStartThread(__osPopThread(&mq->mtQueue));
+        osStartThread(__osPopThread(&mq->mtQueue));
     }
 
     __osRestoreInt(saveMask);

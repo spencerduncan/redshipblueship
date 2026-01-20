@@ -21,11 +21,11 @@ void Sched_SwapFrameBuffer(CfbInfo* cfbInfo) {
 
     LOG_CHECK_VALID_POINTER("cfbinfo->swapbuffer", cfbInfo->swapBuffer);
     if (cfbInfo->swapBuffer != NULL) {
-        OoT_osViSwapBuffer(cfbInfo->swapBuffer);
+        osViSwapBuffer(cfbInfo->swapBuffer);
         cfbInfo->updateRate2 = cfbInfo->updateRate;
 
         if (sLogScheduler) {
-            osSyncPrintf("OoT_osViSwapBuffer %08x %08x %08x\n", OoT_osViGetCurrentFramebuffer(), OoT_osViGetNextFramebuffer(),
+            osSyncPrintf("osViSwapBuffer %08x %08x %08x\n", osViGetCurrentFramebuffer(), osViGetNextFramebuffer(),
                          (cfbInfo != NULL ? cfbInfo->swapBuffer : NULL));
         }
         width = cfbInfo->viMode != NULL ? cfbInfo->viMode->comRegs.width : (u32)OoT_gScreenWidth;
@@ -49,10 +49,10 @@ void Sched_SwapFrameBuffer(CfbInfo* cfbInfo) {
             HREG(95) = 0xD;
         }
         if (HREG(80) == 0xD && HREG(81) == 2) {
-            OoT_osViSetSpecialFeatures(HREG(82) != 0 ? OS_VI_GAMMA_ON : OS_VI_GAMMA_OFF);
-            OoT_osViSetSpecialFeatures(HREG(83) != 0 ? OS_VI_DITHER_FILTER_ON : OS_VI_DITHER_FILTER_OFF);
-            OoT_osViSetSpecialFeatures(HREG(84) != 0 ? OS_VI_GAMMA_DITHER_ON : OS_VI_GAMMA_DITHER_OFF);
-            OoT_osViSetSpecialFeatures(HREG(85) != 0 ? OS_VI_DIVOT_ON : OS_VI_DIVOT_OFF);
+            osViSetSpecialFeatures(HREG(82) != 0 ? OS_VI_GAMMA_ON : OS_VI_GAMMA_OFF);
+            osViSetSpecialFeatures(HREG(83) != 0 ? OS_VI_DITHER_FILTER_ON : OS_VI_DITHER_FILTER_OFF);
+            osViSetSpecialFeatures(HREG(84) != 0 ? OS_VI_GAMMA_DITHER_ON : OS_VI_GAMMA_DITHER_OFF);
+            osViSetSpecialFeatures(HREG(85) != 0 ? OS_VI_DIVOT_ON : OS_VI_DIVOT_OFF);
         }
     }
     cfbInfo->unk_10 = 0;
@@ -139,10 +139,10 @@ void OoT_Sched_Yield(SchedContext* sc) {
 
         sc->curRSPTask->state |= OS_SC_YIELD;
 
-        OoT_osSpTaskYield();
+        osSpTaskYield();
 
         if (sLogScheduler) {
-            osSyncPrintf("%08d:OoT_osSpTaskYield\n", (u32)(OS_CYCLES_TO_USEC(osGetTime())));
+            osSyncPrintf("%08d:osSpTaskYield\n", (u32)(OS_CYCLES_TO_USEC(osGetTime())));
         }
     }
 }
@@ -174,7 +174,7 @@ OSScTask* func_800C89D4(SchedContext* sc, OSScTask* task) {
         return NULL;
     }
 
-    if (OoT_osViGetCurrentFramebuffer() == (u32*)task->framebuffer->fb1) {
+    if (osViGetCurrentFramebuffer() == (u32*)task->framebuffer->fb1) {
         return NULL;
     }
 
@@ -233,7 +233,7 @@ void func_800C8BC4(SchedContext* sc, OSScTask* task) {
 u32 Sched_IsComplete(SchedContext* sc, OSScTask* task) {
     if (!(task->state & (OS_SC_DP | OS_SC_SP))) {
         if (task->msgQ != NULL) {
-            OoT_osSendMesg(task->msgQ, task->msg, OS_MESG_BLOCK);
+            osSendMesg(task->msgQ, task->msg, OS_MESG_BLOCK);
         }
 
         if (task->flags & OS_SC_SWAPBUFFER) {
@@ -264,7 +264,7 @@ void OoT_Sched_RunTask(SchedContext* sc, OSScTask* spTask, OSScTask* dpTask) {
 
         spTask->state &= ~(OS_SC_YIELD | OS_SC_YIELDED);
         osWritebackDCacheAll();
-        OoT_osSpTaskLoad(&spTask->list);
+        osSpTaskLoad(&spTask->list);
 
         if (spTask->list.t.type == M_AUDTASK) {
             OoT_sRSPAudioStartTime = osGetTime();
@@ -274,10 +274,10 @@ void OoT_Sched_RunTask(SchedContext* sc, OSScTask* spTask, OSScTask* dpTask) {
             OoT_sRSPOtherStartTime = osGetTime();
         }
 
-        OoT_osSpTaskStartGo(&spTask->list);
+        osSpTaskStartGo(&spTask->list);
         if (sLogScheduler) {
             osSyncPrintf(
-                "%08d:OoT_osSpTaskStartGo(%08x) %s\n", (u32)OS_CYCLES_TO_USEC(osGetTime()), &spTask->list,
+                "%08d:osSpTaskStartGo(%08x) %s\n", (u32)OS_CYCLES_TO_USEC(osGetTime()), &spTask->list,
                 (spTask->list.t.type == M_AUDTASK ? "AUDIO" : (spTask->list.t.type == M_GFXTASK ? "GRAPH" : "OTHER")));
         }
         sc->curRSPTask = spTask;
@@ -295,7 +295,7 @@ void OoT_Sched_HandleEntry(SchedContext* sc) {
     s32 state;
     OSMesg msg = OS_MESG_PTR(NULL);
 
-    while (OoT_osRecvMesg(&sc->cmdQ, &msg, OS_MESG_NOBLOCK) != -1) {
+    while (osRecvMesg(&sc->cmdQ, &msg, OS_MESG_NOBLOCK) != -1) {
         OoT_Sched_QueueTask(sc, msg.ptr);
     }
 
@@ -318,12 +318,12 @@ void OoT_Sched_HandleEntry(SchedContext* sc) {
 
 void OoT_Sched_HandleRetrace(SchedContext* sc) {
     if (sLogScheduler) {
-        osSyncPrintf("%08d:scHandleRetrace %08x\n", (u32)OS_CYCLES_TO_USEC(osGetTime()), OoT_osViGetCurrentFramebuffer());
+        osSyncPrintf("%08d:scHandleRetrace %08x\n", (u32)OS_CYCLES_TO_USEC(osGetTime()), osViGetCurrentFramebuffer());
     }
     OoT_ViConfig_UpdateBlack();
     sc->retraceCnt++;
 
-    if (OoT_osViGetCurrentFramebuffer() == (u32*)(sc->pendingSwapBuf1 != NULL ? sc->pendingSwapBuf1->swapBuffer : NULL)) {
+    if (osViGetCurrentFramebuffer() == (u32*)(sc->pendingSwapBuf1 != NULL ? sc->pendingSwapBuf1->swapBuffer : NULL)) {
         if (sc->curBuf != NULL) {
             sc->curBuf->unk_10 = 0;
         }
@@ -344,7 +344,7 @@ void OoT_Sched_HandleRetrace(SchedContext* sc) {
         }
     }
     if (sLogScheduler) {
-        osSyncPrintf("%08x %08x %08x %d\n", OoT_osViGetCurrentFramebuffer(), OoT_osViGetNextFramebuffer(),
+        osSyncPrintf("%08x %08x %08x %d\n", osViGetCurrentFramebuffer(), osViGetNextFramebuffer(),
                      sc->pendingSwapBuf1 != NULL ? sc->pendingSwapBuf1->swapBuffer : NULL,
                      sc->curBuf != NULL ? sc->curBuf->updateRate2 : 0);
     }
@@ -370,9 +370,9 @@ void OoT_Sched_HandleRSPDone(SchedContext* sc) {
     curRSPTask = sc->curRSPTask;
     sc->curRSPTask = NULL;
     if (sLogScheduler) {
-        osSyncPrintf("RSP DONE %d %d", curRSPTask->state & 0x10, OoT_osSpTaskYielded(&curRSPTask->list));
+        osSyncPrintf("RSP DONE %d %d", curRSPTask->state & 0x10, osSpTaskYielded(&curRSPTask->list));
     }
-    if (curRSPTask->state & OS_SC_YIELD && OoT_osSpTaskYielded(&curRSPTask->list)) {
+    if (curRSPTask->state & OS_SC_YIELD && osSpTaskYielded(&curRSPTask->list)) {
         if (sLogScheduler) {
             osSyncPrintf("[YIELDED]\n");
         }
@@ -441,7 +441,7 @@ void OoT_Sched_ThreadEntry(void* arg) {
             osSyncPrintf("%08d:待機中\n", (u32)OS_CYCLES_TO_USEC(osGetTime()));
         }
 
-        OoT_osRecvMesg(&sc->interruptQ, &msg, OS_MESG_BLOCK);
+        osRecvMesg(&sc->interruptQ, &msg, OS_MESG_BLOCK);
 
         switch (msg.data32) {
             case ENTRY_MSG:
@@ -482,11 +482,11 @@ void OoT_Sched_ThreadEntry(void* arg) {
 void OoT_Sched_Init(SchedContext* sc, void* stack, OSPri priority, UNK_TYPE arg3, UNK_TYPE arg4, IrqMgr* irqMgr) {
     memset(sc, 0, sizeof(SchedContext));
     sc->unk_24C = 1;
-    OoT_osCreateMesgQueue(&sc->interruptQ, sc->intBuf, 8);
-    OoT_osCreateMesgQueue(&sc->cmdQ, sc->cmdMsgBuf, 8);
-    OoT_osSetEventMesg(OS_EVENT_SP, &sc->interruptQ, OS_MESG_32(RSP_DONE_MSG));
-    OoT_osSetEventMesg(OS_EVENT_DP, &sc->interruptQ, OS_MESG_32(RDP_DONE_MSG));
+    osCreateMesgQueue(&sc->interruptQ, sc->intBuf, 8);
+    osCreateMesgQueue(&sc->cmdQ, sc->cmdMsgBuf, 8);
+    osSetEventMesg(OS_EVENT_SP, &sc->interruptQ, OS_MESG_32(RSP_DONE_MSG));
+    osSetEventMesg(OS_EVENT_DP, &sc->interruptQ, OS_MESG_32(RDP_DONE_MSG));
     OoT_IrqMgr_AddClient(irqMgr, &sc->irqClient, &sc->interruptQ);
     osCreateThread(&sc->thread, 5, OoT_Sched_ThreadEntry, sc, stack, priority);
-    OoT_osStartThread(&sc->thread);
+    osStartThread(&sc->thread);
 }

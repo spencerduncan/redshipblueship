@@ -155,12 +155,12 @@ void OoT_ViMode_Save(ViMode* viMode) {
         SREG(58) = 0;
         switch (SREG(59)) {
             case 1:
-                osSyncPrintf("OoT_osViModePalLan1\n");
-                OoT_ViMode_LogPrint(&OoT_osViModePalLan1);
+                osSyncPrintf("osViModePalLan1\n");
+                OoT_ViMode_LogPrint(&osViModePalLan1);
                 break;
             case 2:
-                osSyncPrintf("OoT_osViModeFpalLan1\n");
-                OoT_ViMode_LogPrint(&OoT_osViModeFpalLan1);
+                osSyncPrintf("osViModeFpalLan1\n");
+                OoT_ViMode_LogPrint(&osViModeFpalLan1);
                 break;
             default:
                 osSyncPrintf("Custom\n");
@@ -312,7 +312,7 @@ void OoT_ViMode_Update(ViMode* viMode, Input* input) {
                          viMode->unk_60);
         OoT_ViMode_ConfigureFeatures(viMode, viMode->viFeatures);
         if (viMode->viModeBase == 3) {
-            OoT_ViMode_LogPrint(&OoT_osViModeNtscLan1);
+            OoT_ViMode_LogPrint(&osViModeNtscLan1);
             OoT_ViMode_LogPrint(&viMode->customViMode);
             viMode->viModeBase = 2;
         }

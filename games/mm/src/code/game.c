@@ -243,14 +243,14 @@ void MM_GameState_Init(GameState* gameState, GameStateFunc init, GraphicsContext
     MM_SpeedMeter_Init(&sGameSpeedMeter);
     Rumble_Init();
 
-    MM_osSendMesg(&gameState->gfxCtx->queue, OS_MESG_PTR(NULL), OS_MESG_BLOCK);
+    osSendMesg(&gameState->gfxCtx->queue, OS_MESG_PTR(NULL), OS_MESG_BLOCK);
 }
 
 void MM_GameState_Destroy(GameState* gameState) {
     // BENTODO
     AudioMgr_StopAllSfxExceptSystem();
     Audio_Update();
-    MM_osRecvMesg(&gameState->gfxCtx->queue, NULL, OS_MESG_BLOCK);
+    osRecvMesg(&gameState->gfxCtx->queue, NULL, OS_MESG_BLOCK);
 
     if (gameState->destroy != NULL) {
         gameState->destroy(gameState);

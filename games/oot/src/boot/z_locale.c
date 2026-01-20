@@ -5,8 +5,8 @@ u32 gCurrentRegion = 0;
 LocaleCartInfo sCartInfo;
 
 void Locale_Init(void) {
-    OoT_osEPiReadIo(OoT_gCartHandle, 0x38, &sCartInfo.mediaFormat);
-    OoT_osEPiReadIo(OoT_gCartHandle, 0x3C, &sCartInfo.regionInfo);
+    osEPiReadIo(OoT_gCartHandle, 0x38, &sCartInfo.mediaFormat);
+    osEPiReadIo(OoT_gCartHandle, 0x3C, &sCartInfo.regionInfo);
 
     switch (sCartInfo.countryCode) {
         case 'J': // "NTSC-U (North America)"

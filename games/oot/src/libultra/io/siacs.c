@@ -6,8 +6,8 @@ u32 gOSSiAccessQueueCreated = 0;
 
 void __osSiCreateAccessQueue(void) {
     gOSSiAccessQueueCreated = 1;
-    OoT_osCreateMesgQueue(&gOSSiMessageQueue, &osSiMesgBuff[0], SIAccessQueueSize - 1);
-    OoT_osSendMesg(&gOSSiMessageQueue, NULL, OS_MESG_NOBLOCK);
+    osCreateMesgQueue(&gOSSiMessageQueue, &osSiMesgBuff[0], SIAccessQueueSize - 1);
+    osSendMesg(&gOSSiMessageQueue, NULL, OS_MESG_NOBLOCK);
 }
 
 void __osSiGetAccess(void) {
@@ -16,9 +16,9 @@ void __osSiGetAccess(void) {
     if (!gOSSiAccessQueueCreated) {
         __osSiCreateAccessQueue();
     }
-    OoT_osRecvMesg(&gOSSiMessageQueue, &mesg, OS_MESG_BLOCK);
+    osRecvMesg(&gOSSiMessageQueue, &mesg, OS_MESG_BLOCK);
 }
 
 void __osSiRelAccess(void) {
-    OoT_osSendMesg(&gOSSiMessageQueue, NULL, OS_MESG_NOBLOCK);
+    osSendMesg(&gOSSiMessageQueue, NULL, OS_MESG_NOBLOCK);
 }

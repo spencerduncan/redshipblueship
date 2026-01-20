@@ -37,9 +37,9 @@ s32 __osContRamRead(OSMesgQueue* ctrlrqueue, s32 channel, u16 addr, u8* buffer) 
         ((__OSContRamReadFormat*)bufptr)->hi = addr >> 3;                                    // send byte 1
         ((__OSContRamReadFormat*)bufptr)->lo = (s8)(__osContAddressCrc(addr) | (addr << 5)); // send byte 2
         __osSiRawStartDma(OS_WRITE, &__osPfsPifRam);
-        MM_osRecvMesg(ctrlrqueue, NULL, OS_MESG_BLOCK);
+        osRecvMesg(ctrlrqueue, NULL, OS_MESG_BLOCK);
         __osSiRawStartDma(OS_READ, &__osPfsPifRam);
-        MM_osRecvMesg(ctrlrqueue, NULL, OS_MESG_BLOCK);
+        osRecvMesg(ctrlrqueue, NULL, OS_MESG_BLOCK);
 
         ret = (((__OSContRamReadFormat*)bufptr)->rxsize & 0xC0) >> 4;
         if (!ret) {

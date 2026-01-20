@@ -291,22 +291,22 @@ void OoT_GameState_Update(GameState* gameState) {
         gfxCtx->xScale = OoT_gViConfigXScale;
         gfxCtx->yScale = OoT_gViConfigYScale;
         if (SREG(63) == 6 || (SREG(63) == 2u && osTvType == OS_TV_NTSC)) {
-            gfxCtx->viMode = &OoT_osViModeNtscLan1;
+            gfxCtx->viMode = &osViModeNtscLan1;
             gfxCtx->yScale = 1.0f;
         }
 
         if (SREG(63) == 5 || (SREG(63) == 2u && osTvType == OS_TV_MPAL)) {
-            gfxCtx->viMode = &OoT_osViModeMpalLan1;
+            gfxCtx->viMode = &osViModeMpalLan1;
             gfxCtx->yScale = 1.0f;
         }
 
         if (SREG(63) == 4 || (SREG(63) == 2u && osTvType == OS_TV_PAL)) {
-            gfxCtx->viMode = &OoT_osViModePalLan1;
+            gfxCtx->viMode = &osViModePalLan1;
             gfxCtx->yScale = 1.0f;
         }
 
         if (SREG(63) == 3 || (SREG(63) == 2u && osTvType == OS_TV_PAL)) {
-            gfxCtx->viMode = &OoT_osViModeFpalLan1;
+            gfxCtx->viMode = &osViModeFpalLan1;
             gfxCtx->yScale = 0.833f;
         }
     } else {
@@ -466,7 +466,7 @@ void OoT_GameState_Destroy(GameState* gameState) {
     osSyncPrintf("game デストラクタ開始\n"); // "game destructor start"
     func_800C3C20();
     func_800F3054();
-    OoT_osRecvMesg(&gameState->gfxCtx->queue, NULL, OS_MESG_BLOCK);
+    osRecvMesg(&gameState->gfxCtx->queue, NULL, OS_MESG_BLOCK);
     LOG_CHECK_NULL_POINTER("this->cleanup", gameState->destroy);
     if (gameState->destroy != NULL) {
         gameState->destroy(gameState);

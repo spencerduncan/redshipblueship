@@ -1087,7 +1087,7 @@ void MM_Environment_UpdateSkybox(u8 skyboxId, EnvironmentContext* envCtx, Skybox
         if ((envCtx->skybox1Index != skybox1Index) && (envCtx->skyboxDmaState == SKYBOX_DMA_INACTIVE)) {
             envCtx->skyboxDmaState = SKYBOX_DMA_TEXTURE1_START;
             // size = sNormalSkyFiles[skybox1Index].file.vromEnd - sNormalSkyFiles[skybox1Index].file.vromStart;
-            // MM_osCreateMesgQueue(&envCtx->loadQueue, envCtx->loadMsg, ARRAY_COUNT(envCtx->loadMsg));
+            // osCreateMesgQueue(&envCtx->loadQueue, envCtx->loadMsg, ARRAY_COUNT(envCtx->loadMsg));
             // MM_DmaMgr_SendRequestImpl(&envCtx->dmaRequest, skyboxCtx->staticSegments[0],
             //                        sNormalSkyFiles[skybox1Index].file.vromStart, size, 0, &envCtx->loadQueue,
             //                        OS_MESG_PTR(NULL));
@@ -1103,7 +1103,7 @@ void MM_Environment_UpdateSkybox(u8 skyboxId, EnvironmentContext* envCtx, Skybox
         if ((envCtx->skybox2Index != skybox2Index) && (envCtx->skyboxDmaState == SKYBOX_DMA_INACTIVE)) {
             envCtx->skyboxDmaState = SKYBOX_DMA_TEXTURE2_START;
             // size = sNormalSkyFiles[skybox2Index].file.vromEnd - sNormalSkyFiles[skybox2Index].file.vromStart;
-            // MM_osCreateMesgQueue(&envCtx->loadQueue, envCtx->loadMsg, ARRAY_COUNT(envCtx->loadMsg));
+            // osCreateMesgQueue(&envCtx->loadQueue, envCtx->loadMsg, ARRAY_COUNT(envCtx->loadMsg));
             // MM_DmaMgr_SendRequestImpl(&envCtx->dmaRequest, skyboxCtx->staticSegments[1],
             //                        sNormalSkyFiles[skybox2Index].file.vromStart, size, 0, &envCtx->loadQueue,
             //                        OS_MESG_PTR(NULL));
@@ -1117,7 +1117,7 @@ void MM_Environment_UpdateSkybox(u8 skyboxId, EnvironmentContext* envCtx, Skybox
 
         if ((envCtx->skyboxDmaState == SKYBOX_DMA_TEXTURE1_START) ||
             (envCtx->skyboxDmaState == SKYBOX_DMA_TEXTURE2_START)) {
-            // if (MM_osRecvMesg(&envCtx->loadQueue, NULL, 0) == 0) {
+            // if (osRecvMesg(&envCtx->loadQueue, NULL, 0) == 0) {
             if (true) {
                 envCtx->skyboxDmaState = SKYBOX_DMA_INACTIVE;
                 // 2S2H [Port] Since the skybox static segments point to OTR strings, we need to re-create the skybox

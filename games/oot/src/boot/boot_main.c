@@ -13,18 +13,18 @@ void cleararena(void) {
 void OoT_bootproc(void) {
     OoT_StackCheck_Init(&sBootThreadInfo, sBootThreadStack, sBootThreadStack + sizeof(sBootThreadStack), 0, -1, "boot");
 
-    osMemSize = OoT_osGetMemSize();
+    osMemSize = osGetMemSize();
     cleararena();
     __osInitialize_common();
     __osInitialize_autodetect();
 
-    OoT_gCartHandle = OoT_osCartRomInit();
-    OoT_osDriveRomInit();
+    OoT_gCartHandle = osCartRomInit();
+    osDriveRomInit();
     isPrintfInit();
     Locale_Init();
 
     OoT_StackCheck_Init(&sIdleThreadInfo, sIdleThreadStack, sIdleThreadStack + sizeof(sIdleThreadStack), 0, 256, "idle");
     osCreateThread(&OoT_sIdleThread, 1, OoT_Idle_ThreadEntry, NULL, sIdleThreadStack + sizeof(sIdleThreadStack),
                    Z_PRIORITY_MAIN);
-    OoT_osStartThread(&OoT_sIdleThread);
+    osStartThread(&OoT_sIdleThread);
 }

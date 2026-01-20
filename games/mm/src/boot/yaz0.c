@@ -56,10 +56,10 @@ void* MM_Yaz0_NextDMA(void* curSrcPos) {
             MM_sYaz0MaxPtr = dst + restSize + dmaSize;
         }
     } else {
-        oldPri = MM_osGetThreadPri(NULL);
-        MM_osSetThreadPri(NULL, 0x7F);
+        oldPri = osGetThreadPri(NULL);
+        osSetThreadPri(NULL, 0x7F);
         osSyncPrintf("圧縮展開異常\n");
-        MM_osSetThreadPri(NULL, oldPri);
+        osSetThreadPri(NULL, oldPri);
     }
 
     return dst;

@@ -1130,14 +1130,14 @@ void BombersNotebook_LoadFiles(BombersNotebook* this, s32 flag) {
                 break;
             }
             CmpDma_LoadAllFiles(this->scheduleDmaSegmentStart, this->scheduleDmaSegment, this->scheduleDmaSegmentSize);
-            MM_osCreateMesgQueue(&this->loadQueue, this->loadMsg, ARRAY_COUNT(this->loadMsg));
+            osCreateMesgQueue(&this->loadQueue, this->loadMsg, ARRAY_COUNT(this->loadMsg));
             MM_DmaMgr_SendRequestImpl(&this->dmaRequest, this->scheduleSegment, this->scheduleSegmentStart,
                                    this->scheduleSegmentSize, 0, &this->loadQueue, OS_MESG_PTR(NULL));
 #endif
             this->loadState = BOMBERS_NOTEBOOK_LOAD_STATE_STARTED;
             // fallthrough
         case BOMBERS_NOTEBOOK_LOAD_STATE_STARTED:
-            // if (MM_osRecvMesg(&this->loadQueue, NULL, flag) == 0) {
+            // if (osRecvMesg(&this->loadQueue, NULL, flag) == 0) {
             this->loadState = BOMBERS_NOTEBOOK_LOAD_STATE_DONE;
             //}
             break;

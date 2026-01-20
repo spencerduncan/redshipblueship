@@ -8,7 +8,7 @@
 s32 corrupted_init(OSPfs* pfs, __OSInodeCache* cache);
 s32 corrupted(OSPfs* pfs, __OSInodeUnit fpage, __OSInodeCache* cache);
 
-s32 MM_osPfsChecker(OSPfs* pfs) {
+s32 osPfsChecker(OSPfs* pfs) {
     s32 j;
     s32 ret;
     __OSInodeUnit next;

@@ -603,7 +603,7 @@ s32 func_8009728C(PlayState* play, RoomContext* roomCtx, s32 roomNum) {
         roomCtx->unk_34 =
             (void*)ALIGN16((intptr_t)roomCtx->bufPtrs[roomCtx->unk_30] - ((size + 8) * roomCtx->unk_30 + 7));
 
-        OoT_osCreateMesgQueue(&roomCtx->loadQueue, &roomCtx->loadMsg, 1);
+        osCreateMesgQueue(&roomCtx->loadQueue, &roomCtx->loadMsg, 1);
         DmaMgr_SendRequest2(&roomCtx->dmaRequest, roomCtx->unk_34, play->roomList[roomNum].vromStart, size, 0,
                             &roomCtx->loadQueue, OS_MESG_PTR(NULL), __FILE__, __LINE__);
         roomCtx->unk_30 ^= 1;
@@ -618,7 +618,7 @@ s32 func_800973FC(PlayState* play, RoomContext* roomCtx) {
     return OTRfunc_800973FC(play, roomCtx);
 
     if (roomCtx->status == 1) {
-        if (!OoT_osRecvMesg(&roomCtx->loadQueue, NULL, OS_MESG_NOBLOCK)) {
+        if (!osRecvMesg(&roomCtx->loadQueue, NULL, OS_MESG_NOBLOCK)) {
             roomCtx->status = 0;
             roomCtx->curRoom.segment = roomCtx->unk_34;
             OoT_gSegments[3] = VIRTUAL_TO_PHYSICAL(roomCtx->unk_34);
