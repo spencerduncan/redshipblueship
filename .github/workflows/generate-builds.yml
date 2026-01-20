@@ -18,9 +18,10 @@ jobs:
       uses: hendrikmuhs/ccache-action@v1.2
       with:
         save: ${{ github.ref_name == github.event.repository.default_branch }}
-        key: ${{ runner.os }}-otr-ccache-${{ github.ref }}-${{ github.sha }}
+        key: ${{ runner.os }}-otr-ccache-${{ github.ref }}
         restore-keys: |
           ${{ runner.os }}-otr-ccache-${{ github.ref }}
+          ${{ runner.os }}-otr-ccache-refs/heads/main
           ${{ runner.os }}-otr-ccache
     - name: Install dependencies
       run: |
@@ -87,9 +88,10 @@ jobs:
       with:
         create-symlink: true
         save: ${{ github.ref_name == github.event.repository.default_branch }}
-        key: ${{ runner.os }}-14-ccache-${{ github.ref }}-${{ github.sha }}
+        key: ${{ runner.os }}-14-ccache-${{ github.ref }}
         restore-keys: |
           ${{ runner.os }}-14-ccache-${{ github.ref }}
+          ${{ runner.os }}-14-ccache-refs/heads/main
           ${{ runner.os }}-14-ccache
     # Needed to apply sudo for macports cache restore
     - name: Install gtar wrapper
@@ -166,9 +168,10 @@ jobs:
       uses: hendrikmuhs/ccache-action@v1.2
       with:
         save: ${{ github.ref_name == github.event.repository.default_branch }}
-        key: ${{ runner.os }}-ccache-${{ github.ref }}-${{ github.sha }}
+        key: ${{ runner.os }}-ccache-${{ github.ref }}
         restore-keys: |
           ${{ runner.os }}-ccache-${{ github.ref }}
+          ${{ runner.os }}-ccache-refs/heads/main
           ${{ runner.os }}-ccache
     - name: Restore Cached deps folder
       id: restore-cache-deps
@@ -283,10 +286,11 @@ jobs:
         max-size: "2G"
         evict-old-files: job
         save: ${{ github.ref_name == github.event.repository.default_branch }}
-        key: ${{ runner.os }}-ccache-${{ github.ref }}-${{ github.sha }}
+        key: ${{ runner.os }}-sccache-${{ github.ref }}
         restore-keys: |
-          ${{ runner.os }}-ccache-${{ github.ref }}
-          ${{ runner.os }}-ccache
+          ${{ runner.os }}-sccache-${{ github.ref }}
+          ${{ runner.os }}-sccache-refs/heads/main
+          ${{ runner.os }}-sccache
     - name: Restore Cached VCPKG folder
       id: restore-cache-vcpkg
       uses: actions/cache/restore@v4
