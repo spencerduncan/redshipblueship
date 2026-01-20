@@ -64,7 +64,7 @@ void DrawTextBasedClock() {
             posY = std::max(posY / 8, 0);
 
             if (CVarGetInteger("gEnhancements.Graphics.24HoursClock", 0)) {
-                MM_sprintf(formattedTime, "%02d:%02d", curHours, curMinutes);
+                sprintf(formattedTime, "%02d:%02d", curHours, curMinutes);
                 MM_GfxPrint_SetPos(&printer, posX + 1, posY);
             } else { // Format hours and minutes for 12-hour AM/PM clock
                 char amPm[3] = "am";
@@ -77,7 +77,7 @@ void DrawTextBasedClock() {
                 if (curHours == 0) {
                     curHours = 12;
                 }
-                MM_sprintf(formattedTime, "%02d:%02d%s", curHours, curMinutes, amPm);
+                sprintf(formattedTime, "%02d:%02d%s", curHours, curMinutes, amPm);
                 MM_GfxPrint_SetPos(&printer, posX, posY);
             }
 
@@ -88,7 +88,7 @@ void DrawTextBasedClock() {
             if ((CURRENT_DAY >= 4) ||
                 ((CURRENT_DAY == 3) && (CURRENT_TIME >= (CLOCK_TIME(0, 0) + 5)) && (CURRENT_TIME < CLOCK_TIME(6, 0)))) {
                 MM_GfxPrint_SetColor(&printer, 255, 0, 0, 255);
-                MM_sprintf(formattedCrashTime, "%02d:%02d", timeInHours, timeInMinutes);
+                sprintf(formattedCrashTime, "%02d:%02d", timeInHours, timeInMinutes);
                 MM_GfxPrint_Printf(&printer, "Crash in %s", formattedCrashTime);
             }
 
