@@ -53,12 +53,12 @@ typedef void (*PostCurveLimbDraw)(struct PlayState* play, SkelCurve* skelCuve, s
 
 f32 Curve_Interpolate(f32 x, CurveInterpKnot* knots, s32 knotCount);
 
-void SkelCurve_Clear(SkelCurve* skelCurve);
-s32 SkelCurve_Init(struct PlayState* play, SkelCurve* skelCurve, CurveSkeletonHeader* skeletonHeaderSeg, CurveAnimationHeader* animation);
-void SkelCurve_Destroy(struct PlayState* play, SkelCurve* skelCurve);
-void SkelCurve_SetAnim(SkelCurve* skelCurve, CurveAnimationHeader* animation, f32 arg2, f32 endFrame, f32 curFrame, f32 playSpeed);
-s32 SkelCurve_Update(struct PlayState* play, SkelCurve* skelCurve);
-void SkelCurve_Draw(struct Actor* actor, struct PlayState* play, SkelCurve* skelCurve, OverrideCurveLimbDraw overrideLimbDraw, PostCurveLimbDraw postLimbDraw, s32 lod, struct Actor* thisx);
+void MM_SkelCurve_Clear(SkelCurve* skelCurve);
+s32 MM_SkelCurve_Init(struct PlayState* play, SkelCurve* skelCurve, CurveSkeletonHeader* skeletonHeaderSeg, CurveAnimationHeader* animation);
+void MM_SkelCurve_Destroy(struct PlayState* play, SkelCurve* skelCurve);
+void MM_SkelCurve_SetAnim(SkelCurve* skelCurve, CurveAnimationHeader* animation, f32 arg2, f32 endFrame, f32 curFrame, f32 playSpeed);
+s32 MM_SkelCurve_Update(struct PlayState* play, SkelCurve* skelCurve);
+void MM_SkelCurve_Draw(struct Actor* actor, struct PlayState* play, SkelCurve* skelCurve, OverrideCurveLimbDraw overrideLimbDraw, PostCurveLimbDraw postLimbDraw, s32 lod, struct Actor* thisx);
 
 
 // ZAPD compatibility typedefs

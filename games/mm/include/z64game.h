@@ -64,22 +64,22 @@ typedef struct GameState {
 
 void GameState_UpdateFramerateDivisors(s32 divisor);
 void GameState_SetFramerateDivisor(GameState* gameState, s32 divisor);
-void GameState_SetFBFilter(Gfx** gfxP, void* zbuffer);
+void MM_GameState_SetFBFilter(Gfx** gfxP, void* zbuffer);
 void GameState_Noop(GameState* gameState);
-void GameState_Draw(GameState* gameState, struct GraphicsContext* gfxCtx);
-void GameState_SetFrameBuffer(struct GraphicsContext* gfxCtx);
+void MM_GameState_Draw(GameState* gameState, struct GraphicsContext* gfxCtx);
+void MM_GameState_SetFrameBuffer(struct GraphicsContext* gfxCtx);
 void GameState_DrawEnd(struct GraphicsContext* gfxCtx);
 void GameState_GetInput(GameState* gameState);
-void GameState_Update(GameState* gameState);
+void MM_GameState_Update(GameState* gameState);
 void GameState_IncrementFrameCount(GameState* gameState);
-void GameState_InitArena(GameState* gameState, size_t size);
-void GameState_Realloc(GameState* gameState, size_t size);
-void GameState_Init(GameState* gameState, GameStateFunc init, struct GraphicsContext* gfxCtx);
-void GameState_Destroy(GameState* gameState);
-GameStateFunc GameState_GetInit(GameState* gameState);
-size_t GameState_GetSize(GameState* gameState);
-u32 GameState_IsRunning(GameState* gameState);
-s32 GameState_GetArenaSize(GameState* gameState);
+void MM_GameState_InitArena(GameState* gameState, size_t size);
+void MM_GameState_Realloc(GameState* gameState, size_t size);
+void MM_GameState_Init(GameState* gameState, GameStateFunc init, struct GraphicsContext* gfxCtx);
+void MM_GameState_Destroy(GameState* gameState);
+GameStateFunc MM_GameState_GetInit(GameState* gameState);
+size_t MM_GameState_GetSize(GameState* gameState);
+u32 MM_GameState_IsRunning(GameState* gameState);
+s32 MM_GameState_GetArenaSize(GameState* gameState);
 s32 func_80173B48(GameState* gameState);
 
 extern s32 gFramerateDivisor;
@@ -88,7 +88,7 @@ extern f32 gFramerateDivisorHalf;
 extern f32 gFramerateDivisorThird;
 
 
-extern GameStateOverlay gGameStateOverlayTable[GAMESTATE_ID_MAX];
+extern GameStateOverlay MM_gGameStateOverlayTable[GAMESTATE_ID_MAX];
 extern GameStateId gGraphNumGameStates;
 
 

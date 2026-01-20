@@ -46,10 +46,10 @@ typedef struct PreRender {
     /* 0x4D */ u8 filterState; // See `PrerenderFilterState`
 } PreRender;                   // size = 0x50
 
-void PreRender_SetValuesSave(PreRender* thisx, u32 width, u32 height, void* fbuf, void* zbuf, void* cvg);
-void PreRender_Init(PreRender* thisx);
-void PreRender_SetValues(PreRender* thisx, u32 width, u32 height, void* fbuf, void* zbuf);
-void PreRender_Destroy(PreRender* thisx);
+void MM_PreRender_SetValuesSave(PreRender* thisx, u32 width, u32 height, void* fbuf, void* zbuf, void* cvg);
+void MM_PreRender_Init(PreRender* thisx);
+void MM_PreRender_SetValues(PreRender* thisx, u32 width, u32 height, void* fbuf, void* zbuf);
+void MM_PreRender_Destroy(PreRender* thisx);
 void PreRender_CopyImage(PreRender* thisx, Gfx** gfxP, void* img, void* imgDst, u32 useThresholdAlphaCompare);
 void PreRender_RestoreBuffer(PreRender* thisx, Gfx** gfxP, void* buf, void* bufSave);
 void func_8016FF90(PreRender* thisx, Gfx** gfxP, void* buf, void* bufSave, s32 envR, s32 envG, s32 envB, s32 envA);

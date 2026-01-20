@@ -6,7 +6,7 @@
 #include "unk.h"
 
 typedef struct {
-    /* 0x0 */ size_t heapSize; // total number of bytes allocated to the audio heap. Must be <= the size of `gAudioHeap` (ideally about the same size)
+    /* 0x0 */ size_t heapSize; // total number of bytes allocated to the audio heap. Must be <= the size of `MM_gAudioHeap` (ideally about the same size)
     /* 0x4 */ size_t initPoolSize; // The entire audio heap is split into two pools. 
     /* 0x8 */ size_t permanentPoolSize;
 } AudioHeapInitSizes; // size = 0xC
@@ -88,24 +88,24 @@ typedef struct {
     /* 0xC */ size_t cachePoolSize; 
 } AudioSessionPoolSplit; // size = 0x10
 
-void AudioHeap_DiscardFont(s32 fontId);
-void* AudioHeap_WritebackDCache(void* addr, size_t size);
-void* AudioHeap_AllocAttemptExternal(AudioAllocPool* pool, size_t size);
-void* AudioHeap_AllocDmaMemory(AudioAllocPool* pool, size_t size);
-void* AudioHeap_AllocZeroed(AudioAllocPool* pool, size_t size);
-void* AudioHeap_Alloc(AudioAllocPool* pool, size_t size);
+void MM_AudioHeap_DiscardFont(s32 fontId);
+void* MM_AudioHeap_WritebackDCache(void* addr, size_t size);
+void* MM_AudioHeap_AllocAttemptExternal(AudioAllocPool* pool, size_t size);
+void* MM_AudioHeap_AllocDmaMemory(AudioAllocPool* pool, size_t size);
+void* MM_AudioHeap_AllocZeroed(AudioAllocPool* pool, size_t size);
+void* MM_AudioHeap_Alloc(AudioAllocPool* pool, size_t size);
 void AudioHeap_InitPool(AudioAllocPool* pool, void* addr, size_t size);
 void AudioHeap_PopPersistentCache(s32 tableType);
 void AudioHeap_InitMainPool(size_t initPoolSize);
-void* AudioHeap_AllocCached(s32 tableType, size_t size, s32 cache, s32 id);
-void* AudioHeap_SearchCaches(s32 tableType, s32 cache, s32 id);
-void AudioHeap_LoadFilter(s16* filter, s32 lowPassCutoff, s32 highPassCutoff);
-s32 AudioHeap_ResetStep(void);
-void AudioHeap_Init(void);
-void* AudioHeap_SearchPermanentCache(s32 tableType, s32 id);
-void* AudioHeap_AllocPermanent(s32 tableType, s32 id, size_t size);
-void* AudioHeap_AllocSampleCache(size_t size, s32 sampleBankId, void* sampleAddr, s8 medium, s32 cache);
-void AudioHeap_ApplySampleBankCache(s32 sampleBankId);
+void* MM_AudioHeap_AllocCached(s32 tableType, size_t size, s32 cache, s32 id);
+void* MM_AudioHeap_SearchCaches(s32 tableType, s32 cache, s32 id);
+void MM_AudioHeap_LoadFilter(s16* filter, s32 lowPassCutoff, s32 highPassCutoff);
+s32 MM_AudioHeap_ResetStep(void);
+void MM_AudioHeap_Init(void);
+void* MM_AudioHeap_SearchPermanentCache(s32 tableType, s32 id);
+void* MM_AudioHeap_AllocPermanent(s32 tableType, s32 id, size_t size);
+void* MM_AudioHeap_AllocSampleCache(size_t size, s32 sampleBankId, void* sampleAddr, s8 medium, s32 cache);
+void MM_AudioHeap_ApplySampleBankCache(s32 sampleBankId);
 void AudioHeap_SetReverbData(s32 reverbIndex, u32 dataType, uintptr_t data, s32 isFirstInit);
 
 #endif

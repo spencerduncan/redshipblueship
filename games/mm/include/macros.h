@@ -35,7 +35,7 @@
 #define CLOCK_TIME_ALT2_F(hr, min) ((((hr) + (min) / 60.0f) * 60.0f) / (24.0f * 60.0f / 0x10000))
 #define CLOCK_TIME_HOUR_F (CLOCK_TIME_F(1, 0))
 
-#define CAPACITY(upg, value) gUpgradeCapacities[upg][value]
+#define CAPACITY(upg, value) MM_gUpgradeCapacities[upg][value]
 #define CUR_CAPACITY(upg) CAPACITY(upg, CUR_UPG_VALUE(upg))
 
 // To be used with `Magic_Add`, but ensures enough magic is added to fill the magic bar to capacity

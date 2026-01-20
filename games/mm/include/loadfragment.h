@@ -5,7 +5,7 @@
 #include "libc/stdint.h"
 #include "libc/stddef.h"
 
-extern s32 gOverlayLogSeverity;
+extern s32 MM_gOverlayLogSeverity;
 
 #define RELOC_SECTION(reloc) ((reloc) >> 30)
 #define RELOC_OFFSET(reloc) ((reloc) & 0xFFFFFF)
@@ -36,7 +36,7 @@ typedef struct OverlayRelocationSection {
 } OverlayRelocationSection; // size >= 0x18
 
 // Fragment overlay load functions
-size_t Overlay_Load(uintptr_t vromStart, uintptr_t vromEnd, void* ramStart, void* ramEnd, void* allocatedRamAddr);
-void* Overlay_AllocateAndLoad(uintptr_t vromStart, uintptr_t vromEnd, void* vramStart, void* vramEnd);
+size_t MM_Overlay_Load(uintptr_t vromStart, uintptr_t vromEnd, void* ramStart, void* ramEnd, void* allocatedRamAddr);
+void* MM_Overlay_AllocateAndLoad(uintptr_t vromStart, uintptr_t vromEnd, void* vramStart, void* vramEnd);
 
 #endif

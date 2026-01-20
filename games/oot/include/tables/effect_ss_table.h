@@ -5,7 +5,7 @@
  *    - Argument 1: Name of the effect (without the ovl_ part)
  *    - Argument 2: Enum value for this effect
  *
- * DEFINE_EFFECT_SS_UNSET is needed to define empty entries from the original game
+ * OoT_DEFINE_EFFECT_SS_UNSET is needed to define empty entries from the original game
  */
 /* 0x00 */ DEFINE_EFFECT_SS(Effect_Ss_Dust, EFFECT_SS_DUST)
 /* 0x01 */ DEFINE_EFFECT_SS(Effect_Ss_KiraKira, EFFECT_SS_KIRAKIRA)
@@ -15,7 +15,7 @@
 /* 0x05 */ DEFINE_EFFECT_SS(Effect_Ss_G_Spk, EFFECT_SS_G_SPK)
 /* 0x06 */ DEFINE_EFFECT_SS(Effect_Ss_D_Fire, EFFECT_SS_D_FIRE)
 /* 0x07 */ DEFINE_EFFECT_SS(Effect_Ss_Bubble, EFFECT_SS_BUBBLE)
-/* 0x08 */ DEFINE_EFFECT_SS_UNSET(EFFECT_SS_UNSET)
+/* 0x08 */ OoT_DEFINE_EFFECT_SS_UNSET(EFFECT_SS_UNSET)
 /* 0x09 */ DEFINE_EFFECT_SS(Effect_Ss_G_Ripple, EFFECT_SS_G_RIPPLE)
 /* 0x0A */ DEFINE_EFFECT_SS(Effect_Ss_G_Splash, EFFECT_SS_G_SPLASH)
 /* 0x0B */ DEFINE_EFFECT_SS(Effect_Ss_G_Magma, EFFECT_SS_G_MAGMA)

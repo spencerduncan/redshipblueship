@@ -12,9 +12,9 @@ typedef struct FrameAdvanceContext {
     /* 0x4 */ s32 timer;
 } FrameAdvanceContext; // size = 0x8
 
-void FrameAdvance_Init(FrameAdvanceContext* frameAdvCtx);
-s32 FrameAdvance_Update(FrameAdvanceContext* frameAdvCtx, struct Input* input);
+void MM_FrameAdvance_Init(FrameAdvanceContext* frameAdvCtx);
+s32 MM_FrameAdvance_Update(FrameAdvanceContext* frameAdvCtx, struct Input* input);
 
-s32 FrameAdvance_IsEnabled(struct PlayState* thisx);
+s32 MM_FrameAdvance_IsEnabled(struct PlayState* thisx);
 
 #endif

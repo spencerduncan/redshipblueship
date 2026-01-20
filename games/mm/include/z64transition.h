@@ -232,14 +232,14 @@ void TransitionTile_Update(TransitionTile* thisx);
 
 // z_fbdemo_fade.c
 
-void TransitionFade_Start(void* thisx);
-void* TransitionFade_Init(void* thisx);
-void TransitionFade_Destroy(void* thisx);
-void TransitionFade_Update(void* thisx, s32 updateRate);
-void TransitionFade_Draw(void* thisx, Gfx** gfxP);
-s32 TransitionFade_IsDone(void* thisx);
-void TransitionFade_SetColor(void* thisx, u32 color);
-void TransitionFade_SetType(void* thisx, s32 type);
+void MM_TransitionFade_Start(void* thisx);
+void* MM_TransitionFade_Init(void* thisx);
+void MM_TransitionFade_Destroy(void* thisx);
+void MM_TransitionFade_Update(void* thisx, s32 updateRate);
+void MM_TransitionFade_Draw(void* thisx, Gfx** gfxP);
+s32 MM_TransitionFade_IsDone(void* thisx);
+void MM_TransitionFade_SetColor(void* thisx, u32 color);
+void MM_TransitionFade_SetType(void* thisx, s32 type);
 
 // z_fbdemo_circle.c
 

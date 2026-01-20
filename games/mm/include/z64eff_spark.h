@@ -43,9 +43,9 @@ typedef struct EffectSpark {
     /* 0x4C0 */ s32 duration;
 } EffectSpark; // size = 0x4C4
 
-void EffectSpark_Init(void* thisx, void* initParamsx);
-void EffectSpark_Destroy(void* thisx);
-s32 EffectSpark_Update(void* thisx);
-void EffectSpark_Draw(void* thisx, struct GraphicsContext* gfxCtx);
+void MM_EffectSpark_Init(void* thisx, void* initParamsx);
+void MM_EffectSpark_Destroy(void* thisx);
+s32 MM_EffectSpark_Update(void* thisx);
+void MM_EffectSpark_Draw(void* thisx, struct GraphicsContext* gfxCtx);
 
 #endif

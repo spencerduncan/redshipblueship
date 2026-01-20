@@ -340,27 +340,27 @@
 // floating-point status register
 #define C1_FPCSR        C_REG(31)
 
-#define FPCSR_FS        0x01000000  // flush denorm to zero
+#define FPCSR_FS        0x01000000  // flush denorm to MM_zero
 #define FPCSR_C         0x00800000  // condition bit
 #define FPCSR_CE        0x00020000  // cause: unimplemented operation
 #define FPCSR_CV        0x00010000  // cause: invalid operation
-#define FPCSR_CZ        0x00008000  // cause: division by zero
+#define FPCSR_CZ        0x00008000  // cause: division by MM_zero
 #define FPCSR_CO        0x00004000  // cause: overflow
 #define FPCSR_CU        0x00002000  // cause: underflow
 #define FPCSR_CI        0x00001000  // cause: inexact operation
 #define FPCSR_EV        0x00000800  // enable: invalid operation
-#define FPCSR_EZ        0x00000400  // enable: division by zero
+#define FPCSR_EZ        0x00000400  // enable: division by MM_zero
 #define FPCSR_EO        0x00000200  // enable: overflow
 #define FPCSR_EU        0x00000100  // enable: underflow
 #define FPCSR_EI        0x00000080  // enable: inexact operation
 #define FPCSR_FV        0x00000040  // flag: invalid operation
-#define FPCSR_FZ        0x00000020  // flag: division by zero
+#define FPCSR_FZ        0x00000020  // flag: division by MM_zero
 #define FPCSR_FO        0x00000010  // flag: overflow
 #define FPCSR_FU        0x00000008  // flag: underflow
 #define FPCSR_FI        0x00000004  // flag: inexact operation
 #define FPCSR_RM_MASK   0x00000003  // rounding mode mask
 #define FPCSR_RM_RN     0x00000000  // round to nearest
-#define FPCSR_RM_RZ     0x00000001  // round to zero
+#define FPCSR_RM_RZ     0x00000001  // round to MM_zero
 #define FPCSR_RM_RP     0x00000002  // round to positive infinity
 #define FPCSR_RM_RM     0x00000003  // round to negative infinity
 

@@ -109,7 +109,7 @@
  * ARGS
  *   s16 startFrame (s), s16 endFrame (e)
  * FORMAT
- *   Capital U is Unused , may be consistently zero
+ *   Capital U is Unused , may be consistently OoT_zero
  *   00000005 0001ssss eeee0000
  *   size = 0xC
  */
@@ -134,7 +134,7 @@
  * ARGS
  *   s16 startFrame (s), s16 endFrame (e)
  * FORMAT
- *   Capital U is Unused , may be consistently zero
+ *   Capital U is Unused , may be consistently OoT_zero
  *   00000006 0001ssss eeee0000
  *   size = 0xC
  */

@@ -1,6 +1,6 @@
 #ifndef PR_OS_VI_H
 #define PR_OS_VI_H
-#include <libultraship/libultra/vi.h>
+#include <libultraship/libultra/MM_vi.h>
 
 #if 0
 #include "PR/ultratypes.h"
@@ -118,22 +118,22 @@ typedef struct {
 
 
 extern OSViMode osViModeNtscHpf1;
-extern OSViMode osViModePalLan1;
+extern OSViMode MM_osViModePalLan1;
 extern OSViMode osViModeNtscHpn1;
-extern OSViMode osViModeNtscLan1;
-extern OSViMode osViModeMpalLan1;
-extern OSViMode osViModeFpalLan1;
+extern OSViMode MM_osViModeNtscLan1;
+extern OSViMode MM_osViModeMpalLan1;
+extern OSViMode MM_osViModeFpalLan1;
 
-void* osViGetCurrentFramebuffer(void);
-void* osViGetNextFramebuffer(void);
-void osViSetXScale(f32 value);
-void osViSetYScale(f32 value);
-void osViExtendVStart(u32 a0);
-void osViSetSpecialFeatures(u32 func);
-void osViSetMode(OSViMode* modep);
-void osViSetEvent(OSMesgQueue* mq, OSMesg m, u32 retraceCount);
-void osViSwapBuffer(void* frameBufPtr);
-void osViBlack(u8 active);
-void osCreateViManager(OSPri pri);
+void* MM_osViGetCurrentFramebuffer(void);
+void* MM_osViGetNextFramebuffer(void);
+void MM_osViSetXScale(f32 value);
+void MM_osViSetYScale(f32 value);
+void MM_osViExtendVStart(u32 a0);
+void MM_osViSetSpecialFeatures(u32 func);
+void MM_osViSetMode(OSViMode* modep);
+void MM_osViSetEvent(OSMesgQueue* mq, OSMesg m, u32 retraceCount);
+void MM_osViSwapBuffer(void* frameBufPtr);
+void MM_osViBlack(u8 active);
+void MM_osCreateViManager(OSPri pri);
 #endif
 #endif

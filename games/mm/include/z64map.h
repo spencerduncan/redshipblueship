@@ -134,10 +134,10 @@ s32 Map_IsInDungeonOrBossScene(struct PlayState* play);
 s32 Map_CurRoomHasMapI(struct PlayState* play);
 s32 Map_IsInBossScene(struct PlayState* play);
 void Map_SetAreaEntrypoint(struct PlayState* play);
-void Map_InitRoomData(struct PlayState* play, s16 room);
-void Map_Destroy(struct PlayState* play);
-void Map_Init(struct PlayState* play);
+void MM_Map_InitRoomData(struct PlayState* play, s16 room);
+void MM_Map_Destroy(struct PlayState* play);
+void MM_Map_Init(struct PlayState* play);
 void Map_DrawMinimap(struct PlayState* play);
-void Map_Update(struct PlayState* play);
+void MM_Map_Update(struct PlayState* play);
 
 #endif

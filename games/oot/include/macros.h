@@ -33,7 +33,7 @@
 #define PHYSICAL_TO_VIRTUAL(addr) (void*)((uintptr_t)(addr) + 0x80000000)
 #define VIRTUAL_TO_PHYSICAL(addr) (uintptr_t)((u8*)(addr) - 0x80000000)
 // Upstream TODO: Document reasoning for change
-//#define SEGMENTED_TO_VIRTUAL(addr) PHYSICAL_TO_VIRTUAL(gSegments[SEGMENT_NUMBER(addr)] + SEGMENT_OFFSET(addr))
+//#define SEGMENTED_TO_VIRTUAL(addr) PHYSICAL_TO_VIRTUAL(OoT_gSegments[SEGMENT_NUMBER(addr)] + SEGMENT_OFFSET(addr))
 #define SEGMENTED_TO_VIRTUAL(addr) addr
 
 #ifndef SQ
@@ -65,29 +65,29 @@
 #define IS_DAY (gSaveContext.nightFlag == 0)
 #define IS_NIGHT (gSaveContext.nightFlag == 1)
 
-#define SLOT(item) gItemSlots[item]
+#define SLOT(item) OoT_gItemSlots[item]
 #define INV_CONTENT(item) gSaveContext.inventory.items[SLOT(item)]
 #define AMMO(item) gSaveContext.inventory.ammo[SLOT(item)]
 #define BEANS_BOUGHT AMMO(ITEM_BEAN + 1)
 
-#define ALL_EQUIP_VALUE(equip) ((s32)(gSaveContext.inventory.equipment & gEquipMasks[equip]) >> gEquipShifts[equip])
-#define CUR_EQUIP_VALUE(equip) ((s32)(gSaveContext.equips.equipment & gEquipMasks[equip]) >> gEquipShifts[equip])
-#define OWNED_EQUIP_FLAG(equip, value) (gBitFlags[value] << gEquipShifts[equip])
-#define OWNED_EQUIP_FLAG_ALT(equip, value) ((1 << (value)) << gEquipShifts[equip])
+#define ALL_EQUIP_VALUE(equip) ((s32)(gSaveContext.inventory.equipment & OoT_gEquipMasks[equip]) >> OoT_gEquipShifts[equip])
+#define CUR_EQUIP_VALUE(equip) ((s32)(gSaveContext.equips.equipment & OoT_gEquipMasks[equip]) >> OoT_gEquipShifts[equip])
+#define OWNED_EQUIP_FLAG(equip, value) (OoT_gBitFlags[value] << OoT_gEquipShifts[equip])
+#define OWNED_EQUIP_FLAG_ALT(equip, value) ((1 << (value)) << OoT_gEquipShifts[equip])
 #define CHECK_OWNED_EQUIP(equip, value) (OWNED_EQUIP_FLAG(equip, value) & gSaveContext.inventory.equipment)
-#define CHECK_OWNED_EQUIP_ALT(equip, value) (gBitFlags[(value) + (equip) * 4] & gSaveContext.inventory.equipment)
+#define CHECK_OWNED_EQUIP_ALT(equip, value) (OoT_gBitFlags[(value) + (equip) * 4] & gSaveContext.inventory.equipment)
 
 #define SWORD_EQUIP_TO_PLAYER(swordEquip) (swordEquip)
 #define SHIELD_EQUIP_TO_PLAYER(shieldEquip) (shieldEquip)
 #define TUNIC_EQUIP_TO_PLAYER(tunicEquip) ((tunicEquip) - 1)
 #define BOOTS_EQUIP_TO_PLAYER(bootsEquip) ((bootsEquip) - 1)
 
-#define CUR_UPG_VALUE(upg) ((s32)(gSaveContext.inventory.upgrades & gUpgradeMasks[upg]) >> gUpgradeShifts[upg])
-#define CAPACITY(upg, value) gUpgradeCapacities[upg][value]
+#define CUR_UPG_VALUE(upg) ((s32)(gSaveContext.inventory.upgrades & OoT_gUpgradeMasks[upg]) >> OoT_gUpgradeShifts[upg])
+#define CAPACITY(upg, value) OoT_gUpgradeCapacities[upg][value]
 #define CUR_CAPACITY(upg) CAPACITY(upg, CUR_UPG_VALUE(upg))
 
-#define CHECK_QUEST_ITEM(item) (gBitFlags[item] & gSaveContext.inventory.questItems)
-#define CHECK_DUNGEON_ITEM(item, dungeonIndex) (gSaveContext.inventory.dungeonItems[dungeonIndex] & gBitFlags[item])
+#define CHECK_QUEST_ITEM(item) (OoT_gBitFlags[item] & gSaveContext.inventory.questItems)
+#define CHECK_DUNGEON_ITEM(item, dungeonIndex) (gSaveContext.inventory.dungeonItems[dungeonIndex] & OoT_gBitFlags[item])
 
 #define GET_GS_FLAGS(index) \
     ((gSaveContext.gsFlags[(index) >> 2] & gGsFlagsMasks[(index) & 3]) >> gGsFlagsShifts[(index) & 3])
@@ -187,7 +187,7 @@
         viewport.rightX = SCREEN_WIDTH;    \
         viewport.topY = 0;                 \
         viewport.leftX = 0;                \
-        View_SetViewport(view, &viewport); \
+        OoT_View_SetViewport(view, &viewport); \
     }                                      \
     (void)0
 
@@ -211,7 +211,7 @@ extern GraphicsContext* __gfxCtx;
         Gfx* dispRefs[4]; \
         __gfxCtx = gfxCtx; \
         (void)__gfxCtx; \
-        Graph_OpenDisps(dispRefs, gfxCtx, __FILE__, __LINE__)
+        OoT_Graph_OpenDisps(dispRefs, gfxCtx, __FILE__, __LINE__)
 #else
 #define OPEN_DISPS(gfxCtx) \
     { \
@@ -226,7 +226,7 @@ extern GraphicsContext* __gfxCtx;
 #define CLOSE_DISPS(gfxCtx) \
     {void FrameInterpolation_RecordCloseChild(void); \
     FrameInterpolation_RecordCloseChild();} \
-    Graph_CloseDisps(dispRefs, gfxCtx, __FILE__, __LINE__); \
+    OoT_Graph_CloseDisps(dispRefs, gfxCtx, __FILE__, __LINE__); \
     } \
     (void)0
 #else
@@ -274,7 +274,7 @@ extern GraphicsContext* __gfxCtx;
     (((a2) >= (a1)) ? (((a3) >= (a2)) ? (a2) : (((a1) >= (a3)) ? (a1) : (a3))) \
                     : (((a2) >= (a3)) ? (a2) : (((a3) >= (a1)) ? (a1) : (a3))))
 
-#define MATRIX_TOMTX(dest) Matrix_ToMtx(dest, __FILE__, __LINE__)
+#define MATRIX_TOMTX(dest) OoT_Matrix_ToMtx(dest, __FILE__, __LINE__)
 #ifdef __cplusplus
 #define MATRIX_NEWMTX(gfxCtx) Matrix_NewMtx(gfxCtx, const_cast<char*>(__FILE__), __LINE__)
 #else

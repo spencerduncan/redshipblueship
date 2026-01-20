@@ -175,8 +175,8 @@ typedef enum {
     /* 0x1E */ CAM_SET_DUNGEON1, // Generic dungeon camera 1, used in various places "DUNGEON1"
     /* 0x1F */ CAM_SET_FIXED1, // Fixes camera in place, used in various places eg. entering Stock Pot Inn, hiting a switch, giving witch a red potion, shop browsing "FIXED1"
     /* 0x20 */ CAM_SET_FIXED2, // Used in Pinnacle Rock after defeating Sea Monsters, and by Tatl in Fortress "FIXED2"
-    /* 0x21 */ CAM_SET_MAZE, // Unused. Set to use Camera_Parallel2(), which is only Camera_Noop() "MAZE"
-    /* 0x22 */ CAM_SET_REMOTEBOMB, // Unused. Set to use Camera_Parallel2(), which is only Camera_Noop(). But also related to Play_ChangeCameraSetting? "REMOTEBOMB"
+    /* 0x21 */ CAM_SET_MAZE, // Unused. Set to use MM_Camera_Parallel2(), which is only MM_Camera_Noop() "MAZE"
+    /* 0x22 */ CAM_SET_REMOTEBOMB, // Unused. Set to use MM_Camera_Parallel2(), which is only MM_Camera_Noop(). But also related to Play_ChangeCameraSetting? "REMOTEBOMB"
     /* 0x23 */ CAM_SET_CIRCLE1, // Unknown "CIRCLE1"
     /* 0x24 */ CAM_SET_CIRCLE2, // Looking at far-away NPCs eg. Garo in Road to Ikana, Hungry Goron, Tingle "CIRCLE2"
     /* 0x25 */ CAM_SET_CIRCLE3, // Used in curiosity shop, goron racetrack, final room in Sakon's hideout, other places "CIRCLE3"
@@ -406,7 +406,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_Normal1() Data
+ *   MM_Camera_Normal1() Data
  *================================
  */
 
@@ -461,7 +461,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_Normal2() Data
+ *   MM_Camera_Normal2() Data
  *================================
  */
 
@@ -481,7 +481,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_Normal3() Data
+ *   MM_Camera_Normal3() Data
  *================================
  */
 
@@ -531,7 +531,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_Normal0() Data
+ *   MM_Camera_Normal0() Data
  *================================
  */
 
@@ -582,7 +582,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_Parallel1() Data
+ *   MM_Camera_Parallel1() Data
  *================================
  */
 
@@ -661,7 +661,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_Parallel2() Data
+ *   MM_Camera_Parallel2() Data
  *================================
  */
 
@@ -681,7 +681,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_Jump2() Data
+ *   MM_Camera_Jump2() Data
  *================================
  */
 
@@ -730,7 +730,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_Jump3() Data
+ *   MM_Camera_Jump3() Data
  *================================
  */
 
@@ -786,7 +786,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_Battle1() Data
+ *   MM_Camera_Battle1() Data
  *================================
  */
 
@@ -846,7 +846,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_KeepOn1() Data
+ *   MM_Camera_KeepOn1() Data
  *================================
  */
 
@@ -903,7 +903,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_KeepOn3() Data
+ *   MM_Camera_KeepOn3() Data
  *================================
  */
 
@@ -958,7 +958,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_KeepOn4() Data
+ *   MM_Camera_KeepOn4() Data
  *================================
  */
 
@@ -1009,7 +1009,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_Fixed1() Data
+ *   MM_Camera_Fixed1() Data
  *================================
  */
 
@@ -1041,7 +1041,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_Fixed2() Data
+ *   MM_Camera_Fixed2() Data
  *================================
  */
 
@@ -1089,7 +1089,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_Fixed3() Data
+ *   MM_Camera_Fixed3() Data
  *================================
  */
 
@@ -1141,7 +1141,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_Unique2() Data
+ *   MM_Camera_Unique2() Data
  *================================
  */
 
@@ -1176,7 +1176,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_Unique0() Data
+ *   MM_Camera_Unique0() Data
  *================================
  */
 
@@ -1213,7 +1213,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_Unique6() Data
+ *   MM_Camera_Unique6() Data
  *================================
  */
 
@@ -1229,7 +1229,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_Unique7() Data
+ *   MM_Camera_Unique7() Data
  *================================
  */
 
@@ -1239,7 +1239,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_Demo1() Data
+ *   MM_Camera_Demo1() Data
  *================================
  */
 
@@ -1261,7 +1261,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_Demo2() Data
+ *   MM_Camera_Demo2() Data
  *================================
  */
 
@@ -1290,7 +1290,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_Demo3() Data
+ *   MM_Camera_Demo3() Data
  *================================
  */
 
@@ -1311,7 +1311,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_Demo4() Data
+ *   MM_Camera_Demo4() Data
  *================================
  */
 
@@ -1336,7 +1336,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_Demo5() Data
+ *   MM_Camera_Demo5() Data
  *================================
  */
 
@@ -1362,7 +1362,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_Demo0() Data
+ *   MM_Camera_Demo0() Data
  *================================
  */
 
@@ -1387,7 +1387,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_Special5() Data
+ *   MM_Camera_Special5() Data
  *================================
  */
 
@@ -1446,7 +1446,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_Special8() Data
+ *   MM_Camera_Special8() Data
  *================================
  */
 
@@ -1483,7 +1483,7 @@ typedef struct {
 
 
 /*================================
- *   Camera_Special9() Data
+ *   MM_Camera_Special9() Data
  *================================
  */
 
@@ -1613,42 +1613,42 @@ typedef struct Camera {
     /* 0x16C */ Vec3f meshActorPos;
 } Camera; // size = 0x178
 
-Camera* Camera_Create(struct View* view, struct CollisionContext* colCtx, struct PlayState* play);
-void Camera_Destroy(Camera* camera);
-void Camera_Init(Camera* camera, struct View* view, struct CollisionContext* colCtx, struct PlayState* play);
+Camera* MM_Camera_Create(struct View* view, struct CollisionContext* colCtx, struct PlayState* play);
+void MM_Camera_Destroy(Camera* camera);
+void MM_Camera_Init(Camera* camera, struct View* view, struct CollisionContext* colCtx, struct PlayState* play);
 void func_800DDFE0(Camera* camera);
 void Camera_InitFocalActorSettings(Camera* camera, struct Actor* focalActor);
-s32 Camera_ChangeStatus(Camera* camera, s16 status);
-s32 Camera_UpdateWater(Camera* camera);
+s32 MM_Camera_ChangeStatus(Camera* camera, s16 status);
+s32 MM_Camera_UpdateWater(Camera* camera);
 void Camera_EarthquakeDay3(Camera* camera);
-s32 Camera_UpdateHotRoom(Camera* camera);
+s32 MM_Camera_UpdateHotRoom(Camera* camera);
 s32 Camera_SetSwordDistortion(Camera* camera);
 s32 Camera_RequestGiantsMaskSetting(Camera* camera);
-Vec3s Camera_Update(Camera* camera);
+Vec3s MM_Camera_Update(Camera* camera);
 s32 func_800DF498(Camera* camera);
-s32 Camera_ChangeModeFlags(Camera* camera, s16 mode, u8 forceChange);
-s32 Camera_ChangeMode(Camera* camera, s16 mode);
-s32 Camera_CheckValidMode(Camera* camera, s16 mode);
-s16 Camera_ChangeSettingFlags(Camera* camera, s16 setting, s16 flags);
-s32 Camera_ChangeSetting(Camera* camera, s16 setting);
+s32 MM_Camera_ChangeModeFlags(Camera* camera, s16 mode, u8 forceChange);
+s32 MM_Camera_ChangeMode(Camera* camera, s16 mode);
+s32 MM_Camera_CheckValidMode(Camera* camera, s16 mode);
+s16 MM_Camera_ChangeSettingFlags(Camera* camera, s16 setting, s16 flags);
+s32 MM_Camera_ChangeSetting(Camera* camera, s16 setting);
 s32 Camera_ChangeActorCsCamIndex(Camera* camera, s32 bgCamIndex);
-Vec3s Camera_GetInputDir(Camera* camera);
-s16 Camera_GetInputDirPitch(Camera* camera);
-s16 Camera_GetInputDirYaw(Camera* camera);
-Vec3s Camera_GetCamDir(Camera* camera);
-s16 Camera_GetCamDirPitch(Camera* camera);
-s16 Camera_GetCamDirYaw(Camera* camera);
-s32 Camera_AddQuake(Camera* camera, s32 arg1, s16 y, s32 countdown);
+Vec3s MM_Camera_GetInputDir(Camera* camera);
+s16 MM_Camera_GetInputDirPitch(Camera* camera);
+s16 MM_Camera_GetInputDirYaw(Camera* camera);
+Vec3s MM_Camera_GetCamDir(Camera* camera);
+s16 MM_Camera_GetCamDirPitch(Camera* camera);
+s16 MM_Camera_GetCamDirYaw(Camera* camera);
+s32 MM_Camera_AddQuake(Camera* camera, s32 arg1, s16 y, s32 countdown);
 s32 Camera_SetViewParam(Camera* camera, s32 viewFlag, void* param);
 s32 Camera_UnsetViewFlag(Camera* camera, s16 viewFlag);
 s32 Camera_OverwriteStateFlags(Camera* camera, s16 stateFlags);
 s16 Camera_SetStateFlag(Camera* camera, s16 flags);
 s16 Camera_UnsetStateFlag(Camera* camera, s16 flags);
-s32 Camera_ChangeDoorCam(Camera* camera, struct Actor* doorActor, s16 bgCamIndex, f32 arg3, s16 timer1, s16 timer2, s16 timer3);
-s32 Camera_Copy(Camera* dstCam, Camera* srcCam);
+s32 MM_Camera_ChangeDoorCam(Camera* camera, struct Actor* doorActor, s16 bgCamIndex, f32 arg3, s16 timer1, s16 timer2, s16 timer3);
+s32 MM_Camera_Copy(Camera* dstCam, Camera* srcCam);
 s32 Camera_IsDbgCamEnabled(void);
 Vec3f Camera_GetQuakeOffset(Camera* camera);
-void Camera_SetCameraData(Camera* camera, s16 setDataFlags, void* data0, void* data1, s16 data2, s16 data3);
+void MM_Camera_SetCameraData(Camera* camera, s16 setDataFlags, void* data0, void* data1, s16 data2, s16 data3);
 s32 Camera_GetNegOne(void);
 s16 Camera_SetFinishedFlag(Camera* camera);
 void Camera_SetFocalActor(Camera* camera, struct Actor* actor);

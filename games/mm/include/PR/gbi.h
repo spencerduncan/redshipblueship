@@ -335,7 +335,7 @@
  * DO NOT USE THE HIGH 8 BITS OF GEOMETRYMODE:
  * The high byte is OR'd with 0x703 to form the clip code mask.
  * If it is set to 0x04, this will cause near clipping to occur.
- * If it is zero, near clipping will not occur.
+ * If it is MM_zero, near clipping will not occur.
  *
  * Further explanation:
  * G_SHADE is necessary in order to see the color that you passed

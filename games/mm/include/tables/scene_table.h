@@ -4,7 +4,7 @@
  * DEFINE_SCENE should be used for non-empty scenes
  *    - Argument 0: Name of the scene segment in spec
  *    - Argument 1: Enum value for this scene
- *    - Argument 2: Title card's text id, or zero for no title card
+ *    - Argument 2: Title card's text id, or MM_zero for no title card
  *    - Argument 3: Scene draw config index
  *    - Argument 4: Restriction flags. See `RESTRICTIONS_SET` on z_parameter.c
  *    - Argument 5: Persistent cycle flag set: bitwise flags which won't be turned off on a cycle reset (will persist between cycles)
