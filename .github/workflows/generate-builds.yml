@@ -29,10 +29,9 @@ jobs:
     - name: Restore Cached deps folder
       uses: actions/cache/restore@v4
       with:
-        key: ${{ runner.os }}-deps-${{ github.ref }}-${{ github.sha }}
+        key: ${{ runner.os }}-deps-v1-${{ hashFiles('.github/workflows/apt-deps.txt') }}
         restore-keys: |
-          ${{ runner.os }}-deps-${{ github.ref }}-
-          ${{ runner.os }}-deps-
+          ${{ runner.os }}-deps-v1-
         path: deps
     - name: Create deps folder
       run: mkdir -p deps
@@ -73,6 +72,12 @@ jobs:
         name: soh.o2r
         path: soh.o2r
         retention-days: 3
+    - name: Save Cache deps folder
+      if: ${{ github.ref_name == github.event.repository.default_branch }}
+      uses: actions/cache/save@v4
+      with:
+        key: ${{ runner.os }}-deps-v1-${{ hashFiles('.github/workflows/apt-deps.txt') }}
+        path: deps
 
   build-macos:
     needs: generate-soh-otr
@@ -101,10 +106,9 @@ jobs:
       id: restore-cache-macports
       uses: actions/cache/restore@v4
       with:
-        key: ${{ runner.os }}-14-macports-${{ hashFiles('.github/workflows/macports-deps.txt') }}-${{ github.sha }}
+        key: ${{ runner.os }}-14-macports-v1-${{ hashFiles('.github/workflows/macports-deps.txt') }}
         restore-keys: |
-          ${{ runner.os }}-14-macports-${{ hashFiles('.github/workflows/macports-deps.txt') }}-
-          ${{ runner.os }}-14-macports-
+          ${{ runner.os }}-14-macports-v1-
         path: /opt/local/
     # Updated PATH applies to the next step and onwards
     - name: Install MacPorts (if necessary)
@@ -147,7 +151,7 @@ jobs:
       if: ${{ github.ref_name == github.event.repository.default_branch }}
       uses: actions/cache/save@v4
       with:
-        key: ${{ steps.restore-cache-macports.outputs.cache-primary-key }}
+        key: ${{ runner.os }}-14-macports-v1-${{ hashFiles('.github/workflows/macports-deps.txt') }}
         path: /opt/local/
 
   build-linux:
@@ -174,10 +178,9 @@ jobs:
       id: restore-cache-deps
       uses: actions/cache/restore@v4
       with:
-        key: ${{ runner.os }}-deps-${{ github.ref }}-${{ github.sha }}
+        key: ${{ runner.os }}-deps-v1-${{ hashFiles('.github/workflows/apt-deps.txt') }}
         restore-keys: |
-          ${{ runner.os }}-deps-${{ github.ref }}-
-          ${{ runner.os }}-deps-
+          ${{ runner.os }}-deps-v1-
         path: deps
     - name: Create deps folder
       run: mkdir -p deps
@@ -261,7 +264,7 @@ jobs:
       if: ${{ github.ref_name == github.event.repository.default_branch }}
       uses: actions/cache/save@v4
       with:
-        key: ${{ steps.restore-cache-deps.outputs.cache-primary-key }}
+        key: ${{ runner.os }}-deps-v1-${{ hashFiles('.github/workflows/apt-deps.txt') }}
         path: deps
 
   build-windows:
@@ -291,10 +294,9 @@ jobs:
       id: restore-cache-vcpkg
       uses: actions/cache/restore@v4
       with:
-        key: ${{ runner.os }}-vcpkg-${{ github.ref }}-${{ github.sha }}
+        key: ${{ runner.os }}-vcpkg-v1-${{ hashFiles('CMakeLists.txt') }}
         restore-keys: |
-          ${{ runner.os }}-vcpkg-${{ github.ref }}-
-          ${{ runner.os }}-vcpkg-
+          ${{ runner.os }}-vcpkg-v1-
         path: vcpkg
     - name: Configure Developer Command Prompt
       uses: ilammy/msvc-dev-cmd@v1
@@ -325,5 +327,5 @@ jobs:
       if: ${{ github.ref_name == github.event.repository.default_branch }}
       uses: actions/cache/save@v4
       with:
-        key: ${{ steps.restore-cache-vcpkg.outputs.cache-primary-key }}
+        key: ${{ runner.os }}-vcpkg-v1-${{ hashFiles('CMakeLists.txt') }}
         path: vcpkg
