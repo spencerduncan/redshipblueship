@@ -391,7 +391,7 @@ s32 View_ApplyPerspective(View* view) {
     float dirx = view->eye.x - view->at.x;
     float diry = view->eye.y - view->at.y;
     float dirz = view->eye.z - view->at.z;
-    float dir_dist = MM_sqrtf(MM_sqr(dirx) + MM_sqr(diry) + MM_sqr(dirz));
+    float dir_dist = sqrtf(MM_sqr(dirx) + MM_sqr(diry) + MM_sqr(dirz));
     dirx /= dir_dist;
     diry /= dir_dist;
     dirz /= dir_dist;
@@ -399,18 +399,18 @@ s32 View_ApplyPerspective(View* view) {
     float odirx = old_view.eye.x - old_view.at.x;
     float odiry = old_view.eye.y - old_view.at.y;
     float odirz = old_view.eye.z - old_view.at.z;
-    float odir_dist = MM_sqrtf(MM_sqr(odirx) + MM_sqr(odiry) + MM_sqr(odirz));
+    float odir_dist = sqrtf(MM_sqr(odirx) + MM_sqr(odiry) + MM_sqr(odirz));
     odirx /= odir_dist;
     odiry /= odir_dist;
     odirz /= odir_dist;
 
-    float eye_dist = MM_sqrtf(MM_sqr(view->eye.x - old_view.eye.x) + MM_sqr(view->eye.y - old_view.eye.y) +
+    float eye_dist = sqrtf(MM_sqr(view->eye.x - old_view.eye.x) + MM_sqr(view->eye.y - old_view.eye.y) +
                            MM_sqr(view->eye.z - old_view.eye.z));
     float look_dist =
-        MM_sqrtf(MM_sqr(view->at.x - old_view.at.x) + MM_sqr(view->at.y - old_view.at.y) + MM_sqr(view->at.z - old_view.at.z));
+        sqrtf(MM_sqr(view->at.x - old_view.at.x) + MM_sqr(view->at.y - old_view.at.y) + MM_sqr(view->at.z - old_view.at.z));
     float up_dist =
-        MM_sqrtf(MM_sqr(view->up.x - old_view.up.x) + MM_sqr(view->up.y - old_view.up.y) + MM_sqr(view->up.z - old_view.up.z));
-    float d_dist = MM_sqrtf(MM_sqr(dirx - odirx) + MM_sqr(diry - odiry) + MM_sqr(dirz - odirz));
+        sqrtf(MM_sqr(view->up.x - old_view.up.x) + MM_sqr(view->up.y - old_view.up.y) + MM_sqr(view->up.z - old_view.up.z));
+    float d_dist = sqrtf(MM_sqr(dirx - odirx) + MM_sqr(diry - odiry) + MM_sqr(dirz - odirz));
 
     bool dont_interpolate = false;
 

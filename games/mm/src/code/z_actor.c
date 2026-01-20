@@ -1701,7 +1701,7 @@ s32 MM_Actor_IsFacingAndNearPlayer(Actor* actor, f32 range, s16 maxAngleDiff) {
     if (ABS_ALT(yaw) < maxAngleDiff) {
         s16 pad;
 
-        if (MM_sqrtf(SQ(actor->xzDistToPlayer) + SQ(actor->playerHeightRel)) < range) {
+        if (sqrtf(SQ(actor->xzDistToPlayer) + SQ(actor->playerHeightRel)) < range) {
             return true;
         }
     }
@@ -1823,7 +1823,7 @@ void MM_Actor_UpdateBgCheckInfo(PlayState* play, Actor* actor, f32 wallCheckHeig
 
             actor->bgCheckFlags |= BGCHECKFLAG_WALL;
             if ((updBgCheckInfoFlags & UPDBGCHECKINFO_FLAG_200) && (actor->bgCheckFlags & BGCHECKFLAG_PLAYER_1000) &&
-                ((s32)sp7C->normal.y > 0) && (MM_sqrtf(SQXYZ(actor->colChkInfo.displacement)) < 10.0f)) {
+                ((s32)sp7C->normal.y > 0) && (sqrtf(SQXYZ(actor->colChkInfo.displacement)) < 10.0f)) {
                 actor->bgCheckFlags &= ~BGCHECKFLAG_WALL;
             } else if (actor->bgCheckFlags & BGCHECKFLAG_WALL) {
                 MM_Math_Vec3f_Copy(&actor->world.pos, &pos);
@@ -5272,7 +5272,7 @@ void func_800BE33C(Vec3f* arg0, Vec3f* arg1, Vec3s* dst, s32 arg3) {
     f32 yDiff = arg3 ? (arg1->y - arg0->y) : (arg0->y - arg1->y);
 
     dst->y = Math_Atan2S_XY(zDiff, xDiff);
-    dst->x = Math_Atan2S_XY(MM_sqrtf(SQ(xDiff) + SQ(zDiff)), yDiff);
+    dst->x = Math_Atan2S_XY(sqrtf(SQ(xDiff) + SQ(zDiff)), yDiff);
 }
 
 void func_800BE3D0(Actor* actor, s16 angle, Vec3s* arg2) {

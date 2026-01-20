@@ -80,11 +80,11 @@ void MM_EffectSsSolderSrchBall_Update(PlayState* play, u32 index, EffectSs* this
     diffZ = player->actor.world.pos.z - this->pos.z;
 
     if (this->rFlags >= SOLDERSRCHBALL_SMALL_DETECT_RADIUS) {
-        if ((MM_sqrtf(SQ(diffX) + SQ(diffZ)) < 10.0f) && (MM_sqrtf(SQ(diffY)) < 10.0f)) {
+        if ((sqrtf(SQ(diffX) + SQ(diffZ)) < 10.0f) && (sqrtf(SQ(diffY)) < 10.0f)) {
             *playerDetected = true;
         }
     } else if (!MM_BgCheck_SphVsFirstWall(&play->colCtx, &this->pos, 30.0f)) {
-        if ((MM_sqrtf(SQ(diffX) + SQ(diffZ)) < 40.0f) && (MM_sqrtf(SQ(diffY)) < 80.0f)) {
+        if ((sqrtf(SQ(diffX) + SQ(diffZ)) < 40.0f) && (sqrtf(SQ(diffY)) < 80.0f)) {
             *playerDetected = true;
         }
     } else if (this->life > 1) {

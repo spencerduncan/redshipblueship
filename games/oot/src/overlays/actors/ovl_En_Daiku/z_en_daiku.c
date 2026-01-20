@@ -421,7 +421,7 @@ void EnDaiku_InitEscape(EnDaiku* this, PlayState* play) {
         dx = pointPos->x - this->actor.world.pos.x;
         dz = pointPos->z - this->actor.world.pos.z;
         this->rotYtowardsPath = OoT_Math_FAtan2F(dx, dz) * (0x8000 / M_PI);
-        dxz = OoT_sqrtf(SQ(dx) + SQ(dz));
+        dxz = sqrtf(SQ(dx) + SQ(dz));
         if (dxz > 10.0f) {
             exitLoop = true;
         } else {
@@ -543,7 +543,7 @@ void EnDaiku_EscapeRun(EnDaiku* this, PlayState* play) {
     dx = pointPos->x - this->actor.world.pos.x;
     dz = pointPos->z - this->actor.world.pos.z;
     ry = OoT_Math_FAtan2F(dx, dz) * (0x8000 / M_PI);
-    dxz = OoT_sqrtf(SQ(dx) + SQ(dz));
+    dxz = sqrtf(SQ(dx) + SQ(dz));
     if (dxz <= 20.88f) {
         this->waypoint++;
         if (this->waypoint >= path->count) {

@@ -1510,7 +1510,7 @@ void MM_Matrix_ReplaceRotation(MtxF* mf) {
     acc += SQ(component);
     component = cmf->zx;
     acc += SQ(component);
-    curColNorm = MM_sqrtf(acc);
+    curColNorm = sqrtf(acc);
 
     cmf->xx = mf->xx * curColNorm;
     cmf->yx = mf->yx * curColNorm;
@@ -1523,7 +1523,7 @@ void MM_Matrix_ReplaceRotation(MtxF* mf) {
     acc += SQ(component);
     component = cmf->zy;
     acc += SQ(component);
-    curColNorm = MM_sqrtf(acc);
+    curColNorm = sqrtf(acc);
 
     cmf->xy = mf->xy * curColNorm;
     cmf->yy = mf->yy * curColNorm;
@@ -1536,7 +1536,7 @@ void MM_Matrix_ReplaceRotation(MtxF* mf) {
     acc += SQ(component);
     component = cmf->zz;
     acc += SQ(component);
-    curColNorm = MM_sqrtf(acc);
+    curColNorm = sqrtf(acc);
 
     cmf->xz = mf->xz * curColNorm;
     cmf->yz = mf->yz * curColNorm;
@@ -1568,7 +1568,7 @@ void Matrix_MtxFToYXZRot(MtxF* src, Vec3s* dest, s32 nonUniformScale) {
     temp = src->xz;
     temp *= temp;
     temp += SQ(src->zz);
-    dest->x = MM_Math_Atan2S(-src->yz, MM_sqrtf(temp));
+    dest->x = MM_Math_Atan2S(-src->yz, sqrtf(temp));
 
     if ((dest->x == 0x4000) || (dest->x == -0x4000)) {
         // cos(x) = 0 if either of these is true, and we get gimbal locking
@@ -1594,7 +1594,7 @@ void Matrix_MtxFToYXZRot(MtxF* src, Vec3s* dest, s32 nonUniformScale) {
             temp2 = src->yx;
             temp += SQ(temp2);
             // temp = xx^2+zx^2+yx^2 == 1 for a rotation matrix
-            temp = MM_sqrtf(temp);
+            temp = sqrtf(temp);
             temp = temp2 / temp; // yx in normalised column
 
             // find norm of the second column
@@ -1604,7 +1604,7 @@ void Matrix_MtxFToYXZRot(MtxF* src, Vec3s* dest, s32 nonUniformScale) {
             temp3 = src->yy;
             temp2 += SQ(temp3);
             // temp2 = xy^2+zy^2+yy^2 == 1 for a rotation matrix
-            temp2 = MM_sqrtf(temp2);
+            temp2 = sqrtf(temp2);
             temp2 = temp3 / temp2; // yy in normalised column
 
             // for a rotation matrix, temp == yx and temp2 == yy which is the same as in the !nonUniformScale branch
@@ -1640,7 +1640,7 @@ void Matrix_MtxFToZYXRot(MtxF* src, Vec3s* dest, s32 nonUniformScale) {
     temp = src->xx;
     temp *= temp;
     temp += SQ(src->yx);
-    dest->y = MM_Math_Atan2S(-src->zx, MM_sqrtf(temp));
+    dest->y = MM_Math_Atan2S(-src->zx, sqrtf(temp));
 
     if ((dest->y == 0x4000) || (dest->y == -0x4000)) {
         dest->x = 0;
@@ -1659,7 +1659,7 @@ void Matrix_MtxFToZYXRot(MtxF* src, Vec3s* dest, s32 nonUniformScale) {
             temp += SQ(temp2);
             temp2 = src->zy;
             temp += SQ(temp2);
-            temp = MM_sqrtf(temp);
+            temp = sqrtf(temp);
             temp = temp2 / temp;
 
             temp2 = src->xz;
@@ -1667,7 +1667,7 @@ void Matrix_MtxFToZYXRot(MtxF* src, Vec3s* dest, s32 nonUniformScale) {
             temp2 += SQ(temp3);
             temp3 = src->zz;
             temp2 += SQ(temp3);
-            temp2 = MM_sqrtf(temp2);
+            temp2 = sqrtf(temp2);
             temp2 = temp3 / temp2;
 
             dest->x = MM_Math_Atan2S(temp, temp2);

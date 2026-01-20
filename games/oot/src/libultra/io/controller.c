@@ -24,7 +24,7 @@ s32 OoT_osContInit(OSMesgQueue* mq, u8* ctlBitfield, OSContStatus* status) {
     }
 
     gOSContInitialized = 1;
-    currentTime = OoT_osGetTime();
+    currentTime = osGetTime();
     if (HALF_SECOND > currentTime) {
         OoT_osCreateMesgQueue(&timerqueue, &mesg, 1);
         OoT_osSetTimer(&timer, HALF_SECOND - currentTime, 0, &timerqueue, &mesg);

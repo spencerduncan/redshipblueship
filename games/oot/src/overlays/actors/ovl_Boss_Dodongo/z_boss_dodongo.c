@@ -1628,8 +1628,8 @@ void BossDodongo_DeathCutscene(BossDodongo* this, PlayState* play) {
                 OoT_Math_SmoothStepToF(&this->unk_1E4, this->unk_1EC * 5.0f, 1.0f, this->unk_1EC * 0.25f, 0.0f);
                 tempSin = cornerPos->x - this->actor.world.pos.x;
                 tempCos = cornerPos->z - this->actor.world.pos.z;
-                sp178 = OoT_sqrtf(SQ(tempSin) + SQ(tempCos)) - 200.0f;
-                if ((OoT_sqrtf(SQ(tempSin) + SQ(tempCos)) < 200.0f) || (this->unk_1DA != 0)) {
+                sp178 = sqrtf(SQ(tempSin) + SQ(tempCos)) - 200.0f;
+                if ((sqrtf(SQ(tempSin) + SQ(tempCos)) < 200.0f) || (this->unk_1DA != 0)) {
                     sp178 = 0.0f;
                 }
                 sp178 = CLAMP_MAX(sp178, 70.0f);
@@ -1688,7 +1688,7 @@ void BossDodongo_DeathCutscene(BossDodongo* this, PlayState* play) {
                                  (f32)OoT_Animation_GetLastFrame(&object_kingdodongo_Anim_0042A8), ANIMMODE_LOOP, -20.0f);
                 tempSin = this->cameraEye.x - this->actor.world.pos.x;
                 tempCos = this->cameraEye.z - this->actor.world.pos.z;
-                this->unk_22C = OoT_sqrtf(SQ(tempSin) + SQ(tempCos));
+                this->unk_22C = sqrtf(SQ(tempSin) + SQ(tempCos));
                 this->unk_230 = OoT_Math_FAtan2F(tempSin, tempCos);
                 this->unk_1DC = 350;
                 this->csState = 9;

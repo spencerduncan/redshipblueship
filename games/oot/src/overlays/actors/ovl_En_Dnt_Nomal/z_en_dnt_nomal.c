@@ -242,7 +242,7 @@ void EnDntNomal_TargetWait(EnDntNomal* this, PlayState* play) {
 
         scoreVel.y = 5.0f;
 
-        if (OoT_sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 8.0f) {
+        if (sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 8.0f) {
             scorePos.x = this->actor.world.pos.x - 20.0f;
             scorePos.y = this->actor.world.pos.y + 20.0f;
             scorePos.z = this->actor.world.pos.z;
@@ -264,7 +264,7 @@ void EnDntNomal_TargetWait(EnDntNomal* this, PlayState* play) {
                     }
                 }
             }
-        } else if (OoT_sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 24.0f) {
+        } else if (sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 24.0f) {
             scorePos.x = this->actor.world.pos.x;
             scorePos.y = this->actor.world.pos.y + 20.0f;
             scorePos.z = this->actor.world.pos.z;
@@ -677,7 +677,7 @@ void EnDntNomal_StageAttack(EnDntNomal* this, PlayState* play) {
     dx = player->actor.world.pos.x - this->mouthPos.x;
     dy = player->actor.world.pos.y + 30.0f - this->mouthPos.y;
     dz = player->actor.world.pos.z - this->mouthPos.z;
-    OoT_Math_SmoothStepToS(&this->actor.shape.rot.x, -(s16)(OoT_Math_FAtan2F(dy, OoT_sqrtf(SQ(dx) + SQ(dz))) * (0x8000 / M_PI)), 3,
+    OoT_Math_SmoothStepToS(&this->actor.shape.rot.x, -(s16)(OoT_Math_FAtan2F(dy, sqrtf(SQ(dx) + SQ(dz))) * (0x8000 / M_PI)), 3,
                        0x1388, 0);
     if ((frame >= this->endFrame) && (this->timer2 == 0)) {
         this->timer2 = (s16)OoT_Rand_ZeroFloat(10.0f) + 10;

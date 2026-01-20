@@ -193,7 +193,7 @@ void func_80B86F68(ItemShield* this, PlayState* play) {
     this->unk_19C &= ~2;
 
     this->actor.shape.rot.y = OoT_Math_Atan2S(-shield->zz, -shield->xz);
-    this->actor.shape.rot.x = OoT_Math_Atan2S(-shield->yz, OoT_sqrtf(shield->zz * shield->zz + shield->xz * shield->xz));
+    this->actor.shape.rot.x = OoT_Math_Atan2S(-shield->yz, sqrtf(shield->zz * shield->zz + shield->xz * shield->xz));
 
     if (ABS(this->actor.shape.rot.x) > 0x4000) {
         this->unk_19C |= 1;

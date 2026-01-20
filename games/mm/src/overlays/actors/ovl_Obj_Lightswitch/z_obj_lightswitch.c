@@ -127,7 +127,7 @@ void ObjLightswitch_SpawnEffects(ObjLightswitch* this, PlayState* play) {
         } else {
             tempResult = SQ(30.0f) - SQ(tempResultDiff);
             tempResult = CLAMP_MIN(tempResult, SQ(10.0f));
-            tempResult = MM_sqrtf(tempResult);
+            tempResult = sqrtf(tempResult);
         }
 
         tempResult = 2.0f * ((MM_Rand_ZeroOne() - 0.5f) * tempResult);

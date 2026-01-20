@@ -22,11 +22,11 @@ void OoT_Main_ThreadEntry(void* arg) {
     osSyncPrintf("mainx 実行開始\n");
     DmaMgr_Init();
     osSyncPrintf("codeセグメントロード中...");
-    time = OoT_osGetTime();
+    time = osGetTime();
     // DmaMgr_SendRequest1(_codeSegmentStart, (uintptr_t)_codeSegmentRomStart, _codeSegmentRomEnd -
     // _codeSegmentRomStart,
     //"../idle.c", 238);
-    time -= OoT_osGetTime();
+    time -= osGetTime();
     osSyncPrintf("\rcodeセグメントロード中...完了\n");
     osSyncPrintf("転送時間 %6.3f\n");
     // bzero(_codeSegmentBssStart, _codeSegmentBssEnd - _codeSegmentBssStart);

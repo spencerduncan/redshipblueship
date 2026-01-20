@@ -334,7 +334,7 @@ void MM_Sched_RunTask(SchedContext* sched, OSScTask* spTask, OSScTask* dpTask) {
         MM_osSpTaskLoad(&spTask->list);
 
         // Log the start time based on the type of task
-        time = MM_osGetTime();
+        time = osGetTime();
         switch (spTask->list.t.type) {
             case M_AUDTASK:
                 MM_sRSPAudioStartTime = time;
@@ -432,7 +432,7 @@ void MM_Sched_HandleRSPDone(SchedContext* sched) {
     }
 
     // Log the time based on the type of task
-    time = MM_osGetTime();
+    time = osGetTime();
     switch (sched->curRSPTask->list.t.type) {
         case M_AUDTASK:
             gRSPAudioTimeAcc += time - MM_sRSPAudioStartTime;
@@ -490,7 +490,7 @@ void MM_Sched_HandleRDPDone(SchedContext* sched) {
     }
 
     // Log run time
-    gRDPTimeAcc = MM_osGetTime() - MM_sRDPStartTime;
+    gRDPTimeAcc = osGetTime() - MM_sRDPStartTime;
 
     // Mark task done
     curRDP = sched->curRDPTask;

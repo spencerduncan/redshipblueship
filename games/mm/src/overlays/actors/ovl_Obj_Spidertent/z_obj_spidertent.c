@@ -332,7 +332,7 @@ s32 func_80B2FB10(Vec3f* arg0, Vec3f* arg1) {
     if (temp_f0 < 9.999999e-9f) {
         return false;
     }
-    temp_f2 = 1.0f / MM_sqrtf(temp_f0);
+    temp_f2 = 1.0f / sqrtf(temp_f0);
     arg1->x = arg0->x * temp_f2;
     arg1->y = arg0->y * temp_f2;
     arg1->z = arg0->z * temp_f2;
@@ -367,7 +367,7 @@ s32 func_80B2FB94(Vec3f* arg0, f32 arg1, TriNorm* triNorm, Vec3f* arg3, f32* arg
         if (SQ(arg1) < temp_f0_2) {
             return false;
         }
-        *arg4 = MM_sqrtf(temp_f2_2);
+        *arg4 = sqrtf(temp_f2_2);
         return true;
     }
     return false;

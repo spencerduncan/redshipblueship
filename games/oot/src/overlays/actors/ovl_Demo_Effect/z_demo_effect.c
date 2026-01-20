@@ -1413,7 +1413,7 @@ void DemoEffect_MoveJewelSpherical(f32 degrees, f32 frameDivisor, Vec3f startPos
     f32 ySpherical;
     f32 xzSpherical;
 
-    distance = frameDivisor * OoT_sqrtf(SQ(endPos.x - startPos.x) + SQ(endPos.y - startPos.y) + SQ(endPos.z - startPos.z));
+    distance = frameDivisor * sqrtf(SQ(endPos.x - startPos.x) + SQ(endPos.y - startPos.y) + SQ(endPos.z - startPos.z));
 
     this->actor.world.pos.x = radius * cosf(degrees * (M_PI / 180.0f));
     this->actor.world.pos.y = distance;
@@ -2194,7 +2194,7 @@ void DemoEffect_FaceToCsEndpoint(DemoEffect* this, Vec3f startPos, Vec3f endPos)
     s32 pad;
     f32 x = endPos.x - startPos.x;
     f32 z = endPos.z - startPos.z;
-    f32 xzDistance = OoT_sqrtf(SQ(x) + SQ(z));
+    f32 xzDistance = sqrtf(SQ(x) + SQ(z));
 
     this->actor.shape.rot.y = OoT_Math_FAtan2F(x, z) * (32768.0f / M_PI);
     this->actor.shape.rot.x = OoT_Math_FAtan2F(-(endPos.y - startPos.y), xzDistance) * (32768.0f / M_PI);

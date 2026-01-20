@@ -88,7 +88,7 @@ void EnFdFire_UpdatePos(EnFdFire* this, Vec3f* targetPos) {
     f32 yDiff = targetPos->y - this->actor.world.pos.y;
     f32 zDiff = targetPos->z - this->actor.world.pos.z;
 
-    dist = OoT_sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff));
+    dist = sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff));
     if (fabsf(dist) > fabsf(this->actor.speedXZ)) {
         this->actor.velocity.x = (xDiff / dist) * this->actor.speedXZ;
         this->actor.velocity.z = (zDiff / dist) * this->actor.speedXZ;

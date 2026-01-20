@@ -236,7 +236,7 @@ void EnBaguo_Roll(EnBaguo* this, PlayState* play) {
     f32 xDistanceFromHome = this->actor.home.pos.x - this->actor.world.pos.x;
     f32 zDistanceFromHome = this->actor.home.pos.z - this->actor.world.pos.z;
 
-    if ((MM_sqrtf(SQ(xDistanceFromHome) + SQ(zDistanceFromHome)) > this->maxDistanceFromHome) ||
+    if ((sqrtf(SQ(xDistanceFromHome) + SQ(zDistanceFromHome)) > this->maxDistanceFromHome) ||
         (MM_Player_GetMask(play) == PLAYER_MASK_STONE)) {
         EnBaguo_SetupRetreatUnderground(this);
     } else if (this->timer == 0) {

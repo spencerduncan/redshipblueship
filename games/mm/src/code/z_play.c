@@ -2423,7 +2423,7 @@ void MM_Play_Init(GameState* thisx) {
     D_801D0D54 = false;
 
     MM_FrameAdvance_Init(&this->frameAdvCtx);
-    MM_Rand_Seed(MM_osGetTime());
+    MM_Rand_Seed(osGetTime());
     MM_Matrix_Init(&this->state);
 
     this->state.main = MM_Play_Main;

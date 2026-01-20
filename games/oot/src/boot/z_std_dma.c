@@ -70,7 +70,7 @@ s32 OoT_DmaMgr_DmaRomToRam(uintptr_t rom, uintptr_t ram, size_t size) {
         ioMsg.size = buffSize;
 
         if (D_80009460 == 10) {
-            osSyncPrintf("%10lld ノーマルＤＭＡ %08x %08x %08x (%d)\n", OS_CYCLES_TO_USEC(OoT_osGetTime()), ioMsg.dramAddr,
+            osSyncPrintf("%10lld ノーマルＤＭＡ %08x %08x %08x (%d)\n", OS_CYCLES_TO_USEC(osGetTime()), ioMsg.dramAddr,
                          ioMsg.devAddr, ioMsg.size, gPiMgrCmdQ.validCount);
         }
 
@@ -80,12 +80,12 @@ s32 OoT_DmaMgr_DmaRomToRam(uintptr_t rom, uintptr_t ram, size_t size) {
         }
 
         if (D_80009460 == 10) {
-            osSyncPrintf("%10lld ノーマルＤＭＡ START (%d)\n", OS_CYCLES_TO_USEC(OoT_osGetTime()), gPiMgrCmdQ.validCount);
+            osSyncPrintf("%10lld ノーマルＤＭＡ START (%d)\n", OS_CYCLES_TO_USEC(osGetTime()), gPiMgrCmdQ.validCount);
         }
 
         OoT_osRecvMesg(&queue, NULL, OS_MESG_BLOCK);
         if (D_80009460 == 10) {
-            osSyncPrintf("%10lld ノーマルＤＭＡ END (%d)\n", OS_CYCLES_TO_USEC(OoT_osGetTime()), gPiMgrCmdQ.validCount);
+            osSyncPrintf("%10lld ノーマルＤＭＡ END (%d)\n", OS_CYCLES_TO_USEC(osGetTime()), gPiMgrCmdQ.validCount);
         }
 
         size -= buffSize;
@@ -100,7 +100,7 @@ s32 OoT_DmaMgr_DmaRomToRam(uintptr_t rom, uintptr_t ram, size_t size) {
     ioMsg.size = size;
 
     if (D_80009460 == 10) {
-        osSyncPrintf("%10lld ノーマルＤＭＡ %08x %08x %08x (%d)\n", OS_CYCLES_TO_USEC(OoT_osGetTime()), ioMsg.dramAddr,
+        osSyncPrintf("%10lld ノーマルＤＭＡ %08x %08x %08x (%d)\n", OS_CYCLES_TO_USEC(osGetTime()), ioMsg.dramAddr,
                      ioMsg.devAddr, ioMsg.size, gPiMgrCmdQ.validCount);
     }
 
@@ -111,7 +111,7 @@ s32 OoT_DmaMgr_DmaRomToRam(uintptr_t rom, uintptr_t ram, size_t size) {
 
     OoT_osRecvMesg(&queue, NULL, OS_MESG_BLOCK);
     if (D_80009460 == 10) {
-        osSyncPrintf("%10lld ノーマルＤＭＡ END (%d)\n", OS_CYCLES_TO_USEC(OoT_osGetTime()), gPiMgrCmdQ.validCount);
+        osSyncPrintf("%10lld ノーマルＤＭＡ END (%d)\n", OS_CYCLES_TO_USEC(osGetTime()), gPiMgrCmdQ.validCount);
     }
 
 end:
@@ -129,7 +129,7 @@ s32 OoT_DmaMgr_DmaHandler(OSPiHandle* pihandle, OSIoMesg* mb, s32 direction) {
     assert(mb != NULL);
 
     if (D_80009460 == 10) {
-        osSyncPrintf("%10lld サウンドＤＭＡ %08x %08x %08x (%d)\n", OS_CYCLES_TO_USEC(OoT_osGetTime()), mb->dramAddr,
+        osSyncPrintf("%10lld サウンドＤＭＡ %08x %08x %08x (%d)\n", OS_CYCLES_TO_USEC(osGetTime()), mb->dramAddr,
                      mb->devAddr, mb->size, gPiMgrCmdQ.validCount);
     }
 

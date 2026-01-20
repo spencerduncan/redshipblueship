@@ -1928,7 +1928,7 @@ void MM_Environment_DrawLensFlare(PlayState* play, EnvironmentContext* envCtx, V
     tempY = view->at.y - view->eye.y;
     tempZ = view->at.z - view->eye.z;
 
-    length = MM_sqrtf(SQ(tempX) + SQ(tempY) + SQ(tempZ));
+    length = sqrtf(SQ(tempX) + SQ(tempY) + SQ(tempZ));
 
     lookDirX = tempX / length;
     lookDirY = tempY / length;
@@ -1944,7 +1944,7 @@ void MM_Environment_DrawLensFlare(PlayState* play, EnvironmentContext* envCtx, V
     tempY2 = pos.y - halfPosY;
     tempZ2 = pos.z - halfPosZ;
 
-    length = MM_sqrtf(SQ(tempX2) + SQ(tempY2) + SQ(tempZ2));
+    length = sqrtf(SQ(tempX2) + SQ(tempY2) + SQ(tempZ2));
 
     posDirX = tempX2 / length;
     posDirY = tempY2 / length;
@@ -1952,7 +1952,7 @@ void MM_Environment_DrawLensFlare(PlayState* play, EnvironmentContext* envCtx, V
 
     // compute the cosine of the angle between lookDir and posDir
     cosAngle = (lookDirX * posDirX + lookDirY * posDirY + lookDirZ * posDirZ) /
-               MM_sqrtf((SQ(lookDirX) + SQ(lookDirY) + SQ(lookDirZ)) * (SQ(posDirX) + SQ(posDirY) + SQ(posDirZ)));
+               sqrtf((SQ(lookDirX) + SQ(lookDirY) + SQ(lookDirZ)) * (SQ(posDirX) + SQ(posDirY) + SQ(posDirZ)));
 
     lensFlareAlphaScaleTarget = cosAngle * 3.5f;
     lensFlareAlphaScaleTarget = CLAMP_MAX(lensFlareAlphaScaleTarget, 1.0f);
@@ -2126,7 +2126,7 @@ void Environment_DrawRainImpl(PlayState* play, View* view, GraphicsContext* gfxC
     temp.x = view->at.x - view->eye.x;
     temp.y = view->at.y - view->eye.y;
     temp.z = view->at.z - view->eye.z;
-    length = MM_sqrtf(SQ(temp.x) + SQ(temp.y) + SQ(temp.z));
+    length = sqrtf(SQ(temp.x) + SQ(temp.y) + SQ(temp.z));
 
     temp_fs1 = temp.x / length;
     temp_fs2 = temp.z / length;
@@ -2403,8 +2403,8 @@ void MM_Environment_DrawLightning(PlayState* play, s32 unused) {
                 dx = play->view.at.x - play->view.eye.x;
                 dz = play->view.at.z - play->view.eye.z;
 
-                x = dx / MM_sqrtf(SQ(dx) + SQ(dz));
-                z = dz / MM_sqrtf(SQ(dx) + SQ(dz));
+                x = dx / sqrtf(SQ(dx) + SQ(dz));
+                z = dz / sqrtf(SQ(dx) + SQ(dz));
 
                 MM_sLightningBolts[i].pos.x = play->view.eye.x + x * 9500.0f;
                 MM_sLightningBolts[i].pos.y = MM_Rand_ZeroOne() * 1000.0f + 4000.0f;

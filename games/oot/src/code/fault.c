@@ -549,10 +549,10 @@ void OoT_Fault_Wait5Seconds(void) {
 #if 0
     OSTime start[2]; // to make the function allocate 0x28 bytes of stack instead of 0x20
 
-    start[0] = OoT_osGetTime();
+    start[0] = osGetTime();
     do {
         OoT_Fault_Sleep(0x10);
-    } while ((OoT_osGetTime() - start[0]) < OS_USEC_TO_CYCLES(5000000) + 1);
+    } while ((osGetTime() - start[0]) < OS_USEC_TO_CYCLES(5000000) + 1);
 
     sFaultStructPtr->faultActive = true;
 #endif

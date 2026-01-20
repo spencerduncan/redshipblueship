@@ -119,10 +119,10 @@ void func_80AB9210(EnNiwGirl* this, PlayState* play) {
     if (OoT_Message_GetState(&play->msgCtx) != TEXT_STATE_NONE) {
         this->chasedEnNiw->path = 0;
     }
-    if (OoT_sqrtf(SQ(xDistBetween) + SQ(zDistBetween)) < 70.0f) {
+    if (sqrtf(SQ(xDistBetween) + SQ(zDistBetween)) < 70.0f) {
         this->chasedEnNiw->path = (this->path + 1);
         this->chasedEnNiw->unk_2EC = path->count;
-    } else if (OoT_sqrtf(SQ(xDistBetween) + SQ(zDistBetween)) > 150.0f) {
+    } else if (sqrtf(SQ(xDistBetween) + SQ(zDistBetween)) > 150.0f) {
         this->chasedEnNiw->path = 0;
     }
 

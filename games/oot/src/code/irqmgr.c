@@ -105,7 +105,7 @@ void OoT_IrqMgr_HandlePreNMI(IrqMgr* this) {
 
     OoT_gIrqMgrResetStatus = temp;
     this->resetStatus = STATUS_PRENMI;
-    OoT_sIrqMgrResetTime = this->resetTime = OoT_osGetTime();
+    OoT_sIrqMgrResetTime = this->resetTime = osGetTime();
 
     OoT_osSetTimer(&this->timer, OS_USEC_TO_CYCLES(450000), 0ull, &this->queue, OS_MESG_32(PRENMI450_MSG));
     OoT_IrqMgr_JamMesgForClient(this, OS_MESG_PTR(&this->prenmiMsg));
@@ -154,9 +154,9 @@ void OoT_IrqMgr_HandlePRENMI500(IrqMgr* this) {
 void OoT_IrqMgr_HandleRetrace(IrqMgr* this) {
     if (OoT_gIrqMgrRetraceTime == 0ull) {
         if (this->retraceTime == 0) {
-            this->retraceTime = OoT_osGetTime();
+            this->retraceTime = osGetTime();
         } else {
-            OoT_gIrqMgrRetraceTime = OoT_osGetTime() - this->retraceTime;
+            OoT_gIrqMgrRetraceTime = osGetTime() - this->retraceTime;
         }
     }
     OoT_sIrqMgrRetraceCount++;

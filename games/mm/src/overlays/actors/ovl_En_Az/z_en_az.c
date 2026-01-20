@@ -1706,7 +1706,7 @@ void func_80A982E0(PlayState* play, ActorPathing* actorPathing) {
     actorPathing->distSqToCurPointXZ = MM_Math3D_Dist1DSq(sp28.x, sp28.z);
     actorPathing->distSqToCurPoint = MM_Math3D_Vec3fMagnitudeSq(&sp28);
     actorPathing->rotToCurPoint.y = Math_Atan2S_XY(sp28.z, sp28.x);
-    actorPathing->rotToCurPoint.x = Math_Atan2S_XY(MM_sqrtf(actorPathing->distSqToCurPointXZ), -sp28.y);
+    actorPathing->rotToCurPoint.x = Math_Atan2S_XY(sqrtf(actorPathing->distSqToCurPointXZ), -sp28.y);
     actorPathing->rotToCurPoint.z = 0;
 }
 

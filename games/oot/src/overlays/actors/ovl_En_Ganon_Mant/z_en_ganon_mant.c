@@ -227,7 +227,7 @@ void EnGanonMant_UpdateStrand(PlayState* play, EnGanonMant* this, Vec3f* root, V
 
             // Calculate rotations in the direction of the position difference
             yaw = OoT_Math_Atan2F(z, x);
-            x = -OoT_Math_Atan2F(OoT_sqrtf(SQ(x) + SQ(z)), y);
+            x = -OoT_Math_Atan2F(sqrtf(SQ(x) + SQ(z)), y);
             (rot - 1)->x = x;
 
             // Calculate real position difference of correct length in the correct direction
@@ -250,7 +250,7 @@ void EnGanonMant_UpdateStrand(PlayState* play, EnGanonMant* this, Vec3f* root, V
             // Pushes the cloak away from the actor if it is too close
             xDiff = pos->x - this->actor.world.pos.x;
             zDiff = pos->z - this->actor.world.pos.z;
-            if (OoT_sqrtf(SQ(xDiff) + SQ(zDiff)) < (sDistMultipliers[i] * this->minDist)) {
+            if (sqrtf(SQ(xDiff) + SQ(zDiff)) < (sDistMultipliers[i] * this->minDist)) {
                 yaw = OoT_Math_Atan2F(zDiff, xDiff);
                 delta.z = this->minDist * sDistMultipliers[i];
                 Matrix_RotateY(yaw, MTXMODE_NEW);
@@ -442,8 +442,8 @@ void EnGanonMant_Draw(Actor* thisx, PlayState* play) {
 
         // Calculte base orientation for chosen endpoints
         yaw = OoT_Math_Atan2F(zDiff, xDiff);
-        pitch = -OoT_Math_Atan2F(OoT_sqrtf(SQ(xDiff) + SQ(zDiff)), yDiff);
-        diffHalfDist = OoT_sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff)) * 0.5f;
+        pitch = -OoT_Math_Atan2F(sqrtf(SQ(xDiff) + SQ(zDiff)), yDiff);
+        diffHalfDist = sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff)) * 0.5f;
 
         Matrix_RotateY(yaw, MTXMODE_NEW);
         Matrix_RotateX(pitch, MTXMODE_APPLY);

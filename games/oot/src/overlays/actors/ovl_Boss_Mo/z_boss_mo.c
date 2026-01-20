@@ -691,7 +691,7 @@ void BossMo_Tentacle(BossMo* this, PlayState* play) {
                 dx = this->tentPos[22].x - player->actor.world.pos.x;
                 dy = this->tentPos[22].y - player->actor.world.pos.y;
                 dz = this->tentPos[22].z - player->actor.world.pos.z;
-                if ((fabsf(dy) < 50.0f) && !HAS_LINK(otherTent) && (OoT_sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 120.0f)) {
+                if ((fabsf(dy) < 50.0f) && !HAS_LINK(otherTent) && (sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 120.0f)) {
                     this->tentMaxAngle = .001f;
                     this->work[MO_TENT_ACTION_STATE] = MO_TENT_CURL;
                     this->timers[0] = 40;
@@ -1310,7 +1310,7 @@ void BossMo_IntroCs(BossMo* this, PlayState* play) {
             dy = this->targetPos.y - this->cameraEye.y + tempY;
             dz = this->targetPos.z - this->cameraEye.z;
             tempY = OoT_Math_FAtan2F(dx, dz);
-            tempX = OoT_Math_FAtan2F(dy, OoT_sqrtf(SQ(dx) + SQ(dz)));
+            tempX = OoT_Math_FAtan2F(dy, sqrtf(SQ(dx) + SQ(dz)));
             OoT_Math_ApproachS(&this->actor.world.rot.y, tempY * (0x8000 / M_PI), 5, this->cameraYawRate);
             OoT_Math_ApproachS(&this->actor.world.rot.x, tempX * (0x8000 / M_PI), 5, this->cameraYawRate);
             if (this->work[MO_TENT_MOVE_TIMER] == 150) {
@@ -1355,7 +1355,7 @@ void BossMo_IntroCs(BossMo* this, PlayState* play) {
                 OoT_Math_ApproachF(&this->fwork[MO_CORE_INTRO_WATER_ALPHA], 100.0f, 1.0f, 1.0f);
             }
             if (this->targetIndex < 5) {
-                if (OoT_sqrtf(SQ(dx) + SQ(dz) + SQ(dy)) < 40.0f) {
+                if (sqrtf(SQ(dx) + SQ(dz) + SQ(dy)) < 40.0f) {
                     this->targetIndex++;
                     this->cameraYawRate = 0.0f;
                 }
@@ -1552,7 +1552,7 @@ void BossMo_DeathCs(BossMo* this, PlayState* play) {
             dx = this->actor.world.pos.x - this->cameraEye.x;
             dz = this->actor.world.pos.z - this->cameraEye.z;
             this->cameraYaw = OoT_Math_FAtan2F(dx, dz);
-            this->cameraDist = OoT_sqrtf(SQ(dx) + SQ(dz));
+            this->cameraDist = sqrtf(SQ(dx) + SQ(dz));
             this->cameraYawRate = 0.0f;
         case MO_DEATH_MO_CORE_BURST:
             this->baseAlpha = 0.0f;
@@ -2164,7 +2164,7 @@ void BossMo_Core(BossMo* this, PlayState* play) {
                 spD8 = this->targetPos.y - this->actor.world.pos.y;
                 spD4 = this->targetPos.z - this->actor.world.pos.z;
                 spCC = (s16)(OoT_Math_FAtan2F(spDC, spD4) * (0x8000 / M_PI));
-                spD0 = (s16)(OoT_Math_FAtan2F(spD8, OoT_sqrtf(SQ(spDC) + SQ(spD4))) * (0x8000 / M_PI));
+                spD0 = (s16)(OoT_Math_FAtan2F(spD8, sqrtf(SQ(spDC) + SQ(spD4))) * (0x8000 / M_PI));
                 OoT_Math_ApproachS(&this->actor.world.rot.y, spCC, this->tentMaxAngle, this->tentSpeed);
                 OoT_Math_ApproachS(&this->actor.world.rot.x, spD0, this->tentMaxAngle, this->tentSpeed);
                 Actor_UpdateVelocityXYZ(&this->actor);
@@ -2712,7 +2712,7 @@ void BossMo_DrawCore(Actor* thisx, PlayState* play) {
         sp84 = this->cameraAt.z - this->cameraEye.z;
         temp = SQ(sp8C) + SQ(sp84);
         sp7C = OoT_Math_FAtan2F(sp8C, sp84);
-        sp78 = -OoT_Math_FAtan2F(sp88, OoT_sqrtf(temp));
+        sp78 = -OoT_Math_FAtan2F(sp88, sqrtf(temp));
 
         sp6C.x = 0.0f;
         sp6C.y = 0.0f;

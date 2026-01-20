@@ -551,7 +551,7 @@ void EnfHG_Attack(EnfHG* this, PlayState* play) {
     } else {
         f32 dx = this->actor.world.pos.x - this->inPaintingPos.x;
         f32 dz = this->actor.world.pos.z - this->inPaintingPos.z;
-        f32 dxz = OoT_sqrtf(SQ(dx) + SQ(dz));
+        f32 dxz = sqrtf(SQ(dx) + SQ(dz));
 
         if (dxz < 350.0f) {
             this->bossGndInPainting = true;
@@ -604,7 +604,7 @@ void EnfHG_Damage(EnfHG* this, PlayState* play) {
     OoT_Math_ApproachF(&this->actor.world.pos.z, this->inPaintingPos.z, 1.0f, this->damageSpeedMod * this->inPaintingVelZ);
     dx = this->actor.world.pos.x - this->inPaintingPos.x;
     dz = this->actor.world.pos.z - this->inPaintingPos.z;
-    dxz2 = OoT_sqrtf(SQ(dx) + SQ(dz));
+    dxz2 = sqrtf(SQ(dx) + SQ(dz));
     if ((dxz2 < 300.0f) && (!this->spawnedWarp)) {
         this->spawnedWarp = true;
         OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_FHG_FIRE, this->inPaintingPos.x,

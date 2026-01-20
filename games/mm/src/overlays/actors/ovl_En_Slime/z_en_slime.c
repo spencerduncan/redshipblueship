@@ -310,7 +310,7 @@ void EnSlime_Idle(EnSlime* this, PlayState* play) {
     f32 scale;
 
     this->timer--;
-    timerFactor = MM_sqrtf(this->timer) * 0.2f;
+    timerFactor = sqrtf(this->timer) * 0.2f;
     EnSlime_Blink(this);
 
     scale = ((MM_Math_SinF(this->timer * (2.0f * M_PIf / 5.0f)) * (0.13f * timerFactor)) + 1.0f) * 0.01f;
@@ -551,7 +551,7 @@ void EnSlime_Land(EnSlime* this, PlayState* play) {
     EnSlime_Blink(this);
     this->timer--;
     scaleY = ((this->timer / 5) + 1) * 1.6f;
-    rotXZ = MM_sqrtf(this->timer) * 0.2f;
+    rotXZ = sqrtf(this->timer) * 0.2f;
     scaleXZ = ((MM_Math_CosF(this->timer * (2.0f * M_PIf / 5.0f)) * (0.05f * scaleY)) + 1.0f) * 0.01f;
     this->actor.scale.x = scaleXZ;
     this->actor.scale.z = scaleXZ;
@@ -606,7 +606,7 @@ void EnSlime_ReactToBluntHit(EnSlime* this, PlayState* play) {
     EnSlime_Blink(this);
     this->timer--;
     MM_Math_StepToF(&this->actor.speed, 0.0f, 1.0f);
-    timerFactor = MM_sqrtf(this->timer);
+    timerFactor = sqrtf(this->timer);
     if (this->timer < 30) {
         scale = ((MM_Math_CosF(this->timer * (2.0f * M_PIf / 5.0f)) * (0.08f * timerFactor)) + 1.0f) * 0.01f;
         this->actor.scale.x = scale;

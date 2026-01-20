@@ -136,8 +136,8 @@ void EnNwc_UpdateChicks(EnNwc* this, PlayState* play) {
             test = SQ(dx) + SQ(dz);
             if (test < SQ(10.0f)) {
                 if (test != 0.0f) {
-                    chick->pos.x += dx / OoT_sqrtf(test);
-                    chick->pos.z += dz / OoT_sqrtf(test);
+                    chick->pos.x += dx / sqrtf(test);
+                    chick->pos.z += dz / sqrtf(test);
                 } else {
                     chick->pos.x += 1.0f;
                     chick->pos.z += 1.0f;

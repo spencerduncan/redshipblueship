@@ -686,7 +686,7 @@ void Boss05_LilyPadWithHead_Move(Boss05* this, PlayState* play) {
                 }
 
                 if ((this->timers[TIMER_CURRENT_ACTION] == 0) &&
-                    (MM_sqrtf(this->dyna.actor.xyzDistToPlayerSq) <= attackRange)) {
+                    (sqrtf(this->dyna.actor.xyzDistToPlayerSq) <= attackRange)) {
                     this->lilyPadWithHeadAttackState = BIO_BABA_LILY_PAD_WITH_HEAD_ATTACK_STATE_WIND_UP;
                     this->timers[TIMER_CURRENT_ACTION] = 10;
                 }
@@ -695,7 +695,7 @@ void Boss05_LilyPadWithHead_Move(Boss05* this, PlayState* play) {
             } else {
                 disableATCollisions = true;
 
-                if (MM_sqrtf(this->dyna.actor.xyzDistToPlayerSq) <= 40.0f) {
+                if (sqrtf(this->dyna.actor.xyzDistToPlayerSq) <= 40.0f) {
                     this->flipAttackFrameCounter++;
 
                     if (this->flipAttackFrameCounter > 30) {
@@ -846,7 +846,7 @@ void Boss05_LilyPadWithHead_Move(Boss05* this, PlayState* play) {
  */
 void Boss05_LilyPad_Idle(Boss05* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
-    f32 distToPlayer = MM_sqrtf(this->dyna.actor.xyzDistToPlayerSq);
+    f32 distToPlayer = sqrtf(this->dyna.actor.xyzDistToPlayerSq);
     s16 targetRotX;
 
     if ((distToPlayer < 50.0f) && (player->actor.bgCheckFlags & BGCHECKFLAG_GROUND)) {

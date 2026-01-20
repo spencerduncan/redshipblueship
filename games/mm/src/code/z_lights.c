@@ -112,7 +112,7 @@ void Lights_BindPointWithReference(Lights* lights, LightParams* params, Vec3f* p
             light = MM_Lights_FindSlot(lights);
 
             if (light != NULL) {
-                posDiff = MM_sqrtf(posDiff);
+                posDiff = sqrtf(posDiff);
                 scale = posDiff / scale;
                 scale = 1 - SQ(scale);
 

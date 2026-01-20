@@ -3603,7 +3603,7 @@ void func_800F5CF8(void);
 void func_800F3054(void) {
     if (func_800FAD34() == 0) {
         sAudioUpdateTaskStart = gAudioContext.totalTaskCnt;
-        sAudioUpdateStartTime = OoT_osGetTime();
+        sAudioUpdateStartTime = osGetTime();
         func_800EE6F4();
         OoT_Audio_StepFreqLerp(&OoT_sRiverFreqScaleLerp);
         OoT_Audio_StepFreqLerp(&OoT_sWaterfallFreqScaleLerp);
@@ -3621,7 +3621,7 @@ void func_800F3054(void) {
         AudioDebug_ProcessInput();
         Audio_ScheduleProcessCmds();
         sAudioUpdateTaskEnd = gAudioContext.totalTaskCnt;
-        sAudioUpdateEndTime = OoT_osGetTime();
+        sAudioUpdateEndTime = osGetTime();
     }
 }
 
@@ -3893,7 +3893,7 @@ void Audio_SetSoundProperties(u8 bankId, u8 entryIdx, u8 channelIdx) {
             }
             // fallthrough
         case BANK_OCARINA:
-            entry->dist = OoT_sqrtf(entry->dist);
+            entry->dist = sqrtf(entry->dist);
             vol = Audio_ComputeSoundVolume(bankId, entryIdx) * *entry->vol;
             reverb = Audio_ComputeSoundReverb(bankId, entryIdx, channelIdx);
             panSigned = Audio_ComputeSoundPanSigned(*entry->posX, *entry->posZ, entry->token);
@@ -4463,12 +4463,12 @@ void OoT_Audio_PlaySariaBgm(Vec3f* pos, u16 seqId, u16 distMax) {
         return;
     }
 
-    dist = OoT_sqrtf(SQ(pos->z) + SQ(pos->x));
+    dist = sqrtf(SQ(pos->z) + SQ(pos->x));
     if (sSariaBgmPtr == NULL) {
         sSariaBgmPtr = pos;
         func_800F5E18(SEQ_PLAYER_BGM_SUB, seqId, 0, 7, 2);
     } else {
-        prevDist = OoT_sqrtf(SQ(sSariaBgmPtr->z) + SQ(sSariaBgmPtr->x));
+        prevDist = sqrtf(SQ(sSariaBgmPtr->z) + SQ(sSariaBgmPtr->x));
         if (dist < prevDist) {
             sSariaBgmPtr = pos;
         } else {

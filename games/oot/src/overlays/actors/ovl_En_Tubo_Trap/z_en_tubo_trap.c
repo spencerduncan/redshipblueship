@@ -268,7 +268,7 @@ void EnTuboTrap_Fly(EnTuboTrap* this, PlayState* play) {
 
     Audio_PlayActorSound2(&this->actor, NA_SE_EN_TUBOOCK_FLY - SFX_FLAG);
 
-    if (240.0f < OoT_sqrtf(SQ(dx) + SQ(dy) + SQ(dz))) {
+    if (240.0f < sqrtf(SQ(dx) + SQ(dy) + SQ(dz))) {
         OoT_Math_ApproachF(&this->actor.gravity, -3.0f, 0.2f, 0.5f);
     }
 

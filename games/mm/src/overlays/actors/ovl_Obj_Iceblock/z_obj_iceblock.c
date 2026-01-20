@@ -776,7 +776,7 @@ void func_80A2508C(ObjIceblock* this, PlayState* play) {
             sp34.y = 600.0f;
             sp34.z = (MM_Rand_ZeroOne() * 600.0f) - 300.0f;
 
-            temp_f0 = MM_sqrtf(this->dyna.actor.scale.y + 0.01f);
+            temp_f0 = sqrtf(this->dyna.actor.scale.y + 0.01f);
             sp40.x = sp34.x * 0.006935f * temp_f0;
             sp40.y = 2.0f;
             sp40.z = sp34.z * 0.006935f * temp_f0;

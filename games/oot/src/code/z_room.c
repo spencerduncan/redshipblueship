@@ -241,10 +241,10 @@ s32 swapAndConvertJPEG(void* data) {
         osSyncPrintf("Expanding jpeg data\n");
         osSyncPrintf("Work buffer address (Z buffer) %08x\n", gZBuffer);
 
-        time = OoT_osGetTime();
+        time = osGetTime();
 
         memcpy(data, decodedJpeg, size);
-        time = OoT_osGetTime() - time;
+        time = osGetTime() - time;
 
         osSyncPrintf("Success... I think. time = %6.3f ms", OS_CYCLES_TO_USEC(time) / 1000.0f);
         osSyncPrintf("Writing back to original address from work buffer.");
@@ -301,7 +301,7 @@ void Room_DrawBackground2D(Gfx** gfxP, void* tex, void* tlut, u16 width, u16 hei
     if ((fmt == G_IM_FMT_RGBA) && (SREG(26) == 0)) {
         bg->b.frameW = width * (1 << 2);
         bg->b.frameH = height * (1 << 2);
-        OoT_guS2DInitBg(bg);
+        guS2DInitBg(bg);
 
         // #region SOH [Port][Widescreen]
         // When larger than 4:3 we want to render an additional black rectangle behind the 2d image

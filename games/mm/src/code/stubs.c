@@ -362,7 +362,7 @@ s32 osFlashCheckEraseEnd(void) {
 }
 void MM_osSetThreadPri(OSThread* thread, OSPri p) {
 }
-void MM_guS2DInitBg(uObjBg* bg) {
+void guS2DInitBg(uObjBg* bg) {
     u32 size;
     s32 tmem = (bg->b.imageFmt == G_IM_FMT_CI) ? 0x100 : 0x200;
     u16 shift = (6 - bg->b.imageSiz);
@@ -514,7 +514,7 @@ void MM_guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, 
     xLook = xAt - xEye;
     yLook = yAt - yEye;
     zLook = zAt - zEye;
-    length = -1.0 / MM_sqrtf(xLook * xLook + yLook * yLook + zLook * zLook);
+    length = -1.0 / sqrtf(xLook * xLook + yLook * yLook + zLook * zLook);
     xLook *= length;
     yLook *= length;
     zLook *= length;
@@ -522,7 +522,7 @@ void MM_guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, 
     xRight = yUp * zLook - zUp * yLook;
     yRight = zUp * xLook - xUp * zLook;
     zRight = xUp * yLook - yUp * xLook;
-    length = 1.0 / MM_sqrtf(xRight * xRight + yRight * yRight + zRight * zRight);
+    length = 1.0 / sqrtf(xRight * xRight + yRight * yRight + zRight * zRight);
     xRight *= length;
     yRight *= length;
     zRight *= length;
@@ -530,14 +530,14 @@ void MM_guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, 
     xUp = yLook * zRight - zLook * yRight;
     yUp = zLook * xRight - xLook * zRight;
     zUp = xLook * yRight - yLook * xRight;
-    length = 1.0 / MM_sqrtf(xUp * xUp + yUp * yUp + zUp * zUp);
+    length = 1.0 / sqrtf(xUp * xUp + yUp * yUp + zUp * zUp);
     xUp *= length;
     yUp *= length;
     zUp *= length;
 
     /* hilite vectors */
 
-    length = 1.0 / MM_sqrtf(xl1 * xl1 + yl1 * yl1 + zl1 * zl1);
+    length = 1.0 / sqrtf(xl1 * xl1 + yl1 * yl1 + zl1 * zl1);
     xl1 *= length;
     yl1 *= length;
     zl1 *= length;
@@ -546,7 +546,7 @@ void MM_guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, 
     yHilite = yl1 + yLook;
     zHilite = zl1 + zLook;
 
-    length = MM_sqrtf(xHilite * xHilite + yHilite * yHilite + zHilite * zHilite);
+    length = sqrtf(xHilite * xHilite + yHilite * yHilite + zHilite * zHilite);
 
     if (length > 0.1) {
         length = 1.0 / length;
@@ -562,7 +562,7 @@ void MM_guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, 
         h->h.y1 = hiliteHeight * 2;
     }
 
-    length = 1.0 / MM_sqrtf(xl2 * xl2 + yl2 * yl2 + zl2 * zl2);
+    length = 1.0 / sqrtf(xl2 * xl2 + yl2 * yl2 + zl2 * zl2);
     xl2 *= length;
     yl2 *= length;
     zl2 *= length;
@@ -570,7 +570,7 @@ void MM_guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, 
     xHilite = xl2 + xLook;
     yHilite = yl2 + yLook;
     zHilite = zl2 + zLook;
-    length = MM_sqrtf(xHilite * xHilite + yHilite * yHilite + zHilite * zHilite);
+    length = sqrtf(xHilite * xHilite + yHilite * yHilite + zHilite * zHilite);
     if (length > 0.1) {
         length = 1.0 / length;
         xHilite *= length;
@@ -733,7 +733,7 @@ void MM_guLookAtF(f32 mf[4][4], f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, 
     xLook = xAt - xEye;
     yLook = yAt - yEye;
     zLook = zAt - zEye;
-    length = -1.0 / MM_sqrtf(SQ(xLook) + SQ(yLook) + SQ(zLook));
+    length = -1.0 / sqrtf(SQ(xLook) + SQ(yLook) + SQ(zLook));
     xLook *= length;
     yLook *= length;
     zLook *= length;
@@ -741,7 +741,7 @@ void MM_guLookAtF(f32 mf[4][4], f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, 
     xRight = yUp * zLook - zUp * yLook;
     yRight = zUp * xLook - xUp * zLook;
     zRight = xUp * yLook - yUp * xLook;
-    length = 1.0 / MM_sqrtf(SQ(xRight) + SQ(yRight) + SQ(zRight));
+    length = 1.0 / sqrtf(SQ(xRight) + SQ(yRight) + SQ(zRight));
     xRight *= length;
     yRight *= length;
     zRight *= length;
@@ -749,7 +749,7 @@ void MM_guLookAtF(f32 mf[4][4], f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, 
     xUp = yLook * zRight - zLook * yRight;
     yUp = zLook * xRight - xLook * zRight;
     zUp = xLook * yRight - yLook * xRight;
-    length = 1.0 / MM_sqrtf(SQ(xUp) + SQ(yUp) + SQ(zUp));
+    length = 1.0 / sqrtf(SQ(xUp) + SQ(yUp) + SQ(zUp));
     xUp *= length;
     yUp *= length;
     zUp *= length;
@@ -834,7 +834,7 @@ void MM_guRotate(Mtx* m, float a, float x, float y, float z) {
 
 /*
 void guNormalize(f32* x, f32* y, f32* z) {
-    f32 tmp = 1.0f / MM_sqrtf(*x * *x + *y * *y + *z * *z);
+    f32 tmp = 1.0f / sqrtf(*x * *x + *y * *y + *z * *z);
     *x = *x * tmp;
     *y = *y * tmp;
     *z = *z * tmp;

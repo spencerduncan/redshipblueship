@@ -18,7 +18,7 @@ void func_800A9F6C(f32 a, u8 b, u8 c, u8 d) {
     if (1000000.0f < a) {
         temp1 = 1000;
     } else {
-        temp1 = OoT_sqrtf(a);
+        temp1 = sqrtf(a);
     }
 
     if ((temp1 < 1000) && (b != 0) && (d != 0)) {
@@ -39,7 +39,7 @@ void func_800AA000(f32 a, u8 b, u8 c, u8 d) {
     if (1000000.0f < a) {
         temp1 = 1000;
     } else {
-        temp1 = OoT_sqrtf(a);
+        temp1 = sqrtf(a);
     }
 
     if (temp1 < 1000 && b != 0 && d != 0) {

@@ -418,17 +418,17 @@ void OoT_GameState_Init(GameState* gameState, GameStateFunc init, GraphicsContex
     gameState->main = NULL;
     gameState->destroy = NULL;
     gameState->running = 1;
-    startTime = OoT_osGetTime();
+    startTime = osGetTime();
     gameState->size = 0;
     gameState->init = NULL;
-    endTime = OoT_osGetTime();
+    endTime = osGetTime();
 
     // "game_set_next_game_null processing time %d us"
     osSyncPrintf("game_set_next_game_null 処理時間 %d us\n", OS_CYCLES_TO_USEC(endTime - startTime));
     startTime = endTime;
     OoT_GameAlloc_Init(&gameState->alloc);
 
-    endTime = OoT_osGetTime();
+    endTime = osGetTime();
     // "gamealloc_init processing time %d us"
     osSyncPrintf("gamealloc_init 処理時間 %d us\n", OS_CYCLES_TO_USEC(endTime - startTime));
 
@@ -437,7 +437,7 @@ void OoT_GameState_Init(GameState* gameState, GameStateFunc init, GraphicsContex
     R_UPDATE_RATE = 3;
     init(gameState);
 
-    endTime = OoT_osGetTime();
+    endTime = osGetTime();
     // "init processing time %d us"
     osSyncPrintf("init 処理時間 %d us\n", OS_CYCLES_TO_USEC(endTime - startTime));
 
@@ -453,7 +453,7 @@ void OoT_GameState_Init(GameState* gameState, GameStateFunc init, GraphicsContex
     func_800AA0B4();
     osSendMesgPtr(&gameState->gfxCtx->queue, NULL, OS_MESG_BLOCK);
 
-    endTime = OoT_osGetTime();
+    endTime = osGetTime();
     // "Other initialization processing time %d us"
     osSyncPrintf("その他初期化 処理時間 %d us\n", OS_CYCLES_TO_USEC(endTime - startTime));
 

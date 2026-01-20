@@ -1616,7 +1616,7 @@ void Interface_PostmanTimerCallback(void* arg) {
     PadMgr_GetInputNoLock(sPostmanTimerInput, false);
     btnAPressed = CHECK_BTN_ALL(sPostmanTimerInput[0].cur.button, BTN_A);
     if ((btnAPressed != sPostmanTimerInputBtnAPressed) && btnAPressed) {
-        gSaveContext.postmanTimerStopOsTime = MM_osGetTime();
+        gSaveContext.postmanTimerStopOsTime = osGetTime();
         gSaveContext.timerStates[TIMER_ID_POSTMAN] = TIMER_STATE_POSTMAN_STOP;
     }
 
@@ -1677,7 +1677,7 @@ void Interface_StartBottleTimer(s16 seconds, s16 timerId) {
     gSaveContext.bottleTimerStates[timerId] = BOTTLE_TIMER_STATE_COUNTING;
     gSaveContext.bottleTimerCurTimes[timerId] = SECONDS_TO_TIMER(seconds);
     gSaveContext.bottleTimerTimeLimits[timerId] = gSaveContext.bottleTimerCurTimes[timerId];
-    gSaveContext.bottleTimerStartOsTimes[timerId] = MM_osGetTime();
+    gSaveContext.bottleTimerStartOsTimes[timerId] = osGetTime();
     gSaveContext.bottleTimerPausedOsTimes[timerId] = 0;
     sBottleTimerPausedOsTime = 0;
 }
@@ -8076,7 +8076,7 @@ void Interface_DrawTimers(PlayState* play) {
 
         // Account for osTime when the timer is paused
         if (sIsTimerPaused) {
-            osTime = MM_osGetTime();
+            osTime = osGetTime();
 
             for (j = 0; j < TIMER_ID_MAX; j++) {
                 if (gSaveContext.timerStates[j] == TIMER_STATE_COUNTING) {
@@ -8134,7 +8134,7 @@ void Interface_DrawTimers(PlayState* play) {
                 switch (gSaveContext.timerStates[TIMER_ID_POSTMAN]) {
                     case TIMER_STATE_POSTMAN_START:
                         if (gSaveContext.timerDirections[TIMER_ID_POSTMAN] != TIMER_COUNT_DOWN) {
-                            gSaveContext.timerStartOsTimes[TIMER_ID_POSTMAN] = MM_osGetTime();
+                            gSaveContext.timerStartOsTimes[TIMER_ID_POSTMAN] = osGetTime();
                         }
                         gSaveContext.timerStates[TIMER_ID_POSTMAN] = TIMER_STATE_POSTMAN_COUNTING;
                         sPostmanTimerInputBtnAPressed = true;
@@ -8192,11 +8192,11 @@ void Interface_DrawTimers(PlayState* play) {
                                 gSaveContext.timerStates[sTimerId] = TIMER_STATE_COUNTING;
                             } else {
                                 gSaveContext.timerStates[sTimerId] = TIMER_STATE_ALT_COUNTING;
-                                D_801BF8F8[sTimerId] = MM_osGetTime();
+                                D_801BF8F8[sTimerId] = osGetTime();
                                 D_801BF930[sTimerId] = 0;
                             }
 
-                            gSaveContext.timerStartOsTimes[sTimerId] = MM_osGetTime();
+                            gSaveContext.timerStartOsTimes[sTimerId] = osGetTime();
                             gSaveContext.timerStopTimes[sTimerId] = SECONDS_TO_TIMER(0);
                             gSaveContext.timerPausedOsTimes[sTimerId] = 0;
                         }
@@ -8266,7 +8266,7 @@ void Interface_DrawTimers(PlayState* play) {
                         }
 
                         gSaveContext.timerStates[sTimerId] = TIMER_STATE_COUNTING;
-                        gSaveContext.timerStartOsTimes[sTimerId] = MM_osGetTime();
+                        gSaveContext.timerStartOsTimes[sTimerId] = osGetTime();
                         gSaveContext.timerStopTimes[sTimerId] = SECONDS_TO_TIMER(0);
                         gSaveContext.timerPausedOsTimes[sTimerId] = 0;
                     }
@@ -8295,16 +8295,16 @@ void Interface_DrawTimers(PlayState* play) {
                     break;
 
                 case TIMER_STATE_10:
-                    D_801BF8F8[sTimerId] = MM_osGetTime();
+                    D_801BF8F8[sTimerId] = osGetTime();
                     D_801BF930[sTimerId] = 0;
                     gSaveContext.timerStates[sTimerId] = TIMER_STATE_ALT_COUNTING;
                     // fallthrough
                 case TIMER_STATE_ALT_COUNTING:
-                    D_801BF930[sTimerId] = MM_osGetTime() - D_801BF8F8[sTimerId];
+                    D_801BF930[sTimerId] = osGetTime() - D_801BF8F8[sTimerId];
                     break;
 
                 case TIMER_STATE_12:
-                    osTime = MM_osGetTime();
+                    osTime = osGetTime();
 
                     gSaveContext.timerPausedOsTimes[sTimerId] =
                         gSaveContext.timerPausedOsTimes[sTimerId] + osTime - D_801BF8F8[sTimerId];
@@ -8322,7 +8322,7 @@ void Interface_DrawTimers(PlayState* play) {
                     break;
 
                 case TIMER_STATE_STOP:
-                    osTime = MM_osGetTime();
+                    osTime = osGetTime();
 
                     gSaveContext.timerStopTimes[sTimerId] =
                         OSTIME_TO_TIMER(osTime - ((void)0, gSaveContext.timerStartOsTimes[sTimerId]) -
@@ -8349,7 +8349,7 @@ void Interface_DrawTimers(PlayState* play) {
                     break;
 
                 case TIMER_STATE_6:
-                    osTime = MM_osGetTime();
+                    osTime = osGetTime();
 
                     gSaveContext.timerStopTimes[sTimerId] =
                         OSTIME_TO_TIMER(osTime - ((void)0, gSaveContext.timerStartOsTimes[sTimerId]) -
@@ -8393,7 +8393,7 @@ void Interface_DrawTimers(PlayState* play) {
                     (gSaveContext.timerStates[sTimerId] == TIMER_STATE_10) ||
                     (gSaveContext.timerStates[sTimerId] == TIMER_STATE_ALT_COUNTING) ||
                     (gSaveContext.timerStates[sTimerId] == TIMER_STATE_POSTMAN_COUNTING)) {
-                    osTime = MM_osGetTime();
+                    osTime = osGetTime();
 
                     osTime =
                         OSTIME_TO_TIMER(osTime - ((void)0, gSaveContext.timerPausedOsTimes[sTimerId]) -
@@ -8454,7 +8454,7 @@ void Interface_DrawTimers(PlayState* play) {
                 // Get the total amount of unpaused time since the start of the timer, centiseconds (1/100th sec).
                 if ((gSaveContext.timerStates[sTimerId] == TIMER_STATE_COUNTING) ||
                     (gSaveContext.timerStates[sTimerId] == TIMER_STATE_POSTMAN_COUNTING)) {
-                    osTime = MM_osGetTime();
+                    osTime = osGetTime();
                     osTime =
                         OSTIME_TO_TIMER(osTime - ((void)0, gSaveContext.timerStartOsTimes[sTimerId]) -
                                         ((void)0, gSaveContext.timerPausedOsTimes[sTimerId]) - D_801BF930[sTimerId]);
@@ -8585,7 +8585,7 @@ void Interface_DrawTimers(PlayState* play) {
         }
 
     } else if (!sIsTimerPaused) {
-        sTimerPausedOsTime = MM_osGetTime();
+        sTimerPausedOsTime = osGetTime();
         sIsTimerPaused = true;
     }
 
@@ -8608,7 +8608,7 @@ void Interface_UpdateBottleTimers(PlayState* play) {
 
         // Account for osTime when the timer is paused
         if (sIsBottleTimerPaused) {
-            osTime = MM_osGetTime();
+            osTime = osGetTime();
 
             for (j = BOTTLE_FIRST; j < BOTTLE_MAX; j++) {
                 if (gSaveContext.bottleTimerStates[j] == BOTTLE_TIMER_STATE_COUNTING) {
@@ -8623,7 +8623,7 @@ void Interface_UpdateBottleTimers(PlayState* play) {
 
         for (i = BOTTLE_FIRST; i < BOTTLE_MAX; i++) {
             if (gSaveContext.bottleTimerStates[i] == BOTTLE_TIMER_STATE_COUNTING) {
-                osTime = MM_osGetTime();
+                osTime = osGetTime();
 
                 // Get the total amount of unpaused time since the start of the timer, centiseconds (1/100th sec).
                 osTime = OSTIME_TO_TIMER_ALT(osTime - ((void)0, gSaveContext.bottleTimerPausedOsTimes[i]) -
@@ -8654,7 +8654,7 @@ void Interface_UpdateBottleTimers(PlayState* play) {
             }
         }
     } else if (!sIsBottleTimerPaused) {
-        sBottleTimerPausedOsTime = MM_osGetTime();
+        sBottleTimerPausedOsTime = osGetTime();
         sIsBottleTimerPaused = true;
     }
 }

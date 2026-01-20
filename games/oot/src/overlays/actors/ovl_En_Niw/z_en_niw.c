@@ -987,7 +987,7 @@ void OoT_EnNiw_Update(Actor* thisx, PlayState* play) {
         cam.x = play->view.lookAt.x - play->view.eye.x;
         cam.y = play->view.lookAt.y - play->view.eye.y;
         cam.z = play->view.lookAt.z - play->view.eye.z;
-        camResult = cam.y / OoT_sqrtf(SQ(cam.x) + SQ(cam.y) + SQ(cam.z));
+        camResult = cam.y / sqrtf(SQ(cam.x) + SQ(cam.y) + SQ(cam.z));
         osSyncPrintf(VT_FGCOL(RED) "☆☆☆☆☆ 範囲外Ｘ！ ☆☆☆☆☆ %f\n" VT_RST, thisx->world.pos.x);
         osSyncPrintf(VT_FGCOL(RED) "☆☆☆☆☆ 範囲外Ｙ！ ☆☆☆☆☆ %f\n" VT_RST, thisx->world.pos.y);
         osSyncPrintf(VT_FGCOL(RED) "☆☆☆☆☆ 範囲外Ｚ！ ☆☆☆☆☆ %f\n" VT_RST, thisx->world.pos.z);

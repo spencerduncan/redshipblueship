@@ -190,7 +190,7 @@ void BossGanonEff_SpawnLightRay(PlayState* play, Vec3f* pos, Vec3f* velocity, Ve
             eff->unk_30 = arg6;
             eff->timer = (s16)OoT_Rand_ZeroFloat(10.0f);
             eff->unk_48 = OoT_Math_Atan2F(eff->velocity.z, eff->velocity.x);
-            eff->unk_44 = -OoT_Math_Atan2F(OoT_sqrtf(SQXZ(eff->velocity)), eff->velocity.y);
+            eff->unk_44 = -OoT_Math_Atan2F(sqrtf(SQXZ(eff->velocity)), eff->velocity.y);
             eff->epoch++;
             break;
         }
@@ -447,7 +447,7 @@ void BossGanon_Init(Actor* thisx, PlayState* play2) {
             zDistFromPlayer = player->actor.world.pos.z - thisx->world.pos.z;
 
             thisx->world.rot.y = OoT_Math_Atan2S(zDistFromPlayer, xDistFromPlayer);
-            thisx->world.rot.x = OoT_Math_Atan2S(OoT_sqrtf(SQ(xDistFromPlayer) + SQ(zDistFromPlayer)), yDistFromPlayer);
+            thisx->world.rot.x = OoT_Math_Atan2S(sqrtf(SQ(xDistFromPlayer) + SQ(zDistFromPlayer)), yDistFromPlayer);
 
             if (OoT_Rand_ZeroOne() < 0) {
                 thisx->world.rot.y += (s16)OoT_Rand_CenteredFloat(5000.0f);
@@ -4000,7 +4000,7 @@ void BossGanon_LightBall_Update(Actor* thisx, PlayState* play2) {
                 if ((player->stateFlags1 & PLAYER_STATE1_SWINGING_BOTTLE) &&
                     (ABS((s16)(player->actor.shape.rot.y - (s16)(ganondorf->actor.yawTowardsPlayer + 0x8000))) <
                      0x2000) &&
-                    (OoT_sqrtf(SQ(xDistFromLink) + SQ(yDistFromLink) + SQ(zDistFromLink)) <= 25.0f)) {
+                    (sqrtf(SQ(xDistFromLink) + SQ(yDistFromLink) + SQ(zDistFromLink)) <= 25.0f)) {
                     hitWithBottle = true;
                 } else {
                     hitWithBottle = false;
@@ -4021,7 +4021,7 @@ void BossGanon_LightBall_Update(Actor* thisx, PlayState* play2) {
                         spBA = 1;
                         this->actor.world.rot.y = OoT_Math_Atan2S(zDistFromGanondorf, xDistFromGanondorf);
                         this->actor.world.rot.x =
-                            OoT_Math_Atan2S(OoT_sqrtf(SQ(xDistFromGanondorf) + SQ(zDistFromGanondorf)), yDistFromGanondorf);
+                            OoT_Math_Atan2S(sqrtf(SQ(xDistFromGanondorf) + SQ(zDistFromGanondorf)), yDistFromGanondorf);
                         this->unk_1A4++;
                         this->timers[1] = 2;
                         Audio_PlaySoundGeneral(NA_SE_IT_SWORD_REFLECT_MG, &player->actor.projectedPos, 4,
@@ -4053,7 +4053,7 @@ void BossGanon_LightBall_Update(Actor* thisx, PlayState* play2) {
                         }
                     }
                 } else {
-                    if (OoT_sqrtf(SQ(xDistFromLink) + SQ(yDistFromLink) + SQ(zDistFromLink)) <= 25.0f) {
+                    if (sqrtf(SQ(xDistFromLink) + SQ(yDistFromLink) + SQ(zDistFromLink)) <= 25.0f) {
                         spBA = 5;
                         func_8002F6D4(play, &this->actor, 3.0f, this->actor.world.rot.y, 0.0f, 0x30);
                         OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40,
@@ -4075,7 +4075,7 @@ void BossGanon_LightBall_Update(Actor* thisx, PlayState* play2) {
                 if ((ganondorf->actionFunc == BossGanon_PlayTennis) && (ganondorf->unk_1C2 == 1)) {
                     minReflectDist = (this->actor.speedXZ >= 19.0f) ? 250.0f : 170.0f;
 
-                    if (OoT_sqrtf(SQ(xDistFromGanondorf) + SQ(yDistFromGanondorf) + SQ(zDistFromGanondorf)) <
+                    if (sqrtf(SQ(xDistFromGanondorf) + SQ(yDistFromGanondorf) + SQ(zDistFromGanondorf)) <
                         minReflectDist) {
                         ganondorf->startVolley = true;
                         this->timers[0] = 8;
@@ -4088,7 +4088,7 @@ void BossGanon_LightBall_Update(Actor* thisx, PlayState* play2) {
                 if (this->timers[0] == 1) {
                     spBA = 1;
                     this->actor.world.rot.y = OoT_Math_Atan2S(zDistFromLink, xDistFromLink);
-                    this->actor.world.rot.x = OoT_Math_Atan2S(OoT_sqrtf(SQ(xDistFromLink) + SQ(zDistFromLink)), yDistFromLink);
+                    this->actor.world.rot.x = OoT_Math_Atan2S(sqrtf(SQ(xDistFromLink) + SQ(zDistFromLink)), yDistFromLink);
                     this->timers[1] = 2;
                     Audio_PlayActorSound2(&this->actor, NA_SE_IT_SWORD_REFLECT_MG);
                     Audio_PlayActorSound2(&this->actor, NA_SE_EN_GANON_AT_RETURN);
@@ -4097,7 +4097,7 @@ void BossGanon_LightBall_Update(Actor* thisx, PlayState* play2) {
                 }
                 // fallthrough
             case 4:
-                if (OoT_sqrtf(SQ(xDistFromGanondorf) + SQ(yDistFromGanondorf) + SQ(zDistFromGanondorf)) < 30.0f) {
+                if (sqrtf(SQ(xDistFromGanondorf) + SQ(yDistFromGanondorf) + SQ(zDistFromGanondorf)) < 30.0f) {
                     spBA = 3;
                     OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40, NA_SE_EN_GANON_DAMAGE1);
                     OoT_SoundSource_PlaySfxAtFixedWorldPos(play, &this->actor.world.pos, 40, NA_SE_EN_GANON_HIT_THUNDER);
@@ -4105,7 +4105,7 @@ void BossGanon_LightBall_Update(Actor* thisx, PlayState* play2) {
                 break;
 
             case 3:
-                if (OoT_sqrtf(SQ(xDistFromGanondorf) + SQ(yDistFromGanondorf) + SQ(zDistFromGanondorf)) < 100.0f) {
+                if (sqrtf(SQ(xDistFromGanondorf) + SQ(yDistFromGanondorf) + SQ(zDistFromGanondorf)) < 100.0f) {
                     ganondorf->startVolley = true;
                     this->unk_1C2 = 4;
                 }
@@ -4290,13 +4290,13 @@ void func_808E1EB4(Actor* thisx, PlayState* play2) {
         zDiff = dorf->unk_1FC.z - this->actor.world.pos.z;
 
         yRotTarget = RADF_TO_BINANG(OoT_Math_FAtan2F(xDiff, zDiff));
-        xzDist = OoT_sqrtf(SQ(xDiff) + SQ(zDiff));
+        xzDist = sqrtf(SQ(xDiff) + SQ(zDiff));
         xRotTarget = RADF_TO_BINANG(OoT_Math_FAtan2F(yDiff, xzDist));
 
         OoT_Math_ApproachS(&this->actor.world.rot.x, xRotTarget, 1, 0x1000);
         OoT_Math_ApproachS(&this->actor.world.rot.y, yRotTarget, 1, 0x1000);
 
-        if (OoT_sqrtf(SQ(xDiff) + SQ(zDiff) + SQ(yDiff)) < 40.0f) {
+        if (sqrtf(SQ(xDiff) + SQ(zDiff) + SQ(yDiff)) < 40.0f) {
             this->unk_1C2 = 2;
             this->timers[0] = 30;
             this->actor.speedXZ = 0.0f;
@@ -4415,7 +4415,7 @@ void func_808E2544(Actor* thisx, PlayState* play) {
             yDiff = dorf->unk_278.y - this->actor.world.pos.y;
             zDiff = dorf->unk_278.z - this->actor.world.pos.z;
             sp80 = RADF_TO_BINANG(OoT_Math_FAtan2F(xDiff, zDiff));
-            xzDist = OoT_sqrtf(SQ(xDiff) + SQ(zDiff));
+            xzDist = sqrtf(SQ(xDiff) + SQ(zDiff));
 
             xRot = RADF_TO_BINANG(OoT_Math_FAtan2F(yDiff, xzDist));
             sp84 = (xzDist * 700.0f) / 10.0f;
@@ -4429,7 +4429,7 @@ void func_808E2544(Actor* thisx, PlayState* play) {
             OoT_Math_ApproachF(&this->csCamMaxStepScale, 4096.0f, 1.0f, 256.0f);
             this->actor.world.rot.y = (OoT_Math_SinS(this->unk_1A2 * 0x1A00) * sp84) + this->actor.shape.rot.y;
 
-            if (OoT_sqrtf(SQ(xDiff) + SQ(zDiff) + SQ(yDiff)) < 45.0f) {
+            if (sqrtf(SQ(xDiff) + SQ(zDiff) + SQ(yDiff)) < 45.0f) {
                 this->unk_1C2 = 1;
                 this->actor.speedXZ = 0.0f;
             }
@@ -4466,12 +4466,12 @@ void func_808E2544(Actor* thisx, PlayState* play) {
                 zDiff = this->unk_1F0.z - this->actor.world.pos.z;
 
                 sp80 = RADF_TO_BINANG(OoT_Math_FAtan2F(xDiff, zDiff));
-                this->actor.shape.rot.x = RADF_TO_BINANG(OoT_Math_FAtan2F(yDiff, OoT_sqrtf(SQ(xDiff) + SQ(zDiff))));
+                this->actor.shape.rot.x = RADF_TO_BINANG(OoT_Math_FAtan2F(yDiff, sqrtf(SQ(xDiff) + SQ(zDiff))));
                 OoT_Math_ApproachS(&this->actor.shape.rot.y, sp80, 1, this->csCamMaxStepScale);
                 OoT_Math_ApproachF(&this->csCamMaxStepScale, 4096.0f, 1.0f, 256.0f);
             }
 
-            sp84 = (OoT_sqrtf(this->actor.xyzDistToPlayerSq) * 200.0f) / 10.0f;
+            sp84 = (sqrtf(this->actor.xyzDistToPlayerSq) * 200.0f) / 10.0f;
             if (sp84 > 13824.0f) {
                 sp84 = 13824.0f;
             }
@@ -4526,7 +4526,7 @@ void func_808E2544(Actor* thisx, PlayState* play) {
             yDiff = (player->actor.world.pos.y + 30.0f) - this->actor.world.pos.y;
             zDiff = player->actor.world.pos.z - this->actor.world.pos.z;
 
-            if (OoT_sqrtf(SQ(xDiff) + SQ(zDiff) + SQ(yDiff)) < 30.0f) {
+            if (sqrtf(SQ(xDiff) + SQ(zDiff) + SQ(yDiff)) < 30.0f) {
                 this->unk_1C2 = 1;
                 this->actor.speedXZ = 0.0f;
 
@@ -4555,7 +4555,7 @@ void func_808E2544(Actor* thisx, PlayState* play) {
             zDiff = this->unk_1F0.z - this->actor.world.pos.z;
 
             sp80 = RADF_TO_BINANG(OoT_Math_FAtan2F(xDiff, zDiff));
-            xzDist = OoT_sqrtf(SQ(xDiff) + SQ(zDiff));
+            xzDist = sqrtf(SQ(xDiff) + SQ(zDiff));
             xRot = RADF_TO_BINANG(OoT_Math_FAtan2F(yDiff, xzDist));
             sp84 = (xzDist * 700.0f) / 10.0f;
 
@@ -4574,7 +4574,7 @@ void func_808E2544(Actor* thisx, PlayState* play) {
             yDiff = dorf->unk_1FC.y - this->actor.world.pos.y;
             zDiff = dorf->unk_1FC.z - this->actor.world.pos.z;
 
-            if (OoT_sqrtf(SQ(xDiff) + SQ(zDiff) + SQ(yDiff)) < 45.0f) {
+            if (sqrtf(SQ(xDiff) + SQ(zDiff) + SQ(yDiff)) < 45.0f) {
                 BossGanon_SetupHitByLightBall(dorf, play);
                 this->timers[0] = 150;
                 numEffects = 40;
@@ -4718,7 +4718,7 @@ void BossGanon_UpdateEffects(PlayState* play) {
 
                 yRot = OoT_Math_FAtan2F(xDiff, zDiff);
 
-                xRot = -OoT_Math_FAtan2F(yDiff, OoT_sqrtf(SQ(xDiff) + SQ(zDiff)));
+                xRot = -OoT_Math_FAtan2F(yDiff, sqrtf(SQ(xDiff) + SQ(zDiff)));
                 spA0.z = eff->unk_38;
                 Matrix_RotateY(yRot, MTXMODE_NEW);
                 Matrix_RotateX(xRot, MTXMODE_APPLY);
@@ -4731,7 +4731,7 @@ void BossGanon_UpdateEffects(PlayState* play) {
                     eff->alpha = 255;
                 }
 
-                if ((OoT_sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff)) < 20.0f) || (eff->timer > 70)) {
+                if ((sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff)) < 20.0f) || (eff->timer > 70)) {
                     eff->type = GDF_EFF_NONE;
                 }
             } else if (eff->type == GDF_EFF_LIGHT_RAY) {
@@ -4845,7 +4845,7 @@ void BossGanon_UpdateEffects(PlayState* play) {
 
                 if ((eff->timer < 150) && (fabsf(player->actor.world.pos.y) < 5.0f)) {
                     distToPlayer =
-                        OoT_sqrtf(SQ(eff->pos.x - player->actor.world.pos.x) + SQ(eff->pos.z - player->actor.world.pos.z));
+                        sqrtf(SQ(eff->pos.x - player->actor.world.pos.x) + SQ(eff->pos.z - player->actor.world.pos.z));
 
                     if (((eff->scale * 150.0f) < distToPlayer) && (distToPlayer < (eff->scale * 300.0f))) {
                         eff->timer = 150;

@@ -588,7 +588,7 @@ void func_80A03148(EnElf* this, Vec3f* arg1, f32 arg2, f32 arg3, f32 arg4) {
 
     func_80A02BD8(this, arg1, arg4);
 
-    xzVelocity = OoT_sqrtf(SQ(xVelTarget) + SQ(zVelTarget));
+    xzVelocity = sqrtf(SQ(xVelTarget) + SQ(zVelTarget));
 
     this->actor.speedXZ = clampedXZ = CLAMP(xzVelocity, arg2, arg3);
 
