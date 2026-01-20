@@ -3,6 +3,6 @@
 
 #include "ultra64.h"
 
-extern OSPiHandle* gCartHandle;
+extern OSPiHandle* MM_gCartHandle;
 
 #endif

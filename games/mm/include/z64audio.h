@@ -381,7 +381,7 @@ typedef enum {
 typedef struct {
     /* 0x00 */ u8 priority;
     /* 0x01 */ u8 waveId;
-    /* 0x02 */ u8 harmonicIndex; // the harmonic index for the synthetic wave contained in gWaveSamples (also matches the base 2 logarithm of the harmonic order)
+    /* 0x02 */ u8 harmonicIndex; // the harmonic index for the synthetic wave contained in MM_gWaveSamples (also matches the base 2 logarithm of the harmonic order)
     /* 0x03 */ u8 fontId;
     /* 0x04 */ u8 status;
     /* 0x05 */ u8 stereoHeadsetEffects;
@@ -455,8 +455,8 @@ typedef struct {
     /* 0x04 */ u8 unk_04;
     /* 0x05 */ u8 numNotes;
     /* 0x06 */ u8 numSequencePlayers;
-    /* 0x07 */ u8 unk_07; // unused, set to zero
-    /* 0x08 */ u8 unk_08; // unused, set to zero
+    /* 0x07 */ u8 unk_07; // unused, set to MM_zero
+    /* 0x08 */ u8 unk_08; // unused, set to MM_zero
     /* 0x09 */ u8 numReverbs;
     /* 0x0C */ ReverbSettings* reverbSettings;
     /* 0x10 */ u16 sampleDmaBufSize1;

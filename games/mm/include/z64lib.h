@@ -9,7 +9,7 @@
 struct Input;
 
 void Lib_GetControlStickData(f32* outMagnitude, s16* outAngle, struct Input* input);
-void Color_RGBA8_Copy(Color_RGBA8* dst, Color_RGBA8* src);
+void MM_Color_RGBA8_Copy(Color_RGBA8* dst, Color_RGBA8* src);
 void Lib_PlaySfx(u16 sfxId);
 void Lib_PlaySfx_2(u16 sfxId);
 void Lib_PlaySfx_AtPos(Vec3f* pos, u16 sfxId);

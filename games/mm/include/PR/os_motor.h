@@ -17,7 +17,7 @@
 
 s32 __osMotorAccess(OSPfs* pfs, s32 flag);
 
-s32 osMotorInit(OSMesgQueue* mq, OSPfs* pfs, s32 channel);
+s32 MM_osMotorInit(OSMesgQueue* mq, OSPfs* pfs, s32 channel);
 
 #endif // 0
 

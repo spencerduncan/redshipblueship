@@ -12,10 +12,10 @@ typedef struct SpeedMeter {
     /* 0x1C */ s32 y;
 } SpeedMeter; // size = 0x20
 
-void SpeedMeter_Init(SpeedMeter* this);
-void SpeedMeter_Destroy(SpeedMeter* this);
-void SpeedMeter_DrawTimeEntries(SpeedMeter* this, struct GraphicsContext* gfxCtx);
-void SpeedMeter_DrawAllocEntries(SpeedMeter* this, struct GraphicsContext* gfxCtx, struct GameState* state);
+void MM_SpeedMeter_Init(SpeedMeter* this);
+void MM_SpeedMeter_Destroy(SpeedMeter* this);
+void MM_SpeedMeter_DrawTimeEntries(SpeedMeter* this, struct GraphicsContext* gfxCtx);
+void MM_SpeedMeter_DrawAllocEntries(SpeedMeter* this, struct GraphicsContext* gfxCtx, struct GameState* state);
 
 extern volatile OSTime gRSPAudioTimeTotal;
 extern volatile OSTime gRSPGfxTimeTotal;

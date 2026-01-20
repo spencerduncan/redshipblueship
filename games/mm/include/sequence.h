@@ -369,7 +369,7 @@ void Audio_PlaySubBgm(u16 seqId);
 void Audio_PlaySequenceInCutscene(u16 seqId);
 void Audio_PlayBgm_StorePrevBgm(u16 seqId);
 void Audio_PlayFanfareWithPlayerIOPort7(u16 seqId, u8 ioData);
-void Audio_PlayFanfare(u16 seqId);
+void MM_Audio_PlayFanfare(u16 seqId);
 void Audio_PlayFanfareWithPlayerIOCustomPort(u16 seqId, s8 ioPort, u8 ioData);
 void Audio_PlaySequenceWithSeqPlayerIO(s8 seqPlayerIndex, u16 seqId, u8 fadeInDuration, s8 ioPort, u8 ioData);
 void Audio_PlayAmbience(u8 ambienceId);
@@ -382,15 +382,15 @@ void Audio_StopFanfare(u16 duration);
 void Audio_SetBgmVolumeOff(void);
 void Audio_SetBgmVolumeOn(void);
 void Audio_SetMainBgmVolume(u8 targetVolume, u8 volumeFadeTimer);
-void Audio_SetSequenceMode(u8 seqMode);
+void MM_Audio_SetSequenceMode(u8 seqMode);
 
 void Audio_SetPauseState(u8 isPauseMenuOpen);
-void Audio_SetEnvReverb(s8 reverb);
-void Audio_SetCodeReverb(s8 reverb);
+void MM_Audio_SetEnvReverb(s8 reverb);
+void MM_Audio_SetCodeReverb(s8 reverb);
 void Audio_SetFileSelectSettings(s8 audioSetting);
-void Audio_SetBaseFilter(u8 filter);
-void Audio_SetExtraFilter(u8 filter);
-void Audio_SetCutsceneFlag(s8 flag);
+void MM_Audio_SetBaseFilter(u8 filter);
+void MM_Audio_SetExtraFilter(u8 filter);
+void MM_Audio_SetCutsceneFlag(s8 flag);
 void Audio_SetSpec(u8 specId);
 void Audio_SetAmbienceChannelIO(u8 channelIndexRange, u8 ioPort, u8 ioData);
 void Audio_SetSeqTempoAndFreq(u8 seqPlayerIndex, f32 freqTempoScale, u8 duration);
@@ -409,8 +409,8 @@ u8 func_801A39F8(void);
 s32 func_801A46F8(void);
 
 extern SeqRequest sSeqRequests[][5];
-extern u8 sNumSeqRequests[5];
-extern u32 sAudioSeqCmds[0x100];
-extern ActiveSequence gActiveSeqs[];
+extern u8 MM_sNumSeqRequests[5];
+extern u32 MM_sAudioSeqCmds[0x100];
+extern ActiveSequence MM_gActiveSeqs[];
 
 #endif

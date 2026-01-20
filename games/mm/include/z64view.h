@@ -63,38 +63,38 @@ typedef struct View {
         viewport.rightX = SCREEN_WIDTH;    \
         viewport.topY = 0;                 \
         viewport.leftX = 0;                \
-        View_SetViewport(view, &viewport); \
+        MM_View_SetViewport(view, &viewport); \
     }                                      \
     (void)0
 
 #define SET_FULLSCREEN_VIEWPORT_DYNAMIC(view)   \
 {                                               \
     Viewport viewport;                          \
-    viewport.bottomY = gScreenHeight;           \
-    viewport.rightX = gScreenWidth;             \
+    viewport.bottomY = MM_gScreenHeight;           \
+    viewport.rightX = MM_gScreenWidth;             \
     viewport.topY = 0;                          \
     viewport.leftX = 0;                         \
-    View_SetViewport(view, &viewport);          \
+    MM_View_SetViewport(view, &viewport);          \
 }                                               \
 (void)0
 
-void View_Init(View* view, struct GraphicsContext* gfxCtx);
+void MM_View_Init(View* view, struct GraphicsContext* gfxCtx);
 void View_LookAt(View* view, Vec3f* eye, Vec3f* at, Vec3f* up);
-void View_SetScale(View* view, f32 scale);
-void View_GetScale(View* view, f32* scale);
+void MM_View_SetScale(View* view, f32 scale);
+void MM_View_GetScale(View* view, f32* scale);
 void View_SetPerspective(View* view, f32 fovy, f32 zNear, f32 zFar);
 void View_GetPerspective(View* view, f32* fovy, f32* zNear, f32* zFar);
 void View_SetOrtho(View* view, f32 fovy, f32 zNear, f32 zFar);
 void View_GetOrtho(View* view, f32* fovy, f32* zNear, f32* zFar);
-void View_SetViewport(View* view, Viewport* viewport);
-void View_GetViewport(View* view, Viewport* viewport);
+void MM_View_SetViewport(View* view, Viewport* viewport);
+void MM_View_GetViewport(View* view, Viewport* viewport);
 
-s32 View_SetDistortionOrientation(View* view, f32 rotX, f32 rotY, f32 rotZ);
-s32 View_SetDistortionScale(View* view, f32 scaleX, f32 scaleY, f32 scaleZ);
-s32 View_SetDistortionSpeed(View* view, f32 speed);
-s32 View_InitDistortion(View* view);
-s32 View_ClearDistortion(View* view);
-s32 View_SetDistortion(View* view, Vec3f orientation, Vec3f scale, f32 speed);
+s32 MM_View_SetDistortionOrientation(View* view, f32 rotX, f32 rotY, f32 rotZ);
+s32 MM_View_SetDistortionScale(View* view, f32 scaleX, f32 scaleY, f32 scaleZ);
+s32 MM_View_SetDistortionSpeed(View* view, f32 speed);
+s32 MM_View_InitDistortion(View* view);
+s32 MM_View_ClearDistortion(View* view);
+s32 MM_View_SetDistortion(View* view, Vec3f orientation, Vec3f scale, f32 speed);
 
 s32 View_Apply(View* view, s32 mask);
 s32 View_ApplyOrthoToOverlay(View* view);

@@ -82,12 +82,12 @@ typedef struct EffectBlure {
     /* 0x1A6 */ Color_RGBA8 altEnvColor; // used with EFF_BLURE_DRAW_MODE_SIMPLE_ALT_COLORS
 } EffectBlure; // size = 0x1AC
 
-void EffectBlure_AddVertex(EffectBlure* thisx, Vec3f* p1, Vec3f* p2);
-void EffectBlure_AddSpace(EffectBlure* thisx);
-void EffectBlure_Init1(void* thisx, void* initParamsx);
-void EffectBlure_Init2(void* thisx, void* initParamsx);
-void EffectBlure_Destroy(void* thisx);
-s32 EffectBlure_Update(void* thisx);
-void EffectBlure_Draw(void* thisx, struct GraphicsContext* gfxCtx);
+void MM_EffectBlure_AddVertex(EffectBlure* thisx, Vec3f* p1, Vec3f* p2);
+void MM_EffectBlure_AddSpace(EffectBlure* thisx);
+void MM_EffectBlure_Init1(void* thisx, void* initParamsx);
+void MM_EffectBlure_Init2(void* thisx, void* initParamsx);
+void MM_EffectBlure_Destroy(void* thisx);
+s32 MM_EffectBlure_Update(void* thisx);
+void MM_EffectBlure_Draw(void* thisx, struct GraphicsContext* gfxCtx);
 
 #endif

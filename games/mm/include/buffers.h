@@ -21,11 +21,11 @@ extern u16 gFramebufferHiRes1[HIRES_BUFFER_WIDTH][HIRES_BUFFER_HEIGHT];
 extern BufferLow gLoBuffer;
 
 
-extern u8 gGfxSPTaskYieldBuffer[OS_YIELD_DATA_SIZE];
+extern u8 MM_gGfxSPTaskYieldBuffer[OS_YIELD_DATA_SIZE];
 extern STACK(gGfxSPTaskStack, 0x400);
-extern GfxPool gGfxPools[2];
-extern u8* gAudioHeap;
-extern u8* gSystemHeap;
+extern GfxPool MM_gGfxPools[2];
+extern u8* MM_gAudioHeap;
+extern u8* MM_gSystemHeap;
 
 
 typedef union {

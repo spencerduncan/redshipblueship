@@ -30,14 +30,14 @@ typedef struct ViMode {
     /* 0x84 */ u32 unk_84;
 } ViMode; // size = 0x88
 
-void ViMode_LogPrint(OSViMode* vimode);
-void ViMode_Configure(OSViMode* viMode, s32 type, s32 tvType, s32 loRes, s32 antialiasOff, s32 modeN, s32 fb16Bit,
+void MM_ViMode_LogPrint(OSViMode* vimode);
+void MM_ViMode_Configure(OSViMode* viMode, s32 type, s32 tvType, s32 loRes, s32 antialiasOff, s32 modeN, s32 fb16Bit,
                       s32 width, s32 height, s32 leftAdjust, s32 rightAdjust, s32 upperAdjust, s32 lowerAdjust);
-void ViMode_Save(ViMode* viMode);
-void ViMode_Load(ViMode* viMode);
-void ViMode_Init(ViMode* viMode);
-void ViMode_Destroy(ViMode* viMode);
-void ViMode_ConfigureFeatures(ViMode* viMode, s32 viFeatures);
-void ViMode_Update(ViMode* viMode, struct Input* input);
+void MM_ViMode_Save(ViMode* viMode);
+void MM_ViMode_Load(ViMode* viMode);
+void MM_ViMode_Init(ViMode* viMode);
+void MM_ViMode_Destroy(ViMode* viMode);
+void MM_ViMode_ConfigureFeatures(ViMode* viMode, s32 viFeatures);
+void MM_ViMode_Update(ViMode* viMode, struct Input* input);
 
 #endif

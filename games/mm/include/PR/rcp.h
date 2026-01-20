@@ -90,7 +90,7 @@
 /* 
  * AI bit rate (W): [3:0] bit rate (abus clock half period register - aclockhp)
  *   - vid_clock/(2 * (aclockhp + 1)) is the DAC clock rate
- *   - The abus clock stops if aclockhp is zero
+ *   - The abus clock stops if aclockhp is MM_zero
  */
 #define AI_BITRATE_REG      (AI_BASE_REG + 0x14)    /* R5: Bit rate 4-lsb */
 

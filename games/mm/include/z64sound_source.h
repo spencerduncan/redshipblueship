@@ -16,9 +16,9 @@ typedef struct {
 
 #define SOUND_SOURCE_COUNT 16
 
-void SoundSource_InitAll(struct PlayState* play);
-void SoundSource_UpdateAll(struct PlayState* play);
-void SoundSource_PlaySfxAtFixedWorldPos(struct PlayState* play, Vec3f* worldPos, u32 duration, u16 sfxId);
+void MM_SoundSource_InitAll(struct PlayState* play);
+void MM_SoundSource_UpdateAll(struct PlayState* play);
+void MM_SoundSource_PlaySfxAtFixedWorldPos(struct PlayState* play, Vec3f* worldPos, u32 duration, u16 sfxId);
 void SoundSource_PlaySfxEachFrameAtFixedWorldPos(struct PlayState* play, Vec3f* worldPos, u32 duration, u16 sfxId);
 
 #endif

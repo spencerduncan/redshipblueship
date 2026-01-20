@@ -261,7 +261,7 @@ typedef struct {
     /* 0x272 */ s16 magicAlpha;
     /* 0x274 */ s16 minimapAlpha;
     /* 0x276 */ s16 startAlpha;
-    /* 0x278 */ s16 unk_278; // Set in Map_Init, never read
+    /* 0x278 */ s16 unk_278; // Set in MM_Map_Init, never read
     /* 0x27A */ s16 dungeonSceneIndex;
     /* 0x27C */ s16 mapRoomNum;
     /* 0x27E */ u8 fishingHUDControl; // Left over from OoT
@@ -318,7 +318,7 @@ void Interface_StartPostmanTimer(s16 seconds, s16 bunnyHoodState);
 void Interface_NewDay(struct PlayState* play, s32 day);
 void Interface_SetHudVisibility(u16 hudVisibility);
 void Interface_UpdateButtonsPart2(struct PlayState* play);
-void Interface_SetSceneRestrictions(struct PlayState* play);
+void MM_Interface_SetSceneRestrictions(struct PlayState* play);
 void Interface_InitMinigame(struct PlayState* play);
 // #region 2S2H [Dpad]
 void Interface_Dpad_LoadItemIconImpl(struct PlayState* play, u8 btn);
@@ -327,13 +327,13 @@ void Interface_Dpad_LoadItemIcon(struct PlayState* play, u8 btn);
 void Interface_LoadItemIconImpl(struct PlayState* play, u8 btn);
 void Interface_LoadItemIcon(struct PlayState* play, u8 btn);
 void Interface_UpdateButtonsAlt(struct PlayState* play, u16 flag);
-u8 Item_Give(struct PlayState* play, u8 item);
-u8 Item_CheckObtainability(u8 item);
-void Inventory_DeleteItem(s16 item, s16 slot);
+u8 MM_Item_Give(struct PlayState* play, u8 item);
+u8 MM_Item_CheckObtainability(u8 item);
+void MM_Inventory_DeleteItem(s16 item, s16 slot);
 void Inventory_UnequipItem(s16 item);
-s32 Inventory_ReplaceItem(struct PlayState* play, u8 oldItem, u8 newItem);
+s32 MM_Inventory_ReplaceItem(struct PlayState* play, u8 oldItem, u8 newItem);
 void Inventory_UpdateDeitySwordEquip(struct PlayState* play) ;
-s32 Inventory_HasEmptyBottle(void);
+s32 MM_Inventory_HasEmptyBottle(void);
 s32 Inventory_HasItemInBottle(u8 item);
 // #region 2S2H - Enhancements
 // [Dpad]
@@ -341,24 +341,24 @@ void Inventory_Dpad_UpdateBottleItem(struct PlayState* play, u8 item, u8 btn);
 // [Autosave]
 void Interface_DrawAutosaveIcon(struct PlayState* play, uint16_t opacity);
 // #endregion
-void Inventory_UpdateBottleItem(struct PlayState* play, u8 item, u8 btn);
-s32 Inventory_ConsumeFairy(struct PlayState* play);
+void MM_Inventory_UpdateBottleItem(struct PlayState* play, u8 item, u8 btn);
+s32 MM_Inventory_ConsumeFairy(struct PlayState* play);
 void Inventory_UpdateItem(struct PlayState* play, s16 slot, s16 item);
 void Interface_SetAButtonDoAction(struct PlayState* play, u16 aButtonDoAction);
 void Interface_SetBButtonPlayerDoAction(struct PlayState* play, s16 bButtonDoAction);
 void Interface_SetTatlCall(struct PlayState* play, u16 tatlCallState);
 void Interface_SetBButtonInterfaceDoAction(struct PlayState* play, s16 bButtonDoAction);
-s32 Health_ChangeBy(struct PlayState* play, s16 healthChange);
+s32 MM_Health_ChangeBy(struct PlayState* play, s16 healthChange);
 void Health_GiveHearts(s16 hearts);
-void Rupees_ChangeBy(s16 rupeeChange);
-void Inventory_ChangeAmmo(s16 item, s16 ammoChange);
+void MM_Rupees_ChangeBy(s16 rupeeChange);
+void MM_Inventory_ChangeAmmo(s16 item, s16 ammoChange);
 void Magic_Add(struct PlayState* play, s16 magicToAdd);
-void Magic_Reset(struct PlayState* play);
+void MM_Magic_Reset(struct PlayState* play);
 s32 Magic_Consume(struct PlayState* play, s16 magicToConsume, s16 type);
 void Interface_SetPerfectLetters(struct PlayState* play, s16 perfectLettersType);
 void Interface_StartMoonCrash(struct PlayState* play);
-void Interface_Draw(struct PlayState* play);
-void Interface_Update(struct PlayState* play);
+void MM_Interface_Draw(struct PlayState* play);
+void MM_Interface_Update(struct PlayState* play);
 void Interface_Destroy(struct PlayState* play);
 void Interface_Init(struct PlayState* play);
 

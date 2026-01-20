@@ -2548,14 +2548,14 @@ extern ActiveSfx gActiveSfx[7][3];
 
 extern u8 gIsLargeSfxBank[7];
 extern u8 D_801D6608[7];
-extern u8 gChannelsPerBank[4][7];
-extern u8 gUsedChannelsPerBank[4][7];
+extern u8 MM_gChannelsPerBank[4][7];
+extern u8 MM_gUsedChannelsPerBank[4][7];
 extern f32 gSfxVolume;
 extern SfxParams* gSfxParams[7];
 extern SfxBankEntry* gSfxBanks[7];
-extern u8 gSfxChannelLayout;
-extern Vec3f gSfxDefaultPos;
-extern f32 gSfxDefaultFreqAndVolScale;
-extern s8 gSfxDefaultReverb;
+extern u8 MM_gSfxChannelLayout;
+extern Vec3f MM_gSfxDefaultPos;
+extern f32 MM_gSfxDefaultFreqAndVolScale;
+extern s8 MM_gSfxDefaultReverb;
 
 #endif

@@ -815,7 +815,7 @@ void Cutscene_StartManual(struct PlayState* play, CutsceneContext* csCtx);
 void Cutscene_StopManual(struct PlayState* play, CutsceneContext* csCtx);
 void Cutscene_UpdateManual(struct PlayState* play, CutsceneContext* csCtx);
 void Cutscene_UpdateScripted(struct PlayState* play, CutsceneContext* csCtx);
-void Cutscene_HandleEntranceTriggers(struct PlayState* play);
+void MM_Cutscene_HandleEntranceTriggers(struct PlayState* play);
 void func_800EDDB0(struct PlayState* play);
 void Cutscene_StartScripted(struct PlayState* play, u8 scriptIndex);
 void Cutscene_ActorTranslate(Actor* actor, struct PlayState* play, s32 cueChannel);

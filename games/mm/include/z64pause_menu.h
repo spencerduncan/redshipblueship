@@ -209,30 +209,30 @@ typedef struct KaleidoMgrOverlay {
 // z_kaleido_setup.c
 
 void func_800F4A10(struct PlayState* play);
-void KaleidoSetup_Update(struct PlayState* play);
-void KaleidoSetup_Init(struct PlayState* play);
-void KaleidoSetup_Destroy(struct PlayState* play);
+void MM_KaleidoSetup_Update(struct PlayState* play);
+void MM_KaleidoSetup_Init(struct PlayState* play);
+void MM_KaleidoSetup_Destroy(struct PlayState* play);
 
 
 // z_kaleido_manager.c
 
-void KaleidoManager_LoadOvl(KaleidoMgrOverlay* ovl);
-void KaleidoManager_ClearOvl(KaleidoMgrOverlay* ovl);
-void KaleidoManager_Init(struct PlayState* play);
-void KaleidoManager_Destroy(void);
-void* KaleidoManager_GetRamAddr(void* vram);
+void MM_KaleidoManager_LoadOvl(KaleidoMgrOverlay* ovl);
+void MM_KaleidoManager_ClearOvl(KaleidoMgrOverlay* ovl);
+void MM_KaleidoManager_Init(struct PlayState* play);
+void MM_KaleidoManager_Destroy(void);
+void* MM_KaleidoManager_GetRamAddr(void* vram);
 
-extern KaleidoMgrOverlay gKaleidoMgrOverlayTable[KALEIDO_OVL_MAX];
-extern KaleidoMgrOverlay* gKaleidoMgrCurOvl;
+extern KaleidoMgrOverlay MM_gKaleidoMgrOverlayTable[KALEIDO_OVL_MAX];
+extern KaleidoMgrOverlay* MM_gKaleidoMgrCurOvl;
 
 
 // z_kaleido_scope_call.c
 
-void KaleidoScopeCall_LoadPlayer(void);
-void KaleidoScopeCall_Init(struct PlayState* play);
-void KaleidoScopeCall_Destroy(struct PlayState* play);
-void KaleidoScopeCall_Update(struct PlayState* play);
-void KaleidoScopeCall_Draw(struct PlayState* play);
+void MM_KaleidoScopeCall_LoadPlayer(void);
+void MM_KaleidoScopeCall_Init(struct PlayState* play);
+void MM_KaleidoScopeCall_Destroy(struct PlayState* play);
+void MM_KaleidoScopeCall_Update(struct PlayState* play);
+void MM_KaleidoScopeCall_Draw(struct PlayState* play);
 
 
 // Item macros

@@ -42,12 +42,12 @@ typedef struct SkyboxContext {
 } SkyboxContext; // size = 0x228
 
 void Skybox_Reload(struct PlayState* play, SkyboxContext* skyboxCtx, s16 skyboxId);
-void Skybox_Init(struct GameState* gameState, SkyboxContext* skyboxCtx, s16 skyboxId);
+void MM_Skybox_Init(struct GameState* gameState, SkyboxContext* skyboxCtx, s16 skyboxId);
 Mtx* Skybox_UpdateMatrix(SkyboxContext* skyboxCtx, f32 x, f32 y, f32 z);
 void Skybox_SetColors(SkyboxContext* skyboxCtx, u8 primR, u8 primG, u8 primB, u8 envR, u8 envG, u8 envB);
 void Skybox_Draw(SkyboxContext* skyboxCtx, struct GraphicsContext* gfxCtx, s16 skyboxId, s16 blend, f32 x, f32 y,
                  f32 z);
-void Skybox_Update(SkyboxContext* skyboxCtx);
+void MM_Skybox_Update(SkyboxContext* skyboxCtx);
 void Skybox_Calculate128(SkyboxContext* skyboxCtx, s32 nFaces);
 
 // #region 2S2H [Port]

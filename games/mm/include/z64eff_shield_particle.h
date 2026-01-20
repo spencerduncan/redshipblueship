@@ -57,9 +57,9 @@ typedef struct EffectShieldParticle {
     /* 0x1C4 */ s32 lightDecay; // halves light radius every frame when set to 1
 } EffectShieldParticle; // size = 0x1C8
 
-void EffectShieldParticle_Init(void* thisx, void* initParamsx);
-void EffectShieldParticle_Destroy(void* thisx);
-s32 EffectShieldParticle_Update(void* thisx);
-void EffectShieldParticle_Draw(void* thisx, struct GraphicsContext* gfxCtx);
+void MM_EffectShieldParticle_Init(void* thisx, void* initParamsx);
+void MM_EffectShieldParticle_Destroy(void* thisx);
+s32 MM_EffectShieldParticle_Update(void* thisx);
+void MM_EffectShieldParticle_Draw(void* thisx, struct GraphicsContext* gfxCtx);
 
 #endif
