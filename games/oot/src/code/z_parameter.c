@@ -2782,7 +2782,7 @@ void Interface_LoadActionLabel(InterfaceContext* interfaceCtx, u16 action, s16 l
             newName[loadOffset][length - 4] = 'R';
         } else if (gSaveContext.language == LANGUAGE_JPN) {
             newName[loadOffset][length - 6] = 'J';
-            newName[loadOffset][length - 5] = 'OoT_P';
+            newName[loadOffset][length - 5] = 'P';
             newName[loadOffset][length - 4] = 'N';
         }
         doAction = newName[loadOffset];
@@ -2852,7 +2852,7 @@ void Interface_LoadActionLabelB(PlayState* play, u16 action) {
             newName[length - 4] = 'R';
         } else if (gSaveContext.language == LANGUAGE_JPN) {
             newName[length - 6] = 'J';
-            newName[length - 5] = 'OoT_P';
+            newName[length - 5] = 'P';
             newName[length - 4] = 'N';
         }
         doAction = newName;

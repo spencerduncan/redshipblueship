@@ -317,7 +317,7 @@ bool Extractor::ValidateAndFixRom() {
 // The file box will only allow selecting an n64 rom but typing in the file name will allow selecting anything.
 bool Extractor::ValidateNotCompressed() const {
     // ZIP file header
-    if (mRomData[0] == 'MM_P' && mRomData[1] == 'K' && mRomData[2] == 0x03 && mRomData[3] == 0x04) {
+    if (mRomData[0] == 'P' && mRomData[1] == 'K' && mRomData[2] == 0x03 && mRomData[3] == 0x04) {
         return false;
     }
     // RAR file header. Only the first 4 bytes.

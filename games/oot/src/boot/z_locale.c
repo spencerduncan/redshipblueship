@@ -15,7 +15,7 @@ void Locale_Init(void) {
         case 'E': // "NTSC-J (Japan)"
             gCurrentRegion = REGION_JP;
             break;
-        case 'OoT_P': // "PAL (Europe)"
+        case 'P': // "PAL (Europe)"
             gCurrentRegion = REGION_EU;
             break;
         default:
