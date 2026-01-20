@@ -102,20 +102,20 @@ void OnPlayerUpdate(Actor* actor) {
 
     UpdateStickDirectionPromptAnim();
 
-    gPlayState->interfaceCtx.bAlpha = 255;
+    MM_gPlayState->interfaceCtx.bAlpha = 255;
 
-    Input* input = &gPlayState->state.input[0];
+    Input* input = &MM_gPlayState->state.input[0];
 
     // Pressing B should cancel the song
     if (CHECK_BTN_ALL(input->press.button, BTN_B)) {
         Audio_PlaySfx_MessageCancel();
-        gPlayState->msgCtx.ocarinaMode = OCARINA_MODE_END;
+        MM_gPlayState->msgCtx.ocarinaMode = OCARINA_MODE_END;
         sActivelyChangingTime = false;
         return;
     }
 
     // Pressing A should confirm the song
-    if (CHECK_BTN_ALL(input->press.button, BTN_A) && gPlayState->msgCtx.msgMode == MSGMODE_NONE) {
+    if (CHECK_BTN_ALL(input->press.button, BTN_A) && MM_gPlayState->msgCtx.msgMode == MSGMODE_NONE) {
         // Check if the selected time is owned in ClockShuffle mode
         if (!Rando::ClockShuffle::IsTimeOwnedForClockShuffle(sSelectedDay, sSelectedTime)) {
             // Play error sound
@@ -131,7 +131,7 @@ void OnPlayerUpdate(Actor* actor) {
         }
 
         Audio_PlaySfx_MessageDecide();
-        gPlayState->msgCtx.ocarinaMode = OCARINA_MODE_APPLY_DOUBLE_SOT;
+        MM_gPlayState->msgCtx.ocarinaMode = OCARINA_MODE_APPLY_DOUBLE_SOT;
         sActivelyChangingTime = false;
 
         // Use a hook for when the song of double time cutscene is finished to reload the scene via a respawn
@@ -139,14 +139,14 @@ void OnPlayerUpdate(Actor* actor) {
         // and everything is reloaded in a fresh state
         onEnTest6KillHookId = GameInteractor::Instance->RegisterGameHookForID<GameInteractor::OnActorKill>(
             ACTOR_EN_TEST6, [](Actor* actor) {
-                Player* player = GET_PLAYER(gPlayState);
+                Player* player = GET_PLAYER(MM_gPlayState);
 
-                gPlayState->nextEntrance = gSaveContext.save.entrance;
-                gPlayState->transitionTrigger = TRANS_TRIGGER_START;
-                gPlayState->transitionType = TRANS_TYPE_FADE_BLACK_FAST;
+                MM_gPlayState->nextEntrance = gSaveContext.save.entrance;
+                MM_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
+                MM_gPlayState->transitionType = TRANS_TYPE_FADE_BLACK_FAST;
 
-                Play_SetRespawnData(gPlayState, RESPAWN_MODE_RETURN, gSaveContext.save.entrance,
-                                    gPlayState->roomCtx.curRoom.num, PLAYER_PARAMS(0xFF, PLAYER_START_MODE_B),
+                MM_Play_SetRespawnData(MM_gPlayState, RESPAWN_MODE_RETURN, gSaveContext.save.entrance,
+                                    MM_gPlayState->roomCtx.curRoom.num, PLAYER_PARAMS(0xFF, PLAYER_START_MODE_B),
                                     &player->actor.world.pos, player->actor.world.rot.y);
                 gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK;
                 gSaveContext.respawnFlag = 2;
@@ -288,9 +288,9 @@ Gfx* DrawTexRectIA8(Gfx* gfx, TexturePtr texture, s16 textureWidth, s16 textureH
 }
 
 void DrawIndicators() {
-    OPEN_DISPS(gPlayState->state.gfxCtx);
+    OPEN_DISPS(MM_gPlayState->state.gfxCtx);
 
-    Gfx_SetupDL39_Overlay(gPlayState->state.gfxCtx);
+    Gfx_SetupDL39_Overlay(MM_gPlayState->state.gfxCtx);
     gDPSetCombineMode(OVERLAY_DISP++, G_CC_MODULATEIA_PRIM, G_CC_MODULATEIA_PRIM);
 
     gDPSetPrimColor(OVERLAY_DISP++, 0, 0, sArrowAnimColor.r, sArrowAnimColor.g, sArrowAnimColor.b, sArrowAnimColor.a);
@@ -315,7 +315,7 @@ void DrawIndicators() {
     gDPFillRectangle(OVERLAY_DISP++, 58 + 2, 196 + 2, 58 + 2 + 9, 196 + 2 + 10);
     gDPFillRectangle(OVERLAY_DISP++, 248 + 2, 196 + 2, 248 + 2 + 9, 196 + 2 + 10);
 
-    Gfx_SetupDL39_Overlay(gPlayState->state.gfxCtx);
+    Gfx_SetupDL39_Overlay(MM_gPlayState->state.gfxCtx);
     gDPSetRenderMode(OVERLAY_DISP++, G_RM_CLD_SURF, G_RM_CLD_SURF2);
     gDPSetAlphaCompare(OVERLAY_DISP++, G_AC_NONE);
     gDPSetCombineLERP(OVERLAY_DISP++, 0, 0, 0, PRIMITIVE, TEXEL0, 0, PRIMITIVE, 0, 0, 0, 0, PRIMITIVE, TEXEL0, 0,
@@ -329,7 +329,7 @@ void DrawIndicators() {
     OVERLAY_DISP =
         DrawTexRectI4(OVERLAY_DISP, (TexturePtr)gMsgCharB4ButtonRTex, 16, 16, 248, 196, 16, 16, 1 << 10, 1 << 10);
 
-    CLOSE_DISPS(gPlayState->state.gfxCtx);
+    CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
 
 void RegisterBetterSongOfDoubleTime() {
@@ -353,7 +353,7 @@ void RegisterBetterSongOfDoubleTime() {
         if (sActivelyChangingTime) {
             gSaveContext.save.time = sSelectedTime;
             gSaveContext.save.day = sSelectedDay;
-            UpdateDayTexture(gPlayState, CURRENT_DAY);
+            UpdateDayTexture(MM_gPlayState, CURRENT_DAY);
 
             HudEditor_OverrideNextElementMode(HUD_EDITOR_ELEMENT_MODE_VANILLA);
         }
@@ -364,7 +364,7 @@ void RegisterBetterSongOfDoubleTime() {
         if (sActivelyChangingTime) {
             gSaveContext.save.time = sOriginalTime;
             gSaveContext.save.day = sOriginalDay;
-            UpdateDayTexture(gPlayState, CURRENT_DAY);
+            UpdateDayTexture(MM_gPlayState, CURRENT_DAY);
 
             HudEditor_OverrideNextElementMode(HUD_EDITOR_ELEMENT_MODE_NONE);
         }
@@ -375,20 +375,20 @@ void RegisterBetterSongOfDoubleTime() {
 
         if (gSaveContext.save.day >= 4) {
             // On 4th day and beyond, just display the "can't go further" text
-            Message_StartTextbox(gPlayState, 0x1B94, NULL);
-            gPlayState->msgCtx.ocarinaMode = OCARINA_MODE_END;
+            MM_Message_StartTextbox(MM_gPlayState, 0x1B94, NULL);
+            MM_gPlayState->msgCtx.ocarinaMode = OCARINA_MODE_END;
             return;
         } else if (gSaveContext.save.day <= 0) {
             // On 0th day, display the "notes echoed" text
-            Message_StartTextbox(gPlayState, 0x1B95, NULL);
-            gPlayState->msgCtx.ocarinaMode = OCARINA_MODE_PROCESS_RESTRICTED_SONG;
+            MM_Message_StartTextbox(MM_gPlayState, 0x1B95, NULL);
+            MM_gPlayState->msgCtx.ocarinaMode = OCARINA_MODE_PROCESS_RESTRICTED_SONG;
             return;
         }
 
-        Interface_SetAButtonDoAction(gPlayState, DO_ACTION_DECIDE);
+        Interface_SetAButtonDoAction(MM_gPlayState, DO_ACTION_DECIDE);
         Interface_SetHudVisibility(HUD_VISIBILITY_A_B);
 
-        gPlayState->msgCtx.ocarinaMode = OCARINA_MODE_PROCESS_DOUBLE_TIME;
+        MM_gPlayState->msgCtx.ocarinaMode = OCARINA_MODE_PROCESS_DOUBLE_TIME;
         sActivelyChangingTime = true;
         sOriginalTime = CURRENT_TIME;
         sOriginalDay = gSaveContext.save.day;

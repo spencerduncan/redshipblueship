@@ -20,7 +20,7 @@ void Rando::ActorBehavior::InitEnOsnBehavior() {
      */
     COND_VB_SHOULD(VB_START_CUTSCENE, IS_RANDO, {
         s16* csId = va_arg(args, s16*);
-        if (gPlayState->sceneId == SCENE_INSIDETOWER && *csId == 11) { // Song of Healing tutorial
+        if (MM_gPlayState->sceneId == SCENE_INSIDETOWER && *csId == 11) { // Song of Healing tutorial
             *csId = 13;                                                // Moon crash new cycle scene
         }
     });

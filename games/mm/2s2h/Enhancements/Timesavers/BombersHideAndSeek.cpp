@@ -25,7 +25,7 @@ void RegisterBombersHideAndSeek() {
             SET_WEEKEVENTREG(WEEKEVENTREG_76_04);
             SET_WEEKEVENTREG(WEEKEVENTREG_76_08);
             SET_WEEKEVENTREG(WEEKEVENTREG_76_10);
-            func_80C02CA4(bomberKids, gPlayState);
+            func_80C02CA4(bomberKids, MM_gPlayState);
         }
     });
 }

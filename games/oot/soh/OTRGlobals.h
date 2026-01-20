@@ -108,7 +108,7 @@ void Ctx_ReadSaveFile(uintptr_t addr, void* dramAddr, size_t size);
 void Ctx_WriteSaveFile(uintptr_t addr, void* dramAddr, size_t size);
 
 uint64_t GetPerfCounter();
-uint64_t osGetTime(void);
+uint64_t OoT_osGetTime(void);
 uint32_t osGetCount(void);
 uint32_t OTRGetCurrentWidth(void);
 uint32_t OTRGetCurrentHeight(void);
@@ -122,7 +122,7 @@ uint32_t OTRGetGameRenderHeight();
 int AudioPlayer_Buffered(void);
 int AudioPlayer_GetDesiredBuffered(void);
 void AudioPlayer_Play(const uint8_t* buf, uint32_t len);
-void AudioMgr_CreateNextAudioBuffer(s16* samples, u32 num_samples);
+void OoT_AudioMgr_CreateNextAudioBuffer(s16* samples, u32 num_samples);
 int Controller_ShouldRumble(size_t slot);
 void Controller_BlockGameInput();
 void Controller_UnblockGameInput();

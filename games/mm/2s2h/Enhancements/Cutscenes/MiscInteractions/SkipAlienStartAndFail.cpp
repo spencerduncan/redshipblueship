@@ -19,7 +19,7 @@ void RegisterSkipAlienStartAndFail() {
 
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
         s16* csId = va_arg(args, s16*);
-        if (gPlayState->sceneId == SCENE_F01) {
+        if (MM_gPlayState->sceneId == SCENE_F01) {
             // 15 is aliens spawning in, 16 is aliens retreating
             // not skipping 16 because you can leave the scene during the the time
             // the cutscene would have been playing and miss the reward

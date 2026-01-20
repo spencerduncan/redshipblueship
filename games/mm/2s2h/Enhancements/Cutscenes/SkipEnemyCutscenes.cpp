@@ -125,7 +125,7 @@ void RegisterSkipEnemyIntros() {
     // Gekko + Mad Jelly
     COND_ID_HOOK(OnActorInit, ACTOR_EN_BIGSLIME, CVAR, [](Actor* actor) {
         EnBigslime* enBigslime = (EnBigslime*)actor;
-        Animation_MorphToPlayOnce(&enBigslime->skelAnime, (AnimationHeader*)&gGekkoCallAnim, 5.0f);
+        MM_Animation_MorphToPlayOnce(&enBigslime->skelAnime, (AnimationHeader*)&gGekkoCallAnim, 5.0f);
         EnBigslime_GekkoSfxOutsideBigslime(enBigslime, NA_SE_EN_FROG_GREET);
         enBigslime->callTimer = 0;
         enBigslime->actionFunc = EnBigslime_CallMinislime;
@@ -134,7 +134,7 @@ void RegisterSkipEnemyIntros() {
     // Gerudo Pirate
     COND_ID_HOOK(OnActorInit, ACTOR_EN_KAIZOKU, CVAR, [](Actor* actor) {
         EnKaizoku* enKaizoku = (EnKaizoku*)actor;
-        if ((enKaizoku->switchFlag > SWITCH_FLAG_NONE) && Flags_GetSwitch(gPlayState, enKaizoku->switchFlag)) {
+        if ((enKaizoku->switchFlag > SWITCH_FLAG_NONE) && MM_Flags_GetSwitch(MM_gPlayState, enKaizoku->switchFlag)) {
             // Pirate already defeated, don't do anything
             return;
         }
@@ -170,7 +170,7 @@ void RegisterSkipEnemyIntros() {
 void RegisterSkipBossWarpCutscenes() {
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
         s16* csId = va_arg(args, s16*);
-        switch (gPlayState->sceneId) {
+        switch (MM_gPlayState->sceneId) {
             case SCENE_MITURIN_BS: // Odolwa's Lair
                 if (*csId == 9) {  // Warping out
                     *should = false;
@@ -298,7 +298,7 @@ void RegisterSkipEnemyCutscenes() {
             enKaizoku->picto.actor.yawTowardsPlayer = enKaizoku->picto.actor.shape.rot.y;
         } else if (enKaizoku->actionFunc == EnKaizoku_PlayerWinCutscene) {
             // Store player's rotation values to prevent player from rotating to face the pirate
-            Player* player = GET_PLAYER(gPlayState);
+            Player* player = GET_PLAYER(MM_gPlayState);
             shapeRotY = player->actor.shape.rot.y;
             worldRotY = player->actor.world.rot.y;
         }
@@ -315,7 +315,7 @@ void RegisterSkipEnemyCutscenes() {
             }
         } else if (enKaizoku->actionFunc == EnKaizoku_PlayerWinCutscene) {
             // Restore player's rotation; do not constantly face pirate
-            Player* player = GET_PLAYER(gPlayState);
+            Player* player = GET_PLAYER(MM_gPlayState);
             player->actor.shape.rot.y = shapeRotY;
             player->actor.world.rot.y = worldRotY;
         }
@@ -348,7 +348,7 @@ void RegisterSkipEnemyCutscenes() {
             boss06->lightOrbScale = 18.0f;
             boss06->lightOrbAlphaFactor = 255.0f;
             boss06->lightRayBrightness = 1.0f;
-            Actor_SpawnAsChild(&gPlayState->actorCtx, actor, gPlayState, ACTOR_MIR_RAY2, actor->world.pos.x,
+            MM_Actor_SpawnAsChild(&MM_gPlayState->actorCtx, actor, MM_gPlayState, ACTOR_MIR_RAY2, actor->world.pos.x,
                                actor->world.pos.y - 200.0f, actor->world.pos.z - 170.0f, 15, 0, 0, 1);
             boss06->actionFunc = Boss06_CurtainDestroyed;
         }
@@ -367,7 +367,7 @@ void RegisterSkipEnemyCutscenes() {
                 enKnight->csStepValue = 0.0f;
                 enKnight->swordScale = enKnight->shieldScale = 1.0f;
                 enKnight->csState = 0;
-                EnKnight_SetupWait(enKnight, gPlayState);
+                EnKnight_SetupWait(enKnight, MM_gPlayState);
                 enKnight->timers[2] = 300;
                 enKnight->doBgChecks = true;
                 enKnight->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
@@ -385,13 +385,13 @@ void RegisterSkipEnemyCutscenes() {
             // Manually advance the timer, as camera movement is skipped.
             if (--enDeath->actionTimer == 0) {
                 // Store and restore position and rotation values since there is no cutscene to use them for
-                Player* player = GET_PLAYER(gPlayState);
+                Player* player = GET_PLAYER(MM_gPlayState);
                 s16 x = actor->world.pos.x;
                 s16 z = actor->world.pos.z;
                 s16 y = actor->world.pos.y;
                 s16 playerRotY = player->actor.shape.rot.y;
                 s16 rotY = actor->shape.rot.y;
-                EnDeath_SetupDeathCutscenePart2(enDeath, gPlayState);
+                EnDeath_SetupDeathCutscenePart2(enDeath, MM_gPlayState);
                 actor->shape.rot.y = rotY;
                 player->actor.shape.rot.y = playerRotY;
                 actor->world.pos.x = x;

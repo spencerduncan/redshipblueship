@@ -58,7 +58,7 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
     }
 
     if (CVarGetInteger(CVAR_RANDOMIZER_SETTING("DontGenerateSpoiler"), 0)) {
-        settingsStr += (char*)gBuildVersion;
+        settingsStr += (char*)OoT_gBuildVersion;
     }
 
     uint32_t finalHash = SohUtils::Hash(std::to_string(ctx->GetSeed()) + settingsStr);

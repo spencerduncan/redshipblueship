@@ -43,7 +43,7 @@ void Rando::ActorBehavior::InitObjMoonStoneBehavior() {
         if (objMoonStone->actor.xzDistToPlayer < 25.0f) {
             *should = false;
             SET_WEEKEVENTREG(WEEKEVENTREG_74_40);
-            Actor_Kill(&objMoonStone->actor);
+            MM_Actor_Kill(&objMoonStone->actor);
         }
     });
 }

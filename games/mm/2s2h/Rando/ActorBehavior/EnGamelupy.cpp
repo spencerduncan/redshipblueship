@@ -66,13 +66,13 @@ RandoCheckId IdentifyGameLupy(Actor* actor) {
 void Gamelupy_RandoDrawFunc(Actor* actor, PlayState* play) {
     auto randoSaveCheck = RANDO_SAVE_CHECKS[(RandoCheckId)actor->home.rot.x];
 
-    Matrix_Scale(20.0f, 20.0f, 20.0f, MTXMODE_APPLY);
+    MM_Matrix_Scale(20.0f, 20.0f, 20.0f, MTXMODE_APPLY);
     Rando::DrawItem(Rando::ConvertItem(randoSaveCheck.randoItemId, (RandoCheckId)actor->home.rot.x), actor);
 }
 
 void Rando::ActorBehavior::InitEnGamelupyBehavior() {
     COND_ID_HOOK(OnActorInit, ACTOR_EN_GAMELUPY, IS_RANDO, [](Actor* actor) {
-        if (gPlayState->sceneId != SCENE_DEKUTES) {
+        if (MM_gPlayState->sceneId != SCENE_DEKUTES) {
             return;
         }
 
@@ -104,6 +104,6 @@ void Rando::ActorBehavior::InitEnGamelupyBehavior() {
         randoSaveCheck.eligible = true;
         *should = false;
         *gameLupy->minigameScore += ENGAMELUPY_POINTS;
-        Actor_Kill(&gameLupy->actor);
+        MM_Actor_Kill(&gameLupy->actor);
     });
 }

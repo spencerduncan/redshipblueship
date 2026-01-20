@@ -45,7 +45,7 @@ static BetterMapSelectInfoEntry sBetterMapSelectInfo[102] = {
 
 #define STAGE_CURRENT_TIME 0x9000
 
-extern SceneSelectEntry sScenes[143];
+extern SceneSelectEntry MM_sScenes[143];
 extern SceneEntranceTableEntry sSceneEntranceTable[ENTR_SCENE_MAX];
 
 static bool sIsBetterMapSelectEnabled = false;
@@ -256,8 +256,8 @@ void BetterMapSelect_Init(MapSelectState* mapSelectState) {
 
         gSaveContext.save.cutsceneIndex = STAGE_CURRENT_TIME;
     } else {
-        mapSelectState->scenes = sScenes;
-        mapSelectState->count = ARRAY_COUNT(sScenes);
+        mapSelectState->scenes = MM_sScenes;
+        mapSelectState->count = ARRAY_COUNT(MM_sScenes);
         mapSelectState->currentScene = 0;
         mapSelectState->opt = 0;
         mapSelectState->topDisplayedScene = 0;
@@ -324,45 +324,45 @@ void BetterMapSelect_PrintMenu(MapSelectState* mapSelectState, GfxPrint* printer
     char* dayName;
 
     // Header
-    GfxPrint_SetColor(printer, 255, 255, 255, 255);
-    GfxPrint_SetPos(printer, 12, 2);
-    GfxPrint_Printf(printer, "Scene Selection");
-    GfxPrint_SetColor(printer, 255, 255, 255, 255);
+    MM_GfxPrint_SetColor(printer, 255, 255, 255, 255);
+    MM_GfxPrint_SetPos(printer, 12, 2);
+    MM_GfxPrint_Printf(printer, "Scene Selection");
+    MM_GfxPrint_SetColor(printer, 255, 255, 255, 255);
 
     // Scenes
     for (i = 0; i < 20; i++) {
-        GfxPrint_SetPos(printer, 3, i + 4);
+        MM_GfxPrint_SetPos(printer, 3, i + 4);
 
         sceneIndex = (mapSelectState->topDisplayedScene + i + mapSelectState->count) % mapSelectState->count;
         if (sceneIndex == mapSelectState->currentScene) {
-            GfxPrint_SetColor(printer, 255, 100, 100, 255);
+            MM_GfxPrint_SetColor(printer, 255, 100, 100, 255);
         } else {
-            GfxPrint_SetColor(printer, 175, 175, 175, 255);
+            MM_GfxPrint_SetColor(printer, 175, 175, 175, 255);
         }
 
         sceneName = sBetterScenes[sceneIndex].name;
-        GfxPrint_Printf(printer, "%3d %s", sceneIndex, sceneName);
+        MM_GfxPrint_Printf(printer, "%3d %s", sceneIndex, sceneName);
     };
 
     // Entrance
-    GfxPrint_SetColor(printer, 100, 100, 100, 255);
-    GfxPrint_SetPos(printer, 28, 26);
-    GfxPrint_Printf(printer, "Entrance:");
-    GfxPrint_SetColor(printer, 200, 200, 50, 255);
-    GfxPrint_Printf(printer, "%2d", mapSelectState->opt);
+    MM_GfxPrint_SetColor(printer, 100, 100, 100, 255);
+    MM_GfxPrint_SetPos(printer, 28, 26);
+    MM_GfxPrint_Printf(printer, "Entrance:");
+    MM_GfxPrint_SetColor(printer, 200, 200, 50, 255);
+    MM_GfxPrint_Printf(printer, "%2d", mapSelectState->opt);
 
     // Form
-    GfxPrint_SetPos(printer, 26, 25);
-    GfxPrint_SetColor(printer, 100, 100, 100, 255);
-    GfxPrint_Printf(printer, "(B)Form:");
-    GfxPrint_SetColor(printer, 55, 200, 50, 255);
-    GfxPrint_Printf(printer, "%s", betterFormLabels[GET_PLAYER_FORM]);
+    MM_GfxPrint_SetPos(printer, 26, 25);
+    MM_GfxPrint_SetColor(printer, 100, 100, 100, 255);
+    MM_GfxPrint_Printf(printer, "(B)Form:");
+    MM_GfxPrint_SetColor(printer, 55, 200, 50, 255);
+    MM_GfxPrint_Printf(printer, "%s", betterFormLabels[GET_PLAYER_FORM]);
 
     // Day
-    GfxPrint_SetPos(printer, 1, 25);
-    GfxPrint_SetColor(printer, 100, 100, 100, 255);
-    GfxPrint_Printf(printer, "Day:");
-    GfxPrint_SetColor(printer, 100, 100, 200, 255);
+    MM_GfxPrint_SetPos(printer, 1, 25);
+    MM_GfxPrint_SetColor(printer, 100, 100, 100, 255);
+    MM_GfxPrint_Printf(printer, "Day:");
+    MM_GfxPrint_SetColor(printer, 100, 100, 200, 255);
     switch (gSaveContext.save.day) {
         case 1:
             dayName = "First Day";
@@ -381,13 +381,13 @@ void BetterMapSelect_PrintMenu(MapSelectState* mapSelectState, GfxPrint* printer
             dayName = "First Day";
             break;
     }
-    GfxPrint_Printf(printer, "%s", dayName);
+    MM_GfxPrint_Printf(printer, "%s", dayName);
 
     // Stage
-    GfxPrint_SetPos(printer, 1, 26);
-    GfxPrint_SetColor(printer, 100, 100, 100, 255);
-    GfxPrint_Printf(printer, "(Z/R)Stage:");
-    GfxPrint_SetColor(printer, 200, 100, 200, 255);
+    MM_GfxPrint_SetPos(printer, 1, 26);
+    MM_GfxPrint_SetColor(printer, 100, 100, 100, 255);
+    MM_GfxPrint_Printf(printer, "(Z/R)Stage:");
+    MM_GfxPrint_SetColor(printer, 200, 100, 200, 255);
     switch (gSaveContext.save.cutsceneIndex) {
         case 0:
             gSaveContext.save.time = CLOCK_TIME(12, 0);
@@ -441,7 +441,7 @@ void BetterMapSelect_PrintMenu(MapSelectState* mapSelectState, GfxPrint* printer
     }
 
     if (gSaveContext.save.cutsceneIndex != STAGE_CURRENT_TIME) {
-        GfxPrint_Printf(printer, "%s", stageName);
+        MM_GfxPrint_Printf(printer, "%s", stageName);
     } else {
         u16 curMinutes = (s32)TIME_TO_MINUTES_F(CURRENT_TIME) % 60;
         u16 curHours = (s32)TIME_TO_MINUTES_F(CURRENT_TIME) / 60;
@@ -459,6 +459,6 @@ void BetterMapSelect_PrintMenu(MapSelectState* mapSelectState, GfxPrint* printer
             curHours = curHours % 12 ? curHours % 12 : 12;
         }
 
-        GfxPrint_Printf(printer, "%s%d:%s%d %s", hourPrefix, curHours, minutePrefix, curMinutes, ampm);
+        MM_GfxPrint_Printf(printer, "%s%d:%s%d %s", hourPrefix, curHours, minutePrefix, curMinutes, ampm);
     }
 };

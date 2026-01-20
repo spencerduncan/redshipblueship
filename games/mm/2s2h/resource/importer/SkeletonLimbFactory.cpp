@@ -226,7 +226,7 @@ ResourceFactoryXMLSkeletonLimbV0::ReadResource(std::shared_ptr<Ship::File> file,
     // skelLimb->siblingPtr = reader->Attribute("SiblingLimb");
     skelLimb->dListPtr = reader->Attribute("DisplayList1");
 
-    if (std::string(reader->Attribute("DisplayList1")) == "gEmptyDL") {
+    if (std::string(reader->Attribute("DisplayList1")) == "MM_gEmptyDL") {
         skelLimb->dListPtr = "";
     }
 

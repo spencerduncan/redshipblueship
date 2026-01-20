@@ -45,7 +45,7 @@ static void GrantBankFirstReward() {
                                                 { .textboxType = 2 });
                 }
 
-                Item_Give(play, wallet);
+                MM_Item_Give(play, wallet);
             } });
     }
 }
@@ -64,7 +64,7 @@ static void GrantBankInterestReward() {
                     CustomMessage::StartTextbox("You got a Blue Rupee!\x1C\x02\x10", { .textboxType = 2 });
                 }
 
-                Item_Give(play, ITEM_RUPEE_BLUE);
+                MM_Item_Give(play, ITEM_RUPEE_BLUE);
             } });
     }
 }
@@ -83,7 +83,7 @@ static void GrantBankFinalReward() {
                     CustomMessage::StartTextbox("You got a Piece of Heart!\x1C\x02\x10", { .textboxType = 2 });
                 }
 
-                Item_Give(play, ITEM_HEART_PIECE);
+                MM_Item_Give(play, ITEM_HEART_PIECE);
             } });
     }
 }

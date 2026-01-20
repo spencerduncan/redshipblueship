@@ -18,7 +18,7 @@ void Rando::ActorBehavior::InitEnGegBehavior() {
         }
         SET_WEEKEVENTREG(WEEKEVENTREG_61_01);
         refActor->unk_496 = 0xD75;
-        Message_StartTextbox(gPlayState, 0xD75, &refActor->actor);
+        MM_Message_StartTextbox(MM_gPlayState, 0xD75, &refActor->actor);
 
         *should = false;
     });

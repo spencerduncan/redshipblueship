@@ -23,8 +23,8 @@ extern "C" {
     void GameConsole_Init(void);
     void InitOTR(int argc, char* argv[]);
     void DeinitOTR(void);
-    void Heaps_Alloc(void);
-    void Heaps_Free(void);
+    void OoT_Heaps_Alloc(void);
+    void OoT_Heaps_Free(void);
     void Main(void* arg);
     void BootCommands_Init(void);
 
@@ -47,7 +47,7 @@ GAME_EXPORT int Game_Init(int argc, char** argv) {
     InitOTR(argc, argv);
     CrashHandlerRegisterCallback(CrashHandler_PrintSohData);
     BootCommands_Init();
-    Heaps_Alloc();
+    OoT_Heaps_Alloc();
 
     return 0;
 }
@@ -65,9 +65,9 @@ GAME_EXPORT void Game_Shutdown(void) {
     DeinitOTR();
     fprintf(stderr, "[OOT SHUTDOWN DEBUG] DeinitOTR() complete\n");
     fflush(stderr);
-    fprintf(stderr, "[OOT SHUTDOWN DEBUG] Calling Heaps_Free()...\n");
+    fprintf(stderr, "[OOT SHUTDOWN DEBUG] Calling OoT_Heaps_Free()...\n");
     fflush(stderr);
-    Heaps_Free();
+    OoT_Heaps_Free();
     fprintf(stderr, "[OOT SHUTDOWN DEBUG] Game_Shutdown complete\n");
     fflush(stderr);
 }
@@ -127,7 +127,7 @@ static bool sLastF10State = false;
 /**
  * Check if F10 was pressed and request game switch if so.
  * Also checks for pending cross-game entrance switches.
- * Called from the game loop (Graph_ThreadEntry) each frame.
+ * Called from the game loop (OoT_Graph_ThreadEntry) each frame.
  * Returns true if a switch was requested (game should exit its loop).
  */
 extern "C" bool Combo_CheckHotSwap(void) {

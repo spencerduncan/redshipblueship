@@ -13,7 +13,7 @@
 
     The following cvars are used in Libultraship and can be edited here:
         - Enabled                                       - Turns Advanced Resolution Mode on.
-        - AspectRatioX, AspectRatioY                    - Aspect ratio controls. To toggle off, set either to zero.
+        - AspectRatioX, AspectRatioY                    - Aspect ratio controls. To toggle off, set either to OoT_zero.
         - VerticalPixelCount, VerticalResolutionToggle  - Resolution controls.
         - PixelPerfectMode, IntegerScale.Factor         - Pixel Perfect Mode a.k.a. integer scaling controls.
         - IntegerScale.FitAutomatically                 - Automatic resizing for Pixel Perfect Mode.

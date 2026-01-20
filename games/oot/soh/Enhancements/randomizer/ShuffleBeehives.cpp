@@ -4,7 +4,7 @@
 
 extern "C" {
 #include "src/overlays/actors/ovl_Obj_Comb/z_obj_comb.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 extern void EnItem00_DrawRandomizedItem(EnItem00* enItem00, PlayState* play);
@@ -15,7 +15,7 @@ void ObjComb_RandomizerChooseItemDrop(ObjComb* objComb, PlayState* play) {
 
     if (RAND_GET_OPTION(RSK_SHUFFLE_BEEHIVES) && beehiveIdentity != nullptr &&
         !Flags_GetRandomizerInf(beehiveIdentity->randomizerInf)) {
-        EnItem00* item00 = (EnItem00*)Item_DropCollectible2(play, &objComb->actor.world.pos, ITEM00_SOH_DUMMY);
+        EnItem00* item00 = (EnItem00*)OoT_Item_DropCollectible2(play, &objComb->actor.world.pos, ITEM00_SOH_DUMMY);
         item00->randoInf = beehiveIdentity->randomizerInf;
         item00->itemEntry =
             OTRGlobals::Instance->gRandomizer->GetItemFromKnownCheck(beehiveIdentity->randomizerCheck, GI_NONE);
@@ -25,16 +25,16 @@ void ObjComb_RandomizerChooseItemDrop(ObjComb* objComb, PlayState* play) {
 
     if ((params > 0) || (params < 0x1A)) {
         if (params == 6) {
-            if (Flags_GetCollectible(play, (objComb->actor.params >> 8) & 0x3F)) {
+            if (OoT_Flags_GetCollectible(play, (objComb->actor.params >> 8) & 0x3F)) {
                 params = -1;
             } else {
                 params = (params | (((objComb->actor.params >> 8) & 0x3F) << 8));
             }
-        } else if (Rand_ZeroOne() < 0.5f) {
+        } else if (OoT_Rand_ZeroOne() < 0.5f) {
             params = -1;
         }
         if (params >= 0 && !CVarGetInteger(CVAR_ENHANCEMENT("NoRandomDrops"), 0)) {
-            Item_DropCollectible(play, &objComb->actor.world.pos, params);
+            OoT_Item_DropCollectible(play, &objComb->actor.world.pos, params);
         }
     }
 }
@@ -63,14 +63,14 @@ void ObjComb_RandomizerWait(ObjComb* objComb, PlayState* play) {
         } else {
             ObjComb_Break(objComb, play);
             ObjComb_RandomizerChooseItemDrop(objComb, play);
-            Actor_Kill(&objComb->actor);
+            OoT_Actor_Kill(&objComb->actor);
         }
     } else {
-        CollisionCheck_SetAC(play, &play->colChkCtx, &objComb->collider.base);
+        OoT_CollisionCheck_SetAC(play, &play->colChkCtx, &objComb->collider.base);
     }
 
     if (objComb->actor.update != NULL) {
-        CollisionCheck_SetOC(play, &play->colChkCtx, &objComb->collider.base);
+        OoT_CollisionCheck_SetOC(play, &play->colChkCtx, &objComb->collider.base);
     }
 }
 
@@ -78,18 +78,18 @@ void ObjComb_RandomizerInit(void* actor) {
     ObjComb* objComb = static_cast<ObjComb*>(actor);
     s16 respawnData = gSaveContext.respawn[RESPAWN_MODE_RETURN].data & ((1 << 8) - 1);
     auto beehiveIdentity = OTRGlobals::Instance->gRandomizer->IdentifyBeehive(
-        gPlayState->sceneNum, (s16)objComb->actor.world.pos.x, respawnData);
+        OoT_gPlayState->sceneNum, (s16)objComb->actor.world.pos.x, respawnData);
     ObjectExtension::GetInstance().Set<CheckIdentity>(actor, std::move(beehiveIdentity));
     objComb->actionFunc = (ObjCombActionFunc)ObjComb_RandomizerWait;
 }
 
 void ObjComb_RandomizerUpdate(void* actor) {
     ObjComb* combActor = reinterpret_cast<ObjComb*>(actor);
-    PlayState* play = gPlayState;
+    PlayState* play = OoT_gPlayState;
     combActor->unk_1B2 += 0x2EE0;
     combActor->actionFunc(combActor, play);
     combActor->actor.shape.rot.x =
-        Math_SinS(combActor->unk_1B2) * CLAMP_MIN(combActor->unk_1B0, 0) + combActor->actor.home.rot.x;
+        OoT_Math_SinS(combActor->unk_1B2) * CLAMP_MIN(combActor->unk_1B0, 0) + combActor->actor.home.rot.x;
 }
 
 void RegisterShuffleBeehives() {

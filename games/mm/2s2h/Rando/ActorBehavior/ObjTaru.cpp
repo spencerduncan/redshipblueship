@@ -61,7 +61,7 @@ std::map<std::tuple<s16, s16, s16>, RandoCheckId> barrelMap = {
 
 void ObjTaru_RandoDraw(Actor* actor, PlayState* play) {
     if (!CVarGetInteger("gRando.CSMC", 0)) {
-        Gfx_DrawDListOpa(play, (Gfx*)gBarrelJunkDL);
+        MM_Gfx_DrawDListOpa(play, (Gfx*)gBarrelJunkDL);
         return;
     }
 
@@ -71,31 +71,31 @@ void ObjTaru_RandoDraw(Actor* actor, PlayState* play) {
 
     switch (randoItemType) {
         case RITYPE_BOSS_KEY:
-            Gfx_DrawDListOpa(play, (Gfx*)gBarrelBossKeyDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gBarrelBossKeyDL);
             break;
         case RITYPE_HEALTH:
-            Gfx_DrawDListOpa(play, (Gfx*)gBarrelHeartDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gBarrelHeartDL);
             break;
         case RITYPE_LESSER:
-            Gfx_DrawDListOpa(play, (Gfx*)gBarrelMinorDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gBarrelMinorDL);
             break;
         case RITYPE_MAJOR:
-            Gfx_DrawDListOpa(play, (Gfx*)gBarrelMajorDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gBarrelMajorDL);
             break;
         case RITYPE_MASK:
-            Gfx_DrawDListOpa(play, (Gfx*)gBarrelMaskDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gBarrelMaskDL);
             break;
         case RITYPE_SKULLTULA_TOKEN:
-            Gfx_DrawDListOpa(play, (Gfx*)gBarrelTokenDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gBarrelTokenDL);
             break;
         case RITYPE_SMALL_KEY:
-            Gfx_DrawDListOpa(play, (Gfx*)gBarrelSmallKeyDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gBarrelSmallKeyDL);
             break;
         case RITYPE_STRAY_FAIRY:
-            Gfx_DrawDListOpa(play, (Gfx*)gBarrelFairyDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gBarrelFairyDL);
             break;
         default:
-            Gfx_DrawDListOpa(play, (Gfx*)gBarrelJunkDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gBarrelJunkDL);
             break;
     }
 }
@@ -106,7 +106,7 @@ void Rando::ActorBehavior::InitObjTaruBehavior() {
         RandoCheckId randoCheckId = RC_UNKNOWN;
 
         s16 actorListIndex = GetActorListIndex(actor);
-        auto it = barrelMap.find({ gPlayState->sceneId, gPlayState->roomCtx.curRoom.num, actorListIndex });
+        auto it = barrelMap.find({ MM_gPlayState->sceneId, MM_gPlayState->roomCtx.curRoom.num, actorListIndex });
         if (it != barrelMap.end()) {
             randoCheckId = it->second;
         }
@@ -141,7 +141,7 @@ void Rando::ActorBehavior::InitObjTaruBehavior() {
                         }
                         break;
                     case FLAG_CYCL_SCENE_COLLECTIBLE:
-                        Flags_SetCollectible(play, randoStaticCheck.flag);
+                        MM_Flags_SetCollectible(play, randoStaticCheck.flag);
                         break;
                     default:
                         break;
@@ -149,7 +149,7 @@ void Rando::ActorBehavior::InitObjTaruBehavior() {
             },
             [](Actor* actor, PlayState* play) {
                 auto& randoSaveCheck = RANDO_SAVE_CHECKS[CUSTOM_ITEM_PARAM];
-                Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
+                MM_Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
                 Rando::DrawItem(Rando::ConvertItem(randoSaveCheck.randoItemId, (RandoCheckId)CUSTOM_ITEM_PARAM), actor);
             });
     });

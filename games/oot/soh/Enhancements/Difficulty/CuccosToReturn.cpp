@@ -2,7 +2,7 @@
 #include "soh/ShipInit.hpp"
 
 extern "C" {
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 #include "src/overlays/actors/ovl_En_Niw_Lady/z_en_niw_lady.h"
 }
 

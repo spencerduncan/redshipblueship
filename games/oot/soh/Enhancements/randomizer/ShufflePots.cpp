@@ -7,7 +7,7 @@ extern "C" {
 #include "variables.h"
 #include "overlays/actors/ovl_Obj_Tsubo/z_obj_tsubo.h"
 #include "overlays/actors/ovl_Door_Shutter/z_door_shutter.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 extern void EnItem00_DrawRandomizedItem(EnItem00* enItem00, PlayState* play);
@@ -17,7 +17,7 @@ extern "C" void ObjTsubo_RandomizerDraw(Actor* thisx, PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
     Gfx_SetupDL_25Opa(play->state.gfxCtx);
-    Matrix_Scale(potSize, potSize, potSize, MTXMODE_APPLY);
+    OoT_Matrix_Scale(potSize, potSize, potSize, MTXMODE_APPLY);
     gSPMatrix(POLY_OPA_DISP++, Matrix_NewMtx(play->state.gfxCtx, (char*)__FILE__, __LINE__),
               G_MTX_MODELVIEW | G_MTX_LOAD);
 
@@ -51,13 +51,13 @@ void ObjTsubo_RandomizerSpawnCollectible(ObjTsubo* potActor, PlayState* play) {
         return;
     }
 
-    EnItem00* item00 = (EnItem00*)Item_DropCollectible2(play, &potActor->actor.world.pos, ITEM00_SOH_DUMMY);
+    EnItem00* item00 = (EnItem00*)OoT_Item_DropCollectible2(play, &potActor->actor.world.pos, ITEM00_SOH_DUMMY);
     item00->randoInf = potIdentity->randomizerInf;
     item00->itemEntry = Rando::Context::GetInstance()->GetFinalGIEntry(potIdentity->randomizerCheck, true, GI_NONE);
     item00->actor.draw = (ActorFunc)EnItem00_DrawRandomizedItem;
     item00->actor.velocity.y = 8.0f;
     item00->actor.speedXZ = 2.0f;
-    item00->actor.world.rot.y = static_cast<int16_t>(Rand_CenteredFloat(65536.0f));
+    item00->actor.world.rot.y = static_cast<int16_t>(OoT_Rand_CenteredFloat(65536.0f));
 }
 
 void RegisterShufflePots() {
@@ -67,7 +67,7 @@ void RegisterShufflePots() {
         Actor* actor = static_cast<Actor*>(actorRef);
         ObjTsubo* potActor = static_cast<ObjTsubo*>(actorRef);
 
-        auto potIdentity = OTRGlobals::Instance->gRandomizer->IdentifyPot(gPlayState->sceneNum, (s16)actor->world.pos.x,
+        auto potIdentity = OTRGlobals::Instance->gRandomizer->IdentifyPot(OoT_gPlayState->sceneNum, (s16)actor->world.pos.x,
                                                                           (s16)actor->world.pos.z);
         ObjectExtension::GetInstance().Set<CheckIdentity>(actor, std::move(potIdentity));
     });
@@ -75,7 +75,7 @@ void RegisterShufflePots() {
     // Draw custom model for pot to indicate it holding a randomized item.
     COND_VB_SHOULD(VB_POT_SETUP_DRAW, shouldRegister, {
         ObjTsubo* potActor = va_arg(args, ObjTsubo*);
-        if (ObjTsubo_RandomizerHoldsItem(potActor, gPlayState)) {
+        if (ObjTsubo_RandomizerHoldsItem(potActor, OoT_gPlayState)) {
             potActor->actor.draw = (ActorFunc)ObjTsubo_RandomizerDraw;
             *should = false;
         }
@@ -84,8 +84,8 @@ void RegisterShufflePots() {
     // Do not spawn vanilla item from pot, instead spawn the ranomized item.
     COND_VB_SHOULD(VB_POT_DROP_ITEM, shouldRegister, {
         ObjTsubo* potActor = va_arg(args, ObjTsubo*);
-        if (ObjTsubo_RandomizerHoldsItem(potActor, gPlayState)) {
-            ObjTsubo_RandomizerSpawnCollectible(potActor, gPlayState);
+        if (ObjTsubo_RandomizerHoldsItem(potActor, OoT_gPlayState)) {
+            ObjTsubo_RandomizerSpawnCollectible(potActor, OoT_gPlayState);
             *should = false;
         }
     });
@@ -94,7 +94,7 @@ void RegisterShufflePots() {
     COND_VB_SHOULD(VB_LOCK_BOSS_DOOR, shouldRegister, {
         DoorShutter* doorActor = va_arg(args, DoorShutter*);
         uint8_t shufflePotSetting = RAND_GET_OPTION(RSK_SHUFFLE_POTS);
-        if (gPlayState->sceneNum == SCENE_GANONS_TOWER && doorActor->dyna.actor.world.pos.y == 800 &&
+        if (OoT_gPlayState->sceneNum == SCENE_GANONS_TOWER && doorActor->dyna.actor.world.pos.y == 800 &&
             (shufflePotSetting == RO_SHUFFLE_POTS_DUNGEONS || shufflePotSetting == RO_SHUFFLE_POTS_ALL)) {
             *should = false;
         }

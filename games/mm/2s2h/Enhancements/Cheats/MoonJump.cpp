@@ -11,9 +11,9 @@ extern "C" {
 
 void RegisterMoonJump() {
     COND_ID_HOOK(OnActorUpdate, ACTOR_PLAYER, CVAR, [](Actor* actor) {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
 
-        if (player != nullptr && CHECK_BTN_ANY(gPlayState->state.input[0].cur.button, BTN_L)) {
+        if (player != nullptr && CHECK_BTN_ANY(MM_gPlayState->state.input[0].cur.button, BTN_L)) {
             player->actor.velocity.y = 6.34375f;
         }
     });

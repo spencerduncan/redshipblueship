@@ -6,7 +6,7 @@
 
 extern "C" {
 #include "global.h"
-extern uintptr_t gSegments[NUM_SEGMENTS];
+extern uintptr_t MM_gSegments[NUM_SEGMENTS];
 }
 
 Ship::IResource* OTRPlay_LoadFile(PlayState* play, const char* fileName) {
@@ -28,17 +28,17 @@ extern "C" void OTRPlay_InitScene(PlayState* play, s32 spawn) {
     play->roomCtx.unk74 = nullptr;
     play->numSetupActors = 0;
     Object_InitContext(&play->state, &play->objectCtx);
-    LightContext_Init(play, &play->lightCtx);
+    MM_LightContext_Init(play, &play->lightCtx);
     Scene_ResetTransitionActorList(&play->state, &play->transitionActors);
     Room_Init(play, &play->roomCtx);
     gSaveContext.worldMapArea = 0;
     OTRScene_ExecuteCommands(play, (SOH::Scene*)play->sceneSegment);
-    Play_InitEnvironment(play, play->skyboxId);
+    MM_Play_InitEnvironment(play, play->skyboxId);
 }
 
 extern "C" void OTRPlay_SpawnScene(PlayState* play, s32 sceneId, s32 spawn) {
     s32 pad;
-    SceneTableEntry* scene = &gSceneTable[sceneId];
+    SceneTableEntry* scene = &MM_gSceneTable[sceneId];
 
     scene->unk_D = 0;
     play->loadedScene = scene;
@@ -48,29 +48,29 @@ extern "C" void OTRPlay_SpawnScene(PlayState* play, s32 sceneId, s32 spawn) {
         StringHelper::Sprintf("scenes/nonmq/%s/%s", scene->segment.fileName, scene->segment.fileName);
     play->sceneSegment = OTRPlay_LoadFile(play, scenePath.c_str());
     scene->unk_D = 0;
-    gSegments[2] = (uintptr_t)play->sceneSegment;
+    MM_gSegments[2] = (uintptr_t)play->sceneSegment;
     OTRPlay_InitScene(play, spawn);
     Room_SetupFirstRoom(play, &play->roomCtx);
 }
 
 extern "C" s32 OTRfunc_800973FC(PlayState* play, RoomContext* roomCtx) {
     if (roomCtx->status == 1) {
-        // if (!osRecvMesg(&roomCtx->loadQueue, nullptr, OS_MESG_NOBLOCK)) {
+        // if (!MM_osRecvMesg(&roomCtx->loadQueue, nullptr, OS_MESG_NOBLOCK)) {
         if (1) {
             roomCtx->status = 0;
             roomCtx->curRoom.segment = roomCtx->roomRequestAddr;
-            gSegments[3] = (uintptr_t)roomCtx->roomRequestAddr;
+            MM_gSegments[3] = (uintptr_t)roomCtx->roomRequestAddr;
 
             OTRScene_ExecuteCommands(play, (SOH::Scene*)roomCtx->curRoom.segment);
             func_80123140(play, GET_PLAYER(play));
-            Actor_SpawnTransitionActors(play, &play->actorCtx);
+            MM_Actor_SpawnTransitionActors(play, &play->actorCtx);
             if (((play->sceneId != SCENE_IKANA) || (roomCtx->curRoom.num != 1)) && (play->sceneId != SCENE_IKNINSIDE)) {
                 play->envCtx.lightSettingOverride = LIGHT_SETTING_OVERRIDE_NONE;
                 play->envCtx.lightBlendOverride = LIGHT_BLEND_OVERRIDE_NONE;
             }
             func_800FEAB0();
             if (Environment_GetStormState(play) == STORM_STATE_OFF) {
-                Environment_StopStormNatureAmbience(play);
+                MM_Environment_StopStormNatureAmbience(play);
             }
             // Insert hook
             GameInteractor_ExecuteAfterRoomSceneCommands(play->sceneId, roomCtx->curRoom.num);

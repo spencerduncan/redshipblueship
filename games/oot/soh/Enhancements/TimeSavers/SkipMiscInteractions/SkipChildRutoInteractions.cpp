@@ -15,8 +15,8 @@ void Ru1Init(void* actorRef) {
         enRu1->action = 27;
         enRu1->drawConfig = 1;
         enRu1->actor.flags &= ~(ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY);
-        Animation_Change(&enRu1->skelAnime, (AnimationHeader*)&gRutoChildSittingAnim, 1.0f, 0.0f,
-                         Animation_GetLastFrame((void*)&gRutoChildSittingAnim), ANIMMODE_LOOP, 0.0f);
+        OoT_Animation_Change(&enRu1->skelAnime, (AnimationHeader*)&gRutoChildSittingAnim, 1.0f, 0.0f,
+                         OoT_Animation_GetLastFrame((void*)&gRutoChildSittingAnim), ANIMMODE_LOOP, 0.0f);
     }
 }
 
@@ -26,9 +26,9 @@ void RegisterSkipChildRutoInteractions() {
         VB_PLAY_CHILD_RUTO_INTRO, CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipMiscInteractions"), IS_RANDO), {
             EnRu1* enRu1 = va_arg(args, EnRu1*);
 
-            Flags_SetInfTable(INFTABLE_RUTO_IN_JJ_MEET_RUTO);
-            Flags_SetInfTable(INFTABLE_RUTO_IN_JJ_TALK_FIRST_TIME);
-            Flags_SetInfTable(INFTABLE_143);
+            OoT_Flags_SetInfTable(INFTABLE_RUTO_IN_JJ_MEET_RUTO);
+            OoT_Flags_SetInfTable(INFTABLE_RUTO_IN_JJ_TALK_FIRST_TIME);
+            OoT_Flags_SetInfTable(INFTABLE_143);
             enRu1->drawConfig = 1;
             enRu1->actor.world.pos.x = 127.0f;
             enRu1->actor.world.pos.y = -340.0f;
@@ -36,8 +36,8 @@ void RegisterSkipChildRutoInteractions() {
             enRu1->actor.shape.rot.y = enRu1->actor.world.rot.y = -5098;
 
             if (*should) {
-                Animation_Change(&enRu1->skelAnime, (AnimationHeader*)&gRutoChildTurnAroundAnim, 1.0f, 0,
-                                 Animation_GetLastFrame((void*)&gRutoChildTurnAroundAnim), ANIMMODE_ONCE, -8.0f);
+                OoT_Animation_Change(&enRu1->skelAnime, (AnimationHeader*)&gRutoChildTurnAroundAnim, 1.0f, 0,
+                                 OoT_Animation_GetLastFrame((void*)&gRutoChildTurnAroundAnim), ANIMMODE_ONCE, -8.0f);
                 enRu1->action = 10;
             }
 
@@ -48,7 +48,7 @@ void RegisterSkipChildRutoInteractions() {
     COND_VB_SHOULD(VB_RUTO_WANT_TO_BE_TOSSED_TO_SAPPHIRE,
                    CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipMiscInteractions"), IS_RANDO), {
                        if (*should) {
-                           Flags_SetInfTable(INFTABLE_RUTO_IN_JJ_WANTS_TO_BE_TOSSED_TO_SAPPHIRE);
+                           OoT_Flags_SetInfTable(INFTABLE_RUTO_IN_JJ_WANTS_TO_BE_TOSSED_TO_SAPPHIRE);
                            *should = false;
                        }
                    });
@@ -62,12 +62,12 @@ void RegisterSkipChildRutoInteractions() {
 
                        if (*should) {
                            enRu1->unk_28C = (BgBdanObjects*)dynaPolyActor;
-                           Flags_SetInfTable(INFTABLE_145);
-                           Flags_SetSwitch(gPlayState, 0x02);
-                           Flags_SetSwitch(gPlayState, 0x1F);
+                           OoT_Flags_SetInfTable(INFTABLE_145);
+                           OoT_Flags_SetSwitch(OoT_gPlayState, 0x02);
+                           OoT_Flags_SetSwitch(OoT_gPlayState, 0x1F);
                            enRu1->action = 42;
-                           Animation_Change(&enRu1->skelAnime, (AnimationHeader*)&gRutoChildWait2Anim, 1.0f, 0,
-                                            Animation_GetLastFrame((void*)&gRutoChildWait2Anim), ANIMMODE_LOOP, -8.0f);
+                           OoT_Animation_Change(&enRu1->skelAnime, (AnimationHeader*)&gRutoChildWait2Anim, 1.0f, 0,
+                                            OoT_Animation_GetLastFrame((void*)&gRutoChildWait2Anim), ANIMMODE_LOOP, -8.0f);
                            // If we aren't skipping one point cutscenes and BgBdan objects has set the camera setting
                            // to CAM_SET_NORMAL1 (2), don't reset the camera setting to 1. This prevents the One Point
                            // Cutscene of Ruto getting lifted up from getting queued up twice.
@@ -75,11 +75,11 @@ void RegisterSkipChildRutoInteractions() {
                                enRu1->unk_28C->cameraSetting != 2) {
                                enRu1->unk_28C->cameraSetting = 1;
                            }
-                           Actor* sapphire = func_80AEB124(gPlayState);
+                           Actor* sapphire = func_80AEB124(OoT_gPlayState);
                            if (sapphire != NULL) {
-                               Actor_Kill(sapphire);
+                               OoT_Actor_Kill(sapphire);
                            }
-                           enRu1->actor.room = gPlayState->roomCtx.curRoom.num;
+                           enRu1->actor.room = OoT_gPlayState->roomCtx.curRoom.num;
                            *should = false;
                        }
                    });

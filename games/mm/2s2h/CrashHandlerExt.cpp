@@ -32,7 +32,7 @@ static void CrashHandler_WriteActorData(char* buffer, size_t* pos) {
     char intCharBuffer[16];
     for (unsigned int i = 0; i < ACTORCAT_MAX; i++) {
 
-        ActorListEntry* entry = &gPlayState->actorCtx.actorLists[i];
+        ActorListEntry* entry = &MM_gPlayState->actorCtx.actorLists[i];
         Actor* cur;
 
         if (entry->length == 0) {
@@ -55,15 +55,15 @@ static void CrashHandler_WriteActorData(char* buffer, size_t* pos) {
 extern "C" void CrashHandler_PrintExt(char* buffer, size_t* pos) {
     char intCharBuffer[16];
     append_line(buffer, pos, "Build Information:");
-    WRITE_VAR_LINE(buffer, pos, "  Game Version: ", (const char*)gBuildVersion);
-    WRITE_VAR_LINE(buffer, pos, "  Git Branch: ", (const char*)gGitBranch);
-    WRITE_VAR_LINE(buffer, pos, "  Git Commit: ", (const char*)gGitCommitHash);
-    WRITE_VAR_LINE(buffer, pos, "  Build Date: ", (const char*)gBuildDate);
+    WRITE_VAR_LINE(buffer, pos, "  Game Version: ", (const char*)MM_gBuildVersion);
+    WRITE_VAR_LINE(buffer, pos, "  Git Branch: ", (const char*)MM_gGitBranch);
+    WRITE_VAR_LINE(buffer, pos, "  Git Commit: ", (const char*)MM_gGitCommitHash);
+    WRITE_VAR_LINE(buffer, pos, "  Build Date: ", (const char*)MM_gBuildDate);
 
-    if (gPlayState != nullptr) {
-        WRITE_VAR_LINE(buffer, pos, "Scene: ", Ship_GetSceneName(gPlayState->sceneId));
+    if (MM_gPlayState != nullptr) {
+        WRITE_VAR_LINE(buffer, pos, "Scene: ", Ship_GetSceneName(MM_gPlayState->sceneId));
 
-        snprintf(intCharBuffer, sizeof(intCharBuffer), "%i", gPlayState->roomCtx.curRoom.num);
+        snprintf(intCharBuffer, sizeof(intCharBuffer), "%i", MM_gPlayState->roomCtx.curRoom.num);
         WRITE_VAR_LINE(buffer, pos, "Room: ", intCharBuffer);
         append_line(buffer, pos, "Actors:");
         CrashHandler_WriteActorData(buffer, pos);

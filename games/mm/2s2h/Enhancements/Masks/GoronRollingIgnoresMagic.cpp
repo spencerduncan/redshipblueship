@@ -8,7 +8,7 @@
 extern "C" {
 #include "macros.h"
 #include "variables.h"
-extern PlayState* gPlayState;
+extern PlayState* MM_gPlayState;
 extern Input* sPlayerControlInput;
 }
 
@@ -21,7 +21,7 @@ void RegisterGoronRollingIgnoresMagic() {
 
     // Mimicking the vanilla condition minus the magic check
     COND_VB_SHOULD(VB_GORON_ROLL_DISABLE_SPIKE_MODE, CVAR, {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         bool disableSpikes = (player->stateFlags3 & PLAYER_STATE3_80000) &&
                              (!CHECK_BTN_ALL(sPlayerControlInput->cur.button, BTN_A) ||
                               ((player->av1.actionVar1 == 4) && (player->unk_B08 < 12.0f)));

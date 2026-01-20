@@ -11,7 +11,7 @@
 extern "C" {
 #include "variables.h"
 #include <functions.h>
-extern TexturePtr gItemIcons[131];
+extern TexturePtr MM_gItemIcons[131];
 extern s16 D_801CFF94[250];
 }
 
@@ -114,7 +114,7 @@ void Rando::MiscBehavior::CheckQueue() {
                                 Rando::ConvertItem(randoSaveCheck.randoItemId, (RandoCheckId)CUSTOM_ITEM_PARAM);
                         }
 
-                        Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
+                        MM_Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
                         Rando::DrawItem(randoItemId);
                     } });
             return;

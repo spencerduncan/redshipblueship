@@ -342,10 +342,10 @@ const char* SpoilerLog_Write() {
 
     jsonData.clear();
 
-    jsonData["version"] = (char*)gBuildVersion;
+    jsonData["version"] = (char*)OoT_gBuildVersion;
     jsonData["fileType"] = FILE_TYPE_SPOILER;
-    jsonData["git_branch"] = (char*)gGitBranch;
-    jsonData["git_commit"] = (char*)gGitCommitHash;
+    jsonData["git_branch"] = (char*)OoT_gGitBranch;
+    jsonData["git_commit"] = (char*)OoT_gGitCommitHash;
     jsonData["seed"] = ctx->GetSeedString();
     jsonData["finalSeed"] = ctx->GetSeed();
 

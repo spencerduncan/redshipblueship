@@ -8,7 +8,7 @@ extern "C" {
 #include "macros.h"
 #include "variables.h"
 
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 
 u8 Randomizer_GetSettingValue(RandomizerSettingKey);
 }
@@ -44,52 +44,52 @@ static const int songAudioMap[] = {
 static bool isWarpActive = false;
 
 static void PauseWarp_Execute() {
-    if (!isWarpActive || gPlayState->msgCtx.msgMode != MSGMODE_NONE) {
+    if (!isWarpActive || OoT_gPlayState->msgCtx.msgMode != MSGMODE_NONE) {
         return;
     }
     isWarpActive = false;
-    GET_PLAYER(gPlayState)->stateFlags1 &= ~PLAYER_STATE1_IN_CUTSCENE;
-    if (gPlayState->msgCtx.choiceIndex != 0) {
+    GET_PLAYER(OoT_gPlayState)->stateFlags1 &= ~PLAYER_STATE1_IN_CUTSCENE;
+    if (OoT_gPlayState->msgCtx.choiceIndex != 0) {
         return;
     }
     if (IS_RANDO) {
         Entrance_SetWarpSongEntrance();
         return;
     }
-    gPlayState->transitionTrigger = TRANS_TRIGGER_START;
-    gPlayState->transitionType = TRANS_TYPE_FADE_WHITE_FAST;
+    OoT_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
+    OoT_gPlayState->transitionType = TRANS_TYPE_FADE_WHITE_FAST;
     for (int i = 0; i < ARRAY_COUNT(ocarinaSongMap); i++) {
-        if (gPlayState->msgCtx.lastPlayedSong == ocarinaSongMap[i]) {
-            gPlayState->nextEntranceIndex = entranceIndexMap[i];
-            Interface_SetSubTimerToFinalSecond(gPlayState);
+        if (OoT_gPlayState->msgCtx.lastPlayedSong == ocarinaSongMap[i]) {
+            OoT_gPlayState->nextEntranceIndex = entranceIndexMap[i];
+            Interface_SetSubTimerToFinalSecond(OoT_gPlayState);
             return;
         }
     }
-    gPlayState->transitionTrigger = TRANS_TRIGGER_OFF;
+    OoT_gPlayState->transitionTrigger = TRANS_TRIGGER_OFF;
 }
 
 static void ActivateWarp(PauseContext* pauseCtx, int song) {
     Audio_OcaSetInstrument(0);
-    Interface_SetDoAction(gPlayState, DO_ACTION_NONE);
+    Interface_SetDoAction(OoT_gPlayState, DO_ACTION_NONE);
     pauseCtx->state = 0x12;
     WREG(2) = -6240;
     func_800F64E0(0);
     pauseCtx->unk_1E4 = 0;
     int idx = song - QUEST_SONG_MINUET;
-    gPlayState->msgCtx.lastPlayedSong = ocarinaSongMap[idx];
+    OoT_gPlayState->msgCtx.lastPlayedSong = ocarinaSongMap[idx];
     Audio_SetSoundBanksMute(0x20);
-    Audio_PlayFanfare(songAudioMap[idx]);
-    Message_StartTextbox(gPlayState, songMessageMap[idx], NULL);
-    GET_PLAYER(gPlayState)->stateFlags1 |= PLAYER_STATE1_IN_CUTSCENE;
+    OoT_Audio_PlayFanfare(songAudioMap[idx]);
+    OoT_Message_StartTextbox(OoT_gPlayState, songMessageMap[idx], NULL);
+    GET_PLAYER(OoT_gPlayState)->stateFlags1 |= PLAYER_STATE1_IN_CUTSCENE;
     isWarpActive = true;
 }
 
 static void PauseWarp_HandleSelection() {
     if (gSaveContext.inventory.items[SLOT_OCARINA] != ITEM_NONE) {
-        int aButtonPressed = CHECK_BTN_ALL(gPlayState->state.input->press.button, BTN_A);
-        int song = gPlayState->pauseCtx.cursorPoint[PAUSE_QUEST];
+        int aButtonPressed = CHECK_BTN_ALL(OoT_gPlayState->state.input->press.button, BTN_A);
+        int song = OoT_gPlayState->pauseCtx.cursorPoint[PAUSE_QUEST];
         if (aButtonPressed && CHECK_QUEST_ITEM(song) && song >= QUEST_SONG_MINUET && song <= QUEST_SONG_PRELUDE &&
-            gPlayState->pauseCtx.pageIndex == PAUSE_QUEST && gPlayState->pauseCtx.state == 6) {
+            OoT_gPlayState->pauseCtx.pageIndex == PAUSE_QUEST && OoT_gPlayState->pauseCtx.state == 6) {
             if (gSaveContext.ship.quest.id == QUEST_RANDOMIZER &&
                 Randomizer_GetSettingValue(RSK_SHUFFLE_OCARINA_BUTTONS)) {
                 bool canplay = false;
@@ -132,7 +132,7 @@ static void PauseWarp_HandleSelection() {
                     return;
                 }
             }
-            ActivateWarp(&gPlayState->pauseCtx, song);
+            ActivateWarp(&OoT_gPlayState->pauseCtx, song);
         }
     }
 }

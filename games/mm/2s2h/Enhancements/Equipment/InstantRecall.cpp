@@ -15,13 +15,13 @@ void ReturnBoomerang(Actor* actor) {
 
     // Kill the boomerang as long as it is not carrying an actor
     if (boomerang->unk_1C8 == NULL) {
-        Actor_Kill(&boomerang->actor);
+        MM_Actor_Kill(&boomerang->actor);
     }
 }
 
 void RegisterInstantRecall() {
     COND_ID_HOOK(OnActorUpdate, ACTOR_EN_BOOM, CVAR, [](Actor* actor) {
-        if (CHECK_BTN_ALL(gPlayState->state.input->press.button, BTN_B)) {
+        if (CHECK_BTN_ALL(MM_gPlayState->state.input->press.button, BTN_B)) {
             ReturnBoomerang(actor);
         }
     });

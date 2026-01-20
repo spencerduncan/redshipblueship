@@ -6,7 +6,7 @@ extern "C" {
 #include "align_asset_macro.h"
 #include "macros.h"
 #include "variables.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 static constexpr int32_t CVAR_TOT_MEDALLION_COLORS_DEFAULT = 0;
@@ -116,8 +116,8 @@ static void RegisterToTMedallions() {
     }
 
     COND_HOOK(OnItemReceive, CVAR_TOT_MEDALLION_COLORS_VALUE, [](GetItemEntry) {
-        if (gPlayState) {
-            CheckTempleOfTime(gPlayState->sceneNum);
+        if (OoT_gPlayState) {
+            CheckTempleOfTime(OoT_gPlayState->sceneNum);
         }
     });
     COND_HOOK(OnSceneInit, CVAR_TOT_MEDALLION_COLORS_VALUE, CheckTempleOfTime);

@@ -4,7 +4,7 @@
 extern "C" {
 #include "variables.h"
 #include "overlays/actors/ovl_En_Stone_heishi/z_en_stone_heishi.h"
-void Player_StartTalking(PlayState* play, Actor* actor);
+void MM_Player_StartTalking(PlayState* play, Actor* actor);
 void func_80BC9E50(EnStoneheishi* enStoneheishi, PlayState* play);
 }
 
@@ -17,19 +17,19 @@ void Rando::ActorBehavior::InitEnStoneheishiBehavior() {
         GetItemId* item = va_arg(args, GetItemId*);
         Actor* actor = va_arg(args, Actor*);
         if (actor->id == ACTOR_EN_STONE_HEISHI) {
-            Player* player = GET_PLAYER(gPlayState);
+            Player* player = GET_PLAYER(MM_gPlayState);
             actor->parent = &player->actor;
             player->talkActor = actor;
             player->talkActorDistance = actor->xzDistToPlayer;
             player->exchangeItemAction = PLAYER_IA_MINUS1;
-            Player_StartTalking(gPlayState, actor);
+            MM_Player_StartTalking(MM_gPlayState, actor);
             actor->flags |= ACTOR_FLAG_TALK;
             SET_WEEKEVENTREG(WEEKEVENTREG_41_40);
             EnStoneheishi* enStoneheishi = (EnStoneheishi*)actor;
             enStoneheishi->textIdIndex++;
             enStoneheishi->actor.textId = 0x147A;
             enStoneheishi->actionFunc = func_80BC9E50;
-            Message_StartTextbox(gPlayState, 0x147A, actor);
+            MM_Message_StartTextbox(MM_gPlayState, 0x147A, actor);
             *should = false;
         }
     });

@@ -43,7 +43,7 @@ static std::map<std::string, int> pixelWidthTable = {
     { "8", 7 },  { "9", 7 },  { ":", 5 },      { ";", 5 },  { "<", 7 },  { "=", 9 },  { ">", 7 },  { "?", 9 },
     { "@", 10 }, { "A", 9 },  { "B", 7 },      { "C", 9 },  { "D", 9 },  { "E", 6 },  { "F", 6 },  { "G", 9 },
     { "H", 8 },  { "I", 3 },  { "J", 6 },      { "K", 8 },  { "L", 6 },  { "M", 10 }, { "N", 9 },  { "O", 10 },
-    { "P", 7 },  { "Q", 10 }, { "R", 8 },      { "S", 8 },  { "T", 7 },  { "U", 8 },  { "V", 9 },  { "W", 12 },
+    { "OoT_P", 7 },  { "Q", 10 }, { "R", 8 },      { "S", 8 },  { "T", 7 },  { "U", 8 },  { "V", 9 },  { "W", 12 },
     { "X", 9 },  { "Y", 8 },  { "Z", 8 },      { "[", 6 },  { "\\", 8 }, { "]", 6 },  { "^", 8 },  { "_", 7 },
     { "`", 4 },  { "a", 6 },  { "b", 7 },      { "c", 6 },  { "d", 7 },  { "e", 7 },  { "f", 5 },  { "g", 7 },
     { "h", 6 },  { "i", 3 },  { "j", 5 },      { "k", 6 },  { "l", 3 },  { "m", 9 },  { "n", 7 },  { "o", 7 },
@@ -532,7 +532,7 @@ void CustomMessage::AutoFormatString(std::string& str) const {
                 } else if (waitForInput < lastNewline + lineLength) {
                     lastNewline = waitForInput + 1;
                     lineCount = 0;
-                    // some lines need to be split but don't have spaces, look for periods instead
+                    // some lines need to be split but don't have OoT_spaces, look for periods instead
                 } else {
                     const size_t lastBreak =
                         str.find_last_of(static_cast<std::string>(".,!?- "), lastNewline + lineLength);
@@ -568,7 +568,7 @@ void CustomMessage::AutoFormatString(std::string& str) const {
                     // or move the lastNewline cursor to the next line if a '^' is encountered.
                 } else if (carrot < lastNewline + lineLength) {
                     lastNewline = carrot + 1;
-                    // some lines need to be split but don't have spaces, look for punctuation instead
+                    // some lines need to be split but don't have OoT_spaces, look for punctuation instead
                 } else {
                     const size_t lastBreak =
                         str.find_last_of(static_cast<std::string>(".,!?- &"), lastNewline + lineLength);

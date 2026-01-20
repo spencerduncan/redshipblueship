@@ -12,7 +12,7 @@
 void RegisterSkipLearningElegyOfEmptiness() {
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR || IS_RANDO, {
         s16* csId = va_arg(args, s16*);
-        if (gPlayState->sceneId == SCENE_IKNINSIDE && *csId == 10) { // Defeated Igos, learn Elegy of Emptiness
+        if (MM_gPlayState->sceneId == SCENE_IKNINSIDE && *csId == 10) { // Defeated Igos, learn Elegy of Emptiness
             if (GameInteractor_Should(VB_GIVE_ITEM_FROM_KNIGHT, true)) {
                 GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
                     .showGetItemCutscene = !CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0),
@@ -25,11 +25,11 @@ void RegisterSkipLearningElegyOfEmptiness() {
                                 CustomMessage::StartTextbox("You learned the Elegy of Emptiness!\x1C\x02\x10",
                                                             { .textboxType = 2 });
                             }
-                            Item_Give(gPlayState, ITEM_SONG_ELEGY);
+                            MM_Item_Give(MM_gPlayState, ITEM_SONG_ELEGY);
                         },
                     .drawItem =
                         [](Actor* actor, PlayState* play) {
-                            Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
+                            MM_Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
                             Rando::DrawItem(RI_SONG_ELEGY);
                         } });
             }

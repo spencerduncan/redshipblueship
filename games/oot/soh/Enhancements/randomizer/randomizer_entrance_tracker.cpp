@@ -12,7 +12,7 @@ extern "C" {
 #include "variables.h"
 #include "functions.h"
 #include "macros.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 
 #include "soh/Enhancements/randomizer/randomizer_entrance.h"
 #include "soh/Enhancements/randomizer/randomizer_grotto.h"
@@ -414,12 +414,12 @@ const EntranceData entranceData[] = {
 int16_t LinkIsInArea(const EntranceData* entrance) {
     bool result = false;
 
-    if (gPlayState == nullptr) {
+    if (OoT_gPlayState == nullptr) {
         return -1;
     }
 
     // Handle detecting the current grotto
-    if ((gPlayState->sceneNum == SCENE_FAIRYS_FOUNTAIN || gPlayState->sceneNum == SCENE_GROTTOS) &&
+    if ((OoT_gPlayState->sceneNum == SCENE_FAIRYS_FOUNTAIN || OoT_gPlayState->sceneNum == SCENE_GROTTOS) &&
         entrance->type == ENTRANCE_TYPE_GROTTO) {
         if (entrance->index == (ENTRANCE_GROTTO_EXIT_START + currentGrottoId)) {
             // Return the grotto entrance for tracking
@@ -434,9 +434,9 @@ int16_t LinkIsInArea(const EntranceData* entrance) {
     for (auto info : entrance->scenes) {
         // only check current scene when spawn info missing
         if (info.spawn == -1) {
-            result = gPlayState->sceneNum == info.scene;
-        } else if (gPlayState->sceneNum == SCENE_THIEVES_HIDEOUT) { // group by rooms, not spawn
-            result = info.scene == SCENE_THIEVES_HIDEOUT && gPlayState->roomCtx.curRoom.num == info.spawn;
+            result = OoT_gPlayState->sceneNum == info.scene;
+        } else if (OoT_gPlayState->sceneNum == SCENE_THIEVES_HIDEOUT) { // group by rooms, not spawn
+            result = info.scene == SCENE_THIEVES_HIDEOUT && OoT_gPlayState->roomCtx.curRoom.num == info.spawn;
         } else { // Otherwise just check scene & spawn
             result = Entrance_SceneAndSpawnAre(info.scene, info.spawn);
         }
@@ -584,7 +584,7 @@ void SortEntranceListByArea(EntranceOverride* entranceList, u8 byDest) {
 
                     if (curEntrance->reverseIndex == curOverride->index) {
                         entranceList[idx] = tempList[j];
-                        // "Remove" this entrance from the tempList by setting it's values to zero
+                        // "Remove" this entrance from the tempList by setting it's values to OoT_zero
                         tempList[j] = emptyOverride;
                         idx++;
                         break;

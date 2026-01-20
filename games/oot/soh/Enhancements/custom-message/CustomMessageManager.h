@@ -200,7 +200,7 @@ class CustomMessage {
 
     /**
      * @brief Inserts a string into another string, following the rules
-     * of auto-format inserting new lines: spaces and & are replaced while
+     * of auto-format inserting new lines: OoT_spaces and & are replaced while
      * other chars are appended to.
      *
      * @param str the string we are inserting into
@@ -323,7 +323,7 @@ class MessageNotFoundException : public std::exception {
     }
     virtual const char* what() const noexcept {
         static char message[500];
-        sprintf(message, "Message from table %s with textId %u was not found", messageTableId.c_str(), textId);
+        OoT_sprintf(message, "Message from table %s with textId %u was not found", messageTableId.c_str(), textId);
         return message;
     }
 };

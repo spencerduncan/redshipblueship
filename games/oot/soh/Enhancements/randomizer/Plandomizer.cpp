@@ -21,7 +21,7 @@ extern "C" {
 #include "include/z64item.h"
 #include "objects/gameplay_keep/gameplay_keep.h"
 extern SaveContext gSaveContext;
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 const std::string randomizeButton = ICON_FA_RANDOM;

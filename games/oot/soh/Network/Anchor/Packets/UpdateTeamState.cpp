@@ -9,7 +9,7 @@
 
 extern "C" {
 #include "variables.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 /**
@@ -39,10 +39,10 @@ void Anchor::SendPacket_UpdateTeamState() {
 
     payload["state"] = gSaveContext;
     // manually update current scene flags
-    payload["state"]["sceneFlags"][gPlayState->sceneNum * 4] = gPlayState->actorCtx.flags.chest;
-    payload["state"]["sceneFlags"][gPlayState->sceneNum * 4 + 1] = gPlayState->actorCtx.flags.swch;
-    payload["state"]["sceneFlags"][gPlayState->sceneNum * 4 + 2] = gPlayState->actorCtx.flags.clear;
-    payload["state"]["sceneFlags"][gPlayState->sceneNum * 4 + 3] = gPlayState->actorCtx.flags.collect;
+    payload["state"]["sceneFlags"][OoT_gPlayState->sceneNum * 4] = OoT_gPlayState->actorCtx.flags.chest;
+    payload["state"]["sceneFlags"][OoT_gPlayState->sceneNum * 4 + 1] = OoT_gPlayState->actorCtx.flags.swch;
+    payload["state"]["sceneFlags"][OoT_gPlayState->sceneNum * 4 + 2] = OoT_gPlayState->actorCtx.flags.clear;
+    payload["state"]["sceneFlags"][OoT_gPlayState->sceneNum * 4 + 3] = OoT_gPlayState->actorCtx.flags.collect;
 
     // The commented out code below is an attempt at sending the entire randomizer seed over, in hopes that a player
     // doesn't have to generate the seed themselves Currently it doesn't work :)
@@ -160,11 +160,11 @@ void Anchor::HandlePacket_UpdateTeamState(nlohmann::json payload) {
             }
 
             gSaveContext.sceneFlags[i] = loadedData.sceneFlags[i];
-            if (IsSaveLoaded() && gPlayState->sceneNum == i) {
-                gPlayState->actorCtx.flags.chest = loadedData.sceneFlags[i].chest;
-                gPlayState->actorCtx.flags.swch = loadedData.sceneFlags[i].swch;
-                gPlayState->actorCtx.flags.clear = loadedData.sceneFlags[i].clear;
-                gPlayState->actorCtx.flags.collect = loadedData.sceneFlags[i].collect;
+            if (IsSaveLoaded() && OoT_gPlayState->sceneNum == i) {
+                OoT_gPlayState->actorCtx.flags.chest = loadedData.sceneFlags[i].chest;
+                OoT_gPlayState->actorCtx.flags.swch = loadedData.sceneFlags[i].swch;
+                OoT_gPlayState->actorCtx.flags.clear = loadedData.sceneFlags[i].clear;
+                OoT_gPlayState->actorCtx.flags.collect = loadedData.sceneFlags[i].collect;
             }
         }
 
@@ -209,7 +209,7 @@ void Anchor::HandlePacket_UpdateTeamState(nlohmann::json payload) {
             }
         }
 
-        // Restore ammo if it's non-zero, unless it's beans
+        // Restore ammo if it's non-OoT_zero, unless it's beans
         for (int i = 0; i < ARRAY_COUNT(gSaveContext.inventory.ammo); i++) {
             if (gSaveContext.inventory.ammo[i] != 0 && i != SLOT(ITEM_BEAN) && i != SLOT(ITEM_BEAN + 1)) {
                 loadedData.inventory.ammo[i] = gSaveContext.inventory.ammo[i];

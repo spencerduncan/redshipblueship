@@ -3,14 +3,14 @@
 
 extern "C" {
 #include "variables.h"
-void Player_StartTalking(PlayState* play, Actor* actor);
+void MM_Player_StartTalking(PlayState* play, Actor* actor);
 }
 
 void Rando::ActorBehavior::InitEnLiftNutsBehavior() {
     COND_VB_SHOULD(VB_GIVE_ITEM_FROM_OFFER, IS_RANDO, {
         GetItemId* item = va_arg(args, GetItemId*);
         Actor* refActor = va_arg(args, Actor*);
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
 
         if (refActor->id != ACTOR_EN_LIFT_NUTS) {
             return;
@@ -27,6 +27,6 @@ void Rando::ActorBehavior::InitEnLiftNutsBehavior() {
         player->talkActor = refActor;
         player->talkActorDistance = refActor->xzDistToPlayer;
         player->exchangeItemAction = PLAYER_IA_MINUS1;
-        Player_StartTalking(gPlayState, refActor);
+        MM_Player_StartTalking(MM_gPlayState, refActor);
     });
 }

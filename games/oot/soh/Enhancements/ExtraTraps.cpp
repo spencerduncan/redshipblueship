@@ -8,7 +8,7 @@ extern "C" {
 #include "variables.h"
 #include "functions.h"
 #include "macros.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 GetItemEntry ItemTable_RetrieveEntry(s16 modIndex, s16 getItemID);
 }
 
@@ -79,8 +79,8 @@ static void RollRandomTrap(uint32_t seed) {
             eventTimer = 3;
             break;
         case ADD_SPEED_TRAP:
-            Audio_PlaySoundGeneral(NA_SE_VO_KZ_MOVE, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_VO_KZ_MOVE, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             GameInteractor::State::MovementSpeedMultiplier = 0.5f;
             statusTimer = 200;
             Notification::Emit({ .message = "Speed Decreased!" });
@@ -89,8 +89,8 @@ static void RollRandomTrap(uint32_t seed) {
             eventTimer = 3;
             break;
         case ADD_VOID_TRAP:
-            Audio_PlaySoundGeneral(NA_SE_EN_GANON_LAUGH, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_EN_GANON_LAUGH, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             eventTimer = 3;
             break;
         case ADD_AMMO_TRAP:
@@ -109,7 +109,7 @@ static void RollRandomTrap(uint32_t seed) {
 }
 
 static void OnPlayerUpdate() {
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
     if (statusTimer == 0) {
         GameInteractor::State::MovementSpeedMultiplier = 1.0f;
     }
@@ -122,7 +122,7 @@ static void OnPlayerUpdate() {
                 GameInteractor::RawAction::SpawnActor(ACTOR_EN_BOM, 1);
                 break;
             case ADD_VOID_TRAP:
-                Play_TriggerRespawn(gPlayState);
+                Play_TriggerRespawn(OoT_gPlayState);
                 break;
             case ADD_AMMO_TRAP:
                 AMMO(ITEM_STICK) = static_cast<int8_t>(floor(AMMO(ITEM_STICK) * 0.5f));
@@ -131,8 +131,8 @@ static void OnPlayerUpdate() {
                 AMMO(ITEM_BOW) = static_cast<int8_t>(floor(AMMO(ITEM_BOW) * 0.5f));
                 AMMO(ITEM_BOMB) = static_cast<int8_t>(floor(AMMO(ITEM_BOMB) * 0.5f));
                 AMMO(ITEM_BOMBCHU) = static_cast<int8_t>(floor(AMMO(ITEM_BOMBCHU) * 0.5f));
-                Audio_PlaySoundGeneral(NA_SE_VO_FR_SMILE_0, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_VO_FR_SMILE_0, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                 break;
             case ADD_TELEPORT_TRAP: {
                 int entrance;
@@ -183,14 +183,14 @@ void RegisterExtraTraps() {
             return;
         }
 
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(OoT_gPlayState);
 
         *should = true;
         gSaveContext.ship.pendingIceTrapCount--;
         gSaveContext.ship.stats.count[COUNT_ICE_TRAPS]++;
         GameInteractor_ExecuteOnItemReceiveHooks(ItemTable_RetrieveEntry(MOD_RANDOMIZER, RG_ICE_TRAP));
         if (CVAR_EXTRA_TRAPS_VALUE) {
-            RollRandomTrap(gPlayState->sceneNum + player->getItemEntry.drawItemId);
+            RollRandomTrap(OoT_gPlayState->sceneNum + player->getItemEntry.drawItemId);
         } else {
             GameInteractor::RawAction::FreezePlayer();
         }

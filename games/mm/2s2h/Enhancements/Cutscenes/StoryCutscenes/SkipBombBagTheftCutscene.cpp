@@ -22,7 +22,7 @@ void RegisterSkipBombBagTheftCutscene() {
             SET_WEEKEVENTREG(WEEKEVENTREG_RECOVERED_STOLEN_BOMB_BAG);
             SEQCMD_STOP_SEQUENCE(SEQ_PLAYER_BGM_MAIN, 20);
             enSuttari->flags2 |= 4 | 8;
-            EnSuttari_TriggerTransition(gPlayState, ENTRANCE(NORTH_CLOCK_TOWN, 7));
+            EnSuttari_TriggerTransition(MM_gPlayState, ENTRANCE(NORTH_CLOCK_TOWN, 7));
         } else {
             // Avoid cutscene
             *should = false;
@@ -39,7 +39,7 @@ void RegisterSkipBombBagTheftCutscene() {
          * Sakon's actor will lock Link in place if this cutscene is queued. Preventing the queue instead allows the
          * player to roam freely as the theft takes place.
          */
-        if (gPlayState->sceneId == SCENE_BACKTOWN) {
+        if (MM_gPlayState->sceneId == SCENE_BACKTOWN) {
             s16* csId = va_arg(args, s16*);
             if (*csId == 18) {
                 *should = false;

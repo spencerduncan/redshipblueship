@@ -236,7 +236,7 @@ void DrawPreviewButton(uint16_t sequenceId, std::string sfxKey, SeqType sequence
                     Audio_OcaSetSongPlayback(9, 1);
                 } else {
                     // TODO: Cant do both here, so have to click preview button twice
-                    PreviewSequence(sequenceId);
+                    OoT_PreviewSequence(sequenceId);
                     CVarSetInteger(CVAR_AUDIO("Playing"), sequenceId);
                 }
             }

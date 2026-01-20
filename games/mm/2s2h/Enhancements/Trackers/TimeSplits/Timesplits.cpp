@@ -213,17 +213,17 @@ void DrawSplitsList(bool isMain) {
                 ImGui::TableNextColumn();
                 TableCellCenteredText(
                     GetCurrentTimeTextDisplay(splitList[i]).colorDisplay,
-                    !gPlayState ? BLANK_SPLIT
+                    !MM_gPlayState ? BLANK_SPLIT
                                 : Ship_FormatTimeDisplay(GetCurrentTimeTextDisplay(splitList[i]).timeDisplay).c_str());
 
                 // +/- Column
                 ImGui::TableNextColumn();
                 TableCellCenteredText(
                     GetTimeDiffTextDisplay(splitList[i]).colorDisplay,
-                    !gPlayState ? BLANK_SPLIT
+                    !MM_gPlayState ? BLANK_SPLIT
                                 : Ship_FormatTimeDisplay(GetTimeDiffTextDisplay(splitList[i]).timeDisplay).c_str());
                 if (CVarGetInteger("gSettings.TimeSplits.Compare", 0) && comparisonList.size() != 0) {
-                    !gPlayState ? ImGui::TextColored(COLOR_WHITE, BLANK_SPLIT)
+                    !MM_gPlayState ? ImGui::TextColored(COLOR_WHITE, BLANK_SPLIT)
                     : i < comparisonList.size()
                         ? ImGui::TextColored(
                               GetComparisonTimeTextDisplay(splitList[i], comparisonList[i]).colorDisplay,

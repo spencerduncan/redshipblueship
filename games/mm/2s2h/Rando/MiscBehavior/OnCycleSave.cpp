@@ -87,8 +87,8 @@ void Rando::MiscBehavior::AfterEndOfCycleSave() {
                 break;
             case FLAG_CYCL_SCENE_SWITCH:
                 // Clear the flag without triggering hook
-                if (gPlayState->sceneId == randoStaticCheck.sceneId) {
-                    gPlayState->actorCtx.sceneFlags.switches[(randoStaticCheck.flag & ~0x1F) >> 5] &=
+                if (MM_gPlayState->sceneId == randoStaticCheck.sceneId) {
+                    MM_gPlayState->actorCtx.sceneFlags.switches[(randoStaticCheck.flag & ~0x1F) >> 5] &=
                         ~(1 << (randoStaticCheck.flag & 0x1F));
                 }
                 if ((randoStaticCheck.flag & ~0x1F) >> 5 == 0) {
@@ -105,8 +105,8 @@ void Rando::MiscBehavior::AfterEndOfCycleSave() {
                 break;
             case FLAG_CYCL_SCENE_COLLECTIBLE:
                 // Clear the flag without triggering hook
-                if (gPlayState->sceneId == randoStaticCheck.sceneId) {
-                    gPlayState->actorCtx.sceneFlags.collectible[(randoStaticCheck.flag & ~0x1F) >> 5] &=
+                if (MM_gPlayState->sceneId == randoStaticCheck.sceneId) {
+                    MM_gPlayState->actorCtx.sceneFlags.collectible[(randoStaticCheck.flag & ~0x1F) >> 5] &=
                         ~(1 << (randoStaticCheck.flag & 0x1F));
                 }
                 gSaveContext.save.saveInfo.permanentSceneFlags[randoStaticCheck.sceneId].collectible &=
@@ -126,8 +126,8 @@ void Rando::MiscBehavior::AfterEndOfCycleSave() {
     }
 
     // Override a cycle reset from trying to restore your sword if you don't have one
-    u8 curSword = (saveContextCopy.save.saveInfo.equips.equipment & gEquipMasks[EQUIP_TYPE_SWORD]) >>
-                  gEquipShifts[EQUIP_TYPE_SWORD];
+    u8 curSword = (saveContextCopy.save.saveInfo.equips.equipment & MM_gEquipMasks[EQUIP_TYPE_SWORD]) >>
+                  MM_gEquipShifts[EQUIP_TYPE_SWORD];
     u8 stolen1 = ((saveContextCopy.save.saveInfo.stolenItems & 0xFF000000) >> 0x18);
     u8 stolen2 = ((saveContextCopy.save.saveInfo.stolenItems & 0x00FF0000) >> 0x10);
 

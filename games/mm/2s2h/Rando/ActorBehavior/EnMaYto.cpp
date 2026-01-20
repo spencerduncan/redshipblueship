@@ -25,9 +25,9 @@ void Rando::ActorBehavior::InitEnMaYtoBehavior() {
             !RANDO_SAVE_CHECKS[RC_CREMIA_ESCORT].cycleObtained) {
             RANDO_SAVE_CHECKS[RC_CREMIA_ESCORT].eligible = true;
             SET_WEEKEVENTREG(WEEKEVENTREG_14_01);
-            Message_BombersNotebookQueueEvent(gPlayState, BOMBERS_NOTEBOOK_EVENT_RECEIVED_ROMANIS_MASK);
-            Message_BombersNotebookQueueEvent(gPlayState, BOMBERS_NOTEBOOK_EVENT_ESCORTED_CREMIA);
-            Message_BombersNotebookQueueEvent(gPlayState, BOMBERS_NOTEBOOK_EVENT_MET_CREMIA);
+            Message_BombersNotebookQueueEvent(MM_gPlayState, BOMBERS_NOTEBOOK_EVENT_RECEIVED_ROMANIS_MASK);
+            Message_BombersNotebookQueueEvent(MM_gPlayState, BOMBERS_NOTEBOOK_EVENT_ESCORTED_CREMIA);
+            Message_BombersNotebookQueueEvent(MM_gPlayState, BOMBERS_NOTEBOOK_EVENT_MET_CREMIA);
         }
     });
 }

@@ -51,9 +51,9 @@ extern "C" void CustomLogoTitle_Draw(TitleContext* titleContext, uint8_t logoToD
     gSPSetLights1(POLY_OPA_DISP++, sTitleLights);
     Title_SetupView(titleContext, 0, 150.0, 300.0);
     Gfx_SetupDL_25Opa(titleContext->state.gfxCtx);
-    Matrix_Translate(-53.0, -5.0, 0, MTXMODE_NEW);
-    Matrix_Scale(1.0, 1.0, 1.0, MTXMODE_APPLY);
-    Matrix_RotateZYX(0, sTitleRotY, 0, MTXMODE_APPLY);
+    OoT_Matrix_Translate(-53.0, -5.0, 0, MTXMODE_NEW);
+    OoT_Matrix_Scale(1.0, 1.0, 1.0, MTXMODE_APPLY);
+    OoT_Matrix_RotateZYX(0, sTitleRotY, 0, MTXMODE_APPLY);
 
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(titleContext->state.gfxCtx), G_MTX_LOAD);
 
@@ -100,18 +100,18 @@ extern "C" void CustomLogoTitle_Draw(TitleContext* titleContext, uint8_t logoToD
         f32 scale = 0.4f;
 
         gSPSegment(POLY_OPA_DISP++, 0x08,
-                   (uintptr_t)Gfx_TwoTexScroll(titleContext->state.gfxCtx, 0, 0, (0 - 1) % 128, 32, 32, 1, 0,
+                   (uintptr_t)OoT_Gfx_TwoTexScroll(titleContext->state.gfxCtx, 0, 0, (0 - 1) % 128, 32, 32, 1, 0,
                                                (1 * -2) % 128, 32, 32));
 
-        Matrix_Translate(0.0f, -10.0f, 0.0f, MTXMODE_APPLY);
-        Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
+        OoT_Matrix_Translate(0.0f, -10.0f, 0.0f, MTXMODE_APPLY);
+        OoT_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
         gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(titleContext->state.gfxCtx),
                   G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         gDPSetEnvColor(POLY_OPA_DISP++, 0, 50, 100, 255);
         gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gEffIceFragment3DL);
     }
 
-    Environment_FillScreen(titleContext->state.gfxCtx, 0, 0, 0, (s16)titleContext->coverAlpha, FILL_SCREEN_XLU);
+    OoT_Environment_FillScreen(titleContext->state.gfxCtx, 0, 0, 0, (s16)titleContext->coverAlpha, FILL_SCREEN_XLU);
 
     sTitleRotY += (300 * CVarGetFloat(CVAR_COSMETIC("N64Logo.SpinSpeed"), 1.0f));
 

@@ -33,13 +33,13 @@ void RegisterSkipIntroSequence() {
 
         // Mark chest as opened and give the player the Deku Nuts
         gSaveContext.cycleSceneFlags[SCENE_OPENINGDAN].chest |= (1 << 0);
-        Item_Give(gPlayState, ITEM_DEKU_NUTS_10);
+        MM_Item_Give(MM_gPlayState, ITEM_DEKU_NUTS_10);
 
         if (FIRST_CYCLE_CVAR) {
             gSaveContext.save.playerForm = PLAYER_FORM_HUMAN;
             gSaveContext.save.saveInfo.playerData.isMagicAcquired = true;
-            Item_Give(gPlayState, ITEM_OCARINA_OF_TIME);
-            Item_Give(gPlayState, ITEM_MASK_DEKU);
+            MM_Item_Give(MM_gPlayState, ITEM_OCARINA_OF_TIME);
+            MM_Item_Give(MM_gPlayState, ITEM_MASK_DEKU);
             gSaveContext.save.saveInfo.inventory.questItems |= (1 << QUEST_SONG_TIME) | (1 << QUEST_SONG_HEALING);
             gSaveContext.save.saveInfo.playerData.threeDayResetCount = 1;
 
@@ -61,7 +61,7 @@ void RegisterSkipIntroSequence() {
             SET_WEEKEVENTREG(WEEKEVENTREG_ENTERED_NORTH_CLOCK_TOWN);
         }
         // Persist this modified state so moon crashes without saving keep it
-        Sram_SaveSpecialEnterClockTown(gPlayState);
+        Sram_SaveSpecialEnterClockTown(MM_gPlayState);
     });
 }
 

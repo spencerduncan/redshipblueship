@@ -133,8 +133,8 @@ void Emit(Options notification) {
     }
     notifications.push_back(notification);
     if (!notification.mute) {
-        AudioSfx_PlaySfx(NA_SE_SY_METRONOME, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                         &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        AudioSfx_PlaySfx(NA_SE_SY_METRONOME, &MM_gSfxDefaultPos, 4, &MM_gSfxDefaultFreqAndVolScale,
+                         &MM_gSfxDefaultFreqAndVolScale, &MM_gSfxDefaultReverb);
     }
 }
 

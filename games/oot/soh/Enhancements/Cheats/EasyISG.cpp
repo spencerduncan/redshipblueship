@@ -3,7 +3,7 @@
 #include "soh/ShipInit.hpp"
 
 extern "C" {
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 #include "macros.h"
 }
 
@@ -16,7 +16,7 @@ void OnGameFrameUpdateEasyISG() {
         return;
     }
 
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
     player->meleeWeaponState = 1;
 }
 

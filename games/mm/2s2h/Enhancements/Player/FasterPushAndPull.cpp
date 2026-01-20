@@ -52,7 +52,7 @@ void RegisterFasterPushAndPull() {
         step = CLAMP_MAX(step, maxStep);
         // This is actually the same exact condition, but because we're hooking and running it here it effectively
         // doubles the speed
-        *should = Math_StepToF(pValue, target, step);
+        *should = MM_Math_StepToF(pValue, target, step);
     });
 }
 

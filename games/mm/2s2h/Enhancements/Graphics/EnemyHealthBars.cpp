@@ -132,9 +132,9 @@ void Interface_DrawEnemyHealthBar(Attention* attention, PlayState* play) {
         // Setup DL for overlay disp
         Gfx_SetupDL39_Overlay(play->state.gfxCtx);
 
-        Matrix_Translate(projTargetCenter.x, projTargetCenter.y - slideInOffsetY, 0, MTXMODE_NEW);
-        Matrix_Scale(0.65f, 0.65f * -1.0f, 1.0f, MTXMODE_APPLY);
-        Matrix_ToMtx(&sEnemyHealthMtx[0]);
+        MM_Matrix_Translate(projTargetCenter.x, projTargetCenter.y - slideInOffsetY, 0, MTXMODE_NEW);
+        MM_Matrix_Scale(0.65f, 0.65f * -1.0f, 1.0f, MTXMODE_APPLY);
+        MM_Matrix_ToMtx(&sEnemyHealthMtx[0]);
         gSPMatrix(OVERLAY_DISP++, &sEnemyHealthMtx[0], G_MTX_MODELVIEW | G_MTX_LOAD);
 
         // Health bar border
@@ -164,8 +164,8 @@ void Interface_DrawEnemyHealthBar(Attention* attention, PlayState* play) {
         gSP1Quadrangle(OVERLAY_DISP++, 8, 10, 11, 9, 0);
 
         // Health bar fill
-        Matrix_Translate(-0.375f, -0.5f, 0, MTXMODE_APPLY);
-        Matrix_ToMtx(&sEnemyHealthMtx[1]);
+        MM_Matrix_Translate(-0.375f, -0.5f, 0, MTXMODE_APPLY);
+        MM_Matrix_ToMtx(&sEnemyHealthMtx[1]);
         gSPMatrix(OVERLAY_DISP++, &sEnemyHealthMtx[1], G_MTX_MODELVIEW | G_MTX_LOAD);
 
         gDPPipeSync(OVERLAY_DISP++);
@@ -200,8 +200,8 @@ static RegisterShipInitFunc initFunc(
         });
 
         COND_HOOK(OnInterfaceDrawStart, CVAR, []() {
-            if (gPlayState != NULL) {
-                Interface_DrawEnemyHealthBar(&gPlayState->actorCtx.attention, gPlayState);
+            if (MM_gPlayState != NULL) {
+                Interface_DrawEnemyHealthBar(&MM_gPlayState->actorCtx.attention, MM_gPlayState);
             }
         });
     },

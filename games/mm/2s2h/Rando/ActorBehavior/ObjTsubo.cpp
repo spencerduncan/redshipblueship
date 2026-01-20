@@ -12,7 +12,7 @@ extern "C" {
 #include "overlays/actors/ovl_Obj_Tsubo/z_obj_tsubo.h"
 #include "objects/object_tsubo/object_tsubo.h"
 
-void ObjTsubo_Draw(Actor* actor, PlayState* play);
+void MM_ObjTsubo_Draw(Actor* actor, PlayState* play);
 }
 
 std::map<std::tuple<s16, s16, s16>, RandoCheckId> potMap = {
@@ -315,12 +315,12 @@ void IdentifyPot(Actor* actor, bool* should) {
     RandoCheckId randoCheckId = RC_UNKNOWN;
     s16 actorListIndex = GetActorListIndex(actor);
     auto randoStaticCheck =
-        Rando::StaticData::GetCheckFromFlag(FLAG_CYCL_SCENE_COLLECTIBLE, OBJ_TSUBO_PFE00(actor), gPlayState->sceneId);
+        Rando::StaticData::GetCheckFromFlag(FLAG_CYCL_SCENE_COLLECTIBLE, OBJ_TSUBO_PFE00(actor), MM_gPlayState->sceneId);
     if (randoStaticCheck.randoCheckId != RC_UNKNOWN && randoStaticCheck.randoCheckType == RCTYPE_POT) {
         // Pots using collectible flags
         randoCheckId = randoStaticCheck.randoCheckId;
     } else {
-        auto it = potMap.find({ gPlayState->sceneId, gPlayState->roomCtx.curRoom.num, actorListIndex });
+        auto it = potMap.find({ MM_gPlayState->sceneId, MM_gPlayState->roomCtx.curRoom.num, actorListIndex });
         if (it != potMap.end()) {
             randoCheckId = it->second;
         }
@@ -335,7 +335,7 @@ void IdentifyPot(Actor* actor, bool* should) {
 
 void ObjTsubo_RandoDraw(Actor* actor, PlayState* play) {
     if (!CVarGetInteger("gRando.CSMC", 0)) {
-        Gfx_DrawDListOpa(play, (Gfx*)gPotStandardDL);
+        MM_Gfx_DrawDListOpa(play, (Gfx*)gPotStandardDL);
         return;
     }
 
@@ -345,31 +345,31 @@ void ObjTsubo_RandoDraw(Actor* actor, PlayState* play) {
 
     switch (randoItemType) {
         case RITYPE_BOSS_KEY:
-            Gfx_DrawDListOpa(play, (Gfx*)gPotBossKeyDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gPotBossKeyDL);
             break;
         case RITYPE_HEALTH:
-            Gfx_DrawDListOpa(play, (Gfx*)gPotHeartDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gPotHeartDL);
             break;
         case RITYPE_LESSER:
-            Gfx_DrawDListOpa(play, (Gfx*)gPotMinorDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gPotMinorDL);
             break;
         case RITYPE_MAJOR:
-            Gfx_DrawDListOpa(play, (Gfx*)gPotMajorDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gPotMajorDL);
             break;
         case RITYPE_MASK:
-            Gfx_DrawDListOpa(play, (Gfx*)gPotMaskDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gPotMaskDL);
             break;
         case RITYPE_SKULLTULA_TOKEN:
-            Gfx_DrawDListOpa(play, (Gfx*)gPotTokenDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gPotTokenDL);
             break;
         case RITYPE_SMALL_KEY:
-            Gfx_DrawDListOpa(play, (Gfx*)gPotSmallKeyDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gPotSmallKeyDL);
             break;
         case RITYPE_STRAY_FAIRY:
-            Gfx_DrawDListOpa(play, (Gfx*)gPotFairyDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gPotFairyDL);
             break;
         default:
-            Gfx_DrawDListOpa(play, (Gfx*)gPotStandardDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gPotStandardDL);
             break;
     }
 }
@@ -405,13 +405,13 @@ void Rando::ActorBehavior::InitObjTsuboBehavior() {
             [](Actor* actor, PlayState* play) {
                 auto& randoSaveCheck = RANDO_SAVE_CHECKS[CUSTOM_ITEM_PARAM];
                 RandoItemId randoItemId = Rando::ConvertItem(randoSaveCheck.randoItemId);
-                Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
+                MM_Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
                 Rando::DrawItem(Rando::ConvertItem(randoSaveCheck.randoItemId, (RandoCheckId)CUSTOM_ITEM_PARAM), actor);
             });
         *should = false;
 
         // Clear the stored Check ID for pots that are on a timed respawn
         Rando::ActorBehavior::SetObjectRandoCheckId(actor, RC_UNKNOWN);
-        actor->draw = ObjTsubo_Draw;
+        actor->draw = MM_ObjTsubo_Draw;
     });
 }

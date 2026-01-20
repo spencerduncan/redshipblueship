@@ -15,7 +15,7 @@
     append_str(buff, len, varName);             \
     append_str(buff, len, varValue);
 
-extern "C" PlayState* gPlayState;
+extern "C" PlayState* OoT_gPlayState;
 
 static std::array<const char*, ACTORCAT_MAX> sCatToStrArray{
     "SWITCH", "BG", "PLAYER", "EXPLOSIVE", "NPC", "ENEMY", "PROP", "ITEMACTION", "MISC", "BOSS", "DOOR", "CHEST",
@@ -44,7 +44,7 @@ static void CrashHandler_WriteActorData(char* buffer, size_t* pos) {
     char intCharBuffer[16];
     for (unsigned int i = 0; i < ACTORCAT_MAX; i++) {
 
-        ActorListEntry* entry = &gPlayState->actorCtx.actorLists[i];
+        ActorListEntry* entry = &OoT_gPlayState->actorCtx.actorLists[i];
         Actor* cur;
 
         if (entry->length == 0) {
@@ -68,15 +68,15 @@ static void CrashHandler_WriteActorData(char* buffer, size_t* pos) {
 extern "C" void CrashHandler_PrintSohData(char* buffer, size_t* pos) {
     char intCharBuffer[16];
     append_line(buffer, pos, "Build Information:");
-    WRITE_VAR_LINE(buffer, pos, "  Game Version: ", (const char*)gBuildVersion);
-    WRITE_VAR_LINE(buffer, pos, "  Git Branch: ", (const char*)gGitBranch);
-    WRITE_VAR_LINE(buffer, pos, "  Git Commit: ", (const char*)gGitCommitHash);
-    WRITE_VAR_LINE(buffer, pos, "  Build Date: ", (const char*)gBuildDate);
+    WRITE_VAR_LINE(buffer, pos, "  Game Version: ", (const char*)OoT_gBuildVersion);
+    WRITE_VAR_LINE(buffer, pos, "  Git Branch: ", (const char*)OoT_gGitBranch);
+    WRITE_VAR_LINE(buffer, pos, "  Git Commit: ", (const char*)OoT_gGitCommitHash);
+    WRITE_VAR_LINE(buffer, pos, "  Build Date: ", (const char*)OoT_gBuildDate);
 
-    if (gPlayState != nullptr) {
-        WRITE_VAR_LINE(buffer, pos, "Scene: ", sSceneIdToStrArray[gPlayState->sceneNum]);
+    if (OoT_gPlayState != nullptr) {
+        WRITE_VAR_LINE(buffer, pos, "Scene: ", sSceneIdToStrArray[OoT_gPlayState->sceneNum]);
 
-        snprintf(intCharBuffer, sizeof(intCharBuffer), "%i", gPlayState->roomCtx.curRoom.num);
+        snprintf(intCharBuffer, sizeof(intCharBuffer), "%i", OoT_gPlayState->roomCtx.curRoom.num);
         WRITE_VAR_LINE(buffer, pos, "Room: ", intCharBuffer);
 
         append_line(buffer, pos, "Actors:");

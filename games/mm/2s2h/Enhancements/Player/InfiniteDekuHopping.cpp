@@ -12,7 +12,7 @@ extern "C" {
 void RegisterInfiniteDekuHopping() {
     COND_VB_SHOULD(VB_DEKU_LINK_SPIN_ON_LAST_HOP, CVAR, {
         if (*should) {
-            Player* player = GET_PLAYER(gPlayState);
+            Player* player = GET_PLAYER(MM_gPlayState);
             if (gSaveContext.save.saveInfo.playerData.health != 0) {
                 player->remainingHopsCounter = 5;
             }
@@ -21,7 +21,7 @@ void RegisterInfiniteDekuHopping() {
 
     COND_VB_SHOULD(VB_APPLY_AIR_CONTROL, CVAR, {
         f32* dekuSpeedTargetMultiplier = va_arg(args, f32*);
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
 
         if (player->transformation == PLAYER_FORM_DEKU && player->stateFlags3 & PLAYER_STATE3_200000) {
             // Deku Link's air control speedTarget gets halved, so we negate that by doubling it when deku hopping

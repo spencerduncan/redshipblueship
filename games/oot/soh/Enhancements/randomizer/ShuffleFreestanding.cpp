@@ -3,7 +3,7 @@
 extern "C" {
 #include "variables.h"
 #include "functions.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 extern void EnItem00_DrawRandomizedItem(EnItem00* enItem00, PlayState* play);
@@ -21,7 +21,7 @@ void RegisterShuffleFreestanding() {
 
         uint32_t params = TWO_ACTOR_PARAMS((int32_t)item00->actor.world.pos.x, (int32_t)item00->actor.world.pos.z);
         Rando::Location* loc =
-            OTRGlobals::Instance->gRandomizer->GetCheckObjectFromActor(item00->actor.id, gPlayState->sceneNum, params);
+            OTRGlobals::Instance->gRandomizer->GetCheckObjectFromActor(item00->actor.id, OoT_gPlayState->sceneNum, params);
         RandomizerCheck randomizerCheck = loc->GetRandomizerCheck();
         if (Rando::Context::GetInstance()->GetItemLocation(randomizerCheck)->HasObtained()) {
             return;

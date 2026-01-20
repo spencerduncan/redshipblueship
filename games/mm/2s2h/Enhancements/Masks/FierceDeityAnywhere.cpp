@@ -99,17 +99,17 @@ void RegisterFierceDeityAnywhere() {
             int bodyPartsCount = va_arg(args, int);
             if (actor->id == ACTOR_EN_FIREFLY) { // Keese
                 EnFirefly* enFireFly = (EnFirefly*)actor;
-                Actor_DrawDamageEffects(gPlayState, actor, bodyPartsPos, bodyPartsCount,
+                Actor_DrawDamageEffects(MM_gPlayState, actor, bodyPartsPos, bodyPartsCount,
                                         enFireFly->drawDmgEffScale * actor->scale.y * 200.0f,
                                         enFireFly->drawDmgEffFrozenSteamScale, enFireFly->drawDmgEffAlpha,
                                         enFireFly->drawDmgEffType);
             } else if (actor->id == ACTOR_EN_FZ) { // Freezard
                 EnFz* enFz = (EnFz*)actor;
-                Actor_DrawDamageEffects(gPlayState, actor, bodyPartsPos, bodyPartsCount, enFz->drawDmgEffScale * 4.0f,
+                Actor_DrawDamageEffects(MM_gPlayState, actor, bodyPartsPos, bodyPartsCount, enFz->drawDmgEffScale * 4.0f,
                                         0.5f, enFz->drawDmgEffAlpha, ACTOR_DRAW_DMGEFF_LIGHT_ORBS);
             } else if (actor->id == ACTOR_EN_NEO_REEBA) { // Leever
                 EnNeoReeba* enNeoReeba = (EnNeoReeba*)actor;
-                Actor_DrawDamageEffects(gPlayState, actor, bodyPartsPos, bodyPartsCount, enNeoReeba->drawEffectScale,
+                Actor_DrawDamageEffects(MM_gPlayState, actor, bodyPartsPos, bodyPartsCount, enNeoReeba->drawEffectScale,
                                         0.5f, enNeoReeba->drawEffectAlpha, enNeoReeba->drawEffectType);
             }
         }
@@ -172,8 +172,8 @@ void RegisterFierceDeityAnywhere() {
             enBigOkuta->drawDmgEffType = ACTOR_DRAW_DMGEFF_BLUE_LIGHT_ORBS;
             enBigOkuta->drawDmgEffScale = 1.2f;
             enBigOkuta->drawDmgEffAlpha = 4.0f;
-            Actor_Spawn(
-                &gPlayState->actorCtx, gPlayState, ACTOR_EN_CLEAR_TAG, enBigOkuta->bodyCollider.elem.acDmgInfo.hitPos.x,
+            MM_Actor_Spawn(
+                &MM_gPlayState->actorCtx, MM_gPlayState, ACTOR_EN_CLEAR_TAG, enBigOkuta->bodyCollider.elem.acDmgInfo.hitPos.x,
                 enBigOkuta->bodyCollider.elem.acDmgInfo.hitPos.y, enBigOkuta->bodyCollider.elem.acDmgInfo.hitPos.z, 0,
                 0, 3, CLEAR_TAG_PARAMS(CLEAR_TAG_LARGE_LIGHT_RAYS));
         }
@@ -185,7 +185,7 @@ void RegisterFierceDeityAnywhere() {
      */
     COND_ID_HOOK(ShouldActorInit, ACTOR_EN_CLEAR_TAG, CVAR, [](Actor* actor, bool* result) {
         if ((actor->params == CLEAR_TAG_SMALL_LIGHT_RAYS || actor->params == CLEAR_TAG_LARGE_LIGHT_RAYS) &&
-            actor->world.rot.z == 0 && GET_PLAYER(gPlayState)->transformation == PLAYER_FORM_FIERCE_DEITY) {
+            actor->world.rot.z == 0 && GET_PLAYER(MM_gPlayState)->transformation == PLAYER_FORM_FIERCE_DEITY) {
             actor->world.rot.z = 3;
         }
     });
@@ -214,7 +214,7 @@ void RegisterFierceDeityAnywhere() {
     COND_VB_SHOULD(VB_DISABLE_ITEM_UNDERWATER, CVAR, {
         s32 item = va_arg(args, s32);
         if (item == ITEM_MASK_FIERCE_DEITY &&
-            Player_GetEnvironmentalHazard(gPlayState) > PLAYER_ENV_HAZARD_UNDERWATER_FLOOR) {
+            MM_Player_GetEnvironmentalHazard(MM_gPlayState) > PLAYER_ENV_HAZARD_UNDERWATER_FLOOR) {
             *should = false;
         }
     });

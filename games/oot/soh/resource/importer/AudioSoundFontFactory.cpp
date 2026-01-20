@@ -46,7 +46,7 @@ ResourceFactoryBinaryAudioSoundFontV2::ReadResource(std::shared_ptr<Ship::File> 
         drum->releaseRate = reader->ReadUByte();
         drum->pan = reader->ReadUByte();
         drum->loaded = reader->ReadUByte();
-        drum->loaded = 0; // this was always getting set to zero in ResourceMgr_LoadAudioSoundFontByName
+        drum->loaded = 0; // this was always getting set to OoT_zero in ResourceMgr_LoadAudioSoundFontByName
 
         uint32_t envelopeCount = reader->ReadUInt32();
         drum->envelope = new AdsrEnvelope[envelopeCount];
@@ -87,7 +87,7 @@ ResourceFactoryBinaryAudioSoundFontV2::ReadResource(std::shared_ptr<Ship::File> 
 
         uint8_t isValidEntry = reader->ReadUByte();
         instrument->loaded = reader->ReadUByte();
-        instrument->loaded = 0; // this was always getting set to zero in ResourceMgr_LoadAudioSoundFontByName
+        instrument->loaded = 0; // this was always getting set to OoT_zero in ResourceMgr_LoadAudioSoundFontByName
 
         instrument->normalRangeLo = reader->ReadUByte();
         instrument->normalRangeHi = reader->ReadUByte();

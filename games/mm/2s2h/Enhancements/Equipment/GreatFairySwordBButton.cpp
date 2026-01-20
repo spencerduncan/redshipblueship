@@ -12,7 +12,7 @@ extern Input* sPlayerControlInput;
 
 void RegisterGreatFairySwordBButton() {
     COND_VB_SHOULD(VB_GET_ITEM_ON_BUTTON, CVAR, {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         EquipSlot slot = (EquipSlot)va_arg(args, int);
         ItemId* item = va_arg(args, ItemId*);
 

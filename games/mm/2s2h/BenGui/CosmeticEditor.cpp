@@ -203,7 +203,7 @@ Color_RGBA8 mapNewBaseColorToGradient(Color_RGBA8 currentColor, Color_RGBA8 oldB
     double gradient = gradientRed * gradientRed + gradientGreen * gradientGreen + gradientBlue * gradientBlue;
     double projection = gradientRed * deltaRed + gradientGreen * deltaGreen + gradientBlue * deltaBlue;
 
-    // This condition exists in the event that oldBase and targetEnd are equal, leading to a division by zero.
+    // This condition exists in the event that oldBase and targetEnd are equal, leading to a division by MM_zero.
     // Normally shouldn't happen, but just in case.
     double position = 0.0;
     if (gradient != 0.0) {

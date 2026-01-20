@@ -153,14 +153,14 @@ void SpawnGrassDrop(Vec3f pos, RandoCheckId randoCheckId) {
         [](Actor* actor, PlayState* play) {
             auto& randoSaveCheck = RANDO_SAVE_CHECKS[CUSTOM_ITEM_PARAM];
             RandoItemId randoItemId = Rando::ConvertItem(randoSaveCheck.randoItemId);
-            Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
+            MM_Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
             Rando::DrawItem(Rando::ConvertItem(randoSaveCheck.randoItemId, (RandoCheckId)CUSTOM_ITEM_PARAM), actor);
         });
 }
 
 void EnKusaBush_RandoDraw(Actor* actor, PlayState* play) {
     if (!CVarGetInteger("gRando.CSMC", 0)) {
-        Gfx_DrawDListOpa(play, (Gfx*)gRandoBushDL);
+        MM_Gfx_DrawDListOpa(play, (Gfx*)gRandoBushDL);
         return;
     }
 
@@ -170,34 +170,34 @@ void EnKusaBush_RandoDraw(Actor* actor, PlayState* play) {
 
     switch (randoItemType) {
         case RITYPE_BOSS_KEY:
-            Gfx_DrawDListOpa(play, (Gfx*)gRandoBushBossKeyDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gRandoBushBossKeyDL);
             break;
         case RITYPE_HEALTH:
-            Gfx_DrawDListOpa(play, (Gfx*)gRandoBushHeartDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gRandoBushHeartDL);
             break;
         case RITYPE_LESSER:
-            Gfx_DrawDListOpa(play, (Gfx*)gRandoBushMinorDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gRandoBushMinorDL);
             break;
         case RITYPE_MAJOR:
-            Gfx_DrawDListOpa(play, (Gfx*)gRandoBushMajorDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gRandoBushMajorDL);
             break;
         case RITYPE_MASK:
-            Gfx_DrawDListOpa(play, (Gfx*)gRandoBushMaskDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gRandoBushMaskDL);
             break;
         case RITYPE_SKULLTULA_TOKEN:
-            Gfx_DrawDListOpa(play, (Gfx*)gRandoBushTokenDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gRandoBushTokenDL);
             break;
         case RITYPE_SMALL_KEY:
-            Gfx_DrawDListOpa(play, (Gfx*)gRandoBushSmallKeyDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gRandoBushSmallKeyDL);
             break;
         case RITYPE_STRAY_FAIRY:
-            Gfx_DrawDListOpa(play, (Gfx*)gRandoBushFairyDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gRandoBushFairyDL);
             break;
         case RITYPE_JUNK:
-            Gfx_DrawDListOpa(play, (Gfx*)gRandoBushJunkDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gRandoBushJunkDL);
             break;
         default:
-            Gfx_DrawDListOpa(play, (Gfx*)gRandoBushDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gRandoBushDL);
             break;
     }
 }
@@ -288,32 +288,32 @@ Gfx* GetObjGrassXluDList(RandoCheckId randoCheckId) {
 
 void ObjGrass_RandoDrawOpa(ObjGrass* objGrass, ObjGrassElement* grassElem, s32 j, RandoCheckId randoCheckId) {
     Vec3s rot = { 0, 0, 0 };
-    OPEN_DISPS(gPlayState->state.gfxCtx);
+    OPEN_DISPS(MM_gPlayState->state.gfxCtx);
     rot.y = grassElem->rotY;
-    Matrix_SetTranslateRotateYXZ(grassElem->pos.x, grassElem->pos.y, grassElem->pos.z, &rot);
-    Matrix_Scale(objGrass->actor.scale.x, objGrass->actor.scale.y, objGrass->actor.scale.z, MTXMODE_APPLY);
+    MM_Matrix_SetTranslateRotateYXZ(grassElem->pos.x, grassElem->pos.y, grassElem->pos.z, &rot);
+    MM_Matrix_Scale(objGrass->actor.scale.x, objGrass->actor.scale.y, objGrass->actor.scale.z, MTXMODE_APPLY);
     if (grassElem->flags & OBJ_GRASS_ELEM_ANIM) {
         ObjGrass_OverrideMatrixCurrent(&objGrass->distortionMtx[j]);
     }
 
-    MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, gPlayState->state.gfxCtx);
+    MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, MM_gPlayState->state.gfxCtx);
     gSPDisplayList(POLY_OPA_DISP++, GetObjGrassDList(randoCheckId));
     gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gObjGrass_D_809AA9F0);
-    CLOSE_DISPS(gPlayState->state.gfxCtx);
+    CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
 
 void ObjGrass_RandoDrawXlu(ObjGrass* objGrass, ObjGrassElement* grassElem, RandoCheckId randoCheckId) {
     Vec3s rot = { 0, 0, 0 };
-    OPEN_DISPS(gPlayState->state.gfxCtx);
+    OPEN_DISPS(MM_gPlayState->state.gfxCtx);
     rot.y = grassElem->rotY;
-    Matrix_SetTranslateRotateYXZ(grassElem->pos.x, grassElem->pos.y, grassElem->pos.z, &rot);
-    Matrix_Scale(objGrass->actor.scale.x, objGrass->actor.scale.y, objGrass->actor.scale.z, MTXMODE_APPLY);
+    MM_Matrix_SetTranslateRotateYXZ(grassElem->pos.x, grassElem->pos.y, grassElem->pos.z, &rot);
+    MM_Matrix_Scale(objGrass->actor.scale.x, objGrass->actor.scale.y, objGrass->actor.scale.z, MTXMODE_APPLY);
 
-    MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gPlayState->state.gfxCtx);
+    MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, MM_gPlayState->state.gfxCtx);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, grassElem->alpha);
     gSPDisplayList(POLY_XLU_DISP++, GetObjGrassXluDList(randoCheckId));
     gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gObjGrass_D_809AAA68);
-    CLOSE_DISPS(gPlayState->state.gfxCtx);
+    CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
 
 void Rando::ActorBehavior::InitObjGrassBehavior() {
@@ -329,13 +329,13 @@ void Rando::ActorBehavior::InitObjGrassBehavior() {
         }
 
         RandoCheckId randoCheckId = RC_UNKNOWN;
-        if (gPlayState->sceneId == SCENE_KAKUSIANA && actor->room == 4) { // Common chest grotto
+        if (MM_gPlayState->sceneId == SCENE_KAKUSIANA && actor->room == 4) { // Common chest grotto
             auto it = chestGrottoMap.find(gSaveContext.respawn[RESPAWN_MODE_UNK_3].data);
             if (it != chestGrottoMap.end()) {
                 randoCheckId = static_cast<RandoCheckId>(it->second + chestGrottoActorIdsToBaseRc[actorListIndex]);
             }
         } else {
-            auto it = enKusaMap.find({ gPlayState->sceneId, actor->room, actorListIndex });
+            auto it = enKusaMap.find({ MM_gPlayState->sceneId, actor->room, actorListIndex });
             if (it != enKusaMap.end()) {
                 randoCheckId = it->second;
             }
@@ -362,7 +362,7 @@ void Rando::ActorBehavior::InitObjGrassBehavior() {
         s32 i = va_arg(args, s32);
         Actor* child = objMure2->actors[i];
         if (child != nullptr && child->id == ACTOR_EN_KUSA) {
-            auto it = objMure2GrassMap.find({ gPlayState->sceneId, actor->room, GetActorListIndex(actor) });
+            auto it = objMure2GrassMap.find({ MM_gPlayState->sceneId, actor->room, GetActorListIndex(actor) });
             if (it != objMure2GrassMap.end()) {
                 RandoCheckId randoCheckId = static_cast<RandoCheckId>(it->second + i);
                 if (!RANDO_SAVE_CHECKS[randoCheckId].shuffled || RANDO_SAVE_CHECKS[randoCheckId].cycleObtained) {
@@ -389,7 +389,7 @@ void Rando::ActorBehavior::InitObjGrassBehavior() {
         s16 maxActiveGrassGroups = 0;
         RandoCheckId baseCheckId;
 
-        if (gPlayState->sceneId == SCENE_KAKUSIANA && actor->room == 10) { // Cow grottos
+        if (MM_gPlayState->sceneId == SCENE_KAKUSIANA && actor->room == 10) { // Cow grottos
             auto it = cowGrottoMap.find(gSaveContext.respawn[RESPAWN_MODE_UNK_3].data);
             if (it == cowGrottoMap.end()) {
                 return;
@@ -397,7 +397,7 @@ void Rando::ActorBehavior::InitObjGrassBehavior() {
             maxActiveGrassGroups = std::get<s16>(it->second);
             baseCheckId = std::get<RandoCheckId>(it->second);
         } else {
-            auto it = grassObjMap.find({ gPlayState->sceneId, actor->room });
+            auto it = grassObjMap.find({ MM_gPlayState->sceneId, actor->room });
             if (it == grassObjMap.end()) {
                 return;
             }

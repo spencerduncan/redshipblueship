@@ -6,7 +6,7 @@ extern "C" {
 #include "macros.h"
 #include "variables.h"
 #include "z64save.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 static constexpr int32_t CVAR_BGS_FIX_DEFAULT = 0;
@@ -33,8 +33,8 @@ static void OnReceiveBrokenGiantsKnife(GetItemEntry itemEntry) {
 
     if (gSaveContext.equips.buttonItems[0] == ITEM_SWORD_KNIFE) {
         gSaveContext.equips.buttonItems[0] = ITEM_SWORD_BGS;
-        if (gPlayState != NULL) {
-            Interface_LoadItemIcon1(gPlayState, 0);
+        if (OoT_gPlayState != NULL) {
+            Interface_LoadItemIcon1(OoT_gPlayState, 0);
         }
     }
 }

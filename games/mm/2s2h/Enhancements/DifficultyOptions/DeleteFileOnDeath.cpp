@@ -17,13 +17,13 @@ std::string SaveManager_GetFileName(int fileNum, bool isBackup);
 
 void RegisterDeleteFileOnDeath() {
     COND_HOOK(OnGameStateUpdate, CVAR, []() {
-        if (!gPlayState) {
+        if (!MM_gPlayState) {
             return;
         }
 
         static bool fileDeleted = false;
 
-        if (gPlayState->gameOverCtx.state == GAMEOVER_DEATH_WAIT_GROUND && !fileDeleted) {
+        if (MM_gPlayState->gameOverCtx.state == GAMEOVER_DEATH_WAIT_GROUND && !fileDeleted) {
             fileDeleted = true;
             if (gSaveContext.fileNum >= 0 && gSaveContext.fileNum <= 2) {
                 std::string fileName = SaveManager_GetFileName(gSaveContext.fileNum + 1, false);
@@ -35,7 +35,7 @@ void RegisterDeleteFileOnDeath() {
 
         static int resetTimer = 0;
 
-        if (gPlayState->gameOverCtx.state == 4) { // After GAMEOVER_DEATH_FADE_OUT, no enum
+        if (MM_gPlayState->gameOverCtx.state == 4) { // After GAMEOVER_DEATH_FADE_OUT, no enum
             resetTimer++;
 
             if (resetTimer >= 20) { // Completely black
@@ -45,7 +45,7 @@ void RegisterDeleteFileOnDeath() {
             }
         }
 
-        if (gPlayState->gameOverCtx.state == GAMEOVER_INACTIVE) {
+        if (MM_gPlayState->gameOverCtx.state == GAMEOVER_INACTIVE) {
             fileDeleted = false;
             resetTimer = 0;
         }

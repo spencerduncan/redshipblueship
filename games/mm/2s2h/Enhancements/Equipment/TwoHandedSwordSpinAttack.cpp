@@ -15,7 +15,7 @@ void RegisterTwoHandedSwordSpinAttack() {
     COND_VB_SHOULD(VB_CHECK_HELD_ITEM_BUTTON_PRESS, CVAR, {
         // Instead of checking B only, check whichever button is assigned to the currently held item. This allows
         // the Great Fairy Sword, a C button item, to be held for charged spin attacks.
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         u16* sDpadItemButtons = va_arg(args, u16*);
         u16* sPlayerItemButtons = va_arg(args, u16*);
 
@@ -34,7 +34,7 @@ void RegisterTwoHandedSwordSpinAttack() {
 
     COND_VB_SHOULD(VB_MAGIC_SPIN_ATTACK_CHECK_FORM, CVAR, {
         // Additionally allow the Fierce Deity form to use charged spin attacks
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         if (player->transformation == PLAYER_FORM_FIERCE_DEITY) {
             *should = true;
         }
@@ -45,8 +45,8 @@ void RegisterTwoHandedSwordSpinAttack() {
         // Define new thunder matrix transformation for two-handed sword magic. Applies to both the GFS and the
         // Fierce Deity sword.
         if (enMThunder->type == ENMTHUNDER_TYPE_GREAT_FAIRYS_SWORD) {
-            Matrix_Translate(0.0f, 220.0f, 0.0f, MTXMODE_APPLY);
-            Matrix_Scale(-1.7f, -1.0f, -0.6f, MTXMODE_APPLY);
+            MM_Matrix_Translate(0.0f, 220.0f, 0.0f, MTXMODE_APPLY);
+            MM_Matrix_Scale(-1.7f, -1.0f, -0.6f, MTXMODE_APPLY);
             Matrix_RotateXS(0x4000, MTXMODE_APPLY);
             *should = false;
         }

@@ -10,7 +10,7 @@ extern "C" {
 extern f32 sPauseMenuVerticalOffset;
 extern u16 sCursorPointsToOcarinaModes[];
 extern u16 sOwlWarpPauseItems[];
-extern s16 sInDungeonScene;
+extern s16 MM_sInDungeonScene;
 extern s32 gHorseIsMounted;
 }
 
@@ -20,20 +20,20 @@ extern s32 gHorseIsMounted;
 extern "C" bool PauseOwlWarp_IsOwlWarpEnabled() {
     return CVAR && CHECK_QUEST_ITEM(QUEST_SONG_SOARING) &&
            gSaveContext.save.saveInfo.playerData.owlActivationFlags != 0 &&
-           gPlayState->pauseCtx.debugEditor == DEBUG_EDITOR_NONE &&
-           gPlayState->interfaceCtx.restrictions.songOfSoaring == 0;
+           MM_gPlayState->pauseCtx.debugEditor == DEBUG_EDITOR_NONE &&
+           MM_gPlayState->interfaceCtx.restrictions.songOfSoaring == 0;
 }
 
 void HandleConfirmingState(PauseContext* pauseCtx, Input* input) {
-    if (Message_ShouldAdvance(gPlayState)) {
-        if (gPlayState->msgCtx.choiceIndex == 0) { // Yes
-            Player* player = GET_PLAYER(gPlayState);
+    if (MM_Message_ShouldAdvance(MM_gPlayState)) {
+        if (MM_gPlayState->msgCtx.choiceIndex == 0) { // Yes
+            Player* player = GET_PLAYER(MM_gPlayState);
 
             // Handle Epona's state before warping to prevent her from following the player
             if (gHorseIsMounted && (player->stateFlags1 & PLAYER_STATE1_800000) && player->rideActor != NULL) {
                 // Save Epona's current position to horse data so she can be found later in the current scene
                 if (CHECK_QUEST_ITEM(QUEST_SONG_EPONA)) {
-                    gSaveContext.save.saveInfo.horseData.sceneId = gPlayState->sceneId;
+                    gSaveContext.save.saveInfo.horseData.sceneId = MM_gPlayState->sceneId;
                     gSaveContext.save.saveInfo.horseData.pos.x = player->rideActor->world.pos.x;
                     gSaveContext.save.saveInfo.horseData.pos.y = player->rideActor->world.pos.y;
                     gSaveContext.save.saveInfo.horseData.pos.z = player->rideActor->world.pos.z;
@@ -47,27 +47,27 @@ void HandleConfirmingState(PauseContext* pauseCtx, Input* input) {
             // Clear pictograph/camera event flag to prevent UI state from persisting after warp
             CLEAR_EVENTINF(EVENTINF_41);
 
-            Interface_SetAButtonDoAction(gPlayState, DO_ACTION_NONE);
+            Interface_SetAButtonDoAction(MM_gPlayState, DO_ACTION_NONE);
             pauseCtx->state = PAUSE_STATE_UNPAUSE_SETUP;
             sPauseMenuVerticalOffset = -6240.0f;
             Audio_PlaySfx_PauseMenuOpenOrClose(SFX_PAUSE_MENU_CLOSE);
-            gPlayState->msgCtx.ocarinaMode = sCursorPointsToOcarinaModes[pauseCtx->cursorPoint[PAUSE_WORLD_MAP]];
+            MM_gPlayState->msgCtx.ocarinaMode = sCursorPointsToOcarinaModes[pauseCtx->cursorPoint[PAUSE_WORLD_MAP]];
             Audio_PlaySfx(NA_SE_SY_DECIDE);
 
-            Message_CloseTextbox(gPlayState);
+            MM_Message_CloseTextbox(MM_gPlayState);
 
-            gPlayState->nextEntrance = sOwlWarpEntrancesForMods[pauseCtx->cursorPoint[PAUSE_WORLD_MAP]];
-            gPlayState->transitionTrigger = TRANS_TRIGGER_START;
-            gPlayState->transitionType = TRANS_TYPE_FADE_WHITE;
+            MM_gPlayState->nextEntrance = sOwlWarpEntrancesForMods[pauseCtx->cursorPoint[PAUSE_WORLD_MAP]];
+            MM_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
+            MM_gPlayState->transitionType = TRANS_TYPE_FADE_WHITE;
         } else { // No
-            Interface_SetAButtonDoAction(gPlayState, DO_ACTION_WARP);
-            Message_CloseTextbox(gPlayState);
+            Interface_SetAButtonDoAction(MM_gPlayState, DO_ACTION_WARP);
+            MM_Message_CloseTextbox(MM_gPlayState);
             Audio_PlaySfx(NA_SE_SY_MESSAGE_PASS);
             pauseCtx->itemDescriptionOn = false;
         }
     } else if (CHECK_BTN_ALL(input->press.button, BTN_START) || CHECK_BTN_ALL(input->press.button, BTN_B)) {
-        Interface_SetAButtonDoAction(gPlayState, DO_ACTION_WARP);
-        Message_CloseTextbox(gPlayState);
+        Interface_SetAButtonDoAction(MM_gPlayState, DO_ACTION_WARP);
+        MM_Message_CloseTextbox(MM_gPlayState);
         Audio_PlaySfx(NA_SE_SY_MESSAGE_PASS);
         pauseCtx->itemDescriptionOn = false;
     }
@@ -78,7 +78,7 @@ void HandleConfirmingState(PauseContext* pauseCtx, Input* input) {
 void UpdateCursorForOwlWarpPoints(PauseContext* pauseCtx) {
     if ((pauseCtx->state == PAUSE_STATE_MAIN) && (pauseCtx->mainState == PAUSE_MAIN_STATE_IDLE) &&
         (pauseCtx->pageIndex == PAUSE_MAP)) {
-        InterfaceContext* interfaceCtx = &gPlayState->interfaceCtx;
+        InterfaceContext* interfaceCtx = &MM_gPlayState->interfaceCtx;
         s16 oldCursorPoint = pauseCtx->cursorPoint[PAUSE_WORLD_MAP];
         bool mirrorWorldActive = CVarGetInteger("gModes.MirroredWorld.State", 0);
         bool goingLeft = pauseCtx->stickAdjX < -30;
@@ -105,7 +105,7 @@ void UpdateCursorForOwlWarpPoints(PauseContext* pauseCtx) {
                 Interface_SetHudVisibility(HUD_VISIBILITY_ALL);
             }
             if (interfaceCtx->aButtonDoActionDelayed != DO_ACTION_WARP) {
-                Interface_SetAButtonDoAction(gPlayState, DO_ACTION_WARP);
+                Interface_SetAButtonDoAction(MM_gPlayState, DO_ACTION_WARP);
             }
         } else {
             pauseCtx->cursorColorSet = PAUSE_CURSOR_COLOR_SET_WHITE;
@@ -116,7 +116,7 @@ void UpdateCursorForOwlWarpPoints(PauseContext* pauseCtx) {
                 Interface_SetHudVisibility(HUD_VISIBILITY_ALL);
             }
             if (interfaceCtx->aButtonDoActionDelayed != DO_ACTION_INFO) {
-                Interface_SetAButtonDoAction(gPlayState, DO_ACTION_INFO);
+                Interface_SetAButtonDoAction(MM_gPlayState, DO_ACTION_INFO);
             }
         }
 
@@ -135,7 +135,7 @@ void UpdateCursorForOwlWarpPoints(PauseContext* pauseCtx) {
             do {
                 pauseCtx->cursorPoint[PAUSE_WORLD_MAP]++;
                 if (pauseCtx->cursorPoint[PAUSE_WORLD_MAP] > OWL_WARP_STONE_TOWER) {
-                    KaleidoScope_MoveCursorToSpecialPos(gPlayState, mirrorWorldActive ? PAUSE_CURSOR_PAGE_LEFT
+                    MM_KaleidoScope_MoveCursorToSpecialPos(MM_gPlayState, mirrorWorldActive ? PAUSE_CURSOR_PAGE_LEFT
                                                                                       : PAUSE_CURSOR_PAGE_RIGHT);
                     pauseCtx->cursorItem[PAUSE_MAP] = PAUSE_ITEM_NONE;
                     break;
@@ -145,7 +145,7 @@ void UpdateCursorForOwlWarpPoints(PauseContext* pauseCtx) {
             do {
                 pauseCtx->cursorPoint[PAUSE_WORLD_MAP]--;
                 if (pauseCtx->cursorPoint[PAUSE_WORLD_MAP] <= REGION_NONE) {
-                    KaleidoScope_MoveCursorToSpecialPos(gPlayState, mirrorWorldActive ? PAUSE_CURSOR_PAGE_RIGHT
+                    MM_KaleidoScope_MoveCursorToSpecialPos(MM_gPlayState, mirrorWorldActive ? PAUSE_CURSOR_PAGE_RIGHT
                                                                                       : PAUSE_CURSOR_PAGE_LEFT);
                     pauseCtx->cursorItem[PAUSE_MAP] = PAUSE_ITEM_NONE;
                     break;
@@ -201,7 +201,7 @@ void HandlePauseOwlWarp(PauseContext* pauseCtx) {
         }
     }
 
-    Input* input = &gPlayState->state.input[0];
+    Input* input = &MM_gPlayState->state.input[0];
 
     if (pauseCtx->state == PAUSE_STATE_MAIN && pauseCtx->pageIndex == PAUSE_MAP && pauseCtx->mapPageRoll == 0) {
         if (pauseCtx->itemDescriptionOn) {
@@ -214,8 +214,8 @@ void HandlePauseOwlWarp(PauseContext* pauseCtx) {
                 pauseCtx->itemDescriptionOn = true;
                 Audio_PlaySfx(NA_SE_SY_DECIDE);
                 // Use Kaleido's open text variant that sets the dark black message box
-                func_801514B0(gPlayState, 0x1B93, 3);
-                gPlayState->msgCtx.choiceIndex = 0;
+                func_801514B0(MM_gPlayState, 0x1B93, 3);
+                MM_gPlayState->msgCtx.choiceIndex = 0;
             }
         }
     }
@@ -223,7 +223,7 @@ void HandlePauseOwlWarp(PauseContext* pauseCtx) {
 
 void RegisterPauseOwlWarp() {
     COND_HOOK(OnKaleidoUpdate, CVAR, [](PauseContext* pauseCtx) {
-        if (!sInDungeonScene && PauseOwlWarp_IsOwlWarpEnabled() && CHECK_QUEST_ITEM(QUEST_SONG_SOARING)) {
+        if (!MM_sInDungeonScene && PauseOwlWarp_IsOwlWarpEnabled() && CHECK_QUEST_ITEM(QUEST_SONG_SOARING)) {
             HandlePauseOwlWarp(pauseCtx);
         }
     });

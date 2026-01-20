@@ -11,12 +11,12 @@ extern "C" {
 #include "variables.h"
 #include "z64.h"
 #include "z64player.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 extern "C" SaveContext gSaveContext;
-extern "C" u16 gEquipMasks[4];
-extern "C" u8 gEquipShifts[4];
+extern "C" u16 OoT_gEquipMasks[4];
+extern "C" u8 OoT_gEquipShifts[4];
 
 namespace SOH {
 SkeletonData* Skeleton::GetPointer() {
@@ -43,17 +43,17 @@ bool SkeletonPatcher::IsLinkSkeletonPath(const std::string& path) {
 }
 
 bool SkeletonPatcher::IsLocalPlayerSkelAnime(SkelAnime* skelAnime) {
-    if (gPlayState == nullptr) {
+    if (OoT_gPlayState == nullptr) {
         return false;
     }
 
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
 
     if (player == nullptr) {
         return false;
     }
 
-    PauseContext* pauseCtx = &gPlayState->pauseCtx;
+    PauseContext* pauseCtx = &OoT_gPlayState->pauseCtx;
 
     return (skelAnime == &player->skelAnime) || (skelAnime == &player->upperSkelAnime) ||
            (skelAnime == &pauseCtx->playerSkelAnime);

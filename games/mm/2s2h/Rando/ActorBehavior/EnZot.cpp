@@ -3,16 +3,16 @@
 
 extern "C" {
 #include "variables.h"
-void Player_StartTalking(PlayState* play, Actor* actor);
+void MM_Player_StartTalking(PlayState* play, Actor* actor);
 }
 
 void Rando::ActorBehavior::InitEnZotBehavior() {
     COND_VB_SHOULD(VB_GIVE_ITEM_FROM_OFFER, IS_RANDO, {
         GetItemId* item = va_arg(args, GetItemId*);
         Actor* refActor = va_arg(args, Actor*);
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
 
-        if (refActor->id != ACTOR_EN_ZOT || gPlayState->sceneId != SCENE_33ZORACITY) {
+        if (refActor->id != ACTOR_EN_ZOT || MM_gPlayState->sceneId != SCENE_33ZORACITY) {
             return;
         }
 
@@ -25,7 +25,7 @@ void Rando::ActorBehavior::InitEnZotBehavior() {
             player->talkActor = refActor;
             player->talkActorDistance = refActor->xzDistToPlayer;
             player->exchangeItemAction = PLAYER_IA_MINUS1;
-            Player_StartTalking(gPlayState, refActor);
+            MM_Player_StartTalking(MM_gPlayState, refActor);
         }
     });
 }

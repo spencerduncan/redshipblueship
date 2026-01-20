@@ -10,7 +10,7 @@ extern "C" {
 #include "macros.h"
 #include "soh/cvar_prefixes.h"
 #include "functions.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 #include "overlays/actors/ovl_En_Niw/z_en_niw.h"
@@ -46,11 +46,11 @@ void GameInteractor::RawAction::AddOrRemoveMagic(int8_t amount) {
 
 void GameInteractor::RawAction::HealOrDamagePlayer(int16_t hearts) {
     if (hearts > 0) {
-        Health_ChangeBy(gPlayState, hearts * FULL_HEART_HEALTH);
+        OoT_Health_ChangeBy(OoT_gPlayState, hearts * FULL_HEART_HEALTH);
     } else if (hearts < 0) {
-        Player* player = GET_PLAYER(gPlayState);
-        Health_ChangeBy(gPlayState, hearts * FULL_HEART_HEALTH);
-        func_80837C0C(gPlayState, player, 0, 0, 0, 0, 0);
+        Player* player = GET_PLAYER(OoT_gPlayState);
+        OoT_Health_ChangeBy(OoT_gPlayState, hearts * FULL_HEART_HEALTH);
+        func_80837C0C(OoT_gPlayState, player, 0, 0, 0, 0, 0);
         player->invincibilityTimer = 28;
     }
 }
@@ -62,80 +62,80 @@ void GameInteractor::RawAction::SetPlayerHealth(int16_t hearts) {
 void GameInteractor::RawAction::SetLinkInvisibility(bool active) {
     GameInteractor::State::InvisibleLinkActive = active;
     if (!active) {
-        Player* player = GET_PLAYER(gPlayState);
-        player->actor.shape.shadowDraw = ActorShadow_DrawFeet;
+        Player* player = GET_PLAYER(OoT_gPlayState);
+        player->actor.shape.shadowDraw = OoT_ActorShadow_DrawFeet;
     }
 }
 
 void GameInteractor::RawAction::SetWeatherStorm(bool active) {
     if (active) {
-        gPlayState->envCtx.unk_F2[0] = 20;    // rain intensity target
-        gPlayState->envCtx.gloomySkyMode = 1; // start gloomy sky
-        if ((gWeatherMode != 0) || gPlayState->envCtx.unk_17 != 0) {
-            gPlayState->envCtx.unk_DE = 1;
+        OoT_gPlayState->envCtx.unk_F2[0] = 20;    // rain intensity target
+        OoT_gPlayState->envCtx.gloomySkyMode = 1; // start gloomy sky
+        if ((OoT_gWeatherMode != 0) || OoT_gPlayState->envCtx.unk_17 != 0) {
+            OoT_gPlayState->envCtx.unk_DE = 1;
         }
-        gPlayState->envCtx.lightningMode = LIGHTNING_MODE_ON;
-        Environment_PlayStormNatureAmbience(gPlayState);
+        OoT_gPlayState->envCtx.lightningMode = LIGHTNING_MODE_ON;
+        OoT_Environment_PlayStormNatureAmbience(OoT_gPlayState);
     } else {
-        gPlayState->envCtx.unk_F2[0] = 0;
-        if (gPlayState->csCtx.state == CS_STATE_IDLE) {
-            Environment_StopStormNatureAmbience(gPlayState);
+        OoT_gPlayState->envCtx.unk_F2[0] = 0;
+        if (OoT_gPlayState->csCtx.state == CS_STATE_IDLE) {
+            OoT_Environment_StopStormNatureAmbience(OoT_gPlayState);
         } else if (func_800FA0B4(SEQ_PLAYER_BGM_MAIN) == NA_BGM_NATURE_AMBIENCE) {
             Audio_SetNatureAmbienceChannelIO(NATURE_CHANNEL_LIGHTNING, CHANNEL_IO_PORT_1, 0);
             Audio_SetNatureAmbienceChannelIO(NATURE_CHANNEL_RAIN, CHANNEL_IO_PORT_1, 0);
         }
-        osSyncPrintf("\n\n\nE_wether_flg=[%d]", gWeatherMode);
-        osSyncPrintf("\nrain_evt_trg=[%d]\n\n", gPlayState->envCtx.gloomySkyMode);
-        if (gWeatherMode == 0 && (gPlayState->envCtx.gloomySkyMode == 1)) {
-            gPlayState->envCtx.gloomySkyMode = 2; // end gloomy sky
+        osSyncPrintf("\n\n\nE_wether_flg=[%d]", OoT_gWeatherMode);
+        osSyncPrintf("\nrain_evt_trg=[%d]\n\n", OoT_gPlayState->envCtx.gloomySkyMode);
+        if (OoT_gWeatherMode == 0 && (OoT_gPlayState->envCtx.gloomySkyMode == 1)) {
+            OoT_gPlayState->envCtx.gloomySkyMode = 2; // end gloomy sky
         } else {
-            gPlayState->envCtx.gloomySkyMode = 0;
-            gPlayState->envCtx.unk_DE = 0;
+            OoT_gPlayState->envCtx.gloomySkyMode = 0;
+            OoT_gPlayState->envCtx.unk_DE = 0;
         }
-        gPlayState->envCtx.lightningMode = LIGHTNING_MODE_LAST;
+        OoT_gPlayState->envCtx.lightningMode = LIGHTNING_MODE_LAST;
     }
 }
 
 void GameInteractor::RawAction::ForceEquipBoots(int8_t boots) {
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
     player->currentBoots = BOOTS_EQUIP_TO_PLAYER(boots);
-    Inventory_ChangeEquipment(EQUIP_TYPE_BOOTS, boots);
-    Player_SetBootData(gPlayState, player);
+    OoT_Inventory_ChangeEquipment(EQUIP_TYPE_BOOTS, boots);
+    Player_SetBootData(OoT_gPlayState, player);
 }
 
 void GameInteractor::RawAction::FreezePlayer() {
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
     player->actor.colChkInfo.damage = 0;
-    func_80837C0C(gPlayState, player, 3, 0, 0, 0, 0);
+    func_80837C0C(OoT_gPlayState, player, 3, 0, 0, 0, 0);
 }
 
 void GameInteractor::RawAction::BurnPlayer() {
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
     for (int i = 0; i < 18; i++) {
-        player->bodyFlameTimers[i] = static_cast<uint8_t>(Rand_S16Offset(0, 200));
+        player->bodyFlameTimers[i] = static_cast<uint8_t>(OoT_Rand_S16Offset(0, 200));
     }
     player->bodyIsBurning = true;
-    func_80837C0C(gPlayState, player, 0, 0, 0, 0, 0);
+    func_80837C0C(OoT_gPlayState, player, 0, 0, 0, 0, 0);
 }
 
 void GameInteractor::RawAction::ElectrocutePlayer() {
-    Player* player = GET_PLAYER(gPlayState);
-    func_80837C0C(gPlayState, player, 4, 0, 0, 0, 0);
+    Player* player = GET_PLAYER(OoT_gPlayState);
+    func_80837C0C(OoT_gPlayState, player, 4, 0, 0, 0, 0);
 }
 
 void GameInteractor::RawAction::KnockbackPlayer(float strength) {
-    Player* player = GET_PLAYER(gPlayState);
-    func_8002F71C(gPlayState, &player->actor, strength * 5, player->actor.world.rot.y + 0x8000, strength * 5);
+    Player* player = GET_PLAYER(OoT_gPlayState);
+    func_8002F71C(OoT_gPlayState, &player->actor, strength * 5, player->actor.world.rot.y + 0x8000, strength * 5);
 }
 
 void GameInteractor::RawAction::SetSceneFlag(int16_t sceneNum, int16_t flagType, int16_t flag) {
     switch (flagType) {
         case FlagType::FLAG_SCENE_SWITCH:
-            if (sceneNum == gPlayState->sceneNum) {
+            if (sceneNum == OoT_gPlayState->sceneNum) {
                 if (flag < 0x20) {
-                    gPlayState->actorCtx.flags.swch |= (1 << flag);
+                    OoT_gPlayState->actorCtx.flags.swch |= (1 << flag);
                 } else {
-                    gPlayState->actorCtx.flags.tempSwch |= (1 << (flag - 0x20));
+                    OoT_gPlayState->actorCtx.flags.tempSwch |= (1 << (flag - 0x20));
                 }
             }
             if (flag < 0x20) {
@@ -143,22 +143,22 @@ void GameInteractor::RawAction::SetSceneFlag(int16_t sceneNum, int16_t flagType,
             }
             break;
         case FlagType::FLAG_SCENE_CLEAR:
-            if (sceneNum == gPlayState->sceneNum)
-                gPlayState->actorCtx.flags.clear |= (1 << flag);
+            if (sceneNum == OoT_gPlayState->sceneNum)
+                OoT_gPlayState->actorCtx.flags.clear |= (1 << flag);
             gSaveContext.sceneFlags[sceneNum].clear |= (1 << flag);
             break;
         case FlagType::FLAG_SCENE_TREASURE:
-            if (sceneNum == gPlayState->sceneNum)
-                gPlayState->actorCtx.flags.chest |= (1 << flag);
+            if (sceneNum == OoT_gPlayState->sceneNum)
+                OoT_gPlayState->actorCtx.flags.chest |= (1 << flag);
             gSaveContext.sceneFlags[sceneNum].chest |= (1 << flag);
             break;
         case FlagType::FLAG_SCENE_COLLECTIBLE:
-            if (sceneNum == gPlayState->sceneNum) {
+            if (sceneNum == OoT_gPlayState->sceneNum) {
                 if (flag != 0) {
                     if (flag < 0x20) {
-                        gPlayState->actorCtx.flags.collect |= (1 << flag);
+                        OoT_gPlayState->actorCtx.flags.collect |= (1 << flag);
                     } else {
-                        gPlayState->actorCtx.flags.tempCollect |= (1 << (flag - 0x20));
+                        OoT_gPlayState->actorCtx.flags.tempCollect |= (1 << (flag - 0x20));
                     }
                 }
             }
@@ -172,11 +172,11 @@ void GameInteractor::RawAction::SetSceneFlag(int16_t sceneNum, int16_t flagType,
 void GameInteractor::RawAction::UnsetSceneFlag(int16_t sceneNum, int16_t flagType, int16_t flag) {
     switch (flagType) {
         case FlagType::FLAG_SCENE_SWITCH:
-            if (sceneNum == gPlayState->sceneNum) {
+            if (sceneNum == OoT_gPlayState->sceneNum) {
                 if (flag < 0x20) {
-                    gPlayState->actorCtx.flags.swch &= ~(1 << flag);
+                    OoT_gPlayState->actorCtx.flags.swch &= ~(1 << flag);
                 } else {
-                    gPlayState->actorCtx.flags.tempSwch &= ~(1 << (flag - 0x20));
+                    OoT_gPlayState->actorCtx.flags.tempSwch &= ~(1 << (flag - 0x20));
                 }
             }
             if (flag < 0x20) {
@@ -184,22 +184,22 @@ void GameInteractor::RawAction::UnsetSceneFlag(int16_t sceneNum, int16_t flagTyp
             }
             break;
         case FlagType::FLAG_SCENE_CLEAR:
-            if (sceneNum == gPlayState->sceneNum)
-                gPlayState->actorCtx.flags.clear &= ~(1 << flag);
+            if (sceneNum == OoT_gPlayState->sceneNum)
+                OoT_gPlayState->actorCtx.flags.clear &= ~(1 << flag);
             gSaveContext.sceneFlags[sceneNum].clear &= ~(1 << flag);
             break;
         case FlagType::FLAG_SCENE_TREASURE:
-            if (sceneNum == gPlayState->sceneNum)
-                gPlayState->actorCtx.flags.chest &= ~(1 << flag);
+            if (sceneNum == OoT_gPlayState->sceneNum)
+                OoT_gPlayState->actorCtx.flags.chest &= ~(1 << flag);
             gSaveContext.sceneFlags[sceneNum].chest &= ~(1 << flag);
             break;
         case FlagType::FLAG_SCENE_COLLECTIBLE:
-            if (sceneNum == gPlayState->sceneNum) {
+            if (sceneNum == OoT_gPlayState->sceneNum) {
                 if (flag != 0) {
                     if (flag < 0x20) {
-                        gPlayState->actorCtx.flags.collect &= ~(1 << flag);
+                        OoT_gPlayState->actorCtx.flags.collect &= ~(1 << flag);
                     } else {
-                        gPlayState->actorCtx.flags.tempCollect &= ~(1 << (flag - 0x20));
+                        OoT_gPlayState->actorCtx.flags.tempCollect &= ~(1 << (flag - 0x20));
                     }
                 }
             }
@@ -213,11 +213,11 @@ void GameInteractor::RawAction::UnsetSceneFlag(int16_t sceneNum, int16_t flagTyp
 bool GameInteractor::RawAction::CheckFlag(int16_t flagType, int16_t flag) {
     switch (flagType) {
         case FlagType::FLAG_EVENT_CHECK_INF:
-            return Flags_GetEventChkInf(flag);
+            return OoT_Flags_GetEventChkInf(flag);
         case FlagType::FLAG_ITEM_GET_INF:
             return Flags_GetItemGetInf(flag);
         case FlagType::FLAG_INF_TABLE:
-            return Flags_GetInfTable(flag);
+            return OoT_Flags_GetInfTable(flag);
         case FlagType::FLAG_EVENT_INF:
             return Flags_GetEventInf(flag);
         case FlagType::FLAG_RANDOMIZER_INF:
@@ -289,7 +289,7 @@ void GameInteractor::RawAction::GiveOrTakeShield(int32_t shield) {
     // equip said shield when the player's current age can equip it.
     // 'shield' being a negative number means taking that shield.
 
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
     int8_t shieldToCheck = PLAYER_SHIELD_NONE;
 
     if (shield < 0) {
@@ -309,24 +309,24 @@ void GameInteractor::RawAction::GiveOrTakeShield(int32_t shield) {
                 break;
         }
 
-        gSaveContext.inventory.equipment &= ~(gBitFlags[shield - ITEM_SHIELD_DEKU] << gEquipShifts[EQUIP_TYPE_SHIELD]);
+        gSaveContext.inventory.equipment &= ~(OoT_gBitFlags[shield - ITEM_SHIELD_DEKU] << OoT_gEquipShifts[EQUIP_TYPE_SHIELD]);
 
         if (player->currentShield == shieldToCheck) {
             player->currentShield = PLAYER_SHIELD_NONE;
-            Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_NONE);
+            OoT_Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_NONE);
         }
     } else {
-        Item_Give(gPlayState, shield);
+        OoT_Item_Give(OoT_gPlayState, shield);
         if (player->currentShield == PLAYER_SHIELD_NONE) {
             if (LINK_IS_CHILD && shield == ITEM_SHIELD_DEKU) {
                 player->currentShield = PLAYER_SHIELD_DEKU;
-                Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_DEKU);
+                OoT_Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_DEKU);
             } else if (LINK_IS_ADULT && shield == ITEM_SHIELD_MIRROR) {
                 player->currentShield = PLAYER_SHIELD_MIRROR;
-                Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_MIRROR);
+                OoT_Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_MIRROR);
             } else if (shield == ITEM_SHIELD_HYLIAN) {
                 player->currentShield = PLAYER_SHIELD_HYLIAN;
-                Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_HYLIAN);
+                OoT_Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_HYLIAN);
             }
         }
     }
@@ -334,7 +334,7 @@ void GameInteractor::RawAction::GiveOrTakeShield(int32_t shield) {
 
 void GameInteractor::RawAction::ForceInterfaceUpdate() {
     gSaveContext.unk_13E8 = 50;
-    Interface_Update(gPlayState);
+    OoT_Interface_Update(OoT_gPlayState);
 }
 
 void GameInteractor::RawAction::UpdateActor(void* refActor) {
@@ -353,17 +353,17 @@ void GameInteractor::RawAction::UpdateActor(void* refActor) {
         // This variable is used to not let the collider subscribe a second time when the actor update function
         // is ran a second time, incorrectly applying double damage in some cases.
         GameInteractor::State::SecondCollisionUpdate = 1;
-        actor->update(actor, gPlayState);
+        actor->update(actor, OoT_gPlayState);
         GameInteractor::State::SecondCollisionUpdate = 0;
     }
 }
 
 void GameInteractor::RawAction::TeleportPlayer(int32_t nextEntrance) {
-    Audio_PlaySoundGeneral(NA_SE_EN_GANON_LAUGH, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                           &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
-    gPlayState->nextEntranceIndex = nextEntrance;
-    gPlayState->transitionTrigger = TRANS_TRIGGER_START;
-    gPlayState->transitionType = TRANS_TYPE_FADE_BLACK;
+    Audio_PlaySoundGeneral(NA_SE_EN_GANON_LAUGH, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                           &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
+    OoT_gPlayState->nextEntranceIndex = nextEntrance;
+    OoT_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
+    OoT_gPlayState->transitionType = TRANS_TYPE_FADE_BLACK;
     gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK;
 }
 
@@ -423,11 +423,11 @@ void GameInteractor::RawAction::EmulateRandomButtonPress(uint32_t chancePercenta
 }
 
 void GameInteractor::RawAction::AddOrTakeAmmo(int16_t amount, int16_t item) {
-    Inventory_ChangeAmmo(item, amount);
+    OoT_Inventory_ChangeAmmo(item, amount);
 }
 
 void GameInteractor::RawAction::SetRandomWind(bool active) {
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
     if (active) {
         GameInteractor::State::RandomWindActive = 1;
         if (GameInteractor::State::RandomWindSecondsSinceLastDirectionChange == 0) {
@@ -445,7 +445,7 @@ void GameInteractor::RawAction::SetRandomWind(bool active) {
 }
 
 void GameInteractor::RawAction::SetPlayerInvincibility(bool active) {
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
     if (active) {
         player->invincibilityTimer = -20;
     } else {
@@ -455,10 +455,10 @@ void GameInteractor::RawAction::SetPlayerInvincibility(bool active) {
 
 /// Clears the cutscene pointer to a value safe for wrong warps.
 void GameInteractor::RawAction::ClearCutscenePointer() {
-    if (!gPlayState)
+    if (!OoT_gPlayState)
         return;
     static uint32_t null_cs[] = { 0, 0 };
-    gPlayState->csCtx.segment = &null_cs;
+    OoT_gPlayState->csCtx.segment = &null_cs;
 }
 
 GameInteractionEffectQueryResult GameInteractor::RawAction::SpawnEnemyWithOffset(uint32_t enemyId, int32_t enemyParams,
@@ -468,9 +468,9 @@ GameInteractionEffectQueryResult GameInteractor::RawAction::SpawnEnemyWithOffset
         return GameInteractionEffectQueryResult::TemporarilyNotPossible;
     }
 
-    int16_t sceneNum = gPlayState->sceneNum;
-    int16_t roomNum = gPlayState->roomCtx.curRoom.num;
-    Player* player = GET_PLAYER(gPlayState);
+    int16_t sceneNum = OoT_gPlayState->sceneNum;
+    int16_t roomNum = OoT_gPlayState->roomCtx.curRoom.num;
+    Player* player = GET_PLAYER(OoT_gPlayState);
 
     // Disallow enemy spawns in the painting Poe rooms in Forest Temple.
     // Killing a spawned enemy before the Poe can softlock the rooms entirely.
@@ -480,7 +480,7 @@ GameInteractionEffectQueryResult GameInteractor::RawAction::SpawnEnemyWithOffset
 
     // Only one Dark Link may exist at a time.
     if (enemyId == ACTOR_EN_TORCH2) {
-        Actor* nearbyEnTest = Actor_FindNearby(gPlayState, &player->actor, ACTOR_EN_TORCH2, ACTORCAT_ENEMY, 8000.0f);
+        Actor* nearbyEnTest = OoT_Actor_FindNearby(OoT_gPlayState, &player->actor, ACTOR_EN_TORCH2, ACTORCAT_ENEMY, 8000.0f);
         if (nearbyEnTest != NULL) {
             return GameInteractionEffectQueryResult::TemporarilyNotPossible;
         }
@@ -511,7 +511,7 @@ GameInteractionEffectQueryResult GameInteractor::RawAction::SpawnEnemyWithOffset
     pos.x = player->actor.world.pos.x + posXOffset;
     pos.y = player->actor.world.pos.y + 50;
     pos.z = player->actor.world.pos.z + posZOffset;
-    raycastResult = BgCheck_AnyRaycastFloor1(&gPlayState->colCtx, &poly, &pos);
+    raycastResult = OoT_BgCheck_AnyRaycastFloor1(&OoT_gPlayState->colCtx, &poly, &pos);
 
     // If ground is found below actor, move actor to that height.
     // If not it's likely out of bounds, so make it temporarily not possible and try again later.
@@ -533,7 +533,7 @@ GameInteractionEffectQueryResult GameInteractor::RawAction::SpawnEnemyWithOffset
             pos.y += 10;
             pos.z += 10;
             Actor* actor =
-                Actor_Spawn(&gPlayState->actorCtx, gPlayState, enemyId, pos.x, pos.y, pos.z, 0, 0, 0, enemyParams, 0);
+                OoT_Actor_Spawn(&OoT_gPlayState->actorCtx, OoT_gPlayState, enemyId, pos.x, pos.y, pos.z, 0, 0, 0, enemyParams, 0);
             if (actor == NULL) {
                 return GameInteractionEffectQueryResult::TemporarilyNotPossible;
             }
@@ -541,19 +541,19 @@ GameInteractionEffectQueryResult GameInteractor::RawAction::SpawnEnemyWithOffset
                 NameTag_RegisterForActor(actor, nameTag.c_str());
             }
             if (CVarGetInteger(CVAR_REMOTE_CROWD_CONTROL("SpawnedEnemiesIgnoredIngame"), 0)) {
-                Actor_ChangeCategory(gPlayState, &gPlayState->actorCtx, actor, ACTORCAT_NPC);
+                OoT_Actor_ChangeCategory(OoT_gPlayState, &OoT_gPlayState->actorCtx, actor, ACTORCAT_NPC);
             }
         }
         return GameInteractionEffectQueryResult::Possible;
     } else {
         Actor* actor =
-            Actor_Spawn(&gPlayState->actorCtx, gPlayState, enemyId, pos.x, pos.y, pos.z, 0, 0, 0, enemyParams, 0);
+            OoT_Actor_Spawn(&OoT_gPlayState->actorCtx, OoT_gPlayState, enemyId, pos.x, pos.y, pos.z, 0, 0, 0, enemyParams, 0);
         if (actor != NULL) {
             if (nameTag != "" && CVarGetInteger(CVAR_REMOTE_CROWD_CONTROL("EnemyNameTags"), 0)) {
                 NameTag_RegisterForActor(actor, nameTag.c_str());
             }
             if (CVarGetInteger(CVAR_REMOTE_CROWD_CONTROL("SpawnedEnemiesIgnoredIngame"), 0)) {
-                Actor_ChangeCategory(gPlayState, &gPlayState->actorCtx, actor, ACTORCAT_NPC);
+                OoT_Actor_ChangeCategory(OoT_gPlayState, &OoT_gPlayState->actorCtx, actor, ACTORCAT_NPC);
             }
             return GameInteractionEffectQueryResult::Possible;
         }
@@ -569,12 +569,12 @@ GameInteractionEffectQueryResult GameInteractor::RawAction::SpawnActor(uint32_t 
         return GameInteractionEffectQueryResult::TemporarilyNotPossible;
     }
 
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
 
     if (actorId == ACTOR_EN_NIW) {
         // Spawn Cucco and make it angry
         EnNiw* cucco =
-            (EnNiw*)Actor_Spawn(&gPlayState->actorCtx, gPlayState, actorId, player->actor.world.pos.x,
+            (EnNiw*)OoT_Actor_Spawn(&OoT_gPlayState->actorCtx, OoT_gPlayState, actorId, player->actor.world.pos.x,
                                 player->actor.world.pos.y + 2200, player->actor.world.pos.z, 0, 0, 0, actorParams, 0);
         if (cucco == NULL) {
             return GameInteractionEffectQueryResult::TemporarilyNotPossible;
@@ -588,7 +588,7 @@ GameInteractionEffectQueryResult GameInteractor::RawAction::SpawnActor(uint32_t 
     } else if (actorId == ACTOR_EN_BOM) {
         // Spawn a bomb, make it explode instantly when params is set to 1 to emulate spawning an explosion
         EnBom* bomb =
-            (EnBom*)Actor_Spawn(&gPlayState->actorCtx, gPlayState, ACTOR_EN_BOM, player->actor.world.pos.x,
+            (EnBom*)OoT_Actor_Spawn(&OoT_gPlayState->actorCtx, OoT_gPlayState, ACTOR_EN_BOM, player->actor.world.pos.x,
                                 player->actor.world.pos.y + 30, player->actor.world.pos.z, 0, 0, 0, BOMB_BODY, true);
 
         if (bomb == NULL) {
@@ -602,14 +602,14 @@ GameInteractionEffectQueryResult GameInteractor::RawAction::SpawnActor(uint32_t 
         return GameInteractionEffectQueryResult::Possible;
     } else {
         // Generic spawn an actor at Link's position
-        Actor* actor = Actor_Spawn(&gPlayState->actorCtx, gPlayState, actorId, player->actor.world.pos.x,
+        Actor* actor = OoT_Actor_Spawn(&OoT_gPlayState->actorCtx, OoT_gPlayState, actorId, player->actor.world.pos.x,
                                    player->actor.world.pos.y, player->actor.world.pos.z, 0, 0, 0, actorParams, 0);
         if (actor != NULL) {
             if (nameTag != "" && CVarGetInteger(CVAR_REMOTE_CROWD_CONTROL("EnemyNameTags"), 0)) {
                 NameTag_RegisterForActor((Actor*)actor, nameTag.c_str());
             }
             if (CVarGetInteger(CVAR_REMOTE_CROWD_CONTROL("SpawnedEnemiesIgnoredIngame"), 0)) {
-                Actor_ChangeCategory(gPlayState, &gPlayState->actorCtx, actor, ACTORCAT_NPC);
+                OoT_Actor_ChangeCategory(OoT_gPlayState, &OoT_gPlayState->actorCtx, actor, ACTORCAT_NPC);
             }
             return GameInteractionEffectQueryResult::Possible;
         }

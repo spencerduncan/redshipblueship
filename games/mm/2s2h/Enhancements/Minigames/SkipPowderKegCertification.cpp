@@ -15,7 +15,7 @@ void RegisterPowderKegCertification() {
     COND_VB_SHOULD(VB_EXEC_MSG_EVENT, CVAR, {
         u32 cmdId = va_arg(args, u32);
         Actor* actor = va_arg(args, Actor*);
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
 
         if (actor->id == ACTOR_EN_GO && ENGO_GET_TYPE(actor) == ENGO_MEDIGORON &&
             player->transformation == PLAYER_FORM_GORON && !CHECK_WEEKEVENTREG(WEEKEVENTREG_19_02)) {

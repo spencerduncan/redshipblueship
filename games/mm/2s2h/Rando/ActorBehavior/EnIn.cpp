@@ -38,14 +38,14 @@ void Rando::ActorBehavior::InitEnInBehavior() {
 
     /*
      * This is the same block found for non-scripted actors in OfferGetItem.cpp, with the removal of
-     * Player_StartTalking() and addition of the rando check.
+     * MM_Player_StartTalking() and addition of the rando check.
      */
     COND_VB_SHOULD(VB_GIVE_ITEM_FROM_OFFER, IS_RANDO, {
         GetItemId* item = va_arg(args, GetItemId*);
         Actor* actor = va_arg(args, Actor*);
         if (actor->id == ACTOR_EN_IN) {
             if (*item == GI_MASK_GARO) {
-                Player* player = GET_PLAYER(gPlayState);
+                Player* player = GET_PLAYER(MM_gPlayState);
                 *should = false;
                 RANDO_SAVE_CHECKS[RC_GORMAN_TRACK_GARO_MASK].eligible = true;
                 actor->parent = &player->actor;
@@ -73,13 +73,13 @@ void Rando::ActorBehavior::InitEnInBehavior() {
             return;
         }
         *should = true;
-        if (gPlayState->msgCtx.choiceIndex == 0) {
+        if (MM_gPlayState->msgCtx.choiceIndex == 0) {
             Audio_PlaySfx_MessageDecide();
             if (gSaveContext.save.saveInfo.playerData.rupees >= RANDO_SAVE_CHECKS[RC_GORMAN_MILK_PURCHASE].price) {
-                Player* player = GET_PLAYER(gPlayState);
+                Player* player = GET_PLAYER(MM_gPlayState);
                 RANDO_SAVE_CHECKS[RC_GORMAN_MILK_PURCHASE].eligible = true;
                 enIn->actionFunc = func_808F3C40;
-                Rupees_ChangeBy(-RANDO_SAVE_CHECKS[RC_GORMAN_MILK_PURCHASE].price);
+                MM_Rupees_ChangeBy(-RANDO_SAVE_CHECKS[RC_GORMAN_MILK_PURCHASE].price);
                 *ret = true;
 
                 enIn->actor.parent = &player->actor;
@@ -89,15 +89,15 @@ void Rando::ActorBehavior::InitEnInBehavior() {
 
             } else {
                 Audio_PlaySfx(NA_SE_SY_ERROR);
-                Actor_ContinueText(gPlayState, &enIn->actor, 0x3468);
+                Actor_ContinueText(MM_gPlayState, &enIn->actor, 0x3468);
                 *ret = false;
             }
         } else {
             Audio_PlaySfx_MessageCancel();
             if (enIn->actor.textId == 0x3490) {
-                Actor_ContinueText(gPlayState, &enIn->actor, 0x3491);
+                Actor_ContinueText(MM_gPlayState, &enIn->actor, 0x3491);
             } else {
-                Actor_ContinueText(gPlayState, &enIn->actor, 0x3467);
+                Actor_ContinueText(MM_gPlayState, &enIn->actor, 0x3467);
             }
             *ret = false;
         }

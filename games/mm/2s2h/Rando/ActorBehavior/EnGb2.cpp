@@ -6,14 +6,14 @@ extern "C" {
 #include "variables.h"
 #include "src/overlays/actors/ovl_En_Gb2/z_en_gb2.h"
 
-void Player_StartTalking(PlayState* play, Actor* actor);
+void MM_Player_StartTalking(PlayState* play, Actor* actor);
 }
 
 void Rando::ActorBehavior::InitEnGb2Behavior() {
     COND_VB_SHOULD(VB_GIVE_ITEM_FROM_OFFER, IS_RANDO, {
         GetItemId* item = va_arg(args, GetItemId*);
         Actor* refActor = va_arg(args, Actor*);
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
 
         // Do not override the vanilla Purple rupee grant
         if (refActor->id != ACTOR_EN_GB2 || *item != GI_HEART_PIECE) {
@@ -30,12 +30,12 @@ void Rando::ActorBehavior::InitEnGb2Behavior() {
         player->talkActor = refActor;
         player->talkActorDistance = refActor->xzDistToPlayer;
         player->exchangeItemAction = PLAYER_IA_MINUS1;
-        Player_StartTalking(gPlayState, refActor);
+        MM_Player_StartTalking(MM_gPlayState, refActor);
         /*
          * This actor sets MSGMODE_TEXT_CLOSING state and expects GI to set it back to MSGMODE_TEXT_START. Because the
          * GI is skipped, we manually start the textbox to prevent the player from being able to move during dialog.
          */
-        Message_StartTextbox(gPlayState, 0x14DE, refActor);
+        MM_Message_StartTextbox(MM_gPlayState, 0x14DE, refActor);
     });
 
     COND_ID_HOOK(OnOpenText, 0x14D1, IS_RANDO, [](u16* textId, bool* loadFromMessageTable) {

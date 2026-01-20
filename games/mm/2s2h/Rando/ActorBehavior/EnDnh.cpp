@@ -5,9 +5,9 @@ extern "C" {
 #include "variables.h"
 #include "overlays/actors/ovl_En_Dnh/z_en_dnh.h"
 
-void Player_StartTalking(PlayState* play, Actor* actor);
-void Player_SetupTalk(PlayState* play, Player* player);
-s32 Player_SetupWaitForPutAway(PlayState* play, Player* player, AfterPutAwayFunc afterPutAwayFunc);
+void MM_Player_StartTalking(PlayState* play, Actor* actor);
+void MM_Player_SetupTalk(PlayState* play, Player* player);
+s32 MM_Player_SetupWaitForPutAway(PlayState* play, Player* player, AfterPutAwayFunc afterPutAwayFunc);
 }
 
 void Rando::ActorBehavior::InitEnDnhBehavior() {
@@ -16,7 +16,7 @@ void Rando::ActorBehavior::InitEnDnhBehavior() {
         u32 cmdId = va_arg(args, u32);
         Actor* actor = va_arg(args, Actor*);
         MsgScript* script = va_arg(args, MsgScript*);
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         static std::vector<u8> skipCmds = {};
 
         if (actor->id != ACTOR_EN_DNH) {
@@ -36,7 +36,7 @@ void Rando::ActorBehavior::InitEnDnhBehavior() {
         }
 
         if (cmdId == MSCRIPT_CMD_ID_OFFER_ITEM) {
-            Player_SetupWaitForPutAway(gPlayState, player, Player_SetupTalk);
+            MM_Player_SetupWaitForPutAway(MM_gPlayState, player, MM_Player_SetupTalk);
             *should = false;
             skipCmds.clear();
             skipCmds.push_back(MSCRIPT_CMD_ID_AUTOTALK);

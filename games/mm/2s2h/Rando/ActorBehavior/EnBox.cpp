@@ -9,14 +9,14 @@ extern "C" {
 #include "variables.h"
 #include "src/overlays/actors/ovl_En_Box/z_en_box.h"
 
-s32 Player_SetupWaitForPutAway(PlayState* play, Player* player, AfterPutAwayFunc afterPutAwayFunc);
+s32 MM_Player_SetupWaitForPutAway(PlayState* play, Player* player, AfterPutAwayFunc afterPutAwayFunc);
 void Player_SetAction_PreserveMoveFlags(PlayState* play, Player* player, PlayerActionFunc actionFunc, s32 arg3);
 void Player_StopCutscene(Player* player);
 void func_80848294(PlayState* play, Player* player);
 Gfx* EnBox_SetRenderMode1(GraphicsContext* gfxCtx);
 Gfx* EnBox_SetRenderMode2(GraphicsContext* gfxCtx);
 Gfx* EnBox_SetRenderMode3(GraphicsContext* gfxCtx);
-void EnBox_Draw(Actor* actor, PlayState* play);
+void MM_EnBox_Draw(Actor* actor, PlayState* play);
 void Player_DrawStrayFairyParticles(PlayState* play, Vec3f* arg1);
 Gfx* ResourceMgr_LoadGfxByName(const char* path);
 }
@@ -141,7 +141,7 @@ void EnBox_RandoDraw(Actor* actor, PlayState* play) {
         gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 255);
         gSPSegment(POLY_OPA_DISP++, 0x08, (uintptr_t)EnBox_SetRenderMode1(play->state.gfxCtx));
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
-        POLY_OPA_DISP = SkelAnime_Draw(play, enBox->skelAnime.skeleton, enBox->skelAnime.jointTable, NULL,
+        POLY_OPA_DISP = MM_SkelAnime_Draw(play, enBox->skelAnime.skeleton, enBox->skelAnime.jointTable, NULL,
                                        EnBox_RandoPostLimbDraw, &enBox->dyna.actor, POLY_OPA_DISP);
     } else if (enBox->alpha != 0) {
         gDPPipeSync(POLY_XLU_DISP++);
@@ -152,7 +152,7 @@ void EnBox_RandoDraw(Actor* actor, PlayState* play) {
         } else {
             gSPSegment(POLY_XLU_DISP++, 0x08, (uintptr_t)EnBox_SetRenderMode2(play->state.gfxCtx));
         }
-        POLY_XLU_DISP = SkelAnime_Draw(play, enBox->skelAnime.skeleton, enBox->skelAnime.jointTable, NULL,
+        POLY_XLU_DISP = MM_SkelAnime_Draw(play, enBox->skelAnime.skeleton, enBox->skelAnime.jointTable, NULL,
                                        EnBox_RandoPostLimbDraw, &enBox->dyna.actor, POLY_XLU_DISP);
     }
 
@@ -165,9 +165,9 @@ void Rando::ActorBehavior::InitEnBoxBehavior() {
     COND_VB_SHOULD(VB_GIVE_ITEM_FROM_CHEST, IS_RANDO, {
         EnBox* enBox = va_arg(args, EnBox*);
         Actor* actor = (Actor*)enBox;
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         if (ENBOX_RC != RC_UNKNOWN) {
-            Player_SetupWaitForPutAway(gPlayState, player, func_80837C78_override);
+            MM_Player_SetupWaitForPutAway(MM_gPlayState, player, func_80837C78_override);
             *should = false;
         }
     });
@@ -175,12 +175,12 @@ void Rando::ActorBehavior::InitEnBoxBehavior() {
     // Replace the item in the chest with a recovery heart, to prevent any other item side effects
     COND_ID_HOOK(ShouldActorInit, ACTOR_EN_BOX, IS_RANDO, [](Actor* actor, bool* should) {
         auto randoStaticCheck = Rando::StaticData::GetCheckFromFlag(FLAG_CYCL_SCENE_CHEST, ENBOX_GET_CHEST_FLAG(actor),
-                                                                    gPlayState->sceneId);
+                                                                    MM_gPlayState->sceneId);
         RandoCheckId randoCheckId = randoStaticCheck.randoCheckId;
 
-        if (gPlayState->sceneId == SCENE_TAKARAYA) {
-            uint8_t transformation = GET_PLAYER(gPlayState)->transformation;
-            uint8_t gameNumber = Flags_GetSwitch(gPlayState, transformation) ? 1 : 0;
+        if (MM_gPlayState->sceneId == SCENE_TAKARAYA) {
+            uint8_t transformation = GET_PLAYER(MM_gPlayState)->transformation;
+            uint8_t gameNumber = MM_Flags_GetSwitch(MM_gPlayState, transformation) ? 1 : 0;
             randoCheckId = treasureGameMap[transformation][gameNumber];
         }
 
@@ -199,18 +199,18 @@ void Rando::ActorBehavior::InitEnBoxBehavior() {
 
 static RegisterShipInitFunc initFunc(
     []() {
-        if (gPlayState == NULL) {
+        if (MM_gPlayState == NULL) {
             return;
         }
 
-        Actor* actor = gPlayState->actorCtx.actorLists[ACTORCAT_CHEST].first;
+        Actor* actor = MM_gPlayState->actorCtx.actorLists[ACTORCAT_CHEST].first;
 
         while (actor != NULL) {
             if (actor->id == ACTOR_EN_BOX) {
                 if (CVarGetInteger("gRando.CSMC", 0) && IS_RANDO) {
                     actor->draw = EnBox_RandoDraw;
                 } else if (actor->draw == EnBox_RandoDraw) {
-                    actor->draw = EnBox_Draw;
+                    actor->draw = MM_EnBox_Draw;
                 }
             }
 

@@ -294,32 +294,32 @@ struct InterpolateCtx {
                             break;
 
                         case Op::MatrixPush:
-                            Matrix_Push();
+                            MM_Matrix_Push();
                             break;
 
                         case Op::MatrixPop:
-                            Matrix_Pop();
+                            MM_Matrix_Pop();
                             break;
 
                         case Op::MatrixPut:
                             interpolate_mtxf(&tmp_mtxf, &old_op.matrix_put.src, &new_op.matrix_put.src);
-                            Matrix_Put(&tmp_mtxf);
+                            MM_Matrix_Put(&tmp_mtxf);
                             break;
 
                         case Op::MatrixMult:
                             interpolate_mtxf(&tmp_mtxf, &old_op.matrix_mult.mf, &new_op.matrix_mult.mf);
-                            Matrix_Mult(&tmp_mtxf, (MatrixMode)new_op.matrix_mult.mode);
+                            MM_Matrix_Mult(&tmp_mtxf, (MatrixMode)new_op.matrix_mult.mode);
                             break;
 
                         case Op::MatrixTranslate:
-                            Matrix_Translate(lerp(old_op.matrix_translate.x, new_op.matrix_translate.x),
+                            MM_Matrix_Translate(lerp(old_op.matrix_translate.x, new_op.matrix_translate.x),
                                              lerp(old_op.matrix_translate.y, new_op.matrix_translate.y),
                                              lerp(old_op.matrix_translate.z, new_op.matrix_translate.z),
                                              (MatrixMode)new_op.matrix_translate.mode);
                             break;
 
                         case Op::MatrixScale:
-                            Matrix_Scale(lerp(old_op.matrix_scale.x, new_op.matrix_scale.x),
+                            MM_Matrix_Scale(lerp(old_op.matrix_scale.x, new_op.matrix_scale.x),
                                          lerp(old_op.matrix_scale.y, new_op.matrix_scale.y),
                                          lerp(old_op.matrix_scale.z, new_op.matrix_scale.z),
                                          (MatrixMode)new_op.matrix_scale.mode);
@@ -346,7 +346,7 @@ struct InterpolateCtx {
                         }
 
                         case Op::MatrixRotateZYX:
-                            Matrix_RotateZYX(interpolate_angle(old_op.matrix_rotate_zyx.x, new_op.matrix_rotate_zyx.x),
+                            MM_Matrix_RotateZYX(interpolate_angle(old_op.matrix_rotate_zyx.x, new_op.matrix_rotate_zyx.x),
                                              interpolate_angle(old_op.matrix_rotate_zyx.y, new_op.matrix_rotate_zyx.y),
                                              interpolate_angle(old_op.matrix_rotate_zyx.z, new_op.matrix_rotate_zyx.z),
                                              (MatrixMode)new_op.matrix_rotate_zyx.mode);
@@ -357,14 +357,14 @@ struct InterpolateCtx {
                                        &new_op.matrix_translate_rotate_zyx.translation);
                             interpolate_angles(&tmp_vec3s, &old_op.matrix_translate_rotate_zyx.rotation,
                                                &new_op.matrix_translate_rotate_zyx.rotation);
-                            Matrix_TranslateRotateZYX(&tmp_vec3f, &tmp_vec3s);
+                            MM_Matrix_TranslateRotateZYX(&tmp_vec3f, &tmp_vec3s);
                             break;
 
                         case Op::MatrixSetTranslateRotateYXZ:
                             interpolate_wider_angles = new_op.matrix_set_translate_rotate_yxz.interpolate_wider_angles;
                             interpolate_angles(&tmp_vec3s, &old_op.matrix_set_translate_rotate_yxz.rot,
                                                &new_op.matrix_set_translate_rotate_yxz.rot);
-                            Matrix_SetTranslateRotateYXZ(lerp(old_op.matrix_set_translate_rotate_yxz.translateX,
+                            MM_Matrix_SetTranslateRotateYXZ(lerp(old_op.matrix_set_translate_rotate_yxz.translateX,
                                                               new_op.matrix_set_translate_rotate_yxz.translateX),
                                                          lerp(old_op.matrix_set_translate_rotate_yxz.translateY,
                                                               new_op.matrix_set_translate_rotate_yxz.translateY),
@@ -373,7 +373,7 @@ struct InterpolateCtx {
                                                          &tmp_vec3s);
                             if (new_op.matrix_set_translate_rotate_yxz.has_mtx &&
                                 old_op.matrix_set_translate_rotate_yxz.has_mtx) {
-                                actor_mtx = *Matrix_GetCurrent();
+                                actor_mtx = *MM_Matrix_GetCurrent();
                             }
                             interpolate_wider_angles = false;
                             break;
@@ -384,10 +384,10 @@ struct InterpolateCtx {
                             break;
 
                         case Op::MatrixToMtx: {
-                            //*new_replacement(new_op.matrix_to_mtx.dest) = *Matrix_GetCurrent();
+                            //*new_replacement(new_op.matrix_to_mtx.dest) = *MM_Matrix_GetCurrent();
                             if (old_op.matrix_to_mtx.has_adjusted && new_op.matrix_to_mtx.has_adjusted) {
                                 interpolate_mtxf(&tmp_mtxf, &old_op.matrix_to_mtx.src, &new_op.matrix_to_mtx.src);
-                                SkinMatrix_MtxFMtxFMult(&actor_mtx, &tmp_mtxf,
+                                MM_SkinMatrix_MtxFMtxFMult(&actor_mtx, &tmp_mtxf,
                                                         new_replacement(new_op.matrix_to_mtx.dest));
                             } else {
                                 interpolate_mtxf(new_replacement(new_op.matrix_to_mtx.dest), &old_op.matrix_to_mtx.src,
@@ -399,7 +399,7 @@ struct InterpolateCtx {
                         case Op::MatrixReplaceRotation:
                             interpolate_mtxf(&tmp_mtxf, &old_op.matrix_replace_rotation.mf,
                                              &new_op.matrix_replace_rotation.mf);
-                            Matrix_ReplaceRotation(&tmp_mtxf);
+                            MM_Matrix_ReplaceRotation(&tmp_mtxf);
                             break;
 
                         case Op::MatrixRotateAxis:
@@ -574,8 +574,8 @@ void FrameInterpolation_RecordMatrixSetTranslateRotateYXZ(f32 translateX, f32 tr
         d.has_mtx = true;
         d.interpolate_wider_angles = interpolate_wider_angles;
         interpolate_wider_angles = false;
-        // d.mtx = *Matrix_GetCurrent();
-        invert_matrix((const float*)Matrix_GetCurrent()->mf, (float*)inv_actor_mtx.mf);
+        // d.mtx = *MM_Matrix_GetCurrent();
+        invert_matrix((const float*)MM_Matrix_GetCurrent()->mf, (float*)inv_actor_mtx.mf);
         next_is_actor_pos_rot_matrix = false;
         has_inv_actor_mtx = true;
         inv_actor_mtx_path_index = current_path.size();
@@ -594,9 +594,9 @@ void FrameInterpolation_RecordMatrixToMtx(Mtx* dest, char* file, s32 line) {
     auto& d = append(Op::MatrixToMtx).matrix_to_mtx = { dest };
     if (has_inv_actor_mtx && !ignore_inv_actor_mtx) {
         d.has_adjusted = true;
-        SkinMatrix_MtxFMtxFMult(&inv_actor_mtx, Matrix_GetCurrent(), &d.src);
+        MM_SkinMatrix_MtxFMtxFMult(&inv_actor_mtx, MM_Matrix_GetCurrent(), &d.src);
     } else {
-        d.src = *Matrix_GetCurrent();
+        d.src = *MM_Matrix_GetCurrent();
     }
 }
 

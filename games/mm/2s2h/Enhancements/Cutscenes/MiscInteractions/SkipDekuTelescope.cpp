@@ -28,7 +28,7 @@ s32 modified_func_80BCC2AC(EnScopenuts* enScopenuts, Path* path, s32 arg2_) {
     f32 sp3C;
     Vec3f point;
 
-    Math_Vec3s_ToVec3f(&point, &points[index]);
+    MM_Math_Vec3s_ToVec3f(&point, &points[index]);
 
     if (index == 0) {
         phi_f12 = points[1].x - points[0].x;
@@ -46,7 +46,7 @@ s32 modified_func_80BCC2AC(EnScopenuts* enScopenuts, Path* path, s32 arg2_) {
         phi_f14 = points[index + 1].z - points[index - 1].z;
     }
 
-    Math3D_RotateXZPlane(&point, RAD_TO_BINANG(Math_FAtan2F(phi_f12, phi_f14)), &sp44, &sp40, &sp3C);
+    MM_Math3D_RotateXZPlane(&point, RAD_TO_BINANG(MM_Math_FAtan2F(phi_f12, phi_f14)), &sp44, &sp40, &sp3C);
 
     if (((enScopenuts->actor.world.pos.x * sp44) + (sp40 * enScopenuts->actor.world.pos.z) + sp3C) > 0.0f) {
         sp50 = true;
@@ -61,7 +61,7 @@ void modified_func_80BCB078(EnScopenuts* enScopenuts, PlayState* play) {
         if (enScopenuts->actor.bgCheckFlags & BGCHECKFLAG_WALL) {
             sp30.y = enScopenuts->actor.wallYaw;
         }
-        Math_SmoothStepToS(&enScopenuts->actor.world.rot.y, sp30.y, 10, 300, 0);
+        MM_Math_SmoothStepToS(&enScopenuts->actor.world.rot.y, sp30.y, 10, 300, 0);
         enScopenuts->actor.shape.rot.y = enScopenuts->actor.world.rot.y;
         enScopenuts->unk_33E = 0x1000;
         enScopenuts->unk_340 += 0x1C71;
@@ -79,12 +79,12 @@ void modified_func_80BCB078(EnScopenuts* enScopenuts, PlayState* play) {
     }
 
     if (enScopenuts->unk_334 >= (enScopenuts->path->count - 2)) {
-        Math_ApproachF(&enScopenuts->actor.speed, 1.5f, 0.2f, 1.0f);
+        MM_Math_ApproachF(&enScopenuts->actor.speed, 1.5f, 0.2f, 1.0f);
         // second diffference. additional condition to speed up this segment
     } else if (enScopenuts->unk_334 == 16) {
-        Math_ApproachF(&enScopenuts->actor.speed, 7.5f, 0.2f, 1.0f);
+        MM_Math_ApproachF(&enScopenuts->actor.speed, 7.5f, 0.2f, 1.0f);
     } else {
-        Math_ApproachF(&enScopenuts->actor.speed, 5.0f, 0.2f, 1.0f);
+        MM_Math_ApproachF(&enScopenuts->actor.speed, 5.0f, 0.2f, 1.0f);
     }
     Actor_MoveWithoutGravity(&enScopenuts->actor);
 }
@@ -106,7 +106,7 @@ void RegisterSkipDekuTelescope() {
     // Skip flying out of grotto cs (player has control during it)
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
         s16* csId = va_arg(args, s16*);
-        if (gPlayState->sceneId == SCENE_KAKUSIANA) {
+        if (MM_gPlayState->sceneId == SCENE_KAKUSIANA) {
             if (*csId == 16) {
                 *should = false;
             }

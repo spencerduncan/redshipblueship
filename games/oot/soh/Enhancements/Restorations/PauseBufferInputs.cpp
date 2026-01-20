@@ -29,7 +29,7 @@ static u16 pauseInputs = 0;
 
 void RegisterPauseBufferInputs() {
     COND_VB_SHOULD(VB_KALEIDO_UNPAUSE_CLOSE, CVAR_BUFFER_VALUE || CVAR_INCLUDE_VALUE, {
-        Input* input = &gPlayState->state.input[0];
+        Input* input = &OoT_gPlayState->state.input[0];
 
         // STEP #3: If the user opts to include held inputs in the buffer window, store the currnently held inputs,
         // minus the held inputs when the pause menu was opened. This only applies to the first frame of the buffer
@@ -50,12 +50,12 @@ void RegisterPauseBufferInputs() {
     });
 
     COND_HOOK(OnGameStateMainStart, CVAR_BUFFER_VALUE || CVAR_INCLUDE_VALUE, []() {
-        if (gPlayState == NULL) {
+        if (OoT_gPlayState == NULL) {
             return;
         }
 
-        Input* input = &gPlayState->state.input[0];
-        PauseContext* pauseCtx = &gPlayState->pauseCtx;
+        Input* input = &OoT_gPlayState->state.input[0];
+        PauseContext* pauseCtx = &OoT_gPlayState->pauseCtx;
 
         // STEP #1: If the user opts to include held inputs in the buffer window, store the held inputs at the beginning
         // of the pause process, minus the START input

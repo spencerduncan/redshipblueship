@@ -9,7 +9,7 @@ extern "C" {
 #include "macros.h"
 #include "variables.h"
 
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 extern void Player_StartMode_Idle(PlayState*, Player*);
 extern u8 Randomizer_GetSettingValue(RandomizerSettingKey);
 }
@@ -66,7 +66,7 @@ void UpdateNoMSPatch() {
     }
 }
 
-// copied from z_player (right above Player_StartMode_TimeTravel)
+// copied from z_player (right above OoT_Player_StartMode_TimeTravel)
 static Vec3f D_808546F4 = { -1.0f, 69.0f, 20.0f };
 
 #define MASTER_SWORD_SHUFFLED (OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_SHUFFLE_MASTER_SWORD) != 0)
@@ -87,7 +87,7 @@ void RegisterNoMasterSword() {
     // skip post pedestal animation when we don't have a master sword
     COND_VB_SHOULD(VB_EXECUTE_PLAYER_STARTMODE_FUNC, IS_RANDO && MASTER_SWORD_SHUFFLED, {
         int32_t startMode = va_arg(args, int32_t);
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(OoT_gPlayState);
 
         if (startMode == PLAYER_START_MODE_TIME_TRAVEL &&
             !CHECK_OWNED_EQUIP(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_MASTER)) {
@@ -95,11 +95,11 @@ void RegisterNoMasterSword() {
             *should = false;
 
             // position link correctly
-            Math_Vec3f_Copy(&player->actor.world.pos, &D_808546F4);
+            OoT_Math_Vec3f_Copy(&player->actor.world.pos, &D_808546F4);
             player->yaw = player->actor.shape.rot.y = -0x8000;
 
             // execute the idle startMode func
-            Player_StartMode_Idle(gPlayState, player);
+            Player_StartMode_Idle(OoT_gPlayState, player);
         }
     });
 

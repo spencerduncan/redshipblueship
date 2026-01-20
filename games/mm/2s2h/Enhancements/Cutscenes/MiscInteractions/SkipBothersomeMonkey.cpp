@@ -21,14 +21,14 @@ void RegisterSkipBothersomeMonkey() {
             SET_EVENTINF(EVENTINF_25);
             SET_WEEKEVENTREG(WEEKEVENTREG_79_02);
             if (MONKEY_GET_SWITCH_FLAG(&monkey->picto.actor) != 0x7F) {
-                Flags_SetSwitch(gPlayState, MONKEY_GET_SWITCH_FLAG(&monkey->picto.actor));
+                MM_Flags_SetSwitch(MM_gPlayState, MONKEY_GET_SWITCH_FLAG(&monkey->picto.actor));
             }
             monkey->actionFunc = EnMnk_Monkey_WaitToRun;
         } else if (MONKEY_GET_TYPE(&monkey->picto.actor) == MONKEY_OUTSIDECHAMBER) {
             *should = false;
             SET_WEEKEVENTREG(WEEKEVENTREG_08_02);
             if (MONKEY_GET_SWITCH_FLAG(&monkey->picto.actor) != 0x7F) {
-                Flags_SetSwitch(gPlayState, MONKEY_GET_SWITCH_FLAG(&monkey->picto.actor));
+                MM_Flags_SetSwitch(MM_gPlayState, MONKEY_GET_SWITCH_FLAG(&monkey->picto.actor));
             }
             monkey->actionFunc = EnMnk_Monkey_SetupRunAfterTalk;
         }
