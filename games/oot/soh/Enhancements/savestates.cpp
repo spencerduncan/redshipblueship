@@ -2,7 +2,7 @@
 
 #include <soh/GameVersions.h>
 
-#include <cstdio> // std::OoT_sprintf
+#include <cstdio> // std::sprintf
 
 #include <spdlog/spdlog.h>
 
