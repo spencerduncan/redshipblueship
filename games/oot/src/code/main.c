@@ -111,12 +111,12 @@ void Main(void* arg) {
 
     R_ENABLE_ARENA_DBG = 0;
 
-    OoT_osCreateMesgQueue(&sSiIntMsgQ, sSiIntMsgBuf, 1);
-    OoT_osSetEventMesg(5, &sSiIntMsgQ, OS_MESG_PTR(NULL));
+    osCreateMesgQueue(&sSiIntMsgQ, sSiIntMsgBuf, 1);
+    osSetEventMesg(5, &sSiIntMsgQ, OS_MESG_PTR(NULL));
 
     Main_LogSystemHeap();
 
-    OoT_osCreateMesgQueue(&irqMgrMsgQ, irqMgrMsgBuf, 0x3C);
+    osCreateMesgQueue(&irqMgrMsgQ, irqMgrMsgBuf, 0x3C);
     OoT_StackCheck_Init(&OoT_sIrqMgrStackInfo, sIrqMgrStack, sIrqMgrStack + sizeof(sIrqMgrStack), 0, 0x100, "irqmgr");
     OoT_IrqMgr_Init(&OoT_gIrqMgr, &OoT_sGraphStackInfo, Z_PRIORITY_IRQMGR, 1);
 
@@ -136,14 +136,14 @@ void Main(void* arg) {
 
     OoT_StackCheck_Init(&OoT_sGraphStackInfo, sGraphStack, sGraphStack + sizeof(sGraphStack), 0, 0x100, "graph");
     osCreateThread(&sGraphThread, 4, OoT_Graph_ThreadEntry, arg, sGraphStack + sizeof(sGraphStack), Z_PRIORITY_GRAPH);
-    OoT_osStartThread(&sGraphThread);
-    OoT_osSetThreadPri(0, Z_PRIORITY_SCHED);
+    osStartThread(&sGraphThread);
+    osSetThreadPri(0, Z_PRIORITY_SCHED);
 
     OoT_Graph_ThreadEntry(0);
 
     while (true) {
         msg = NULL;
-        OoT_osRecvMesg(&irqMgrMsgQ, (OSMesg*)&msg, OS_MESG_BLOCK);
+        osRecvMesg(&irqMgrMsgQ, (OSMesg*)&msg, OS_MESG_BLOCK);
         if (msg == NULL) {
             break;
         }
@@ -154,7 +154,7 @@ void Main(void* arg) {
     }
 
     osSyncPrintf("mainproc 後始末\n"); // "Cleanup"
-    OoT_osDestroyThread(&sGraphThread);
+    osDestroyThread(&sGraphThread);
     func_800FBFD8();
     osSyncPrintf("mainproc 実行終了\n"); // "End of execution"
 }

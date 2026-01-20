@@ -18,10 +18,10 @@ typedef struct OSTimer_s {
     /* 0x1C */ OSMesg msg;
 } OSTimer; // size = 0x20
 
-OSTime MM_osGetTime(void);
+OSTime osGetTime(void);
 void osSetTime(OSTime ticks);
-int MM_osSetTimer(OSTimer* t, OSTime countdown, OSTime interval, OSMesgQueue* mq, OSMesg msg);
-int MM_osStopTimer(OSTimer* t);
+int osSetTimer(OSTimer* t, OSTime countdown, OSTime interval, OSMesgQueue* mq, OSMesg msg);
+int osStopTimer(OSTimer* t);
 
 #endif
 #endif

@@ -5008,12 +5008,12 @@ void Interface_LoadAButtonDoActionLabel(InterfaceContext* interfaceCtx, u16 doAc
 
     if (doAction != DO_ACTION_NONE) {
         // #region 2S2H [Port]
-        // MM_osCreateMesgQueue(&interfaceCtx->loadQueue, &interfaceCtx->loadMsg, 1);
+        // osCreateMesgQueue(&interfaceCtx->loadQueue, &interfaceCtx->loadMsg, 1);
         // DmaMgr_RequestAsync(&interfaceCtx->dmaRequest,
         //                     interfaceCtx->doActionSegment + DO_ACTION_OFFSET_A_ACTIVE + slot * DO_ACTION_TEX_SIZE,
         //                     SEGMENT_ROM_START(do_action_static) + doAction * DO_ACTION_TEX_SIZE, DO_ACTION_TEX_SIZE,
         //                     0, &interfaceCtx->loadQueue, NULL);
-        // MM_osRecvMesg(&interfaceCtx->loadQueue, NULL, OS_MESG_BLOCK);
+        // osRecvMesg(&interfaceCtx->loadQueue, NULL, OS_MESG_BLOCK);
         if (slot) {
             interfaceCtx->doActionSegment[DO_ACTION_SEG_A].subTex = doActionTbl[doAction];
         } else {
@@ -5068,12 +5068,12 @@ void Interface_SetBButtonPlayerDoAction(PlayState* play, s16 bButtonDoAction) {
             interfaceCtx->bButtonPlayerDoAction = bButtonDoAction;
             if (interfaceCtx->bButtonPlayerDoAction != DO_ACTION_NONE) {
                 // #region 2S2H [Port]
-                // MM_osCreateMesgQueue(&interfaceCtx->loadQueue, &interfaceCtx->loadMsg, 1);
+                // osCreateMesgQueue(&interfaceCtx->loadQueue, &interfaceCtx->loadMsg, 1);
                 // DmaMgr_RequestAsync(&interfaceCtx->dmaRequest,
                 //                     interfaceCtx->doActionSegment + DO_ACTION_OFFSET_B_INTERFACE,
                 //                     SEGMENT_ROM_START(do_action_static) + bButtonDoAction * DO_ACTION_TEX_SIZE,
                 //                     DO_ACTION_TEX_SIZE, 0, &interfaceCtx->loadQueue, NULL);
-                // MM_osRecvMesg(&interfaceCtx->loadQueue, NULL, OS_MESG_BLOCK);
+                // osRecvMesg(&interfaceCtx->loadQueue, NULL, OS_MESG_BLOCK);
                 interfaceCtx->doActionSegment[DO_ACTION_SEG_B].subTex = doActionTbl[bButtonDoAction];
                 // #endregion
             }
@@ -5119,11 +5119,11 @@ void Interface_SetBButtonInterfaceDoAction(PlayState* play, s16 bButtonDoAction)
     interfaceCtx->bButtonInterfaceDoAction = bButtonDoAction;
 
     // #region 2S2H [Port]
-    // MM_osCreateMesgQueue(&play->interfaceCtx.loadQueue, &play->interfaceCtx.loadMsg, 1);
+    // osCreateMesgQueue(&play->interfaceCtx.loadQueue, &play->interfaceCtx.loadMsg, 1);
     // DmaMgr_RequestAsync(&interfaceCtx->dmaRequest, interfaceCtx->doActionSegment + DO_ACTION_OFFSET_B_PLAYER,
     //                     SEGMENT_ROM_START(do_action_static) + bButtonDoAction * DO_ACTION_TEX_SIZE,
     //                     DO_ACTION_TEX_SIZE, 0, &interfaceCtx->loadQueue, NULL);
-    // MM_osRecvMesg(&interfaceCtx->loadQueue, NULL, OS_MESG_BLOCK);
+    // osRecvMesg(&interfaceCtx->loadQueue, NULL, OS_MESG_BLOCK);
     interfaceCtx->doActionSegment[DO_ACTION_SEG_B].mainTex = doActionTbl[bButtonDoAction];
     // #endregion
 
@@ -9465,13 +9465,13 @@ void Interface_LoadStory(PlayState* play, s32 osMesgFlag) {
                 break;
             }
             // #region 2S2H [Port] Consider the story already loaded
-            // MM_osCreateMesgQueue(&interfaceCtx->storyMsgQueue, &interfaceCtx->storyMsgBuf, 1);
+            // osCreateMesgQueue(&interfaceCtx->storyMsgQueue, &interfaceCtx->storyMsgBuf, 1);
             // MM_DmaMgr_SendRequestImpl(&interfaceCtx->dmaRequest, interfaceCtx->storySegment, interfaceCtx->storyAddr,
             //                        interfaceCtx->storySize, 0, &interfaceCtx->storyMsgQueue, OS_MESG_PTR(NULL));
             interfaceCtx->storyDmaStatus = STORY_DMA_LOADING;
             // fallthrough
         case STORY_DMA_LOADING:
-            // if (MM_osRecvMesg(&interfaceCtx->storyMsgQueue, NULL, osMesgFlag) == 0) {
+            // if (osRecvMesg(&interfaceCtx->storyMsgQueue, NULL, osMesgFlag) == 0) {
             if (true) {
                 // #endregion
                 interfaceCtx->storyDmaStatus = STORY_DMA_DONE;

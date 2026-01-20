@@ -19,7 +19,7 @@ void* OoT_TransitionTriforce_Init(void* thisx) {
     TransitionTriforce* this = (TransitionTriforce*)thisx;
 
     memset(this, 0, sizeof(*this));
-    OoT_guOrtho(&this->projection, -160.0f, 160.0f, -120.0f, 120.0f, -1000.0f, 1000.0f, 1.0f);
+    guOrtho(&this->projection, -160.0f, 160.0f, -120.0f, 120.0f, -1000.0f, 1000.0f, 1.0f);
     this->transPos = 1.0f;
     this->state = 2;
     this->step = 0.015f;
@@ -80,7 +80,7 @@ void OoT_TransitionTriforce_Draw(void* thisx, Gfx** gfxP) {
     this->frame ^= 1;
     osSyncPrintf("rate=%f tx=%f ty=%f rotate=%f\n", this->transPos, 0.0f, 0.0f, rotation);
     guScale(&modelView[0], scale, scale, 1.0f);
-    OoT_guRotate(&modelView[1], rotation, 0.0f, 0.0f, 1.0f);
+    guRotate(&modelView[1], rotation, 0.0f, 0.0f, 1.0f);
     guTranslate(&modelView[2], 0.0f, 0.0f, 0.0f);
     gDPPipeSync(gfx++);
     gSPDisplayList(gfx++, sTransTriforceDL);

@@ -41,7 +41,7 @@ void OoT_Idle_ThreadEntry(void* arg) {
     osSyncPrintf("作成日時  : %s\n", OoT_gBuildDate);
     osSyncPrintf("MAKEOPTION: %s\n", OoT_gBuildMakeOption);
     osSyncPrintf(VT_FGCOL(GREEN));
-    osSyncPrintf("ＲＡＭサイズは %d キロバイトです(osMemSize/OoT_osGetMemSize)\n", (s32)osMemSize / 1024);
+    osSyncPrintf("ＲＡＭサイズは %d キロバイトです(osMemSize/osGetMemSize)\n", (s32)osMemSize / 1024);
     // osSyncPrintf("_bootSegmentEnd(%08x) 以降のＲＡＭ領域はクリアされました(boot)\n", _bootSegmentEnd);
     osSyncPrintf("Ｚバッファのサイズは %d キロバイトです\n", 0x96);
     osSyncPrintf("ダイナミックバッファのサイズは %d キロバイトです\n", 0x92);
@@ -50,7 +50,7 @@ void OoT_Idle_ThreadEntry(void* arg) {
     osSyncPrintf("オーディオヒープのサイズは %d キロバイトです\n", ((s32)OoT_gSystemHeap - (s32)OoT_gAudioHeap) / 1024);
     osSyncPrintf(VT_RST);
 
-    OoT_osCreateViManager(OS_PRIORITY_VIMGR);
+    osCreateViManager(OS_PRIORITY_VIMGR);
 
     OoT_gViConfigFeatures = OS_VI_GAMMA_OFF | OS_VI_DITHER_FILTER_ON;
     OoT_gViConfigXScale = 1.0f;
@@ -59,31 +59,31 @@ void OoT_Idle_ThreadEntry(void* arg) {
     switch (osTvType) {
         case OS_TV_NTSC:
             D_80013960 = 2;
-            OoT_gViConfigMode = OoT_osViModeNtscLan1;
+            OoT_gViConfigMode = osViModeNtscLan1;
             break;
 
         case OS_TV_MPAL:
             D_80013960 = 0x1E;
-            OoT_gViConfigMode = OoT_osViModeMpalLan1;
+            OoT_gViConfigMode = osViModeMpalLan1;
             break;
 
         case OS_TV_PAL:
             D_80013960 = 0x2C;
-            OoT_gViConfigMode = OoT_osViModeFpalLan1;
+            OoT_gViConfigMode = osViModeFpalLan1;
             OoT_gViConfigYScale = 0.833f;
             break;
     }
 
     D_80009430 = 1;
-    OoT_osViSetMode(&OoT_gViConfigMode);
+    osViSetMode(&OoT_gViConfigMode);
     OoT_ViConfig_UpdateVi(1);
-    OoT_osViBlack(1);
-    OoT_osViSwapBuffer(0x803DA80); //! @bug Invalid vram address (probably intended to be 0x803DA800)
-    OoT_osCreatePiManager(OS_PRIORITY_PIMGR, &gPiMgrCmdQ, OoT_sPiMgrCmdBuff, 50);
+    osViBlack(1);
+    osViSwapBuffer(0x803DA80); //! @bug Invalid vram address (probably intended to be 0x803DA800)
+    osCreatePiManager(OS_PRIORITY_PIMGR, &gPiMgrCmdQ, OoT_sPiMgrCmdBuff, 50);
     OoT_StackCheck_Init(&OoT_sMainStackInfo, sMainStack, sMainStack + sizeof(sMainStack), 0, 0x400, "main");
     osCreateThread(&gMainThread, 3, OoT_Main_ThreadEntry, arg, sMainStack + sizeof(sMainStack), Z_PRIORITY_MAIN);
-    OoT_osStartThread(&gMainThread);
-    OoT_osSetThreadPri(NULL, OS_PRIORITY_IDLE);
+    osStartThread(&gMainThread);
+    osSetThreadPri(NULL, OS_PRIORITY_IDLE);
 
     while (1) {
         ;

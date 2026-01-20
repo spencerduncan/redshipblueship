@@ -103,12 +103,12 @@ typedef struct OSDevMgr {
 extern OSPiHandle* __osPiTable;
 
 #endif
-void MM_osCreatePiManager(OSPri pri, OSMesgQueue* cmdQ, OSMesg* cmdBuf, s32 cmdMsgCnt);
+void osCreatePiManager(OSPri pri, OSMesgQueue* cmdQ, OSMesg* cmdBuf, s32 cmdMsgCnt);
 
-OSPiHandle* MM_osCartRomInit(void);
+OSPiHandle* osCartRomInit(void);
 
-s32 MM_osEPiWriteIo(OSPiHandle* handle, uintptr_t devAddr, u32 data);
-s32 MM_osEPiReadIo(OSPiHandle* handle, uintptr_t devAddr, u32* data);
-s32 MM_osEPiStartDma(OSPiHandle* pihandle, OSIoMesg* mb, s32 direction);
+s32 osEPiWriteIo(OSPiHandle* handle, uintptr_t devAddr, u32 data);
+s32 osEPiReadIo(OSPiHandle* handle, uintptr_t devAddr, u32* data);
+s32 osEPiStartDma(OSPiHandle* pihandle, OSIoMesg* mb, s32 direction);
 s32 osEPiLinkHandle(OSPiHandle* handle);
 #endif

@@ -5904,7 +5904,7 @@ void func_8083AE40(Player* this, s16 objectId) {
 
     if (objectId != OBJECT_INVALID) {
         this->giObjectLoading = true;
-        OoT_osCreateMesgQueue(&this->giObjectLoadQueue, &this->giObjectLoadMsg, 1);
+        osCreateMesgQueue(&this->giObjectLoadQueue, &this->giObjectLoadMsg, 1);
 
         size = OoT_gObjectTable[objectId].vromEnd - OoT_gObjectTable[objectId].vromStart;
 

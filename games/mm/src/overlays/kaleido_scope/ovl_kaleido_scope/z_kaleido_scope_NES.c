@@ -1467,7 +1467,7 @@ void MM_KaleidoScope_UpdateNamePanel(PlayState* play) {
         pauseCtx->namedItem = pauseCtx->cursorItem[pauseCtx->pageIndex];
         namedItem = pauseCtx->namedItem;
 
-        // MM_osCreateMesgQueue(&pauseCtx->loadQueue, &pauseCtx->loadMsg, 1);
+        // osCreateMesgQueue(&pauseCtx->loadQueue, &pauseCtx->loadMsg, 1);
 
         if (pauseCtx->namedItem != PAUSE_ITEM_NONE) {
             if ((pauseCtx->pageIndex == PAUSE_MAP) && !MM_sInDungeonScene) {
@@ -1753,7 +1753,7 @@ void KaleidoScope_UpdateOwlWarpNamePanel(PlayState* play) {
         pauseCtx->namedItem = pauseCtx->cursorItem[pauseCtx->pageIndex];
         texIndex = pauseCtx->namedItem;
 
-        // MM_osCreateMesgQueue(&pauseCtx->loadQueue, &pauseCtx->loadMsg, 1);
+        // osCreateMesgQueue(&pauseCtx->loadQueue, &pauseCtx->loadMsg, 1);
 
         if (pauseCtx->namedItem != PAUSE_ITEM_NONE) {
             if ((pauseCtx->pageIndex == PAUSE_MAP) && !MM_sInDungeonScene) {

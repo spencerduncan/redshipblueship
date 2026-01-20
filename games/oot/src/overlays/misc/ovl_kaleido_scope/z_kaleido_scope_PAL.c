@@ -2446,7 +2446,7 @@ void OoT_KaleidoScope_UpdateNamePanel(PlayState* play) {
         pauseCtx->namedItem = pauseCtx->cursorItem[pauseCtx->pageIndex];
         sp2A = pauseCtx->namedItem;
 
-        OoT_osCreateMesgQueue(&pauseCtx->loadQueue, &pauseCtx->loadMsg, 1);
+        osCreateMesgQueue(&pauseCtx->loadQueue, &pauseCtx->loadMsg, 1);
 
         if (pauseAnyCursor &&
             ((pauseCtx->pageIndex == PAUSE_EQUIP && pauseCtx->cursorX[PAUSE_EQUIP] != 0 &&

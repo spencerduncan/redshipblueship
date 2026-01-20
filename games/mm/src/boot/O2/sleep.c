@@ -5,9 +5,9 @@ void MM_Sleep_Cycles(u64 time) {
     // OSMesg msg[1];
     // OSTimer timer;
 
-    // MM_osCreateMesgQueue(&mq, msg, ARRAY_COUNT(msg));
-    // MM_osSetTimer(&timer, time, 0, &mq, NULL);
-    // MM_osRecvMesg(&mq, NULL, OS_MESG_BLOCK);
+    // osCreateMesgQueue(&mq, msg, ARRAY_COUNT(msg));
+    // osSetTimer(&timer, time, 0, &mq, NULL);
+    // osRecvMesg(&mq, NULL, OS_MESG_BLOCK);
 }
 
 void MM_Sleep_Nsec(u32 nsec) {

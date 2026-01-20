@@ -62,9 +62,9 @@ void OoT_Jpeg_ScheduleDecoderTask(JpegContext* ctx) {
     ctx->scTask.framebuffer = NULL;
     ctx->scTask.list.t = sJpegTask;
 
-    OoT_osSendMesg(&OoT_gSchedContext.cmdQ, (OSMesg)&ctx->scTask, OS_MESG_BLOCK);
+    osSendMesg(&OoT_gSchedContext.cmdQ, (OSMesg)&ctx->scTask, OS_MESG_BLOCK);
     OoT_Sched_SendEntryMsg(&OoT_gSchedContext); // osScKickEntryMsg
-    OoT_osRecvMesg(&ctx->mq, NULL, OS_MESG_BLOCK);
+    osRecvMesg(&ctx->mq, NULL, OS_MESG_BLOCK);
 #endif
 }
 
@@ -252,7 +252,7 @@ s32 OoT_Jpeg_Decode(void* data, void* zbuffer, void* work, u32 workSize) {
     // (?) I guess MB_SIZE=0x180, PROC_OF_MBS=5 which means data is not a part of JpegWork
     assert(workSize >= sizeof(JpegWork));
 
-    OoT_osCreateMesgQueue(&ctx.mq, &ctx.msg, 1);
+    osCreateMesgQueue(&ctx.mq, &ctx.msg, 1);
     OoT_MsgEvent_SendNullTask();
 
     curTime = osGetTime();

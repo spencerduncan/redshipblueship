@@ -2,7 +2,7 @@
 #include "PR/rcp.h"
 #include "PR/viint.h"
 
-OSViMode MM_osViModeNtscLan1 = {
+OSViMode osViModeNtscLan1 = {
     OS_VI_NTSC_LAN1, // type
     {
         // comRegs

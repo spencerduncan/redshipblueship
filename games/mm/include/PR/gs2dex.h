@@ -48,7 +48,7 @@ typedef	struct	{
   u16   imagePal; 	/* pallet number  */
   u16	imageFlip;	/* right & left image inversion (Inverted by G_BG_FLAG_FLIPS) */
 
-  /* The following is set in the initialization routine MM_guS2DInitBg(). There is no need for the user to set it. */
+  /* The following is set in the initialization routine guS2DInitBg(). There is no need for the user to set it. */
   u16	tmemW;		/* TMEM width and Word size of frame 1 line.
                            At LoadBlock, GS_PIX2TMEM(imageW/4,imageSiz)
                            At LoadTile  GS_PIX2TMEM(frameW/4,imageSiz)+1 */
@@ -368,7 +368,7 @@ extern	u64	gspS2DEX2_fifoTextStart[], gspS2DEX2_fifoTextEnd[];
 extern	u64	gspS2DEX2_fifoDataStart[], gspS2DEX2_fifoDataEnd[];
 extern	u64	gspS2DEX2_xbusTextStart[], gspS2DEX2_xbusTextEnd[];
 extern	u64	gspS2DEX2_xbusDataStart[], gspS2DEX2_xbusDataEnd[];
-extern	void	MM_guS2DInitBg(uObjBg *);
+extern	void	guS2DInitBg(uObjBg *);
 
 #ifdef F3DEX_GBI_2
 #define guS2DEmuBgRect1Cyc guS2D2EmuBgRect1Cyc /*Wrapper*/

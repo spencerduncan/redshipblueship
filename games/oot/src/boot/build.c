@@ -6,8 +6,8 @@ const u16 OoT_gBuildVersionMajor = 9;
 const u16 OoT_gBuildVersionMinor = 1;
 const u16 OoT_gBuildVersionPatch = 1;
 
-const char OoT_gGitBranch[] = "fix/namespacing-soh-2s2h";
-const char OoT_gGitCommitHash[] = "a39e776";
+const char OoT_gGitBranch[] = "simplify-shared-only-build";
+const char OoT_gGitCommitHash[] = "0e1172e";
 const char OoT_gGitCommitTag[] = "";
 
 const char OoT_gBuildTeam[] = "github.com/harbourmasters";

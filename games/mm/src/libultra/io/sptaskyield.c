@@ -1,5 +1,5 @@
 #include "ultra64.h"
 
-void MM_osSpTaskYield(void) {
+void osSpTaskYield(void) {
     __osSpSetStatus(SP_SET_YIELD);
 }

@@ -1,6 +1,6 @@
 #include "ultra64.h"
 
-void MM_osViSetMode(OSViMode* modep) {
+void osViSetMode(OSViMode* modep) {
     register u32 saveMask = __osDisableInt();
 
     __osViNext->modep = modep;

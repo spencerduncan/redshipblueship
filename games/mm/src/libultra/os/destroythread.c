@@ -1,6 +1,6 @@
 #include "ultra64.h"
 
-void MM_osDestroyThread(OSThread* t) {
+void osDestroyThread(OSThread* t) {
     register u32 saveMask = __osDisableInt();
     register OSThread* pred;
     register OSThread* succ;

@@ -1,7 +1,7 @@
 #include "ultra64/pfs.h"
 #include "global.h"
 
-s32 OoT_osPfsDeleteFile(OSPfs* pfs, u16 companyCode, u32 gameCode, u8* gameName, u8* extName) {
+s32 osPfsDeleteFile(OSPfs* pfs, u16 companyCode, u32 gameCode, u8* gameName, u8* extName) {
     s32 file_no;
     s32 ret;
     __OSInode inode;
@@ -13,7 +13,7 @@ s32 OoT_osPfsDeleteFile(OSPfs* pfs, u16 companyCode, u32 gameCode, u8* gameName,
     if ((companyCode == 0) || (gameCode == 0)) {
         return PFS_ERR_INVALID;
     }
-    if ((ret = OoT_osPfsFindFile(pfs, companyCode, gameCode, gameName, extName, &file_no)) != 0) {
+    if ((ret = osPfsFindFile(pfs, companyCode, gameCode, gameName, extName, &file_no)) != 0) {
         return ret;
     }
     if ((pfs->activebank != 0) && (ret = __osPfsSelectBank(pfs, 0)) != 0) {

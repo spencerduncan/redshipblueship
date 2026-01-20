@@ -47,12 +47,12 @@ void SsSram_Init(uintptr_t addr, u8 handleType, u8 handleDomain, u8 handleLatenc
 void SsSram_Dma(void* dramAddr, size_t size, s32 direction) {
     OSMesg mesg;
 
-    OoT_osCreateMesgQueue(&sSsSramContext.mesgQ, &mesg, 1);
+    osCreateMesgQueue(&sSsSramContext.mesgQ, &mesg, 1);
     sSsSramContext.ioMesg.dramAddr = dramAddr;
     sSsSramContext.ioMesg.size = size;
     osWritebackDCache(dramAddr, size);
-    OoT_osEPiStartDma(&sSsSramContext.piHandle, &sSsSramContext.ioMesg, direction);
-    OoT_osRecvMesg(&sSsSramContext.mesgQ, &mesg, OS_MESG_BLOCK);
+    osEPiStartDma(&sSsSramContext.piHandle, &sSsSramContext.ioMesg, direction);
+    osRecvMesg(&sSsSramContext.mesgQ, &mesg, OS_MESG_BLOCK);
     osInvalDCache(dramAddr, size);
 }
 #endif

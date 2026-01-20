@@ -92,10 +92,10 @@ void MM_SDL_main(int argc, char** argv /* void* arg*/) {
 
     R_ENABLE_ARENA_DBG = 0;
 
-    MM_osCreateMesgQueue(&sSerialEventQueue, sSerialMsgBuf, ARRAY_COUNT(sSerialMsgBuf));
-    MM_osSetEventMesg(OS_EVENT_SI, &sSerialEventQueue, OS_MESG_PTR(NULL));
+    osCreateMesgQueue(&sSerialEventQueue, sSerialMsgBuf, ARRAY_COUNT(sSerialMsgBuf));
+    osSetEventMesg(OS_EVENT_SI, &sSerialEventQueue, OS_MESG_PTR(NULL));
 
-    MM_osCreateMesgQueue(&sIrqMgrMsgQueue, sIrqMgrMsgBuf, ARRAY_COUNT(sIrqMgrMsgBuf));
+    osCreateMesgQueue(&sIrqMgrMsgQueue, sIrqMgrMsgBuf, ARRAY_COUNT(sIrqMgrMsgBuf));
     MM_PadMgr_Init(&sSerialEventQueue, &MM_gIrqMgr, Z_THREAD_ID_PADMGR, Z_PRIORITY_PADMGR, STACK_TOP(sPadMgrStack));
 
     MM_AudioMgr_Init(&sAudioMgr, STACK_TOP(sAudioStack), Z_PRIORITY_AUDIOMGR, Z_THREAD_ID_AUDIOMGR, &MM_gSchedContext,
@@ -117,7 +117,7 @@ void MM_SDL_main(int argc, char** argv /* void* arg*/) {
     MM_AudioMgr_Unlock(&sAudioMgr);
     MM_StackCheck_Init(&MM_sGraphStackInfo, sGraphStack, STACK_TOP(sGraphStack), 0, 0x100, "graph");
     osCreateThread(&gGraphThread, Z_THREAD_ID_GRAPH, MM_Graph_ThreadEntry, NULL, STACK_TOP(sGraphStack), Z_PRIORITY_GRAPH);
-    MM_osStartThread(&gGraphThread);
+    osStartThread(&gGraphThread);
 #endif
 
     MM_Graph_ThreadEntry(0);
@@ -126,7 +126,7 @@ void MM_SDL_main(int argc, char** argv /* void* arg*/) {
 
     while (!exit) {
         msg = NULL;
-        MM_osRecvMesg(&sIrqMgrMsgQueue, (OSMesg*)&msg, OS_MESG_BLOCK);
+        osRecvMesg(&sIrqMgrMsgQueue, (OSMesg*)&msg, OS_MESG_BLOCK);
         if (msg == NULL) {
             break;
         }
@@ -143,7 +143,7 @@ void MM_SDL_main(int argc, char** argv /* void* arg*/) {
     }
 
     MM_IrqMgr_RemoveClient(&MM_gIrqMgr, &sIrqClient);
-    MM_osDestroyThread(&gGraphThread);
+    osDestroyThread(&gGraphThread);
 
     DeinitOTR();
 

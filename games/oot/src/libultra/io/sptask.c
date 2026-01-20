@@ -2,7 +2,7 @@
 
 #define _osVirtualToPhysical(ptr)              \
     if (ptr != NULL) {                         \
-        ptr = (void*)OoT_osVirtualToPhysical(ptr); \
+        ptr = (void*)osVirtualToPhysical(ptr); \
     }
 
 static OSTask OoT_sTmpTask;
@@ -23,7 +23,7 @@ OSTask* _VirtualToPhysicalTask(OSTask* intp) {
     return tp;
 }
 
-void OoT_osSpTaskLoad(OSTask* intp) {
+void osSpTaskLoad(OSTask* intp) {
     OSTask* tp = _VirtualToPhysicalTask(intp);
 
     if (tp->t.flags & OS_TASK_YIELDED) {
@@ -52,7 +52,7 @@ void OoT_osSpTaskLoad(OSTask* intp) {
     }
 }
 
-void OoT_osSpTaskStartGo(OSTask* tp) {
+void osSpTaskStartGo(OSTask* tp) {
     while (__osSpDeviceBusy()) {
         ;
     }

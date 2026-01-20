@@ -12,8 +12,8 @@ typedef struct __osExceptionVector {
 
 extern __osExceptionVector __osExceptionPreamble;
 
-u64 MM_osClockRate = OS_CLOCK_RATE;
-s32 MM_osViClock = VI_NTSC_CLOCK;
+u64 osClockRate = OS_CLOCK_RATE;
+s32 osViClock = VI_NTSC_CLOCK;
 u32 __osShutdown = 0;
 u32 __OSGlobalIntMask = OS_IM_ALL;
 
@@ -57,18 +57,18 @@ void __osInitialize_common(void) {
     osUnmapTLBAll();
     osMapTLBRdb();
 
-    MM_osClockRate = MM_osClockRate * 3 / 4;
+    osClockRate = osClockRate * 3 / 4;
 
     if (osResetType == COLD_RESET) {
         bzero(osAppNMIBuffer, OS_APP_NMI_BUFSIZE);
     }
 
     if (osTvType == OS_TV_PAL) {
-        MM_osViClock = VI_PAL_CLOCK;
+        osViClock = VI_PAL_CLOCK;
     } else if (osTvType == OS_TV_MPAL) {
-        MM_osViClock = VI_MPAL_CLOCK;
+        osViClock = VI_MPAL_CLOCK;
     } else {
-        MM_osViClock = VI_NTSC_CLOCK;
+        osViClock = VI_NTSC_CLOCK;
     }
 
     if (__osGetCause() & CAUSE_IP5) {

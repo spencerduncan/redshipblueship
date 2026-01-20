@@ -1,6 +1,6 @@
 #include "global.h"
 
-u32 OoT_osSpTaskYielded(OSTask* task) {
+u32 osSpTaskYielded(OSTask* task) {
     u32 ret;
     u32 status = __osSpGetStatus();
 

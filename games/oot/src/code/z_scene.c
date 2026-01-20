@@ -98,13 +98,13 @@ void Object_UpdateBank(ObjectContext* objectCtx) {
         if (status->id < 0) {
             /*
             if (status->dmaRequest.vromAddr == 0) {
-                OoT_osCreateMesgQueue(&status->loadQueue, &status->loadMsg, 1);
+                osCreateMesgQueue(&status->loadQueue, &status->loadMsg, 1);
                 objectFile = &OoT_gObjectTable[-status->id];
                 size = objectFile->vromEnd - objectFile->vromStart;
                 osSyncPrintf("OBJECT EXCHANGE BANK-%2d SIZE %8.3fK SEG=%08x\n", i, size / 1024.0f, status->segment);
                 DmaMgr_SendRequest2(&status->dmaRequest, status->segment, objectFile->vromStart, size, 0,
                                     &status->loadQueue, NULL, __FILE__, __LINE__);
-            } else if (!OoT_osRecvMesg(&status->loadQueue, NULL, OS_MESG_NOBLOCK)) {
+            } else if (!osRecvMesg(&status->loadQueue, NULL, OS_MESG_NOBLOCK)) {
                 status->id = -status->id;
             }
             */

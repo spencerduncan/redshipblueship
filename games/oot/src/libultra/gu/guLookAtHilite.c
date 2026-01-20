@@ -3,10 +3,10 @@
 #define FTOFRAC8(x) ((s32)MIN(((x) * (128.0f)), 127.0f) & 0xff)
 
 /**
- * OoT_guLookAtHiliteF
+ * guLookAtHiliteF
  * This function creates the viewing matrix (floating point) and sets the LookAt/Hilite structures
  **/
-void OoT_guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32 zAt,
+void guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32 zAt,
                      f32 xUp, f32 yUp, f32 zUp, f32 xl1, f32 yl1, f32 zl1, /* light 1 direction */
                      f32 xl2, f32 yl2, f32 zl2,                            /* light 2 direction */
                      s32 hiliteWidth, s32 hiliteHeight)                    /* size of hilite texture */
@@ -145,16 +145,16 @@ void OoT_guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye,
 }
 
 /**
- * OoT_guLookAtHilite
+ * guLookAtHilite
  * This function creates the viewing matrix (fixed point) and sets the LookAt/Hilite structures
  * Same args as previous function
  **/
-void OoT_guLookAtHilite(Mtx* m, LookAt* l, Hilite* h, f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32 zAt, f32 xUp,
+void guLookAtHilite(Mtx* m, LookAt* l, Hilite* h, f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32 zAt, f32 xUp,
                     f32 yUp, f32 zUp, f32 xl1, f32 yl1, f32 zl1, f32 xl2, f32 yl2, f32 zl2, s32 hiliteWidth,
                     s32 hiliteHeight) {
     f32 mf[4][4];
 
-    OoT_guLookAtHiliteF(mf, l, h, xEye, yEye, zEye, xAt, yAt, zAt, xUp, yUp, zUp, xl1, yl1, zl1, xl2, yl2, zl2, hiliteWidth,
+    guLookAtHiliteF(mf, l, h, xEye, yEye, zEye, xAt, yAt, zAt, xUp, yUp, zUp, xl1, yl1, zl1, xl2, yl2, zl2, hiliteWidth,
                     hiliteHeight);
 
     guMtxF2L((MtxF*)mf, m);

@@ -18,9 +18,9 @@ s32 __osContChannelReset(OSMesgQueue* mq, s32 channel) {
     *bufptr = CONT_CMD_END;
 
     __osSiRawStartDma(OS_WRITE, &__osPfsPifRam);
-    MM_osRecvMesg(mq, NULL, OS_MESG_BLOCK);
+    osRecvMesg(mq, NULL, OS_MESG_BLOCK);
     ret = __osSiRawStartDma(OS_READ, &__osPfsPifRam);
-    MM_osRecvMesg(mq, NULL, OS_MESG_BLOCK);
+    osRecvMesg(mq, NULL, OS_MESG_BLOCK);
 
     __osSiRelAccess();
 

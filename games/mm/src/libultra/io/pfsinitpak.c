@@ -3,7 +3,7 @@
 
 s32 __osPfsCheckRamArea(OSPfs* pfs);
 
-s32 MM_osPfsInitPak(OSMesgQueue* queue, OSPfs* pfs, s32 channel) {
+s32 osPfsInitPak(OSMesgQueue* queue, OSPfs* pfs, s32 channel) {
     s32 ret;
     u16 sum;
     u16 isum;
@@ -79,7 +79,7 @@ s32 MM_osPfsInitPak(OSMesgQueue* queue, OSPfs* pfs, s32 channel) {
         return ret;
     }
 
-    ret = MM_osPfsChecker(pfs);
+    ret = osPfsChecker(pfs);
     pfs->status |= PFS_INITIALIZED;
 
     return ret;

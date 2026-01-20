@@ -45,12 +45,12 @@ UCodeInfo D_8012D248[3] = {
 // clang-format on
 
 void OoT_Graph_FaultClient() {
-    void* nextFb = OoT_osViGetNextFramebuffer();
+    void* nextFb = osViGetNextFramebuffer();
     void* newFb = ((uintptr_t)SysCfb_GetFbPtr(0) != (uintptr_t)nextFb) ? SysCfb_GetFbPtr(0) : SysCfb_GetFbPtr(1);
 
-    OoT_osViSwapBuffer(newFb);
+    osViSwapBuffer(newFb);
     OoT_Fault_WaitForInput();
-    OoT_osViSwapBuffer(nextFb);
+    osViSwapBuffer(nextFb);
 }
 
 void Graph_DisassembleUCode(Gfx* workBuf) {
@@ -156,7 +156,7 @@ void OoT_Graph_Init(GraphicsContext* gfxCtx) {
     gfxCtx->viFeatures = OoT_gViConfigFeatures;
     gfxCtx->xScale = OoT_gViConfigXScale;
     gfxCtx->yScale = OoT_gViConfigYScale;
-    OoT_osCreateMesgQueue(&gfxCtx->queue, gfxCtx->msgBuff, ARRAY_COUNT(gfxCtx->msgBuff));
+    osCreateMesgQueue(&gfxCtx->queue, gfxCtx->msgBuff, ARRAY_COUNT(gfxCtx->msgBuff));
     func_800D31F0();
     OoT_Fault_AddClient(&OoT_sGraphFaultClient, OoT_Graph_FaultClient, 0, 0);
 }
@@ -180,10 +180,10 @@ void OoT_Graph_TaskSet00(GraphicsContext* gfxCtx) {
 
     D_8016A528 = osGetTime() - sGraphSetTaskTime - D_8016A558;
 
-    OoT_osSetTimer(&timer, OS_USEC_TO_CYCLES(3000000), 0, &gfxCtx->queue, OS_MESG_32(666));
+    osSetTimer(&timer, OS_USEC_TO_CYCLES(3000000), 0, &gfxCtx->queue, OS_MESG_32(666));
 
-    OoT_osRecvMesg(&gfxCtx->queue, &msg, OS_MESG_BLOCK);
-    OoT_osStopTimer(&timer);
+    osRecvMesg(&gfxCtx->queue, &msg, OS_MESG_BLOCK);
+    osStopTimer(&timer);
 // OTRTODO - Proper GFX crash handler
 #if 0
     if (msg == (OSMesg)666) {
@@ -205,7 +205,7 @@ void OoT_Graph_TaskSet00(GraphicsContext* gfxCtx) {
         OoT_Fault_AddHungupAndCrashImpl("RCP is HUNG UP!!", "Oh! MY GOD!!");
     }
 #endif
-    OoT_osRecvMesg(&gfxCtx->queue, &msg, OS_MESG_NOBLOCK);
+    osRecvMesg(&gfxCtx->queue, &msg, OS_MESG_NOBLOCK);
 
     D_8012D260 = gfxCtx->workBuffer;
     if (gfxCtx->callback != NULL) {

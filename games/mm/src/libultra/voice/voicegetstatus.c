@@ -29,10 +29,10 @@ s32 __osVoiceGetStatus(OSMesgQueue* mq, s32 channel, u8* status) {
 
             __osContLastPoll = CONT_CMD_END;
             errorCode = __osSiRawStartDma(OS_WRITE, &__osContPifRam);
-            MM_osRecvMesg(mq, NULL, OS_MESG_BLOCK);
+            osRecvMesg(mq, NULL, OS_MESG_BLOCK);
         }
         errorCode = __osSiRawStartDma(OS_READ, &__osContPifRam);
-        MM_osRecvMesg(mq, NULL, OS_MESG_BLOCK);
+        osRecvMesg(mq, NULL, OS_MESG_BLOCK);
 
         ptr = (u8*)&__osContPifRam.ramarray + channel;
 
