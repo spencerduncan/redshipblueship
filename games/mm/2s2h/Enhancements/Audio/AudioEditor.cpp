@@ -17,8 +17,8 @@
 #include <random>
 
 extern "C" Vec3f gZeroVec3f;
-extern "C" f32 gSfxDefaultFreqAndVolScale;
-extern "C" s8 gSfxDefaultReverb;
+extern "C" f32 MM_gSfxDefaultFreqAndVolScale;
+extern "C" s8 MM_gSfxDefaultReverb;
 
 using namespace UIWidgets;
 
@@ -173,7 +173,7 @@ void UnlockGroup(const std::map<u16, SequenceInfo>& map, SeqType type) {
     }
 }
 extern "C" void Audio_ForceRestorePreviousBgm(void);
-extern "C" void PreviewSequence(u16 seqId);
+extern "C" void MM_PreviewSequence(u16 seqId);
 void DrawPreviewButton(uint16_t sequenceId, std::string sfxKey, SeqType sequenceType) {
     const std::string cvarKey = AudioCollection::Instance->GetCvarKey(sfxKey);
     const std::string hiddenKey = "##" + cvarKey;
@@ -193,14 +193,14 @@ void DrawPreviewButton(uint16_t sequenceId, std::string sfxKey, SeqType sequence
                 CVarSetInteger(CVAR_AUDIO("Playing"), 0);
             } else {
                 if (sequenceType == SEQ_SFX || sequenceType == SEQ_VOICE) {
-                    AudioSfx_PlaySfx(sequenceId, &gZeroVec3f, 4, &gSfxDefaultFreqAndVolScale,
-                                     &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                    AudioSfx_PlaySfx(sequenceId, &gZeroVec3f, 4, &MM_gSfxDefaultFreqAndVolScale,
+                                     &MM_gSfxDefaultFreqAndVolScale, &MM_gSfxDefaultReverb);
                 } else if (sequenceType == SEQ_INSTRUMENT) {
                     AudioOcarina_SetInstrument(sequenceId - INSTRUMENT_OFFSET);
                     AudioOcarina_SetPlaybackSong(9, 1);
                 } else {
                     // TODO: Cant do both here, so have to click preview button twice
-                    PreviewSequence(sequenceId);
+                    MM_PreviewSequence(sequenceId);
                     CVarSetInteger(CVAR_AUDIO("Playing"), sequenceId);
                 }
             }

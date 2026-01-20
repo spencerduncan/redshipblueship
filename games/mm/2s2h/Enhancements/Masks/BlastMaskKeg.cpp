@@ -14,7 +14,7 @@ EquipSlot func_8082FDC4(void);
 
 void RegisterBlastMaskKeg() {
     COND_ID_HOOK(ShouldActorInit, ACTOR_EN_BOM, CVAR, [](Actor* actor, bool* should) {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         ItemId item;
         EquipSlot i = func_8082FDC4();
 
@@ -23,7 +23,7 @@ void RegisterBlastMaskKeg() {
                 ? EQUIP_SLOT_B
                 : i;
 
-        item = Player_GetItemOnButton(gPlayState, player, i);
+        item = MM_Player_GetItemOnButton(MM_gPlayState, player, i);
         if (item == ITEM_F0) {
             actor->shape.rot.x = BOMB_EXPLOSIVE_TYPE_POWDER_KEG;
         }

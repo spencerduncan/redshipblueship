@@ -40,7 +40,7 @@ extern "C" s32 Object_Spawn(ObjectContext* objectCtx, s16 objectId);
 extern "C" RomFile sNaviMsgFiles[];
 s32 OTRScene_ExecuteCommands(PlayState* play, SOH::Scene* scene);
 
-bool Scene_CommandSpawnList(PlayState* play, SOH::ISceneCommand* cmd) {
+bool OoT_Scene_CommandSpawnList(PlayState* play, SOH::ISceneCommand* cmd) {
     // SOH::SetStartPositionList* cmdStartPos = std::static_pointer_cast<SOH::SetStartPositionList>(cmd);
     SOH::SetStartPositionList* cmdStartPos = (SOH::SetStartPositionList*)cmd;
     ActorEntry* entries = (ActorEntry*)cmdStartPos->GetRawPointer();
@@ -54,7 +54,7 @@ bool Scene_CommandSpawnList(PlayState* play, SOH::ISceneCommand* cmd) {
     return false;
 }
 
-bool Scene_CommandActorList(PlayState* play, SOH::ISceneCommand* cmd) {
+bool OoT_Scene_CommandActorList(PlayState* play, SOH::ISceneCommand* cmd) {
     // SOH::SetActorList* cmdActor = std::static_pointer_cast<SOH::SetActorList>(cmd);
     SOH::SetActorList* cmdActor = (SOH::SetActorList*)cmd;
 
@@ -71,15 +71,15 @@ bool Scene_CommandUnused2(PlayState* play, SOH::ISceneCommand* cmd) {
     return false;
 }
 
-bool Scene_CommandCollisionHeader(PlayState* play, SOH::ISceneCommand* cmd) {
+bool OoT_Scene_CommandCollisionHeader(PlayState* play, SOH::ISceneCommand* cmd) {
     // SOH::SetCollisionHeader* cmdCol = std::static_pointer_cast<SOH::SetCollisionHeader>(cmd);
     SOH::SetCollisionHeader* cmdCol = (SOH::SetCollisionHeader*)cmd;
-    BgCheck_Allocate(&play->colCtx, play, (CollisionHeader*)cmdCol->GetRawPointer());
+    OoT_BgCheck_Allocate(&play->colCtx, play, (CollisionHeader*)cmdCol->GetRawPointer());
 
     return false;
 }
 
-bool Scene_CommandRoomList(PlayState* play, SOH::ISceneCommand* cmd) {
+bool OoT_Scene_CommandRoomList(PlayState* play, SOH::ISceneCommand* cmd) {
     // SOH::SetRoomList* cmdRoomList = std::static_pointer_cast<SOH::SetRoomList>(cmd);
     SOH::SetRoomList* cmdRoomList = (SOH::SetRoomList*)cmd;
 
@@ -89,7 +89,7 @@ bool Scene_CommandRoomList(PlayState* play, SOH::ISceneCommand* cmd) {
     return false;
 }
 
-bool Scene_CommandEntranceList(PlayState* play, SOH::ISceneCommand* cmd) {
+bool OoT_Scene_CommandEntranceList(PlayState* play, SOH::ISceneCommand* cmd) {
     // SOH::SetEntranceList* otrEntrance = std::static_pointer_cast<SOH::SetEntranceList>(cmd);
     SOH::SetEntranceList* otrEntrance = (SOH::SetEntranceList*)cmd;
     play->setupEntranceList = (EntranceEntry*)otrEntrance->GetRawPointer();
@@ -97,7 +97,7 @@ bool Scene_CommandEntranceList(PlayState* play, SOH::ISceneCommand* cmd) {
     return false;
 }
 
-bool Scene_CommandSpecialFiles(PlayState* play, SOH::ISceneCommand* cmd) {
+bool OoT_Scene_CommandSpecialFiles(PlayState* play, SOH::ISceneCommand* cmd) {
     // SOH::SetSpecialObjects* specialCmd = std::static_pointer_cast<SOH::SetSpecialObjects>(cmd);
     SOH::SetSpecialObjects* specialCmd = (SOH::SetSpecialObjects*)cmd;
 
@@ -114,7 +114,7 @@ bool Scene_CommandSpecialFiles(PlayState* play, SOH::ISceneCommand* cmd) {
     return false;
 }
 
-bool Scene_CommandRoomBehavior(PlayState* play, SOH::ISceneCommand* cmd) {
+bool OoT_Scene_CommandRoomBehavior(PlayState* play, SOH::ISceneCommand* cmd) {
     // SOH::SetRoomBehavior* cmdRoom = std::static_pointer_cast<SOH::SetRoomBehavior>(cmd);
     SOH::SetRoomBehavior* cmdRoom = (SOH::SetRoomBehavior*)cmd;
 
@@ -143,7 +143,7 @@ bool OTRfunc_800982FC(ObjectContext* objectCtx, s32 bankIndex, s16 objectId) {
     return false;
 }
 
-bool Scene_CommandObjectList(PlayState* play, SOH::ISceneCommand* cmd) {
+bool OoT_Scene_CommandObjectList(PlayState* play, SOH::ISceneCommand* cmd) {
     // SOH::SetObjectList* cmdObj = static_pointer_cast<SOH::SetObjectList>(cmd);
     SOH::SetObjectList* cmdObj = (SOH::SetObjectList*)cmd;
 
@@ -182,18 +182,18 @@ bool Scene_CommandObjectList(PlayState* play, SOH::ISceneCommand* cmd) {
     return false;
 }
 
-bool Scene_CommandLightList(PlayState* play, SOH::ISceneCommand* cmd) {
+bool OoT_Scene_CommandLightList(PlayState* play, SOH::ISceneCommand* cmd) {
     // SOH::SetLightList* cmdLight = static_pointer_cast<SOH::SetLightList>(cmd);
     SOH::SetLightList* cmdLight = (SOH::SetLightList*)cmd;
 
     for (size_t i = 0; i < cmdLight->lightList.size(); i++) {
-        LightContext_InsertLight(play, &play->lightCtx, (LightInfo*)&cmdLight->lightList[i]);
+        OoT_LightContext_InsertLight(play, &play->lightCtx, (LightInfo*)&cmdLight->lightList[i]);
     }
 
     return false;
 }
 
-bool Scene_CommandPathList(PlayState* play, SOH::ISceneCommand* cmd) {
+bool OoT_Scene_CommandPathList(PlayState* play, SOH::ISceneCommand* cmd) {
     // SOH::SetPathways* cmdPath = static_pointer_cast<SOH::SetPathways>(cmd);
     SOH::SetPathways* cmdPath = (SOH::SetPathways*)cmd;
     play->setupPathList = (Path*)(cmdPath->GetPointer()[0]);
@@ -201,7 +201,7 @@ bool Scene_CommandPathList(PlayState* play, SOH::ISceneCommand* cmd) {
     return false;
 }
 
-bool Scene_CommandTransitionActorList(PlayState* play, SOH::ISceneCommand* cmd) {
+bool OoT_Scene_CommandTransitionActorList(PlayState* play, SOH::ISceneCommand* cmd) {
     // SOH::SetTransitionActorList* cmdActor = static_pointer_cast<SOH::SetTransitionActorList>(cmd);
     SOH::SetTransitionActorList* cmdActor = (SOH::SetTransitionActorList*)cmd;
 
@@ -222,7 +222,7 @@ bool Scene_CommandLightSettingsList(PlayState* play, SOH::ISceneCommand* cmd) {
 }
 
 // Scene Command 0x11: Skybox Settings
-bool Scene_CommandSkyboxSettings(PlayState* play, SOH::ISceneCommand* cmd) {
+bool OoT_Scene_CommandSkyboxSettings(PlayState* play, SOH::ISceneCommand* cmd) {
     // SOH::SetSkyboxSettings* cmdSky = static_pointer_cast<SOH::SetSkyboxSettings>(cmd);
     SOH::SetSkyboxSettings* cmdSky = (SOH::SetSkyboxSettings*)cmd;
 
@@ -233,7 +233,7 @@ bool Scene_CommandSkyboxSettings(PlayState* play, SOH::ISceneCommand* cmd) {
     return false;
 }
 
-bool Scene_CommandSkyboxDisables(PlayState* play, SOH::ISceneCommand* cmd) {
+bool OoT_Scene_CommandSkyboxDisables(PlayState* play, SOH::ISceneCommand* cmd) {
     // SOH::SetSkyboxModifier* cmdSky = static_pointer_cast<SOH::SetSkyboxModifier>(cmd);
     SOH::SetSkyboxModifier* cmdSky = (SOH::SetSkyboxModifier*)cmd;
 
@@ -243,7 +243,7 @@ bool Scene_CommandSkyboxDisables(PlayState* play, SOH::ISceneCommand* cmd) {
     return false;
 }
 
-bool Scene_CommandTimeSettings(PlayState* play, SOH::ISceneCommand* cmd) {
+bool OoT_Scene_CommandTimeSettings(PlayState* play, SOH::ISceneCommand* cmd) {
     // SOH::SetTimeSettings* cmdTime = static_pointer_cast<SOH::SetTimeSettings>(cmd);
     SOH::SetTimeSettings* cmdTime = (SOH::SetTimeSettings*)cmd;
 
@@ -262,9 +262,9 @@ bool Scene_CommandTimeSettings(PlayState* play, SOH::ISceneCommand* cmd) {
         gTimeIncrement = play->envCtx.timeIncrement;
     }
 
-    play->envCtx.sunPos.x = -(Math_SinS(((void)0, gSaveContext.dayTime) - 0x8000) * 120.0f) * 25.0f;
-    play->envCtx.sunPos.y = (Math_CosS(((void)0, gSaveContext.dayTime) - 0x8000) * 120.0f) * 25.0f;
-    play->envCtx.sunPos.z = (Math_CosS(((void)0, gSaveContext.dayTime) - 0x8000) * 20.0f) * 25.0f;
+    play->envCtx.sunPos.x = -(OoT_Math_SinS(((void)0, gSaveContext.dayTime) - 0x8000) * 120.0f) * 25.0f;
+    play->envCtx.sunPos.y = (OoT_Math_CosS(((void)0, gSaveContext.dayTime) - 0x8000) * 120.0f) * 25.0f;
+    play->envCtx.sunPos.z = (OoT_Math_CosS(((void)0, gSaveContext.dayTime) - 0x8000) * 20.0f) * 25.0f;
 
     if (((play->envCtx.timeIncrement == 0) && (gSaveContext.cutsceneIndex < 0xFFF0)) ||
         (gSaveContext.entranceIndex == ENTR_LAKE_HYLIA_WARP_PAD)) {
@@ -283,7 +283,7 @@ bool Scene_CommandTimeSettings(PlayState* play, SOH::ISceneCommand* cmd) {
     return false;
 }
 
-bool Scene_CommandWindSettings(PlayState* play, SOH::ISceneCommand* cmd) {
+bool OoT_Scene_CommandWindSettings(PlayState* play, SOH::ISceneCommand* cmd) {
     // SOH::SetWind* cmdWind = std::static_pointer_cast<SOH::SetWind>(cmd);
     SOH::SetWindSettings* cmdWind = (SOH::SetWindSettings*)cmd;
 
@@ -296,7 +296,7 @@ bool Scene_CommandWindSettings(PlayState* play, SOH::ISceneCommand* cmd) {
     return false;
 }
 
-bool Scene_CommandExitList(PlayState* play, SOH::ISceneCommand* cmd) {
+bool OoT_Scene_CommandExitList(PlayState* play, SOH::ISceneCommand* cmd) {
     play->setupExitList = (s16*)cmd->GetRawPointer();
 
     return false;
@@ -306,7 +306,7 @@ bool Scene_CommandUndefined9(PlayState* play, SOH::ISceneCommand* cmd) {
     return false;
 }
 
-bool Scene_CommandSoundSettings(PlayState* play, SOH::ISceneCommand* cmd) {
+bool OoT_Scene_CommandSoundSettings(PlayState* play, SOH::ISceneCommand* cmd) {
     // SOH::SetSoundSettings* cmdSnd = static_pointer_cast<SOH::SetSoundSettings>(cmd);
     SOH::SetSoundSettings* cmdSnd = (SOH::SetSoundSettings*)cmd;
 
@@ -395,7 +395,7 @@ bool Scene_CommandMiscSettings(PlayState* play, SOH::ISceneCommand* cmd) {
     if (((play->sceneNum >= SCENE_HYRULE_FIELD) && (play->sceneNum <= SCENE_OUTSIDE_GANONS_CASTLE)) ||
         ((play->sceneNum >= SCENE_MARKET_ENTRANCE_DAY) && (play->sceneNum <= SCENE_TEMPLE_OF_TIME_EXTERIOR_RUINS))) {
         if (gSaveContext.cutsceneIndex < 0xFFF0) {
-            gSaveContext.worldMapAreaData |= gBitFlags[gSaveContext.worldMapArea];
+            gSaveContext.worldMapAreaData |= OoT_gBitFlags[gSaveContext.worldMapArea];
             osSyncPrintf("０００  ａｒｅａ＿ａｒｒｉｖａｌ＝%x (%d)\n", gSaveContext.worldMapAreaData,
                          gSaveContext.worldMapArea);
         }
@@ -404,28 +404,28 @@ bool Scene_CommandMiscSettings(PlayState* play, SOH::ISceneCommand* cmd) {
 }
 
 bool (*sceneCommands[])(PlayState*, SOH::ISceneCommand*) = {
-    Scene_CommandSpawnList,           // SCENE_CMD_ID_SPAWN_LIST
-    Scene_CommandActorList,           // SCENE_CMD_ID_ACTOR_LIST
+    OoT_Scene_CommandSpawnList,           // SCENE_CMD_ID_SPAWN_LIST
+    OoT_Scene_CommandActorList,           // SCENE_CMD_ID_ACTOR_LIST
     Scene_CommandUnused2,             // SCENE_CMD_ID_UNUSED_2
-    Scene_CommandCollisionHeader,     // SCENE_CMD_ID_COLLISION_HEADER
-    Scene_CommandRoomList,            // SCENE_CMD_ID_ROOM_LIST
-    Scene_CommandWindSettings,        // SCENE_CMD_ID_WIND_SETTINGS
-    Scene_CommandEntranceList,        // SCENE_CMD_ID_ENTRANCE_LIST
-    Scene_CommandSpecialFiles,        // SCENE_CMD_ID_SPECIAL_FILES
-    Scene_CommandRoomBehavior,        // SCENE_CMD_ID_ROOM_BEHAVIOR
+    OoT_Scene_CommandCollisionHeader,     // SCENE_CMD_ID_COLLISION_HEADER
+    OoT_Scene_CommandRoomList,            // SCENE_CMD_ID_ROOM_LIST
+    OoT_Scene_CommandWindSettings,        // SCENE_CMD_ID_WIND_SETTINGS
+    OoT_Scene_CommandEntranceList,        // SCENE_CMD_ID_ENTRANCE_LIST
+    OoT_Scene_CommandSpecialFiles,        // SCENE_CMD_ID_SPECIAL_FILES
+    OoT_Scene_CommandRoomBehavior,        // SCENE_CMD_ID_ROOM_BEHAVIOR
     Scene_CommandUndefined9,          // SCENE_CMD_ID_UNDEFINED_9
     Scene_CommandMeshHeader,          // SCENE_CMD_ID_MESH_HEADER
-    Scene_CommandObjectList,          // SCENE_CMD_ID_OBJECT_LIST
-    Scene_CommandLightList,           // SCENE_CMD_ID_LIGHT_LIST
-    Scene_CommandPathList,            // SCENE_CMD_ID_PATH_LIST
-    Scene_CommandTransitionActorList, // SCENE_CMD_ID_TRANSITION_ACTOR_LIST
+    OoT_Scene_CommandObjectList,          // SCENE_CMD_ID_OBJECT_LIST
+    OoT_Scene_CommandLightList,           // SCENE_CMD_ID_LIGHT_LIST
+    OoT_Scene_CommandPathList,            // SCENE_CMD_ID_PATH_LIST
+    OoT_Scene_CommandTransitionActorList, // SCENE_CMD_ID_TRANSITION_ACTOR_LIST
     Scene_CommandLightSettingsList,   // SCENE_CMD_ID_LIGHT_SETTINGS_LIST
-    Scene_CommandTimeSettings,        // SCENE_CMD_ID_TIME_SETTINGS
-    Scene_CommandSkyboxSettings,      // SCENE_CMD_ID_SKYBOX_SETTINGS
-    Scene_CommandSkyboxDisables,      // SCENE_CMD_ID_SKYBOX_DISABLES
-    Scene_CommandExitList,            // SCENE_CMD_ID_EXIT_LIST
+    OoT_Scene_CommandTimeSettings,        // SCENE_CMD_ID_TIME_SETTINGS
+    OoT_Scene_CommandSkyboxSettings,      // SCENE_CMD_ID_SKYBOX_SETTINGS
+    OoT_Scene_CommandSkyboxDisables,      // SCENE_CMD_ID_SKYBOX_DISABLES
+    OoT_Scene_CommandExitList,            // SCENE_CMD_ID_EXIT_LIST
     NULL,                             // SCENE_CMD_ID_END
-    Scene_CommandSoundSettings,       // SCENE_CMD_ID_SOUND_SETTINGS
+    OoT_Scene_CommandSoundSettings,       // SCENE_CMD_ID_SOUND_SETTINGS
     Scene_CommandEchoSettings,        // SCENE_CMD_ID_ECHO_SETTINGS
     Scene_CommandCutsceneData,        // SCENE_CMD_ID_CUTSCENE_DATA
     Scene_CommandAlternateHeaderList, // SCENE_CMD_ID_ALTERNATE_HEADER_LIST
@@ -465,16 +465,16 @@ s32 OTRScene_ExecuteCommands(PlayState* play, SOH::Scene* scene) {
 
 extern "C" s32 OTRfunc_800973FC(PlayState* play, RoomContext* roomCtx) {
     if (roomCtx->status == 1) {
-        // if (!osRecvMesg(&roomCtx->loadQueue, NULL, OS_MESG_NOBLOCK)) {
+        // if (!OoT_osRecvMesg(&roomCtx->loadQueue, NULL, OS_MESG_NOBLOCK)) {
         if (1) {
             roomCtx->status = 0;
             roomCtx->curRoom.segment = roomCtx->unk_34;
-            gSegments[3] = VIRTUAL_TO_PHYSICAL(roomCtx->unk_34);
+            OoT_gSegments[3] = VIRTUAL_TO_PHYSICAL(roomCtx->unk_34);
 
             OTRScene_ExecuteCommands(play, (SOH::Scene*)roomCtx->roomToLoad);
 
             Player_SetBootData(play, GET_PLAYER(play));
-            Actor_SpawnTransitionActors(play, &play->actorCtx);
+            OoT_Actor_SpawnTransitionActors(play, &play->actorCtx);
 
             GameInteractor_ExecuteAfterSceneCommands(play->sceneNum);
 
@@ -505,7 +505,7 @@ extern "C" s32 OTRfunc_8009728C(PlayState* play, RoomContext* roomCtx, s32 roomN
         roomCtx->unk_34 =
             (void*)ALIGN16((uintptr_t)roomCtx->bufPtrs[roomCtx->unk_30] - ((size + 8) * roomCtx->unk_30 + 7));
 
-        osCreateMesgQueue(&roomCtx->loadQueue, &roomCtx->loadMsg, 1);
+        OoT_osCreateMesgQueue(&roomCtx->loadQueue, &roomCtx->loadMsg, 1);
         // DmaMgr_SendRequest2(&roomCtx->dmaRequest, roomCtx->unk_34, play->roomList[roomNum].vromStart, size, 0,
         //&roomCtx->loadQueue, NULL, __FILE__, __LINE__);
 

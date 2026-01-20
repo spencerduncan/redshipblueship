@@ -12,7 +12,7 @@ extern "C" {
 #include "src/overlays/actors/ovl_En_Fish/z_en_fish.h"
 
 extern SaveContext gSaveContext;
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 /**
@@ -359,13 +359,13 @@ void Fishsanity::OnActorInitHandler(void* refActor) {
 
     if (actor->id == ACTOR_EN_FISH && fs->GetOverworldFishShuffled()) {
         // Set fish ID for ZD fish
-        if (gPlayState->sceneNum == SCENE_ZORAS_DOMAIN && actor->params == -1) {
+        if (OoT_gPlayState->sceneNum == SCENE_ZORAS_DOMAIN && actor->params == -1) {
             actor->params ^= fishGroupCounter++;
-        } else if (gPlayState->sceneNum == SCENE_GROTTOS && actor->params == 1) {
+        } else if (OoT_gPlayState->sceneNum == SCENE_GROTTOS && actor->params == 1) {
             actor->params = 0x100 | gSaveContext.respawn[RESPAWN_MODE_RETURN].data;
         }
 
-        fish = OTRGlobals::Instance->gRandomizer->IdentifyFish(gPlayState->sceneNum, actor->params);
+        fish = OTRGlobals::Instance->gRandomizer->IdentifyFish(OoT_gPlayState->sceneNum, actor->params);
         // Render fish as randomized item
         if (Rando::Fishsanity::IsFish(&fish) && !Flags_GetRandomizerInf(fish.randomizerInf)) {
             if (!drawEnFish) {
@@ -376,13 +376,13 @@ void Fishsanity::OnActorInitHandler(void* refActor) {
         return;
     }
 
-    if (actor->id == ACTOR_FISHING && gPlayState->sceneNum == SCENE_FISHING_POND && actor->params >= 100 &&
+    if (actor->id == ACTOR_FISHING && OoT_gPlayState->sceneNum == SCENE_FISHING_POND && actor->params >= 100 &&
         actor->params <= 117 && fs->GetPondFishShuffled()) {
         // Initialize pond fish for fishsanity
         // Initialize fishsanity metadata on this actor
         Fishing* fishActor = static_cast<Fishing*>(refActor);
         // fishActor->fishsanityParams = actor->params;
-        fish = OTRGlobals::Instance->gRandomizer->IdentifyFish(gPlayState->sceneNum, actor->params);
+        fish = OTRGlobals::Instance->gRandomizer->IdentifyFish(OoT_gPlayState->sceneNum, actor->params);
 
         // With every pond fish shuffled, caught fish will not spawn unless all fish have been caught.
         if (RAND_GET_OPTION(RSK_FISHSANITY_POND_COUNT) > 16 && !fs->GetPondCleared()) {
@@ -399,8 +399,8 @@ void Fishsanity::OnActorInitHandler(void* refActor) {
 }
 
 void Fishsanity::OnActorUpdateHandler(void* refActor) {
-    if (gPlayState->sceneNum != SCENE_GROTTOS && gPlayState->sceneNum != SCENE_ZORAS_DOMAIN &&
-        gPlayState->sceneNum != SCENE_FISHING_POND) {
+    if (OoT_gPlayState->sceneNum != SCENE_GROTTOS && OoT_gPlayState->sceneNum != SCENE_ZORAS_DOMAIN &&
+        OoT_gPlayState->sceneNum != SCENE_FISHING_POND) {
         return;
     }
 
@@ -414,7 +414,7 @@ void Fishsanity::OnActorUpdateHandler(void* refActor) {
         // State 6 -> Fish caught and hoisted
         if (fish->fishState == 6) {
             CheckIdentity identity =
-                OTRGlobals::Instance->gRandomizer->IdentifyFish(gPlayState->sceneNum, actor->params);
+                OTRGlobals::Instance->gRandomizer->IdentifyFish(OoT_gPlayState->sceneNum, actor->params);
             if (identity.randomizerCheck != RC_UNKNOWN_CHECK) {
                 Flags_SetRandomizerInf(identity.randomizerInf);
                 enableAdvance = true;
@@ -428,7 +428,7 @@ void Fishsanity::OnActorUpdateHandler(void* refActor) {
     }
 
     if (actor->id == ACTOR_EN_FISH && fs->GetOverworldFishShuffled()) {
-        CheckIdentity fish = OTRGlobals::Instance->gRandomizer->IdentifyFish(gPlayState->sceneNum, actor->params);
+        CheckIdentity fish = OTRGlobals::Instance->gRandomizer->IdentifyFish(OoT_gPlayState->sceneNum, actor->params);
         EnFish* fishActor = static_cast<EnFish*>(refActor);
         if (Rando::Fishsanity::IsFish(&fish) && Flags_GetRandomizerInf(fish.randomizerInf)) {
             // Reset draw method
@@ -438,12 +438,12 @@ void Fishsanity::OnActorUpdateHandler(void* refActor) {
         }
 
         if (((actor->params >> 8) > 0) && fishActor->respawnTimer > 0) {
-            Actor_Kill(actor);
+            OoT_Actor_Kill(actor);
         }
     }
 
     // Reset fish group counter when the group gets culled
-    if (actor->id == ACTOR_OBJ_MURE && gPlayState->sceneNum == SCENE_ZORAS_DOMAIN && fishGroupCounter > 0 &&
+    if (actor->id == ACTOR_OBJ_MURE && OoT_gPlayState->sceneNum == SCENE_ZORAS_DOMAIN && fishGroupCounter > 0 &&
         !(actor->flags & ACTOR_FLAG_UPDATE_CULLING_DISABLED) && fs->GetOverworldFishShuffled()) {
         fishGroupCounter = 0;
     }
@@ -483,24 +483,24 @@ void Fishsanity_DrawEffShadow(Actor* actor, Lights* lights, PlayState* play) {
         { 128, 85, 82, 200 }, { 128, 101, 82, 200 }, { 128, 93, 82, 200 }, { 128, 82, 98, 200 }, { 128, 108, 82, 200 }
     };
 
-    Color_RGBA8_Copy(&primColor, mainColors[ABS(actor->params) % 5]);
-    Color_RGBA8_Copy(&envColor, flareColors[ABS(actor->params) % 5]);
+    OoT_Color_RGBA8_Copy(&primColor, mainColors[ABS(actor->params) % 5]);
+    OoT_Color_RGBA8_Copy(&envColor, flareColors[ABS(actor->params) % 5]);
 
     // Spawn sparkles
-    pos.x = Rand_CenteredFloat(23.0f) + actor->world.pos.x;
-    pos.y = (Rand_Centered() * 12.0f) + actor->world.pos.y;
-    pos.z = Rand_CenteredFloat(23.0f) + actor->world.pos.z;
+    pos.x = OoT_Rand_CenteredFloat(23.0f) + actor->world.pos.x;
+    pos.y = (OoT_Rand_Centered() * 12.0f) + actor->world.pos.y;
+    pos.z = OoT_Rand_CenteredFloat(23.0f) + actor->world.pos.z;
     velocity.y = 0.05f;
     accel.y = 0.025f;
-    Math_Vec3f_Copy(&ripplePos, &pos);
+    OoT_Math_Vec3f_Copy(&ripplePos, &pos);
     ripplePos.y += actor->yDistToWater;
 
-    if (Rand_ZeroOne() < 0.3f) {
+    if (OoT_Rand_ZeroOne() < 0.3f) {
         EffectSsKiraKira_SpawnDispersed(play, &pos, &velocity, &accel, &primColor, &envColor, 1800, 10);
     }
 
-    if (actor->bgCheckFlags & 0x20 && Rand_ZeroOne() < 0.15f) {
-        EffectSsGRipple_Spawn(play, &ripplePos, 100, 200, 2);
+    if (actor->bgCheckFlags & 0x20 && OoT_Rand_ZeroOne() < 0.15f) {
+        OoT_EffectSsGRipple_Spawn(play, &ripplePos, 100, 200, 2);
     }
 }
 
@@ -511,15 +511,15 @@ void Fishsanity_DrawEnFish(struct Actor* actor, struct PlayState* play) {
         randoItem = GET_ITEM_MYSTERY;
     }
 
-    Matrix_Push();
-    Matrix_Scale(30.0, 30.0, 30.0, MTXMODE_APPLY);
+    OoT_Matrix_Push();
+    OoT_Matrix_Scale(30.0, 30.0, 30.0, MTXMODE_APPLY);
 
     func_8002EBCC(actor, play, 0);
     func_8002ED80(actor, play, 0);
     EnItem00_CustomItemsParticles(actor, play, randoItem);
     GetItemEntry_Draw(play, randoItem);
 
-    Matrix_Pop();
+    OoT_Matrix_Pop();
 }
 
 void Fishsanity_DrawFishing(struct Actor* actor, struct PlayState* play) {
@@ -532,7 +532,7 @@ void Fishsanity_OpenGreyscaleColor(PlayState* play, Color_RGB8* color, int16_t f
     OPEN_DISPS(play->state.gfxCtx);
     gDPSetGrayscaleColor(POLY_OPA_DISP++, color->r, color->g, color->b,
                          // Make color pulse, offset a bit by the actor params
-                         ABS(255.0f * Math_CosS((play->gameplayFrames + frameOffset) * 1000)));
+                         ABS(255.0f * OoT_Math_CosS((play->gameplayFrames + frameOffset) * 1000)));
     gSPGrayscale(POLY_OPA_DISP++, true);
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -565,10 +565,10 @@ void RegisterShuffleFish() {
         Actor* actor = va_arg(args, Actor*);
         auto fs = OTRGlobals::Instance->gRandoContext->GetFishsanity();
         if (actor->id == ACTOR_EN_FISH && fs->GetOverworldFishShuffled()) {
-            auto fish = OTRGlobals::Instance->gRandomizer->IdentifyFish(gPlayState->sceneNum, actor->params);
+            auto fish = OTRGlobals::Instance->gRandomizer->IdentifyFish(OoT_gPlayState->sceneNum, actor->params);
             if (fish.randomizerCheck != RC_UNKNOWN_CHECK && !Flags_GetRandomizerInf(fish.randomizerInf)) {
                 Flags_SetRandomizerInf(fish.randomizerInf);
-                actor->parent = &GET_PLAYER(gPlayState)->actor;
+                actor->parent = &GET_PLAYER(OoT_gPlayState)->actor;
                 *should = false;
             }
         }

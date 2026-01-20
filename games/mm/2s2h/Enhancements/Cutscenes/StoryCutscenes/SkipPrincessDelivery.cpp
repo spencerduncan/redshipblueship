@@ -14,8 +14,8 @@ extern "C" {
 void RegisterSkipPrincessDelivery() {
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
         s16* csId = va_arg(args, s16*);
-        if (gPlayState->sceneId == SCENE_DEKU_KING && *csId == 16 &&
-            gPlayState->transitionTrigger == TRANS_TRIGGER_OFF) {
+        if (MM_gPlayState->sceneId == SCENE_DEKU_KING && *csId == 16 &&
+            MM_gPlayState->transitionTrigger == TRANS_TRIGGER_OFF) {
             // Set the flag that would normally be set after the dialogue
             SET_WEEKEVENTREG(WEEKEVENTREG_23_20);
 

@@ -12,7 +12,7 @@ extern "C" {
 #include "variables.h"
 #include "functions.h"
 #include "macros.h"
-extern PlayState* gPlayState;
+extern PlayState* MM_gPlayState;
 }
 
 extern "C" WallType SurfaceType_GetWallType(CollisionContext* colCtx, CollisionPoly* poly, s32 bgId);
@@ -111,7 +111,7 @@ void CalcTriNorm(const Vec3f& v1, const Vec3f& v2, const Vec3f& v3, Vec3f& norm)
     norm.x = (v2.y - v1.y) * (v3.z - v1.z) - (v2.z - v1.z) * (v3.y - v1.y);
     norm.y = (v2.z - v1.z) * (v3.x - v1.x) - (v2.x - v1.x) * (v3.z - v1.z);
     norm.z = (v2.x - v1.x) * (v3.y - v1.y) - (v2.y - v1.y) * (v3.x - v1.x);
-    float norm_d = sqrtf(norm.x * norm.x + norm.y * norm.y + norm.z * norm.z);
+    float norm_d = MM_sqrtf(norm.x * norm.x + norm.y * norm.y + norm.z * norm.z);
     if (norm_d != 0.f) {
         norm.x *= 127.f / norm_d;
         norm.y *= 127.f / norm_d;
@@ -205,7 +205,7 @@ void CreateSphereFace(std::vector<std::tuple<size_t, size_t, size_t>>& faces, in
     // Normalize vertex positions so they are on the sphere
     for (int32_t vAddIndex = 0; vAddIndex < 3; vAddIndex++) {
         Vec3f& v = vs[vAddIndex];
-        float mag = sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
+        float mag = MM_sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
         v.x /= mag;
         v.y /= mag;
         v.z /= mag;
@@ -221,7 +221,7 @@ void CreateSphereFace(std::vector<std::tuple<size_t, size_t, size_t>>& faces, in
 void CreateSphereData() {
     std::vector<Vec3f> base;
 
-    float d = (1.0f + sqrtf(5.0f)) / 2.0f;
+    float d = (1.0f + MM_sqrtf(5.0f)) / 2.0f;
 
     // Create the 12 starting verticies, 4 on each rectangle
     base.emplace_back(Vec3f({ -1, d, 0 }));
@@ -241,7 +241,7 @@ void CreateSphereData() {
 
     // Normalize verticies so they are on the unit sphere
     for (Vec3f& v : base) {
-        float mag = sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
+        float mag = MM_sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
         v.x /= mag;
         v.y /= mag;
         v.z /= mag;
@@ -363,29 +363,29 @@ void DrawDynapoly(std::vector<Gfx>& dl, CollisionHeader* col, int32_t bgId) {
     for (int i = 0; i < col->numPolygons; i++) {
         CollisionPoly* poly = &col->polyList[i];
 
-        if (SurfaceType_IsHookshotSurface(&gPlayState->colCtx, poly, bgId)) {
+        if (MM_SurfaceType_IsHookshotSurface(&MM_gPlayState->colCtx, poly, bgId)) {
             colorR = hookshotCollisionColor.r;
             colorG = hookshotCollisionColor.g;
             colorB = hookshotCollisionColor.b;
-        } else if (SurfaceType_GetWallType(&gPlayState->colCtx, poly, bgId) > 0x01) {
+        } else if (SurfaceType_GetWallType(&MM_gPlayState->colCtx, poly, bgId) > 0x01) {
             colorR = interactableColor.r;
             colorG = interactableColor.g;
             colorB = interactableColor.b;
-        } else if (SurfaceType_GetFloorProperty(&gPlayState->colCtx, poly, bgId) == 0x0C) {
+        } else if (SurfaceType_GetFloorProperty(&MM_gPlayState->colCtx, poly, bgId) == 0x0C) {
             colorR = voidCollisionColor.r;
             colorG = voidCollisionColor.g;
             colorB = voidCollisionColor.b;
-        } else if (SurfaceType_GetSceneExitIndex(&gPlayState->colCtx, poly, bgId) ||
-                   SurfaceType_GetFloorProperty(&gPlayState->colCtx, poly, bgId) == 0x05) {
+        } else if (MM_SurfaceType_GetSceneExitIndex(&MM_gPlayState->colCtx, poly, bgId) ||
+                   SurfaceType_GetFloorProperty(&MM_gPlayState->colCtx, poly, bgId) == 0x05) {
             colorR = entranceCollisionColor.r;
             colorG = entranceCollisionColor.g;
             colorB = entranceCollisionColor.b;
-        } else if (SurfaceType_GetFloorType(&gPlayState->colCtx, poly, bgId) != 0 ||
-                   SurfaceType_IsWallDamage(&gPlayState->colCtx, poly, bgId)) {
+        } else if (SurfaceType_GetFloorType(&MM_gPlayState->colCtx, poly, bgId) != 0 ||
+                   MM_SurfaceType_IsWallDamage(&MM_gPlayState->colCtx, poly, bgId)) {
             colorR = specialSurfaceColor.r;
             colorG = specialSurfaceColor.g;
             colorB = specialSurfaceColor.b;
-        } else if (SurfaceType_GetFloorEffect(&gPlayState->colCtx, poly, bgId) == 0x01) {
+        } else if (SurfaceType_GetFloorEffect(&MM_gPlayState->colCtx, poly, bgId) == 0x01) {
             colorR = slopeCollisionColor.r;
             colorG = slopeCollisionColor.g;
             colorB = slopeCollisionColor.b;
@@ -451,7 +451,7 @@ void DrawSceneCollision() {
     InitGfx(dl, showSceneColSetting);
     dl.push_back(gsSPMatrix(&gIdentityMtx, G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH));
 
-    DrawDynapoly(dl, gPlayState->colCtx.colHeader, BGCHECK_SCENE);
+    DrawDynapoly(dl, MM_gPlayState->colCtx.colHeader, BGCHECK_SCENE);
 }
 
 // Draws all Bg Actors
@@ -467,8 +467,8 @@ void DrawBgActorCollision() {
     dl.push_back(gsSPMatrix(&gIdentityMtx, G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH));
 
     for (int32_t bgIndex = 0; bgIndex < BG_ACTOR_MAX; bgIndex++) {
-        if (gPlayState->colCtx.dyna.bgActorFlags[bgIndex] & 1) {
-            BgActor& bg = gPlayState->colCtx.dyna.bgActors[bgIndex];
+        if (MM_gPlayState->colCtx.dyna.bgActorFlags[bgIndex] & 1) {
+            BgActor& bg = MM_gPlayState->colCtx.dyna.bgActors[bgIndex];
             Mtx m;
             MtxF mf;
             SkinMatrix_SetScaleRotateRPYTranslate(&mf, bg.curTransform.scale.x, bg.curTransform.scale.y,
@@ -516,13 +516,13 @@ void DrawColCheckList(std::vector<Gfx>& dl, Collider** objects, int32_t count) {
 
                     Mtx m;
                     MtxF mf;
-                    SkinMatrix_SetTranslate(&mf, sph->dim.worldSphere.center.x, sph->dim.worldSphere.center.y,
+                    MM_SkinMatrix_SetTranslate(&mf, sph->dim.worldSphere.center.x, sph->dim.worldSphere.center.y,
                                             sph->dim.worldSphere.center.z);
                     MtxF ms;
                     int32_t radius = sph->dim.worldSphere.radius == 0 ? 1 : sph->dim.worldSphere.radius;
-                    SkinMatrix_SetScale(&ms, radius / 128.0f, radius / 128.0f, radius / 128.0f);
+                    MM_SkinMatrix_SetScale(&ms, radius / 128.0f, radius / 128.0f, radius / 128.0f);
                     MtxF dest;
-                    SkinMatrix_MtxFMtxFMult(&mf, &ms, &dest);
+                    MM_SkinMatrix_MtxFMtxFMult(&mf, &ms, &dest);
                     guMtxF2L(dest.mf, &m);
                     mtxDl.push_back(m);
 
@@ -536,12 +536,12 @@ void DrawColCheckList(std::vector<Gfx>& dl, Collider** objects, int32_t count) {
 
                 Mtx m;
                 MtxF mt;
-                SkinMatrix_SetTranslate(&mt, cyl->dim.pos.x, cyl->dim.pos.y + cyl->dim.yShift, cyl->dim.pos.z);
+                MM_SkinMatrix_SetTranslate(&mt, cyl->dim.pos.x, cyl->dim.pos.y + cyl->dim.yShift, cyl->dim.pos.z);
                 MtxF ms;
                 int32_t radius = cyl->dim.radius == 0 ? 1 : cyl->dim.radius;
-                SkinMatrix_SetScale(&ms, radius / 128.0f, cyl->dim.height / 128.0f, radius / 128.0f);
+                MM_SkinMatrix_SetScale(&ms, radius / 128.0f, cyl->dim.height / 128.0f, radius / 128.0f);
                 MtxF dest;
-                SkinMatrix_MtxFMtxFMult(&mt, &ms, &dest);
+                MM_SkinMatrix_MtxFMtxFMult(&mt, &ms, &dest);
                 guMtxF2L(dest.mf, &m);
                 mtxDl.push_back(m);
 
@@ -595,7 +595,7 @@ void DrawColCheckCollision() {
     InitGfx(dl, showColCheckSetting);
     dl.push_back(gsSPMatrix(&gIdentityMtx, G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH));
 
-    CollisionCheckContext& col = gPlayState->colChkCtx;
+    CollisionCheckContext& col = MM_gPlayState->colChkCtx;
 
     dl.push_back(gsDPSetPrimColor(0, 0, oCollisionColor.r, oCollisionColor.g, oCollisionColor.b, 255));
     DrawColCheckList(dl, col.colOC, col.colOCCount);
@@ -610,7 +610,7 @@ void DrawColCheckCollision() {
 void DrawWaterbox(std::vector<Gfx>& dl, WaterBox* water, float water_max_depth = -4000.0f) {
     // Skip waterboxes that would be disabled in current room
     int32_t room = ((water->properties >> 13) & 0x3F);
-    if ((room != gPlayState->roomCtx.curRoom.num) && (room != 0x3F)) {
+    if ((room != MM_gPlayState->roomCtx.curRoom.num) && (room != 0x3F)) {
         return;
     }
 
@@ -647,7 +647,7 @@ void DrawWaterboxList() {
     dl.push_back(
         gsDPSetPrimColor(0, 0, waterboxCollisionColor.r, waterboxCollisionColor.g, waterboxCollisionColor.b, 255));
 
-    CollisionHeader* col = gPlayState->colCtx.colHeader;
+    CollisionHeader* col = MM_gPlayState->colCtx.colHeader;
     for (int32_t waterboxIndex = 0; waterboxIndex < col->numWaterBoxes; waterboxIndex++) {
         WaterBox* water = &col->waterBoxes[waterboxIndex];
         DrawWaterbox(dl, water);
@@ -664,7 +664,7 @@ template <typename T> size_t ResetVector(T& vec) {
 }
 
 extern "C" void DrawCollisionViewer() {
-    if (gPlayState == nullptr || !CVarGetInteger("gCollisionViewer.Enabled", 0)) {
+    if (MM_gPlayState == nullptr || !CVarGetInteger("gCollisionViewer.Enabled", 0)) {
         return;
     }
 
@@ -699,7 +699,7 @@ extern "C" void DrawCollisionViewer() {
         return;
     }
 
-    OPEN_DISPS(gPlayState->state.gfxCtx);
+    OPEN_DISPS(MM_gPlayState->state.gfxCtx);
 
     uint8_t mirroredWorld = CVarGetInteger("gMirroredWorld", 0);
     // Col viewer needs inverted culling in mirror mode for both OPA and XLU buffers
@@ -719,7 +719,7 @@ extern "C" void DrawCollisionViewer() {
         gSPClearExtraGeometryMode(POLY_XLU_DISP++, G_EX_INVERT_CULLING);
     }
 
-    CLOSE_DISPS(gPlayState->state.gfxCtx);
+    CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
 
 void CollisionViewerWindow::InitElement() {

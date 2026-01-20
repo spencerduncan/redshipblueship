@@ -4,7 +4,7 @@
 #include "soh/ShipInit.hpp"
 
 extern "C" {
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 #include "macros.h"
 #include "src/overlays/actors/ovl_En_Door/z_en_door.h"
 }
@@ -67,7 +67,7 @@ static void OnDoorInit(void* actorRef) {
     EnDoor* enDoor = static_cast<EnDoor*>(actorRef);
     enDoor->randomizerInf = RAND_INF_MAX;
 
-    auto it = lookupTable.find({ gPlayState->sceneNum, enDoor->actor.params });
+    auto it = lookupTable.find({ OoT_gPlayState->sceneNum, enDoor->actor.params });
     if (it != lookupTable.end()) {
         enDoor->randomizerInf = it->second;
         if (!Flags_GetRandomizerInf(enDoor->randomizerInf)) {

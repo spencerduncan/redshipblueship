@@ -16,20 +16,20 @@ static u8 lastOcarinaButton = OCARINA_BTN_INVALID;
 void RespawnOnWaterTouch(Player* player) {
     // This is Honey & Darlings Shop, touching the water ends the minigame as its vanilla behavior.
     // No reason to handle it a second time here.
-    if (gPlayState->sceneId == SCENE_BOWLING) {
+    if (MM_gPlayState->sceneId == SCENE_BOWLING) {
         return;
     }
 
     if (player->stateFlags1 & PLAYER_STATE1_8000000) {
         // Mimic Deku Hop failure behavior
-        Player_SetAction(gPlayState, player, Player_Action_1, 0);
+        Player_SetAction(MM_gPlayState, player, Player_Action_1, 0);
         player->stateFlags1 |= PLAYER_STATE1_20000000;
     }
 }
 
 void Rando::ActorBehavior::InitPlayerBehavior() {
     COND_ID_HOOK(OnActorUpdate, ACTOR_PLAYER, IS_RANDO && RANDO_SAVE_OPTIONS[RO_SHUFFLE_SWIM], [](Actor* actor) {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         if (!Flags_GetRandoInf(RANDO_INF_OBTAINED_SWIM)) {
             RespawnOnWaterTouch(player);
         }

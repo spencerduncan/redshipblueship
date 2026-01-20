@@ -5,7 +5,7 @@
 extern "C" {
 #include "variables.h"
 #include "src/overlays/actors/ovl_En_Fish2/z_en_fish2.h"
-void Player_StartTalking(PlayState* play, Actor* actor);
+void MM_Player_StartTalking(PlayState* play, Actor* actor);
 }
 
 void Rando::ActorBehavior::InitEnFish2Behavior() {
@@ -27,7 +27,7 @@ void Rando::ActorBehavior::InitEnFish2Behavior() {
             [](Actor* actor, PlayState* play) {
                 auto& randoSaveCheck = RANDO_SAVE_CHECKS[CUSTOM_ITEM_PARAM];
                 RandoItemId randoItemId = Rando::ConvertItem(randoSaveCheck.randoItemId);
-                Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
+                MM_Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
                 Rando::DrawItem(Rando::ConvertItem(randoSaveCheck.randoItemId, (RandoCheckId)CUSTOM_ITEM_PARAM), actor);
             });
 

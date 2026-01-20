@@ -7,13 +7,13 @@ void EnIceHono_CapturableFlame(EnIceHono* thisx, PlayState* play);
 u32 EnIceHono_InBottleRange(EnIceHono* thisx, PlayState* play);
 }
 
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 
 void OnEnIceHonoUpdate(void* actor) {
     EnIceHono* thisx = (EnIceHono*)actor;
-    if (thisx->actionFunc != EnIceHono_CapturableFlame && EnIceHono_InBottleRange(thisx, gPlayState)) {
+    if (thisx->actionFunc != EnIceHono_CapturableFlame && EnIceHono_InBottleRange(thisx, OoT_gPlayState)) {
         // GI_MAX in this case allows the player to catch the actor in a bottle
-        Actor_OfferGetItem(&thisx->actor, gPlayState, GI_MAX, 60.0f, 100.0f);
+        OoT_Actor_OfferGetItem(&thisx->actor, OoT_gPlayState, GI_MAX, 60.0f, 100.0f);
     }
 }
 

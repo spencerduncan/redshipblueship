@@ -29,7 +29,7 @@ extern "C" {
 #include "variables.h"
 #include "functions.h"
 #include "macros.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 #include <libultraship/bridge.h>
@@ -53,12 +53,12 @@ static bool ActorSpawnHandler(std::shared_ptr<Ship::Console> Console, const std:
         return 1;
     }
 
-    if (gPlayState == nullptr) {
+    if (OoT_gPlayState == nullptr) {
         ERROR_MESSAGE("PlayState == nullptr");
         return 1;
     }
 
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
     PosRot spawnPoint;
     const s16 nameId = ActorDB::Instance->RetrieveId(args[1]);
     s16 actorId = 0;
@@ -100,9 +100,9 @@ static bool ActorSpawnHandler(std::shared_ptr<Ship::Console> Console, const std:
             }
     }
 
-    if (Actor_Spawn(&gPlayState->actorCtx, gPlayState, actorId, spawnPoint.pos.x, spawnPoint.pos.y, spawnPoint.pos.z,
+    if (OoT_Actor_Spawn(&OoT_gPlayState->actorCtx, OoT_gPlayState, actorId, spawnPoint.pos.x, spawnPoint.pos.y, spawnPoint.pos.z,
                     spawnPoint.rot.x, spawnPoint.rot.y, spawnPoint.rot.z, params, 0) == NULL) {
-        ERROR_MESSAGE("Failed to spawn actor. Actor_Spawn returned NULL");
+        ERROR_MESSAGE("Failed to spawn actor. OoT_Actor_Spawn returned NULL");
         return 1;
     }
     return 0;
@@ -190,12 +190,12 @@ static bool RupeeHandler(std::shared_ptr<Ship::Console> Console, const std::vect
 
 static bool SetPosHandler(std::shared_ptr<Ship::Console> Console, const std::vector<std::string> args,
                           std::string* output) {
-    if (gPlayState == nullptr) {
+    if (OoT_gPlayState == nullptr) {
         ERROR_MESSAGE("PlayState == nullptr");
         return 1;
     }
 
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
 
     if (args.size() == 1) {
         INFO_MESSAGE("Player position is [ %.2f, %.2f, %.2f ]", player->actor.world.pos.x, player->actor.world.pos.y,
@@ -215,12 +215,12 @@ static bool SetPosHandler(std::shared_ptr<Ship::Console> Console, const std::vec
 }
 
 static bool ResetHandler(std::shared_ptr<Ship::Console> Console, std::vector<std::string> args, std::string* output) {
-    if (gGameState == nullptr) {
-        ERROR_MESSAGE("gGameState == nullptr");
+    if (OoT_gGameState == nullptr) {
+        ERROR_MESSAGE("OoT_gGameState == nullptr");
         return 1;
     }
-    SET_NEXT_GAMESTATE(gGameState, TitleSetup_Init, GameState);
-    gGameState->running = false;
+    SET_NEXT_GAMESTATE(OoT_gGameState, OoT_TitleSetup_Init, GameState);
+    OoT_gGameState->running = false;
     GameInteractor::Instance->ExecuteHooks<GameInteractor::OnExitGame>(gSaveContext.fileNum);
     return 0;
 }
@@ -400,7 +400,7 @@ static bool GiveItemHandler(std::shared_ptr<Ship::Console> Console, const std::v
         return 1;
     }
 
-    GiveItemEntryWithoutActor(gPlayState, getItemEntry);
+    GiveItemEntryWithoutActor(OoT_gPlayState, getItemEntry);
 
     return 0;
 }
@@ -421,25 +421,25 @@ static bool EntranceHandler(std::shared_ptr<Ship::Console> Console, const std::v
         return 1;
     }
 
-    gPlayState->nextEntranceIndex = entrance;
-    gPlayState->transitionTrigger = TRANS_TRIGGER_START;
-    gPlayState->transitionType = TRANS_TYPE_INSTANT;
+    OoT_gPlayState->nextEntranceIndex = entrance;
+    OoT_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
+    OoT_gPlayState->transitionType = TRANS_TYPE_INSTANT;
     gSaveContext.nextTransitionType = TRANS_TYPE_INSTANT;
     return 0;
 }
 
 static bool VoidHandler(std::shared_ptr<Ship::Console> Console, const std::vector<std::string>& args,
                         std::string* output) {
-    if (gPlayState != nullptr) {
-        gSaveContext.respawn[RESPAWN_MODE_DOWN].tempSwchFlags = gPlayState->actorCtx.flags.tempSwch;
-        gSaveContext.respawn[RESPAWN_MODE_DOWN].tempCollectFlags = gPlayState->actorCtx.flags.tempCollect;
+    if (OoT_gPlayState != nullptr) {
+        gSaveContext.respawn[RESPAWN_MODE_DOWN].tempSwchFlags = OoT_gPlayState->actorCtx.flags.tempSwch;
+        gSaveContext.respawn[RESPAWN_MODE_DOWN].tempCollectFlags = OoT_gPlayState->actorCtx.flags.tempCollect;
         gSaveContext.respawnFlag = 1;
-        gPlayState->transitionTrigger = TRANS_TRIGGER_START;
-        gPlayState->nextEntranceIndex = gSaveContext.respawn[RESPAWN_MODE_DOWN].entranceIndex;
-        gPlayState->transitionType = TRANS_TYPE_FADE_BLACK;
+        OoT_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
+        OoT_gPlayState->nextEntranceIndex = gSaveContext.respawn[RESPAWN_MODE_DOWN].entranceIndex;
+        OoT_gPlayState->transitionType = TRANS_TYPE_FADE_BLACK;
         gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK;
     } else {
-        ERROR_MESSAGE("gPlayState == nullptr");
+        ERROR_MESSAGE("OoT_gPlayState == nullptr");
         return 1;
     }
     return 0;
@@ -447,13 +447,13 @@ static bool VoidHandler(std::shared_ptr<Ship::Console> Console, const std::vecto
 
 static bool ReloadHandler(std::shared_ptr<Ship::Console> Console, const std::vector<std::string>& args,
                           std::string* output) {
-    if (gPlayState != nullptr) {
-        gPlayState->nextEntranceIndex = gSaveContext.entranceIndex;
-        gPlayState->transitionTrigger = TRANS_TRIGGER_START;
-        gPlayState->transitionType = TRANS_TYPE_INSTANT;
+    if (OoT_gPlayState != nullptr) {
+        OoT_gPlayState->nextEntranceIndex = gSaveContext.entranceIndex;
+        OoT_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
+        OoT_gPlayState->transitionType = TRANS_TYPE_INSTANT;
         gSaveContext.nextTransitionType = TRANS_TYPE_INSTANT;
     } else {
-        ERROR_MESSAGE("gPlayState == nullptr");
+        ERROR_MESSAGE("OoT_gPlayState == nullptr");
         return 1;
     }
     return 0;
@@ -474,7 +474,7 @@ static bool FWHandler(std::shared_ptr<Ship::Console> Console, const std::vector<
         return 1;
     }
 
-    if (gPlayState != nullptr) {
+    if (OoT_gPlayState != nullptr) {
         FaroresWindData clear = {};
         switch (it->second) {
             case 0: // clear
@@ -484,9 +484,9 @@ static bool FWHandler(std::shared_ptr<Ship::Console> Console, const std::vector<
                 break;
             case 1: // warp
                 if (gSaveContext.respawn[RESPAWN_MODE_TOP].data > 0) {
-                    gPlayState->transitionTrigger = TRANS_TRIGGER_START;
-                    gPlayState->nextEntranceIndex = gSaveContext.respawn[RESPAWN_MODE_TOP].entranceIndex;
-                    gPlayState->transitionType = TRANS_TYPE_FADE_WHITE_FAST;
+                    OoT_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
+                    OoT_gPlayState->nextEntranceIndex = gSaveContext.respawn[RESPAWN_MODE_TOP].entranceIndex;
+                    OoT_gPlayState->transitionType = TRANS_TYPE_FADE_WHITE_FAST;
                 } else {
                     ERROR_MESSAGE("Farore's wind not set!");
                     return 1;
@@ -506,7 +506,7 @@ static bool FWHandler(std::shared_ptr<Ship::Console> Console, const std::vector<
                 break;
         }
     } else {
-        ERROR_MESSAGE("gPlayState == nullptr");
+        ERROR_MESSAGE("OoT_gPlayState == nullptr");
         return 1;
     }
 
@@ -515,14 +515,14 @@ static bool FWHandler(std::shared_ptr<Ship::Console> Console, const std::vector<
 
 static bool FileSelectHandler(std::shared_ptr<Ship::Console> Console, const std::vector<std::string>& args,
                               std::string* output) {
-    if (gGameState == nullptr) {
-        ERROR_MESSAGE("gGameState == nullptr");
+    if (OoT_gGameState == nullptr) {
+        ERROR_MESSAGE("OoT_gGameState == nullptr");
         return 1;
     }
 
     gSaveContext.gameMode = GAMEMODE_FILE_SELECT;
-    SET_NEXT_GAMESTATE(gGameState, FileChoose_Init, FileChooseContext);
-    gGameState->running = false;
+    SET_NEXT_GAMESTATE(OoT_gGameState, FileChoose_Init, FileChooseContext);
+    OoT_gGameState->running = false;
     return 0;
 }
 

@@ -35,8 +35,8 @@ void UpdatePersistentMasksState() {
         gSaveContext.save.equippedMask = PLAYER_MASK_NONE;
         CVarSetInteger(STATE_CVAR_NAME, 1);
 
-        if (gPlayState != NULL) {
-            Player* player = GET_PLAYER(gPlayState);
+        if (MM_gPlayState != NULL) {
+            Player* player = GET_PLAYER(MM_gPlayState);
             player->prevMask = player->currentMask;
             player->currentMask = PLAYER_MASK_NONE;
         }
@@ -55,35 +55,35 @@ void UpdatePersistentMasksState() {
             }
 
             // This emulates the vanilla check for if the masks should be drawn, specifically around
-            // z_player.c 12923 (Player_Draw)
+            // z_player.c 12923 (MM_Player_Draw)
             if (player->stateFlags1 & PLAYER_STATE1_100000) {
                 Vec3f temp;
-                SkinMatrix_Vec3fMtxFMultXYZ(&gPlayState->viewProjectionMtxF, &player->actor.focus.pos, &temp);
+                MM_SkinMatrix_Vec3fMtxFMultXYZ(&MM_gPlayState->viewProjectionMtxF, &player->actor.focus.pos, &temp);
                 if (temp.z < -4.0f) {
                     return;
                 }
             }
 
-            OPEN_DISPS(gPlayState->state.gfxCtx);
+            OPEN_DISPS(MM_gPlayState->state.gfxCtx);
 
             // Set back geometry modes left over from player head DL, incase another mask changed the values
             gSPLoadGeometryMode(POLY_OPA_DISP++,
                                 G_ZBUFFER | G_SHADE | G_CULL_BACK | G_FOG | G_LIGHTING | G_SHADING_SMOOTH);
 
-            Matrix_Push();
-            Player_DrawBunnyHood(gPlayState);
+            MM_Matrix_Push();
+            Player_DrawBunnyHood(MM_gPlayState);
             gSPDisplayList(POLY_OPA_DISP++,
                            (Gfx*)D_801C0B20[PLAYER_MASK_BUNNY - 1]); // D_801C0B20 is an array of mask DLs
-            Matrix_Pop();
+            MM_Matrix_Pop();
 
-            CLOSE_DISPS(gPlayState->state.gfxCtx);
+            CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
         });
 
     // This hook sets up the quad and draws the "active" blue border around the mask in the pause menu
     beforePageDrawHook = GameInteractor::Instance->RegisterGameHookForID<GameInteractor::BeforeKaleidoDrawPage>(
         PAUSE_MASK, [](PauseContext* _, u16 __) {
-            GraphicsContext* gfxCtx = gPlayState->state.gfxCtx;
-            PauseContext* pauseCtx = &gPlayState->pauseCtx;
+            GraphicsContext* gfxCtx = MM_gPlayState->state.gfxCtx;
+            PauseContext* pauseCtx = &MM_gPlayState->pauseCtx;
             s16 i = 0;
             s16 j = 0;
             s16 k;
@@ -157,7 +157,7 @@ void RegisterPersistentMasks() {
         // But don't speed up if the player is non-human and controller input is being overriden for cutscenes/minigames
         // or if player is Kafei
         if (player && STATE_CVAR && player->actor.id == ACTOR_PLAYER &&
-            (GET_PLAYER_FORM == PLAYER_FORM_HUMAN || gPlayState->actorCtx.isOverrideInputOn == 0)) {
+            (GET_PLAYER_FORM == PLAYER_FORM_HUMAN || MM_gPlayState->actorCtx.isOverrideInputOn == 0)) {
             *should = true;
         }
     });
@@ -173,7 +173,7 @@ void RegisterPersistentMasks() {
     // When they do equip the mask, prevent it and instead set our state
     COND_VB_SHOULD(VB_USE_ITEM_EQUIP_MASK, CVAR, {
         PlayerMask* maskId = va_arg(args, PlayerMask*);
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
 
         if (*maskId == PLAYER_MASK_BUNNY) {
             *should = false;
@@ -221,7 +221,7 @@ void RegisterPersistentMasks() {
     // Prevent persistent Bunny Hood from being used as an Item Action. Normally, the currently equipped mask converts
     // to PLAYER_IA_NONE
     COND_VB_SHOULD(VB_GET_ITEM_ACTION_FROM_MASK, CVAR, {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         PlayerItemAction playerItemAction = (PlayerItemAction)va_arg(args, int);
 
         if (player && STATE_CVAR && playerItemAction == PLAYER_IA_MASK_BUNNY) {

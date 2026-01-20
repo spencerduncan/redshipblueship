@@ -10,7 +10,7 @@ extern "C" {
 #include "macros.h"
 #include "functions.h"
 #include "variables.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 uint64_t GetUnixTimestamp();
 }
 
@@ -80,7 +80,7 @@ static void TimeDisplayGetTimer(uint32_t timeID) {
     textureDisplay = 0;
     textColor = COLOR_WHITE;
 
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
     uint32_t timer1 = gSaveContext.timerSeconds;
 
     switch (timeID) {
@@ -103,12 +103,12 @@ static void TimeDisplayGetTimer(uint32_t timeID) {
                 timeDisplayTime = formatHotWaterDisplay(gSaveContext.timerSeconds).c_str();
                 textColor =
                     gSaveContext.timerState <= TIMER_STATE_ENV_HAZARD_TICK
-                        ? (gPlayState->roomCtx.curRoom.behaviorType2 == ROOM_BEHAVIOR_TYPE2_3 ? COLOR_LIGHT_RED
+                        ? (OoT_gPlayState->roomCtx.curRoom.behaviorType2 == ROOM_BEHAVIOR_TYPE2_3 ? COLOR_LIGHT_RED
                                                                                               : COLOR_LIGHT_BLUE)
                         : COLOR_WHITE;
                 if (gSaveContext.timerState <= TIMER_STATE_ENV_HAZARD_TICK) {
                     textureDisplay = Ship::Context::GetInstance()->GetWindow()->GetGui()->GetTextureByName(
-                        gPlayState->roomCtx.curRoom.behaviorType2 == ROOM_BEHAVIOR_TYPE2_3
+                        OoT_gPlayState->roomCtx.curRoom.behaviorType2 == ROOM_BEHAVIOR_TYPE2_3
                             ? itemMapping[ITEM_TUNIC_GORON].name
                             : itemMapping[ITEM_TUNIC_ZORA].name);
                 }
@@ -162,7 +162,7 @@ void TimeDisplayUpdateDisplayOptions() {
 }
 
 void TimeDisplayWindow::Draw() {
-    if (!gPlayState) {
+    if (!OoT_gPlayState) {
         return;
     }
     if (!CVarGetInteger(CVAR_WINDOW("TimeDisplayEnabled"), 0)) {

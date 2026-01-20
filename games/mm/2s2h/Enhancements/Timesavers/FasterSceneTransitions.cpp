@@ -14,7 +14,7 @@ void Play_SetupTransition(PlayState* playState, s32 transitionType);
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 static void SetupFasterSceneTransition() {
-    auto transitionType = gPlayState->transitionType;
+    auto transitionType = MM_gPlayState->transitionType;
 
     switch (transitionType) {
         case TRANS_TYPE_FADE_BLACK:
@@ -38,12 +38,12 @@ static void SetupFasterSceneTransition() {
             break;
     }
 
-    gPlayState->transitionType = transitionType;
+    MM_gPlayState->transitionType = transitionType;
 }
 
 void RegisterFasterSceneTransitions() {
     COND_VB_SHOULD(VB_SETUP_TRANSITION, CVAR, {
-        switch (gPlayState->sceneId) {
+        switch (MM_gPlayState->sceneId) {
             case SCENE_SPOT00:    // Prevent glitch going into the save file select
             case SCENE_KAKUSIANA: // Falling into grottos causes fall damage with fast transitions
             case SCENE_HAKASHITA: // Similar but falling into a grave
@@ -51,7 +51,7 @@ void RegisterFasterSceneTransitions() {
 
             default:
                 SetupFasterSceneTransition();
-                Play_SetupTransition(gPlayState, gPlayState->transitionType);
+                Play_SetupTransition(MM_gPlayState, MM_gPlayState->transitionType);
                 *should = false;
                 break;
         }

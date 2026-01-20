@@ -4,7 +4,7 @@
 #include "soh/ShipInit.hpp"
 
 extern "C" {
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 #include "macros.h"
 }
 
@@ -17,7 +17,7 @@ void RegisterDekuStickCheats() {
     COND_VB_SHOULD(VB_DEKU_STICK_BURN_OUT, CVAR_DEKU_STICK_VALUE != DEKU_STICK_NORMAL, { *should = false; });
     COND_VB_SHOULD(VB_DEKU_STICK_BURN_DOWN, CVAR_DEKU_STICK_VALUE != DEKU_STICK_NORMAL, { *should = false; });
     COND_VB_SHOULD(VB_DEKU_STICK_BE_ON_FIRE, CVAR_DEKU_STICK_VALUE == DEKU_STICK_UNBREAKABLE_AND_ALWAYS_ON_FIRE, {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(OoT_gPlayState);
         player->unk_860 = 200;  // Keeps the stick's flame lit
         player->unk_85C = 1.0f; // Ensures the stick is the proper length
         *should = true;

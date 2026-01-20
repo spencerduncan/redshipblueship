@@ -6,7 +6,7 @@
 extern "C" {
 #include "macros.h"
 #include "functions.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 void func_80838280(Player* player);
 }
 
@@ -36,10 +36,10 @@ void Anchor::HandlePacket_DamagePlayer(nlohmann::json payload) {
 
     AnchorClient& anchorClient = clients[clientId];
     Player* otherPlayer = anchorClient.player;
-    Player* self = GET_PLAYER(gPlayState);
+    Player* self = GET_PLAYER(OoT_gPlayState);
 
     // Prevent incoming damage during cutscenes or item get sequences
-    if (Player_InBlockingCsMode(gPlayState, self) || self->stateFlags1 & PLAYER_STATE1_IN_ITEM_CS ||
+    if (OoT_Player_InBlockingCsMode(OoT_gPlayState, self) || self->stateFlags1 & PLAYER_STATE1_IN_ITEM_CS ||
         self->stateFlags1 & PLAYER_STATE1_GETTING_ITEM) {
         return;
     }
@@ -51,15 +51,15 @@ void Anchor::HandlePacket_DamagePlayer(nlohmann::json payload) {
 
     if (damageEffect == DUMMY_PLAYER_HIT_RESPONSE_FIRE) {
         for (int i = 0; i < ARRAY_COUNT(self->bodyFlameTimers); i++) {
-            self->bodyFlameTimers[i] = Rand_S16Offset(0, 200);
+            self->bodyFlameTimers[i] = OoT_Rand_S16Offset(0, 200);
         }
         self->bodyIsBurning = true;
     } else if (damageEffect == DUMMY_PLAYER_HIT_RESPONSE_STUN) {
         self->actor.freezeTimer = 20;
-        Actor_SetColorFilter(&self->actor, 0, 0xFF, 0, 24);
+        OoT_Actor_SetColorFilter(&self->actor, 0, 0xFF, 0, 24);
         return;
     }
 
-    func_80837C0C(gPlayState, self, damageEffect, 4.0f, 5.0f,
-                  Actor_WorldYawTowardActor(&otherPlayer->actor, &self->actor), 20);
+    func_80837C0C(OoT_gPlayState, self, damageEffect, 4.0f, 5.0f,
+                  OoT_Actor_WorldYawTowardActor(&otherPlayer->actor, &self->actor), 20);
 }

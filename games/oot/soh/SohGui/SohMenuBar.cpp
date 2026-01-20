@@ -45,7 +45,7 @@
 
 extern bool isBetaQuestEnabled;
 
-extern "C" PlayState* gPlayState;
+extern "C" PlayState* OoT_gPlayState;
 
 std::string GetWindowButtonText(const char* text, bool menuOpen) {
     char buttonText[100] = "";

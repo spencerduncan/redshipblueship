@@ -31,34 +31,34 @@ s32 StrayFairyOverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3
 }
 
 void DrawStrayFairy(RandoItemId randoItemId) {
-    OPEN_DISPS(gPlayState->state.gfxCtx);
+    OPEN_DISPS(MM_gPlayState->state.gfxCtx);
 
-    Gfx_SetupDL25_Xlu(gPlayState->state.gfxCtx);
+    Gfx_SetupDL25_Xlu(MM_gPlayState->state.gfxCtx);
 
     switch (randoItemId) {
         case RI_WOODFALL_STRAY_FAIRY:
-            AnimatedMat_Draw(gPlayState, (AnimatedMaterial*)&gStrayFairyWoodfallTexAnim);
+            AnimatedMat_Draw(MM_gPlayState, (AnimatedMaterial*)&gStrayFairyWoodfallTexAnim);
             break;
         case RI_SNOWHEAD_STRAY_FAIRY:
-            AnimatedMat_Draw(gPlayState, (AnimatedMaterial*)&gStrayFairySnowheadTexAnim);
+            AnimatedMat_Draw(MM_gPlayState, (AnimatedMaterial*)&gStrayFairySnowheadTexAnim);
             break;
         case RI_GREAT_BAY_STRAY_FAIRY:
-            AnimatedMat_Draw(gPlayState, (AnimatedMaterial*)&gStrayFairyGreatBayTexAnim);
+            AnimatedMat_Draw(MM_gPlayState, (AnimatedMaterial*)&gStrayFairyGreatBayTexAnim);
             break;
         case RI_STONE_TOWER_STRAY_FAIRY:
-            AnimatedMat_Draw(gPlayState, (AnimatedMaterial*)&gStrayFairyStoneTowerTexAnim);
+            AnimatedMat_Draw(MM_gPlayState, (AnimatedMaterial*)&gStrayFairyStoneTowerTexAnim);
             break;
         default: // STRAY_FAIRY_AREA_CLOCK_TOWN
-            AnimatedMat_Draw(gPlayState, (AnimatedMaterial*)&gStrayFairyClockTownTexAnim);
+            AnimatedMat_Draw(MM_gPlayState, (AnimatedMaterial*)&gStrayFairyClockTownTexAnim);
             break;
     }
 
-    Matrix_ReplaceRotation(&gPlayState->billboardMtxF);
-    Matrix_Scale(0.03f, 0.03f, 0.03f, MTXMODE_APPLY);
+    MM_Matrix_ReplaceRotation(&MM_gPlayState->billboardMtxF);
+    MM_Matrix_Scale(0.03f, 0.03f, 0.03f, MTXMODE_APPLY);
 
     // Kind of a hack to draw the stray fairy, the drawback of this is that all stray fairies in the scene will animate
     // together, but worse is that the more there are the faster their animation will play (because of the
-    // SkelAnime_Update below). This is still better than the previous solution which hand drew the fairy with DL
+    // MM_SkelAnime_Update below). This is still better than the previous solution which hand drew the fairy with DL
     // calls...
     static bool initialized = false;
     static SkelAnime skelAnime;
@@ -66,25 +66,25 @@ void DrawStrayFairy(RandoItemId randoItemId) {
     static u32 lastUpdate = 0;
     if (!initialized) {
         initialized = true;
-        SkelAnime_InitFlex(gPlayState, &skelAnime, (FlexSkeletonHeader*)&gStrayFairySkel,
+        MM_SkelAnime_InitFlex(MM_gPlayState, &skelAnime, (FlexSkeletonHeader*)&gStrayFairySkel,
                            (AnimationHeader*)&gStrayFairyFlyingAnim, jointTable, jointTable, STRAY_FAIRY_LIMB_MAX);
     }
-    if (gPlayState != NULL && lastUpdate != gPlayState->state.frames) {
-        lastUpdate = gPlayState->state.frames;
-        SkelAnime_Update(&skelAnime);
+    if (MM_gPlayState != NULL && lastUpdate != MM_gPlayState->state.frames) {
+        lastUpdate = MM_gPlayState->state.frames;
+        MM_SkelAnime_Update(&skelAnime);
     }
-    POLY_XLU_DISP = SkelAnime_DrawFlex(gPlayState, skelAnime.skeleton, skelAnime.jointTable, skelAnime.dListCount,
+    POLY_XLU_DISP = MM_SkelAnime_DrawFlex(MM_gPlayState, skelAnime.skeleton, skelAnime.jointTable, skelAnime.dListCount,
                                        StrayFairyOverrideLimbDraw, NULL, NULL, POLY_XLU_DISP);
 
-    CLOSE_DISPS(gPlayState->state.gfxCtx);
+    CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
 
 void DrawSong(RandoItemId randoItemId) {
-    OPEN_DISPS(gPlayState->state.gfxCtx);
+    OPEN_DISPS(MM_gPlayState->state.gfxCtx);
 
-    Gfx_SetupDL25_Xlu(gPlayState->state.gfxCtx);
+    Gfx_SetupDL25_Xlu(MM_gPlayState->state.gfxCtx);
 
-    MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gPlayState->state.gfxCtx);
+    MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, MM_gPlayState->state.gfxCtx);
 
     switch (randoItemId) {
         case RI_SONG_SUN:
@@ -129,15 +129,15 @@ void DrawSong(RandoItemId randoItemId) {
 
     gSPDisplayList(POLY_XLU_DISP++, (Gfx*)&gGiSongNoteDL);
 
-    CLOSE_DISPS(gPlayState->state.gfxCtx);
+    CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
 
 void DrawDoubleDefense() {
-    OPEN_DISPS(gPlayState->state.gfxCtx);
+    OPEN_DISPS(MM_gPlayState->state.gfxCtx);
 
-    Gfx_SetupDL25_Xlu(gPlayState->state.gfxCtx);
+    Gfx_SetupDL25_Xlu(MM_gPlayState->state.gfxCtx);
 
-    MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gPlayState->state.gfxCtx);
+    MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, MM_gPlayState->state.gfxCtx);
     gDPSetGrayscaleColor(POLY_XLU_DISP++, 255, 255, 255, 255);
     gSPGrayscale(POLY_XLU_DISP++, true);
     gSPDisplayList(POLY_XLU_DISP++, (Gfx*)&gGiHeartBorderDL);
@@ -145,19 +145,19 @@ void DrawDoubleDefense() {
     gSPDisplayList(POLY_XLU_DISP++, (Gfx*)&gGiHeartContainerDL);
     gSPGrayscale(POLY_XLU_DISP++, false);
 
-    CLOSE_DISPS(gPlayState->state.gfxCtx);
+    CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
 
 void DrawMilkRefill() {
-    OPEN_DISPS(gPlayState->state.gfxCtx);
+    OPEN_DISPS(MM_gPlayState->state.gfxCtx);
 
-    Gfx_SetupDL25_Opa(gPlayState->state.gfxCtx);
+    Gfx_SetupDL25_Opa(MM_gPlayState->state.gfxCtx);
 
     gSPSegment(POLY_OPA_DISP++, 0x08,
-               (uintptr_t)Gfx_TwoTexScroll(gPlayState->state.gfxCtx, G_TX_RENDERTILE, -gPlayState->state.frames,
-                                           gPlayState->state.frames, 32, 32, 1, -gPlayState->state.frames,
-                                           gPlayState->state.frames, 32, 32));
-    MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, gPlayState->state.gfxCtx);
+               (uintptr_t)MM_Gfx_TwoTexScroll(MM_gPlayState->state.gfxCtx, G_TX_RENDERTILE, -MM_gPlayState->state.frames,
+                                           MM_gPlayState->state.frames, 32, 32, 1, -MM_gPlayState->state.frames,
+                                           MM_gPlayState->state.frames, 32, 32));
+    MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, MM_gPlayState->state.gfxCtx);
     // Container Color
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, 255);
     gDPSetEnvColor(POLY_OPA_DISP++, 200, 200, 200, 255);
@@ -167,9 +167,9 @@ void DrawMilkRefill() {
     gDPSetEnvColor(POLY_OPA_DISP++, 200, 200, 200, 255);
     gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gGiPotionContainerLiquidDL);
 
-    Gfx_SetupDL25_Xlu(gPlayState->state.gfxCtx);
+    Gfx_SetupDL25_Xlu(MM_gPlayState->state.gfxCtx);
 
-    MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gPlayState->state.gfxCtx);
+    MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, MM_gPlayState->state.gfxCtx);
     // Pattern Color
     // Milk
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 13, 33, 255, 255);
@@ -183,21 +183,21 @@ void DrawMilkRefill() {
     // G_TX_MIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_CLAMP, 4, 5, G_TX_NOLOD, G_TX_NOLOD);
     gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gGiPotionContainerPatternDL);
 
-    CLOSE_DISPS(gPlayState->state.gfxCtx);
+    CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
 
 void DrawOwlStatue() {
-    Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
-    Matrix_Translate(0, -3000, 0, MTXMODE_APPLY);
-    Gfx_DrawDListOpa(gPlayState, (Gfx*)gOwlStatueOpenedDL);
+    MM_Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
+    MM_Matrix_Translate(0, -3000, 0, MTXMODE_APPLY);
+    MM_Gfx_DrawDListOpa(MM_gPlayState, (Gfx*)gOwlStatueOpenedDL);
 }
 
 static Gfx gGiSmallKeyCopyDL[75];
 
 void DrawSmallKey(RandoItemId randoItemId) {
-    OPEN_DISPS(gPlayState->state.gfxCtx);
+    OPEN_DISPS(MM_gPlayState->state.gfxCtx);
 
-    Gfx_SetupDL25_Opa(gPlayState->state.gfxCtx);
+    Gfx_SetupDL25_Opa(MM_gPlayState->state.gfxCtx);
     switch (randoItemId) {
         case RI_WOODFALL_SMALL_KEY:
             gDPSetPrimColor(POLY_OPA_DISP++, 0, 0x80, 255, 255, 255, 255);
@@ -219,18 +219,18 @@ void DrawSmallKey(RandoItemId randoItemId) {
             break;
     }
 
-    MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, gPlayState->state.gfxCtx);
+    MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, MM_gPlayState->state.gfxCtx);
     gSPDisplayList(POLY_OPA_DISP++, gGiSmallKeyCopyDL);
 
-    CLOSE_DISPS(gPlayState->state.gfxCtx);
+    CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
 
 static Gfx gGiBossKeyCopyDL[87];
 
 void DrawBossKey(RandoItemId randoItemId) {
-    OPEN_DISPS(gPlayState->state.gfxCtx);
+    OPEN_DISPS(MM_gPlayState->state.gfxCtx);
 
-    Gfx_SetupDL25_Opa(gPlayState->state.gfxCtx);
+    Gfx_SetupDL25_Opa(MM_gPlayState->state.gfxCtx);
     switch (randoItemId) {
         case RI_WOODFALL_BOSS_KEY:
             gDPSetPrimColor(POLY_OPA_DISP++, 0, 0x80, 255, 255, 255, 255);
@@ -252,15 +252,15 @@ void DrawBossKey(RandoItemId randoItemId) {
             break;
     }
 
-    MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, gPlayState->state.gfxCtx);
+    MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, MM_gPlayState->state.gfxCtx);
     gSPDisplayList(POLY_OPA_DISP++, gGiBossKeyCopyDL);
 
-    Gfx_SetupDL25_Xlu(gPlayState->state.gfxCtx);
+    Gfx_SetupDL25_Xlu(MM_gPlayState->state.gfxCtx);
 
-    MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gPlayState->state.gfxCtx);
+    MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, MM_gPlayState->state.gfxCtx);
     gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gGiBossKeyGemDL);
 
-    CLOSE_DISPS(gPlayState->state.gfxCtx);
+    CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
 
 static Gfx gSkulltulaTokenFlameCopyDL[76];
@@ -272,14 +272,14 @@ void DrawSkulltulaToken(RandoItemId randoItemId, Actor* actor) {
     // noticeable that it is tilted. This issue was most prevalent for tokens in shops.
     Matrix_RotateXS(16, MTXMODE_APPLY);
 
-    OPEN_DISPS(gPlayState->state.gfxCtx);
+    OPEN_DISPS(MM_gPlayState->state.gfxCtx);
 
-    Gfx_SetupDL25_Opa(gPlayState->state.gfxCtx);
+    Gfx_SetupDL25_Opa(MM_gPlayState->state.gfxCtx);
 
-    MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, gPlayState->state.gfxCtx);
+    MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, MM_gPlayState->state.gfxCtx);
     gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gSkulltulaTokenDL);
 
-    Gfx_SetupDL25_Xlu(gPlayState->state.gfxCtx);
+    Gfx_SetupDL25_Xlu(MM_gPlayState->state.gfxCtx);
 
     if (randoItemId == RI_GS_TOKEN_OCEAN) {
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, 0, 255, 255, 255);
@@ -290,30 +290,30 @@ void DrawSkulltulaToken(RandoItemId randoItemId, Actor* actor) {
     }
 
     gSPSegment(POLY_XLU_DISP++, 0x08,
-               (uintptr_t)Gfx_TwoTexScroll(gPlayState->state.gfxCtx, G_TX_RENDERTILE, gPlayState->state.frames * 0,
-                                           -(gPlayState->state.frames * 5), 32, 32, 1, gPlayState->state.frames * 0,
-                                           gPlayState->state.frames * 0, 32, 64));
-    MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gPlayState->state.gfxCtx);
+               (uintptr_t)MM_Gfx_TwoTexScroll(MM_gPlayState->state.gfxCtx, G_TX_RENDERTILE, MM_gPlayState->state.frames * 0,
+                                           -(MM_gPlayState->state.frames * 5), 32, 32, 1, MM_gPlayState->state.frames * 0,
+                                           MM_gPlayState->state.frames * 0, 32, 64));
+    MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, MM_gPlayState->state.gfxCtx);
     gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gSkulltulaTokenFlameCopyDL);
 
-    CLOSE_DISPS(gPlayState->state.gfxCtx);
+    CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
 
 void DrawTrapModel() {
-    OPEN_DISPS(gPlayState->state.gfxCtx);
+    OPEN_DISPS(MM_gPlayState->state.gfxCtx);
 
-    Gfx_SetupDL25_Xlu(gPlayState->state.gfxCtx);
-    Matrix_Scale(0.03f, 0.03f, 0.03f, MTXMODE_APPLY);
+    Gfx_SetupDL25_Xlu(MM_gPlayState->state.gfxCtx);
+    MM_Matrix_Scale(0.03f, 0.03f, 0.03f, MTXMODE_APPLY);
 
-    MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gPlayState->state.gfxCtx);
+    MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, MM_gPlayState->state.gfxCtx);
     gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gTrapDL);
 
-    CLOSE_DISPS(gPlayState->state.gfxCtx);
+    CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
 
 void DrawRandomTrapModel(RandoItemId randoItemId, Actor* actor) {
     uint32_t seed = gSaveContext.save.shipSaveInfo.rando.finalSeed / 100000;
-    int actorData = (int)gPlayState->sceneId + seed;
+    int actorData = (int)MM_gPlayState->sceneId + seed;
 
     if (actor != NULL) {
         actorData += abs(actor->home.pos.x + actor->home.pos.y + actor->params);
@@ -366,13 +366,13 @@ void DrawTriforcePiece(RandoItemId randoItemId) {
 
     u16 currentTriforcePieces = gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces;
 
-    OPEN_DISPS(gPlayState->state.gfxCtx);
+    OPEN_DISPS(MM_gPlayState->state.gfxCtx);
 
-    Gfx_SetupDL25_Xlu(gPlayState->state.gfxCtx);
+    Gfx_SetupDL25_Xlu(MM_gPlayState->state.gfxCtx);
 
-    Matrix_Scale(0.03f, 0.03f, 0.03f, MTXMODE_APPLY);
+    MM_Matrix_Scale(0.03f, 0.03f, 0.03f, MTXMODE_APPLY);
 
-    MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gPlayState->state.gfxCtx);
+    MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, MM_gPlayState->state.gfxCtx);
     if (currentTriforcePieces >= RANDO_SAVE_OPTIONS[RO_TRIFORCE_PIECES_REQUIRED]) {
         gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gTriforcePieceCompletedDL);
     } else {
@@ -383,7 +383,7 @@ void DrawTriforcePiece(RandoItemId randoItemId) {
         }
     }
 
-    CLOSE_DISPS(gPlayState->state.gfxCtx);
+    CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
 
 void DrawAbilityItem(RandoItemId randoItemId, Actor* actor) {
@@ -391,14 +391,14 @@ void DrawAbilityItem(RandoItemId randoItemId, Actor* actor) {
         (Gfx*)gGiFlippersDL,
     };
 
-    OPEN_DISPS(gPlayState->state.gfxCtx);
+    OPEN_DISPS(MM_gPlayState->state.gfxCtx);
 
-    Gfx_SetupDL25_Xlu(gPlayState->state.gfxCtx);
+    Gfx_SetupDL25_Xlu(MM_gPlayState->state.gfxCtx);
 
-    MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gPlayState->state.gfxCtx);
+    MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, MM_gPlayState->state.gfxCtx);
     gSPDisplayList(POLY_XLU_DISP++, (Gfx*)abilityItemModel[randoItemId - RI_ABILITY_SWIM]);
 
-    CLOSE_DISPS(gPlayState->state.gfxCtx);
+    CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
 
 void DrawOcarinaButtonItem(RandoItemId randoItemId, Actor* actor) {
@@ -407,13 +407,13 @@ void DrawOcarinaButtonItem(RandoItemId randoItemId, Actor* actor) {
         (Gfx*)gOcarinaCLeftButtonDL, (Gfx*)gOcarinaCUpButtonDL,
     };
 
-    OPEN_DISPS(gPlayState->state.gfxCtx);
-    Gfx_SetupDL25_Opa(gPlayState->state.gfxCtx);
+    OPEN_DISPS(MM_gPlayState->state.gfxCtx);
+    Gfx_SetupDL25_Opa(MM_gPlayState->state.gfxCtx);
 
-    MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, gPlayState->state.gfxCtx);
+    MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, MM_gPlayState->state.gfxCtx);
     gSPDisplayList(POLY_OPA_DISP++, (Gfx*)ocarinaButtonModel[randoItemId - RI_OCARINA_BUTTON_A]);
 
-    CLOSE_DISPS(gPlayState->state.gfxCtx);
+    CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
 
 // clang-format off
@@ -480,36 +480,36 @@ void DrawSparkles(RandoItemId randoItemId, Actor* actor) {
         return;
     }
 
-    if (gGameState->frames % 2 == 0) {
+    if (MM_gGameState->frames % 2 == 0) {
         return;
     }
 
-    static Vec3f sVelocity = { 0.0f, 0.0f, 0.0f };
-    static Vec3f sAccel = { 0.0f, 0.0f, 0.0f };
+    static Vec3f MM_sVelocity = { 0.0f, 0.0f, 0.0f };
+    static Vec3f MM_sAccel = { 0.0f, 0.0f, 0.0f };
     static Color_RGBA8 sPrimColor = { 255, 255, 255, 255 };
     static Color_RGBA8 sEnvColor = { 255, 128, 0, 255 };
     Vec3f newPos;
 
-    newPos.x = Rand_CenteredFloat(10.0f) + actor->world.pos.x;
-    newPos.y = (Rand_ZeroOne() * 10.0f) + actor->world.pos.y;
-    newPos.z = Rand_CenteredFloat(10.0f) + actor->world.pos.z;
+    newPos.x = MM_Rand_CenteredFloat(10.0f) + actor->world.pos.x;
+    newPos.y = (MM_Rand_ZeroOne() * 10.0f) + actor->world.pos.y;
+    newPos.z = MM_Rand_CenteredFloat(10.0f) + actor->world.pos.z;
 
     if (actor->id == ACTOR_EN_SI) {
-        newPos.y = (Rand_ZeroOne() * 10.0f) + actor->world.pos.y - 5.0f;
+        newPos.y = (MM_Rand_ZeroOne() * 10.0f) + actor->world.pos.y - 5.0f;
     } else if (actor->id == ACTOR_EN_ITEM00) {
-        newPos.x = Rand_CenteredFloat(20.0f) + actor->world.pos.x;
-        newPos.y = (Rand_ZeroOne() * 10.0f) + actor->world.pos.y + 10.0f;
-        newPos.z = Rand_CenteredFloat(20.0f) + actor->world.pos.z;
+        newPos.x = MM_Rand_CenteredFloat(20.0f) + actor->world.pos.x;
+        newPos.y = (MM_Rand_ZeroOne() * 10.0f) + actor->world.pos.y + 10.0f;
+        newPos.z = MM_Rand_CenteredFloat(20.0f) + actor->world.pos.z;
     }
 
-    EffectSsKirakira_SpawnDispersed(gPlayState, &newPos, &sVelocity, &sAccel, &sPrimColor, &sEnvColor, 2000, 16);
+    EffectSsKirakira_SpawnDispersed(MM_gPlayState, &newPos, &MM_sVelocity, &MM_sAccel, &sPrimColor, &sEnvColor, 2000, 16);
 }
 
 void Rando::DrawItem(RandoItemId randoItemId, Actor* actor) {
     // Apply hilites with actor world pos before drawing
     if (actor != NULL) {
-        func_800B8118(actor, gPlayState, 0);
-        func_800B8050(actor, gPlayState, 0);
+        func_800B8118(actor, MM_gPlayState, 0);
+        func_800B8050(actor, MM_gPlayState, 0);
     }
 
     switch (randoItemId) {
@@ -682,7 +682,7 @@ void Rando::DrawItem(RandoItemId randoItemId, Actor* actor) {
         case RI_UNKNOWN:
             break;
         default:
-            GetItem_Draw(gPlayState, Rando::StaticData::Items[randoItemId].drawId);
+            MM_GetItem_Draw(MM_gPlayState, Rando::StaticData::Items[randoItemId].drawId);
             break;
     }
 

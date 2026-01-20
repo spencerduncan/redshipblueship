@@ -3,7 +3,7 @@
 #include "soh/ShipInit.hpp"
 
 extern "C" {
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 #include "macros.h"
 }
 
@@ -16,7 +16,7 @@ void OnGameFrameUpdateEasyQPA() {
         return;
     }
 
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
     player->meleeWeaponQuads[0].info.toucher.dmgFlags = 0x16171617;
     player->meleeWeaponQuads[1].info.toucher.dmgFlags = 0x16171617;
 }

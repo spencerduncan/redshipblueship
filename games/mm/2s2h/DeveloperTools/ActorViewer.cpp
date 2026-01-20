@@ -26,13 +26,13 @@ typedef struct ActorInfo {
 #define CVAR_ACTOR_NAME_TAGS(val) "gDeveloperTools.ActorNameTags." val
 
 std::vector<Actor*> GetCurrentSceneActors() {
-    if (!gPlayState) {
+    if (!MM_gPlayState) {
         return {};
     }
 
     std::vector<Actor*> sceneActors;
     for (size_t category = ACTORCAT_SWITCH; category < ACTORCAT_MAX; category++) {
-        Actor* currentActor = gPlayState->actorCtx.actorLists[category].first;
+        Actor* currentActor = MM_gPlayState->actorCtx.actorLists[category].first;
         if (currentActor != nullptr) {
             while (currentActor != nullptr) {
                 sceneActors.push_back(currentActor);
@@ -109,12 +109,12 @@ void ActorViewer_AddTagForActor(Actor* actor) {
 }
 
 void ActorViewer_AddTagForAllActors() {
-    if (gPlayState == nullptr) {
+    if (MM_gPlayState == nullptr) {
         return;
     }
 
-    for (size_t i = 0; i < ARRAY_COUNT(gPlayState->actorCtx.actorLists); i++) {
-        ActorListEntry currList = gPlayState->actorCtx.actorLists[i];
+    for (size_t i = 0; i < ARRAY_COUNT(MM_gPlayState->actorCtx.actorLists); i++) {
+        ActorListEntry currList = MM_gPlayState->actorCtx.actorLists[i];
         Actor* currAct = currList.first;
         while (currAct != nullptr) {
             ActorViewer_AddTagForActor(currAct);
@@ -147,10 +147,10 @@ void ActorViewerWindow::UpdateElement() {
 }
 
 void ActorViewerWindow::DrawElement() {
-    if (gPlayState != nullptr) {
-        if (lastSceneId != gPlayState->sceneId) {
+    if (MM_gPlayState != nullptr) {
+        if (lastSceneId != MM_gPlayState->sceneId) {
             ResetVariables();
-            lastSceneId = gPlayState->sceneId;
+            lastSceneId = MM_gPlayState->sceneId;
         }
 
         if (ImGui::BeginChild("options", ImVec2(0, 0), ImGuiChildFlags_Border | ImGuiChildFlags_AutoResizeY)) {
@@ -211,7 +211,7 @@ void ActorViewerWindow::DrawElement() {
         if (ImGui::TreeNode("Select existing Actor")) {
             if (ImGui::BeginCombo("Actor", comboBoxLabel.c_str())) {
                 auto list = GetCurrentSceneActors();
-                lastSceneId = gPlayState->sceneId;
+                lastSceneId = MM_gPlayState->sceneId;
 
                 if (!list.empty()) {
                     u8 count = 0;
@@ -315,21 +315,21 @@ void ActorViewerWindow::DrawElement() {
             }
 
             if (UIWidgets::Button("Go to Actor")) {
-                Player* player = GET_PLAYER(gPlayState);
+                Player* player = GET_PLAYER(MM_gPlayState);
                 if (selectedActor != nullptr) {
-                    Math_Vec3f_Copy(&player->actor.world.pos, &selectedActor->world.pos);
-                    Math_Vec3f_Copy(&player->actor.home.pos, &selectedActor->world.pos);
+                    MM_Math_Vec3f_Copy(&player->actor.world.pos, &selectedActor->world.pos);
+                    MM_Math_Vec3f_Copy(&player->actor.home.pos, &selectedActor->world.pos);
                 }
             }
 
             if (UIWidgets::Button("Fetch: Target", { { .tooltip = "Grabs actor with target arrow above it." } })) {
-                Player* player = GET_PLAYER(gPlayState);
+                Player* player = GET_PLAYER(MM_gPlayState);
                 if (player->focusActor != nullptr) {
                     SetSelectedActor(player->focusActor);
                 }
             }
             if (UIWidgets::Button("Fetch: Held", { { .tooltip = "Grabs actor Link is currently holding." } })) {
-                Player* player = GET_PLAYER(gPlayState);
+                Player* player = GET_PLAYER(MM_gPlayState);
                 if (player->heldActor != nullptr) {
                     SetSelectedActor(player->heldActor);
                 }
@@ -337,7 +337,7 @@ void ActorViewerWindow::DrawElement() {
 
             if (UIWidgets::Button("Kill", { .color = UIWidgets::Colors::Red }) && selectedActor != nullptr &&
                 selectedActor->id != ACTOR_PLAYER) {
-                Actor_Kill(selectedActor);
+                MM_Actor_Kill(selectedActor);
             }
             ImGui::TreePop();
         }
@@ -379,20 +379,20 @@ void ActorViewerWindow::DrawElement() {
             }
 
             if (UIWidgets::Button("Fetch from Link")) {
-                Player* player = GET_PLAYER(gPlayState);
+                Player* player = GET_PLAYER(MM_gPlayState);
                 newActor.pos = player->actor.world.pos;
                 newActor.rot = player->actor.world.rot;
             }
 
             if (UIWidgets::Button("Spawn", { .color = UIWidgets::Colors::Green })) {
-                Actor_Spawn(&gPlayState->actorCtx, gPlayState, newActor.id, newActor.pos.x, newActor.pos.y,
+                MM_Actor_Spawn(&MM_gPlayState->actorCtx, MM_gPlayState, newActor.id, newActor.pos.x, newActor.pos.y,
                             newActor.pos.z, newActor.rot.x, newActor.rot.y, newActor.rot.z, newActor.params);
             }
 
             if (UIWidgets::Button("Spawn as Child", { .color = UIWidgets::Colors::Green })) {
                 Actor* parent = selectedActor;
                 if (parent != nullptr && parent->child == nullptr) {
-                    Actor_SpawnAsChild(&gPlayState->actorCtx, parent, gPlayState, newActor.id, newActor.pos.x,
+                    MM_Actor_SpawnAsChild(&MM_gPlayState->actorCtx, parent, MM_gPlayState, newActor.id, newActor.pos.x,
                                        newActor.pos.y, newActor.pos.z, newActor.rot.x, newActor.rot.y, newActor.rot.z,
                                        newActor.params);
                 } else {

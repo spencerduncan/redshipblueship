@@ -5,7 +5,7 @@ extern "C" {
 #include "functions.h"
 #include "macros.h"
 #include "variables.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 static constexpr int32_t CVAR_RUPEE_DASH_DEFAULT = 0;
@@ -30,9 +30,9 @@ static void UpdateRupeeDash() {
     rupeeDashTimer = 0;
     if (gSaveContext.rupees > 0) {
         uint16_t walletSize = (CUR_UPG_VALUE(UPG_WALLET) + 1) * -1;
-        Rupees_ChangeBy(walletSize);
+        OoT_Rupees_ChangeBy(walletSize);
     } else {
-        Health_ChangeBy(gPlayState, -16);
+        OoT_Health_ChangeBy(OoT_gPlayState, -16);
     }
 }
 

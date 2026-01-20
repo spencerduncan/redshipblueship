@@ -22,7 +22,7 @@ extern "C" {
 #include "z64.h"
 #include "functions.h"
 #include "assets/archives/icon_item_24_static/icon_item_24_static_yar.h"
-extern PlayState* gPlayState;
+extern PlayState* MM_gPlayState;
 extern SaveContext gSaveContext;
 }
 extern std::unordered_map<s16, const char*> warpPointSceneList;
@@ -348,10 +348,10 @@ void BenMenu::AddSettings() {
     AddWidget(path, "about", WIDGET_CUSTOM).CustomFunction([](WidgetInfo& info) {
         ImGui::BeginChild("about");
         ImGui::PushStyleColor(ImGuiCol_Text, ColorValues.at(Colors::Gray));
-        if (gGitCommitTag[0] == 0) {
-            ImGui::Text("%s | %s", (char*)gGitBranch, (char*)gGitCommitHash);
+        if (MM_gGitCommitTag[0] == 0) {
+            ImGui::Text("%s | %s", (char*)MM_gGitBranch, (char*)MM_gGitCommitHash);
         } else {
-            ImGui::Text("%s", (char*)gBuildVersion);
+            ImGui::Text("%s", (char*)MM_gBuildVersion);
         }
         ImGui::PopStyleColor();
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.5f, 0.5f, 1.0f));
@@ -1828,8 +1828,8 @@ void BenMenu::AddDevTools() {
         .PreFunc([](WidgetInfo& info) {
             info.isHidden = mBenMenu->disabledMap.at(DISABLE_FOR_NULL_PLAY_STATE).active ||
                             mBenMenu->disabledMap.at(DISABLE_FOR_DEBUG_MODE_OFF).active;
-            if (gPlayState != nullptr) {
-                info.valuePointer = (bool*)&gPlayState->frameAdvCtx.enabled;
+            if (MM_gPlayState != nullptr) {
+                info.valuePointer = (bool*)&MM_gPlayState->frameAdvCtx.enabled;
             } else {
                 info.valuePointer = (bool*)nullptr;
             }
@@ -1986,7 +1986,7 @@ void BenMenu::InitElement() {
           { [](disabledInfo& info) -> bool { return !CVarGetInteger("gEnhancements.Saving.Autosave", 0); },
             "AutoSave is Disabled" } },
         { DISABLE_FOR_NULL_PLAY_STATE,
-          { [](disabledInfo& info) -> bool { return gPlayState == NULL; }, "Not in game" } },
+          { [](disabledInfo& info) -> bool { return MM_gPlayState == NULL; }, "Not in game" } },
         { DISABLE_FOR_DEBUG_MODE_OFF,
           { [](disabledInfo& info) -> bool { return !CVarGetInteger("gDeveloperTools.DebugEnabled", 0); },
             "Debug Mode is Disabled" } },
@@ -2029,7 +2029,7 @@ void BenMenu::InitElement() {
         { DISABLE_FOR_MOTION_BLUR_OFF,
           { [](disabledInfo& info) -> bool { return !R_MOTION_BLUR_ENABLED; }, "Motion Blur is disabled" } },
         { DISABLE_FOR_FRAME_ADVANCE_OFF,
-          { [](disabledInfo& info) -> bool { return !(gPlayState != nullptr && gPlayState->frameAdvCtx.enabled); },
+          { [](disabledInfo& info) -> bool { return !(MM_gPlayState != nullptr && MM_gPlayState->frameAdvCtx.enabled); },
             "Frame Advance is Disabled" } },
         { DISABLE_FOR_INTRO_SKIP_OFF,
           { [](disabledInfo& info) -> bool { return !CVarGetInteger("gEnhancements.Cutscenes.SkipIntroSequence", 0); },

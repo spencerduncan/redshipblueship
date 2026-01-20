@@ -6,7 +6,7 @@ extern "C" {
 #include "functions.h"
 #include "macros.h"
 
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 static constexpr int32_t CVAR_A11YNOSCREENFLASHFORFINISHINGBLOW_DEFAULT = 0;
@@ -17,7 +17,7 @@ static constexpr int32_t CVAR_A11YNOSCREENFLASHFORFINISHINGBLOW_DEFAULT = 0;
 static void RegisterA11yNoScreenFlashForFinishingBlow() {
     COND_VB_SHOULD(VB_FLASH_SCREEN_FOR_FINISHING_BLOW, CVAR_A11YNOSCREENFLASHFORFINISHINGBLOW_VALUE, {
         *should = false;
-        gPlayState->envCtx.fillScreen = false; // Force screen fill disabled
+        OoT_gPlayState->envCtx.fillScreen = false; // Force screen fill disabled
     });
 }
 

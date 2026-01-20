@@ -16,7 +16,7 @@ void RegisterSkipKamaroTeachDance() {
      */
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
         // Cutscene 41 in Termina Field is the Kamaro dance scene.
-        if (gPlayState->sceneId == SCENE_00KEIKOKU) {
+        if (MM_gPlayState->sceneId == SCENE_00KEIKOKU) {
             s16* csId = va_arg(args, s16*);
             if (*csId == 41) {
                 EnYb* enYb = va_arg(args, EnYb*);

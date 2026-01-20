@@ -14,7 +14,7 @@
 
 #include "3drando/shops.hpp"
 extern "C" {
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 // generic grotto event list
@@ -844,8 +844,8 @@ bool BeanPlanted(const RandomizerGet bean) {
 
     // Get the swch value for the scene
     uint32_t swch;
-    if (gPlayState != nullptr && gPlayState->sceneNum == sceneID) {
-        swch = gPlayState->actorCtx.flags.swch;
+    if (OoT_gPlayState != nullptr && OoT_gPlayState->sceneNum == sceneID) {
+        swch = OoT_gPlayState->actorCtx.flags.swch;
     } else if (sceneID != SCENE_ID_MAX) {
         swch = logic->GetSaveContext()->sceneFlags[sceneID].swch;
     } else {

@@ -36,7 +36,7 @@ void RegisterFrogChoirCount() {
     COND_ID_HOOK(OnActorUpdate, ACTOR_EN_MINIFROG, CVAR, [](Actor* actor) {
         EnMinifrog* enMinifrog = (EnMinifrog*)actor;
 
-        if (gPlayState->sceneId != SCENE_10YUKIYAMANOMURA2 || enMinifrog->frogIndex == 0) {
+        if (MM_gPlayState->sceneId != SCENE_10YUKIYAMANOMURA2 || enMinifrog->frogIndex == 0) {
             return;
         }
 

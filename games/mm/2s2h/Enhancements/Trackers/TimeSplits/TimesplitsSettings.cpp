@@ -356,14 +356,14 @@ const char* GetItemImageById(uint32_t itemId) {
         case SPLIT_KILLED_MAJORA:
             return gDungeonMapSkullTex;
         case SPLIT_SINGLE_MAGIC:
-            return (const char*)gItemIcons[ITEM_MAGIC_JAR_SMALL];
+            return (const char*)MM_gItemIcons[ITEM_MAGIC_JAR_SMALL];
         case SPLIT_DOUBLE_MAGIC:
-            return (const char*)gItemIcons[ITEM_MAGIC_JAR_BIG];
+            return (const char*)MM_gItemIcons[ITEM_MAGIC_JAR_BIG];
         case SPLIT_DOUBLE_DEFENSE:
-            return (const char*)gItemIcons[ITEM_HEART_CONTAINER];
+            return (const char*)MM_gItemIcons[ITEM_HEART_CONTAINER];
         default:
             if (itemId <= ITEM_NONE) {
-                return (const char*)gItemIcons[itemId];
+                return (const char*)MM_gItemIcons[itemId];
             }
             break;
     }

@@ -11,7 +11,7 @@
 #include "soh/cvar_prefixes.h"
 
 extern SaveContext gSaveContext;
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 extern void Overlay_DisplayText(float duration, const char* text);
 void DummyPlayer_Update(Actor* actor, PlayState* play);
 
@@ -57,7 +57,7 @@ static const char* GetBrokenLongswordInSheathDL() {
 static void UpdateCustomEquipmentSetModel(Player* player, u8 ModelGroup) {
     (void)ModelGroup;
 
-    if (player == nullptr || gPlayState == nullptr || player != GET_PLAYER(gPlayState)) {
+    if (player == nullptr || OoT_gPlayState == nullptr || player != GET_PLAYER(OoT_gPlayState)) {
         return;
     }
 
@@ -65,11 +65,11 @@ static void UpdateCustomEquipmentSetModel(Player* player, u8 ModelGroup) {
 }
 
 static void UpdateCustomEquipment() {
-    if (!GameInteractor::IsSaveLoaded() || gPlayState == nullptr) {
+    if (!GameInteractor::IsSaveLoaded() || OoT_gPlayState == nullptr) {
         return;
     }
 
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
     if (player == nullptr || player->actor.update == DummyPlayer_Update) {
         return;
     }
@@ -94,7 +94,7 @@ static void PatchCustomEquipment() {
 static RegisterShipInitFunc initFunc(PatchCustomEquipment);
 
 static void RefreshCustomEquipment() {
-    if (!GameInteractor::IsSaveLoaded() || gPlayState == NULL || GET_PLAYER(gPlayState) == nullptr) {
+    if (!GameInteractor::IsSaveLoaded() || OoT_gPlayState == NULL || GET_PLAYER(OoT_gPlayState) == nullptr) {
         return;
     }
 
@@ -254,7 +254,7 @@ static void ApplyMasterSwordPatches() {
 }
 
 static void ApplyBiggoronSwordPatches() {
-    if (gPlayState != nullptr && GET_PLAYER(gPlayState)->sheathType == PLAYER_MODELTYPE_SHEATH_19) {
+    if (OoT_gPlayState != nullptr && GET_PLAYER(OoT_gPlayState)->sheathType == PLAYER_MODELTYPE_SHEATH_19) {
         PatchOrUnpatch(gLinkChildDekuShieldWithMatrixDL, gCustomLongswordSheathDL, "customDekuShieldBack1",
                        "customDekuShieldBack2", "customDekuShieldBack2", gCustomDekuShieldOnBackDL);
     } else {
@@ -292,7 +292,7 @@ static void ApplyBiggoronSwordPatches() {
 }
 
 static void ApplyBreakableLongswordPatches() {
-    if (gPlayState != nullptr && GET_PLAYER(gPlayState)->sheathType == PLAYER_MODELTYPE_SHEATH_19) {
+    if (OoT_gPlayState != nullptr && GET_PLAYER(OoT_gPlayState)->sheathType == PLAYER_MODELTYPE_SHEATH_19) {
         PatchOrUnpatch(gLinkChildDekuShieldWithMatrixDL, GetBreakableLongswordSheathDL(), "customDekuShieldBack1",
                        "customDekuShieldBack2", "customDekuShieldBack2", gCustomDekuShieldOnBackDL);
     } else {
@@ -331,7 +331,7 @@ static void ApplyBreakableLongswordPatches() {
 }
 
 static void ApplyBrokenKnifePatches() {
-    if (gPlayState != nullptr && GET_PLAYER(gPlayState)->sheathType == PLAYER_MODELTYPE_SHEATH_19) {
+    if (OoT_gPlayState != nullptr && GET_PLAYER(OoT_gPlayState)->sheathType == PLAYER_MODELTYPE_SHEATH_19) {
         PatchOrUnpatch(gLinkChildDekuShieldWithMatrixDL, GetBrokenLongswordSheathDL(), "customDekuShieldBack1",
                        "customDekuShieldBack2", "customDekuShieldBack2", gCustomDekuShieldOnBackDL);
     } else {
@@ -520,11 +520,11 @@ void UpdatePatchCustomEquipmentDlists() {
 }
 
 static bool HasDummyPlayers() {
-    if (gPlayState == nullptr) {
+    if (OoT_gPlayState == nullptr) {
         return false;
     }
 
-    Actor* actor = gPlayState->actorCtx.actorLists[ACTORCAT_NPC].head;
+    Actor* actor = OoT_gPlayState->actorCtx.actorLists[ACTORCAT_NPC].head;
     while (actor != nullptr) {
         if (actor->id == ACTOR_EN_OE2 && actor->update == DummyPlayer_Update) {
             return true;

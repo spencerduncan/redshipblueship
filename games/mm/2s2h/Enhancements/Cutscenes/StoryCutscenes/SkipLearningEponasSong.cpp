@@ -17,12 +17,12 @@ void RegisterSkipLearningEponasSong() {
     COND_VB_SHOULD(VB_QUEUE_CUTSCENE, CVAR || IS_RANDO, {
         s16* csId = va_arg(args, s16*);
 
-        if (gPlayState->sceneId != SCENE_F01) { // Romani Ranch
+        if (MM_gPlayState->sceneId != SCENE_F01) { // Romani Ranch
             return;
         }
 
         EnMa4* enMa4 =
-            (EnMa4*)Actor_FindNearby(gPlayState, &GET_PLAYER(gPlayState)->actor, ACTOR_EN_MA4, ACTORCAT_NPC, 99999.9f);
+            (EnMa4*)MM_Actor_FindNearby(MM_gPlayState, &GET_PLAYER(MM_gPlayState)->actor, ACTOR_EN_MA4, ACTORCAT_NPC, 99999.9f);
         if (!enMa4) {
             return;
         }
@@ -41,19 +41,19 @@ void RegisterSkipLearningEponasSong() {
                         } else {
                             CustomMessage::StartTextbox("You received Epona's Song!\x1C\x02\x10", { .textboxType = 2 });
                         }
-                        Item_Give(gPlayState, ITEM_SONG_EPONA);
+                        MM_Item_Give(MM_gPlayState, ITEM_SONG_EPONA);
                     },
                 .drawItem =
                     [](Actor* actor, PlayState* play) {
-                        Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
+                        MM_Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
                         Rando::DrawItem(RI_SONG_EPONA);
                     } });
         }
 
         *should = false;
-        Message_StartTextbox(gPlayState, 0x334C, &enMa4->actor);
+        MM_Message_StartTextbox(MM_gPlayState, 0x334C, &enMa4->actor);
         enMa4->textId = 0x334C;
-        GET_PLAYER(gPlayState)->stateFlags1 &= ~PLAYER_STATE1_20;
+        GET_PLAYER(MM_gPlayState)->stateFlags1 &= ~PLAYER_STATE1_20;
         enMa4->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
         EnMa4_SetupDialogueHandler(enMa4);
     });

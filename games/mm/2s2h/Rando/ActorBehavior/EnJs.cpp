@@ -9,7 +9,7 @@ extern "C" {
 }
 
 void OverrideSubJsText(u16* textId, bool* loadFromMessageTable) {
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(MM_gPlayState);
     if (player->talkActor == NULL) {
         return;
     }
@@ -162,7 +162,7 @@ void Rando::ActorBehavior::InitEnJsBehavior() {
             case 6:
             case 7:
             case 8:
-                if (gPlayState->sceneId != SCENE_SOUGEN) {
+                if (MM_gPlayState->sceneId != SCENE_SOUGEN) {
                     *should = true;
                     *result = false;
                 }

@@ -46,7 +46,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // (Flags_GetEventChkInf(EVENTCHKINF_USED_DODONGOS_CAVERN_BLUE_WARP)) || BREG(2)
+    // (OoT_Flags_GetEventChkInf(EVENTCHKINF_USED_DODONGOS_CAVERN_BLUE_WARP)) || BREG(2)
     // ```
     // #### `args`
     // - None
@@ -114,7 +114,7 @@ typedef enum {
     // CHECK_QUEST_ITEM(QUEST_MEDALLION_SPIRIT) &&
     // CHECK_QUEST_ITEM(QUEST_MEDALLION_SHADOW) &&
     // LINK_IS_ADULT &&
-    // !Flags_GetEventChkInf(EVENTCHKINF_RETURNED_TO_TEMPLE_OF_TIME_WITH_ALL_MEDALLIONS) &&
+    // !OoT_Flags_GetEventChkInf(EVENTCHKINF_RETURNED_TO_TEMPLE_OF_TIME_WITH_ALL_MEDALLIONS) &&
     // (gEntranceTable[((void)0, gSaveContext.entranceIndex)].scene == SCENE_TEMPLE_OF_TIME)
     // ```
     // #### `args`
@@ -133,10 +133,10 @@ typedef enum {
     // ```c
     // (gSaveContext.entranceIndex == ENTR_KAKARIKO_VILLAGE_FRONT_GATE) &&
     // LINK_IS_ADULT &&
-    // Flags_GetEventChkInf(EVENTCHKINF_USED_FOREST_TEMPLE_BLUE_WARP) &&
-    // Flags_GetEventChkInf(EVENTCHKINF_USED_FIRE_TEMPLE_BLUE_WARP) &&
-    // Flags_GetEventChkInf(EVENTCHKINF_USED_WATER_TEMPLE_BLUE_WARP) &&
-    // !Flags_GetEventChkInf(EVENTCHKINF_BONGO_BONGO_ESCAPED_FROM_WELL)
+    // OoT_Flags_GetEventChkInf(EVENTCHKINF_USED_FOREST_TEMPLE_BLUE_WARP) &&
+    // OoT_Flags_GetEventChkInf(EVENTCHKINF_USED_FIRE_TEMPLE_BLUE_WARP) &&
+    // OoT_Flags_GetEventChkInf(EVENTCHKINF_USED_WATER_TEMPLE_BLUE_WARP) &&
+    // !OoT_Flags_GetEventChkInf(EVENTCHKINF_BONGO_BONGO_ESCAPED_FROM_WELL)
     // ```
     // #### `args`
     // - None
@@ -144,8 +144,8 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // !Flags_GetEventChkInf(EVENTCHKINF_LEARNED_PRELUDE_OF_LIGHT) &&
-    // Flags_GetEventChkInf(EVENTCHKINF_USED_FOREST_TEMPLE_BLUE_WARP)
+    // !OoT_Flags_GetEventChkInf(EVENTCHKINF_LEARNED_PRELUDE_OF_LIGHT) &&
+    // OoT_Flags_GetEventChkInf(EVENTCHKINF_USED_FOREST_TEMPLE_BLUE_WARP)
     // ```
     // #### `args`
     // - None
@@ -173,7 +173,7 @@ typedef enum {
     // #### `result`
     // ```c
     // CHECK_OWNED_EQUIP(EQUIP_TYPE_BOOTS, EQUIP_INV_BOOTS_IRON) &&
-    // !Flags_GetEventChkInf(EVENTCHKINF_LEARNED_SERENADE_OF_WATER)
+    // !OoT_Flags_GetEventChkInf(EVENTCHKINF_LEARNED_SERENADE_OF_WATER)
     // ```
     // #### `args`
     // - None
@@ -181,7 +181,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // !Flags_GetEventChkInf(EVENTCHKINF_OPENED_THE_DOOR_OF_TIME)
+    // !OoT_Flags_GetEventChkInf(EVENTCHKINF_OPENED_THE_DOOR_OF_TIME)
     // ```
     // #### `args`
     // - `*EnOkarinaTag`
@@ -255,8 +255,8 @@ typedef enum {
     // #### `result`
     // ```c
     // ((this->actor.params == DNS_TYPE_HEART_PIECE) && (Flags_GetItemGetInf(ITEMGETINF_DEKU_SCRUB_HEART_PIECE))) ||
-    // ((this->actor.params == DNS_TYPE_DEKU_STICK_UPGRADE) && (Flags_GetInfTable(INFTABLE_BOUGHT_STICK_UPGRADE))) ||
-    // ((this->actor.params == DNS_TYPE_DEKU_NUT_UPGRADE) && (Flags_GetInfTable(INFTABLE_BOUGHT_NUT_UPGRADE)))
+    // ((this->actor.params == DNS_TYPE_DEKU_STICK_UPGRADE) && (OoT_Flags_GetInfTable(INFTABLE_BOUGHT_STICK_UPGRADE))) ||
+    // ((this->actor.params == DNS_TYPE_DEKU_NUT_UPGRADE) && (OoT_Flags_GetInfTable(INFTABLE_BOUGHT_NUT_UPGRADE)))
     // ```
     // #### `args`
     // - `*EnShopnuts`
@@ -365,7 +365,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // this->actionTimer == 0 && Rand_ZeroOne() < 0.03f
+    // this->actionTimer == 0 && OoT_Rand_ZeroOne() < 0.03f
     // ```
     // #### `args`
     // - `*EnPoRelay`
@@ -390,7 +390,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // !Flags_GetItemGetInf(ITEMGETINF_OBTAINED_NUT_UPGRADE_FROM_STAGE) && (Player_GetMask(play) != PLAYER_MASK_SKULL)
+    // !Flags_GetItemGetInf(ITEMGETINF_OBTAINED_NUT_UPGRADE_FROM_STAGE) && (OoT_Player_GetMask(play) != PLAYER_MASK_SKULL)
     // ```
     // #### `args`
     // - None
@@ -452,7 +452,7 @@ typedef enum {
     // #### `result`
     // ```c
     // play->sceneNum == SCENE_LINKS_HOUSE && (!LINK_IS_ADULT ||
-    // !Flags_GetEventChkInf(EVENTCHKINF_WON_COW_IN_MALONS_RACE)
+    // !OoT_Flags_GetEventChkInf(EVENTCHKINF_WON_COW_IN_MALONS_RACE)
     // ```
     // #### `args`
     // - `*EnCow`
@@ -471,7 +471,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // !Flags_GetSwitch(play, this->actor.params & 0x3F)
+    // !OoT_Flags_GetSwitch(play, this->actor.params & 0x3F)
     // ```
     // #### `args`
     // - `*EnDoor`
@@ -491,7 +491,7 @@ typedef enum {
     VB_HEISHI2_ACCEPT_ITEM_AS_ZELDAS_LETTER,
 
     // #### `result`
-    // In `Interface_DrawAmmoCount`:
+    // In `OoT_Interface_DrawAmmoCount`:
     // ```c
     // (i == ITEM_STICK) ||
     // (i == ITEM_NUT) ||
@@ -505,7 +505,7 @@ typedef enum {
     // (i == ITEM_BOMBCHU) ||
     // (i == ITEM_BEAN)
     // ```
-    // In `KaleidoScope_DrawAmmoCount`:
+    // In `OoT_KaleidoScope_DrawAmmoCount`:
     // ```c
     // true
     // ```
@@ -523,7 +523,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // (Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)
+    // (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && OoT_Message_ShouldAdvance(play)
     // ```
     // #### `args`
     // - None
@@ -620,7 +620,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // (this->invisible && !Flags_GetSwitch(play, this->actor.home.rot.z)) || this->actor.xzDistToPlayer > 300.0f
+    // (this->invisible && !OoT_Flags_GetSwitch(play, this->actor.home.rot.z)) || this->actor.xzDistToPlayer > 300.0f
     // ```
     // #### `args`
     // - `EnGeldB*`
@@ -1172,7 +1172,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // Flags_GetSwitch(play, this->dyna.actor.params & 0x3F)
+    // OoT_Flags_GetSwitch(play, this->dyna.actor.params & 0x3F)
     // ```
     // #### `args`
     // - None
@@ -1268,7 +1268,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // Flags_GetCollectible(play, 0x1F)
+    // OoT_Flags_GetCollectible(play, 0x1F)
     // ```
     // #### `args`
     // - `*ItemBHeart`
@@ -1276,7 +1276,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // Flags_GetCollectible(play, this->collectibleFlag)
+    // OoT_Flags_GetCollectible(play, this->collectibleFlag)
     // ```
     // #### `args`
     // - `*EnItem00`
@@ -1308,7 +1308,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // Flags_GetEventChkInf(EVENTCHKINF_KING_ZORA_MOVED)
+    // OoT_Flags_GetEventChkInf(EVENTCHKINF_KING_ZORA_MOVED)
     // ```
     // #### `args`
     // - `*EnKz`
@@ -1332,7 +1332,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // !Flags_GetSwitch(play, this->dyna.actor.params & 0x3F)
+    // !OoT_Flags_GetSwitch(play, this->dyna.actor.params & 0x3F)
     // ```
     // #### `args`
     // - `*DoorShutter`
@@ -1348,7 +1348,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // Flags_GetEventChkInf(EVENTCHKINF_TALON_RETURNED_FROM_CASTLE)
+    // OoT_Flags_GetEventChkInf(EVENTCHKINF_TALON_RETURNED_FROM_CASTLE)
     // ```
     // #### `args`
     // - None
@@ -1407,7 +1407,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // Inventory_HasEmptyBottle() == 0
+    // OoT_Inventory_HasEmptyBottle() == 0
     // ```
     // #### `args`
     // - None
@@ -1415,7 +1415,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // Flags_GetInfTable(INFTABLE_GREETED_BY_SARIA)
+    // OoT_Flags_GetInfTable(INFTABLE_GREETED_BY_SARIA)
     // ```
     // #### `args`
     // - None
@@ -1447,7 +1447,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // (this->switchFlag >= 0) && (Flags_GetSwitch(play, this->switchFlag))
+    // (this->switchFlag >= 0) && (OoT_Flags_GetSwitch(play, this->switchFlag))
     // ```
     // #### `args`
     // - `*EnOkarinaTag`
@@ -1488,11 +1488,11 @@ typedef enum {
     // #### `result`
     // ##### In `DoorWarp1_ChildWarpOut` - `SCENE_DODONGOS_CAVERN_BOSS`
     // ```c
-    // !Flags_GetEventChkInf(EVENTCHKINF_USED_DODONGOS_CAVERN_BLUE_WARP)
+    // !OoT_Flags_GetEventChkInf(EVENTCHKINF_USED_DODONGOS_CAVERN_BLUE_WARP)
     // ```
     // ##### In `DoorWarp1_ChildWarpOut` - `SCENE_DEKU_TREE_BOSS`
     // ```c
-    // !Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_KOKIRI_EMERALD_DEKU_TREE_DEAD)
+    // !OoT_Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_KOKIRI_EMERALD_DEKU_TREE_DEAD)
     // ```
     // ##### In `DoorWarp1_RutoWarpOut`
     // ```c
@@ -1500,15 +1500,15 @@ typedef enum {
     // ```
     // ##### In `DoorWarp1_AdultWarpOut` - `SCENE_FOREST_TEMPLE_BOSS`
     // ```c
-    // !Flags_GetEventChkInf(EVENTCHKINF_USED_FOREST_TEMPLE_BLUE_WARP)
+    // !OoT_Flags_GetEventChkInf(EVENTCHKINF_USED_FOREST_TEMPLE_BLUE_WARP)
     // ```
     // ##### In `DoorWarp1_AdultWarpOut` - `SCENE_FIRE_TEMPLE_BOSS`
     // ```c
-    // !Flags_GetEventChkInf(EVENTCHKINF_USED_FIRE_TEMPLE_BLUE_WARP)
+    // !OoT_Flags_GetEventChkInf(EVENTCHKINF_USED_FIRE_TEMPLE_BLUE_WARP)
     // ```
     // ##### In `DoorWarp1_AdultWarpOut` - `SCENE_WATER_TEMPLE_BOSS`
     // ```c
-    // !Flags_GetEventChkInf(EVENTCHKINF_USED_WATER_TEMPLE_BLUE_WARP)
+    // !OoT_Flags_GetEventChkInf(EVENTCHKINF_USED_WATER_TEMPLE_BLUE_WARP)
     // ```
     // ##### In `DoorWarp1_AdultWarpOut` - `SCENE_SPIRIT_TEMPLE_BOSS`
     // ```c
@@ -1541,7 +1541,7 @@ typedef enum {
     // #### `result`
     // Close enough & various cutscene checks
     // ```c
-    // (func_80AEC5FC(this, play)) && (!Play_InCsMode(play)) &&
+    // (func_80AEC5FC(this, play)) && (!OoT_Play_InCsMode(play)) &&
     // (!(player->stateFlags1 & (PLAYER_STATE1_HANGING_OFF_LEDGE | PLAYER_STATE1_CLIMBING_LEDGE |
     // PLAYER_STATE1_CLIMBING_LADDER))) &&
     // (player->actor.bgCheckFlags & 1)
@@ -1710,7 +1710,7 @@ typedef enum {
     // ```
     // ##### In `z_demo.c` - `Cutscene_Command_Terminator` (inside if block and switch)
     // ```c
-    // !Flags_GetEventChkInf(EVENTCHKINF_PULLED_MASTER_SWORD_FROM_PEDESTAL)
+    // !OoT_Flags_GetEventChkInf(EVENTCHKINF_PULLED_MASTER_SWORD_FROM_PEDESTAL)
     // ```
     // #### `args`
     // - None
@@ -1766,7 +1766,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // (giEntry.itemId != ITEM_NONE) && (giEntry.gi >= 0) && (Item_CheckObtainability(giEntry.itemId) == ITEM_NONE)
+    // (giEntry.itemId != ITEM_NONE) && (giEntry.gi >= 0) && (OoT_Item_CheckObtainability(giEntry.itemId) == ITEM_NONE)
     // ```
     // #### `args`
     // - `*EnBox`
@@ -1889,7 +1889,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // !Flags_GetInfTable(INFTABLE_145)
+    // !OoT_Flags_GetInfTable(INFTABLE_145)
     // ```
     // #### `args`
     // - `*EnRu1`
@@ -1899,7 +1899,7 @@ typedef enum {
     // Landed on the platform in the big okto room
     // ```c
     // dynaPolyActor != NULL && dynaPolyActor->actor.id == ACTOR_BG_BDAN_OBJECTS &&
-    // dynaPolyActor->actor.params == 0 && !Player_InCsMode(play) && play->msgCtx.msgLength == 0
+    // dynaPolyActor->actor.params == 0 && !OoT_Player_InCsMode(play) && play->msgCtx.msgLength == 0
     // ```
     // #### `args`
     // - `*EnRu1`
@@ -1909,7 +1909,7 @@ typedef enum {
     // #### `result`
     // in the big okto room and flag
     // ```c
-    // !Flags_GetInfTable(INFTABLE_RUTO_IN_JJ_WANTS_TO_BE_TOSSED_TO_SAPPHIRE) && (func_80AEB124(play) != 0)
+    // !OoT_Flags_GetInfTable(INFTABLE_RUTO_IN_JJ_WANTS_TO_BE_TOSSED_TO_SAPPHIRE) && (func_80AEB124(play) != 0)
     // ```
     // #### `args`
     // - `*EnRu1`
@@ -1959,7 +1959,7 @@ typedef enum {
     // #### `result`
     // ```c
     // (!CHECK_OWNED_EQUIP(EQUIP_TYPE_BOOTS, EQUIP_INV_BOOTS_IRON) &&
-    // !Flags_GetEventChkInf(EVENTCHKINF_LEARNED_SERENADE_OF_WATER)) && LINK_IS_ADULT
+    // !OoT_Flags_GetEventChkInf(EVENTCHKINF_LEARNED_SERENADE_OF_WATER)) && LINK_IS_ADULT
     // ```
     // #### `args`
     // - None
@@ -2358,7 +2358,7 @@ typedef enum {
     // - `*PlayState`
     VB_SHOW_GAMEPLAY_TIMER,
 
-    // (this->dyna.actor.params >> 5 & 0x7F) == GI_ICE_TRAP && this->actionFunc == EnBox_Open &&
+    // (this->dyna.actor.params >> 5 & 0x7F) == GI_ICE_TRAP && this->actionFunc == OoT_EnBox_Open &&
     // this->skelanime.curFrame > 45 && this->iceSmokeTimer < 100
     // ```
     // #### `args`
@@ -2427,7 +2427,7 @@ typedef enum {
     // - int16_t
     VB_COLOR_AMMO_GREEN,
 
-    // (this->collider.base.acFlags & AC_HIT) && !Player_InCsMode(play) &&
+    // (this->collider.base.acFlags & AC_HIT) && !OoT_Player_InCsMode(play) &&
     //   (player->meleeWeaponAnimation == 22 || player->meleeWeaponAnimation == 23)
     // ```
     // #### `args`

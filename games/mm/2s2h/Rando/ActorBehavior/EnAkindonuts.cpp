@@ -75,14 +75,14 @@ void Rando::ActorBehavior::InitEnAkindonutsBehavior() {
                 if (randoInf != RANDO_INF_MAX && !Flags_GetRandoInf(randoInf)) {
                     Flags_SetRandoInf(randoInf);
                     // Happen at the end of the repeatable purchase chain
-                    Rupees_ChangeBy(enAkindonuts->unk_364);
+                    MM_Rupees_ChangeBy(enAkindonuts->unk_364);
                     enAkindonuts->unk_32C &= ~0x40;
-                    enAkindonuts->unk_2DC(enAkindonuts, gPlayState);
+                    enAkindonuts->unk_2DC(enAkindonuts, MM_gPlayState);
                     enAkindonuts->actionFunc = func_80BEEFA8;
                 }
             } else {
                 // Happen at the end of the trade item chain
-                enAkindonuts->unk_2DC(enAkindonuts, gPlayState);
+                enAkindonuts->unk_2DC(enAkindonuts, MM_gPlayState);
                 enAkindonuts->actionFunc = func_80BEEFA8;
             }
         }
@@ -153,7 +153,7 @@ void Rando::ActorBehavior::InitEnAkindonutsBehavior() {
 
     // You get the potion only! if you don't have an empty bottle... (Used for both potion scrubs)
     COND_ID_HOOK(OnOpenText, 0x1613, IS_RANDO, [](u16* textId, bool* loadFromMessageTable) {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         if (player->talkActor == nullptr || player->talkActor->id != ACTOR_EN_AKINDONUTS) {
             return;
         }

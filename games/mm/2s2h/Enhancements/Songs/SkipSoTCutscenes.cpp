@@ -72,18 +72,18 @@ void RegisterSkipSoTCutscenes() {
 
         if (enTest6->actionFunc == EnTest6_DoubleSoTCutscene) {
             enTest6->actionFunc = EnTest6_StopDoubleSoTCutscene;
-            Player* player = GET_PLAYER(gPlayState);
+            Player* player = GET_PLAYER(MM_gPlayState);
 
             // Respawns the player out when going from day -> night
             // copied from last cutscene cue SOTCS_CUEID_DOUBLE_END in EnTest6_SharedSoTCutscene
             if (CURRENT_TIME > CLOCK_TIME(12, 0)) {
-                Play_SetRespawnData(gPlayState, RESPAWN_MODE_RETURN, gSaveContext.save.entrance, player->unk_3CE,
+                MM_Play_SetRespawnData(MM_gPlayState, RESPAWN_MODE_RETURN, gSaveContext.save.entrance, player->unk_3CE,
                                     PLAYER_PARAMS(0xFF, PLAYER_START_MODE_B), &player->unk_3C0, player->unk_3CC);
-                gPlayState->transitionTrigger = TRANS_TRIGGER_START;
-                gPlayState->nextEntrance = gSaveContext.respawn[RESPAWN_MODE_RETURN].entrance;
-                gPlayState->transitionType = TRANS_TYPE_FADE_BLACK;
+                MM_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
+                MM_gPlayState->nextEntrance = gSaveContext.respawn[RESPAWN_MODE_RETURN].entrance;
+                MM_gPlayState->transitionType = TRANS_TYPE_FADE_BLACK;
                 gSaveContext.respawnFlag = 2;
-                gPlayState->msgCtx.ocarinaMode = OCARINA_MODE_END;
+                MM_gPlayState->msgCtx.ocarinaMode = OCARINA_MODE_END;
             }
         } else if (enTest6->actionFunc == EnTest6_InvertedSoTCutscene) {
             enTest6->actionFunc = EnTest6_StopInvertedSoTCutscene;

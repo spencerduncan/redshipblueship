@@ -35,30 +35,30 @@ extern "C" {
 extern "C" {
     void InitOTR(void);
     void DeinitOTR(void);
-    void Heaps_Alloc(void);
-    void Heaps_Free(void);
+    void MM_Heaps_Alloc(void);
+    void MM_Heaps_Free(void);
     void CrashHandler_PrintExt(char* buffer, size_t* pos);
-    void Graph_ThreadEntry(void* arg);
+    void MM_Graph_ThreadEntry(void* arg);
 
     // Additional init functions from main.c
     void Nmi_Init(void);
-    void Fault_Init(void);
+    void MM_Fault_Init(void);
     void Check_RegionIsSupported(void);
     void Check_ExpansionPak(void);
     void Regs_Init(void);
 
     // Globals from main.c that need to be referenced
-    extern s32 gScreenWidth;
-    extern s32 gScreenHeight;
-    extern uintptr_t gSystemHeap;
+    extern s32 MM_gScreenWidth;
+    extern s32 MM_gScreenHeight;
+    extern uintptr_t MM_gSystemHeap;
     extern OSMesgQueue sSerialEventQueue;
     extern OSMesg sSerialMsgBuf[1];
     extern OSMesgQueue sIrqMgrMsgQueue;
     extern OSMesg sIrqMgrMsgBuf[60];
-    extern SchedContext gSchedContext;
+    extern SchedContext MM_gSchedContext;
     extern AudioMgr sAudioMgr;
-    extern PadMgr gPadMgr;
-    extern IrqMgr gIrqMgr;
+    extern PadMgr MM_gPadMgr;
+    extern IrqMgr MM_gIrqMgr;
 
     // Save context for state preservation
     extern SaveContext gSaveContext;
@@ -77,7 +77,7 @@ GAME_EXPORT int Game_Init(int argc, char** argv) {
     sArgc = argc;
     sArgv = argv;
 
-    // Initialize MM subsystems (matching what SDL_main() does)
+    // Initialize MM subsystems (matching what MM_SDL_main() does)
     fprintf(stderr, "[MM INIT DEBUG] About to call InitOTR()...\n");
     fflush(stderr);
     InitOTR();
@@ -90,21 +90,21 @@ GAME_EXPORT int Game_Init(int argc, char** argv) {
 
     fprintf(stderr, "[MM INIT DEBUG] Allocating heaps...\n");
     fflush(stderr);
-    Heaps_Alloc();
+    MM_Heaps_Alloc();
     fprintf(stderr, "[MM INIT DEBUG] Heaps allocated\n");
     fflush(stderr);
 
-    // Additional initialization from main.c that happens before Graph_ThreadEntry
-    gScreenWidth = SCREEN_WIDTH;
-    gScreenHeight = SCREEN_HEIGHT;
+    // Additional initialization from main.c that happens before MM_Graph_ThreadEntry
+    MM_gScreenWidth = SCREEN_WIDTH;
+    MM_gScreenHeight = SCREEN_HEIGHT;
 
     fprintf(stderr, "[MM INIT DEBUG] Calling Nmi_Init()...\n");
     fflush(stderr);
     Nmi_Init();
 
-    fprintf(stderr, "[MM INIT DEBUG] Calling Fault_Init()...\n");
+    fprintf(stderr, "[MM INIT DEBUG] Calling MM_Fault_Init()...\n");
     fflush(stderr);
-    Fault_Init();
+    MM_Fault_Init();
 
     fprintf(stderr, "[MM INIT DEBUG] Calling Check_RegionIsSupported()...\n");
     fflush(stderr);
@@ -114,9 +114,9 @@ GAME_EXPORT int Game_Init(int argc, char** argv) {
     fflush(stderr);
     Check_ExpansionPak();
 
-    fprintf(stderr, "[MM INIT DEBUG] Calling SystemHeap_Init()...\n");
+    fprintf(stderr, "[MM INIT DEBUG] Calling MM_SystemHeap_Init()...\n");
     fflush(stderr);
-    SystemHeap_Init((void*)gSystemHeap, SYSTEM_HEAP_SIZE);
+    MM_SystemHeap_Init((void*)MM_gSystemHeap, SYSTEM_HEAP_SIZE);
 
     fprintf(stderr, "[MM INIT DEBUG] Calling Regs_Init()...\n");
     fflush(stderr);
@@ -125,19 +125,19 @@ GAME_EXPORT int Game_Init(int argc, char** argv) {
     // Set up message queues
     fprintf(stderr, "[MM INIT DEBUG] Setting up message queues...\n");
     fflush(stderr);
-    osCreateMesgQueue(&sSerialEventQueue, sSerialMsgBuf, ARRAY_COUNT(sSerialMsgBuf));
-    osSetEventMesg(OS_EVENT_SI, &sSerialEventQueue, OS_MESG_PTR(NULL));
-    osCreateMesgQueue(&sIrqMgrMsgQueue, sIrqMgrMsgBuf, ARRAY_COUNT(sIrqMgrMsgBuf));
+    MM_osCreateMesgQueue(&sSerialEventQueue, sSerialMsgBuf, ARRAY_COUNT(sSerialMsgBuf));
+    MM_osSetEventMesg(OS_EVENT_SI, &sSerialEventQueue, OS_MESG_PTR(NULL));
+    MM_osCreateMesgQueue(&sIrqMgrMsgQueue, sIrqMgrMsgBuf, ARRAY_COUNT(sIrqMgrMsgBuf));
 
-    // Initialize PadMgr and AudioMgr - these are required for Graph_ThreadEntry
+    // Initialize PadMgr and AudioMgr - these are required for MM_Graph_ThreadEntry
     // Note: Stack addresses are handled differently in shared library context
-    fprintf(stderr, "[MM INIT DEBUG] Calling PadMgr_Init()...\n");
+    fprintf(stderr, "[MM INIT DEBUG] Calling MM_PadMgr_Init()...\n");
     fflush(stderr);
-    PadMgr_Init(&sSerialEventQueue, &gIrqMgr, Z_THREAD_ID_PADMGR, Z_PRIORITY_PADMGR, NULL);
+    MM_PadMgr_Init(&sSerialEventQueue, &MM_gIrqMgr, Z_THREAD_ID_PADMGR, Z_PRIORITY_PADMGR, NULL);
 
-    fprintf(stderr, "[MM INIT DEBUG] Calling AudioMgr_Init()...\n");
+    fprintf(stderr, "[MM INIT DEBUG] Calling MM_AudioMgr_Init()...\n");
     fflush(stderr);
-    AudioMgr_Init(&sAudioMgr, NULL, Z_PRIORITY_AUDIOMGR, Z_THREAD_ID_AUDIOMGR, &gSchedContext, &gIrqMgr);
+    MM_AudioMgr_Init(&sAudioMgr, NULL, Z_PRIORITY_AUDIOMGR, Z_THREAD_ID_AUDIOMGR, &MM_gSchedContext, &MM_gIrqMgr);
 
     fprintf(stderr, "[MM INIT DEBUG] Game_Init complete, returning 0\n");
     fflush(stderr);
@@ -146,12 +146,12 @@ GAME_EXPORT int Game_Init(int argc, char** argv) {
 
 GAME_EXPORT void Game_Run(void) {
     // Run the main game loop
-    Graph_ThreadEntry(nullptr);
+    MM_Graph_ThreadEntry(nullptr);
 }
 
 GAME_EXPORT void Game_Shutdown(void) {
     DeinitOTR();
-    Heaps_Free();
+    MM_Heaps_Free();
 }
 
 GAME_EXPORT void Game_Pause(void) {
@@ -209,7 +209,7 @@ static bool sLastF10State = false;
 /**
  * Check if F10 was pressed and request game switch if so.
  * Also checks for pending cross-game entrance switches.
- * Called from the game loop (Graph_ThreadEntry) each frame.
+ * Called from the game loop (MM_Graph_ThreadEntry) each frame.
  * Returns true if a switch was requested (game should exit its loop).
  */
 extern "C" bool Combo_CheckHotSwap(void) {

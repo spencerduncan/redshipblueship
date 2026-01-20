@@ -7,12 +7,12 @@
 
 extern "C" {
 #include "macros.h"
-extern PlayState* gPlayState;
+extern PlayState* MM_gPlayState;
 }
 
 void RegisterGoronRollingFastSpikes() {
     COND_VB_SHOULD(VB_GORON_ROLL_INCREASE_SPIKE_LEVEL, CVAR, {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
 
         // This is what the game keeps track of the state of how far you're off to spikes.
         // The vanilla if statement this SHOULD comes from will set it back to 4 if the player

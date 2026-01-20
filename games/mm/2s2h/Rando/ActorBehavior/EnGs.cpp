@@ -40,7 +40,7 @@ s32 GetNormalizedCost() {
 }
 
 RandoCheckId GetRandomCheck(bool repeatableOnlyObtained = false) {
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(MM_gPlayState);
     if (player->talkActor == nullptr || player->talkActor->id != ACTOR_EN_GS) {
         return RC_UNKNOWN;
     }
@@ -60,9 +60,9 @@ RandoCheckId GetRandomCheck(bool repeatableOnlyObtained = false) {
     }
 
     if (repeatableOnlyObtained) {
-        Ship_Random_Seed(gGameState->frames);
+        Ship_Random_Seed(MM_gGameState->frames);
     } else {
-        uint32_t seed = gPlayState->sceneId + enGs->actor.home.pos.x + enGs->actor.home.pos.z;
+        uint32_t seed = MM_gPlayState->sceneId + enGs->actor.home.pos.x + enGs->actor.home.pos.z;
         Ship_Random_Seed(gSaveContext.save.shipSaveInfo.rando.finalSeed + seed);
     }
     return availableChecks[Ship_Random(0, availableChecks.size() - 1)];
@@ -77,7 +77,7 @@ void Rando::ActorBehavior::InitEnGsBehavior() {
     // Override the message ID so that we can control the text
     COND_VB_SHOULD(VB_GS_CONTINUE_TEXTBOX, shouldRegister, {
         *should = false;
-        Message_ContinueTextbox(gPlayState, SECOND_GS_MESSAGE);
+        MM_Message_ContinueTextbox(MM_gPlayState, SECOND_GS_MESSAGE);
     });
 
     COND_ID_HOOK(OnOpenText, FIRST_GS_MESSAGE, shouldRegister, [](u16* textId, bool* loadFromMessageTable) {
@@ -125,7 +125,7 @@ void Rando::ActorBehavior::InitEnGsBehavior() {
     });
 
     COND_ID_HOOK(OnOpenText, SECOND_GS_MESSAGE, shouldRegister, [](u16* textId, bool* loadFromMessageTable) {
-        MessageContext* msgCtx = &gPlayState->msgCtx;
+        MessageContext* msgCtx = &MM_gPlayState->msgCtx;
         auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
 
         if (RANDO_SAVE_OPTIONS[RO_HINTS_PURCHASEABLE]) {
@@ -165,7 +165,7 @@ void Rando::ActorBehavior::InitEnGsBehavior() {
     COND_VB_SHOULD(VB_GIVE_ITEM_FROM_OFFER, IS_RANDO, {
         GetItemId* item = va_arg(args, GetItemId*);
         Actor* refActor = va_arg(args, Actor*);
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
 
         if (refActor->id != ACTOR_EN_GS || *item != GI_HEART_PIECE) {
             return;

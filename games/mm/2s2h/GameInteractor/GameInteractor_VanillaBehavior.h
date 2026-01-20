@@ -41,7 +41,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // Inventory_HasEmptyBottle()
+    // MM_Inventory_HasEmptyBottle()
     // ```
     // #### `args`
     // - `*EnAkindonuts`
@@ -122,7 +122,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // SurfaceType_GetData(colCtx, poly, bgId, 1) >> 17 & 1
+    // MM_SurfaceType_GetData(colCtx, poly, bgId, 1) >> 17 & 1
     // ```
     // #### `args`
     // - `*CollisionPoly` (unused)
@@ -130,7 +130,7 @@ typedef enum {
     VB_BE_HOOKSHOT_SURFACE,
 
     // #### `result`
-    // #### In `EnDoor_Idle`, for `*EnDoor`:
+    // #### In `MM_EnDoor_Idle`, for `*EnDoor`:
     // ```c
     // fabsf(playerPosRelToDoor.z) < 50.0f
     // ```
@@ -160,16 +160,16 @@ typedef enum {
     // #### `result`
     // ##### In `func_80B7F290`:
     // ```c
-    // Math_StepToF(this->unk_164, this->unk_168, this->unk_16C)
+    // MM_Math_StepToF(this->unk_164, this->unk_168, this->unk_16C)
     // ```
     // ##### In `func_80A25E50`:
     // ```c
-    // Math_StepToF(this->unk_264, this->unk_268,
-    // CLAMP_MAX((Math_SinS(fabsf(this->unk_268 - *this->unk_264) * 546.13336f) * 2.8f) + 1.2f, 3.5f))
+    // MM_Math_StepToF(this->unk_264, this->unk_268,
+    // CLAMP_MAX((MM_Math_SinS(fabsf(this->unk_268 - *this->unk_264) * 546.13336f) * 2.8f) + 1.2f, 3.5f))
     // ```
     // ##### In `func_809A3BC0`:
     // ```c
-    // Math_StepToF(this->unk_164, this->unk_168, 2.3f)
+    // MM_Math_StepToF(this->unk_164, this->unk_168, 2.3f)
     // ```
     // #### `args`
     // - `*f32` (pValue)
@@ -561,14 +561,14 @@ typedef enum {
     VB_ENABLE_OBJECT_DEPENDENCY,
 
     // #### `result`
-    // #### In `Item_DropCollectible`:
+    // #### In `MM_Item_DropCollectible`:
     // ```c
     // true
     // ```
     // #### `args`
     // - `*Vec3f` spawnPos
     // - `u32` params
-    // #### In `Item_DropCollectibleRandom`:
+    // #### In `MM_Item_DropCollectibleRandom`:
     // ```c
     // true
     // ```
@@ -646,7 +646,7 @@ typedef enum {
     VB_GET_ITEM_ACTION_FROM_MASK,
 
     // #### `result`
-    // #### In `Player_GetItemOnButton`:
+    // #### In `MM_Player_GetItemOnButton`:
     // ```c
     // item
     // ```
@@ -744,7 +744,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // !Flags_GetSwitch(play, GREAT_FAIRY_GET_SWITCHFLAG(&this->actor))
+    // !MM_Flags_GetSwitch(play, GREAT_FAIRY_GET_SWITCHFLAG(&this->actor))
     // ```
     // #### `args`
     // - `*BgDyYoseizo`
@@ -961,7 +961,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // Player_GetMask(play) == PLAYER_MASK_TRUTH
+    // MM_Player_GetMask(play) == PLAYER_MASK_TRUTH
     // ```
     // #### `args`
     // - `*EnGs` (unused)
@@ -1041,7 +1041,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // (!DynaPolyActor_IsPlayerAbove((DynaPolyActor*)this->actor.child) &&
+    // (!MM_DynaPolyActor_IsPlayerAbove((DynaPolyActor*)this->actor.child) &&
     //  (player->actor.bgCheckFlags & BGCHECKFLAG_GROUND)) ||
     // (gSaveContext.timerCurTimes[TIMER_ID_MINIGAME_2] <= SECONDS_TO_TIMER(0)) ||
     // (this->unk_548 == this->unk_54C)
@@ -1160,7 +1160,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // WaterBox_GetSurface1(play, &play->colCtx, sp4C.x, sp4C.z, &sp44, &waterBox) && ((sp44 - sp48) > 50.0f)
+    // MM_WaterBox_GetSurface1(play, &play->colCtx, sp4C.x, sp4C.z, &sp44, &waterBox) && ((sp44 - sp48) > 50.0f)
     // ```
     // #### `args`
     // - None
@@ -1464,7 +1464,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // Rand_Next() & 0x80
+    // MM_Rand_Next() & 0x80
     // ```
     // #### `args`
     // - None
@@ -1540,7 +1540,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // (giEntry->itemId != ITEM_NONE) && (giEntry->gid >= 0) && (Item_CheckObtainability(giEntry->itemId) == ITEM_NONE)
+    // (giEntry->itemId != ITEM_NONE) && (giEntry->gid >= 0) && (MM_Item_CheckObtainability(giEntry->itemId) == ITEM_NONE)
     // ```
     // #### `args`
     // - `*EnBox` (unused)
@@ -1782,7 +1782,7 @@ typedef enum {
     // ```c
     // this->transformation != PLAYER_FORM_FIERCE_DEITY
     // ```
-    // ##### In `Player_UpdateInterface`:
+    // ##### In `MM_Player_UpdateInterface`:
     // ```c
     // (this->transformation == PLAYER_FORM_HUMAN) || (this->transformation == PLAYER_FORM_ZORA)
     // ```
@@ -1801,7 +1801,7 @@ typedef enum {
     // #### `result`
     // ```c
     // !(this->unk_1C1 & 2) && (this->unk_172[sp2C] > 10) && (D_80A22A10 == 0) &&
-    // !func_80A216D4(this, play, 2.0f, &sp20) && !Player_InCsMode(play)
+    // !func_80A216D4(this, play, 2.0f, &sp20) && !MM_Player_InCsMode(play)
     // ```
     // #### `args`
     // - `*ObjSkateblock` (unused)
@@ -1864,7 +1864,7 @@ typedef enum {
     // ```c
     // (u32)sOcarinaAvailableSongFlags & (1 << songIndex)
     // ```
-    // ##### In `Message_DrawMain`
+    // ##### In `MM_Message_DrawMain`
     // ```c
     // (msgCtx->ocarinaStaff->state == OCARINA_SONG_SCARECROW_SPAWN) ||
     // (msgCtx->ocarinaStaff->state == OCARINA_SONG_INVERTED_TIME) ||
@@ -1925,8 +1925,8 @@ typedef enum {
     // #### `result`
     // ```c
     // !(this->stateFlags1 & PLAYER_STATE1_8000000) &&
-    // (Player_GetMeleeWeaponHeld(this) != PLAYER_MELEEWEAPON_NONE) &&
-    // Player_CanUpdateItems(this) &&
+    // (MM_Player_GetMeleeWeaponHeld(this) != PLAYER_MELEEWEAPON_NONE) &&
+    // MM_Player_CanUpdateItems(this) &&
     // (this->transformation != PLAYER_FORM_GORON)
     // ```
     // #### `args`
@@ -2004,7 +2004,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // Rand_ZeroOne() < 0.5f
+    // MM_Rand_ZeroOne() < 0.5f
     // ```
     // #### `args`
     // - None
@@ -2060,7 +2060,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // Player_ItemToItemAction(this, item) == PLAYER_IA_MASK_ZORA
+    // MM_Player_ItemToItemAction(this, item) == PLAYER_IA_MASK_ZORA
     // ```
     // #### `args`
     // - `*PlayerItemAction`

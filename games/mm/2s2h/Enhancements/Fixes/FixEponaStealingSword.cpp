@@ -8,7 +8,7 @@
 
 void RegisterFixEponaStealingSword() {
     COND_VB_SHOULD(VB_CLEAR_B_BUTTON_FOR_NO_BOW, CVAR, {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         // Player riding epona
         if (player->stateFlags1 & PLAYER_STATE1_800000) {
             *should = false;

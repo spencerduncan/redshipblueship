@@ -6,7 +6,7 @@
 extern "C" {
 #include "macros.h"
 #include "functions.h"
-extern PlayState* gPlayState;
+extern PlayState* MM_gPlayState;
 extern PlayState* sCamPlayState;
 extern f32 Camera_ScaledStepToCeilF(f32 target, f32 cur, f32 stepScale, f32 minDiff);
 extern s16 Camera_ScaledStepToCeilS(s16 target, s16 cur, f32 stepScale, s16 minDiff);
@@ -19,10 +19,10 @@ extern Vec3f Camera_CalcUpVec(s16 pitch, s16 yaw, s16 roll);
 static bool sDebugCamRefreshParams = true;
 
 Vec3f Camera_RotatePointAroundAxis(Vec3f* point, Vec3f* axis, s16 angle) {
-    f32 q0 = Math_CosS(angle / 2);
-    f32 q1 = Math_SinS(angle / 2) * axis->x;
-    f32 q2 = Math_SinS(angle / 2) * axis->y;
-    f32 q3 = Math_SinS(angle / 2) * axis->z;
+    f32 q0 = MM_Math_CosS(angle / 2);
+    f32 q1 = MM_Math_SinS(angle / 2) * axis->x;
+    f32 q2 = MM_Math_SinS(angle / 2) * axis->y;
+    f32 q3 = MM_Math_SinS(angle / 2) * axis->z;
     Vec3f endPoint;
 
     endPoint.x = (SQ(q0) + SQ(q1) - SQ(q2) - SQ(q3)) * point->x + 2 * (q1 * q2 - q0 * q3) * point->y +
@@ -42,15 +42,15 @@ void Camera_SetRollFromUp(Camera* camera) {
     VecGeo diffGeo = OLib_Vec3fDiffToVecGeo(eyeNext, at);
     f32 pitch = diffGeo.pitch;
     f32 yaw = diffGeo.yaw;
-    f32 sinP = Math_SinS(pitch);
-    f32 cosP = Math_CosS(pitch);
-    f32 sinY = Math_SinS(yaw);
-    f32 cosY = Math_CosS(yaw);
+    f32 sinP = MM_Math_SinS(pitch);
+    f32 cosP = MM_Math_CosS(pitch);
+    f32 sinY = MM_Math_SinS(yaw);
+    f32 cosY = MM_Math_CosS(yaw);
     Vec3f preRollUp = { -sinP * sinY, cosP, -sinP * cosY };
     Vec3f normal;
 
     f32 dot = DOTXYZ(preRollUp, (*up));
-    Math_Vec3f_Diff(eyeNext, at, &normal);
+    MM_Math_Vec3f_Diff(eyeNext, at, &normal);
     Math3D_Normalize(&normal);
     // Setup Matrix With Normal
     //  ( preRollUp.x   up->x   normal.x)
@@ -66,10 +66,10 @@ void Camera_RotateGeographic(Camera* camera, f32 pitchDiff, f32 yawDiff) {
     Vec3f* eyeNext = &camera->eyeNext;
     Vec3f* eye = &camera->eye;
     Vec3f* at = &camera->at;
-    Vec3f camOut = OLib_Vec3fDistNormalize(at, eye);
+    Vec3f camOut = MM_OLib_Vec3fDistNormalize(at, eye);
     VecGeo transGeo = OLib_Vec3fToVecGeo(&camOut);
     transGeo.pitch += pitchDiff;
-    transGeo.pitch = OLib_ClampMaxDist(transGeo.pitch, DEG_TO_BINANG(89.0f));
+    transGeo.pitch = MM_OLib_ClampMaxDist(transGeo.pitch, DEG_TO_BINANG(89.0f));
     transGeo.yaw += yawDiff;
     transGeo.r = camera->dist;
     *eyeNext = OLib_AddVecGeoToVec3f(at, &transGeo);
@@ -81,18 +81,18 @@ void Camera_Rotate6DOF(Camera* camera, f32 pitchDiff, f32 yawDiff) {
     Vec3f* at = &camera->at;
     Vec3f* up = &camera->up;
 
-    Vec3f camOut = OLib_Vec3fDistNormalize(at, eye);
+    Vec3f camOut = MM_OLib_Vec3fDistNormalize(at, eye);
     Math3D_Normalize(&camOut);
     Math3D_Normalize(up);
     Vec3f right;
-    Math3D_Vec3f_Cross(up, &camOut, &right);
+    MM_Math3D_Vec3f_Cross(up, &camOut, &right);
     Math3D_Normalize(&right);
     Vec3f force = { up->x * pitchDiff + right.x * yawDiff, up->y * pitchDiff + right.y * yawDiff,
                     up->z * pitchDiff + right.z * yawDiff };
-    f32 angle = Math3D_Vec3fMagnitude(&force);
+    f32 angle = MM_Math3D_Vec3fMagnitude(&force);
 
     Vec3f rotAxis;
-    Math3D_Vec3f_Cross(&camOut, &force, &rotAxis);
+    MM_Math3D_Vec3f_Cross(&camOut, &force, &rotAxis);
     Math3D_Normalize(&rotAxis);
 
     Vec3f transPos = Camera_RotatePointAroundAxis(&camOut, &rotAxis, angle);
@@ -114,8 +114,8 @@ void Camera_DebugCam(Camera* camera) {
 
     if (sDebugCamRefreshParams) {
         // Move camera focus to eye
-        Vec3f unit = OLib_Vec3fDistNormalize(eye, at);
-        Math_Vec3f_Sum(eye, &unit, at);
+        Vec3f unit = MM_OLib_Vec3fDistNormalize(eye, at);
+        MM_Math_Vec3f_Sum(eye, &unit, at);
         sDebugCamRefreshParams = false;
     }
 
@@ -194,22 +194,22 @@ void Camera_DebugCam(Camera* camera) {
     VecGeo diffGeo = OLib_Vec3fDiffToVecGeo(eyeNext, at);
     Vec3f normX;
     Vec3f normY = camera->up = Camera_CalcUpVec(diffGeo.pitch, diffGeo.yaw, camera->roll);
-    Vec3f normZ = OLib_Vec3fDistNormalize(at, eyeNext);
+    Vec3f normZ = MM_OLib_Vec3fDistNormalize(at, eyeNext);
 
     // Cross Product
-    Math3D_Vec3f_Cross(&normY, &normZ, &normX);
+    MM_Math3D_Vec3f_Cross(&normY, &normZ, &normX);
 
-    Math_Vec3f_Scale(&normX, posDiff.x);
-    Math_Vec3f_Scale(&normY, posDiff.y);
-    Math_Vec3f_Scale(&normZ, posDiff.z);
+    MM_Math_Vec3f_Scale(&normX, posDiff.x);
+    MM_Math_Vec3f_Scale(&normY, posDiff.y);
+    MM_Math_Vec3f_Scale(&normZ, posDiff.z);
 
-    Math_Vec3f_Sum(&camPosDiff, &normX, &camPosDiff);
-    Math_Vec3f_Sum(&camPosDiff, &normY, &camPosDiff);
-    Math_Vec3f_Sum(&camPosDiff, &normZ, &camPosDiff);
+    MM_Math_Vec3f_Sum(&camPosDiff, &normX, &camPosDiff);
+    MM_Math_Vec3f_Sum(&camPosDiff, &normY, &camPosDiff);
+    MM_Math_Vec3f_Sum(&camPosDiff, &normZ, &camPosDiff);
 
     // "Move" camera eye around with controls
-    Math_Vec3f_Sum(at, &camPosDiff, at);
-    Math_Vec3f_Sum(eyeNext, &camPosDiff, eyeNext);
+    MM_Math_Vec3f_Sum(at, &camPosDiff, at);
+    MM_Math_Vec3f_Sum(eyeNext, &camPosDiff, eyeNext);
 
     *eye = *eyeNext;
 }

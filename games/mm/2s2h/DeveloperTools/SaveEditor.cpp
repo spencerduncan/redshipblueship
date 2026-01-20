@@ -21,21 +21,21 @@ extern "C" {
 #include "overlays/actors/ovl_En_Test4/z_en_test4.h"
 #include "overlays/actors/ovl_Obj_Tokei_Step/z_obj_tokei_step.h"
 
-extern PlayState* gPlayState;
+extern PlayState* MM_gPlayState;
 extern SaveContext gSaveContext;
-extern TexturePtr gItemIcons[131];
+extern TexturePtr MM_gItemIcons[131];
 extern s16 D_801CFF94[250];
-extern u8 gItemSlots[77];
+extern u8 MM_gItemSlots[77];
 void Interface_LoadItemIconImpl(PlayState* play, u8 btn);
 void Interface_NewDay(PlayState* play, s32 day);
 extern RegEditor* gRegEditor;
 extern ActorOverlay gActorOverlayTable[ACTOR_ID_MAX];
 extern s16 gPlayerFormObjectIds[PLAYER_FORM_MAX];
-void Player_PlaySfx(Player* player, u16 sfxId);
-void PlayerCall_Init(Actor* thisx, PlayState* play);
-void PlayerCall_Update(Actor* thisx, PlayState* play);
-void PlayerCall_Draw(Actor* thisx, PlayState* play);
-void TransitionFade_SetColor(void* thisx, u32 color);
+void MM_Player_PlaySfx(Player* player, u16 sfxId);
+void MM_PlayerCall_Init(Actor* thisx, PlayState* play);
+void MM_PlayerCall_Update(Actor* thisx, PlayState* play);
+void MM_PlayerCall_Draw(Actor* thisx, PlayState* play);
+void MM_TransitionFade_SetColor(void* thisx, u32 color);
 
 void ObjTokeiStep_SetupOpen(ObjTokeiStep* objTokeiStep);
 void ObjTokeiStep_DrawOpen(Actor* actor, PlayState* play);
@@ -74,8 +74,8 @@ std::vector<ItemId> safeItemsForInventorySlot[SLOT_MASK_FIERCE_DEITY + 1] = {};
 using namespace UIWidgets;
 
 void initSafeItemsForInventorySlot() {
-    for (int i = 0; i < sizeof(gItemSlots); i++) {
-        InventorySlot slot = static_cast<InventorySlot>(gItemSlots[i]);
+    for (int i = 0; i < sizeof(MM_gItemSlots); i++) {
+        InventorySlot slot = static_cast<InventorySlot>(MM_gItemSlots[i]);
         switch (slot) {
             case SLOT_BOTTLE_1:
                 if (i != ITEM_LONGSHOT) { // No longshot in bottles
@@ -161,11 +161,11 @@ int setPlayerName(ImGuiInputTextCallbackData* data) {
 };
 
 EnTest4* FindEnTest4Actor() {
-    if (gPlayState == NULL) {
+    if (MM_gPlayState == NULL) {
         return NULL;
     }
 
-    Actor* enTest4Search = gPlayState->actorCtx.actorLists[ACTORCAT_SWITCH].first;
+    Actor* enTest4Search = MM_gPlayState->actorCtx.actorLists[ACTORCAT_SWITCH].first;
 
     while (enTest4Search != NULL) {
         if (enTest4Search->id == ACTOR_EN_TEST4) {
@@ -183,28 +183,28 @@ void UpdateGameTime(u16 gameTime) {
 
     gSaveContext.save.time = gameTime;
 
-    if (gPlayState == NULL) {
+    if (MM_gPlayState == NULL) {
         return;
     }
 
     // Clear weather from day 2
-    gWeatherMode = WEATHER_MODE_CLEAR;
-    gPlayState->envCtx.lightningState = LIGHTNING_OFF;
+    MM_gWeatherMode = WEATHER_MODE_CLEAR;
+    MM_gPlayState->envCtx.lightningState = LIGHTNING_OFF;
 
     // When transitioning over night boundaries, stop the sequences and ask to replay, then respawn actors
     if (newTimeIsNight != prevTimeIsNight) {
         // AMBIENCE_ID_13 is used to persist a scenes sequence through night, so we shouldn't
         // change anything if thats active
-        if (gPlayState->sceneSequences.ambienceId != AMBIENCE_ID_13) {
+        if (MM_gPlayState->sceneSequences.ambienceId != AMBIENCE_ID_13) {
             SEQCMD_STOP_SEQUENCE(SEQ_PLAYER_AMBIENCE, 0);
             SEQCMD_STOP_SEQUENCE(SEQ_PLAYER_BGM_MAIN, 240);
             gSaveContext.seqId = NA_BGM_DISABLED;
             gSaveContext.ambienceId = AMBIENCE_ID_DISABLED;
-            Environment_PlaySceneSequence(gPlayState);
+            MM_Environment_PlaySceneSequence(MM_gPlayState);
         }
 
         // Kills/Spawns half-day actors
-        gPlayState->numSetupActors = -gPlayState->numSetupActors;
+        MM_gPlayState->numSetupActors = -MM_gPlayState->numSetupActors;
     }
 
     EnTest4* enTest4 = FindEnTest4Actor();
@@ -220,7 +220,7 @@ void UpdateGameTime(u16 gameTime) {
         if (CURRENT_DAY == 3) {
             EnTest4_GetBellTimeOnDay3(enTest4);
         } else {
-            EnTest4_GetBellTimeAndShrinkScreenBeforeDay3(enTest4, gPlayState);
+            EnTest4_GetBellTimeAndShrinkScreenBeforeDay3(enTest4, MM_gPlayState);
         }
 
         // Unset any screen scaling from the above funcs
@@ -230,7 +230,7 @@ void UpdateGameTime(u16 gameTime) {
 
     // Open the Clock Tower rooftop
     if (((CURRENT_DAY == 3) && (CURRENT_TIME < CLOCK_TIME(6, 0)))) {
-        ObjTokeiStep* objTokeiStep = (ObjTokeiStep*)Actor_FindNearby(gPlayState, &GET_PLAYER(gPlayState)->actor,
+        ObjTokeiStep* objTokeiStep = (ObjTokeiStep*)MM_Actor_FindNearby(MM_gPlayState, &GET_PLAYER(MM_gPlayState)->actor,
                                                                      ACTOR_OBJ_TOKEI_STEP, ACTORCAT_BG, 99999.9f);
         if (objTokeiStep != NULL && objTokeiStep->actionFunc == ObjTokeiStep_DoNothing) {
             objTokeiStep->dyna.actor.draw = ObjTokeiStep_DrawOpen;
@@ -245,9 +245,9 @@ void DrawTempleClears() {
     bool inverted = false;
     bool inStoneTower = false;
 
-    if (gPlayState != NULL) {
-        inStoneTower = Play_GetOriginalSceneId(gPlayState->sceneId) == SCENE_F40;
-        inverted = Flags_GetSwitch(gPlayState, 20);
+    if (MM_gPlayState != NULL) {
+        inStoneTower = Play_GetOriginalSceneId(MM_gPlayState->sceneId) == SCENE_F40;
+        inverted = MM_Flags_GetSwitch(MM_gPlayState, 20);
     }
 
     ImGui::Columns(2, nullptr, false);
@@ -354,9 +354,9 @@ void DrawTempleClears() {
             "Stone Tower Inverted", &inverted,
             { { .disabled = !inStoneTower, .disabledTooltip = "Can only invert while in Stone Tower" } })) {
         if (inverted) {
-            Flags_SetSwitch(gPlayState, 20);
+            MM_Flags_SetSwitch(MM_gPlayState, 20);
         } else {
-            Flags_UnsetSwitch(gPlayState, 20);
+            MM_Flags_UnsetSwitch(MM_gPlayState, 20);
         }
     }
 
@@ -447,15 +447,15 @@ void DrawGeneralTab() {
     if (ImGui::SliderScalar("##dayInput", ImGuiDataType_S32, &gSaveContext.save.day, &minDay, &maxDay, "Day: %d")) {
         gSaveContext.save.eventDayCount = CURRENT_DAY;
 
-        if (gPlayState != nullptr) {
-            Interface_NewDay(gPlayState, CURRENT_DAY);
+        if (MM_gPlayState != nullptr) {
+            Interface_NewDay(MM_gPlayState, CURRENT_DAY);
             // Inverting setup actors forces half-day actors to kill/respawn for new day
-            gPlayState->numSetupActors = -gPlayState->numSetupActors;
+            MM_gPlayState->numSetupActors = -MM_gPlayState->numSetupActors;
             // Load environment values for new day
-            Environment_NewDay(&gPlayState->envCtx);
+            Environment_NewDay(&MM_gPlayState->envCtx);
             // Clear weather from day 2
-            gWeatherMode = WEATHER_MODE_CLEAR;
-            gPlayState->envCtx.lightningState = LIGHTNING_OFF;
+            MM_gWeatherMode = WEATHER_MODE_CLEAR;
+            MM_gPlayState->envCtx.lightningState = LIGHTNING_OFF;
         }
     }
 
@@ -478,20 +478,20 @@ void DrawGeneralTab() {
     // Card 3: Currency
     UIWidgets::BeginCard("currencyCard");
     if (UIWidgets::Button("Max Rupees", { .size = UIWidgets::Sizes::Inline, .color = UIWidgets::Colors::Green })) {
-        Inventory_ChangeUpgrade(UPG_WALLET, 2);
+        MM_Inventory_ChangeUpgrade(UPG_WALLET, 2);
         gSaveContext.save.saveInfo.playerData.rupees = CUR_CAPACITY(UPG_WALLET);
     }
     ImGui::SameLine();
     if (UIWidgets::Button("Reset##resetRupeesButton",
                           { .size = UIWidgets::Sizes::Inline, .color = UIWidgets::Colors::Gray })) {
         gSaveContext.save.saveInfo.playerData.rupees = 0;
-        Inventory_ChangeUpgrade(UPG_WALLET, 0);
+        MM_Inventory_ChangeUpgrade(UPG_WALLET, 0);
     }
     UIWidgets::PushStyleSlider(UIWidgets::Colors::Green);
     u8 currentWalletLevel = CUR_UPG_VALUE(UPG_WALLET);
     if (ImGui::SliderScalar("##walletLevelSlider", ImGuiDataType_U8, &currentWalletLevel, &U8_ZERO, &WALLET_LEVEL_MAX,
                             WALLET_LEVEL_NAMES[currentWalletLevel])) {
-        Inventory_ChangeUpgrade(UPG_WALLET, currentWalletLevel);
+        MM_Inventory_ChangeUpgrade(UPG_WALLET, currentWalletLevel);
         gSaveContext.save.saveInfo.playerData.rupees =
             MIN(gSaveContext.save.saveInfo.playerData.rupees, CUR_CAPACITY(UPG_WALLET));
     }
@@ -651,37 +651,37 @@ void DrawEquipItemMenu(InventorySlot slot) {
         if (ImGui::MenuItem("C-Left")) {
             SET_CUR_FORM_BTN_ITEM(EQUIP_SLOT_C_LEFT, currentItemId);
             SET_CUR_FORM_BTN_SLOT(EQUIP_SLOT_C_LEFT, slot);
-            Interface_LoadItemIconImpl(gPlayState, EQUIP_SLOT_C_LEFT);
+            Interface_LoadItemIconImpl(MM_gPlayState, EQUIP_SLOT_C_LEFT);
         }
         if (ImGui::MenuItem("C-Down")) {
             SET_CUR_FORM_BTN_ITEM(EQUIP_SLOT_C_DOWN, currentItemId);
             SET_CUR_FORM_BTN_SLOT(EQUIP_SLOT_C_DOWN, slot);
-            Interface_LoadItemIconImpl(gPlayState, EQUIP_SLOT_C_DOWN);
+            Interface_LoadItemIconImpl(MM_gPlayState, EQUIP_SLOT_C_DOWN);
         }
         if (ImGui::MenuItem("C-Right")) {
             SET_CUR_FORM_BTN_ITEM(EQUIP_SLOT_C_RIGHT, currentItemId);
             SET_CUR_FORM_BTN_SLOT(EQUIP_SLOT_C_RIGHT, slot);
-            Interface_LoadItemIconImpl(gPlayState, EQUIP_SLOT_C_RIGHT);
+            Interface_LoadItemIconImpl(MM_gPlayState, EQUIP_SLOT_C_RIGHT);
         }
         if (ImGui::MenuItem("D-Right")) {
             DPAD_SET_CUR_FORM_BTN_ITEM(EQUIP_SLOT_D_RIGHT, currentItemId);
             DPAD_SET_CUR_FORM_BTN_SLOT(EQUIP_SLOT_D_RIGHT, slot);
-            Interface_Dpad_LoadItemIconImpl(gPlayState, EQUIP_SLOT_D_RIGHT);
+            Interface_Dpad_LoadItemIconImpl(MM_gPlayState, EQUIP_SLOT_D_RIGHT);
         }
         if (ImGui::MenuItem("D-Left")) {
             DPAD_SET_CUR_FORM_BTN_ITEM(EQUIP_SLOT_D_LEFT, currentItemId);
             DPAD_SET_CUR_FORM_BTN_SLOT(EQUIP_SLOT_D_LEFT, slot);
-            Interface_Dpad_LoadItemIconImpl(gPlayState, EQUIP_SLOT_D_LEFT);
+            Interface_Dpad_LoadItemIconImpl(MM_gPlayState, EQUIP_SLOT_D_LEFT);
         }
         if (ImGui::MenuItem("D-Down")) {
             DPAD_SET_CUR_FORM_BTN_ITEM(EQUIP_SLOT_D_DOWN, currentItemId);
             DPAD_SET_CUR_FORM_BTN_SLOT(EQUIP_SLOT_D_DOWN, slot);
-            Interface_Dpad_LoadItemIconImpl(gPlayState, EQUIP_SLOT_D_DOWN);
+            Interface_Dpad_LoadItemIconImpl(MM_gPlayState, EQUIP_SLOT_D_DOWN);
         }
         if (ImGui::MenuItem("D-Up")) {
             DPAD_SET_CUR_FORM_BTN_ITEM(EQUIP_SLOT_D_UP, currentItemId);
             DPAD_SET_CUR_FORM_BTN_SLOT(EQUIP_SLOT_D_UP, slot);
-            Interface_Dpad_LoadItemIconImpl(gPlayState, EQUIP_SLOT_D_UP);
+            Interface_Dpad_LoadItemIconImpl(MM_gPlayState, EQUIP_SLOT_D_UP);
         }
         ImGui::EndMenu();
     }
@@ -697,38 +697,38 @@ void NextItemInSlot(InventorySlot slot) {
         gSaveContext.save.saveInfo.inventory.items[slot] = safeItemsForInventorySlot[slot][0];
 
         if (gSaveContext.save.saveInfo.inventory.items[slot] == ITEM_BOW) {
-            Inventory_ChangeUpgrade(UPG_QUIVER, 1);
+            MM_Inventory_ChangeUpgrade(UPG_QUIVER, 1);
             AMMO(ITEM_BOW) = CUR_CAPACITY(UPG_QUIVER);
         } else if (gSaveContext.save.saveInfo.inventory.items[slot] == ITEM_BOMB ||
                    gSaveContext.save.saveInfo.inventory.items[slot] == ITEM_BOMBCHU) {
             if (CUR_UPG_VALUE(UPG_BOMB_BAG) == 0) {
-                Inventory_ChangeUpgrade(UPG_BOMB_BAG, 1);
+                MM_Inventory_ChangeUpgrade(UPG_BOMB_BAG, 1);
             }
             AMMO(gSaveContext.save.saveInfo.inventory.items[slot]) = CUR_CAPACITY(UPG_BOMB_BAG);
         }
     } else if (currentItemId == ITEM_BOW) {
         if (CUR_UPG_VALUE(UPG_QUIVER) < 3) {
-            Inventory_ChangeUpgrade(UPG_QUIVER, CUR_UPG_VALUE(UPG_QUIVER) + 1);
+            MM_Inventory_ChangeUpgrade(UPG_QUIVER, CUR_UPG_VALUE(UPG_QUIVER) + 1);
             AMMO(ITEM_BOW) = CUR_CAPACITY(UPG_QUIVER);
         } else {
-            Inventory_DeleteItem(gSaveContext.save.saveInfo.inventory.items[slot], slot);
-            Inventory_ChangeUpgrade(UPG_QUIVER, 0);
+            MM_Inventory_DeleteItem(gSaveContext.save.saveInfo.inventory.items[slot], slot);
+            MM_Inventory_ChangeUpgrade(UPG_QUIVER, 0);
             AMMO(ITEM_BOW) = 0;
         }
     } else if (currentItemId == ITEM_BOMB || currentItemId == ITEM_BOMBCHU) {
         if (CUR_UPG_VALUE(UPG_BOMB_BAG) < 3) {
-            Inventory_ChangeUpgrade(UPG_BOMB_BAG, CUR_UPG_VALUE(UPG_BOMB_BAG) + 1);
+            MM_Inventory_ChangeUpgrade(UPG_BOMB_BAG, CUR_UPG_VALUE(UPG_BOMB_BAG) + 1);
             AMMO(ITEM_BOMB) = AMMO(ITEM_BOMBCHU) = CUR_CAPACITY(UPG_BOMB_BAG);
         } else {
-            Inventory_DeleteItem(ITEM_BOMB, SLOT_BOMB);
-            Inventory_DeleteItem(ITEM_BOMBCHU, SLOT_BOMBCHU);
-            Inventory_ChangeUpgrade(UPG_BOMB_BAG, 0);
+            MM_Inventory_DeleteItem(ITEM_BOMB, SLOT_BOMB);
+            MM_Inventory_DeleteItem(ITEM_BOMBCHU, SLOT_BOMBCHU);
+            MM_Inventory_ChangeUpgrade(UPG_BOMB_BAG, 0);
             AMMO(ITEM_BOMB) = AMMO(ITEM_BOMBCHU) = 0;
         }
     } else if (currentItemIndex < safeItemsForInventorySlot[slot].size() - 1) {
-        Inventory_ReplaceItem(gPlayState, currentItemId, safeItemsForInventorySlot[slot][currentItemIndex + 1]);
+        MM_Inventory_ReplaceItem(MM_gPlayState, currentItemId, safeItemsForInventorySlot[slot][currentItemIndex + 1]);
     } else {
-        Inventory_DeleteItem(gSaveContext.save.saveInfo.inventory.items[slot], slot);
+        MM_Inventory_DeleteItem(gSaveContext.save.saveInfo.inventory.items[slot], slot);
     }
 }
 
@@ -740,9 +740,9 @@ void DrawSlot(InventorySlot slot) {
     ImGui::PushID(slot);
 
     if (currentItemId != ITEM_NONE &&
-        currentItemId <= ITEM_BOW_LIGHT &&            // gItemSlots only has entries till 77 (ITEM_BOW_LIGHT)
-        gItemSlots[currentItemId] <= SLOT_BOTTLE_6 && // There is only ammo data for the first page
-        ((safeMode && gAmmoItems[gItemSlots[currentItemId]] != ITEM_NONE) || !safeMode)) {
+        currentItemId <= ITEM_BOW_LIGHT &&            // MM_gItemSlots only has entries till 77 (ITEM_BOW_LIGHT)
+        MM_gItemSlots[currentItemId] <= SLOT_BOTTLE_6 && // There is only ammo data for the first page
+        ((safeMode && MM_gAmmoItems[MM_gItemSlots[currentItemId]] != ITEM_NONE) || !safeMode)) {
         DrawAmmoInput(slot);
     }
 
@@ -767,16 +767,16 @@ void DrawSlot(InventorySlot slot) {
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 2.0f);
 
     ImTextureID textureId = Ship::Context::GetInstance()->GetWindow()->GetGui()->GetTextureByName(
-        (const char*)gItemIcons[safeItemsForInventorySlot[slot][0]]);
+        (const char*)MM_gItemIcons[safeItemsForInventorySlot[slot][0]]);
 
     if (currentItemId != ITEM_NONE) {
         textureId = Ship::Context::GetInstance()->GetWindow()->GetGui()->GetTextureByName(
-            (const char*)gItemIcons[currentItemId]);
+            (const char*)MM_gItemIcons[currentItemId]);
     }
 
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
     bool buttonPressed =
-        ImGui::ImageButton((const char*)gItemIcons[safeItemsForInventorySlot[slot][0]], textureId,
+        ImGui::ImageButton((const char*)MM_gItemIcons[safeItemsForInventorySlot[slot][0]], textureId,
                            ImVec2(INV_GRID_ICON_SIZE, INV_GRID_ICON_SIZE), ImVec2(0, 0), ImVec2(1, 1),
                            ImVec4(0, 0, 0, 0), ImVec4(1, 1, 1, currentItemId == ITEM_NONE ? 0.4f : 1.0f));
     ImGui::PopStyleVar();
@@ -797,7 +797,7 @@ void DrawSlot(InventorySlot slot) {
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 1.0f, 1.0f, 0.2f));
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1.0f, 1.0f, 1.0f, 0.1f));
         if (ImGui::Button("##invNonePicker", ImVec2(INV_GRID_ICON_SIZE, INV_GRID_ICON_SIZE))) {
-            Inventory_DeleteItem(gSaveContext.save.saveInfo.inventory.items[selectedInventorySlot],
+            MM_Inventory_DeleteItem(gSaveContext.save.saveInfo.inventory.items[selectedInventorySlot],
                                  selectedInventorySlot);
             ImGui::CloseCurrentPopup();
         }
@@ -812,8 +812,8 @@ void DrawSlot(InventorySlot slot) {
                                  : static_cast<ItemId>(pickerIndex);
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
             bool buttonPressed = ImGui::ImageButton(
-                (const char*)gItemIcons[id],
-                Ship::Context::GetInstance()->GetWindow()->GetGui()->GetTextureByName((const char*)gItemIcons[id]),
+                (const char*)MM_gItemIcons[id],
+                Ship::Context::GetInstance()->GetWindow()->GetGui()->GetTextureByName((const char*)MM_gItemIcons[id]),
                 ImVec2(INV_GRID_ICON_SIZE, INV_GRID_ICON_SIZE));
             ImGui::PopStyleVar();
             if (buttonPressed) {
@@ -876,8 +876,8 @@ void DrawItemsAndMasksTab() {
                 gSaveContext.save.saveInfo.inventory.items[i] = safeItemsForInventorySlot[i].back();
             }
         }
-        Inventory_ChangeUpgrade(UPG_BOMB_BAG, 3);
-        Inventory_ChangeUpgrade(UPG_QUIVER, 3);
+        MM_Inventory_ChangeUpgrade(UPG_BOMB_BAG, 3);
+        MM_Inventory_ChangeUpgrade(UPG_QUIVER, 3);
         AMMO(ITEM_BOW) = CUR_CAPACITY(UPG_QUIVER);
         AMMO(ITEM_BOMB) = AMMO(ITEM_BOMBCHU) = CUR_CAPACITY(UPG_BOMB_BAG);
         AMMO(ITEM_DEKU_STICK) = CUR_CAPACITY(UPG_DEKU_STICKS);
@@ -887,12 +887,12 @@ void DrawItemsAndMasksTab() {
     }
     if (UIWidgets::Button("Reset##items")) {
         for (int32_t i = 0; i <= SLOT_MASK_FIERCE_DEITY; i++) {
-            Inventory_DeleteItem(gSaveContext.save.saveInfo.inventory.items[i], i);
+            MM_Inventory_DeleteItem(gSaveContext.save.saveInfo.inventory.items[i], i);
         }
         AMMO(ITEM_BOW) = AMMO(ITEM_BOMB) = AMMO(ITEM_BOMBCHU) = AMMO(ITEM_DEKU_STICK) = AMMO(ITEM_DEKU_NUT) =
             AMMO(ITEM_MAGIC_BEANS) = AMMO(ITEM_POWDER_KEG) = 0;
-        Inventory_ChangeUpgrade(UPG_BOMB_BAG, 0);
-        Inventory_ChangeUpgrade(UPG_QUIVER, 0);
+        MM_Inventory_ChangeUpgrade(UPG_BOMB_BAG, 0);
+        MM_Inventory_ChangeUpgrade(UPG_QUIVER, 0);
     }
     UIWidgets::Checkbox("Safe Mode", &safeMode);
 
@@ -1029,7 +1029,7 @@ void DrawItemsAndMasksTab() {
                                 randoItemId = Rando::ConvertItem((RandoItemId)CUSTOM_ITEM_PARAM);
                             }
 
-                            Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
+                            MM_Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
                             Rando::DrawItem(randoItemId);
                         } });
             }
@@ -1116,10 +1116,10 @@ std::map<QuestItem, ItemId> questToItemMap = {
 };
 
 void NextQuestInSlot(QuestItem slot) {
-    if (!gPlayState) {
+    if (!MM_gPlayState) {
         return;
     }
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(MM_gPlayState);
     if (slot == QUEST_SONG_LULLABY || slot == QUEST_SONG_LULLABY_INTRO) {
         if (CHECK_QUEST_ITEM(QUEST_SONG_LULLABY)) {
             REMOVE_QUEST_ITEM(QUEST_SONG_LULLABY);
@@ -1145,7 +1145,7 @@ void NextQuestInSlot(QuestItem slot) {
         if (GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) == EQUIP_VALUE_SWORD_RAZOR) {
             gSaveContext.save.saveInfo.playerData.swordHealth = 100;
         }
-        Interface_LoadItemIconImpl(gPlayState, EQUIP_SLOT_B);
+        Interface_LoadItemIconImpl(MM_gPlayState, EQUIP_SLOT_B);
     } else if (slot == QUEST_SHIELD) {
         uint32_t currentShield = GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD);
         if (GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD) == EQUIP_VALUE_SHIELD_NONE) {
@@ -1155,7 +1155,7 @@ void NextQuestInSlot(QuestItem slot) {
         } else {
             SET_EQUIP_VALUE(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_NONE);
         }
-        Player_SetEquipmentData(gPlayState, player);
+        MM_Player_SetEquipmentData(MM_gPlayState, player);
     } else {
         if (CHECK_QUEST_ITEM(slot)) {
             REMOVE_QUEST_ITEM(slot);
@@ -1174,7 +1174,7 @@ void DrawQuestSlot(QuestItem slot) {
         ImVec2(x * INV_GRID_WIDTH + INV_GRID_PADDING, y * INV_GRID_HEIGHT + INV_GRID_TOP_MARGIN + INV_GRID_PADDING));
 
     ImTextureID textureId = Ship::Context::GetInstance()->GetWindow()->GetGui()->GetTextureByName(
-        (const char*)gItemIcons[questToItemMap[slot]]);
+        (const char*)MM_gItemIcons[questToItemMap[slot]]);
     if (ImGui::ImageButton(std::to_string(slot).c_str(), textureId, ImVec2(INV_GRID_ICON_SIZE, INV_GRID_ICON_SIZE),
                            ImVec2(0, 0), ImVec2(1, 1), ImVec4(0, 0, 0, 0),
                            ImVec4(1, 1, 1, CHECK_QUEST_ITEM(slot) ? 1.0f : 0.4f))) {
@@ -1188,7 +1188,7 @@ ImVec2 DrawSong(QuestItem slot) {
     SongInfo(slot);
     if (ImGui::ImageButton(std::to_string(slot).c_str(),
                            Ship::Context::GetInstance()->GetWindow()->GetGui()->GetTextureByName(
-                               (const char*)gItemIcons[questToItemMap[(QuestItem)slot]]),
+                               (const char*)MM_gItemIcons[questToItemMap[(QuestItem)slot]]),
                            ImVec2(INV_GRID_ICON_SIZE / 1.5f, INV_GRID_ICON_SIZE), ImVec2(0, 0), ImVec2(1, 1),
                            ImVec4(0, 0, 0, 0), colorTint)) {
         NextQuestInSlot(slot);
@@ -1217,11 +1217,11 @@ void DrawQuestStatusTab() {
         SET_EQUIP_VALUE(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_MIRROR);
         if (GET_PLAYER_FORM != PLAYER_FORM_FIERCE_DEITY) {
             SET_EQUIP_VALUE(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_GILDED);
-            if (gPlayState) {
-                Player_SetEquipmentData(gPlayState, GET_PLAYER(gPlayState));
+            if (MM_gPlayState) {
+                MM_Player_SetEquipmentData(MM_gPlayState, GET_PLAYER(MM_gPlayState));
                 BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_B) =
                     ITEM_SWORD_KOKIRI + GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) - EQUIP_VALUE_SWORD_KOKIRI;
-                Interface_LoadItemIconImpl(gPlayState, EQUIP_SLOT_B);
+                Interface_LoadItemIconImpl(MM_gPlayState, EQUIP_SLOT_B);
             }
         }
     }
@@ -1236,11 +1236,11 @@ void DrawQuestStatusTab() {
         SET_EQUIP_VALUE(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_HERO);
         if (GET_PLAYER_FORM != PLAYER_FORM_FIERCE_DEITY) {
             SET_EQUIP_VALUE(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_KOKIRI);
-            if (gPlayState) {
-                Player_SetEquipmentData(gPlayState, GET_PLAYER(gPlayState));
+            if (MM_gPlayState) {
+                MM_Player_SetEquipmentData(MM_gPlayState, GET_PLAYER(MM_gPlayState));
                 BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_B) =
                     ITEM_SWORD_KOKIRI + GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) - EQUIP_VALUE_SWORD_KOKIRI;
-                Interface_LoadItemIconImpl(gPlayState, EQUIP_SLOT_B);
+                Interface_LoadItemIconImpl(MM_gPlayState, EQUIP_SLOT_B);
             }
         }
     }
@@ -1270,7 +1270,7 @@ void DrawQuestStatusTab() {
     ImGui::SeparatorText("Equipment");
     if (GET_PLAYER_FORM == PLAYER_FORM_FIERCE_DEITY) {
         ImTextureID swordTextureId = Ship::Context::GetInstance()->GetWindow()->GetGui()->GetTextureByName(
-            (const char*)gItemIcons[ITEM_SWORD_DEITY]);
+            (const char*)MM_gItemIcons[ITEM_SWORD_DEITY]);
         ImGui::ImageButton(std::to_string(ITEM_SWORD_DEITY).c_str(), swordTextureId,
                            ImVec2(INV_GRID_ICON_SIZE, INV_GRID_ICON_SIZE), ImVec2(0, 0), ImVec2(1, 1),
                            ImVec4(0, 0, 0, 0), ImVec4(1, 1, 1, 1));
@@ -1280,7 +1280,7 @@ void DrawQuestStatusTab() {
             swordValue = EQUIP_VALUE_SWORD_KOKIRI;
         }
         ImTextureID swordTextureId = Ship::Context::GetInstance()->GetWindow()->GetGui()->GetTextureByName(
-            (const char*)gItemIcons[ITEM_SWORD_KOKIRI + swordValue - EQUIP_VALUE_SWORD_KOKIRI]);
+            (const char*)MM_gItemIcons[ITEM_SWORD_KOKIRI + swordValue - EQUIP_VALUE_SWORD_KOKIRI]);
 
         if (ImGui::ImageButton(std::to_string(ITEM_SWORD_KOKIRI).c_str(), swordTextureId,
                                ImVec2(INV_GRID_ICON_SIZE, INV_GRID_ICON_SIZE), ImVec2(0, 0), ImVec2(1, 1),
@@ -1294,7 +1294,7 @@ void DrawQuestStatusTab() {
         shieldValue = EQUIP_VALUE_SHIELD_HERO;
     }
     ImTextureID shieldTextureId = Ship::Context::GetInstance()->GetWindow()->GetGui()->GetTextureByName(
-        (const char*)gItemIcons[ITEM_SHIELD_HERO + shieldValue - EQUIP_VALUE_SHIELD_HERO]);
+        (const char*)MM_gItemIcons[ITEM_SHIELD_HERO + shieldValue - EQUIP_VALUE_SHIELD_HERO]);
 
     if (ImGui::ImageButton(std::to_string(ITEM_SHIELD_HERO).c_str(), shieldTextureId,
                            ImVec2(INV_GRID_ICON_SIZE, INV_GRID_ICON_SIZE), ImVec2(0, 0), ImVec2(1, 1),
@@ -1303,7 +1303,7 @@ void DrawQuestStatusTab() {
     }
     ImGui::SameLine();
     ImTextureID textureId = Ship::Context::GetInstance()->GetWindow()->GetGui()->GetTextureByName(
-        (const char*)gItemIcons[ITEM_BOMBERS_NOTEBOOK]);
+        (const char*)MM_gItemIcons[ITEM_BOMBERS_NOTEBOOK]);
     if (ImGui::ImageButton(std::to_string(ITEM_BOMBERS_NOTEBOOK).c_str(), textureId,
                            ImVec2(INV_GRID_ICON_SIZE, INV_GRID_ICON_SIZE), ImVec2(0, 0), ImVec2(1, 1),
                            ImVec4(0, 0, 0, 0),
@@ -1529,8 +1529,8 @@ void DrawPlayerTab() {
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 8.0f));
     ImGui::BeginChild("playerTab", ImVec2(0, 0), true);
 
-    if (gPlayState) {
-        Player* player = GET_PLAYER(gPlayState);
+    if (MM_gPlayState) {
+        Player* player = GET_PLAYER(MM_gPlayState);
 
         UIWidgets::BeginCardLayout({ .columnsPerRow = 2, .minColumnWidth = 420.0f });
 
@@ -1579,21 +1579,21 @@ void DrawPlayerTab() {
                     gSaveContext.save.equippedMask = PLAYER_MASK_FIERCE_DEITY + i;
                 }
                 gActorOverlayTable[ACTOR_PLAYER].profile->objectId = objectId;
-                func_8012F73C(&gPlayState->objectCtx, player->actor.objectSlot, objectId);
-                player->actor.objectSlot = Object_GetSlot(&gPlayState->objectCtx, GAMEPLAY_KEEP);
+                func_8012F73C(&MM_gPlayState->objectCtx, player->actor.objectSlot, objectId);
+                player->actor.objectSlot = Object_GetSlot(&MM_gPlayState->objectCtx, GAMEPLAY_KEEP);
                 gSaveContext.save.playerForm = i;
                 s32 objectSlot =
-                    Object_GetSlot(&gPlayState->objectCtx, gActorOverlayTable[ACTOR_PLAYER].profile->objectId);
+                    Object_GetSlot(&MM_gPlayState->objectCtx, gActorOverlayTable[ACTOR_PLAYER].profile->objectId);
                 player->actor.objectSlot = objectSlot;
                 player->actor.shape.rot.z = GET_PLAYER_FORM + 1;
-                player->actor.init = PlayerCall_Init;
-                player->actor.update = PlayerCall_Update;
-                player->actor.draw = PlayerCall_Draw;
+                player->actor.init = MM_PlayerCall_Init;
+                player->actor.update = MM_PlayerCall_Update;
+                player->actor.draw = MM_PlayerCall_Draw;
                 gSaveContext.save.equippedMask = PLAYER_MASK_NONE;
 
-                TransitionFade_SetColor(&gPlayState->unk_18E48, 0x000000);
+                MM_TransitionFade_SetColor(&MM_gPlayState->unk_18E48, 0x000000);
                 R_TRANS_FADE_FLASH_ALPHA_STEP = -1;
-                Player_PlaySfx(GET_PLAYER(gPlayState), NA_SE_SY_TRANSFORM_MASK_FLASH);
+                MM_Player_PlaySfx(GET_PLAYER(MM_gPlayState), NA_SE_SY_TRANSFORM_MASK_FLASH);
             }
             UIWidgets::PopStyleButton();
             if (i != PLAYER_FORM_HUMAN) {
@@ -1622,7 +1622,7 @@ void DrawPlayerTab() {
                         }
                         BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_B) =
                             ITEM_SWORD_KOKIRI + GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) - EQUIP_VALUE_SWORD_KOKIRI;
-                        Interface_LoadItemIconImpl(gPlayState, EQUIP_SLOT_B);
+                        Interface_LoadItemIconImpl(MM_gPlayState, EQUIP_SLOT_B);
                     }
                     if (isSelected) {
                         ImGui::SetItemDefaultFocus();
@@ -1636,7 +1636,7 @@ void DrawPlayerTab() {
                     if (ImGui::Selectable(shieldCombo[i - 1], isSelected)) {
                         currentShield = i - 1;
                         SET_EQUIP_VALUE(EQUIP_TYPE_SHIELD, i);
-                        Player_SetEquipmentData(gPlayState, player);
+                        MM_Player_SetEquipmentData(MM_gPlayState, player);
                     }
                     if (isSelected) {
                         ImGui::SetItemDefaultFocus();
@@ -1817,11 +1817,11 @@ void DrawFlagsTab() {
                                           .alignment = UIWidgets::ComponentAlignment::Left,
                                           .labelPosition = UIWidgets::LabelPosition::None,
                                       });
-        if (gPlayState != NULL) {
+        if (MM_gPlayState != NULL) {
             ImGui::SameLine();
             if (UIWidgets::Button("Current", UIWidgets::ButtonOptions{ { .color = UIWidgets::Colors::Gray } }.Size(
                                                  UIWidgets::Sizes::Inline))) {
-                selectedScene = gPlayState->sceneId;
+                selectedScene = MM_gPlayState->sceneId;
             }
         }
     }
@@ -1829,7 +1829,7 @@ void DrawFlagsTab() {
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(1.0f, 1.0f));
     switch (selectedFlagSection) {
         case CURRENT_SCENE_FLAGS:
-            if (gPlayState == NULL) {
+            if (MM_gPlayState == NULL) {
                 ImGui::Text("Play state is NULL, cannot display scene flags");
                 break;
             }
@@ -1840,14 +1840,14 @@ void DrawFlagsTab() {
             ImGui::SameLine(110);
             if (UIWidgets::Button("All##switches0",
                                   { .size = UIWidgets::Sizes::Inline, .color = UIWidgets::Colors::Gray })) {
-                gPlayState->actorCtx.sceneFlags.switches[0] = UINT32_MAX;
+                MM_gPlayState->actorCtx.sceneFlags.switches[0] = UINT32_MAX;
             }
             ImGui::SameLine();
             if (UIWidgets::Button("Clear##switches0",
                                   { .size = UIWidgets::Sizes::Inline, .color = UIWidgets::Colors::Red })) {
-                gPlayState->actorCtx.sceneFlags.switches[0] = 0;
+                MM_gPlayState->actorCtx.sceneFlags.switches[0] = 0;
             }
-            UIWidgets::DrawFlagArray32("##switches0", gPlayState->actorCtx.sceneFlags.switches[0]);
+            UIWidgets::DrawFlagArray32("##switches0", MM_gPlayState->actorCtx.sceneFlags.switches[0]);
             ImGui::EndGroup();
             ImGui::SameLine(0, 10.0f);
             ImGui::BeginGroup();
@@ -1856,14 +1856,14 @@ void DrawFlagsTab() {
             ImGui::SameLine(110);
             if (UIWidgets::Button("All##switches1",
                                   { .size = UIWidgets::Sizes::Inline, .color = UIWidgets::Colors::Gray })) {
-                gPlayState->actorCtx.sceneFlags.switches[1] = UINT32_MAX;
+                MM_gPlayState->actorCtx.sceneFlags.switches[1] = UINT32_MAX;
             }
             ImGui::SameLine();
             if (UIWidgets::Button("Clear##switches1",
                                   { .size = UIWidgets::Sizes::Inline, .color = UIWidgets::Colors::Red })) {
-                gPlayState->actorCtx.sceneFlags.switches[1] = 0;
+                MM_gPlayState->actorCtx.sceneFlags.switches[1] = 0;
             }
-            UIWidgets::DrawFlagArray32("##switches1", gPlayState->actorCtx.sceneFlags.switches[1]);
+            UIWidgets::DrawFlagArray32("##switches1", MM_gPlayState->actorCtx.sceneFlags.switches[1]);
             ImGui::EndGroup();
             ImGui::BeginGroup();
             ImGui::AlignTextToFramePadding();
@@ -1871,14 +1871,14 @@ void DrawFlagsTab() {
             ImGui::SameLine(110);
             if (UIWidgets::Button("All##switches2",
                                   { .size = UIWidgets::Sizes::Inline, .color = UIWidgets::Colors::Gray })) {
-                gPlayState->actorCtx.sceneFlags.switches[2] = UINT32_MAX;
+                MM_gPlayState->actorCtx.sceneFlags.switches[2] = UINT32_MAX;
             }
             ImGui::SameLine();
             if (UIWidgets::Button("Clear##switches2",
                                   { .size = UIWidgets::Sizes::Inline, .color = UIWidgets::Colors::Red })) {
-                gPlayState->actorCtx.sceneFlags.switches[2] = 0;
+                MM_gPlayState->actorCtx.sceneFlags.switches[2] = 0;
             }
-            UIWidgets::DrawFlagArray32("##switches2", gPlayState->actorCtx.sceneFlags.switches[2]);
+            UIWidgets::DrawFlagArray32("##switches2", MM_gPlayState->actorCtx.sceneFlags.switches[2]);
             ImGui::EndGroup();
             ImGui::SameLine(0, 10.0f);
             ImGui::BeginGroup();
@@ -1887,14 +1887,14 @@ void DrawFlagsTab() {
             ImGui::SameLine(110);
             if (UIWidgets::Button("All##switches3",
                                   { .size = UIWidgets::Sizes::Inline, .color = UIWidgets::Colors::Gray })) {
-                gPlayState->actorCtx.sceneFlags.switches[3] = UINT32_MAX;
+                MM_gPlayState->actorCtx.sceneFlags.switches[3] = UINT32_MAX;
             }
             ImGui::SameLine();
             if (UIWidgets::Button("Clear##switches3",
                                   { .size = UIWidgets::Sizes::Inline, .color = UIWidgets::Colors::Red })) {
-                gPlayState->actorCtx.sceneFlags.switches[3] = 0;
+                MM_gPlayState->actorCtx.sceneFlags.switches[3] = 0;
             }
-            UIWidgets::DrawFlagArray32("##switches3", gPlayState->actorCtx.sceneFlags.switches[3]);
+            UIWidgets::DrawFlagArray32("##switches3", MM_gPlayState->actorCtx.sceneFlags.switches[3]);
             ImGui::EndGroup();
             ImGui::BeginGroup();
             ImGui::AlignTextToFramePadding();
@@ -1902,14 +1902,14 @@ void DrawFlagsTab() {
             ImGui::SameLine(110);
             if (UIWidgets::Button("All##chest",
                                   { .size = UIWidgets::Sizes::Inline, .color = UIWidgets::Colors::Gray })) {
-                gPlayState->actorCtx.sceneFlags.chest = UINT32_MAX;
+                MM_gPlayState->actorCtx.sceneFlags.chest = UINT32_MAX;
             }
             ImGui::SameLine();
             if (UIWidgets::Button("Clear##chest",
                                   { .size = UIWidgets::Sizes::Inline, .color = UIWidgets::Colors::Red })) {
-                gPlayState->actorCtx.sceneFlags.chest = 0;
+                MM_gPlayState->actorCtx.sceneFlags.chest = 0;
             }
-            UIWidgets::DrawFlagArray32("##chest", gPlayState->actorCtx.sceneFlags.chest);
+            UIWidgets::DrawFlagArray32("##chest", MM_gPlayState->actorCtx.sceneFlags.chest);
             ImGui::EndGroup();
             ImGui::SameLine(0, 10.0f);
             ImGui::BeginGroup();
@@ -1918,14 +1918,14 @@ void DrawFlagsTab() {
             ImGui::SameLine(110);
             if (UIWidgets::Button("All##clearedRoom",
                                   { .size = UIWidgets::Sizes::Inline, .color = UIWidgets::Colors::Gray })) {
-                gPlayState->actorCtx.sceneFlags.clearedRoom = UINT32_MAX;
+                MM_gPlayState->actorCtx.sceneFlags.clearedRoom = UINT32_MAX;
             }
             ImGui::SameLine();
             if (UIWidgets::Button("Clear##clearedRoom",
                                   { .size = UIWidgets::Sizes::Inline, .color = UIWidgets::Colors::Red })) {
-                gPlayState->actorCtx.sceneFlags.clearedRoom = 0;
+                MM_gPlayState->actorCtx.sceneFlags.clearedRoom = 0;
             }
-            UIWidgets::DrawFlagArray32("##clearedRoom", gPlayState->actorCtx.sceneFlags.clearedRoom);
+            UIWidgets::DrawFlagArray32("##clearedRoom", MM_gPlayState->actorCtx.sceneFlags.clearedRoom);
             ImGui::EndGroup();
             ImGui::BeginGroup();
             ImGui::AlignTextToFramePadding();
@@ -1933,14 +1933,14 @@ void DrawFlagsTab() {
             ImGui::SameLine(110);
             if (UIWidgets::Button("All##clearedRoomTemp",
                                   { .size = UIWidgets::Sizes::Inline, .color = UIWidgets::Colors::Gray })) {
-                gPlayState->actorCtx.sceneFlags.clearedRoomTemp = UINT32_MAX;
+                MM_gPlayState->actorCtx.sceneFlags.clearedRoomTemp = UINT32_MAX;
             }
             ImGui::SameLine();
             if (UIWidgets::Button("Clear##clearedRoomTemp",
                                   { .size = UIWidgets::Sizes::Inline, .color = UIWidgets::Colors::Red })) {
-                gPlayState->actorCtx.sceneFlags.clearedRoomTemp = 0;
+                MM_gPlayState->actorCtx.sceneFlags.clearedRoomTemp = 0;
             }
-            UIWidgets::DrawFlagArray32("##clearedRoomTemp", gPlayState->actorCtx.sceneFlags.clearedRoomTemp);
+            UIWidgets::DrawFlagArray32("##clearedRoomTemp", MM_gPlayState->actorCtx.sceneFlags.clearedRoomTemp);
             ImGui::EndGroup();
             ImGui::SameLine(0, 10.0f);
             ImGui::BeginGroup();
@@ -1949,14 +1949,14 @@ void DrawFlagsTab() {
             ImGui::SameLine(110);
             if (UIWidgets::Button("All##collectible0",
                                   { .size = UIWidgets::Sizes::Inline, .color = UIWidgets::Colors::Gray })) {
-                gPlayState->actorCtx.sceneFlags.collectible[0] = UINT32_MAX;
+                MM_gPlayState->actorCtx.sceneFlags.collectible[0] = UINT32_MAX;
             }
             ImGui::SameLine();
             if (UIWidgets::Button("Clear##collectible0",
                                   { .size = UIWidgets::Sizes::Inline, .color = UIWidgets::Colors::Red })) {
-                gPlayState->actorCtx.sceneFlags.collectible[0] = 0;
+                MM_gPlayState->actorCtx.sceneFlags.collectible[0] = 0;
             }
-            UIWidgets::DrawFlagArray32("##collectible0", gPlayState->actorCtx.sceneFlags.collectible[0]);
+            UIWidgets::DrawFlagArray32("##collectible0", MM_gPlayState->actorCtx.sceneFlags.collectible[0]);
             ImGui::EndGroup();
             ImGui::BeginGroup();
             ImGui::AlignTextToFramePadding();
@@ -1964,14 +1964,14 @@ void DrawFlagsTab() {
             ImGui::SameLine(110);
             if (UIWidgets::Button("All##collectible1",
                                   { .size = UIWidgets::Sizes::Inline, .color = UIWidgets::Colors::Gray })) {
-                gPlayState->actorCtx.sceneFlags.collectible[1] = UINT32_MAX;
+                MM_gPlayState->actorCtx.sceneFlags.collectible[1] = UINT32_MAX;
             }
             ImGui::SameLine();
             if (UIWidgets::Button("Clear##collectible1",
                                   { .size = UIWidgets::Sizes::Inline, .color = UIWidgets::Colors::Red })) {
-                gPlayState->actorCtx.sceneFlags.collectible[1] = 0;
+                MM_gPlayState->actorCtx.sceneFlags.collectible[1] = 0;
             }
-            UIWidgets::DrawFlagArray32("##collectible1", gPlayState->actorCtx.sceneFlags.collectible[1]);
+            UIWidgets::DrawFlagArray32("##collectible1", MM_gPlayState->actorCtx.sceneFlags.collectible[1]);
             ImGui::EndGroup();
             ImGui::SameLine(0, 10.0f);
             ImGui::BeginGroup();
@@ -1980,14 +1980,14 @@ void DrawFlagsTab() {
             ImGui::SameLine(110);
             if (UIWidgets::Button("All##collectible2",
                                   { .size = UIWidgets::Sizes::Inline, .color = UIWidgets::Colors::Gray })) {
-                gPlayState->actorCtx.sceneFlags.collectible[2] = UINT32_MAX;
+                MM_gPlayState->actorCtx.sceneFlags.collectible[2] = UINT32_MAX;
             }
             ImGui::SameLine();
             if (UIWidgets::Button("Clear##collectible2",
                                   { .size = UIWidgets::Sizes::Inline, .color = UIWidgets::Colors::Red })) {
-                gPlayState->actorCtx.sceneFlags.collectible[2] = 0;
+                MM_gPlayState->actorCtx.sceneFlags.collectible[2] = 0;
             }
-            UIWidgets::DrawFlagArray32("##collectible2", gPlayState->actorCtx.sceneFlags.collectible[2]);
+            UIWidgets::DrawFlagArray32("##collectible2", MM_gPlayState->actorCtx.sceneFlags.collectible[2]);
             ImGui::EndGroup();
             ImGui::BeginGroup();
             ImGui::AlignTextToFramePadding();
@@ -1995,14 +1995,14 @@ void DrawFlagsTab() {
             ImGui::SameLine(110);
             if (UIWidgets::Button("All##collectible3",
                                   { .size = UIWidgets::Sizes::Inline, .color = UIWidgets::Colors::Gray })) {
-                gPlayState->actorCtx.sceneFlags.collectible[3] = UINT32_MAX;
+                MM_gPlayState->actorCtx.sceneFlags.collectible[3] = UINT32_MAX;
             }
             ImGui::SameLine();
             if (UIWidgets::Button("Clear##collectible3",
                                   { .size = UIWidgets::Sizes::Inline, .color = UIWidgets::Colors::Red })) {
-                gPlayState->actorCtx.sceneFlags.collectible[3] = 0;
+                MM_gPlayState->actorCtx.sceneFlags.collectible[3] = 0;
             }
-            UIWidgets::DrawFlagArray32("##collectible3", gPlayState->actorCtx.sceneFlags.collectible[3]);
+            UIWidgets::DrawFlagArray32("##collectible3", MM_gPlayState->actorCtx.sceneFlags.collectible[3]);
             ImGui::EndGroup();
             break;
         case WEEK_EVENT_REG:

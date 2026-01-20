@@ -25,11 +25,11 @@ void Rando::ActorBehavior::InitEnCowBehavior() {
         RandoCheckId randoCheckId = RC_UNKNOWN;
 
         s16 actorListIndex = GetActorListIndex(actor);
-        auto it = cowMap.find({ gPlayState->sceneId, gPlayState->roomCtx.curRoom.num, actorListIndex });
+        auto it = cowMap.find({ MM_gPlayState->sceneId, MM_gPlayState->roomCtx.curRoom.num, actorListIndex });
         if (it != cowMap.end()) {
             randoCheckId = it->second;
             // Adjust for Termina Field cow grotto
-            if (gPlayState->sceneId == SCENE_KAKUSIANA && gSaveContext.respawn[RESPAWN_MODE_UNK_3].data == 31) {
+            if (MM_gPlayState->sceneId == SCENE_KAKUSIANA && gSaveContext.respawn[RESPAWN_MODE_UNK_3].data == 31) {
                 randoCheckId = (RandoCheckId)(randoCheckId + (RC_TERMINA_FIELD_COW_BACK - RC_GREAT_BAY_COAST_COW_BACK));
             }
 
@@ -104,8 +104,8 @@ void Rando::ActorBehavior::InitEnCowBehavior() {
     COND_VB_SHOULD(VB_COW_CONSIDER_EPONAS_SONG_PLAYED, shouldRegister, {
         EnCow* actor = va_arg(args, EnCow*);
         if (actor->flags & EN_COW_FLAG_WONT_GIVE_MILK) {
-            gPlayState->msgCtx.songPlayed = 0;
+            MM_gPlayState->msgCtx.songPlayed = 0;
         }
-        *should = gPlayState->msgCtx.songPlayed == OCARINA_SONG_EPONAS;
+        *should = MM_gPlayState->msgCtx.songPlayed == OCARINA_SONG_EPONAS;
     });
 }

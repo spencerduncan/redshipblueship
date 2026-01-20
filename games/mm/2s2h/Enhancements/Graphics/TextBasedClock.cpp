@@ -19,18 +19,18 @@ void DrawTextBasedClock() {
     }
 
     if ((R_TIME_SPEED != 0) &&
-        ((gPlayState->msgCtx.msgMode == MSGMODE_NONE) ||
-         ((gPlayState->actorCtx.flags & ACTORCTX_FLAG_TELESCOPE_ON) && !Play_InCsMode(gPlayState)) ||
-         (gPlayState->msgCtx.msgMode == MSGMODE_NONE) ||
-         ((gPlayState->msgCtx.currentTextId >= 0x100) && (gPlayState->msgCtx.currentTextId <= 0x200)) ||
+        ((MM_gPlayState->msgCtx.msgMode == MSGMODE_NONE) ||
+         ((MM_gPlayState->actorCtx.flags & ACTORCTX_FLAG_TELESCOPE_ON) && !MM_Play_InCsMode(MM_gPlayState)) ||
+         (MM_gPlayState->msgCtx.msgMode == MSGMODE_NONE) ||
+         ((MM_gPlayState->msgCtx.currentTextId >= 0x100) && (MM_gPlayState->msgCtx.currentTextId <= 0x200)) ||
          (gSaveContext.gameMode == GAMEMODE_END_CREDITS)) &&
-        !FrameAdvance_IsEnabled(gPlayState) && !Environment_IsTimeStopped() && (gSaveContext.save.day <= 3)) {
+        !MM_FrameAdvance_IsEnabled(MM_gPlayState) && !Environment_IsTimeStopped() && (gSaveContext.save.day <= 3)) {
 
-        OPEN_DISPS(gPlayState->state.gfxCtx);
+        OPEN_DISPS(MM_gPlayState->state.gfxCtx);
 
-        if ((gPlayState->pauseCtx.state == PAUSE_STATE_OFF) &&
-            (gPlayState->pauseCtx.debugEditor == DEBUG_EDITOR_NONE)) {
-            Gfx_SetupDL39_Overlay(gPlayState->state.gfxCtx);
+        if ((MM_gPlayState->pauseCtx.state == PAUSE_STATE_OFF) &&
+            (MM_gPlayState->pauseCtx.debugEditor == DEBUG_EDITOR_NONE)) {
+            Gfx_SetupDL39_Overlay(MM_gPlayState->state.gfxCtx);
 
             u16 curMinutes = (s32)TIME_TO_MINUTES_F(CURRENT_TIME) % 60;
             u16 curHours = (s32)TIME_TO_MINUTES_F(CURRENT_TIME) / 60;
@@ -46,9 +46,9 @@ void DrawTextBasedClock() {
 
             // Inverted time
             if (gSaveContext.save.timeSpeedOffset == -2) {
-                GfxPrint_SetColor(&printer, 0, 204, 255, 255);
+                MM_GfxPrint_SetColor(&printer, 0, 204, 255, 255);
             } else {
-                GfxPrint_SetColor(&printer, 255, 255, 255, 255);
+                MM_GfxPrint_SetColor(&printer, 255, 255, 255, 255);
             }
 
             // Scale starting position values by 8 for use with hud editor
@@ -64,8 +64,8 @@ void DrawTextBasedClock() {
             posY = std::max(posY / 8, 0);
 
             if (CVarGetInteger("gEnhancements.Graphics.24HoursClock", 0)) {
-                sprintf(formattedTime, "%02d:%02d", curHours, curMinutes);
-                GfxPrint_SetPos(&printer, posX + 1, posY);
+                MM_sprintf(formattedTime, "%02d:%02d", curHours, curMinutes);
+                MM_GfxPrint_SetPos(&printer, posX + 1, posY);
             } else { // Format hours and minutes for 12-hour AM/PM clock
                 char amPm[3] = "am";
                 if (curHours >= 12) {
@@ -77,25 +77,25 @@ void DrawTextBasedClock() {
                 if (curHours == 0) {
                     curHours = 12;
                 }
-                sprintf(formattedTime, "%02d:%02d%s", curHours, curMinutes, amPm);
-                GfxPrint_SetPos(&printer, posX, posY);
+                MM_sprintf(formattedTime, "%02d:%02d%s", curHours, curMinutes, amPm);
+                MM_GfxPrint_SetPos(&printer, posX, posY);
             }
 
-            GfxPrint_Printf(&printer, "Day %d: %s", gSaveContext.save.day, formattedTime);
-            GfxPrint_SetPos(&printer, posX, posY + 1);
+            MM_GfxPrint_Printf(&printer, "Day %d: %s", gSaveContext.save.day, formattedTime);
+            MM_GfxPrint_SetPos(&printer, posX, posY + 1);
 
             // Crash Countdown
             if ((CURRENT_DAY >= 4) ||
                 ((CURRENT_DAY == 3) && (CURRENT_TIME >= (CLOCK_TIME(0, 0) + 5)) && (CURRENT_TIME < CLOCK_TIME(6, 0)))) {
-                GfxPrint_SetColor(&printer, 255, 0, 0, 255);
-                sprintf(formattedCrashTime, "%02d:%02d", timeInHours, timeInMinutes);
-                GfxPrint_Printf(&printer, "Crash in %s", formattedCrashTime);
+                MM_GfxPrint_SetColor(&printer, 255, 0, 0, 255);
+                MM_sprintf(formattedCrashTime, "%02d:%02d", timeInHours, timeInMinutes);
+                MM_GfxPrint_Printf(&printer, "Crash in %s", formattedCrashTime);
             }
 
             CLOSE_PRINTER(printer, OVERLAY_DISP);
         }
 
-        CLOSE_DISPS(gPlayState->state.gfxCtx);
+        CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
     }
 
     hudEditorActiveElement = HUD_EDITOR_ELEMENT_NONE;

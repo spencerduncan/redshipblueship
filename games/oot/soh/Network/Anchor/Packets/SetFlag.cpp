@@ -7,7 +7,7 @@
 extern "C" {
 #include "functions.h"
 
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 /**
@@ -50,7 +50,7 @@ void Anchor::HandlePacket_SetFlag(nlohmann::json payload) {
         // Special case: If King Zora moved, and the player has Ruto's Letter, convert it to an empty bottle
         if (flagType == FLAG_EVENT_CHECK_INF && flag == EVENTCHKINF_KING_ZORA_MOVED &&
             Inventory_HasSpecificBottle(ITEM_LETTER_RUTO)) {
-            Inventory_ReplaceItem(gPlayState, ITEM_LETTER_RUTO, ITEM_BOTTLE);
+            OoT_Inventory_ReplaceItem(OoT_gPlayState, ITEM_LETTER_RUTO, ITEM_BOTTLE);
         }
     } else {
         // Special case: Ignore water temple water level flags, stored at 0x1C, 0x1D, 0x1E.

@@ -40,7 +40,7 @@
 
 s32 OTRScene_ExecuteCommands(PlayState* play, SOH::Scene* scene);
 
-void Scene_CommandSpawnList(PlayState* play, SOH::ISceneCommand* cmd) {
+void MM_Scene_CommandSpawnList(PlayState* play, SOH::ISceneCommand* cmd) {
     SOH::SetStartPositionList* list = (SOH::SetStartPositionList*)cmd;
     ActorEntry* entries = (ActorEntry*)(list->GetRawPointer());
     s32 loadedCount;
@@ -68,7 +68,7 @@ void Scene_CommandSpawnList(PlayState* play, SOH::ISceneCommand* cmd) {
     play->objectCtx.slots[play->objectCtx.numEntries].segment = objectPtr;
 }
 
-void Scene_CommandActorList(PlayState* play, SOH::ISceneCommand* cmd) {
+void MM_Scene_CommandActorList(PlayState* play, SOH::ISceneCommand* cmd) {
     SOH::SetActorList* list = (SOH::SetActorList*)cmd;
 
     play->numSetupActors = list->numActors;
@@ -82,18 +82,18 @@ void Scene_CommandActorCutsceneCamList(PlayState* play, SOH::ISceneCommand* cmd)
     play->actorCsCamList = (ActorCsCamInfo*)cams->GetPointer();
 }
 
-void Scene_CommandCollisionHeader(PlayState* play, SOH::ISceneCommand* cmd) {
+void MM_Scene_CommandCollisionHeader(PlayState* play, SOH::ISceneCommand* cmd) {
     SOH::SetCollisionHeader* colHeader = (SOH::SetCollisionHeader*)cmd;
-    BgCheck_Allocate(&play->colCtx, play, (CollisionHeader*)colHeader->GetRawPointer());
+    MM_BgCheck_Allocate(&play->colCtx, play, (CollisionHeader*)colHeader->GetRawPointer());
 }
 
-void Scene_CommandRoomList(PlayState* play, SOH::ISceneCommand* cmd) {
+void MM_Scene_CommandRoomList(PlayState* play, SOH::ISceneCommand* cmd) {
     SOH::SetRoomList* list = (SOH::SetRoomList*)cmd;
     play->roomList.count = list->numRooms;
     play->roomList.romFiles = (RomFile*)list->GetPointer();
 }
 
-void Scene_CommandWindSettings(PlayState* play, SOH::ISceneCommand* cmd) {
+void MM_Scene_CommandWindSettings(PlayState* play, SOH::ISceneCommand* cmd) {
     SOH::SetWindSettings* settings = (SOH::SetWindSettings*)cmd;
 
     play->envCtx.windDirection.x = settings->settings.windWest;
@@ -102,13 +102,13 @@ void Scene_CommandWindSettings(PlayState* play, SOH::ISceneCommand* cmd) {
     play->envCtx.windSpeed = settings->settings.windSpeed;
 }
 
-void Scene_CommandEntranceList(PlayState* play, SOH::ISceneCommand* cmd) {
+void MM_Scene_CommandEntranceList(PlayState* play, SOH::ISceneCommand* cmd) {
     SOH::SetEntranceList* list = (SOH::SetEntranceList*)cmd;
 
     play->setupEntranceList = (EntranceEntry*)list->GetRawPointer();
 }
 
-void Scene_CommandSpecialFiles(PlayState* play, SOH::ISceneCommand* cmd) {
+void MM_Scene_CommandSpecialFiles(PlayState* play, SOH::ISceneCommand* cmd) {
     SOH::SetSpecialObjects* specialObjList = (SOH::SetSpecialObjects*)cmd;
     // static RomFile naviQuestHintFiles[2] = {
     //     { SEGMENT_ROM_START(elf_message_field), SEGMENT_ROM_END(elf_message_field) },
@@ -119,17 +119,17 @@ void Scene_CommandSpecialFiles(PlayState* play, SOH::ISceneCommand* cmd) {
         play->objectCtx.subKeepSlot =
             Object_SpawnPersistent(&play->objectCtx, specialObjList->specialObjects.globalObject);
         // ZRET TODO: Segment number enum?
-        // gSegments[0x05] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[play->objectCtx.subKeepSlot].segment);
+        // MM_gSegments[0x05] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[play->objectCtx.subKeepSlot].segment);
     }
 
     // BENTODO: Figure out if the following section is needed for something
     // if (specialObjList->specialObjects.elfMessage != NAVI_QUEST_HINTS_NONE) {
-    //     play->naviQuestHints = Play_LoadFile(play, &naviQuestHintFiles[specialObjList->specialObjects.elfMessage -
+    //     play->naviQuestHints = MM_Play_LoadFile(play, &naviQuestHintFiles[specialObjList->specialObjects.elfMessage -
     //     1]);
     // }
 }
 
-void Scene_CommandRoomBehavior(PlayState* play, SOH::ISceneCommand* cmd) {
+void MM_Scene_CommandRoomBehavior(PlayState* play, SOH::ISceneCommand* cmd) {
     SOH::SetRoomBehaviorMM* behavior = (SOH::SetRoomBehaviorMM*)cmd;
 
     play->roomCtx.curRoom.type = behavior->roomBehavior.gameplayFlags;
@@ -156,7 +156,7 @@ void Scene_CommandMesh(PlayState* play, SOH::ISceneCommand* cmd) {
     play->roomCtx.curRoom.roomShape = (RoomShape*)mesh->GetRawPointer();
 }
 
-void Scene_CommandObjectList(PlayState* play, SOH::ISceneCommand* cmd) {
+void MM_Scene_CommandObjectList(PlayState* play, SOH::ISceneCommand* cmd) {
     SOH::SetObjectList* objList = (SOH::SetObjectList*)cmd;
     s32 i;
     s32 j;
@@ -238,15 +238,15 @@ void Scene_CommandObjectList(PlayState* play, SOH::ISceneCommand* cmd) {
     // play->objectCtx.numEntries = i;
 }
 
-void Scene_CommandLightList(PlayState* play, SOH::ISceneCommand* cmd) {
+void MM_Scene_CommandLightList(PlayState* play, SOH::ISceneCommand* cmd) {
     SOH::SetLightList* lightList = (SOH::SetLightList*)cmd;
 
     for (unsigned int i = 0; i < lightList->numLights; i++) {
-        LightContext_InsertLight(play, &play->lightCtx, (LightInfo*)&lightList->lightList[i]);
+        MM_LightContext_InsertLight(play, &play->lightCtx, (LightInfo*)&lightList->lightList[i]);
     }
 }
 
-void Scene_CommandPathList(PlayState* play, SOH::ISceneCommand* cmd) {
+void MM_Scene_CommandPathList(PlayState* play, SOH::ISceneCommand* cmd) {
     SOH::SetPathwaysMM* paths = (SOH::SetPathwaysMM*)cmd;
 
     play->setupPathList = (Path*)paths->GetPointer()[0];
@@ -267,7 +267,7 @@ void Scene_CommandEnvLightSettings(PlayState* play, SOH::ISceneCommand* cmd) {
     play->envCtx.lightSettingsList = (EnvLightSettings*)lightSettings->GetRawPointer();
 }
 
-void Scene_CommandTimeSettings(PlayState* play, SOH::ISceneCommand* cmd) {
+void MM_Scene_CommandTimeSettings(PlayState* play, SOH::ISceneCommand* cmd) {
     SOH::SetTimeSettings* settings = (SOH::SetTimeSettings*)cmd;
 
     if ((settings->settings.hour != 0xFF) && (settings->settings.minute != 0xFF)) {
@@ -292,9 +292,9 @@ void Scene_CommandTimeSettings(PlayState* play, SOH::ISceneCommand* cmd) {
         R_TIME_SPEED = play->envCtx.sceneTimeSpeed;
     }
 
-    play->envCtx.sunPos.x = -(Math_SinS(CURRENT_TIME - CLOCK_TIME(12, 0)) * 120.0f) * 25.0f;
-    play->envCtx.sunPos.y = (Math_CosS(CURRENT_TIME - CLOCK_TIME(12, 0)) * 120.0f) * 25.0f;
-    play->envCtx.sunPos.z = (Math_CosS(CURRENT_TIME - CLOCK_TIME(12, 0)) * 20.0f) * 25.0f;
+    play->envCtx.sunPos.x = -(MM_Math_SinS(CURRENT_TIME - CLOCK_TIME(12, 0)) * 120.0f) * 25.0f;
+    play->envCtx.sunPos.y = (MM_Math_CosS(CURRENT_TIME - CLOCK_TIME(12, 0)) * 120.0f) * 25.0f;
+    play->envCtx.sunPos.z = (MM_Math_CosS(CURRENT_TIME - CLOCK_TIME(12, 0)) * 20.0f) * 25.0f;
 
     if ((play->envCtx.sceneTimeSpeed == 0) && (gSaveContext.save.cutsceneIndex < 0xFFF0)) {
         gSaveContext.skyboxTime = CURRENT_TIME;
@@ -311,7 +311,7 @@ void Scene_CommandTimeSettings(PlayState* play, SOH::ISceneCommand* cmd) {
     }
 }
 
-void Scene_CommandSkyboxSettings(PlayState* play, SOH::ISceneCommand* cmd) {
+void MM_Scene_CommandSkyboxSettings(PlayState* play, SOH::ISceneCommand* cmd) {
     SOH::SetSkyboxSettings* settings = (SOH::SetSkyboxSettings*)cmd;
 
     play->skyboxId = settings->settings.skyboxId & 3;
@@ -322,18 +322,18 @@ void Scene_CommandSkyboxSettings(PlayState* play, SOH::ISceneCommand* cmd) {
     // Scene_LoadAreaTextures(play, settings->settings.)
 }
 
-void Scene_CommandSkyboxDisables(PlayState* play, SOH::ISceneCommand* cmd) {
+void MM_Scene_CommandSkyboxDisables(PlayState* play, SOH::ISceneCommand* cmd) {
     SOH::SetSkyboxModifier* mod = (SOH::SetSkyboxModifier*)cmd;
 
     play->envCtx.skyboxDisabled = mod->modifier.skyboxDisabled;
     play->envCtx.sunDisabled = mod->modifier.sunMoonDisabled;
 }
 
-void Scene_CommandExitList(PlayState* play, SOH::ISceneCommand* cmd) {
+void MM_Scene_CommandExitList(PlayState* play, SOH::ISceneCommand* cmd) {
     play->setupExitList = (u16*)cmd->GetRawPointer();
 }
 
-void Scene_CommandSoundSettings(PlayState* play, SOH::ISceneCommand* cmd) {
+void MM_Scene_CommandSoundSettings(PlayState* play, SOH::ISceneCommand* cmd) {
     SOH::SetSoundSettings* settings = (SOH::SetSoundSettings*)cmd;
 
     play->sceneSequences.seqId = settings->settings.seqId;
@@ -397,7 +397,7 @@ void Scene_CommandSetRegionVisitedFlag(PlayState* play, SOH::ISceneCommand* cmd)
 
     if (i < REGION_MAX) {
         gSaveContext.save.saveInfo.regionsVisited =
-            (gBitFlags[i] | gSaveContext.save.saveInfo.regionsVisited) | gSaveContext.save.saveInfo.regionsVisited;
+            (MM_gBitFlags[i] | gSaveContext.save.saveInfo.regionsVisited) | gSaveContext.save.saveInfo.regionsVisited;
     }
 }
 
@@ -430,28 +430,28 @@ void Scene_CommandMiniMapCompassInfo(PlayState* play, SOH::ISceneCommand* cmd) {
 }
 
 void (*sSceneCmdHandlersOTR[SCENE_CMD_MAX])(PlayState*, SOH::ISceneCommand*) = {
-    Scene_CommandSpawnList,            // SCENE_CMD_ID_SPAWN_LIST
-    Scene_CommandActorList,            // SCENE_CMD_ID_ACTOR_LIST
+    MM_Scene_CommandSpawnList,            // SCENE_CMD_ID_SPAWN_LIST
+    MM_Scene_CommandActorList,            // SCENE_CMD_ID_ACTOR_LIST
     Scene_CommandActorCutsceneCamList, // SCENE_CMD_ID_ACTOR_CUTSCENE_CAM_LIST
-    Scene_CommandCollisionHeader,      // SCENE_CMD_ID_COL_HEADER
-    Scene_CommandRoomList,             // SCENE_CMD_ID_ROOM_LIST
-    Scene_CommandWindSettings,         // SCENE_CMD_ID_WIND_SETTINGS
-    Scene_CommandEntranceList,         // SCENE_CMD_ID_ENTRANCE_LIST
-    Scene_CommandSpecialFiles,         // SCENE_CMD_ID_SPECIAL_FILES
-    Scene_CommandRoomBehavior,         // SCENE_CMD_ID_ROOM_BEHAVIOR
+    MM_Scene_CommandCollisionHeader,      // SCENE_CMD_ID_COL_HEADER
+    MM_Scene_CommandRoomList,             // SCENE_CMD_ID_ROOM_LIST
+    MM_Scene_CommandWindSettings,         // SCENE_CMD_ID_WIND_SETTINGS
+    MM_Scene_CommandEntranceList,         // SCENE_CMD_ID_ENTRANCE_LIST
+    MM_Scene_CommandSpecialFiles,         // SCENE_CMD_ID_SPECIAL_FILES
+    MM_Scene_CommandRoomBehavior,         // SCENE_CMD_ID_ROOM_BEHAVIOR
     Scene_Command09,                   // SCENE_CMD_ID_UNK_09
     Scene_CommandMesh,                 // SCENE_CMD_ID_ROOM_SHAPE
-    Scene_CommandObjectList,           // SCENE_CMD_ID_OBJECT_LIST
-    Scene_CommandLightList,            // SCENE_CMD_ID_LIGHT_LIST
-    Scene_CommandPathList,             // SCENE_CMD_ID_PATH_LIST
+    MM_Scene_CommandObjectList,           // SCENE_CMD_ID_OBJECT_LIST
+    MM_Scene_CommandLightList,            // SCENE_CMD_ID_LIGHT_LIST
+    MM_Scene_CommandPathList,             // SCENE_CMD_ID_PATH_LIST
     Scene_CommandTransiActorList,      // SCENE_CMD_ID_TRANSI_ACTOR_LIST
     Scene_CommandEnvLightSettings,     // SCENE_CMD_ID_ENV_LIGHT_SETTINGS
-    Scene_CommandTimeSettings,         // SCENE_CMD_ID_TIME_SETTINGS
-    Scene_CommandSkyboxSettings,       // SCENE_CMD_ID_SKYBOX_SETTINGS
-    Scene_CommandSkyboxDisables,       // SCENE_CMD_ID_SKYBOX_DISABLES
-    Scene_CommandExitList,             // SCENE_CMD_ID_EXIT_LIST
+    MM_Scene_CommandTimeSettings,         // SCENE_CMD_ID_TIME_SETTINGS
+    MM_Scene_CommandSkyboxSettings,       // SCENE_CMD_ID_SKYBOX_SETTINGS
+    MM_Scene_CommandSkyboxDisables,       // SCENE_CMD_ID_SKYBOX_DISABLES
+    MM_Scene_CommandExitList,             // SCENE_CMD_ID_EXIT_LIST
     NULL,                              // SCENE_CMD_ID_END
-    Scene_CommandSoundSettings,        // SCENE_CMD_ID_SOUND_SETTINGS
+    MM_Scene_CommandSoundSettings,        // SCENE_CMD_ID_SOUND_SETTINGS
     Scene_CommandEchoSetting,          // SCENE_CMD_ID_ECHO_SETTINGS
     Scene_CommandCutsceneScriptList,   // SCENE_CMD_ID_CUTSCENE_SCRIPT_LIST
     Scene_CommandAltHeaderList,        // SCENE_CMD_ID_ALTERNATE_HEADER_LIST

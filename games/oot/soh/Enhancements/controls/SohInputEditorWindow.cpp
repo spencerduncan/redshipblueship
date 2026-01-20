@@ -880,12 +880,12 @@ void SohInputEditorWindow::DrawRumbleSection(uint8_t port) {
         auto buttonHoveredColor = ImGui::GetStyleColorVec4(ImGuiCol_ButtonHovered);
         GetButtonColorsForDeviceType(mapping->GetPhysicalDeviceType(), buttonColor, buttonHoveredColor);
         // begin hackaround https://github.com/ocornut/imgui/issues/282#issuecomment-123763192
-        // spaces to have background color for text in a tree node
-        std::string spaces = "";
+        // OoT_spaces to have background color for text in a tree node
+        std::string OoT_spaces = "";
         for (size_t i = 0; i < mapping->GetPhysicalDeviceName().length(); i++) {
-            spaces += " ";
+            OoT_spaces += " ";
         }
-        auto open = ImGui::TreeNode(StringHelper::Sprintf("%s###Rumble%s", spaces.c_str(), id.c_str()).c_str());
+        auto open = ImGui::TreeNode(StringHelper::Sprintf("%s###Rumble%s", OoT_spaces.c_str(), id.c_str()).c_str());
         ImGui::SameLine();
         ImGui::SetCursorPosX(SCALE_IMGUI_SIZE(30.0f));
         // end hackaround

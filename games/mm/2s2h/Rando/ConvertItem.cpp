@@ -82,8 +82,8 @@ static std::vector<RandoItemId> junkItems = {
 RandoItemId Rando::CurrentJunkItem() {
     static RandoItemId lastJunkItem = RI_UNKNOWN;
     static u32 lastChosenAt = 0;
-    if (gPlayState != NULL && ABS(gPlayState->gameplayFrames - lastChosenAt) > 20) {
-        lastChosenAt = gPlayState->gameplayFrames;
+    if (MM_gPlayState != NULL && ABS(MM_gPlayState->gameplayFrames - lastChosenAt) > 20) {
+        lastChosenAt = MM_gPlayState->gameplayFrames;
         lastJunkItem = RI_UNKNOWN;
     }
 
@@ -108,8 +108,8 @@ bool Rando::IsItemObtainable(RandoItemId randoItemId, RandoCheckId randoCheckId)
         Rando::StaticData::Items[randoItemId].getItemId != GI_NONE) {
         GetItemEntry* giEntry = &sGetItemTable[Rando::StaticData::Items[randoItemId].getItemId - 1];
         vanillaCantObtain =
-            ((Item_CheckObtainability(giEntry->itemId) != ITEM_NONE) && (giEntry->field & GIFIELD_20)) ||
-            ((Item_CheckObtainability(giEntry->itemId) == ITEM_NONE) && (giEntry->field & GIFIELD_40));
+            ((MM_Item_CheckObtainability(giEntry->itemId) != ITEM_NONE) && (giEntry->field & GIFIELD_20)) ||
+            ((MM_Item_CheckObtainability(giEntry->itemId) == ITEM_NONE) && (giEntry->field & GIFIELD_40));
     }
 
     switch (randoItemId) {
@@ -259,7 +259,7 @@ bool Rando::IsItemObtainable(RandoItemId randoItemId, RandoCheckId randoCheckId)
         case RI_RED_POTION_REFILL:
         case RI_BLUE_POTION_REFILL:
         case RI_GREEN_POTION_REFILL:
-            if (!Inventory_HasEmptyBottle()) {
+            if (!MM_Inventory_HasEmptyBottle()) {
                 return false;
             }
             break;
@@ -634,22 +634,22 @@ RandoItemId Rando::ConvertItem(RandoItemId randoItemId, RandoCheckId randoCheckI
     } else {
         switch (randoItemId) {
             case RI_BOTTLE_GOLD_DUST:
-                if (Inventory_HasEmptyBottle()) {
+                if (MM_Inventory_HasEmptyBottle()) {
                     return RI_GOLD_DUST_REFILL;
                 }
                 break;
             case RI_BOTTLE_MILK:
-                if (Inventory_HasEmptyBottle()) {
+                if (MM_Inventory_HasEmptyBottle()) {
                     return RI_MILK_REFILL;
                 }
                 break;
             case RI_BOTTLE_CHATEAU_ROMANI:
-                if (Inventory_HasEmptyBottle()) {
+                if (MM_Inventory_HasEmptyBottle()) {
                     return RI_CHATEAU_ROMANI_REFILL;
                 }
                 break;
             case RI_BOTTLE_RED_POTION:
-                if (Inventory_HasEmptyBottle()) {
+                if (MM_Inventory_HasEmptyBottle()) {
                     return RI_RED_POTION_REFILL;
                 }
             default:

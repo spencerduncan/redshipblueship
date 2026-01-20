@@ -349,17 +349,17 @@ const char* GetIconTexturePath(RandoItemId randoItemId) {
     switch (randoItemId) {
         case RI_BOMBCHU:
         case RI_BOMBCHU_5:
-            return (const char*)gItemIcons[ITEM_BOMBCHU];
+            return (const char*)MM_gItemIcons[ITEM_BOMBCHU];
         case RI_DEKU_STICKS_5:
-            return (const char*)gItemIcons[ITEM_DEKU_STICK];
+            return (const char*)MM_gItemIcons[ITEM_DEKU_STICK];
         case RI_DOUBLE_DEFENSE:
-            return (const char*)gItemIcons[ITEM_HEART_CONTAINER];
+            return (const char*)MM_gItemIcons[ITEM_HEART_CONTAINER];
         case RI_SINGLE_MAGIC:
-            return (const char*)gItemIcons[ITEM_MAGIC_JAR_SMALL];
+            return (const char*)MM_gItemIcons[ITEM_MAGIC_JAR_SMALL];
         case RI_DOUBLE_MAGIC:
-            return (const char*)gItemIcons[ITEM_MAGIC_JAR_BIG];
+            return (const char*)MM_gItemIcons[ITEM_MAGIC_JAR_BIG];
         case RI_GREAT_SPIN_ATTACK:
-            return (const char*)gItemIcons[ITEM_SWORD_KOKIRI];
+            return (const char*)MM_gItemIcons[ITEM_SWORD_KOKIRI];
         case RI_CLOCK_TOWN_STRAY_FAIRY:
         case RI_STONE_TOWER_STRAY_FAIRY:
             return (const char*)gStrayFairyStoneTowerIconTex;
@@ -373,24 +373,24 @@ const char* GetIconTexturePath(RandoItemId randoItemId) {
         case RI_GREAT_BAY_COMPASS:
         case RI_WOODFALL_COMPASS:
         case RI_STONE_TOWER_COMPASS:
-            return (const char*)gItemIcons[ITEM_DUNGEON_MAP];
+            return (const char*)MM_gItemIcons[ITEM_DUNGEON_MAP];
         case RI_SNOWHEAD_MAP:
         case RI_GREAT_BAY_MAP:
         case RI_WOODFALL_MAP:
         case RI_STONE_TOWER_MAP:
-            return (const char*)gItemIcons[ITEM_COMPASS];
+            return (const char*)MM_gItemIcons[ITEM_COMPASS];
         case RI_PROGRESSIVE_BOMB_BAG:
-            return (const char*)gItemIcons[ITEM_BOMB_BAG_20];
+            return (const char*)MM_gItemIcons[ITEM_BOMB_BAG_20];
         case RI_PROGRESSIVE_BOW:
-            return (const char*)gItemIcons[ITEM_BOW];
+            return (const char*)MM_gItemIcons[ITEM_BOW];
         case RI_PROGRESSIVE_SWORD:
-            return (const char*)gItemIcons[ITEM_SWORD_KOKIRI];
+            return (const char*)MM_gItemIcons[ITEM_SWORD_KOKIRI];
         case RI_PROGRESSIVE_WALLET:
-            return (const char*)gItemIcons[ITEM_WALLET_ADULT];
+            return (const char*)MM_gItemIcons[ITEM_WALLET_ADULT];
         case RI_PROGRESSIVE_LULLABY:
-            return (const char*)gItemIcons[ITEM_SONG_LULLABY];
+            return (const char*)MM_gItemIcons[ITEM_SONG_LULLABY];
         case RI_PROGRESSIVE_MAGIC:
-            return (const char*)gItemIcons[ITEM_MAGIC_JAR_SMALL];
+            return (const char*)MM_gItemIcons[ITEM_MAGIC_JAR_SMALL];
         case RI_SOUL_BOSS_GOHT:
         case RI_SOUL_BOSS_GYORG:
         case RI_SOUL_BOSS_MAJORA:
@@ -448,7 +448,7 @@ const char* GetIconTexturePath(RandoItemId randoItemId) {
         case RI_FROG_CYAN:
         case RI_FROG_PINK:
         case RI_FROG_WHITE:
-            return (const char*)gItemIcons[ITEM_MASK_DON_GERO];
+            return (const char*)MM_gItemIcons[ITEM_MASK_DON_GERO];
         case RI_OWL_CLOCK_TOWN_SOUTH:
         case RI_OWL_GREAT_BAY_COAST:
         case RI_OWL_IKANA_CANYON:
@@ -498,7 +498,7 @@ const char* GetIconTexturePath(RandoItemId randoItemId) {
         itemId = D_801CFF94[Rando::StaticData::Items[randoItemId].getItemId];
     }
 
-    return itemId < ITEM_RECOVERY_HEART ? (const char*)gItemIcons[itemId] : nullptr;
+    return itemId < ITEM_RECOVERY_HEART ? (const char*)MM_gItemIcons[itemId] : nullptr;
 }
 
 bool ShouldShowGetItemCutscene(RandoItemId itemId) {

@@ -16,7 +16,7 @@ extern "C" {
 void RegisterSkipStoppingMoon() {
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
         s16* csId = va_arg(args, s16*);
-        if (gPlayState->sceneId == SCENE_OKUJOU) {
+        if (MM_gPlayState->sceneId == SCENE_OKUJOU) {
             if (*csId == 12) {
                 if (GameInteractor_Should(VB_MEET_MOON_REQUIREMENTS, CHECK_QUEST_ITEM(QUEST_REMAINS_ODOLWA) &&
                                                                          CHECK_QUEST_ITEM(QUEST_REMAINS_GOHT) &&

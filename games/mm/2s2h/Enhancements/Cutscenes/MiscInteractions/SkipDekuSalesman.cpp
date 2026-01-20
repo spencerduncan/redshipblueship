@@ -30,7 +30,7 @@ void RegisterSkipDekuSalesman() {
 
         if (enSellnuts->actionFunc == func_80ADC118 && enSellnuts->unk_34A < 40) {
             CutsceneManager_End();
-            Actor_Kill(&enSellnuts->actor);
+            MM_Actor_Kill(&enSellnuts->actor);
         }
     });
 
@@ -40,7 +40,7 @@ void RegisterSkipDekuSalesman() {
 
         if (enAkindonuts->actionFunc == func_80BEF83C && enAkindonuts->unk_33A < 40) {
             CutsceneManager_End();
-            Actor_Kill(&enAkindonuts->actor);
+            MM_Actor_Kill(&enAkindonuts->actor);
         }
     });
 }

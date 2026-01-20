@@ -5,7 +5,7 @@
 extern "C" {
 #include "variables.h"
 #include "functions.h"
-extern u8 sPlaybackState;
+extern u8 MM_sPlaybackState;
 #include "overlays/actors/ovl_En_Torch2/z_en_torch2.h"
 }
 
@@ -13,29 +13,29 @@ extern u8 sPlaybackState;
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 #define NOT_OCARINA_ACTION_BALAD_WIND_FISH                                       \
-    (gPlayState->msgCtx.ocarinaAction < OCARINA_ACTION_PROMPT_WIND_FISH_HUMAN || \
-     gPlayState->msgCtx.ocarinaAction > OCARINA_ACTION_PROMPT_WIND_FISH_DEKU)
+    (MM_gPlayState->msgCtx.ocarinaAction < OCARINA_ACTION_PROMPT_WIND_FISH_HUMAN || \
+     MM_gPlayState->msgCtx.ocarinaAction > OCARINA_ACTION_PROMPT_WIND_FISH_DEKU)
 
 void RegisterFasterSongPlayback() {
     COND_ID_HOOK(OnActorUpdate, ACTOR_PLAYER, CVAR, [](Actor* actor) {
-        if (gPlayState->msgCtx.msgMode >= MSGMODE_SONG_PLAYED && gPlayState->msgCtx.msgMode <= MSGMODE_17 &&
-            !gPlayState->csCtx.state && NOT_OCARINA_ACTION_BALAD_WIND_FISH) {
-            if (gPlayState->msgCtx.stateTimer > 1) {
-                gPlayState->msgCtx.stateTimer = 1;
+        if (MM_gPlayState->msgCtx.msgMode >= MSGMODE_SONG_PLAYED && MM_gPlayState->msgCtx.msgMode <= MSGMODE_17 &&
+            !MM_gPlayState->csCtx.state && NOT_OCARINA_ACTION_BALAD_WIND_FISH) {
+            if (MM_gPlayState->msgCtx.stateTimer > 1) {
+                MM_gPlayState->msgCtx.stateTimer = 1;
             }
-            gPlayState->msgCtx.ocarinaSongEffectActive = 0;
-            sPlaybackState = 0;
+            MM_gPlayState->msgCtx.ocarinaSongEffectActive = 0;
+            MM_sPlaybackState = 0;
         }
     });
 
     COND_ID_HOOK(ShouldActorInit, ACTOR_EFF_CHANGE, CVAR, [](Actor* actor, bool* should) {
         *should = false;
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
 
         if (player->av2.actionVar2 < 10) {
             player->av2.actionVar2 = 10;
         } else if (player->av2.actionVar2 < 90) {
-            EnTorch2* torch2 = gPlayState->actorCtx.elegyShells[player->transformation];
+            EnTorch2* torch2 = MM_gPlayState->actorCtx.elegyShells[player->transformation];
             if (torch2 != NULL) {
                 torch2->framesUntilNextState = 1;
             }
@@ -48,7 +48,7 @@ void RegisterFasterSongPlayback() {
         EnTorch2* torch2 = va_arg(args, EnTorch2*);
         u16* targetAlpha = va_arg(args, u16*);
 
-        Math_StepToS(&torch2->alpha, *targetAlpha, 24);
+        MM_Math_StepToS(&torch2->alpha, *targetAlpha, 24);
     });
 }
 

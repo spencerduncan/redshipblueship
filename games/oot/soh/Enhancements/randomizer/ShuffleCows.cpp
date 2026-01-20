@@ -3,7 +3,7 @@
 
 extern "C" {
 #include "src/overlays/actors/ovl_En_Cow/z_en_cow.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 void EnCow_MoveForRandomizer(EnCow* enCow, PlayState* play) {
@@ -39,14 +39,14 @@ void RegisterShuffleCows() {
     COND_VB_SHOULD(VB_GIVE_ITEM_FROM_COW, shouldRegister, {
         EnCow* enCow = va_arg(args, EnCow*);
         CheckIdentity cowIdentity = OTRGlobals::Instance->gRandomizer->IdentifyCow(
-            gPlayState->sceneNum, static_cast<int32_t>(enCow->actor.world.pos.x),
+            OoT_gPlayState->sceneNum, static_cast<int32_t>(enCow->actor.world.pos.x),
             static_cast<int32_t>(enCow->actor.world.pos.z));
         // Has this cow already rewarded an item?
         if (!Flags_GetRandomizerInf(cowIdentity.randomizerInf)) {
             Flags_SetRandomizerInf(cowIdentity.randomizerInf);
             // setting the ocarina mode here prevents intermittent issues
             // with the item get not triggering until walking away
-            gPlayState->msgCtx.ocarinaMode = OCARINA_MODE_00;
+            OoT_gPlayState->msgCtx.ocarinaMode = OCARINA_MODE_00;
             *should = false;
         }
     });
@@ -54,7 +54,7 @@ void RegisterShuffleCows() {
     COND_VB_SHOULD(VB_DESPAWN_HORSE_RACE_COW, shouldRegister, {
         EnCow* enCow = va_arg(args, EnCow*);
         // If this is a cow we have to move, then move it now.
-        EnCow_MoveForRandomizer(enCow, gPlayState);
+        EnCow_MoveForRandomizer(enCow, OoT_gPlayState);
     });
 }
 

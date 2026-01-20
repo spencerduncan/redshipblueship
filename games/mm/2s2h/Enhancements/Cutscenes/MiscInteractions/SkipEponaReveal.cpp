@@ -13,11 +13,11 @@ void RegisterSkipEponaReveal() {
     COND_VB_SHOULD(VB_QUEUE_CUTSCENE, CVAR, {
         s16* csId = va_arg(args, s16*);
 
-        if (gPlayState->sceneId != SCENE_F01) { // Romani Ranch
+        if (MM_gPlayState->sceneId != SCENE_F01) { // Romani Ranch
             return;
         }
 
-        BgUmajump* bgUmajump = (BgUmajump*)Actor_FindNearby(gPlayState, &GET_PLAYER(gPlayState)->actor,
+        BgUmajump* bgUmajump = (BgUmajump*)MM_Actor_FindNearby(MM_gPlayState, &GET_PLAYER(MM_gPlayState)->actor,
                                                             ACTOR_BG_UMAJUMP, ACTORCAT_PROP, 99999.9f);
         if (!bgUmajump) {
             return;
@@ -29,7 +29,7 @@ void RegisterSkipEponaReveal() {
 
         *should = false;
         SET_WEEKEVENTREG(WEEKEVENTREG_89_20);
-        bgUmajump->dyna.actor.update = Actor_Noop;
+        bgUmajump->dyna.actor.update = MM_Actor_Noop;
     });
 }
 

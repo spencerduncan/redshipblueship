@@ -37,7 +37,7 @@ EnItem00* spawnReplacementItem(Vec3f& pos, Rando::StaticData::RandoStaticCheck& 
                     }
                     break;
                 case FLAG_CYCL_SCENE_COLLECTIBLE:
-                    Flags_SetCollectible(play, randoStaticCheck.flag);
+                    MM_Flags_SetCollectible(play, randoStaticCheck.flag);
                     break;
                 default:
                     break;
@@ -45,7 +45,7 @@ EnItem00* spawnReplacementItem(Vec3f& pos, Rando::StaticData::RandoStaticCheck& 
         },
         [](Actor* actor, PlayState* play) {
             auto& randoSaveCheck = RANDO_SAVE_CHECKS[CUSTOM_ITEM_PARAM];
-            Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
+            MM_Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
             Rando::DrawItem(Rando::ConvertItem(randoSaveCheck.randoItemId, (RandoCheckId)CUSTOM_ITEM_PARAM), actor);
         });
 }
@@ -55,7 +55,7 @@ void Rando::ActorBehavior::InitEnItem00Behavior() {
     // value, with each child incrementing to it to get its own RC. The RCs must be contiguous for this to work.
     COND_VB_SHOULD(VB_OBJ_MURE3_DROP_COLLECTIBLE, IS_RANDO, {
         Actor* actor = va_arg(args, Actor*);
-        auto it = freestandingMap.find({ gPlayState->sceneId, actor->room, GetActorListIndex(actor) });
+        auto it = freestandingMap.find({ MM_gPlayState->sceneId, actor->room, GetActorListIndex(actor) });
         if (it != freestandingMap.end()) {
             s32 i = va_arg(args, s32);
             RandoCheckId randoCheckId = static_cast<RandoCheckId>(it->second + i);
@@ -67,8 +67,8 @@ void Rando::ActorBehavior::InitEnItem00Behavior() {
                 spawnPos.y = objMure3->actor.world.pos.y;
                 if (i < 6) { // Ring of Rupees
                     s16 yRot = objMure3->actor.world.rot.y + 0x2AAA * i;
-                    spawnPos.x = (Math_SinS(yRot) * 40.0f) + objMure3->actor.world.pos.x;
-                    spawnPos.z = (Math_CosS(yRot) * 40.0f) + objMure3->actor.world.pos.z;
+                    spawnPos.x = (MM_Math_SinS(yRot) * 40.0f) + objMure3->actor.world.pos.x;
+                    spawnPos.z = (MM_Math_CosS(yRot) * 40.0f) + objMure3->actor.world.pos.z;
                     objMure3->unk148[i] = spawnReplacementItem(spawnPos, randoStaticCheck);
                     objMure3->unk148[i]->actor.room = actor->room;
                 } else { // Center Rupee
@@ -93,7 +93,7 @@ void Rando::ActorBehavior::InitEnItem00Behavior() {
         }
 
         auto randoStaticCheck = Rando::StaticData::GetCheckFromFlag(FLAG_CYCL_SCENE_COLLECTIBLE,
-                                                                    ENITEM00_GET_7F00(actor), gPlayState->sceneId);
+                                                                    ENITEM00_GET_7F00(actor), MM_gPlayState->sceneId);
         if (randoStaticCheck.randoCheckId == RC_UNKNOWN) {
             return;
         }

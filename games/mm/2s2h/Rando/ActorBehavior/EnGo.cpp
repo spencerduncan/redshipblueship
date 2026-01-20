@@ -7,9 +7,9 @@ extern "C" {
 #include "variables.h"
 #include "overlays/actors/ovl_En_Go/z_en_go.h"
 
-void Player_StartTalking(PlayState* play, Actor* actor);
-void Player_SetupTalk(PlayState* play, Player* player);
-s32 Player_SetupWaitForPutAway(PlayState* play, Player* player, AfterPutAwayFunc afterPutAwayFunc);
+void MM_Player_StartTalking(PlayState* play, Actor* actor);
+void MM_Player_SetupTalk(PlayState* play, Player* player);
+s32 MM_Player_SetupWaitForPutAway(PlayState* play, Player* player, AfterPutAwayFunc afterPutAwayFunc);
 }
 
 static std::vector<u8> skipCmds = {};
@@ -35,7 +35,7 @@ void Rando::ActorBehavior::InitEnGoBehavior() {
         }
 
         MsgScript* script = va_arg(args, MsgScript*);
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
 
         if (cmdId == MSCRIPT_CMD_ID_CHECK_ITEM) {
             MsgScriptCmdCheckItem* cmd = (MsgScriptCmdCheckItem*)script;
@@ -66,7 +66,7 @@ void Rando::ActorBehavior::InitEnGoBehavior() {
             }
 
             *should = false;
-            gPlayState->msgCtx.choiceIndex = 0;
+            MM_gPlayState->msgCtx.choiceIndex = 0;
 
             skipCmds.clear();
             skipCmds.push_back(MSCRIPT_CMD_ID_AWAIT_TEXT);
@@ -106,7 +106,7 @@ void Rando::ActorBehavior::InitEnGoBehavior() {
                 *should = false;
 
                 EnGo* enGo = (EnGo*)actor;
-                Player* player = GET_PLAYER(gPlayState);
+                Player* player = GET_PLAYER(MM_gPlayState);
                 player->talkActor = &enGo->actor;
 
                 if (!RANDO_SAVE_CHECKS[RC_GORON_VILLAGE_MEDIGORON].cycleObtained) {

@@ -16,20 +16,20 @@ void func_808395F0(PlayState* play, Player* player, PlayerMeleeWeaponAnimation m
 
 void RegisterManualJump() {
     COND_VB_SHOULD(VB_START_JUMPSLASH, CVAR, {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         s32 temp_a2 = player->controlStickDirections[player->controlStickDataIndex];
 
         *should = false;
 
         if (player->transformation == PLAYER_FORM_ZORA) {
-            func_808395F0(gPlayState, player, PLAYER_MWA_JUMPSLASH_START, 5.0f, 5.0f);
+            func_808395F0(MM_gPlayState, player, PLAYER_MWA_JUMPSLASH_START, 5.0f, 5.0f);
         } else if (temp_a2 == 0) {
             // Leap
-            func_80834D50(gPlayState, player, (PlayerAnimationHeader*)&gPlayerAnim_link_fighter_front_jump, 5.8f,
+            func_80834D50(MM_gPlayState, player, (PlayerAnimationHeader*)&gPlayerAnim_link_fighter_front_jump, 5.8f,
                           NA_SE_VO_LI_SWORD_N);
         } else {
             // Jump
-            func_80834DB8(player, (PlayerAnimationHeader*)&gPlayerAnim_link_normal_jump, REG(69) / 100.0f, gPlayState);
+            func_80834DB8(player, (PlayerAnimationHeader*)&gPlayerAnim_link_normal_jump, REG(69) / 100.0f, MM_gPlayState);
         }
     });
 }

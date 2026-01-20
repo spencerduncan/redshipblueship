@@ -42,8 +42,8 @@ void MiniFrog_TalkAndVanish(EnMinifrog* enMinifrog, PlayState* play) {
     EnMinifrog_JumpTimer(enMinifrog);
     if (!play->msgCtx.currentTextId) {
         EnMinifrog_SpawnDust(enMinifrog, play);
-        SoundSource_PlaySfxAtFixedWorldPos(play, &enMinifrog->actor.world.pos, 30, NA_SE_EN_NPC_FADEAWAY);
-        Actor_Kill(&enMinifrog->actor);
+        MM_SoundSource_PlaySfxAtFixedWorldPos(play, &enMinifrog->actor.world.pos, 30, NA_SE_EN_NPC_FADEAWAY);
+        MM_Actor_Kill(&enMinifrog->actor);
         RandoCheckId frogCheck = GetFrogCheck(enMinifrog->frogIndex);
         RANDO_SAVE_CHECKS[frogCheck].eligible = true;
     }
@@ -56,8 +56,8 @@ void MiniFrog_IdleWithoutCs(EnMinifrog* enMinifrog, PlayState* play) {
     if (Actor_TalkOfferAccepted(&enMinifrog->actor, &play->state)) {
         play->msgCtx.currentTextId = enMinifrog->actor.textId;
         enMinifrog->actionFunc = MiniFrog_TalkAndVanish;
-    } else if ((enMinifrog->actor.xzDistToPlayer < 100.0f) && Player_IsFacingActor(&enMinifrog->actor, 0x3000, play) &&
-               (Player_GetMask(play) == PLAYER_MASK_DON_GERO)) {
+    } else if ((enMinifrog->actor.xzDistToPlayer < 100.0f) && MM_Player_IsFacingActor(&enMinifrog->actor, 0x3000, play) &&
+               (MM_Player_GetMask(play) == PLAYER_MASK_DON_GERO)) {
         Actor_OfferTalk(&enMinifrog->actor, play, 110.0f);
     }
 }
@@ -82,9 +82,9 @@ void Rando::ActorBehavior::InitEnMinifrogBehavior() {
 
     // "Ah, Don Gero"
     COND_ID_HOOK(OnOpenText, 0xD81, SHUFFLED_FROGS, [](u16* textId, bool* loadFromMessageTable) {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         EnMinifrog* enMinifrog =
-            (EnMinifrog*)Actor_FindNearby(gPlayState, &player->actor, ACTOR_EN_MINIFROG, ACTORCAT_NPC, 100.0f);
+            (EnMinifrog*)MM_Actor_FindNearby(MM_gPlayState, &player->actor, ACTOR_EN_MINIFROG, ACTORCAT_NPC, 100.0f);
 
         auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
         entry.msg = "Why, Don Gero! I'm not joining that choir unless someone finds my other hiding spot. "

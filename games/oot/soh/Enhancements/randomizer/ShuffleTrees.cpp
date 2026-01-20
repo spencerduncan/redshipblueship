@@ -8,8 +8,8 @@ extern "C" {
 #include "src/overlays/actors/ovl_En_Wood02/z_en_wood02.h"
 #include "objects/object_wood02/object_wood02.h"
 #include "soh/Enhancements/enhancementTypes.h"
-extern PlayState* gPlayState;
-void EnWood02_Draw(Actor*, PlayState*);
+extern PlayState* OoT_gPlayState;
+void OoT_EnWood02_Draw(Actor*, PlayState*);
 }
 
 static Gfx* D_80B3BF54[] = {
@@ -82,42 +82,42 @@ extern "C" void EnWood02_RandomizerDraw(Actor* thisx, PlayState* play) {
 
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     OPEN_DISPS(gfxCtx);
-    Matrix_Push();
+    OoT_Matrix_Push();
 
     // Change texture
     switch (getItemCategory) {
         case ITEM_CATEGORY_MAJOR:
-            Matrix_Scale(0.1, 0.05, 0.1, MTXMODE_APPLY);
-            Gfx_DrawDListOpa(play, (Gfx*)gSmallMajorCrateDL);
+            OoT_Matrix_Scale(0.1, 0.05, 0.1, MTXMODE_APPLY);
+            OoT_Gfx_DrawDListOpa(play, (Gfx*)gSmallMajorCrateDL);
             break;
         case ITEM_CATEGORY_SKULLTULA_TOKEN:
-            Matrix_Scale(0.1, 0.05, 0.1, MTXMODE_APPLY);
-            Gfx_DrawDListOpa(play, (Gfx*)gSmallTokenCrateDL);
+            OoT_Matrix_Scale(0.1, 0.05, 0.1, MTXMODE_APPLY);
+            OoT_Gfx_DrawDListOpa(play, (Gfx*)gSmallTokenCrateDL);
             break;
         case ITEM_CATEGORY_SMALL_KEY:
-            Matrix_Scale(0.1, 0.05, 0.1, MTXMODE_APPLY);
-            Gfx_DrawDListOpa(play, (Gfx*)gSmallSmallKeyCrateDL);
+            OoT_Matrix_Scale(0.1, 0.05, 0.1, MTXMODE_APPLY);
+            OoT_Gfx_DrawDListOpa(play, (Gfx*)gSmallSmallKeyCrateDL);
             break;
         case ITEM_CATEGORY_BOSS_KEY:
-            Matrix_Scale(0.1, 0.05, 0.1, MTXMODE_APPLY);
-            Gfx_DrawDListOpa(play, (Gfx*)gSmallBossKeyCrateDL);
+            OoT_Matrix_Scale(0.1, 0.05, 0.1, MTXMODE_APPLY);
+            OoT_Gfx_DrawDListOpa(play, (Gfx*)gSmallBossKeyCrateDL);
             break;
         case ITEM_CATEGORY_HEALTH:
-            Matrix_Scale(0.1, 0.05, 0.1, MTXMODE_APPLY);
-            Gfx_DrawDListOpa(play, (Gfx*)gSmallHeartCrateDL);
+            OoT_Matrix_Scale(0.1, 0.05, 0.1, MTXMODE_APPLY);
+            OoT_Gfx_DrawDListOpa(play, (Gfx*)gSmallHeartCrateDL);
             break;
         case ITEM_CATEGORY_LESSER:
-            Matrix_Scale(0.1, 0.05, 0.1, MTXMODE_APPLY);
-            Gfx_DrawDListOpa(play, (Gfx*)gSmallMinorCrateDL);
+            OoT_Matrix_Scale(0.1, 0.05, 0.1, MTXMODE_APPLY);
+            OoT_Gfx_DrawDListOpa(play, (Gfx*)gSmallMinorCrateDL);
             break;
         case ITEM_CATEGORY_JUNK:
         default:
-            Matrix_Scale(0.04, 0.02, 0.04, MTXMODE_APPLY);
-            Gfx_DrawDListOpa(play, (Gfx*)gLargeJunkCrateDL);
+            OoT_Matrix_Scale(0.04, 0.02, 0.04, MTXMODE_APPLY);
+            OoT_Gfx_DrawDListOpa(play, (Gfx*)gLargeJunkCrateDL);
             break;
     }
 
-    Matrix_Pop();
+    OoT_Matrix_Pop();
     CLOSE_DISPS(gfxCtx);
 }
 
@@ -127,14 +127,14 @@ void EnWood02_RandomizerSpawnCollectible(EnWood02* treeActor, PlayState* play) {
         return;
     }
 
-    EnItem00* item00 = (EnItem00*)Item_DropCollectible2(play, &treeActor->actor.world.pos, ITEM00_SOH_DUMMY);
+    EnItem00* item00 = (EnItem00*)OoT_Item_DropCollectible2(play, &treeActor->actor.world.pos, ITEM00_SOH_DUMMY);
     item00->randoInf = treeIdentity->randomizerInf;
     item00->itemEntry = Rando::Context::GetInstance()->GetFinalGIEntry(treeIdentity->randomizerCheck, true, GI_NONE);
     item00->actor.draw = (ActorFunc)EnItem00_DrawRandomizedItem;
     item00->actor.velocity.y = 0.0f;
     item00->actor.world.pos.y += 120.0f;
     item00->actor.speedXZ = 2.0f;
-    item00->actor.world.rot.y = Rand_CenteredFloat(65536.0f);
+    item00->actor.world.rot.y = OoT_Rand_CenteredFloat(65536.0f);
     // clear randomizerCheck to prevent multiple bonks,
     // reloading area without collecting drop won't persist this
     treeIdentity->randomizerCheck = RC_UNKNOWN_CHECK;
@@ -148,7 +148,7 @@ void EnWood02_RandomizerInit(void* actorRef) {
          treeActor->actor.params <= WOOD_BUSH_BLACK_LARGE_SPAWNED &&
          Rando::Context::GetInstance()->GetOption(RSK_SHUFFLE_BUSHES).Get())) {
         auto treeIdentity = OTRGlobals::Instance->gRandomizer->IdentifyTree(
-            gPlayState->sceneNum, (s16)treeActor->actor.world.pos.x, (s16)treeActor->actor.world.pos.z);
+            OoT_gPlayState->sceneNum, (s16)treeActor->actor.world.pos.x, (s16)treeActor->actor.world.pos.z);
         if (treeIdentity.randomizerInf != RAND_INF_MAX && treeIdentity.randomizerCheck != RC_UNKNOWN_CHECK) {
             ObjectExtension::GetInstance().Set<CheckIdentity>(actorRef, std::move(treeIdentity));
         }
@@ -163,22 +163,22 @@ void RegisterShuffleTrees() {
 
     COND_VB_SHOULD(VB_TREE_SETUP_DRAW, shouldRegisterTree || shouldRegisterBush, {
         EnWood02* treeActor = va_arg(args, EnWood02*);
-        if (EnWood02_RandomizerHoldsItem(treeActor, gPlayState)) {
-            EnWood02_RandomizerDraw(&treeActor->actor, gPlayState);
+        if (EnWood02_RandomizerHoldsItem(treeActor, OoT_gPlayState)) {
+            EnWood02_RandomizerDraw(&treeActor->actor, OoT_gPlayState);
         }
     });
 
     COND_VB_SHOULD(VB_TREE_DROP_ITEM, shouldRegisterTree, {
         EnWood02* treeActor = va_arg(args, EnWood02*);
-        if (EnWood02_RandomizerHoldsItem(treeActor, gPlayState)) {
-            EnWood02_RandomizerSpawnCollectible(treeActor, gPlayState);
+        if (EnWood02_RandomizerHoldsItem(treeActor, OoT_gPlayState)) {
+            EnWood02_RandomizerSpawnCollectible(treeActor, OoT_gPlayState);
             // QoL, drop golden skulltula alongside item
             if ((treeActor->unk_14C < 0 || treeActor->unk_14C >= 0x64) && treeActor->actor.home.rot.z != 0) {
                 Vec3f dropsSpawnPt = treeActor->actor.world.pos;
                 dropsSpawnPt.y += 200.0f;
                 treeActor->actor.home.rot.z &= 0x1FFF;
                 treeActor->actor.home.rot.z |= 0xE000;
-                Actor_Spawn(&gPlayState->actorCtx, gPlayState, ACTOR_EN_SW, dropsSpawnPt.x, dropsSpawnPt.y,
+                OoT_Actor_Spawn(&OoT_gPlayState->actorCtx, OoT_gPlayState, ACTOR_EN_SW, dropsSpawnPt.x, dropsSpawnPt.y,
                             dropsSpawnPt.z, 0, treeActor->actor.world.rot.y, 0, treeActor->actor.home.rot.z, true);
                 treeActor->actor.home.rot.z = 0;
             }
@@ -188,14 +188,14 @@ void RegisterShuffleTrees() {
 
     COND_VB_SHOULD(VB_BUSH_DROP_ITEM, shouldRegisterBush, {
         EnWood02* treeActor = va_arg(args, EnWood02*);
-        if (EnWood02_RandomizerHoldsItem(treeActor, gPlayState)) {
+        if (EnWood02_RandomizerHoldsItem(treeActor, OoT_gPlayState)) {
             const auto treeIdentity = ObjectExtension::GetInstance().Get<CheckIdentity>(&treeActor->actor);
             if (treeIdentity == nullptr || treeIdentity->randomizerCheck == RC_UNKNOWN_CHECK) {
                 return;
             }
 
             EnItem00* item00 =
-                (EnItem00*)Item_DropCollectible2(gPlayState, &treeActor->actor.world.pos, ITEM00_SOH_DUMMY);
+                (EnItem00*)OoT_Item_DropCollectible2(OoT_gPlayState, &treeActor->actor.world.pos, ITEM00_SOH_DUMMY);
             item00->randoInf = treeIdentity->randomizerInf;
             item00->itemEntry =
                 Rando::Context::GetInstance()->GetFinalGIEntry(treeIdentity->randomizerCheck, true, GI_NONE);

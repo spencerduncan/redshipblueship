@@ -35,7 +35,7 @@ typedef struct {
 
 typedef struct {
     /* 0x00 */ u8 limbCount;
-    /* 0x01 */ u8 dListCount; // non-zero in object files, number of non-null-dlist limbs? used to know how many
+    /* 0x01 */ u8 dListCount; // non-MM_zero in object files, number of non-null-dlist limbs? used to know how many
                               // matrices to alloc for drawing
     /* 0x04 */ union {
         KeyFrameStandardLimb* limbsStandard;

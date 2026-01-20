@@ -49,7 +49,7 @@ void RegisterGalleryTwofer() {
                             CustomMessage::StartTextbox("You received a Piece of Heart!\x1C\x02\x10",
                                                         { .textboxType = 2 });
                         }
-                        Item_Give(gPlayState, ITEM_HEART_PIECE);
+                        MM_Item_Give(MM_gPlayState, ITEM_HEART_PIECE);
                     },
             });
         }

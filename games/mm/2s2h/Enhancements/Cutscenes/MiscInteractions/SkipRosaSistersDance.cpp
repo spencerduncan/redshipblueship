@@ -8,7 +8,7 @@
 extern "C" {
 #include "overlays/actors/ovl_En_Rz/z_en_rz.h"
 void func_80BFC270(EnRz* enRz, PlayState* play);
-void Player_StartTalking(PlayState* play, Actor* actor);
+void MM_Player_StartTalking(PlayState* play, Actor* actor);
 }
 
 #define CVAR_NAME "gEnhancements.Cutscenes.SkipMiscInteractions"
@@ -17,13 +17,13 @@ void Player_StartTalking(PlayState* play, Actor* actor);
 void RegisterSkipRosaSistersDance() {
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
         s16* csId = va_arg(args, s16*);
-        if (gPlayState->sceneId == SCENE_ICHIBA) { // West Clock Town
+        if (MM_gPlayState->sceneId == SCENE_ICHIBA) { // West Clock Town
             if (*csId == 11) {                     // Link teaches the dance
                 Actor* actor = va_arg(args, Actor*);
                 EnRz* enRz = (EnRz*)actor;
                 // The function for yielding the Heart Piece and changing other state information
                 enRz->actionFunc = func_80BFC270;
-                // Queue the item check, as Actor_OfferGetItem won't work normally
+                // Queue the item check, as MM_Actor_OfferGetItem won't work normally
                 // WEEKEVENTREG_RECEIVED_ROSA_SISTERS_HEART_PIECE is set once the player obtains this Heart Piece.
                 if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_ROSA_SISTERS_HEART_PIECE) && !IS_RANDO) {
                     GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
@@ -37,15 +37,15 @@ void RegisterSkipRosaSistersDance() {
                                 CustomMessage::StartTextbox("You received a Piece of Heart!\x1C\x02\x10",
                                                             { .textboxType = 2 });
                             }
-                            Item_Give(gPlayState, ITEM_HEART_PIECE);
+                            MM_Item_Give(MM_gPlayState, ITEM_HEART_PIECE);
                         } });
                 }
-                Player* player = GET_PLAYER(gPlayState);
+                Player* player = GET_PLAYER(MM_gPlayState);
                 actor->parent = &player->actor;
                 player->talkActor = actor;
                 player->talkActorDistance = actor->xzDistToPlayer;
                 player->exchangeItemAction = PLAYER_IA_MINUS1;
-                Player_StartTalking(gPlayState, actor);
+                MM_Player_StartTalking(MM_gPlayState, actor);
                 *should = false;
             } else if (*csId == 12) { // The sisters applaud Link
                 Actor* actor = va_arg(args, Actor*);

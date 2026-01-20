@@ -149,11 +149,11 @@ std::unordered_map<RandoCheckId, bool> checksInLogic;
 static u32 lastFrame = 0;
 
 void RefreshChecksInLogic() {
-    if (gGameState == NULL || gGameState->frames - lastFrame < 20 || !CVAR_SHOW_LOGIC) {
+    if (MM_gGameState == NULL || MM_gGameState->frames - lastFrame < 20 || !CVAR_SHOW_LOGIC) {
         return;
     }
 
-    lastFrame = gGameState->frames;
+    lastFrame = MM_gGameState->frames;
     checksInLogic.clear();
 
     // Clear all events so they're re-evaluated fresh each refresh
@@ -246,7 +246,7 @@ void CheckTrackerDrawNonLogicalList() {
             }
 
             if (CVAR_SHOW_CURRENT_SCENE && Play_GetOriginalSceneId(Rando::StaticData::Checks[checkId].sceneId) !=
-                                               Play_GetOriginalSceneId(gPlayState->sceneId)) {
+                                               Play_GetOriginalSceneId(MM_gPlayState->sceneId)) {
                 continue;
             }
 
@@ -374,7 +374,7 @@ void CheckTrackerWindow::Draw() {
     trackerBG.w = ImGui::IsWindowDocked() ? 1.0f : CVAR_TRACKER_OPACITY;
     ImGui::SetWindowFontScale(trackerScale);
 
-    if (!gPlayState || !IS_RANDO) {
+    if (!MM_gPlayState || !IS_RANDO) {
         ImGui::SetCursorPosX((ImGui::GetWindowWidth() - ImGui::CalcTextSize("No Rando Save Loaded").x) / 2);
         ImGui::SetCursorPosY(ImGui::GetWindowHeight() / 2 - 10.0f);
         ImGui::TextColored(UIWidgets::ColorValues.at(UIWidgets::Colors::Gray), "No Rando Save Loaded");

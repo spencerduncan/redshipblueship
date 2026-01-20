@@ -158,11 +158,11 @@ static void OggDecoderWorker(std::shared_ptr<SOH::AudioSample> audioSample, std:
             fileData.pos = 0;
             int ret = ov_open_callbacks(&fileData, &vf, nullptr, 0, vorbisCallbacks);
 
-            vorbis_info* vi = ov_info(&vf, -1);
+            vorbis_info* MM_vi = ov_info(&vf, -1);
 
             uint64_t numFrames = ov_pcm_total(&vf, -1);
-            uint64_t sampleRate = vi->rate;
-            uint64_t numChannels = vi->channels;
+            uint64_t sampleRate = MM_vi->rate;
+            uint64_t numChannels = MM_vi->channels;
             int bitStream = 0;
             size_t toRead = numFrames * numChannels * 2;
             audioSample->sample.sampleAddr = new uint8_t[toRead];

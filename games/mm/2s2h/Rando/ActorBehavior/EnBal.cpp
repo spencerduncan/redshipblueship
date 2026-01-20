@@ -19,8 +19,8 @@ std::map<int16_t, std::vector<RandoCheckId>> tingleMap = {
 };
 
 void OnOpenShopText(u16* textId, bool* loadFromMessageTable) {
-    RandoCheckId randoCheckId1 = tingleMap[gPlayState->sceneId][0];
-    RandoCheckId randoCheckId2 = tingleMap[gPlayState->sceneId][1];
+    RandoCheckId randoCheckId1 = tingleMap[MM_gPlayState->sceneId][0];
+    RandoCheckId randoCheckId2 = tingleMap[MM_gPlayState->sceneId][1];
 
     auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
     entry.autoFormat = false;
@@ -53,7 +53,7 @@ void Rando::ActorBehavior::InitEnBalBehavior() {
     COND_VB_SHOULD(VB_NOT_AFFORD_TINGLE_MAP, shouldRegister, {
         EnBal* enBal = va_arg(args, EnBal*);
         s32* price = va_arg(args, s32*);
-        auto randoCheckId = tingleMap[gPlayState->sceneId][gPlayState->msgCtx.choiceIndex];
+        auto randoCheckId = tingleMap[MM_gPlayState->sceneId][MM_gPlayState->msgCtx.choiceIndex];
 
         *price = RANDO_SAVE_CHECKS[randoCheckId].price;
 
@@ -63,7 +63,7 @@ void Rando::ActorBehavior::InitEnBalBehavior() {
     COND_VB_SHOULD(VB_ALREADY_HAVE_TINGLE_MAP, shouldRegister, {
         EnBal* enBal = va_arg(args, EnBal*);
 
-        auto randoCheckId = tingleMap[gPlayState->sceneId][gPlayState->msgCtx.choiceIndex];
+        auto randoCheckId = tingleMap[MM_gPlayState->sceneId][MM_gPlayState->msgCtx.choiceIndex];
 
         if (Rando::IsItemObtainable(RANDO_SAVE_CHECKS[randoCheckId].randoItemId, randoCheckId)) {
             *should = false;
@@ -74,8 +74,8 @@ void Rando::ActorBehavior::InitEnBalBehavior() {
 
     COND_VB_SHOULD(VB_TINGLE_GIVE_MAP_UNLOCK, shouldRegister, {
         EnBal* enBal = va_arg(args, EnBal*);
-        RANDO_SAVE_CHECKS[tingleMap[gPlayState->sceneId][gPlayState->msgCtx.choiceIndex]].eligible = true;
-        Message_StartTextbox(gPlayState, 0x1D17, &enBal->picto.actor);
+        RANDO_SAVE_CHECKS[tingleMap[MM_gPlayState->sceneId][MM_gPlayState->msgCtx.choiceIndex]].eligible = true;
+        MM_Message_StartTextbox(MM_gPlayState, 0x1D17, &enBal->picto.actor);
         enBal->textId = 0x1D17;
         EnBal_SetupTalk(enBal);
         *should = false;

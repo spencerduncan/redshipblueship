@@ -5,7 +5,7 @@
 #include <spdlog/fmt/fmt.h>
 
 extern "C" {
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 extern std::unordered_map<s16, const char*> warpPointSceneList;
@@ -139,12 +139,12 @@ void SohMenu::InitElement() {
         { DISABLE_FOR_LOW_RES_MODE_ON,
           { [](disabledInfo& info) -> bool { return CVarGetInteger(CVAR_LOW_RES_MODE, 0); }, "N64 Mode Enabled" } },
         { DISABLE_FOR_NULL_PLAY_STATE,
-          { [](disabledInfo& info) -> bool { return gPlayState == NULL; }, "Save Not Loaded" } },
+          { [](disabledInfo& info) -> bool { return OoT_gPlayState == NULL; }, "Save Not Loaded" } },
         { DISABLE_FOR_DEBUG_MODE_OFF,
           { [](disabledInfo& info) -> bool { return !CVarGetInteger(CVAR_DEVELOPER_TOOLS("DebugEnabled"), 0); },
             "Debug Mode is Disabled" } },
         { DISABLE_FOR_FRAME_ADVANCE_OFF,
-          { [](disabledInfo& info) -> bool { return !(gPlayState != nullptr && gPlayState->frameAdvCtx.enabled); },
+          { [](disabledInfo& info) -> bool { return !(OoT_gPlayState != nullptr && OoT_gPlayState->frameAdvCtx.enabled); },
             "Frame Advance is Disabled" } },
         { DISABLE_FOR_ADVANCED_RESOLUTION_OFF,
           { [](disabledInfo& info) -> bool { return !CVarGetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".Enabled", 0); },

@@ -10,7 +10,7 @@ void ItemBHeart_UpdateModel(ItemBHeart* itemBHeart, PlayState* play);
 }
 
 void ItemBHeart_DrawCustom(Actor* thisx, PlayState* play) {
-    auto randoStaticCheck = Rando::StaticData::GetCheckFromFlag(FLAG_CYCL_SCENE_COLLECTIBLE, 0x1F, gPlayState->sceneId);
+    auto randoStaticCheck = Rando::StaticData::GetCheckFromFlag(FLAG_CYCL_SCENE_COLLECTIBLE, 0x1F, MM_gPlayState->sceneId);
     if (randoStaticCheck.randoCheckId == RC_UNKNOWN) {
         return;
     }
@@ -27,8 +27,8 @@ void ItemBHeart_UpdateCustom(Actor* thisx, PlayState* play) {
 
     if (!(itemBHeart->baseScale < BHEART_SCALE_MIN_COLLECTIBLE)) {
         if ((thisx->xzDistToPlayer <= 30.0f) && (fabsf(thisx->playerHeightRel) <= fabsf(80.0f))) {
-            Flags_SetCollectible(play, 0x1F);
-            Actor_Kill(&itemBHeart->actor);
+            MM_Flags_SetCollectible(play, 0x1F);
+            MM_Actor_Kill(&itemBHeart->actor);
             return;
         }
     }
@@ -39,7 +39,7 @@ void Rando::ActorBehavior::InitItemBHeartBehavior() {
         ItemBHeart* itemBHeart = (ItemBHeart*)actor;
 
         auto randoStaticCheck =
-            Rando::StaticData::GetCheckFromFlag(FLAG_CYCL_SCENE_COLLECTIBLE, 0x1F, gPlayState->sceneId);
+            Rando::StaticData::GetCheckFromFlag(FLAG_CYCL_SCENE_COLLECTIBLE, 0x1F, MM_gPlayState->sceneId);
         if (randoStaticCheck.randoCheckId == RC_UNKNOWN) {
             return;
         }

@@ -14,7 +14,7 @@ void EnElforg_FairyCollected(EnElforg* enElforg, PlayState* play);
 
 void EnElforg_DrawCustom(Actor* thisx, PlayState* play) {
     EnElforg* enElforg = (EnElforg*)thisx;
-    Matrix_Scale(20.0f, 20.0f, 20.0f, MTXMODE_APPLY);
+    MM_Matrix_Scale(20.0f, 20.0f, 20.0f, MTXMODE_APPLY);
 
     if (CUSTOM_PARAM == RC_UNKNOWN) {
         return;
@@ -40,13 +40,13 @@ void EnElforg_Setup(EnElforg* enElforg) {
         CUSTOM_PARAM = RC_CLOCK_TOWN_STRAY_FAIRY;
     } else if (STRAY_FAIRY_TYPE(&enElforg->actor) == STRAY_FAIRY_TYPE_COLLECTIBLE) {
         auto randoStaticCheck = Rando::StaticData::GetCheckFromFlag(
-            FLAG_CYCL_SCENE_COLLECTIBLE, STRAY_FAIRY_GET_FLAG(&enElforg->actor), gPlayState->sceneId);
+            FLAG_CYCL_SCENE_COLLECTIBLE, STRAY_FAIRY_GET_FLAG(&enElforg->actor), MM_gPlayState->sceneId);
         CUSTOM_PARAM = randoStaticCheck.randoCheckId;
     } else if (STRAY_FAIRY_TYPE(&enElforg->actor) == STRAY_FAIRY_TYPE_FREE_FLOATING ||
                STRAY_FAIRY_TYPE(&enElforg->actor) == STRAY_FAIRY_TYPE_ENEMY ||
                STRAY_FAIRY_TYPE(&enElforg->actor) == STRAY_FAIRY_TYPE_BUBBLE) {
         auto randoStaticCheck = Rando::StaticData::GetCheckFromFlag(
-            FLAG_CYCL_SCENE_SWITCH, STRAY_FAIRY_GET_FLAG(&enElforg->actor), gPlayState->sceneId);
+            FLAG_CYCL_SCENE_SWITCH, STRAY_FAIRY_GET_FLAG(&enElforg->actor), MM_gPlayState->sceneId);
         CUSTOM_PARAM = randoStaticCheck.randoCheckId;
     }
 
