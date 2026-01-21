@@ -249,6 +249,15 @@ extern "C"
 	extern u8* OoT_gSystemHeap;
 	extern GameState* OoT_gGameState;
 
+// =============================================================================
+// Symbol namespacing macros for global variables
+// Maps unprefixed OS/libultra variable names to OoT-prefixed versions.
+// =============================================================================
+#define osViModeNtscLan1 OoT_osViModeNtscLan1
+#define osViModeMpalLan1 OoT_osViModeMpalLan1
+#define osViModeFpalLan1 OoT_osViModeFpalLan1
+#define osViModePalLan1 OoT_osViModePalLan1
+
 #ifdef __cplusplus
 };
 #endif

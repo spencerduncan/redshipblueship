@@ -112,8 +112,8 @@ if(UNIX)
     target_link_options(redship PRIVATE -rdynamic)
 endif()
 
-# Install the launcher
-install(TARGETS redship RUNTIME DESTINATION bin)
+# Install the launcher (same directory as game shared libraries for AppImage)
+install(TARGETS redship RUNTIME DESTINATION . COMPONENT ship)
 
 # =============================================================================
 # CTest Integration Tests

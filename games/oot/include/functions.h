@@ -2461,6 +2461,44 @@ void func_80838940(Player* this, LinkAnimationHeader* anim, f32 arg2, PlayState*
 
 // #endregion
 
+// =============================================================================
+// Symbol namespacing macros
+// Maps unprefixed OS/libultra function names to OoT-prefixed versions.
+// The stubs.c defines these with OoT_ prefix for symbol namespacing.
+// =============================================================================
+#define osGetThreadId OoT_osGetThreadId
+#define osGetThreadPri OoT_osGetThreadPri
+#define osSetThreadPri OoT_osSetThreadPri
+#define osCreatePiManager OoT_osCreatePiManager
+#define osPfsFreeBlocks OoT_osPfsFreeBlocks
+#define osEPiWriteIo OoT_osEPiWriteIo
+#define osPfsReadWriteFile OoT_osPfsReadWriteFile
+#define osPfsDeleteFile OoT_osPfsDeleteFile
+#define osPfsFileState OoT_osPfsFileState
+#define osPfsInitPak OoT_osPfsInitPak
+#define osPfsChecker OoT_osPfsChecker
+#define osPfsFindFile OoT_osPfsFindFile
+#define osPfsAllocateFile OoT_osPfsAllocateFile
+#define osAfterPreNMI OoT_osAfterPreNMI
+#define osStartThread OoT_osStartThread
+#define osStopThread OoT_osStopThread
+#define osDestroyThread OoT_osDestroyThread
+#define osContStartQuery OoT_osContStartQuery
+#define osContGetQuery OoT_osContGetQuery
+#define osAiSetFrequency OoT_osAiSetFrequency
+#define osContSetCh OoT_osContSetCh
+#define osDpGetStatus OoT_osDpGetStatus
+#define osDpSetStatus OoT_osDpSetStatus
+#define osDriveRomInit OoT_osDriveRomInit
+#define osSpTaskLoad OoT_osSpTaskLoad
+#define osSpTaskStartGo OoT_osSpTaskStartGo
+#define osGetMemSize OoT_osGetMemSize
+#define osEPiReadIo OoT_osEPiReadIo
+#define osSpTaskYield OoT_osSpTaskYield
+#define osStopTimer OoT_osStopTimer
+#define osSpTaskYielded OoT_osSpTaskYielded
+#define osViExtendVStart OoT_osViExtendVStart
+
 #ifdef __cplusplus
 #undef this
 };
