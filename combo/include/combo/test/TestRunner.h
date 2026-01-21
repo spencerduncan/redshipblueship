@@ -214,7 +214,7 @@ private:
  *         - N > 0: N tests failed (for 'all' command)
  *         - 1: Single test failed (for specific test name)
  */
-int RunTestMode(const std::string& testArg);
+COMBO_API int RunTestMode(const std::string& testArg);
 
 /**
  * Set up headless environment for testing.
