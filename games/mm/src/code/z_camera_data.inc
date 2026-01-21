@@ -3674,11 +3674,11 @@ s32 MM_Camera_Fixed2(Camera* camera);
 s32 MM_Camera_Fixed3(Camera* camera);
 s32 MM_Camera_Fixed4(Camera* camera);
 s32 MM_Camera_Fixed0(Camera* camera);
-s32 MM_Camera_Subject1(Camera* camera);
-s32 MM_Camera_Subject2(Camera* camera);
-s32 MM_Camera_Subject3(Camera* camera);
-s32 MM_Camera_Subject4(Camera* camera);
-s32 MM_Camera_Subject0(Camera* camera);
+s32 Camera_Subject1(Camera* camera);
+s32 Camera_Subject2(Camera* camera);
+s32 Camera_Subject3(Camera* camera);
+s32 Camera_Subject4(Camera* camera);
+s32 Camera_Subject0(Camera* camera);
 s32 MM_Camera_Data0(Camera* camera);
 s32 MM_Camera_Data1(Camera* camera);
 s32 MM_Camera_Data2(Camera* camera);
@@ -3732,11 +3732,11 @@ CameraUpdateFunc sCameraUpdateHandlers[] = {
     MM_Camera_KeepOn2,
     MM_Camera_KeepOn3,
     MM_Camera_KeepOn4,
-    MM_Camera_Subject0,
-    MM_Camera_Subject1,
-    MM_Camera_Subject2,
-    MM_Camera_Subject3,
-    MM_Camera_Subject4,
+    Camera_Subject0,
+    Camera_Subject1,
+    Camera_Subject2,
+    Camera_Subject3,
+    Camera_Subject4,
     MM_Camera_Jump0,
     MM_Camera_Jump1,
     MM_Camera_Jump2,
