@@ -9,6 +9,7 @@ cmake_minimum_required(VERSION 3.14)
 add_library(rsbs STATIC
     # Files will be added as code is migrated
     src/placeholder.c
+    src/combo_context.c
 )
 
 target_include_directories(rsbs PUBLIC
