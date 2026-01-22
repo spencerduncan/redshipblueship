@@ -1,0 +1,94 @@
+# Workflow to build and publish the CI base image with pre-compiled dependencies
+#
+# This image contains all build dependencies (SDL2, SDL2_net, tinyxml2, libzip)
+# pre-compiled, significantly speeding up CI builds.
+#
+# USAGE IN generate-builds.yml:
+# To use this pre-built image in the main build workflow, update the job configuration:
+#
+#   jobs:
+#     build-linux:
+#       runs-on: ubuntu-22.04
+#       container:
+#         image: ghcr.io/spencerduncan/redshipblueship-build:latest
+#       steps:
+#       - name: Git Checkout
+#         uses: actions/checkout@v4
+#         with:
+#           submodules: true
+#       # Skip dependency installation steps - they're already in the image!
+#       # Proceed directly to build steps...
+#       - name: Build SoH
+#         run: |
+#           cmake --no-warn-unused-cli -H. -Bbuild-cmake -GNinja ...
+#           cmake --build build-cmake --config Release -j10
+#
+# Benefits:
+#   - No need to install apt dependencies
+#   - No need to build SDL2, SDL2_net, tinyxml2, libzip from source
+#   - ccache and ninja-build already available
+#   - Estimated time savings: 5-10 minutes per build
+#
+name: build-docker-image
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/docker/build-base.Dockerfile'
+      - '.github/workflows/apt-deps.txt'
+      - '.github/workflows/build-docker-image.yml'
+  pull_request:
+    paths:
+      - '.github/docker/build-base.Dockerfile'
+      - '.github/workflows/apt-deps.txt'
+      - '.github/workflows/build-docker-image.yml'
+  # Allow manual trigger for rebuilding the image
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: spencerduncan/redshipblueship-build
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=sha,prefix=,format=short
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: .github/docker/build-base.Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
