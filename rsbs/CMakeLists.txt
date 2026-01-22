@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.14)
 
 # rsbs - RedShipBlueShip unified game engine
 # Contains code shared between OoT and MM
