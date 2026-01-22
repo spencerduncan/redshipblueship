@@ -7,13 +7,17 @@ cmake_minimum_required(VERSION 3.14)
 # The goal is ONE unified game engine, not two games that switch.
 
 add_library(rsbs STATIC
-    # Files will be added as code is migrated
+    # Placeholder (remove once real code is added)
     src/placeholder.c
     src/combo_context.c
 
     # libultra/os - Unified OS functions (WP-009)
     src/libultra/os/afterprenmi.c
     src/libultra/os/getactivequeue.c
+    src/libultra/os/getthreadid.c
+    src/libultra/os/getthreadpri.c
+    src/libultra/os/destroythread.c
+    src/libultra/os/dequeuethread.c
 
     # libultra/os - message queue functions (reference implementations)
     # Note: Runtime implementations provided by libultraship
