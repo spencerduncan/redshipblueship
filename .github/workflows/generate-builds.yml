@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
 
-  generate-soh-otr:
+  generate-rsbs-otr:
     runs-on: ubuntu-22.04
     steps:
     - name: Git Checkout
@@ -17,13 +17,13 @@ jobs:
       with:
         submodules: true
     - name: Restore soh.o2r Cache
-      id: soh-otr-cache
+      id: rsbs-otr-cache
       uses: actions/cache@v4
       with:
-        key: soh-otr-v1-${{ hashFiles('games/**/*.c', 'games/**/*.h', 'games/**/*.xml', 'OTRExporter/**/*.cpp', 'OTRExporter/**/*.h', 'ZAPDTR/**/*.cpp', 'ZAPDTR/**/*.h') }}
+        key: rsbs-otr-v1-${{ hashFiles('games/**/*.c', 'games/**/*.h', 'games/**/*.xml', 'OTRExporter/**/*.cpp', 'OTRExporter/**/*.h', 'ZAPDTR/**/*.cpp', 'ZAPDTR/**/*.h') }}
         path: soh.o2r
     - name: Configure ccache
-      if: steps.soh-otr-cache.outputs.cache-hit != 'true'
+      if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
       uses: hendrikmuhs/ccache-action@v1.2
       with:
         save: ${{ github.ref_name == github.event.repository.default_branch }}
@@ -33,12 +33,12 @@ jobs:
           ${{ runner.os }}-otr-ccache-refs/heads/main
           ${{ runner.os }}-otr-ccache
     - name: Install dependencies
-      if: steps.soh-otr-cache.outputs.cache-hit != 'true'
+      if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
       run: |
         sudo apt-get update
         sudo apt-get install -y $(cat .github/workflows/apt-deps.txt) libzip-dev zipcmp zipmerge ziptool
     - name: Restore Cached deps folder
-      if: steps.soh-otr-cache.outputs.cache-hit != 'true'
+      if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
       uses: actions/cache/restore@v4
       with:
         key: ${{ runner.os }}-deps-v1-${{ hashFiles('.github/workflows/apt-deps.txt') }}
@@ -46,10 +46,10 @@ jobs:
           ${{ runner.os }}-deps-v1-
         path: deps
     - name: Create deps folder
-      if: steps.soh-otr-cache.outputs.cache-hit != 'true'
+      if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
       run: mkdir -p deps
     - name: Install latest SDL
-      if: steps.soh-otr-cache.outputs.cache-hit != 'true'
+      if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
       run: |
         export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
         if [ ! -d "deps/SDL2-2.30.3" ]; then
@@ -62,7 +62,7 @@ jobs:
         sudo make install
         sudo cp -av /usr/local/lib/libSDL* /lib/x86_64-linux-gnu/
     - name: Install latest tinyxml2
-      if: steps.soh-otr-cache.outputs.cache-hit != 'true'
+      if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
       run: |
         sudo apt-get remove libtinyxml2-dev
         export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
@@ -77,7 +77,7 @@ jobs:
         make
         sudo make install
     - name: Generate soh.o2r
-      if: steps.soh-otr-cache.outputs.cache-hit != 'true'
+      if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
       run: |
         export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
         cmake --no-warn-unused-cli -H. -Bbuild-cmake -GNinja -DCMAKE_BUILD_TYPE:STRING=Release -DREDSHIP_BUILD_SHARED=ON
@@ -100,7 +100,7 @@ jobs:
     # Error: OoT shared library not linking against libultraship properly
     # Re-enable once issue is resolved
     if: false
-    needs: generate-soh-otr
+    needs: generate-rsbs-otr
     runs-on: macos-14
     steps:
     - name: Git Checkout
@@ -164,7 +164,7 @@ jobs:
     - name: Upload build
       uses: actions/upload-artifact@v4
       with:
-        name: soh-mac
+        name: rsbs-mac
         path: |
           SoH.dmg
           readme.txt
@@ -176,7 +176,7 @@ jobs:
         path: /opt/local/
 
   build-linux:
-    needs: generate-soh-otr
+    needs: generate-rsbs-otr
     runs-on: ubuntu-22.04
     steps:
     - name: Git Checkout
@@ -285,16 +285,16 @@ jobs:
         (cd build-cmake && cpack -G External)
 
         mv README.md readme.txt
-        mv build-cmake/*.appimage soh.appimage
+        mv build-cmake/*.appimage rsbs.appimage
       env:
         CC: gcc-12
         CXX: g++-12
     - name: Upload build
       uses: actions/upload-artifact@v4
       with:
-        name: soh-linux
+        name: rsbs-linux
         path: |
-          soh.appimage
+          rsbs.appimage
           readme.txt
     - name: Save Cache deps folder
       if: ${{ github.ref_name == github.event.repository.default_branch }}
@@ -304,7 +304,7 @@ jobs:
         path: deps
 
   build-windows:
-    needs: generate-soh-otr
+    needs: generate-rsbs-otr
     runs-on: windows-latest
     steps:
     - name: Install dependencies
@@ -352,14 +352,14 @@ jobs:
 
         (cd build-windows && cpack)
         cd ..
-        mv _packages/*.zip _packages/soh-windows.zip
+        mv _packages/*.zip _packages/rsbs-windows.zip
     - name: Unzip package
-      run: Expand-Archive -Path _packages/soh-windows.zip -DestinationPath soh-windows
+      run: Expand-Archive -Path _packages/rsbs-windows.zip -DestinationPath rsbs-windows
     - name: Upload build
       uses: actions/upload-artifact@v4
       with:
-        name: soh-windows
-        path: soh-windows
+        name: rsbs-windows
+        path: rsbs-windows
     - name: Save Cache VCPKG folder
       if: ${{ github.ref_name == github.event.repository.default_branch }}
       uses: actions/cache/save@v4
