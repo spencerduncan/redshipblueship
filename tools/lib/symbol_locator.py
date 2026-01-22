@@ -33,6 +33,8 @@ class SymbolLocator:
         self,
         oot_dir: str = "games/oot/src",
         mm_dir: str = "games/mm/src",
+        oot_include_dir: str = "games/oot/include",
+        mm_include_dir: str = "games/mm/include",
     ):
         """
         Initialize the symbol locator.
@@ -40,9 +42,13 @@ class SymbolLocator:
         Args:
             oot_dir: Path to OoT source directory
             mm_dir: Path to MM source directory
+            oot_include_dir: Path to OoT include directory
+            mm_include_dir: Path to MM include directory
         """
         self.oot_dir = Path(oot_dir)
         self.mm_dir = Path(mm_dir)
+        self.oot_include_dir = Path(oot_include_dir)
+        self.mm_include_dir = Path(mm_include_dir)
 
         # Symbol -> file path mappings
         self._oot_symbols: Dict[str, Path] = {}
@@ -52,20 +58,33 @@ class SymbolLocator:
         self._index_built = False
 
     def _build_index(self) -> None:
-        """Build the symbol index from source files."""
+        """Build the symbol index from source and header files."""
         if self._index_built:
             return
 
+        # Scan OoT directories (src first, then include - definitions take priority)
         if self.oot_dir.exists():
             self._oot_symbols = self._extract_symbols(self.oot_dir)
+        if self.oot_include_dir.exists():
+            include_symbols = self._extract_symbols(self.oot_include_dir)
+            for name, path in include_symbols.items():
+                if name not in self._oot_symbols:
+                    self._oot_symbols[name] = path
+
+        # Scan MM directories (src first, then include - definitions take priority)
         if self.mm_dir.exists():
             self._mm_symbols = self._extract_symbols(self.mm_dir)
+        if self.mm_include_dir.exists():
+            include_symbols = self._extract_symbols(self.mm_include_dir)
+            for name, path in include_symbols.items():
+                if name not in self._mm_symbols:
+                    self._mm_symbols[name] = path
 
         self._index_built = True
 
     def _extract_symbols(self, src_dir: Path) -> Dict[str, Path]:
         """
-        Extract function names from C source files.
+        Extract function names and global variables from C source and header files.
 
         Args:
             src_dir: Source directory to scan
@@ -75,36 +94,93 @@ class SymbolLocator:
         """
         symbols: Dict[str, Path] = {}
 
-        # Skip common false positives (control flow keywords, macros)
+        # Skip common false positives (control flow keywords, macros, types)
         skip_patterns = {
             "if", "for", "while", "switch", "return", "sizeof", "typeof",
             "NULL", "TRUE", "FALSE", "true", "false",
             "ARRAY_COUNT", "ARRAY_COUNTU", "ABS", "CLAMP", "MIN", "MAX",
+            # Common type keywords that might be matched
+            "void", "int", "char", "float", "double", "long", "short",
+            "struct", "union", "enum", "typedef", "const", "static",
+            "extern", "unsigned", "signed", "volatile", "register",
         }
 
         # Match function definitions: name(params) {
         # Based on detect_collisions.py pattern
         func_pattern = r"\b([A-Za-z_][A-Za-z0-9_]*)\s*\([^)]*\)\s*\{"
 
-        for path in src_dir.rglob("*.c"):
-            try:
-                content = path.read_text(errors="ignore")
-            except Exception:
-                continue
+        # Match global variable definitions in .c files:
+        # Type varName; or Type varName = value; or Type varName[size];
+        # This pattern matches lines that start (after optional whitespace) with
+        # an optional storage/type qualifier, then a type, then a variable name
+        # Examples:
+        #   SaveContext gSaveContext;
+        #   u8 gWeatherMode = 0;
+        #   const s16 D_8014A6C0[] = { ... };
+        #   static f32 sScale;
+        #   SaveContext gSaveContext ALIGNED(16);  // with attribute macro
+        global_var_pattern = (
+            r"^(?:static\s+|const\s+|volatile\s+)*"  # Optional qualifiers
+            r"(?:unsigned\s+|signed\s+)?"  # Optional sign specifier
+            r"[A-Za-z_][A-Za-z0-9_]*"  # Type name
+            r"(?:\s*\*)*"  # Optional pointer stars
+            r"\s+([A-Za-z_][A-Za-z0-9_]*)"  # Variable name (captured)
+            r"\s*(?:\[[^\]]*\])?"  # Optional array brackets
+            r"(?:\s+[A-Z_]+\s*\([^)]*\))?"  # Optional attribute macro like ALIGNED(16)
+            r"\s*(?:=|;)"  # Followed by = or ;
+        )
 
-            # Remove comments to avoid false positives
-            content = re.sub(r"//.*?$", "", content, flags=re.MULTILINE)
-            content = re.sub(r"/\*.*?\*/", "", content, flags=re.DOTALL)
+        # Match extern declarations in .h files:
+        # extern Type varName; or extern Type varName[];
+        extern_pattern = (
+            r"^extern\s+"  # extern keyword
+            r"(?:const\s+|volatile\s+)*"  # Optional qualifiers
+            r"(?:unsigned\s+|signed\s+)?"  # Optional sign specifier
+            r"[A-Za-z_][A-Za-z0-9_]*"  # Type name
+            r"(?:\s*\*)*"  # Optional pointer stars
+            r"\s+([A-Za-z_][A-Za-z0-9_]*)"  # Variable name (captured)
+            r"\s*(?:\[[^\]]*\])?"  # Optional array brackets
+            r"\s*;"  # Followed by semicolon
+        )
 
-            # Remove string literals
-            content = re.sub(r'"[^"\\]*(?:\\.[^"\\]*)*"', '""', content)
+        # Scan both .c and .h files
+        for ext in ["*.c", "*.h"]:
+            for path in src_dir.rglob(ext):
+                try:
+                    content = path.read_text(errors="ignore")
+                except Exception:
+                    continue
 
-            for match in re.finditer(func_pattern, content):
-                name = match.group(1)
-                if name not in skip_patterns and not name.startswith("_"):
-                    # Store first occurrence (definition location)
-                    if name not in symbols:
-                        symbols[name] = path
+                # Remove comments to avoid false positives
+                clean_content = re.sub(r"//.*?$", "", content, flags=re.MULTILINE)
+                clean_content = re.sub(r"/\*.*?\*/", "", clean_content, flags=re.DOTALL)
+
+                # Remove string literals
+                clean_content = re.sub(r'"[^"\\]*(?:\\.[^"\\]*)*"', '""', clean_content)
+
+                # Extract function definitions
+                for match in re.finditer(func_pattern, clean_content):
+                    name = match.group(1)
+                    if name not in skip_patterns and not name.startswith("_"):
+                        # Store first occurrence (definition location)
+                        if name not in symbols:
+                            symbols[name] = path
+
+                # Extract global variables based on file type
+                if path.suffix == ".h":
+                    # In headers, look for extern declarations
+                    for match in re.finditer(extern_pattern, clean_content, re.MULTILINE):
+                        name = match.group(1)
+                        if name not in skip_patterns and not name.startswith("_"):
+                            if name not in symbols:
+                                symbols[name] = path
+                else:
+                    # In .c files, look for global variable definitions
+                    for match in re.finditer(global_var_pattern, clean_content, re.MULTILINE):
+                        name = match.group(1)
+                        if name not in skip_patterns and not name.startswith("_"):
+                            if name not in symbols:
+                                symbols[name] = path
 
         return symbols
 
@@ -160,3 +236,34 @@ class SymbolLocator:
         """Get all indexed MM symbols."""
         self._build_index()
         return dict(self._mm_symbols)
+
+
+# Module-level singleton for convenience function
+_default_locator: Optional[SymbolLocator] = None
+
+
+def locate_symbol(symbol_name: str, game: str) -> Optional[str]:
+    """
+    Locate a symbol in the specified game's source directory.
+
+    This is a convenience function that uses a module-level SymbolLocator.
+
+    Args:
+        symbol_name: The symbol name to locate (function or global variable)
+        game: The game to search in ("oot" or "mm")
+
+    Returns:
+        File path where symbol is defined, or None if not found.
+    """
+    global _default_locator
+    if _default_locator is None:
+        _default_locator = SymbolLocator()
+
+    oot_file, mm_file = _default_locator.locate(symbol_name)
+
+    if game.lower() == "oot":
+        return str(oot_file) if oot_file else None
+    elif game.lower() == "mm":
+        return str(mm_file) if mm_file else None
+    else:
+        raise ValueError(f"Unknown game: {game}. Expected 'oot' or 'mm'.")
