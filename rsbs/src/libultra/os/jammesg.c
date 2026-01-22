@@ -1,3 +1,12 @@
+/**
+ * @file jammesg.c
+ * @brief OS message queue jam (insert at front) - unified from OoT/MM decomp
+ *
+ * Original sources:
+ *   - games/oot/src/libultra/os/jammesg.c
+ *   - games/mm/src/libultra/os/jammesg.c
+ */
+
 #include "ultra64.h"
 
 s32 osJamMesg(OSMesgQueue* mq, OSMesg msg, s32 flag) {
@@ -6,7 +15,7 @@ s32 osJamMesg(OSMesgQueue* mq, OSMesg msg, s32 flag) {
     while (mq->validCount >= mq->msgCount) {
         if (flag == OS_MESG_BLOCK) {
             __osRunningThread->state = OS_STATE_WAITING;
-            __osEnqueueAndYield(&mq->fullQueue);
+            __osEnqueueAndYield(&mq->fullqueue);
         } else {
             __osRestoreInt(saveMask);
             return -1;
@@ -14,12 +23,11 @@ s32 osJamMesg(OSMesgQueue* mq, OSMesg msg, s32 flag) {
     }
 
     mq->first = (mq->first + mq->msgCount - 1) % mq->msgCount;
-
     mq->msg[mq->first] = msg;
     mq->validCount++;
 
-    if (mq->mtQueue->next != NULL) {
-        osStartThread(__osPopThread(&mq->mtQueue));
+    if (mq->mtqueue->next != NULL) {
+        osStartThread(__osPopThread(&mq->mtqueue));
     }
 
     __osRestoreInt(saveMask);
