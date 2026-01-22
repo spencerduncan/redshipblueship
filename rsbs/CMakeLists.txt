@@ -25,7 +25,8 @@ if(SUPPRESS_WARNINGS)
     target_compile_options(rsbs PRIVATE "${WARNING_OVERRIDE}")
 endif()
 
+# Use C11 for broad compiler compatibility (MSVC doesn't support C23)
 set_target_properties(rsbs PROPERTIES
-    C_STANDARD 23
+    C_STANDARD 11
     C_STANDARD_REQUIRED ON
 )
