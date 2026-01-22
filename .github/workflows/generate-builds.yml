@@ -164,7 +164,7 @@ jobs:
     - name: Upload build
       uses: actions/upload-artifact@v4
       with:
-        name: soh-mac
+        name: rsbs-mac
         path: |
           SoH.dmg
           readme.txt
@@ -271,16 +271,16 @@ jobs:
         (cd build-cmake && cpack -G External)
 
         mv README.md readme.txt
-        mv build-cmake/*.appimage soh.appimage
+        mv build-cmake/*.appimage rsbs.appimage
       env:
         CC: gcc-12
         CXX: g++-12
     - name: Upload build
       uses: actions/upload-artifact@v4
       with:
-        name: soh-linux
+        name: rsbs-linux
         path: |
-          soh.appimage
+          rsbs.appimage
           readme.txt
     - name: Save Cache deps folder
       if: ${{ github.ref_name == github.event.repository.default_branch }}
@@ -338,14 +338,14 @@ jobs:
 
         (cd build-windows && cpack)
         cd ..
-        mv _packages/*.zip _packages/soh-windows.zip
+        mv _packages/*.zip _packages/rsbs-windows.zip
     - name: Unzip package
-      run: Expand-Archive -Path _packages/soh-windows.zip -DestinationPath soh-windows
+      run: Expand-Archive -Path _packages/rsbs-windows.zip -DestinationPath rsbs-windows
     - name: Upload build
       uses: actions/upload-artifact@v4
       with:
-        name: soh-windows
-        path: soh-windows
+        name: rsbs-windows
+        path: rsbs-windows
     - name: Save Cache VCPKG folder
       if: ${{ github.ref_name == github.event.repository.default_branch }}
       uses: actions/cache/save@v4
