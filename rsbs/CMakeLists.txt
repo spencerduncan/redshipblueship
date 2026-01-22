@@ -14,6 +14,14 @@ add_library(rsbs STATIC
     # libultra/os - Unified OS functions (WP-009)
     src/libultra/os/afterprenmi.c
     src/libultra/os/getactivequeue.c
+
+    # libultra/os - message queue functions (reference implementations)
+    # Note: Runtime implementations provided by libultraship
+    # src/libultra/os/createmesgqueue.c
+    # src/libultra/os/sendmesg.c
+    # src/libultra/os/recvmesg.c
+    # src/libultra/os/jammesg.c
+    # src/libultra/os/seteventmesg.c
 )
 
 target_include_directories(rsbs PUBLIC
