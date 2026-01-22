@@ -14,14 +14,15 @@ jobs:
     steps:
     - name: Git Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: true
     - name: Restore soh.o2r Cache
       id: rsbs-otr-cache
       uses: actions/cache@v4
       with:
         key: rsbs-otr-v1-${{ hashFiles('games/**/*.c', 'games/**/*.h', 'games/**/*.xml', 'OTRExporter/**/*.cpp', 'OTRExporter/**/*.h', 'ZAPDTR/**/*.cpp', 'ZAPDTR/**/*.h') }}
         path: soh.o2r
+    - name: Checkout submodules
+      if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
+      run: git submodule update --init --recursive
     - name: Configure ccache
       if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
       uses: hendrikmuhs/ccache-action@v1.2
