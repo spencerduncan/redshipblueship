@@ -48,8 +48,7 @@ cd path\to\redshipblueship
 set VCPKG_ROOT=
 
 :: Configure
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DREDSHIP_BUILD_SHARED=ON
-
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release 
 :: Extract assets (both use their respective ZAPD variants automatically)
 cmake --build build --target ExtractAssets      :: OoT (uses ZAPD)
 cmake --build build --target ExtractMMAssets    :: MM (uses ZAPD_MM)
@@ -110,8 +109,7 @@ rmdir /s /q x64
 rmdir /s /q build
 
 :: Reconfigure and rebuild
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DREDSHIP_BUILD_SHARED=ON
-cmake --build build --target ZAPD
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release cmake --build build --target ZAPD
 cmake --build build --target ExtractAssets
 ```
 

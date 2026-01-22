@@ -4,6 +4,15 @@
 #include "z64.h"
 #include "segment_symbols.h"
 
+// =============================================================================
+// Symbol namespacing macros for global variables (must be before declarations)
+// Maps unprefixed OS/libultra variable names to OoT-prefixed versions.
+// =============================================================================
+#define osViModeNtscLan1 OoT_osViModeNtscLan1
+#define osViModeMpalLan1 OoT_osViModeMpalLan1
+#define osViModeFpalLan1 OoT_osViModeFpalLan1
+#define osViModePalLan1 OoT_osViModePalLan1
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -27,7 +36,7 @@ extern "C"
 	extern f32 OoT_gViConfigYScale;
 	extern OSPiHandle* OoT_gCartHandle;
 	extern u32 __osPiAccessQueueEnabled;
-	extern OSViMode osViModePalLan1;
+	extern OSViMode OoT_osViModePalLan1;
 	extern s32 osViClock;
 	extern u32 __osShutdown;
 	extern OSHWIntr __OSGlobalIntMask;
@@ -39,11 +48,11 @@ extern "C"
 	extern OSPiHandle* __osPiTable;
 	extern OSPiHandle* __osCurrentHandle[];
 	extern OSTimer* __osTimerList;
-	extern OSViMode osViModeNtscLan1;
-	extern OSViMode osViModeMpalLan1;
+	extern OSViMode OoT_osViModeNtscLan1;
+	extern OSViMode OoT_osViModeMpalLan1;
 	extern OSViContext* __osViCurr;
 	extern OSViContext* __osViNext;
-	extern OSViMode osViModeFpalLan1;
+	extern OSViMode OoT_osViModeFpalLan1;
 	extern u32 __additional_scanline;
 	extern const char OoT_gBuildVersion[];
 	extern u16 OoT_gBuildVersionMajor;

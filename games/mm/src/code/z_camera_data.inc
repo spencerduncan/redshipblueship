@@ -3643,150 +3643,150 @@ s16 sGlobalCamDataSettings[] = {
 
 s16* sGlobalCamDataSettingsPtr = &sGlobalCamDataSettings[ARRAY_COUNT(sGlobalCamDataSettings) - 1];
 
-s32 Camera_Noop(Camera* camera);
-s32 Camera_Normal1(Camera* camera);
-s32 Camera_Normal2(Camera* camera);
-s32 Camera_Normal3(Camera* camera);
-s32 Camera_Normal4(Camera* camera);
-s32 Camera_Normal0(Camera* camera);
-s32 Camera_Parallel1(Camera* camera);
-s32 Camera_Parallel2(Camera* camera);
-s32 Camera_Parallel3(Camera* camera);
-s32 Camera_Parallel4(Camera* camera);
-s32 Camera_Parallel0(Camera* camera);
-s32 Camera_Jump1(Camera* camera);
-s32 Camera_Jump2(Camera* camera);
-s32 Camera_Jump3(Camera* camera);
-s32 Camera_Jump4(Camera* camera);
-s32 Camera_Jump0(Camera* camera);
-s32 Camera_Battle1(Camera* camera);
-s32 Camera_Battle2(Camera* camera);
-s32 Camera_Battle3(Camera* camera);
-s32 Camera_Battle4(Camera* camera);
-s32 Camera_Battle0(Camera* camera);
-s32 Camera_KeepOn1(Camera* camera);
-s32 Camera_KeepOn2(Camera* camera);
-s32 Camera_KeepOn3(Camera* camera);
-s32 Camera_KeepOn4(Camera* camera);
-s32 Camera_KeepOn0(Camera* camera);
-s32 Camera_Fixed1(Camera* camera);
-s32 Camera_Fixed2(Camera* camera);
-s32 Camera_Fixed3(Camera* camera);
-s32 Camera_Fixed4(Camera* camera);
-s32 Camera_Fixed0(Camera* camera);
+s32 MM_Camera_Noop(Camera* camera);
+s32 MM_Camera_Normal1(Camera* camera);
+s32 MM_Camera_Normal2(Camera* camera);
+s32 MM_Camera_Normal3(Camera* camera);
+s32 MM_Camera_Normal4(Camera* camera);
+s32 MM_Camera_Normal0(Camera* camera);
+s32 MM_Camera_Parallel1(Camera* camera);
+s32 MM_Camera_Parallel2(Camera* camera);
+s32 MM_Camera_Parallel3(Camera* camera);
+s32 MM_Camera_Parallel4(Camera* camera);
+s32 MM_Camera_Parallel0(Camera* camera);
+s32 MM_Camera_Jump1(Camera* camera);
+s32 MM_Camera_Jump2(Camera* camera);
+s32 MM_Camera_Jump3(Camera* camera);
+s32 MM_Camera_Jump4(Camera* camera);
+s32 MM_Camera_Jump0(Camera* camera);
+s32 MM_Camera_Battle1(Camera* camera);
+s32 MM_Camera_Battle2(Camera* camera);
+s32 MM_Camera_Battle3(Camera* camera);
+s32 MM_Camera_Battle4(Camera* camera);
+s32 MM_Camera_Battle0(Camera* camera);
+s32 MM_Camera_KeepOn1(Camera* camera);
+s32 MM_Camera_KeepOn2(Camera* camera);
+s32 MM_Camera_KeepOn3(Camera* camera);
+s32 MM_Camera_KeepOn4(Camera* camera);
+s32 MM_Camera_KeepOn0(Camera* camera);
+s32 MM_Camera_Fixed1(Camera* camera);
+s32 MM_Camera_Fixed2(Camera* camera);
+s32 MM_Camera_Fixed3(Camera* camera);
+s32 MM_Camera_Fixed4(Camera* camera);
+s32 MM_Camera_Fixed0(Camera* camera);
 s32 Camera_Subject1(Camera* camera);
 s32 Camera_Subject2(Camera* camera);
 s32 Camera_Subject3(Camera* camera);
 s32 Camera_Subject4(Camera* camera);
 s32 Camera_Subject0(Camera* camera);
-s32 Camera_Data0(Camera* camera);
-s32 Camera_Data1(Camera* camera);
-s32 Camera_Data2(Camera* camera);
-s32 Camera_Data3(Camera* camera);
-s32 Camera_Data4(Camera* camera);
-s32 Camera_Unique1(Camera* camera);
-s32 Camera_Unique2(Camera* camera);
-s32 Camera_Unique3(Camera* camera);
-s32 Camera_Unique4(Camera* camera);
-s32 Camera_Unique5(Camera* camera);
-s32 Camera_Unique0(Camera* camera);
-s32 Camera_Unique6(Camera* camera);
-s32 Camera_Unique7(Camera* camera);
-s32 Camera_Unique8(Camera* camera);
-s32 Camera_Unique9(Camera* camera);
-s32 Camera_Demo1(Camera* camera);
-s32 Camera_Demo2(Camera* camera);
-s32 Camera_Demo3(Camera* camera);
-s32 Camera_Demo4(Camera* camera);
-s32 Camera_Demo5(Camera* camera);
-s32 Camera_Demo6(Camera* camera);
-s32 Camera_Demo7(Camera* camera);
-s32 Camera_Demo8(Camera* camera);
-s32 Camera_Demo9(Camera* camera);
-s32 Camera_Demo0(Camera* camera);
-s32 Camera_Special0(Camera* camera);
-s32 Camera_Special1(Camera* camera);
-s32 Camera_Special2(Camera* camera);
-s32 Camera_Special3(Camera* camera);
-s32 Camera_Special4(Camera* camera);
-s32 Camera_Special5(Camera* camera);
-s32 Camera_Special6(Camera* camera);
-s32 Camera_Special7(Camera* camera);
-s32 Camera_Special8(Camera* camera);
-s32 Camera_Special9(Camera* camera);
+s32 MM_Camera_Data0(Camera* camera);
+s32 MM_Camera_Data1(Camera* camera);
+s32 MM_Camera_Data2(Camera* camera);
+s32 MM_Camera_Data3(Camera* camera);
+s32 MM_Camera_Data4(Camera* camera);
+s32 MM_Camera_Unique1(Camera* camera);
+s32 MM_Camera_Unique2(Camera* camera);
+s32 MM_Camera_Unique3(Camera* camera);
+s32 MM_Camera_Unique4(Camera* camera);
+s32 MM_Camera_Unique5(Camera* camera);
+s32 MM_Camera_Unique0(Camera* camera);
+s32 MM_Camera_Unique6(Camera* camera);
+s32 MM_Camera_Unique7(Camera* camera);
+s32 MM_Camera_Unique8(Camera* camera);
+s32 MM_Camera_Unique9(Camera* camera);
+s32 MM_Camera_Demo1(Camera* camera);
+s32 MM_Camera_Demo2(Camera* camera);
+s32 MM_Camera_Demo3(Camera* camera);
+s32 MM_Camera_Demo4(Camera* camera);
+s32 MM_Camera_Demo5(Camera* camera);
+s32 MM_Camera_Demo6(Camera* camera);
+s32 MM_Camera_Demo7(Camera* camera);
+s32 MM_Camera_Demo8(Camera* camera);
+s32 MM_Camera_Demo9(Camera* camera);
+s32 MM_Camera_Demo0(Camera* camera);
+s32 MM_Camera_Special0(Camera* camera);
+s32 MM_Camera_Special1(Camera* camera);
+s32 MM_Camera_Special2(Camera* camera);
+s32 MM_Camera_Special3(Camera* camera);
+s32 MM_Camera_Special4(Camera* camera);
+s32 MM_Camera_Special5(Camera* camera);
+s32 MM_Camera_Special6(Camera* camera);
+s32 MM_Camera_Special7(Camera* camera);
+s32 MM_Camera_Special8(Camera* camera);
+s32 MM_Camera_Special9(Camera* camera);
 
 CameraUpdateFunc sCameraUpdateHandlers[] = {
     NULL,
-    Camera_Normal0,
-    Camera_Normal1,
-    Camera_Normal2,
-    Camera_Normal3,
-    Camera_Normal4,
-    Camera_Parallel0,
-    Camera_Parallel1,
-    Camera_Parallel2,
-    Camera_Parallel3,
-    Camera_Parallel4,
-    Camera_KeepOn0,
-    Camera_KeepOn1,
-    Camera_KeepOn2,
-    Camera_KeepOn3,
-    Camera_KeepOn4,
+    MM_Camera_Normal0,
+    MM_Camera_Normal1,
+    MM_Camera_Normal2,
+    MM_Camera_Normal3,
+    MM_Camera_Normal4,
+    MM_Camera_Parallel0,
+    MM_Camera_Parallel1,
+    MM_Camera_Parallel2,
+    MM_Camera_Parallel3,
+    MM_Camera_Parallel4,
+    MM_Camera_KeepOn0,
+    MM_Camera_KeepOn1,
+    MM_Camera_KeepOn2,
+    MM_Camera_KeepOn3,
+    MM_Camera_KeepOn4,
     Camera_Subject0,
     Camera_Subject1,
     Camera_Subject2,
     Camera_Subject3,
     Camera_Subject4,
-    Camera_Jump0,
-    Camera_Jump1,
-    Camera_Jump2,
-    Camera_Jump3,
-    Camera_Jump4,
-    Camera_Battle0,
-    Camera_Battle1,
-    Camera_Battle2,
-    Camera_Battle3,
-    Camera_Battle4,
-    Camera_Fixed0,
-    Camera_Fixed1,
-    Camera_Fixed2,
-    Camera_Fixed3,
-    Camera_Fixed4,
-    Camera_Data0,
-    Camera_Data1,
-    Camera_Data2,
-    Camera_Data3,
-    Camera_Data4,
-    Camera_Unique0,
-    Camera_Unique1,
-    Camera_Unique2,
-    Camera_Unique3,
-    Camera_Unique4,
-    Camera_Unique5,
-    Camera_Unique6,
-    Camera_Unique7,
-    Camera_Unique8,
-    Camera_Unique9,
-    Camera_Demo0,
-    Camera_Demo1,
-    Camera_Demo2,
-    Camera_Demo3,
-    Camera_Demo4,
-    Camera_Demo5,
-    Camera_Demo6,
-    Camera_Demo7,
-    Camera_Demo8,
-    Camera_Demo9,
-    Camera_Special0,
-    Camera_Special1,
-    Camera_Special2,
-    Camera_Special3,
-    Camera_Special4,
-    Camera_Special5,
-    Camera_Special6,
-    Camera_Special7,
-    Camera_Special8,
-    Camera_Special9,
+    MM_Camera_Jump0,
+    MM_Camera_Jump1,
+    MM_Camera_Jump2,
+    MM_Camera_Jump3,
+    MM_Camera_Jump4,
+    MM_Camera_Battle0,
+    MM_Camera_Battle1,
+    MM_Camera_Battle2,
+    MM_Camera_Battle3,
+    MM_Camera_Battle4,
+    MM_Camera_Fixed0,
+    MM_Camera_Fixed1,
+    MM_Camera_Fixed2,
+    MM_Camera_Fixed3,
+    MM_Camera_Fixed4,
+    MM_Camera_Data0,
+    MM_Camera_Data1,
+    MM_Camera_Data2,
+    MM_Camera_Data3,
+    MM_Camera_Data4,
+    MM_Camera_Unique0,
+    MM_Camera_Unique1,
+    MM_Camera_Unique2,
+    MM_Camera_Unique3,
+    MM_Camera_Unique4,
+    MM_Camera_Unique5,
+    MM_Camera_Unique6,
+    MM_Camera_Unique7,
+    MM_Camera_Unique8,
+    MM_Camera_Unique9,
+    MM_Camera_Demo0,
+    MM_Camera_Demo1,
+    MM_Camera_Demo2,
+    MM_Camera_Demo3,
+    MM_Camera_Demo4,
+    MM_Camera_Demo5,
+    MM_Camera_Demo6,
+    MM_Camera_Demo7,
+    MM_Camera_Demo8,
+    MM_Camera_Demo9,
+    MM_Camera_Special0,
+    MM_Camera_Special1,
+    MM_Camera_Special2,
+    MM_Camera_Special3,
+    MM_Camera_Special4,
+    MM_Camera_Special5,
+    MM_Camera_Special6,
+    MM_Camera_Special7,
+    MM_Camera_Special8,
+    MM_Camera_Special9,
 };
 
 s16 sCameraNextUID = 0;

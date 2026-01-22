@@ -2075,149 +2075,149 @@ CameraSetting sCameraSettings[] = {
     { { 0x051FFFFF }, sCamSetNormal4Modes },
 };
 
-s32 Camera_Normal0(Camera* camera);
-s32 Camera_Normal1(Camera* camera);
-s32 Camera_Normal2(Camera* camera);
-s32 Camera_Normal3(Camera* camera);
-s32 Camera_Normal4(Camera* camera);
-s32 Camera_Parallel0(Camera* camera);
-s32 Camera_Parallel1(Camera* camera);
-s32 Camera_Parallel2(Camera* camera);
-s32 Camera_Parallel3(Camera* camera);
-s32 Camera_Parallel4(Camera* camera);
-s32 Camera_KeepOn0(Camera* camera);
-s32 Camera_KeepOn1(Camera* camera);
-s32 Camera_KeepOn2(Camera* camera);
-s32 Camera_KeepOn3(Camera* camera);
-s32 Camera_KeepOn4(Camera* camera);
+s32 OoT_Camera_Normal0(Camera* camera);
+s32 OoT_Camera_Normal1(Camera* camera);
+s32 OoT_Camera_Normal2(Camera* camera);
+s32 OoT_Camera_Normal3(Camera* camera);
+s32 OoT_Camera_Normal4(Camera* camera);
+s32 OoT_Camera_Parallel0(Camera* camera);
+s32 OoT_Camera_Parallel1(Camera* camera);
+s32 OoT_Camera_Parallel2(Camera* camera);
+s32 OoT_Camera_Parallel3(Camera* camera);
+s32 OoT_Camera_Parallel4(Camera* camera);
+s32 OoT_Camera_KeepOn0(Camera* camera);
+s32 OoT_Camera_KeepOn1(Camera* camera);
+s32 OoT_Camera_KeepOn2(Camera* camera);
+s32 OoT_Camera_KeepOn3(Camera* camera);
+s32 OoT_Camera_KeepOn4(Camera* camera);
 s32 Camera_Subj0(Camera* camera);
 s32 Camera_Subj1(Camera* camera);
 s32 Camera_Subj2(Camera* camera);
 s32 Camera_Subj3(Camera* camera);
 s32 Camera_Subj4(Camera* camera);
-s32 Camera_Jump0(Camera* camera);
-s32 Camera_Jump1(Camera* camera);
-s32 Camera_Jump2(Camera* camera);
-s32 Camera_Jump3(Camera* camera);
-s32 Camera_Jump4(Camera* camera);
-s32 Camera_Battle0(Camera* camera);
-s32 Camera_Battle1(Camera* camera);
-s32 Camera_Battle2(Camera* camera);
-s32 Camera_Battle3(Camera* camera);
-s32 Camera_Battle4(Camera* camera);
-s32 Camera_Fixed0(Camera* camera);
-s32 Camera_Fixed1(Camera* camera);
-s32 Camera_Fixed2(Camera* camera);
-s32 Camera_Fixed3(Camera* camera);
-s32 Camera_Fixed4(Camera* camera);
-s32 Camera_Data0(Camera* camera);
-s32 Camera_Data1(Camera* camera);
-s32 Camera_Data2(Camera* camera);
-s32 Camera_Data3(Camera* camera);
-s32 Camera_Data4(Camera* camera);
-s32 Camera_Unique0(Camera* camera);
-s32 Camera_Unique1(Camera* camera);
-s32 Camera_Unique2(Camera* camera);
-s32 Camera_Unique3(Camera* camera);
-s32 Camera_Unique4(Camera* camera);
-s32 Camera_Unique5(Camera* camera);
-s32 Camera_Unique6(Camera* camera);
-s32 Camera_Unique7(Camera* camera);
-s32 Camera_Unique8(Camera* camera);
-s32 Camera_Unique9(Camera* camera);
-s32 Camera_Demo0(Camera* camera);
-s32 Camera_Demo1(Camera* camera);
-s32 Camera_Demo2(Camera* camera);
-s32 Camera_Demo3(Camera* camera);
-s32 Camera_Demo4(Camera* camera);
-s32 Camera_Demo5(Camera* camera);
-s32 Camera_Demo6(Camera* camera);
-s32 Camera_Demo7(Camera* camera);
-s32 Camera_Demo8(Camera* camera);
-s32 Camera_Demo9(Camera* camera);
-s32 Camera_Special0(Camera* camera);
-s32 Camera_Special1(Camera* camera);
-s32 Camera_Special2(Camera* camera);
-s32 Camera_Special3(Camera* camera);
-s32 Camera_Special4(Camera* camera);
-s32 Camera_Special5(Camera* camera);
-s32 Camera_Special6(Camera* camera);
-s32 Camera_Special7(Camera* camera);
-s32 Camera_Special8(Camera* camera);
-s32 Camera_Special9(Camera* camera);
+s32 OoT_Camera_Jump0(Camera* camera);
+s32 OoT_Camera_Jump1(Camera* camera);
+s32 OoT_Camera_Jump2(Camera* camera);
+s32 OoT_Camera_Jump3(Camera* camera);
+s32 OoT_Camera_Jump4(Camera* camera);
+s32 OoT_Camera_Battle0(Camera* camera);
+s32 OoT_Camera_Battle1(Camera* camera);
+s32 OoT_Camera_Battle2(Camera* camera);
+s32 OoT_Camera_Battle3(Camera* camera);
+s32 OoT_Camera_Battle4(Camera* camera);
+s32 OoT_Camera_Fixed0(Camera* camera);
+s32 OoT_Camera_Fixed1(Camera* camera);
+s32 OoT_Camera_Fixed2(Camera* camera);
+s32 OoT_Camera_Fixed3(Camera* camera);
+s32 OoT_Camera_Fixed4(Camera* camera);
+s32 OoT_Camera_Data0(Camera* camera);
+s32 OoT_Camera_Data1(Camera* camera);
+s32 OoT_Camera_Data2(Camera* camera);
+s32 OoT_Camera_Data3(Camera* camera);
+s32 OoT_Camera_Data4(Camera* camera);
+s32 OoT_Camera_Unique0(Camera* camera);
+s32 OoT_Camera_Unique1(Camera* camera);
+s32 OoT_Camera_Unique2(Camera* camera);
+s32 OoT_Camera_Unique3(Camera* camera);
+s32 OoT_Camera_Unique4(Camera* camera);
+s32 OoT_Camera_Unique5(Camera* camera);
+s32 OoT_Camera_Unique6(Camera* camera);
+s32 OoT_Camera_Unique7(Camera* camera);
+s32 OoT_Camera_Unique8(Camera* camera);
+s32 OoT_Camera_Unique9(Camera* camera);
+s32 OoT_Camera_Demo0(Camera* camera);
+s32 OoT_Camera_Demo1(Camera* camera);
+s32 OoT_Camera_Demo2(Camera* camera);
+s32 OoT_Camera_Demo3(Camera* camera);
+s32 OoT_Camera_Demo4(Camera* camera);
+s32 OoT_Camera_Demo5(Camera* camera);
+s32 OoT_Camera_Demo6(Camera* camera);
+s32 OoT_Camera_Demo7(Camera* camera);
+s32 OoT_Camera_Demo8(Camera* camera);
+s32 OoT_Camera_Demo9(Camera* camera);
+s32 OoT_Camera_Special0(Camera* camera);
+s32 OoT_Camera_Special1(Camera* camera);
+s32 OoT_Camera_Special2(Camera* camera);
+s32 OoT_Camera_Special3(Camera* camera);
+s32 OoT_Camera_Special4(Camera* camera);
+s32 OoT_Camera_Special5(Camera* camera);
+s32 OoT_Camera_Special6(Camera* camera);
+s32 OoT_Camera_Special7(Camera* camera);
+s32 OoT_Camera_Special8(Camera* camera);
+s32 OoT_Camera_Special9(Camera* camera);
 
 s32 (*sCameraFunctions[])(Camera*) = {
     NULL,
-    Camera_Normal0,
-    Camera_Normal1,
-    Camera_Normal2,
-    Camera_Normal3,
-    Camera_Normal4,
-    Camera_Parallel0,
-    Camera_Parallel1,
-    Camera_Parallel2,
-    Camera_Parallel3,
-    Camera_Parallel4,
-    Camera_KeepOn0,
-    Camera_KeepOn1,
-    Camera_KeepOn2,
-    Camera_KeepOn3,
-    Camera_KeepOn4,
+    OoT_Camera_Normal0,
+    OoT_Camera_Normal1,
+    OoT_Camera_Normal2,
+    OoT_Camera_Normal3,
+    OoT_Camera_Normal4,
+    OoT_Camera_Parallel0,
+    OoT_Camera_Parallel1,
+    OoT_Camera_Parallel2,
+    OoT_Camera_Parallel3,
+    OoT_Camera_Parallel4,
+    OoT_Camera_KeepOn0,
+    OoT_Camera_KeepOn1,
+    OoT_Camera_KeepOn2,
+    OoT_Camera_KeepOn3,
+    OoT_Camera_KeepOn4,
     Camera_Subj0,
     Camera_Subj1,
     Camera_Subj2,
     Camera_Subj3,
     Camera_Subj4,
-    Camera_Jump0,
-    Camera_Jump1,
-    Camera_Jump2,
-    Camera_Jump3,
-    Camera_Jump4,
-    Camera_Battle0,
-    Camera_Battle1,
-    Camera_Battle2,
-    Camera_Battle3,
-    Camera_Battle4,
-    Camera_Fixed0,
-    Camera_Fixed1,
-    Camera_Fixed2,
-    Camera_Fixed3,
-    Camera_Fixed4,
-    Camera_Data0,
-    Camera_Data1,
-    Camera_Data2,
-    Camera_Data3,
-    Camera_Data4,
-    Camera_Unique0,
-    Camera_Unique1,
-    Camera_Unique2,
-    Camera_Unique3,
-    Camera_Unique4,
-    Camera_Unique5,
-    Camera_Unique6,
-    Camera_Unique7,
-    Camera_Unique8,
-    Camera_Unique9,
-    Camera_Demo0,
-    Camera_Demo1,
-    Camera_Demo2,
-    Camera_Demo3,
-    Camera_Demo4,
-    Camera_Demo5,
-    Camera_Demo6,
-    Camera_Demo7,
-    Camera_Demo8,
-    Camera_Demo9,
-    Camera_Special0,
-    Camera_Special1,
-    Camera_Special2,
-    Camera_Special3,
-    Camera_Special4,
-    Camera_Special5,
-    Camera_Special6,
-    Camera_Special7,
-    Camera_Special8,
-    Camera_Special9,
+    OoT_Camera_Jump0,
+    OoT_Camera_Jump1,
+    OoT_Camera_Jump2,
+    OoT_Camera_Jump3,
+    OoT_Camera_Jump4,
+    OoT_Camera_Battle0,
+    OoT_Camera_Battle1,
+    OoT_Camera_Battle2,
+    OoT_Camera_Battle3,
+    OoT_Camera_Battle4,
+    OoT_Camera_Fixed0,
+    OoT_Camera_Fixed1,
+    OoT_Camera_Fixed2,
+    OoT_Camera_Fixed3,
+    OoT_Camera_Fixed4,
+    OoT_Camera_Data0,
+    OoT_Camera_Data1,
+    OoT_Camera_Data2,
+    OoT_Camera_Data3,
+    OoT_Camera_Data4,
+    OoT_Camera_Unique0,
+    OoT_Camera_Unique1,
+    OoT_Camera_Unique2,
+    OoT_Camera_Unique3,
+    OoT_Camera_Unique4,
+    OoT_Camera_Unique5,
+    OoT_Camera_Unique6,
+    OoT_Camera_Unique7,
+    OoT_Camera_Unique8,
+    OoT_Camera_Unique9,
+    OoT_Camera_Demo0,
+    OoT_Camera_Demo1,
+    OoT_Camera_Demo2,
+    OoT_Camera_Demo3,
+    OoT_Camera_Demo4,
+    OoT_Camera_Demo5,
+    OoT_Camera_Demo6,
+    OoT_Camera_Demo7,
+    OoT_Camera_Demo8,
+    OoT_Camera_Demo9,
+    OoT_Camera_Special0,
+    OoT_Camera_Special1,
+    OoT_Camera_Special2,
+    OoT_Camera_Special3,
+    OoT_Camera_Special4,
+    OoT_Camera_Special5,
+    OoT_Camera_Special6,
+    OoT_Camera_Special7,
+    OoT_Camera_Special8,
+    OoT_Camera_Special9,
 };
 
 s32 sInitRegs = 1;
