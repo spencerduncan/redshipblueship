@@ -247,8 +247,9 @@ jobs:
         cd deps/tinyxml2-10.0.0
         mkdir -p build
         cd build
-        # Skip cmake configure if already done
-        if [ ! -f "Makefile" ]; then
+        # Skip cmake configure if already done AND configured with PIC
+        # (stale cache without PIC causes linking errors with shared libs)
+        if [ ! -f "CMakeCache.txt" ] || ! grep -q "CMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON" CMakeCache.txt; then
           cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
         fi
         make
