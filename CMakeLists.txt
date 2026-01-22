@@ -209,6 +209,8 @@ set_property(TARGET redship PROPERTY APPIMAGE_DESKTOP_FILE "${CMAKE_SOURCE_DIR}/
 set_property(TARGET redship PROPERTY APPIMAGE_ICON_FILE "${CMAKE_BINARY_DIR}/sohIcon.png")
 
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
+install(TARGETS soh LIBRARY DESTINATION . COMPONENT ship)
+install(TARGETS 2ship LIBRARY DESTINATION . COMPONENT ship)
 install(FILES "${CMAKE_BINARY_DIR}/soh/soh.o2r" DESTINATION . COMPONENT ship)
 install(TARGETS ZAPD_OoT DESTINATION ./assets/extractor COMPONENT extractor)
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/oot/assets/extractor/" DESTINATION ./assets COMPONENT extractor)
