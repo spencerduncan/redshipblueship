@@ -14,7 +14,7 @@ import unittest
 from pathlib import Path
 
 # Path setup handled by conftest.py (auto-loaded by pytest)
-from lib.symbol_locator import SymbolLocator
+from symbol_locator import SymbolLocator
 
 
 class TestSymbolLocator(unittest.TestCase):

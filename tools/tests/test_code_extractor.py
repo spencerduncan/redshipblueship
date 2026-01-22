@@ -14,7 +14,7 @@ import unittest
 from pathlib import Path
 
 # Path setup handled by conftest.py (auto-loaded by pytest)
-from lib.code_extractor import extract_function, extract_global
+from code_extractor import extract_function, extract_global
 
 
 class TestExtractFunction(unittest.TestCase):
