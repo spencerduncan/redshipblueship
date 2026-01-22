@@ -10,6 +10,10 @@ add_library(rsbs STATIC
     # Files will be added as code is migrated
     src/placeholder.c
     src/combo_context.c
+
+    # libultra/os - Unified OS functions (WP-009)
+    src/libultra/os/afterprenmi.c
+    src/libultra/os/getactivequeue.c
 )
 
 target_include_directories(rsbs PUBLIC
