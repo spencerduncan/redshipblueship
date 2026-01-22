@@ -45,14 +45,14 @@ bool GameArchiveManager::HasFile(Game game, const std::string& path) const {
 }
 
 Game GameArchiveManager::GetFileOwner(const std::string& path) const {
-    bool inOoT = HasFile(Game::OOT, path);
+    bool inOoT = HasFile(Game::OoT, path);
     bool inMM = HasFile(Game::MM, path);
 
     if (inOoT && inMM) {
         throw std::runtime_error("File exists in both games: " + path);
     }
     if (inOoT) {
-        return Game::OOT;
+        return Game::OoT;
     }
     if (inMM) {
         return Game::MM;

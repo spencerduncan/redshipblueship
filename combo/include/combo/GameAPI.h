@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include "combo/Game.h"
+
 #include <cstdint>
 
 // Forward declarations for game types
@@ -27,19 +29,6 @@
 struct Actor;
 struct PlayState;
 struct SaveContext;
-
-namespace Combo {
-
-/**
- * Game identifier for runtime dispatch
- */
-enum class Game : uint8_t {
-    None = 0,
-    OoT = 1,
-    MM = 2
-};
-
-} // namespace Combo
 
 /**
  * OoT namespace - wrapper for OoT_* prefixed functions

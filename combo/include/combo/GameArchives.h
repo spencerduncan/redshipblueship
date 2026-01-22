@@ -1,6 +1,7 @@
 #pragma once
 
 #include "combo/Export.h"
+#include "combo/Game.h"
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -14,11 +15,6 @@ struct File;
 } // namespace Ship
 
 namespace Combo {
-
-enum class Game {
-    OOT,
-    MM
-};
 
 /**
  * Manages game-specific archive access for the combo randomizer.
@@ -81,7 +77,7 @@ private:
 
 // Convenience functions
 inline std::shared_ptr<Ship::File> LoadOoTFile(const std::string& path) {
-    return GameArchiveManager::Instance().LoadFile(Game::OOT, path);
+    return GameArchiveManager::Instance().LoadFile(Game::OoT, path);
 }
 
 inline std::shared_ptr<Ship::File> LoadMMFile(const std::string& path) {
