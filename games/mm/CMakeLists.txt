@@ -412,8 +412,13 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
             -pthread
         )
 
+        # On macOS, we need to force-load libultraship to ensure all N64 OS
+        # function stubs (osCreateMesgQueue, osRecvMesg, etc.) are included
+        # in the shared library. Unlike Linux which uses -Wl,-export-dynamic,
+        # macOS requires -force_load to include all symbols from static archives.
         target_link_options(${PROJECT_NAME} PRIVATE
             -pthread
+            "LINKER:-force_load,$<TARGET_FILE:libultraship>"
         )
     elseif (CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
         target_compile_options(${PROJECT_NAME} PRIVATE
