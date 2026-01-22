@@ -81,58 +81,45 @@ class TestCategorizeMatch(unittest.TestCase):
 class TestLoadSymbols(unittest.TestCase):
     """Tests for the load_symbols function."""
 
+    def setUp(self):
+        """Create a temporary directory for test files."""
+        self.temp_dir = tempfile.TemporaryDirectory()
+
+    def tearDown(self):
+        """Clean up temporary directory (exception-safe)."""
+        self.temp_dir.cleanup()
+
+    def _write_symbols_file(self, content: str) -> str:
+        """Helper to write a symbols file and return its path."""
+        path = Path(self.temp_dir.name) / "symbols.txt"
+        path.write_text(content)
+        return str(path)
+
     def test_load_simple_list(self):
         """Test loading a simple symbol list."""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write("Symbol1\n")
-            f.write("Symbol2\n")
-            f.write("Symbol3\n")
-            f.flush()
-
-            symbols = load_symbols(f.name)
-            self.assertEqual(symbols, ["Symbol1", "Symbol2", "Symbol3"])
-
-            Path(f.name).unlink()
+        path = self._write_symbols_file("Symbol1\nSymbol2\nSymbol3\n")
+        symbols = load_symbols(path)
+        self.assertEqual(symbols, ["Symbol1", "Symbol2", "Symbol3"])
 
     def test_skip_comments(self):
         """Test that comment lines are skipped."""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write("# This is a comment\n")
-            f.write("Symbol1\n")
-            f.write("# Another comment\n")
-            f.write("Symbol2\n")
-            f.flush()
-
-            symbols = load_symbols(f.name)
-            self.assertEqual(symbols, ["Symbol1", "Symbol2"])
-
-            Path(f.name).unlink()
+        path = self._write_symbols_file(
+            "# This is a comment\nSymbol1\n# Another comment\nSymbol2\n"
+        )
+        symbols = load_symbols(path)
+        self.assertEqual(symbols, ["Symbol1", "Symbol2"])
 
     def test_skip_empty_lines(self):
         """Test that empty lines are skipped."""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write("Symbol1\n")
-            f.write("\n")
-            f.write("  \n")
-            f.write("Symbol2\n")
-            f.flush()
-
-            symbols = load_symbols(f.name)
-            self.assertEqual(symbols, ["Symbol1", "Symbol2"])
-
-            Path(f.name).unlink()
+        path = self._write_symbols_file("Symbol1\n\n  \nSymbol2\n")
+        symbols = load_symbols(path)
+        self.assertEqual(symbols, ["Symbol1", "Symbol2"])
 
     def test_strip_whitespace(self):
         """Test that whitespace is stripped from symbol names."""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write("  Symbol1  \n")
-            f.write("Symbol2\t\n")
-            f.flush()
-
-            symbols = load_symbols(f.name)
-            self.assertEqual(symbols, ["Symbol1", "Symbol2"])
-
-            Path(f.name).unlink()
+        path = self._write_symbols_file("  Symbol1  \nSymbol2\t\n")
+        symbols = load_symbols(path)
+        self.assertEqual(symbols, ["Symbol1", "Symbol2"])
 
 
 class TestAnalyzeSymbol(unittest.TestCase):
