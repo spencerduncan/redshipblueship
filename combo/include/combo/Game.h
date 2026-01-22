@@ -21,4 +21,10 @@ enum class Game : uint8_t {
     MM = 2
 };
 
+/**
+ * Get the combo library version string
+ * @return Version string (e.g., "0.1.0-dev")
+ */
+const char* GetVersion();
+
 } // namespace Combo

@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include "combo/Game.h"
 
 // Sanity tests to verify GoogleTest framework is working
 
@@ -17,10 +18,6 @@ TEST(SanityTest, StringComparison) {
 }
 
 // Placeholder test for combo library
-namespace Combo {
-    extern const char* GetVersion();
-}
-
 TEST(ComboTest, VersionExists) {
     const char* version = Combo::GetVersion();
     EXPECT_NE(version, nullptr);
