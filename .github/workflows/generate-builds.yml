@@ -24,6 +24,8 @@ jobs:
     steps:
     - name: Git Checkout
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
     - name: Restore soh.o2r Cache
       id: rsbs-otr-cache
       uses: actions/cache@v4
@@ -118,6 +120,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         submodules: true
+        fetch-depth: 1
     - name: Configure ccache
       uses: hendrikmuhs/ccache-action@v1.2
       with:
@@ -194,6 +197,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         submodules: true
+        fetch-depth: 1
     - name: Install dependencies
       run: |
         sudo apt-get update
@@ -326,6 +330,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         submodules: true
+        fetch-depth: 1
     - name: Configure sccache
       uses: hendrikmuhs/ccache-action@v1.2
       with:
