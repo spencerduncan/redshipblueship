@@ -22,7 +22,7 @@
 
 #include <libultraship/libultraship.h>
 
-extern "C" PlayState* gPlayState;
+extern "C" PlayState* OoT_gPlayState;
 
 // FROM z_lights.c
 // I didn't feel like moving it into a header file.
@@ -380,16 +380,16 @@ void SaveState::BackupSeqScriptState(void) {
         info->seqScriptStateCopy[i].depth = gAudioContext.seqPlayers[i].scriptState.depth;
 
         info->seqScriptStateCopy[i].pc =
-            (u8*)((uintptr_t)gAudioContext.seqPlayers[i].scriptState.pc - (uintptr_t)gAudioHeap);
+            (u8*)((uintptr_t)gAudioContext.seqPlayers[i].scriptState.pc - (uintptr_t)OoT_gAudioHeap);
 
         info->seqScriptStateCopy[i].stack[0] =
-            (u8*)((uintptr_t)gAudioContext.seqPlayers[i].scriptState.stack[0] - (uintptr_t)gAudioHeap);
+            (u8*)((uintptr_t)gAudioContext.seqPlayers[i].scriptState.stack[0] - (uintptr_t)OoT_gAudioHeap);
         info->seqScriptStateCopy[i].stack[1] =
-            (u8*)((uintptr_t)gAudioContext.seqPlayers[i].scriptState.stack[1] - (uintptr_t)gAudioHeap);
+            (u8*)((uintptr_t)gAudioContext.seqPlayers[i].scriptState.stack[1] - (uintptr_t)OoT_gAudioHeap);
         info->seqScriptStateCopy[i].stack[2] =
-            (u8*)((uintptr_t)gAudioContext.seqPlayers[i].scriptState.stack[2] - (uintptr_t)gAudioHeap);
+            (u8*)((uintptr_t)gAudioContext.seqPlayers[i].scriptState.stack[2] - (uintptr_t)OoT_gAudioHeap);
         info->seqScriptStateCopy[i].stack[3] =
-            (u8*)((uintptr_t)gAudioContext.seqPlayers[i].scriptState.stack[3] - (uintptr_t)gAudioHeap);
+            (u8*)((uintptr_t)gAudioContext.seqPlayers[i].scriptState.stack[3] - (uintptr_t)OoT_gAudioHeap);
     }
 }
 
@@ -405,16 +405,16 @@ void SaveState::LoadSeqScriptState(void) {
         gAudioContext.seqPlayers[i].scriptState.depth = info->seqScriptStateCopy[i].depth;
 
         gAudioContext.seqPlayers[i].scriptState.pc =
-            (u8*)((uintptr_t)info->seqScriptStateCopy[i].pc + (uintptr_t)gAudioHeap);
+            (u8*)((uintptr_t)info->seqScriptStateCopy[i].pc + (uintptr_t)OoT_gAudioHeap);
 
         gAudioContext.seqPlayers[i].scriptState.stack[0] =
-            (u8*)((uintptr_t)info->seqScriptStateCopy[i].stack[0] + (uintptr_t)gAudioHeap);
+            (u8*)((uintptr_t)info->seqScriptStateCopy[i].stack[0] + (uintptr_t)OoT_gAudioHeap);
         gAudioContext.seqPlayers[i].scriptState.stack[1] =
-            (u8*)((uintptr_t)info->seqScriptStateCopy[i].stack[1] + (uintptr_t)gAudioHeap);
+            (u8*)((uintptr_t)info->seqScriptStateCopy[i].stack[1] + (uintptr_t)OoT_gAudioHeap);
         gAudioContext.seqPlayers[i].scriptState.stack[2] =
-            (u8*)((uintptr_t)info->seqScriptStateCopy[i].stack[2] + (uintptr_t)gAudioHeap);
+            (u8*)((uintptr_t)info->seqScriptStateCopy[i].stack[2] + (uintptr_t)OoT_gAudioHeap);
         gAudioContext.seqPlayers[i].scriptState.stack[3] =
-            (u8*)((uintptr_t)info->seqScriptStateCopy[i].stack[3] + (uintptr_t)gAudioHeap);
+            (u8*)((uintptr_t)info->seqScriptStateCopy[i].stack[3] + (uintptr_t)OoT_gAudioHeap);
     }
 }
 
@@ -716,10 +716,10 @@ void SaveState::SaveMiscCodeData(void) {
     info->D_80130F2C_copy = D_80130F2C;
     info->D_80130F30_copy = D_80130F30;
     info->D_80130F34_copy = D_80130F34;
-    info->sPlaybackState_copy = sPlaybackState;
+    info->sPlaybackState_copy = OoT_sPlaybackState;
     info->D_80130F3C_copy = D_80130F3C;
     info->sNotePlaybackTimer_copy = sNotePlaybackTimer;
-    info->sPlaybackNotePos_copy = sPlaybackNotePos;
+    info->sPlaybackNotePos_copy = OoT_sPlaybackNotePos;
     info->sStaffPlaybackPos_copy = sStaffPlaybackPos;
 
     info->sCurOcarinaBtnPress_copy = sCurOcarinaBtnPress;
@@ -729,7 +729,7 @@ void SaveState::SaveMiscCodeData(void) {
     info->D_8016BA1C_copy = D_8016BA1C;
     memcpy(info->sCurOcarinaSong_copy, sCurOcarinaSong, sizeof(sCurOcarinaSong));
     info->sOcarinaSongAppendPos_copy = sOcarinaSongAppendPos;
-    info->sOcarinaHasStartedSong_copy = sOcarinaHasStartedSong;
+    info->sOcarinaHasStartedSong_copy = OoT_sOcarinaHasStartedSong;
     info->sOcarinaSongNoteStartIdx_copy = sOcarinaSongNoteStartIdx;
     info->sOcarinaSongCnt_copy = sOcarinaSongCnt;
     info->sOcarinaAvailSongs_copy = sOcarinaAvailSongs;
@@ -749,7 +749,7 @@ void SaveState::SaveMiscCodeData(void) {
     info->D_8014B2F4_copy = D_8014B2F4;
     info->sTextboxSkipped_copy = sTextboxSkipped;
     info->sNextTextId_copy = sNextTextId;
-    info->sLastPlayedSong_copy = sLastPlayedSong;
+    info->sLastPlayedSong_copy = OoT_sLastPlayedSong;
     info->sHasSunsSong_copy = sHasSunsSong;
     info->sMessageHasSetSfx_copy = sMessageHasSetSfx;
     info->sOcarinaSongBitFlags_copy = sOcarinaSongBitFlags;
@@ -775,10 +775,10 @@ void SaveState::LoadMiscCodeData(void) {
     D_80130F2C = info->D_80130F2C_copy;
     D_80130F30 = info->D_80130F30_copy;
     D_80130F34 = info->D_80130F34_copy;
-    sPlaybackState = info->sPlaybackState_copy;
+    OoT_sPlaybackState = info->sPlaybackState_copy;
     D_80130F3C = info->D_80130F3C_copy;
     sNotePlaybackTimer = info->sNotePlaybackTimer_copy;
-    sPlaybackNotePos = info->sPlaybackNotePos_copy;
+    OoT_sPlaybackNotePos = info->sPlaybackNotePos_copy;
     sStaffPlaybackPos = info->sStaffPlaybackPos_copy;
 
     sCurOcarinaBtnPress = info->sCurOcarinaBtnPress_copy;
@@ -788,7 +788,7 @@ void SaveState::LoadMiscCodeData(void) {
     D_8016BA1C = info->D_8016BA1C_copy;
     memcpy(sCurOcarinaSong, info->sCurOcarinaSong_copy, sizeof(sCurOcarinaSong));
     sOcarinaSongAppendPos = info->sOcarinaSongAppendPos_copy;
-    sOcarinaHasStartedSong = info->sOcarinaHasStartedSong_copy;
+    OoT_sOcarinaHasStartedSong = info->sOcarinaHasStartedSong_copy;
     sOcarinaSongNoteStartIdx = info->sOcarinaSongNoteStartIdx_copy;
     sOcarinaSongCnt = info->sOcarinaSongCnt_copy;
     sOcarinaAvailSongs = info->sOcarinaAvailSongs_copy;
@@ -809,7 +809,7 @@ void SaveState::LoadMiscCodeData(void) {
     D_8014B2F4 = info->D_8014B2F4_copy;
     sTextboxSkipped = info->sTextboxSkipped_copy;
     sNextTextId = info->sNextTextId_copy;
-    sLastPlayedSong = info->sLastPlayedSong_copy;
+    OoT_sLastPlayedSong = info->sLastPlayedSong_copy;
     sHasSunsSong = info->sHasSunsSong_copy;
     sMessageHasSetSfx = info->sMessageHasSetSfx_copy;
     sOcarinaSongBitFlags = info->sOcarinaSongBitFlags_copy;
@@ -861,7 +861,7 @@ void SaveStateMgr::ProcessSaveStateRequests(void) {
 }
 
 SaveStateReturn SaveStateMgr::AddRequest(const SaveStateRequest request) {
-    if (gPlayState == nullptr) {
+    if (OoT_gPlayState == nullptr) {
         SPDLOG_ERROR("[SOH] Can not save or load a state outside of \"GamePlay\"");
         Ship::Context::GetInstance()->GetWindow()->GetGui()->GetGameOverlay()->TextDrawNotification(
             1.0f, true, "states not available here", request.slot);
@@ -890,11 +890,11 @@ SaveStateReturn SaveStateMgr::AddRequest(const SaveStateRequest request) {
 
 void SaveState::Save(void) {
     std::unique_lock<std::mutex> Lock(audio.mutex);
-    memcpy(&info->sysHeapCopy, gSystemHeap, SYSTEM_HEAP_SIZE /* sizeof(gSystemHeap) */);
-    memcpy(&info->audioHeapCopy, gAudioHeap, AUDIO_HEAP_SIZE /* sizeof(gAudioContext) */);
+    memcpy(&info->sysHeapCopy, OoT_gSystemHeap, SYSTEM_HEAP_SIZE /* sizeof(OoT_gSystemHeap) */);
+    memcpy(&info->audioHeapCopy, OoT_gAudioHeap, AUDIO_HEAP_SIZE /* sizeof(gAudioContext) */);
 
     memcpy(&info->audioContextCopy, &gAudioContext, sizeof(AudioContext));
-    memcpy(&info->gActiveSeqsCopy, gActiveSeqs, sizeof(info->gActiveSeqsCopy));
+    memcpy(&info->gActiveSeqsCopy, OoT_gActiveSeqs, sizeof(info->gActiveSeqsCopy));
     BackupSeqScriptState();
 
     memcpy(info->gActiveSoundsCopy, gActiveSounds, sizeof(gActiveSounds));
@@ -911,9 +911,9 @@ void SaveState::Save(void) {
 
     memcpy(&info->saveContextCopy, &gSaveContext, sizeof(gSaveContext));
     memcpy(&info->gameInfoCopy, gGameInfo, sizeof(*gGameInfo));
-    memcpy(&info->lightBufferCopy, &sLightsBuffer, sizeof(sLightsBuffer));
-    memcpy(&info->mtxStackCopy, sMatrixStack, sizeof(MtxF) * 20);
-    memcpy(&info->currentMtxCopy, sCurrentMatrix, sizeof(MtxF));
+    memcpy(&info->lightBufferCopy, &OoT_sLightsBuffer, sizeof(OoT_sLightsBuffer));
+    memcpy(&info->mtxStackCopy, OoT_sMatrixStack, sizeof(MtxF) * 20);
+    memcpy(&info->currentMtxCopy, OoT_sCurrentMatrix, sizeof(MtxF));
 
     // Various static data
     info->blueWarpTimerCopy = sWarpTimerTarget;
@@ -925,18 +925,18 @@ void SaveState::Save(void) {
 
 void SaveState::Load(void) {
     std::unique_lock<std::mutex> Lock(audio.mutex);
-    memcpy(gSystemHeap, &info->sysHeapCopy, SYSTEM_HEAP_SIZE);
-    memcpy(gAudioHeap, &info->audioHeapCopy, AUDIO_HEAP_SIZE);
+    memcpy(OoT_gSystemHeap, &info->sysHeapCopy, SYSTEM_HEAP_SIZE);
+    memcpy(OoT_gAudioHeap, &info->audioHeapCopy, AUDIO_HEAP_SIZE);
 
     memcpy(&gAudioContext, &info->audioContextCopy, sizeof(AudioContext));
-    memcpy(gActiveSeqs, &info->gActiveSeqsCopy, sizeof(info->gActiveSeqsCopy));
+    memcpy(OoT_gActiveSeqs, &info->gActiveSeqsCopy, sizeof(info->gActiveSeqsCopy));
     LoadSeqScriptState();
 
     memcpy(&gSaveContext, &info->saveContextCopy, sizeof(gSaveContext));
     memcpy(gGameInfo, &info->gameInfoCopy, sizeof(*gGameInfo));
-    memcpy(&sLightsBuffer, &info->lightBufferCopy, sizeof(sLightsBuffer));
-    memcpy(sMatrixStack, &info->mtxStackCopy, sizeof(MtxF) * 20);
-    memcpy(sCurrentMatrix, &info->currentMtxCopy, sizeof(MtxF));
+    memcpy(&OoT_sLightsBuffer, &info->lightBufferCopy, sizeof(OoT_sLightsBuffer));
+    memcpy(OoT_sMatrixStack, &info->mtxStackCopy, sizeof(MtxF) * 20);
+    memcpy(OoT_sCurrentMatrix, &info->currentMtxCopy, sizeof(MtxF));
     sWarpTimerTarget = info->blueWarpTimerCopy;
 
     memcpy(gActiveSounds, info->gActiveSoundsCopy, sizeof(gActiveSounds));

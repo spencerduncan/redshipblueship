@@ -425,7 +425,7 @@ void ObjGrass_InitDraw(ObjGrass* this, PlayState* play) {
         grassGroup = &this->grassGroups[i];
 
         eyeDist = MM_Math3D_Vec3fDistSq(&grassGroup->homePos, &GET_ACTIVE_CAM(play)->eye);
-        eyeDist = SQ(MM_sqrtf(eyeDist) / multiplier); // Hijacked
+        eyeDist = SQ(sqrtf(eyeDist) / multiplier); // Hijacked
 
         if ((eyeDist < SQ(1280.0f)) && func_809A9110(play, &grassGroup->homePos)) {
             grassGroup->flags |= OBJ_GRASS_GROUP_DRAW;
@@ -442,14 +442,14 @@ void ObjGrass_InitDraw(ObjGrass* this, PlayState* play) {
                         grassElem->alpha = 255;
                     } else {
                         distSq = MM_Math3D_Vec3fDistSq(&grassElem->pos, &GET_ACTIVE_CAM(play)->eye);
-                        distSq = SQ(MM_sqrtf(distSq) / multiplier); // Hijacked
+                        distSq = SQ(sqrtf(distSq) / multiplier); // Hijacked
                         if ((distSq <= SQ(1080.0f)) ||
                             ((grassElem->flags & OBJ_GRASS_ELEM_UNDERWATER) && (distSq < SQ(1180.0f)))) {
                             grassElem->alpha = 255;
                         } else if (distSq >= SQ(1180.0f)) {
                             grassElem->alpha = 0;
                         } else {
-                            grassElem->alpha = (1180.0f - MM_sqrtf(distSq)) * 2.55f;
+                            grassElem->alpha = (1180.0f - sqrtf(distSq)) * 2.55f;
                         }
                     }
                 }

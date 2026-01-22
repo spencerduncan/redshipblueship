@@ -14,17 +14,17 @@ static bool ShouldStartMayorsOfficeCutscene(s16 csId) {
     /*
      * The Mayor starts these cutscenes but passes the target actor, which always seems to be Viscen for the start.
      * The Mayor also handles the logic for progressing and ending these cutscenes. We need to alter Dotour's state
-     * but cannot rely on the cutscene start actor for that. Because of this, we use Actor_FindNearby to find the
+     * but cannot rely on the cutscene start actor for that. Because of this, we use MM_Actor_FindNearby to find the
      * EnDt in this scene.
      */
     EnDt* enDt =
-        (EnDt*)Actor_FindNearby(gPlayState, &GET_PLAYER(gPlayState)->actor, ACTOR_EN_DT, ACTORCAT_NPC, 99999.9f);
+        (EnDt*)MM_Actor_FindNearby(MM_gPlayState, &GET_PLAYER(MM_gPlayState)->actor, ACTOR_EN_DT, ACTORCAT_NPC, 99999.9f);
     if (enDt != nullptr) {
         if (csId == 17) { // Argument scenes without Couples Mask
             enDt->csIdIndex = 26;
             enDt->cutsceneState = 2; // EN_DT_CS_STATE_PLAYING
             enDt->textIdIndex = 8;
-            Message_BombersNotebookQueueEvent(gPlayState, BOMBERS_NOTEBOOK_PERSON_MAYOR_DOTOUR);
+            Message_BombersNotebookQueueEvent(MM_gPlayState, BOMBERS_NOTEBOOK_PERSON_MAYOR_DOTOUR);
             return false;
         } else if (csId == 21) { // Couples Mask scene
             // Set flags to trigger scene transition and reward
@@ -40,7 +40,7 @@ static bool ShouldStartMayorsOfficeCutscene(s16 csId) {
 
 static void RegisterSkipMayorsOfficeCutscene() {
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
-        if (gPlayState->sceneId != SCENE_SONCHONOIE) {
+        if (MM_gPlayState->sceneId != SCENE_SONCHONOIE) {
             return;
         }
 

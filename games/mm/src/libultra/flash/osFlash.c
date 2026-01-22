@@ -47,7 +47,7 @@ OSPiHandle* osFlashInit(void) {
     u32 flashType;
     u32 flashVendor;
 
-    MM_osCreateMesgQueue(&__osFlashMessageQ, __osFlashMsgBuf, ARRAY_COUNT(__osFlashMsgBuf));
+    osCreateMesgQueue(&__osFlashMessageQ, __osFlashMsgBuf, ARRAY_COUNT(__osFlashMsgBuf));
 
     if (__osFlashHandler.baseAddress == PHYS_TO_K1(FLASH_START_ADDR)) {
         return &__osFlashHandler;
@@ -80,13 +80,13 @@ OSPiHandle* osFlashInit(void) {
 void osFlashReadStatus(u8* flashStatus) {
     u32 outFlashStatus;
 
-    MM_osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_STATUS);
+    osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_STATUS);
     // read status using IO
-    MM_osEPiReadIo(&__osFlashHandler, __osFlashHandler.baseAddress, &outFlashStatus);
+    osEPiReadIo(&__osFlashHandler, __osFlashHandler.baseAddress, &outFlashStatus);
 
     // why twice ?
-    MM_osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_STATUS);
-    MM_osEPiReadIo(&__osFlashHandler, __osFlashHandler.baseAddress, &outFlashStatus);
+    osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_STATUS);
+    osEPiReadIo(&__osFlashHandler, __osFlashHandler.baseAddress, &outFlashStatus);
 
     *flashStatus = outFlashStatus & 0xFF;
 
@@ -100,7 +100,7 @@ void osFlashReadId(u32* flashType, u32* flashVendor) {
     osFlashReadStatus(&flashStatus);
 
     // select silicon id read mode
-    MM_osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_ID);
+    osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_ID);
 
     // read silicon id using DMA
     __osFlashMsg.hdr.pri = OS_MESG_PRI_NORMAL;
@@ -110,8 +110,8 @@ void osFlashReadId(u32* flashType, u32* flashVendor) {
     __osFlashMsg.size = 2 * sizeof(u32);
 
     osInvalDCache(__osFlashID, sizeof(__osFlashID));
-    MM_osEPiStartDma(&__osFlashHandler, &__osFlashMsg, OS_READ);
-    MM_osRecvMesg(&__osFlashMessageQ, NULL, OS_MESG_BLOCK);
+    osEPiStartDma(&__osFlashHandler, &__osFlashMsg, OS_READ);
+    osRecvMesg(&__osFlashMessageQ, NULL, OS_MESG_BLOCK);
 
     *flashType = __osFlashID[0];
     *flashVendor = __osFlashID[1];
@@ -121,9 +121,9 @@ void osFlashReadId(u32* flashType, u32* flashVendor) {
 
 void osFlashClearStatus(void) {
     // select status mode
-    MM_osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_STATUS);
+    osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_STATUS);
     // clear status
-    MM_osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress, 0);
+    osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress, 0);
 
     return;
 }
@@ -135,19 +135,19 @@ s32 osFlashAllErase(void) {
     OSMesg msg;
 
     // start chip erase operation
-    MM_osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_CHIP_ERASE);
-    MM_osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_EXECUTE_ERASE);
+    osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_CHIP_ERASE);
+    osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_EXECUTE_ERASE);
 
     // wait for completion by polling erase-busy flag
-    MM_osCreateMesgQueue(&mq, &msg, 1);
+    osCreateMesgQueue(&mq, &msg, 1);
     do {
-        MM_osSetTimer(&timer, OS_USEC_TO_CYCLES(15000), 0, &mq, &msg);
-        MM_osRecvMesg(&mq, &msg, OS_MESG_BLOCK);
-        MM_osEPiReadIo(&__osFlashHandler, __osFlashHandler.baseAddress, &status);
+        osSetTimer(&timer, OS_USEC_TO_CYCLES(15000), 0, &mq, &msg);
+        osRecvMesg(&mq, &msg, OS_MESG_BLOCK);
+        osEPiReadIo(&__osFlashHandler, __osFlashHandler.baseAddress, &status);
     } while ((status & FLASH_STATUS_ERASE_BUSY) == FLASH_STATUS_ERASE_BUSY);
 
     // check erase operation status, clear status
-    MM_osEPiReadIo(&__osFlashHandler, __osFlashHandler.baseAddress, &status);
+    osEPiReadIo(&__osFlashHandler, __osFlashHandler.baseAddress, &status);
     osFlashClearStatus();
 
     if (((status & 0xFF) == 0x08) || ((status & 0xFF) == 0x48) || ((status & 0x08) == 0x08)) {
@@ -159,8 +159,8 @@ s32 osFlashAllErase(void) {
 
 void osFlashAllEraseThrough(void) {
     // start chip erase operation
-    MM_osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_CHIP_ERASE);
-    MM_osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_EXECUTE_ERASE);
+    osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_CHIP_ERASE);
+    osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_EXECUTE_ERASE);
 }
 
 s32 osFlashCheckEraseEnd(void) {
@@ -190,19 +190,19 @@ s32 osFlashSectorErase(u32 pageNum) {
     OSMesg msg;
 
     // start sector erase operation
-    MM_osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_SECTOR_ERASE | pageNum);
-    MM_osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_EXECUTE_ERASE);
+    osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_SECTOR_ERASE | pageNum);
+    osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_EXECUTE_ERASE);
 
     // wait for completion by polling erase-busy flag
-    MM_osCreateMesgQueue(&mq, &msg, 1);
+    osCreateMesgQueue(&mq, &msg, 1);
     do {
-        MM_osSetTimer(&timer, OS_USEC_TO_CYCLES(12500), 0, &mq, &msg);
-        MM_osRecvMesg(&mq, &msg, OS_MESG_BLOCK);
-        MM_osEPiReadIo(&__osFlashHandler, __osFlashHandler.baseAddress, &status);
+        osSetTimer(&timer, OS_USEC_TO_CYCLES(12500), 0, &mq, &msg);
+        osRecvMesg(&mq, &msg, OS_MESG_BLOCK);
+        osEPiReadIo(&__osFlashHandler, __osFlashHandler.baseAddress, &status);
     } while ((status & FLASH_STATUS_ERASE_BUSY) == FLASH_STATUS_ERASE_BUSY);
 
     // check erase operation status, clear status
-    MM_osEPiReadIo(&__osFlashHandler, __osFlashHandler.baseAddress, &status);
+    osEPiReadIo(&__osFlashHandler, __osFlashHandler.baseAddress, &status);
     osFlashClearStatus();
 
     if (((status & 0xFF) == 0x08) || ((status & 0xFF) == 0x48) || ((status & 0x08) == 0x08)) {
@@ -214,15 +214,15 @@ s32 osFlashSectorErase(u32 pageNum) {
 
 void osFlashSectorEraseThrough(u32 pageNum) {
     // start sector erase operation
-    MM_osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_SECTOR_ERASE | pageNum);
-    MM_osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_EXECUTE_ERASE);
+    osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_SECTOR_ERASE | pageNum);
+    osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_EXECUTE_ERASE);
 }
 
 s32 osFlashWriteBuffer(OSIoMesg* mb, s32 priority, void* dramAddr, OSMesgQueue* mq) {
     s32 ret;
 
     // select load page mode
-    MM_osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_PAGE_PROGRAM);
+    osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_PAGE_PROGRAM);
 
     // DMA 128-byte page
     mb->hdr.pri = priority;
@@ -231,7 +231,7 @@ s32 osFlashWriteBuffer(OSIoMesg* mb, s32 priority, void* dramAddr, OSMesgQueue* 
     mb->devAddr = 0;
     mb->size = FLASH_BLOCK_SIZE;
 
-    ret = MM_osEPiStartDma(&__osFlashHandler, mb, OS_WRITE);
+    ret = osEPiStartDma(&__osFlashHandler, mb, OS_WRITE);
 
     return ret;
 }
@@ -244,22 +244,22 @@ s32 osFlashWriteArray(u32 pageNum) {
 
     // only needed for new flash ?
     if (__osFlashVersion == NEW_FLASH) {
-        MM_osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_PAGE_PROGRAM);
+        osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_PAGE_PROGRAM);
     }
 
     // start program page operation
-    MM_osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_PROGRAM_PAGE | pageNum);
+    osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_PROGRAM_PAGE | pageNum);
 
     // wait for completion by polling write-busy flag
-    MM_osCreateMesgQueue(&mq, &msg, 1);
+    osCreateMesgQueue(&mq, &msg, 1);
     do {
-        MM_osSetTimer(&timer, OS_USEC_TO_CYCLES(200), 0, &mq, &msg);
-        MM_osRecvMesg(&mq, &msg, OS_MESG_BLOCK);
-        MM_osEPiReadIo(&__osFlashHandler, __osFlashHandler.baseAddress, &status);
+        osSetTimer(&timer, OS_USEC_TO_CYCLES(200), 0, &mq, &msg);
+        osRecvMesg(&mq, &msg, OS_MESG_BLOCK);
+        osEPiReadIo(&__osFlashHandler, __osFlashHandler.baseAddress, &status);
     } while ((status & FLASH_STATUS_WRITE_BUSY) == FLASH_STATUS_WRITE_BUSY);
 
     // check program operation status, clear status
-    MM_osEPiReadIo(&__osFlashHandler, __osFlashHandler.baseAddress, &status);
+    osEPiReadIo(&__osFlashHandler, __osFlashHandler.baseAddress, &status);
     osFlashClearStatus();
 
     if (((status & 0xFF) == 0x04) || ((status & 0xFF) == 0x44) || ((status & 0x04) == 0x04)) {
@@ -276,10 +276,10 @@ s32 osFlashReadArray(OSIoMesg* mb, s32 priority, u32 pageNum, void* dramAddr, u3
     u32 pages;
 
     // select read array mode
-    MM_osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_READ_ARRAY);
+    osEPiWriteIo(&__osFlashHandler, __osFlashHandler.baseAddress | FLASH_CMD_REG, FLASH_CMD_READ_ARRAY);
 
     // dummy read to initiate "fast-page" reads ?
-    MM_osEPiReadIo(&__osFlashHandler, __osFlashHandler.baseAddress, &dummy);
+    osEPiReadIo(&__osFlashHandler, __osFlashHandler.baseAddress, &dummy);
 
     // DMA requested pages
     mb->hdr.pri = priority;
@@ -293,8 +293,8 @@ s32 osFlashReadArray(OSIoMesg* mb, s32 priority, u32 pageNum, void* dramAddr, u3
         pageCount -= pages;
         mb->size = pages * FLASH_BLOCK_SIZE;
         mb->devAddr = osFlashGetAddr(pageNum);
-        MM_osEPiStartDma(&__osFlashHandler, mb, OS_READ);
-        MM_osRecvMesg(mq, NULL, OS_MESG_BLOCK);
+        osEPiStartDma(&__osFlashHandler, mb, OS_READ);
+        osRecvMesg(mq, NULL, OS_MESG_BLOCK);
         pageNum = (pageNum + 256) & 0xF00;
         mb->dramAddr = (void*)((uintptr_t)mb->dramAddr + mb->size);
     }
@@ -304,15 +304,15 @@ s32 osFlashReadArray(OSIoMesg* mb, s32 priority, u32 pageNum, void* dramAddr, u3
         pageCount -= 256;
         mb->size = pages * FLASH_BLOCK_SIZE;
         mb->devAddr = osFlashGetAddr(pageNum);
-        MM_osEPiStartDma(&__osFlashHandler, mb, OS_READ);
-        MM_osRecvMesg(mq, NULL, OS_MESG_BLOCK);
+        osEPiStartDma(&__osFlashHandler, mb, OS_READ);
+        osRecvMesg(mq, NULL, OS_MESG_BLOCK);
         pageNum += 256;
         mb->dramAddr = (void*)((uintptr_t)mb->dramAddr + mb->size);
     }
 
     mb->size = pageCount * FLASH_BLOCK_SIZE;
     mb->devAddr = osFlashGetAddr(pageNum);
-    ret = MM_osEPiStartDma(&__osFlashHandler, mb, OS_READ);
+    ret = osEPiStartDma(&__osFlashHandler, mb, OS_READ);
 
     return ret;
 }

@@ -13,14 +13,14 @@ typedef union TwoHeadGfxArena {
     /* 0x0 */ TwoHeadArena tha;
 } TwoHeadGfxArena; // size = 0x10
 
-void THGA_Init(TwoHeadGfxArena* thga, void* start, size_t size);
+void MM_THGA_Init(TwoHeadGfxArena* thga, void* start, size_t size);
 void THGA_Destroy(TwoHeadGfxArena* thga);
-u32 THGA_IsCrash(TwoHeadGfxArena* thga);
+u32 MM_THGA_IsCrash(TwoHeadGfxArena* thga);
 void THGA_Reset(TwoHeadGfxArena* thga);
 s32 THGA_GetRemaining(TwoHeadGfxArena* thga);
-Gfx* THGA_GetHead(TwoHeadGfxArena* thga);
-void THGA_SetHead(TwoHeadGfxArena* thga, Gfx* newHead);
-void* THGA_GetTail(TwoHeadGfxArena* thga);
+Gfx* MM_THGA_GetHead(TwoHeadGfxArena* thga);
+void MM_THGA_SetHead(TwoHeadGfxArena* thga, Gfx* newHead);
+void* MM_THGA_GetTail(TwoHeadGfxArena* thga);
 Gfx* THGA_AllocDisplayList(TwoHeadGfxArena* thga, size_t num);
 Gfx* THGA_AllocGfx(TwoHeadGfxArena* thga);
 Gfx* THGA_AllocGfx2(TwoHeadGfxArena* thga);

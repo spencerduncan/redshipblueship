@@ -12,7 +12,7 @@ extern "C" {
 
 void RegisterSkipAlienWarning() {
     COND_ID_HOOK(ShouldActorInit, ACTOR_EN_MA4, CVAR, [](Actor* actor, bool* should) {
-        if (gPlayState->sceneId != SCENE_F01) { // Romani Ranch
+        if (MM_gPlayState->sceneId != SCENE_F01) { // Romani Ranch
             return;
         }
 

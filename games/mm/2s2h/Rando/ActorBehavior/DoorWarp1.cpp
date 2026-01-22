@@ -15,18 +15,18 @@ void Rando::ActorBehavior::InitDoorWarp1VBehavior() {
      */
     COND_VB_SHOULD(VB_SPAWN_BOSS_REMAINS, IS_RANDO, {
         s32* ret = va_arg(args, s32*);
-        if ((gPlayState->sceneId == SCENE_MITURIN_BS) && !RANDO_SAVE_CHECKS[RC_WOODFALL_TEMPLE_BOSS_WARP].obtained) {
+        if ((MM_gPlayState->sceneId == SCENE_MITURIN_BS) && !RANDO_SAVE_CHECKS[RC_WOODFALL_TEMPLE_BOSS_WARP].obtained) {
             // Odolwa's Lair
             *ret = 1;
-        } else if ((gPlayState->sceneId == SCENE_HAKUGIN_BS) &&
+        } else if ((MM_gPlayState->sceneId == SCENE_HAKUGIN_BS) &&
                    !RANDO_SAVE_CHECKS[RC_SNOWHEAD_TEMPLE_BOSS_WARP].obtained) {
             // Goht's Lair
             *ret = 2;
-        } else if ((gPlayState->sceneId == SCENE_SEA_BS) &&
+        } else if ((MM_gPlayState->sceneId == SCENE_SEA_BS) &&
                    !RANDO_SAVE_CHECKS[RC_GREAT_BAY_TEMPLE_BOSS_WARP].obtained) {
             // Gyorg's Lair
             *ret = 3;
-        } else if ((gPlayState->sceneId == SCENE_INISIE_BS) &&
+        } else if ((MM_gPlayState->sceneId == SCENE_INISIE_BS) &&
                    !RANDO_SAVE_CHECKS[RC_STONE_TOWER_TEMPLE_INVERTED_BOSS_WARP].obtained) {
             // Twinmold's Lair
             *ret = 4;
@@ -42,10 +42,10 @@ void Rando::ActorBehavior::InitDoorWarp1VBehavior() {
         GetItemId* item = va_arg(args, GetItemId*);
         Actor* actor = va_arg(args, Actor*);
         DoorWarp1* doorWarp1 = (DoorWarp1*)actor;
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         if (actor->id == ACTOR_DOOR_WARP1) {
             RandoCheckId checkId;
-            switch (gPlayState->sceneId) {
+            switch (MM_gPlayState->sceneId) {
                 case SCENE_MITURIN_BS: // Odolwa's Lair
                     checkId = RC_WOODFALL_TEMPLE_BOSS_WARP;
                     break;
@@ -62,7 +62,7 @@ void Rando::ActorBehavior::InitDoorWarp1VBehavior() {
             // Cannot get each boss remains check more than once
             RANDO_SAVE_CHECKS[checkId].eligible = !RANDO_SAVE_CHECKS[checkId].obtained;
             // Transform back to human Link and warp away without waiting for a textbox to close as normal
-            Player_SetCsActionWithHaltedActors(gPlayState, &doorWarp1->dyna.actor, PLAYER_CSACTION_9);
+            MM_Player_SetCsActionWithHaltedActors(MM_gPlayState, &doorWarp1->dyna.actor, PLAYER_CSACTION_9);
             player->unk_3A0.x = doorWarp1->dyna.actor.world.pos.x;
             player->unk_3A0.z = doorWarp1->dyna.actor.world.pos.z;
             doorWarp1->unk_1CA = 1;

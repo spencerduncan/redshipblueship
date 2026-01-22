@@ -5,7 +5,7 @@
 #include "soh/SaveManager.h"
 
 extern "C" {
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 #include "functions.h"
 #include "macros.h"
 #include "variables.h"
@@ -31,8 +31,8 @@ static bool Autosave_CanSave() {
     // Don't save in Chamber of Sages and the Cutscene map because of remember save location and cutscene item gives.
     // Don't save between obtaining Ocarina of Time and Song of Time because the latter would become unobtainable.
     if (!SaveManager::Instance->SaveFile_Exist(gSaveContext.fileNum) || !GameInteractor::IsSaveLoaded(false) ||
-        gPlayState->gameplayFrames < 60 || gPlayState->sceneNum == SCENE_CHAMBER_OF_THE_SAGES ||
-        gPlayState->sceneNum == SCENE_CUTSCENE_MAP ||
+        OoT_gPlayState->gameplayFrames < 60 || OoT_gPlayState->sceneNum == SCENE_CHAMBER_OF_THE_SAGES ||
+        OoT_gPlayState->sceneNum == SCENE_CUTSCENE_MAP ||
         (!CHECK_QUEST_ITEM(QUEST_SONG_TIME) && (INV_CONTENT(ITEM_OCARINA_TIME) == ITEM_OCARINA_TIME))) {
         return false;
     }
@@ -41,7 +41,7 @@ static bool Autosave_CanSave() {
 }
 
 static void Autosave_PerformSave() {
-    Play_PerformSave(gPlayState);
+    Play_PerformSave(OoT_gPlayState);
 
     // Send notification
     if (CVarGetInteger(CVAR_ENHANCEMENT("AutosaveNotification"), 1)) {

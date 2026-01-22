@@ -291,22 +291,22 @@ void OoT_GameState_Update(GameState* gameState) {
         gfxCtx->xScale = OoT_gViConfigXScale;
         gfxCtx->yScale = OoT_gViConfigYScale;
         if (SREG(63) == 6 || (SREG(63) == 2u && osTvType == OS_TV_NTSC)) {
-            gfxCtx->viMode = &OoT_osViModeNtscLan1;
+            gfxCtx->viMode = &osViModeNtscLan1;
             gfxCtx->yScale = 1.0f;
         }
 
         if (SREG(63) == 5 || (SREG(63) == 2u && osTvType == OS_TV_MPAL)) {
-            gfxCtx->viMode = &OoT_osViModeMpalLan1;
+            gfxCtx->viMode = &osViModeMpalLan1;
             gfxCtx->yScale = 1.0f;
         }
 
         if (SREG(63) == 4 || (SREG(63) == 2u && osTvType == OS_TV_PAL)) {
-            gfxCtx->viMode = &OoT_osViModePalLan1;
+            gfxCtx->viMode = &osViModePalLan1;
             gfxCtx->yScale = 1.0f;
         }
 
         if (SREG(63) == 3 || (SREG(63) == 2u && osTvType == OS_TV_PAL)) {
-            gfxCtx->viMode = &OoT_osViModeFpalLan1;
+            gfxCtx->viMode = &osViModeFpalLan1;
             gfxCtx->yScale = 0.833f;
         }
     } else {
@@ -418,17 +418,17 @@ void OoT_GameState_Init(GameState* gameState, GameStateFunc init, GraphicsContex
     gameState->main = NULL;
     gameState->destroy = NULL;
     gameState->running = 1;
-    startTime = OoT_osGetTime();
+    startTime = osGetTime();
     gameState->size = 0;
     gameState->init = NULL;
-    endTime = OoT_osGetTime();
+    endTime = osGetTime();
 
     // "game_set_next_game_null processing time %d us"
     osSyncPrintf("game_set_next_game_null 処理時間 %d us\n", OS_CYCLES_TO_USEC(endTime - startTime));
     startTime = endTime;
     OoT_GameAlloc_Init(&gameState->alloc);
 
-    endTime = OoT_osGetTime();
+    endTime = osGetTime();
     // "gamealloc_init processing time %d us"
     osSyncPrintf("gamealloc_init 処理時間 %d us\n", OS_CYCLES_TO_USEC(endTime - startTime));
 
@@ -437,7 +437,7 @@ void OoT_GameState_Init(GameState* gameState, GameStateFunc init, GraphicsContex
     R_UPDATE_RATE = 3;
     init(gameState);
 
-    endTime = OoT_osGetTime();
+    endTime = osGetTime();
     // "init processing time %d us"
     osSyncPrintf("init 処理時間 %d us\n", OS_CYCLES_TO_USEC(endTime - startTime));
 
@@ -453,7 +453,7 @@ void OoT_GameState_Init(GameState* gameState, GameStateFunc init, GraphicsContex
     func_800AA0B4();
     osSendMesgPtr(&gameState->gfxCtx->queue, NULL, OS_MESG_BLOCK);
 
-    endTime = OoT_osGetTime();
+    endTime = osGetTime();
     // "Other initialization processing time %d us"
     osSyncPrintf("その他初期化 処理時間 %d us\n", OS_CYCLES_TO_USEC(endTime - startTime));
 
@@ -466,7 +466,7 @@ void OoT_GameState_Destroy(GameState* gameState) {
     osSyncPrintf("game デストラクタ開始\n"); // "game destructor start"
     func_800C3C20();
     func_800F3054();
-    OoT_osRecvMesg(&gameState->gfxCtx->queue, NULL, OS_MESG_BLOCK);
+    osRecvMesg(&gameState->gfxCtx->queue, NULL, OS_MESG_BLOCK);
     LOG_CHECK_NULL_POINTER("this->cleanup", gameState->destroy);
     if (gameState->destroy != NULL) {
         gameState->destroy(gameState);

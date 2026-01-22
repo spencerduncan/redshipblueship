@@ -61,7 +61,7 @@ void Rando::MiscBehavior::OnFileLoad() {
     // Fix issue where bombchus/bombs can't be used in Honey and Darling if the player has no sword equipped and no bow.
     COND_VB_SHOULD(VB_CLEAR_B_BUTTON_FOR_NO_BOW, IS_RANDO, {
         // Playing Honey and Darling
-        if (CHECK_WEEKEVENTREG(WEEKEVENTREG_08_01) && (gPlayState->sceneId == SCENE_BOWLING)) {
+        if (CHECK_WEEKEVENTREG(WEEKEVENTREG_08_01) && (MM_gPlayState->sceneId == SCENE_BOWLING)) {
             *should = false;
         }
     });

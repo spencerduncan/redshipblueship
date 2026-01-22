@@ -1,6 +1,6 @@
 #include "global.h"
 
-s32 OoT_osJamMesg(OSMesgQueue* mq, OSMesg msg, s32 flag) {
+s32 osJamMesg(OSMesgQueue* mq, OSMesg msg, s32 flag) {
     register u32 prevInt = __osDisableInt();
 
     while (mq->validCount >= mq->msgCount) {
@@ -17,7 +17,7 @@ s32 OoT_osJamMesg(OSMesgQueue* mq, OSMesg msg, s32 flag) {
     mq->msg[mq->first] = msg;
     mq->validCount++;
     if (mq->mtqueue->next != NULL) {
-        OoT_osStartThread(__osPopThread(&mq->mtqueue));
+        osStartThread(__osPopThread(&mq->mtqueue));
     }
     __osRestoreInt(prevInt);
     return 0;

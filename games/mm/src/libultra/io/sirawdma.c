@@ -10,7 +10,7 @@ s32 __osSiRawStartDma(s32 direction, void* dramAddr) {
         osWritebackDCache(dramAddr, ALIGN16(PIF_RAM_END - PIF_RAM_START));
     }
 
-    IO_WRITE(SI_DRAM_ADDR_REG, MM_osVirtualToPhysical(dramAddr));
+    IO_WRITE(SI_DRAM_ADDR_REG, osVirtualToPhysical(dramAddr));
 
     if (direction == OS_READ) {
         IO_WRITE(SI_PIF_ADDR_RD64B_REG, PIF_RAM_START);

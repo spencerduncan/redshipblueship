@@ -6,7 +6,7 @@ extern "C" {
 }
 
 void Rando::MiscBehavior::OnSceneInit(s16 sceneId, s8 spawnNum) {
-    InterfaceContext* interfaceCtx = &gPlayState->interfaceCtx;
+    InterfaceContext* interfaceCtx = &MM_gPlayState->interfaceCtx;
 
     // Remove mask restrictions for Clock Tower rooftop
     if (sceneId == SCENE_OKUJOU) {

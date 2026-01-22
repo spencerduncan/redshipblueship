@@ -35,7 +35,7 @@ void RegisterSkipClockTowerSkullKidEncounter() {
         DmStk* dmstk = (DmStk*)actor;
 
         // Needs to be clock tower rooftop
-        if (gPlayState->sceneId != SCENE_OKUJOU) {
+        if (MM_gPlayState->sceneId != SCENE_OKUJOU) {
             return;
         }
 
@@ -44,7 +44,7 @@ void RegisterSkipClockTowerSkullKidEncounter() {
             dmstk->actor.world.pos = afterCutscenePos;
             dmstk->animIndex = 33; // SK_ANIM_CALL_DOWN_MOON_LOOP
             dmstk->handType = 3;   // SK_HAND_TYPE_HOLDING_OCARINA
-            DmStk_ChangeAnim(dmstk, gPlayState, &dmstk->skelAnime, &moonLoop, 0);
+            DmStk_ChangeAnim(dmstk, MM_gPlayState, &dmstk->skelAnime, &moonLoop, 0);
             dmstk->actionFunc = DmStk_ClockTower_IdleWithOcarina;
             Actor_PlaySfx(&dmstk->actor, NA_SE_EN_STAL20_CALL_MOON);
             Audio_PlaySequenceInCutscene(NA_BGM_MINI_BOSS);
@@ -52,7 +52,7 @@ void RegisterSkipClockTowerSkullKidEncounter() {
             // Place Skullkid in his final position from when the cutscene would have ended
             dmstk->actor.world.pos = afterCutscenePos;
             dmstk->animIndex = 38; // SK_ANIM_FLOATING_ARMS_CROSSED
-            DmStk_ChangeAnim(dmstk, gPlayState, &dmstk->skelAnime, &armsCrossedLoop, 0);
+            DmStk_ChangeAnim(dmstk, MM_gPlayState, &dmstk->skelAnime, &armsCrossedLoop, 0);
             dmstk->actionFunc = DmStk_ClockTower_Idle;
             Actor_PlaySfx(&dmstk->actor, NA_SE_EN_STAL20_CALL_MOON);
             Audio_PlaySequenceInCutscene(NA_BGM_MINI_BOSS);

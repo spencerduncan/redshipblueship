@@ -6,7 +6,7 @@
 
 extern "C" {
 #include "macros.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 /**
@@ -20,13 +20,13 @@ void Anchor::SendPacket_TeleportTo(uint32_t clientId) {
         return;
     }
 
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
 
     nlohmann::json payload;
     payload["type"] = TELEPORT_TO;
     payload["targetClientId"] = clientId;
     payload["entranceIndex"] = gSaveContext.entranceIndex;
-    payload["roomIndex"] = gPlayState->roomCtx.curRoom.num;
+    payload["roomIndex"] = OoT_gPlayState->roomCtx.curRoom.num;
     payload["posRot"] = player->actor.world;
 
     SendJsonToRemote(payload);
@@ -41,9 +41,9 @@ void Anchor::HandlePacket_TeleportTo(nlohmann::json payload) {
     s8 roomIndex = payload["roomIndex"].get<s8>();
     PosRot posRot = payload["posRot"].get<PosRot>();
 
-    gPlayState->nextEntranceIndex = entranceIndex;
-    gPlayState->transitionTrigger = TRANS_TRIGGER_START;
-    gPlayState->transitionType = TRANS_TYPE_INSTANT;
+    OoT_gPlayState->nextEntranceIndex = entranceIndex;
+    OoT_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
+    OoT_gPlayState->transitionType = TRANS_TYPE_INSTANT;
     gSaveContext.respawn[RESPAWN_MODE_DOWN].entranceIndex = entranceIndex;
     gSaveContext.respawn[RESPAWN_MODE_DOWN].roomIndex = roomIndex;
     gSaveContext.respawn[RESPAWN_MODE_DOWN].pos = posRot.pos;

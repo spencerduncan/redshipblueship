@@ -50,7 +50,7 @@ void __osTimerInterrupt(void) {
         timer->next = NULL;
         timer->prev = NULL;
         if (timer->mq != NULL) {
-            OoT_osSendMesg(timer->mq, timer->msg, OS_MESG_NOBLOCK);
+            osSendMesg(timer->mq, timer->msg, OS_MESG_NOBLOCK);
         }
         if (timer->interval != 0) {
             timer->value = timer->interval;

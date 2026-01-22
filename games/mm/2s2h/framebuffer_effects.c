@@ -165,12 +165,12 @@ void FB_DrawFromFramebufferScaled(Gfx** gfxp, s32 fb, u8 alpha, float scaleX, fl
 
     gDPSetTextureImageFB(gfx++, 0, 0, 0, fb);
 
-    float x0 = gScreenWidth * 0.5f * scaleX;
-    float y0 = gScreenHeight * 0.5f * scaleY;
+    float x0 = MM_gScreenWidth * 0.5f * scaleX;
+    float y0 = MM_gScreenHeight * 0.5f * scaleY;
 
     gDPImageRectangle(gfx++, OTRGetRectDimensionFromLeftEdge(x0) << 2, (int)(y0) << 2, 0, 0,
-                      OTRGetRectDimensionFromRightEdge((float)(gScreenWidth - x0)) << 2,
-                      (int)((float)(gScreenHeight - y0)) << 2, OTRGetGameRenderWidth(), OTRGetGameRenderHeight(),
+                      OTRGetRectDimensionFromRightEdge((float)(MM_gScreenWidth - x0)) << 2,
+                      (int)((float)(MM_gScreenHeight - y0)) << 2, OTRGetGameRenderWidth(), OTRGetGameRenderHeight(),
                       G_TX_RENDERTILE, OTRGetGameRenderWidth(), OTRGetGameRenderHeight());
 
     *gfxp = gfx;

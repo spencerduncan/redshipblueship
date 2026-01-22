@@ -14,12 +14,12 @@ static int frameAdvanceTimer = 0;
 
 void RegisterEasyFrameAdvance() {
     COND_HOOK(OnGameStateMainStart, CVAR, []() {
-        if (gPlayState == NULL) {
+        if (MM_gPlayState == NULL) {
             return;
         }
 
-        Input* input = CONTROLLER1(&gPlayState->state);
-        PauseContext* pauseCtx = &gPlayState->pauseCtx;
+        Input* input = CONTROLLER1(&MM_gPlayState->state);
+        PauseContext* pauseCtx = &MM_gPlayState->pauseCtx;
 
         if (frameAdvanceTimer > 0 && pauseCtx->state == PAUSE_STATE_OFF) {
             frameAdvanceTimer--;

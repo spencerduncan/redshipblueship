@@ -169,7 +169,7 @@ void EnBubble_Vec3fNormalizedReflect(Vec3f* vec1, Vec3f* vec2, Vec3f* dest) {
     f32 norm;
 
     MM_Math3D_Vec3fReflect(vec1, vec2, dest);
-    norm = MM_sqrtf(SQ(dest->x) + SQ(dest->y) + SQ(dest->z));
+    norm = sqrtf(SQ(dest->x) + SQ(dest->y) + SQ(dest->z));
     if (norm != 0.0f) {
         dest->x /= norm;
         dest->y /= norm;
@@ -180,7 +180,7 @@ void EnBubble_Vec3fNormalizedReflect(Vec3f* vec1, Vec3f* vec2, Vec3f* dest) {
 }
 
 void MM_EnBubble_Vec3fNormalize(Vec3f* vec) {
-    f32 norm = MM_sqrtf(SQ(vec->x) + SQ(vec->y) + SQ(vec->z));
+    f32 norm = sqrtf(SQ(vec->x) + SQ(vec->y) + SQ(vec->z));
 
     if (norm != 0.0f) {
         vec->x /= norm;

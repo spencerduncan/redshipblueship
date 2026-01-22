@@ -4,8 +4,8 @@
 
 extern "C" {
 #include "src/overlays/kaleido_scope/ovl_kaleido_scope/z_kaleido_scope.h"
-extern s16 sEquipState;
-extern s16 sEquipAnimTimer;
+extern s16 MM_sEquipState;
+extern s16 MM_sEquipAnimTimer;
 }
 
 #define CVAR_NAME "gEnhancements.Equipment.MagicArrowEquipSpeed"
@@ -13,9 +13,9 @@ extern s16 sEquipAnimTimer;
 
 void RegisterSkipMagicArrowEquip() {
     COND_HOOK(OnKaleidoUpdate, CVAR, [](PauseContext* pauseCtx) {
-        if (sEquipState == EQUIP_STATE_MAGIC_ARROW_GROW_ORB) {
-            sEquipState = EQUIP_STATE_MAGIC_ARROW_MOVE_TO_BOW_SLOT;
-            sEquipAnimTimer = 2;
+        if (MM_sEquipState == EQUIP_STATE_MAGIC_ARROW_GROW_ORB) {
+            MM_sEquipState = EQUIP_STATE_MAGIC_ARROW_MOVE_TO_BOW_SLOT;
+            MM_sEquipAnimTimer = 2;
             pauseCtx->equipAnimAlpha = 255;
         }
     });

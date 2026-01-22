@@ -11,28 +11,28 @@ extern "C"
 #endif
 
 // data
-extern size_t gDmaMgrDmaBuffSize;
-extern vs32 gIrqMgrResetStatus;
-extern volatile OSTime sIrqMgrResetTime;
-extern volatile OSTime gIrqMgrRetraceTime;
-extern s32 sIrqMgrRetraceCount;
+extern size_t MM_gDmaMgrDmaBuffSize;
+extern vs32 MM_gIrqMgrResetStatus;
+extern volatile OSTime MM_sIrqMgrResetTime;
+extern volatile OSTime MM_gIrqMgrRetraceTime;
+extern s32 MM_sIrqMgrRetraceCount;
 
-// extern UNK_TYPE1 sGfxPrintFontTLUT;
-// extern UNK_TYPE1 sGfxPrintRainbowTLUT;
-// extern UNK_TYPE1 sGfxPrintRainbowData;
-// extern UNK_TYPE1 sGfxPrintFontData;
+// extern UNK_TYPE1 MM_sGfxPrintFontTLUT;
+// extern UNK_TYPE1 MM_sGfxPrintRainbowTLUT;
+// extern UNK_TYPE1 MM_sGfxPrintRainbowData;
+// extern UNK_TYPE1 MM_sGfxPrintFontData;
 // extern UNK_TYPE4 D_80097524;
-// extern u32 sRandInt;
+// extern u32 MM_sRandInt;
 
-extern u8 sYaz0DataBuffer[0x400];
-extern u8* sYaz0CurDataEnd;
-extern uintptr_t sYaz0CurRomStart;
-extern u32 sYaz0CurSize;
-extern u8* sYaz0MaxPtr;
+extern u8 MM_sYaz0DataBuffer[0x400];
+extern u8* MM_sYaz0CurDataEnd;
+extern uintptr_t MM_sYaz0CurRomStart;
+extern u32 MM_sYaz0CurSize;
+extern u8* MM_sYaz0MaxPtr;
 extern void* gYaz0DecompressDstEnd;
 
 // extern UNK_TYPE4 D_8009CD10;
-// extern UNK_TYPE4 sArenaLockMsg;
+// extern UNK_TYPE4 MM_sArenaLockMsg;
 
 extern DmaEntry dmadata[1568];
 
@@ -43,7 +43,7 @@ extern u8 D_801AE214[32];
 
 // extern s32 sEntryIndex;
 // extern u32 sCurrentBit;
-// extern s32 sTimer;
+// extern s32 MM_sTimer;
 
 extern ActorOverlay gActorOverlayTable[ACTOR_ID_MAX];
 extern ActorId gMaxActorId;
@@ -118,33 +118,33 @@ extern UNK_PTR D_801BEC14;
 // extern UNK_TYPE1 D_801BF68C;
 
 extern FlexSkeletonHeader* gPlayerSkeletons[PLAYER_FORM_MAX];
-extern PlayerModelIndices gPlayerModelTypes[];
+extern PlayerModelIndices MM_gPlayerModelTypes[];
 extern struct_80124618 D_801C03A0[];
 extern struct_80124618 D_801C0490[];
-extern Gfx gCullBackDList[];
-extern Gfx gCullFrontDList[];
+extern Gfx MM_gCullBackDList[];
+extern Gfx MM_gCullFrontDList[];
 
-extern u32 gBitFlags[32];
-extern u16 gEquipMasks[];
-extern u16 gEquipNegMasks[];
-extern u32 gUpgradeMasks[8];
-extern u32 gUpgradeNegMasks[];
-extern u8 gEquipShifts[];
-extern u8 gUpgradeShifts[8];
-extern u16 gUpgradeCapacities[][4];
+extern u32 MM_gBitFlags[32];
+extern u16 MM_gEquipMasks[];
+extern u16 MM_gEquipNegMasks[];
+extern u32 MM_gUpgradeMasks[8];
+extern u32 MM_gUpgradeNegMasks[];
+extern u8 MM_gEquipShifts[];
+extern u8 MM_gUpgradeShifts[8];
+extern u16 MM_gUpgradeCapacities[][4];
 extern u32 gGsFlagsMask[];
 extern u32 gGsFlagsShift[];
-extern TexturePtr gItemIcons[131];
-extern u8 gItemSlots[77];
+extern TexturePtr MM_gItemIcons[131];
+extern u8 MM_gItemSlots[77];
 extern s16 gItemPrices[];
 extern u16 gSceneIdsPerRegion[11][27];
 extern u8 gPlayerFormItemRestrictions[PLAYER_FORM_MAX][114];
 
 extern s16 gPlayerFormObjectIds[PLAYER_FORM_MAX];
-extern ObjectId gObjectTableSize;
-extern RomFile gObjectTable[OBJECT_ID_MAX];
+extern ObjectId MM_gObjectTableSize;
+extern RomFile MM_gObjectTable[OBJECT_ID_MAX];
 
-extern SceneTableEntry gSceneTable[SCENE_MAX];
+extern SceneTableEntry MM_gSceneTable[SCENE_MAX];
 extern UNK_PTR D_801C5C50;
 // extern UNK_TYPE1 D_801C5C9C;
 extern UNK_PTR D_801C5CB0;
@@ -163,27 +163,27 @@ extern s16 gLowPassFilterData[];
 extern s16 gHighPassFilterData[];
 extern s16 gBandStopFilterData[];
 extern s16 gBandPassFilterData[];
-extern s16* gWaveSamples[9];
-extern f32 gBendPitchOneOctaveFrequencies[];
-extern f32 gBendPitchTwoSemitonesFrequencies[];
+extern s16* MM_gWaveSamples[9];
+extern f32 MM_gBendPitchOneOctaveFrequencies[];
+extern f32 MM_gBendPitchTwoSemitonesFrequencies[];
 extern f32 gPitchFrequencies[];
-extern u8 gDefaultShortNoteVelocityTable[];
-extern u8 gDefaultShortNoteGateTimeTable[];
-extern EnvelopePoint gDefaultEnvelope[];
+extern u8 MM_gDefaultShortNoteVelocityTable[];
+extern u8 MM_gDefaultShortNoteGateTimeTable[];
+extern EnvelopePoint MM_gDefaultEnvelope[];
 extern NoteSampleState gZeroedSampleState;
 extern NoteSampleState gDefaultSampleState;
 extern u16 gHaasEffectDelaySize[];
 extern u16 gHaasEffectDelaySize[];
 extern s16 gInvalidAdpcmCodeBook[];
-extern f32 gHeadsetPanVolume[];
-extern f32 gStereoPanVolume[];
-extern f32 gDefaultPanVolume[];
+extern f32 MM_gHeadsetPanVolume[];
+extern f32 MM_gStereoPanVolume[];
+extern f32 MM_gDefaultPanVolume[];
 extern s32 gAudioCtxInitalized;
 extern u8 D_801D6200[0x400];
 
-extern u8 gAudioSpecId;
+extern u8 MM_gAudioSpecId;
 extern u8 gAudioHeapResetState;
-extern AudioSpec gAudioSpecs[21];
+extern AudioSpec MM_gAudioSpecs[21];
 
 // rodata
 extern const u16 gAudioEnvironmentalSfx[];
@@ -249,9 +249,9 @@ extern u8 gSampleBankTable[];
 // extern UNK_TYPE1 D_801ED894;
 
 // extern UNK_TYPE1 D_801F4E20;
-// extern UNK_TYPE1 sBeatingHeartsDDPrim;
-// extern UNK_TYPE1 sBeatingHeartsDDEnv;
-// extern UNK_TYPE1 sHeartsDDPrim;
+// extern UNK_TYPE1 MM_sBeatingHeartsDDPrim;
+// extern UNK_TYPE1 MM_sBeatingHeartsDDEnv;
+// extern UNK_TYPE1 MM_sHeartsDDPrim;
 // extern UNK_TYPE1 D_801F4F56;
 // extern UNK_TYPE1 D_801F4F58;
 // extern UNK_TYPE1 D_801F4F5A;
@@ -260,7 +260,7 @@ extern u8 gSampleBankTable[];
 // extern UNK_TYPE1 D_801F4F68;
 // extern UNK_TYPE1 D_801F4F6A;
 
-// extern UNK_TYPE1 sSkyboxDrawMatrix;
+// extern UNK_TYPE1 MM_sSkyboxDrawMatrix;
 // extern UNK_TYPE1 D_801F6AF0;
 // extern UNK_TYPE1 D_801F6AF2;
 // extern UNK_TYPE4 D_801F6B00;
@@ -275,10 +275,10 @@ extern GfxMasterList* gGfxMasterDL;
 extern u64* gAudioSPDataPtr;
 extern u32 gAudioSPDataSize;
 
-extern MtxF* sMatrixStack;
-extern MtxF* sCurrentMatrix;
+extern MtxF* MM_sMatrixStack;
+extern MtxF* MM_sCurrentMatrix;
 
-extern Color_RGBA8_u32 gVisMonoColor;
+extern Color_RGBA8_u32 MM_gVisMonoColor;
 
 extern s32 D_801FD120;
 extern u8 sResetAudioHeapTimer;
@@ -292,11 +292,11 @@ extern AudioCustomSynthFunction gAudioCustomSynthFunction;
 
 // other segments
 extern Mtx D_01000000;
-extern u16 D_0F000000[];
+extern u16 MM_D_0F000000[];
 
 // #region 2S2H [General]
-extern PlayState* gPlayState;
-extern GameState* gGameState;
+extern PlayState* MM_gPlayState;
+extern GameState* MM_gGameState;
 // #endregion
 
 #ifdef __cplusplus

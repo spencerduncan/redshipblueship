@@ -431,15 +431,15 @@ uint32_t GameInteractor_RightStickOcarina(Input* input) {
 }
 
 void ProcessEvents(Actor* actor) {
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(MM_gPlayState);
 
     // If the player has a message active, stop
-    if (gPlayState->msgCtx.msgMode != 0) {
+    if (MM_gPlayState->msgCtx.msgMode != 0) {
         return;
     }
 
     // If the player is in a blocking cutscene, stop
-    if (Player_InBlockingCsMode(gPlayState, player)) {
+    if (MM_Player_InBlockingCsMode(MM_gPlayState, player)) {
         return;
     }
 
@@ -474,7 +474,7 @@ void ProcessEvents(Actor* actor) {
             (player->stateFlags1 &
              (PLAYER_STATE1_CHARGING_SPIN_ATTACK | PLAYER_STATE1_2000 | PLAYER_STATE1_4000 | PLAYER_STATE1_40000 |
               PLAYER_STATE1_80000 | PLAYER_STATE1_100000 | PLAYER_STATE1_200000 | PLAYER_STATE1_8000000)) ||
-            (Player_GetExplosiveHeld(player) > PLAYER_EXPLOSIVE_NONE)) {
+            (MM_Player_GetExplosiveHeld(player) > PLAYER_EXPLOSIVE_NONE)) {
 
             flags |= CustomItem::GIVE_OVERHEAD;
         } else {
@@ -484,7 +484,7 @@ void ProcessEvents(Actor* actor) {
         enItem00 = CustomItem::Spawn(
             player->actor.world.pos.x, player->actor.world.pos.y, player->actor.world.pos.z, 0, flags, e->param,
             [](Actor* actor, PlayState* play) {
-                Player* player = GET_PLAYER(gPlayState);
+                Player* player = GET_PLAYER(MM_gPlayState);
                 const auto& nextEvent = GameInteractor::Instance->currentEvent;
                 if (auto e = std::get_if<GIEventGiveItem>(&nextEvent)) {
                     e->giveItem(actor, play);
@@ -504,10 +504,10 @@ void ProcessEvents(Actor* actor) {
             }
         };
     } else if (auto e = std::get_if<GIEventTransition>(&nextEvent)) {
-        gPlayState->nextEntrance = e->entrance;
+        MM_gPlayState->nextEntrance = e->entrance;
         gSaveContext.nextCutsceneIndex = e->cutsceneIndex;
-        gPlayState->transitionTrigger = e->transitionTrigger;
-        gPlayState->transitionType = e->transitionType;
+        MM_gPlayState->transitionTrigger = e->transitionTrigger;
+        MM_gPlayState->transitionType = e->transitionType;
         GameInteractor::Instance->currentEvent = GIEventNone{};
     } else if (auto e = std::get_if<GIEventSpawnActor>(&nextEvent)) {
         // if true, the coordinates are made relative to the player's position and rotation, 0 rotation is facing the
@@ -520,10 +520,10 @@ void ProcessEvents(Actor* actor) {
             f32 c = cos(player->actor.world.rot.y);
             f32 x2 = e->posX * c - e->posZ * s;
             f32 z2 = e->posX * s + e->posZ * c;
-            Actor_Spawn(&gPlayState->actorCtx, gPlayState, e->actorId, x + x2, y + e->posY, z + z2, 0,
+            MM_Actor_Spawn(&MM_gPlayState->actorCtx, MM_gPlayState, e->actorId, x + x2, y + e->posY, z + z2, 0,
                         e->rotY + player->actor.world.rot.y, 0, e->params);
         } else {
-            Actor_Spawn(&gPlayState->actorCtx, gPlayState, e->actorId, e->posX, e->posY, e->posZ, e->rotX, e->rotY,
+            MM_Actor_Spawn(&MM_gPlayState->actorCtx, MM_gPlayState, e->actorId, e->posX, e->posY, e->posZ, e->rotX, e->rotY,
                         e->rotZ, e->params);
         }
         GameInteractor::Instance->currentEvent = GIEventNone{};

@@ -121,7 +121,7 @@ void EnAnubice_SetFireballRot(EnAnubice* this, PlayState* play) {
     x = player->actor.world.pos.x - this->fireballPos.x;
     y = player->actor.world.pos.y + 10.0f - this->fireballPos.y;
     z = player->actor.world.pos.z - this->fireballPos.z;
-    xzdist = OoT_sqrtf(SQ(x) + SQ(z));
+    xzdist = sqrtf(SQ(x) + SQ(z));
 
     this->fireballRot.x = -RADF_TO_BINANG(OoT_Math_FAtan2F(y, xzdist));
     this->fireballRot.y = RADF_TO_BINANG(OoT_Math_FAtan2F(x, z));
@@ -255,7 +255,7 @@ void EnAnubice_GoToHome(EnAnubice* this, PlayState* play) {
         (fabsf(this->home.z - this->actor.world.pos.z) > 3.0f)) {
         x = this->home.x - this->actor.world.pos.x;
         z = this->home.z - this->actor.world.pos.z;
-        xzdist = OoT_sqrtf(SQ(x) + SQ(z));
+        xzdist = sqrtf(SQ(x) + SQ(z));
         xRatio = x / xzdist;
         zRatio = z / xzdist;
         this->actor.world.pos.x += xRatio * 8;

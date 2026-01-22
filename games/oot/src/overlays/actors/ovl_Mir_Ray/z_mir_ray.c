@@ -277,7 +277,7 @@ void OoT_MirRay_SetIntensity(MirRay* this, PlayState* play) {
     if (OoT_MirRay_CheckInFrustum(&this->sourcePt, &this->poolPt, shieldMtx->xw, shieldMtx->yw, shieldMtx->zw,
                               this->sourceEndRad, this->poolEndRad)) {
 
-        temp_f0 = OoT_sqrtf(SQ(shieldMtx->zz) + (SQ(shieldMtx->xz) + SQ(shieldMtx->yz)));
+        temp_f0 = sqrtf(SQ(shieldMtx->zz) + (SQ(shieldMtx->xz) + SQ(shieldMtx->yz)));
 
         if (temp_f0 == 0.0f) {
             this->reflectRange = 1.0f;
@@ -296,7 +296,7 @@ void OoT_MirRay_SetIntensity(MirRay* this, PlayState* play) {
             temp_f2_2 = -shieldMtx->xz * sp4C[0] - shieldMtx->yz * sp4C[1] - shieldMtx->zz * sp4C[2];
 
             if (temp_f2_2 < 0.0f) {
-                temp_f0_2 = OoT_sqrtf(SQ(sp4C[0]) + SQ(sp4C[1]) + SQ(sp4C[2]));
+                temp_f0_2 = sqrtf(SQ(sp4C[0]) + SQ(sp4C[1]) + SQ(sp4C[2]));
                 if ((temp_f0 != 0.0f) && (temp_f0_2 != 0.0f)) {
                     this->reflectIntensity = -temp_f2_2 / (temp_f0 * temp_f0_2);
                 }
@@ -419,7 +419,7 @@ void OoT_MirRay_ReflectedBeam(MirRay* this, PlayState* play, MirRayShieldReflect
                 currentReflection->pos.y = sp118.y;
                 currentReflection->pos.z = sp118.z;
 
-                temp_f0 = OoT_sqrtf(SQ(sp118.x - vecB.x) + SQ(sp118.y - vecB.y) + SQ(sp118.z - vecB.z));
+                temp_f0 = sqrtf(SQ(sp118.x - vecB.x) + SQ(sp118.y - vecB.y) + SQ(sp118.z - vecB.z));
 
                 if (temp_f0 < (this->reflectIntensity * 600.0f)) {
                     currentReflection->opacity = 200;

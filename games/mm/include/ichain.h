@@ -57,6 +57,6 @@ typedef enum {
 
 struct Actor;
 
-void Actor_ProcessInitChain(struct Actor* actor, struct InitChainEntry* ichain);
+void MM_Actor_ProcessInitChain(struct Actor* actor, struct InitChainEntry* ichain);
 
 #endif

@@ -538,7 +538,7 @@ void OoT_Play_Init(GameState* thisx) {
     gTrnsnUnkState = 0;
     play->transitionMode = TRANS_MODE_OFF;
     OoT_FrameAdvance_Init(&play->frameAdvCtx);
-    OoT_Rand_Seed((u32)OoT_osGetTime());
+    OoT_Rand_Seed((u32)osGetTime());
     OoT_Matrix_Init(&play->state);
     play->state.main = OoT_Play_Main;
     play->state.destroy = OoT_Play_Destroy;
@@ -1772,7 +1772,7 @@ f32 func_800BFCB8(PlayState* play, MtxF* mf, Vec3f* pos) {
         f32 nz = COLPOLY_GET_NORMAL(poly.normal.z);
         s32 pad[5];
 
-        temp1 = OoT_sqrtf(1.0f - SQ(nx));
+        temp1 = sqrtf(1.0f - SQ(nx));
 
         if (temp1 != 0.0f) {
             temp2 = ny * temp1;

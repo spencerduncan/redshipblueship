@@ -252,7 +252,7 @@ void func_800C0094(CollisionPoly* poly, f32 tx, f32 ty, f32 tz, MtxF* dest) {
     }
     MM_CollisionPoly_GetNormalF(poly, &nx, &ny, &nz);
 
-    z_f14 = MM_sqrtf(SQ(ny) + SQ(nz));
+    z_f14 = sqrtf(SQ(ny) + SQ(nz));
     if (!IS_ZERO(z_f14)) {
         inv_z_f14 = 1.0f / z_f14;
         phi_f14 = ny * inv_z_f14;
@@ -708,7 +708,7 @@ s32 MM_BgCheck_SphVsStaticWall(StaticLookup* lookup, CollisionContext* colCtx, u
         nx = COLPOLY_GET_NORMAL(curPoly->normal.x);
         ny = COLPOLY_GET_NORMAL(curPoly->normal.y);
         nz = COLPOLY_GET_NORMAL(curPoly->normal.z);
-        normalXZ = MM_sqrtf(SQ(nx) + SQ(nz));
+        normalXZ = sqrtf(SQ(nx) + SQ(nz));
         planeDist = MM_Math3D_DistPlaneToPos(nx, ny, nz, curPoly->dist, &resultPos);
         if (radius < fabsf(planeDist) || COLPOLY_VIA_FLAG_TEST(curPoly->flags_vIA, xpFlags) ||
             (COLPOLY_VIA_FLAG_TEST(curPoly->flags_vIB, 4) &&
@@ -796,7 +796,7 @@ s32 MM_BgCheck_SphVsStaticWall(StaticLookup* lookup, CollisionContext* colCtx, u
         nx = COLPOLY_GET_NORMAL(curPoly->normal.x);
         ny = COLPOLY_GET_NORMAL(curPoly->normal.y);
         nz = COLPOLY_GET_NORMAL(curPoly->normal.z);
-        normalXZ = MM_sqrtf(SQ(nx) + SQ(nz));
+        normalXZ = sqrtf(SQ(nx) + SQ(nz));
         planeDist = MM_Math3D_DistPlaneToPos(nx, ny, nz, curPoly->dist, &resultPos);
         if (radius < fabsf(planeDist) || COLPOLY_VIA_FLAG_TEST(curPoly->flags_vIA, xpFlags) ||
             (COLPOLY_VIA_FLAG_TEST(curPoly->flags_vIB, 4) &&
@@ -1974,7 +1974,7 @@ s32 MM_BgCheck_CheckWallImpl(CollisionContext* colCtx, u16 xpFlags, Vec3f* posRe
             if (result) {
                 f32 nx2 = COLPOLY_GET_NORMAL(poly->normal.x);
                 f32 nz2 = COLPOLY_GET_NORMAL(poly->normal.z);
-                f32 n2XZDist = MM_sqrtf(SQ(nx2) + SQ(nz2));
+                f32 n2XZDist = sqrtf(SQ(nx2) + SQ(nz2));
 
                 // if poly is not a "flat" floor or "flat" ceiling
                 if (!IS_ZERO(n2XZDist)) {
@@ -2029,7 +2029,7 @@ s32 MM_BgCheck_CheckWallImpl(CollisionContext* colCtx, u16 xpFlags, Vec3f* posRe
                                   &bgId2, actor, 1.0f, BGCHECK_CHECK_ONE_FACE | BGCHECK_CHECK_WALL)) {
             f32 nx3 = COLPOLY_GET_NORMAL(poly->normal.x);
             f32 nz3 = COLPOLY_GET_NORMAL(poly->normal.z);
-            f32 n3XZDist = MM_sqrtf(SQ(nx3) + SQ(nz3));
+            f32 n3XZDist = sqrtf(SQ(nx3) + SQ(nz3));
 
             // if poly is not a "flat" floor or "flat" ceiling
             if (!IS_ZERO(n3XZDist)) {
@@ -2468,8 +2468,8 @@ void MM_SSNodeList_Alloc(PlayState* play, SSNodeList* this, s32 tblMax, s32 numP
     this->polyCheckTbl = THA_AllocTailAlign16(&play->state.tha, numPolys * sizeof(u8));
 
     if (this->polyCheckTbl == NULL) {
-        MM_sprintf(D_801ED950, "this->polygon_check == NULL(game_alloc() MemoryAllocationError.)\n");
-        MM_sprintf(D_801ED9A0, "short_slist_node_size = %d/polygon_num = %d\n", tblMax, numPolys);
+        sprintf(D_801ED950, "this->polygon_check == NULL(game_alloc() MemoryAllocationError.)\n");
+        sprintf(D_801ED9A0, "short_slist_node_size = %d/polygon_num = %d\n", tblMax, numPolys);
         MM_Fault_AddHungupAndCrashImpl(D_801ED950, D_801ED9A0);
     }
 }
@@ -2885,20 +2885,20 @@ void DynaPoly_AddBgActorToLookup(PlayState* play, DynaCollisionContext* dyna, s3
     }
 
     if (*waterBoxStartIndex + pbgdata->numWaterBoxes > DYNA_WATERBOX_MAX) {
-        MM_sprintf(D_801EDAA8, "water_poly Error:[MoveBG OSUGI!!!]");
-        MM_sprintf(D_801EDAF8, "num = %d > %d\n", *waterBoxStartIndex + pbgdata->numWaterBoxes, DYNA_WATERBOX_MAX);
+        sprintf(D_801EDAA8, "water_poly Error:[MoveBG OSUGI!!!]");
+        sprintf(D_801EDAF8, "num = %d > %d\n", *waterBoxStartIndex + pbgdata->numWaterBoxes, DYNA_WATERBOX_MAX);
         MM_Fault_AddHungupAndCrashImpl(D_801EDAA8, D_801EDAF8);
     }
 
     if (*polyStartIndex + pbgdata->numPolygons > dyna->polyListMax) {
-        MM_sprintf(D_801EDAA8, "bg_poly Error:[MoveBG OSUGI!!!]");
-        MM_sprintf(D_801EDAF8, "num = %d > %d\n", *polyStartIndex + pbgdata->numPolygons, dyna->polyListMax);
+        sprintf(D_801EDAA8, "bg_poly Error:[MoveBG OSUGI!!!]");
+        sprintf(D_801EDAF8, "num = %d > %d\n", *polyStartIndex + pbgdata->numPolygons, dyna->polyListMax);
         MM_Fault_AddHungupAndCrashImpl(D_801EDAA8, D_801EDAF8);
     }
 
     if (*vtxStartIndex + pbgdata->numVertices > dyna->vtxListMax) {
-        MM_sprintf(D_801EDAA8, "bg_vert Error:[MoveBG OSUGI!!!]");
-        MM_sprintf(D_801EDAF8, "num = %d > %d\n", *vtxStartIndex + pbgdata->numVertices, dyna->vtxListMax);
+        sprintf(D_801EDAA8, "bg_vert Error:[MoveBG OSUGI!!!]");
+        sprintf(D_801EDAF8, "num = %d > %d\n", *vtxStartIndex + pbgdata->numVertices, dyna->vtxListMax);
         MM_Fault_AddHungupAndCrashImpl(D_801EDAA8, D_801EDAF8);
     }
 
@@ -2986,7 +2986,7 @@ void DynaPoly_AddBgActorToLookup(PlayState* play, DynaCollisionContext* dyna, s3
             }
         }
 
-        sphere->radius = MM_sqrtf(newRadiusSq) * 1.1f;
+        sphere->radius = sqrtf(newRadiusSq) * 1.1f;
 
         for (i = 0; i < pbgdata->numPolygons; i++) {
             CollisionPoly* newPoly = &dyna->polyList[*polyStartIndex + i];
@@ -3393,7 +3393,7 @@ s32 MM_BgCheck_SphVsDynaWallInBgActor(CollisionContext* colCtx, u16 xpFlags, Dyn
         polyId = curNode->polyId;
         poly = &dyna->polyList[polyId];
         MM_CollisionPoly_GetNormalF(poly, &nx, &ny, &nz);
-        normalXZ = MM_sqrtf(SQ(nx) + SQ(nz));
+        normalXZ = sqrtf(SQ(nx) + SQ(nz));
 
         planeDist = MM_Math3D_DistPlaneToPos(nx, ny, nz, poly->dist, &resultPos);
         if (radius < fabsf(planeDist) || COLPOLY_VIA_FLAG_TEST(poly->flags_vIA, xpFlags) ||
@@ -3469,7 +3469,7 @@ s32 MM_BgCheck_SphVsDynaWallInBgActor(CollisionContext* colCtx, u16 xpFlags, Dyn
         polyId = curNode->polyId;
         poly = &dyna->polyList[polyId];
         MM_CollisionPoly_GetNormalF(poly, &nx, &ny, &nz);
-        normalXZ = MM_sqrtf(SQ(nx) + SQ(nz));
+        normalXZ = sqrtf(SQ(nx) + SQ(nz));
 
         planeDist = MM_Math3D_DistPlaneToPos(nx, ny, nz, poly->dist, &resultPos);
         if (radius < fabsf(planeDist) || COLPOLY_VIA_FLAG_TEST(poly->flags_vIA, xpFlags) ||

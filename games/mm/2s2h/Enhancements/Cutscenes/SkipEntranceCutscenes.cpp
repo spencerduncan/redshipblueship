@@ -21,17 +21,17 @@ void RegisterSkipEntranceCutscenes() {
         }
 
         // Skip the entrance cutscene in the castle
-        if (gPlayState->sceneId == SCENE_CASTLE && (*csId == 0 || *csId == 1)) {
+        if (MM_gPlayState->sceneId == SCENE_CASTLE && (*csId == 0 || *csId == 1)) {
             *should = false;
         }
 
         // Snowhead entrance cutscene
-        if (gPlayState->sceneId == SCENE_HAKUGIN && (*csId == 24 || *csId == 25)) {
+        if (MM_gPlayState->sceneId == SCENE_HAKUGIN && (*csId == 24 || *csId == 25)) {
             *should = false;
         }
 
         // Pirate Fortress entrance cutscene
-        if (gPlayState->sceneId == SCENE_TORIDE && *csId == 12) {
+        if (MM_gPlayState->sceneId == SCENE_TORIDE && *csId == 12) {
             *should = false;
         }
     });

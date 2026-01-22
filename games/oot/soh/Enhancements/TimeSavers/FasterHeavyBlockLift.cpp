@@ -6,7 +6,7 @@ extern "C" {
 #include "macros.h"
 #include "variables.h"
 #include "functions.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 extern SaveContext gSaveContext;
 }
 
@@ -33,7 +33,7 @@ void RegisterFasterHeavyBlockLift() {
                    { *should = false; });
 
     COND_VB_SHOULD(VB_PLAY_THROW_ANIMATION, CVAR_BLOCKLIFT_VALUE, {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(OoT_gPlayState);
         Actor* interactRangeActor = player->interactRangeActor;
         s32 interactActorId = interactRangeActor->id;
         LinkAnimationHeader* anim = va_arg(args, LinkAnimationHeader*);
@@ -42,7 +42,7 @@ void RegisterFasterHeavyBlockLift() {
         bool isLargeSilverRock = (interactActorId == ACTOR_EN_ISHI) && ((interactRangeActor->params & 1) == 1);
         if (isLargeSilverRock || interactActorId == ACTOR_BG_HEAVY_BLOCK) {
             *should = false;
-            LinkAnimation_PlayOnceSetSpeed(gPlayState, &player->skelAnime, anim, 5.0f);
+            LinkAnimation_PlayOnceSetSpeed(OoT_gPlayState, &player->skelAnime, anim, 5.0f);
         }
     });
 

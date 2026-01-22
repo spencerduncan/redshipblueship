@@ -10,7 +10,7 @@
 
 extern "C" {
 #include "z64.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 std::vector<ImVec2> windowTypeSizes = { {} };
 

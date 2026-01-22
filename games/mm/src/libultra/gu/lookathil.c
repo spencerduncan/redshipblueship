@@ -1,7 +1,7 @@
 #include "ultra64.h"
 #include "z64math.h"
 
-void MM_guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32 zAt,
+void guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32 zAt,
                      f32 xUp, f32 yUp, f32 zUp, f32 xl1, f32 yl1, f32 zl1, /* light 1 direction */
                      f32 xl2, f32 yl2, f32 zl2,                            /* light 2 direction */
                      s32 hiliteWidth, s32 hiliteHeight)                    /* size of hilite texture */
@@ -22,7 +22,7 @@ void MM_guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, 
     xLook = xAt - xEye;
     yLook = yAt - yEye;
     zLook = zAt - zEye;
-    length = -1.0 / MM_sqrtf((xLook * xLook) + (yLook * yLook) + (zLook * zLook));
+    length = -1.0 / sqrtf((xLook * xLook) + (yLook * yLook) + (zLook * zLook));
     xLook *= length;
     yLook *= length;
     zLook *= length;
@@ -30,7 +30,7 @@ void MM_guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, 
     xRight = yUp * zLook - zUp * yLook;
     yRight = zUp * xLook - xUp * zLook;
     zRight = xUp * yLook - yUp * xLook;
-    length = 1.0 / MM_sqrtf((xRight * xRight) + (yRight * yRight) + (zRight * zRight));
+    length = 1.0 / sqrtf((xRight * xRight) + (yRight * yRight) + (zRight * zRight));
     xRight *= length;
     yRight *= length;
     zRight *= length;
@@ -38,14 +38,14 @@ void MM_guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, 
     xUp = yLook * zRight - zLook * yRight;
     yUp = zLook * xRight - xLook * zRight;
     zUp = xLook * yRight - yLook * xRight;
-    length = 1.0 / MM_sqrtf((xUp * xUp) + (yUp * yUp) + (zUp * zUp));
+    length = 1.0 / sqrtf((xUp * xUp) + (yUp * yUp) + (zUp * zUp));
     xUp *= length;
     yUp *= length;
     zUp *= length;
 
     /* hilite vectors */
 
-    length = 1.0 / MM_sqrtf((xl1 * xl1) + (yl1 * yl1) + (zl1 * zl1));
+    length = 1.0 / sqrtf((xl1 * xl1) + (yl1 * yl1) + (zl1 * zl1));
     xl1 *= length;
     yl1 *= length;
     zl1 *= length;
@@ -54,7 +54,7 @@ void MM_guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, 
     yHilite = yl1 + yLook;
     zHilite = zl1 + zLook;
 
-    length = MM_sqrtf((xHilite * xHilite) + (yHilite * yHilite) + (zHilite * zHilite));
+    length = sqrtf((xHilite * xHilite) + (yHilite * yHilite) + (zHilite * zHilite));
 
     if (length > 0.1) {
         length = 1.0 / length;
@@ -70,7 +70,7 @@ void MM_guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, 
         h->h.y1 = hiliteHeight * 2;
     }
 
-    length = 1.0 / MM_sqrtf((xl2 * xl2) + (yl2 * yl2) + (zl2 * zl2));
+    length = 1.0 / sqrtf((xl2 * xl2) + (yl2 * yl2) + (zl2 * zl2));
     xl2 *= length;
     yl2 *= length;
     zl2 *= length;
@@ -78,7 +78,7 @@ void MM_guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, 
     xHilite = xl2 + xLook;
     yHilite = yl2 + yLook;
     zHilite = zl2 + zLook;
-    length = MM_sqrtf((xHilite * xHilite) + (yHilite * yHilite) + (zHilite * zHilite));
+    length = sqrtf((xHilite * xHilite) + (yHilite * yHilite) + (zHilite * zHilite));
     if (length > 0.1) {
         length = 1.0 / length;
         xHilite *= length;
@@ -140,16 +140,16 @@ void MM_guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, 
 }
 
 /**
- * MM_guLookAtHilite
+ * guLookAtHilite
  * This function creates the viewing matrix (fixed point) and sets the LookAt/Hilite structures
  * Same args as previous function
  **/
-void MM_guLookAtHilite(Mtx* m, LookAt* l, Hilite* h, f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32 zAt, f32 xUp,
+void guLookAtHilite(Mtx* m, LookAt* l, Hilite* h, f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32 zAt, f32 xUp,
                     f32 yUp, f32 zUp, f32 xl1, f32 yl1, f32 zl1, f32 xl2, f32 yl2, f32 zl2, s32 hiliteWidth,
                     s32 hiliteHeight) {
     f32 mf[4][4];
 
-    MM_guLookAtHiliteF(mf, l, h, xEye, yEye, zEye, xAt, yAt, zAt, xUp, yUp, zUp, xl1, yl1, zl1, xl2, yl2, zl2, hiliteWidth,
+    guLookAtHiliteF(mf, l, h, xEye, yEye, zEye, xAt, yAt, zAt, xUp, yUp, zUp, xl1, yl1, zl1, xl2, yl2, zl2, hiliteWidth,
                     hiliteHeight);
 
     guMtxF2L(mf, m);

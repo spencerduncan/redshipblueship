@@ -56,10 +56,10 @@ void* MM_Yaz0_NextDMA(void* curSrcPos) {
             MM_sYaz0MaxPtr = dst + restSize + dmaSize;
         }
     } else {
-        oldPri = MM_osGetThreadPri(NULL);
-        MM_osSetThreadPri(NULL, 0x7F);
+        oldPri = osGetThreadPri(NULL);
+        osSetThreadPri(NULL, 0x7F);
         osSyncPrintf("圧縮展開異常\n");
-        MM_osSetThreadPri(NULL, oldPri);
+        osSetThreadPri(NULL, oldPri);
     }
 
     return dst;
@@ -154,8 +154,8 @@ void MM_Yaz0_Decompress(uintptr_t romStart, void* dst, size_t size) {
     status = MM_Yaz0_DecompressImpl(MM_Yaz0_FirstDMA(), dst);
 
     if (status != 0) {
-        MM_sprintf(sp80, "slidma slidstart_szs ret=%d", status);
-        MM_sprintf(sp30, "src:%08lx dst:%08lx siz:%08lx", romStart, dst, size);
+        sprintf(sp80, "slidma slidstart_szs ret=%d", status);
+        sprintf(sp30, "src:%08lx dst:%08lx siz:%08lx", romStart, dst, size);
         MM_Fault_AddHungupAndCrashImpl(sp80, sp30);
     }
 

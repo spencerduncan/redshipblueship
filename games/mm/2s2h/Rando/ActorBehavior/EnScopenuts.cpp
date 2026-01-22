@@ -6,7 +6,7 @@ extern "C" {
 #include "variables.h"
 #include "overlays/actors/ovl_En_Scopenuts/z_en_scopenuts.h"
 
-void Player_StartTalking(PlayState* play, Actor* actor);
+void MM_Player_StartTalking(PlayState* play, Actor* actor);
 void func_80BCB980(EnScopenuts* enScopenuts, PlayState* play);
 }
 
@@ -14,7 +14,7 @@ void Rando::ActorBehavior::InitEnScopenutsBehavior() {
     COND_VB_SHOULD(VB_GIVE_ITEM_FROM_OFFER, IS_RANDO, {
         GetItemId* item = va_arg(args, GetItemId*);
         Actor* actor = va_arg(args, Actor*);
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         if (actor->id == ACTOR_EN_SCOPENUTS) {
             EnScopenuts* enScopenuts = (EnScopenuts*)actor;
             *should = false;
@@ -23,7 +23,7 @@ void Rando::ActorBehavior::InitEnScopenutsBehavior() {
             player->talkActor = actor;
             player->talkActorDistance = actor->xzDistToPlayer;
             player->exchangeItemAction = PLAYER_IA_MINUS1;
-            Player_StartTalking(gPlayState, actor);
+            MM_Player_StartTalking(MM_gPlayState, actor);
             enScopenuts->actionFunc = func_80BCB980;
         }
     });

@@ -21,7 +21,7 @@ static bool minigameScoreSet = false; // Flag to track if the score has been set
 void RegisterBeaverRaceRings() {
     COND_ID_HOOK(ShouldActorUpdate, ACTOR_EN_AZ, CVAR_RINGS < 20, [](Actor* actor, bool* should) {
         EnAz* enAz = (EnAz*)actor;
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
 
         if (!minigameScoreSet) {
             gSaveContext.minigameScore = CVAR_RINGS;
@@ -53,13 +53,13 @@ void RegisterBeaverRaceRings() {
             SET_WEEKEVENTREG(WEEKEVENTREG_24_01);
             gSaveContext.timerStates[TIMER_ID_MINIGAME_2] = TIMER_STATE_STOP;
             enAz->unk_374 &= ~0x10;
-            gPlayState->nextEntrance = Entrance_CreateFromSpawn(2);
+            MM_gPlayState->nextEntrance = Entrance_CreateFromSpawn(2);
             gSaveContext.nextCutsceneIndex = 0;
-            gPlayState->transitionTrigger = TRANS_TRIGGER_START;
-            gPlayState->transitionType = TRANS_TYPE_FADE_WHITE;
+            MM_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
+            MM_gPlayState->transitionType = TRANS_TYPE_FADE_WHITE;
             gSaveContext.nextTransitionType = TRANS_TYPE_FADE_WHITE;
             enAz->actor.speed = 0.0f;
-            func_80A979DC(enAz, gPlayState);
+            func_80A979DC(enAz, MM_gPlayState);
         }
     });
 }

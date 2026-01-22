@@ -58,7 +58,7 @@ typedef struct GetItemEntry {
     /* 0x02 */ int16_t gi;     // defines the draw id and chest opening animation
     /* 0x03 */ uint16_t textId;
     /* 0x04 */ uint16_t objectId;
-    /* 0x06 */ uint16_t modIndex; // Primarily used for determining whether to use Item_Give or Randomizer_Item_Give
+    /* 0x06 */ uint16_t modIndex; // Primarily used for determining whether to use OoT_Item_Give or Randomizer_Item_Give
     /* 0x07 */ uint16_t tableId;  // GetItemEntry table this entry is in (usually the same as modIndex, but not always)
     /* 0x08 */ int16_t getItemId;
     /* 0x0A */ uint16_t gid; // Stores the GID value unmodified for future reference.

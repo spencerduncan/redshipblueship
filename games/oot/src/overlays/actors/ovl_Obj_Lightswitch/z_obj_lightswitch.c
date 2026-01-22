@@ -189,7 +189,7 @@ void ObjLightswitch_SpawnDisappearEffects(ObjLightswitch* this, PlayState* play)
             if (x < 100.0f) {
                 x = 100.0f;
             }
-            x = OoT_sqrtf(x);
+            x = sqrtf(x);
         }
         x = 2.0f * (x * (OoT_Rand_ZeroOne() - 0.5f));
         z = (30.0f - fabsf(x)) * 0.5f + 10.0f * OoT_Rand_ZeroOne();

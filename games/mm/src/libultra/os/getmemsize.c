@@ -4,7 +4,7 @@
 #define SIZE_4MB 0x400000
 #define SIZE_8MB 0x800000
 
-u32 MM_osGetMemSize(void) {
+u32 osGetMemSize(void) {
     vu32* ptr;
     u32 size = SIZE_4MB;
     u32 data0;

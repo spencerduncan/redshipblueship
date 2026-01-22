@@ -130,7 +130,7 @@ void BgJyaGoroiwa_Move(BgJyaGoroiwa* this, PlayState* play) {
         speedXZsqBase = 0.01f;
     }
 
-    thisx->speedXZ = OoT_sqrtf(speedXZsqBase) * this->speedFactor;
+    thisx->speedXZ = sqrtf(speedXZsqBase) * this->speedFactor;
     thisx->velocity.x = OoT_Math_SinS(thisx->world.rot.y) * thisx->speedXZ;
     thisx->velocity.z = OoT_Math_CosS(thisx->world.rot.y) * thisx->speedXZ;
 

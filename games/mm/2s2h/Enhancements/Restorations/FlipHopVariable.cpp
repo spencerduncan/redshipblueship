@@ -11,7 +11,7 @@ extern "C" {
 
 void RegisterVariableFlipHop() {
     COND_VB_SHOULD(VB_APPLY_AIR_CONTROL, CVAR, {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
 
         // actionVar1 == 5 is frontflips when running off a ledge
         if (player->stateFlags2 & PLAYER_STATE2_80000 && player->av1.actionVar1 != 5 &&

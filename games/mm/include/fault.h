@@ -55,34 +55,34 @@ typedef void(*FaultPadCallback)(Input* input);
 
 // Initialization
 
-void Fault_Init(void);
+void MM_Fault_Init(void);
 
 // Fatal Errors
 
-void Fault_AddHungupAndCrashImpl(const char* exp1, const char* exp2);
-void Fault_AddHungupAndCrash(const char* file, s32 line);
+void MM_Fault_AddHungupAndCrashImpl(const char* exp1, const char* exp2);
+void MM_Fault_AddHungupAndCrash(const char* file, s32 line);
 
 // Client Registration
 
-void Fault_AddClient(FaultClient* client, FaultClientCallback callback, void* arg0, void* arg1);
-void Fault_RemoveClient(FaultClient* client);
-void Fault_AddAddrConvClient(FaultAddrConvClient* client, FaultAddrConvClientCallback callback, void* arg);
-void Fault_RemoveAddrConvClient(FaultAddrConvClient* client);
+void MM_Fault_AddClient(FaultClient* client, FaultClientCallback callback, void* arg0, void* arg1);
+void MM_Fault_RemoveClient(FaultClient* client);
+void MM_Fault_AddAddrConvClient(FaultAddrConvClient* client, FaultAddrConvClientCallback callback, void* arg);
+void MM_Fault_RemoveAddrConvClient(FaultAddrConvClient* client);
 
 // For use in Fault Client callbacks
 
-void Fault_WaitForInput(void);
-void Fault_FillScreenBlack(void);
+void MM_Fault_WaitForInput(void);
+void MM_Fault_FillScreenBlack(void);
 void Fault_SetFrameBuffer(void* fb, u16 w, u16 h);
 
-void FaultDrawer_SetForeColor(u16 color);
-void FaultDrawer_SetBackColor(u16 color);
-void FaultDrawer_SetFontColor(u16 color);
-void FaultDrawer_SetCharPad(s8 padW, s8 padH);
-void FaultDrawer_SetCursor(s32 x, s32 y);
-s32 FaultDrawer_VPrintf(const char* fmt, va_list ap);
-s32 FaultDrawer_Printf(const char* fmt, ...);
-void FaultDrawer_DrawText(s32 x, s32 y, const char* fmt, ...);
+void MM_FaultDrawer_SetForeColor(u16 color);
+void MM_FaultDrawer_SetBackColor(u16 color);
+void MM_FaultDrawer_SetFontColor(u16 color);
+void MM_FaultDrawer_SetCharPad(s8 padW, s8 padH);
+void MM_FaultDrawer_SetCursor(s32 x, s32 y);
+s32 MM_FaultDrawer_VPrintf(const char* fmt, va_list ap);
+s32 MM_FaultDrawer_Printf(const char* fmt, ...);
+void MM_FaultDrawer_DrawText(s32 x, s32 y, const char* fmt, ...);
 
 
 typedef struct FaultMgr {

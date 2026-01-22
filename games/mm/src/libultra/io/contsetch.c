@@ -1,7 +1,7 @@
 #include "ultra64.h"
 #include "PR/controller.h"
 
-s32 MM_osContSetCh(u8 ch) {
+s32 osContSetCh(u8 ch) {
     __osSiGetAccess();
 
     if (ch > MAXCONTROLLERS) {

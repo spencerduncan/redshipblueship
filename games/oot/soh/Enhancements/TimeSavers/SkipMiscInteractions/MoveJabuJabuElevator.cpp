@@ -6,7 +6,7 @@ extern "C" {
 }
 
 void BdanInit(void* actorRef) {
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
     BgBdanObjects* bgBdanObjects = static_cast<BgBdanObjects*>(actorRef);
 
     if (bgBdanObjects->dyna.actor.params == 1) {

@@ -858,7 +858,7 @@ void OoT_TitleCard_InitBossName(PlayState* play, TitleCardContext* titleCtx, voi
             newName[length - 4] = 'R';
         } else if (gSaveContext.language == LANGUAGE_JPN) {
             newName[length - 6] = 'J';
-            newName[length - 5] = 'OoT_P';
+            newName[length - 5] = 'P';
             newName[length - 4] = 'N';
         }
         texture = newName;
@@ -1080,7 +1080,7 @@ void OoT_TitleCard_InitPlaceName(PlayState* play, TitleCardContext* titleCtx, vo
             newName[length - 4] = 'R';
         } else if (gSaveContext.language == LANGUAGE_JPN) {
             newName[length - 6] = 'J';
-            newName[length - 5] = 'OoT_P';
+            newName[length - 5] = 'P';
             newName[length - 4] = 'N';
         }
         texture = newName;
@@ -1575,7 +1575,7 @@ s32 OoT_Actor_IsFacingAndNearPlayer(Actor* actor, f32 range, s16 maxAngle) {
     s16 yawDiff = actor->yawTowardsPlayer - actor->shape.rot.y;
 
     if (ABS(yawDiff) < maxAngle) {
-        f32 xyzDistanceFromLink = OoT_sqrtf(SQ(actor->xzDistToPlayer) + SQ(actor->yDistToPlayer));
+        f32 xyzDistanceFromLink = sqrtf(SQ(actor->xzDistToPlayer) + SQ(actor->yDistToPlayer));
 
         if (xyzDistanceFromLink < range) {
             return true;
@@ -1769,7 +1769,7 @@ Gfx* func_8002E830(Vec3f* object, Vec3f* eye, Vec3f* lightDir, GraphicsContext* 
     }
 
     func_800ABE74(correctedEyeX, eye->y, eye->z);
-    OoT_guLookAtHilite(&D_8015BBA8, lookAt, *hilite, correctedEyeX, eye->y, eye->z, object->x, object->y, object->z, 0.0f,
+    guLookAtHilite(&D_8015BBA8, lookAt, *hilite, correctedEyeX, eye->y, eye->z, object->x, object->y, object->z, 0.0f,
                    1.0f, 0.0f, lightDir->x, lightDir->y, lightDir->z, lightDir->x, lightDir->y, lightDir->z, 0x10,
                    0x10);
 
@@ -2420,7 +2420,7 @@ void Actor_DrawFaroresWindPointer(PlayState* play) {
                 curPos->z = nextPos->z + (dist.z * factor);
                 length *= 0.5f;
                 dx = diff - length;
-                yOffset += OoT_sqrtf(SQ(length) - SQ(dx)) * 0.2f;
+                yOffset += sqrtf(SQ(length) - SQ(dx)) * 0.2f;
                 osSyncPrintf("-------- DISPLAY Y=%f\n", yOffset);
             }
 
@@ -4861,7 +4861,7 @@ void func_80035844(Vec3f* arg0, Vec3f* arg1, Vec3s* arg2, s32 arg3) {
     f32 dy = arg3 ? (arg1->y - arg0->y) : (arg0->y - arg1->y);
 
     arg2->y = OoT_Math_Atan2S(dz, dx);
-    arg2->x = OoT_Math_Atan2S(OoT_sqrtf(SQ(dx) + SQ(dz)), dy);
+    arg2->x = OoT_Math_Atan2S(sqrtf(SQ(dx) + SQ(dz)), dy);
 }
 
 /**

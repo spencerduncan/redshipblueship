@@ -16,7 +16,7 @@ extern "C" {
 #include "variables.h"
 #include "macros.h"
 #include "functions.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 #include "overlays/actors/ovl_En_Niw/z_en_niw.h"
@@ -39,12 +39,12 @@ GameInteractionEffectQueryResult GameInteractor::RemoveEffect(RemovableGameInter
 
 bool GameInteractor::IsSaveLoaded(bool allowDbgSave) {
     Player* player;
-    if (gPlayState != NULL) {
-        player = GET_PLAYER(gPlayState);
+    if (OoT_gPlayState != NULL) {
+        player = GET_PLAYER(OoT_gPlayState);
     }
 
     // Checking for normal game mode prevents debug saves from reporting true on title screen
-    if (gPlayState == NULL || player == NULL || gSaveContext.gameMode != GAMEMODE_NORMAL) {
+    if (OoT_gPlayState == NULL || player == NULL || gSaveContext.gameMode != GAMEMODE_NORMAL) {
         return false;
     }
 
@@ -53,9 +53,9 @@ bool GameInteractor::IsSaveLoaded(bool allowDbgSave) {
 }
 
 bool GameInteractor::IsGameplayPaused() {
-    Player* player = GET_PLAYER(gPlayState);
-    return (Player_InBlockingCsMode(gPlayState, player) || gPlayState->pauseCtx.state != 0 ||
-            gPlayState->msgCtx.msgMode != 0)
+    Player* player = GET_PLAYER(OoT_gPlayState);
+    return (OoT_Player_InBlockingCsMode(OoT_gPlayState, player) || OoT_gPlayState->pauseCtx.state != 0 ||
+            OoT_gPlayState->msgCtx.msgMode != 0)
                ? true
                : false;
 }

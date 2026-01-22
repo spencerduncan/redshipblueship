@@ -698,7 +698,7 @@ void OoT_Environment_UpdateSkybox(PlayState* play, u8 skyboxId, EnvironmentConte
 
             // size = gSkyboxFiles[newSkybox1Index].file.vromEnd - gSkyboxFiles[newSkybox1Index].file.vromStart;
 
-            // OoT_osCreateMesgQueue(&envCtx->loadQueue, &envCtx->loadMsg, 1);
+            // osCreateMesgQueue(&envCtx->loadQueue, &envCtx->loadMsg, 1);
             // DmaMgr_SendRequest2(&envCtx->dmaRequest, (uintptr_t)skyboxCtx->staticSegments[0],
             // gSkyboxFiles[newSkybox1Index].file.vromStart, size, 0, &envCtx->loadQueue, NULL,
             //__FILE__, __LINE__);
@@ -717,7 +717,7 @@ void OoT_Environment_UpdateSkybox(PlayState* play, u8 skyboxId, EnvironmentConte
             envCtx->skybox2Index = newSkybox2Index;
 
             // size = gSkyboxFiles[newSkybox2Index].file.vromEnd - gSkyboxFiles[newSkybox2Index].file.vromStart;
-            // OoT_osCreateMesgQueue(&envCtx->loadQueue, &envCtx->loadMsg, 1);
+            // osCreateMesgQueue(&envCtx->loadQueue, &envCtx->loadMsg, 1);
             // DmaMgr_SendRequest2(&envCtx->dmaRequest, (uintptr_t)skyboxCtx->staticSegments[1],
             // gSkyboxFiles[newSkybox2Index].file.vromStart, size, 0, &envCtx->loadQueue, NULL,
             //__FILE__, __LINE__);
@@ -732,7 +732,7 @@ void OoT_Environment_UpdateSkybox(PlayState* play, u8 skyboxId, EnvironmentConte
                 LoadSkyboxPalette(skyboxCtx, 0, entryA.palettes[0], 16, 8);
 
                 // size = gSkyboxFiles[newSkybox1Index].palette.vromEnd -
-                // gSkyboxFiles[newSkybox1Index].palette.vromStart; OoT_osCreateMesgQueue(&envCtx->loadQueue,
+                // gSkyboxFiles[newSkybox1Index].palette.vromStart; osCreateMesgQueue(&envCtx->loadQueue,
                 // &envCtx->loadMsg, 1); DmaMgr_SendRequest2(&envCtx->dmaRequest, (uintptr_t)skyboxCtx->palettes,
                 // gSkyboxFiles[newSkybox1Index].palette.vromStart, size, 0, &envCtx->loadQueue, NULL,
                 //__FILE__, __LINE__);
@@ -741,7 +741,7 @@ void OoT_Environment_UpdateSkybox(PlayState* play, u8 skyboxId, EnvironmentConte
                 LoadSkyboxPalette(skyboxCtx, 1, entryA.palettes[0], 16, 8);
 
                 // size = gSkyboxFiles[newSkybox1Index].palette.vromEnd -
-                // gSkyboxFiles[newSkybox1Index].palette.vromStart; OoT_osCreateMesgQueue(&envCtx->loadQueue,
+                // gSkyboxFiles[newSkybox1Index].palette.vromStart; osCreateMesgQueue(&envCtx->loadQueue,
                 // &envCtx->loadMsg, 1); DmaMgr_SendRequest2(&envCtx->dmaRequest, (uintptr_t)skyboxCtx->palettes + size,
                 // gSkyboxFiles[newSkybox1Index].palette.vromStart, size, 0, &envCtx->loadQueue, NULL,
                 //__FILE__, __LINE__);
@@ -758,7 +758,7 @@ void OoT_Environment_UpdateSkybox(PlayState* play, u8 skyboxId, EnvironmentConte
                 LoadSkyboxPalette(skyboxCtx, 0, entryA.palettes[0], 16, 8);
 
                 /*size = gSkyboxFiles[newSkybox2Index].palette.vromEnd -
-                gSkyboxFiles[newSkybox2Index].palette.vromStart; OoT_osCreateMesgQueue(&envCtx->loadQueue, &envCtx->loadMsg,
+                gSkyboxFiles[newSkybox2Index].palette.vromStart; osCreateMesgQueue(&envCtx->loadQueue, &envCtx->loadMsg,
                 1); DmaMgr_SendRequest2(&envCtx->dmaRequest, (uintptr_t)skyboxCtx->palettes,
                                     gSkyboxFiles[newSkybox2Index].palette.vromStart, size, 0, &envCtx->loadQueue, NULL,
                                     __FILE__, __LINE__);*/
@@ -767,7 +767,7 @@ void OoT_Environment_UpdateSkybox(PlayState* play, u8 skyboxId, EnvironmentConte
                 LoadSkyboxPalette(skyboxCtx, 1, entryA.palettes[0], 16, 8);
 
                 /*size = gSkyboxFiles[newSkybox2Index].palette.vromEnd -
-                gSkyboxFiles[newSkybox2Index].palette.vromStart; OoT_osCreateMesgQueue(&envCtx->loadQueue, &envCtx->loadMsg,
+                gSkyboxFiles[newSkybox2Index].palette.vromStart; osCreateMesgQueue(&envCtx->loadQueue, &envCtx->loadMsg,
                 1); DmaMgr_SendRequest2(&envCtx->dmaRequest, (uintptr_t)skyboxCtx->palettes + size,
                                     gSkyboxFiles[newSkybox2Index].palette.vromStart, size, 0, &envCtx->loadQueue, NULL,
                                     __FILE__, __LINE__);*/
@@ -777,10 +777,10 @@ void OoT_Environment_UpdateSkybox(PlayState* play, u8 skyboxId, EnvironmentConte
         }
 
         if ((envCtx->skyboxDmaState == SKYBOX_DMA_FILE1_START) || (envCtx->skyboxDmaState == SKYBOX_DMA_FILE2_START)) {
-            // if (OoT_osRecvMesg(&envCtx->loadQueue, 0, OS_MESG_NOBLOCK) == 0)
+            // if (osRecvMesg(&envCtx->loadQueue, 0, OS_MESG_NOBLOCK) == 0)
             { envCtx->skyboxDmaState++; }
         } else if (envCtx->skyboxDmaState >= SKYBOX_DMA_FILE1_DONE) {
-            // if (OoT_osRecvMesg(&envCtx->loadQueue, 0, OS_MESG_NOBLOCK) == 0)
+            // if (osRecvMesg(&envCtx->loadQueue, 0, OS_MESG_NOBLOCK) == 0)
             { envCtx->skyboxDmaState = SKYBOX_DMA_INACTIVE; }
         }
 
@@ -1476,7 +1476,7 @@ void OoT_Environment_DrawLensFlare(PlayState* play, EnvironmentContext* envCtx, 
     tempY = view->lookAt.y - view->eye.y;
     tempZ = view->lookAt.z - view->eye.z;
 
-    length = OoT_sqrtf(SQ(tempX) + SQ(tempY) + SQ(tempZ));
+    length = sqrtf(SQ(tempX) + SQ(tempY) + SQ(tempZ));
 
     lookDirX = tempX / length;
     lookDirY = tempY / length;
@@ -1492,7 +1492,7 @@ void OoT_Environment_DrawLensFlare(PlayState* play, EnvironmentContext* envCtx, 
     tempY2 = pos.y - halfPosY;
     tempZ2 = pos.z - halfPosZ;
 
-    length = OoT_sqrtf(SQ(tempX2) + SQ(tempY2) + SQ(tempZ2));
+    length = sqrtf(SQ(tempX2) + SQ(tempY2) + SQ(tempZ2));
 
     posDirX = tempX2 / length;
     posDirY = tempY2 / length;
@@ -1500,7 +1500,7 @@ void OoT_Environment_DrawLensFlare(PlayState* play, EnvironmentContext* envCtx, 
 
     // compute the cosine of the angle between lookDir and posDir
     cosAngle = (lookDirX * posDirX + lookDirY * posDirY + lookDirZ * posDirZ) /
-               OoT_sqrtf((SQ(lookDirX) + SQ(lookDirY) + SQ(lookDirZ)) * (SQ(posDirX) + SQ(posDirY) + SQ(posDirZ)));
+               sqrtf((SQ(lookDirX) + SQ(lookDirY) + SQ(lookDirZ)) * (SQ(posDirX) + SQ(posDirY) + SQ(posDirZ)));
 
     unk88Target = cosAngle * 3.5f;
     unk88Target = CLAMP_MAX(unk88Target, 1.0f);
@@ -1653,7 +1653,7 @@ void OoT_Environment_DrawRain(PlayState* play, View* view, GraphicsContext* gfxC
         vec.y = view->lookAt.y - view->eye.y;
         vec.z = view->lookAt.z - view->eye.z;
 
-        length = OoT_sqrtf(SQXYZ(vec));
+        length = sqrtf(SQXYZ(vec));
 
         temp1 = vec.x / length;
         temp2 = vec.y / length;
@@ -1690,7 +1690,7 @@ void OoT_Environment_DrawRain(PlayState* play, View* view, GraphicsContext* gfxC
             vec.x = windDirection.x;
             vec.y = windDirection.y + 500.0f + OoT_Rand_ZeroOne() * 200.0f;
             vec.z = windDirection.z;
-            length = OoT_sqrtf(SQXZ(vec));
+            length = sqrtf(SQXZ(vec));
 
             gSPMatrix(POLY_XLU_DISP++, SEG_ADDR(1, 0), G_MTX_NOPUSH | G_MTX_MUL | G_MTX_MODELVIEW);
             rotX = OoT_Math_Atan2F(length, -vec.y);
@@ -1932,8 +1932,8 @@ void OoT_Environment_DrawLightning(PlayState* play, s32 unused) {
                 dx = play->view.lookAt.x - play->view.eye.x;
                 dz = play->view.lookAt.z - play->view.eye.z;
 
-                x = dx / OoT_sqrtf(SQ(dx) + SQ(dz));
-                z = dz / OoT_sqrtf(SQ(dx) + SQ(dz));
+                x = dx / sqrtf(SQ(dx) + SQ(dz));
+                z = dz / sqrtf(SQ(dx) + SQ(dz));
 
                 OoT_sLightningBolts[i].pos.x = play->view.eye.x + x * 9500.0f;
                 OoT_sLightningBolts[i].pos.y = OoT_Rand_ZeroOne() * 1000.0f + 4000.0f;

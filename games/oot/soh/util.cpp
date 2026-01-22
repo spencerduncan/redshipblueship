@@ -775,12 +775,12 @@ size_t SohUtils::CopyStringToCharBuffer(char* buffer, const std::string& source,
 }
 
 bool SohUtils::IsStringEmpty(std::string str) {
-    // Remove spaces at the beginning of the string
+    // Remove OoT_spaces at the beginning of the string
     std::string::size_type start = str.find_first_not_of(' ');
-    // Remove spaces at the end of the string
+    // Remove OoT_spaces at the end of the string
     std::string::size_type end = str.find_last_not_of(' ');
 
-    // Check if the string is empty after stripping spaces
+    // Check if the string is empty after stripping OoT_spaces
     return start == std::string::npos || end == std::string::npos;
 }
 

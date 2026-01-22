@@ -538,7 +538,7 @@ void func_80A5C410(EnKusa2UnkBssStruct* arg0, EnKusa2UnkBssSubStruct2* arg1, Vec
                 if (temp_f0 < SQ(0.01f)) {
                     phi_f22 = 0.0f;
                 } else {
-                    phi_f22 = MM_sqrtf(temp_f0);
+                    phi_f22 = sqrtf(temp_f0);
                 }
 
                 if (phi_v0) {

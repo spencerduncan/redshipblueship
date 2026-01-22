@@ -52,8 +52,8 @@ typedef struct {
 
 // Initialization
 
-s32 PadSetup_Init(OSMesgQueue* mq, u8* outMask, OSContStatus* status);
-void PadMgr_Init(OSMesgQueue* siEvtQ, IrqMgr* irqMgr, OSId threadId, OSPri pri, void* stack);
+s32 MM_PadSetup_Init(OSMesgQueue* mq, u8* outMask, OSContStatus* status);
+void MM_PadMgr_Init(OSMesgQueue* siEvtQ, IrqMgr* irqMgr, OSId threadId, OSPri pri, void* stack);
 
 // Fetching inputs
 
@@ -80,10 +80,10 @@ void PadMgr_VoiceReleaseSerialEventQueue(OSMesgQueue* serialEventQueue);
 
 // Rumble
 
-void PadMgr_RumbleStop(void);
+void MM_PadMgr_RumbleStop(void);
 void PadMgr_RumblePause(void);
-void PadMgr_RumbleSetSingle(s32 port, s32 enable);
-void PadMgr_RumbleSet(u8 enable[MAXCONTROLLERS]);
+void MM_PadMgr_RumbleSetSingle(s32 port, s32 enable);
+void MM_PadMgr_RumbleSet(u8 enable[MAXCONTROLLERS]);
 s32 PadMgr_ControllerHasRumblePak(s32 port);
 
 #endif

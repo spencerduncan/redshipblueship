@@ -33,46 +33,46 @@ extern "C" {
 #include "functions.h"
 
 extern SaveContext gSaveContext;
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 /// Switches Link's age and respawns him at the last entrance he entered.
 void SwitchAge() {
-    if (gPlayState == NULL)
+    if (OoT_gPlayState == NULL)
         return;
 
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
 
     // Hyrule Castle: Very likely to fall through floor, so we force a specific entrance
-    if (gPlayState->sceneNum == SCENE_HYRULE_CASTLE || gPlayState->sceneNum == SCENE_OUTSIDE_GANONS_CASTLE) {
-        gPlayState->nextEntranceIndex = ENTR_CASTLE_GROUNDS_SOUTH_EXIT;
+    if (OoT_gPlayState->sceneNum == SCENE_HYRULE_CASTLE || OoT_gPlayState->sceneNum == SCENE_OUTSIDE_GANONS_CASTLE) {
+        OoT_gPlayState->nextEntranceIndex = ENTR_CASTLE_GROUNDS_SOUTH_EXIT;
     } else {
         gSaveContext.respawnFlag = 1;
-        gPlayState->nextEntranceIndex = gSaveContext.entranceIndex;
+        OoT_gPlayState->nextEntranceIndex = gSaveContext.entranceIndex;
 
         // Preserve the player's position and orientation
-        gSaveContext.respawn[RESPAWN_MODE_DOWN].entranceIndex = gPlayState->nextEntranceIndex;
-        gSaveContext.respawn[RESPAWN_MODE_DOWN].roomIndex = gPlayState->roomCtx.curRoom.num;
+        gSaveContext.respawn[RESPAWN_MODE_DOWN].entranceIndex = OoT_gPlayState->nextEntranceIndex;
+        gSaveContext.respawn[RESPAWN_MODE_DOWN].roomIndex = OoT_gPlayState->roomCtx.curRoom.num;
         gSaveContext.respawn[RESPAWN_MODE_DOWN].pos = player->actor.world.pos;
         gSaveContext.respawn[RESPAWN_MODE_DOWN].yaw = player->actor.shape.rot.y;
 
-        if (gPlayState->roomCtx.curRoom.behaviorType2 < 4) {
+        if (OoT_gPlayState->roomCtx.curRoom.behaviorType2 < 4) {
             gSaveContext.respawn[RESPAWN_MODE_DOWN].playerParams = 0x0DFF;
         } else {
             // Scenes with static backgrounds use a special camera we need to preserve
-            Camera* camera = GET_ACTIVE_CAM(gPlayState);
+            Camera* camera = GET_ACTIVE_CAM(OoT_gPlayState);
             s16 camId = camera->camDataIdx;
             gSaveContext.respawn[RESPAWN_MODE_DOWN].playerParams = 0x0D00 | camId;
         }
     }
 
-    gPlayState->transitionTrigger = TRANS_TRIGGER_START;
-    gPlayState->transitionType = TRANS_TYPE_INSTANT;
+    OoT_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
+    OoT_gPlayState->transitionType = TRANS_TYPE_INSTANT;
     gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK_FAST;
-    gPlayState->linkAgeOnLoad ^= 1;
+    OoT_gPlayState->linkAgeOnLoad ^= 1;
 
     // Discover adult/child spawns
-    if (gPlayState->linkAgeOnLoad == LINK_AGE_ADULT) {
+    if (OoT_gPlayState->linkAgeOnLoad == LINK_AGE_ADULT) {
         Entrance_SetEntranceDiscovered(ENTR_HYRULE_FIELD_10, false);
     } else {
         Entrance_SetEntranceDiscovered(ENTR_LINKS_HOUSE_CHILD_SPAWN, false);
@@ -93,15 +93,15 @@ void RegisterOcarinaTimeTravel() {
             return;
         }
 
-        Actor* player = &GET_PLAYER(gPlayState)->actor;
+        Actor* player = &GET_PLAYER(OoT_gPlayState)->actor;
         Actor* nearbyTimeBlockEmpty =
-            Actor_FindNearby(gPlayState, player, ACTOR_OBJ_WARP2BLOCK, ACTORCAT_ITEMACTION, 300.0f);
-        Actor* nearbyTimeBlock = Actor_FindNearby(gPlayState, player, ACTOR_OBJ_TIMEBLOCK, ACTORCAT_ITEMACTION, 300.0f);
-        Actor* nearbyOcarinaSpot = Actor_FindNearby(gPlayState, player, ACTOR_EN_OKARINA_TAG, ACTORCAT_PROP, 120.0f);
-        Actor* nearbyDoorOfTime = Actor_FindNearby(gPlayState, player, ACTOR_DOOR_TOKI, ACTORCAT_BG, 500.0f);
-        Actor* nearbyFrogs = Actor_FindNearby(gPlayState, player, ACTOR_EN_FR, ACTORCAT_NPC, 300.0f);
-        Actor* nearbyGossipStone = Actor_FindNearby(gPlayState, player, ACTOR_EN_GS, ACTORCAT_NPC, 300.0f);
-        bool justPlayedSoT = gPlayState->msgCtx.lastPlayedSong == OCARINA_SONG_TIME;
+            OoT_Actor_FindNearby(OoT_gPlayState, player, ACTOR_OBJ_WARP2BLOCK, ACTORCAT_ITEMACTION, 300.0f);
+        Actor* nearbyTimeBlock = OoT_Actor_FindNearby(OoT_gPlayState, player, ACTOR_OBJ_TIMEBLOCK, ACTORCAT_ITEMACTION, 300.0f);
+        Actor* nearbyOcarinaSpot = OoT_Actor_FindNearby(OoT_gPlayState, player, ACTOR_EN_OKARINA_TAG, ACTORCAT_PROP, 120.0f);
+        Actor* nearbyDoorOfTime = OoT_Actor_FindNearby(OoT_gPlayState, player, ACTOR_DOOR_TOKI, ACTORCAT_BG, 500.0f);
+        Actor* nearbyFrogs = OoT_Actor_FindNearby(OoT_gPlayState, player, ACTOR_EN_FR, ACTORCAT_NPC, 300.0f);
+        Actor* nearbyGossipStone = OoT_Actor_FindNearby(OoT_gPlayState, player, ACTOR_EN_GS, ACTORCAT_NPC, 300.0f);
+        bool justPlayedSoT = OoT_gPlayState->msgCtx.lastPlayedSong == OCARINA_SONG_TIME;
         bool notNearAnySource = !nearbyTimeBlockEmpty && !nearbyTimeBlock && !nearbyOcarinaSpot && !nearbyDoorOfTime &&
                                 !nearbyFrogs && !nearbyGossipStone;
         bool hasOcarinaOfTime = (INV_CONTENT(ITEM_OCARINA_TIME) == ITEM_OCARINA_TIME);
@@ -149,7 +149,7 @@ void UpdateHyperBossesState() {
             GameInteractor::Instance->RegisterGameHook<GameInteractor::OnActorUpdate>([](void* refActor) {
                 // Run the update function a second time to make bosses move and act twice as fast.
 
-                Player* player = GET_PLAYER(gPlayState);
+                Player* player = GET_PLAYER(OoT_gPlayState);
                 Actor* actor = static_cast<Actor*>(refActor);
 
                 uint8_t isBossActor = actor->id == ACTOR_BOSS_GOMA ||      // Gohma
@@ -169,12 +169,12 @@ void UpdateHyperBossesState() {
                                       actor->id == ACTOR_BOSS_GANON2;  // Ganon
 
                 // Don't apply during cutscenes because it causes weird behaviour and/or crashes on some bosses.
-                if (IsHyperBossesActive() && isBossActor && !Player_InBlockingCsMode(gPlayState, player)) {
+                if (IsHyperBossesActive() && isBossActor && !OoT_Player_InBlockingCsMode(OoT_gPlayState, player)) {
                     // Barinade needs to be updated in sequence to avoid unintended behaviour.
                     if (actor->id == ACTOR_BOSS_VA) {
                         // params -1 is BOSSVA_BODY
                         if (actor->params == -1) {
-                            Actor* actorList = gPlayState->actorCtx.actorLists[ACTORCAT_BOSS].head;
+                            Actor* actorList = OoT_gPlayState->actorCtx.actorLists[ACTORCAT_BOSS].head;
                             while (actorList != NULL) {
                                 GameInteractor::RawAction::UpdateActor(actorList);
                                 actorList = actorList->next;
@@ -387,7 +387,7 @@ void RegisterEnemyDefeatCounts() {
 void RegisterRandomizedEnemySizes() {
     GameInteractor::Instance->RegisterGameHook<GameInteractor::OnActorInit>([](void* refActor) {
         // Randomized Enemy Sizes
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(OoT_gPlayState);
         Actor* actor = static_cast<Actor*>(refActor);
 
         // Exclude wobbly platforms in Jabu because they need to act like platforms.
@@ -423,14 +423,14 @@ void RegisterRandomizedEnemySizes() {
             randomScale = 0.1f + (randomNumber / 100);
         }
 
-        Actor_SetScale(actor, actor->scale.z * randomScale);
+        OoT_Actor_SetScale(actor, actor->scale.z * randomScale);
 
         if (CVarGetInteger(CVAR_ENHANCEMENT("EnemySizeScalesHealth"), 0) && (actor->category == ACTORCAT_ENEMY)) {
             // Scale the health based on a smaller factor than randomScale
             float healthScalingFactor = 0.8f; // Adjust this factor as needed
             float scaledHealth = actor->colChkInfo.health * (randomScale * healthScalingFactor);
 
-            // Ensure the scaled health doesn't go below zero
+            // Ensure the scaled health doesn't go below OoT_zero
             actor->colChkInfo.health = fmax(scaledHealth, 1.0f);
         } else {
             return;

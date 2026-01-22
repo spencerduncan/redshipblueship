@@ -16,7 +16,7 @@ void RegisterTimeStopInTemples() {
 
         switch (selectedOption) {
             case TIME_STOP_TEMPLES_DUNGEONS:
-                switch (gPlayState->sceneId) {
+                switch (MM_gPlayState->sceneId) {
                     // Swamp + Ocean Spider House
                     case SCENE_KINSTA1:
                     case SCENE_KINDAN2:
@@ -38,7 +38,7 @@ void RegisterTimeStopInTemples() {
                 }
                 // fallthrough
             case TIME_STOP_TEMPLES:
-                switch (gPlayState->sceneId) {
+                switch (MM_gPlayState->sceneId) {
                     // Woodfall Temple + Odolwa
                     case SCENE_MITURIN:
                     case SCENE_MITURIN_BS:

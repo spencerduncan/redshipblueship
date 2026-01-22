@@ -1,6 +1,6 @@
 #include "global.h"
 
-s32 OoT_osSendMesg(OSMesgQueue* mq, OSMesg mesg, s32 flag) {
+s32 osSendMesg(OSMesgQueue* mq, OSMesg mesg, s32 flag) {
     register u32 prevInt = __osDisableInt();
     register u32 index;
 
@@ -19,7 +19,7 @@ s32 OoT_osSendMesg(OSMesgQueue* mq, OSMesg mesg, s32 flag) {
     mq->validCount++;
 
     if (mq->mtqueue->next != NULL) {
-        OoT_osStartThread(__osPopThread(&mq->mtqueue));
+        osStartThread(__osPopThread(&mq->mtqueue));
     }
 
     __osRestoreInt(prevInt);

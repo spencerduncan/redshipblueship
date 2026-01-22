@@ -2718,7 +2718,7 @@ void OoT_CollisionCheck_SetOCvsOC(Collider* left, ColliderInfo* leftInfo, Vec3f*
     }
     xDelta = rightPos->x - leftPos->x;
     zDelta = rightPos->z - leftPos->z;
-    xzDist = OoT_sqrtf(SQ(xDelta) + SQ(zDelta));
+    xzDist = sqrtf(SQ(xDelta) + SQ(zDelta));
 
     if (rightMassType == MASSTYPE_IMMOVABLE) {
         if (leftMassType == MASSTYPE_IMMOVABLE) {
@@ -3530,11 +3530,11 @@ s32 OoT_CollisionCheck_CylSideVsLineSeg(f32 radius, f32 height, f32 offset, Vec3
     itemStep.y = actorToItemProj.y - actorToItem.y;
     itemStep.z = actorToItemProj.z - actorToItem.z;
 
-    if ((actorToItem.y > 0.0f) && (actorToItem.y < height) && (OoT_sqrtf(SQXZ(actorToItem)) < radius)) {
+    if ((actorToItem.y > 0.0f) && (actorToItem.y < height) && (sqrtf(SQXZ(actorToItem)) < radius)) {
         return 3;
     }
 
-    if ((actorToItemProj.y > 0.0f) && (actorToItemProj.y < height) && (OoT_sqrtf(SQXZ(actorToItemProj)) < radius)) {
+    if ((actorToItemProj.y > 0.0f) && (actorToItemProj.y < height) && (sqrtf(SQXZ(actorToItemProj)) < radius)) {
         return 3;
     }
     radSqDiff = SQXZ(actorToItem) - SQ(radius);
@@ -3549,7 +3549,7 @@ s32 OoT_CollisionCheck_CylSideVsLineSeg(f32 radius, f32 height, f32 offset, Vec3
             intersect1 = 1;
             intersect2 = 0;
         }
-        closeDist = OoT_sqrtf(SQ(actorDotItemXZ) - (4.0f * SQXZ(itemStep) * radSqDiff));
+        closeDist = sqrtf(SQ(actorDotItemXZ) - (4.0f * SQXZ(itemStep) * radSqDiff));
         if (intersect1 == 1) {
             frac1 = (closeDist - actorDotItemXZ) / (2.0f * SQXZ(itemStep));
         }

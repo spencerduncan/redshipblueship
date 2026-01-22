@@ -1369,7 +1369,7 @@ void func_8094220C(EnGoroiwa* this, PlayState* play) {
                     if (phi_f12 <= 0.0f) {
                         temp_f20 = 0.0f;
                     } else {
-                        temp_f20 *= MM_sqrtf(phi_f12);
+                        temp_f20 *= sqrtf(phi_f12);
                     }
                 }
 

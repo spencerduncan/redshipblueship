@@ -2229,11 +2229,11 @@ void Logic::NewSaveContext() {
 }
 
 uint8_t Logic::InventorySlot(uint32_t item) {
-    return gItemSlots[item];
+    return OoT_gItemSlots[item];
 }
 
 uint32_t Logic::CurrentUpgrade(uint32_t upgrade) {
-    return (mSaveContext->inventory.upgrades & gUpgradeMasks[upgrade]) >> gUpgradeShifts[upgrade];
+    return (mSaveContext->inventory.upgrades & OoT_gUpgradeMasks[upgrade]) >> OoT_gUpgradeShifts[upgrade];
 }
 
 uint32_t Logic::CurrentInventory(uint32_t item) {
@@ -2241,8 +2241,8 @@ uint32_t Logic::CurrentInventory(uint32_t item) {
 }
 
 void Logic::SetUpgrade(uint32_t upgrade, uint8_t level) {
-    mSaveContext->inventory.upgrades &= gUpgradeNegMasks[upgrade];
-    mSaveContext->inventory.upgrades |= level << gUpgradeShifts[upgrade];
+    mSaveContext->inventory.upgrades &= OoT_gUpgradeNegMasks[upgrade];
+    mSaveContext->inventory.upgrades |= level << OoT_gUpgradeShifts[upgrade];
 }
 
 bool Logic::CheckInventory(uint32_t item, bool exact) {
@@ -2292,7 +2292,7 @@ const std::vector<uint8_t>& GetDungeonSmallKeyDoors(SceneID sceneId) {
     dungeonSmallKeyDoors[key] = {};
 
     // Get the scene path
-    SceneTableEntry* sceneTableEntry = &gSceneTable[sceneId];
+    SceneTableEntry* sceneTableEntry = &OoT_gSceneTable[sceneId];
     std::string scenePath =
         StringHelper::Sprintf("scenes/%s/%s/%s", masterQuest ? "mq" : "nonmq", sceneTableEntry->sceneFile.fileName,
                               sceneTableEntry->sceneFile.fileName);
@@ -2339,8 +2339,8 @@ int8_t Logic::GetUsedSmallKeyCount(SceneID sceneId) {
 
     // Get the swch value for the scene
     uint32_t swch;
-    if (gPlayState != nullptr && gPlayState->sceneNum == sceneId) {
-        swch = gPlayState->actorCtx.flags.swch;
+    if (OoT_gPlayState != nullptr && OoT_gPlayState->sceneNum == sceneId) {
+        swch = OoT_gPlayState->actorCtx.flags.swch;
     } else {
         swch = mSaveContext->sceneFlags[sceneId].swch;
     }
@@ -2370,14 +2370,14 @@ void Logic::SetSmallKeyCount(uint32_t dungeonIndex, uint8_t count) {
 }
 
 bool Logic::CheckDungeonItem(uint32_t item, uint32_t dungeonIndex) {
-    return mSaveContext->inventory.dungeonItems[dungeonIndex] & gBitFlags[item];
+    return mSaveContext->inventory.dungeonItems[dungeonIndex] & OoT_gBitFlags[item];
 }
 
 void Logic::SetDungeonItem(uint32_t item, uint32_t dungeonIndex, bool state) {
     if (!state) {
-        mSaveContext->inventory.dungeonItems[dungeonIndex] &= ~gBitFlags[item];
+        mSaveContext->inventory.dungeonItems[dungeonIndex] &= ~OoT_gBitFlags[item];
     } else {
-        mSaveContext->inventory.dungeonItems[dungeonIndex] |= gBitFlags[item];
+        mSaveContext->inventory.dungeonItems[dungeonIndex] |= OoT_gBitFlags[item];
     }
 }
 
@@ -2410,11 +2410,11 @@ uint8_t Logic::GetGSCount() {
 }
 
 uint8_t Logic::GetAmmo(uint32_t item) {
-    return mSaveContext->inventory.ammo[gItemSlots[item]];
+    return mSaveContext->inventory.ammo[OoT_gItemSlots[item]];
 }
 
 void Logic::SetAmmo(uint32_t item, uint8_t count) {
-    mSaveContext->inventory.ammo[gItemSlots[item]] = count;
+    mSaveContext->inventory.ammo[OoT_gItemSlots[item]] = count;
 }
 
 void Logic::SetContext(std::shared_ptr<Context> _ctx) {

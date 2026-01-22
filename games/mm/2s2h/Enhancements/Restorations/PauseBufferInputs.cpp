@@ -15,7 +15,7 @@ static u16 pauseInputs = 0;
 
 void RegisterPauseBufferInputs() {
     COND_VB_SHOULD(VB_KALEIDO_UNPAUSE_CLOSE, CVAR, {
-        Input* input = CONTROLLER1(&gPlayState->state);
+        Input* input = CONTROLLER1(&MM_gPlayState->state);
 
         // Store all inputs that were pressed during the buffer window
         pauseInputs |= input->press.button;
@@ -28,12 +28,12 @@ void RegisterPauseBufferInputs() {
     });
 
     COND_HOOK(OnGameStateMainStart, CVAR, []() {
-        if (gPlayState == NULL) {
+        if (MM_gPlayState == NULL) {
             return;
         }
 
-        Input* input = CONTROLLER1(&gPlayState->state);
-        PauseContext* pauseCtx = &gPlayState->pauseCtx;
+        Input* input = CONTROLLER1(&MM_gPlayState->state);
+        PauseContext* pauseCtx = &MM_gPlayState->pauseCtx;
 
         // if the input buffer timer is not 0 and the pause state is off, then the player just unpaused
         if (inputBufferTimer != 0 && pauseCtx->state == PAUSE_STATE_OFF) {

@@ -93,14 +93,14 @@ void Rando::RemoveItem(RandoItemId randoItemId) {
             }
             break;
         case RI_BOW:
-            Inventory_ChangeUpgrade(UPG_QUIVER, 0);
-            Inventory_DeleteItem(ITEM_BOW, SLOT(ITEM_BOW));
+            MM_Inventory_ChangeUpgrade(UPG_QUIVER, 0);
+            MM_Inventory_DeleteItem(ITEM_BOW, SLOT(ITEM_BOW));
             break;
         case RI_QUIVER_40:
-            Inventory_ChangeUpgrade(UPG_QUIVER, 1);
+            MM_Inventory_ChangeUpgrade(UPG_QUIVER, 1);
             break;
         case RI_QUIVER_50:
-            Inventory_ChangeUpgrade(UPG_QUIVER, 2);
+            MM_Inventory_ChangeUpgrade(UPG_QUIVER, 2);
             break;
         case RI_PROGRESSIVE_BOW:
             if (CUR_UPG_VALUE(UPG_QUIVER) >= 3) {
@@ -112,15 +112,15 @@ void Rando::RemoveItem(RandoItemId randoItemId) {
             }
             break;
         case RI_BOMB_BAG_20:
-            Inventory_ChangeUpgrade(UPG_BOMB_BAG, 0);
-            Inventory_DeleteItem(ITEM_BOMB, SLOT(ITEM_BOMB));
-            Inventory_DeleteItem(ITEM_BOMBCHU, SLOT(ITEM_BOMBCHU));
+            MM_Inventory_ChangeUpgrade(UPG_BOMB_BAG, 0);
+            MM_Inventory_DeleteItem(ITEM_BOMB, SLOT(ITEM_BOMB));
+            MM_Inventory_DeleteItem(ITEM_BOMBCHU, SLOT(ITEM_BOMBCHU));
             break;
         case RI_BOMB_BAG_30:
-            Inventory_ChangeUpgrade(UPG_BOMB_BAG, 1);
+            MM_Inventory_ChangeUpgrade(UPG_BOMB_BAG, 1);
             break;
         case RI_BOMB_BAG_40:
-            Inventory_ChangeUpgrade(UPG_BOMB_BAG, 2);
+            MM_Inventory_ChangeUpgrade(UPG_BOMB_BAG, 2);
             break;
         case RI_PROGRESSIVE_BOMB_BAG:
             if (CUR_UPG_VALUE(UPG_BOMB_BAG) >= 3) {
@@ -132,10 +132,10 @@ void Rando::RemoveItem(RandoItemId randoItemId) {
             }
             break;
         case RI_WALLET_ADULT:
-            Inventory_ChangeUpgrade(UPG_WALLET, 0);
+            MM_Inventory_ChangeUpgrade(UPG_WALLET, 0);
             break;
         case RI_WALLET_GIANT:
-            Inventory_ChangeUpgrade(UPG_WALLET, 1);
+            MM_Inventory_ChangeUpgrade(UPG_WALLET, 1);
             break;
         case RI_PROGRESSIVE_WALLET:
             if (CUR_UPG_VALUE(UPG_WALLET) >= 2) {
@@ -147,22 +147,22 @@ void Rando::RemoveItem(RandoItemId randoItemId) {
         case RI_SWORD_KOKIRI:
             SET_EQUIP_VALUE(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_NONE);
             BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_B) = ITEM_NONE;
-            if (gPlayState != NULL) {
-                Interface_LoadItemIconImpl(gPlayState, EQUIP_SLOT_B);
+            if (MM_gPlayState != NULL) {
+                Interface_LoadItemIconImpl(MM_gPlayState, EQUIP_SLOT_B);
             }
             break;
         case RI_SWORD_RAZOR:
             SET_EQUIP_VALUE(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_KOKIRI);
             BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_B) = ITEM_SWORD_KOKIRI;
-            if (gPlayState != NULL) {
-                Interface_LoadItemIconImpl(gPlayState, EQUIP_SLOT_B);
+            if (MM_gPlayState != NULL) {
+                Interface_LoadItemIconImpl(MM_gPlayState, EQUIP_SLOT_B);
             }
             break;
         case RI_SWORD_GILDED:
             SET_EQUIP_VALUE(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_RAZOR);
             BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_B) = ITEM_SWORD_RAZOR;
-            if (gPlayState != NULL) {
-                Interface_LoadItemIconImpl(gPlayState, EQUIP_SLOT_B);
+            if (MM_gPlayState != NULL) {
+                Interface_LoadItemIconImpl(MM_gPlayState, EQUIP_SLOT_B);
             }
             break;
         case RI_PROGRESSIVE_SWORD:
@@ -183,16 +183,16 @@ void Rando::RemoveItem(RandoItemId randoItemId) {
             break;
         case RI_SHIELD_MIRROR:
             SET_EQUIP_VALUE(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_HERO);
-            if (gPlayState != NULL) {
-                Player_SetEquipmentData(gPlayState, GET_PLAYER(gPlayState));
+            if (MM_gPlayState != NULL) {
+                MM_Player_SetEquipmentData(MM_gPlayState, GET_PLAYER(MM_gPlayState));
             }
             break;
         case RI_SHIELD_HERO:
             if (GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD) == EQUIP_VALUE_SHIELD_HERO) {
                 SET_EQUIP_VALUE(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_NONE);
             }
-            if (gPlayState != NULL) {
-                Player_SetEquipmentData(gPlayState, GET_PLAYER(gPlayState));
+            if (MM_gPlayState != NULL) {
+                MM_Player_SetEquipmentData(MM_gPlayState, GET_PLAYER(MM_gPlayState));
             }
             break;
         case RI_GS_TOKEN_SWAMP: {
@@ -464,7 +464,7 @@ void Rando::RemoveItem(RandoItemId randoItemId) {
             break;
         default:
             if (Rando::StaticData::Items[randoItemId].itemId < 77) {
-                Inventory_DeleteItem(Rando::StaticData::Items[randoItemId].itemId,
+                MM_Inventory_DeleteItem(Rando::StaticData::Items[randoItemId].itemId,
                                      SLOT(Rando::StaticData::Items[randoItemId].itemId));
             }
             break;

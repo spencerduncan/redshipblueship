@@ -153,7 +153,7 @@ f32 OoT_Math_FAtan2F(f32 y, f32 x) {
 }
 
 f32 OoT_Math_FAsinF(f32 x) {
-    return OoT_Math_FAtan2F(x, OoT_sqrtf(1.0f - SQ(x)));
+    return OoT_Math_FAtan2F(x, sqrtf(1.0f - SQ(x)));
 }
 
 f32 OoT_Math_FAcosF(f32 x) {

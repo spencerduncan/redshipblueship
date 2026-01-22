@@ -2,7 +2,7 @@
 
 OSPiHandle __DriveRomHandle;
 
-OSPiHandle* OoT_osDriveRomInit(void) {
+OSPiHandle* osDriveRomInit(void) {
     register s32 status;
     register u32 a;
     register u32 prevInt;

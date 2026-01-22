@@ -19,10 +19,10 @@ extern "C" {
 void RegisterDpadPageSwitchPrevention() {
     COND_VB_SHOULD(VB_KALEIDO_SWITCH_PAGE_WITH_DPAD, CVAR_DPAD, {
         u16 button = va_arg(args, int);
-        Input* input = &gPlayState->state.input[0];
+        Input* input = &MM_gPlayState->state.input[0];
 
         if (CHECK_BTN_ALL(input->cur.button, button)) {
-            PauseContext* pauseCtx = &gPlayState->pauseCtx;
+            PauseContext* pauseCtx = &MM_gPlayState->pauseCtx;
 
             // Prevent page switching with D-pad when on item or mask page
             if ((pauseCtx->pageIndex == PAUSE_ITEM || pauseCtx->pageIndex == PAUSE_MASK) &&
@@ -38,7 +38,7 @@ void RegisterItemUnequip() {
         u16 cursorSlot = va_arg(args, int);
         u16 cursorItem = va_arg(args, int);
 
-        PauseContext* pauseCtx = &gPlayState->pauseCtx;
+        PauseContext* pauseCtx = &MM_gPlayState->pauseCtx;
         s32 targetSlot = -1;
         bool isDpad = false;
 
@@ -121,13 +121,13 @@ void RegisterItemUnequip() {
                 // C-buttons
                 BUTTON_ITEM_EQUIP(0, targetSlot) = ITEM_NONE;
                 C_SLOT_EQUIP(0, targetSlot) = SLOT_NONE;
-                Interface_LoadItemIconImpl(gPlayState, targetSlot);
+                Interface_LoadItemIconImpl(MM_gPlayState, targetSlot);
             } else {
                 // D-pad
                 DPAD_BUTTON_ITEM_EQUIP(0, targetSlot) = ITEM_NONE;
                 DPAD_SLOT_EQUIP(0, targetSlot) = SLOT_NONE;
                 // Manually clear D-pad icon
-                gPlayState->interfaceCtx.iconItemSegment[DPAD_BUTTON(targetSlot) + EQUIP_SLOT_MAX] =
+                MM_gPlayState->interfaceCtx.iconItemSegment[DPAD_BUTTON(targetSlot) + EQUIP_SLOT_MAX] =
                     (char*)gEmptyTexture;
             }
 

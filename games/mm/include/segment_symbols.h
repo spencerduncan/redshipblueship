@@ -96,13 +96,13 @@ DECLARE_OVERLAY_SEGMENT(player_actor)
 #undef DEFINE_ACTOR_UNSET
 
 #define DEFINE_OBJECT(name, _enumValue) DECLARE_ROM_SEGMENT(name)
-#define DEFINE_OBJECT_UNSET(_enumValue)
+#define MM_DEFINE_OBJECT_UNSET(_enumValue)
 #define DEFINE_OBJECT_SIZE_ZERO(_name, _enumValue)
 
 #include "tables/object_table.h"
 
 #undef DEFINE_OBJECT
-#undef DEFINE_OBJECT_UNSET
+#undef MM_DEFINE_OBJECT_UNSET
 #undef DEFINE_OBJECT_SIZE_ZERO
 
 DECLARE_ROM_SEGMENT(scene_texture_01)

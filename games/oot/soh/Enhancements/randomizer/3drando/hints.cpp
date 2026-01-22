@@ -486,7 +486,7 @@ static void CreateTrialHints(uint8_t copies) {
         auto ctx = Rando::Context::GetInstance();
         if (ctx->GetOption(RSK_TRIAL_COUNT).Is(6)) { // six trials
             AddGossipStoneHintCopies(copies, HINT_TYPE_HINT_KEY, "Trial", { RHT_SIX_TRIALS });
-        } else if (ctx->GetOption(RSK_TRIAL_COUNT).Is(0)) { // zero trials
+        } else if (ctx->GetOption(RSK_TRIAL_COUNT).Is(0)) { // OoT_zero trials
             AddGossipStoneHintCopies(copies, HINT_TYPE_HINT_KEY, "Trial", { RHT_ZERO_TRIALS });
         } else {
             std::vector<TrialInfo*> trials =
@@ -555,7 +555,7 @@ static void DistributeHints(std::vector<uint8_t>& selected, size_t stoneCount,
 
     for (size_t c = 0; c < distTable.size();
          c++) { // Gather the weights of each distribution and, if it's the first pass, apply fixed hints
-        totalWeight += distTable[c].weight; // Note that PlaceHints will set weights of distributions to zero if it
+        totalWeight += distTable[c].weight; // Note that PlaceHints will set weights of distributions to OoT_zero if it
                                             // can't place anything from them
         if (addFixed) {
             selected[c] += distTable[c].fixed;
@@ -571,15 +571,15 @@ static void DistributeHints(std::vector<uint8_t>& selected, size_t stoneCount,
         for (size_t distribution = 0; distribution < distTable.size(); distribution++) {
             currentWeight -=
                 distTable[distribution]
-                    .weight; // go over each distribution, subtracting the weight each time. Once we reach zero or less,
+                    .weight; // go over each distribution, subtracting the weight each time. Once we reach OoT_zero or less,
             if (currentWeight <= 0) { // tell the system to make 1 of that hint, unless not enough stones remain
                 if (stoneCount >= distTable[distribution].copies && distTable[distribution].copies > 0) {
-                    selected[distribution] += 1; // if we have enough stones, and copies are not zero, assign 1 to this
+                    selected[distribution] += 1; // if we have enough stones, and copies are not OoT_zero, assign 1 to this
                                                  // hint type, remove the stones, and break
                     stoneCount -= distTable[distribution].copies;
                     break; // This leaves the whole for loop
                 } else { // If we don't have the stones, or copies is 0 despite there being the wieght to trigger a hit,
-                         // temporerally set wieght to zero
+                         // temporerally set wieght to OoT_zero
                     totalWeight -=
                         distTable[distribution]
                             .weight; // Unlike PlaceHint, distTable is passed by value here, making this temporary
@@ -591,7 +591,7 @@ static void DistributeHints(std::vector<uint8_t>& selected, size_t stoneCount,
         }
         // if there's still weight then it's junk, as the leftover weight is junkWeight
         if (currentWeight >
-            0) { // zero TotalWeight breaks the while loop and hits the fallback, so skipping this is fine in that case
+            0) { // OoT_zero TotalWeight breaks the while loop and hits the fallback, so skipping this is fine in that case
             selected[selected.size() - 1] += 1;
             stoneCount -= 1;
         }

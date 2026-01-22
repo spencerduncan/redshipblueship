@@ -15,9 +15,9 @@ s32 ShrinkWindow_Pillarbox_GetSizeTarget(void);
 void ShrinkWindow_Pillarbox_SetSize(s32 size);
 s32 ShrinkWindow_Pillarbox_GetSize(void);
 
-void ShrinkWindow_Init(void);
-void ShrinkWindow_Destroy(void);
-void ShrinkWindow_Update(s32 framerateDivisor);
+void MM_ShrinkWindow_Init(void);
+void MM_ShrinkWindow_Destroy(void);
+void MM_ShrinkWindow_Update(s32 framerateDivisor);
 void ShrinkWindow_Draw(struct GraphicsContext* gfxCtx);
 
 #endif

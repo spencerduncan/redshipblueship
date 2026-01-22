@@ -8,7 +8,7 @@
 extern "C" {
 #include "variables.h"
 #include "functions.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 // MARK: - Overrides
@@ -200,12 +200,12 @@ void Anchor::RefreshClientActors() {
         return;
     }
 
-    Actor* actor = gPlayState->actorCtx.actorLists[ACTORCAT_NPC].head;
+    Actor* actor = OoT_gPlayState->actorCtx.actorLists[ACTORCAT_NPC].head;
 
     while (actor != NULL) {
         if (actor->id == ACTOR_EN_OE2 && actor->update == DummyPlayer_Update) {
             NameTag_RemoveAllForActor(actor);
-            Actor_Kill(actor);
+            OoT_Actor_Kill(actor);
         }
         actor = actor->next;
     }
@@ -220,7 +220,7 @@ void Anchor::RefreshClientActors() {
         // spawn We quickly store a mapping of "index" to clientId, then within the init function we use this to get the
         // clientId and store it on player->zTargetActiveTimer (unused s32 for the dummy) for convenience
         auto dummy =
-            Actor_Spawn(&gPlayState->actorCtx, gPlayState, ACTOR_PLAYER, client.posRot.pos.x, client.posRot.pos.y,
+            OoT_Actor_Spawn(&OoT_gPlayState->actorCtx, OoT_gPlayState, ACTOR_PLAYER, client.posRot.pos.x, client.posRot.pos.y,
                         client.posRot.pos.z, client.posRot.rot.x, client.posRot.rot.y, client.posRot.rot.z, 0, false);
         client.player = (Player*)dummy;
     }
@@ -228,11 +228,11 @@ void Anchor::RefreshClientActors() {
 }
 
 bool Anchor::IsSaveLoaded() {
-    if (gPlayState == nullptr) {
+    if (OoT_gPlayState == nullptr) {
         return false;
     }
 
-    if (GET_PLAYER(gPlayState) == nullptr) {
+    if (GET_PLAYER(OoT_gPlayState) == nullptr) {
         return false;
     }
 

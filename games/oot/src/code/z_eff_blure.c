@@ -922,7 +922,7 @@ void OoT_EffectBlure_DrawSimpleVertices(GraphicsContext* gfxCtx, EffectBlure* th
                 sp1A4.z = ((f32)vtx[4 * i + 2].v.ob[2] + (f32)vtx[4 * i + 3].v.ob[2]) * 0.5f;
 
                 OoT_Math_Vec3f_Diff(&sp1A4, &sp1B0, &sp198);
-                scale = OoT_sqrtf(SQ(sp198.x) + SQ(sp198.y) + SQ(sp198.z));
+                scale = sqrtf(SQ(sp198.x) + SQ(sp198.y) + SQ(sp198.z));
 
                 if (fabsf(scale) > 0.0005f) {
                     scale = 1.0f / scale;

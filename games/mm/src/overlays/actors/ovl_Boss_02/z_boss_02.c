@@ -732,7 +732,7 @@ void func_809DAB78(Boss02* this, PlayState* play) {
     if ((this->unk_0144 != 10) && (this->unk_0144 <= 20)) {
         MM_SkelAnime_Update(&this->skelAnime);
         temp_s0 = MM_Math_Atan2S(spCC, spC4);
-        temp_s2 = MM_Math_Atan2S(spC8, MM_sqrtf(SQ(spCC) + SQ(spC4)));
+        temp_s2 = MM_Math_Atan2S(spC8, sqrtf(SQ(spCC) + SQ(spC4)));
         MM_Math_ApproachS(&this->actor.world.rot.y, temp_s0, 0x14, this->unk_0164);
         MM_Math_ApproachS(&this->actor.shape.rot.x, temp_s2, 0x14, this->unk_0164);
         MM_Math_ApproachS(&this->unk_0198, this->unk_019A, 1, 0x20);
@@ -870,7 +870,7 @@ void func_809DAB78(Boss02* this, PlayState* play) {
             } else {
                 phi_f2 = 500.0f;
             }
-            if (MM_sqrtf(SQ(spCC) + SQ(spC8) + SQ(spC4)) < (phi_f2 * sGiantModeScaleFactor)) {
+            if (sqrtf(SQ(spCC) + SQ(spC8) + SQ(spC4)) < (phi_f2 * sGiantModeScaleFactor)) {
                 this->unk_0144 = 3;
                 this->unk_01B0.y = -3000.0f * sGiantModeScaleFactor;
                 if (sIsInGiantMode) {
@@ -937,7 +937,7 @@ void func_809DAB78(Boss02* this, PlayState* play) {
             return;
 
         case 12:
-            if (MM_sqrtf(SQ(spCC) + SQ(spC8) + SQ(spC4)) < 500.0f) {
+            if (sqrtf(SQ(spCC) + SQ(spC8) + SQ(spC4)) < 500.0f) {
                 this->unk_1D1A++;
                 this->unk_0164 = 0.0f;
                 if (this->unk_1D1A > 8) {
@@ -1014,13 +1014,13 @@ void func_809DAB78(Boss02* this, PlayState* play) {
 
                     spCC = player->actor.world.pos.x - this->actor.world.pos.x;
                     spC4 = player->actor.world.pos.z - this->actor.world.pos.z;
-                    if (MM_sqrtf(SQ(spCC) + SQ(spC4)) < (400.0f * sGiantModeScaleFactor)) {
+                    if (sqrtf(SQ(spCC) + SQ(spC4)) < (400.0f * sGiantModeScaleFactor)) {
                         this->actor.speed = 15.0f * sGiantModeScaleFactor;
                     }
 
                     spCC = this->actor.world.pos.x;
                     spC4 = this->actor.world.pos.z;
-                    if (MM_sqrtf(SQ(spCC) + SQ(spC4)) < (400.0f * sGiantModeScaleFactor)) {
+                    if (sqrtf(SQ(spCC) + SQ(spC4)) < (400.0f * sGiantModeScaleFactor)) {
                         this->actor.speed = 15.0f * sGiantModeScaleFactor;
                     }
 

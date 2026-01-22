@@ -28,21 +28,21 @@ void RegisterSkipBankerDialogue() {
 
         // Initial Banter
         if (enGinkoMan->curTextId == 0 || enGinkoMan->curTextId == 0x44c || enGinkoMan->curTextId == 0x457) {
-            Message_StartTextbox(gPlayState, 0x466, &enGinkoMan->actor);
+            MM_Message_StartTextbox(MM_gPlayState, 0x466, &enGinkoMan->actor);
             enGinkoMan->curTextId = 0x466;
             *should = false;
             return;
         }
 
         if (enGinkoMan->curTextId == 0x468) {
-            choiceIndex = gPlayState->msgCtx.choiceIndex;
+            choiceIndex = MM_gPlayState->msgCtx.choiceIndex;
             if (choiceIndex == GINKOMAN_CHOICE_DEPOSIT) {
-                Message_StartTextbox(gPlayState, 0x450, &enGinkoMan->actor);
+                MM_Message_StartTextbox(MM_gPlayState, 0x450, &enGinkoMan->actor);
                 enGinkoMan->curTextId = 0x450;
                 *should = false;
                 return;
             } else if (choiceIndex == GINKOMAN_CHOICE_WITHDRAWL) {
-                Message_StartTextbox(gPlayState, 0x46e, &enGinkoMan->actor);
+                MM_Message_StartTextbox(MM_gPlayState, 0x46e, &enGinkoMan->actor);
                 enGinkoMan->curTextId = 0x46e;
                 *should = false;
                 return;

@@ -14,7 +14,7 @@ void __osViSwapContext(void) {
     viNext = __osViNext;
     viMode = viNext->modep;
     field = HW_REG(VI_V_CURRENT_LINE_REG, u32) & 1;
-    s2 = OoT_osVirtualToPhysical(viNext->buffer);
+    s2 = osVirtualToPhysical(viNext->buffer);
     origin = (viMode->fldRegs[field].origin) + s2;
     if (viNext->state & 2) {
         viNext->x.scale |= viMode->comRegs.xScale & ~0xFFF;
@@ -37,11 +37,11 @@ void __osViSwapContext(void) {
     }
     if (viNext->state & 0x40) {
         viNext->y.scale = 0;
-        origin = OoT_osVirtualToPhysical(viNext->buffer);
+        origin = osVirtualToPhysical(viNext->buffer);
     }
     if (viNext->state & 0x80) {
         viNext->y.scale = (viNext->y.offset << 0x10) & 0x3FF0000;
-        origin = OoT_osVirtualToPhysical(viNext->buffer);
+        origin = osVirtualToPhysical(viNext->buffer);
     }
     HW_REG(VI_ORIGIN_REG, u32) = origin;
     HW_REG(VI_WIDTH_REG, u32) = viMode->comRegs.width;

@@ -10,7 +10,7 @@
 
 extern "C" {
 #include "functions.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 /**
@@ -30,7 +30,7 @@ void Anchor::SendPacket_GiveItem(u16 modId, s16 getItemId) {
     }
 
     // Ignore sending master sword in final Ganon fight
-    if (modId == MOD_RANDOMIZER && getItemId == RG_MASTER_SWORD && gPlayState->sceneNum == SCENE_GANON_BOSS) {
+    if (modId == MOD_RANDOMIZER && getItemId == RG_MASTER_SWORD && OoT_gPlayState->sceneNum == SCENE_GANON_BOSS) {
         return;
     }
 
@@ -65,13 +65,13 @@ void Anchor::HandlePacket_GiveItem(nlohmann::json payload) {
         if (getItemEntry.getItemId == GI_SWORD_BGS) {
             gSaveContext.bgsFlag = true;
         }
-        Item_Give(gPlayState, getItemEntry.itemId);
+        OoT_Item_Give(OoT_gPlayState, getItemEntry.itemId);
     } else if (getItemEntry.modIndex == MOD_RANDOMIZER) {
         if (getItemEntry.getItemId == RG_ICE_TRAP) {
             gSaveContext.ship.pendingIceTrapCount++;
             incomingIceTrapsFromAnchor++;
         } else {
-            Randomizer_Item_Give(gPlayState, getItemEntry);
+            Randomizer_Item_Give(OoT_gPlayState, getItemEntry);
         }
     }
 

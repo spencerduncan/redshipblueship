@@ -9,14 +9,14 @@
 #define RAND_MULTIPLIER 1664525
 #define RAND_INCREMENT 1013904223
 
-u32 Rand_Next(void);
-void Rand_Seed(u32 seed);
-f32 Rand_ZeroOne(void);
-f32 Rand_Centered(void);
-void Rand_Seed_Variable(u32* rndNum, u32 seed);
-u32 Rand_Next_Variable(u32* rndNum);
-f32 Rand_ZeroOne_Variable(u32* rndNum);
-f32 Rand_Centered_Variable(u32* rndNum);
+u32 MM_Rand_Next(void);
+void MM_Rand_Seed(u32 seed);
+f32 MM_Rand_ZeroOne(void);
+f32 MM_Rand_Centered(void);
+void MM_Rand_Seed_Variable(u32* rndNum, u32 seed);
+u32 MM_Rand_Next_Variable(u32* rndNum);
+f32 MM_Rand_ZeroOne_Variable(u32* rndNum);
+f32 MM_Rand_Centered_Variable(u32* rndNum);
 
 extern u32 gRandFloat;
 

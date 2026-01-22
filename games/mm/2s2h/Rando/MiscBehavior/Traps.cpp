@@ -140,29 +140,29 @@ std::string GetTrapMessage() {
 }
 
 void Rando::MiscBehavior::OfferTrapItem() {
-    if (!gPlayState) {
+    if (!MM_gPlayState) {
         return;
     }
 
     switch (roll) {
         case TRAP_FREEZE:
             GameInteractor::Instance->events.emplace_back(
-                GIEventTrap{ .action = []() { func_80833B18(gPlayState, GET_PLAYER(gPlayState), 3, 0, 0, 0, 0); } });
+                GIEventTrap{ .action = []() { func_80833B18(MM_gPlayState, GET_PLAYER(MM_gPlayState), 3, 0, 0, 0, 0); } });
             break;
         case TRAP_BLAST:
             GameInteractor::Instance->events.emplace_back(GIEventTrap{ .action = []() {
-                Actor_Spawn(&gPlayState->actorCtx, gPlayState, ACTOR_EN_BOM, GET_PLAYER(gPlayState)->actor.world.pos.x,
-                            GET_PLAYER(gPlayState)->actor.world.pos.y, GET_PLAYER(gPlayState)->actor.world.pos.z, 1, 0,
+                MM_Actor_Spawn(&MM_gPlayState->actorCtx, MM_gPlayState, ACTOR_EN_BOM, GET_PLAYER(MM_gPlayState)->actor.world.pos.x,
+                            GET_PLAYER(MM_gPlayState)->actor.world.pos.y, GET_PLAYER(MM_gPlayState)->actor.world.pos.z, 1, 0,
                             0, 0);
             } });
             break;
         case TRAP_SHOCK:
             GameInteractor::Instance->events.emplace_back(
-                GIEventTrap{ .action = []() { func_80833B18(gPlayState, GET_PLAYER(gPlayState), 4, 0, 0, 0, 0); } });
+                GIEventTrap{ .action = []() { func_80833B18(MM_gPlayState, GET_PLAYER(MM_gPlayState), 4, 0, 0, 0, 0); } });
             break;
         case TRAP_JINX:
             GameInteractor::Instance->events.emplace_back(GIEventTrap{ .action = []() {
-                Actor_PlaySfx(&GET_PLAYER(gPlayState)->actor, NA_SE_EN_BUBLE_BITE);
+                Actor_PlaySfx(&GET_PLAYER(MM_gPlayState)->actor, NA_SE_EN_BUBLE_BITE);
                 gSaveContext.jinxTimer = 1200;
             } });
             break;
@@ -170,8 +170,8 @@ void Rando::MiscBehavior::OfferTrapItem() {
             GameInteractor::Instance->events.emplace_back(GIEventTrap{ .action = []() {
                 int16_t currentRupees = gSaveContext.save.saveInfo.playerData.rupees;
                 if (currentRupees != 0) {
-                    Vec3f positional = GET_PLAYER(gPlayState)->actor.world.pos;
-                    positional.y = GET_PLAYER(gPlayState)->actor.world.pos.y + 100.0f;
+                    Vec3f positional = GET_PLAYER(MM_gPlayState)->actor.world.pos;
+                    positional.y = GET_PLAYER(MM_gPlayState)->actor.world.pos.y + 100.0f;
                     Item00Type rupee = ITEM00_RUPEE_GREEN;
                     int16_t spawnedRupees = 0;
                     int16_t remainingRupees = currentRupees;
@@ -179,21 +179,21 @@ void Rando::MiscBehavior::OfferTrapItem() {
                         if (currentRupees >= 20) {
                             rupee = ITEM00_RUPEE_RED;
                             spawnedRupees += 20;
-                            Rupees_ChangeBy(-20);
+                            MM_Rupees_ChangeBy(-20);
                             currentRupees -= 20;
                         } else if (currentRupees >= 5) {
                             rupee = ITEM00_RUPEE_BLUE;
                             spawnedRupees += 5;
-                            Rupees_ChangeBy(-5);
+                            MM_Rupees_ChangeBy(-5);
                             currentRupees -= 5;
                         } else if (currentRupees >= 1) {
                             rupee = ITEM00_RUPEE_GREEN;
                             spawnedRupees += 1;
-                            Rupees_ChangeBy(-1);
+                            MM_Rupees_ChangeBy(-1);
                             currentRupees -= 1;
                         }
-                        EnItem00* rupeeActor = (EnItem00*)Item_DropCollectible(gPlayState, &positional, rupee);
-                        rupeeActor->actor.speed = Rand_CenteredFloat(5.0f);
+                        EnItem00* rupeeActor = (EnItem00*)MM_Item_DropCollectible(MM_gPlayState, &positional, rupee);
+                        rupeeActor->actor.speed = MM_Rand_CenteredFloat(5.0f);
                         rupeeActor->unk152 = 600; // Extending Time before Despawning
                     }
                 }
@@ -201,8 +201,8 @@ void Rando::MiscBehavior::OfferTrapItem() {
             break;
         case TRAP_ENEMY:
             GameInteractor::Instance->events.emplace_back(GIEventTrap{ .action = []() {
-                Actor_Spawn(&gPlayState->actorCtx, gPlayState, ACTOR_EN_RR, GET_PLAYER(gPlayState)->actor.world.pos.x,
-                            GET_PLAYER(gPlayState)->actor.world.pos.y, GET_PLAYER(gPlayState)->actor.world.pos.z, 0, 0,
+                MM_Actor_Spawn(&MM_gPlayState->actorCtx, MM_gPlayState, ACTOR_EN_RR, GET_PLAYER(MM_gPlayState)->actor.world.pos.x,
+                            GET_PLAYER(MM_gPlayState)->actor.world.pos.y, GET_PLAYER(MM_gPlayState)->actor.world.pos.z, 0, 0,
                             0, 1);
             } });
             break;
@@ -216,12 +216,12 @@ void Rando::MiscBehavior::OfferTrapItem() {
                         gSaveContext.save.day++;
                         gSaveContext.save.eventDayCount++;
                         UpdateGameTime(new_time);
-                        Interface_NewDay(gPlayState, CURRENT_DAY);
+                        Interface_NewDay(MM_gPlayState, CURRENT_DAY);
                         // Load environment values for new day
-                        Environment_NewDay(&gPlayState->envCtx);
+                        Environment_NewDay(&MM_gPlayState->envCtx);
                         // Clear weather from day 2
-                        gWeatherMode = WEATHER_MODE_CLEAR;
-                        gPlayState->envCtx.lightningState = LIGHTNING_OFF;
+                        MM_gWeatherMode = WEATHER_MODE_CLEAR;
+                        MM_gPlayState->envCtx.lightningState = LIGHTNING_OFF;
                     } else {
                         // Handles Moonfall case, prevents skipping past it by setting time right before Moonfall.
                         UpdateGameTime(MORNING_TIME - (timeSkipInterval / 10));
@@ -230,12 +230,12 @@ void Rando::MiscBehavior::OfferTrapItem() {
                     // Every other case
                     UpdateGameTime(new_time);
                 }
-                TransitionFade_SetColor(&gPlayState->unk_18E48, 0x000000);
+                MM_TransitionFade_SetColor(&MM_gPlayState->unk_18E48, 0x000000);
                 R_TRANS_FADE_FLASH_ALPHA_STEP = -1;
-                Player_PlaySfx(GET_PLAYER(gPlayState), NA_SE_SY_TRANSFORM_MASK_FLASH);
+                MM_Player_PlaySfx(GET_PLAYER(MM_gPlayState), NA_SE_SY_TRANSFORM_MASK_FLASH);
 
                 // Handle kickouts, if needed
-                EnTimeTag* enTimeTag = (EnTimeTag*)Actor_FindNearby(gPlayState, &GET_PLAYER(gPlayState)->actor,
+                EnTimeTag* enTimeTag = (EnTimeTag*)MM_Actor_FindNearby(MM_gPlayState, &GET_PLAYER(MM_gPlayState)->actor,
                                                                     ACTOR_EN_TIME_TAG, ACTORCAT_ITEMACTION, 99999.9f);
                 if (enTimeTag != nullptr) {
                     TimeTagType timeTagType = (TimeTagType)TIMETAG_GET_TYPE(&enTimeTag->actor);
@@ -249,11 +249,11 @@ void Rando::MiscBehavior::OfferTrapItem() {
                         // If we were here before the kickout time, and now it's after, then get out of my house
                         if (previous_time <= kickoutTime && new_time >= kickoutTime) {
                             // Unless this is the Stock Pot Inn, and the room key is obtained
-                            if (!(gPlayState->sceneId == SCENE_YADOYA &&
+                            if (!(MM_gPlayState->sceneId == SCENE_YADOYA &&
                                   Flags_GetRandoInf(RANDO_INF_OBTAINED_ROOM_KEY))) {
                                 // This comes from EnTimeTag_KickOut_WaitForTime
-                                Player_SetCsActionWithHaltedActors(gPlayState, &enTimeTag->actor, PLAYER_CSACTION_WAIT);
-                                Message_StartTextbox(gPlayState, 0x1883 + TIMETAG_KICKOUT_GET_TEXT(&enTimeTag->actor),
+                                MM_Player_SetCsActionWithHaltedActors(MM_gPlayState, &enTimeTag->actor, PLAYER_CSACTION_WAIT);
+                                MM_Message_StartTextbox(MM_gPlayState, 0x1883 + TIMETAG_KICKOUT_GET_TEXT(&enTimeTag->actor),
                                                      NULL);
                                 enTimeTag->actionFunc = EnTimeTag_KickOut_Transition;
                             }

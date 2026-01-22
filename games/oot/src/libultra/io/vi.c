@@ -15,11 +15,11 @@ void __osViInit(void) {
     __osViCurr->buffer = (void*)0x80000000;
 
     if (osTvType == OS_TV_PAL) {
-        __osViNext->modep = &OoT_osViModePalLan1;
+        __osViNext->modep = &osViModePalLan1;
     } else if (osTvType == OS_TV_MPAL) {
-        __osViNext->modep = &OoT_osViModeMpalLan1;
+        __osViNext->modep = &osViModeMpalLan1;
     } else {
-        __osViNext->modep = &OoT_osViModeNtscLan1;
+        __osViNext->modep = &osViModeNtscLan1;
     }
 
     __osViNext->state = 0x20;

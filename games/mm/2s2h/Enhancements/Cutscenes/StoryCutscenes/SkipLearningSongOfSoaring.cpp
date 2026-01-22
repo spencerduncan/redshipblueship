@@ -46,11 +46,11 @@ void RegisterSkipLearningSongOfSoaring() {
                                 CustomMessage::StartTextbox("You learned the Song of Soaring!\x1C\x02\x10",
                                                             { .textboxType = 2 });
                             }
-                            Item_Give(gPlayState, ITEM_SONG_SOARING);
+                            MM_Item_Give(MM_gPlayState, ITEM_SONG_SOARING);
                         },
                     .drawItem =
                         [](Actor* actor, PlayState* play) {
-                            Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
+                            MM_Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
                             Rando::DrawItem(RI_SONG_SOARING);
                         } });
             }

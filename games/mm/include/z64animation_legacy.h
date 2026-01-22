@@ -28,9 +28,9 @@ typedef struct {
     /* 0x8 */ LegacyJointKey* jointKey;
 } LegacyAnimationHeader; // size = 0xC
 
-s16 SkelAnime_GetFrameDataLegacy(LegacyAnimationHeader* animation, s32 frame, Vec3s* frameTable);
-s16 Animation_GetLimbCountLegacy(LegacyAnimationHeader* animation);
-s16 Animation_GetLengthLegacy(LegacyAnimationHeader* animation);
-s16 Animation_GetLastFrameLegacy(LegacyAnimationHeader* animation);
+s16 MM_SkelAnime_GetFrameDataLegacy(LegacyAnimationHeader* animation, s32 frame, Vec3s* frameTable);
+s16 MM_Animation_GetLimbCountLegacy(LegacyAnimationHeader* animation);
+s16 MM_Animation_GetLengthLegacy(LegacyAnimationHeader* animation);
+s16 MM_Animation_GetLastFrameLegacy(LegacyAnimationHeader* animation);
 
 #endif

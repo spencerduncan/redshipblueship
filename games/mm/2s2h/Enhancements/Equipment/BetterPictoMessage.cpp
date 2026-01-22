@@ -15,7 +15,7 @@ s32 Snap_RecordPictographedActors(PlayState* play);
 void RegisterBetterPictoMessage() {
     COND_ID_HOOK(OnOpenText, 0xF8, CVAR, [](u16* textId, bool* loadFromMessageTable) {
         if (!CHECK_QUEST_ITEM(QUEST_PICTOGRAPH)) {
-            Snap_RecordPictographedActors(gPlayState);
+            Snap_RecordPictographedActors(MM_gPlayState);
         }
 
         std::string target = "";

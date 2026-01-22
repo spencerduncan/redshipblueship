@@ -9,7 +9,7 @@ typedef struct {
     /* 0xA8 */ s32 unk_A8;
 } PreNMIState; // size = 0xAC
 
-void PreNMI_Destroy(GameState* thisx);
-void PreNMI_Init(GameState* thisx);
+void MM_PreNMI_Destroy(GameState* thisx);
+void MM_PreNMI_Init(GameState* thisx);
 
 #endif

@@ -9,16 +9,16 @@ extern "C" {
 
 s32 func_808351D4(Player* thisx, PlayState* play); // Arrow nocked
 s32 func_808353D8(Player* thisx, PlayState* play); // Aiming in first person
-void Player_InitItemAction(PlayState* play, Player* thisx, PlayerItemAction itemAction);
+void OoT_Player_InitItemAction(PlayState* play, Player* thisx, PlayerItemAction itemAction);
 
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 #define CVAR_ARROW_CYCLE_NAME CVAR_ENHANCEMENT("BowArrowCycle")
 #define CVAR_ARROW_CYCLE_DEFAULT 0
 #define CVAR_ARROW_CYCLE_VALUE CVarGetInteger(CVAR_ARROW_CYCLE_NAME, CVAR_ARROW_CYCLE_DEFAULT)
 
-static const s16 sMagicArrowCosts[] = { 4, 4, 8 };
+static const s16 OoT_sMagicArrowCosts[] = { 4, 4, 8 };
 
 #define MINIGAME_STATUS_ACTIVE 1
 
@@ -78,7 +78,7 @@ static s32 GetBowItemForArrow(PlayerItemAction itemAction) {
 }
 
 static bool CanCycleArrows() {
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
 
     // don't allow cycling during minigames
     if (gSaveContext.minigameState == MINIGAME_STATUS_ACTIVE) {
@@ -208,21 +208,21 @@ static void CycleToNextArrow(PlayState* play, Player* player) {
         EnArrow* arrow = (EnArrow*)player->heldActor;
 
         if (arrow->actor.child != NULL) {
-            Actor_Kill(arrow->actor.child);
+            OoT_Actor_Kill(arrow->actor.child);
         }
 
-        Actor_Kill(&arrow->actor);
+        OoT_Actor_Kill(&arrow->actor);
     }
 
-    Player_InitItemAction(play, player, (PlayerItemAction)nextArrow);
+    OoT_Player_InitItemAction(play, player, (PlayerItemAction)nextArrow);
     UpdateEquippedBow(play, nextArrow);
-    Audio_PlaySoundGeneral(NA_SE_PL_CHANGE_ARMS, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                           &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+    Audio_PlaySoundGeneral(NA_SE_PL_CHANGE_ARMS, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                           &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
     sJustCycledFrames = 2;
 }
 
 void ArrowCycleMain() {
-    if (gPlayState == nullptr || !CanCycleArrows()) {
+    if (OoT_gPlayState == nullptr || !CanCycleArrows()) {
         return;
     }
 
@@ -230,22 +230,22 @@ void ArrowCycleMain() {
         sJustCycledFrames--;
     }
 
-    UpdateFlashEffect(gPlayState);
+    UpdateFlashEffect(OoT_gPlayState);
 
-    Player* player = GET_PLAYER(gPlayState);
-    Input* input = &gPlayState->state.input[0];
+    Player* player = GET_PLAYER(OoT_gPlayState);
+    Input* input = &OoT_gPlayState->state.input[0];
 
     if (IsAimingBow(player) && CHECK_BTN_ANY(input->press.button, BTN_R)) {
         if (IsHoldingMagicBow(player) && gSaveContext.magicState != MAGIC_STATE_IDLE && player->heldActor == NULL) {
-            Audio_PlaySoundGeneral(NA_SE_SY_ERROR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                   &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            Audio_PlaySoundGeneral(NA_SE_SY_ERROR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
             return;
         }
 
         // reset magic state to IDLE before cycling to prevent error sound
         gSaveContext.magicState = MAGIC_STATE_IDLE;
 
-        CycleToNextArrow(gPlayState, player);
+        CycleToNextArrow(OoT_gPlayState, player);
     }
 }
 
@@ -268,7 +268,7 @@ void RegisterArrowCycle() {
         int32_t magicArrowType = va_arg(args, int32_t);
         int32_t* arrowType = va_arg(args, int32_t*);
 
-        if (gSaveContext.magic < sMagicArrowCosts[magicArrowType]) {
+        if (gSaveContext.magic < OoT_sMagicArrowCosts[magicArrowType]) {
             *arrowType = ARROW_NORMAL;
         }
 
@@ -283,7 +283,7 @@ void RegisterArrowCycle() {
         }
 
         int32_t magicArrowType = arrow->actor.params - ARROW_FIRE;
-        Magic_RequestChange(gPlayState, sMagicArrowCosts[magicArrowType], MAGIC_CONSUME_NOW);
+        Magic_RequestChange(OoT_gPlayState, OoT_sMagicArrowCosts[magicArrowType], MAGIC_CONSUME_NOW);
     });
 }
 

@@ -6,8 +6,8 @@ extern "C" {
 #include "variables.h"
 #include "src/overlays/actors/ovl_En_Bom_Chu/z_en_bom_chu.h"
 
-void EnBomChu_Move(EnBomChu*, PlayState*);
-void EnBomChu_Explode(EnBomChu*, PlayState*);
+void MM_EnBomChu_Move(EnBomChu*, PlayState*);
+void MM_EnBomChu_Explode(EnBomChu*, PlayState*);
 void EnBomChu_UpdateRotation(EnBomChu*);
 }
 
@@ -22,8 +22,8 @@ bool IsBombchuFocused() {
 }
 
 static void ReleaseBombchuFocus() {
-    Player* player = GET_PLAYER(gPlayState);
-    Camera_SetFocalActor(Play_GetCamera(gPlayState, player->subCamId), &player->actor);
+    Player* player = GET_PLAYER(MM_gPlayState);
+    Camera_SetFocalActor(MM_Play_GetCamera(MM_gPlayState, player->subCamId), &player->actor);
     player->stateFlags1 &= ~PLAYER_STATE1_20;
     focused = false;
 }
@@ -33,7 +33,7 @@ void RegisterRemoteBombchu() {
     COND_ID_HOOK(OnActorInit, ACTOR_EN_BOM_CHU, CVAR, [](Actor* actor) { activeBombchu = (EnBomChu*)actor; });
 
     COND_ID_HOOK(OnActorDestroy, ACTOR_EN_BOM_CHU, CVAR, [](Actor* actor) {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
 
         if (actor == (Actor*)activeBombchu) {
             activeBombchu = nullptr;
@@ -49,12 +49,12 @@ void RegisterRemoteBombchu() {
             return;
         }
 
-        Player* player = GET_PLAYER(gPlayState);
-        Input* input = &gPlayState->state.input[0];
+        Player* player = GET_PLAYER(MM_gPlayState);
+        Input* input = &MM_gPlayState->state.input[0];
 
-        if (activeBombchu->actionFunc == EnBomChu_Move) {
+        if (activeBombchu->actionFunc == MM_EnBomChu_Move) {
             if (!focused) {
-                Camera_SetFocalActor(Play_GetCamera(gPlayState, CutsceneManager_GetCurrentSubCamId(actor->csId)),
+                Camera_SetFocalActor(MM_Play_GetCamera(MM_gPlayState, CutsceneManager_GetCurrentSubCamId(actor->csId)),
                                      actor);
                 player->stateFlags1 |= PLAYER_STATE1_20;
                 focused = true;
@@ -67,9 +67,9 @@ void RegisterRemoteBombchu() {
 
                 Matrix_RotateAxisF(BINANG_TO_RAD(-turnAngle), &activeBombchu->axisUp, MTXMODE_NEW);
                 Vec3f newAxisForwards;
-                Matrix_MultVec3f(&activeBombchu->axisForwards, &newAxisForwards);
-                Math_Vec3f_Copy(&activeBombchu->axisForwards, &newAxisForwards);
-                Math3D_Vec3f_Cross(&activeBombchu->axisUp, &activeBombchu->axisForwards, &activeBombchu->axisLeft);
+                MM_Matrix_MultVec3f(&activeBombchu->axisForwards, &newAxisForwards);
+                MM_Math_Vec3f_Copy(&activeBombchu->axisForwards, &newAxisForwards);
+                MM_Math3D_Vec3f_Cross(&activeBombchu->axisUp, &activeBombchu->axisForwards, &activeBombchu->axisLeft);
 
                 EnBomChu_UpdateRotation(activeBombchu);
                 activeBombchu->actor.shape.rot.x = -activeBombchu->actor.world.rot.x;
@@ -78,7 +78,7 @@ void RegisterRemoteBombchu() {
             }
 
             if (input->press.button & BTN_B) {
-                EnBomChu_Explode(activeBombchu, gPlayState);
+                MM_EnBomChu_Explode(activeBombchu, MM_gPlayState);
             }
 
             if (input->press.button & BTN_A) {

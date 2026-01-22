@@ -613,7 +613,7 @@ void EnPartner_Update(Actor* thisx, PlayState* play) {
         relY = 0;
     }
 
-    OoT_Math_SmoothStepToF(&this->actor.speedXZ, OoT_sqrtf(SQ(relX) + SQ(relY)), 1.0f, 1.3f, 0.0f);
+    OoT_Math_SmoothStepToF(&this->actor.speedXZ, sqrtf(SQ(relX) + SQ(relY)), 1.0f, 1.3f, 0.0f);
 
     if (this->shouldDraw == 1) {
         thisx->shape.shadowAlpha = 0xFF;

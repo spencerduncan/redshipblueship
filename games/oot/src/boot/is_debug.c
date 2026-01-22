@@ -6,13 +6,13 @@ OSPiHandle* sISVHandle; // official name : is_Handle
 #define ASCII_TO_U32(a, b, c, d) ((u32)((a << 24) | (b << 16) | (c << 8) | (d << 0)))
 
 void isPrintfInit(void) {
-    sISVHandle = OoT_osCartRomInit();
-    OoT_osEPiWriteIo(sISVHandle, (u32)&gISVDbgPrnAdrs->put, 0);
-    OoT_osEPiWriteIo(sISVHandle, (u32)&gISVDbgPrnAdrs->get, 0);
-    OoT_osEPiWriteIo(sISVHandle, (u32)&gISVDbgPrnAdrs->magic, ASCII_TO_U32('I', 'S', '6', '4'));
+    sISVHandle = osCartRomInit();
+    osEPiWriteIo(sISVHandle, (u32)&gISVDbgPrnAdrs->put, 0);
+    osEPiWriteIo(sISVHandle, (u32)&gISVDbgPrnAdrs->get, 0);
+    osEPiWriteIo(sISVHandle, (u32)&gISVDbgPrnAdrs->magic, ASCII_TO_U32('I', 'S', '6', '4'));
 }
 
-void OoT_osSyncPrintfUnused(const char* fmt, ...) {
+void osSyncPrintfUnused(const char* fmt, ...) {
 }
 
 /*void osSyncPrintf(const char* fmt, ...) {
@@ -42,13 +42,13 @@ void* is_proutSyncPrintf(void* arg, const char* str, u32 count) {
 
     // OTRLogString(str);
 
-    OoT_osEPiReadIo(sISVHandle, (u32)&gISVDbgPrnAdrs->magic, &data);
+    osEPiReadIo(sISVHandle, (u32)&gISVDbgPrnAdrs->magic, &data);
     if (data != ASCII_TO_U32('I', 'S', '6', '4')) {
         return 1;
     }
-    OoT_osEPiReadIo(sISVHandle, (u32)&gISVDbgPrnAdrs->get, &data);
+    osEPiReadIo(sISVHandle, (u32)&gISVDbgPrnAdrs->get, &data);
     pos = data;
-    OoT_osEPiReadIo(sISVHandle, (u32)&gISVDbgPrnAdrs->put, &data);
+    osEPiReadIo(sISVHandle, (u32)&gISVDbgPrnAdrs->put, &data);
     start = data;
     end = start + count;
     if (end >= 0xFFE0) {
@@ -66,8 +66,8 @@ void* is_proutSyncPrintf(void* arg, const char* str, u32 count) {
         s32 shift = ((3 - (start & 3)) * 8);
 
         if (*str) {
-            OoT_osEPiReadIo(sISVHandle, addr, &data);
-            OoT_osEPiWriteIo(sISVHandle, addr, (*str << shift) | (data & ~(0xFF << shift)));
+            osEPiReadIo(sISVHandle, addr, &data);
+            osEPiWriteIo(sISVHandle, addr, (*str << shift) | (data & ~(0xFF << shift)));
 
             start++;
             if (start >= 0xFFE0) {
@@ -77,7 +77,7 @@ void* is_proutSyncPrintf(void* arg, const char* str, u32 count) {
         count--;
         str++;
     }
-    OoT_osEPiWriteIo(sISVHandle, (u32)&gISVDbgPrnAdrs->put, start);
+    osEPiWriteIo(sISVHandle, (u32)&gISVDbgPrnAdrs->put, start);
 
     return 1;
 }

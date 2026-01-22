@@ -27,13 +27,13 @@ void RegisterSkipGreatFairyCutscene() {
         if (*should && !(elfgrp->stateFlags & ELFGRP_STATE_0)) {
             elfgrp->stateFlags |= ELFGRP_STATE_0;
             if (elfgrp->type == ENELFGRP_TYPE_MAGIC) { // Clock Town
-                EnElfgrp_SpawnStrayFairies(elfgrp, gPlayState, 1, 1);
+                EnElfgrp_SpawnStrayFairies(elfgrp, MM_gPlayState, 1, 1);
             } else {
-                EnElfgrp_SpawnStrayFairies(elfgrp, gPlayState, EnElfgrp_GetHeldFairiesCount(gPlayState, elfgrp->type),
+                EnElfgrp_SpawnStrayFairies(elfgrp, MM_gPlayState, EnElfgrp_GetHeldFairiesCount(MM_gPlayState, elfgrp->type),
                                            1);
             }
-            EnElfgrp_SetFountainFairiesCount(gPlayState, elfgrp->type, STRAY_FAIRY_TOTAL);
-            EnElfgrp_SummonStrayFairies(gPlayState);
+            EnElfgrp_SetFountainFairiesCount(MM_gPlayState, elfgrp->type, STRAY_FAIRY_TOTAL);
+            EnElfgrp_SummonStrayFairies(MM_gPlayState);
             elfgrp->actionFunc = func_80A3A210;
             elfgrp->stateFlags &= ~ELFGRP_STATE_3;
             elfgrp->timer = 90;
@@ -107,7 +107,7 @@ void RegisterSkipGreatFairyCutscene() {
                                         CustomMessage::StartTextbox("You received the Great Fairy Sword!\x1C\x02\x10",
                                                                     { .textboxType = 2 });
                                     }
-                                    Item_Give(gPlayState, ITEM_SWORD_GREAT_FAIRY);
+                                    MM_Item_Give(MM_gPlayState, ITEM_SWORD_GREAT_FAIRY);
                                 } });
                         }
                         break;
@@ -140,7 +140,7 @@ void RegisterSkipGreatFairyCutscene() {
                                         CustomMessage::StartTextbox("You received the Great Fairy's Mask!\x1C\x02\x10",
                                                                     { .textboxType = 2 });
                                     }
-                                    Item_Give(gPlayState, ITEM_MASK_GREAT_FAIRY);
+                                    MM_Item_Give(MM_gPlayState, ITEM_MASK_GREAT_FAIRY);
                                 } });
                         }
                         break;
@@ -148,7 +148,7 @@ void RegisterSkipGreatFairyCutscene() {
             }
 
             gSaveContext.healthAccumulator = 0x140;
-            Magic_Add(gPlayState, MAGIC_FILL_TO_CAPACITY);
+            Magic_Add(MM_gPlayState, MAGIC_FILL_TO_CAPACITY);
         }
 
         *should = false;

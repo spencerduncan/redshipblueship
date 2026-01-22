@@ -11,9 +11,9 @@ extern "C" {
 #include "overlays/actors/ovl_En_Sob1/z_en_sob1.h"
 #include "overlays/actors/ovl_En_Trt/z_en_trt.h"
 
-void EnGirlA_Update2(EnGirlA* enGirlA, PlayState* play);
+void MM_EnGirlA_Update2(EnGirlA* enGirlA, PlayState* play);
 void EnGirlA_DoNothing(EnGirlA* enGirlA, PlayState* play);
-void EnGirlA_SetupAction(EnGirlA* enGirlA, EnGirlAActionFunc action);
+void MM_EnGirlA_SetupAction(EnGirlA* enGirlA, EnGirlAActionFunc action);
 }
 
 #define RANDO_DESC_TEXT_ID 0x083F
@@ -67,7 +67,7 @@ void EnGirlA_RandoBuyFunc(PlayState* play, EnGirlA* enGirlA) {
     auto& randoSaveCheck = RANDO_SAVE_CHECKS[enGirlA->actor.world.rot.z];
     RandoItemId randoItemId = Rando::ConvertItem(randoSaveCheck.randoItemId, (RandoCheckId)enGirlA->actor.world.rot.z);
     randoSaveCheck.obtained = true;
-    Rupees_ChangeBy(-play->msgCtx.unk1206C);
+    MM_Rupees_ChangeBy(-play->msgCtx.unk1206C);
     if (randoItemId == RI_TRAP) {
         RollTrapType();
     }
@@ -90,14 +90,14 @@ void EnGirlA_RandoInit(EnGirlA* enGirlA, PlayState* play) {
     enGirlA->buyFanfareFunc = EnGirlA_RandoBuyFanfareFunc;
 
     enGirlA->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
-    Actor_SetScale(&enGirlA->actor, 0.25f);
+    MM_Actor_SetScale(&enGirlA->actor, 0.25f);
     enGirlA->actor.shape.yOffset = 24.0f;
     enGirlA->actor.shape.shadowScale = 4.0f;
     enGirlA->actor.floorHeight = enGirlA->actor.home.pos.y;
     enGirlA->actor.gravity = 0.0f;
-    EnGirlA_SetupAction(enGirlA, EnGirlA_DoNothing);
+    MM_EnGirlA_SetupAction(enGirlA, EnGirlA_DoNothing);
     enGirlA->isInitialized = true;
-    enGirlA->mainActionFunc = EnGirlA_Update2;
+    enGirlA->mainActionFunc = MM_EnGirlA_Update2;
     enGirlA->isSelected = false;
     enGirlA->rotY = 0;
     enGirlA->initialRotY = enGirlA->actor.shape.rot.y;
@@ -144,7 +144,7 @@ void ReplaceCannotBuyMessage(u16* textId, bool* loadFromMessageTable) {
 }
 
 RandoCheckId IdentifyShopItem(Actor* actor) {
-    switch (gPlayState->sceneId) {
+    switch (MM_gPlayState->sceneId) {
         case SCENE_8ITEMSHOP:
             switch (actor->params) {
                 case 10:
@@ -234,29 +234,29 @@ RandoCheckId IdentifyShopItem(Actor* actor) {
 RandoCheckId IdentifyActiveShopItem() {
     RandoCheckId randoCheckId = RC_UNKNOWN;
 
-    if (gPlayState->msgCtx.talkActor == nullptr) {
+    if (MM_gPlayState->msgCtx.talkActor == nullptr) {
         return RC_UNKNOWN;
     }
 
-    if (gPlayState->msgCtx.talkActor->id == ACTOR_EN_TRT) {
-        EnTrt* enTrt = (EnTrt*)gPlayState->msgCtx.talkActor;
+    if (MM_gPlayState->msgCtx.talkActor->id == ACTOR_EN_TRT) {
+        EnTrt* enTrt = (EnTrt*)MM_gPlayState->msgCtx.talkActor;
         if (enTrt->items[enTrt->cursorIndex] != nullptr) {
             randoCheckId = (RandoCheckId)enTrt->items[enTrt->cursorIndex]->actor.world.rot.z;
         }
-    } else if (gPlayState->msgCtx.talkActor->id == ACTOR_EN_OSSAN) {
-        if (gPlayState->msgCtx.talkActor->params == 0 || gPlayState->msgCtx.talkActor->params == 1) {
-            EnOssan* enOssan = (EnOssan*)gPlayState->msgCtx.talkActor;
+    } else if (MM_gPlayState->msgCtx.talkActor->id == ACTOR_EN_OSSAN) {
+        if (MM_gPlayState->msgCtx.talkActor->params == 0 || MM_gPlayState->msgCtx.talkActor->params == 1) {
+            EnOssan* enOssan = (EnOssan*)MM_gPlayState->msgCtx.talkActor;
             if (enOssan->items[enOssan->cursorIndex] != nullptr) {
                 randoCheckId = (RandoCheckId)enOssan->items[enOssan->cursorIndex]->actor.world.rot.z;
             }
         } else {
-            EnSob1* enSob1 = (EnSob1*)gPlayState->msgCtx.talkActor;
+            EnSob1* enSob1 = (EnSob1*)MM_gPlayState->msgCtx.talkActor;
             if (enSob1->items[enSob1->cursorIndex] != nullptr) {
                 randoCheckId = (RandoCheckId)enSob1->items[enSob1->cursorIndex]->actor.world.rot.z;
             }
         }
-    } else if (gPlayState->msgCtx.talkActor->id == ACTOR_EN_FSN) {
-        EnFsn* enFsn = (EnFsn*)gPlayState->msgCtx.talkActor;
+    } else if (MM_gPlayState->msgCtx.talkActor->id == ACTOR_EN_FSN) {
+        EnFsn* enFsn = (EnFsn*)MM_gPlayState->msgCtx.talkActor;
         if (enFsn->items[enFsn->cursorIndex] != nullptr) {
             randoCheckId = (RandoCheckId)enFsn->items[enFsn->cursorIndex]->actor.world.rot.z;
         }
@@ -372,7 +372,7 @@ void Rando::ActorBehavior::InitEnGirlABehavior() {
         SET_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_FREE_BLUE_POTION);
         // Mark the item as out of stock
         EnTrt* enTrt =
-            (EnTrt*)Actor_FindNearby(gPlayState, &GET_PLAYER(gPlayState)->actor, ACTOR_EN_TRT, ACTORCAT_NPC, 100.0f);
+            (EnTrt*)MM_Actor_FindNearby(MM_gPlayState, &GET_PLAYER(MM_gPlayState)->actor, ACTOR_EN_TRT, ACTORCAT_NPC, 100.0f);
         if (enTrt != nullptr) {
             EnGirlA* enGirlA = enTrt->items[2];
             enGirlA->isOutOfStock = true;

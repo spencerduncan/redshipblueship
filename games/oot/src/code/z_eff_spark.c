@@ -72,7 +72,7 @@ void OoT_EffectSpark_Init(void* thisx, void* initParamsx) {
             elem->velocity.y = OoT_Rand_ZeroOne() - 0.5f;
             elem->velocity.z = OoT_Rand_ZeroOne() - 0.5f;
 
-            velocityNorm = OoT_sqrtf(SQ(elem->velocity.x) + SQ(elem->velocity.y) + SQ(elem->velocity.z));
+            velocityNorm = sqrtf(SQ(elem->velocity.x) + SQ(elem->velocity.y) + SQ(elem->velocity.z));
 
             if (!(fabsf(velocityNorm) < 0.008f)) {
                 elem->velocity.x *= this->speed * (1.0f / velocityNorm);

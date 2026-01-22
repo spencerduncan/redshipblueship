@@ -83,9 +83,9 @@ typedef enum SetupDL {
     /* 0x49 */ SETUPDL_MAX
 } SetupDL;
 
-Gfx* Gfx_SetupDLImpl(Gfx* gfx, u32 i);
-Gfx* Gfx_SetupDL(Gfx* gfx, u32 i);
-void Gfx_SetupDLAtPtr(Gfx** gfxP, u32 i);
+Gfx* MM_Gfx_SetupDLImpl(Gfx* gfx, u32 i);
+Gfx* MM_Gfx_SetupDL(Gfx* gfx, u32 i);
+void MM_Gfx_SetupDLAtPtr(Gfx** gfxP, u32 i);
 Gfx* Gfx_SetupDL57(Gfx* gfx);
 Gfx* Gfx_SetupDL57_b(Gfx* gfx);
 Gfx* Gfx_SetupDL52_NoCD(Gfx* gfx);

@@ -9,7 +9,7 @@ extern "C" {
 #include "variables.h"
 #include "z64save.h"
 extern SaveContext gSaveContext;
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 static constexpr int32_t CVAR_PERM_HEART_LOSS_DEFAULT = 0;
@@ -56,11 +56,11 @@ static void UpdateHealthCapacity() {
 }
 
 static void DeleteFileOnDeath() {
-    if (!GameInteractor::IsSaveLoaded() || gPlayState == NULL) {
+    if (!GameInteractor::IsSaveLoaded() || OoT_gPlayState == NULL) {
         return;
     }
 
-    if (gPlayState->gameOverCtx.state == GAMEOVER_DEATH_MENU && gPlayState->pauseCtx.state == 9) {
+    if (OoT_gPlayState->gameOverCtx.state == GAMEOVER_DEATH_MENU && OoT_gPlayState->pauseCtx.state == 9) {
         SaveManager::Instance->DeleteZeldaFile(gSaveContext.fileNum);
         hasAffectedHealth = false;
         std::reinterpret_pointer_cast<Ship::ConsoleWindow>(

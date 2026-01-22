@@ -1,7 +1,7 @@
 #include "ultra64.h"
 #include "libc/stdint.h"
 
-uintptr_t MM_osVirtualToPhysical(void* addr) {
+uintptr_t osVirtualToPhysical(void* addr) {
     if (IS_KSEG0(addr)) {
         return K0_TO_PHYS(addr);
     } else if (IS_KSEG1(addr)) {

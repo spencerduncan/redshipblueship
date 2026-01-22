@@ -2,7 +2,7 @@
 
 extern OSViContext* __osViNext;
 
-void OoT_osViSetEvent(OSMesgQueue* mq, OSMesg msg, u32 retraceCount) {
+void osViSetEvent(OSMesgQueue* mq, OSMesg msg, u32 retraceCount) {
     register u32 prevInt = __osDisableInt();
 
     __osViNext->mq = mq;

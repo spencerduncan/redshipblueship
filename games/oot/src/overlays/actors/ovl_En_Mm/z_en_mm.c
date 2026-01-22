@@ -341,7 +341,7 @@ s32 func_80AADEF0(EnMm* this, PlayState* play) {
     zDiff = waypointPos.z - this->actor.world.pos.z;
 
     this->yawToWaypoint = (s32)(OoT_Math_FAtan2F(xDiff, zDiff) * (0x8000 / M_PI));
-    this->distToWaypoint = OoT_sqrtf(SQ(xDiff) + SQ(zDiff));
+    this->distToWaypoint = sqrtf(SQ(xDiff) + SQ(zDiff));
 
     while ((this->distToWaypoint <= 10.44f) && (this->unk_1E8 != 0)) {
         this->waypoint += sPathInfo[this->unk_1E8].unk_00;
@@ -386,7 +386,7 @@ s32 func_80AADEF0(EnMm* this, PlayState* play) {
         zDiff = waypointPos.z - this->actor.world.pos.z;
 
         this->yawToWaypoint = (s32)(OoT_Math_FAtan2F(xDiff, zDiff) * (0x8000 / M_PI));
-        this->distToWaypoint = OoT_sqrtf(SQ(xDiff) + SQ(zDiff));
+        this->distToWaypoint = sqrtf(SQ(xDiff) + SQ(zDiff));
     }
 
     OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->yawToWaypoint, 1, 2500, 0);

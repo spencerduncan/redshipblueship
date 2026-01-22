@@ -135,7 +135,7 @@ void Rando::ActorBehavior::InitSoulsBehavior() {
     // ShouldActorDraw & ShouldActorUpdate for Boss Souls
     COND_ID_HOOK(ShouldActorDraw, ACTOR_BOSS_HAKUGIN, shouldBossRegister, [](Actor* actor, bool* should) {
         if (!Flags_GetRandoInf(RANDO_INF_OBTAINED_SOUL_OF_BOSS_GOHT)) {
-            BossHakugin_DrawIce((BossHakugin*)actor, gPlayState);
+            BossHakugin_DrawIce((BossHakugin*)actor, MM_gPlayState);
             *should = false;
         }
     });
@@ -185,7 +185,7 @@ void Rando::ActorBehavior::InitSoulsBehavior() {
      */
     COND_VB_SHOULD(VB_ITEM_BE_RESTRICTED, shouldBossRegister, {
         ItemId itemId = *va_arg(args, ItemId*);
-        if (itemId == ITEM_MASK_GIANT && gPlayState->sceneId == SCENE_INISIE_BS &&
+        if (itemId == ITEM_MASK_GIANT && MM_gPlayState->sceneId == SCENE_INISIE_BS &&
             !Flags_GetRandoInf(RANDO_INF_OBTAINED_SOUL_OF_BOSS_TWINMOLD)) {
             *should = true;
         }

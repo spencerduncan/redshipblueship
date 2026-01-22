@@ -607,7 +607,7 @@ void func_8088DB4C(EnElf* this, Vec3f* arg1, f32 arg2, f32 arg3, f32 arg4) {
 
     func_8088D5A0(this, arg1, arg4);
 
-    xzVelocity = MM_sqrtf(SQ(xVelTarget) + SQ(zVelTarget));
+    xzVelocity = sqrtf(SQ(xVelTarget) + SQ(zVelTarget));
     clampedXZ = CLAMP(xzVelocity, arg2, arg3);
     this->actor.speed = clampedXZ;
 

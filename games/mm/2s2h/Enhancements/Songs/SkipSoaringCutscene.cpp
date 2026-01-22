@@ -19,19 +19,19 @@ static void SkipSoaringCutscene(Actor* actor, bool* should) {
 
     *should = false;
 
-    if (gPlayState->sceneId == SCENE_SECOM) {
-        gPlayState->nextEntrance = ENTRANCE(IKANA_CANYON, 6);
+    if (MM_gPlayState->sceneId == SCENE_SECOM) {
+        MM_gPlayState->nextEntrance = ENTRANCE(IKANA_CANYON, 6);
     } else if (ocarinaMode == OCARINA_MODE_WARP_TO_ENTRANCE) {
-        func_80169F78(gPlayState);
+        func_80169F78(MM_gPlayState);
         gSaveContext.respawn[RESPAWN_MODE_TOP].playerParams =
             PLAYER_PARAMS(gSaveContext.respawn[RESPAWN_MODE_TOP].playerParams, PLAYER_START_MODE_OWL);
         gSaveContext.respawnFlag = -6;
     } else {
-        gPlayState->nextEntrance = sOwlWarpEntrancesForMods[ocarinaMode - OCARINA_MODE_WARP_TO_GREAT_BAY_COAST];
+        MM_gPlayState->nextEntrance = sOwlWarpEntrancesForMods[ocarinaMode - OCARINA_MODE_WARP_TO_GREAT_BAY_COAST];
     }
 
-    gPlayState->transitionTrigger = TRANS_TRIGGER_START;
-    gPlayState->transitionType = TRANS_TYPE_FADE_BLACK;
+    MM_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
+    MM_gPlayState->transitionType = TRANS_TYPE_FADE_BLACK;
 }
 
 static void RegisterSkipSoaringCutscene() {

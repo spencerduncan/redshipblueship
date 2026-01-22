@@ -173,7 +173,7 @@ void EnEncount2_SpawnRocks(EnEncount2* this, PlayState* play) {
         tempVec1Z = play->view.lookAt.z - play->view.eye.z;
 
         // Normalised direction vector for the direction the camera is facing
-        magnitude = OoT_sqrtf(SQ(tempVec1X) + SQ(tempVec1Y) + SQ(tempVec1Z));
+        magnitude = sqrtf(SQ(tempVec1X) + SQ(tempVec1Y) + SQ(tempVec1Z));
         tempVec2X = tempVec1X / magnitude;
         tempVec2Y = tempVec1Y / magnitude;
         tempVec2Z = tempVec1Z / magnitude;

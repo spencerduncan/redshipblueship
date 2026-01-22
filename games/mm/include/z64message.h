@@ -151,7 +151,7 @@ typedef enum FaceReactionSet {
     /* 0x36 */ FACE_REACTION_SET_PART_TIMER = 0x36
 } FaceReactionSet;
 
-u16 Text_GetFaceReaction(struct PlayState* play, FaceReactionSet reactionSet);
+u16 MM_Text_GetFaceReaction(struct PlayState* play, FaceReactionSet reactionSet);
 
 typedef enum TextState {
     /*  0 */ TEXT_STATE_NONE,
@@ -329,33 +329,33 @@ typedef struct MessageContext {
     /* 0x120DA */ UNK_TYPE1 unk_120DA[0x6];
 } MessageContext; // size = 0x120E0
 
-bool Message_ShouldAdvance(struct PlayState* play);
-void Message_CloseTextbox(struct PlayState* play);
-void Message_DrawTextChar(struct PlayState* play, TexturePtr texture, Gfx** gfxP);
-void Message_DrawItemIcon(struct PlayState* play, Gfx** gfxP);
-void Message_HandleOcarina(struct PlayState* play);
-void Message_LoadItemIcon(struct PlayState* play, u16 itemId, s16 arg2);
+bool MM_Message_ShouldAdvance(struct PlayState* play);
+void MM_Message_CloseTextbox(struct PlayState* play);
+void MM_Message_DrawTextChar(struct PlayState* play, TexturePtr texture, Gfx** gfxP);
+void MM_Message_DrawItemIcon(struct PlayState* play, Gfx** gfxP);
+void MM_Message_HandleOcarina(struct PlayState* play);
+void MM_Message_LoadItemIcon(struct PlayState* play, u16 itemId, s16 arg2);
 void Message_DecodeHeader(struct PlayState* play);
 void func_801514B0(struct PlayState* play, u16 arg1, u8 arg2);
-void Message_StartTextbox(struct PlayState* play, u16 textId, Actor* actor);
-void Message_ContinueTextbox(struct PlayState* play, u16 textId);
+void MM_Message_StartTextbox(struct PlayState* play, u16 textId, Actor* actor);
+void MM_Message_ContinueTextbox(struct PlayState* play, u16 textId);
 void Message_DisplaySceneTitleCard(struct PlayState* play, u16 textId);
 void Message_BombersNotebookQueueEvent(struct PlayState* play, u8 event);
 void Message_DisplayOcarinaStaff(struct PlayState* play, u16 ocarinaAction);
 void Message_DisplayOcarinaStaffBlockSunsSong(struct PlayState* play, u16 ocarinaAction);
-u8 Message_GetState(MessageContext* msgCtx);
-void Message_Draw(struct PlayState* play);
-void Message_Update(struct PlayState* play);
-void Message_Init(struct PlayState* play);
+u8 MM_Message_GetState(MessageContext* msgCtx);
+void MM_Message_Draw(struct PlayState* play);
+void MM_Message_Update(struct PlayState* play);
+void MM_Message_Init(struct PlayState* play);
 void Message_FindMessageNES(struct PlayState* play, u16 textId);
 void Message_DrawTextNES(struct PlayState* play, Gfx** gfxP, u16 textDrawPos);
 void Message_DecodeNES(struct PlayState* play);
-void Message_FindCreditsMessage(struct PlayState* play, u16 textId);
+void MM_Message_FindCreditsMessage(struct PlayState* play, u16 textId);
 void Message_DrawTextCredits(struct PlayState* play, Gfx** gfxP);
 void Message_DecodeCredits(struct PlayState* play);
 
 extern u8 gPageSwitchNextButtonStatus[6][5];
 extern u16 gBombersNotebookWeekEventFlags[BOMBERS_NOTEBOOK_EVENT_MAX];
-extern s16 gOcarinaSongItemMap[];
+extern s16 MM_gOcarinaSongItemMap[];
 
 #endif

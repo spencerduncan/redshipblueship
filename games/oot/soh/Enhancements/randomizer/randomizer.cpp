@@ -70,7 +70,7 @@ const std::string Randomizer::randoMiscHintsTableID = "RandomizerMiscHints";
 const std::string Randomizer::RocsFeatherMessageTableID = "RandomizerRocsFeather";
 
 static const char* englishRupeeNames[188] = {
-    "[P]",
+    "[OoT_P]",
     "Bad RNG Rolls",
     "Baht",
     "Bananas",
@@ -540,7 +540,7 @@ bool Randomizer::SpoilerFileExists(const char* spoilerFileName) {
             spoilerFileStream.close();
 
             bool isValid = contents.contains("version") &&
-                           strcmp(std::string(contents["version"]).c_str(), (char*)gBuildVersion) == 0;
+                           strcmp(std::string(contents["version"]).c_str(), (char*)OoT_gBuildVersion) == 0;
 
             if (!isValid) {
                 SohGui::RegisterPopup(
@@ -1022,7 +1022,7 @@ ItemObtainability Randomizer::GetItemObtainabilityFromRandomizerGet(RandomizerGe
         case RG_BUY_FAIRYS_SPIRIT:
         case RG_BUY_RED_POTION_40:
         case RG_BUY_RED_POTION_50:
-            return Inventory_HasEmptyBottle() ? CAN_OBTAIN : CANT_OBTAIN_NEED_EMPTY_BOTTLE;
+            return OoT_Inventory_HasEmptyBottle() ? CAN_OBTAIN : CANT_OBTAIN_NEED_EMPTY_BOTTLE;
 
         // Trade Items
         // TODO: Do we want to be strict about any of this?
@@ -3870,7 +3870,7 @@ CheckIdentity Randomizer::IdentifyCrate(s32 sceneNum, s32 posX, s32 posZ) {
     // pretend night is day to align crates in market and align GF child/adult crates
     if (sceneNum == SCENE_MARKET_NIGHT) {
         crateSceneNum = SCENE_MARKET_DAY;
-    } else if (sceneNum == SCENE_GERUDOS_FORTRESS && gPlayState->linkAgeOnLoad == 1 && posX == 310) {
+    } else if (sceneNum == SCENE_GERUDOS_FORTRESS && OoT_gPlayState->linkAgeOnLoad == 1 && posX == 310) {
         if (posZ == -1830) {
             posZ = -1842;
         } else if (posZ == -1770) {
@@ -4073,7 +4073,7 @@ CustomMessage Randomizer::GetSheikMessage(s16 scene, u16 originalTextId) {
                     "@, tu n'es toujours pas prêt à affronter %rGanondorf%w.^"
                     "Cherche l'%cÉpée de Légende%w, %rquelque chose pour ranger tes flèches%w et de la %gmagie%w pour "
                     "invoquer la %ylumière%w.");
-            } else if (!Flags_GetEventChkInf(EVENTCHKINF_DISPELLED_GANONS_TOWER_BARRIER) &&
+            } else if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_DISPELLED_GANONS_TOWER_BARRIER) &&
                        !ctx->GetOption(RSK_TRIAL_COUNT).Is(0)) {
                 messageEntry = CustomMessage(
                     "You may have what you need to defeat %rthe Evil King%w, but the %cbarrier%w still "
@@ -4567,7 +4567,7 @@ CustomMessage Randomizer::GetIceTrapMessage() {
         "Do you want to drink a hot chocolate?",
         "The #cold# never bothered me anyway.",
         "Hope you're too school for #cool#!",
-        "Be thankful this isn't #absolute zero#.",
+        "Be thankful this isn't #absolute OoT_zero#.",
         "Did you know the F in ZFG stands for #Freeze#?",
         "You got #Ice Age (2002)#!",
         "Now you can cast a #spell# you don't know.",
@@ -4585,7 +4585,7 @@ CustomMessage Randomizer::GetIceTrapMessage() {
         "Gee, it sure is #cold# around here.",
         "You tested the item with your #ice detector#, it beeped.", // would be better if it could have the name of the
                                                                     // item
-        "You have found the way of the zero. The #sub-zero#.",
+        "You have found the way of the OoT_zero. The #sub-OoT_zero#.",
         "Mweep... mweep... mweep...",
         "Scum, #freezebag#! I mean #freeze#, scumbag!",
         "Is it #chilly# in here or is it just #you#?",
@@ -5663,11 +5663,11 @@ extern "C" u16 Randomizer_Item_Give(PlayState* play, GetItemEntry giEntry) {
 
         u32 bitmask;
         if ((item >= RG_DEKU_TREE_MAP) && (item <= RG_ICE_CAVERN_MAP)) {
-            bitmask = gBitFlags[2];
+            bitmask = OoT_gBitFlags[2];
         } else if ((item >= RG_DEKU_TREE_COMPASS) && (item <= RG_ICE_CAVERN_COMPASS)) {
-            bitmask = gBitFlags[1];
+            bitmask = OoT_gBitFlags[1];
         } else {
-            bitmask = gBitFlags[0];
+            bitmask = OoT_gBitFlags[0];
         }
 
         gSaveContext.inventory.dungeonItems[mapIndex] |= bitmask;
@@ -5732,19 +5732,19 @@ extern "C" u16 Randomizer_Item_Give(PlayState* play, GetItemEntry giEntry) {
             gSaveContext.healthAccumulator = MAX_HEALTH;
             break;
         case RG_TYCOON_WALLET:
-            Inventory_ChangeUpgrade(UPG_WALLET, 3);
+            OoT_Inventory_ChangeUpgrade(UPG_WALLET, 3);
             if (OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_FULL_WALLETS)) {
-                Rupees_ChangeBy(999);
+                OoT_Rupees_ChangeBy(999);
             }
             break;
         case RG_CHILD_WALLET:
             Flags_SetRandomizerInf(RAND_INF_HAS_WALLET);
             if (OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_FULL_WALLETS)) {
-                Rupees_ChangeBy(99);
+                OoT_Rupees_ChangeBy(99);
             }
             break;
         case RG_GREG_RUPEE:
-            Rupees_ChangeBy(1);
+            OoT_Rupees_ChangeBy(1);
             Flags_SetRandomizerInf(RAND_INF_GREG_FOUND);
             gSaveContext.ship.stats.itemTimestamp[TIMESTAMP_FOUND_GREG] = static_cast<u32>(GAMEPLAYSTAT_TOTAL_TIME);
             break;
@@ -5776,16 +5776,16 @@ extern "C" u16 Randomizer_Item_Give(PlayState* play, GetItemEntry giEntry) {
             break;
         case RG_MASTER_SWORD:
             if (!CHECK_OWNED_EQUIP(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_MASTER)) {
-                gSaveContext.inventory.equipment |= gBitFlags[1] << gEquipShifts[EQUIP_TYPE_SWORD];
+                gSaveContext.inventory.equipment |= OoT_gBitFlags[1] << OoT_gEquipShifts[EQUIP_TYPE_SWORD];
             }
             break;
         case RG_DEKU_STICK_BAG:
-            Inventory_ChangeUpgrade(UPG_STICKS, 1);
+            OoT_Inventory_ChangeUpgrade(UPG_STICKS, 1);
             INV_CONTENT(ITEM_STICK) = ITEM_STICK;
             AMMO(ITEM_STICK) = static_cast<int8_t>(CUR_CAPACITY(UPG_STICKS));
             break;
         case RG_DEKU_NUT_BAG:
-            Inventory_ChangeUpgrade(UPG_NUTS, 1);
+            OoT_Inventory_ChangeUpgrade(UPG_NUTS, 1);
             INV_CONTENT(ITEM_NUT) = ITEM_NUT;
             AMMO(ITEM_NUT) = static_cast<int8_t>(CUR_CAPACITY(UPG_NUTS));
             break;

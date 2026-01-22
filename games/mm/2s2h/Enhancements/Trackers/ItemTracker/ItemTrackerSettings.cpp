@@ -125,7 +125,7 @@ std::string GetItemTrackerItemName(int16_t itemId, bool isRandoItem) {
         } else if (itemId == ITEM_HEART_CONTAINER) {
             itemName = "Double Defense";
         } else if (itemId >= ITEM_MOONS_TEAR && itemId <= ITEM_PENDANT_OF_MEMORIES) {
-            itemName = Ship_GetItemNameById(gSaveContext.save.saveInfo.inventory.items[gItemSlots[itemId]]);
+            itemName = Ship_GetItemNameById(gSaveContext.save.saveInfo.inventory.items[MM_gItemSlots[itemId]]);
         } else if (itemId == ITEM_SWORD_KOKIRI) {
             fallBackCheck = ITEM_SWORD_KOKIRI + (GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) - EQUIP_VALUE_SWORD_KOKIRI);
             itemName = Ship_GetItemNameById(fallBackCheck <= ITEM_SWORD_KOKIRI ? ITEM_SWORD_KOKIRI : fallBackCheck);

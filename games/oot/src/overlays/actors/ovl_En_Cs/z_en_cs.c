@@ -296,7 +296,7 @@ s32 EnCs_HandleWalking(EnCs* this, PlayState* play) {
     zDiff = pathPos.z - this->actor.world.pos.z;
     walkAngle1 = OoT_Math_FAtan2F(xDiff, zDiff) * (32768.0f / M_PI);
     this->walkAngle = walkAngle1;
-    this->walkDist = OoT_sqrtf((xDiff * xDiff) + (zDiff * zDiff));
+    this->walkDist = sqrtf((xDiff * xDiff) + (zDiff * zDiff));
 
     while (this->walkDist <= 10.44f) {
         this->waypoint++;
@@ -311,7 +311,7 @@ s32 EnCs_HandleWalking(EnCs* this, PlayState* play) {
         zDiff = pathPos.z - this->actor.world.pos.z;
         walkAngle2 = OoT_Math_FAtan2F(xDiff, zDiff) * (32768.0f / M_PI);
         this->walkAngle = walkAngle2;
-        this->walkDist = OoT_sqrtf((xDiff * xDiff) + (zDiff * zDiff));
+        this->walkDist = sqrtf((xDiff * xDiff) + (zDiff * zDiff));
     }
 
     OoT_Math_SmoothStepToS(&this->actor.shape.rot.y, this->walkAngle, 1, 2500, 0);

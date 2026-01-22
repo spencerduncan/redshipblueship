@@ -67,8 +67,8 @@ void GenerateStartingInventory() {
 
     // Starting Inventory Menu
     // Values are associated so that the count of items matches the index of
-    // the option selected. If None is selected, the value will be zero and
-    // zero of the item will be added to the starting inventory.
+    // the option selected. If None is selected, the value will be OoT_zero and
+    // OoT_zero of the item will be added to the starting inventory.
     //  TODO: Uncomment when these options are implemented.
     //  AddItemToInventory(RG_PROGRESSIVE_STICK_UPGRADE, StartingStickCapacity.Value<uint8_t>());
     //  AddItemToInventory(RG_PROGRESSIVE_NUT_UPGRADE, StartingNutCapacity.Value<uint8_t>());

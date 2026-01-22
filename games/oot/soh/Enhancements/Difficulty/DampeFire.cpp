@@ -3,7 +3,7 @@
 #include "soh/Enhancements/enhancementTypes.h"
 
 extern "C" {
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 #include "src/overlays/actors/ovl_En_Po_Relay/z_en_po_relay.h"
 }
 
@@ -45,7 +45,7 @@ static void RegisterDampeFire() {
         if (actor->actionTimer > cooldown) {
             actor->actionTimer = cooldown;
         }
-        *should = actor->actionTimer == 0 && Rand_ZeroOne() < chance;
+        *should = actor->actionTimer == 0 && OoT_Rand_ZeroOne() < chance;
     });
 }
 

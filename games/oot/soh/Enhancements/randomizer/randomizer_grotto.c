@@ -1,6 +1,6 @@
 /*
  * Much of the code here was borrowed from https://github.com/gamestabled/OoT3D_Randomizer/blob/main/code/src/grotto.c
- * It's been adapted for SoH to use our gPlayState vs their gGlobalContext and slightly different named properties.
+ * It's been adapted for SoH to use our OoT_gPlayState vs their gGlobalContext and slightly different named properties.
  */
 
 #include "randomizer_grotto.h"
@@ -8,7 +8,7 @@
 
 #include "global.h"
 
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 
 // Information necessary for entering each grotto
 static const GrottoLoadInfo grottoLoadTable[NUM_GROTTOS] = {
@@ -166,9 +166,9 @@ s16 Grotto_GetEntranceValueHandlingGrottoRando(s16 nextEntranceIndex) {
         // When the nextEntranceIndex is determined by a dynamic exit,
         // or set by Entrance_OverrideBlueWarp to mark a blue warp entrance,
         // we have to set the respawn information and nextEntranceIndex manually
-        if (gPlayState != NULL && gPlayState->nextEntranceIndex != ENTR_LOAD_OPENING) {
+        if (OoT_gPlayState != NULL && OoT_gPlayState->nextEntranceIndex != ENTR_LOAD_OPENING) {
             nextEntranceIndex = grotto.entranceIndex;
-        } else if (gPlayState == NULL) { // Handle spawn position when loading from a save file
+        } else if (OoT_gPlayState == NULL) { // Handle spawn position when loading from a save file
             nextEntranceIndex = grotto.entranceIndex;
             // Otherwise return 0x7FFF (ENTR_RETURN_GROTTO) and let the game handle it
         } else {
@@ -216,12 +216,12 @@ s16 Grotto_OverrideSpecialEntrance(s16 nextEntranceIndex) {
         // When the nextEntranceIndex is determined by a dynamic exit,
         // or set by Entrance_OverrideBlueWarp to mark a blue warp entrance,
         // we have to set the respawn information and nextEntranceIndex manually
-        if (gPlayState != NULL && gPlayState->nextEntranceIndex != ENTR_LOAD_OPENING) {
+        if (OoT_gPlayState != NULL && OoT_gPlayState->nextEntranceIndex != ENTR_LOAD_OPENING) {
             gSaveContext.respawnFlag = 2;
             nextEntranceIndex = grotto.entranceIndex;
-            gPlayState->transitionType = TRANS_TYPE_FADE_WHITE;
+            OoT_gPlayState->transitionType = TRANS_TYPE_FADE_WHITE;
             gSaveContext.nextTransitionType = TRANS_TYPE_FADE_WHITE;
-        } else if (gPlayState == NULL) { // Handle spawn position when loading from a save file
+        } else if (OoT_gPlayState == NULL) { // Handle spawn position when loading from a save file
             gSaveContext.respawnFlag = 2;
             nextEntranceIndex = grotto.entranceIndex;
             gSaveContext.nextTransitionType = TRANS_TYPE_FADE_WHITE;
@@ -269,7 +269,7 @@ void Grotto_OverrideActorEntrance(Actor* thisx) {
     // on content and scene
     for (s16 index = 0; index < NUM_GROTTOS; index++) {
 
-        if (grottoContent == grottoLoadTable[index].content && gPlayState->sceneNum == grottoLoadTable[index].scene) {
+        if (grottoContent == grottoLoadTable[index].content && OoT_gPlayState->sceneNum == grottoLoadTable[index].scene) {
             // Find the override for the matching index from the grotto Load List
             Entrance_SetEntranceDiscovered(ENTRANCE_GROTTO_LOAD_START + index, false);
             EntranceTracker_SetLastEntranceOverride(ENTRANCE_GROTTO_LOAD_START + index);
@@ -277,7 +277,7 @@ void Grotto_OverrideActorEntrance(Actor* thisx) {
 
             // Run the index through the special entrances override check
             lastEntranceType = GROTTO_LOAD;
-            gPlayState->nextEntranceIndex = Grotto_OverrideSpecialEntrance(index);
+            OoT_gPlayState->nextEntranceIndex = Grotto_OverrideSpecialEntrance(index);
             return;
         }
     }
@@ -307,8 +307,8 @@ void Grotto_ForceGrottoReturn(void) {
         gSaveContext.respawn[RESPAWN_MODE_RETURN].playerParams = 0x0DFF;
         gSaveContext.respawn[RESPAWN_MODE_RETURN].pos = grottoReturnTable[grottoId].pos;
         // Save the current temp flags in the grotto return point, so they'll properly keep their values.
-        gSaveContext.respawn[RESPAWN_MODE_RETURN].tempSwchFlags = gPlayState->actorCtx.flags.tempSwch;
-        gSaveContext.respawn[RESPAWN_MODE_RETURN].tempCollectFlags = gPlayState->actorCtx.flags.tempCollect;
+        gSaveContext.respawn[RESPAWN_MODE_RETURN].tempSwchFlags = OoT_gPlayState->actorCtx.flags.tempSwch;
+        gSaveContext.respawn[RESPAWN_MODE_RETURN].tempCollectFlags = OoT_gPlayState->actorCtx.flags.tempCollect;
     }
 }
 

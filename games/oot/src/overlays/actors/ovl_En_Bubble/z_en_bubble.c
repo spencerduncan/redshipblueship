@@ -176,7 +176,7 @@ void EnBubble_Vec3fNormalizedRelfect(Vec3f* vec1, Vec3f* vec2, Vec3f* ret) {
     f32 norm;
 
     OoT_Math3D_Vec3fReflect(vec1, vec2, ret);
-    norm = OoT_sqrtf((ret->x * ret->x) + (ret->y * ret->y) + (ret->z * ret->z));
+    norm = sqrtf((ret->x * ret->x) + (ret->y * ret->y) + (ret->z * ret->z));
     if (norm != 0.0f) {
         ret->x /= norm;
         ret->y /= norm;

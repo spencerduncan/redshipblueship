@@ -21,7 +21,7 @@ extern "C" {
 #include "functions.h"
 #include "macros.h"
 #include "soh/cvar_prefixes.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 #include "message_data_static.h"
@@ -55,9 +55,9 @@ std::vector<const char*> gsMapping = {
     "Desert Colossus, Haunted Wasteland",
 };
 
-extern "C" u8 gAreaGsFlags[];
+extern "C" u8 OoT_gAreaGsFlags[];
 
-extern "C" u8 gAmmoItems[];
+extern "C" u8 OoT_gAmmoItems[];
 
 #define IMAGE_SIZE 48.0f
 
@@ -68,7 +68,7 @@ ButtonOptions buttonOptionsBase;
 CheckboxOptions checkboxOptionsBase;
 ComboboxOptions comboboxOptionsBase;
 
-// Modification of gAmmoItems that replaces ITEM_NONE with the item in inventory slot it represents
+// Modification of OoT_gAmmoItems that replaces ITEM_NONE with the item in inventory slot it represents
 u8 gAllAmmoItems[] = {
     ITEM_STICK,     ITEM_NUT,          ITEM_BOMB,    ITEM_BOW,      ITEM_ARROW_FIRE, ITEM_DINS_FIRE,
     ITEM_SLINGSHOT, ITEM_OCARINA_TIME, ITEM_BOMBCHU, ITEM_LONGSHOT, ITEM_ARROW_ICE,  ITEM_FARORES_WIND,
@@ -204,7 +204,7 @@ void DrawInfoTab() {
         ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Title Screen");
     } else if (gSaveContext.gameMode == GAMEMODE_FILE_SELECT) {
         ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "File Select");
-    } else if (gPlayState == nullptr) {
+    } else if (OoT_gPlayState == nullptr) {
         ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Game Inactive");
     } else if (gSaveContext.fileNum >= 0 && gSaveContext.fileNum <= 2) {
         Combobox("File Number", &gSaveContext.fileNum, fileNumMap, comboboxOptionsBase.Tooltip("Current File Number"));
@@ -581,13 +581,13 @@ void DrawInventoryTab() {
 
                 std::vector<ItemMapEntry> possibleItems;
                 if (restrictToValid) {
-                    // Scan gItemSlots to find legal items for this slot. Bottles are a special case
+                    // Scan OoT_gItemSlots to find legal items for this slot. Bottles are a special case
                     for (int slotIndex = 0; slotIndex < 56; slotIndex++) {
                         int testIndex = (selectedIndex == SLOT_BOTTLE_1 || selectedIndex == SLOT_BOTTLE_2 ||
                                          selectedIndex == SLOT_BOTTLE_3 || selectedIndex == SLOT_BOTTLE_4)
                                             ? SLOT_BOTTLE_1
                                             : selectedIndex;
-                        if (gItemSlots[slotIndex] == testIndex) {
+                        if (OoT_gItemSlots[slotIndex] == testIndex) {
                             possibleItems.push_back(itemMapping[slotIndex]);
                         }
                     }
@@ -625,7 +625,7 @@ void DrawInventoryTab() {
 
     ImGui::Text("Ammo");
     for (uint32_t ammoIndex = 0, drawnAmmoItems = 0; ammoIndex < 16; ammoIndex++) {
-        uint8_t item = (restrictToValid) ? gAmmoItems[ammoIndex] : gAllAmmoItems[ammoIndex];
+        uint8_t item = (restrictToValid) ? OoT_gAmmoItems[ammoIndex] : gAllAmmoItems[ammoIndex];
         if (item != ITEM_NONE) {
             // For legal items, display as 1 row of 7. For unrestricted items, display rows of 6 to match
             // inventory
@@ -701,8 +701,8 @@ void DrawFlagTableArray16(const FlagTable& flagTable, uint16_t row, uint16_t& fl
 
 void DrawFlagsTab() {
     if (ImGui::TreeNode("Player State")) {
-        if (gPlayState != nullptr) {
-            Player* player = GET_PLAYER(gPlayState);
+        if (OoT_gPlayState != nullptr) {
+            Player* player = GET_PLAYER(OoT_gPlayState);
 
             DrawGroupWithBorder(
                 [&]() {
@@ -739,8 +739,8 @@ void DrawFlagsTab() {
         ImGui::TreePop();
     }
     if (ImGui::TreeNode("Current Scene")) {
-        if (gPlayState != nullptr) {
-            ActorContext* act = &gPlayState->actorCtx;
+        if (OoT_gPlayState != nullptr) {
+            ActorContext* act = &OoT_gPlayState->actorCtx;
             DrawGroupWithBorder(
                 [&]() {
                     ImGui::Text("Switch");
@@ -858,18 +858,18 @@ void DrawFlagsTab() {
 
             if (Button("Reload Flags", buttonOptionsBase.Tooltip(
                                            "Load flags from saved scene flags. Normally happens on scene load"))) {
-                act->flags.swch = gSaveContext.sceneFlags[gPlayState->sceneNum].swch;
-                act->flags.clear = gSaveContext.sceneFlags[gPlayState->sceneNum].clear;
-                act->flags.collect = gSaveContext.sceneFlags[gPlayState->sceneNum].collect;
-                act->flags.chest = gSaveContext.sceneFlags[gPlayState->sceneNum].chest;
+                act->flags.swch = gSaveContext.sceneFlags[OoT_gPlayState->sceneNum].swch;
+                act->flags.clear = gSaveContext.sceneFlags[OoT_gPlayState->sceneNum].clear;
+                act->flags.collect = gSaveContext.sceneFlags[OoT_gPlayState->sceneNum].collect;
+                act->flags.chest = gSaveContext.sceneFlags[OoT_gPlayState->sceneNum].chest;
             }
 
             if (Button("Save Flags",
                        buttonOptionsBase.Tooltip("Save current scene flags. Normally happens on scene exit"))) {
-                gSaveContext.sceneFlags[gPlayState->sceneNum].swch = act->flags.swch;
-                gSaveContext.sceneFlags[gPlayState->sceneNum].clear = act->flags.clear;
-                gSaveContext.sceneFlags[gPlayState->sceneNum].collect = act->flags.collect;
-                gSaveContext.sceneFlags[gPlayState->sceneNum].chest = act->flags.chest;
+                gSaveContext.sceneFlags[OoT_gPlayState->sceneNum].swch = act->flags.swch;
+                gSaveContext.sceneFlags[OoT_gPlayState->sceneNum].clear = act->flags.clear;
+                gSaveContext.sceneFlags[OoT_gPlayState->sceneNum].collect = act->flags.collect;
+                gSaveContext.sceneFlags[OoT_gPlayState->sceneNum].chest = act->flags.chest;
             }
 
             if (Button("Clear Flags",
@@ -906,10 +906,10 @@ void DrawFlagsTab() {
         PopStyleCombobox();
 
         // Don't show current scene button if there is no current scene
-        if (gPlayState != nullptr) {
+        if (OoT_gPlayState != nullptr) {
             ImGui::SameLine();
             if (Button("Current", buttonOptionsBase.Tooltip("Open flags for current scene"))) {
-                selectedSceneFlagMap = gPlayState->sceneNum;
+                selectedSceneFlagMap = OoT_gPlayState->sceneNum;
             }
         }
 
@@ -990,7 +990,7 @@ void DrawFlagsTab() {
             ImGui::AlignTextToFramePadding();
             ImGui::Text("Flags");
             uint32_t currentFlags = GET_GS_FLAGS(selectedGsMap);
-            uint32_t allFlags = gAreaGsFlags[selectedGsMap];
+            uint32_t allFlags = OoT_gAreaGsFlags[selectedGsMap];
             uint32_t setMask = 1;
             // Iterate over bitfield and create a checkbox for each skulltula
             while (allFlags != 0) {
@@ -1123,7 +1123,7 @@ void DrawUpgrade(const std::string& categoryName, int32_t categoryId, const std:
     if (ImGui::BeginCombo("##upgrade", names[CUR_UPG_VALUE(categoryId)].c_str())) {
         for (size_t i = 0; i < names.size(); i++) {
             if (ImGui::Selectable(names[i].c_str())) {
-                Inventory_ChangeUpgrade(categoryId, i);
+                OoT_Inventory_ChangeUpgrade(categoryId, i);
             }
         }
 
@@ -1167,7 +1167,7 @@ void DrawUpgradeIcon(const std::string& categoryName, int32_t categoryId, const 
             if (items[pickerIndex] == ITEM_NONE) {
                 if (ImGui::Button("##upgradePopupPicker",
                                   ImVec2(IMAGE_SIZE, IMAGE_SIZE) + ImGui::GetStyle().FramePadding * 2)) {
-                    Inventory_ChangeUpgrade(categoryId, pickerIndex);
+                    OoT_Inventory_ChangeUpgrade(categoryId, pickerIndex);
                     ImGui::CloseCurrentPopup();
                 }
                 Tooltip("None");
@@ -1178,7 +1178,7 @@ void DrawUpgradeIcon(const std::string& categoryName, int32_t categoryId, const 
                     Ship::Context::GetInstance()->GetWindow()->GetGui()->GetTextureByName(slotEntry.name),
                     ImVec2(IMAGE_SIZE, IMAGE_SIZE), ImVec2(0, 0), ImVec2(1, 1));
                 if (ret) {
-                    Inventory_ChangeUpgrade(categoryId, pickerIndex);
+                    OoT_Inventory_ChangeUpgrade(categoryId, pickerIndex);
                     ImGui::CloseCurrentPopup();
                 }
                 Tooltip(SohUtils::GetItemName(slotEntry.id).c_str());
@@ -1433,8 +1433,8 @@ void DrawQuestStatusTab() {
 
             static int32_t dungeonItemsScene = SCENE_DEKU_TREE;
             static int32_t lastDungeonScene = -1;
-            if (gPlayState != nullptr) {
-                int32_t sceneNum = gPlayState->sceneNum;
+            if (OoT_gPlayState != nullptr) {
+                int32_t sceneNum = OoT_gPlayState->sceneNum;
                 if (sceneNum >= SCENE_DEKU_TREE && sceneNum <= SCENE_JABU_JABU_BOSS && lastDungeonScene != sceneNum) {
                     dungeonItemsScene = sceneNum;
                     lastDungeonScene = sceneNum;
@@ -1483,8 +1483,8 @@ void DrawQuestStatusTab() {
 }
 
 void DrawPlayerTab() {
-    if (gPlayState != nullptr) {
-        Player* player = GET_PLAYER(gPlayState);
+    if (OoT_gPlayState != nullptr) {
+        Player* player = GET_PLAYER(OoT_gPlayState);
         const char* curSword;
         const char* curShield;
         const char* curTunic;
@@ -1610,12 +1610,12 @@ void DrawPlayerTab() {
         PopStyleInput();
 
         PushStyleCombobox(THEME_COLOR);
-        if (ImGui::BeginCombo("Link Age on Load", gPlayState->linkAgeOnLoad == 0 ? "Adult" : "Child")) {
+        if (ImGui::BeginCombo("Link Age on Load", OoT_gPlayState->linkAgeOnLoad == 0 ? "Adult" : "Child")) {
             if (ImGui::Selectable("Adult")) {
-                gPlayState->linkAgeOnLoad = 0;
+                OoT_gPlayState->linkAgeOnLoad = 0;
             }
             if (ImGui::Selectable("Child")) {
-                gPlayState->linkAgeOnLoad = 1;
+                OoT_gPlayState->linkAgeOnLoad = 1;
             }
             ImGui::EndCombo();
         }
@@ -1632,17 +1632,17 @@ void DrawPlayerTab() {
                     if (ImGui::Selectable("None")) {
                         player->currentSwordItemId = ITEM_NONE;
                         gSaveContext.equips.buttonItems[0] = ITEM_NONE;
-                        Inventory_ChangeEquipment(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_NONE);
+                        OoT_Inventory_ChangeEquipment(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_NONE);
                     }
                     if (ImGui::Selectable("Kokiri Sword")) {
                         player->currentSwordItemId = ITEM_SWORD_KOKIRI;
                         gSaveContext.equips.buttonItems[0] = ITEM_SWORD_KOKIRI;
-                        Inventory_ChangeEquipment(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_KOKIRI);
+                        OoT_Inventory_ChangeEquipment(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_KOKIRI);
                     }
                     if (ImGui::Selectable("Master Sword")) {
                         player->currentSwordItemId = ITEM_SWORD_MASTER;
                         gSaveContext.equips.buttonItems[0] = ITEM_SWORD_MASTER;
-                        Inventory_ChangeEquipment(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_MASTER);
+                        OoT_Inventory_ChangeEquipment(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_MASTER);
                     }
                     if (ImGui::Selectable("Biggoron's Sword")) {
                         if (gSaveContext.bgsFlag) {
@@ -1659,31 +1659,31 @@ void DrawPlayerTab() {
                             gSaveContext.equips.buttonItems[0] = ITEM_SWORD_KNIFE;
                         }
 
-                        Inventory_ChangeEquipment(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_BIGGORON);
+                        OoT_Inventory_ChangeEquipment(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_BIGGORON);
                     }
                     if (ImGui::Selectable("Fishing Pole")) {
                         player->currentSwordItemId = ITEM_FISHING_POLE;
                         gSaveContext.equips.buttonItems[0] = ITEM_FISHING_POLE;
-                        Inventory_ChangeEquipment(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_MASTER);
+                        OoT_Inventory_ChangeEquipment(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_MASTER);
                     }
                     ImGui::EndCombo();
                 }
                 if (ImGui::BeginCombo("Shield", curShield)) {
                     if (ImGui::Selectable("None")) {
                         player->currentShield = PLAYER_SHIELD_NONE;
-                        Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_NONE);
+                        OoT_Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_NONE);
                     }
                     if (ImGui::Selectable("Deku Shield")) {
                         player->currentShield = PLAYER_SHIELD_DEKU;
-                        Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_DEKU);
+                        OoT_Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_DEKU);
                     }
                     if (ImGui::Selectable("Hylian Shield")) {
                         player->currentShield = PLAYER_SHIELD_HYLIAN;
-                        Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_HYLIAN);
+                        OoT_Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_HYLIAN);
                     }
                     if (ImGui::Selectable("Mirror Shield")) {
                         player->currentShield = PLAYER_SHIELD_MIRROR;
-                        Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_MIRROR);
+                        OoT_Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_MIRROR);
                     }
                     ImGui::EndCombo();
                 }
@@ -1691,15 +1691,15 @@ void DrawPlayerTab() {
                 if (ImGui::BeginCombo("Tunic", curTunic)) {
                     if (ImGui::Selectable("Kokiri Tunic")) {
                         player->currentTunic = PLAYER_TUNIC_KOKIRI;
-                        Inventory_ChangeEquipment(EQUIP_TYPE_TUNIC, EQUIP_VALUE_TUNIC_KOKIRI);
+                        OoT_Inventory_ChangeEquipment(EQUIP_TYPE_TUNIC, EQUIP_VALUE_TUNIC_KOKIRI);
                     }
                     if (ImGui::Selectable("Goron Tunic")) {
                         player->currentTunic = PLAYER_TUNIC_GORON;
-                        Inventory_ChangeEquipment(EQUIP_TYPE_TUNIC, EQUIP_VALUE_TUNIC_GORON);
+                        OoT_Inventory_ChangeEquipment(EQUIP_TYPE_TUNIC, EQUIP_VALUE_TUNIC_GORON);
                     }
                     if (ImGui::Selectable("Zora Tunic")) {
                         player->currentTunic = PLAYER_TUNIC_ZORA;
-                        Inventory_ChangeEquipment(EQUIP_TYPE_TUNIC, EQUIP_VALUE_TUNIC_ZORA);
+                        OoT_Inventory_ChangeEquipment(EQUIP_TYPE_TUNIC, EQUIP_VALUE_TUNIC_ZORA);
                     }
                     ImGui::EndCombo();
                 }
@@ -1707,15 +1707,15 @@ void DrawPlayerTab() {
                 if (ImGui::BeginCombo("Boots", curBoots)) {
                     if (ImGui::Selectable("Kokiri Boots")) {
                         player->currentBoots = PLAYER_BOOTS_KOKIRI;
-                        Inventory_ChangeEquipment(EQUIP_TYPE_BOOTS, EQUIP_VALUE_BOOTS_KOKIRI);
+                        OoT_Inventory_ChangeEquipment(EQUIP_TYPE_BOOTS, EQUIP_VALUE_BOOTS_KOKIRI);
                     }
                     if (ImGui::Selectable("Iron Boots")) {
                         player->currentBoots = PLAYER_BOOTS_IRON;
-                        Inventory_ChangeEquipment(EQUIP_TYPE_BOOTS, EQUIP_VALUE_BOOTS_IRON);
+                        OoT_Inventory_ChangeEquipment(EQUIP_TYPE_BOOTS, EQUIP_VALUE_BOOTS_IRON);
                     }
                     if (ImGui::Selectable("Hover Boots")) {
                         player->currentBoots = PLAYER_BOOTS_HOVER;
-                        Inventory_ChangeEquipment(EQUIP_TYPE_BOOTS, EQUIP_VALUE_BOOTS_HOVER);
+                        OoT_Inventory_ChangeEquipment(EQUIP_TYPE_BOOTS, EQUIP_VALUE_BOOTS_HOVER);
                     }
                     ImGui::EndCombo();
                 }
@@ -1747,7 +1747,7 @@ void DrawPlayerTab() {
                     ImGui::PushItemWidth(ImGui::GetFontSize() * 6);
                     PushStyleInput(THEME_COLOR);
                     ImGui::Text("Current D-pad Items");
-                    // Two spaces at the end for aligning, not elegant but it's working
+                    // Two OoT_spaces at the end for aligning, not elegant but it's working
                     ImGui::InputScalar("D-pad Up  ", ImGuiDataType_U8, &gSaveContext.equips.buttonItems[4], &one, NULL);
                     ImGui::InputScalar("D-pad Down", ImGuiDataType_U8, &gSaveContext.equips.buttonItems[5], &one, NULL);
                     ImGui::InputScalar("D-pad Left", ImGuiDataType_U8, &gSaveContext.equips.buttonItems[6], &one, NULL);

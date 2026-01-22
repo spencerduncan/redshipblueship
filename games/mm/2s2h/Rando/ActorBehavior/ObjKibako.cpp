@@ -122,7 +122,7 @@ RandoCheckId IdentifyCrate(Actor* actor) {
     RandoCheckId randoCheckId = RC_UNKNOWN;
 
     s16 actorListIndex = GetActorListIndex(actor);
-    auto it = crateMap.find({ gPlayState->sceneId, gPlayState->roomCtx.curRoom.num, actorListIndex });
+    auto it = crateMap.find({ MM_gPlayState->sceneId, MM_gPlayState->roomCtx.curRoom.num, actorListIndex });
     if (it != crateMap.end()) {
         randoCheckId = it->second;
     }
@@ -138,7 +138,7 @@ RandoCheckId IdentifyCrate(Actor* actor) {
 
 void ObjKibako_RandoDraw(Actor* actor, PlayState* play) {
     if (!CVarGetInteger("gRando.CSMC", 0)) {
-        Gfx_DrawDListOpa(play, (Gfx*)gSmallJunkCrateDL);
+        MM_Gfx_DrawDListOpa(play, (Gfx*)gSmallJunkCrateDL);
         return;
     }
 
@@ -148,38 +148,38 @@ void ObjKibako_RandoDraw(Actor* actor, PlayState* play) {
 
     switch (randoItemType) {
         case RITYPE_BOSS_KEY:
-            Gfx_DrawDListOpa(play, (Gfx*)gSmallBossKeyCrateDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gSmallBossKeyCrateDL);
             break;
         case RITYPE_HEALTH:
-            Gfx_DrawDListOpa(play, (Gfx*)gSmallHeartCrateDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gSmallHeartCrateDL);
             break;
         case RITYPE_LESSER:
-            Gfx_DrawDListOpa(play, (Gfx*)gSmallMinorCrateDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gSmallMinorCrateDL);
             break;
         case RITYPE_MAJOR:
-            Gfx_DrawDListOpa(play, (Gfx*)gSmallMajorCrateDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gSmallMajorCrateDL);
             break;
         case RITYPE_MASK:
-            Gfx_DrawDListOpa(play, (Gfx*)gSmallMaskCrateDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gSmallMaskCrateDL);
             break;
         case RITYPE_SKULLTULA_TOKEN:
-            Gfx_DrawDListOpa(play, (Gfx*)gSmallTokenCrateDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gSmallTokenCrateDL);
             break;
         case RITYPE_SMALL_KEY:
-            Gfx_DrawDListOpa(play, (Gfx*)gSmallSmallKeyCrateDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gSmallSmallKeyCrateDL);
             break;
         case RITYPE_STRAY_FAIRY:
-            Gfx_DrawDListOpa(play, (Gfx*)gSmallFairyCrateDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gSmallFairyCrateDL);
             break;
         default:
-            Gfx_DrawDListOpa(play, (Gfx*)gSmallJunkCrateDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gSmallJunkCrateDL);
             break;
     }
 }
 
 void ObjKibako2_RandoDraw(Actor* actor, PlayState* play) {
     if (!CVarGetInteger("gRando.CSMC", 0)) {
-        Gfx_DrawDListOpa(play, (Gfx*)gLargeJunkCrateDL);
+        MM_Gfx_DrawDListOpa(play, (Gfx*)gLargeJunkCrateDL);
         return;
     }
 
@@ -189,31 +189,31 @@ void ObjKibako2_RandoDraw(Actor* actor, PlayState* play) {
 
     switch (randoItemType) {
         case RITYPE_BOSS_KEY:
-            Gfx_DrawDListOpa(play, (Gfx*)gLargeBossKeyCrateDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gLargeBossKeyCrateDL);
             break;
         case RITYPE_HEALTH:
-            Gfx_DrawDListOpa(play, (Gfx*)gLargeHeartCrateDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gLargeHeartCrateDL);
             break;
         case RITYPE_LESSER:
-            Gfx_DrawDListOpa(play, (Gfx*)gLargeMinorCrateDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gLargeMinorCrateDL);
             break;
         case RITYPE_MAJOR:
-            Gfx_DrawDListOpa(play, (Gfx*)gLargeMajorCrateDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gLargeMajorCrateDL);
             break;
         case RITYPE_MASK:
-            Gfx_DrawDListOpa(play, (Gfx*)gLargeMaskCrateDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gLargeMaskCrateDL);
             break;
         case RITYPE_SKULLTULA_TOKEN:
-            Gfx_DrawDListOpa(play, (Gfx*)gLargeTokenCrateDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gLargeTokenCrateDL);
             break;
         case RITYPE_SMALL_KEY:
-            Gfx_DrawDListOpa(play, (Gfx*)gLargeSmallKeyCrateDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gLargeSmallKeyCrateDL);
             break;
         case RITYPE_STRAY_FAIRY:
-            Gfx_DrawDListOpa(play, (Gfx*)gLargeFairyCrateDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gLargeFairyCrateDL);
             break;
         default:
-            Gfx_DrawDListOpa(play, (Gfx*)gLargeJunkCrateDL);
+            MM_Gfx_DrawDListOpa(play, (Gfx*)gLargeJunkCrateDL);
             break;
     }
 }
@@ -262,7 +262,7 @@ void Rando::ActorBehavior::InitObjKibakoBehavior() {
                         }
                         break;
                     case FLAG_CYCL_SCENE_COLLECTIBLE:
-                        Flags_SetCollectible(play, randoStaticCheck.flag);
+                        MM_Flags_SetCollectible(play, randoStaticCheck.flag);
                         break;
                     default:
                         break;
@@ -270,7 +270,7 @@ void Rando::ActorBehavior::InitObjKibakoBehavior() {
             },
             [](Actor* actor, PlayState* play) {
                 auto& randoSaveCheck = RANDO_SAVE_CHECKS[CUSTOM_ITEM_PARAM];
-                Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
+                MM_Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
                 Rando::DrawItem(Rando::ConvertItem(randoSaveCheck.randoItemId, (RandoCheckId)CUSTOM_ITEM_PARAM), actor);
             });
     });

@@ -183,7 +183,7 @@ f32 MM_Math_FAtan2F(f32 y, f32 x) {
 }
 
 f32 MM_Math_FAsinF(f32 x) {
-    return MM_Math_FAtan2F(x, MM_sqrtf(1.0f - SQ(x)));
+    return MM_Math_FAtan2F(x, sqrtf(1.0f - SQ(x)));
 }
 
 f32 MM_Math_FAcosF(f32 x) {

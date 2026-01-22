@@ -77,8 +77,8 @@ void Check_DrawExpansionPakErrorMessage(void) {
     Check_DrawI4Texture((u16*)FAULT_FB_ADDRESS, 96, 127, MEMERRMSG_WIDTH, MEMERRMSG_HEIGHT,
                         CHECK_ERRMSG_STATIC_SEGMENT + MEMERRMSG_WIDTH * MEMERRMSG_HEIGHT / 2);
     osWritebackDCacheAll();
-    MM_osViSwapBuffer((u16*)FAULT_FB_ADDRESS);
-    MM_osViBlack(false);
+    osViSwapBuffer((u16*)FAULT_FB_ADDRESS);
+    osViBlack(false);
 }
 
 /**
@@ -90,8 +90,8 @@ void Check_DrawRegionLockErrorMessage(void) {
     Check_DrawI4Texture((u16*)FAULT_FB_ADDRESS, 56, 112, LOCERRMSG_WIDTH, LOCERRMSG_HEIGHT,
                         CHECK_ERRMSG_STATIC_SEGMENT);
     osWritebackDCacheAll();
-    MM_osViSwapBuffer((u16*)FAULT_FB_ADDRESS);
-    MM_osViBlack(false);
+    osViSwapBuffer((u16*)FAULT_FB_ADDRESS);
+    osViBlack(false);
 }
 
 /**
@@ -104,7 +104,7 @@ void Check_ExpansionPak(void) {
     }
 
     Check_DrawExpansionPakErrorMessage();
-    MM_osDestroyThread(NULL);
+    osDestroyThread(NULL);
     while (true) {}
 }
 
@@ -120,7 +120,7 @@ void Check_RegionIsSupported(void) {
 
     if (!regionSupported) {
         Check_DrawRegionLockErrorMessage();
-        MM_osDestroyThread(NULL);
+        osDestroyThread(NULL);
         while (true) {}
     }
 }

@@ -185,7 +185,7 @@ void EnTanron3_Live(EnTanron3* this, PlayState* play) {
     } else if (this->isNonHostile && (this->workTimer[WORK_TIMER_WAIT] == 0) && !(this->timer & 0x1F)) {
         xDistance = this->targetPos.x - player->actor.world.pos.x;
         zDistance = this->targetPos.z - player->actor.world.pos.z;
-        if (MM_sqrtf(SQ(xDistance) + SQ(zDistance)) < 500.0f) {
+        if (sqrtf(SQ(xDistance) + SQ(zDistance)) < 500.0f) {
             // Player is in the water and close enough, so start chasing them
             this->isNonHostile = false;
             this->workTimer[WORK_TIMER_ATTACK] = 150;
@@ -261,7 +261,7 @@ void EnTanron3_Live(EnTanron3* this, PlayState* play) {
         zDistance = this->targetPosWithDeviation.z - this->actor.world.pos.z;
 
         // Rotate the fish to look towards its target
-        xzDistance = MM_sqrtf(SQ(xDistance) + SQ(zDistance));
+        xzDistance = sqrtf(SQ(xDistance) + SQ(zDistance));
         atanTemp = Math_Atan2S_XY(xzDistance, -yDistance);
         MM_Math_ApproachS(&this->actor.world.rot.x, atanTemp, this->rotationScale, this->rotationStep);
         atanTemp = Math_Atan2S_XY(zDistance, xDistance);
@@ -350,7 +350,7 @@ void EnTanron3_SetupDie(EnTanron3* this, PlayState* play) {
     xDistance = this->actor.world.pos.x - player->actor.world.pos.x;
     yDistance = this->actor.world.pos.y - player->actor.world.pos.y + 30.0f;
     zDistance = this->actor.world.pos.z - player->actor.world.pos.z;
-    this->actor.world.rot.x = Math_Atan2S_XY(MM_sqrtf(SQ(xDistance) + SQ(zDistance)), -yDistance);
+    this->actor.world.rot.x = Math_Atan2S_XY(sqrtf(SQ(xDistance) + SQ(zDistance)), -yDistance);
     this->actor.world.rot.y = Math_Atan2S_XY(zDistance, xDistance);
     this->workTimer[WORK_TIMER_DIE] = 6;
     this->actor.speed = 10.0f;

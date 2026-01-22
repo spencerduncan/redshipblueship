@@ -5,11 +5,11 @@ extern "C" {
 #include "macros.h"
 #include "variables.h"
 
-extern s32 Player_GetItemOnButton(PlayState*, s32);
-extern void Inventory_ChangeEquipment(s16, u16);
-extern void Player_SetEquipmentData(PlayState*, Player*);
+extern s32 OoT_Player_GetItemOnButton(PlayState*, s32);
+extern void OoT_Inventory_ChangeEquipment(s16, u16);
+extern void OoT_Player_SetEquipmentData(PlayState*, Player*);
 extern void func_808328EC(Player*, u16);
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 static u16 sItemButtons[] = { BTN_B, BTN_CLEFT, BTN_CDOWN, BTN_CRIGHT, BTN_DUP, BTN_DDOWN, BTN_DLEFT, BTN_DRIGHT };
@@ -25,7 +25,7 @@ static void UseTunicBoots(Player* player, PlayState* play, Input* input) {
     s32 item = ITEM_NONE;
     for (s32 i = 0; i < ARRAY_COUNT(sItemButtons); i++) {
         if (CHECK_BTN_ALL(input->press.button, sItemButtons[i])) {
-            item = Player_GetItemOnButton(play, i);
+            item = OoT_Player_GetItemOnButton(play, i);
             break;
         }
     }
@@ -34,27 +34,27 @@ static void UseTunicBoots(Player* player, PlayState* play, Input* input) {
         if (item >= ITEM_BOOTS_KOKIRI) {
             u16 bootsValue = item - ITEM_BOOTS_KOKIRI + 1;
             if (CUR_EQUIP_VALUE(EQUIP_TYPE_BOOTS) == bootsValue) {
-                Inventory_ChangeEquipment(EQUIP_TYPE_BOOTS, EQUIP_VALUE_BOOTS_KOKIRI);
+                OoT_Inventory_ChangeEquipment(EQUIP_TYPE_BOOTS, EQUIP_VALUE_BOOTS_KOKIRI);
             } else {
-                Inventory_ChangeEquipment(EQUIP_TYPE_BOOTS, bootsValue);
+                OoT_Inventory_ChangeEquipment(EQUIP_TYPE_BOOTS, bootsValue);
             }
-            Player_SetEquipmentData(play, player);
+            OoT_Player_SetEquipmentData(play, player);
             func_808328EC(player, CUR_EQUIP_VALUE(EQUIP_TYPE_BOOTS) == EQUIP_VALUE_BOOTS_IRON ? NA_SE_PL_WALK_HEAVYBOOTS
                                                                                               : NA_SE_PL_CHANGE_ARMS);
         } else if (item >= ITEM_TUNIC_KOKIRI) {
             u16 tunicValue = item - ITEM_TUNIC_KOKIRI + 1;
             if (CUR_EQUIP_VALUE(EQUIP_TYPE_TUNIC) == tunicValue) {
-                Inventory_ChangeEquipment(EQUIP_TYPE_TUNIC, EQUIP_VALUE_TUNIC_KOKIRI);
+                OoT_Inventory_ChangeEquipment(EQUIP_TYPE_TUNIC, EQUIP_VALUE_TUNIC_KOKIRI);
             } else {
-                Inventory_ChangeEquipment(EQUIP_TYPE_TUNIC, tunicValue);
+                OoT_Inventory_ChangeEquipment(EQUIP_TYPE_TUNIC, tunicValue);
             }
-            Player_SetEquipmentData(play, player);
+            OoT_Player_SetEquipmentData(play, player);
             func_808328EC(player, NA_SE_PL_CHANGE_ARMS);
         } else {
             u16 shieldValue = item - ITEM_SHIELD_DEKU + 1;
             if (CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD) != shieldValue) {
-                Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, shieldValue);
-                Player_SetEquipmentData(play, player);
+                OoT_Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, shieldValue);
+                OoT_Player_SetEquipmentData(play, player);
                 func_808328EC(player, NA_SE_PL_CHANGE_ARMS);
             }
         }
@@ -147,7 +147,7 @@ static void RegisterAssignableTunicsBoots() {
         s32 item = ITEM_NONE;
         for (s32 i = 0; i < ARRAY_COUNT(sItemButtons); i++) {
             if (CHECK_BTN_ALL(input->press.button, sItemButtons[i])) {
-                item = Player_GetItemOnButton(gPlayState, i);
+                item = OoT_Player_GetItemOnButton(OoT_gPlayState, i);
                 break;
             }
         }
@@ -177,8 +177,8 @@ static void RegisterAssignableTunicsBoots() {
 
         Input* input = va_arg(args, Input*);
 
-        player->actionFunc(player, gPlayState);
-        UseTunicBoots(player, gPlayState, input);
+        player->actionFunc(player, OoT_gPlayState);
+        UseTunicBoots(player, OoT_gPlayState, input);
     });
 
     // remove assigned equipment when it gets deleted

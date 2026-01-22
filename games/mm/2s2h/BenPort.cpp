@@ -285,8 +285,8 @@ OTRGlobals::OTRGlobals() {
 
     context->InitAudio({ .SampleRate = 32000, .SampleLength = 1024, .DesiredBuffered = 1680 });
 
-    SPDLOG_INFO("Starting 2 Ship 2 Harkinian version {} (Branch: {} | Commit: {})", (char*)gBuildVersion,
-                (char*)gGitBranch, (char*)gGitCommitHash);
+    SPDLOG_INFO("Starting 2 Ship 2 Harkinian version {} (Branch: {} | Commit: {})", (char*)MM_gBuildVersion,
+                (char*)MM_gGitBranch, (char*)MM_gGitCommitHash);
 
     auto loader = context->GetResourceManager()->GetResourceLoader();
     loader->RegisterResourceFactory(std::make_shared<Fast::ResourceFactoryBinaryTextureV0>(), RESOURCE_FORMAT_BINARY,
@@ -443,7 +443,7 @@ ImFont* OTRGlobals::CreateFontWithSize(float size, std::string fontPath) {
 }
 
 extern "C" void OTRMessage_Init();
-extern "C" void AudioMgr_CreateNextAudioBuffer(s16* samples, u32 num_samples);
+extern "C" void MM_AudioMgr_CreateNextAudioBuffer(s16* samples, u32 num_samples);
 extern "C" void AudioPlayer_Play(const uint8_t* buf, uint32_t len);
 extern "C" int AudioPlayer_Buffered(void);
 extern "C" int AudioPlayer_GetDesiredBuffered(void);
@@ -471,7 +471,7 @@ void OTRAudio_Thread() {
             }
         }
         std::unique_lock<std::mutex> Lock(audio.mutex);
-// AudioMgr_ThreadEntry(&gAudioMgr);
+// MM_AudioMgr_ThreadEntry(&gAudioMgr);
 //  528 and 544 relate to 60 fps at 32 kHz 32000/60 = 533.333..
 //  in an ideal world, one third of the calls should use num_samples=544 and two thirds num_samples=528
 #define SAMPLES_HIGH 560
@@ -486,7 +486,7 @@ void OTRAudio_Thread() {
         // 3 is the maximum authentic frame divisor.
         s16 audio_buffer[SAMPLES_HIGH * NUM_AUDIO_CHANNELS * 3];
         for (int i = 0; i < AUDIO_FRAMES_PER_UPDATE; i++) {
-            AudioMgr_CreateNextAudioBuffer(audio_buffer + i * (num_audio_samples * NUM_AUDIO_CHANNELS),
+            MM_AudioMgr_CreateNextAudioBuffer(audio_buffer + i * (num_audio_samples * NUM_AUDIO_CHANNELS),
                                            num_audio_samples);
         }
 
@@ -617,8 +617,8 @@ void Check2ShipArchiveVersion(std::string archivePath) {
 
     ArchiveVersion archiveVer = ReadPortVersionFromArchive(archivePath, true);
 
-    if (archiveVer.major != gBuildVersionMajor || archiveVer.minor != gBuildVersionMinor ||
-        archiveVer.patch != gBuildVersionPatch) {
+    if (archiveVer.major != MM_gBuildVersionMajor || archiveVer.minor != MM_gBuildVersionMinor ||
+        archiveVer.patch != MM_gBuildVersionPatch) {
 #if not defined(__SWITCH__) && not defined(__WIIU__)
         Extractor::ShowErrorBox("2ship.o2r file version does not match", msg.c_str());
         exit(1);
@@ -644,7 +644,7 @@ void DetectArchiveVersion(std::string fileName, bool isO2rType) {
     ArchiveVersion archiveVer = ReadPortVersionFromArchive(archivePath, isO2rType);
 
     // Check both major and minor for game archives
-    if (archiveVer.major != gBuildVersionMajor || archiveVer.minor != gBuildVersionMinor) {
+    if (archiveVer.major != MM_gBuildVersionMajor || archiveVer.minor != MM_gBuildVersionMinor) {
         isArchiveOld = true;
     }
 
@@ -868,7 +868,7 @@ extern "C" void InitOTR() {
 
     // Just came up with arbitrary numbers that seemed to work, this is
     // usually set once(?) in currently stubbed out areas of code.
-    gIrqMgrRetraceTime = Ship_Random(700000, 850000);
+    MM_gIrqMgrRetraceTime = Ship_Random(700000, 850000);
 
     time_t now = time(NULL);
     tm* tm_now = localtime(&now);
@@ -1828,7 +1828,7 @@ Color_RGB8 GetColorForControllerLED() {
         LEDColorSource source =
             static_cast<LEDColorSource>(CVarGetInteger("gLedColorSource", LED_SOURCE_TUNIC_ORIGINAL));
         bool criticalOverride = CVarGetInteger("gLedCriticalOverride", 1);
-        if (gPlayState && (source == LED_SOURCE_TUNIC_ORIGINAL || source == LED_SOURCE_TUNIC_COSMETICS)) {
+        if (MM_gPlayState && (source == LED_SOURCE_TUNIC_ORIGINAL || source == LED_SOURCE_TUNIC_COSMETICS)) {
             switch (CUR_EQUIP_VALUE(EQUIP_TUNIC) - 1) {
                 case PLAYER_TUNIC_KOKIRI:
                     color = source == LED_SOURCE_TUNIC_COSMETICS

@@ -198,7 +198,7 @@ typedef	struct	{
   u64	*image;		/* texture source address on DRAM */
   u16	phead;		/* pallet number of load header (Between 256 and 511) */
   u16	pnum;		/* loading pallet number -1 */
-  u16   zero;		/* Assign 0 all the time */
+  u16   MM_zero;		/* Assign 0 all the time */
   u16	sid;		/* STATE ID Multipled by 4 (Either one of  0, 4, 8 and 12)*/
   u32	flag;		/* STATE flag  */
   u32	mask;		/* STATE mask  */

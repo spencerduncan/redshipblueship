@@ -14,7 +14,7 @@ void RegisterUnderwaterOcarina() {
     COND_VB_SHOULD(VB_DISABLE_ITEM_UNDERWATER, CVAR, {
         const auto item = va_arg(args, s32);
         if (item == ITEM_OCARINA_OF_TIME &&
-            Player_GetEnvironmentalHazard(gPlayState) == PLAYER_ENV_HAZARD_UNDERWATER_FLOOR) {
+            MM_Player_GetEnvironmentalHazard(MM_gPlayState) == PLAYER_ENV_HAZARD_UNDERWATER_FLOOR) {
             *should = false;
         }
     });

@@ -323,7 +323,7 @@ typedef enum RoomType {
     /* 2 */ ROOM_TYPE_INDOORS, // Reduces player run speed and blocks player from attacking or jumping.
     /* 3 */ ROOM_TYPE_3,
     /* 4 */ ROOM_TYPE_4, // Prevents switching to CAM_SET_HORSE when mounting a horse.
-    /* 5 */ ROOM_TYPE_BOSS // Disables Environment_AdjustLights
+    /* 5 */ ROOM_TYPE_BOSS // Disables MM_Environment_AdjustLights
 } RoomType;
 
 typedef enum RoomEnvironmentType {
@@ -920,32 +920,32 @@ s32 Object_SpawnPersistent(ObjectContext* objectCtx, s16 id);
 void Object_InitContext(struct GameState* gameState, ObjectContext* objectCtx);
 void Object_UpdateEntries(ObjectContext* objectCtx);
 s32 Object_GetSlot(ObjectContext* objectCtx, s16 objectId);
-s32 Object_IsLoaded(ObjectContext* objectCtx, s32 slot);
+s32 MM_Object_IsLoaded(ObjectContext* objectCtx, s32 slot);
 void Object_LoadAll(ObjectContext* objectCtx);
 void* func_8012F73C(ObjectContext* objectCtx, s32 slot, s16 id);
-void Scene_CommandSpawnList(struct PlayState* play, SceneCmd* cmd);
-void Scene_CommandActorList(struct PlayState* play, SceneCmd* cmd);
+void MM_Scene_CommandSpawnList(struct PlayState* play, SceneCmd* cmd);
+void MM_Scene_CommandActorList(struct PlayState* play, SceneCmd* cmd);
 void Scene_CommandActorCutsceneCamList(struct PlayState* play, SceneCmd* cmd);
-void Scene_CommandCollisionHeader(struct PlayState* play, SceneCmd* cmd);
-void Scene_CommandRoomList(struct PlayState* play, SceneCmd* cmd);
-void Scene_CommandEntranceList(struct PlayState* play, SceneCmd* cmd);
-void Scene_CommandSpecialFiles(struct PlayState* play, SceneCmd* cmd);
-void Scene_CommandRoomBehavior(struct PlayState* play, SceneCmd* cmd);
+void MM_Scene_CommandCollisionHeader(struct PlayState* play, SceneCmd* cmd);
+void MM_Scene_CommandRoomList(struct PlayState* play, SceneCmd* cmd);
+void MM_Scene_CommandEntranceList(struct PlayState* play, SceneCmd* cmd);
+void MM_Scene_CommandSpecialFiles(struct PlayState* play, SceneCmd* cmd);
+void MM_Scene_CommandRoomBehavior(struct PlayState* play, SceneCmd* cmd);
 void Scene_CommandMesh(struct PlayState* play, SceneCmd* cmd);
-void Scene_CommandObjectList(struct PlayState* play, SceneCmd* cmd);
-void Scene_CommandLightList(struct PlayState* play, SceneCmd* cmd);
-void Scene_CommandPathList(struct PlayState* play, SceneCmd* cmd);
-void Scene_CommandTransitionActorList(struct PlayState* play, SceneCmd* cmd);
+void MM_Scene_CommandObjectList(struct PlayState* play, SceneCmd* cmd);
+void MM_Scene_CommandLightList(struct PlayState* play, SceneCmd* cmd);
+void MM_Scene_CommandPathList(struct PlayState* play, SceneCmd* cmd);
+void MM_Scene_CommandTransitionActorList(struct PlayState* play, SceneCmd* cmd);
 void Scene_ResetTransitionActorList(GameState* gameState, TransitionActorList* transitionActors);
 void Scene_CommandEnvLightSettings(struct PlayState* play, SceneCmd* cmd);
 void Scene_LoadAreaTextures(struct PlayState* play, s32 fileIndex);
-void Scene_CommandSkyboxSettings(struct PlayState* play, SceneCmd* cmd);
-void Scene_CommandSkyboxDisables(struct PlayState* play, SceneCmd* cmd);
-void Scene_CommandTimeSettings(struct PlayState* play, SceneCmd* cmd);
-void Scene_CommandWindSettings(struct PlayState* play, SceneCmd* cmd);
-void Scene_CommandExitList(struct PlayState* play, SceneCmd* cmd);
+void MM_Scene_CommandSkyboxSettings(struct PlayState* play, SceneCmd* cmd);
+void MM_Scene_CommandSkyboxDisables(struct PlayState* play, SceneCmd* cmd);
+void MM_Scene_CommandTimeSettings(struct PlayState* play, SceneCmd* cmd);
+void MM_Scene_CommandWindSettings(struct PlayState* play, SceneCmd* cmd);
+void MM_Scene_CommandExitList(struct PlayState* play, SceneCmd* cmd);
 void Scene_Command09(struct PlayState* play, SceneCmd* cmd);
-void Scene_CommandSoundSettings(struct PlayState* play, SceneCmd* cmd);
+void MM_Scene_CommandSoundSettings(struct PlayState* play, SceneCmd* cmd);
 void Scene_CommandEchoSetting(struct PlayState* play, SceneCmd* cmd);
 void Scene_CommandAltHeaderList(struct PlayState* play, SceneCmd* cmd);
 void Scene_CommandCutsceneScriptList(struct PlayState* play, SceneCmd* cmd);
@@ -956,10 +956,10 @@ void Scene_CommandMapDataChests(struct PlayState* play, SceneCmd* cmd);
 void Scene_CommandSetRegionVisitedFlag(struct PlayState* play, SceneCmd* cmd);
 void Scene_CommandAnimatedMaterials(struct PlayState* play, SceneCmd* cmd);
 void Scene_SetExitFade(struct PlayState* play);
-s32 Scene_ExecuteCommands(struct PlayState* play, SceneCmd* sceneCmd);
+s32 MM_Scene_ExecuteCommands(struct PlayState* play, SceneCmd* sceneCmd);
 u16 Entrance_Create(s32 scene, s32 spawn, s32 layer);
 u16 Entrance_CreateFromSpawn(s32 spawn);
-void Scene_Draw(struct PlayState* play);
+void MM_Scene_Draw(struct PlayState* play);
 void Scene_DrawConfigDefault(struct PlayState* play);
 Gfx* AnimatedMat_TexScroll(struct PlayState* play, AnimatedMatTexScrollParams* params);
 void AnimatedMat_DrawTexScroll(struct PlayState* play, s32 segment, void* params);

@@ -86,22 +86,22 @@ typedef s32 (*SkinOverrideLimbDraw)(struct Actor* thisx, struct PlayState* play,
 #define SKIN_DRAW_FLAG_CUSTOM_MATRIX     (1 << 1)
 
 
-void Skin_UpdateVertices(MtxF* mtx, SkinVertex* skinVertices, SkinLimbModif* modifEntry, Vtx* vtxBuf, Vec3f* pos);
-void Skin_ApplyLimbModifications(struct GraphicsContext* gfxCtx, Skin* skin, s32 limbIndex, s32 arg3);
-void Skin_DrawAnimatedLimb(struct GraphicsContext* gfxCtx, Skin* skin, s32 limbIndex, s32 arg3, s32 drawFlags);
-void Skin_DrawLimb(struct GraphicsContext* gfxCtx, Skin* skin, s32 limbIndex, Gfx* dListOverride, s32 drawFlags);
+void MM_Skin_UpdateVertices(MtxF* mtx, SkinVertex* skinVertices, SkinLimbModif* modifEntry, Vtx* vtxBuf, Vec3f* pos);
+void MM_Skin_ApplyLimbModifications(struct GraphicsContext* gfxCtx, Skin* skin, s32 limbIndex, s32 arg3);
+void MM_Skin_DrawAnimatedLimb(struct GraphicsContext* gfxCtx, Skin* skin, s32 limbIndex, s32 arg3, s32 drawFlags);
+void MM_Skin_DrawLimb(struct GraphicsContext* gfxCtx, Skin* skin, s32 limbIndex, Gfx* dListOverride, s32 drawFlags);
 void func_80138228(struct Actor* actor, struct PlayState* play, Skin* skin, SkinPostDraw postDraw, s32 setTranslation);
 void func_80138258(struct Actor* actor, struct PlayState* play, Skin* skin, SkinPostDraw postDraw, SkinOverrideLimbDraw overrideLimbDraw, s32 setTranslation);
 void func_8013828C(struct Actor* actor, struct PlayState* play, Skin* skin, SkinPostDraw postDraw, SkinOverrideLimbDraw overrideLimbDraw, s32 setTranslation, s32 arg6);
 void func_801382C4(struct Actor* actor, struct PlayState* play, Skin* skin, SkinPostDraw postDraw, SkinOverrideLimbDraw overrideLimbDraw, s32 setTranslation, s32 arg6, s32 drawFlags);
-void Skin_GetLimbPos(Skin* skin, s32 limbIndex, Vec3f* offset, Vec3f* dst);
+void MM_Skin_GetLimbPos(Skin* skin, s32 limbIndex, Vec3f* offset, Vec3f* dst);
 void Skin_GetVertexPos(Skin* skin, s32 limbIndex, s32 vtxIndex, Vec3f* dst);
 
 void Skin_Setup(Skin* skin);
-void Skin_InitAnimatedLimb(struct GameState* gameState, Skin* skin, s32 limbIndex);
-void Skin_Init(struct GameState* gameState, Skin* skin, SkeletonHeader* skeletonHeader, AnimationHeader* animationHeader);
-void Skin_Free(struct GameState* gameState, Skin* skin);
+void MM_Skin_InitAnimatedLimb(struct GameState* gameState, Skin* skin, s32 limbIndex);
+void MM_Skin_Init(struct GameState* gameState, Skin* skin, SkeletonHeader* skeletonHeader, AnimationHeader* animationHeader);
+void MM_Skin_Free(struct GameState* gameState, Skin* skin);
 s32 func_801387D4(Skin* skin, SkinLimb** skeleton, MtxF* limbMatrices, u8 parentIndex, u8 limbIndex);
-s32 Skin_ApplyAnimTransformations(Skin* skin, MtxF* limbMatrices, struct Actor* actor, s32 setTranslation);
+s32 MM_Skin_ApplyAnimTransformations(Skin* skin, MtxF* limbMatrices, struct Actor* actor, s32 setTranslation);
 
 #endif

@@ -662,7 +662,7 @@ void BossTw_FlyTo(BossTw* this, PlayState* play) {
     zDiff = this->targetPos.z - this->actor.world.pos.z;
 
     yawTarget = (s16)(OoT_Math_FAtan2F(xDiff, zDiff) * (32768.0f / M_PI));
-    xzDist = OoT_sqrtf(SQ(xDiff) + SQ(zDiff));
+    xzDist = sqrtf(SQ(xDiff) + SQ(zDiff));
     pitchTarget = (s16)(OoT_Math_FAtan2F(yDiff, xzDist) * (32768.0f / M_PI));
 
     OoT_Math_ApproachS(&this->actor.world.rot.x, pitchTarget, 0xA, this->rotateSpeed);
@@ -777,7 +777,7 @@ s32 BossTw_BeamHitPlayerCheck(BossTw* this, PlayState* play) {
         beamDistFromPlayer.z <= this->beamDist) {
         if (sTwinrovaPtr->timers[2] == 0) {
             sTwinrovaPtr->timers[2] = 150;
-            this->beamDist = OoT_sqrtf(SQ(offset.x) + SQ(offset.y) + SQ(offset.z));
+            this->beamDist = sqrtf(SQ(offset.x) + SQ(offset.y) + SQ(offset.z));
             func_8002F6D4(play, &this->actor, 3.0f, this->actor.shape.rot.y, 0.0f, 0x20);
 
             if (this->actor.params == 0) {
@@ -840,7 +840,7 @@ s32 BossTw_CheckBeamReflection(BossTw* this, PlayState* play) {
             // in front of link)
             if (OoT_Player_HasMirrorShieldEquipped(play)) {
                 // player has mirror shield equipped
-                this->beamDist = OoT_sqrtf(SQ(offset.x) + SQ(offset.y) + SQ(offset.z));
+                this->beamDist = sqrtf(SQ(offset.x) + SQ(offset.y) + SQ(offset.z));
                 return 1;
             }
 
@@ -858,7 +858,7 @@ s32 BossTw_CheckBeamReflection(BossTw* this, PlayState* play) {
             }
 
             sBeamDivertTimer++;
-            this->beamDist = OoT_sqrtf(SQ(offset.x) + SQ(offset.y) + SQ(offset.z));
+            this->beamDist = sqrtf(SQ(offset.x) + SQ(offset.y) + SQ(offset.z));
             return 2;
         }
     }
@@ -880,7 +880,7 @@ s32 BossTw_BeamReflHitCheck(BossTw* this, Vec3f* pos) {
 
     if (fabsf(beamDistFromTarget.x) < 50.0f && fabsf(beamDistFromTarget.y) < 50.0f && beamDistFromTarget.z > 100.0f &&
         beamDistFromTarget.z <= this->beamReflectionDist) {
-        this->beamReflectionDist = OoT_sqrtf(SQ(offset.x) + SQ(offset.y) + SQ(offset.z)) * 1.1f;
+        this->beamReflectionDist = sqrtf(SQ(offset.x) + SQ(offset.y) + SQ(offset.z)) * 1.1f;
         return true;
     } else {
         return false;
@@ -1057,7 +1057,7 @@ void BossTw_ShootBeam(BossTw* this, PlayState* play) {
         zDiff = this->targetPos.z - this->beamOrigin.z;
 
         this->beamYaw = OoT_Math_FAtan2F(xDiff, zDiff);
-        this->beamPitch = -OoT_Math_FAtan2F(yDiff, OoT_sqrtf(SQ(xDiff) + SQ(zDiff)));
+        this->beamPitch = -OoT_Math_FAtan2F(yDiff, sqrtf(SQ(xDiff) + SQ(zDiff)));
 
         switch (this->beamShootState) {
             case -1:
@@ -1096,7 +1096,7 @@ void BossTw_ShootBeam(BossTw* this, PlayState* play) {
                         BossTw_BeamHitPlayerCheck(this, play);
 
                         if (this->csState1 == 0) {
-                            OoT_Math_ApproachF(&this->beamDist, 2.0f * OoT_sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff)), 1.0f,
+                            OoT_Math_ApproachF(&this->beamDist, 2.0f * sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff)), 1.0f,
                                            40.0f);
                         }
                     }
@@ -1120,7 +1120,7 @@ void BossTw_ShootBeam(BossTw* this, PlayState* play) {
                 if (CHECK_BTN_ALL(input->cur.button, BTN_R)) {
                     Player* player = GET_PLAYER(play);
 
-                    this->beamDist = OoT_sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff));
+                    this->beamDist = sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff));
                     OoT_Math_ApproachF(&this->beamReflectionDist, 2000.0f, 1.0f, 40.0f);
                     OoT_Math_ApproachF(&this->targetPos.x, player->bodyPartsPos[15].x, 1.0f, 400.0f);
                     OoT_Math_ApproachF(&this->targetPos.y, player->bodyPartsPos[15].y, 1.0f, 400.0f);
@@ -1585,7 +1585,7 @@ void BossTw_TwinrovaMergeCS(BossTw* this, PlayState* play) {
                     pos.y = 400.0f + yOffset;
                     pos.z = 0.0f;
                     BossTw_AddMergeFlameEffect(play, &pos, OoT_Rand_ZeroFloat(5.0f) + 10.0f,
-                                               OoT_sqrtf(SQ(xScale) - SQ(yOffset)), OoT_Rand_ZeroFloat(1.99f));
+                                               sqrtf(SQ(xScale) - SQ(yOffset)), OoT_Rand_ZeroFloat(1.99f));
                 }
 
                 if (sKoumePtr->actor.scale.x <= 0.0051f) {
@@ -2338,7 +2338,7 @@ void BossTw_DeathBall(BossTw* this, PlayState* play) {
     zDiff = this->targetPos.z - this->actor.world.pos.z;
 
     yaw = OoT_Math_FAtan2F(xDiff, zDiff) * (32768 / M_PI);
-    OoT_Math_ApproachS(&this->actor.world.rot.x, OoT_Math_FAtan2F(yDiff, OoT_sqrtf(SQ(xDiff) + SQ(zDiff))) * (32768 / M_PI), 5,
+    OoT_Math_ApproachS(&this->actor.world.rot.x, OoT_Math_FAtan2F(yDiff, sqrtf(SQ(xDiff) + SQ(zDiff))) * (32768 / M_PI), 5,
                    this->rotateSpeed);
     OoT_Math_ApproachS(&this->actor.world.rot.y, yaw, 5, this->rotateSpeed);
     Actor_UpdateVelocityXYZ(&this->actor);
@@ -3522,7 +3522,7 @@ void BossTw_Draw(Actor* thisx, PlayState* play2) {
                 diff.z = this->groundBlastPos2.z - player->actor.world.pos.z;
 
                 if ((fabsf(diff.y) < 10.0f) && (player->actor.bgCheckFlags & 1) &&
-                    (OoT_sqrtf(SQ(diff.x) + SQ(diff.z)) < (this->workf[UNK_F12] * 4600.0f)) && (sFreezeState == 0) &&
+                    (sqrtf(SQ(diff.x) + SQ(diff.z)) < (this->workf[UNK_F12] * 4600.0f)) && (sFreezeState == 0) &&
                     (this->workf[UNK_F11] > 200.0f)) {
                     sFreezeState = 1;
                     sTwinrovaPtr->timers[2] = 100;
@@ -3895,7 +3895,7 @@ void BossTw_BlastFire(BossTw* this, PlayState* play) {
                     // yaw
                     this->actor.world.rot.y = OoT_Math_FAtan2F(xDiff, zDiff) * (32768 / M_PI);
                     // pitch
-                    distXZ = OoT_sqrtf(SQ(xDiff) + SQ(zDiff));
+                    distXZ = sqrtf(SQ(xDiff) + SQ(zDiff));
                     this->actor.world.rot.x = OoT_Math_FAtan2F(yDiff, distXZ) * (32768 / M_PI);
                     this->actor.speedXZ = 20.0f;
 
@@ -4026,7 +4026,7 @@ void BossTw_BlastFire(BossTw* this, PlayState* play) {
                 zDiff = sKoumePtr->groundBlastPos2.z - player->actor.world.pos.z;
 
                 if (!player->bodyIsBurning && (player->actor.bgCheckFlags & 1) && (fabsf(yDiff) < 10.0f) &&
-                    (OoT_sqrtf(SQ(xDiff) + SQ(zDiff)) < (sKoumePtr->workf[UNK_F13] * 4550.0f))) {
+                    (sqrtf(SQ(xDiff) + SQ(zDiff)) < (sKoumePtr->workf[UNK_F13] * 4550.0f))) {
                     s16 j;
 
                     for (j = 0; j < 18; j++) {
@@ -4083,7 +4083,7 @@ void BossTw_BlastIce(BossTw* this, PlayState* play) {
                     yDiff = (player->actor.world.pos.y + 30.0f) - this->actor.world.pos.y;
                     zDiff = player->actor.world.pos.z - this->actor.world.pos.z;
                     this->actor.world.rot.y = OoT_Math_FAtan2F(xDiff, zDiff) * (32768 / M_PI);
-                    xzDist = OoT_sqrtf(SQ(xDiff) + SQ(zDiff));
+                    xzDist = sqrtf(SQ(xDiff) + SQ(zDiff));
                     this->actor.world.rot.x = OoT_Math_FAtan2F(yDiff, xzDist) * (32768 / M_PI);
                     this->actor.speedXZ = 20.0f;
                     for (i = 0; i < 50; i++) {
@@ -5377,7 +5377,7 @@ void BossTw_TwinrovaSetupFly(BossTw* this, PlayState* play) {
     this->rotateSpeed = 0.0f;
     this->actor.speedXZ = 0.0f;
     this->actor.world.rot.y = OoT_Math_FAtan2F(xDiff, zDiff) * (32768 / M_PI);
-    xzDist = OoT_sqrtf(SQ(xDiff) + SQ(zDiff));
+    xzDist = sqrtf(SQ(xDiff) + SQ(zDiff));
     this->actor.world.rot.x = OoT_Math_FAtan2F(yDiff, xzDist) * (32768 / M_PI);
     OoT_Animation_MorphToLoop(&this->skelAnime, &gTwinrovaHoverAnim, -10.0f);
 }
@@ -5397,7 +5397,7 @@ void BossTw_TwinrovaFly(BossTw* this, PlayState* play) {
     zDiff = this->targetPos.z - this->actor.world.pos.z;
     // Convert from radians to degrees, then degrees to binary angle
     yaw = (s16)(OoT_Math_FAtan2F(xDiff, zDiff) * ((180.0f / M_PI) * (65536.0f / 360.0f)));
-    xzDist = OoT_sqrtf(SQ(xDiff) + SQ(zDiff));
+    xzDist = sqrtf(SQ(xDiff) + SQ(zDiff));
     OoT_Math_ApproachS(&this->actor.world.rot.x,
                    (f32)(s16)(OoT_Math_FAtan2F(yDiff, xzDist) * ((180.0f / M_PI) * (65536.0f / 360.0f))), 0xA,
                    this->rotateSpeed);

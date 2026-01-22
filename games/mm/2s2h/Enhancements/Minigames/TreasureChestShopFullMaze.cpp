@@ -26,7 +26,7 @@ static void RegisterTreasureChestShopFullMaze() {
         for (int i = 0; i < TAKARAYA_WALL_ROWS; i++) {
             for (int j = 0; j < TAKARAYA_WALL_COLUMNS; j++) {
                 if (sTakarayaWallHeights[i][j] >= 0.0f) {
-                    if (Math_StepToF(&sTakarayaWallHeights[i][j], 120.0f, 15.0f)) {
+                    if (MM_Math_StepToF(&sTakarayaWallHeights[i][j], 120.0f, 15.0f)) {
                         sTakarayaWallStates[i][j] = TAKARAYA_WALL_INACTIVE;
                     } else {
                         sTakarayaWallStates[i][j] = TAKARAYA_WALL_RISING;

@@ -16,7 +16,7 @@ static void RegisterEquipWhileSwimming() {
     COND_VB_SHOULD(VB_DISABLE_ITEM_UNDERWATER, CVAR, {
         s32 item = va_arg(args, s32);
         if (GET_PLAYER_FORM == PLAYER_FORM_HUMAN && item > ITEM_MASK_FIERCE_DEITY && item < ITEM_MASK_GIANT &&
-            Player_GetEnvironmentalHazard(gPlayState) > PLAYER_ENV_HAZARD_UNDERWATER_FLOOR) {
+            MM_Player_GetEnvironmentalHazard(MM_gPlayState) > PLAYER_ENV_HAZARD_UNDERWATER_FLOOR) {
             *should = false;
         }
     });

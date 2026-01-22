@@ -433,7 +433,7 @@ void BossFd2_BreatheFire(BossFd2* this, PlayState* play) {
         toLink.y = player->actor.world.pos.y - this->headPos.y;
         toLink.z = player->actor.world.pos.z - this->headPos.z;
         angleY = OoT_Math_Atan2S(toLink.z, toLink.x);
-        angleX = -OoT_Math_Atan2S(OoT_sqrtf(SQ(toLink.x) + SQ(toLink.z)), toLink.y);
+        angleX = -OoT_Math_Atan2S(sqrtf(SQ(toLink.x) + SQ(toLink.z)), toLink.y);
         angleY -= this->actor.shape.rot.y;
         if (angleY > 0x1F40) {
             angleY = 0x1F40;
@@ -1112,7 +1112,7 @@ void BossFd2_UpdateMane(BossFd2* this, PlayState* play, Vec3f* head, Vec3f* pos,
 
         temp_vec.z = (pos + i)->z + (pull + i)->z - (pos + i - 1)->z;
         temp_angleY = OoT_Math_Atan2F(temp_vec.z, temp_vec.x);
-        temp_angleX = -OoT_Math_Atan2F(OoT_sqrtf(SQ(temp_vec.x) + SQ(temp_vec.z)), temp_vec.y);
+        temp_angleX = -OoT_Math_Atan2F(sqrtf(SQ(temp_vec.x) + SQ(temp_vec.z)), temp_vec.y);
         (rot + i - 1)->y = temp_angleY;
         (rot + i - 1)->x = temp_angleX;
         spBC.x = 0.0f;

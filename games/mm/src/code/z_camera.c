@@ -110,7 +110,7 @@ f32 Camera_fabsf(f32 f) {
  * Returns the magnitude for 3D float vectors
  */
 f32 Camera_Vec3fMagnitude(Vec3f* vec) {
-    return MM_sqrtf(SQ(vec->x) + SQ(vec->y) + SQ(vec->z));
+    return sqrtf(SQ(vec->x) + SQ(vec->y) + SQ(vec->z));
 }
 
 /**
@@ -1252,7 +1252,7 @@ f32 MM_Camera_CalcSlopeYAdj(Vec3f* floorNorm, s16 playerYRot, s16 eyeAtYaw, f32 
  * Gets the distance that the attention actor is in range.
  */
 f32 Camera_GetAttentionActorRange(Actor* actor) {
-    return MM_sqrtf(gAttentionRanges[actor->attentionRangeType].attentionRangeSq /
+    return sqrtf(gAttentionRanges[actor->attentionRangeType].attentionRangeSq /
                  gAttentionRanges[actor->attentionRangeType].lockOnLeashScale);
 }
 
@@ -1398,7 +1398,7 @@ s32 MM_Camera_CalcAtForParallel(Camera* camera, VecGeo* arg1, f32 yOffset, f32 x
         f32 xOffset = camera->focalActorAtOffset.x + camera->unk_0F0.x;
         f32 zOffset = camera->focalActorAtOffset.z + camera->unk_0F0.z;
 
-        if (MM_sqrtf(SQ(xOffset) + SQ(zOffset)) < xzOffsetMax) {
+        if (sqrtf(SQ(xOffset) + SQ(zOffset)) < xzOffsetMax) {
             focalActorAtOffsetTarget.x = xOffset;
             focalActorAtOffsetTarget.z = zOffset;
         } else {
@@ -3374,7 +3374,7 @@ s32 MM_Camera_Jump3(Camera* camera) {
 
     if (roData->interfaceFlags & JUMP3_FLAG_7) {
         camera->yOffsetUpdateRate = Camera_ScaledStepToCeilF(0.01f, camera->yOffsetUpdateRate, spD0, 0.0001f);
-        sp5C = MM_sqrtf((camera->unk_0F0.x * camera->unk_0F0.x) + (camera->unk_0F0.z * camera->unk_0F0.z)) /
+        sp5C = sqrtf((camera->unk_0F0.x * camera->unk_0F0.x) + (camera->unk_0F0.z * camera->unk_0F0.z)) /
                Camera_GetRunSpeedLimit(camera);
         camera->speedRatio = MM_OLib_ClampMaxDist(sp5C / Camera_GetRunSpeedLimit(camera), 1.8f);
         spCC = camera->speedRatio * 0.2f;
@@ -6447,7 +6447,7 @@ s32 MM_Camera_Demo0(Camera* camera) {
         if (rwData->unk_00 < 300.0f) {
             rwData->timer = 0;
         } else {
-            rwData->timer = MM_sqrtf(rwData->unk_00 - 200.0f);
+            rwData->timer = sqrtf(rwData->unk_00 - 200.0f);
         }
 
         rwData->unk_14 = subCam->inputDir.x - camera->inputDir.x;

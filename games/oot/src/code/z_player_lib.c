@@ -1209,22 +1209,22 @@ void func_8008F87C(PlayState* play, Player* this, SkelAnime* skelAnime, Vec3f* p
             sp6C = sp98.y - spA4.y;
             sp68 = sp98.z - spA4.z;
 
-            sp64 = OoT_sqrtf(SQ(sp70) + SQ(sp6C) + SQ(sp68));
+            sp64 = sqrtf(SQ(sp70) + SQ(sp6C) + SQ(sp68));
             sp60 = (SQ(sp64) + sp78) / (2.0f * sp64);
 
             sp58 = sp7C - SQ(sp60);
-            sp58 = (sp7C < SQ(sp60)) ? 0.0f : OoT_sqrtf(sp58);
+            sp58 = (sp7C < SQ(sp60)) ? 0.0f : sqrtf(sp58);
 
             sp54 = OoT_Math_FAtan2F(sp58, sp60);
 
             sp6C = sp80 - spA4.y;
 
-            sp64 = OoT_sqrtf(SQ(sp70) + SQ(sp6C) + SQ(sp68));
+            sp64 = sqrtf(SQ(sp70) + SQ(sp6C) + SQ(sp68));
             sp60 = (SQ(sp64) + sp78) / (2.0f * sp64);
             sp5C = sp64 - sp60;
 
             sp58 = sp7C - SQ(sp60);
-            sp58 = (sp7C < SQ(sp60)) ? 0.0f : OoT_sqrtf(sp58);
+            sp58 = (sp7C < SQ(sp60)) ? 0.0f : sqrtf(sp58);
 
             sp50 = OoT_Math_FAtan2F(sp58, sp60);
 
@@ -1657,8 +1657,8 @@ void OoT_Player_DrawGetItemImpl(PlayState* play, Player* this, Vec3f* refPos, s3
 }
 
 void OoT_Player_DrawGetItem(PlayState* play, Player* this) {
-    // if (!this->giObjectLoading || !OoT_osRecvMesg(&this->giObjectLoadQueue, NULL, OS_MESG_NOBLOCK)) // OTRTODO: Do
-    // something about OoT_osRecvMesg here...
+    // if (!this->giObjectLoading || !osRecvMesg(&this->giObjectLoadQueue, NULL, OS_MESG_NOBLOCK)) // OTRTODO: Do
+    // something about osRecvMesg here...
     {
         this->giObjectLoading = false;
         OoT_Player_DrawGetItemImpl(play, this, &sGetItemRefPos, ABS(this->unk_862));
@@ -2207,12 +2207,12 @@ void Player_DrawPauseImpl(PlayState* play, void* gameplayKeep, void* linkObject,
     viewport.vp.vscale[1] = viewport.vp.vtrans[1] = height * ((1 << 2) / 2);
     gSPViewport(POLY_OPA_DISP++, &viewport);
 
-    OoT_guPerspective(perspMtx, &perspNorm, fovy, (f32)width / (f32)height, 10.0f, 4000.0f, 1.0f);
+    guPerspective(perspMtx, &perspNorm, fovy, (f32)width / (f32)height, 10.0f, 4000.0f, 1.0f);
 
     gSPPerspNormalize(POLY_OPA_DISP++, perspNorm);
     gSPMatrix(POLY_OPA_DISP++, perspMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
 
-    OoT_guLookAt(lookAtMtx, eye->x, eye->y, eye->z, at->x, at->y, at->z, 0.0f, 1.0f, 0.0f);
+    guLookAt(lookAtMtx, eye->x, eye->y, eye->z, at->x, at->y, at->z, 0.0f, 1.0f, 0.0f);
 
     gSPMatrix(POLY_OPA_DISP++, lookAtMtx, G_MTX_NOPUSH | G_MTX_MUL | G_MTX_PROJECTION);
 

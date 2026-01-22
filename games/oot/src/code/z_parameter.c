@@ -1732,23 +1732,23 @@ void func_800849EC(PlayState* play) {
 void Interface_LoadItemIcon1(PlayState* play, u16 button) {
     InterfaceContext* interfaceCtx = &play->interfaceCtx;
 
-    OoT_osCreateMesgQueue(&interfaceCtx->loadQueue, &interfaceCtx->loadMsg, OS_MESG_BLOCK);
+    osCreateMesgQueue(&interfaceCtx->loadQueue, &interfaceCtx->loadMsg, OS_MESG_BLOCK);
     DmaMgr_SendRequest2(&interfaceCtx->dmaRequest_160, interfaceCtx->iconItemSegment + button * 0x1000,
                         (uintptr_t)_icon_item_staticSegmentRomStart +
                             (gSaveContext.equips.buttonItems[button] * 0x1000),
                         0x1000, 0, &interfaceCtx->loadQueue, OS_MESG_PTR(NULL), __FILE__, __LINE__);
-    OoT_osRecvMesg(&interfaceCtx->loadQueue, NULL, OS_MESG_BLOCK);
+    osRecvMesg(&interfaceCtx->loadQueue, NULL, OS_MESG_BLOCK);
 }
 
 void Interface_LoadItemIcon2(PlayState* play, u16 button) {
     InterfaceContext* interfaceCtx = &play->interfaceCtx;
 
-    OoT_osCreateMesgQueue(&interfaceCtx->loadQueue, &interfaceCtx->loadMsg, OS_MESG_BLOCK);
+    osCreateMesgQueue(&interfaceCtx->loadQueue, &interfaceCtx->loadMsg, OS_MESG_BLOCK);
     DmaMgr_SendRequest2(&interfaceCtx->dmaRequest_180, interfaceCtx->iconItemSegment + button * 0x1000,
                         (uintptr_t)_icon_item_staticSegmentRomStart +
                             (gSaveContext.equips.buttonItems[button] * 0x1000),
                         0x1000, 0, &interfaceCtx->loadQueue, OS_MESG_PTR(NULL), __FILE__, __LINE__);
-    OoT_osRecvMesg(&interfaceCtx->loadQueue, NULL, OS_MESG_BLOCK);
+    osRecvMesg(&interfaceCtx->loadQueue, NULL, OS_MESG_BLOCK);
 }
 
 void func_80084BF4(PlayState* play, u16 flag) {
@@ -2782,7 +2782,7 @@ void Interface_LoadActionLabel(InterfaceContext* interfaceCtx, u16 action, s16 l
             newName[loadOffset][length - 4] = 'R';
         } else if (gSaveContext.language == LANGUAGE_JPN) {
             newName[loadOffset][length - 6] = 'J';
-            newName[loadOffset][length - 5] = 'OoT_P';
+            newName[loadOffset][length - 5] = 'P';
             newName[loadOffset][length - 4] = 'N';
         }
         doAction = newName[loadOffset];
@@ -2852,7 +2852,7 @@ void Interface_LoadActionLabelB(PlayState* play, u16 action) {
             newName[length - 4] = 'R';
         } else if (gSaveContext.language == LANGUAGE_JPN) {
             newName[length - 6] = 'J';
-            newName[length - 5] = 'OoT_P';
+            newName[length - 5] = 'P';
             newName[length - 4] = 'N';
         }
         doAction = newName;
@@ -2862,7 +2862,7 @@ void Interface_LoadActionLabelB(PlayState* play, u16 action) {
 
     char* segment = interfaceCtx->doActionSegment[1];
     interfaceCtx->doActionSegment[1] = action != DO_ACTION_NONE ? doAction : gEmptyTexture;
-    OoT_osRecvMesg(&interfaceCtx->loadQueue, NULL, OS_MESG_BLOCK);
+    osRecvMesg(&interfaceCtx->loadQueue, NULL, OS_MESG_BLOCK);
 
     interfaceCtx->unk_1FA = 1;
 }

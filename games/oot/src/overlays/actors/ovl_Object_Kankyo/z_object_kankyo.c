@@ -235,7 +235,7 @@ void ObjectKankyo_Fairies(ObjectKankyo* this, PlayState* play) {
         dx = play->view.lookAt.x - play->view.eye.x;
         dy = play->view.lookAt.y - play->view.eye.y;
         dz = play->view.lookAt.z - play->view.eye.z;
-        dist = OoT_sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
+        dist = sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
 
         viewForwards.x = dx / dist;
         viewForwards.y = dy / dist;
@@ -615,7 +615,7 @@ void ObjectKankyo_DrawSnow(ObjectKankyo* this2, PlayState* play2) {
                     dx = play->view.lookAt.x - play->view.eye.x;
                     dy = play->view.lookAt.y - play->view.eye.y;
                     dz = play->view.lookAt.z - play->view.eye.z;
-                    dist = OoT_sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
+                    dist = sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
 
                     // fake
                     temp = dz / dist;
@@ -639,7 +639,7 @@ void ObjectKankyo_DrawSnow(ObjectKankyo* this2, PlayState* play2) {
                     dx = play->view.lookAt.x - play->view.eye.x;
                     dy = play->view.lookAt.y - play->view.eye.y;
                     dz = play->view.lookAt.z - play->view.eye.z;
-                    dist = OoT_sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
+                    dist = sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
 
                     baseX = play->view.eye.x + dx / dist * 80.0f;
                     baseY = play->view.eye.y + dy / dist * 80.0f;

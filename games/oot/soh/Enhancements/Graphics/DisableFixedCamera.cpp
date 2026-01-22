@@ -116,7 +116,7 @@ static void DisableFixedCamera_RestoreCameraData(CollisionHeader* colHeader) {
 }
 
 extern "C" void DisableFixedCamera_SetNormalCamera(PlayState* play) {
-    CollisionHeader* colHeader = BgCheck_GetCollisionHeader(&play->colCtx, BGCHECK_SCENE);
+    CollisionHeader* colHeader = OoT_BgCheck_GetCollisionHeader(&play->colCtx, BGCHECK_SCENE);
     if (colHeader != nullptr && colHeader->cameraDataList != nullptr && colHeader->cameraDataListLen > 0) {
         CamDataBackup& backup = sCamDataBackups[colHeader];
         if (backup.copy == nullptr) {
@@ -141,8 +141,8 @@ extern "C" void DisableFixedCamera_SetNormalCamera(PlayState* play) {
         play->mainCamera.setting = CAM_SET_NORMAL0;
         play->mainCamera.prevSetting = CAM_SET_NORMAL0;
     }
-    Camera_ChangeSetting(&play->mainCamera, CAM_SET_NORMAL0);
-    Camera_ChangeMode(&play->mainCamera, CAM_MODE_NORMAL);
+    OoT_Camera_ChangeSetting(&play->mainCamera, CAM_SET_NORMAL0);
+    OoT_Camera_ChangeMode(&play->mainCamera, CAM_MODE_NORMAL);
 }
 
 extern "C" void DisableFixedCamera_CheckCameraState(PlayState* play) {
@@ -182,7 +182,7 @@ extern "C" void DisableFixedCamera_CheckCameraState(PlayState* play) {
             // Restore camera data when leaving fixed camera scenes
             DisableFixedCamera_RestoreAllCameraData();
         }
-        DisableFixedCamera_RestoreCameraData(BgCheck_GetCollisionHeader(&play->colCtx, BGCHECK_SCENE));
+        DisableFixedCamera_RestoreCameraData(OoT_BgCheck_GetCollisionHeader(&play->colCtx, BGCHECK_SCENE));
         return;
     }
 
@@ -223,8 +223,8 @@ extern "C" void DisableFixedCamera_CheckCameraState(PlayState* play) {
         if (play->mainCamera.camDataIdx >= 0) {
             sStoreLastCamType = play->mainCamera.camDataIdx;
         }
-        Camera_ChangeSetting(&play->mainCamera, CAM_SET_TURN_AROUND);
-        Camera_ChangeMode(&play->mainCamera, CAM_MODE_NORMAL);
+        OoT_Camera_ChangeSetting(&play->mainCamera, CAM_SET_TURN_AROUND);
+        OoT_Camera_ChangeMode(&play->mainCamera, CAM_MODE_NORMAL);
         if (sStoreLastCamType >= 0) {
             play->mainCamera.camDataIdx = sStoreLastCamType;
         }

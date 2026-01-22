@@ -5707,7 +5707,7 @@ s32 func_8083A6AC(Player* this, PlayState* play) {
         sp74.x = this->actor.prevPos.x - this->actor.world.pos.x;
         sp74.z = this->actor.prevPos.z - this->actor.world.pos.z;
 
-        temp1 = OoT_sqrtf(SQ(sp74.x) + SQ(sp74.z));
+        temp1 = sqrtf(SQ(sp74.x) + SQ(sp74.z));
         if (temp1 != 0.0f) {
             temp1 = 5.0f / temp1;
         } else {
@@ -5904,7 +5904,7 @@ void func_8083AE40(Player* this, s16 objectId) {
 
     if (objectId != OBJECT_INVALID) {
         this->giObjectLoading = true;
-        OoT_osCreateMesgQueue(&this->giObjectLoadQueue, &this->giObjectLoadMsg, 1);
+        osCreateMesgQueue(&this->giObjectLoadQueue, &this->giObjectLoadMsg, 1);
 
         size = OoT_gObjectTable[objectId].vromEnd - OoT_gObjectTable[objectId].vromStart;
 
@@ -7265,7 +7265,7 @@ s32 OoT_Player_HandleSlopes(PlayState* play, Player* this, CollisionPoly* floorP
                 this->av1.actionVar1 = 1;
             }
             Player_AnimChangeLoopMorph(play, this, sSlopeSlideAnims[this->av1.actionVar1]);
-            this->linearVelocity = OoT_sqrtf(SQ(this->actor.velocity.x) + SQ(this->actor.velocity.z));
+            this->linearVelocity = sqrtf(SQ(this->actor.velocity.x) + SQ(this->actor.velocity.z));
             this->yaw = playerVelYaw;
             return true;
         }
@@ -10259,7 +10259,7 @@ s32 func_80845964(PlayState* play, Player* this, CsCmdActorCue* cue, f32 arg3, s
         f32 sp34 = R_UPDATE_RATE * 0.5f;
         f32 selfDistX = cue->endPos.x - this->actor.world.pos.x;
         f32 selfDistZ = cue->endPos.z - this->actor.world.pos.z;
-        f32 sp28 = OoT_sqrtf(SQ(selfDistX) + SQ(selfDistZ)) / sp34;
+        f32 sp28 = sqrtf(SQ(selfDistX) + SQ(selfDistZ)) / sp34;
         s32 sp24 = (cue->endFrame - play->csCtx.frames) + 1;
 
         arg4 = OoT_Math_Atan2S(selfDistZ, selfDistX);
@@ -10267,7 +10267,7 @@ s32 func_80845964(PlayState* play, Player* this, CsCmdActorCue* cue, f32 arg3, s
         if (arg5 == 1) {
             f32 distX = cue->endPos.x - cue->startPos.x;
             f32 distZ = cue->endPos.z - cue->startPos.z;
-            s32 temp = (((OoT_sqrtf(SQ(distX) + SQ(distZ)) / sp34) / (cue->endFrame - cue->startFrame)) / 1.5f) * 4.0f;
+            s32 temp = (((sqrtf(SQ(distX) + SQ(distZ)) / sp34) / (cue->endFrame - cue->startFrame)) / 1.5f) * 4.0f;
 
             if (temp >= sp24) {
                 arg4 = this->actor.shape.rot.y;
@@ -10294,7 +10294,7 @@ s32 func_80845964(PlayState* play, Player* this, CsCmdActorCue* cue, f32 arg3, s
 s32 func_80845BA0(PlayState* play, Player* this, f32* arg2, s32 arg3) {
     f32 dx = this->unk_450.x - this->actor.world.pos.x;
     f32 dz = this->unk_450.z - this->actor.world.pos.z;
-    s32 sp2C = OoT_sqrtf(SQ(dx) + SQ(dz));
+    s32 sp2C = sqrtf(SQ(dx) + SQ(dz));
     s16 yaw = OoT_Math_Vec3f_Yaw(&this->actor.world.pos, &this->unk_450);
 
     if (sp2C < arg3) {
@@ -11605,7 +11605,7 @@ void OoT_Player_UpdateCamAndSeqModes(PlayState* play, Player* this) {
 
         if (play->actorCtx.targetCtx.bgmEnemy != NULL) {
             seqMode = SEQ_MODE_ENEMY;
-            Audio_SetBgmEnemyVolume(OoT_sqrtf(play->actorCtx.targetCtx.bgmEnemy->xyzDistToPlayerSq));
+            Audio_SetBgmEnemyVolume(sqrtf(play->actorCtx.targetCtx.bgmEnemy->xyzDistToPlayerSq));
         }
 
         if (play->sceneNum != SCENE_FISHING_POND) {
@@ -12830,7 +12830,7 @@ s16 func_8084ABD8(PlayState* play, Player* this, s32 arg2, s16 arg3) {
         f32 relY = (sControlInput->rel.stick_y / 10);
 
         // Normalize so that diagonal movement isn't faster
-        f32 relMag = OoT_sqrtf((relX * relX) + (relY * relY));
+        f32 relMag = sqrtf((relX * relX) + (relY * relY));
         if (relMag > 1.0f) {
             relX /= relMag;
             relY /= relMag;
@@ -12841,7 +12841,7 @@ s16 func_8084ABD8(PlayState* play, Player* this, s32 arg2, s16 arg3) {
         f32 relY2 = relY * OoT_Math_CosS(this->actor.focus.rot.y) - relX * OoT_Math_SinS(this->actor.focus.rot.y);
 
         // Calculate distance for footstep sound
-        f32 distance = OoT_sqrtf((relX2 * relX2) + (relY2 * relY2)) * movementSpeed;
+        f32 distance = sqrtf((relX2 * relX2) + (relY2 * relY2)) * movementSpeed;
         func_8084029C(this, distance / 4.5f);
 
         this->actor.world.pos.x += (relX2 * movementSpeed) + this->actor.colChkInfo.displacement.x;
@@ -16554,7 +16554,7 @@ void func_80852A54(PlayState* play, Player* this, CsCmdActorCue* cue) {
     f32 dx = cue->startPos.x - (s32)this->actor.world.pos.x;
     f32 dy = cue->startPos.y - (s32)this->actor.world.pos.y;
     f32 dz = cue->startPos.z - (s32)this->actor.world.pos.z;
-    f32 dist = OoT_sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
+    f32 dist = sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
     s16 yawDiff = cue->rot.y - this->actor.shape.rot.y;
 
     if ((this->linearVelocity == 0.0f) && ((dist > 50.0f) || (ABS(yawDiff) > 0x4000))) {

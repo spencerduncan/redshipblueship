@@ -114,7 +114,7 @@ void EnHs_UpdateChickPos(Vec3f* dst, Vec3f src, f32 offset) {
         return;
     }
 
-    distance = MM_sqrtf(distance);
+    distance = sqrtf(distance);
     diff.x *= (distance - offset) / distance;
     diff.z *= (distance - offset) / distance;
 

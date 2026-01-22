@@ -11,7 +11,7 @@ typedef void (*SlowlyCallbackOne)(void*);
 typedef void (*SlowlyCallbackTwo)(void*, void*);
 
 typedef union {
-    SlowlyCallbackZero zero;
+    SlowlyCallbackZero MM_zero;
     SlowlyCallbackOne one;
     SlowlyCallbackTwo two;
 } SlowlyCallback; // size = 0x4

@@ -65,17 +65,17 @@ void Rando::ActorBehavior::InitEnTabBehavior() {
 
         if (actor->id == ACTOR_EN_TAB) {
             RandoCheckId checkId =
-                gPlayState->msgCtx.choiceIndex == 0 ? RC_MILK_BAR_PURCHASE_MILK : RC_MILK_BAR_PURCHASE_CHATEAU;
+                MM_gPlayState->msgCtx.choiceIndex == 0 ? RC_MILK_BAR_PURCHASE_MILK : RC_MILK_BAR_PURCHASE_CHATEAU;
 
             if (!RANDO_SAVE_CHECKS[checkId].cycleObtained) {
                 RANDO_SAVE_CHECKS[checkId].eligible = true;
                 *should = false;
-            } else if (!Inventory_HasEmptyBottle()) {
+            } else if (!MM_Inventory_HasEmptyBottle()) {
                 *should = false;
             }
 
             // Update actor parent to avoid looping over MSCRIPT_OFFER_ITEM infinitely
-            Player* player = GET_PLAYER(gPlayState);
+            Player* player = GET_PLAYER(MM_gPlayState);
             EnTab* tabActor = (EnTab*)actor;
             tabActor->actor.parent = &player->actor;
         }
@@ -97,18 +97,18 @@ void Rando::ActorBehavior::InitEnTabBehavior() {
         // vanilla milk items and does not have a bottle
         if (cmdId == MSCRIPT_CMD_ID_OFFER_ITEM) {
             RandoCheckId checkId =
-                gPlayState->msgCtx.choiceIndex == 0 ? RC_MILK_BAR_PURCHASE_MILK : RC_MILK_BAR_PURCHASE_CHATEAU;
+                MM_gPlayState->msgCtx.choiceIndex == 0 ? RC_MILK_BAR_PURCHASE_MILK : RC_MILK_BAR_PURCHASE_CHATEAU;
 
             if (RANDO_SAVE_CHECKS[checkId].cycleObtained && isInitialGiveItemMscriptCommandExecution &&
-                !Inventory_HasEmptyBottle()) {
+                !MM_Inventory_HasEmptyBottle()) {
                 // Make sure that skip branch is taken in Mscript handler by setting actor parent to player
-                Player* player = GET_PLAYER(gPlayState);
+                Player* player = GET_PLAYER(MM_gPlayState);
                 EnTab* tabActor = (EnTab*)actor;
                 tabActor->actor.parent = &player->actor;
 
                 // Update skip offset to point to Open Bottle Failure MsgScript data
                 s16 skipOffset = 0;
-                if (gPlayState->msgCtx.choiceIndex == 0) {
+                if (MM_gPlayState->msgCtx.choiceIndex == 0) {
                     skipOffset = ENTAB_EMPTY_BOTTLE_CHECK_FAILED_SCRIPT_POS - 0x004F - MSCRIPT_OFFER_ITEM_CMD_LEN;
                 } else {
                     skipOffset = ENTAB_EMPTY_BOTTLE_CHECK_FAILED_SCRIPT_POS - 0x0040 - MSCRIPT_OFFER_ITEM_CMD_LEN;
@@ -134,7 +134,7 @@ void Rando::ActorBehavior::InitEnTabBehavior() {
         // Use check prices instead of vanilla for MSCRIPT_BRANCH_ON_RUPEES
         if (cmdId == MSCRIPT_CMD_ID_CHECK_RUPEES) {
             s16 checkPrice = 0;
-            if (gPlayState->msgCtx.choiceIndex == 0) {
+            if (MM_gPlayState->msgCtx.choiceIndex == 0) {
                 checkPrice = 20;
 
                 if (!RANDO_SAVE_CHECKS[RC_MILK_BAR_PURCHASE_MILK].cycleObtained) {
@@ -159,7 +159,7 @@ void Rando::ActorBehavior::InitEnTabBehavior() {
 
         // Need to reset actor parent which otherwise would've been reset by vanilla Give Item cutscene in MSCRIPT_DONE
         if (cmdId == MSCRIPT_CMD_ID_DONE) {
-            Player* player = GET_PLAYER(gPlayState);
+            Player* player = GET_PLAYER(MM_gPlayState);
             EnTab* tabActor = (EnTab*)actor;
             tabActor->actor.parent = NULL;
         }
@@ -168,12 +168,12 @@ void Rando::ActorBehavior::InitEnTabBehavior() {
         // Will not charge Link when purchasing vanilla refills without an empty bottle
         if (cmdId == MSCRIPT_CMD_ID_CHANGE_RUPEES) {
             RandoCheckId checkId =
-                gPlayState->msgCtx.choiceIndex == 0 ? RC_MILK_BAR_PURCHASE_MILK : RC_MILK_BAR_PURCHASE_CHATEAU;
-            s16 rupeeChangeAmt = gPlayState->msgCtx.choiceIndex == 0 ? -20 : -200;
+                MM_gPlayState->msgCtx.choiceIndex == 0 ? RC_MILK_BAR_PURCHASE_MILK : RC_MILK_BAR_PURCHASE_CHATEAU;
+            s16 rupeeChangeAmt = MM_gPlayState->msgCtx.choiceIndex == 0 ? -20 : -200;
 
             if (!RANDO_SAVE_CHECKS[checkId].cycleObtained) {
                 rupeeChangeAmt = -RANDO_SAVE_CHECKS[checkId].price;
-            } else if (!Inventory_HasEmptyBottle()) {
+            } else if (!MM_Inventory_HasEmptyBottle()) {
                 rupeeChangeAmt = 0;
             }
 

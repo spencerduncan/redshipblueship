@@ -21,7 +21,7 @@ void RegisterSkipMoonCrash() {
         if (gSaveContext.save.cutsceneIndex == 0x0 && gSaveContext.save.entrance == ENTRANCE(TERMINA_FIELD, 12)) {
             // This cutscene command would otherwise be run as part of the Fire Wall cutscene that gets skipped.
             // IT MUST BE CALLED HERE IF THAT CUTSCENE IS SKIPPED OR ELSE THE GAME STATE WILL NOT RESET CORRECTLY!
-            Sram_ResetSaveFromMoonCrash(&gPlayState->sramCtx);
+            Sram_ResetSaveFromMoonCrash(&MM_gPlayState->sramCtx);
 
             gSaveContext.save.entrance = ENTRANCE(CLOCK_TOWER_INTERIOR, 3);
         }

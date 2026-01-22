@@ -299,7 +299,7 @@ void ObjMine_Air_InitChain(ObjMine* this, s32 linkCount) {
 
     // Sets restoring force and drag. Longer chains have lower frequency and less drag.
     if (linkCount > 0) {
-        airChain->restore = -MM_sqrtf((0.124992f / OBJMINE_CHAIN_MAX) / linkCountF);  // constant is close to 1/8
+        airChain->restore = -sqrtf((0.124992f / OBJMINE_CHAIN_MAX) / linkCountF);  // constant is close to 1/8
         airChain->drag = 0.95f + ((0.02000004f / OBJMINE_CHAIN_MAX) * linkCountF); // constant is close to 1/50
     }
 

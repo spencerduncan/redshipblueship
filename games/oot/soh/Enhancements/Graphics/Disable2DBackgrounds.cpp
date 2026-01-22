@@ -5,7 +5,7 @@
 
 extern "C" {
 extern SaveContext gSaveContext;
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 #include "macros.h"
 #include "variables.h"
 }
@@ -93,42 +93,42 @@ void Register3DPreRenderedScenes() {
         }
 
         // Add a skybox on scenes from skyboxSceneControlList
-        gPlayState->envCtx.skyboxDisabled = false;
+        OoT_gPlayState->envCtx.skyboxDisabled = false;
 
         // Replace skybox with normal sky
-        gPlayState->skyboxId = SKYBOX_NORMAL_SKY;
+        OoT_gPlayState->skyboxId = SKYBOX_NORMAL_SKY;
         // Apply the always cloudy skybox as an adult for Temple of Time and the Market
         if (sceneNum == SCENE_TEMPLE_OF_TIME_EXTERIOR_RUINS || sceneNum == SCENE_MARKET_RUINS ||
             sceneNum == SCENE_MARKET_ENTRANCE_RUINS) {
-            gWeatherMode = 3;
+            OoT_gWeatherMode = 3;
         }
     });
 
     COND_HOOK(OnPlayDrawBegin, CVAR_VALUE, []() {
-        if (!fogControlList.contains(static_cast<SceneID>(gPlayState->sceneNum))) {
+        if (!fogControlList.contains(static_cast<SceneID>(OoT_gPlayState->sceneNum))) {
             return;
         }
 
         if ((HREG(80) != 10) || (HREG(82) != 0)) {
             // Furthest possible fog and zFar
-            gPlayState->view.zFar = 12800;
-            gPlayState->lightCtx.fogNear = 996; // Set to 1000 to complete disable fog entirely
-            gPlayState->lightCtx.fogFar = 12800;
+            OoT_gPlayState->view.zFar = 12800;
+            OoT_gPlayState->lightCtx.fogNear = 996; // Set to 1000 to complete disable fog entirely
+            OoT_gPlayState->lightCtx.fogFar = 12800;
             // General gray fog color
-            gPlayState->lightCtx.fogColor[0] = 100;
-            gPlayState->lightCtx.fogColor[1] = 100;
-            gPlayState->lightCtx.fogColor[2] = 100;
+            OoT_gPlayState->lightCtx.fogColor[0] = 100;
+            OoT_gPlayState->lightCtx.fogColor[1] = 100;
+            OoT_gPlayState->lightCtx.fogColor[2] = 100;
         }
     });
 
     COND_VB_SHOULD(VB_DRAW_2D_BACKGROUND, CVAR_VALUE, { *should = false; });
 
     COND_VB_SHOULD(VB_LOAD_SKYBOX, CVAR_VALUE, {
-        if (!gPlayState || !skyboxIdControlList.contains(static_cast<SkyboxId>(gPlayState->skyboxCtx.skyboxId))) {
+        if (!OoT_gPlayState || !skyboxIdControlList.contains(static_cast<SkyboxId>(OoT_gPlayState->skyboxCtx.skyboxId))) {
             return;
         }
 
-        gPlayState->skyboxCtx.unk_140 = 0;
+        OoT_gPlayState->skyboxCtx.unk_140 = 0;
         *should = false;
     });
 }

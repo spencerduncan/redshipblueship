@@ -564,7 +564,7 @@ bool Extractor::CallZapd(std::string installPath, std::string exportdir) {
 
     snprintf(xmlPath, 1024, "assets/xml/%s", version);
     snprintf(confPath, 1024, "assets/Config_%s.xml", version);
-    snprintf(portVersion, 18, "%d.%d.%d", gBuildVersionMajor, gBuildVersionMinor, gBuildVersionPatch);
+    snprintf(portVersion, 18, "%d.%d.%d", MM_gBuildVersionMajor, MM_gBuildVersionMinor, MM_gBuildVersionPatch);
 
     argv[0] = "ZAPD";
     argv[1] = "ed";

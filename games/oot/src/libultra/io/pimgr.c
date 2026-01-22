@@ -17,24 +17,24 @@ OSPiHandle* __osCurrentHandle[] = {
     &__Dom2SpeedParam,
 };
 
-void OoT_osCreatePiManager(OSPri pri, OSMesgQueue* cmdQ, OSMesg* cmdBuf, s32 cmdMsgCnt) {
+void osCreatePiManager(OSPri pri, OSMesgQueue* cmdQ, OSMesg* cmdBuf, s32 cmdMsgCnt) {
     u32 prevInt;
     OSPri newPri;
     OSPri currentPri;
 
     if (!__osPiDevMgr.initialized) {
-        OoT_osCreateMesgQueue(cmdQ, cmdBuf, cmdMsgCnt);
-        OoT_osCreateMesgQueue(&piEventQueue, OoT_piEventBuf, 1);
+        osCreateMesgQueue(cmdQ, cmdBuf, cmdMsgCnt);
+        osCreateMesgQueue(&piEventQueue, OoT_piEventBuf, 1);
         if (!__osPiAccessQueueEnabled) {
             __osPiCreateAccessQueue();
         }
 
-        OoT_osSetEventMesg(OS_EVENT_PI, &piEventQueue, (OSMesg)0x22222222);
+        osSetEventMesg(OS_EVENT_PI, &piEventQueue, (OSMesg)0x22222222);
         newPri = -1;
-        currentPri = OoT_osGetThreadPri(NULL);
+        currentPri = osGetThreadPri(NULL);
         if (currentPri < pri) {
             newPri = currentPri;
-            OoT_osSetThreadPri(NULL, pri);
+            osSetThreadPri(NULL, pri);
         }
         prevInt = __osDisableInt();
 
@@ -47,12 +47,12 @@ void OoT_osCreatePiManager(OSPri pri, OSMesgQueue* cmdQ, OSMesg* cmdBuf, s32 cmd
         __osPiDevMgr.epiDmaCallback = __osEPiRawStartDma;
 
         osCreateThread(&piThread, 0, __osDevMgrMain, (void*)&__osPiDevMgr, piStackThread + sizeof(piStackThread), pri);
-        OoT_osStartThread(&piThread);
+        osStartThread(&piThread);
 
         __osRestoreInt(prevInt);
 
         if (newPri != -1) {
-            OoT_osSetThreadPri(NULL, newPri);
+            osSetThreadPri(NULL, newPri);
         }
     }
 }

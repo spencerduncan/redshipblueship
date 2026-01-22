@@ -70,7 +70,7 @@ void MM_EffectSpark_Init(void* thisx, void* initParamsx) {
             elem->velocity.y = MM_Rand_ZeroOne() - 0.5f;
             elem->velocity.z = MM_Rand_ZeroOne() - 0.5f;
 
-            velocityNorm = MM_sqrtf(SQXYZ(elem->velocity));
+            velocityNorm = sqrtf(SQXYZ(elem->velocity));
 
             if (!(fabsf(velocityNorm) < 0.008f)) {
                 elem->velocity.x *= this->speed * (1.0f / velocityNorm);

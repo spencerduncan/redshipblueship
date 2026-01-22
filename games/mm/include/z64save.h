@@ -565,10 +565,10 @@ typedef enum {
 
 #define GET_PLAYER_FORM ((void)0, gSaveContext.save.playerForm)
 
-#define GET_OWL_STATUE_ACTIVATED(owlWarpId) (((void)0, gSaveContext.save.saveInfo.playerData.owlActivationFlags) & (u16)gBitFlags[(owlWarpId)])
-#define SET_OWL_STATUE_ACTIVATED(owlWarpId) (gSaveContext.save.saveInfo.playerData.owlActivationFlags = (((void)0, gSaveContext.save.saveInfo.playerData.owlActivationFlags) | (u16)gBitFlags[(owlWarpId)]))
+#define GET_OWL_STATUE_ACTIVATED(owlWarpId) (((void)0, gSaveContext.save.saveInfo.playerData.owlActivationFlags) & (u16)MM_gBitFlags[(owlWarpId)])
+#define SET_OWL_STATUE_ACTIVATED(owlWarpId) (gSaveContext.save.saveInfo.playerData.owlActivationFlags = (((void)0, gSaveContext.save.saveInfo.playerData.owlActivationFlags) | (u16)MM_gBitFlags[(owlWarpId)]))
 
-#define SLOT(item) gItemSlots[item]
+#define SLOT(item) MM_gItemSlots[item]
 #define AMMO(item) gSaveContext.save.saveInfo.inventory.ammo[SLOT(item)]
 #define INV_CONTENT(item) gSaveContext.save.saveInfo.inventory.items[SLOT(item)]
 #define GET_INV_CONTENT(item) ((void)0, gSaveContext.save.saveInfo.inventory.items)[SLOT(item)]
@@ -579,21 +579,21 @@ typedef enum {
 #define GET_SAVE_INVENTORY_UPGRADES ((void)0, gSaveContext.save.saveInfo.inventory.upgrades)
 #define GET_SAVE_INVENTORY_QUEST_ITEMS ((void)0, gSaveContext.save.saveInfo.inventory.questItems)
 
-#define GET_CUR_EQUIP_VALUE(equip) ((GET_SAVE_EQUIPS_EQUIPMENT & gEquipMasks[equip]) >> gEquipShifts[equip])
+#define GET_CUR_EQUIP_VALUE(equip) ((GET_SAVE_EQUIPS_EQUIPMENT & MM_gEquipMasks[equip]) >> MM_gEquipShifts[equip])
 
-#define CUR_UPG_VALUE(upg) ((gSaveContext.save.saveInfo.inventory.upgrades & gUpgradeMasks[upg]) >> gUpgradeShifts[upg])
-#define GET_CUR_UPG_VALUE(upg) ((GET_SAVE_INVENTORY_UPGRADES & gUpgradeMasks[upg]) >> gUpgradeShifts[upg])
+#define CUR_UPG_VALUE(upg) ((gSaveContext.save.saveInfo.inventory.upgrades & MM_gUpgradeMasks[upg]) >> MM_gUpgradeShifts[upg])
+#define GET_CUR_UPG_VALUE(upg) ((GET_SAVE_INVENTORY_UPGRADES & MM_gUpgradeMasks[upg]) >> MM_gUpgradeShifts[upg])
 
-#define SET_EQUIP_VALUE(equip, value) (gSaveContext.save.saveInfo.equips.equipment = ((GET_SAVE_EQUIPS_EQUIPMENT & gEquipNegMasks[equip]) | (u16)((u16)(value) << gEquipShifts[equip])))
+#define SET_EQUIP_VALUE(equip, value) (gSaveContext.save.saveInfo.equips.equipment = ((GET_SAVE_EQUIPS_EQUIPMENT & MM_gEquipNegMasks[equip]) | (u16)((u16)(value) << MM_gEquipShifts[equip])))
 
 #define BUTTON_ITEM_EQUIP(form, button) (gSaveContext.save.saveInfo.equips.buttonItems[form][button])
 #define CUR_FORM_EQUIP(button) BUTTON_ITEM_EQUIP(CUR_FORM, button)
 
 #define C_SLOT_EQUIP(form, button) (gSaveContext.save.saveInfo.equips.cButtonSlots[form][button])
-#define CHECK_QUEST_ITEM(item) (GET_SAVE_INVENTORY_QUEST_ITEMS & gBitFlags[item])
-#define SET_QUEST_ITEM(item) (gSaveContext.save.saveInfo.inventory.questItems = (GET_SAVE_INVENTORY_QUEST_ITEMS | gBitFlags[item]))
-#define REMOVE_QUEST_ITEM(item) (gSaveContext.save.saveInfo.inventory.questItems = (GET_SAVE_INVENTORY_QUEST_ITEMS & (-1 - gBitFlags[item])))
-#define TOGGLE_QUEST_ITEM(item) (gSaveContext.save.saveInfo.inventory.questItems ^= (gBitFlags[item]))
+#define CHECK_QUEST_ITEM(item) (GET_SAVE_INVENTORY_QUEST_ITEMS & MM_gBitFlags[item])
+#define SET_QUEST_ITEM(item) (gSaveContext.save.saveInfo.inventory.questItems = (GET_SAVE_INVENTORY_QUEST_ITEMS | MM_gBitFlags[item]))
+#define REMOVE_QUEST_ITEM(item) (gSaveContext.save.saveInfo.inventory.questItems = (GET_SAVE_INVENTORY_QUEST_ITEMS & (-1 - MM_gBitFlags[item])))
+#define TOGGLE_QUEST_ITEM(item) (gSaveContext.save.saveInfo.inventory.questItems ^= (MM_gBitFlags[item]))
 
 #define GET_QUEST_HEART_PIECE_COUNT ((GET_SAVE_INVENTORY_QUEST_ITEMS & 0xF0000000) >> QUEST_HEART_PIECE_COUNT)
 #define EQ_MAX_QUEST_HEART_PIECE_COUNT ((GET_SAVE_INVENTORY_QUEST_ITEMS & 0xF0000000) == (4 << QUEST_HEART_PIECE_COUNT))
@@ -602,16 +602,16 @@ typedef enum {
 #define DECREMENT_QUEST_HEART_PIECE_COUNT (gSaveContext.save.saveInfo.inventory.questItems -= (1 << QUEST_HEART_PIECE_COUNT))
 #define RESET_HEART_PIECE_COUNT (gSaveContext.save.saveInfo.inventory.questItems ^= (4 << QUEST_HEART_PIECE_COUNT))
 
-#define CHECK_DUNGEON_ITEM(item, dungeonSceneIndex) (gSaveContext.save.saveInfo.inventory.dungeonItems[(void)0, dungeonSceneIndex] & gBitFlags[item])
-#define CHECK_DUNGEON_ITEM_ALT(item, dungeonSceneIndex) (gSaveContext.save.saveInfo.inventory.dungeonItems[dungeonSceneIndex] & gBitFlags[item])
-#define SET_DUNGEON_ITEM(item, dungeonSceneIndex) (gSaveContext.save.saveInfo.inventory.dungeonItems[(void)0, dungeonSceneIndex] |= (u8)gBitFlags[item])
+#define CHECK_DUNGEON_ITEM(item, dungeonSceneIndex) (gSaveContext.save.saveInfo.inventory.dungeonItems[(void)0, dungeonSceneIndex] & MM_gBitFlags[item])
+#define CHECK_DUNGEON_ITEM_ALT(item, dungeonSceneIndex) (gSaveContext.save.saveInfo.inventory.dungeonItems[dungeonSceneIndex] & MM_gBitFlags[item])
+#define SET_DUNGEON_ITEM(item, dungeonSceneIndex) (gSaveContext.save.saveInfo.inventory.dungeonItems[(void)0, dungeonSceneIndex] |= (u8)MM_gBitFlags[item])
 // 2S2H [Enhancements] We added this for save editor
-#define REMOVE_DUNGEON_ITEM(item, dungeonIndex) (gSaveContext.save.saveInfo.inventory.dungeonItems[(void)0, dungeonIndex] &= ~(u8)gBitFlags[item])
+#define REMOVE_DUNGEON_ITEM(item, dungeonIndex) (gSaveContext.save.saveInfo.inventory.dungeonItems[(void)0, dungeonIndex] &= ~(u8)MM_gBitFlags[item])
 #define DUNGEON_KEY_COUNT(dungeonSceneIndex) (gSaveContext.save.saveInfo.inventory.dungeonKeys[(void)0, dungeonSceneIndex])
-#define GET_DUNGEON_FLOOR_VISITED(sceneId, floor) (gSaveContext.save.saveInfo.permanentSceneFlags[(sceneId)].unk_14 & gBitFlags[floor])
-#define SET_DUNGEON_FLOOR_VISITED(sceneId, floor) (gSaveContext.save.saveInfo.permanentSceneFlags[(sceneId)].unk_14 |= gBitFlags[floor])
+#define GET_DUNGEON_FLOOR_VISITED(sceneId, floor) (gSaveContext.save.saveInfo.permanentSceneFlags[(sceneId)].unk_14 & MM_gBitFlags[floor])
+#define SET_DUNGEON_FLOOR_VISITED(sceneId, floor) (gSaveContext.save.saveInfo.permanentSceneFlags[(sceneId)].unk_14 |= MM_gBitFlags[floor])
 #define GET_ROOM_VISITED(sceneId, room) (((void)0, gSaveContext.save.saveInfo.permanentSceneFlags[(sceneId)].rooms) & (1 << (room)))
-#define SET_ROOM_VISITED(sceneId, room) (gSaveContext.save.saveInfo.permanentSceneFlags[(sceneId)].rooms |= gBitFlags[room])
+#define SET_ROOM_VISITED(sceneId, room) (gSaveContext.save.saveInfo.permanentSceneFlags[(sceneId)].rooms |= MM_gBitFlags[room])
 #define GET_CYCLE_CHEST_OPENED(sceneId, chestFlagId) ((void)0, gSaveContext.cycleSceneFlags[(sceneId)].chest) & (1 << (chestFlagId));
 
 
@@ -1789,7 +1789,7 @@ typedef enum {
 
 #define CHECK_EVENTINF(flag) (gSaveContext.eventInf[(flag) >> 4] & (1 << ((flag) & 0xF)))
 // #region 2S2H Originally these flags were all set with macros, for the port we want them to be in functions so we can hook into them
-#define SET_EVENTINF(flag) (Flags_SetEventInf(flag))
+#define SET_EVENTINF(flag) (MM_Flags_SetEventInf(flag))
 #define CLEAR_EVENTINF(flag) (Flags_ClearEventInf(flag))
 #define CLEAR_EVENTINF_ALT(flag) (Flags_ClearEventInf(flag))
 // #endregion
@@ -1844,17 +1844,17 @@ void Sram_ClearFlagsAtDawnOfTheFirstDay(void);
 void Sram_SaveEndOfCycle(struct PlayState* play);
 void Sram_IncrementDay(void);
 u16 Sram_CalcChecksum(void* data, size_t count);
-void Sram_InitNewSave(void);
-void Sram_InitDebugSave(void);
+void MM_Sram_InitNewSave(void);
+void MM_Sram_InitDebugSave(void);
 void Sram_ResetSaveFromMoonCrash(SramContext* sramCtx);
-void Sram_OpenSave(struct FileSelectState* fileSelect, SramContext* sramCtx);
+void MM_Sram_OpenSave(struct FileSelectState* fileSelect, SramContext* sramCtx);
 void func_8014546C(SramContext* sramCtx);
 void func_801457CC(struct GameState* gameState, SramContext* sramCtx);
 void Sram_EraseSave(struct FileSelectState* fileSelect2, SramContext* sramCtx, s32 fileNum);
 void Sram_CopySave(struct FileSelectState* fileSelect2, SramContext* sramCtx);
-void Sram_InitSave(struct FileSelectState* fileSelect2, SramContext* sramCtx);
+void MM_Sram_InitSave(struct FileSelectState* fileSelect2, SramContext* sramCtx);
 void Sram_WriteSaveOptionsToBuffer(SramContext* sramCtx);
-void Sram_InitSram(struct GameState* gameState, SramContext* sramCtx);
+void MM_Sram_InitSram(struct GameState* gameState, SramContext* sramCtx);
 void Sram_Alloc(struct GameState* gameState, SramContext* sramCtx);
 void Sram_SaveSpecialEnterClockTown(struct PlayState* play);
 void Sram_SaveSpecialNewDay(struct PlayState* play);
@@ -1868,10 +1868,10 @@ void Sram_UpdateWriteToFlashOwlSave(SramContext* sramCtx);
 void func_80147314(SramContext* sramCtx, s32 fileNum); // Removes Owl Saves
 // #endregion
 
-void SaveContext_Init(void);
+void MM_SaveContext_Init(void);
 
 extern u32 gSramSlotOffsets[];
-extern u8 gAmmoItems[];
+extern u8 MM_gAmmoItems[];
 extern s32 gFlashSaveStartPages[];
 extern s32 gFlashSaveNumPages[];
 extern s32 gFlashSpecialSaveNumPages[];

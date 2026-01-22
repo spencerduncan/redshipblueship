@@ -7,7 +7,7 @@
 extern "C" {
 #include "functions.h"
 #include "soh/Enhancements/randomizer/ShuffleTradeItems.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 /**
@@ -86,7 +86,7 @@ void Anchor::HandlePacket_UnsetFlag(nlohmann::json payload) {
                     itemToReplace = ITEM_CLAIM_CHECK;
                     break;
             }
-            Inventory_ReplaceItem(gPlayState, itemToReplace, Randomizer_GetNextAdultTradeItem());
+            OoT_Inventory_ReplaceItem(OoT_gPlayState, itemToReplace, Randomizer_GetNextAdultTradeItem());
         }
     } else {
         // Special case: Ignore water temple water level flags, stored at 0x1C, 0x1D, 0x1E.

@@ -5,7 +5,7 @@ extern "C" {
 #include "src/overlays/actors/ovl_Obj_Lightswitch/z_obj_lightswitch.h"
 #include "src/overlays/actors/ovl_Bg_Spot06_Objects/z_bg_spot06_objects.h"
 #include "src/overlays/actors/ovl_Bg_Jya_Bombchuiwa/z_bg_jya_bombchuiwa.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 #define SKIP_MISC_INTERACTIONS_NAME CVAR_ENHANCEMENT("TimeSavers.SkipMiscInteractions")
@@ -30,8 +30,8 @@ static void RegisterSkipTimerDelay() {
 
     // Skip Spirit Sun on Floor & Sun on Block activation delay
     COND_ID_HOOK(OnActorUpdate, ACTOR_OBJ_LIGHTSWITCH, SKIP_MISC_INTERACTIONS_VALUE, [](void* actor) {
-        if (gPlayState->sceneNum == SCENE_SPIRIT_TEMPLE &&
-            (gPlayState->roomCtx.curRoom.num == 4 || gPlayState->roomCtx.curRoom.num == 8)) {
+        if (OoT_gPlayState->sceneNum == SCENE_SPIRIT_TEMPLE &&
+            (OoT_gPlayState->roomCtx.curRoom.num == 4 || OoT_gPlayState->roomCtx.curRoom.num == 8)) {
             auto sun = static_cast<ObjLightswitch*>(actor);
             sun->toggleDelay = 0;
         }

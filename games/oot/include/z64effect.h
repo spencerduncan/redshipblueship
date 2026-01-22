@@ -267,7 +267,7 @@ typedef struct {
 #define rgObjBankIdx regs[11]
 
 #define DEFINE_EFFECT_SS(_0, enum) enum,
-#define DEFINE_EFFECT_SS_UNSET(enum) enum,
+#define OoT_DEFINE_EFFECT_SS_UNSET(enum) enum,
 
 typedef enum {
     #include "tables/effect_ss_table.h"
@@ -275,6 +275,6 @@ typedef enum {
 } EffectSsType;
 
 #undef DEFINE_EFFECT_SS
-#undef DEFINE_EFFECT_SS_UNSET
+#undef OoT_DEFINE_EFFECT_SS_UNSET
 
 #endif

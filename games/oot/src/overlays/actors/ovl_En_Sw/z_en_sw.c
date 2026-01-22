@@ -774,7 +774,7 @@ void func_80B0E314(EnSw* this, Vec3f arg1, f32 arg4) {
     xDiff = arg1.x - this->actor.world.pos.x;
     yDiff = arg1.y - this->actor.world.pos.y;
     zDiff = arg1.z - this->actor.world.pos.z;
-    dist = OoT_sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff));
+    dist = sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff));
     if (dist == 0.0f) {
         xDist = yDist = zDist = 0.0f;
     } else {

@@ -1,6 +1,6 @@
 #include "ultra64.h"
 
-void MM_osViSwapBuffer(void* frameBufPtr) {
+void osViSwapBuffer(void* frameBufPtr) {
 
     u32 saveMask = __osDisableInt();
 

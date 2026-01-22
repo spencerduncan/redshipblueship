@@ -34,7 +34,7 @@ extern "C" int SavingEnhancements_GetSaveEntrance() {
         // must be at this entrance in that scenario, just use it as a fallback.
         return entranceToSave < 0 ? ENTRANCE(SOUTH_CLOCK_TOWN, 0) : entranceToSave;
     } else {
-        switch (gPlayState->sceneId) {
+        switch (MM_gPlayState->sceneId) {
             // Woodfall Temple + Odolwa
             case SCENE_MITURIN:
             case SCENE_MITURIN_BS:
@@ -62,7 +62,7 @@ extern "C" int SavingEnhancements_GetSaveEntrance() {
 
 extern "C" bool SavingEnhancements_CanSave() {
     // Game State
-    if (gPlayState == NULL || GET_PLAYER(gPlayState) == NULL) {
+    if (MM_gPlayState == NULL || GET_PLAYER(MM_gPlayState) == NULL) {
         return false;
     }
 
@@ -72,25 +72,25 @@ extern "C" bool SavingEnhancements_CanSave() {
     }
 
     // Not in a blocking cutscene
-    if (Player_InBlockingCsMode(gPlayState, GET_PLAYER(gPlayState))) {
+    if (MM_Player_InBlockingCsMode(MM_gPlayState, GET_PLAYER(MM_gPlayState))) {
         return false;
     }
 
     // Not in the middle of dialog
-    if (gPlayState->msgCtx.msgMode != 0) {
+    if (MM_gPlayState->msgCtx.msgMode != 0) {
         return false;
     }
 
     // Hasn't gotten to clock town yet
-    if (gPlayState->sceneId == SCENE_SPOT00 || gPlayState->sceneId == SCENE_LOST_WOODS ||
-        gPlayState->sceneId == SCENE_OPENINGDAN) {
+    if (MM_gPlayState->sceneId == SCENE_SPOT00 || MM_gPlayState->sceneId == SCENE_LOST_WOODS ||
+        MM_gPlayState->sceneId == SCENE_OPENINGDAN) {
         return false;
     }
 
     // Can't save once you've gone to the moon
-    if (gPlayState->sceneId == SCENE_SOUGEN || gPlayState->sceneId == SCENE_LAST_LINK ||
-        gPlayState->sceneId == SCENE_LAST_DEKU || gPlayState->sceneId == SCENE_LAST_GORON ||
-        gPlayState->sceneId == SCENE_LAST_ZORA || gPlayState->sceneId == SCENE_LAST_BS) {
+    if (MM_gPlayState->sceneId == SCENE_SOUGEN || MM_gPlayState->sceneId == SCENE_LAST_LINK ||
+        MM_gPlayState->sceneId == SCENE_LAST_DEKU || MM_gPlayState->sceneId == SCENE_LAST_GORON ||
+        MM_gPlayState->sceneId == SCENE_LAST_ZORA || MM_gPlayState->sceneId == SCENE_LAST_BS) {
         return false;
     }
 
@@ -117,7 +117,7 @@ void DeleteOwlSave() {
     // creating owl saves without the player being send back to the file select screen.
 
     // Delete Owl Save
-    func_80147314(&gPlayState->sramCtx, gSaveContext.fileNum);
+    func_80147314(&MM_gPlayState->sramCtx, gSaveContext.fileNum);
 
     // Set it to not be an owl save so after reloading the save file it doesn't try to load at the owl's position in
     // clock town
@@ -135,7 +135,7 @@ void DrawAutosaveIcon() {
         } else if (iconTimer < 20) {
             opacity = (iconTimer / 20.0) * 255.0;
         }
-        Interface_DrawAutosaveIcon(gPlayState, uint16_t(opacity));
+        Interface_DrawAutosaveIcon(MM_gPlayState, uint16_t(opacity));
         iconTimer--;
     }
 }
@@ -148,13 +148,13 @@ void HandleAutoSave() {
         return;
     }
 
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(MM_gPlayState);
     if (player == NULL) {
         return;
     }
 
     // If owl save available to create, do it and reset the interval.
-    if (SavingEnhancements_CanSave() && gPlayState->pauseCtx.state == 0) {
+    if (SavingEnhancements_CanSave() && MM_gPlayState->pauseCtx.state == 0) {
 
         // Reset timestamp, set icon timer to show autosave icon for 5 seconds (100 frames)
         lastSaveTimestamp = GetUnixTimestamp();
@@ -164,13 +164,13 @@ void HandleAutoSave() {
         gSaveContext.save.isOwlSave = true;
         gSaveContext.save.shipSaveInfo.pauseSaveEntrance = SavingEnhancements_GetSaveEntrance();
         SavingEnhancements_AdvancePlaytime();
-        Play_SaveCycleSceneFlags(gPlayState);
-        gSaveContext.save.saveInfo.playerData.savedSceneId = gPlayState->sceneId;
-        func_8014546C(&gPlayState->sramCtx);
-        Sram_SetFlashPagesOwlSave(&gPlayState->sramCtx,
+        Play_SaveCycleSceneFlags(MM_gPlayState);
+        gSaveContext.save.saveInfo.playerData.savedSceneId = MM_gPlayState->sceneId;
+        func_8014546C(&MM_gPlayState->sramCtx);
+        Sram_SetFlashPagesOwlSave(&MM_gPlayState->sramCtx,
                                   gFlashOwlSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER],
                                   gFlashOwlSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER]);
-        Sram_StartWriteToFlashOwlSave(&gPlayState->sramCtx);
+        Sram_StartWriteToFlashOwlSave(&MM_gPlayState->sramCtx);
         gSaveContext.save.isOwlSave = false;
         gSaveContext.save.shipSaveInfo.pauseSaveEntrance = -1;
     }
@@ -214,7 +214,7 @@ void skipEntranceCutsceneOnLoad(s16 fileNum) {
     // Register hook to skip entrance cutscenes - may skip multiple if they chain
     skipEntranceCutsceneHookId = REGISTER_VB_SHOULD(VB_START_CUTSCENE, {
         // Only skip normal cutscenes
-        if (gSaveContext.gameMode == GAMEMODE_NORMAL && gPlayState != nullptr && gPlayState->sceneId != SCENE_SPOT00) {
+        if (gSaveContext.gameMode == GAMEMODE_NORMAL && MM_gPlayState != nullptr && MM_gPlayState->sceneId != SCENE_SPOT00) {
             *should = false;
         }
     });
@@ -282,7 +282,7 @@ void RegisterAutosave() {
     if (CVarGetInteger("gEnhancements.Saving.Autosave", 0)) {
         autosaveGameStateUpdateHookId =
             GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateUpdate>([]() {
-                if (gPlayState == nullptr) {
+                if (MM_gPlayState == nullptr) {
                     return;
                 }
 
@@ -291,7 +291,7 @@ void RegisterAutosave() {
 
         autosaveGameStateDrawFinishHookId =
             GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateDrawFinish>([]() {
-                if (gPlayState == nullptr) {
+                if (MM_gPlayState == nullptr) {
                     return;
                 }
 

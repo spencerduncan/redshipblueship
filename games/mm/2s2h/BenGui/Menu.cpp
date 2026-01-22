@@ -14,7 +14,7 @@
 extern "C" {
 #include "z64.h"
 #include "functions.h"
-extern PlayState* gPlayState;
+extern PlayState* MM_gPlayState;
 }
 std::vector<ImVec2> windowTypeSizes = { {} };
 
