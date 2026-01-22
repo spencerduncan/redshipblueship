@@ -210,6 +210,8 @@ set_property(TARGET redship PROPERTY APPIMAGE_ICON_FILE "${CMAKE_BINARY_DIR}/soh
 
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
 install(FILES "${CMAKE_BINARY_DIR}/soh/soh.o2r" DESTINATION . COMPONENT ship)
+# Install desktop file for AppImage (appimagetool looks for it in the AppDir)
+install(FILES "${CMAKE_SOURCE_DIR}/scripts/linux/appimage/soh.desktop" DESTINATION . COMPONENT appimage)
 install(TARGETS ZAPD_OoT DESTINATION ./assets/extractor COMPONENT extractor)
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/oot/assets/extractor/" DESTINATION ./assets COMPONENT extractor)
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/oot/assets/xml/" DESTINATION ./assets/xml COMPONENT extractor)

@@ -81,7 +81,7 @@ jobs:
       run: |
         export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
         cmake --no-warn-unused-cli -H. -Bbuild-cmake -GNinja -DCMAKE_BUILD_TYPE:STRING=Release -DREDSHIP_BUILD_SHARED=ON
-        cmake --build build-cmake --config Release --target GenerateSohOtr -j3
+        cmake --build build-cmake --config Release --target GenerateSohOtr -j10
     - name: Upload soh.o2r
       uses: actions/upload-artifact@v4
       with:
@@ -267,7 +267,7 @@ jobs:
       run: |
         export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
         cmake --no-warn-unused-cli -H. -Bbuild-cmake -GNinja -DCMAKE_BUILD_TYPE:STRING=Release -DBUILD_REMOTE_CONTROL=1 -DREDSHIP_BUILD_SHARED=ON
-        cmake --build build-cmake --config Release -j3
+        cmake --build build-cmake --config Release -j10
         (cd build-cmake && cpack -G External)
 
         mv README.md readme.txt
