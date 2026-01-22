@@ -216,7 +216,8 @@ else()
 endif()
 
 # Link combo library for GameExports interface
-target_link_libraries(${PROJECT_NAME} PRIVATE combo)
+# Link rsbs for unified shared code
+target_link_libraries(${PROJECT_NAME} PRIVATE combo rsbs)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 use_props(${PROJECT_NAME} "${CMAKE_CONFIGURATION_TYPES}" "${DEFAULT_CXX_PROPS}")
