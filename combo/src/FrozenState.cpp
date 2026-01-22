@@ -1,4 +1,5 @@
 #include "combo/FrozenState.h"
+#include <cassert>
 #include <cstring>
 #include <stdexcept>
 
@@ -156,22 +157,31 @@ void FrozenStateManager::UpdateShadowCopy(Game game, const void* saveContextData
 }
 
 FrozenGameState& FrozenStateManager::GetState(Game game) {
-    if (game == Game::OoT) {
-        return mOoTState;
-    } else if (game == Game::MM) {
-        return mMMState;
+    switch (game) {
+        case Game::OoT:
+            return mOoTState;
+        case Game::MM:
+            return mMMState;
+        case Game::None:
+            break;
     }
-    // Fallback - shouldn't happen
-    return mOoTState;
+    // Unreachable if Game enum is used correctly
+    assert(false && "Invalid Game value passed to GetState");
+    return mOoTState;  // Satisfy compiler, never reached
 }
 
 const FrozenGameState& FrozenStateManager::GetState(Game game) const {
-    if (game == Game::OoT) {
-        return mOoTState;
-    } else if (game == Game::MM) {
-        return mMMState;
+    switch (game) {
+        case Game::OoT:
+            return mOoTState;
+        case Game::MM:
+            return mMMState;
+        case Game::None:
+            break;
     }
-    return mOoTState;
+    // Unreachable if Game enum is used correctly
+    assert(false && "Invalid Game value passed to GetState");
+    return mOoTState;  // Satisfy compiler, never reached
 }
 
 } // namespace Combo
