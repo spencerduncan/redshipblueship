@@ -1,7 +1,16 @@
-#include "global.h"
+/**
+ * @file rotate.c
+ * @brief Matrix rotation functions for libultra
+ *
+ * Unified implementation migrated from OoT and MM.
+ * guRotateF: Creates a rotation matrix (floating point)
+ * guRotate: Creates a rotation matrix (fixed point)
+ */
+#include <libultraship/libultra.h>
+#include <math.h>
 
 void guRotateF(f32 m[4][4], f32 a, f32 x, f32 y, f32 z) {
-    static f32 D_80134D10 = M_PI / 180.0f;
+    static f32 dtor = 3.14159265358979323846f / 180.0f;
     f32 sine;
     f32 cosine;
     f32 ab;
@@ -14,7 +23,7 @@ void guRotateF(f32 m[4][4], f32 a, f32 x, f32 y, f32 z) {
 
     guNormalize(&x, &y, &z);
 
-    a = a * D_80134D10;
+    a = a * dtor;
 
     sine = sinf(a);
     cosine = cosf(a);
@@ -47,5 +56,5 @@ void guRotate(Mtx* m, f32 a, f32 x, f32 y, f32 z) {
     f32 mf[4][4];
 
     guRotateF(mf, a, x, y, z);
-    guMtxF2L((MtxF*)mf, m);
+    guMtxF2L(mf, m);
 }

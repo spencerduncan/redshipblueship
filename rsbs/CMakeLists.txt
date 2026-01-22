@@ -22,6 +22,11 @@ add_library(rsbs STATIC
     # src/libultra/os/recvmesg.c
     # src/libultra/os/jammesg.c
     # src/libultra/os/seteventmesg.c
+
+    # libultra/gu - Graphics utility functions
+    src/libultra/gu/sqrtf.c
+    src/libultra/gu/position.c
+    src/libultra/gu/rotate.c
 )
 
 target_include_directories(rsbs PUBLIC
