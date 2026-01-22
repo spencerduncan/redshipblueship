@@ -132,22 +132,14 @@ bool ComboContextBridge::SwitchGame(Game game) {
 }
 
 int ComboContextBridge::Init(int argc, char** argv) {
-    std::cerr << "[BRIDGE DEBUG] Init called, mActiveGame="
-              << static_cast<int>(mActiveGame) << std::endl;
-    std::cerr.flush();
-
     if (mActiveGame == Game::None) {
         std::cerr << "ComboContextBridge: No active game to initialize" << std::endl;
         return -1;
     }
 
     auto& state = mGames[mActiveGame];
-    std::cerr << "[BRIDGE DEBUG] Got state, initialized=" << state.initialized
-              << ", Init ptr=" << (void*)state.exports.Init << std::endl;
-    std::cerr.flush();
 
     if (state.initialized) {
-        std::cerr << "ComboContextBridge: Game already initialized" << std::endl;
         return 0;
     }
 
@@ -156,11 +148,7 @@ int ComboContextBridge::Init(int argc, char** argv) {
         return -1;
     }
 
-    std::cerr << "[BRIDGE DEBUG] Calling game's Init function..." << std::endl;
-    std::cerr.flush();
     int result = state.exports.Init(argc, argv);
-    std::cerr << "[BRIDGE DEBUG] Game Init returned " << result << std::endl;
-    std::cerr.flush();
 
     if (result == 0) {
         state.initialized = true;
@@ -193,36 +181,22 @@ void ComboContextBridge::Run() {
 }
 
 void ComboContextBridge::Shutdown() {
-    std::cerr << "[BRIDGE DEBUG] Shutdown called, mActiveGame="
-              << static_cast<int>(mActiveGame) << std::endl;
-    std::cerr.flush();
-
     if (mActiveGame == Game::None) {
-        std::cerr << "[BRIDGE DEBUG] No active game, returning" << std::endl;
         return;
     }
 
     auto& state = mGames[mActiveGame];
-    std::cerr << "[BRIDGE DEBUG] Got state, initialized=" << state.initialized << std::endl;
-    std::cerr.flush();
 
     if (!state.initialized) {
-        std::cerr << "[BRIDGE DEBUG] Game not initialized, returning" << std::endl;
         return;
     }
 
     if (state.exports.Shutdown) {
-        std::cerr << "[BRIDGE DEBUG] Calling game's Shutdown function..." << std::endl;
-        std::cerr.flush();
         state.exports.Shutdown();
-        std::cerr << "[BRIDGE DEBUG] Game Shutdown complete" << std::endl;
-        std::cerr.flush();
     }
 
     state.initialized = false;
     state.running = false;
-    std::cerr << "[BRIDGE DEBUG] Shutdown finished" << std::endl;
-    std::cerr.flush();
 }
 
 std::optional<std::string> ComboContextBridge::GetGameName(Game game) const {
