@@ -27,6 +27,7 @@ from typing import Dict, List, Optional, Tuple
 # Add tools/lib to path for imports
 sys.path.insert(0, str(Path(__file__).parent / "lib"))
 
+from ast_comparator import ASTComparisonResult, compare_ast, is_available as ast_available
 from code_extractor import extract_function, extract_global
 from normalizer import normalize
 from symbol_locator import SymbolLocator
@@ -34,6 +35,13 @@ from symbol_locator import SymbolLocator
 
 # Match threshold for "near identical" (95%)
 NEAR_IDENTICAL_THRESHOLD = 0.95
+
+# Categories for match classification
+CATEGORY_IDENTICAL = "identical"
+CATEGORY_AST_IDENTICAL = "ast_identical"
+CATEGORY_NEAR_IDENTICAL = "near_identical"
+CATEGORY_DIFFERENT = "different"
+CATEGORY_NOT_FOUND = "not_found"
 
 
 def compute_similarity(code1: str, code2: str) -> float:
@@ -55,22 +63,25 @@ def compute_similarity(code1: str, code2: str) -> float:
     return SequenceMatcher(None, code1, code2).ratio()
 
 
-def categorize_match(similarity: float) -> str:
+def categorize_match(similarity: float, ast_identical: bool = False) -> str:
     """
-    Categorize a match based on similarity score.
+    Categorize a match based on similarity score and optional AST comparison.
 
     Args:
         similarity: Similarity ratio from 0.0 to 1.0
+        ast_identical: Whether AST comparison shows semantic identity
 
     Returns:
-        Category string: "identical", "near_identical", or "different"
+        Category string: "identical", "ast_identical", "near_identical", or "different"
     """
     if similarity == 1.0:
-        return "identical"
+        return CATEGORY_IDENTICAL
+    elif ast_identical:
+        return CATEGORY_AST_IDENTICAL
     elif similarity >= NEAR_IDENTICAL_THRESHOLD:
-        return "near_identical"
+        return CATEGORY_NEAR_IDENTICAL
     else:
-        return "different"
+        return CATEGORY_DIFFERENT
 
 
 def extract_code(file_path: Path, symbol: str) -> Optional[str]:
@@ -100,6 +111,7 @@ def analyze_symbol(
     symbol: str,
     locator: SymbolLocator,
     verbose: bool = False,
+    use_ast: bool = False,
 ) -> Dict:
     """
     Analyze a single symbol to determine if it can be merged.
@@ -108,17 +120,22 @@ def analyze_symbol(
         symbol: The symbol name to analyze
         locator: SymbolLocator instance for finding files
         verbose: If True, include additional details in output
+        use_ast: If True, also perform AST-level comparison
 
     Returns:
         Dictionary with analysis results
     """
     result = {
         "name": symbol,
-        "category": "not_found",
+        "category": CATEGORY_NOT_FOUND,
         "oot_file": None,
         "mm_file": None,
         "normalized_match": 0.0,
     }
+
+    # Add AST fields if AST comparison is enabled
+    if use_ast:
+        result["ast_comparison"] = None
 
     # Locate the symbol in both codebases
     oot_file, mm_file = locator.locate(symbol)
@@ -169,7 +186,22 @@ def analyze_symbol(
     # Compute similarity
     similarity = compute_similarity(oot_normalized, mm_normalized)
     result["normalized_match"] = round(similarity, 4)
-    result["category"] = categorize_match(similarity)
+
+    # Perform AST comparison if enabled
+    ast_identical = False
+    if use_ast:
+        ast_result = compare_ast(oot_code, mm_code)
+        ast_identical = ast_result.is_identical
+        result["ast_comparison"] = {
+            "is_identical": ast_result.is_identical,
+            "oot_valid": ast_result.oot_ast_valid,
+            "mm_valid": ast_result.mm_ast_valid,
+            "differences": ast_result.differences,
+        }
+        if ast_result.error:
+            result["ast_comparison"]["error"] = ast_result.error
+
+    result["category"] = categorize_match(similarity, ast_identical)
 
     if verbose:
         result["oot_code"] = oot_code
@@ -205,6 +237,7 @@ def analyze_all_symbols(
     symbols: List[str],
     locator: SymbolLocator,
     verbose: bool = False,
+    use_ast: bool = False,
 ) -> Dict:
     """
     Analyze all symbols and generate a report.
@@ -213,6 +246,7 @@ def analyze_all_symbols(
         symbols: List of symbol names to analyze
         locator: SymbolLocator instance
         verbose: If True, print progress
+        use_ast: If True, also perform AST-level comparison
 
     Returns:
         Dictionary with summary and per-symbol results
@@ -221,6 +255,7 @@ def analyze_all_symbols(
     summary = {
         "total": len(symbols),
         "identical": 0,
+        "ast_identical": 0,
         "near_identical": 0,
         "different": 0,
         "not_found": 0,
@@ -230,7 +265,7 @@ def analyze_all_symbols(
         if verbose:
             print(f"Analyzing {i + 1}/{len(symbols)}: {symbol}", file=sys.stderr)
 
-        result = analyze_symbol(symbol, locator, verbose=False)
+        result = analyze_symbol(symbol, locator, verbose=False, use_ast=use_ast)
         results.append(result)
 
         # Update summary
@@ -314,6 +349,11 @@ def main() -> int:
         help="Show detailed output",
     )
     parser.add_argument(
+        "--ast",
+        action="store_true",
+        help="Enable AST-level comparison using tree-sitter (requires tree-sitter and tree-sitter-c packages)",
+    )
+    parser.add_argument(
         "--oot-dir",
         default="games/oot/src",
         help="Path to OoT source directory",
@@ -349,9 +389,20 @@ def main() -> int:
         list_available_symbols(locator)
         return 0
 
+    # Check AST availability if requested
+    if args.ast and not ast_available():
+        print(
+            "Warning: --ast flag specified but tree-sitter is not available.",
+            file=sys.stderr,
+        )
+        print(
+            "Install with: pip install tree-sitter tree-sitter-c",
+            file=sys.stderr,
+        )
+
     # Handle single symbol mode
     if args.symbol:
-        result = analyze_symbol(args.symbol, locator, verbose=args.verbose)
+        result = analyze_symbol(args.symbol, locator, verbose=args.verbose, use_ast=args.ast)
 
         if args.verbose:
             print(f"Symbol: {result['name']}")
@@ -359,6 +410,16 @@ def main() -> int:
             print(f"Normalized match: {result['normalized_match']:.2%}")
             print(f"OoT file: {result.get('oot_file', 'Not found')}")
             print(f"MM file: {result.get('mm_file', 'Not found')}")
+
+            if args.ast and "ast_comparison" in result and result["ast_comparison"]:
+                ast_comp = result["ast_comparison"]
+                print(f"AST identical: {ast_comp['is_identical']}")
+                if ast_comp.get("error"):
+                    print(f"AST error: {ast_comp['error']}")
+                elif ast_comp["differences"]:
+                    print("AST differences:")
+                    for diff in ast_comp["differences"][:5]:
+                        print(f"  - {diff}")
 
             if "reason" in result:
                 print(f"Reason: {result['reason']}")
@@ -401,13 +462,15 @@ def main() -> int:
             return 1
 
         print(f"Analyzing {len(symbols)} symbols...", file=sys.stderr)
-        report = analyze_all_symbols(symbols, locator, verbose=args.verbose)
+        report = analyze_all_symbols(symbols, locator, verbose=args.verbose, use_ast=args.ast)
 
         # Print summary
         summary = report["summary"]
         print(f"\nSummary:", file=sys.stderr)
         print(f"  Total:          {summary['total']}", file=sys.stderr)
         print(f"  Identical:      {summary['identical']}", file=sys.stderr)
+        if args.ast:
+            print(f"  AST-identical:  {summary['ast_identical']}", file=sys.stderr)
         print(f"  Near-identical: {summary['near_identical']}", file=sys.stderr)
         print(f"  Different:      {summary['different']}", file=sys.stderr)
         print(f"  Not found:      {summary['not_found']}", file=sys.stderr)
