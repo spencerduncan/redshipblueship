@@ -1,6 +1,7 @@
 #pragma once
 
 #include "combo/Export.h"
+#include "combo/Game.h"
 
 /**
  * Cross-Game Entrance Infrastructure
@@ -20,15 +21,6 @@
 #include <vector>
 
 namespace Combo {
-
-/**
- * Game identifier enum
- */
-enum class Game : uint8_t {
-    None = 0,
-    OoT = 1,
-    MM = 2
-};
 
 /**
  * Represents a link between entrances in different games

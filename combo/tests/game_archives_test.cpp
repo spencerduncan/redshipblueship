@@ -22,22 +22,22 @@ TEST_F(GameArchivesTest, InstanceIsSingleton) {
 }
 
 TEST_F(GameArchivesTest, InitiallyNoGamesLoaded) {
-    EXPECT_FALSE(GameArchiveManager::Instance().IsGameLoaded(Game::OOT));
+    EXPECT_FALSE(GameArchiveManager::Instance().IsGameLoaded(Game::OoT));
     EXPECT_FALSE(GameArchiveManager::Instance().IsGameLoaded(Game::MM));
 }
 
 TEST_F(GameArchivesTest, GetArchivesReturnsEmptyWhenNoneRegistered) {
-    auto archives = GameArchiveManager::Instance().GetArchives(Game::OOT);
+    auto archives = GameArchiveManager::Instance().GetArchives(Game::OoT);
     EXPECT_TRUE(archives.empty());
 }
 
 TEST_F(GameArchivesTest, HasFileReturnsFalseWhenNoArchives) {
-    EXPECT_FALSE(GameArchiveManager::Instance().HasFile(Game::OOT, "objects/object_link_boy/some_asset"));
+    EXPECT_FALSE(GameArchiveManager::Instance().HasFile(Game::OoT, "objects/object_link_boy/some_asset"));
     EXPECT_FALSE(GameArchiveManager::Instance().HasFile(Game::MM, "objects/object_link/some_asset"));
 }
 
 TEST_F(GameArchivesTest, LoadFileReturnsNullWhenNoArchives) {
-    auto file = GameArchiveManager::Instance().LoadFile(Game::OOT, "objects/object_link_boy/some_asset");
+    auto file = GameArchiveManager::Instance().LoadFile(Game::OoT, "objects/object_link_boy/some_asset");
     EXPECT_EQ(file, nullptr);
 }
 
@@ -49,14 +49,14 @@ TEST_F(GameArchivesTest, GetFileOwnerThrowsWhenNotFound) {
 }
 
 TEST_F(GameArchivesTest, RegisterNullArchiveIsNoOp) {
-    GameArchiveManager::Instance().RegisterArchive(Game::OOT, nullptr);
-    EXPECT_FALSE(GameArchiveManager::Instance().IsGameLoaded(Game::OOT));
+    GameArchiveManager::Instance().RegisterArchive(Game::OoT, nullptr);
+    EXPECT_FALSE(GameArchiveManager::Instance().IsGameLoaded(Game::OoT));
 }
 
 TEST_F(GameArchivesTest, ClearRemovesAllArchives) {
     // Even without registering real archives, Clear should work
     GameArchiveManager::Instance().Clear();
-    EXPECT_FALSE(GameArchiveManager::Instance().IsGameLoaded(Game::OOT));
+    EXPECT_FALSE(GameArchiveManager::Instance().IsGameLoaded(Game::OoT));
     EXPECT_FALSE(GameArchiveManager::Instance().IsGameLoaded(Game::MM));
 }
 
