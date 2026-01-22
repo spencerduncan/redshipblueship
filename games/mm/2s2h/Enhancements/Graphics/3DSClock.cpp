@@ -57,28 +57,28 @@ void Draw3DSClock() {
     static s32 sPreviousTimeCheck = -1;
 
     if ((R_TIME_SPEED != 0) &&
-        ((gPlayState->msgCtx.msgMode == MSGMODE_NONE) ||
-         ((gPlayState->actorCtx.flags & ACTORCTX_FLAG_TELESCOPE_ON) && !Play_InCsMode(gPlayState)) ||
-         (gPlayState->msgCtx.msgMode == MSGMODE_NONE) ||
-         ((gPlayState->msgCtx.currentTextId >= 0x100) && (gPlayState->msgCtx.currentTextId <= 0x200)) ||
+        ((MM_gPlayState->msgCtx.msgMode == MSGMODE_NONE) ||
+         ((MM_gPlayState->actorCtx.flags & ACTORCTX_FLAG_TELESCOPE_ON) && !MM_Play_InCsMode(MM_gPlayState)) ||
+         (MM_gPlayState->msgCtx.msgMode == MSGMODE_NONE) ||
+         ((MM_gPlayState->msgCtx.currentTextId >= 0x100) && (MM_gPlayState->msgCtx.currentTextId <= 0x200)) ||
          (gSaveContext.gameMode == GAMEMODE_END_CREDITS)) &&
-        !FrameAdvance_IsEnabled(gPlayState) && !Environment_IsTimeStopped() && (gSaveContext.save.day <= 3)) {
+        !MM_FrameAdvance_IsEnabled(MM_gPlayState) && !Environment_IsTimeStopped() && (gSaveContext.save.day <= 3)) {
 
-        if ((gPlayState->pauseCtx.state == PAUSE_STATE_OFF) &&
-            (gPlayState->pauseCtx.debugEditor == DEBUG_EDITOR_NONE)) {
+        if ((MM_gPlayState->pauseCtx.state == PAUSE_STATE_OFF) &&
+            (MM_gPlayState->pauseCtx.debugEditor == DEBUG_EDITOR_NONE)) {
 
             static s16 sThreeDayClockAlpha = 255;
 
             static s32 sFinalHoursIntro = 0;
 
-            sThreeDayClockAlpha = gPlayState->interfaceCtx.bAlpha;
+            sThreeDayClockAlpha = MM_gPlayState->interfaceCtx.bAlpha;
 
             s16 posX = 160;
             s16 posY = 210;
 
-            OPEN_DISPS(gPlayState->state.gfxCtx);
+            OPEN_DISPS(MM_gPlayState->state.gfxCtx);
 
-            Gfx_SetupDL42_Overlay(gPlayState->state.gfxCtx);
+            Gfx_SetupDL42_Overlay(MM_gPlayState->state.gfxCtx);
             gDPSetRenderMode(OVERLAY_DISP++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
             gDPSetCombineMode(OVERLAY_DISP++, G_CC_MODULATEIA_PRIM, G_CC_MODULATEIA_PRIM);
             gDPSetAlphaCompare(OVERLAY_DISP++, G_AC_THRESHOLD);
@@ -328,7 +328,7 @@ void Draw3DSClock() {
             }
             gDPPipeSync(OVERLAY_DISP++);
 
-            CLOSE_DISPS(gPlayState->state.gfxCtx);
+            CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
         } else {
             sPreviousTimeCheck = SECONDS_IN_THREE_DAYS - (s32)TIME_TO_SECONDS_F(TIME_UNTIL_MOON_CRASH);
         }

@@ -804,7 +804,7 @@ void Prerender_DrawBackground2DImpl(PreRenderBackground2DParams* bg2D, Gfx** gfx
         bg->b.frameW = bg2D->width * (1 << 2);
         bg->b.frameH = bg2D->height * (1 << 2);
 
-        MM_guS2DInitBg(bg);
+        guS2DInitBg(bg);
 
         if (!(bg2D->flags & BG2D_FLAGS_1)) {
             gDPSetOtherMode(gfx++, bg2D->tt | G_CYC_COPY, alphaCompare);

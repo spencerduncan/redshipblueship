@@ -1136,7 +1136,7 @@ void Fishing_UpdateEffects(FishingEffect* effect, PlayState* play) {
                     f32 sqDistXZ = SQ(effect->pos.x) + SQ(effect->pos.z);
 
                     if (sqDistXZ > SQ(920.0f)) {
-                        effect->pos.y = WATER_SURFACE_Y(play) + ((OoT_sqrtf(sqDistXZ) - 920.0f) * 0.11f);
+                        effect->pos.y = WATER_SURFACE_Y(play) + ((sqrtf(sqDistXZ) - 920.0f) * 0.11f);
                         effect->timer = KREG(17) + 2;
                         effect->type = FS_EFF_RAIN_SPLASH;
                         effect->scale = (KREG(18) + 30) * 0.001f;
@@ -1171,7 +1171,7 @@ void Fishing_UpdateEffects(FishingEffect* effect, PlayState* play) {
                 OoT_Math_ApproachS(&sEffOwnersHatRot.z, -0x4000, 20, 100);
 
                 sqDistXZ = SQ(effect->pos.x) + SQ(effect->pos.z);
-                bottomY = WATER_SURFACE_Y(play) + ((OoT_sqrtf(sqDistXZ) - 920.0f) * 0.147f);
+                bottomY = WATER_SURFACE_Y(play) + ((sqrtf(sqDistXZ) - 920.0f) * 0.147f);
 
                 if (effect->pos.y > (bottomY - 10.0f)) {
                     effect->pos.y -= 0.1f;
@@ -1485,7 +1485,7 @@ void Fishing_UpdateLine(PlayState* play, Vec3f* basePos, Vec3f* pos, Vec3f* rot,
         sp90 = segPos.y - tempPos.y;
         sp8C = segPos.z - tempPos.z;
 
-        lineLength = OoT_sqrtf(SQ(sp94) + SQ(sp90) + SQ(sp8C)) * 0.97f;
+        lineLength = sqrtf(SQ(sp94) + SQ(sp90) + SQ(sp8C)) * 0.97f;
         if (lineLength > 1000.0f) {
             lineLength = 1000.0f;
         }
@@ -1516,14 +1516,14 @@ void Fishing_UpdateLine(PlayState* play, Vec3f* basePos, Vec3f* pos, Vec3f* rot,
         sqDistXZ = SQ((pos + i)->x) + SQ((pos + i)->z);
 
         if (sqDistXZ > SQ(920.0f)) {
-            phi_f12 = ((OoT_sqrtf(sqDistXZ) - 920.0f) * 0.11f) + WATER_SURFACE_Y(play);
+            phi_f12 = ((sqrtf(sqDistXZ) - 920.0f) * 0.11f) + WATER_SURFACE_Y(play);
         } else {
             phi_f12 = WATER_SURFACE_Y(play);
         }
 
         if (sLureEquipped == FS_LURE_SINKING) {
             if (spD8 < phi_f12) {
-                phi_f12 = ((OoT_sqrtf(sqDistXZ) - 920.0f) * 0.147f) + WATER_SURFACE_Y(play);
+                phi_f12 = ((sqrtf(sqDistXZ) - 920.0f) * 0.147f) + WATER_SURFACE_Y(play);
                 if (spD8 > phi_f12) {
                     phi_f2 = (spD8 - phi_f12) * 0.05f;
                     if (phi_f2 > 0.29999998f) {
@@ -1559,7 +1559,7 @@ void Fishing_UpdateLine(PlayState* play, Vec3f* basePos, Vec3f* pos, Vec3f* rot,
         dz = (pos + i)->z - (pos + i - 1)->z;
 
         ry = OoT_Math_Atan2F(dz, dx);
-        dist = OoT_sqrtf(SQ(dx) + SQ(dz));
+        dist = sqrtf(SQ(dx) + SQ(dz));
         rx = -OoT_Math_Atan2F(dist, dy);
 
         (rot + i - 1)->y = ry;
@@ -1595,7 +1595,7 @@ void Fishing_UpdateLinePos(Vec3f* pos) {
         dz = (pos + i)->z - (pos + i + 1)->z;
 
         ry = OoT_Math_Atan2F(dz, dx);
-        dist = OoT_sqrtf(SQ(dx) + SQ(dz));
+        dist = sqrtf(SQ(dx) + SQ(dz));
         rx = -OoT_Math_Atan2F(dist, dy);
 
         Matrix_RotateY(ry, MTXMODE_NEW);
@@ -1637,7 +1637,7 @@ void Fishing_DrawLureHook(PlayState* play, Vec3f* pos, Vec3f* refPos, u8 hookInd
     dz = refPos->z - pos->z;
 
     ry = OoT_Math_Atan2F(dz, dx);
-    dist = OoT_sqrtf(SQ(dx) + SQ(dz));
+    dist = sqrtf(SQ(dx) + SQ(dz));
     rx = -OoT_Math_Atan2F(dist, dy);
 
     Matrix_RotateY(ry, MTXMODE_NEW);
@@ -1756,7 +1756,7 @@ void Fishing_UpdateSinkingLure(PlayState* play) {
         dz = (pos + i)->z - (pos + i - 1)->z + offsetZ;
 
         ry = OoT_Math_Atan2F(dz, dx);
-        dist = OoT_sqrtf(SQ(dx) + SQ(dz));
+        dist = sqrtf(SQ(dx) + SQ(dz));
         rx = -OoT_Math_Atan2F(dist, dy);
 
         Matrix_RotateY(ry, MTXMODE_NEW);
@@ -1917,10 +1917,10 @@ void Fishing_DrawLureAndLine(PlayState* play, Vec3f* linePos, Vec3f* lineRot) {
         dz = OoT_sLurePos.z - OoT_sRodTipPos.z;
 
         ry = OoT_Math_FAtan2F(dx, dz);
-        dist = OoT_sqrtf(SQ(dx) + SQ(dz));
+        dist = sqrtf(SQ(dx) + SQ(dz));
         rx = -OoT_Math_FAtan2F(dy, dist);
 
-        dist = OoT_sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) * 0.001f;
+        dist = sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) * 0.001f;
 
         OoT_Matrix_Translate(OoT_sRodTipPos.x, OoT_sRodTipPos.y, OoT_sRodTipPos.z, MTXMODE_NEW);
         Matrix_RotateY(ry, MTXMODE_APPLY);
@@ -1944,10 +1944,10 @@ void Fishing_DrawLureAndLine(PlayState* play, Vec3f* linePos, Vec3f* lineRot) {
                 dz = sLureDrawPos.z - (linePos + i)->z;
 
                 ry = OoT_Math_FAtan2F(dx, dz);
-                dist = OoT_sqrtf(SQ(dx) + SQ(dz));
+                dist = sqrtf(SQ(dx) + SQ(dz));
                 rx = -OoT_Math_FAtan2F(dy, dist);
 
-                dist = OoT_sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) * 0.001f;
+                dist = sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) * 0.001f;
 
                 OoT_Matrix_Translate((linePos + i)->x, (linePos + i)->y, (linePos + i)->z, MTXMODE_NEW);
                 Matrix_RotateY(ry, MTXMODE_APPLY);
@@ -2308,7 +2308,7 @@ void Fishing_UpdateLure(Fishing* this, PlayState* play) {
                 OoT_sLureRot.y = OoT_Math_Atan2F(spD0, spD8) + M_PI;
             }
 
-            lengthCasted = OoT_sqrtf(SQ(spD8) + SQ(spD4) + SQ(spD0));
+            lengthCasted = sqrtf(SQ(spD8) + SQ(spD4) + SQ(spD0));
             if (lengthCasted > 1000.0f) {
                 lengthCasted = 1000.0f;
             }
@@ -2339,7 +2339,7 @@ void Fishing_UpdateLure(Fishing* this, PlayState* play) {
                     }
                 }
 
-                spE4 = ((OoT_sqrtf(lureXZLen) - 920.0f) * 0.11f) + WATER_SURFACE_Y(play);
+                spE4 = ((sqrtf(lureXZLen) - 920.0f) * 0.11f) + WATER_SURFACE_Y(play);
                 if (OoT_sLurePos.y <= spE4) {
                     OoT_sLurePos.y = spE4;
                     sLurePosDelta.x = sLurePosDelta.y = sLurePosDelta.z = 0.0f;
@@ -2516,7 +2516,7 @@ void Fishing_UpdateLure(Fishing* this, PlayState* play) {
                     }
                 }
             } else {
-                spE4 = ((OoT_sqrtf(lureXZLen) - 920.0f) * 0.11f) + WATER_SURFACE_Y(play);
+                spE4 = ((sqrtf(lureXZLen) - 920.0f) * 0.11f) + WATER_SURFACE_Y(play);
                 if (OoT_sLurePos.y <= spE4) {
                     OoT_sLurePos.y = spE4;
                     spDC = 0x500;
@@ -3083,10 +3083,10 @@ void Fishing_UpdateFish(Actor* thisx, PlayState* play2) {
     distZ = this->fishTargetPos.z - this->actor.world.pos.z;
 
     rotYTarget = OoT_Math_Atan2S(distZ, distX);
-    distToTarget = OoT_sqrtf(SQ(distX) + SQ(distZ));
+    distToTarget = sqrtf(SQ(distX) + SQ(distZ));
 
     rotXTarget = OoT_Math_Atan2S(distToTarget, distY);
-    distToTarget = OoT_sqrtf(SQ(distX) + SQ(distZ) + SQ(distY));
+    distToTarget = sqrtf(SQ(distX) + SQ(distZ) + SQ(distY));
 
     if ((this->bumpTimer != 0) && (this->fishState != 2) && (this->fishState != 3) && (this->fishState != 4)) {
         if ((this->stateAndTimer & 0x40) != 0) {
@@ -3468,7 +3468,7 @@ void Fishing_UpdateFish(Actor* thisx, PlayState* play2) {
             }
 
             if ((sRodCastState != 3) || (this->timerArray[2] == 0) ||
-                (OoT_sqrtf(SQ(this->actor.world.pos.x) + SQ(this->actor.world.pos.z)) > 800.0f)) {
+                (sqrtf(SQ(this->actor.world.pos.x) + SQ(this->actor.world.pos.z)) > 800.0f)) {
                 this->fishState = this->fishStateNext;
                 this->timerArray[1] = (s16)OoT_Rand_ZeroFloat(30.0f) + 50;
                 this->timerArray[0] = (s16)OoT_Rand_ZeroFloat(10.0f) + 5;
@@ -3507,7 +3507,7 @@ void Fishing_UpdateFish(Actor* thisx, PlayState* play2) {
             OoT_Math_ApproachF(&this->actor.speedXZ, this->speedTarget * 0.8f, 1.0f, 1.0f);
 
             if ((sRodCastState != 3) || (OoT_sLurePos.y > (WATER_SURFACE_Y(play) + 5.0f)) ||
-                (OoT_sqrtf(SQ(OoT_sLurePos.x) + SQ(OoT_sLurePos.z)) > 800.0f)) {
+                (sqrtf(SQ(OoT_sLurePos.x) + SQ(OoT_sLurePos.z)) > 800.0f)) {
                 this->fishState = this->fishStateNext;
                 this->timerArray[0] = 0;
                 this->unk_190 = 1.0f;
@@ -3532,7 +3532,7 @@ void Fishing_UpdateFish(Actor* thisx, PlayState* play2) {
             OoT_Math_ApproachF(&this->actor.speedXZ, this->speedTarget, 1.0f, 1.0f);
 
             if ((sRodCastState != 3) || (this->timerArray[0] == 0) || (OoT_sLurePos.y > (WATER_SURFACE_Y(play) + 5.0f)) ||
-                (OoT_sqrtf(SQ(OoT_sLurePos.x) + SQ(OoT_sLurePos.z)) > 800.0f)) {
+                (sqrtf(SQ(OoT_sLurePos.x) + SQ(OoT_sLurePos.z)) > 800.0f)) {
 
                 this->timerArray[0] = 0;
                 this->fishState = this->fishStateNext;
@@ -3596,7 +3596,7 @@ void Fishing_UpdateFish(Actor* thisx, PlayState* play2) {
             OoT_Math_ApproachF(&this->actor.speedXZ, 2.0f, 1.0f, 1.0f);
 
             if ((sRodCastState != 3) || (this->timerArray[0] == 0) || (OoT_sLurePos.y > (WATER_SURFACE_Y(play) + 5.0f)) ||
-                (OoT_sqrtf(SQ(OoT_sLurePos.x) + SQ(OoT_sLurePos.z)) > 800.0f)) {
+                (sqrtf(SQ(OoT_sLurePos.x) + SQ(OoT_sLurePos.z)) > 800.0f)) {
 
                 this->timerArray[0] = 0;
                 this->unk_190 = 1.0f;
@@ -4371,7 +4371,7 @@ void Fishing_DrawFish(Actor* thisx, PlayState* play) {
 void Fishing_HandleReedContact(FishingProp* prop, Vec3f* entityPos) {
     f32 dx = prop->pos.x - entityPos->x;
     f32 dz = prop->pos.z - entityPos->z;
-    f32 distXZ = OoT_sqrtf(SQ(dx) + SQ(dz));
+    f32 distXZ = sqrtf(SQ(dx) + SQ(dz));
 
     if (distXZ <= 20.0f) {
         prop->rotY = OoT_Math_Atan2F(dz, dx);
@@ -4383,7 +4383,7 @@ void Fishing_HandleReedContact(FishingProp* prop, Vec3f* entityPos) {
 void Fishing_HandleLilyPadContact(FishingProp* prop, Vec3f* entityPos, u8 fishTimer) {
     f32 dx = prop->pos.x - entityPos->x;
     f32 dz = prop->pos.z - entityPos->z;
-    f32 distXZ = OoT_sqrtf(SQ(dx) + SQ(dz));
+    f32 distXZ = sqrtf(SQ(dx) + SQ(dz));
 
     if (distXZ <= 40.0f) {
         OoT_Math_ApproachS(&prop->lilyPadAngle, OoT_Math_Atan2S(dz, dx), 10, 0x300);
@@ -4690,7 +4690,7 @@ void Fishing_UpdateGroupFishes(PlayState* play) {
             dy = fish->homePos.y - fish->pos.y;
             dz = fish->homePos.z - fish->pos.z;
             spD4 = OoT_Math_Atan2S(dz, dx);
-            dist = OoT_sqrtf(SQ(dx) + SQ(dz));
+            dist = sqrtf(SQ(dx) + SQ(dz));
             spD6 = OoT_Math_Atan2S(dist, dy);
 
             if ((dist < 10.0f) || (((fish->timer % 32) == 0) && (OoT_Rand_ZeroOne() > 0.5f))) {
@@ -5309,7 +5309,7 @@ void Fishing_UpdateOwner(Actor* thisx, PlayState* play2) {
         f32 dy = OoT_sOwnerHeadPos.y - OoT_sLurePos.y;
         f32 dz = OoT_sOwnerHeadPos.z - OoT_sLurePos.z;
 
-        if ((OoT_sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 25.0f) || (KREG(77) > 0)) {
+        if ((sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 25.0f) || (KREG(77) > 0)) {
             KREG(77) = 0;
             sOwnerHair = FS_OWNER_BALD;
             sIsOwnersHatHooked = true;
@@ -5411,7 +5411,7 @@ void Fishing_UpdateOwner(Actor* thisx, PlayState* play2) {
 
             lureDist.x = OoT_sLurePos.x - player->actor.world.pos.x;
             lureDist.z = OoT_sLurePos.z - player->actor.world.pos.z;
-            lureDistXZ = OoT_sqrtf(SQ(lureDist.x) + SQ(lureDist.z));
+            lureDistXZ = sqrtf(SQ(lureDist.x) + SQ(lureDist.z));
             Matrix_RotateY(OoT_Math_Atan2F(lureDist.z, lureDist.x), MTXMODE_NEW);
 
             multiVecSrc.x = 0.0f;
@@ -5473,7 +5473,7 @@ void Fishing_UpdateOwner(Actor* thisx, PlayState* play2) {
                 f32 offset;
                 f32 factor;
 
-                dist = OoT_sqrtf(SQ(lureDist.x) + SQ(lureDist.z)) * 0.001f;
+                dist = sqrtf(SQ(lureDist.x) + SQ(lureDist.z)) * 0.001f;
                 if (dist > 1.0f) {
                     dist = 1.0f;
                 }

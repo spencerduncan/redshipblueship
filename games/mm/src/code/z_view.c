@@ -352,7 +352,7 @@ s32 View_ApplyPerspective(View* view) {
     height = view->viewport.bottomY - view->viewport.topY;
     aspect = (f32)width / (f32)height;
 
-    MM_guPerspective(projection, &view->perspNorm, view->fovy, aspect, view->zNear, view->zFar, view->scale);
+    guPerspective(projection, &view->perspNorm, view->fovy, aspect, view->zNear, view->zFar, view->scale);
 
     if (CVarGetInteger("gModes.MirroredWorld.State", 0)) {
         MtxF flipF;
@@ -381,7 +381,7 @@ s32 View_ApplyPerspective(View* view) {
         view->eye.z += 2.0f;
     }
 
-    MM_guLookAt(viewing, view->eye.x, view->eye.y, view->eye.z, view->at.x, view->at.y, view->at.z, view->up.x, view->up.y,
+    guLookAt(viewing, view->eye.x, view->eye.y, view->eye.z, view->at.x, view->at.y, view->at.z, view->up.x, view->up.y,
              view->up.z);
 
     // Some heuristics to identify instant camera movements and skip interpolation in that case
@@ -391,7 +391,7 @@ s32 View_ApplyPerspective(View* view) {
     float dirx = view->eye.x - view->at.x;
     float diry = view->eye.y - view->at.y;
     float dirz = view->eye.z - view->at.z;
-    float dir_dist = MM_sqrtf(MM_sqr(dirx) + MM_sqr(diry) + MM_sqr(dirz));
+    float dir_dist = sqrtf(MM_sqr(dirx) + MM_sqr(diry) + MM_sqr(dirz));
     dirx /= dir_dist;
     diry /= dir_dist;
     dirz /= dir_dist;
@@ -399,18 +399,18 @@ s32 View_ApplyPerspective(View* view) {
     float odirx = old_view.eye.x - old_view.at.x;
     float odiry = old_view.eye.y - old_view.at.y;
     float odirz = old_view.eye.z - old_view.at.z;
-    float odir_dist = MM_sqrtf(MM_sqr(odirx) + MM_sqr(odiry) + MM_sqr(odirz));
+    float odir_dist = sqrtf(MM_sqr(odirx) + MM_sqr(odiry) + MM_sqr(odirz));
     odirx /= odir_dist;
     odiry /= odir_dist;
     odirz /= odir_dist;
 
-    float eye_dist = MM_sqrtf(MM_sqr(view->eye.x - old_view.eye.x) + MM_sqr(view->eye.y - old_view.eye.y) +
+    float eye_dist = sqrtf(MM_sqr(view->eye.x - old_view.eye.x) + MM_sqr(view->eye.y - old_view.eye.y) +
                            MM_sqr(view->eye.z - old_view.eye.z));
     float look_dist =
-        MM_sqrtf(MM_sqr(view->at.x - old_view.at.x) + MM_sqr(view->at.y - old_view.at.y) + MM_sqr(view->at.z - old_view.at.z));
+        sqrtf(MM_sqr(view->at.x - old_view.at.x) + MM_sqr(view->at.y - old_view.at.y) + MM_sqr(view->at.z - old_view.at.z));
     float up_dist =
-        MM_sqrtf(MM_sqr(view->up.x - old_view.up.x) + MM_sqr(view->up.y - old_view.up.y) + MM_sqr(view->up.z - old_view.up.z));
-    float d_dist = MM_sqrtf(MM_sqr(dirx - odirx) + MM_sqr(diry - odiry) + MM_sqr(dirz - odirz));
+        sqrtf(MM_sqr(view->up.x - old_view.up.x) + MM_sqr(view->up.y - old_view.up.y) + MM_sqr(view->up.z - old_view.up.z));
+    float d_dist = sqrtf(MM_sqr(dirx - odirx) + MM_sqr(diry - odiry) + MM_sqr(dirz - odirz));
 
     bool dont_interpolate = false;
 
@@ -486,7 +486,7 @@ s32 View_ApplyOrtho(View* view) {
     view->projectionPtr = projection;
     view->shipMirrorProjectionPtr = projectionFlipped;
 
-    MM_guOrtho(projection, MM_gScreenWidth * -0.5f, MM_gScreenWidth * 0.5f, MM_gScreenHeight * -0.5f, MM_gScreenHeight * 0.5f,
+    guOrtho(projection, MM_gScreenWidth * -0.5f, MM_gScreenWidth * 0.5f, MM_gScreenHeight * -0.5f, MM_gScreenHeight * 0.5f,
             view->zNear, view->zFar, view->scale);
 
     // if (CVarGetInteger("gModes.MirroredWorld.State", 0)) {
@@ -543,7 +543,7 @@ s32 View_ApplyOrthoToOverlay(View* view) {
     view->projectionPtr = projection;
     view->shipMirrorProjectionPtr = projectionFlipped;
 
-    MM_guOrtho(projection, MM_gScreenWidth * -0.5f, MM_gScreenWidth * 0.5f, MM_gScreenHeight * -0.5f, MM_gScreenHeight * 0.5f,
+    guOrtho(projection, MM_gScreenWidth * -0.5f, MM_gScreenWidth * 0.5f, MM_gScreenHeight * -0.5f, MM_gScreenHeight * 0.5f,
             view->zNear, view->zFar, view->scale);
 
     if (CVarGetInteger("gModes.MirroredWorld.State", 0)) {
@@ -604,7 +604,7 @@ s32 View_ApplyPerspectiveToOverlay(View* view) {
     height = view->viewport.bottomY - view->viewport.topY;
     aspect = (f32)width / (f32)height;
 
-    MM_guPerspective(projection, &view->perspNorm, view->fovy, aspect, view->zNear, view->zFar, view->scale);
+    guPerspective(projection, &view->perspNorm, view->fovy, aspect, view->zNear, view->zFar, view->scale);
 
     view->projection = *projection;
 
@@ -614,12 +614,12 @@ s32 View_ApplyPerspectiveToOverlay(View* view) {
     viewing = GRAPH_ALLOC(gfxCtx, sizeof(Mtx));
     view->viewingPtr = viewing;
 
-    // This check avoids a divide-by-MM_zero in MM_guLookAt if eye == at
+    // This check avoids a divide-by-MM_zero in guLookAt if eye == at
     if (view->eye.x == view->at.x && view->eye.y == view->at.y && view->eye.z == view->at.z) {
         view->eye.z += 2.0f;
     }
 
-    MM_guLookAt(viewing, view->eye.x, view->eye.y, view->eye.z, view->at.x, view->at.y, view->at.z, view->up.x, view->up.y,
+    guLookAt(viewing, view->eye.x, view->eye.y, view->eye.z, view->at.x, view->at.y, view->at.z, view->up.x, view->up.y,
              view->up.z);
 
     view->viewing = *viewing;
@@ -635,7 +635,7 @@ s32 View_ApplyPerspectiveToOverlay(View* view) {
  * Just updates view's view matrix from its eye/at/up vectors.
  */
 s32 View_UpdateViewingMatrix(View* view) {
-    MM_guLookAt(view->viewingPtr, view->eye.x, view->eye.y, view->eye.z, view->at.x, view->at.y, view->at.z, view->up.x,
+    guLookAt(view->viewingPtr, view->eye.x, view->eye.y, view->eye.z, view->at.x, view->at.y, view->at.z, view->up.x,
              view->up.y, view->up.z);
 
     view->unkE0 = *view->viewingPtr;
@@ -662,7 +662,7 @@ s32 View_ApplyTo(View* view, Gfx** gfxP) {
     projection = GRAPH_ALLOC(gfxCtx, sizeof(Mtx));
     view->projectionPtr = projection;
 
-    MM_guOrtho(projection, MM_gScreenWidth * -0.5f, MM_gScreenWidth * 0.5f, MM_gScreenHeight * -0.5f, MM_gScreenHeight * 0.5f,
+    guOrtho(projection, MM_gScreenWidth * -0.5f, MM_gScreenWidth * 0.5f, MM_gScreenHeight * -0.5f, MM_gScreenHeight * 0.5f,
             view->zNear, view->zFar, view->scale);
 
     view->projection = *projection;

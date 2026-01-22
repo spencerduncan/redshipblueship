@@ -114,33 +114,33 @@ typedef struct {
     /* 0x10 */ s32 isFree;
 } AudioPreloadReq; // size = 0x14
 
-void AudioLoad_DecreaseSampleDmaTtls(void);
-void* AudioLoad_DmaSampleData(uintptr_t devAddr, size_t size, s32 arg2, u8* dmaIndexRef, s32 medium);
-void AudioLoad_InitSampleDmaBuffers(s32 numNotes);
-s32 AudioLoad_IsFontLoadComplete(s32 fontId);
-s32 AudioLoad_IsSeqLoadComplete(s32 seqId);
-void AudioLoad_SetFontLoadStatus(s32 fontId, s32 loadStatus);
-void AudioLoad_SetSeqLoadStatus(s32 seqId, s32 loadStatus);
-void AudioLoad_SyncLoadSeqParts(s32 seqId, s32 arg1, s32 arg2, OSMesgQueue* arg3);
-s32 AudioLoad_SyncLoadInstrument(s32 fontId, s32 instId, s32 drumId);
-void AudioLoad_AsyncLoadSeq(s32 seqId, s32 arg1, s32 retData, OSMesgQueue* retQueue);
-void AudioLoad_AsyncLoadSampleBank(s32 sampleBankId, s32 arg1, s32 retData, OSMesgQueue* retQueue);
-void AudioLoad_AsyncLoadFont(s32 fontId, s32 arg1, s32 retData, OSMesgQueue* retQueue);
-u8* AudioLoad_GetFontsForSequence(s32 seqId, u32* outNumFonts, u8* buff);
-void AudioLoad_DiscardSeqFonts(s32 seqId);
+void MM_AudioLoad_DecreaseSampleDmaTtls(void);
+void* MM_AudioLoad_DmaSampleData(uintptr_t devAddr, size_t size, s32 arg2, u8* dmaIndexRef, s32 medium);
+void MM_AudioLoad_InitSampleDmaBuffers(s32 numNotes);
+s32 MM_AudioLoad_IsFontLoadComplete(s32 fontId);
+s32 MM_AudioLoad_IsSeqLoadComplete(s32 seqId);
+void MM_AudioLoad_SetFontLoadStatus(s32 fontId, s32 loadStatus);
+void MM_AudioLoad_SetSeqLoadStatus(s32 seqId, s32 loadStatus);
+void MM_AudioLoad_SyncLoadSeqParts(s32 seqId, s32 arg1, s32 arg2, OSMesgQueue* arg3);
+s32 MM_AudioLoad_SyncLoadInstrument(s32 fontId, s32 instId, s32 drumId);
+void MM_AudioLoad_AsyncLoadSeq(s32 seqId, s32 arg1, s32 retData, OSMesgQueue* retQueue);
+void MM_AudioLoad_AsyncLoadSampleBank(s32 sampleBankId, s32 arg1, s32 retData, OSMesgQueue* retQueue);
+void MM_AudioLoad_AsyncLoadFont(s32 fontId, s32 arg1, s32 retData, OSMesgQueue* retQueue);
+u8* MM_AudioLoad_GetFontsForSequence(s32 seqId, u32* outNumFonts, u8* buff);
+void MM_AudioLoad_DiscardSeqFonts(s32 seqId);
 void func_8018FA60(u32 tableType, u32 id, s32 type, s32 data);
-s32 AudioLoad_SyncInitSeqPlayer(s32 playerIndex, s32 seqId, s32 arg2);
-s32 AudioLoad_SyncInitSeqPlayerSkipTicks(s32 playerIndex, s32 seqId, s32 skipTicks);
-void AudioLoad_ProcessLoads(s32 resetStatus);
-void AudioLoad_SetDmaHandler(DmaHandler callback);
-void AudioLoad_Init(void* heap, size_t heapSize);
+s32 MM_AudioLoad_SyncInitSeqPlayer(s32 playerIndex, s32 seqId, s32 arg2);
+s32 MM_AudioLoad_SyncInitSeqPlayerSkipTicks(s32 playerIndex, s32 seqId, s32 skipTicks);
+void MM_AudioLoad_ProcessLoads(s32 resetStatus);
+void MM_AudioLoad_SetDmaHandler(DmaHandler callback);
+void MM_AudioLoad_Init(void* heap, size_t heapSize);
 void AudioLoad_InitSlowLoads(void);
 s32 AudioLoad_SlowLoadSample(s32 fontId, s32 instId, s8* isDone);
 s32 AudioLoad_SlowLoadSeq(s32 seqId, u8* ramAddr, s8* isDone);
 void AudioLoad_InitAsyncLoads(void);
 void AudioLoad_LoadPermanentSamples(void);
-void AudioLoad_ScriptLoad(s32 tableType, s32 id, s8* isDone);
-void AudioLoad_ProcessScriptLoads(void);
-void AudioLoad_InitScriptLoads(void);
+void MM_AudioLoad_ScriptLoad(s32 tableType, s32 id, s8* isDone);
+void MM_AudioLoad_ProcessScriptLoads(void);
+void MM_AudioLoad_InitScriptLoads(void);
 
 #endif

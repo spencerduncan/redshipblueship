@@ -23,7 +23,7 @@ typedef struct {
 } AudioMgr; // size = 0x2E0
 
 void AudioMgr_StopAllSfxExceptSystem(void);
-void AudioMgr_Unlock(AudioMgr* audioMgr);
-void AudioMgr_Init(AudioMgr* audioMgr, void* stack, OSPri pri, OSId id, SchedContext* sched, IrqMgr* irqMgr);
+void MM_AudioMgr_Unlock(AudioMgr* audioMgr);
+void MM_AudioMgr_Init(AudioMgr* audioMgr, void* stack, OSPri pri, OSId id, SchedContext* sched, IrqMgr* irqMgr);
 
 #endif

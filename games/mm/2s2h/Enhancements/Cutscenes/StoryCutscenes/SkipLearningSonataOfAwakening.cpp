@@ -15,14 +15,14 @@ extern "C" {
 
 void RegisterSkipLearningSonataOfAwakening() {
     /*
-     * Forced on for rando for now. If this ever changes, look at the Item_Give calls in
-     * Message_DrawMain. The player actually "learns" the song upon hitting the final correct note in
+     * Forced on for rando for now. If this ever changes, look at the MM_Item_Give calls in
+     * MM_Message_DrawMain. The player actually "learns" the song upon hitting the final correct note in
      * the tutorial prompt.
      */
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR || IS_RANDO, {
         s16* csId = va_arg(args, s16*);
         // Cutscenes 11 and 12 in the Deku Palace King's chamber play when Link pulls out Deku Pipes for the monkey.
-        if (gPlayState->sceneId == SCENE_DEKU_KING) {
+        if (MM_gPlayState->sceneId == SCENE_DEKU_KING) {
             if (*csId == 11) {
                 *should = false;
             } else if (*csId == 12) {
@@ -38,18 +38,18 @@ void RegisterSkipLearningSonataOfAwakening() {
                                     CustomMessage::StartTextbox("You learned the Sonata of Awakening!\x1C\x02\x10",
                                                                 { .textboxType = 2 });
                                 }
-                                Item_Give(gPlayState, ITEM_SONG_SONATA);
+                                MM_Item_Give(MM_gPlayState, ITEM_SONG_SONATA);
                             },
                         .drawItem =
                             [](Actor* actor, PlayState* play) {
-                                Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
+                                MM_Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
                                 Rando::DrawItem(RI_SONG_SONATA);
                             } });
                 }
-                gPlayState->nextEntrance = ENTRANCE(DEKU_PALACE, 1);
-                gPlayState->transitionType = TRANS_TYPE_64;
+                MM_gPlayState->nextEntrance = ENTRANCE(DEKU_PALACE, 1);
+                MM_gPlayState->transitionType = TRANS_TYPE_64;
                 gSaveContext.nextTransitionType = TRANS_TYPE_64;
-                gPlayState->transitionTrigger = TRANS_TRIGGER_START;
+                MM_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
                 SET_WEEKEVENTREG(WEEKEVENTREG_09_80); // Boil the monkey
                 CLEAR_EVENTINF(EVENTINF_24);          // Stop forcing instrument to be Deku Pipes
                 *should = false;

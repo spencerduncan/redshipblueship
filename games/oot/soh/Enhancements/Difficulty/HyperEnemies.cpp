@@ -4,7 +4,7 @@
 #include "functions.h"
 #include "macros.h"
 
-extern "C" PlayState* gPlayState;
+extern "C" PlayState* OoT_gPlayState;
 
 static constexpr int32_t CVAR_HYPER_ENEMIES_DEFAULT = 0;
 #define CVAR_HYPER_ENEMIES_NAME CVAR_ENHANCEMENT("HyperEnemies")
@@ -13,7 +13,7 @@ static constexpr int32_t CVAR_HYPER_ENEMIES_DEFAULT = 0;
 static void MakeHyperEnemies(void* refActor) {
     // Run the update function a second time to make enemies and minibosses move and act twice as fast.
 
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
     Actor* actor = static_cast<Actor*>(refActor);
 
     // Some enemies are not in the ACTORCAT_ENEMY category, and some are that aren't really enemies.
@@ -21,7 +21,7 @@ static void MakeHyperEnemies(void* refActor) {
     bool isExcludedEnemy = actor->id == ACTOR_EN_FIRE_ROCK || actor->id == ACTOR_EN_ENCOUNT2;
 
     // Don't apply during cutscenes because it causes weird behaviour and/or crashes on some cutscenes.
-    if (isEnemy && !isExcludedEnemy && !Player_InBlockingCsMode(gPlayState, player)) {
+    if (isEnemy && !isExcludedEnemy && !OoT_Player_InBlockingCsMode(OoT_gPlayState, player)) {
         GameInteractor::RawAction::UpdateActor(actor);
     }
 }

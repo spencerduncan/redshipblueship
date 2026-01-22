@@ -16,7 +16,7 @@ extern "C" {
 void RegisterSkipTurtleGoodbye() {
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
         s16* csId = va_arg(args, s16*);
-        if (gPlayState->sceneId == SCENE_SEA) {
+        if (MM_gPlayState->sceneId == SCENE_SEA) {
             if (*csId == 36) {
                 *should = false;
             }

@@ -43,7 +43,7 @@ void RegisterSkipLearningGoronLullaby() {
         enGk->actionFunc = func_80B5227C;
 
         // Activate torches
-        Flags_SetSwitch(gPlayState, ENGK_GET_SWITCH_FLAG(&enGk->actor));
+        MM_Flags_SetSwitch(MM_gPlayState, ENGK_GET_SWITCH_FLAG(&enGk->actor));
 
         isGoronSleepQueued = true;
 
@@ -59,11 +59,11 @@ void RegisterSkipLearningGoronLullaby() {
                             CustomMessage::StartTextbox("You learned the complete Goron Lullaby!\x1C\x02\x10",
                                                         { .textboxType = 2 });
                         }
-                        Item_Give(gPlayState, ITEM_SONG_LULLABY);
+                        MM_Item_Give(MM_gPlayState, ITEM_SONG_LULLABY);
                     },
                 .drawItem =
                     [](Actor* actor, PlayState* play) {
-                        Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
+                        MM_Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
                         Rando::DrawItem(RI_SONG_LULLABY);
                     } });
         }

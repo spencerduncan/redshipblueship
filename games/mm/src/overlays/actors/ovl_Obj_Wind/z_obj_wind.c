@@ -135,10 +135,10 @@ void ObjWind_Update(Actor* thisx, PlayState* play) {
                 windSpeedX = (line.dir.x * windMagnitude) + (sp54.x * temp_ft0);
                 windSpeedY = (line.dir.y * windMagnitude) + (sp54.y * temp_ft0);
                 windSpeedZ = (line.dir.z * windMagnitude) + (sp54.z * temp_ft0);
-                player->windSpeed = MM_sqrtf(SQ(windSpeedX) + SQ(windSpeedY) + SQ(windSpeedZ));
+                player->windSpeed = sqrtf(SQ(windSpeedX) + SQ(windSpeedY) + SQ(windSpeedZ));
                 player->windAngleY = Math_Atan2S_XY(windSpeedZ, windSpeedX);
 
-                windSpeedXZ = MM_sqrtf(SQ(windSpeedX) + SQ(windSpeedZ));
+                windSpeedXZ = sqrtf(SQ(windSpeedX) + SQ(windSpeedZ));
                 player->windAngleX = Math_Atan2S_XY(windSpeedXZ, windSpeedY);
             }
         }

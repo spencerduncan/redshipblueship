@@ -13,10 +13,10 @@ typedef struct ListAlloc {
     /* 0x4 */ struct ListAlloc* next;
 } ListAlloc; // size = 0x8
 
-ListAlloc* ListAlloc_Init(ListAlloc* this);
-void* ListAlloc_Alloc(ListAlloc* this, size_t size);
-void ListAlloc_Free(ListAlloc* this, void* data);
-void ListAlloc_FreeAll(ListAlloc* this);
+ListAlloc* MM_ListAlloc_Init(ListAlloc* this);
+void* MM_ListAlloc_Alloc(ListAlloc* this, size_t size);
+void MM_ListAlloc_Free(ListAlloc* this, void* data);
+void MM_ListAlloc_FreeAll(ListAlloc* this);
 
 #ifdef __cplusplus
 }

@@ -1034,7 +1034,7 @@ typedef enum PlayerCueId {
 #define PLAYER_STATE2_4000000    (1 << 26)
 // Playing the ocarina
 #define PLAYER_STATE2_USING_OCARINA  (1 << 27)
-// Playing a fidget idle animation (under typical circumstances, see `Player_ChooseNextIdleAnim` for more info)
+// Playing a fidget idle animation (under typical circumstances, see `MM_Player_ChooseNextIdleAnim` for more info)
 #define PLAYER_STATE2_IDLE_FIDGET   (1 << 28)
 // Disable drawing player
 #define PLAYER_STATE2_20000000   (1 << 29)
@@ -1218,7 +1218,7 @@ typedef struct Player {
     /* 0x6E4 */ ColliderCylinder shieldCylinder;
     /* 0x730 */ Actor* focusActor; // Actor that Player and the camera are looking at; Used for lock-on, talking, and more
     /* 0x734 */ UNK_TYPE1 unk_734[0x4];
-    /* 0x738 */ s32 zTargetActiveTimer; // Non-zero values indicate Z-Targeting should update; Values under 5 indicate lock-on is releasing
+    /* 0x738 */ s32 zTargetActiveTimer; // Non-MM_zero values indicate Z-Targeting should update; Values under 5 indicate lock-on is releasing
     /* 0x73C */ s32 meleeWeaponEffectIndex[3];
     /* 0x748 */ PlayerActionFunc actionFunc;
     /* 0x74C */ u8 jointTableBuffer[PLAYER_LIMB_BUF_SIZE];
@@ -1230,7 +1230,7 @@ typedef struct Player {
     /* 0xA6C */ u32 stateFlags1;
     /* 0xA70 */ u32 stateFlags2;
     /* 0xA74 */ u32 stateFlags3;
-    /* 0xA78 */ Actor* autoLockOnActor; // Actor that is locked onto automatically without player input; see `Player_SetAutoLockOnActor`
+    /* 0xA78 */ Actor* autoLockOnActor; // Actor that is locked onto automatically without player input; see `MM_Player_SetAutoLockOnActor`
     /* 0xA7C */ Actor* zoraBoomerangActor; // Defaults to the left zora boomerang, but will switch to right if only the left boomerang is caught.
     /* 0xA80 */ Actor* tatlActor;
     /* 0xA84 */ s16 tatlTextId;
@@ -1272,11 +1272,11 @@ typedef struct Player {
     /* 0xAE7 */ union {
         s8 actionVar1;
         s8 startedAnim; // Player_Action_TimeTravelEnd: Started playing the animation that was previously frozen
-        s8 facingUpSlope; // Player_Action_SlideOnSlope: Facing uphill when sliding on a slope
+        s8 facingUpSlope; // MM_Player_Action_SlideOnSlope: Facing uphill when sliding on a slope
     } av1; // "Action Variable 1": context dependent variable that has different meanings depending on what action is currently running
     /* 0xAE8 */ union {
         s16 actionVar2;
-        s16 fallDamageStunTimer; // Player_Action_Idle: Prevents any movement and shakes model up and down quickly to indicate fall damage stun
+        s16 fallDamageStunTimer; // MM_Player_Action_Idle: Prevents any movement and shakes model up and down quickly to indicate fall damage stun
         s16 animDelayTimer; // Player_Action_TimeTravelEnd: Delays playing animation until finished counting down
         s16 csDelayTimer; // Player_Action_WaitForCutscene: Number of frames to wait before responding to a cutscene
         s16 playedLandingSfx; // Player_Action_BlueWarpArrive: Played sfx when landing on the ground
@@ -1344,8 +1344,8 @@ typedef struct Player {
     /* 0xD44 */ u8 bodyIsBurning;
     /* 0xD45 */ u8 bodyFlameTimers[PLAYER_BODYPART_MAX]; // one flame per body part
     /* 0xD57 */ u8 unk_D57;
-    /* 0xD58 */ AfterPutAwayFunc afterPutAwayFunc; // See `Player_SetupWaitForPutAway` and `Player_Action_WaitForPutAway`
-    /* 0xD5C */ s8 invincibilityTimer; // prevents damage when nonzero (positive = visible, counts towards zero each frame)
+    /* 0xD58 */ AfterPutAwayFunc afterPutAwayFunc; // See `MM_Player_SetupWaitForPutAway` and `MM_Player_Action_WaitForPutAway`
+    /* 0xD5C */ s8 invincibilityTimer; // prevents damage when nonzero (positive = visible, counts towards MM_zero each frame)
     /* 0xD5D */ u8 floorTypeTimer; // Unused remnant of OoT
     /* 0xD5E */ u8 floorProperty; // FloorProperty enum
     /* 0xD5F */ u8 prevFloorType; // Unused remnant of OoT
@@ -1364,14 +1364,14 @@ typedef struct Player {
 
 // z_player_call.c functions
 
-void PlayerCall_Init(Actor* thisx, struct PlayState* play);
-void PlayerCall_Destroy(Actor* thisx, struct PlayState* play);
-void PlayerCall_Update(Actor* thisx, struct PlayState* play);
-void PlayerCall_Draw(Actor* thisx, struct PlayState* play);
+void MM_PlayerCall_Init(Actor* thisx, struct PlayState* play);
+void MM_PlayerCall_Destroy(Actor* thisx, struct PlayState* play);
+void MM_PlayerCall_Update(Actor* thisx, struct PlayState* play);
+void MM_PlayerCall_Draw(Actor* thisx, struct PlayState* play);
 
 // z_actor.c functions
 
-f32 Player_GetHeight(Player* player);
+f32 MM_Player_GetHeight(Player* player);
 f32 Player_GetRunSpeedLimit(Player* player);
 bool func_800B7118(Player* player);
 bool func_800B7128(Player* player);
@@ -1379,9 +1379,9 @@ bool func_800B715C(struct PlayState* play);
 void Player_SetCameraHorseSetting(struct PlayState* play, Player* player);
 void Player_MountHorse(struct PlayState* play, Player* player, Actor* horse);
 s32 Player_SetCsAction(struct PlayState* play, Actor* csActor, u8 csAction);
-s32 Player_SetCsActionWithHaltedActors(struct PlayState* play, Actor* csActor, u8 csAction);
+s32 MM_Player_SetCsActionWithHaltedActors(struct PlayState* play, Actor* csActor, u8 csAction);
 
-s32 Player_IsFacingActor(Actor* actor, s16 maxAngleDiff, struct PlayState* play);
+s32 MM_Player_IsFacingActor(Actor* actor, s16 maxAngleDiff, struct PlayState* play);
 
 PlayerItemAction Player_GetExchangeItemAction(struct PlayState* play);
 
@@ -1390,7 +1390,7 @@ void func_800B8D50(struct PlayState* play, Actor* actor, f32 arg2, s16 yaw, f32 
 void func_800B8D98(struct PlayState* play, Actor* actor, f32 arg2, s16 arg3, f32 arg4);
 void func_800B8DD4(struct PlayState* play, Actor* actor, f32 arg2, s16 arg3, f32 arg4, u32 arg5);
 void func_800B8E1C(struct PlayState* play, Actor* actor, f32 arg2, s16 arg3, f32 arg4);
-void Player_PlaySfx(Player* player, u16 sfxId);
+void MM_Player_PlaySfx(Player* player, u16 sfxId);
 
 // z_player_lib.c functions
 
@@ -1412,10 +1412,10 @@ bool func_80122FCC(struct PlayState* play);
 void func_8012300C(struct PlayState* play, s32 arg1);
 void func_8012301C(Actor* thisx, struct PlayState* play2);
 void func_80123140(struct PlayState* play, Player* player);
-bool Player_InBlockingCsMode(struct PlayState* play, Player* player);
-bool Player_InCsMode(struct PlayState* play);
-bool Player_CheckHostileLockOn(Player* player);
-bool Player_FriendlyLockOnOrParallel(Player* player);
+bool MM_Player_InBlockingCsMode(struct PlayState* play, Player* player);
+bool MM_Player_InCsMode(struct PlayState* play);
+bool MM_Player_CheckHostileLockOn(Player* player);
+bool MM_Player_FriendlyLockOnOrParallel(Player* player);
 bool func_80123448(struct PlayState* play);
 bool Player_IsGoronOrDeku(Player* player);
 bool func_801234D4(struct PlayState* play);
@@ -1423,54 +1423,54 @@ bool func_80123590(struct PlayState* play, Actor* actor);
 // #region 2S2H [Dpad]
 ItemId Player_Dpad_GetItemOnButton(struct PlayState* play, Player* player, DpadEquipSlot slot);
 // #endregion
-ItemId Player_GetItemOnButton(struct PlayState* play, Player* player, EquipSlot slot);
+ItemId MM_Player_GetItemOnButton(struct PlayState* play, Player* player, EquipSlot slot);
 PlayerItemAction func_80123810(struct PlayState* play);
-PlayerModelGroup Player_ActionToModelGroup(Player* player, PlayerItemAction itemAction);
-void Player_SetModelsForHoldingShield(Player* player);
-void Player_SetModels(Player* player, PlayerModelGroup modelGroup);
-void Player_SetModelGroup(Player* player, PlayerModelGroup modelGroup);
+PlayerModelGroup MM_Player_ActionToModelGroup(Player* player, PlayerItemAction itemAction);
+void MM_Player_SetModelsForHoldingShield(Player* player);
+void MM_Player_SetModels(Player* player, PlayerModelGroup modelGroup);
+void MM_Player_SetModelGroup(Player* player, PlayerModelGroup modelGroup);
 void func_80123C58(Player* player);
-void Player_SetEquipmentData(struct PlayState* play, Player* player);
-void Player_UpdateBottleHeld(struct PlayState* play, Player* player, ItemId itemId, PlayerItemAction itemAction);
-void Player_ReleaseLockOn(Player* player);
-void Player_ClearZTargeting(Player* player);
-void Player_SetAutoLockOnActor(struct PlayState* play, Actor* actor);
+void MM_Player_SetEquipmentData(struct PlayState* play, Player* player);
+void MM_Player_UpdateBottleHeld(struct PlayState* play, Player* player, ItemId itemId, PlayerItemAction itemAction);
+void MM_Player_ReleaseLockOn(Player* player);
+void MM_Player_ClearZTargeting(Player* player);
+void MM_Player_SetAutoLockOnActor(struct PlayState* play, Actor* actor);
 s32 Player_SetBButtonAmmo(struct PlayState* play, s32 ammo);
-bool Player_IsBurningStickInRange(struct PlayState* play, Vec3f* pos, f32 xzRange, f32 yRange);
-u8 Player_GetStrength(void);
-PlayerMask Player_GetMask(struct PlayState* play);
+bool MM_Player_IsBurningStickInRange(struct PlayState* play, Vec3f* pos, f32 xzRange, f32 yRange);
+u8 MM_Player_GetStrength(void);
+PlayerMask MM_Player_GetMask(struct PlayState* play);
 void Player_RemoveMask(struct PlayState* play);
-bool Player_HasMirrorShieldEquipped(struct PlayState* play);
+bool MM_Player_HasMirrorShieldEquipped(struct PlayState* play);
 bool Player_IsHoldingMirrorShield(struct PlayState* play);
 bool Player_IsHoldingHookshot(Player* player);
 bool func_801240DC(Player* player);
 PlayerBButtonSword Player_BButtonSwordFromIA(Player* player, PlayerItemAction itemAction);
 PlayerBButtonSword Player_GetHeldBButtonSword(Player* player);
 PlayerMeleeWeapon Player_MeleeWeaponFromIA(PlayerItemAction itemAction);
-PlayerMeleeWeapon Player_GetMeleeWeaponHeld(Player* player);
+PlayerMeleeWeapon MM_Player_GetMeleeWeaponHeld(Player* player);
 s32 Player_IsHoldingTwoHandedWeapon(Player* player);
 PlayerBottle Player_BottleFromIA(Player* player, PlayerItemAction itemAction);
-PlayerBottle Player_GetBottleHeld(Player* Player);
+PlayerBottle MM_Player_GetBottleHeld(Player* Player);
 PlayerExplosive Player_ExplosiveFromIA(Player* player, PlayerItemAction itemAction);
-PlayerExplosive Player_GetExplosiveHeld(Player* player);
+PlayerExplosive MM_Player_GetExplosiveHeld(Player* player);
 PlayerSword Player_SwordFromIA(Player* player, PlayerItemAction itemAction);
 bool func_801242B4(Player* player);
-s32 Player_GetEnvironmentalHazard(struct PlayState* play);
-void Player_UpdateBunnyEars(Player* player);
+s32 MM_Player_GetEnvironmentalHazard(struct PlayState* play);
+void MM_Player_UpdateBunnyEars(Player* player);
 void func_80124618(struct_80124618 arg0[], f32 curFrame, Vec3f* arg2);
-void Player_DrawImpl(struct PlayState* play, void** skeleton, Vec3s* jointTable, s32 dListCount, s32 lod, PlayerTransformation playerForm, s32 boots, s32 face, OverrideLimbDrawFlex overrideLimbDraw, PostLimbDrawFlex postLimbDraw, Actor* actor);
+void MM_Player_DrawImpl(struct PlayState* play, void** skeleton, Vec3s* jointTable, s32 dListCount, s32 lod, PlayerTransformation playerForm, s32 boots, s32 face, OverrideLimbDrawFlex overrideLimbDraw, PostLimbDrawFlex postLimbDraw, Actor* actor);
 void func_80125318(Vec3f* arg0, Vec3s* arg1);
 void Player_DrawZoraShield(struct PlayState* play, Player* player);
 void func_80125500(struct PlayState* play, Player* player, s32 limbIndex, Vec3f* pos, Vec3s* rot);
-s32 Player_OverrideLimbDrawGameplayDefault(struct PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* actor);
-s32 Player_OverrideLimbDrawGameplayFirstPerson(struct PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* actor);
-s32 Player_OverrideLimbDrawGameplayCrawling(struct PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx);
+s32 MM_Player_OverrideLimbDrawGameplayDefault(struct PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* actor);
+s32 MM_Player_OverrideLimbDrawGameplayFirstPerson(struct PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* actor);
+s32 MM_Player_OverrideLimbDrawGameplayCrawling(struct PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx);
 s32 func_80126440(struct PlayState* play, ColliderQuad* collider, WeaponInfo* weaponInfo, Vec3f* newTip, Vec3f* newBase);
-void Player_DrawGetItem(struct PlayState* play, Player* player);
+void MM_Player_DrawGetItem(struct PlayState* play, Player* player);
 void func_80126B8C(struct PlayState* play, Player* player);
 s32 func_80127438(struct PlayState* play, Player* player, s32 currentMask);
 s32 func_80128640(struct PlayState* play, Player* player, Gfx* dlist);
 void Player_SetFeetPos(struct PlayState* play, Player* player, s32 limbIndex);
-void Player_PostLimbDrawGameplay(struct PlayState* play, s32 limbIndex, Gfx** dList1, Gfx** dList2, Vec3s* rot, Actor* actor);
+void MM_Player_PostLimbDrawGameplay(struct PlayState* play, s32 limbIndex, Gfx** dList1, Gfx** dList2, Vec3s* rot, Actor* actor);
 
 #endif

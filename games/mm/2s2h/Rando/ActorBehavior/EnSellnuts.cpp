@@ -21,7 +21,7 @@ void Rando::ActorBehavior::InitEnSellnutsBehavior() {
             enSellnuts->actor.parent = NULL;
             enSellnuts->actionFunc = func_80ADB0D8;
             enSellnuts->unk_340 = D_80ADD930_copy[enSellnuts->unk_33A];
-            Message_StartTextbox(gPlayState, enSellnuts->unk_340, &enSellnuts->actor);
+            MM_Message_StartTextbox(MM_gPlayState, enSellnuts->unk_340, &enSellnuts->actor);
         }
     });
 }

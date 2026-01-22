@@ -1933,7 +1933,7 @@ void func_80B57AE0(EnZl3* this, PlayState* play) {
 
     xDiff = unk_354->x - unk_348->x;
     zDiff = unk_354->z - unk_348->z;
-    this->unk_346 = (s32)(OoT_sqrtf(SQ(xDiff) + SQ(zDiff)) / (kREG(6) + 8.0f));
+    this->unk_346 = (s32)(sqrtf(SQ(xDiff) + SQ(zDiff)) / (kREG(6) + 8.0f));
 }
 
 s32 func_80B57C54(EnZl3* this) {

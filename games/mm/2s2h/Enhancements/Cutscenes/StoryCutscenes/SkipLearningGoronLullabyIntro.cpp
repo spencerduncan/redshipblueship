@@ -35,11 +35,11 @@ void RegisterSkipLearningGoronLullabyIntro() {
                             CustomMessage::StartTextbox("You learned the Lullaby Intro!\x1C\x02\x10",
                                                         { .textboxType = 2 });
                         }
-                        Item_Give(gPlayState, ITEM_SONG_LULLABY_INTRO);
+                        MM_Item_Give(MM_gPlayState, ITEM_SONG_LULLABY_INTRO);
                     },
                 .drawItem =
                     [](Actor* actor, PlayState* play) {
-                        Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
+                        MM_Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
                         Rando::DrawItem(RI_SONG_LULLABY_INTRO);
                     } });
         }

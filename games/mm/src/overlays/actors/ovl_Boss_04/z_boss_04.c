@@ -417,7 +417,7 @@ void func_809EC568(Boss04* this, PlayState* play) {
     x = player->actor.world.pos.x - this->actor.world.pos.x;
     y = player->actor.world.pos.y - this->actor.world.pos.y;
     z = player->actor.world.pos.z - this->actor.world.pos.z;
-    this->actor.shape.rot.x = MM_Math_Atan2S(-y, MM_sqrtf(SQ(x) + SQ(z)));
+    this->actor.shape.rot.x = MM_Math_Atan2S(-y, sqrtf(SQ(x) + SQ(z)));
 }
 
 void func_809ECD00(Boss04* this, PlayState* play) {

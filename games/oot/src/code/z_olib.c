@@ -8,7 +8,7 @@ f32 OoT_OLib_Vec3fDist(Vec3f* a, Vec3f* b) {
     f32 dy = a->y - b->y;
     f32 dz = a->z - b->z;
 
-    return OoT_sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
+    return sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
 }
 
 /**
@@ -21,14 +21,14 @@ f32 OoT_OLib_Vec3fDistOutDiff(Vec3f* a, Vec3f* b, Vec3f* dest) {
     dest->y = a->y - b->y;
     dest->z = a->z - b->z;
 
-    return OoT_sqrtf(SQ(dest->x) + SQ(dest->y) + SQ(dest->z));
+    return sqrtf(SQ(dest->x) + SQ(dest->y) + SQ(dest->z));
 }
 
 /**
  * Calculates the distances on the xz plane between `a` and `b`
  */
 f32 OoT_OLib_Vec3fDistXZ(Vec3f* a, Vec3f* b) {
-    return OoT_sqrtf(SQ(a->x - b->x) + SQ(a->z - b->z));
+    return sqrtf(SQ(a->x - b->x) + SQ(a->z - b->z));
 }
 
 /**
@@ -59,7 +59,7 @@ Vec3f* OoT_OLib_Vec3fDistNormalize(Vec3f* dest, Vec3f* a, Vec3f* b) {
     v1.y = b->y - a->y;
     v1.z = b->z - a->z;
 
-    dist = OoT_OLib_ClampMinDist(OoT_sqrtf(SQ(v1.x) + SQ(v1.y) + SQ(v1.z)), 0.01f);
+    dist = OoT_OLib_ClampMinDist(sqrtf(SQ(v1.x) + SQ(v1.y) + SQ(v1.z)), 0.01f);
 
     v2.x = v1.x / dist;
     v2.y = v1.y / dist;
@@ -121,7 +121,7 @@ VecSph* OoT_OLib_Vec3fToVecSph(VecSph* dest, Vec3f* vec) {
     VecSph sph;
 
     f32 distSquared = SQ(vec->x) + SQ(vec->z);
-    f32 dist = OoT_sqrtf(distSquared);
+    f32 dist = sqrtf(distSquared);
 
     if ((dist == 0.0f) && (vec->y == 0.0f)) {
         sph.pitch = 0;
@@ -129,7 +129,7 @@ VecSph* OoT_OLib_Vec3fToVecSph(VecSph* dest, Vec3f* vec) {
         sph.pitch = DEGF_TO_BINANG(RADF_TO_DEGF(OoT_Math_FAtan2F(dist, vec->y)));
     }
 
-    sph.r = OoT_sqrtf(SQ(vec->y) + distSquared);
+    sph.r = sqrtf(SQ(vec->y) + distSquared);
     if ((vec->x == 0.0f) && (vec->z == 0.0f)) {
         sph.yaw = 0;
     } else {

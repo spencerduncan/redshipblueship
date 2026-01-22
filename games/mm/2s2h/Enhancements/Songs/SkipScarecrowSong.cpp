@@ -24,7 +24,7 @@ void RegisterSkipScarecrowSong() {
          * consistent with the requirements to create the Scarecrow's Song, i.e. play at least two different notes.
          */
         if ((enKakasi->picto.actor.xzDistToPlayer < enKakasi->songSummonDist) &&
-            ((BREG(1) != 0) || (gPlayState->msgCtx.ocarinaMode == OCARINA_MODE_ACTIVE))) {
+            ((BREG(1) != 0) || (MM_gPlayState->msgCtx.ocarinaMode == OCARINA_MODE_ACTIVE))) {
             if (IS_RANDO && !Rando::Logic::canPlaySong(OCARINA_SONG_SCARECROW_SPAWN)) {
                 return;
             }
@@ -33,7 +33,7 @@ void RegisterSkipScarecrowSong() {
 
             // Properly get out of the ocarina playing state
             AudioOcarina_SetInstrument(OCARINA_INSTRUMENT_OFF);
-            Message_CloseTextbox(gPlayState);
+            MM_Message_CloseTextbox(MM_gPlayState);
         }
     });
 }

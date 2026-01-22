@@ -26,7 +26,7 @@ typedef struct ConsoleCommand {
     char* description;
 } ConsoleCommand;
 
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 
 void GameConsole_Init();
 

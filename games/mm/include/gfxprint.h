@@ -34,33 +34,33 @@ typedef struct GfxPrint {
     /* 0x14 */ UNK_TYPE1 unk_14[0x1C]; // unused
 } GfxPrint; // size = 0x30
 
-void GfxPrint_Setup(GfxPrint* this);
-void GfxPrint_SetColor(GfxPrint* this, u32 r, u32 g, u32 b, u32 a);
-void GfxPrint_SetPosPx(GfxPrint* this, s32 x, s32 y);
-void GfxPrint_SetPos(GfxPrint* this, s32 x, s32 y);
-void GfxPrint_SetBasePosPx(GfxPrint* this, s32 x, s32 y);
-void GfxPrint_PrintCharImpl(GfxPrint* this, u8 c);
+void MM_GfxPrint_Setup(GfxPrint* this);
+void MM_GfxPrint_SetColor(GfxPrint* this, u32 r, u32 g, u32 b, u32 a);
+void MM_GfxPrint_SetPosPx(GfxPrint* this, s32 x, s32 y);
+void MM_GfxPrint_SetPos(GfxPrint* this, s32 x, s32 y);
+void MM_GfxPrint_SetBasePosPx(GfxPrint* this, s32 x, s32 y);
+void MM_GfxPrint_PrintCharImpl(GfxPrint* this, u8 c);
 void GfxPrint_PrintChar(GfxPrint* this, u8 c);
-void GfxPrint_PrintStringWithSize(GfxPrint* this, const void* buffer, size_t charSize, size_t charCount);
-void GfxPrint_PrintString(GfxPrint* this, const char* str);
-void* GfxPrint_Callback(void* arg, const char* str, size_t size);
-void GfxPrint_Init(GfxPrint* this);
-void GfxPrint_Destroy(GfxPrint* printer);
-void GfxPrint_Open(GfxPrint* this, Gfx* dList);
-Gfx* GfxPrint_Close(GfxPrint* this);
-s32 GfxPrint_VPrintf(GfxPrint* this, const char* fmt, va_list args);
-s32 GfxPrint_Printf(GfxPrint* this, const char* fmt, ...);
+void MM_GfxPrint_PrintStringWithSize(GfxPrint* this, const void* buffer, size_t charSize, size_t charCount);
+void MM_GfxPrint_PrintString(GfxPrint* this, const char* str);
+void* MM_GfxPrint_Callback(void* arg, const char* str, size_t size);
+void MM_GfxPrint_Init(GfxPrint* this);
+void MM_GfxPrint_Destroy(GfxPrint* printer);
+void MM_GfxPrint_Open(GfxPrint* this, Gfx* dList);
+Gfx* MM_GfxPrint_Close(GfxPrint* this);
+s32 MM_GfxPrint_VPrintf(GfxPrint* this, const char* fmt, va_list args);
+s32 MM_GfxPrint_Printf(GfxPrint* this, const char* fmt, ...);
 
 // #region 2S2H [Port] Open/Close helper macros for the GfxPrint system
 #define OPEN_PRINTER(disp)       \
     {                            \
         GfxPrint printer;        \
-        GfxPrint_Init(&printer); \
-        GfxPrint_Open(&printer, disp)
+        MM_GfxPrint_Init(&printer); \
+        MM_GfxPrint_Open(&printer, disp)
 
 #define CLOSE_PRINTER(printer, disp) \
-    disp = GfxPrint_Close(&printer); \
-    GfxPrint_Destroy(&printer);      \
+    disp = MM_GfxPrint_Close(&printer); \
+    MM_GfxPrint_Destroy(&printer);      \
     }                                \
     (void)0
 // #endregion

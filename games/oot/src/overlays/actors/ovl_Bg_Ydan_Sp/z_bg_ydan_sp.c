@@ -293,7 +293,7 @@ void BgYdanSp_FloorWebIdle(BgYdanSp* this, PlayState* play) {
         return;
     }
     if (OoT_DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
-        sqrtFallDistance = OoT_sqrtf(CLAMP_MIN(player->fallDistance, 0.0f));
+        sqrtFallDistance = sqrtf(CLAMP_MIN(player->fallDistance, 0.0f));
         if (player->fallDistance > 750.0f) {
             if (this->dyna.actor.xzDistToPlayer < 80.0f) {
                 this->unk_16C = 200.0f;

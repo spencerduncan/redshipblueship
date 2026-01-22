@@ -32,7 +32,7 @@ extern "C" {
 #include "variables.h"
 #include "functions.h"
 #include "macros.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 extern "C" GetItemEntry ItemTable_RetrieveEntry(s16 modIndex, s16 getItemID);
 
@@ -451,7 +451,7 @@ RandomizerCheckArea AreaFromEntranceGroup[] = {
 };
 
 RandomizerCheckArea GetCheckArea() {
-    auto scene = static_cast<SceneID>(gPlayState->sceneNum);
+    auto scene = static_cast<SceneID>(OoT_gPlayState->sceneNum);
     bool grottoScene = (scene == SCENE_GROTTOS || scene == SCENE_FAIRYS_FOUNTAIN);
     const EntranceData* ent =
         GetEntranceData(grottoScene ? ENTRANCE_GROTTO_EXIT_START + GetCurrentGrottoId() : gSaveContext.entranceIndex);
@@ -618,12 +618,12 @@ void CheckTrackerLoadGame(int32_t fileNum) {
 }
 
 void CheckTrackerShopSlotChange(uint8_t cursorSlot, int16_t basePrice) {
-    if (gPlayState->sceneNum == SCENE_HAPPY_MASK_SHOP) { // Happy Mask Shop is not used in rando, so is not tracked
+    if (OoT_gPlayState->sceneNum == SCENE_HAPPY_MASK_SHOP) { // Happy Mask Shop is not used in rando, so is not tracked
         return;
     }
 
-    auto slot = startingShopItem.find(gPlayState->sceneNum)->second + cursorSlot;
-    if (GetCheckArea() == RCAREA_KAKARIKO_VILLAGE && gPlayState->sceneNum == SCENE_BAZAAR) {
+    auto slot = startingShopItem.find(OoT_gPlayState->sceneNum)->second + cursorSlot;
+    if (GetCheckArea() == RCAREA_KAKARIKO_VILLAGE && OoT_gPlayState->sceneNum == SCENE_BAZAAR) {
         slot = RC_KAK_BAZAAR_ITEM_1 + cursorSlot;
     }
     auto status = OTRGlobals::Instance->gRandoContext->GetItemLocation(slot)->GetCheckStatus();
@@ -654,16 +654,16 @@ void CheckTrackerTransition(uint32_t sceneNum) {
     }
     if (!IsAreaSpoiled(currentArea) && (RandomizerCheckObjects::AreaIsOverworld(currentArea) ||
                                         std::find(spoilingEntrances.begin(), spoilingEntrances.end(),
-                                                  gPlayState->nextEntranceIndex) != spoilingEntrances.end())) {
+                                                  OoT_gPlayState->nextEntranceIndex) != spoilingEntrances.end())) {
         SetAreaSpoiled(currentArea);
     }
 }
 
 void CheckTrackerItemReceive(GetItemEntry giEntry) {
-    if (!GameInteractor::IsSaveLoaded() || vector_contains_scene(skipScenes, gPlayState->sceneNum)) {
+    if (!GameInteractor::IsSaveLoaded() || vector_contains_scene(skipScenes, OoT_gPlayState->sceneNum)) {
         return;
     }
-    auto scene = static_cast<SceneID>(gPlayState->sceneNum);
+    auto scene = static_cast<SceneID>(OoT_gPlayState->sceneNum);
     // Vanilla special item checks
     if (!IS_RANDO) {
         if (giEntry.itemId == ITEM_SHIELD_DEKU) {
@@ -994,7 +994,7 @@ void CheckTrackerWindow::DrawElement() {
     alwaysShowGS = CVarGetInteger(CVAR_TRACKER_CHECK("AlwaysShowGSLocs"), 0);
     if (CVarGetInteger(CVAR_TRACKER_CHECK("WindowType"), TRACKER_WINDOW_WINDOW) == TRACKER_WINDOW_FLOATING) {
         if (CVarGetInteger(CVAR_TRACKER_CHECK("ShowOnlyPaused"), 0) &&
-            (gPlayState == nullptr || gPlayState->pauseCtx.state == 0)) {
+            (OoT_gPlayState == nullptr || OoT_gPlayState->pauseCtx.state == 0)) {
             return;
         }
 

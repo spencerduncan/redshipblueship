@@ -829,7 +829,7 @@ void EnPametfrog_SetupFallInAir(EnPametfrog* this, PlayState* play) {
     this->actor.world.pos.x += 30.0f * MM_Math_SinS(yaw);
     this->actor.world.pos.z += 30.0f * MM_Math_CosS(yaw);
     if (this->subCamId != SUB_CAM_ID_DONE) {
-        xzDist = MM_sqrtf(SQXZ(this->unk_2DC));
+        xzDist = sqrtf(SQXZ(this->unk_2DC));
         if (xzDist > 0.001f) {
             xzDist = 200.0f / xzDist;
         } else {

@@ -48,7 +48,7 @@ void OoT_EffectSsSolderSrchBall_Update(PlayState* play, u32 index, EffectSs* thi
     playerPosDiffZ = player->actor.world.pos.z - this->pos.z;
 
     if (!OoT_BgCheck_SphVsFirstPoly(&play->colCtx, &this->pos, 30.0f)) {
-        if (OoT_sqrtf(SQ(playerPosDiffX) + SQ(playerPosDiffY) + SQ(playerPosDiffZ)) < 70.0f) {
+        if (sqrtf(SQ(playerPosDiffX) + SQ(playerPosDiffY) + SQ(playerPosDiffZ)) < 70.0f) {
             *linkDetected = true;
         }
     } else {

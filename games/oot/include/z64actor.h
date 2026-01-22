@@ -74,7 +74,7 @@ typedef struct {
     /* 0x04 */ Vec3f displacement; // Amount to correct actor velocity by when colliding into a body
     /* 0x10 */ s16 cylRadius; // Used for various purposes
     /* 0x12 */ s16 cylHeight; // Used for various purposes
-    /* 0x14 */ s16 cylYShift; // Unused. Purpose inferred from Cylinder16 and CollisionCheck_CylSideVsLineSeg
+    /* 0x14 */ s16 cylYShift; // Unused. Purpose inferred from Cylinder16 and OoT_CollisionCheck_CylSideVsLineSeg
     /* 0x16 */ u8 mass; // Used to compute displacement for OC collisions
     /* 0x17 */ u8 health; // Note: some actors may use their own health variable instead of this one
     /* 0x18 */ u8 damage; // Amount to decrement health by
@@ -91,7 +91,7 @@ typedef struct {
     /* 0x10 */ f32 shadowScale; // Changes the size of the shadow
     /* 0x14 */ u8 shadowAlpha; // Default is 255
     /* 0x15 */ u8 feetFloorFlags; // Set if the actor's foot is clipped under the floor. & 1 is right foot, & 2 is left
-    /* 0x18 */ Vec3f feetPos[2]; // Update by using `Actor_SetFeetPos` in PostLimbDraw
+    /* 0x18 */ Vec3f feetPos[2]; // Update by using `OoT_Actor_SetFeetPos` in PostLimbDraw
 } ActorShape; // size = 0x30
 
 // Actor is discoverable by the Attention System. This enables Navi to hover over the actor when it is in range.
@@ -199,7 +199,7 @@ typedef struct {
 #define ACTOR_FLAG_UPDATE_DURING_OCARINA (1 << 25)
 
 // Actor can press and hold down switches.
-// See usages of `DynaPolyActor_SetSwitchPressed` and `DynaPolyActor_IsSwitchPressed` for more context on how switches work.
+// See usages of `OoT_DynaPolyActor_SetSwitchPressed` and `OoT_DynaPolyActor_IsSwitchPressed` for more context on how switches work.
 #define ACTOR_FLAG_CAN_PRESS_SWITCHES (1 << 26)
 
 // Player is not able to lock onto the actor.
@@ -252,18 +252,18 @@ typedef struct Actor {
     /* 0x10E */ u16 textId; // Text ID to pass to link/display when interacting with the actor
     /* 0x110 */ u16 freezeTimer; // Actor does not update when set. Timer decrements automatically
     /* 0x112 */ u16 colorFilterParams; // Set color filter to red, blue, or white. Toggle opa or xlu
-    /* 0x114 */ u8 colorFilterTimer; // A non-zero value enables the color filter. Decrements automatically
+    /* 0x114 */ u8 colorFilterTimer; // A non-OoT_zero value enables the color filter. Decrements automatically
     /* 0x115 */ u8 isDrawn; // Set to true if the actor is currently being drawn. Always stays false for lens actors
-    /* 0x116 */ u8 dropFlag; // Configures what item is dropped by the actor from `Item_DropCollectibleRandom`
+    /* 0x116 */ u8 dropFlag; // Configures what item is dropped by the actor from `OoT_Item_DropCollectibleRandom`
     /* 0x117 */ u8 naviEnemyId; // Sets what 0600 dialog to display when talking to navi. Default 0xFF
-    /* 0x118 */ struct Actor* parent; // Usage is actor specific. Set if actor is spawned via `Actor_SpawnAsChild`
-    /* 0x11C */ struct Actor* child; // Usage is actor specific. Set if actor is spawned via `Actor_SpawnAsChild`
+    /* 0x118 */ struct Actor* parent; // Usage is actor specific. Set if actor is spawned via `OoT_Actor_SpawnAsChild`
+    /* 0x11C */ struct Actor* child; // Usage is actor specific. Set if actor is spawned via `OoT_Actor_SpawnAsChild`
     /* 0x120 */ struct Actor* prev; // Previous actor of this category
     /* 0x124 */ struct Actor* next; // Next actor of this category
-    /* 0x128 */ ActorFunc init; // Initialization Routine. Called by `Actor_Init` or `Actor_UpdateAll`
-    /* 0x12C */ ActorFunc destroy; // Destruction Routine. Called by `Actor_Destroy`
-    /* 0x130 */ ActorFunc update; // Update Routine. Called by `Actor_UpdateAll`
-    /* 0x134 */ ActorFunc draw; // Draw Routine. Called by `Actor_Draw`
+    /* 0x128 */ ActorFunc init; // Initialization Routine. Called by `OoT_Actor_Init` or `OoT_Actor_UpdateAll`
+    /* 0x12C */ ActorFunc destroy; // Destruction Routine. Called by `OoT_Actor_Destroy`
+    /* 0x130 */ ActorFunc update; // Update Routine. Called by `OoT_Actor_UpdateAll`
+    /* 0x134 */ ActorFunc draw; // Draw Routine. Called by `OoT_Actor_Draw`
     /* 0x138 */ ActorResetFunc reset;
     /* 0x13C */ char dbgPad[0x10]; // Padding that only exists in the debug rom
 } Actor; // size = 0x14C
@@ -415,8 +415,8 @@ typedef struct EnAObj {
     /* 0x16C */ s16 textId;
     /* 0x16E */ s16 rotateState;
     /* 0x170 */ s16 rotateForTimer;
-    /* 0x172 */ s16 rotSpeedY;
-    /* 0x174 */ s16 rotSpeedX;
+    /* 0x172 */ s16 OoT_rotSpeedY;
+    /* 0x174 */ s16 OoT_rotSpeedX;
     /* 0x178 */ f32 focusYoffset;
     /* 0x17C */ ColliderCylinder collider;
 } EnAObj; // size = 0x1C8
@@ -453,7 +453,7 @@ typedef enum {
 } NpcTalkState;
 
 typedef enum {
-    /* 0x0 */ NPC_TRACKING_PLAYER_AUTO_TURN, // Determine tracking mode based on player position, see Npc_UpdateAutoTurn
+    /* 0x0 */ NPC_TRACKING_PLAYER_AUTO_TURN, // Determine tracking mode based on player position, see OoT_Npc_UpdateAutoTurn
     /* 0x1 */ NPC_TRACKING_NONE, // Don't track the target (usually the player)
     /* 0x2 */ NPC_TRACKING_HEAD_AND_TORSO, // Track target by turning the head and the torso
     /* 0x3 */ NPC_TRACKING_HEAD, // Track target by turning the head

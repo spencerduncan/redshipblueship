@@ -141,7 +141,7 @@ void func_80AFBE8C(EnSiofuki* this, PlayState* play) {
             this->appliedSpeed = 0.0f;
             this->targetAppliedSpeed = 0.0f;
         } else {
-            dist2d = OoT_sqrtf(SQ(dX) + SQ(dZ));
+            dist2d = sqrtf(SQ(dX) + SQ(dZ));
             this->applySpeed = true;
             this->splashTimer = 0;
             angle = OoT_Math_FAtan2F(dX, dZ) * (0x8000 / M_PI);

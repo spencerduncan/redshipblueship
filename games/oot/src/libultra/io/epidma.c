@@ -1,7 +1,7 @@
 #include "global.h"
 #include "ultra64/internal.h"
 
-s32 OoT_osEPiStartDma(OSPiHandle* handle, OSIoMesg* mb, s32 direction) {
+s32 osEPiStartDma(OSPiHandle* handle, OSIoMesg* mb, s32 direction) {
     s32 ret;
 
     if (!__osPiDevMgr.initialized) {
@@ -16,9 +16,9 @@ s32 OoT_osEPiStartDma(OSPiHandle* handle, OSIoMesg* mb, s32 direction) {
     }
 
     if (mb->hdr.pri == 1) {
-        ret = OoT_osJamMesg(OoT_osPiGetCmdQueue(), (OSMesg)mb, OS_MESG_NOBLOCK);
+        ret = osJamMesg(osPiGetCmdQueue(), (OSMesg)mb, OS_MESG_NOBLOCK);
     } else {
-        ret = OoT_osSendMesg(OoT_osPiGetCmdQueue(), (OSMesg)mb, OS_MESG_NOBLOCK);
+        ret = osSendMesg(osPiGetCmdQueue(), (OSMesg)mb, OS_MESG_NOBLOCK);
     }
 
     return ret;

@@ -6,7 +6,7 @@
 
 #define DEFINE_OBJECT(_0, enum) enum,
 #define DEFINE_OBJECT_NULL(_0, enum) enum,
-#define DEFINE_OBJECT_UNSET(enum) enum,
+#define OoT_DEFINE_OBJECT_UNSET(enum) enum,
 
 typedef enum {
     #include "tables/object_table.h"
@@ -15,6 +15,6 @@ typedef enum {
 
 #undef DEFINE_OBJECT
 #undef DEFINE_OBJECT_NULL
-#undef DEFINE_OBJECT_UNSET
+#undef OoT_DEFINE_OBJECT_UNSET
 
 #endif

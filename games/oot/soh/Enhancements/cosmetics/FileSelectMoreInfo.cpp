@@ -281,27 +281,27 @@ static bool HasItem(s16 fileIndex, u8 item) {
     }
 
     if (item == ITEM_BRACELET) {
-        return ((Save_GetSaveMetaInfo(fileIndex)->upgrades & gUpgradeMasks[UPG_STRENGTH]) >>
-                gUpgradeShifts[UPG_STRENGTH]) == 1;
+        return ((Save_GetSaveMetaInfo(fileIndex)->upgrades & OoT_gUpgradeMasks[UPG_STRENGTH]) >>
+                OoT_gUpgradeShifts[UPG_STRENGTH]) == 1;
     }
 
     if (item == ITEM_GAUNTLETS_SILVER) {
-        return ((Save_GetSaveMetaInfo(fileIndex)->upgrades & gUpgradeMasks[UPG_STRENGTH]) >>
-                gUpgradeShifts[UPG_STRENGTH]) == 2;
+        return ((Save_GetSaveMetaInfo(fileIndex)->upgrades & OoT_gUpgradeMasks[UPG_STRENGTH]) >>
+                OoT_gUpgradeShifts[UPG_STRENGTH]) == 2;
     }
 
     if (item == ITEM_GAUNTLETS_GOLD) {
-        return ((Save_GetSaveMetaInfo(fileIndex)->upgrades & gUpgradeMasks[UPG_STRENGTH]) >>
-                gUpgradeShifts[UPG_STRENGTH]) == 3;
+        return ((Save_GetSaveMetaInfo(fileIndex)->upgrades & OoT_gUpgradeMasks[UPG_STRENGTH]) >>
+                OoT_gUpgradeShifts[UPG_STRENGTH]) == 3;
     }
 
     if (item == ITEM_SCALE_SILVER) {
-        return ((Save_GetSaveMetaInfo(fileIndex)->upgrades & gUpgradeMasks[UPG_SCALE]) >> gUpgradeShifts[UPG_SCALE]) ==
+        return ((Save_GetSaveMetaInfo(fileIndex)->upgrades & OoT_gUpgradeMasks[UPG_SCALE]) >> OoT_gUpgradeShifts[UPG_SCALE]) ==
                1;
     }
 
     if (item == ITEM_SCALE_GOLDEN) {
-        return ((Save_GetSaveMetaInfo(fileIndex)->upgrades & gUpgradeMasks[UPG_SCALE]) >> gUpgradeShifts[UPG_SCALE]) ==
+        return ((Save_GetSaveMetaInfo(fileIndex)->upgrades & OoT_gUpgradeMasks[UPG_SCALE]) >> OoT_gUpgradeShifts[UPG_SCALE]) ==
                2;
     }
 
@@ -566,26 +566,26 @@ static bool ShouldRenderCounter(s16 fileIndex, CounterID counterId) {
 
     if (counterId == COUNTER_WALLET_CHILD) {
         return Save_GetSaveMetaInfo(fileIndex)->hasWallet &&
-               ((Save_GetSaveMetaInfo(fileIndex)->upgrades & gUpgradeMasks[UPG_WALLET]) >>
-                gUpgradeShifts[UPG_WALLET]) == 0;
+               ((Save_GetSaveMetaInfo(fileIndex)->upgrades & OoT_gUpgradeMasks[UPG_WALLET]) >>
+                OoT_gUpgradeShifts[UPG_WALLET]) == 0;
     }
 
     if (counterId == COUNTER_WALLET_ADULT) {
         return Save_GetSaveMetaInfo(fileIndex)->hasWallet &&
-               ((Save_GetSaveMetaInfo(fileIndex)->upgrades & gUpgradeMasks[UPG_WALLET]) >>
-                gUpgradeShifts[UPG_WALLET]) == 1;
+               ((Save_GetSaveMetaInfo(fileIndex)->upgrades & OoT_gUpgradeMasks[UPG_WALLET]) >>
+                OoT_gUpgradeShifts[UPG_WALLET]) == 1;
     }
 
     if (counterId == COUNTER_WALLET_GIANT) {
         return Save_GetSaveMetaInfo(fileIndex)->hasWallet &&
-               ((Save_GetSaveMetaInfo(fileIndex)->upgrades & gUpgradeMasks[UPG_WALLET]) >>
-                gUpgradeShifts[UPG_WALLET]) == 2;
+               ((Save_GetSaveMetaInfo(fileIndex)->upgrades & OoT_gUpgradeMasks[UPG_WALLET]) >>
+                OoT_gUpgradeShifts[UPG_WALLET]) == 2;
     }
 
     if (counterId == COUNTER_WALLET_TYCOON) {
         return Save_GetSaveMetaInfo(fileIndex)->hasWallet &&
-               ((Save_GetSaveMetaInfo(fileIndex)->upgrades & gUpgradeMasks[UPG_WALLET]) >>
-                gUpgradeShifts[UPG_WALLET]) == 3;
+               ((Save_GetSaveMetaInfo(fileIndex)->upgrades & OoT_gUpgradeMasks[UPG_WALLET]) >>
+                OoT_gUpgradeShifts[UPG_WALLET]) == 3;
     }
 
     if (counterId == COUNTER_TRIFORCE_PIECES) {

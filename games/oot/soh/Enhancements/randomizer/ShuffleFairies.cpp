@@ -26,17 +26,17 @@ void ShuffleFairies_DrawRandomizedItem(EnElf* enElf, PlayState* play) {
     if (CVarGetInteger(CVAR_RANDOMIZER_ENHANCEMENT("MysteriousShuffle"), 0)) {
         randoGetItem = GET_ITEM_MYSTERY;
     }
-    Matrix_Push();
-    Matrix_Scale(37.5, 37.5, 37.5, MTXMODE_APPLY);
+    OoT_Matrix_Push();
+    OoT_Matrix_Scale(37.5, 37.5, 37.5, MTXMODE_APPLY);
     func_8002EBCC(&enElf->actor, play, 0);
     func_8002ED80(&enElf->actor, play, 0);
     EnItem00_CustomItemsParticles(&enElf->actor, play, randoGetItem);
     GetItemEntry_Draw(play, randoGetItem);
-    Matrix_Pop();
+    OoT_Matrix_Pop();
 }
 
 bool ShuffleFairies_FairyExists(CheckIdentity fairyIdentity) {
-    Actor* actor = gPlayState->actorCtx.actorLists[ACTORCAT_ITEMACTION].head;
+    Actor* actor = OoT_gPlayState->actorCtx.actorLists[ACTORCAT_ITEMACTION].head;
 
     while (actor != NULL) {
         if (actor->id != ACTOR_EN_ELF) {
@@ -55,7 +55,7 @@ bool ShuffleFairies_FairyExists(CheckIdentity fairyIdentity) {
 
 CheckIdentity ShuffleFairies_GetFairyIdentity(int32_t params) {
     CheckIdentity fairyIdentity;
-    s16 sceneNum = gPlayState->sceneNum;
+    s16 sceneNum = OoT_gPlayState->sceneNum;
     fairyIdentity.randomizerInf = RAND_INF_MAX;
 
     if (sceneNum == SCENE_TEMPLE_OF_TIME_EXTERIOR_NIGHT || sceneNum == SCENE_TEMPLE_OF_TIME_EXTERIOR_RUINS) {
@@ -79,7 +79,7 @@ CheckIdentity ShuffleFairies_GetFairyIdentity(int32_t params) {
 static bool SpawnFairy(f32 posX, f32 posY, f32 posZ, int32_t params, FairyType fairyType) {
     CheckIdentity fairyIdentity = ShuffleFairies_GetFairyIdentity(params);
     if (!Flags_GetRandomizerInf(fairyIdentity.randomizerInf)) {
-        Actor* fairy = Actor_Spawn(&gPlayState->actorCtx, gPlayState, ACTOR_EN_ELF, posX, posY - 30.0f, posZ, 0, 0, 0,
+        Actor* fairy = OoT_Actor_Spawn(&OoT_gPlayState->actorCtx, OoT_gPlayState, ACTOR_EN_ELF, posX, posY - 30.0f, posZ, 0, 0, 0,
                                    fairyType, true);
         ObjectExtension::GetInstance().Set<CheckIdentity>(fairy, std::move(fairyIdentity));
         fairy->draw = (ActorFunc)ShuffleFairies_DrawRandomizedItem;
@@ -109,7 +109,7 @@ void RegisterShuffleFairies() {
         const auto fairyIdentity = ObjectExtension::GetInstance().Get<CheckIdentity>(actor);
         if (fairyIdentity != nullptr && fairyIdentity->randomizerInf != RAND_INF_MAX) {
             Flags_SetRandomizerInf(fairyIdentity->randomizerInf);
-            actor->parent = &GET_PLAYER(gPlayState)->actor;
+            actor->parent = &GET_PLAYER(OoT_gPlayState)->actor;
             *should = false;
         }
     });
@@ -118,7 +118,7 @@ void RegisterShuffleFairies() {
     COND_VB_SHOULD(VB_SPAWN_FOUNTAIN_FAIRIES, shouldRegisterFountain, {
         Actor* actor = va_arg(args, Actor*);
         bool fairySpawned = false;
-        s16 grottoId = (gPlayState->sceneNum == SCENE_FAIRYS_FOUNTAIN) ? Grotto_CurrentGrotto() : 0;
+        s16 grottoId = (OoT_gPlayState->sceneNum == SCENE_FAIRYS_FOUNTAIN) ? Grotto_CurrentGrotto() : 0;
         for (s16 index = 0; index < 8; index++) {
             int32_t params = (grottoId << 8) | index;
             if (SpawnFairy(actor->world.pos.x, actor->world.pos.y, actor->world.pos.z, params, FAIRY_HEAL)) {
@@ -162,15 +162,15 @@ void RegisterShuffleFairies() {
 
         // Mimic vanilla behaviour, only go into this path if song played is one of the ones normally spawning a fairy.
         // Otherwise fall back to vanilla behaviour.
-        if (gPlayState->msgCtx.ocarinaMode == OCARINA_MODE_04 &&
-            (gPlayState->msgCtx.unk_E3F2 == OCARINA_SONG_LULLABY ||
-             gPlayState->msgCtx.unk_E3F2 == OCARINA_SONG_SARIAS || gPlayState->msgCtx.unk_E3F2 == OCARINA_SONG_EPONAS ||
-             gPlayState->msgCtx.unk_E3F2 == OCARINA_SONG_SUNS || gPlayState->msgCtx.unk_E3F2 == OCARINA_SONG_TIME ||
-             gPlayState->msgCtx.unk_E3F2 == OCARINA_SONG_STORMS)) {
+        if (OoT_gPlayState->msgCtx.ocarinaMode == OCARINA_MODE_04 &&
+            (OoT_gPlayState->msgCtx.unk_E3F2 == OCARINA_SONG_LULLABY ||
+             OoT_gPlayState->msgCtx.unk_E3F2 == OCARINA_SONG_SARIAS || OoT_gPlayState->msgCtx.unk_E3F2 == OCARINA_SONG_EPONAS ||
+             OoT_gPlayState->msgCtx.unk_E3F2 == OCARINA_SONG_SUNS || OoT_gPlayState->msgCtx.unk_E3F2 == OCARINA_SONG_TIME ||
+             OoT_gPlayState->msgCtx.unk_E3F2 == OCARINA_SONG_STORMS)) {
 
-            int32_t params = (gPlayState->sceneNum == SCENE_GROTTOS) ? Grotto_CurrentGrotto() : 0;
+            int32_t params = (OoT_gPlayState->sceneNum == SCENE_GROTTOS) ? Grotto_CurrentGrotto() : 0;
             // Distinguish storms fairies from the normal song fairies
-            if (gPlayState->msgCtx.unk_E3F2 == OCARINA_SONG_STORMS) {
+            if (OoT_gPlayState->msgCtx.unk_E3F2 == OCARINA_SONG_STORMS) {
                 params |= 0x1000;
                 fairyType = FAIRY_HEAL_BIG;
             }
@@ -185,7 +185,7 @@ void RegisterShuffleFairies() {
             // collected, the vanilla code will handle that part automatically.
             CheckIdentity fairyIdentity = ShuffleFairies_GetFairyIdentity(params);
             if (!ShuffleFairies_FairyExists(fairyIdentity)) {
-                Player* player = GET_PLAYER(gPlayState);
+                Player* player = GET_PLAYER(OoT_gPlayState);
                 if (SpawnFairy(player->actor.world.pos.x, (player->actor.world.pos.y + 20), player->actor.world.pos.z,
                                params, fairyType)) {
                     Audio_PlayActorSound2(&gossipStone->actor, NA_SE_EV_BUTTERFRY_TO_FAIRY);

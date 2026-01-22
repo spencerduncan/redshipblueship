@@ -1,7 +1,7 @@
 [Desktop Entry]
 Version=1.0
-Name=SOH
-Exec=soh.elf
+Name=Red Ship Blue Ship
+Exec=redship
 Terminal=false
 Icon=sohIcon
 Type=Application

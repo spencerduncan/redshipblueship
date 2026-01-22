@@ -581,7 +581,7 @@ void func_809E34B8(Boss03* this, PlayState* play) {
     yDiff = this->unk_268.y - this->actor.world.pos.y;
     zDiff = this->unk_268.z - this->actor.world.pos.z;
 
-    MM_Math_ApproachS(&this->actor.world.rot.x, Math_Atan2S_XY(MM_sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
+    MM_Math_ApproachS(&this->actor.world.rot.x, Math_Atan2S_XY(sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
 
     bodyYRotTarget =
         MM_Math_SmoothStepToS(&this->actor.world.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0xA, this->unk_274, 0) * -0.5f;
@@ -600,7 +600,7 @@ void func_809E34B8(Boss03* this, PlayState* play) {
     }
 
     if (this->workTimer[WORK_TIMER_UNK2_A] == 0) {
-        if ((MM_sqrtf(SQ(xDiff) + SQ(zDiff)) < 100.0f) || (this->workTimer[WORK_TIMER_UNK0_A] == 0)) {
+        if ((sqrtf(SQ(xDiff) + SQ(zDiff)) < 100.0f) || (this->workTimer[WORK_TIMER_UNK0_A] == 0)) {
             for (i = 0; i < 200; i++) {
                 this->unk_268.x = MM_Rand_CenteredFloat(2500.0f);
                 this->unk_268.y = MM_Rand_ZeroFloat(100.0f) + 150.0f;
@@ -609,7 +609,7 @@ void func_809E34B8(Boss03* this, PlayState* play) {
                 xDiff = this->unk_268.x - this->actor.world.pos.x;
                 zDiff = this->unk_268.z - this->actor.world.pos.z;
 
-                if (MM_sqrtf(SQ(xDiff) + SQ(zDiff)) > 300.0f) {
+                if (sqrtf(SQ(xDiff) + SQ(zDiff)) > 300.0f) {
                     break;
                 }
             }
@@ -670,7 +670,7 @@ void Boss03_ChasePlayer(Boss03* this, PlayState* play) {
     yDiff = (player->actor.world.pos.y - this->actor.world.pos.y) + 50.0f;
     zDiff = player->actor.world.pos.z - this->actor.world.pos.z;
 
-    MM_Math_ApproachS(&this->actor.world.rot.x, Math_Atan2S_XY(MM_sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
+    MM_Math_ApproachS(&this->actor.world.rot.x, Math_Atan2S_XY(sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
     bodyYRotTarget =
         MM_Math_SmoothStepToS(&this->actor.world.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0xA, this->unk_274, 0) * -0.5f;
     MM_Math_ApproachS(&this->bodyYRot, bodyYRotTarget, 5, 0x100);
@@ -714,7 +714,7 @@ void Boss03_ChasePlayer(Boss03* this, PlayState* play) {
         xDiff = sp50.x - player->actor.world.pos.x;
         zDiff = sp50.z - player->actor.world.pos.z;
 
-        if (MM_sqrtf(SQ(xDiff) + SQ(zDiff)) < (2.0f * phi_f2)) {
+        if (sqrtf(SQ(xDiff) + SQ(zDiff)) < (2.0f * phi_f2)) {
             MM_Math_ApproachS(&this->jawZRot, 0x3200, 2, 0x1800);
             this->unk_278 = 25.0f;
             this->unk_27C = 5.0f;
@@ -722,7 +722,7 @@ void Boss03_ChasePlayer(Boss03* this, PlayState* play) {
         }
 
         // Near enough to Player?
-        if (MM_sqrtf(SQ(xDiff) + SQ(zDiff)) < phi_f2) {
+        if (sqrtf(SQ(xDiff) + SQ(zDiff)) < phi_f2) {
             Boss03_SetupCatchPlayer(this, play, sp43);
 
             if (sp43 != 0) {
@@ -767,7 +767,7 @@ void Boss03_CatchPlayer(Boss03* this, PlayState* play) {
     yDiff = player->actor.world.pos.y - this->actor.world.pos.y;
     zDiff = player->actor.world.pos.z - this->actor.world.pos.z;
 
-    MM_Math_ApproachS(&this->actor.world.rot.x, Math_Atan2S_XY(MM_sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
+    MM_Math_ApproachS(&this->actor.world.rot.x, Math_Atan2S_XY(sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
     MM_Math_ApproachS(&this->bodyYRot,
                    MM_Math_SmoothStepToS(&this->actor.world.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0xA, this->unk_274, 0) *
                        -0.5f,
@@ -872,7 +872,7 @@ void Boss03_ChewPlayer(Boss03* this, PlayState* play) {
     yDiff = this->unk_268.y - this->actor.world.pos.y;
     zDiff = this->unk_268.z - this->actor.world.pos.z;
 
-    MM_Math_ApproachS(&this->actor.world.rot.x, Math_Atan2S_XY(MM_sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
+    MM_Math_ApproachS(&this->actor.world.rot.x, Math_Atan2S_XY(sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
     MM_Math_ApproachS(&this->bodyYRot,
                    MM_Math_SmoothStepToS(&this->actor.world.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0xA, this->unk_274, 0) *
                        -0.5f,
@@ -883,7 +883,7 @@ void Boss03_ChewPlayer(Boss03* this, PlayState* play) {
     switch (this->unk_242) {
         case 0:
             MM_Math_ApproachF(&this->actor.speed, 10.0f, 1.0f, 1.0f);
-            if (MM_sqrtf(SQ(xDiff) + SQ(zDiff)) < 100.0f) {
+            if (sqrtf(SQ(xDiff) + SQ(zDiff)) < 100.0f) {
                 this->unk_242 = 1;
                 MM_Animation_MorphToLoop(&this->skelAnime, &gGyorgBackingUpAnim, -15.0f);
             }
@@ -954,7 +954,7 @@ void Boss03_SetupPrepareCharge(Boss03* this, PlayState* play) {
     this->workTimer[WORK_TIMER_UNK1_B] = 50;
     this->unk_274 = 0;
 
-    if (MM_sqrtf(SQXZ(this->actor.world.pos)) > 600.0f) {
+    if (sqrtf(SQXZ(this->actor.world.pos)) > 600.0f) {
         if (MM_Rand_ZeroOne() < 0.5f) {
             this->unk_242 = 1;
         } else {
@@ -1036,7 +1036,7 @@ void Boss03_Charge(Boss03* this, PlayState* play) {
 
     MM_Math_ApproachS(&this->actor.world.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0xA, 0x1000);
 
-    rotXTarget = Math_Atan2S_XY(MM_sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff);
+    rotXTarget = Math_Atan2S_XY(sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff);
     MM_Math_ApproachS(&this->actor.world.rot.x, rotXTarget, 0xA, 0x1000);
 
     this->actor.shape.rot = this->actor.world.rot;
@@ -1048,7 +1048,7 @@ void Boss03_Charge(Boss03* this, PlayState* play) {
     if (this->actor.speed >= 20.0f) {
         // Jump over platform
         if (this->unk_242 == 1) {
-            if (MM_sqrtf(SQXZ(this->actor.world.pos)) < 700.0f) {
+            if (sqrtf(SQXZ(this->actor.world.pos)) < 700.0f) {
                 Boss03_SetupJumpOverPlatform(this, play);
                 return;
             }
@@ -1206,7 +1206,7 @@ void Boss03_IntroCutscene(Boss03* this, PlayState* play) {
                             zDiff = D_809E9104[this->unk_242].z - this->actor.world.pos.z;
 
                             MM_Math_ApproachS(&this->actor.world.rot.x,
-                                           Math_Atan2S_XY(MM_sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
+                                           Math_Atan2S_XY(sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
                             MM_Math_ApproachS(&this->actor.world.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0xA, this->unk_274);
                             MM_Math_ApproachS(&this->unk_274, 0x200, 1, 0x10);
 
@@ -1223,7 +1223,7 @@ void Boss03_IntroCutscene(Boss03* this, PlayState* play) {
                             }
 
                             if (this->unk_242 < 2) {
-                                if (MM_sqrtf(SQ(xDiff) + SQ(zDiff)) < 100.0f) {
+                                if (sqrtf(SQ(xDiff) + SQ(zDiff)) < 100.0f) {
                                     this->unk_242++;
                                     this->unk_274 = 0;
                                     if (this->unk_242 >= 2) {
@@ -2141,7 +2141,7 @@ void Boss03_Update(Actor* thisx, PlayState* play2) {
             dropletPos.y = PLATFORM_HEIGHT;
             dropletPos.z += this->unk_28C + MM_Rand_CenteredFloat(40.0f);
 
-            if (MM_sqrtf(SQ(dropletPos.x) + SQ(dropletPos.z)) < 355.0f) {
+            if (sqrtf(SQ(dropletPos.x) + SQ(dropletPos.z)) < 355.0f) {
                 Boss03_SpawnEffectDroplet(play, &dropletPos);
                 i++;
             }
@@ -2549,7 +2549,7 @@ void Boss03_SeaweedUpdate(Actor* thisx, PlayState* play) {
         xDiff = player->actor.world.pos.x - this->seaweedSegmentPositions[i].x;
         yDiff = player->actor.world.pos.y - this->seaweedSegmentPositions[i].y;
         zDiff = player->actor.world.pos.z - this->seaweedSegmentPositions[i].z;
-        distanceBetweenSeaweedAndDisturbance = MM_sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff));
+        distanceBetweenSeaweedAndDisturbance = sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff));
         disturbanceFactor = player->actor.speed * 3.0f + 70.0f;
 
         // Player is standing on ground
@@ -2583,7 +2583,7 @@ void Boss03_SeaweedUpdate(Actor* thisx, PlayState* play) {
             yDiff = sGyorgBossInstance->actor.world.pos.y - this->seaweedSegmentPositions[i].y;
             zDiff = sGyorgBossInstance->actor.world.pos.z - this->seaweedSegmentPositions[i].z;
 
-            distanceBetweenSeaweedAndDisturbance = MM_sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff));
+            distanceBetweenSeaweedAndDisturbance = sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff));
 
             if ((i == 0) && (distanceBetweenSeaweedAndDisturbance > 400.0f)) {
                 break;

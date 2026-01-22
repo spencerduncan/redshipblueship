@@ -289,7 +289,7 @@ extern TrackerImageObject GetTextureObject(int16_t itemId, bool isRandoItem) {
 
     TrackerImageObject imageObject = {
         .textureId = Ship::Context::GetInstance()->GetWindow()->GetGui()->GetTextureByName(
-            (const char*)gItemIcons[currentItemId]),
+            (const char*)MM_gItemIcons[currentItemId]),
         .textureColor = Ship_GetItemColorTint(currentItemId),
         .textureDimensions =
             ImVec2(currentItemId >= ITEM_SONG_SONATA && currentItemId <= ITEM_SONG_SUN ? ITEM_TEXTURE_SIZE / 1.5f
@@ -310,12 +310,12 @@ extern TrackerImageObject GetTextureObject(int16_t itemId, bool isRandoItem) {
     } else if (itemId == ITEM_HEART_CONTAINER) {
         itemObtained = gSaveContext.save.saveInfo.playerData.doubleDefense;
     } else if (itemId >= ITEM_BOTTLE_1 && itemId <= ITEM_BOTTLE_6) {
-        if (gSaveContext.save.saveInfo.inventory.items[bottleId] != ITEM_NONE && gPlayState) {
+        if (gSaveContext.save.saveInfo.inventory.items[bottleId] != ITEM_NONE && MM_gPlayState) {
             imageObject.textureId = Ship::Context::GetInstance()->GetWindow()->GetGui()->GetTextureByName(
-                (const char*)gItemIcons[gSaveContext.save.saveInfo.inventory.items[bottleId]]);
+                (const char*)MM_gItemIcons[gSaveContext.save.saveInfo.inventory.items[bottleId]]);
         } else {
             imageObject.textureId = Ship::Context::GetInstance()->GetWindow()->GetGui()->GetTextureByName(
-                (const char*)gItemIcons[ITEM_BOTTLE]);
+                (const char*)MM_gItemIcons[ITEM_BOTTLE]);
         }
         itemObtained = gSaveContext.save.saveInfo.inventory.items[bottleId] != ITEM_NONE;
     } else if (itemId == ITEM_SKULL_TOKEN_SWAMP || itemId == ITEM_SKULL_TOKEN_OCEAN) {
@@ -473,7 +473,7 @@ void ItemTrackerWindow::Draw() {
         return;
     }
 
-    if (!gPlayState) {
+    if (!MM_gPlayState) {
         return;
     }
 

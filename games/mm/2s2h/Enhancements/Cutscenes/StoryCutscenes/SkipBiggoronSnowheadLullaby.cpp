@@ -18,7 +18,7 @@ void RegisterSkipBiggoronSnowheadLullabyCutscene() {
         Actor* actor = va_arg(args, Actor*);
 
         if (*csId != BIGGORON_GORON_LULLABY_CSID || actor == NULL || actor->id != ACTOR_EN_DAI ||
-            gPlayState->sceneId != SCENE_12HAKUGINMAE) {
+            MM_gPlayState->sceneId != SCENE_12HAKUGINMAE) {
             return;
         }
 
@@ -34,7 +34,7 @@ void RegisterSkipBiggoronSnowheadLullabyCutscene() {
         // the cutscene was skipped.
         Audio_PlaySfx(NA_SE_EV_ROLL_AND_FALL);
         Audio_PlaySequenceInCutscene(NA_BGM_DUNGEON_APPEAR);
-        Actor_Kill(actor);
+        MM_Actor_Kill(actor);
     });
 }
 

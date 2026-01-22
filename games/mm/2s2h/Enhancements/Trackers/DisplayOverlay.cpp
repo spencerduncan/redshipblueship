@@ -43,7 +43,7 @@ void DrawInGameTimer(uint32_t timer, ImVec4 color = ImVec4(1, 1, 1, 1)) {
 }
 
 void DisplayOverlayWindow::Draw() {
-    if (!gPlayState) {
+    if (!MM_gPlayState) {
         return;
     }
     int displayOverlay = CVarGetInteger("gWindows.DisplayOverlay", 0);

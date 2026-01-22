@@ -5,7 +5,7 @@
 extern "C" {
 #include "src/overlays/actors/ovl_En_Door/z_en_door.h"
 extern SaveContext gSaveContext;
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 static constexpr int32_t CVAR_DAMPE_ALL_NIGHT_DEFAULT = 0;
@@ -16,7 +16,7 @@ static constexpr s16 DAMPE_HUT_DOOR_OPEN = 447;
 static constexpr s16 DAMPE_HUT_DOOR_CLOSED = 774;
 
 static bool DampeIsResting() {
-    return LINK_IS_ADULT || gPlayState->sceneNum != SCENE_GRAVEYARD;
+    return LINK_IS_ADULT || OoT_gPlayState->sceneNum != SCENE_GRAVEYARD;
 }
 
 static void OpenDampeHutDoor(void* refActor) {
@@ -25,7 +25,7 @@ static void OpenDampeHutDoor(void* refActor) {
 
     if (*params == DAMPE_HUT_DOOR_CLOSED && !DampeIsResting()) {
         *params = DAMPE_HUT_DOOR_OPEN;
-        EnDoor_SetupType(enDoor, gPlayState);
+        EnDoor_SetupType(enDoor, OoT_gPlayState);
     }
 }
 

@@ -1,6 +1,6 @@
 #include "ultra64.h"
 
-int MM_osSetTimer(OSTimer* t, OSTime countdown, OSTime interval, OSMesgQueue* mq, OSMesg msg) {
+int osSetTimer(OSTimer* t, OSTime countdown, OSTime interval, OSMesgQueue* mq, OSMesg msg) {
     OSTime time;
     OSTimer* next;
     u32 count;

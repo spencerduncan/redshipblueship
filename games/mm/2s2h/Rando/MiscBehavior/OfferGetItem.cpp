@@ -3,19 +3,19 @@
 extern "C" {
 #include "variables.h"
 
-void Player_StartTalking(PlayState* play, Actor* actor);
-void Player_SetupTalk(PlayState* play, Player* player);
-s32 Player_SetupWaitForPutAway(PlayState* play, Player* player, AfterPutAwayFunc afterPutAwayFunc);
+void MM_Player_StartTalking(PlayState* play, Actor* actor);
+void MM_Player_SetupTalk(PlayState* play, Player* player);
+s32 MM_Player_SetupWaitForPutAway(PlayState* play, Player* player, AfterPutAwayFunc afterPutAwayFunc);
 }
 
-// This prevents actors from giving items with Actor_OfferGetItem, along with preventing them from waiting on the
+// This prevents actors from giving items with MM_Actor_OfferGetItem, along with preventing them from waiting on the
 // GetItem textbox to close
 void Rando::MiscBehavior::InitOfferGetItemBehavior() {
     // Scripted Actors
     COND_VB_SHOULD(VB_EXEC_MSG_EVENT, IS_RANDO, {
         u32 cmdId = va_arg(args, u32);
         Actor* actor = va_arg(args, Actor*);
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         static std::vector<u8> skipCmds = {};
 
         // SPDLOG_INFO("VB_EXEC_MSG_EVENT {}", cmdId);
@@ -24,7 +24,7 @@ void Rando::MiscBehavior::InitOfferGetItemBehavior() {
             switch (actor->id) {
                 case ACTOR_EN_PST:
                     actor->flags |= ACTOR_FLAG_TALK; // Prevent softlock
-                    Player_SetupWaitForPutAway(gPlayState, player, Player_SetupTalk);
+                    MM_Player_SetupWaitForPutAway(MM_gPlayState, player, MM_Player_SetupTalk);
                     *should = false;
                     return;
             }
@@ -44,7 +44,7 @@ void Rando::MiscBehavior::InitOfferGetItemBehavior() {
     COND_VB_SHOULD(VB_GIVE_ITEM_FROM_OFFER, IS_RANDO, {
         GetItemId* item = va_arg(args, GetItemId*);
         Actor* actor = va_arg(args, Actor*);
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
 
         switch (actor->id) {
             // Otherwise, Dotour will repeat the current textbox and not display the next one
@@ -65,7 +65,7 @@ void Rando::MiscBehavior::InitOfferGetItemBehavior() {
                 player->talkActor = actor;
                 player->talkActorDistance = actor->xzDistToPlayer;
                 player->exchangeItemAction = PLAYER_IA_MINUS1;
-                Player_StartTalking(gPlayState, actor);
+                MM_Player_StartTalking(MM_gPlayState, actor);
                 break;
         }
     });

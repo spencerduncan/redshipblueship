@@ -728,7 +728,7 @@ typedef struct PendingFlag {
 #define PLAYER_STATE2_PLAY_FOR_ACTOR (1 << 25)
 #define PLAYER_STATE2_REFLECTION (1 << 26) //Handles Dark Link's Reflection
 #define PLAYER_STATE2_OCARINA_PLAYING (1 << 27)
-#define PLAYER_STATE2_IDLE_FIDGET (1 << 28) // Playing a fidget idle animation (under typical circumstances, see `Player_ChooseNextIdleAnim` for more info)
+#define PLAYER_STATE2_IDLE_FIDGET (1 << 28) // Playing a fidget idle animation (under typical circumstances, see `OoT_Player_ChooseNextIdleAnim` for more info)
 #define PLAYER_STATE2_DISABLE_DRAW (1 << 29)
 #define PLAYER_STATE2_SWORD_LUNGE (1 << 30)
 #define PLAYER_STATE2_FORCED_VOID_OUT (1 << 31)
@@ -826,13 +826,13 @@ typedef struct Player {
     /* 0x05E4 */ ColliderQuad shieldQuad;
     /* 0x0664 */ Actor* focusActor; // Actor that Player and the camera are looking at; Used for lock-on, talking, and more
     /* 0x0668 */ char unk_668[0x004];
-    /* 0x066C */ s32 zTargetActiveTimer; // Non-zero values indicate Z-Targeting should update; Values under 5 indicate lock-on is releasing
+    /* 0x066C */ s32 zTargetActiveTimer; // Non-OoT_zero values indicate Z-Targeting should update; Values under 5 indicate lock-on is releasing
     /* 0x0670 */ s32 meleeWeaponEffectIndex;
     /* 0x0674 */ PlayerActionFunc actionFunc;
     /* 0x0678 */ PlayerAgeProperties* ageProperties;
     /* 0x067C */ u32 stateFlags1;
     /* 0x0680 */ u32 stateFlags2;
-    /* 0x0684 */ Actor* autoLockOnActor; // Actor that is locked onto automatically without player input; see `Player_SetAutoLockOnActor`
+    /* 0x0684 */ Actor* autoLockOnActor; // Actor that is locked onto automatically without player input; see `OoT_Player_SetAutoLockOnActor`
     /* 0x0688 */ Actor* boomerangActor;
     /* 0x068C */ Actor* naviActor;
     /* 0x0690 */ s16 naviTextId;
@@ -875,13 +875,13 @@ typedef struct Player {
 
     /* 0x084F */ union {
         s8 actionVar1;
-        s8 facingUpSlope; // Player_Action_SlideOnSlope: facing uphill when sliding on a slope
+        s8 facingUpSlope; // OoT_Player_Action_SlideOnSlope: facing uphill when sliding on a slope
         s8 bottleCatchType; // Player_Action_SwingBottle: entry type for `sBottleCatchInfo`, corresponds to actor caught in a bottle
     } av1; // "Action Variable 1": context dependent variable that has different meanings depending on what action is currently running
 
     /* 0x0850 */ union {
         s16 actionVar2;
-        s16 fallDamageStunTimer; // Player_Action_Idle: Prevents any movement and shakes model up and down quickly to indicate fall damage stun
+        s16 fallDamageStunTimer; // OoT_Player_Action_Idle: Prevents any movement and shakes model up and down quickly to indicate fall damage stun
         s16 bonked; // Player_Action_Roll: set to true after bonking into a wall or an actor
         s16 startedTextbox; // Player_Action_SwingBottle: set to true when the textbox is started
         s16 inWater; // Player_Action_SwingBottle: true if a bottle is swung in water. Used to determine which bottle swing animation to use.
@@ -931,7 +931,7 @@ typedef struct Player {
     /* 0x0A60 */ u8 bodyIsBurning;
     /* 0x0A61 */ u8 bodyFlameTimers[PLAYER_BODYPART_MAX]; // one flame per body part
     /* 0x0A73 */ u8 unk_A73;
-    /* 0x0A74 */ AfterPutAwayFunc afterPutAwayFunc; // See `Player_SetupWaitForPutAway` and `Player_Action_WaitForPutAway`
+    /* 0x0A74 */ AfterPutAwayFunc afterPutAwayFunc; // See `OoT_Player_SetupWaitForPutAway` and `OoT_Player_Action_WaitForPutAway`
     /* 0x0A78 */ s8 invincibilityTimer; // prevents damage when nonzero. Positive values are intangibility, negative are invulnerability
     /* 0x0A79 */ u8 floorTypeTimer; // counts up every frame the current floor type is the same as the last frame
     /* 0x0A7A */ u8 floorProperty;

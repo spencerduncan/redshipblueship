@@ -100,7 +100,7 @@ void MM_EnNutsball_Update(Actor* thisx, PlayState* play2) {
         this->timer--;
         if (this->timer < 0) {
             this->actor.velocity.y += this->actor.gravity;
-            speedXZ = MM_sqrtf((this->actor.velocity.x * this->actor.velocity.x) +
+            speedXZ = sqrtf((this->actor.velocity.x * this->actor.velocity.x) +
                             (this->actor.velocity.z * this->actor.velocity.z));
             this->actor.world.rot.x = Math_Atan2S_XY(speedXZ, this->actor.velocity.y);
         }

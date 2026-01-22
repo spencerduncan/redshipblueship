@@ -1,7 +1,7 @@
 #include "global.h"
 
 // TODO: name magic constants
-void OoT_osViBlack(u8 active) {
+void osViBlack(u8 active) {
     register u32 prevInt = __osDisableInt();
 
     if (active) {

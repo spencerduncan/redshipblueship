@@ -84,19 +84,19 @@ typedef struct GraphicsContext {
     /* 0x2EC */ GfxMasterList* masterList;
 } GraphicsContext; // size = 0x2F0
 
-Gfx* Gfx_SetFog(Gfx* gfx, s32 r, s32 g, s32 b, s32 a, s32 n, s32 f);
-Gfx* Gfx_SetFogWithSync(Gfx* gfx, s32 r, s32 g, s32 b, s32 a, s32 n, s32 f);
-Gfx* Gfx_SetFog2(Gfx* gfx, s32 r, s32 g, s32 b, s32 a, s32 n, s32 f);
+Gfx* MM_Gfx_SetFog(Gfx* gfx, s32 r, s32 g, s32 b, s32 a, s32 n, s32 f);
+Gfx* MM_Gfx_SetFogWithSync(Gfx* gfx, s32 r, s32 g, s32 b, s32 a, s32 n, s32 f);
+Gfx* MM_Gfx_SetFog2(Gfx* gfx, s32 r, s32 g, s32 b, s32 a, s32 n, s32 f);
 
-Gfx* Gfx_BranchTexScroll(Gfx** gfxP, u32 x, u32 y, s32 width, s32 height);
+Gfx* MM_Gfx_BranchTexScroll(Gfx** gfxP, u32 x, u32 y, s32 width, s32 height);
 void func_8012CB04(Gfx** gfxP, u32 x, u32 y);
 Gfx* func_8012CB28(GraphicsContext* gfxCtx, u32 x, u32 y);
-Gfx* Gfx_TexScroll(GraphicsContext* gfxCtx, u32 x, u32 y, s32 width, s32 height);
-Gfx* Gfx_TwoTexScroll(GraphicsContext* gfxCtx, s32 tile1, u32 x1, u32 y1, s32 width1, s32 height1, s32 tile2, u32 x2,
+Gfx* MM_Gfx_TexScroll(GraphicsContext* gfxCtx, u32 x, u32 y, s32 width, s32 height);
+Gfx* MM_Gfx_TwoTexScroll(GraphicsContext* gfxCtx, s32 tile1, u32 x1, u32 y1, s32 width1, s32 height1, s32 tile2, u32 x2,
                       u32 y2, s32 width2, s32 height2);
-Gfx* Gfx_TwoTexScrollEnvColor(GraphicsContext* gfxCtx, s32 tile1, u32 x1, u32 y1, s32 width1, s32 height1, s32 tile2,
+Gfx* MM_Gfx_TwoTexScrollEnvColor(GraphicsContext* gfxCtx, s32 tile1, u32 x1, u32 y1, s32 width1, s32 height1, s32 tile2,
                               u32 x2, u32 y2, s32 width2, s32 height2, s32 r, s32 g, s32 b, s32 a);
-Gfx* Gfx_EnvColor(GraphicsContext* gfxCtx, s32 r, s32 g, s32 b, s32 a);
+Gfx* MM_Gfx_EnvColor(GraphicsContext* gfxCtx, s32 r, s32 g, s32 b, s32 a);
 Gfx* Gfx_PrimColor(GraphicsContext* gfxCtx, s32 lodfrac, s32 r, s32 g, s32 b, s32 a);
 void func_8012CF0C(GraphicsContext* gfxCtx, s32 clearFb, s32 clearZb, u8 r, u8 g, u8 b);
 void func_8012D374(GraphicsContext* gfxCtx, u8 r, u8 g, u8 b);
@@ -111,10 +111,10 @@ void gSPVertex(Gfx* pkt, uintptr_t v, int n, int v0);
 void gSPInvalidateTexCache(Gfx* pkt, uintptr_t texAddr);
 
 
-extern Gfx gEmptyDL[];
+extern Gfx MM_gEmptyDL[];
 
 
-extern GfxMasterList D_0E000000;
+extern GfxMasterList MM_D_0E000000;
 
 
 #define WORK_DISP __gfxCtx->work.p
@@ -123,8 +123,8 @@ extern GfxMasterList D_0E000000;
 #define OVERLAY_DISP __gfxCtx->overlay.p
 #define DEBUG_DISP __gfxCtx->debug.p
 
-void Gfx_DrawDListOpa(PlayState* play, Gfx* dList);
-void Gfx_DrawDListXlu(PlayState* play, Gfx* dList);
+void MM_Gfx_DrawDListOpa(PlayState* play, Gfx* dList);
+void MM_Gfx_DrawDListXlu(PlayState* play, Gfx* dList);
 
 // #region 2S2H [Port] Logic to perform in DISPS methods for debug information and frame interpolation support
 #define OPEN_DISPS_PORT_HELPERS(gfxCtx)                            \
@@ -132,12 +132,12 @@ void Gfx_DrawDListXlu(PlayState* play, Gfx* dList);
     FrameInterpolation_RecordOpenChild(__FILE__, __LINE__);        \
     Gfx* __dispRefs[3];                                            \
     Gfx __dispVals[3];                                             \
-    Graph_OpenDisps(__dispRefs, __dispVals, gfxCtx, __FILE__, __LINE__)
+    MM_Graph_OpenDisps(__dispRefs, __dispVals, gfxCtx, __FILE__, __LINE__)
 
 #define CLOSE_DISPS_PORT_HELPERS(gfxCtx)            \
     void FrameInterpolation_RecordCloseChild(void); \
     FrameInterpolation_RecordCloseChild();          \
-    Graph_CloseDisps(__dispRefs, __dispVals, gfxCtx, __FILE__, __LINE__)
+    MM_Graph_CloseDisps(__dispRefs, __dispVals, gfxCtx, __FILE__, __LINE__)
 
 // #endregion
 

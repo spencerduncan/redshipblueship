@@ -488,7 +488,7 @@ void BossGanondrof_Neutral(BossGanondrof* this, PlayState* play) {
             } else {
                 targetX = playerx->world.pos.x + (180.0f * OoT_Math_SinS(playerx->shape.rot.y));
                 targetZ = playerx->world.pos.z + (180.0f * OoT_Math_CosS(playerx->shape.rot.y));
-                if (OoT_sqrtf(SQ(targetX - GND_BOSSROOM_CENTER_X) + SQ(targetZ - GND_BOSSROOM_CENTER_Z)) > 280.0f) {
+                if (sqrtf(SQ(targetX - GND_BOSSROOM_CENTER_X) + SQ(targetZ - GND_BOSSROOM_CENTER_Z)) > 280.0f) {
                     this->timers[1] = 50;
                     this->fwork[GND_FLOAT_SPEED] = 0.0f;
                 }
@@ -805,13 +805,13 @@ void BossGanondrof_Charge(BossGanondrof* this, PlayState* play) {
                 vecToLink.z = playerx->world.pos.z - thisx->world.pos.z;
                 thisx->world.rot.y = thisx->shape.rot.y;
                 thisx->world.rot.x =
-                    OoT_Math_FAtan2F(vecToLink.y, OoT_sqrtf(SQ(vecToLink.x) + SQ(vecToLink.z))) * (0x8000 / M_PI);
+                    OoT_Math_FAtan2F(vecToLink.y, sqrtf(SQ(vecToLink.x) + SQ(vecToLink.z))) * (0x8000 / M_PI);
             }
 
             Actor_UpdateVelocityXYZ(thisx);
             OoT_Actor_UpdatePos(thisx);
             OoT_Math_ApproachF(&thisx->speedXZ, 10.0f, 1.0f, 0.5f);
-            if ((OoT_sqrtf(SQ(dxCenter) + SQ(dzCenter)) > 280.0f) || (thisx->xyzDistToPlayerSq < SQ(100.0f))) {
+            if ((sqrtf(SQ(dxCenter) + SQ(dzCenter)) > 280.0f) || (thisx->xyzDistToPlayerSq < SQ(100.0f))) {
                 this->work[GND_ACTION_STATE] = CHARGE_FINISH;
                 this->timers[0] = 20;
             }
@@ -825,7 +825,7 @@ void BossGanondrof_Charge(BossGanondrof* this, PlayState* play) {
                 thisx->velocity.y = 0.0f;
             }
 
-            if (OoT_sqrtf(SQ(dxCenter) + SQ(dzCenter)) > 280.0f) {
+            if (sqrtf(SQ(dxCenter) + SQ(dzCenter)) > 280.0f) {
                 OoT_Math_ApproachZeroF(&thisx->speedXZ, 1.0f, 2.0f);
                 this->timers[0] = 0;
             }

@@ -2,14 +2,14 @@
 #include "soh/ShipInit.hpp"
 
 extern "C" {
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 #include "src/overlays/actors/ovl_Door_Shutter/z_door_shutter.h"
-void DoorShutter_SetupAction(DoorShutter*, DoorShutterActionFunc);
-void DoorShutter_SetupType(DoorShutter*, PlayState*);
+void OoT_DoorShutter_SetupAction(DoorShutter*, DoorShutterActionFunc);
+void OoT_DoorShutter_SetupType(DoorShutter*, PlayState*);
 }
 
 static void OnDoorInit(void* actorRef) {
-    if (gPlayState->sceneNum == SCENE_INSIDE_GANONS_CASTLE) {
+    if (OoT_gPlayState->sceneNum == SCENE_INSIDE_GANONS_CASTLE) {
         DoorShutter* door = static_cast<DoorShutter*>(actorRef);
         bool barred = false;
         switch (door->dyna.actor.params) {
@@ -34,7 +34,7 @@ static void OnDoorInit(void* actorRef) {
         }
         if (barred) {
             door->doorType = SHUTTER_FRONT_SWITCH_BACK_CLEAR;
-            DoorShutter_SetupAction(door, DoorShutter_SetupType);
+            OoT_DoorShutter_SetupAction(door, OoT_DoorShutter_SetupType);
         }
     }
 }

@@ -53,8 +53,8 @@ void TransitionWipe_Start(void* thisx) {
         this->texY = 0x264;
     }
 
-    OoT_guPerspective(&this->projection, &this->normal, 60.0f, (4.0 / 3.0f), 10.0f, 12800.0f, 1.0f);
-    OoT_guLookAt(&this->lookAt, 0.0f, 0.0f, 400.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+    guPerspective(&this->projection, &this->normal, 60.0f, (4.0 / 3.0f), 10.0f, 12800.0f, 1.0f);
+    guLookAt(&this->lookAt, 0.0f, 0.0f, 400.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 }
 
 void* TransitionWipe_Init(void* thisx) {
@@ -99,7 +99,7 @@ void TransitionWipe_Draw(void* thisx, Gfx** gfxP) {
     this->frame ^= 1;
 
     guScale(&modelView[0], 0.56f, 0.56f, 1.0f);
-    OoT_guRotate(&modelView[1], 0.0f, 0.0f, 0.0f, 1.0f);
+    guRotate(&modelView[1], 0.0f, 0.0f, 0.0f, 1.0f);
     guTranslate(&modelView[2], 0.0f, 0.0f, 0.0f);
     gDPPipeSync(gfx++);
     texScroll = OoT_Gfx_BranchTexScroll(&gfx, this->texX, this->texY, 0, 0);

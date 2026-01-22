@@ -370,7 +370,7 @@ void func_80BFE67C(EnBomjima* this, PlayState* play) {
             x = this->unk_2A4.x - this->actor.world.pos.x;
             z = this->unk_2A4.z - this->actor.world.pos.z;
 
-            if ((this->unk_2BE == 0) || (MM_sqrtf(SQ(x) + SQ(z)) < 4.0f)) {
+            if ((this->unk_2BE == 0) || (sqrtf(SQ(x) + SQ(z)) < 4.0f)) {
                 this->unk_2C0 = MM_Rand_S16Offset(20, 20);
                 if (!(this->unk_2C0 & 1)) {
                     EnBomjima_ChangeAnim(this, ENBOMJIMA_ANIM_19, 1.0f);
@@ -504,7 +504,7 @@ void func_80BFEB64(EnBomjima* this, PlayState* play) {
             this->unk_2DC = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &this->unk_2A4);
             MM_Math_ApproachF(&this->actor.world.pos.x, this->unk_2A4.x, 0.3f, 2.0f);
             MM_Math_ApproachF(&this->actor.world.pos.z, this->unk_2A4.z, 0.3f, 2.0f);
-            if (MM_sqrtf(SQ(this->actor.world.pos.x - this->unk_2A4.x) + SQ(this->actor.world.pos.z - this->unk_2A4.z)) <
+            if (sqrtf(SQ(this->actor.world.pos.x - this->unk_2A4.x) + SQ(this->actor.world.pos.z - this->unk_2A4.z)) <
                 4.0f) {
                 func_80BFE65C(this);
             }
@@ -852,7 +852,7 @@ void func_80BFFD48(EnBomjima* this, PlayState* play) {
     MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->unk_2DC, 1, 0x1388, 0);
     MM_Math_ApproachF(&this->actor.world.pos.x, this->unk_2A4.x, 0.3f, 4.0f);
     MM_Math_ApproachF(&this->actor.world.pos.z, this->unk_2A4.z, 0.3f, 4.0f);
-    if (MM_sqrtf(SQ(this->actor.world.pos.x - this->unk_2A4.x) + SQ(this->actor.world.pos.z - this->unk_2A4.z)) < 4.0f) {
+    if (sqrtf(SQ(this->actor.world.pos.x - this->unk_2A4.x) + SQ(this->actor.world.pos.z - this->unk_2A4.z)) < 4.0f) {
         D_80C009F0++;
         this->unk_2DC = this->actor.parent->world.rot.y;
         EnBomjima_ChangeAnim(this, ENBOMJIMA_ANIM_0, 1.0f);

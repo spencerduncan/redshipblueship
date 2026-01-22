@@ -18,7 +18,7 @@
 extern "C" {
 #include <z64.h>
 #include "variables.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 uint64_t GetUnixTimestamp();
 }
 
@@ -446,11 +446,11 @@ void DrawGameplayStatsHeader() {
     ImGui::BeginTable("gameplayStatsHeader", 1, ImGuiTableFlags_BordersOuter);
     ImGui::TableSetupColumn("stat", ImGuiTableColumnFlags_WidthStretch);
     // if tag is empty (not a release build)
-    if (gGitCommitTag[0] == 0) {
-        GameplayStatsRow("Git Branch:", (char*)gGitBranch);
-        GameplayStatsRow("Git Commit Hash:", (char*)gGitCommitHash);
+    if (OoT_gGitCommitTag[0] == 0) {
+        GameplayStatsRow("Git Branch:", (char*)OoT_gGitBranch);
+        GameplayStatsRow("Git Commit Hash:", (char*)OoT_gGitCommitHash);
     } else {
-        GameplayStatsRow("Build Version:", (char*)gBuildVersion);
+        GameplayStatsRow("Build Version:", (char*)OoT_gBuildVersion);
     }
     if (gSaveContext.ship.stats.rtaTiming) {
         GameplayStatsRow("Total Time (RTA):", formatTimestampGameplayStat(GAMEPLAYSTAT_TOTAL_TIME),
@@ -469,13 +469,13 @@ void DrawGameplayStatsHeader() {
         GameplayStatsRow("Time in room:", formatTimestampGameplayStat(gSaveContext.ship.stats.roomTimer / 2),
                          COLOR_LIGHT_BLUE);
     }
-    if (gPlayState != NULL && CVarGetInteger(CVAR_GAMEPLAY_STATS("ShowDebugInfo"), 0)) { // && display debug info
-        GameplayStatsRow("play->sceneNum:", formatHexGameplayStat(gPlayState->sceneNum), COLOR_YELLOW);
+    if (OoT_gPlayState != NULL && CVarGetInteger(CVAR_GAMEPLAY_STATS("ShowDebugInfo"), 0)) { // && display debug info
+        GameplayStatsRow("play->sceneNum:", formatHexGameplayStat(OoT_gPlayState->sceneNum), COLOR_YELLOW);
         GameplayStatsRow("gSaveContext.entranceIndex:", formatHexGameplayStat(gSaveContext.entranceIndex),
                          COLOR_YELLOW);
         GameplayStatsRow("gSaveContext.cutsceneIndex:", formatHexOnlyGameplayStat(gSaveContext.cutsceneIndex),
                          COLOR_YELLOW);
-        GameplayStatsRow("play->roomCtx.curRoom.num:", formatIntGameplayStat(gPlayState->roomCtx.curRoom.num),
+        GameplayStatsRow("play->roomCtx.curRoom.num:", formatIntGameplayStat(OoT_gPlayState->roomCtx.curRoom.num),
                          COLOR_YELLOW);
     }
     ImGui::EndTable();
@@ -496,7 +496,7 @@ void DrawGameplayStatsTimestampsTab() {
     ImGui::BeginTable("gameplayStatsTimestamps", 1, ImGuiTableFlags_BordersOuter);
     ImGui::TableSetupColumn("stat", ImGuiTableColumnFlags_WidthStretch);
     for (int i = 0; i < TIMESTAMP_MAX; i++) {
-        // To be shown, the entry must have a non-zero time and a string for its display name
+        // To be shown, the entry must have a non-OoT_zero time and a string for its display name
         if (itemTimestampDisplay[i].time > 0 && strnlen(itemTimestampDisplay[i].name, 21) > 1) {
             GameplayStatsRow(itemTimestampDisplay[i].name, formatTimestampGameplayStat(itemTimestampDisplay[i].time),
                              itemTimestampDisplay[i].color);
@@ -723,11 +723,11 @@ void InitStats(bool isDebug) {
         gSaveContext.ship.stats.entrancesDiscovered[entrancesIdx] = 0;
     }
 
-    SohUtils::CopyStringToCharArray(gSaveContext.ship.stats.buildVersion, std::string((char*)gBuildVersion),
+    SohUtils::CopyStringToCharArray(gSaveContext.ship.stats.buildVersion, std::string((char*)OoT_gBuildVersion),
                                     ARRAY_COUNT(gSaveContext.ship.stats.buildVersion));
-    gSaveContext.ship.stats.buildVersionMajor = gBuildVersionMajor;
-    gSaveContext.ship.stats.buildVersionMinor = gBuildVersionMinor;
-    gSaveContext.ship.stats.buildVersionPatch = gBuildVersionPatch;
+    gSaveContext.ship.stats.buildVersionMajor = OoT_gBuildVersionMajor;
+    gSaveContext.ship.stats.buildVersionMinor = OoT_gBuildVersionMinor;
+    gSaveContext.ship.stats.buildVersionPatch = OoT_gBuildVersionPatch;
 }
 
 // Entries listed here will have a timestamp shown in the stat window

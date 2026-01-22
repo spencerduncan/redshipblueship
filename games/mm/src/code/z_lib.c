@@ -231,7 +231,7 @@ void Lib_GetControlStickData(f32* outMagnitude, s16* outAngle, Input* input) {
     f32 magnitude;
 
     x *= GameInteractor_InvertControl(GI_INVERT_MOVEMENT_X);
-    magnitude = MM_sqrtf(SQ(x) + SQ(y));
+    magnitude = sqrtf(SQ(x) + SQ(y));
     *outMagnitude = (60.0f < magnitude) ? 60.0f : magnitude;
 
     if (magnitude > 0.0f) {
@@ -358,24 +358,24 @@ void Math_Vec3f_DistXYZAndStoreNormDiff(Vec3f* a, Vec3f* b, f32 scale, Vec3f* de
 f32 MM_Math_Vec3f_DistXYZ(Vec3f* a, Vec3f* b) {
     Vec3f diff;
     MM_Math_Vec3f_Diff(b, a, &diff);
-    return MM_sqrtf(SQXYZ(diff));
+    return sqrtf(SQXYZ(diff));
 }
 
 f32 MM_Math_Vec3f_DistXYZAndStoreDiff(Vec3f* a, Vec3f* b, Vec3f* dest) {
     MM_Math_Vec3f_Diff(b, a, dest);
-    return MM_sqrtf(SQ(dest->x) + SQ(dest->y) + SQ(dest->z));
+    return sqrtf(SQ(dest->x) + SQ(dest->y) + SQ(dest->z));
 }
 
 f32 MM_Math_Vec3f_DistXZ(Vec3f* a, Vec3f* b) {
     f32 dx = b->x - a->x;
     f32 dz = b->z - a->z;
-    return MM_sqrtf(SQ(dx) + SQ(dz));
+    return sqrtf(SQ(dx) + SQ(dz));
 }
 
 f32 Math_Vec3f_DistXZAndStore(Vec3f* a, Vec3f* b, f32* dx, f32* dz) {
     *dx = b->x - a->x;
     *dz = b->z - a->z;
-    return MM_sqrtf(SQ(*dx) + SQ(*dz));
+    return sqrtf(SQ(*dx) + SQ(*dz));
 }
 
 f32 Math_Vec3f_StepToXZ(Vec3f* start, Vec3f* target, f32 speed) {

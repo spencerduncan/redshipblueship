@@ -27,7 +27,7 @@ void CustomMessage::StartTextbox(std::string msg, CustomMessage::Entry options) 
     options.msg = msg;
     activeCustomMessage = options;
 
-    Message_StartTextbox(gPlayState, CUSTOM_MESSAGE_ID, &GET_PLAYER(gPlayState)->actor);
+    MM_Message_StartTextbox(MM_gPlayState, CUSTOM_MESSAGE_ID, &GET_PLAYER(MM_gPlayState)->actor);
 }
 
 void CustomMessage::SetActiveCustomMessage(std::string msg, CustomMessage::Entry options) {
@@ -108,7 +108,7 @@ void CustomMessage::EnsureMessageEnd(std::string* msg) {
 }
 
 CustomMessage::Entry CustomMessage::LoadVanillaMessageTableEntry(u16 textId) {
-    MessageContext* msgCtx = &gPlayState->msgCtx;
+    MessageContext* msgCtx = &MM_gPlayState->msgCtx;
     MessageTableEntry* msgEntry = msgCtx->messageTableNES;
     while (msgEntry->textId != 0xFFFF) {
         if (msgEntry->textId == textId) {
@@ -131,7 +131,7 @@ CustomMessage::Entry CustomMessage::LoadVanillaMessageTableEntry(u16 textId) {
 }
 
 void CustomMessage::LoadCustomMessageIntoFont(CustomMessage::Entry entry) {
-    MessageContext* msgCtx = &gPlayState->msgCtx;
+    MessageContext* msgCtx = &MM_gPlayState->msgCtx;
     Font* font = &msgCtx->font;
 
     char buff[1280] = { 0 };

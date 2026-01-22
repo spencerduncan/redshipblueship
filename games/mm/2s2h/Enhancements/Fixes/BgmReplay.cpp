@@ -20,7 +20,7 @@ extern u8 sStartSeqDisabled;
  * When the player transitions from one scene to another, the main BGM sequence may fade out the volume, disable the
  * player when the fadeTimer hits 0, then play a new BGM in the next scene. However, certain 2ship features prevent that
  * fadeTimer from decrementing all the way to 0. This prevents the main BGM sequence player from being disabled in
- * AudioScript_SequencePlayerProcessSound. The next sequence will play fine, but gActiveSeqs[SEQ_PLAYER_BGM_MAIN] will
+ * AudioScript_SequencePlayerProcessSound. The next sequence will play fine, but MM_gActiveSeqs[SEQ_PLAYER_BGM_MAIN] will
  * be in an invalid state. The result is that attempts to store and then replay the main BGM will play silence, as seen
  * with mini-boss battles.
  *
@@ -36,11 +36,11 @@ void RegisterFixBgmReplay() {
         }
 
         u16 sRequestedSceneSeqId = *va_arg(args, u16*);
-        u16 sPrevMainBgmSeqId = *va_arg(args, u16*);
+        u16 MM_sPrevMainBgmSeqId = *va_arg(args, u16*);
         u16 seqId = *va_arg(args, u16*);
         // Entering new scene that has different BGM to play. This is the same condition in Audio_PlaySceneSequence.
         if (sRequestedSceneSeqId != seqId &&
-            ((seqId != NA_BGM_FINAL_HOURS) || (sPrevMainBgmSeqId == NA_BGM_DISABLED))) {
+            ((seqId != NA_BGM_FINAL_HOURS) || (MM_sPrevMainBgmSeqId == NA_BGM_DISABLED))) {
             AudioScript_SequencePlayerDisable(&gAudioCtx.seqPlayers[SEQ_PLAYER_BGM_MAIN]);
         }
     });

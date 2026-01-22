@@ -1,6 +1,6 @@
 #include "global.h"
 
-void OoT_guRotateF(f32 m[4][4], f32 a, f32 x, f32 y, f32 z) {
+void guRotateF(f32 m[4][4], f32 a, f32 x, f32 y, f32 z) {
     static f32 D_80134D10 = M_PI / 180.0f;
     f32 sine;
     f32 cosine;
@@ -43,9 +43,9 @@ void OoT_guRotateF(f32 m[4][4], f32 a, f32 x, f32 y, f32 z) {
     m[0][1] = ab + zs;
 }
 
-void OoT_guRotate(Mtx* m, f32 a, f32 x, f32 y, f32 z) {
+void guRotate(Mtx* m, f32 a, f32 x, f32 y, f32 z) {
     f32 mf[4][4];
 
-    OoT_guRotateF(mf, a, x, y, z);
+    guRotateF(mf, a, x, y, z);
     guMtxF2L((MtxF*)mf, m);
 }

@@ -12,7 +12,7 @@ void Player_Action_57(Player* player, PlayState* play);
 
 void RegisterOoTFasterSwim() {
     COND_VB_SHOULD(VB_CLAMP_ANIMATION_SPEED, CVAR, {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         f32* animationSpeed = va_arg(args, f32*);
 
         if (player->actionFunc == Player_Action_57 && player->transformation == PLAYER_FORM_HUMAN) {

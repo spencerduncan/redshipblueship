@@ -23,10 +23,10 @@ void EnBomBowlMan_WaitForPlayer(EnBomBowlMan* enBomBowlMan, PlayState* play) {
                               CHECK_WEEKEVENTREG(WEEKEVENTREG_73_80) && !CHECK_QUEST_ITEM(QUEST_BOMBERS_NOTEBOOK),
                               enBomBowlMan)) {
         if (player->actor.world.pos.x < 1510.0f && player->transformation != PLAYER_FORM_DEKU &&
-            enBomBowlMan->actor.xzDistToPlayer < 75.0f && Message_GetState(&gPlayState->msgCtx) == TEXT_STATE_NONE) {
+            enBomBowlMan->actor.xzDistToPlayer < 75.0f && MM_Message_GetState(&MM_gPlayState->msgCtx) == TEXT_STATE_NONE) {
             if (player->transformation != PLAYER_FORM_DEKU) {
                 if (enBomBowlMan->actor.xzDistToPlayer < 75.0f) {
-                    Player_SetCsActionWithHaltedActors(play, &enBomBowlMan->actor, PLAYER_CSACTION_WAIT);
+                    MM_Player_SetCsActionWithHaltedActors(play, &enBomBowlMan->actor, PLAYER_CSACTION_WAIT);
                     func_809C53A4(enBomBowlMan);
                 }
             }
@@ -46,7 +46,7 @@ void EnBomBowlMan_WaitForPlayer(EnBomBowlMan* enBomBowlMan, PlayState* play) {
  */
 void RegisterSkipGivingBombersNotebook() {
     COND_VB_SHOULD(VB_SETUP_EAST_CLOCK_TOWN_BOM_BOWL_MAN, CVAR, {
-        if (gPlayState->sceneId == SCENE_TOWN) {
+        if (MM_gPlayState->sceneId == SCENE_TOWN) {
             *should = true;
         }
     });
@@ -60,9 +60,9 @@ void RegisterSkipGivingBombersNotebook() {
 
     // "Hey, guy! You haven't passed my test..."
     COND_ID_HOOK(OnOpenText, 0x72F, CVAR, [](u16* textId, bool* loadFromMessageTable) {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         EnBomBowlMan* enBomBowlMan =
-            (EnBomBowlMan*)Actor_FindNearby(gPlayState, &player->actor, ACTOR_EN_BOM_BOWL_MAN, ACTORCAT_NPC, 100.0f);
+            (EnBomBowlMan*)MM_Actor_FindNearby(MM_gPlayState, &player->actor, ACTOR_EN_BOM_BOWL_MAN, ACTORCAT_NPC, 100.0f);
         if (enBomBowlMan != NULL) {
             enBomBowlMan->actor.textId = 0x715;
         }
@@ -71,9 +71,9 @@ void RegisterSkipGivingBombersNotebook() {
 
     // "Rules of the Bombers..."
     COND_ID_HOOK(OnOpenText, 0x716, CVAR, [](u16* textId, bool* loadFromMessageTable) {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         EnBomBowlMan* enBomBowlMan =
-            (EnBomBowlMan*)Actor_FindNearby(gPlayState, &player->actor, ACTOR_EN_BOM_BOWL_MAN, ACTORCAT_NPC, 100.0f);
+            (EnBomBowlMan*)MM_Actor_FindNearby(MM_gPlayState, &player->actor, ACTOR_EN_BOM_BOWL_MAN, ACTORCAT_NPC, 100.0f);
         if (enBomBowlMan != NULL) {
             enBomBowlMan->actor.textId = 0x735;
         }
@@ -82,12 +82,12 @@ void RegisterSkipGivingBombersNotebook() {
 
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
         // Cutscene 12 in East Clock Town is the bomber running away after giving notebook
-        if (gPlayState->sceneId == SCENE_TOWN) {
+        if (MM_gPlayState->sceneId == SCENE_TOWN) {
             s16* csId = va_arg(args, s16*);
             if (*csId == 12) {
                 *should = false;
                 EnBomBowlMan* enBomBowlMan = va_arg(args, EnBomBowlMan*);
-                Player_SetCsActionWithHaltedActors(gPlayState, &enBomBowlMan->actor, PLAYER_CSACTION_END);
+                MM_Player_SetCsActionWithHaltedActors(MM_gPlayState, &enBomBowlMan->actor, PLAYER_CSACTION_END);
                 SET_WEEKEVENTREG(WEEKEVENTREG_84_80);
             }
         }

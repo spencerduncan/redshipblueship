@@ -18,7 +18,7 @@ extern "C" {
 #include "variables.h"
 #include "functions.h"
 #include "macros.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 GameInteractionEffectQueryResult GameInteractionEffectBase::Apply() {
@@ -155,7 +155,7 @@ GameInteractionEffectQueryResult ModifyRupees::CanBeApplied() {
     }
 }
 void ModifyRupees::_Apply() {
-    Rupees_ChangeBy(parameters[0]);
+    OoT_Rupees_ChangeBy(parameters[0]);
 }
 
 // MARK: - NoUI
@@ -205,7 +205,7 @@ void ModifyHealth::_Apply() {
 
 // MARK: - SetPlayerHealth
 GameInteractionEffectQueryResult SetPlayerHealth::CanBeApplied() {
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
     if (!GameInteractor::IsSaveLoaded(true) || GameInteractor::IsGameplayPaused()) {
         return GameInteractionEffectQueryResult::TemporarilyNotPossible;
     } else {
@@ -218,7 +218,7 @@ void SetPlayerHealth::_Apply() {
 
 // MARK: - FreezePlayer
 GameInteractionEffectQueryResult FreezePlayer::CanBeApplied() {
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
     if (!GameInteractor::IsSaveLoaded(true) || GameInteractor::IsGameplayPaused() || !PlayerGrounded(player)) {
         return GameInteractionEffectQueryResult::TemporarilyNotPossible;
     } else {
@@ -231,7 +231,7 @@ void FreezePlayer::_Apply() {
 
 // MARK: - BurnPlayer
 GameInteractionEffectQueryResult BurnPlayer::CanBeApplied() {
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
     if (!GameInteractor::IsSaveLoaded(true) || GameInteractor::IsGameplayPaused() || !PlayerGrounded(player)) {
         return GameInteractionEffectQueryResult::TemporarilyNotPossible;
     } else {
@@ -244,7 +244,7 @@ void BurnPlayer::_Apply() {
 
 // MARK: - ElectrocutePlayer
 GameInteractionEffectQueryResult ElectrocutePlayer::CanBeApplied() {
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
     if (!GameInteractor::IsSaveLoaded(true) || GameInteractor::IsGameplayPaused() || !PlayerGrounded(player)) {
         return GameInteractionEffectQueryResult::TemporarilyNotPossible;
     } else {
@@ -257,7 +257,7 @@ void ElectrocutePlayer::_Apply() {
 
 // MARK: - KnockbackPlayer
 GameInteractionEffectQueryResult KnockbackPlayer::CanBeApplied() {
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(OoT_gPlayState);
     if (!GameInteractor::IsSaveLoaded(true) || GameInteractor::IsGameplayPaused() ||
         player->stateFlags2 & PLAYER_STATE2_CRAWLING) {
         return GameInteractionEffectQueryResult::TemporarilyNotPossible;
@@ -427,10 +427,10 @@ void ModifyDefenseModifier::_Remove() {
 GameInteractionEffectQueryResult GiveOrTakeShield::CanBeApplied() {
     if (!GameInteractor::IsSaveLoaded(true) || GameInteractor::IsGameplayPaused()) {
         return GameInteractionEffectQueryResult::TemporarilyNotPossible;
-    } else if ((parameters[0] > 0 && ((gBitFlags[parameters[0] - ITEM_SHIELD_DEKU] << gEquipShifts[EQUIP_TYPE_SHIELD]) &
+    } else if ((parameters[0] > 0 && ((OoT_gBitFlags[parameters[0] - ITEM_SHIELD_DEKU] << OoT_gEquipShifts[EQUIP_TYPE_SHIELD]) &
                                       gSaveContext.inventory.equipment)) ||
                (parameters[0] < 0 &&
-                !((gBitFlags[(parameters[0] * -1) - ITEM_SHIELD_DEKU] << gEquipShifts[EQUIP_TYPE_SHIELD]) &
+                !((OoT_gBitFlags[(parameters[0] * -1) - ITEM_SHIELD_DEKU] << OoT_gEquipShifts[EQUIP_TYPE_SHIELD]) &
                   gSaveContext.inventory.equipment))) {
         return GameInteractionEffectQueryResult::NotPossible;
     } else {

@@ -121,7 +121,7 @@ void EnTanron1_Update(Actor* thisx, PlayState* play) {
                     temp.y = this->unk_14C.y - temp_a0->world.pos.y + 70.0f;
                     temp.z = this->unk_14C.z - temp_a0->world.pos.z;
 
-                    if (MM_sqrtf(SQXYZ(temp)) < phi_f18) {
+                    if (sqrtf(SQXYZ(temp)) < phi_f18) {
                         this->unk_14C.x = temp_a0->world.pos.x;
                         this->unk_14C.y = temp_a0->world.pos.y + 70.0f;
                         this->unk_14C.z = temp_a0->world.pos.z;
@@ -251,7 +251,7 @@ void func_80BB5318(EnTanron1* this, PlayState* play) {
                         temp.z = ptr->unk_38 + (this->unk_14C.z - ptr->unk_00.z);
 
                         ptr->unk_20 = MM_Math_Atan2S(temp.x, temp.z);
-                        ptr->unk_1E = MM_Math_Atan2S(temp.y, MM_sqrtf(SQXZ(temp)));
+                        ptr->unk_1E = MM_Math_Atan2S(temp.y, sqrtf(SQXZ(temp)));
                         if ((ptr->unk_26 & 0xF) == 0) {
                             ptr->unk_30 = MM_Rand_CenteredFloat(temp_f30);
                             ptr->unk_34 = MM_Rand_CenteredFloat(temp_f30 * 0.5f);
@@ -280,7 +280,7 @@ void func_80BB5318(EnTanron1* this, PlayState* play) {
 
                         if (SQXYZ(temp) < phi_f28) {
                             ptr->unk_20 = MM_Math_Atan2S(temp.x, temp.z);
-                            ptr->unk_1E = MM_Math_Atan2S(temp.y, MM_sqrtf(SQXZ(temp)));
+                            ptr->unk_1E = MM_Math_Atan2S(temp.y, sqrtf(SQXZ(temp)));
 
                             Matrix_RotateYS(ptr->unk_20, MTXMODE_NEW);
                             Matrix_RotateXS(-ptr->unk_1E, MTXMODE_APPLY);
@@ -318,7 +318,7 @@ void func_80BB5318(EnTanron1* this, PlayState* play) {
 
                         if (SQXYZ(temp) < phi_f28) {
                             ptr->unk_20 = MM_Math_Atan2S(temp.x, temp.z);
-                            ptr->unk_1E = MM_Math_Atan2S(temp.y, MM_sqrtf(SQXZ(temp)));
+                            ptr->unk_1E = MM_Math_Atan2S(temp.y, sqrtf(SQXZ(temp)));
 
                             Matrix_RotateYS(ptr->unk_20, MTXMODE_NEW);
                             Matrix_RotateXS(-ptr->unk_1E, MTXMODE_APPLY);

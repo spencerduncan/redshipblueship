@@ -6,7 +6,7 @@
 
 void SysCfb_SetLoResMode(void);
 void SysCfb_SetHiResMode(void);
-void SysCfb_Init(void);
+void MM_SysCfb_Init(void);
 void* SysCfb_GetFramebuffer(s32 index);
 void* SysCfb_GetZBuffer(void);
 void* SysCfb_GetWorkBuffer(void);

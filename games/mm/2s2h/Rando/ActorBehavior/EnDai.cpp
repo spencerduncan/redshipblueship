@@ -14,18 +14,18 @@ void Rando::ActorBehavior::InitEnDaiBehavior() {
 
     COND_VB_SHOULD(VB_OPEN_SNOWHEAD_FROM_SONG, shouldRegisterVB, {
         EnDai* enDai = va_arg(args, EnDai*);
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
 
         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_30_01)) {
             return;
         }
 
-        bool hasSongAccess = (gPlayState->msgCtx.ocarinaMode == OCARINA_MODE_EVENT &&
-                              gPlayState->msgCtx.lastPlayedSong == OCARINA_SONG_GORON_LULLABY);
+        bool hasSongAccess = (MM_gPlayState->msgCtx.ocarinaMode == OCARINA_MODE_EVENT &&
+                              MM_gPlayState->msgCtx.lastPlayedSong == OCARINA_SONG_GORON_LULLABY);
 
         bool hasFormAccess =
-            (player->transformation == PLAYER_FORM_GORON && (gPlayState->msgCtx.ocarinaMode == OCARINA_MODE_EVENT ||
-                                                             gPlayState->msgCtx.ocarinaMode == OCARINA_MODE_ACTIVE));
+            (player->transformation == PLAYER_FORM_GORON && (MM_gPlayState->msgCtx.ocarinaMode == OCARINA_MODE_EVENT ||
+                                                             MM_gPlayState->msgCtx.ocarinaMode == OCARINA_MODE_ACTIVE));
 
         switch (RANDO_SAVE_OPTIONS[RO_ACCESS_DUNGEONS]) {
             case RO_ACCESS_DUNGEONS_FORM_OR_SONG:
@@ -43,8 +43,8 @@ void Rando::ActorBehavior::InitEnDaiBehavior() {
 
         if (*should) {
             AudioOcarina_SetInstrument(OCARINA_INSTRUMENT_OFF);
-            gPlayState->msgCtx.ocarinaMode = OCARINA_MODE_END;
-            Message_CloseTextbox(gPlayState);
+            MM_gPlayState->msgCtx.ocarinaMode = OCARINA_MODE_END;
+            MM_Message_CloseTextbox(MM_gPlayState);
         }
     });
 

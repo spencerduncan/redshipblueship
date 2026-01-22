@@ -1,7 +1,7 @@
 #include <libultraship/libultra.h>
 #include "global.h"
 
-s32 OoT_osPfsFileState(OSPfs* pfs, s32 fileNo, OSPfsState* state) {
+s32 osPfsFileState(OSPfs* pfs, s32 fileNo, OSPfsState* state) {
     s32 ret;
     s32 pages;
     __OSInode inode;

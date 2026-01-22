@@ -1,6 +1,6 @@
 #include "global.h"
 
-OSTime OoT_osGetTime(void) {
+OSTime osGetTime(void) {
     u32 count;
     u32 base;
     OSTime t;

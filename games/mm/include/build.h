@@ -5,18 +5,18 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-// 2S2H [Port] Version information
-extern char gBuildVersion[];
-extern u16 gBuildVersionMajor;
-extern u16 gBuildVersionMinor;
-extern u16 gBuildVersionPatch;
+// 2S2H [Port] Version information - prefixed to avoid collision with OoT
+extern char MM_gBuildVersion[];
+extern u16 MM_gBuildVersionMajor;
+extern u16 MM_gBuildVersionMinor;
+extern u16 MM_gBuildVersionPatch;
 
-extern char gGitBranch[];
-extern char gGitCommitHash[];
-extern char gGitCommitTag[];
-extern char gBuildTeam[];
-extern char gBuildDate[];
-extern char gBuildMakeOption[];
+extern char MM_gGitBranch[];
+extern char MM_gGitCommitHash[];
+extern char MM_gGitCommitTag[];
+extern char MM_gBuildTeam[];
+extern char MM_gBuildDate[];
+extern char MM_gBuildMakeOption[];
 #ifdef __cplusplus
 }
 #endif

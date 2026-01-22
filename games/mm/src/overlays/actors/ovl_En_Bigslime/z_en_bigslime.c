@@ -607,7 +607,7 @@ void EnBigslime_UpdateBigslimeCollider(EnBigslime* this, PlayState* play) {
                 vtxRingMinY[i] = dynamicVtx->n.ob[1];
             }
 
-            xzDist = MM_sqrtf(SQ(dynamicVtx->n.ob[0]) + SQ(dynamicVtx->n.ob[2]));
+            xzDist = sqrtf(SQ(dynamicVtx->n.ob[0]) + SQ(dynamicVtx->n.ob[2]));
             if (vtxRingMaxXZDist[i] < xzDist) {
                 vtxRingMaxXZDist[i] = xzDist;
             }
@@ -1172,7 +1172,7 @@ void EnBigslime_SetTargetVtxToWideCone(EnBigslime* this) {
         for (j = sVtxRingStartIndex[i]; j < sVtxRingStartIndex[i + 1]; j++) {
             staticVtx = &sBigslimeStaticVtxData[j];
             targetVtx = &sBigslimeTargetVtxData[j];
-            xzDist = MM_sqrtf(SQ(staticVtx->n.ob[0]) + SQ(staticVtx->n.ob[2]));
+            xzDist = sqrtf(SQ(staticVtx->n.ob[0]) + SQ(staticVtx->n.ob[2]));
 
             if (xzDist > 1.0f) {
                 xzScaleVtx = (BIGSLIME_RADIUS_F / (5.0f * xzDist)) * i;
@@ -1191,7 +1191,7 @@ void EnBigslime_SetTargetVtxToWideCone(EnBigslime* this) {
         for (j = sVtxRingStartIndex[i]; j < sVtxRingStartIndex[i + 1]; j++) {
             staticVtx = &sBigslimeStaticVtxData[j];
             targetVtx = &sBigslimeTargetVtxData[j];
-            xzDist = MM_sqrtf(SQ(staticVtx->n.ob[0]) + SQ(staticVtx->n.ob[2]));
+            xzDist = sqrtf(SQ(staticVtx->n.ob[0]) + SQ(staticVtx->n.ob[2]));
             if (xzDist > 1.0f) {
                 xzScaleVtx = (BIGSLIME_RADIUS_F / (8.0f * xzDist)) * (14 - i);
             } else {
@@ -1304,7 +1304,7 @@ void EnBigslime_SetTargetVtxToThinCone(EnBigslime* this) {
         for (j = sVtxRingStartIndex[i]; j < sVtxRingStartIndex[i + 1]; j++) {
             staticVtx = &sBigslimeStaticVtxData[j];
             targetVtx = &sBigslimeTargetVtxData[j];
-            xzDistVtx = MM_sqrtf(SQ(staticVtx->n.ob[0]) + SQ(staticVtx->n.ob[2]));
+            xzDistVtx = sqrtf(SQ(staticVtx->n.ob[0]) + SQ(staticVtx->n.ob[2]));
             xzDistVtx = (BIGSLIME_RADIUS_F / (5.0f * xzDistVtx)) * i;
             // xzDistVtx is always less than 500.0f
             xzScaleVtx =
@@ -1377,7 +1377,7 @@ void EnBigslime_SetTargetVtxToInverseCone(EnBigslime* this) {
         for (j = sVtxRingStartIndex[i]; j < sVtxRingStartIndex[i + 1]; j++) {
             staticVtx = &sBigslimeStaticVtxData[j];
             targetVtx = &sBigslimeTargetVtxData[j];
-            xzDistVtx = MM_sqrtf(SQ(staticVtx->n.ob[0]) + SQ(staticVtx->n.ob[2]));
+            xzDistVtx = sqrtf(SQ(staticVtx->n.ob[0]) + SQ(staticVtx->n.ob[2]));
             xzDistVtx = (BIGSLIME_RADIUS_F / (6.0f * xzDistVtx)) * (BIGSLIME_NUM_RING_FACES - i);
             // xzDistVtx is always less than 500.0f
             xzScaleVtx =
@@ -2301,7 +2301,7 @@ void EnBigslime_FormBigslime(EnBigslime* this, PlayState* play) {
     }
 
     if (this->minislimeCounter > 0) {
-        yScaleFactor = MM_sqrtf(this->minislimeCounter * (2.0f / 30.0f)) * 0.6f + 0.4f;
+        yScaleFactor = sqrtf(this->minislimeCounter * (2.0f / 30.0f)) * 0.6f + 0.4f;
         xzScale = 0.15f * yScaleFactor;
         this->actor.scale.x = xzScale;
         this->actor.scale.y = 0.079f * yScaleFactor;
@@ -2712,7 +2712,7 @@ void EnBigslime_AddIceShardEffect(EnBigslime* this, PlayState* play) {
             randPitch = MM_Rand_S16Offset(0x1000, 0x3000);
             vtxZ = targetVtx->n.ob[2];
             vtxX = targetVtx->n.ob[0];
-            xzDist = MM_sqrtf(SQ(vtxZ) + SQ(vtxX));
+            xzDist = sqrtf(SQ(vtxZ) + SQ(vtxX));
             randFloat = MM_Rand_ZeroFloat(5.0f) + 14.0f;
             if (xzDist > 1.0f) {
                 xzDist = MM_Math_CosS(randPitch) * randFloat / xzDist;

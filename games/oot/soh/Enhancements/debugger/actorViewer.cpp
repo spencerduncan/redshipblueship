@@ -26,7 +26,7 @@ extern "C" {
 #include "variables.h"
 #include "functions.h"
 #include "macros.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 
 #include "textures/icon_item_static/icon_item_static.h"
 #include "textures/icon_item_24_static/icon_item_24_static.h"
@@ -91,8 +91,8 @@ void PopulateActorDropdown(int i, std::vector<Actor*>& data) {
     if (data.size() != 0) {
         data.clear();
     }
-    if (gPlayState != nullptr) {
-        ActorListEntry currList = gPlayState->actorCtx.actorLists[i];
+    if (OoT_gPlayState != nullptr) {
+        ActorListEntry currList = OoT_gPlayState->actorCtx.actorLists[i];
         Actor* currAct = currList.head;
         if (currAct != nullptr) {
             while (currAct != nullptr) {
@@ -851,12 +851,12 @@ void ActorViewer_AddTagForActor(Actor* actor) {
 }
 
 void ActorViewer_AddTagForAllActors() {
-    if (gPlayState == nullptr) {
+    if (OoT_gPlayState == nullptr) {
         return;
     }
 
-    for (size_t i = 0; i < ARRAY_COUNT(gPlayState->actorCtx.actorLists); i++) {
-        ActorListEntry currList = gPlayState->actorCtx.actorLists[i];
+    for (size_t i = 0; i < ARRAY_COUNT(OoT_gPlayState->actorCtx.actorLists); i++) {
+        ActorListEntry currList = OoT_gPlayState->actorCtx.actorLists[i];
         Actor* currAct = currList.head;
         while (currAct != nullptr) {
             ActorViewer_AddTagForActor(currAct);
@@ -874,7 +874,7 @@ void ActorViewerWindow::DrawElement() {
     static s16 currentSelectedInDropdown = -1;
     static std::vector<u16> actorSearchResults;
 
-    if (gPlayState != nullptr) {
+    if (OoT_gPlayState != nullptr) {
         if (ImGui::BeginChild("options", ImVec2(0, 0), ImGuiChildFlags_Border | ImGuiChildFlags_AutoResizeY)) {
             bool toggled = false;
             bool optionChange = false;
@@ -1025,9 +1025,9 @@ void ActorViewerWindow::DrawElement() {
                     "bgCheckFlags");
 
                 if (Button("Go to Actor", ButtonOptions().Color(THEME_COLOR))) {
-                    Player* player = GET_PLAYER(gPlayState);
-                    Math_Vec3f_Copy(&player->actor.world.pos, &display->world.pos);
-                    Math_Vec3f_Copy(&player->actor.home.pos, &player->actor.world.pos);
+                    Player* player = GET_PLAYER(OoT_gPlayState);
+                    OoT_Math_Vec3f_Copy(&player->actor.world.pos, &display->world.pos);
+                    OoT_Math_Vec3f_Copy(&player->actor.home.pos, &player->actor.world.pos);
                 }
             } else {
                 ImGui::Text("Select an actor to display information.");
@@ -1037,7 +1037,7 @@ void ActorViewerWindow::DrawElement() {
                        ButtonOptions()
                            .Color(THEME_COLOR)
                            .Tooltip("Grabs actor with target arrow above it. You might need C-Up for enemies"))) {
-                Player* player = GET_PLAYER(gPlayState);
+                Player* player = GET_PLAYER(OoT_gPlayState);
                 if (player->talkActor != NULL) {
                     display = player->talkActor;
                     category = display->category;
@@ -1046,7 +1046,7 @@ void ActorViewerWindow::DrawElement() {
             }
             if (Button("Fetch from Held",
                        ButtonOptions().Color(THEME_COLOR).Tooltip("Grabs actor that Link is holding"))) {
-                Player* player = GET_PLAYER(gPlayState);
+                Player* player = GET_PLAYER(OoT_gPlayState);
                 if (player->heldActor != NULL) {
                     display = player->heldActor;
                     category = display->category;
@@ -1055,7 +1055,7 @@ void ActorViewerWindow::DrawElement() {
             }
             if (Button("Fetch from Interaction",
                        ButtonOptions().Color(THEME_COLOR).Tooltip("Grabs actor from \"interaction range\""))) {
-                Player* player = GET_PLAYER(gPlayState);
+                Player* player = GET_PLAYER(OoT_gPlayState);
                 if (player->interactRangeActor != NULL) {
                     display = player->interactRangeActor;
                     category = display->category;
@@ -1150,7 +1150,7 @@ void ActorViewerWindow::DrawElement() {
                 "New Actor Rotation");
 
             if (Button("Fetch from Link", ButtonOptions().Color(THEME_COLOR))) {
-                Player* player = GET_PLAYER(gPlayState);
+                Player* player = GET_PLAYER(OoT_gPlayState);
                 Vec3f newPos = player->actor.world.pos;
                 Vec3s newRot = player->actor.world.rot;
                 newActor.pos = newPos;
@@ -1159,7 +1159,7 @@ void ActorViewerWindow::DrawElement() {
 
             if (Button("Spawn", ButtonOptions().Color(THEME_COLOR))) {
                 if (ActorDB::Instance->RetrieveEntry(newActor.id).entry.valid) {
-                    Actor_Spawn(&gPlayState->actorCtx, gPlayState, newActor.id, newActor.pos.x, newActor.pos.y,
+                    OoT_Actor_Spawn(&OoT_gPlayState->actorCtx, OoT_gPlayState, newActor.id, newActor.pos.x, newActor.pos.y,
                                 newActor.pos.z, newActor.rot.x, newActor.rot.y, newActor.rot.z, newActor.params, 0);
                 } else {
                     Sfx_PlaySfxCentered(NA_SE_SY_ERROR);
@@ -1171,7 +1171,7 @@ void ActorViewerWindow::DrawElement() {
                 if (parent != NULL) {
                     if (newActor.id >= 0 && newActor.id < ACTOR_ID_MAX &&
                         ActorDB::Instance->RetrieveEntry(newActor.id).entry.valid) {
-                        Actor_SpawnAsChild(&gPlayState->actorCtx, parent, gPlayState, newActor.id, newActor.pos.x,
+                        OoT_Actor_SpawnAsChild(&OoT_gPlayState->actorCtx, parent, OoT_gPlayState, newActor.id, newActor.pos.x,
                                            newActor.pos.y, newActor.pos.z, newActor.rot.x, newActor.rot.y,
                                            newActor.rot.z, newActor.params);
                     } else {

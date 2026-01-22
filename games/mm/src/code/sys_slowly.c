@@ -54,9 +54,9 @@ void Slowly_Init(SlowlyMgr* slowly, void* stack, SlowlyCallbackTwo callback, voi
     slowly->arg1 = arg1;
 
     osCreateThread(&slowly->thread, Z_THREAD_ID_SLOWLY, Slowly_ThreadEntry, slowly, stack, Z_PRIORITY_SLOWLY);
-    MM_osStartThread(&slowly->thread);
+    osStartThread(&slowly->thread);
 }
 
 void Slowly_Destroy(SlowlyMgr* slowly) {
-    MM_osDestroyThread(&slowly->thread);
+    osDestroyThread(&slowly->thread);
 }

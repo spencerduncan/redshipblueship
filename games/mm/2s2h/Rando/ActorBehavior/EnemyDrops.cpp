@@ -24,7 +24,7 @@ std::unordered_map<int16_t, std::tuple<RandoCheckId, ActorType, EnemyDropType>> 
     { ACTOR_BOSS_05,        { RC_ENEMY_DROP_BIO_DEKU_BABA, ACTORCAT_ENEMY, DROP_TYPE_NORMAL } },
     { ACTOR_EN_BB,          { RC_ENEMY_DROP_BLUE_BUBBLE, ACTORCAT_ENEMY, DROP_TYPE_NORMAL } },
     // Boes do call drop collectible code, but only the ones in an unused grotto reach that point. We could add an init
-    // hook to EnMkk to set unk_14C to a non-zero value, but the kill type works for now.
+    // hook to EnMkk to set unk_14C to a non-MM_zero value, but the kill type works for now.
     { ACTOR_EN_MKK,         { RC_ENEMY_DROP_BOE, ACTORCAT_ENEMY, DROP_TYPE_KILL } },
     { ACTOR_EN_SLIME,       { RC_ENEMY_DROP_CHUCHU, ACTORCAT_ENEMY, DROP_TYPE_NORMAL } },
     // Captain Keeta dies in a cutscene, so that drop is handled specially below.
@@ -64,7 +64,7 @@ std::unordered_map<int16_t, std::tuple<RandoCheckId, ActorType, EnemyDropType>> 
     { ACTOR_EN_RAT,         { RC_ENEMY_DROP_REAL_BOMBCHU, ACTORCAT_ENEMY, DROP_TYPE_NORMAL } },
     { ACTOR_EN_BBFALL,      { RC_ENEMY_DROP_RED_BUBBLE, ACTORCAT_ENEMY, DROP_TYPE_NORMAL } },
     // Gibdos are excluded. Well Gibdos only get "killed" when receiving their requested item, which may not make sense
-    // for enemy drops. Patrolling Gibdos take forever to die, and one of them doesn't call Actor_Kill at all, but also
+    // for enemy drops. Patrolling Gibdos take forever to die, and one of them doesn't call MM_Actor_Kill at all, but also
     // does not handle normal drops.
     { ACTOR_EN_RD,          { RC_ENEMY_DROP_REDEAD, ACTORCAT_ENEMY, DROP_TYPE_NORMAL } },
     { ACTOR_EN_SB,          { RC_ENEMY_DROP_SHELLBLADE, ACTORCAT_ENEMY, DROP_TYPE_NORMAL } },
@@ -97,7 +97,7 @@ void SpawnDropItem(Vec3f position, RandoCheckId randoCheckId) {
         [](Actor* actor, PlayState* play) {
             auto& randoSaveCheck = RANDO_SAVE_CHECKS[CUSTOM_ITEM_PARAM];
             RandoItemId randoItemId = Rando::ConvertItem(randoSaveCheck.randoItemId);
-            Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
+            MM_Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
             Rando::DrawItem(Rando::ConvertItem(randoSaveCheck.randoItemId, (RandoCheckId)CUSTOM_ITEM_PARAM), actor);
         });
 }
@@ -123,7 +123,7 @@ bool SpawnNormalEnemyDrop(Vec3f position, u32 params) {
     std::tuple<RandoCheckId, ActorType, EnemyDropType> dropProfile;
     for (auto it = enemyDropProfiles.begin(); it != enemyDropProfiles.end(); it++) {
         dropProfile = it->second;
-        dropActor = SubS_FindActorCustom(gPlayState, NULL, NULL, std::get<ActorType>(dropProfile), it->first, &position,
+        dropActor = SubS_FindActorCustom(MM_gPlayState, NULL, NULL, std::get<ActorType>(dropProfile), it->first, &position,
                                          isDropActorAtPosition);
         if (dropActor != nullptr) {
             break;
@@ -164,16 +164,16 @@ void Rando::ActorBehavior::InitEnemyDropBehavior() {
             return;
         }
 
-        if (actor->room == gPlayState->roomCtx.curRoom.num) { // Ignore room change actor kills
+        if (actor->room == MM_gPlayState->roomCtx.curRoom.num) { // Ignore room change actor kills
             for (auto& map : enemyDropProfiles) {
                 if (map.first == actor->id) {
                     Vec3f position = actor->world.pos;
                     if (actor->id == ACTOR_EN_DRAGON) {
                         // The Deep Python's base is out of bounds. Mimic what it does when spawning the Seahorse.
                         position = actor->parent->world.pos;
-                        position.x += Math_SinS(actor->world.rot.y + 0x8000) * (500.0f + BREG(38));
+                        position.x += MM_Math_SinS(actor->world.rot.y + 0x8000) * (500.0f + BREG(38));
                         position.y += -100.0f + BREG(33);
-                        position.z += Math_CosS(actor->world.rot.y + 0x8000) * (500.0f + BREG(38));
+                        position.z += MM_Math_CosS(actor->world.rot.y + 0x8000) * (500.0f + BREG(38));
                     }
                     ProcessDropProfile(position, map.second, DROP_TYPE_KILL);
                     break;
@@ -204,7 +204,7 @@ void Rando::ActorBehavior::InitEnemyDropBehavior() {
 
             EnSlime* slime = va_arg(args, EnSlime*);
             Matrix_RotateYS(slime->actor.shape.rot.y, MTXMODE_APPLY);
-            Matrix_Scale(0.25f, 0.25f, 0.25f, MTXMODE_APPLY);
+            MM_Matrix_Scale(0.25f, 0.25f, 0.25f, MTXMODE_APPLY);
             Rando::DrawItem(randoItemId);
 
             *should = false;

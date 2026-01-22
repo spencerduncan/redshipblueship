@@ -8,7 +8,7 @@ extern "C" {
 #include "macros.h"
 #include "overlays/gamestates/ovl_file_choose/z_file_select.h"
 #include "misc/title_static/title_static.h"
-extern s16 sWindowContentColors[3];
+extern s16 MM_sWindowContentColors[3];
 extern FileSelectState* gFileSelectState;
 }
 
@@ -142,8 +142,8 @@ void RegisterShoulds() {
         OPEN_DISPS(gFileSelectState->state.gfxCtx);
 
         // But then we also render the same small box again, but using the expanded file info alpha
-        gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, sWindowContentColors[0], sWindowContentColors[1],
-                        sWindowContentColors[2], gFileSelectState->fileInfoAlpha[fileIndex]);
+        gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, MM_sWindowContentColors[0], MM_sWindowContentColors[1],
+                        MM_sWindowContentColors[2], gFileSelectState->fileInfoAlpha[fileIndex]);
         gDPLoadTextureBlock(POLY_OPA_DISP++, gFileSelBlankButtonTex, G_IM_FMT_IA, G_IM_SIZ_16b, 52, 16, 0,
                             G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD,
                             G_TX_NOLOD);

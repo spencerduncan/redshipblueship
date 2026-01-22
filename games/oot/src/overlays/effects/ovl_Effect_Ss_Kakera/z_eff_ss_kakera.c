@@ -313,7 +313,7 @@ s32 func_809AA0EC(EffectSs* this) {
     diff.y = this->pos.y - this->vec.y;
     diff.z = this->pos.z - this->vec.z;
 
-    dist = OoT_sqrtf(SQ(diff.x) + SQ(diff.y) + SQ(diff.z));
+    dist = sqrtf(SQ(diff.x) + SQ(diff.y) + SQ(diff.z));
 
     if (dist > 1000.0f) {
         return 0;

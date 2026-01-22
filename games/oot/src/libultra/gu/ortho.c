@@ -2,7 +2,7 @@
 
 #include "soh/frame_interpolation.h"
 
-void OoT_guOrthoF(f32 mf[4][4], f32 left, f32 right, f32 bottom, f32 top, f32 near, f32 far, f32 scale) {
+void guOrthoF(f32 mf[4][4], f32 left, f32 right, f32 bottom, f32 top, f32 near, f32 far, f32 scale) {
     s32 i, j;
 
     guMtxIdentF(mf);
@@ -22,10 +22,10 @@ void OoT_guOrthoF(f32 mf[4][4], f32 left, f32 right, f32 bottom, f32 top, f32 ne
     }
 }
 
-void OoT_guOrtho(Mtx* mtx, f32 left, f32 right, f32 bottom, f32 top, f32 near, f32 far, f32 scale) {
+void guOrtho(Mtx* mtx, f32 left, f32 right, f32 bottom, f32 top, f32 near, f32 far, f32 scale) {
     f32 mf[4][4];
 
-    OoT_guOrthoF(mf, left, right, bottom, top, near, far, scale);
+    guOrthoF(mf, left, right, bottom, top, near, far, scale);
 
     // guMtxF2L((MtxF*)mf, mtx);
     FrameInterpolation_RecordOpenChild("ortho", 0);

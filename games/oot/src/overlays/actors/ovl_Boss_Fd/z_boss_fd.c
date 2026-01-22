@@ -301,7 +301,7 @@ void BossFd_Fly(BossFd* this, PlayState* play) {
     dz += OoT_Math_SinS((1796.0f + this->fwork[BFD_FLY_WOBBLE_RATE]) * this->work[BFD_MOVE_TIMER]) *
           this->fwork[BFD_FLY_WOBBLE_AMP];
     angleToTarget = (s16)(OoT_Math_FAtan2F(dx, dz) * (0x8000 / M_PI));
-    pitchToTarget = (s16)(OoT_Math_FAtan2F(dy, OoT_sqrtf(SQ(dx) + SQ(dz))) * (0x8000 / M_PI));
+    pitchToTarget = (s16)(OoT_Math_FAtan2F(dy, sqrtf(SQ(dx) + SQ(dz))) * (0x8000 / M_PI));
 
     osSyncPrintf("MODE %d\n", this->work[BFD_ACTION_STATE]);
 
@@ -612,7 +612,7 @@ void BossFd_Fly(BossFd* this, PlayState* play) {
             }
             break;
         case BOSSFD_FLY_HOLE:
-            if ((this->timers[0] == 0) && (OoT_sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 100.0f)) {
+            if ((this->timers[0] == 0) && (sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 100.0f)) {
                 this->work[BFD_ACTION_STATE] = BOSSFD_BURROW;
                 this->targetPosition.y = sHoleLocations[this->holeIndex].y - 70.0f;
                 this->fwork[BFD_TURN_RATE_MAX] = 10000.0f;
@@ -631,7 +631,7 @@ void BossFd_Fly(BossFd* this, PlayState* play) {
             }
             break;
         case BOSSFD_EMERGE:
-            if ((this->timers[0] == 0) && (OoT_sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 100.0f)) {
+            if ((this->timers[0] == 0) && (sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 100.0f)) {
                 this->actor.world.pos = this->targetPosition;
                 this->work[BFD_ACTION_STATE] = BOSSFD_FLY_MAIN;
                 this->actor.world.rot.x = 0x4000;
@@ -723,7 +723,7 @@ void BossFd_Fly(BossFd* this, PlayState* play) {
             }
             break;
         case BOSSFD_DEATH_START:
-            if (OoT_sqrtf(SQ(dx) + SQ(dz)) < 50.0f) {
+            if (sqrtf(SQ(dx) + SQ(dz)) < 50.0f) {
                 this->timers[0] = 0;
             }
             if (this->timers[0] == 0) {
@@ -734,7 +734,7 @@ void BossFd_Fly(BossFd* this, PlayState* play) {
                     this->targetPosition.z = OoT_Rand_CenteredFloat(200.0f);
                     temp_x = this->targetPosition.x - this->actor.world.pos.x;
                     temp_z = this->targetPosition.z - this->actor.world.pos.z;
-                } while (!(OoT_sqrtf(SQ(temp_x) + SQ(temp_z)) > 100.0f));
+                } while (!(sqrtf(SQ(temp_x) + SQ(temp_z)) > 100.0f));
             }
             this->fwork[BFD_FLY_WOBBLE_AMP] = 200.0f;
             this->fwork[BFD_FLY_WOBBLE_RATE] = 1000.0f;
@@ -1484,7 +1484,7 @@ void BossFd_UpdateEffects(BossFd* this, PlayState* play) {
                 diff.x = player->actor.world.pos.x - effect->pos.x;
                 diff.y = player->actor.world.pos.y + 30.0f - effect->pos.y;
                 diff.z = player->actor.world.pos.z - effect->pos.z;
-                if ((this->timers[3] == 0) && (OoT_sqrtf(SQ(diff.x) + SQ(diff.y) + SQ(diff.z)) < 20.0f)) {
+                if ((this->timers[3] == 0) && (sqrtf(SQ(diff.x) + SQ(diff.y) + SQ(diff.z)) < 20.0f)) {
                     this->timers[3] = 50;
                     func_8002F6D4(play, NULL, 5.0f, effect->kbAngle, 0.0f, 0x30);
                     if (player->bodyIsBurning == false) {

@@ -14,7 +14,7 @@ extern "C" {
 #include "src/overlays/actors/ovl_En_Rr/z_en_rr.h"
 #include "src/overlays/actors/ovl_En_GeldB/z_en_geldb.h"
 
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 #define CVAR_ENEMY_RANDOMIZER_NAME CVAR_ENHANCEMENT("RandomizedEnemies")
@@ -340,7 +340,7 @@ extern "C" uint8_t GetRandomizedEnemy(PlayState* play, int16_t* actorId, f32* po
         pos.x = *posX;
         pos.y = *posY + 50;
         pos.z = *posZ;
-        raycastResult = BgCheck_AnyRaycastFloor1(&play->colCtx, &poly, &pos);
+        raycastResult = OoT_BgCheck_AnyRaycastFloor1(&play->colCtx, &poly, &pos);
 
         // If ground is found below actor, move actor to that height.
         if (raycastResult > BGCHECK_Y_MIN) {
@@ -619,7 +619,7 @@ bool IsEnemyAllowedToSpawn(int16_t sceneNum, int8_t roomNum, EnemyEntry enemy) {
 void FixClubMoblinScale(void* ptr) {
     Actor* actor = (Actor*)ptr;
     if (actor->params == -1) {
-        Actor_SetScale(actor, 0.014f);
+        OoT_Actor_SetScale(actor, 0.014f);
     }
 }
 
@@ -627,7 +627,7 @@ static void OnGerudoFighterDefeat(void* refActor) {
     EnGeldB* enGeldB = reinterpret_cast<EnGeldB*>(refActor);
 
     if (enGeldB->keyFlag == 0) {
-        Item_DropCollectibleRandom(gPlayState, &enGeldB->actor, &enGeldB->actor.world.pos, 0xC0);
+        OoT_Item_DropCollectibleRandom(OoT_gPlayState, &enGeldB->actor, &enGeldB->actor.world.pos, 0xC0);
     }
 }
 
@@ -640,7 +640,7 @@ void RegisterEnemyRandomizer() {
 
         if (actor->category != ACTORCAT_PLAYER) {
             *should = false;
-            Actor_Kill(actor);
+            OoT_Actor_Kill(actor);
         }
     });
 
@@ -718,7 +718,7 @@ void RegisterEnemyRandomizer() {
         if (enGeldB->keyFlag == 0) {
             *should = false;
             Sfx_PlaySfxCentered(NA_SE_OC_ABYSS);
-            Play_TriggerRespawn(gPlayState);
+            Play_TriggerRespawn(OoT_gPlayState);
         }
     });
 

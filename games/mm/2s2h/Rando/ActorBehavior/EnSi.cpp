@@ -12,7 +12,7 @@ void EnSi_DrawCustom(Actor* thisx, PlayState* play) {
     EnSi* enSi = (EnSi*)thisx;
 
     auto randoStaticCheck = Rando::StaticData::GetCheckFromFlag(FLAG_CYCL_SCENE_CHEST,
-                                                                ENSI_GET_CHEST_FLAG(&enSi->actor), gPlayState->sceneId);
+                                                                ENSI_GET_CHEST_FLAG(&enSi->actor), MM_gPlayState->sceneId);
     if (randoStaticCheck.randoCheckId == RC_UNKNOWN) {
         return;
     }
@@ -27,7 +27,7 @@ void Rando::ActorBehavior::InitEnSiBehavior() {
         EnSi* enSi = (EnSi*)actor;
 
         auto randoStaticCheck = Rando::StaticData::GetCheckFromFlag(
-            FLAG_CYCL_SCENE_CHEST, ENSI_GET_CHEST_FLAG(&enSi->actor), gPlayState->sceneId);
+            FLAG_CYCL_SCENE_CHEST, ENSI_GET_CHEST_FLAG(&enSi->actor), MM_gPlayState->sceneId);
         if (randoStaticCheck.randoCheckId == RC_UNKNOWN) {
             return;
         }
@@ -45,7 +45,7 @@ void Rando::ActorBehavior::InitEnSiBehavior() {
         EnSi* enSi = va_arg(args, EnSi*);
 
         auto randoStaticCheck = Rando::StaticData::GetCheckFromFlag(
-            FLAG_CYCL_SCENE_CHEST, ENSI_GET_CHEST_FLAG(&enSi->actor), gPlayState->sceneId);
+            FLAG_CYCL_SCENE_CHEST, ENSI_GET_CHEST_FLAG(&enSi->actor), MM_gPlayState->sceneId);
         if (randoStaticCheck.randoCheckId == RC_UNKNOWN) {
             return;
         }

@@ -16,10 +16,10 @@ void DmChar08_Init(Actor* thisx, PlayState* play2);
 void RegisterSkipWakingAndRidingTurtle() {
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
         s16* csId = va_arg(args, s16*);
-        if (gPlayState->sceneId == SCENE_31MISAKI) {
+        if (MM_gPlayState->sceneId == SCENE_31MISAKI) {
             // 12 is first time waking turtle, 20 is subsequent times
             if (*csId == 12 || *csId == 20) {
-                DmChar08* dmChar08 = (DmChar08*)Actor_FindNearby(gPlayState, &GET_PLAYER(gPlayState)->actor,
+                DmChar08* dmChar08 = (DmChar08*)MM_Actor_FindNearby(MM_gPlayState, &GET_PLAYER(MM_gPlayState)->actor,
                                                                  ACTOR_DM_CHAR08, ACTORCAT_BG, 99999.9f);
                 if (!dmChar08) {
                     return;
@@ -30,11 +30,11 @@ void RegisterSkipWakingAndRidingTurtle() {
                 // This gets set soon after this hook executes, but needs to be set before reinitializing turtle
                 SET_WEEKEVENTREG(WEEKEVENTREG_53_20);
 
-                Actor_Kill(dmChar08->palmTree1);
-                Actor_Kill(dmChar08->palmTree2);
+                MM_Actor_Kill(dmChar08->palmTree1);
+                MM_Actor_Kill(dmChar08->palmTree2);
                 dmChar08->dyna.actor.init = DmChar08_Init;
 
-                Audio_PlayFanfare(NA_BGM_DUNGEON_APPEAR);
+                MM_Audio_PlayFanfare(NA_BGM_DUNGEON_APPEAR);
             }
             // 13 is turtle leaving zora cape first time, 15 is subsequent times
             if (*csId == 13 || *csId == 15) {

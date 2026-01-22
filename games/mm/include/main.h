@@ -5,17 +5,17 @@
 #include "scheduler.h"
 #include "padmgr.h"
 
-extern s32 gScreenWidth;
-extern s32 gScreenHeight;
-extern size_t gSystemHeapSize;
+extern s32 MM_gScreenWidth;
+extern s32 MM_gScreenHeight;
+extern size_t MM_gSystemHeapSize;
 
-extern uintptr_t gSegments[NUM_SEGMENTS];
-extern SchedContext gSchedContext;
+extern uintptr_t MM_gSegments[NUM_SEGMENTS];
+extern SchedContext MM_gSchedContext;
 extern OSThread gGraphThread;
-extern PadMgr gPadMgr;
+extern PadMgr MM_gPadMgr;
 
 void Main(void* arg);
 
-#define SEGMENTED_TO_K0(addr) (addr) // (void*)((gSegments[SEGMENT_NUMBER(addr)] + K0BASE) + SEGMENT_OFFSET(addr))
+#define SEGMENTED_TO_K0(addr) (addr) // (void*)((MM_gSegments[SEGMENT_NUMBER(addr)] + K0BASE) + SEGMENT_OFFSET(addr))
 
 #endif

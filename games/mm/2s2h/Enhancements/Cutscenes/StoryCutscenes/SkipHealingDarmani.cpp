@@ -19,7 +19,7 @@ void RegisterSkipHealingDarmani() {
     COND_VB_SHOULD(VB_QUEUE_CUTSCENE, CVAR, {
         s16* csId = va_arg(args, s16*);
         // Played Song of Healing for Darmani in Goron Graveyard
-        if (gPlayState->sceneId == SCENE_GORON_HAKA && *csId == 9) {
+        if (MM_gPlayState->sceneId == SCENE_GORON_HAKA && *csId == 9) {
             if (GameInteractor_Should(VB_GIVE_ITEM_FROM_DMCHAR05, true, ITEM_MASK_GORON)) {
                 GameInteractor::Instance->events.emplace_back(GIEventGiveItem{
                     .showGetItemCutscene = !CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0),
@@ -33,7 +33,7 @@ void RegisterSkipHealingDarmani() {
                                 CustomMessage::StartTextbox("You received the Goron Mask!\x1C\x02\x10",
                                                             { .textboxType = 2 });
                             }
-                            Item_Give(gPlayState, ITEM_MASK_GORON);
+                            MM_Item_Give(MM_gPlayState, ITEM_MASK_GORON);
                         },
                 });
             }
@@ -42,8 +42,8 @@ void RegisterSkipHealingDarmani() {
              * find the actor and kill it manually.
              */
             Actor* actor =
-                Actor_FindNearby(gPlayState, &GET_PLAYER(gPlayState)->actor, ACTOR_EN_GG, ACTORCAT_NPC, 99999.9f);
-            Actor_Kill(actor);
+                MM_Actor_FindNearby(MM_gPlayState, &GET_PLAYER(MM_gPlayState)->actor, ACTOR_EN_GG, ACTORCAT_NPC, 99999.9f);
+            MM_Actor_Kill(actor);
             *should = false;
         }
     });

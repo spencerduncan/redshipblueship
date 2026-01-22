@@ -8,7 +8,7 @@ extern "C" {
 #include "macros.h"
 #include "src/overlays/actors/ovl_En_Sw/z_en_sw.h"
 
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 static constexpr int32_t CVAR_GSTARGETABLE_DEFAULT = 0;
@@ -27,7 +27,7 @@ static void OnActorInitGSTargetable(void* refActor) {
         // By default Gold Skulltulas are categorized as NPCs (blue cursor) which feels wrong.
         // Change the category to Misc (green cursor) instead.
         // It might be possible to change the category to Enemy but doing so will likely affect Clear Rooms.
-        Actor_ChangeCategory(gPlayState, &gPlayState->actorCtx, &enSw->actor, ACTORCAT_MISC);
+        OoT_Actor_ChangeCategory(OoT_gPlayState, &OoT_gPlayState->actorCtx, &enSw->actor, ACTORCAT_MISC);
     }
 }
 
@@ -58,14 +58,14 @@ static void OnActorUpdateGSTargetable(void* refActor) {
 }
 
 static void UpdateGSTargetable() {
-    if (gPlayState != nullptr) {
+    if (OoT_gPlayState != nullptr) {
         if (CVAR_GSTARGETABLE_VALUE) {
             SPDLOG_DEBUG("GSTargetable has been toggled on");
 
             // Find all Gold Skulltulas that are in NPC category
             std::vector<Actor*> goldSkulltulasInNPCCategory;
 
-            Actor* actorNPC = gPlayState->actorCtx.actorLists[ACTORCAT_NPC].head;
+            Actor* actorNPC = OoT_gPlayState->actorCtx.actorLists[ACTORCAT_NPC].head;
             while (actorNPC != nullptr) {
                 if ((actorNPC->id == ACTOR_EN_SW) && (actorNPC->naviEnemyId == 0x20)) {
                     goldSkulltulasInNPCCategory.push_back(actorNPC);
@@ -75,11 +75,11 @@ static void UpdateGSTargetable() {
 
             // Move all NPC Gold Skulltulas to Misc category
             for (auto& actor : goldSkulltulasInNPCCategory) {
-                Actor_ChangeCategory(gPlayState, &gPlayState->actorCtx, actor, ACTORCAT_MISC);
+                OoT_Actor_ChangeCategory(OoT_gPlayState, &OoT_gPlayState->actorCtx, actor, ACTORCAT_MISC);
             }
 
             // Make all Gold Skulltulas in Misc category targetable, if visible
-            Actor* actorMisc = gPlayState->actorCtx.actorLists[ACTORCAT_MISC].head;
+            Actor* actorMisc = OoT_gPlayState->actorCtx.actorLists[ACTORCAT_MISC].head;
             while (actorMisc != nullptr) {
                 if ((actorMisc->id == ACTOR_EN_SW) && (actorMisc->naviEnemyId == 0x20) &&
                     (actorMisc->scale.x >= 0.0139999995f)) {
@@ -91,7 +91,7 @@ static void UpdateGSTargetable() {
             SPDLOG_DEBUG("GSTargetable has been toggled off");
 
             // Make all Gold Skulltulas in NPC category not targetable
-            Actor* actorNPC = gPlayState->actorCtx.actorLists[ACTORCAT_NPC].head;
+            Actor* actorNPC = OoT_gPlayState->actorCtx.actorLists[ACTORCAT_NPC].head;
             while (actorNPC != nullptr) {
                 if ((actorNPC->id == ACTOR_EN_SW) && (actorNPC->naviEnemyId == 0x20)) {
                     actorNPC->flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
@@ -100,7 +100,7 @@ static void UpdateGSTargetable() {
             }
 
             // Make all Gold Skulltulas in Misc category not targetable
-            Actor* actorMisc = gPlayState->actorCtx.actorLists[ACTORCAT_MISC].head;
+            Actor* actorMisc = OoT_gPlayState->actorCtx.actorLists[ACTORCAT_MISC].head;
             while (actorMisc != nullptr) {
                 if ((actorMisc->id == ACTOR_EN_SW) && (actorMisc->naviEnemyId == 0x20)) {
                     actorMisc->flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;

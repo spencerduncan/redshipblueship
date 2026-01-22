@@ -51,7 +51,7 @@ void RegisterGibdoTradeSequenceOptions() {
 
         EnTalkGibudRequestedItem* requestedItem = va_arg(args, EnTalkGibudRequestedItem*);
         if (CVAR == GIBDO_TRADE_SEQUENCE_MM3D) {
-            Inventory_ChangeAmmo(requestedItem->item, -1);
+            MM_Inventory_ChangeAmmo(requestedItem->item, -1);
         }
     });
 
@@ -62,7 +62,7 @@ void RegisterGibdoTradeSequenceOptions() {
         bool doEndTradeMessage = (bool)va_arg(args, int);
 
         if (doEndTradeMessage) {
-            Message_StartTextbox(gPlayState, 0x138A, &gibudCtx->actor);
+            MM_Message_StartTextbox(MM_gPlayState, 0x138A, &gibudCtx->actor);
             gibudCtx->textId = 0x138A;
         }
     });

@@ -76,9 +76,9 @@ execute_process(
     ${LINUXDEPLOY_EXECUTABLE}
     --appimage-extract-and-run
     --appdir=${CPACK_TEMPORARY_DIRECTORY}
-    --executable=$<TARGET_FILE:soh>
-    $<$<BOOL:$<TARGET_PROPERTY:soh,APPIMAGE_DESKTOP_FILE>>:--desktop-file=$<TARGET_PROPERTY:soh,APPIMAGE_DESKTOP_FILE>>
-    $<$<BOOL:$<TARGET_PROPERTY:soh,APPIMAGE_ICON_FILE>>:--icon-file=$<TARGET_PROPERTY:soh,APPIMAGE_ICON_FILE>>
+    --executable=$<TARGET_FILE:redship>
+    $<$<BOOL:$<TARGET_PROPERTY:redship,APPIMAGE_DESKTOP_FILE>>:--desktop-file=$<TARGET_PROPERTY:redship,APPIMAGE_DESKTOP_FILE>>
+    $<$<BOOL:$<TARGET_PROPERTY:redship,APPIMAGE_ICON_FILE>>:--icon-file=$<TARGET_PROPERTY:redship,APPIMAGE_ICON_FILE>>
     --output=appimage
     # --verbosity=2
 )

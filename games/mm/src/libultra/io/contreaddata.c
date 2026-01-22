@@ -4,7 +4,7 @@
 
 void __osPackReadData(void);
 
-s32 MM_osContStartReadData(OSMesgQueue* mq) {
+s32 osContStartReadData(OSMesgQueue* mq) {
     s32 ret;
     int i;
 
@@ -13,7 +13,7 @@ s32 MM_osContStartReadData(OSMesgQueue* mq) {
     if (__osContLastPoll != 1) {
         __osPackReadData();
         __osSiRawStartDma(OS_WRITE, &__osContPifRam);
-        MM_osRecvMesg(mq, NULL, OS_MESG_BLOCK);
+        osRecvMesg(mq, NULL, OS_MESG_BLOCK);
     }
 
     ret = __osSiRawStartDma(OS_READ, &__osContPifRam);
@@ -24,7 +24,7 @@ s32 MM_osContStartReadData(OSMesgQueue* mq) {
     return ret;
 }
 
-void MM_osContGetReadData(OSContPad* data) {
+void osContGetReadData(OSContPad* data) {
     u8* ptr;
     __OSContReadFormat readformat;
     int i;

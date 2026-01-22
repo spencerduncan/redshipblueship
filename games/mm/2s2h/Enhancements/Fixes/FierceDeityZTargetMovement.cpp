@@ -11,7 +11,7 @@ extern "C" {
 
 void RegisterFierceDeityZTargetMovement() {
     COND_VB_SHOULD(VB_ZTARGET_SPEED_CHECK, CVAR, {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         float* speedArg = va_arg(args, float*);
 
         // If the player is Fierce Deity and targeting,

@@ -126,6 +126,9 @@ typedef struct PlayState {
     /* 0x18E6C */ char unk_18E6C[0x3EC];
 } PlayState; // size = 0x19258
 
+// Alias for gamestate table macro (which generates MM_PlayState from MM_Play)
+typedef PlayState MM_PlayState;
+
 typedef enum PictoPhotoState {
     /* 0 */ PICTO_PHOTO_STATE_OFF,
     /* 1 */ PICTO_PHOTO_STATE_SETUP,
@@ -145,29 +148,29 @@ void Play_SetMotionBlurPriorityAlpha(u32 alpha);
 void Play_EnableMotionBlurPriority(u32 alpha);
 void Play_DisableMotionBlurPriority(void);
 void Play_TriggerPictoPhoto(void);
-Gfx* Play_SetFog(PlayState* thisx, Gfx* gfx);
-void Play_Destroy(GameState* thisxx);
+Gfx* MM_Play_SetFog(PlayState* thisx, Gfx* gfx);
+void MM_Play_Destroy(GameState* thisxx);
 void Play_CompressI8ToI5(void* srcI8, void* destI5, size_t size);
 void Play_DecompressI5ToI8(void* srcI5, void* destI8, size_t size);
-void Play_Update(PlayState* thisx);
-void Play_Draw(PlayState* thisx);
-void Play_Main(GameState* thisxx);
-bool Play_InCsMode(PlayState* thisx);
+void MM_Play_Update(PlayState* thisx);
+void MM_Play_Draw(PlayState* thisx);
+void MM_Play_Main(GameState* thisxx);
+bool MM_Play_InCsMode(PlayState* thisx);
 f32 Play_GetFloorSurfaceImpl(PlayState* thisx, MtxF* mtx, CollisionPoly** poly, s32* bgId, Vec3f* pos);
 void Play_GetFloorSurface(PlayState* thisx, MtxF* mtx, Vec3f* pos);
-void* Play_LoadFile(PlayState* thisx, RomFile* entry);
-void Play_InitEnvironment(PlayState* thisx, s16 skyboxId);
+void* MM_Play_LoadFile(PlayState* thisx, RomFile* entry);
+void MM_Play_InitEnvironment(PlayState* thisx, s16 skyboxId);
 void Play_GetScreenPos(PlayState* thisx, Vec3f* worldPos, Vec3f* screenPos);
-s16 Play_CreateSubCamera(PlayState* thisx);
-s16 Play_GetActiveCamId(PlayState* thisx);
-s32 Play_ChangeCameraStatus(PlayState* thisx, s16 camId, s16 status);
-void Play_ClearCamera(PlayState* thisx, s16 camId);
-Camera* Play_GetCamera(PlayState* thisx, s16 camId);
+s16 MM_Play_CreateSubCamera(PlayState* thisx);
+s16 MM_Play_GetActiveCamId(PlayState* thisx);
+s32 MM_Play_ChangeCameraStatus(PlayState* thisx, s16 camId, s16 status);
+void MM_Play_ClearCamera(PlayState* thisx, s16 camId);
+Camera* MM_Play_GetCamera(PlayState* thisx, s16 camId);
 s32 Play_SetCameraAtEye(PlayState* thisx, s16 camId, Vec3f* at, Vec3f* eye);
 s32 Play_SetCameraAtEyeUp(PlayState* thisx, s16 camId, Vec3f* at, Vec3f* eye, Vec3f* up);
 s32 Play_SetCameraFov(PlayState* thisx, s16 camId, f32 fov);
-s32 Play_SetCameraRoll(PlayState* thisx, s16 camId, s16 roll);
-void Play_CopyCamera(PlayState* thisx, s16 destCamId, s16 srcCamId);
+s32 MM_Play_SetCameraRoll(PlayState* thisx, s16 camId, s16 roll);
+void MM_Play_CopyCamera(PlayState* thisx, s16 destCamId, s16 srcCamId);
 s32 func_80169A50(PlayState* thisx, s16 camId, Player* player, s16 setting);
 s32 Play_ChangeCameraSetting(PlayState* thisx, s16 camId, s16 setting);
 void func_80169AFC(PlayState* thisx, s16 camId, s16 timer);
@@ -175,8 +178,8 @@ u16 Play_GetActorCsCamSetting(PlayState* thisx, s32 csCamDataIndex);
 Vec3s* Play_GetActorCsCamFuncData(PlayState* thisx, s32 csCamDataIndex);
 s16 Play_GetOriginalSceneId(s16 sceneId);
 void Play_SaveCycleSceneFlags(PlayState* thisx);
-void Play_SetRespawnData(PlayState* thisx, s32 respawnMode, u16 entrance, s32 roomIndex, s32 playerParams, Vec3f* pos, s16 yaw);
-void Play_SetupRespawnPoint(PlayState* thisx, s32 respawnMode, s32 playerParams);
+void MM_Play_SetRespawnData(PlayState* thisx, s32 respawnMode, u16 entrance, s32 roomIndex, s32 playerParams, Vec3f* pos, s16 yaw);
+void MM_Play_SetupRespawnPoint(PlayState* thisx, s32 respawnMode, s32 playerParams);
 void func_80169EFC(PlayState* thisx);
 void func_80169F78(PlayState* thisx);
 void func_80169FDC(PlayState* thisx);
@@ -186,7 +189,7 @@ s32 Play_IsUnderwater(PlayState* thisx, Vec3f* pos);
 s32 Play_IsDebugCamEnabled(void);
 void Play_AssignPlayerCsIdsFromScene(PlayState* thisx, s32 spawnCsId);
 void Play_FillScreen(PlayState* thisx, s16 fillScreenOn, u8 red, u8 green, u8 blue, u8 alpha);
-void Play_Init(GameState* thisxx);
+void MM_Play_Init(GameState* thisxx);
 
 extern s32 gDbgCamEnabled;
 

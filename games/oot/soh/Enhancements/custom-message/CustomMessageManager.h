@@ -200,7 +200,7 @@ class CustomMessage {
 
     /**
      * @brief Inserts a string into another string, following the rules
-     * of auto-format inserting new lines: spaces and & are replaced while
+     * of auto-format inserting new lines: OoT_spaces and & are replaced while
      * other chars are appended to.
      *
      * @param str the string we are inserting into

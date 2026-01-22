@@ -1,6 +1,6 @@
 #include "global.h"
 
-void OoT_osStartThread(OSThread* thread) {
+void osStartThread(OSThread* thread) {
     register u32 prevInt = __osDisableInt();
 
     switch (thread->state) {

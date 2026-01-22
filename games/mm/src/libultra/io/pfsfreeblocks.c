@@ -1,7 +1,7 @@
 #include "ultra64.h"
 #include "PR/controller.h"
 
-s32 MM_osPfsFreeBlocks(OSPfs* pfs, s32* leftoverBytes) {
+s32 osPfsFreeBlocks(OSPfs* pfs, s32* leftoverBytes) {
     s32 j;
     s32 pages = 0;
     __OSInode inode;

@@ -1,6 +1,6 @@
-extern "C" MtxF* sMatrixStack;
-extern "C" MtxF* sCurrentMatrix;
-extern "C" LightsBuffer sLightsBuffer;
+extern "C" MtxF* OoT_sMatrixStack;
+extern "C" MtxF* OoT_sCurrentMatrix;
+extern "C" LightsBuffer OoT_sLightsBuffer;
 extern "C" s16 sWarpTimerTarget;
 extern "C" MapMarkData** sLoadedMarkDataTable;
 
@@ -216,10 +216,10 @@ extern "C" f32 D_80130F28;
 extern "C" s8 D_80130F2C;
 extern "C" s8 D_80130F30;
 extern "C" s8 D_80130F34;
-extern "C" u8 sPlaybackState;
+extern "C" u8 OoT_sPlaybackState;
 extern "C" u32 D_80130F3C;
 extern "C" u32 sNotePlaybackTimer;
-extern "C" u16 sPlaybackNotePos;
+extern "C" u16 OoT_sPlaybackNotePos;
 extern "C" u16 sStaffPlaybackPos;
 
 //IDK what this is but it looks important 
@@ -230,7 +230,7 @@ extern "C" s32 D_8016BA18;
 extern "C" s32 D_8016BA1C;
 extern "C" u8 sCurOcarinaSong[8];
 extern "C" u8 sOcarinaSongAppendPos;
-extern "C" u8 sOcarinaHasStartedSong;
+extern "C" u8 OoT_sOcarinaHasStartedSong;
 extern "C" u8 sOcarinaSongNoteStartIdx;
 extern "C" u8 sOcarinaSongCnt;
 extern "C" u16 sOcarinaAvailSongs;
@@ -254,7 +254,7 @@ extern "C" u8 sOcarinaNoteBuf[12];
 extern "C" u8 D_8014B2F4;
 extern "C" u8 sTextboxSkipped;
 extern "C" u16 sNextTextId;
-extern "C" s16 sLastPlayedSong;
+extern "C" s16 OoT_sLastPlayedSong;
 extern "C" s16 sHasSunsSong;
 extern "C" s16 sMessageHasSetSfx;
 extern "C" u16 sOcarinaSongBitFlags;

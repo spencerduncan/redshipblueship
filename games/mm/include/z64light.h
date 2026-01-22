@@ -77,25 +77,25 @@ typedef enum LightType {
     /* 2 */ LIGHT_POINT_GLOW
 } LightType;
 
-void Lights_PointNoGlowSetInfo(LightInfo* info, s16 x, s16 y, s16 z, u8 r, u8 g, u8 b, s16 radius);
-void Lights_PointGlowSetInfo(LightInfo* info, s16 x, s16 y, s16 z, u8 r, u8 g, u8 b, s16 radius);
-void Lights_PointSetColorAndRadius(LightInfo* info, u8 r, u8 g, u8 b, s16 radius);
+void MM_Lights_PointNoGlowSetInfo(LightInfo* info, s16 x, s16 y, s16 z, u8 r, u8 g, u8 b, s16 radius);
+void MM_Lights_PointGlowSetInfo(LightInfo* info, s16 x, s16 y, s16 z, u8 r, u8 g, u8 b, s16 radius);
+void MM_Lights_PointSetColorAndRadius(LightInfo* info, u8 r, u8 g, u8 b, s16 radius);
 void Lights_PointSetPosition(LightInfo* info, s16 x, s16 y, s16 z);
-void Lights_DirectionalSetInfo(LightInfo* info, s8 x, s8 y, s8 z, u8 r, u8 g, u8 b);
-void Lights_Reset(Lights* lights, u8 r, u8 g, u8 b);
-void Lights_Draw(Lights* lights, struct GraphicsContext* gfxCtx);
-void Lights_BindAll(Lights* lights, LightNode* listHead, Vec3f* refPos, struct PlayState* play);
-void LightContext_Init(struct PlayState* play, LightContext* lightCtx);
-void LightContext_SetAmbientColor(LightContext* lightCtx, u8 r, u8 g, u8 b);
-void LightContext_SetFog(LightContext* lightCtx, u8 r, u8 g, u8 b, s16 near, s16 far);
-Lights* LightContext_NewLights(LightContext* lightCtx, struct GraphicsContext* gfxCtx);
-void LightContext_InitList(struct PlayState* play, LightContext* lightCtx);
-void LightContext_DestroyList(struct PlayState* play, LightContext* lightCtx);
-LightNode* LightContext_InsertLight(struct PlayState* play, LightContext* lightCtx, LightInfo* info);
-void LightContext_RemoveLight(struct PlayState* play, LightContext* lightCtx, LightNode* light);
-Lights* Lights_NewAndDraw(struct GraphicsContext* gfxCtx, u8 ambientR, u8 ambientG, u8 ambientB, u8 numLights, u8 r, u8 g, u8 b, s8 x, s8 y, s8 z);
-Lights* Lights_New(struct GraphicsContext* gfxCtx, u8 ambientR, u8 ambientG, u8 ambientB);
-void Lights_GlowCheck(struct PlayState* play);
-void Lights_DrawGlow(struct PlayState* play);
+void MM_Lights_DirectionalSetInfo(LightInfo* info, s8 x, s8 y, s8 z, u8 r, u8 g, u8 b);
+void MM_Lights_Reset(Lights* lights, u8 r, u8 g, u8 b);
+void MM_Lights_Draw(Lights* lights, struct GraphicsContext* gfxCtx);
+void MM_Lights_BindAll(Lights* lights, LightNode* listHead, Vec3f* refPos, struct PlayState* play);
+void MM_LightContext_Init(struct PlayState* play, LightContext* lightCtx);
+void MM_LightContext_SetAmbientColor(LightContext* lightCtx, u8 r, u8 g, u8 b);
+void MM_LightContext_SetFog(LightContext* lightCtx, u8 r, u8 g, u8 b, s16 near, s16 far);
+Lights* MM_LightContext_NewLights(LightContext* lightCtx, struct GraphicsContext* gfxCtx);
+void MM_LightContext_InitList(struct PlayState* play, LightContext* lightCtx);
+void MM_LightContext_DestroyList(struct PlayState* play, LightContext* lightCtx);
+LightNode* MM_LightContext_InsertLight(struct PlayState* play, LightContext* lightCtx, LightInfo* info);
+void MM_LightContext_RemoveLight(struct PlayState* play, LightContext* lightCtx, LightNode* light);
+Lights* MM_Lights_NewAndDraw(struct GraphicsContext* gfxCtx, u8 ambientR, u8 ambientG, u8 ambientB, u8 numLights, u8 r, u8 g, u8 b, s8 x, s8 y, s8 z);
+Lights* MM_Lights_New(struct GraphicsContext* gfxCtx, u8 ambientR, u8 ambientG, u8 ambientB);
+void MM_Lights_GlowCheck(struct PlayState* play);
+void MM_Lights_DrawGlow(struct PlayState* play);
 
 #endif

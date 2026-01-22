@@ -328,7 +328,7 @@ s32 EnPp_PointlessPosCheck(EnPp* this) {
     // This converts the vector between the Hiploop's home and world positions into polar
     // coordinates. In other words, if the home position is at the origin, then the world
     // position can be found at (radius, angle).
-    radius = MM_sqrtf(SQ(diffX) + SQ(diffZ));
+    radius = sqrtf(SQ(diffX) + SQ(diffZ));
     angle = MM_Math_Vec3f_Yaw(&this->actor.home.pos, &this->actor.world.pos);
 
     // This takes the polar coordinates we found earlier and converts them *back* into
@@ -348,7 +348,7 @@ s32 EnPp_PointlessPosCheck(EnPp* this) {
     diffZ = this->actor.world.pos.z - nearDuplicateWorldPos.z;
 
     // Since the two differences are always tiny, this is always true.
-    if (MM_sqrtf(SQ(diffX) + SQ(diffZ)) < 2.0f) {
+    if (sqrtf(SQ(diffX) + SQ(diffZ)) < 2.0f) {
         this->actor.world.pos.x = nearDuplicateWorldPos.x;
         this->actor.world.pos.z = nearDuplicateWorldPos.z;
         return true;

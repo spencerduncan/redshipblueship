@@ -14,7 +14,7 @@ static f32 freqMultiplier = 1;
 
 void RegisterLinksVoicePitchMultiplier() {
     COND_VB_SHOULD(VB_LINK_VOICE_PITCH_MULTIPLIER, CVAR, {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
         u16 sfxId = *va_arg(args, u16*);
 
         if (sfxId >= NA_SE_VO_LI_SWORD_N && sfxId <= NA_SE_VO_DEMO_394 || sfxId == NA_SE_PL_TRANSFORM_VOICE) {
@@ -25,8 +25,8 @@ void RegisterLinksVoicePitchMultiplier() {
                 freqMultiplier = 1;
             }
 
-            AudioSfx_PlaySfx(sfxId, &player->actor.projectedPos, 4, &freqMultiplier, &gSfxDefaultFreqAndVolScale,
-                             &gSfxDefaultReverb);
+            AudioSfx_PlaySfx(sfxId, &player->actor.projectedPos, 4, &freqMultiplier, &MM_gSfxDefaultFreqAndVolScale,
+                             &MM_gSfxDefaultReverb);
         }
     });
 }

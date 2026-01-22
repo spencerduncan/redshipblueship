@@ -10,9 +10,9 @@ void RegisterFasterShadowShip() {
     COND_VB_SHOULD(VB_SHADOW_SHIP_SET_SPEED, CVarGetInteger(CVAR_ENHANCEMENT("FasterShadowShip"), 0), {
         BgHakaShip* ship = va_arg(args, BgHakaShip*);
         PlayState* play = va_arg(args, PlayState*);
-        if (!Play_InCsMode(play)) {
-            if (Actor_FindNearby(play, &ship->dyna.actor, ACTOR_EN_TEST, ACTORCAT_ENEMY, 800.0) == NULL &&
-                Actor_FindNearby(play, &ship->dyna.actor, ACTOR_PLAYER, ACTORCAT_PLAYER, 450.0) != NULL) {
+        if (!OoT_Play_InCsMode(play)) {
+            if (OoT_Actor_FindNearby(play, &ship->dyna.actor, ACTOR_EN_TEST, ACTORCAT_ENEMY, 800.0) == NULL &&
+                OoT_Actor_FindNearby(play, &ship->dyna.actor, ACTOR_PLAYER, ACTORCAT_PLAYER, 450.0) != NULL) {
                 *should = false;
                 ship->dyna.actor.speedXZ = 25.0f;
             } else if (ship->dyna.actor.speedXZ > 4.0f) {

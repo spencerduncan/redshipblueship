@@ -591,7 +591,7 @@ s32 Room_RequestNewRoom(PlayState* play, RoomContext* roomCtx, s32 index) {
         roomCtx->roomRequestAddr = (void*)(ALIGN16((uintptr_t)roomCtx->bufPtrs[roomCtx->activeBufPage] -
                                                    (size + 8) * roomCtx->activeBufPage - 7));
 
-        MM_osCreateMesgQueue(&roomCtx->loadQueue, roomCtx->loadMsg, ARRAY_COUNT(roomCtx->loadMsg));
+        osCreateMesgQueue(&roomCtx->loadQueue, roomCtx->loadMsg, ARRAY_COUNT(roomCtx->loadMsg));
         DmaMgr_RequestAsync(&roomCtx->dmaRequest, roomCtx->roomRequestAddr, play->roomList.romFiles[index].vromStart,
                             size, 0, &roomCtx->loadQueue, NULL);
         roomCtx->activeBufPage ^= 1;
@@ -616,7 +616,7 @@ s32 Room_ProcessRoomRequest(PlayState* play, RoomContext* roomCtx) {
     return OTRfunc_800973FC(play, roomCtx);
 #if 0
     if (roomCtx->status == 1) {
-        if (MM_osRecvMesg(&roomCtx->loadQueue, NULL, OS_MESG_NOBLOCK) == 0) {
+        if (osRecvMesg(&roomCtx->loadQueue, NULL, OS_MESG_NOBLOCK) == 0) {
             roomCtx->status = 0;
             roomCtx->curRoom.segment = roomCtx->roomRequestAddr;
             MM_gSegments[0x03] = OS_K0_TO_PHYSICAL(roomCtx->curRoom.segment);

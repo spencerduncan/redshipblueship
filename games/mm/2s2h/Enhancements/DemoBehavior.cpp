@@ -43,12 +43,12 @@ void RegisterDemoBehavior() {
                                         "You found Greg! (While you were jumping or something) \x1C\x02\x10");
                                 }
 
-                                Rupees_ChangeBy(1);
+                                MM_Rupees_ChangeBy(1);
                             },
                         .drawItem =
                             [](Actor* actor, PlayState* play) {
-                                Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
-                                GetItem_Draw(play, CUSTOM_ITEM_PARAM);
+                                MM_Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
+                                MM_GetItem_Draw(play, CUSTOM_ITEM_PARAM);
                             },
                     });
 
@@ -68,8 +68,8 @@ void RegisterDemoBehavior() {
                         });
                 },
                 [](Actor* actor, PlayState* play) {
-                    Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
-                    GetItem_Draw(play, actor->home.rot.z);
+                    MM_Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
+                    MM_GetItem_Draw(play, actor->home.rot.z);
                 });
         });
 
@@ -86,7 +86,7 @@ void RegisterDemoBehavior() {
                 CustomItem::Spawn(player->actor.world.pos.x, player->actor.world.pos.y, player->actor.world.pos.z, 0,
                                   CustomItem::GIVE_OVERHEAD | CustomItem::KEEP_ON_PLAYER, GID_RUPEE_GREEN,
                                   [](Actor* actor, PlayState* play) {
-                                      Rupees_ChangeBy(1);
+                                      MM_Rupees_ChangeBy(1);
                                       CustomMessage::StartTextbox("Nice flip!\x1C\x02\x10", {
                                                                                                 .textboxType = 2,
                                                                                             });
@@ -98,7 +98,7 @@ void RegisterDemoBehavior() {
     });
 
     GameInteractor::Instance->RegisterGameHookForID<GameInteractor::OnActorKill>(ACTOR_OBJ_TSUBO, [](Actor* actor) {
-        if (actor->room == gPlayState->roomCtx.curRoom.num) {
+        if (actor->room == MM_gPlayState->roomCtx.curRoom.num) {
             // Open a custom message
             CustomMessage::StartTextbox("STOP BREAKING MY POTS!", {
                                                                       .textboxType = 2,

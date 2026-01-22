@@ -152,7 +152,7 @@ void EnFhgFire_Init(Actor* thisx, PlayState* play) {
         dyL = player->actor.world.pos.y + 30.0f - this->actor.world.pos.y;
         dzL = player->actor.world.pos.z - this->actor.world.pos.z;
         this->actor.world.rot.y = OoT_Math_FAtan2F(dxL, dzL) * (0x8000 / M_PI);
-        dxzL = OoT_sqrtf(SQ(dxL) + SQ(dzL));
+        dxzL = sqrtf(SQ(dxL) + SQ(dzL));
         this->actor.world.rot.x = OoT_Math_FAtan2F(dyL, dxzL) * (0x8000 / M_PI);
         this->collider.dim.radius = 40;
         this->collider.dim.height = 50;
@@ -472,7 +472,7 @@ void EnFhgFire_EnergyBall(EnFhgFire* this, PlayState* play) {
                     ((player->stateFlags1 & PLAYER_STATE1_SWINGING_BOTTLE) &&
                      (ABS((s16)(player->actor.shape.rot.y - (s16)(bossGnd->actor.yawTowardsPlayer + 0x8000))) <
                       0x2000) &&
-                     (OoT_sqrtf(SQ(dxL) + SQ(dyL) + SQ(dzL)) <= 25.0f))
+                     (sqrtf(SQ(dxL) + SQ(dyL) + SQ(dzL)) <= 25.0f))
                         ? true
                         : false;
                 if ((this->collider.base.acFlags & AC_HIT) || canBottleReflect1) {
@@ -519,7 +519,7 @@ void EnFhgFire_EnergyBall(EnFhgFire* this, PlayState* play) {
                         }
                         this->actor.world.rot.y = (s16)(OoT_Math_FAtan2F(dxPG, dzPG) * (0x8000 / M_PI)) + angleModY;
                         this->actor.world.rot.x =
-                            (s16)(OoT_Math_FAtan2F(dyPG, OoT_sqrtf((dxPG * dxPG) + (dzPG * dzPG))) * (0x8000 / M_PI)) +
+                            (s16)(OoT_Math_FAtan2F(dyPG, sqrtf((dxPG * dxPG) + (dzPG * dzPG))) * (0x8000 / M_PI)) +
                             angleModX;
                         this->work[FHGFIRE_FIRE_MODE] = FHGFIRE_LIGHT_BLUE;
                         this->work[FHGFIRE_FX_TIMER] = 2;
@@ -528,7 +528,7 @@ void EnFhgFire_EnergyBall(EnFhgFire* this, PlayState* play) {
                                                &OoT_gSfxDefaultReverb);
                         func_800AA000(this->actor.xyzDistToPlayerSq, 0xB4, 0x14, 0x64);
                     }
-                } else if (OoT_sqrtf(SQ(dxL) + SQ(dyL) + SQ(dzL)) <= 25.0f) {
+                } else if (sqrtf(SQ(dxL) + SQ(dyL) + SQ(dzL)) <= 25.0f) {
                     killMode = BALL_BURST;
                     Audio_PlayActorSound2(&this->actor, NA_SE_EN_FANTOM_HIT_THUNDER);
                     if ((bossGnd->flyMode >= GND_FLY_VOLLEY) && (this->work[FHGFIRE_RETURN_COUNT] >= 2)) {
@@ -540,18 +540,18 @@ void EnFhgFire_EnergyBall(EnFhgFire* this, PlayState* play) {
             case FHGFIRE_LIGHT_BLUE:
                 if ((bossGnd->flyMode == GND_FLY_RETURN) && (this->work[FHGFIRE_RETURN_COUNT] < 100)) {
                     this->actor.world.rot.y = OoT_Math_FAtan2F(dxPG, dzPG) * (0x8000 / M_PI);
-                    if ((OoT_sqrtf(SQ(dxPG) + SQ(dzPG)) < (150.0f + (this->actor.speedXZ * 8.0f)))) {
+                    if ((sqrtf(SQ(dxPG) + SQ(dzPG)) < (150.0f + (this->actor.speedXZ * 8.0f)))) {
                         this->work[FHGFIRE_FIRE_MODE] = FHGFIRE_LIGHT_REFLECT;
                         bossGnd->returnSuccess = true;
                         this->work[FHGFIRE_TIMER] = 8;
                     }
                 } else {
                     if (this->work[FHGFIRE_RETURN_COUNT] >= 100) {
-                        if ((OoT_sqrtf(SQ(dxPG) + SQ(dyPG) + SQ(dzPG)) < 100.0f)) {
+                        if ((sqrtf(SQ(dxPG) + SQ(dyPG) + SQ(dzPG)) < 100.0f)) {
                             bossGnd->returnSuccess = true;
                         }
                         this->actor.world.rot.y = OoT_Math_FAtan2F(dxPG, dzPG) * (0x8000 / M_PI);
-                        this->actor.world.rot.x = OoT_Math_FAtan2F(dyPG, OoT_sqrtf(SQ(dxPG) + SQ(dzPG))) * (0x8000 / M_PI);
+                        this->actor.world.rot.x = OoT_Math_FAtan2F(dyPG, sqrtf(SQ(dxPG) + SQ(dzPG))) * (0x8000 / M_PI);
                     }
                     if ((fabsf(dxPG) < 30.0f) && (fabsf(dzPG) < 30.0f) && (fabsf(dyPG) < 45.0f)) {
                         killMode = BALL_IMPACT;
@@ -579,7 +579,7 @@ void EnFhgFire_EnergyBall(EnFhgFire* this, PlayState* play) {
                                                         (s16)(OoT_Rand_ZeroOne() * 40.0f) + 80, FHGFLASH_LIGHTBALL_GREEN);
                     }
                     this->actor.world.rot.y = OoT_Math_FAtan2F(dxL, dzL) * (0x8000 / M_PI);
-                    dxzL = OoT_sqrtf(SQ(dxL) + SQ(dzL));
+                    dxzL = sqrtf(SQ(dxL) + SQ(dzL));
                     this->actor.world.rot.x = OoT_Math_FAtan2F(dyL, dxzL) * (0x8000 / M_PI);
                     this->work[FHGFIRE_FIRE_MODE] = FHGFIRE_LIGHT_GREEN;
                     Audio_PlayActorSound2(&this->actor, NA_SE_IT_SWORD_REFLECT_MG);

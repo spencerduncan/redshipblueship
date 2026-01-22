@@ -17,10 +17,10 @@ u16 EnZl4_GiveItemTextId(PlayState* play, Actor* actor) {
 
 void EnZl4_SkipToGivingZeldasLetter(EnZl4* enZl4, PlayState* play) {
     if (enZl4->csState == 0 && enZl4->actor.xzDistToPlayer < 700.0f && EnZl4_SetNextAnim(enZl4, 3)) {
-        Audio_PlayFanfare(NA_BGM_APPEAR);
+        OoT_Audio_PlayFanfare(NA_BGM_APPEAR);
         enZl4->csState = 8; // ZL4_CS_PLAN
     } else {
-        Npc_UpdateTalking(play, &enZl4->actor, &enZl4->interactInfo.talkState, enZl4->collider.dim.radius + 60.0f,
+        OoT_Npc_UpdateTalking(play, &enZl4->actor, &enZl4->interactInfo.talkState, enZl4->collider.dim.radius + 60.0f,
                           EnZl4_GiveItemTextId, func_80B5B9B0);
         func_80B5BB78(enZl4, play);
 

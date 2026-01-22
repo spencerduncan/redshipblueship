@@ -7,7 +7,7 @@
 extern "C" {
 #include "functions.h"
 #include "objects/gameplay_keep/gameplay_keep.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 #define CVAR_CRAWL_SPEED_NAME CVAR_ENHANCEMENT("CrawlSpeed")
@@ -25,14 +25,14 @@ extern "C" void ExitCrawlspace(Player* player, PlayState* play) {
         // Leaving a crawlspace forwards
         player->actor.shape.rot.y = player->actor.wallYaw + 0x8000;
         LinkAnimation_Change(play, &player->skelAnime, animExit, ((CVAR_CRAWL_SPEED_VALUE + 1.0f) / 2.0f), 0.0f,
-                             Animation_GetLastFrame(animExit), ANIMMODE_ONCE, 0.0f);
+                             OoT_Animation_GetLastFrame(animExit), ANIMMODE_ONCE, 0.0f);
         Player_StartAnimMovement(play, player, 0x9D);
         OnePointCutscene_Init(play, 9601, 999, NULL, MAIN_CAM);
     } else {
         // Leaving a crawlspace backwards
         player->actor.shape.rot.y = player->actor.wallYaw;
         LinkAnimation_Change(play, &player->skelAnime, animEnter, -1.0f * ((CVAR_CRAWL_SPEED_VALUE + 1.0f) / 2.0f),
-                             Animation_GetLastFrame(animEnter), 0.0f, ANIMMODE_ONCE, 0.0f);
+                             OoT_Animation_GetLastFrame(animEnter), 0.0f, ANIMMODE_ONCE, 0.0f);
         Player_StartAnimMovement(play, player, 0x9D);
         OnePointCutscene_Init(play, 9602, 999, NULL, MAIN_CAM);
     }
@@ -50,7 +50,7 @@ extern "C" void EnterCrawlspace(Player* player, PlayState* play) {
     LinkAnimationHeader* anim = (LinkAnimationHeader*)gPlayerAnim_link_child_tunnel_start;
 
     LinkAnimation_Change(play, &player->skelAnime, anim, ((CVAR_CRAWL_SPEED_VALUE + 1.0f) / 2.0f), 0.0f,
-                         Animation_GetLastFrame(anim), ANIMMODE_ONCE, 0.0f);
+                         OoT_Animation_GetLastFrame(anim), ANIMMODE_ONCE, 0.0f);
 }
 
 extern "C" void IncreaseCrawlSpeed(Player* player, PlayState* play) {
@@ -62,21 +62,21 @@ void CrawlSpeed_Register() {
     bool shouldRegister = CVAR_CRAWL_SPEED_VALUE > 1;
 
     COND_VB_SHOULD(VB_CRAWL_SPEED_EXIT, shouldRegister, {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(OoT_gPlayState);
         bool excludeWellBackroom = (player->actor.world.pos.x > 950.0f) && (player->actor.world.pos.x < 1025.0f) &&
                                    (player->actor.world.pos.z > -1510.0f) && (player->actor.world.pos.z < -1490.0f) &&
-                                   gPlayState->sceneNum == SCENE_BOTTOM_OF_THE_WELL;
+                                   OoT_gPlayState->sceneNum == SCENE_BOTTOM_OF_THE_WELL;
         bool excludeGlitchAiding = CVAR_GLITCH_AIDING_VALUE;
         if (excludeGlitchAiding && excludeWellBackroom) {
             *should = true;
         } else {
-            ExitCrawlspace(player, gPlayState);
+            ExitCrawlspace(player, OoT_gPlayState);
             *should = false;
         }
     });
 
     COND_VB_SHOULD(VB_CRAWL_SPEED_EXIT_CS, shouldRegister, {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(OoT_gPlayState);
         Camera* csCam = va_arg(args, Camera*);
         s16 csId = static_cast<s16>(va_arg(args, int));
         s16 actionParameters = static_cast<s16>(va_arg(args, int));
@@ -85,33 +85,33 @@ void CrawlSpeed_Register() {
         CutsceneCameraPoint* eyePoints = va_arg(args, CutsceneCameraPoint*);
         bool excludeWellBackroom = (player->actor.world.pos.x > 950.0f) && (player->actor.world.pos.x < 1025.0f) &&
                                    (player->actor.world.pos.z > -1510.0f) && (player->actor.world.pos.z < -1490.0f) &&
-                                   gPlayState->sceneNum == SCENE_BOTTOM_OF_THE_WELL;
+                                   OoT_gPlayState->sceneNum == SCENE_BOTTOM_OF_THE_WELL;
         bool excludeGlitchAiding = CVAR_GLITCH_AIDING_VALUE;
         if (excludeGlitchAiding && excludeWellBackroom) {
             *should = true;
         } else {
-            ExitCrawlspaceCS(gPlayState, csCam, actionParameters, initTimer, atPoints, eyePoints);
+            ExitCrawlspaceCS(OoT_gPlayState, csCam, actionParameters, initTimer, atPoints, eyePoints);
             *should = false;
         }
     });
 
     COND_VB_SHOULD(VB_CRAWL_SPEED_ENTER, shouldRegister, {
-        Player* player = GET_PLAYER(gPlayState);
-        EnterCrawlspace(player, gPlayState);
+        Player* player = GET_PLAYER(OoT_gPlayState);
+        EnterCrawlspace(player, OoT_gPlayState);
         *should = false;
     });
 
     COND_VB_SHOULD(VB_CRAWL_SPEED_INCREASE, shouldRegister, {
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(OoT_gPlayState);
         bool isMQ = ResourceMgr_IsGameMasterQuest();
-        bool boulderExists = !Flags_GetSwitch(gPlayState, 5);
+        bool boulderExists = !OoT_Flags_GetSwitch(OoT_gPlayState, 5);
         bool excludeSpiritMQBoulder =
-            (gPlayState->sceneNum == SCENE_SPIRIT_TEMPLE && player->actor.world.pos.z < -545.0f &&
+            (OoT_gPlayState->sceneNum == SCENE_SPIRIT_TEMPLE && player->actor.world.pos.z < -545.0f &&
              player->actor.world.pos.z > -630.0f && isMQ && boulderExists);
         if (excludeSpiritMQBoulder) {
             *should = true;
         } else {
-            IncreaseCrawlSpeed(player, gPlayState);
+            IncreaseCrawlSpeed(player, OoT_gPlayState);
             *should = false;
         }
     });

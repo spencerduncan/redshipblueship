@@ -1,6 +1,6 @@
 #include "ultra64.h"
 
-void MM_osViBlack(u8 active) {
+void osViBlack(u8 active) {
     register u32 saveMask = __osDisableInt();
 
     if (active) {

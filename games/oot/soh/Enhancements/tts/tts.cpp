@@ -19,7 +19,7 @@
 extern "C" {
 extern MapData* gMapData;
 extern SaveContext gSaveContext;
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 typedef enum {
@@ -182,10 +182,10 @@ void RegisterOnInterfaceUpdateHook() {
             lostHealth += prevHealth - gSaveContext.health;
         }
 
-        if (gPlayState->state.frames % 7 == 0) {
+        if (OoT_gPlayState->state.frames % 7 == 0) {
             if (lostHealth >= 16) {
-                Audio_PlaySoundGeneral(NA_SE_SY_CANCEL, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                                       &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                Audio_PlaySoundGeneral(NA_SE_SY_CANCEL, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                 lostHealth -= 16;
             }
         }
@@ -206,8 +206,8 @@ void RegisterOnKaleidoscopeUpdateHook() {
         static int16_t prevSubState = -1;
         static int16_t prevState = -1;
 
-        PauseContext* pauseCtx = &gPlayState->pauseCtx;
-        Input* input = &gPlayState->state.input[0];
+        PauseContext* pauseCtx = &OoT_gPlayState->pauseCtx;
+        Input* input = &OoT_gPlayState->state.input[0];
 
         // Save game prompt
         if (pauseCtx->state == 7) {
@@ -371,9 +371,9 @@ void RegisterOnKaleidoscopeUpdateHook() {
                 auto translation = GetParameritizedText("magic", TEXT_BANK_KALEIDO, arg);
                 SpeechSynthesizer::Instance->Speak(translation.c_str(), GetLanguageCode());
             } else if (CHECK_BTN_ALL(input->press.button, BTN_DDOWN)) {
-                if (gPlayState->sceneNum >= SCENE_FOREST_TEMPLE && gPlayState->sceneNum <= SCENE_INSIDE_GANONS_CASTLE) {
+                if (OoT_gPlayState->sceneNum >= SCENE_FOREST_TEMPLE && OoT_gPlayState->sceneNum <= SCENE_INSIDE_GANONS_CASTLE) {
                     snprintf(arg, sizeof(arg), "%d",
-                             std::max(gSaveContext.inventory.dungeonKeys[gPlayState->sceneNum], (s8)0));
+                             std::max(gSaveContext.inventory.dungeonKeys[OoT_gPlayState->sceneNum], (s8)0));
                     auto translation = GetParameritizedText("keys", TEXT_BANK_KALEIDO, arg);
                     SpeechSynthesizer::Instance->Speak(translation.c_str(), GetLanguageCode());
                 } else {
@@ -464,7 +464,7 @@ void RegisterOnKaleidoscopeUpdateHook() {
                         // Cursor is on a dungeon floor position
                         if (cursorPoint >= 3 && cursorPoint < 11) {
                             int floorID =
-                                gMapData->floorID[gPlayState->interfaceCtx.unk_25A][pauseCtx->dungeonMapSlot - 3];
+                                gMapData->floorID[OoT_gPlayState->interfaceCtx.unk_25A][pauseCtx->dungeonMapSlot - 3];
                             // Normalize so F1 == 0, and negative numbers are basement levels
                             int normalizedFloor = (floorID * -1) + 8;
                             if (normalizedFloor >= 0) {
@@ -1044,7 +1044,7 @@ void RegisterOnDialogMessageHook() {
         if (!CVarGetInteger(CVAR_SETTING("A11yTTS"), 0))
             return;
 
-        MessageContext* msgCtx = &gPlayState->msgCtx;
+        MessageContext* msgCtx = &OoT_gPlayState->msgCtx;
 
         if (msgCtx->msgMode == MSGMODE_TEXT_NEXT_MSG || msgCtx->msgMode == MSGMODE_DISPLAY_SONG_PLAYED_TEXT_BEGIN ||
             (msgCtx->msgMode == MSGMODE_TEXT_CONTINUING && msgCtx->stateTimer == 1)) {
@@ -1187,7 +1187,7 @@ void RegisterOnSetDoAction() {
                     text = language == LANGUAGE_FRA ? "action" : language == LANGUAGE_GER ? "aktion" : "grab";
                     break;
                 case DO_ACTION_DOWN: {
-                    Player* player = GET_PLAYER(gPlayState);
+                    Player* player = GET_PLAYER(OoT_gPlayState);
                     if (player == NULL || !(player->stateFlags1 & PLAYER_STATE1_ON_HORSE))
                         return;
                     text = language == LANGUAGE_FRA ? "descendre" : language == LANGUAGE_GER ? "herab" : "down";

@@ -403,12 +403,12 @@ void EnEgol_DestroyBlocks(EnEgol* this, PlayState* play, Vec3f pos1, Vec3f pos2)
             blockTo2.y = pos2.y - prop->world.pos.y;
             blockTo2.z = pos2.z - prop->world.pos.z;
 
-            dist1 = MM_sqrtf(SQXZ(blockTo1));
-            dist2 = MM_sqrtf(SQXZ(blockTo2));
+            dist1 = sqrtf(SQXZ(blockTo1));
+            dist2 = sqrtf(SQXZ(blockTo2));
 
             if ((dist1 < 40.0f) || (dist2 < 40.0f)) {
-                dist1 = MM_sqrtf(SQ(blockTo1.y));
-                dist2 = MM_sqrtf(SQ(blockTo2.y));
+                dist1 = sqrtf(SQ(blockTo1.y));
+                dist2 = sqrtf(SQ(blockTo2.y));
                 if ((dist1 < 40.0f) || (dist2 < 40.0f)) {
                     prop->colChkInfo.health = 0;
                     Actor_PlaySfx(&this->actor, NA_SE_EV_WALL_BROKEN);
@@ -599,7 +599,7 @@ void EnEgol_Walk(EnEgol* this, PlayState* play) {
             f32 dx = this->actor.world.pos.x - this->waypointPos.x;
             f32 dz = this->actor.world.pos.z - this->waypointPos.z;
 
-            if (MM_sqrtf(SQ(dx) + SQ(dz)) < 4.0f) {
+            if (sqrtf(SQ(dx) + SQ(dz)) < 4.0f) {
                 if (this->path != NULL) {
                     this->waypoint++;
                     if (this->waypoint >= this->path->count) {
@@ -662,7 +662,7 @@ void EnEgol_Retreat(EnEgol* this, PlayState* play) {
     EnEgol_FootstepEffects(this, play, 5.0f, 0.0f);
     toWaypoint.x = this->actor.world.pos.x - this->waypointPos.x;
     toWaypoint.z = this->actor.world.pos.z - this->waypointPos.z;
-    if (MM_sqrtf(SQXZ(toWaypoint)) < 4.0f) {
+    if (sqrtf(SQXZ(toWaypoint)) < 4.0f) {
         this->waypoint--;
         if (this->waypoint < 0) {
             this->waypoint = 0;
@@ -791,7 +791,7 @@ void EnEgol_Laser(EnEgol* this, PlayState* play) {
                 /*! @bug The following is supposed to calculate the rotation from vertical to the collision poly normal.
                  * However, the calculation is performed incorrectly. The correct calculation is
                  * rotToNorm.x = MM_Math_FAtan2F(nz, ny) * 0x8000 / M_PI;
-                 * rotToNorm.z = MM_Math_FAtan2F(-nx, MM_sqrtf(1.0f - SQ(nx))) * 0x8000 / M_PI;
+                 * rotToNorm.z = MM_Math_FAtan2F(-nx, sqrtf(1.0f - SQ(nx))) * 0x8000 / M_PI;
                  */
                 rotToNorm.x = RAD_TO_BINANG_ALT2(-MM_Math_FAtan2F(-nz * ny, 1.0f));
                 rotToNorm.z = RAD_TO_BINANG_ALT2(MM_Math_FAtan2F(-nx * ny, 1.0f));

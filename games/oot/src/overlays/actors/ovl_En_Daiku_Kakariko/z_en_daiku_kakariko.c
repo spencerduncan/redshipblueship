@@ -368,7 +368,7 @@ void EnDaikuKakariko_Run(EnDaikuKakariko* this, PlayState* play) {
         xDist = pathPos->x - this->actor.world.pos.x;
         zDist = pathPos->z - this->actor.world.pos.z;
         runAngle = OoT_Math_FAtan2F(xDist, zDist) * (32768.0f / M_PI);
-        runDist = OoT_sqrtf((xDist * xDist) + (zDist * zDist));
+        runDist = sqrtf((xDist * xDist) + (zDist * zDist));
 
         run = false;
 

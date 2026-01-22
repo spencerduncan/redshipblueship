@@ -94,8 +94,8 @@ void OoT_TransitionCircle_Start(void* thisx) {
                                    &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
         }
     }
-    OoT_guPerspective(&this->projection, &this->normal, 60.0f, (4.0f / 3.0f), 10.0f, 12800.0f, 1.0f);
-    OoT_guLookAt(&this->lookAt, 0.0f, 0.0f, 400.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+    guPerspective(&this->projection, &this->normal, 60.0f, (4.0f / 3.0f), 10.0f, 12800.0f, 1.0f);
+    guLookAt(&this->lookAt, 0.0f, 0.0f, 400.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 }
 
 void* OoT_TransitionCircle_Init(void* thisx) {
@@ -172,7 +172,7 @@ void OoT_TransitionCircle_Draw(void* thisx, Gfx** gfxP) {
     }
 
     if (rot != 0.0f) {
-        OoT_guRotate(&modelView[1], rot, 0.0f, 0.0f, 1.0f);
+        guRotate(&modelView[1], rot, 0.0f, 0.0f, 1.0f);
         gSPMatrix(gfx++, &modelView[1], G_MTX_NOPUSH | G_MTX_MUL | G_MTX_MODELVIEW);
     }
 

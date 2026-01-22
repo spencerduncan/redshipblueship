@@ -53,9 +53,9 @@ typedef struct VisCvg {
     /* 0x00 */ Vis vis;
 } VisCvg; // size = 0x10
 
-void VisCvg_Init(VisCvg* this);
-void VisCvg_Destroy(VisCvg* this);
-void VisCvg_Draw(VisCvg* this, Gfx** gfxP);
+void OoT_VisCvg_Init(VisCvg* this);
+void OoT_VisCvg_Destroy(VisCvg* this);
+void OoT_VisCvg_Draw(VisCvg* this, Gfx** gfxP);
 
 
 
@@ -69,9 +69,9 @@ typedef struct VisMono {
     /* 0x14 */ Gfx* dList;
 } VisMono; // size = 0x18
 
-void VisMono_Init(VisMono* this);
-void VisMono_Destroy(VisMono* this);
-void VisMono_Draw(VisMono* this, Gfx** gfxP);
+void OoT_VisMono_Init(VisMono* this);
+void OoT_VisMono_Destroy(VisMono* this);
+void OoT_VisMono_Draw(VisMono* this, Gfx** gfxP);
 
 
 

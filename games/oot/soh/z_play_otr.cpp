@@ -8,8 +8,8 @@
 #include "vt.h"
 #include <fast/resource/type/Vertex.h>
 
-extern "C" void Play_InitScene(PlayState* play, s32 spawn);
-extern "C" void Play_InitEnvironment(PlayState* play, s16 skyboxId);
+extern "C" void OoT_Play_InitScene(PlayState* play, s32 spawn);
+extern "C" void OoT_Play_InitEnvironment(PlayState* play, s16 skyboxId);
 void OTRPlay_InitScene(PlayState* play, s32 spawn);
 s32 OTRScene_ExecuteCommands(PlayState* play, SOH::Scene* scene);
 
@@ -20,7 +20,7 @@ Ship::IResource* OTRPlay_LoadFile(PlayState* play, const char* fileName) {
 }
 
 extern "C" void OTRPlay_SpawnScene(PlayState* play, s32 sceneId, s32 spawn) {
-    SceneTableEntry* scene = &gSceneTable[sceneId];
+    SceneTableEntry* scene = &OoT_gSceneTable[sceneId];
 
     scene->unk_13 = 0;
     play->loadedScene = scene;
@@ -52,7 +52,7 @@ extern "C" void OTRPlay_SpawnScene(PlayState* play, s32 sceneId, s32 spawn) {
 
     scene->unk_13 = 0;
 
-    // gSegments[2] = VIRTUAL_TO_PHYSICAL(play->sceneSegment);
+    // OoT_gSegments[2] = VIRTUAL_TO_PHYSICAL(play->sceneSegment);
 
     OTRPlay_InitScene(play, spawn);
     auto roomSize = func_80096FE8(play, &play->roomCtx);
@@ -73,7 +73,7 @@ void OTRPlay_InitScene(PlayState* play, s32 spawn) {
     play->setupPathList = nullptr;
     play->numSetupActors = 0;
     Object_InitBank(play, &play->objectCtx);
-    LightContext_Init(play, &play->lightCtx);
+    OoT_LightContext_Init(play, &play->lightCtx);
     TransitionActor_InitContext(&play->state, &play->transiActorCtx);
     func_80096FD4(play, &play->roomCtx.curRoom);
     YREG(15) = 0;
@@ -81,7 +81,7 @@ void OTRPlay_InitScene(PlayState* play, s32 spawn) {
     OTRScene_ExecuteCommands(play, (SOH::Scene*)play->sceneSegment);
 
     GameInteractor_ExecuteAfterSceneCommands(play->sceneNum);
-    Play_InitEnvironment(play, play->skyboxId);
+    OoT_Play_InitEnvironment(play, play->skyboxId);
     /* auto data = static_cast<LUS::Vertex*>(Ship::Context::GetInstance()
                                                ->GetResourceManager()
                                                ->ResourceLoad("object_link_child\\object_link_childVtx_01FE08")

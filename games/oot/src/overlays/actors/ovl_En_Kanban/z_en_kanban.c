@@ -636,7 +636,7 @@ void OoT_EnKanban_Update(Actor* thisx, PlayState* play2) {
                     OoT_EffectSsGRipple_Spawn(play, &this->actor.world.pos, rippleScale, rippleScale + 500, 0);
                 }
             } else if ((play->actorCtx.unk_02 != 0) && (this->actor.xyzDistToPlayerSq < SQ(100.0f))) {
-                f32 hammerStrength = (100.0f - OoT_sqrtf(this->actor.xyzDistToPlayerSq)) * 0.05f;
+                f32 hammerStrength = (100.0f - sqrtf(this->actor.xyzDistToPlayerSq)) * 0.05f;
 
                 this->actionState = ENKANBAN_AIR;
                 this->actor.gravity = -1.0f;
@@ -674,8 +674,8 @@ void OoT_EnKanban_Update(Actor* thisx, PlayState* play2) {
                     dx = this->actor.world.pos.x - bomb->world.pos.x;
                     dy = this->actor.world.pos.y - bomb->world.pos.y;
                     dz = this->actor.world.pos.z - bomb->world.pos.z;
-                    if (OoT_sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 100.0f) {
-                        f32 bombStrength = (100.0f - OoT_sqrtf(SQ(dx) + SQ(dy) + SQ(dz))) * 0.05f;
+                    if (sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 100.0f) {
+                        f32 bombStrength = (100.0f - sqrtf(SQ(dx) + SQ(dy) + SQ(dz))) * 0.05f;
 
                         this->actionState = ENKANBAN_AIR;
                         this->actor.gravity = -1.0f;

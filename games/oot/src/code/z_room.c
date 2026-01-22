@@ -241,10 +241,10 @@ s32 swapAndConvertJPEG(void* data) {
         osSyncPrintf("Expanding jpeg data\n");
         osSyncPrintf("Work buffer address (Z buffer) %08x\n", gZBuffer);
 
-        time = OoT_osGetTime();
+        time = osGetTime();
 
         memcpy(data, decodedJpeg, size);
-        time = OoT_osGetTime() - time;
+        time = osGetTime() - time;
 
         osSyncPrintf("Success... I think. time = %6.3f ms", OS_CYCLES_TO_USEC(time) / 1000.0f);
         osSyncPrintf("Writing back to original address from work buffer.");
@@ -301,7 +301,7 @@ void Room_DrawBackground2D(Gfx** gfxP, void* tex, void* tlut, u16 width, u16 hei
     if ((fmt == G_IM_FMT_RGBA) && (SREG(26) == 0)) {
         bg->b.frameW = width * (1 << 2);
         bg->b.frameH = height * (1 << 2);
-        OoT_guS2DInitBg(bg);
+        guS2DInitBg(bg);
 
         // #region SOH [Port][Widescreen]
         // When larger than 4:3 we want to render an additional black rectangle behind the 2d image
@@ -603,7 +603,7 @@ s32 func_8009728C(PlayState* play, RoomContext* roomCtx, s32 roomNum) {
         roomCtx->unk_34 =
             (void*)ALIGN16((intptr_t)roomCtx->bufPtrs[roomCtx->unk_30] - ((size + 8) * roomCtx->unk_30 + 7));
 
-        OoT_osCreateMesgQueue(&roomCtx->loadQueue, &roomCtx->loadMsg, 1);
+        osCreateMesgQueue(&roomCtx->loadQueue, &roomCtx->loadMsg, 1);
         DmaMgr_SendRequest2(&roomCtx->dmaRequest, roomCtx->unk_34, play->roomList[roomNum].vromStart, size, 0,
                             &roomCtx->loadQueue, OS_MESG_PTR(NULL), __FILE__, __LINE__);
         roomCtx->unk_30 ^= 1;
@@ -618,7 +618,7 @@ s32 func_800973FC(PlayState* play, RoomContext* roomCtx) {
     return OTRfunc_800973FC(play, roomCtx);
 
     if (roomCtx->status == 1) {
-        if (!OoT_osRecvMesg(&roomCtx->loadQueue, NULL, OS_MESG_NOBLOCK)) {
+        if (!osRecvMesg(&roomCtx->loadQueue, NULL, OS_MESG_NOBLOCK)) {
             roomCtx->status = 0;
             roomCtx->curRoom.segment = roomCtx->unk_34;
             OoT_gSegments[3] = VIRTUAL_TO_PHYSICAL(roomCtx->unk_34);

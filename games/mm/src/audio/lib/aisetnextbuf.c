@@ -1,11 +1,11 @@
 #include "global.h"
 
 //! Note that this is not the same as the original libultra
-//! MM_osAiSetNextBuffer, see comments in the function
+//! osAiSetNextBuffer, see comments in the function
 
 #if 0
 
-s32 MM_osAiSetNextBuffer(void* buf, u32 size) {
+s32 osAiSetNextBuffer(void* buf, u32 size) {
     static u8 D_801D6010 = false;
     uintptr_t bufAdjusted = (uintptr_t)buf;
     s32 status;
@@ -25,7 +25,7 @@ s32 MM_osAiSetNextBuffer(void* buf, u32 size) {
         return -1;
     }
 
-    // OS_K0_TO_PHYSICAL replaces MM_osVirtualToPhysical, this replacement
+    // OS_K0_TO_PHYSICAL replaces osVirtualToPhysical, this replacement
     // assumes that only KSEG0 addresses are given
     IO_WRITE(AI_DRAM_ADDR_REG, OS_K0_TO_PHYSICAL(bufAdjusted));
     IO_WRITE(AI_LEN_REG, size);
@@ -35,7 +35,7 @@ s32 MM_osAiSetNextBuffer(void* buf, u32 size) {
 #endif // 0
 
 //! Note that the remaining data and functions are unused and not part of the
-//! original libultra MM_osAiSetNextBuffer
+//! original libultra osAiSetNextBuffer
 
 s16 D_801D6014[] = {
     19720, 18360, 17680, 16320, 14960, 13600, 12240, 10880, 9520, 0,

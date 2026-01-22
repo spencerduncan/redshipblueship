@@ -9,16 +9,16 @@ extern "C" {
 #include "overlays/actors/ovl_En_Kusa/z_en_kusa.h"
 #include "objects/gameplay_field_keep/gameplay_field_keep.h"
 #include "objects/object_kusa/object_kusa.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 extern void EnItem00_DrawRandomizedItem(EnItem00* enItem00, PlayState* play);
 
 void DrawTypeOfGrass(EnKusa* grassActor, Gfx* bushDList, Gfx* grassDList, PlayState* play) {
     if ((grassActor->actor.params & 3) == 0) {
-        Gfx_DrawDListOpa(play, bushDList);
+        OoT_Gfx_DrawDListOpa(play, bushDList);
     } else {
-        Gfx_DrawDListOpa(play, grassDList);
+        OoT_Gfx_DrawDListOpa(play, grassDList);
     }
 }
 
@@ -72,9 +72,9 @@ extern "C" void EnKusa_RandomizerDraw(Actor* thisx, PlayState* play) {
             DrawTypeOfGrass(grassActor, (Gfx*)gRandoBushDL, (Gfx*)gRandoCuttableGrassDL, play);
         }
     } else if (grassActor->actor.flags & ACTOR_FLAG_GRASS_DESTROYED) {
-        Gfx_DrawDListOpa(play, (Gfx*)object_kusa_DL_0002E0);
+        OoT_Gfx_DrawDListOpa(play, (Gfx*)object_kusa_DL_0002E0);
     } else {
-        Gfx_DrawDListOpa(play, dLists[thisx->params & 3]);
+        OoT_Gfx_DrawDListOpa(play, dLists[thisx->params & 3]);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -106,13 +106,13 @@ void EnKusa_RandomizerSpawnCollectible(EnKusa* grassActor, PlayState* play) {
         return;
     }
 
-    EnItem00* item00 = (EnItem00*)Item_DropCollectible2(play, &grassActor->actor.world.pos, ITEM00_SOH_DUMMY);
+    EnItem00* item00 = (EnItem00*)OoT_Item_DropCollectible2(play, &grassActor->actor.world.pos, ITEM00_SOH_DUMMY);
     item00->randoInf = grassIdentity->randomizerInf;
     item00->itemEntry = Rando::Context::GetInstance()->GetFinalGIEntry(grassIdentity->randomizerCheck, true, GI_NONE);
     item00->actor.draw = (ActorFunc)EnItem00_DrawRandomizedItem;
     item00->actor.velocity.y = 8.0f;
     item00->actor.speedXZ = 2.0f;
-    item00->actor.world.rot.y = static_cast<int16_t>(Rand_CenteredFloat(65536.0f));
+    item00->actor.world.rot.y = static_cast<int16_t>(OoT_Rand_CenteredFloat(65536.0f));
 }
 
 void EnKusa_RandomizerInit(void* actorRef) {
@@ -125,7 +125,7 @@ void EnKusa_RandomizerInit(void* actorRef) {
     s16 respawnData = gSaveContext.respawn[RESPAWN_MODE_RETURN].data & ((1 << 8) - 1);
 
     auto grassIdentity = OTRGlobals::Instance->gRandomizer->IdentifyGrass(
-        gPlayState->sceneNum, (s16)actor->world.pos.x, (s16)actor->world.pos.z, respawnData, gPlayState->linkAgeOnLoad);
+        OoT_gPlayState->sceneNum, (s16)actor->world.pos.x, (s16)actor->world.pos.z, respawnData, OoT_gPlayState->linkAgeOnLoad);
     ObjectExtension::GetInstance().Set<CheckIdentity>(actor, std::move(grassIdentity));
 }
 
@@ -136,7 +136,7 @@ void RegisterShuffleGrass() {
 
     COND_VB_SHOULD(VB_GRASS_SETUP_DRAW, shouldRegister, {
         EnKusa* grassActor = va_arg(args, EnKusa*);
-        if (EnKusa_RandomizerHoldsItem(grassActor, gPlayState)) {
+        if (EnKusa_RandomizerHoldsItem(grassActor, OoT_gPlayState)) {
             grassActor->actor.draw = (ActorFunc)EnKusa_RandomizerDraw;
             *should = false;
         } else {
@@ -146,8 +146,8 @@ void RegisterShuffleGrass() {
 
     COND_VB_SHOULD(VB_GRASS_DROP_ITEM, shouldRegister, {
         EnKusa* grassActor = va_arg(args, EnKusa*);
-        if (EnKusa_RandomizerHoldsItem(grassActor, gPlayState)) {
-            EnKusa_RandomizerSpawnCollectible(grassActor, gPlayState);
+        if (EnKusa_RandomizerHoldsItem(grassActor, OoT_gPlayState)) {
+            EnKusa_RandomizerSpawnCollectible(grassActor, OoT_gPlayState);
             ObjectExtension::GetInstance().Set<CheckIdentity>(&grassActor->actor, std::move(CheckIdentity{
                                                                                       .randomizerInf = RAND_INF_MAX,
                                                                                       .randomizerCheck = RC_MAX,

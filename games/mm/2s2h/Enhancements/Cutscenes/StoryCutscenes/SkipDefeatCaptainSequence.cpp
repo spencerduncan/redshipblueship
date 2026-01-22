@@ -12,15 +12,15 @@ extern "C" {
 
 void SkipDefeatCaptainTextbox() {
     // from func_80C0D9B4
-    gPlayState->nextEntrance = Entrance_CreateFromSpawn(5);
+    MM_gPlayState->nextEntrance = Entrance_CreateFromSpawn(5);
     gSaveContext.nextCutsceneIndex = 0;
-    gPlayState->transitionTrigger = 0x14;
-    gPlayState->transitionType = 2;
+    MM_gPlayState->transitionTrigger = 0x14;
+    MM_gPlayState->transitionType = 2;
     gSaveContext.nextTransitionType = 3;
 }
 
 void SkipDefeatCaptainCutscene() {
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(MM_gPlayState);
 
     // the cutscene sets link's position/rotation to
     //
@@ -34,7 +34,7 @@ void SkipDefeatCaptainCutscene() {
     SET_WEEKEVENTREG(WEEKEVENTREG_23_04);
 
     // get rid of the fire from the chest
-    Flags_SetSwitch(gPlayState, 0x0B);
+    MM_Flags_SetSwitch(MM_gPlayState, 0x0B);
 }
 
 void RegisterSkipDefeatCaptainSequence() {
@@ -45,7 +45,7 @@ void RegisterSkipDefeatCaptainSequence() {
 
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
         s16* csId = va_arg(args, s16*);
-        if (gPlayState->sceneId == SCENE_BOTI && *csId == 20) {
+        if (MM_gPlayState->sceneId == SCENE_BOTI && *csId == 20) {
             *should = false;
             SkipDefeatCaptainCutscene();
         }

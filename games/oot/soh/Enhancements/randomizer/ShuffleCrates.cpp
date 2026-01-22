@@ -13,7 +13,7 @@ extern "C" {
 #include "overlays/actors/ovl_Obj_Kibako/z_obj_kibako.h"
 #include "objects/gameplay_dangeon_keep/gameplay_dangeon_keep.h"
 #include "soh/Enhancements/enhancementTypes.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 extern void EnItem00_DrawRandomizedItem(EnItem00* enItem00, PlayState* play);
@@ -27,13 +27,13 @@ extern "C" void ObjKibako2_RandomizerDraw(Actor* thisx, PlayState* play) {
     int isVanilla = !csmc || (requiresStoneAgony && !CHECK_QUEST_ITEM(QUEST_STONE_OF_AGONY));
 
     if (isVanilla) {
-        Gfx_DrawDListOpa(play, (Gfx*)gLargeRandoCrateDL);
+        OoT_Gfx_DrawDListOpa(play, (Gfx*)gLargeRandoCrateDL);
         return;
     }
 
     const auto crateIdentity = ObjectExtension::GetInstance().Get<CheckIdentity>(thisx);
     if (crateIdentity == nullptr) {
-        Gfx_DrawDListOpa(play, (Gfx*)gLargeRandoCrateDL);
+        OoT_Gfx_DrawDListOpa(play, (Gfx*)gLargeRandoCrateDL);
         return;
     }
 
@@ -61,26 +61,26 @@ extern "C" void ObjKibako2_RandomizerDraw(Actor* thisx, PlayState* play) {
     // Change texture
     switch (getItemCategory) {
         case ITEM_CATEGORY_MAJOR:
-            Gfx_DrawDListOpa(play, (Gfx*)gLargeMajorCrateDL);
+            OoT_Gfx_DrawDListOpa(play, (Gfx*)gLargeMajorCrateDL);
             break;
         case ITEM_CATEGORY_SKULLTULA_TOKEN:
-            Gfx_DrawDListOpa(play, (Gfx*)gLargeTokenCrateDL);
+            OoT_Gfx_DrawDListOpa(play, (Gfx*)gLargeTokenCrateDL);
             break;
         case ITEM_CATEGORY_SMALL_KEY:
-            Gfx_DrawDListOpa(play, (Gfx*)gLargeSmallKeyCrateDL);
+            OoT_Gfx_DrawDListOpa(play, (Gfx*)gLargeSmallKeyCrateDL);
             break;
         case ITEM_CATEGORY_BOSS_KEY:
-            Gfx_DrawDListOpa(play, (Gfx*)gLargeBossKeyCrateDL);
+            OoT_Gfx_DrawDListOpa(play, (Gfx*)gLargeBossKeyCrateDL);
             break;
         case ITEM_CATEGORY_HEALTH:
-            Gfx_DrawDListOpa(play, (Gfx*)gLargeHeartCrateDL);
+            OoT_Gfx_DrawDListOpa(play, (Gfx*)gLargeHeartCrateDL);
             break;
         case ITEM_CATEGORY_LESSER:
-            Gfx_DrawDListOpa(play, (Gfx*)gLargeMinorCrateDL);
+            OoT_Gfx_DrawDListOpa(play, (Gfx*)gLargeMinorCrateDL);
             break;
         case ITEM_CATEGORY_JUNK:
         default:
-            Gfx_DrawDListOpa(play, (Gfx*)gLargeJunkCrateDL);
+            OoT_Gfx_DrawDListOpa(play, (Gfx*)gLargeJunkCrateDL);
             break;
     }
 }
@@ -94,13 +94,13 @@ extern "C" void ObjKibako_RandomizerDraw(Actor* thisx, PlayState* play) {
     int isVanilla = !csmc || (requiresStoneAgony && !CHECK_QUEST_ITEM(QUEST_STONE_OF_AGONY));
 
     if (isVanilla) {
-        Gfx_DrawDListOpa(play, (Gfx*)gSmallRandoCrateDL);
+        OoT_Gfx_DrawDListOpa(play, (Gfx*)gSmallRandoCrateDL);
         return;
     }
 
     const auto crateIdentity = ObjectExtension::GetInstance().Get<CheckIdentity>(thisx);
     if (crateIdentity == nullptr) {
-        Gfx_DrawDListOpa(play, (Gfx*)gSmallRandoCrateDL);
+        OoT_Gfx_DrawDListOpa(play, (Gfx*)gSmallRandoCrateDL);
         return;
     }
 
@@ -128,26 +128,26 @@ extern "C" void ObjKibako_RandomizerDraw(Actor* thisx, PlayState* play) {
     // Change texture
     switch (getItemCategory) {
         case ITEM_CATEGORY_MAJOR:
-            Gfx_DrawDListOpa(play, (Gfx*)gSmallMajorCrateDL);
+            OoT_Gfx_DrawDListOpa(play, (Gfx*)gSmallMajorCrateDL);
             break;
         case ITEM_CATEGORY_SKULLTULA_TOKEN:
-            Gfx_DrawDListOpa(play, (Gfx*)gSmallTokenCrateDL);
+            OoT_Gfx_DrawDListOpa(play, (Gfx*)gSmallTokenCrateDL);
             break;
         case ITEM_CATEGORY_SMALL_KEY:
-            Gfx_DrawDListOpa(play, (Gfx*)gSmallSmallKeyCrateDL);
+            OoT_Gfx_DrawDListOpa(play, (Gfx*)gSmallSmallKeyCrateDL);
             break;
         case ITEM_CATEGORY_BOSS_KEY:
-            Gfx_DrawDListOpa(play, (Gfx*)gSmallBossKeyCrateDL);
+            OoT_Gfx_DrawDListOpa(play, (Gfx*)gSmallBossKeyCrateDL);
             break;
         case ITEM_CATEGORY_HEALTH:
-            Gfx_DrawDListOpa(play, (Gfx*)gSmallHeartCrateDL);
+            OoT_Gfx_DrawDListOpa(play, (Gfx*)gSmallHeartCrateDL);
             break;
         case ITEM_CATEGORY_LESSER:
-            Gfx_DrawDListOpa(play, (Gfx*)gSmallMinorCrateDL);
+            OoT_Gfx_DrawDListOpa(play, (Gfx*)gSmallMinorCrateDL);
             break;
         case ITEM_CATEGORY_JUNK:
         default:
-            Gfx_DrawDListOpa(play, (Gfx*)gSmallJunkCrateDL);
+            OoT_Gfx_DrawDListOpa(play, (Gfx*)gSmallJunkCrateDL);
             break;
     }
 }
@@ -198,13 +198,13 @@ void ObjKibako2_RandomizerSpawnCollectible(ObjKibako2* crateActor, PlayState* pl
         return;
     }
 
-    EnItem00* item00 = (EnItem00*)Item_DropCollectible2(play, &crateActor->dyna.actor.world.pos, ITEM00_SOH_DUMMY);
+    EnItem00* item00 = (EnItem00*)OoT_Item_DropCollectible2(play, &crateActor->dyna.actor.world.pos, ITEM00_SOH_DUMMY);
     item00->randoInf = crateIdentity->randomizerInf;
     item00->itemEntry = Rando::Context::GetInstance()->GetFinalGIEntry(crateIdentity->randomizerCheck, true, GI_NONE);
     item00->actor.draw = (ActorFunc)EnItem00_DrawRandomizedItem;
     item00->actor.velocity.y = 8.0f;
     item00->actor.speedXZ = 2.0f;
-    item00->actor.world.rot.y = static_cast<int16_t>(Rand_CenteredFloat(65536.0f));
+    item00->actor.world.rot.y = static_cast<int16_t>(OoT_Rand_CenteredFloat(65536.0f));
 }
 
 void ObjKibako_RandomizerSpawnCollectible(ObjKibako* smallCrateActor, PlayState* play) {
@@ -213,13 +213,13 @@ void ObjKibako_RandomizerSpawnCollectible(ObjKibako* smallCrateActor, PlayState*
         return;
     }
 
-    EnItem00* item00 = (EnItem00*)Item_DropCollectible2(play, &smallCrateActor->actor.world.pos, ITEM00_SOH_DUMMY);
+    EnItem00* item00 = (EnItem00*)OoT_Item_DropCollectible2(play, &smallCrateActor->actor.world.pos, ITEM00_SOH_DUMMY);
     item00->randoInf = crateIdentity->randomizerInf;
     item00->itemEntry = Rando::Context::GetInstance()->GetFinalGIEntry(crateIdentity->randomizerCheck, true, GI_NONE);
     item00->actor.draw = (ActorFunc)EnItem00_DrawRandomizedItem;
     item00->actor.velocity.y = 8.0f;
     item00->actor.speedXZ = 2.0f;
-    item00->actor.world.rot.y = static_cast<int16_t>(Rand_CenteredFloat(65536.0f));
+    item00->actor.world.rot.y = static_cast<int16_t>(OoT_Rand_CenteredFloat(65536.0f));
 }
 
 void ObjKibako2_RandomizerInit(void* actorRef) {
@@ -228,25 +228,25 @@ void ObjKibako2_RandomizerInit(void* actorRef) {
 
     // don't shuffle two OOB crates in GF and don't shuffle child GV/GF crates when not in no logic
     if (actor->id != ACTOR_OBJ_KIBAKO2 ||
-        (gPlayState->sceneNum == SCENE_GERUDOS_FORTRESS && (s16)actor->world.pos.x == -4051 &&
+        (OoT_gPlayState->sceneNum == SCENE_GERUDOS_FORTRESS && (s16)actor->world.pos.x == -4051 &&
          (s16)actor->world.pos.z == -3429) ||
-        (gPlayState->sceneNum == SCENE_GERUDOS_FORTRESS && (s16)actor->world.pos.x == -4571 &&
+        (OoT_gPlayState->sceneNum == SCENE_GERUDOS_FORTRESS && (s16)actor->world.pos.x == -4571 &&
          (s16)actor->world.pos.z == -3429) ||
-        (logicSetting != RO_LOGIC_NO_LOGIC && ((gPlayState->sceneNum == SCENE_GERUDOS_FORTRESS &&
+        (logicSetting != RO_LOGIC_NO_LOGIC && ((OoT_gPlayState->sceneNum == SCENE_GERUDOS_FORTRESS &&
                                                 (s16)actor->world.pos.x == 3443 && (s16)actor->world.pos.z == -4876) ||
-                                               (gPlayState->sceneNum == SCENE_GERUDO_VALLEY &&
+                                               (OoT_gPlayState->sceneNum == SCENE_GERUDO_VALLEY &&
                                                 (s16)actor->world.pos.x == -764 && (s16)actor->world.pos.z == 148) ||
-                                               (gPlayState->sceneNum == SCENE_GERUDO_VALLEY &&
+                                               (OoT_gPlayState->sceneNum == SCENE_GERUDO_VALLEY &&
                                                 (s16)actor->world.pos.x == -860 && (s16)actor->world.pos.z == -125) ||
-                                               (gPlayState->sceneNum == SCENE_GERUDO_VALLEY &&
+                                               (OoT_gPlayState->sceneNum == SCENE_GERUDO_VALLEY &&
                                                 (s16)actor->world.pos.x == -860 && (s16)actor->world.pos.z == -150) ||
-                                               (gPlayState->sceneNum == SCENE_GERUDO_VALLEY &&
+                                               (OoT_gPlayState->sceneNum == SCENE_GERUDO_VALLEY &&
                                                 (s16)actor->world.pos.x == -860 && (s16)actor->world.pos.z == -90))))
         return;
 
     ObjKibako2* crateActor = static_cast<ObjKibako2*>(actorRef);
 
-    auto crateIdentity = OTRGlobals::Instance->gRandomizer->IdentifyCrate(gPlayState->sceneNum, (s16)actor->world.pos.x,
+    auto crateIdentity = OTRGlobals::Instance->gRandomizer->IdentifyCrate(OoT_gPlayState->sceneNum, (s16)actor->world.pos.x,
                                                                           (s16)actor->world.pos.z);
     ObjectExtension::GetInstance().Set<CheckIdentity>(actor, std::move(crateIdentity));
 }
@@ -260,7 +260,7 @@ void ObjKibako_RandomizerInit(void* actorRef) {
     ObjKibako* smallCrateActor = static_cast<ObjKibako*>(actorRef);
 
     auto crateIdentity = OTRGlobals::Instance->gRandomizer->IdentifySmallCrate(
-        gPlayState->sceneNum, (s16)actor->home.pos.x, (s16)actor->home.pos.z);
+        OoT_gPlayState->sceneNum, (s16)actor->home.pos.x, (s16)actor->home.pos.z);
     ObjectExtension::GetInstance().Set<CheckIdentity>(actor, std::move(crateIdentity));
 }
 
@@ -271,7 +271,7 @@ void RegisterShuffleCrates() {
 
     COND_VB_SHOULD(VB_CRATE_SETUP_DRAW, shouldRegister, {
         ObjKibako2* crateActor = va_arg(args, ObjKibako2*);
-        if (ObjKibako2_RandomizerHoldsItem(crateActor, gPlayState)) {
+        if (ObjKibako2_RandomizerHoldsItem(crateActor, OoT_gPlayState)) {
             crateActor->dyna.actor.draw = (ActorFunc)ObjKibako2_RandomizerDraw;
             *should = false;
         }
@@ -279,8 +279,8 @@ void RegisterShuffleCrates() {
 
     COND_VB_SHOULD(VB_CRATE_DROP_ITEM, shouldRegister, {
         ObjKibako2* crateActor = va_arg(args, ObjKibako2*);
-        if (ObjKibako2_RandomizerHoldsItem(crateActor, gPlayState)) {
-            ObjKibako2_RandomizerSpawnCollectible(crateActor, gPlayState);
+        if (ObjKibako2_RandomizerHoldsItem(crateActor, OoT_gPlayState)) {
+            ObjKibako2_RandomizerSpawnCollectible(crateActor, OoT_gPlayState);
             *should = false;
         } else {
             *should = true;
@@ -291,7 +291,7 @@ void RegisterShuffleCrates() {
 
     COND_VB_SHOULD(VB_SMALL_CRATE_SETUP_DRAW, shouldRegister, {
         ObjKibako* smallCrateActor = va_arg(args, ObjKibako*);
-        if (ObjKibako_RandomizerHoldsItem(smallCrateActor, gPlayState)) {
+        if (ObjKibako_RandomizerHoldsItem(smallCrateActor, OoT_gPlayState)) {
             smallCrateActor->actor.draw = (ActorFunc)ObjKibako_RandomizerDraw;
             *should = false;
         }
@@ -299,8 +299,8 @@ void RegisterShuffleCrates() {
 
     COND_VB_SHOULD(VB_SMALL_CRATE_DROP_ITEM, shouldRegister, {
         ObjKibako* smallCrateActor = va_arg(args, ObjKibako*);
-        if (ObjKibako_RandomizerHoldsItem(smallCrateActor, gPlayState)) {
-            ObjKibako_RandomizerSpawnCollectible(smallCrateActor, gPlayState);
+        if (ObjKibako_RandomizerHoldsItem(smallCrateActor, OoT_gPlayState)) {
+            ObjKibako_RandomizerSpawnCollectible(smallCrateActor, OoT_gPlayState);
             *should = false;
         } else {
             *should = true;

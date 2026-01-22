@@ -7,15 +7,15 @@ extern "C" {
 }
 
 void ResetGameplayFramesOnSoftReset() {
-    PlayState* play = (PlayState*)gGameState;
+    PlayState* play = (PlayState*)OoT_gGameState;
 
-    if (gGameState->init == TitleSetup_Init) {
+    if (OoT_gGameState->init == OoT_TitleSetup_Init) {
         play->gameplayFrames = 0;
     }
 }
 
 void ResetGameplayFramesOnTitleScreenExit() {
-    PlayState* play = (PlayState*)gGameState;
+    PlayState* play = (PlayState*)OoT_gGameState;
 
     if (gSaveContext.fileNum == 0xFF) {
         play->gameplayFrames = 0;

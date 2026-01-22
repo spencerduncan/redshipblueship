@@ -66,7 +66,7 @@ s32 func_80B83C80(Vec3f* arg0, Vec3f* arg1) {
         return false;
     }
 
-    temp_f2 = 1.0f / MM_sqrtf(temp_f0);
+    temp_f2 = 1.0f / sqrtf(temp_f0);
     arg1->x = arg0->x * temp_f2;
     arg1->y = arg0->y * temp_f2;
     arg1->z = arg0->z * temp_f2;

@@ -35,12 +35,12 @@ static bool ActorSpawnHandler(std::shared_ptr<Ship::Console> Console, const std:
         return 1;
     }
 
-    if (gPlayState == nullptr) {
+    if (MM_gPlayState == nullptr) {
         ERROR_MESSAGE("PlayState == nullptr");
         return 1;
     }
 
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(MM_gPlayState);
     PosRot spawnPoint;
     s16 actorId = 0;
     try {
@@ -77,9 +77,9 @@ static bool ActorSpawnHandler(std::shared_ptr<Ship::Console> Console, const std:
             }
     }
 
-    if (Actor_Spawn(&gPlayState->actorCtx, gPlayState, actorId, spawnPoint.pos.x, spawnPoint.pos.y, spawnPoint.pos.z,
+    if (MM_Actor_Spawn(&MM_gPlayState->actorCtx, MM_gPlayState, actorId, spawnPoint.pos.x, spawnPoint.pos.y, spawnPoint.pos.z,
                     spawnPoint.rot.x, spawnPoint.rot.y, spawnPoint.rot.z, params) == NULL) {
-        ERROR_MESSAGE("Failed to spawn actor. Actor_Spawn returned NULL");
+        ERROR_MESSAGE("Failed to spawn actor. MM_Actor_Spawn returned NULL");
         return 1;
     }
     return 0;
@@ -96,12 +96,12 @@ static bool LoadSceneHandler(std::shared_ptr<Ship::Console> Console, const std::
 
 static bool SetPosHandler(std::shared_ptr<Ship::Console> Console, const std::vector<std::string> args,
                           std::string* output) {
-    if (gPlayState == nullptr) {
+    if (MM_gPlayState == nullptr) {
         ERROR_MESSAGE("PlayState == nullptr");
         return 1;
     }
 
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(MM_gPlayState);
 
     if (args.size() == 1) {
         INFO_MESSAGE("Player position is [ %.2f, %.2f, %.2f ]", player->actor.world.pos.x, player->actor.world.pos.y,
@@ -121,13 +121,13 @@ static bool SetPosHandler(std::shared_ptr<Ship::Console> Console, const std::vec
 }
 
 static bool ResetHandler(std::shared_ptr<Ship::Console> Console, std::vector<std::string> args, std::string* output) {
-    if (gGameState == nullptr) {
-        ERROR_MESSAGE("gGameState == nullptr");
+    if (MM_gGameState == nullptr) {
+        ERROR_MESSAGE("MM_gGameState == nullptr");
         return 1;
     }
 
-    STOP_GAMESTATE(gGameState);
-    SET_NEXT_GAMESTATE(gGameState, ConsoleLogo_Init, sizeof(ConsoleLogoState));
+    STOP_GAMESTATE(MM_gGameState);
+    SET_NEXT_GAMESTATE(MM_gGameState, ConsoleLogo_Init, sizeof(ConsoleLogoState));
     // GI-TODO
     // GameInteractor::Instance->ExecuteHooks<GameInteractor::OnExitGame>(gSaveContext.fileNum);
     return 0;
@@ -148,13 +148,13 @@ static bool BHandler(std::shared_ptr<Ship::Console> Console, const std::vector<s
         return 1;
     }
 
-    if (gPlayState == nullptr) {
-        ERROR_MESSAGE("gPlayState == nullptr");
+    if (MM_gPlayState == nullptr) {
+        ERROR_MESSAGE("MM_gPlayState == nullptr");
         return 1;
     }
 
     BUTTON_ITEM_EQUIP(CUR_FORM, EQUIP_SLOT_B) = itemId;
-    Interface_LoadItemIconImpl(gPlayState, EQUIP_SLOT_B);
+    Interface_LoadItemIconImpl(MM_gPlayState, EQUIP_SLOT_B);
     return 0;
 }
 
@@ -173,12 +173,12 @@ static bool GiveItemHandler(std::shared_ptr<Ship::Console> Console, const std::v
         return 1;
     }
 
-    if (gPlayState == nullptr) {
-        ERROR_MESSAGE("gPlayState == nullptr");
+    if (MM_gPlayState == nullptr) {
+        ERROR_MESSAGE("MM_gPlayState == nullptr");
         return 1;
     }
 
-    Player* player = GET_PLAYER(gPlayState);
+    Player* player = GET_PLAYER(MM_gPlayState);
 
     // Cheat by using Tatl to give the item
     if (player == nullptr || player->tatlActor == nullptr) {
@@ -186,7 +186,7 @@ static bool GiveItemHandler(std::shared_ptr<Ship::Console> Console, const std::v
         return 1;
     }
 
-    if (!Actor_OfferGetItemFar(player->tatlActor, gPlayState, getItemId)) {
+    if (!Actor_OfferGetItemFar(player->tatlActor, MM_gPlayState, getItemId)) {
         ERROR_MESSAGE("Unable to receive item");
         return 1;
     }
@@ -209,19 +209,19 @@ static bool EntranceHandler(std::shared_ptr<Ship::Console> Console, const std::v
         return 1;
     }
 
-    gPlayState->nextEntrance = entrance;
-    gPlayState->transitionTrigger = TRANS_TRIGGER_START;
-    gPlayState->transitionType = TRANS_TYPE_INSTANT;
+    MM_gPlayState->nextEntrance = entrance;
+    MM_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
+    MM_gPlayState->transitionType = TRANS_TYPE_INSTANT;
     gSaveContext.nextTransitionType = TRANS_TYPE_INSTANT;
     return 0;
 }
 
 static bool VoidHandler(std::shared_ptr<Ship::Console> Console, const std::vector<std::string>& args,
                         std::string* output) {
-    if (gPlayState != nullptr) {
-        func_80169EFC(gPlayState);
+    if (MM_gPlayState != nullptr) {
+        func_80169EFC(MM_gPlayState);
     } else {
-        ERROR_MESSAGE("gPlayState == nullptr");
+        ERROR_MESSAGE("MM_gPlayState == nullptr");
         return 1;
     }
     return 0;
@@ -229,13 +229,13 @@ static bool VoidHandler(std::shared_ptr<Ship::Console> Console, const std::vecto
 
 static bool ReloadHandler(std::shared_ptr<Ship::Console> Console, const std::vector<std::string>& args,
                           std::string* output) {
-    if (gPlayState != nullptr) {
-        gPlayState->nextEntrance = gSaveContext.save.entrance;
-        gPlayState->transitionTrigger = TRANS_TRIGGER_START;
-        gPlayState->transitionType = TRANS_TYPE_INSTANT;
+    if (MM_gPlayState != nullptr) {
+        MM_gPlayState->nextEntrance = gSaveContext.save.entrance;
+        MM_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
+        MM_gPlayState->transitionType = TRANS_TYPE_INSTANT;
         gSaveContext.nextTransitionType = TRANS_TYPE_INSTANT;
     } else {
-        ERROR_MESSAGE("gPlayState == nullptr");
+        ERROR_MESSAGE("MM_gPlayState == nullptr");
         return 1;
     }
     return 0;
@@ -243,11 +243,11 @@ static bool ReloadHandler(std::shared_ptr<Ship::Console> Console, const std::vec
 
 static bool FileSelectHandler(std::shared_ptr<Ship::Console> Console, const std::vector<std::string>& args,
                               std::string* output) {
-    if (gPlayState != nullptr) {
-        STOP_GAMESTATE(&gPlayState->state);
-        SET_NEXT_GAMESTATE(&gPlayState->state, FileSelect_Init, sizeof(FileSelectState));
+    if (MM_gPlayState != nullptr) {
+        STOP_GAMESTATE(&MM_gPlayState->state);
+        SET_NEXT_GAMESTATE(&MM_gPlayState->state, FileSelect_Init, sizeof(FileSelectState));
     } else {
-        ERROR_MESSAGE("gPlayState == nullptr");
+        ERROR_MESSAGE("MM_gPlayState == nullptr");
         return 1;
     }
     return 0;

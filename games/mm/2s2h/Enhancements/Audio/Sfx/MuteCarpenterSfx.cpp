@@ -15,7 +15,7 @@ void RegisterMuteCarpenterSfx() {
 
         // Returning if not in South or East Clocktown just as a safety precaution, incase these actor params are used
         // elsewhere
-        if (gPlayState->sceneId != SCENE_CLOCKTOWER && gPlayState->sceneId != SCENE_TOWN) {
+        if (MM_gPlayState->sceneId != SCENE_CLOCKTOWER && MM_gPlayState->sceneId != SCENE_TOWN) {
             return;
         }
 

@@ -14,7 +14,7 @@ void Rando::ActorBehavior::InitDmChar08Behavior() {
 
     COND_VB_SHOULD(VB_OPEN_GREAT_BAY_FROM_SONG, shouldRegisterVB, {
         DmChar08* dmChar08 = va_arg(args, DmChar08*);
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(MM_gPlayState);
 
         if (CHECK_WEEKEVENTREG(WEEKEVENTREG_53_20) ||
             !(player->actor.world.pos.x > -5780.0f && player->actor.world.pos.x < -5385.0f &&
@@ -22,12 +22,12 @@ void Rando::ActorBehavior::InitDmChar08Behavior() {
             return;
         }
 
-        bool hasSongAccess = (gPlayState->msgCtx.ocarinaMode == OCARINA_MODE_EVENT &&
-                              gPlayState->msgCtx.lastPlayedSong == OCARINA_SONG_NEW_WAVE);
+        bool hasSongAccess = (MM_gPlayState->msgCtx.ocarinaMode == OCARINA_MODE_EVENT &&
+                              MM_gPlayState->msgCtx.lastPlayedSong == OCARINA_SONG_NEW_WAVE);
 
         bool hasFormAccess =
-            (player->transformation == PLAYER_FORM_ZORA && (gPlayState->msgCtx.ocarinaMode == OCARINA_MODE_EVENT ||
-                                                            gPlayState->msgCtx.ocarinaMode == OCARINA_MODE_ACTIVE));
+            (player->transformation == PLAYER_FORM_ZORA && (MM_gPlayState->msgCtx.ocarinaMode == OCARINA_MODE_EVENT ||
+                                                            MM_gPlayState->msgCtx.ocarinaMode == OCARINA_MODE_ACTIVE));
 
         switch (RANDO_SAVE_OPTIONS[RO_ACCESS_DUNGEONS]) {
             case RO_ACCESS_DUNGEONS_FORM_OR_SONG:
@@ -45,8 +45,8 @@ void Rando::ActorBehavior::InitDmChar08Behavior() {
 
         if (*should) {
             AudioOcarina_SetInstrument(OCARINA_INSTRUMENT_OFF);
-            gPlayState->msgCtx.ocarinaMode = OCARINA_MODE_END;
-            Message_CloseTextbox(gPlayState);
+            MM_gPlayState->msgCtx.ocarinaMode = OCARINA_MODE_END;
+            MM_Message_CloseTextbox(MM_gPlayState);
         }
     });
 

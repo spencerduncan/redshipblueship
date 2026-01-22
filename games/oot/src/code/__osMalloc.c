@@ -123,15 +123,15 @@ void ArenaImpl_SetDebugInfo(ArenaNode* node, const char* file, int line, Arena* 
     /*
     node->filename = file;
     node->line = line;
-    node->threadId = OoT_osGetThreadId(NULL);
+    node->threadId = osGetThreadId(NULL);
     node->arena = arena;
-    node->time = OoT_osGetTime();
+    node->time = osGetTime();
     */
 }
 #endif
 
 void OoT_ArenaImpl_LockInit(Arena* arena) {
-    OoT_osCreateMesgQueue(&arena->lock, &OoT_sArenaLockMsg, 1);
+    osCreateMesgQueue(&arena->lock, &OoT_sArenaLockMsg, 1);
 }
 
 void OoT_ArenaImpl_Lock(Arena* arena) {
@@ -139,7 +139,7 @@ void OoT_ArenaImpl_Lock(Arena* arena) {
 }
 
 void OoT_ArenaImpl_Unlock(Arena* arena) {
-    OoT_osRecvMesg(&arena->lock, NULL, OS_MESG_BLOCK);
+    osRecvMesg(&arena->lock, NULL, OS_MESG_BLOCK);
 }
 
 #if OOT_DEBUG

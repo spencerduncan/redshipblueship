@@ -5,7 +5,7 @@
 extern "C" {
 #include "functions.h"
 #include "macros.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 extern SaveContext gSaveContext;
 }
 
@@ -45,9 +45,9 @@ static void RegisterBonkDamage() {
                 break;
         }
 
-        Health_ChangeBy(gPlayState, -bonkDamage);
+        OoT_Health_ChangeBy(OoT_gPlayState, -bonkDamage);
         // Set invincibility to make Link flash red as a visual damage indicator.
-        Player* player = GET_PLAYER(gPlayState);
+        Player* player = GET_PLAYER(OoT_gPlayState);
         player->invincibilityTimer = 28;
     });
 }

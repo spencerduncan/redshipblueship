@@ -1,5 +1,5 @@
 #include "global.h"
 
-u32 OoT_osDpGetStatus(void) {
+u32 osDpGetStatus(void) {
     return DPC_STATUS_REG;
 }

@@ -508,7 +508,7 @@ void SaveManager::StartupCheckAndInitMeta(int fileNum) {
         s16 minor = metaSaveBlock["sections"]["sohStats"]["data"]["buildVersionMinor"];
         s16 patch = metaSaveBlock["sections"]["sohStats"]["data"]["buildVersionPatch"];
         // block loading outdated rando save
-        if (!(major == gBuildVersionMajor && minor == gBuildVersionMinor && patch == gBuildVersionPatch)) {
+        if (!(major == OoT_gBuildVersionMajor && minor == OoT_gBuildVersionMinor && patch == OoT_gBuildVersionPatch)) {
             std::string newFileName =
                 Ship::Context::GetPathRelativeToAppDirectory("Save") +
                 ("/file" + std::to_string(fileNum + 1) + "-" + std::to_string(GetUnixTimestamp()) + ".bak");
@@ -924,11 +924,11 @@ void SaveManager::InitFileDebug() {
 
     if (LINK_AGE_IN_YEARS == YEARS_CHILD) {
         gSaveContext.equips.buttonItems[0] = ITEM_SWORD_KOKIRI;
-        Inventory_ChangeEquipment(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_KOKIRI);
+        OoT_Inventory_ChangeEquipment(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_KOKIRI);
         if (gSaveContext.fileNum == 0xFF) {
             gSaveContext.equips.buttonItems[1] = ITEM_SLINGSHOT;
             gSaveContext.equips.cButtonSlots[0] = SLOT_SLINGSHOT;
-            Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_DEKU);
+            OoT_Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_DEKU);
         }
     }
 
@@ -1044,51 +1044,51 @@ void SaveManager::InitFileMaxed() {
 
     // set all the "Entered *" flags for dungeons
     for (int i = 0; i < 0xF; i += 1) {
-        Flags_SetInfTable(0x1A0 + i);
+        OoT_Flags_SetInfTable(0x1A0 + i);
     }
-    Flags_SetInfTable(INFTABLE_ENTERED_HYRULE_CASTLE);
+    OoT_Flags_SetInfTable(INFTABLE_ENTERED_HYRULE_CASTLE);
 
-    Flags_SetEventChkInf(EVENTCHKINF_OPENED_THE_DOOR_OF_TIME);
-    Flags_SetEventChkInf(EVENTCHKINF_EPONA_OBTAINED);
-    Flags_SetEventChkInf(EVENTCHKINF_KING_ZORA_MOVED);
-    Flags_SetEventChkInf(EVENTCHKINF_BEGAN_NABOORU_BATTLE);
-    Flags_SetEventChkInf(EVENTCHKINF_BEGAN_GOHMA_BATTLE);
-    Flags_SetEventChkInf(EVENTCHKINF_BEGAN_KING_DODONGO_BATTLE);
-    Flags_SetEventChkInf(EVENTCHKINF_BEGAN_PHANTOM_GANON_BATTLE);
-    Flags_SetEventChkInf(EVENTCHKINF_BEGAN_VOLVAGIA_BATTLE);
-    Flags_SetEventChkInf(EVENTCHKINF_BEGAN_MORPHA_BATTLE);
-    Flags_SetEventChkInf(EVENTCHKINF_BEGAN_TWINROVA_BATTLE);
-    Flags_SetEventChkInf(EVENTCHKINF_BEGAN_BARINA_BATTLE);
-    Flags_SetEventChkInf(EVENTCHKINF_BEGAN_BONGO_BONGO_BATTLE);
-    Flags_SetEventChkInf(EVENTCHKINF_BEGAN_GANONDORF_BATTLE);
-    Flags_SetEventChkInf(EVENTCHKINF_ENTERED_MASTER_SWORD_CHAMBER);
-    Flags_SetEventChkInf(EVENTCHKINF_ENTERED_HYRULE_FIELD);
-    Flags_SetEventChkInf(EVENTCHKINF_ENTERED_DEATH_MOUNTAIN_TRAIL);
-    Flags_SetEventChkInf(EVENTCHKINF_ENTERED_KAKARIKO_VILLAGE);
-    Flags_SetEventChkInf(EVENTCHKINF_ENTERED_ZORAS_DOMAIN);
-    Flags_SetEventChkInf(EVENTCHKINF_ENTERED_HYRULE_CASTLE);
-    Flags_SetEventChkInf(EVENTCHKINF_ENTERED_GORON_CITY);
-    Flags_SetEventChkInf(EVENTCHKINF_ENTERED_TEMPLE_OF_TIME);
-    Flags_SetEventChkInf(EVENTCHKINF_ENTERED_DEKU_TREE);
-    Flags_SetEventChkInf(EVENTCHKINF_ENTERED_DODONGOS_CAVERN);
-    Flags_SetEventChkInf(EVENTCHKINF_ENTERED_LAKE_HYLIA);
-    Flags_SetEventChkInf(EVENTCHKINF_ENTERED_GERUDO_VALLEY);
-    Flags_SetEventChkInf(EVENTCHKINF_ENTERED_GERUDOS_FORTRESS);
-    Flags_SetEventChkInf(EVENTCHKINF_ENTERED_LON_LON_RANCH);
-    Flags_SetEventChkInf(EVENTCHKINF_ENTERED_JABU_JABUS_BELLY);
-    Flags_SetEventChkInf(EVENTCHKINF_ENTERED_GRAVEYARD);
-    Flags_SetEventChkInf(EVENTCHKINF_ENTERED_ZORAS_FOUNTAIN);
-    Flags_SetEventChkInf(EVENTCHKINF_ENTERED_DESERT_COLOSSUS);
-    Flags_SetEventChkInf(EVENTCHKINF_ENTERED_DEATH_MOUNTAIN_CRATER);
-    Flags_SetEventChkInf(EVENTCHKINF_ENTERED_GANONS_CASTLE_EXTERIOR);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_OPENED_THE_DOOR_OF_TIME);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_EPONA_OBTAINED);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_KING_ZORA_MOVED);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_BEGAN_NABOORU_BATTLE);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_BEGAN_GOHMA_BATTLE);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_BEGAN_KING_DODONGO_BATTLE);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_BEGAN_PHANTOM_GANON_BATTLE);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_BEGAN_VOLVAGIA_BATTLE);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_BEGAN_MORPHA_BATTLE);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_BEGAN_TWINROVA_BATTLE);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_BEGAN_BARINA_BATTLE);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_BEGAN_BONGO_BONGO_BATTLE);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_BEGAN_GANONDORF_BATTLE);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_ENTERED_MASTER_SWORD_CHAMBER);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_ENTERED_HYRULE_FIELD);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_ENTERED_DEATH_MOUNTAIN_TRAIL);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_ENTERED_KAKARIKO_VILLAGE);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_ENTERED_ZORAS_DOMAIN);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_ENTERED_HYRULE_CASTLE);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_ENTERED_GORON_CITY);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_ENTERED_TEMPLE_OF_TIME);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_ENTERED_DEKU_TREE);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_ENTERED_DODONGOS_CAVERN);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_ENTERED_LAKE_HYLIA);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_ENTERED_GERUDO_VALLEY);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_ENTERED_GERUDOS_FORTRESS);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_ENTERED_LON_LON_RANCH);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_ENTERED_JABU_JABUS_BELLY);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_ENTERED_GRAVEYARD);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_ENTERED_ZORAS_FOUNTAIN);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_ENTERED_DESERT_COLOSSUS);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_ENTERED_DEATH_MOUNTAIN_CRATER);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_ENTERED_GANONS_CASTLE_EXTERIOR);
 
     if (LINK_AGE_IN_YEARS == YEARS_CHILD) {
         gSaveContext.equips.buttonItems[0] = ITEM_SWORD_KOKIRI;
-        Inventory_ChangeEquipment(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_KOKIRI);
+        OoT_Inventory_ChangeEquipment(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_KOKIRI);
         if (gSaveContext.fileNum == 0xFF) {
             gSaveContext.equips.buttonItems[1] = ITEM_SLINGSHOT;
             gSaveContext.equips.cButtonSlots[0] = SLOT_SLINGSHOT;
-            Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_DEKU);
+            OoT_Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_DEKU);
         }
     }
 

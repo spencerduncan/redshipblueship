@@ -3,7 +3,7 @@
 
 extern "C" {
 #include "variables.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 extern void func_808237B4(PlayState* play, Input* input);
 }
 
@@ -16,8 +16,8 @@ void OnKaleidoUpdateFaster() {
 
     // Page turn animation is governed by func_808237B4. Those values don't use registers to modify the speed, so we
     // just directly call it twice to effectively double the speed.
-    if (gPlayState->pauseCtx.state == 6 && gPlayState->pauseCtx.unk_1E4 == 1) { // In page turning mode
-        func_808237B4(gPlayState, gPlayState->state.input);
+    if (OoT_gPlayState->pauseCtx.state == 6 && OoT_gPlayState->pauseCtx.unk_1E4 == 1) { // In page turning mode
+        func_808237B4(OoT_gPlayState, OoT_gPlayState->state.input);
     }
 }
 

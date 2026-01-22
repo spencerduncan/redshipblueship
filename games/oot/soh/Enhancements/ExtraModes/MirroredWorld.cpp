@@ -8,7 +8,7 @@
 
 extern "C" {
 extern SaveContext gSaveContext;
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 static constexpr MirroredWorldMode CVAR_MIRRORED_WORLD_DEFAULT = MIRRORED_WORLD_OFF;
@@ -72,8 +72,8 @@ static void UpdateMirrorModeState(int32_t sceneNum) {
 }
 
 static void RegisterMirroredWorld() {
-    if (gPlayState != NULL) {
-        UpdateMirrorModeState(gPlayState->sceneNum);
+    if (OoT_gPlayState != NULL) {
+        UpdateMirrorModeState(OoT_gPlayState->sceneNum);
     }
 
     COND_HOOK(OnSceneInit, CVAR_MIRRORED_WORLD_MODE_VALUE, UpdateMirrorModeState);

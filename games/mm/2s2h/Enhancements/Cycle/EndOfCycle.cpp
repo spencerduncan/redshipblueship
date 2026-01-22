@@ -57,7 +57,7 @@ void RegisterEndOfCycleSaveHooks() {
         }
 
         for (int i = 0; i < ITEM_NUM_SLOTS; i++) {
-            if (gAmmoItems[i] != ITEM_NONE) {
+            if (MM_gAmmoItems[i] != ITEM_NONE) {
                 if ((gSaveContext.save.saveInfo.inventory.items[i] != ITEM_NONE) && (i != SLOT_PICTOGRAPH_BOX)) {
                     gSaveContext.save.saveInfo.inventory.items[i] = saveInfoCopy.inventory.items[i];
                     gSaveContext.save.saveInfo.inventory.ammo[i] = saveInfoCopy.inventory.ammo[i];
@@ -99,7 +99,7 @@ void RegisterEndOfCycleSaveHooks() {
     });
 
     COND_HOOK(AfterEndOfCycleSave, CVAR_SWORD || IS_RANDO, []() {
-        u8 curSword = (saveInfoCopy.equips.equipment & gEquipMasks[EQUIP_TYPE_SWORD]) >> gEquipShifts[EQUIP_TYPE_SWORD];
+        u8 curSword = (saveInfoCopy.equips.equipment & MM_gEquipMasks[EQUIP_TYPE_SWORD]) >> MM_gEquipShifts[EQUIP_TYPE_SWORD];
 
         // Check for razor sword equipped, stolen, or turned into the smithy
         if (curSword == EQUIP_VALUE_SWORD_RAZOR ||

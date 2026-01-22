@@ -5,11 +5,11 @@
 extern "C" {
 #include "macros.h"
 #include "variables.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 static void UpdateCustomSkeleton() {
-    if (!GameInteractor::IsSaveLoaded(true) || gPlayState == NULL) {
+    if (!GameInteractor::IsSaveLoaded(true) || OoT_gPlayState == NULL) {
         return;
     }
 

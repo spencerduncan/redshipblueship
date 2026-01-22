@@ -19,7 +19,7 @@ extern "C" {
  */
 void HandleGiantsCutsceneSkip() {
     GIEventTransition transition;
-    switch (gPlayState->sceneId) {
+    switch (MM_gPlayState->sceneId) {
         case SCENE_MITURIN_BS: // Odolwa's Lair
             SET_WEEKEVENTREG(WEEKEVENTREG_CLEARED_WOODFALL_TEMPLE);
             SET_WEEKEVENTREG(WEEKEVENTREG_ENTERED_WOODFALL_TEMPLE_PRISON);
@@ -49,7 +49,7 @@ void HandleGiantsCutsceneSkip() {
      * We're not actually using the queued transition normally, but using its values to alter a Giants' Chamber
      * transition.
      */
-    transition.transitionType = gPlayState->sceneId;
+    transition.transitionType = MM_gPlayState->sceneId;
     GameInteractor::Instance->events.emplace_back(transition);
 }
 
@@ -111,11 +111,11 @@ void handleGiantsCheck(SceneId sceneId) {
                             CustomMessage::StartTextbox("You learned the Oath to Order!\x1C\x02\x10",
                                                         { .textboxType = 2 });
                         }
-                        Item_Give(gPlayState, ITEM_SONG_OATH);
+                        MM_Item_Give(MM_gPlayState, ITEM_SONG_OATH);
                     },
                 .drawItem =
                     [](Actor* actor, PlayState* play) {
-                        Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
+                        MM_Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
                         Rando::DrawItem(RI_SONG_OATH);
                     } });
         }

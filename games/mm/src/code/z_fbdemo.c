@@ -57,7 +57,7 @@ void TransitionTile_InitGraphics(TransitionTile* this) {
 
     guMtxIdent(&this->modelView);
     guMtxIdent(&this->unk_98);
-    MM_guOrtho(&this->projection, 0.0f, SCREEN_WIDTH, SCREEN_HEIGHT, 0.0f, -1000.0f, 1000.0f, 1.0f);
+    guOrtho(&this->projection, 0.0f, SCREEN_WIDTH, SCREEN_HEIGHT, 0.0f, -1000.0f, 1000.0f, 1.0f);
 
     for (frame = 0; frame < 2; frame++) {
         this->frame = frame;

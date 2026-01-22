@@ -181,9 +181,9 @@ static const char* msgStaticTbl[] = {
 };
 
 void MessageDebug_StartTextBox(const char* tableId, uint16_t textId, uint8_t language) {
-    PlayState* play = gPlayState;
+    PlayState* play = OoT_gPlayState;
     static int16_t messageStaticIndices[] = { 0, 1, 3, 2 };
-    const auto player = GET_PLAYER(gPlayState);
+    const auto player = GET_PLAYER(OoT_gPlayState);
     player->actor.flags |= ACTOR_FLAG_TALK;
     MessageContext* msgCtx = &play->msgCtx;
     msgCtx->ocarinaAction = 0xFFFF;

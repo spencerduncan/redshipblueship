@@ -211,13 +211,13 @@ void func_80038A28(CollisionPoly* poly, f32 tx, f32 ty, f32 tz, MtxF* dest) {
     }
     OoT_CollisionPoly_GetNormalF(poly, &nx, &ny, &nz);
 
-    phi_f2 = OoT_sqrtf(1.0f - SQ(nx));
+    phi_f2 = sqrtf(1.0f - SQ(nx));
     if (!IS_ZERO(phi_f2)) {
         inv_phi_f2 = 1.0f / phi_f2;
         phi_f14 = ny * inv_phi_f2;
         phi_f12 = -(nz * inv_phi_f2);
     } else {
-        phi_f14 = OoT_sqrtf(1.0f - SQ(ny));
+        phi_f14 = sqrtf(1.0f - SQ(ny));
         if (!IS_ZERO(phi_f14)) {
             inv_phi_f14 = (1.0f / phi_f14);
             phi_f12 = nx * inv_phi_f14;
@@ -700,7 +700,7 @@ s32 OoT_BgCheck_SphVsStaticWall(StaticLookup* lookup, CollisionContext* colCtx, 
         nx = COLPOLY_GET_NORMAL(curPoly->normal.x);
         ny = COLPOLY_GET_NORMAL(curPoly->normal.y);
         nz = COLPOLY_GET_NORMAL(curPoly->normal.z);
-        normalXZ = OoT_sqrtf(SQ(nx) + SQ(nz));
+        normalXZ = sqrtf(SQ(nx) + SQ(nz));
         planeDist = OoT_Math3D_DistPlaneToPos(nx, ny, nz, curPoly->dist, &resultPos);
         if (radius < fabsf(planeDist) || COLPOLY_VIA_FLAG_TEST(curPoly->flags_vIA, xpFlags)) {
             if (curNode->next == SS_NULL) {
@@ -781,7 +781,7 @@ s32 OoT_BgCheck_SphVsStaticWall(StaticLookup* lookup, CollisionContext* colCtx, 
         nx = COLPOLY_GET_NORMAL(curPoly->normal.x);
         ny = COLPOLY_GET_NORMAL(curPoly->normal.y);
         nz = COLPOLY_GET_NORMAL(curPoly->normal.z);
-        normalXZ = OoT_sqrtf(SQ(nx) + SQ(nz));
+        normalXZ = sqrtf(SQ(nx) + SQ(nz));
         planeDist = OoT_Math3D_DistPlaneToPos(nx, ny, nz, curPoly->dist, &resultPos);
         if (radius < fabsf(planeDist) || COLPOLY_VIA_FLAG_TEST(curPoly->flags_vIA, xpFlags)) {
             if (curNode->next == SS_NULL) {
@@ -1968,7 +1968,7 @@ s32 OoT_BgCheck_CheckWallImpl(CollisionContext* colCtx, u16 xpFlags, Vec3f* posR
             if (result) {
                 nx2 = COLPOLY_GET_NORMAL(poly->normal.x);
                 nz2 = COLPOLY_GET_NORMAL(poly->normal.z);
-                n2XZDist = OoT_sqrtf(SQ(nx2) + SQ(nz2));
+                n2XZDist = sqrtf(SQ(nx2) + SQ(nz2));
 
                 // if poly is not a "flat" floor or "flat" ceiling
                 if (!IS_ZERO(n2XZDist)) {
@@ -2011,7 +2011,7 @@ s32 OoT_BgCheck_CheckWallImpl(CollisionContext* colCtx, u16 xpFlags, Vec3f* posR
                                   &bgId2, actor, 1.0f, BGCHECK_CHECK_ONE_FACE | BGCHECK_CHECK_WALL)) {
             nx3 = COLPOLY_GET_NORMAL(poly->normal.x);
             nz3 = COLPOLY_GET_NORMAL(poly->normal.z);
-            n3XZDist = OoT_sqrtf(SQ(nx3) + SQ(nz3));
+            n3XZDist = sqrtf(SQ(nx3) + SQ(nz3));
 
             // if poly is not a "flat" floor or "flat" ceiling
             if (!IS_ZERO(n3XZDist)) {
@@ -2888,7 +2888,7 @@ void DynaPoly_ExpandSRT(PlayState* play, DynaCollisionContext* dyna, s32 bgId, s
             }
         }
 
-        sphere->radius = OoT_sqrtf(newRadiusSq) * 1.1f;
+        sphere->radius = sqrtf(newRadiusSq) * 1.1f;
 
         for (i = 0; i < pbgdata->numPolygons; i++) {
             CollisionPoly* newPoly = &dyna->polyList[*polyStartIndex + i];
@@ -3245,7 +3245,7 @@ s32 OoT_BgCheck_SphVsDynaWallInBgActor(CollisionContext* colCtx, u16 xpFlags, Dy
         polyId = curNode->polyId;
         poly = &dyna->polyList[polyId];
         OoT_CollisionPoly_GetNormalF(poly, &nx, &ny, &nz);
-        normalXZ = OoT_sqrtf(SQ(nx) + SQ(nz));
+        normalXZ = sqrtf(SQ(nx) + SQ(nz));
         assert(!IS_ZERO(normalXZ));
 
         planeDist = OoT_Math3D_DistPlaneToPos(nx, ny, nz, poly->dist, &resultPos);
@@ -3318,7 +3318,7 @@ s32 OoT_BgCheck_SphVsDynaWallInBgActor(CollisionContext* colCtx, u16 xpFlags, Dy
         polyId = curNode->polyId;
         poly = &dyna->polyList[polyId];
         OoT_CollisionPoly_GetNormalF(poly, &nx, &ny, &nz);
-        normalXZ = OoT_sqrtf(SQ(nx) + SQ(nz));
+        normalXZ = sqrtf(SQ(nx) + SQ(nz));
         assert(!IS_ZERO(normalXZ));
 
         planeDist = OoT_Math3D_DistPlaneToPos(nx, ny, nz, poly->dist, &resultPos);

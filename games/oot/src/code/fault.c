@@ -51,7 +51,7 @@ void Fault_ClientProcessThread(void* arg) {
     }
 
     if (ctx->queue != NULL) {
-        OoT_osSendMesg(ctx->queue, ctx->msg, OS_MESG_BLOCK);
+        osSendMesg(ctx->queue, ctx->msg, OS_MESG_BLOCK);
     }
 }
 
@@ -67,7 +67,7 @@ void Fault_ProcessClientContext(FaultClientContext* ctx) {
     timerMsgVal = 666;
     thread = NULL;
 
-    OoT_osCreateMesgQueue(&queue, &msg, 1);
+    osCreateMesgQueue(&queue, &msg, 1);
     ctx->queue = &queue;
     ctx->msg = NULL;
 
@@ -75,14 +75,14 @@ void Fault_ProcessClientContext(FaultClientContext* ctx) {
         thread = alloca(sizeof(OSThread));
         osCreateThread(thread, 2, Fault_ClientProcessThread, ctx, sFaultStructPtr->currClientThreadSp,
                        OS_PRIORITY_APPMAX - 1);
-        OoT_osStartThread(thread);
+        osStartThread(thread);
     } else {
         Fault_ClientProcessThread(ctx);
     }
 
     while (true) {
-        OoT_osSetTimer(&timer, OS_USEC_TO_CYCLES(1000000), 0, &queue, (OSMesg)timerMsgVal);
-        OoT_osRecvMesg(&queue, &recMsg, OS_MESG_BLOCK);
+        osSetTimer(&timer, OS_USEC_TO_CYCLES(1000000), 0, &queue, (OSMesg)timerMsgVal);
+        osRecvMesg(&queue, &recMsg, OS_MESG_BLOCK);
 
         if (recMsg != (OSMesg)666) {
             break;
@@ -94,11 +94,11 @@ void Fault_ProcessClientContext(FaultClientContext* ctx) {
         }
     }
 
-    OoT_osStopTimer(&timer);
+    osStopTimer(&timer);
 
     if (thread != NULL) {
-        OoT_osStopThread(thread);
-        OoT_osDestroyThread(thread);
+        osStopThread(thread);
+        osDestroyThread(thread);
     }
 #endif
 }
@@ -549,10 +549,10 @@ void OoT_Fault_Wait5Seconds(void) {
 #if 0
     OSTime start[2]; // to make the function allocate 0x28 bytes of stack instead of 0x20
 
-    start[0] = OoT_osGetTime();
+    start[0] = osGetTime();
     do {
         OoT_Fault_Sleep(0x10);
-    } while ((OoT_osGetTime() - start[0]) < OS_USEC_TO_CYCLES(5000000) + 1);
+    } while ((osGetTime() - start[0]) < OS_USEC_TO_CYCLES(5000000) + 1);
 
     sFaultStructPtr->faultActive = true;
 #endif
@@ -918,28 +918,28 @@ void OoT_Fault_ResumeThread(OSThread* t) {
     *(u32*)t->context.pc = 0xD;
     osWritebackDCache(t->context.pc, 4);
     osInvalICache(t->context.pc, 4);
-    OoT_osStartThread(t);
+    osStartThread(t);
 }
 
 void Fault_CommitFB() {
     u16* fb;
 
 #if 0
-    OoT_osViSetYScale(1.0f);
-    OoT_osViSetMode(&OoT_osViModeNtscLan1);
-    OoT_osViSetSpecialFeatures(OS_VI_GAMMA_OFF | OS_VI_DITHER_FILTER_ON);
-    OoT_osViBlack(false);
+    osViSetYScale(1.0f);
+    osViSetMode(&osViModeNtscLan1);
+    osViSetSpecialFeatures(OS_VI_GAMMA_OFF | OS_VI_DITHER_FILTER_ON);
+    osViBlack(false);
 
     if (sFaultStructPtr->fb) {
         fb = sFaultStructPtr->fb;
     } else {
-        fb = (u16*)OoT_osViGetNextFramebuffer();
+        fb = (u16*)osViGetNextFramebuffer();
         if ((u32)fb == 0x80000000) {
             fb = (u16*)((osMemSize | 0x80000000) - sizeof(u16[SCREEN_HEIGHT][SCREEN_WIDTH]));
         }
     }
 
-    OoT_osViSwapBuffer(fb);
+    osViSwapBuffer(fb);
     FaultDrawer_SetDrawerFB(fb, SCREEN_WIDTH, SCREEN_HEIGHT);
 #endif
 }
@@ -978,12 +978,12 @@ void OoT_Fault_ThreadEntry(void* arg) {
     s32 pad;
 
 #if 0
-    OoT_osSetEventMesg(OS_EVENT_CPU_BREAK, &sFaultStructPtr->queue, 1);
-    OoT_osSetEventMesg(OS_EVENT_FAULT, &sFaultStructPtr->queue, 2);
+    osSetEventMesg(OS_EVENT_CPU_BREAK, &sFaultStructPtr->queue, 1);
+    osSetEventMesg(OS_EVENT_FAULT, &sFaultStructPtr->queue, 2);
 
     while (true) {
         do {
-            OoT_osRecvMesg(&sFaultStructPtr->queue, &msg, OS_MESG_BLOCK);
+            osRecvMesg(&sFaultStructPtr->queue, &msg, OS_MESG_BLOCK);
 
             if (msg == (OSMesg)1) {
                 sFaultStructPtr->msgId = 1;
@@ -1077,20 +1077,20 @@ void OoT_Fault_Init(void) {
     sFaultStructPtr->clients = NULL;
     sFaultStructPtr->faultActive = false;
     gFaultStruct.faultHandlerEnabled = true;
-    OoT_osCreateMesgQueue(&sFaultStructPtr->queue, &sFaultStructPtr->msg, 1);
+    osCreateMesgQueue(&sFaultStructPtr->queue, &sFaultStructPtr->msg, 1);
     OoT_StackCheck_Init(&sFaultThreadInfo, &sFaultStack, sFaultStack + sizeof(sFaultStack), 0, 0x100, "fault");
     osCreateThread(&sFaultStructPtr->thread, 2, OoT_Fault_ThreadEntry, 0, sFaultStack + sizeof(sFaultStack),
                    OS_PRIORITY_APPMAX);
-    OoT_osStartThread(&sFaultStructPtr->thread);
+    osStartThread(&sFaultStructPtr->thread);
 #endif
 }
 
 void OoT_Fault_HangupFaultClient(const char* arg0, const char* arg1) {
 #if 0
-    osSyncPrintf("HungUp on Thread %d\n", OoT_osGetThreadId(0));
+    osSyncPrintf("HungUp on Thread %d\n", osGetThreadId(0));
     osSyncPrintf("%s\n", arg0 != NULL ? arg0 : "(NULL)");
     osSyncPrintf("%s\n", arg1 != NULL ? arg1 : "(NULL)");
-    OoT_FaultDrawer_Printf("HungUp on Thread %d\n", OoT_osGetThreadId(0));
+    OoT_FaultDrawer_Printf("HungUp on Thread %d\n", osGetThreadId(0));
     OoT_FaultDrawer_Printf("%s\n", arg0 != NULL ? arg0 : "(NULL)");
     OoT_FaultDrawer_Printf("%s\n", arg1 != NULL ? arg1 : "(NULL)");
 #endif

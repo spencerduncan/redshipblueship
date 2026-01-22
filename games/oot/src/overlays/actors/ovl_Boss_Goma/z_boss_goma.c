@@ -1073,7 +1073,7 @@ void BossGoma_Defeated(BossGoma* this, PlayState* play) {
             this->subCameraAt.z = camera->at.z;
             dx = this->subCameraEye.x - this->actor.world.pos.x;
             dz = this->subCameraEye.z - this->actor.world.pos.z;
-            this->defeatedCameraEyeDist = OoT_sqrtf(SQ(dx) + SQ(dz));
+            this->defeatedCameraEyeDist = sqrtf(SQ(dx) + SQ(dz));
             this->defeatedCameraEyeAngle = OoT_Math_FAtan2F(dx, dz);
             this->timer = 270;
             break;

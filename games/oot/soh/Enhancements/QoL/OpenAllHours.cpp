@@ -4,7 +4,7 @@
 
 extern "C" {
 #include "src/overlays/actors/ovl_En_Door/z_en_door.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 static constexpr int32_t CVAR_OPEN_ALL_HOURS_DEFAULT = 0;
@@ -39,7 +39,7 @@ static void OpenAllHours(void* refActor) {
         case DOOR_NIGHT_KAK_POTION_SHOP:
         case DOOR_NIGHT_KAK_POTION_SHOP_BACK: {
             *params = (*params & 0xFC00) | (DOOR_SCENEEXIT << 7) | 0x3F;
-            EnDoor_SetupType(enDoor, gPlayState);
+            EnDoor_SetupType(enDoor, OoT_gPlayState);
             break;
         }
         default:

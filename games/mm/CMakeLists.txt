@@ -5,8 +5,8 @@ set(CMAKE_SYSTEM_VERSION 10.0 CACHE STRING "" FORCE)
 project(2ship LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20 CACHE STRING "The C++ standard to use")
 
-# Option to build as shared library for combo launcher integration
-option(REDSHIP_BUILD_SHARED "Build as shared library for combo launcher" OFF)
+# This repo always builds shared libraries for the unified combo launcher
+# For standalone executables, use upstream 2Ship repo instead
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     enable_language(OBJCXX)
@@ -114,6 +114,11 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set_source_files_properties(2s2h/BenPort.cpp PROPERTIES COMPILE_FLAGS "/utf-8")
 endif()
 
+# Exclude GameExports.cpp unless building as shared library (added conditionally later)
+if(NOT REDSHIP_BUILD_SHARED)
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/GameExports\\.cpp")
+endif()
+
 list(FILTER ship__ EXCLUDE REGEX "2s2h/Extractor/*")
 
 if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
@@ -176,46 +181,42 @@ set(ALL_FILES
     ${src__}
 )
 
-# When building as shared library, add GameExports.cpp
-# We keep main.c but rename SDL_main via compile definition
-if(REDSHIP_BUILD_SHARED)
-    list(APPEND ALL_FILES "${CMAKE_CURRENT_SOURCE_DIR}/2s2h/GameExports.cpp")
-endif()
+# Add GameExports.cpp for shared library interface
+list(APPEND ALL_FILES "${CMAKE_CURRENT_SOURCE_DIR}/2s2h/GameExports.cpp")
 
 ################################################################################
-# Target
+# Target - always build as shared library for unified combo launcher
 ################################################################################
-if(REDSHIP_BUILD_SHARED)
-    add_library(${PROJECT_NAME} SHARED ${ALL_FILES})
-    target_compile_definitions(${PROJECT_NAME} PRIVATE GAME_BUILDING_DLL)
+add_library(${PROJECT_NAME} SHARED ${ALL_FILES})
+target_compile_definitions(${PROJECT_NAME} PRIVATE GAME_BUILDING_DLL)
 
-    # Symbol visibility
+# Symbol visibility
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    C_VISIBILITY_PRESET hidden
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN ON
+)
+
+# Platform-specific naming for shared library
+if(WIN32)
     set_target_properties(${PROJECT_NAME} PROPERTIES
-        C_VISIBILITY_PRESET hidden
-        CXX_VISIBILITY_PRESET hidden
-        VISIBILITY_INLINES_HIDDEN ON
+        PREFIX ""
+        SUFFIX ".dll"
     )
-
-    # Platform-specific naming for shared library
-    if(WIN32)
-        set_target_properties(${PROJECT_NAME} PROPERTIES
-            PREFIX ""
-            SUFFIX ".dll"
-        )
-    elseif(APPLE)
-        set_target_properties(${PROJECT_NAME} PROPERTIES
-            PREFIX ""
-            SUFFIX ".dylib"
-        )
-    else()
-        set_target_properties(${PROJECT_NAME} PROPERTIES
-            PREFIX ""
-            SUFFIX ".so"
-        )
-    endif()
+elseif(APPLE)
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        PREFIX ""
+        SUFFIX ".dylib"
+    )
 else()
-    add_executable(${PROJECT_NAME} ${ALL_FILES})
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        PREFIX ""
+        SUFFIX ".so"
+    )
 endif()
+
+# Link combo library for GameExports interface
+target_link_libraries(${PROJECT_NAME} PRIVATE combo)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 use_props(${PROJECT_NAME} "${CMAKE_CONFIGURATION_TYPES}" "${DEFAULT_CXX_PROPS}")
@@ -234,19 +235,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set_target_properties(${PROJECT_NAME} PROPERTIES
         XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES
     )
-    # Only set OUTPUT_NAME for executable builds, shared lib has its own naming
-    if(NOT REDSHIP_BUILD_SHARED)
-        set_target_properties(${PROJECT_NAME} PROPERTIES
-            OUTPUT_NAME "2s2h-macos"
-        )
-    endif()
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    # Only set OUTPUT_NAME for executable builds, shared lib has its own naming
-    if(NOT REDSHIP_BUILD_SHARED)
-        set_target_properties(${PROJECT_NAME} PROPERTIES
-            OUTPUT_NAME "2s2h.elf"
-        )
-    endif()
+    # Shared library uses platform-specific naming set above
 endif()
 ################################################################################
 # MSVC runtime library
@@ -290,14 +279,10 @@ target_include_directories(${PROJECT_NAME} PRIVATE assets
 	.
 )
 
-# Add combo include directory and link library when building as shared library
-if(REDSHIP_BUILD_SHARED)
-    target_include_directories(${PROJECT_NAME} PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../combo/include
-    )
-    # Link against combo DLL for Combo_* functions
-    target_link_libraries(${PROJECT_NAME} PRIVATE combo)
-endif()
+# Add combo include directory (combo library already linked above)
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../combo/include
+)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	target_compile_definitions(${PROJECT_NAME} PRIVATE

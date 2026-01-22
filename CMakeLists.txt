@@ -14,13 +14,11 @@ set(SPDLOG_LEVEL_OFF 6)
 set(SPDLOG_MIN_CUTOFF SPDLOG_LEVEL_TRACE CACHE STRING "cutoff at trace")
 
 option(SUPPRESS_WARNINGS "Suppress warnings in LUS and src (decomp)" ON)
-option(REDSHIP_BUILD_SHARED "Build games as shared libraries for combo launcher" OFF)
 
-# Enable position-independent code for all targets when building shared libraries
-# This is required for static libraries that will be linked into shared libraries
-if(REDSHIP_BUILD_SHARED)
-    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-endif()
+# Always enable position-independent code - required for shared library builds
+# This repo is specifically for the unified combo project (shared libraries only)
+# For standalone executables, use upstream SoH/2Ship repos instead
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # vcpkg must be set up BEFORE find_package calls on Windows
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -205,9 +203,10 @@ add_subdirectory(combo)
 add_subdirectory(games/oot)
 add_subdirectory(games/mm)
 
-set_property(TARGET soh PROPERTY APPIMAGE_DESKTOP_FILE_TERMINAL YES)
-set_property(TARGET soh PROPERTY APPIMAGE_DESKTOP_FILE "${CMAKE_SOURCE_DIR}/scripts/linux/appimage/soh.desktop")
-set_property(TARGET soh PROPERTY APPIMAGE_ICON_FILE "${CMAKE_BINARY_DIR}/sohIcon.png")
+# AppImage properties go on the launcher executable, not the game shared libraries
+set_property(TARGET redship PROPERTY APPIMAGE_DESKTOP_FILE_TERMINAL YES)
+set_property(TARGET redship PROPERTY APPIMAGE_DESKTOP_FILE "${CMAKE_SOURCE_DIR}/scripts/linux/appimage/soh.desktop")
+set_property(TARGET redship PROPERTY APPIMAGE_ICON_FILE "${CMAKE_BINARY_DIR}/sohIcon.png")
 
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
 install(FILES "${CMAKE_BINARY_DIR}/soh/soh.o2r" DESTINATION . COMPONENT ship)

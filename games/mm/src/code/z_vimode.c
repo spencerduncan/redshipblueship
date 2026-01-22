@@ -199,11 +199,11 @@ void MM_ViMode_Configure(OSViMode* viMode, s32 type, s32 tvType, s32 loRes, s32 
 }
 
 extern OSViMode osViModeNtscHpf1;
-extern OSViMode MM_osViModePalLan1;
+extern OSViMode osViModePalLan1;
 extern OSViMode osViModeNtscHpn1;
-extern OSViMode MM_osViModeNtscLan1;
-extern OSViMode MM_osViModeMpalLan1;
-extern OSViMode MM_osViModeFpalLan1;
+extern OSViMode osViModeNtscLan1;
+extern OSViMode osViModeMpalLan1;
+extern OSViMode osViModeFpalLan1;
 
 void MM_ViMode_Save(ViMode* viMode) {
 #if 0
@@ -219,11 +219,11 @@ void MM_ViMode_Save(ViMode* viMode) {
         SREG(58) = 0;
         switch (SREG(59)) {
             case 1:
-                MM_ViMode_LogPrint(&MM_osViModePalLan1);
+                MM_ViMode_LogPrint(&osViModePalLan1);
                 break;
 
             case 2:
-                MM_ViMode_LogPrint(&MM_osViModeFpalLan1);
+                MM_ViMode_LogPrint(&osViModeFpalLan1);
                 break;
 
             default:
@@ -400,7 +400,7 @@ void MM_ViMode_Update(ViMode* viMode, Input* input) {
 
         if (viMode->editState == VI_MODE_EDIT_STATE_3) {
             // Log comparison between the NTSC LAN1 mode and the custom mode
-            MM_ViMode_LogPrint(&MM_osViModeNtscLan1);
+            MM_ViMode_LogPrint(&osViModeNtscLan1);
             MM_ViMode_LogPrint(&viMode->customViMode);
             viMode->editState = VI_MODE_EDIT_STATE_2;
         }

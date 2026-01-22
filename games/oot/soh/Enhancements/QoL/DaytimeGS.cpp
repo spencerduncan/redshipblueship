@@ -4,7 +4,7 @@
 extern "C" {
 #include "functions.h"
 #include "macros.h"
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 extern SaveContext gSaveContext;
 }
 
@@ -51,10 +51,10 @@ static void OnSpawnNighttimeGoldSkulltula() {
     };
 
     for (const auto& dayTimeGS : dayTimeGoldSkulltulas) {
-        if (IS_DAY && dayTimeGS.forChild == LINK_IS_CHILD && dayTimeGS.scene == gPlayState->sceneNum &&
-            dayTimeGS.room == gPlayState->roomCtx.curRoom.num) {
+        if (IS_DAY && dayTimeGS.forChild == LINK_IS_CHILD && dayTimeGS.scene == OoT_gPlayState->sceneNum &&
+            dayTimeGS.room == OoT_gPlayState->roomCtx.curRoom.num) {
             for (const auto& actorEntry : dayTimeGS.actorEntries) {
-                Actor_Spawn(&gPlayState->actorCtx, gPlayState, actorEntry.id, actorEntry.pos.x, actorEntry.pos.y,
+                OoT_Actor_Spawn(&OoT_gPlayState->actorCtx, OoT_gPlayState, actorEntry.id, actorEntry.pos.x, actorEntry.pos.y,
                             actorEntry.pos.z, actorEntry.rot.x, actorEntry.rot.y, actorEntry.rot.z, actorEntry.params,
                             false);
             }

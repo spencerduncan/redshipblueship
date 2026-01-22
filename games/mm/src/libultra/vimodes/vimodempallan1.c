@@ -2,7 +2,7 @@
 #include "PR/rcp.h"
 #include "PR/viint.h"
 
-OSViMode MM_osViModeMpalLan1 = {
+OSViMode osViModeMpalLan1 = {
     OS_VI_MPAL_LAN1, // type
     {
         // comRegs

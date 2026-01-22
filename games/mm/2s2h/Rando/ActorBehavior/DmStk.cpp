@@ -16,7 +16,7 @@ void DmStk_ClockTower_WaitForDeflectionToEnd(DmStk* DmStk, PlayState* play);
 }
 
 void ApplyOathHint(u16* textId, bool* loadFromMessageTable) {
-    DmStk* dmStk = (DmStk*)Actor_FindNearby(gPlayState, &GET_PLAYER(gPlayState)->actor, ACTOR_DM_STK,
+    DmStk* dmStk = (DmStk*)MM_Actor_FindNearby(MM_gPlayState, &GET_PLAYER(MM_gPlayState)->actor, ACTOR_DM_STK,
                                             ACTORCAT_ITEMACTION, 1000.0f);
     std::string msg;
 
@@ -47,11 +47,11 @@ void ApplyOathHint(u16* textId, bool* loadFromMessageTable) {
 void DmChar02_UpdateCustom(Actor* actor, PlayState* play) {
     DmChar02* dmChar02 = (DmChar02*)actor;
 
-    SkelAnime_Update(&dmChar02->skelAnime);
+    MM_SkelAnime_Update(&dmChar02->skelAnime);
     dmChar02->unk_2F0 = dmChar02->unk_2F0;
     dmChar02->actionFunc(dmChar02, play);
     if ((actor->xzDistToPlayer <= 30.0f) && (fabsf(actor->playerHeightRel) <= fabsf(80.0f))) {
-        Actor_Kill(&dmChar02->actor);
+        MM_Actor_Kill(&dmChar02->actor);
 
         auto& randoSaveCheck = RANDO_SAVE_CHECKS[RC_CLOCK_TOWER_ROOF_OCARINA];
         randoSaveCheck.eligible = true;
@@ -72,7 +72,7 @@ void Rando::ActorBehavior::InitDmStkBehavior() {
         if (*should) {
             *should = false;
 
-            Matrix_Scale(15.0f, 15.0f, 15.0f, MTXMODE_APPLY);
+            MM_Matrix_Scale(15.0f, 15.0f, 15.0f, MTXMODE_APPLY);
             Vec3s rot;
             rot.x = -19737;
             rot.y = 31100;
@@ -81,7 +81,7 @@ void Rando::ActorBehavior::InitDmStkBehavior() {
             pos.x = -26.5f;
             pos.y = -50.8f;
             pos.z = 10.9f;
-            Matrix_TranslateRotateZYX(&pos, &rot);
+            MM_Matrix_TranslateRotateZYX(&pos, &rot);
 
             auto randoSaveCheck = RANDO_SAVE_CHECKS[RC_CLOCK_TOWER_ROOF_OCARINA];
             Rando::DrawItem(Rando::ConvertItem(randoSaveCheck.randoItemId, RC_CLOCK_TOWER_ROOF_OCARINA));
@@ -95,14 +95,14 @@ void Rando::ActorBehavior::InitDmStkBehavior() {
     });
 
     COND_VB_SHOULD(VB_POST_CHAR02_LIMB, IS_RANDO, {
-        Matrix_Scale(15.0f, 15.0f, 15.0f, MTXMODE_APPLY);
+        MM_Matrix_Scale(15.0f, 15.0f, 15.0f, MTXMODE_APPLY);
         Vec3s rot;
         rot.x = -11554;
         Vec3f pos;
         pos.x = 10.4f;
         pos.y = -26.5f;
         pos.z = 13.2f;
-        Matrix_TranslateRotateZYX(&pos, &rot);
+        MM_Matrix_TranslateRotateZYX(&pos, &rot);
 
         auto randoSaveCheck = RANDO_SAVE_CHECKS[RC_CLOCK_TOWER_ROOF_OCARINA];
         Rando::DrawItem(Rando::ConvertItem(randoSaveCheck.randoItemId, RC_CLOCK_TOWER_ROOF_OCARINA));
@@ -124,14 +124,14 @@ void Rando::ActorBehavior::InitDmStkBehavior() {
                 return;
             }
 
-            if ((dmStk->actor.xzDistToPlayer < 200.0f) && Player_IsFacingActor(&dmStk->actor, 0x3000, gPlayState)) {
-                Actor_OfferTalk(&dmStk->actor, gPlayState, 200.0f);
+            if ((dmStk->actor.xzDistToPlayer < 200.0f) && MM_Player_IsFacingActor(&dmStk->actor, 0x3000, MM_gPlayState)) {
+                Actor_OfferTalk(&dmStk->actor, MM_gPlayState, 200.0f);
             }
 
-            if (Actor_TalkOfferAccepted(&dmStk->actor, &gPlayState->state)) {
-                Message_StartTextbox(gPlayState, 0x2013, &dmStk->actor);
-                if ((Message_GetState(&gPlayState->msgCtx) == TEXT_STATE_DONE) && Message_ShouldAdvance(gPlayState)) {
-                    Message_CloseTextbox(gPlayState);
+            if (Actor_TalkOfferAccepted(&dmStk->actor, &MM_gPlayState->state)) {
+                MM_Message_StartTextbox(MM_gPlayState, 0x2013, &dmStk->actor);
+                if ((MM_Message_GetState(&MM_gPlayState->msgCtx) == TEXT_STATE_DONE) && MM_Message_ShouldAdvance(MM_gPlayState)) {
+                    MM_Message_CloseTextbox(MM_gPlayState);
                 }
             }
         });

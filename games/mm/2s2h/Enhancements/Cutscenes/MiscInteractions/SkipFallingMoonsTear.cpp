@@ -34,8 +34,8 @@ void RegisterSkipFallingMoonsTear() {
             if (frames == 100) {
                 frames = 0;
                 Actor_PlaySfx(&bji->actor, NA_SE_EV_GORON_BOUND_1);
-                s16 quakeIndex = Quake_Request(GET_ACTIVE_CAM(gPlayState), QUAKE_TYPE_3);
-                Quake_SetSpeed(quakeIndex, 21536);
+                s16 quakeIndex = Quake_Request(GET_ACTIVE_CAM(MM_gPlayState), QUAKE_TYPE_3);
+                MM_Quake_SetSpeed(quakeIndex, 21536);
                 Quake_SetPerturbations(quakeIndex, 4, 0, 0, 0);
                 Quake_SetDuration(quakeIndex, 12);
             }

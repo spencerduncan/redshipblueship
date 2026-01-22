@@ -135,13 +135,13 @@ void Rando::GiveItem(RandoItemId randoItemId) {
         case RI_BOMB_BAG_20:
         case RI_BOMB_BAG_30:
         case RI_BOMB_BAG_40:
-            Item_Give(gPlayState, Rando::StaticData::Items[randoItemId].itemId);
+            MM_Item_Give(MM_gPlayState, Rando::StaticData::Items[randoItemId].itemId);
             INV_CONTENT(ITEM_BOMBCHU) = ITEM_BOMBCHU;
             AMMO(ITEM_BOMB) = AMMO(ITEM_BOMBCHU) = CUR_CAPACITY(UPG_BOMB_BAG);
             break;
         case RI_WALLET_ADULT:
         case RI_WALLET_GIANT:
-            Item_Give(gPlayState, Rando::StaticData::Items[randoItemId].itemId);
+            MM_Item_Give(MM_gPlayState, Rando::StaticData::Items[randoItemId].itemId);
             // Fill Rupees to max, this may be opt-in later
             gSaveContext.rupeeAccumulator = CUR_CAPACITY(UPG_WALLET);
             break;
@@ -156,43 +156,43 @@ void Rando::GiveItem(RandoItemId randoItemId) {
             break;
         case RI_MOONS_TEAR:
             Flags_SetRandoInf(RANDO_INF_OBTAINED_MOONS_TEAR);
-            Item_Give(gPlayState, Rando::StaticData::Items[randoItemId].itemId);
+            MM_Item_Give(MM_gPlayState, Rando::StaticData::Items[randoItemId].itemId);
             break;
         case RI_DEED_LAND:
             Flags_SetRandoInf(RANDO_INF_OBTAINED_DEED_LAND);
-            Item_Give(gPlayState, Rando::StaticData::Items[randoItemId].itemId);
+            MM_Item_Give(MM_gPlayState, Rando::StaticData::Items[randoItemId].itemId);
             break;
         case RI_DEED_SWAMP:
             Flags_SetRandoInf(RANDO_INF_OBTAINED_DEED_SWAMP);
-            Item_Give(gPlayState, Rando::StaticData::Items[randoItemId].itemId);
+            MM_Item_Give(MM_gPlayState, Rando::StaticData::Items[randoItemId].itemId);
             break;
         case RI_DEED_MOUNTAIN:
             Flags_SetRandoInf(RANDO_INF_OBTAINED_DEED_MOUNTAIN);
-            Item_Give(gPlayState, Rando::StaticData::Items[randoItemId].itemId);
+            MM_Item_Give(MM_gPlayState, Rando::StaticData::Items[randoItemId].itemId);
             break;
         case RI_DEED_OCEAN:
             Flags_SetRandoInf(RANDO_INF_OBTAINED_DEED_OCEAN);
-            Item_Give(gPlayState, Rando::StaticData::Items[randoItemId].itemId);
+            MM_Item_Give(MM_gPlayState, Rando::StaticData::Items[randoItemId].itemId);
             break;
         case RI_ROOM_KEY:
             Flags_SetRandoInf(RANDO_INF_OBTAINED_ROOM_KEY);
-            Item_Give(gPlayState, Rando::StaticData::Items[randoItemId].itemId);
+            MM_Item_Give(MM_gPlayState, Rando::StaticData::Items[randoItemId].itemId);
             break;
         case RI_LETTER_TO_MAMA:
             Flags_SetRandoInf(RANDO_INF_OBTAINED_LETTER_TO_MAMA);
-            Item_Give(gPlayState, Rando::StaticData::Items[randoItemId].itemId);
+            MM_Item_Give(MM_gPlayState, Rando::StaticData::Items[randoItemId].itemId);
             break;
         case RI_LETTER_TO_KAFEI:
             Flags_SetRandoInf(RANDO_INF_OBTAINED_LETTER_TO_KAFEI);
-            Item_Give(gPlayState, Rando::StaticData::Items[randoItemId].itemId);
+            MM_Item_Give(MM_gPlayState, Rando::StaticData::Items[randoItemId].itemId);
             break;
         case RI_PENDANT_OF_MEMORIES:
             Flags_SetRandoInf(RANDO_INF_OBTAINED_PENDANT_OF_MEMORIES);
-            Item_Give(gPlayState, Rando::StaticData::Items[randoItemId].itemId);
+            MM_Item_Give(MM_gPlayState, Rando::StaticData::Items[randoItemId].itemId);
             break;
         case RI_POWDER_KEG:
             Flags_SetWeekEventReg(WEEKEVENTREG_HAS_POWDERKEG_PRIVILEGES);
-            Item_Give(gPlayState, Rando::StaticData::Items[randoItemId].itemId);
+            MM_Item_Give(MM_gPlayState, Rando::StaticData::Items[randoItemId].itemId);
             break;
         case RI_SWORD_GILDED:
         case RI_SWORD_KOKIRI:
@@ -204,7 +204,7 @@ void Rando::GiveItem(RandoItemId randoItemId) {
                 SET_STOLEN_ITEM_2(STOLEN_ITEM_NONE);
             }
 
-            Item_Give(gPlayState, Rando::StaticData::Items[randoItemId].itemId);
+            MM_Item_Give(MM_gPlayState, Rando::StaticData::Items[randoItemId].itemId);
             break;
         case RI_TINGLE_MAP_CLOCK_TOWN:
             Inventory_SetWorldMapCloudVisibility(TINGLE_MAP_CLOCK_TOWN);
@@ -283,12 +283,12 @@ void Rando::GiveItem(RandoItemId randoItemId) {
         case RI_HEART_CONTAINER:
         case RI_HEART_PIECE:
             gSaveContext.healthAccumulator = gSaveContext.save.saveInfo.playerData.healthCapacity + 0x10;
-            Item_Give(gPlayState, Rando::StaticData::Items[randoItemId].itemId);
+            MM_Item_Give(MM_gPlayState, Rando::StaticData::Items[randoItemId].itemId);
             break;
         case RI_BOTTLE_RED_POTION:
             // ITEM_LONGSHOT will give a Red Potion bottle on the first available bottle slot
             // ITEM_POTION_RED will put a Red Potion bottle on the first bottle slot
-            Item_Give(gPlayState, ITEM_LONGSHOT);
+            MM_Item_Give(MM_gPlayState, ITEM_LONGSHOT);
             break;
         case RI_SOUL_BOSS_GOHT:
         case RI_SOUL_BOSS_GYORG:
@@ -373,7 +373,7 @@ void Rando::GiveItem(RandoItemId randoItemId) {
         case RI_NONE:
             break;
         default:
-            Item_Give(gPlayState, Rando::StaticData::Items[randoItemId].itemId);
+            MM_Item_Give(MM_gPlayState, Rando::StaticData::Items[randoItemId].itemId);
             break;
     }
 }

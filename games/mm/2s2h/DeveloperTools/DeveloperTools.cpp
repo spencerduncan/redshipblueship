@@ -11,9 +11,9 @@ extern "C" {
 #include "variables.h"
 #include "overlays/kaleido_scope/ovl_kaleido_scope/z_kaleido_scope.h"
 
-void Sram_InitDebugSave(void);
+void MM_Sram_InitDebugSave(void);
 void Flags_SetWeekEventReg(s32 flag);
-void Inventory_ChangeUpgrade(s16 upgrade, u32 value);
+void MM_Inventory_ChangeUpgrade(s16 upgrade, u32 value);
 void Inventory_SetWorldMapCloudVisibility(s16 tingleIndex);
 
 extern u16 sPersistentCycleWeekEventRegs[ARRAY_COUNT(gSaveContext.save.saveInfo.weekEventReg)];
@@ -31,7 +31,7 @@ void SetSaveFileInfo() {
     // Copy player name and set back after debug save init
     memcpy(playerName, gSaveContext.save.saveInfo.playerData.playerName, sizeof(playerName));
 
-    Sram_InitDebugSave();
+    MM_Sram_InitDebugSave();
 
     memcpy(gSaveContext.save.saveInfo.playerData.playerName, playerName, sizeof(playerName));
 
@@ -57,9 +57,9 @@ void SetSaveFileInfo() {
         gSaveContext.save.saveInfo.regionsVisited = (1 << REGION_MAX) - 1;
         gSaveContext.magicCapacity = MAGIC_DOUBLE_METER;
 
-        Inventory_ChangeUpgrade(UPG_WALLET, 2);
-        Inventory_ChangeUpgrade(UPG_BOMB_BAG, 3);
-        Inventory_ChangeUpgrade(UPG_QUIVER, 3);
+        MM_Inventory_ChangeUpgrade(UPG_WALLET, 2);
+        MM_Inventory_ChangeUpgrade(UPG_BOMB_BAG, 3);
+        MM_Inventory_ChangeUpgrade(UPG_QUIVER, 3);
 
         for (int32_t i = 0; i < TINGLE_MAP_MAX; i++) {
             Inventory_SetWorldMapCloudVisibility(i);
@@ -154,8 +154,8 @@ void RegisterDebugMode() {
         CVarSetInteger(CVAR_PREVENT_ACTOR_INIT_NAME, 0);
         CVarSetInteger("gDeveloperTools.DisableObjectDependency", 0);
 
-        if (gPlayState != NULL) {
-            gPlayState->frameAdvCtx.enabled = false;
+        if (MM_gPlayState != NULL) {
+            MM_gPlayState->frameAdvCtx.enabled = false;
         }
     }
 }

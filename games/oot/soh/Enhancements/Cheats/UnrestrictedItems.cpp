@@ -2,7 +2,7 @@
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
 #include "soh/ShipInit.hpp"
 
-extern "C" PlayState* gPlayState;
+extern "C" PlayState* OoT_gPlayState;
 
 #define CVAR_UNRESTRICTED_ITEMS_NAME CVAR_CHEAT("NoRestrictItems")
 #define CVAR_UNRESTRICTED_ITEMS_DEFAULT 0
@@ -14,9 +14,9 @@ void OnGameFrameUpdateUnrestrictedItems() {
     }
 
     // do not allow the use of sun's song even with the cheat
-    u8 sunsBackup = gPlayState->interfaceCtx.restrictions.sunsSong;
-    memset(&gPlayState->interfaceCtx.restrictions, 0, sizeof(gPlayState->interfaceCtx.restrictions));
-    gPlayState->interfaceCtx.restrictions.sunsSong = sunsBackup;
+    u8 sunsBackup = OoT_gPlayState->interfaceCtx.restrictions.sunsSong;
+    memset(&OoT_gPlayState->interfaceCtx.restrictions, 0, sizeof(OoT_gPlayState->interfaceCtx.restrictions));
+    OoT_gPlayState->interfaceCtx.restrictions.sunsSong = sunsBackup;
 }
 
 void RegisterUnrestrictedItems() {

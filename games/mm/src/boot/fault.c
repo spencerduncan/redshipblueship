@@ -569,11 +569,11 @@ OSThread* MM_Fault_FindFaultedThread(void) {
 void MM_Fault_Wait5Seconds(void) {
 #if 0
     s32 pad;
-    OSTime start = MM_osGetTime();
+    OSTime start = osGetTime();
 
     do {
         MM_Fault_Sleep(1000 / 60);
-    } while ((MM_osGetTime() - start) <= OS_SEC_TO_CYCLES(5));
+    } while ((osGetTime() - start) <= OS_SEC_TO_CYCLES(5));
 
     sFaultInstance->autoScroll = true;
 #endif
@@ -916,7 +916,7 @@ void MM_Fault_ResumeThread(OSThread* thread) {
     *(u32*)thread->context.pc = 0x0000000D; // write in a break instruction
     osWritebackDCache((void*)thread->context.pc, 4);
     osInvalICache((void*)thread->context.pc, 4);
-    MM_osStartThread(thread);
+    osStartThread(thread);
 #endif
 }
 
@@ -924,21 +924,21 @@ void Fault_DisplayFrameBuffer(void) {
 #if 0
     void* fb;
 
-    MM_osViSetYScale(1.0f);
-    MM_osViSetMode(&MM_osViModeNtscLan1);
-    MM_osViSetSpecialFeatures(OS_VI_GAMMA_OFF | OS_VI_DITHER_FILTER_ON);
-    MM_osViBlack(false);
+    osViSetYScale(1.0f);
+    osViSetMode(&osViModeNtscLan1);
+    osViSetSpecialFeatures(OS_VI_GAMMA_OFF | OS_VI_DITHER_FILTER_ON);
+    osViBlack(false);
 
     if (sFaultInstance->fb) {
         fb = sFaultInstance->fb;
     } else {
-        fb = MM_osViGetNextFramebuffer();
+        fb = osViGetNextFramebuffer();
         if ((uintptr_t)fb == K0BASE) {
             fb = (void*)(PHYS_TO_K0(osMemSize) - SCREEN_HEIGHT * SCREEN_WIDTH * sizeof(u16));
         }
     }
 
-    MM_osViSwapBuffer(fb);
+    osViSwapBuffer(fb);
     FaultDrawer_SetDrawerFrameBuffer(fb, SCREEN_WIDTH, SCREEN_HEIGHT);
 #endif
 }
@@ -996,7 +996,7 @@ void Fault_SetOptionsFromController3(void) {
             osSyncPrintf("GRAPH PC=%08x RA=%08x STACK=%08x\n", pc, ra, sp);
         }
         if (CHECK_BTN_ALL(input3->cur.button, BTN_B)) {
-            FaultDrawer_SetDrawerFrameBuffer(MM_osViGetNextFramebuffer(), 0x140, 0xF0);
+            FaultDrawer_SetDrawerFrameBuffer(osViGetNextFramebuffer(), 0x140, 0xF0);
             MM_Fault_DrawRec(0, 0xD7, 0x140, 9, 1);
             MM_FaultDrawer_SetCharPad(-2, 0);
             MM_FaultDrawer_DrawText(0x20, 0xD8, "GRAPH PC %08x RA %08x SP %08x", pc, ra, sp);
@@ -1021,13 +1021,13 @@ void MM_Fault_ThreadEntry(void* arg) {
     OSThread* faultedThread;
 
     // Direct OS event messages to the fault event queue
-    MM_osSetEventMesg(OS_EVENT_CPU_BREAK, &sFaultInstance->queue, FAULT_MSG_CPU_BREAK);
-    MM_osSetEventMesg(OS_EVENT_FAULT, &sFaultInstance->queue, FAULT_MSG_FAULT);
+    osSetEventMesg(OS_EVENT_CPU_BREAK, &sFaultInstance->queue, FAULT_MSG_CPU_BREAK);
+    osSetEventMesg(OS_EVENT_FAULT, &sFaultInstance->queue, FAULT_MSG_FAULT);
 
     while (true) {
         do {
             // Wait for a thread to hit a fault
-            MM_osRecvMesg(&sFaultInstance->queue, &msg, OS_MESG_BLOCK);
+            osRecvMesg(&sFaultInstance->queue, &msg, OS_MESG_BLOCK);
 
             if (msg == FAULT_MSG_CPU_BREAK) {
                 sFaultInstance->msgId = (u32)FAULT_MSG_CPU_BREAK;
@@ -1140,11 +1140,11 @@ void MM_Fault_Init(void) {
     sFaultInstance->clients = NULL;
     sFaultInstance->autoScroll = false;
     gFaultMgr.faultHandlerEnabled = true;
-    MM_osCreateMesgQueue(&sFaultInstance->queue, sFaultInstance->msg, ARRAY_COUNT(sFaultInstance->msg));
+    osCreateMesgQueue(&sFaultInstance->queue, sFaultInstance->msg, ARRAY_COUNT(sFaultInstance->msg));
     MM_StackCheck_Init(&sFaultStackInfo, sFaultStack, STACK_TOP(sFaultStack), 0, 0x100, "fault");
     osCreateThread(&sFaultInstance->thread, Z_THREAD_ID_FAULT, MM_Fault_ThreadEntry, NULL, STACK_TOP(sFaultStack),
                    Z_PRIORITY_FAULT);
-    MM_osStartThread(&sFaultInstance->thread);
+    osStartThread(&sFaultInstance->thread);
 #endif
 }
 
@@ -1154,10 +1154,10 @@ void MM_Fault_Init(void) {
  */
 void MM_Fault_HangupFaultClient(const char* exp1, const char* exp2) {
 #if 0
-    osSyncPrintf("HungUp on Thread %d\n", MM_osGetThreadId(NULL));
+    osSyncPrintf("HungUp on Thread %d\n", osGetThreadId(NULL));
     osSyncPrintf("%s\n", exp1 != NULL ? exp1 : "(NULL)");
     osSyncPrintf("%s\n", exp2 != NULL ? exp2 : "(NULL)");
-    MM_FaultDrawer_Printf("HungUp on Thread %d\n", MM_osGetThreadId(NULL));
+    MM_FaultDrawer_Printf("HungUp on Thread %d\n", osGetThreadId(NULL));
     MM_FaultDrawer_Printf("%s\n", exp1 != NULL ? exp1 : "(NULL)");
     MM_FaultDrawer_Printf("%s\n", exp2 != NULL ? exp2 : "(NULL)");
 #endif
@@ -1184,6 +1184,6 @@ void MM_Fault_AddHungupAndCrashImpl(const char* exp1, const char* exp2) {
 void MM_Fault_AddHungupAndCrash(const char* file, s32 line) {
     char msg[0x100];
 
-    MM_sprintf(msg, "HungUp %s:%d", file, line);
+    sprintf(msg, "HungUp %s:%d", file, line);
     MM_Fault_AddHungupAndCrashImpl(msg, NULL);
 }

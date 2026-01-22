@@ -19,7 +19,7 @@
 extern "C" {
 #include "z64item.h"
 extern SaveContext gSaveContext;
-extern PlayState* gPlayState;
+extern PlayState* OoT_gPlayState;
 }
 
 using namespace UIWidgets;
@@ -1025,16 +1025,16 @@ void TimeSplitWindow::InitElement() {
     });
 
     GameInteractor::Instance->RegisterGameHook<GameInteractor::OnSceneInit>([](int16_t sceneNum) {
-        if (gPlayState->sceneNum != SCENE_KAKARIKO_VILLAGE) {
+        if (OoT_gPlayState->sceneNum != SCENE_KAKARIKO_VILLAGE) {
             TimeSplitsItemSplitEvent(SPLIT_TYPE_ENTRANCE, sceneNum);
         }
     });
 
     GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPlayerHealthChange>([](int16_t amount) {
-        if (gPlayState->sceneNum == SCENE_KAKARIKO_VILLAGE) {
-            Player* player = GET_PLAYER(gPlayState);
+        if (OoT_gPlayState->sceneNum == SCENE_KAKARIKO_VILLAGE) {
+            Player* player = GET_PLAYER(OoT_gPlayState);
             if (player->fallDistance > 500 && gSaveContext.health <= 0) {
-                TimeSplitsItemSplitEvent(SPLIT_TYPE_MISC, gPlayState->sceneNum);
+                TimeSplitsItemSplitEvent(SPLIT_TYPE_MISC, OoT_gPlayState->sceneNum);
             }
         }
     });

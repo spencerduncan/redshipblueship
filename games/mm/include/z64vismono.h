@@ -13,8 +13,8 @@ typedef struct VisMono {
     /* 0x14 */ Gfx* dList;
 } VisMono; // size = 0x18
 
-void VisMono_Init(VisMono* thisx);
-void VisMono_Destroy(VisMono* thisx);
-void VisMono_Draw(VisMono* thisx, Gfx** gfxp);
+void MM_VisMono_Init(VisMono* thisx);
+void MM_VisMono_Destroy(VisMono* thisx);
+void MM_VisMono_Draw(VisMono* thisx, Gfx** gfxp);
 
 #endif
