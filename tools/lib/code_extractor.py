@@ -470,13 +470,15 @@ def extract_global(file: Path, symbol: str) -> Optional[str]:
         # Verify this is at global scope (not inside a function)
         # A simple heuristic: check that there's no unmatched '{' before this point
         brace_depth = 0
-        for i in range(def_start):
+        i = 0
+        while i < def_start:
             char = content[i]
 
             # Skip comments
             if char == '/' and i + 1 < len(content):
                 if content[i + 1] == '/':
                     # Skip to end of line
+                    i += 2
                     while i < len(content) and content[i] != '\n':
                         i += 1
                     continue
@@ -485,17 +487,20 @@ def extract_global(file: Path, symbol: str) -> Optional[str]:
                     i += 2
                     while i < len(content) - 1:
                         if content[i] == '*' and content[i + 1] == '/':
+                            i += 2
                             break
                         i += 1
                     continue
 
             # Skip strings
             if char in '"\'':
+                quote_char = char
                 i += 1
                 while i < len(content):
                     if content[i] == '\\' and i + 1 < len(content):
                         i += 2
-                    elif content[i] == char:
+                    elif content[i] == quote_char:
+                        i += 1
                         break
                     else:
                         i += 1
@@ -505,6 +510,8 @@ def extract_global(file: Path, symbol: str) -> Optional[str]:
                 brace_depth += 1
             elif char == '}':
                 brace_depth -= 1
+
+            i += 1
 
         if brace_depth != 0:
             # Inside a function, not a global
