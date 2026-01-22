@@ -264,8 +264,9 @@ jobs:
         cd deps/libzip-1.10.1
         mkdir -p build
         cd build
-        # Skip cmake configure if already done
-        if [ ! -f "Makefile" ]; then
+        # Skip cmake configure if already done AND configured with crypto disabled
+        # (stale cache with different options could cause build issues)
+        if [ ! -f "CMakeCache.txt" ] || ! grep -q "ENABLE_OPENSSL:BOOL=OFF" CMakeCache.txt; then
           cmake .. -DENABLE_COMMONCRYPTO=OFF -DENABLE_GNUTLS=OFF -DENABLE_MBEDTLS=OFF -DENABLE_OPENSSL=OFF
         fi
         make
