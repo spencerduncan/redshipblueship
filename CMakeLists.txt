@@ -200,6 +200,7 @@ if (NOT TARGET ZAPD_OoT)
 endif()
 
 add_subdirectory(combo)
+add_subdirectory(rsbs)
 add_subdirectory(games/oot)
 add_subdirectory(games/mm)
 

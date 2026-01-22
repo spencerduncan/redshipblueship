@@ -214,7 +214,10 @@ jobs:
           tar -xzf SDL2-2.30.3.tar.gz -C deps
         fi
         cd deps/SDL2-2.30.3
-        ./configure --enable-hidapi-libusb
+        # Skip configure if already done (Makefile exists)
+        if [ ! -f "Makefile" ]; then
+          ./configure --enable-hidapi-libusb
+        fi
         make -j 10
         sudo make install
         sudo cp -av /usr/local/lib/libSDL* /lib/x86_64-linux-gnu/
@@ -226,7 +229,10 @@ jobs:
           tar -xzf SDL2_net-2.2.0.tar.gz -C deps
         fi
         cd deps/SDL2_net-2.2.0
-        ./configure
+        # Skip configure if already done
+        if [ ! -f "Makefile" ]; then
+          ./configure
+        fi
         make -j 10
         sudo make install
         sudo cp -av /usr/local/lib/libSDL* /lib/x86_64-linux-gnu/
@@ -241,7 +247,11 @@ jobs:
         cd deps/tinyxml2-10.0.0
         mkdir -p build
         cd build
-        cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+        # Skip cmake configure if already done AND configured with PIC
+        # (stale cache without PIC causes linking errors with shared libs)
+        if [ ! -f "CMakeCache.txt" ] || ! grep -q "CMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON" CMakeCache.txt; then
+          cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+        fi
         make
         sudo make install
     - name: Install libzip without crypto
@@ -254,7 +264,11 @@ jobs:
         cd deps/libzip-1.10.1
         mkdir -p build
         cd build
-        cmake .. -DENABLE_COMMONCRYPTO=OFF -DENABLE_GNUTLS=OFF -DENABLE_MBEDTLS=OFF -DENABLE_OPENSSL=OFF
+        # Skip cmake configure if already done AND configured with crypto disabled
+        # (stale cache with different options could cause build issues)
+        if [ ! -f "CMakeCache.txt" ] || ! grep -q "ENABLE_OPENSSL:BOOL=OFF" CMakeCache.txt; then
+          cmake .. -DENABLE_COMMONCRYPTO=OFF -DENABLE_GNUTLS=OFF -DENABLE_MBEDTLS=OFF -DENABLE_OPENSSL=OFF
+        fi
         make
         sudo make install
         sudo cp -av /usr/local/lib/libzip* /lib/x86_64-linux-gnu/
