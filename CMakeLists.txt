@@ -14,7 +14,7 @@ set(SPDLOG_LEVEL_OFF 6)
 set(SPDLOG_MIN_CUTOFF SPDLOG_LEVEL_TRACE CACHE STRING "cutoff at trace")
 
 option(SUPPRESS_WARNINGS "Suppress warnings in LUS and src (decomp)" ON)
-option(SINGLE_EXECUTABLE_BUILD "Build single redship executable (replaces dynamic library loading)" OFF)
+option(SINGLE_EXECUTABLE_BUILD "Build single redship executable (replaces dynamic library loading)" ON)
 
 # Always enable position-independent code - required for shared library builds
 # This repo is specifically for the unified combo project (shared libraries only)
