@@ -14,6 +14,13 @@ cmake_minimum_required(VERSION 3.14)
 # On Windows, combo must be a DLL so both the launcher and game DLLs can link
 # against it. On other platforms, static is fine since -rdynamic exports symbols
 # from the executable.
+# Common sources from src/common/ (implementations for compatibility headers)
+set(COMMON_SOURCES
+    ${CMAKE_SOURCE_DIR}/src/common/game.c
+    ${CMAKE_SOURCE_DIR}/src/common/context.cpp
+    ${CMAKE_SOURCE_DIR}/src/common/entrance.cpp
+)
+
 if(WIN32)
     add_library(combo SHARED
         src/placeholder.cpp
@@ -21,6 +28,7 @@ if(WIN32)
         src/DynamicLibrary.cpp
         src/ComboContextBridge.cpp
         src/SharedGraphics.cpp
+        ${COMMON_SOURCES}
     )
     # Export symbols from this DLL
     target_compile_definitions(combo PRIVATE COMBO_BUILDING_DLL)
@@ -31,11 +39,13 @@ else()
         src/DynamicLibrary.cpp
         src/ComboContextBridge.cpp
         src/SharedGraphics.cpp
+        ${COMMON_SOURCES}
     )
 endif()
 
 target_include_directories(combo PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/src/common  # For compatibility headers to find new game.h, entrance.h, context.h
 )
 
 # Link against libultraship for Archive/File types
