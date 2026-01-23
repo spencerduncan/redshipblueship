@@ -3,6 +3,7 @@
 #
 # Build versions:
 #   - Ubuntu 22.04 (base)
+#   - CMake 3.26+ (from Kitware APT repo)
 #   - SDL2 2.30.3 (with hidapi-libusb support)
 #   - SDL2_net 2.2.0
 #   - tinyxml2 10.0.0 (with position-independent code)
@@ -16,6 +17,14 @@ LABEL org.opencontainers.image.description="Build environment for redshipblueshi
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Add Kitware APT repository for CMake 3.26+
+# Ubuntu 22.04's default cmake is 3.22.x, but we need 3.26+
+RUN apt-get update && apt-get install -y ca-certificates gpg wget \
+    && wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null \
+    && echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ jammy main' | tee /etc/apt/sources.list.d/kitware.list >/dev/null \
+    && apt-get update \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install apt dependencies
 # Note: We install libtinyxml2-dev initially but will replace it with a newer version
 RUN apt-get update && apt-get install -y \
@@ -23,7 +32,6 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     cmake \
     git \
-    wget \
     # From apt-deps.txt
     libusb-dev \
     libusb-1.0-0-dev \
