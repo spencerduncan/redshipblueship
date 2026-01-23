@@ -13,8 +13,9 @@
 #include "combo/Game.h"
 
 // Include the new C API
+// Use relative path since games may not have src/common in include path
 extern "C" {
-#include "context.h"  // From src/common/ via include path
+#include "../../../src/common/context.h"
 }
 
 #include <cstdint>

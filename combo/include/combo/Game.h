@@ -12,8 +12,9 @@
 #include <cstdint>
 
 // Include the new C API for GameId enum and functions
+// Use relative path since games may not have src/common in include path
 extern "C" {
-#include "game.h"  // From src/common/ via include path
+#include "../../../src/common/game.h"
 }
 
 namespace Combo {
