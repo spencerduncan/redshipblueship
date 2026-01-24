@@ -297,19 +297,16 @@ jobs:
         export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
         cmake --no-warn-unused-cli -H. -Bbuild-cmake -GNinja -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DBUILD_REMOTE_CONTROL=1 -DREDSHIP_BUILD_SHARED=ON
         cmake --build build-cmake --config Release -j10
-        (cd build-cmake && cpack -G External)
-
-        mv README.md readme.txt
-        mv build-cmake/*.appimage rsbs.appimage
       env:
         CC: gcc-11
         CXX: g++-11
-    - name: Upload build directory for tests
-      uses: actions/upload-artifact@v4
-      with:
-        name: linux-build-dir
-        path: build-cmake
-        retention-days: 1
+    - name: Run tests
+      run: ctest --test-dir build-cmake --output-on-failure
+    - name: Package
+      run: |
+        (cd build-cmake && cpack -G External)
+        mv README.md readme.txt
+        mv build-cmake/*.appimage rsbs.appimage
     - name: Upload build
       uses: actions/upload-artifact@v4
       with:
@@ -388,17 +385,3 @@ jobs:
       with:
         key: ${{ runner.os }}-vcpkg-v1-${{ hashFiles('CMakeLists.txt') }}
         path: vcpkg
-
-  test-linux:
-    needs: build-linux
-    runs-on: ubuntu-22.04
-    container:
-      image: ghcr.io/spencerduncan/redshipblueship-build:latest
-    steps:
-    - name: Download build directory
-      uses: actions/download-artifact@v4
-      with:
-        name: linux-build-dir
-        path: build-cmake
-    - name: Run tests
-      run: ctest --test-dir build-cmake --output-on-failure
