@@ -10,6 +10,7 @@
 #include <cstring>
 #include <vector>
 #include <algorithm>
+#include <stdexcept>
 
 // ============================================================================
 // Internal state management
@@ -144,11 +145,21 @@ public:
 
 private:
     FrozenGameState& GetState(GameId game) {
-        return (game == GAME_OOT) ? mOoTState : mMMState;
+        if (game == GAME_OOT) {
+            return mOoTState;
+        } else if (game == GAME_MM) {
+            return mMMState;
+        }
+        throw std::invalid_argument("GetState called with invalid game");
     }
 
     const FrozenGameState& GetState(GameId game) const {
-        return (game == GAME_OOT) ? mOoTState : mMMState;
+        if (game == GAME_OOT) {
+            return mOoTState;
+        } else if (game == GAME_MM) {
+            return mMMState;
+        }
+        throw std::invalid_argument("GetState called with invalid game");
     }
 
     FrozenGameState mOoTState;
