@@ -179,6 +179,7 @@ FrozenStateManager gFrozenStates;
 #define COMBO_CONTEXT_VERSION 1
 
 ComboContext gComboCtx;
+GameId gCurrentGame = GAME_NONE;
 
 extern "C" {
 
@@ -209,6 +210,27 @@ void ComboContext_ClearSwitch(void) {
     gComboCtx.targetGame = GAME_NONE;
     gComboCtx.targetEntrance = 0;
 }
+
+// ============================================================================
+// High-level context API
+// ============================================================================
+
+void Context_Init(void) {
+    ComboContext_Init();
+    Context_InitFrozenStates();
+    gCurrentGame = GAME_NONE;
+}
+
+void Context_RequestSwitch(GameId target, uint16_t entrance) {
+    gComboCtx.sourceGame = gCurrentGame;
+    ComboContext_RequestSwitch(target, entrance);
+}
+
+bool Context_HasPendingSwitch(void) {
+    return ComboContext_IsSwitchPending();
+}
+
+// Note: Context_ProcessSwitch() is implemented in switch.cpp
 
 // ============================================================================
 // C API implementation
