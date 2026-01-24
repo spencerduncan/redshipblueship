@@ -293,31 +293,3 @@ def _find_differences(
             )
 
     return differences[:10]  # Limit to first 10 differences
-
-
-def get_ast_summary(code: str) -> Optional[str]:
-    """
-    Get a summary representation of the AST for a code snippet.
-
-    Args:
-        code: The C source code
-
-    Returns:
-        A string summary of the AST structure, or None if parsing failed
-    """
-    if not TREE_SITTER_AVAILABLE:
-        return None
-
-    root, valid, _ = parse_code(code)
-    if not valid or root is None:
-        return None
-
-    def summarize_node(node: "Node", depth: int = 0) -> List[str]:
-        indent = "  " * depth
-        lines = [f"{indent}{node.type}"]
-        for child in node.children:
-            if child.type not in ("comment",):
-                lines.extend(summarize_node(child, depth + 1))
-        return lines
-
-    return "\n".join(summarize_node(root))
