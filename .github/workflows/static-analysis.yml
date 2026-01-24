@@ -1,0 +1,100 @@
+name: Static Analysis
+on:
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE*'
+      - '.gitignore'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clang-tidy:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/spencerduncan/redshipblueship-build:latest
+    steps:
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y git lsb-release
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Configure git safe directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Configure with compile commands
+        run: cmake -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+      - name: Get changed files
+        id: changed
+        run: |
+          git fetch origin ${{ github.base_ref }} --depth=1
+          git diff --name-only origin/${{ github.base_ref }}...HEAD -- '*.c' '*.cpp' '*.h' '*.hpp' > changed_files.txt
+          echo "Changed C/C++ files:"
+          cat changed_files.txt
+          if [ -s changed_files.txt ]; then
+            echo "has_files=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_files=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run clang-tidy
+        if: steps.changed.outputs.has_files == 'true'
+        run: |
+          # Run clang-tidy and capture output
+          # Use || true to not fail the step on clang-tidy warnings
+          xargs -a changed_files.txt -I {} clang-tidy -p build \
+            --checks='clang-analyzer-*,bugprone-*,performance-*' \
+            {} 2>&1 | tee clang-tidy-output.txt || true
+
+          # Convert clang-tidy output to GitHub annotations
+          # Format: file:line:col: warning/error: message
+          if [ -s clang-tidy-output.txt ]; then
+            echo ""
+            echo "=== Generating GitHub Annotations ==="
+            while IFS= read -r line; do
+              # Match clang-tidy output format: file:line:col: severity: message [check-name]
+              if echo "$line" | grep -qE '^[^:]+:[0-9]+:[0-9]+: (warning|error):'; then
+                file=$(echo "$line" | cut -d: -f1)
+                lineno=$(echo "$line" | cut -d: -f2)
+                col=$(echo "$line" | cut -d: -f3)
+                rest=$(echo "$line" | cut -d: -f4-)
+                severity=$(echo "$rest" | sed 's/^ *//' | cut -d: -f1)
+                message=$(echo "$rest" | cut -d: -f2- | sed 's/^ *//')
+
+                if [ "$severity" = "error" ]; then
+                  echo "::error file=$file,line=$lineno,col=$col::$message"
+                else
+                  echo "::warning file=$file,line=$lineno,col=$col::$message"
+                fi
+              fi
+            done < clang-tidy-output.txt
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Static Analysis Results" >> "$GITHUB_STEP_SUMMARY"
+          if [ ! -s changed_files.txt ]; then
+            echo "No C/C++ files changed in this PR." >> "$GITHUB_STEP_SUMMARY"
+          elif [ -s clang-tidy-output.txt ]; then
+            warning_count=$(grep -c ': warning:' clang-tidy-output.txt || echo "0")
+            error_count=$(grep -c ': error:' clang-tidy-output.txt || echo "0")
+            echo "- **Warnings:** $warning_count" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Errors:** $error_count" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "### Checked files:" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            cat changed_files.txt >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No issues found!" >> "$GITHUB_STEP_SUMMARY"
+          fi
