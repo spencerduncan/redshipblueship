@@ -25,6 +25,8 @@ set(REDSHIP_COMMON_SOURCES
     ${CMAKE_SOURCE_DIR}/src/common/game_stubs.cpp
     # SharedGraphics for cross-game graphics context sharing
     ${CMAKE_SOURCE_DIR}/combo/src/SharedGraphics.cpp
+    # Unified menu bar for single executable
+    ${CMAKE_SOURCE_DIR}/src/common/ComboMenuBar.cpp
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -39,6 +41,7 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/context.h
     ${CMAKE_SOURCE_DIR}/src/common/entrance.h
     ${CMAKE_SOURCE_DIR}/src/common/test_runner.h
+    ${CMAKE_SOURCE_DIR}/src/common/ComboMenuBar.h
 )
 
 # ============================================================================
