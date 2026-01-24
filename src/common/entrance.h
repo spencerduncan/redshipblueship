@@ -9,7 +9,8 @@
  *
  * Design:
  * - Entrance tables store bidirectional links between game entrances
- * - C API allows game code to query for cross-game transitions
+ * - C API (Combo_*) allows game code to query for cross-game transitions
+ * - C++ API (Entrance_*) for internal use and testing
  * - Extensible for future entrance shuffling (any entrance -> any entrance)
  */
 
@@ -17,10 +18,6 @@
 #define RSBS_COMMON_ENTRANCE_H
 
 #include "game.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 // ============================================================================
 // Default entrance constants
@@ -66,10 +63,39 @@ typedef struct {
     bool readyToSwitch;          // Set by game after saving state
 } PendingGameSwitch;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern PendingGameSwitch gPendingSwitch;
 
 // ============================================================================
-// Entrance table management
+// C API - for use by game code (extern "C" linkage)
+// These match the existing combo/ API for compatibility
+// ============================================================================
+
+uint16_t Combo_CheckCrossGameEntrance(const char* gameId, uint16_t entrance);
+bool Combo_IsCrossGameSwitch(void);
+const char* Combo_GetSwitchTargetGameId(void);
+uint16_t Combo_GetSwitchTargetEntrance(void);
+uint16_t Combo_GetSwitchReturnEntrance(void);
+void Combo_SignalReadyToSwitch(void);
+void Combo_ClearPendingSwitch(void);
+void Combo_SetStartupEntrance(uint16_t entrance);
+uint16_t Combo_GetStartupEntrance(void);
+void Combo_ClearStartupEntrance(void);
+
+// Game switch request API
+void Combo_RequestGameSwitch(void);
+bool Combo_IsGameSwitchRequested(void);
+void Combo_ClearGameSwitchRequest(void);
+
+#ifdef __cplusplus
+}
+
+// ============================================================================
+// C++ API - for internal use and testing (C++ linkage, name-mangled)
+// These do NOT collide with OoT's Entrance_* functions which have C linkage
 // ============================================================================
 
 /**
@@ -106,10 +132,6 @@ void Entrance_ClearLinks(void);
  * Get the number of registered links
  */
 size_t Entrance_GetLinkCount(void);
-
-// ============================================================================
-// Cross-game entrance checking
-// ============================================================================
 
 /**
  * Check if an entrance triggers a cross-game switch.
@@ -166,29 +188,6 @@ uint16_t Entrance_GetStartupEntrance(void);
  */
 void Entrance_ClearStartupEntrance(void);
 
-// ============================================================================
-// Legacy C API compatibility (maps to new functions)
-// These match the existing combo/ API for easier transition
-// ============================================================================
-
-uint16_t Combo_CheckCrossGameEntrance(const char* gameId, uint16_t entrance);
-bool Combo_IsCrossGameSwitch(void);
-const char* Combo_GetSwitchTargetGameId(void);
-uint16_t Combo_GetSwitchTargetEntrance(void);
-uint16_t Combo_GetSwitchReturnEntrance(void);
-void Combo_SignalReadyToSwitch(void);
-void Combo_ClearPendingSwitch(void);
-void Combo_SetStartupEntrance(uint16_t entrance);
-uint16_t Combo_GetStartupEntrance(void);
-void Combo_ClearStartupEntrance(void);
-
-// Game switch request API
-void Combo_RequestGameSwitch(void);
-bool Combo_IsGameSwitchRequested(void);
-void Combo_ClearGameSwitchRequest(void);
-
-#ifdef __cplusplus
-}
-#endif
+#endif // __cplusplus
 
 #endif // RSBS_COMMON_ENTRANCE_H

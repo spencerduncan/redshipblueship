@@ -32,10 +32,8 @@ bool sGameSwitchRequested = false;
 PendingGameSwitch gPendingSwitch = {};
 
 // ============================================================================
-// C API implementation
+// C++ API implementation (C++ linkage - no collision with OoT's Entrance_*)
 // ============================================================================
-
-extern "C" {
 
 void Entrance_Init(void) {
     gEntranceLinks.clear();
@@ -152,8 +150,10 @@ void Entrance_ClearStartupEntrance(void) {
 }
 
 // ============================================================================
-// Legacy Combo_* API compatibility
+// C API - extern "C" for use by game code
 // ============================================================================
+
+extern "C" {
 
 uint16_t Combo_CheckCrossGameEntrance(const char* gameId, uint16_t entrance) {
     GameId game = Game_FromString(gameId);
