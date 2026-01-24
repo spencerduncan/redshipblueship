@@ -56,6 +56,7 @@ RUN apt-get update && apt-get install -y \
     libzstd-dev \
     # Tools
     ccache \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Create build directory for dependencies
@@ -110,6 +111,12 @@ RUN wget -q https://github.com/nih-at/libzip/releases/download/v1.10.1/libzip-1.
     && cp -av /usr/local/lib/libzip* /lib/x86_64-linux-gnu/ \
     && cd ../.. \
     && rm -rf libzip-1.10.1 libzip-1.10.1.tar.gz
+
+# Pre-download gamecontrollerdb.txt for SDL controller mappings
+# This avoids needing network access during cmake configure
+RUN mkdir -p /opt/redshipblueship \
+    && curl -sSfL -o /opt/redshipblueship/gamecontrollerdb.txt \
+       https://raw.githubusercontent.com/mdqinc/SDL_GameControllerDB/master/gamecontrollerdb.txt
 
 # Update library cache
 RUN ldconfig
