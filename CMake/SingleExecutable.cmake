@@ -133,12 +133,13 @@ if(BUILD_TESTING)
     add_test(NAME Context COMMAND redship --test context)
     add_test(NAME AllTests COMMAND redship --test all)
 
-    # Set reasonable timeout
+    # Set reasonable timeout and label our tests
     set(REDSHIP_TEST_TIMEOUT 60 CACHE STRING "Test timeout in seconds")
     set_tests_properties(
         BootOoT BootMM SwitchOoTMM SwitchMMOoT Roundtrip Context AllTests
         PROPERTIES
         TIMEOUT ${REDSHIP_TEST_TIMEOUT}
+        LABELS "redship"
     )
 endif()
 
