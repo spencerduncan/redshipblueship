@@ -45,6 +45,8 @@ RUN apt-get update && apt-get install -y \
     # Tools (not in apt-deps.txt)
     ccache \
     curl \
+    # ImageMagick for icon generation during packaging
+    imagemagick \
     # Install packages from apt-deps.txt
     && tr ' ' '\n' < /tmp/apt-deps.txt | xargs apt-get install -y \
     && rm -rf /var/lib/apt/lists/* /tmp/apt-deps.txt
