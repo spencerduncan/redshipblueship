@@ -22,7 +22,16 @@ set(REDSHIP_COMMON_SOURCES
     ${CMAKE_SOURCE_DIR}/src/common/test_runner.cpp
     # Stub implementations for game entry points (until full integration)
     ${CMAKE_SOURCE_DIR}/src/common/game_stubs.cpp
+    # SharedGraphics for cross-game graphics context sharing
+    ${CMAKE_SOURCE_DIR}/combo/src/SharedGraphics.cpp
 )
+
+# Windows-specific: import thunks for libultraship compatibility
+if(WIN32)
+    list(APPEND REDSHIP_COMMON_SOURCES
+        ${CMAKE_SOURCE_DIR}/src/common/shared_graphics_win.cpp
+    )
+endif()
 
 set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/game.h
@@ -43,11 +52,15 @@ add_library(redship_common STATIC
 target_include_directories(redship_common PUBLIC
     ${CMAKE_SOURCE_DIR}/src/common
     ${CMAKE_SOURCE_DIR}/rsbs/include
+    ${CMAKE_SOURCE_DIR}/combo/include
 )
 
 target_link_libraries(redship_common PUBLIC
     libultraship
 )
+
+# Define COMBO_BUILDING_DLL so SharedGraphics exports symbols with __declspec(dllexport)
+target_compile_definitions(redship_common PRIVATE COMBO_BUILDING_DLL)
 
 set_target_properties(redship_common PROPERTIES
     CXX_STANDARD 20
@@ -55,6 +68,13 @@ set_target_properties(redship_common PROPERTIES
     C_STANDARD 11
     C_STANDARD_REQUIRED ON
 )
+
+# MSVC runtime library - must match the games (static runtime)
+if(MSVC)
+    set_target_properties(redship_common PROPERTIES
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    )
+endif()
 
 # ============================================================================
 # Single executable (redship)
@@ -71,6 +91,7 @@ add_executable(redship
 target_include_directories(redship PRIVATE
     ${CMAKE_SOURCE_DIR}/src/common
     ${CMAKE_SOURCE_DIR}/rsbs/include
+    ${CMAKE_SOURCE_DIR}/combo/include
 )
 
 target_link_libraries(redship PRIVATE
@@ -119,6 +140,16 @@ if(BUILD_TESTING)
         PROPERTIES
         TIMEOUT ${REDSHIP_TEST_TIMEOUT}
     )
+endif()
+
+# ============================================================================
+# AppImage packaging (Linux)
+# ============================================================================
+
+if(UNIX AND NOT APPLE)
+    set_property(TARGET redship PROPERTY APPIMAGE_DESKTOP_FILE_TERMINAL YES)
+    set_property(TARGET redship PROPERTY APPIMAGE_DESKTOP_FILE "${CMAKE_SOURCE_DIR}/scripts/linux/appimage/soh.desktop")
+    set_property(TARGET redship PROPERTY APPIMAGE_ICON_FILE "${CMAKE_BINARY_DIR}/sohIcon.png")
 endif()
 
 # ============================================================================
