@@ -218,7 +218,9 @@ endif()
 # Link redship_common for cross-game API (src/common implementations)
 # Link rsbs for unified shared code
 target_link_libraries(${PROJECT_NAME} PRIVATE redship_common rsbs)
-# Include combo headers for compatibility (headers forward to src/common)
+# Include src/common for cross-game C API (entrance.h, context.h, game.h)
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/src/common)
+# Include combo headers for GameExports.h (GAME_EXPORT macro)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/combo/include)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
