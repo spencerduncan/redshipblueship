@@ -14,6 +14,7 @@ set(SPDLOG_LEVEL_OFF 6)
 set(SPDLOG_MIN_CUTOFF SPDLOG_LEVEL_TRACE CACHE STRING "cutoff at trace")
 
 option(SUPPRESS_WARNINGS "Suppress warnings in LUS and src (decomp)" ON)
+option(SINGLE_EXECUTABLE_BUILD "Build single redship executable (replaces dynamic library loading)" ON)
 
 # Always enable position-independent code - required for shared library builds
 # This repo is specifically for the unified combo project (shared libraries only)
@@ -199,15 +200,35 @@ if (NOT TARGET ZAPD_OoT)
     add_subdirectory(ZAPDTR/ZAPD ${CMAKE_BINARY_DIR}/ZAPD)
 endif()
 
-add_subdirectory(combo)
-add_subdirectory(rsbs)
-add_subdirectory(games/oot)
-add_subdirectory(games/mm)
+# ============================================================================
+# Build architecture selection
+# ============================================================================
+# SINGLE_EXECUTABLE_BUILD: Single 'redship' binary with both games statically linked
+# Default (OFF): Dynamic library approach with combo/ launcher loading game DLLs
+# ============================================================================
 
-# AppImage properties go on the launcher executable, not the game shared libraries
-set_property(TARGET redship PROPERTY APPIMAGE_DESKTOP_FILE_TERMINAL YES)
-set_property(TARGET redship PROPERTY APPIMAGE_DESKTOP_FILE "${CMAKE_SOURCE_DIR}/scripts/linux/appimage/soh.desktop")
-set_property(TARGET redship PROPERTY APPIMAGE_ICON_FILE "${CMAKE_BINARY_DIR}/sohIcon.png")
+if(SINGLE_EXECUTABLE_BUILD)
+    message(STATUS "=== Single Executable Architecture ===")
+    # Include the single executable build module
+    include(CMake/SingleExecutable.cmake)
+    # rsbs is still used for shared code
+    add_subdirectory(rsbs)
+    # Games are built but NOT as shared libraries - they provide object libraries
+    # For now, we still add the subdirectories but they will check SINGLE_EXECUTABLE_BUILD
+    add_subdirectory(games/oot)
+    add_subdirectory(games/mm)
+else()
+    # Dynamic library architecture (combo/ approach)
+    add_subdirectory(combo)
+    add_subdirectory(rsbs)
+    add_subdirectory(games/oot)
+    add_subdirectory(games/mm)
+
+    # AppImage properties go on the launcher executable, not the game shared libraries
+    set_property(TARGET redship PROPERTY APPIMAGE_DESKTOP_FILE_TERMINAL YES)
+    set_property(TARGET redship PROPERTY APPIMAGE_DESKTOP_FILE "${CMAKE_SOURCE_DIR}/scripts/linux/appimage/soh.desktop")
+    set_property(TARGET redship PROPERTY APPIMAGE_ICON_FILE "${CMAKE_BINARY_DIR}/sohIcon.png")
+endif()
 
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
 install(TARGETS soh LIBRARY DESTINATION . COMPONENT ship)

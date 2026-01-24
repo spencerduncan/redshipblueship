@@ -1,209 +1,102 @@
 #pragma once
 
-#include "combo/Export.h"
-
 /**
- * Frozen State Manager
+ * FrozenState.h - Compatibility header for legacy combo/ code
  *
- * Manages game state preservation for cross-game switching at room transitions.
- * Also provides read-only access to both games' states for tracking systems.
+ * This header provides the C++ classes expected by existing code
+ * while the actual implementation has moved to src/common/context.h.
  *
- * Design:
- * - Both SaveContexts always in memory (N64 games fit in cache: ~5KB + ~18KB)
- * - Zero-padded on startup so trackers always have valid memory to read
- * - HasFrozenState() distinguishes first-switch (fresh init) from restore
- * - FreezeState() called before switch, RestoreState() after
+ * For new code, prefer using src/common/context.h directly.
  */
 
-#include "combo/CrossGameEntrance.h"
+#include "combo/Export.h"
+#include "combo/Game.h"
+
+// Include the new C API
+// Use relative path since games may not have src/common in include path
+extern "C" {
+#include "../../../src/common/context.h"
+}
+
 #include <cstdint>
-#include <cstddef>
+#include <cstring>
+#include <map>
 #include <vector>
+#include <optional>
 
 namespace Combo {
 
-// SaveContext sizes from the game headers
-// OoT: z64save.h line 354: size = 0x1428
-// MM:  z64save.h line 527: size = 0x48C8
-constexpr size_t OOT_SAVE_CONTEXT_SIZE = 0x1428;  // 5160 bytes
-constexpr size_t MM_SAVE_CONTEXT_SIZE = 0x48C8;   // 18632 bytes
-
 /**
- * State for a single game, preserved at room transition
+ * Represents a frozen game state
+ * This is a C++ wrapper around the C API in context.h
  */
 struct COMBO_API FrozenGameState {
-    Game game = Game::None;
-    uint16_t returnEntrance = 0;     // Where to spawn when returning
-    std::vector<uint8_t> saveContext; // Serialized SaveContext
-    bool hasBeenFrozen = false;      // Has this game ever been frozen?
+    std::vector<uint8_t> saveContextData;
+    uint16_t returnEntrance;
 
-    FrozenGameState() = default;
-    explicit FrozenGameState(Game g, size_t size);
+    FrozenGameState() : returnEntrance(0) {}
+    FrozenGameState(const void* data, size_t size, uint16_t entrance)
+        : saveContextData(static_cast<const uint8_t*>(data),
+                          static_cast<const uint8_t*>(data) + size),
+          returnEntrance(entrance) {}
 };
 
 /**
- * Manages frozen state for both games
- *
- * Thread safety: Not thread-safe. Designed for main game thread.
+ * Manages frozen states for all games
+ * This is a C++ wrapper around the C API in context.h
  */
 class COMBO_API FrozenStateManager {
 public:
-    FrozenStateManager();
+    FrozenStateManager() {
+        Context_InitFrozenStates();
+    }
 
-    /**
-     * Initialize state storage for both games
-     * Zero-pads the SaveContext buffers so trackers have valid memory
-     */
-    void Initialize();
-
-    /**
-     * Freeze current game state before switching
-     * @param game Which game to freeze
-     * @param returnEntrance Where to spawn when returning
-     * @param saveContextData Pointer to the game's SaveContext
-     * @param size Size of the SaveContext (should match expected size)
-     */
     void FreezeState(Game game, uint16_t returnEntrance,
-                     const void* saveContextData, size_t size);
+                     const void* saveContext, size_t size) {
+        Context_FreezeState(ToGameId(game), returnEntrance, saveContext, size);
+    }
 
-    /**
-     * Restore frozen state when returning to a game
-     * @param game Which game to restore
-     * @param saveContextData Pointer to the game's SaveContext (will be written to)
-     * @param size Size of the SaveContext buffer
-     * @return true if state was restored, false if no frozen state exists
-     */
-    bool RestoreState(Game game, void* saveContextData, size_t size);
+    bool RestoreState(Game game, void* saveContext, size_t size) {
+        return Context_RestoreState(ToGameId(game), saveContext, size) != 0;
+    }
 
-    /**
-     * Check if a game has been frozen at least once
-     * Returns false on first switch (game should init fresh at entrance)
-     */
-    bool HasFrozenState(Game game) const;
+    bool HasFrozenState(Game game) const {
+        return Context_HasFrozenState(ToGameId(game)) != 0;
+    }
 
-    /**
-     * Get the return entrance for a frozen game
-     * @return The entrance, or 0 if no frozen state
-     */
-    uint16_t GetReturnEntrance(Game game) const;
+    std::optional<uint16_t> GetReturnEntrance(Game game) const {
+        if (!HasFrozenState(game)) {
+            return std::nullopt;
+        }
+        return Context_GetFrozenReturnEntrance(ToGameId(game));
+    }
 
-    /**
-     * Clear frozen state for a game (e.g., on game over)
-     */
-    void ClearFrozenState(Game game);
+    void ClearState(Game game) {
+        Context_ClearFrozenState(ToGameId(game));
+    }
 
-    /**
-     * Clear all frozen state
-     */
-    void ClearAll();
+    void ClearAll() {
+        Context_ClearAllFrozenStates();
+    }
 
-    // ========================================================================
     // Read-only access for trackers
-    // These are always valid (zero-padded initially, updated on freeze)
-    // ========================================================================
+    const void* GetOoTSaveContext() const {
+        return Context_GetOoTSaveContext();
+    }
 
-    /**
-     * Get read-only pointer to OoT SaveContext
-     * Always valid (zero-padded if never frozen)
-     */
-    const void* GetOoTSaveContext() const;
+    const void* GetMMSaveContext() const {
+        return Context_GetMMSaveContext();
+    }
 
-    /**
-     * Get read-only pointer to MM SaveContext
-     * Always valid (zero-padded if never frozen)
-     */
-    const void* GetMMSaveContext() const;
-
-    /**
-     * Get the size of OoT SaveContext
-     */
-    size_t GetOoTSaveContextSize() const { return OOT_SAVE_CONTEXT_SIZE; }
-
-    /**
-     * Get the size of MM SaveContext
-     */
-    size_t GetMMSaveContextSize() const { return MM_SAVE_CONTEXT_SIZE; }
-
-    /**
-     * Update the shadow copy of the active game's SaveContext
-     * Called periodically to keep tracker data fresh
-     */
-    void UpdateShadowCopy(Game game, const void* saveContextData, size_t size);
-
-private:
-    FrozenGameState& GetState(Game game);
-    const FrozenGameState& GetState(Game game) const;
-
-    FrozenGameState mOoTState;
-    FrozenGameState mMMState;
-    bool mInitialized = false;
+    void UpdateShadowCopy(Game game, const void* saveContext, size_t size) {
+        Context_UpdateShadowCopy(ToGameId(game), saveContext, size);
+    }
 };
 
-// Global instance
-extern COMBO_API FrozenStateManager gFrozenStates;
+// Global frozen state manager
+inline FrozenStateManager& GetFrozenStateManager() {
+    static FrozenStateManager manager;
+    return manager;
+}
 
 } // namespace Combo
-
-// ============================================================================
-// C API for games to call
-// ============================================================================
-
-extern "C" {
-
-/**
- * Initialize the frozen state manager
- * Should be called once at combo startup
- */
-COMBO_API void Combo_InitFrozenStates(void);
-
-/**
- * Freeze current game state before switching
- * @param gameId "oot" or "mm"
- * @param returnEntrance Where to spawn when returning
- * @param saveContext Pointer to the game's SaveContext
- * @param size Size of the SaveContext
- */
-COMBO_API void Combo_FreezeState(const char* gameId, uint16_t returnEntrance,
-                                  const void* saveContext, size_t size);
-
-/**
- * Restore frozen state when returning to a game
- * @param gameId "oot" or "mm"
- * @param saveContext Pointer to the game's SaveContext (will be written to)
- * @param size Size of the SaveContext buffer
- * @return 1 if state was restored, 0 if no frozen state (first switch)
- */
-COMBO_API int Combo_RestoreState(const char* gameId, void* saveContext, size_t size);
-
-/**
- * Check if a game has been frozen at least once
- * @return 1 if frozen state exists, 0 if first switch
- */
-COMBO_API int Combo_HasFrozenState(const char* gameId);
-
-/**
- * Get return entrance for a frozen game
- */
-COMBO_API uint16_t Combo_GetFrozenReturnEntrance(const char* gameId);
-
-/**
- * Clear frozen state for a game
- */
-COMBO_API void Combo_ClearFrozenState(const char* gameId);
-
-/**
- * Get read-only pointer to OoT SaveContext (for trackers)
- */
-COMBO_API const void* Combo_GetOoTSaveContext(void);
-
-/**
- * Get read-only pointer to MM SaveContext (for trackers)
- */
-COMBO_API const void* Combo_GetMMSaveContext(void);
-
-/**
- * Update shadow copy of active game's SaveContext (for trackers)
- */
-COMBO_API void Combo_UpdateShadowCopy(const char* gameId, const void* saveContext, size_t size);
-
-} // extern "C"
