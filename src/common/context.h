@@ -104,11 +104,52 @@ typedef struct {
 } ComboContext;
 
 extern ComboContext gComboCtx;
+extern GameId gCurrentGame;
 
 void ComboContext_Init(void);
 void ComboContext_RequestSwitch(GameId target, uint16_t entrance);
 bool ComboContext_IsSwitchPending(void);
 void ComboContext_ClearSwitch(void);
+
+// ============================================================================
+// High-level context API (for switch.cpp and external use)
+// ============================================================================
+
+/**
+ * Initialize all context systems (frozen states + combo context)
+ */
+void Context_Init(void);
+
+/**
+ * Request a game switch to the target game at the specified entrance
+ */
+void Context_RequestSwitch(GameId target, uint16_t entrance);
+
+/**
+ * Check if a game switch has been requested
+ */
+bool Context_HasPendingSwitch(void);
+
+/**
+ * Process the pending game switch (called by main loop)
+ * This coordinates freezing current game state and launching target game
+ */
+void Context_ProcessSwitch(void);
+
+/**
+ * Check if a switch is currently being processed
+ */
+bool Context_IsSwitchInProgress(void);
+
+/**
+ * Set the current game (used during initialization)
+ */
+void Context_SetCurrentGame(GameId game);
+
+/**
+ * Get the current game
+ */
+GameId Context_GetCurrentGame(void);
 
 // ============================================================================
 // Legacy C API compatibility (maps to new functions)
