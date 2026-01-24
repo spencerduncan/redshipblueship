@@ -1,0 +1,30 @@
+name: Test
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/spencerduncan/redshipblueship-build:latest
+    steps:
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y lsb-release git
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure git safe directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build -j$(nproc)
+      - name: Test
+        run: ctest --test-dir build --output-on-failure

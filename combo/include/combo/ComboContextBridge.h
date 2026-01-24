@@ -137,28 +137,11 @@ private:
 
 } // namespace Combo
 
-// Global hotswap mechanism - accessible from games
-// These are extern "C" so games can easily call them
-extern "C" {
-    /**
-     * Request a game switch (called when hotkey is pressed)
-     */
-    COMBO_API void Combo_RequestGameSwitch();
-
-    /**
-     * Check if a game switch was requested
-     * Games should check this in their main loop and exit cleanly if true
-     */
-    COMBO_API bool Combo_IsGameSwitchRequested();
-
-    /**
-     * Clear the switch request (called by combo launcher after switching)
-     */
-    COMBO_API void Combo_ClearGameSwitchRequest();
-
-    /**
-     * Get the current switch target game ID ("oot" or "mm")
-     * Returns nullptr if no switch requested
-     */
-    COMBO_API const char* Combo_GetSwitchTargetId();
-}
+// Global hotswap mechanism - MOVED TO src/common/entrance.h
+// These declarations have been removed to avoid redefinition with the new
+// single-executable architecture. Use #include "entrance.h" instead.
+//
+// Available functions (from entrance.h):
+//   - Combo_RequestGameSwitch()
+//   - Combo_IsGameSwitchRequested()
+//   - Combo_ClearGameSwitchRequest()
