@@ -17,10 +17,10 @@ jobs:
     container:
       image: ghcr.io/spencerduncan/redshipblueship-build:latest
     steps:
-      - name: Install git
+      - name: Install dependencies
         run: |
           apt-get update
-          apt-get install -y git
+          apt-get install -y git lsb-release
 
       - uses: actions/checkout@v4
         with:
