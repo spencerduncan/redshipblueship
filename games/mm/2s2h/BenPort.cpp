@@ -2111,3 +2111,56 @@ extern "C" bool Ship_HandleConsoleCrashAsReset() {
 
     return true;
 }
+
+// ============================================================================
+// Cross-game switching support (for single-executable architecture)
+// ============================================================================
+
+#ifdef SINGLE_EXECUTABLE_BUILD
+
+#include "common/context.h"
+
+extern "C" {
+
+/**
+ * Freeze MM game state before switching to OoT
+ * Called by Context_ProcessSwitch() in switch.cpp
+ *
+ * TODO: Implement actual state freezing:
+ * - Save the current SaveContext to frozen state
+ * - Save any additional transient state (actor positions, etc.)
+ * - Prepare for clean shutdown of MM systems
+ */
+void MM_FreezeState(ComboContext* ctx) {
+    (void)ctx; // Suppress unused parameter warning
+
+    // Stub implementation - actual implementation will:
+    // 1. Get pointer to gSaveContext
+    // 2. Call Context_FreezeState(GAME_MM, returnEntrance, &gSaveContext, sizeof(gSaveContext))
+    // 3. Save any additional state needed
+    fprintf(stderr, "[MM] FreezeState called (stub)\n");
+}
+
+/**
+ * Resume MM from a frozen state or start fresh from OoT
+ * Called by Context_ProcessSwitch() in switch.cpp
+ *
+ * TODO: Implement actual state resumption:
+ * - If returning (has frozen state): restore SaveContext and spawn at return entrance
+ * - If first switch: start fresh at the target entrance
+ * - Initialize MM systems as needed
+ */
+void MM_ResumeFromContext(ComboContext* ctx) {
+    (void)ctx; // Suppress unused parameter warning
+
+    // Stub implementation - actual implementation will:
+    // 1. Check if Context_HasFrozenState(GAME_MM)
+    // 2. If yes: Context_RestoreState(GAME_MM, &gSaveContext, sizeof(gSaveContext))
+    // 3. Set entrance to ctx->targetEntrance or return entrance
+    // 4. Trigger scene load
+    fprintf(stderr, "[MM] ResumeFromContext called (stub)\n");
+}
+
+} // extern "C"
+
+#endif // SINGLE_EXECUTABLE_BUILD

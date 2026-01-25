@@ -2901,3 +2901,56 @@ bool SoH_HandleConfigDrop(char* filePath) {
 extern "C" void CheckTracker_RecalculateAvailableChecks() {
     CheckTracker::RecalculateAvailableChecks();
 }
+
+// ============================================================================
+// Cross-game switching support (for single-executable architecture)
+// ============================================================================
+
+#ifdef SINGLE_EXECUTABLE_BUILD
+
+#include "common/context.h"
+
+extern "C" {
+
+/**
+ * Freeze OoT game state before switching to MM
+ * Called by Context_ProcessSwitch() in switch.cpp
+ *
+ * TODO: Implement actual state freezing:
+ * - Save the current SaveContext to frozen state
+ * - Save any additional transient state (actor positions, etc.)
+ * - Prepare for clean shutdown of OoT systems
+ */
+void OoT_FreezeState(ComboContext* ctx) {
+    (void)ctx; // Suppress unused parameter warning
+
+    // Stub implementation - actual implementation will:
+    // 1. Get pointer to gSaveContext
+    // 2. Call Context_FreezeState(GAME_OOT, returnEntrance, &gSaveContext, sizeof(gSaveContext))
+    // 3. Save any additional state needed
+    fprintf(stderr, "[OoT] FreezeState called (stub)\n");
+}
+
+/**
+ * Resume OoT from a frozen state or start fresh from MM
+ * Called by Context_ProcessSwitch() in switch.cpp
+ *
+ * TODO: Implement actual state resumption:
+ * - If returning (has frozen state): restore SaveContext and spawn at return entrance
+ * - If first switch: start fresh at the target entrance
+ * - Initialize OoT systems as needed
+ */
+void OoT_ResumeFromContext(ComboContext* ctx) {
+    (void)ctx; // Suppress unused parameter warning
+
+    // Stub implementation - actual implementation will:
+    // 1. Check if Context_HasFrozenState(GAME_OOT)
+    // 2. If yes: Context_RestoreState(GAME_OOT, &gSaveContext, sizeof(gSaveContext))
+    // 3. Set entrance to ctx->targetEntrance or return entrance
+    // 4. Trigger scene load
+    fprintf(stderr, "[OoT] ResumeFromContext called (stub)\n");
+}
+
+} // extern "C"
+
+#endif // SINGLE_EXECUTABLE_BUILD

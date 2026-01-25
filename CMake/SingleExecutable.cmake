@@ -18,12 +18,15 @@ message(STATUS "=== Single Executable Architecture Enabled ===")
 set(REDSHIP_COMMON_SOURCES
     ${CMAKE_SOURCE_DIR}/src/common/game.c
     ${CMAKE_SOURCE_DIR}/src/common/context.cpp
+    ${CMAKE_SOURCE_DIR}/src/common/switch.cpp
     ${CMAKE_SOURCE_DIR}/src/common/entrance.cpp
     ${CMAKE_SOURCE_DIR}/src/common/test_runner.cpp
     # Stub implementations for game entry points (until full integration)
     ${CMAKE_SOURCE_DIR}/src/common/game_stubs.cpp
     # SharedGraphics for cross-game graphics context sharing
     ${CMAKE_SOURCE_DIR}/combo/src/SharedGraphics.cpp
+    # Unified menu bar for single executable
+    ${CMAKE_SOURCE_DIR}/src/common/ComboMenuBar.cpp
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -38,6 +41,7 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/context.h
     ${CMAKE_SOURCE_DIR}/src/common/entrance.h
     ${CMAKE_SOURCE_DIR}/src/common/test_runner.h
+    ${CMAKE_SOURCE_DIR}/src/common/ComboMenuBar.h
 )
 
 # ============================================================================
@@ -133,12 +137,13 @@ if(BUILD_TESTING)
     add_test(NAME Context COMMAND redship --test context)
     add_test(NAME AllTests COMMAND redship --test all)
 
-    # Set reasonable timeout
+    # Set reasonable timeout and label our tests
     set(REDSHIP_TEST_TIMEOUT 60 CACHE STRING "Test timeout in seconds")
     set_tests_properties(
         BootOoT BootMM SwitchOoTMM SwitchMMOoT Roundtrip Context AllTests
         PROPERTIES
         TIMEOUT ${REDSHIP_TEST_TIMEOUT}
+        LABELS "redship"
     )
 endif()
 

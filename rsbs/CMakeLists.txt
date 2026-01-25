@@ -7,7 +7,7 @@ cmake_minimum_required(VERSION 3.14)
 # The goal is ONE unified game engine, not two games that switch.
 
 add_library(rsbs STATIC
-    # Placeholder (remove once real code is added)
+    # Core shared utilities
     src/placeholder.c
     src/combo_context.c
 
