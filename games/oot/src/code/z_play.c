@@ -21,6 +21,10 @@
 #include <time.h>
 #include <assert.h>
 
+// Cross-game combo support - check for startup entrance from game switch
+extern uint16_t Combo_GetStartupEntrance(void);
+extern void Combo_ClearStartupEntrance(void);
+
 TransitionUnk sTrnsnUnk;
 s32 gTrnsnUnkState;
 VisMono gPlayVisMono;
@@ -384,6 +388,16 @@ void OoT_Play_Init(GameState* thisx) {
     s32 pad[2];
 
     enableBetaQuest();
+
+    // Cross-game combo: Check if we're entering from another game
+    {
+        uint16_t startupEntrance = Combo_GetStartupEntrance();
+        if (startupEntrance != 0) {
+            gSaveContext.entranceIndex = startupEntrance;
+            Combo_ClearStartupEntrance();
+            osSyncPrintf("[OoT] Cross-game switch: loading entrance 0x%04X\n", startupEntrance);
+        }
+    }
 
     // Properly initialize the frame counter so it doesn't use garbage data
     if (!firstInit) {
