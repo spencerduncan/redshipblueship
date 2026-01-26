@@ -155,6 +155,74 @@ TestResult Test_Roundtrip(void) {
     return TEST_PASS;
 }
 
+TestResult Test_MidosHouse(void) {
+    printf("[TEST] midos-house: Test Mido's House entrance (test mode)\n");
+
+    // Initialize with TEST links (Mido's House instead of Happy Mask Shop)
+    Entrance_Init();
+    Entrance_RegisterTestLinks();
+
+    // Simulate entering Mido's House in OoT
+    uint16_t result = Entrance_CheckCrossGame(GAME_OOT, OOT_ENTR_MIDOS_HOUSE);
+
+    if (!Entrance_IsCrossGameSwitch()) {
+        printf("[TEST] FAIL: Cross-game switch not triggered for Mido's House\n");
+        return TEST_FAIL;
+    }
+
+    if (Entrance_GetSwitchTargetGame() != GAME_MM) {
+        printf("[TEST] FAIL: Target should be MM\n");
+        return TEST_FAIL;
+    }
+
+    if (Entrance_GetSwitchTargetEntrance() != MM_ENTR_CLOCK_TOWER_INTERIOR_1) {
+        printf("[TEST] FAIL: Should target Clock Tower Interior\n");
+        return TEST_FAIL;
+    }
+
+    printf("[TEST] PASS: Mido's House -> Clock Tower link works\n");
+    Entrance_ClearPendingSwitch();
+    return TEST_PASS;
+}
+
+TestResult Test_StartupEntrance(void) {
+    printf("[TEST] startup-entrance: Test startup entrance flow\n");
+
+    // Initialize systems
+    Entrance_Init();
+    Entrance_RegisterTestLinks();
+
+    // Step 1: Simulate OoT triggering Mido's House entrance
+    Entrance_CheckCrossGame(GAME_OOT, OOT_ENTR_MIDOS_HOUSE);
+    if (!Entrance_IsCrossGameSwitch()) {
+        printf("[TEST] FAIL: Switch not triggered\n");
+        return TEST_FAIL;
+    }
+
+    // Step 2: Set the startup entrance (this is what main.cpp does)
+    uint16_t targetEntrance = Entrance_GetSwitchTargetEntrance();
+    Entrance_SetStartupEntrance(targetEntrance);
+
+    // Step 3: Verify startup entrance is set
+    uint16_t startup = Combo_GetStartupEntrance();
+    if (startup != MM_ENTR_CLOCK_TOWER_INTERIOR_1) {
+        printf("[TEST] FAIL: Startup entrance not set correctly (got 0x%04X, expected 0x%04X)\n",
+               startup, MM_ENTR_CLOCK_TOWER_INTERIOR_1);
+        return TEST_FAIL;
+    }
+
+    // Step 4: Clear and verify (simulates what Play_Init does)
+    Combo_ClearStartupEntrance();
+    if (Combo_GetStartupEntrance() != 0) {
+        printf("[TEST] FAIL: Startup entrance not cleared\n");
+        return TEST_FAIL;
+    }
+
+    printf("[TEST] PASS: Startup entrance flow verified\n");
+    Entrance_ClearPendingSwitch();
+    return TEST_PASS;
+}
+
 TestResult Test_Context(void) {
     printf("[TEST] context: Test context/state management\n");
 
@@ -210,6 +278,8 @@ const TestDescriptor gTests[] = {
     {"boot-mm", "Boot MM to main menu", Test_BootMM},
     {"switch-oot-mm", "Test game switch OoT -> MM", Test_SwitchOoTMM},
     {"switch-mm-oot", "Test game switch MM -> OoT", Test_SwitchMMOoT},
+    {"midos-house", "Test Mido's House entrance (test mode)", Test_MidosHouse},
+    {"startup-entrance", "Test startup entrance flow", Test_StartupEntrance},
     {"roundtrip", "Full round-trip with state verification", Test_Roundtrip},
     {"context", "Test context/state management", Test_Context},
     {nullptr, nullptr, nullptr}  // Sentinel

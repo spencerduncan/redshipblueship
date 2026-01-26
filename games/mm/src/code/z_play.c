@@ -51,6 +51,8 @@ u8 sMotionBlurStatus;
 // Cross-game combo support - defined in GameExports.cpp
 extern uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex);
 extern bool Combo_IsCrossGameSwitch(void);
+extern uint16_t Combo_GetStartupEntrance(void);
+extern void Combo_ClearStartupEntrance(void);
 
 s32 gDbgCamEnabled = false;
 u8 D_801D0D54 = false;
@@ -2236,6 +2238,16 @@ void MM_Play_Init(GameState* thisx) {
     s32 scene;
     u8 sceneLayer;
     s32 pad2;
+
+    // Cross-game combo: Check if we're entering from another game
+    {
+        uint16_t startupEntrance = Combo_GetStartupEntrance();
+        if (startupEntrance != 0) {
+            gSaveContext.save.entrance = startupEntrance;
+            Combo_ClearStartupEntrance();
+            // Note: Using PRINTF macro if available, or just skip logging
+        }
+    }
 
     if ((gSaveContext.respawnFlag == -4) || (gSaveContext.respawnFlag == -0x63)) {
         if (CHECK_EVENTINF(EVENTINF_TRIGGER_DAYTELOP)) {
