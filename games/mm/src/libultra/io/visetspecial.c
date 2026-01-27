@@ -1,6 +1,6 @@
 #include "ultra64.h"
 
-void osViSetSpecialFeatures(u32 func) {
+void MM_osViSetSpecialFeatures(u32 func) {
     register u32 saveMask = __osDisableInt();
 
     if (func & OS_VI_GAMMA_ON) {

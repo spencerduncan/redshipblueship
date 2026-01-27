@@ -109,7 +109,7 @@ u32 EffectSsSbn_Init(PlayState* play, u32 index, EffectSs* this, void* initParam
         bubbleVec.z = -mtx.mf[2][2] * 10.0f;
         MM_Math3D_CosOut(&colPolyVec, &bubbleVec, &angle);
 
-        opposite = (SQ(angle) >= 1.0f) ? 0.0f : sqrtf(1.0f - SQ(angle));
+        opposite = (SQ(angle) >= 1.0f) ? 0.0f : MM_sqrtf(1.0f - SQ(angle));
         if (((mtx.mf[0][0] * colPolyVec.x) + (mtx.mf[0][1] * colPolyVec.y) + (mtx.mf[0][2] * colPolyVec.z)) < 0.0f) {
             this->rRotAngle = Math_Atan2S_XY(angle, opposite);
         } else {

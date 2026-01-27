@@ -165,7 +165,7 @@ void func_80B02EE4(ObjSnowball* this, PlayState* play) {
 
 void func_80B030F8(ObjSnowball* this, PlayState* play) {
     s32 pad;
-    f32 temp_f28 = sqrtf(this->unk_20C);
+    f32 temp_f28 = MM_sqrtf(this->unk_20C);
     Vec3f spFC;
     Vec3f spF0;
     Vec3f spE4;
@@ -282,7 +282,7 @@ void func_80B03688(ObjSnowball* this, PlayState* play) {
     Vec3f spA0;
     s32 pad[2];
     f32 temp_f20;
-    f32 temp_f22 = sqrtf(this->unk_20C);
+    f32 temp_f22 = MM_sqrtf(this->unk_20C);
     s16 temp_s3;
     s32 phi_s0;
 
@@ -336,7 +336,7 @@ void func_80B03688(ObjSnowball* this, PlayState* play) {
 }
 
 void func_80B03A80(PlayState* play, f32 arg1, Vec3f* arg2) {
-    f32 temp_f30 = sqrtf(arg1);
+    f32 temp_f30 = MM_sqrtf(arg1);
     Vec3f spD8;
     Vec3f spCC;
     s32 i;
@@ -703,7 +703,7 @@ void func_80B047C0(ObjSnowball* this, PlayState* play) {
                     if (phi_f2 <= 0.0f) {
                         sp84 = 0.0f;
                     } else {
-                        sp84 *= sqrtf(phi_f2);
+                        sp84 *= MM_sqrtf(phi_f2);
                     }
                 }
 

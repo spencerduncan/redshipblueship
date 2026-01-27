@@ -902,7 +902,7 @@ void func_80C0CDE4(EnBsb* this, PlayState* play) {
     dy = hitPos.y - player->actor.world.pos.y;
     dz = hitPos.z - player->actor.world.pos.z;
 
-    dist = sqrtf((SQ(dx) + SQ(dy)) + SQ(dz));
+    dist = MM_sqrtf((SQ(dx) + SQ(dy)) + SQ(dz));
 
     if ((this->collider.base.atFlags & AT_BOUNCED) ||
         ((player->stateFlags1 & PLAYER_STATE1_400000) && (dist <= 70.0f) &&
@@ -1220,7 +1220,7 @@ void func_80C0DB18(EnBsb* this, PlayState* play) {
             cos = MM_Math_CosS(this->actor.world.rot.y);
             MM_Math_ApproachF(&this->actor.world.pos.z, sp64.z, 0.5f, fabsf(cos * 3.2f));
 
-            if (sqrtf(SQ(this->actor.world.pos.x - sp64.x) + SQ(this->actor.world.pos.z - sp64.z)) < 3.0f) {
+            if (MM_sqrtf(SQ(this->actor.world.pos.x - sp64.x) + SQ(this->actor.world.pos.z - sp64.z)) < 3.0f) {
                 this->waypoint = this->path->count - 1;
                 if (SubS_CopyPointFromPath(this->path, this->waypoint, &this->unk_02EC)) {
                     this->unk_02EC.y = this->actor.world.pos.y;

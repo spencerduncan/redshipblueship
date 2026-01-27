@@ -377,7 +377,7 @@ void func_80C014E4(EnBomjimb* this, PlayState* play) {
             x = this->unk_294.x - this->actor.world.pos.x;
             z = this->unk_294.z - this->actor.world.pos.z;
 
-            if ((this->unk_2B0 == 0) || (sqrtf(SQ(x) + SQ(z)) < 4.0f)) {
+            if ((this->unk_2B0 == 0) || (MM_sqrtf(SQ(x) + SQ(z)) < 4.0f)) {
                 this->unk_2AE = MM_Rand_S16Offset(20, 20);
                 if (!(this->unk_2AE & 1)) {
                     EnBomjimb_ChangeAnim(this, ENBOMJIMB_ANIM_20, 1.0f);
@@ -505,7 +505,7 @@ void func_80C01CD0(EnBomjimb* this, PlayState* play) {
                            0);
         MM_Math_ApproachF(&this->actor.world.pos.x, this->unk_294.x, 0.3f, 2.0f);
         MM_Math_ApproachF(&this->actor.world.pos.z, this->unk_294.z, 0.3f, 2.0f);
-        if (sqrtf(SQ(this->actor.world.pos.x - this->unk_294.x) + SQ(this->actor.world.pos.z - this->unk_294.z)) <
+        if (MM_sqrtf(SQ(this->actor.world.pos.x - this->unk_294.x) + SQ(this->actor.world.pos.z - this->unk_294.z)) <
             3.0f) {
             EnBomjimb_ChangeAnim(this, ENBOMJIMB_ANIM_7, 1.0f);
             MM_Math_Vec3f_Copy(&this->actor.world.pos, &this->unk_294);

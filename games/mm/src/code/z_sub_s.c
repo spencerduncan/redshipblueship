@@ -1094,7 +1094,7 @@ s32 SubS_TrackPoint(Vec3f* target, Vec3f* focusPos, Vec3s* shapeRot, Vec3s* trac
     f32 diffZ = target->z - focusPos->z;
 
     yaw = Math_Atan2S_XY(diffZ, diffX);
-    pitch = Math_Atan2S_XY(sqrtf(SQ(diffX) + SQ(diffZ)), target->y - focusPos->y);
+    pitch = Math_Atan2S_XY(MM_sqrtf(SQ(diffX) + SQ(diffZ)), target->y - focusPos->y);
     MM_Math_SmoothStepToS(&trackTarget->x, pitch, 4, 0x2710, 0);
     MM_Math_SmoothStepToS(&trackTarget->y, yaw, 4, 0x2710, 0);
 
@@ -1339,7 +1339,7 @@ void SubS_ActorPathing_ComputePointInfo(PlayState* play, ActorPathing* actorPath
     actorPath->distSqToCurPointXZ = MM_Math3D_Dist1DSq(diff.x, diff.z);
     actorPath->distSqToCurPoint = MM_Math3D_Vec3fMagnitudeSq(&diff);
     actorPath->rotToCurPoint.y = Math_Atan2S_XY(diff.z, diff.x);
-    actorPath->rotToCurPoint.x = Math_Atan2S_XY(sqrtf(actorPath->distSqToCurPointXZ), -diff.y);
+    actorPath->rotToCurPoint.x = Math_Atan2S_XY(MM_sqrtf(actorPath->distSqToCurPointXZ), -diff.y);
     actorPath->rotToCurPoint.z = 0;
 }
 

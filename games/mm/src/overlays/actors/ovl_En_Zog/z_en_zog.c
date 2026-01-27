@@ -151,7 +151,7 @@ void func_80B93310(Actor* thisx, Lights* mapper, PlayState* play) {
 
         MM_Math_Vec3f_Copy(&sp34, &this->actor.world.pos);
 
-        sp2C = sqrtf(SQ(this->actor.focus.pos.x - this->unk_2F0.x) + SQ(this->actor.focus.pos.z - this->unk_2F0.z));
+        sp2C = MM_sqrtf(SQ(this->actor.focus.pos.x - this->unk_2F0.x) + SQ(this->actor.focus.pos.z - this->unk_2F0.z));
         if (sp2C < 12.0f) {
             sp2C = 12.0f;
         } else if (sp2C > 60.0f) {

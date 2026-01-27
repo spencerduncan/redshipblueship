@@ -143,7 +143,7 @@ void func_808DC18C(ObjectKankyo* this, PlayState* play) {
     x = play->view.at.x - play->view.eye.x;
     y = play->view.at.y - play->view.eye.y;
     z = play->view.at.z - play->view.eye.z;
-    magnitude = sqrtf(SQ(x) + SQ(y) + SQ(z));
+    magnitude = MM_sqrtf(SQ(x) + SQ(y) + SQ(z));
 
     temp_f18 = x / magnitude;
     x = z / magnitude;
@@ -204,7 +204,7 @@ void func_808DC454(ObjectKankyo* this, PlayState* play) {
     f32 x = play->view.at.x - play->view.eye.x;
     f32 y = play->view.at.y - play->view.eye.y;
     f32 z = play->view.at.z - play->view.eye.z;
-    f32 magnitude = sqrtf(SQ(x) + SQ(y) + SQ(z));
+    f32 magnitude = MM_sqrtf(SQ(x) + SQ(y) + SQ(z));
     f32 temp_120 = 120.0f;
     f32 temp_f30;
     Vec3f sp88;
@@ -251,7 +251,7 @@ void func_808DC454(ObjectKankyo* this, PlayState* play) {
                 temp_f28 = play->view.eye.y + (spCC * 120.0f);
                 temp_f30 = play->view.eye.z + (spC8 * 120.0f);
 
-                magnitude = sqrtf((f32)SQ(play->envCtx.windDirection.x) + SQ(play->envCtx.windDirection.y) +
+                magnitude = MM_sqrtf((f32)SQ(play->envCtx.windDirection.x) + SQ(play->envCtx.windDirection.y) +
                                   SQ(play->envCtx.windDirection.z));
                 if (magnitude == 0.0f) {
                     magnitude = 0.001f;
@@ -388,7 +388,7 @@ void func_808DCDB4(ObjectKankyo* this, PlayState* play) {
     y = play->view.at.y - play->view.eye.y;
     z = play->view.at.z - play->view.eye.z;
 
-    magnitude = sqrtf(SQ(x) + SQ(y) + SQ(z));
+    magnitude = MM_sqrtf(SQ(x) + SQ(y) + SQ(z));
 
     spAC = x / magnitude;
     spA8 = y / magnitude;
@@ -421,7 +421,7 @@ void func_808DCDB4(ObjectKankyo* this, PlayState* play) {
                 temp_f28 = play->view.eye.y + (spA8 * 120.0f);
                 temp_f18 = play->view.eye.z + (spA4 * 120.0f);
 
-                magnitude = sqrtf((f32)SQ(play->envCtx.windDirection.x) + SQ(play->envCtx.windDirection.y) +
+                magnitude = MM_sqrtf((f32)SQ(play->envCtx.windDirection.x) + SQ(play->envCtx.windDirection.y) +
                                   SQ(play->envCtx.windDirection.z));
                 if (magnitude == 0.0f) {
                     magnitude = 0.001f;

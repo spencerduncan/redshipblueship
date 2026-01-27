@@ -327,7 +327,7 @@ void func_8088AA98(EnArrow* this, PlayState* play) {
         MM_Math_Vec3f_Diff(&this->actor.world.pos, &this->actor.home.pos, &sp44);
 
         if (sp44.y != 0.0f) {
-            temp_f0 = sqrtf(SQ(sp44.x) + SQ(sp44.z));
+            temp_f0 = MM_sqrtf(SQ(sp44.x) + SQ(sp44.z));
             if (temp_f0 != 0.0f) {
                 temp_f0 = (((sp50 - this->actor.home.pos.y) / sp44.y) * temp_f0) / temp_f0;
             }
@@ -472,7 +472,7 @@ void func_8088ACE0(EnArrow* this, PlayState* play) {
         func_8088AA98(this, play);
         if (this->actor.params == ARROW_TYPE_DEKU_BUBBLE) {
             if (this->bubble.unk_149 == 0) {
-                sp78 = sqrtf(SQ(this->actor.speed) + SQ(this->actor.velocity.y));
+                sp78 = MM_sqrtf(SQ(this->actor.speed) + SQ(this->actor.velocity.y));
                 sp74 = MM_Math_SinS(this->actor.world.rot.y) * this->actor.speed;
                 temp_f12_2 = MM_Math_CosS(this->actor.world.rot.y) * this->actor.speed;
 

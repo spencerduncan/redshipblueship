@@ -7525,7 +7525,7 @@ s32 func_80837DEC(Player* this, PlayState* play) {
             sp7C.x = this->actor.prevPos.x - this->actor.world.pos.x;
             sp7C.z = this->actor.prevPos.z - this->actor.world.pos.z;
 
-            var_fv1 = sqrtf(SQXZ(sp7C));
+            var_fv1 = MM_sqrtf(SQXZ(sp7C));
             if (var_fv1 != 0.0f) {
                 var_fv1 = 5.0f / var_fv1;
             } else {
@@ -7768,7 +7768,7 @@ void func_80838830(Player* this, s16 objectId) {
     if (objectId != OBJECT_UNSET_0) {
         // #region 2S2H [Port] We don't care to wait for the item to load, mark it as loaded immediately
         this->giObjectLoading = false;
-        // osCreateMesgQueue(&this->giObjectLoadQueue, &this->giObjectLoadMsg, 1);
+        // MM_osCreateMesgQueue(&this->giObjectLoadQueue, &this->giObjectLoadMsg, 1);
         // MM_DmaMgr_SendRequestImpl(&this->giObjectDmaRequest, this->giObjectSegment, MM_gObjectTable[objectId].vromStart,
         //                        MM_gObjectTable[objectId].vromEnd - MM_gObjectTable[objectId].vromStart, 0,
         //                        &this->giObjectLoadQueue, OS_MESG_PTR(NULL));
@@ -8752,7 +8752,7 @@ void func_8083A98C(Actor* thisx, PlayState* play2) {
                 f32 focusDeltaY = (s16)(thisx->focus.rot.y - prevFocusY);
 
                 Audio_PlaySfx_AtPosWithFreq(&MM_gSfxDefaultPos, NA_SE_PL_TELESCOPE_MOVEMENT - SFX_FLAG,
-                                            sqrtf(SQ(focusDeltaX) + SQ(focusDeltaY)) / 300.0f);
+                                            MM_sqrtf(SQ(focusDeltaX) + SQ(focusDeltaY)) / 300.0f);
             }
         }
 
@@ -9035,7 +9035,7 @@ void func_8083B850(PlayState* play, Player* this) {
     this->currentBoots = PLAYER_BOOTS_ZORA_LAND;
     this->prevBoots = PLAYER_BOOTS_ZORA_LAND;
     Player_SetAction(play, this, Player_Action_56, 0);
-    this->unk_B48 = sqrtf(SQ(this->speedXZ) + SQ(this->actor.velocity.y));
+    this->unk_B48 = MM_sqrtf(SQ(this->speedXZ) + SQ(this->actor.velocity.y));
     Player_OverrideBlureColors(play, this, 1, 8);
     this->currentBoots = PLAYER_BOOTS_ZORA_LAND;
     this->prevBoots = PLAYER_BOOTS_ZORA_LAND;
@@ -9557,7 +9557,7 @@ s32 MM_Player_HandleSlopes(PlayState* play, Player* this) {
             // facingUpSlope has not yet been updated based on slope, so it will always be 0 here.
             Player_Anim_PlayLoopMorph(play, this, sSlopeSlideAnims[this->av1.facingUpSlope]);
 
-            this->speedXZ = sqrtf(SQXZ(this->actor.velocity));
+            this->speedXZ = MM_sqrtf(SQXZ(this->actor.velocity));
             this->yaw = downwardSlopeYaw;
 
             if (sFloorPitchShape >= 0) {
@@ -10985,7 +10985,7 @@ s32 func_80840F90(PlayState* play, Player* this, CsCmdActorCue* cue, f32 arg3, s
         f32 halfUpdateRate = R_UPDATE_RATE / 2.0f;
         f32 curDiffX = cue->endPos.x - this->actor.world.pos.x;
         f32 curDiffZ = cue->endPos.z - this->actor.world.pos.z;
-        f32 scaledCurDist = sqrtf(SQ(curDiffX) + SQ(curDiffZ)) / halfUpdateRate;
+        f32 scaledCurDist = MM_sqrtf(SQ(curDiffX) + SQ(curDiffZ)) / halfUpdateRate;
         s32 framesLeft = (cue->endFrame - play->csCtx.curFrame) + 1;
 
         arg4 = Math_Atan2S_XY(curDiffZ, curDiffX);
@@ -10994,7 +10994,7 @@ s32 func_80840F90(PlayState* play, Player* this, CsCmdActorCue* cue, f32 arg3, s
             f32 distX = cue->endPos.x - cue->startPos.x;
             f32 distZ = cue->endPos.z - cue->startPos.z;
             s32 temp =
-                (((sqrtf(SQ(distX) + SQ(distZ)) / halfUpdateRate) / (cue->endFrame - cue->startFrame)) / 1.5f) * 4.0f;
+                (((MM_sqrtf(SQ(distX) + SQ(distZ)) / halfUpdateRate) / (cue->endFrame - cue->startFrame)) / 1.5f) * 4.0f;
             if (temp >= framesLeft) {
                 arg3 = 0.0f;
                 arg4 = this->actor.shape.rot.y;
@@ -11023,7 +11023,7 @@ s32 func_808411D4(PlayState* play, Player* this, f32* arg2, s32 arg3) {
     s32 pad2;
     s16 var_v1;
 
-    sp2C = sqrtf(SQ(xDiff) + SQ(yDiff));
+    sp2C = MM_sqrtf(SQ(xDiff) + SQ(yDiff));
     var_v1 = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &this->unk_3A0);
     if (sp2C < arg3) {
         *arg2 = 0.0f;
@@ -12221,7 +12221,7 @@ void MM_Player_UpdateCamAndSeqModes(PlayState* play, Player* this) {
         if (play->actorCtx.attention.bgmEnemy != NULL) {
             if (GameInteractor_Should(VB_PLAY_ENEMY_PROXIMITY_MUSIC, true)) {
                 seqMode = SEQ_MODE_ENEMY;
-                Audio_UpdateEnemyBgmVolume(sqrtf(play->actorCtx.attention.bgmEnemy->xyzDistToPlayerSq));
+                Audio_UpdateEnemyBgmVolume(MM_sqrtf(play->actorCtx.attention.bgmEnemy->xyzDistToPlayerSq));
             }
         }
 
@@ -12497,7 +12497,7 @@ void func_80844784(PlayState* play, Player* this) {
                 temp_fa1 = play->envCtx.windDirection.y;
                 temp_ft4 = play->envCtx.windDirection.z;
 
-                temp_fv0_2 = sqrtf(SQ(temp_fa0) + SQ(temp_fa1) + SQ(temp_ft4));
+                temp_fv0_2 = MM_sqrtf(SQ(temp_fa0) + SQ(temp_fa1) + SQ(temp_ft4));
                 if (temp_fv0_2 != 0.0f) {
                     temp_fv0_2 = ((play->envCtx.windSpeed - 50.0f) * 0.1f * sp58) / temp_fv0_2;
 
@@ -13613,7 +13613,7 @@ s32 Ship_HandleFirstPersonAiming(PlayState* play, Player* this, s32 arg2) {
         f32 relY = (sPlayerControlInput->rel.stick_y / 10);
 
         // Normalize so that diagonal movement isn't faster
-        f32 relMag = sqrtf((relX * relX) + (relY * relY));
+        f32 relMag = MM_sqrtf((relX * relX) + (relY * relY));
         if (relMag > 1.0f) {
             relX /= relMag;
             relY /= relMag;
@@ -13624,7 +13624,7 @@ s32 Ship_HandleFirstPersonAiming(PlayState* play, Player* this, s32 arg2) {
         f32 relY2 = relY * MM_Math_CosS(this->actor.focus.rot.y) - relX * MM_Math_SinS(this->actor.focus.rot.y);
 
         // Calculate distance for footstep sound
-        f32 distance = sqrtf((relX2 * relX2) + (relY2 * relY2)) * movementSpeed;
+        f32 distance = MM_sqrtf((relX2 * relX2) + (relY2 * relY2)) * movementSpeed;
         func_8083EA44(this, distance / 4.5f);
 
         this->actor.world.pos.x += (relX2 * movementSpeed) + this->actor.colChkInfo.displacement.x;
@@ -17919,7 +17919,7 @@ void Player_Action_63(Player* this, PlayState* play) {
                 f32 temp_fa1 = this->skelAnime.jointTable[LIMB_ROOT_POS].z;
                 f32 var_fv1;
 
-                var_fv1 = sqrtf(SQ(temp_fa0) + SQ(temp_fa1));
+                var_fv1 = MM_sqrtf(SQ(temp_fa0) + SQ(temp_fa1));
                 if (var_fv1 != 0.0f) {
                     var_fv1 = (var_fv1 - 100.0f) / var_fv1;
                     var_fv1 = CLAMP_MIN(var_fv1, 0.0f);
@@ -18380,7 +18380,7 @@ void Player_Action_70(Player* this, PlayState* play) {
     if (MM_Player_PosVsWallLineTest(play, this, &D_8085D7F8, &sp6C, &sp68, &sp5C)) {
         temp_fv1 = this->actor.world.pos.x - sp5C.x;
         temp_fa0 = this->actor.world.pos.z - sp5C.z;
-        temp_fv0 = sqrtf(SQ(temp_fv1) + SQ(temp_fa0));
+        temp_fv0 = MM_sqrtf(SQ(temp_fv1) + SQ(temp_fa0));
 
         if (temp_fv0 != 0.0f) {
             temp_fv0 = 3.0f / temp_fv0;
@@ -19607,7 +19607,7 @@ void Player_Action_94(Player* this, PlayState* play) {
         s32 temp;
         s16 var_v1_4;
 
-        this->speedXZ = sqrtf(SQXZ(this->actor.velocity));
+        this->speedXZ = MM_sqrtf(SQXZ(this->actor.velocity));
         if (this->speedXZ != 0.0f) {
             var_a1 = Math_Atan2S_XY(this->actor.velocity.z, this->actor.velocity.x);
 
@@ -19728,7 +19728,7 @@ void Player_Action_94(Player* this, PlayState* play) {
         speedTarget = (speedTarget * (this->unk_B86[1] * 0.0004f)) * fabsf(MM_Math_SinS(this->unk_B8C));
         func_80856888(&this->speedXZ, speedTarget, sp68);
 
-        speedTarget = sqrtf(SQ(this->speedXZ) + SQ(this->actor.velocity.y));
+        speedTarget = MM_sqrtf(SQ(this->speedXZ) + SQ(this->actor.velocity.y));
         if (speedTarget > 8.0f) {
             speedTarget = 8.0f / speedTarget;
             this->speedXZ *= speedTarget;
@@ -20124,7 +20124,7 @@ void Player_Action_96(Player* this, PlayState* play) {
                 this->yaw = sp90;
                 Actor_GetSlopeDirection(this->actor.floorPoly, &slopeNormal, &downwardSlopeYaw);
 
-                spB8 = sqrtf(SQ(spA4) + SQ(spA0));
+                spB8 = MM_sqrtf(SQ(spA4) + SQ(spA0));
                 if (this->unk_B86[1] != 0) {
                     if ((ABS_ALT(sp8E) + ABS_ALT(this->floorPitch)) > 0x3A98) {
                         this->unk_B86[1] = 0;
@@ -20137,7 +20137,7 @@ void Player_Action_96(Player* this, PlayState* play) {
                 } else {
                     f32 temp_ft4_2 = (0.6f * slopeNormal.x) + spA4;
                     f32 temp_ft5 = (0.6f * slopeNormal.z) + spA0;
-                    f32 temp_fv0_3 = sqrtf(SQ(temp_ft4_2) + SQ(temp_ft5));
+                    f32 temp_fv0_3 = MM_sqrtf(SQ(temp_ft4_2) + SQ(temp_ft5));
 
                     if ((temp_fv0_3 < spB8) || (temp_fv0_3 < 6.0f)) {
                         spA4 = temp_ft4_2;
@@ -20180,7 +20180,7 @@ void Player_Action_96(Player* this, PlayState* play) {
                 spB4 = spAC + spA4;
                 spB0 = spA8 + spA0;
 
-                this->unk_B08 = sqrtf(SQ(spB4) + SQ(spB0));
+                this->unk_B08 = MM_sqrtf(SQ(spB4) + SQ(spB0));
                 this->unk_B08 = CLAMP_MAX(this->unk_B08, 18.0f);
 
                 this->yaw = Math_Atan2S_XY(spB0, spB4);
@@ -20214,7 +20214,7 @@ void Player_Action_96(Player* this, PlayState* play) {
                 MM_Math_ScaledStepToS(&this->actor.home.rot.y, yawTarget, 0x190);
 
                 this->unk_B08 =
-                    sqrtf(SQ(this->speedXZ) + SQ(this->actor.velocity.y)) * ((this->speedXZ >= 0.0f) ? 1.0f : -1.0f);
+                    MM_sqrtf(SQ(this->speedXZ) + SQ(this->actor.velocity.y)) * ((this->speedXZ >= 0.0f) ? 1.0f : -1.0f);
                 this->unk_B08 = CLAMP_MAX(this->unk_B08, 18.0f);
             } else {
                 this->unk_B48 += this->actor.velocity.y * 0.005f;
@@ -21373,7 +21373,7 @@ void Player_Cutscene_8085ABA8(Player* this, CsCmdActorCue* cue) {
     s16 temp_v0;
 
     temp_v0 = (s16)cue->rot.y - this->actor.shape.rot.y;
-    dist = sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff));
+    dist = MM_sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff));
     if (this->speedXZ == 0.0f) {
         if ((dist > 50.0f) || (ABS_ALT(temp_v0) > 0x4000)) {
             Player_Cutscene_SetPosAndYawToStart(this, cue);

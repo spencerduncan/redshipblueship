@@ -144,7 +144,7 @@ void func_80965DB4(EnMm* this, PlayState* play) {
             Actor_GetSlopeDirection(this->actor.floorPoly, &slopeNormal, &downwardSlopeYaw);
             temp_f14 += 3.0f * slopeNormal.x;
             temp_f12 += 3.0f * slopeNormal.z;
-            temp_f2 = sqrtf(SQ(temp_f14) + SQ(temp_f12));
+            temp_f2 = MM_sqrtf(SQ(temp_f14) + SQ(temp_f12));
 
             if ((temp_f2 < this->actor.speed) ||
                 (SurfaceType_GetFloorEffect(&play->colCtx, this->actor.floorPoly, this->actor.floorBgId) ==

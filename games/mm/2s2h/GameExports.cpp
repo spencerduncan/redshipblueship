@@ -125,9 +125,9 @@ GAME_EXPORT int Game_Init(int argc, char** argv) {
     // Set up message queues
     fprintf(stderr, "[MM INIT DEBUG] Setting up message queues...\n");
     fflush(stderr);
-    osCreateMesgQueue(&sSerialEventQueue, sSerialMsgBuf, ARRAY_COUNT(sSerialMsgBuf));
-    osSetEventMesg(OS_EVENT_SI, &sSerialEventQueue, OS_MESG_PTR(NULL));
-    osCreateMesgQueue(&sIrqMgrMsgQueue, sIrqMgrMsgBuf, ARRAY_COUNT(sIrqMgrMsgBuf));
+    MM_osCreateMesgQueue(&sSerialEventQueue, sSerialMsgBuf, ARRAY_COUNT(sSerialMsgBuf));
+    MM_osSetEventMesg(OS_EVENT_SI, &sSerialEventQueue, OS_MESG_PTR(NULL));
+    MM_osCreateMesgQueue(&sIrqMgrMsgQueue, sIrqMgrMsgBuf, ARRAY_COUNT(sIrqMgrMsgBuf));
 
     // Initialize PadMgr and AudioMgr - these are required for MM_Graph_ThreadEntry
     // Note: Stack addresses are handled differently in shared library context

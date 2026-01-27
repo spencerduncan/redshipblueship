@@ -279,7 +279,7 @@ s32 func_8097E698(EffectSs* this) {
     diff.x = this->pos.x - this->vec.x;
     diff.y = this->pos.y - this->vec.y;
     diff.z = this->pos.z - this->vec.z;
-    distance = sqrtf(SQXYZ(diff));
+    distance = MM_sqrtf(SQXYZ(diff));
     if (distance > 1000.0f) {
         return false;
     }

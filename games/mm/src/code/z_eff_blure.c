@@ -803,7 +803,7 @@ void MM_EffectBlure_DrawSimpleVertices(GraphicsContext* gfxCtx, EffectBlure* thi
             sp1A4.z = ((f32)vtx[4 * i + 2].v.ob[2] + (f32)vtx[4 * i + 3].v.ob[2]) / 2.0f;
 
             MM_Math_Vec3f_Diff(&sp1A4, &sp1B0, &sp198);
-            scale = sqrtf(SQXYZ(sp198));
+            scale = MM_sqrtf(SQXYZ(sp198));
 
             if (fabsf(scale) > 0.0005f) {
                 scale = 1.0f / scale;

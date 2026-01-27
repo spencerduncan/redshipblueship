@@ -1012,7 +1012,7 @@ s32 func_80A40230(EnTest3* this, PlayState* play) {
     MM_Math_Vec3f_Copy(&D_80A41D50, &this->player.actor.world.pos);
     dx = this->player.actor.world.pos.x - this->player.actor.prevPos.x;
     dy = this->player.actor.world.pos.z - this->player.actor.prevPos.z;
-    this->player.speedXZ = sqrtf(SQ(dx) + SQ(dy));
+    this->player.speedXZ = MM_sqrtf(SQ(dx) + SQ(dy));
     this->player.speedXZ *= 1.0f + (1.05f * fabsf(MM_Math_SinS(this->player.floorPitch)));
     sKafeiControlStickMagnitude = (this->player.speedXZ * 10.0f) + 20.0f;
     sKafeiControlStickMagnitude = CLAMP_MAX(sKafeiControlStickMagnitude, 60.0f);

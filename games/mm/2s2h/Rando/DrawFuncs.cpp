@@ -375,7 +375,7 @@ extern void DrawCaptainKeeta() {
 
 extern void DrawChuchu() {
     static int16_t timer = 25;
-    f32 timerFactor = sqrtf(timer) * 0.2f;
+    f32 timerFactor = MM_sqrtf(timer) * 0.2f;
     static AnimatedMaterial* sSlimeTexAnim = (AnimatedMaterial*)Lib_SegmentedToVirtual((void*)gChuchuSlimeFlowTexAnim);
 
     OPEN_DISPS(MM_gPlayState->state.gfxCtx);

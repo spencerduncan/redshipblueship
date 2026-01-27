@@ -751,7 +751,7 @@ void EnOkuta_Projectile_Fly(EnOkuta* this, PlayState* play) {
     if (this->timer < 0) {
         this->actor.velocity.y -= 0.5f;
         this->actor.world.rot.x =
-            Math_Atan2S_XY(sqrtf(SQ(this->actor.velocity.x) + SQ(this->actor.velocity.z)), this->actor.velocity.y);
+            Math_Atan2S_XY(MM_sqrtf(SQ(this->actor.velocity.x) + SQ(this->actor.velocity.z)), this->actor.velocity.y);
     }
 
     this->actor.home.rot.z += 0x1554;

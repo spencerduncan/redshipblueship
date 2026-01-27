@@ -61,7 +61,7 @@ s32 EnStream_PlayerIsInRange(Vec3f* vortexWorldPos, Vec3f* playerWorldPos, Vec3f
     posDifference->x = playerWorldPos->x - vortexWorldPos->x;
     posDifference->y = playerWorldPos->y - vortexWorldPos->y;
     posDifference->z = playerWorldPos->z - vortexWorldPos->z;
-    xzDist = sqrtf(SQ(posDifference->x) + SQ(posDifference->z));
+    xzDist = MM_sqrtf(SQ(posDifference->x) + SQ(posDifference->z));
 
     if (lowerBounds <= posDifference->y && posDifference->y <= upperBounds) {
         posDifference->y -= lowerBounds;
@@ -89,7 +89,7 @@ void MM_EnStream_SuckPlayer(EnStream* this, PlayState* play) {
 
     if (EnStream_PlayerIsInRange(&this->actor.world.pos, &player->actor.world.pos, &posDifference,
                                  this->actor.scale.y) != EN_STREAM_PLAYER_OUTSIDE_RANGE) {
-        xzDist = sqrtf(SQ(posDifference.x) + SQ(posDifference.z));
+        xzDist = MM_sqrtf(SQ(posDifference.x) + SQ(posDifference.z));
         yDistWithOffset = player->actor.world.pos.y - (this->actor.world.pos.y - 90.0f);
         player->pushedYaw = MM_Math_Atan2S(-posDifference.x, -posDifference.z);
         if (xzDist > 3.0f) {

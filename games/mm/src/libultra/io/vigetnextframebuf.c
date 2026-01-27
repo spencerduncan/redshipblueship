@@ -1,6 +1,6 @@
 #include "ultra64.h"
 
-void* osViGetNextFramebuffer(void) {
+void* MM_osViGetNextFramebuffer(void) {
     register u32 saveMask = __osDisableInt();
     void* buffer;
 

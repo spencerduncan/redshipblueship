@@ -108,7 +108,7 @@ void VisFbuf_SetBg(Gfx** gfxP, void* source, void* img, s32 width, s32 height, f
     bg->b.imagePtr = source;
 
     if (!!(cycleMode & VIS_FBUF_BG_CYC_COPY) != 0) { //! FAKE: may possibly be a better way
-        guS2DInitBg(bg);
+        MM_guS2DInitBg(bg);
     } else {
         bg->s.scaleW = (s32)((1 << 10) / scaleX);
         bg->s.scaleH = (s32)((1 << 10) / scaleY);

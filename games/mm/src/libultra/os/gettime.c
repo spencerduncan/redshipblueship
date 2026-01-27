@@ -1,6 +1,6 @@
 #include "ultra64.h"
 
-OSTime osGetTime(void) {
+OSTime MM_osGetTime(void) {
     u32 CurrentCount;
     u32 elapseCount;
     OSTime currentCount;

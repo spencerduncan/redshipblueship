@@ -123,7 +123,7 @@ void ResourceMgr_UnregisterSkeleton(SkelAnime* skelAnime);
 void ResourceMgr_ClearSkeletons();
 s32* ResourceMgr_LoadCSByName(const char* path);
 int ResourceMgr_OTRSigCheck(char* imgData);
-uint64_t osGetTime(void);
+uint64_t MM_osGetTime(void);
 uint32_t osGetCount(void);
 uint64_t GetFrequency();
 uint32_t OTRGetCurrentWidth(void);

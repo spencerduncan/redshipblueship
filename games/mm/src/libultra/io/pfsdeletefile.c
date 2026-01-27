@@ -3,7 +3,7 @@
 
 s32 __osPfsReleasePages(OSPfs* pfs, __OSInode* inode, u8 initialPage, u8 bank, __OSInodeUnit* finalPage);
 
-s32 osPfsDeleteFile(OSPfs* pfs, u16 companyCode, u32 gameCode, u8* gameName, u8* extName) {
+s32 MM_osPfsDeleteFile(OSPfs* pfs, u16 companyCode, u32 gameCode, u8* gameName, u8* extName) {
     s32 file_no;
     s32 ret;
     __OSInode inode;
@@ -16,7 +16,7 @@ s32 osPfsDeleteFile(OSPfs* pfs, u16 companyCode, u32 gameCode, u8* gameName, u8*
         return PFS_ERR_INVALID;
     }
 
-    ret = osPfsFindFile(pfs, companyCode, gameCode, gameName, extName, &file_no);
+    ret = MM_osPfsFindFile(pfs, companyCode, gameCode, gameName, extName, &file_no);
     if (ret != 0) {
         return ret;
     }

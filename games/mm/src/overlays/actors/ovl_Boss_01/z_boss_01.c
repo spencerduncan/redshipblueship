@@ -966,7 +966,7 @@ void Boss01_JumpAwayFromExplosive(Boss01* this, PlayState* play) {
 
     for (explosive = play->actorCtx.actorLists[ACTORCAT_EXPLOSIVES].first; explosive != NULL;
          explosive = explosive->next) {
-        if (sqrtf(SQ(explosive->world.pos.x - this->actor.world.pos.x) +
+        if (MM_sqrtf(SQ(explosive->world.pos.x - this->actor.world.pos.x) +
                   SQ(explosive->world.pos.y - this->actor.world.pos.y) +
                   SQ(explosive->world.pos.z - this->actor.world.pos.z)) < 150.0f) {
             Boss01_SetupJump(this, play, false);
@@ -2492,7 +2492,7 @@ void Boss01_Update(Actor* thisx, PlayState* play2) {
         diffX = player->actor.world.pos.x - this->actor.focus.pos.x;
         diffY = KREG(36) + ((player->actor.world.pos.y + 25.0f) - this->actor.focus.pos.y);
         diffZ = player->actor.world.pos.z - this->actor.focus.pos.z;
-        targetHeadRotX = MM_Math_Atan2S(diffY, sqrtf(SQ(diffX) + SQ(diffZ)));
+        targetHeadRotX = MM_Math_Atan2S(diffY, MM_sqrtf(SQ(diffX) + SQ(diffZ)));
 
         // This line of code ensures that *not* following the player is the default behavior; if you want Odolwa's head
         // to track the player, you'll need to set this variable to true for every single frame you want this behavior.
@@ -3295,7 +3295,7 @@ void Boss01_Bug_UpdateDamage(Boss01* this, PlayState* play) {
     }
 
     if ((effect->type == ODOLWA_EFFECT_RING_OF_FIRE) && (effect->timer < 150)) {
-        f32 distXZ = sqrtf(SQ(effect->pos.x - this->actor.world.pos.x) + SQ(effect->pos.z - this->actor.world.pos.z));
+        f32 distXZ = MM_sqrtf(SQ(effect->pos.x - this->actor.world.pos.x) + SQ(effect->pos.z - this->actor.world.pos.z));
 
         // If the bugs touch the ring of fire, it will instantly kill them. Like before, setting the y-velocity to MM_zero
         // here will immediately make the bug shrink and burst into a single red flame.
@@ -3450,7 +3450,7 @@ void Boss01_UpdateEffects(Boss01* this, PlayState* play) {
                     if (!(player->stateFlags3 & PLAYER_STATE3_1000) && (player->actor.world.pos.y < 70.0f)) {
                         diffX = effect->pos.x - player->actor.world.pos.x;
                         diffZ = effect->pos.z - player->actor.world.pos.z;
-                        temp2 = sqrtf(SQ(diffX) + SQ(diffZ));
+                        temp2 = MM_sqrtf(SQ(diffX) + SQ(diffZ));
 
                         if (player->invincibilityTimer == 0) {
                             if ((temp2 < (KREG(49) + 210.0f)) && ((KREG(49) + 190.0f) < temp2)) {

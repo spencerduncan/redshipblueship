@@ -82,7 +82,7 @@ void func_808A24DC(EnBoom* this, PlayState* play) {
 
         MM_Math_Vec3f_Diff(&this->actor.world.pos, &this->actor.prevPos, &sp34);
         if (sp34.y != 0.0f) {
-            f32 temp_fv0 = sqrtf(SQ(sp34.x) + SQ(sp34.z));
+            f32 temp_fv0 = MM_sqrtf(SQ(sp34.x) + SQ(sp34.z));
 
             if (temp_fv0 != 0.0f) {
                 temp_fv0 = (((sp50 - this->actor.prevPos.y) / sp34.y) * temp_fv0) / temp_fv0;

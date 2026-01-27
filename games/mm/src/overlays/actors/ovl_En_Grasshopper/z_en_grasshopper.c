@@ -448,7 +448,7 @@ void EnGrasshopper_Fly(EnGrasshopper* this, PlayState* play) {
 
         //! @bug Unreachable code. To get here, the type must NOT be DRAGONFLY_TYPE_WOODFALL
         if (this->type == DRAGONFLY_TYPE_WOODFALL) {
-            if (sqrtf(SQ(this->actor.world.pos.x) + SQ(this->actor.world.pos.z)) < 600.0f) {
+            if (MM_sqrtf(SQ(this->actor.world.pos.x) + SQ(this->actor.world.pos.z)) < 600.0f) {
                 this->shouldTurn = true;
             }
         }
@@ -725,7 +725,7 @@ void EnGrasshopper_Attack(EnGrasshopper* this, PlayState* play) {
     diff.x = hitPos.x - player->actor.world.pos.x;
     diff.y = hitPos.y - player->actor.world.pos.y;
     diff.z = hitPos.z - player->actor.world.pos.z;
-    playerToHitPosDist = sqrtf(SQXYZ(diff));
+    playerToHitPosDist = MM_sqrtf(SQXYZ(diff));
 
     if ((this->collider.base.atFlags & AT_BOUNCED) ||
         ((player->stateFlags1 & PLAYER_STATE1_400000) && (playerToHitPosDist <= 60.0f) &&

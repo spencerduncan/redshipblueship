@@ -23,15 +23,15 @@ OSMesg MM_sArenaLockMsg[1];
 void __osMallocAddHeap(Arena* arena, void* heap, size_t size);
 
 void MM_ArenaImpl_LockInit(Arena* arena) {
-    osCreateMesgQueue(&arena->lock, MM_sArenaLockMsg, ARRAY_COUNT(MM_sArenaLockMsg));
+    MM_osCreateMesgQueue(&arena->lock, MM_sArenaLockMsg, ARRAY_COUNT(MM_sArenaLockMsg));
 }
 
 void MM_ArenaImpl_Lock(Arena* arena) {
-    // osSendMesg(&arena->lock, NULL, OS_MESG_BLOCK);
+    // MM_osSendMesg(&arena->lock, NULL, OS_MESG_BLOCK);
 }
 
 void MM_ArenaImpl_Unlock(Arena* arena) {
-    // osRecvMesg(&arena->lock, NULL, OS_MESG_BLOCK);
+    // MM_osRecvMesg(&arena->lock, NULL, OS_MESG_BLOCK);
 }
 
 ArenaNode* MM_ArenaImpl_GetLastBlock(Arena* arena) {

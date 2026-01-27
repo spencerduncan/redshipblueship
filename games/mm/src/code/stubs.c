@@ -134,7 +134,7 @@ void Audio_osInvalDCache(void* buf, s32 size) {
 void Audio_osWritebackDCache(void* mem, s32 size) {
 }
 
-OSPiHandle* osDriveRomInit() {
+OSPiHandle* MM_osDriveRomInit() {
 }
 
 void osSetUpMempakWrite(s32 channel, OSPifRam* buf) {
@@ -263,12 +263,12 @@ void osMapTLBRdb(void) {
 }
 u32 __osProbeTLB(void* param_1) {
 }
-s32 osAiSetFrequency(u32 frequency) {
+s32 MM_osAiSetFrequency(u32 frequency) {
     // this is based off the math from the original method
     /*
-    s32 osAiSetFrequency(u32 frequency) {
+    s32 MM_osAiSetFrequency(u32 frequency) {
         u8 bitrate;
-        f32 dacRateF = ((f32)osViClock / frequency) + 0.5f;
+        f32 dacRateF = ((f32)MM_osViClock / frequency) + 0.5f;
         u32 dacRate = dacRateF;
         if (dacRate < 132) {
             return -1;
@@ -279,15 +279,15 @@ s32 osAiSetFrequency(u32 frequency) {
         }
         HW_REG(AI_DACRATE_REG, u32) = dacRate - 1;
         HW_REG(AI_BITRATE_REG, u32) = bitrate - 1;
-        return osViClock / (s32)dacRate;
+        return MM_osViClock / (s32)dacRate;
     }
     */
 
     // bitrate is unused
 
-    // osViClock comes from
+    // MM_osViClock comes from
     // #define VI_NTSC_CLOCK 48681812 /* Hz = 48.681812 MHz */
-    // s32 osViClock = VI_NTSC_CLOCK;
+    // s32 MM_osViClock = VI_NTSC_CLOCK;
 
     // frequency was originally 32000
 
@@ -301,21 +301,21 @@ s32 osAiSetFrequency(u32 frequency) {
 
     return 32006;
 }
-s32 osContStartQuery(OSMesgQueue* mq) {
+s32 MM_osContStartQuery(OSMesgQueue* mq) {
 }
 void osCreateThread(OSThread* thread, OSId id, void* entry, void* arg, void* sp, OSPri p) {
 }
-OSPri osGetThreadPri(OSThread* t) {
+OSPri MM_osGetThreadPri(OSThread* t) {
 }
-void osContGetQuery(OSContStatus* data) {
+void MM_osContGetQuery(OSContStatus* data) {
 }
-void osStartThread(OSThread* thread) {
+void MM_osStartThread(OSThread* thread) {
 }
-void osViSwapBuffer(void* vaddr) {
+void MM_osViSwapBuffer(void* vaddr) {
 }
-void osViSetMode(OSViMode* mode) {
+void MM_osViSetMode(OSViMode* mode) {
 }
-void osViSetSpecialFeatures(u32 func) {
+void MM_osViSetSpecialFeatures(u32 func) {
 }
 void __osInitialize_common(void) {
 }
@@ -325,17 +325,17 @@ void __osExceptionPreamble() {
 }
 void __osCleanupThread(void) {
 }
-void osDestroyThread(OSThread* thread) {
+void MM_osDestroyThread(OSThread* thread) {
 }
-s32 osContSetCh(u8 ch) {
+s32 MM_osContSetCh(u8 ch) {
 }
-void osViSetYScale(f32 scale) {
+void MM_osViSetYScale(f32 scale) {
 }
-void osViSetXScale(f32 value) {
+void MM_osViSetXScale(f32 value) {
 }
-void osSpTaskYield(void) {
+void MM_osSpTaskYield(void) {
 }
-void* osViGetCurrentFramebuffer(void) {
+void* MM_osViGetCurrentFramebuffer(void) {
 }
 OSPiHandle* osFlashInit(void) {
 }
@@ -360,9 +360,9 @@ void osFlashSectorEraseThrough(u32 pageNum) {
 }
 s32 osFlashCheckEraseEnd(void) {
 }
-void osSetThreadPri(OSThread* thread, OSPri p) {
+void MM_osSetThreadPri(OSThread* thread, OSPri p) {
 }
-void guS2DInitBg(uObjBg* bg) {
+void MM_guS2DInitBg(uObjBg* bg) {
     u32 size;
     s32 tmem = (bg->b.imageFmt == G_IM_FMT_CI) ? 0x100 : 0x200;
     u16 shift = (6 - bg->b.imageSiz);
@@ -385,11 +385,11 @@ void guS2DInitBg(uObjBg* bg) {
         bg->b.tmemLoadTH = bg->b.tmemH - 1;
     }
 }
-void* osViGetNextFramebuffer() {
+void* MM_osViGetNextFramebuffer() {
 }
-OSYieldResult osSpTaskYielded(OSTask* task) {
+OSYieldResult MM_osSpTaskYielded(OSTask* task) {
 }
-void osViBlack(u8 active) {
+void MM_osViBlack(u8 active) {
 }
 static s16 MM_sintable[0x400] = {
     0x0000, 0x0032, 0x0064, 0x0096, 0x00C9, 0x00FB, 0x012D, 0x0160, 0x0192, 0x01C4, 0x01F7, 0x0229, 0x025B, 0x028E,
@@ -490,10 +490,10 @@ s16 MM_coss(u16 angle) {
 #define FTOFRAC8(x) ((s32)MIN(((x) * (128.0f)), 127.0f) & 0xff)
 
 /**
- * guLookAtHiliteF
+ * MM_guLookAtHiliteF
  * This function creates the viewing matrix (floating point) and sets the LookAt/Hilite structures
  **/
-void guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32 zAt,
+void MM_guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32 zAt,
                      f32 xUp, f32 yUp, f32 zUp, f32 xl1, f32 yl1, f32 zl1, /* light 1 direction */
                      f32 xl2, f32 yl2, f32 zl2,                            /* light 2 direction */
                      s32 hiliteWidth, s32 hiliteHeight)                    /* size of hilite texture */
@@ -514,7 +514,7 @@ void guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, f32
     xLook = xAt - xEye;
     yLook = yAt - yEye;
     zLook = zAt - zEye;
-    length = -1.0 / sqrtf(xLook * xLook + yLook * yLook + zLook * zLook);
+    length = -1.0 / MM_sqrtf(xLook * xLook + yLook * yLook + zLook * zLook);
     xLook *= length;
     yLook *= length;
     zLook *= length;
@@ -522,7 +522,7 @@ void guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, f32
     xRight = yUp * zLook - zUp * yLook;
     yRight = zUp * xLook - xUp * zLook;
     zRight = xUp * yLook - yUp * xLook;
-    length = 1.0 / sqrtf(xRight * xRight + yRight * yRight + zRight * zRight);
+    length = 1.0 / MM_sqrtf(xRight * xRight + yRight * yRight + zRight * zRight);
     xRight *= length;
     yRight *= length;
     zRight *= length;
@@ -530,14 +530,14 @@ void guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, f32
     xUp = yLook * zRight - zLook * yRight;
     yUp = zLook * xRight - xLook * zRight;
     zUp = xLook * yRight - yLook * xRight;
-    length = 1.0 / sqrtf(xUp * xUp + yUp * yUp + zUp * zUp);
+    length = 1.0 / MM_sqrtf(xUp * xUp + yUp * yUp + zUp * zUp);
     xUp *= length;
     yUp *= length;
     zUp *= length;
 
     /* hilite vectors */
 
-    length = 1.0 / sqrtf(xl1 * xl1 + yl1 * yl1 + zl1 * zl1);
+    length = 1.0 / MM_sqrtf(xl1 * xl1 + yl1 * yl1 + zl1 * zl1);
     xl1 *= length;
     yl1 *= length;
     zl1 *= length;
@@ -546,7 +546,7 @@ void guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, f32
     yHilite = yl1 + yLook;
     zHilite = zl1 + zLook;
 
-    length = sqrtf(xHilite * xHilite + yHilite * yHilite + zHilite * zHilite);
+    length = MM_sqrtf(xHilite * xHilite + yHilite * yHilite + zHilite * zHilite);
 
     if (length > 0.1) {
         length = 1.0 / length;
@@ -562,7 +562,7 @@ void guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, f32
         h->h.y1 = hiliteHeight * 2;
     }
 
-    length = 1.0 / sqrtf(xl2 * xl2 + yl2 * yl2 + zl2 * zl2);
+    length = 1.0 / MM_sqrtf(xl2 * xl2 + yl2 * yl2 + zl2 * zl2);
     xl2 *= length;
     yl2 *= length;
     zl2 *= length;
@@ -570,7 +570,7 @@ void guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, f32
     xHilite = xl2 + xLook;
     yHilite = yl2 + yLook;
     zHilite = zl2 + zLook;
-    length = sqrtf(xHilite * xHilite + yHilite * yHilite + zHilite * zHilite);
+    length = MM_sqrtf(xHilite * xHilite + yHilite * yHilite + zHilite * zHilite);
     if (length > 0.1) {
         length = 1.0 / length;
         xHilite *= length;
@@ -632,21 +632,21 @@ void guLookAtHiliteF(f32 mf[4][4], LookAt* l, Hilite* h, f32 xEye, f32 yEye, f32
 }
 
 /**
- * guLookAtHilite
+ * MM_guLookAtHilite
  * This function creates the viewing matrix (fixed point) and sets the LookAt/Hilite structures
  * Same args as previous function
  **/
-void guLookAtHilite(Mtx* m, LookAt* l, Hilite* h, f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32 zAt, f32 xUp,
+void MM_guLookAtHilite(Mtx* m, LookAt* l, Hilite* h, f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32 zAt, f32 xUp,
                     f32 yUp, f32 zUp, f32 xl1, f32 yl1, f32 zl1, f32 xl2, f32 yl2, f32 zl2, s32 hiliteWidth,
                     s32 hiliteHeight) {
     f32 mf[4][4];
 
-    guLookAtHiliteF(mf, l, h, xEye, yEye, zEye, xAt, yAt, zAt, xUp, yUp, zUp, xl1, yl1, zl1, xl2, yl2, zl2, hiliteWidth,
+    MM_guLookAtHiliteF(mf, l, h, xEye, yEye, zEye, xAt, yAt, zAt, xUp, yUp, zUp, xl1, yl1, zl1, xl2, yl2, zl2, hiliteWidth,
                     hiliteHeight);
 
     guMtxF2L((MtxF*)mf, m);
 }
-void guOrthoF(float m[4][4], float l, float r, float b, float t, float n, float f, float scale) {
+void MM_guOrthoF(float m[4][4], float l, float r, float b, float t, float n, float f, float scale) {
     int i;
     int j;
     guMtxIdentF(m);
@@ -664,9 +664,9 @@ void guOrthoF(float m[4][4], float l, float r, float b, float t, float n, float 
     }
 }
 
-void guOrtho(Mtx* m, float l, float r, float b, float t, float n, float f, float scale) {
+void MM_guOrtho(Mtx* m, float l, float r, float b, float t, float n, float f, float scale) {
     float mf[4][4];
-    guOrthoF(mf, l, r, b, t, n, f, scale);
+    MM_guOrthoF(mf, l, r, b, t, n, f, scale);
     FrameInterpolation_RecordOpenChild("ortho", 0);
     MM_Matrix_MtxFToMtx((MtxF*)mf, m);
     FrameInterpolation_RecordCloseChild();
@@ -675,7 +675,7 @@ void guOrtho(Mtx* m, float l, float r, float b, float t, float n, float f, float
 
 #define GU_PI 3.1415926
 
-void guPerspectiveF(f32 mf[4][4], u16* perspNorm, f32 fovy, f32 aspect, f32 near, f32 far, f32 scale) {
+void MM_guPerspectiveF(f32 mf[4][4], u16* perspNorm, f32 fovy, f32 aspect, f32 near, f32 far, f32 scale) {
     f32 yscale;
     s32 row;
     s32 col;
@@ -709,17 +709,17 @@ void guPerspectiveF(f32 mf[4][4], u16* perspNorm, f32 fovy, f32 aspect, f32 near
     }
 }
 
-void guPerspective(Mtx* m, u16* perspNorm, float fovy, float aspect, float near, float far, float scale) {
+void MM_guPerspective(Mtx* m, u16* perspNorm, float fovy, float aspect, float near, float far, float scale) {
     float mf[4][4];
 
-    guPerspectiveF(mf, perspNorm, fovy, aspect, near, far, scale);
+    MM_guPerspectiveF(mf, perspNorm, fovy, aspect, near, far, scale);
     MM_Matrix_MtxFToMtx((MtxF*)mf, m);
-    // guPerspectiveF(mf, perspNorm, fovy, aspect, near, far, scale);
+    // MM_guPerspectiveF(mf, perspNorm, fovy, aspect, near, far, scale);
     // guMtxF2L(mf, m);
 }
 #include "global.h"
 
-void guLookAtF(f32 mf[4][4], f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32 zAt, f32 xUp, f32 yUp, f32 zUp) {
+void MM_guLookAtF(f32 mf[4][4], f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32 zAt, f32 xUp, f32 yUp, f32 zUp) {
     f32 length;
     f32 xLook;
     f32 yLook;
@@ -733,7 +733,7 @@ void guLookAtF(f32 mf[4][4], f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32
     xLook = xAt - xEye;
     yLook = yAt - yEye;
     zLook = zAt - zEye;
-    length = -1.0 / sqrtf(SQ(xLook) + SQ(yLook) + SQ(zLook));
+    length = -1.0 / MM_sqrtf(SQ(xLook) + SQ(yLook) + SQ(zLook));
     xLook *= length;
     yLook *= length;
     zLook *= length;
@@ -741,7 +741,7 @@ void guLookAtF(f32 mf[4][4], f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32
     xRight = yUp * zLook - zUp * yLook;
     yRight = zUp * xLook - xUp * zLook;
     zRight = xUp * yLook - yUp * xLook;
-    length = 1.0 / sqrtf(SQ(xRight) + SQ(yRight) + SQ(zRight));
+    length = 1.0 / MM_sqrtf(SQ(xRight) + SQ(yRight) + SQ(zRight));
     xRight *= length;
     yRight *= length;
     zRight *= length;
@@ -749,7 +749,7 @@ void guLookAtF(f32 mf[4][4], f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32
     xUp = yLook * zRight - zLook * yRight;
     yUp = zLook * xRight - xLook * zRight;
     zUp = xLook * yRight - yLook * xRight;
-    length = 1.0 / sqrtf(SQ(xUp) + SQ(yUp) + SQ(zUp));
+    length = 1.0 / MM_sqrtf(SQ(xUp) + SQ(yUp) + SQ(zUp));
     xUp *= length;
     yUp *= length;
     zUp *= length;
@@ -775,15 +775,15 @@ void guLookAtF(f32 mf[4][4], f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32
     mf[3][3] = 1;
 }
 
-void guLookAt(Mtx* m, f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32 zAt, f32 xUp, f32 yUp, f32 zUp) {
+void MM_guLookAt(Mtx* m, f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32 zAt, f32 xUp, f32 yUp, f32 zUp) {
     f32 mf[4][4];
 
-    guLookAtF(mf, xEye, yEye, zEye, xAt, yAt, zAt, xUp, yUp, zUp);
+    MM_guLookAtF(mf, xEye, yEye, zEye, xAt, yAt, zAt, xUp, yUp, zUp);
 
     MM_Matrix_MtxFToMtx((MtxF*)mf, m);
     // guMtxF2L(mf, m);
 }
-void guRotateF(float m[4][4], float a, float x, float y, float z) {
+void MM_guRotateF(float m[4][4], float a, float x, float y, float z) {
     static float D_80097F90 = M_PIf / 180.0f;
     float sine;
     float cosine;
@@ -826,24 +826,24 @@ void guRotateF(float m[4][4], float a, float x, float y, float z) {
     m[0][1] = ab + zs;
 }
 
-void guRotate(Mtx* m, float a, float x, float y, float z) {
+void MM_guRotate(Mtx* m, float a, float x, float y, float z) {
     float mf[4][4];
-    guRotateF(mf, a, x, y, z);
+    MM_guRotateF(mf, a, x, y, z);
     guMtxF2L(mf, m);
 }
 
 /*
 void guNormalize(f32* x, f32* y, f32* z) {
-    f32 tmp = 1.0f / sqrtf(*x * *x + *y * *y + *z * *z);
+    f32 tmp = 1.0f / MM_sqrtf(*x * *x + *y * *y + *z * *z);
     *x = *x * tmp;
     *y = *y * tmp;
     *z = *z * tmp;
 }
 */
 
-void osSpTaskLoad(OSTask* task) {
+void MM_osSpTaskLoad(OSTask* task) {
 }
-void osSpTaskStartGo(OSTask* task) {
+void MM_osSpTaskStartGo(OSTask* task) {
 }
-void osViExtendVStart(u32 arg0) {
+void MM_osViExtendVStart(u32 arg0) {
 }

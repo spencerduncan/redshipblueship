@@ -260,7 +260,7 @@ void func_80AA892C(DmChar01* this, PlayState* play) {
     }
 
     for (i = 0; i < ResourceMgr_GetVtxArraySizeByName(gWoodfallSceneryDynamicPoisonWaterVtx); i++) {
-        s32 temp_s2 = sqrtf(SQ((f32)gWoodfallSceneryDynamicPoisonWaterVtxData[i].v.ob[2]) +
+        s32 temp_s2 = MM_sqrtf(SQ((f32)gWoodfallSceneryDynamicPoisonWaterVtxData[i].v.ob[2]) +
                             SQ((f32)gWoodfallSceneryDynamicPoisonWaterVtxData[i].v.ob[0]));
         f32 cos = MM_Math_CosS((temp_s2 / 1892.0f) * 0x4000);
         f32 temp_f20 = (1.0f - (ABS_ALT(temp_s2 - D_80AAAE22) / 1892.0f)) * D_80AAAE20 * cos;
@@ -306,7 +306,7 @@ void func_80AA8C28(DmChar01* this, PlayState* play) {
     }
 
     for (i = 0; i < ResourceMgr_GetVtxArraySizeByName(gWoodfallSceneryDynamicPoisonWaterVtx); i++) {
-        s32 temp_s2 = sqrtf(SQ((f32)gWoodfallSceneryDynamicPoisonWaterVtxData[i].v.ob[2]) +
+        s32 temp_s2 = MM_sqrtf(SQ((f32)gWoodfallSceneryDynamicPoisonWaterVtxData[i].v.ob[2]) +
                             SQ((f32)gWoodfallSceneryDynamicPoisonWaterVtxData[i].v.ob[0]));
         f32 cos = MM_Math_CosS((temp_s2 / 1892.0f) * 0x4000);
         f32 temp_f20 = (1.0f - (ABS_ALT(temp_s2 - D_80AAAE22) / 1892.0f)) * D_80AAAE20 * cos;

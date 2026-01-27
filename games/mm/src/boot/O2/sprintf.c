@@ -16,7 +16,7 @@ int MM_vsprintf(char* dst, char* fmt, va_list args) {
     return ans;
 }
 
-int sprintf(char* dst, const char* fmt, ...) {
+int MM_sprintf(char* dst, const char* fmt, ...) {
     int ans;
     va_list args;
     va_start(args, fmt);

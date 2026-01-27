@@ -1280,7 +1280,7 @@ void Boss07_Wrath_JumpAwayFromExplosive(Boss07* this, PlayState* play) {
         f32 dy = explosive->world.pos.y - this->actor.world.pos.y;
         f32 dz = explosive->world.pos.z - this->actor.world.pos.z;
 
-        if (sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 200.0f) {
+        if (MM_sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 200.0f) {
             Boss07_Wrath_ChooseJump(this, play, false);
             break;
         }
@@ -1302,8 +1302,8 @@ void Boss07_Wrath_BombWhip(Vec3f* bombPos, Vec3f* pos, Vec3f* velocity) {
         dy = pos->y - bombPos->y;
         dz = pos->z - bombPos->z;
 
-        if (sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 300.0f) {
-            push = 300.0f - sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
+        if (MM_sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 300.0f) {
+            push = 300.0f - MM_sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
             push = CLAMP_MAX(push, 200.0f);
             impulse.y = push;
             impulse.z = push;
@@ -2848,7 +2848,7 @@ void Boss07_Wrath_CheckWhipCollisions(Vec3f* whipPos, f32 tension, Boss07* this,
                     dy = prop->world.pos.y + 10.0f - whipPos[i].y;
                     dz = prop->world.pos.z - whipPos[i].z;
 
-                    if (sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < (KREG(38) + 60.0f)) {
+                    if (MM_sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < (KREG(38) + 60.0f)) {
                         ((ObjTsubo*)prop)->unk_19B = true;
                         Boss07_Wrath_SpawnDustAtPos(play, &prop->world.pos, 10);
                     }
@@ -2872,7 +2872,7 @@ void Boss07_Wrath_CheckWhipCollisions(Vec3f* whipPos, f32 tension, Boss07* this,
 
             dy *= 1.75f;
 
-            if (sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 140.0f) {
+            if (MM_sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 140.0f) {
                 if ((this->actionFunc == Boss07_Wrath_TryGrab) && (playerImpactType != PLAYER_IMPACT_ZORA_BARRIER) &&
                     !(player->stateFlags3 & PLAYER_STATE3_1000) && (this->actor.xzDistToPlayer >= 520.0f) &&
                     (this->actor.xzDistToPlayer <= 900.0f)) {
@@ -2891,7 +2891,7 @@ void Boss07_Wrath_CheckWhipCollisions(Vec3f* whipPos, f32 tension, Boss07* this,
                         dx = player->actor.world.pos.x - this->rightWhip.basePos.x;
                         dy = player->actor.world.pos.y - this->rightWhip.basePos.y + 50.0f;
                         dz = player->actor.world.pos.z - this->rightWhip.basePos.z;
-                        distToPlayerXZ = sqrtf(SQ(dx) + SQ(dz));
+                        distToPlayerXZ = MM_sqrtf(SQ(dx) + SQ(dz));
 
                         this->whipWrapRotY = Math_Atan2F_XY(dz, dx);
                         this->whipWrapRotX = -Math_Atan2F_XY(distToPlayerXZ, dy);
@@ -3403,7 +3403,7 @@ void Boss07_Wrath_UpdateWhips(Boss07* this, PlayState* play, Vec3f* base, Vec3f*
 
         // calculates the rotation angles from the previous point
         segYaw = Math_Atan2F_XY(tempPos.z, tempPos.x);
-        segPitch = -Math_Atan2F_XY(sqrtf(SQXZ(tempPos)), tempPos.y);
+        segPitch = -Math_Atan2F_XY(MM_sqrtf(SQXZ(tempPos)), tempPos.y);
         (rot - 1)->y = segYaw;
         (rot - 1)->x = segPitch;
 
@@ -5268,7 +5268,7 @@ void Boss07_Mask_Idle(Boss07* this, PlayState* play) {
     dy = this->targetPos.y - this->actor.world.pos.y;
     dz = this->targetPos.z - this->actor.world.pos.z;
     targetRotY = MM_Math_Atan2S(dx, dz);
-    distToTargetXZ = sqrtf(SQ(dx) + SQ(dz));
+    distToTargetXZ = MM_sqrtf(SQ(dx) + SQ(dz));
     targetRotX = MM_Math_Atan2S(dy, distToTargetXZ);
     targetRotX += (s16)(MM_Math_SinS(this->frameCounter * 0x1388) * 0xFA0);
 
@@ -5353,7 +5353,7 @@ void Boss07_Mask_SpinAttack(Boss07* this, PlayState* play) {
             dy = this->targetPos.y - this->actor.world.pos.y;
             dz = this->targetPos.z - this->actor.world.pos.z;
             targetRotY = MM_Math_Atan2S(dx, dz);
-            distToTargetXZ = sqrtf(SQ(dx) + SQ(dz));
+            distToTargetXZ = MM_sqrtf(SQ(dx) + SQ(dz));
             targetRotX = MM_Math_Atan2S(dy, distToTargetXZ);
             MM_Math_ApproachS(&this->actor.world.rot.y, targetRotY, 0xA, this->speedToTarget);
             MM_Math_ApproachS(&this->actor.world.rot.x, targetRotX, 0xA, this->speedToTarget);
@@ -5558,7 +5558,7 @@ void Boss07_Mask_FireBeam(Boss07* this, PlayState* play) {
     dx = player->actor.world.pos.x - this->actor.world.pos.x;
     dy = player->actor.world.pos.y - this->actor.world.pos.y + yOffset;
     dz = player->actor.world.pos.z - this->actor.world.pos.z;
-    MM_Math_ApproachS(&this->actor.shape.rot.x, -MM_Math_Atan2S(dy, sqrtf(SQ(dx) + SQ(dz))), rotScale, this->speedToTarget);
+    MM_Math_ApproachS(&this->actor.shape.rot.x, -MM_Math_Atan2S(dy, MM_sqrtf(SQ(dx) + SQ(dz))), rotScale, this->speedToTarget);
     MM_Math_ApproachF(&this->speedToTarget, 0xFA0, 1.0f, 0xC8);
     this->tentacleState = MAJORAS_MASK_TENTACLE_STATE_FIRING_BEAM;
 
@@ -5603,7 +5603,7 @@ void Boss07_Mask_FireBeam(Boss07* this, PlayState* play) {
             dx = player->actor.world.pos.x - this->beamStartPos.x;
             dy = player->actor.world.pos.y - this->beamStartPos.y + 20.0f;
             dz = player->actor.world.pos.z - this->beamStartPos.z;
-            distXYZ = sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
+            distXYZ = MM_sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
             MM_Math_ApproachF(&this->beamLengthScale, distXYZ * 0.2f, 1.0f, 7.0f);
 
             if (MM_BgCheck_EntityLineTest1(&play->colCtx, &this->beamStartPos, &this->beamEndPos, &beamTireMarkPos, &poly,
@@ -5668,7 +5668,7 @@ void Boss07_Mask_FireBeam(Boss07* this, PlayState* play) {
                         diff.x = this->actor.world.pos.x - this->beamEndPos.x;
                         diff.y = this->actor.world.pos.y - this->beamEndPos.y;
                         diff.z = this->actor.world.pos.z - this->beamEndPos.z;
-                        distXYZ = sqrtf(SQXYZ(diff));
+                        distXYZ = MM_sqrtf(SQXYZ(diff));
 
                         Matrix_RotateXS(-this->reflectedBeamPitch, MTXMODE_NEW);
                         Matrix_RotateYS(-this->reflectedBeamYaw, MTXMODE_APPLY);
@@ -5746,7 +5746,7 @@ void Boss07_Mask_FireBeam(Boss07* this, PlayState* play) {
                             diff.x = sMajoraRemains[i]->actor.world.pos.x - this->beamEndPos.x;
                             diff.y = sMajoraRemains[i]->actor.world.pos.y - this->beamEndPos.y;
                             diff.z = sMajoraRemains[i]->actor.world.pos.z - this->beamEndPos.z;
-                            distXYZ = sqrtf(SQXYZ(diff));
+                            distXYZ = MM_sqrtf(SQXYZ(diff));
                             MM_Matrix_MultVec3f(&diff, &transformedDiff);
 
                             if ((fabsf(transformedDiff.x) < 60.0f) && (fabsf(transformedDiff.y) < 60.0f) &&
@@ -6568,7 +6568,7 @@ void Boss07_Mask_UpdateTentacles(Boss07* this, PlayState* play, Vec3f* base, Vec
 
         // calculates the rotation angles from the previous point
         segYaw = Math_Atan2F_XY(tempPos.z, tempPos.x);
-        temp = sqrtf(SQXZ(tempPos));
+        temp = MM_sqrtf(SQXZ(tempPos));
         segPitch = -Math_Atan2F_XY(temp, tempPos.y);
         (rot - 1)->y = segYaw;
         (rot - 1)->x = segPitch;
@@ -6828,7 +6828,7 @@ void Boss07_Projectile_Update(Actor* thisx, PlayState* play2) {
             dz = player->actor.world.pos.z - this->actor.world.pos.z;
 
             this->actor.world.rot.y = MM_Math_Atan2S(dx, dz);
-            distToPlayerXZ = sqrtf(SQ(dx) + SQ(dz));
+            distToPlayerXZ = MM_sqrtf(SQ(dx) + SQ(dz));
             this->actor.world.rot.x = MM_Math_Atan2S(dy, distToPlayerXZ);
             this->subAction = PROJECTILE_SUB_ACTION_FLY;
             this->actor.speed = 30.0f;
@@ -6968,7 +6968,7 @@ void Boss07_Remains_IntroCutscene(Boss07* this, PlayState* play) {
             dy = this->targetPos.y - this->actor.world.pos.y;
             dz = this->targetPos.z - this->actor.world.pos.z;
             this->actor.world.rot.y = MM_Math_Atan2S(dx, dz);
-            this->actor.world.rot.x = MM_Math_Atan2S(dy, sqrtf(SQ(dx) + SQ(dz)));
+            this->actor.world.rot.x = MM_Math_Atan2S(dy, MM_sqrtf(SQ(dx) + SQ(dz)));
             this->miscTimer = MM_Rand_ZeroFloat(100.0f);
             break;
 
@@ -7001,7 +7001,7 @@ void Boss07_Remains_IntroCutscene(Boss07* this, PlayState* play) {
             dy = this->targetPos.y - this->actor.world.pos.y + yOffset;
             dz = this->targetPos.z - this->actor.world.pos.z;
             targetRotY = MM_Math_Atan2S(dx, dz);
-            targetRotX = MM_Math_Atan2S(dy, sqrtf(SQ(dx) + SQ(dz)));
+            targetRotX = MM_Math_Atan2S(dy, MM_sqrtf(SQ(dx) + SQ(dz)));
             MM_Math_ApproachS(&this->actor.world.rot.y, targetRotY, 5, this->speedToTarget);
             MM_Math_ApproachS(&this->actor.world.rot.x, targetRotX, 5, this->speedToTarget);
             MM_Math_ApproachF(&this->speedToTarget, speedToTargetTarget, 1.0f, speedToTargetMaxStep);
@@ -7097,7 +7097,7 @@ void Boss07_Remains_Move(Boss07* this, PlayState* play) {
             dy = this->targetPos.y - this->actor.world.pos.y;
             dz = this->targetPos.z - this->actor.world.pos.z;
             targetRotY = MM_Math_Atan2S(dx, dz);
-            targetRotX = MM_Math_Atan2S(dy, sqrtf(SQ(dx) + SQ(dz)));
+            targetRotX = MM_Math_Atan2S(dy, MM_sqrtf(SQ(dx) + SQ(dz)));
             targetRotX += (s16)(MM_Math_SinS(this->frameCounter * 0x1388) * 0xFA0);
 
             MM_Math_ApproachS(&this->actor.world.rot.y, targetRotY, 0xA, this->speedToTarget);
@@ -7468,7 +7468,7 @@ void Boss07_Top_CheckTopCollision(Boss07* this, PlayState* play) {
                 dy = top->actor.world.pos.y - this->actor.world.pos.y;
                 dz = top->actor.world.pos.z - this->actor.world.pos.z;
 
-                if (sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < (sREG(28) + 50.0f)) {
+                if (MM_sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < (sREG(28) + 50.0f)) {
                     top->disableCollisionTimer = this->disableCollisionTimer = 10;
                     this->actor.world.rot.y = MM_Math_Atan2S(dx, dz);
                     top->actor.world.rot.y = this->actor.world.rot.y + 0x7FFF;

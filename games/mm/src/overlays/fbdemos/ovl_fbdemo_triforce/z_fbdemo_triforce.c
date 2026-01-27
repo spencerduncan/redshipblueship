@@ -43,7 +43,7 @@ void* MM_TransitionTriforce_Init(void* thisx) {
     TransitionTriforce* this = (TransitionTriforce*)thisx;
 
     memset(this, 0, sizeof(TransitionTriforce));
-    guOrtho(&this->projection, -SCREEN_WIDTH / 2, SCREEN_WIDTH / 2, -SCREEN_HEIGHT / 2, SCREEN_HEIGHT / 2, -1000.0f,
+    MM_guOrtho(&this->projection, -SCREEN_WIDTH / 2, SCREEN_WIDTH / 2, -SCREEN_HEIGHT / 2, SCREEN_HEIGHT / 2, -1000.0f,
             1000.0f, 1.0f);
     this->transPos = 1.0f;
     this->state = STATE_SPIRAL_IN_FAST;
@@ -100,7 +100,7 @@ void MM_TransitionTriforce_Draw(void* thisx, Gfx** gfxP) {
     modelView = this->modelView[this->frame];
     this->frame ^= 1;
     guScale(&modelView[0], this->transPos * 0.625f, this->transPos * 0.625f, 1.0f);
-    guRotate(&modelView[1], rotation, 0.0f, 0.0f, 1.0f);
+    MM_guRotate(&modelView[1], rotation, 0.0f, 0.0f, 1.0f);
     guTranslate(&modelView[2], 0.0f, 0.0f, 0.0f);
     gDPPipeSync(gfx++);
     gSPDisplayList(gfx++, sTransTriforceDL);

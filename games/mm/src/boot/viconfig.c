@@ -3,54 +3,54 @@
 #include "functions.h"
 
 extern OSViMode osViModeNtscHpf1;
-extern OSViMode osViModePalLan1;
+extern OSViMode MM_osViModePalLan1;
 extern OSViMode osViModeNtscHpn1;
-extern OSViMode osViModeNtscLan1;
-extern OSViMode osViModeMpalLan1;
-extern OSViMode osViModeFpalLan1;
+extern OSViMode MM_osViModeNtscLan1;
+extern OSViMode MM_osViModeMpalLan1;
+extern OSViMode MM_osViModeFpalLan1;
 
 void MM_ViConfig_UpdateVi(u32 black) {
 #if 0
     if (black) {
         switch (osTvType) {
             case OS_TV_MPAL:
-                osViSetMode(&osViModeMpalLan1);
+                MM_osViSetMode(&MM_osViModeMpalLan1);
                 break;
 
             case OS_TV_PAL:
-                osViSetMode(&osViModePalLan1);
+                MM_osViSetMode(&MM_osViModePalLan1);
                 break;
 
             case OS_TV_NTSC:
             default:
-                osViSetMode(&osViModeNtscLan1);
+                MM_osViSetMode(&MM_osViModeNtscLan1);
                 break;
         }
 
         if (MM_gViConfigFeatures != 0) {
-            osViSetSpecialFeatures(MM_gViConfigFeatures);
+            MM_osViSetSpecialFeatures(MM_gViConfigFeatures);
         }
 
         if (MM_gViConfigYScale != 1) {
-            osViSetYScale(1);
+            MM_osViSetYScale(1);
         }
     } else {
-        osViSetMode(&MM_gViConfigMode);
+        MM_osViSetMode(&MM_gViConfigMode);
 
         if (MM_gViConfigAdditionalScanLines != 0) {
-            osViExtendVStart(MM_gViConfigAdditionalScanLines);
+            MM_osViExtendVStart(MM_gViConfigAdditionalScanLines);
         }
 
         if (MM_gViConfigFeatures != 0) {
-            osViSetSpecialFeatures(MM_gViConfigFeatures);
+            MM_osViSetSpecialFeatures(MM_gViConfigFeatures);
         }
 
         if (MM_gViConfigXScale != 1) {
-            osViSetXScale(MM_gViConfigXScale);
+            MM_osViSetXScale(MM_gViConfigXScale);
         }
 
         if (MM_gViConfigYScale != 1) {
-            osViSetYScale(MM_gViConfigYScale);
+            MM_osViSetYScale(MM_gViConfigYScale);
         }
     }
 
@@ -60,8 +60,8 @@ void MM_ViConfig_UpdateVi(u32 black) {
 
 void MM_ViConfig_UpdateBlack(void) {
     if (gViConfigUseBlack) {
-        osViBlack(true);
+        MM_osViBlack(true);
     } else {
-        osViBlack(false);
+        MM_osViBlack(false);
     }
 }

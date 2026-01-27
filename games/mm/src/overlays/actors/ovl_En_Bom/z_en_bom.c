@@ -259,7 +259,7 @@ void MM_EnBom_Move(EnBom* this, PlayState* play) {
 
         sp40 += 3.0f * slopeNormal.x;
         sp3C += 3.0f * slopeNormal.z;
-        sp38 = sqrtf(SQ(sp40) + SQ(sp3C));
+        sp38 = MM_sqrtf(SQ(sp40) + SQ(sp3C));
 
         if ((sp38 < this->actor.speed) || (SurfaceType_GetFloorEffect(&play->colCtx, this->actor.floorPoly,
                                                                       this->actor.floorBgId) == FLOOR_EFFECT_1)) {
@@ -696,7 +696,7 @@ void func_808726DC(PlayState* play, Vec3f* arg1, Vec3f* arg2, Vec3f* arg3, s32 a
     MM_Math_Vec3f_Diff(arg2, arg1, &spCC);
 
     fuseSegmentPtr->rotY = Math_Atan2S_XY(spCC.z, spCC.x);
-    distXZ = sqrtf(SQXZ(spCC));
+    distXZ = MM_sqrtf(SQXZ(spCC));
     fuseSegmentPtr->rotX = Math_Atan2S_XY(distXZ, spCC.y);
 
     spB0 = (arg4 / 240) + 1;
@@ -736,7 +736,7 @@ void func_808726DC(PlayState* play, Vec3f* arg1, Vec3f* arg2, Vec3f* arg3, s32 a
         }
 
         fuseSegmentPtr2->rotY = Math_Atan2S_XY(spCC.z, spCC.x);
-        distXZ = sqrtf(SQXZ(spCC));
+        distXZ = MM_sqrtf(SQXZ(spCC));
         fuseSegmentPtr2->rotX = Math_Atan2S_XY(distXZ, spCC.y);
 
         fuseSegmentPtr2->rotY =
@@ -761,7 +761,7 @@ void func_808726DC(PlayState* play, Vec3f* arg1, Vec3f* arg2, Vec3f* arg3, s32 a
                 spC0.y = phi_f22;
                 temp_f2 = 0.0f;
             } else {
-                temp_f2 = sqrtf(SQ(phi_f22) - SQ(spC0.y));
+                temp_f2 = MM_sqrtf(SQ(phi_f22) - SQ(spC0.y));
             }
 
             if (temp_f20 == 0.0f) {

@@ -304,7 +304,7 @@ void func_809CE4C8(BgSpdweb* this, PlayState* play) {
     }
 
     if (MM_DynaPolyActor_IsPlayerOnTop(&this->dyna)) {
-        temp_f12 = 2.0f * sqrtf(CLAMP_MIN(sp3A, 0));
+        temp_f12 = 2.0f * MM_sqrtf(CLAMP_MIN(sp3A, 0));
         if ((this->unk_164 < temp_f12) && (temp_f12 > 2.0f)) {
             this->unk_164 = temp_f12;
             this->unk_162 = 12;

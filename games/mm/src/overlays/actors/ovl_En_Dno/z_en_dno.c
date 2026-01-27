@@ -823,7 +823,7 @@ s32 EnDno_ActorPathing_UpdateActorInfo(PlayState* play, ActorPathing* actorPath)
     if (actorPath->distSqToCurPoint < SQ(thisx->speed)) {
         ret = true;
     } else {
-        sp38 = thisx->speed / sqrtf(actorPath->distSqToCurPointXZ);
+        sp38 = thisx->speed / MM_sqrtf(actorPath->distSqToCurPointXZ);
         sp2C = ABS(actorPath->rotToCurPoint.x - thisx->world.rot.x);
         temp_v0_2 = sp2C;
         temp_v0_2 *= sp38;

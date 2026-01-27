@@ -1615,10 +1615,10 @@ void func_80B7AF30(ObjUm* this, PlayState* play) {
         sp30.z = (this->unk_2D0.z + this->unk_2E8.z) * 0.5f;
 
         this->dyna.actor.shape.rot.x =
-            (s16)MM_Math_Atan2S(sp30.y - this->dyna.actor.world.pos.y, sqrtf(SQ(sp30.x - this->dyna.actor.world.pos.x) +
+            (s16)MM_Math_Atan2S(sp30.y - this->dyna.actor.world.pos.y, MM_sqrtf(SQ(sp30.x - this->dyna.actor.world.pos.x) +
                                                                           SQ(sp30.z - this->dyna.actor.world.pos.z)));
         this->dyna.actor.shape.rot.z = (s16)-MM_Math_Atan2S(
-            sp30.y - this->unk_2D0.y, sqrtf(SQ(sp30.x - this->unk_2D0.x) + SQ(sp30.z - this->unk_2D0.z)));
+            sp30.y - this->unk_2D0.y, MM_sqrtf(SQ(sp30.x - this->unk_2D0.x) + SQ(sp30.z - this->unk_2D0.z)));
         if (this->flags & OBJ_UM_FLAG_MOVING) {
             this->dyna.actor.shape.rot.x += BINANG_SUB((MM_Rand_ZeroOne() * 100.0f), 50.0f);
             this->dyna.actor.shape.rot.z += BINANG_SUB((MM_Rand_ZeroOne() * 100.0f), 50.0f);

@@ -149,7 +149,7 @@ void func_80B9E544(MirRay3* this, PlayState* play) {
     f32 temp_f0;
 
     if (this->unk_210 & 2) {
-        temp_f0 = sqrtf(SQ(shieldMtx->mf[2][0]) + SQ(shieldMtx->mf[2][1]) + SQ(shieldMtx->mf[2][2]));
+        temp_f0 = MM_sqrtf(SQ(shieldMtx->mf[2][0]) + SQ(shieldMtx->mf[2][1]) + SQ(shieldMtx->mf[2][2]));
         if (temp_f0 == 0.0f) {
             this->unk_260 = 1.0f;
         } else {
@@ -254,7 +254,7 @@ void func_80B9E8D4(MirRay3* this, PlayState* play, MirRay3Struct* ptr) {
                 ptr[i].unk_00.y = sp128.y;
                 ptr[i].unk_00.z = sp128.z;
 
-                temp_f0 = sqrtf(SQ(sp128.x - sp140.x) + SQ(sp128.y - sp140.y) + SQ(sp128.z - sp140.z));
+                temp_f0 = MM_sqrtf(SQ(sp128.x - sp140.x) + SQ(sp128.y - sp140.y) + SQ(sp128.z - sp140.z));
 
                 if (temp_f0 < (temp_f26 * 0.9f)) {
                     ptr[i].unk_50 = 0xFF;

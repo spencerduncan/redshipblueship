@@ -651,7 +651,7 @@ void EnWiz_MoveGhosts(EnWiz* this) {
             diffZ = this->platforms[ghostNextPlatformIndex]->world.pos.z - this->ghostPos[i].z;
             playSfx++;
 
-            if (sqrtf(SQ(diffX) + SQ(diffZ)) < 30.0f) {
+            if (MM_sqrtf(SQ(diffX) + SQ(diffZ)) < 30.0f) {
                 this->ghostNextPlatformIndex[i]--;
                 if (this->ghostNextPlatformIndex[i] < 0) {
                     this->ghostNextPlatformIndex[i] = this->platformCount - 1;
@@ -867,7 +867,7 @@ void EnWiz_SecondPhaseCutscene(EnWiz* this, PlayState* play) {
         f32 diffZ = this->actor.world.pos.z - this->platforms[this->nextPlatformIndex]->world.pos.z;
         s32 pad;
 
-        if (sqrtf(SQ(diffX) + SQ(diffZ)) < 30.0f) {
+        if (MM_sqrtf(SQ(diffX) + SQ(diffZ)) < 30.0f) {
             if (!this->hasRunToEveryPlatform) {
                 this->nextPlatformIndex++;
                 if (this->nextPlatformIndex >= this->platformCount) {
@@ -881,7 +881,7 @@ void EnWiz_SecondPhaseCutscene(EnWiz* this, PlayState* play) {
                 s32 i;
 
                 this->actor.flags |= ACTOR_FLAG_LOCK_ON_DISABLED;
-                if (sqrtf(SQ(diffX) + SQ(diffZ)) < 20.0f) {
+                if (MM_sqrtf(SQ(diffX) + SQ(diffZ)) < 20.0f) {
                     for (i = 0; i < this->platformCount; i++) {
                         MM_Math_Vec3f_Copy(&this->ghostPos[i], &gZeroVec3f);
                     }

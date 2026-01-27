@@ -1,6 +1,6 @@
 #include "ultra64.h"
 
-void osStopThread(OSThread* t) {
+void MM_osStopThread(OSThread* t) {
     register u32 saveMask = __osDisableInt();
     register u16 state;
 
