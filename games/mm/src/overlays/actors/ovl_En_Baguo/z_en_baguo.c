@@ -424,7 +424,7 @@ void EnBaguo_DrawBody(Actor* thisx, PlayState* play) {
 
     eyeIndex = this->eyeIndex;
     virtualAddress = Lib_SegmentedToVirtual(MM_sEyeTextures[eyeIndex]);
-    gSPSegment(&gfx[0], 0x08, virtualAddress);
+    MM_gSPSegment(&gfx[0], 0x08, virtualAddress);
 
     POLY_OPA_DISP = &gfx[1];
 
@@ -506,7 +506,7 @@ void EnBaguo_DrawEffects(EnBaguo* this, PlayState* play) {
 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, gfxCtx);
             gDPSetPrimColor(POLY_OPA_DISP++, 0, 1, 255, 255, 255, 255);
-            gSPDisplayList(POLY_OPA_DISP++, gBoulderFragmentsDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gBoulderFragmentsDL);
         }
     }
 

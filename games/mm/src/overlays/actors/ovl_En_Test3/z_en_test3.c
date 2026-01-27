@@ -1233,7 +1233,7 @@ void EnTest3_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList1, Gfx** dL
             if (this->player.stateFlags3 & PLAYER_STATE3_20000000) {
                 OPEN_DISPS(play->state.gfxCtx);
 
-                gSPDisplayList(POLY_OPA_DISP++, gKafeiSunMaskDL);
+                MM_gSPDisplayList(POLY_OPA_DISP++, gKafeiSunMaskDL);
 
                 CLOSE_DISPS(play->state.gfxCtx);
             }
@@ -1274,7 +1274,7 @@ void EnTest3_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList1, Gfx** dL
                 if (func_80127438(play, &this->player, this->player.currentMask)) {
                     OPEN_DISPS(play->state.gfxCtx);
 
-                    gSPDisplayList(POLY_OPA_DISP++, object_mask_ki_tan_DL_0004A0);
+                    MM_gSPDisplayList(POLY_OPA_DISP++, object_mask_ki_tan_DL_0004A0);
 
                     CLOSE_DISPS(play->state.gfxCtx);
                 }
@@ -1295,7 +1295,7 @@ void EnTest3_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList1, Gfx** dL
         } else {
             OPEN_DISPS(play->state.gfxCtx);
 
-            gSPDisplayList(POLY_OPA_DISP++, gKafeiPendantOfMemoriesDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gKafeiPendantOfMemoriesDL);
 
             CLOSE_DISPS(play->state.gfxCtx);
         }
@@ -1384,14 +1384,14 @@ void EnTest3_Draw(Actor* thisx, PlayState* play2) {
         eyeIndex = sKafeiFaces[this->player.actor.shape.face].eyeIndex;
     }
 
-    gSPSegment(&gfx[0], 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[eyeIndex]));
+    MM_gSPSegment(&gfx[0], 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[eyeIndex]));
 
     // If the mouth index provided by the animation is negative, use the value provided by the `face` argument instead
     if (mouthIndex < 0) {
         mouthIndex = sKafeiFaces[this->player.actor.shape.face].mouthIndex;
     }
 
-    gSPSegment(&gfx[1], 0x09, Lib_SegmentedToVirtual(MM_sMouthTextures[mouthIndex]));
+    MM_gSPSegment(&gfx[1], 0x09, Lib_SegmentedToVirtual(MM_sMouthTextures[mouthIndex]));
 
     POLY_OPA_DISP = &gfx[2];
 

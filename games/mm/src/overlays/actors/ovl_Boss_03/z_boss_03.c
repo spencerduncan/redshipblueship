@@ -2165,8 +2165,8 @@ void Boss03_SetObject(PlayState* play, s16 objectId) {
 
     MM_gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[objectSlot].segment);
 
-    gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[objectSlot].segment);
-    gSPSegment(POLY_XLU_DISP++, 0x06, play->objectCtx.slots[objectSlot].segment);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[objectSlot].segment);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x06, play->objectCtx.slots[objectSlot].segment);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -2428,7 +2428,7 @@ void Boss03_DrawEffects(PlayState* play) {
             FrameInterpolation_RecordOpenChild(eff, eff->type);
             FrameInterpolation_IgnoreActorMtx();
             if (!flag) {
-                gSPDisplayList(POLY_OPA_DISP++, gGyorgBubbleMaterialDL);
+                MM_gSPDisplayList(POLY_OPA_DISP++, gGyorgBubbleMaterialDL);
                 gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, 255);
                 gDPSetEnvColor(POLY_OPA_DISP++, 150, 150, 150, 0);
 
@@ -2440,7 +2440,7 @@ void Boss03_DrawEffects(PlayState* play) {
             MM_Matrix_ReplaceRotation(&play->billboardMtxF);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, gGyorgBubbleModelDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gGyorgBubbleModelDL);
             FrameInterpolation_RecordCloseChild();
         }
     }
@@ -2458,8 +2458,8 @@ void Boss03_DrawEffects(PlayState* play) {
             if (!flag) {
                 POLY_XLU_DISP = MM_Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_0);
 
-                gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gEffDust1Tex));
-                gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_004260);
+                MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gEffDust1Tex));
+                MM_gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_004260);
                 gDPSetEnvColor(POLY_XLU_DISP++, 250, 250, 255, 0);
 
                 flag++;
@@ -2479,7 +2479,7 @@ void Boss03_DrawEffects(PlayState* play) {
             Matrix_RotateZF(eff->unk_34.z, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_0042B0);
+            MM_gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_0042B0);
             FrameInterpolation_RecordCloseChild();
         }
     }
@@ -2495,9 +2495,9 @@ void Boss03_DrawEffects(PlayState* play) {
             if (!flag) {
                 Gfx_SetupDL44_Xlu(gfxCtx);
 
-                gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gEffDust1Tex));
+                MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gEffDust1Tex));
                 gDPSetEnvColor(POLY_XLU_DISP++, 250, 250, 255, 0);
-                gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_004260);
+                MM_gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_004260);
 
                 flag++;
             }
@@ -2511,7 +2511,7 @@ void Boss03_DrawEffects(PlayState* play) {
             Matrix_RotateYF(eff->unk_34.z, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_0042F8);
+            MM_gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_0042F8);
             FrameInterpolation_RecordCloseChild();
         }
     }
@@ -2633,7 +2633,7 @@ void Boss03_SeaweedDraw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x0D, mtx);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0D, mtx);
 
     MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
     MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
@@ -2652,7 +2652,7 @@ void Boss03_SeaweedDraw(Actor* thisx, PlayState* play) {
         MM_Matrix_ToMtx(mtx);
         gSPMatrix(POLY_OPA_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
-        gSPDisplayList(POLY_OPA_DISP++, sGyorgSeaweedDLs[i]);
+        MM_gSPDisplayList(POLY_OPA_DISP++, sGyorgSeaweedDLs[i]);
 
         Matrix_MultZero(&this->seaweedSegmentPositions[i]);
         MM_Matrix_Translate(4000.0f, 0.0f, 0.0f, MTXMODE_APPLY);

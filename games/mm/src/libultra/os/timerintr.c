@@ -66,13 +66,13 @@ void __osSetTimerIntr(OSTime tim) {
         tim = 468;
     }
 
-    savedMask = __osDisableInt();
+    savedMask = MM___osDisableInt();
 
     __osTimerCounter = osGetCount();
     NewTime = tim + __osTimerCounter;
     __osSetCompare(NewTime);
 
-    __osRestoreInt(savedMask);
+    MM___osRestoreInt(savedMask);
 }
 
 OSTime __osInsertTimer(OSTimer* t) {
@@ -80,7 +80,7 @@ OSTime __osInsertTimer(OSTimer* t) {
     OSTime tim;
     u32 savedMask;
 
-    savedMask = __osDisableInt();
+    savedMask = MM___osDisableInt();
 
     for (timep = __osTimerList->next, tim = t->value; timep != __osTimerList && tim > timep->value;
          tim -= timep->value, timep = timep->next) {}
@@ -94,7 +94,7 @@ OSTime __osInsertTimer(OSTimer* t) {
     timep->prev->next = t;
     timep->prev = t;
 
-    __osRestoreInt(savedMask);
+    MM___osRestoreInt(savedMask);
 
     return tim;
 }

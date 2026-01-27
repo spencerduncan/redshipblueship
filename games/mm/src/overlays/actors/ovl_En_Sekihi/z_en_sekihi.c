@@ -183,12 +183,12 @@ void EnSekihi_Draw(Actor* thisx, PlayState* play) {
     if (this->xluDList != NULL) {
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, this->xluDList);
+        MM_gSPDisplayList(POLY_XLU_DISP++, this->xluDList);
     }
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, this->opaDList);
+    MM_gSPDisplayList(POLY_OPA_DISP++, this->opaDList);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

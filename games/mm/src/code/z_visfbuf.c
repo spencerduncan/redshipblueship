@@ -58,7 +58,7 @@ void VisFbuf_DrawBgToColorImage(Gfx** gfxP, uObjBg* bg, void* img, s32 width, s3
     gDPPipeSync(gfx++);
     // Reset the color image and scissor to frame's defaults
     gDPSetColorImage(gfx++, G_IM_FMT_RGBA, G_IM_SIZ_16b, gCfbWidth, D_0F000000_TO_SEGMENTED);
-    gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(setScissor));
+    MM_gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(setScissor));
 
     *gfxP = gfx;
 }

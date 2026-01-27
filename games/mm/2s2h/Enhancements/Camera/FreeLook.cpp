@@ -13,8 +13,8 @@ extern s16 Camera_ScaledStepToCeilS(s16 target, s16 cur, f32 stepScale, s16 minD
 extern s32 Camera_BgCheckInfo(Camera* camera, Vec3f* from, CameraCollision* to);
 extern void Camera_ResetActionFuncState(Camera* camera, s32 mode);
 extern void func_800CBFA4(Camera* camera, Vec3f* arg1, Vec3f* arg2, s32 arg3);
-extern CameraSetting sCameraSettings[];
-extern s32 sCameraInterfaceFlags;
+extern CameraSetting MM_sCameraSettings[];
+extern s32 MM_sCameraInterfaceFlags;
 }
 
 // Check if bombchu remote control is active
@@ -73,7 +73,7 @@ bool Camera_FreeLook(Camera* camera) {
 
     // Camera param reloading based on MM_Camera_Parallel1, only updating roData as only that seems necessary
     if (RELOAD_PARAMS(camera)) {
-        CameraModeValue* values = sCameraSettings[camera->setting].cameraModes[camera->mode].values;
+        CameraModeValue* values = MM_sCameraSettings[camera->setting].cameraModes[camera->mode].values;
         f32 yNormal = (0.8f - ((68.0f / playerHeight) * -0.2f));
 
         roData->unk_00 = GET_NEXT_SCALED_RO_DATA(values) * playerHeight * yNormal;
@@ -90,8 +90,8 @@ bool Camera_FreeLook(Camera* camera) {
         roData->unk_24 = GET_NEXT_RO_DATA(values);
     }
 
-    // 1 acts as a default value of sorts for sCameraInterfaceFlags
-    sCameraInterfaceFlags = 1;
+    // 1 acts as a default value of sorts for MM_sCameraInterfaceFlags
+    MM_sCameraInterfaceFlags = 1;
 
     Camera_ResetActionFuncState(camera, camera->mode);
 
@@ -165,7 +165,7 @@ bool Camera_CanFreeLook(Camera* camera) {
 void RegisterCameraFreeLook() {
     COND_VB_SHOULD(VB_USE_CUSTOM_CAMERA, CVarGetInteger("gEnhancements.Camera.FreeLook.Enable", 0), {
         Camera* camera = va_arg(args, Camera*);
-        switch (sCameraSettings[camera->setting].cameraModes[camera->mode].funcId) {
+        switch (MM_sCameraSettings[camera->setting].cameraModes[camera->mode].funcId) {
             case CAM_FUNC_NORMAL0:
             case CAM_FUNC_NORMAL1:
             case CAM_FUNC_NORMAL3:

@@ -615,7 +615,7 @@ void MM_BgDyYoseizo_Draw(Actor* thisx, PlayState* play) {
         s16 index = this->mouthIndex;
         TexturePtr mouthTex = Lib_SegmentedToVirtual(MM_sMouthTextures[index]);
 
-        gSPSegment(&gfx[0], 0x09, mouthTex);
+        MM_gSPSegment(&gfx[0], 0x09, mouthTex);
         POLY_OPA_DISP = &gfx[1];
     }
 
@@ -744,7 +744,7 @@ void BgDyYoseizo_DrawEffects(BgDyYoseizo* this, PlayState* play) {
     for (i = 0; i < BG_DY_YOSEIZO_EFFECT_COUNT; i++, effect++) {
         if (effect->alive == true) {
             if (setup == 0) {
-                gSPDisplayList(POLY_XLU_DISP++, gGreatFairyParticleSetupDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gGreatFairyParticleSetupDL);
                 gDPPipeSync(POLY_XLU_DISP++);
                 setup++;
             }
@@ -760,7 +760,7 @@ void BgDyYoseizo_DrawEffects(BgDyYoseizo* this, PlayState* play) {
             Matrix_RotateZS(effect->roll, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gGreatFairyParticleDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gGreatFairyParticleDL);
         }
     }
 

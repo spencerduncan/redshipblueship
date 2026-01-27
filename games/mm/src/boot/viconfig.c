@@ -12,7 +12,7 @@ extern OSViMode MM_osViModeFpalLan1;
 void MM_ViConfig_UpdateVi(u32 black) {
 #if 0
     if (black) {
-        switch (osTvType) {
+        switch (MM_osTvType) {
             case OS_TV_MPAL:
                 MM_osViSetMode(&MM_osViModeMpalLan1);
                 break;

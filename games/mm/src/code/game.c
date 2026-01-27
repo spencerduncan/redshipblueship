@@ -91,7 +91,7 @@ void MM_GameState_Draw(GameState* gameState, GraphicsContext* gfxCtx) {
     OPEN_DISPS(gfxCtx);
 
     gfx = MM_Graph_GfxPlusOne(gfxHead = POLY_OPA_DISP);
-    gSPDisplayList(OVERLAY_DISP++, gfx);
+    MM_gSPDisplayList(OVERLAY_DISP++, gfx);
 
     if ((R_FB_FILTER_TYPE != 0) && (R_FB_FILTER_ENV_COLOR(3) == 0)) {
         MM_GameState_SetFBFilter(&gfx, gfxCtx->zbuffer);
@@ -118,12 +118,12 @@ void MM_GameState_Draw(GameState* gameState, GraphicsContext* gfxCtx) {
 void MM_GameState_SetFrameBuffer(GraphicsContext* gfxCtx) {
     OPEN_DISPS(gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x00, NULL);
-    gSPSegment(POLY_OPA_DISP++, 0x0F, gfxCtx->curFrameBuffer);
-    gSPSegment(POLY_XLU_DISP++, 0x00, NULL);
-    gSPSegment(POLY_XLU_DISP++, 0x0F, gfxCtx->curFrameBuffer);
-    gSPSegment(OVERLAY_DISP++, 0x00, NULL);
-    gSPSegment(OVERLAY_DISP++, 0x0F, gfxCtx->curFrameBuffer);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x00, NULL);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0F, gfxCtx->curFrameBuffer);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x00, NULL);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x0F, gfxCtx->curFrameBuffer);
+    MM_gSPSegment(OVERLAY_DISP++, 0x00, NULL);
+    MM_gSPSegment(OVERLAY_DISP++, 0x0F, gfxCtx->curFrameBuffer);
 
     CLOSE_DISPS(gfxCtx);
 }
@@ -135,7 +135,7 @@ void GameState_DrawEnd(GraphicsContext* gfxCtx) {
     OPEN_DISPS(gfxCtx);
 
     gfx = MM_Graph_GfxPlusOne(gfxHead = POLY_OPA_DISP);
-    gSPDisplayList(OVERLAY_DISP++, gfx);
+    MM_gSPDisplayList(OVERLAY_DISP++, gfx);
     gSPEndDisplayList(gfx++);
     MM_Graph_BranchDlist(gfxHead, gfx);
 

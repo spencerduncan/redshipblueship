@@ -51,9 +51,9 @@ void MM_EffectSsStick_Draw(PlayState* play, u32 index, EffectSs* this) {
     MM_Matrix_RotateZYX(0, this->rYaw, 0, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, gfxCtx);
     Gfx_SetupDL25_Opa(gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[this->rObjectSlot].segment);
-    gSPSegment(POLY_OPA_DISP++, 0x0C, MM_gCullBackDList);
-    gSPDisplayList(POLY_OPA_DISP++, gDekuStickDL);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[this->rObjectSlot].segment);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0C, MM_gCullBackDList);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gDekuStickDL);
 
     CLOSE_DISPS(gfxCtx);
 }

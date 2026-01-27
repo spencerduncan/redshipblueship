@@ -1104,13 +1104,13 @@ void MM_EnOkuta_Draw(Actor* thisx, PlayState* play) {
 
     gfx = POLY_OPA_DISP;
 
-    gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
 
     if (EN_OKUTA_GET_TYPE(&this->actor) < EN_OKUTA_TYPE_PROJECTILE_BASE) {
         if (EN_OKUTA_GET_TYPE(&this->actor) == EN_OKUTA_TYPE_RED_OCTOROK) {
-            gSPSegment(&gfx[1], 0x08, D_801AEFA0);
+            MM_gSPSegment(&gfx[1], 0x08, D_801AEFA0);
         } else {
-            gSPSegment(&gfx[1], 0x08, gOctorokBlueMaterialDL);
+            MM_gSPSegment(&gfx[1], 0x08, gOctorokBlueMaterialDL);
         }
 
         POLY_OPA_DISP = &gfx[2];
@@ -1120,7 +1120,7 @@ void MM_EnOkuta_Draw(Actor* thisx, PlayState* play) {
         MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
         Matrix_RotateZS(this->actor.home.rot.z, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(&gfx[1], play->state.gfxCtx);
-        gSPDisplayList(&gfx[2], gOctorokProjectileDL);
+        MM_gSPDisplayList(&gfx[2], gOctorokProjectileDL);
         POLY_OPA_DISP = &gfx[3];
     }
 

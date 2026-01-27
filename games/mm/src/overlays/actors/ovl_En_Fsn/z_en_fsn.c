@@ -1704,8 +1704,8 @@ void EnFsn_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot,
 
         OPEN_DISPS(play->state.gfxCtx);
 
-        gSPDisplayList(POLY_OPA_DISP++, gFsnGlassesFrameDL);
-        gSPDisplayList(POLY_OPA_DISP++, gFsnGlassesLensesDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gFsnGlassesFrameDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gFsnGlassesLensesDL);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -1720,8 +1720,8 @@ void EnFsn_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL37_Opa(play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
-    gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnFsn_OverrideLimbDraw, EnFsn_PostLimbDraw, &this->actor);
 

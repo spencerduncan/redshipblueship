@@ -2911,7 +2911,7 @@ void EnBigslime_SetSysMatrix(Vec3f* pos, PlayState* play, Gfx* shadowDList, f32 
 
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 0, 0, 0, (u8)(alpha * zx));
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, shadowDList);
+    MM_gSPDisplayList(POLY_OPA_DISP++, shadowDList);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -2956,14 +2956,14 @@ void EnBigslime_DrawMinislime(EnBigslime* this, PlayState* play2) {
         MM_Matrix_Scale(minislime->actor.scale.x, minislime->actor.scale.y, minislime->actor.scale.z, MTXMODE_APPLY);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, 255, 255, 255, minislime->actor.shape.shadowAlpha);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, &gMinislimeNormalDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, &gMinislimeNormalDL);
         if (minislime->frozenAlpha > 0) {
             MM_Matrix_Translate(0.0f, (0.1f - minislime->frozenScale) * -4000.0f, 0.0f, MTXMODE_APPLY);
             MM_Matrix_Scale(0.1f, minislime->frozenScale, 0.1f, MTXMODE_APPLY);
             AnimatedMat_Draw(play, this->minislimeFrozenTexAnim);
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, 255, 255, 255, minislime->frozenAlpha);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, &gMinislimeFrozenDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, &gMinislimeFrozenDL);
         }
 
         EnBigslime_SetSysMatrix(&minislime->actor.world.pos, play, gBigslimeShadowDL,
@@ -2996,18 +2996,18 @@ void EnBigslime_DrawBigslime(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     // Draw Bigslime
-    gSPSegment(POLY_XLU_DISP++, 0x09, sBigslimeDynamicVtxData[this->dynamicVtxState]);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x09, sBigslimeDynamicVtxData[this->dynamicVtxState]);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, gBigslimeNormalMaterialDL);
-    gSPDisplayList(POLY_XLU_DISP++, gBigslimeModelDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gBigslimeNormalMaterialDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gBigslimeModelDL);
 
     // Draw frozen Bigslime
     if ((this->actionFunc == EnBigslime_Freeze) || (this->actionFunc == EnBigslime_FrozenGround) ||
         (this->actionFunc == EnBigslime_FrozenFall) || (this->actionFunc == EnBigslime_Melt)) {
         AnimatedMat_Draw(play, this->bigslimeFrozenTexAnim);
-        gSPSegment(POLY_XLU_DISP++, 0x09, sBigslimeTargetVtxData);
-        gSPDisplayList(POLY_XLU_DISP++, gBigslimeFrozenMaterialDL);
-        gSPDisplayList(POLY_XLU_DISP++, gBigslimeModelDL);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x09, sBigslimeTargetVtxData);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gBigslimeFrozenMaterialDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gBigslimeModelDL);
     }
 
     // Draw bubbles inside Bigslime
@@ -3026,7 +3026,7 @@ void EnBigslime_DrawBigslime(Actor* thisx, PlayState* play) {
             billboardMtxF->zw =
                 dynamicVtx->n.ob[2] * this->actor.scale.z * bubblesInfoPtr->scaleVtx + this->actor.world.pos.z;
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gBigslimeBubbleDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gBigslimeBubbleDL);
         }
     }
 
@@ -3151,18 +3151,18 @@ void EnBigslime_DrawShatteringEffects(EnBigslime* this, PlayState* play) {
     // Draw Shockwave
     if (this->shockwaveAlpha > 0) {
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 195, 225, 235, this->shockwaveAlpha);
-        gSPSegment(POLY_XLU_DISP++, 0x0D,
+        MM_gSPSegment(POLY_XLU_DISP++, 0x0D,
                    MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, play->gameplayFrames % 128, (u8)(play->gameplayFrames * 8),
                                     32, 64, 1, (-play->gameplayFrames * 2) % 64, 0, 16, 16));
         MM_Matrix_Translate(this->frozenPos.x, this->frozenPos.y, this->frozenPos.z, MTXMODE_NEW);
         MM_Matrix_Scale(this->shockwaveScale, this->shockwaveScale, this->shockwaveScale, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gBigslimeShockwaveDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gBigslimeShockwaveDL);
     }
 
     // Draw Ice Shards
     AnimatedMat_Draw(play, this->iceShardTexAnim);
-    gSPDisplayList(POLY_XLU_DISP++, gBigslimeIceShardDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gBigslimeIceShardDL);
 
     for (i = 0; i < BIGSLIME_NUM_ICE_SHARD; i++) {
         iceShardEffect = &this->iceShardEffect[i];
@@ -3172,7 +3172,7 @@ void EnBigslime_DrawShatteringEffects(EnBigslime* this, PlayState* play) {
                                          &iceShardEffect->rot);
             MM_Matrix_Scale(iceShardEffect->scale, iceShardEffect->scale, iceShardEffect->scale, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gBigslimeIceShardVtxDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gBigslimeIceShardVtxDL);
         }
         FrameInterpolation_RecordCloseChild();
     }

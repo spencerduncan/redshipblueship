@@ -35,6 +35,8 @@ class SymbolLocator:
         mm_dir: str = "games/mm/src",
         oot_include_dir: str = "games/oot/include",
         mm_include_dir: str = "games/mm/include",
+        oot_extra_dirs: Optional[list] = None,
+        mm_extra_dirs: Optional[list] = None,
     ):
         """
         Initialize the symbol locator.
@@ -44,11 +46,15 @@ class SymbolLocator:
             mm_dir: Path to MM source directory
             oot_include_dir: Path to OoT include directory
             mm_include_dir: Path to MM include directory
+            oot_extra_dirs: Additional OoT directories to scan (e.g. enhancement layer)
+            mm_extra_dirs: Additional MM directories to scan (e.g. enhancement layer)
         """
         self.oot_dir = Path(oot_dir)
         self.mm_dir = Path(mm_dir)
         self.oot_include_dir = Path(oot_include_dir)
         self.mm_include_dir = Path(mm_include_dir)
+        self.oot_extra_dirs = [Path(d) for d in (oot_extra_dirs or ["games/oot/soh"])]
+        self.mm_extra_dirs = [Path(d) for d in (mm_extra_dirs or ["games/mm/2s2h"])]
 
         # Symbol -> file path mappings
         self._oot_symbols: Dict[str, Path] = {}
@@ -62,7 +68,7 @@ class SymbolLocator:
         if self._index_built:
             return
 
-        # Scan OoT directories (src first, then include - definitions take priority)
+        # Scan OoT directories (src first, then include, then extras)
         if self.oot_dir.exists():
             self._oot_symbols = self._extract_symbols(self.oot_dir)
         if self.oot_include_dir.exists():
@@ -70,8 +76,14 @@ class SymbolLocator:
             for name, path in include_symbols.items():
                 if name not in self._oot_symbols:
                     self._oot_symbols[name] = path
+        for extra_dir in self.oot_extra_dirs:
+            if extra_dir.exists():
+                extra_symbols = self._extract_symbols(extra_dir)
+                for name, path in extra_symbols.items():
+                    if name not in self._oot_symbols:
+                        self._oot_symbols[name] = path
 
-        # Scan MM directories (src first, then include - definitions take priority)
+        # Scan MM directories (src first, then include, then extras)
         if self.mm_dir.exists():
             self._mm_symbols = self._extract_symbols(self.mm_dir)
         if self.mm_include_dir.exists():
@@ -79,6 +91,12 @@ class SymbolLocator:
             for name, path in include_symbols.items():
                 if name not in self._mm_symbols:
                     self._mm_symbols[name] = path
+        for extra_dir in self.mm_extra_dirs:
+            if extra_dir.exists():
+                extra_symbols = self._extract_symbols(extra_dir)
+                for name, path in extra_symbols.items():
+                    if name not in self._mm_symbols:
+                        self._mm_symbols[name] = path
 
         self._index_built = True
 
@@ -143,8 +161,8 @@ class SymbolLocator:
             r"\s*;"  # Followed by semicolon
         )
 
-        # Scan both .c and .h files
-        for ext in ["*.c", "*.h"]:
+        # Scan C, C++, header, and include files
+        for ext in ["*.c", "*.cpp", "*.h", "*.inc"]:
             for path in src_dir.rglob(ext):
                 try:
                     content = path.read_text(errors="ignore")
@@ -161,24 +179,24 @@ class SymbolLocator:
                 # Extract function definitions
                 for match in re.finditer(func_pattern, clean_content):
                     name = match.group(1)
-                    if name not in skip_patterns and not name.startswith("_"):
+                    if name not in skip_patterns:
                         # Store first occurrence (definition location)
                         if name not in symbols:
                             symbols[name] = path
 
                 # Extract global variables based on file type
-                if path.suffix == ".h":
+                if path.suffix in (".h",):
                     # In headers, look for extern declarations
                     for match in re.finditer(extern_pattern, clean_content, re.MULTILINE):
                         name = match.group(1)
-                        if name not in skip_patterns and not name.startswith("_"):
+                        if name not in skip_patterns:
                             if name not in symbols:
                                 symbols[name] = path
                 else:
                     # In .c files, look for global variable definitions
                     for match in re.finditer(global_var_pattern, clean_content, re.MULTILINE):
                         name = match.group(1)
-                        if name not in skip_patterns and not name.startswith("_"):
+                        if name not in skip_patterns:
                             if name not in symbols:
                                 symbols[name] = path
 

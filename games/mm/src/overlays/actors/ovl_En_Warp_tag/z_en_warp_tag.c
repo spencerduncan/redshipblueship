@@ -263,7 +263,7 @@ void EnWarpTag_Draw(Actor* thisx, PlayState* play) {
     AnimatedMat_Draw(play, Lib_SegmentedToVirtual(gWarpTagRainbowTexAnim));
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
 
-    gSPDisplayList(POLY_OPA_DISP++, gWarpTagGoronTrialBaseDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gWarpTagGoronTrialBaseDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

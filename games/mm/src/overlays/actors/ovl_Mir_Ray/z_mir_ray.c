@@ -615,7 +615,7 @@ void MM_MirRay_Draw(Actor* thisx, PlayState* play) {
 
         AnimatedMat_Draw(play, Lib_SegmentedToVirtual(object_mir_ray_Matanimheader_0003F8));
 
-        gSPDisplayList(POLY_XLU_DISP++, object_mir_ray_DL_000168);
+        MM_gSPDisplayList(POLY_XLU_DISP++, object_mir_ray_DL_000168);
 
         MM_MirRay_SetupReflectionPolys(this, play, reflection);
         MM_MirRay_RemoveSimilarReflections(reflection);
@@ -642,7 +642,7 @@ void MM_MirRay_Draw(Actor* thisx, PlayState* play) {
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
                 gDPSetRenderMode(POLY_XLU_DISP++, G_RM_FOG_SHADE_A, G_RM_AA_ZB_XLU_DECAL2);
                 gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, reflection[0].opacity);
-                gSPDisplayList(POLY_XLU_DISP++, object_mir_ray_DL_0004B0);
+                MM_gSPDisplayList(POLY_XLU_DISP++, object_mir_ray_DL_0004B0);
             }
         }
 

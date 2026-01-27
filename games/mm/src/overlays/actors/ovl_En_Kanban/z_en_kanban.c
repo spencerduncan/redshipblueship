@@ -931,7 +931,7 @@ void MM_EnKanban_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-    gSPDisplayList(POLY_OPA_DISP++, gSignMaterialDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gSignMaterialDL);
 
     if (this->actionState != ENKANBAN_SIGN) {
         MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
@@ -956,7 +956,7 @@ void MM_EnKanban_Draw(Actor* thisx, PlayState* play) {
 
         for (i = 0; i < ARRAY_COUNT(MM_sPartFlags); i++) {
             if (MM_sPartFlags[i] & this->partFlags) {
-                gSPDisplayList(POLY_OPA_DISP++, MM_sDisplayLists[i]);
+                MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDisplayLists[i]);
             }
         }
     } else {
@@ -970,11 +970,11 @@ void MM_EnKanban_Draw(Actor* thisx, PlayState* play) {
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
 
         if (this->partFlags == 0xFFFF) {
-            gSPDisplayList(POLY_OPA_DISP++, gSignRectangularDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gSignRectangularDL);
         } else {
             for (i = 0; i < ARRAY_COUNT(MM_sPartFlags); i++) {
                 if (MM_sPartFlags[i] & this->partFlags) {
-                    gSPDisplayList(POLY_OPA_DISP++, MM_sDisplayLists[i]);
+                    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDisplayLists[i]);
                 }
             }
         }
@@ -990,7 +990,7 @@ void MM_EnKanban_Draw(Actor* thisx, PlayState* play) {
             gDPSetPrimColor(POLY_XLU_DISP++, 0x00, 0x00, 255, 255, 255, this->cutMarkAlpha);
             gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, 150, 0);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gSignParticleDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gSignParticleDL);
         }
     }
 
@@ -1041,9 +1041,9 @@ void MM_EnKanban_Draw(Actor* thisx, PlayState* play) {
             }
         }
 
-        gSPInvalidateTexCache(POLY_XLU_DISP++, shadowTex);
-        gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(shadowTex));
-        gSPDisplayList(POLY_XLU_DISP++, gEnKanban_D_80957DE0);
+        MM_gSPInvalidateTexCache(POLY_XLU_DISP++, shadowTex);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(shadowTex));
+        MM_gSPDisplayList(POLY_XLU_DISP++, gEnKanban_D_80957DE0);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

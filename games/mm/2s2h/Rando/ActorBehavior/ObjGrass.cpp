@@ -297,8 +297,8 @@ void ObjGrass_RandoDrawOpa(ObjGrass* objGrass, ObjGrassElement* grassElem, s32 j
     }
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, MM_gPlayState->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, GetObjGrassDList(randoCheckId));
-    gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gObjGrass_D_809AA9F0);
+    MM_gSPDisplayList(POLY_OPA_DISP++, GetObjGrassDList(randoCheckId));
+    MM_gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gObjGrass_D_809AA9F0);
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
 
@@ -311,8 +311,8 @@ void ObjGrass_RandoDrawXlu(ObjGrass* objGrass, ObjGrassElement* grassElem, Rando
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, MM_gPlayState->state.gfxCtx);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, grassElem->alpha);
-    gSPDisplayList(POLY_XLU_DISP++, GetObjGrassXluDList(randoCheckId));
-    gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gObjGrass_D_809AAA68);
+    MM_gSPDisplayList(POLY_XLU_DISP++, GetObjGrassXluDList(randoCheckId));
+    MM_gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gObjGrass_D_809AAA68);
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
 

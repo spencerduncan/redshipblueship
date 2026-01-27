@@ -4,6 +4,7 @@
  * This file implements the standard game interface that allows the combo
  * launcher to load and run MM as a shared library.
  */
+#ifndef RSBS_SINGLE_EXECUTABLE
 
 #include "combo/GameExports.h"
 #include "combo/ComboContextBridge.h"
@@ -269,3 +270,5 @@ extern "C" uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex) {
 
     return result;
 }
+
+#endif // !RSBS_SINGLE_EXECUTABLE

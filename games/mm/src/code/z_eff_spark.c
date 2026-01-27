@@ -258,7 +258,7 @@ void MM_EffectSpark_Draw(void* thisx, GraphicsContext* gfxCtx) {
             }
 
             gSPMatrix(POLY_XLU_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-            gSPVertex(POLY_XLU_DISP++, &vtx[4 * i], 4, 0);
+            MM_gSPVertex(POLY_XLU_DISP++, &vtx[4 * i], 4, 0);
             gSP2Triangles(POLY_XLU_DISP++, 2, 0, 3, 0, 2, 3, 1, 0);
         }
 

@@ -106,7 +106,7 @@ void EnNnh_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gButlerSonMainBodyDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gButlerSonMainBodyDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

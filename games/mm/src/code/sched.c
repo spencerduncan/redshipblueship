@@ -624,6 +624,6 @@ void MM_Sched_Init(SchedContext* sched, void* stack, OSPri pri, u8 viModeType, U
     MM_osSetEventMesg(OS_EVENT_DP, &sched->interruptQ, OS_MESG_32(RDP_DONE_MSG));
     MM_IrqMgr_AddClient(irqMgr, &sched->irqClient, &sched->interruptQ);
     MM_Fault_AddClient(&sSchedFaultClient, Sched_FaultClient, sched, NULL);
-    osCreateThread(&sched->thread, Z_THREAD_ID_SCHED, MM_Sched_ThreadEntry, sched, stack, pri);
+    MM_osCreateThread(&sched->thread, Z_THREAD_ID_SCHED, MM_Sched_ThreadEntry, sched, stack, pri);
     MM_osStartThread(&sched->thread);
 }

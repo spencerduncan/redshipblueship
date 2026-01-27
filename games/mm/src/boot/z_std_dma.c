@@ -248,7 +248,7 @@ void DmaMgr_Start(void) {
 
     MM_osCreateMesgQueue(&sDmaMgrMsgQueue, sDmaMgrMsgs, ARRAY_COUNT(sDmaMgrMsgs));
     MM_StackCheck_Init(&sDmaMgrStackInfo, sDmaMgrStack, STACK_TOP(sDmaMgrStack), 0, 0x100, "dmamgr");
-    osCreateThread(&sDmaMgrThread, Z_THREAD_ID_DMAMGR, MM_DmaMgr_ThreadEntry, NULL, STACK_TOP(sDmaMgrStack),
+    MM_osCreateThread(&sDmaMgrThread, Z_THREAD_ID_DMAMGR, MM_DmaMgr_ThreadEntry, NULL, STACK_TOP(sDmaMgrStack),
                    Z_PRIORITY_DMAMGR);
 
     MM_osStartThread(&sDmaMgrThread);

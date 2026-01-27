@@ -174,9 +174,9 @@ void BgIknvDoukutu_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
     gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 255);
-    gSPDisplayList(POLY_OPA_DISP++, object_iknv_obj_DL_00DDD8);
+    MM_gSPDisplayList(POLY_OPA_DISP++, object_iknv_obj_DL_00DDD8);
     gDPSetEnvColor(POLY_XLU_DISP++, 215, 42, 55, 120);
-    gSPDisplayList(POLY_XLU_DISP++, object_iknv_obj_DL_00DB60);
+    MM_gSPDisplayList(POLY_XLU_DISP++, object_iknv_obj_DL_00DB60);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -208,9 +208,9 @@ void func_80BD7538(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
     gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 0, (s32)(255.0f * sp54));
-    gSPDisplayList(POLY_XLU_DISP++, object_iknv_obj_DL_00DDD8);
+    MM_gSPDisplayList(POLY_XLU_DISP++, object_iknv_obj_DL_00DDD8);
     gDPSetEnvColor(POLY_XLU_DISP++, 215, 42, 55, (s32)(120.0f * sp54));
-    gSPDisplayList(POLY_XLU_DISP++, object_iknv_obj_DL_00DB60);
+    MM_gSPDisplayList(POLY_XLU_DISP++, object_iknv_obj_DL_00DB60);
 
     CLOSE_DISPS(gfxCtx);
 }
@@ -227,7 +227,7 @@ void func_80BD7768(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 255);
-    gSPDisplayList(POLY_OPA_DISP++, object_iknv_obj_DL_010D98);
+    MM_gSPDisplayList(POLY_OPA_DISP++, object_iknv_obj_DL_010D98);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -243,7 +243,7 @@ void func_80BD7820(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-    gSPDisplayList(POLY_XLU_DISP++, object_iknv_obj_DL_012700);
+    MM_gSPDisplayList(POLY_XLU_DISP++, object_iknv_obj_DL_012700);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -263,7 +263,7 @@ void func_80BD78C4(Actor* thisx, PlayState* play) {
 
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, 255, 255, 255, (s32)(140.0f * sp30));
 
-    gSPDisplayList(POLY_XLU_DISP++, object_iknv_obj_DL_0115E0);
+    MM_gSPDisplayList(POLY_XLU_DISP++, object_iknv_obj_DL_0115E0);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

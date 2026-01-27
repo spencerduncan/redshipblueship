@@ -724,11 +724,11 @@ void MM_EnArrow_Draw(Actor* thisx, PlayState* play) {
             POLY_XLU_DISP = gfx;
             // Only a portion of the buffer is used as a texture, so we need to invalidate by the same offset
             // Offset derived from ((ult * width + uls) * 2), with values taken from the DL directly
-            gSPInvalidateTexCache(POLY_XLU_DISP++,
+            MM_gSPInvalidateTexCache(POLY_XLU_DISP++,
                                   (uintptr_t)(play->state.gfxCtx->curFrameBuffer) + ((104 * 320 + 144) * 2));
             // #endregion
 
-            gSPDisplayList(POLY_XLU_DISP++, gameplay_keep_DL_06F380);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gameplay_keep_DL_06F380);
             gDPSetRenderMode(POLY_XLU_DISP++, G_RM_FOG_SHADE_A, G_RM_AA_ZB_XLU_SURF2);
             gDPSetCombineLERP(POLY_XLU_DISP++, TEXEL1, 0, PRIM_LOD_FRAC, TEXEL0, TEXEL1, TEXEL0, PRIM_LOD_FRAC, TEXEL0,
                               COMBINED, 0, ENVIRONMENT, 0, COMBINED, 0, ENVIRONMENT, 0);
@@ -738,7 +738,7 @@ void MM_EnArrow_Draw(Actor* thisx, PlayState* play) {
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
             gSPMatrix(POLY_XLU_DISP++, D_01000000_TO_SEGMENTED, G_MTX_NOPUSH | G_MTX_MUL | G_MTX_MODELVIEW);
-            gSPDisplayList(POLY_XLU_DISP++, gameplay_keep_DL_06F9F0);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gameplay_keep_DL_06F9F0);
         } else {
             func_800B8050(&this->actor, play, 0);
 
@@ -749,16 +749,16 @@ void MM_EnArrow_Draw(Actor* thisx, PlayState* play) {
             POLY_OPA_DISP = gfx;
             // Only a portion of the buffer is used as a texture, so we need to invalidate by the same offset
             // Offset derived from ((ult * width + uls) * 2), with values taken from the DL directly
-            gSPInvalidateTexCache(POLY_OPA_DISP++,
+            MM_gSPInvalidateTexCache(POLY_OPA_DISP++,
                                   (uintptr_t)(play->state.gfxCtx->curFrameBuffer) + ((104 * 320 + 144) * 2));
             // #endregion
 
-            gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_06F380);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_06F380);
             gDPSetCombineLERP(POLY_OPA_DISP++, TEXEL1, 0, PRIM_LOD_FRAC, TEXEL0, TEXEL1, TEXEL0, PRIM_LOD_FRAC, TEXEL0,
                               COMBINED, 0, PRIMITIVE, 0, 0, 0, 0, COMBINED);
             gDPSetPrimColor(POLY_OPA_DISP++, 0, 0x7F, 230, 225, 150, 255);
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_06FAE0);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_06FAE0);
         }
 
         CLOSE_DISPS(play->state.gfxCtx);
@@ -797,7 +797,7 @@ void MM_EnArrow_Draw(Actor* thisx, PlayState* play) {
         MM_Matrix_Scale(sp5C, sp5C, sp5C, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gEffSparklesDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gEffSparklesDL);
 
         MM_Matrix_Pop();
         Matrix_RotateYS(this->actor.world.rot.y, MTXMODE_APPLY);
@@ -810,7 +810,7 @@ void MM_EnArrow_Draw(Actor* thisx, PlayState* play) {
         MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_058BA0);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_058BA0);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }

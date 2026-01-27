@@ -465,7 +465,7 @@ void MM_Lights_DrawGlow(PlayState* play) {
         gDPSetCombineLERP(dl++, 0, 0, 0, PRIMITIVE, TEXEL0, 0, PRIMITIVE, 0, 0, 0, 0, PRIMITIVE, TEXEL0, 0, PRIMITIVE,
                           0);
 
-        gSPDisplayList(dl++, gameplay_keep_DL_029CB0);
+        MM_gSPDisplayList(dl++, gameplay_keep_DL_029CB0);
 
         do {
             if (light->info->type == LIGHT_POINT_GLOW) {
@@ -481,7 +481,7 @@ void MM_Lights_DrawGlow(PlayState* play) {
 
                     MATRIX_FINALIZE_AND_LOAD(dl++, play->state.gfxCtx);
 
-                    gSPDisplayList(dl++, gameplay_keep_DL_029CF0);
+                    MM_gSPDisplayList(dl++, gameplay_keep_DL_029CF0);
                     FrameInterpolation_RecordCloseChild();
                 }
             }

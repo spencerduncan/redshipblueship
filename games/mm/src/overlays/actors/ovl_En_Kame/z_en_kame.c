@@ -986,7 +986,7 @@ void EnKame_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, MM_sEyeTextures[this->eyeIndex]);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, MM_sEyeTextures[this->eyeIndex]);
 
     MM_SkelAnime_DrawFlexOpa(play, this->snapperSkelAnime.skeleton, this->snapperSkelAnime.jointTable,
                           this->snapperSkelAnime.dListCount, EnKame_OverrideLimbDraw, EnKame_PostLimbDraw,

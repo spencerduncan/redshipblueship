@@ -1,8 +1,8 @@
 #include "ultra64.h"
 
 void __osSetGlobalIntMask(OSHWIntr mask) {
-    register s32 prevInt = __osDisableInt();
+    register s32 prevInt = MM___osDisableInt();
 
     __OSGlobalIntMask |= mask;
-    __osRestoreInt(prevInt);
+    MM___osRestoreInt(prevInt);
 }

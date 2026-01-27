@@ -1595,7 +1595,7 @@ void func_80942B1C(EnGoroiwa* this, PlayState* play) {
                 MM_Matrix_Scale(this->actor.scale.x * 7.5f, 1.0f, this->actor.scale.z * 7.5f, MTXMODE_APPLY);
 
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-                gSPDisplayList(POLY_XLU_DISP++, gCircleShadowDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gCircleShadowDL);
 
                 CLOSE_DISPS(play->state.gfxCtx);
             }

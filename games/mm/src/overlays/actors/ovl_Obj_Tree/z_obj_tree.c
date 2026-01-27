@@ -185,11 +185,11 @@ void ObjTree_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gTreeBodyDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gTreeBodyDL);
 
     MM_Matrix_RotateZYX(xRot, 0, zRot, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gTreeLeavesDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gTreeLeavesDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

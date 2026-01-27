@@ -8,10 +8,10 @@
 
 // Variables are put before most headers as a hacky way to bypass bss reordering
 IrqMgr MM_gIrqMgr;
-STACK(sIrqMgrStack, 0x500);
+STACK(MM_sIrqMgrStack, 0x500);
 StackEntry MM_sIrqMgrStackInfo;
 OSThread sMainThread;
-STACK(sMainStack, 0x900);
+STACK(MM_sMainStack, 0x900);
 StackEntry MM_sMainStackInfo;
 OSMesg MM_sPiMgrCmdBuff[50];
 OSMesgQueue gPiMgrCmdQueue;
@@ -54,7 +54,7 @@ void Main_InitScreen(void) {
 void Main_InitMemory(void) {
 #if 0
     void* memStart = (void*)0x80000400;
-    void* memEnd = OS_PHYSICAL_TO_K0(osMemSize);
+    void* memEnd = OS_PHYSICAL_TO_K0(MM_osMemSize);
 
     Main_ClearMemory(memStart, SEGMENT_START(framebuffer_lo));
 
@@ -92,8 +92,8 @@ void Main_Init(void) {
 
 void MM_Main_ThreadEntry(void* arg) {
 #if 0
-    MM_StackCheck_Init(&MM_sIrqMgrStackInfo, sIrqMgrStack, STACK_TOP(sIrqMgrStack), 0, 0x100, "irqmgr");
-    MM_IrqMgr_Init(&MM_gIrqMgr, STACK_TOP(sIrqMgrStack), Z_PRIORITY_IRQMGR, 1);
+    MM_StackCheck_Init(&MM_sIrqMgrStackInfo, MM_sIrqMgrStack, STACK_TOP(MM_sIrqMgrStack), 0, 0x100, "irqmgr");
+    MM_IrqMgr_Init(&MM_gIrqMgr, STACK_TOP(MM_sIrqMgrStack), Z_PRIORITY_IRQMGR, 1);
     DmaMgr_Start();
     Main_Init();
     Main(arg);
@@ -109,7 +109,7 @@ void Idle_InitVideo(void) {
     MM_gViConfigXScale = 1.0f;
     MM_gViConfigYScale = 1.0f;
 
-    switch (osTvType) {
+    switch (MM_osTvType) {
         case OS_TV_NTSC:
             gViConfigModeType = OS_VI_NTSC_LAN1;
             MM_gViConfigMode = MM_osViModeNtscLan1;
@@ -134,8 +134,8 @@ void Idle_InitVideo(void) {
 void MM_Idle_ThreadEntry(void* arg) {
     // Idle_InitVideo();
     // MM_osCreatePiManager(OS_PRIORITY_PIMGR, &gPiMgrCmdQueue, MM_sPiMgrCmdBuff, ARRAY_COUNT(MM_sPiMgrCmdBuff));
-    // MM_StackCheck_Init(&MM_sMainStackInfo, sMainStack, STACK_TOP(sMainStack), 0, 0x400, "main");
-    // osCreateThread(&sMainThread, Z_THREAD_ID_MAIN, MM_Main_ThreadEntry, arg, STACK_TOP(sMainStack), Z_PRIORITY_MAIN);
+    // MM_StackCheck_Init(&MM_sMainStackInfo, MM_sMainStack, STACK_TOP(MM_sMainStack), 0, 0x400, "main");
+    // MM_osCreateThread(&sMainThread, Z_THREAD_ID_MAIN, MM_Main_ThreadEntry, arg, STACK_TOP(MM_sMainStack), Z_PRIORITY_MAIN);
     // MM_osStartThread(&sMainThread);
     // MM_osSetThreadPri(NULL, OS_PRIORITY_IDLE);
 

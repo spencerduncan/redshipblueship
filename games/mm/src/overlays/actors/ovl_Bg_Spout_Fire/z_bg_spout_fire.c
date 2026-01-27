@@ -190,12 +190,12 @@ void BgSpoutFire_Draw(Actor* thisx, PlayState* play) {
 
     gfx = MM_Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_20);
     POLY_XLU_DISP = gfx;
-    gSPSegment(&gfx[0], 0x08, sFlameTextures[this->flameTexIndex]);
+    MM_gSPSegment(&gfx[0], 0x08, sFlameTextures[this->flameTexIndex]);
     gDPSetPrimColor(&gfx[1], 0, 1, 255, 255, 0, 150);
     gDPSetEnvColor(&gfx[2], 255, 0, 0, 255);
     MM_Matrix_Translate(-55.0f, 0.0f, 0.0f, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(&gfx[3], play->state.gfxCtx);
-    gSPDisplayList(&gfx[4], object_fwall_DL_000040);
+    MM_gSPDisplayList(&gfx[4], object_fwall_DL_000040);
     POLY_XLU_DISP = &gfx[5];
 
     CLOSE_DISPS(play->state.gfxCtx);

@@ -1,10 +1,10 @@
 #include "ultra64.h"
 
 void* MM_osViGetCurrentFramebuffer(void) {
-    register u32 prevInt = __osDisableInt();
+    register u32 prevInt = MM___osDisableInt();
     void* curBuf = __osViCurr->buffer;
 
-    __osRestoreInt(prevInt);
+    MM___osRestoreInt(prevInt);
 
     return curBuf;
 }

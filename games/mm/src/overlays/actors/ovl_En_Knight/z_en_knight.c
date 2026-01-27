@@ -3938,7 +3938,7 @@ void EnKnight_DrawEffectBlure(EnKnight* this, PlayState* play) {
     AnimatedMat_Draw(play, Lib_SegmentedToVirtual(&gKnightBlureTexAnim));
 
     // BENTODO, will this work on 64 bit.
-    gSPDisplayList(POLY_XLU_DISP++, 0x08000000 | 1);
+    MM_gSPDisplayList(POLY_XLU_DISP++, 0x08000000 | 1);
 
     if (this == sIgosInstance) {
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, (u8)(sREG(11) + 180), 255, 255,
@@ -3961,16 +3961,16 @@ void EnKnight_DrawEffectBlure(EnKnight* this, PlayState* play) {
 
     switch (this->blureState) {
         case 0:
-            gSPDisplayList(POLY_XLU_DISP++, gKnightBlureState0DL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gKnightBlureState0DL);
             break;
 
         case 1:
-            gSPDisplayList(POLY_XLU_DISP++, gKnightBlureState1DL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gKnightBlureState1DL);
             break;
 
         default:
         case 2:
-            gSPDisplayList(POLY_XLU_DISP++, gKnightBlureState2DL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gKnightBlureState2DL);
             break;
     }
 
@@ -4177,15 +4177,15 @@ void EnKnight_Draw(Actor* thisx, PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x0A, EnKnight_BuildEmptyDL(play->state.gfxCtx));
-    gSPSegment(POLY_XLU_DISP++, 0x0A, EnKnight_BuildEmptyDL(play->state.gfxCtx));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0A, EnKnight_BuildEmptyDL(play->state.gfxCtx));
+    MM_gSPSegment(POLY_XLU_DISP++, 0x0A, EnKnight_BuildEmptyDL(play->state.gfxCtx));
 
     if (this->bodyAlpha >= 254.0f) {
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
-        gSPSegment(POLY_OPA_DISP++, 0x09, EnKnight_BuildEmptyDL(play->state.gfxCtx));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x09, EnKnight_BuildEmptyDL(play->state.gfxCtx));
     } else {
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-        gSPSegment(POLY_XLU_DISP++, 0x09, EnKnight_BuildXluMaterialDL(play->state.gfxCtx, (u32)this->bodyAlpha));
+        MM_gSPSegment(POLY_XLU_DISP++, 0x09, EnKnight_BuildXluMaterialDL(play->state.gfxCtx, (u32)this->bodyAlpha));
         drawXlu = true;
     }
 
@@ -4232,7 +4232,7 @@ void EnKnight_Draw(Actor* thisx, PlayState* play) {
         if (this->shieldLightReflectionScale > 0.01f) {
             Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-            gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
 
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, (u8)(sREG(18) + 220), (u8)(sREG(16) + 170));
             gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, (u8)(sREG(22) + 100), 128);
@@ -4246,7 +4246,7 @@ void EnKnight_Draw(Actor* thisx, PlayState* play) {
             MM_Matrix_Scale(scale, scale, 1.0f, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
         }
     }
 
@@ -4296,8 +4296,8 @@ void EnKnight_DrawAfterImage(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-    gSPSegment(POLY_XLU_DISP++, 0x09, EnKnight_BuildXluMaterialDL(play->state.gfxCtx, this->bodyAlpha));
-    gSPSegment(POLY_XLU_DISP++, 0x0A, EnKnight_BuildXluMaterialDL(play->state.gfxCtx, this->bodyAlpha));
+    MM_gSPSegment(POLY_XLU_DISP++, 0x09, EnKnight_BuildXluMaterialDL(play->state.gfxCtx, this->bodyAlpha));
+    MM_gSPSegment(POLY_XLU_DISP++, 0x0A, EnKnight_BuildXluMaterialDL(play->state.gfxCtx, this->bodyAlpha));
     MM_Matrix_Translate(this->afterImageOffset.x, this->afterImageOffset.y, this->afterImageOffset.z, MTXMODE_APPLY);
     POLY_XLU_DISP =
         MM_SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
@@ -4385,14 +4385,14 @@ void EnKnight_DrawEffects(EnKnight* this, PlayState* play) {
         gDPPipeSync(POLY_XLU_DISP++);
 
         if (materialFlag == 0) {
-            gSPDisplayList(POLY_XLU_DISP++, gFrozenSteamMaterialDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gFrozenSteamMaterialDL);
             gDPSetEnvColor(POLY_XLU_DISP++, 155, 145, 155, 128);
             materialFlag++;
         }
 
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 155, 155, 255, eff->alpha);
 
-        gSPSegment(POLY_XLU_DISP++, 0x08,
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                    MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, (eff->scrollTimer + i * 3) * 3,
                                     (eff->scrollTimer + i * 3) * 15, 32, 64, 1, 0, 0, 32, 32));
 
@@ -4401,7 +4401,7 @@ void EnKnight_DrawEffects(EnKnight* this, PlayState* play) {
         MM_Matrix_Scale(eff->scale, eff->scale, 1.0f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gFrozenSteamModelDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gFrozenSteamModelDL);
     }
 
     CLOSE_DISPS(gfxCtx);

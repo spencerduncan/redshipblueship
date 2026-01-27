@@ -41,7 +41,7 @@ void MM_osCreateViManager(OSPri pri) {
             MM_osSetThreadPri(NULL, pri);
         }
 
-        prevInt = __osDisableInt();
+        prevInt = MM___osDisableInt();
         __osViDevMgr.active = true;
         __osViDevMgr.thread = &MM_viThread;
         __osViDevMgr.cmdQueue = &viEventQueue;
@@ -50,10 +50,10 @@ void MM_osCreateViManager(OSPri pri) {
         __osViDevMgr.piDmaCallback = NULL;
         __osViDevMgr.epiDmaCallback = NULL;
 
-        osCreateThread(&MM_viThread, 0, &MM_viMgrMain, &__osViDevMgr, STACK_TOP(sViStack), pri);
+        MM_osCreateThread(&MM_viThread, 0, &MM_viMgrMain, &__osViDevMgr, STACK_TOP(sViStack), pri);
         __osViInit();
         MM_osStartThread(&MM_viThread);
-        __osRestoreInt(prevInt);
+        MM___osRestoreInt(prevInt);
         if (newPri != -1) {
             MM_osSetThreadPri(NULL, newPri);
         }

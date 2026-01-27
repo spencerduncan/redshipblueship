@@ -165,7 +165,7 @@ void RegisterShoulds() {
 
         gDPSetCombineMode(POLY_OPA_DISP++, G_CC_MODULATEIA_PRIM, G_CC_MODULATEIA_PRIM);
 
-        gSPVertex(POLY_OPA_DISP++, (uintptr_t)&sRandVtxData[20 * fileIndex], 20, 0);
+        MM_gSPVertex(POLY_OPA_DISP++, (uintptr_t)&sRandVtxData[20 * fileIndex], 20, 0);
 
         gDPLoadTextureBlock_4b(POLY_OPA_DISP++, gFileSelRandIconTex, G_IM_FMT_I, RAND_ICON_WIDTH, RAND_ICON_HEIGHT, 0,
                                G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK,

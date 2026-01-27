@@ -812,6 +812,6 @@ void MM_PadMgr_Init(OSMesgQueue* siEvtQ, IrqMgr* irqMgr, OSId threadId, OSPri pr
     MM_osContSetCh(sPadMgrInstance->nControllers);
     PadMgr_ReleaseSerialEventQueue(siEvtQ);
 
-    // osCreateThread(&sPadMgrInstance->thread, threadId, MM_PadMgr_ThreadEntry, sPadMgrInstance, stack, pri);
+    // MM_osCreateThread(&sPadMgrInstance->thread, threadId, MM_PadMgr_ThreadEntry, sPadMgrInstance, stack, pri);
     // MM_osStartThread(&sPadMgrInstance->thread);
 }

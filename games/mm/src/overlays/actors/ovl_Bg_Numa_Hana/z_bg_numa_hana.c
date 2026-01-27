@@ -383,7 +383,7 @@ void BgNumaHana_Draw(Actor* thisx, PlayState* play2) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gWoodenFlowerStalkDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gWoodenFlowerStalkDL);
 
     for (i = 0; i < ARRAY_COUNT(this->innerPetalPosRot); i++) {
         innerPetalPosRot = &this->innerPetalPosRot[i];
@@ -393,13 +393,13 @@ void BgNumaHana_Draw(Actor* thisx, PlayState* play2) {
                                      &innerPetalPosRot->rot);
         MM_Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gWoodenFlowerInnerPetalDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gWoodenFlowerInnerPetalDL);
 
         MM_Matrix_SetTranslateRotateYXZ(outerPetalPosRot->pos.x, outerPetalPosRot->pos.y, outerPetalPosRot->pos.z,
                                      &outerPetalPosRot->rot);
         MM_Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gWoodenFlowerOuterPetalDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gWoodenFlowerOuterPetalDL);
     }
 
     objectSlot = Object_GetSlot(&play->objectCtx, OBJECT_SYOKUDAI);
@@ -408,8 +408,8 @@ void BgNumaHana_Draw(Actor* thisx, PlayState* play2) {
                                      this->dyna.actor.world.pos.z, &this->dyna.actor.shape.rot);
         MM_Matrix_Scale(1.5f, 1.5f, 1.5f, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[objectSlot].segment);
-        gSPDisplayList(POLY_OPA_DISP++, gObjectSyokudaiTypeNoSwitchDL);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[objectSlot].segment);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gObjectSyokudaiTypeNoSwitchDL);
     }
 
     FireObj_Draw(play, &this->fire);

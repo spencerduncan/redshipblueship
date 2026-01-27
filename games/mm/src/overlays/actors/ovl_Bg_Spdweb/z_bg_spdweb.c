@@ -495,17 +495,17 @@ void BgSpdweb_Draw(Actor* thisx, PlayState* play) {
 
     gfx = POLY_XLU_DISP;
 
-    gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
 
     if (thisx->params == BGSPDWEB_FF_1) {
         MATRIX_FINALIZE_AND_LOAD(&gfx[1], play->state.gfxCtx);
-        gSPDisplayList(&gfx[2], object_spdweb_DL_000060);
+        MM_gSPDisplayList(&gfx[2], object_spdweb_DL_000060);
     } else {
         MM_Matrix_Translate(0.0f, (thisx->home.pos.y - thisx->world.pos.y) * 10.0f, 0.0f, MTXMODE_APPLY);
         MM_Matrix_Scale(1.0f, ((thisx->home.pos.y - thisx->world.pos.y) + 10.0f) * 0.1f, 1.0f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(&gfx[1], play->state.gfxCtx);
-        gSPDisplayList(&gfx[2], object_spdweb_DL_0012F0);
+        MM_gSPDisplayList(&gfx[2], object_spdweb_DL_0012F0);
     }
 
     POLY_XLU_DISP = &gfx[3];

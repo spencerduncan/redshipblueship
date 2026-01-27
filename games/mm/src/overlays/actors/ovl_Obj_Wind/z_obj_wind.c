@@ -156,7 +156,7 @@ void ObjWind_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
     AnimatedMat_Draw(play, Lib_SegmentedToVirtual(&gameplay_keep_Matanimheader_07F218));
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, gameplay_keep_DL_07E8C0);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gameplay_keep_DL_07E8C0);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

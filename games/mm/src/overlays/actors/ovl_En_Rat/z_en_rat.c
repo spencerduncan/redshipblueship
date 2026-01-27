@@ -932,8 +932,8 @@ void EnRat_PostLimbDraw(PlayState* play2, s32 limbIndex, Gfx** dList, Vec3s* rot
                 currentMatrixState->mf[3][1] = this->smokePos.y + ptr->y;
                 currentMatrixState->mf[3][2] = this->smokePos.z + ptr->z;
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-                gSPSegment(POLY_XLU_DISP++, 0x08, sSparkTextures[(play->gameplayFrames + i) & 3]);
-                gSPDisplayList(POLY_XLU_DISP++, gEffSparkDL);
+                MM_gSPSegment(POLY_XLU_DISP++, 0x08, sSparkTextures[(play->gameplayFrames + i) & 3]);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gEffSparkDL);
             }
 
             MM_Matrix_Scale(1.0f / 45.0f, 1.0f / 45.0f, 1.0f / 45.0f, MTXMODE_APPLY);
@@ -943,7 +943,7 @@ void EnRat_PostLimbDraw(PlayState* play2, s32 limbIndex, Gfx** dList, Vec3s* rot
         }
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gBombCapDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gBombCapDL);
         if (EN_RAT_GET_TYPE(&this->actor) == EN_RAT_TYPE_DUNGEON) {
             redModifier = fabsf(MM_Math_CosF(this->timer * (M_PIf / 30.f)));
         } else {
@@ -960,7 +960,7 @@ void EnRat_PostLimbDraw(PlayState* play2, s32 limbIndex, Gfx** dList, Vec3s* rot
         gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, (s32)((1.0f - redModifier) * 255.0f), 0, 40, 255);
         MM_Matrix_RotateZYX(0x4000, 0, 0, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gBombBodyDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gBombBodyDL);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }

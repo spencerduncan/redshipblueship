@@ -31,7 +31,7 @@ typedef struct {
 #define ORIGIN(v) v
 #define VINTR(v) v
 #define HSTART START
-s32 osTvType = OS_TV_NTSC;
+s32 MM_osTvType = OS_TV_NTSC;
 void MM_ViMode_LogPrint(OSViMode* osViMode) {
 }
 
@@ -258,7 +258,7 @@ void MM_ViMode_Init(ViMode* viMode) {
     viMode->upperAdjust = 0;
     viMode->lowerAdjust = 0;
     viMode->viFeatures = OS_VI_DITHER_FILTER_ON | OS_VI_GAMMA_OFF;
-    viMode->tvType = osTvType;
+    viMode->tvType = MM_osTvType;
     viMode->fb16Bit = true;
     viMode->modeN = true;
     viMode->antialiasOff = false;
@@ -393,7 +393,7 @@ void MM_ViMode_Update(ViMode* viMode, Input* input) {
             }
         }
 
-        MM_ViMode_Configure(&viMode->customViMode, OS_VI_UNK28, osTvType, viMode->loRes, viMode->antialiasOff,
+        MM_ViMode_Configure(&viMode->customViMode, OS_VI_UNK28, MM_osTvType, viMode->loRes, viMode->antialiasOff,
                          viMode->modeN, viMode->fb16Bit, viMode->viWidth, viMode->viHeight, viMode->leftAdjust,
                          viMode->rightAdjust, viMode->upperAdjust, viMode->lowerAdjust);
         MM_ViMode_ConfigureFeatures(viMode, viMode->viFeatures);

@@ -86,7 +86,7 @@ void SysCfb_SetHiResMode(void) {
 
         rightAdjust = gCfbWidth - 610;
         lowerAdjust = gCfbHeight - 470;
-        MM_ViMode_Configure(&sNotebookViMode, -1, osTvType, 0, 1, 0, 1, gCfbWidth, gCfbHeight, 30, rightAdjust, 10,
+        MM_ViMode_Configure(&sNotebookViMode, -1, MM_osTvType, 0, 1, 0, 1, gCfbWidth, gCfbHeight, 30, rightAdjust, 10,
                          lowerAdjust);
         gActiveViMode = &sNotebookViMode;
     }

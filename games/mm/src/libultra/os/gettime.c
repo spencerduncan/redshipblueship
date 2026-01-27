@@ -6,13 +6,13 @@ OSTime MM_osGetTime(void) {
     OSTime currentCount;
     register u32 savedMask;
 
-    savedMask = __osDisableInt();
+    savedMask = MM___osDisableInt();
 
     CurrentCount = osGetCount();
     elapseCount = CurrentCount - __osBaseCounter;
     currentCount = __osCurrentTime;
 
-    __osRestoreInt(savedMask);
+    MM___osRestoreInt(savedMask);
 
     return elapseCount + currentCount;
 }

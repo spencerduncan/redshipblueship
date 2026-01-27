@@ -1169,7 +1169,7 @@ void MM_AudioLoad_Init(void* heap, size_t heapSize) {
 
     memset(&gAudioCtx, 0, sizeof(gAudioCtx));
 
-    switch (osTvType) {
+    switch (MM_osTvType) {
         case OS_TV_PAL:
             gAudioCtx.unk_2960 = 20.03042f;
             gAudioCtx.refreshRate = 50;

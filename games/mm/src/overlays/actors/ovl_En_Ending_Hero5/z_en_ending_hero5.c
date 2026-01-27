@@ -73,7 +73,7 @@ void EnEndingHero5_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec
     OPEN_DISPS(play->state.gfxCtx);
 
     if (limbIndex == OBJECT_DAIKU_LIMB_0F) {
-        gSPDisplayList(POLY_OPA_DISP++, D_80C23BF0[this->unk25C]);
+        MM_gSPDisplayList(POLY_OPA_DISP++, D_80C23BF0[this->unk25C]);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

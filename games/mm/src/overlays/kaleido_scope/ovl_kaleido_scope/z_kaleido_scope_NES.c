@@ -598,7 +598,7 @@ Gfx* MM_KaleidoScope_DrawPageSections(Gfx* gfx, Vtx* vertices, TexturePtr* textu
     s32 i;
     s32 j;
 
-    gSPVertex(gfx++, vertices, 8 * 4, 0);
+    MM_gSPVertex(gfx++, vertices, 8 * 4, 0);
 
     i = 0;
     j = 0;
@@ -613,7 +613,7 @@ Gfx* MM_KaleidoScope_DrawPageSections(Gfx* gfx, Vtx* vertices, TexturePtr* textu
         i++;
     }
 
-    gSPVertex(gfx++, vertices + (8 * 4), 7 * 4, 0);
+    MM_gSPVertex(gfx++, vertices + (8 * 4), 7 * 4, 0);
 
     j = 0;
     // Draw last 7/15 background textures
@@ -1005,7 +1005,7 @@ void MM_KaleidoScope_DrawPages(PlayState* play, GraphicsContext* gfxCtx) {
                 POLY_OPA_DISP = MM_KaleidoScope_DrawPageSections(POLY_OPA_DISP, pauseCtx->promptPageVtx, MM_sSaveTexs);
             }
 
-            gSPVertex(POLY_OPA_DISP++, &pauseCtx->promptPageVtx[60], 32, 0);
+            MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->promptPageVtx[60], 32, 0);
 
             if (((pauseCtx->state == PAUSE_STATE_SAVEPROMPT) &&
                  ((pauseCtx->savePromptState <= PAUSE_SAVEPROMPT_STATE_4) ||
@@ -1020,9 +1020,9 @@ void MM_KaleidoScope_DrawPages(PlayState* play, GraphicsContext* gfxCtx) {
                                   TEXEL0, 0, PRIMITIVE, 0);
                 gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 100, 100, 255, pauseCtx->promptAlpha);
                 if (pauseCtx->promptChoice == PAUSE_PROMPT_YES) {
-                    gSPDisplayList(POLY_OPA_DISP++, gPromptCursorLeftDL);
+                    MM_gSPDisplayList(POLY_OPA_DISP++, gPromptCursorLeftDL);
                 } else {
-                    gSPDisplayList(POLY_OPA_DISP++, gPromptCursorRightDL);
+                    MM_gSPDisplayList(POLY_OPA_DISP++, gPromptCursorRightDL);
                 }
                 gDPPipeSync(POLY_OPA_DISP++);
                 gDPSetCombineMode(POLY_OPA_DISP++, G_CC_MODULATEIA, G_CC_MODULATEIA);
@@ -1043,9 +1043,9 @@ void MM_KaleidoScope_DrawPages(PlayState* play, GraphicsContext* gfxCtx) {
                                   TEXEL0, 0, PRIMITIVE, 0);
                 gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 100, 100, 255, pauseCtx->promptAlpha);
                 if (pauseCtx->promptChoice == PAUSE_PROMPT_YES) {
-                    gSPDisplayList(POLY_OPA_DISP++, gPromptCursorLeftDL);
+                    MM_gSPDisplayList(POLY_OPA_DISP++, gPromptCursorLeftDL);
                 } else {
-                    gSPDisplayList(POLY_OPA_DISP++, gPromptCursorRightDL);
+                    MM_gSPDisplayList(POLY_OPA_DISP++, gPromptCursorRightDL);
                 }
                 gDPPipeSync(POLY_OPA_DISP++);
                 gDPSetCombineMode(POLY_OPA_DISP++, G_CC_MODULATEIA, G_CC_MODULATEIA);
@@ -1242,23 +1242,23 @@ void MM_KaleidoScope_DrawInfoPanel(PlayState* play) {
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
 
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 150, 140, 90, 255);
-    gSPVertex(POLY_OPA_DISP++, &pauseCtx->infoPanelVtx[0], 16, 0);
+    MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->infoPanelVtx[0], 16, 0);
 
-    gSPDisplayList(POLY_OPA_DISP++, gItemNamePanelDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gItemNamePanelDL);
 
     if ((pauseCtx->cursorSpecialPos == PAUSE_CURSOR_PAGE_LEFT) &&
         (!pauseCtx->mainState || (pauseCtx->mainState == PAUSE_MAIN_STATE_UNK))) {
         gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 150, 140, 90, sPauseZRCursorAlpha);
     }
 
-    gSPDisplayList(POLY_OPA_DISP++, gZButtonIconDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gZButtonIconDL);
 
     if ((pauseCtx->cursorSpecialPos == PAUSE_CURSOR_PAGE_RIGHT) &&
         (!pauseCtx->mainState || (pauseCtx->mainState == PAUSE_MAIN_STATE_UNK))) {
         gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 150, 140, 90, sPauseZRCursorAlpha);
     }
 
-    gSPDisplayList(POLY_OPA_DISP++, gRButtonIconDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gRButtonIconDL);
 
     if (pauseCtx->cursorSpecialPos != 0) {
         j = (pauseCtx->cursorSpecialPos * 4) - 32;
@@ -1300,7 +1300,7 @@ void MM_KaleidoScope_DrawInfoPanel(PlayState* play) {
 
             pauseCtx->infoPanelVtx[17].v.tc[0] = pauseCtx->infoPanelVtx[19].v.tc[0] = 128 * (1 << 5);
 
-            gSPVertex(POLY_OPA_DISP++, &pauseCtx->infoPanelVtx[16], 4, 0);
+            MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->infoPanelVtx[16], 4, 0);
 
             if (pauseCtx->nameColorSet == PAUSE_NAME_COLOR_SET_GREY) {
                 gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 70, 70, 70, 255);
@@ -1321,7 +1321,7 @@ void MM_KaleidoScope_DrawInfoPanel(PlayState* play) {
 
         pauseCtx->infoPanelVtx[22].v.tc[1] = pauseCtx->infoPanelVtx[23].v.tc[1] = 16 * (1 << 5);
 
-        gSPVertex(POLY_OPA_DISP++, &pauseCtx->infoPanelVtx[16], 8, 0);
+        MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->infoPanelVtx[16], 8, 0);
 
         if (pauseCtx->state == PAUSE_STATE_SAVEPROMPT) {
             pauseCtx->infoPanelVtx[16].v.ob[0] = pauseCtx->infoPanelVtx[18].v.ob[0] = -33;
@@ -1340,7 +1340,7 @@ void MM_KaleidoScope_DrawInfoPanel(PlayState* play) {
             // #region 2S2H - fixed vtx size for correct texture size
             pauseCtx->infoPanelVtx[21].v.tc[0] = pauseCtx->infoPanelVtx[23].v.tc[0] = 64 * (1 << 5);
 
-            gSPDisplayList(POLY_OPA_DISP++, gAButtonIconDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gAButtonIconDL);
             gDPPipeSync(POLY_OPA_DISP++);
             gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, 255);
 
@@ -1386,7 +1386,7 @@ void MM_KaleidoScope_DrawInfoPanel(PlayState* play) {
 
             pauseCtx->infoPanelVtx[21].v.tc[0] = pauseCtx->infoPanelVtx[23].v.tc[0] = 64 * (1 << 5);
 
-            gSPDisplayList(POLY_OPA_DISP++, gCButtonIconsDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gCButtonIconsDL);
 
             gDPPipeSync(POLY_OPA_DISP++);
             gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, 255);
@@ -1413,7 +1413,7 @@ void MM_KaleidoScope_DrawInfoPanel(PlayState* play) {
 
                 pauseCtx->infoPanelVtx[21].v.tc[0] = pauseCtx->infoPanelVtx[23].v.tc[0] = 96 * (1 << 5);
 
-                gSPDisplayList(POLY_OPA_DISP++, gAButtonIconDL);
+                MM_gSPDisplayList(POLY_OPA_DISP++, gAButtonIconDL);
 
                 gDPPipeSync(POLY_OPA_DISP++);
                 gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, 255);
@@ -1438,7 +1438,7 @@ void MM_KaleidoScope_DrawInfoPanel(PlayState* play) {
 
             pauseCtx->infoPanelVtx[21].v.tc[0] = pauseCtx->infoPanelVtx[23].v.tc[0] = 96 * (1 << 5);
 
-            gSPDisplayList(POLY_OPA_DISP++, gAButtonIconDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gAButtonIconDL);
 
             gDPPipeSync(POLY_OPA_DISP++);
             gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, 255);
@@ -1698,9 +1698,9 @@ void KaleidoScope_DrawOwlWarpInfoPanel(PlayState* play) {
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
 
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 150, 140, 90, 255);
-    gSPVertex(POLY_OPA_DISP++, &pauseCtx->infoPanelVtx[0], 16, 0);
+    MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->infoPanelVtx[0], 16, 0);
 
-    gSPDisplayList(POLY_OPA_DISP++, gItemNamePanelDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gItemNamePanelDL);
 
     if (pauseCtx->cursorSpecialPos != 0) {
         j = (pauseCtx->cursorSpecialPos * 4) - 32;
@@ -1729,7 +1729,7 @@ void KaleidoScope_DrawOwlWarpInfoPanel(PlayState* play) {
 
         pauseCtx->infoPanelVtx[17].v.tc[0] = pauseCtx->infoPanelVtx[19].v.tc[0] = 128 * (1 << 5);
 
-        gSPVertex(POLY_OPA_DISP++, &pauseCtx->infoPanelVtx[16], 4, 0);
+        MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->infoPanelVtx[16], 4, 0);
 
         if (pauseCtx->nameColorSet == PAUSE_NAME_COLOR_SET_GREY) {
             gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 70, 70, 70, 255);
@@ -3080,7 +3080,7 @@ void MM_KaleidoScope_DrawCursor(PlayState* play) {
             gDPLoadTextureBlock(POLY_OPA_DISP++, gPauseMenuCursorTex, G_IM_FMT_IA, G_IM_SIZ_8b, 16, 16, 0,
                                 G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK,
                                 G_TX_NOLOD, G_TX_NOLOD);
-            gSPVertex(POLY_OPA_DISP++, &pauseCtx->cursorVtx[0], 4, 0);
+            MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->cursorVtx[0], 4, 0);
             gSP1Quadrangle(POLY_OPA_DISP++, 0, 2, 3, 1, 0);
             MM_Matrix_Pop();
         }
@@ -3146,13 +3146,13 @@ void MM_KaleidoScope_Draw(PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x02, interfaceCtx->parameterSegment);
-    gSPSegment(POLY_OPA_DISP++, 0x08, pauseCtx->iconItemSegment);
-    gSPSegment(POLY_OPA_DISP++, 0x09, pauseCtx->iconItem24Segment);
-    gSPSegment(POLY_OPA_DISP++, 0x0A, pauseCtx->nameSegment);
-    gSPSegment(POLY_OPA_DISP++, 0x0C, pauseCtx->iconItemAltSegment);
-    gSPSegment(POLY_OPA_DISP++, 0x0D, pauseCtx->iconItemLangSegment);
-    gSPSegment(POLY_OPA_DISP++, 0x0B, pauseCtx->iconItemVtxSegment);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x02, interfaceCtx->parameterSegment);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, pauseCtx->iconItemSegment);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x09, pauseCtx->iconItem24Segment);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0A, pauseCtx->nameSegment);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0C, pauseCtx->iconItemAltSegment);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0D, pauseCtx->iconItemLangSegment);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0B, pauseCtx->iconItemVtxSegment);
 
     if (pauseCtx->debugEditor == DEBUG_EDITOR_NONE) {
         MM_KaleidoScope_SetView(pauseCtx, pauseCtx->eye.x, pauseCtx->eye.y, pauseCtx->eye.z);

@@ -1184,7 +1184,7 @@ void EnSnowman_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* 
         }
 
         MATRIX_FINALIZE_AND_LOAD(&gfx[0], play->state.gfxCtx);
-        gSPDisplayList(&gfx[1], sSnowballDLs[EN_SNOWMAN_GET_TYPE(&this->actor)]);
+        MM_gSPDisplayList(&gfx[1], sSnowballDLs[EN_SNOWMAN_GET_TYPE(&this->actor)]);
 
         POLY_OPA_DISP = &gfx[2];
 

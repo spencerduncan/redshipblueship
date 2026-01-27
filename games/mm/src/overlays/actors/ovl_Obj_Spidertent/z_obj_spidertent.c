@@ -810,10 +810,10 @@ void ObjSpidertent_Draw(Actor* thisx, PlayState* play) {
 
     gfx = POLY_XLU_DISP;
 
-    gSPDisplayList(gfx++, gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(gfx++, gSetupDLs[SETUPDL_25]);
     MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
     gDPSetPrimColor(gfx++, 0, 0xFF, this->unk_3C2, this->unk_3C3, this->unk_3C4, temp_f18);
-    gSPDisplayList(gfx++, D_80B31350[params].unk_00);
+    MM_gSPDisplayList(gfx++, D_80B31350[params].unk_00);
 
     POLY_XLU_DISP = gfx;
     CLOSE_DISPS(play->state.gfxCtx);

@@ -848,7 +848,7 @@ void MM_EnFz_Draw(Actor* thisx, PlayState* play) {
         func_800B8118(&this->actor, play, 0);
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-        gSPSegment(POLY_XLU_DISP++, 0x08,
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                    MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, play->state.frames % 128, 0x20, 0x20, 1, 0,
                                     (play->state.frames * 2) % 128, 0x20, 0x20));
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
@@ -856,7 +856,7 @@ void MM_EnFz_Draw(Actor* thisx, PlayState* play) {
                           PRIMITIVE, ENVIRONMENT, COMBINED, ENVIRONMENT, COMBINED, 0, ENVIRONMENT, 0);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, 155, 255, 255, 255);
         gDPSetEnvColor(POLY_XLU_DISP++, 200, 200, 200, this->unk_BC0);
-        gSPDisplayList(POLY_XLU_DISP++, D_809347BC[sp9C]);
+        MM_gSPDisplayList(POLY_XLU_DISP++, D_809347BC[sp9C]);
     }
 
     func_80934464(this, play);
@@ -1007,12 +1007,12 @@ void func_80934464(EnFz* this, PlayState* play) {
             gDPPipeSync(POLY_XLU_DISP++);
 
             if (flag == 0) {
-                gSPDisplayList(POLY_XLU_DISP++, gFrozenSteamMaterialDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gFrozenSteamMaterialDL);
                 flag++;
             }
 
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 195, 225, 235, ptr->unk_2C);
-            gSPSegment(POLY_XLU_DISP++, 0x08,
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                        MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, (ptr->unk_01 + (i * 3)) * 3,
                                         (ptr->unk_01 + (i * 3)) * 15, 0x20, 0x40, 1, 0, 0, 0x20, 0x20));
 
@@ -1021,7 +1021,7 @@ void func_80934464(EnFz* this, PlayState* play) {
             MM_Matrix_Scale(ptr->unk_30, ptr->unk_30, 1.0f, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gFrozenSteamModelDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gFrozenSteamModelDL);
             FrameInterpolation_RecordCloseChild();
         }
     }

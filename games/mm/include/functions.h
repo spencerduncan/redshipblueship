@@ -305,9 +305,9 @@ void Audio_ResetForAudioHeapStep1(s32 specId);
 void MM_Audio_PreNMI(void);
 
 // #region 2S2H [Port] Made Available via C++
-s32 osContInit(OSMesgQueue* mq, u8* controllerBits, OSContStatus* status);
-s32 osContStartReadData(OSMesgQueue* mesg);
-void osContGetReadData(OSContPad* pad);
+s32 MM_osContInit(OSMesgQueue* mq, u8* controllerBits, OSContStatus* status);
+s32 MM_osContStartReadData(OSMesgQueue* mesg);
+void MM_osContGetReadData(OSContPad* pad);
 // #endregion
 // #region 2S2H [Port] Previously unavailable functions, made available for porting
 void MM_PadMgr_ThreadEntry();
@@ -336,29 +336,29 @@ void Flags_SetRandoInf(s32 flag);
 void Flags_ClearRandoInf(s32 flag);
 // #endregion
 // #region 2S2H [Port] Stubbed methods
-void osSetThreadPri(OSThread* thread, OSPri p);
-OSPri osGetThreadPri(OSThread* t);
-void osSyncPrintfUnused(const char* fmt, ...);
+void MM_osSetThreadPri(OSThread* thread, OSPri p);
+OSPri MM_osGetThreadPri(OSThread* t);
+void MM_osSyncPrintfUnused(const char* fmt, ...);
 void osSyncPrintf(const char* fmt, ...);
 void MM_rmonPrintf(const char* fmt, ...);
-void osCreateThread(OSThread* thread, OSId id, void* entry, void* arg, void* sp, OSPri p);
-void osStartThread(OSThread* t);
-void osViSwapBuffer(void* frameBufPtr);
-void osViBlack(u8 active);
-void osDestroyThread(OSThread* t);
-void osViSetMode(OSViMode* modep);
-void osViSetSpecialFeatures(u32 func);
-s32 osContStartQuery(OSMesgQueue* mq);
-s32 osContSetCh(u8 ch);
-void osContGetQuery(OSContStatus* data);
-void osSpTaskLoad(OSTask* intp);
-void osSpTaskStartGo(OSTask* tp);
-void* osViGetCurrentFramebuffer(void);
-void* osViGetNextFramebuffer(void);
-OSYieldResult osSpTaskYielded(OSTask* task);
-void osSpTaskYield(void);
-void osViSetXScale(f32 value);
-void osViSetYScale(f32 value);
+void MM_osCreateThread(OSThread* thread, OSId id, void* entry, void* arg, void* sp, OSPri p);
+void MM_osStartThread(OSThread* t);
+void MM_osViSwapBuffer(void* frameBufPtr);
+void MM_osViBlack(u8 active);
+void MM_osDestroyThread(OSThread* t);
+void MM_osViSetMode(OSViMode* modep);
+void MM_osViSetSpecialFeatures(u32 func);
+s32 MM_osContStartQuery(OSMesgQueue* mq);
+s32 MM_osContSetCh(u8 ch);
+void MM_osContGetQuery(OSContStatus* data);
+void MM_osSpTaskLoad(OSTask* intp);
+void MM_osSpTaskStartGo(OSTask* tp);
+void* MM_osViGetCurrentFramebuffer(void);
+void* MM_osViGetNextFramebuffer(void);
+OSYieldResult MM_osSpTaskYielded(OSTask* task);
+void MM_osSpTaskYield(void);
+void MM_osViSetXScale(f32 value);
+void MM_osViSetYScale(f32 value);
 // #endregion
 
 void MM_Regs_InitData(PlayState* play);

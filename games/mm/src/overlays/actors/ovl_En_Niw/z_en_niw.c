@@ -1000,7 +1000,7 @@ void EnNiw_DrawFeathers(EnNiw* this, PlayState* play) {
         if (feather->isEnabled == true) {
             // Apply the feather material if it has not already been applied.
             if (!isMaterialApplied) {
-                gSPDisplayList(POLY_XLU_DISP++, gNiwFeatherMaterialDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gNiwFeatherMaterialDL);
                 isMaterialApplied++;
             }
 
@@ -1012,7 +1012,7 @@ void EnNiw_DrawFeathers(EnNiw* this, PlayState* play) {
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
 
-            gSPDisplayList(POLY_XLU_DISP++, gNiwFeatherDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gNiwFeatherDL);
         }
     }
 

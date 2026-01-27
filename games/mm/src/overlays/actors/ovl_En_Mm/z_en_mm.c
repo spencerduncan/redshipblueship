@@ -219,7 +219,7 @@ void MM_EnMm_Draw(Actor* thisx, PlayState* play) {
         Matrix_RotateYS(-rotY, MTXMODE_APPLY);
     }
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_055628);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_055628);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

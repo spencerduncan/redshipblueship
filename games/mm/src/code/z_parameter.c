@@ -6609,7 +6609,7 @@ void Interface_DrawAButton(PlayState* play) {
     // Draw A button Shadow
     MATRIX_FINALIZE_AND_LOAD(OVERLAY_DISP++, play->state.gfxCtx);
     gDPPipeSync(OVERLAY_DISP++);
-    gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[4], 4, 0);
+    MM_gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[4], 4, 0);
     gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 0, 0, 0, aAlpha);
 
     OVERLAY_DISP = Gfx_DrawTexQuadIA8(OVERLAY_DISP, gButtonBackgroundTex, 32, 32, 0);
@@ -6617,7 +6617,7 @@ void Interface_DrawAButton(PlayState* play) {
     // Draw A Button Colored
     gDPPipeSync(OVERLAY_DISP++);
     Interface_SetPerspectiveView(play, 23 + R_A_BTN_Y_OFFSET, 68 + R_A_BTN_Y_OFFSET, 190, 235);
-    gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[0], 4, 0);
+    MM_gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[0], 4, 0);
     gDPSetPrimColorOverride(OVERLAY_DISP++, 0, 0, 100, 200, 255, interfaceCtx->aAlpha, COSMETIC_ELEMENT_A_BUTTON);
     gSP1Quadrangle(OVERLAY_DISP++, 0, 2, 3, 1, 0);
 
@@ -6635,7 +6635,7 @@ void Interface_DrawAButton(PlayState* play) {
     MM_Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
     Matrix_RotateXFApply(interfaceCtx->aButtonRoll / 10000.0f);
     MATRIX_FINALIZE_AND_LOAD(OVERLAY_DISP++, play->state.gfxCtx);
-    gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[8], 4, 0);
+    MM_gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[8], 4, 0);
 
     // Draw Action Label
     if ((interfaceCtx->aButtonState <= A_BTN_STATE_CHANGE_1_UNPAUSED) ||
@@ -6669,7 +6669,7 @@ void Interface_DrawPauseMenuEquippingIcons(PlayState* play) {
     if ((pauseCtx->state == PAUSE_STATE_MAIN) && ((pauseCtx->mainState == PAUSE_MAIN_STATE_EQUIP_ITEM) ||
                                                   (pauseCtx->mainState == PAUSE_MAIN_STATE_EQUIP_MASK))) {
         // Inventory Equip Effects
-        gSPSegment(OVERLAY_DISP++, 0x08, pauseCtx->iconItemSegment);
+        MM_gSPSegment(OVERLAY_DISP++, 0x08, pauseCtx->iconItemSegment);
         Gfx_SetupDL42_Overlay(play->state.gfxCtx);
         gDPSetCombineMode(OVERLAY_DISP++, G_CC_MODULATEIA_PRIM, G_CC_MODULATEIA_PRIM);
         gDPSetAlphaCompare(OVERLAY_DISP++, G_AC_THRESHOLD);
@@ -6685,7 +6685,7 @@ void Interface_DrawPauseMenuEquippingIcons(PlayState* play) {
         if (pauseCtx->equipTargetItem < 0xB5) {
             // Normal Equip (icon goes from the inventory slot to the C button when equipping it)
             gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 255, pauseCtx->equipAnimAlpha);
-            gSPVertex(OVERLAY_DISP++, &pauseCtx->cursorVtx[16], 4, 0);
+            MM_gSPVertex(OVERLAY_DISP++, &pauseCtx->cursorVtx[16], 4, 0);
             gDPLoadTextureBlock(OVERLAY_DISP++, MM_gItemIcons[pauseCtx->equipTargetItem], G_IM_FMT_RGBA, G_IM_SIZ_32b,
                                 ICON_ITEM_TEX_WIDTH, ICON_ITEM_TEX_HEIGHT, 0, G_TX_NOMIRROR | G_TX_WRAP,
                                 G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
@@ -6707,7 +6707,7 @@ void Interface_DrawPauseMenuEquippingIcons(PlayState* play) {
                     pauseCtx->cursorVtx[16].v.ob[1] - temp * 2 - 32;
             }
 
-            gSPVertex(OVERLAY_DISP++, &pauseCtx->cursorVtx[16], 4, 0);
+            MM_gSPVertex(OVERLAY_DISP++, &pauseCtx->cursorVtx[16], 4, 0);
             gDPLoadTextureBlock(OVERLAY_DISP++, gMagicArrowEquipEffectTex, G_IM_FMT_IA, G_IM_SIZ_8b, 32, 32, 0,
                                 G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK,
                                 G_TX_NOLOD, G_TX_NOLOD);
@@ -7052,7 +7052,7 @@ void Interface_DrawClock(PlayState* play) {
                 Matrix_RotateZF(-(timeInSeconds * 0.0175f) / 10.0f, MTXMODE_APPLY);
 
                 MATRIX_FINALIZE_AND_LOAD(OVERLAY_DISP++, play->state.gfxCtx);
-                gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[12], 4, 0);
+                MM_gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[12], 4, 0);
                 gDPLoadTextureBlock_4b(OVERLAY_DISP++, gThreeDayClockStarMinuteTex, G_IM_FMT_I, 16, 16, 0,
                                        G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK,
                                        G_TX_NOLOD, G_TX_NOLOD);
@@ -7135,7 +7135,7 @@ void Interface_DrawClock(PlayState* play) {
             }
 
             MATRIX_FINALIZE_AND_LOAD(OVERLAY_DISP++, play->state.gfxCtx);
-            gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[16], 4, 0);
+            MM_gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[16], 4, 0);
 
             OVERLAY_DISP = Gfx_DrawTexQuadIA8(OVERLAY_DISP, gThreeDayClockSunHourTex, 24, 24, 0);
 
@@ -7162,7 +7162,7 @@ void Interface_DrawClock(PlayState* play) {
             }
 
             MATRIX_FINALIZE_AND_LOAD(OVERLAY_DISP++, play->state.gfxCtx);
-            gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[20], 4, 0);
+            MM_gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[20], 4, 0);
 
             OVERLAY_DISP = Gfx_DrawTexQuadIA8(OVERLAY_DISP, gThreeDayClockMoonHourTex, 24, 24, 0);
 
@@ -7235,7 +7235,7 @@ void Interface_DrawClock(PlayState* play) {
             gDPSetCombineLERP(OVERLAY_DISP++, 0, 0, 0, PRIMITIVE, TEXEL0, 0, PRIMITIVE, 0, 0, 0, 0, PRIMITIVE, TEXEL0,
                               0, PRIMITIVE, 0);
             gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 0, 0, 0, sThreeDayClockAlpha);
-            gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[24], 8, 0);
+            MM_gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[24], 8, 0);
 
             OVERLAY_DISP =
                 CVarGetInteger("gEnhancements.Graphics.24HoursClock", 0)
@@ -7278,7 +7278,7 @@ void Interface_DrawClock(PlayState* play) {
             gDPSetCombineLERP(OVERLAY_DISP++, 0, 0, 0, PRIMITIVE, TEXEL0, 0, PRIMITIVE, 0, 0, 0, 0, PRIMITIVE, TEXEL0,
                               0, PRIMITIVE, 0);
             gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 0, 0, 0, sThreeDayClockAlpha);
-            gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[32], 8, 0);
+            MM_gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[32], 8, 0);
 
             OVERLAY_DISP =
                 CVarGetInteger("gEnhancements.Graphics.24HoursClock", 0)
@@ -7291,7 +7291,7 @@ void Interface_DrawClock(PlayState* play) {
             gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 155, sThreeDayClockAlpha);
             gSP1Quadrangle(OVERLAY_DISP++, 4, 6, 7, 5, 0);
 
-            gSPDisplayList(OVERLAY_DISP++, D_0E000000_TO_SEGMENTED(setScissor));
+            MM_gSPDisplayList(OVERLAY_DISP++, D_0E000000_TO_SEGMENTED(setScissor));
 
             // Final Hours
             if ((CURRENT_DAY >= 4) ||
@@ -7968,7 +7968,7 @@ void Interface_DrawPerfectLetters(PlayState* play) {
             MM_Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(OVERLAY_DISP++, play->state.gfxCtx);
-            gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[44 + vtxOffset], 4, 0);
+            MM_gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[44 + vtxOffset], 4, 0);
 
             OVERLAY_DISP = Gfx_DrawTexQuad4b(OVERLAY_DISP, sPerfectLettersTextures[i], G_IM_FMT_I, 32, 33, 0);
 
@@ -7982,7 +7982,7 @@ void Interface_DrawPerfectLetters(PlayState* play) {
             MM_Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(OVERLAY_DISP++, play->state.gfxCtx);
-            gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[76 + vtxOffset], 4, 0);
+            MM_gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[76 + vtxOffset], 4, 0);
 
             OVERLAY_DISP = Gfx_DrawTexQuad4b(OVERLAY_DISP, sPerfectLettersTextures[i], G_IM_FMT_I, 32, 33, 0);
         }
@@ -8886,10 +8886,10 @@ void MM_Interface_Draw(PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    gSPSegment(OVERLAY_DISP++, 0x02, interfaceCtx->parameterSegment);
-    gSPSegment(OVERLAY_DISP++, 0x09, interfaceCtx->doActionSegment[DO_ACTION_SEG_A].mainTex);
-    gSPSegment(OVERLAY_DISP++, 0x08, interfaceCtx->iconItemSegment[EQUIP_SLOT_B]);
-    gSPSegment(OVERLAY_DISP++, 0x0B, interfaceCtx->mapSegment);
+    MM_gSPSegment(OVERLAY_DISP++, 0x02, interfaceCtx->parameterSegment);
+    MM_gSPSegment(OVERLAY_DISP++, 0x09, interfaceCtx->doActionSegment[DO_ACTION_SEG_A].mainTex);
+    MM_gSPSegment(OVERLAY_DISP++, 0x08, interfaceCtx->iconItemSegment[EQUIP_SLOT_B]);
+    MM_gSPSegment(OVERLAY_DISP++, 0x0B, interfaceCtx->mapSegment);
 
     if (pauseCtx->debugEditor == DEBUG_EDITOR_NONE) {
         Interface_SetVertices(play);
@@ -8899,7 +8899,7 @@ void MM_Interface_Draw(PlayState* play) {
 
         // Draw Grandma's Story
         if (interfaceCtx->storyDmaStatus == STORY_DMA_DONE) {
-            gSPSegment(OVERLAY_DISP++, 0x07, interfaceCtx->storySegment);
+            MM_gSPSegment(OVERLAY_DISP++, 0x07, interfaceCtx->storySegment);
 
             // #region 2S2H [Cosmetic] Account for different aspect ratios than 4:3
             // When larger we want to render an additional black rectangle behind the 2d image
@@ -9329,7 +9329,7 @@ void MM_Interface_Draw(PlayState* play) {
                     MM_Matrix_Scale(minigameCountdownScale, minigameCountdownScale, 0.0f, MTXMODE_APPLY);
 
                     MATRIX_FINALIZE_AND_LOAD(OVERLAY_DISP++, play->state.gfxCtx);
-                    gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[40], 4, 0);
+                    MM_gSPVertex(OVERLAY_DISP++, &interfaceCtx->actionVtx[40], 4, 0);
 
                     OVERLAY_DISP = Gfx_DrawTexQuadIA8(OVERLAY_DISP, sMinigameCountdownTextures[sp2CE],
                                                       sMinigameCountdownTexWidths[sp2CE], 32, 0);
@@ -9429,7 +9429,7 @@ void MM_Interface_Draw(PlayState* play) {
             for (sp2CC = 0; sp2CC < (PICTO_PHOTO_HEIGHT / 8); sp2CC++, pictoRectTop += 8) {
                 pictoRectLeft = PICTO_PHOTO_TOPLEFT_X;
                 // 2S2H [Port] Invalidate each section. This could probably be optimized to only be done once each pic
-                gSPInvalidateTexCache(OVERLAY_DISP++,
+                MM_gSPInvalidateTexCache(OVERLAY_DISP++,
                                       (u8*)((play->pictoPhotoI8 != NULL) ? play->pictoPhotoI8 : gWorkBuffer) +
                                           (0x500 * sp2CC));
                 gDPLoadTextureBlock(OVERLAY_DISP++,
@@ -9448,9 +9448,9 @@ void MM_Interface_Draw(PlayState* play) {
     // Draw over the entire screen (used in gameover)
     if (interfaceCtx->screenFillAlpha != 0) {
         gDPPipeSync(OVERLAY_DISP++);
-        gSPDisplayList(OVERLAY_DISP++, MM_sScreenFillSetupDL);
+        MM_gSPDisplayList(OVERLAY_DISP++, MM_sScreenFillSetupDL);
         gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 0, 0, 0, interfaceCtx->screenFillAlpha);
-        gSPDisplayList(OVERLAY_DISP++, D_0E000000_TO_SEGMENTED(fillRect));
+        MM_gSPDisplayList(OVERLAY_DISP++, D_0E000000_TO_SEGMENTED(fillRect));
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

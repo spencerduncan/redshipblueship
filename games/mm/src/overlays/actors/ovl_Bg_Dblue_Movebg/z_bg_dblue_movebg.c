@@ -759,7 +759,7 @@ void func_80A2B308(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, this->opaDList);
+    MM_gSPDisplayList(POLY_OPA_DISP++, this->opaDList);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -787,15 +787,15 @@ void BgDblueMovebg_Draw(Actor* thisx, PlayState* play2) {
             MATRIX_FINALIZE_AND_LOAD(&gfx2[0], play->state.gfxCtx);
 
             if (this->unk_160 == 6) {
-                gSPDisplayList(&gfx2[1], gGreatBayTempleObjectGearShaftDL);
+                MM_gSPDisplayList(&gfx2[1], gGreatBayTempleObjectGearShaftDL);
                 if (this->opaDList != NULL) {
-                    gSPDisplayList(&gfx2[2], this->opaDList);
+                    MM_gSPDisplayList(&gfx2[2], this->opaDList);
                     POLY_OPA_DISP = &gfx2[3];
                 } else {
                     POLY_OPA_DISP = &gfx2[2];
                 }
             } else {
-                gSPDisplayList(&gfx2[1], this->opaDList);
+                MM_gSPDisplayList(&gfx2[1], this->opaDList);
                 POLY_OPA_DISP = &gfx2[2];
             }
         }
@@ -804,7 +804,7 @@ void BgDblueMovebg_Draw(Actor* thisx, PlayState* play2) {
             gfx = Gfx_SetupDL71(POLY_XLU_DISP);
 
             MATRIX_FINALIZE_AND_LOAD(&gfx[0], play->state.gfxCtx);
-            gSPDisplayList(&gfx[1], this->xluDList);
+            MM_gSPDisplayList(&gfx[1], this->xluDList);
 
             POLY_XLU_DISP = &gfx[2];
         }
@@ -830,7 +830,7 @@ void BgDblueMovebg_Draw(Actor* thisx, PlayState* play2) {
             for (j = 0; j < ARRAY_COUNT(this->unk_1D8); j++) {
                 if (this->unk_1D8[j][i] > 0) {
                     if (this->unk_1F8[j][i] > 0.1f) {
-                        gSPSegment(gfx++, 0x09,
+                        MM_gSPSegment(gfx++, 0x09,
                                    MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0,
                                                     (s32)(((play->gameplayFrames % 128) * -9.0f) / this->unk_1F8[j][i]),
                                                     0x20, 0x20, 1, 0, 0, 0x20, 0x20));
@@ -847,7 +847,7 @@ void BgDblueMovebg_Draw(Actor* thisx, PlayState* play2) {
 
                     MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
                     gDPSetEnvColor(gfx++, 255, 255, 255, this->unk_1D8[j][i]);
-                    gSPDisplayList(gfx++, gGreatBayTempleObjectWaterwheelSplashDL);
+                    MM_gSPDisplayList(gfx++, gGreatBayTempleObjectWaterwheelSplashDL);
 
                     MM_Matrix_Pop();
                 }

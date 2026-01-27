@@ -94,7 +94,7 @@ void BgKeikokuSaku_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, object_keikoku_obj_DL_001640);
+    MM_gSPDisplayList(POLY_XLU_DISP++, object_keikoku_obj_DL_001640);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

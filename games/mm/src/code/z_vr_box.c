@@ -165,7 +165,7 @@ s32 Skybox_CalculateFace128(SkyboxContext* skyboxCtx, Vtx* roomVtx, s32 roomVtxS
         roomVtx[roomVtxStartIndex + i].v.cn[2] = 0;
         roomVtx[roomVtxStartIndex + i].v.cn[0] = 255;
     }
-    gSPVertex(skyboxCtx->gfx++, &roomVtx[roomVtxStartIndex], 32, 0);
+    MM_gSPVertex(skyboxCtx->gfx++, &roomVtx[roomVtxStartIndex], 32, 0);
     roomVtxStartIndex += i; // += 32
 
     // Cull the face if not within the viewing volume

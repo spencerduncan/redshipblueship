@@ -2,7 +2,7 @@
 
 void MM_osViSetXScale(f32 value) {
     register u32 nomValue;
-    register u32 saveMask = __osDisableInt();
+    register u32 saveMask = MM___osDisableInt();
 
     __osViNext->x.factor = value;
 
@@ -11,5 +11,5 @@ void MM_osViSetXScale(f32 value) {
     nomValue = __osViNext->modep->comRegs.xScale & VI_SCALE_MASK;
     __osViNext->x.scale = (u32)(__osViNext->x.factor * nomValue) & VI_SCALE_MASK;
 
-    __osRestoreInt(saveMask);
+    MM___osRestoreInt(saveMask);
 }

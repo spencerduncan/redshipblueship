@@ -343,11 +343,11 @@ void MM_EnDaiku_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s*
     OPEN_DISPS(play->state.gfxCtx);
 
     if (limbIndex == OBJECT_DAIKU_LIMB_0F) {
-        gSPDisplayList(POLY_OPA_DISP++, D_809440D4[this->unk_278]);
+        MM_gSPDisplayList(POLY_OPA_DISP++, D_809440D4[this->unk_278]);
     }
 
     if ((this->unk_278 == ENDAIKU_PARAM_FF_3) && (limbIndex == OBJECT_DAIKU_LIMB_08)) {
-        gSPDisplayList(POLY_OPA_DISP++, object_daiku_DL_008EC8);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_daiku_DL_008EC8);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

@@ -627,7 +627,7 @@ void MM_EnBom_Draw(Actor* thisx, PlayState* play) {
             MM_Matrix_MultVec3f(&D_80872EE0, &this->actor.home.pos);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, gBombCapDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gBombCapDL);
 
             MM_Matrix_ReplaceRotation(&play->billboardMtxF);
             Matrix_RotateXS(0x4000, MTXMODE_APPLY);
@@ -636,7 +636,7 @@ void MM_EnBom_Draw(Actor* thisx, PlayState* play) {
             gDPPipeSync(POLY_OPA_DISP++);
             gDPSetEnvColor(POLY_OPA_DISP++, (s8)this->unk_1F4, 0, 40, 255);
             gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, (s8)this->unk_1F4, 0, 40, 255);
-            gSPDisplayList(POLY_OPA_DISP++, gBombBodyDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gBombBodyDL);
         } else {
             Vec3f sp58;
             Vec3f sp4C;
@@ -657,8 +657,8 @@ void MM_EnBom_Draw(Actor* thisx, PlayState* play) {
 
             gDPSetEnvColor(POLY_OPA_DISP++, 255, 255, 255, 255);
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, gPowderKegBarrelDL);
-            gSPDisplayList(POLY_OPA_DISP++, gPowderKegGoronSkullDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gPowderKegBarrelDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gPowderKegGoronSkullDL);
 
             func_808726DC(play, &this->actor.home.pos, &sp58, &sp4C, this->timer);
             EnBom_DrawKeg(play, this->timer);
@@ -816,7 +816,7 @@ void EnBom_DrawKeg(PlayState* play, s32 timer) {
     gDPLoadTextureBlock(POLY_OPA_DISP++, gPowderKegFuseTexLarger, G_IM_FMT_I, G_IM_SIZ_8b, 8, 8, 0,
                         G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, 1, 1, G_TX_NOLOD, G_TX_NOLOD);
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 200, 200, 0, 255);
-    gSPVertex(POLY_OPA_DISP++, gPowderKegFuseVtx, 4, 0);
+    MM_gSPVertex(POLY_OPA_DISP++, gPowderKegFuseVtx, 4, 0);
 
     temp_s5 = (timer / 240) + 1;
     fuseSegmentPtr2 = &sPowderKegFuseSegments[1];
@@ -829,9 +829,9 @@ void EnBom_DrawKeg(PlayState* play, s32 timer) {
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
 
         if ((i % 2) == 0) {
-            gSPDisplayList(POLY_OPA_DISP++, gPowderKegFuseModel1DL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gPowderKegFuseModel1DL);
         } else {
-            gSPDisplayList(POLY_OPA_DISP++, gPowderKegFuseModel2DL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gPowderKegFuseModel2DL);
         }
     }
 

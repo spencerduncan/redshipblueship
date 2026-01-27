@@ -153,7 +153,7 @@ void MM_TransitionCircle_Draw(void* thisx, Gfx** gfxP) {
     TransitionCircle* this = (TransitionCircle*)thisx;
 
     gDPPipeSync(gfx++);
-    gSPDisplayList(gfx++, sTransCircleSetupDL);
+    MM_gSPDisplayList(gfx++, sTransCircleSetupDL);
     gDPSetPrimColor(gfx++, 0, this->color.a, this->color.r, this->color.g, this->color.b, 1);
     if (this->maskType == 0) {
         gDPSetCombineLERP(gfx++, 0, 0, 0, PRIMITIVE, TEXEL0, 0, PRIM_LOD_FRAC, PRIMITIVE, 0, 0, 0, PRIMITIVE, TEXEL0, 0,

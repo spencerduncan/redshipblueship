@@ -190,7 +190,7 @@ void DrawItemCycleExtras(PlayState* play, u8 slot, u8 canCycle, u8 leftItem, u8 
             pauseCtx->cursorSpecialPos == 0) {
             Color_RGB8 aButtonColor = { 0, 100, 255 };
 
-            gSPVertex(POLY_OPA_DISP++, (uintptr_t)sCycleAButtonVtx, 4, 0);
+            MM_gSPVertex(POLY_OPA_DISP++, (uintptr_t)sCycleAButtonVtx, 4, 0);
             gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, aButtonColor.r, aButtonColor.g, aButtonColor.b, pauseCtx->alpha);
             gDPLoadTextureBlock(POLY_OPA_DISP++, gABtnSymbolTex, G_IM_FMT_IA, G_IM_SIZ_8b, 24, 16, 0,
                                 G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, 4, 4, G_TX_NOLOD, G_TX_NOLOD);
@@ -199,7 +199,7 @@ void DrawItemCycleExtras(PlayState* play, u8 slot, u8 canCycle, u8 leftItem, u8 
 
         // Render a dark circle behind the extra items when cycling
         if (isCycling) {
-            gSPVertex(POLY_OPA_DISP++, (uintptr_t)sCycleCircleVtx, 8, 0);
+            MM_gSPVertex(POLY_OPA_DISP++, (uintptr_t)sCycleCircleVtx, 8, 0);
             gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 0, 0, 0, pauseCtx->alpha * (1.0f - animScale));
             gDPLoadTextureBlock_4b(POLY_OPA_DISP++, gPausePromptCursorTex, G_IM_FMT_I, 48, 48, 0,
                                    G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK,
@@ -215,7 +215,7 @@ void DrawItemCycleExtras(PlayState* play, u8 slot, u8 canCycle, u8 leftItem, u8 
 
         // Render left and right items
         gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, pauseCtx->alpha);
-        gSPVertex(POLY_OPA_DISP++, (uintptr_t)sCycleExtraItemVtx, 8, 0);
+        MM_gSPVertex(POLY_OPA_DISP++, (uintptr_t)sCycleExtraItemVtx, 8, 0);
 
         if (showLeftItem) {
             KaleidoScope_DrawTexQuadRGBA32(play->state.gfxCtx, MM_gItemIcons[leftItem], 32, 32, 0);

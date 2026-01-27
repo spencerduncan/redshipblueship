@@ -373,7 +373,7 @@ void func_80AD0340(EnFuKago* this, PlayState* play) {
         MM_Matrix_Scale(scale->x, scale->y, scale->z, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, D_80AD061C[i]);
+        MM_gSPDisplayList(POLY_OPA_DISP++, D_80AD061C[i]);
 
         MM_Matrix_Pop();
     }
@@ -391,12 +391,12 @@ void EnFuKago_Draw(Actor* thisx, PlayState* play) {
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, object_fu_mato_DL_0006A0);
-        gSPDisplayList(POLY_OPA_DISP++, object_fu_mato_DL_000740);
-        gSPDisplayList(POLY_OPA_DISP++, object_fu_mato_DL_0007E0);
-        gSPDisplayList(POLY_OPA_DISP++, object_fu_mato_DL_000880);
-        gSPDisplayList(POLY_OPA_DISP++, object_fu_mato_DL_000920);
-        gSPDisplayList(POLY_OPA_DISP++, object_fu_mato_DL_0009C0);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_fu_mato_DL_0006A0);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_fu_mato_DL_000740);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_fu_mato_DL_0007E0);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_fu_mato_DL_000880);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_fu_mato_DL_000920);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_fu_mato_DL_0009C0);
 
         CLOSE_DISPS(play->state.gfxCtx);
     } else {

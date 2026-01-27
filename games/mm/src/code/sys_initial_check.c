@@ -99,7 +99,7 @@ void Check_DrawRegionLockErrorMessage(void) {
  */
 void Check_ExpansionPak(void) {
     // Expansion pak installed
-    if (osMemSize >= 0x800000) {
+    if (MM_osMemSize >= 0x800000) {
         return;
     }
 
@@ -114,7 +114,7 @@ void Check_ExpansionPak(void) {
 void Check_RegionIsSupported(void) {
     s32 regionSupported = false;
 
-    if ((osTvType == OS_TV_NTSC) || (osTvType == OS_TV_MPAL)) {
+    if ((MM_osTvType == OS_TV_NTSC) || (MM_osTvType == OS_TV_MPAL)) {
         regionSupported = true;
     }
 

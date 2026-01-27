@@ -236,7 +236,7 @@ void SysFlashrom_WriteDataAsync(u8* addr, u32 pageNum, u32 pageCount) {
         MM_osCreateMesgQueue(&req->messageQueue, sSysFlashromMsgBuf, ARRAY_COUNT(sSysFlashromMsgBuf));
         MM_StackCheck_Init(&sSysFlashromStackInfo, sSysFlashromStack, STACK_TOP(sSysFlashromStack), 0, 0x100,
                         "sys_flashrom");
-        osCreateThread(&sSysFlashromThread, Z_THREAD_ID_FLASHROM, SysFlashrom_ThreadEntry, req,
+        MM_osCreateThread(&sSysFlashromThread, Z_THREAD_ID_FLASHROM, SysFlashrom_ThreadEntry, req,
                        STACK_TOP(sSysFlashromStack), Z_PRIORITY_FLASHROM);
         MM_osStartThread(&sSysFlashromThread);
     }

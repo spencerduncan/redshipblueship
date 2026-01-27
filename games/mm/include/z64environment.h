@@ -346,7 +346,7 @@ extern f32 D_801F4E5C;
 extern f32 D_801F4E60;
 extern s16 D_801F4E64;
 
-extern struct LightningStrike gLightningStrike;
+extern struct LightningStrike MM_gLightningStrike;
 extern f32 D_801F4E74;
 extern u16 D_801F4E78;
 extern u16 gSkyboxNumStars;

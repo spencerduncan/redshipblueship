@@ -596,8 +596,8 @@ void EnMm3_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80A704FC[this->unk_1DC]));
-    gSPSegment(POLY_OPA_DISP++, 0x0C, sEnMm3DL);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80A704FC[this->unk_1DC]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0C, sEnMm3DL);
 
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnMm3_OverrideLimbDraw, EnMm3_PostLimbDraw, &this->actor);

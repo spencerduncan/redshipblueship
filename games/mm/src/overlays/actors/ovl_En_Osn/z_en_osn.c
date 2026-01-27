@@ -1023,7 +1023,7 @@ void EnOsn_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot,
         Matrix_RotateZS(leftHandRot.z, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD((*gfx)++, play->state.gfxCtx);
-        gSPDisplayList((*gfx)++, &gHappyMaskSalesmanMajorasMaskDL);
+        MM_gSPDisplayList((*gfx)++, &gHappyMaskSalesmanMajorasMaskDL);
         MM_Matrix_Pop();
     }
 }
@@ -1043,15 +1043,15 @@ void EnOsn_Draw(Actor* thisx, PlayState* play) {
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
         if ((this->animIndex == OSN_ANIM_CHOKE) || (this->animIndex == OSN_ANIM_DESPAIR) ||
             (this->animIndex == OSN_ANIM_HAND_OUT_2) || (play->msgCtx.currentTextId == 0x1FCA)) {
-            gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sEyeOpenTex));
-            gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(sSmileTex));
+            MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sEyeOpenTex));
+            MM_gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(sSmileTex));
         } else if ((this->animIndex == OSN_ANIM_SHAKE_HEAD) || (this->animIndex == OSN_ANIM_REMINISCE) ||
                    (this->animIndex == OSN_ANIM_FAST_BOWS)) {
-            gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sEyeClosedAngryTex));
-            gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(sFrownTex));
+            MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sEyeClosedAngryTex));
+            MM_gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(sFrownTex));
         } else {
-            gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sEyeClosedHappyTex));
-            gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(sSmileTex));
+            MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sEyeClosedHappyTex));
+            MM_gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(sSmileTex));
         }
         gDPSetEnvColor(POLY_OPA_DISP++, 255, 255, 255, 255);
         Scene_SetRenderModeXlu(play, 0, 1);
@@ -1060,8 +1060,8 @@ void EnOsn_Draw(Actor* thisx, PlayState* play) {
                                EnOsn_OverrideLimbDraw, EnOsn_PostLimbDraw, &this->actor, POLY_OPA_DISP);
     } else {
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-        gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(sEyeClosedHappyTex));
-        gSPSegment(POLY_XLU_DISP++, 0x09, Lib_SegmentedToVirtual(sSmileTex));
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(sEyeClosedHappyTex));
+        MM_gSPSegment(POLY_XLU_DISP++, 0x09, Lib_SegmentedToVirtual(sSmileTex));
         gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, 255, this->alpha);
         Scene_SetRenderModeXlu(play, 1, 2);
         POLY_XLU_DISP =

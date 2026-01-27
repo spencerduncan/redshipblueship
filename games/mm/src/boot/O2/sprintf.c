@@ -9,7 +9,7 @@ void* MM_proutSprintf(void* dst, const char* fmt, size_t size) {
 }
 
 int MM_vsprintf(char* dst, char* fmt, va_list args) {
-    int ans = _Printf(MM_proutSprintf, dst, fmt, args);
+    int ans = MM__Printf(MM_proutSprintf, dst, fmt, args);
     if (ans > -1) {
         dst[ans] = 0;
     }
@@ -21,7 +21,7 @@ int MM_sprintf(char* dst, const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
 
-    ans = _Printf(&MM_proutSprintf, dst, fmt, args);
+    ans = MM__Printf(&MM_proutSprintf, dst, fmt, args);
     if (ans > -1) {
         dst[ans] = 0;
     }

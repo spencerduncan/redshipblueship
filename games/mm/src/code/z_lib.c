@@ -426,7 +426,7 @@ void MM_IChain_Apply_Vec3f(u8* ptr, InitChainEntry* ichain);
 void MM_IChain_Apply_Vec3fdiv1000(u8* ptr, InitChainEntry* ichain);
 void MM_IChain_Apply_Vec3s(u8* ptr, InitChainEntry* ichain);
 
-void (*sInitChainHandlers[])(u8* ptr, InitChainEntry* ichain) = {
+void (*MM_sInitChainHandlers[])(u8* ptr, InitChainEntry* ichain) = {
     MM_IChain_Apply_u8,    MM_IChain_Apply_s8,           MM_IChain_Apply_u16,   MM_IChain_Apply_s16,
     MM_IChain_Apply_u32,   MM_IChain_Apply_s32,          MM_IChain_Apply_f32,   MM_IChain_Apply_f32div1000,
     MM_IChain_Apply_Vec3f, MM_IChain_Apply_Vec3fdiv1000, MM_IChain_Apply_Vec3s,
@@ -434,7 +434,7 @@ void (*sInitChainHandlers[])(u8* ptr, InitChainEntry* ichain) = {
 
 void MM_Actor_ProcessInitChain(struct Actor* actor, InitChainEntry* ichain) {
     do {
-        sInitChainHandlers[ichain->type]((u8*)actor, ichain);
+        MM_sInitChainHandlers[ichain->type]((u8*)actor, ichain);
     } while ((ichain++)->cont);
 }
 

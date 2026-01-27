@@ -338,7 +338,7 @@ void MM_EnBoom_Draw(Actor* thisx, PlayState* play) {
     Matrix_RotateYS(this->unk_1CD * 0x2EE0, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, sp58->unk_00);
+    MM_gSPDisplayList(POLY_OPA_DISP++, sp58->unk_00);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

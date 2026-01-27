@@ -14,21 +14,21 @@
 #define HIRES_BUFFER_WIDTH 576
 #define HIRES_BUFFER_HEIGHT 454
 
-s32 osResetType;
+s32 MM_osResetType;
 
 // AudioContext gAudioContext;
 // unk_D_8016E750 D_8016E750[4];
-u8 gLetterTLUT[4][32];
-u8 gFontFF[999];
+u8 MM_gLetterTLUT[4][32];
+u8 MM_gFontFF[999];
 DmaEntry dmadata[1568];
 // u8 D_80133418;
-u16 gAudioSEFlagSwapSource[64];
-u16 gAudioSEFlagSwapTarget[64];
-u8 gAudioSEFlagSwapMode[64];
+u16 MM_gAudioSEFlagSwapSource[64];
+u16 MM_gAudioSEFlagSwapTarget[64];
+u8 MM_gAudioSEFlagSwapMode[64];
 
 s32 osAppNMIBuffer[8];
 
-f32 qNaN0x10000 = 0x7F810000;
+f32 MM_qNaN0x10000 = 0x7F810000;
 
 u16 gFramebuffer1[SCREEN_HEIGHT][SCREEN_WIDTH]; // at 0x80000500
 u16 gFramebuffer0[SCREEN_HEIGHT][SCREEN_WIDTH];
@@ -101,43 +101,43 @@ void* osRomBase;
 
 __osHwInt __osHwIntTable[1];
 
-OSIntMask osSetIntMask(OSIntMask a) {
+OSIntMask MM_osSetIntMask(OSIntMask a) {
     return 0;
 }
 
-s32 osProbeRumblePak(OSMesgQueue* ctrlrqueue, OSPfs* pfs, u32 channel) {
+s32 MM_osProbeRumblePak(OSMesgQueue* ctrlrqueue, OSPfs* pfs, u32 channel) {
 }
 
-s32 osSetRumble(OSPfs* pfs, u32 vibrate) {
+s32 MM_osSetRumble(OSPfs* pfs, u32 vibrate) {
     return 0;
 }
 
-u32 __osGetFpcCsr() {
+u32 MM___osGetFpcCsr() {
     return 0;
 }
 
-u32 __osSetFpcCsr(u32 a0) {
+u32 MM___osSetFpcCsr(u32 a0) {
     return 0;
 }
 
-OSIntMask __osDisableInt(void) {
+OSIntMask MM___osDisableInt(void) {
 }
 
-void __osRestoreInt(OSIntMask a0) {
+void MM___osRestoreInt(OSIntMask a0) {
 }
 
-u32 osMemSize = 1024 * 1024 * 1024;
+u32 MM_osMemSize = 1024 * 1024 * 1024;
 
-void Audio_osInvalDCache(void* buf, s32 size) {
+void MM_Audio_osInvalDCache(void* buf, s32 size) {
 }
 
-void Audio_osWritebackDCache(void* mem, s32 size) {
+void MM_Audio_osWritebackDCache(void* mem, s32 size) {
 }
 
 OSPiHandle* MM_osDriveRomInit() {
 }
 
-void osSetUpMempakWrite(s32 channel, OSPifRam* buf) {
+void MM_osSetUpMempakWrite(s32 channel, OSPifRam* buf) {
 }
 
 void osUnmapTLBAll(void) {
@@ -146,7 +146,7 @@ void osUnmapTLBAll(void) {
 int ResourceMgr_OTRSigCheck(char* imgData);
 char* ResourceMgr_LoadTexOrDListByName(const char* data);
 
-void gSPSegment(void* value, int segNum, uintptr_t target) {
+void MM_gSPSegment(void* value, int segNum, uintptr_t target) {
     char* imgData = (char*)target;
 
     int res = ResourceMgr_OTRSigCheck(imgData);
@@ -167,7 +167,7 @@ void gSPSegment(void* value, int segNum, uintptr_t target) {
     __gSPSegment(value, segNum, target);
 }
 
-void gSPSegmentLoadRes(void* value, int segNum, uintptr_t target) {
+void MM_gSPSegmentLoadRes(void* value, int segNum, uintptr_t target) {
     char* imgData = (char*)target;
 
     int res = ResourceMgr_OTRSigCheck(imgData);
@@ -187,7 +187,7 @@ void gSPSegmentLoadRes(void* value, int segNum, uintptr_t target) {
 //     __gDPSetTextureImageFB(pkt, format, size, width, fb);
 // }
 
-void gSPDisplayList(Gfx* pkt, Gfx* dl) {
+void MM_gSPDisplayList(Gfx* pkt, Gfx* dl) {
     char* imgData = (char*)dl;
 
     if (ResourceMgr_OTRSigCheck(imgData) == 1) {
@@ -200,7 +200,7 @@ void gSPDisplayList(Gfx* pkt, Gfx* dl) {
     __gSPDisplayList(pkt, dl);
 }
 
-void gSPDisplayListOffset(Gfx* pkt, Gfx* dl, int offset) {
+void MM_gSPDisplayListOffset(Gfx* pkt, Gfx* dl, int offset) {
     char* imgData = (char*)dl;
 
     if (ResourceMgr_OTRSigCheck(imgData) == 1)
@@ -209,14 +209,14 @@ void gSPDisplayListOffset(Gfx* pkt, Gfx* dl, int offset) {
     __gSPDisplayList(pkt, dl + offset);
 }
 
-void gSPVertex(Gfx* pkt, uintptr_t v, int n, int v0) {
+void MM_gSPVertex(Gfx* pkt, uintptr_t v, int n, int v0) {
     if (ResourceMgr_OTRSigCheck((char*)v) == 1)
         v = (uintptr_t)ResourceMgr_LoadVtxByName((char*)v);
 
     __gSPVertex(pkt, v, n, v0);
 }
 
-void gSPInvalidateTexCache(Gfx* pkt, uintptr_t texAddr) {
+void MM_gSPInvalidateTexCache(Gfx* pkt, uintptr_t texAddr) {
     char* imgData = (char*)texAddr;
 
     if (texAddr != 0 && ResourceMgr_OTRSigCheck(imgData)) {
@@ -303,7 +303,7 @@ s32 MM_osAiSetFrequency(u32 frequency) {
 }
 s32 MM_osContStartQuery(OSMesgQueue* mq) {
 }
-void osCreateThread(OSThread* thread, OSId id, void* entry, void* arg, void* sp, OSPri p) {
+void MM_osCreateThread(OSThread* thread, OSId id, void* entry, void* arg, void* sp, OSPri p) {
 }
 OSPri MM_osGetThreadPri(OSThread* t) {
 }
@@ -317,13 +317,13 @@ void MM_osViSetMode(OSViMode* mode) {
 }
 void MM_osViSetSpecialFeatures(u32 func) {
 }
-void __osInitialize_common(void) {
+void MM___osInitialize_common(void) {
 }
-void __osInitialize_autodetect(void) {
+void MM___osInitialize_autodetect(void) {
 }
-void __osExceptionPreamble() {
+void MM___osExceptionPreamble() {
 }
-void __osCleanupThread(void) {
+void MM___osCleanupThread(void) {
 }
 void MM_osDestroyThread(OSThread* thread) {
 }

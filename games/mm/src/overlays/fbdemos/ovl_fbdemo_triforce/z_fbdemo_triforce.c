@@ -103,14 +103,14 @@ void MM_TransitionTriforce_Draw(void* thisx, Gfx** gfxP) {
     MM_guRotate(&modelView[1], rotation, 0.0f, 0.0f, 1.0f);
     guTranslate(&modelView[2], 0.0f, 0.0f, 0.0f);
     gDPPipeSync(gfx++);
-    gSPDisplayList(gfx++, sTransTriforceDL);
+    MM_gSPDisplayList(gfx++, sTransTriforceDL);
     gDPSetColor(gfx++, G_SETPRIMCOLOR, this->color.rgba);
     gDPSetCombineMode(gfx++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
     gSPMatrix(gfx++, &this->projection, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
     gSPMatrix(gfx++, &modelView[0], G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gSPMatrix(gfx++, &modelView[1], G_MTX_NOPUSH | G_MTX_MUL | G_MTX_MODELVIEW);
     gSPMatrix(gfx++, &modelView[2], G_MTX_NOPUSH | G_MTX_MUL | G_MTX_MODELVIEW);
-    gSPVertex(gfx++, &sTransTriforceVtx, ARRAY_COUNT(sTransTriforceVtx), 0);
+    MM_gSPVertex(gfx++, &sTransTriforceVtx, ARRAY_COUNT(sTransTriforceVtx), 0);
     if (!MM_TransitionTriforce_IsDone(this)) {
         switch (this->type) {
             case TRANS_INSTANCE_TYPE_FILL_OUT:

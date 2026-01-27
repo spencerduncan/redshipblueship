@@ -129,6 +129,6 @@ void MM_AudioMgr_Init(AudioMgr* audioMgr, void* stack, OSPri pri, OSId id, Sched
     AudioSeq_SetPortVolumeScale(SEQ_PLAYER_FANFARE, CVarGetFloat("gSettings.Audio.FanfareVolume", 1.0f));
     AudioSeq_SetPortVolumeScale(SEQ_PLAYER_AMBIENCE, CVarGetFloat("gSettings.Audio.AmbienceVolume", 1.0f));
 
-    // osCreateThread(&audioMgr->thread, id, MM_AudioMgr_ThreadEntry, audioMgr, stack, pri);
+    // MM_osCreateThread(&audioMgr->thread, id, MM_AudioMgr_ThreadEntry, audioMgr, stack, pri);
     // MM_osStartThread(&audioMgr->thread);
 }

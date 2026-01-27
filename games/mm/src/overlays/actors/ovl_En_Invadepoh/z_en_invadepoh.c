@@ -5150,11 +5150,11 @@ void EnInvadepoh_DrawWarpEffects(PlayState* play) {
             gDPPipeSync(POLY_XLU_DISP++);
             gDPSetPrimColor(POLY_XLU_DISP++, 0x80, 0x80, 255, 255, 170, warpEffect->alpha);
             gDPSetEnvColor(POLY_XLU_DISP++, 255, 50, 0, 0);
-            gSPSegment(POLY_XLU_DISP++, 0x8,
+            MM_gSPSegment(POLY_XLU_DISP++, 0x8,
                        MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, warpScrollX1, 0, 32, 64, 1, 0,
                                         warpScrollY2, 32, 64));
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gameplay_keep_DL_02E510);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gameplay_keep_DL_02E510);
         }
     }
 
@@ -5237,11 +5237,11 @@ void EnInvadepoh_Alien_Draw(Actor* thisx, PlayState* play2) {
 
             MM_Matrix_Mult(&sInvadepohAlienLeftEyeBeamMtxF, MTXMODE_NEW);
             MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
-            gSPDisplayList(gfx++, gAlienEyeBeamDL);
+            MM_gSPDisplayList(gfx++, gAlienEyeBeamDL);
 
             MM_Matrix_Mult(&sInvadepohAlienRightEyeBeamMtxF, MTXMODE_NEW);
             MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
-            gSPDisplayList(gfx++, gAlienEyeBeamDL);
+            MM_gSPDisplayList(gfx++, gAlienEyeBeamDL);
 
             POLY_XLU_DISP = gfx;
 
@@ -5254,7 +5254,7 @@ void EnInvadepoh_Alien_Draw(Actor* thisx, PlayState* play2) {
                                      &this->actor.shape.rot);
         MM_Matrix_Scale(this->deathFlashScale.x, this->deathFlashScale.y, this->deathFlashScale.z, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gAlienDeathFlashDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gAlienDeathFlashDL);
     }
 
     if (this->shouldDraw) {
@@ -5284,10 +5284,10 @@ void EnInvadepoh_Alien_Draw(Actor* thisx, PlayState* play2) {
 
         glowAlpha = 100.0f / 255.0f * this->alpha;
 
-        gSPDisplayList(gfx++, gameplay_keep_DL_029CB0);
+        MM_gSPDisplayList(gfx++, gameplay_keep_DL_029CB0);
         gDPSetPrimColor(gfx++, 0, 0, 240, 180, 100, glowAlpha);
         MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
-        gSPDisplayList(gfx++, gameplay_keep_DL_029CF0);
+        MM_gSPDisplayList(gfx++, gameplay_keep_DL_029CF0);
 
         POLY_XLU_DISP = gfx;
 
@@ -5356,7 +5356,7 @@ void EnInvadepoh_Romani_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList
     if (limbIndex == ROMANI_LIMB_LEFT_HAND) {
         OPEN_DISPS(play->state.gfxCtx);
 
-        gSPDisplayList(POLY_OPA_DISP++, gRomaniBowDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gRomaniBowDL);
 
         CLOSE_DISPS(play->state.gfxCtx);
     } else if (limbIndex == ROMANI_LIMB_HEAD) {
@@ -5370,8 +5370,8 @@ void EnInvadepoh_Romani_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x09, sRomaniMouthTextures[this->modelInfo.mouthAnim.curTexIndex]);
-    gSPSegment(POLY_OPA_DISP++, 0x08, sRomaniEyeTextures[this->modelInfo.eyeAnim.curTexIndex]);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x09, sRomaniMouthTextures[this->modelInfo.mouthAnim.curTexIndex]);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, sRomaniEyeTextures[this->modelInfo.eyeAnim.curTexIndex]);
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnInvadepoh_Romani_OverrideLimbDraw, EnInvadepoh_Romani_PostLimbDraw, &this->actor);
 
@@ -5402,7 +5402,7 @@ void EnInvadepoh_Ufo_Draw(Actor* thisx, PlayState* play2) {
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
     gDPSetPrimColor(POLY_XLU_DISP++, 0xFF, 0x80, 255, 255, 0, 180);
     gDPSetEnvColor(POLY_XLU_DISP++, 255, 50, 0, 0);
-    gSPDisplayList(POLY_XLU_DISP++, gEffFlash1DL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gEffFlash1DL);
 
     if (EnInvadepoh_LensFlareCheck(play, &flashPos)) {
         MM_Environment_DrawLensFlare(play, &play->envCtx, &play->view, play->state.gfxCtx, flashPos, 20.0f, 9.0f, 0,
@@ -5478,8 +5478,8 @@ void EnInvadepoh_Cremia_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x09, sCremiaMouthTextures[this->modelInfo.mouthAnim.curTexIndex]);
-    gSPSegment(POLY_OPA_DISP++, 0x08, sCremiaEyeTextures[this->modelInfo.eyeAnim.curTexIndex]);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x09, sCremiaMouthTextures[this->modelInfo.mouthAnim.curTexIndex]);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, sCremiaEyeTextures[this->modelInfo.eyeAnim.curTexIndex]);
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnInvadepoh_Cremia_OverrideLimbDraw, EnInvadepoh_Cremia_PostLimbDraw, &this->actor);
 

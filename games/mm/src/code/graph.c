@@ -186,8 +186,8 @@ retry:
     // task->ucode_data = SysUcode_GetUCodeData();
     task->ucode_size = SP_UCODE_SIZE;
     task->ucode_data_size = SP_UCODE_DATA_SIZE;
-    task->dram_stack = (u64*)gGfxSPTaskStack;
-    task->dram_stack_size = sizeof(gGfxSPTaskStack);
+    task->dram_stack = (u64*)MM_gGfxSPTaskStack;
+    task->dram_stack_size = sizeof(MM_gGfxSPTaskStack);
     task->output_buff = gGfxSPTaskOutputBufferPtr;
     task->output_buff_size = gGfxSPTaskOutputBufferEnd;
     task->data_ptr = (u64*)gGfxMasterDL;
@@ -279,12 +279,12 @@ void Graph_ExecuteAndDraw(GraphicsContext* gfxCtx, GameState* gameState) {
     {
         Gfx* gfx = gGfxMasterDL->taskStart;
 
-        gSPSegment(gfx++, 0x0E, gGfxMasterDL);
-        gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(disps[3]));     // Work buffer
-        gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(disps[0]));     // OPA buffer
-        gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(disps[1]));     // XLU buffer
-        gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(disps[2]));     // Overlay buffer
-        gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(debugDisp[0])); // Debug buffer
+        MM_gSPSegment(gfx++, 0x0E, gGfxMasterDL);
+        MM_gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(disps[3]));     // Work buffer
+        MM_gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(disps[0]));     // OPA buffer
+        MM_gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(disps[1]));     // XLU buffer
+        MM_gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(disps[2]));     // Overlay buffer
+        MM_gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(debugDisp[0])); // Debug buffer
 
         gDPPipeSync(gfx++);
         gDPFullSync(gfx++);

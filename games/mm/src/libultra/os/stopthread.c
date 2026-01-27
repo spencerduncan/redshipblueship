@@ -1,7 +1,7 @@
 #include "ultra64.h"
 
 void MM_osStopThread(OSThread* t) {
-    register u32 saveMask = __osDisableInt();
+    register u32 saveMask = MM___osDisableInt();
     register u16 state;
 
     if (t == NULL) {
@@ -23,5 +23,5 @@ void MM_osStopThread(OSThread* t) {
             break;
     }
 
-    __osRestoreInt(saveMask);
+    MM___osRestoreInt(saveMask);
 }

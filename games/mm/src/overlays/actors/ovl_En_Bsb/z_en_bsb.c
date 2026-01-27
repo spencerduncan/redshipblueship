@@ -1892,7 +1892,7 @@ void EnBsb_DrawEffects(EnBsb* this, PlayState* play) {
 
             gDPSetEnvColor(POLY_OPA_DISP++, 255, 255, 255, 255);
 
-            gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_06AB30);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_06AB30);
 
             MM_Matrix_Pop();
         }

@@ -1078,8 +1078,8 @@ void BombersNotebook_Draw(BombersNotebook* this, GraphicsContext* gfxCtx) {
     gfx = POLY_OPA_DISP;
 
     if (this->loadState == BOMBERS_NOTEBOOK_LOAD_STATE_DONE) {
-        // gSPSegment(gfx++, 0x07, this->scheduleDmaSegment);
-        // gSPSegment(gfx++, 0x08, this->scheduleSegment);
+        // MM_gSPSegment(gfx++, 0x07, this->scheduleDmaSegment);
+        // MM_gSPSegment(gfx++, 0x08, this->scheduleSegment);
         gfx = Gfx_SetupDL39(gfx);
         gDPSetCombineLERP(gfx++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0, PRIMITIVE,
                           ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
@@ -1106,7 +1106,7 @@ void BombersNotebook_Draw(BombersNotebook* this, GraphicsContext* gfxCtx) {
 
         gDPPipeSync(gfx++);
 
-        gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(setScissor));
+        MM_gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(setScissor));
 
         BombersNotebook_DrawTimeOfDay(&gfx);
 

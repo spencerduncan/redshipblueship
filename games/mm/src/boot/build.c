@@ -6,8 +6,8 @@ const u16 MM_gBuildVersionMajor = 9;
 const u16 MM_gBuildVersionMinor = 1;
 const u16 MM_gBuildVersionPatch = 1;
 
-const char MM_gGitBranch[] = "simplify-shared-only-build";
-const char MM_gGitCommitHash[] = "0e1172e";
+const char MM_gGitBranch[] = "claude/e2e-bootable";
+const char MM_gGitCommitHash[] = "6bb9822";
 const char MM_gGitCommitTag[] = "";
 
 const char MM_gBuildTeam[] = "github.com/harbourmasters";

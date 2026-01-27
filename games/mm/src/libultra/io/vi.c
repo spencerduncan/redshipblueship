@@ -14,9 +14,9 @@ void __osViInit(void) {
     __osViNext->buffer = (void*)K0BASE;
     __osViCurr->buffer = (void*)K0BASE;
 
-    if (osTvType == OS_TV_PAL) {
+    if (MM_osTvType == OS_TV_PAL) {
         __osViNext->modep = &MM_osViModePalLan1;
-    } else if (osTvType == OS_TV_MPAL) {
+    } else if (MM_osTvType == OS_TV_MPAL) {
         __osViNext->modep = &MM_osViModeMpalLan1;
     } else { // OS_TV_NTSC or OS_TV_UNK28
         __osViNext->modep = &MM_osViModeNtscLan1;

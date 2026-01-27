@@ -3,8 +3,8 @@
 #include "z64.h"
 #include "z64shrink_window.h"
 
-void (*sKaleidoScopeUpdateFunc)(PlayState* play);
-void (*sKaleidoScopeDrawFunc)(PlayState* play);
+void (*MM_sKaleidoScopeUpdateFunc)(PlayState* play);
+void (*MM_sKaleidoScopeDrawFunc)(PlayState* play);
 
 extern void MM_KaleidoScope_Update(PlayState* play);
 extern void MM_KaleidoScope_Draw(PlayState* play);
@@ -22,8 +22,8 @@ void MM_KaleidoScopeCall_LoadPlayer(void) {
 }
 
 void MM_KaleidoScopeCall_Init(PlayState* play) {
-    sKaleidoScopeUpdateFunc = MM_KaleidoManager_GetRamAddr(MM_KaleidoScope_Update);
-    sKaleidoScopeDrawFunc = MM_KaleidoManager_GetRamAddr(MM_KaleidoScope_Draw);
+    MM_sKaleidoScopeUpdateFunc = MM_KaleidoManager_GetRamAddr(MM_KaleidoScope_Update);
+    MM_sKaleidoScopeDrawFunc = MM_KaleidoManager_GetRamAddr(MM_KaleidoScope_Draw);
     MM_KaleidoSetup_Init(play);
 }
 
@@ -66,7 +66,7 @@ void MM_KaleidoScopeCall_Update(PlayState* play) {
         }
 
         if (MM_gKaleidoMgrCurOvl == kaleidoScopeOvl) {
-            sKaleidoScopeUpdateFunc(play);
+            MM_sKaleidoScopeUpdateFunc(play);
 
             if (!IS_PAUSED(&play->pauseCtx)) {
                 MM_KaleidoManager_ClearOvl(kaleidoScopeOvl);
@@ -83,7 +83,7 @@ void MM_KaleidoScopeCall_Draw(PlayState* play) {
         if (((play->pauseCtx.state >= PAUSE_STATE_OPENING_3) && (play->pauseCtx.state <= PAUSE_STATE_SAVEPROMPT)) ||
             ((play->pauseCtx.state >= PAUSE_STATE_GAMEOVER_3) && (play->pauseCtx.state <= PAUSE_STATE_UNPAUSE_SETUP))) {
             if (MM_gKaleidoMgrCurOvl == kaleidoScopeOvl) {
-                sKaleidoScopeDrawFunc(play);
+                MM_sKaleidoScopeDrawFunc(play);
             }
         }
     }

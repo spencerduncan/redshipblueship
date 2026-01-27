@@ -54,7 +54,7 @@ extern bool Combo_IsCrossGameSwitch(void);
 extern uint16_t Combo_GetStartupEntrance(void);
 extern void Combo_ClearStartupEntrance(void);
 
-s32 gDbgCamEnabled = false;
+s32 MM_gDbgCamEnabled = false;
 u8 D_801D0D54 = false;
 
 // #region 2S2H [General] Making MM_gPlayState available
@@ -107,7 +107,7 @@ void Play_DrawMotionBlur(PlayState* this) {
         gfxHead = POLY_OPA_DISP;
         gfx = MM_Graph_GfxPlusOne(gfxHead);
 
-        gSPDisplayList(OVERLAY_DISP++, gfx);
+        MM_gSPDisplayList(OVERLAY_DISP++, gfx);
 
         this->pauseBgPreRender.fbuf = gfxCtx->curFrameBuffer;
         this->pauseBgPreRender.fbufSave = this->unk_18E64;
@@ -1094,7 +1094,7 @@ void Play_UpdateMain(PlayState* this) {
         }
     }
 
-    if (!sp5C || gDbgCamEnabled) {
+    if (!sp5C || MM_gDbgCamEnabled) {
         s32 i;
 
         this->nextCamera = this->activeCamId;
@@ -1182,7 +1182,7 @@ void Play_PostWorldDraw(PlayState* this) {
 
         opa = POLY_OPA_DISP;
         nextOpa = MM_Graph_GfxPlusOne(opa);
-        gSPDisplayList(OVERLAY_DISP++, nextOpa);
+        MM_gSPDisplayList(OVERLAY_DISP++, nextOpa);
 
         VisFbuf_Draw(sPlayVisFbufInstance, &nextOpa, this->unk_18E60);
 
@@ -1243,17 +1243,17 @@ void Play_DrawMain(PlayState* this) {
     MM_gSegments[5] = OS_K0_TO_PHYSICAL(this->objectCtx.slots[this->objectCtx.subKeepSlot].segment);
     MM_gSegments[2] = OS_K0_TO_PHYSICAL(this->sceneSegment);
 
-    gSPSegment(POLY_OPA_DISP++, 0x04, this->objectCtx.slots[this->objectCtx.mainKeepSlot].segment);
-    gSPSegment(POLY_XLU_DISP++, 0x04, this->objectCtx.slots[this->objectCtx.mainKeepSlot].segment);
-    gSPSegment(OVERLAY_DISP++, 0x04, this->objectCtx.slots[this->objectCtx.mainKeepSlot].segment);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x04, this->objectCtx.slots[this->objectCtx.mainKeepSlot].segment);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x04, this->objectCtx.slots[this->objectCtx.mainKeepSlot].segment);
+    MM_gSPSegment(OVERLAY_DISP++, 0x04, this->objectCtx.slots[this->objectCtx.mainKeepSlot].segment);
 
-    gSPSegment(POLY_OPA_DISP++, 0x05, this->objectCtx.slots[this->objectCtx.subKeepSlot].segment);
-    gSPSegment(POLY_XLU_DISP++, 0x05, this->objectCtx.slots[this->objectCtx.subKeepSlot].segment);
-    gSPSegment(OVERLAY_DISP++, 0x05, this->objectCtx.slots[this->objectCtx.subKeepSlot].segment);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x05, this->objectCtx.slots[this->objectCtx.subKeepSlot].segment);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x05, this->objectCtx.slots[this->objectCtx.subKeepSlot].segment);
+    MM_gSPSegment(OVERLAY_DISP++, 0x05, this->objectCtx.slots[this->objectCtx.subKeepSlot].segment);
 
-    gSPSegment(POLY_OPA_DISP++, 0x02, this->sceneSegment);
-    gSPSegment(POLY_XLU_DISP++, 0x02, this->sceneSegment);
-    gSPSegment(OVERLAY_DISP++, 0x02, this->sceneSegment);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x02, this->sceneSegment);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x02, this->sceneSegment);
+    MM_gSPSegment(OVERLAY_DISP++, 0x02, this->sceneSegment);
 
     if (1) {
         ShrinkWindow_Draw(gfxCtx);
@@ -1303,16 +1303,16 @@ void Play_DrawMain(PlayState* this) {
         Matrix_RotateYF(BINANG_TO_RAD((s16)(MM_Camera_GetCamDirYaw(GET_ACTIVE_CAM(this)) + 0x8000)), MTXMODE_NEW);
         MM_Matrix_ToMtx(this->billboardMtx + 1);
 
-        gSPSegment(POLY_OPA_DISP++, 0x01, this->billboardMtx);
-        gSPSegment(POLY_XLU_DISP++, 0x01, this->billboardMtx);
-        gSPSegment(OVERLAY_DISP++, 0x01, this->billboardMtx);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x01, this->billboardMtx);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x01, this->billboardMtx);
+        MM_gSPSegment(OVERLAY_DISP++, 0x01, this->billboardMtx);
 
         if (1) {
             Gfx* sp218;
             Gfx* sp214 = POLY_OPA_DISP;
 
             sp218 = MM_Graph_GfxPlusOne(sp214);
-            gSPDisplayList(OVERLAY_DISP++, sp218);
+            MM_gSPDisplayList(OVERLAY_DISP++, sp218);
 
             if (((this->transitionMode == TRANS_MODE_INSTANCE_RUNNING) ||
                  (this->transitionMode == TRANS_TYPE_INSTANT)) ||
@@ -1373,7 +1373,7 @@ void Play_DrawMain(PlayState* this) {
 
                 FB_DrawFromFramebuffer(&sp8C, gPauseFrameBuffer, 255);
 
-                gSPDisplayList(sp8C++, D_0E000000_TO_SEGMENTED(syncSegments));
+                MM_gSPDisplayList(sp8C++, D_0E000000_TO_SEGMENTED(syncSegments));
                 POLY_OPA_DISP = sp8C;
                 sp25B = true;
                 goto PostWorldDraw;
@@ -1499,7 +1499,7 @@ void Play_DrawMain(PlayState* this) {
                 Gfx* sp70 = POLY_OPA_DISP;
 
                 sp74 = MM_Graph_GfxPlusOne(sp70);
-                gSPDisplayList(OVERLAY_DISP++, sp74);
+                MM_gSPDisplayList(OVERLAY_DISP++, sp74);
                 this->pauseBgPreRender.fbuf = gfxCtx->curFrameBuffer;
 
                 if (R_PAUSE_BG_PRERENDER_STATE == PAUSE_BG_PRERENDER_SETUP) {
@@ -1568,7 +1568,7 @@ void Play_DrawMain(PlayState* this) {
 
 SkipPostWorldDraw:
 
-    if ((this->view.unk164 != 0) && !gDbgCamEnabled) {
+    if ((this->view.unk164 != 0) && !MM_gDbgCamEnabled) {
         MM_Camera_Update(GET_ACTIVE_CAM(this));
         View_UpdateViewingMatrix(&this->view);
         this->view.unk164 = 0;
@@ -2169,7 +2169,7 @@ s32 Play_IsUnderwater(PlayState* this, Vec3f* pos) {
 }
 
 s32 Play_IsDebugCamEnabled(void) {
-    return gDbgCamEnabled;
+    return MM_gDbgCamEnabled;
 }
 
 // A mapping from playerCsIds to sGlobalCamDataSettings indices.
@@ -2499,7 +2499,7 @@ void MM_Play_Init(GameState* thisx) {
     player = GET_PLAYER(this);
 
     Camera_InitFocalActorSettings(&this->mainCamera, &player->actor);
-    gDbgCamEnabled = false;
+    MM_gDbgCamEnabled = false;
 
     if (PLAYER_GET_BG_CAM_INDEX(&player->actor) != 0xFF) {
         Camera_ChangeActorCsCamIndex(&this->mainCamera, PLAYER_GET_BG_CAM_INDEX(&player->actor));

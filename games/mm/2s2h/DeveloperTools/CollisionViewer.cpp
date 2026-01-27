@@ -709,10 +709,10 @@ extern "C" void DrawCollisionViewer() {
     }
 
     opaDl.push_back(gsSPEndDisplayList());
-    gSPDisplayList(POLY_OPA_DISP++, opaDl.data());
+    MM_gSPDisplayList(POLY_OPA_DISP++, opaDl.data());
 
     xluDl.push_back(gsSPEndDisplayList());
-    gSPDisplayList(POLY_XLU_DISP++, xluDl.data());
+    MM_gSPDisplayList(POLY_XLU_DISP++, xluDl.data());
 
     if (mirroredWorld) {
         gSPClearExtraGeometryMode(POLY_OPA_DISP++, G_EX_INVERT_CULLING);

@@ -1551,7 +1551,7 @@ void EnWiz_Draw(Actor* thisx, PlayState* play) {
         }
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gWizrobePlatformLightDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gWizrobePlatformLightDL);
 
         MM_Matrix_Pop();
     }
@@ -1559,7 +1559,7 @@ void EnWiz_Draw(Actor* thisx, PlayState* play) {
     // Draw the flame at the tip of the Wizrobe's staff
     MM_Matrix_Translate(this->staffFlamePos.x, this->staffFlamePos.y, this->staffFlamePos.z, MTXMODE_NEW);
     MM_Matrix_Scale(this->staffFlameScale.x, this->staffFlameScale.y, this->staffFlameScale.z, MTXMODE_APPLY);
-    gSPSegment(POLY_XLU_DISP++, 0x08,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0,
                                 ((this->staffFlameScroll * 10) - (play->state.frames * 20)) % 512, 32, 128));
     gDPPipeSync(POLY_XLU_DISP++);
@@ -1574,7 +1574,7 @@ void EnWiz_Draw(Actor* thisx, PlayState* play) {
 
     MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

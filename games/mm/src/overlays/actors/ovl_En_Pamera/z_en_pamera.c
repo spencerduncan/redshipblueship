@@ -572,9 +572,9 @@ void EnPamera_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_K0(D_80BDA604[this->unk_312]));
-    gSPSegment(POLY_OPA_DISP++, 0x09, SEGMENTED_TO_K0(D_80BDA610[this->unk_314]));
-    gSPSegment(POLY_OPA_DISP++, 0x0A, SEGMENTED_TO_K0(D_80BDA5FC[this->unk_310]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_K0(D_80BDA604[this->unk_312]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x09, SEGMENTED_TO_K0(D_80BDA610[this->unk_314]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0A, SEGMENTED_TO_K0(D_80BDA5FC[this->unk_310]));
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnPamera_OverrideLimbDraw, EnPamera_PostLimbDraw, &this->actor);
 

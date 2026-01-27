@@ -475,7 +475,7 @@ void ObjGrass_DrawOpa(Actor* thisx, PlayState* play2) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, 255);
-    gSPDisplayList(POLY_OPA_DISP++, gObjGrass_D_809AA9F0);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gObjGrass_D_809AA9F0);
 
     for (i = 0; i < this->activeGrassGroups; i++) {
         grassGroup = &this->grassGroups[i];
@@ -499,7 +499,7 @@ void ObjGrass_DrawOpa(Actor* thisx, PlayState* play2) {
                         }
 
                         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-                        gSPDisplayList(POLY_OPA_DISP++, gObjGrass_D_809AAAE0);
+                        MM_gSPDisplayList(POLY_OPA_DISP++, gObjGrass_D_809AAAE0);
                     }
                     FrameInterpolation_RecordCloseChild();
                 }
@@ -522,7 +522,7 @@ void ObjGrass_DrawXlu(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-    gSPDisplayList(POLY_XLU_DISP++, gObjGrass_D_809AAA68);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gObjGrass_D_809AAA68);
 
     for (i = 0; i < this->activeGrassGroups; i++) {
         grassGroup = &this->grassGroups[i];
@@ -540,7 +540,7 @@ void ObjGrass_DrawXlu(Actor* thisx, PlayState* play) {
 
                         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
                         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, grassElem->alpha);
-                        gSPDisplayList(POLY_XLU_DISP++, gObjGrass_D_809AAAE0);
+                        MM_gSPDisplayList(POLY_XLU_DISP++, gObjGrass_D_809AAAE0);
                     }
                     FrameInterpolation_RecordCloseChild();
                 }

@@ -1351,7 +1351,7 @@ void func_80A5E6F0(Actor* thisx, PlayState* play) {
             MM_Matrix_Scale(s->unk_00, s->unk_00, s->unk_00, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, D_80A5EB68[i & 1]);
+            MM_gSPDisplayList(POLY_OPA_DISP++, D_80A5EB68[i & 1]);
             FrameInterpolation_RecordCloseChild();
         }
     }
@@ -1366,7 +1366,7 @@ void func_80A5E80C(PlayState* play, s32 arg1) {
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, arg1);
-    gSPDisplayList(POLY_XLU_DISP++, gKusaBushType2DL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gKusaBushType2DL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

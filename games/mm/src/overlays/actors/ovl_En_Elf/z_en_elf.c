@@ -1600,7 +1600,7 @@ void MM_EnElf_Draw(Actor* thisx, PlayState* play) {
 
             alphaScale = (this->disappearTimer < 0) ? (this->disappearTimer * 0.0011666666f) + 1.0f : 1.0f;
 
-            gSPSegment(POLY_XLU_DISP++, 0x08, gfx);
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08, gfx);
 
             gDPPipeSync(gfx++);
             gDPSetPrimColor(gfx++, 0, 0x01, (u8)(s8)this->innerColor.r, (u8)(s8)this->innerColor.g,

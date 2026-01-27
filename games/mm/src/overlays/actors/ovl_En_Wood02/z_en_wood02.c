@@ -509,12 +509,12 @@ void MM_EnWood02_Draw(Actor* thisx, PlayState* play) {
 
         gDPSetEnvColor(POLY_XLU_DISP++, red, green, blue, 0);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, D_808C4D70[this->drawType & 0xF]);
+        MM_gSPDisplayList(POLY_XLU_DISP++, D_808C4D70[this->drawType & 0xF]);
     } else {
         Gfx_SetupDL25_Xlu(gfxCtx);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, D_808C4D54[this->drawType & 0xF]);
+        MM_gSPDisplayList(POLY_XLU_DISP++, D_808C4D54[this->drawType & 0xF]);
     }
 
     CLOSE_DISPS(gfxCtx);

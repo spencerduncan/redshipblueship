@@ -59,27 +59,27 @@ void MM_VisCvg_Draw(VisCvg* this, Gfx** gfxp) {
     gDPSetPrimDepth(gfx++, -1, -1);
 
     if (this->setScissor == true) {
-        gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(setScissor));
+        MM_gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(setScissor));
     }
 
     switch (this->type) {
         case 1:
-            gSPDisplayList(gfx++, D_801C5DF0);
+            MM_gSPDisplayList(gfx++, D_801C5DF0);
             break;
 
         case 2:
             gDPSetColor(gfx++, G_SETPRIMCOLOR, this->color.rgba);
-            gSPDisplayList(gfx++, D_801C5E00);
+            MM_gSPDisplayList(gfx++, D_801C5E00);
             break;
 
         case 3:
             gDPSetColor(gfx++, G_SETBLENDCOLOR, this->color.rgba);
-            gSPDisplayList(gfx++, D_801C5DD0);
+            MM_gSPDisplayList(gfx++, D_801C5DD0);
             break;
 
         case 4:
             gDPSetColor(gfx++, G_SETFOGCOLOR, this->color.rgba);
-            gSPDisplayList(gfx++, D_801C5DE0);
+            MM_gSPDisplayList(gfx++, D_801C5DE0);
             break;
 
         default:

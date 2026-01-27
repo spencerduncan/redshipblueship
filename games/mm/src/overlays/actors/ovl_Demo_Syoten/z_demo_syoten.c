@@ -545,7 +545,7 @@ void DemoSyoten_Draw(Actor* thisx, PlayState* play) {
 
     if (this->unk_3DC != NULL) {
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, this->unk_3DC);
+        MM_gSPDisplayList(POLY_XLU_DISP++, this->unk_3DC);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -568,11 +568,11 @@ void func_80C17690(Actor* thisx, PlayState* play) {
 
     AnimatedMat_DrawStepXlu(play, this->unk_3E0, this->unk_3E6);
 
-    gSPDisplayList(POLY_XLU_DISP++, object_syoten_DL_002880);
+    MM_gSPDisplayList(POLY_XLU_DISP++, object_syoten_DL_002880);
 
     AnimatedMat_DrawStepXlu(play, this->unk_3E0, this->unk_3E6 + 5);
 
-    gSPDisplayList(POLY_XLU_DISP++, object_syoten_DL_002A20);
+    MM_gSPDisplayList(POLY_XLU_DISP++, object_syoten_DL_002A20);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

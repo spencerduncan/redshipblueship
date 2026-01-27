@@ -1081,7 +1081,7 @@ void EnFish2_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* ro
         MM_Matrix_ReplaceRotation(&play->billboardMtxF);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, *dList);
+        MM_gSPDisplayList(POLY_OPA_DISP++, *dList);
 
         MM_Matrix_Pop();
 
@@ -1191,8 +1191,8 @@ void func_80B2B180(EnFish2* this, PlayState* play) {
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, gfxCtx);
             gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, 255);
             gDPSetEnvColor(POLY_OPA_DISP++, 150, 150, 150, 0);
-            gSPSegment(POLY_OPA_DISP++, 0x08, ptr->unk_20);
-            gSPDisplayList(POLY_OPA_DISP++, gEffBubbleDL);
+            MM_gSPSegment(POLY_OPA_DISP++, 0x08, ptr->unk_20);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gEffBubbleDL);
         }
     }
 

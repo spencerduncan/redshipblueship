@@ -11,13 +11,13 @@ void MM_IrqMgr_AddClient(IrqMgr* irqmgr, IrqMgrClient* client, OSMesgQueue* msgQ
 #if 0
     u32 saveMask;
 
-    saveMask = osSetIntMask(1);
+    saveMask = MM_osSetIntMask(1);
 
     client->queue = msgQueue;
     client->next = irqmgr->callbacks;
     irqmgr->callbacks = client;
 
-    osSetIntMask(saveMask);
+    MM_osSetIntMask(saveMask);
 
     if (irqmgr->prenmiStage > 0) {
         MM_osSendMesg(client->queue, &irqmgr->prenmiMsg.type, OS_MESG_NOBLOCK);
@@ -37,7 +37,7 @@ void MM_IrqMgr_RemoveClient(IrqMgr* irqmgr, IrqMgrClient* remove) {
     iter = irqmgr->callbacks;
     last = NULL;
 
-    saveMask = osSetIntMask(1);
+    saveMask = MM_osSetIntMask(1);
 
     while (iter != NULL) {
         if (iter == remove) {
@@ -52,7 +52,7 @@ void MM_IrqMgr_RemoveClient(IrqMgr* irqmgr, IrqMgrClient* remove) {
         iter = iter->next;
     }
 
-    osSetIntMask(saveMask);
+    MM_osSetIntMask(saveMask);
 #endif
 }
 
@@ -182,7 +182,7 @@ void MM_IrqMgr_Init(IrqMgr* irqmgr, void* stack, OSPri pri, u8 retraceCount) {
     MM_osSetEventMesg(OS_EVENT_PRENMI, &irqmgr->irqQueue, (OSMesg)0x29D);
     MM_osViSetEvent(&irqmgr->irqQueue, (OSMesg)0x29A, retraceCount);
 
-    osCreateThread(&irqmgr->thread, Z_THREAD_ID_IRQMGR, MM_IrqMgr_ThreadEntry, irqmgr, stack, pri);
+    MM_osCreateThread(&irqmgr->thread, Z_THREAD_ID_IRQMGR, MM_IrqMgr_ThreadEntry, irqmgr, stack, pri);
     MM_osStartThread(&irqmgr->thread);
 #endif
 }

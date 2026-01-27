@@ -152,10 +152,10 @@ void ObjMoonStone_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
     AnimatedMat_Draw(play, Lib_SegmentedToVirtual(gGiMoonsTearTexAnim));
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gGiMoonsTearItemDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gGiMoonsTearItemDL);
     MM_Matrix_ReplaceRotation(&play->billboardMtxF);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, gGiMoonsTearGlowDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gGiMoonsTearGlowDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

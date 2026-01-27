@@ -487,7 +487,7 @@ void EnSyatekiDekunuts_Draw(Actor* thisx, PlayState* play) {
             MM_Matrix_Translate(flowerPos.x, flowerPos.y, flowerPos.z, MTXMODE_NEW);
             MM_Matrix_Scale(0.02f, 0.02f, 0.02f, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, gDekuScrubFlowerDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gDekuScrubFlowerDL);
 
             CLOSE_DISPS(play->state.gfxCtx);
         }

@@ -336,7 +336,7 @@ void MM_ArmsHook_Draw(Actor* thisx, PlayState* play) {
         func_80122868(play, player);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, object_link_child_DL_01D960);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_link_child_DL_01D960);
         MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
         MM_Math_Vec3f_Diff(&player->rightHandWorld.pos, &this->actor.world.pos, &sp68);
         sp48 = SQXZ(sp68);
@@ -346,7 +346,7 @@ void MM_ArmsHook_Draw(Actor* thisx, PlayState* play) {
         f0 = MM_sqrtf(SQ(sp68.y) + sp48);
         MM_Matrix_Scale(0.015f, 0.015f, f0 * 0.01f, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gHookshotChainDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gHookshotChainDL);
         func_801229A0(play, player);
 
         CLOSE_DISPS(play->state.gfxCtx);

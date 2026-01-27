@@ -53,7 +53,7 @@ void Slowly_Init(SlowlyMgr* slowly, void* stack, SlowlyCallbackTwo callback, voi
     slowly->arg0 = arg0;
     slowly->arg1 = arg1;
 
-    osCreateThread(&slowly->thread, Z_THREAD_ID_SLOWLY, Slowly_ThreadEntry, slowly, stack, Z_PRIORITY_SLOWLY);
+    MM_osCreateThread(&slowly->thread, Z_THREAD_ID_SLOWLY, Slowly_ThreadEntry, slowly, stack, Z_PRIORITY_SLOWLY);
     MM_osStartThread(&slowly->thread);
 }
 

@@ -121,7 +121,7 @@ extern void DrawEnLight(Color_RGB8 flameColor, Vec3f flameSize) {
     Gfx_SetupDL25_Xlu(MM_gPlayState->state.gfxCtx);
     MM_Matrix_ReplaceRotation(&MM_gPlayState->billboardMtxF);
 
-    gSPSegment(POLY_XLU_DISP++, 0x08,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                (uintptr_t)MM_Gfx_TwoTexScroll(MM_gPlayState->state.gfxCtx, 0, 0, 0, 0x10, 0x20, 1, (unk_144 * 2) & 0x3F,
                                            (unk_144 * -6) & 0x7F, 0x10, 0x20));
     sp68 = (Gfx*)gameplay_keep_DL_01ACF0;
@@ -130,7 +130,7 @@ extern void DrawEnLight(Color_RGB8 flameColor, Vec3f flameSize) {
     MM_Matrix_Scale(flameSize.x, flameSize.y, flameSize.z, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, MM_gPlayState->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, sp68);
+    MM_gSPDisplayList(POLY_XLU_DISP++, sp68);
 
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 
@@ -147,7 +147,7 @@ void EnMinifrogPostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* 
 
         MM_Matrix_ReplaceRotation(&play->billboardMtxF);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, *dList);
+        MM_gSPDisplayList(POLY_OPA_DISP++, *dList);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -181,7 +181,7 @@ void DrawEnFirefly_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec
         Gfx* gfx = play->state.gfxCtx->polyXlu.p;
         Scene_SetRenderModeXlu(play, 1, 2);
         MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
-        gSPDisplayList(gfx++, (Gfx*)&gKeeseRedEyesDL);
+        MM_gSPDisplayList(gfx++, (Gfx*)&gKeeseRedEyesDL);
     }
     if (limbIndex == FIRE_KEESE_LIMB_LEFT_WING_END || limbIndex == FIRE_KEESE_LIMB_RIGHT_WING_END_ROOT) {
         MM_EffectSsDust_Spawn(MM_gPlayState, 2, &auraPos, &auraVelocity, &auraAccel, &auraPrimColor[auraColor],
@@ -194,12 +194,12 @@ void DrawEnRealBombchu_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList,
         OPEN_DISPS(play->state.gfxCtx);
         MM_Matrix_ReplaceRotation(&play->billboardMtxF);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, (Gfx*)&gBombCapDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, (Gfx*)&gBombCapDL);
         MM_Matrix_RotateZYX(0x4000, 0, 0, MTXMODE_APPLY);
         gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 80, 255);
         gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 10, 0, 40, 255);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, (Gfx*)&gBombBodyDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, (Gfx*)&gBombBodyDL);
         CLOSE_DISPS(play->state.gfxCtx);
     }
 }
@@ -226,7 +226,7 @@ void DrawEnIk_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* r
         Gfx* xlu = POLY_XLU_DISP;
 
         MATRIX_FINALIZE_AND_LOAD(&xlu[0], play->state.gfxCtx);
-        gSPDisplayList(&xlu[1], (Gfx*)gIronKnuckleHelmetMarkingDL);
+        MM_gSPDisplayList(&xlu[1], (Gfx*)gIronKnuckleHelmetMarkingDL);
         POLY_XLU_DISP = &xlu[2];
 
         CLOSE_DISPS(play->state.gfxCtx);
@@ -245,7 +245,7 @@ extern void DrawAlien() {
     MM_Matrix_Scale(0.007f, 0.007f, 0.007f, MTXMODE_APPLY);
     SETUP_FLEX_SKEL(ALIEN_LIMB_MAX, gAlienSkel, gAlienFloatAnim);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, eyeTexture);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, eyeTexture);
     gDPSetEnvColor(POLY_OPA_DISP++, 255, 255, 255, 255);
     MM_SkelAnime_DrawFlexOpa(MM_gPlayState, skelAnime.skeleton, skelAnime.jointTable, skelAnime.dListCount, NULL, NULL, NULL);
 
@@ -291,11 +291,11 @@ extern void DrawBat() {
         }
     }
 
-    gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
     MATRIX_FINALIZE_AND_LOAD(&gfx[1], MM_gPlayState->state.gfxCtx);
-    gSPDisplayList(&gfx[2], (Gfx*)&gBadBatSetupDL);
-    gSPDisplayList(&gfx[3], (Gfx*)&gBadBatBodyDL);
-    gSPDisplayList(&gfx[4], sWingsDLs[wingAnim]);
+    MM_gSPDisplayList(&gfx[2], (Gfx*)&gBadBatSetupDL);
+    MM_gSPDisplayList(&gfx[3], (Gfx*)&gBadBatBodyDL);
+    MM_gSPDisplayList(&gfx[4], sWingsDLs[wingAnim]);
 
     POLY_OPA_DISP = &gfx[5];
 
@@ -324,24 +324,24 @@ extern void DrawBoe() {
     MM_Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
     MM_Matrix_Translate(0, -1200, 0, MTXMODE_APPLY);
 
-    gSPDisplayList(POLY_OPA_DISP++, gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gSetupDLs[SETUPDL_25]);
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0xFF, 0, 0, 0, 255);
-    gSPSegment(POLY_OPA_DISP++, 0x08, (uintptr_t)D_801AEFA0);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, (uintptr_t)D_801AEFA0);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, MM_gPlayState->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gBlackBoeEndDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gBlackBoeEndDL);
 
-    gSPDisplayList(POLY_XLU_DISP++, gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gSetupDLs[SETUPDL_25]);
     gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, 255, 255);
-    gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gBlackBoeBodyMaterialDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gBlackBoeBodyMaterialDL);
     MM_Matrix_ReplaceRotation(&MM_gPlayState->billboardMtxF);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, MM_gPlayState->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gBlackBoeBodyModelDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gBlackBoeBodyModelDL);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0xFF, 245, 97, 0, 255);
-    gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gBlackBoeEyesDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gBlackBoeEyesDL);
     MM_Matrix_Scale(0.009f, 0.009f, 0.009f, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, MM_gPlayState->state.gfxCtx);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0xFF, 245, 214, 0, 255);
-    gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gBlackBoeEyesDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gBlackBoeEyesDL);
 
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
     DrawEnLight({ 155, 155, 155 }, { 1000.0f, 1000.0f, 1000.0f });
@@ -396,9 +396,9 @@ extern void DrawChuchu() {
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, MM_gPlayState->state.gfxCtx);
     Scene_SetRenderModeXlu(MM_gPlayState, 1, 2);
-    gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gChuchuBodyDL);
-    gSPSegment(POLY_XLU_DISP++, 9, (uintptr_t)gChuchuEyeOpenTex);
-    gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gChuchuEyesDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gChuchuBodyDL);
+    MM_gSPSegment(POLY_XLU_DISP++, 9, (uintptr_t)gChuchuEyeOpenTex);
+    MM_gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gChuchuEyesDL);
 
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
     DrawEnLight({ 155, 155, 155 }, { 10.0f, 10.0f, 10.0f });
@@ -464,7 +464,7 @@ extern void DrawDinolfos() {
     SETUP_FLEX_SKEL(DINOLFOS_LIMB_MAX, gDinolfosSkel, gDinolfosIdleAnim);
 
     Scene_SetRenderModeXlu(MM_gPlayState, 0, 1);
-    gSPSegment(POLY_OPA_DISP++, 0x08, eyeTexture);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, eyeTexture);
     gDPSetEnvColor(POLY_OPA_DISP++, 255, 255, 255, 255);
     MM_SkelAnime_DrawFlexOpa(MM_gPlayState, skelAnime.skeleton, skelAnime.jointTable, skelAnime.dListCount, NULL, NULL, NULL);
 
@@ -547,7 +547,7 @@ extern void DrawFreezard() {
     MM_Matrix_Translate(0, -4100.0f, 0, MTXMODE_APPLY);
     Gfx_SetupDL25_Xlu(MM_gPlayState->state.gfxCtx);
 
-    gSPSegment(POLY_XLU_DISP++, 0x08,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                (uintptr_t)MM_Gfx_TwoTexScroll(MM_gPlayState->state.gfxCtx, 0, 0, MM_gPlayState->state.frames % 128, 0x20, 0x20,
                                            1, 0, (MM_gPlayState->state.frames * 2) % 128, 0x20, 0x20));
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, MM_gPlayState->state.gfxCtx);
@@ -555,7 +555,7 @@ extern void DrawFreezard() {
                       PRIMITIVE, ENVIRONMENT, COMBINED, ENVIRONMENT, COMBINED, 0, ENVIRONMENT, 0);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, 155, 255, 255, 255);
     gDPSetEnvColor(POLY_XLU_DISP++, 200, 200, 200, 255);
-    gSPDisplayList(POLY_XLU_DISP++, (Gfx*)object_fz_DL_001130);
+    MM_gSPDisplayList(POLY_XLU_DISP++, (Gfx*)object_fz_DL_001130);
 
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
     DrawEnLight({ 155, 155, 155 }, { 20.0f, 20.0f, 20.0f });
@@ -647,9 +647,9 @@ extern void DrawHiploop() {
 
 extern void DrawIgosDuIkana() {
     SETUP_DRAW(IGOS_LIMB_MAX);
-    gSPSegment(POLY_OPA_DISP++, 0x0A, (uintptr_t)EnKnight_BuildEmptyDL(MM_gPlayState->state.gfxCtx));
-    gSPSegment(POLY_XLU_DISP++, 0x0A, (uintptr_t)EnKnight_BuildEmptyDL(MM_gPlayState->state.gfxCtx));
-    gSPSegment(POLY_OPA_DISP++, 0x09, (uintptr_t)EnKnight_BuildEmptyDL(MM_gPlayState->state.gfxCtx));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0A, (uintptr_t)EnKnight_BuildEmptyDL(MM_gPlayState->state.gfxCtx));
+    MM_gSPSegment(POLY_XLU_DISP++, 0x0A, (uintptr_t)EnKnight_BuildEmptyDL(MM_gPlayState->state.gfxCtx));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x09, (uintptr_t)EnKnight_BuildEmptyDL(MM_gPlayState->state.gfxCtx));
     Gfx_SetupDL25_Opa(MM_gPlayState->state.gfxCtx);
     MM_Matrix_Scale(0.01f, 0.01f, 0.01f, MTXMODE_APPLY);
     MM_Matrix_Translate(0, -2000.0f, 0, MTXMODE_APPLY);
@@ -670,13 +670,13 @@ extern void DrawIronKnuckle() {
     SETUP_FLEX_SKEL(IRON_KNUCKLE_LIMB_MAX, gIronKnuckleSkel, gIronKnuckleWalkAnim);
 
     Gfx* gfx = POLY_XLU_DISP;
-    gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
     POLY_XLU_DISP = &gfx[1];
     gfx = POLY_OPA_DISP;
-    gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
-    gSPSegment(&gfx[1], 0x08, (uintptr_t)gIronKnuckleBlackArmorMaterialDL);
-    gSPSegment(&gfx[2], 0x09, (uintptr_t)gIronKnuckleBrownArmorMaterialDL);
-    gSPSegment(&gfx[3], 0x0A, (uintptr_t)gIronKnuckleBrownArmorMaterialDL);
+    MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
+    MM_gSPSegment(&gfx[1], 0x08, (uintptr_t)gIronKnuckleBlackArmorMaterialDL);
+    MM_gSPSegment(&gfx[2], 0x09, (uintptr_t)gIronKnuckleBrownArmorMaterialDL);
+    MM_gSPSegment(&gfx[3], 0x0A, (uintptr_t)gIronKnuckleBrownArmorMaterialDL);
     POLY_OPA_DISP = &gfx[4];
 
     MM_SkelAnime_DrawFlexOpa(MM_gPlayState, skelAnime.skeleton, skelAnime.jointTable, skelAnime.dListCount, NULL,
@@ -768,8 +768,8 @@ extern void DrawLikeLike() {
     MM_Matrix_Translate(0, -3000.0f, 0, MTXMODE_APPLY);
     MM_Matrix_Push();
 
-    gSPSegment(POLY_OPA_DISP++, 0x0C, (uintptr_t)mtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08,
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0C, (uintptr_t)mtx);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08,
                (uintptr_t)MM_Gfx_TwoTexScroll(MM_gPlayState->state.gfxCtx, 0, 0, 0, 0x20, 0x10, 1, (textureScroll * 0) & 0x3F,
                                            (textureScroll * -6) & 0x7F, 0x20, 0x10));
 
@@ -793,7 +793,7 @@ extern void DrawLikeLike() {
         mtx++;
     }
 
-    gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gLikeLikeDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gLikeLikeDL);
 
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
     MM_Matrix_Pop();
@@ -820,7 +820,7 @@ extern void DrawNejiron() {
     MM_Matrix_Scale(0.015f, 0.015f, 0.015f, MTXMODE_APPLY);
     SETUP_SKEL(NEJIRON_LIMB_MAX, gNejironSkel, gNejironIdleAnim);
 
-    gSPSegment(POLY_OPA_DISP++, 8, (uintptr_t)gNejironEyeOpenTex);
+    MM_gSPSegment(POLY_OPA_DISP++, 8, (uintptr_t)gNejironEyeOpenTex);
     MM_SkelAnime_DrawOpa(MM_gPlayState, skelAnime.skeleton, skelAnime.jointTable, NULL, NULL, NULL);
 
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
@@ -835,8 +835,8 @@ extern void DrawOctorok() {
     SETUP_SKEL(OCTOROK_LIMB_MAX, gOctorokSkel, gOctorokFloatAnim);
 
     Gfx* gfxPtr = POLY_OPA_DISP;
-    gSPDisplayList(&gfxPtr[0], gSetupDLs[SETUPDL_25]);
-    gSPSegment(&gfxPtr[1], 0x08, (uintptr_t)D_801AEFA0);
+    MM_gSPDisplayList(&gfxPtr[0], gSetupDLs[SETUPDL_25]);
+    MM_gSPSegment(&gfxPtr[1], 0x08, (uintptr_t)D_801AEFA0);
     POLY_OPA_DISP = &gfxPtr[2];
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0x01, 255, 255, 255, 255);
     MM_SkelAnime_DrawOpa(MM_gPlayState, skelAnime.skeleton, skelAnime.jointTable, NULL, NULL, NULL);
@@ -866,7 +866,7 @@ extern void DrawPirate() {
     MM_Matrix_Translate(0, -2000.0f, 0, MTXMODE_APPLY);
     SETUP_FLEX_SKEL(KAIZOKU_LIMB_MAX, gFighterPirateSkel, gFighterPirateFightingIdleAnim);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, eyeTexture);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, eyeTexture);
     SkelAnime_DrawTransformFlexOpa(MM_gPlayState, skelAnime.skeleton, skelAnime.jointTable, skelAnime.dListCount, NULL,
                                    NULL, EnKaizoku_TransformLimbDraw, NULL);
 
@@ -881,7 +881,7 @@ extern void DrawPoe() {
     MM_Matrix_Translate(0, -5000.0f, 0, MTXMODE_APPLY);
     SETUP_SKEL(POE_LIMB_MAX, gPoeSkel, gPoeFloatAnim);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, (uintptr_t)D_801AEFA0);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, (uintptr_t)D_801AEFA0);
     gDPSetEnvColor(POLY_OPA_DISP++, 255, 255, 255, 255);
     MM_SkelAnime_DrawOpa(MM_gPlayState, skelAnime.skeleton, skelAnime.jointTable, NULL, NULL, NULL);
 
@@ -944,7 +944,7 @@ extern void DrawRedead() {
         MM_SkelAnime_Update(&skelAnime);
     }
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, (uintptr_t)D_801AEFA0);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, (uintptr_t)D_801AEFA0);
     MM_SkelAnime_DrawFlexOpa(MM_gPlayState, skelAnime.skeleton, skelAnime.jointTable, skelAnime.dListCount, NULL, NULL, NULL);
 
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
@@ -998,7 +998,7 @@ extern void DrawSnapper() {
     MM_Matrix_Translate(0, -3100.0f, 0, MTXMODE_APPLY);
     SETUP_FLEX_SKEL(SNAPPER_LIMB_MAX, gSnapperSkel, gSnapperIdleAnim);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, eyeTexture);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, eyeTexture);
     MM_SkelAnime_DrawFlexOpa(MM_gPlayState, skelAnime.skeleton, skelAnime.jointTable, skelAnime.dListCount, NULL, NULL, NULL);
 
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
@@ -1044,11 +1044,11 @@ extern void DrawTektite() {
 
     Gfx* gfx = POLY_OPA_DISP;
 
-    gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
 
-    gSPSegment(&gfx[1], 0x08, (uintptr_t)D_80896B24[0][0]);
-    gSPSegment(&gfx[2], 0x09, (uintptr_t)D_80896B24[0][1]);
-    gSPSegment(&gfx[3], 0x0A, (uintptr_t)D_80896B24[0][2]);
+    MM_gSPSegment(&gfx[1], 0x08, (uintptr_t)D_80896B24[0][0]);
+    MM_gSPSegment(&gfx[2], 0x09, (uintptr_t)D_80896B24[0][1]);
+    MM_gSPSegment(&gfx[3], 0x0A, (uintptr_t)D_80896B24[0][2]);
 
     POLY_OPA_DISP = &gfx[4];
 
@@ -1092,7 +1092,7 @@ extern void DrawWizrobe() {
     SETUP_FLEX_SKEL(WIZROBE_LIMB_MAX, gWizrobeSkel, gWizrobeIdleAnim);
 
     Scene_SetRenderModeXlu(MM_gPlayState, 0, 1);
-    gSPSegment(POLY_OPA_DISP++, 0x08, eyeTexture);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, eyeTexture);
     gDPSetEnvColor(POLY_OPA_DISP++, 255, 255, 255, 255);
     MM_SkelAnime_DrawFlexOpa(MM_gPlayState, skelAnime.skeleton, skelAnime.jointTable, skelAnime.dListCount, NULL, NULL, NULL);
 
@@ -1107,7 +1107,7 @@ extern void DrawWolfos() {
     MM_Matrix_Translate(0, -3000.0f, 0, MTXMODE_APPLY);
     SETUP_FLEX_SKEL(WOLFOS_NORMAL_LIMB_MAX, gWolfosNormalSkel, gWolfosWaitAnim);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, (uintptr_t)&gWolfosNormalEyeOpenTex);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, (uintptr_t)&gWolfosNormalEyeOpenTex);
     MM_SkelAnime_DrawFlexOpa(MM_gPlayState, skelAnime.skeleton, skelAnime.jointTable, skelAnime.dListCount, NULL, NULL, NULL);
 
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
@@ -1122,7 +1122,7 @@ extern void DrawGoht() {
     MM_Matrix_Scale(0.005f, 0.005f, 0.005f, MTXMODE_APPLY);
     SETUP_FLEX_SKEL(GOHT_LIMB_MAX, gGohtSkel, gGohtRunAnim);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, (uintptr_t)gGohtMetalPlateWithCirclePatternTex);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, (uintptr_t)gGohtMetalPlateWithCirclePatternTex);
     MM_SkelAnime_DrawFlexOpa(MM_gPlayState, skelAnime.skeleton, skelAnime.jointTable, skelAnime.dListCount, NULL, NULL, NULL);
 
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
@@ -1163,8 +1163,8 @@ extern void DrawTwinmold() {
     SETUP_FLEX_SKEL(TWINMOLD_HEAD_LIMB_MAX, gTwinmoldHeadSkel, gTwinmoldHeadFlyAnim);
 
     Mtx* mtxHead = (Mtx*)GRAPH_ALLOC(MM_gPlayState->state.gfxCtx, 23 * sizeof(Mtx));
-    gSPSegment(POLY_OPA_DISP++, 0x0D, (uintptr_t)mtxHead);
-    gSPSegment(POLY_OPA_DISP++, 0x08, (uintptr_t)gTwinmoldBlueSkinTex);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0D, (uintptr_t)mtxHead);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, (uintptr_t)gTwinmoldBlueSkinTex);
     MM_SkelAnime_DrawOpa(MM_gPlayState, skelAnime.skeleton, skelAnime.jointTable, NULL, NULL, NULL);
 
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
@@ -1179,9 +1179,9 @@ extern void DrawMajora() {
     MM_Matrix_ReplaceRotation(&MM_gPlayState->billboardMtxF);
     SETUP_SKEL(MAJORAS_MASK_LIMB_MAX, gMajorasMaskSkel, gMajorasMaskFloatingAnim);
 
-    gSPSegment(POLY_OPA_DISP++, 8, (uintptr_t)gMajorasMaskWithNormalEyesTex);
+    MM_gSPSegment(POLY_OPA_DISP++, 8, (uintptr_t)gMajorasMaskWithNormalEyesTex);
     MM_SkelAnime_DrawOpa(MM_gPlayState, skelAnime.skeleton, skelAnime.jointTable, NULL, NULL, NULL);
-    gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gMajorasMaskTentacleMaterialDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gMajorasMaskTentacleMaterialDL);
 
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
     DrawEnLight({ 232, 128, 21 }, { 3.0f, 3.0f, 3.0f });
@@ -1214,8 +1214,8 @@ extern void DrawMinifrog(RandoItemId randoItemId, Actor* actor) {
     gDPSetEnvColor(POLY_OPA_DISP++, envColor.r, envColor.g, envColor.b, envColor.a);
 
     Mtx* mtxHead = (Mtx*)GRAPH_ALLOC(MM_gPlayState->state.gfxCtx, 23 * sizeof(Mtx));
-    gSPSegment(POLY_OPA_DISP++, 0x08, (uintptr_t)gFrogIrisOpenTex);
-    gSPSegment(POLY_OPA_DISP++, 0x09, (uintptr_t)gFrogIrisOpenTex);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, (uintptr_t)gFrogIrisOpenTex);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x09, (uintptr_t)gFrogIrisOpenTex);
     MM_SkelAnime_DrawFlexOpa(MM_gPlayState, skelAnime.skeleton, skelAnime.jointTable, FROG_LIMB_MAX,
                           EnMinifrog_OverrideLimbDraw, EnMinifrogPostLimbDraw, actor);
 
@@ -1279,21 +1279,21 @@ extern void DrawClock(RandoItemId randoItemId, Actor* actor) {
     MM_Matrix_Push();
     Matrix_RotateZS(-minuteRingOrExteriorGearRotation, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, MM_gPlayState->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gClockTowerMinuteRingDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gClockTowerMinuteRingDL);
     MM_Matrix_Pop();
 
     MM_Matrix_Translate(0.0f, 0.0f, clockFaceZTranslation, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, MM_gPlayState->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gClockTowerClockCenterAndHandDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gClockTowerClockCenterAndHandDL);
 
     Matrix_RotateZS(-clockFaceRotation * 2, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, MM_gPlayState->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gClockTowerClockFaceDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gClockTowerClockFaceDL);
 
     MM_Matrix_Translate(0.0f, -1112.0f, -19.6f, MTXMODE_APPLY);
     Matrix_RotateYS(sunMoonPanelRotation, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, MM_gPlayState->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gClockTowerSunAndMoonPanelDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gClockTowerSunAndMoonPanelDL);
 
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }

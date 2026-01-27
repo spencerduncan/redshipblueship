@@ -1334,13 +1334,13 @@ void EnDeath_DrawScytheSpinning(EnDeath* this, PlayState* play) {
         Matrix_RotateXS(i * 0x2100, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
-        gSPDisplayList(gfx++, gGomessScytheHandleDL);
+        MM_gSPDisplayList(gfx++, gGomessScytheHandleDL);
 
         MM_Matrix_Translate(0.0f, -1084.0f, 7012.0f, MTXMODE_APPLY);
         MM_Matrix_RotateZYX(-0x4000, 0, -0x4000, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
-        gSPDisplayList(gfx++, gGomessScytheBladeDL);
+        MM_gSPDisplayList(gfx++, gGomessScytheBladeDL);
         FrameInterpolation_RecordCloseChild();
     }
 
@@ -1372,13 +1372,13 @@ void EnDeath_DrawScythe(EnDeath* this, PlayState* play) {
     MM_Matrix_Scale(this->scytheScale, this->scytheScale, this->scytheScale, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(&gfx[0], play->state.gfxCtx);
-    gSPDisplayList(&gfx[1], gGomessScytheHandleDL);
+    MM_gSPDisplayList(&gfx[1], gGomessScytheHandleDL);
 
     MM_Matrix_Translate(0.0f, -1084.0f, 7012.0f, MTXMODE_APPLY);
     MM_Matrix_RotateZYX(-0x4000, 0, -0x4000, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(&gfx[2], play->state.gfxCtx);
-    gSPDisplayList(&gfx[3], gGomessScytheBladeDL);
+    MM_gSPDisplayList(&gfx[3], gGomessScytheBladeDL);
 
     Matrix_MultZero(&this->scytheWorldPos);
 
@@ -1410,8 +1410,8 @@ void EnDeath_DrawBats(EnDeath* this, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
     gfx = POLY_OPA_DISP;
 
-    gSPDisplayList(gfx++, gSetupDLs[SETUPDL_25]);
-    gSPDisplayList(gfx++, gGomessBatMaterialDL);
+    MM_gSPDisplayList(gfx++, gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(gfx++, gGomessBatMaterialDL);
 
     cmf = MM_Matrix_GetCurrent();
 
@@ -1450,7 +1450,7 @@ void EnDeath_DrawBats(EnDeath* this, PlayState* play) {
                     cmf->mf[3][2] = effect->pos.z + quakeOffset.z;
 
                     MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
-                    gSPDisplayList(gfx++, sMinideathDLs[effect->animFrame]);
+                    MM_gSPDisplayList(gfx++, sMinideathDLs[effect->animFrame]);
                     FrameInterpolation_RecordCloseChild();
                 }
             }
@@ -1466,7 +1466,7 @@ void EnDeath_DrawBats(EnDeath* this, PlayState* play) {
                     cmf->mf[3][2] = effect->pos.z + quakeOffset.z;
 
                     MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
-                    gSPDisplayList(gfx++, sMinideathDLs[effect->animFrame]);
+                    MM_gSPDisplayList(gfx++, sMinideathDLs[effect->animFrame]);
                     FrameInterpolation_RecordCloseChild();
                 }
             }
@@ -1487,7 +1487,7 @@ void EnDeath_DrawBats(EnDeath* this, PlayState* play) {
                 cmf->mf[3][2] = miniDeath->actor.world.pos.z - effect->vel.z;
 
                 MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
-                gSPDisplayList(gfx++, sMinideathDLs[effect->animFrame]);
+                MM_gSPDisplayList(gfx++, sMinideathDLs[effect->animFrame]);
                 FrameInterpolation_RecordCloseChild();
             }
         }
@@ -1501,7 +1501,7 @@ void EnDeath_DrawBats(EnDeath* this, PlayState* play) {
         cmf->mf[3][2] = this->corePos.z + quakeOffset.z;
 
         MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
-        gSPDisplayList(gfx++, sMinideathDLs[0]);
+        MM_gSPDisplayList(gfx++, sMinideathDLs[0]);
     }
 
     POLY_OPA_DISP = gfx;
@@ -1540,7 +1540,7 @@ void EnDeath_DrawFlames(EnDeath* this, PlayState* play2) {
             FrameInterpolation_RecordOpenChild(flameAlpha, i);
 
             gDPSetPrimColor(POLY_XLU_DISP++, 0x80, 0x80, 165, 255, 215, *flameAlpha);
-            gSPSegment(POLY_XLU_DISP++, 0x08,
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                        MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0,
                                         ((play->gameplayFrames + i * 10) * -20) & 0x1FF, 32, 128));
 
@@ -1549,7 +1549,7 @@ void EnDeath_DrawFlames(EnDeath* this, PlayState* play2) {
             cmf->mf[3][2] = sparklePos->z;
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
             FrameInterpolation_RecordCloseChild();
         }
         sparklePos++;
@@ -1574,11 +1574,11 @@ void EnDeath_DrawFlames(EnDeath* this, PlayState* play2) {
                 cmf->mf[3][2] = effect->pos.z;
 
                 gDPSetPrimColor(POLY_XLU_DISP++, 0x80, 0x80, 165, 255, 215, alpha);
-                gSPSegment(POLY_XLU_DISP++, 0x08,
+                MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                            MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0,
                                             ((play->gameplayFrames + ((i + j) * 10)) * -20) & 511, 32, 128));
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-                gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
                 FrameInterpolation_RecordCloseChild();
             }
         }
@@ -1597,11 +1597,11 @@ void EnDeath_DrawCore(EnDeath* this, PlayState* play) {
     MM_Matrix_ReplaceRotation(&play->billboardMtxF);
 
     MATRIX_FINALIZE_AND_LOAD(&gfx[0], play->state.gfxCtx);
-    gSPDisplayList(&gfx[1], gGomessCoreDL);
+    MM_gSPDisplayList(&gfx[1], gGomessCoreDL);
 
     if (this->actor.params >= 5) {
         // bats in front of the core
-        gSPDisplayList(&gfx[2], gGomessBatsGuardingCoreDL);
+        MM_gSPDisplayList(&gfx[2], gGomessBatsGuardingCoreDL);
         POLY_OPA_DISP = &gfx[3];
     } else {
         POLY_OPA_DISP = &gfx[2];

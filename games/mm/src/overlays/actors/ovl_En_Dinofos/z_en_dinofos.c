@@ -1551,7 +1551,7 @@ void EnDinofos_Draw(Actor* thisx, PlayState* play) {
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
         func_800B8050(&this->actor, play, 0);
 
-        gSPSegment(POLY_OPA_DISP++, 0x08, MM_sEyeTextures[this->eyeTexIndex]);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, MM_sEyeTextures[this->eyeTexIndex]);
         gDPSetEnvColor(POLY_OPA_DISP++, 20, 40, 40, 255);
 
         Scene_SetRenderModeXlu(play, 0, 1);
@@ -1562,7 +1562,7 @@ void EnDinofos_Draw(Actor* thisx, PlayState* play) {
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
         func_800B8118(&this->actor, play, 0);
 
-        gSPSegment(POLY_XLU_DISP++, 0x08, MM_sEyeTextures[this->eyeTexIndex]);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08, MM_sEyeTextures[this->eyeTexIndex]);
         gDPSetEnvColor(POLY_XLU_DISP++, 20, 40, 40, this->envColorAlpha);
 
         Scene_SetRenderModeXlu(play, 1, 2);

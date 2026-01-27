@@ -1427,8 +1427,8 @@ void EnZot_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 255);
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sp4C[this->unk_2EC]));
-    gSPSegment(POLY_OPA_DISP++, 0x0C, func_80B99580(play->state.gfxCtx));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sp4C[this->unk_2EC]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0C, func_80B99580(play->state.gfxCtx));
 
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnZot_OverrideLimbDraw, EnZot_PostLimbDraw, &this->actor);

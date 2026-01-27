@@ -13185,8 +13185,8 @@ void MM_Player_DrawGameplay(PlayState* play, Player* this, s32 lod, Gfx* cullDLi
                          OverrideLimbDrawFlex overrideLimbDraw) {
     OPEN_DISPS(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x0C, cullDList);
-    gSPSegment(POLY_XLU_DISP++, 0x0C, cullDList);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0C, cullDList);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x0C, cullDList);
 
     MM_Player_DrawImpl(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount, lod,
                     this->transformation, 0, this->actor.shape.face, overrideLimbDraw, MM_Player_PostLimbDrawGameplay,
@@ -13323,7 +13323,7 @@ void MM_Player_Draw(Actor* thisx, PlayState* play) {
             func_80124618(*spE4, spE0, &this->unk_AF0[1]);
             MM_Matrix_Scale(this->unk_AF0[1].x, this->unk_AF0[1].y, this->unk_AF0[1].z, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, *spDC);
+            MM_gSPDisplayList(POLY_OPA_DISP++, *spDC);
 
             MM_Matrix_Pop();
         }
@@ -13372,7 +13372,7 @@ void MM_Player_Draw(Actor* thisx, PlayState* play) {
             gDPSetEnvColor(POLY_OPA_DISP++, spBC.r, spBC.g, spBC.b, 255);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, gLinkGoronCurledDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gLinkGoronCurledDL);
 
             if (this->unk_B86[1] != 0) {
                 if (this->unk_B86[1] < 3) {
@@ -13381,7 +13381,7 @@ void MM_Player_Draw(Actor* thisx, PlayState* play) {
                     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
                 }
 
-                gSPDisplayList(POLY_OPA_DISP++, object_link_goron_DL_00C540);
+                MM_gSPDisplayList(POLY_OPA_DISP++, object_link_goron_DL_00C540);
             }
 
             func_80122BA4(play, &this->unk_3D0, 1, 255);
@@ -13411,9 +13411,9 @@ void MM_Player_Draw(Actor* thisx, PlayState* play) {
                     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
                     AnimatedMat_DrawXlu(play, Lib_SegmentedToVirtual(&object_link_goron_Matanimheader_013138));
                     gDPSetEnvColor(POLY_XLU_DISP++, 155, 0, 0, sp9B);
-                    gSPDisplayList(POLY_XLU_DISP++, object_link_goron_DL_0127B0);
+                    MM_gSPDisplayList(POLY_XLU_DISP++, object_link_goron_DL_0127B0);
                     AnimatedMat_DrawXlu(play, Lib_SegmentedToVirtual(&object_link_goron_Matanimheader_014684));
-                    gSPDisplayList(POLY_XLU_DISP++, object_link_goron_DL_0134D0);
+                    MM_gSPDisplayList(POLY_XLU_DISP++, object_link_goron_DL_0134D0);
                 }
             }
         } else if ((this->transformation == PLAYER_FORM_GORON) && (this->stateFlags1 & PLAYER_STATE1_400000)) {
@@ -13478,7 +13478,7 @@ void MM_Player_Draw(Actor* thisx, PlayState* play) {
         if (this->stateFlags2 & PLAYER_STATE2_4000) {
             f32 temp_fa0 = this->unk_B48;
 
-            gSPSegment(POLY_XLU_DISP++, 0x08,
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                        MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, -(s32)play->gameplayFrames & 0x7F, 0x20, 0x20, 1, 0,
                                         ((s32)play->gameplayFrames * -2) & 0x7F, 0x20, 0x20));
 
@@ -13487,7 +13487,7 @@ void MM_Player_Draw(Actor* thisx, PlayState* play) {
 
             gDPSetEnvColor(POLY_XLU_DISP++, 0, 50, 100, 255);
 
-            gSPDisplayList(POLY_XLU_DISP++, gEffIceFragment3DL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gEffIceFragment3DL);
         }
 
         if (this->getItemDrawIdPlusOne > GID_NONE + 1) {

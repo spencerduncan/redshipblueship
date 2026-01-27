@@ -264,9 +264,9 @@ void EnTest6_DrawAmmoDropDefault(EnTest6* this, PlayState* play, SoTCsAmmoDrops*
         POLY_OPA_DISP = MM_Play_SetFog(play, POLY_OPA_DISP);
         POLY_OPA_DISP = Gfx_SetupDL66(POLY_OPA_DISP);
 
-        gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sSoTCsAmmoDropTextures[ammoDrop->type]));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sSoTCsAmmoDropTextures[ammoDrop->type]));
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gItemDropDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gItemDropDL);
     }
 
     MM_Matrix_Translate(ammoDrop->pos.x * ammoDrop->scale, ammoDrop->pos.y, ammoDrop->pos.z * ammoDrop->scale,
@@ -283,7 +283,7 @@ void EnTest6_DrawAmmoDropDefault(EnTest6* this, PlayState* play, SoTCsAmmoDrops*
     gDPSetPrimColor(POLY_XLU_DISP++, 0x80, 0x80, 210, 210, 230, 128);
     gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, 255, 0);
     gSPClearGeometryMode(POLY_XLU_DISP++, G_FOG | G_LIGHTING);
-    gSPDisplayList(POLY_XLU_DISP++, gEffSparklesDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gEffSparklesDL);
     gSPSetGeometryMode(POLY_XLU_DISP++, G_FOG | G_LIGHTING);
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -310,15 +310,15 @@ void EnTest6_DrawAmmoDropRupee(EnTest6* this, PlayState* play, SoTCsAmmoDrops* a
         gDPSetHilite1Tile(gfx++, 1, hilite, 0x10, 0x10);
         gSPEndDisplayList(gfx++);
 
-        gSPSegment(POLY_OPA_DISP++, 0x07, gfxHead);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x07, gfxHead);
 
         MM_Matrix_Translate(ammoDropPos.x, ammoDropPos.y, ammoDropPos.z, MTXMODE_NEW);
         MM_Matrix_Scale(ammoDrop->scale * 0.018f, ammoDrop->scale * 0.018f, ammoDrop->scale * 0.018f, MTXMODE_APPLY);
         MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sSoTCsAmmoDropTextures[ammoDrop->type]));
-        gSPDisplayList(POLY_OPA_DISP++, gRupeeDL);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sSoTCsAmmoDropTextures[ammoDrop->type]));
+        MM_gSPDisplayList(POLY_OPA_DISP++, gRupeeDL);
     }
 
     MM_Matrix_Translate(ammoDrop->pos.x * ammoDrop->scale, ammoDrop->pos.y, ammoDrop->pos.z * ammoDrop->scale,
@@ -335,7 +335,7 @@ void EnTest6_DrawAmmoDropRupee(EnTest6* this, PlayState* play, SoTCsAmmoDrops* a
     gDPSetPrimColor(POLY_XLU_DISP++, 0x80, 0x80, 220, 220, 230, 192);
     gDPSetEnvColor(POLY_XLU_DISP++, 128, 128, 128, 0);
     gSPClearGeometryMode(POLY_XLU_DISP++, G_FOG | G_LIGHTING);
-    gSPDisplayList(POLY_XLU_DISP++, gEffSparklesDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gEffSparklesDL);
     gSPSetGeometryMode(POLY_XLU_DISP++, G_FOG | G_LIGHTING);
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -1236,7 +1236,7 @@ void EnTest6_DrawThreeDayResetSoTCutscene(EnTest6* this, PlayState* play) {
         gDPSetPrimColor(this->gfx++, 0, 0xFF, 28, 28, 28, 255);
         gDPSetEnvColor(this->gfx++, 255, 255, 255, 255);
         gDPSetRenderMode(this->gfx++, G_RM_FOG_SHADE_A, G_RM_AA_ZB_OPA_SURF2);
-        gSPDisplayList(this->gfx++, gSongOfTimeClockDL);
+        MM_gSPDisplayList(this->gfx++, gSongOfTimeClockDL);
 
         // Clock 2
         clock2Yaw += 0x1000;
@@ -1251,7 +1251,7 @@ void EnTest6_DrawThreeDayResetSoTCutscene(EnTest6* this, PlayState* play) {
         gDPSetPrimColor(this->gfx++, 0, 0xFF, 28, 28, 28, 255);
         gDPSetEnvColor(this->gfx++, 255, 255, 255, 255);
         gDPSetRenderMode(this->gfx++, G_RM_FOG_SHADE_A, G_RM_AA_ZB_OPA_SURF2);
-        gSPDisplayList(this->gfx++, gSongOfTimeClockDL);
+        MM_gSPDisplayList(this->gfx++, gSongOfTimeClockDL);
 
         clockPos.y -= this->speed;
         angle += this->clockRingRotZ;
@@ -1334,7 +1334,7 @@ void EnTest6_DrawDoubleSoTCutscene(EnTest6* this, PlayState* play) {
         gDPSetPrimColor(this->gfx++, 0, 0xFF, this->clockColorGray, this->clockColorGray, this->clockColorGray, 255);
         gDPSetEnvColor(this->gfx++, 235, 238, 235, 255);
         gDPSetRenderMode(this->gfx++, G_RM_FOG_SHADE_A, G_RM_AA_ZB_OPA_SURF2);
-        gSPDisplayList(this->gfx++, gSongOfTimeClockDL);
+        MM_gSPDisplayList(this->gfx++, gSongOfTimeClockDL);
 
         clockRotX += 0x10000 / SOTCS_DOUBLE_NUM_CLOCKS;
     }
@@ -1383,7 +1383,7 @@ void EnTest6_DrawInvertedSoTCutscene(EnTest6* this, PlayState* play2) {
                 gDPSetPrimColor(this->gfx++, 0, 0xFF, 28, 28, 28, 255);
                 gDPSetEnvColor(this->gfx++, 245, 245, 200, this->alpha);
                 gDPSetRenderMode(this->gfx++, G_RM_FOG_SHADE_A, G_RM_AA_ZB_XLU_SURF2);
-                gSPDisplayList(this->gfx++, gSongOfTimeClockDL);
+                MM_gSPDisplayList(this->gfx++, gSongOfTimeClockDL);
 
                 POLY_XLU_DISP = this->gfx;
             }
@@ -1404,7 +1404,7 @@ void EnTest6_DrawInvertedSoTCutscene(EnTest6* this, PlayState* play2) {
                     Matrix_RotateZS(this->invSoTClockYaw + (i << 2), MTXMODE_APPLY);
 
                     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-                    gSPDisplayList(POLY_XLU_DISP++, gEffFlash1DL);
+                    MM_gSPDisplayList(POLY_XLU_DISP++, gEffFlash1DL);
                 }
             }
 

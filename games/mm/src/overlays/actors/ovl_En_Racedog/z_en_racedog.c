@@ -770,8 +770,8 @@ void EnRacedog_DrawSelectionArrow(EnRacedog* this, PlayState* play) {
         MM_Matrix_Scale(this->selectionArrowScale * 2.0f, this->selectionArrowScale * 2.0f,
                      this->selectionArrowScale * 2.0f, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gDogSelectionArrowEmptyDL);
-        gSPDisplayList(POLY_OPA_DISP++, gDogSelectionArrowDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gDogSelectionArrowEmptyDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gDogSelectionArrowDL);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }

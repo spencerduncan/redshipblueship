@@ -382,7 +382,7 @@ void MirRay3_Draw(Actor* thisx, PlayState* play) {
 
         AnimatedMat_Draw(play, Lib_SegmentedToVirtual(object_mir_ray_Matanimheader_0003F8));
 
-        gSPDisplayList(POLY_XLU_DISP++, object_mir_ray_DL_000168);
+        MM_gSPDisplayList(POLY_XLU_DISP++, object_mir_ray_DL_000168);
 
         func_80B9E5F4(this, play, sp8C);
         func_80B9E7D0(sp8C);
@@ -409,7 +409,7 @@ void MirRay3_Draw(Actor* thisx, PlayState* play) {
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
                 gDPPipeSync(POLY_XLU_DISP++);
                 gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, sp8C[0].unk_50);
-                gSPDisplayList(POLY_XLU_DISP++, object_mir_ray_DL_0004B0);
+                MM_gSPDisplayList(POLY_XLU_DISP++, object_mir_ray_DL_0004B0);
             }
         }
 

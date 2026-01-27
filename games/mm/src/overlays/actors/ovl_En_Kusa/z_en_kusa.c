@@ -732,7 +732,7 @@ void EnKusa_DrawBush(Actor* thisx, PlayState* play2) {
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, alpha);
-        gSPDisplayList(POLY_XLU_DISP++, gKusaBushType2DL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gKusaBushType2DL);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }

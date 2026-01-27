@@ -18,7 +18,7 @@ int MM_osSetTimer(OSTimer* t, OSTime countdown, OSTime interval, OSMesgQueue* mq
     t->mq = mq;
     t->msg = msg;
 
-    saveMask = __osDisableInt();
+    saveMask = MM___osDisableInt();
 
     if (__osTimerList->next == __osTimerList) {
     } else {
@@ -35,7 +35,7 @@ int MM_osSetTimer(OSTimer* t, OSTime countdown, OSTime interval, OSMesgQueue* mq
     time = __osInsertTimer(t);
     __osSetTimerIntr(__osTimerList->next->value);
 
-    __osRestoreInt(saveMask);
+    MM___osRestoreInt(saveMask);
 
     return 0;
 }

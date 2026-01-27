@@ -414,7 +414,7 @@ void MM_EnBubble_Draw(Actor* thisx, PlayState* play) {
         Matrix_RotateZF(DEG_TO_RAD(-(f32)play->state.frames) * this->modelRotSpeed, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
-        gSPDisplayList(POLY_XLU_DISP++, gBubbleDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gBubbleDL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

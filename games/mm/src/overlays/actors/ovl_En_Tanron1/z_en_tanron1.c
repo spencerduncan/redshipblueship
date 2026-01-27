@@ -380,7 +380,7 @@ void func_80BB5AAC(EnTanron1* this, PlayState* play) {
         if (ptr->unk_24 == 1) {
             FrameInterpolation_RecordOpenChild(ptr, ptr->unk_24);
             if (!flag) {
-                gSPDisplayList(POLY_OPA_DISP++, ovl_En_Tanron1_DL_001888);
+                MM_gSPDisplayList(POLY_OPA_DISP++, ovl_En_Tanron1_DL_001888);
                 flag++;
             }
             MM_Matrix_Translate(ptr->unk_00.x, ptr->unk_00.y, ptr->unk_00.z, MTXMODE_NEW);
@@ -389,7 +389,7 @@ void func_80BB5AAC(EnTanron1* this, PlayState* play) {
             MM_Matrix_Scale(1.2f, ptr->unk_2C, 1.2f, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, ovl_En_Tanron1_DL_001900);
+            MM_gSPDisplayList(POLY_OPA_DISP++, ovl_En_Tanron1_DL_001900);
             FrameInterpolation_RecordCloseChild();
         }
     }
@@ -400,7 +400,7 @@ void func_80BB5AAC(EnTanron1* this, PlayState* play) {
         if (ptr->unk_24 == 2) {
             FrameInterpolation_RecordOpenChild(ptr, ptr->unk_24);
             if (!flag) {
-                gSPDisplayList(POLY_OPA_DISP++, ovl_En_Tanron1_DL_001888);
+                MM_gSPDisplayList(POLY_OPA_DISP++, ovl_En_Tanron1_DL_001888);
                 gDPLoadTextureBlock(POLY_OPA_DISP++, ovl_En_Tanron1_DL_001428, G_IM_FMT_RGBA, G_IM_SIZ_16b, 16, 32, 0,
                                     G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, 4, 5, G_TX_NOLOD,
                                     G_TX_NOLOD);
@@ -413,7 +413,7 @@ void func_80BB5AAC(EnTanron1* this, PlayState* play) {
             MM_Matrix_Scale(1.0f, ptr->unk_2C, 1.0f, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, ovl_En_Tanron1_DL_001900);
+            MM_gSPDisplayList(POLY_OPA_DISP++, ovl_En_Tanron1_DL_001900);
             FrameInterpolation_RecordCloseChild();
         }
     }

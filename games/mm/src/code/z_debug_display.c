@@ -80,7 +80,7 @@ void MM_DebugDisplay_DrawSpriteI8(DebugDispObject* dispObj, void* texture, PlayS
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
-    gSPDisplayList(POLY_XLU_DISP++, sDebugDisplaySpriteDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, sDebugDisplaySpriteDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -100,7 +100,7 @@ void MM_DebugDisplay_DrawPolygon(DebugDispObject* dispObj, void* dList, PlayStat
     MM_Matrix_Scale(dispObj->scale.x, dispObj->scale.y, dispObj->scale.z, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
-    gSPDisplayList(POLY_XLU_DISP++, dList);
+    MM_gSPDisplayList(POLY_XLU_DISP++, dList);
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
@@ -115,7 +115,7 @@ void DebugDisplay_DrawPath(PlayState* play, Path* path) {
 
     Gfx_SetupDL38_Xlu(play->state.gfxCtx);
     gSPMatrix(POLY_XLU_DISP++, &gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-    gSPDisplayList(POLY_XLU_DISP++, DebugDisplay_PathDisplayList(play->state.gfxCtx, path));
+    MM_gSPDisplayList(POLY_XLU_DISP++, DebugDisplay_PathDisplayList(play->state.gfxCtx, path));
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -149,7 +149,7 @@ Gfx* DebugDisplay_PathDisplayList(GraphicsContext* gfxCtx, Path* path) {
     s32 segment; // of path ending at the current point, 1-indexed
 
     if (path != NULL) {
-        // (count - 1) segments, 1 gSPVertex and 3 gSP2Triangles for each, plus a gSPEndDisplayList
+        // (count - 1) segments, 1 MM_gSPVertex and 3 gSP2Triangles for each, plus a gSPEndDisplayList
         gfx = GRAPH_ALLOC(gfxCtx, ((path->count - 1) * 4 + 1) * sizeof(Gfx));
         curVtx = GRAPH_ALLOC(gfxCtx, path->count * 6 * sizeof(Vtx));
 
@@ -185,14 +185,14 @@ Gfx* DebugDisplay_PathDisplayList(GraphicsContext* gfxCtx, Path* path) {
             // is 0
             if (R_DRAW_PATH_SEGMENT == 0) {
                 if (segment > 0) {
-                    gSPVertex(gfx++, prevBaseVtx, 12, 0);
+                    MM_gSPVertex(gfx++, prevBaseVtx, 12, 0);
                     gSP2Triangles(gfx++, 0, 7, 1, 0, 0, 6, 7, 0);
                     gSP2Triangles(gfx++, 2, 3, 8, 0, 3, 9, 8, 0);
                     gSP2Triangles(gfx++, 4, 11, 10, 0, 4, 5, 11, 0);
                 }
             } else {
                 if ((segment > 0) && (segment == R_DRAW_PATH_SEGMENT)) {
-                    gSPVertex(gfx++, prevBaseVtx, 12, 0);
+                    MM_gSPVertex(gfx++, prevBaseVtx, 12, 0);
                     gSP2Triangles(gfx++, 0, 7, 1, 0, 0, 6, 7, 0);
                     gSP2Triangles(gfx++, 2, 3, 8, 0, 3, 9, 8, 0);
                     gSP2Triangles(gfx++, 4, 11, 10, 0, 4, 5, 11, 0);

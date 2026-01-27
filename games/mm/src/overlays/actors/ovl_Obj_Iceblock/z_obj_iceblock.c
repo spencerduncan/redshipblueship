@@ -1539,7 +1539,7 @@ void func_80A26BF8(ObjIceblock* this, PlayState* play) {
         MM_Matrix_Scale(ptr->unk_04, ptr->unk_08, ptr->unk_0C, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gIceBlockCubeDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gIceBlockCubeDL);
     }
 
     if (ICEBLOCK_GET_ICEBERG(&this->dyna.actor) && (this->unk_2B4 > 0.0f)) {
@@ -1549,7 +1549,7 @@ void func_80A26BF8(ObjIceblock* this, PlayState* play) {
         MM_Matrix_Scale(this->unk_2B4, this->unk_2B4, this->unk_2B4, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gIceBlockIceBergDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gIceBlockIceBergDL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

@@ -17,7 +17,7 @@
  * These were renamed by the namespace tool but should use OoT's implementations
  * ========================================================================== */
 
-/* Math functions */
+/* Math functions - sqrtf was renamed by namespace tool, redirect to libc */
 float MM_sqrtf(float x) { return sqrtf(x); }
 
 /* String functions */
@@ -29,8 +29,13 @@ int MM_sprintf(char *str, const char *format, ...) {
     return ret;
 }
 
-/* OS functions - these should use OoT's implementations */
-/* Forward declarations from OoT */
+/* OS function aliases: MM_ prefixed calls redirect to shared libultraship
+ * implementations. The namespace tool renamed MM's calls from os* to MM_os*,
+ * but the actual implementations live in libultraship (shared). These aliases
+ * bridge the gap.
+ *
+ * Note: osVi* functions are NOT aliased here because MM has its own
+ * implementations in src/libultra/io/ that were renamed to MM_osVi*. */
 extern void osContGetReadData(void *data);
 extern int osContInit(void *mq, unsigned char *bitpattern, void *status);
 extern int osContStartReadData(void *mq);
@@ -40,14 +45,6 @@ extern int osMotorInit(void *mq, void *pfs, int channel);
 extern int osRecvMesg(void *mq, void *msg, int flag);
 extern int osSendMesg(void *mq, void *msg, int flag);
 extern void osSetEventMesg(int event, void *mq, void *msg);
-extern void osViBlack(int flag);
-extern void *osViGetCurrentFramebuffer(void);
-extern void *osViGetNextFramebuffer(void);
-extern void osViSetMode(void *mode);
-extern void osViSetSpecialFeatures(unsigned int func);
-extern void osViSetXScale(float scale);
-extern void osViSetYScale(float scale);
-extern void osViSwapBuffer(void *buffer);
 
 void MM_osContGetReadData(void *data) { osContGetReadData(data); }
 int MM_osContInit(void *mq, unsigned char *bitpattern, void *status) { return osContInit(mq, bitpattern, status); }
@@ -58,14 +55,6 @@ int MM_osMotorInit(void *mq, void *pfs, int channel) { return osMotorInit(mq, pf
 int MM_osRecvMesg(void *mq, void *msg, int flag) { return osRecvMesg(mq, msg, flag); }
 int MM_osSendMesg(void *mq, void *msg, int flag) { return osSendMesg(mq, msg, flag); }
 void MM_osSetEventMesg(int event, void *mq, void *msg) { osSetEventMesg(event, mq, msg); }
-void MM_osViBlack(int flag) { osViBlack(flag); }
-void *MM_osViGetCurrentFramebuffer(void) { return osViGetCurrentFramebuffer(); }
-void *MM_osViGetNextFramebuffer(void) { return osViGetNextFramebuffer(); }
-void MM_osViSetMode(void *mode) { osViSetMode(mode); }
-void MM_osViSetSpecialFeatures(unsigned int func) { osViSetSpecialFeatures(func); }
-void MM_osViSetXScale(float scale) { osViSetXScale(scale); }
-void MM_osViSetYScale(float scale) { osViSetYScale(scale); }
-void MM_osViSwapBuffer(void *buffer) { osViSwapBuffer(buffer); }
 
 /* FaultDrawer - stub implementations (OoT uses different fault handling) */
 int MM_FaultDrawer_DrawText(int x, int y, const char* fmt, ...) {

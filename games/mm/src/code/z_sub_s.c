@@ -73,7 +73,7 @@ Gfx* SubS_DrawTransformFlexLimb(PlayState* play, s32 limbIndex, void** skeleton,
         if (newDList != NULL) {
             MM_Matrix_ToMtx(*mtx);
             gSPMatrix(gfx++, *mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-            gSPDisplayList(gfx++, newDList);
+            MM_gSPDisplayList(gfx++, newDList);
             (*mtx)++;
         } else if (limbDList != NULL) {
             MM_Matrix_ToMtx(*mtx);
@@ -120,7 +120,7 @@ Gfx* SubS_DrawTransformFlex(PlayState* play, void** skeleton, Vec3s* jointTable,
         return NULL;
     }
 
-    gSPSegment(gfx++, 0x0D, mtx);
+    MM_gSPSegment(gfx++, 0x0D, mtx);
     MM_Matrix_Push();
     rootLimb = Lib_SegmentedToVirtual(skeleton[0]);
     pos.x = jointTable[LIMB_ROOT_POS].x;
@@ -139,7 +139,7 @@ Gfx* SubS_DrawTransformFlex(PlayState* play, void** skeleton, Vec3s* jointTable,
         if (newDlist != NULL) {
             MM_Matrix_ToMtx(mtx);
             gSPMatrix(gfx++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-            gSPDisplayList(gfx++, newDlist);
+            MM_gSPDisplayList(gfx++, newDlist);
             mtx++;
         } else if (limbDList != NULL) {
             MM_Matrix_ToMtx(mtx);
@@ -1013,7 +1013,7 @@ void SubS_DrawShadowTex(Actor* actor, GameState* gameState, u8* tex) {
 
     OPEN_DISPS(gfxCtx);
 
-    gSPInvalidateTexCache(POLY_OPA_DISP++, tex);
+    MM_gSPInvalidateTexCache(POLY_OPA_DISP++, tex);
 
     Gfx_SetupDL25_Opa(gfxCtx);
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 0, 0, 0, 100);
@@ -1021,10 +1021,10 @@ void SubS_DrawShadowTex(Actor* actor, GameState* gameState, u8* tex) {
     MM_Matrix_Translate(actor->world.pos.x, 0.0f, actor->world.pos.z, MTXMODE_NEW);
     MM_Matrix_Scale(0.6f, 1.0f, 0.6f, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gShadowMaterialDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gShadowMaterialDL);
     gDPLoadTextureBlock(POLY_OPA_DISP++, tex, G_IM_FMT_I, G_IM_SIZ_8b, SUBS_SHADOW_TEX_WIDTH, SUBS_SHADOW_TEX_HEIGHT, 0,
                         G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, 6, 6, G_TX_NOLOD, G_TX_NOLOD);
-    gSPDisplayList(POLY_OPA_DISP++, gShadowModelDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gShadowModelDL);
 
     CLOSE_DISPS(gfxCtx);
 }

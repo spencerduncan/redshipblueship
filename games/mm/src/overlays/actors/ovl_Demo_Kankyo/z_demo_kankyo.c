@@ -532,8 +532,8 @@ void DemoKakyo_DrawLostWoodsSparkle(Actor* thisx, PlayState* play2) {
 
         POLY_XLU_DISP = MM_Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_20);
 
-        gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gSun1Tex));
-        gSPDisplayList(POLY_XLU_DISP++, gSunSparkleMaterialDL);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gSun1Tex));
+        MM_gSPDisplayList(POLY_XLU_DISP++, gSunSparkleMaterialDL);
 
         for (i = 0; i < play->envCtx.precipitation[PRECIP_SNOW_MAX]; i++) {
             worldPos.x = this->effects[i].posBase.x + this->effects[i].posOffset.x;
@@ -609,7 +609,7 @@ void DemoKakyo_DrawLostWoodsSparkle(Actor* thisx, PlayState* play2) {
                 Matrix_RotateZF(DEG_TO_RAD(play->state.frames * 20.0f), MTXMODE_APPLY);
 
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-                gSPDisplayList(POLY_XLU_DISP++, gSunSparkleModelDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gSunSparkleModelDL);
                 FrameInterpolation_RecordCloseChild();
             }
         }
@@ -685,7 +685,7 @@ void DemoKankyo_DrawMoonAndGiant(Actor* thisx, PlayState* play2) {
                         break;
                 }
 
-                gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
 
                 MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
 
@@ -694,9 +694,9 @@ void DemoKankyo_DrawMoonAndGiant(Actor* thisx, PlayState* play2) {
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
                 if (this->actor.params == DEMO_KANKYO_TYPE_GIANTS) {
-                    gSPDisplayList(POLY_XLU_DISP++, gBubbleDL);
+                    MM_gSPDisplayList(POLY_XLU_DISP++, gBubbleDL);
                 } else {
-                    gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
+                    MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
                 }
                 FrameInterpolation_RecordCloseChild();
             }

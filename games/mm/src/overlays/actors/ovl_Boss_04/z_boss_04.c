@@ -837,7 +837,7 @@ void Boss04_Draw(Actor* thisx, PlayState* play) {
         Gfx_SetupDL44_Xlu(play->state.gfxCtx);
 
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 0, 0, 0, 150);
-        gSPDisplayList(POLY_XLU_DISP++, gWartShadowMaterialDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gWartShadowMaterialDL);
 
         MM_Matrix_Translate(this->unk_6BC.x, this->actor.floorHeight, this->unk_6BC.z, MTXMODE_NEW);
         Matrix_RotateYS(this->actor.shape.rot.y, MTXMODE_APPLY);
@@ -845,7 +845,7 @@ void Boss04_Draw(Actor* thisx, PlayState* play) {
         MM_Matrix_Scale(this->unk_6F8 * 1.8f, 0.0f, this->unk_700 * 2.8f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gWartShadowModelDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gWartShadowModelDL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

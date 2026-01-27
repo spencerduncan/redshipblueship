@@ -74,7 +74,7 @@ void MM_EffectSsDFire_Draw(PlayState* play, u32 index, EffectSs* this) {
         OPEN_DISPS(gfxCtx);
 
         MM_gSegments[6] = OS_K0_TO_PHYSICAL(objectPtr);
-        gSPSegment(POLY_XLU_DISP++, 0x06, objectPtr);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x06, objectPtr);
 
         scale = this->rScale / 100.0f;
 
@@ -90,10 +90,10 @@ void MM_EffectSsDFire_Draw(PlayState* play, u32 index, EffectSs* this) {
         {
             TexturePtr* tex = sFireTextures[this->rTexIndex];
 
-            gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(tex));
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(tex));
         }
 
-        gSPDisplayList(POLY_XLU_DISP++, this->gfx);
+        MM_gSPDisplayList(POLY_XLU_DISP++, this->gfx);
 
         CLOSE_DISPS(gfxCtx);
     }

@@ -17,7 +17,7 @@ void Nmi_Init(void) {
     gNMIBuffer = (NmiBuff*)osAppNMIBuffer;
     gNMIBuffer->resetting = false;
 
-    if (osResetType == COLD_RESET) {
+    if (MM_osResetType == COLD_RESET) {
         gNMIBuffer->resetCount = 0;
         gNMIBuffer->duration = 0;
     } else {

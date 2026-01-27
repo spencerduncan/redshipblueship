@@ -4679,7 +4679,7 @@ s32 MM_EnHorse_OverrideLimbDraw(Actor* thisx, PlayState* play, s32 limbIndex, Sk
         if ((limbIndex == 13) && (this->type == HORSE_TYPE_2)) {
             u8 idx = D_80889210[this->blinkTimer];
 
-            gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80889204[idx]));
+            MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80889204[idx]));
         } else if ((this->type == HORSE_TYPE_HNI) && (this->stateFlags & ENHORSE_FLAG_18) && (limbIndex == 30)) {
             drawOriginalLimb = false;
         }

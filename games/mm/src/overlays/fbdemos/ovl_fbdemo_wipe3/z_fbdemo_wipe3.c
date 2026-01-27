@@ -136,8 +136,8 @@ void TransitionWipe3_Draw(void* thisx, Gfx** gfxP) {
     gDPPipeSync(gfx++);
     texScroll =
         MM_Gfx_BranchTexScroll(&gfx, ((TransitionWipe3*)thisx)->scrollX, ((TransitionWipe3*)thisx)->scrollY, 16, 64);
-    gSPSegment(gfx++, 0x09, texScroll);
-    gSPSegment(gfx++, 0x08, ((TransitionWipe3*)thisx)->curTexture);
+    MM_gSPSegment(gfx++, 0x09, texScroll);
+    MM_gSPSegment(gfx++, 0x08, ((TransitionWipe3*)thisx)->curTexture);
     gDPSetColor(gfx++, G_SETPRIMCOLOR, ((TransitionWipe3*)thisx)->color.rgba);
     gDPSetColor(gfx++, G_SETENVCOLOR, ((TransitionWipe3*)thisx)->color.rgba);
     gSPMatrix(gfx++, &((TransitionWipe3*)thisx)->projection, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
@@ -148,7 +148,7 @@ void TransitionWipe3_Draw(void* thisx, Gfx** gfxP) {
         guScale(modelView, scale, scale, 1.0f);
         gSPMatrix(gfx++, modelView, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     }
-    gSPDisplayList(gfx++, sTransWipe3DL);
+    MM_gSPDisplayList(gfx++, sTransWipe3DL);
     gDPPipeSync(gfx++);
     *gfxP = gfx;
 }

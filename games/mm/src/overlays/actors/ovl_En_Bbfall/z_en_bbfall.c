@@ -714,7 +714,7 @@ void EnBbfall_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* r
             currentMatrixState->mf[3][2] = this->bodyPartsPos[sLimbToBodyParts[limbIndex]].z;
             Matrix_RotateZS(thisx->world.rot.z, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, this->limbDList);
+            MM_gSPDisplayList(POLY_OPA_DISP++, this->limbDList);
 
             CLOSE_DISPS(play->state.gfxCtx);
         }
@@ -733,7 +733,7 @@ void EnBbfall_Draw(Actor* thisx, PlayState* play2) {
     OPEN_DISPS(play->state.gfxCtx);
 
     gfx = POLY_OPA_DISP;
-    gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
     POLY_OPA_DISP = &gfx[1];
     MM_SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, EnBbfall_OverrideLimbDraw,
                       EnBbfall_PostLimbDraw, &this->actor);
@@ -750,7 +750,7 @@ void EnBbfall_Draw(Actor* thisx, PlayState* play2) {
         pos = &this->flamePos[0];
 
         for (i = 0; i < ARRAY_COUNT(this->flamePos); i++, pos++) {
-            gSPSegment(POLY_XLU_DISP++, 0x08,
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                        MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0,
                                         ((play->gameplayFrames + (i * 10)) * (-20 + i * 2)) & 0x1FF, 32, 128));
             gDPSetPrimColor(POLY_XLU_DISP++, 0x80, 0x80, 255, 255, 0, opacity);
@@ -758,7 +758,7 @@ void EnBbfall_Draw(Actor* thisx, PlayState* play2) {
             currentMatrixState->mf[3][1] = pos->y;
             currentMatrixState->mf[3][2] = pos->z;
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
 
             opacity -= 35;
             if (opacity < 0) {

@@ -1,7 +1,7 @@
 #include "ultra64.h"
 
 void MM_osViSetSpecialFeatures(u32 func) {
-    register u32 saveMask = __osDisableInt();
+    register u32 saveMask = MM___osDisableInt();
 
     if (func & OS_VI_GAMMA_ON) {
         __osViNext->features |= OS_VI_GAMMA;
@@ -33,5 +33,5 @@ void MM_osViSetSpecialFeatures(u32 func) {
     }
     __osViNext->state |= 8;
 
-    __osRestoreInt(saveMask);
+    MM___osRestoreInt(saveMask);
 }

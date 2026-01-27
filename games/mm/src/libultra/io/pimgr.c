@@ -32,7 +32,7 @@ void MM_osCreatePiManager(OSPri pri, OSMesgQueue* cmdQ, OSMesg* cmdBuf, s32 cmdM
             oldPri = myPri;
             MM_osSetThreadPri(NULL, pri);
         }
-        savedMask = __osDisableInt();
+        savedMask = MM___osDisableInt();
         __osPiDevMgr.active = 1;
         __osPiDevMgr.thread = &sPiMgrThread;
         __osPiDevMgr.cmdQueue = cmdQ;
@@ -40,9 +40,9 @@ void MM_osCreatePiManager(OSPri pri, OSMesgQueue* cmdQ, OSMesg* cmdBuf, s32 cmdM
         __osPiDevMgr.acsQueue = &__osPiAccessQueue;
         __osPiDevMgr.piDmaCallback = __osPiRawStartDma;
         __osPiDevMgr.epiDmaCallback = __osEPiRawStartDma;
-        osCreateThread(&sPiMgrThread, 0, __osDevMgrMain, &__osPiDevMgr, STACK_TOP(sPiMgrStack), pri);
+        MM_osCreateThread(&sPiMgrThread, 0, __osDevMgrMain, &__osPiDevMgr, STACK_TOP(sPiMgrStack), pri);
         MM_osStartThread(&sPiMgrThread);
-        __osRestoreInt(savedMask);
+        MM___osRestoreInt(savedMask);
         if (oldPri != -1) {
             MM_osSetThreadPri(NULL, oldPri);
         }
