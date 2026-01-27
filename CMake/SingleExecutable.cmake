@@ -32,6 +32,7 @@ set(REDSHIP_COMMON_SOURCES
     # MM stubs and aliases for single-exe mode
     ${CMAKE_SOURCE_DIR}/src/common/mm_stubs.c
     ${CMAKE_SOURCE_DIR}/src/common/mm_stubs.cpp
+    ${CMAKE_SOURCE_DIR}/src/common/game_lifecycle.c
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -47,6 +48,7 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/entrance.h
     ${CMAKE_SOURCE_DIR}/src/common/test_runner.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboMenuBar.h
+    ${CMAKE_SOURCE_DIR}/src/common/game_lifecycle.h
 )
 
 # ============================================================================
