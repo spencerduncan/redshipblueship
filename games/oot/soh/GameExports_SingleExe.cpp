@@ -92,4 +92,81 @@ const char* OoT_Game_GetId(void) {
 
 } // extern "C"
 
+// ============================================================================
+// Cross-game entrance hooks (single-exe mode)
+// These were in GameExports.cpp but guarded out by #ifndef RSBS_SINGLE_EXECUTABLE.
+// In single-exe mode, these are the REAL implementations called by game code.
+// ============================================================================
+
+// Cross-game entrance API (from src/common/)
+extern "C" {
+    uint16_t Combo_CheckCrossGameEntrance(const char* gameId, uint16_t entrance);
+    bool Combo_IsCrossGameSwitch(void);
+    uint16_t Combo_GetSwitchReturnEntrance(void);
+    void Combo_FreezeState(const char* gameId, uint16_t returnEntrance,
+                           const void* saveCtx, size_t saveCtxSize);
+    void Combo_SignalReadyToSwitch(void);
+    void Combo_RequestGameSwitch(void);
+    bool Combo_IsGameSwitchRequested(void);
+    void Combo_ClearGameSwitchRequest(void);
+}
+
+// OoT's SaveContext (type defined via OTRGlobals.h -> z64save.h)
+extern "C" SaveContext gSaveContext;
+
+static bool sLastF10State = false;
+
+/**
+ * Check if F10 was pressed and request game switch.
+ * Also checks for pending cross-game entrance switches.
+ * Called from the OoT game loop (graph.c) each frame.
+ */
+extern "C" bool Combo_CheckHotSwap(void) {
+    // Check for pending cross-game entrance switch first
+    if (Combo_IsCrossGameSwitch()) {
+        return true;
+    }
+
+    auto context = Ship::Context::GetInstance();
+    if (!context) {
+        return Combo_IsGameSwitchRequested();
+    }
+
+    auto window = context->GetWindow();
+    if (!window) {
+        return Combo_IsGameSwitchRequested();
+    }
+
+    int32_t scancode = window->GetLastScancode();
+    bool f10Pressed = (scancode == Ship::LUS_KB_F10);
+
+    if (f10Pressed && !sLastF10State) {
+        Combo_RequestGameSwitch();
+    }
+    sLastF10State = f10Pressed;
+
+    return Combo_IsGameSwitchRequested();
+}
+
+/**
+ * Check if an entrance triggers a cross-game switch.
+ * Called from randomizer_entrance.c Entrance_OverrideNextIndex().
+ */
+extern "C" uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex) {
+    // Check if this entrance triggers a cross-game switch
+    uint16_t result = Combo_CheckCrossGameEntrance("oot", entranceIndex);
+
+    // If a cross-game switch was triggered, freeze our state
+    if (Combo_IsCrossGameSwitch()) {
+        fprintf(stderr, "[COMBO] Cross-game switch! entrance=0x%04X\n", entranceIndex);
+
+        uint16_t returnEntrance = Combo_GetSwitchReturnEntrance();
+        Combo_FreezeState("oot", returnEntrance, &gSaveContext, sizeof(gSaveContext));
+        Combo_SignalReadyToSwitch();
+    }
+
+    return result;
+}
+
 #endif /* RSBS_SINGLE_EXECUTABLE */
+
