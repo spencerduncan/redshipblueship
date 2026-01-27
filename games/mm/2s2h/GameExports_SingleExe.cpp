@@ -13,6 +13,8 @@
 #include <cstdio>
 #include <cstring>
 
+#include "game_lifecycle.h"
+
 // From main.c headers
 extern "C" {
 #include "audiomgr.h"
@@ -131,6 +133,18 @@ void MM_Game_Run(void) {
     fflush(stderr);
 }
 
+void MM_Game_Suspend(void) {
+    fprintf(stderr, "[MM] Game_Suspend called\n");
+    fflush(stderr);
+    // TODO: Stop MM audio playback
+}
+
+void MM_Game_Resume(void) {
+    fprintf(stderr, "[MM] Game_Resume called\n");
+    fflush(stderr);
+    // TODO: Restore MM audio, reload MM-specific resources if needed
+}
+
 void MM_Game_Shutdown(void) {
     fprintf(stderr, "[MM] Game_Shutdown called\n");
     fflush(stderr);
@@ -150,5 +164,23 @@ const char* MM_Game_GetId(void) {
 }
 
 } // extern "C"
+
+// ============================================================================
+// GameOps registration
+// ============================================================================
+
+static GameOps sMMOps = {
+    "mm",
+    "Majora's Mask",
+    MM_Game_Init,
+    MM_Game_Run,
+    MM_Game_Suspend,
+    MM_Game_Resume,
+    MM_Game_Shutdown
+};
+
+extern "C" GameOps* MM_GetGameOps(void) {
+    return &sMMOps;
+}
 
 #endif /* RSBS_SINGLE_EXECUTABLE */
