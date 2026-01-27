@@ -218,10 +218,10 @@ if(SINGLE_EXECUTABLE_BUILD)
     add_subdirectory(games/mm)
 
     # Link game objects into redship (must be done after games are added)
-    target_link_libraries(redship PRIVATE
-        $<TARGET_OBJECTS:soh>
-        $<TARGET_OBJECTS:2ship>
-    )
+    # Link as OBJECT library targets directly (CMake 3.12+) rather than using
+    # $<TARGET_OBJECTS:> which expands all .obj paths into one line and can
+    # exceed MSVC's 131071 character linker response file line limit.
+    target_link_libraries(redship PRIVATE soh 2ship)
     message(STATUS "Linking OoT (soh) and MM (2ship) objects into redship")
 else()
     # Dynamic library architecture (combo/ approach)
