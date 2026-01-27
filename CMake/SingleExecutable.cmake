@@ -122,6 +122,19 @@ target_link_libraries(redship PRIVATE
     $<$<NOT:$<TARGET_EXISTS:OpusFile::opusfile>>:PkgConfig::opusfile>
 )
 
+# SDL2_net is needed by OoT's Network.cpp when BUILD_REMOTE_CONTROL is enabled.
+# OBJECT libraries don't propagate link dependencies, so we must link it here.
+if(BUILD_REMOTE_CONTROL)
+    find_package(SDL2_net)
+    if(SDL2_net_FOUND)
+        if(TARGET SDL2_net::SDL2_net-static)
+            target_link_libraries(redship PRIVATE SDL2_net::SDL2_net-static)
+        elseif(TARGET SDL2_net::SDL2_net)
+            target_link_libraries(redship PRIVATE SDL2_net::SDL2_net)
+        endif()
+    endif()
+endif()
+
 # Game object libraries will be linked when they are available
 # This is deferred because the games are added as subdirectories later
 
