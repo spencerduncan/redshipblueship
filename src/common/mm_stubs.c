@@ -190,9 +190,8 @@ void SavingEnhancements_AdvancePlaytime(void) {}
 /* PauseOwlWarp stub */
 int PauseOwlWarp_IsOwlWarpEnabled(void) { return 0; }
 
-/* Combo stubs */
-int Combo_CheckEntranceSwitch(void) { return 0; }
-int Combo_CheckHotSwap(void) { return 0; }
+/* Combo_CheckEntranceSwitch and Combo_CheckHotSwap are now in
+ * GameExports_SingleExe.cpp (they need real cross-game logic) */
 
 /* OTR stubs */
 float OTRConvertHUDXToScreenX(float x) { return x; }

@@ -242,12 +242,12 @@ int main(int argc, char** argv) {
     ComboContext_Init();
     Entrance_Init();
 
-    // Register entrance links (test or production)
+    // Register entrance links
+    Entrance_RegisterDefaultLinks();
+    // Also register test links (Mido's House) for easy testing
+    Entrance_RegisterTestLinks();
     if (HasTestEntranceFlag(argc, argv)) {
-        printf("Using TEST entrance: Mido's House <-> Clock Tower\n");
-        Entrance_RegisterTestLinks();
-    } else {
-        Entrance_RegisterDefaultLinks();
+        printf("Test entrance links also registered (Mido's House <-> Clock Tower)\n");
     }
 
     // Determine which game to run
