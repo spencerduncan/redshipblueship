@@ -153,17 +153,26 @@ def main():
     )
     args = parser.parse_args()
 
-    # Determine prefix and source directory
+    # Determine prefix and source directories
     prefix = "OoT" if args.game == "oot" else "MM"
-    base_dir = Path(f"games/{args.game}/src")
+    game_dir = Path(f"games/{args.game}")
+
+    # Enhancement layer directory differs by game
+    enhancement_dir = "soh" if args.game == "oot" else "2s2h"
 
     if args.dir:
-        src_dir = base_dir / args.dir
+        # Single directory mode
+        src_dirs = [game_dir / "src" / args.dir]
     else:
-        src_dir = base_dir
+        # Process both src/ and enhancement layer
+        src_dirs = [
+            game_dir / "src",
+            game_dir / enhancement_dir,
+        ]
 
-    if not src_dir.exists():
-        print(f"Error: Source directory not found: {src_dir}")
+    src_dirs = [d for d in src_dirs if d.exists()]
+    if not src_dirs:
+        print(f"Error: No source directories found in: {game_dir}")
         return 1
 
     # Load symbols
@@ -178,12 +187,15 @@ def main():
     if args.dry_run:
         print("DRY RUN - no files will be modified")
 
-    # Process C files
-    c_files = list(src_dir.rglob("*.c"))
-    h_files = list(src_dir.rglob("*.h")) if args.include_headers else []
-    all_files = c_files + h_files
-
-    print(f"Processing {len(c_files)} .c files and {len(h_files)} .h files in {src_dir}")
+    # Process C/C++ files from all source directories
+    all_files = []
+    for src_dir in src_dirs:
+        c_files = list(src_dir.rglob("*.c"))
+        cpp_files = list(src_dir.rglob("*.cpp"))
+        h_files = list(src_dir.rglob("*.h")) if args.include_headers else []
+        inc_files = list(src_dir.rglob("*.inc"))
+        all_files.extend(c_files + cpp_files + h_files + inc_files)
+        print(f"Found {len(c_files)} .c, {len(cpp_files)} .cpp, {len(h_files)} .h, {len(inc_files)} .inc files in {src_dir}")
 
     # Use a single SymbolNamespacer to reuse the compiled regex pattern
     namespacer = SymbolNamespacer(symbols, prefix)
