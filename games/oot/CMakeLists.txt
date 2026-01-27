@@ -232,34 +232,41 @@ set(ALL_FILES
 list(APPEND ALL_FILES "${CMAKE_CURRENT_SOURCE_DIR}/soh/GameExports.cpp")
 
 ################################################################################
-# Target - always build as shared library for unified combo launcher
+# Target - OBJECT library for single-exe, SHARED for dynamic loading
 ################################################################################
-add_library(${PROJECT_NAME} SHARED ${ALL_FILES})
-target_compile_definitions(${PROJECT_NAME} PRIVATE GAME_BUILDING_DLL)
-
-# Symbol visibility
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    C_VISIBILITY_PRESET hidden
-    CXX_VISIBILITY_PRESET hidden
-    VISIBILITY_INLINES_HIDDEN ON
-)
-
-# Platform-specific naming for shared library
-if(WIN32)
-    set_target_properties(${PROJECT_NAME} PROPERTIES
-        PREFIX ""
-        SUFFIX ".dll"
-    )
-elseif(APPLE)
-    set_target_properties(${PROJECT_NAME} PROPERTIES
-        PREFIX ""
-        SUFFIX ".dylib"
-    )
+if(SINGLE_EXECUTABLE_BUILD)
+    # Build as OBJECT library for linking into single executable
+    add_library(${PROJECT_NAME} OBJECT ${ALL_FILES})
+    target_compile_definitions(${PROJECT_NAME} PRIVATE RSBS_SINGLE_EXECUTABLE)
 else()
+    # Build as SHARED library for dynamic loading
+    add_library(${PROJECT_NAME} SHARED ${ALL_FILES})
+    target_compile_definitions(${PROJECT_NAME} PRIVATE GAME_BUILDING_DLL)
+
+    # Symbol visibility (only for shared library)
     set_target_properties(${PROJECT_NAME} PROPERTIES
-        PREFIX ""
-        SUFFIX ".so"
+        C_VISIBILITY_PRESET hidden
+        CXX_VISIBILITY_PRESET hidden
+        VISIBILITY_INLINES_HIDDEN ON
     )
+
+    # Platform-specific naming for shared library
+    if(WIN32)
+        set_target_properties(${PROJECT_NAME} PROPERTIES
+            PREFIX ""
+            SUFFIX ".dll"
+        )
+    elseif(APPLE)
+        set_target_properties(${PROJECT_NAME} PROPERTIES
+            PREFIX ""
+            SUFFIX ".dylib"
+        )
+    else()
+        set_target_properties(${PROJECT_NAME} PROPERTIES
+            PREFIX ""
+            SUFFIX ".so"
+        )
+    endif()
 endif()
 
 # Link redship_common for cross-game API (src/common implementations)
@@ -635,26 +642,28 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
     endif()
 endif()
 ################################################################################
-# Pre build events
+# Pre build events (only for SHARED library builds)
 ################################################################################
-if (CMAKE_GENERATOR MATCHES "Visual Studio")
-	add_custom_command(
-    TARGET ${PROJECT_NAME}
-	POST_BUILD
-	COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/oot/assets/extractor ${CMAKE_BINARY_DIR}/soh/assets
-    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/oot/assets/xml ${CMAKE_BINARY_DIR}/soh/assets/xml
-    )
-endif()
-if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
-    add_custom_command(
-		TARGET ${PROJECT_NAME}
-		POST_BUILD
-		COMMENT "Copying asset xmls..."
-        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/oot/assets/extractor $<TARGET_FILE_DIR:soh>/assets
-		COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/oot/assets/xml $<TARGET_FILE_DIR:soh>/assets/xml
-        COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:soh>/assets/symbols
-	#	COMMAND ${VS_COPY_ASSETS_CMD}
-    )
+if(NOT SINGLE_EXECUTABLE_BUILD)
+    if (CMAKE_GENERATOR MATCHES "Visual Studio")
+        add_custom_command(
+        TARGET ${PROJECT_NAME}
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/oot/assets/extractor ${CMAKE_BINARY_DIR}/soh/assets
+        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/oot/assets/xml ${CMAKE_BINARY_DIR}/soh/assets/xml
+        )
+    endif()
+    if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
+        add_custom_command(
+            TARGET ${PROJECT_NAME}
+            POST_BUILD
+            COMMENT "Copying asset xmls..."
+            COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/oot/assets/extractor $<TARGET_FILE_DIR:soh>/assets
+            COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/oot/assets/xml $<TARGET_FILE_DIR:soh>/assets/xml
+            COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:soh>/assets/symbols
+        #	COMMAND ${VS_COPY_ASSETS_CMD}
+        )
+    endif()
 endif()
 ################################################################################
 # Dependencies

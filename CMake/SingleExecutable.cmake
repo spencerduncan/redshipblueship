@@ -21,12 +21,17 @@ set(REDSHIP_COMMON_SOURCES
     ${CMAKE_SOURCE_DIR}/src/common/switch.cpp
     ${CMAKE_SOURCE_DIR}/src/common/entrance.cpp
     ${CMAKE_SOURCE_DIR}/src/common/test_runner.cpp
-    # Stub implementations for game entry points (until full integration)
-    ${CMAKE_SOURCE_DIR}/src/common/game_stubs.cpp
+    # Note: game_stubs.cpp is NOT included - real implementations come from
+    # games/oot/soh/GameExports_SingleExe.cpp and games/mm/2s2h/GameExports_SingleExe.cpp
+    # Unified SaveContext storage for both games
+    ${CMAKE_SOURCE_DIR}/src/common/unified_save.c
     # SharedGraphics for cross-game graphics context sharing
     ${CMAKE_SOURCE_DIR}/combo/src/SharedGraphics.cpp
     # Unified menu bar for single executable
     ${CMAKE_SOURCE_DIR}/src/common/ComboMenuBar.cpp
+    # MM stubs and aliases for single-exe mode
+    ${CMAKE_SOURCE_DIR}/src/common/mm_stubs.c
+    ${CMAKE_SOURCE_DIR}/src/common/mm_stubs.cpp
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -98,9 +103,23 @@ target_include_directories(redship PRIVATE
     ${CMAKE_SOURCE_DIR}/combo/include
 )
 
+# Find additional libraries needed by game code
+find_package(Ogg REQUIRED)
+find_package(Vorbis REQUIRED)
+find_package(opusfile CONFIG QUIET)
+if(NOT opusfile_FOUND)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(opusfile REQUIRED IMPORTED_TARGET opusfile)
+endif()
+
 target_link_libraries(redship PRIVATE
     redship_common
     rsbs
+    Ogg::ogg
+    Vorbis::vorbis
+    Vorbis::vorbisfile
+    $<TARGET_NAME_IF_EXISTS:OpusFile::opusfile>
+    $<$<NOT:$<TARGET_EXISTS:OpusFile::opusfile>>:PkgConfig::opusfile>
 )
 
 # Game object libraries will be linked when they are available

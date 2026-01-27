@@ -44,6 +44,8 @@ void Main_LogSystemHeap(void) {
     osSyncPrintf(VT_RST);
 }
 
+/* In single-exe mode, rsbs/src/main.cpp provides the entry point */
+#ifndef RSBS_SINGLE_EXECUTABLE
 #ifdef _WIN32
 int OoT_SDL_main(int argc, char* argv[]) {
     AllocConsole();
@@ -71,6 +73,7 @@ int main(int argc, char* argv[]) {
     OoT_Heaps_Free();
     return 0;
 }
+#endif /* RSBS_SINGLE_EXECUTABLE */
 
 void Main(void* arg) {
     IrqMgrClient irqClient;

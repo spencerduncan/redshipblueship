@@ -185,34 +185,114 @@ set(ALL_FILES
 list(APPEND ALL_FILES "${CMAKE_CURRENT_SOURCE_DIR}/2s2h/GameExports.cpp")
 
 ################################################################################
-# Target - always build as shared library for unified combo launcher
+# Target - OBJECT library for single-exe, SHARED for dynamic loading
 ################################################################################
-add_library(${PROJECT_NAME} SHARED ${ALL_FILES})
-target_compile_definitions(${PROJECT_NAME} PRIVATE GAME_BUILDING_DLL)
+if(SINGLE_EXECUTABLE_BUILD)
+    # Aggressively exclude MM's enhancement layer - will use OoT's versions
+    # These can be re-enabled/customized later
 
-# Symbol visibility
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    C_VISIBILITY_PRESET hidden
-    CXX_VISIBILITY_PRESET hidden
-    VISIBILITY_INLINES_HIDDEN ON
-)
+    # Main port glue (OTRGlobals equivalent)
+    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/BenPort\\.cpp$")
 
-# Platform-specific naming for shared library
-if(WIN32)
-    set_target_properties(${PROJECT_NAME} PROPERTIES
-        PREFIX ""
-        SUFFIX ".dll"
-    )
-elseif(APPLE)
-    set_target_properties(${PROJECT_NAME} PROPERTIES
-        PREFIX ""
-        SUFFIX ".dylib"
-    )
+    # All GUI components
+    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/BenGui/.*\\.cpp$")
+
+    # All developer tools
+    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/DeveloperTools/.*\\.cpp$")
+
+    # All enhancements - entire directory
+    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/Enhancements/.*\\.cpp$")
+
+    # GameInteractor (use OoT's)
+    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/GameInteractor/.*\\.cpp$")
+
+    # Object extension
+    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/ObjectExtension/.*\\.cpp$")
+
+    # Ship utils
+    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/ShipUtils\\.cpp$")
+
+    # Framebuffer effects
+    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/framebuffer_effects\\.c$")
+
+    # gu_pc (graphics utils)
+    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/gu_pc\\.c$")
+
+    # Audio mixer
+    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/mixer\\.c$")
+
+    # Custom message
+    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/CustomMessage/.*\\.cpp$")
+    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/CustomItem/.*\\.cpp$")
+
+    # Rando
+    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/Rando/.*\\.cpp$")
+
+    # Save Manager
+    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/SaveManager/.*\\.cpp$")
+
+    # Resource importers and types (identical between games)
+    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/resource/.*\\.cpp$")
+
+    # Extractor
+    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/Extractor/.*\\.cpp$")
+    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/Extractor/.*\\.c$")
+
+    # OTR-specific scene/play files
+    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/z_message_OTR\\.cpp$")
+    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/z_play_2SH\\.cpp$")
+    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/z_scene_2SH\\.cpp$")
+
+    # Ship init
+    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/ShipInit\\.cpp$")
+
+    # Preset manager
+    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/PresetManager/.*\\.cpp$")
+
+    # NameTag (in its own directory)
+    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/NameTag/.*\\.cpp$")
+
+    # Audio subsystem (different between games - keep core but need namespacing)
+    # Exclude load.c - has audio loading collisions
+    list(FILTER ALL_FILES EXCLUDE REGEX "src/audio/lib/load\\.c$")
+
+    # Core colliding files - use OoT versions
+    list(FILTER ALL_FILES EXCLUDE REGEX "src/code/__osMalloc\\.c$")
+    list(FILTER ALL_FILES EXCLUDE REGEX "src/libc/printutils\\.c$")
+    list(FILTER ALL_FILES EXCLUDE REGEX "src/boot/fault_drawer\\.c$")
+
+    # Build as OBJECT library for linking into single executable
+    add_library(${PROJECT_NAME} OBJECT ${ALL_FILES})
+    target_compile_definitions(${PROJECT_NAME} PRIVATE RSBS_SINGLE_EXECUTABLE)
 else()
+    # Build as SHARED library for dynamic loading
+    add_library(${PROJECT_NAME} SHARED ${ALL_FILES})
+    target_compile_definitions(${PROJECT_NAME} PRIVATE GAME_BUILDING_DLL)
+
+    # Symbol visibility (only for shared library)
     set_target_properties(${PROJECT_NAME} PROPERTIES
-        PREFIX ""
-        SUFFIX ".so"
+        C_VISIBILITY_PRESET hidden
+        CXX_VISIBILITY_PRESET hidden
+        VISIBILITY_INLINES_HIDDEN ON
     )
+
+    # Platform-specific naming for shared library
+    if(WIN32)
+        set_target_properties(${PROJECT_NAME} PROPERTIES
+            PREFIX ""
+            SUFFIX ".dll"
+        )
+    elseif(APPLE)
+        set_target_properties(${PROJECT_NAME} PROPERTIES
+            PREFIX ""
+            SUFFIX ".dylib"
+        )
+    else()
+        set_target_properties(${PROJECT_NAME} PROPERTIES
+            PREFIX ""
+            SUFFIX ".so"
+        )
+    endif()
 endif()
 
 # Link redship_common for cross-game API (src/common implementations)
@@ -506,51 +586,73 @@ SKIP_PRECOMPILE_HEADERS ON
 
 ################################################################################
 # Precompiled Headers
+# For OBJECT library builds, we use -include instead of PCH to avoid .gch linker issue
 ################################################################################
-target_precompile_headers(${PROJECT_NAME} PRIVATE
-    "$<$<COMPILE_LANGUAGE:CXX>:<libultraship/bridge/consolevariablebridge.h$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<ship/Context.h$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<ship/resource/ResourceManager.h$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<ship/window/Window.h$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<spdlog/spdlog.h$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<string$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<vector$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<map$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<unordered_map$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<filesystem$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<fstream$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<algorithm$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<functional$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<variant$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/2s2h/GameInteractor/GameInteractor.h>"
-    "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/include/variables.h>"
-    "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/include/functions.h>"
-    "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/include/macros.h>"
-    "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/include/z64.h>"
-    "$<$<COMPILE_LANGUAGE:C>:${CMAKE_CURRENT_SOURCE_DIR}/include/ultra64.h>"
-    "$<$<COMPILE_LANGUAGE:C>:${CMAKE_CURRENT_SOURCE_DIR}/include/global.h>"
-    "$<$<COMPILE_LANGUAGE:C>:${CMAKE_CURRENT_SOURCE_DIR}/include/z64.h>"
-    "$<$<COMPILE_LANGUAGE:C>:${CMAKE_CURRENT_SOURCE_DIR}/include/macros.h>"
-    "$<$<COMPILE_LANGUAGE:C>:${CMAKE_CURRENT_SOURCE_DIR}/include/functions.h>"
-    "$<$<COMPILE_LANGUAGE:C>:${CMAKE_CURRENT_SOURCE_DIR}/include/variables.h>"
-)
+if(SINGLE_EXECUTABLE_BUILD)
+    # Use force-include instead of PCH to avoid .gch files being passed to linker
+    # Note: -include works with both local and system headers
+    target_compile_options(${PROJECT_NAME} PRIVATE
+        "$<$<COMPILE_LANGUAGE:CXX>:-includelibultraship/bridge/consolevariablebridge.h>"
+        "$<$<COMPILE_LANGUAGE:CXX>:-include${CMAKE_CURRENT_SOURCE_DIR}/2s2h/GameInteractor/GameInteractor.h>"
+        "$<$<COMPILE_LANGUAGE:CXX>:-include${CMAKE_CURRENT_SOURCE_DIR}/include/variables.h>"
+        "$<$<COMPILE_LANGUAGE:CXX>:-include${CMAKE_CURRENT_SOURCE_DIR}/include/functions.h>"
+        "$<$<COMPILE_LANGUAGE:CXX>:-include${CMAKE_CURRENT_SOURCE_DIR}/include/macros.h>"
+        "$<$<COMPILE_LANGUAGE:CXX>:-include${CMAKE_CURRENT_SOURCE_DIR}/include/z64.h>"
+        "$<$<COMPILE_LANGUAGE:C>:-include${CMAKE_CURRENT_SOURCE_DIR}/include/ultra64.h>"
+        "$<$<COMPILE_LANGUAGE:C>:-include${CMAKE_CURRENT_SOURCE_DIR}/include/global.h>"
+        "$<$<COMPILE_LANGUAGE:C>:-include${CMAKE_CURRENT_SOURCE_DIR}/include/z64.h>"
+        "$<$<COMPILE_LANGUAGE:C>:-include${CMAKE_CURRENT_SOURCE_DIR}/include/macros.h>"
+        "$<$<COMPILE_LANGUAGE:C>:-include${CMAKE_CURRENT_SOURCE_DIR}/include/functions.h>"
+        "$<$<COMPILE_LANGUAGE:C>:-include${CMAKE_CURRENT_SOURCE_DIR}/include/variables.h>"
+    )
+else()
+    target_precompile_headers(${PROJECT_NAME} PRIVATE
+        "$<$<COMPILE_LANGUAGE:CXX>:<libultraship/bridge/consolevariablebridge.h$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<ship/Context.h$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<ship/resource/ResourceManager.h$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<ship/window/Window.h$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<spdlog/spdlog.h$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<string$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<vector$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<map$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<unordered_map$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<filesystem$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<fstream$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<algorithm$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<functional$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<variant$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/2s2h/GameInteractor/GameInteractor.h>"
+        "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/include/variables.h>"
+        "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/include/functions.h>"
+        "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/include/macros.h>"
+        "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/include/z64.h>"
+        "$<$<COMPILE_LANGUAGE:C>:${CMAKE_CURRENT_SOURCE_DIR}/include/ultra64.h>"
+        "$<$<COMPILE_LANGUAGE:C>:${CMAKE_CURRENT_SOURCE_DIR}/include/global.h>"
+        "$<$<COMPILE_LANGUAGE:C>:${CMAKE_CURRENT_SOURCE_DIR}/include/z64.h>"
+        "$<$<COMPILE_LANGUAGE:C>:${CMAKE_CURRENT_SOURCE_DIR}/include/macros.h>"
+        "$<$<COMPILE_LANGUAGE:C>:${CMAKE_CURRENT_SOURCE_DIR}/include/functions.h>"
+        "$<$<COMPILE_LANGUAGE:C>:${CMAKE_CURRENT_SOURCE_DIR}/include/variables.h>"
+    )
+endif()
 
 ################################################################################
-# Pre build events
+# Pre build events (only for SHARED library builds)
 ################################################################################
-if (CMAKE_GENERATOR MATCHES "Visual Studio")
-    set(VS_COPY_ASSETS_CMD ${CMAKE_COMMAND} -E copy_directory_if_different $<TARGET_FILE_DIR:2ship>/assets ${CMAKE_BINARY_DIR}/mm/assets)
-endif()
-if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
-    add_custom_command(
-        TARGET ${PROJECT_NAME}
-        POST_BUILD
-        COMMENT "Copying asset xmls..."
-        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/mm/assets/extractor $<TARGET_FILE_DIR:2ship>/assets
-        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/mm/assets/xml $<TARGET_FILE_DIR:2ship>/assets/xml
-        COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:2ship>/assets/symbols
-        COMMAND ${VS_COPY_ASSETS_CMD}
-    )
+if(NOT SINGLE_EXECUTABLE_BUILD)
+    if (CMAKE_GENERATOR MATCHES "Visual Studio")
+        set(VS_COPY_ASSETS_CMD ${CMAKE_COMMAND} -E copy_directory_if_different $<TARGET_FILE_DIR:2ship>/assets ${CMAKE_BINARY_DIR}/mm/assets)
+    endif()
+    if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
+        add_custom_command(
+            TARGET ${PROJECT_NAME}
+            POST_BUILD
+            COMMENT "Copying asset xmls..."
+            COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/mm/assets/extractor $<TARGET_FILE_DIR:2ship>/assets
+            COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/mm/assets/xml $<TARGET_FILE_DIR:2ship>/assets/xml
+            COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:2ship>/assets/symbols
+            COMMAND ${VS_COPY_ASSETS_CMD}
+        )
+    endif()
 endif()
 ################################################################################
 # Dependencies
