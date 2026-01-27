@@ -13,6 +13,8 @@
 #include "soh/CrashHandlerExt.h"
 #include <libultraship/bridge.h>
 
+#include "game_lifecycle.h"
+
 // External declarations from main.c and other C sources
 extern "C" {
     void GameConsole_Init(void);
@@ -73,6 +75,30 @@ void OoT_Game_Run(void) {
     fflush(stderr);
 }
 
+/**
+ * Suspend OoT for a game switch (preserves libultraship context).
+ * MM needs the shared context (spdlog, SDL, resource manager) to remain alive.
+ */
+void OoT_Game_Suspend(void) {
+    fprintf(stderr, "[OoT] Game_Suspend called (keeping libultraship context alive)\n");
+    fflush(stderr);
+    // Don't call DeinitOTR() — the shared context must survive for MM
+    // Don't free heaps — may need them when switching back
+}
+
+/**
+ * Resume OoT after being suspended for a game switch.
+ * Ship::Context is still alive — just need to restore OoT-specific state.
+ */
+void OoT_Game_Resume(void) {
+    fprintf(stderr, "[OoT] Game_Resume called\n");
+    fflush(stderr);
+    // TODO: Restore audio, reload OoT-specific resources if needed
+}
+
+/**
+ * Full shutdown (final exit, no game switch coming).
+ */
 void OoT_Game_Shutdown(void) {
     fprintf(stderr, "[OoT] Game_Shutdown called\n");
     fflush(stderr);
@@ -91,6 +117,24 @@ const char* OoT_Game_GetId(void) {
 }
 
 } // extern "C"
+
+// ============================================================================
+// GameOps registration
+// ============================================================================
+
+static GameOps sOoTOps = {
+    "oot",
+    "Ocarina of Time",
+    OoT_Game_Init,
+    OoT_Game_Run,
+    OoT_Game_Suspend,
+    OoT_Game_Resume,
+    OoT_Game_Shutdown
+};
+
+extern "C" GameOps* OoT_GetGameOps(void) {
+    return &sOoTOps;
+}
 
 // ============================================================================
 // Cross-game entrance hooks (single-exe mode)
