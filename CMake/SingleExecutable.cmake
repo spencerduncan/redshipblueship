@@ -128,23 +128,32 @@ endif()
 # ============================================================================
 
 if(BUILD_TESTING)
-    # Add test targets
-    add_test(NAME BootOoT COMMAND redship --test boot-oot)
-    add_test(NAME BootMM COMMAND redship --test boot-mm)
+    # Add test targets — infrastructure tests
     add_test(NAME SwitchOoTMM COMMAND redship --test switch-oot-mm)
     add_test(NAME SwitchMMOoT COMMAND redship --test switch-mm-oot)
     add_test(NAME Roundtrip COMMAND redship --test roundtrip)
     add_test(NAME Context COMMAND redship --test context)
     add_test(NAME AllTests COMMAND redship --test all)
 
-    # Set reasonable timeout and label our tests
+    # Add test targets — e2e boot & gameplay tests
+    add_test(NAME BootOoT COMMAND redship --test boot-oot)
+    add_test(NAME BootMM COMMAND redship --test boot-mm)
+    add_test(NAME MidosHouseE2E COMMAND redship --test midos-house-e2e)
+
+    # Infrastructure tests: 60s timeout
     set(REDSHIP_TEST_TIMEOUT 60 CACHE STRING "Test timeout in seconds")
     set_tests_properties(
-        BootOoT BootMM SwitchOoTMM SwitchMMOoT Roundtrip Context AllTests
+        SwitchOoTMM SwitchMMOoT Roundtrip Context AllTests
         PROPERTIES
         TIMEOUT ${REDSHIP_TEST_TIMEOUT}
         LABELS "redship"
     )
+
+    # Boot tests: 120s timeout
+    set_tests_properties(BootOoT BootMM PROPERTIES TIMEOUT 120 LABELS "redship;redship-e2e")
+
+    # E2E gameplay tests: 180s timeout
+    set_tests_properties(MidosHouseE2E PROPERTIES TIMEOUT 180 LABELS "redship;redship-e2e")
 endif()
 
 # ============================================================================

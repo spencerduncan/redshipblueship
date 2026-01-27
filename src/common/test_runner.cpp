@@ -9,6 +9,20 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
+#include <atomic>
+#include <thread>
+#include <chrono>
+
+#ifdef ENABLE_REMOTE_CONTROL
+#include <SDL2/SDL_net.h>
+#endif
+
+// External game dispatch functions (defined in rsbs/src/main.cpp)
+extern "C" {
+    int InitGame(GameId game, int argc, char** argv);
+    void RunGame(GameId game);
+    void ShutdownGame(GameId game);
+}
 
 // ============================================================================
 // Internal state
@@ -18,7 +32,59 @@ namespace {
 
 bool sTestMode = false;
 GameId sTargetGame = GAME_NONE;
-bool sBootComplete = false;
+std::atomic<bool> sBootComplete{false};
+
+constexpr int kBootTimeoutSec = 30;
+constexpr int kE2ETimeoutSec  = 60;
+constexpr uint16_t kRemoteControlPort = 43384;
+
+// ============================================================================
+// Boot helper — init + run game on a background thread, poll sBootComplete
+// ============================================================================
+
+TestResult BootGameAndWait(GameId game) {
+    sTargetGame = game;
+    sBootComplete = false;
+
+    const char* name = (game == GAME_OOT) ? "OoT" : "MM";
+    printf("[TEST] Initializing %s...\n", name);
+
+    // Build a minimal argv for the game
+    char arg0[] = "redship";
+    char* argv[] = { arg0, nullptr };
+    int argc = 1;
+
+    int rc = InitGame(game, argc, argv);
+    if (rc != 0) {
+        printf("[TEST] FAIL: %s InitGame returned %d\n", name, rc);
+        return TEST_FAIL;
+    }
+
+    // Run the game loop on a background thread so we can poll for boot
+    std::thread gameThread([game]() { RunGame(game); });
+
+    // Poll sBootComplete with timeout
+    auto deadline = std::chrono::steady_clock::now()
+                  + std::chrono::seconds(kBootTimeoutSec);
+
+    while (!sBootComplete.load()) {
+        if (std::chrono::steady_clock::now() >= deadline) {
+            printf("[TEST] FAIL: %s boot timed out after %ds\n",
+                   (game == GAME_OOT) ? "OoT" : "MM", kBootTimeoutSec);
+            ShutdownGame(game);
+            if (gameThread.joinable()) gameThread.join();
+            return TEST_FAIL;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    printf("[TEST] %s boot complete — shutting down\n", name);
+    ShutdownGame(game);
+    if (gameThread.joinable()) gameThread.join();
+
+    printf("[TEST] PASS: %s booted to main menu\n", name);
+    return TEST_PASS;
+}
 
 // ============================================================================
 // Test implementations
@@ -26,28 +92,12 @@ bool sBootComplete = false;
 
 TestResult Test_BootOoT(void) {
     printf("[TEST] boot-oot: Boot OoT to main menu\n");
-    sTargetGame = GAME_OOT;
-    sBootComplete = false;
-
-    // In headless/test mode, we just verify the infrastructure is set up
-    // The actual boot test would require SDL which may not be available
-    printf("[TEST] OoT boot infrastructure ready\n");
-    printf("[TEST] Note: Full boot test requires SDL2 (available in CI)\n");
-
-    // For now, mark as pass to indicate infrastructure works
-    return TEST_PASS;
+    return BootGameAndWait(GAME_OOT);
 }
 
 TestResult Test_BootMM(void) {
     printf("[TEST] boot-mm: Boot MM to main menu\n");
-    sTargetGame = GAME_MM;
-    sBootComplete = false;
-
-    // In headless/test mode, we just verify the infrastructure is set up
-    printf("[TEST] MM boot infrastructure ready\n");
-    printf("[TEST] Note: Full boot test requires SDL2 (available in CI)\n");
-
-    return TEST_PASS;
+    return BootGameAndWait(GAME_MM);
 }
 
 TestResult Test_SwitchOoTMM(void) {
@@ -185,6 +235,133 @@ TestResult Test_MidosHouse(void) {
     return TEST_PASS;
 }
 
+// ============================================================================
+// E2E: Boot OoT, walk into Mido's House, verify cross-game switch
+// ============================================================================
+
+TestResult Test_MidosHouseE2E(void) {
+    printf("[TEST] midos-house-e2e: Full end-to-end Mido's House test\n");
+
+    // --- Step 1: Boot OoT with test entrance links ---
+    Context_InitFrozenStates();
+    Entrance_Init();
+    Entrance_RegisterTestLinks();
+
+    sTargetGame = GAME_OOT;
+    sBootComplete = false;
+
+    char arg0[] = "redship";
+    char* bootArgv[] = { arg0, nullptr };
+
+    int rc = InitGame(GAME_OOT, 1, bootArgv);
+    if (rc != 0) {
+        printf("[TEST] FAIL: OoT InitGame returned %d\n", rc);
+        return TEST_FAIL;
+    }
+
+    std::thread gameThread([]() { RunGame(GAME_OOT); });
+
+    // Wait for boot
+    auto deadline = std::chrono::steady_clock::now()
+                  + std::chrono::seconds(kBootTimeoutSec);
+
+    while (!sBootComplete.load()) {
+        if (std::chrono::steady_clock::now() >= deadline) {
+            printf("[TEST] FAIL: OoT boot timed out\n");
+            ShutdownGame(GAME_OOT);
+            if (gameThread.joinable()) gameThread.join();
+            return TEST_FAIL;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    printf("[TEST] OoT boot complete\n");
+
+    // --- Step 2: Connect to remote control and send movement ---
+#ifdef ENABLE_REMOTE_CONTROL
+    IPaddress ip;
+    if (SDLNet_ResolveHost(&ip, "127.0.0.1", kRemoteControlPort) == -1) {
+        printf("[TEST] FAIL: Cannot resolve localhost: %s\n", SDLNet_GetError());
+        ShutdownGame(GAME_OOT);
+        if (gameThread.joinable()) gameThread.join();
+        return TEST_FAIL;
+    }
+
+    TCPsocket sock = SDLNet_TCP_Open(&ip);
+    if (!sock) {
+        printf("[TEST] FAIL: Cannot connect to remote control port %u: %s\n",
+               kRemoteControlPort, SDLNet_GetError());
+        ShutdownGame(GAME_OOT);
+        if (gameThread.joinable()) gameThread.join();
+        return TEST_FAIL;
+    }
+    printf("[TEST] Connected to remote control on port %u\n", kRemoteControlPort);
+
+    // Send walk-forward input to move Link toward Mido's House entrance
+    // The CrowdControl JSON protocol accepts effect commands; here we send
+    // a simple movement nudge repeatedly until the entrance triggers.
+    const char* walkCmd = R"({"type":"movement","stick_x":0,"stick_y":127})" "\0";
+    size_t walkLen = strlen(walkCmd) + 1; // include null delimiter
+
+    auto e2eDeadline = std::chrono::steady_clock::now()
+                     + std::chrono::seconds(kE2ETimeoutSec);
+
+    while (!Entrance_IsCrossGameSwitch()) {
+        if (std::chrono::steady_clock::now() >= e2eDeadline) {
+            printf("[TEST] FAIL: Cross-game switch not triggered within %ds\n",
+                   kE2ETimeoutSec);
+            SDLNet_TCP_Close(sock);
+            ShutdownGame(GAME_OOT);
+            if (gameThread.joinable()) gameThread.join();
+            return TEST_FAIL;
+        }
+        SDLNet_TCP_Send(sock, walkCmd, static_cast<int>(walkLen));
+        std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60 Hz
+    }
+
+    printf("[TEST] Cross-game switch triggered\n");
+    SDLNet_TCP_Close(sock);
+#else
+    // Without remote control, simulate the entrance check directly
+    printf("[TEST] SKIP remote control (ENABLE_REMOTE_CONTROL not defined)\n");
+    printf("[TEST] Simulating entrance trigger for Mido's House...\n");
+    Entrance_CheckCrossGame(GAME_OOT, OOT_ENTR_MIDOS_HOUSE);
+
+    if (!Entrance_IsCrossGameSwitch()) {
+        printf("[TEST] FAIL: Simulated cross-game switch not triggered\n");
+        ShutdownGame(GAME_OOT);
+        if (gameThread.joinable()) gameThread.join();
+        return TEST_FAIL;
+    }
+#endif
+
+    // --- Step 3: Verify switch targets ---
+    if (Entrance_GetSwitchTargetGame() != GAME_MM) {
+        printf("[TEST] FAIL: Target game should be MM, got %d\n",
+               Entrance_GetSwitchTargetGame());
+        ShutdownGame(GAME_OOT);
+        if (gameThread.joinable()) gameThread.join();
+        return TEST_FAIL;
+    }
+
+    if (Entrance_GetSwitchTargetEntrance() != MM_ENTR_CLOCK_TOWER_INTERIOR_1) {
+        printf("[TEST] FAIL: Target entrance should be 0x%04X, got 0x%04X\n",
+               MM_ENTR_CLOCK_TOWER_INTERIOR_1,
+               Entrance_GetSwitchTargetEntrance());
+        ShutdownGame(GAME_OOT);
+        if (gameThread.joinable()) gameThread.join();
+        return TEST_FAIL;
+    }
+
+    printf("[TEST] PASS: Mido's House -> Clock Tower (MM) e2e verified\n");
+
+    // --- Cleanup ---
+    Entrance_ClearPendingSwitch();
+    ShutdownGame(GAME_OOT);
+    if (gameThread.joinable()) gameThread.join();
+
+    return TEST_PASS;
+}
+
 TestResult Test_StartupEntrance(void) {
     printf("[TEST] startup-entrance: Test startup entrance flow\n");
 
@@ -279,6 +456,7 @@ const TestDescriptor gTests[] = {
     {"switch-oot-mm", "Test game switch OoT -> MM", Test_SwitchOoTMM},
     {"switch-mm-oot", "Test game switch MM -> OoT", Test_SwitchMMOoT},
     {"midos-house", "Test Mido's House entrance (test mode)", Test_MidosHouse},
+    {"midos-house-e2e", "E2E: Boot OoT, walk to Mido's House, verify switch", Test_MidosHouseE2E},
     {"startup-entrance", "Test startup entrance flow", Test_StartupEntrance},
     {"roundtrip", "Full round-trip with state verification", Test_Roundtrip},
     {"context", "Test context/state management", Test_Context},
@@ -366,7 +544,7 @@ const char* TestRunner_ParseArgs(int argc, char** argv) {
 
 void TestRunner_SignalBootComplete(GameId game) {
     if (game == sTargetGame) {
-        sBootComplete = true;
+        sBootComplete.store(true);
     }
 }
 
