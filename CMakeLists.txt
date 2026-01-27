@@ -237,8 +237,11 @@ else()
 endif()
 
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
-install(TARGETS soh LIBRARY DESTINATION . COMPONENT ship)
-install(TARGETS 2ship LIBRARY DESTINATION . COMPONENT ship)
+if(NOT SINGLE_EXECUTABLE_BUILD)
+    # soh/2ship are OBJECT libraries in single-exe mode, not installable
+    install(TARGETS soh LIBRARY DESTINATION . COMPONENT ship)
+    install(TARGETS 2ship LIBRARY DESTINATION . COMPONENT ship)
+endif()
 install(FILES "${CMAKE_BINARY_DIR}/soh/soh.o2r" DESTINATION . COMPONENT ship)
 install(TARGETS ZAPD_OoT DESTINATION ./assets/extractor COMPONENT extractor)
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/oot/assets/extractor/" DESTINATION ./assets COMPONENT extractor)
