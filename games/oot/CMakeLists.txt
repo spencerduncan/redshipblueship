@@ -288,14 +288,18 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	set_target_properties(${PROJECT_NAME} PROPERTIES
 		VS_GLOBAL_KEYWORD "Win32Proj"
 	)
-	if("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "x64")
-		set_target_properties(${PROJECT_NAME} PROPERTIES
-			INTERPROCEDURAL_OPTIMIZATION_RELEASE "TRUE"
-		)
-	elseif("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "Win32")
-		set_target_properties(${PROJECT_NAME} PROPERTIES
-			INTERPROCEDURAL_OPTIMIZATION_RELEASE "TRUE"
-		)
+	if(NOT SINGLE_EXECUTABLE_BUILD)
+		# Enable LTCG for shared library builds only.
+		# Static libs with 2500+ objects exceed MSVC's 4GB .lib limit with LTCG.
+		if("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "x64")
+			set_target_properties(${PROJECT_NAME} PROPERTIES
+				INTERPROCEDURAL_OPTIMIZATION_RELEASE "TRUE"
+			)
+		elseif("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "Win32")
+			set_target_properties(${PROJECT_NAME} PROPERTIES
+				INTERPROCEDURAL_OPTIMIZATION_RELEASE "TRUE"
+			)
+		endif()
 	endif()
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set_target_properties(${PROJECT_NAME} PROPERTIES
