@@ -112,9 +112,13 @@ if(NOT opusfile_FOUND)
     pkg_check_modules(opusfile REQUIRED IMPORTED_TARGET opusfile)
 endif()
 
+# STATIC libraries don't propagate PRIVATE dependencies, so we must
+# explicitly link everything the games need here.
+# ZAPDLib is needed by OTRExporter code compiled into soh/2ship.
 target_link_libraries(redship PRIVATE
     redship_common
     rsbs
+    ZAPDLib
     Ogg::ogg
     Vorbis::vorbis
     Vorbis::vorbisfile
