@@ -19,12 +19,61 @@
 #include <cstdlib>
 #include <cstring>
 #include <csignal>
+#include <filesystem>
+#include <string>
 
 #include "game.h"
 #include "game_lifecycle.h"
 #include "context.h"
 #include "entrance.h"
 #include "test_runner.h"
+
+#include <ship/Context.h>
+#include <ship/resource/ResourceManager.h>
+#include <ship/resource/archive/ArchiveManager.h>
+
+// ============================================================================
+// Resource archive hot-swap for cross-game switches (issue #154)
+// ============================================================================
+
+static void EnsureGameArchivesLoaded(GameId targetGame) {
+    auto ctx = Ship::Context::GetInstance();
+    if (!ctx) return;
+    auto archiveManager = ctx->GetResourceManager()->GetArchiveManager();
+    if (!archiveManager) return;
+
+    struct ArchiveEntry { const char* filename; bool useLocate; };
+    const char* appName = nullptr;
+    std::vector<ArchiveEntry> entries;
+
+    switch (targetGame) {
+        case GAME_OOT:
+            appName = "soh";
+            entries = {{"oot.o2r", true}, {"oot-mq.o2r", true}, {"soh.o2r", false}};
+            break;
+        case GAME_MM:
+            appName = "2s2h";
+            entries = {{"mm.o2r", true}, {"2ship.o2r", false}};
+            break;
+        default:
+            return;
+    }
+
+    for (const auto& entry : entries) {
+        std::string path = entry.useLocate
+            ? Ship::Context::LocateFileAcrossAppDirs(entry.filename, appName)
+            : Ship::Context::GetPathRelativeToAppBundle(entry.filename);
+
+        if (path.empty() || !std::filesystem::exists(path)) continue;
+
+        auto archive = archiveManager->AddArchive(path);
+        if (archive) {
+            printf("[RSBS] Archive ready: %s\n", path.c_str());
+        } else {
+            fprintf(stderr, "[RSBS] Warning: Failed to load archive: %s\n", path.c_str());
+        }
+    }
+}
 
 // ============================================================================
 // Forward declarations for game ops providers
@@ -292,6 +341,9 @@ int main(int argc, char** argv) {
             if (isEntranceSwitch && targetEntrance != 0) {
                 Entrance_SetStartupEntrance(targetEntrance);
             }
+
+            // Hot-swap resource archives before game init/resume
+            EnsureGameArchivesLoaded(nextGame);
 
             // GameRunner handles suspend/resume/init lifecycle
             int switchResult = GameRunner_SwitchTo(&runner, nextGame, gameArgc, gameArgv);
