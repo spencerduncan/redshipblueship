@@ -825,8 +825,14 @@ elseif(NOT "${CMAKE_SYSTEM_NAME}" MATCHES "NintendoSwitch|CafeOS")
 INSTALL(FILES ${CMAKE_BINARY_DIR}/gamecontrollerdb.txt DESTINATION . COMPONENT ship)
 endif()
 
-if(NOT SINGLE_EXECUTABLE_BUILD)
-    # Link libraries only for SHARED builds; single-exe links deps on redship
+if(SINGLE_EXECUTABLE_BUILD)
+    # For OBJECT libs: propagate compile-time include dirs from all deps.
+    # No actual linking happens — redship handles that via SingleExecutable.cmake.
+    foreach(_t ${SOH_COMPILE_TARGETS})
+        target_link_libraries(${_t} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}")
+    endforeach()
+else()
+    # Link libraries for SHARED builds
     if(CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
         if (NOT TARGET pathconf)
             add_library(pathconf OBJECT platform/pathconf.c)
