@@ -209,8 +209,9 @@ if(SINGLE_EXECUTABLE_BUILD)
     # Object extension
     list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/ObjectExtension/.*\\.cpp$")
 
-    # Ship utils
+    # Ship utils and CrashHandlerExt (depends on ShipUtils GetActorDescription)
     list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/ShipUtils\\.cpp$")
+    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/CrashHandlerExt\\.cpp$")
 
     # Framebuffer effects
     list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/framebuffer_effects\\.c$")
