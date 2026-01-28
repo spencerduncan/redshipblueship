@@ -56,7 +56,7 @@ void OoT_AudioMgr_CreateNextAudioBuffer(s16* samples, u32 num_samples) {
     }
 
     int j = 0;
-    if (gAudioContext.resetStatus == 0) {
+    if (gAudioContext.resetStatus == 0 && gAudioContext.cmdProcQueueP != NULL) {
         // msg = 0000RREE R = read pos, E = End Pos
         while (osRecvMesg(gAudioContext.cmdProcQueueP, &sp4C, OS_MESG_NOBLOCK) != -1) {
             Audio_ProcessCmds(sp4C.data32);
@@ -422,6 +422,12 @@ void Audio_QueueCmdU16(u32 opArgs, u16 data) {
 s32 Audio_ScheduleProcessCmds(void) {
     static s32 D_801304E8 = 0;
     s32 ret;
+
+    // Guard: cmdProcQueueP may be NULL during game switch if audio queues
+    // haven't been reinitialized yet (issue #160).
+    if (gAudioContext.cmdProcQueueP == NULL) {
+        return -1;
+    }
 
     if (D_801304E8 < (u8)((gAudioContext.cmdWrPos - gAudioContext.cmdRdPos) + 0x100)) {
         D_801304E8 = (u8)((gAudioContext.cmdWrPos - gAudioContext.cmdRdPos) + 0x100);
