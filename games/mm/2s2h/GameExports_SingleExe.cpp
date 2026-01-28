@@ -79,16 +79,16 @@ static bool sMMArchivesLoaded = false;
  * OoT already initialized Ship::Context with OoT archives; we add MM's.
  * Idempotent — skips if already loaded.
  */
-static void LoadMMArchives() {
+static int LoadMMArchives() {
     if (sMMArchivesLoaded) {
         fprintf(stderr, "[MM] Archives already loaded, skipping\n");
-        return;
+        return 0;
     }
 
     auto ctx = Ship::Context::GetInstance();
     if (!ctx || !ctx->GetResourceManager()) {
         fprintf(stderr, "[MM] ERROR: No ResourceManager — cannot load archives\n");
-        return;
+        return -1;
     }
     auto archiveMgr = ctx->GetResourceManager()->GetArchiveManager();
 
@@ -117,7 +117,12 @@ static void LoadMMArchives() {
     }
 
     fprintf(stderr, "[MM] Loaded %d MM archive(s) into shared context\n", loaded);
+    if (loaded == 0) {
+        fprintf(stderr, "[MM] ERROR: No MM archives found — cannot proceed\n");
+        return -1;
+    }
     sMMArchivesLoaded = true;
+    return 0;
 }
 
 /**
@@ -157,7 +162,10 @@ int MM_Game_Init(int argc, char** argv) {
     }
 
     // Load MM's archives into the shared ResourceManager (issue #159).
-    LoadMMArchives();
+    if (LoadMMArchives() != 0) {
+        fprintf(stderr, "[MM] FATAL: Failed to load MM archives\n");
+        return -1;
+    }
 
     fprintf(stderr, "[MM] Allocating heaps...\n");
     fflush(stderr);
@@ -257,6 +265,7 @@ void MM_Game_Shutdown(void) {
     gAudioCtxInitalized = false;
     MM_Heaps_Free();
     sMMInitialized = false;
+    sMMArchivesLoaded = false;
     fprintf(stderr, "[MM] Game_Shutdown complete\n");
     fflush(stderr);
 }
