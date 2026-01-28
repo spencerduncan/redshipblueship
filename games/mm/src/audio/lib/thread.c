@@ -53,7 +53,7 @@ void MM_AudioMgr_CreateNextAudioBuffer(s16* samples, u32 num_samples) {
     }
 
     int j = 0;
-    if (gAudioCtx.resetStatus == 0) {
+    if (gAudioCtx.resetStatus == 0 && gAudioCtx.threadCmdProcQueueP != NULL) {
         // msg = 0000RREE R = read pos, E = End Pos
         while (MM_osRecvMesg(gAudioCtx.threadCmdProcQueueP, &sp4C, OS_MESG_NOBLOCK) != -1) {
             AudioThread_ProcessCmds(sp4C.data32);
@@ -329,6 +329,13 @@ void AudioThread_QueueCmdU16(u32 opArgs, u16 data) {
 s32 AudioThread_ScheduleProcessCmds(void) {
     static s32 sMaxWriteReadDiff = 0;
     s32 ret;
+
+    // Guard: threadCmdProcQueueP is NULL before AudioThread_InitMesgQueues runs.
+    // In single-exe mode, AudioSfx_Init may be called before queues are fully
+    // initialized during cross-game switch re-entry (issue #157).
+    if (gAudioCtx.threadCmdProcQueueP == NULL) {
+        return -1;
+    }
 
     if (sMaxWriteReadDiff < (u8)((gAudioCtx.threadCmdWritePos - gAudioCtx.threadCmdReadPos) + 0x100)) {
         sMaxWriteReadDiff = (u8)((gAudioCtx.threadCmdWritePos - gAudioCtx.threadCmdReadPos) + 0x100);
