@@ -40,6 +40,10 @@ extern "C" {
     void Check_ExpansionPak(void);
     void Regs_Init(void);
 
+    // Audio reset for cross-game switch (issue #157)
+    extern s32 gAudioCtxInitalized;
+    void AudioThread_InitMesgQueues(void);
+
     // Globals from main.c
     extern s32 MM_gScreenWidth;
     extern s32 MM_gScreenHeight;
@@ -111,6 +115,14 @@ int MM_Game_Init(int argc, char** argv) {
     fflush(stderr);
     MM_PadMgr_Init(&sSerialEventQueue, &MM_gIrqMgr, Z_THREAD_ID_PADMGR, Z_PRIORITY_PADMGR, NULL);
 
+    // Ensure audio message queues are initialized before AudioMgr uses them.
+    // On re-entry after a game switch, gAudioCtx may have stale queue pointers
+    // from a previous session. Explicitly reinitialize them (issue #157).
+    fprintf(stderr, "[MM] Reinitializing audio message queues...\n");
+    fflush(stderr);
+    gAudioCtxInitalized = false;
+    AudioThread_InitMesgQueues();
+
     fprintf(stderr, "[MM] Calling MM_AudioMgr_Init()...\n");
     fflush(stderr);
     MM_AudioMgr_Init(&sAudioMgr, NULL, Z_PRIORITY_AUDIOMGR, Z_THREAD_ID_AUDIOMGR, &MM_gSchedContext, &MM_gIrqMgr);
@@ -135,6 +147,8 @@ void MM_Game_Shutdown(void) {
     fprintf(stderr, "[MM] Game_Shutdown called\n");
     fflush(stderr);
     // Don't call DeinitOTR() - the shared context stays alive
+    // Reset audio state so re-init works after game switch (issue #157)
+    gAudioCtxInitalized = false;
     MM_Heaps_Free();
     sMMInitialized = false;
     fprintf(stderr, "[MM] Game_Shutdown complete\n");
