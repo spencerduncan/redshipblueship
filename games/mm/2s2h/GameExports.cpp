@@ -6,9 +6,8 @@
  */
 
 #include "combo/GameExports.h"
-#include "combo/ComboContextBridge.h"
-#include "combo/CrossGameEntrance.h"
-#include "combo/FrozenState.h"
+#include "entrance.h"
+#include "context.h"
 #include "BenPort.h"
 #include <libultraship/bridge/crashhandlerbridge.h>
 #include <ship/Context.h>

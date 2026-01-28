@@ -6,9 +6,8 @@
  */
 
 #include "combo/GameExports.h"
-#include "combo/ComboContextBridge.h"
-#include "combo/CrossGameEntrance.h"
-#include "combo/FrozenState.h"
+#include "entrance.h"
+#include "context.h"
 #include "OTRGlobals.h"
 #include "z64save.h"
 #include <libultraship/bridge.h>
