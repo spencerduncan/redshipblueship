@@ -2562,6 +2562,9 @@ void FileSelect_Destroy(GameState* this) {
     gFileSelectState = NULL;
 }
 
+// Forward declaration — defined in src/common/test_runner.cpp
+void TestRunner_SignalBootComplete(int game);
+
 void FileSelect_Init(GameState* thisx) {
     s32 pad;
     FileSelectState* this = (FileSelectState*)thisx;
@@ -2592,4 +2595,7 @@ void FileSelect_Init(GameState* thisx) {
     Audio_SetSpec(0xA);
     // Setting ioData to 1 and writing it to ioPort 7 will skip the harp intro
     Audio_PlaySequenceWithSeqPlayerIO(SEQ_PLAYER_BGM_MAIN, NA_BGM_FILE_SELECT, 0, 7, 1);
+
+    // Signal test runner that MM boot is complete (GAME_MM = 2)
+    TestRunner_SignalBootComplete(2);
 }

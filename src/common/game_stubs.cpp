@@ -35,6 +35,14 @@ void OoT_Game_Shutdown(void) {
     printf("[OoT STUB] Game_Shutdown called\n");
 }
 
+void OoT_Game_Pause(void) {
+    printf("[OoT STUB] Game_Pause called\n");
+}
+
+void OoT_Game_Resume(void) {
+    printf("[OoT STUB] Game_Resume called\n");
+}
+
 const char* OoT_Game_GetName(void) {
     return "Ocarina of Time (Stub)";
 }
@@ -63,6 +71,14 @@ void MM_Game_Run(void) {
 
 void MM_Game_Shutdown(void) {
     printf("[MM STUB] Game_Shutdown called\n");
+}
+
+void MM_Game_Pause(void) {
+    printf("[MM STUB] Game_Pause called\n");
+}
+
+void MM_Game_Resume(void) {
+    printf("[MM STUB] Game_Resume called\n");
 }
 
 const char* MM_Game_GetName(void) {

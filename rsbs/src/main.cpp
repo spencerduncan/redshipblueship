@@ -19,29 +19,15 @@
 #include <csignal>
 
 #include "game.h"
+#include "game_lifecycle.h"
 #include "context.h"
 #include "entrance.h"
 #include "test_runner.h"
 
-// ============================================================================
-// Forward declarations for namespaced game functions
-// These will be provided by the OoT and MM object libraries
-// ============================================================================
-
+// GetName/GetId still used locally for display
 extern "C" {
-    // OoT namespaced functions (from OoT object library)
-    int OoT_Game_Init(int argc, char** argv);
-    void OoT_Game_Run(void);
-    void OoT_Game_Shutdown(void);
     const char* OoT_Game_GetName(void);
-    const char* OoT_Game_GetId(void);
-
-    // MM namespaced functions (from MM object library)
-    int MM_Game_Init(int argc, char** argv);
-    void MM_Game_Run(void);
-    void MM_Game_Shutdown(void);
     const char* MM_Game_GetName(void);
-    const char* MM_Game_GetId(void);
 }
 
 // ============================================================================
@@ -163,50 +149,6 @@ GameId ShowGameMenu(void) {
     return GAME_OOT;
 }
 
-// ============================================================================
-// Game dispatch functions
-// ============================================================================
-
-int InitGame(GameId game, int argc, char** argv) {
-    switch (game) {
-        case GAME_OOT:
-            printf("Initializing Ocarina of Time...\n");
-            return OoT_Game_Init(argc, argv);
-        case GAME_MM:
-            printf("Initializing Majora's Mask...\n");
-            return MM_Game_Init(argc, argv);
-        default:
-            fprintf(stderr, "Error: Invalid game ID\n");
-            return -1;
-    }
-}
-
-void RunGame(GameId game) {
-    switch (game) {
-        case GAME_OOT:
-            OoT_Game_Run();
-            break;
-        case GAME_MM:
-            MM_Game_Run();
-            break;
-        default:
-            break;
-    }
-}
-
-void ShutdownGame(GameId game) {
-    switch (game) {
-        case GAME_OOT:
-            OoT_Game_Shutdown();
-            break;
-        case GAME_MM:
-            MM_Game_Shutdown();
-            break;
-        default:
-            break;
-    }
-}
-
 const char* GetGameName(GameId game) {
     switch (game) {
         case GAME_OOT: return OoT_Game_GetName();
@@ -293,7 +235,7 @@ int main(int argc, char** argv) {
         Entrance_ClearPendingSwitch();
 
         // Initialize the game
-        int initResult = InitGame(selectedGame, gameArgc, gameArgv);
+        int initResult = GameRunner_InitGame(selectedGame, gameArgc, gameArgv);
         if (initResult != 0) {
             fprintf(stderr, "Error: Failed to initialize %s (code %d)\n",
                     GetGameName(selectedGame), initResult);
@@ -303,7 +245,7 @@ int main(int argc, char** argv) {
 
         // Run the game
         printf("Starting %s... (Press F10 to switch games)\n", GetGameName(selectedGame));
-        RunGame(selectedGame);
+        GameRunner_RunGame(selectedGame);
 
         // Check if we need to switch games
         GameId nextGame = GAME_NONE;
@@ -328,7 +270,7 @@ int main(int argc, char** argv) {
             printf("\n=== Switching to %s ===\n", GetGameName(nextGame));
 
             // Shutdown current game
-            ShutdownGame(selectedGame);
+            GameRunner_ShutdownGame(selectedGame);
 
             // Set startup entrance if this is an entrance-based switch
             if (isEntranceSwitch && targetEntrance != 0) {
@@ -340,7 +282,7 @@ int main(int argc, char** argv) {
         } else {
             // Normal exit
             keepRunning = false;
-            ShutdownGame(selectedGame);
+            GameRunner_ShutdownGame(selectedGame);
         }
     }
 

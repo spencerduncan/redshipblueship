@@ -3105,6 +3105,9 @@ void FileChoose_InitContext(GameState* thisx) {
 void FileChoose_Destroy(GameState* thisx) {
 }
 
+// Forward declaration — defined in src/common/test_runner.cpp
+void TestRunner_SignalBootComplete(int game);
+
 void FileChoose_Init(GameState* thisx) {
     FileChooseContext* this = (FileChooseContext*)thisx;
     size_t size = (u32)_title_staticSegmentRomEnd - (u32)_title_staticSegmentRomStart;
@@ -3143,4 +3146,7 @@ void FileChoose_Init(GameState* thisx) {
     }
     Audio_QueueSeqCmd(0xF << 28 | SEQ_PLAYER_BGM_MAIN << 24 | 0xA);
     func_800F5E18(SEQ_PLAYER_BGM_MAIN, NA_BGM_FILE_SELECT, 0, 7, 1);
+
+    // Signal test runner that OoT boot is complete (GAME_OOT = 1)
+    TestRunner_SignalBootComplete(1);
 }
