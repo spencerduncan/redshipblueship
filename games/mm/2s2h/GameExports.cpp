@@ -39,6 +39,8 @@ extern "C" {
     void MM_Heaps_Free(void);
     void CrashHandler_PrintExt(char* buffer, size_t* pos);
     void MM_Graph_ThreadEntry(void* arg);
+    void OTRAudio_Suspend(void);
+    void OTRAudio_Resume(void);
 
     // Additional init functions from main.c
     void Nmi_Init(void);
@@ -155,14 +157,23 @@ GAME_EXPORT void Game_Shutdown(void) {
 }
 
 GAME_EXPORT void Game_Pause(void) {
-    // TODO: Implement pause logic
-    // For now, this is a placeholder. Full implementation requires
-    // modifying the game loop to check sGamePaused flag.
     sGamePaused = true;
+
+    // Stop the MM audio thread to prevent audio bleeding into the other game
+    OTRAudio_Suspend();
+
+    fprintf(stderr, "[MM] Game_Pause: audio suspended\n");
+    fflush(stderr);
 }
 
 GAME_EXPORT void Game_Resume(void) {
+    // Restart the MM audio thread
+    OTRAudio_Resume();
+
     sGamePaused = false;
+
+    fprintf(stderr, "[MM] Game_Resume: audio resumed\n");
+    fflush(stderr);
 }
 
 GAME_EXPORT void* Game_SaveState(size_t* outSize) {

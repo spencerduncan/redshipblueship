@@ -27,6 +27,8 @@ extern "C" {
     void OoT_Heaps_Free(void);
     void Main(void* arg);
     void BootCommands_Init(void);
+    void OTRAudio_Suspend(void);
+    void OTRAudio_Resume(void);
 
     // Save context for state preservation
     extern SaveContext gSaveContext;
@@ -73,14 +75,23 @@ GAME_EXPORT void Game_Shutdown(void) {
 }
 
 GAME_EXPORT void Game_Pause(void) {
-    // TODO: Implement pause logic
-    // For now, this is a placeholder. Full implementation requires
-    // modifying the game loop to check sGamePaused flag.
     sGamePaused = true;
+
+    // Stop the OoT audio thread to prevent audio bleeding into the other game
+    OTRAudio_Suspend();
+
+    fprintf(stderr, "[OOT] Game_Pause: audio suspended\n");
+    fflush(stderr);
 }
 
 GAME_EXPORT void Game_Resume(void) {
+    // Restart the OoT audio thread
+    OTRAudio_Resume();
+
     sGamePaused = false;
+
+    fprintf(stderr, "[OOT] Game_Resume: audio resumed\n");
+    fflush(stderr);
 }
 
 GAME_EXPORT void* Game_SaveState(size_t* outSize) {

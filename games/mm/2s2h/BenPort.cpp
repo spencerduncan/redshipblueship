@@ -538,6 +538,28 @@ extern "C" void OTRAudio_Exit() {
     free(gAudioCtx.fontLoadStatus);
 }
 
+// Suspend audio thread without freeing resources (for game switching)
+extern "C" void OTRAudio_Suspend() {
+    if (!audio.running) {
+        return;
+    }
+    {
+        std::unique_lock<std::mutex> Lock(audio.mutex);
+        audio.running = false;
+    }
+    audio.cv_to_thread.notify_all();
+    audio.thread.join();
+}
+
+// Resume audio thread after suspend (for game switching)
+extern "C" void OTRAudio_Resume() {
+    if (audio.running) {
+        return;
+    }
+    audio.running = true;
+    audio.thread = std::thread(OTRAudio_Thread);
+}
+
 extern "C" void OTRExtScanner() {
     auto lst = *Ship::Context::GetInstance()->GetResourceManager()->GetArchiveManager()->ListFiles("*").get();
 
