@@ -91,6 +91,11 @@ void OoT_Game_Suspend(void) {
     // Stop OoT audio playback to prevent interference with MM (issue #160).
     // OoT_Audio_PreNMI triggers the audio reset path which stops all sequences
     // and puts the audio system into a quiescent state.
+    //
+    // Note: No race with the audio thread here — in the SoH port, the audio
+    // thread is not a real OS thread (osCreateThread is commented out in
+    // audioMgr.c). Audio is processed synchronously from the game loop, which
+    // has already returned from Main() before suspend is called.
     fprintf(stderr, "[OoT] Stopping audio via PreNMI path...\n");
     fflush(stderr);
     OoT_Audio_PreNMI();
