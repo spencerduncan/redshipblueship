@@ -12,6 +12,10 @@
 
 #include <cstdio>
 #include <cstring>
+#include <cassert>
+
+#include <ship/Context.h>
+#include <ship/window/Window.h>
 
 #include "game_lifecycle.h"
 
@@ -60,14 +64,41 @@ extern "C" {
 // Track if MM has been initialized (for re-entry after game switch)
 static bool sMMInitialized = false;
 
+/**
+ * Verify the shared Ship::Context from OoT is ready for MM's graph thread.
+ * MM_Graph_ThreadEntry calls WindowIsRunning(), GfxDebuggerIsDebugging(),
+ * WindowGetWidth/Height/AspectRatio() every frame — all route through
+ * Ship::Context::GetInstance(). OoT initializes this singleton; MM reuses it.
+ */
+static bool VerifySharedContext(void) {
+    auto ctx = Ship::Context::GetInstance();
+    if (!ctx) {
+        fprintf(stderr, "[MM] ERROR: Ship::Context is null — OoT must init first\n");
+        return false;
+    }
+    if (!ctx->GetWindow()) {
+        fprintf(stderr, "[MM] ERROR: Ship::Context has no Window\n");
+        return false;
+    }
+    if (!ctx->GetGfxDebugger()) {
+        fprintf(stderr, "[MM] WARNING: No GfxDebugger — debug calls may crash\n");
+    }
+    fprintf(stderr, "[MM] Shared Ship::Context verified OK\n");
+    return true;
+}
+
 extern "C" {
 
 int MM_Game_Init(int argc, char** argv) {
     fprintf(stderr, "[MM] Game_Init called, argc=%d\n", argc);
     fflush(stderr);
 
-    // In single-exe mode, skip InitOTR() - OoT already initialized libultraship
-    // We just need to do MM-specific initialization
+    // In single-exe mode, skip InitOTR() - OoT already initialized libultraship.
+    // Verify the shared context is ready for MM bridge functions (issue #158).
+    if (!VerifySharedContext()) {
+        fprintf(stderr, "[MM] FATAL: Cannot start without Ship::Context\n");
+        return -1;
+    }
 
     fprintf(stderr, "[MM] Allocating heaps...\n");
     fflush(stderr);
@@ -127,6 +158,12 @@ int MM_Game_Init(int argc, char** argv) {
 void MM_Game_Run(void) {
     fprintf(stderr, "[MM] Game_Run called, entering MM_Graph_ThreadEntry()\n");
     fflush(stderr);
+    // Assert context still valid before graph loop (issue #158)
+    assert(Ship::Context::GetInstance() != nullptr &&
+           "Ship::Context must be valid when MM graph thread starts");
+    assert(Ship::Context::GetInstance()->GetWindow() != nullptr &&
+           "Window must be valid when MM graph thread starts");
+
     // Run the main game loop
     MM_Graph_ThreadEntry(nullptr);
     fprintf(stderr, "[MM] MM_Graph_ThreadEntry() returned\n");
