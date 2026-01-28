@@ -235,8 +235,7 @@ set(DEFAULT_CXX_PROPS "${CMAKE_CURRENT_LIST_DIR}/DefaultCXX.cmake")
 function(get_linux_lsb_release_information)
     find_program(LSB_RELEASE_EXEC lsb_release)
     if(NOT LSB_RELEASE_EXEC)
-        # lsb_release not available - use defaults instead of failing
-        # This allows builds on minimal systems or containers without lsb-release
+        # lsb_release not available (common in minimal containers) - use defaults
         message(WARNING "Could not detect lsb_release executable, using default values")
         set(LSB_RELEASE_ID_SHORT "Unknown" PARENT_SCOPE)
         set(LSB_RELEASE_VERSION_SHORT "Unknown" PARENT_SCOPE)
