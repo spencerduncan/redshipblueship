@@ -242,8 +242,8 @@ if(SINGLE_EXECUTABLE_BUILD)
     # - MSVC LNK1170: response file line >131K chars with 2500+ .obj paths
     # - MSVC LNK1248: COFF .lib archive >4GB with STATIC library
     # Each OBJECT lib has <1000 source files, well under both limits.
-    add_library(soh_src OBJECT ${src__} ${Header_Files} ${Header_Files__include})
-    add_library(soh_port OBJECT
+    add_library(soh_src STATIC ${src__} ${Header_Files} ${Header_Files__include})
+    add_library(soh_port STATIC
         ${soh__} ${soh__Extractor}
         "${CMAKE_CURRENT_SOURCE_DIR}/soh/GameExports_SingleExe.cpp"
     )
@@ -260,7 +260,7 @@ if(SINGLE_EXECUTABLE_BUILD)
     endforeach()
 
     # Export object targets for root CMakeLists to link into redship
-    set(SOH_OBJECT_TARGETS soh_src soh_port PARENT_SCOPE)
+    set(SOH_STATIC_TARGETS soh_src soh_port PARENT_SCOPE)
 else()
     # Build as SHARED library for dynamic loading
     add_library(${PROJECT_NAME} SHARED ${ALL_FILES})
@@ -577,6 +577,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
             -Wno-parentheses
             -Wno-narrowing
             -Wno-missing-braces
+            -Wno-unknown-pragmas
             $<$<COMPILE_LANGUAGE:C>:
                 -Werror-implicit-function-declaration
                 -Wno-incompatible-pointer-types

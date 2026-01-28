@@ -217,21 +217,28 @@ if(SINGLE_EXECUTABLE_BUILD)
     add_subdirectory(games/oot)
     add_subdirectory(games/mm)
 
-    # Link game OBJECT libraries into redship (must be done after games are added)
-    # Each game is split into 2 OBJECT libs to stay under MSVC limits:
-    # - LNK1170: response file line >131K chars (too many .obj paths)
-    # - LNK1248: COFF .lib archive >4GB (STATIC lib too large)
-    foreach(_t ${SOH_OBJECT_TARGETS})
-        target_link_libraries(redship PRIVATE $<TARGET_OBJECTS:${_t}>)
-    endforeach()
-    foreach(_t ${TWOSHIP_OBJECT_TARGETS})
-        target_link_libraries(redship PRIVATE $<TARGET_OBJECTS:${_t}>)
-    endforeach()
-    message(STATUS "Linking OoT objects (${SOH_OBJECT_TARGETS}) and MM objects (${TWOSHIP_OBJECT_TARGETS}) into redship")
-
-    # Link library dependencies AFTER object files (Linux ld requires
-    # libraries after the objects that reference them)
-    target_link_libraries(redship PRIVATE ${REDSHIP_LIBRARY_DEPS})
+    # Link game STATIC libraries into redship (must be done after games are added)
+    # Each game is split into 2 STATIC libs to stay under MSVC limits:
+    # - LNK1170: OBJECT libs expand all .obj paths (>131K chars)
+    # - LNK1248: single STATIC lib >4GB COFF limit
+    # Split into src (decompiled game code) + port (port-specific code) keeps each <4GB.
+    #
+    # Use --start-group/--end-group on Linux to resolve circular deps
+    # between game libs, OTRExporter, ZAPDLib, and libultraship.
+    if(UNIX AND NOT APPLE)
+        target_link_libraries(redship PRIVATE
+            -Wl,--start-group
+            ${SOH_STATIC_TARGETS} ${TWOSHIP_STATIC_TARGETS}
+            ${REDSHIP_LIBRARY_DEPS}
+            -Wl,--end-group
+        )
+    else()
+        target_link_libraries(redship PRIVATE
+            ${SOH_STATIC_TARGETS} ${TWOSHIP_STATIC_TARGETS}
+            ${REDSHIP_LIBRARY_DEPS}
+        )
+    endif()
+    message(STATUS "Linking OoT (${SOH_STATIC_TARGETS}) and MM (${TWOSHIP_STATIC_TARGETS}) into redship")
 else()
     # Dynamic library architecture (combo/ approach)
     add_subdirectory(combo)
