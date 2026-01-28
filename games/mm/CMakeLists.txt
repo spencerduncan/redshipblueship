@@ -138,7 +138,8 @@ endif()
 # src (decomp) {{{
 file(GLOB_RECURSE src__ RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*.c" "src/*.h")
 
-if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+# Skip Resource.rc in single-exe mode to avoid duplicate VERSION resource (LNK1123)
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows" AND NOT SINGLE_EXECUTABLE_BUILD)
     list(APPEND src__ ${CMAKE_CURRENT_SOURCE_DIR}/windows/Resource.rc)
 endif()
 
