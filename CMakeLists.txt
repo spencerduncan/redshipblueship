@@ -213,16 +213,13 @@ if(SINGLE_EXECUTABLE_BUILD)
     include(CMake/SingleExecutable.cmake)
     # rsbs is still used for shared code
     add_subdirectory(rsbs)
-    # Games are built as OBJECT libraries for linking into single exe
+    # Games are built as STATIC libraries for linking into single exe
     add_subdirectory(games/oot)
     add_subdirectory(games/mm)
 
     # Link game objects into redship (must be done after games are added)
-    target_link_libraries(redship PRIVATE
-        $<TARGET_OBJECTS:soh>
-        $<TARGET_OBJECTS:2ship>
-    )
-    message(STATUS "Linking OoT (soh) and MM (2ship) objects into redship")
+    target_link_libraries(redship PRIVATE soh 2ship)
+    message(STATUS "Linking OoT (soh) and MM (2ship) into redship")
 else()
     # Dynamic library architecture (combo/ approach)
     add_subdirectory(combo)
@@ -238,7 +235,7 @@ endif()
 
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
 if(NOT SINGLE_EXECUTABLE_BUILD)
-    # soh/2ship are OBJECT libraries in single-exe mode, not installable
+    # soh/2ship are STATIC libraries in single-exe mode, not installable
     install(TARGETS soh LIBRARY DESTINATION . COMPONENT ship)
     install(TARGETS 2ship LIBRARY DESTINATION . COMPONENT ship)
 endif()
