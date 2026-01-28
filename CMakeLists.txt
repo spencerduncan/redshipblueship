@@ -228,6 +228,10 @@ if(SINGLE_EXECUTABLE_BUILD)
         target_link_libraries(redship PRIVATE $<TARGET_OBJECTS:${_t}>)
     endforeach()
     message(STATUS "Linking OoT objects (${SOH_OBJECT_TARGETS}) and MM objects (${TWOSHIP_OBJECT_TARGETS}) into redship")
+
+    # Link library dependencies AFTER object files (Linux ld requires
+    # libraries after the objects that reference them)
+    target_link_libraries(redship PRIVATE ${REDSHIP_LIBRARY_DEPS})
 else()
     # Dynamic library architecture (combo/ approach)
     add_subdirectory(combo)
