@@ -98,10 +98,28 @@ target_include_directories(redship PRIVATE
     ${CMAKE_SOURCE_DIR}/combo/include
 )
 
-target_link_libraries(redship PRIVATE
-    redship_common
-    rsbs
-)
+if(UNIX AND NOT APPLE)
+    # Use --whole-archive for redship_common so that strong symbol definitions
+    # (e.g., Combo_SetSharedGraphics, Combo_GetSharedGraphics) override weak
+    # symbols declared in libultraship. Without this, the linker sees weak
+    # symbols as satisfied and never pulls SharedGraphics.o from the archive.
+    target_link_libraries(redship PRIVATE
+        -Wl,--whole-archive
+        redship_common
+        -Wl,--no-whole-archive
+        rsbs
+    )
+elseif(APPLE)
+    target_link_libraries(redship PRIVATE
+        -Wl,-force_load,$<TARGET_FILE:redship_common>
+        rsbs
+    )
+else()
+    target_link_libraries(redship PRIVATE
+        redship_common
+        rsbs
+    )
+endif()
 
 # Game object libraries will be linked when they are available
 # This is deferred because the games are added as subdirectories later
