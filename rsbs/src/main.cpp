@@ -21,6 +21,7 @@
 #include "game.h"
 #include "context.h"
 #include "entrance.h"
+#include "archives.h"
 #include "test_runner.h"
 
 // ============================================================================
@@ -301,6 +302,9 @@ int main(int argc, char** argv) {
             return 1;
         }
 
+        // Register the game's archives for hot-swap tracking
+        Archives_OnGameInit(selectedGame);
+
         // Run the game
         printf("Starting %s... (Press F10 to switch games)\n", GetGameName(selectedGame));
         RunGame(selectedGame);
@@ -327,6 +331,10 @@ int main(int argc, char** argv) {
         if (nextGame != GAME_NONE) {
             printf("\n=== Switching to %s ===\n", GetGameName(nextGame));
 
+            // Clean up outgoing game's archive tracking and switch
+            Archives_OnGameShutdown(selectedGame);
+            Archives_OnGameSwitch(selectedGame, nextGame);
+
             // Shutdown current game
             ShutdownGame(selectedGame);
 
@@ -340,6 +348,7 @@ int main(int argc, char** argv) {
         } else {
             // Normal exit
             keepRunning = false;
+            Archives_OnGameShutdown(selectedGame);
             ShutdownGame(selectedGame);
         }
     }

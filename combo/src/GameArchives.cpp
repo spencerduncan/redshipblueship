@@ -1,5 +1,6 @@
 #include "combo/GameArchives.h"
 #include "ship/resource/archive/Archive.h"
+#include "ship/resource/archive/ArchiveManager.h"
 #include "ship/resource/File.h"
 #include <stdexcept>
 
@@ -63,6 +64,24 @@ Game GameArchiveManager::GetFileOwner(const std::string& path) const {
 bool GameArchiveManager::IsGameLoaded(Game game) const {
     auto it = mGameArchives.find(game);
     return it != mGameArchives.end() && !it->second.empty();
+}
+
+void GameArchiveManager::UnloadGame(Game game, std::shared_ptr<Ship::ArchiveManager> archiveManager) {
+    auto it = mGameArchives.find(game);
+    if (it == mGameArchives.end()) {
+        return;
+    }
+
+    // If an ArchiveManager is provided, remove these archives from it too
+    if (archiveManager) {
+        for (const auto& archive : it->second) {
+            if (archive) {
+                archiveManager->RemoveArchive(archive);
+            }
+        }
+    }
+
+    mGameArchives.erase(it);
 }
 
 void GameArchiveManager::Clear() {

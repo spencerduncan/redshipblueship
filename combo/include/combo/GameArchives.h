@@ -62,6 +62,13 @@ public:
     bool IsGameLoaded(Game game) const;
 
     /**
+     * Unload all archives for a specific game.
+     * Removes the game's archives from this manager and, if an ArchiveManager
+     * is provided, also removes them from Ship's ArchiveManager.
+     */
+    void UnloadGame(Game game, std::shared_ptr<Ship::ArchiveManager> archiveManager = nullptr);
+
+    /**
      * Clear all registered archives (useful for testing).
      */
     void Clear();
