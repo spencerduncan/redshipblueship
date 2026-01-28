@@ -635,6 +635,7 @@ if(SINGLE_EXECUTABLE_BUILD)
         target_compile_options(${_t} PRIVATE
             "$<$<COMPILE_LANGUAGE:CXX>:/FIlibultraship/bridge/consolevariablebridge.h>"
             "$<$<COMPILE_LANGUAGE:CXX>:/FI${CMAKE_CURRENT_SOURCE_DIR}/2s2h/GameInteractor/GameInteractor.h>"
+            "$<$<COMPILE_LANGUAGE:CXX>:/FI${CMAKE_CURRENT_SOURCE_DIR}/2s2h/BenPort.h>"
             "$<$<COMPILE_LANGUAGE:CXX>:/FI${CMAKE_CURRENT_SOURCE_DIR}/include/variables.h>"
             "$<$<COMPILE_LANGUAGE:CXX>:/FI${CMAKE_CURRENT_SOURCE_DIR}/include/functions.h>"
             "$<$<COMPILE_LANGUAGE:CXX>:/FI${CMAKE_CURRENT_SOURCE_DIR}/include/macros.h>"
@@ -650,6 +651,7 @@ if(SINGLE_EXECUTABLE_BUILD)
         target_compile_options(${_t} PRIVATE
             "$<$<COMPILE_LANGUAGE:CXX>:-includelibultraship/bridge/consolevariablebridge.h>"
             "$<$<COMPILE_LANGUAGE:CXX>:-include${CMAKE_CURRENT_SOURCE_DIR}/2s2h/GameInteractor/GameInteractor.h>"
+            "$<$<COMPILE_LANGUAGE:CXX>:-include${CMAKE_CURRENT_SOURCE_DIR}/2s2h/BenPort.h>"
             "$<$<COMPILE_LANGUAGE:CXX>:-include${CMAKE_CURRENT_SOURCE_DIR}/include/variables.h>"
             "$<$<COMPILE_LANGUAGE:CXX>:-include${CMAKE_CURRENT_SOURCE_DIR}/include/functions.h>"
             "$<$<COMPILE_LANGUAGE:CXX>:-include${CMAKE_CURRENT_SOURCE_DIR}/include/macros.h>"
