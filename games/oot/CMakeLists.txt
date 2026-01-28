@@ -252,6 +252,13 @@ if(SINGLE_EXECUTABLE_BUILD)
         target_compile_definitions(${_t} PRIVATE RSBS_SINGLE_EXECUTABLE)
     endforeach()
 
+    # Propagate compile-time deps (include dirs, compile defs) to OBJECT libs.
+    # For OBJECT libs, target_link_libraries only propagates INTERFACE properties
+    # needed for compilation — no actual linker deps are created.
+    foreach(_t ${SOH_COMPILE_TARGETS})
+        target_link_libraries(${_t} PRIVATE redship_common rsbs libultraship ZAPDLib)
+    endforeach()
+
     # Export object targets for root CMakeLists to link into redship
     set(SOH_OBJECT_TARGETS soh_src soh_port PARENT_SCOPE)
 else()

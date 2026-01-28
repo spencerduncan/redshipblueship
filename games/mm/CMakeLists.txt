@@ -274,13 +274,18 @@ if(SINGLE_EXECUTABLE_BUILD)
         target_compile_definitions(${_t} PRIVATE RSBS_SINGLE_EXECUTABLE)
     endforeach()
 
+    # Propagate compile-time deps to OBJECT libs
+    foreach(_t ${TWOSHIP_COMPILE_TARGETS})
+        target_link_libraries(${_t} PRIVATE redship_common rsbs libultraship ZAPDLib)
+    endforeach()
+
     # Export object targets for root CMakeLists to link into redship
     set(TWOSHIP_OBJECT_TARGETS 2ship_src 2ship_port PARENT_SCOPE)
 else()
     # Build as SHARED library for dynamic loading
     add_library(${PROJECT_NAME} SHARED ${ALL_FILES})
     set(TWOSHIP_COMPILE_TARGETS ${PROJECT_NAME})
-    target_compile_definitions(${_t} PRIVATE GAME_BUILDING_DLL)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE GAME_BUILDING_DLL)
 
     # Symbol visibility (only for shared library)
     set_target_properties(${PROJECT_NAME} PROPERTIES
