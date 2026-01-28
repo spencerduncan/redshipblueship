@@ -213,13 +213,21 @@ if(SINGLE_EXECUTABLE_BUILD)
     include(CMake/SingleExecutable.cmake)
     # rsbs is still used for shared code
     add_subdirectory(rsbs)
-    # Games are built as STATIC libraries for linking into single exe
+    # Games are built as OBJECT libraries for linking into single exe
     add_subdirectory(games/oot)
     add_subdirectory(games/mm)
 
-    # Link game objects into redship (must be done after games are added)
-    target_link_libraries(redship PRIVATE soh 2ship)
-    message(STATUS "Linking OoT (soh) and MM (2ship) into redship")
+    # Link game OBJECT libraries into redship (must be done after games are added)
+    # Each game is split into 2 OBJECT libs to stay under MSVC limits:
+    # - LNK1170: response file line >131K chars (too many .obj paths)
+    # - LNK1248: COFF .lib archive >4GB (STATIC lib too large)
+    foreach(_t ${SOH_OBJECT_TARGETS})
+        target_link_libraries(redship PRIVATE $<TARGET_OBJECTS:${_t}>)
+    endforeach()
+    foreach(_t ${TWOSHIP_OBJECT_TARGETS})
+        target_link_libraries(redship PRIVATE $<TARGET_OBJECTS:${_t}>)
+    endforeach()
+    message(STATUS "Linking OoT objects (${SOH_OBJECT_TARGETS}) and MM objects (${TWOSHIP_OBJECT_TARGETS}) into redship")
 else()
     # Dynamic library architecture (combo/ approach)
     add_subdirectory(combo)
