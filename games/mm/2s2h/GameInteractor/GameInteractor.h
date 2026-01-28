@@ -1,5 +1,5 @@
-#ifndef GAME_INTERACTOR_H
-#define GAME_INTERACTOR_H
+#ifndef MM_GAME_INTERACTOR_H
+#define MM_GAME_INTERACTOR_H
 
 #include <stdarg.h>
 
@@ -167,6 +167,8 @@ struct GIEventTrap {
 };
 
 typedef std::variant<GIEventNone, GIEventGiveItem, GIEventSpawnActor, GIEventTransition, GIEventTrap> GIEvent;
+
+namespace MM {
 
 class GameInteractor {
   public:
@@ -480,66 +482,132 @@ class GameInteractor {
 #undef DEFINE_HOOK
 };
 
+} // namespace MM
+
+// Allow unqualified access to MM::GameInteractor within MM code
+using MM::GameInteractor;
+
 extern "C" {
 #endif // __cplusplus
 
-void GameInteractor_ExecuteOnGameStateMainStart();
-void GameInteractor_ExecuteOnGameStateMainFinish();
-void GameInteractor_ExecuteOnGameStateDrawFinish();
-void GameInteractor_ExecuteOnGameStateUpdate();
-void GameInteractor_ExecuteOnConsoleLogoUpdate();
-void GameInteractor_ExecuteOnKaleidoUpdate(PauseContext* pauseCtx);
-void GameInteractor_ExecuteBeforeKaleidoDrawPage(PauseContext* pauseCtx, u16 pauseIndex);
-void GameInteractor_ExecuteAfterKaleidoDrawPage(PauseContext* pauseCtx, u16 pauseIndex);
-void GameInteractor_ExecuteOnSaveInit(s16 fileNum);
-void GameInteractor_ExecuteOnSaveLoad(s16 fileNum);
-void GameInteractor_ExecuteOnFileSelectSaveLoad(s16 fileNum, bool isOwlSave, SaveContext* saveContext);
-void GameInteractor_ExecuteBeforeEndOfCycleSave();
-void GameInteractor_ExecuteAfterEndOfCycleSave();
-void GameInteractor_ExecuteBeforeMoonCrashSaveReset();
-void GameInteractor_ExecuteOnInterfaceDrawStart();
-void GameInteractor_ExecuteAfterInterfaceClockDraw();
-void GameInteractor_ExecuteBeforeInterfaceClockDraw();
-void GameInteractor_ExecuteOnGameCompletion();
+// MM-prefixed C function declarations (actual implementations)
+void MM_GameInteractor_ExecuteOnGameStateMainStart();
+void MM_GameInteractor_ExecuteOnGameStateMainFinish();
+void MM_GameInteractor_ExecuteOnGameStateDrawFinish();
+void MM_GameInteractor_ExecuteOnGameStateUpdate();
+void MM_GameInteractor_ExecuteOnConsoleLogoUpdate();
+void MM_GameInteractor_ExecuteOnKaleidoUpdate(PauseContext* pauseCtx);
+void MM_GameInteractor_ExecuteBeforeKaleidoDrawPage(PauseContext* pauseCtx, u16 pauseIndex);
+void MM_GameInteractor_ExecuteAfterKaleidoDrawPage(PauseContext* pauseCtx, u16 pauseIndex);
+void MM_GameInteractor_ExecuteOnSaveInit(s16 fileNum);
+void MM_GameInteractor_ExecuteOnSaveLoad(s16 fileNum);
+void MM_GameInteractor_ExecuteOnFileSelectSaveLoad(s16 fileNum, bool isOwlSave, SaveContext* saveContext);
+void MM_GameInteractor_ExecuteBeforeEndOfCycleSave();
+void MM_GameInteractor_ExecuteAfterEndOfCycleSave();
+void MM_GameInteractor_ExecuteBeforeMoonCrashSaveReset();
+void MM_GameInteractor_ExecuteOnInterfaceDrawStart();
+void MM_GameInteractor_ExecuteAfterInterfaceClockDraw();
+void MM_GameInteractor_ExecuteBeforeInterfaceClockDraw();
+void MM_GameInteractor_ExecuteOnGameCompletion();
 
-void GameInteractor_ExecuteOnSceneInit(s16 sceneId, s8 spawnNum);
-void GameInteractor_ExecuteOnRoomInit(s16 sceneId, s8 roomNum);
-void GameInteractor_ExecuteAfterRoomSceneCommands(s16 sceneId, s8 roomNum);
-void GameInteractor_ExecuteOnPlayDrawWorldEnd();
-void GameInteractor_ExecuteOnPlayDestroy();
+void MM_GameInteractor_ExecuteOnSceneInit(s16 sceneId, s8 spawnNum);
+void MM_GameInteractor_ExecuteOnRoomInit(s16 sceneId, s8 roomNum);
+void MM_GameInteractor_ExecuteAfterRoomSceneCommands(s16 sceneId, s8 roomNum);
+void MM_GameInteractor_ExecuteOnPlayDrawWorldEnd();
+void MM_GameInteractor_ExecuteOnPlayDestroy();
 
-bool GameInteractor_ShouldActorInit(Actor* actor);
-void GameInteractor_ExecuteOnActorInit(Actor* actor);
-bool GameInteractor_ShouldActorUpdate(Actor* actor);
-void GameInteractor_ExecuteOnActorUpdate(Actor* actor);
-bool GameInteractor_ShouldActorDraw(Actor* actor);
-void GameInteractor_ExecuteOnActorDraw(Actor* actor);
-void GameInteractor_ExecuteOnActorKill(Actor* actor);
-void GameInteractor_ExecuteOnActorDestroy(Actor* actor);
-void GameInteractor_ExecuteOnPlayerPostLimbDraw(Player* player, s32 limbIndex);
-void GameInteractor_ExecuteOnBossDefeated(s16 actorId);
+bool MM_GameInteractor_ShouldActorInit(Actor* actor);
+void MM_GameInteractor_ExecuteOnActorInit(Actor* actor);
+bool MM_GameInteractor_ShouldActorUpdate(Actor* actor);
+void MM_GameInteractor_ExecuteOnActorUpdate(Actor* actor);
+bool MM_GameInteractor_ShouldActorDraw(Actor* actor);
+void MM_GameInteractor_ExecuteOnActorDraw(Actor* actor);
+void MM_GameInteractor_ExecuteOnActorKill(Actor* actor);
+void MM_GameInteractor_ExecuteOnActorDestroy(Actor* actor);
+void MM_GameInteractor_ExecuteOnPlayerPostLimbDraw(Player* player, s32 limbIndex);
+void MM_GameInteractor_ExecuteOnBossDefeated(s16 actorId);
 
-void GameInteractor_ExecuteOnSceneFlagSet(s16 sceneId, FlagType flagType, u32 flag);
-void GameInteractor_ExecuteOnSceneFlagUnset(s16 sceneId, FlagType flagType, u32 flag);
-void GameInteractor_ExecuteOnFlagSet(FlagType flagType, u32 flag);
-void GameInteractor_ExecuteOnFlagUnset(FlagType flagType, u32 flag);
+void MM_GameInteractor_ExecuteOnSceneFlagSet(s16 sceneId, FlagType flagType, u32 flag);
+void MM_GameInteractor_ExecuteOnSceneFlagUnset(s16 sceneId, FlagType flagType, u32 flag);
+void MM_GameInteractor_ExecuteOnFlagSet(FlagType flagType, u32 flag);
+void MM_GameInteractor_ExecuteOnFlagUnset(FlagType flagType, u32 flag);
 
-void GameInteractor_ExecuteAfterCameraUpdate(Camera* camera);
-void GameInteractor_ExecuteOnCameraChangeModeFlags(Camera* camera);
-void GameInteractor_ExecuteOnCameraChangeSettingsFlags(Camera* camera);
+void MM_GameInteractor_ExecuteAfterCameraUpdate(Camera* camera);
+void MM_GameInteractor_ExecuteOnCameraChangeModeFlags(Camera* camera);
+void MM_GameInteractor_ExecuteOnCameraChangeSettingsFlags(Camera* camera);
 
-void GameInteractor_ExecuteOnPassPlayerInputs(Input* input);
+void MM_GameInteractor_ExecuteOnPassPlayerInputs(Input* input);
 
-void GameInteractor_ExecuteOnOpenText(u16* textId, bool* loadFromMessageTable);
+void MM_GameInteractor_ExecuteOnOpenText(u16* textId, bool* loadFromMessageTable);
 
-bool GameInteractor_ShouldItemGive(u8 item);
-void GameInteractor_ExecuteOnItemGive(u8 item);
+bool MM_GameInteractor_ShouldItemGive(u8 item);
+void MM_GameInteractor_ExecuteOnItemGive(u8 item);
 
-void GameInteractor_ExecuteOnBottleContentsUpdate(u8 item);
+void MM_GameInteractor_ExecuteOnBottleContentsUpdate(u8 item);
 
-void GameInteractor_ExecuteOnSeqPlayerInit(int32_t playerIdx, int32_t seqId);
+void MM_GameInteractor_ExecuteOnSeqPlayerInit(int32_t playerIdx, int32_t seqId);
 
-bool GameInteractor_Should(GIVanillaBehavior flag, uint32_t result, ...);
+bool MM_GameInteractor_Should(GIVanillaBehavior flag, uint32_t result, ...);
+
+int MM_GameInteractor_InvertControl(GIInvertType type);
+uint32_t MM_GameInteractor_Dpad(GIDpadType type, uint32_t buttonCombo);
+uint32_t MM_GameInteractor_RightStickOcarina(Input* input);
+
+// Redirect unprefixed names to MM-prefixed versions for MM game code
+#define GameInteractor_ExecuteOnGameStateMainStart MM_GameInteractor_ExecuteOnGameStateMainStart
+#define GameInteractor_ExecuteOnGameStateMainFinish MM_GameInteractor_ExecuteOnGameStateMainFinish
+#define GameInteractor_ExecuteOnGameStateDrawFinish MM_GameInteractor_ExecuteOnGameStateDrawFinish
+#define GameInteractor_ExecuteOnGameStateUpdate MM_GameInteractor_ExecuteOnGameStateUpdate
+#define GameInteractor_ExecuteOnConsoleLogoUpdate MM_GameInteractor_ExecuteOnConsoleLogoUpdate
+#define GameInteractor_ExecuteOnKaleidoUpdate MM_GameInteractor_ExecuteOnKaleidoUpdate
+#define GameInteractor_ExecuteBeforeKaleidoDrawPage MM_GameInteractor_ExecuteBeforeKaleidoDrawPage
+#define GameInteractor_ExecuteAfterKaleidoDrawPage MM_GameInteractor_ExecuteAfterKaleidoDrawPage
+#define GameInteractor_ExecuteOnSaveInit MM_GameInteractor_ExecuteOnSaveInit
+#define GameInteractor_ExecuteOnSaveLoad MM_GameInteractor_ExecuteOnSaveLoad
+#define GameInteractor_ExecuteOnFileSelectSaveLoad MM_GameInteractor_ExecuteOnFileSelectSaveLoad
+#define GameInteractor_ExecuteBeforeEndOfCycleSave MM_GameInteractor_ExecuteBeforeEndOfCycleSave
+#define GameInteractor_ExecuteAfterEndOfCycleSave MM_GameInteractor_ExecuteAfterEndOfCycleSave
+#define GameInteractor_ExecuteBeforeMoonCrashSaveReset MM_GameInteractor_ExecuteBeforeMoonCrashSaveReset
+#define GameInteractor_ExecuteOnInterfaceDrawStart MM_GameInteractor_ExecuteOnInterfaceDrawStart
+#define GameInteractor_ExecuteAfterInterfaceClockDraw MM_GameInteractor_ExecuteAfterInterfaceClockDraw
+#define GameInteractor_ExecuteBeforeInterfaceClockDraw MM_GameInteractor_ExecuteBeforeInterfaceClockDraw
+#define GameInteractor_ExecuteOnGameCompletion MM_GameInteractor_ExecuteOnGameCompletion
+#define GameInteractor_ExecuteOnSceneInit MM_GameInteractor_ExecuteOnSceneInit
+#define GameInteractor_ExecuteOnRoomInit MM_GameInteractor_ExecuteOnRoomInit
+#define GameInteractor_ExecuteAfterRoomSceneCommands MM_GameInteractor_ExecuteAfterRoomSceneCommands
+#define GameInteractor_ExecuteOnPlayDrawWorldEnd MM_GameInteractor_ExecuteOnPlayDrawWorldEnd
+#define GameInteractor_ExecuteOnPlayDestroy MM_GameInteractor_ExecuteOnPlayDestroy
+#define GameInteractor_ShouldActorInit MM_GameInteractor_ShouldActorInit
+#define GameInteractor_ExecuteOnActorInit MM_GameInteractor_ExecuteOnActorInit
+#define GameInteractor_ShouldActorUpdate MM_GameInteractor_ShouldActorUpdate
+#define GameInteractor_ExecuteOnActorUpdate MM_GameInteractor_ExecuteOnActorUpdate
+#define GameInteractor_ShouldActorDraw MM_GameInteractor_ShouldActorDraw
+#define GameInteractor_ExecuteOnActorDraw MM_GameInteractor_ExecuteOnActorDraw
+#define GameInteractor_ExecuteOnActorKill MM_GameInteractor_ExecuteOnActorKill
+#define GameInteractor_ExecuteOnActorDestroy MM_GameInteractor_ExecuteOnActorDestroy
+#define GameInteractor_ExecuteOnPlayerPostLimbDraw MM_GameInteractor_ExecuteOnPlayerPostLimbDraw
+#define GameInteractor_ExecuteOnBossDefeated MM_GameInteractor_ExecuteOnBossDefeated
+#define GameInteractor_ExecuteOnSceneFlagSet MM_GameInteractor_ExecuteOnSceneFlagSet
+#define GameInteractor_ExecuteOnSceneFlagUnset MM_GameInteractor_ExecuteOnSceneFlagUnset
+#define GameInteractor_ExecuteOnFlagSet MM_GameInteractor_ExecuteOnFlagSet
+#define GameInteractor_ExecuteOnFlagUnset MM_GameInteractor_ExecuteOnFlagUnset
+#define GameInteractor_ExecuteAfterCameraUpdate MM_GameInteractor_ExecuteAfterCameraUpdate
+#define GameInteractor_ExecuteOnCameraChangeModeFlags MM_GameInteractor_ExecuteOnCameraChangeModeFlags
+#define GameInteractor_ExecuteOnCameraChangeSettingsFlags MM_GameInteractor_ExecuteOnCameraChangeSettingsFlags
+#define GameInteractor_ExecuteOnPassPlayerInputs MM_GameInteractor_ExecuteOnPassPlayerInputs
+#define GameInteractor_ExecuteOnOpenText MM_GameInteractor_ExecuteOnOpenText
+#define GameInteractor_ShouldItemGive MM_GameInteractor_ShouldItemGive
+#define GameInteractor_ExecuteOnItemGive MM_GameInteractor_ExecuteOnItemGive
+#define GameInteractor_ExecuteOnBottleContentsUpdate MM_GameInteractor_ExecuteOnBottleContentsUpdate
+#define GameInteractor_ExecuteOnSeqPlayerInit MM_GameInteractor_ExecuteOnSeqPlayerInit
+#define GameInteractor_Should MM_GameInteractor_Should
+#define GameInteractor_InvertControl MM_GameInteractor_InvertControl
+#define GameInteractor_Dpad MM_GameInteractor_Dpad
+#define GameInteractor_RightStickOcarina MM_GameInteractor_RightStickOcarina
+
+#ifdef __cplusplus
+}
+
 #define REGISTER_VB_SHOULD(flag, body)                                                      \
     GameInteractor::Instance->RegisterGameHookForID<GameInteractor::ShouldVanillaBehavior>( \
         flag, [](GIVanillaBehavior _, bool* should, va_list originalArgs) {                 \
@@ -576,13 +644,6 @@ bool GameInteractor_Should(GIVanillaBehavior flag, uint32_t result, ...);
         }                                                                                                 \
     }
 
-int GameInteractor_InvertControl(GIInvertType type);
-uint32_t GameInteractor_Dpad(GIDpadType type, uint32_t buttonCombo);
-uint32_t GameInteractor_RightStickOcarina(Input* input);
-
-#ifdef __cplusplus
-}
-
 #endif
 
-#endif // GAME_INTERACTOR_H
+#endif // MM_GAME_INTERACTOR_H

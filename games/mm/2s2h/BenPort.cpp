@@ -112,7 +112,7 @@ CrowdControl* CrowdControl::Instance;
 #include "BenGui/BenInputEditorWindow.h"
 
 OTRGlobals* OTRGlobals::Instance;
-GameInteractor* GameInteractor::Instance;
+MM::GameInteractor* MM::GameInteractor::Instance;
 AudioCollection* AudioCollection::Instance;
 
 extern "C" char** cameraStrings;
