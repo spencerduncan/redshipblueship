@@ -119,6 +119,7 @@ endif()
 set(REDSHIP_LIBRARY_DEPS
     redship_common
     rsbs
+    libultraship
     ZAPDLib
     Ogg::ogg
     Vorbis::vorbis
