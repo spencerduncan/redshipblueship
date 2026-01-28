@@ -112,10 +112,11 @@ if(NOT opusfile_FOUND)
     pkg_check_modules(opusfile REQUIRED IMPORTED_TARGET opusfile)
 endif()
 
-# STATIC libraries don't propagate PRIVATE dependencies, so we must
-# explicitly link everything the games need here.
-# ZAPDLib is needed by OTRExporter code compiled into soh/2ship.
-target_link_libraries(redship PRIVATE
+# Library dependencies are linked AFTER game OBJECT libraries in the root
+# CMakeLists.txt to ensure correct link order on Linux (ld requires libraries
+# after the objects that reference them).
+# Store them in a variable for the root CMakeLists.txt to use.
+set(REDSHIP_LIBRARY_DEPS
     redship_common
     rsbs
     ZAPDLib
@@ -127,14 +128,14 @@ target_link_libraries(redship PRIVATE
 )
 
 # SDL2_net is needed by OoT's Network.cpp when BUILD_REMOTE_CONTROL is enabled.
-# OBJECT libraries don't propagate link dependencies, so we must link it here.
+# Find it here; linking happens in root CMakeLists.txt after OBJECT files.
 if(BUILD_REMOTE_CONTROL)
     find_package(SDL2_net)
     if(SDL2_net_FOUND)
         if(TARGET SDL2_net::SDL2_net-static)
-            target_link_libraries(redship PRIVATE SDL2_net::SDL2_net-static)
+            list(APPEND REDSHIP_LIBRARY_DEPS SDL2_net::SDL2_net-static)
         elseif(TARGET SDL2_net::SDL2_net)
-            target_link_libraries(redship PRIVATE SDL2_net::SDL2_net)
+            list(APPEND REDSHIP_LIBRARY_DEPS SDL2_net::SDL2_net)
         endif()
     endif()
 endif()
