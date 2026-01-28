@@ -22,6 +22,11 @@ extern "C" {
     void OoT_Heaps_Free(void);
     void Main(void* arg);
     void BootCommands_Init(void);
+
+    // Audio cleanup for suspend (issue #160)
+    void OoT_Audio_PreNMI(void);
+    extern s32 gAudioContextInitalized;
+    void Audio_InitMesgQueues(void);
 }
 
 // Game state
@@ -73,9 +78,42 @@ void OoT_Game_Run(void) {
     fflush(stderr);
 }
 
+void OoT_Game_Suspend(void) {
+    fprintf(stderr, "[OoT] Game_Suspend called\n");
+    fflush(stderr);
+
+    // Stop OoT audio playback to prevent interference with MM (issue #160).
+    // OoT_Audio_PreNMI triggers the audio reset path which stops all sequences
+    // and puts the audio system into a quiescent state.
+    fprintf(stderr, "[OoT] Stopping audio via PreNMI path...\n");
+    fflush(stderr);
+    OoT_Audio_PreNMI();
+
+    // Mark audio as uninitialized so re-init works on resume
+    gAudioContextInitalized = false;
+
+    fprintf(stderr, "[OoT] Game_Suspend complete\n");
+    fflush(stderr);
+}
+
+void OoT_Game_Resume(void) {
+    fprintf(stderr, "[OoT] Game_Resume called\n");
+    fflush(stderr);
+
+    // Reinitialize audio message queues for clean state (issue #160).
+    // The audio context's queue pointers may be stale after suspend.
+    fprintf(stderr, "[OoT] Reinitializing audio message queues...\n");
+    fflush(stderr);
+    Audio_InitMesgQueues();
+
+    fprintf(stderr, "[OoT] Game_Resume complete\n");
+    fflush(stderr);
+}
+
 void OoT_Game_Shutdown(void) {
     fprintf(stderr, "[OoT] Game_Shutdown called\n");
     fflush(stderr);
+    gAudioContextInitalized = false;
     DeinitOTR();
     OoT_Heaps_Free();
     fprintf(stderr, "[OoT] Game_Shutdown complete\n");
