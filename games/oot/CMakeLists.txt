@@ -123,12 +123,16 @@ list(REMOVE_ITEM Header_Files__include ${CMAKE_CURRENT_SOURCE_DIR}/include/ultra
 source_group("include" FILES ${Header_Files__include})
 # }}}
 
-# soh (root)
+# soh (root) - collect all, then split out Enhancements for separate lib
 file(GLOB_RECURSE soh__ RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "soh/*.c" "soh/*.cpp" "soh/*.h" "soh/*.hpp")
+# Collect Enhancements separately (will be soh_enh lib)
+file(GLOB_RECURSE soh__Enhancements RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "soh/Enhancements/*.c" "soh/Enhancements/*.cpp" "soh/Enhancements/*.h" "soh/Enhancements/*.hpp")
+# Remove Enhancements from soh__ (will be soh_port lib)
+list(FILTER soh__ EXCLUDE REGEX "soh/Enhancements/.*")
 
 # Add specific files that don't match the pattern
-list(APPEND soh__ ${CMAKE_CURRENT_SOURCE_DIR}/soh/Enhancements/savestates_extern.inc)
-list(APPEND soh__ ${CMAKE_CURRENT_SOURCE_DIR}/soh/Enhancements/speechsynthesizer/DarwinSpeechSynthesizer.mm)
+list(APPEND soh__Enhancements ${CMAKE_CURRENT_SOURCE_DIR}/soh/Enhancements/savestates_extern.inc)
+list(APPEND soh__Enhancements ${CMAKE_CURRENT_SOURCE_DIR}/soh/Enhancements/speechsynthesizer/DarwinSpeechSynthesizer.mm)
 
 # Create source groups that match the real file directory paths
 foreach(source IN LISTS soh__)
@@ -238,29 +242,28 @@ list(APPEND ALL_FILES "${CMAKE_CURRENT_SOURCE_DIR}/soh/GameExports.cpp")
 # Target - OBJECT libraries for single-exe, SHARED for dynamic loading
 ################################################################################
 if(SINGLE_EXECUTABLE_BUILD)
-    # Split into two OBJECT libraries to avoid:
+    # Split into three STATIC libraries to avoid:
     # - MSVC LNK1170: response file line >131K chars with 2500+ .obj paths
-    # - MSVC LNK1248: COFF .lib archive >4GB with STATIC library
-    # Each OBJECT lib has <1000 source files, well under both limits.
+    # - MSVC LNK1248: COFF .lib archive >4GB (soh/ alone was 4.02GB)
+    # Split: src/, soh/ (w/o Enhancements), soh/Enhancements/
     add_library(soh_src STATIC ${src__} ${Header_Files} ${Header_Files__include})
     add_library(soh_port STATIC
         ${soh__} ${soh__Extractor}
         "${CMAKE_CURRENT_SOURCE_DIR}/soh/GameExports_SingleExe.cpp"
     )
-    set(SOH_COMPILE_TARGETS soh_src soh_port)
+    add_library(soh_enh STATIC ${soh__Enhancements})
+    set(SOH_COMPILE_TARGETS soh_src soh_port soh_enh)
     foreach(_t ${SOH_COMPILE_TARGETS})
         target_compile_definitions(${_t} PRIVATE RSBS_SINGLE_EXECUTABLE)
     endforeach()
 
-    # Propagate compile-time deps (include dirs, compile defs) to OBJECT libs.
-    # For OBJECT libs, target_link_libraries only propagates INTERFACE properties
-    # needed for compilation — no actual linker deps are created.
+    # Propagate compile-time deps (include dirs, compile defs) to STATIC libs.
     foreach(_t ${SOH_COMPILE_TARGETS})
         target_link_libraries(${_t} PRIVATE redship_common rsbs libultraship ZAPDLib)
     endforeach()
 
-    # Export object targets for root CMakeLists to link into redship
-    set(SOH_STATIC_TARGETS soh_src soh_port PARENT_SCOPE)
+    # Export static targets for root CMakeLists to link into redship
+    set(SOH_STATIC_TARGETS soh_src soh_port soh_enh PARENT_SCOPE)
 else()
     # Build as SHARED library for dynamic loading
     add_library(${PROJECT_NAME} SHARED ${ALL_FILES})

@@ -99,8 +99,13 @@ source_group("include" FILES ${Header_Files__include})
 # }}}
 
 file(GLOB_RECURSE ship__ RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "2s2h/*.c" "2s2h/*.cpp" "2s2h/*.h" "2s2h/*.hpp")
+# Collect Enhancements separately (will be 2ship_enh lib)
+file(GLOB_RECURSE ship__Enhancements RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "2s2h/Enhancements/*.c" "2s2h/Enhancements/*.cpp" "2s2h/Enhancements/*.h" "2s2h/Enhancements/*.hpp")
+# Remove Enhancements from ship__ (will be 2ship_port lib)
+list(FILTER ship__ EXCLUDE REGEX "2s2h/Enhancements/.*")
+
 # Create source groups that match the real file directory paths
-foreach(source IN LISTS ship__)
+foreach(source IN LISTS ship__ ship__Enhancements)
     get_filename_component(source_path "${source}" PATH)
     string(REPLACE "/" "\\" source_path_adjusted "${source_path}")
     source_group("${source_path_adjusted}" FILES "${source}")
@@ -265,24 +270,28 @@ if(SINGLE_EXECUTABLE_BUILD)
     list(FILTER src__ EXCLUDE REGEX "src/libc/printutils\\.c$")
     list(FILTER src__ EXCLUDE REGEX "src/boot/fault_drawer\\.c$")
 
-    # Split into two OBJECT libraries to avoid MSVC LNK1170/LNK1248 limits
+    # Split into three STATIC libraries to avoid:
+    # - MSVC LNK1170: response file line >131K chars with 2500+ .obj paths
+    # - MSVC LNK1248: COFF .lib archive >4GB
+    # Split: src/, 2s2h/ (w/o Enhancements), 2s2h/Enhancements/
     add_library(2ship_src STATIC ${src__} ${Header_Files__include})
     add_library(2ship_port STATIC
         ${ship__} ${ship__Extractor}
         "${CMAKE_CURRENT_SOURCE_DIR}/2s2h/GameExports_SingleExe.cpp"
     )
-    set(TWOSHIP_COMPILE_TARGETS 2ship_src 2ship_port)
+    add_library(2ship_enh STATIC ${ship__Enhancements})
+    set(TWOSHIP_COMPILE_TARGETS 2ship_src 2ship_port 2ship_enh)
     foreach(_t ${TWOSHIP_COMPILE_TARGETS})
         target_compile_definitions(${_t} PRIVATE RSBS_SINGLE_EXECUTABLE)
     endforeach()
 
-    # Propagate compile-time deps to OBJECT libs
+    # Propagate compile-time deps to STATIC libs
     foreach(_t ${TWOSHIP_COMPILE_TARGETS})
         target_link_libraries(${_t} PRIVATE redship_common rsbs libultraship ZAPDLib)
     endforeach()
 
-    # Export object targets for root CMakeLists to link into redship
-    set(TWOSHIP_STATIC_TARGETS 2ship_src 2ship_port PARENT_SCOPE)
+    # Export static targets for root CMakeLists to link into redship
+    set(TWOSHIP_STATIC_TARGETS 2ship_src 2ship_port 2ship_enh PARENT_SCOPE)
 else()
     # Build as SHARED library for dynamic loading
     add_library(${PROJECT_NAME} SHARED ${ALL_FILES})
