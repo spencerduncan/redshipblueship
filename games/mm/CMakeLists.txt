@@ -263,13 +263,24 @@ if(SINGLE_EXECUTABLE_BUILD)
     list(FILTER ALL_FILES EXCLUDE REGEX "src/libc/printutils\\.c$")
     list(FILTER ALL_FILES EXCLUDE REGEX "src/boot/fault_drawer\\.c$")
 
-    # Build as STATIC library for linking into single executable
-    add_library(${PROJECT_NAME} STATIC ${ALL_FILES})
-    target_compile_definitions(${PROJECT_NAME} PRIVATE RSBS_SINGLE_EXECUTABLE)
+    # Split into two OBJECT libraries to avoid MSVC LNK1170/LNK1248 limits
+    add_library(2ship_src OBJECT ${src__} ${Header_Files__include})
+    add_library(2ship_port OBJECT
+        ${ship__} ${ship__Extractor}
+        "${CMAKE_CURRENT_SOURCE_DIR}/2s2h/GameExports_SingleExe.cpp"
+    )
+    set(TWOSHIP_COMPILE_TARGETS 2ship_src 2ship_port)
+    foreach(_t ${TWOSHIP_COMPILE_TARGETS})
+        target_compile_definitions(${_t} PRIVATE RSBS_SINGLE_EXECUTABLE)
+    endforeach()
+
+    # Export object targets for root CMakeLists to link into redship
+    set(TWOSHIP_OBJECT_TARGETS 2ship_src 2ship_port PARENT_SCOPE)
 else()
     # Build as SHARED library for dynamic loading
     add_library(${PROJECT_NAME} SHARED ${ALL_FILES})
-    target_compile_definitions(${PROJECT_NAME} PRIVATE GAME_BUILDING_DLL)
+    set(TWOSHIP_COMPILE_TARGETS ${PROJECT_NAME})
+    target_compile_definitions(${_t} PRIVATE GAME_BUILDING_DLL)
 
     # Symbol visibility (only for shared library)
     set_target_properties(${PROJECT_NAME} PROPERTIES
@@ -295,42 +306,46 @@ else()
             SUFFIX ".so"
         )
     endif()
+
+    # Link deps (only for SHARED — OBJECT libs don't link, deps go on redship)
+    target_link_libraries(${PROJECT_NAME} PRIVATE redship_common rsbs)
 endif()
 
-# Link redship_common for cross-game API (src/common implementations)
-# Link rsbs for unified shared code
-target_link_libraries(${PROJECT_NAME} PRIVATE redship_common rsbs)
-# Include combo headers for compatibility (headers forward to src/common)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/combo/include)
-
-if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-use_props(${PROJECT_NAME} "${CMAKE_CONFIGURATION_TYPES}" "${DEFAULT_CXX_PROPS}")
-endif()
+# Include combo headers for compatibility
+foreach(_t ${TWOSHIP_COMPILE_TARGETS})
+    target_include_directories(${_t} PRIVATE ${CMAKE_SOURCE_DIR}/combo/include)
+endforeach()
 
 set(ROOT_NAMESPACE 2s2h)
 
+################################################################################
+# Apply compile properties to all MM targets (foreach handles OBJECT split)
+################################################################################
+foreach(_t ${TWOSHIP_COMPILE_TARGETS})
+
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-	set_target_properties(${PROJECT_NAME} PROPERTIES
+use_props(${_t} "${CMAKE_CONFIGURATION_TYPES}" "${DEFAULT_CXX_PROPS}")
+endif()
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+	set_target_properties(${_t} PROPERTIES
 		VS_GLOBAL_KEYWORD "Win32Proj"
 	)
 	if(NOT SINGLE_EXECUTABLE_BUILD)
-		# Enable LTCG for shared library builds only.
-		# Static libs with 2500+ objects exceed MSVC's 4GB .lib limit with LTCG.
-		set_target_properties(${PROJECT_NAME} PROPERTIES
+		set_target_properties(${_t} PROPERTIES
 			INTERPROCEDURAL_OPTIMIZATION_RELEASE "TRUE"
 		)
 	endif()
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    set_target_properties(${PROJECT_NAME} PROPERTIES
+    set_target_properties(${_t} PROPERTIES
         XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES
     )
-    # Shared library uses platform-specific naming set above
 endif()
 ################################################################################
 # MSVC runtime library
 ################################################################################
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-	get_property(MSVC_RUNTIME_LIBRARY_DEFAULT TARGET ${PROJECT_NAME} PROPERTY MSVC_RUNTIME_LIBRARY)
+	get_property(MSVC_RUNTIME_LIBRARY_DEFAULT TARGET ${_t} PROPERTY MSVC_RUNTIME_LIBRARY)
 	string(CONCAT "MSVC_RUNTIME_LIBRARY_STR"
 		$<$<CONFIG:Debug>:
 			MultiThreadedDebug
@@ -340,7 +355,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 		>
 		$<$<NOT:$<OR:$<CONFIG:Debug>,$<CONFIG:Release>>>:${MSVC_RUNTIME_LIBRARY_DEFAULT}>
 	)
-	set_target_properties(${PROJECT_NAME} PROPERTIES MSVC_RUNTIME_LIBRARY ${MSVC_RUNTIME_LIBRARY_STR})
+	set_target_properties(${_t} PROPERTIES MSVC_RUNTIME_LIBRARY ${MSVC_RUNTIME_LIBRARY_STR})
 endif()
 ################################################################################
 # Compile definitions
@@ -353,7 +368,7 @@ if (BUILD_CROWD_CONTROL)
     set(SDL2-NET-INCLUDE ${SDL_NET_INCLUDE_DIRS})
 endif()
 
-target_include_directories(${PROJECT_NAME} PRIVATE assets
+target_include_directories(${_t} PRIVATE assets
 	${CMAKE_CURRENT_SOURCE_DIR}/include/
 	${CMAKE_CURRENT_SOURCE_DIR}/include/PR
 	${CMAKE_CURRENT_SOURCE_DIR}/src/
@@ -369,12 +384,12 @@ target_include_directories(${PROJECT_NAME} PRIVATE assets
 )
 
 # Add combo include directory (combo library already linked above)
-target_include_directories(${PROJECT_NAME} PRIVATE
+target_include_directories(${_t} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../combo/include
 )
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-	target_compile_definitions(${PROJECT_NAME} PRIVATE
+	target_compile_definitions(${_t} PRIVATE
 		"$<$<CONFIG:Debug>:"
 			"_DEBUG;"
 			"_CRT_SECURE_NO_WARNINGS;"
@@ -396,7 +411,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 		NOMINMAX
 	)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
-	target_compile_definitions(${PROJECT_NAME} PRIVATE
+	target_compile_definitions(${_t} PRIVATE
 		"$<$<CONFIG:Debug>:"
 			"_DEBUG;"
 		">"
@@ -411,7 +426,7 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
         LOG_LEVEL_GAME_PRINTS=${SPDLOG_LEVEL_OFF}
 	)
 elseif ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU|Clang|AppleClang")
-	target_compile_definitions(${PROJECT_NAME} PRIVATE
+	target_compile_definitions(${_t} PRIVATE
 		"$<$<CONFIG:Debug>:"
 			"_DEBUG;"
 		">"
@@ -435,7 +450,7 @@ endif()
 # Compile and link options
 ################################################################################
 if(MSVC)
-    target_compile_options(${PROJECT_NAME} PRIVATE
+    target_compile_options(${_t} PRIVATE
         $<$<CONFIG:Debug>:
             /w;
             /Od
@@ -458,8 +473,8 @@ if(MSVC)
         ${DEFAULT_CXX_DEBUG_INFORMATION_FORMAT};
         ${DEFAULT_CXX_EXCEPTION_HANDLING}
     )
-    target_compile_options(${PROJECT_NAME} PRIVATE  $<$<CONFIG:Debug>:/ZI;>)
-    target_link_options(${PROJECT_NAME} PRIVATE
+    target_compile_options(${_t} PRIVATE  $<$<CONFIG:Debug>:/ZI;>)
+    target_link_options(${_t} PRIVATE
         $<$<CONFIG:Debug>:
             /INCREMENTAL
         >
@@ -477,7 +492,7 @@ endif()
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
     if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-        target_compile_options(${PROJECT_NAME} PRIVATE
+        target_compile_options(${_t} PRIVATE
             -Wall -Wextra -Wno-error
             -Wno-return-type
             -Wno-unused-parameter
@@ -501,11 +516,11 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
             -pthread
         )
 
-        target_link_options(${PROJECT_NAME} PRIVATE
+        target_link_options(${_t} PRIVATE
             -pthread
         )
     elseif (CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
-        target_compile_options(${PROJECT_NAME} PRIVATE
+        target_compile_options(${_t} PRIVATE
             -Wall -Wextra -Wno-error
             -Wno-return-type
             -Wno-unused-parameter
@@ -527,11 +542,11 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
             -pthread
         )
 
-        target_link_options(${PROJECT_NAME} PRIVATE
+        target_link_options(${_t} PRIVATE
             -pthread
         )
     elseif (CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
-        target_compile_options(${PROJECT_NAME} PRIVATE
+        target_compile_options(${_t} PRIVATE
             -O2
 
             # disable some warnings to not clutter output
@@ -555,7 +570,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
 		set(CPU_OPTION -msse2 -mfpmath=sse)
         endif()
 
-        target_compile_options(${PROJECT_NAME} PRIVATE
+        target_compile_options(${_t} PRIVATE
             -Wall -Wextra -Wno-error
             -Wno-unused-parameter
             -Wno-unused-function
@@ -577,7 +592,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
 	    ${CPU_OPTION}
         )
 
-        target_link_options(${PROJECT_NAME} PRIVATE
+        target_link_options(${_t} PRIVATE
             -pthread
             -Wl,-export-dynamic
         )
@@ -598,7 +613,7 @@ if(SINGLE_EXECUTABLE_BUILD)
     # Use force-include instead of PCH to avoid .gch files being passed to linker
     # GCC/Clang use -include, MSVC uses /FI
     if(MSVC)
-        target_compile_options(${PROJECT_NAME} PRIVATE
+        target_compile_options(${_t} PRIVATE
             "$<$<COMPILE_LANGUAGE:CXX>:/FIlibultraship/bridge/consolevariablebridge.h>"
             "$<$<COMPILE_LANGUAGE:CXX>:/FI${CMAKE_CURRENT_SOURCE_DIR}/2s2h/GameInteractor/GameInteractor.h>"
             "$<$<COMPILE_LANGUAGE:CXX>:/FI${CMAKE_CURRENT_SOURCE_DIR}/include/variables.h>"
@@ -613,7 +628,7 @@ if(SINGLE_EXECUTABLE_BUILD)
             "$<$<COMPILE_LANGUAGE:C>:/FI${CMAKE_CURRENT_SOURCE_DIR}/include/variables.h>"
         )
     else()
-        target_compile_options(${PROJECT_NAME} PRIVATE
+        target_compile_options(${_t} PRIVATE
             "$<$<COMPILE_LANGUAGE:CXX>:-includelibultraship/bridge/consolevariablebridge.h>"
             "$<$<COMPILE_LANGUAGE:CXX>:-include${CMAKE_CURRENT_SOURCE_DIR}/2s2h/GameInteractor/GameInteractor.h>"
             "$<$<COMPILE_LANGUAGE:CXX>:-include${CMAKE_CURRENT_SOURCE_DIR}/include/variables.h>"
@@ -658,6 +673,8 @@ else()
     )
 endif()
 
+endforeach() # TWOSHIP_COMPILE_TARGETS
+
 ################################################################################
 # Pre build events (only for SHARED library builds)
 ################################################################################
@@ -680,14 +697,12 @@ endif()
 ################################################################################
 # Dependencies
 ################################################################################
-add_dependencies(${PROJECT_NAME}
-    libultraship
-)
-if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
-add_dependencies(${PROJECT_NAME}
-    ZAPDLib
-)
-endif()
+foreach(_t ${TWOSHIP_COMPILE_TARGETS})
+    add_dependencies(${_t} libultraship)
+    if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
+        add_dependencies(${_t} ZAPDLib)
+    endif()
+endforeach()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
     find_package(glfw3 REQUIRED)
@@ -739,9 +754,11 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
 
         "$<$<CONFIG:Debug>:-Wl,--wrap=abort>"
     )
-    target_include_directories(${PROJECT_NAME} PRIVATE
-        ${DEVKITPRO}/portlibs/wiiu/include/
-    )
+    foreach(_t ${TWOSHIP_COMPILE_TARGETS})
+        target_include_directories(${_t} PRIVATE
+            ${DEVKITPRO}/portlibs/wiiu/include/
+        )
+    endforeach()
 else()
     find_package(SDL2)
     set(THREADS_PREFER_PTHREAD_FLAG ON)
@@ -789,13 +806,16 @@ elseif(NOT "${CMAKE_SYSTEM_NAME}" MATCHES "NintendoSwitch|CafeOS")
 INSTALL(FILES ${CMAKE_BINARY_DIR}/gamecontrollerdb.txt DESTINATION . COMPONENT 2s2h)
 endif()
 
-if(CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
-    if (NOT TARGET pathconf)
-        add_library(pathconf OBJECT platform/pathconf.c)
+if(NOT SINGLE_EXECUTABLE_BUILD)
+    # Link libraries only for SHARED builds; single-exe links deps on redship
+    if(CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
+        if (NOT TARGET pathconf)
+            add_library(pathconf OBJECT platform/pathconf.c)
+        endif()
+        target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}" $<TARGET_OBJECTS:pathconf> )
+    else()
+        target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}")
     endif()
-    target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}" $<TARGET_OBJECTS:pathconf> )
-else()
-    target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}")
 endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch")
