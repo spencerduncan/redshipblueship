@@ -266,8 +266,8 @@ if(SINGLE_EXECUTABLE_BUILD)
     list(FILTER src__ EXCLUDE REGEX "src/boot/fault_drawer\\.c$")
 
     # Split into two OBJECT libraries to avoid MSVC LNK1170/LNK1248 limits
-    add_library(2ship_src OBJECT ${src__} ${Header_Files__include})
-    add_library(2ship_port OBJECT
+    add_library(2ship_src STATIC ${src__} ${Header_Files__include})
+    add_library(2ship_port STATIC
         ${ship__} ${ship__Extractor}
         "${CMAKE_CURRENT_SOURCE_DIR}/2s2h/GameExports_SingleExe.cpp"
     )
@@ -282,7 +282,7 @@ if(SINGLE_EXECUTABLE_BUILD)
     endforeach()
 
     # Export object targets for root CMakeLists to link into redship
-    set(TWOSHIP_OBJECT_TARGETS 2ship_src 2ship_port PARENT_SCOPE)
+    set(TWOSHIP_STATIC_TARGETS 2ship_src 2ship_port PARENT_SCOPE)
 else()
     # Build as SHARED library for dynamic loading
     add_library(${PROJECT_NAME} SHARED ${ALL_FILES})
@@ -509,6 +509,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
             -Wno-parentheses
             -Wno-narrowing
             -Wno-missing-braces
+            -Wno-unknown-pragmas
             $<$<COMPILE_LANGUAGE:C>:
                 #-Werror-implicit-function-declaration
                 -Wno-ignored-qualifiers
@@ -537,6 +538,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
             -Wno-parentheses
             -Wno-narrowing
             -Wno-missing-braces
+            -Wno-unknown-pragmas
             $<$<COMPILE_LANGUAGE:C>:
                 -Werror-implicit-function-declaration
                 -Wno-incompatible-pointer-types
@@ -586,6 +588,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
             -Wno-parentheses
             -Wno-narrowing
             -Wno-missing-braces
+            -Wno-unknown-pragmas
             $<$<COMPILE_LANGUAGE:C>:
                 -Wno-discarded-qualifiers
                 -Wno-discarded-array-qualifiers
