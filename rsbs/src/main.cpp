@@ -329,9 +329,9 @@ int main(int argc, char** argv) {
 
         // Handle the switch
         if (nextGame != GAME_NONE) {
+            GameOps* nextOps = GameRunner_GetOps(&runner, nextGame);
             printf("\n=== Switching to %s ===\n",
-                   GameRunner_GetOps(&runner, nextGame) ?
-                   GameRunner_GetOps(&runner, nextGame)->name : "Unknown");
+                   nextOps ? nextOps->name : "Unknown");
 
             // Clear switch state before transitioning
             Combo_ClearGameSwitchRequest();

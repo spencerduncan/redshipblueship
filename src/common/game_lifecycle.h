@@ -71,7 +71,7 @@ int GameRunner_StartGame(GameRunner* runner, GameId id, int argc, char** argv);
  * Switch from the active game to target.
  * - Suspends the current game (calls suspend callback).
  * - If target was previously suspended, calls resume; otherwise calls init.
- * - Calls run on the new game.
+ * Caller is responsible for calling run() after this returns.
  * Returns 0 on success, -1 on error.
  */
 int GameRunner_SwitchTo(GameRunner* runner, GameId target, int argc, char** argv);
