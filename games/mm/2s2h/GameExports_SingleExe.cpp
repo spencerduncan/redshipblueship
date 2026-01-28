@@ -13,13 +13,16 @@
 #include <cstdio>
 #include <cstring>
 #include <cassert>
+#include <filesystem>
+#include <string>
 
 #include <ship/Context.h>
 #include <ship/window/Window.h>
 
 #include "game_lifecycle.h"
-
-#include "game_lifecycle.h"
+#include <ship/Context.h>
+#include <ship/resource/ResourceManager.h>
+#include <ship/resource/archive/ArchiveManager.h>
 
 // From main.c headers
 extern "C" {
@@ -69,6 +72,53 @@ extern "C" {
 
 // Track if MM has been initialized (for re-entry after game switch)
 static bool sMMInitialized = false;
+static bool sMMArchivesLoaded = false;
+
+/**
+ * Load MM archives (mm.o2r, 2ship.o2r) into the shared ArchiveManager.
+ * OoT already initialized Ship::Context with OoT archives; we add MM's.
+ * Idempotent — skips if already loaded.
+ */
+static void LoadMMArchives() {
+    if (sMMArchivesLoaded) {
+        fprintf(stderr, "[MM] Archives already loaded, skipping\n");
+        return;
+    }
+
+    auto ctx = Ship::Context::GetInstance();
+    if (!ctx || !ctx->GetResourceManager()) {
+        fprintf(stderr, "[MM] ERROR: No ResourceManager — cannot load archives\n");
+        return;
+    }
+    auto archiveMgr = ctx->GetResourceManager()->GetArchiveManager();
+
+    const std::string mmAppName = "2s2h";
+    int loaded = 0;
+
+    // Try mm.o2r (primary), then .zip/.otr fallbacks
+    for (const char* ext : {"mm.o2r", "mm.zip", "mm.otr"}) {
+        std::string path = Ship::Context::LocateFileAcrossAppDirs(ext, mmAppName);
+        if (!path.empty() && std::filesystem::exists(path)) {
+            if (archiveMgr->AddArchive(path)) {
+                fprintf(stderr, "[MM] Loaded archive: %s\n", path.c_str());
+                loaded++;
+            }
+            break;  // Only load one mm archive
+        }
+    }
+
+    // Load 2ship.o2r (MM's equivalent of soh.o2r)
+    std::string shipPath = Ship::Context::GetPathRelativeToAppBundle("2ship.o2r");
+    if (!shipPath.empty() && std::filesystem::exists(shipPath)) {
+        if (archiveMgr->AddArchive(shipPath)) {
+            fprintf(stderr, "[MM] Loaded archive: %s\n", shipPath.c_str());
+            loaded++;
+        }
+    }
+
+    fprintf(stderr, "[MM] Loaded %d MM archive(s) into shared context\n", loaded);
+    sMMArchivesLoaded = true;
+}
 
 /**
  * Verify the shared Ship::Context from OoT is ready for MM's graph thread.
@@ -105,6 +155,9 @@ int MM_Game_Init(int argc, char** argv) {
         fprintf(stderr, "[MM] FATAL: Cannot start without Ship::Context\n");
         return -1;
     }
+
+    // Load MM's archives into the shared ResourceManager (issue #159).
+    LoadMMArchives();
 
     fprintf(stderr, "[MM] Allocating heaps...\n");
     fflush(stderr);
