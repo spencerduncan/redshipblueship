@@ -191,77 +191,79 @@ list(APPEND ALL_FILES "${CMAKE_CURRENT_SOURCE_DIR}/2s2h/GameExports.cpp")
 if(SINGLE_EXECUTABLE_BUILD)
     # Aggressively exclude MM's enhancement layer - will use OoT's versions
     # These can be re-enabled/customized later
+    # NOTE: Filters applied to ship__ and src__ directly (not ALL_FILES)
+    # because OBJECT libs are created from these lists, not ALL_FILES.
 
     # Main port glue (OTRGlobals equivalent)
-    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/BenPort\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/BenPort\\.cpp$")
 
     # All GUI components
-    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/BenGui/.*\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/BenGui/.*\\.cpp$")
 
     # All developer tools
-    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/DeveloperTools/.*\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/DeveloperTools/.*\\.cpp$")
 
     # All enhancements - entire directory
-    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/Enhancements/.*\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/Enhancements/.*\\.cpp$")
 
     # GameInteractor (use OoT's)
-    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/GameInteractor/.*\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/GameInteractor/.*\\.cpp$")
 
     # Object extension
-    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/ObjectExtension/.*\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/ObjectExtension/.*\\.cpp$")
 
     # Ship utils and CrashHandlerExt (depends on ShipUtils GetActorDescription)
-    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/ShipUtils\\.cpp$")
-    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/CrashHandlerExt\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/ShipUtils\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/CrashHandlerExt\\.cpp$")
 
     # Framebuffer effects
-    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/framebuffer_effects\\.c$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/framebuffer_effects\\.c$")
 
     # gu_pc (graphics utils)
-    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/gu_pc\\.c$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/gu_pc\\.c$")
 
     # Audio mixer
-    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/mixer\\.c$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/mixer\\.c$")
 
     # Custom message
-    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/CustomMessage/.*\\.cpp$")
-    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/CustomItem/.*\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/CustomMessage/.*\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/CustomItem/.*\\.cpp$")
 
     # Rando
-    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/Rando/.*\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/Rando/.*\\.cpp$")
 
     # Save Manager
-    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/SaveManager/.*\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/SaveManager/.*\\.cpp$")
 
     # Resource importers and types (identical between games)
-    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/resource/.*\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/.*\\.cpp$")
 
     # Extractor
-    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/Extractor/.*\\.cpp$")
-    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/Extractor/.*\\.c$")
+    list(FILTER ship__Extractor EXCLUDE REGEX "2s2h/Extractor/.*\\.cpp$")
+    list(FILTER ship__Extractor EXCLUDE REGEX "2s2h/Extractor/.*\\.c$")
 
     # OTR-specific scene/play files
-    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/z_message_OTR\\.cpp$")
-    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/z_play_2SH\\.cpp$")
-    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/z_scene_2SH\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/z_message_OTR\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/z_play_2SH\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/z_scene_2SH\\.cpp$")
 
     # Ship init
-    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/ShipInit\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/ShipInit\\.cpp$")
 
     # Preset manager
-    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/PresetManager/.*\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/PresetManager/.*\\.cpp$")
 
     # NameTag (in its own directory)
-    list(FILTER ALL_FILES EXCLUDE REGEX "2s2h/NameTag/.*\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/NameTag/.*\\.cpp$")
 
     # Audio subsystem (different between games - keep core but need namespacing)
     # Exclude load.c - has audio loading collisions
-    list(FILTER ALL_FILES EXCLUDE REGEX "src/audio/lib/load\\.c$")
+    list(FILTER src__ EXCLUDE REGEX "src/audio/lib/load\\.c$")
 
     # Core colliding files - use OoT versions
-    list(FILTER ALL_FILES EXCLUDE REGEX "src/code/__osMalloc\\.c$")
-    list(FILTER ALL_FILES EXCLUDE REGEX "src/libc/printutils\\.c$")
-    list(FILTER ALL_FILES EXCLUDE REGEX "src/boot/fault_drawer\\.c$")
+    list(FILTER src__ EXCLUDE REGEX "src/code/__osMalloc\\.c$")
+    list(FILTER src__ EXCLUDE REGEX "src/libc/printutils\\.c$")
+    list(FILTER src__ EXCLUDE REGEX "src/boot/fault_drawer\\.c$")
 
     # Split into two OBJECT libraries to avoid MSVC LNK1170/LNK1248 limits
     add_library(2ship_src OBJECT ${src__} ${Header_Files__include})
