@@ -238,8 +238,8 @@ list(APPEND ALL_FILES "${CMAKE_CURRENT_SOURCE_DIR}/soh/GameExports.cpp")
 # Target - OBJECT library for single-exe, SHARED for dynamic loading
 ################################################################################
 if(SINGLE_EXECUTABLE_BUILD)
-    # Build as OBJECT library for linking into single executable
-    add_library(${PROJECT_NAME} OBJECT ${ALL_FILES})
+    # Build as STATIC library for linking into single executable
+    add_library(${PROJECT_NAME} STATIC ${ALL_FILES})
     target_compile_definitions(${PROJECT_NAME} PRIVATE RSBS_SINGLE_EXECUTABLE)
 else()
     # Build as SHARED library for dynamic loading
