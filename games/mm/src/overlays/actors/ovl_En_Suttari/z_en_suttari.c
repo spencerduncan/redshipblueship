@@ -1626,7 +1626,7 @@ void EnSuttari_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* 
 
                     OPEN_DISPS(play->state.gfxCtx);
 
-                    gSPDisplayList(POLY_OPA_DISP++, gBombShopBagDL);
+                    MM_gSPDisplayList(POLY_OPA_DISP++, gBombShopBagDL);
 
                     CLOSE_DISPS(play->state.gfxCtx);
                 }
@@ -1651,8 +1651,8 @@ void EnSuttari_Draw(Actor* thisx, PlayState* play) {
         OPEN_DISPS(play->state.gfxCtx);
 
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
-        gSPSegment(POLY_OPA_DISP++, 0x08, MM_Gfx_EnvColor(play->state.gfxCtx, 255, 255, 255, 0));
-        gSPSegment(POLY_OPA_DISP++, 0x09, MM_Gfx_EnvColor(play->state.gfxCtx, 55, 55, 255, 0));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, MM_Gfx_EnvColor(play->state.gfxCtx, 255, 255, 255, 0));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x09, MM_Gfx_EnvColor(play->state.gfxCtx, 55, 55, 255, 0));
         gDPPipeSync(POLY_OPA_DISP++);
         SkelAnime_DrawTransformFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                        this->skelAnime.dListCount, EnSuttari_OverrideLimbDraw, EnSuttari_PostLimbDraw,

@@ -7,7 +7,7 @@ extern f32 gNegativeInfinity;
 extern f32 gPositiveZero;
 extern f32 gNegativeZero;
 extern f32 qNaN0x3FFFFF;
-extern f32 qNaN0x10000;
+extern f32 MM_qNaN0x10000;
 extern f32 sNaN0x3FFFFF;
 
 f32 floorf(f32 x);

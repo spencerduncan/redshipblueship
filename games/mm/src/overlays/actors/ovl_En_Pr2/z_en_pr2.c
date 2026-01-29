@@ -304,7 +304,7 @@ void func_80A745FC(EnPr2* this, PlayState* play) {
     x = this->actor.world.pos.x - this->unk_21C.x;
     y = this->actor.world.pos.y - this->unk_21C.y;
     z = this->actor.world.pos.z - this->unk_21C.z;
-    sqrtXYZ = sqrtf(SQ(x) + SQ(y) + SQ(z));
+    sqrtXYZ = MM_sqrtf(SQ(x) + SQ(y) + SQ(z));
 
     if (sqrtXYZ < (MM_Rand_ZeroFloat(20.0f) + 15.0f)) {
         this->unk_1D0++;
@@ -366,7 +366,7 @@ void func_80A748E8(EnPr2* this, PlayState* play) {
                 if (this->unk_1DE == 0) {
                     temp_f2 = player->actor.world.pos.x - this->unk_228.x;
                     temp_f12 = player->actor.world.pos.z - this->unk_228.z;
-                    sqrtXZ = sqrtf(SQ(temp_f2) + SQ(temp_f12));
+                    sqrtXZ = MM_sqrtf(SQ(temp_f2) + SQ(temp_f12));
 
                     if (sp48 && (player->stateFlags1 & PLAYER_STATE1_8000000) && (sqrtXZ < this->unk_208)) {
                         sp4C = true;
@@ -375,7 +375,7 @@ void func_80A748E8(EnPr2* this, PlayState* play) {
                 } else {
                     temp_f2 = this->actor.world.pos.x - this->unk_228.x;
                     temp_f12 = this->actor.world.pos.z - this->unk_228.z;
-                    sqrtXZ = sqrtf(SQ(temp_f2) + SQ(temp_f12));
+                    sqrtXZ = MM_sqrtf(SQ(temp_f2) + SQ(temp_f12));
 
                     if (sqrtXZ > 20.0f) {
                         this->unk_1DE = 5;
@@ -492,7 +492,7 @@ void func_80A74E90(EnPr2* this, PlayState* play) {
         if (this->unk_1E0 == 2) {
             f32 temp_f2 = this->actor.world.pos.x - this->unk_228.x;
             f32 temp_f12 = this->actor.world.pos.z - this->unk_228.z;
-            f32 sqrtXZ = sqrtf(SQ(temp_f2) + SQ(temp_f12));
+            f32 sqrtXZ = MM_sqrtf(SQ(temp_f2) + SQ(temp_f12));
 
             if (this->unk_208 < sqrtXZ) {
                 this->unk_1DE = 20;

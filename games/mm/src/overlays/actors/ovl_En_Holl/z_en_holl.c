@@ -218,7 +218,7 @@ void EnHoll_VisibleIdle(EnHoll* this, PlayState* play) {
 
 void EnHoll_TransparentIdle(EnHoll* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
-    s32 useViewEye = gDbgCamEnabled || (play->csCtx.state != CS_STATE_IDLE);
+    s32 useViewEye = MM_gDbgCamEnabled || (play->csCtx.state != CS_STATE_IDLE);
     Vec3f transformedPlayerPos;
     f32 enHollTop;
     f32 playerDistFromCentralPlane;
@@ -336,7 +336,7 @@ void MM_EnHoll_Draw(Actor* thisx, PlayState* play) {
         }
         MATRIX_FINALIZE_AND_LOAD(dList++, play->state.gfxCtx);
         gDPSetPrimColor(dList++, 0, 0, 0, 0, 0, this->alpha);
-        gSPDisplayList(dList++, gEnHollCentralPlaneDL);
+        MM_gSPDisplayList(dList++, gEnHollCentralPlaneDL);
         if (this->alpha == 255) {
             POLY_OPA_DISP = dList;
         } else {

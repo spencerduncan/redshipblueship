@@ -3223,7 +3223,7 @@ void BossHakugin_DrawRockEffects(BossHakugin* this, PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    gSPDisplayList(POLY_OPA_DISP++, gGohtRockMaterialDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gGohtRockMaterialDL);
     for (i = 0; i < GOHT_ROCK_EFFECT_COUNT; i++) {
         rockEffect = &this->rockEffects[i];
         if ((rockEffect->timer >= 0) && (rockEffect->type == GOHT_ROCK_EFFECT_TYPE_BOULDER)) {
@@ -3231,12 +3231,12 @@ void BossHakugin_DrawRockEffects(BossHakugin* this, PlayState* play) {
             MM_Matrix_SetTranslateRotateYXZ(rockEffect->pos.x, rockEffect->pos.y, rockEffect->pos.z, &rockEffect->rot);
             MM_Matrix_Scale(rockEffect->scale, rockEffect->scale, rockEffect->scale, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, gGohtRockModelDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gGohtRockModelDL);
             FrameInterpolation_RecordCloseChild();
         }
     }
 
-    gSPDisplayList(POLY_OPA_DISP++, gGohtStalactiteMaterialDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gGohtStalactiteMaterialDL);
     for (i = 0; i < GOHT_ROCK_EFFECT_COUNT; i++) {
         rockEffect = &this->rockEffects[i];
         if ((rockEffect->timer >= 0) && (rockEffect->type == GOHT_ROCK_EFFECT_TYPE_STALACTITE)) {
@@ -3244,7 +3244,7 @@ void BossHakugin_DrawRockEffects(BossHakugin* this, PlayState* play) {
             MM_Matrix_SetTranslateRotateYXZ(rockEffect->pos.x, rockEffect->pos.y, rockEffect->pos.z, &rockEffect->rot);
             MM_Matrix_Scale(rockEffect->scale, rockEffect->scale, rockEffect->scale, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, gGohtStalactiteModelDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gGohtStalactiteModelDL);
             FrameInterpolation_RecordCloseChild();
         }
     }
@@ -3265,7 +3265,7 @@ void BossHakugin_DrawMalfunctionEffects(BossHakugin* this, PlayState* play) {
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-    gSPDisplayList(POLY_XLU_DISP++, gFrozenSteamMaterialDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gFrozenSteamMaterialDL);
     camYaw = MM_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) + 0x8000;
     gDPSetEnvColor(POLY_XLU_DISP++, 1, 1, 1, 128);
 
@@ -3275,7 +3275,7 @@ void BossHakugin_DrawMalfunctionEffects(BossHakugin* this, PlayState* play) {
             if (malfunctionEffect->alpha > 0) {
                 FrameInterpolation_RecordOpenChild(malfunctionEffect, j);
                 gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 0, 0, 0, malfunctionEffect->alpha);
-                gSPSegment(POLY_XLU_DISP++, 0x08,
+                MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                            MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, malfunctionEffect->timer * 3,
                                             malfunctionEffect->timer * 15, 32, 64, 1, 0, 0, 32, 32));
                 MM_Matrix_Translate(malfunctionEffect->pos.x, malfunctionEffect->pos.y, malfunctionEffect->pos.z,
@@ -3283,7 +3283,7 @@ void BossHakugin_DrawMalfunctionEffects(BossHakugin* this, PlayState* play) {
                 Matrix_RotateYS(camYaw, MTXMODE_APPLY);
                 MM_Matrix_Scale(malfunctionEffect->scaleXY, malfunctionEffect->scaleXY, 1.0f, MTXMODE_APPLY);
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-                gSPDisplayList(POLY_XLU_DISP++, gFrozenSteamModelDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gFrozenSteamModelDL);
                 FrameInterpolation_RecordCloseChild();
             }
         }
@@ -3305,7 +3305,7 @@ void BossHakugin_DrawChargingLightning(BossHakugin* this, PlayState* play) {
 
     if (this->chargingLightOrbScale > 0.0f) {
         gDPSetEnvColor(POLY_XLU_DISP++, sLightningColor.r, sLightningColor.g, sLightningColor.b, 0);
-        gSPDisplayList(POLY_XLU_DISP++, gGohtLightningMaterialDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gGohtLightningMaterialDL);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, 255);
 
         for (i = -1; i <= 1; i += 2) {
@@ -3319,12 +3319,12 @@ void BossHakugin_DrawChargingLightning(BossHakugin* this, PlayState* play) {
             MM_Matrix_Translate(0.0f, 0.0f, this->chargingLightningTranslateZ * i, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gGohtLightningModelDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gGohtLightningModelDL);
 
             Matrix_RotateZS(0x4000, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gGohtLightningModelDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gGohtLightningModelDL);
             FrameInterpolation_RecordCloseChild();
         }
 
@@ -3337,8 +3337,8 @@ void BossHakugin_DrawChargingLightning(BossHakugin* this, PlayState* play) {
                      MTXMODE_APPLY);
         Matrix_RotateZS(this->lightOrbRotZ, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gGohtLightOrbMaterialDL);
-        gSPDisplayList(POLY_XLU_DISP++, gGohtLightOrbModelDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gGohtLightOrbMaterialDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gGohtLightOrbModelDL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -3356,7 +3356,7 @@ void BossHakugin_DrawLightningSegments(BossHakugin* this, PlayState* play) {
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
     gDPSetEnvColor(POLY_XLU_DISP++, sLightningColor.r, sLightningColor.g, sLightningColor.b, 0);
-    gSPDisplayList(POLY_XLU_DISP++, gGohtLightningMaterialDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gGohtLightningMaterialDL);
 
     for (i = 0; i < GOHT_LIGHTNING_SEGMENT_COUNT; i++) {
         lightningSegment = &this->lightningSegments[i];
@@ -3370,12 +3370,12 @@ void BossHakugin_DrawLightningSegments(BossHakugin* this, PlayState* play) {
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, lightningSegment->alpha);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gGohtLightningModelDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gGohtLightningModelDL);
 
             Matrix_RotateZS(0x4000, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gGohtLightningModelDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gGohtLightningModelDL);
             FrameInterpolation_RecordCloseChild();
         }
     }
@@ -3414,7 +3414,7 @@ void BossHakugin_DrawElectricBalls(BossHakugin* this, PlayState* play2) {
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
     gDPSetEnvColor(POLY_XLU_DISP++, sLightColor.r, sLightColor.g, sLightColor.b, 0);
     rotZ = this->lightOrbRotZ;
-    gSPDisplayList(POLY_XLU_DISP++, gGohtLightOrbMaterialDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gGohtLightOrbMaterialDL);
 
     for (; i >= end; i--) {
         pos = &this->electricBallPos[i];
@@ -3426,7 +3426,7 @@ void BossHakugin_DrawElectricBalls(BossHakugin* this, PlayState* play2) {
         MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
         Matrix_RotateZS(rotZ, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gGohtLightOrbModelDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gGohtLightOrbModelDL);
         FrameInterpolation_RecordCloseChild();
 
         scale += 1.5f;
@@ -3455,11 +3455,11 @@ void BossHakugin_DrawIce(BossHakugin* this, PlayState* play) {
     Matrix_RotateZS(-0x500, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPSegment(POLY_XLU_DISP++, 0x08,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, 0, play->gameplayFrames & 0xFF, 32, 16, 1, 0,
                                 (play->gameplayFrames * 2) & 0xFF, 64, 32));
     gDPSetEnvColor(POLY_XLU_DISP++, 0, 50, 100, this->iceAlpha);
-    gSPDisplayList(POLY_XLU_DISP++, gEffIceFragment3DL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gEffIceFragment3DL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -3472,7 +3472,7 @@ void BossHakugin_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08, sChinTexture);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, sChinTexture);
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           BossHakugin_OverrideLimbDraw, BossHakugin_PostLimbDraw, &this->actor);
 
@@ -3709,10 +3709,10 @@ void BossHakugin_DrawShadowTex(u8* tex, BossHakugin* this, PlayState* play) {
 
     MM_Matrix_Scale(4.25f, 1.0f, 4.25f, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gShadowMaterialDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gShadowMaterialDL);
     gDPLoadTextureBlock(POLY_OPA_DISP++, tex, G_IM_FMT_I, G_IM_SIZ_8b, GOHT_SHADOW_TEX_WIDTH, GOHT_SHADOW_TEX_HEIGHT, 0,
                         G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, 6, 6, G_TX_NOLOD, G_TX_NOLOD);
-    gSPDisplayList(POLY_OPA_DISP++, gShadowModelDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gShadowModelDL);
 
     CLOSE_DISPS(gfxCtx);
 }
@@ -3848,7 +3848,7 @@ void BossHakugin_DrawCrushingRocks(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gGohtRockMaterialDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gGohtRockMaterialDL);
 
     for (i = 0; i < GOHT_CRUSHING_ROCK_COUNT; i++) {
         crushingRock = &this->crushingRocks[i];
@@ -3858,7 +3858,7 @@ void BossHakugin_DrawCrushingRocks(Actor* thisx, PlayState* play) {
         MM_Matrix_Scale(crushingRock->scale, crushingRock->scale, crushingRock->scale, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gGohtRockModelDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gGohtRockModelDL);
         FrameInterpolation_RecordCloseChild();
     }
 

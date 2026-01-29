@@ -277,7 +277,7 @@ void* MM_FaultDrawer_FormatStringFunc(void* arg, const char* str, size_t count) 
 // const char D_80099080[] = "(null)";
 
 s32 MM_FaultDrawer_VPrintf(const char* fmt, va_list ap) {
-    // return _Printf(MM_FaultDrawer_FormatStringFunc, sFaultDrawerInstance, fmt, ap);
+    // return MM__Printf(MM_FaultDrawer_FormatStringFunc, sFaultDrawerInstance, fmt, ap);
 }
 
 s32 MM_FaultDrawer_Printf(const char* fmt, ...) {
@@ -319,5 +319,5 @@ void FaultDrawer_SetInputCallback(FaultDrawerCallback callback) {
 void FaultDrawer_Init() {
     // sFaultDrawerInstance = &sFaultDrawer;
     // bcopy(&MM_sFaultDrawerDefault, sFaultDrawerInstance, sizeof(FaultDrawer));
-    // sFaultDrawerInstance->frameBuffer = (u16*)(PHYS_TO_K0(osMemSize) - SCREEN_HEIGHT * SCREEN_WIDTH * sizeof(u16));
+    // sFaultDrawerInstance->frameBuffer = (u16*)(PHYS_TO_K0(MM_osMemSize) - SCREEN_HEIGHT * SCREEN_WIDTH * sizeof(u16));
 }

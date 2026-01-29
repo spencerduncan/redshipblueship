@@ -668,7 +668,7 @@ void EnWallmas_DrawShadow(EnWallmas* this, PlayState* play) {
 
         gfx = POLY_OPA_DISP;
 
-        gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_44]);
+        MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_44]);
         gDPSetPrimColor(&gfx[1], 0, 0, 0, 0, 0, 255);
         func_800C0094(this->actor.floorPoly, this->actor.world.pos.x, this->actor.floorHeight, this->actor.world.pos.z,
                       &mf);
@@ -683,7 +683,7 @@ void EnWallmas_DrawShadow(EnWallmas* this, PlayState* play) {
 
         MM_Matrix_Scale(xzScale, 1.0f, xzScale, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(&gfx[2], play->state.gfxCtx);
-        gSPDisplayList(&gfx[3], gCircleShadowDL);
+        MM_gSPDisplayList(&gfx[3], gCircleShadowDL);
 
         POLY_OPA_DISP = &gfx[4];
 
@@ -760,7 +760,7 @@ void EnWallmas_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* 
         MM_Matrix_Scale(2.0f, 2.0f, 2.0f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(&gfx[0], play->state.gfxCtx);
-        gSPDisplayList(&gfx[1], gWallmasterLittleFingerDL);
+        MM_gSPDisplayList(&gfx[1], gWallmasterLittleFingerDL);
 
         POLY_OPA_DISP = &gfx[2];
 

@@ -408,22 +408,22 @@ void func_80ACF1F4(EnFuMato* this, PlayState* play) {
         MM_Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, D_80ACF63C[temp_s4]);
+        MM_gSPDisplayList(POLY_OPA_DISP++, D_80ACF63C[temp_s4]);
 
         switch (temp_s4) {
             case 0:
-                gSPDisplayList(POLY_OPA_DISP++, D_80ACF63C[5]);
-                gSPDisplayList(POLY_OPA_DISP++, D_80ACF63C[temp_s4 + 1]);
+                MM_gSPDisplayList(POLY_OPA_DISP++, D_80ACF63C[5]);
+                MM_gSPDisplayList(POLY_OPA_DISP++, D_80ACF63C[temp_s4 + 1]);
                 break;
 
             case 5:
-                gSPDisplayList(POLY_OPA_DISP++, D_80ACF63C[temp_s4 - 1]);
-                gSPDisplayList(POLY_OPA_DISP++, D_80ACF63C[0]);
+                MM_gSPDisplayList(POLY_OPA_DISP++, D_80ACF63C[temp_s4 - 1]);
+                MM_gSPDisplayList(POLY_OPA_DISP++, D_80ACF63C[0]);
                 break;
 
             default:
-                gSPDisplayList(POLY_OPA_DISP++, D_80ACF63C[temp_s4 - 1]);
-                gSPDisplayList(POLY_OPA_DISP++, D_80ACF63C[temp_s4 + 1]);
+                MM_gSPDisplayList(POLY_OPA_DISP++, D_80ACF63C[temp_s4 - 1]);
+                MM_gSPDisplayList(POLY_OPA_DISP++, D_80ACF63C[temp_s4 + 1]);
                 break;
         }
 
@@ -451,7 +451,7 @@ void func_80ACF3F4(EnFuMato* this, PlayState* play) {
         MM_Matrix_Scale(scale->x, scale->y, scale->z, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, D_80ACF63C[i]);
+        MM_gSPDisplayList(POLY_OPA_DISP++, D_80ACF63C[i]);
 
         MM_Matrix_Pop();
     }
@@ -470,7 +470,7 @@ void EnFuMato_Draw(Actor* thisx, PlayState* play) {
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
 
     if ((this->unk_302 == 0) || (this->unk_302 == 3)) {
-        gSPDisplayList(POLY_OPA_DISP++, object_fu_mato_DL_002720);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_fu_mato_DL_002720);
     } else if (this->unk_302 == 1) {
         func_80ACF1F4(this, play);
     } else {

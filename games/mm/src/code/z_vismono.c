@@ -155,7 +155,7 @@ void MM_VisMono_Draw(VisMono* this, Gfx** gfxp) {
     gDPPipeSync(gfx++);
 
     if (this->setScissor == true) {
-        gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(setScissor));
+        MM_gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(setScissor));
     }
 
     gDPSetColor(gfx++, G_SETPRIMCOLOR, this->primColor.rgba);
@@ -163,7 +163,7 @@ void MM_VisMono_Draw(VisMono* this, Gfx** gfxp) {
 
     gDPLoadTLUT_pal256(gfx++, tlut);
 
-    gSPDisplayList(gfx++, dList);
+    MM_gSPDisplayList(gfx++, dList);
 
     gDPPipeSync(gfx++);
 

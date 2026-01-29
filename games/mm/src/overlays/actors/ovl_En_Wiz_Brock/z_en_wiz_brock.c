@@ -130,7 +130,7 @@ void EnWizBrock_Draw(Actor* thisx, PlayState* play) {
         }
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, &gWizrobePlatformCenterDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, &gWizrobePlatformCenterDL);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }

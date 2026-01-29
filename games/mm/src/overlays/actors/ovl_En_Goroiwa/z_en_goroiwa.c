@@ -1369,7 +1369,7 @@ void func_8094220C(EnGoroiwa* this, PlayState* play) {
                     if (phi_f12 <= 0.0f) {
                         temp_f20 = 0.0f;
                     } else {
-                        temp_f20 *= sqrtf(phi_f12);
+                        temp_f20 *= MM_sqrtf(phi_f12);
                     }
                 }
 
@@ -1595,7 +1595,7 @@ void func_80942B1C(EnGoroiwa* this, PlayState* play) {
                 MM_Matrix_Scale(this->actor.scale.x * 7.5f, 1.0f, this->actor.scale.z * 7.5f, MTXMODE_APPLY);
 
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-                gSPDisplayList(POLY_XLU_DISP++, gCircleShadowDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gCircleShadowDL);
 
                 CLOSE_DISPS(play->state.gfxCtx);
             }

@@ -988,9 +988,9 @@ void func_808BAE9C(DoorWarp1* this, PlayState* play) {
     }
     MM_Matrix_Scale(phi_f12, phi_f12, phi_f12, MTXMODE_APPLY);
 
-    gSPSegment(POLY_XLU_DISP++, 0x0A, Matrix_Finalize(play->state.gfxCtx));
+    MM_gSPSegment(POLY_XLU_DISP++, 0x0A, Matrix_Finalize(play->state.gfxCtx));
     MM_Matrix_Push();
-    gSPSegment(POLY_XLU_DISP++, 0x08,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, sp94 & 0xFF, -(TRUNCF_BINANG(2.0f * this->unk_1AC) & 0x1FF),
                                 0x100, 0x100, 1, sp94 & 0xFF, -(TRUNCF_BINANG(2.0f * this->unk_1AC) & 0x1FF), 0x100,
                                 0x100));
@@ -999,8 +999,8 @@ void func_808BAE9C(DoorWarp1* this, PlayState* play) {
     MM_Matrix_Scale(((this->unk_1C6 * sp90) / 100.0f) + 1.0f, 1.0f, ((this->unk_1C6 * sp90) / 100.0f) + 1.0f,
                  MTXMODE_APPLY);
 
-    gSPSegment(POLY_XLU_DISP++, 0x09, Matrix_Finalize(play->state.gfxCtx));
-    gSPDisplayList(POLY_XLU_DISP++, gWarpPortalDL);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x09, Matrix_Finalize(play->state.gfxCtx));
+    MM_gSPDisplayList(POLY_XLU_DISP++, gWarpPortalDL);
 
     MM_Matrix_Pop();
 
@@ -1009,7 +1009,7 @@ void func_808BAE9C(DoorWarp1* this, PlayState* play) {
         gDPSetEnvColor(POLY_XLU_DISP++, 0, 255.0f * sp84, 255, 255);
 
         sp94 *= 2;
-        gSPSegment(POLY_XLU_DISP++, 0x08,
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                    MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, sp94 & 0xFF, -(TRUNCF_BINANG(this->unk_1AC) & 0x1FF), 0x100,
                                     0x100, 1, sp94 & 0xFF, -(TRUNCF_BINANG(this->unk_1AC) & 0x1FF), 0x100, 0x100));
 
@@ -1017,8 +1017,8 @@ void func_808BAE9C(DoorWarp1* this, PlayState* play) {
         MM_Matrix_Scale(((this->unk_1C8 * sp8C) / 100.0f) + 1.0f, 1.0f, ((this->unk_1C8 * sp8C) / 100.0f) + 1.0f,
                      MTXMODE_APPLY);
 
-        gSPSegment(POLY_XLU_DISP++, 0x09, Matrix_Finalize(play->state.gfxCtx));
-        gSPDisplayList(POLY_XLU_DISP++, gWarpPortalDL);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x09, Matrix_Finalize(play->state.gfxCtx));
+        MM_gSPDisplayList(POLY_XLU_DISP++, gWarpPortalDL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -1071,7 +1071,7 @@ void func_808BB4F4(DoorWarp1* this, PlayState* play2) {
     gDPSetEnvColor(POLY_XLU_DISP++, sp64[sp60].r, sp64[sp60].g, sp64[sp60].b, 255);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, 255, 255, 255, 255);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, gWarpBossWarpLightShaftsDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gWarpBossWarpLightShaftsDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 
@@ -1088,7 +1088,7 @@ void func_808BB4F4(DoorWarp1* this, PlayState* play2) {
     gDPSetEnvColor(POLY_XLU_DISP++, sp64[sp60].r, sp64[sp60].g, sp64[sp60].b, 255);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, 255, 255, 255, this->unk_203);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, gWarpBossWarpGlowDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gWarpBossWarpGlowDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

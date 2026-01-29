@@ -1,6 +1,6 @@
 #include "ultra64.h"
 
-void guPerspectiveF(float mf[4][4], u16* perspNorm, float fovy, float aspect, float near, float far, float scale) {
+void MM_guPerspectiveF(float mf[4][4], u16* perspNorm, float fovy, float aspect, float near, float far, float scale) {
     float cot;
     int i;
     int j;
@@ -34,9 +34,9 @@ void guPerspectiveF(float mf[4][4], u16* perspNorm, float fovy, float aspect, fl
     }
 }
 
-void guPerspective(Mtx* m, u16* perspNorm, float fovy, float aspect, float near, float far, float scale) {
+void MM_guPerspective(Mtx* m, u16* perspNorm, float fovy, float aspect, float near, float far, float scale) {
     float mf[4][4];
 
-    guPerspectiveF(mf, perspNorm, fovy, aspect, near, far, scale);
+    MM_guPerspectiveF(mf, perspNorm, fovy, aspect, near, far, scale);
     guMtxF2L(mf, m);
 }

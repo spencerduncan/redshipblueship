@@ -108,20 +108,20 @@ void MM_OceffWipe4_Draw(Actor* thisx, PlayState* play) {
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
     if (this->actor.params == OCEFF_WIPE4_UNUSED) {
-        gSPDisplayList(POLY_XLU_DISP++, sScarecrowSongUnusedMaterialDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, sScarecrowSongUnusedMaterialDL);
     } else {
-        gSPDisplayList(POLY_XLU_DISP++, sScarecrowSongMaterialDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, sScarecrowSongMaterialDL);
     }
 
     // #region 2S2H [Port]
     // We need to first load the DL before we can index it on the port
     Gfx* scarecrowSongModelDL = ResourceMgr_LoadTexOrDListByName(sScarecrowSongModelDL);
 
-    gSPDisplayList(POLY_XLU_DISP++, scarecrowSongModelDL);
-    gSPDisplayList(POLY_XLU_DISP++, MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, scroll * 2, scroll * -2, 32,
+    MM_gSPDisplayList(POLY_XLU_DISP++, scarecrowSongModelDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, scroll * 2, scroll * -2, 32,
                                                      64, 1, scroll * -1, scroll, 32, 32));
     // Index adjust 11 -> 14 (for gsSPVertex) to account for our extraction size changes
-    gSPDisplayList(POLY_XLU_DISP++, &scarecrowSongModelDL[14]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, &scarecrowSongModelDL[14]);
     // #endregion
 
     CLOSE_DISPS(play->state.gfxCtx);

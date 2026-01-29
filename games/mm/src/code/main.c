@@ -25,10 +25,10 @@ IrqMgrClient sIrqClient;
 OSMesgQueue sIrqMgrMsgQueue;
 OSMesg sIrqMgrMsgBuf[60];
 OSThread gGraphThread;
-STACK(sGraphStack, 0x1800);
-STACK(sSchedStack, 0x600);
-STACK(sAudioStack, 0x800);
-STACK(sPadMgrStack, 0x500);
+STACK(MM_sGraphStack, 0x1800);
+STACK(MM_sSchedStack, 0x600);
+STACK(MM_sAudioStack, 0x800);
+STACK(MM_sPadMgrStack, 0x500);
 StackEntry MM_sGraphStackInfo;
 StackEntry MM_sSchedStackInfo;
 StackEntry MM_sAudioStackInfo;
@@ -49,6 +49,7 @@ size_t MM_gSystemHeapSize = 0;
 
 void InitOTR();
 void MM_Heaps_Free(void);
+#ifndef RSBS_SINGLE_EXECUTABLE
 #ifdef __GNUC__
 #define MM_SDL_main main
 #endif
@@ -92,32 +93,32 @@ void MM_SDL_main(int argc, char** argv /* void* arg*/) {
 
     R_ENABLE_ARENA_DBG = 0;
 
-    osCreateMesgQueue(&sSerialEventQueue, sSerialMsgBuf, ARRAY_COUNT(sSerialMsgBuf));
-    osSetEventMesg(OS_EVENT_SI, &sSerialEventQueue, OS_MESG_PTR(NULL));
+    MM_osCreateMesgQueue(&sSerialEventQueue, sSerialMsgBuf, ARRAY_COUNT(sSerialMsgBuf));
+    MM_osSetEventMesg(OS_EVENT_SI, &sSerialEventQueue, OS_MESG_PTR(NULL));
 
-    osCreateMesgQueue(&sIrqMgrMsgQueue, sIrqMgrMsgBuf, ARRAY_COUNT(sIrqMgrMsgBuf));
-    MM_PadMgr_Init(&sSerialEventQueue, &MM_gIrqMgr, Z_THREAD_ID_PADMGR, Z_PRIORITY_PADMGR, STACK_TOP(sPadMgrStack));
+    MM_osCreateMesgQueue(&sIrqMgrMsgQueue, sIrqMgrMsgBuf, ARRAY_COUNT(sIrqMgrMsgBuf));
+    MM_PadMgr_Init(&sSerialEventQueue, &MM_gIrqMgr, Z_THREAD_ID_PADMGR, Z_PRIORITY_PADMGR, STACK_TOP(MM_sPadMgrStack));
 
-    MM_AudioMgr_Init(&sAudioMgr, STACK_TOP(sAudioStack), Z_PRIORITY_AUDIOMGR, Z_THREAD_ID_AUDIOMGR, &MM_gSchedContext,
+    MM_AudioMgr_Init(&sAudioMgr, STACK_TOP(MM_sAudioStack), Z_PRIORITY_AUDIOMGR, Z_THREAD_ID_AUDIOMGR, &MM_gSchedContext,
                   &MM_gIrqMgr);
 #if 0
-    MM_StackCheck_Init(&MM_sSchedStackInfo, sSchedStack, STACK_TOP(sSchedStack), 0, 0x100, "sched");
-    MM_Sched_Init(&MM_gSchedContext, STACK_TOP(sSchedStack), Z_PRIORITY_SCHED, gViConfigModeType, 1, &MM_gIrqMgr);
+    MM_StackCheck_Init(&MM_sSchedStackInfo, MM_sSchedStack, STACK_TOP(MM_sSchedStack), 0, 0x100, "sched");
+    MM_Sched_Init(&MM_gSchedContext, STACK_TOP(MM_sSchedStack), Z_PRIORITY_SCHED, gViConfigModeType, 1, &MM_gIrqMgr);
 
     CIC6105_AddRomInfoFaultPage();
 
     MM_IrqMgr_AddClient(&MM_gIrqMgr, &sIrqClient, &sIrqMgrMsgQueue);
 
-    MM_StackCheck_Init(&MM_sAudioStackInfo, sAudioStack, STACK_TOP(sAudioStack), 0, 0x100, "audio");
-    MM_AudioMgr_Init(&sAudioMgr, STACK_TOP(sAudioStack), Z_PRIORITY_AUDIOMGR, Z_THREAD_ID_AUDIOMGR, &MM_gSchedContext,
+    MM_StackCheck_Init(&MM_sAudioStackInfo, MM_sAudioStack, STACK_TOP(MM_sAudioStack), 0, 0x100, "audio");
+    MM_AudioMgr_Init(&sAudioMgr, STACK_TOP(MM_sAudioStack), Z_PRIORITY_AUDIOMGR, Z_THREAD_ID_AUDIOMGR, &MM_gSchedContext,
                   &MM_gIrqMgr);
 
-    MM_StackCheck_Init(&MM_sPadMgrStackInfo, sPadMgrStack, STACK_TOP(sPadMgrStack), 0, 0x100, "padmgr");
+    MM_StackCheck_Init(&MM_sPadMgrStackInfo, MM_sPadMgrStack, STACK_TOP(MM_sPadMgrStack), 0, 0x100, "padmgr");
 
     MM_AudioMgr_Unlock(&sAudioMgr);
-    MM_StackCheck_Init(&MM_sGraphStackInfo, sGraphStack, STACK_TOP(sGraphStack), 0, 0x100, "graph");
-    osCreateThread(&gGraphThread, Z_THREAD_ID_GRAPH, MM_Graph_ThreadEntry, NULL, STACK_TOP(sGraphStack), Z_PRIORITY_GRAPH);
-    osStartThread(&gGraphThread);
+    MM_StackCheck_Init(&MM_sGraphStackInfo, MM_sGraphStack, STACK_TOP(MM_sGraphStack), 0, 0x100, "graph");
+    MM_osCreateThread(&gGraphThread, Z_THREAD_ID_GRAPH, MM_Graph_ThreadEntry, NULL, STACK_TOP(MM_sGraphStack), Z_PRIORITY_GRAPH);
+    MM_osStartThread(&gGraphThread);
 #endif
 
     MM_Graph_ThreadEntry(0);
@@ -126,7 +127,7 @@ void MM_SDL_main(int argc, char** argv /* void* arg*/) {
 
     while (!exit) {
         msg = NULL;
-        osRecvMesg(&sIrqMgrMsgQueue, (OSMesg*)&msg, OS_MESG_BLOCK);
+        MM_osRecvMesg(&sIrqMgrMsgQueue, (OSMesg*)&msg, OS_MESG_BLOCK);
         if (msg == NULL) {
             break;
         }
@@ -143,7 +144,7 @@ void MM_SDL_main(int argc, char** argv /* void* arg*/) {
     }
 
     MM_IrqMgr_RemoveClient(&MM_gIrqMgr, &sIrqClient);
-    osDestroyThread(&gGraphThread);
+    MM_osDestroyThread(&gGraphThread);
 
     DeinitOTR();
 
@@ -152,3 +153,4 @@ void MM_SDL_main(int argc, char** argv /* void* arg*/) {
 #endif
     MM_Heaps_Free();
 }
+#endif // !RSBS_SINGLE_EXECUTABLE

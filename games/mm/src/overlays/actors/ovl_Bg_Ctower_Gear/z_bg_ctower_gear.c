@@ -192,10 +192,10 @@ void BgCtowerGear_DrawOrgan(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gClockTowerOrganDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gClockTowerOrganDL);
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, gClockTowerOrganPipesDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gClockTowerOrganPipesDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

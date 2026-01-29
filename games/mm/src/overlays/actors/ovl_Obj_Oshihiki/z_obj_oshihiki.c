@@ -605,7 +605,7 @@ void MM_ObjOshihiki_Draw(Actor* thisx, PlayState* play) {
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     gDPSetPrimColor(POLY_OPA_DISP++, 0xFF, 0xFF, this->color.r, this->color.g, this->color.b, 255);
-    gSPDisplayList(POLY_OPA_DISP++, gameplay_dangeon_keep_DL_0182A8);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gameplay_dangeon_keep_DL_0182A8);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

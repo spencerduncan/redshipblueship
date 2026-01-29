@@ -45,8 +45,8 @@
 #define DPC_CLR_CLOCK_CTR       (1 << 9)
 
 
-u32 osDpGetStatus(void);
-void osDpSetStatus(u32 data);
+u32 MM_osDpGetStatus(void);
+void MM_osDpSetStatus(u32 data);
 #endif
 
 #endif

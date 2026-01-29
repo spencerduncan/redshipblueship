@@ -559,9 +559,9 @@ void EnSyatekiOkuta_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     if (this->type == SG_OCTO_TYPE_RED) {
-        gSPSegment(POLY_OPA_DISP++, 0x08, D_801AEFA0);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, D_801AEFA0);
     } else {
-        gSPSegment(POLY_OPA_DISP++, 0x08, gShootingGalleryOctorokBlueMaterialDL);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, gShootingGalleryOctorokBlueMaterialDL);
     }
 
     MM_SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, EnSyatekiOkuta_OverrideLimbDraw, NULL,
@@ -582,9 +582,9 @@ void EnSyatekiOkuta_Draw(Actor* thisx, PlayState* play) {
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
         if (this->type == SG_OCTO_TYPE_BLUE) {
-            gSPDisplayList(POLY_XLU_DISP++, gShootingGalleryOctorokCrossDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gShootingGalleryOctorokCrossDL);
         } else {
-            gSPDisplayList(POLY_XLU_DISP++, gShootingGalleryOctorokCircleDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gShootingGalleryOctorokCircleDL);
         }
     }
 

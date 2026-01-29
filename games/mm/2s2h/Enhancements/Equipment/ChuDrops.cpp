@@ -60,11 +60,11 @@ static void ChuDrop_Draw(Actor* actor, PlayState* play) {
 
         MM_Matrix_Scale(2.0f, 2.0f, 2.0f, MTXMODE_APPLY);
 
-        gSPSegment(POLY_OPA_DISP++, 0x08, (uintptr_t)gDropBombchuTex);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, (uintptr_t)gDropBombchuTex);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
 
-        gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gItemDropDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gItemDropDL);
     }
 
     FrameInterpolation_RecordCloseChild();

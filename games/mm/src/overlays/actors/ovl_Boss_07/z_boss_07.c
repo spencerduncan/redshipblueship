@@ -1280,7 +1280,7 @@ void Boss07_Wrath_JumpAwayFromExplosive(Boss07* this, PlayState* play) {
         f32 dy = explosive->world.pos.y - this->actor.world.pos.y;
         f32 dz = explosive->world.pos.z - this->actor.world.pos.z;
 
-        if (sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 200.0f) {
+        if (MM_sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 200.0f) {
             Boss07_Wrath_ChooseJump(this, play, false);
             break;
         }
@@ -1302,8 +1302,8 @@ void Boss07_Wrath_BombWhip(Vec3f* bombPos, Vec3f* pos, Vec3f* velocity) {
         dy = pos->y - bombPos->y;
         dz = pos->z - bombPos->z;
 
-        if (sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 300.0f) {
-            push = 300.0f - sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
+        if (MM_sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 300.0f) {
+            push = 300.0f - MM_sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
             push = CLAMP_MAX(push, 200.0f);
             impulse.y = push;
             impulse.z = push;
@@ -2848,7 +2848,7 @@ void Boss07_Wrath_CheckWhipCollisions(Vec3f* whipPos, f32 tension, Boss07* this,
                     dy = prop->world.pos.y + 10.0f - whipPos[i].y;
                     dz = prop->world.pos.z - whipPos[i].z;
 
-                    if (sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < (KREG(38) + 60.0f)) {
+                    if (MM_sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < (KREG(38) + 60.0f)) {
                         ((ObjTsubo*)prop)->unk_19B = true;
                         Boss07_Wrath_SpawnDustAtPos(play, &prop->world.pos, 10);
                     }
@@ -2872,7 +2872,7 @@ void Boss07_Wrath_CheckWhipCollisions(Vec3f* whipPos, f32 tension, Boss07* this,
 
             dy *= 1.75f;
 
-            if (sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 140.0f) {
+            if (MM_sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < 140.0f) {
                 if ((this->actionFunc == Boss07_Wrath_TryGrab) && (playerImpactType != PLAYER_IMPACT_ZORA_BARRIER) &&
                     !(player->stateFlags3 & PLAYER_STATE3_1000) && (this->actor.xzDistToPlayer >= 520.0f) &&
                     (this->actor.xzDistToPlayer <= 900.0f)) {
@@ -2891,7 +2891,7 @@ void Boss07_Wrath_CheckWhipCollisions(Vec3f* whipPos, f32 tension, Boss07* this,
                         dx = player->actor.world.pos.x - this->rightWhip.basePos.x;
                         dy = player->actor.world.pos.y - this->rightWhip.basePos.y + 50.0f;
                         dz = player->actor.world.pos.z - this->rightWhip.basePos.z;
-                        distToPlayerXZ = sqrtf(SQ(dx) + SQ(dz));
+                        distToPlayerXZ = MM_sqrtf(SQ(dx) + SQ(dz));
 
                         this->whipWrapRotY = Math_Atan2F_XY(dz, dx);
                         this->whipWrapRotX = -Math_Atan2F_XY(distToPlayerXZ, dy);
@@ -3403,7 +3403,7 @@ void Boss07_Wrath_UpdateWhips(Boss07* this, PlayState* play, Vec3f* base, Vec3f*
 
         // calculates the rotation angles from the previous point
         segYaw = Math_Atan2F_XY(tempPos.z, tempPos.x);
-        segPitch = -Math_Atan2F_XY(sqrtf(SQXZ(tempPos)), tempPos.y);
+        segPitch = -Math_Atan2F_XY(MM_sqrtf(SQXZ(tempPos)), tempPos.y);
         (rot - 1)->y = segYaw;
         (rot - 1)->x = segPitch;
 
@@ -3485,7 +3485,7 @@ void Boss07_Wrath_DrawWhip(Boss07* this, PlayState* play, Vec3f* pos, Vec3f* rot
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gMajorasMaskWhipShadowMaterialDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gMajorasMaskWhipShadowMaterialDL);
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, sREG(48) + 45, 35, 75, 255);
     topSegIndex = (hand == MAJORAS_WRATH_HAND_RIGHT) ? this->whipTopIndex : 0;
 
@@ -3497,12 +3497,12 @@ void Boss07_Wrath_DrawWhip(Boss07* this, PlayState* play, Vec3f* pos, Vec3f* rot
         thicknessScale = (i > 24) ? 0.025f : ((f32)(24 - i) * 1 * 0.001f) + 0.025f;
         MM_Matrix_Scale(thicknessScale, thicknessScale, ((2 * lengthScale) + 0.5f) * 0.01f, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gMajorasWrathWhipModelDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gMajorasWrathWhipModelDL);
     }
 
     pos = prevPos;
     rot = prevRot;
-    gSPDisplayList(POLY_OPA_DISP++, gMajorasWrathWhipMaterialDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gMajorasWrathWhipMaterialDL);
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 155, 155, 80, 255);
 
     for (i = 0; i < (sWhipLength - topSegIndex) - 1; i++, pos++, rot++) {
@@ -3512,7 +3512,7 @@ void Boss07_Wrath_DrawWhip(Boss07* this, PlayState* play, Vec3f* pos, Vec3f* rot
         thicknessScale = (i > 24) ? 0.025f : ((f32)(24 - i) * 1 * 0.001f) + 0.025f;
         MM_Matrix_Scale(thicknessScale, thicknessScale, ((2 * lengthScale) + 0.5f) * 0.01f, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gMajorasWrathWhipModelDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gMajorasWrathWhipModelDL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -3689,7 +3689,7 @@ void Boss07_Wrath_DrawShocks(Boss07* this, PlayState* play) {
         gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, 0, 0);
 
         if (this->shockOrbScale > 0.0f) {
-            gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
 
             for (i = 0; i < MAJORAS_WRATH_BODYPART_MAX; i++) {
                 MM_Matrix_Translate(this->bodyPartsPos[i].x, this->bodyPartsPos[i].y, this->bodyPartsPos[i].z,
@@ -3698,7 +3698,7 @@ void Boss07_Wrath_DrawShocks(Boss07* this, PlayState* play) {
                 MM_Matrix_Scale(this->shockOrbScale, this->shockOrbScale, this->shockOrbScale, MTXMODE_APPLY);
                 Matrix_RotateZF(MM_Rand_ZeroFloat(2.0f * M_PIf), MTXMODE_APPLY);
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-                gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
             }
 
             for (i = this->whipShockMaxIndex; i >= this->whipShockMinIndex; i--) {
@@ -3708,12 +3708,12 @@ void Boss07_Wrath_DrawShocks(Boss07* this, PlayState* play) {
                 MM_Matrix_Scale(1.5f, 1.5f, 1.5f, MTXMODE_APPLY);
                 Matrix_RotateZF(MM_Rand_ZeroFloat(2.0f * M_PIf), MTXMODE_APPLY);
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-                gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
             }
         }
 
         if (this->shockSparkScale > 0.0f) {
-            gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial2DL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial2DL);
 
             for (i = 0; i < MAJORAS_WRATH_BODYPART_MAX * 2; i++) {
                 MM_Matrix_Translate(this->bodyPartsPos[i / 2].x + MM_Rand_CenteredFloat(30.0f),
@@ -3723,7 +3723,7 @@ void Boss07_Wrath_DrawShocks(Boss07* this, PlayState* play) {
                 Matrix_RotateXFApply(MM_Rand_ZeroFloat(2.0f * M_PIf));
                 Matrix_RotateZF(MM_Rand_ZeroFloat(2.0f * M_PIf), MTXMODE_APPLY);
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-                gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
             }
         }
     }
@@ -3760,12 +3760,12 @@ void Boss07_Wrath_DrawDeathLights(Boss07* this, PlayState* play, Vec3f* pos) {
             if (this->deathLightScale[i] > 0.0f) {
                 MM_Matrix_Scale(this->deathLightScale[i], 1.0f, 12.0f, MTXMODE_APPLY);
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-                gSPDisplayList(POLY_XLU_DISP++, gMajorasWrathDeathLightModelDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gMajorasWrathDeathLightModelDL);
             }
         }
 
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, (u8)(220 + sREG(18)), (u8)(170 + sREG(16)));
         gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, (u8)(100 + sREG(22)), 128);
 
@@ -3777,7 +3777,7 @@ void Boss07_Wrath_DrawDeathLights(Boss07* this, PlayState* play, Vec3f* pos) {
         scale = (sREG(17) + 800) * 0.01f * this->deathOrbScale;
         MM_Matrix_Scale(scale, scale, 1.0f, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
     }
 
     CLOSE_DISPS(gfxCtx);
@@ -3798,7 +3798,7 @@ void Boss07_BattleHandler_DrawIntroPlayerLightOrb(Boss07* this, PlayState* play)
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, (u8)(sREG(52) + 255));
         gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, 0, 0);
-        gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
 
         if (player->transformation == PLAYER_FORM_GORON) {
             yOffset = -10.0f;
@@ -3819,7 +3819,7 @@ void Boss07_BattleHandler_DrawIntroPlayerLightOrb(Boss07* this, PlayState* play)
         MM_Matrix_Scale(this->introPlayerOrbScale, this->introPlayerOrbScale, this->introPlayerOrbScale, MTXMODE_APPLY);
         Matrix_RotateZS(play->gameplayFrames * 0x40, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
     }
 
     CLOSE_DISPS(gfxCtx);
@@ -3834,10 +3834,10 @@ void Boss07_Wrath_Draw(Actor* thisx, PlayState* play2) {
 
     // #2S2H [Port] Invalidate the blend masks when they are set in the cutscene
     if (this->cutsceneState == MAJORAS_WRATH_DEATH_CS_STATE_FLOAT) {
-        gSPInvalidateTexCache(POLY_OPA_DISP++, sWrathTexMask16by16);
-        gSPInvalidateTexCache(POLY_OPA_DISP++, sWrathTexMask16by32);
-        gSPInvalidateTexCache(POLY_OPA_DISP++, sWrathTexMask32by32);
-        gSPInvalidateTexCache(POLY_OPA_DISP++, sWrathTexMask32by64);
+        MM_gSPInvalidateTexCache(POLY_OPA_DISP++, sWrathTexMask16by16);
+        MM_gSPInvalidateTexCache(POLY_OPA_DISP++, sWrathTexMask16by32);
+        MM_gSPInvalidateTexCache(POLY_OPA_DISP++, sWrathTexMask32by32);
+        MM_gSPInvalidateTexCache(POLY_OPA_DISP++, sWrathTexMask32by64);
     }
     // #enregion
 
@@ -4072,11 +4072,11 @@ void Boss07_Wrath_DrawShadowTex(u8* tex, Boss07* this, PlayState* play) {
     MM_Matrix_Translate(this->actor.world.pos.x, this->actor.floorHeight, this->actor.world.pos.z - 20.0f, MTXMODE_NEW);
     MM_Matrix_Scale(1.75f, 1.0f, 1.75f, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gMajorasWrathShadowMaterialDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gMajorasWrathShadowMaterialDL);
     gDPLoadTextureBlock(POLY_OPA_DISP++, tex, G_IM_FMT_I, G_IM_SIZ_8b, MAJORAS_WRATH_SHADOW_TEX_WIDTH,
                         MAJORAS_WRATH_SHADOW_TEX_HEIGHT, 0, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, 6,
                         6, G_TX_NOLOD, G_TX_NOLOD);
-    gSPDisplayList(POLY_OPA_DISP++, gMajorasWrathShadowModelDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gMajorasWrathShadowModelDL);
 
     CLOSE_DISPS(gfxCtx);
 }
@@ -5268,7 +5268,7 @@ void Boss07_Mask_Idle(Boss07* this, PlayState* play) {
     dy = this->targetPos.y - this->actor.world.pos.y;
     dz = this->targetPos.z - this->actor.world.pos.z;
     targetRotY = MM_Math_Atan2S(dx, dz);
-    distToTargetXZ = sqrtf(SQ(dx) + SQ(dz));
+    distToTargetXZ = MM_sqrtf(SQ(dx) + SQ(dz));
     targetRotX = MM_Math_Atan2S(dy, distToTargetXZ);
     targetRotX += (s16)(MM_Math_SinS(this->frameCounter * 0x1388) * 0xFA0);
 
@@ -5353,7 +5353,7 @@ void Boss07_Mask_SpinAttack(Boss07* this, PlayState* play) {
             dy = this->targetPos.y - this->actor.world.pos.y;
             dz = this->targetPos.z - this->actor.world.pos.z;
             targetRotY = MM_Math_Atan2S(dx, dz);
-            distToTargetXZ = sqrtf(SQ(dx) + SQ(dz));
+            distToTargetXZ = MM_sqrtf(SQ(dx) + SQ(dz));
             targetRotX = MM_Math_Atan2S(dy, distToTargetXZ);
             MM_Math_ApproachS(&this->actor.world.rot.y, targetRotY, 0xA, this->speedToTarget);
             MM_Math_ApproachS(&this->actor.world.rot.x, targetRotX, 0xA, this->speedToTarget);
@@ -5558,7 +5558,7 @@ void Boss07_Mask_FireBeam(Boss07* this, PlayState* play) {
     dx = player->actor.world.pos.x - this->actor.world.pos.x;
     dy = player->actor.world.pos.y - this->actor.world.pos.y + yOffset;
     dz = player->actor.world.pos.z - this->actor.world.pos.z;
-    MM_Math_ApproachS(&this->actor.shape.rot.x, -MM_Math_Atan2S(dy, sqrtf(SQ(dx) + SQ(dz))), rotScale, this->speedToTarget);
+    MM_Math_ApproachS(&this->actor.shape.rot.x, -MM_Math_Atan2S(dy, MM_sqrtf(SQ(dx) + SQ(dz))), rotScale, this->speedToTarget);
     MM_Math_ApproachF(&this->speedToTarget, 0xFA0, 1.0f, 0xC8);
     this->tentacleState = MAJORAS_MASK_TENTACLE_STATE_FIRING_BEAM;
 
@@ -5603,7 +5603,7 @@ void Boss07_Mask_FireBeam(Boss07* this, PlayState* play) {
             dx = player->actor.world.pos.x - this->beamStartPos.x;
             dy = player->actor.world.pos.y - this->beamStartPos.y + 20.0f;
             dz = player->actor.world.pos.z - this->beamStartPos.z;
-            distXYZ = sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
+            distXYZ = MM_sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
             MM_Math_ApproachF(&this->beamLengthScale, distXYZ * 0.2f, 1.0f, 7.0f);
 
             if (MM_BgCheck_EntityLineTest1(&play->colCtx, &this->beamStartPos, &this->beamEndPos, &beamTireMarkPos, &poly,
@@ -5668,7 +5668,7 @@ void Boss07_Mask_FireBeam(Boss07* this, PlayState* play) {
                         diff.x = this->actor.world.pos.x - this->beamEndPos.x;
                         diff.y = this->actor.world.pos.y - this->beamEndPos.y;
                         diff.z = this->actor.world.pos.z - this->beamEndPos.z;
-                        distXYZ = sqrtf(SQXYZ(diff));
+                        distXYZ = MM_sqrtf(SQXYZ(diff));
 
                         Matrix_RotateXS(-this->reflectedBeamPitch, MTXMODE_NEW);
                         Matrix_RotateYS(-this->reflectedBeamYaw, MTXMODE_APPLY);
@@ -5746,7 +5746,7 @@ void Boss07_Mask_FireBeam(Boss07* this, PlayState* play) {
                             diff.x = sMajoraRemains[i]->actor.world.pos.x - this->beamEndPos.x;
                             diff.y = sMajoraRemains[i]->actor.world.pos.y - this->beamEndPos.y;
                             diff.z = sMajoraRemains[i]->actor.world.pos.z - this->beamEndPos.z;
-                            distXYZ = sqrtf(SQXYZ(diff));
+                            distXYZ = MM_sqrtf(SQXYZ(diff));
                             MM_Matrix_MultVec3f(&diff, &transformedDiff);
 
                             if ((fabsf(transformedDiff.x) < 60.0f) && (fabsf(transformedDiff.y) < 60.0f) &&
@@ -6568,7 +6568,7 @@ void Boss07_Mask_UpdateTentacles(Boss07* this, PlayState* play, Vec3f* base, Vec
 
         // calculates the rotation angles from the previous point
         segYaw = Math_Atan2F_XY(tempPos.z, tempPos.x);
-        temp = sqrtf(SQXZ(tempPos));
+        temp = MM_sqrtf(SQXZ(tempPos));
         segPitch = -Math_Atan2F_XY(temp, tempPos.y);
         (rot - 1)->y = segYaw;
         (rot - 1)->x = segPitch;
@@ -6614,7 +6614,7 @@ void Boss07_Mask_DrawTentacles(Boss07* this, PlayState* play, Vec3f* pos, Vec3f*
 
         MM_Matrix_Scale(thicknessScale, thicknessScale, lengthScale * 0.01f * 2.3f, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gMajorasMaskTentacleModelDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gMajorasMaskTentacleModelDL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -6626,7 +6626,7 @@ void Boss07_Mask_DrawBeam(Boss07* this, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     if (this->actionFunc == Boss07_Mask_FireBeam) {
-        gSPSegment(POLY_XLU_DISP++, 0x0C,
+        MM_gSPSegment(POLY_XLU_DISP++, 0x0C,
                    MM_Gfx_TexScroll(play->state.gfxCtx, 0, (this->frameCounter * -15) & 0xFF, 32, 64));
         gDPPipeSync(POLY_XLU_DISP++);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 60, 200);
@@ -6647,7 +6647,7 @@ void Boss07_Mask_DrawBeam(Boss07* this, PlayState* play) {
                     MM_Matrix_Scale(this->beamBaseScale * 0.05f, this->beamBaseScale * 0.05f,
                                  this->eyeBeamsLengthScale * 0.05f, MTXMODE_APPLY);
                     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-                    gSPDisplayList(POLY_XLU_DISP++, gMajorasMaskBeamDL);
+                    MM_gSPDisplayList(POLY_XLU_DISP++, gMajorasMaskBeamDL);
                 }
                 MM_Matrix_Pop();
 
@@ -6656,8 +6656,8 @@ void Boss07_Mask_DrawBeam(Boss07* this, PlayState* play) {
                 MM_Matrix_Scale(this->beamBaseScale * 0.05f, this->beamBaseScale * 0.05f,
                              this->eyeBeamsLengthScale * 0.05f, MTXMODE_APPLY);
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-                gSPDisplayList(POLY_XLU_DISP++, gMajorasMaskBeamDL);
-                gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gMajorasMaskBeamDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
             }
             MM_Matrix_Pop();
 
@@ -6667,12 +6667,12 @@ void Boss07_Mask_DrawBeam(Boss07* this, PlayState* play) {
                          this->eyeBeamsFocusOrbScale * 40.0f * this->beamBaseScale, 0.0f, MTXMODE_APPLY);
             Matrix_RotateZS(this->frameCounter * 0x100, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 60, sREG(89) + 80);
             MM_Matrix_Scale(6.0f, 6.0f, 0.0f, MTXMODE_APPLY);
             Matrix_RotateZS(0x4000, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 60, 200);
         }
         MM_Matrix_Pop();
@@ -6682,7 +6682,7 @@ void Boss07_Mask_DrawBeam(Boss07* this, PlayState* play) {
         MM_Matrix_Scale(this->beamBaseScale * 0.05f, this->beamBaseScale * 0.05f, (this->beamLengthScale * 0.01f) - 0.01f,
                      MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gMajorasMaskBeamDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gMajorasMaskBeamDL);
         Matrix_MultVecZ(20100.0f, &this->beamEndPos);
 
         if (this->reflectedBeamLengthScale > 0.0f) {
@@ -6696,7 +6696,7 @@ void Boss07_Mask_DrawBeam(Boss07* this, PlayState* play) {
             MM_Matrix_Scale(this->beamBaseScale * 0.05f, this->beamBaseScale * 0.05f,
                          this->reflectedBeamLengthScale * 0.01f, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gMajorasMaskBeamDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gMajorasMaskBeamDL);
 
             Matrix_MultVecZ(20100.0f, &this->reflectedBeamEndPos);
             MM_Matrix_Translate(lightOrbPos.x, lightOrbPos.y, lightOrbPos.z, MTXMODE_NEW);
@@ -6704,8 +6704,8 @@ void Boss07_Mask_DrawBeam(Boss07* this, PlayState* play) {
             MM_Matrix_Scale(this->beamBaseScale * 5.0f, this->beamBaseScale * 5.0f, 0.0f, MTXMODE_APPLY);
             Matrix_RotateZS(this->frameCounter * 0x100, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
-            gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
         }
     }
     CLOSE_DISPS(play->state.gfxCtx);
@@ -6749,11 +6749,11 @@ void Boss07_Mask_Draw(Actor* thisx, PlayState* play2) {
         POLY_OPA_DISP = MM_Gfx_SetFog(POLY_OPA_DISP, 255, 0, 0, 255, 900, 1099);
     }
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sMaskEyeTextures[this->maskEyeTexIndex]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sMaskEyeTextures[this->maskEyeTexIndex]));
     MM_SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, NULL, Boss07_Mask_PostLimbDraw,
                       &this->actor);
     POLY_OPA_DISP = MM_Play_SetFog(play, POLY_OPA_DISP);
-    gSPDisplayList(POLY_OPA_DISP++, gMajorasMaskTentacleMaterialDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gMajorasMaskTentacleMaterialDL);
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 155, 155, 80, 255);
 
     isMovingBackwards = ((this->actionFunc == Boss07_Mask_Idle) &&
@@ -6828,7 +6828,7 @@ void Boss07_Projectile_Update(Actor* thisx, PlayState* play2) {
             dz = player->actor.world.pos.z - this->actor.world.pos.z;
 
             this->actor.world.rot.y = MM_Math_Atan2S(dx, dz);
-            distToPlayerXZ = sqrtf(SQ(dx) + SQ(dz));
+            distToPlayerXZ = MM_sqrtf(SQ(dx) + SQ(dz));
             this->actor.world.rot.x = MM_Math_Atan2S(dy, distToPlayerXZ);
             this->subAction = PROJECTILE_SUB_ACTION_FLY;
             this->actor.speed = 30.0f;
@@ -6882,8 +6882,8 @@ void Boss07_Projectile_Draw(Actor* thisx, PlayState* play2) {
     MM_Matrix_ReplaceRotation(&play->billboardMtxF);
     Matrix_RotateZS(this->actor.shape.rot.z, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
-    gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -6968,7 +6968,7 @@ void Boss07_Remains_IntroCutscene(Boss07* this, PlayState* play) {
             dy = this->targetPos.y - this->actor.world.pos.y;
             dz = this->targetPos.z - this->actor.world.pos.z;
             this->actor.world.rot.y = MM_Math_Atan2S(dx, dz);
-            this->actor.world.rot.x = MM_Math_Atan2S(dy, sqrtf(SQ(dx) + SQ(dz)));
+            this->actor.world.rot.x = MM_Math_Atan2S(dy, MM_sqrtf(SQ(dx) + SQ(dz)));
             this->miscTimer = MM_Rand_ZeroFloat(100.0f);
             break;
 
@@ -7001,7 +7001,7 @@ void Boss07_Remains_IntroCutscene(Boss07* this, PlayState* play) {
             dy = this->targetPos.y - this->actor.world.pos.y + yOffset;
             dz = this->targetPos.z - this->actor.world.pos.z;
             targetRotY = MM_Math_Atan2S(dx, dz);
-            targetRotX = MM_Math_Atan2S(dy, sqrtf(SQ(dx) + SQ(dz)));
+            targetRotX = MM_Math_Atan2S(dy, MM_sqrtf(SQ(dx) + SQ(dz)));
             MM_Math_ApproachS(&this->actor.world.rot.y, targetRotY, 5, this->speedToTarget);
             MM_Math_ApproachS(&this->actor.world.rot.x, targetRotX, 5, this->speedToTarget);
             MM_Math_ApproachF(&this->speedToTarget, speedToTargetTarget, 1.0f, speedToTargetMaxStep);
@@ -7097,7 +7097,7 @@ void Boss07_Remains_Move(Boss07* this, PlayState* play) {
             dy = this->targetPos.y - this->actor.world.pos.y;
             dz = this->targetPos.z - this->actor.world.pos.z;
             targetRotY = MM_Math_Atan2S(dx, dz);
-            targetRotX = MM_Math_Atan2S(dy, sqrtf(SQ(dx) + SQ(dz)));
+            targetRotX = MM_Math_Atan2S(dy, MM_sqrtf(SQ(dx) + SQ(dz)));
             targetRotX += (s16)(MM_Math_SinS(this->frameCounter * 0x1388) * 0xFA0);
 
             MM_Math_ApproachS(&this->actor.world.rot.y, targetRotY, 0xA, this->speedToTarget);
@@ -7282,19 +7282,19 @@ void Boss07_Remains_Draw(Actor* thisx, PlayState* play2) {
 
     switch (MAJORA_GET_TYPE(&this->actor)) {
         case MAJORA_TYPE_REMAINS + MAJORA_REMAINS_TYPE_ODOLWA:
-            gSPDisplayList(POLY_OPA_DISP++, gBossMaskOdolwaDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gBossMaskOdolwaDL);
             break;
 
         case MAJORA_TYPE_REMAINS + MAJORA_REMAINS_TYPE_GYORG:
-            gSPDisplayList(POLY_OPA_DISP++, gBossMaskGyorgDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gBossMaskGyorgDL);
             break;
 
         case MAJORA_TYPE_REMAINS + MAJORA_REMAINS_TYPE_GOHT:
-            gSPDisplayList(POLY_OPA_DISP++, gBossMaskGohtDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gBossMaskGohtDL);
             break;
 
         case MAJORA_TYPE_REMAINS + MAJORA_REMAINS_TYPE_TWINMOLD:
-            gSPDisplayList(POLY_OPA_DISP++, gBossMaskTwinmoldDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gBossMaskTwinmoldDL);
             break;
 
         default:
@@ -7313,8 +7313,8 @@ void Boss07_Remains_Draw(Actor* thisx, PlayState* play2) {
         MM_Matrix_ReplaceRotation(&play->billboardMtxF);
         Matrix_RotateZS(this->introRemainsOrbRot, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
-        gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -7468,7 +7468,7 @@ void Boss07_Top_CheckTopCollision(Boss07* this, PlayState* play) {
                 dy = top->actor.world.pos.y - this->actor.world.pos.y;
                 dz = top->actor.world.pos.z - this->actor.world.pos.z;
 
-                if (sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < (sREG(28) + 50.0f)) {
+                if (MM_sqrtf(SQ(dx) + SQ(dy) + SQ(dz)) < (sREG(28) + 50.0f)) {
                     top->disableCollisionTimer = this->disableCollisionTimer = 10;
                     this->actor.world.rot.y = MM_Math_Atan2S(dx, dz);
                     top->actor.world.rot.y = this->actor.world.rot.y + 0x7FFF;
@@ -7634,7 +7634,7 @@ void Boss07_Top_Draw(Actor* thisx, PlayState* play2) {
     Matrix_RotateYF(this->topSpinAngle, MTXMODE_APPLY);
     MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gMajorasWrathSpinningTopDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gMajorasWrathSpinningTopDL);
     POLY_OPA_DISP = MM_Play_SetFog(play, POLY_OPA_DISP);
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -7858,14 +7858,14 @@ void Boss07_BattleHandler_DrawEffects(PlayState* play) {
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 200, 20, 0, effect->alpha);
             gDPPipeSync(POLY_XLU_DISP++);
             gDPSetEnvColor(POLY_XLU_DISP++, 255, 215, 255, 128);
-            gSPSegment(POLY_XLU_DISP++, 0x08,
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                        MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, (3 * effect->texScroll) & 0x7F,
                                         (15 * -effect->texScroll) & 0xFF, 32, 64, 1, 0, 0, 32, 32));
             MM_Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
             MM_Matrix_ReplaceRotation(&play->billboardMtxF);
             MM_Matrix_Scale(effect->scale, effect->scale, 1.0f, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gMajorasMaskFireDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gMajorasMaskFireDL);
             FrameInterpolation_RecordCloseChild();
         }
     }

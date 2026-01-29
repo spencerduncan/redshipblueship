@@ -151,7 +151,7 @@ void func_80B93310(Actor* thisx, Lights* mapper, PlayState* play) {
 
         MM_Math_Vec3f_Copy(&sp34, &this->actor.world.pos);
 
-        sp2C = sqrtf(SQ(this->actor.focus.pos.x - this->unk_2F0.x) + SQ(this->actor.focus.pos.z - this->unk_2F0.z));
+        sp2C = MM_sqrtf(SQ(this->actor.focus.pos.x - this->unk_2F0.x) + SQ(this->actor.focus.pos.z - this->unk_2F0.z));
         if (sp2C < 12.0f) {
             sp2C = 12.0f;
         } else if (sp2C > 60.0f) {
@@ -1046,7 +1046,7 @@ void EnZog_PostLimbDrawOpa(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* r
     if ((this->unk_30A & 2) && (limbIndex == OBJECT_ZOG_LIMB_11)) {
         OPEN_DISPS(play->state.gfxCtx);
 
-        gSPDisplayList(POLY_OPA_DISP++, object_zog_DL_0280A8);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_zog_DL_0280A8);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -1067,7 +1067,7 @@ void EnZog_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot,
     }
 
     if ((this->unk_30A & 2) && (limbIndex == OBJECT_ZOG_LIMB_11)) {
-        gSPDisplayList((*gfx)++, object_zog_DL_0280A8);
+        MM_gSPDisplayList((*gfx)++, object_zog_DL_0280A8);
     }
 }
 
@@ -1090,8 +1090,8 @@ void EnZog_Draw(Actor* thisx, PlayState* play) {
 
         gfx = POLY_XLU_DISP;
 
-        gSPSegment(&gfx[0], 0x08, Lib_SegmentedToVirtual(D_80B958AC[this->unk_31C]));
-        gSPSegment(&gfx[1], 0x09, Lib_SegmentedToVirtual(D_80B958B8[this->unk_31E]));
+        MM_gSPSegment(&gfx[0], 0x08, Lib_SegmentedToVirtual(D_80B958AC[this->unk_31C]));
+        MM_gSPSegment(&gfx[1], 0x09, Lib_SegmentedToVirtual(D_80B958B8[this->unk_31E]));
         gDPSetEnvColor(&gfx[2], 0, 0, 0, this->unk_322);
 
         POLY_XLU_DISP = &gfx[3];
@@ -1104,8 +1104,8 @@ void EnZog_Draw(Actor* thisx, PlayState* play) {
 
         gfx = POLY_OPA_DISP;
 
-        gSPSegment(&gfx[0], 0x08, Lib_SegmentedToVirtual(D_80B958AC[this->unk_31C]));
-        gSPSegment(&gfx[1], 0x09, Lib_SegmentedToVirtual(D_80B958B8[this->unk_31E]));
+        MM_gSPSegment(&gfx[0], 0x08, Lib_SegmentedToVirtual(D_80B958AC[this->unk_31C]));
+        MM_gSPSegment(&gfx[1], 0x09, Lib_SegmentedToVirtual(D_80B958B8[this->unk_31E]));
         gDPSetEnvColor(&gfx[2], 0, 0, 0, 255);
 
         POLY_OPA_DISP = &gfx[3];

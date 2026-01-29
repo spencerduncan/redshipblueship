@@ -253,7 +253,7 @@ void DoorSpiral_Draw(Actor* thisx, PlayState* play) {
 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
 
-            gSPDisplayList(POLY_OPA_DISP++, spiralInfo->dLists[this->direction]);
+            MM_gSPDisplayList(POLY_OPA_DISP++, spiralInfo->dLists[this->direction]);
 
             CLOSE_DISPS(play->state.gfxCtx);
         }

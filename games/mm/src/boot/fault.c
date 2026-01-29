@@ -100,7 +100,7 @@ void MM_Fault_AddClient(FaultClient* client, FaultClientCallback callback, void*
     OSIntMask mask;
     u32 alreadyExists = false;
 
-    mask = osSetIntMask(1);
+    mask = MM_osSetIntMask(1);
 
     // Ensure the client is not already registered
     {
@@ -122,7 +122,7 @@ void MM_Fault_AddClient(FaultClient* client, FaultClientCallback callback, void*
     sFaultInstance->clients = client;
 
 end:
-    osSetIntMask(mask);
+    MM_osSetIntMask(mask);
 
     if (alreadyExists) {
         osSyncPrintf(VT_COL(RED, WHITE) "fault_AddClient: %08x は既にリスト中にある\n" VT_RST, client);
@@ -140,7 +140,7 @@ void MM_Fault_RemoveClient(FaultClient* client) {
     OSIntMask mask;
     u32 listIsEmpty = false;
 
-    mask = osSetIntMask(1);
+    mask = MM_osSetIntMask(1);
 
     while (iter) {
         if (iter == client) {
@@ -161,7 +161,7 @@ void MM_Fault_RemoveClient(FaultClient* client) {
         iter = iter->next;
     }
 
-    osSetIntMask(mask);
+    MM_osSetIntMask(mask);
 
     if (listIsEmpty) {
         osSyncPrintf(VT_COL(RED, WHITE) "fault_RemoveClient: %08x リスト不整合です\n" VT_RST, client);
@@ -184,7 +184,7 @@ void MM_Fault_AddAddrConvClient(FaultAddrConvClient* client, FaultAddrConvClient
     OSIntMask mask;
     s32 alreadyExists = false;
 
-    mask = osSetIntMask(1);
+    mask = MM_osSetIntMask(1);
 
     {
         FaultAddrConvClient* iter = sFaultInstance->addrConvClients;
@@ -204,7 +204,7 @@ void MM_Fault_AddAddrConvClient(FaultAddrConvClient* client, FaultAddrConvClient
     sFaultInstance->addrConvClients = client;
 
 end:
-    osSetIntMask(mask);
+    MM_osSetIntMask(mask);
 
     if (alreadyExists) {
         osSyncPrintf(VT_COL(RED, WHITE) "fault_AddressConverterAddClient: %08x は既にリスト中にある\n" VT_RST, client);
@@ -219,7 +219,7 @@ void MM_Fault_RemoveAddrConvClient(FaultAddrConvClient* client) {
     OSIntMask mask;
     s32 listIsEmpty = false;
 
-    mask = osSetIntMask(1);
+    mask = MM_osSetIntMask(1);
 
     while (iter) {
         if (iter == client) {
@@ -240,7 +240,7 @@ void MM_Fault_RemoveAddrConvClient(FaultAddrConvClient* client) {
         iter = iter->next;
     }
 
-    osSetIntMask(mask);
+    MM_osSetIntMask(mask);
 
     if (listIsEmpty) {
         osSyncPrintf(VT_COL(RED, WHITE) "fault_AddressConverterRemoveClient: %08x は既にリスト中にある\n" VT_RST,
@@ -569,11 +569,11 @@ OSThread* MM_Fault_FindFaultedThread(void) {
 void MM_Fault_Wait5Seconds(void) {
 #if 0
     s32 pad;
-    OSTime start = osGetTime();
+    OSTime start = MM_osGetTime();
 
     do {
         MM_Fault_Sleep(1000 / 60);
-    } while ((osGetTime() - start) <= OS_SEC_TO_CYCLES(5));
+    } while ((MM_osGetTime() - start) <= OS_SEC_TO_CYCLES(5));
 
     sFaultInstance->autoScroll = true;
 #endif
@@ -860,7 +860,7 @@ void MM_Fault_DrawStackTrace(OSThread* thread, u32 flags) {
     MM_FaultDrawer_DrawText(120, 16, "STACK TRACE");
     MM_FaultDrawer_DrawText(36, 24, "SP       PC       (VPC)");
 
-    for (line = 1; (line < 22) && (((ra != 0) || (sp != 0)) && (pc != (uintptr_t)__osCleanupThread)); line++) {
+    for (line = 1; (line < 22) && (((ra != 0) || (sp != 0)) && (pc != (uintptr_t)MM___osCleanupThread)); line++) {
         MM_FaultDrawer_DrawText(0x24, line * 8 + 24, "%08x %08x", sp, pc);
 
         if (flags & 1) {
@@ -889,7 +889,7 @@ void MM_Fault_LogStackTrace(OSThread* thread, u32 flags) {
     osSyncPrintf("STACK TRACE");
     osSyncPrintf("SP       PC       (VPC)\n");
 
-    for (line = 1; (line < 22) && (((ra != 0) || (sp != 0)) && (pc != (uintptr_t)__osCleanupThread)); line++) {
+    for (line = 1; (line < 22) && (((ra != 0) || (sp != 0)) && (pc != (uintptr_t)MM___osCleanupThread)); line++) {
         osSyncPrintf("%08x %08x", sp, pc);
 
         if (flags & 1) {
@@ -916,7 +916,7 @@ void MM_Fault_ResumeThread(OSThread* thread) {
     *(u32*)thread->context.pc = 0x0000000D; // write in a break instruction
     osWritebackDCache((void*)thread->context.pc, 4);
     osInvalICache((void*)thread->context.pc, 4);
-    osStartThread(thread);
+    MM_osStartThread(thread);
 #endif
 }
 
@@ -924,21 +924,21 @@ void Fault_DisplayFrameBuffer(void) {
 #if 0
     void* fb;
 
-    osViSetYScale(1.0f);
-    osViSetMode(&osViModeNtscLan1);
-    osViSetSpecialFeatures(OS_VI_GAMMA_OFF | OS_VI_DITHER_FILTER_ON);
-    osViBlack(false);
+    MM_osViSetYScale(1.0f);
+    MM_osViSetMode(&MM_osViModeNtscLan1);
+    MM_osViSetSpecialFeatures(OS_VI_GAMMA_OFF | OS_VI_DITHER_FILTER_ON);
+    MM_osViBlack(false);
 
     if (sFaultInstance->fb) {
         fb = sFaultInstance->fb;
     } else {
-        fb = osViGetNextFramebuffer();
+        fb = MM_osViGetNextFramebuffer();
         if ((uintptr_t)fb == K0BASE) {
-            fb = (void*)(PHYS_TO_K0(osMemSize) - SCREEN_HEIGHT * SCREEN_WIDTH * sizeof(u16));
+            fb = (void*)(PHYS_TO_K0(MM_osMemSize) - SCREEN_HEIGHT * SCREEN_WIDTH * sizeof(u16));
         }
     }
 
-    osViSwapBuffer(fb);
+    MM_osViSwapBuffer(fb);
     FaultDrawer_SetDrawerFrameBuffer(fb, SCREEN_WIDTH, SCREEN_HEIGHT);
 #endif
 }
@@ -996,7 +996,7 @@ void Fault_SetOptionsFromController3(void) {
             osSyncPrintf("GRAPH PC=%08x RA=%08x STACK=%08x\n", pc, ra, sp);
         }
         if (CHECK_BTN_ALL(input3->cur.button, BTN_B)) {
-            FaultDrawer_SetDrawerFrameBuffer(osViGetNextFramebuffer(), 0x140, 0xF0);
+            FaultDrawer_SetDrawerFrameBuffer(MM_osViGetNextFramebuffer(), 0x140, 0xF0);
             MM_Fault_DrawRec(0, 0xD7, 0x140, 9, 1);
             MM_FaultDrawer_SetCharPad(-2, 0);
             MM_FaultDrawer_DrawText(0x20, 0xD8, "GRAPH PC %08x RA %08x SP %08x", pc, ra, sp);
@@ -1021,13 +1021,13 @@ void MM_Fault_ThreadEntry(void* arg) {
     OSThread* faultedThread;
 
     // Direct OS event messages to the fault event queue
-    osSetEventMesg(OS_EVENT_CPU_BREAK, &sFaultInstance->queue, FAULT_MSG_CPU_BREAK);
-    osSetEventMesg(OS_EVENT_FAULT, &sFaultInstance->queue, FAULT_MSG_FAULT);
+    MM_osSetEventMesg(OS_EVENT_CPU_BREAK, &sFaultInstance->queue, FAULT_MSG_CPU_BREAK);
+    MM_osSetEventMesg(OS_EVENT_FAULT, &sFaultInstance->queue, FAULT_MSG_FAULT);
 
     while (true) {
         do {
             // Wait for a thread to hit a fault
-            osRecvMesg(&sFaultInstance->queue, &msg, OS_MESG_BLOCK);
+            MM_osRecvMesg(&sFaultInstance->queue, &msg, OS_MESG_BLOCK);
 
             if (msg == FAULT_MSG_CPU_BREAK) {
                 sFaultInstance->msgId = (u32)FAULT_MSG_CPU_BREAK;
@@ -1056,7 +1056,7 @@ void MM_Fault_ThreadEntry(void* arg) {
             }
         } while (faultedThread == NULL);
 
-        __osSetFpcCsr(__osGetFpcCsr() & ~(FPCSR_EV | FPCSR_EZ | FPCSR_EO | FPCSR_EU | FPCSR_EI));
+        MM___osSetFpcCsr(MM___osGetFpcCsr() & ~(FPCSR_EV | FPCSR_EZ | FPCSR_EO | FPCSR_EU | FPCSR_EI));
         sFaultInstance->faultedThread = faultedThread;
 
         while (!sFaultInstance->faultHandlerEnabled) {
@@ -1140,11 +1140,11 @@ void MM_Fault_Init(void) {
     sFaultInstance->clients = NULL;
     sFaultInstance->autoScroll = false;
     gFaultMgr.faultHandlerEnabled = true;
-    osCreateMesgQueue(&sFaultInstance->queue, sFaultInstance->msg, ARRAY_COUNT(sFaultInstance->msg));
+    MM_osCreateMesgQueue(&sFaultInstance->queue, sFaultInstance->msg, ARRAY_COUNT(sFaultInstance->msg));
     MM_StackCheck_Init(&sFaultStackInfo, sFaultStack, STACK_TOP(sFaultStack), 0, 0x100, "fault");
-    osCreateThread(&sFaultInstance->thread, Z_THREAD_ID_FAULT, MM_Fault_ThreadEntry, NULL, STACK_TOP(sFaultStack),
+    MM_osCreateThread(&sFaultInstance->thread, Z_THREAD_ID_FAULT, MM_Fault_ThreadEntry, NULL, STACK_TOP(sFaultStack),
                    Z_PRIORITY_FAULT);
-    osStartThread(&sFaultInstance->thread);
+    MM_osStartThread(&sFaultInstance->thread);
 #endif
 }
 
@@ -1154,10 +1154,10 @@ void MM_Fault_Init(void) {
  */
 void MM_Fault_HangupFaultClient(const char* exp1, const char* exp2) {
 #if 0
-    osSyncPrintf("HungUp on Thread %d\n", osGetThreadId(NULL));
+    osSyncPrintf("HungUp on Thread %d\n", MM_osGetThreadId(NULL));
     osSyncPrintf("%s\n", exp1 != NULL ? exp1 : "(NULL)");
     osSyncPrintf("%s\n", exp2 != NULL ? exp2 : "(NULL)");
-    MM_FaultDrawer_Printf("HungUp on Thread %d\n", osGetThreadId(NULL));
+    MM_FaultDrawer_Printf("HungUp on Thread %d\n", MM_osGetThreadId(NULL));
     MM_FaultDrawer_Printf("%s\n", exp1 != NULL ? exp1 : "(NULL)");
     MM_FaultDrawer_Printf("%s\n", exp2 != NULL ? exp2 : "(NULL)");
 #endif
@@ -1184,6 +1184,6 @@ void MM_Fault_AddHungupAndCrashImpl(const char* exp1, const char* exp2) {
 void MM_Fault_AddHungupAndCrash(const char* file, s32 line) {
     char msg[0x100];
 
-    sprintf(msg, "HungUp %s:%d", file, line);
+    MM_sprintf(msg, "HungUp %s:%d", file, line);
     MM_Fault_AddHungupAndCrashImpl(msg, NULL);
 }

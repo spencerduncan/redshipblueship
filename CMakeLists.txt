@@ -126,6 +126,12 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g -ffast-math -DDEBUG")
 set(CMAKE_C_FLAGS_RELEASE "-O3 -ffast-math -DNDEBUG")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math -DNDEBUG")
 else()
+set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG")
+set(CMAKE_OBJCXX_FLAGS_DEBUG "-g -DDEBUG")
+set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O2 -g -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g -DNDEBUG")
+set(CMAKE_OBJCXX_FLAGS_RELWITHDEBINFO "-O2 -g -DNDEBUG")
 set(CMAKE_C_FLAGS_RELEASE "-O2 -DNDEBUG")
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 set(CMAKE_OBJCXX_FLAGS_RELEASE "-O2 -DNDEBUG")
@@ -213,10 +219,32 @@ if(SINGLE_EXECUTABLE_BUILD)
     include(CMake/SingleExecutable.cmake)
     # rsbs is still used for shared code
     add_subdirectory(rsbs)
-    # Games are built but NOT as shared libraries - they provide object libraries
-    # For now, we still add the subdirectories but they will check SINGLE_EXECUTABLE_BUILD
+    # Games are built as OBJECT libraries for linking into single exe
     add_subdirectory(games/oot)
     add_subdirectory(games/mm)
+
+    # Link game STATIC libraries into redship (must be done after games are added)
+    # Each game is split into 2 STATIC libs to stay under MSVC limits:
+    # - LNK1170: OBJECT libs expand all .obj paths (>131K chars)
+    # - LNK1248: single STATIC lib >4GB COFF limit
+    # Split into src (decompiled game code) + port (port-specific code) keeps each <4GB.
+    #
+    # Use --start-group/--end-group on Linux to resolve circular deps
+    # between game libs, OTRExporter, ZAPDLib, and libultraship.
+    if(UNIX AND NOT APPLE)
+        target_link_libraries(redship PRIVATE
+            -Wl,--start-group
+            ${SOH_STATIC_TARGETS} ${TWOSHIP_STATIC_TARGETS}
+            ${REDSHIP_LIBRARY_DEPS}
+            -Wl,--end-group
+        )
+    else()
+        target_link_libraries(redship PRIVATE
+            ${SOH_STATIC_TARGETS} ${TWOSHIP_STATIC_TARGETS}
+            ${REDSHIP_LIBRARY_DEPS}
+        )
+    endif()
+    message(STATUS "Linking OoT (${SOH_STATIC_TARGETS}) and MM (${TWOSHIP_STATIC_TARGETS}) into redship")
 else()
     # Dynamic library architecture (combo/ approach)
     add_subdirectory(combo)
@@ -231,8 +259,11 @@ else()
 endif()
 
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
-install(TARGETS soh LIBRARY DESTINATION . COMPONENT ship)
-install(TARGETS 2ship LIBRARY DESTINATION . COMPONENT ship)
+if(NOT SINGLE_EXECUTABLE_BUILD)
+    # soh/2ship are STATIC libraries in single-exe mode, not installable
+    install(TARGETS soh LIBRARY DESTINATION . COMPONENT ship)
+    install(TARGETS 2ship LIBRARY DESTINATION . COMPONENT ship)
+endif()
 install(FILES "${CMAKE_BINARY_DIR}/soh/soh.o2r" DESTINATION . COMPONENT ship)
 install(TARGETS ZAPD_OoT DESTINATION ./assets/extractor COMPONENT extractor)
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/oot/assets/extractor/" DESTINATION ./assets COMPONENT extractor)

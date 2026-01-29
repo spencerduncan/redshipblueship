@@ -792,9 +792,9 @@ void EnWdhand_Draw(Actor* thisx, PlayState* play) {
 
     gfx = POLY_OPA_DISP;
 
-    gSPDisplayList(&gfx[0], gSetupDLs[25]);
+    MM_gSPDisplayList(&gfx[0], gSetupDLs[25]);
     MATRIX_FINALIZE_AND_LOAD(&gfx[1], play->state.gfxCtx);
-    gSPDisplayList(&gfx[2], gDexihandBaseDL);
+    MM_gSPDisplayList(&gfx[2], gDexihandBaseDL);
 
     Matrix_MultVecY(300.0f, &limbPos);
 
@@ -805,7 +805,7 @@ void EnWdhand_Draw(Actor* thisx, PlayState* play) {
         MM_Matrix_Push();
         EnWdhand_UpdateColliderLocationsForLimb(this, i, &limbPos);
         MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
-        gSPDisplayList(gfx++, gDexihandArmSegmentDL);
+        MM_gSPDisplayList(gfx++, gDexihandArmSegmentDL);
         MM_Matrix_Pop();
     }
 
@@ -823,7 +823,7 @@ void EnWdhand_Draw(Actor* thisx, PlayState* play) {
         MM_Matrix_Push();
         EnWdhand_UpdateColliderLocationsForLimb(this, i, &limbPos);
         MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
-        gSPDisplayList(gfx++, gDexihandArmSegmentDL);
+        MM_gSPDisplayList(gfx++, gDexihandArmSegmentDL);
         MM_Matrix_Pop();
     }
 

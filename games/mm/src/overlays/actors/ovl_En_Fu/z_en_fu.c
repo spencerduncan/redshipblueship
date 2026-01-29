@@ -1432,8 +1432,8 @@ void MM_EnFu_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     gDPPipeSync(POLY_OPA_DISP++);
-    gSPSegment(POLY_OPA_DISP++, 0x08, MM_Gfx_EnvColor(play->state.gfxCtx, 0, 50, 160, 0));
-    gSPSegment(POLY_OPA_DISP++, 0x09, MM_Gfx_EnvColor(play->state.gfxCtx, 255, 255, 255, 0));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, MM_Gfx_EnvColor(play->state.gfxCtx, 0, 50, 160, 0));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x09, MM_Gfx_EnvColor(play->state.gfxCtx, 255, 255, 255, 0));
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           MM_EnFu_OverrideLimbDraw, MM_EnFu_PostLimbDraw, &this->actor);
 
@@ -1499,16 +1499,16 @@ void func_80964950(PlayState* play, EnFuUnkStruct* ptr, s32 len) {
         if (ptr->unk_36 == 1) {
             FrameInterpolation_RecordOpenChild(ptr, i);
             if (!flag) {
-                gSPDisplayList(POLY_OPA_DISP++, gHoneyAndDarlingHeartMaterialDL);
+                MM_gSPDisplayList(POLY_OPA_DISP++, gHoneyAndDarlingHeartMaterialDL);
                 flag = true;
             }
             MM_Matrix_Translate(ptr->unk_08.x, ptr->unk_08.y, ptr->unk_08.z, MTXMODE_NEW);
             MM_Matrix_ReplaceRotation(&play->billboardMtxF);
             MM_Matrix_Scale(ptr->unk_00, ptr->unk_00, ptr->unk_00, MTXMODE_APPLY);
 
-            gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(gDropRecoveryHeartTex));
+            MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(gDropRecoveryHeartTex));
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, gHoneyAndDarlingHeartModelDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gHoneyAndDarlingHeartModelDL);
             FrameInterpolation_RecordCloseChild();
         }
     }
