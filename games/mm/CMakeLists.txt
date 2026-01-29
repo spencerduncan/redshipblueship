@@ -101,8 +101,11 @@ source_group("include" FILES ${Header_Files__include})
 file(GLOB_RECURSE ship__ RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "2s2h/*.c" "2s2h/*.cpp" "2s2h/*.h" "2s2h/*.hpp")
 # Collect Enhancements separately (will be 2ship_enh lib)
 file(GLOB_RECURSE ship__Enhancements RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "2s2h/Enhancements/*.c" "2s2h/Enhancements/*.cpp" "2s2h/Enhancements/*.h" "2s2h/Enhancements/*.hpp")
-# Remove Enhancements from ship__ (will be 2ship_port lib)
+# Collect Rando separately (will be 2ship_rando lib) - it's 2.1MB source and helps avoid 4GB limit
+file(GLOB_RECURSE ship__Rando RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "2s2h/Rando/*.c" "2s2h/Rando/*.cpp" "2s2h/Rando/*.h" "2s2h/Rando/*.hpp")
+# Remove Enhancements and Rando from ship__ (will be 2ship_port lib)
 list(FILTER ship__ EXCLUDE REGEX "2s2h/Enhancements/.*")
+list(FILTER ship__ EXCLUDE REGEX "2s2h/Rando/.*")
 
 # Create source groups that match the real file directory paths
 foreach(source IN LISTS ship__ ship__Enhancements)
@@ -273,14 +276,15 @@ if(SINGLE_EXECUTABLE_BUILD)
     # Split into three STATIC libraries to avoid:
     # - MSVC LNK1170: response file line >131K chars with 2500+ .obj paths
     # - MSVC LNK1248: COFF .lib archive >4GB
-    # Split: src/, 2s2h/ (w/o Enhancements), 2s2h/Enhancements/
+    # Split: src/, 2s2h/ (w/o Enhancements/Rando), 2s2h/Enhancements/, 2s2h/Rando/
     add_library(2ship_src STATIC ${src__} ${Header_Files__include})
     add_library(2ship_port STATIC
         ${ship__} ${ship__Extractor}
         "${CMAKE_CURRENT_SOURCE_DIR}/2s2h/GameExports_SingleExe.cpp"
     )
     add_library(2ship_enh STATIC ${ship__Enhancements})
-    set(TWOSHIP_COMPILE_TARGETS 2ship_src 2ship_port 2ship_enh)
+    add_library(2ship_rando STATIC ${ship__Rando})
+    set(TWOSHIP_COMPILE_TARGETS 2ship_src 2ship_port 2ship_enh 2ship_rando)
     foreach(_t ${TWOSHIP_COMPILE_TARGETS})
         target_compile_definitions(${_t} PRIVATE RSBS_SINGLE_EXECUTABLE)
     endforeach()
@@ -291,7 +295,7 @@ if(SINGLE_EXECUTABLE_BUILD)
     endforeach()
 
     # Export static targets for root CMakeLists to link into redship
-    set(TWOSHIP_STATIC_TARGETS 2ship_src 2ship_port 2ship_enh PARENT_SCOPE)
+    set(TWOSHIP_STATIC_TARGETS 2ship_src 2ship_port 2ship_enh 2ship_rando PARENT_SCOPE)
 else()
     # Build as SHARED library for dynamic loading
     add_library(${PROJECT_NAME} SHARED ${ALL_FILES})
