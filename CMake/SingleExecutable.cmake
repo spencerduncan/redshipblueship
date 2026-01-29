@@ -116,11 +116,18 @@ endif()
 # CMakeLists.txt to ensure correct link order on Linux (ld requires libraries
 # after the objects that reference them).
 # Store them in a variable for the root CMakeLists.txt to use.
+#
+# NOTE: ZAPDLib links OTRExporter with --whole-archive, and OTRExporter depends
+# on BinaryWriter from ZAPDLib (circular dependency). To resolve this on Linux,
+# we need both ZAPDLib variants and OTRExporter variants in the same link group.
 set(REDSHIP_LIBRARY_DEPS
     redship_common
     rsbs
     libultraship
-    ZAPDLib
+    ZAPDLib_OoT
+    ZAPDLib_MM
+    OTRExporter_OoT
+    OTRExporter_MM
     Ogg::ogg
     Vorbis::vorbis
     Vorbis::vorbisfile
