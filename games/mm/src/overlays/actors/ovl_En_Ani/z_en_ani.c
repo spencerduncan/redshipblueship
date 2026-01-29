@@ -345,7 +345,7 @@ void MM_EnAni_Draw(Actor* thisx, PlayState* play) {
     MM_Matrix_Translate(0.0f, 0.0f, -1000.0f, MTXMODE_APPLY);
     Gfx_SetupDL37_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeState]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeState]));
 
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           MM_EnAni_OverrideLimbDraw, MM_EnAni_PostLimbDraw, &this->actor);

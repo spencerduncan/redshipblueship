@@ -581,7 +581,7 @@ void func_809E34B8(Boss03* this, PlayState* play) {
     yDiff = this->unk_268.y - this->actor.world.pos.y;
     zDiff = this->unk_268.z - this->actor.world.pos.z;
 
-    MM_Math_ApproachS(&this->actor.world.rot.x, Math_Atan2S_XY(sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
+    MM_Math_ApproachS(&this->actor.world.rot.x, Math_Atan2S_XY(MM_sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
 
     bodyYRotTarget =
         MM_Math_SmoothStepToS(&this->actor.world.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0xA, this->unk_274, 0) * -0.5f;
@@ -600,7 +600,7 @@ void func_809E34B8(Boss03* this, PlayState* play) {
     }
 
     if (this->workTimer[WORK_TIMER_UNK2_A] == 0) {
-        if ((sqrtf(SQ(xDiff) + SQ(zDiff)) < 100.0f) || (this->workTimer[WORK_TIMER_UNK0_A] == 0)) {
+        if ((MM_sqrtf(SQ(xDiff) + SQ(zDiff)) < 100.0f) || (this->workTimer[WORK_TIMER_UNK0_A] == 0)) {
             for (i = 0; i < 200; i++) {
                 this->unk_268.x = MM_Rand_CenteredFloat(2500.0f);
                 this->unk_268.y = MM_Rand_ZeroFloat(100.0f) + 150.0f;
@@ -609,7 +609,7 @@ void func_809E34B8(Boss03* this, PlayState* play) {
                 xDiff = this->unk_268.x - this->actor.world.pos.x;
                 zDiff = this->unk_268.z - this->actor.world.pos.z;
 
-                if (sqrtf(SQ(xDiff) + SQ(zDiff)) > 300.0f) {
+                if (MM_sqrtf(SQ(xDiff) + SQ(zDiff)) > 300.0f) {
                     break;
                 }
             }
@@ -670,7 +670,7 @@ void Boss03_ChasePlayer(Boss03* this, PlayState* play) {
     yDiff = (player->actor.world.pos.y - this->actor.world.pos.y) + 50.0f;
     zDiff = player->actor.world.pos.z - this->actor.world.pos.z;
 
-    MM_Math_ApproachS(&this->actor.world.rot.x, Math_Atan2S_XY(sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
+    MM_Math_ApproachS(&this->actor.world.rot.x, Math_Atan2S_XY(MM_sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
     bodyYRotTarget =
         MM_Math_SmoothStepToS(&this->actor.world.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0xA, this->unk_274, 0) * -0.5f;
     MM_Math_ApproachS(&this->bodyYRot, bodyYRotTarget, 5, 0x100);
@@ -714,7 +714,7 @@ void Boss03_ChasePlayer(Boss03* this, PlayState* play) {
         xDiff = sp50.x - player->actor.world.pos.x;
         zDiff = sp50.z - player->actor.world.pos.z;
 
-        if (sqrtf(SQ(xDiff) + SQ(zDiff)) < (2.0f * phi_f2)) {
+        if (MM_sqrtf(SQ(xDiff) + SQ(zDiff)) < (2.0f * phi_f2)) {
             MM_Math_ApproachS(&this->jawZRot, 0x3200, 2, 0x1800);
             this->unk_278 = 25.0f;
             this->unk_27C = 5.0f;
@@ -722,7 +722,7 @@ void Boss03_ChasePlayer(Boss03* this, PlayState* play) {
         }
 
         // Near enough to Player?
-        if (sqrtf(SQ(xDiff) + SQ(zDiff)) < phi_f2) {
+        if (MM_sqrtf(SQ(xDiff) + SQ(zDiff)) < phi_f2) {
             Boss03_SetupCatchPlayer(this, play, sp43);
 
             if (sp43 != 0) {
@@ -767,7 +767,7 @@ void Boss03_CatchPlayer(Boss03* this, PlayState* play) {
     yDiff = player->actor.world.pos.y - this->actor.world.pos.y;
     zDiff = player->actor.world.pos.z - this->actor.world.pos.z;
 
-    MM_Math_ApproachS(&this->actor.world.rot.x, Math_Atan2S_XY(sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
+    MM_Math_ApproachS(&this->actor.world.rot.x, Math_Atan2S_XY(MM_sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
     MM_Math_ApproachS(&this->bodyYRot,
                    MM_Math_SmoothStepToS(&this->actor.world.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0xA, this->unk_274, 0) *
                        -0.5f,
@@ -872,7 +872,7 @@ void Boss03_ChewPlayer(Boss03* this, PlayState* play) {
     yDiff = this->unk_268.y - this->actor.world.pos.y;
     zDiff = this->unk_268.z - this->actor.world.pos.z;
 
-    MM_Math_ApproachS(&this->actor.world.rot.x, Math_Atan2S_XY(sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
+    MM_Math_ApproachS(&this->actor.world.rot.x, Math_Atan2S_XY(MM_sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
     MM_Math_ApproachS(&this->bodyYRot,
                    MM_Math_SmoothStepToS(&this->actor.world.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0xA, this->unk_274, 0) *
                        -0.5f,
@@ -883,7 +883,7 @@ void Boss03_ChewPlayer(Boss03* this, PlayState* play) {
     switch (this->unk_242) {
         case 0:
             MM_Math_ApproachF(&this->actor.speed, 10.0f, 1.0f, 1.0f);
-            if (sqrtf(SQ(xDiff) + SQ(zDiff)) < 100.0f) {
+            if (MM_sqrtf(SQ(xDiff) + SQ(zDiff)) < 100.0f) {
                 this->unk_242 = 1;
                 MM_Animation_MorphToLoop(&this->skelAnime, &gGyorgBackingUpAnim, -15.0f);
             }
@@ -954,7 +954,7 @@ void Boss03_SetupPrepareCharge(Boss03* this, PlayState* play) {
     this->workTimer[WORK_TIMER_UNK1_B] = 50;
     this->unk_274 = 0;
 
-    if (sqrtf(SQXZ(this->actor.world.pos)) > 600.0f) {
+    if (MM_sqrtf(SQXZ(this->actor.world.pos)) > 600.0f) {
         if (MM_Rand_ZeroOne() < 0.5f) {
             this->unk_242 = 1;
         } else {
@@ -1036,7 +1036,7 @@ void Boss03_Charge(Boss03* this, PlayState* play) {
 
     MM_Math_ApproachS(&this->actor.world.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0xA, 0x1000);
 
-    rotXTarget = Math_Atan2S_XY(sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff);
+    rotXTarget = Math_Atan2S_XY(MM_sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff);
     MM_Math_ApproachS(&this->actor.world.rot.x, rotXTarget, 0xA, 0x1000);
 
     this->actor.shape.rot = this->actor.world.rot;
@@ -1048,7 +1048,7 @@ void Boss03_Charge(Boss03* this, PlayState* play) {
     if (this->actor.speed >= 20.0f) {
         // Jump over platform
         if (this->unk_242 == 1) {
-            if (sqrtf(SQXZ(this->actor.world.pos)) < 700.0f) {
+            if (MM_sqrtf(SQXZ(this->actor.world.pos)) < 700.0f) {
                 Boss03_SetupJumpOverPlatform(this, play);
                 return;
             }
@@ -1206,7 +1206,7 @@ void Boss03_IntroCutscene(Boss03* this, PlayState* play) {
                             zDiff = D_809E9104[this->unk_242].z - this->actor.world.pos.z;
 
                             MM_Math_ApproachS(&this->actor.world.rot.x,
-                                           Math_Atan2S_XY(sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
+                                           Math_Atan2S_XY(MM_sqrtf(SQ(xDiff) + SQ(zDiff)), -yDiff), 0xA, this->unk_274);
                             MM_Math_ApproachS(&this->actor.world.rot.y, Math_Atan2S_XY(zDiff, xDiff), 0xA, this->unk_274);
                             MM_Math_ApproachS(&this->unk_274, 0x200, 1, 0x10);
 
@@ -1223,7 +1223,7 @@ void Boss03_IntroCutscene(Boss03* this, PlayState* play) {
                             }
 
                             if (this->unk_242 < 2) {
-                                if (sqrtf(SQ(xDiff) + SQ(zDiff)) < 100.0f) {
+                                if (MM_sqrtf(SQ(xDiff) + SQ(zDiff)) < 100.0f) {
                                     this->unk_242++;
                                     this->unk_274 = 0;
                                     if (this->unk_242 >= 2) {
@@ -2141,7 +2141,7 @@ void Boss03_Update(Actor* thisx, PlayState* play2) {
             dropletPos.y = PLATFORM_HEIGHT;
             dropletPos.z += this->unk_28C + MM_Rand_CenteredFloat(40.0f);
 
-            if (sqrtf(SQ(dropletPos.x) + SQ(dropletPos.z)) < 355.0f) {
+            if (MM_sqrtf(SQ(dropletPos.x) + SQ(dropletPos.z)) < 355.0f) {
                 Boss03_SpawnEffectDroplet(play, &dropletPos);
                 i++;
             }
@@ -2165,8 +2165,8 @@ void Boss03_SetObject(PlayState* play, s16 objectId) {
 
     MM_gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[objectSlot].segment);
 
-    gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[objectSlot].segment);
-    gSPSegment(POLY_XLU_DISP++, 0x06, play->objectCtx.slots[objectSlot].segment);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[objectSlot].segment);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x06, play->objectCtx.slots[objectSlot].segment);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -2428,7 +2428,7 @@ void Boss03_DrawEffects(PlayState* play) {
             FrameInterpolation_RecordOpenChild(eff, eff->type);
             FrameInterpolation_IgnoreActorMtx();
             if (!flag) {
-                gSPDisplayList(POLY_OPA_DISP++, gGyorgBubbleMaterialDL);
+                MM_gSPDisplayList(POLY_OPA_DISP++, gGyorgBubbleMaterialDL);
                 gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, 255);
                 gDPSetEnvColor(POLY_OPA_DISP++, 150, 150, 150, 0);
 
@@ -2440,7 +2440,7 @@ void Boss03_DrawEffects(PlayState* play) {
             MM_Matrix_ReplaceRotation(&play->billboardMtxF);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, gGyorgBubbleModelDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gGyorgBubbleModelDL);
             FrameInterpolation_RecordCloseChild();
         }
     }
@@ -2458,8 +2458,8 @@ void Boss03_DrawEffects(PlayState* play) {
             if (!flag) {
                 POLY_XLU_DISP = MM_Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_0);
 
-                gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gEffDust1Tex));
-                gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_004260);
+                MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gEffDust1Tex));
+                MM_gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_004260);
                 gDPSetEnvColor(POLY_XLU_DISP++, 250, 250, 255, 0);
 
                 flag++;
@@ -2479,7 +2479,7 @@ void Boss03_DrawEffects(PlayState* play) {
             Matrix_RotateZF(eff->unk_34.z, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_0042B0);
+            MM_gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_0042B0);
             FrameInterpolation_RecordCloseChild();
         }
     }
@@ -2495,9 +2495,9 @@ void Boss03_DrawEffects(PlayState* play) {
             if (!flag) {
                 Gfx_SetupDL44_Xlu(gfxCtx);
 
-                gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gEffDust1Tex));
+                MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gEffDust1Tex));
                 gDPSetEnvColor(POLY_XLU_DISP++, 250, 250, 255, 0);
-                gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_004260);
+                MM_gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_004260);
 
                 flag++;
             }
@@ -2511,7 +2511,7 @@ void Boss03_DrawEffects(PlayState* play) {
             Matrix_RotateYF(eff->unk_34.z, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_0042F8);
+            MM_gSPDisplayList(POLY_XLU_DISP++, object_water_effect_DL_0042F8);
             FrameInterpolation_RecordCloseChild();
         }
     }
@@ -2549,7 +2549,7 @@ void Boss03_SeaweedUpdate(Actor* thisx, PlayState* play) {
         xDiff = player->actor.world.pos.x - this->seaweedSegmentPositions[i].x;
         yDiff = player->actor.world.pos.y - this->seaweedSegmentPositions[i].y;
         zDiff = player->actor.world.pos.z - this->seaweedSegmentPositions[i].z;
-        distanceBetweenSeaweedAndDisturbance = sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff));
+        distanceBetweenSeaweedAndDisturbance = MM_sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff));
         disturbanceFactor = player->actor.speed * 3.0f + 70.0f;
 
         // Player is standing on ground
@@ -2583,7 +2583,7 @@ void Boss03_SeaweedUpdate(Actor* thisx, PlayState* play) {
             yDiff = sGyorgBossInstance->actor.world.pos.y - this->seaweedSegmentPositions[i].y;
             zDiff = sGyorgBossInstance->actor.world.pos.z - this->seaweedSegmentPositions[i].z;
 
-            distanceBetweenSeaweedAndDisturbance = sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff));
+            distanceBetweenSeaweedAndDisturbance = MM_sqrtf(SQ(xDiff) + SQ(yDiff) + SQ(zDiff));
 
             if ((i == 0) && (distanceBetweenSeaweedAndDisturbance > 400.0f)) {
                 break;
@@ -2633,7 +2633,7 @@ void Boss03_SeaweedDraw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x0D, mtx);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0D, mtx);
 
     MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
     MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
@@ -2652,7 +2652,7 @@ void Boss03_SeaweedDraw(Actor* thisx, PlayState* play) {
         MM_Matrix_ToMtx(mtx);
         gSPMatrix(POLY_OPA_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
-        gSPDisplayList(POLY_OPA_DISP++, sGyorgSeaweedDLs[i]);
+        MM_gSPDisplayList(POLY_OPA_DISP++, sGyorgSeaweedDLs[i]);
 
         Matrix_MultZero(&this->seaweedSegmentPositions[i]);
         MM_Matrix_Translate(4000.0f, 0.0f, 0.0f, MTXMODE_APPLY);

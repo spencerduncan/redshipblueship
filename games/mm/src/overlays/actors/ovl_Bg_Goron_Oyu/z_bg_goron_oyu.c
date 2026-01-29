@@ -185,8 +185,8 @@ void BgGoronOyu_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
     AnimatedMat_Draw(play, Lib_SegmentedToVirtual(gGoronGraveyardHotSpringWaterTexAnim));
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, &gGoronGraveyardHotSpringWaterEmptyDL);
-    gSPDisplayList(POLY_XLU_DISP++, &gGoronGraveyardHotSpringWaterDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, &gGoronGraveyardHotSpringWaterEmptyDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, &gGoronGraveyardHotSpringWaterDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

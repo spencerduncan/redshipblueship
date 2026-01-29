@@ -425,9 +425,9 @@ void EnTakaraya_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     if ((GET_PLAYER_FORM == PLAYER_FORM_DEKU) || (GET_PLAYER_FORM == PLAYER_FORM_HUMAN)) {
-        gSPSegment(POLY_OPA_DISP++, 0x08, sEyesDownTextures[this->eyeTexIndex]);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, sEyesDownTextures[this->eyeTexIndex]);
     } else {
-        gSPSegment(POLY_OPA_DISP++, 0x08, sEyesUpTextures[this->eyeTexIndex]);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, sEyesUpTextures[this->eyeTexIndex]);
     }
     SkelAnime_DrawTransformFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                    this->skelAnime.dListCount, EnTakaraya_OverrideLimbDraw, NULL,

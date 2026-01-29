@@ -253,15 +253,25 @@ void OoT_MyFunc(void) {
         self.assertIsNone(while_oot)
         self.assertIsNone(switch_oot)
 
-    def test_skip_underscore_prefix(self):
-        """Test that symbols starting with underscore are skipped."""
-        self.write_oot_file("private.c", """
-void _privateFunc(void) { }
+    def test_underscore_prefix_found(self):
+        """Test that symbols starting with underscore ARE found (regression: previously skipped)."""
+        self.write_oot_file("osmalloc.c", """
+void __osMallocInit(Arena* arena, void* start, size_t size) {
+    memset(arena, 0, sizeof(Arena));
+}
+""")
+        self.write_oot_file("printf.c", """
+int _Printf(const char* fmt) {
+    return 0;
+}
 """)
         locator = self.create_locator()
 
-        private_oot, _ = locator.locate("_privateFunc")
-        self.assertIsNone(private_oot)
+        malloc_oot, _ = locator.locate("__osMallocInit")
+        self.assertIsNotNone(malloc_oot, "__osMallocInit should be found (double underscore)")
+
+        printf_oot, _ = locator.locate("_Printf")
+        self.assertIsNotNone(printf_oot, "_Printf should be found (single underscore)")
 
     # =========================================================================
     # Subdirectories
@@ -277,6 +287,74 @@ void OoT_NestedFunc(void) { }
 
         self.assertIsNotNone(oot_file)
         self.assertEqual(oot_file.name, "nested.c")
+
+    # =========================================================================
+    # C++ and .inc file support (regression: previously only scanned .c/.h)
+    # =========================================================================
+
+    def test_extract_from_cpp_files(self):
+        """Test that symbols in .cpp files are found."""
+        self.write_oot_file("GbiWrap.cpp", """
+void gSPDisplayList(Gfx** p, Gfx* dl) {
+    return;
+}
+void gSPSegment(Gfx** p, int seg, uintptr_t base) {
+    return;
+}
+""")
+        locator = self.create_locator()
+
+        dl_oot, _ = locator.locate("gSPDisplayList")
+        seg_oot, _ = locator.locate("gSPSegment")
+
+        self.assertIsNotNone(dl_oot, ".cpp functions should be found")
+        self.assertIsNotNone(seg_oot, ".cpp functions should be found")
+
+    def test_extract_from_inc_files(self):
+        """Test that symbols in .inc files are found."""
+        self.write_oot_file("z_camera_data.inc", """
+static s32 sCameraInterfaceFlags = 0;
+static CameraSetting sCameraSettings[] = { {0} };
+""")
+        locator = self.create_locator()
+
+        flags_oot, _ = locator.locate("sCameraInterfaceFlags")
+        settings_oot, _ = locator.locate("sCameraSettings")
+
+        self.assertIsNotNone(flags_oot, ".inc variables should be found")
+        self.assertIsNotNone(settings_oot, ".inc variables should be found")
+
+    # =========================================================================
+    # Extra directories (enhancement layers)
+    # =========================================================================
+
+    def test_extra_dirs_scanned(self):
+        """Test that extra directories (enhancement layers) are scanned."""
+        # Create enhancement layer dirs
+        oot_soh = Path(self.temp_dir.name) / "oot" / "soh"
+        mm_2s2h = Path(self.temp_dir.name) / "mm" / "2s2h"
+        oot_soh.mkdir(parents=True)
+        mm_2s2h.mkdir(parents=True)
+
+        (oot_soh / "stubs.c").write_text("""
+void osSetIntMask(int mask) { }
+""")
+        (mm_2s2h / "stubs.c").write_text("""
+void MM_osSetIntMask(int mask) { }
+""")
+
+        locator = SymbolLocator(
+            oot_dir=str(self.oot_dir),
+            mm_dir=str(self.mm_dir),
+            oot_extra_dirs=[str(oot_soh)],
+            mm_extra_dirs=[str(mm_2s2h)],
+        )
+
+        oot_file, _ = locator.locate("osSetIntMask")
+        _, mm_file = locator.locate("MM_osSetIntMask")
+
+        self.assertIsNotNone(oot_file, "Enhancement layer symbols should be found")
+        self.assertIsNotNone(mm_file, "Enhancement layer symbols should be found")
 
     # =========================================================================
     # Helper Methods

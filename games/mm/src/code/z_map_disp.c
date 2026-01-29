@@ -479,7 +479,7 @@ void MapDisp_Minimap_DrawActorIcon(PlayState* play, Actor* actor) {
             // #endregion
             MATRIX_FINALIZE_AND_LOAD(OVERLAY_DISP++, play->state.gfxCtx);
             gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 200, 255, 0, play->interfaceCtx.minimapAlpha);
-            gSPDisplayList(OVERLAY_DISP++, gCompassArrowDL);
+            MM_gSPDisplayList(OVERLAY_DISP++, gCompassArrowDL);
         } else if ((actor->id == ACTOR_EN_BOX) && !MM_Flags_GetTreasure(play, actor->params & 0x1F) &&
                    (MapDisp_GetStoreyY(player->actor.world.pos.y) == MapDisp_GetStoreyY(actor->world.pos.y))) {
             Gfx_SetupDL39_Overlay(play->state.gfxCtx);
@@ -1316,7 +1316,7 @@ void MapDisp_Minimap_DrawRedCompassIcon(PlayState* play, s32 x, s32 z, s32 rot) 
         // #endregion
         MATRIX_FINALIZE_AND_LOAD(OVERLAY_DISP++, play->state.gfxCtx);
         gDPSetPrimColor(OVERLAY_DISP++, 0, 255, 200, 0, 0, play->interfaceCtx.minimapAlpha);
-        gSPDisplayList(OVERLAY_DISP++, gCompassArrowDL);
+        MM_gSPDisplayList(OVERLAY_DISP++, gCompassArrowDL);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -1736,7 +1736,7 @@ void MapDisp_DrawRooms(PlayState* play, s32 viewX, s32 viewY, s32 viewWidth, s32
         }
 
         // 2S2H [Port] Invalidate the map textures so that the palette updates apply
-        gSPInvalidateTexCache(POLY_OPA_DISP++, roomTexture);
+        MM_gSPInvalidateTexCache(POLY_OPA_DISP++, roomTexture);
         gSPTextureRectangle(POLY_OPA_DISP++, (texPosX << 2), (texPosY << 2), (texPosX + texWidth) << 2,
                             (texPosY + texHeight) << 2, 0, s, t, dsdx, dtdy);
         gDPPipeSync(POLY_OPA_DISP++);

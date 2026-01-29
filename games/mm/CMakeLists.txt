@@ -99,8 +99,16 @@ source_group("include" FILES ${Header_Files__include})
 # }}}
 
 file(GLOB_RECURSE ship__ RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "2s2h/*.c" "2s2h/*.cpp" "2s2h/*.h" "2s2h/*.hpp")
+# Collect Enhancements separately (will be 2ship_enh lib)
+file(GLOB_RECURSE ship__Enhancements RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "2s2h/Enhancements/*.c" "2s2h/Enhancements/*.cpp" "2s2h/Enhancements/*.h" "2s2h/Enhancements/*.hpp")
+# Collect Rando separately (will be 2ship_rando lib) - it's 2.1MB source and helps avoid 4GB limit
+file(GLOB_RECURSE ship__Rando RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "2s2h/Rando/*.c" "2s2h/Rando/*.cpp" "2s2h/Rando/*.h" "2s2h/Rando/*.hpp")
+# Remove Enhancements and Rando from ship__ (will be 2ship_port lib)
+list(FILTER ship__ EXCLUDE REGEX "2s2h/Enhancements/.*")
+list(FILTER ship__ EXCLUDE REGEX "2s2h/Rando/.*")
+
 # Create source groups that match the real file directory paths
-foreach(source IN LISTS ship__)
+foreach(source IN LISTS ship__ ship__Enhancements)
     get_filename_component(source_path "${source}" PATH)
     string(REPLACE "/" "\\" source_path_adjusted "${source_path}")
     source_group("${source_path_adjusted}" FILES "${source}")
@@ -138,7 +146,8 @@ endif()
 # src (decomp) {{{
 file(GLOB_RECURSE src__ RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*.c" "src/*.h")
 
-if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+# Skip Resource.rc in single-exe mode to avoid duplicate VERSION resource (LNK1123)
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows" AND NOT SINGLE_EXECUTABLE_BUILD)
     list(APPEND src__ ${CMAKE_CURRENT_SOURCE_DIR}/windows/Resource.rc)
 endif()
 
@@ -185,66 +194,178 @@ set(ALL_FILES
 list(APPEND ALL_FILES "${CMAKE_CURRENT_SOURCE_DIR}/2s2h/GameExports.cpp")
 
 ################################################################################
-# Target - always build as shared library for unified combo launcher
+# Target - OBJECT library for single-exe, SHARED for dynamic loading
 ################################################################################
-add_library(${PROJECT_NAME} SHARED ${ALL_FILES})
-target_compile_definitions(${PROJECT_NAME} PRIVATE GAME_BUILDING_DLL)
+if(SINGLE_EXECUTABLE_BUILD)
+    # Aggressively exclude MM's enhancement layer - will use OoT's versions
+    # These can be re-enabled/customized later
+    # NOTE: Filters applied to ship__ and src__ directly (not ALL_FILES)
+    # because OBJECT libs are created from these lists, not ALL_FILES.
 
-# Symbol visibility
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    C_VISIBILITY_PRESET hidden
-    CXX_VISIBILITY_PRESET hidden
-    VISIBILITY_INLINES_HIDDEN ON
-)
+    # Main port glue (OTRGlobals equivalent)
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/BenPort\\.cpp$")
 
-# Platform-specific naming for shared library
-if(WIN32)
-    set_target_properties(${PROJECT_NAME} PROPERTIES
-        PREFIX ""
-        SUFFIX ".dll"
+    # All GUI components
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/BenGui/.*\\.cpp$")
+
+    # All developer tools
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/DeveloperTools/.*\\.cpp$")
+
+    # All enhancements - entire directory
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/Enhancements/.*\\.cpp$")
+
+    # GameInteractor (use OoT's)
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/GameInteractor/.*\\.cpp$")
+
+    # Object extension
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/ObjectExtension/.*\\.cpp$")
+
+    # Ship utils and CrashHandlerExt (depends on ShipUtils GetActorDescription)
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/ShipUtils\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/CrashHandlerExt\\.cpp$")
+
+    # Framebuffer effects
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/framebuffer_effects\\.c$")
+
+    # gu_pc (graphics utils)
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/gu_pc\\.c$")
+
+    # Audio mixer
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/mixer\\.c$")
+
+    # Custom message
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/CustomMessage/.*\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/CustomItem/.*\\.cpp$")
+
+    # Rando
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/Rando/.*\\.cpp$")
+
+    # Save Manager
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/SaveManager/.*\\.cpp$")
+
+    # Resource importers and types (identical between games)
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/resource/.*\\.cpp$")
+
+    # Extractor
+    list(FILTER ship__Extractor EXCLUDE REGEX "2s2h/Extractor/.*\\.cpp$")
+    list(FILTER ship__Extractor EXCLUDE REGEX "2s2h/Extractor/.*\\.c$")
+
+    # OTR-specific scene/play files
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/z_message_OTR\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/z_play_2SH\\.cpp$")
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/z_scene_2SH\\.cpp$")
+
+    # Ship init
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/ShipInit\\.cpp$")
+
+    # Preset manager
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/PresetManager/.*\\.cpp$")
+
+    # NameTag (in its own directory)
+    list(FILTER ship__ EXCLUDE REGEX "2s2h/NameTag/.*\\.cpp$")
+
+    # Audio subsystem (different between games - keep core but need namespacing)
+    # Exclude load.c - has audio loading collisions
+    list(FILTER src__ EXCLUDE REGEX "src/audio/lib/load\\.c$")
+
+    # Core colliding files - use OoT versions
+    list(FILTER src__ EXCLUDE REGEX "src/code/__osMalloc\\.c$")
+    list(FILTER src__ EXCLUDE REGEX "src/libc/printutils\\.c$")
+    list(FILTER src__ EXCLUDE REGEX "src/boot/fault_drawer\\.c$")
+
+    # Split into three STATIC libraries to avoid:
+    # - MSVC LNK1170: response file line >131K chars with 2500+ .obj paths
+    # - MSVC LNK1248: COFF .lib archive >4GB
+    # Split: src/, 2s2h/ (w/o Enhancements/Rando), 2s2h/Enhancements/, 2s2h/Rando/
+    add_library(2ship_src STATIC ${src__} ${Header_Files__include})
+    add_library(2ship_port STATIC
+        ${ship__} ${ship__Extractor}
+        "${CMAKE_CURRENT_SOURCE_DIR}/2s2h/GameExports_SingleExe.cpp"
     )
-elseif(APPLE)
-    set_target_properties(${PROJECT_NAME} PROPERTIES
-        PREFIX ""
-        SUFFIX ".dylib"
-    )
+    add_library(2ship_enh STATIC ${ship__Enhancements})
+    add_library(2ship_rando STATIC ${ship__Rando})
+    set(TWOSHIP_COMPILE_TARGETS 2ship_src 2ship_port 2ship_enh 2ship_rando)
+    foreach(_t ${TWOSHIP_COMPILE_TARGETS})
+        target_compile_definitions(${_t} PRIVATE RSBS_SINGLE_EXECUTABLE)
+    endforeach()
+
+    # Propagate compile-time deps to STATIC libs
+    foreach(_t ${TWOSHIP_COMPILE_TARGETS})
+        target_link_libraries(${_t} PRIVATE redship_common rsbs libultraship ZAPDLib)
+    endforeach()
+
+    # Export static targets for root CMakeLists to link into redship
+    set(TWOSHIP_STATIC_TARGETS 2ship_src 2ship_port 2ship_enh 2ship_rando PARENT_SCOPE)
 else()
+    # Build as SHARED library for dynamic loading
+    add_library(${PROJECT_NAME} SHARED ${ALL_FILES})
+    set(TWOSHIP_COMPILE_TARGETS ${PROJECT_NAME})
+    target_compile_definitions(${PROJECT_NAME} PRIVATE GAME_BUILDING_DLL)
+
+    # Symbol visibility (only for shared library)
     set_target_properties(${PROJECT_NAME} PROPERTIES
-        PREFIX ""
-        SUFFIX ".so"
+        C_VISIBILITY_PRESET hidden
+        CXX_VISIBILITY_PRESET hidden
+        VISIBILITY_INLINES_HIDDEN ON
     )
+
+    # Platform-specific naming for shared library
+    if(WIN32)
+        set_target_properties(${PROJECT_NAME} PROPERTIES
+            PREFIX ""
+            SUFFIX ".dll"
+        )
+    elseif(APPLE)
+        set_target_properties(${PROJECT_NAME} PROPERTIES
+            PREFIX ""
+            SUFFIX ".dylib"
+        )
+    else()
+        set_target_properties(${PROJECT_NAME} PROPERTIES
+            PREFIX ""
+            SUFFIX ".so"
+        )
+    endif()
+
+    # Link deps (only for SHARED — OBJECT libs don't link, deps go on redship)
+    target_link_libraries(${PROJECT_NAME} PRIVATE redship_common rsbs)
 endif()
 
-# Link redship_common for cross-game API (src/common implementations)
-# Link rsbs for unified shared code
-target_link_libraries(${PROJECT_NAME} PRIVATE redship_common rsbs)
-# Include combo headers for compatibility (headers forward to src/common)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/combo/include)
-
-if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-use_props(${PROJECT_NAME} "${CMAKE_CONFIGURATION_TYPES}" "${DEFAULT_CXX_PROPS}")
-endif()
+# Include combo headers for compatibility
+foreach(_t ${TWOSHIP_COMPILE_TARGETS})
+    target_include_directories(${_t} PRIVATE ${CMAKE_SOURCE_DIR}/combo/include)
+endforeach()
 
 set(ROOT_NAMESPACE 2s2h)
 
+################################################################################
+# Apply compile properties to all MM targets (foreach handles OBJECT split)
+################################################################################
+foreach(_t ${TWOSHIP_COMPILE_TARGETS})
+
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-	set_target_properties(${PROJECT_NAME} PROPERTIES
+use_props(${_t} "${CMAKE_CONFIGURATION_TYPES}" "${DEFAULT_CXX_PROPS}")
+endif()
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+	set_target_properties(${_t} PROPERTIES
 		VS_GLOBAL_KEYWORD "Win32Proj"
 	)
-	set_target_properties(${PROJECT_NAME} PROPERTIES
-		INTERPROCEDURAL_OPTIMIZATION_RELEASE "TRUE"
-	)
+	if(NOT SINGLE_EXECUTABLE_BUILD)
+		set_target_properties(${_t} PROPERTIES
+			INTERPROCEDURAL_OPTIMIZATION_RELEASE "TRUE"
+		)
+	endif()
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    set_target_properties(${PROJECT_NAME} PROPERTIES
+    set_target_properties(${_t} PROPERTIES
         XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES
     )
-    # Shared library uses platform-specific naming set above
 endif()
 ################################################################################
 # MSVC runtime library
 ################################################################################
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-	get_property(MSVC_RUNTIME_LIBRARY_DEFAULT TARGET ${PROJECT_NAME} PROPERTY MSVC_RUNTIME_LIBRARY)
+	get_property(MSVC_RUNTIME_LIBRARY_DEFAULT TARGET ${_t} PROPERTY MSVC_RUNTIME_LIBRARY)
 	string(CONCAT "MSVC_RUNTIME_LIBRARY_STR"
 		$<$<CONFIG:Debug>:
 			MultiThreadedDebug
@@ -254,7 +375,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 		>
 		$<$<NOT:$<OR:$<CONFIG:Debug>,$<CONFIG:Release>>>:${MSVC_RUNTIME_LIBRARY_DEFAULT}>
 	)
-	set_target_properties(${PROJECT_NAME} PROPERTIES MSVC_RUNTIME_LIBRARY ${MSVC_RUNTIME_LIBRARY_STR})
+	set_target_properties(${_t} PROPERTIES MSVC_RUNTIME_LIBRARY ${MSVC_RUNTIME_LIBRARY_STR})
 endif()
 ################################################################################
 # Compile definitions
@@ -267,7 +388,7 @@ if (BUILD_CROWD_CONTROL)
     set(SDL2-NET-INCLUDE ${SDL_NET_INCLUDE_DIRS})
 endif()
 
-target_include_directories(${PROJECT_NAME} PRIVATE assets
+target_include_directories(${_t} PRIVATE assets
 	${CMAKE_CURRENT_SOURCE_DIR}/include/
 	${CMAKE_CURRENT_SOURCE_DIR}/include/PR
 	${CMAKE_CURRENT_SOURCE_DIR}/src/
@@ -283,12 +404,12 @@ target_include_directories(${PROJECT_NAME} PRIVATE assets
 )
 
 # Add combo include directory (combo library already linked above)
-target_include_directories(${PROJECT_NAME} PRIVATE
+target_include_directories(${_t} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../combo/include
 )
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-	target_compile_definitions(${PROJECT_NAME} PRIVATE
+	target_compile_definitions(${_t} PRIVATE
 		"$<$<CONFIG:Debug>:"
 			"_DEBUG;"
 			"_CRT_SECURE_NO_WARNINGS;"
@@ -310,7 +431,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 		NOMINMAX
 	)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
-	target_compile_definitions(${PROJECT_NAME} PRIVATE
+	target_compile_definitions(${_t} PRIVATE
 		"$<$<CONFIG:Debug>:"
 			"_DEBUG;"
 		">"
@@ -325,7 +446,7 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
         LOG_LEVEL_GAME_PRINTS=${SPDLOG_LEVEL_OFF}
 	)
 elseif ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU|Clang|AppleClang")
-	target_compile_definitions(${PROJECT_NAME} PRIVATE
+	target_compile_definitions(${_t} PRIVATE
 		"$<$<CONFIG:Debug>:"
 			"_DEBUG;"
 		">"
@@ -349,7 +470,7 @@ endif()
 # Compile and link options
 ################################################################################
 if(MSVC)
-    target_compile_options(${PROJECT_NAME} PRIVATE
+    target_compile_options(${_t} PRIVATE
         $<$<CONFIG:Debug>:
             /w;
             /Od
@@ -372,8 +493,8 @@ if(MSVC)
         ${DEFAULT_CXX_DEBUG_INFORMATION_FORMAT};
         ${DEFAULT_CXX_EXCEPTION_HANDLING}
     )
-    target_compile_options(${PROJECT_NAME} PRIVATE  $<$<CONFIG:Debug>:/ZI;>)
-    target_link_options(${PROJECT_NAME} PRIVATE
+    target_compile_options(${_t} PRIVATE  $<$<CONFIG:Debug>:/ZI;>)
+    target_link_options(${_t} PRIVATE
         $<$<CONFIG:Debug>:
             /INCREMENTAL
         >
@@ -391,7 +512,7 @@ endif()
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
     if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-        target_compile_options(${PROJECT_NAME} PRIVATE
+        target_compile_options(${_t} PRIVATE
             -Wall -Wextra -Wno-error
             -Wno-return-type
             -Wno-unused-parameter
@@ -401,6 +522,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
             -Wno-parentheses
             -Wno-narrowing
             -Wno-missing-braces
+            -Wno-unknown-pragmas
             $<$<COMPILE_LANGUAGE:C>:
                 #-Werror-implicit-function-declaration
                 -Wno-ignored-qualifiers
@@ -415,11 +537,11 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
             -pthread
         )
 
-        target_link_options(${PROJECT_NAME} PRIVATE
+        target_link_options(${_t} PRIVATE
             -pthread
         )
     elseif (CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
-        target_compile_options(${PROJECT_NAME} PRIVATE
+        target_compile_options(${_t} PRIVATE
             -Wall -Wextra -Wno-error
             -Wno-return-type
             -Wno-unused-parameter
@@ -429,6 +551,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
             -Wno-parentheses
             -Wno-narrowing
             -Wno-missing-braces
+            -Wno-unknown-pragmas
             $<$<COMPILE_LANGUAGE:C>:
                 -Werror-implicit-function-declaration
                 -Wno-incompatible-pointer-types
@@ -441,11 +564,11 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
             -pthread
         )
 
-        target_link_options(${PROJECT_NAME} PRIVATE
+        target_link_options(${_t} PRIVATE
             -pthread
         )
     elseif (CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
-        target_compile_options(${PROJECT_NAME} PRIVATE
+        target_compile_options(${_t} PRIVATE
             -O2
 
             # disable some warnings to not clutter output
@@ -469,7 +592,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
 		set(CPU_OPTION -msse2 -mfpmath=sse)
         endif()
 
-        target_compile_options(${PROJECT_NAME} PRIVATE
+        target_compile_options(${_t} PRIVATE
             -Wall -Wextra -Wno-error
             -Wno-unused-parameter
             -Wno-unused-function
@@ -478,6 +601,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
             -Wno-parentheses
             -Wno-narrowing
             -Wno-missing-braces
+            -Wno-unknown-pragmas
             $<$<COMPILE_LANGUAGE:C>:
                 -Wno-discarded-qualifiers
                 -Wno-discarded-array-qualifiers
@@ -491,7 +615,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
 	    ${CPU_OPTION}
         )
 
-        target_link_options(${PROJECT_NAME} PRIVATE
+        target_link_options(${_t} PRIVATE
             -pthread
             -Wl,-export-dynamic
         )
@@ -506,63 +630,104 @@ SKIP_PRECOMPILE_HEADERS ON
 
 ################################################################################
 # Precompiled Headers
+# For OBJECT library builds, we use -include instead of PCH to avoid .gch linker issue
 ################################################################################
-target_precompile_headers(${PROJECT_NAME} PRIVATE
-    "$<$<COMPILE_LANGUAGE:CXX>:<libultraship/bridge/consolevariablebridge.h$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<ship/Context.h$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<ship/resource/ResourceManager.h$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<ship/window/Window.h$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<spdlog/spdlog.h$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<string$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<vector$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<map$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<unordered_map$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<filesystem$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<fstream$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<algorithm$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<functional$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<variant$<ANGLE-R>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/2s2h/GameInteractor/GameInteractor.h>"
-    "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/include/variables.h>"
-    "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/include/functions.h>"
-    "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/include/macros.h>"
-    "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/include/z64.h>"
-    "$<$<COMPILE_LANGUAGE:C>:${CMAKE_CURRENT_SOURCE_DIR}/include/ultra64.h>"
-    "$<$<COMPILE_LANGUAGE:C>:${CMAKE_CURRENT_SOURCE_DIR}/include/global.h>"
-    "$<$<COMPILE_LANGUAGE:C>:${CMAKE_CURRENT_SOURCE_DIR}/include/z64.h>"
-    "$<$<COMPILE_LANGUAGE:C>:${CMAKE_CURRENT_SOURCE_DIR}/include/macros.h>"
-    "$<$<COMPILE_LANGUAGE:C>:${CMAKE_CURRENT_SOURCE_DIR}/include/functions.h>"
-    "$<$<COMPILE_LANGUAGE:C>:${CMAKE_CURRENT_SOURCE_DIR}/include/variables.h>"
-)
+if(SINGLE_EXECUTABLE_BUILD)
+    # Use force-include instead of PCH to avoid .gch files being passed to linker
+    # GCC/Clang use -include, MSVC uses /FI
+    if(MSVC)
+        target_compile_options(${_t} PRIVATE
+            "$<$<COMPILE_LANGUAGE:CXX>:/FIlibultraship/bridge/consolevariablebridge.h>"
+            "$<$<COMPILE_LANGUAGE:CXX>:/FI${CMAKE_CURRENT_SOURCE_DIR}/2s2h/GameInteractor/GameInteractor.h>"
+            "$<$<COMPILE_LANGUAGE:CXX>:/FI${CMAKE_CURRENT_SOURCE_DIR}/2s2h/BenPort.h>"
+            "$<$<COMPILE_LANGUAGE:CXX>:/FI${CMAKE_CURRENT_SOURCE_DIR}/include/variables.h>"
+            "$<$<COMPILE_LANGUAGE:CXX>:/FI${CMAKE_CURRENT_SOURCE_DIR}/include/functions.h>"
+            "$<$<COMPILE_LANGUAGE:CXX>:/FI${CMAKE_CURRENT_SOURCE_DIR}/include/macros.h>"
+            "$<$<COMPILE_LANGUAGE:CXX>:/FI${CMAKE_CURRENT_SOURCE_DIR}/include/z64.h>"
+            "$<$<COMPILE_LANGUAGE:C>:/FI${CMAKE_CURRENT_SOURCE_DIR}/include/ultra64.h>"
+            "$<$<COMPILE_LANGUAGE:C>:/FI${CMAKE_CURRENT_SOURCE_DIR}/include/global.h>"
+            "$<$<COMPILE_LANGUAGE:C>:/FI${CMAKE_CURRENT_SOURCE_DIR}/include/z64.h>"
+            "$<$<COMPILE_LANGUAGE:C>:/FI${CMAKE_CURRENT_SOURCE_DIR}/include/macros.h>"
+            "$<$<COMPILE_LANGUAGE:C>:/FI${CMAKE_CURRENT_SOURCE_DIR}/include/functions.h>"
+            "$<$<COMPILE_LANGUAGE:C>:/FI${CMAKE_CURRENT_SOURCE_DIR}/include/variables.h>"
+        )
+    else()
+        target_compile_options(${_t} PRIVATE
+            "$<$<COMPILE_LANGUAGE:CXX>:-includelibultraship/bridge/consolevariablebridge.h>"
+            "$<$<COMPILE_LANGUAGE:CXX>:-include${CMAKE_CURRENT_SOURCE_DIR}/2s2h/GameInteractor/GameInteractor.h>"
+            "$<$<COMPILE_LANGUAGE:CXX>:-include${CMAKE_CURRENT_SOURCE_DIR}/2s2h/BenPort.h>"
+            "$<$<COMPILE_LANGUAGE:CXX>:-include${CMAKE_CURRENT_SOURCE_DIR}/include/variables.h>"
+            "$<$<COMPILE_LANGUAGE:CXX>:-include${CMAKE_CURRENT_SOURCE_DIR}/include/functions.h>"
+            "$<$<COMPILE_LANGUAGE:CXX>:-include${CMAKE_CURRENT_SOURCE_DIR}/include/macros.h>"
+            "$<$<COMPILE_LANGUAGE:CXX>:-include${CMAKE_CURRENT_SOURCE_DIR}/include/z64.h>"
+            "$<$<COMPILE_LANGUAGE:C>:-include${CMAKE_CURRENT_SOURCE_DIR}/include/ultra64.h>"
+            "$<$<COMPILE_LANGUAGE:C>:-include${CMAKE_CURRENT_SOURCE_DIR}/include/global.h>"
+            "$<$<COMPILE_LANGUAGE:C>:-include${CMAKE_CURRENT_SOURCE_DIR}/include/z64.h>"
+            "$<$<COMPILE_LANGUAGE:C>:-include${CMAKE_CURRENT_SOURCE_DIR}/include/macros.h>"
+            "$<$<COMPILE_LANGUAGE:C>:-include${CMAKE_CURRENT_SOURCE_DIR}/include/functions.h>"
+            "$<$<COMPILE_LANGUAGE:C>:-include${CMAKE_CURRENT_SOURCE_DIR}/include/variables.h>"
+        )
+    endif()
+else()
+    target_precompile_headers(${PROJECT_NAME} PRIVATE
+        "$<$<COMPILE_LANGUAGE:CXX>:<libultraship/bridge/consolevariablebridge.h$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<ship/Context.h$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<ship/resource/ResourceManager.h$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<ship/window/Window.h$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<spdlog/spdlog.h$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<string$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<vector$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<map$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<unordered_map$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<filesystem$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<fstream$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<algorithm$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<functional$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:<variant$<ANGLE-R>>"
+        "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/2s2h/GameInteractor/GameInteractor.h>"
+        "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/include/variables.h>"
+        "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/include/functions.h>"
+        "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/include/macros.h>"
+        "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/include/z64.h>"
+        "$<$<COMPILE_LANGUAGE:C>:${CMAKE_CURRENT_SOURCE_DIR}/include/ultra64.h>"
+        "$<$<COMPILE_LANGUAGE:C>:${CMAKE_CURRENT_SOURCE_DIR}/include/global.h>"
+        "$<$<COMPILE_LANGUAGE:C>:${CMAKE_CURRENT_SOURCE_DIR}/include/z64.h>"
+        "$<$<COMPILE_LANGUAGE:C>:${CMAKE_CURRENT_SOURCE_DIR}/include/macros.h>"
+        "$<$<COMPILE_LANGUAGE:C>:${CMAKE_CURRENT_SOURCE_DIR}/include/functions.h>"
+        "$<$<COMPILE_LANGUAGE:C>:${CMAKE_CURRENT_SOURCE_DIR}/include/variables.h>"
+    )
+endif()
+
+endforeach() # TWOSHIP_COMPILE_TARGETS
 
 ################################################################################
-# Pre build events
+# Pre build events (only for SHARED library builds)
 ################################################################################
-if (CMAKE_GENERATOR MATCHES "Visual Studio")
-    set(VS_COPY_ASSETS_CMD ${CMAKE_COMMAND} -E copy_directory_if_different $<TARGET_FILE_DIR:2ship>/assets ${CMAKE_BINARY_DIR}/mm/assets)
-endif()
-if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
-    add_custom_command(
-        TARGET ${PROJECT_NAME}
-        POST_BUILD
-        COMMENT "Copying asset xmls..."
-        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/mm/assets/extractor $<TARGET_FILE_DIR:2ship>/assets
-        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/mm/assets/xml $<TARGET_FILE_DIR:2ship>/assets/xml
-        COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:2ship>/assets/symbols
-        COMMAND ${VS_COPY_ASSETS_CMD}
-    )
+if(NOT SINGLE_EXECUTABLE_BUILD)
+    if (CMAKE_GENERATOR MATCHES "Visual Studio")
+        set(VS_COPY_ASSETS_CMD ${CMAKE_COMMAND} -E copy_directory_if_different $<TARGET_FILE_DIR:2ship>/assets ${CMAKE_BINARY_DIR}/mm/assets)
+    endif()
+    if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
+        add_custom_command(
+            TARGET ${PROJECT_NAME}
+            POST_BUILD
+            COMMENT "Copying asset xmls..."
+            COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/mm/assets/extractor $<TARGET_FILE_DIR:2ship>/assets
+            COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/mm/assets/xml $<TARGET_FILE_DIR:2ship>/assets/xml
+            COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:2ship>/assets/symbols
+            COMMAND ${VS_COPY_ASSETS_CMD}
+        )
+    endif()
 endif()
 ################################################################################
 # Dependencies
 ################################################################################
-add_dependencies(${PROJECT_NAME}
-    libultraship
-)
-if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
-add_dependencies(${PROJECT_NAME}
-    ZAPDLib
-)
-endif()
+foreach(_t ${TWOSHIP_COMPILE_TARGETS})
+    add_dependencies(${_t} libultraship)
+    if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
+        add_dependencies(${_t} ZAPDLib)
+    endif()
+endforeach()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
     find_package(glfw3 REQUIRED)
@@ -614,9 +779,11 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
 
         "$<$<CONFIG:Debug>:-Wl,--wrap=abort>"
     )
-    target_include_directories(${PROJECT_NAME} PRIVATE
-        ${DEVKITPRO}/portlibs/wiiu/include/
-    )
+    foreach(_t ${TWOSHIP_COMPILE_TARGETS})
+        target_include_directories(${_t} PRIVATE
+            ${DEVKITPRO}/portlibs/wiiu/include/
+        )
+    endforeach()
 else()
     find_package(SDL2)
     set(THREADS_PREFER_PTHREAD_FLAG ON)
@@ -643,11 +810,11 @@ else()
 
 endif()
 
-if(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin|NintendoSwitch|CafeOS")
+if(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin|NintendoSwitch|CafeOS" AND NOT SINGLE_EXECUTABLE_BUILD)
 INSTALL(TARGETS 2ship DESTINATION . COMPONENT 2s2h)
 endif()
 
-if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
+if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows" AND NOT SINGLE_EXECUTABLE_BUILD)
 INSTALL(FILES $<TARGET_PDB_FILE:2ship> DESTINATION ./debug COMPONENT 2s2h)
 INSTALL(FILES ${CMAKE_BINARY_DIR}/mm/2ship.o2r DESTINATION . COMPONENT 2s2h)
 endif()
@@ -664,13 +831,20 @@ elseif(NOT "${CMAKE_SYSTEM_NAME}" MATCHES "NintendoSwitch|CafeOS")
 INSTALL(FILES ${CMAKE_BINARY_DIR}/gamecontrollerdb.txt DESTINATION . COMPONENT 2s2h)
 endif()
 
-if(CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
-    if (NOT TARGET pathconf)
-        add_library(pathconf OBJECT platform/pathconf.c)
-    endif()
-    target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}" $<TARGET_OBJECTS:pathconf> )
+if(SINGLE_EXECUTABLE_BUILD)
+    # For OBJECT libs: propagate compile-time include dirs from all deps
+    foreach(_t ${TWOSHIP_COMPILE_TARGETS})
+        target_link_libraries(${_t} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}")
+    endforeach()
 else()
-    target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}")
+    if(CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
+        if (NOT TARGET pathconf)
+            add_library(pathconf OBJECT platform/pathconf.c)
+        endif()
+        target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}" $<TARGET_OBJECTS:pathconf> )
+    else()
+        target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}")
+    endif()
 endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch")

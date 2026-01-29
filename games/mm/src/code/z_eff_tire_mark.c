@@ -282,7 +282,7 @@ void EffectTireMark_Draw(void* thisx, GraphicsContext* gfxCtx) {
 
                     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, this->color.r, this->color.g, this->color.b,
                                     (s32)((f32)this->color.a * (f32)elem->life * sp34));
-                    gSPVertex(POLY_OPA_DISP++, &vtx[i * 2 - 2], 4, 0);
+                    MM_gSPVertex(POLY_OPA_DISP++, &vtx[i * 2 - 2], 4, 0);
                     gSP2Triangles(POLY_OPA_DISP++, 0, 1, 3, 0, 0, 3, 2, 0);
                 }
             }

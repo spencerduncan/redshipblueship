@@ -135,7 +135,7 @@ void Debug_DrawText(GraphicsContext* gfxCtx) {
 
         gfxHead = POLY_OPA_DISP;
         gfx = MM_Graph_GfxPlusOne(gfxHead);
-        gSPDisplayList(DEBUG_DISP++, gfx);
+        MM_gSPDisplayList(DEBUG_DISP++, gfx);
 
         MM_GfxPrint_Open(&printer, gfx);
 

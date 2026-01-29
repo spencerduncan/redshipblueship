@@ -8,13 +8,13 @@ extern "C" {
 #include "functions.h"
 extern PlayState* MM_gPlayState;
 extern SaveContext gSaveContext;
-extern CameraSetting sCameraSettings[];
+extern CameraSetting MM_sCameraSettings[];
 }
 
 // This function should check for outstanding conditions which the distance check would falsly flag
 // as something we do not want to interpolate. This mostly applies to general play for now
 bool Camera_ShouldOverrideInterpolationCheck(Camera* camera) {
-    switch (sCameraSettings[camera->setting].cameraModes[camera->mode].funcId) {
+    switch (MM_sCameraSettings[camera->setting].cameraModes[camera->mode].funcId) {
         case CAM_FUNC_BATTLE0:
         case CAM_FUNC_BATTLE1:
         case CAM_FUNC_BATTLE2:

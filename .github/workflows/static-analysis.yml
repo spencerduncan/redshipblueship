@@ -36,7 +36,7 @@ jobs:
       - name: Get changed files
         id: changed
         run: |
-          git fetch origin ${{ github.base_ref }} --depth=1
+          git fetch origin ${{ github.base_ref }}
           git diff --name-only origin/${{ github.base_ref }}...HEAD -- '*.c' '*.cpp' '*.h' '*.hpp' > changed_files.txt
           echo "Changed C/C++ files:"
           cat changed_files.txt

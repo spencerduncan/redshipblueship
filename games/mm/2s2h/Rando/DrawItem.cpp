@@ -127,7 +127,7 @@ void DrawSong(RandoItemId randoItemId) {
             break;
     }
 
-    gSPDisplayList(POLY_XLU_DISP++, (Gfx*)&gGiSongNoteDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, (Gfx*)&gGiSongNoteDL);
 
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
@@ -140,9 +140,9 @@ void DrawDoubleDefense() {
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, MM_gPlayState->state.gfxCtx);
     gDPSetGrayscaleColor(POLY_XLU_DISP++, 255, 255, 255, 255);
     gSPGrayscale(POLY_XLU_DISP++, true);
-    gSPDisplayList(POLY_XLU_DISP++, (Gfx*)&gGiHeartBorderDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, (Gfx*)&gGiHeartBorderDL);
     gDPSetGrayscaleColor(POLY_XLU_DISP++, 255, 0, 0, 100);
-    gSPDisplayList(POLY_XLU_DISP++, (Gfx*)&gGiHeartContainerDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, (Gfx*)&gGiHeartContainerDL);
     gSPGrayscale(POLY_XLU_DISP++, false);
 
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
@@ -153,7 +153,7 @@ void DrawMilkRefill() {
 
     Gfx_SetupDL25_Opa(MM_gPlayState->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08,
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08,
                (uintptr_t)MM_Gfx_TwoTexScroll(MM_gPlayState->state.gfxCtx, G_TX_RENDERTILE, -MM_gPlayState->state.frames,
                                            MM_gPlayState->state.frames, 32, 32, 1, -MM_gPlayState->state.frames,
                                            MM_gPlayState->state.frames, 32, 32));
@@ -161,11 +161,11 @@ void DrawMilkRefill() {
     // Container Color
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, 255);
     gDPSetEnvColor(POLY_OPA_DISP++, 200, 200, 200, 255);
-    gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gGiPotionContainerPotDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gGiPotionContainerPotDL);
     // Liquid Color
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, 255);
     gDPSetEnvColor(POLY_OPA_DISP++, 200, 200, 200, 255);
-    gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gGiPotionContainerLiquidDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gGiPotionContainerLiquidDL);
 
     Gfx_SetupDL25_Xlu(MM_gPlayState->state.gfxCtx);
 
@@ -181,7 +181,7 @@ void DrawMilkRefill() {
     // gDPSetEnvColor(POLY_XLU_DISP++, 184, 42, 119, 255);
     // gDPLoadTextureBlock(POLY_XLU_DISP++, gGiPotionContainerRedPatternTex, G_IM_FMT_IA, G_IM_SIZ_8b, 16, 32, 0,
     // G_TX_MIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_CLAMP, 4, 5, G_TX_NOLOD, G_TX_NOLOD);
-    gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gGiPotionContainerPatternDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gGiPotionContainerPatternDL);
 
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
@@ -220,7 +220,7 @@ void DrawSmallKey(RandoItemId randoItemId) {
     }
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, MM_gPlayState->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gGiSmallKeyCopyDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gGiSmallKeyCopyDL);
 
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
@@ -253,12 +253,12 @@ void DrawBossKey(RandoItemId randoItemId) {
     }
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, MM_gPlayState->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gGiBossKeyCopyDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gGiBossKeyCopyDL);
 
     Gfx_SetupDL25_Xlu(MM_gPlayState->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, MM_gPlayState->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gGiBossKeyGemDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gGiBossKeyGemDL);
 
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
@@ -277,7 +277,7 @@ void DrawSkulltulaToken(RandoItemId randoItemId, Actor* actor) {
     Gfx_SetupDL25_Opa(MM_gPlayState->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, MM_gPlayState->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gSkulltulaTokenDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gSkulltulaTokenDL);
 
     Gfx_SetupDL25_Xlu(MM_gPlayState->state.gfxCtx);
 
@@ -289,12 +289,12 @@ void DrawSkulltulaToken(RandoItemId randoItemId, Actor* actor) {
         gDPSetEnvColor(POLY_XLU_DISP++, 0, 255, 0, 255);
     }
 
-    gSPSegment(POLY_XLU_DISP++, 0x08,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                (uintptr_t)MM_Gfx_TwoTexScroll(MM_gPlayState->state.gfxCtx, G_TX_RENDERTILE, MM_gPlayState->state.frames * 0,
                                            -(MM_gPlayState->state.frames * 5), 32, 32, 1, MM_gPlayState->state.frames * 0,
                                            MM_gPlayState->state.frames * 0, 32, 64));
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, MM_gPlayState->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gSkulltulaTokenFlameCopyDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gSkulltulaTokenFlameCopyDL);
 
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
@@ -306,7 +306,7 @@ void DrawTrapModel() {
     MM_Matrix_Scale(0.03f, 0.03f, 0.03f, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, MM_gPlayState->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gTrapDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gTrapDL);
 
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
@@ -374,12 +374,12 @@ void DrawTriforcePiece(RandoItemId randoItemId) {
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, MM_gPlayState->state.gfxCtx);
     if (currentTriforcePieces >= RANDO_SAVE_OPTIONS[RO_TRIFORCE_PIECES_REQUIRED]) {
-        gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gTriforcePieceCompletedDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gTriforcePieceCompletedDL);
     } else {
         if (randoItemId == RI_TRIFORCE_PIECE_PREVIOUS) {
-            gSPDisplayList(POLY_XLU_DISP++, (Gfx*)triforcePieceModels[(currentTriforcePieces - 1) % 3]);
+            MM_gSPDisplayList(POLY_XLU_DISP++, (Gfx*)triforcePieceModels[(currentTriforcePieces - 1) % 3]);
         } else {
-            gSPDisplayList(POLY_XLU_DISP++, (Gfx*)triforcePieceModels[currentTriforcePieces % 3]);
+            MM_gSPDisplayList(POLY_XLU_DISP++, (Gfx*)triforcePieceModels[currentTriforcePieces % 3]);
         }
     }
 
@@ -396,7 +396,7 @@ void DrawAbilityItem(RandoItemId randoItemId, Actor* actor) {
     Gfx_SetupDL25_Xlu(MM_gPlayState->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, MM_gPlayState->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, (Gfx*)abilityItemModel[randoItemId - RI_ABILITY_SWIM]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, (Gfx*)abilityItemModel[randoItemId - RI_ABILITY_SWIM]);
 
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
@@ -411,7 +411,7 @@ void DrawOcarinaButtonItem(RandoItemId randoItemId, Actor* actor) {
     Gfx_SetupDL25_Opa(MM_gPlayState->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, MM_gPlayState->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, (Gfx*)ocarinaButtonModel[randoItemId - RI_OCARINA_BUTTON_A]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, (Gfx*)ocarinaButtonModel[randoItemId - RI_OCARINA_BUTTON_A]);
 
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }

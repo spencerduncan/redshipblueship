@@ -3,7 +3,12 @@
  *
  * This file implements the standard game interface that allows the combo
  * launcher to load and run OoT as a shared library.
+ *
+ * In single-executable builds, these exports are not used - the redship
+ * executable directly calls OoT initialization functions.
  */
+
+#ifndef RSBS_SINGLE_EXECUTABLE
 
 #include "combo/GameExports.h"
 #include "combo/ComboContextBridge.h"
@@ -204,3 +209,5 @@ extern "C" uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex) {
 
     return result;
 }
+
+#endif /* RSBS_SINGLE_EXECUTABLE */

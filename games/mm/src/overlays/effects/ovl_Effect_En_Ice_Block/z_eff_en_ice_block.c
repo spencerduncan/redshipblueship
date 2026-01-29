@@ -62,7 +62,7 @@ void EffectEnIceBlock_Draw(PlayState* play, u32 index, EffectSs* this) {
 
         OPEN_DISPS(gfxCtx);
 
-        gSPSegment(POLY_XLU_DISP++, 0x06,
+        MM_gSPSegment(POLY_XLU_DISP++, 0x06,
                    play->objectCtx.slots[this->rObjectSlot].segment); // object: OBJECT_ICE_BLOCK
 
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
@@ -73,7 +73,7 @@ void EffectEnIceBlock_Draw(PlayState* play, u32 index, EffectSs* this) {
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
 
-        gSPDisplayList(POLY_XLU_DISP++, &gIceBlockShardEffectDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, &gIceBlockShardEffectDL);
 
         CLOSE_DISPS(gfxCtx);
     }

@@ -121,7 +121,7 @@ void DrawNameTag(PlayState* play, const NameTag* nameTag) {
     }
 
     for (size_t i = 0, vtxGroup = 0; i < numChar; i++) {
-        // A maximum of 64 Vtx can be loaded at once by gSPVertex, or basically 16 characters
+        // A maximum of 64 Vtx can be loaded at once by MM_gSPVertex, or basically 16 characters
         // handle loading groups of 16 chars at a time until there are no more left to load
         if (i % 16 == 0) {
             size_t numVtxToLoad = std::min<size_t>(numChar - i, 16) * 4;
@@ -184,7 +184,7 @@ void DrawNameTags() {
     // End the display list buffer
     nameTagDl.push_back(gsSPEndDisplayList());
 
-    gSPDisplayList(POLY_XLU_DISP++, nameTagDl.data());
+    MM_gSPDisplayList(POLY_XLU_DISP++, nameTagDl.data());
 
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }

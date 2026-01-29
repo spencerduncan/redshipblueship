@@ -574,7 +574,7 @@ void MM_EnBomChu_Draw(Actor* thisx, PlayState* play) {
                    (s32)(colorIntensity * -35.0f) + 35, 255);
     MM_Matrix_Translate(this->visualJitter * (1.0f / BOMBCHU_SCALE), 0.0f, 0.0f, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gBombchuDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gBombchuDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

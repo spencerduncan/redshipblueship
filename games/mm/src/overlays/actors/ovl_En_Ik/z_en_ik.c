@@ -1079,7 +1079,7 @@ void EnIk_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
         xlu = POLY_XLU_DISP;
 
         MATRIX_FINALIZE_AND_LOAD(&xlu[0], play->state.gfxCtx);
-        gSPDisplayList(&xlu[1], sIronKnuckleArmorMarkings[armorBodyPart].unk00);
+        MM_gSPDisplayList(&xlu[1], sIronKnuckleArmorMarkings[armorBodyPart].unk00);
         POLY_XLU_DISP = &xlu[2];
 
         CLOSE_DISPS(play->state.gfxCtx);
@@ -1108,11 +1108,11 @@ void EnIk_UpdateArmorDraw(EnIk* this, PlayState* play) {
                 MM_Matrix_Scale(0.012f, 0.012f, 0.012f, MTXMODE_APPLY);
 
                 MATRIX_FINALIZE_AND_LOAD(gfxOpa++, play->state.gfxCtx);
-                gSPDisplayList(gfxOpa++, ikEffect->dList);
+                MM_gSPDisplayList(gfxOpa++, ikEffect->dList);
 
                 if (sIronKnuckleArmorMarkings[i].unk00 != NULL) {
                     MATRIX_FINALIZE_AND_LOAD(gfxXlu++, play->state.gfxCtx);
-                    gSPDisplayList(gfxXlu++, sIronKnuckleArmorMarkings[i].unk00);
+                    MM_gSPDisplayList(gfxXlu++, sIronKnuckleArmorMarkings[i].unk00);
                 }
             } else {
                 sp54++;
@@ -1142,14 +1142,14 @@ void MM_EnIk_Draw(Actor* thisx, PlayState* play) {
     func_800B8050(&this->actor, play, 0);
     func_800B8118(&this->actor, play, 0);
     gfx = POLY_XLU_DISP;
-    gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
     POLY_XLU_DISP = &gfx[1];
     gfx = POLY_OPA_DISP;
-    gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
     gfxArmorType = sIronKnuckleArmorType[this->actor.params];
-    gSPSegment(&gfx[1], 0x08, gfxArmorType[0]);
-    gSPSegment(&gfx[2], 0x09, gfxArmorType[1]);
-    gSPSegment(&gfx[3], 0x0A, gfxArmorType[2]);
+    MM_gSPSegment(&gfx[1], 0x08, gfxArmorType[0]);
+    MM_gSPSegment(&gfx[2], 0x09, gfxArmorType[1]);
+    MM_gSPSegment(&gfx[3], 0x0A, gfxArmorType[2]);
     POLY_OPA_DISP = &gfx[4];
 
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,

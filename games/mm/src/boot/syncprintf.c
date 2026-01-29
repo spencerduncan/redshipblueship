@@ -1,6 +1,6 @@
 #include "global.h"
 
-void osSyncPrintfUnused(const char* fmt, ...) {
+void MM_osSyncPrintfUnused(const char* fmt, ...) {
 }
 
 void osSyncPrintf(const char* fmt, ...) {

@@ -1,0 +1,248 @@
+/**
+ * Game Entry Points for MM (2Ship2Harkinian) - Single Executable Build
+ *
+ * This file provides the MM_Game_* functions expected by the redship
+ * main.cpp for single-executable builds.
+ *
+ * In single-exe mode, the libultraship context is shared with OoT.
+ * MM skips InitOTR() since OoT already initialized the shared context.
+ */
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+
+#include <cstdio>
+#include <cstring>
+#include <filesystem>
+#include <string>
+
+#include "game_lifecycle.h"
+#include <ship/Context.h>
+#include <ship/resource/ResourceManager.h>
+#include <ship/resource/archive/ArchiveManager.h>
+
+// From main.c headers
+extern "C" {
+#include "audiomgr.h"
+#include "fault.h"
+#include "idle.h"
+#include "irqmgr.h"
+#include "padmgr.h"
+#include "scheduler.h"
+#include "stack.h"
+#include "system_heap.h"
+#include "z64thread.h"
+#include "global.h"
+}
+
+// External declarations from main.c
+extern "C" {
+    void MM_Heaps_Alloc(void);
+    void MM_Heaps_Free(void);
+    void MM_Graph_ThreadEntry(void* arg);
+
+    // Additional init functions from main.c
+    void Nmi_Init(void);
+    void MM_Fault_Init(void);
+    void Check_RegionIsSupported(void);
+    void Check_ExpansionPak(void);
+    void Regs_Init(void);
+
+    // Globals from main.c
+    extern s32 MM_gScreenWidth;
+    extern s32 MM_gScreenHeight;
+    extern uintptr_t MM_gSystemHeap;
+    extern OSMesgQueue sSerialEventQueue;
+    extern OSMesg sSerialMsgBuf[1];
+    extern OSMesgQueue sIrqMgrMsgQueue;
+    extern OSMesg sIrqMgrMsgBuf[60];
+    extern SchedContext MM_gSchedContext;
+    extern AudioMgr sAudioMgr;
+    extern PadMgr MM_gPadMgr;
+    extern IrqMgr MM_gIrqMgr;
+
+}
+
+// Track if MM has been initialized (for re-entry after game switch)
+static bool sMMInitialized = false;
+static bool sMMArchivesLoaded = false;
+
+/**
+ * Load MM archives (mm.o2r, 2ship.o2r) into the shared ArchiveManager.
+ * OoT already initialized Ship::Context with OoT archives; we add MM's.
+ * Idempotent — skips if already loaded.
+ */
+static int LoadMMArchives() {
+    if (sMMArchivesLoaded) {
+        fprintf(stderr, "[MM] Archives already loaded, skipping\n");
+        return 0;
+    }
+
+    auto ctx = Ship::Context::GetInstance();
+    if (!ctx || !ctx->GetResourceManager()) {
+        fprintf(stderr, "[MM] ERROR: No ResourceManager — cannot load archives\n");
+        return -1;
+    }
+    auto archiveMgr = ctx->GetResourceManager()->GetArchiveManager();
+
+    const std::string mmAppName = "2s2h";
+    int loaded = 0;
+
+    // Try mm.o2r (primary), then .zip/.otr fallbacks
+    for (const char* ext : {"mm.o2r", "mm.zip", "mm.otr"}) {
+        std::string path = Ship::Context::LocateFileAcrossAppDirs(ext, mmAppName);
+        if (!path.empty() && std::filesystem::exists(path)) {
+            if (archiveMgr->AddArchive(path)) {
+                fprintf(stderr, "[MM] Loaded archive: %s\n", path.c_str());
+                loaded++;
+            }
+            break;  // Only load one mm archive
+        }
+    }
+
+    // Load 2ship.o2r (MM's equivalent of soh.o2r)
+    std::string shipPath = Ship::Context::GetPathRelativeToAppBundle("2ship.o2r");
+    if (!shipPath.empty() && std::filesystem::exists(shipPath)) {
+        if (archiveMgr->AddArchive(shipPath)) {
+            fprintf(stderr, "[MM] Loaded archive: %s\n", shipPath.c_str());
+            loaded++;
+        }
+    }
+
+    fprintf(stderr, "[MM] Loaded %d MM archive(s) into shared context\n", loaded);
+    if (loaded == 0) {
+        fprintf(stderr, "[MM] ERROR: No MM archives found — cannot proceed\n");
+        return -1;
+    }
+    sMMArchivesLoaded = true;
+    return 0;
+}
+
+extern "C" {
+
+int MM_Game_Init(int argc, char** argv) {
+    fprintf(stderr, "[MM] Game_Init called, argc=%d\n", argc);
+    fflush(stderr);
+
+    // In single-exe mode, skip InitOTR() - OoT already initialized libultraship.
+    // Load MM's archives into the shared ResourceManager (issue #159).
+    if (LoadMMArchives() != 0) {
+        fprintf(stderr, "[MM] FATAL: Failed to load MM archives\n");
+        return -1;
+    }
+
+    fprintf(stderr, "[MM] Allocating heaps...\n");
+    fflush(stderr);
+    MM_Heaps_Alloc();
+
+    // Set screen dimensions
+    MM_gScreenWidth = SCREEN_WIDTH;
+    MM_gScreenHeight = SCREEN_HEIGHT;
+
+    fprintf(stderr, "[MM] Calling Nmi_Init()...\n");
+    fflush(stderr);
+    Nmi_Init();
+
+    fprintf(stderr, "[MM] Calling MM_Fault_Init()...\n");
+    fflush(stderr);
+    MM_Fault_Init();
+
+    fprintf(stderr, "[MM] Calling Check_RegionIsSupported()...\n");
+    fflush(stderr);
+    Check_RegionIsSupported();
+
+    fprintf(stderr, "[MM] Calling Check_ExpansionPak()...\n");
+    fflush(stderr);
+    Check_ExpansionPak();
+
+    fprintf(stderr, "[MM] Calling MM_SystemHeap_Init()...\n");
+    fflush(stderr);
+    MM_SystemHeap_Init((void*)MM_gSystemHeap, SYSTEM_HEAP_SIZE);
+
+    fprintf(stderr, "[MM] Calling Regs_Init()...\n");
+    fflush(stderr);
+    Regs_Init();
+
+    // Set up message queues
+    fprintf(stderr, "[MM] Setting up message queues...\n");
+    fflush(stderr);
+    MM_osCreateMesgQueue(&sSerialEventQueue, sSerialMsgBuf, ARRAY_COUNT(sSerialMsgBuf));
+    MM_osSetEventMesg(OS_EVENT_SI, &sSerialEventQueue, OS_MESG_PTR(NULL));
+    MM_osCreateMesgQueue(&sIrqMgrMsgQueue, sIrqMgrMsgBuf, ARRAY_COUNT(sIrqMgrMsgBuf));
+
+    // Initialize PadMgr and AudioMgr
+    fprintf(stderr, "[MM] Calling MM_PadMgr_Init()...\n");
+    fflush(stderr);
+    MM_PadMgr_Init(&sSerialEventQueue, &MM_gIrqMgr, Z_THREAD_ID_PADMGR, Z_PRIORITY_PADMGR, NULL);
+
+    fprintf(stderr, "[MM] Calling MM_AudioMgr_Init()...\n");
+    fflush(stderr);
+    MM_AudioMgr_Init(&sAudioMgr, NULL, Z_PRIORITY_AUDIOMGR, Z_THREAD_ID_AUDIOMGR, &MM_gSchedContext, &MM_gIrqMgr);
+
+    sMMInitialized = true;
+
+    fprintf(stderr, "[MM] Game_Init complete\n");
+    fflush(stderr);
+    return 0;
+}
+
+void MM_Game_Run(void) {
+    fprintf(stderr, "[MM] Game_Run called, entering MM_Graph_ThreadEntry()\n");
+    fflush(stderr);
+    // Run the main game loop
+    MM_Graph_ThreadEntry(nullptr);
+    fprintf(stderr, "[MM] MM_Graph_ThreadEntry() returned\n");
+    fflush(stderr);
+}
+
+void MM_Game_Suspend(void) {
+    fprintf(stderr, "[MM] Game_Suspend called\n");
+    fflush(stderr);
+    // TODO: Stop MM audio playback
+}
+
+void MM_Game_Resume(void) {
+    fprintf(stderr, "[MM] Game_Resume called\n");
+    fflush(stderr);
+    // TODO: Restore MM audio, reload MM-specific resources if needed
+}
+
+void MM_Game_Shutdown(void) {
+    fprintf(stderr, "[MM] Game_Shutdown called\n");
+    fflush(stderr);
+    // Don't call DeinitOTR() - the shared context stays alive
+    MM_Heaps_Free();
+    sMMInitialized = false;
+    sMMArchivesLoaded = false;
+    fprintf(stderr, "[MM] Game_Shutdown complete\n");
+    fflush(stderr);
+}
+
+const char* MM_Game_GetName(void) {
+    return "Majora's Mask";
+}
+
+const char* MM_Game_GetId(void) {
+    return "mm";
+}
+
+} // extern "C"
+
+// ============================================================================
+// GameOps registration
+// ============================================================================
+
+static GameOps sMMOps = {
+    "mm",
+    "Majora's Mask",
+    MM_Game_Init,
+    MM_Game_Run,
+    MM_Game_Suspend,
+    MM_Game_Resume,
+    MM_Game_Shutdown
+};
+
+extern "C" GameOps* MM_GetGameOps(void) {
+    return &sMMOps;
+}
+
+#endif /* RSBS_SINGLE_EXECUTABLE */

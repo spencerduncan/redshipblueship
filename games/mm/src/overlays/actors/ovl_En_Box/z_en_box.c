@@ -135,7 +135,7 @@ void func_80867C8C(struct_80867BDC_a0* arg0, PlayState* play) {
             Gfx_SetupDL25_Xlu(play->state.gfxCtx);
             MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gEffFlash1DL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gEffFlash1DL);
         }
         MM_Matrix_Pop();
         gSPMatrix(POLY_XLU_DISP++, &gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
@@ -634,28 +634,28 @@ void MM_EnBox_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* r
     if (limbIndex == OBJECT_BOX_CHEST_LIMB_01) {
         MATRIX_FINALIZE_AND_LOAD((*gfx)++, play->state.gfxCtx);
         if (this->type == ENBOX_TYPE_BIG_ORNATE) {
-            gSPDisplayList((*gfx)++, &gBoxChestBaseOrnateDL);
+            MM_gSPDisplayList((*gfx)++, &gBoxChestBaseOrnateDL);
         } else if (Actor_IsSmallChest(this)) {
             if (this->getItemId == GI_KEY_SMALL) {
-                gSPDisplayList((*gfx)++, &gBoxChestBaseGildedDL);
+                MM_gSPDisplayList((*gfx)++, &gBoxChestBaseGildedDL);
             } else {
-                gSPDisplayList((*gfx)++, &gBoxChestBaseDL);
+                MM_gSPDisplayList((*gfx)++, &gBoxChestBaseDL);
             }
         } else {
-            gSPDisplayList((*gfx)++, &gBoxChestBaseGildedDL);
+            MM_gSPDisplayList((*gfx)++, &gBoxChestBaseGildedDL);
         }
     } else if (limbIndex == OBJECT_BOX_CHEST_LIMB_03) {
         MATRIX_FINALIZE_AND_LOAD((*gfx)++, play->state.gfxCtx);
         if (this->type == ENBOX_TYPE_BIG_ORNATE) {
-            gSPDisplayList((*gfx)++, &gBoxChestLidOrnateDL);
+            MM_gSPDisplayList((*gfx)++, &gBoxChestLidOrnateDL);
         } else if (Actor_IsSmallChest(this)) {
             if (this->getItemId == GI_KEY_SMALL) {
-                gSPDisplayList((*gfx)++, &gBoxChestLidGildedDL);
+                MM_gSPDisplayList((*gfx)++, &gBoxChestLidGildedDL);
             } else {
-                gSPDisplayList((*gfx)++, &gBoxChestLidDL);
+                MM_gSPDisplayList((*gfx)++, &gBoxChestLidDL);
             }
         } else {
-            gSPDisplayList((*gfx)++, &gBoxChestLidGildedDL);
+            MM_gSPDisplayList((*gfx)++, &gBoxChestLidGildedDL);
         }
     }
 }
@@ -706,7 +706,7 @@ void MM_EnBox_Draw(Actor* thisx, PlayState* play) {
          ((this->type == ENBOX_TYPE_BIG_INVISIBLE) || (this->type == ENBOX_TYPE_SMALL_INVISIBLE)))) {
         gDPPipeSync(POLY_OPA_DISP++);
         gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 255);
-        gSPSegment(POLY_OPA_DISP++, 0x08, EnBox_SetRenderMode1(play->state.gfxCtx));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, EnBox_SetRenderMode1(play->state.gfxCtx));
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
         POLY_OPA_DISP = MM_SkelAnime_Draw(play, this->skelAnime.skeleton, this->skelAnime.jointTable, NULL,
                                        MM_EnBox_PostLimbDraw, &this->dyna.actor, POLY_OPA_DISP);
@@ -715,9 +715,9 @@ void MM_EnBox_Draw(Actor* thisx, PlayState* play) {
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
         gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 0, this->alpha);
         if ((this->type == ENBOX_TYPE_BIG_INVISIBLE) || (this->type == ENBOX_TYPE_SMALL_INVISIBLE)) {
-            gSPSegment(POLY_XLU_DISP++, 0x08, EnBox_SetRenderMode3(play->state.gfxCtx));
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08, EnBox_SetRenderMode3(play->state.gfxCtx));
         } else {
-            gSPSegment(POLY_XLU_DISP++, 0x08, EnBox_SetRenderMode2(play->state.gfxCtx));
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08, EnBox_SetRenderMode2(play->state.gfxCtx));
         }
         POLY_XLU_DISP = MM_SkelAnime_Draw(play, this->skelAnime.skeleton, this->skelAnime.jointTable, NULL,
                                        MM_EnBox_PostLimbDraw, &this->dyna.actor, POLY_XLU_DISP);

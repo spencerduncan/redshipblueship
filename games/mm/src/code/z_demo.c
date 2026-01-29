@@ -184,7 +184,7 @@ void CutsceneCmd_Misc(PlayState* play, CutsceneContext* csCtx, CsCmdMisc* cmd) {
             if (isFirstFrame) {
                 Audio_SetAmbienceChannelIO(AMBIENCE_CHANNEL_LIGHTNING, CHANNEL_IO_PORT_0, 0);
                 MM_Environment_AddLightningBolts(play, 3);
-                gLightningStrike.state = LIGHTNING_STRIKE_START;
+                MM_gLightningStrike.state = LIGHTNING_STRIKE_START;
             }
             break;
 

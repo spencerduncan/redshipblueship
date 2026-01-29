@@ -448,7 +448,7 @@ void EnGrasshopper_Fly(EnGrasshopper* this, PlayState* play) {
 
         //! @bug Unreachable code. To get here, the type must NOT be DRAGONFLY_TYPE_WOODFALL
         if (this->type == DRAGONFLY_TYPE_WOODFALL) {
-            if (sqrtf(SQ(this->actor.world.pos.x) + SQ(this->actor.world.pos.z)) < 600.0f) {
+            if (MM_sqrtf(SQ(this->actor.world.pos.x) + SQ(this->actor.world.pos.z)) < 600.0f) {
                 this->shouldTurn = true;
             }
         }
@@ -725,7 +725,7 @@ void EnGrasshopper_Attack(EnGrasshopper* this, PlayState* play) {
     diff.x = hitPos.x - player->actor.world.pos.x;
     diff.y = hitPos.y - player->actor.world.pos.y;
     diff.z = hitPos.z - player->actor.world.pos.z;
-    playerToHitPosDist = sqrtf(SQXYZ(diff));
+    playerToHitPosDist = MM_sqrtf(SQXYZ(diff));
 
     if ((this->collider.base.atFlags & AT_BOUNCED) ||
         ((player->stateFlags1 & PLAYER_STATE1_400000) && (playerToHitPosDist <= 60.0f) &&
@@ -1202,10 +1202,10 @@ void EnGrasshopper_DrawEffects(EnGrasshopper* this, PlayState* play) {
             if (mtx != NULL) {
                 gSPMatrix(POLY_XLU_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
                 Gfx_SetupDL61_Xlu(play->state.gfxCtx);
-                gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sLightningTextures[effect->lightningIndex]));
+                MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sLightningTextures[effect->lightningIndex]));
                 gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, 255);
                 gDPSetEnvColor(POLY_XLU_DISP++, 200, 255, 255, 255);
-                gSPDisplayList(POLY_XLU_DISP++, Lib_SegmentedToVirtual(gEffLightningDL));
+                MM_gSPDisplayList(POLY_XLU_DISP++, Lib_SegmentedToVirtual(gEffLightningDL));
             }
         }
     }

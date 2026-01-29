@@ -22,7 +22,7 @@ extern BufferLow gLoBuffer;
 
 
 extern u8 MM_gGfxSPTaskYieldBuffer[OS_YIELD_DATA_SIZE];
-extern STACK(gGfxSPTaskStack, 0x400);
+extern STACK(MM_gGfxSPTaskStack, 0x400);
 extern GfxPool MM_gGfxPools[2];
 extern u8* MM_gAudioHeap;
 extern u8* MM_gSystemHeap;

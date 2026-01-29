@@ -1153,7 +1153,7 @@ void MM_EnPoSisters_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Ve
     if ((this->actionFunc == EnPoSisters_DeathStage1) && (this->deathTimer >= 8) &&
         (limbIndex == POE_SISTERS_LIMB_MAIN_BODY)) {
         MATRIX_FINALIZE_AND_LOAD((*gfx)++, play->state.gfxCtx);
-        gSPDisplayList((*gfx)++, gPoeSistersBurnBodyDL);
+        MM_gSPDisplayList((*gfx)++, gPoeSistersBurnBodyDL);
     }
 
     if (limbIndex == POE_SISTERS_LIMB_TORCH) {
@@ -1207,13 +1207,13 @@ void MM_EnPoSisters_Draw(Actor* thisx, PlayState* play) {
 
     if ((this->color.a == 255) || (this->color.a == 0)) {
         gDPSetEnvColor(POLY_OPA_DISP++, this->color.r, this->color.g, this->color.b, this->color.a);
-        gSPSegment(POLY_OPA_DISP++, 0x09, D_801AEFA0); // Empty DL
+        MM_gSPSegment(POLY_OPA_DISP++, 0x09, D_801AEFA0); // Empty DL
         POLY_OPA_DISP =
             MM_SkelAnime_Draw(play, this->skelAnime.skeleton, this->skelAnime.jointTable, MM_EnPoSisters_OverrideLimbDraw,
                            MM_EnPoSisters_PostLimbDraw, &this->actor, POLY_OPA_DISP);
     } else {
         gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, 255, this->color.a);
-        gSPSegment(POLY_XLU_DISP++, 0x09, D_801AEF88); // XLU only DL
+        MM_gSPSegment(POLY_XLU_DISP++, 0x09, D_801AEF88); // XLU only DL
         POLY_XLU_DISP =
             MM_SkelAnime_Draw(play, this->skelAnime.skeleton, this->skelAnime.jointTable, MM_EnPoSisters_OverrideLimbDraw,
                            MM_EnPoSisters_PostLimbDraw, &this->actor, POLY_XLU_DISP);
@@ -1223,10 +1223,10 @@ void MM_EnPoSisters_Draw(Actor* thisx, PlayState* play) {
         MM_Matrix_Put(&this->mtxf);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gPoeSistersTorchDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gPoeSistersTorchDL);
     }
 
-    gSPSegment(
+    MM_gSPSegment(
         POLY_XLU_DISP++, 0x08,
         MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0, (play->gameplayFrames * -20) % 512, 32, 128));
     gDPSetEnvColor(POLY_XLU_DISP++, sisterEnvColor->r, sisterEnvColor->g, sisterEnvColor->b, sisterEnvColor->a);
@@ -1257,7 +1257,7 @@ void MM_EnPoSisters_Draw(Actor* thisx, PlayState* play) {
         MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
     }
 
     Actor_DrawDamageEffects(play, &this->actor, this->bodyPartsPos, POE_SISTERS_BODYPART_MAX,

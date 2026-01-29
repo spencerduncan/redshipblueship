@@ -501,7 +501,7 @@ void ObjKendoKanban_Draw(Actor* thisx, PlayState* play) {
 
     if (this->boardFragments == OBJKENDOKANBAN_PART_FULL) {
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gKendoKanbanDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gKendoKanbanDL);
     } else {
         Matrix_RotateAxisS(this->rotAngle, &this->rotAxis, MTXMODE_APPLY);
         MM_Matrix_Translate(-this->rootCornerPos.x, -this->rootCornerPos.y, -this->rootCornerPos.z, MTXMODE_APPLY);
@@ -510,7 +510,7 @@ void ObjKendoKanban_Draw(Actor* thisx, PlayState* play) {
         // Display only the fragments of the board which are present
         for (i = 0; i < ARRAY_COUNT(MM_sDisplayLists); i++) {
             if ((1 << i) & this->boardFragments) {
-                gSPDisplayList(POLY_OPA_DISP++, MM_sDisplayLists[i]);
+                MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDisplayLists[i]);
             }
         }
     }

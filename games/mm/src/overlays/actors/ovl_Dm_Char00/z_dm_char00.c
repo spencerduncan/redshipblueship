@@ -1074,7 +1074,7 @@ void DmChar00_Draw(Actor* thisx, PlayState* play2) {
         phi_a0 = 511 - phi_a0;
     }
 
-    gSPSegment(POLY_XLU_DISP++, 0x08, &gfx[0]);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08, &gfx[0]);
 
     gDPPipeSync(gfx++);
     gDPSetPrimColor(gfx++, 0, 0x01, (u8)this->unk_240.r, (u8)this->unk_240.g, (u8)this->unk_240.b,

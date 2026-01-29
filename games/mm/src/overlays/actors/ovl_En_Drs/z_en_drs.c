@@ -117,9 +117,9 @@ void EnDrs_PostLimbDraw(PlayState* play2, s32 limbIndex, Gfx** dList, Vec3s* rot
         (limbIndex == WEDDING_DRESS_MANNEQUIN_LIMB_MASK)) {
         OPEN_DISPS(play->state.gfxCtx);
 
-        gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[temp].segment);
-        gSPDisplayList(POLY_OPA_DISP++, &gMoonMaskDL);
-        gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[temp2].segment);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[temp].segment);
+        MM_gSPDisplayList(POLY_OPA_DISP++, &gMoonMaskDL);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[temp2].segment);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }

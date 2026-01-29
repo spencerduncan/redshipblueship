@@ -40,7 +40,7 @@ Vec3f gCustomLensFlare2Pos;
 f32 D_801F4E5C;
 f32 D_801F4E60;
 s16 D_801F4E64;
-struct LightningStrike gLightningStrike;
+struct LightningStrike MM_gLightningStrike;
 f32 D_801F4E74;
 u16 D_801F4E78;
 u16 gSkyboxNumStars;
@@ -650,10 +650,10 @@ void MM_Environment_Init(PlayState* play2, EnvironmentContext* envCtx, s32 arg2)
     envCtx->sandstormEnvA = 0;
     envCtx->lightBlend = 1.0f;
 
-    gLightningStrike.state = LIGHTNING_STRIKE_WAIT;
-    gLightningStrike.flashRed = 0;
-    gLightningStrike.flashGreen = 0;
-    gLightningStrike.flashBlue = 0;
+    MM_gLightningStrike.state = LIGHTNING_STRIKE_WAIT;
+    MM_gLightningStrike.flashRed = 0;
+    MM_gLightningStrike.flashGreen = 0;
+    MM_gLightningStrike.flashBlue = 0;
 
     MM_sLightningFlashAlpha = 0;
 
@@ -1087,7 +1087,7 @@ void MM_Environment_UpdateSkybox(u8 skyboxId, EnvironmentContext* envCtx, Skybox
         if ((envCtx->skybox1Index != skybox1Index) && (envCtx->skyboxDmaState == SKYBOX_DMA_INACTIVE)) {
             envCtx->skyboxDmaState = SKYBOX_DMA_TEXTURE1_START;
             // size = sNormalSkyFiles[skybox1Index].file.vromEnd - sNormalSkyFiles[skybox1Index].file.vromStart;
-            // osCreateMesgQueue(&envCtx->loadQueue, envCtx->loadMsg, ARRAY_COUNT(envCtx->loadMsg));
+            // MM_osCreateMesgQueue(&envCtx->loadQueue, envCtx->loadMsg, ARRAY_COUNT(envCtx->loadMsg));
             // MM_DmaMgr_SendRequestImpl(&envCtx->dmaRequest, skyboxCtx->staticSegments[0],
             //                        sNormalSkyFiles[skybox1Index].file.vromStart, size, 0, &envCtx->loadQueue,
             //                        OS_MESG_PTR(NULL));
@@ -1103,7 +1103,7 @@ void MM_Environment_UpdateSkybox(u8 skyboxId, EnvironmentContext* envCtx, Skybox
         if ((envCtx->skybox2Index != skybox2Index) && (envCtx->skyboxDmaState == SKYBOX_DMA_INACTIVE)) {
             envCtx->skyboxDmaState = SKYBOX_DMA_TEXTURE2_START;
             // size = sNormalSkyFiles[skybox2Index].file.vromEnd - sNormalSkyFiles[skybox2Index].file.vromStart;
-            // osCreateMesgQueue(&envCtx->loadQueue, envCtx->loadMsg, ARRAY_COUNT(envCtx->loadMsg));
+            // MM_osCreateMesgQueue(&envCtx->loadQueue, envCtx->loadMsg, ARRAY_COUNT(envCtx->loadMsg));
             // MM_DmaMgr_SendRequestImpl(&envCtx->dmaRequest, skyboxCtx->staticSegments[1],
             //                        sNormalSkyFiles[skybox2Index].file.vromStart, size, 0, &envCtx->loadQueue,
             //                        OS_MESG_PTR(NULL));
@@ -1117,7 +1117,7 @@ void MM_Environment_UpdateSkybox(u8 skyboxId, EnvironmentContext* envCtx, Skybox
 
         if ((envCtx->skyboxDmaState == SKYBOX_DMA_TEXTURE1_START) ||
             (envCtx->skyboxDmaState == SKYBOX_DMA_TEXTURE2_START)) {
-            // if (osRecvMesg(&envCtx->loadQueue, NULL, 0) == 0) {
+            // if (MM_osRecvMesg(&envCtx->loadQueue, NULL, 0) == 0) {
             if (true) {
                 envCtx->skyboxDmaState = SKYBOX_DMA_INACTIVE;
                 // 2S2H [Port] Since the skybox static segments point to OTR strings, we need to re-create the skybox
@@ -1824,7 +1824,7 @@ void Environment_DrawSun(PlayState* play) {
             // #region 2S2H [Port] The sun texture was originally broken up into 3 pieces, but this causes
             // issues with extraction, so we've combined them into a single 64x64 texture, and this requires
             // that we render it ourself instead of using gSunDL.
-            // gSPDisplayList(POLY_OPA_DISP++, gSunDL);
+            // MM_gSPDisplayList(POLY_OPA_DISP++, gSunDL);
             static Vtx vertices[] = {
                 VTX(-31, -31, 0, 0, 0, 255, 255, 255, 255),
                 VTX(32, -31, 0, 2016, 0, 255, 255, 255, 255),
@@ -1838,7 +1838,7 @@ void Environment_DrawSun(PlayState* play) {
                                    G_TX_NOMIRROR | G_TX_CLAMP, 6, 6, G_TX_NOLOD, G_TX_NOLOD);
             gDPLoadMultiBlock_4b(POLY_OPA_DISP++, gSunEvening1Tex, 0x0100, 1, G_IM_FMT_I, 64, 64, 0,
                                  G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, 6, 6, G_TX_NOLOD, G_TX_NOLOD);
-            gSPVertex(POLY_OPA_DISP++, vertices, 4, 0);
+            MM_gSPVertex(POLY_OPA_DISP++, vertices, 4, 0);
             gSP2Triangles(POLY_OPA_DISP++, 0, 1, 2, 0, 2, 1, 3, 0);
             // #endregion
         }
@@ -1928,7 +1928,7 @@ void MM_Environment_DrawLensFlare(PlayState* play, EnvironmentContext* envCtx, V
     tempY = view->at.y - view->eye.y;
     tempZ = view->at.z - view->eye.z;
 
-    length = sqrtf(SQ(tempX) + SQ(tempY) + SQ(tempZ));
+    length = MM_sqrtf(SQ(tempX) + SQ(tempY) + SQ(tempZ));
 
     lookDirX = tempX / length;
     lookDirY = tempY / length;
@@ -1944,7 +1944,7 @@ void MM_Environment_DrawLensFlare(PlayState* play, EnvironmentContext* envCtx, V
     tempY2 = pos.y - halfPosY;
     tempZ2 = pos.z - halfPosZ;
 
-    length = sqrtf(SQ(tempX2) + SQ(tempY2) + SQ(tempZ2));
+    length = MM_sqrtf(SQ(tempX2) + SQ(tempY2) + SQ(tempZ2));
 
     posDirX = tempX2 / length;
     posDirY = tempY2 / length;
@@ -1952,7 +1952,7 @@ void MM_Environment_DrawLensFlare(PlayState* play, EnvironmentContext* envCtx, V
 
     // compute the cosine of the angle between lookDir and posDir
     cosAngle = (lookDirX * posDirX + lookDirY * posDirY + lookDirZ * posDirZ) /
-               sqrtf((SQ(lookDirX) + SQ(lookDirY) + SQ(lookDirZ)) * (SQ(posDirX) + SQ(posDirY) + SQ(posDirZ)));
+               MM_sqrtf((SQ(lookDirX) + SQ(lookDirY) + SQ(lookDirZ)) * (SQ(posDirX) + SQ(posDirY) + SQ(posDirZ)));
 
     lensFlareAlphaScaleTarget = cosAngle * 3.5f;
     lensFlareAlphaScaleTarget = CLAMP_MAX(lensFlareAlphaScaleTarget, 1.0f);
@@ -2029,11 +2029,11 @@ void MM_Environment_DrawLensFlare(PlayState* play, EnvironmentContext* envCtx, V
                 switch (sLensFlareTypes[i]) {
                     case LENS_FLARE_CIRCLE0:
                     case LENS_FLARE_CIRCLE1:
-                        gSPDisplayList(POLY_XLU_DISP++, gLensFlareCircleDL);
+                        MM_gSPDisplayList(POLY_XLU_DISP++, gLensFlareCircleDL);
                         break;
 
                     case LENS_FLARE_RING:
-                        gSPDisplayList(POLY_XLU_DISP++, gLensFlareRingDL);
+                        MM_gSPDisplayList(POLY_XLU_DISP++, gLensFlareRingDL);
                         break;
 
                     default:
@@ -2075,7 +2075,7 @@ void MM_Environment_DrawLensFlare(PlayState* play, EnvironmentContext* envCtx, V
 
                 gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, (u8)(weight * 75.0f) + 180, (u8)(weight * 155.0f) + 100,
                                 (u8)envCtx->glareAlpha);
-                gSPDisplayList(POLY_XLU_DISP++, D_0E000000_TO_SEGMENTED(clearFillRect));
+                MM_gSPDisplayList(POLY_XLU_DISP++, D_0E000000_TO_SEGMENTED(clearFillRect));
             } else {
                 envCtx->glareAlpha = 0.0f;
             }
@@ -2126,7 +2126,7 @@ void Environment_DrawRainImpl(PlayState* play, View* view, GraphicsContext* gfxC
     temp.x = view->at.x - view->eye.x;
     temp.y = view->at.y - view->eye.y;
     temp.z = view->at.z - view->eye.z;
-    length = sqrtf(SQ(temp.x) + SQ(temp.y) + SQ(temp.z));
+    length = MM_sqrtf(SQ(temp.x) + SQ(temp.y) + SQ(temp.z));
 
     temp_fs1 = temp.x / length;
     temp_fs2 = temp.z / length;
@@ -2162,7 +2162,7 @@ void Environment_DrawRainImpl(PlayState* play, View* view, GraphicsContext* gfxC
         Matrix_RotateXS(pitch + (s16)(i << 5), MTXMODE_APPLY);
         MM_Matrix_Scale(0.3f, 1.0f, 0.3f, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gFallingRainDropDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gFallingRainDropDL);
     }
 
     if (player->actor.floorHeight < view->eye.y) {
@@ -2179,7 +2179,7 @@ void Environment_DrawRainImpl(PlayState* play, View* view, GraphicsContext* gfxC
             scale = (MM_Rand_ZeroOne() * 0.05f) + 0.05f;
             MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gEffShockwaveDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gEffShockwaveDL);
         }
     }
 
@@ -2257,7 +2257,7 @@ void MM_Environment_DrawSkyboxFilters(PlayState* play) {
             gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, play->lightCtx.fogColor[0] + 16, play->lightCtx.fogColor[1] + 16,
                             play->lightCtx.fogColor[2] + 16, 255.0f * D_801F4E74);
         }
-        gSPDisplayList(POLY_OPA_DISP++, D_0E000000_TO_SEGMENTED(clearFillRect));
+        MM_gSPDisplayList(POLY_OPA_DISP++, D_0E000000_TO_SEGMENTED(clearFillRect));
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -2268,7 +2268,7 @@ void MM_Environment_DrawSkyboxFilters(PlayState* play) {
         Gfx_SetupDL57_Opa(play->state.gfxCtx);
         gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, play->envCtx.skyboxFilterColor[0], play->envCtx.skyboxFilterColor[1],
                         play->envCtx.skyboxFilterColor[2], play->envCtx.skyboxFilterColor[3]);
-        gSPDisplayList(POLY_OPA_DISP++, D_0E000000_TO_SEGMENTED(clearFillRect));
+        MM_gSPDisplayList(POLY_OPA_DISP++, D_0E000000_TO_SEGMENTED(clearFillRect));
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -2279,40 +2279,40 @@ void MM_Environment_DrawLightningFlash(PlayState* play, u8 red, u8 green, u8 blu
 
     Gfx_SetupDL57_Opa(play->state.gfxCtx);
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, red, green, blue, alpha);
-    gSPDisplayList(POLY_OPA_DISP++, D_0E000000_TO_SEGMENTED(clearFillRect));
+    MM_gSPDisplayList(POLY_OPA_DISP++, D_0E000000_TO_SEGMENTED(clearFillRect));
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
 void MM_Environment_UpdateLightningStrike(PlayState* play) {
     if (play->envCtx.lightningState != LIGHTNING_OFF) {
-        switch (gLightningStrike.state) {
+        switch (MM_gLightningStrike.state) {
             case LIGHTNING_STRIKE_WAIT:
                 // every frame theres a 10% chance of the timer advancing 10 units
                 if (MM_Rand_ZeroOne() < 0.1f) {
-                    gLightningStrike.delayTimer += 10.0f;
+                    MM_gLightningStrike.delayTimer += 10.0f;
                 }
 
-                gLightningStrike.delayTimer += MM_Rand_ZeroOne();
+                MM_gLightningStrike.delayTimer += MM_Rand_ZeroOne();
 
-                if (gLightningStrike.delayTimer > 500.0f) {
-                    gLightningStrike.flashRed = 200;
-                    gLightningStrike.flashGreen = 200;
-                    gLightningStrike.flashBlue = 255;
-                    gLightningStrike.flashAlphaTarget = 200;
+                if (MM_gLightningStrike.delayTimer > 500.0f) {
+                    MM_gLightningStrike.flashRed = 200;
+                    MM_gLightningStrike.flashGreen = 200;
+                    MM_gLightningStrike.flashBlue = 255;
+                    MM_gLightningStrike.flashAlphaTarget = 200;
 
-                    gLightningStrike.delayTimer = 0.0f;
+                    MM_gLightningStrike.delayTimer = 0.0f;
                     MM_Environment_AddLightningBolts(
                         play, (u8)((MM_Rand_ZeroOne() * (ARRAY_COUNT(MM_sLightningBolts) - 0.1f)) + 1.0f));
                     MM_sLightningFlashAlpha = 0;
-                    gLightningStrike.state++;
+                    MM_gLightningStrike.state++;
                 }
                 break;
 
             case LIGHTNING_STRIKE_START:
-                gLightningStrike.flashRed = 200;
-                gLightningStrike.flashGreen = 200;
-                gLightningStrike.flashBlue = 255;
+                MM_gLightningStrike.flashRed = 200;
+                MM_gLightningStrike.flashGreen = 200;
+                MM_gLightningStrike.flashBlue = 255;
 
                 play->envCtx.adjLightSettings.ambientColor[0] += 80;
                 play->envCtx.adjLightSettings.ambientColor[1] += 80;
@@ -2320,10 +2320,10 @@ void MM_Environment_UpdateLightningStrike(PlayState* play) {
 
                 MM_sLightningFlashAlpha += 100;
 
-                if (MM_sLightningFlashAlpha >= gLightningStrike.flashAlphaTarget) {
+                if (MM_sLightningFlashAlpha >= MM_gLightningStrike.flashAlphaTarget) {
                     Audio_SetAmbienceChannelIO(AMBIENCE_CHANNEL_LIGHTNING, CHANNEL_IO_PORT_0, 0);
-                    gLightningStrike.state++;
-                    gLightningStrike.flashAlphaTarget = 0;
+                    MM_gLightningStrike.state++;
+                    MM_gLightningStrike.flashAlphaTarget = 0;
                 }
                 break;
 
@@ -2339,12 +2339,12 @@ void MM_Environment_UpdateLightningStrike(PlayState* play) {
 
                 MM_sLightningFlashAlpha -= 10;
 
-                if (MM_sLightningFlashAlpha <= gLightningStrike.flashAlphaTarget) {
+                if (MM_sLightningFlashAlpha <= MM_gLightningStrike.flashAlphaTarget) {
                     play->envCtx.adjLightSettings.ambientColor[0] = 0;
                     play->envCtx.adjLightSettings.ambientColor[1] = 0;
                     play->envCtx.adjLightSettings.ambientColor[2] = 0;
 
-                    gLightningStrike.state = LIGHTNING_STRIKE_WAIT;
+                    MM_gLightningStrike.state = LIGHTNING_STRIKE_WAIT;
 
                     if (play->envCtx.lightningState == LIGHTNING_LAST) {
                         play->envCtx.lightningState = LIGHTNING_OFF;
@@ -2357,9 +2357,9 @@ void MM_Environment_UpdateLightningStrike(PlayState* play) {
         }
     }
 
-    if (gLightningStrike.state != LIGHTNING_STRIKE_WAIT) {
-        MM_Environment_DrawLightningFlash(play, gLightningStrike.flashRed, gLightningStrike.flashGreen,
-                                       gLightningStrike.flashBlue, MM_sLightningFlashAlpha);
+    if (MM_gLightningStrike.state != LIGHTNING_STRIKE_WAIT) {
+        MM_Environment_DrawLightningFlash(play, MM_gLightningStrike.flashRed, MM_gLightningStrike.flashGreen,
+                                       MM_gLightningStrike.flashBlue, MM_sLightningFlashAlpha);
     }
 }
 
@@ -2403,8 +2403,8 @@ void MM_Environment_DrawLightning(PlayState* play, s32 unused) {
                 dx = play->view.at.x - play->view.eye.x;
                 dz = play->view.at.z - play->view.eye.z;
 
-                x = dx / sqrtf(SQ(dx) + SQ(dz));
-                z = dz / sqrtf(SQ(dx) + SQ(dz));
+                x = dx / MM_sqrtf(SQ(dx) + SQ(dz));
+                z = dz / MM_sqrtf(SQ(dx) + SQ(dz));
 
                 MM_sLightningBolts[i].pos.x = play->view.eye.x + x * 9500.0f;
                 MM_sLightningBolts[i].pos.y = MM_Rand_ZeroOne() * 1000.0f + 4000.0f;
@@ -2451,11 +2451,11 @@ void MM_Environment_DrawLightning(PlayState* play, s32 unused) {
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, 128);
             gDPSetEnvColor(POLY_XLU_DISP++, 0, 255, 255, 128);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPSegment(POLY_XLU_DISP++, 0x08,
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                        Lib_SegmentedToVirtual(MM_sLightningTextures[MM_sLightningBolts[i].textureIndex]));
             Gfx_SetupDL61_Xlu(play->state.gfxCtx);
             gSPMatrix(POLY_XLU_DISP++, D_01000000_TO_SEGMENTED, G_MTX_NOPUSH | G_MTX_MUL | G_MTX_MODELVIEW);
-            gSPDisplayList(POLY_XLU_DISP++, gEffLightningDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gEffLightningDL);
         }
     }
 
@@ -2730,7 +2730,7 @@ void MM_Environment_FillScreen(GraphicsContext* gfxCtx, u8 red, u8 green, u8 blu
             gDPSetAlphaDither(POLY_OPA_DISP++, G_AD_DISABLE);
             gDPSetColorDither(POLY_OPA_DISP++, G_CD_DISABLE);
 
-            gSPDisplayList(POLY_OPA_DISP++, D_0E000000_TO_SEGMENTED(clearFillRect));
+            MM_gSPDisplayList(POLY_OPA_DISP++, D_0E000000_TO_SEGMENTED(clearFillRect));
         }
 
         if (drawFlags & FILL_SCREEN_XLU) {
@@ -2744,7 +2744,7 @@ void MM_Environment_FillScreen(GraphicsContext* gfxCtx, u8 red, u8 green, u8 blu
             gDPSetAlphaDither(POLY_XLU_DISP++, G_AD_DISABLE);
             gDPSetColorDither(POLY_XLU_DISP++, G_CD_DISABLE);
 
-            gSPDisplayList(POLY_XLU_DISP++, D_0E000000_TO_SEGMENTED(clearFillRect));
+            MM_gSPDisplayList(POLY_XLU_DISP++, D_0E000000_TO_SEGMENTED(clearFillRect));
         }
 
         CLOSE_DISPS(gfxCtx);
@@ -2966,12 +2966,12 @@ void MM_Environment_DrawSandstorm(PlayState* play, u8 sandstormState) {
         gDPSetColorDither(POLY_XLU_DISP++, G_CD_NOISE);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, primColor.r, primColor.g, primColor.b, play->envCtx.sandstormPrimA);
         gDPSetEnvColor(POLY_XLU_DISP++, envColor.r, envColor.g, envColor.b, play->envCtx.sandstormEnvA);
-        gSPSegment(POLY_XLU_DISP++, 0x08,
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                    MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, (u32)sp96 % 4096, 0, 512, 32, 1,
                                     (u32)sp94 % 4096, 4095 - ((u32)sp92 % 4096), 256, 64));
         gDPSetTextureLUT(POLY_XLU_DISP++, G_TT_NONE);
         // #region 2S2H [Widescreen] Widescreen Sandstorm
-        // gSPDisplayList(POLY_XLU_DISP++, gFieldSandstormDL); // Original Dlist call
+        // MM_gSPDisplayList(POLY_XLU_DISP++, gFieldSandstormDL); // Original Dlist call
         gDPPipeSync(POLY_XLU_DISP++);
         gDPSetTextureLUT(POLY_XLU_DISP++, G_TT_NONE);
         gDPSetRenderMode(POLY_XLU_DISP++, G_RM_PASS, G_RM_CLD_SURF2);
@@ -2982,7 +2982,7 @@ void MM_Environment_DrawSandstorm(PlayState* play, u8 sandstormState) {
                             G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, 6, 5, 1, G_TX_NOLOD);
         gDPLoadMultiBlock(POLY_XLU_DISP++, gFieldSandstorm2Tex, 0x0100, 1, G_IM_FMT_IA, G_IM_SIZ_8b, 64, 32, 0,
                           G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, 6, 5, 2, 1);
-        gSPDisplayList(POLY_XLU_DISP++, 0x08000000 | 1);
+        MM_gSPDisplayList(POLY_XLU_DISP++, 0x08000000 | 1);
         gSPWideTextureRectangle(POLY_XLU_DISP++, OTRGetRectDimensionFromLeftEdge(0) << 2, 0,
                                 OTRGetRectDimensionFromRightEdge(SCREEN_WIDTH) << 2, SCREEN_HEIGHT << 2,
                                 G_TX_RENDERTILE, 0, 0, 0x008C, -0x008C);
@@ -3246,7 +3246,7 @@ void Ship_DrawSkyboxStarInterpolated(Gfx** gfxP, PlayState* play, Vec3f pos, u32
 
         MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
 
-        gSPVertex(gfx++, starVtxData, ARRAY_COUNT(starVtxData), 0);
+        MM_gSPVertex(gfx++, starVtxData, ARRAY_COUNT(starVtxData), 0);
         gSP2Triangles(gfx++, 0, 1, 2, 0, 1, 3, 2, 0);
 
         MM_Matrix_Pop();
@@ -3460,7 +3460,7 @@ void Environment_DrawSkyboxStars(PlayState* play) {
         opa = POLY_OPA_DISP;
         nextOpa = MM_Graph_GfxPlusOne(opa);
 
-        gSPDisplayList(sSkyboxStarsDList, nextOpa);
+        MM_gSPDisplayList(sSkyboxStarsDList, nextOpa);
 
         Environment_DrawSkyboxStarsImpl(play, &nextOpa);
 

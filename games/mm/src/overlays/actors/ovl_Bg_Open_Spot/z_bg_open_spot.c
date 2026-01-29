@@ -68,8 +68,8 @@ void BgOpenSpot_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
     gDPSetColorDither(POLY_XLU_DISP++, G_CD_BAYER);
-    gSPDisplayList(POLY_XLU_DISP++, gSpotlightLeftDL);
-    gSPDisplayList(POLY_XLU_DISP++, gSpotlightRightDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gSpotlightLeftDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gSpotlightRightDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

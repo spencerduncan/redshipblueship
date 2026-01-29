@@ -391,7 +391,7 @@ void GetItem_DrawBombchu(PlayState* play, s16 drawId) {
     Gfx_SetupDL23_Opa(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -404,14 +404,14 @@ void MM_GetItem_DrawPoes(PlayState* play, s16 drawId) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
 
-    gSPSegment(POLY_XLU_DISP++, 0x08,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, play->state.frames * 0, play->state.frames * 0, 16,
                                 32, 1, play->state.frames, -(play->state.frames * 6), 16, 32));
 
@@ -419,8 +419,8 @@ void MM_GetItem_DrawPoes(PlayState* play, s16 drawId) {
     MM_Matrix_ReplaceRotation(&play->billboardMtxF);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[3]);
-    gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[2]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[3]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[2]);
 
     MM_Matrix_Pop();
 
@@ -435,13 +435,13 @@ void GetItem_DrawFairyBottle(PlayState* play, s16 drawId) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
-    gSPSegment(POLY_XLU_DISP++, 0x08,
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, play->state.frames * 0, play->state.frames * 0, 32,
                                 32, 1, play->state.frames, -(play->state.frames * 6), 32, 32));
 
@@ -449,7 +449,7 @@ void GetItem_DrawFairyBottle(PlayState* play, s16 drawId) {
     MM_Matrix_ReplaceRotation(&play->billboardMtxF);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[2]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[2]);
 
     MM_Matrix_Pop();
 
@@ -464,15 +464,15 @@ void MM_GetItem_DrawSkullToken(PlayState* play, s16 drawId) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-    gSPSegment(POLY_XLU_DISP++, 0x08,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, play->state.frames * 0, -(play->state.frames * 5),
                                 32, 32, 1, play->state.frames * 0, play->state.frames * 0, 32, 64));
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -485,12 +485,12 @@ void MM_GetItem_DrawCompass(PlayState* play, s16 drawId) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
 
     POLY_XLU_DISP = MM_Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_5);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -502,20 +502,20 @@ void MM_GetItem_DrawPotion(PlayState* play, s16 drawId) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08,
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, -play->state.frames, play->state.frames, 32, 32, 1,
                                 -play->state.frames, play->state.frames, 32, 32));
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[2]);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[3]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[2]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[3]);
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[4]);
-    gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[5]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[4]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[5]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -527,11 +527,11 @@ void MM_GetItem_DrawGoronSword(PlayState* play, s16 drawId) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08,
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, play->state.frames * 1, play->state.frames * 0, 32,
                                 32, 1, play->state.frames * 0, play->state.frames * 0, 32, 32));
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -543,11 +543,11 @@ void MM_GetItem_DrawDekuNuts(PlayState* play, s16 drawId) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08,
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, play->state.frames * 6, play->state.frames * 6, 32,
                                 32, 1, play->state.frames * 6, play->state.frames * 6, 32, 32));
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -559,11 +559,11 @@ void MM_GetItem_DrawRecoveryHeart(PlayState* play, s16 drawId) {
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-    gSPSegment(POLY_XLU_DISP++, 0x08,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, play->state.frames * 0, -(play->state.frames * 3),
                                 32, 32, 1, play->state.frames * 0, -(play->state.frames * 2), 32, 32));
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -575,11 +575,11 @@ void MM_GetItem_DrawFish(PlayState* play, s16 drawId) {
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-    gSPSegment(POLY_XLU_DISP++, 0x08,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, play->state.frames * 0, play->state.frames * 1, 32,
                                 32, 1, play->state.frames * 0, play->state.frames * 1, 32, 32));
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -595,7 +595,7 @@ void MM_GetItem_DrawOpa0(PlayState* play, s16 drawId) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -611,12 +611,12 @@ void MM_GetItem_DrawOpa0Xlu1(PlayState* play, s16 drawId) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -632,8 +632,8 @@ void GetItem_DrawOpa01(PlayState* play, s16 drawId) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -649,8 +649,8 @@ void MM_GetItem_DrawXlu01(PlayState* play, s16 drawId) {
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
-    gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -664,19 +664,19 @@ void GetItem_DrawSeahorse(PlayState* play, s16 drawId) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
 
     MM_Matrix_MtxToMtxF(ResourceMgr_LoadMtxByName(Lib_SegmentedToVirtual(MM_sDrawItemTable[drawId].drawResources[3])), &mtx);
     MM_Matrix_Mult(&mtx, MTXMODE_APPLY);
     MM_Matrix_ReplaceRotation(&play->billboardMtxF);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[2]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[2]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -692,17 +692,17 @@ void GetItem_DrawFairyContainer(PlayState* play, s16 drawId) {
     AnimatedMat_Draw(play, Lib_SegmentedToVirtual(gGiFairyBottleTexAnim));
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
 
     MM_Matrix_MtxToMtxF(ResourceMgr_LoadMtxByName(Lib_SegmentedToVirtual(MM_sDrawItemTable[drawId].drawResources[3])), &mtx);
     MM_Matrix_Mult(&mtx, MTXMODE_APPLY);
     MM_Matrix_ReplaceRotation(&play->billboardMtxF);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[2]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[2]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -717,12 +717,12 @@ void GetItem_DrawMoonsTear(PlayState* play, s16 drawId) {
     AnimatedMat_Draw(play, Lib_SegmentedToVirtual(gGiMoonsTearTexAnim));
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
 
     MM_Matrix_ReplaceRotation(&play->billboardMtxF);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -735,13 +735,13 @@ void MM_GetItem_DrawMagicArrow(PlayState* play, s16 drawId) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
-    gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[2]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[2]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -754,10 +754,10 @@ void GetItem_DrawUpgrades(PlayState* play, s16 drawId) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[2]);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[3]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[2]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[3]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -770,14 +770,14 @@ void GetItem_DrawRupee(PlayState* play, s16 drawId) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[3]);
-    gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[2]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[3]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[2]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -791,14 +791,14 @@ void MM_GetItem_DrawSmallRupee(PlayState* play, s16 drawId) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[3]);
-    gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[2]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[3]);
+    MM_gSPDisplayList(POLY_XLU_DISP++, MM_sDrawItemTable[drawId].drawResources[2]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -811,14 +811,14 @@ void MM_GetItem_DrawWallet(PlayState* play, s16 drawId) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[2]);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[3]);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[4]);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[5]);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[6]);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[7]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[1]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[2]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[3]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[4]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[5]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[6]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[7]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -831,13 +831,13 @@ void GetItem_DrawRemains(PlayState* play, s16 drawId) {
 
     objectSlot = Object_GetSlot(&play->objectCtx, OBJECT_BSMASK);
 
-    gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[objectSlot].segment);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[objectSlot].segment);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     MM_Matrix_Scale(0.02f, 0.02f, 0.02f, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDrawItemTable[drawId].drawResources[0]);
 
     POLY_OPA_DISP = MM_Play_SetFog(play, POLY_OPA_DISP);
 

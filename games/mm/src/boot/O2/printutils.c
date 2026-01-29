@@ -1,7 +1,7 @@
 #include "global.h"
 #include "stdio.h"
 
-s32 _Printf(PrintCallback a, void* arg, const char* fmt, va_list ap) {
+s32 MM__Printf(PrintCallback a, void* arg, const char* fmt, va_list ap) {
     unsigned char buffer[4096];
 
     vsnprintf(buffer, sizeof(buffer), fmt, ap);
@@ -9,7 +9,7 @@ s32 _Printf(PrintCallback a, void* arg, const char* fmt, va_list ap) {
 }
 
 s32 MM_PrintUtils_VPrintf(PrintCallback* pfn, const char* fmt, va_list args) {
-    return _Printf(*pfn, pfn, fmt, args);
+    return MM__Printf(*pfn, pfn, fmt, args);
 }
 
 s32 MM_PrintUtils_Printf(PrintCallback* pfn, const char* fmt, ...) {

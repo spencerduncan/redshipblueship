@@ -54,18 +54,18 @@ void MM_EffectSs_DrawGEffect(PlayState* play, EffectSs* this, TexturePtr texture
     MM_SkinMatrix_MtxFMtxFMult(&mfTrans, &play->billboardMtxF, &mfTrans11DA0);
     MM_SkinMatrix_MtxFMtxFMult(&mfTrans11DA0, &mfScale, &mfResult);
     MM_gSegments[0x06] = OS_K0_TO_PHYSICAL(objectPtr);
-    gSPSegment(POLY_XLU_DISP++, 0x06, objectPtr);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x06, objectPtr);
 
     mtx = MM_SkinMatrix_MtxFToNewMtx(gfxCtx, &mfResult);
 
     if (mtx != NULL) {
         gSPMatrix(POLY_XLU_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-        gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(texture));
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(texture));
         Gfx_SetupDL61_Xlu(gfxCtx);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, this->rgPrimColorR, this->rgPrimColorG, this->rgPrimColorB,
                         this->rgPrimColorA);
         gDPSetEnvColor(POLY_XLU_DISP++, this->rgEnvColorR, this->rgEnvColorG, this->rgEnvColorB, this->rgEnvColorA);
-        gSPDisplayList(POLY_XLU_DISP++, this->gfx);
+        MM_gSPDisplayList(POLY_XLU_DISP++, this->gfx);
     }
 
     CLOSE_DISPS(gfxCtx);

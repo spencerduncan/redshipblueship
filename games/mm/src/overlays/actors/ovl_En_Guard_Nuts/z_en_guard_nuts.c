@@ -381,7 +381,7 @@ void EnGuardNuts_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeState]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeState]));
 
     MM_SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, EnGuardNuts_OverrideLimbDraw, NULL,
                       &this->actor);
@@ -390,7 +390,7 @@ void EnGuardNuts_Draw(Actor* thisx, PlayState* play) {
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
 
-    gSPDisplayList(POLY_OPA_DISP++, gDekuPalaceGuardFlowerDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gDekuPalaceGuardFlowerDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

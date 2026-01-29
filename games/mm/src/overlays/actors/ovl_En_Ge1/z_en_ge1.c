@@ -437,7 +437,7 @@ void MM_EnGe1_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* r
             break;
 
         case GERUDO_WHITE_LIMB_HEAD:
-            gSPDisplayList(POLY_OPA_DISP++, sHairstyleDLs[this->hairstyle]);
+            MM_gSPDisplayList(POLY_OPA_DISP++, sHairstyleDLs[this->hairstyle]);
             MM_Matrix_MultVec3f(&sInitialFocusPos, &this->picto.actor.focus.pos);
             break;
 
@@ -460,7 +460,7 @@ void MM_EnGe1_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL37_Opa(play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeIndex]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeIndex]));
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           MM_EnGe1_OverrideLimbDraw, MM_EnGe1_PostLimbDraw, &this->picto.actor);
 
