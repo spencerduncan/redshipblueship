@@ -8,10 +8,10 @@
 
 // Variables are put before most headers as a hacky way to bypass bss reordering
 IrqMgr MM_gIrqMgr;
-STACK(sIrqMgrStack, 0x500);
+STACK(MM_sIrqMgrStack, 0x500);
 StackEntry MM_sIrqMgrStackInfo;
 OSThread sMainThread;
-STACK(sMainStack, 0x900);
+STACK(MM_sMainStack, 0x900);
 StackEntry MM_sMainStackInfo;
 OSMesg MM_sPiMgrCmdBuff[50];
 OSMesgQueue gPiMgrCmdQueue;
@@ -46,15 +46,15 @@ void Main_InitScreen(void) {
     Main_InitFramebuffer((u32*)gLoBuffer.framebuffer, sizeof(gLoBuffer.framebuffer),
                          (GPACK_RGBA5551(0, 0, 0, 1) << 16) | GPACK_RGBA5551(0, 0, 0, 1));
     MM_ViConfig_UpdateVi(false);
-    osViSwapBuffer(gLoBuffer.framebuffer);
-    osViBlack(false);
+    MM_osViSwapBuffer(gLoBuffer.framebuffer);
+    MM_osViBlack(false);
 #endif
 }
 
 void Main_InitMemory(void) {
 #if 0
     void* memStart = (void*)0x80000400;
-    void* memEnd = OS_PHYSICAL_TO_K0(osMemSize);
+    void* memEnd = OS_PHYSICAL_TO_K0(MM_osMemSize);
 
     Main_ClearMemory(memStart, SEGMENT_START(framebuffer_lo));
 
@@ -73,7 +73,7 @@ void Main_Init(void) {
     OSMesg msg[1];
     size_t prevSize;
 
-    osCreateMesgQueue(&mq, msg, ARRAY_COUNT(msg));
+    MM_osCreateMesgQueue(&mq, msg, ARRAY_COUNT(msg));
 
     prevSize = MM_gDmaMgrDmaBuffSize;
     MM_gDmaMgrDmaBuffSize = 0;
@@ -82,7 +82,7 @@ void Main_Init(void) {
                            NULL);
     Main_InitScreen();
     Main_InitMemory();
-    osRecvMesg(&mq, NULL, OS_MESG_BLOCK);
+    MM_osRecvMesg(&mq, NULL, OS_MESG_BLOCK);
 
     MM_gDmaMgrDmaBuffSize = prevSize;
 
@@ -92,8 +92,8 @@ void Main_Init(void) {
 
 void MM_Main_ThreadEntry(void* arg) {
 #if 0
-    MM_StackCheck_Init(&MM_sIrqMgrStackInfo, sIrqMgrStack, STACK_TOP(sIrqMgrStack), 0, 0x100, "irqmgr");
-    MM_IrqMgr_Init(&MM_gIrqMgr, STACK_TOP(sIrqMgrStack), Z_PRIORITY_IRQMGR, 1);
+    MM_StackCheck_Init(&MM_sIrqMgrStackInfo, MM_sIrqMgrStack, STACK_TOP(MM_sIrqMgrStack), 0, 0x100, "irqmgr");
+    MM_IrqMgr_Init(&MM_gIrqMgr, STACK_TOP(MM_sIrqMgrStack), Z_PRIORITY_IRQMGR, 1);
     DmaMgr_Start();
     Main_Init();
     Main(arg);
@@ -103,26 +103,26 @@ void MM_Main_ThreadEntry(void* arg) {
 
 void Idle_InitVideo(void) {
 #if 0
-    osCreateViManager(OS_PRIORITY_VIMGR);
+    MM_osCreateViManager(OS_PRIORITY_VIMGR);
 
     MM_gViConfigFeatures = OS_VI_DITHER_FILTER_ON | OS_VI_GAMMA_OFF;
     MM_gViConfigXScale = 1.0f;
     MM_gViConfigYScale = 1.0f;
 
-    switch (osTvType) {
+    switch (MM_osTvType) {
         case OS_TV_NTSC:
             gViConfigModeType = OS_VI_NTSC_LAN1;
-            MM_gViConfigMode = osViModeNtscLan1;
+            MM_gViConfigMode = MM_osViModeNtscLan1;
             break;
 
         case OS_TV_MPAL:
             gViConfigModeType = OS_VI_MPAL_LAN1;
-            MM_gViConfigMode = osViModeMpalLan1;
+            MM_gViConfigMode = MM_osViModeMpalLan1;
             break;
 
         case OS_TV_PAL:
             gViConfigModeType = OS_VI_FPAL_LAN1;
-            MM_gViConfigMode = osViModeFpalLan1;
+            MM_gViConfigMode = MM_osViModeFpalLan1;
             MM_gViConfigYScale = 0.833f;
             break;
     }
@@ -133,11 +133,11 @@ void Idle_InitVideo(void) {
 
 void MM_Idle_ThreadEntry(void* arg) {
     // Idle_InitVideo();
-    // osCreatePiManager(OS_PRIORITY_PIMGR, &gPiMgrCmdQueue, MM_sPiMgrCmdBuff, ARRAY_COUNT(MM_sPiMgrCmdBuff));
-    // MM_StackCheck_Init(&MM_sMainStackInfo, sMainStack, STACK_TOP(sMainStack), 0, 0x400, "main");
-    // osCreateThread(&sMainThread, Z_THREAD_ID_MAIN, MM_Main_ThreadEntry, arg, STACK_TOP(sMainStack), Z_PRIORITY_MAIN);
-    // osStartThread(&sMainThread);
-    // osSetThreadPri(NULL, OS_PRIORITY_IDLE);
+    // MM_osCreatePiManager(OS_PRIORITY_PIMGR, &gPiMgrCmdQueue, MM_sPiMgrCmdBuff, ARRAY_COUNT(MM_sPiMgrCmdBuff));
+    // MM_StackCheck_Init(&MM_sMainStackInfo, MM_sMainStack, STACK_TOP(MM_sMainStack), 0, 0x400, "main");
+    // MM_osCreateThread(&sMainThread, Z_THREAD_ID_MAIN, MM_Main_ThreadEntry, arg, STACK_TOP(MM_sMainStack), Z_PRIORITY_MAIN);
+    // MM_osStartThread(&sMainThread);
+    // MM_osSetThreadPri(NULL, OS_PRIORITY_IDLE);
 
     // for (;;) {}
 }

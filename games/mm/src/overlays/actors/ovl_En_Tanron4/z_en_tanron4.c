@@ -106,7 +106,7 @@ void EnTanron4_FlyNearHome(EnTanron4* this, PlayState* play) {
     yDiff = this->targetPos.y + this->timeInfluence - this->actor.world.pos.y;
     zDiff = this->targetPos.z - this->actor.world.pos.z;
 
-    distToTarget = sqrtf(SQ(xDiff) + SQ(zDiff));
+    distToTarget = MM_sqrtf(SQ(xDiff) + SQ(zDiff));
 
     if ((this->timers[SEAGULL_TIMER_CHOOSE_TARGET] == 0) || (distToTarget < 100.0f)) {
         this->targetPos.x = this->actor.home.pos.x + MM_Rand_CenteredFloat(500.0f);
@@ -188,7 +188,7 @@ void EnTanron4_FlyNearActor(EnTanron4* this, PlayState* play) {
     yDiff = this->targetPos.y - this->actor.world.pos.y;
     zDiff = this->targetPos.z - this->actor.world.pos.z;
 
-    distToTarget = sqrtf(SQ(xDiff) + SQ(zDiff));
+    distToTarget = MM_sqrtf(SQ(xDiff) + SQ(zDiff));
 
     if ((this->timers[SEAGULL_TIMER_CHOOSE_TARGET] == 0) || (distToTarget < 100.0f)) {
         this->targetPos.x = targetActor->world.pos.x + MM_Rand_CenteredFloat(200.0f + KREG(82));

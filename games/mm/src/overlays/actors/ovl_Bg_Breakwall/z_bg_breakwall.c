@@ -367,14 +367,14 @@ void func_808B7B54(Actor* thisx, PlayState* play) {
 
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, sp50.r, sp50.g, sp50.b, 255);
     gDPSetEnvColor(POLY_XLU_DISP++, sp4C.r, sp4C.g, sp4C.b, 255);
-    gSPDisplayList(POLY_XLU_DISP++, object_kumo30_DL_000A50);
+    MM_gSPDisplayList(POLY_XLU_DISP++, object_kumo30_DL_000A50);
 
     Environment_LerpSandstormColors(D_808B8320, &sp50);
     Environment_LerpSandstormColors(D_808B8340, &sp4C);
 
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, sp50.r, sp50.g, sp50.b, 255);
     gDPSetEnvColor(POLY_XLU_DISP++, sp4C.r, sp4C.g, sp4C.b, 255);
-    gSPDisplayList(POLY_XLU_DISP++, object_kumo30_DL_000C98);
+    MM_gSPDisplayList(POLY_XLU_DISP++, object_kumo30_DL_000C98);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -394,18 +394,18 @@ void func_808B7D34(Actor* thisx, PlayState* play) {
     tempB = (((sp48 * 145) + (this->unk_15E * 85)) & 0xFF00) >> 8;
     tempC = (((sp48 * 135) + (this->unk_15E * 55)) & 0xFF00) >> 8;
 
-    gSPSegment(POLY_XLU_DISP++, 0x09, Gfx_PrimColor(play->state.gfxCtx, 255, 255, tempA, tempB, tempC));
+    MM_gSPSegment(POLY_XLU_DISP++, 0x09, Gfx_PrimColor(play->state.gfxCtx, 255, 255, tempA, tempB, tempC));
 
     tempA = (((sp48 * 255) + (this->unk_15E * 150)) & 0xFF00) >> 8;
     tempB = (((sp48 * 255) + (this->unk_15E * 100)) & 0xFF00) >> 8;
     tempC = (((sp48 * 255) + (this->unk_15E * 75)) & 0xFF00) >> 8;
 
-    gSPSegment(POLY_XLU_DISP++, 0x0A, Gfx_PrimColor(play->state.gfxCtx, 255, tempA, tempA, tempB, tempC));
+    MM_gSPSegment(POLY_XLU_DISP++, 0x0A, Gfx_PrimColor(play->state.gfxCtx, 255, tempA, tempA, tempB, tempC));
 
     tempA = (((sp48 * 185) + (this->unk_15E * 140)) & 0xFF00) >> 8;
     tempB = (((sp48 * 235) + (this->unk_15E * 45)) & 0xFF00) >> 8;
 
-    gSPSegment(POLY_XLU_DISP++, 0x0B, Gfx_PrimColor(play->state.gfxCtx, 255, 255, 255, tempA, tempB));
+    MM_gSPSegment(POLY_XLU_DISP++, 0x0B, Gfx_PrimColor(play->state.gfxCtx, 255, 255, 255, tempA, tempB));
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -429,14 +429,14 @@ void MM_BgBreakwall_Draw(Actor* thisx, PlayState* play) {
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, temp_s2->unk_04);
+        MM_gSPDisplayList(POLY_OPA_DISP++, temp_s2->unk_04);
     }
 
     if (temp_s2->unk_08 != NULL) {
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, temp_s2->unk_08);
+        MM_gSPDisplayList(POLY_XLU_DISP++, temp_s2->unk_08);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

@@ -426,7 +426,7 @@ void func_80AE7F34(EnStopheishi* this, PlayState* play) {
         zDiff = this->actor.home.pos.z - player->actor.world.pos.z;
         this->collider.dim.radius = 50;
         this->collider.dim.height = 260;
-        if (sqrtf(SQ(xDiff) + SQ(zDiff)) < 240.0f) {
+        if (MM_sqrtf(SQ(xDiff) + SQ(zDiff)) < 240.0f) {
             func_80AE795C(this, play);
         } else {
             func_80AE77D4(this);

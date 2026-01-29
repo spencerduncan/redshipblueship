@@ -47,8 +47,8 @@ void MM_Scene_Draw(PlayState* play) {
 void Scene_DrawConfigDefault(PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
-    gSPDisplayList(POLY_OPA_DISP++, sSceneDrawDefaultDL);
-    gSPDisplayList(POLY_XLU_DISP++, sSceneDrawDefaultDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, sSceneDrawDefaultDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, sSceneDrawDefaultDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -72,11 +72,11 @@ void AnimatedMat_DrawTexScroll(PlayState* play, s32 segment, void* params) {
     OPEN_DISPS(play->state.gfxCtx);
 
     if (sMatAnimFlags & 1) {
-        gSPSegment(POLY_OPA_DISP++, segment, texScrollDList);
+        MM_gSPSegment(POLY_OPA_DISP++, segment, texScrollDList);
     }
 
     if (sMatAnimFlags & 2) {
-        gSPSegment(POLY_XLU_DISP++, segment, texScrollDList);
+        MM_gSPSegment(POLY_XLU_DISP++, segment, texScrollDList);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -102,11 +102,11 @@ void AnimatedMat_DrawTwoTexScroll(PlayState* play, s32 segment, void* params) {
     OPEN_DISPS(play->state.gfxCtx);
 
     if (sMatAnimFlags & 1) {
-        gSPSegment(POLY_OPA_DISP++, segment, texScrollDList);
+        MM_gSPSegment(POLY_OPA_DISP++, segment, texScrollDList);
     }
 
     if (sMatAnimFlags & 2) {
-        gSPSegment(POLY_XLU_DISP++, segment, texScrollDList);
+        MM_gSPSegment(POLY_XLU_DISP++, segment, texScrollDList);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -121,8 +121,8 @@ void AnimatedMat_SetColor(PlayState* play, s32 segment, F3DPrimColor* primColorR
     OPEN_DISPS(play->state.gfxCtx);
 
     // clang-format off
-    if (sMatAnimFlags & 1) { gSPSegment(POLY_OPA_DISP++, segment, gfx); }
-    if (sMatAnimFlags & 2) { gSPSegment(POLY_XLU_DISP++, segment, gfx); }
+    if (sMatAnimFlags & 1) { MM_gSPSegment(POLY_OPA_DISP++, segment, gfx); }
+    if (sMatAnimFlags & 2) { MM_gSPSegment(POLY_XLU_DISP++, segment, gfx); }
     // clang-format on
 
     gDPSetPrimColor(gfx++, 0, primColorResult->lodFrac, primColorResult->r, primColorResult->g, primColorResult->b,
@@ -374,11 +374,11 @@ void AnimatedMat_DrawTexCycle(PlayState* play, s32 segment, void* params) {
     OPEN_DISPS(play->state.gfxCtx);
 
     if (sMatAnimFlags & 1) {
-        gSPSegment(POLY_OPA_DISP++, segment, tex);
+        MM_gSPSegment(POLY_OPA_DISP++, segment, tex);
     }
 
     if (sMatAnimFlags & 2) {
-        gSPSegment(POLY_XLU_DISP++, segment, tex);
+        MM_gSPSegment(POLY_XLU_DISP++, segment, tex);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -515,22 +515,22 @@ void Scene_DrawConfig3(PlayState* play) {
 
     frames = play->gameplayFrames;
 
-    gSPSegment(POLY_XLU_DISP++, 0x08, MM_Gfx_TexScroll(play->state.gfxCtx, 0, (frames * 1) % 64, 256, 16));
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08, MM_Gfx_TexScroll(play->state.gfxCtx, 0, (frames * 1) % 64, 256, 16));
 
-    gSPSegment(POLY_XLU_DISP++, 0x09,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x09,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 127 - (frames % 128), (frames * 1) % 128, 32, 32, 1,
                                 frames % 128, (frames * 1) % 128, 32, 32));
 
-    gSPSegment(POLY_OPA_DISP++, 0x0A,
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0A,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 32, 1, 0, 127 - (frames * 1) % 128, 32, 32));
 
-    gSPSegment(POLY_OPA_DISP++, 0x0B, MM_Gfx_TexScroll(play->state.gfxCtx, 0, (frames * 1) % 128, 32, 32));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0B, MM_Gfx_TexScroll(play->state.gfxCtx, 0, (frames * 1) % 128, 32, 32));
 
-    gSPSegment(
+    MM_gSPSegment(
         POLY_XLU_DISP++, 0x0C,
         MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, (frames * 50) % 2048, 8, 512, 1, 0, (frames * 60) % 2048, 8, 512));
 
-    gSPSegment(POLY_OPA_DISP++, 0x0D,
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0D,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0, (frames * 1) % 128, 32, 32));
 
     gDPPipeSync(POLY_XLU_DISP++);
@@ -554,7 +554,7 @@ void Scene_DrawConfig4(PlayState* play) {
 
     frames = play->gameplayFrames;
 
-    gSPSegment(POLY_XLU_DISP++, 0x08,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 127 - frames % 128, (frames * 1) % 128, 32, 32, 1, frames % 128,
                                 (frames * 1) % 128, 32, 32));
 
@@ -619,11 +619,11 @@ void Scene_SetRenderModeXlu(PlayState* play, s32 index, u32 flags) {
     OPEN_DISPS(play->state.gfxCtx);
 
     if (flags & 1) {
-        gSPSegment(POLY_OPA_DISP++, 0x0C, dList);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x0C, dList);
     }
 
     if (flags & 2) {
-        gSPSegment(POLY_XLU_DISP++, 0x0C, dList);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x0C, dList);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -651,11 +651,11 @@ void Scene_SetCullFlag(PlayState* play, s32 index, u32 flags) {
     OPEN_DISPS(play->state.gfxCtx);
 
     if (flags & 1) {
-        gSPSegment(POLY_OPA_DISP++, 0x0C, dList);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x0C, dList);
     }
 
     if (flags & 2) {
-        gSPSegment(POLY_XLU_DISP++, 0x0C, dList);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x0C, dList);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -787,8 +787,8 @@ void Scene_DrawConfigGreatBayTemple(PlayState* play) {
         gDPSetPrimColor(gfx, 0, lodFrac, 255, 255, 255, 255);
     }
 
-    gSPSegment(POLY_OPA_DISP++, 0x06, gfxHead);
-    gSPSegment(POLY_XLU_DISP++, 0x06, gfxHead);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x06, gfxHead);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x06, gfxHead);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

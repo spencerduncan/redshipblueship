@@ -86,8 +86,8 @@ void MM_EffectSsDeadDb_Draw(PlayState* play, u32 index, EffectSs* this) {
         gDPSetEnvColor(POLY_XLU_DISP++, this->rEnvColorR, this->rEnvColorG, this->rEnvColorB, 0);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, this->rPrimColorR, this->rPrimColorG, this->rPrimColorB,
                         this->rPrimColorA);
-        gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sTextures[this->rTexIndex]));
-        gSPDisplayList(POLY_XLU_DISP++, this->gfx);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sTextures[this->rTexIndex]));
+        MM_gSPDisplayList(POLY_XLU_DISP++, this->gfx);
     }
 
     CLOSE_DISPS(gfxCtx);

@@ -94,8 +94,8 @@ void EnScopecoin_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sRupeeTextures[this->rupeeIndex]));
-    gSPDisplayList(POLY_OPA_DISP++, gRupeeDL);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sRupeeTextures[this->rupeeIndex]));
+    MM_gSPDisplayList(POLY_OPA_DISP++, gRupeeDL);
 
     CLOSE_DISPS(gfxCtx);
 }

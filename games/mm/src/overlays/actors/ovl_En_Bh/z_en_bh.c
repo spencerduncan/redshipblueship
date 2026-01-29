@@ -54,7 +54,7 @@ void func_80C22DEC(EnBh* this, PlayState* play) {
     xDiff = this->pos.x - this->actor.world.pos.x;
     yDiff = this->pos.y - this->actor.world.pos.y;
     zDiff = this->pos.z - this->actor.world.pos.z;
-    xzDist = sqrtf(SQ(xDiff) + SQ(zDiff));
+    xzDist = MM_sqrtf(SQ(xDiff) + SQ(zDiff));
 
     if ((this->timer2 == 0) || (xzDist < 100.0f)) {
         this->pos.x = MM_Rand_CenteredFloat(300.0f) + this->actor.home.pos.x;

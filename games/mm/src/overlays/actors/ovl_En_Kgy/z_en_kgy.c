@@ -1203,11 +1203,11 @@ void func_80B43074(EnKgy* this, PlayState* play) {
     MATRIX_FINALIZE_AND_LOAD(gfx, play->state.gfxCtx);
 
     if (func_80B40D8C(play)) {
-        gSPDisplayList(&gfx[1], gRazorSwordHandleDL);
-        gSPDisplayList(&gfx[2], object_kgy_DL_00F180);
+        MM_gSPDisplayList(&gfx[1], gRazorSwordHandleDL);
+        MM_gSPDisplayList(&gfx[2], object_kgy_DL_00F180);
     } else {
-        gSPDisplayList(&gfx[1], gKokiriSwordHandleDL);
-        gSPDisplayList(&gfx[2], object_kgy_DL_00E8F0);
+        MM_gSPDisplayList(&gfx[1], gKokiriSwordHandleDL);
+        MM_gSPDisplayList(&gfx[2], object_kgy_DL_00E8F0);
     }
     POLY_OPA_DISP = &gfx[3];
 

@@ -420,7 +420,7 @@ void func_80A6FBFC(EnMm3* this, PlayState* play) {
         }
     } else if (gSaveContext.timerCurTimes[TIMER_ID_POSTMAN] > SECONDS_TO_TIMER(15)) {
         gSaveContext.timerStates[TIMER_ID_POSTMAN] = TIMER_STATE_POSTMAN_STOP;
-        gSaveContext.postmanTimerStopOsTime = osGetTime();
+        gSaveContext.postmanTimerStopOsTime = MM_osGetTime();
     }
 
     if (Actor_TalkOfferAccepted(&this->actor, &play->state)) {
@@ -596,8 +596,8 @@ void EnMm3_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80A704FC[this->unk_1DC]));
-    gSPSegment(POLY_OPA_DISP++, 0x0C, sEnMm3DL);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80A704FC[this->unk_1DC]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0C, sEnMm3DL);
 
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnMm3_OverrideLimbDraw, EnMm3_PostLimbDraw, &this->actor);

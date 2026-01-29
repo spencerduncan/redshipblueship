@@ -96,8 +96,8 @@ void MM_EffectSsBomb2_DrawFade(PlayState* play, u32 index, EffectSs* this) {
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, this->rPrimColorR, this->rPrimColorG, this->rPrimColorB,
                         this->rPrimColorA);
         gDPSetEnvColor(POLY_XLU_DISP++, this->rEnvColorR, this->rEnvColorG, this->rEnvColorB, 0);
-        gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sTextures[this->rTexIndex]));
-        gSPDisplayList(POLY_XLU_DISP++, this->gfx);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sTextures[this->rTexIndex]));
+        MM_gSPDisplayList(POLY_XLU_DISP++, this->gfx);
     }
 
     CLOSE_DISPS(gfxCtx);
@@ -139,9 +139,9 @@ void MM_EffectSsBomb2_DrawLayered(PlayState* play, u32 index, EffectSs* this) {
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, this->rPrimColorR, this->rPrimColorG, this->rPrimColorB,
                             this->rPrimColorA);
             gDPSetEnvColor(POLY_XLU_DISP++, this->rEnvColorR, this->rEnvColorG, this->rEnvColorB, 0);
-            gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(sLayeredTextures[this->rTexIndex]));
-            gSPDisplayList(POLY_XLU_DISP++, gEffBombExplosion2DL);
-            gSPDisplayList(POLY_XLU_DISP++, gEffBombExplosion3DL);
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(sLayeredTextures[this->rTexIndex]));
+            MM_gSPDisplayList(POLY_XLU_DISP++, gEffBombExplosion2DL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gEffBombExplosion3DL);
 
             MM_Matrix_MtxToMtxF(mtx2, &mtx2F);
             MM_Matrix_Put(&mtx2F);
@@ -151,7 +151,7 @@ void MM_EffectSsBomb2_DrawLayered(PlayState* play, u32 index, EffectSs* this) {
                 Matrix_RotateZF((this->life * 0.02f) + 180.0f, MTXMODE_APPLY);
                 MM_Matrix_Scale(layer2Scale, layer2Scale, layer2Scale, MTXMODE_APPLY);
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-                gSPDisplayList(POLY_XLU_DISP++, gEffBombExplosion3DL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gEffBombExplosion3DL);
                 layer2Scale -= 0.15f;
             }
         }

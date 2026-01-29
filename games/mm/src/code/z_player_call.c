@@ -7,10 +7,10 @@
      ACTOR_FLAG_DRAW_CULLING_DISABLED | ACTOR_FLAG_UPDATE_DURING_SOARING_AND_SOT_CS |          \
      ACTOR_FLAG_UPDATE_DURING_OCARINA | ACTOR_FLAG_CAN_PRESS_SWITCHES | ACTOR_FLAG_MINIMAP_ICON_ENABLED)
 
-ActorFunc sPlayerCallInitFunc;
-ActorFunc sPlayerCallDestroyFunc;
-ActorFunc sPlayerCallUpdateFunc;
-ActorFunc sPlayerCallDrawFunc;
+ActorFunc MM_sPlayerCallInitFunc;
+ActorFunc MM_sPlayerCallDestroyFunc;
+ActorFunc MM_sPlayerCallUpdateFunc;
+ActorFunc MM_sPlayerCallDrawFunc;
 
 ActorProfile Player_Profile = {
     /**/ ACTOR_PLAYER,
@@ -30,29 +30,29 @@ void MM_Player_Update(Actor* thisx, PlayState* play);
 void MM_Player_Draw(Actor* thisx, PlayState* play);
 
 void MM_PlayerCall_InitFuncPtrs(void) {
-    sPlayerCallInitFunc = MM_KaleidoManager_GetRamAddr(MM_Player_Init);
-    sPlayerCallDestroyFunc = MM_KaleidoManager_GetRamAddr(MM_Player_Destroy);
-    sPlayerCallUpdateFunc = MM_KaleidoManager_GetRamAddr(MM_Player_Update);
-    sPlayerCallDrawFunc = MM_KaleidoManager_GetRamAddr(MM_Player_Draw);
+    MM_sPlayerCallInitFunc = MM_KaleidoManager_GetRamAddr(MM_Player_Init);
+    MM_sPlayerCallDestroyFunc = MM_KaleidoManager_GetRamAddr(MM_Player_Destroy);
+    MM_sPlayerCallUpdateFunc = MM_KaleidoManager_GetRamAddr(MM_Player_Update);
+    MM_sPlayerCallDrawFunc = MM_KaleidoManager_GetRamAddr(MM_Player_Draw);
 }
 
 void MM_PlayerCall_Init(Actor* thisx, PlayState* play) {
     MM_KaleidoScopeCall_LoadPlayer();
     MM_PlayerCall_InitFuncPtrs();
-    sPlayerCallInitFunc(thisx, play);
+    MM_sPlayerCallInitFunc(thisx, play);
 }
 
 void MM_PlayerCall_Destroy(Actor* thisx, PlayState* play) {
     MM_KaleidoScopeCall_LoadPlayer();
-    sPlayerCallDestroyFunc(thisx, play);
+    MM_sPlayerCallDestroyFunc(thisx, play);
 }
 
 void MM_PlayerCall_Update(Actor* thisx, PlayState* play) {
     MM_KaleidoScopeCall_LoadPlayer();
-    sPlayerCallUpdateFunc(thisx, play);
+    MM_sPlayerCallUpdateFunc(thisx, play);
 }
 
 void MM_PlayerCall_Draw(Actor* thisx, PlayState* play) {
     MM_KaleidoScopeCall_LoadPlayer();
-    sPlayerCallDrawFunc(thisx, play);
+    MM_sPlayerCallDrawFunc(thisx, play);
 }

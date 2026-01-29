@@ -31,7 +31,7 @@ typedef struct {
 #define ORIGIN(v) v
 #define VINTR(v) v
 #define HSTART START
-s32 osTvType = OS_TV_NTSC;
+s32 MM_osTvType = OS_TV_NTSC;
 void MM_ViMode_LogPrint(OSViMode* osViMode) {
 }
 
@@ -199,11 +199,11 @@ void MM_ViMode_Configure(OSViMode* viMode, s32 type, s32 tvType, s32 loRes, s32 
 }
 
 extern OSViMode osViModeNtscHpf1;
-extern OSViMode osViModePalLan1;
+extern OSViMode MM_osViModePalLan1;
 extern OSViMode osViModeNtscHpn1;
-extern OSViMode osViModeNtscLan1;
-extern OSViMode osViModeMpalLan1;
-extern OSViMode osViModeFpalLan1;
+extern OSViMode MM_osViModeNtscLan1;
+extern OSViMode MM_osViModeMpalLan1;
+extern OSViMode MM_osViModeFpalLan1;
 
 void MM_ViMode_Save(ViMode* viMode) {
 #if 0
@@ -219,11 +219,11 @@ void MM_ViMode_Save(ViMode* viMode) {
         SREG(58) = 0;
         switch (SREG(59)) {
             case 1:
-                MM_ViMode_LogPrint(&osViModePalLan1);
+                MM_ViMode_LogPrint(&MM_osViModePalLan1);
                 break;
 
             case 2:
-                MM_ViMode_LogPrint(&osViModeFpalLan1);
+                MM_ViMode_LogPrint(&MM_osViModeFpalLan1);
                 break;
 
             default:
@@ -258,7 +258,7 @@ void MM_ViMode_Init(ViMode* viMode) {
     viMode->upperAdjust = 0;
     viMode->lowerAdjust = 0;
     viMode->viFeatures = OS_VI_DITHER_FILTER_ON | OS_VI_GAMMA_OFF;
-    viMode->tvType = osTvType;
+    viMode->tvType = MM_osTvType;
     viMode->fb16Bit = true;
     viMode->modeN = true;
     viMode->antialiasOff = false;
@@ -393,14 +393,14 @@ void MM_ViMode_Update(ViMode* viMode, Input* input) {
             }
         }
 
-        MM_ViMode_Configure(&viMode->customViMode, OS_VI_UNK28, osTvType, viMode->loRes, viMode->antialiasOff,
+        MM_ViMode_Configure(&viMode->customViMode, OS_VI_UNK28, MM_osTvType, viMode->loRes, viMode->antialiasOff,
                          viMode->modeN, viMode->fb16Bit, viMode->viWidth, viMode->viHeight, viMode->leftAdjust,
                          viMode->rightAdjust, viMode->upperAdjust, viMode->lowerAdjust);
         MM_ViMode_ConfigureFeatures(viMode, viMode->viFeatures);
 
         if (viMode->editState == VI_MODE_EDIT_STATE_3) {
             // Log comparison between the NTSC LAN1 mode and the custom mode
-            MM_ViMode_LogPrint(&osViModeNtscLan1);
+            MM_ViMode_LogPrint(&MM_osViModeNtscLan1);
             MM_ViMode_LogPrint(&viMode->customViMode);
             viMode->editState = VI_MODE_EDIT_STATE_2;
         }

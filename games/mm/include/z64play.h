@@ -191,7 +191,7 @@ void Play_AssignPlayerCsIdsFromScene(PlayState* thisx, s32 spawnCsId);
 void Play_FillScreen(PlayState* thisx, s16 fillScreenOn, u8 red, u8 green, u8 blue, u8 alpha);
 void MM_Play_Init(GameState* thisxx);
 
-extern s32 gDbgCamEnabled;
+extern s32 MM_gDbgCamEnabled;
 
 extern s32 gTransitionTileState;
 extern Color_RGBA8_u32 gPlayVisMonoColor;

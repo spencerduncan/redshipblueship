@@ -10,6 +10,11 @@
 #include <cstring>
 #include <cstdlib>
 
+// Lifecycle unit tests — included directly to avoid static library link ordering issues
+extern "C" {
+#include "tests/test_game_lifecycle.c"
+}
+
 // ============================================================================
 // Internal state
 // ============================================================================
@@ -223,6 +228,12 @@ TestResult Test_StartupEntrance(void) {
     return TEST_PASS;
 }
 
+TestResult Test_Lifecycle(void) {
+    printf("[TEST] lifecycle: Game lifecycle unit tests\n");
+    int failures = TestLifecycle_RunAll();
+    return (failures == 0) ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_Context(void) {
     printf("[TEST] context: Test context/state management\n");
 
@@ -282,6 +293,7 @@ const TestDescriptor gTests[] = {
     {"startup-entrance", "Test startup entrance flow", Test_StartupEntrance},
     {"roundtrip", "Full round-trip with state verification", Test_Roundtrip},
     {"context", "Test context/state management", Test_Context},
+    {"lifecycle", "Game lifecycle unit tests", Test_Lifecycle},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 

@@ -648,8 +648,8 @@ void EnZov_Draw(Actor* thisx, PlayState* play) {
     }
 
     gfx = POLY_OPA_DISP;
-    gSPSegment(&gfx[0], 0x09, Lib_SegmentedToVirtual(MM_sEyeTextures[phi_v1]));
-    gSPSegment(&gfx[1], 0x08, Lib_SegmentedToVirtual(MM_sMouthTextures[phi_a1]));
+    MM_gSPSegment(&gfx[0], 0x09, Lib_SegmentedToVirtual(MM_sEyeTextures[phi_v1]));
+    MM_gSPSegment(&gfx[1], 0x08, Lib_SegmentedToVirtual(MM_sMouthTextures[phi_a1]));
     POLY_OPA_DISP = &gfx[2];
 
     CLOSE_DISPS(play->state.gfxCtx);

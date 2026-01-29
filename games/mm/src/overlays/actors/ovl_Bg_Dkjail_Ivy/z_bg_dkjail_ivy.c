@@ -203,7 +203,7 @@ void BgDkjailIvy_Draw(Actor* thisx, PlayState* play) {
 
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0xFF, 255, 255, 255, this->alpha);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, &gDkjailIvyDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, &gDkjailIvyDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

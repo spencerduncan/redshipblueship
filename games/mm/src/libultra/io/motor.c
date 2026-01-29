@@ -28,9 +28,9 @@ s32 __osMotorAccess(OSPfs* pfs, s32 flag) {
 
     __osContLastPoll = CONT_CMD_END;
     __osSiRawStartDma(OS_WRITE, &__MotorDataBuf[pfs->channel]);
-    osRecvMesg(pfs->queue, NULL, OS_MESG_BLOCK);
+    MM_osRecvMesg(pfs->queue, NULL, OS_MESG_BLOCK);
     __osSiRawStartDma(OS_READ, &__MotorDataBuf[pfs->channel]);
-    osRecvMesg(pfs->queue, NULL, OS_MESG_BLOCK);
+    MM_osRecvMesg(pfs->queue, NULL, OS_MESG_BLOCK);
 
     ret = READFORMAT(ptr)->rxsize & CHNL_ERR_MASK;
     if (!ret) {
@@ -73,7 +73,7 @@ void _MakeMotorData(s32 channel, OSPifRam* mdata) {
     *ptr = CONT_CMD_END;
 }
 
-s32 osMotorInit(OSMesgQueue* mq, OSPfs* pfs, s32 channel) {
+s32 MM_osMotorInit(OSMesgQueue* mq, OSPfs* pfs, s32 channel) {
     s32 ret;
     u8 temp[BLOCKSIZE];
 

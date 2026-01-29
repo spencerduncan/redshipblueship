@@ -689,7 +689,7 @@ void ObjSkateblock_Draw(Actor* thisx, PlayState* play) {
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     gDPSetPrimColor(POLY_OPA_DISP++, 0xFF, 0xFF, sp2C->r, sp2C->g, sp2C->b, 255);
-    gSPDisplayList(POLY_OPA_DISP++, gameplay_dangeon_keep_DL_0182A8);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gameplay_dangeon_keep_DL_0182A8);
 
     func_80A21E9C(this, play);
 

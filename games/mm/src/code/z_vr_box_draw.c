@@ -27,7 +27,7 @@ void Skybox_Draw(SkyboxContext* skyboxCtx, GraphicsContext* gfxCtx, s16 skyboxId
 
     Gfx_SetupDL40_Opa(gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x0B, skyboxCtx->palette);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0B, skyboxCtx->palette);
     gSPTexture(POLY_OPA_DISP++, 0x8000, 0x8000, 0, G_TX_RENDERTILE, G_ON);
 
     // Prepare matrix
@@ -58,15 +58,15 @@ void Skybox_Draw(SkyboxContext* skyboxCtx, GraphicsContext* gfxCtx, s16 skyboxId
     gDPSetEnvColor(POLY_OPA_DISP++, skyboxCtx->env.r, skyboxCtx->env.g, skyboxCtx->env.b, 0);
 
     // Draw each face
-    gSPDisplayList(POLY_OPA_DISP++, &skyboxCtx->dListBuf[0]); // -z face
-    gSPDisplayList(POLY_OPA_DISP++, &skyboxCtx->dListBuf[2]); // +z face
-    gSPDisplayList(POLY_OPA_DISP++, &skyboxCtx->dListBuf[4]); // -x face
-    gSPDisplayList(POLY_OPA_DISP++, &skyboxCtx->dListBuf[6]); // +x face
-    gSPDisplayList(POLY_OPA_DISP++, &skyboxCtx->dListBuf[8]); // +y face
+    MM_gSPDisplayList(POLY_OPA_DISP++, &skyboxCtx->dListBuf[0]); // -z face
+    MM_gSPDisplayList(POLY_OPA_DISP++, &skyboxCtx->dListBuf[2]); // +z face
+    MM_gSPDisplayList(POLY_OPA_DISP++, &skyboxCtx->dListBuf[4]); // -x face
+    MM_gSPDisplayList(POLY_OPA_DISP++, &skyboxCtx->dListBuf[6]); // +x face
+    MM_gSPDisplayList(POLY_OPA_DISP++, &skyboxCtx->dListBuf[8]); // +y face
 
     if (skyboxId == SKYBOX_CUTSCENE_MAP) {
         // Skip the bottom face unless in the cutscene map
-        gSPDisplayList(POLY_OPA_DISP++, &skyboxCtx->dListBuf[10]); // -y face
+        MM_gSPDisplayList(POLY_OPA_DISP++, &skyboxCtx->dListBuf[10]); // -y face
     }
 
     gDPPipeSync(POLY_OPA_DISP++);

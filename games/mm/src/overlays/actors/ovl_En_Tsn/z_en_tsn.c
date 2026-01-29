@@ -641,8 +641,8 @@ void EnTsn_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL37_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80AE11C8[this->unk_22E]));
-    gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(D_80AE11C8[this->unk_22E]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80AE11C8[this->unk_22E]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(D_80AE11C8[this->unk_22E]));
 
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnTsn_OverrideLimbDraw, EnTsn_PostLimbDraw, &this->actor);

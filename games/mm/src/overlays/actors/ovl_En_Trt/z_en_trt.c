@@ -1838,8 +1838,8 @@ void EnTrt_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
-    gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
     SkelAnime_DrawTransformFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                    this->skelAnime.dListCount, EnTrt_OverrideLimbDraw, EnTrt_PostLimbDraw,
                                    EnTrt_TransformLimbDraw, &this->actor);

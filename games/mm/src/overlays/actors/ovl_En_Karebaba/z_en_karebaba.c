@@ -637,7 +637,7 @@ void EnKarebaba_DrawShadow(EnKarebaba* this, PlayState* play) {
     MM_Matrix_Mult(&mf, MTXMODE_NEW);
     MM_Matrix_Scale(0.15f, 1.0f, 0.15f, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, gCircleShadowDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gCircleShadowDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -660,7 +660,7 @@ void MM_EnKarebaba_Draw(Actor* thisx, PlayState* play) {
         if ((this->timer > 40) || (this->timer & 1)) {
             MM_Matrix_Translate(0.0f, 0.0f, 200.0f, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, gDekuBabaStickDropDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gDekuBabaStickDropDL);
         }
     } else if (this->actionFunc != MM_EnKarebaba_Dead) {
         func_800AE2A0(play, &sFogColor, 1, 2);
@@ -686,7 +686,7 @@ void MM_EnKarebaba_Draw(Actor* thisx, PlayState* play) {
         for (i = 0; i < stemSections; i++) {
             MM_Matrix_Translate(0.0f, 0.0f, -2000.0f, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, sStemDLists[i]);
+            MM_gSPDisplayList(POLY_OPA_DISP++, sStemDLists[i]);
 
             Matrix_MultZero(&this->bodyPartsPos[KAREBABA_BODYPART_1 + i]);
             if ((i == 0) && (this->actionFunc == MM_EnKarebaba_Dying)) {
@@ -707,12 +707,12 @@ void MM_EnKarebaba_Draw(Actor* thisx, PlayState* play) {
     MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
     Matrix_RotateYS(this->actor.home.rot.y, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gDekuBabaBaseLeavesDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gDekuBabaBaseLeavesDL);
 
     if (this->actionFunc == MM_EnKarebaba_Dying) {
         MM_Matrix_RotateZYX(-0x4000, this->actor.shape.rot.y - this->actor.home.rot.y, 0, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gDekuBabaStemBaseDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gDekuBabaStemBaseDL);
 
         Matrix_MultZero(&this->bodyPartsPos[KAREBABA_BODYPART_3]);
     }

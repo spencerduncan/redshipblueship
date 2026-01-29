@@ -47,8 +47,8 @@ void DrawBowReticle(PlayState* play, Player* player, f32 bowDistance) {
 
     MATRIX_FINALIZE_AND_LOAD(OVERLAY_DISP++, play->state.gfxCtx);
 
-    gSPSegment(OVERLAY_DISP++, 0x06, (uintptr_t)play->objectCtx.slots[player->actor.objectSlot].segment);
-    gSPDisplayList(OVERLAY_DISP++, (Gfx*)gHookshotReticleDL);
+    MM_gSPSegment(OVERLAY_DISP++, 0x06, (uintptr_t)play->objectCtx.slots[player->actor.objectSlot].segment);
+    MM_gSPDisplayList(OVERLAY_DISP++, (Gfx*)gHookshotReticleDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

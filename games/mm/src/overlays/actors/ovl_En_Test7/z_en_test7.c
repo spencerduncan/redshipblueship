@@ -352,7 +352,7 @@ void EnTest7_DrawFeathers(PlayState* play2, OwlWarpFeather* feathers) {
             continue;
         }
         gSPMatrix(POLY_OPA_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-        gSPDisplayList(POLY_OPA_DISP++, gSoaringWarpCsFeatherDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gSoaringWarpCsFeatherDL);
     }
 
     MM_Matrix_Pop();

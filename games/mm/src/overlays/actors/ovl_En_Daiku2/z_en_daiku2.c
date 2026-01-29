@@ -381,7 +381,7 @@ void func_80BE6D40(EnDaiku2* this, PlayState* play) {
     MM_Math_ApproachF(&this->actor.world.pos.x, this->unk_268.x, 0.5f, fabsf(MM_Math_SinS(this->actor.world.rot.y) * 6.0f));
     MM_Math_ApproachF(&this->actor.world.pos.z, this->unk_268.z, 0.5f, fabsf(MM_Math_CosS(this->actor.world.rot.y) * 6.0f));
 
-    if ((sqrtf(SQ(this->actor.world.pos.x - this->unk_268.x) + SQ(this->actor.world.pos.z - this->unk_268.z)) < 4.0f) &&
+    if ((MM_sqrtf(SQ(this->actor.world.pos.x - this->unk_268.x) + SQ(this->actor.world.pos.z - this->unk_268.z)) < 4.0f) &&
         (this->path != NULL)) {
         this->unk_25C++;
         if (this->unk_25C >= this->path->count) {
@@ -423,7 +423,7 @@ void func_80BE6EF0(EnDaiku2* this, PlayState* play) {
                        fabsf(MM_Math_SinS(this->actor.world.rot.y) * 4.0f));
         MM_Math_ApproachF(&this->actor.world.pos.z, this->unk_268.z, 0.5f,
                        fabsf(MM_Math_CosS(this->actor.world.rot.y) * 4.0f));
-        if ((sqrtf(SQ(this->actor.world.pos.x - this->unk_268.x) + SQ(this->actor.world.pos.z - this->unk_268.z)) <
+        if ((MM_sqrtf(SQ(this->actor.world.pos.x - this->unk_268.x) + SQ(this->actor.world.pos.z - this->unk_268.z)) <
              4.0f) &&
             (this->path != NULL)) {
             if (!func_80BE64C0(this, play)) {
@@ -511,11 +511,11 @@ void EnDaiku2_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* r
     if (limbIndex == OBJECT_DAIKU_LIMB_0E) {
         MM_Matrix_Scale(this->unk_260, this->unk_260, this->unk_260, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, object_daiku_DL_009638);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_daiku_DL_009638);
     }
 
     if (limbIndex == OBJECT_DAIKU_LIMB_0F) {
-        gSPDisplayList(POLY_OPA_DISP++, object_daiku_DL_00A390);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_daiku_DL_00A390);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -589,7 +589,7 @@ void func_80BE7718(EnDaiku2* this, PlayState* play) {
     objectSlot = Object_GetSlot(&play->objectCtx, OBJECT_BOMBIWA);
     if ((objectSlot > OBJECT_SLOT_NONE) && MM_Object_IsLoaded(&play->objectCtx, objectSlot)) {
         gDPPipeSync(POLY_OPA_DISP++);
-        gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[objectSlot].segment);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[objectSlot].segment);
 
         for (i = 0; i < ARRAY_COUNT(this->effects); i++, effect++) {
             if (effect->isEnabled) {
@@ -601,7 +601,7 @@ void func_80BE7718(EnDaiku2* this, PlayState* play) {
                 MM_Matrix_Scale(effect->unk_30, effect->unk_30, effect->unk_30, MTXMODE_APPLY);
 
                 MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, gfxCtx);
-                gSPDisplayList(POLY_OPA_DISP++, object_bombiwa_DL_0009E0);
+                MM_gSPDisplayList(POLY_OPA_DISP++, object_bombiwa_DL_0009E0);
 
                 MM_Matrix_Pop();
             }

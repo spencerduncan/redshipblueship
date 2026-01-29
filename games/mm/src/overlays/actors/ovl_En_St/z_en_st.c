@@ -257,7 +257,7 @@ void func_808A54B0(EnSt* this, PlayState* play) {
 
         MM_gSegments[6] = OS_K0_TO_PHYSICAL(play->objectCtx.slots[this->objectSlot].segment);
 
-        gSPSegment(POLY_XLU_DISP++, 0x06, play->objectCtx.slots[this->objectSlot].segment);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x06, play->objectCtx.slots[this->objectSlot].segment);
 
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
         MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
@@ -265,7 +265,7 @@ void func_808A54B0(EnSt* this, PlayState* play) {
         MM_Matrix_Scale(0.06f, 0.12f, 0.06f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPSegment(POLY_XLU_DISP++, 0x08, MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 195, 0, 0x40, 0x20, 1, 215, 0, 8, 8));
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08, MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 195, 0, 0x40, 0x20, 1, 215, 0, 8, 8));
 
         temp_f0 = (f32)this->unk_310 / 8;
         if (temp_f0 > 1.0f) {
@@ -273,8 +273,8 @@ void func_808A54B0(EnSt* this, PlayState* play) {
         }
 
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, 170, 255, 255, (u8)(255 * temp_f0));
-        gSPDisplayList(POLY_XLU_DISP++, gSpinAttackDiskDL);
-        gSPDisplayList(POLY_XLU_DISP++, gSpinAttackCylinderDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gSpinAttackDiskDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gSpinAttackCylinderDL);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }

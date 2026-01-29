@@ -148,7 +148,7 @@ void MM_ObjHsblock_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     gDPSetEnvColor(POLY_OPA_DISP++, envColor->r, envColor->g, envColor->b, 255);
-    gSPDisplayList(POLY_OPA_DISP++, MM_sDisplayLists[OBJHSBLOCK_GET_3(thisx)]);
+    MM_gSPDisplayList(POLY_OPA_DISP++, MM_sDisplayLists[OBJHSBLOCK_GET_3(thisx)]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

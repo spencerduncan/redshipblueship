@@ -1,6 +1,6 @@
 #include "ultra64.h"
 
-s32 osEPiWriteIo(OSPiHandle* handle, uintptr_t devAddr, u32 data) {
+s32 MM_osEPiWriteIo(OSPiHandle* handle, uintptr_t devAddr, u32 data) {
     register s32 ret;
 
     __osPiGetAccess();

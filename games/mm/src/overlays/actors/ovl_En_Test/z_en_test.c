@@ -149,7 +149,7 @@ void func_80863048(PlayState* play, EnTestStruct* arg1) {
 
         mtx = Matrix_Finalize(play->state.gfxCtx);
         gSPMatrix(POLY_OPA_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-        gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_06AB30);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_06AB30);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

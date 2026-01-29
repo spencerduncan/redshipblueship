@@ -522,20 +522,20 @@ void EnMkk_Draw(Actor* thisx, PlayState* play) {
         if (this->alpha == 255) {
             primColors = &D_80A4F7C4[this->primColorSelect];
             gfx = POLY_OPA_DISP;
-            gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
+            MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
             gDPSetPrimColor(&gfx[1], 0, 0xFF, primColors->r, primColors->g, primColors->b, primColors->a);
-            gSPSegment(&gfx[2], 0x08, D_801AEFA0);
+            MM_gSPSegment(&gfx[2], 0x08, D_801AEFA0);
             MATRIX_FINALIZE_AND_LOAD(&gfx[3], play->state.gfxCtx);
-            gSPDisplayList(&gfx[4], dLists->unkC);
+            MM_gSPDisplayList(&gfx[4], dLists->unkC);
             POLY_OPA_DISP = &gfx[5];
         }
         gfx = POLY_XLU_DISP;
-        gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
+        MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
         gDPSetEnvColor(&gfx[1], 255, 255, 255, this->alpha);
-        gSPDisplayList(&gfx[2], dLists->unk0);
+        MM_gSPDisplayList(&gfx[2], dLists->unk0);
         MM_Matrix_ReplaceRotation(&play->billboardMtxF);
         MATRIX_FINALIZE_AND_LOAD(&gfx[3], play->state.gfxCtx);
-        gSPDisplayList(&gfx[4], dLists->unk4);
+        MM_gSPDisplayList(&gfx[4], dLists->unk4);
         if (thisx->params == 0) {
             matrix = MM_Matrix_GetCurrent();
             matrix->mf[3][0] = this->unk_154.x;
@@ -544,7 +544,7 @@ void EnMkk_Draw(Actor* thisx, PlayState* play) {
 
             MM_Matrix_Scale(0.85f, 0.85f, 0.85f, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(&gfx[5], play->state.gfxCtx);
-            gSPDisplayList(&gfx[6], dLists->unk4);
+            MM_gSPDisplayList(&gfx[6], dLists->unk4);
 
             matrix->mf[3][0] = this->unk_160.x;
             matrix->mf[3][1] = this->unk_160.y + 7.2250004f;
@@ -552,12 +552,12 @@ void EnMkk_Draw(Actor* thisx, PlayState* play) {
 
             MM_Matrix_Scale(0.85f, 0.85f, 0.85f, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(&gfx[7], play->state.gfxCtx);
-            gSPDisplayList(&gfx[8], dLists->unk4);
-            gSPDisplayList(&gfx[9], dLists->unk8);
+            MM_gSPDisplayList(&gfx[8], dLists->unk4);
+            MM_gSPDisplayList(&gfx[9], dLists->unk8);
 
             POLY_XLU_DISP = &gfx[10];
         } else {
-            gSPDisplayList(&gfx[5], dLists->unk8);
+            MM_gSPDisplayList(&gfx[5], dLists->unk8);
             POLY_XLU_DISP = &gfx[6];
         }
 
@@ -575,12 +575,12 @@ void func_80A4F4C8(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     gfx = POLY_XLU_DISP;
-    gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(&gfx[0], gSetupDLs[SETUPDL_25]);
     gDPSetEnvColor(&gfx[1], 255, 255, 255, this->alpha);
-    gSPDisplayList(&gfx[2], dLists->unk0);
+    MM_gSPDisplayList(&gfx[2], dLists->unk0);
     MM_Matrix_ReplaceRotation(&play->billboardMtxF);
     MATRIX_FINALIZE_AND_LOAD(&gfx[3], play->state.gfxCtx);
-    gSPDisplayList(&gfx[4], dLists->unk4);
+    MM_gSPDisplayList(&gfx[4], dLists->unk4);
 
     matrix = MM_Matrix_GetCurrent();
     matrix->mf[3][0] = this->unk_154.x;
@@ -588,22 +588,22 @@ void func_80A4F4C8(Actor* thisx, PlayState* play) {
     matrix->mf[3][2] = this->unk_154.z;
 
     MATRIX_FINALIZE_AND_LOAD(&gfx[5], play->state.gfxCtx);
-    gSPDisplayList(&gfx[6], dLists->unk4);
+    MM_gSPDisplayList(&gfx[6], dLists->unk4);
 
     matrix->mf[3][0] = this->unk_160.x;
     matrix->mf[3][1] = this->unk_160.y + 5.0f;
     matrix->mf[3][2] = this->unk_160.z;
 
     MATRIX_FINALIZE_AND_LOAD(&gfx[7], play->state.gfxCtx);
-    gSPDisplayList(&gfx[8], dLists->unk4);
+    MM_gSPDisplayList(&gfx[8], dLists->unk4);
 
     matrix->mf[3][0] = this->unk_16C.x;
     matrix->mf[3][1] = this->unk_16C.y + 5.0f;
     matrix->mf[3][2] = this->unk_16C.z;
 
     MATRIX_FINALIZE_AND_LOAD(&gfx[9], play->state.gfxCtx);
-    gSPDisplayList(&gfx[10], dLists->unk4);
-    gSPDisplayList(&gfx[11], dLists->unk8);
+    MM_gSPDisplayList(&gfx[10], dLists->unk4);
+    MM_gSPDisplayList(&gfx[11], dLists->unk8);
     POLY_XLU_DISP = &gfx[12];
 
     CLOSE_DISPS(play->state.gfxCtx);

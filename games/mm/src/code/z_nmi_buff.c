@@ -17,7 +17,7 @@ void Nmi_Init(void) {
     gNMIBuffer = (NmiBuff*)osAppNMIBuffer;
     gNMIBuffer->resetting = false;
 
-    if (osResetType == COLD_RESET) {
+    if (MM_osResetType == COLD_RESET) {
         gNMIBuffer->resetCount = 0;
         gNMIBuffer->duration = 0;
     } else {
@@ -30,7 +30,7 @@ void Nmi_Init(void) {
 
 void Nmi_SetPrenmiStart(void) {
     gNMIBuffer->resetting = true;
-    gNMIBuffer->resetTime = osGetTime();
+    gNMIBuffer->resetTime = MM_osGetTime();
 }
 
 u32 Nmi_GetPrenmiHasStarted(void) {

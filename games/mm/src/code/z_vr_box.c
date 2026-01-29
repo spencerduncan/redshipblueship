@@ -165,7 +165,7 @@ s32 Skybox_CalculateFace128(SkyboxContext* skyboxCtx, Vtx* roomVtx, s32 roomVtxS
         roomVtx[roomVtxStartIndex + i].v.cn[2] = 0;
         roomVtx[roomVtxStartIndex + i].v.cn[0] = 255;
     }
-    gSPVertex(skyboxCtx->gfx++, &roomVtx[roomVtxStartIndex], 32, 0);
+    MM_gSPVertex(skyboxCtx->gfx++, &roomVtx[roomVtxStartIndex], 32, 0);
     roomVtxStartIndex += i; // += 32
 
     // Cull the face if not within the viewing volume
@@ -331,7 +331,7 @@ void Skybox_Reload(PlayState* play, SkyboxContext* skyboxCtx, s16 skyboxId) {
 
     switch (skyboxId) {
         case SKYBOX_NORMAL_SKY:
-            osCreateMesgQueue(&skyboxCtx->loadQueue, skyboxCtx->loadMsg, ARRAY_COUNT(skyboxCtx->loadMsg));
+            MM_osCreateMesgQueue(&skyboxCtx->loadQueue, skyboxCtx->loadMsg, ARRAY_COUNT(skyboxCtx->loadMsg));
 
             if (play->envCtx.skybox1Index == 0) {
                 // Send a DMA request for the clear sky texture
@@ -356,8 +356,8 @@ void Skybox_Reload(PlayState* play, SkyboxContext* skyboxCtx, s16 skyboxId) {
                 }
             }
 
-            osRecvMesg(&skyboxCtx->loadQueue, NULL, OS_MESG_BLOCK);
-            osCreateMesgQueue(&skyboxCtx->loadQueue, skyboxCtx->loadMsg, ARRAY_COUNT(skyboxCtx->loadMsg));
+            MM_osRecvMesg(&skyboxCtx->loadQueue, NULL, OS_MESG_BLOCK);
+            MM_osCreateMesgQueue(&skyboxCtx->loadQueue, skyboxCtx->loadMsg, ARRAY_COUNT(skyboxCtx->loadMsg));
 
             if (play->envCtx.skybox2Index == 0) {
                 // Send a DMA request for the clear sky texture
@@ -381,8 +381,8 @@ void Skybox_Reload(PlayState* play, SkyboxContext* skyboxCtx, s16 skyboxId) {
                 }
             }
 
-            osRecvMesg(&skyboxCtx->loadQueue, NULL, OS_MESG_BLOCK);
-            osCreateMesgQueue(&skyboxCtx->loadQueue, skyboxCtx->loadMsg, ARRAY_COUNT(skyboxCtx->loadMsg));
+            MM_osRecvMesg(&skyboxCtx->loadQueue, NULL, OS_MESG_BLOCK);
+            MM_osCreateMesgQueue(&skyboxCtx->loadQueue, skyboxCtx->loadMsg, ARRAY_COUNT(skyboxCtx->loadMsg));
 
             // size = SEGMENT_ROM_SIZE(d2_fine_pal_static);
 
@@ -390,7 +390,7 @@ void Skybox_Reload(PlayState* play, SkyboxContext* skyboxCtx, s16 skyboxId) {
             // DmaMgr_RequestAsync(&skyboxCtx->paletteDmaRequest, skyboxCtx->palette,
             //                     SEGMENT_ROM_START(d2_fine_pal_static), size, 0, &skyboxCtx->loadQueue, NULL);
 
-            osRecvMesg(&skyboxCtx->loadQueue, NULL, OS_MESG_BLOCK);
+            MM_osRecvMesg(&skyboxCtx->loadQueue, NULL, OS_MESG_BLOCK);
 
             skyboxCtx->palette = gSkyboxTLUT;
 

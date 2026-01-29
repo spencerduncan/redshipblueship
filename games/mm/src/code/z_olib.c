@@ -8,7 +8,7 @@ f32 MM_OLib_Vec3fDist(Vec3f* a, Vec3f* b) {
     f32 dy = a->y - b->y;
     f32 dz = a->z - b->z;
 
-    return sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
+    return MM_sqrtf(SQ(dx) + SQ(dy) + SQ(dz));
 }
 
 /**
@@ -20,14 +20,14 @@ f32 MM_OLib_Vec3fDistOutDiff(Vec3f* a, Vec3f* b, Vec3f* dest) {
     dest->y = a->y - b->y;
     dest->z = a->z - b->z;
 
-    return sqrtf(SQ(dest->x) + SQ(dest->y) + SQ(dest->z));
+    return MM_sqrtf(SQ(dest->x) + SQ(dest->y) + SQ(dest->z));
 }
 
 /**
  * Calculates the distances on the xz plane between `a` and `b`
  */
 f32 MM_OLib_Vec3fDistXZ(Vec3f* a, Vec3f* b) {
-    return sqrtf(SQ(a->x - b->x) + SQ(a->z - b->z));
+    return MM_sqrtf(SQ(a->x - b->x) + SQ(a->z - b->z));
 }
 
 /**
@@ -66,7 +66,7 @@ Vec3f MM_OLib_Vec3fDistNormalize(Vec3f* a, Vec3f* b) {
     v1.y = b->y - a->y;
     v1.z = b->z - a->z;
 
-    dist = MM_OLib_ClampMinDist(sqrtf(SQXYZ(v1)), 0.01f);
+    dist = MM_OLib_ClampMinDist(MM_sqrtf(SQXYZ(v1)), 0.01f);
 
     v2.x = v1.x / dist;
     v2.y = v1.y / dist;
@@ -114,7 +114,7 @@ Vec3f OLib_VecGeoToVec3f(VecGeo* geo) {
 VecSph MM_OLib_Vec3fToVecSph(Vec3f* vec) {
     VecSph sph;
     f32 distXZSq = SQ(vec->x) + SQ(vec->z);
-    f32 distXZ = sqrtf(distXZSq);
+    f32 distXZ = MM_sqrtf(distXZSq);
 
     if ((distXZ == 0.0f) && (vec->y == 0.0f)) {
         sph.pitch = 0;
@@ -122,7 +122,7 @@ VecSph MM_OLib_Vec3fToVecSph(Vec3f* vec) {
         sph.pitch = CAM_DEG_TO_BINANG(RAD_TO_DEG(MM_Math_FAtan2F(distXZ, vec->y)));
     }
 
-    sph.r = sqrtf(SQ(vec->y) + distXZSq);
+    sph.r = MM_sqrtf(SQ(vec->y) + distXZSq);
     if ((vec->x == 0.0f) && (vec->z == 0.0f)) {
         sph.yaw = 0;
     } else {

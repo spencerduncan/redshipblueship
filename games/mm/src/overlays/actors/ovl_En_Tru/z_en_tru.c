@@ -246,7 +246,7 @@ void func_80A85788(EnTruUnkStruct* arg0, PlayState* play) {
         }
 
         if (!flag) {
-            gSPDisplayList(POLY_XLU_DISP++, D_80A89000);
+            MM_gSPDisplayList(POLY_XLU_DISP++, D_80A89000);
             flag = true;
         }
 
@@ -256,7 +256,7 @@ void func_80A85788(EnTruUnkStruct* arg0, PlayState* play) {
         gDPPipeSync(POLY_XLU_DISP++);
         gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, 255, 128);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, (u8)alpha);
-        gSPSegment(POLY_XLU_DISP++, 0x08,
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                    MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, -arg0->unk_02 * 5, 32, 64, 1, 0, 0, 32, 32));
 
         MM_Matrix_Translate(arg0->unk_04.x, arg0->unk_04.y, arg0->unk_04.z, MTXMODE_NEW);
@@ -265,7 +265,7 @@ void func_80A85788(EnTruUnkStruct* arg0, PlayState* play) {
         MM_Matrix_Translate(0.0f, 14.0f, 0.0f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, D_80A890A8);
+        MM_gSPDisplayList(POLY_XLU_DISP++, D_80A890A8);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -321,7 +321,7 @@ void func_80A85BCC(EnTruUnkStruct* arg0, PlayState* play) {
         MM_Matrix_Scale(arg0->unk_28, arg0->unk_28, 1.0f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, D_80A8A108);
+        MM_gSPDisplayList(POLY_XLU_DISP++, D_80A8A108);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -363,7 +363,7 @@ void func_80A85F84(EnTruUnkStruct* arg0, PlayState* play) {
 
         if (!flag) {
             POLY_XLU_DISP = MM_Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_0);
-            gSPDisplayList(POLY_XLU_DISP++, gKoumeDustMaterialDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gKoumeDustMaterialDL);
             flag = true;
         }
 
@@ -388,8 +388,8 @@ void func_80A85F84(EnTruUnkStruct* arg0, PlayState* play) {
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         index = ((f32)arg0->unk_02 / arg0->unk_01) * 8.0f;
-        gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sDustTextures[index]));
-        gSPDisplayList(POLY_XLU_DISP++, gKoumeDustModelDL);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sDustTextures[index]));
+        MM_gSPDisplayList(POLY_XLU_DISP++, gKoumeDustModelDL);
         MM_Matrix_Pop();
     }
 
@@ -575,7 +575,7 @@ s32 func_80A86BAC(EnTru* this, PlayState* play) {
         Matrix_RotateXS(-0x4000, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gKoumePotionDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gKoumePotionDL);
 
         MM_Matrix_Pop();
 
@@ -593,7 +593,7 @@ s32 func_80A86BAC(EnTru* this, PlayState* play) {
         Matrix_RotateXS(-0x4000, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gKoumeBottleDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gKoumeBottleDL);
 
         MM_Matrix_Pop();
 
@@ -1329,8 +1329,8 @@ void EnTru_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
-    gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
 
     SkelAnime_DrawTransformFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                    this->skelAnime.dListCount, EnTru_OverrideLimbDraw, EnTru_PostLimbDraw,

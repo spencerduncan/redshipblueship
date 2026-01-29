@@ -209,7 +209,7 @@ void MM_SkelCurve_DrawLimb(PlayState* play, s32 limbIndex, SkelCurve* skelCurve,
             dList = limb->dList[0];
             if (dList != NULL) {
                 MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-                gSPDisplayList(POLY_OPA_DISP++, dList);
+                MM_gSPDisplayList(POLY_OPA_DISP++, dList);
             }
         } else if (lod == 1) {
             s32 pad2;
@@ -217,12 +217,12 @@ void MM_SkelCurve_DrawLimb(PlayState* play, s32 limbIndex, SkelCurve* skelCurve,
             dList = limb->dList[0];
             if (dList != NULL) {
                 MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-                gSPDisplayList(POLY_OPA_DISP++, dList);
+                MM_gSPDisplayList(POLY_OPA_DISP++, dList);
             }
             dList = limb->dList[1];
             if (dList != NULL) {
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-                gSPDisplayList(POLY_XLU_DISP++, dList);
+                MM_gSPDisplayList(POLY_XLU_DISP++, dList);
             }
         }
     }

@@ -62,8 +62,8 @@ void MM_EffectSsBubble_Draw(PlayState* play, u32 index, EffectSs* this) {
     Gfx_SetupDL25_Opa(gfxCtx);
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, 255);
     gDPSetEnvColor(POLY_OPA_DISP++, 150, 150, 150, 0);
-    gSPSegment(POLY_OPA_DISP++, 0x08, this->gfx);
-    gSPDisplayList(POLY_OPA_DISP++, gEffBubbleDL);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, this->gfx);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gEffBubbleDL);
 
     CLOSE_DISPS(gfxCtx);
 }

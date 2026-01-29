@@ -462,7 +462,7 @@ void ObjTakarayaWall_Draw(Actor* thisx, PlayState* play) {
     mtx = MM_Matrix_GetCurrent();
 
     gfx = POLY_OPA_DISP;
-    gSPDisplayList(gfx++, gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(gfx++, gSetupDLs[SETUPDL_25]);
     gDPSetPrimColor(gfx++, 0, 0, 255, 255, 255, 255);
 
     for (i = 0; i < TAKARAYA_WALL_ROWS; i++) {
@@ -476,9 +476,9 @@ void ObjTakarayaWall_Draw(Actor* thisx, PlayState* play) {
                 MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
 
                 if (((i + j) % 2) != 0) {
-                    gSPDisplayList(gfx++, gTreasureChestShopWallWhiteDL);
+                    MM_gSPDisplayList(gfx++, gTreasureChestShopWallWhiteDL);
                 } else {
-                    gSPDisplayList(gfx++, gTreasureChestShopWallBlackDL);
+                    MM_gSPDisplayList(gfx++, gTreasureChestShopWallBlackDL);
                 }
 
                 if (sTakarayaWallStates[i][j] != TAKARAYA_WALL_INACTIVE) {
