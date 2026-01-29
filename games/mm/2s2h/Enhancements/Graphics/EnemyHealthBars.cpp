@@ -143,7 +143,7 @@ void Interface_DrawEnemyHealthBar(Attention* attention, PlayState* play) {
                         healthBar_border.a);
         gDPSetEnvColor(OVERLAY_DISP++, 100, 50, 50, 255);
 
-        gSPVertex(OVERLAY_DISP++, (uintptr_t)sEnemyHealthVtx, 16, 0);
+        MM_gSPVertex(OVERLAY_DISP++, (uintptr_t)sEnemyHealthVtx, 16, 0);
 
         gDPLoadTextureBlock(OVERLAY_DISP++, (uintptr_t)gMagicMeterEndTex, G_IM_FMT_IA, G_IM_SIZ_8b, endTexWidth,
                             texHeight, 0, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK,

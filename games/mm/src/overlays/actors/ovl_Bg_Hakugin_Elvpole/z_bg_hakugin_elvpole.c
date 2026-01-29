@@ -126,7 +126,7 @@ void BgHakuginElvpole_Draw(Actor* thisx, PlayState* play) {
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, object_hakugin_obj_DL_00ACB8);
+    MM_gSPDisplayList(POLY_OPA_DISP++, object_hakugin_obj_DL_00ACB8);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

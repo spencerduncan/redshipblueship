@@ -855,7 +855,7 @@ s32 MM_EnPeehat_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Ve
         Matrix_RotateXFApply(-(this->unk_2BC * 0.115f));
 
         MATRIX_FINALIZE_AND_LOAD(&gfx[0], play->state.gfxCtx);
-        gSPDisplayList(&gfx[1], *dList);
+        MM_gSPDisplayList(&gfx[1], *dList);
 
         MM_Matrix_Pop();
 
@@ -938,7 +938,7 @@ void MM_EnPeehat_PostLimbDraw(PlayState* play2, s32 limbIndex, Gfx** dList, Vec3
         MM_Matrix_Scale(0.3f, 0.2f, 0.2f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(&gfx[0], play->state.gfxCtx);
-        gSPDisplayList(&gfx[1], *dList);
+        MM_gSPDisplayList(&gfx[1], *dList);
 
         POLY_OPA_DISP = &gfx[2];
         MM_Math_Vec3s_ToVec3f(&this->actor.focus.pos, &this->colliderSphere.dim.worldSphere.center);

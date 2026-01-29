@@ -179,7 +179,7 @@ void MM_KaleidoScope_DrawDungeonMap(PlayState* play) {
     // QUAD_MAP_PAGE_DUNGEON_BOSS_KEY,
     // QUAD_MAP_PAGE_DUNGEON_COMPASS,
     // QUAD_MAP_PAGE_DUNGEON_MAP
-    gSPVertex(POLY_OPA_DISP++, &pauseCtx->mapPageVtx[QUAD_MAP_PAGE_DUNGEON_TITLE * 4], 4 * 4, 0);
+    MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->mapPageVtx[QUAD_MAP_PAGE_DUNGEON_TITLE * 4], 4 * 4, 0);
 
     // Dungeon Title
     gDPPipeSync(POLY_OPA_DISP++);
@@ -252,7 +252,7 @@ void MM_KaleidoScope_DrawDungeonMap(PlayState* play) {
                     pauseCtx->mapPageVtx[78].v.ob[1] = pauseCtx->mapPageVtx[79].v.ob[1] =
                         pauseCtx->mapPageVtx[76].v.ob[1] - 24;
 
-                    gSPVertex(POLY_OPA_DISP++,
+                    MM_gSPVertex(POLY_OPA_DISP++,
                               &pauseCtx->mapPageVtx[QUAD_MAP_PAGE_DUNGEON_STRAY_FAIRY_GLOWING_CIRCLE * 4], 4, 0);
 
                     POLY_OPA_DISP =
@@ -653,7 +653,7 @@ void MM_KaleidoScope_DrawWorldMap(PlayState* play) {
         gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, pauseCtx->alpha);
 
         // Set the vertices for the first 8 quads attached to the world map texture.
-        gSPVertex(POLY_OPA_DISP++, &pauseCtx->mapPageVtx[QUAD_MAP_PAGE_WORLD_IMAGE_FIRST * 4], 8 * 4, 0);
+        MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->mapPageVtx[QUAD_MAP_PAGE_WORLD_IMAGE_FIRST * 4], 8 * 4, 0);
 
         // Process the first 72 rows of pixels for gWorldMapImageTex, 9 rows at a time over 8 iterations
         // Loop over quadIndex of this loop (i), quadIndex of the entire texture (k), vtxIndex (j)
@@ -676,7 +676,7 @@ void MM_KaleidoScope_DrawWorldMap(PlayState* play) {
 
         // Set the vertices for the last 7 quads attached to the world map texture:
         // 6 quads with a height of 9, 1 quad with a height of 2
-        gSPVertex(POLY_OPA_DISP++, &pauseCtx->mapPageVtx[(QUAD_MAP_PAGE_WORLD_IMAGE_FIRST + 8) * 4], (6 + 1) * 4, 0);
+        MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->mapPageVtx[(QUAD_MAP_PAGE_WORLD_IMAGE_FIRST + 8) * 4], (6 + 1) * 4, 0);
 
         // Process the next 54 rows of pixels for gWorldMapImageTex, 9 rows at a time over 6 iterations
         // Loop over quadIndex of this loop (i), quadIndex of the entire texture (k), vtxIndex (j)
@@ -731,7 +731,7 @@ void MM_KaleidoScope_DrawWorldMap(PlayState* play) {
     for (n = 0; n < WORLD_MAP_NUM_CLOUDS; n++) {
         if (!(((void)0, gSaveContext.save.saveInfo.worldMapCloudVisibility) & MM_gBitFlags[n])) {
 
-            gSPVertex(POLY_OPA_DISP++, &pauseCtx->mapPageVtx[(QUAD_MAP_PAGE_WORLD_CLOUDS_FIRST + n) * 4], 4, 0);
+            MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->mapPageVtx[(QUAD_MAP_PAGE_WORLD_CLOUDS_FIRST + n) * 4], 4, 0);
 
             POLY_OPA_DISP = Gfx_DrawTexQuadIA8(POLY_OPA_DISP, sCloudTextures[n], gVtxPageMapWorldQuadsWidth[n],
                                                gVtxPageMapWorldQuadsHeight[n], 0);
@@ -779,7 +779,7 @@ void MM_KaleidoScope_DrawWorldMap(PlayState* play) {
         // Loop over RegionId (i), unused vtxIndex (j), unused (k)
         for (i = 0, j = 0; i < REGION_MAX; i++, k++, j += 4) {
             if (pauseCtx->worldMapPoints[i]) {
-                gSPVertex(POLY_OPA_DISP++, &pauseCtx->mapPageVtx[(QUAD_MAP_PAGE_WORLD_REGION_FIRST + i) * 4], 4, 0);
+                MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->mapPageVtx[(QUAD_MAP_PAGE_WORLD_REGION_FIRST + i) * 4], 4, 0);
                 gSP1Quadrangle(POLY_OPA_DISP++, 0, 2, 3, 1, 0);
             }
         }
@@ -812,7 +812,7 @@ void MM_KaleidoScope_DrawWorldMap(PlayState* play) {
         // Loop over OwlWarpId (i), unused vtxIndex (j), unused (k)
         for (i = 0, j = 0; i < OWL_WARP_ENTRANCE; i++, k++, j += 4) {
             if (pauseCtx->worldMapPoints[i]) {
-                gSPVertex(POLY_OPA_DISP++, &pauseCtx->mapPageVtx[(QUAD_MAP_PAGE_WORLD_WARP_FIRST + i) * 4], 4, 0);
+                MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->mapPageVtx[(QUAD_MAP_PAGE_WORLD_WARP_FIRST + i) * 4], 4, 0);
                 gSP1Quadrangle(POLY_OPA_DISP++, 0, 2, 3, 1, 0);
             }
         }

@@ -387,10 +387,10 @@ void EnRu_Draw(Actor* thisx, PlayState* play) {
 
     gDPPipeSync(POLY_OPA_DISP++);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(eyeTextures[this->eyeState]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(eyeTextures[this->eyeState]));
 
     // only runs the last command of the display list, which is gsSPEndDisplayList
-    gSPSegment(POLY_OPA_DISP++, 0x0C, &sTransparencyDlist[2]);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0C, &sTransparencyDlist[2]);
 
     POLY_OPA_DISP =
         MM_SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,

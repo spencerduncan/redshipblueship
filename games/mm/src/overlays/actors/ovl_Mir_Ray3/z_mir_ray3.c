@@ -149,7 +149,7 @@ void func_80B9E544(MirRay3* this, PlayState* play) {
     f32 temp_f0;
 
     if (this->unk_210 & 2) {
-        temp_f0 = sqrtf(SQ(shieldMtx->mf[2][0]) + SQ(shieldMtx->mf[2][1]) + SQ(shieldMtx->mf[2][2]));
+        temp_f0 = MM_sqrtf(SQ(shieldMtx->mf[2][0]) + SQ(shieldMtx->mf[2][1]) + SQ(shieldMtx->mf[2][2]));
         if (temp_f0 == 0.0f) {
             this->unk_260 = 1.0f;
         } else {
@@ -254,7 +254,7 @@ void func_80B9E8D4(MirRay3* this, PlayState* play, MirRay3Struct* ptr) {
                 ptr[i].unk_00.y = sp128.y;
                 ptr[i].unk_00.z = sp128.z;
 
-                temp_f0 = sqrtf(SQ(sp128.x - sp140.x) + SQ(sp128.y - sp140.y) + SQ(sp128.z - sp140.z));
+                temp_f0 = MM_sqrtf(SQ(sp128.x - sp140.x) + SQ(sp128.y - sp140.y) + SQ(sp128.z - sp140.z));
 
                 if (temp_f0 < (temp_f26 * 0.9f)) {
                     ptr[i].unk_50 = 0xFF;
@@ -382,7 +382,7 @@ void MirRay3_Draw(Actor* thisx, PlayState* play) {
 
         AnimatedMat_Draw(play, Lib_SegmentedToVirtual(object_mir_ray_Matanimheader_0003F8));
 
-        gSPDisplayList(POLY_XLU_DISP++, object_mir_ray_DL_000168);
+        MM_gSPDisplayList(POLY_XLU_DISP++, object_mir_ray_DL_000168);
 
         func_80B9E5F4(this, play, sp8C);
         func_80B9E7D0(sp8C);
@@ -409,7 +409,7 @@ void MirRay3_Draw(Actor* thisx, PlayState* play) {
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
                 gDPPipeSync(POLY_XLU_DISP++);
                 gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, sp8C[0].unk_50);
-                gSPDisplayList(POLY_XLU_DISP++, object_mir_ray_DL_0004B0);
+                MM_gSPDisplayList(POLY_XLU_DISP++, object_mir_ray_DL_0004B0);
             }
         }
 

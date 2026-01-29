@@ -399,7 +399,7 @@ void EnFg_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
         MM_Matrix_Push();
         MM_Matrix_ReplaceRotation(&play->billboardMtxF);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, *dList);
+        MM_gSPDisplayList(POLY_OPA_DISP++, *dList);
         MM_Matrix_Pop();
 
         CLOSE_DISPS(play->state.gfxCtx);
@@ -432,8 +432,8 @@ void EnFg_Draw(Actor* thisx, PlayState* play) {
     gDPPipeSync(POLY_OPA_DISP++);
     gDPSetEnvColor(POLY_OPA_DISP++, envColor[this->actor.params].r, envColor[this->actor.params].g,
                    envColor[this->actor.params].b, envColor[this->actor.params].a);
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(gFrogIrisOpenTex));
-    gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(gFrogIrisOpenTex));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(gFrogIrisOpenTex));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(gFrogIrisOpenTex));
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnFg_OverrideLimbDraw, EnFg_PostLimbDraw, &this->actor);
 
@@ -492,7 +492,7 @@ void EnFg_DrawDust(PlayState* play, BetaFrogEffectDust* dustEffect) {
 
         if (!firstDone) {
             POLY_XLU_DISP = MM_Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_0);
-            gSPDisplayList(POLY_XLU_DISP++, gFrogDustMaterialDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gFrogDustMaterialDL);
             gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 0, 0);
             firstDone = true;
         }
@@ -505,8 +505,8 @@ void EnFg_DrawDust(PlayState* play, BetaFrogEffectDust* dustEffect) {
         MM_Matrix_Scale(dustEffect->xyScale, dustEffect->xyScale, 1.0f, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         index = 0.5f * dustEffect->timer;
-        gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sDustTextures[index]));
-        gSPDisplayList(POLY_XLU_DISP++, gFrogDustModelDL);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sDustTextures[index]));
+        MM_gSPDisplayList(POLY_XLU_DISP++, gFrogDustModelDL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

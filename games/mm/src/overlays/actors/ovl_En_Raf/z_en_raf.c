@@ -913,8 +913,8 @@ void EnRaf_Draw(Actor* thisx, PlayState* play) {
 
     // #2S2H [Port] Invalidate the blend masks when they are set in the cutscene
     if (this->dissolveTimer < (BREG(3) + 105) || (this->dissolveTimer > (BREG(5) + 50))) {
-        gSPInvalidateTexCache(POLY_OPA_DISP++, sCurTeethMask);
-        gSPInvalidateTexCache(POLY_OPA_DISP++, sCurPetalMask);
+        MM_gSPInvalidateTexCache(POLY_OPA_DISP++, sCurTeethMask);
+        MM_gSPInvalidateTexCache(POLY_OPA_DISP++, sCurPetalMask);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -1003,7 +1003,7 @@ void EnRaf_DrawEffects(EnRaf* this, PlayState* play) {
             Matrix_RotateZS(effect->rot.z, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, gCarnivorousLilyPadParticleDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gCarnivorousLilyPadParticleDL);
             FrameInterpolation_RecordCloseChild();
         }
     }

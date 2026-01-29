@@ -52,7 +52,7 @@ s32 __osEPiRawStartDma(OSPiHandle* handle, s32 direction, uintptr_t cartAddr, vo
         curHandle->pulse = handle->pulse;
     }
 
-    IO_WRITE(PI_DRAM_ADDR_REG, osVirtualToPhysical(dramAddr));
+    IO_WRITE(PI_DRAM_ADDR_REG, MM_osVirtualToPhysical(dramAddr));
     IO_WRITE(PI_CART_ADDR_REG, K1_TO_PHYS(handle->baseAddress | cartAddr));
 
     switch (direction) {

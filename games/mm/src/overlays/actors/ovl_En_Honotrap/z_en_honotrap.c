@@ -747,9 +747,9 @@ void MM_EnHonotrap_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08, sSilverEyeTextures[this->eyeState]);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, sSilverEyeTextures[this->eyeState]);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, &gEyeSwitchSilverDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, &gEyeSwitchSilverDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -761,13 +761,13 @@ void MM_EnHonotrap_DrawFlame(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-    gSPSegment(POLY_XLU_DISP++, 0x08,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0, this->flameScroll, 32, 128));
     gDPSetPrimColor(POLY_XLU_DISP++, 0x80, 0x80, 255, 200, 0, 255);
     gDPSetEnvColor(POLY_XLU_DISP++, 255, 0, 0, 0);
     Matrix_RotateYS(MM_Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) + 0x8000, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -792,7 +792,7 @@ void EnHonotrap_DrawFlameGroup(Actor* thisx, PlayState* play) {
     for (i = 0; i < ARRAY_COUNT(flameGroup->flameList); i++) {
         flameElem = &flameGroup->flameList[i];
         if (flameElem->isDrawn) {
-            gSPSegment(POLY_XLU_DISP++, 0x08,
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                        MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0, flameElem->flameScroll, 32, 128));
             MM_Matrix_SetTranslateRotateYXZ(flameElem->pos.x, flameElem->pos.y - (4000.0f * flameElem->unkC),
                                          flameElem->pos.z, &camDir);
@@ -800,7 +800,7 @@ void EnHonotrap_DrawFlameGroup(Actor* thisx, PlayState* play) {
                              flameElem->unkC,
                          flameElem->unkC, 1.0f, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
         }
     }
 

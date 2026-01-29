@@ -19,7 +19,7 @@ void RegisterSkipToFileSelect() {
         if (consoleLogoState->exit) {
             // Normally the PRNG seed is set at least once from the title opening running MM_Play_Init
             // We need to call it manually before file select creates RNG values for new saves
-            MM_Rand_Seed(osGetTime());
+            MM_Rand_Seed(MM_osGetTime());
             // Normally called on console logo screen
             gSaveContext.seqId = NA_BGM_DISABLED;
             gSaveContext.ambienceId = AMBIENCE_ID_DISABLED;

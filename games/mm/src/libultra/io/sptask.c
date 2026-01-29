@@ -2,7 +2,7 @@
 
 #define _osVirtualToPhysical(ptr)              \
     if (ptr != NULL) {                         \
-        ptr = (void*)osVirtualToPhysical(ptr); \
+        ptr = (void*)MM_osVirtualToPhysical(ptr); \
     }                                          \
     (void)0
 
@@ -24,7 +24,7 @@ OSTask* _VirtualToPhysicalTask(OSTask* intp) {
     return tp;
 }
 
-void osSpTaskLoad(OSTask* intp) {
+void MM_osSpTaskLoad(OSTask* intp) {
     OSTask* tp = _VirtualToPhysicalTask(intp);
 
     if (tp->t.flags & OS_TASK_YIELDED) {
@@ -49,7 +49,7 @@ void osSpTaskLoad(OSTask* intp) {
     while (__osSpRawStartDma(1, SP_IMEM_START, tp->t.ucodeBoot, tp->t.ucodeBootSize) == -1) {}
 }
 
-void osSpTaskStartGo(OSTask* tp) {
+void MM_osSpTaskStartGo(OSTask* tp) {
     while (__osSpDeviceBusy()) {}
 
     __osSpSetStatus(SP_SET_INTR_BREAK | SP_CLR_SSTEP | SP_CLR_BROKE | SP_CLR_HALT);

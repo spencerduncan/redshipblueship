@@ -100,7 +100,7 @@ void MM_EnNutsball_Update(Actor* thisx, PlayState* play2) {
         this->timer--;
         if (this->timer < 0) {
             this->actor.velocity.y += this->actor.gravity;
-            speedXZ = sqrtf((this->actor.velocity.x * this->actor.velocity.x) +
+            speedXZ = MM_sqrtf((this->actor.velocity.x * this->actor.velocity.x) +
                             (this->actor.velocity.z * this->actor.velocity.z));
             this->actor.world.rot.x = Math_Atan2S_XY(speedXZ, this->actor.velocity.y);
         }
@@ -176,7 +176,7 @@ void MM_EnNutsball_Draw(Actor* thisx, PlayState* play) {
     MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
     Matrix_RotateZS(this->actor.home.rot.z, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_058BA0);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_058BA0);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

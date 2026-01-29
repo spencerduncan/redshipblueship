@@ -4409,8 +4409,8 @@ void MM_Message_DrawMain(PlayState* play, Gfx** gfxP) {
 
     gfx = *gfxP;
 
-    gSPSegment(gfx++, 0x02, play->interfaceCtx.parameterSegment);
-    gSPSegment(gfx++, 0x07, msgCtx->textboxSegment[TEXTBOX_SEG_TYPE]);
+    MM_gSPSegment(gfx++, 0x02, play->interfaceCtx.parameterSegment);
+    MM_gSPSegment(gfx++, 0x07, msgCtx->textboxSegment[TEXTBOX_SEG_TYPE]);
 
     if (msgCtx->msgLength != 0) {
         if (!msgCtx->textIsCredits) {
@@ -5367,7 +5367,7 @@ void MM_Message_Draw(PlayState* play) {
 
     polyOpa = POLY_OPA_DISP;
     nextDisplayList = MM_Graph_GfxPlusOne(polyOpa);
-    gSPDisplayList(OVERLAY_DISP++, nextDisplayList);
+    MM_gSPDisplayList(OVERLAY_DISP++, nextDisplayList);
 
     if ((play->msgCtx.currentTextId != 0x5E6) || !MM_Play_InCsMode(play)) {
         MM_Message_DrawMain(play, &nextDisplayList);

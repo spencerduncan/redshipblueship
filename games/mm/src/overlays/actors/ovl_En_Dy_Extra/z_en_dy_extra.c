@@ -119,7 +119,7 @@ void MM_EnDyExtra_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(gfxCtx);
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-    gSPSegment(POLY_XLU_DISP++, 0x08,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, play->state.frames * 2, 0, 0x20, 0x40, 1, play->state.frames,
                                 play->state.frames * -8, 0x10, 0x10));
     gDPPipeSync(POLY_XLU_DISP++);
@@ -127,7 +127,7 @@ void MM_EnDyExtra_Draw(Actor* thisx, PlayState* play) {
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, MM_sPrimColors[this->type].r, MM_sPrimColors[this->type].g,
                     MM_sPrimColors[this->type].b, 255);
     gDPSetEnvColor(POLY_XLU_DISP++, MM_sEnvColors[this->type].r, MM_sEnvColors[this->type].g, MM_sEnvColors[this->type].b, 128);
-    gSPDisplayList(POLY_XLU_DISP++, gGreatFairySpiralBeamDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gGreatFairySpiralBeamDL);
 
     CLOSE_DISPS(gfxCtx);
 }

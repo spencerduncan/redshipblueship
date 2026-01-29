@@ -1201,7 +1201,7 @@ void MM_EnFloormas_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec
         MM_Matrix_Scale(2.0f, 2.0f, 2.0f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD((*gfx)++, play->state.gfxCtx);
-        gSPDisplayList((*gfx)++, gWallmasterLittleFingerDL);
+        MM_gSPDisplayList((*gfx)++, gWallmasterLittleFingerDL);
 
         MM_Matrix_Pop();
     }

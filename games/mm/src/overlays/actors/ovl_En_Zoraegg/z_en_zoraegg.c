@@ -703,11 +703,11 @@ void func_80B32F04(Actor* thisx, PlayState* play) {
 
     gDPSetDither(gfx++, G_CD_NOISE);
     gDPSetCombineLERP(gfx++, 0, 0, 0, PRIMITIVE, TEXEL0, 0, PRIMITIVE, 0, 0, 0, 0, PRIMITIVE, TEXEL0, 0, PRIMITIVE, 0);
-    gSPDisplayList(gfx++, gameplay_keep_DL_029CB0);
+    MM_gSPDisplayList(gfx++, gameplay_keep_DL_029CB0);
 
     gDPSetPrimColor(gfx++, 0, 0, 120, 180, 200, (s32)(this->unk_1ED * (20.0f / 51)));
     MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
-    gSPDisplayList(gfx++, gameplay_keep_DL_029CF0);
+    MM_gSPDisplayList(gfx++, gameplay_keep_DL_029CF0);
 
     POLY_XLU_DISP = gfx;
 
@@ -730,14 +730,14 @@ void func_80B331C8(Actor* thisx, PlayState* play) {
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
         gDPSetRenderMode(POLY_OPA_DISP++, G_RM_FOG_SHADE_A, G_RM_AA_ZB_OPA_SURF2);
-        gSPDisplayList(POLY_OPA_DISP++, gZoraEggDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gZoraEggDL);
     } else {
         Gfx_SetupDL72(POLY_XLU_DISP++);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gDPSetRenderMode(POLY_XLU_DISP++, G_RM_FOG_SHADE_A, G_RM_AA_ZB_XLU_SURF2);
         gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 0, this->unk_1ED);
-        gSPDisplayList(POLY_XLU_DISP++, gZoraEggDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gZoraEggDL);
     }
 
     MM_Matrix_Pop();
@@ -773,7 +773,7 @@ void func_80B333DC(PlayState* play, Gfx** dList, f32 arg2) {
     OPEN_DISPS(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, *dList);
+    MM_gSPDisplayList(POLY_OPA_DISP++, *dList);
 
     MM_Matrix_Pop();
 
@@ -796,7 +796,7 @@ void EnZoraegg_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* 
                     OPEN_DISPS(play->state.gfxCtx);
 
                     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-                    gSPDisplayList(POLY_OPA_DISP++, *dList);
+                    MM_gSPDisplayList(POLY_OPA_DISP++, *dList);
 
                     CLOSE_DISPS(play->state.gfxCtx);
                     break;
@@ -823,7 +823,7 @@ void EnZoraegg_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* 
                     OPEN_DISPS(play->state.gfxCtx);
 
                     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-                    gSPDisplayList(POLY_OPA_DISP++, *dList);
+                    MM_gSPDisplayList(POLY_OPA_DISP++, *dList);
 
                     CLOSE_DISPS(play->state.gfxCtx);
                     break;
@@ -836,7 +836,7 @@ void EnZoraegg_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* 
                     OPEN_DISPS(play->state.gfxCtx);
 
                     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-                    gSPDisplayList(POLY_OPA_DISP++, *dList);
+                    MM_gSPDisplayList(POLY_OPA_DISP++, *dList);
 
                     CLOSE_DISPS(play->state.gfxCtx);
 
@@ -861,7 +861,7 @@ void func_80B33818(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sZoraBabyEyeTextures[this->eyeIndex]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sZoraBabyEyeTextures[this->eyeIndex]));
 
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnZoraegg_OverrideLimbDraw, EnZoraegg_PostLimbDraw, &this->actor);

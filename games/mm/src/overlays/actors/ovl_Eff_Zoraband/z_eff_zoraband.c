@@ -88,10 +88,10 @@ void EffZoraband_Draw(Actor* thisx, PlayState* play2) {
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, 0, 100, 255, this->alpha);
             gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 100, 255);
         }
-        gSPDisplayList(POLY_XLU_DISP++, object_zoraband_DL_000180);
+        MM_gSPDisplayList(POLY_XLU_DISP++, object_zoraband_DL_000180);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0xFF, 200, 255, 255, this->alpha);
         gDPSetEnvColor(POLY_XLU_DISP++, 0, 100, 255, 255);
-        gSPDisplayList(POLY_XLU_DISP++, object_zoraband_DL_0002A8);
+        MM_gSPDisplayList(POLY_XLU_DISP++, object_zoraband_DL_0002A8);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }

@@ -891,8 +891,8 @@ void MM_EnRr_Draw(Actor* thisx, PlayState* play2) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x0C, mtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08,
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0C, mtx);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, (this->unk_1E8 * 0) & 0x7F, (this->unk_1E8 * 0) & 0x3F, 0x20,
                                 0x10, 1, (this->unk_1E8 * 0) & 0x3F, (this->unk_1E8 * -6) & 0x7F, 0x20, 0x10));
 
@@ -945,7 +945,7 @@ void MM_EnRr_Draw(Actor* thisx, PlayState* play2) {
     this->collider2.dim.pos.y = LERPIMP(spA4.y, this->unk_228.y, 0.85f);
     this->collider2.dim.pos.z = LERPIMP(spA4.z, this->unk_228.z, 0.85f);
 
-    gSPDisplayList(POLY_OPA_DISP++, gLikeLikeDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gLikeLikeDL);
 
     Actor_DrawDamageEffects(play, &this->actor, this->bodyPartsPos, LIKE_LIKE_BODYPART_MAX,
                             this->actor.scale.y * 66.66667f * this->drawDmgEffScale, this->drawDmgEffFrozenSteamScale,

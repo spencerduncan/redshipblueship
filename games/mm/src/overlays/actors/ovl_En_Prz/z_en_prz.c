@@ -273,7 +273,7 @@ void func_80A763E8(EnPrz* this, PlayState* play) {
         this->unk_1D8.z += MM_Math_CosS(rot) * this->unk_214;
 
         this->unk_1EE = MM_Rand_S16Offset(20, 30);
-    } else if (sqrtf(SQ(this->actor.world.pos.x - sp3C->world.pos.x) +
+    } else if (MM_sqrtf(SQ(this->actor.world.pos.x - sp3C->world.pos.x) +
                      SQ(this->actor.world.pos.z - sp3C->world.pos.z)) > 100.0f) {
         MM_Math_Vec3f_Copy(&this->unk_1D8, &sp3C->world.pos);
     }
@@ -336,7 +336,7 @@ void func_80A767A8(EnPrz* this, PlayState* play) {
         return;
     }
 
-    distXZ = sqrtf(SQ(player->actor.world.pos.x - this->actor.parent->home.pos.x) +
+    distXZ = MM_sqrtf(SQ(player->actor.world.pos.x - this->actor.parent->home.pos.x) +
                    SQ(player->actor.world.pos.z - this->actor.parent->home.pos.z));
 
     if (!(player->stateFlags1 & PLAYER_STATE1_8000000) || (pr->unk_2C8 < distXZ)) {

@@ -111,7 +111,7 @@ void CalcTriNorm(const Vec3f& v1, const Vec3f& v2, const Vec3f& v3, Vec3f& norm)
     norm.x = (v2.y - v1.y) * (v3.z - v1.z) - (v2.z - v1.z) * (v3.y - v1.y);
     norm.y = (v2.z - v1.z) * (v3.x - v1.x) - (v2.x - v1.x) * (v3.z - v1.z);
     norm.z = (v2.x - v1.x) * (v3.y - v1.y) - (v2.y - v1.y) * (v3.x - v1.x);
-    float norm_d = sqrtf(norm.x * norm.x + norm.y * norm.y + norm.z * norm.z);
+    float norm_d = MM_sqrtf(norm.x * norm.x + norm.y * norm.y + norm.z * norm.z);
     if (norm_d != 0.f) {
         norm.x *= 127.f / norm_d;
         norm.y *= 127.f / norm_d;
@@ -205,7 +205,7 @@ void CreateSphereFace(std::vector<std::tuple<size_t, size_t, size_t>>& faces, in
     // Normalize vertex positions so they are on the sphere
     for (int32_t vAddIndex = 0; vAddIndex < 3; vAddIndex++) {
         Vec3f& v = vs[vAddIndex];
-        float mag = sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
+        float mag = MM_sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
         v.x /= mag;
         v.y /= mag;
         v.z /= mag;
@@ -221,7 +221,7 @@ void CreateSphereFace(std::vector<std::tuple<size_t, size_t, size_t>>& faces, in
 void CreateSphereData() {
     std::vector<Vec3f> base;
 
-    float d = (1.0f + sqrtf(5.0f)) / 2.0f;
+    float d = (1.0f + MM_sqrtf(5.0f)) / 2.0f;
 
     // Create the 12 starting verticies, 4 on each rectangle
     base.emplace_back(Vec3f({ -1, d, 0 }));
@@ -241,7 +241,7 @@ void CreateSphereData() {
 
     // Normalize verticies so they are on the unit sphere
     for (Vec3f& v : base) {
-        float mag = sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
+        float mag = MM_sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
         v.x /= mag;
         v.y /= mag;
         v.z /= mag;
@@ -709,10 +709,10 @@ extern "C" void DrawCollisionViewer() {
     }
 
     opaDl.push_back(gsSPEndDisplayList());
-    gSPDisplayList(POLY_OPA_DISP++, opaDl.data());
+    MM_gSPDisplayList(POLY_OPA_DISP++, opaDl.data());
 
     xluDl.push_back(gsSPEndDisplayList());
-    gSPDisplayList(POLY_XLU_DISP++, xluDl.data());
+    MM_gSPDisplayList(POLY_XLU_DISP++, xluDl.data());
 
     if (mirroredWorld) {
         gSPClearExtraGeometryMode(POLY_OPA_DISP++, G_EX_INVERT_CULLING);

@@ -68,7 +68,7 @@ void MM_EffectSsExtra_Draw(PlayState* play, u32 index, EffectSs* this) {
 
     MM_gSegments[6] = OS_K0_TO_PHYSICAL(objectPtr);
 
-    gSPSegment(POLY_XLU_DISP++, 0x06, objectPtr);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x06, objectPtr);
 
     MM_Matrix_Translate(this->pos.x, this->pos.y, this->pos.z, MTXMODE_NEW);
     MM_Matrix_Scale(scale, scale, scale, MTXMODE_APPLY);
@@ -77,9 +77,9 @@ void MM_EffectSsExtra_Draw(PlayState* play, u32 index, EffectSs* this) {
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
-    gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(sPointTextures[this->rScoreIndex]));
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(sPointTextures[this->rScoreIndex]));
 
-    gSPDisplayList(POLY_XLU_DISP++, &gYabusamePointDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, &gYabusamePointDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

@@ -1168,7 +1168,7 @@ s32 EnAob01_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f*
 
         *dList = gMamamuYanHeadDL;
 
-        gSPSegment(POLY_OPA_DISP++, 0x0A, Lib_SegmentedToVirtual(eyeTextures[this->eyeIndex]));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x0A, Lib_SegmentedToVirtual(eyeTextures[this->eyeIndex]));
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -1216,8 +1216,8 @@ void EnAob01_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, MM_Gfx_EnvColor(play->state.gfxCtx, 50, 80, 0, 0));
-    gSPSegment(POLY_OPA_DISP++, 0x09, MM_Gfx_EnvColor(play->state.gfxCtx, 50, 80, 0, 0));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, MM_Gfx_EnvColor(play->state.gfxCtx, 50, 80, 0, 0));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x09, MM_Gfx_EnvColor(play->state.gfxCtx, 50, 80, 0, 0));
     gDPPipeSync(POLY_OPA_DISP++);
 
     SkelAnime_DrawTransformFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,

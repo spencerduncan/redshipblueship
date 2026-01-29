@@ -114,14 +114,14 @@ void MM_EffectSsEnIce_Draw(PlayState* play, u32 index, EffectSs* this) {
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
     func_800BCC68(&this->pos, play);
-    gSPSegment(POLY_XLU_DISP++, 0x08,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, gameplayFrames & 0xFF, 0x20, 0x10, 1, 0,
                                 (gameplayFrames * 2) & 0xFF, 0x40, 0x20));
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0x80, this->rPrimColorR, this->rPrimColorG, this->rPrimColorB,
                     this->rPrimColorA);
     gDPSetEnvColor(POLY_XLU_DISP++, this->rEnvColorR, this->rEnvColorG, this->rEnvColorB, (u32)alpha);
-    gSPDisplayList(POLY_XLU_DISP++, gEffIceFragment2MaterialDL);
-    gSPDisplayList(POLY_XLU_DISP++, gEffIceFragment2ModelDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gEffIceFragment2MaterialDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gEffIceFragment2ModelDL);
 
     CLOSE_DISPS(gfxCtx);
 }

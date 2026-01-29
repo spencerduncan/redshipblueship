@@ -72,7 +72,7 @@ void UpdatePersistentMasksState() {
 
             MM_Matrix_Push();
             Player_DrawBunnyHood(MM_gPlayState);
-            gSPDisplayList(POLY_OPA_DISP++,
+            MM_gSPDisplayList(POLY_OPA_DISP++,
                            (Gfx*)D_801C0B20[PLAYER_MASK_BUNNY - 1]); // D_801C0B20 is an array of mask DLs
             MM_Matrix_Pop();
 
@@ -135,7 +135,7 @@ void UpdatePersistentMasksState() {
 
                 if (STATE_CVAR) {
                     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 100, 200, 255, 255);
-                    gSPVertex(POLY_OPA_DISP++, (uintptr_t)persistentMasksVtx, 4, 0);
+                    MM_gSPVertex(POLY_OPA_DISP++, (uintptr_t)persistentMasksVtx, 4, 0);
                     POLY_OPA_DISP = Gfx_DrawTexQuadIA8(POLY_OPA_DISP, (TexturePtr)gEquippedItemOutlineTex, 32, 32, 0);
                 }
             }

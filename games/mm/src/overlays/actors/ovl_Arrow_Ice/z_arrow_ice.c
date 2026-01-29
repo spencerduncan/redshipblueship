@@ -208,7 +208,7 @@ void MM_ArrowIce_Draw(Actor* thisx, PlayState* play) {
                             (s32)(150.0f * this->blueingEffectMagnitude) & 0xFF);
             gDPSetAlphaDither(POLY_XLU_DISP++, G_AD_DISABLE);
             gDPSetColorDither(POLY_XLU_DISP++, G_CD_DISABLE);
-            gSPDisplayList(POLY_XLU_DISP++, D_0E000000_TO_SEGMENTED(fillRect));
+            MM_gSPDisplayList(POLY_XLU_DISP++, D_0E000000_TO_SEGMENTED(fillRect));
         }
 
         // Draw ice on the arrow
@@ -225,11 +225,11 @@ void MM_ArrowIce_Draw(Actor* thisx, PlayState* play) {
         MM_Matrix_Scale(this->radius * 0.2f, this->height * 3.0f, this->radius * 0.2f, MTXMODE_APPLY);
         MM_Matrix_Translate(0.0f, -700.0f, 0.0f, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gIceArrowMaterialDL);
-        gSPDisplayList(POLY_XLU_DISP++,
+        MM_gSPDisplayList(POLY_XLU_DISP++, gIceArrowMaterialDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++,
                        MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 511 - (stateFrames * 5) % 512, 0, 128, 32, 1,
                                         511 - (stateFrames * 10) % 512, 511 - (stateFrames * 10) % 512, 4, 16));
-        gSPDisplayList(POLY_XLU_DISP++, gIceArrowModelDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gIceArrowModelDL);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }

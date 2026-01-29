@@ -119,9 +119,9 @@ void MM_TransitionFade_Draw(void* thisx, Gfx** gfxP) {
 
     if (color->a != 0) {
         gfx = *gfxP;
-        gSPDisplayList(gfx++, sTransFadeSetupDL);
+        MM_gSPDisplayList(gfx++, sTransFadeSetupDL);
         gDPSetPrimColor(gfx++, 0, 0, color->r, color->g, color->b, color->a);
-        gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(fillRect));
+        MM_gSPDisplayList(gfx++, D_0E000000_TO_SEGMENTED(fillRect));
         *gfxP = gfx;
     }
 }

@@ -287,7 +287,7 @@ void EnClearTag_CreateLightRayEffect(EnClearTag* this, Vec3f* pos, Vec3f* veloci
             effect->actionTimer = MM_Rand_ZeroFloat(10.0f);
 
             effect->rotationY = Math_Atan2F_XY(effect->velocity.z, effect->velocity.x);
-            effect->rotationX = -Math_Atan2F_XY(sqrtf(SQXZ(effect->velocity)), effect->velocity.y);
+            effect->rotationX = -Math_Atan2F_XY(MM_sqrtf(SQXZ(effect->velocity)), effect->velocity.y);
 
             effect->envColor.r = 255.0f;
             effect->envColor.g = 255.0f;
@@ -329,7 +329,7 @@ void EnClearTag_CreateIsolatedLightRayEffect(EnClearTag* this, Vec3f* pos, Vec3f
             effect->actionTimer = MM_Rand_ZeroFloat(10.0f);
 
             effect->rotationY = Math_Atan2F_XY(effect->velocity.z, effect->velocity.x);
-            effect->rotationX = -Math_Atan2F_XY(sqrtf(SQXZ(effect->velocity)), effect->velocity.y);
+            effect->rotationX = -Math_Atan2F_XY(MM_sqrtf(SQXZ(effect->velocity)), effect->velocity.y);
 
             effect->envColor.r = sLightRayEnvColor[colorIndex].x;
             effect->envColor.g = sLightRayEnvColor[colorIndex].y;
@@ -820,7 +820,7 @@ void MM_EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
             // Apply the debris effect material if it has not already been applied.
             if (!isMaterialApplied) {
                 isMaterialApplied++;
-                gSPDisplayList(POLY_OPA_DISP++, gClearTagDebrisEffectMaterialDL);
+                MM_gSPDisplayList(POLY_OPA_DISP++, gClearTagDebrisEffectMaterialDL);
             }
 
             // Draw the debris effect.
@@ -829,7 +829,7 @@ void MM_EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
             Matrix_RotateYF(effect->rotationY, MTXMODE_APPLY);
             Matrix_RotateXFApply(effect->rotationX);
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, gClearTagDebrisEffectDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gClearTagDebrisEffectDL);
             FrameInterpolation_RecordCloseChild();
         }
     }
@@ -848,7 +848,7 @@ void MM_EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
                 MM_Matrix_Put(&mtxF);
                 MM_Matrix_Scale(effect->scale, 1.0f, effect->scale, MTXMODE_APPLY);
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-                gSPDisplayList(POLY_XLU_DISP++, gEffShockwaveDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gEffShockwaveDL);
                 FrameInterpolation_RecordCloseChild();
             }
         }
@@ -874,7 +874,7 @@ void MM_EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
                 MM_Matrix_Put(&mtxF);
                 MM_Matrix_Scale(effect->scale * 3.0f, 1.0f, effect->scale * 3.0f, MTXMODE_APPLY);
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-                gSPDisplayList(POLY_XLU_DISP++, gClearTagFlashEffectGroundDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gClearTagFlashEffectGroundDL);
                 FrameInterpolation_RecordCloseChild();
             }
         }
@@ -888,7 +888,7 @@ void MM_EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
             FrameInterpolation_RecordOpenChild(effect, effect->type);
             // Apply the smoke effect material if it has not already been applied.
             if (!isMaterialApplied) {
-                gSPDisplayList(POLY_XLU_DISP++, gClearTagFireEffectMaterialDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gClearTagFireEffectMaterialDL);
                 isMaterialApplied++;
             }
 
@@ -898,14 +898,14 @@ void MM_EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
                            128);
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, (s8)effect->primColor.r, (s8)effect->primColor.g,
                             (s8)effect->primColor.b, (s8)effect->primColor.a);
-            gSPSegment(POLY_XLU_DISP++, 0x08,
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                        MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, -effect->actionTimer * 5, 32, 64, 1, 0, 0, 32, 32));
             MM_Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
             MM_Matrix_ReplaceRotation(&play->billboardMtxF);
             MM_Matrix_Scale(effect->smokeScaleX * effect->scale, effect->smokeScaleY * effect->scale, 1.0f, MTXMODE_APPLY);
             MM_Matrix_Translate(0.0f, 20.0f, 0.0f, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gClearTagFireEffectDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gClearTagFireEffectDL);
             FrameInterpolation_RecordCloseChild();
         }
     }
@@ -918,20 +918,20 @@ void MM_EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
             FrameInterpolation_RecordOpenChild(effect, effect->type);
             // Apply the fire effect material if it has not already been applied.
             if (!isMaterialApplied) {
-                gSPDisplayList(POLY_XLU_DISP++, gClearTagFireEffectMaterialDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gClearTagFireEffectMaterialDL);
                 gDPSetEnvColor(POLY_XLU_DISP++, 255, 215, 255, 128);
                 isMaterialApplied++;
             }
 
             // Draw the fire effect.
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 200, 20, 0, (s8)effect->primColor.a);
-            gSPSegment(POLY_XLU_DISP++, 0x08,
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                        MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, -effect->actionTimer * 15, 32, 64, 1, 0, 0, 32, 32));
             MM_Matrix_Translate(effect->pos.x, effect->pos.y, effect->pos.z, MTXMODE_NEW);
             MM_Matrix_ReplaceRotation(&play->billboardMtxF);
             MM_Matrix_Scale(effect->scale, effect->scale, 1.0f, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gClearTagFireEffectDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gClearTagFireEffectDL);
             FrameInterpolation_RecordCloseChild();
         }
     }
@@ -955,7 +955,7 @@ void MM_EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
             MM_Matrix_ReplaceRotation(&play->billboardMtxF);
             MM_Matrix_Scale(2.0f * effect->scale, 2.0f * effect->scale, 1.0f, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gClearTagFlashEffectDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gClearTagFlashEffectDL);
             FrameInterpolation_RecordCloseChild();
         }
     }
@@ -971,7 +971,7 @@ void MM_EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
                 gDPPipeSync(POLY_XLU_DISP++);
                 gDPSetEnvColor(POLY_XLU_DISP++, (u8)effect->envColor.r, (u8)effect->envColor.g, (u8)effect->envColor.b,
                                0);
-                gSPDisplayList(POLY_XLU_DISP++, gClearTagLightRayEffectMaterialDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gClearTagLightRayEffectMaterialDL);
                 isMaterialApplied++;
             }
 
@@ -985,7 +985,7 @@ void MM_EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
             MM_Matrix_Scale(effect->scale * 0.5f, effect->scale * 0.5f, effect->maxScale * effect->scale, MTXMODE_APPLY);
             Matrix_RotateXFApply(M_PIf / 2);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gClearTagLightRayEffectDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gClearTagLightRayEffectDL);
             FrameInterpolation_RecordCloseChild();
         }
     }
@@ -997,7 +997,7 @@ void MM_EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
             gDPPipeSync(POLY_XLU_DISP++);
             gDPSetEnvColor(POLY_XLU_DISP++, 255, 255, 255, 200);
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, 200);
-            gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(sWaterSplashTextures[effect->actionTimer]));
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(sWaterSplashTextures[effect->actionTimer]));
             Gfx_SetupDL61_Xlu(gfxCtx);
             gSPClearGeometryMode(POLY_XLU_DISP++, G_CULL_BACK);
             isMaterialApplied++;
@@ -1023,7 +1023,7 @@ void MM_EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
                         Matrix_RotateXFApply(effect->rotationX);
                         MM_Matrix_Scale(effect->scale, effect->scale, effect->scale, MTXMODE_APPLY);
                         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-                        gSPDisplayList(POLY_XLU_DISP++, gEffWaterSplashDL);
+                        MM_gSPDisplayList(POLY_XLU_DISP++, gEffWaterSplashDL);
                     }
                 }
                 FrameInterpolation_RecordCloseChild();

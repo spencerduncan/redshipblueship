@@ -8,7 +8,7 @@ OSPifRam __osPfsPifRam ALIGNED(16);
 void __osPfsRequestData(u8 poll);
 void __osPfsGetInitData(u8* pattern, OSContStatus* contData);
 
-s32 osPfsIsPlug(OSMesgQueue* mq, u8* pattern) {
+s32 MM_osPfsIsPlug(OSMesgQueue* mq, u8* pattern) {
     s32 ret = 0;
     OSMesg msg;
     u8 bitpattern;
@@ -23,10 +23,10 @@ s32 osPfsIsPlug(OSMesgQueue* mq, u8* pattern) {
         __osPfsRequestData(CONT_CMD_REQUEST_STATUS);
 
         ret = __osSiRawStartDma(OS_WRITE, &__osPfsPifRam);
-        osRecvMesg(mq, &msg, OS_MESG_BLOCK);
+        MM_osRecvMesg(mq, &msg, OS_MESG_BLOCK);
 
         ret = __osSiRawStartDma(OS_READ, &__osPfsPifRam);
-        osRecvMesg(mq, &msg, OS_MESG_BLOCK);
+        MM_osRecvMesg(mq, &msg, OS_MESG_BLOCK);
 
         __osPfsGetInitData(&bitpattern, &contData[0]);
 

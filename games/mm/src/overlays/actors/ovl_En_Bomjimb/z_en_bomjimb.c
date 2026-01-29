@@ -377,7 +377,7 @@ void func_80C014E4(EnBomjimb* this, PlayState* play) {
             x = this->unk_294.x - this->actor.world.pos.x;
             z = this->unk_294.z - this->actor.world.pos.z;
 
-            if ((this->unk_2B0 == 0) || (sqrtf(SQ(x) + SQ(z)) < 4.0f)) {
+            if ((this->unk_2B0 == 0) || (MM_sqrtf(SQ(x) + SQ(z)) < 4.0f)) {
                 this->unk_2AE = MM_Rand_S16Offset(20, 20);
                 if (!(this->unk_2AE & 1)) {
                     EnBomjimb_ChangeAnim(this, ENBOMJIMB_ANIM_20, 1.0f);
@@ -505,7 +505,7 @@ void func_80C01CD0(EnBomjimb* this, PlayState* play) {
                            0);
         MM_Math_ApproachF(&this->actor.world.pos.x, this->unk_294.x, 0.3f, 2.0f);
         MM_Math_ApproachF(&this->actor.world.pos.z, this->unk_294.z, 0.3f, 2.0f);
-        if (sqrtf(SQ(this->actor.world.pos.x - this->unk_294.x) + SQ(this->actor.world.pos.z - this->unk_294.z)) <
+        if (MM_sqrtf(SQ(this->actor.world.pos.x - this->unk_294.x) + SQ(this->actor.world.pos.z - this->unk_294.z)) <
             3.0f) {
             EnBomjimb_ChangeAnim(this, ENBOMJIMB_ANIM_7, 1.0f);
             MM_Math_Vec3f_Copy(&this->actor.world.pos, &this->unk_294);
@@ -984,9 +984,9 @@ void EnBomjimb_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80C03274[this->unk_2C2]));
-    gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(D_80C03280[this->unk_2C8]));
-    gSPSegment(POLY_OPA_DISP++, 0x0A, Lib_SegmentedToVirtual(D_80C03260[this->unk_2C8]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80C03274[this->unk_2C2]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(D_80C03280[this->unk_2C8]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0A, Lib_SegmentedToVirtual(D_80C03260[this->unk_2C8]));
 
     Scene_SetRenderModeXlu(play, 0, 1);
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,

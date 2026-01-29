@@ -144,7 +144,7 @@ void func_80965DB4(EnMm* this, PlayState* play) {
             Actor_GetSlopeDirection(this->actor.floorPoly, &slopeNormal, &downwardSlopeYaw);
             temp_f14 += 3.0f * slopeNormal.x;
             temp_f12 += 3.0f * slopeNormal.z;
-            temp_f2 = sqrtf(SQ(temp_f14) + SQ(temp_f12));
+            temp_f2 = MM_sqrtf(SQ(temp_f14) + SQ(temp_f12));
 
             if ((temp_f2 < this->actor.speed) ||
                 (SurfaceType_GetFloorEffect(&play->colCtx, this->actor.floorPoly, this->actor.floorBgId) ==
@@ -219,7 +219,7 @@ void MM_EnMm_Draw(Actor* thisx, PlayState* play) {
         Matrix_RotateYS(-rotY, MTXMODE_APPLY);
     }
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_055628);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_055628);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

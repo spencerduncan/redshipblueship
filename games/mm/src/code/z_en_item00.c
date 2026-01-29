@@ -812,9 +812,9 @@ void MM_EnItem00_DrawRupee(EnItem00* this, PlayState* play) {
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sRupeeTextures[texIndex]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sRupeeTextures[texIndex]));
 
-    gSPDisplayList(POLY_OPA_DISP++, gRupeeDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gRupeeDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -854,11 +854,11 @@ void EnItem00_DrawSprite(EnItem00* this, PlayState* play) {
 
     POLY_OPA_DISP = Gfx_SetupDL66(POLY_OPA_DISP);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sItemDropTextures[texIndex]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sItemDropTextures[texIndex]));
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
 
-    gSPDisplayList(POLY_OPA_DISP++, gItemDropDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gItemDropDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -874,8 +874,8 @@ void MM_EnItem00_DrawHeartContainer(EnItem00* this, PlayState* play) {
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
-        gSPDisplayList(POLY_XLU_DISP++, gGiHeartBorderDL);
-        gSPDisplayList(POLY_XLU_DISP++, gGiHeartContainerDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gGiHeartBorderDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gGiHeartContainerDL);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -891,7 +891,7 @@ void MM_EnItem00_DrawHeartPiece(EnItem00* this, PlayState* play) {
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
-    gSPDisplayList(POLY_XLU_DISP++, gHeartPieceInteriorDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gHeartPieceInteriorDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

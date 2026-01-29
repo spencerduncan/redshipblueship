@@ -146,7 +146,7 @@ void DmChar04_Draw(Actor* thisx, PlayState* play) {
     if (alpha > 255) {
         alpha = 511 - alpha;
     }
-    gSPSegment(POLY_XLU_DISP++, 0x08, &gfx[0]);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08, &gfx[0]);
     gDPPipeSync(gfx++);
     gDPSetPrimColor(gfx++, 0, 0x01, (u8)this->primColors.r, (u8)this->primColors.g, (u8)this->primColors.b,
                     (u8)(this->primColors.a * 1));
