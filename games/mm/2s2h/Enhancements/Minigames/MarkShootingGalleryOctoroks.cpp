@@ -29,9 +29,9 @@ void RegisterMarkShootingGalleryOctoroks() {
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, MM_gPlayState->state.gfxCtx);
 
             if (enSyatekiOkuta->type == SG_OCTO_TYPE_BLUE) {
-                gSPDisplayList(POLY_XLU_DISP++, (Gfx*)&gShootingGalleryOctorokCrossDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, (Gfx*)&gShootingGalleryOctorokCrossDL);
             } else {
-                gSPDisplayList(POLY_XLU_DISP++, (Gfx*)&gShootingGalleryOctorokCircleDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, (Gfx*)&gShootingGalleryOctorokCircleDL);
             }
 
             CLOSE_DISPS(MM_gPlayState->state.gfxCtx);

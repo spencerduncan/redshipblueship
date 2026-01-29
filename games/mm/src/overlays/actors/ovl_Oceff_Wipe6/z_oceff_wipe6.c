@@ -107,7 +107,7 @@ void OceffWipe6_Draw(Actor* thisx, PlayState* play) {
     MM_Matrix_Translate(0.0f, 0.0f, -z, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
     AnimatedMat_Draw(play, ovl_Oceff_Wipe6_Matanimheader_000338);
-    gSPDisplayList(POLY_XLU_DISP++, gOceff6DL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gOceff6DL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

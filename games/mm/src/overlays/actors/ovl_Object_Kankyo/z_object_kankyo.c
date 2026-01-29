@@ -143,7 +143,7 @@ void func_808DC18C(ObjectKankyo* this, PlayState* play) {
     x = play->view.at.x - play->view.eye.x;
     y = play->view.at.y - play->view.eye.y;
     z = play->view.at.z - play->view.eye.z;
-    magnitude = sqrtf(SQ(x) + SQ(y) + SQ(z));
+    magnitude = MM_sqrtf(SQ(x) + SQ(y) + SQ(z));
 
     temp_f18 = x / magnitude;
     x = z / magnitude;
@@ -204,7 +204,7 @@ void func_808DC454(ObjectKankyo* this, PlayState* play) {
     f32 x = play->view.at.x - play->view.eye.x;
     f32 y = play->view.at.y - play->view.eye.y;
     f32 z = play->view.at.z - play->view.eye.z;
-    f32 magnitude = sqrtf(SQ(x) + SQ(y) + SQ(z));
+    f32 magnitude = MM_sqrtf(SQ(x) + SQ(y) + SQ(z));
     f32 temp_120 = 120.0f;
     f32 temp_f30;
     Vec3f sp88;
@@ -251,7 +251,7 @@ void func_808DC454(ObjectKankyo* this, PlayState* play) {
                 temp_f28 = play->view.eye.y + (spCC * 120.0f);
                 temp_f30 = play->view.eye.z + (spC8 * 120.0f);
 
-                magnitude = sqrtf((f32)SQ(play->envCtx.windDirection.x) + SQ(play->envCtx.windDirection.y) +
+                magnitude = MM_sqrtf((f32)SQ(play->envCtx.windDirection.x) + SQ(play->envCtx.windDirection.y) +
                                   SQ(play->envCtx.windDirection.z));
                 if (magnitude == 0.0f) {
                     magnitude = 0.001f;
@@ -388,7 +388,7 @@ void func_808DCDB4(ObjectKankyo* this, PlayState* play) {
     y = play->view.at.y - play->view.eye.y;
     z = play->view.at.z - play->view.eye.z;
 
-    magnitude = sqrtf(SQ(x) + SQ(y) + SQ(z));
+    magnitude = MM_sqrtf(SQ(x) + SQ(y) + SQ(z));
 
     spAC = x / magnitude;
     spA8 = y / magnitude;
@@ -421,7 +421,7 @@ void func_808DCDB4(ObjectKankyo* this, PlayState* play) {
                 temp_f28 = play->view.eye.y + (spA8 * 120.0f);
                 temp_f18 = play->view.eye.z + (spA4 * 120.0f);
 
-                magnitude = sqrtf((f32)SQ(play->envCtx.windDirection.x) + SQ(play->envCtx.windDirection.y) +
+                magnitude = MM_sqrtf((f32)SQ(play->envCtx.windDirection.x) + SQ(play->envCtx.windDirection.y) +
                                   SQ(play->envCtx.windDirection.z));
                 if (magnitude == 0.0f) {
                     magnitude = 0.001f;
@@ -580,7 +580,7 @@ void func_808DD3C8(Actor* thisx, PlayState* play2) {
 
                 gDPSetRenderMode(POLY_XLU_DISP++, G_RM_FOG_SHADE_A, G_RM_ZB_CLD_SURF2);
                 gSPSetGeometryMode(POLY_XLU_DISP++, G_FOG);
-                gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gEffDust5Tex));
+                MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gEffDust5Tex));
             }
 
             MM_Matrix_Translate(worldPos.x, worldPos.y, worldPos.z, MTXMODE_NEW);
@@ -595,7 +595,7 @@ void func_808DD3C8(Actor* thisx, PlayState* play2) {
             MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gEffDustDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gEffDustDL);
             FrameInterpolation_RecordCloseChild();
         }
     }
@@ -665,14 +665,14 @@ void func_808DD970(Actor* thisx, PlayState* play2) {
             MM_Matrix_Mult(&play->billboardMtxF, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gEffDust5Tex));
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(gEffDust5Tex));
             gSPClearGeometryMode(POLY_XLU_DISP++, G_LIGHTING);
 
             POLY_XLU_DISP = MM_Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_0);
 
             gDPSetRenderMode(POLY_XLU_DISP++, G_RM_FOG_SHADE_A, G_RM_ZB_CLD_SURF2);
             gSPSetGeometryMode(POLY_XLU_DISP++, G_FOG);
-            gSPDisplayList(POLY_XLU_DISP++, gEffDustDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gEffDustDL);
             FrameInterpolation_RecordCloseChild();
         }
     }
@@ -725,7 +725,7 @@ void func_808DDE9C(Actor* thisx, PlayState* play2) {
             }
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gFallingRainDropDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gFallingRainDropDL);
             FrameInterpolation_RecordCloseChild();
         }
     }
@@ -752,7 +752,7 @@ void func_808DDE9C(Actor* thisx, PlayState* play2) {
                 MM_Matrix_Scale(temp_f12, temp_f12, temp_f12, MTXMODE_APPLY);
 
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-                gSPDisplayList(POLY_XLU_DISP++, gEffShockwaveDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gEffShockwaveDL);
                 FrameInterpolation_RecordCloseChild();
             }
         }

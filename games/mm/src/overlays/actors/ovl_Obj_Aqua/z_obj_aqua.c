@@ -278,7 +278,7 @@ void ObjAqua_Draw(Actor* thisx, PlayState* play) {
     if (actionFuncTemp) {
         framesTemp >>= 1;
     }
-    gSPSegment(POLY_XLU_DISP++, 0x08,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, framesTemp, 0x20, 0x80));
     gDPSetPrimColor(POLY_XLU_DISP++, 0x80, 0x80, 170, 255, 255, this->alpha);
     gDPSetEnvColor(POLY_XLU_DISP++, 0, 150, 255, 0);
@@ -293,7 +293,7 @@ void ObjAqua_Draw(Actor* thisx, PlayState* play) {
 
     Matrix_RotateYS(yaw, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

@@ -513,7 +513,7 @@ void EnJa_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
         MM_Matrix_TranslateRotateZYX(&D_80BC3774, &D_80BC37A4);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, object_boj_DL_00BA30);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_boj_DL_00BA30);
 
         MM_Matrix_Pop();
 
@@ -555,7 +555,7 @@ void EnJa_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
             }
 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, object_boj_DL_00BCC8);
+            MM_gSPDisplayList(POLY_OPA_DISP++, object_boj_DL_00BCC8);
 
             MM_Matrix_Pop();
 
@@ -594,7 +594,7 @@ void EnJa_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
                 }
 
                 MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-                gSPDisplayList(POLY_OPA_DISP++, object_boj_DL_00BCC8);
+                MM_gSPDisplayList(POLY_OPA_DISP++, object_boj_DL_00BCC8);
 
                 MM_Matrix_Pop();
 
@@ -686,13 +686,13 @@ void EnJa_Draw(Actor* thisx, PlayState* play) {
 
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-        gSPSegment(POLY_OPA_DISP++, 0x08,
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08,
                    MM_Gfx_EnvColor(play->state.gfxCtx, D_80BC37AC[phi_t2].r, D_80BC37AC[phi_t2].g, D_80BC37AC[phi_t2].b,
                                 D_80BC37AC[phi_t2].a));
-        gSPSegment(POLY_OPA_DISP++, 0x09,
+        MM_gSPSegment(POLY_OPA_DISP++, 0x09,
                    MM_Gfx_EnvColor(play->state.gfxCtx, D_80BC37B4[phi_t2].r, D_80BC37B4[phi_t2].g, D_80BC37B4[phi_t2].b,
                                 D_80BC37B4[phi_t2].a));
-        gSPSegment(POLY_OPA_DISP++, 0x0A, Lib_SegmentedToVirtual(D_80BC37BC[this->unk_362]));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x0A, Lib_SegmentedToVirtual(D_80BC37BC[this->unk_362]));
         gDPPipeSync(POLY_OPA_DISP++);
 
         SkelAnime_DrawTransformFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
@@ -841,7 +841,7 @@ void func_80BC33C0(EnJaStruct* ptr, PlayState* play) {
         }
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, object_boj_DL_00BCC8);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_boj_DL_00BCC8);
         FrameInterpolation_RecordCloseChild();
 
         CLOSE_DISPS(play->state.gfxCtx);

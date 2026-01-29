@@ -120,9 +120,9 @@ void DmSa_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     if (this->alpha < 255) {
-        gSPSegment(POLY_OPA_DISP++, 0x0C, func_80A2EB58(play->state.gfxCtx, this->alpha));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x0C, func_80A2EB58(play->state.gfxCtx, this->alpha));
     } else {
-        gSPSegment(POLY_OPA_DISP++, 0x0C, func_80A2EBB0(play->state.gfxCtx, this->alpha));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x0C, func_80A2EBB0(play->state.gfxCtx, this->alpha));
     }
 
     SkelAnime_DrawTransformFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,

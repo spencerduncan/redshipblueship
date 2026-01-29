@@ -686,10 +686,10 @@ void Boss06_Draw(Actor* thisx, PlayState* play2) {
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 155, 255, lightRayGreenFactor, (u8)(140.0f * lightRayBlueFactor + 115.0f),
                         lightRayAlpha);
-        gSPDisplayList(POLY_XLU_DISP++, gIkanaThroneRoomLightRayDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gIkanaThroneRoomLightRayDL);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 255, 255, lightRayGreenFactor, (u8)(100.0f * lightRayBlueFactor + 65.0f),
                         floorLightAlpha);
-        gSPDisplayList(POLY_XLU_DISP++, gIkanaThroneRoomLightOnFloorDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gIkanaThroneRoomLightOnFloorDL);
 
         //! FAKE:
         if (1) {}
@@ -702,12 +702,12 @@ void Boss06_Draw(Actor* thisx, PlayState* play2) {
         // one mask can be registered to a resource at a time.
         if (true) {
             gSPRegisterBlendedTex(POLY_OPA_DISP++, gIkanaThroneRoomCurtainTex, this->curtainTexMask, NULL);
-            gSPInvalidateTexCache(POLY_OPA_DISP++, this->curtainTexMask);
-            gSPInvalidateTexCache(POLY_OPA_DISP++, gIkanaThroneRoomCurtainTex);
-            gSPSegment(POLY_OPA_DISP++, 0x08, gIkanaThroneRoomCurtainTex);
+            MM_gSPInvalidateTexCache(POLY_OPA_DISP++, this->curtainTexMask);
+            MM_gSPInvalidateTexCache(POLY_OPA_DISP++, gIkanaThroneRoomCurtainTex);
+            MM_gSPSegment(POLY_OPA_DISP++, 0x08, gIkanaThroneRoomCurtainTex);
         } else {
-            gSPInvalidateTexCache(POLY_OPA_DISP++, &this->curtainTexture);
-            gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(&this->curtainTexture));
+            MM_gSPInvalidateTexCache(POLY_OPA_DISP++, &this->curtainTexture);
+            MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(&this->curtainTexture));
         }
 
         MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y + this->curtainHeight,
@@ -716,7 +716,7 @@ void Boss06_Draw(Actor* thisx, PlayState* play2) {
         Matrix_RotateYS(this->actor.shape.rot.y, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gIkanaThroneRoomCurtainDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gIkanaThroneRoomCurtainDL);
 
         if (this->fireEffectScale > 0.0f) {
             MM_Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y + 84.0f, this->actor.world.pos.z - 2.0f,
@@ -733,7 +733,7 @@ void Boss06_Draw(Actor* thisx, PlayState* play2) {
                     FrameInterpolation_RecordOpenChild(this, i);
                     MM_Matrix_Push();
 
-                    gSPSegment(POLY_XLU_DISP++, 0x08,
+                    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0,
                                                 ((play->gameplayFrames + (i * 10)) * -20) % 512, 32, 128));
 
@@ -748,7 +748,7 @@ void Boss06_Draw(Actor* thisx, PlayState* play2) {
                     MM_Matrix_Scale(-0.02f / 10.0f, -this->fireEffectScale, 1.0f, MTXMODE_APPLY);
 
                     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-                    gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
+                    MM_gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
 
                     MM_Matrix_Pop();
                     FrameInterpolation_RecordCloseChild();
@@ -766,7 +766,7 @@ void Boss06_Draw(Actor* thisx, PlayState* play2) {
                          this->actor.world.pos.y + 84.0f + this->arrowHitPos.y,
                          (this->actor.world.pos.z - 2.0f) + lightOrbOffsetZ, MTXMODE_NEW);
 
-        gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
         gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, (u8)(140.0f * lightRayBlueFactor + 115.0f), lightOrbAlpha);
         gDPSetEnvColor(POLY_XLU_DISP++, 255, 205, (u8)(100.0f * lightRayBlueFactor + 65.0f), 128);
 
@@ -774,7 +774,7 @@ void Boss06_Draw(Actor* thisx, PlayState* play2) {
         Matrix_RotateZS(play->gameplayFrames * 64, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

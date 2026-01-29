@@ -87,7 +87,7 @@ void BgFuMizu_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, object_fu_kaiten_DL_002FC0);
+    MM_gSPDisplayList(POLY_XLU_DISP++, object_fu_kaiten_DL_002FC0);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

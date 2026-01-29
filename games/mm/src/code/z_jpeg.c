@@ -66,9 +66,9 @@ void MM_Jpeg_ScheduleDecoderTask(JpegContext* jpegCtx) {
     jpegCtx->scTask.framebuffer = NULL;
     jpegCtx->scTask.list.t = sJpegTask;
 
-    osSendMesg(&MM_gSchedContext.cmdQ, (OSMesg*)&jpegCtx->scTask, OS_MESG_BLOCK);
+    MM_osSendMesg(&MM_gSchedContext.cmdQ, (OSMesg*)&jpegCtx->scTask, OS_MESG_BLOCK);
     MM_Sched_SendEntryMsg(&MM_gSchedContext); // osScKickEntryMsg
-    osRecvMesg(&jpegCtx->mq, NULL, OS_MESG_BLOCK);
+    MM_osRecvMesg(&jpegCtx->mq, NULL, OS_MESG_BLOCK);
 #endif
 }
 
@@ -224,7 +224,7 @@ s32 MM_Jpeg_Decode(void* data, void* zbuffer, void* work, u32 workSize) {
         return -1;
     }
 
-    osCreateMesgQueue(&jpegCtx.mq, &jpegCtx.msg, 1);
+    MM_osCreateMesgQueue(&jpegCtx.mq, &jpegCtx.msg, 1);
     MM_MsgEvent_SendNullTask();
 
     jpegCtx.workBuf = workBuff;

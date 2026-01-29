@@ -123,12 +123,20 @@ list(REMOVE_ITEM Header_Files__include ${CMAKE_CURRENT_SOURCE_DIR}/include/ultra
 source_group("include" FILES ${Header_Files__include})
 # }}}
 
-# soh (root)
+# soh (root) - collect all, then split out Enhancements for separate lib
 file(GLOB_RECURSE soh__ RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "soh/*.c" "soh/*.cpp" "soh/*.h" "soh/*.hpp")
+# Collect Enhancements separately (will be soh_enh lib)
+file(GLOB_RECURSE soh__Enhancements RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "soh/Enhancements/*.c" "soh/Enhancements/*.cpp" "soh/Enhancements/*.h" "soh/Enhancements/*.hpp")
+# Collect randomizer separately (will be soh_rando lib) - it's 5.9MB source and causes soh_enh to exceed 4GB
+file(GLOB_RECURSE soh__Randomizer RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "soh/Enhancements/randomizer/*.c" "soh/Enhancements/randomizer/*.cpp" "soh/Enhancements/randomizer/*.h" "soh/Enhancements/randomizer/*.hpp")
+# Remove randomizer from soh__Enhancements
+list(FILTER soh__Enhancements EXCLUDE REGEX "soh/Enhancements/randomizer/.*")
+# Remove Enhancements from soh__ (will be soh_port lib)
+list(FILTER soh__ EXCLUDE REGEX "soh/Enhancements/.*")
 
 # Add specific files that don't match the pattern
-list(APPEND soh__ ${CMAKE_CURRENT_SOURCE_DIR}/soh/Enhancements/savestates_extern.inc)
-list(APPEND soh__ ${CMAKE_CURRENT_SOURCE_DIR}/soh/Enhancements/speechsynthesizer/DarwinSpeechSynthesizer.mm)
+list(APPEND soh__Enhancements ${CMAKE_CURRENT_SOURCE_DIR}/soh/Enhancements/savestates_extern.inc)
+list(APPEND soh__Enhancements ${CMAKE_CURRENT_SOURCE_DIR}/soh/Enhancements/speechsynthesizer/DarwinSpeechSynthesizer.mm)
 
 # Create source groups that match the real file directory paths
 foreach(source IN LISTS soh__)
@@ -155,18 +163,18 @@ if (!BUILD_REMOTE_CONTROL)
     list(FILTER soh__ EXCLUDE REGEX "soh/Enhancements/crowd-control/")
 endif()
 
-# handle speechsynthesizer removals
+# handle speechsynthesizer removals (filter from soh__Enhancements since that's where they are now)
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    list(FILTER soh__ EXCLUDE REGEX "soh/Enhancements/speechsynthesizer/Darwin")
+    list(FILTER soh__Enhancements EXCLUDE REGEX "soh/Enhancements/speechsynthesizer/Darwin")
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    list(FILTER soh__ EXCLUDE REGEX "soh/Enhancements/speechsynthesizer/SAPI")
+    list(FILTER soh__Enhancements EXCLUDE REGEX "soh/Enhancements/speechsynthesizer/SAPI")
 else()
-    list(FILTER soh__ EXCLUDE REGEX "soh/Enhancements/speechsynthesizer/(Darwin|SAPI)")
+    list(FILTER soh__Enhancements EXCLUDE REGEX "soh/Enhancements/speechsynthesizer/(Darwin|SAPI)")
 endif()
 
 find_library(ESPEAK espeak-ng)
 if (NOT ESPEAK)
-    list(FILTER soh__ EXCLUDE REGEX "soh/Enhancements/speechsynthesizer/ESpeak")
+    list(FILTER soh__Enhancements EXCLUDE REGEX "soh/Enhancements/speechsynthesizer/ESpeak")
 endif()
 
 # soh/Extractor {{{
@@ -191,7 +199,10 @@ endif()
 file(GLOB_RECURSE src__ RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*.c" "src/*.h")
 set_source_files_properties(${src__} PROPERTIES COMPILE_OPTIONS "${WARNING_OVERRIDE}")
 
-list(APPEND src__ ${CMAKE_CURRENT_SOURCE_DIR}/Resource.rc)
+# Skip Resource.rc in single-exe mode to avoid duplicate VERSION resource (LNK1123)
+if(NOT SINGLE_EXECUTABLE_BUILD)
+    list(APPEND src__ ${CMAKE_CURRENT_SOURCE_DIR}/Resource.rc)
+endif()
 list(FILTER src__ EXCLUDE REGEX "src/dmadata/")
 list(FILTER src__ EXCLUDE REGEX "src/elf_message/")
 list(FILTER src__ EXCLUDE REGEX "src/libultra/io/")
@@ -232,72 +243,109 @@ set(ALL_FILES
 list(APPEND ALL_FILES "${CMAKE_CURRENT_SOURCE_DIR}/soh/GameExports.cpp")
 
 ################################################################################
-# Target - always build as shared library for unified combo launcher
+# Target - OBJECT libraries for single-exe, SHARED for dynamic loading
 ################################################################################
-add_library(${PROJECT_NAME} SHARED ${ALL_FILES})
-target_compile_definitions(${PROJECT_NAME} PRIVATE GAME_BUILDING_DLL)
-
-# Symbol visibility
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    C_VISIBILITY_PRESET hidden
-    CXX_VISIBILITY_PRESET hidden
-    VISIBILITY_INLINES_HIDDEN ON
-)
-
-# Platform-specific naming for shared library
-if(WIN32)
-    set_target_properties(${PROJECT_NAME} PROPERTIES
-        PREFIX ""
-        SUFFIX ".dll"
+if(SINGLE_EXECUTABLE_BUILD)
+    # Split into four STATIC libraries to avoid:
+    # - MSVC LNK1170: response file line >131K chars with 2500+ .obj paths
+    # - MSVC LNK1248: COFF .lib archive >4GB (soh_enh exceeded 4GB with randomizer)
+    # Split: src/, soh/ (w/o Enhancements), soh/Enhancements/ (w/o randomizer), randomizer/
+    add_library(soh_src STATIC ${src__} ${Header_Files} ${Header_Files__include})
+    add_library(soh_port STATIC
+        ${soh__} ${soh__Extractor}
+        "${CMAKE_CURRENT_SOURCE_DIR}/soh/GameExports_SingleExe.cpp"
     )
-elseif(APPLE)
-    set_target_properties(${PROJECT_NAME} PROPERTIES
-        PREFIX ""
-        SUFFIX ".dylib"
-    )
+    add_library(soh_enh STATIC ${soh__Enhancements})
+    add_library(soh_rando STATIC ${soh__Randomizer})
+    set(SOH_COMPILE_TARGETS soh_src soh_port soh_enh soh_rando)
+    foreach(_t ${SOH_COMPILE_TARGETS})
+        target_compile_definitions(${_t} PRIVATE RSBS_SINGLE_EXECUTABLE)
+    endforeach()
+
+    # Propagate compile-time deps (include dirs, compile defs) to STATIC libs.
+    foreach(_t ${SOH_COMPILE_TARGETS})
+        target_link_libraries(${_t} PRIVATE redship_common rsbs libultraship ZAPDLib)
+    endforeach()
+
+    # Export static targets for root CMakeLists to link into redship
+    set(SOH_STATIC_TARGETS soh_src soh_port soh_enh soh_rando PARENT_SCOPE)
 else()
+    # Build as SHARED library for dynamic loading
+    add_library(${PROJECT_NAME} SHARED ${ALL_FILES})
+    set(SOH_COMPILE_TARGETS ${PROJECT_NAME})
+    target_compile_definitions(${PROJECT_NAME} PRIVATE GAME_BUILDING_DLL)
+
+    # Symbol visibility (only for shared library)
     set_target_properties(${PROJECT_NAME} PROPERTIES
-        PREFIX ""
-        SUFFIX ".so"
+        C_VISIBILITY_PRESET hidden
+        CXX_VISIBILITY_PRESET hidden
+        VISIBILITY_INLINES_HIDDEN ON
     )
+
+    # Platform-specific naming for shared library
+    if(WIN32)
+        set_target_properties(${PROJECT_NAME} PROPERTIES
+            PREFIX ""
+            SUFFIX ".dll"
+        )
+    elseif(APPLE)
+        set_target_properties(${PROJECT_NAME} PROPERTIES
+            PREFIX ""
+            SUFFIX ".dylib"
+        )
+    else()
+        set_target_properties(${PROJECT_NAME} PROPERTIES
+            PREFIX ""
+            SUFFIX ".so"
+        )
+    endif()
+
+    # Link deps (only for SHARED — OBJECT libs don't link, deps go on redship)
+    target_link_libraries(${PROJECT_NAME} PRIVATE redship_common rsbs)
 endif()
 
-# Link redship_common for cross-game API (src/common implementations)
-# Link rsbs for unified shared code
-target_link_libraries(${PROJECT_NAME} PRIVATE redship_common rsbs)
 # Include combo headers for compatibility (headers forward to src/common)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/combo/include)
-
-if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-use_props(${PROJECT_NAME} "${CMAKE_CONFIGURATION_TYPES}" "${DEFAULT_CXX_PROPS}")
-endif()
+foreach(_t ${SOH_COMPILE_TARGETS})
+    target_include_directories(${_t} PRIVATE ${CMAKE_SOURCE_DIR}/combo/include)
+endforeach()
 
 set(ROOT_NAMESPACE soh)
 
+################################################################################
+# Apply compile properties to all OoT targets (foreach handles OBJECT split)
+################################################################################
+foreach(_t ${SOH_COMPILE_TARGETS})
+
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-	set_target_properties(${PROJECT_NAME} PROPERTIES
+use_props(${_t} "${CMAKE_CONFIGURATION_TYPES}" "${DEFAULT_CXX_PROPS}")
+endif()
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+	set_target_properties(${_t} PROPERTIES
 		VS_GLOBAL_KEYWORD "Win32Proj"
 	)
-	if("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "x64")
-		set_target_properties(${PROJECT_NAME} PROPERTIES
-			INTERPROCEDURAL_OPTIMIZATION_RELEASE "TRUE"
-		)
-	elseif("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "Win32")
-		set_target_properties(${PROJECT_NAME} PROPERTIES
-			INTERPROCEDURAL_OPTIMIZATION_RELEASE "TRUE"
-		)
+	if(NOT SINGLE_EXECUTABLE_BUILD)
+		# Enable LTCG for shared library builds only.
+		if("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "x64")
+			set_target_properties(${_t} PROPERTIES
+				INTERPROCEDURAL_OPTIMIZATION_RELEASE "TRUE"
+			)
+		elseif("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "Win32")
+			set_target_properties(${_t} PROPERTIES
+				INTERPROCEDURAL_OPTIMIZATION_RELEASE "TRUE"
+			)
+		endif()
 	endif()
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    set_target_properties(${PROJECT_NAME} PROPERTIES
+    set_target_properties(${_t} PROPERTIES
         XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES
     )
-    # Shared library uses platform-specific naming set above
 endif()
 ################################################################################
 # MSVC runtime library
 ################################################################################
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-	get_property(MSVC_RUNTIME_LIBRARY_DEFAULT TARGET ${PROJECT_NAME} PROPERTY MSVC_RUNTIME_LIBRARY)
+	get_property(MSVC_RUNTIME_LIBRARY_DEFAULT TARGET ${_t} PROPERTY MSVC_RUNTIME_LIBRARY)
 	if("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "x64")
 		string(CONCAT "MSVC_RUNTIME_LIBRARY_STR"
 			$<$<CONFIG:Debug>:
@@ -319,7 +367,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 			$<$<NOT:$<OR:$<CONFIG:Debug>,$<CONFIG:Release>>>:${MSVC_RUNTIME_LIBRARY_DEFAULT}>
 		)
 	endif()
-	set_target_properties(${PROJECT_NAME} PROPERTIES MSVC_RUNTIME_LIBRARY ${MSVC_RUNTIME_LIBRARY_STR})
+	set_target_properties(${_t} PROPERTIES MSVC_RUNTIME_LIBRARY ${MSVC_RUNTIME_LIBRARY_STR})
 endif()
 ################################################################################
 # Find/download Dr Libs (For custom audio)
@@ -355,7 +403,7 @@ endif()
 # Compile definitions
 ################################################################################
 
-target_include_directories(${PROJECT_NAME} PRIVATE assets
+target_include_directories(${_t} PRIVATE assets
 	${CMAKE_CURRENT_SOURCE_DIR}/include/
 	${CMAKE_CURRENT_SOURCE_DIR}/src/
     ${CMAKE_CURRENT_SOURCE_DIR}/../../libultraship/include
@@ -367,14 +415,14 @@ target_include_directories(${PROJECT_NAME} PRIVATE assets
 	.
 )
 
-# Add combo include directory (combo library already linked above)
-target_include_directories(${PROJECT_NAME} PRIVATE
+# Add combo include directory
+target_include_directories(${_t} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../combo/include
 )
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	if("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "x64")
-		target_compile_definitions(${PROJECT_NAME} PRIVATE
+		target_compile_definitions(${_t} PRIVATE
 			"$<$<CONFIG:Debug>:"
 				"_DEBUG;"
 				"_CRT_SECURE_NO_WARNINGS;"
@@ -395,7 +443,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
             NOMINMAX
 		)
 	elseif("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "Win32")
-		target_compile_definitions(${PROJECT_NAME} PRIVATE
+		target_compile_definitions(${_t} PRIVATE
 			"$<$<CONFIG:Debug>:"
 				"NOINCLUDE_GAME_PRINTF;"
 				"_DEBUG;"
@@ -417,7 +465,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 		)
 	endif()
 elseif (CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
-	target_compile_definitions(${PROJECT_NAME} PRIVATE
+	target_compile_definitions(${_t} PRIVATE
 		"$<$<CONFIG:Debug>:"
 			"_DEBUG;"
 		">"
@@ -432,7 +480,7 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
         LOG_LEVEL_GAME_PRINTS=${SPDLOG_LEVEL_OFF}
 	)
 elseif ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU|Clang|AppleClang")
-	target_compile_definitions(${PROJECT_NAME} PRIVATE
+	target_compile_definitions(${_t} PRIVATE
 		"$<$<CONFIG:Debug>:"
 			"_DEBUG;"
 		">"
@@ -455,7 +503,7 @@ endif()
 ################################################################################
 if(MSVC)
     if("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "x64")
-        target_compile_options(${PROJECT_NAME} PRIVATE
+        target_compile_options(${_t} PRIVATE
             $<$<CONFIG:Debug>:
                 /w;
                 /Od
@@ -472,9 +520,9 @@ if(MSVC)
             ${DEFAULT_CXX_DEBUG_INFORMATION_FORMAT};
             ${DEFAULT_CXX_EXCEPTION_HANDLING}
         )
-        target_compile_options(${PROJECT_NAME} PRIVATE  $<$<CONFIG:Debug>:/ZI;>)
+        target_compile_options(${_t} PRIVATE  $<$<CONFIG:Debug>:/ZI;>)
     elseif("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "Win32")
-        target_compile_options(${PROJECT_NAME} PRIVATE
+        target_compile_options(${_t} PRIVATE
             $<$<CONFIG:Debug>:
                 /RTCs
             >
@@ -492,7 +540,7 @@ if(MSVC)
         )
     endif()
     if("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "x64")
-        target_link_options(${PROJECT_NAME} PRIVATE
+        target_link_options(${_t} PRIVATE
             $<$<CONFIG:Debug>:
                 /INCREMENTAL
             >
@@ -507,7 +555,7 @@ if(MSVC)
             /SUBSYSTEM:WINDOWS
         )
     elseif("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "Win32")
-        target_link_options(${PROJECT_NAME} PRIVATE
+        target_link_options(${_t} PRIVATE
             $<$<CONFIG:Debug>:
                 /STACK:8777216
             >
@@ -526,7 +574,7 @@ endif()
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
     if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-        target_compile_options(${PROJECT_NAME} PRIVATE
+        target_compile_options(${_t} PRIVATE
             -Wall -Wextra -Wno-error
             -Wformat-security
             -Wno-return-type
@@ -537,6 +585,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
             -Wno-parentheses
             -Wno-narrowing
             -Wno-missing-braces
+            -Wno-unknown-pragmas
             $<$<COMPILE_LANGUAGE:C>:
                 -Werror-implicit-function-declaration
                 -Wno-incompatible-pointer-types
@@ -550,11 +599,11 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
             -pthread
         )
 
-        target_link_options(${PROJECT_NAME} PRIVATE
+        target_link_options(${_t} PRIVATE
             -pthread
         )
     elseif (CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
-        target_compile_options(${PROJECT_NAME} PRIVATE
+        target_compile_options(${_t} PRIVATE
             -Wall -Wextra -Wno-error
             -Wformat-security
             -Wno-return-type
@@ -577,11 +626,11 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
             -pthread
         )
 
-        target_link_options(${PROJECT_NAME} PRIVATE
+        target_link_options(${_t} PRIVATE
             -pthread
         )
     elseif (CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
-        target_compile_options(${PROJECT_NAME} PRIVATE
+        target_compile_options(${_t} PRIVATE
             -O2
 
             # disable some warnings to not clutter output
@@ -605,7 +654,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
 		set(CPU_OPTION -msse2 -mfpmath=sse)
         endif()
 
-        target_compile_options(${PROJECT_NAME} PRIVATE
+        target_compile_options(${_t} PRIVATE
             -Wall -Wextra -Wno-error
             -Wformat-security
             -Wno-unused-parameter
@@ -627,46 +676,49 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
 	    ${CPU_OPTION}
         )
 
-        target_link_options(${PROJECT_NAME} PRIVATE
+        target_link_options(${_t} PRIVATE
             -pthread
 				#-fsanitize=address
             -Wl,-export-dynamic
         )
     endif()
 endif()
+
+endforeach() # SOH_COMPILE_TARGETS
+
 ################################################################################
-# Pre build events
+# Pre build events (only for SHARED library builds)
 ################################################################################
-if (CMAKE_GENERATOR MATCHES "Visual Studio")
-	add_custom_command(
-    TARGET ${PROJECT_NAME}
-	POST_BUILD
-	COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/oot/assets/extractor ${CMAKE_BINARY_DIR}/soh/assets
-    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/oot/assets/xml ${CMAKE_BINARY_DIR}/soh/assets/xml
-    )
-endif()
-if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
-    add_custom_command(
-		TARGET ${PROJECT_NAME}
-		POST_BUILD
-		COMMENT "Copying asset xmls..."
-        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/oot/assets/extractor $<TARGET_FILE_DIR:soh>/assets
-		COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/oot/assets/xml $<TARGET_FILE_DIR:soh>/assets/xml
-        COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:soh>/assets/symbols
-	#	COMMAND ${VS_COPY_ASSETS_CMD}
-    )
+if(NOT SINGLE_EXECUTABLE_BUILD)
+    if (CMAKE_GENERATOR MATCHES "Visual Studio")
+        add_custom_command(
+        TARGET ${PROJECT_NAME}
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/oot/assets/extractor ${CMAKE_BINARY_DIR}/soh/assets
+        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/oot/assets/xml ${CMAKE_BINARY_DIR}/soh/assets/xml
+        )
+    endif()
+    if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
+        add_custom_command(
+            TARGET ${PROJECT_NAME}
+            POST_BUILD
+            COMMENT "Copying asset xmls..."
+            COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/oot/assets/extractor $<TARGET_FILE_DIR:soh>/assets
+            COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/games/oot/assets/xml $<TARGET_FILE_DIR:soh>/assets/xml
+            COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:soh>/assets/symbols
+        #	COMMAND ${VS_COPY_ASSETS_CMD}
+        )
+    endif()
 endif()
 ################################################################################
 # Dependencies
 ################################################################################
-add_dependencies(${PROJECT_NAME}
-    libultraship
-)
-if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
-add_dependencies(${PROJECT_NAME}
-    ZAPDLib
-)
-endif()
+foreach(_t ${SOH_COMPILE_TARGETS})
+    add_dependencies(${_t} libultraship)
+    if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
+        add_dependencies(${_t} ZAPDLib)
+    endif()
+endforeach()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
     find_package(glfw3 REQUIRED)
@@ -731,9 +783,11 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
 
         "$<$<CONFIG:Debug>:-Wl,--wrap=abort>"
     )
-    target_include_directories(${PROJECT_NAME} PRIVATE
-        ${DEVKITPRO}/portlibs/wiiu/include/
-    )
+    foreach(_t ${SOH_COMPILE_TARGETS})
+        target_include_directories(${_t} PRIVATE
+            ${DEVKITPRO}/portlibs/wiiu/include/
+        )
+    endforeach()
 else()
     find_package(SDL2)
     set(THREADS_PREFER_PTHREAD_FLAG ON)
@@ -759,11 +813,11 @@ else()
 	)
 endif()
 
-if(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin|NintendoSwitch|CafeOS")
+if(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin|NintendoSwitch|CafeOS" AND NOT SINGLE_EXECUTABLE_BUILD)
 INSTALL(TARGETS soh DESTINATION . COMPONENT ship)
 endif()
 
-if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows" AND NOT SINGLE_EXECUTABLE_BUILD)
 INSTALL(FILES $<TARGET_PDB_FILE:soh> DESTINATION ./debug COMPONENT ship)
 INSTALL(FILES ${CMAKE_BINARY_DIR}/soh/soh.o2r DESTINATION . COMPONENT ship)
 endif()
@@ -780,13 +834,22 @@ elseif(NOT "${CMAKE_SYSTEM_NAME}" MATCHES "NintendoSwitch|CafeOS")
 INSTALL(FILES ${CMAKE_BINARY_DIR}/gamecontrollerdb.txt DESTINATION . COMPONENT ship)
 endif()
 
-if(CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
-    if (NOT TARGET pathconf)
-        add_library(pathconf OBJECT platform/pathconf.c)
-    endif()
-    target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}" $<TARGET_OBJECTS:pathconf> )
+if(SINGLE_EXECUTABLE_BUILD)
+    # For OBJECT libs: propagate compile-time include dirs from all deps.
+    # No actual linking happens — redship handles that via SingleExecutable.cmake.
+    foreach(_t ${SOH_COMPILE_TARGETS})
+        target_link_libraries(${_t} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}")
+    endforeach()
 else()
-    target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}")
+    # Link libraries for SHARED builds
+    if(CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
+        if (NOT TARGET pathconf)
+            add_library(pathconf OBJECT platform/pathconf.c)
+        endif()
+        target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}" $<TARGET_OBJECTS:pathconf> )
+    else()
+        target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}")
+    endif()
 endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch")

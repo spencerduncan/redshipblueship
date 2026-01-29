@@ -96,8 +96,8 @@ void ObjHariko_Draw(Actor* thisx, PlayState* play) {
     Matrix_RotateYS(this->headRot.y, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gHarikoBodyDL);
-    gSPDisplayList(POLY_OPA_DISP++, gHarikoFaceDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gHarikoBodyDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gHarikoFaceDL);
 
     MM_Matrix_Pop();
 

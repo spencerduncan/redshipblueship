@@ -1252,7 +1252,7 @@ void EnBigpo_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* ro
     if ((this->actionFunc == EnBigpo_BurnAwayDeath) && (this->idleTimer >= 2) &&
         (limbIndex == BIG_POE_LIMB_HAT_AND_CLOAK)) {
         MATRIX_FINALIZE_AND_LOAD((*gfx)++, play->state.gfxCtx);
-        gSPDisplayList((*gfx)++, &gBigPoeCrispyBodyDL);
+        MM_gSPDisplayList((*gfx)++, &gBigPoeCrispyBodyDL);
     }
 
     if (limbIndex == BIG_POE_LIMB_LANTERN) {
@@ -1300,9 +1300,9 @@ void EnBigpo_DrawMainBigpo(Actor* thisx, PlayState* play) {
     if ((this->mainColor.a == 255) || (this->mainColor.a == 0)) {
         // fully visible OR fully transparent
         dispHead = POLY_OPA_DISP;
-        gSPDisplayList(dispHead, gSetupDLs[SETUPDL_25]);
-        gSPSegment(&dispHead[1], 0x0C, &D_801AEFA0); // empty display list for no transparency
-        gSPSegment(&dispHead[2], 0x08,
+        MM_gSPDisplayList(dispHead, gSetupDLs[SETUPDL_25]);
+        MM_gSPSegment(&dispHead[1], 0x0C, &D_801AEFA0); // empty display list for no transparency
+        MM_gSPSegment(&dispHead[2], 0x08,
                    MM_Gfx_EnvColor(play->state.gfxCtx, this->mainColor.r, this->mainColor.g, this->mainColor.b,
                                 this->mainColor.a));
         POLY_OPA_DISP = MM_SkelAnime_Draw(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
@@ -1310,9 +1310,9 @@ void EnBigpo_DrawMainBigpo(Actor* thisx, PlayState* play) {
 
     } else {
         dispHead = POLY_XLU_DISP;
-        gSPDisplayList(dispHead, gSetupDLs[SETUPDL_25]);
-        gSPSegment(&dispHead[1], 0x0C, &D_801AEF88); // transparency display list
-        gSPSegment(&dispHead[2], 0x08,
+        MM_gSPDisplayList(dispHead, gSetupDLs[SETUPDL_25]);
+        MM_gSPSegment(&dispHead[1], 0x0C, &D_801AEF88); // transparency display list
+        MM_gSPSegment(&dispHead[2], 0x08,
                    MM_Gfx_EnvColor(play->state.gfxCtx, this->mainColor.r, this->mainColor.g, this->mainColor.b,
                                 this->mainColor.a));
         POLY_XLU_DISP = MM_SkelAnime_Draw(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
@@ -1341,7 +1341,7 @@ void EnBigpo_DrawScoopSoul(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-    gSPSegment(POLY_XLU_DISP++, 0x08,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, (play->gameplayFrames * -15) % 512, 0x20,
                                 0x80));
 
@@ -1357,7 +1357,7 @@ void EnBigpo_DrawScoopSoul(Actor* thisx, PlayState* play) {
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
-    gSPDisplayList(POLY_XLU_DISP++, &gBigPoeSoulDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, &gBigPoeSoulDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -1391,9 +1391,9 @@ void EnBigpo_DrawLantern(Actor* thisx, PlayState* play) {
         dispHead = POLY_XLU_DISP;
     }
 
-    gSPDisplayList(&dispHead[0], gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(&dispHead[0], gSetupDLs[SETUPDL_25]);
 
-    gSPSegment(&dispHead[1], 0x0A, MM_Gfx_EnvColor(play->state.gfxCtx, 160, 0, 255, this->mainColor.a));
+    MM_gSPSegment(&dispHead[1], 0x0A, MM_Gfx_EnvColor(play->state.gfxCtx, 160, 0, 255, this->mainColor.a));
 
     Matrix_MultVecY(1400.0f, &vec2);
     MM_Lights_PointGlowSetInfo(&this->fires[0].info, vec2.x + vec1.x, vec2.y + vec1.y, vec2.z + vec1.z,
@@ -1403,9 +1403,9 @@ void EnBigpo_DrawLantern(Actor* thisx, PlayState* play) {
 
     MATRIX_FINALIZE_AND_LOAD(&dispHead[3], play->state.gfxCtx);
 
-    gSPDisplayList(&dispHead[4], &gBigPoeLanternMainDL);
+    MM_gSPDisplayList(&dispHead[4], &gBigPoeLanternMainDL);
 
-    gSPDisplayList(&dispHead[5], &gBigPoeLanternPurpleTopDL);
+    MM_gSPDisplayList(&dispHead[5], &gBigPoeLanternPurpleTopDL);
 
     // fully transparent OR fully invisible
     if ((this->mainColor.a == 255) || (this->mainColor.a == 0)) {
@@ -1437,7 +1437,7 @@ void EnBigpo_DrawCircleFlames(Actor* thisx, PlayState* play) {
         MM_Matrix_Scale(thisx->scale.x, thisx->scale.y, thisx->scale.z, MTXMODE_APPLY);
         fireRadius = TRUNCF_BINANG(thisx->scale.x * 500.0f * 100.0f);
     }
-    gSPSegment(POLY_XLU_DISP++, 0x08,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, (play->gameplayFrames * -20) % 512, 0x20,
                                 0x80));
 
@@ -1455,7 +1455,7 @@ void EnBigpo_DrawCircleFlames(Actor* thisx, PlayState* play) {
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
-        gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -1470,7 +1470,7 @@ void EnBigpo_RevealedFire(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-    gSPSegment(POLY_XLU_DISP++, 0x08,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 0x20, 0x40, 1, 0, (play->gameplayFrames * -20) % 512, 0x20,
                                 0x80));
 
@@ -1482,7 +1482,7 @@ void EnBigpo_RevealedFire(Actor* thisx, PlayState* play) {
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
-    gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

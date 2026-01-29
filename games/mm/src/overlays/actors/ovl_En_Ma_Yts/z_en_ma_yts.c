@@ -566,7 +566,7 @@ void EnMaYts_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* ro
         if (this->hasBow == true) {
             OPEN_DISPS(play->state.gfxCtx);
 
-            gSPDisplayList(POLY_OPA_DISP++, gRomaniBowDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gRomaniBowDL);
 
             CLOSE_DISPS(play->state.gfxCtx);
         }
@@ -580,8 +580,8 @@ void EnMaYts_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x09, SEGMENTED_TO_K0(MM_sMouthTextures[this->mouthTexIndex]));
-    gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_K0(MM_sEyeTextures[this->eyeTexIndex]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x09, SEGMENTED_TO_K0(MM_sMouthTextures[this->mouthTexIndex]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_K0(MM_sEyeTextures[this->eyeTexIndex]));
 
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnMaYts_OverrideLimbDraw, EnMaYts_PostLimbDraw, &this->actor);
@@ -596,7 +596,7 @@ void EnMaYts_DrawSleeping(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gRomaniSleepingDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gRomaniSleepingDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

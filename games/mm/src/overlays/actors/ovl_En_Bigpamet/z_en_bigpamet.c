@@ -803,7 +803,7 @@ void func_80A292A8(EnBigpamet* this, PlayState* play) {
             MM_Matrix_Scale(ptr->unk_20, ptr->unk_20, ptr->unk_20, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_06AB30);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gameplay_keep_DL_06AB30);
         }
 
         CLOSE_DISPS(play->state.gfxCtx);
@@ -839,7 +839,7 @@ void EnBigpamet_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, D_80A29754[this->unk_29C]);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, D_80A29754[this->unk_29C]);
 
     MM_SkelAnime_DrawFlexOpa(play, this->snapperSkelAnime.skeleton, this->snapperSkelAnime.jointTable,
                           this->snapperSkelAnime.dListCount, EnBigpamet_OverrideLimbDraw2, EnBigpamet_PostLimbDraw2,

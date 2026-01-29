@@ -161,7 +161,7 @@ void func_80BF3920(EnRgStruct* ptr, PlayState* play2) {
 
         if (!phi_fp) {
             POLY_XLU_DISP = MM_Gfx_SetupDL(POLY_XLU_DISP, SETUPDL_0);
-            gSPDisplayList(POLY_XLU_DISP++, gGoronDustMaterialDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gGoronDustMaterialDL);
             phi_fp = true;
         }
 
@@ -179,8 +179,8 @@ void func_80BF3920(EnRgStruct* ptr, PlayState* play2) {
         MM_Matrix_ReplaceRotation(&play->billboardMtxF);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sDustTextures[(s32)(temp_f20 * 7.0f)]));
-        gSPDisplayList(POLY_XLU_DISP++, gGoronDustModelDL);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sDustTextures[(s32)(temp_f20 * 7.0f)]));
+        MM_gSPDisplayList(POLY_XLU_DISP++, gGoronDustModelDL);
 
         MM_Matrix_Pop();
     }
@@ -822,7 +822,7 @@ void func_80BF547C(EnRg* this, PlayState* play) {
     Matrix_RotateXS(this->actor.shape.rot.x, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gGoronRolledUpDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gGoronRolledUpDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -869,7 +869,7 @@ void EnRg_Draw(Actor* thisx, PlayState* play) {
 
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-        gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->unk_31E]));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->unk_31E]));
 
         MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                               EnRg_OverrideLimbDraw, NULL, &this->actor);

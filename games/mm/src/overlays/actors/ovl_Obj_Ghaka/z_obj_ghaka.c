@@ -185,10 +185,10 @@ void ObjGhaka_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, object_ghaka_DL_001A20);
+    MM_gSPDisplayList(POLY_OPA_DISP++, object_ghaka_DL_001A20);
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, object_ghaka_DL_001980);
+    MM_gSPDisplayList(POLY_XLU_DISP++, object_ghaka_DL_001980);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

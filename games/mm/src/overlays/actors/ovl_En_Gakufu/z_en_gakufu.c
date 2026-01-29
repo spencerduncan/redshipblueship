@@ -264,7 +264,7 @@ void EnGakufu_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     gDPPipeSync(POLY_XLU_DISP++);
-    gSPSegment(POLY_XLU_DISP++, 0x02, play->interfaceCtx.parameterSegment);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x02, play->interfaceCtx.parameterSegment);
 
     // Invert the whole music staff, so the notes appear correctly in mirrored world
     if (CVarGetInteger("gModes.MirroredWorld.State", 0)) {
@@ -288,12 +288,12 @@ void EnGakufu_Draw(Actor* thisx, PlayState* play) {
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 50, 200);
         }
 
-        gSPDisplayList(POLY_XLU_DISP++, gGakufuButtonIndexDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gGakufuButtonIndexDL);
 
         MM_Matrix_Pop();
     }
 
-    gSPSegment(POLY_XLU_DISP++, 0x02, play->sceneSegment);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x02, play->sceneSegment);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

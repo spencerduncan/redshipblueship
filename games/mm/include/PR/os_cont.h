@@ -67,12 +67,12 @@ typedef struct {
 #define CONT_ERR_VOICE_NO_RESPONSE  15
 
 
-s32 osContInit(OSMesgQueue* mq, u8* bitpattern, OSContStatus* data);
-s32 osContStartQuery(OSMesgQueue* mq);
-s32 osContStartReadData(OSMesgQueue* mq);
-s32 osContSetCh(u8 ch);
-void osContGetQuery(OSContStatus* data);
-void osContGetReadData(OSContPad* data);
+s32 MM_osContInit(OSMesgQueue* mq, u8* bitpattern, OSContStatus* data);
+s32 MM_osContStartQuery(OSMesgQueue* mq);
+s32 MM_osContStartReadData(OSMesgQueue* mq);
+s32 MM_osContSetCh(u8 ch);
+void MM_osContGetQuery(OSContStatus* data);
+void MM_osContGetReadData(OSContPad* data);
 #endif
 
 #endif

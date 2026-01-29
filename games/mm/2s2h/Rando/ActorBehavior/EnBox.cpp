@@ -63,40 +63,40 @@ void EnBox_RandoPostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s*
 
     switch (randoItemType) {
         case RITYPE_BOSS_KEY:
-            gSPSegment((*gfx)++, 0x09, (uintptr_t)gBoxChestCornerOrnateTex);
-            gSPSegment((*gfx)++, 0x0A, (uintptr_t)gBoxChestLockOrnateTex);
+            MM_gSPSegment((*gfx)++, 0x09, (uintptr_t)gBoxChestCornerOrnateTex);
+            MM_gSPSegment((*gfx)++, 0x0A, (uintptr_t)gBoxChestLockOrnateTex);
             break;
         case RITYPE_HEALTH:
-            gSPSegment((*gfx)++, 0x09, (uintptr_t)gBoxChestCornerHealthTex);
-            gSPSegment((*gfx)++, 0x0A, (uintptr_t)gBoxChestLockHealthTex);
+            MM_gSPSegment((*gfx)++, 0x09, (uintptr_t)gBoxChestCornerHealthTex);
+            MM_gSPSegment((*gfx)++, 0x0A, (uintptr_t)gBoxChestLockHealthTex);
             break;
         case RITYPE_LESSER:
-            gSPSegment((*gfx)++, 0x09, (uintptr_t)gBoxChestCornerLesserTex);
-            gSPSegment((*gfx)++, 0x0A, (uintptr_t)gBoxChestLockLesserTex);
+            MM_gSPSegment((*gfx)++, 0x09, (uintptr_t)gBoxChestCornerLesserTex);
+            MM_gSPSegment((*gfx)++, 0x0A, (uintptr_t)gBoxChestLockLesserTex);
             break;
         case RITYPE_MAJOR:
-            gSPSegment((*gfx)++, 0x09, (uintptr_t)gBoxChestCornerMajorTex);
-            gSPSegment((*gfx)++, 0x0A, (uintptr_t)gBoxChestLockMajorTex);
+            MM_gSPSegment((*gfx)++, 0x09, (uintptr_t)gBoxChestCornerMajorTex);
+            MM_gSPSegment((*gfx)++, 0x0A, (uintptr_t)gBoxChestLockMajorTex);
             break;
         case RITYPE_MASK:
-            gSPSegment((*gfx)++, 0x09, (uintptr_t)gBoxChestCornerMaskTex);
-            gSPSegment((*gfx)++, 0x0A, (uintptr_t)gBoxChestLockMaskTex);
+            MM_gSPSegment((*gfx)++, 0x09, (uintptr_t)gBoxChestCornerMaskTex);
+            MM_gSPSegment((*gfx)++, 0x0A, (uintptr_t)gBoxChestLockMaskTex);
             break;
         case RITYPE_SKULLTULA_TOKEN:
-            gSPSegment((*gfx)++, 0x09, (uintptr_t)gBoxChestCornerSkullTokenTex);
-            gSPSegment((*gfx)++, 0x0A, (uintptr_t)gBoxChestLockSkullTokenTex);
+            MM_gSPSegment((*gfx)++, 0x09, (uintptr_t)gBoxChestCornerSkullTokenTex);
+            MM_gSPSegment((*gfx)++, 0x0A, (uintptr_t)gBoxChestLockSkullTokenTex);
             break;
         case RITYPE_SMALL_KEY:
-            gSPSegment((*gfx)++, 0x09, (uintptr_t)gBoxChestCornerSmallKeyTex);
-            gSPSegment((*gfx)++, 0x0A, (uintptr_t)gBoxChestLockSmallKeyTex);
+            MM_gSPSegment((*gfx)++, 0x09, (uintptr_t)gBoxChestCornerSmallKeyTex);
+            MM_gSPSegment((*gfx)++, 0x0A, (uintptr_t)gBoxChestLockSmallKeyTex);
             break;
         case RITYPE_STRAY_FAIRY:
-            gSPSegment((*gfx)++, 0x09, (uintptr_t)gBoxChestCornerStrayFairyTex);
-            gSPSegment((*gfx)++, 0x0A, (uintptr_t)gBoxChestLockStrayFairyTex);
+            MM_gSPSegment((*gfx)++, 0x09, (uintptr_t)gBoxChestCornerStrayFairyTex);
+            MM_gSPSegment((*gfx)++, 0x0A, (uintptr_t)gBoxChestLockStrayFairyTex);
             break;
         default:
-            gSPSegment((*gfx)++, 0x09, (uintptr_t)gBoxChestCornerTex);
-            gSPSegment((*gfx)++, 0x0A, (uintptr_t)gBoxChestLockTex);
+            MM_gSPSegment((*gfx)++, 0x09, (uintptr_t)gBoxChestCornerTex);
+            MM_gSPSegment((*gfx)++, 0x0A, (uintptr_t)gBoxChestLockTex);
             break;
     }
 
@@ -109,16 +109,16 @@ void EnBox_RandoPostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s*
         case RITYPE_SMALL_KEY:
         case RITYPE_STRAY_FAIRY:
             if (limbIndex == OBJECT_BOX_CHEST_LIMB_01) {
-                gSPDisplayList((*gfx)++, (Gfx*)gBoxChestBaseOrnateCopyDL);
+                MM_gSPDisplayList((*gfx)++, (Gfx*)gBoxChestBaseOrnateCopyDL);
             } else if (limbIndex == OBJECT_BOX_CHEST_LIMB_03) {
-                gSPDisplayList((*gfx)++, (Gfx*)gBoxChestLidOrnateCopyDL);
+                MM_gSPDisplayList((*gfx)++, (Gfx*)gBoxChestLidOrnateCopyDL);
             }
             break;
         default:
             if (limbIndex == OBJECT_BOX_CHEST_LIMB_01) {
-                gSPDisplayList((*gfx)++, (Gfx*)gBoxChestBaseCopyDL);
+                MM_gSPDisplayList((*gfx)++, (Gfx*)gBoxChestBaseCopyDL);
             } else if (limbIndex == OBJECT_BOX_CHEST_LIMB_03) {
-                gSPDisplayList((*gfx)++, (Gfx*)gBoxChestLidCopyDL);
+                MM_gSPDisplayList((*gfx)++, (Gfx*)gBoxChestLidCopyDL);
             }
             break;
     }
@@ -139,7 +139,7 @@ void EnBox_RandoDraw(Actor* actor, PlayState* play) {
          ((enBox->type == ENBOX_TYPE_BIG_INVISIBLE) || (enBox->type == ENBOX_TYPE_SMALL_INVISIBLE)))) {
         gDPPipeSync(POLY_OPA_DISP++);
         gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 255);
-        gSPSegment(POLY_OPA_DISP++, 0x08, (uintptr_t)EnBox_SetRenderMode1(play->state.gfxCtx));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, (uintptr_t)EnBox_SetRenderMode1(play->state.gfxCtx));
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
         POLY_OPA_DISP = MM_SkelAnime_Draw(play, enBox->skelAnime.skeleton, enBox->skelAnime.jointTable, NULL,
                                        EnBox_RandoPostLimbDraw, &enBox->dyna.actor, POLY_OPA_DISP);
@@ -148,9 +148,9 @@ void EnBox_RandoDraw(Actor* actor, PlayState* play) {
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
         gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 0, enBox->alpha);
         if ((enBox->type == ENBOX_TYPE_BIG_INVISIBLE) || (enBox->type == ENBOX_TYPE_SMALL_INVISIBLE)) {
-            gSPSegment(POLY_XLU_DISP++, 0x08, (uintptr_t)EnBox_SetRenderMode3(play->state.gfxCtx));
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08, (uintptr_t)EnBox_SetRenderMode3(play->state.gfxCtx));
         } else {
-            gSPSegment(POLY_XLU_DISP++, 0x08, (uintptr_t)EnBox_SetRenderMode2(play->state.gfxCtx));
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08, (uintptr_t)EnBox_SetRenderMode2(play->state.gfxCtx));
         }
         POLY_XLU_DISP = MM_SkelAnime_Draw(play, enBox->skelAnime.skeleton, enBox->skelAnime.jointTable, NULL,
                                        EnBox_RandoPostLimbDraw, &enBox->dyna.actor, POLY_XLU_DISP);

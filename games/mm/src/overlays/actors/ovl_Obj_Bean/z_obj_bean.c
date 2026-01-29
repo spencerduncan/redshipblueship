@@ -944,11 +944,11 @@ void func_80938E00(Actor* thisx, PlayState* play) {
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
 
     if (this->unk_1FE & 4) {
-        gSPDisplayList(POLY_OPA_DISP++, object_mamenoki_DL_000090);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_mamenoki_DL_000090);
     }
 
     if (this->unk_1FE & 2) {
-        gSPDisplayList(POLY_OPA_DISP++, object_mamenoki_DL_0002D0);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_mamenoki_DL_0002D0);
     }
 
     if (this->unk_1FE & 1) {
@@ -957,7 +957,7 @@ void func_80938E00(Actor* thisx, PlayState* play) {
         MM_Matrix_Scale(this->unk_1B8, this->unk_1B8, this->unk_1B8, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, object_mamenoki_DL_000530);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_mamenoki_DL_000530);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
