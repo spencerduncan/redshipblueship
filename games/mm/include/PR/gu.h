@@ -60,9 +60,10 @@ void guNormalize(float* x, float* y, float* z);
 s16 MM_sins(u16 x);
 s16 MM_coss(u16 x);
 
-// f32 MM_sqrtf(f32 f);
-#ifdef __sgi
-#pragma intrinsic(MM_sqrtf);
+// Original N64 used compiler intrinsic for sqrtf. We map to standard sqrtf.
+#include <math.h>
+#ifndef MM_sqrtf
+#define MM_sqrtf sqrtf
 #endif
 
 
