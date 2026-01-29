@@ -265,7 +265,7 @@ void MM_ArrowFire_Draw(Actor* thisx, PlayState* play) {
             gDPSetAlphaDither(POLY_XLU_DISP++, G_AD_DISABLE);
             gDPSetColorDither(POLY_XLU_DISP++, G_CD_DISABLE);
 
-            gSPDisplayList(POLY_XLU_DISP++, D_0E000000_TO_SEGMENTED(fillRect));
+            MM_gSPDisplayList(POLY_XLU_DISP++, D_0E000000_TO_SEGMENTED(fillRect));
         }
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
@@ -287,10 +287,10 @@ void MM_ArrowFire_Draw(Actor* thisx, PlayState* play) {
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
         FireArrow_SetQuadVerticies(this);
-        gSPDisplayList(POLY_XLU_DISP++, gFireArrowMaterialDL);
-        gSPDisplayList(POLY_XLU_DISP++, MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 255 - ((frames * 2) % 256), 0, 64, 32,
+        MM_gSPDisplayList(POLY_XLU_DISP++, gFireArrowMaterialDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 255 - ((frames * 2) % 256), 0, 64, 32,
                                                          1, 255 - (frames % 256), 511 - ((frames * 10) % 512), 64, 64));
-        gSPDisplayList(POLY_XLU_DISP++, gFireArrowModelDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gFireArrowModelDL);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }

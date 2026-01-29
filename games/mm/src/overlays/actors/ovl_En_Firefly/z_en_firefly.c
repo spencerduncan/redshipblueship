@@ -769,7 +769,7 @@ void MM_EnFirefly_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3
     EnFirefly* this = (EnFirefly*)thisx;
 
     if ((this->currentType != KEESE_FIRE) && (limbIndex == FIRE_KEESE_LIMB_HEAD)) {
-        gSPDisplayList((*gfx)++, gKeeseRedEyesDL);
+        MM_gSPDisplayList((*gfx)++, gKeeseRedEyesDL);
     } else if ((this->lastDrawnFrame != play->gameplayFrames) &&
                ((this->auraType == KEESE_AURA_FIRE) || (this->auraType == KEESE_AURA_ICE)) &&
                ((limbIndex == FIRE_KEESE_LIMB_LEFT_WING_END) || (limbIndex == FIRE_KEESE_LIMB_RIGHT_WING_END_ROOT))) {
@@ -828,7 +828,7 @@ void MM_EnFirefly_Draw(Actor* thisx, PlayState* play) {
         gfx = POLY_OPA_DISP;
     }
 
-    gSPDisplayList(gfx, gSetupDLs[SETUPDL_25]);
+    MM_gSPDisplayList(gfx, gSetupDLs[SETUPDL_25]);
 
     if (this->currentType == KEESE_FIRE) {
         gDPSetEnvColor(&gfx[1], 0, 0, 0, 0);

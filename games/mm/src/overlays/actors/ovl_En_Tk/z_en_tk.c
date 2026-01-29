@@ -1408,7 +1408,7 @@ void MM_EnTk_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* ro
 
                 OPEN_DISPS(play->state.gfxCtx);
 
-                gSPDisplayList(POLY_OPA_DISP++, object_tk_DL_00B530);
+                MM_gSPDisplayList(POLY_OPA_DISP++, object_tk_DL_00B530);
 
                 CLOSE_DISPS(play->state.gfxCtx);
 
@@ -1433,7 +1433,7 @@ void MM_EnTk_Draw(Actor* thisx, PlayState* play) {
 
     POLY_OPA_DISP = MM_Gfx_SetupDL(POLY_OPA_DISP, SETUPDL_25);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80AEFA90[this->unk_2C2]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80AEFA90[this->unk_2C2]));
 
     Matrix_RotateYS(this->unk_318, MTXMODE_APPLY);
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,

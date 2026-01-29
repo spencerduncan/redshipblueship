@@ -170,7 +170,7 @@ void DmAl_Draw(Actor* thisx, PlayState* play) {
     for (i = 0; i < ARRAY_COUNT(this->shawlMatrices); i++) {
         MM_Matrix_Put(&this->shawlMatrices[i]);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, sDlists[i]);
+        MM_gSPDisplayList(POLY_OPA_DISP++, sDlists[i]);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

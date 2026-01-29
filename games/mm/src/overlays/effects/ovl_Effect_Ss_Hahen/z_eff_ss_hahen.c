@@ -69,11 +69,11 @@ void EffectSsHahen_DrawOpa(PlayState* play, EffectSs* this) {
     OPEN_DISPS(gfxCtx);
 
     if (this->rObjectId != HAHEN_OBJECT_DEFAULT) {
-        gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[this->rObjectSlot].segment);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[this->rObjectSlot].segment);
     }
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, gfxCtx);
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, this->gfx);
+    MM_gSPDisplayList(POLY_OPA_DISP++, this->gfx);
 
     CLOSE_DISPS(gfxCtx);
 }
@@ -85,11 +85,11 @@ void EffectSsHahen_DrawXlu(PlayState* play, EffectSs* this) {
     OPEN_DISPS(gfxCtx);
 
     if (this->rObjectId != -1) {
-        gSPSegment(POLY_XLU_DISP++, 0x06, play->objectCtx.slots[this->rObjectSlot].segment);
+        MM_gSPSegment(POLY_XLU_DISP++, 0x06, play->objectCtx.slots[this->rObjectSlot].segment);
     }
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, this->gfx);
+    MM_gSPDisplayList(POLY_XLU_DISP++, this->gfx);
 
     CLOSE_DISPS(gfxCtx);
 }

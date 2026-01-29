@@ -95,8 +95,8 @@ void EffStk_Draw(Actor* thisx, PlayState* play) {
     AnimatedMat_DrawAlphaStep(play, Lib_SegmentedToVirtual(object_stk2_Matanimheader_009F60), 1.0f, this->unk144);
     gDPSetColorDither(POLY_XLU_DISP++, G_CD_NOISE);
     gDPSetAlphaDither(POLY_XLU_DISP++, G_AD_NOISE);
-    gSPDisplayList(POLY_XLU_DISP++, object_stk2_DL_008920);
-    gSPDisplayList(POLY_XLU_DISP++, object_stk2_DL_008A38);
+    MM_gSPDisplayList(POLY_XLU_DISP++, object_stk2_DL_008920);
+    MM_gSPDisplayList(POLY_XLU_DISP++, object_stk2_DL_008A38);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

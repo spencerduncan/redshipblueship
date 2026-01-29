@@ -109,7 +109,7 @@ void EffFootmark_Draw(PlayState* play) {
 
     Gfx_SetupDL44_Xlu(play->state.gfxCtx);
 
-    gSPDisplayList(POLY_XLU_DISP++, gEffFootprintMaterialDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gEffFootprintMaterialDL);
 
     for (footmark = play->footprintInfo, i = 0; i < ARRAY_COUNT(play->footprintInfo); i++, footmark++) {
         if (footmark->actor != NULL) {
@@ -123,7 +123,7 @@ void EffFootmark_Draw(PlayState* play) {
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, footmark->red, footmark->green, footmark->blue,
                             footmark->alpha >> 8);
 
-            gSPDisplayList(POLY_XLU_DISP++, gEffFootprintModelDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gEffFootprintModelDL);
 
             FrameInterpolation_RecordCloseChild();
         }

@@ -403,8 +403,8 @@ void EnGuruguru_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_K0(MM_sEyeTextures[this->texIndex]));
-    gSPSegment(POLY_OPA_DISP++, 0x09, SEGMENTED_TO_K0(MM_sMouthTextures[this->texIndex]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_K0(MM_sEyeTextures[this->texIndex]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x09, SEGMENTED_TO_K0(MM_sMouthTextures[this->texIndex]));
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnGuruguru_OverrideLimbDraw, NULL, &this->actor);
 

@@ -52,13 +52,13 @@ void BgKeikokuSpr_Draw(Actor* thisx, PlayState* play) {
 
     AnimatedMat_Draw(play, Lib_SegmentedToVirtual(object_keikoku_obj_Matanimheader_0001F8));
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, object_keikoku_obj_DL_000100);
+    MM_gSPDisplayList(POLY_XLU_DISP++, object_keikoku_obj_DL_000100);
 
     AnimatedMat_Draw(play, Lib_SegmentedToVirtual(object_keikoku_obj_Matanimheader_0003F8));
-    gSPDisplayList(POLY_XLU_DISP++, object_keikoku_obj_DL_000300);
+    MM_gSPDisplayList(POLY_XLU_DISP++, object_keikoku_obj_DL_000300);
 
     AnimatedMat_Draw(play, Lib_SegmentedToVirtual(object_keikoku_obj_Matanimheader_0005F8));
-    gSPDisplayList(POLY_XLU_DISP++, object_keikoku_obj_DL_000500);
+    MM_gSPDisplayList(POLY_XLU_DISP++, object_keikoku_obj_DL_000500);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

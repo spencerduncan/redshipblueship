@@ -105,13 +105,13 @@ void MM_ItemBHeart_Draw(Actor* thisx, PlayState* play) {
     if (drawTranslucent || (this->actor.world.rot.y != 0)) {
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, &gGiHeartBorderDL);
-        gSPDisplayList(POLY_XLU_DISP++, &gGiHeartContainerDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, &gGiHeartBorderDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, &gGiHeartContainerDL);
     } else {
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, &gGiHeartBorderDL);
-        gSPDisplayList(POLY_OPA_DISP++, &gGiHeartContainerDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, &gGiHeartBorderDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, &gGiHeartContainerDL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

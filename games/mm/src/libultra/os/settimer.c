@@ -1,6 +1,6 @@
 #include "ultra64.h"
 
-int osSetTimer(OSTimer* t, OSTime countdown, OSTime interval, OSMesgQueue* mq, OSMesg msg) {
+int MM_osSetTimer(OSTimer* t, OSTime countdown, OSTime interval, OSMesgQueue* mq, OSMesg msg) {
     OSTime time;
     OSTimer* next;
     u32 count;
@@ -18,7 +18,7 @@ int osSetTimer(OSTimer* t, OSTime countdown, OSTime interval, OSMesgQueue* mq, O
     t->mq = mq;
     t->msg = msg;
 
-    saveMask = __osDisableInt();
+    saveMask = MM___osDisableInt();
 
     if (__osTimerList->next == __osTimerList) {
     } else {
@@ -35,7 +35,7 @@ int osSetTimer(OSTimer* t, OSTime countdown, OSTime interval, OSMesgQueue* mq, O
     time = __osInsertTimer(t);
     __osSetTimerIntr(__osTimerList->next->value);
 
-    __osRestoreInt(saveMask);
+    MM___osRestoreInt(saveMask);
 
     return 0;
 }

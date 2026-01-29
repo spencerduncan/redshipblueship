@@ -77,8 +77,8 @@ void Check_DrawExpansionPakErrorMessage(void) {
     Check_DrawI4Texture((u16*)FAULT_FB_ADDRESS, 96, 127, MEMERRMSG_WIDTH, MEMERRMSG_HEIGHT,
                         CHECK_ERRMSG_STATIC_SEGMENT + MEMERRMSG_WIDTH * MEMERRMSG_HEIGHT / 2);
     osWritebackDCacheAll();
-    osViSwapBuffer((u16*)FAULT_FB_ADDRESS);
-    osViBlack(false);
+    MM_osViSwapBuffer((u16*)FAULT_FB_ADDRESS);
+    MM_osViBlack(false);
 }
 
 /**
@@ -90,8 +90,8 @@ void Check_DrawRegionLockErrorMessage(void) {
     Check_DrawI4Texture((u16*)FAULT_FB_ADDRESS, 56, 112, LOCERRMSG_WIDTH, LOCERRMSG_HEIGHT,
                         CHECK_ERRMSG_STATIC_SEGMENT);
     osWritebackDCacheAll();
-    osViSwapBuffer((u16*)FAULT_FB_ADDRESS);
-    osViBlack(false);
+    MM_osViSwapBuffer((u16*)FAULT_FB_ADDRESS);
+    MM_osViBlack(false);
 }
 
 /**
@@ -99,12 +99,12 @@ void Check_DrawRegionLockErrorMessage(void) {
  */
 void Check_ExpansionPak(void) {
     // Expansion pak installed
-    if (osMemSize >= 0x800000) {
+    if (MM_osMemSize >= 0x800000) {
         return;
     }
 
     Check_DrawExpansionPakErrorMessage();
-    osDestroyThread(NULL);
+    MM_osDestroyThread(NULL);
     while (true) {}
 }
 
@@ -114,13 +114,13 @@ void Check_ExpansionPak(void) {
 void Check_RegionIsSupported(void) {
     s32 regionSupported = false;
 
-    if ((osTvType == OS_TV_NTSC) || (osTvType == OS_TV_MPAL)) {
+    if ((MM_osTvType == OS_TV_NTSC) || (MM_osTvType == OS_TV_MPAL)) {
         regionSupported = true;
     }
 
     if (!regionSupported) {
         Check_DrawRegionLockErrorMessage();
-        osDestroyThread(NULL);
+        MM_osDestroyThread(NULL);
         while (true) {}
     }
 }

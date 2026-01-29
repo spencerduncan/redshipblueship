@@ -188,7 +188,7 @@ void func_80BDC830(EnZowStruct* ptr, PlayState* play) {
 
         if (!flag) {
             gDPPipeSync(POLY_XLU_DISP++);
-            gSPDisplayList(POLY_XLU_DISP++, gZoraRippleMaterialDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gZoraRippleMaterialDL);
             gDPSetEnvColor(POLY_XLU_DISP++, 155, 155, 155, 0);
             flag = true;
         }
@@ -199,7 +199,7 @@ void func_80BDC830(EnZowStruct* ptr, PlayState* play) {
         MM_Matrix_Scale(ptr->unk_04, 1.0f, ptr->unk_04, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gZoraRippleModelDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gZoraRippleModelDL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -219,7 +219,7 @@ void func_80BDC9DC(EnZowStruct* ptr, PlayState* play) {
         }
 
         if (!flag) {
-            gSPDisplayList(POLY_XLU_DISP++, gZoraBubbleMaterialDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gZoraBubbleMaterialDL);
             gDPPipeSync(POLY_XLU_DISP++);
             gDPSetEnvColor(POLY_XLU_DISP++, 150, 150, 150, 0);
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, 255);
@@ -231,7 +231,7 @@ void func_80BDC9DC(EnZowStruct* ptr, PlayState* play) {
         MM_Matrix_Scale(ptr->unk_04, ptr->unk_04, 1.0f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gZoraBubbleModelDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gZoraBubbleModelDL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -251,7 +251,7 @@ void func_80BDCB84(EnZowStruct* ptr, PlayState* play) {
         }
 
         if (!flag) {
-            gSPDisplayList(POLY_XLU_DISP++, gZoraSplashMaterialDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gZoraSplashMaterialDL);
             gDPPipeSync(POLY_XLU_DISP++);
             gDPSetEnvColor(POLY_XLU_DISP++, 200, 200, 200, 0);
             flag = true;
@@ -264,7 +264,7 @@ void func_80BDCB84(EnZowStruct* ptr, PlayState* play) {
         MM_Matrix_Scale(ptr->unk_04, ptr->unk_04, 1.0f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gZoraSplashModelDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gZoraSplashModelDL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -645,13 +645,13 @@ void EnZow_Draw(Actor* thisx, PlayState* play) {
             Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
             gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 255);
-            gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sp54[this->unk_2C4]));
-            gSPSegment(POLY_OPA_DISP++, 0x0C, func_80BDDA7C(play->state.gfxCtx));
+            MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sp54[this->unk_2C4]));
+            MM_gSPSegment(POLY_OPA_DISP++, 0x0C, func_80BDDA7C(play->state.gfxCtx));
 
             MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                   this->skelAnime.dListCount, NULL, EnZow_PostLimbDrawOpa, &this->actor);
         } else {
-            gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(sp54[this->unk_2C4]));
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(sp54[this->unk_2C4]));
 
             func_800BDAA0(play, &this->skelAnime, NULL, EnZow_PostLimbDraw, &this->actor, this->unk_2CE);
         }

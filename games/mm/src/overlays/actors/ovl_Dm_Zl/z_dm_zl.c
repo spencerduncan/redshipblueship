@@ -274,7 +274,7 @@ void DmZl_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, 
         if ((this->animIndex >= ZELDA_ANIM_GIVING_OCARINA_START) && (this->animIndex <= ZELDA_ANIM_PLAYING_OCARINA)) {
             OPEN_DISPS(play->state.gfxCtx);
 
-            gSPDisplayList(POLY_OPA_DISP++, gDmZl4OcarinaDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gDmZl4OcarinaDL);
 
             CLOSE_DISPS(play->state.gfxCtx);
         }
@@ -286,11 +286,11 @@ void DmZl_Draw(Actor* thisx, PlayState* play) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTextureIndexRight]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTextureIndexRight]));
 
-    gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTextureIndexLeft]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTextureIndexLeft]));
 
-    gSPSegment(POLY_OPA_DISP++, 0x0A, Lib_SegmentedToVirtual(MM_sMouthTextures[this->mouthTextureIndex]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0A, Lib_SegmentedToVirtual(MM_sMouthTextures[this->mouthTextureIndex]));
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,

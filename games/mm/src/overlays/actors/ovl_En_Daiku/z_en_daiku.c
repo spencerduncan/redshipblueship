@@ -238,7 +238,7 @@ void func_809438F8(EnDaiku* this, PlayState* play) {
                        fabsf(2.0f * MM_Math_CosS(this->actor.world.rot.y)));
         MM_Math_SmoothStepToS(&this->actor.world.rot.y, this->unk_282, 1, 0x7D0, 0xA);
 
-        xzDist = sqrtf(SQ(this->actor.world.pos.x - this->unk_26C.x) + SQ(this->actor.world.pos.z - this->unk_26C.z));
+        xzDist = MM_sqrtf(SQ(this->actor.world.pos.x - this->unk_26C.x) + SQ(this->actor.world.pos.z - this->unk_26C.z));
         yawDiff = fabsf(this->actor.world.rot.y - this->unk_282);
         if ((xzDist < 4.0f) && (this->path != NULL) && (yawDiff < 10.0f)) {
             this->unk_25C++;
@@ -343,11 +343,11 @@ void MM_EnDaiku_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s*
     OPEN_DISPS(play->state.gfxCtx);
 
     if (limbIndex == OBJECT_DAIKU_LIMB_0F) {
-        gSPDisplayList(POLY_OPA_DISP++, D_809440D4[this->unk_278]);
+        MM_gSPDisplayList(POLY_OPA_DISP++, D_809440D4[this->unk_278]);
     }
 
     if ((this->unk_278 == ENDAIKU_PARAM_FF_3) && (limbIndex == OBJECT_DAIKU_LIMB_08)) {
-        gSPDisplayList(POLY_OPA_DISP++, object_daiku_DL_008EC8);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_daiku_DL_008EC8);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

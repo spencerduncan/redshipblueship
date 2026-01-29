@@ -194,7 +194,7 @@ void FileSelect_SetNameEntryVtx(GameState* thisx) {
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, this->titleAlpha[FS_TITLE_CUR]);
 
     gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 0);
-    gSPVertex(POLY_OPA_DISP++, this->keyboard2Vtx, 24, 0);
+    MM_gSPVertex(POLY_OPA_DISP++, this->keyboard2Vtx, 24, 0);
     gDPLoadTextureBlock(POLY_OPA_DISP++, gFileSelNameENGTex, G_IM_FMT_IA, G_IM_SIZ_8b, 56, 16, 0,
                         G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD,
                         G_TX_NOLOD);
@@ -267,7 +267,7 @@ void FileSelect_SetNameEntryVtx(GameState* thisx) {
                       ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
     gDPSetPrimColorOverride(POLY_OPA_DISP++, 0, 0, this->windowColor[0], this->windowColor[1], this->windowColor[2],
                             this->nameEntryBoxAlpha, COSMETIC_ELEMENT_FILE_SELECT_PLATES);
-    gSPVertex(POLY_OPA_DISP++, this->nameEntryVtx, 4, 0);
+    MM_gSPVertex(POLY_OPA_DISP++, this->nameEntryVtx, 4, 0);
 
     gDPLoadTextureBlock(POLY_OPA_DISP++, gFileSelFileNameBoxTex, G_IM_FMT_IA, G_IM_SIZ_16b, 108, 16, 0,
                         G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD,
@@ -276,7 +276,7 @@ void FileSelect_SetNameEntryVtx(GameState* thisx) {
     gDPPipeSync(POLY_OPA_DISP++);
     gDPSetCombineLERP(POLY_OPA_DISP++, 0, 0, 0, PRIMITIVE, TEXEL0, 0, PRIMITIVE, 0, 0, 0, 0, PRIMITIVE, TEXEL0, 0,
                       PRIMITIVE, 0);
-    gSPVertex(POLY_OPA_DISP++, this->nameEntryVtx + 4, 32, 0);
+    MM_gSPVertex(POLY_OPA_DISP++, this->nameEntryVtx + 4, 32, 0);
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, this->nameEntryBoxAlpha);
 
     for (sp108 = 0, var_s0 = 0; var_s0 < 0x20; var_s0 += 4, sp108++) {
@@ -315,14 +315,14 @@ void FileSelect_DrawKeyboard(GameState* thisx) {
     gDPSetPrimColor(POLY_OPA_DISP++, 0, this->charBgAlpha, 255, 255, 255, 255);
 
     for (i = 0, vtx = 0; vtx < 0x100; vtx += 32) {
-        gSPVertex(POLY_OPA_DISP++, &this->keyboardVtx[vtx], 32, 0);
+        MM_gSPVertex(POLY_OPA_DISP++, &this->keyboardVtx[vtx], 32, 0);
 
         for (tmp = 0; tmp < 32; i++, tmp += 4) {
             FileSelect_DrawTexQuadI4(this->state.gfxCtx, font->fontBuf + D_808141F0[i] * FONT_CHAR_TEX_SIZE, tmp);
         }
     }
 
-    gSPVertex(POLY_OPA_DISP++, &this->keyboardVtx[0x100], 4, 0);
+    MM_gSPVertex(POLY_OPA_DISP++, &this->keyboardVtx[0x100], 4, 0);
     FileSelect_DrawTexQuadI4(this->state.gfxCtx, font->fontBuf + D_808141F0[i] * FONT_CHAR_TEX_SIZE, 0);
 
     CLOSE_DISPS(this->state.gfxCtx);
@@ -373,7 +373,7 @@ void FileSelect_DrawNameEntry(GameState* thisx) {
 
     this->nameEntryVtx[42].v.ob[1] = this->nameEntryVtx[43].v.ob[1] = this->nameEntryVtx[40].v.ob[1] - 24;
 
-    gSPVertex(POLY_OPA_DISP++, &this->nameEntryVtx[36], 8, 0);
+    MM_gSPVertex(POLY_OPA_DISP++, &this->nameEntryVtx[36], 8, 0);
     gDPPipeSync(POLY_OPA_DISP++);
     gDPSetCombineLERP(POLY_OPA_DISP++, 1, 0, PRIMITIVE, 0, TEXEL0, 0, PRIMITIVE, 0, 1, 0, PRIMITIVE, 0, TEXEL0, 0,
                       PRIMITIVE, 0);
@@ -463,7 +463,7 @@ void FileSelect_DrawNameEntry(GameState* thisx) {
                         this->keyboardVtx[(this->charIndex * 4) + 3].v.ob[1] =
                             this->keyboardVtx[(this->charIndex * 4) + 0].v.ob[1] - 0x10;
 
-                    gSPVertex(POLY_OPA_DISP++, &this->keyboardVtx[this->charIndex * 4], 4, 0);
+                    MM_gSPVertex(POLY_OPA_DISP++, &this->keyboardVtx[this->charIndex * 4], 4, 0);
 
                     FileSelect_DrawTexQuadI4(this->state.gfxCtx,
                                              font->fontBuf + D_808141F0[this->charIndex] * FONT_CHAR_TEX_SIZE, 0);
@@ -948,7 +948,7 @@ void FileSelect_DrawOptionsImpl_NES_GC(GameState* thisx) {
     MM_Matrix_Push();
     MM_Matrix_Translate(0.0f, 0.1f, 0.0f, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, this->state.gfxCtx);
-    gSPVertex(POLY_OPA_DISP++, gOptionsDividerVtx, 12, 0);
+    MM_gSPVertex(POLY_OPA_DISP++, gOptionsDividerVtx, 12, 0);
     gSP1Quadrangle(POLY_OPA_DISP++, 0, 2, 3, 1, 0);
     MM_Matrix_Pop();
 
@@ -964,7 +964,7 @@ void FileSelect_DrawOptionsImpl_NES_GC(GameState* thisx) {
     gSP1Quadrangle(POLY_OPA_DISP++, 8, 10, 11, 9, 0);
     MM_Matrix_Pop();
 
-    gSPVertex(POLY_OPA_DISP++, D_80813DF0, 20, 0);
+    MM_gSPVertex(POLY_OPA_DISP++, D_80813DF0, 20, 0);
     gDPPipeSync(POLY_OPA_DISP++);
     gDPSetCombineLERP(POLY_OPA_DISP++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0, PRIMITIVE,
                       ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
@@ -1000,7 +1000,7 @@ void FileSelect_DrawOptionsImpl_NES_GC(GameState* thisx) {
 
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, this->titleAlpha[FS_TITLE_CUR]);
     gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 255);
-    gSPVertex(POLY_OPA_DISP++, D_80813F30, 24, 0);
+    MM_gSPVertex(POLY_OPA_DISP++, D_80813F30, 24, 0);
 
     for (i = 0, vtx = 0; i < 4; i++, vtx += 4) {
         gDPPipeSync(POLY_OPA_DISP++);
@@ -1052,7 +1052,7 @@ void FileSelect_DrawOptionsImpl_NES_GC(GameState* thisx) {
     vtx = 0;
     gDPPipeSync(POLY_OPA_DISP++);
     // check brightness bars
-    gSPVertex(POLY_OPA_DISP++, D_80813EB0_ce0, 8, 0);
+    MM_gSPVertex(POLY_OPA_DISP++, D_80813EB0_ce0, 8, 0);
     gDPLoadTextureBlock_4b(POLY_OPA_DISP++, gFileSelBrightnessCheckTex, G_IM_FMT_IA, 96, 16, 0,
                            G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD,
                            G_TX_NOLOD);
@@ -1176,25 +1176,25 @@ void FileSelect_DrawOptionsImpl(GameState* thisx) {
     MM_Matrix_Push();
     MM_Matrix_Translate(0.0f, 0.1f, 0.0f, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, this->state.gfxCtx);
-    gSPVertex(POLY_OPA_DISP++, gOptionsDividerTopVtx, 4, 0);
+    MM_gSPVertex(POLY_OPA_DISP++, gOptionsDividerTopVtx, 4, 0);
     gSP1Quadrangle(POLY_OPA_DISP++, 0, 2, 3, 1, 0);
     MM_Matrix_Pop();
 
     MM_Matrix_Push();
     MM_Matrix_Translate(0.0f, 0.2f, 0.0f, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, this->state.gfxCtx);
-    gSPVertex(POLY_OPA_DISP++, gOptionsDividerMiddleVtx, 4, 0);
+    MM_gSPVertex(POLY_OPA_DISP++, gOptionsDividerMiddleVtx, 4, 0);
     gSP1Quadrangle(POLY_OPA_DISP++, 0, 2, 3, 1, 0);
     MM_Matrix_Pop();
 
     MM_Matrix_Push();
     MM_Matrix_Translate(0.0f, 0.4f, 0.0f, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, this->state.gfxCtx);
-    gSPVertex(POLY_OPA_DISP++, gOptionsDividerBottomVtx, 4, 0);
+    MM_gSPVertex(POLY_OPA_DISP++, gOptionsDividerBottomVtx, 4, 0);
     gSP1Quadrangle(POLY_OPA_DISP++, 0, 2, 3, 1, 0);
     MM_Matrix_Pop();
 
-    gSPVertex(POLY_OPA_DISP++, D_80813DF0, 32, 0);
+    MM_gSPVertex(POLY_OPA_DISP++, D_80813DF0, 32, 0);
     gDPPipeSync(POLY_OPA_DISP++);
     gDPSetCombineLERP(POLY_OPA_DISP++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0, PRIMITIVE,
                       ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
@@ -1224,7 +1224,7 @@ void FileSelect_DrawOptionsImpl(GameState* thisx) {
 
     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, this->titleAlpha[FS_TITLE_CUR]);
     gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 255);
-    gSPVertex(POLY_OPA_DISP++, D_80813F30, 32, 0);
+    MM_gSPVertex(POLY_OPA_DISP++, D_80813F30, 32, 0);
 
     for (i = 0, vtx = 0; i < 4; i++, vtx += 4) {
         gDPPipeSync(POLY_OPA_DISP++);

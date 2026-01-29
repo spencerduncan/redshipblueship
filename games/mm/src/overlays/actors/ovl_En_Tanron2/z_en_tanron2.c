@@ -596,7 +596,7 @@ void EnTanron2_Draw(Actor* thisx, PlayState* play2) {
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
-    gSPDisplayList(POLY_XLU_DISP++, gWartBubbleMaterialDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gWartBubbleMaterialDL);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, 150);
 
     tanron2 = play->actorCtx.actorLists[ACTORCAT_BOSS].first;
@@ -636,7 +636,7 @@ void EnTanron2_Draw(Actor* thisx, PlayState* play2) {
             Matrix_RotateZS(-D_80BB8458[i]->unk_14A, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gWartBubbleModelDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gWartBubbleModelDL);
             FrameInterpolation_RecordCloseChild();
         }
     }
@@ -644,7 +644,7 @@ void EnTanron2_Draw(Actor* thisx, PlayState* play2) {
     Gfx_SetupDL44_Xlu(play->state.gfxCtx);
 
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 0, 0, 0, 150);
-    gSPDisplayList(POLY_XLU_DISP++, gWartShadowMaterialDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gWartShadowMaterialDL);
 
     tanron2 = play->actorCtx.actorLists[ACTORCAT_BOSS].first;
     while (tanron2 != NULL) {
@@ -654,7 +654,7 @@ void EnTanron2_Draw(Actor* thisx, PlayState* play2) {
             MM_Matrix_Scale(0.6f, 0.0f, 0.6f, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gWartShadowModelDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gWartShadowModelDL);
             FrameInterpolation_RecordCloseChild();
         }
         tanron2 = tanron2->next;
@@ -677,7 +677,7 @@ void EnTanron2_Draw(Actor* thisx, PlayState* play2) {
             MM_Matrix_Scale(D_80BB8454, 0.0f, D_80BB8454, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gEffWaterRippleDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gEffWaterRippleDL);
             FrameInterpolation_RecordCloseChild();
         }
         tanron2 = tanron2->next;

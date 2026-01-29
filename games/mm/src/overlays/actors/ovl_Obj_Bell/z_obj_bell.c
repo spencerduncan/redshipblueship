@@ -223,10 +223,10 @@ void func_80A359B4(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, object_f52_obj_DL_000698);
-    gSPDisplayList(POLY_OPA_DISP++, object_f52_obj_DL_0008D0);
-    gSPDisplayList(POLY_OPA_DISP++, object_f52_obj_DL_000960);
-    gSPDisplayList(POLY_OPA_DISP++, object_f52_obj_DL_0007A8);
+    MM_gSPDisplayList(POLY_OPA_DISP++, object_f52_obj_DL_000698);
+    MM_gSPDisplayList(POLY_OPA_DISP++, object_f52_obj_DL_0008D0);
+    MM_gSPDisplayList(POLY_OPA_DISP++, object_f52_obj_DL_000960);
+    MM_gSPDisplayList(POLY_OPA_DISP++, object_f52_obj_DL_0007A8);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -240,7 +240,7 @@ void func_80A35B18(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, object_f52_obj_DL_000570);
+    MM_gSPDisplayList(POLY_OPA_DISP++, object_f52_obj_DL_000570);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -253,7 +253,7 @@ void func_80A35BD4(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, object_f52_obj_DL_000840);
+    MM_gSPDisplayList(POLY_XLU_DISP++, object_f52_obj_DL_000840);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

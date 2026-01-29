@@ -75,7 +75,7 @@ void MM_EffectSsBlast_Draw(PlayState* play, u32 index, EffectSs* this) {
     MM_Matrix_Put(&mf);
     MM_Matrix_Scale(radius, radius, radius, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, this->gfx);
+    MM_gSPDisplayList(POLY_XLU_DISP++, this->gfx);
 
     CLOSE_DISPS(gfxCtx);
 }

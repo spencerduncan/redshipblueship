@@ -122,7 +122,7 @@ void ObjKzsaku_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gUnderwaterGrateDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gUnderwaterGrateDL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

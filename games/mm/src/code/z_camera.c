@@ -110,7 +110,7 @@ f32 Camera_fabsf(f32 f) {
  * Returns the magnitude for 3D float vectors
  */
 f32 Camera_Vec3fMagnitude(Vec3f* vec) {
-    return sqrtf(SQ(vec->x) + SQ(vec->y) + SQ(vec->z));
+    return MM_sqrtf(SQ(vec->x) + SQ(vec->y) + SQ(vec->z));
 }
 
 /**
@@ -1252,7 +1252,7 @@ f32 MM_Camera_CalcSlopeYAdj(Vec3f* floorNorm, s16 playerYRot, s16 eyeAtYaw, f32 
  * Gets the distance that the attention actor is in range.
  */
 f32 Camera_GetAttentionActorRange(Actor* actor) {
-    return sqrtf(gAttentionRanges[actor->attentionRangeType].attentionRangeSq /
+    return MM_sqrtf(gAttentionRanges[actor->attentionRangeType].attentionRangeSq /
                  gAttentionRanges[actor->attentionRangeType].lockOnLeashScale);
 }
 
@@ -1398,7 +1398,7 @@ s32 MM_Camera_CalcAtForParallel(Camera* camera, VecGeo* arg1, f32 yOffset, f32 x
         f32 xOffset = camera->focalActorAtOffset.x + camera->unk_0F0.x;
         f32 zOffset = camera->focalActorAtOffset.z + camera->unk_0F0.z;
 
-        if (sqrtf(SQ(xOffset) + SQ(zOffset)) < xzOffsetMax) {
+        if (MM_sqrtf(SQ(xOffset) + SQ(zOffset)) < xzOffsetMax) {
             focalActorAtOffsetTarget.x = xOffset;
             focalActorAtOffsetTarget.z = zOffset;
         } else {
@@ -1942,7 +1942,7 @@ s32 MM_Camera_Normal1(Camera* camera) {
     s16 phi_v1_2;
     s16 temp_a0_3;
     f32 focalActorHeight = Camera_GetFocalActorHeight(camera);
-    CameraModeValue* values = sCameraSettings[camera->setting].cameraModes[camera->mode].values;
+    CameraModeValue* values = MM_sCameraSettings[camera->setting].cameraModes[camera->mode].values;
     f32 phi_f2;
     f32 rand;
 
@@ -1966,7 +1966,7 @@ s32 MM_Camera_Normal1(Camera* camera) {
         roData->interfaceFlags = GET_NEXT_RO_DATA(values);
     }
 
-    sCameraInterfaceFlags = roData->interfaceFlags;
+    MM_sCameraInterfaceFlags = roData->interfaceFlags;
 
     spA4 = OLib_Vec3fDiffToVecGeo(at, eye);
     sp9C = OLib_Vec3fDiffToVecGeo(at, eyeNext);
@@ -1992,7 +1992,7 @@ s32 MM_Camera_Normal1(Camera* camera) {
             rwData->unk_00 = focalActorPosRot->pos.y;
             rwData->unk_04 = camera->xzSpeed;
             D_801EDC30[camera->camId].timer = 0;
-            sUpdateCameraDirection = false;
+            MM_sUpdateCameraDirection = false;
             rwData->unk_10 = 120.0f;
             break;
 
@@ -2001,7 +2001,7 @@ s32 MM_Camera_Normal1(Camera* camera) {
     }
 
     camera->animState = 1;
-    sUpdateCameraDirection = true;
+    MM_sUpdateCameraDirection = true;
 
     if ((camera->speedRatio < 0.01f) || (rwData->unk_0A > 0x4B0)) {
         if (rwData->unk_0A > -0x4B0) {
@@ -2284,7 +2284,7 @@ s32 MM_Camera_Normal1(Camera* camera) {
     } else {
         D_801EDC30[camera->camId].swingUpdateRate = roData->unk_0C;
         D_801EDC30[camera->camId].unk_64 = 0;
-        sUpdateCameraDirection = false;
+        MM_sUpdateCameraDirection = false;
         *eye = *eyeNext;
     }
 
@@ -2352,7 +2352,7 @@ s32 MM_Camera_Normal3(Camera* camera) {
     }
 
     if (RELOAD_PARAMS(camera)) {
-        CameraModeValue* values = sCameraSettings[camera->setting].cameraModes[camera->mode].values;
+        CameraModeValue* values = MM_sCameraSettings[camera->setting].cameraModes[camera->mode].values;
 
         roData->yOffset = GET_NEXT_RO_DATA(values) * CAM_RODATA_UNSCALE(temp_f2);
         roData->distMin = GET_NEXT_RO_DATA(values) * CAM_RODATA_UNSCALE(temp_f2);
@@ -2367,8 +2367,8 @@ s32 MM_Camera_Normal3(Camera* camera) {
 
     sp70 = OLib_Vec3fDiffToVecGeo(at, eye);
     sp68 = OLib_Vec3fDiffToVecGeo(at, eyeNext);
-    sUpdateCameraDirection = true;
-    sCameraInterfaceFlags = roData->interfaceFlags;
+    MM_sUpdateCameraDirection = true;
+    MM_sCameraInterfaceFlags = roData->interfaceFlags;
 
     switch (camera->animState) {
         case 0:
@@ -2553,7 +2553,7 @@ s32 MM_Camera_Normal0(Camera* camera) {
 
     if (!RELOAD_PARAMS(camera)) {
     } else {
-        CameraModeValue* values = sCameraSettings[camera->setting].cameraModes[camera->mode].values;
+        CameraModeValue* values = MM_sCameraSettings[camera->setting].cameraModes[camera->mode].values;
 
         roData->unk_00 = GET_NEXT_SCALED_RO_DATA(values) * playerHeight * yNormal;
         roData->unk_04 = GET_NEXT_SCALED_RO_DATA(values) * playerHeight * yNormal;
@@ -2566,7 +2566,7 @@ s32 MM_Camera_Normal0(Camera* camera) {
         roData->interfaceFlags = GET_NEXT_RO_DATA(values);
     }
 
-    sCameraInterfaceFlags = roData->interfaceFlags;
+    MM_sCameraInterfaceFlags = roData->interfaceFlags;
 
     switch (camera->animState) {
         case 0:
@@ -2724,7 +2724,7 @@ s32 MM_Camera_Parallel1(Camera* camera) {
 
     if (!RELOAD_PARAMS(camera)) {
     } else {
-        CameraModeValue* values = sCameraSettings[camera->setting].cameraModes[camera->mode].values;
+        CameraModeValue* values = MM_sCameraSettings[camera->setting].cameraModes[camera->mode].values;
 
         roData->unk_00 =
             GET_NEXT_SCALED_RO_DATA(values) * focalActorHeight * (0.8f - ((68.0f / focalActorHeight) * -0.2f));
@@ -2820,7 +2820,7 @@ s32 MM_Camera_Parallel1(Camera* camera) {
             rwData->unk_04 = focalActorPosRot->pos.y - camera->unk_0F0.y;
             rwData->unk_26 = 1;
             camera->animState = 1;
-            sCameraInterfaceFlags = roData->interfaceFlags;
+            MM_sCameraInterfaceFlags = roData->interfaceFlags;
             break;
 
         default:
@@ -3027,9 +3027,9 @@ s32 MM_Camera_Parallel1(Camera* camera) {
         }
 
         if (rwData->timer2 != 0) {
-            sUpdateCameraDirection = true;
+            MM_sUpdateCameraDirection = true;
         } else {
-            sUpdateCameraDirection = false;
+            MM_sUpdateCameraDirection = false;
         }
     }
 
@@ -3093,7 +3093,7 @@ s32 MM_Camera_Jump2(Camera* camera) {
     f32 temp_f16;
 
     if (RELOAD_PARAMS(camera)) {
-        CameraModeValue* values = sCameraSettings[camera->setting].cameraModes[camera->mode].values;
+        CameraModeValue* values = MM_sCameraSettings[camera->setting].cameraModes[camera->mode].values;
 
         yNormal = 0.8f - (-0.2f * (68.0f / focalActorHeight));
 
@@ -3117,7 +3117,7 @@ s32 MM_Camera_Jump2(Camera* camera) {
     sp9C = OLib_Vec3fDiffToVecGeo(at, eye);
     spA4 = OLib_Vec3fDiffToVecGeo(at, eyeNext);
 
-    sCameraInterfaceFlags = roData->interfaceFlags;
+    MM_sCameraInterfaceFlags = roData->interfaceFlags;
 
     if (RELOAD_PARAMS(camera)) {
         spC8 = focalActorPosRot->pos;
@@ -3311,7 +3311,7 @@ s32 MM_Camera_Jump3(Camera* camera) {
 
     if (!RELOAD_PARAMS(camera) && !sp58) {
     } else {
-        values = sCameraSettings[camera->setting].cameraModes[rwData->unk_0A].values;
+        values = MM_sCameraSettings[camera->setting].cameraModes[rwData->unk_0A].values;
 
         sp5C = 0.8f - (-0.2f * (68.0f / focalActorHeight));
         spD0 = focalActorHeight * 0.01f * sp5C;
@@ -3328,7 +3328,7 @@ s32 MM_Camera_Jump3(Camera* camera) {
         roData->interfaceFlags = GET_NEXT_RO_DATA(values);
     }
 
-    sCameraInterfaceFlags = roData->interfaceFlags;
+    MM_sCameraInterfaceFlags = roData->interfaceFlags;
 
     switch (camera->animState) {
         case 0:
@@ -3374,7 +3374,7 @@ s32 MM_Camera_Jump3(Camera* camera) {
 
     if (roData->interfaceFlags & JUMP3_FLAG_7) {
         camera->yOffsetUpdateRate = Camera_ScaledStepToCeilF(0.01f, camera->yOffsetUpdateRate, spD0, 0.0001f);
-        sp5C = sqrtf((camera->unk_0F0.x * camera->unk_0F0.x) + (camera->unk_0F0.z * camera->unk_0F0.z)) /
+        sp5C = MM_sqrtf((camera->unk_0F0.x * camera->unk_0F0.x) + (camera->unk_0F0.z * camera->unk_0F0.z)) /
                Camera_GetRunSpeedLimit(camera);
         camera->speedRatio = MM_OLib_ClampMaxDist(sp5C / Camera_GetRunSpeedLimit(camera), 1.8f);
         spCC = camera->speedRatio * 0.2f;
@@ -3461,7 +3461,7 @@ s32 MM_Camera_Jump3(Camera* camera) {
     } else {
         D_801EDC30[camera->camId].swingUpdateRate = roData->unk_0C;
         D_801EDC30[camera->camId].unk_64 = 0;
-        sUpdateCameraDirection = false;
+        MM_sUpdateCameraDirection = false;
         *eye = *eyeNext;
     }
 
@@ -3520,7 +3520,7 @@ s32 MM_Camera_Battle1(Camera* camera) {
 
     if (!RELOAD_PARAMS(camera)) {
     } else {
-        CameraModeValue* values = sCameraSettings[camera->setting].cameraModes[camera->mode].values;
+        CameraModeValue* values = MM_sCameraSettings[camera->setting].cameraModes[camera->mode].values;
 
         roData->yOffset =
             GET_NEXT_RO_DATA(values) * 0.01f * focalActorHeight * (0.8f - ((68.0f / focalActorHeight) * -0.2f));
@@ -3595,7 +3595,7 @@ s32 MM_Camera_Battle1(Camera* camera) {
         return true;
     }
 
-    sCameraInterfaceFlags = roData->interfaceFlags;
+    MM_sCameraInterfaceFlags = roData->interfaceFlags;
 
     if (RELOAD_PARAMS(camera)) {
         rwData->unk_10 = 0;
@@ -3617,7 +3617,7 @@ s32 MM_Camera_Battle1(Camera* camera) {
     }
 
     if (camera->status == CAM_STATUS_ACTIVE) {
-        sUpdateCameraDirection = true;
+        MM_sUpdateCameraDirection = true;
         camera->inputDir.x = -atToEyeDir.pitch;
         camera->inputDir.y = atToEyeDir.yaw + 0x8000;
         camera->inputDir.z = 0;
@@ -3904,7 +3904,7 @@ s32 MM_Camera_KeepOn1(Camera* camera) {
     }
 
     if (RELOAD_PARAMS(camera)) {
-        CameraModeValue* values = sCameraSettings[camera->setting].cameraModes[camera->mode].values;
+        CameraModeValue* values = MM_sCameraSettings[camera->setting].cameraModes[camera->mode].values;
 
         roData->yOffset =
             GET_NEXT_SCALED_RO_DATA(values) * focalActorHeight * (0.8f - ((68.0f / focalActorHeight) * -0.2f));
@@ -3931,7 +3931,7 @@ s32 MM_Camera_KeepOn1(Camera* camera) {
     atToEye = OLib_Vec3fDiffToVecGeo(at, eye);
     atToEyeNext = OLib_Vec3fDiffToVecGeo(at, eyeNext);
 
-    sCameraInterfaceFlags = roData->interfaceFlags;
+    MM_sCameraInterfaceFlags = roData->interfaceFlags;
 
     if (RELOAD_PARAMS(camera)) {
         camera->animState++;
@@ -3954,7 +3954,7 @@ s32 MM_Camera_KeepOn1(Camera* camera) {
     }
 
     if (camera->status == CAM_STATUS_ACTIVE) {
-        sUpdateCameraDirection = true;
+        MM_sUpdateCameraDirection = true;
         camera->inputDir.x = -atToEye.pitch;
         camera->inputDir.y = atToEye.yaw + 0x8000;
         camera->inputDir.z = 0;
@@ -4236,7 +4236,7 @@ s32 MM_Camera_KeepOn3(Camera* camera) {
 
     Camera_UnsetStateFlag(camera, CAM_STATE_4);
     if (RELOAD_PARAMS(camera)) {
-        CameraModeValue* values = sCameraSettings[camera->setting].cameraModes[camera->mode].values;
+        CameraModeValue* values = MM_sCameraSettings[camera->setting].cameraModes[camera->mode].values;
 
         roData->unk_00 =
             GET_NEXT_SCALED_RO_DATA(values) * focalActorHeight * (0.8f - ((68.0f / focalActorHeight) * -0.2f));
@@ -4376,12 +4376,12 @@ s32 MM_Camera_KeepOn3(Camera* camera) {
         rwData->unk_04 = (f32)(s16)(sp98.yaw - sp80.yaw) / temp_f0;
         rwData->unk_08 = (f32)(s16)(sp98.pitch - sp80.pitch) / temp_f0;
         rwData->unk_00 = (sp98.r - sp80.r) / temp_f0;
-        sCameraInterfaceFlags = CAM_INTERFACE_FLAGS(CAM_LETTERBOX_IGNORE, CAM_HUD_VISIBILITY_IGNORE, 0);
+        MM_sCameraInterfaceFlags = CAM_INTERFACE_FLAGS(CAM_LETTERBOX_IGNORE, CAM_HUD_VISIBILITY_IGNORE, 0);
 
         return 1;
     }
 
-    sCameraInterfaceFlags = roData->interfaceFlags;
+    MM_sCameraInterfaceFlags = roData->interfaceFlags;
 
     if (rwData->timer != 0) {
         timer = rwData->timer;
@@ -4407,7 +4407,7 @@ s32 MM_Camera_KeepOn3(Camera* camera) {
     Camera_SetFocalActorAtOffset(camera, &focalActorPosRot->pos);
     camera->dist = MM_OLib_Vec3fDist(at, eye);
     if (camera->stateFlags & CAM_STATE_3) {
-        sCameraInterfaceFlags = CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL, 0);
+        MM_sCameraInterfaceFlags = CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL, 0);
         Camera_SetUpdateRatesSlow(camera);
         camera->atLerpStepScale = 0.0f;
 
@@ -4521,7 +4521,7 @@ s32 MM_Camera_KeepOn4(Camera* camera) {
 
     Camera_UnsetStateFlag(camera, CAM_STATE_4);
     if (RELOAD_PARAMS(camera)) {
-        values = sCameraSettings[camera->setting].cameraModes[camMode].values;
+        values = MM_sCameraSettings[camera->setting].cameraModes[camMode].values;
         new_var = -0.5f;
         roData->unk_00 = GET_NEXT_SCALED_RO_DATA(values) * focalActorHeight *
                          ((1.0f + new_var) - ((68.0f / focalActorHeight) * new_var));
@@ -4536,8 +4536,8 @@ s32 MM_Camera_KeepOn4(Camera* camera) {
         roData->timer = GET_NEXT_RO_DATA(values);
     }
 
-    sUpdateCameraDirection = true;
-    sCameraInterfaceFlags = roData->interfaceFlags;
+    MM_sUpdateCameraDirection = true;
+    MM_sCameraInterfaceFlags = roData->interfaceFlags;
 
     spB0 = OLib_Vec3fDiffToVecGeo(at, eye);
     data = &D_801EDDD0;
@@ -4724,7 +4724,7 @@ s32 MM_Camera_Fixed1(Camera* camera) {
 
     if (!RELOAD_PARAMS(camera)) {
     } else {
-        values = sCameraSettings[camera->setting].cameraModes[camera->mode].values;
+        values = MM_sCameraSettings[camera->setting].cameraModes[camera->mode].values;
         bgCamFuncData = (BgCamFuncData*)Camera_GetBgCamOrActorCsCamFuncData(camera, camera->bgCamIndex);
         rwData->eyePosRotTarget.pos = MM_Camera_Vec3sToVec3f(&bgCamFuncData->pos);
 
@@ -4765,7 +4765,7 @@ s32 MM_Camera_Fixed1(Camera* camera) {
         rwData->fov *= 100;
     }
 
-    sCameraInterfaceFlags = roData->interfaceFlags;
+    MM_sCameraInterfaceFlags = roData->interfaceFlags;
 
     if (camera->animState == 0) {
         camera->animState++;
@@ -4828,7 +4828,7 @@ s32 MM_Camera_Fixed2(Camera* camera) {
 
     if (!RELOAD_PARAMS(camera)) {
     } else {
-        CameraModeValue* values = sCameraSettings[camera->setting].cameraModes[camera->mode].values;
+        CameraModeValue* values = MM_sCameraSettings[camera->setting].cameraModes[camera->mode].values;
 
         roData->unk_00 =
             GET_NEXT_SCALED_RO_DATA(values) * focalActorHeight * (0.8f - ((68.0f / focalActorHeight) * -0.2f));
@@ -4916,7 +4916,7 @@ s32 MM_Camera_Fixed2(Camera* camera) {
         }
     }
 
-    sCameraInterfaceFlags = roData->interfaceFlags;
+    MM_sCameraInterfaceFlags = roData->interfaceFlags;
 
     if (roData->interfaceFlags & FIXED2_FLAG_3) {
         if (camera->target == NULL) {
@@ -5072,7 +5072,7 @@ s32 Camera_Subject1(Camera* camera) {
 
     Camera_SetUpdateRatesFastPitch(camera);
 
-    values = sCameraSettings[camera->setting].cameraModes[camera->mode].values;
+    values = MM_sCameraSettings[camera->setting].cameraModes[camera->mode].values;
     roData->unk_00 = GET_NEXT_SCALED_RO_DATA(values) * focalActorHeight;
     roData->unk_04 = GET_NEXT_RO_DATA(values);
     roData->unk_08 = GET_NEXT_RO_DATA(values);
@@ -5091,7 +5091,7 @@ s32 Camera_Subject1(Camera* camera) {
 
     sp84 = OLib_AddVecGeoToVec3f(&sp90, &sp7C);
     sp74 = OLib_Vec3fDiffToVecGeo(&camera->at, eye);
-    sCameraInterfaceFlags = roData->interfaceFlags;
+    MM_sCameraInterfaceFlags = roData->interfaceFlags;
 
     if (camera->play->view.unk164 == 0) {
         camera->play->view.unk164 = camera->camId | 0x50;
@@ -5237,7 +5237,7 @@ s32 MM_Camera_Unique2(Camera* camera) {
     sp60 = OLib_Vec3fDiffToVecGeo(at, eye);
 
     if (RELOAD_PARAMS(camera)) {
-        CameraModeValue* values = sCameraSettings[camera->setting].cameraModes[camera->mode].values;
+        CameraModeValue* values = MM_sCameraSettings[camera->setting].cameraModes[camera->mode].values;
 
         roData->unk_00 =
             GET_NEXT_SCALED_RO_DATA(values) * focalActorHeight * (0.8f - ((68.0f / focalActorHeight) * -0.2f));
@@ -5247,7 +5247,7 @@ s32 MM_Camera_Unique2(Camera* camera) {
         roData->interfaceFlags = GET_NEXT_RO_DATA(values);
     }
 
-    sCameraInterfaceFlags = roData->interfaceFlags;
+    MM_sCameraInterfaceFlags = roData->interfaceFlags;
 
     if ((camera->animState == 0) || (rwData->unk_04 != roData->interfaceFlags)) {
         rwData->unk_04 = roData->interfaceFlags;
@@ -5363,7 +5363,7 @@ s32 MM_Camera_Unique0(Camera* camera) {
     Unique0ReadWriteData* rwData = &camera->paramData.uniq0.rwData;
 
     if (RELOAD_PARAMS(camera)) {
-        CameraModeValue* values = sCameraSettings[camera->setting].cameraModes[camera->mode].values;
+        CameraModeValue* values = MM_sCameraSettings[camera->setting].cameraModes[camera->mode].values;
 
         roData->unk_00 = GET_NEXT_RO_DATA(values);
         roData->unk_04 = GET_NEXT_RO_DATA(values);
@@ -5381,7 +5381,7 @@ s32 MM_Camera_Unique0(Camera* camera) {
         sp8C.y += playerHeight;
     }
 
-    sCameraInterfaceFlags = roData->interfaceFlags;
+    MM_sCameraInterfaceFlags = roData->interfaceFlags;
 
     switch (camera->animState) {
         case 0:
@@ -5477,7 +5477,7 @@ s32 MM_Camera_Unique0(Camera* camera) {
                 if (rwData->timer > 0) {
                     rwData->timer--;
                     if (rwData->timer == 0) {
-                        sCameraInterfaceFlags = CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL, 0);
+                        MM_sCameraInterfaceFlags = CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL, 0);
                     }
                 } else {
                     rwData->unk_00 = focalActorPosRot->pos;
@@ -5564,11 +5564,11 @@ s32 MM_Camera_Unique6(Camera* camera) {
     Unique6ReadOnlyData* roData = &camera->paramData.uniq6.roData;
 
     if (RELOAD_PARAMS(camera)) {
-        values = sCameraSettings[camera->setting].cameraModes[camera->mode].values;
+        values = MM_sCameraSettings[camera->setting].cameraModes[camera->mode].values;
         roData->interfaceFlags = GET_NEXT_RO_DATA(values);
     }
 
-    sCameraInterfaceFlags = roData->interfaceFlags;
+    MM_sCameraInterfaceFlags = roData->interfaceFlags;
 
     if (camera->animState == 0) {
         camera->animState++;
@@ -5630,7 +5630,7 @@ s32 MM_Camera_Demo1(Camera* camera) {
     s32 pad;
 
     if (camera->animState == 0) {
-        CameraModeValue* values = sCameraSettings[camera->setting].cameraModes[camera->mode].values;
+        CameraModeValue* values = MM_sCameraSettings[camera->setting].cameraModes[camera->mode].values;
 
         roData->interfaceFlags = GET_NEXT_RO_DATA(values);
     }
@@ -5837,7 +5837,7 @@ s32 MM_Camera_Demo2(Camera* camera) {
     Camera_UnsetStateFlag(camera, CAM_STATE_4);
 
     if (RELOAD_PARAMS(camera)) {
-        CameraModeValue* values = sCameraSettings[camera->setting].cameraModes[camera->mode].values;
+        CameraModeValue* values = MM_sCameraSettings[camera->setting].cameraModes[camera->mode].values;
 
         roData->fov = GET_NEXT_RO_DATA(values);
         roData->unk_04 = GET_NEXT_RO_DATA(values);
@@ -5846,7 +5846,7 @@ s32 MM_Camera_Demo2(Camera* camera) {
 
     atToEye = OLib_Vec3fDiffToVecGeo(at, eye);
 
-    sCameraInterfaceFlags = roData->interfaceFlags;
+    MM_sCameraInterfaceFlags = roData->interfaceFlags;
 
     switch (camera->animState) {
         case 0:
@@ -5971,7 +5971,7 @@ s32 MM_Camera_Demo2(Camera* camera) {
             eyeOffset.pitch = 0;
             eyeOffset.yaw = atToEye.yaw;
             rwData->unk_0C = 0.1f;
-            sCameraInterfaceFlags = CAM_INTERFACE_FLAGS(CAM_LETTERBOX_LARGE, CAM_HUD_VISIBILITY_A, 0);
+            MM_sCameraInterfaceFlags = CAM_INTERFACE_FLAGS(CAM_LETTERBOX_LARGE, CAM_HUD_VISIBILITY_A, 0);
 
             if (!(((rwData->animFrame < 0) || (camera->xzSpeed > 0.001f) ||
                    CHECK_BTN_ALL(CONTROLLER1(&camera->play->state)->press.button, BTN_A) ||
@@ -5994,7 +5994,7 @@ s32 MM_Camera_Demo2(Camera* camera) {
             Camera_SetStateFlag(camera, CAM_STATE_4 | CAM_STATE_2);
             Camera_UnsetStateFlag(camera, CAM_STATE_3);
             func_800CC938(camera);
-            sCameraInterfaceFlags = CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL, 0);
+            MM_sCameraInterfaceFlags = CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL, 0);
         skipeyeUpdate:
             skipUpdateEye = true;
             break;
@@ -6064,12 +6064,12 @@ s32 MM_Camera_Demo3(Camera* camera) {
     Camera_ScaledStepToCeilVec3f(&focalActorFocus.pos, at, 0.1f, 0.1f, 0.1f);
 
     if (RELOAD_PARAMS(camera)) {
-        values = sCameraSettings[camera->setting].cameraModes[camera->mode].values;
+        values = MM_sCameraSettings[camera->setting].cameraModes[camera->mode].values;
         roData->interfaceFlags = GET_NEXT_RO_DATA(values);
         camera->animState = 0;
     }
 
-    sCameraInterfaceFlags = roData->interfaceFlags;
+    MM_sCameraInterfaceFlags = roData->interfaceFlags;
 
     switch (camera->animState) {
         case 0:
@@ -6147,7 +6147,7 @@ s32 MM_Camera_Demo4(Camera* camera) {
     atToEye = OLib_Vec3fDiffToVecGeo(at, eye);
 
     if (RELOAD_PARAMS(camera)) {
-        values = sCameraSettings[camera->setting].cameraModes[camera->mode].values;
+        values = MM_sCameraSettings[camera->setting].cameraModes[camera->mode].values;
         roData->interfaceFlags = GET_NEXT_RO_DATA(values);
         camera->animState = 0;
         rwData->unk_00 = *at;
@@ -6156,7 +6156,7 @@ s32 MM_Camera_Demo4(Camera* camera) {
     }
 
     focalActorFocus = MM_Actor_GetFocus(camera->focalActor);
-    sCameraInterfaceFlags = roData->interfaceFlags;
+    MM_sCameraInterfaceFlags = roData->interfaceFlags;
 
     switch (camera->animState) {
         default:
@@ -6306,7 +6306,7 @@ s32 MM_Camera_Demo5(Camera* camera) {
     atToEye = OLib_Vec3fDiffToVecGeo(at, eye);
 
     if (RELOAD_PARAMS(camera)) {
-        CameraModeValue* values = sCameraSettings[camera->setting].cameraModes[camera->mode].values;
+        CameraModeValue* values = MM_sCameraSettings[camera->setting].cameraModes[camera->mode].values;
 
         roData->interfaceFlags = GET_NEXT_RO_DATA(values);
         camera->animState = 0;
@@ -6317,7 +6317,7 @@ s32 MM_Camera_Demo5(Camera* camera) {
 
     focalActorFocus = MM_Actor_GetFocus(camera->focalActor);
 
-    sCameraInterfaceFlags = roData->interfaceFlags;
+    MM_sCameraInterfaceFlags = roData->interfaceFlags;
 
     switch (camera->animState) {
         case 0:
@@ -6427,7 +6427,7 @@ s32 MM_Camera_Demo0(Camera* camera) {
 
     // Initialize
     if (camera->animState == 0) {
-        CameraModeValue* values = sCameraSettings[camera->setting].cameraModes[camera->mode].values;
+        CameraModeValue* values = MM_sCameraSettings[camera->setting].cameraModes[camera->mode].values;
 
         roData->interfaceFlags = GET_NEXT_RO_DATA(values);
     }
@@ -6447,7 +6447,7 @@ s32 MM_Camera_Demo0(Camera* camera) {
         if (rwData->unk_00 < 300.0f) {
             rwData->timer = 0;
         } else {
-            rwData->timer = sqrtf(rwData->unk_00 - 200.0f);
+            rwData->timer = MM_sqrtf(rwData->unk_00 - 200.0f);
         }
 
         rwData->unk_14 = subCam->inputDir.x - camera->inputDir.x;
@@ -6571,7 +6571,7 @@ s32 MM_Camera_Special5(Camera* camera) {
     f32 focalActorHeight = Camera_GetFocalActorHeight(camera);
 
     if (RELOAD_PARAMS(camera)) {
-        CameraModeValue* values = sCameraSettings[camera->setting].cameraModes[camera->mode].values;
+        CameraModeValue* values = MM_sCameraSettings[camera->setting].cameraModes[camera->mode].values;
         f32 yNormal = (0.8f - ((68.0f / focalActorHeight) * -0.2f));
 
         roData->yOffset = (GET_NEXT_SCALED_RO_DATA(values) * focalActorHeight) * yNormal;
@@ -6588,7 +6588,7 @@ s32 MM_Camera_Special5(Camera* camera) {
     atToEyeNext = OLib_Vec3fDiffToVecGeo(at, eyeNext);
     spA8 = MM_Actor_GetWorld(camera->target);
 
-    sCameraInterfaceFlags = roData->interfaceFlags;
+    MM_sCameraInterfaceFlags = roData->interfaceFlags;
 
     if (camera->animState == 0) {
         camera->animState++;
@@ -6662,7 +6662,7 @@ s32 MM_Camera_Special8(Camera* camera) {
 
     if (!RELOAD_PARAMS(camera)) {
     } else {
-        CameraModeValue* values = sCameraSettings[camera->setting].cameraModes[camera->mode].values;
+        CameraModeValue* values = MM_sCameraSettings[camera->setting].cameraModes[camera->mode].values;
 
         // Initialize data
         roData->yOffset = GET_NEXT_SCALED_RO_DATA(values) * focalActorHeight * yNormal;
@@ -6682,7 +6682,7 @@ s32 MM_Camera_Special8(Camera* camera) {
     // Check if cutscene is still playing
     if (rwData->spiralDoorCsFrame < roData->spiralDoorCsLength) {
         rwData->spiralDoorCsFrame++;
-        sCameraInterfaceFlags = roData->interfaceFlags;
+        MM_sCameraInterfaceFlags = roData->interfaceFlags;
         posOffsetTarget.x = 0.0f;
         posOffsetTarget.y = roData->yOffset + focalActorHeight;
         posOffsetTarget.z = 0.0f;
@@ -6716,7 +6716,7 @@ s32 MM_Camera_Special8(Camera* camera) {
     } else {
         // Cutscene is finished
         Camera_SetStateFlag(camera, CAM_STATE_10 | CAM_STATE_4);
-        sCameraInterfaceFlags = CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL, 0);
+        MM_sCameraInterfaceFlags = CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL, 0);
 
         // Wait for user input to move to the next camera update function
         if ((camera->xzSpeed > 0.001f) || CHECK_BTN_ALL(CONTROLLER1(&camera->play->state)->press.button, BTN_A) ||
@@ -6773,7 +6773,7 @@ s32 MM_Camera_Special9(Camera* camera) {
 
     if (!RELOAD_PARAMS(camera)) {
     } else {
-        CameraModeValue* values = sCameraSettings[camera->setting].cameraModes[camera->mode].values;
+        CameraModeValue* values = MM_sCameraSettings[camera->setting].cameraModes[camera->mode].values;
 
         roData->yOffset = GET_NEXT_SCALED_RO_DATA(values) * focalActorHeight * yNormal;
         roData->fov = GET_NEXT_RO_DATA(values);
@@ -6790,7 +6790,7 @@ s32 MM_Camera_Special9(Camera* camera) {
 
     spA8 = OLib_Vec3fDiffToVecGeo(at, eye);
 
-    sCameraInterfaceFlags = roData->interfaceFlags;
+    MM_sCameraInterfaceFlags = roData->interfaceFlags;
 
     switch (camera->animState) {
         case 0:
@@ -6884,7 +6884,7 @@ s32 MM_Camera_Special9(Camera* camera) {
         default:
             // Door is closed and is waiting for user input to toggle to a new setting
             Camera_SetStateFlag(camera, CAM_STATE_10 | CAM_STATE_4);
-            sCameraInterfaceFlags = CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL, 0);
+            MM_sCameraInterfaceFlags = CAM_INTERFACE_FLAGS(CAM_LETTERBOX_NONE, CAM_HUD_VISIBILITY_ALL, 0);
 
             if ((camera->xzSpeed > 0.001f) || CHECK_BTN_ALL(CONTROLLER1(&camera->play->state)->press.button, BTN_A) ||
                 CHECK_BTN_ALL(CONTROLLER1(&camera->play->state)->press.button, BTN_B) ||
@@ -6995,7 +6995,7 @@ void MM_Camera_Init(Camera* camera, View* view, CollisionContext* colCtx, PlaySt
     camera->up.z = camera->up.x = 0.0f;
     camera->atLerpStepScale = 1;
     camera->up.y = 1.0f;
-    sCameraInterfaceFlags = CAM_INTERFACE_FLAGS(CAM_LETTERBOX_IGNORE, CAM_HUD_VISIBILITY_IGNORE, 0);
+    MM_sCameraInterfaceFlags = CAM_INTERFACE_FLAGS(CAM_LETTERBOX_IGNORE, CAM_HUD_VISIBILITY_IGNORE, 0);
     sCameraInitSceneTimer = 3;
 }
 
@@ -7102,11 +7102,11 @@ void Camera_InitFocalActorSettings(Camera* camera, Actor* focalActor) {
     Camera_ResetActionFuncState(camera, camera->mode);
 
     if (camera == &camera->play->mainCamera) {
-        sCameraInterfaceFlags =
+        MM_sCameraInterfaceFlags =
             CAM_INTERFACE_FLAGS(CAM_LETTERBOX_LARGE | CAM_LETTERBOX_INSTANT, CAM_HUD_VISIBILITY_NONE_ALT, 0);
         CutsceneManager_StoreCamera(camera);
     } else {
-        sCameraInterfaceFlags = CAM_INTERFACE_FLAGS(CAM_LETTERBOX_LARGE, CAM_HUD_VISIBILITY_NONE_ALT, 0);
+        MM_sCameraInterfaceFlags = CAM_INTERFACE_FLAGS(CAM_LETTERBOX_LARGE, CAM_HUD_VISIBILITY_NONE_ALT, 0);
     }
     MM_Camera_UpdateWater(camera);
 }
@@ -7126,7 +7126,7 @@ s32 MM_Camera_UpdateWater(Camera* camera) {
     s32* waterPrevCamSetting = &camera->waterPrevCamSetting;
     s16 prevBgId;
 
-    if (!(camera->stateFlags & CAM_STATE_CHECK_WATER) || (sCameraSettings[camera->setting].flags & 0x40000000)) {
+    if (!(camera->stateFlags & CAM_STATE_CHECK_WATER) || (MM_sCameraSettings[camera->setting].flags & 0x40000000)) {
         return false;
     }
 
@@ -7332,7 +7332,7 @@ Vec3s MM_Camera_Update(Camera* camera) {
         return camera->inputDir;
     }
 
-    sUpdateCameraDirection = false;
+    MM_sUpdateCameraDirection = false;
     sIsFalse = false;
 
     if (camera->play->view.unk164 == 0) {
@@ -7483,7 +7483,7 @@ Vec3s MM_Camera_Update(Camera* camera) {
 
     // Call the camera update function
     if (GameInteractor_Should(VB_USE_CUSTOM_CAMERA, true, camera)) {
-        sCameraUpdateHandlers[sCameraSettings[camera->setting].cameraModes[camera->mode].funcId](camera);
+        sCameraUpdateHandlers[MM_sCameraSettings[camera->setting].cameraModes[camera->mode].funcId](camera);
     }
 
     // Update the interface
@@ -7493,13 +7493,13 @@ Vec3s MM_Camera_Update(Camera* camera) {
     if (camera->status == CAM_STATUS_ACTIVE) {
         if (((sCameraInitSceneTimer != 0) || func_800CB854(camera)) && (camera->camId == CAM_ID_MAIN)) {
             // Surpresses the interface for the first few frames of a scene
-            sCameraInterfaceFlags = CAM_INTERFACE_FLAGS(CAM_LETTERBOX_LARGE, CAM_HUD_VISIBILITY_NONE_ALT, 0);
-            MM_Camera_UpdateInterface(sCameraInterfaceFlags);
+            MM_sCameraInterfaceFlags = CAM_INTERFACE_FLAGS(CAM_LETTERBOX_LARGE, CAM_HUD_VISIBILITY_NONE_ALT, 0);
+            MM_Camera_UpdateInterface(MM_sCameraInterfaceFlags);
         } else if ((camera->play->transitionMode != TRANS_MODE_OFF) && (camera->camId != CAM_ID_MAIN)) {
-            sCameraInterfaceFlags = CAM_INTERFACE_FLAGS(CAM_LETTERBOX_IGNORE, CAM_HUD_VISIBILITY_IGNORE, 0);
-            MM_Camera_UpdateInterface(sCameraInterfaceFlags);
+            MM_sCameraInterfaceFlags = CAM_INTERFACE_FLAGS(CAM_LETTERBOX_IGNORE, CAM_HUD_VISIBILITY_IGNORE, 0);
+            MM_Camera_UpdateInterface(MM_sCameraInterfaceFlags);
         } else {
-            MM_Camera_UpdateInterface(sCameraInterfaceFlags);
+            MM_Camera_UpdateInterface(MM_sCameraInterfaceFlags);
         }
     }
 
@@ -7557,7 +7557,7 @@ Vec3s MM_Camera_Update(Camera* camera) {
     camera->camDir.y = sp3C.yaw;
     camera->camDir.z = 0;
 
-    if (!sUpdateCameraDirection) {
+    if (!MM_sUpdateCameraDirection) {
         camera->inputDir.x = sp3C.pitch;
         camera->inputDir.y = sp3C.yaw;
         camera->inputDir.z = 0;
@@ -7595,7 +7595,7 @@ s32 MM_Camera_ChangeModeFlags(Camera* camera, s16 mode, u8 forceChange) {
     }
 
     // Mode change rejected by validModes
-    if (!(sCameraSettings[camera->setting].validModes & (1 << mode))) {
+    if (!(MM_sCameraSettings[camera->setting].validModes & (1 << mode))) {
         if (camera->mode != CAM_MODE_NORMAL) {
             camera->mode = CAM_MODE_NORMAL;
             Camera_ResetActionFuncState(camera, camera->mode);
@@ -7752,7 +7752,7 @@ s32 MM_Camera_ChangeMode(Camera* camera, s16 mode) {
 s32 MM_Camera_CheckValidMode(Camera* camera, s16 mode) {
     if (camera->stateFlags & CAM_STATE_DISABLE_MODE_CHANGE) {
         return 0;
-    } else if (!(sCameraSettings[camera->setting].validModes & (1 << mode))) {
+    } else if (!(MM_sCameraSettings[camera->setting].validModes & (1 << mode))) {
         return 0;
     } else if (mode == camera->mode) {
         return -1;
@@ -7764,7 +7764,7 @@ s32 MM_Camera_CheckValidMode(Camera* camera, s16 mode) {
 s16 MM_Camera_ChangeSettingFlags(Camera* camera, s16 setting, s16 flags) {
     // Reject settings change based on priority
     if ((camera->behaviorFlags & CAM_BEHAVIOR_SETTING_USE_PRIORITY) &&
-        ((sCameraSettings[camera->setting].flags & 0xF) >= (sCameraSettings[setting].flags & 0xF))) {
+        ((MM_sCameraSettings[camera->setting].flags & 0xF) >= (MM_sCameraSettings[setting].flags & 0xF))) {
         camera->behaviorFlags |= CAM_BEHAVIOR_SETTING_2;
         if (!(flags & CAM_CHANGE_SETTING_1)) {
             camera->behaviorFlags |= CAM_BEHAVIOR_SETTING_USE_PRIORITY;
@@ -7799,7 +7799,7 @@ s16 MM_Camera_ChangeSettingFlags(Camera* camera, s16 setting, s16 flags) {
 
     func_800DF498(camera);
 
-    if (!(sCameraSettings[camera->setting].flags & 0x40000000)) {
+    if (!(MM_sCameraSettings[camera->setting].flags & 0x40000000)) {
         camera->prevSetting = camera->setting;
     }
 
@@ -7807,7 +7807,7 @@ s16 MM_Camera_ChangeSettingFlags(Camera* camera, s16 setting, s16 flags) {
         camera->bgCamIndex = camera->prevBgCamDataId;
         camera->prevBgCamDataId = -1;
     } else if (!(flags & CAM_CHANGE_SETTING_2)) {
-        if (!(sCameraSettings[camera->setting].flags & 0x40000000)) {
+        if (!(MM_sCameraSettings[camera->setting].flags & 0x40000000)) {
             camera->prevBgCamDataId = camera->bgCamIndex;
         }
         camera->bgCamIndex = -1;
@@ -7853,7 +7853,7 @@ s32 Camera_ChangeActorCsCamIndex(Camera* camera, s32 bgCamIndex) {
 
     // Sets camera setting based on bg/scene data
     if ((MM_Camera_ChangeSettingFlags(camera, setting, CAM_CHANGE_SETTING_2 | CAM_CHANGE_SETTING_0) >= 0) ||
-        (sCameraSettings[camera->setting].flags & 0x80000000)) {
+        (MM_sCameraSettings[camera->setting].flags & 0x80000000)) {
         camera->bgCamIndex = bgCamIndex;
         camera->behaviorFlags |= CAM_BEHAVIOR_BGCAM_1;
         Camera_ResetActionFuncState(camera, camera->mode);

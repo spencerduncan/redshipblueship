@@ -495,11 +495,11 @@ void MM_EnNwc_Draw(Actor* thisx, PlayState* play) {
 
     dispHead = POLY_OPA_DISP;
 
-    gSPSegment(&dispHead[0], 0x08, Lib_SegmentedToVirtual(eyeTextures[this->blinkState]));
+    MM_gSPSegment(&dispHead[0], 0x08, Lib_SegmentedToVirtual(eyeTextures[this->blinkState]));
 
     MATRIX_FINALIZE_AND_LOAD(&dispHead[1], play->state.gfxCtx);
 
-    gSPDisplayList(&dispHead[2], &gNwcBodyDL);
+    MM_gSPDisplayList(&dispHead[2], &gNwcBodyDL);
 
     POLY_OPA_DISP = &dispHead[3];
 

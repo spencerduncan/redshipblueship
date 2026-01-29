@@ -396,7 +396,7 @@ void func_80BDBB48(EnHiddenNuts* this, PlayState* play) {
         MM_Math_ApproachF(&this->actor.world.pos.z, this->unk_20C.z, 0.5f,
                        fabsf(MM_Math_CosS(this->actor.world.rot.y) * (BREG(33) + 8.0f)));
 
-        if ((sqrtf(SQ(this->actor.world.pos.x - this->unk_20C.x) + SQ(this->actor.world.pos.z - this->unk_20C.z)) <
+        if ((MM_sqrtf(SQ(this->actor.world.pos.x - this->unk_20C.x) + SQ(this->actor.world.pos.z - this->unk_20C.z)) <
              4.0f) &&
             (this->path != NULL)) {
             this->unk_208++;

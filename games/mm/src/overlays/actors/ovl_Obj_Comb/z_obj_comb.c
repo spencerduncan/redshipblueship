@@ -564,7 +564,7 @@ void MM_ObjComb_Draw(Actor* thisx, PlayState* play) {
     MM_Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, gBeehiveDL);
+    MM_gSPDisplayList(POLY_OPA_DISP++, gBeehiveDL);
 
     MM_Collider_UpdateSpheres(0, &this->collider);
 
