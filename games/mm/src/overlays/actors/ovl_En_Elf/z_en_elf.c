@@ -607,7 +607,7 @@ void func_8088DB4C(EnElf* this, Vec3f* arg1, f32 arg2, f32 arg3, f32 arg4) {
 
     func_8088D5A0(this, arg1, arg4);
 
-    xzVelocity = sqrtf(SQ(xVelTarget) + SQ(zVelTarget));
+    xzVelocity = MM_sqrtf(SQ(xVelTarget) + SQ(zVelTarget));
     clampedXZ = CLAMP(xzVelocity, arg2, arg3);
     this->actor.speed = clampedXZ;
 
@@ -1600,7 +1600,7 @@ void MM_EnElf_Draw(Actor* thisx, PlayState* play) {
 
             alphaScale = (this->disappearTimer < 0) ? (this->disappearTimer * 0.0011666666f) + 1.0f : 1.0f;
 
-            gSPSegment(POLY_XLU_DISP++, 0x08, gfx);
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08, gfx);
 
             gDPPipeSync(gfx++);
             gDPSetPrimColor(gfx++, 0, 0x01, (u8)(s8)this->innerColor.r, (u8)(s8)this->innerColor.g,

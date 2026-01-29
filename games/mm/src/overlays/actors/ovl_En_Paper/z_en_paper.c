@@ -237,7 +237,7 @@ void EnPaper_Draw(Actor* thisx, PlayState* play) {
                                                piece->pos.x, piece->pos.y, piece->pos.z);
 
             gSPMatrix(POLY_OPA_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-            gSPDisplayList(POLY_OPA_DISP++, gTingleConfettiDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gTingleConfettiDL);
         }
     }
 

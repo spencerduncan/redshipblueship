@@ -149,7 +149,7 @@ void EnEndingHero6_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec
 
     if ((this->type >= ENDING_HERO6_TYPE_DAIKU_RED) && (limbIndex == OBJECT_DAIKU_LIMB_0F)) {
         daikuIndex = this->type - ENDING_HERO6_TYPE_DAIKU_RED;
-        gSPDisplayList(POLY_OPA_DISP++, D_80C2426C[daikuIndex]);
+        MM_gSPDisplayList(POLY_OPA_DISP++, D_80C2426C[daikuIndex]);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -170,7 +170,7 @@ void EnEndingHero6_Draw(Actor* thisx, PlayState* play) {
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
 
         if ((this->objectSlot > OBJECT_SLOT_NONE) && MM_Object_IsLoaded(&play->objectCtx, this->objectSlot)) {
-            gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[this->objectSlot].segment);
+            MM_gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[this->objectSlot].segment);
 
             switch (this->type) {
                 case ENDING_HERO6_TYPE_DAIKU_RED:
@@ -198,13 +198,13 @@ void EnEndingHero6_Draw(Actor* thisx, PlayState* play) {
             }
 
             if (this->type == ENDING_HERO6_TYPE_DT) {
-                gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeState]));
+                MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeState]));
 
                 if (this->eyeState < 3) {
                     index = this->eyeState;
                 }
 
-                gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(sEyebrowTextures[index]));
+                MM_gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(sEyebrowTextures[index]));
             }
 
             MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,

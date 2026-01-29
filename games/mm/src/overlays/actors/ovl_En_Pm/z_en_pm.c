@@ -1236,19 +1236,19 @@ void func_80AF8890(EnPm* this, Gfx** gfx, s32 arg2) {
     switch (arg2) {
         case 0:
             if (this->unk_356 & 0x800) {
-                gSPDisplayList((*gfx)++, object_mm_DL_008348);
+                MM_gSPDisplayList((*gfx)++, object_mm_DL_008348);
             }
             break;
 
         case 1:
             if (this->unk_356 & 0x1000) {
-                gSPDisplayList((*gfx)++, object_mm_DL_0085C8);
+                MM_gSPDisplayList((*gfx)++, object_mm_DL_0085C8);
             }
             break;
 
         case 2:
             if (this->unk_356 & 0x1000) {
-                gSPDisplayList((*gfx)++, object_mm_DL_0083E0);
+                MM_gSPDisplayList((*gfx)++, object_mm_DL_0083E0);
             }
             break;
     }
@@ -2393,7 +2393,7 @@ void EnPm_Draw(Actor* thisx, PlayState* play) {
 
         Scene_SetRenderModeXlu(play, 0, 1);
 
-        gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80AFB914[0]));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(D_80AFB914[0]));
 
         POLY_OPA_DISP = SubS_DrawTransformFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                                this->skelAnime.dListCount, EnPm_OverrideLimbDraw, EnPm_PostLimbDraw,

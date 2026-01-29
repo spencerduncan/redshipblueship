@@ -6,6 +6,8 @@
  * Both games are compiled as object libraries with namespaced symbols
  * (OoT_* and MM_*) and linked into this single binary.
  *
+ * Uses GameRunner (composable lifecycle) to manage game transitions.
+ *
  * Usage:
  *   redship --game oot    # Run Ocarina of Time
  *   redship --game mm     # Run Majora's Mask
@@ -17,31 +19,69 @@
 #include <cstdlib>
 #include <cstring>
 #include <csignal>
+#include <filesystem>
+#include <string>
 
 #include "game.h"
+#include "game_lifecycle.h"
 #include "context.h"
 #include "entrance.h"
 #include "test_runner.h"
 
+#include <ship/Context.h>
+#include <ship/resource/ResourceManager.h>
+#include <ship/resource/archive/ArchiveManager.h>
+
 // ============================================================================
-// Forward declarations for namespaced game functions
-// These will be provided by the OoT and MM object libraries
+// Resource archive hot-swap for cross-game switches (issue #154)
+// ============================================================================
+
+static void EnsureGameArchivesLoaded(GameId targetGame) {
+    auto ctx = Ship::Context::GetInstance();
+    if (!ctx) return;
+    auto archiveManager = ctx->GetResourceManager()->GetArchiveManager();
+    if (!archiveManager) return;
+
+    struct ArchiveEntry { const char* filename; bool useLocate; };
+    const char* appName = nullptr;
+    std::vector<ArchiveEntry> entries;
+
+    switch (targetGame) {
+        case GAME_OOT:
+            appName = "soh";
+            entries = {{"oot.o2r", true}, {"oot-mq.o2r", true}, {"soh.o2r", false}};
+            break;
+        case GAME_MM:
+            appName = "2s2h";
+            entries = {{"mm.o2r", true}, {"2ship.o2r", false}};
+            break;
+        default:
+            return;
+    }
+
+    for (const auto& entry : entries) {
+        std::string path = entry.useLocate
+            ? Ship::Context::LocateFileAcrossAppDirs(entry.filename, appName)
+            : Ship::Context::GetPathRelativeToAppBundle(entry.filename);
+
+        if (path.empty() || !std::filesystem::exists(path)) continue;
+
+        auto archive = archiveManager->AddArchive(path);
+        if (archive) {
+            printf("[RSBS] Archive ready: %s\n", path.c_str());
+        } else {
+            fprintf(stderr, "[RSBS] Warning: Failed to load archive: %s\n", path.c_str());
+        }
+    }
+}
+
+// ============================================================================
+// Forward declarations for game ops providers
 // ============================================================================
 
 extern "C" {
-    // OoT namespaced functions (from OoT object library)
-    int OoT_Game_Init(int argc, char** argv);
-    void OoT_Game_Run(void);
-    void OoT_Game_Shutdown(void);
-    const char* OoT_Game_GetName(void);
-    const char* OoT_Game_GetId(void);
-
-    // MM namespaced functions (from MM object library)
-    int MM_Game_Init(int argc, char** argv);
-    void MM_Game_Run(void);
-    void MM_Game_Shutdown(void);
-    const char* MM_Game_GetName(void);
-    const char* MM_Game_GetId(void);
+    GameOps* OoT_GetGameOps(void);
+    GameOps* MM_GetGameOps(void);
 }
 
 // ============================================================================
@@ -163,58 +203,6 @@ GameId ShowGameMenu(void) {
     return GAME_OOT;
 }
 
-// ============================================================================
-// Game dispatch functions
-// ============================================================================
-
-int InitGame(GameId game, int argc, char** argv) {
-    switch (game) {
-        case GAME_OOT:
-            printf("Initializing Ocarina of Time...\n");
-            return OoT_Game_Init(argc, argv);
-        case GAME_MM:
-            printf("Initializing Majora's Mask...\n");
-            return MM_Game_Init(argc, argv);
-        default:
-            fprintf(stderr, "Error: Invalid game ID\n");
-            return -1;
-    }
-}
-
-void RunGame(GameId game) {
-    switch (game) {
-        case GAME_OOT:
-            OoT_Game_Run();
-            break;
-        case GAME_MM:
-            MM_Game_Run();
-            break;
-        default:
-            break;
-    }
-}
-
-void ShutdownGame(GameId game) {
-    switch (game) {
-        case GAME_OOT:
-            OoT_Game_Shutdown();
-            break;
-        case GAME_MM:
-            MM_Game_Shutdown();
-            break;
-        default:
-            break;
-    }
-}
-
-const char* GetGameName(GameId game) {
-    switch (game) {
-        case GAME_OOT: return OoT_Game_GetName();
-        case GAME_MM: return MM_Game_GetName();
-        default: return "Unknown";
-    }
-}
-
 } // anonymous namespace
 
 // ============================================================================
@@ -242,13 +230,22 @@ int main(int argc, char** argv) {
     ComboContext_Init();
     Entrance_Init();
 
-    // Register entrance links (test or production)
+    // Register entrance links
+    Entrance_RegisterDefaultLinks();
+    // Also register test links (Mido's House) for easy testing
+    Entrance_RegisterTestLinks();
     if (HasTestEntranceFlag(argc, argv)) {
-        printf("Using TEST entrance: Mido's House <-> Clock Tower\n");
-        Entrance_RegisterTestLinks();
-    } else {
-        Entrance_RegisterDefaultLinks();
+        printf("Test entrance links also registered (Mido's House <-> Clock Tower)\n");
     }
+
+    // ========================================================================
+    // Set up GameRunner with composable lifecycle
+    // ========================================================================
+
+    GameRunner runner;
+    GameRunner_Init(&runner);
+    GameRunner_RegisterGame(&runner, GAME_OOT, OoT_GetGameOps());
+    GameRunner_RegisterGame(&runner, GAME_MM, MM_GetGameOps());
 
     // Determine which game to run
     GameId selectedGame = ParseGameArg(argc, argv);
@@ -284,26 +281,33 @@ int main(int argc, char** argv) {
     }
     gameArgv[gameArgc] = nullptr;
 
-    // Main game loop with hot-swap support
+    // ========================================================================
+    // Main game loop with hot-swap support via GameRunner
+    // ========================================================================
+
     bool keepRunning = true;
 
+    // Start the first game
+    Combo_ClearGameSwitchRequest();
+    Entrance_ClearPendingSwitch();
+
+    GameOps* ops = GameRunner_GetOps(&runner, selectedGame);
+    printf("Initializing %s...\n", ops ? ops->name : "Unknown");
+
+    int initResult = GameRunner_StartGame(&runner, selectedGame, gameArgc, gameArgv);
+    if (initResult != 0) {
+        fprintf(stderr, "Error: Failed to initialize game (code %d)\n", initResult);
+        free(gameArgv);
+        return 1;
+    }
+
     while (keepRunning) {
-        // Clear any previous switch requests
-        Combo_ClearGameSwitchRequest();
-        Entrance_ClearPendingSwitch();
-
-        // Initialize the game
-        int initResult = InitGame(selectedGame, gameArgc, gameArgv);
-        if (initResult != 0) {
-            fprintf(stderr, "Error: Failed to initialize %s (code %d)\n",
-                    GetGameName(selectedGame), initResult);
-            free(gameArgv);
-            return 1;
+        // Run the active game
+        ops = GameRunner_GetOps(&runner, GameRunner_GetActive(&runner));
+        printf("Starting %s... (Press F10 to switch games)\n", ops ? ops->name : "Unknown");
+        if (ops && ops->run) {
+            ops->run();
         }
-
-        // Run the game
-        printf("Starting %s... (Press F10 to switch games)\n", GetGameName(selectedGame));
-        RunGame(selectedGame);
 
         // Check if we need to switch games
         GameId nextGame = GAME_NONE;
@@ -320,29 +324,41 @@ int main(int argc, char** argv) {
                    Game_ToString(nextGame), targetEntrance);
         } else if (Combo_IsGameSwitchRequested()) {
             // F10 hotkey switch
-            nextGame = Game_GetOther(selectedGame);
+            nextGame = Game_GetOther(GameRunner_GetActive(&runner));
         }
 
         // Handle the switch
         if (nextGame != GAME_NONE) {
-            printf("\n=== Switching to %s ===\n", GetGameName(nextGame));
+            GameOps* nextOps = GameRunner_GetOps(&runner, nextGame);
+            printf("\n=== Switching to %s ===\n",
+                   nextOps ? nextOps->name : "Unknown");
 
-            // Shutdown current game
-            ShutdownGame(selectedGame);
+            // Clear switch state before transitioning
+            Combo_ClearGameSwitchRequest();
+            Entrance_ClearPendingSwitch();
 
             // Set startup entrance if this is an entrance-based switch
             if (isEntranceSwitch && targetEntrance != 0) {
                 Entrance_SetStartupEntrance(targetEntrance);
             }
 
-            // Switch to new game
-            selectedGame = nextGame;
+            // Hot-swap resource archives before game init/resume
+            EnsureGameArchivesLoaded(nextGame);
+
+            // GameRunner handles suspend/resume/init lifecycle
+            int switchResult = GameRunner_SwitchTo(&runner, nextGame, gameArgc, gameArgv);
+            if (switchResult != 0) {
+                fprintf(stderr, "Error: Failed to switch to game (code %d)\n", switchResult);
+                keepRunning = false;
+            }
         } else {
             // Normal exit
             keepRunning = false;
-            ShutdownGame(selectedGame);
         }
     }
+
+    // Final cleanup — shutdown all games
+    GameRunner_ShutdownAll(&runner);
 
     free(gameArgv);
     printf("Game exited normally.\n");

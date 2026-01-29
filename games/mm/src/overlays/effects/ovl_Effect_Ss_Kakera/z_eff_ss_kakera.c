@@ -95,9 +95,9 @@ void MM_EffectSsKakera_Draw(PlayState* play, u32 index, EffectSs* this) {
     OPEN_DISPS(gfxCtx);
     if (this->rObjectId != KAKERA_OBJECT_DEFAULT) {
         if ((((this->rReg4 >> 7) & 1) << 7) == 0x80) {
-            gSPSegment(POLY_XLU_DISP++, 0x06, play->objectCtx.slots[this->rObjectSlot].segment);
+            MM_gSPSegment(POLY_XLU_DISP++, 0x06, play->objectCtx.slots[this->rObjectSlot].segment);
         } else {
-            gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[this->rObjectSlot].segment);
+            MM_gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[this->rObjectSlot].segment);
         }
     }
 
@@ -113,7 +113,7 @@ void MM_EffectSsKakera_Draw(PlayState* play, u32 index, EffectSs* this) {
             gDPSetPrimColor(POLY_XLU_DISP++, 0, D_8097EAD8[colorIndex].lod, D_8097EAD8[colorIndex].color.r,
                             D_8097EAD8[colorIndex].color.g, D_8097EAD8[colorIndex].color.b, 255);
         }
-        gSPDisplayList(POLY_XLU_DISP++, this->gfx);
+        MM_gSPDisplayList(POLY_XLU_DISP++, this->gfx);
     } else {
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, gfxCtx);
         Gfx_SetupDL25_Opa(play->state.gfxCtx);
@@ -121,7 +121,7 @@ void MM_EffectSsKakera_Draw(PlayState* play, u32 index, EffectSs* this) {
             gDPSetPrimColor(POLY_OPA_DISP++, 0, D_8097EAD8[colorIndex].lod, D_8097EAD8[colorIndex].color.r,
                             D_8097EAD8[colorIndex].color.g, D_8097EAD8[colorIndex].color.b, 255);
         }
-        gSPDisplayList(POLY_OPA_DISP++, this->gfx);
+        MM_gSPDisplayList(POLY_OPA_DISP++, this->gfx);
     }
     CLOSE_DISPS(gfxCtx);
 }
@@ -279,7 +279,7 @@ s32 func_8097E698(EffectSs* this) {
     diff.x = this->pos.x - this->vec.x;
     diff.y = this->pos.y - this->vec.y;
     diff.z = this->pos.z - this->vec.z;
-    distance = sqrtf(SQXYZ(diff));
+    distance = MM_sqrtf(SQXYZ(diff));
     if (distance > 1000.0f) {
         return false;
     }

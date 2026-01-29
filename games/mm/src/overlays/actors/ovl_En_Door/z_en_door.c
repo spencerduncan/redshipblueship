@@ -926,9 +926,9 @@ void MM_EnDoor_Draw(Actor* thisx, PlayState* play) {
 
         if (this->knobDoor.dyna.actor.world.rot.y != 0) {
             if (this->knobDoor.dyna.actor.world.rot.y > 0) {
-                gSPDisplayList(POLY_OPA_DISP++, gDoorRightDL);
+                MM_gSPDisplayList(POLY_OPA_DISP++, gDoorRightDL);
             } else {
-                gSPDisplayList(POLY_OPA_DISP++, gDoorLeftDL);
+                MM_gSPDisplayList(POLY_OPA_DISP++, gDoorLeftDL);
             }
         }
         if (this->lockTimer) {

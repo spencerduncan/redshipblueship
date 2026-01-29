@@ -359,7 +359,7 @@ void KaleidoScope_DrawInventoryEditor(PlayState* play) {
 
     gfxRef = POLY_OPA_DISP;
     gfx = MM_Graph_GfxPlusOne(gfxRef);
-    gSPDisplayList(OVERLAY_DISP++, gfx);
+    MM_gSPDisplayList(OVERLAY_DISP++, gfx);
 
     KaleidoScope_DrawInventoryEditorText(&gfx);
 

@@ -185,11 +185,11 @@ void ObjWarpstone_Draw(Actor* thisx, PlayState* play2) {
         gDPSetEnvColor(POLY_XLU_DISP++, 100, 200, 0, 255);
         Matrix_RotateZF(BINANG_TO_RAD_ALT2((play->gameplayFrames * 1500) & 0xFFFF), MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gEffFlash1DL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gEffFlash1DL);
         MM_Matrix_Pop();
         Matrix_RotateZF(BINANG_TO_RAD_ALT2(~((play->gameplayFrames * 1200) & 0xFFFF)), MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gEffFlash1DL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gEffFlash1DL);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }

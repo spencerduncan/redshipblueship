@@ -655,10 +655,10 @@ void EnKbt_Draw(Actor* thisx, PlayState* play) {
     gfx = POLY_OPA_DISP;
 
     tex = Lib_SegmentedToVirtual(D_80B34B98[this->unk_27E]);
-    gSPSegment(&gfx[0], 0x08, tex);
+    MM_gSPSegment(&gfx[0], 0x08, tex);
 
     tex = Lib_SegmentedToVirtual(D_80B34B90[this->unk_27F]);
-    gSPSegment(&gfx[1], 0x09, tex);
+    MM_gSPSegment(&gfx[1], 0x09, tex);
 
     POLY_OPA_DISP = &gfx[2];
 

@@ -2,7 +2,7 @@
 #include "PR/controller.h"
 #include "libc/stdbool.h"
 
-s32 osPfsFileState(OSPfs* pfs, s32 fileNo, OSPfsState* state) {
+s32 MM_osPfsFileState(OSPfs* pfs, s32 fileNo, OSPfsState* state) {
     s32 ret;
     s32 pages;
     __OSInode inode;

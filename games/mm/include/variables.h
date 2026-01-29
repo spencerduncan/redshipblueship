@@ -58,7 +58,7 @@ extern BgSpecialSceneMaxObjects sCustomDynapolyMem[];
 // extern UNK_TYPE4 D_801BDAF8;
 
 extern u8 kanfontOrdering[92];
-// extern actor_init_var_func sInitChainHandlers[11];
+// extern actor_init_var_func MM_sInitChainHandlers[11];
 
 extern UNK_PTR D_801BF5C0;
 // extern UNK_TYPE4 D_801BEAD4;
@@ -267,8 +267,8 @@ extern u8 gSampleBankTable[];
 // extern UNK_TYPE4 D_801F6B04;
 // extern UNK_TYPE4 D_801F6B08;
 
-extern void (*sKaleidoScopeUpdateFunc)(PlayState* play);
-extern void (*sKaleidoScopeDrawFunc)(PlayState* play);
+extern void (*MM_sKaleidoScopeUpdateFunc)(PlayState* play);
+extern void (*MM_sKaleidoScopeDrawFunc)(PlayState* play);
 
 extern GfxMasterList* gGfxMasterDL;
 

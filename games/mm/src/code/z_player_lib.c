@@ -205,13 +205,13 @@ void func_801229FC(Player* player) {
         s16 objectId = sMaskObjectIds[(u8)player->maskId - 1];
 
         // #region 2S2H [Port] Consider the masks already loaded
-        // osCreateMesgQueue(&player->maskObjectLoadQueue, &player->maskObjectLoadMsg, 1);
+        // MM_osCreateMesgQueue(&player->maskObjectLoadQueue, &player->maskObjectLoadMsg, 1);
         // MM_DmaMgr_SendRequestImpl(&player->maskDmaRequest, player->maskObjectSegment, MM_gObjectTable[objectId].vromStart,
         //                        MM_gObjectTable[objectId].vromEnd - MM_gObjectTable[objectId].vromStart, 0,
         //                        &player->maskObjectLoadQueue, OS_MESG_PTR(NULL));
         player->maskObjectLoadState++;
     } else if (player->maskObjectLoadState == 2) {
-        // if (osRecvMesg(&player->maskObjectLoadQueue, NULL, OS_MESG_NOBLOCK) == 0) {
+        // if (MM_osRecvMesg(&player->maskObjectLoadQueue, NULL, OS_MESG_NOBLOCK) == 0) {
         if (true) {
             // #endregion
             player->maskObjectLoadState = 0;
@@ -309,7 +309,7 @@ void func_80122D44(PlayState* play, struct_80122D44_arg1* arg1) {
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
-            gSPDisplayList(POLY_XLU_DISP++, temp_s3->dList);
+            MM_gSPDisplayList(POLY_XLU_DISP++, temp_s3->dList);
         }
 
         phi_s2++;
@@ -2060,7 +2060,7 @@ void MM_Player_DrawImpl(PlayState* play, void** skeleton, Vec3s* jointTable, s32
 
     // Only Human, Zora, and Goron will read the eye textures in the head limb display list.
     // Fierce Deity and Deku will point this segment to garbage data, but it will be unread from.
-    gSPSegment(&gfx[0], 0x08, Lib_SegmentedToVirtual(sPlayerEyesTextures[playerForm][eyeIndex]));
+    MM_gSPSegment(&gfx[0], 0x08, Lib_SegmentedToVirtual(sPlayerEyesTextures[playerForm][eyeIndex]));
 
     // 2S2H [Port] Hess crash fix
     if (mouthIndex >= PLAYER_MOUTH_MAX) {
@@ -2075,7 +2075,7 @@ void MM_Player_DrawImpl(PlayState* play, void** skeleton, Vec3s* jointTable, s32
 
     // Only Human and Zora will read the mouth textures in the head limb display list.
     // Goron, Fierce Deity, and Deku will point this segment to garbage data, but it will be unread from.
-    gSPSegment(&gfx[1], 0x09, Lib_SegmentedToVirtual(sPlayerMouthTextures[playerForm][mouthIndex]));
+    MM_gSPSegment(&gfx[1], 0x09, Lib_SegmentedToVirtual(sPlayerMouthTextures[playerForm][mouthIndex]));
 
     POLY_OPA_DISP = &gfx[2];
 
@@ -2172,20 +2172,20 @@ void Player_AdjustSingleLeg(PlayState* play, Player* player, SkelAnime* skelAnim
         s32 temp_v0_4;
         s16 phi_t1;
 
-        distance = sqrtf(SQ(diffX) + SQ(diffY) + SQ(diffZ));
+        distance = MM_sqrtf(SQ(diffX) + SQ(diffY) + SQ(diffZ));
 
         sp58 = (SQ(distance) + sp70) / (2.0f * distance);
 
         temp_f20 = sp74 - SQ(sp58);
-        temp_f20 = (temp_f20 < 0.0f) ? 0.0f : sqrtf(temp_f20);
+        temp_f20 = (temp_f20 < 0.0f) ? 0.0f : MM_sqrtf(temp_f20);
 
         sp4C = MM_Math_FAtan2F(temp_f20, sp58);
-        distance = sqrtf(SQ(diffX) + SQ(yIntersect - sp90.y) + SQ(diffZ));
+        distance = MM_sqrtf(SQ(diffX) + SQ(yIntersect - sp90.y) + SQ(diffZ));
         sp58 = (SQ(distance) + sp70) / (2.0f * distance);
         sp54 = distance - sp58;
 
         temp_f20 = sp74 - SQ(sp58);
-        temp_f20 = (temp_f20 < 0.0f) ? 0.0f : sqrtf(temp_f20);
+        temp_f20 = (temp_f20 < 0.0f) ? 0.0f : MM_sqrtf(temp_f20);
 
         sp48 = MM_Math_FAtan2F(temp_f20, sp58);
         phi_t1 = (M_PIf - (MM_Math_FAtan2F(sp54, temp_f20) + ((M_PIf / 2.0f) - sp48))) * (0x8000 / M_PIf);
@@ -2244,8 +2244,8 @@ void MM_Player_DrawHookshotReticle(PlayState* play, Player* player, f32 hookshot
 
             MATRIX_FINALIZE_AND_LOAD(OVERLAY_DISP++, play->state.gfxCtx);
 
-            gSPSegment(OVERLAY_DISP++, 0x06, play->objectCtx.slots[player->actor.objectSlot].segment);
-            gSPDisplayList(OVERLAY_DISP++, gHookshotReticleDL);
+            MM_gSPSegment(OVERLAY_DISP++, 0x06, play->objectCtx.slots[player->actor.objectSlot].segment);
+            MM_gSPDisplayList(OVERLAY_DISP++, gHookshotReticleDL);
 
             CLOSE_DISPS(play->state.gfxCtx);
         }
@@ -2292,7 +2292,7 @@ void func_80124FF0(f32 arg0, s16 arg1, Vec3f* arg2, s16 arg3, Vec3f* arg4, Vec3f
     arg5->z = (MM_Math_CosS(arg3) * sp30) + arg2->z;
 
     MM_Math_Vec3f_Diff(arg5, arg4, &sp44);
-    sp40 = sqrtf(SQXZ(sp44));
+    sp40 = MM_sqrtf(SQXZ(sp44));
 
     sp3C = (sp40 <= 1.0f) ? arg3 : Math_Atan2S_XY(sp44.z, sp44.x);
     sp40 = (MM_Math_CosS(sp3C - arg3) * sp40) + arg8;
@@ -2383,7 +2383,7 @@ void Player_DrawZoraShield(PlayState* play, Player* player) {
     dList = POLY_XLU_DISP;
 
     MATRIX_FINALIZE_AND_LOAD(&dList[0], play->state.gfxCtx);
-    gSPDisplayList(&dList[1], object_link_zora_DL_011760);
+    MM_gSPDisplayList(&dList[1], object_link_zora_DL_011760);
 
     POLY_XLU_DISP = &dList[2];
 
@@ -2978,8 +2978,8 @@ void MM_Player_DrawGetItemImpl(PlayState* play, Player* player, Vec3f* refPos, s
 
     MM_gSegments[6] = OS_K0_TO_PHYSICAL(player->giObjectSegment);
 
-    gSPSegment(POLY_OPA_DISP++, 0x06, player->giObjectSegment);
-    gSPSegment(POLY_XLU_DISP++, 0x06, player->giObjectSegment);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x06, player->giObjectSegment);
+    MM_gSPSegment(POLY_XLU_DISP++, 0x06, player->giObjectSegment);
 
     MM_Matrix_Translate((MM_Math_SinS(player->actor.shape.rot.y) * 3.3f) + refPos->x, refPos->y + sp34,
                      (MM_Math_CosS(player->actor.shape.rot.y) * 3.3f) + refPos->z, MTXMODE_NEW);
@@ -2991,7 +2991,7 @@ void MM_Player_DrawGetItemImpl(PlayState* play, Player* player, Vec3f* refPos, s
 }
 
 void MM_Player_DrawGetItem(PlayState* play, Player* player) {
-    if (!player->giObjectLoading || (osRecvMesg(&player->giObjectLoadQueue, NULL, OS_MESG_NOBLOCK) == 0)) {
+    if (!player->giObjectLoading || (MM_osRecvMesg(&player->giObjectLoadQueue, NULL, OS_MESG_NOBLOCK) == 0)) {
         Vec3f refPos;
         s32 drawIdPlusOne;
 
@@ -3056,7 +3056,7 @@ void func_80126BD0(PlayState* play, Player* player, s32 arg2) {
         OPEN_DISPS(play->state.gfxCtx);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, object_link_zora_DL_0110A8);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_link_zora_DL_0110A8);
 
         CLOSE_DISPS(play->state.gfxCtx);
     } else {
@@ -3104,7 +3104,7 @@ void func_80126BD0(PlayState* play, Player* player, s32 arg2) {
             MM_Matrix_Scale(player->unk_AF0[0].x, player->unk_AF0[0].y, player->unk_AF0[0].z, MTXMODE_APPLY);
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
 
-            gSPDisplayList(POLY_OPA_DISP++, D_801C0AB4[arg2]);
+            MM_gSPDisplayList(POLY_OPA_DISP++, D_801C0AB4[arg2]);
 
             if (player->meleeWeaponState != PLAYER_MELEE_WEAPON_STATE_0) {
                 if ((((player->meleeWeaponAnimation == PLAYER_MWA_ZORA_PUNCH_LEFT)) && (arg2 == 0)) ||
@@ -3146,7 +3146,7 @@ void func_80126BD0(PlayState* play, Player* player, s32 arg2) {
         MM_Matrix_Scale(player->unk_AF0[0].x, player->unk_AF0[0].y, player->unk_AF0[0].z, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, D_801C0ABC[arg2]);
+        MM_gSPDisplayList(POLY_OPA_DISP++, D_801C0ABC[arg2]);
 
         MM_Matrix_MultVec3f(&D_801C0AC4[arg2], &sp58);
         MM_Matrix_MultVec3f(&D_801C0ADC[arg2], &sp4C);
@@ -3187,7 +3187,7 @@ s32 func_801271B0(PlayState* play, Player* player, s32 arg2) {
 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
 
-            gSPDisplayList(POLY_OPA_DISP++, D_801C0B14[arg2]);
+            MM_gSPDisplayList(POLY_OPA_DISP++, D_801C0B14[arg2]);
 
             MM_Matrix_Translate(2150.0f, 0.0f, 0.0f, MTXMODE_APPLY);
             Matrix_RotateXS(player->unk_B8A, MTXMODE_APPLY);
@@ -3197,7 +3197,7 @@ s32 func_801271B0(PlayState* play, Player* player, s32 arg2) {
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
 
             // Close flower / Open flower
-            gSPDisplayList(POLY_OPA_DISP++,
+            MM_gSPDisplayList(POLY_OPA_DISP++,
                            player->actor.velocity.y < -6.0f ? gLinkDekuClosedFlowerDL : gLinkDekuOpenFlowerDL);
 
             Matrix_MultZero(&player->bodyPartsPos[D_801C0B1C[arg2]]);
@@ -3217,7 +3217,7 @@ s32 func_80127438(PlayState* play, Player* player, s32 currentMask) {
     if ((player->maskObjectLoadState == 0) && (currentMask == (u8)player->maskId)) {
         OPEN_DISPS(play->state.gfxCtx);
 
-        gSPSegment(POLY_OPA_DISP++, 0x0A, player->maskObjectSegment);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x0A, player->maskObjectSegment);
 
         CLOSE_DISPS(play->state.gfxCtx);
 
@@ -3232,7 +3232,7 @@ void func_80127488(PlayState* play, Player* player, u8 alpha) {
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
     gDPSetEnvColor(POLY_XLU_DISP++, 255, 0, 0, alpha);
-    gSPDisplayList(POLY_XLU_DISP++, gLinkGoronGoronPunchEffectDL);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gLinkGoronGoronPunchEffectDL);
 
     func_80122BA4(play, &player->unk_3D0, 3, alpha);
 
@@ -3272,17 +3272,17 @@ void Player_DrawCircusLeadersMask(PlayState* play, Player* player) {
             MM_Matrix_Scale(scaleXZ, scaleY, scaleXZ, MTXMODE_APPLY);
 
             gSPMatrix(&gfx[0], Matrix_Finalize(play->state.gfxCtx), G_MTX_PUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-            gSPSegment(&gfx[1], 0x08, OS_K0_TO_PHYSICAL(SEGMENTED_TO_K0(gEffBubble1Tex)));
+            MM_gSPSegment(&gfx[1], 0x08, OS_K0_TO_PHYSICAL(SEGMENTED_TO_K0(gEffBubble1Tex)));
             gDPSetPrimColor(&gfx[2], 0, 0, 255, 255, 255, 255);
             gDPSetEnvColor(&gfx[3], 150, 150, 150, 0);
-            gSPDisplayList(&gfx[4], gEffBubbleDL);
+            MM_gSPDisplayList(&gfx[4], gEffBubbleDL);
             gSPPopMatrix(&gfx[5], G_MTX_MODELVIEW);
 
             MM_Matrix_Pop();
 
             gfx = &gfx[6];
         } else {
-            f32 speedXZ = sqrtf(SQ(player->actor.velocity.x) + SQ(player->actor.velocity.z));
+            f32 speedXZ = MM_sqrtf(SQ(player->actor.velocity.x) + SQ(player->actor.velocity.z));
             s16 phi_s0 = speedXZ * 2000.0f;
             f32 temp_f20;
 
@@ -3339,11 +3339,11 @@ void Player_DrawBlastMask(PlayState* play, Player* player) {
         }
 
         gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, (u8)alpha);
-        gSPDisplayList(POLY_OPA_DISP++, object_mask_bakuretu_DL_000440);
-        gSPSegment(POLY_OPA_DISP++, 0x09, D_801C0BD0);
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_mask_bakuretu_DL_000440);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x09, D_801C0BD0);
         gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, (u8)(255 - alpha));
     } else {
-        gSPSegment(POLY_OPA_DISP++, 0x09, D_801C0BC0);
+        MM_gSPSegment(POLY_OPA_DISP++, 0x09, D_801C0BC0);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
@@ -3425,7 +3425,7 @@ void Player_DrawBunnyHood(PlayState* play) {
     // Ignoring the players actor mtx allows the bunny hood to render interpolated without issues
     FrameInterpolation_IgnoreActorMtx();
 
-    gSPSegment(POLY_OPA_DISP++, 0x0B, mtx);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0B, mtx);
 
     MM_Matrix_Push();
 
@@ -3506,7 +3506,7 @@ void func_80127DA4(PlayState* play, struct_801F58B0 arg1[], struct_80128388_arg1
     MM_Math_Vec3f_Copy(&arg1->unk_00, arg4);
     MM_Math_Vec3f_Diff(arg5, arg4, &spB0);
     arg1->unk_18 = Math_Atan2S_XY(spB0.z, spB0.x);
-    arg1->unk_1A = Math_Atan2S_XY(sqrtf(SQXZ(spB0)), spB0.y);
+    arg1->unk_1A = Math_Atan2S_XY(MM_sqrtf(SQXZ(spB0)), spB0.y);
     i = 1;
     arg2++;
 
@@ -3532,7 +3532,7 @@ void func_80127DA4(PlayState* play, struct_801F58B0 arg1[], struct_80128388_arg1
             spB0.y = arg2->unk_00;
             spB0.z = 0.0f;
         }
-        f20 = sqrtf(SQXZ(spB0));
+        f20 = MM_sqrtf(SQXZ(spB0));
 
         if (f20 > 4.0f) {
             phi_s1->unk_18 = Math_Atan2S_XY(spB0.z, spB0.x);
@@ -3631,7 +3631,7 @@ void Player_DrawGreatFairysMask(PlayState* play, Player* player) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x0B, mtx);
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0B, mtx);
 
     MM_Matrix_MultVec3f(&D_801C0C00, &D_801C0C54[1].unk_08);
     Math_Vec3f_Lerp(&player->bodyPartsPos[PLAYER_BODYPART_HEAD], &player->bodyPartsPos[PLAYER_BODYPART_WAIST], 0.2f,
@@ -3681,7 +3681,7 @@ s32 func_80128640(PlayState* play, Player* player, Gfx* dlist) {
 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
 
-            gSPDisplayList(POLY_OPA_DISP++, D_801C0B20[mask - 1]);
+            MM_gSPDisplayList(POLY_OPA_DISP++, D_801C0B20[mask - 1]);
 
             MM_Matrix_Pop();
 
@@ -3697,7 +3697,7 @@ s32 func_80128640(PlayState* play, Player* player, Gfx* dlist) {
         MM_Matrix_Scale(1.0f, player->unk_B0C, 1.0f, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gDekuStickDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gDekuStickDL);
 
         MM_Matrix_Pop();
 
@@ -3719,10 +3719,10 @@ s32 func_80128640(PlayState* play, Player* player, Gfx* dlist) {
             Color_RGB8* bottleColor = &sPlayerBottleColors[bottle];
 
             gDPSetEnvColor(POLY_XLU_DISP++, bottleColor->r, bottleColor->g, bottleColor->b, 0);
-            gSPDisplayList(POLY_XLU_DISP++, gBottleContentsDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gBottleContentsDL);
         }
 
-        gSPDisplayList(POLY_XLU_DISP++, gBottleGlassDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gBottleGlassDL);
 
         MM_Matrix_Pop();
 
@@ -3738,7 +3738,7 @@ s32 func_80128640(PlayState* play, Player* player, Gfx* dlist) {
         Matrix_RotateYS(sp24, MTXMODE_APPLY);
 
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, object_link_zora_DL_00E088); // hand
+        MM_gSPDisplayList(POLY_OPA_DISP++, object_link_zora_DL_00E088); // hand
 
         MM_Matrix_Pop();
 
@@ -3870,7 +3870,7 @@ void MM_Player_PostLimbDrawGameplay(PlayState* play, s32 limbIndex, Gfx** dList1
                 MM_Matrix_Scale(1.0f, player->unk_B08, 1.0f, MTXMODE_APPLY);
 
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-                gSPDisplayList(POLY_XLU_DISP++, D_801C0D94);
+                MM_gSPDisplayList(POLY_XLU_DISP++, D_801C0D94);
 
                 MM_Matrix_Pop();
 
@@ -3979,7 +3979,7 @@ void MM_Player_PostLimbDrawGameplay(PlayState* play, s32 limbIndex, Gfx** dList1
 
                 MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
 
-                gSPDisplayList(POLY_OPA_DISP++, object_link_goron_DL_00FC18);
+                MM_gSPDisplayList(POLY_OPA_DISP++, object_link_goron_DL_00FC18);
 
                 MM_Matrix_Pop();
 
@@ -3989,7 +3989,7 @@ void MM_Player_PostLimbDrawGameplay(PlayState* play, s32 limbIndex, Gfx** dList1
 
                     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
 
-                    gSPDisplayList(POLY_OPA_DISP++, D_801C0DF0[i]);
+                    MM_gSPDisplayList(POLY_OPA_DISP++, D_801C0DF0[i]);
                     MM_Matrix_Pop();
                 }
 
@@ -4044,7 +4044,7 @@ void MM_Player_PostLimbDrawGameplay(PlayState* play, s32 limbIndex, Gfx** dList1
                     }
                 }
 
-                gSPDisplayList(POLY_OPA_DISP++, D_801C0B20[maskMinusOne]);
+                MM_gSPDisplayList(POLY_OPA_DISP++, D_801C0B20[maskMinusOne]);
 
                 CLOSE_DISPS(play->state.gfxCtx);
             }
@@ -4058,7 +4058,7 @@ void MM_Player_PostLimbDrawGameplay(PlayState* play, s32 limbIndex, Gfx** dList1
                 MM_Matrix_Scale(player->unk_AF0[0].x, player->unk_AF0[0].y, player->unk_AF0[0].z, MTXMODE_APPLY);
 
                 MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-                gSPDisplayList(POLY_OPA_DISP++, object_link_nuts_DL_00A348);
+                MM_gSPDisplayList(POLY_OPA_DISP++, object_link_nuts_DL_00A348);
 
                 MM_Matrix_Pop();
 
@@ -4106,7 +4106,7 @@ void MM_Player_PostLimbDrawGameplay(PlayState* play, s32 limbIndex, Gfx** dList1
                     MM_Matrix_Scale(player->arr_AF0[0], player->arr_AF0[0], player->arr_AF0[0], MTXMODE_APPLY);
 
                     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-                    gSPDisplayList(POLY_OPA_DISP++, object_link_nuts_DL_007390);
+                    MM_gSPDisplayList(POLY_OPA_DISP++, object_link_nuts_DL_007390);
 
                     MM_Matrix_Pop();
 
@@ -4123,7 +4123,7 @@ void MM_Player_PostLimbDrawGameplay(PlayState* play, s32 limbIndex, Gfx** dList1
                         if (1) {}
                         if (1) {}
                         if (1) {}
-                        gSPDisplayList(POLY_OPA_DISP++, D_801C0E2C[i]);
+                        MM_gSPDisplayList(POLY_OPA_DISP++, D_801C0E2C[i]);
 
                         MM_Matrix_Pop();
                     }
@@ -4154,7 +4154,7 @@ void MM_Player_PostLimbDrawGameplay(PlayState* play, s32 limbIndex, Gfx** dList1
 
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
             gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 255, (u8)player->av2.actionVar2);
-            gSPDisplayList(POLY_XLU_DISP++, gameplay_keep_DL_054C90);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gameplay_keep_DL_054C90);
 
             MM_Matrix_Pop();
 
@@ -4223,7 +4223,7 @@ void MM_Player_PostLimbDrawGameplay(PlayState* play, s32 limbIndex, Gfx** dList1
              (player->sheathType == PLAYER_MODELTYPE_SHEATH_15))) {
             OPEN_DISPS(play->state.gfxCtx);
 
-            gSPDisplayList(POLY_OPA_DISP++, gPlayerShields[2 * ((player->currentShield - 1) ^ 0)]);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gPlayerShields[2 * ((player->currentShield - 1) ^ 0)]);
 
             CLOSE_DISPS(play->state.gfxCtx);
         }

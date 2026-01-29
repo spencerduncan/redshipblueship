@@ -27,6 +27,6 @@ s32 __osPiRawStartDma(s32 direction, uintptr_t devAddr, void* dramAddr, size_t s
 s32 __osEPiRawWriteIo(OSPiHandle* handle, uintptr_t devAddr, u32 data);
 s32 __osEPiRawReadIo(OSPiHandle* handle, uintptr_t devAddr, u32* data);
 s32 __osEPiRawStartDma(OSPiHandle* handle, s32 direction, uintptr_t cartAddr, void* dramAddr, size_t size);
-OSMesgQueue* osPiGetCmdQueue(void);
+OSMesgQueue* MM_osPiGetCmdQueue(void);
 #endif
 #endif

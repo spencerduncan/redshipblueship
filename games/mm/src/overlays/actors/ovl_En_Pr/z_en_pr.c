@@ -279,11 +279,11 @@ void func_80A32740(EnPr* this, PlayState* play) {
             break;
     }
 
-    if (this->unk_2C8 < sqrtf(SQ(this->actor.world.pos.x - this->actor.home.pos.x) +
+    if (this->unk_2C8 < MM_sqrtf(SQ(this->actor.world.pos.x - this->actor.home.pos.x) +
                               SQ(this->actor.world.pos.z - this->actor.home.pos.z))) {
         func_80A32854(this);
     } else if ((this->unk_20E == 0) && (player->stateFlags1 & PLAYER_STATE1_8000000)) {
-        if (sqrtf(SQ(player->actor.world.pos.x - this->actor.home.pos.x) +
+        if (MM_sqrtf(SQ(player->actor.world.pos.x - this->actor.home.pos.x) +
                   SQ(player->actor.world.pos.z - this->actor.home.pos.z)) < this->unk_2C8) {
             func_80A32AF8(this);
         }
@@ -302,7 +302,7 @@ void func_80A3289C(EnPr* this, PlayState* play) {
     this->unk_22C = MM_Math_Vec3f_Yaw(&this->actor.world.pos, &this->actor.home.pos);
     func_80A325E4(this);
 
-    if (sqrtf(SQ(this->actor.world.pos.x - this->actor.home.pos.x) +
+    if (MM_sqrtf(SQ(this->actor.world.pos.x - this->actor.home.pos.x) +
               SQ(this->actor.world.pos.z - this->actor.home.pos.z)) < (((BREG(53) * 0.1f) + 0.5f) * this->unk_2C8)) {
         this->unk_206 = 3;
         this->actionFunc = func_80A32A40;
@@ -372,7 +372,7 @@ void func_80A32B20(EnPr* this, PlayState* play) {
         this->skelAnime.playSpeed = 1.0f;
         this->actor.speed = 1.0f;
         func_80A32854(this);
-    } else if (this->unk_2C8 < sqrtf(SQ(player->actor.world.pos.x - this->actor.home.pos.x) +
+    } else if (this->unk_2C8 < MM_sqrtf(SQ(player->actor.world.pos.x - this->actor.home.pos.x) +
                                      SQ(player->actor.world.pos.z - this->actor.home.pos.z))) {
         this->skelAnime.playSpeed = 1.0f;
         this->actor.speed = 1.0f;
@@ -404,7 +404,7 @@ void func_80A32D28(EnPr* this, PlayState* play) {
         func_80A325E4(this);
         this->unk_2B8 = D_80A338C0[GET_PLAYER_FORM] + player->actor.world.pos.y;
         func_80A324E0(this, play);
-        if (this->unk_2C8 < sqrtf(SQ(player->actor.world.pos.x - this->actor.home.pos.x) +
+        if (this->unk_2C8 < MM_sqrtf(SQ(player->actor.world.pos.x - this->actor.home.pos.x) +
                                   SQ(player->actor.world.pos.z - this->actor.home.pos.z))) {
             this->skelAnime.playSpeed = 1.0f;
             this->actor.speed = 1.0f;

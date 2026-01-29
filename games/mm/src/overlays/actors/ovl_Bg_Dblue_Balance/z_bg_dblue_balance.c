@@ -660,10 +660,10 @@ void BgDblueBalance_Draw(Actor* thisx, PlayState* play) {
 
         gfx = POLY_XLU_DISP;
 
-        gSPDisplayList(gfx++, gSetupDLs[SETUPDL_25]);
+        MM_gSPDisplayList(gfx++, gSetupDLs[SETUPDL_25]);
         MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
         gDPSetEnvColor(gfx++, 0, 0, 0, this->unk_183);
-        gSPDisplayList(gfx++, gGreatBayTempleObjectSeesawSplashDL);
+        MM_gSPDisplayList(gfx++, gGreatBayTempleObjectSeesawSplashDL);
 
         POLY_XLU_DISP = gfx;
 
@@ -703,7 +703,7 @@ void func_80B83758(Actor* thisx, PlayState* play) {
 
             gfx = POLY_XLU_DISP;
 
-            gSPDisplayList(gfx++, gSetupDLs[SETUPDL_25]);
+            MM_gSPDisplayList(gfx++, gSetupDLs[SETUPDL_25]);
 
             for (i = 0, ptr = &this->unk_188[0]; i < ARRAY_COUNT(this->unk_188); i++, ptr++) {
                 if (ptr->unk_0E != 0) {
@@ -715,7 +715,7 @@ void func_80B83758(Actor* thisx, PlayState* play) {
                     temp = ptr->unk_0E * (f32)this->unk_183 * 0.003921569f;
                     gDPSetEnvColor(gfx++, 0, 0, 0, temp);
                     MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
-                    gSPDisplayList(gfx++, gGreatBayTempleObjectWaterwheelSplashDL);
+                    MM_gSPDisplayList(gfx++, gGreatBayTempleObjectWaterwheelSplashDL);
                 }
             }
 

@@ -68,7 +68,7 @@ s32 SysFlashrom_CheckFlashType(void) {
 }
 
 s32 SysFlashrom_InitFlash(void) {
-    osCreateMesgQueue(&sFlashromMesgQueue, sFlashromMesg, ARRAY_COUNT(sFlashromMesg));
+    MM_osCreateMesgQueue(&sFlashromMesgQueue, sFlashromMesg, ARRAY_COUNT(sFlashromMesg));
     osFlashInit();
     sFlashromIsInit = true;
     if (SysFlashrom_CheckFlashType() != 0) {
@@ -90,7 +90,7 @@ s32 SysFlashrom_ReadData(void* addr, u32 pageNum, u32 pageCount) {
     }
     osInvalDCache(addr, pageCount * FLASH_BLOCK_SIZE);
     osFlashReadArray(&msg, OS_MESG_PRI_NORMAL, pageNum, addr, pageCount, &sFlashromMesgQueue);
-    osRecvMesg(&sFlashromMesgQueue, NULL, OS_MESG_BLOCK);
+    MM_osRecvMesg(&sFlashromMesgQueue, NULL, OS_MESG_BLOCK);
     return 0;
 }
 
@@ -116,7 +116,7 @@ s32 SysFlashrom_ExecWrite(void* addr, u32 pageNum, u32 pageCount) {
     osWritebackDCache(addr, pageCount * FLASH_BLOCK_SIZE);
     for (i = 0; i < pageCount; i++) {
         osFlashWriteBuffer(&msg, OS_MESG_PRI_NORMAL, (u8*)addr + i * FLASH_BLOCK_SIZE, &sFlashromMesgQueue);
-        osRecvMesg(&sFlashromMesgQueue, NULL, OS_MESG_BLOCK);
+        MM_osRecvMesg(&sFlashromMesgQueue, NULL, OS_MESG_BLOCK);
         result = osFlashWriteArray(i + pageNum);
         if (result != 0) {
             return result;
@@ -211,12 +211,12 @@ void SysFlashrom_ThreadEntry(void* arg) {
     switch (req->requestType) {
         case FLASHROM_REQUEST_WRITE:
             req->response = SysFlashrom_WriteData(req->addr, req->pageNum, req->pageCount);
-            osSendMesg(&req->messageQueue, OS_MESG_32(req->response), OS_MESG_BLOCK);
+            MM_osSendMesg(&req->messageQueue, OS_MESG_32(req->response), OS_MESG_BLOCK);
             break;
 
         case FLASHROM_REQUEST_READ:
             req->response = SysFlashrom_ReadData(req->addr, req->pageNum, req->pageCount);
-            osSendMesg(&req->messageQueue, OS_MESG_32(req->response), OS_MESG_BLOCK);
+            MM_osSendMesg(&req->messageQueue, OS_MESG_32(req->response), OS_MESG_BLOCK);
             break;
     }
 }
@@ -233,12 +233,12 @@ void SysFlashrom_WriteDataAsync(u8* addr, u32 pageNum, u32 pageCount) {
         req->addr = addr;
         req->pageNum = pageNum;
         req->pageCount = pageCount;
-        osCreateMesgQueue(&req->messageQueue, sSysFlashromMsgBuf, ARRAY_COUNT(sSysFlashromMsgBuf));
+        MM_osCreateMesgQueue(&req->messageQueue, sSysFlashromMsgBuf, ARRAY_COUNT(sSysFlashromMsgBuf));
         MM_StackCheck_Init(&sSysFlashromStackInfo, sSysFlashromStack, STACK_TOP(sSysFlashromStack), 0, 0x100,
                         "sys_flashrom");
-        osCreateThread(&sSysFlashromThread, Z_THREAD_ID_FLASHROM, SysFlashrom_ThreadEntry, req,
+        MM_osCreateThread(&sSysFlashromThread, Z_THREAD_ID_FLASHROM, SysFlashrom_ThreadEntry, req,
                        STACK_TOP(sSysFlashromStack), Z_PRIORITY_FLASHROM);
-        osStartThread(&sSysFlashromThread);
+        MM_osStartThread(&sSysFlashromThread);
     }
 }
 
@@ -264,8 +264,8 @@ s32 SysFlashrom_AwaitResult(void) {
     if (!SysFlashrom_IsInit()) {
         return -1;
     }
-    osRecvMesg(&sFlashromRequest.messageQueue, NULL, OS_MESG_BLOCK);
-    osDestroyThread(&sSysFlashromThread);
+    MM_osRecvMesg(&sFlashromRequest.messageQueue, NULL, OS_MESG_BLOCK);
+    MM_osDestroyThread(&sSysFlashromThread);
     MM_StackCheck_Cleanup(&sSysFlashromStackInfo);
     return sFlashromRequest.response;
 }

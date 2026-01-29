@@ -164,10 +164,11 @@ def main():
         # Single directory mode
         src_dirs = [game_dir / "src" / args.dir]
     else:
-        # Process both src/ and enhancement layer
+        # Process src/, enhancement layer, and include/
         src_dirs = [
             game_dir / "src",
             game_dir / enhancement_dir,
+            game_dir / "include",
         ]
 
     src_dirs = [d for d in src_dirs if d.exists()]

@@ -1192,7 +1192,7 @@ void MM_EnOwl_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL37_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(MM_sEyeTextures[this->eyeTexIndex]));
 
     MM_SkelAnime_DrawFlexOpa(play, this->curSkelAnime->skeleton, this->curSkelAnime->jointTable,
                           this->curSkelAnime->dListCount, MM_EnOwl_OverrideLimbDraw, EnOwl_PostLimbDraw, &this->actor);
@@ -1215,7 +1215,7 @@ void func_8095D074(Actor* thisx, PlayState* play) {
 
         gDPSetRenderMode(POLY_OPA_DISP++, G_RM_FOG_SHADE_A, G_RM_AA_ZB_TEX_EDGE2);
         gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 255);
-        gSPDisplayList(POLY_OPA_DISP++, gOwlFeatherDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gOwlFeatherDL);
     } else {
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
 
@@ -1223,7 +1223,7 @@ void func_8095D074(Actor* thisx, PlayState* play) {
 
         gDPSetRenderMode(POLY_XLU_DISP++, G_RM_FOG_SHADE_A, G_RM_AA_XLU_SURF2);
         gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 0, (u8)(this->unk_3DC * 8));
-        gSPDisplayList(POLY_XLU_DISP++, gOwlFeatherDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gOwlFeatherDL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

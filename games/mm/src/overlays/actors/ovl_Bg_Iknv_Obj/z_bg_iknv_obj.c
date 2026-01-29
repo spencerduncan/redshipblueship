@@ -212,7 +212,7 @@ void BgIknvObj_Draw(Actor* thisx, PlayState* play) {
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, this->displayListPtr);
+    MM_gSPDisplayList(POLY_OPA_DISP++, this->displayListPtr);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

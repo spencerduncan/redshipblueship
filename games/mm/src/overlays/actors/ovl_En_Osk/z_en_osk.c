@@ -597,7 +597,7 @@ void EnOsk_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Gfx_PrimColor(play->state.gfxCtx, 0x80, 255, 255, 255, 255));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Gfx_PrimColor(play->state.gfxCtx, 0x80, 255, 255, 255, 255));
 
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount, NULL,
                           EnOsk_PostLimbDraw, &this->actor);
@@ -630,10 +630,10 @@ void EnOsk_Draw(Actor* thisx, PlayState* play) {
 
     gDPSetDither(gfx++, G_CD_NOISE);
     gDPSetCombineLERP(gfx++, 0, 0, 0, PRIMITIVE, TEXEL0, 0, PRIMITIVE, 0, 0, 0, 0, PRIMITIVE, TEXEL0, 0, PRIMITIVE, 0);
-    gSPDisplayList(gfx++, gameplay_keep_DL_029CB0);
+    MM_gSPDisplayList(gfx++, gameplay_keep_DL_029CB0);
     gDPSetPrimColor(gfx++, 0, 0, 130, 0, 255, 100);
     MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
-    gSPDisplayList(gfx++, gameplay_keep_DL_029CF0);
+    MM_gSPDisplayList(gfx++, gameplay_keep_DL_029CF0);
 
     POLY_XLU_DISP = gfx;
 

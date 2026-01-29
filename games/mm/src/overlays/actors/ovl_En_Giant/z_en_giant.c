@@ -516,7 +516,7 @@ void EnGiant_PostLimbDrawOpa(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s*
     if (limbIndex == GIANT_LIMB_HEAD) {
         OPEN_DISPS(play->state.gfxCtx);
 
-        gSPDisplayList(POLY_OPA_DISP++, gGiantBeardDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gGiantBeardDL);
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -540,7 +540,7 @@ void EnGiant_Draw(Actor* thisx, PlayState* play) {
 
         if (this->alpha >= 255) {
             Gfx_SetupDL25_Opa(play->state.gfxCtx);
-            gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sFaceTextures[this->faceIndex]));
+            MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sFaceTextures[this->faceIndex]));
             gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 255);
             Scene_SetRenderModeXlu(play, 0, 1);
             MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
@@ -553,14 +553,14 @@ void EnGiant_Draw(Actor* thisx, PlayState* play) {
                 Gfx_SetupDL72(POLY_XLU_DISP++);
                 Scene_SetRenderModeXlu(play, 1, 2);
             }
-            gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(sFaceTextures[this->faceIndex]));
+            MM_gSPSegment(POLY_XLU_DISP++, 0x08, Lib_SegmentedToVirtual(sFaceTextures[this->faceIndex]));
             gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 0, this->alpha);
             POLY_XLU_DISP =
                 MM_SkelAnime_DrawFlex(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                    this->skelAnime.dListCount, NULL, EnGiant_PostLimbDrawXlu, thisx, POLY_XLU_DISP);
             MM_Matrix_Mult(&this->headDrawMtxF, MTXMODE_NEW);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gGiantBeardDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gGiantBeardDL);
         }
 
         CLOSE_DISPS(play->state.gfxCtx);

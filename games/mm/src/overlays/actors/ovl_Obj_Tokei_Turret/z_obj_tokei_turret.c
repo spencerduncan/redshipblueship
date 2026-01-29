@@ -70,9 +70,9 @@ void ObjTokeiTurret_Draw(Actor* thisx, PlayState* play) {
         OPEN_DISPS(play->state.gfxCtx);
 
         gfx = POLY_OPA_DISP;
-        gSPDisplayList(gfx++, gSetupDLs[SETUPDL_25]);
+        MM_gSPDisplayList(gfx++, gSetupDLs[SETUPDL_25]);
         MATRIX_FINALIZE_AND_LOAD(gfx++, play->state.gfxCtx);
-        gSPDisplayList(gfx++, gClockTownTurretPlatformTopDL);
+        MM_gSPDisplayList(gfx++, gClockTownTurretPlatformTopDL);
         POLY_OPA_DISP = gfx;
 
         CLOSE_DISPS(play->state.gfxCtx);

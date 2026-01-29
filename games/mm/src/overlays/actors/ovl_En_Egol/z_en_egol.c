@@ -403,12 +403,12 @@ void EnEgol_DestroyBlocks(EnEgol* this, PlayState* play, Vec3f pos1, Vec3f pos2)
             blockTo2.y = pos2.y - prop->world.pos.y;
             blockTo2.z = pos2.z - prop->world.pos.z;
 
-            dist1 = sqrtf(SQXZ(blockTo1));
-            dist2 = sqrtf(SQXZ(blockTo2));
+            dist1 = MM_sqrtf(SQXZ(blockTo1));
+            dist2 = MM_sqrtf(SQXZ(blockTo2));
 
             if ((dist1 < 40.0f) || (dist2 < 40.0f)) {
-                dist1 = sqrtf(SQ(blockTo1.y));
-                dist2 = sqrtf(SQ(blockTo2.y));
+                dist1 = MM_sqrtf(SQ(blockTo1.y));
+                dist2 = MM_sqrtf(SQ(blockTo2.y));
                 if ((dist1 < 40.0f) || (dist2 < 40.0f)) {
                     prop->colChkInfo.health = 0;
                     Actor_PlaySfx(&this->actor, NA_SE_EV_WALL_BROKEN);
@@ -599,7 +599,7 @@ void EnEgol_Walk(EnEgol* this, PlayState* play) {
             f32 dx = this->actor.world.pos.x - this->waypointPos.x;
             f32 dz = this->actor.world.pos.z - this->waypointPos.z;
 
-            if (sqrtf(SQ(dx) + SQ(dz)) < 4.0f) {
+            if (MM_sqrtf(SQ(dx) + SQ(dz)) < 4.0f) {
                 if (this->path != NULL) {
                     this->waypoint++;
                     if (this->waypoint >= this->path->count) {
@@ -662,7 +662,7 @@ void EnEgol_Retreat(EnEgol* this, PlayState* play) {
     EnEgol_FootstepEffects(this, play, 5.0f, 0.0f);
     toWaypoint.x = this->actor.world.pos.x - this->waypointPos.x;
     toWaypoint.z = this->actor.world.pos.z - this->waypointPos.z;
-    if (sqrtf(SQXZ(toWaypoint)) < 4.0f) {
+    if (MM_sqrtf(SQXZ(toWaypoint)) < 4.0f) {
         this->waypoint--;
         if (this->waypoint < 0) {
             this->waypoint = 0;
@@ -791,7 +791,7 @@ void EnEgol_Laser(EnEgol* this, PlayState* play) {
                 /*! @bug The following is supposed to calculate the rotation from vertical to the collision poly normal.
                  * However, the calculation is performed incorrectly. The correct calculation is
                  * rotToNorm.x = MM_Math_FAtan2F(nz, ny) * 0x8000 / M_PI;
-                 * rotToNorm.z = MM_Math_FAtan2F(-nx, sqrtf(1.0f - SQ(nx))) * 0x8000 / M_PI;
+                 * rotToNorm.z = MM_Math_FAtan2F(-nx, MM_sqrtf(1.0f - SQ(nx))) * 0x8000 / M_PI;
                  */
                 rotToNorm.x = RAD_TO_BINANG_ALT2(-MM_Math_FAtan2F(-nz * ny, 1.0f));
                 rotToNorm.z = RAD_TO_BINANG_ALT2(MM_Math_FAtan2F(-nx * ny, 1.0f));
@@ -1374,7 +1374,7 @@ s32 EnEgol_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* 
         gDPSetPrimColor(POLY_OPA_DISP++, 0, 0xFF, (u8)this->eyePrimColor.r, (u8)this->eyePrimColor.g,
                         (u8)this->eyePrimColor.b, 255);
         gDPSetEnvColor(POLY_OPA_DISP++, (u8)this->eyeEnvColor.r, (u8)this->eyeEnvColor.g, (u8)this->eyeEnvColor.b, 255);
-        gSPSegment(POLY_OPA_DISP++, 0x09, func_8012CB28(play->state.gfxCtx, 0, this->texScroll));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x09, func_8012CB28(play->state.gfxCtx, 0, this->texScroll));
 
         CLOSE_DISPS(play->state.gfxCtx);
     }
@@ -1493,18 +1493,18 @@ void EnEgol_Draw(Actor* thisx, PlayState* play2) {
     }
     if (this->laserState >= EYEGORE_LASER_FIRE) {
         this->laserRot.y = this->actor.world.rot.y;
-        gSPSegment(POLY_OPA_DISP++, 0x08, func_8012CB28(play->state.gfxCtx, 0, this->texScroll));
+        MM_gSPSegment(POLY_OPA_DISP++, 0x08, func_8012CB28(play->state.gfxCtx, 0, this->texScroll));
         gDPPipeSync(POLY_OPA_DISP++);
         gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, 255);
         MM_Matrix_Translate(this->laserBase.x, this->laserBase.y, this->laserBase.z, MTXMODE_NEW);
         MM_Matrix_RotateZYX(this->laserRot.x, this->laserRot.y, 0, MTXMODE_APPLY);
         MM_Matrix_Scale(this->laserScale.x, this->laserScale.y, this->laserScale.z, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gEyegoreLaserDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gEyegoreLaserDL);
     }
     if (((this->action == EYEGORE_ACTION_LASER) && (this->laserState >= EYEGORE_LASER_FIRE)) || this->chargingLaser) {
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbMaterial1DL);
         if (!this->chargingLaser) {
             s32 i;
             f32 laserLightScaleMod;
@@ -1524,7 +1524,7 @@ void EnEgol_Draw(Actor* thisx, PlayState* play2) {
                 gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, sLightOrbColors[i].r, sLightOrbColors[i].g, sLightOrbColors[i].b,
                                 laserLightAlpha);
                 MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-                gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
+                MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
                 MM_Matrix_Pop();
                 laserLightScaleMod = 3.0f;
                 laserLightAlpha = 200.0f;
@@ -1540,7 +1540,7 @@ void EnEgol_Draw(Actor* thisx, PlayState* play2) {
             Matrix_RotateZS(this->chargeLightRot, MTXMODE_APPLY);
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, 255);
             MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-            gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
+            MM_gSPDisplayList(POLY_XLU_DISP++, gLightOrbModelDL);
             MM_Matrix_Pop();
         }
     }
@@ -1646,7 +1646,7 @@ void EnEgol_DrawEffects(EnEgol* this, PlayState* play) {
                     MM_Matrix_Translate(0.0f, 50.0f, 0.0f, MTXMODE_APPLY);
                     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, gfxCtx);
                     gDPSetEnvColor(POLY_OPA_DISP++, 255, 255, 255, effect->alpha);
-                    gSPDisplayList(POLY_OPA_DISP++, gEyegoreEffectImpactDL);
+                    MM_gSPDisplayList(POLY_OPA_DISP++, gEyegoreEffectImpactDL);
                     break;
 
                 case EYEGORE_EFFECT_PIECE_LARGE:
@@ -1656,9 +1656,9 @@ void EnEgol_DrawEffects(EnEgol* this, PlayState* play) {
                     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, gfxCtx);
                     gDPSetEnvColor(POLY_OPA_DISP++, 255, 255, 255, effect->alpha);
                     if (effect->type == EYEGORE_EFFECT_PIECE_LARGE) {
-                        gSPDisplayList(POLY_OPA_DISP++, gEyegoreEffectLargeBodyPieceDL);
+                        MM_gSPDisplayList(POLY_OPA_DISP++, gEyegoreEffectLargeBodyPieceDL);
                     } else {
-                        gSPDisplayList(POLY_OPA_DISP++, gEyegoreEffectSmallBodyPieceDL);
+                        MM_gSPDisplayList(POLY_OPA_DISP++, gEyegoreEffectSmallBodyPieceDL);
                     }
                     break;
 
@@ -1667,7 +1667,7 @@ void EnEgol_DrawEffects(EnEgol* this, PlayState* play) {
                     gDPSetPrimColor(POLY_OPA_DISP++, 0, 0x80, 255, 255, 255, 255);
                     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, gfxCtx);
                     gDPSetEnvColor(POLY_OPA_DISP++, 255, 255, 255, 255);
-                    gSPDisplayList(POLY_OPA_DISP++, gEyegoreEffectSolidDebrisDL);
+                    MM_gSPDisplayList(POLY_OPA_DISP++, gEyegoreEffectSolidDebrisDL);
                     break;
 
                 default:

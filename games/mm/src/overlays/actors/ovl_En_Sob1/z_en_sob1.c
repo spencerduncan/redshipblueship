@@ -1666,7 +1666,7 @@ void EnSob1_BombShopkeeper_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dL
 
     if (limbIndex == BOMB_SHOPKEEPER_LIMB_LEFT_HAND) {
         if (GameInteractor_Should(VB_DRAW_ITEM_FROM_SOB1, true, thisx)) {
-            gSPDisplayList(POLY_OPA_DISP++, gBombShopkeeperBombDL);
+            MM_gSPDisplayList(POLY_OPA_DISP++, gBombShopkeeperBombDL);
         }
     }
 
@@ -1692,8 +1692,8 @@ void EnSob1_ZoraShopkeeper_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, 255);
-    gSPSegment(POLY_OPA_DISP++, 0x0C, EnSob1_EndDList(play->state.gfxCtx));
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sZoraShopkeeperEyeTextures[this->eyeTexIndex]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x0C, EnSob1_EndDList(play->state.gfxCtx));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sZoraShopkeeperEyeTextures[this->eyeTexIndex]));
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnSob1_ZoraShopkeeper_OverrideLimbDraw, NULL, &this->actor);
     for (i = 0; i < ARRAY_COUNT(this->items); i++) {
@@ -1716,7 +1716,7 @@ void EnSob1_GoronShopkeeper_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sGoronShopkeeperEyeTextures[this->eyeTexIndex]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sGoronShopkeeperEyeTextures[this->eyeTexIndex]));
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount, NULL,
                           NULL, &this->actor);
     for (i = 0; i < ARRAY_COUNT(this->items); i++) {
@@ -1739,7 +1739,7 @@ void EnSob1_BombShopkeeper_Draw(Actor* thisx, PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(gBombShopkeeperEyeTex));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(gBombShopkeeperEyeTex));
     MM_SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
                           EnSob1_BombShopkeeper_OverrideLimbDraw, EnSob1_BombShopkeeper_PostLimbDraw, &this->actor);
     for (i = 0; i < ARRAY_COUNT(this->items); i++) {
@@ -1754,7 +1754,7 @@ void EnSob1_BombShopkeeper_Draw(Actor* thisx, PlayState* play) {
     MM_Matrix_ReplaceRotation(&play->billboardMtxF);
     MM_Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPSegment(POLY_XLU_DISP++, 0x08,
+    MM_gSPSegment(POLY_XLU_DISP++, 0x08,
                MM_Gfx_TwoTexScroll(play->state.gfxCtx, 0, 0, 0, 32, 64, 1, 0, -frames * 20, 32, 128));
     gDPSetPrimColor(POLY_XLU_DISP++, 128, 128, 255, 255, 0, 255);
     gDPSetEnvColor(POLY_XLU_DISP++, 255, 0, 0, 0);

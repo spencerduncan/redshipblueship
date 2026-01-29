@@ -135,10 +135,10 @@ void ObjWind_Update(Actor* thisx, PlayState* play) {
                 windSpeedX = (line.dir.x * windMagnitude) + (sp54.x * temp_ft0);
                 windSpeedY = (line.dir.y * windMagnitude) + (sp54.y * temp_ft0);
                 windSpeedZ = (line.dir.z * windMagnitude) + (sp54.z * temp_ft0);
-                player->windSpeed = sqrtf(SQ(windSpeedX) + SQ(windSpeedY) + SQ(windSpeedZ));
+                player->windSpeed = MM_sqrtf(SQ(windSpeedX) + SQ(windSpeedY) + SQ(windSpeedZ));
                 player->windAngleY = Math_Atan2S_XY(windSpeedZ, windSpeedX);
 
-                windSpeedXZ = sqrtf(SQ(windSpeedX) + SQ(windSpeedZ));
+                windSpeedXZ = MM_sqrtf(SQ(windSpeedX) + SQ(windSpeedZ));
                 player->windAngleX = Math_Atan2S_XY(windSpeedXZ, windSpeedY);
             }
         }
@@ -156,7 +156,7 @@ void ObjWind_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Xlu(play->state.gfxCtx);
     AnimatedMat_Draw(play, Lib_SegmentedToVirtual(&gameplay_keep_Matanimheader_07F218));
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_XLU_DISP++, gameplay_keep_DL_07E8C0);
+    MM_gSPDisplayList(POLY_XLU_DISP++, gameplay_keep_DL_07E8C0);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

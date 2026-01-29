@@ -1194,8 +1194,8 @@ void DmChar08_Draw(Actor* thisx, PlayState* play) {
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sBigTurtleEyeTextures[this->eyeIndex]));
-    gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(sBigTurtleEyeTextures[this->eyeIndex]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x08, Lib_SegmentedToVirtual(sBigTurtleEyeTextures[this->eyeIndex]));
+    MM_gSPSegment(POLY_OPA_DISP++, 0x09, Lib_SegmentedToVirtual(sBigTurtleEyeTextures[this->eyeIndex]));
     if ((this->unk_1FF > 0) || (play->csCtx.state != CS_STATE_IDLE)) {
         SkelAnime_DrawTransformFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable,
                                        this->skelAnime.dListCount, DmChar08_OverrideLimbDraw, DmChar08_PostLimbDraw,
@@ -1210,13 +1210,13 @@ void DmChar08_Draw(Actor* thisx, PlayState* play) {
     if (this->unk_1FF == 0) {
         Scene_SetRenderModeXlu(play, 0, 1);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, gTurtleAsleepDL);
+        MM_gSPDisplayList(POLY_OPA_DISP++, gTurtleAsleepDL);
     } else if (this->unk_1FF == 1) {
         Gfx_SetupDL25_Xlu(play->state.gfxCtx);
         Scene_SetRenderModeXlu(play, 2, 2);
         gDPSetEnvColor(POLY_XLU_DISP++, 0, 0, 0, this->alpha);
         MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx);
-        gSPDisplayList(POLY_XLU_DISP++, gTurtleAsleepDL);
+        MM_gSPDisplayList(POLY_XLU_DISP++, gTurtleAsleepDL);
     }
 
     CLOSE_DISPS(play->state.gfxCtx);

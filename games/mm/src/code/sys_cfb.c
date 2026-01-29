@@ -58,7 +58,7 @@ void SysCfb_SetLoResMode(void) {
     gSysCfbHiResEnabled = false;
     MM_gScreenWidth = gCfbWidth;
     MM_gScreenHeight = gCfbHeight;
-    // gActiveViMode = &osViModeNtscLan1;
+    // gActiveViMode = &MM_osViModeNtscLan1;
 
     // 2S2H [Port] Inform LUS on resolution changes
     GfxSetNativeDimensions((uint32_t)MM_gScreenWidth, (uint32_t)MM_gScreenHeight);
@@ -86,7 +86,7 @@ void SysCfb_SetHiResMode(void) {
 
         rightAdjust = gCfbWidth - 610;
         lowerAdjust = gCfbHeight - 470;
-        MM_ViMode_Configure(&sNotebookViMode, -1, osTvType, 0, 1, 0, 1, gCfbWidth, gCfbHeight, 30, rightAdjust, 10,
+        MM_ViMode_Configure(&sNotebookViMode, -1, MM_osTvType, 0, 1, 0, 1, gCfbWidth, gCfbHeight, 30, rightAdjust, 10,
                          lowerAdjust);
         gActiveViMode = &sNotebookViMode;
     }

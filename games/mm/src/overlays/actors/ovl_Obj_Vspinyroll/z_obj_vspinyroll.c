@@ -443,12 +443,12 @@ void func_80A3D2C0(Actor* thisx, PlayState* play) {
     MM_Matrix_Scale(0.1f, 0.1f, 0.1f, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, object_spinyroll_DL_000460);
+    MM_gSPDisplayList(POLY_OPA_DISP++, object_spinyroll_DL_000460);
 
     func_80A3CC84(120.0f);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
-    gSPDisplayList(POLY_OPA_DISP++, object_spinyroll_DL_000460);
+    MM_gSPDisplayList(POLY_OPA_DISP++, object_spinyroll_DL_000460);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

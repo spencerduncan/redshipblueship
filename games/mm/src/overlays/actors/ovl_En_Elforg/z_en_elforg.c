@@ -220,7 +220,7 @@ void EnElforg_MoveToTargetFairyFountain(EnElforg* this, Vec3f* homePos) {
     xDifference = this->actor.world.pos.x - homePos->x;
     zDifference = this->actor.world.pos.z - homePos->z;
     targetAngle = Math_Atan2S_XY(-zDifference, -xDifference);
-    xzDistance = sqrtf(SQ(xDifference) + SQ(zDifference));
+    xzDistance = MM_sqrtf(SQ(xDifference) + SQ(zDifference));
 
     if ((this->targetDistanceFromHome + 10.0f) < xzDistance) {
         angleAdjustment = 0x1000;
