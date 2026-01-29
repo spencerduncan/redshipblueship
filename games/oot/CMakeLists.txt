@@ -127,6 +127,10 @@ source_group("include" FILES ${Header_Files__include})
 file(GLOB_RECURSE soh__ RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "soh/*.c" "soh/*.cpp" "soh/*.h" "soh/*.hpp")
 # Collect Enhancements separately (will be soh_enh lib)
 file(GLOB_RECURSE soh__Enhancements RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "soh/Enhancements/*.c" "soh/Enhancements/*.cpp" "soh/Enhancements/*.h" "soh/Enhancements/*.hpp")
+# Collect randomizer separately (will be soh_rando lib) - it's 5.9MB source and causes soh_enh to exceed 4GB
+file(GLOB_RECURSE soh__Randomizer RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "soh/Enhancements/randomizer/*.c" "soh/Enhancements/randomizer/*.cpp" "soh/Enhancements/randomizer/*.h" "soh/Enhancements/randomizer/*.hpp")
+# Remove randomizer from soh__Enhancements
+list(FILTER soh__Enhancements EXCLUDE REGEX "soh/Enhancements/randomizer/.*")
 # Remove Enhancements from soh__ (will be soh_port lib)
 list(FILTER soh__ EXCLUDE REGEX "soh/Enhancements/.*")
 
@@ -242,17 +246,18 @@ list(APPEND ALL_FILES "${CMAKE_CURRENT_SOURCE_DIR}/soh/GameExports.cpp")
 # Target - OBJECT libraries for single-exe, SHARED for dynamic loading
 ################################################################################
 if(SINGLE_EXECUTABLE_BUILD)
-    # Split into three STATIC libraries to avoid:
+    # Split into four STATIC libraries to avoid:
     # - MSVC LNK1170: response file line >131K chars with 2500+ .obj paths
-    # - MSVC LNK1248: COFF .lib archive >4GB (soh/ alone was 4.02GB)
-    # Split: src/, soh/ (w/o Enhancements), soh/Enhancements/
+    # - MSVC LNK1248: COFF .lib archive >4GB (soh_enh exceeded 4GB with randomizer)
+    # Split: src/, soh/ (w/o Enhancements), soh/Enhancements/ (w/o randomizer), randomizer/
     add_library(soh_src STATIC ${src__} ${Header_Files} ${Header_Files__include})
     add_library(soh_port STATIC
         ${soh__} ${soh__Extractor}
         "${CMAKE_CURRENT_SOURCE_DIR}/soh/GameExports_SingleExe.cpp"
     )
     add_library(soh_enh STATIC ${soh__Enhancements})
-    set(SOH_COMPILE_TARGETS soh_src soh_port soh_enh)
+    add_library(soh_rando STATIC ${soh__Randomizer})
+    set(SOH_COMPILE_TARGETS soh_src soh_port soh_enh soh_rando)
     foreach(_t ${SOH_COMPILE_TARGETS})
         target_compile_definitions(${_t} PRIVATE RSBS_SINGLE_EXECUTABLE)
     endforeach()
@@ -263,7 +268,7 @@ if(SINGLE_EXECUTABLE_BUILD)
     endforeach()
 
     # Export static targets for root CMakeLists to link into redship
-    set(SOH_STATIC_TARGETS soh_src soh_port soh_enh PARENT_SCOPE)
+    set(SOH_STATIC_TARGETS soh_src soh_port soh_enh soh_rando PARENT_SCOPE)
 else()
     # Build as SHARED library for dynamic loading
     add_library(${PROJECT_NAME} SHARED ${ALL_FILES})
