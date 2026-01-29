@@ -164,6 +164,7 @@ extern "C" {
 uint64_t GetUnixTimestamp();
 void CrashHandler_PrintExt(char* buffer, size_t* pos);
 uint64_t MM_osGetTime(void);
+int MM_sprintf(char* dst, const char* fmt, ...);
 #ifdef __cplusplus
 };
 #endif
