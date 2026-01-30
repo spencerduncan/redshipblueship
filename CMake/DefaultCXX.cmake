@@ -8,9 +8,10 @@ if(MSVC)
 
     set_target_properties("${PROPS_TARGET}" PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
     set_config_specific_property("DEFAULT_CXX_EXCEPTION_HANDLING" "/EHsc")
+    # Only set debug info for Debug builds - Release without debug info avoids 4GB COFF limit
     if (CMAKE_C_COMPILER_LAUNCHER MATCHES "ccache|sccache")
-        set_config_specific_property("DEFAULT_CXX_DEBUG_INFORMATION_FORMAT" "/Z7")
+        set_config_specific_property("DEFAULT_CXX_DEBUG_INFORMATION_FORMAT" "$<$<CONFIG:Debug>:/Z7>")
     else()
-        set_config_specific_property("DEFAULT_CXX_DEBUG_INFORMATION_FORMAT" "/Zi")
+        set_config_specific_property("DEFAULT_CXX_DEBUG_INFORMATION_FORMAT" "$<$<CONFIG:Debug>:/Zi>")
     endif()
 endif()
