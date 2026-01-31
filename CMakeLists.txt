@@ -239,6 +239,12 @@ if(SINGLE_EXECUTABLE_BUILD)
             -Wl,--end-group
         )
     else()
+        # Windows: Use /FORCE:MULTIPLE to handle duplicate symbols from
+        # ZAPDLib_OoT and ZAPDLib_MM both bringing in OTRExporter variants.
+        # This is needed for ROM extraction at first launch.
+        if(MSVC)
+            target_link_options(redship PRIVATE /FORCE:MULTIPLE)
+        endif()
         target_link_libraries(redship PRIVATE
             ${SOH_STATIC_TARGETS} ${TWOSHIP_STATIC_TARGETS}
             ${REDSHIP_LIBRARY_DEPS}

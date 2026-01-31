@@ -118,16 +118,15 @@ endif()
 # Store them in a variable for the root CMakeLists.txt to use.
 #
 # NOTE: ZAPDLib links OTRExporter with --whole-archive as a PUBLIC dependency.
-# For single-exe builds, we only need ONE ZAPDLib variant because:
-# 1. OTRExporter is only used for asset extraction, not runtime
-# 2. Both ZAPDLib variants would bring duplicate OTRExporter symbols (LNK2005)
-# 3. The ZAPDLib code is identical between variants at link time
+# This creates circular deps that require both variants on Linux for proper
+# symbol resolution. On Windows, this causes duplicate symbols (LNK2005) which
+# we handle with /FORCE:MULTIPLE.
 set(REDSHIP_LIBRARY_DEPS
     redship_common
     rsbs
     libultraship
     ZAPDLib_OoT
-    OTRExporter_OoT
+    ZAPDLib_MM
     Ogg::ogg
     Vorbis::vorbis
     Vorbis::vorbisfile
