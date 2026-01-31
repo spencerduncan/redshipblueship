@@ -122,10 +122,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set_source_files_properties(2s2h/BenPort.cpp PROPERTIES COMPILE_FLAGS "/utf-8")
 endif()
 
-# Exclude GameExports.cpp unless building as shared library (added conditionally later)
-if(NOT REDSHIP_BUILD_SHARED)
-    list(FILTER ship__ EXCLUDE REGEX "2s2h/GameExports\\.cpp")
-endif()
+# Note: GameExports.cpp was removed - single-exe uses GameExports_SingleExe.cpp instead
 
 list(FILTER ship__ EXCLUDE REGEX "2s2h/Extractor/*")
 
@@ -190,8 +187,7 @@ set(ALL_FILES
     ${src__}
 )
 
-# Add GameExports.cpp for shared library interface
-list(APPEND ALL_FILES "${CMAKE_CURRENT_SOURCE_DIR}/2s2h/GameExports.cpp")
+# Note: GameExports.cpp removed - single-exe uses GameExports_SingleExe.cpp
 
 ################################################################################
 # Target - OBJECT library for single-exe, SHARED for dynamic loading
