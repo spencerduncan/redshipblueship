@@ -15,6 +15,7 @@ set(SPDLOG_MIN_CUTOFF SPDLOG_LEVEL_TRACE CACHE STRING "cutoff at trace")
 
 option(SUPPRESS_WARNINGS "Suppress warnings in LUS and src (decomp)" ON)
 option(SINGLE_EXECUTABLE_BUILD "Build single redship executable (replaces dynamic library loading)" ON)
+option(USE_LLD_LINKER "Use LLVM's lld-link instead of MSVC linker (faster linking)" OFF)
 
 # Always enable position-independent code - required for shared library builds
 # This repo is specifically for the unified combo project (shared libraries only)
@@ -35,6 +36,25 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
             set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT Embedded)
         else()
             set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "")
+        endif()
+    endif()
+
+    # Use LLVM's lld-link for faster linking (2-5x faster than MSVC linker)
+    # Requires LLVM to be installed (e.g., via 'choco install llvm')
+    # lld-link supports /FORCE:MULTIPLE needed for single-exe builds
+    if(USE_LLD_LINKER)
+        find_program(LLD_LINK_EXECUTABLE lld-link
+            HINTS
+                "$ENV{LLVM_PATH}/bin"
+                "C:/Program Files/LLVM/bin"
+            PATHS
+                "$ENV{ProgramFiles}/LLVM/bin"
+        )
+        if(LLD_LINK_EXECUTABLE)
+            message(STATUS "Using lld-link for faster linking: ${LLD_LINK_EXECUTABLE}")
+            set(CMAKE_LINKER "${LLD_LINK_EXECUTABLE}" CACHE FILEPATH "Linker" FORCE)
+        else()
+            message(WARNING "USE_LLD_LINKER enabled but lld-link not found. Install LLVM or set LLVM_PATH.")
         endif()
     endif()
 endif()
